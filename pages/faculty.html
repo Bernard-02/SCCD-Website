@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Faculty - SCCD</title>
+  <link rel="stylesheet" href="../css/output.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="fixed top-0 left-0 right-0 bg-white border-b border-gray-4 z-50">
+    <div class="site-container">
+      <div class="grid-12 items-center py-md">
+        <!-- Logo/Site Title (Column 1-2) -->
+        <div class="col-span-2 relative">
+          <a href="../index.html" class="block absolute -top-4 left-0 z-50">
+            <img src="../images/sccd_black.png" alt="SCCD" class="w-[100px] h-[100px] object-contain">
+          </a>
+        </div>
+
+        <!-- Navigation Menu (Column 3-10) -->
+        <nav class="col-span-8">
+          <ul class="flex items-center justify-between">
+
+            <!-- About to Support Group -->
+            <li class="relative">
+              <a href="#" class="nav-link">About</a>
+            </li>
+
+            <li class="relative">
+              <a href="faculty.html" class="nav-link font-bold" style="transform: rotate(-3deg); display: inline-block;">
+                <span>Faculty</span>
+                <span>師資</span>
+              </a>
+            </li>
+
+            <!-- Activities (with mega menu) -->
+            <li class="group">
+              <a href="#" class="nav-link">Activities</a>
+              <div class="mega-menu group-hover:opacity-100 group-hover:visible">
+                <div class="site-container">
+                  <div class="grid-12">
+                    <!-- Content starts at column 3 (skip columns 1-2) -->
+                    <div class="col-start-3 col-span-10 py-lg">
+                      <div class="flex flex-col gap-xs">
+                        <a href="general-activities.html" class="submenu-link flex items-center gap-xs">
+                          <span>General Activities</span>
+                          <span>一般活動</span>
+                        </a>
+                        <a href="#" class="submenu-link flex items-center gap-xs">
+                          <span>Workshop</span>
+                          <span>工作營</span>
+                        </a>
+                        <a href="#" class="submenu-link flex items-center gap-xs">
+                          <span>Degree Show</span>
+                          <span>畢業展</span>
+                        </a>
+                        <a href="#" class="submenu-link flex items-center gap-xs">
+                          <span>Summer Camp</span>
+                          <span>暑期設計體驗營</span>
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </li>
+
+            <!-- Courses (with mega menu) -->
+            <li class="group">
+              <a href="#" class="nav-link">Courses</a>
+              <div class="mega-menu group-hover:opacity-100 group-hover:visible">
+                <div class="site-container">
+                  <div class="grid-12">
+                    <!-- Content starts at column 3 (skip columns 1-2) -->
+                    <div class="col-start-3 col-span-10 py-lg">
+                      <div class="flex flex-col gap-xs">
+                        <a href="bfa-courses.html" class="submenu-link flex items-center gap-xs">
+                          <span>BFA Courses</span>
+                          <span>學士班</span>
+                        </a>
+                        <a href="mdes-courses.html" class="submenu-link flex items-center gap-xs">
+                          <span>MDES Courses</span>
+                          <span>碩士班</span>
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </li>
+
+            <!-- Works (with mega menu) -->
+            <li class="group">
+              <a href="#" class="nav-link">Works</a>
+              <div class="mega-menu group-hover:opacity-100 group-hover:visible">
+                <div class="site-container">
+                  <div class="grid-12">
+                    <!-- Content starts at column 3 (skip columns 1-2) -->
+                    <div class="col-start-3 col-span-10 py-lg">
+                      <div class="flex flex-col gap-xs">
+                        <a href="#" class="submenu-link flex items-center gap-xs">
+                          <span>BFA Works</span>
+                          <span>學士班</span>
+                        </a>
+                        <a href="#" class="submenu-link flex items-center gap-xs">
+                          <span>MDES Works</span>
+                          <span>碩士班</span>
+                        </a>
+                        <a href="#" class="submenu-link flex items-center gap-xs">
+                          <span>Records</span>
+                          <span>榮譽</span>
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </li>
+
+            <li class="relative">
+              <a href="admission.html" class="nav-link">Admission</a>
+            </li>
+
+            <li class="relative">
+              <a href="support.html" class="nav-link">Support</a>
+            </li>
+
+          </ul>
+        </nav>
+
+        <!-- GENERATE! (Column 11-12) -->
+        <div class="col-span-2 flex justify-end">
+          <a href="#" class="nav-link">GENERATE!</a>
+        </div>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main>
+    <!-- Faculty Section with Background Image -->
+    <section class="h-screen relative overflow-hidden">
+      <!-- Background Image -->
+      <div class="absolute inset-0 w-full h-full">
+        <img src="../images/SCCD-1-4-0.jpg" alt="Faculty" class="w-full h-full object-cover">
+      </div>
+
+      <!-- Black Gradient Overlay (0% at top, 100% at bottom) -->
+      <div class="absolute inset-0 w-full h-full bg-gradient-to-b from-transparent to-black"></div>
+
+      <!-- Content Container -->
+      <div class="site-container h-full relative z-10">
+        <div class="h-full flex items-end gap-xl pb-2xl">
+          <!-- Title on the left (50%) with -4deg rotation -->
+          <div class="w-1/2">
+            <h1 class="text-white pb-xl" style="transform: rotate(-4deg);">FACULTY</h1>
+          </div>
+
+          <!-- Content on the right (50%) -->
+          <div class="w-1/2">
+            <!-- English text with 3deg rotation -->
+            <p class="text-white mb-xl" style="transform: rotate(3deg);">
+              Professors of SCCD are composed of cross-disciplinary experts from academia, design industry and art field. Possess a theoretical and research background in design and art education at domestic and foreign, rich and diverse performance and creative practical experience, and have In-depth understanding of the professional education goals of the department.
+            </p>
+            <!-- Chinese text with -2deg rotation -->
+            <p class="text-white" style="transform: rotate(-2deg);">
+              實踐大學媒體傳達設計學系專、兼任教師皆為學術界、設計業界與藝術領域專家等跨領域組成，具備國內外設計藝術教育理論研究背景、豐富多樣的展演與創作實務經歷，
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Faculty Cards Section -->
+    <section id="faculty-cards" class="bg-white py-6xl">
+      <div class="site-container">
+        <div class="flex gap-gutter">
+          <!-- Filter Buttons (Left side - fixed width) -->
+          <div style="flex: 0 0 calc(25% - 1.25rem);">
+            <div class="sticky top-[200px] flex flex-col gap-md">
+              <button class="faculty-filter-btn active text-left nav-link transition-colors duration-fast" data-filter="fulltime">
+                <span class="block">Full-time Professors</span>
+                <span class="block">專任教師</span>
+              </button>
+              <button class="faculty-filter-btn text-left nav-link transition-colors duration-fast" data-filter="parttime">
+                <span class="block">Part-time Professors</span>
+                <span class="block">兼任教師</span>
+              </button>
+              <button class="faculty-filter-btn text-left nav-link transition-colors duration-fast" data-filter="admin">
+                <span class="block">Administrators</span>
+                <span class="block">行政管理</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Faculty Cards (Right side - flexible width) -->
+          <div style="flex: 1;">
+            <div class="grid grid-cols-4 gap-x-xl gap-y-4xl">
+              <!-- Card 1 -->
+              <div class="faculty-card" data-category="fulltime">
+                <div class="faculty-card-image-wrapper mb-md" style="aspect-ratio: 4/5;">
+                  <img src="../images/S__6742028.jpg" alt="Ta-Lih Shieh" class="faculty-card-image" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+                <div class="text-left">
+                  <h5>Ta-Lih Shieh</h5>
+                  <h5>謝大立</h5>
+                  <p class="text-p1 mt-xs">Founder</p>
+                  <p class="text-p1">創辦人</p>
+                </div>
+              </div>
+
+              <!-- Card 2 -->
+              <div class="faculty-card" data-category="fulltime">
+                <div class="faculty-card-image-wrapper mb-md" style="aspect-ratio: 4/5;">
+                  <img src="../images/S__6742028.jpg" alt="Ta-Lih Shieh" class="faculty-card-image" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+                <div class="text-left">
+                  <h5>Ta-Lih Shieh</h5>
+                  <h5>謝大立</h5>
+                  <p class="text-p1 mt-xs">Founder</p>
+                  <p class="text-p1">創辦人</p>
+                </div>
+              </div>
+
+              <!-- Card 3 -->
+              <div class="faculty-card" data-category="fulltime">
+                <div class="faculty-card-image-wrapper mb-md" style="aspect-ratio: 4/5;">
+                  <img src="../images/S__6742028.jpg" alt="Ta-Lih Shieh" class="faculty-card-image" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+                <div class="text-left">
+                  <h5>Ta-Lih Shieh</h5>
+                  <h5>謝大立</h5>
+                  <p class="text-p1 mt-xs">Founder</p>
+                  <p class="text-p1">創辦人</p>
+                </div>
+              </div>
+
+              <!-- Card 4 -->
+              <div class="faculty-card" data-category="fulltime">
+                <div class="faculty-card-image-wrapper mb-md" style="aspect-ratio: 4/5;">
+                  <img src="../images/S__6742028.jpg" alt="Ta-Lih Shieh" class="faculty-card-image" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+                <div class="text-left">
+                  <h5>Ta-Lih Shieh</h5>
+                  <h5>謝大立</h5>
+                  <p class="text-p1 mt-xs">Founder</p>
+                  <p class="text-p1">創辦人</p>
+                </div>
+              </div>
+
+              <!-- Card 5 - Fulltime -->
+              <div class="faculty-card" data-category="fulltime">
+                <div class="faculty-card-image-wrapper mb-md" style="aspect-ratio: 4/5;">
+                  <img src="../images/S__6742028.jpg" alt="Ta-Lih Shieh" class="faculty-card-image" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+                <div class="text-left">
+                  <h5>Ta-Lih Shieh</h5>
+                  <h5>謝大立</h5>
+                  <p class="text-p1 mt-xs">Founder</p>
+                  <p class="text-p1">創辦人</p>
+                </div>
+              </div>
+
+              <!-- Card 6 - Fulltime -->
+              <div class="faculty-card" data-category="fulltime">
+                <div class="faculty-card-image-wrapper mb-md" style="aspect-ratio: 4/5;">
+                  <img src="../images/S__6742028.jpg" alt="Ta-Lih Shieh" class="faculty-card-image" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+                <div class="text-left">
+                  <h5>Ta-Lih Shieh</h5>
+                  <h5>謝大立</h5>
+                  <p class="text-p1 mt-xs">Founder</p>
+                  <p class="text-p1">創辦人</p>
+                </div>
+              </div>
+
+              <!-- Card 7 - Fulltime -->
+              <div class="faculty-card" data-category="fulltime">
+                <div class="faculty-card-image-wrapper mb-md" style="aspect-ratio: 4/5;">
+                  <img src="../images/S__6742028.jpg" alt="Ta-Lih Shieh" class="faculty-card-image" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+                <div class="text-left">
+                  <h5>Ta-Lih Shieh</h5>
+                  <h5>謝大立</h5>
+                  <p class="text-p1 mt-xs">Founder</p>
+                  <p class="text-p1">創辦人</p>
+                </div>
+              </div>
+
+              <!-- Card 8 - Fulltime -->
+              <div class="faculty-card" data-category="fulltime">
+                <div class="faculty-card-image-wrapper mb-md" style="aspect-ratio: 4/5;">
+                  <img src="../images/S__6742028.jpg" alt="Ta-Lih Shieh" class="faculty-card-image" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+                <div class="text-left">
+                  <h5>Ta-Lih Shieh</h5>
+                  <h5>謝大立</h5>
+                  <p class="text-p1 mt-xs">Founder</p>
+                  <p class="text-p1">創辦人</p>
+                </div>
+              </div>
+
+              <!-- Card 9 - Fulltime -->
+              <div class="faculty-card" data-category="fulltime">
+                <div class="faculty-card-image-wrapper mb-md" style="aspect-ratio: 4/5;">
+                  <img src="../images/S__6742028.jpg" alt="Ta-Lih Shieh" class="faculty-card-image" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+                <div class="text-left">
+                  <h5>Ta-Lih Shieh</h5>
+                  <h5>謝大立</h5>
+                  <p class="text-p1 mt-xs">Founder</p>
+                  <p class="text-p1">創辦人</p>
+                </div>
+              </div>
+
+              <!-- Card 10 - Fulltime -->
+              <div class="faculty-card" data-category="fulltime">
+                <div class="faculty-card-image-wrapper mb-md" style="aspect-ratio: 4/5;">
+                  <img src="../images/S__6742028.jpg" alt="Ta-Lih Shieh" class="faculty-card-image" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+                <div class="text-left">
+                  <h5>Ta-Lih Shieh</h5>
+                  <h5>謝大立</h5>
+                  <p class="text-p1 mt-xs">Founder</p>
+                  <p class="text-p1">創辦人</p>
+                </div>
+              </div>
+
+              <!-- Card 11 - Fulltime -->
+              <div class="faculty-card" data-category="fulltime">
+                <div class="faculty-card-image-wrapper mb-md" style="aspect-ratio: 4/5;">
+                  <img src="../images/S__6742028.jpg" alt="Ta-Lih Shieh" class="faculty-card-image" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+                <div class="text-left">
+                  <h5>Ta-Lih Shieh</h5>
+                  <h5>謝大立</h5>
+                  <p class="text-p1 mt-xs">Founder</p>
+                  <p class="text-p1">創辦人</p>
+                </div>
+              </div>
+
+              <!-- Card 12 - Fulltime -->
+              <div class="faculty-card" data-category="fulltime">
+                <div class="faculty-card-image-wrapper mb-md" style="aspect-ratio: 4/5;">
+                  <img src="../images/S__6742028.jpg" alt="Ta-Lih Shieh" class="faculty-card-image" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+                <div class="text-left">
+                  <h5>Ta-Lih Shieh</h5>
+                  <h5>謝大立</h5>
+                  <p class="text-p1 mt-xs">Founder</p>
+                  <p class="text-p1">創辦人</p>
+                </div>
+              </div>
+
+              <!-- Card 13 - Parttime -->
+              <div class="faculty-card" data-category="parttime">
+                <div class="faculty-card-image-wrapper mb-md" style="aspect-ratio: 4/5;">
+                  <img src="../images/S__6742028.jpg" alt="Ta-Lih Shieh" class="faculty-card-image" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+                <div class="text-left">
+                  <h5>Ta-Lih Shieh</h5>
+                  <h5>謝大立</h5>
+                  <p class="text-p1 mt-xs">Founder</p>
+                  <p class="text-p1">創辦人</p>
+                </div>
+              </div>
+
+              <!-- Card 14 - Parttime -->
+              <div class="faculty-card" data-category="parttime">
+                <div class="faculty-card-image-wrapper mb-md" style="aspect-ratio: 4/5;">
+                  <img src="../images/S__6742028.jpg" alt="Ta-Lih Shieh" class="faculty-card-image" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+                <div class="text-left">
+                  <h5>Ta-Lih Shieh</h5>
+                  <h5>謝大立</h5>
+                  <p class="text-p1 mt-xs">Founder</p>
+                  <p class="text-p1">創辦人</p>
+                </div>
+              </div>
+
+              <!-- Card 15 - Parttime -->
+              <div class="faculty-card" data-category="parttime">
+                <div class="faculty-card-image-wrapper mb-md" style="aspect-ratio: 4/5;">
+                  <img src="../images/S__6742028.jpg" alt="Ta-Lih Shieh" class="faculty-card-image" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+                <div class="text-left">
+                  <h5>Ta-Lih Shieh</h5>
+                  <h5>謝大立</h5>
+                  <p class="text-p1 mt-xs">Founder</p>
+                  <p class="text-p1">創辦人</p>
+                </div>
+              </div>
+
+              <!-- Card 16 - Parttime -->
+              <div class="faculty-card" data-category="parttime">
+                <div class="faculty-card-image-wrapper mb-md" style="aspect-ratio: 4/5;">
+                  <img src="../images/S__6742028.jpg" alt="Ta-Lih Shieh" class="faculty-card-image" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+                <div class="text-left">
+                  <h5>Ta-Lih Shieh</h5>
+                  <h5>謝大立</h5>
+                  <p class="text-p1 mt-xs">Founder</p>
+                  <p class="text-p1">創辦人</p>
+                </div>
+              </div>
+
+              <!-- Card 17 - Parttime -->
+              <div class="faculty-card" data-category="parttime">
+                <div class="faculty-card-image-wrapper mb-md" style="aspect-ratio: 4/5;">
+                  <img src="../images/S__6742028.jpg" alt="Ta-Lih Shieh" class="faculty-card-image" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+                <div class="text-left">
+                  <h5>Ta-Lih Shieh</h5>
+                  <h5>謝大立</h5>
+                  <p class="text-p1 mt-xs">Founder</p>
+                  <p class="text-p1">創辦人</p>
+                </div>
+              </div>
+
+              <!-- Card 18 - Parttime -->
+              <div class="faculty-card" data-category="parttime">
+                <div class="faculty-card-image-wrapper mb-md" style="aspect-ratio: 4/5;">
+                  <img src="../images/S__6742028.jpg" alt="Ta-Lih Shieh" class="faculty-card-image" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+                <div class="text-left">
+                  <h5>Ta-Lih Shieh</h5>
+                  <h5>謝大立</h5>
+                  <p class="text-p1 mt-xs">Founder</p>
+                  <p class="text-p1">創辦人</p>
+                </div>
+              </div>
+
+              <!-- Card 19 - Parttime -->
+              <div class="faculty-card" data-category="parttime">
+                <div class="faculty-card-image-wrapper mb-md" style="aspect-ratio: 4/5;">
+                  <img src="../images/S__6742028.jpg" alt="Ta-Lih Shieh" class="faculty-card-image" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+                <div class="text-left">
+                  <h5>Ta-Lih Shieh</h5>
+                  <h5>謝大立</h5>
+                  <p class="text-p1 mt-xs">Founder</p>
+                  <p class="text-p1">創辦人</p>
+                </div>
+              </div>
+
+              <!-- Card 20 - Parttime -->
+              <div class="faculty-card" data-category="parttime">
+                <div class="faculty-card-image-wrapper mb-md" style="aspect-ratio: 4/5;">
+                  <img src="../images/S__6742028.jpg" alt="Ta-Lih Shieh" class="faculty-card-image" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+                <div class="text-left">
+                  <h5>Ta-Lih Shieh</h5>
+                  <h5>謝大立</h5>
+                  <p class="text-p1 mt-xs">Founder</p>
+                  <p class="text-p1">創辦人</p>
+                </div>
+              </div>
+
+              <!-- Card 21 - Admin -->
+              <div class="faculty-card" data-category="admin">
+                <div class="faculty-card-image-wrapper mb-md" style="aspect-ratio: 4/5;">
+                  <img src="../images/S__6742028.jpg" alt="Ta-Lih Shieh" class="faculty-card-image" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+                <div class="text-left">
+                  <h5>Ta-Lih Shieh</h5>
+                  <h5>謝大立</h5>
+                  <p class="text-p1 mt-xs">Founder</p>
+                  <p class="text-p1">創辦人</p>
+                </div>
+              </div>
+
+              <!-- Card 22 - Admin -->
+              <div class="faculty-card" data-category="admin">
+                <div class="faculty-card-image-wrapper mb-md" style="aspect-ratio: 4/5;">
+                  <img src="../images/S__6742028.jpg" alt="Ta-Lih Shieh" class="faculty-card-image" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+                <div class="text-left">
+                  <h5>Ta-Lih Shieh</h5>
+                  <h5>謝大立</h5>
+                  <p class="text-p1 mt-xs">Founder</p>
+                  <p class="text-p1">創辦人</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="h-screen bg-black text-white relative overflow-hidden">
+    <div class="site-container h-full">
+      <div class="grid-12 h-full relative">
+
+        <!-- Column 11 - Bottom right links (no rotation) -->
+        <div class="col-start-11 col-span-2 absolute bottom-0 right-0 pb-2xl">
+          <div class="flex flex-col gap-xs">
+            <a href="#" class="text-white hover:text-gray-7 transition-colors duration-fast text-left">Privacy Policy</a>
+            <a href="#" class="text-white hover:text-gray-7 transition-colors duration-fast text-left">Terms and Conditions</a>
+            <p class="text-white text-left mt-lg">SCCD@ 2026</p>
+          </div>
+        </div>
+
+        <!-- Random positioned elements with rotation (Columns 1-10) -->
+        <div class="col-span-10 relative h-full">
+
+          <!-- Logo -->
+          <div class="absolute" style="top: 10%; left: 8%; transform: rotate(-3deg);">
+            <img src="../images/sccd_white.png" alt="SCCD" class="w-[100px] h-[100px] object-contain">
+          </div>
+
+          <!-- Links 相關連結 -->
+          <div class="absolute" style="top: 8%; right: 5%; transform: rotate(2deg);">
+            <h6 class="mb-xs text-white">Links 相關連結</h6>
+            <div class="flex flex-col gap-xs">
+              <a href="#" class="text-white hover:text-gray-7 transition-colors duration-fast">
+                Shih Chien University 實踐大學
+              </a>
+              <a href="#" class="text-white hover:text-gray-7 transition-colors duration-fast">
+                College of Design, USC 實踐大學設計學院
+              </a>
+            </div>
+          </div>
+
+          <!-- TEL -->
+          <div class="absolute" style="top: 32%; left: 5%; transform: rotate(-2deg);">
+            <h6 class="mb-xs text-white">TEL 電話</h6>
+            <p class="text-white">+886 2 2538 1111 #7211</p>
+          </div>
+
+          <!-- E-Mail -->
+          <div class="absolute" style="top: 32%; left: 35%; transform: rotate(3deg);">
+            <h6 class="mb-xs text-white">E-Mail 電子郵件</h6>
+            <p class="text-white">sccd@g2.usc.edu.tw</p>
+          </div>
+
+          <!-- FAX -->
+          <div class="absolute" style="top: 50%; left: 10%; transform: rotate(1deg);">
+            <h6 class="mb-xs text-white">FAX 傳真</h6>
+            <p class="text-white">+886 2 2538 1111 #7050</p>
+          </div>
+
+          <!-- Office -->
+          <div class="absolute" style="top: 50%; right: 8%; transform: rotate(-2deg);">
+            <h6 class="mb-xs text-white">Office 學系辦公室</h6>
+            <p class="text-white max-w-sm mb-sm">5F, Building A, Shih Chien University, No.70, Dazhi Street, Zhongshan District, Taipei City, Taiwan</p>
+            <p class="text-white max-w-sm">台灣台北市中山區大直街70號 實踐大學A棟5樓</p>
+          </div>
+
+          <!-- Social Media -->
+          <div class="absolute flex gap-lg" style="bottom: 15%; left: 8%; transform: rotate(-1deg);">
+            <a href="https://www.youtube.com/@scsccd" target="_blank" rel="noopener noreferrer" class="text-white hover:text-gray-7 transition-colors duration-fast">
+              <i class="fa-brands fa-youtube text-h3"></i>
+            </a>
+            <a href="https://www.instagram.com/communications.design_sccd" target="_blank" rel="noopener noreferrer" class="text-white hover:text-gray-7 transition-colors duration-fast">
+              <i class="fa-brands fa-instagram text-h3"></i>
+            </a>
+            <a href="https://www.facebook.com/communications.design" target="_blank" rel="noopener noreferrer" class="text-white hover:text-gray-7 transition-colors duration-fast">
+              <i class="fa-brands fa-facebook text-h3"></i>
+            </a>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  </footer>
+
+  <!-- JavaScript -->
+  <script src="../js/main.js"></script>
+
+</body>
+</html>

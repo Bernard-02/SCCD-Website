@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node:*)",
+      "Bash(npm --version:*)",
+      "Bash(npm init:*)",
+      "Bash(npm install:*)",
+      "Bash(npx tailwindcss init)",
+      "Bash(npm run build:css:*)",
+      "Bash(npx tailwindcss:*)",
+      "Bash(dir:*)",
+      "Bash(npm run watch:css:*)",
+      "Bash(start \"\" \"c:\\\\Users\\\\Bernard Liew\\\\Documents\\\\實踐大學\\\\SCCD Website\\\\pages\\\\faculty.html\")"
+    ]
+  }
+}

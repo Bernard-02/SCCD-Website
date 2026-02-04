@@ -1,0 +1,162 @@
+/* Tailwind CSS Input File */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap');
+
+/* Custom Base Styles */
+@layer base {
+  html {
+    @apply text-base;
+  }
+
+  body {
+    @apply font-sans text-black bg-white leading-base;
+  }
+
+  h1 {
+    @apply text-h1 font-semibold leading-h1;
+  }
+
+  h3 {
+    @apply text-h3 font-bold leading-base;
+  }
+
+  h5 {
+    @apply text-h5 font-bold leading-base;
+  }
+
+  h6 {
+    @apply text-h6 font-bold leading-base;
+  }
+
+  p {
+    @apply text-p1 font-regular leading-base;
+  }
+}
+
+/* Custom Components */
+@layer components {
+  /* Container with 60px padding */
+  .site-container {
+    @apply w-full px-container-padding mx-auto;
+  }
+
+  /* 12 Column Grid System */
+  .grid-12 {
+    @apply grid grid-cols-12 gap-gutter;
+  }
+
+  /* Navigation Styles */
+  .nav-link {
+    @apply text-p1 font-regular transition-all duration-fast;
+  }
+
+  .nav-link:hover {
+    font-weight: 700;
+  }
+
+  /* Header Hide Animation */
+  header {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  header.header-hidden {
+    transform: translateY(-100%);
+  }
+
+  /* Mega Menu Styles - Full Width beyond container padding */
+  .mega-menu {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: calc(var(--header-height, 80px) - 0.5px);
+    width: 100vw;
+    min-height: 240px;
+    background-color: white;
+    border-bottom: 1px solid #666666;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 40;
+  }
+
+  .submenu-link {
+    @apply block py-xs text-p1 text-left transition-all duration-fast;
+  }
+
+  .submenu-link:hover span {
+    font-weight: 700;
+  }
+
+  /* Faculty Filter Buttons */
+  .faculty-filter-btn.active {
+    color: #26BCFF;
+    font-weight: 700;
+    transform: rotate(3deg);
+    display: inline-block;
+  }
+
+  /* Courses Filter Buttons */
+  .courses-filter-btn.active {
+    color: #FF448A;
+    font-weight: 700;
+    transform: rotate(3deg);
+    display: inline-block;
+  }
+
+  /* Activities Filter Buttons */
+  .activities-filter-btn.active {
+    color: #00FF80;
+    font-weight: 700;
+    transform: rotate(3deg);
+    display: inline-block;
+  }
+
+  /* Activities Year Toggle - chevron rotation */
+  .activities-year-toggle .fa-chevron-right {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Faculty Cards */
+  .faculty-card {
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .faculty-card-image-wrapper {
+    overflow: hidden;
+    cursor: default;
+  }
+
+  /* Only fulltime cards are clickable */
+  .faculty-card[data-category="fulltime"] .faculty-card-image-wrapper {
+    cursor: pointer;
+  }
+
+  .faculty-card-image {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .faculty-card-image-wrapper:hover .faculty-card-image {
+    transform: scale(1.1);
+  }
+}
+
+/* Custom Utilities */
+@layer utilities {
+  .text-gradient-green {
+    @apply bg-gradient-to-r from-green to-blue bg-clip-text text-transparent;
+  }
+
+  .text-gradient-pink {
+    @apply bg-gradient-to-r from-pink to-blue bg-clip-text text-transparent;
+  }
+
+  .writing-mode-vertical {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+  }
+}
