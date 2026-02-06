@@ -10,132 +10,7 @@
 <body>
 
   <!-- Header -->
-  <header class="fixed top-0 left-0 right-0 bg-white border-b border-gray-4 z-50">
-    <div class="site-container">
-      <div class="grid-12 items-center py-md">
-        <!-- Logo/Site Title (Column 1-2) -->
-        <div class="col-span-2 relative">
-          <a href="../index.html" class="block absolute -top-4 left-0 z-50">
-            <img src="../images/sccd_black.png" alt="SCCD" class="w-[100px] h-[100px] object-contain">
-          </a>
-        </div>
-
-        <!-- Navigation Menu (Column 3-10) -->
-        <nav class="col-span-8">
-          <ul class="flex items-center justify-between">
-
-            <!-- About to Support Group -->
-            <li class="relative">
-              <a href="#" class="nav-link">About</a>
-            </li>
-
-            <li class="relative">
-              <a href="faculty.html" class="nav-link">Faculty</a>
-            </li>
-
-            <!-- Activities (with mega menu) -->
-            <li class="group">
-              <a href="#" class="nav-link">Activities</a>
-              <div class="mega-menu group-hover:opacity-100 group-hover:visible">
-                <div class="site-container">
-                  <div class="grid-12">
-                    <!-- Content starts at column 3 (skip columns 1-2) -->
-                    <div class="col-start-3 col-span-10 py-lg">
-                      <div class="flex flex-col gap-xs">
-                        <a href="general-activities.html" class="submenu-link flex items-center gap-xs">
-                          <span>General Activities</span>
-                          <span>一般活動</span>
-                        </a>
-                        <a href="#" class="submenu-link flex items-center gap-xs">
-                          <span>Workshop</span>
-                          <span>工作營</span>
-                        </a>
-                        <a href="#" class="submenu-link flex items-center gap-xs">
-                          <span>Degree Show</span>
-                          <span>畢業展</span>
-                        </a>
-                        <a href="#" class="submenu-link flex items-center gap-xs">
-                          <span>Summer Camp</span>
-                          <span>暑期設計體驗營</span>
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </li>
-
-            <!-- Courses (with mega menu) -->
-            <li class="group">
-              <a href="#" class="nav-link">Courses</a>
-              <div class="mega-menu group-hover:opacity-100 group-hover:visible">
-                <div class="site-container">
-                  <div class="grid-12">
-                    <!-- Content starts at column 3 (skip columns 1-2) -->
-                    <div class="col-start-3 col-span-10 py-lg">
-                      <div class="flex flex-col gap-xs">
-                        <a href="bfa-courses.html" class="submenu-link flex items-center gap-xs">
-                          <span>BFA Courses</span>
-                          <span>學士班</span>
-                        </a>
-                        <a href="mdes-courses.html" class="submenu-link flex items-center gap-xs">
-                          <span>MDES Courses</span>
-                          <span>碩士班</span>
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </li>
-
-            <!-- Works (with mega menu) -->
-            <li class="group">
-              <a href="#" class="nav-link">Works</a>
-              <div class="mega-menu group-hover:opacity-100 group-hover:visible">
-                <div class="site-container">
-                  <div class="grid-12">
-                    <!-- Content starts at column 3 (skip columns 1-2) -->
-                    <div class="col-start-3 col-span-10 py-lg">
-                      <div class="flex flex-col gap-xs">
-                        <a href="#" class="submenu-link flex items-center gap-xs">
-                          <span>BFA Works</span>
-                          <span>學士班</span>
-                        </a>
-                        <a href="#" class="submenu-link flex items-center gap-xs">
-                          <span>MDES Works</span>
-                          <span>碩士班</span>
-                        </a>
-                        <a href="#" class="submenu-link flex items-center gap-xs">
-                          <span>Records</span>
-                          <span>榮譽</span>
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </li>
-
-            <li class="relative">
-              <a href="admission.html" class="nav-link">Admission</a>
-            </li>
-
-            <li class="relative">
-              <a href="support.html" class="nav-link">Support</a>
-            </li>
-
-          </ul>
-        </nav>
-
-        <!-- GENERATE! (Column 11-12) -->
-        <div class="col-span-2 flex justify-end">
-          <a href="#" class="nav-link">GENERATE!</a>
-        </div>
-
-      </div>
-    </div>
-  </header>
+  <div id="site-header"></div>
 
   <!-- Main Content -->
   <main>
@@ -200,60 +75,45 @@
                   <h5 style="flex: 0 0 calc(30% - 0.625rem);" class="pt-sm font-regular">Freshman 一年級</h5>
                   <div class="flex flex-col" style="flex: 1;">
                     <details class="group">
-                      <summary class="flex items-start justify-between pt-md pb-md border-b border-gray-9 group-open:border-b-0 cursor-pointer list-none">
-                        <div class="flex items-start gap-md">
-                          <div style="height: 200px; flex: 0 0 calc(42.86%);" class="overflow-hidden">
-                            <img src="../images/SCCD-1-4-0.jpg" alt="Course" class="w-full h-full object-cover">
-                          </div>
+                      <summary class="flex items-center justify-between pt-md pb-md border-b border-gray-9 group-open:border-b-0 cursor-pointer list-none">
                           <div>
                             <h5>Design Fundamental</h5>
                             <h5>創作基礎</h5>
                           </div>
-                        </div>
-                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180 self-end"></i>
+                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180"></i>
                       </summary>
                       <div class="pb-md border-b border-gray-9">
-                        <div style="max-width: 85.71%;">
+                        <div>
                           <p>Design is a complex of different history, society, culture, knowledge, function, aesthetics, problem solving and decision making, through design, human civilization will be gradually escalated and the concept of design will become the scale to evaluate human civilization.</p>
                           <p class="mt-md">設計是經由不同的歷史、社會和文化層面知識領域的趨勢、作業功能、美學理想、問題解決和決策訂定形成的綜合體，透過這種設計機制以促成提升人類生活文明的品質，因而了解正確的設計概念將成為人類文明比較的重要性指標。</p>
                         </div>
                       </div>
                     </details>
                     <details class="group">
-                      <summary class="flex items-start justify-between pt-md pb-md border-b border-gray-9 group-open:border-b-0 cursor-pointer list-none">
-                        <div class="flex items-start gap-md">
-                          <div style="height: 200px; flex: 0 0 calc(42.86%);" class="overflow-hidden">
-                            <img src="../images/SCCD-1-4-0.jpg" alt="Course" class="w-full h-full object-cover">
-                          </div>
+                      <summary class="flex items-center justify-between pt-md pb-md border-b border-gray-9 group-open:border-b-0 cursor-pointer list-none">
                           <div>
                             <h5>Design Fundamental</h5>
                             <h5>創作基礎</h5>
                           </div>
-                        </div>
-                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180 self-end"></i>
+                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180"></i>
                       </summary>
                       <div class="pb-md border-b border-gray-9">
-                        <div style="max-width: 85.71%;">
+                        <div>
                           <p>Design is a complex of different history, society, culture, knowledge, function, aesthetics, problem solving and decision making, through design, human civilization will be gradually escalated and the concept of design will become the scale to evaluate human civilization.</p>
                           <p class="mt-md">設計是經由不同的歷史、社會和文化層面知識領域的趨勢、作業功能、美學理想、問題解決和決策訂定形成的綜合體，透過這種設計機制以促成提升人類生活文明的品質，因而了解正確的設計概念將成為人類文明比較的重要性指標。</p>
                         </div>
                       </div>
                     </details>
                     <details class="group">
-                      <summary class="flex items-start justify-between pt-md pb-md cursor-pointer list-none">
-                        <div class="flex items-start gap-md">
-                          <div style="height: 200px; flex: 0 0 calc(42.86%);" class="overflow-hidden">
-                            <img src="../images/SCCD-1-4-0.jpg" alt="Course" class="w-full h-full object-cover">
-                          </div>
+                      <summary class="flex items-center justify-between pt-md pb-md cursor-pointer list-none">
                           <div>
                             <h5>Design Fundamental</h5>
                             <h5>創作基礎</h5>
                           </div>
-                        </div>
-                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180 self-end"></i>
+                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180"></i>
                       </summary>
                       <div class="pb-md">
-                        <div style="max-width: 85.71%;">
+                        <div>
                           <p>Design is a complex of different history, society, culture, knowledge, function, aesthetics, problem solving and decision making, through design, human civilization will be gradually escalated and the concept of design will become the scale to evaluate human civilization.</p>
                           <p class="mt-md">設計是經由不同的歷史、社會和文化層面知識領域的趨勢、作業功能、美學理想、問題解決和決策訂定形成的綜合體，透過這種設計機制以促成提升人類生活文明的品質，因而了解正確的設計概念將成為人類文明比較的重要性指標。</p>
                         </div>
@@ -267,60 +127,45 @@
                   <h5 style="flex: 0 0 calc(30% - 0.625rem);" class="pt-sm font-regular">Sophomore 二年級</h5>
                   <div class="flex flex-col" style="flex: 1;">
                     <details class="group">
-                      <summary class="flex items-start justify-between pt-md pb-md border-b border-gray-9 group-open:border-b-0 cursor-pointer list-none">
-                        <div class="flex items-start gap-md">
-                          <div style="height: 200px; flex: 0 0 calc(42.86%);" class="overflow-hidden">
-                            <img src="../images/SCCD-1-4-0.jpg" alt="Course" class="w-full h-full object-cover">
-                          </div>
+                      <summary class="flex items-center justify-between pt-md pb-md border-b border-gray-9 group-open:border-b-0 cursor-pointer list-none">
                           <div>
                             <h5>Design Fundamental</h5>
                             <h5>創作基礎</h5>
                           </div>
-                        </div>
-                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180 self-end"></i>
+                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180"></i>
                       </summary>
                       <div class="pb-md border-b border-gray-9">
-                        <div style="max-width: 85.71%;">
+                        <div>
                           <p>Design is a complex of different history, society, culture, knowledge, function, aesthetics, problem solving and decision making, through design, human civilization will be gradually escalated and the concept of design will become the scale to evaluate human civilization.</p>
                           <p class="mt-md">設計是經由不同的歷史、社會和文化層面知識領域的趨勢、作業功能、美學理想、問題解決和決策訂定形成的綜合體，透過這種設計機制以促成提升人類生活文明的品質，因而了解正確的設計概念將成為人類文明比較的重要性指標。</p>
                         </div>
                       </div>
                     </details>
                     <details class="group">
-                      <summary class="flex items-start justify-between pt-md pb-md border-b border-gray-9 group-open:border-b-0 cursor-pointer list-none">
-                        <div class="flex items-start gap-md">
-                          <div style="height: 200px; flex: 0 0 calc(42.86%);" class="overflow-hidden">
-                            <img src="../images/SCCD-1-4-0.jpg" alt="Course" class="w-full h-full object-cover">
-                          </div>
+                      <summary class="flex items-center justify-between pt-md pb-md border-b border-gray-9 group-open:border-b-0 cursor-pointer list-none">
                           <div>
                             <h5>Design Fundamental</h5>
                             <h5>創作基礎</h5>
                           </div>
-                        </div>
-                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180 self-end"></i>
+                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180"></i>
                       </summary>
                       <div class="pb-md border-b border-gray-9">
-                        <div style="max-width: 85.71%;">
+                        <div>
                           <p>Design is a complex of different history, society, culture, knowledge, function, aesthetics, problem solving and decision making, through design, human civilization will be gradually escalated and the concept of design will become the scale to evaluate human civilization.</p>
                           <p class="mt-md">設計是經由不同的歷史、社會和文化層面知識領域的趨勢、作業功能、美學理想、問題解決和決策訂定形成的綜合體，透過這種設計機制以促成提升人類生活文明的品質，因而了解正確的設計概念將成為人類文明比較的重要性指標。</p>
                         </div>
                       </div>
                     </details>
                     <details class="group">
-                      <summary class="flex items-start justify-between pt-md pb-md cursor-pointer list-none">
-                        <div class="flex items-start gap-md">
-                          <div style="height: 200px; flex: 0 0 calc(42.86%);" class="overflow-hidden">
-                            <img src="../images/SCCD-1-4-0.jpg" alt="Course" class="w-full h-full object-cover">
-                          </div>
+                      <summary class="flex items-center justify-between pt-md pb-md cursor-pointer list-none">
                           <div>
                             <h5>Design Fundamental</h5>
                             <h5>創作基礎</h5>
                           </div>
-                        </div>
-                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180 self-end"></i>
+                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180"></i>
                       </summary>
                       <div class="pb-md">
-                        <div style="max-width: 85.71%;">
+                        <div>
                           <p>Design is a complex of different history, society, culture, knowledge, function, aesthetics, problem solving and decision making, through design, human civilization will be gradually escalated and the concept of design will become the scale to evaluate human civilization.</p>
                           <p class="mt-md">設計是經由不同的歷史、社會和文化層面知識領域的趨勢、作業功能、美學理想、問題解決和決策訂定形成的綜合體，透過這種設計機制以促成提升人類生活文明的品質，因而了解正確的設計概念將成為人類文明比較的重要性指標。</p>
                         </div>
@@ -334,60 +179,45 @@
                   <h5 style="flex: 0 0 calc(30% - 0.625rem);" class="pt-sm font-regular">Junior 三年級</h5>
                   <div class="flex flex-col" style="flex: 1;">
                     <details class="group">
-                      <summary class="flex items-start justify-between pt-md pb-md border-b border-gray-9 group-open:border-b-0 cursor-pointer list-none">
-                        <div class="flex items-start gap-md">
-                          <div style="height: 200px; flex: 0 0 calc(42.86%);" class="overflow-hidden">
-                            <img src="../images/SCCD-1-4-0.jpg" alt="Course" class="w-full h-full object-cover">
-                          </div>
+                      <summary class="flex items-center justify-between pt-md pb-md border-b border-gray-9 group-open:border-b-0 cursor-pointer list-none">
                           <div>
                             <h5>Design Fundamental</h5>
                             <h5>創作基礎</h5>
                           </div>
-                        </div>
-                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180 self-end"></i>
+                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180"></i>
                       </summary>
                       <div class="pb-md border-b border-gray-9">
-                        <div style="max-width: 85.71%;">
+                        <div>
                           <p>Design is a complex of different history, society, culture, knowledge, function, aesthetics, problem solving and decision making, through design, human civilization will be gradually escalated and the concept of design will become the scale to evaluate human civilization.</p>
                           <p class="mt-md">設計是經由不同的歷史、社會和文化層面知識領域的趨勢、作業功能、美學理想、問題解決和決策訂定形成的綜合體，透過這種設計機制以促成提升人類生活文明的品質，因而了解正確的設計概念將成為人類文明比較的重要性指標。</p>
                         </div>
                       </div>
                     </details>
                     <details class="group">
-                      <summary class="flex items-start justify-between pt-md pb-md border-b border-gray-9 group-open:border-b-0 cursor-pointer list-none">
-                        <div class="flex items-start gap-md">
-                          <div style="height: 200px; flex: 0 0 calc(42.86%);" class="overflow-hidden">
-                            <img src="../images/SCCD-1-4-0.jpg" alt="Course" class="w-full h-full object-cover">
-                          </div>
+                      <summary class="flex items-center justify-between pt-md pb-md border-b border-gray-9 group-open:border-b-0 cursor-pointer list-none">
                           <div>
                             <h5>Design Fundamental</h5>
                             <h5>創作基礎</h5>
                           </div>
-                        </div>
-                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180 self-end"></i>
+                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180"></i>
                       </summary>
                       <div class="pb-md border-b border-gray-9">
-                        <div style="max-width: 85.71%;">
+                        <div>
                           <p>Design is a complex of different history, society, culture, knowledge, function, aesthetics, problem solving and decision making, through design, human civilization will be gradually escalated and the concept of design will become the scale to evaluate human civilization.</p>
                           <p class="mt-md">設計是經由不同的歷史、社會和文化層面知識領域的趨勢、作業功能、美學理想、問題解決和決策訂定形成的綜合體，透過這種設計機制以促成提升人類生活文明的品質，因而了解正確的設計概念將成為人類文明比較的重要性指標。</p>
                         </div>
                       </div>
                     </details>
                     <details class="group">
-                      <summary class="flex items-start justify-between pt-md pb-md cursor-pointer list-none">
-                        <div class="flex items-start gap-md">
-                          <div style="height: 200px; flex: 0 0 calc(42.86%);" class="overflow-hidden">
-                            <img src="../images/SCCD-1-4-0.jpg" alt="Course" class="w-full h-full object-cover">
-                          </div>
+                      <summary class="flex items-center justify-between pt-md pb-md cursor-pointer list-none">
                           <div>
                             <h5>Design Fundamental</h5>
                             <h5>創作基礎</h5>
                           </div>
-                        </div>
-                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180 self-end"></i>
+                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180"></i>
                       </summary>
                       <div class="pb-md">
-                        <div style="max-width: 85.71%;">
+                        <div>
                           <p>Design is a complex of different history, society, culture, knowledge, function, aesthetics, problem solving and decision making, through design, human civilization will be gradually escalated and the concept of design will become the scale to evaluate human civilization.</p>
                           <p class="mt-md">設計是經由不同的歷史、社會和文化層面知識領域的趨勢、作業功能、美學理想、問題解決和決策訂定形成的綜合體，透過這種設計機制以促成提升人類生活文明的品質，因而了解正確的設計概念將成為人類文明比較的重要性指標。</p>
                         </div>
@@ -401,60 +231,45 @@
                   <h5 style="flex: 0 0 calc(30% - 0.625rem);" class="pt-sm font-regular">Senior 四年級</h5>
                   <div class="flex flex-col" style="flex: 1;">
                     <details class="group">
-                      <summary class="flex items-start justify-between pt-md pb-md border-b border-gray-9 group-open:border-b-0 cursor-pointer list-none">
-                        <div class="flex items-start gap-md">
-                          <div style="height: 200px; flex: 0 0 calc(42.86%);" class="overflow-hidden">
-                            <img src="../images/SCCD-1-4-0.jpg" alt="Course" class="w-full h-full object-cover">
-                          </div>
+                      <summary class="flex items-center justify-between pt-md pb-md border-b border-gray-9 group-open:border-b-0 cursor-pointer list-none">
                           <div>
                             <h5>Design Fundamental</h5>
                             <h5>創作基礎</h5>
                           </div>
-                        </div>
-                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180 self-end"></i>
+                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180"></i>
                       </summary>
                       <div class="pb-md border-b border-gray-9">
-                        <div style="max-width: 85.71%;">
+                        <div>
                           <p>Design is a complex of different history, society, culture, knowledge, function, aesthetics, problem solving and decision making, through design, human civilization will be gradually escalated and the concept of design will become the scale to evaluate human civilization.</p>
                           <p class="mt-md">設計是經由不同的歷史、社會和文化層面知識領域的趨勢、作業功能、美學理想、問題解決和決策訂定形成的綜合體，透過這種設計機制以促成提升人類生活文明的品質，因而了解正確的設計概念將成為人類文明比較的重要性指標。</p>
                         </div>
                       </div>
                     </details>
                     <details class="group">
-                      <summary class="flex items-start justify-between pt-md pb-md border-b border-gray-9 group-open:border-b-0 cursor-pointer list-none">
-                        <div class="flex items-start gap-md">
-                          <div style="height: 200px; flex: 0 0 calc(42.86%);" class="overflow-hidden">
-                            <img src="../images/SCCD-1-4-0.jpg" alt="Course" class="w-full h-full object-cover">
-                          </div>
+                      <summary class="flex items-center justify-between pt-md pb-md border-b border-gray-9 group-open:border-b-0 cursor-pointer list-none">
                           <div>
                             <h5>Design Fundamental</h5>
                             <h5>創作基礎</h5>
                           </div>
-                        </div>
-                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180 self-end"></i>
+                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180"></i>
                       </summary>
                       <div class="pb-md border-b border-gray-9">
-                        <div style="max-width: 85.71%;">
+                        <div>
                           <p>Design is a complex of different history, society, culture, knowledge, function, aesthetics, problem solving and decision making, through design, human civilization will be gradually escalated and the concept of design will become the scale to evaluate human civilization.</p>
                           <p class="mt-md">設計是經由不同的歷史、社會和文化層面知識領域的趨勢、作業功能、美學理想、問題解決和決策訂定形成的綜合體，透過這種設計機制以促成提升人類生活文明的品質，因而了解正確的設計概念將成為人類文明比較的重要性指標。</p>
                         </div>
                       </div>
                     </details>
                     <details class="group">
-                      <summary class="flex items-start justify-between pt-md pb-md cursor-pointer list-none">
-                        <div class="flex items-start gap-md">
-                          <div style="height: 200px; flex: 0 0 calc(42.86%);" class="overflow-hidden">
-                            <img src="../images/SCCD-1-4-0.jpg" alt="Course" class="w-full h-full object-cover">
-                          </div>
+                      <summary class="flex items-center justify-between pt-md pb-md cursor-pointer list-none">
                           <div>
                             <h5>Design Fundamental</h5>
                             <h5>創作基礎</h5>
                           </div>
-                        </div>
-                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180 self-end"></i>
+                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180"></i>
                       </summary>
                       <div class="pb-md">
-                        <div style="max-width: 85.71%;">
+                        <div>
                           <p>Design is a complex of different history, society, culture, knowledge, function, aesthetics, problem solving and decision making, through design, human civilization will be gradually escalated and the concept of design will become the scale to evaluate human civilization.</p>
                           <p class="mt-md">設計是經由不同的歷史、社會和文化層面知識領域的趨勢、作業功能、美學理想、問題解決和決策訂定形成的綜合體，透過這種設計機制以促成提升人類生活文明的品質，因而了解正確的設計概念將成為人類文明比較的重要性指標。</p>
                         </div>
@@ -475,60 +290,45 @@
                   <h5 style="flex: 0 0 calc(30% - 0.625rem);" class="pt-sm font-regular">Freshman 一年級</h5>
                   <div class="flex flex-col" style="flex: 1;">
                     <details class="group">
-                      <summary class="flex items-start justify-between pt-md pb-md border-b border-gray-9 group-open:border-b-0 cursor-pointer list-none">
-                        <div class="flex items-start gap-md">
-                          <div style="height: 200px; flex: 0 0 calc(42.86%);" class="overflow-hidden">
-                            <img src="../images/SCCD-1-4-0.jpg" alt="Course" class="w-full h-full object-cover">
-                          </div>
+                      <summary class="flex items-center justify-between pt-md pb-md border-b border-gray-9 group-open:border-b-0 cursor-pointer list-none">
                           <div>
                             <h5>Digital Prepress Design</h5>
                             <h5>數位編輯設計</h5>
                           </div>
-                        </div>
-                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180 self-end"></i>
+                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180"></i>
                       </summary>
                       <div class="pb-md border-b border-gray-9">
-                        <div style="max-width: 85.71%;">
+                        <div>
                           <p>Design is a complex of different history, society, culture, knowledge, function, aesthetics, problem solving and decision making, through design, human civilization will be gradually escalated and the concept of design will become the scale to evaluate human civilization.</p>
                           <p class="mt-md">設計是經由不同的歷史、社會和文化層面知識領域的趨勢、作業功能、美學理想、問題解決和決策訂定形成的綜合體，透過這種設計機制以促成提升人類生活文明的品質，因而了解正確的設計概念將成為人類文明比較的重要性指標。</p>
                         </div>
                       </div>
                     </details>
                     <details class="group">
-                      <summary class="flex items-start justify-between pt-md pb-md border-b border-gray-9 group-open:border-b-0 cursor-pointer list-none">
-                        <div class="flex items-start gap-md">
-                          <div style="height: 200px; flex: 0 0 calc(42.86%);" class="overflow-hidden">
-                            <img src="../images/SCCD-1-4-0.jpg" alt="Course" class="w-full h-full object-cover">
-                          </div>
+                      <summary class="flex items-center justify-between pt-md pb-md border-b border-gray-9 group-open:border-b-0 cursor-pointer list-none">
                           <div>
                             <h5>Digital Prepress Design</h5>
                             <h5>數位編輯設計</h5>
                           </div>
-                        </div>
-                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180 self-end"></i>
+                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180"></i>
                       </summary>
                       <div class="pb-md border-b border-gray-9">
-                        <div style="max-width: 85.71%;">
+                        <div>
                           <p>Design is a complex of different history, society, culture, knowledge, function, aesthetics, problem solving and decision making, through design, human civilization will be gradually escalated and the concept of design will become the scale to evaluate human civilization.</p>
                           <p class="mt-md">設計是經由不同的歷史、社會和文化層面知識領域的趨勢、作業功能、美學理想、問題解決和決策訂定形成的綜合體，透過這種設計機制以促成提升人類生活文明的品質，因而了解正確的設計概念將成為人類文明比較的重要性指標。</p>
                         </div>
                       </div>
                     </details>
                     <details class="group">
-                      <summary class="flex items-start justify-between pt-md pb-md cursor-pointer list-none">
-                        <div class="flex items-start gap-md">
-                          <div style="height: 200px; flex: 0 0 calc(42.86%);" class="overflow-hidden">
-                            <img src="../images/SCCD-1-4-0.jpg" alt="Course" class="w-full h-full object-cover">
-                          </div>
+                      <summary class="flex items-center justify-between pt-md pb-md cursor-pointer list-none">
                           <div>
                             <h5>Digital Prepress Design</h5>
                             <h5>數位編輯設計</h5>
                           </div>
-                        </div>
-                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180 self-end"></i>
+                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180"></i>
                       </summary>
                       <div class="pb-md">
-                        <div style="max-width: 85.71%;">
+                        <div>
                           <p>Design is a complex of different history, society, culture, knowledge, function, aesthetics, problem solving and decision making, through design, human civilization will be gradually escalated and the concept of design will become the scale to evaluate human civilization.</p>
                           <p class="mt-md">設計是經由不同的歷史、社會和文化層面知識領域的趨勢、作業功能、美學理想、問題解決和決策訂定形成的綜合體，透過這種設計機制以促成提升人類生活文明的品質，因而了解正確的設計概念將成為人類文明比較的重要性指標。</p>
                         </div>
@@ -542,60 +342,45 @@
                   <h5 style="flex: 0 0 calc(30% - 0.625rem);" class="pt-sm font-regular">Sophomore 二年級</h5>
                   <div class="flex flex-col" style="flex: 1;">
                     <details class="group">
-                      <summary class="flex items-start justify-between pt-md pb-md border-b border-gray-9 group-open:border-b-0 cursor-pointer list-none">
-                        <div class="flex items-start gap-md">
-                          <div style="height: 200px; flex: 0 0 calc(42.86%);" class="overflow-hidden">
-                            <img src="../images/SCCD-1-4-0.jpg" alt="Course" class="w-full h-full object-cover">
-                          </div>
+                      <summary class="flex items-center justify-between pt-md pb-md border-b border-gray-9 group-open:border-b-0 cursor-pointer list-none">
                           <div>
                             <h5>Digital Prepress Design</h5>
                             <h5>數位編輯設計</h5>
                           </div>
-                        </div>
-                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180 self-end"></i>
+                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180"></i>
                       </summary>
                       <div class="pb-md border-b border-gray-9">
-                        <div style="max-width: 85.71%;">
+                        <div>
                           <p>Design is a complex of different history, society, culture, knowledge, function, aesthetics, problem solving and decision making, through design, human civilization will be gradually escalated and the concept of design will become the scale to evaluate human civilization.</p>
                           <p class="mt-md">設計是經由不同的歷史、社會和文化層面知識領域的趨勢、作業功能、美學理想、問題解決和決策訂定形成的綜合體，透過這種設計機制以促成提升人類生活文明的品質，因而了解正確的設計概念將成為人類文明比較的重要性指標。</p>
                         </div>
                       </div>
                     </details>
                     <details class="group">
-                      <summary class="flex items-start justify-between pt-md pb-md border-b border-gray-9 group-open:border-b-0 cursor-pointer list-none">
-                        <div class="flex items-start gap-md">
-                          <div style="height: 200px; flex: 0 0 calc(42.86%);" class="overflow-hidden">
-                            <img src="../images/SCCD-1-4-0.jpg" alt="Course" class="w-full h-full object-cover">
-                          </div>
+                      <summary class="flex items-center justify-between pt-md pb-md border-b border-gray-9 group-open:border-b-0 cursor-pointer list-none">
                           <div>
                             <h5>Digital Prepress Design</h5>
                             <h5>數位編輯設計</h5>
                           </div>
-                        </div>
-                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180 self-end"></i>
+                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180"></i>
                       </summary>
                       <div class="pb-md border-b border-gray-9">
-                        <div style="max-width: 85.71%;">
+                        <div>
                           <p>Design is a complex of different history, society, culture, knowledge, function, aesthetics, problem solving and decision making, through design, human civilization will be gradually escalated and the concept of design will become the scale to evaluate human civilization.</p>
                           <p class="mt-md">設計是經由不同的歷史、社會和文化層面知識領域的趨勢、作業功能、美學理想、問題解決和決策訂定形成的綜合體，透過這種設計機制以促成提升人類生活文明的品質，因而了解正確的設計概念將成為人類文明比較的重要性指標。</p>
                         </div>
                       </div>
                     </details>
                     <details class="group">
-                      <summary class="flex items-start justify-between pt-md pb-md cursor-pointer list-none">
-                        <div class="flex items-start gap-md">
-                          <div style="height: 200px; flex: 0 0 calc(42.86%);" class="overflow-hidden">
-                            <img src="../images/SCCD-1-4-0.jpg" alt="Course" class="w-full h-full object-cover">
-                          </div>
+                      <summary class="flex items-center justify-between pt-md pb-md cursor-pointer list-none">
                           <div>
                             <h5>Digital Prepress Design</h5>
                             <h5>數位編輯設計</h5>
                           </div>
-                        </div>
-                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180 self-end"></i>
+                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180"></i>
                       </summary>
                       <div class="pb-md">
-                        <div style="max-width: 85.71%;">
+                        <div>
                           <p>Design is a complex of different history, society, culture, knowledge, function, aesthetics, problem solving and decision making, through design, human civilization will be gradually escalated and the concept of design will become the scale to evaluate human civilization.</p>
                           <p class="mt-md">設計是經由不同的歷史、社會和文化層面知識領域的趨勢、作業功能、美學理想、問題解決和決策訂定形成的綜合體，透過這種設計機制以促成提升人類生活文明的品質，因而了解正確的設計概念將成為人類文明比較的重要性指標。</p>
                         </div>
@@ -609,60 +394,45 @@
                   <h5 style="flex: 0 0 calc(30% - 0.625rem);" class="pt-sm font-regular">Junior 三年級</h5>
                   <div class="flex flex-col" style="flex: 1;">
                     <details class="group">
-                      <summary class="flex items-start justify-between pt-md pb-md border-b border-gray-9 group-open:border-b-0 cursor-pointer list-none">
-                        <div class="flex items-start gap-md">
-                          <div style="height: 200px; flex: 0 0 calc(42.86%);" class="overflow-hidden">
-                            <img src="../images/SCCD-1-4-0.jpg" alt="Course" class="w-full h-full object-cover">
-                          </div>
+                      <summary class="flex items-center justify-between pt-md pb-md border-b border-gray-9 group-open:border-b-0 cursor-pointer list-none">
                           <div>
                             <h5>Digital Prepress Design</h5>
                             <h5>數位編輯設計</h5>
                           </div>
-                        </div>
-                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180 self-end"></i>
+                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180"></i>
                       </summary>
                       <div class="pb-md border-b border-gray-9">
-                        <div style="max-width: 85.71%;">
+                        <div>
                           <p>Design is a complex of different history, society, culture, knowledge, function, aesthetics, problem solving and decision making, through design, human civilization will be gradually escalated and the concept of design will become the scale to evaluate human civilization.</p>
                           <p class="mt-md">設計是經由不同的歷史、社會和文化層面知識領域的趨勢、作業功能、美學理想、問題解決和決策訂定形成的綜合體，透過這種設計機制以促成提升人類生活文明的品質，因而了解正確的設計概念將成為人類文明比較的重要性指標。</p>
                         </div>
                       </div>
                     </details>
                     <details class="group">
-                      <summary class="flex items-start justify-between pt-md pb-md border-b border-gray-9 group-open:border-b-0 cursor-pointer list-none">
-                        <div class="flex items-start gap-md">
-                          <div style="height: 200px; flex: 0 0 calc(42.86%);" class="overflow-hidden">
-                            <img src="../images/SCCD-1-4-0.jpg" alt="Course" class="w-full h-full object-cover">
-                          </div>
+                      <summary class="flex items-center justify-between pt-md pb-md border-b border-gray-9 group-open:border-b-0 cursor-pointer list-none">
                           <div>
                             <h5>Digital Prepress Design</h5>
                             <h5>數位編輯設計</h5>
                           </div>
-                        </div>
-                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180 self-end"></i>
+                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180"></i>
                       </summary>
                       <div class="pb-md border-b border-gray-9">
-                        <div style="max-width: 85.71%;">
+                        <div>
                           <p>Design is a complex of different history, society, culture, knowledge, function, aesthetics, problem solving and decision making, through design, human civilization will be gradually escalated and the concept of design will become the scale to evaluate human civilization.</p>
                           <p class="mt-md">設計是經由不同的歷史、社會和文化層面知識領域的趨勢、作業功能、美學理想、問題解決和決策訂定形成的綜合體，透過這種設計機制以促成提升人類生活文明的品質，因而了解正確的設計概念將成為人類文明比較的重要性指標。</p>
                         </div>
                       </div>
                     </details>
                     <details class="group">
-                      <summary class="flex items-start justify-between pt-md pb-md cursor-pointer list-none">
-                        <div class="flex items-start gap-md">
-                          <div style="height: 200px; flex: 0 0 calc(42.86%);" class="overflow-hidden">
-                            <img src="../images/SCCD-1-4-0.jpg" alt="Course" class="w-full h-full object-cover">
-                          </div>
+                      <summary class="flex items-center justify-between pt-md pb-md cursor-pointer list-none">
                           <div>
                             <h5>Digital Prepress Design</h5>
                             <h5>數位編輯設計</h5>
                           </div>
-                        </div>
-                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180 self-end"></i>
+                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180"></i>
                       </summary>
                       <div class="pb-md">
-                        <div style="max-width: 85.71%;">
+                        <div>
                           <p>Design is a complex of different history, society, culture, knowledge, function, aesthetics, problem solving and decision making, through design, human civilization will be gradually escalated and the concept of design will become the scale to evaluate human civilization.</p>
                           <p class="mt-md">設計是經由不同的歷史、社會和文化層面知識領域的趨勢、作業功能、美學理想、問題解決和決策訂定形成的綜合體，透過這種設計機制以促成提升人類生活文明的品質，因而了解正確的設計概念將成為人類文明比較的重要性指標。</p>
                         </div>
@@ -676,60 +446,45 @@
                   <h5 style="flex: 0 0 calc(30% - 0.625rem);" class="pt-sm font-regular">Senior 四年級</h5>
                   <div class="flex flex-col" style="flex: 1;">
                     <details class="group">
-                      <summary class="flex items-start justify-between pt-md pb-md border-b border-gray-9 group-open:border-b-0 cursor-pointer list-none">
-                        <div class="flex items-start gap-md">
-                          <div style="height: 200px; flex: 0 0 calc(42.86%);" class="overflow-hidden">
-                            <img src="../images/SCCD-1-4-0.jpg" alt="Course" class="w-full h-full object-cover">
-                          </div>
+                      <summary class="flex items-center justify-between pt-md pb-md border-b border-gray-9 group-open:border-b-0 cursor-pointer list-none">
                           <div>
                             <h5>Digital Prepress Design</h5>
                             <h5>數位編輯設計</h5>
                           </div>
-                        </div>
-                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180 self-end"></i>
+                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180"></i>
                       </summary>
                       <div class="pb-md border-b border-gray-9">
-                        <div style="max-width: 85.71%;">
+                        <div>
                           <p>Design is a complex of different history, society, culture, knowledge, function, aesthetics, problem solving and decision making, through design, human civilization will be gradually escalated and the concept of design will become the scale to evaluate human civilization.</p>
                           <p class="mt-md">設計是經由不同的歷史、社會和文化層面知識領域的趨勢、作業功能、美學理想、問題解決和決策訂定形成的綜合體，透過這種設計機制以促成提升人類生活文明的品質，因而了解正確的設計概念將成為人類文明比較的重要性指標。</p>
                         </div>
                       </div>
                     </details>
                     <details class="group">
-                      <summary class="flex items-start justify-between pt-md pb-md border-b border-gray-9 group-open:border-b-0 cursor-pointer list-none">
-                        <div class="flex items-start gap-md">
-                          <div style="height: 200px; flex: 0 0 calc(42.86%);" class="overflow-hidden">
-                            <img src="../images/SCCD-1-4-0.jpg" alt="Course" class="w-full h-full object-cover">
-                          </div>
+                      <summary class="flex items-center justify-between pt-md pb-md border-b border-gray-9 group-open:border-b-0 cursor-pointer list-none">
                           <div>
                             <h5>Digital Prepress Design</h5>
                             <h5>數位編輯設計</h5>
                           </div>
-                        </div>
-                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180 self-end"></i>
+                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180"></i>
                       </summary>
                       <div class="pb-md border-b border-gray-9">
-                        <div style="max-width: 85.71%;">
+                        <div>
                           <p>Design is a complex of different history, society, culture, knowledge, function, aesthetics, problem solving and decision making, through design, human civilization will be gradually escalated and the concept of design will become the scale to evaluate human civilization.</p>
                           <p class="mt-md">設計是經由不同的歷史、社會和文化層面知識領域的趨勢、作業功能、美學理想、問題解決和決策訂定形成的綜合體，透過這種設計機制以促成提升人類生活文明的品質，因而了解正確的設計概念將成為人類文明比較的重要性指標。</p>
                         </div>
                       </div>
                     </details>
                     <details class="group">
-                      <summary class="flex items-start justify-between pt-md pb-md cursor-pointer list-none">
-                        <div class="flex items-start gap-md">
-                          <div style="height: 200px; flex: 0 0 calc(42.86%);" class="overflow-hidden">
-                            <img src="../images/SCCD-1-4-0.jpg" alt="Course" class="w-full h-full object-cover">
-                          </div>
+                      <summary class="flex items-center justify-between pt-md pb-md cursor-pointer list-none">
                           <div>
                             <h5>Digital Prepress Design</h5>
                             <h5>數位編輯設計</h5>
                           </div>
-                        </div>
-                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180 self-end"></i>
+                        <i class="fa-solid fa-chevron-down text-p1 transition-all duration-fast group-open:rotate-180"></i>
                       </summary>
                       <div class="pb-md">
-                        <div style="max-width: 85.71%;">
+                        <div>
                           <p>Design is a complex of different history, society, culture, knowledge, function, aesthetics, problem solving and decision making, through design, human civilization will be gradually escalated and the concept of design will become the scale to evaluate human civilization.</p>
                           <p class="mt-md">設計是經由不同的歷史、社會和文化層面知識領域的趨勢、作業功能、美學理想、問題解決和決策訂定形成的綜合體，透過這種設計機制以促成提升人類生活文明的品質，因而了解正確的設計概念將成為人類文明比較的重要性指標。</p>
                         </div>
@@ -747,83 +502,7 @@
   </main>
 
   <!-- Footer -->
-  <footer class="h-screen bg-black text-white relative overflow-hidden">
-    <div class="site-container h-full">
-      <div class="grid-12 h-full relative">
-
-        <!-- Column 11 - Bottom right links (no rotation) -->
-        <div class="col-start-11 col-span-2 absolute bottom-0 right-0 pb-2xl">
-          <div class="flex flex-col gap-xs">
-            <a href="#" class="text-white hover:text-gray-7 transition-colors duration-fast text-left">Privacy Policy</a>
-            <a href="#" class="text-white hover:text-gray-7 transition-colors duration-fast text-left">Terms and Conditions</a>
-            <p class="text-white text-left mt-lg">SCCD@ 2026</p>
-          </div>
-        </div>
-
-        <!-- Random positioned elements with rotation (Columns 1-10) -->
-        <div class="col-span-10 relative h-full">
-
-          <!-- Logo -->
-          <div class="absolute" style="top: 10%; left: 8%; transform: rotate(-3deg);">
-            <img src="../images/sccd_white.png" alt="SCCD" class="w-[100px] h-[100px] object-contain">
-          </div>
-
-          <!-- Links 相關連結 -->
-          <div class="absolute" style="top: 8%; right: 5%; transform: rotate(2deg);">
-            <h6 class="mb-xs text-white">Links 相關連結</h6>
-            <div class="flex flex-col gap-xs">
-              <a href="#" class="text-white hover:text-gray-7 transition-colors duration-fast">
-                Shih Chien University 實踐大學
-              </a>
-              <a href="#" class="text-white hover:text-gray-7 transition-colors duration-fast">
-                College of Design, USC 實踐大學設計學院
-              </a>
-            </div>
-          </div>
-
-          <!-- TEL -->
-          <div class="absolute" style="top: 32%; left: 5%; transform: rotate(-2deg);">
-            <h6 class="mb-xs text-white">TEL 電話</h6>
-            <p class="text-white">+886 2 2538 1111 #7211</p>
-          </div>
-
-          <!-- E-Mail -->
-          <div class="absolute" style="top: 32%; left: 35%; transform: rotate(3deg);">
-            <h6 class="mb-xs text-white">E-Mail 電子郵件</h6>
-            <p class="text-white">sccd@g2.usc.edu.tw</p>
-          </div>
-
-          <!-- FAX -->
-          <div class="absolute" style="top: 50%; left: 10%; transform: rotate(1deg);">
-            <h6 class="mb-xs text-white">FAX 傳真</h6>
-            <p class="text-white">+886 2 2538 1111 #7050</p>
-          </div>
-
-          <!-- Office -->
-          <div class="absolute" style="top: 50%; right: 8%; transform: rotate(-2deg);">
-            <h6 class="mb-xs text-white">Office 學系辦公室</h6>
-            <p class="text-white max-w-sm mb-sm">5F, Building A, Shih Chien University, No.70, Dazhi Street, Zhongshan District, Taipei City, Taiwan</p>
-            <p class="text-white max-w-sm">台灣台北市中山區大直街70號 實踐大學A棟5樓</p>
-          </div>
-
-          <!-- Social Media -->
-          <div class="absolute flex gap-lg" style="bottom: 15%; left: 8%; transform: rotate(-1deg);">
-            <a href="https://www.youtube.com/@scsccd" target="_blank" rel="noopener noreferrer" class="text-white hover:text-gray-7 transition-colors duration-fast">
-              <i class="fa-brands fa-youtube text-h3"></i>
-            </a>
-            <a href="https://www.instagram.com/communications.design_sccd" target="_blank" rel="noopener noreferrer" class="text-white hover:text-gray-7 transition-colors duration-fast">
-              <i class="fa-brands fa-instagram text-h3"></i>
-            </a>
-            <a href="https://www.facebook.com/communications.design" target="_blank" rel="noopener noreferrer" class="text-white hover:text-gray-7 transition-colors duration-fast">
-              <i class="fa-brands fa-facebook text-h3"></i>
-            </a>
-          </div>
-
-        </div>
-
-      </div>
-    </div>
-  </footer>
+  <div id="site-footer"></div>
 
   <!-- JavaScript -->
   <script src="../js/main.js"></script>

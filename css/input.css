@@ -59,6 +59,25 @@
     font-weight: 700;
   }
 
+  .nav-link .nav-link-cn {
+    display: none;
+  }
+
+  .nav-link.active {
+    font-weight: 700;
+    transform: rotate(3deg);
+    display: inline-block;
+  }
+
+  .nav-link.active .nav-link-cn {
+    display: inline;
+    margin-left: 0.25rem;
+  }
+
+  .submenu-link.active span {
+    font-weight: 700;
+  }
+
   /* Header Hide Animation */
   header {
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -142,6 +161,19 @@
 
   .faculty-card-image-wrapper:hover .faculty-card-image {
     transform: scale(1.1);
+  }
+
+  /* Degree Show Image Hover */
+  .degree-show-img-wrapper {
+    overflow: hidden;
+  }
+
+  .degree-show-img-wrapper img {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .degree-show-img-wrapper:hover img {
+    transform: scale(1.05);
   }
 }
 

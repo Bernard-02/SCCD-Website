@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Degree Show - SCCD</title>
+  <link rel="stylesheet" href="../css/output.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <div id="site-header"></div>
+
+  <!-- Main Content -->
+  <main>
+    <!-- Hero Section -->
+    <section class="h-screen relative overflow-hidden">
+      <div class="absolute inset-0 w-full h-full">
+        <img id="hero-img" src="../images/Degree Show.jpg" alt="Degree Show" class="w-full h-full object-cover">
+      </div>
+      <div class="absolute inset-0 w-full h-full bg-gradient-to-b from-transparent to-black"></div>
+      <div class="site-container h-full relative z-10">
+        <div class="h-full flex items-end pb-2xl">
+          <div>
+            <h3 class="text-white" id="hero-year">2024</h3>
+            <h1 class="text-white" id="hero-title">獸</h1>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Content Section -->
+    <section class="bg-white py-6xl">
+      <div class="site-container">
+
+        <!-- 文字區 -->
+        <!-- 上層：年份 + 標題（全寬） -->
+        <div class="mb-2xl">
+          <h3 id="text-year">2024</h3>
+          <h1 id="text-title">獸</h1>
+        </div>
+        <!-- 下層：social + 說明（右邊） -->
+        <div class="grid-12 mb-4xl">
+          <div class="col-start-6 col-span-7">
+            <!-- Social Media Icons -->
+            <div class="flex gap-lg mb-2xl">
+              <a href="https://www.youtube.com/@scsccd" target="_blank" rel="noopener noreferrer" class="hover:text-gray-7 transition-colors duration-fast">
+                <i class="fa-brands fa-youtube text-h5"></i>
+              </a>
+              <a href="https://www.instagram.com/communications.design_sccd" target="_blank" rel="noopener noreferrer" class="hover:text-gray-7 transition-colors duration-fast">
+                <i class="fa-brands fa-instagram text-h5"></i>
+              </a>
+              <a href="https://www.facebook.com/communications.design" target="_blank" rel="noopener noreferrer" class="hover:text-gray-7 transition-colors duration-fast">
+                <i class="fa-brands fa-facebook text-h5"></i>
+              </a>
+            </div>
+            <!-- 英中說明 -->
+            <p id="text-desc-en">Placeholder English description.</p>
+            <p class="mt-md" id="text-desc-cn">占位中文說明。</p>
+          </div>
+        </div>
+
+        <!-- 圖片區 -->
+        <div class="py-2xl">
+          <!-- Row 1: 2 張 -->
+          <div class="grid-12 mb-gutter">
+            <div class="col-span-6">
+              <img src="../images/Degree Show.jpg" alt="" class="w-full object-cover">
+            </div>
+            <div class="col-span-6">
+              <img src="../images/Degree Show.jpg" alt="" class="w-full object-cover">
+            </div>
+          </div>
+          <!-- Row 2: 1 張 -->
+          <div class="grid-12 mb-gutter">
+            <div class="col-span-12">
+              <img src="../images/Degree Show.jpg" alt="" class="w-full object-cover">
+            </div>
+          </div>
+          <!-- Row 3: 3 張 -->
+          <div class="grid-12">
+            <div class="col-span-4">
+              <img src="../images/Degree Show.jpg" alt="" class="w-full object-cover" style="aspect-ratio: 4/3;">
+            </div>
+            <div class="col-span-4">
+              <img src="../images/Degree Show.jpg" alt="" class="w-full object-cover" style="aspect-ratio: 4/3;">
+            </div>
+            <div class="col-span-4">
+              <img src="../images/Degree Show.jpg" alt="" class="w-full object-cover" style="aspect-ratio: 4/3;">
+            </div>
+          </div>
+        </div>
+
+        <!-- 影片區 -->
+        <div class="grid-12">
+          <div class="col-span-12">
+            <!-- Video placeholder -->
+            <div style="aspect-ratio: 16/9; background-color: #000;">
+              <p class="text-white text-center" style="padding-top: 45%; font-size: 1rem;">Video Placeholder</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Next Project Section -->
+    <section id="next-project-section" class="bg-white relative overflow-hidden" style="aspect-ratio: 16/9; cursor: pointer;">
+      <!-- 縮圖層 + overlay + 文字，整個用 Logo_Mask 裁剪（窗戶效果） -->
+      <div id="next-mask-layer" class="absolute inset-0" style="-webkit-mask-image: url('../images/Logo_Mask.svg'); mask-image: url('../images/Logo_Mask.svg'); -webkit-mask-size: 500px 500px; mask-size: 500px 500px; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: calc(50% - 250px) calc(50% - 250px); mask-position: calc(50% - 250px) calc(50% - 250px);">
+        <!-- 縮圖 -->
+        <img id="next-img" src="../images/Degree Show.jpg" alt="" class="w-full h-full object-cover">
+        <!-- 黑色 overlay -->
+        <div class="absolute inset-0" style="background-color: rgba(0,0,0,0.4);"></div>
+        <!-- 文字，固定在 mask 中央（left/top 由 JS 同步）-->
+        <div id="next-text" class="absolute flex flex-col items-center justify-center" style="width: 500px; height: 500px; pointer-events: none;">
+          <h5 id="next-year" class="text-white"></h5>
+          <h3 id="next-title" class="text-white"></h3>
+        </div>
+      </div>
+
+      <!-- 點擊層 -->
+      <a id="next-link" href="#" class="absolute inset-0"></a>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <div id="site-footer"></div>
+
+  <!-- JavaScript -->
+  <script src="../js/main.js"></script>
+  <script>
+    // ===== Degree Show Detail Data =====
+    const degreeShowData = {
+      '2024': {
+        title: '獸',
+        descEn: "Professors of SCCD are composed of cross-disciplinary experts from academia, design industry and art field. Possess a theoretical and research background in design and art education at domestic and foreign, rich and diverse performance and creative practical experience, and have In-depth understanding of the professional education goals of the department. It is expected that students with different characteristics and attributes will expand their plasticity and give corresponding inspiration, strengthen student's professional skills and trend perception ability, and consolidate students expand their potential and explosive power whether in academic research, design practice, artistic creation with future vision.",
+        descCn: '實踐大學媒體傳達設計學系專、兼任教師皆為學術界、設計業界與藝術領域專家等跨領域組成，具備國內外設計藝術教育理論研究背景、豐富多樣的展演與創作實務經歷，對於學系之專業教育目標理解深入，期許針對不同特質屬性的學生擴展可塑性並給予相應之啟發，強化學生專業技能及趨勢感知能力，夯實學生未來不論於學術研究、設計實務、藝術創作皆能擴展其潛能、爆發力與未來願景。'
+      },
+      '2023': {
+        title: '獸',
+        descEn: 'The 2023 Degree Show showcases the creative works of graduating students, reflecting their growth and artistic vision.',
+        descCn: '2023 畢業展呈現了畢業生的創意作品，反映他們的成長與藝術視野。'
+      },
+      '2022': {
+        title: '獸',
+        descEn: 'The 2022 Degree Show showcases the creative works of graduating students, reflecting their growth and artistic vision.',
+        descCn: '2022 畢業展呈現了畢業生的創意作品，反映他們的成長與藝術視野。'
+      },
+      '2021': {
+        title: '獸',
+        descEn: 'The 2021 Degree Show showcases the creative works of graduating students, reflecting their growth and artistic vision.',
+        descCn: '2021 畢業展呈現了畢業生的創意作品，反映他們的成長與藝術視野。'
+      }
+    };
+
+    // ===== Read year from URL =====
+    const params = new URLSearchParams(window.location.search);
+    const year = params.get('year');
+    const data = degreeShowData[year];
+
+    // 年份列表（從新到舊）
+    const years = ['2024', '2023', '2022', '2021'];
+
+    if (data) {
+      document.title = `Degree Show ${year} - SCCD`;
+
+      // Hero
+      document.getElementById('hero-year').textContent = year;
+      document.getElementById('hero-title').textContent = data.title;
+
+      // 文字區
+      document.getElementById('text-year').textContent = year;
+      document.getElementById('text-title').textContent = data.title;
+      document.getElementById('text-desc-en').textContent = data.descEn;
+      document.getElementById('text-desc-cn').textContent = data.descCn;
+
+      // Next Project（循環：首尾相接）
+      const idx = years.indexOf(year);
+      const nextYear = years[(idx + 1) % years.length];
+
+      document.getElementById('next-link').href = 'degree-show-detail.html?year=' + nextYear;
+      document.getElementById('next-year').textContent = nextYear;
+      document.getElementById('next-title').textContent = degreeShowData[nextYear].title;
+
+      // ===== Logo Mask 隨鼠標移動 =====
+      const section = document.getElementById('next-project-section');
+      const maskLayer = document.getElementById('next-mask-layer');
+      const nextText = document.getElementById('next-text');
+      const maskW = 500, maskH = 500;
+
+      const edgePad = 40; // mask 離上下邊緣的最小距離
+
+      function setMaskPos(mouseX, mouseY) {
+        const rect = section.getBoundingClientRect();
+        // 水平自由跟隨，垂直限制在 section 範圍內（留有 edgePad 間距）
+        const posX = mouseX - maskW / 2;
+        const posY = Math.min(Math.max(mouseY - maskH / 2, edgePad), rect.height - maskH - edgePad);
+        maskLayer.style.webkitMaskPosition = `${posX}px ${posY}px`;
+        maskLayer.style.maskPosition = `${posX}px ${posY}px`;
+        // 文字位置與 mask 同步（left/top = mask 左上角）
+        nextText.style.left = `${posX}px`;
+        nextText.style.top = `${posY}px`;
+      }
+
+      function setTransition(duration) {
+        const val = `${duration}s ease-out`;
+        maskLayer.style.webkitTransition = `-webkit-mask-position ${val}`;
+        maskLayer.style.transition = `mask-position ${val}`;
+        nextText.style.transition = `left ${val}, top ${val}`;
+      }
+
+      section.addEventListener('mousemove', (e) => {
+        setTransition(0.15); // 輕微 ease 跟隨滑鼠
+        const rect = section.getBoundingClientRect();
+        setMaskPos(e.clientX - rect.left, e.clientY - rect.top);
+      });
+
+      section.addEventListener('mouseleave', () => {
+        setTransition(0.6); // 緩慢回到中央
+        const rect = section.getBoundingClientRect();
+        setMaskPos(rect.width / 2, rect.height / 2);
+      });
+
+      // 初始位置（頁面載入時居中）
+      setTransition(0);
+      const initRect = section.getBoundingClientRect();
+      setMaskPos(initRect.width / 2, initRect.height / 2);
+    } else {
+      window.location.href = 'degree-show.html';
+    }
+  </script>
+
+</body>
+</html>

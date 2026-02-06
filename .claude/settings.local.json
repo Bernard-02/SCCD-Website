@@ -10,7 +10,14 @@
       "Bash(npx tailwindcss:*)",
       "Bash(dir:*)",
       "Bash(npm run watch:css:*)",
-      "Bash(start \"\" \"c:\\\\Users\\\\Bernard Liew\\\\Documents\\\\實踐大學\\\\SCCD Website\\\\pages\\\\faculty.html\")"
+      "Bash(start \"\" \"c:\\\\Users\\\\Bernard Liew\\\\Documents\\\\實踐大學\\\\SCCD Website\\\\pages\\\\faculty.html\")",
+      "Bash(ls:*)",
+      "Bash(for file in bfa-courses.html mdes-courses.html faculty.html faculty-detail.html support.html admission.html admission-detail.html)",
+      "Bash(done)",
+      "Bash(powershell:*)",
+      "Bash(pwsh:*)",
+      "Bash(python:*)",
+      "Bash(python3:*)"
     ]
   }
 }

@@ -5,38 +5,74 @@
 // Wait for DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', function() {
 
-  // Set header height CSS variable for mega menu positioning
-  function setHeaderHeight() {
+  // --- Header: fetch shared header.html and initialise after insert ---
+  function initHeader() {
     const header = document.querySelector('header');
-    if (header) {
-      const headerHeight = header.offsetHeight;
-      document.documentElement.style.setProperty('--header-height', `${headerHeight}px`);
+    if (!header) return;
+
+    // Set --header-height CSS variable for mega menu positioning
+    function setHeaderHeight() {
+      document.documentElement.style.setProperty('--header-height', `${header.offsetHeight}px`);
     }
+    setHeaderHeight();
+    window.addEventListener('resize', setHeaderHeight);
+
+    // Nav active state: highlight parent nav-link + matching submenu-link
+    const currentPage = window.location.pathname.split('/').pop();
+    document.querySelectorAll('nav > ul > li').forEach(li => {
+      const parentLink = li.querySelector(':scope > a.nav-link');
+      const subLinks = li.querySelectorAll('.submenu-link');
+
+      // Top-level link（無 submenu）直接比對
+      if (subLinks.length === 0 && parentLink && parentLink.getAttribute('href') === currentPage) {
+        parentLink.classList.add('active');
+      }
+
+      // Submenu link 比對，順便標記上層
+      subLinks.forEach(link => {
+        if (link.getAttribute('href') === currentPage) {
+          parentLink.classList.add('active');
+          link.classList.add('active');
+        }
+      });
+    });
+
+    // Hide on scroll down, show on scroll up
+    let lastScrollTop = 0;
+    window.addEventListener('scroll', function() {
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      if (scrollTop > lastScrollTop && scrollTop > 100) {
+        header.classList.add('header-hidden');
+      } else {
+        header.classList.remove('header-hidden');
+      }
+      lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
+    });
   }
 
-  // Set on load and on resize
-  setHeaderHeight();
-  window.addEventListener('resize', setHeaderHeight);
-
-  // Header hide on scroll down, show on scroll up
-  let lastScrollTop = 0;
-  const header = document.querySelector('header');
-
-  function handleHeaderScroll() {
-    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-
-    if (scrollTop > lastScrollTop && scrollTop > 100) {
-      // Scrolling down & past 100px
-      header.classList.add('header-hidden');
-    } else {
-      // Scrolling up or at top
-      header.classList.remove('header-hidden');
-    }
-
-    lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
+  const headerContainer = document.getElementById('site-header');
+  if (headerContainer) {
+    // Header loaded via fetch (shared header.html)
+    fetch('header.html')
+      .then(res => res.text())
+      .then(html => {
+        headerContainer.innerHTML = html;
+        initHeader();
+      });
+  } else {
+    // Fallback: header already in the page (e.g. index.html)
+    initHeader();
   }
 
-  window.addEventListener('scroll', handleHeaderScroll);
+  // --- Footer: fetch shared footer.html ---
+  const footerContainer = document.getElementById('site-footer');
+  if (footerContainer) {
+    fetch('footer.html')
+      .then(res => res.text())
+      .then(html => {
+        footerContainer.innerHTML = html;
+      });
+  }
 
   // Faculty filter functionality
   const filterButtons = document.querySelectorAll('.faculty-filter-btn');
@@ -225,6 +261,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const previewBlock = document.createElement('div');
     previewBlock.style.cssText = 'position:absolute;aspect-ratio:4/3;z-index:50;pointer-events:none;overflow:hidden;top:50%;transform-origin:center center;';
 
+    const previewImg = document.createElement('img');
+    previewImg.alt = 'Activity Preview';
+    previewImg.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+    previewBlock.appendChild(previewImg);
+
     function randomRotation() {
       return (Math.random() * 6 - 3).toFixed(1); // -3 to +3
     }
@@ -235,34 +276,11 @@ document.addEventListener('DOMContentLoaded', function() {
       item.addEventListener('mouseenter', function() {
         const category = this.getAttribute('data-category');
         previewBlock.style.backgroundColor = categoryColors[category] || '#E6E6E6';
+        previewImg.src = '../images/SCCD-1-4-0.jpg';
 
-        // Measure actual text end of the name using Range
-        const itemRect = this.getBoundingClientRect();
-        const nameEl = this.querySelector('p');
-        const infoEl = this.querySelector('div');
-
-        const range = document.createRange();
-        range.selectNodeContents(nameEl);
-        const nameTextRect = range.getBoundingClientRect();
-        const nameTextEnd = nameTextRect.right - itemRect.left;
-
-        const infoStart = infoEl.getBoundingClientRect().left - itemRect.left;
-
-        // Available space between name text end and location text start
-        const space = infoStart - nameTextEnd;
-        const previewWidth = 160; // px
-
-        let previewLeft;
-        if (space >= previewWidth) {
-          // Enough room: center preview in the available space
-          previewLeft = nameTextEnd + (space - previewWidth) / 2;
-        } else {
-          // Not enough room: center preview around the name/info boundary
-          previewLeft = infoStart - previewWidth / 2;
-        }
-
-        previewBlock.style.width = previewWidth + 'px';
-        previewBlock.style.left = previewLeft + 'px';
+        // Fixed position: centered around the 66.67% boundary (where name col ends)
+        previewBlock.style.width = '240px';
+        previewBlock.style.left = 'calc(50% - 120px)';
         previewBlock.style.transform = 'translateY(-50%) rotate(' + randomRotation() + 'deg)';
 
         this.appendChild(previewBlock);
