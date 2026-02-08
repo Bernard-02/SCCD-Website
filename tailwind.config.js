@@ -73,6 +73,7 @@ module.exports = {
         '2xl': '4rem',    // 64px
         '3xl': '6rem',    // 96px
         '4xl': '8rem',    // 128px
+        '5xl': '10rem',   // 160px
         '6xl': '12rem',   // 192px
         'gutter': '1.25rem',  // 20px - Grid gutter
         'container-padding': '3.75rem',  // 60px - Container padding

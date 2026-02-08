@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>About - SCCD</title>
+  <link rel="stylesheet" href="../css/output.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <div id="site-header"></div>
+
+  <!-- Main Content -->
+  <main>
+    <!-- Hero Section with Background Image -->
+    <section id="about-hero" class="h-screen relative overflow-hidden">
+      <!-- Background Image -->
+      <div class="absolute inset-0 w-full h-full">
+        <img src="../images/SCCD-1-4-0.jpg" alt="About SCCD" class="w-full h-full object-cover">
+      </div>
+
+      <!-- Black Gradient Overlay (0% at top, 100% at bottom) -->
+      <div class="absolute inset-0 w-full h-full bg-gradient-to-b from-transparent to-black"></div>
+
+      <!-- Content Container -->
+      <div class="site-container h-full relative z-10">
+        <div class="h-full flex items-end gap-xl pb-2xl">
+          <!-- Title on the left (50%) with -4deg rotation -->
+          <div class="w-1/2">
+            <h1 class="text-white pb-xl" style="transform: rotate(-4deg);">ABOUT</h1>
+          </div>
+
+          <!-- Content on the right (50%) -->
+          <div class="w-1/2">
+            <!-- English text with 3deg rotation -->
+            <p class="text-white mb-xl" style="transform: rotate(3deg);">
+              Discover the vision, mission, and values that drive the Shih Chien University Center for Creative Design.
+            </p>
+            <!-- Chinese text with -2deg rotation -->
+            <p class="text-white" style="transform: rotate(-2deg);">
+              探索實踐大學媒體傳達設計學系的願景、使命與核心價值。
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Content Sections Wrapper -->
+    <div id="about-content-wrapper" class="relative" style="padding-top: 50vh;">
+
+      <!-- Anchor Navigation positioned at column 1 -->
+      <div class="site-container absolute left-0 right-0 pointer-events-none z-[100]" style="top: 50vh; bottom: 0;">
+        <div class="grid-12 h-full">
+          <div class="col-span-1">
+            <div id="anchor-nav" class="sticky pointer-events-auto" style="top: 50vh; transform: translateY(-50%);">
+              <div class="flex flex-col gap-sm">
+                <button class="anchor-nav-btn text-left text-p1 font-regular hover:font-bold transition-all duration-fast whitespace-nowrap" data-target="overview">
+                  <div>Overview</div>
+                  <div>綜述</div>
+                </button>
+                <button class="anchor-nav-btn text-left text-p1 font-regular hover:font-bold transition-all duration-fast whitespace-nowrap" data-target="bfa-class">
+                  <div>BFA Class</div>
+                  <div>學士班</div>
+                </button>
+                <button class="anchor-nav-btn text-left text-p1 font-regular hover:font-bold transition-all duration-fast whitespace-nowrap" data-target="mdes-class">
+                  <div>MDES Class</div>
+                  <div>碩士班</div>
+                </button>
+                <button class="anchor-nav-btn text-left text-p1 font-regular hover:font-bold transition-all duration-fast whitespace-nowrap" data-target="resources">
+                  <div>Resources</div>
+                  <div>環境資源</div>
+                </button>
+                <button class="anchor-nav-btn text-left text-p1 font-regular hover:font-bold transition-all duration-fast whitespace-nowrap" data-target="alumni">
+                  <div>Alumni</div>
+                  <div>系友發展</div>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Overview Section -->
+      <section id="overview" class="bg-white py-6xl relative z-10" style="margin-top: -50vh;">
+        <div class="site-container">
+          <div class="grid-12">
+            <!-- English Text (Column 3-7) -->
+            <div class="col-start-3 col-span-5">
+              <h5 class="text-black leading-base">
+                Department of Communications Design, Shih Chien University / SCCD is the first academic institution to establish the "Communications Design" department in the country. The teaching of the department takes design thinking, humanities, and aesthetics as the cornerstones, uses multidimensional platforms as the foundation, diverse media as the carrier, and integrates teaching experiments and design training such as animation, narrative video, interaction, performance, game, product, space. and environment. Supplemented by intensive international workshop and industry-academy cooperation in various fields, as well as overseas exchange opportunities. It aims to cultivate director-type creative talents who can integrate "media" as the vehicle, "design" as the method, emphasize "communications" as the core of human civilization, and adapt to the rapid changes of the era.
+              </h5>
+            </div>
+
+            <!-- Chinese Text (Column 8-12) -->
+            <div class="col-start-8 col-span-5">
+              <h5 class="text-black leading-base">
+                實踐大學媒體傳達設計學系為全國首創成立「媒體傳達設計」之學系。學系教學以設計思考、人文、美學為核心基石，運用多維度平台為基礎與多樣性媒材為載體，整合動畫、敘事影像、互動、展演、遊戲、商品、空間、環境等教學實驗與設計訓練，輔以密集舉辦之跨國工作與各領域產學合作，同時提供海外交換留學機會，旨在培育能整合「媒體」為乘載，「設計」為方法，強調「傳達」為人類文明之核心，得以適應時代快速變遷之總監型創作人才。
+              </h5>
+            </div>
+          </div>
+
+          <!-- Timeline Section -->
+          <div class="timeline-wrapper mt-6xl pt-5xl pb-6xl" style="min-height: 1400vh;">
+            <!-- Sticky Timeline Display -->
+            <div class="timeline-sticky-container sticky bg-white" style="top: 100px;">
+              <div class="site-container pt-2xl">
+                <!-- Era Label (Column 2) -->
+                <div class="grid-12 mb-lg">
+                  <div class="col-start-2 col-span-10">
+                    <h5 id="timeline-era" class="text-black font-bold whitespace-nowrap"></h5>
+                  </div>
+                </div>
+
+                <!-- Years Display (horizontal scroll container) -->
+                <div class="grid-12">
+                  <div class="col-start-2 col-span-10 overflow-visible">
+                    <div id="timeline-years-container" class="flex gap-5xl" style="transform: translateX(0);">
+                      <!-- All years will be rendered here -->
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Full Width Line (100vw width, no padding) -->
+              <div class="w-screen h-[1px] bg-gray-9 mt-lg" style="margin-left: calc(-50vw + 50%);"></div>
+
+              <div class="site-container pb-4xl">
+                <!-- Timeline Content (Image + Text) -->
+                <div class="grid-12 mt-2xl">
+                  <!-- Image (col-2, custom width ~2.5 columns) -->
+                  <div class="col-start-2 col-span-3">
+                    <div id="timeline-image" class="bg-gray-9" style="aspect-ratio: 3/3.5; width: 83%; transform: rotate(-4deg);"></div>
+                  </div>
+                  <!-- Text (col-6 to col-11) -->
+                  <div class="col-start-6 col-span-6">
+                    <div id="timeline-text" class="text-black">
+                      <p class="text-p1 leading-base">Timeline content will appear here...</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Horizontal Accordion Section -->
+          <div class="mt-6xl">
+            <div class="site-container">
+              <div class="grid-12">
+                <div class="col-start-2 col-span-11">
+                  <div class="accordion-wrapper flex gap-gutter" style="height: 700px;">
+
+                    <!-- Accordion Panel 1 -->
+                    <div class="accordion-panel relative cursor-pointer" data-index="0">
+                      <img src="../images/SCCD-1-4-0.jpg" alt="Accordion 1" class="w-full h-full object-cover">
+                      <div class="accordion-overlay absolute inset-0"></div>
+                      <div class="accordion-content absolute bottom-0 left-0 p-2xl">
+                        <h5 class="text-white font-bold mb-md">Panel 1 Title</h5>
+                        <p class="text-white mb-sm">Department of Communications Design, Shih Chien University / SCCD is the first academic institution to establish the “Communications Design” department in the country. The teaching of the department takes design thinking, humanities, and aesthetics as the cornerstones, uses multidimensional platforms as the foundation, diverse media as the carrier, and integrates teaching experiments and design training such as animation, narrative video, interaction, performance, game, product, space, and environment. Supplemented by intensive international workshop and industry-academy cooperation in various fields, as well as overseas exchange opportunities. It aims to cultivate director-type creative talents who can integrate “media” as the vehicle, “design” as the method, emphasize “communications” as the core of human civilization, and adapt to the rapid changes of the era.</p>
+                        <p class="text-white">實踐大學設計學院為美國 BusinessWeek 與 ranker.com 認定為全球前三十名之優良設計學院，歷年來獲得國內外各領域無數獎項與認可。學院多次被德國 Red Dot Design Award（ 紅點設計獎 ）與 iF Design Award（ iF 設計獎 ）排名為亞太區獲獎數前四名。實踐大學多次被天下雜誌等各家媒體報導為院校排名類榜單前列，被評比為國內設計類系所排名第一、「企業最愛設計院校 Top 10」等。</p>
+                      </div>
+                    </div>
+
+                    <!-- Accordion Panel 2 -->
+                    <div class="accordion-panel relative cursor-pointer" data-index="1">
+                      <img src="../images/SCCD-1-4-0.jpg" alt="Accordion 2" class="w-full h-full object-cover">
+                      <div class="accordion-overlay absolute inset-0 opacity-0"></div>
+                      <div class="accordion-content absolute bottom-0 left-0 p-2xl opacity-0">
+                        <h5 class="text-white font-bold mb-md">Panel 2 Title</h5>
+                        <p class="text-white mb-sm">In view of the ability in integrate domestic and foreign industries, the department has a teaching feature on cultivating director-type creative design talents with global perspectives. Focusing on the development of digital image creation and interactive new media experience design, integrating creative teaching experiments with digital content, and combining the bred creative content results with industrial experience to guide students to have substantial influence in enterprises in various fields with aesthetic design and creative thinking. To display competitions, film exhibitions, art performances, and Industry-Academy cooperation performance at domestic and foreign design as development platforms and goals.</p>
+                        <p class="text-white">鑒於國內外產業接軌能力，學系以培養具有國際視野之總監型創意設計人才為教學特色，著重發展數位影像創作與新媒體互動體驗設計，在教學上以數位內容整合創意實驗，將孕育發展之創意內容成果結合產業經驗，導引學子在各領域企業中，以美學設計與創意思考產生實質影響力，以國內外設計競賽、影展、藝術展演、產學合作績效等為發展平台與目標。</p>
+                      </div>
+                    </div>
+
+                    <!-- Accordion Panel 3 -->
+                    <div class="accordion-panel relative cursor-pointer" data-index="2">
+                      <img src="../images/SCCD-1-4-0.jpg" alt="Accordion 3" class="w-full h-full object-cover">
+                      <div class="accordion-overlay absolute inset-0 opacity-0"></div>
+                      <div class="accordion-content absolute bottom-0 left-0 p-2xl opacity-0">
+                        <h5 class="text-white font-bold mb-md">Panel 3 Title</h5>
+                        <p class="text-white mb-sm">Students and alumni of the department have been shortlisted and won numerous competitions at domestic and foreign awards, including the US Student Academy Awards, NYC ADC Annual Awards, US CA Design Award, German Red Dot Design Award, iF Design Award, Berlin Short Film Festival, Venice Film Festival, Japan GOOD DESIGN Award, Taiwan Golden Horse Awards, Taipei Film Festival, Golden Pin Design Award, etc. The development of alumni has expanded to various creative fields such as film, animation, advertising, MV directors, visual designers, product designers, photographers, graphic designers, new media artists, etc., and continues to light-up at domestic and foreign.</p>
+                        <p class="text-white">本系學生、系友入圍及獲獎國內外競賽無數，包含美國學生奧斯卡、紐約 ADC 設計獎、美國 CA 設計獎、德國紅點設計獎、iF 設計獎、柏林短片影展、威尼斯影展、日本 GOOD DESIGN 獎、台灣金馬獎、台北電影節、金點設計獎等。畢業系友發展擴及各創作領域如電影、動畫、廣告、MV 導演、視覺設計師、產品設計師、遊戲設計師、網站設計師、攝影師、平面設計師、新媒體藝術家等，持續於海內外發光發熱。</p>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- BFA Class Section -->
+      <section id="bfa-class" class="bg-white relative z-10">
+        <!-- Banner with Image and Title -->
+        <div class="relative w-full" style="height: 100vh;">
+          <!-- Background Image -->
+          <div class="absolute inset-0 w-full h-full">
+            <img src="../images/SCCD-1-4-0.jpg" alt="BFA Class" class="w-full h-full object-cover">
+          </div>
+
+          <!-- Black Overlay (30%) -->
+          <div class="absolute inset-0 w-full h-full bg-black" style="opacity: 0.3;"></div>
+
+          <!-- Title in Center -->
+          <div class="absolute inset-0 w-full h-full flex items-center justify-center z-10">
+            <div class="text-center">
+              <h1 class="text-white">BFA Class</h1>
+              <h1 class="text-white mt-md">學士班</h1>
+            </div>
+          </div>
+        </div>
+
+        <!-- Content Section with Image and Text -->
+        <div class="site-container py-6xl">
+          <div class="grid-12">
+            <div class="col-start-2 col-span-5 relative flex justify-center items-center" style="height: 500px;">
+              <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(-4deg); top: 0; left: 15%; z-index: 3;"></div>
+              <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(4deg); top: 80px; left: 25%; z-index: 2;"></div>
+              <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(-4deg); top: 160px; left: 5%; z-index: 1;"></div>
+            </div>
+            <div class="col-start-7 col-span-5 flex items-center">
+              <div>
+                <p class="mb-sm">The BFA program cultivates creative talents through comprehensive design education, integrating theory and practice across multiple media platforms. Students engage in hands-on projects that develop their technical skills and creative vision.</p>
+                <p>學士班課程透過全面的設計教育培養創意人才，整合理論與實踐，跨越多元媒體平台。學生參與實作專案，培養技術能力與創意視野。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Division Toggle Buttons -->
+        <div class="site-container pb-6xl">
+          <div class="flex justify-center mb-3xl">
+            <button class="bfa-division-btn active px-md py-xs text-p1 font-regular transition-all duration-fast" style="border-radius: 30px;" data-division="animation">
+              動畫影像設計組
+            </button>
+            <button class="bfa-division-btn px-md py-xs text-p1 font-regular transition-all duration-fast" style="border-radius: 30px;" data-division="creative-media">
+              創意媒體設計組
+            </button>
+          </div>
+
+          <!-- Animation Division Content -->
+          <div class="bfa-division-content" data-division="animation">
+            <div class="grid-12 items-center">
+              <!-- Text Content (Left) - col-2 to col-6 -->
+              <div class="col-start-2 col-span-5 flex flex-col gap-xl">
+                <!-- Block 1 -->
+                <div>
+                  <h5 class="mb-md">Autonomy 自主性</h5>
+                  <p class="mb-sm">Explore the relationship between self and the environment through animation creation, and then extend the care and reflection on culture, ecology and humanities.</p>
+                  <p>透過動畫創作探討自我與環境的關係，進而延伸對文化、生態與人文之關懷與省思。</p>
+                </div>
+
+                <!-- Block 2 -->
+                <div>
+                  <h5 class="mb-md">Diversity 多元性</h5>
+                  <p class="mb-sm">Cultivate multimedia materials digital image implementers with hand-painted, 2D, 3D and experiment to meet the needs of the future trend of cultural creativity and digital content industry.
+</p>
+                  <p>培養跨媒材之手繪、2D、3D、實驗技法等數位影像之創作人才，以符合未來趨勢之文化創意與數位內容產業整合之需求。</p>
+                </div>
+
+                <!-- Block 3 -->
+                <div>
+                  <h5 class="mb-md">Integration 整合性</h5>
+                  <p class="mb-sm">Through one-person independent production, students are trained to integrate creativity, production and performance, and to cultivate leadership and management talents with a comprehensive perspective and horizontal communication skills.</p>
+                  <p>藉由單人獨立製作訓練學生創意、製作與展演之整合能力，培養具全觀視角，善於橫向溝通能力與領導管理之設計人才。</p>
+                </div>
+              </div>
+
+              <!-- Image Content (Right) - col-8 to col-12 -->
+              <div class="col-start-8 col-span-5 flex items-center">
+                <div class="relative w-full" style="height: 500px;">
+                  <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(-4deg); top: 0; left: 20%; z-index: 3;"></div>
+                  <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(4deg); top: 100px; left: 35%; z-index: 2;"></div>
+                  <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(-4deg); top: 200px; left: 10%; z-index: 1;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Creative Media Division Content -->
+          <div class="bfa-division-content" data-division="creative-media" style="display: none;">
+            <div class="grid-12 items-center">
+              <!-- Text Content (Left) - col-2 to col-6 -->
+              <div class="col-start-2 col-span-5 flex flex-col gap-xl">
+                <!-- Block 1 -->
+                <div>
+                  <h5 class="mb-md">Autonomy 自主性</h5>
+                  <p class="mb-sm">Explore the essence of new media interaction from multiple perspectives, furthermore, showing care and reflection on humanities, society, and the environment by these perspectives.</p>
+                  <p>多面向探討新媒體互動的本質，並藉此對人文、社會、環境作進一步之關懷與省思。</p>
+                </div>
+
+                <!-- Block 2 -->
+                <div>
+                  <h5 class="mb-md">Diversity 多元性</h5>
+                  <p class="mb-sm">Develop multi-interaction model design, integrate different media and platforms such as digital media audio and video, human interaction installation, game design, experience design, virtual reality application and technology-based public art.</p>
+                  <p>發展多元互動模式設計，整合數位媒體影音、人因互動裝置、遊戲設計、體驗設計、虛擬實境應用及科技性公共藝術等不同媒材與平台。</p>
+                </div>
+
+                <!-- Block 3 -->
+                <div>
+                  <h5 class="mb-md">Integration 整合性</h5>
+                  <p class="mb-sm">Through one-person independent production, students are trained to integrate creativity, production and performance, and to cultivate leadership and management talents with a comprehensive perspective and horizontal communication skills.</p>
+                  <p>藉由單人獨立製作訓練學生創意、製作與展演之整合能力，培養具全觀視角，善於橫向溝通能力與領導管理之設計人才。</p>
+                </div>
+              </div>
+
+              <!-- Image Content (Right) - col-8 to col-12 -->
+              <div class="col-start-8 col-span-5 flex items-center">
+                <div class="relative w-full" style="height: 500px;">
+                  <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(-4deg); top: 0; left: 20%; z-index: 3;"></div>
+                  <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(4deg); top: 100px; left: 35%; z-index: 2;"></div>
+                  <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(-4deg); top: 200px; left: 10%; z-index: 1;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Image and Text Section (Image Left, Text Right) -->
+        <div class="site-container pb-6xl">
+          <div class="grid-12">
+            <div class="col-start-2 col-span-5 relative flex justify-center items-center" style="height: 500px;">
+              <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(-4deg); top: 0; left: 15%; z-index: 3;"></div>
+              <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(4deg); top: 80px; left: 25%; z-index: 2;"></div>
+              <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(-4deg); top: 160px; left: 5%; z-index: 1;"></div>
+            </div>
+            <div class="col-start-7 col-span-5 flex items-center">
+              <div>
+                <p class="mb-sm">The BFA program emphasizes hands-on learning and creative exploration, preparing students for diverse career paths in the design industry. Through collaborative projects and individual research, students develop their unique creative voice.</p>
+                <p>學士班強調實作學習與創意探索，為學生在設計產業的多元職涯做準備。透過合作專案與個人研究，學生發展獨特的創作聲音。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- MDES Class Section -->
+      <section id="mdes-class" class="bg-white relative z-10">
+        <!-- Banner with Image and Title -->
+        <div class="relative w-full" style="height: 100vh;">
+          <!-- Background Image -->
+          <div class="absolute inset-0 w-full h-full">
+            <img src="../images/SCCD-1-4-0.jpg" alt="MDES Class" class="w-full h-full object-cover">
+          </div>
+
+          <!-- Black Overlay (30%) -->
+          <div class="absolute inset-0 w-full h-full bg-black" style="opacity: 0.3;"></div>
+
+          <!-- Title in Center -->
+          <div class="absolute inset-0 w-full h-full flex items-center justify-center z-10">
+            <div class="text-center">
+              <h1 class="text-white">MDES Class</h1>
+              <h1 class="text-white mt-md">碩士班</h1>
+            </div>
+          </div>
+        </div>
+
+        <!-- Image and Text Group 1 (Images Left, Text Right) -->
+        <div class="site-container py-6xl">
+          <div class="grid-12">
+            <div class="col-start-2 col-span-5 relative flex justify-center items-center" style="height: 500px;">
+              <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(-4deg); top: 0; left: 15%; z-index: 3;"></div>
+              <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(4deg); top: 80px; left: 25%; z-index: 2;"></div>
+              <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(-4deg); top: 160px; left: 5%; z-index: 1;"></div>
+            </div>
+            <div class="col-start-7 col-span-5 flex items-center">
+              <div>
+                <p class="mb-sm">The MDES program offers advanced research and creative practice opportunities, fostering innovation in communications design. Graduate students engage in cutting-edge projects that push the boundaries of design thinking and media expression.</p>
+                <p>碩士班提供進階研究與創作實踐機會，培養媒體傳達設計的創新能力。研究生參與前瞻性專案，推進設計思維與媒體表達的界限。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Image and Text Group 2 (Text Left, Images Right) -->
+        <div class="site-container pb-6xl">
+          <div class="grid-12">
+            <div class="col-start-2 col-span-5 flex items-center">
+              <div>
+                <p class="mb-sm">Through intensive research methodologies and collaborative workshops, MDES students develop critical perspectives on contemporary design challenges. The program emphasizes both theoretical foundations and practical applications in emerging media contexts.</p>
+                <p>透過密集的研究方法與合作工作坊，碩士班學生對當代設計挑戰發展批判性觀點。課程強調理論基礎與新興媒體情境中的實際應用。</p>
+              </div>
+            </div>
+            <div class="col-start-8 col-span-5 relative flex justify-center items-center" style="height: 500px;">
+              <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(-4deg); top: 0; left: 20%; z-index: 3;"></div>
+              <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(4deg); top: 100px; left: 35%; z-index: 2;"></div>
+              <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(-4deg); top: 200px; left: 10%; z-index: 1;"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Resources Section -->
+      <section id="resources" class="bg-white relative z-10">
+        <!-- Banner with Image and Title -->
+        <div class="relative w-full" style="height: 100vh;">
+          <!-- Background Image -->
+          <div class="absolute inset-0 w-full h-full">
+            <img src="../images/SCCD-1-4-0.jpg" alt="Resources" class="w-full h-full object-cover">
+          </div>
+
+          <!-- Black Overlay (30%) -->
+          <div class="absolute inset-0 w-full h-full bg-black" style="opacity: 0.3;"></div>
+
+          <!-- Title in Center -->
+          <div class="absolute inset-0 w-full h-full flex items-center justify-center z-10">
+            <div class="text-center">
+              <h1 class="text-white">Resources</h1>
+              <h1 class="text-white mt-md">環境資源</h1>
+            </div>
+          </div>
+        </div>
+
+        <!-- Text Content Only -->
+        <div class="site-container py-6xl">
+          <div class="grid-12">
+            <div class="col-start-6 col-span-6">
+              <div>
+                <p class="mb-sm">SCCD is located in Dazhi Street, Zhongshan District, Taipei City. In hardware, there are many teaching buildings with international design standards. It combines the unique landscape of Dazhi area and interweaves into a teaching environment that fits design and creation. In software, in addition to the excellent faculty of the college of design, the rich international academic exchanges and industrial resources in various fields, as well as the mutual cooperation and exchange of inspiration among the various departments of the college of design, are all indispensable conditions for brewing students’ design inspiration and creative energy.</p>
+                <p>實踐大學媒體傳達設計學系位於台北市中山區大直街，在硬體上設有具國際設計水準之眾多教學大樓，融合大直地區特有之山水地景，交織成契合設計與創作之教學環境。軟體上結合設計學院的優良師資以外，豐富的國際學術交流與各領域產業資源，設計學院各學系間的相互協作與交流啟發，皆是醞釀學生設計靈感與創作能量不可或缺之條件。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Image and Cycling Text Section -->
+        <div class="site-container pb-6xl">
+          <div class="grid-12">
+            <!-- Image (Left) - col-2 to col-5 -->
+            <div class="col-start-2 col-span-4">
+              <div class="bg-gray-9" style="aspect-ratio: 3/3.5; width: 100%;"></div>
+            </div>
+
+            <!-- Text Content (Right) - col-7 to col-11 -->
+            <div class="col-start-7 col-span-5">
+              <!-- 7-Segment Progress Line -->
+              <div class="flex gap-xs mb-2xl">
+                <div class="resources-segment flex-1 bg-gray-9 transition-colors duration-fast cursor-pointer" style="height: 3px;" data-index="0"></div>
+                <div class="resources-segment flex-1 bg-gray-9 transition-colors duration-fast cursor-pointer" style="height: 3px;" data-index="1"></div>
+                <div class="resources-segment flex-1 bg-gray-9 transition-colors duration-fast cursor-pointer" style="height: 3px;" data-index="2"></div>
+                <div class="resources-segment flex-1 bg-gray-9 transition-colors duration-fast cursor-pointer" style="height: 3px;" data-index="3"></div>
+                <div class="resources-segment flex-1 bg-gray-9 transition-colors duration-fast cursor-pointer" style="height: 3px;" data-index="4"></div>
+                <div class="resources-segment flex-1 bg-gray-9 transition-colors duration-fast cursor-pointer" style="height: 3px;" data-index="5"></div>
+                <div class="resources-segment flex-1 bg-gray-9 transition-colors duration-fast cursor-pointer" style="height: 3px;" data-index="6"></div>
+              </div>
+
+              <!-- Cycling Text Content -->
+              <div id="resources-cycling-content">
+                <h5 class="mb-md" id="resources-title">Title 1 標題一</h5>
+                <p class="mb-sm" id="resources-text-en">English content for section 1 goes here.</p>
+                <p id="resources-text-zh">中文內容放在這裡。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Alumni Section -->
+      <section id="alumni" class="bg-white relative z-10">
+        <!-- Banner with Image and Title -->
+        <div class="relative w-full" style="height: 100vh;">
+          <!-- Background Image -->
+          <div class="absolute inset-0 w-full h-full">
+            <img src="../images/SCCD-1-4-0.jpg" alt="Alumni" class="w-full h-full object-cover">
+          </div>
+
+          <!-- Black Overlay (30%) -->
+          <div class="absolute inset-0 w-full h-full bg-black" style="opacity: 0.3;"></div>
+
+          <!-- Title in Center -->
+          <div class="absolute inset-0 w-full h-full flex items-center justify-center z-10">
+            <div class="text-center">
+              <h1 class="text-white">Alumni</h1>
+              <h1 class="text-white mt-md">系友發展</h1>
+            </div>
+          </div>
+        </div>
+
+        <!-- Text Content Only -->
+        <div class="site-container py-6xl">
+          <div class="grid-12">
+            <div class="col-start-6 col-span-6">
+              <div>
+                <p class="mb-sm">SCCD Alumni serve in various fields related to digital media or entertainment and creative industries, and many of them are engaged in cultural administration, art education, etc., or continue their studies in related fields at domestic and foreign, and actively participate in various arts , multimedia and other cross-border exhibitions. In addition to exhibiting, performing, and publishing books in various personal unique creative forms, alumni of the department also cooperate with many performing individuals and groups in the field of contemporary art performance, and participate in assisting in the planning, execution, and coordinating the production of various projects.</p>
+                <p>實踐大學媒體傳達設計學系畢業系友在各行各業均有任職人員或創業者，從設計、藝術、影視娛樂、多媒體、行銷公關甚至科技公司等，以設計思考橫跨多領域均表現傑出；於國外相關領域深造學術領域或海外就職者也為數甚多，積極於各產業領域發揮其美學與設計思考之影響力。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Image and Text Layout -->
+        <div class="site-container pb-6xl">
+          <div class="grid-12">
+            <!-- Images (Left) - col-2 to col-6 -->
+            <div class="col-start-2 col-span-5 relative flex justify-center items-center" style="height: 500px;">
+              <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(-4deg); top: 0; left: 15%; z-index: 3;"></div>
+              <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(4deg); top: 80px; left: 25%; z-index: 2;"></div>
+              <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(-4deg); top: 160px; left: 5%; z-index: 1;"></div>
+            </div>
+
+            <!-- Text (Right) - col-7 to col-11 -->
+            <div class="col-start-7 col-span-5 flex items-center">
+              <div>
+                <p class="mb-sm">Our alumni network spans across industries and continents, with graduates making significant contributions to the creative economy. Many have become industry leaders, award-winning designers, successful entrepreneurs, and educators who continue to shape the future of design.</p>
+                <p>我們的系友網絡跨越產業與國界，畢業生對創意經濟做出重大貢獻。許多人已成為業界領袖、獲獎設計師、成功企業家與教育工作者，持續塑造設計的未來。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Alumni Companies Section (100vh) -->
+        <div class="relative w-full flex items-center justify-center" style="height: 100vh;">
+          <div class="site-container">
+            <div class="grid-12">
+              <div class="col-start-3 col-span-8 text-center">
+                <h6 class="mb-2xl">SCCD Alumni serve in various industries, including<br>學系系友任職或與之合作各類型知名企業，包含：</h6>
+                <h4 id="brand-text-area" class="font-regular relative z-20 overflow-visible cursor-default">
+                  PIXAR Studios / Marvel Studios / BlueSky Studios / Apple Inc. / Facebook (Meta) / Tokyo Disneyland / TeamLab / Panerai / Mercedes-Benz / BMW / Skoda / Lexus / Gogoro / Giant / KKBOX Group / Blizzard / Sony Entertainment / New York Times / Vogue / Uber Eats / Food Panda / NIKE / adidas / Converse / New Balance / The Wall Street Journal / NVIDIA / HTC / ASUS / SAMSUNG, etc.
+                </h4>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Back to Top Button -->
+        <div class="w-full flex justify-center pb-6xl">
+          <a href="#about-hero" class="text-p1 font-regular hover:font-bold transition-all duration-fast cursor-pointer">
+            Back to Top 回到頂部
+          </a>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <div id="site-footer"></div>
+
+  <!-- JavaScript -->
+  <!-- GSAP & ScrollTrigger -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+  <script src="../js/main.js"></script>
+
+</body>
+</html>

@@ -17,7 +17,9 @@
       "Bash(powershell:*)",
       "Bash(pwsh:*)",
       "Bash(python:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx stylelint:*)"
     ]
   }
 }

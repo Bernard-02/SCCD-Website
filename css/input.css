@@ -1,5 +1,8 @@
 /* Tailwind CSS Input File */
 
+/* Import Variables */
+@import 'variables.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -15,6 +18,7 @@
 
   body {
     @apply font-sans text-black bg-white leading-base;
+    overflow-x: hidden;
   }
 
   h1 {
@@ -23,6 +27,11 @@
 
   h3 {
     @apply text-h3 font-bold leading-base;
+  }
+
+  h4 {
+    font-size: var(--font-size-h4);
+    @apply font-bold leading-base;
   }
 
   h5 {
@@ -36,6 +45,89 @@
   p {
     @apply text-p1 font-regular leading-base;
   }
+}
+
+/* Custom Scrollbar Styles - Outside of @layer to avoid linter warnings */
+/* For Webkit browsers (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  width: 15px !important;
+  height: 15px !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+}
+
+::-webkit-scrollbar-track {
+  background: #FFFFFF !important;
+  border: none !important;
+  -webkit-box-shadow: none !important;
+  box-shadow: none !important;
+}
+
+::-webkit-scrollbar-track-piece {
+  background: #FFFFFF !important;
+  border: none !important;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #000000 !important;
+  background-color: #000000 !important;
+  border-radius: 0 !important;
+  -webkit-border-radius: 0 !important;
+  border: none !important;
+  -webkit-box-shadow: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+::-webkit-scrollbar-thumb:window-inactive {
+  background: #000000 !important;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #000000 !important;
+  background-color: #000000 !important;
+  -webkit-box-shadow: none !important;
+  box-shadow: none !important;
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: #000000 !important;
+  background-color: #000000 !important;
+}
+
+/* Remove ALL scrollbar arrows/buttons with maximum specificity */
+::-webkit-scrollbar-button {
+  display: none !important;
+  height: 0 !important;
+  width: 0 !important;
+  background: transparent !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+}
+
+::-webkit-scrollbar-button:single-button {
+  display: none !important;
+}
+
+::-webkit-scrollbar-button:double-button {
+  display: none !important;
+}
+
+::-webkit-scrollbar-button:start:decrement,
+::-webkit-scrollbar-button:end:increment {
+  display: none !important;
+}
+
+::-webkit-scrollbar-button:vertical:start:increment,
+::-webkit-scrollbar-button:vertical:end:decrement,
+::-webkit-scrollbar-button:vertical:start:decrement,
+::-webkit-scrollbar-button:vertical:end:increment {
+  display: none !important;
+  height: 0 !important;
+}
+
+::-webkit-scrollbar-corner {
+  background: #FFFFFF !important;
 }
 
 /* Custom Components */
@@ -80,11 +172,18 @@
 
   /* Header Hide Animation */
   header {
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 9999 !important; /* 強制最高層級，確保蓋過所有內容 */
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   header.header-hidden {
     transform: translateY(-100%);
+    opacity: 0;
+    pointer-events: none;
   }
 
   /* Mega Menu Styles - Full Width beyond container padding */
@@ -94,7 +193,7 @@
     right: 0;
     top: calc(var(--header-height, 80px) - 0.5px);
     width: 100vw;
-    min-height: 240px;
+    height: 250px;
     background-color: white;
     border-bottom: 1px solid #666666;
     opacity: 0;
@@ -133,6 +232,44 @@
     font-weight: 700;
     transform: rotate(3deg);
     display: inline-block;
+  }
+
+  /* Works Filter Buttons */
+  .works-filter-btn {
+    @apply text-p1 font-regular transition-all duration-fast cursor-pointer;
+    background: none;
+    border: none;
+  }
+
+  .works-filter-btn.active {
+    color: #FF448A;
+    font-weight: 700;
+    transform: rotate(3deg);
+    display: inline-block;
+  }
+
+  /* About Page Anchor Navigation Buttons */
+  .anchor-nav-btn {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .anchor-nav-btn.active {
+    color: #26BCFF;
+    font-weight: 700;
+    transform: rotate(4deg);
+  }
+
+  /* BFA Division Toggle Buttons */
+  .bfa-division-btn {
+    border: 1px solid #000000;
+    background: transparent;
+    color: #000000;
+    cursor: pointer;
+  }
+
+  .bfa-division-btn.active {
+    background: #000000;
+    color: #FFFFFF;
   }
 
   /* Activities Year Toggle - chevron rotation */
@@ -174,6 +311,47 @@
 
   .degree-show-img-wrapper:hover img {
     transform: scale(1.05);
+  }
+
+  /* Horizontal Accordion Styles */
+  .accordion-wrapper {
+    display: flex;
+  }
+
+  .accordion-panel {
+    position: relative;
+    cursor: pointer;
+    overflow: hidden; /* 確保圖片放大時不會超出邊界 */
+    flex-basis: 0;    /* 關鍵：設定基礎寬度為 0，讓 flex-grow 完全控制比例 */
+    min-width: 0;     /* 防止內容撐開容器 */
+  }
+
+  .accordion-panel img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .accordion-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7); /* 純黑半透明遮罩，展開時顯示 */
+    transition: none;
+  }
+
+  .accordion-content {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    transition: none;
+  }
+
+  /* Brand Trail Image (Mouse Trail Effect) */
+  .brand-trail-img {
+    @apply absolute object-cover pointer-events-none z-50;
+    width: 200px;       /* 調整寬度 */
+    aspect-ratio: 3/2;  /* 固定比例 3:2 */
+    transform: translate(-50%, -50%); /* 讓圖片中心對準滑鼠 */
   }
 }
 
