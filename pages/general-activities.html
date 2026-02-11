@@ -50,10 +50,10 @@
     <!-- General Activities Content Section -->
     <section class="activities-content-section bg-white py-6xl">
       <div class="site-container">
-        <div class="flex gap-gutter">
-          <!-- Filter Buttons (Left side) -->
-          <div style="flex: 0 0 calc(16.67% - 0.625rem);">
-            <div class="sticky flex flex-col gap-md activities-filter-sticky" style="top: 350px;">
+        <div class="grid-12">
+          <!-- Filter Buttons (Column 1, 1/12 = 8.33%) -->
+          <div class="col-span-1">
+            <div class="sticky flex flex-col gap-md activities-filter-sticky" style="top: 200px;">
               <button class="activities-filter-btn active text-left nav-link transition-colors duration-fast" data-filter="all">
                 <span class="block">All</span>
                 <span class="block">全部</span>
@@ -81,303 +81,265 @@
             </div>
           </div>
 
-          <!-- Activities Content (Right side) -->
-          <div style="flex: 1;">
-
+          <!-- Years Container (Column 2-12, 11/12 = 91.67%) -->
+          <div class="col-span-11">
             <!-- Year 2025 -->
-            <div class="flex items-start border-b border-gray-9 pb-xl mb-xl">
-              <div class="activities-year-toggle flex items-center gap-sm cursor-pointer" style="flex: 0 0 20%;">
-                <i class="fa-solid fa-chevron-right text-p1 transition-all duration-fast rotate-90"></i>
-                <h5>2025</h5>
+            <div class="mb-xl">
+              <div class="grid grid-cols-11 gap-gutter items-start pb-xl">
+                <!-- Chevron (Column 1) -->
+                <div class="col-span-1 flex justify-end items-center activities-year-toggle cursor-pointer" style="height: 1.8rem;">
+                  <i class="fa-solid fa-chevron-right text-p1 transition-all duration-fast rotate-90"></i>
+                </div>
+                <!-- Year (Column 2) -->
+                <div class="col-span-1 activities-year-toggle cursor-pointer">
+                  <h5>2025</h5>
+                </div>
+                <!-- Activities List (Column 3-11) -->
+                <div class="col-span-9 activities-year-items flex flex-col">
+
+                <div class="activities-item" data-category="visits">
+                  <p class="col-span-5">豪華朗機工台北當代館大展</p>
+                  <p class="col-span-3">實踐大學台北校區</p>
+                  <p class="col-span-1">參訪</p>
+                </div>
+
+                <div class="activities-item" data-category="seminars">
+                  <p class="col-span-5">媒體設計國際講座</p>
+                  <p class="col-span-3">台北設計中心</p>
+                  <p class="col-span-1">講座</p>
+                </div>
+
+                <div class="activities-item" data-category="exhibitions">
+                  <p class="col-span-5">年度媒體傳達設計展</p>
+                  <p class="col-span-3">A棟1樓大廳</p>
+                  <p class="col-span-1">展演</p>
+                </div>
+
+                <div class="activities-item" data-category="competitions">
+                  <p class="col-span-5">國際學生設計競賽</p>
+                  <p class="col-span-3">線上</p>
+                  <p class="col-span-1">競賽</p>
+                </div>
+
+                <div class="activities-item" data-category="conferences">
+                  <p class="col-span-5">永續媒體設計研討會</p>
+                  <p class="col-span-3">實踐大學A棟</p>
+                  <p class="col-span-1">研討會</p>
+                </div>
+
+                <div class="activities-item" data-category="seminars">
+                  <p class="col-span-5">設計思考國際講座</p>
+                  <p class="col-span-3">設計中心大廳</p>
+                  <p class="col-span-1">講座</p>
+                </div>
+
+                <div class="activities-item" data-category="visits">
+                  <p class="col-span-5">新北市設計博物館參訪</p>
+                  <p class="col-span-3">新北市</p>
+                  <p class="col-span-1">參訪</p>
+                </div>
+
+                <div class="activities-item" data-category="exhibitions">
+                  <p class="col-span-5">學生優異作品展</p>
+                  <p class="col-span-3">B棟2樓廳</p>
+                  <p class="col-span-1">展演</p>
+                </div>
+
+                <div class="activities-item" data-category="competitions">
+                  <p class="col-span-5">亚太地區青年設計獎</p>
+                  <p class="col-span-3">線上投稿</p>
+                  <p class="col-span-1">競賽</p>
+                </div>
+
+                <div class="activities-item" data-category="conferences">
+                  <p class="col-span-5">媒體傳達設計前衛論坛</p>
+                  <p class="col-span-3">台北設計中心</p>
+                  <p class="col-span-1">研討會</p>
+                </div>
+
+                <div class="activities-item" data-category="visits">
+                  <p class="col-span-5">高雄設計文化參訪</p>
+                  <p class="col-span-3">高雄市</p>
+                  <p class="col-span-1">參訪</p>
+                </div>
+
+                </div>
               </div>
-              <div class="activities-year-items flex flex-col" style="flex: 1;">
-
-                <div class="activities-item flex items-center py-md border-b border-gray-9" data-category="visits">
-                  <p style="flex: 0 0 66.67%;">豪華朗機工台北當代館大展</p>
-                  <div class="flex justify-between" style="flex: 1;">
-                    <p>實踐大學台北校區</p>
-                    <p>參訪</p>
-                  </div>
-                </div>
-
-                <div class="activities-item flex items-center py-md border-b border-gray-9" data-category="seminars">
-                  <p style="flex: 0 0 66.67%;">媒體設計國際講座</p>
-                  <div class="flex justify-between" style="flex: 1;">
-                    <p>台北設計中心</p>
-                    <p>講座</p>
-                  </div>
-                </div>
-
-                <div class="activities-item flex items-center py-md border-b border-gray-9" data-category="exhibitions">
-                  <p style="flex: 0 0 66.67%;">年度媒體傳達設計展</p>
-                  <div class="flex justify-between" style="flex: 1;">
-                    <p>A棟1樓大廳</p>
-                    <p>展演</p>
-                  </div>
-                </div>
-
-                <div class="activities-item flex items-center py-md border-b border-gray-9" data-category="competitions">
-                  <p style="flex: 0 0 66.67%;">國際學生設計競賽</p>
-                  <div class="flex justify-between" style="flex: 1;">
-                    <p>線上</p>
-                    <p>競賽</p>
-                  </div>
-                </div>
-
-                <div class="activities-item flex items-center py-md border-b border-gray-9" data-category="conferences">
-                  <p style="flex: 0 0 66.67%;">永續媒體設計研討會</p>
-                  <div class="flex justify-between" style="flex: 1;">
-                    <p>實踐大學A棟</p>
-                    <p>研討會</p>
-                  </div>
-                </div>
-
-                <div class="activities-item flex items-center py-md border-b border-gray-9" data-category="seminars">
-                  <p style="flex: 0 0 66.67%;">設計思考國際講座</p>
-                  <div class="flex justify-between" style="flex: 1;">
-                    <p>設計中心大廳</p>
-                    <p>講座</p>
-                  </div>
-                </div>
-
-                <div class="activities-item flex items-center py-md border-b border-gray-9" data-category="visits">
-                  <p style="flex: 0 0 66.67%;">新北市設計博物館參訪</p>
-                  <div class="flex justify-between" style="flex: 1;">
-                    <p>新北市</p>
-                    <p>參訪</p>
-                  </div>
-                </div>
-
-                <div class="activities-item flex items-center py-md border-b border-gray-9" data-category="exhibitions">
-                  <p style="flex: 0 0 66.67%;">學生優異作品展</p>
-                  <div class="flex justify-between" style="flex: 1;">
-                    <p>B棟2樓廳</p>
-                    <p>展演</p>
-                  </div>
-                </div>
-
-                <div class="activities-item flex items-center py-md border-b border-gray-9" data-category="competitions">
-                  <p style="flex: 0 0 66.67%;">亚太地區青年設計獎</p>
-                  <div class="flex justify-between" style="flex: 1;">
-                    <p>線上投稿</p>
-                    <p>競賽</p>
-                  </div>
-                </div>
-
-                <div class="activities-item flex items-center py-md border-b border-gray-9" data-category="conferences">
-                  <p style="flex: 0 0 66.67%;">媒體傳達設計前衛論坛</p>
-                  <div class="flex justify-between" style="flex: 1;">
-                    <p>台北設計中心</p>
-                    <p>研討會</p>
-                  </div>
-                </div>
-
-                <div class="activities-item flex items-center py-md border-b border-gray-9" data-category="visits">
-                  <p style="flex: 0 0 66.67%;">高雄設計文化參訪</p>
-                  <div class="flex justify-between" style="flex: 1;">
-                    <p>高雄市</p>
-                    <p>參訪</p>
-                  </div>
-                </div>
-
+              <!-- Border line (from column 2 to end) -->
+              <div class="grid grid-cols-11 gap-gutter">
+                <div class="col-start-2 col-span-10 border-b border-gray-9"></div>
               </div>
             </div>
 
             <!-- Year 2024 -->
-            <div class="flex items-start border-b border-gray-9 pb-xl mb-xl">
-              <div class="activities-year-toggle flex items-center gap-sm cursor-pointer" style="flex: 0 0 20%;">
-                <i class="fa-solid fa-chevron-right text-p1 transition-all duration-fast rotate-90"></i>
-                <h5>2024</h5>
+            <div class="mb-xl">
+              <div class="grid grid-cols-11 gap-gutter items-start pb-xl">
+                <!-- Chevron (Column 1) -->
+                <div class="col-span-1 flex justify-end items-center activities-year-toggle cursor-pointer" style="height: 1.8rem;">
+                  <i class="fa-solid fa-chevron-right text-p1 transition-all duration-fast rotate-90"></i>
+                </div>
+                <!-- Year (Column 2) -->
+                <div class="col-span-1 activities-year-toggle cursor-pointer">
+                  <h5>2024</h5>
+                </div>
+                <!-- Activities List (Column 3-11) -->
+                <div class="col-span-9 activities-year-items flex flex-col">
+
+                <div class="activities-item" data-category="conferences">
+                  <p class="col-span-5">永續設計研討會</p>
+                  <p class="col-span-3">實踐大學台北校區</p>
+                  <p class="col-span-1">研討會</p>
+                </div>
+
+                <div class="activities-item" data-category="visits">
+                  <p class="col-span-5">東京設計參訪</p>
+                  <p class="col-span-3">東京日本</p>
+                  <p class="col-span-1">參訪</p>
+                </div>
+
+                <div class="activities-item" data-category="exhibitions">
+                  <p class="col-span-5">媒體傳達設計年展</p>
+                  <p class="col-span-3">B棟展覽廳</p>
+                  <p class="col-span-1">展演</p>
+                </div>
+
+                <div class="activities-item" data-category="seminars">
+                  <p class="col-span-5">交互設計國際講座</p>
+                  <p class="col-span-3">實踐大學台北校區</p>
+                  <p class="col-span-1">講座</p>
+                </div>
+
+                <div class="activities-item" data-category="competitions">
+                  <p class="col-span-5">全國大學生設計競賽</p>
+                  <p class="col-span-3">線上</p>
+                  <p class="col-span-1">競賽</p>
+                </div>
+
+                <div class="activities-item" data-category="visits">
+                  <p class="col-span-5">韓國設計中心參訪</p>
+                  <p class="col-span-3">首爾韓國</p>
+                  <p class="col-span-1">參訪</p>
+                </div>
+
+                <div class="activities-item" data-category="exhibitions">
+                  <p class="col-span-5">數位媒體艺术展</p>
+                  <p class="col-span-3">A棟大廳</p>
+                  <p class="col-span-1">展演</p>
+                </div>
+
+                <div class="activities-item" data-category="conferences">
+                  <p class="col-span-5">创意產業發展論坛</p>
+                  <p class="col-span-3">台北設計中心</p>
+                  <p class="col-span-1">研討會</p>
+                </div>
+
+                <div class="activities-item" data-category="seminars">
+                  <p class="col-span-5">動畫技術工作營講座</p>
+                  <p class="col-span-3">實踐大學B棟</p>
+                  <p class="col-span-1">講座</p>
+                </div>
+
+                <div class="activities-item" data-category="competitions">
+                  <p class="col-span-5">國際海報設計競賽</p>
+                  <p class="col-span-3">線上投稿</p>
+                  <p class="col-span-1">競賽</p>
+                </div>
+
+                <div class="activities-item" data-category="exhibitions">
+                  <p class="col-span-5">學系年度作品展覽</p>
+                  <p class="col-span-3">C棟展覽空間</p>
+                  <p class="col-span-1">展演</p>
+                </div>
+
+                </div>
               </div>
-              <div class="activities-year-items flex flex-col" style="flex: 1;">
-
-                <div class="activities-item flex items-center py-md border-b border-gray-9" data-category="conferences">
-                  <p style="flex: 0 0 66.67%;">永續設計研討會</p>
-                  <div class="flex justify-between" style="flex: 1;">
-                    <p>實踐大學台北校區</p>
-                    <p>研討會</p>
-                  </div>
-                </div>
-
-                <div class="activities-item flex items-center py-md border-b border-gray-9" data-category="visits">
-                  <p style="flex: 0 0 66.67%;">東京設計參訪</p>
-                  <div class="flex justify-between" style="flex: 1;">
-                    <p>東京日本</p>
-                    <p>參訪</p>
-                  </div>
-                </div>
-
-                <div class="activities-item flex items-center py-md border-b border-gray-9" data-category="exhibitions">
-                  <p style="flex: 0 0 66.67%;">媒體傳達設計年展</p>
-                  <div class="flex justify-between" style="flex: 1;">
-                    <p>B棟展覽廳</p>
-                    <p>展演</p>
-                  </div>
-                </div>
-
-                <div class="activities-item flex items-center py-md border-b border-gray-9" data-category="seminars">
-                  <p style="flex: 0 0 66.67%;">交互設計國際講座</p>
-                  <div class="flex justify-between" style="flex: 1;">
-                    <p>實踐大學台北校區</p>
-                    <p>講座</p>
-                  </div>
-                </div>
-
-                <div class="activities-item flex items-center py-md border-b border-gray-9" data-category="competitions">
-                  <p style="flex: 0 0 66.67%;">全國大學生設計競賽</p>
-                  <div class="flex justify-between" style="flex: 1;">
-                    <p>線上</p>
-                    <p>競賽</p>
-                  </div>
-                </div>
-
-                <div class="activities-item flex items-center py-md border-b border-gray-9" data-category="visits">
-                  <p style="flex: 0 0 66.67%;">韓國設計中心參訪</p>
-                  <div class="flex justify-between" style="flex: 1;">
-                    <p>首爾韓國</p>
-                    <p>參訪</p>
-                  </div>
-                </div>
-
-                <div class="activities-item flex items-center py-md border-b border-gray-9" data-category="exhibitions">
-                  <p style="flex: 0 0 66.67%;">數位媒體艺术展</p>
-                  <div class="flex justify-between" style="flex: 1;">
-                    <p>A棟大廳</p>
-                    <p>展演</p>
-                  </div>
-                </div>
-
-                <div class="activities-item flex items-center py-md border-b border-gray-9" data-category="conferences">
-                  <p style="flex: 0 0 66.67%;">创意產業發展論坛</p>
-                  <div class="flex justify-between" style="flex: 1;">
-                    <p>台北設計中心</p>
-                    <p>研討會</p>
-                  </div>
-                </div>
-
-                <div class="activities-item flex items-center py-md border-b border-gray-9" data-category="seminars">
-                  <p style="flex: 0 0 66.67%;">動畫技術工作營講座</p>
-                  <div class="flex justify-between" style="flex: 1;">
-                    <p>實踐大學B棟</p>
-                    <p>講座</p>
-                  </div>
-                </div>
-
-                <div class="activities-item flex items-center py-md border-b border-gray-9" data-category="competitions">
-                  <p style="flex: 0 0 66.67%;">國際海報設計競賽</p>
-                  <div class="flex justify-between" style="flex: 1;">
-                    <p>線上投稿</p>
-                    <p>競賽</p>
-                  </div>
-                </div>
-
-                <div class="activities-item flex items-center py-md border-b border-gray-9" data-category="exhibitions">
-                  <p style="flex: 0 0 66.67%;">學系年度作品展覽</p>
-                  <div class="flex justify-between" style="flex: 1;">
-                    <p>C棟展覽空間</p>
-                    <p>展演</p>
-                  </div>
-                </div>
-
+              <!-- Border line (from column 2 to end) -->
+              <div class="grid grid-cols-11 gap-gutter">
+                <div class="col-start-2 col-span-10 border-b border-gray-9"></div>
               </div>
             </div>
 
             <!-- Year 2023 (last year, no border) -->
-            <div class="flex items-start">
-              <div class="activities-year-toggle flex items-center gap-sm cursor-pointer" style="flex: 0 0 20%;">
-                <i class="fa-solid fa-chevron-right text-p1 transition-all duration-fast rotate-90"></i>
-                <h5>2023</h5>
-              </div>
-              <div class="activities-year-items flex flex-col" style="flex: 1;">
+            <div>
+              <div class="grid grid-cols-11 gap-gutter items-start pb-xl">
+                <!-- Chevron (Column 1) -->
+                <div class="col-span-1 flex justify-end items-center activities-year-toggle cursor-pointer" style="height: 1.8rem;">
+                  <i class="fa-solid fa-chevron-right text-p1 transition-all duration-fast rotate-90"></i>
+                </div>
+                <!-- Year (Column 2) -->
+                <div class="col-span-1 activities-year-toggle cursor-pointer">
+                  <h5>2023</h5>
+                </div>
+                <!-- Activities List (Column 3-11) -->
+                <div class="col-span-9 activities-year-items flex flex-col">
 
-                <div class="activities-item flex items-center py-md border-b border-gray-9" data-category="seminars">
-                  <p style="flex: 0 0 66.67%;">平面設計趨勢講座</p>
-                  <div class="flex justify-between" style="flex: 1;">
-                    <p>實踐大學台北校區</p>
-                    <p>講座</p>
-                  </div>
+                <div class="activities-item" data-category="seminars">
+                  <p class="col-span-5">平面設計趨勢講座</p>
+                  <p class="col-span-3">實踐大學台北校區</p>
+                  <p class="col-span-1">講座</p>
                 </div>
 
-                <div class="activities-item flex items-center py-md border-b border-gray-9" data-category="exhibitions">
-                  <p style="flex: 0 0 66.67%;">新媒體設計展覽</p>
-                  <div class="flex justify-between" style="flex: 1;">
-                    <p>A棟1樓大廳</p>
-                    <p>展演</p>
-                  </div>
+                <div class="activities-item" data-category="exhibitions">
+                  <p class="col-span-5">新媒體設計展覽</p>
+                  <p class="col-span-3">A棟1樓大廳</p>
+                  <p class="col-span-1">展演</p>
                 </div>
 
-                <div class="activities-item flex items-center py-md border-b border-gray-9" data-category="visits">
-                  <p style="flex: 0 0 66.67%;">新加坡設計周參訪</p>
-                  <div class="flex justify-between" style="flex: 1;">
-                    <p>新加坡</p>
-                    <p>參訪</p>
-                  </div>
+                <div class="activities-item" data-category="visits">
+                  <p class="col-span-5">新加坡設計周參訪</p>
+                  <p class="col-span-3">新加坡</p>
+                  <p class="col-span-1">參訪</p>
                 </div>
 
-                <div class="activities-item flex items-center py-md border-b border-gray-9" data-category="conferences">
-                  <p style="flex: 0 0 66.67%;">智慧城市設計論坛</p>
-                  <div class="flex justify-between" style="flex: 1;">
-                    <p>台北設計中心</p>
-                    <p>研討會</p>
-                  </div>
+                <div class="activities-item" data-category="conferences">
+                  <p class="col-span-5">智慧城市設計論坛</p>
+                  <p class="col-span-3">台北設計中心</p>
+                  <p class="col-span-1">研討會</p>
                 </div>
 
-                <div class="activities-item flex items-center py-md border-b border-gray-9" data-category="competitions">
-                  <p style="flex: 0 0 66.67%;">全亚最佳學生設計獎</p>
-                  <div class="flex justify-between" style="flex: 1;">
-                    <p>線上投稿</p>
-                    <p>競賽</p>
-                  </div>
+                <div class="activities-item" data-category="competitions">
+                  <p class="col-span-5">全亚最佳學生設計獎</p>
+                  <p class="col-span-3">線上投稿</p>
+                  <p class="col-span-1">競賽</p>
                 </div>
 
-                <div class="activities-item flex items-center py-md border-b border-gray-9" data-category="seminars">
-                  <p style="flex: 0 0 66.67%;">品牌設計國際論坛</p>
-                  <div class="flex justify-between" style="flex: 1;">
-                    <p>B棟2樓廳</p>
-                    <p>講座</p>
-                  </div>
+                <div class="activities-item" data-category="seminars">
+                  <p class="col-span-5">品牌設計國際論坛</p>
+                  <p class="col-span-3">B棟2樓廳</p>
+                  <p class="col-span-1">講座</p>
                 </div>
 
-                <div class="activities-item flex items-center py-md border-b border-gray-9" data-category="visits">
-                  <p style="flex: 0 0 66.67%;">東北大學設計學院參訪</p>
-                  <div class="flex justify-between" style="flex: 1;">
-                    <p>東京日本</p>
-                    <p>參訪</p>
-                  </div>
+                <div class="activities-item" data-category="visits">
+                  <p class="col-span-5">東北大學設計學院參訪</p>
+                  <p class="col-span-3">東京日本</p>
+                  <p class="col-span-1">參訪</p>
                 </div>
 
-                <div class="activities-item flex items-center py-md border-b border-gray-9" data-category="exhibitions">
-                  <p style="flex: 0 0 66.67%;">畢業生優異作品展</p>
-                  <div class="flex justify-between" style="flex: 1;">
-                    <p>C棟展覽廳</p>
-                    <p>展演</p>
-                  </div>
+                <div class="activities-item" data-category="exhibitions">
+                  <p class="col-span-5">畢業生優異作品展</p>
+                  <p class="col-span-3">C棟展覽廳</p>
+                  <p class="col-span-1">展演</p>
                 </div>
 
-                <div class="activities-item flex items-center py-md border-b border-gray-9" data-category="conferences">
-                  <p style="flex: 0 0 66.67%;">數位轉型設計研討會</p>
-                  <div class="flex justify-between" style="flex: 1;">
-                    <p>實踐大學A棟</p>
-                    <p>研討會</p>
-                  </div>
+                <div class="activities-item" data-category="conferences">
+                  <p class="col-span-5">數位轉型設計研討會</p>
+                  <p class="col-span-3">實踐大學A棟</p>
+                  <p class="col-span-1">研討會</p>
                 </div>
 
-                <div class="activities-item flex items-center py-md border-b border-gray-9" data-category="competitions">
-                  <p style="flex: 0 0 66.67%;">台灣青年設計獎</p>
-                  <div class="flex justify-between" style="flex: 1;">
-                    <p>線上</p>
-                    <p>競賽</p>
-                  </div>
+                <div class="activities-item" data-category="competitions">
+                  <p class="col-span-5">台灣青年設計獎</p>
+                  <p class="col-span-3">線上</p>
+                  <p class="col-span-1">競賽</p>
                 </div>
 
-                <div class="activities-item flex items-center py-md border-b border-gray-9" data-category="visits">
-                  <p style="flex: 0 0 66.67%;">德國國際設計博物館參訪</p>
-                  <div class="flex justify-between" style="flex: 1;">
-                    <p>柏林德國</p>
-                    <p>參訪</p>
-                  </div>
+                <div class="activities-item" data-category="visits">
+                  <p class="col-span-5">德國國際設計博物館參訪</p>
+                  <p class="col-span-3">柏林德國</p>
+                  <p class="col-span-1">參訪</p>
                 </div>
 
+                </div>
               </div>
             </div>
 
@@ -394,6 +356,8 @@
   <!-- GSAP & ScrollTrigger -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Draggable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>
   <script src="../js/main.js"></script>
 
 </body>

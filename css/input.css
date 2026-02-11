@@ -25,13 +25,18 @@
     @apply text-h1 font-semibold leading-h1;
   }
 
+  h2 {
+    @apply text-h2 font-semibold leading-h1;
+  }
+
   h3 {
     @apply text-h3 font-bold leading-base;
   }
 
   h4 {
     font-size: var(--font-size-h4);
-    @apply font-bold leading-base;
+    line-height: var(--line-height-h4);
+    @apply font-bold;
   }
 
   h5 {
@@ -149,6 +154,8 @@
 
   .nav-link:hover {
     font-weight: 700;
+    transform: rotate(3deg);
+    display: inline-block;
   }
 
   .nav-link .nav-link-cn {
@@ -164,6 +171,17 @@
   .nav-link.active .nav-link-cn {
     display: inline;
     margin-left: 0.25rem;
+  }
+
+  .nav-link:hover .nav-link-cn {
+    display: inline;
+    margin-left: 0.25rem;
+  }
+
+  /* Custom Spacing Utility */
+  .py-4xl {
+    padding-top: var(--spacing-4xl);
+    padding-bottom: var(--spacing-4xl);
   }
 
   .submenu-link.active span {
@@ -193,7 +211,7 @@
     right: 0;
     top: calc(var(--header-height, 80px) - 0.5px);
     width: 100vw;
-    height: 250px;
+    height: auto;
     background-color: white;
     border-bottom: 1px solid #666666;
     opacity: 0;
@@ -236,24 +254,46 @@
 
   /* Works Filter Buttons */
   .works-filter-btn {
-    @apply text-p1 font-regular transition-all duration-fast cursor-pointer;
-    background: none;
-    border: none;
+    border: 1px solid #000000;
+    background: transparent;
+    color: #000000;
+    cursor: pointer;
   }
 
   .works-filter-btn.active {
-    color: #FF448A;
+    background: #000000;
+    color: #FFFFFF;
     font-weight: 700;
-    transform: rotate(3deg);
-    display: inline-block;
   }
 
   /* About Page Anchor Navigation Buttons */
   .anchor-nav-btn {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background: none;
+    border: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
   }
 
-  .anchor-nav-btn.active {
+  .anchor-nav-btn div {
+    background: white;
+    padding: 0;
+    display: inline-block;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .anchor-nav-btn div:nth-child(2) {
+    margin-top: -0.25rem;
+  }
+
+  .anchor-nav-btn:hover div {
+    font-weight: 700;
+    transform: rotate(3deg);
+  }
+
+  .anchor-nav-btn.active div {
     color: #26BCFF;
     font-weight: 700;
     transform: rotate(4deg);
@@ -270,11 +310,22 @@
   .bfa-division-btn.active {
     background: #000000;
     color: #FFFFFF;
+    font-weight: 700;
+  }
+
+  /* Course Accordion - First item in each year group has pt-sm */
+  .course-item:first-child .course-header {
+    padding-top: 1rem !important; /* pt-sm */
   }
 
   /* Activities Year Toggle - chevron rotation */
   .activities-year-toggle .fa-chevron-right {
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Activities List Item - Unified Style */
+  .activities-item {
+    @apply grid grid-cols-9 gap-gutter items-center py-md;
   }
 
   /* Faculty Cards */
@@ -285,10 +336,12 @@
   .faculty-card-image-wrapper {
     overflow: hidden;
     cursor: default;
+    position: relative;
   }
 
-  /* Only fulltime cards are clickable */
-  .faculty-card[data-category="fulltime"] .faculty-card-image-wrapper {
+  /* Fulltime and admin cards are clickable */
+  .faculty-card[data-category="fulltime"] .faculty-card-image-wrapper,
+  .faculty-card[data-category="admin"] .faculty-card-image-wrapper {
     cursor: pointer;
   }
 
@@ -296,8 +349,31 @@
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  .faculty-card-image-wrapper:hover .faculty-card-image {
+  /* Fulltime and admin cards: image scale on hover */
+  .faculty-card[data-category="fulltime"] .faculty-card-image-wrapper:hover .faculty-card-image,
+  .faculty-card[data-category="admin"] .faculty-card-image-wrapper:hover .faculty-card-image {
     transform: scale(1.1);
+  }
+
+  /* Parttime cards: blue overlay on hover */
+  .faculty-card[data-category="parttime"] .faculty-card-image-wrapper::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-color: #26BCFF; /* 藍色 100% */
+    mix-blend-mode: screen;
+    opacity: 0;
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+  }
+
+  .faculty-card[data-category="parttime"] .faculty-card-image-wrapper:hover::after {
+    opacity: 1;
+  }
+
+  /* Parttime cards: grayscale image on hover */
+  .faculty-card[data-category="parttime"] .faculty-card-image-wrapper:hover .faculty-card-image {
+    filter: grayscale(100%);
   }
 
   /* Degree Show Image Hover */
@@ -352,6 +428,11 @@
     width: 200px;       /* 調整寬度 */
     aspect-ratio: 3/2;  /* 固定比例 3:2 */
     transform: translate(-50%, -50%); /* 讓圖片中心對準滑鼠 */
+  }
+
+  /* Faculty Back Button Hover */
+  #faculty-back-btn:hover i {
+    transform: rotate(-10deg);
   }
 }
 

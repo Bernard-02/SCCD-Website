@@ -56,23 +56,23 @@
           <div class="col-span-1">
             <div id="anchor-nav" class="sticky pointer-events-auto" style="top: 50vh; transform: translateY(-50%);">
               <div class="flex flex-col gap-sm">
-                <button class="anchor-nav-btn text-left text-p1 font-regular hover:font-bold transition-all duration-fast whitespace-nowrap" data-target="overview">
+                <button class="anchor-nav-btn text-left text-p1 font-regular transition-all duration-fast whitespace-nowrap" data-target="overview">
                   <div>Overview</div>
                   <div>綜述</div>
                 </button>
-                <button class="anchor-nav-btn text-left text-p1 font-regular hover:font-bold transition-all duration-fast whitespace-nowrap" data-target="bfa-class">
+                <button class="anchor-nav-btn text-left text-p1 font-regular transition-all duration-fast whitespace-nowrap" data-target="bfa-class">
                   <div>BFA Class</div>
                   <div>學士班</div>
                 </button>
-                <button class="anchor-nav-btn text-left text-p1 font-regular hover:font-bold transition-all duration-fast whitespace-nowrap" data-target="mdes-class">
+                <button class="anchor-nav-btn text-left text-p1 font-regular transition-all duration-fast whitespace-nowrap" data-target="mdes-class">
                   <div>MDES Class</div>
                   <div>碩士班</div>
                 </button>
-                <button class="anchor-nav-btn text-left text-p1 font-regular hover:font-bold transition-all duration-fast whitespace-nowrap" data-target="resources">
+                <button class="anchor-nav-btn text-left text-p1 font-regular transition-all duration-fast whitespace-nowrap" data-target="resources">
                   <div>Resources</div>
                   <div>環境資源</div>
                 </button>
-                <button class="anchor-nav-btn text-left text-p1 font-regular hover:font-bold transition-all duration-fast whitespace-nowrap" data-target="alumni">
+                <button class="anchor-nav-btn text-left text-p1 font-regular transition-all duration-fast whitespace-nowrap" data-target="alumni">
                   <div>Alumni</div>
                   <div>系友發展</div>
                 </button>
@@ -109,7 +109,7 @@
                 <!-- Era Label (Column 2) -->
                 <div class="grid-12 mb-lg">
                   <div class="col-start-2 col-span-10">
-                    <h5 id="timeline-era" class="text-black font-bold whitespace-nowrap"></h5>
+                    <h4 id="timeline-era" class="text-black font-bold whitespace-nowrap"></h4>
                   </div>
                 </div>
 
@@ -208,8 +208,8 @@
           <!-- Title in Center -->
           <div class="absolute inset-0 w-full h-full flex items-center justify-center z-10">
             <div class="text-center">
-              <h1 class="text-white">BFA Class</h1>
-              <h1 class="text-white mt-md">學士班</h1>
+              <h1 class="text-white" style="transform: rotate(-4deg) translateX(-200px);">BFA Class</h1>
+              <h1 class="text-white mt-md" style="transform: rotate(4deg) translateX(300px);">學士班</h1>
             </div>
           </div>
         </div>
@@ -224,8 +224,8 @@
             </div>
             <div class="col-start-7 col-span-5 flex items-center">
               <div>
-                <p class="mb-sm">The BFA program cultivates creative talents through comprehensive design education, integrating theory and practice across multiple media platforms. Students engage in hands-on projects that develop their technical skills and creative vision.</p>
-                <p>學士班課程透過全面的設計教育培養創意人才，整合理論與實踐，跨越多元媒體平台。學生參與實作專案，培養技術能力與創意視野。</p>
+                <h5 class="mb-sm">The BFA program cultivates creative talents through comprehensive design education, integrating theory and practice across multiple media platforms. Students engage in hands-on projects that develop their technical skills and creative vision.</h5>
+                <h5>學士班課程透過全面的設計教育培養創意人才，整合理論與實踐，跨越多元媒體平台。學生參與實作專案，培養技術能力與創意視野。</h5>
               </div>
             </div>
           </div>
@@ -233,12 +233,14 @@
 
         <!-- Division Toggle Buttons -->
         <div class="site-container pb-6xl">
-          <div class="flex justify-center mb-3xl">
-            <button class="bfa-division-btn active px-md py-xs text-p1 font-regular transition-all duration-fast" style="border-radius: 30px;" data-division="animation">
-              動畫影像設計組
+          <div class="flex justify-center gap-md mb-xl">
+            <button class="bfa-division-btn active px-lg py-sm text-p1 font-bold transition-all duration-fast" style="border-radius: 50px;" data-division="animation">
+              <div>Division of Animation & Moving Image</div>
+              <div style="margin-top: 0.25rem;">動畫影像設計組</div>
             </button>
-            <button class="bfa-division-btn px-md py-xs text-p1 font-regular transition-all duration-fast" style="border-radius: 30px;" data-division="creative-media">
-              創意媒體設計組
+            <button class="bfa-division-btn px-lg py-sm text-p1 font-bold transition-all duration-fast" style="border-radius: 50px;" data-division="creative-media">
+              <div>Division of Creative Media Design</div>
+              <div style="margin-top: 0.25rem;">創意媒體設計組</div>
             </button>
           </div>
 
@@ -249,23 +251,23 @@
               <div class="col-start-2 col-span-5 flex flex-col gap-xl">
                 <!-- Block 1 -->
                 <div>
-                  <h5 class="mb-md">Autonomy 自主性</h5>
-                  <p class="mb-sm">Explore the relationship between self and the environment through animation creation, and then extend the care and reflection on culture, ecology and humanities.</p>
+                  <h5 class="mb-sm">Autonomy 自主性</h5>
+                  <p class="mb-xs">Explore the relationship between self and the environment through animation creation, and then extend the care and reflection on culture, ecology and humanities.</p>
                   <p>透過動畫創作探討自我與環境的關係，進而延伸對文化、生態與人文之關懷與省思。</p>
                 </div>
 
                 <!-- Block 2 -->
                 <div>
-                  <h5 class="mb-md">Diversity 多元性</h5>
-                  <p class="mb-sm">Cultivate multimedia materials digital image implementers with hand-painted, 2D, 3D and experiment to meet the needs of the future trend of cultural creativity and digital content industry.
+                  <h5 class="mb-sm">Diversity 多元性</h5>
+                  <p class="mb-xs">Cultivate multimedia materials digital image implementers with hand-painted, 2D, 3D and experiment to meet the needs of the future trend of cultural creativity and digital content industry.
 </p>
                   <p>培養跨媒材之手繪、2D、3D、實驗技法等數位影像之創作人才，以符合未來趨勢之文化創意與數位內容產業整合之需求。</p>
                 </div>
 
                 <!-- Block 3 -->
                 <div>
-                  <h5 class="mb-md">Integration 整合性</h5>
-                  <p class="mb-sm">Through one-person independent production, students are trained to integrate creativity, production and performance, and to cultivate leadership and management talents with a comprehensive perspective and horizontal communication skills.</p>
+                  <h5 class="mb-sm">Integration 整合性</h5>
+                  <p class="mb-xs">Through one-person independent production, students are trained to integrate creativity, production and performance, and to cultivate leadership and management talents with a comprehensive perspective and horizontal communication skills.</p>
                   <p>藉由單人獨立製作訓練學生創意、製作與展演之整合能力，培養具全觀視角，善於橫向溝通能力與領導管理之設計人才。</p>
                 </div>
               </div>
@@ -288,22 +290,22 @@
               <div class="col-start-2 col-span-5 flex flex-col gap-xl">
                 <!-- Block 1 -->
                 <div>
-                  <h5 class="mb-md">Autonomy 自主性</h5>
-                  <p class="mb-sm">Explore the essence of new media interaction from multiple perspectives, furthermore, showing care and reflection on humanities, society, and the environment by these perspectives.</p>
+                  <h5 class="mb-sm">Autonomy 自主性</h5>
+                  <p class="mb-xs">Explore the essence of new media interaction from multiple perspectives, furthermore, showing care and reflection on humanities, society, and the environment by these perspectives.</p>
                   <p>多面向探討新媒體互動的本質，並藉此對人文、社會、環境作進一步之關懷與省思。</p>
                 </div>
 
                 <!-- Block 2 -->
                 <div>
-                  <h5 class="mb-md">Diversity 多元性</h5>
-                  <p class="mb-sm">Develop multi-interaction model design, integrate different media and platforms such as digital media audio and video, human interaction installation, game design, experience design, virtual reality application and technology-based public art.</p>
+                  <h5 class="mb-sm">Diversity 多元性</h5>
+                  <p class="mb-xs">Develop multi-interaction model design, integrate different media and platforms such as digital media audio and video, human interaction installation, game design, experience design, virtual reality application and technology-based public art.</p>
                   <p>發展多元互動模式設計，整合數位媒體影音、人因互動裝置、遊戲設計、體驗設計、虛擬實境應用及科技性公共藝術等不同媒材與平台。</p>
                 </div>
 
                 <!-- Block 3 -->
                 <div>
-                  <h5 class="mb-md">Integration 整合性</h5>
-                  <p class="mb-sm">Through one-person independent production, students are trained to integrate creativity, production and performance, and to cultivate leadership and management talents with a comprehensive perspective and horizontal communication skills.</p>
+                  <h5 class="mb-sm">Integration 整合性</h5>
+                  <p class="mb-xs">Through one-person independent production, students are trained to integrate creativity, production and performance, and to cultivate leadership and management talents with a comprehensive perspective and horizontal communication skills.</p>
                   <p>藉由單人獨立製作訓練學生創意、製作與展演之整合能力，培養具全觀視角，善於橫向溝通能力與領導管理之設計人才。</p>
                 </div>
               </div>
@@ -330,8 +332,8 @@
             </div>
             <div class="col-start-7 col-span-5 flex items-center">
               <div>
-                <p class="mb-sm">The BFA program emphasizes hands-on learning and creative exploration, preparing students for diverse career paths in the design industry. Through collaborative projects and individual research, students develop their unique creative voice.</p>
-                <p>學士班強調實作學習與創意探索，為學生在設計產業的多元職涯做準備。透過合作專案與個人研究，學生發展獨特的創作聲音。</p>
+                <h5 class="mb-sm">The BFA program emphasizes hands-on learning and creative exploration, preparing students for diverse career paths in the design industry. Through collaborative projects and individual research, students develop their unique creative voice.</h5>
+                <h5>學士班強調實作學習與創意探索，為學生在設計產業的多元職涯做準備。透過合作專案與個人研究，學生發展獨特的創作聲音。</h5>
               </div>
             </div>
           </div>
@@ -353,8 +355,8 @@
           <!-- Title in Center -->
           <div class="absolute inset-0 w-full h-full flex items-center justify-center z-10">
             <div class="text-center">
-              <h1 class="text-white">MDES Class</h1>
-              <h1 class="text-white mt-md">碩士班</h1>
+              <h1 class="text-white" style="transform: rotate(-4deg) translateX(-200px);">MDES Class</h1>
+              <h1 class="text-white mt-md" style="transform: rotate(4deg) translateX(300px);">碩士班</h1>
             </div>
           </div>
         </div>
@@ -369,8 +371,8 @@
             </div>
             <div class="col-start-7 col-span-5 flex items-center">
               <div>
-                <p class="mb-sm">The MDES program offers advanced research and creative practice opportunities, fostering innovation in communications design. Graduate students engage in cutting-edge projects that push the boundaries of design thinking and media expression.</p>
-                <p>碩士班提供進階研究與創作實踐機會，培養媒體傳達設計的創新能力。研究生參與前瞻性專案，推進設計思維與媒體表達的界限。</p>
+                <h5 class="mb-sm">The MDES program offers advanced research and creative practice opportunities, fostering innovation in communications design. Graduate students engage in cutting-edge projects that push the boundaries of design thinking and media expression.</h5>
+                <h5>碩士班提供進階研究與創作實踐機會，培養媒體傳達設計的創新能力。研究生參與前瞻性專案，推進設計思維與媒體表達的界限。</h5>
               </div>
             </div>
           </div>
@@ -381,8 +383,8 @@
           <div class="grid-12">
             <div class="col-start-2 col-span-5 flex items-center">
               <div>
-                <p class="mb-sm">Through intensive research methodologies and collaborative workshops, MDES students develop critical perspectives on contemporary design challenges. The program emphasizes both theoretical foundations and practical applications in emerging media contexts.</p>
-                <p>透過密集的研究方法與合作工作坊，碩士班學生對當代設計挑戰發展批判性觀點。課程強調理論基礎與新興媒體情境中的實際應用。</p>
+                <h5 class="mb-sm">Through intensive research methodologies and collaborative workshops, MDES students develop critical perspectives on contemporary design challenges. The program emphasizes both theoretical foundations and practical applications in emerging media contexts.</h5>
+                <h5>透過密集的研究方法與合作工作坊，碩士班學生對當代設計挑戰發展批判性觀點。課程強調理論基礎與新興媒體情境中的實際應用。</h5>
               </div>
             </div>
             <div class="col-start-8 col-span-5 relative flex justify-center items-center" style="height: 500px;">
@@ -409,8 +411,8 @@
           <!-- Title in Center -->
           <div class="absolute inset-0 w-full h-full flex items-center justify-center z-10">
             <div class="text-center">
-              <h1 class="text-white">Resources</h1>
-              <h1 class="text-white mt-md">環境資源</h1>
+              <h1 class="text-white" style="transform: rotate(-4deg) translateX(-200px);">Resources</h1>
+              <h1 class="text-white mt-md" style="transform: rotate(4deg) translateX(300px);">環境資源</h1>
             </div>
           </div>
         </div>
@@ -420,8 +422,8 @@
           <div class="grid-12">
             <div class="col-start-6 col-span-6">
               <div>
-                <p class="mb-sm">SCCD is located in Dazhi Street, Zhongshan District, Taipei City. In hardware, there are many teaching buildings with international design standards. It combines the unique landscape of Dazhi area and interweaves into a teaching environment that fits design and creation. In software, in addition to the excellent faculty of the college of design, the rich international academic exchanges and industrial resources in various fields, as well as the mutual cooperation and exchange of inspiration among the various departments of the college of design, are all indispensable conditions for brewing students’ design inspiration and creative energy.</p>
-                <p>實踐大學媒體傳達設計學系位於台北市中山區大直街，在硬體上設有具國際設計水準之眾多教學大樓，融合大直地區特有之山水地景，交織成契合設計與創作之教學環境。軟體上結合設計學院的優良師資以外，豐富的國際學術交流與各領域產業資源，設計學院各學系間的相互協作與交流啟發，皆是醞釀學生設計靈感與創作能量不可或缺之條件。</p>
+                <h5 class="mb-sm">SCCD is located in Dazhi Street, Zhongshan District, Taipei City. In hardware, there are many teaching buildings with international design standards. It combines the unique landscape of Dazhi area and interweaves into a teaching environment that fits design and creation. In software, in addition to the excellent faculty of the college of design, the rich international academic exchanges and industrial resources in various fields, as well as the mutual cooperation and exchange of inspiration among the various departments of the college of design, are all indispensable conditions for brewing students' design inspiration and creative energy.</h5>
+                <h5>實踐大學媒體傳達設計學系位於台北市中山區大直街，在硬體上設有具國際設計水準之眾多教學大樓，融合大直地區特有之山水地景，交織成契合設計與創作之教學環境。軟體上結合設計學院的優良師資以外，豐富的國際學術交流與各領域產業資源，設計學院各學系間的相互協作與交流啟發，皆是醞釀學生設計靈感與創作能量不可或缺之條件。</h5>
               </div>
             </div>
           </div>
@@ -474,8 +476,8 @@
           <!-- Title in Center -->
           <div class="absolute inset-0 w-full h-full flex items-center justify-center z-10">
             <div class="text-center">
-              <h1 class="text-white">Alumni</h1>
-              <h1 class="text-white mt-md">系友發展</h1>
+              <h1 class="text-white" style="transform: rotate(-4deg) translateX(-200px);">Alumni</h1>
+              <h1 class="text-white mt-md" style="transform: rotate(4deg) translateX(300px);">系友發展</h1>
             </div>
           </div>
         </div>
@@ -485,15 +487,15 @@
           <div class="grid-12">
             <div class="col-start-6 col-span-6">
               <div>
-                <p class="mb-sm">SCCD Alumni serve in various fields related to digital media or entertainment and creative industries, and many of them are engaged in cultural administration, art education, etc., or continue their studies in related fields at domestic and foreign, and actively participate in various arts , multimedia and other cross-border exhibitions. In addition to exhibiting, performing, and publishing books in various personal unique creative forms, alumni of the department also cooperate with many performing individuals and groups in the field of contemporary art performance, and participate in assisting in the planning, execution, and coordinating the production of various projects.</p>
-                <p>實踐大學媒體傳達設計學系畢業系友在各行各業均有任職人員或創業者，從設計、藝術、影視娛樂、多媒體、行銷公關甚至科技公司等，以設計思考橫跨多領域均表現傑出；於國外相關領域深造學術領域或海外就職者也為數甚多，積極於各產業領域發揮其美學與設計思考之影響力。</p>
+                <h5 class="mb-sm">SCCD Alumni serve in various fields related to digital media or entertainment and creative industries, and many of them are engaged in cultural administration, art education, etc., or continue their studies in related fields at domestic and foreign, and actively participate in various arts , multimedia and other cross-border exhibitions. In addition to exhibiting, performing, and publishing books in various personal unique creative forms, alumni of the department also cooperate with many performing individuals and groups in the field of contemporary art performance, and participate in assisting in the planning, execution, and coordinating the production of various projects.</h5>
+                <h5>實踐大學媒體傳達設計學系畢業系友在各行各業均有任職人員或創業者，從設計、藝術、影視娛樂、多媒體、行銷公關甚至科技公司等，以設計思考橫跨多領域均表現傑出；於國外相關領域深造學術領域或海外就職者也為數甚多，積極於各產業領域發揮其美學與設計思考之影響力。</h5>
               </div>
             </div>
           </div>
         </div>
 
         <!-- Image and Text Layout -->
-        <div class="site-container pb-6xl">
+        <div class="site-container">
           <div class="grid-12">
             <!-- Images (Left) - col-2 to col-6 -->
             <div class="col-start-2 col-span-5 relative flex justify-center items-center" style="height: 500px;">
@@ -512,12 +514,17 @@
           </div>
         </div>
 
-        <!-- Alumni Companies Section (100vh) -->
-        <div class="relative w-full flex items-center justify-center" style="height: 100vh;">
+        <!-- Alumni Companies Section -->
+        <div class="relative w-full py-6xl">
           <div class="site-container">
             <div class="grid-12">
-              <div class="col-start-3 col-span-8 text-center">
+              <div class="col-start-2 col-span-10">
                 <h6 class="mb-2xl">SCCD Alumni serve in various industries, including<br>學系系友任職或與之合作各類型知名企業，包含：</h6>
+
+                <!-- Cursor Trail Area -->
+                <div id="brand-trail-area" class="relative w-full cursor-default" style="height: 300px;"></div>
+
+                <!-- Brand Text Area -->
                 <h4 id="brand-text-area" class="font-regular relative z-20 overflow-visible cursor-default">
                   PIXAR Studios / Marvel Studios / BlueSky Studios / Apple Inc. / Facebook (Meta) / Tokyo Disneyland / TeamLab / Panerai / Mercedes-Benz / BMW / Skoda / Lexus / Gogoro / Giant / KKBOX Group / Blizzard / Sony Entertainment / New York Times / Vogue / Uber Eats / Food Panda / NIKE / adidas / Converse / New Balance / The Wall Street Journal / NVIDIA / HTC / ASUS / SAMSUNG, etc.
                 </h4>
@@ -528,8 +535,9 @@
 
         <!-- Back to Top Button -->
         <div class="w-full flex justify-center pb-6xl">
-          <a href="#about-hero" class="text-p1 font-regular hover:font-bold transition-all duration-fast cursor-pointer">
-            Back to Top 回到頂部
+          <a href="#about-hero" class="text-p1 font-regular hover:font-bold transition-all duration-fast cursor-pointer flex items-center gap-xs">
+            <i class="fa-solid fa-arrow-up"></i>
+            <span>Back to Top 回到頂部</span>
           </a>
         </div>
       </section>
@@ -543,6 +551,8 @@
   <!-- GSAP & ScrollTrigger -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Draggable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>
   <script src="../js/main.js"></script>
 
 </body>

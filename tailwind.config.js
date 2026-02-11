@@ -44,7 +44,9 @@ module.exports = {
       // 字體大小 (使用 rem)
       fontSize: {
         'h1': '8rem',      // 128px
+        'h2': '6rem',      // 96px
         'h3': '3.125rem',  // 50px
+        'h4': '2rem',      // 32px
         'h5': '1.35rem',   // 21.6px
         'h6': '1.25rem',   // 20px
         'p1': '1rem',      // 16px

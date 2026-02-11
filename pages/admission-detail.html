@@ -20,11 +20,11 @@
         <div class="grid-12">
 
           <!-- Back Arrow (Col 1) -->
-          <a href="admission.html" class="col-span-1 self-center flex justify-center">
+          <a href="admission.html" class="col-span-1 self-start flex justify-center">
             <i class="fa-solid fa-arrow-left-long text-h5"></i>
           </a>
 
-          <div class="col-start-4 col-span-7 flex flex-col gap-2xl">
+          <div class="col-start-4 col-span-6 flex flex-col gap-2xl">
 
             <!-- Date + Title -->
             <div class="flex flex-col gap-xs">
@@ -68,6 +68,27 @@
               </p>
             </div>
 
+            <!-- Divider Line -->
+            <div class="border-t border-gray-9 mt-2xl"></div>
+
+            <!-- Previous / Next Navigation -->
+            <div class="flex justify-between items-center">
+              <!-- Previous Button (隱藏狀態，因為這是第一篇) -->
+              <a href="#" id="prev-btn" class="text-p1 font-regular hover:font-bold transition-all duration-fast cursor-pointer flex items-center gap-xs" style="display: none;">
+                <i class="fa-solid fa-arrow-left"></i>
+                <span>上一個</span>
+              </a>
+
+              <!-- 佔位空間 (當沒有上一個時) -->
+              <div id="prev-placeholder"></div>
+
+              <!-- Next Button -->
+              <a href="admission-detail.html" id="next-btn" class="text-p1 font-regular hover:font-bold transition-all duration-fast cursor-pointer flex items-center gap-xs">
+                <span>下一個</span>
+                <i class="fa-solid fa-arrow-right"></i>
+              </a>
+            </div>
+
           </div>
         </div>
       </div>
@@ -81,6 +102,8 @@
   <!-- GSAP & ScrollTrigger -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Draggable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>
   <script src="../js/main.js"></script>
 
 </body>
