@@ -18,7 +18,6 @@
 
   body {
     @apply font-sans text-black bg-white leading-base;
-    overflow-x: hidden;
   }
 
   h1 {
@@ -318,6 +317,27 @@
     padding-top: 1rem !important; /* pt-sm */
   }
 
+  /* Workshop Accordion - Auto padding based on position */
+  .workshop-item:first-child .workshop-header {
+    padding-bottom: var(--spacing-md);
+    padding-top: 0;
+  }
+
+  .workshop-item:not(:first-child):not(:last-child) .workshop-header {
+    padding-top: var(--spacing-md);
+    padding-bottom: var(--spacing-md);
+  }
+
+  .workshop-item:last-child:not(:first-child) .workshop-header {
+    padding-top: var(--spacing-md);
+    padding-bottom: var(--spacing-md);
+  }
+
+  /* Workshop Year Toggle - chevron rotation */
+  .workshop-year-toggle .fa-chevron-right {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
   /* Activities Year Toggle - chevron rotation */
   .activities-year-toggle .fa-chevron-right {
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -374,6 +394,11 @@
   /* Parttime cards: grayscale image on hover */
   .faculty-card[data-category="parttime"] .faculty-card-image-wrapper:hover .faculty-card-image {
     filter: grayscale(100%);
+  }
+
+  /* Library Card Hover Effect */
+  .library-card-image-wrapper:hover .library-card-image {
+    transform: scale(1.1);
   }
 
   /* Degree Show Image Hover */

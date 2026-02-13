@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="../css/output.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
-<body>
+<body style="overflow-x: hidden;">
 
   <!-- Header -->
   <div id="site-header"></div>
@@ -105,26 +105,24 @@
           <div class="timeline-wrapper mt-6xl pt-5xl pb-6xl" style="min-height: 1400vh;">
             <!-- Sticky Timeline Display -->
             <div class="timeline-sticky-container sticky bg-white" style="top: 100px;">
+              <!-- Era Label (with container) -->
               <div class="site-container pt-2xl">
-                <!-- Era Label (Column 2) -->
                 <div class="grid-12 mb-lg">
                   <div class="col-start-2 col-span-10">
                     <h4 id="timeline-era" class="text-black font-bold whitespace-nowrap"></h4>
                   </div>
                 </div>
+              </div>
 
-                <!-- Years Display (horizontal scroll container) -->
-                <div class="grid-12">
-                  <div class="col-start-2 col-span-10 overflow-visible">
-                    <div id="timeline-years-container" class="flex gap-5xl" style="transform: translateX(0);">
-                      <!-- All years will be rendered here -->
-                    </div>
-                  </div>
+              <!-- Years Display (True full viewport width: 100vw from edge to edge) -->
+              <div class="overflow-hidden" style="width: 100vw; position: relative; left: 50%; right: 50%; margin-left: -50vw; margin-right: -50vw;">
+                <div id="timeline-years-container" class="flex gap-5xl" style="transform: translateX(0);">
+                  <!-- All years will be rendered here -->
                 </div>
               </div>
 
-              <!-- Full Width Line (100vw width, no padding) -->
-              <div class="w-screen h-[1px] bg-gray-9 mt-lg" style="margin-left: calc(-50vw + 50%);"></div>
+              <!-- Full Width Line (True full viewport width: 100vw from edge to edge) -->
+              <div class="h-[1px] bg-gray-9 mt-lg" style="width: 100vw; position: relative; left: 50%; right: 50%; margin-left: -50vw; margin-right: -50vw;"></div>
 
               <div class="site-container pb-4xl">
                 <!-- Timeline Content (Image + Text) -->

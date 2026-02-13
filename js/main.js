@@ -49,6 +49,28 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     });
 
+    // Logo Scale Animation on Scroll (180px -> 100px)
+    const logo = document.getElementById('header-logo');
+    if (logo && typeof gsap !== 'undefined' && gsap.registerPlugin) {
+      gsap.registerPlugin(ScrollTrigger);
+
+      // 確保初始大小為 180px
+      gsap.set(logo, { width: 180, height: 180 });
+
+      // 滾動時縮小到 100px
+      gsap.to(logo, {
+        width: 100,
+        height: 100,
+        ease: 'none',
+        scrollTrigger: {
+          trigger: 'body',
+          start: 'top top',
+          end: '+=300',
+          scrub: 0.5,
+        }
+      });
+    }
+
     // Header Hide on Footer Reveal
     const mainContent = document.querySelector('main');
     if (mainContent) {
@@ -1040,13 +1062,18 @@ Phone: +886-2-1234-5679`
         }
       });
 
-      // Position update: Snap current year to the left
+      // Position update: Snap current year to align with Era Label (col-start-2)
       if (yearElements[currentYearIndex]) {
         const currentYearElement = yearElements[currentYearIndex];
         const offsetLeft = currentYearElement.offsetLeft;
 
+        // 計算 Era Label 的左邊位置（col-start-2 在 grid-12 中的位置）
+        // site-container 的 padding + 1 個 column 寬度 + 1 個 gap
+        const eraLabelElement = document.getElementById('timeline-era');
+        const targetX = eraLabelElement ? eraLabelElement.getBoundingClientRect().left : 0;
+
         gsap.to(timelineYearsContainer, {
-          x: -offsetLeft,
+          x: targetX - offsetLeft,
           duration: 0.6,
           ease: "power2.out",
           overwrite: true

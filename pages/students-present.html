@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Students Present - SCCD</title>
+  <link rel="stylesheet" href="../css/output.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <div id="site-header"></div>
+
+  <!-- Main Content -->
+  <main>
+    <!-- Hero Section with Background Image -->
+    <section class="h-screen relative overflow-hidden">
+      <!-- Background Image -->
+      <div class="absolute inset-0 w-full h-full">
+        <img src="../images/SCCD-1-4-0.jpg" alt="Students Present" class="w-full h-full object-cover">
+      </div>
+
+      <!-- Black Gradient Overlay (0% at top, 100% at bottom) -->
+      <div class="absolute inset-0 w-full h-full bg-gradient-to-b from-transparent to-black"></div>
+
+      <!-- Content Container -->
+      <div class="site-container h-full relative z-10">
+        <div class="h-full flex items-end gap-xl pb-2xl">
+          <!-- Title on the left (50%) with -4deg rotation -->
+          <div class="w-1/2">
+            <h1 class="text-white pb-xl" style="transform: rotate(-4deg);">STUDENTS PRESENT</h1>
+          </div>
+
+          <!-- Content on the right (50%) -->
+          <div class="w-1/2">
+            <!-- English text with 3deg rotation -->
+            <p class="text-white mb-xl" style="transform: rotate(3deg);">
+              Student-led initiatives and projects that showcase creativity, innovation, and collaborative spirit within the SCCD community.
+            </p>
+            <!-- Chinese text with -2deg rotation -->
+            <p class="text-white" style="transform: rotate(-2deg);">
+              由學生自主發起的創意計畫與活動，展現媒體傳達設計系學生的創造力、創新精神與團隊合作能力。
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Students Present Content Section -->
+    <section class="bg-white py-6xl">
+      <div class="site-container">
+        <!-- Year Group: 2025 -->
+        <div class="workshop-year-group grid-12 items-start">
+          <!-- Chevron (Column 2 right side) -->
+          <div class="col-start-2 col-span-1 flex justify-end items-center workshop-year-toggle cursor-pointer" style="height: 1.8rem;">
+            <i class="fa-solid fa-chevron-right text-p1 transition-all duration-fast rotate-90"></i>
+          </div>
+          <!-- Year (Column 3) -->
+          <div class="col-start-3 col-span-1 workshop-year-toggle cursor-pointer">
+            <h5>2025</h5>
+          </div>
+          <!-- Workshop Items (Column 4-12) -->
+          <div class="col-start-4 col-span-9 workshop-year-items flex flex-col">
+
+                  <!-- Item 1 -->
+                  <div class="workshop-item border-b border-gray-9 overflow-hidden">
+                    <!-- Header -->
+                    <div class="workshop-header cursor-pointer group transition-colors duration-fast flex items-center justify-between">
+                      <div class="text-h5 font-bold">Student Project Title 1</div>
+                      <i class="fa-solid fa-chevron-down text-p1 transition-transform duration-300"></i>
+                    </div>
+                    <!-- Content (Hidden by default) -->
+                    <div class="workshop-content h-0 overflow-hidden">
+                      <div class="pb-xl pt-xs flex gap-3xl">
+                        <!-- Left: Date + Organizer + Introduction -->
+                        <div class="flex-1 flex flex-col gap-lg">
+                          <div>
+                            <h6 class="text-black">03.15 - 03.20</h6>
+                          </div>
+                          <div>
+                            <h6 class="text-black mb-xs">Organizer 主辦單位</h6>
+                            <p class="text-p1">Student Name 學生姓名</p>
+                          </div>
+                          <div>
+                            <h6 class="mb-xs text-black">Introduction 介紹</h6>
+                            <p class="text-p1">
+                              Description of the student-led project or initiative goes here.
+                            </p>
+                          </div>
+                        </div>
+                        <!-- Right: Poster -->
+                        <div style="flex: 0 0 30%;">
+                          <img src="../images/2021-動畫-Pitch-Bible-01.png" class="w-full object-cover block">
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Item 2 -->
+                  <div class="workshop-item border-b border-gray-9 overflow-hidden">
+                    <div class="workshop-header cursor-pointer group transition-colors duration-fast flex items-center justify-between">
+                      <div class="text-h5 font-bold">Student Project Title 2</div>
+                      <i class="fa-solid fa-chevron-down text-p1 transition-transform duration-300"></i>
+                    </div>
+                    <div class="workshop-content h-0 overflow-hidden">
+                      <div class="pb-xl pt-xs flex gap-3xl">
+                        <div class="flex-1 flex flex-col gap-lg">
+                          <div>
+                            <h6 class="text-black">04.10 - 04.15</h6>
+                          </div>
+                          <div>
+                            <h6 class="text-black mb-xs">Organizer 主辦單位</h6>
+                            <p class="text-p1">Student Group Name 學生團隊名稱</p>
+                          </div>
+                          <div>
+                            <h6 class="mb-xs text-black">Introduction 介紹</h6>
+                            <p class="text-p1">Description of the student-led project or initiative.</p>
+                          </div>
+                        </div>
+                        <div style="flex: 0 0 30%;">
+                          <img src="../images/2021-動畫-Pitch-Bible-01.png" class="w-full object-cover block">
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Item 3 (Last item - no border-b) -->
+                  <div class="workshop-item overflow-hidden">
+                    <div class="workshop-header cursor-pointer group transition-colors duration-fast flex items-center justify-between">
+                      <div class="text-h5 font-bold">Student Project Title 3</div>
+                      <i class="fa-solid fa-chevron-down text-p1 transition-transform duration-300"></i>
+                    </div>
+                    <div class="workshop-content h-0 overflow-hidden">
+                      <div class="pb-xl pt-xs flex gap-3xl">
+                        <div class="flex-1 flex flex-col gap-lg">
+                          <div>
+                            <h6 class="text-black">05.20 - 05.25</h6>
+                          </div>
+                          <div>
+                            <h6 class="text-black mb-xs">Organizer 主辦單位</h6>
+                            <p class="text-p1">Student Name 學生姓名</p>
+                          </div>
+                          <div>
+                            <h6 class="mb-xs text-black">Introduction 介紹</h6>
+                            <p class="text-p1">Description of the student-led project or initiative.</p>
+                          </div>
+                        </div>
+                        <div style="flex: 0 0 30%;">
+                          <img src="../images/2021-動畫-Pitch-Bible-01.png" class="w-full object-cover block">
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+          </div>
+        </div>
+        <!-- Border line with padding -->
+        <div class="grid-12 pt-xl pb-2xl">
+          <div class="col-start-3 col-span-10 border-b border-gray-9"></div>
+        </div>
+
+        <!-- Year Group: 2024 -->
+        <div class="workshop-year-group grid-12 items-start">
+          <!-- Chevron (Column 2 right side) -->
+          <div class="col-start-2 col-span-1 flex justify-end items-center workshop-year-toggle cursor-pointer" style="height: 1.8rem;">
+            <i class="fa-solid fa-chevron-right text-p1 transition-all duration-fast rotate-90"></i>
+          </div>
+          <!-- Year (Column 3) -->
+          <div class="col-start-3 col-span-1 workshop-year-toggle cursor-pointer">
+            <h5>2024</h5>
+          </div>
+          <!-- Workshop Items (Column 4-12) -->
+          <div class="col-start-4 col-span-9 workshop-year-items flex flex-col">
+
+                <!-- Item 1 -->
+                <div class="workshop-item border-b border-gray-9 overflow-hidden">
+                  <!-- Header -->
+                  <div class="workshop-header pb-md cursor-pointer group transition-colors duration-fast flex items-center justify-between">
+                    <div class="text-h5 font-bold">2024 Project 1</div>
+                    <i class="fa-solid fa-chevron-down text-p1 transition-transform duration-300"></i>
+                  </div>
+                  <!-- Content (Hidden by default) -->
+                  <div class="workshop-content h-0 overflow-hidden">
+                    <div class="pb-xl pt-xs flex gap-3xl">
+                      <!-- Left: Date + Organizer + Introduction -->
+                      <div class="flex-1 flex flex-col gap-lg">
+                        <div>
+                          <h6 class="text-black">03.15 - 03.20</h6>
+                        </div>
+                        <div>
+                          <h6 class="text-black mb-xs">Organizer 主辦單位</h6>
+                          <p class="text-p1">Student Name 學生姓名</p>
+                        </div>
+                        <div>
+                          <h6 class="mb-xs text-black">Introduction 介紹</h6>
+                          <p class="text-p1">Description of the student-led project.</p>
+                        </div>
+                      </div>
+                      <!-- Right: Poster -->
+                      <div style="flex: 0 0 30%;">
+                        <img src="../images/2021-動畫-Pitch-Bible-01.png" class="w-full object-cover block">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Item 2 (Last item - no border-b) -->
+                <div class="workshop-item overflow-hidden">
+                  <div class="workshop-header cursor-pointer group transition-colors duration-fast flex items-center justify-between">
+                    <div class="text-h5 font-bold">2024 Project 2</div>
+                    <i class="fa-solid fa-chevron-down text-p1 transition-transform duration-300"></i>
+                  </div>
+                  <div class="workshop-content h-0 overflow-hidden">
+                    <div class="pb-xl pt-xs flex gap-3xl">
+                      <!-- Left: Date + Organizer + Introduction -->
+                      <div class="flex-1 flex flex-col gap-lg">
+                        <div>
+                          <h6 class="text-black">04.10 - 04.15</h6>
+                        </div>
+                        <div>
+                          <h6 class="text-black mb-xs">Organizer 主辦單位</h6>
+                          <p class="text-p1">Student Group 學生團隊</p>
+                        </div>
+                        <div>
+                          <h6 class="mb-xs text-black">Introduction 介紹</h6>
+                          <p class="text-p1">Description of the student-led project.</p>
+                        </div>
+                      </div>
+                      <!-- Right: Poster -->
+                      <div style="flex: 0 0 30%;">
+                        <img src="../images/2021-動畫-Pitch-Bible-01.png" class="w-full object-cover block">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+          </div>
+        </div>
+        <!-- Border line with padding -->
+        <div class="grid-12 pt-xl pb-2xl">
+          <div class="col-start-3 col-span-10 border-b border-gray-9"></div>
+        </div>
+
+        <!-- Year Group: 2023 -->
+        <div class="workshop-year-group grid-12 items-start">
+          <!-- Chevron (Column 2 right side) -->
+          <div class="col-start-2 col-span-1 flex justify-end items-center workshop-year-toggle cursor-pointer" style="height: 1.8rem;">
+            <i class="fa-solid fa-chevron-right text-p1 transition-all duration-fast rotate-90"></i>
+          </div>
+          <!-- Year (Column 3) -->
+          <div class="col-start-3 col-span-1 workshop-year-toggle cursor-pointer">
+            <h5>2023</h5>
+          </div>
+          <!-- Workshop Items (Column 4-12) -->
+          <div class="col-start-4 col-span-9 workshop-year-items flex flex-col">
+
+                <!-- Item 1 (Last item - no border-b) -->
+                <div class="workshop-item overflow-hidden">
+                  <!-- Header -->
+                  <div class="workshop-header cursor-pointer group transition-colors duration-fast flex items-center justify-between">
+                    <div class="text-h5 font-bold">2023 Project 1</div>
+                    <i class="fa-solid fa-chevron-down text-p1 transition-transform duration-300"></i>
+                  </div>
+                  <!-- Content (Hidden by default) -->
+                  <div class="workshop-content h-0 overflow-hidden">
+                    <div class="pb-xl flex gap-3xl">
+                      <!-- Left: Date + Organizer + Introduction -->
+                      <div class="flex-1 flex flex-col gap-lg">
+                        <div>
+                          <h6 class="text-black">05.20 - 05.25</h6>
+                        </div>
+                        <div>
+                          <h6 class="text-black mb-xs">Organizer 主辦單位</h6>
+                          <p class="text-p1">Student Name 學生姓名</p>
+                        </div>
+                        <div>
+                          <h6 class="mb-xs text-black">Introduction 介紹</h6>
+                          <p class="text-p1">Description of the student-led project.</p>
+                        </div>
+                      </div>
+                      <!-- Right: Poster -->
+                      <div style="flex: 0 0 30%;">
+                        <img src="../images/2021-動畫-Pitch-Bible-01.png" class="w-full object-cover block">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <div id="site-footer"></div>
+
+  <!-- JavaScript -->
+  <!-- GSAP & ScrollTrigger -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Draggable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>
+  <script src="../js/main.js"></script>
+
+</body>
+</html>
