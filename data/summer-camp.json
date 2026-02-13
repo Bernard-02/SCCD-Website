@@ -1,0 +1,20 @@
+[
+  {
+    "year": 2025,
+    "items": [
+      { "title": "談一場平凡無奇的戀愛", "descriptionEn": "This immersive summer camp introduces high school students to the fundamentals of design thinking...", "descriptionZh": "這個沉浸式的暑期營隊帶領高中生認識設計思考的基礎...", "image": "../images/2021-動畫-Pitch-Bible-01.png" }
+    ]
+  },
+  {
+    "year": 2024,
+    "items": [
+      { "title": "我知道你想要對吧！", "descriptionEn": "This immersive summer camp introduces high school students to the fundamentals of design thinking...", "descriptionZh": "這個沉浸式的暑期營隊帶領高中生認識設計思考的基礎...", "image": "../images/2021-動畫-Pitch-Bible-01.png" }
+    ]
+  },
+  {
+    "year": 2023,
+    "items": [
+      { "title": "我以為我有魔法！", "descriptionEn": "Explore the intersection of art and technology in this intensive workshop...", "descriptionZh": "在這個密集工作坊中探索藝術與科技的交會點...", "image": "../images/2021-動畫-Pitch-Bible-01.png" }
+    ]
+  }
+]

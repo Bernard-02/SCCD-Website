@@ -1,0 +1,29 @@
+[
+  {
+    "year": 2025,
+    "items": [
+      { "location": "台北", "competition": "國際媒體設計獎", "award": "設計獎", "rank": "金獎", "winner": "陳大明" },
+      { "location": "東京", "competition": "亚太青年設計競賽", "award": "競賽獎", "rank": "銀獎", "winner": "林小萍" },
+      { "location": "線上", "competition": "全國大學生海報設計獎", "award": "設計獎", "rank": "優獎", "winner": "王阿美" },
+      { "location": "線上", "competition": "新媒體艺术獎", "award": "艺术獎", "rank": "特獎", "winner": "張三" }
+    ]
+  },
+  {
+    "year": 2024,
+    "items": [
+      { "location": "首爾", "competition": "韓國國際設計獎", "award": "設計獎", "rank": "金獎", "winner": "李大頭" },
+      { "location": "台北", "competition": "永續設計思想獎", "award": "設計獎", "rank": "銀獎", "winner": "黃阿雲" },
+      { "location": "線上", "competition": "亚太青年動畫獎", "award": "動畫獎", "rank": "優獎", "winner": "周志明" },
+      { "location": "高雄", "competition": "國內青年交互設計獎", "award": "設計獎", "rank": "特獎", "winner": "吳大明" }
+    ]
+  },
+  {
+    "year": 2023,
+    "items": [
+      { "location": "東京", "competition": "日本國際設計獎", "award": "設計獎", "rank": "金獎", "winner": "趙小玲" },
+      { "location": "台北", "competition": "全國平面設計競賽", "award": "競賽獎", "rank": "銀獎", "winner": "陳小萍" },
+      { "location": "新加坡", "competition": "亚太數位媒體獎", "award": "媒體獎", "rank": "優獎", "winner": "林大頭" },
+      { "location": "線上", "competition": "國際青年動畫節獎", "award": "動畫獎", "rank": "特獎", "winner": "王大明" }
+    ]
+  }
+]

@@ -96,6 +96,30 @@ module.exports = {
         'gutter': '1.25rem',  // 20px
       },
 
+      // 旋轉角度（常用於卡片和標題）
+      rotate: {
+        '-6': '-6deg',
+        '-4': '-4deg',
+        '-2': '-2deg',
+        '3': '3deg',
+        '4': '4deg',
+        '12': '12deg',
+        '15': '15deg',
+        '18': '18deg',
+      },
+
+      // 高度
+      height: {
+        'works-container': '500px',  // Works section container height
+        'toggle': '1.8rem',          // Toggle button height
+      },
+
+      // 寬高比
+      aspectRatio: {
+        'course': '4/5',   // Course card aspect ratio
+        'video': '16/9',   // Video aspect ratio
+      },
+
       // 過渡動畫
       transitionDuration: {
         'fast': '200ms',

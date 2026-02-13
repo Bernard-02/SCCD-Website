@@ -29,17 +29,17 @@
         <div class="h-full flex items-end gap-xl pb-2xl">
           <!-- Title on the left (50%) with -4deg rotation -->
           <div class="w-1/2">
-            <h1 class="text-white pb-xl" style="transform: rotate(-4deg);">DEGREE SHOW</h1>
+            <h1 class="text-white pb-xl hero-title">DEGREE SHOW</h1>
           </div>
 
           <!-- Content on the right (50%) -->
           <div class="w-1/2">
             <!-- English text with 3deg rotation -->
-            <p class="text-white mb-xl" style="transform: rotate(3deg);">
+            <p class="text-white mb-xl hero-text-en">
               The annual Degree Show is the culmination of students' creative journey, showcasing their final works and celebrating the talent emerging from SCCD.
             </p>
             <!-- Chinese text with -2deg rotation -->
-            <p class="text-white" style="transform: rotate(-2deg);">
+            <p class="text-white hero-text-cn">
               於全學年結束時，學士班準畢業之學生將共同籌備一場對外展覽。學生將在中擔任集體策展團隊之各項職務並彼此溝通協作，同時完成個人之創作作品並進一步梳理多人展演條件之思維脈絡，以此為形式嘗試勾勒出學系所整體教學成果與當屆學生之獨有氛圍。
             </p>
           </div>
@@ -118,7 +118,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Draggable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>
-  <script src="../js/main.js"></script>
+  <!-- Helper Functions - 必須在 main.js 之前載入 -->
+  <script src="../js/utils/helpers.js"></script>
+  <script type="module" src="../js/main-modular.js"></script>
 
 </body>
 </html>

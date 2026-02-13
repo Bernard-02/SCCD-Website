@@ -1,0 +1,86 @@
+/**
+ * Custom Scrollbar Styles
+ * 自訂捲軸樣式（黑白配色）
+ */
+
+/* For Webkit browsers (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  width: 15px !important;
+  height: 15px !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+}
+
+::-webkit-scrollbar-track {
+  background: #FFFFFF !important;
+  border: none !important;
+  -webkit-box-shadow: none !important;
+  box-shadow: none !important;
+}
+
+::-webkit-scrollbar-track-piece {
+  background: #FFFFFF !important;
+  border: none !important;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #000000 !important;
+  background-color: #000000 !important;
+  border-radius: 0 !important;
+  -webkit-border-radius: 0 !important;
+  border: none !important;
+  -webkit-box-shadow: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+::-webkit-scrollbar-thumb:window-inactive {
+  background: #000000 !important;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #000000 !important;
+  background-color: #000000 !important;
+  -webkit-box-shadow: none !important;
+  box-shadow: none !important;
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: #000000 !important;
+  background-color: #000000 !important;
+}
+
+/* Remove ALL scrollbar arrows/buttons with maximum specificity */
+::-webkit-scrollbar-button {
+  display: none !important;
+  height: 0 !important;
+  width: 0 !important;
+  background: transparent !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+}
+
+::-webkit-scrollbar-button:single-button {
+  display: none !important;
+}
+
+::-webkit-scrollbar-button:double-button {
+  display: none !important;
+}
+
+::-webkit-scrollbar-button:start:decrement,
+::-webkit-scrollbar-button:end:increment {
+  display: none !important;
+}
+
+::-webkit-scrollbar-button:vertical:start:increment,
+::-webkit-scrollbar-button:vertical:end:decrement,
+::-webkit-scrollbar-button:vertical:start:decrement,
+::-webkit-scrollbar-button:vertical:end:increment {
+  display: none !important;
+  height: 0 !important;
+}
+
+::-webkit-scrollbar-corner {
+  background: #FFFFFF !important;
+}

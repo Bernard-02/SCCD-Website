@@ -1,0 +1,34 @@
+/**
+ * Hero Section Components
+ * Hero 標題文字旋轉效果（手機版較小角度，桌面版較大角度）
+ */
+
+@layer components {
+  /* Hero Section Text Rotation - 手機版較小角度 */
+  .hero-title {
+    transform: rotate(-2deg);
+  }
+
+  .hero-text-en {
+    transform: rotate(1deg);
+  }
+
+  .hero-text-cn {
+    transform: rotate(-1deg);
+  }
+
+  /* 桌面版較大角度 */
+  @media (min-width: 768px) {
+    .hero-title {
+      transform: rotate(-4deg);
+    }
+
+    .hero-text-en {
+      transform: rotate(3deg);
+    }
+
+    .hero-text-cn {
+      transform: rotate(-2deg);
+    }
+  }
+}

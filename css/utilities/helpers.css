@@ -1,0 +1,88 @@
+/**
+ * Utility Helper Classes
+ * 可重複使用的工具類別（Flex、Card Stacking、Hover Effects 等）
+ */
+
+@layer components {
+  /* ===== 可重複使用的 Utility Components ===== */
+
+  /* Flex Layouts - Common Patterns */
+  .flex-1 {
+    flex: 1;
+  }
+
+  .flex-0-20 {
+    flex: 0 0 20%;
+  }
+
+  .flex-0-25-gap {
+    flex: 0 0 calc(25% - 0.625rem);
+  }
+
+  .flex-0-30 {
+    flex: 0 0 30%;
+  }
+
+  .flex-0-50 {
+    flex: 0 0 50%;
+  }
+
+  .flex-0-70 {
+    flex: 0 0 70%;
+  }
+
+  .flex-0-100 {
+    flex: 0 0 100%;
+  }
+
+  /* Card Stacking Effects - Layered Card Styles */
+  .card-stack-1 {
+    transform: rotate(-4deg);
+    position: relative;
+    z-index: 1;
+  }
+
+  .card-stack-2 {
+    transform: rotate(3deg);
+    position: relative;
+    z-index: 2;
+  }
+
+  .card-stack-3 {
+    transform: rotate(-2deg);
+    position: relative;
+    z-index: 3;
+  }
+
+  /* Hover Tilt Effects - 僅桌面版 */
+  @media (min-width: 768px) {
+    .hover-tilt-left:hover {
+      transform: rotate(-4deg);
+    }
+
+    .hover-tilt-right:hover {
+      transform: rotate(4deg);
+    }
+  }
+
+  /* Works Container Height */
+  .works-container {
+    height: var(--works-container-height, 500px);
+  }
+}
+
+/* ===== Custom Utilities ===== */
+@layer utilities {
+  .text-gradient-green {
+    @apply bg-gradient-to-r from-green to-blue bg-clip-text text-transparent;
+  }
+
+  .text-gradient-pink {
+    @apply bg-gradient-to-r from-pink to-blue bg-clip-text text-transparent;
+  }
+
+  .writing-mode-vertical {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+  }
+}

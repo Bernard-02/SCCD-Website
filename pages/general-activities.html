@@ -29,17 +29,17 @@
         <div class="h-full flex items-end gap-xl pb-2xl">
           <!-- Title on the left (50%) with -4deg rotation -->
           <div class="w-1/2">
-            <h1 class="text-white pb-xl" style="transform: rotate(-4deg);">GENERAL ACTIVITIES</h1>
+            <h1 class="text-white pb-xl hero-title">GENERAL ACTIVITIES</h1>
           </div>
 
           <!-- Content on the right (50%) -->
           <div class="w-1/2">
             <!-- English text with 3deg rotation -->
-            <p class="text-white mb-xl" style="transform: rotate(3deg);">
+            <p class="text-white mb-xl hero-text-en">
               Discover the vibrant activities organized by SCCD, from workshops and competitions to degree shows and cultural events that enrich the creative community.
             </p>
             <!-- Chinese text with -2deg rotation -->
-            <p class="text-white" style="transform: rotate(-2deg);">
+            <p class="text-white hero-text-cn">
               學系舉辦的各種活動，包括工作營、競賽、畢業展及文化活動，豐富創意社群的生活。
             </p>
           </div>
@@ -87,7 +87,7 @@
             <div class="mb-xl">
               <div class="grid grid-cols-11 gap-gutter items-start pb-xl">
                 <!-- Chevron (Column 1) -->
-                <div class="col-span-1 flex justify-end items-center activities-year-toggle cursor-pointer" style="height: 1.8rem;">
+                <div class="col-span-1 flex justify-end items-center activities-year-toggle cursor-pointer h-toggle">
                   <i class="fa-solid fa-chevron-right text-p1 transition-all duration-fast rotate-90"></i>
                 </div>
                 <!-- Year (Column 2) -->
@@ -175,7 +175,7 @@
             <div class="mb-xl">
               <div class="grid grid-cols-11 gap-gutter items-start pb-xl">
                 <!-- Chevron (Column 1) -->
-                <div class="col-span-1 flex justify-end items-center activities-year-toggle cursor-pointer" style="height: 1.8rem;">
+                <div class="col-span-1 flex justify-end items-center activities-year-toggle cursor-pointer h-toggle">
                   <i class="fa-solid fa-chevron-right text-p1 transition-all duration-fast rotate-90"></i>
                 </div>
                 <!-- Year (Column 2) -->
@@ -263,7 +263,7 @@
             <div>
               <div class="grid grid-cols-11 gap-gutter items-start pb-xl">
                 <!-- Chevron (Column 1) -->
-                <div class="col-span-1 flex justify-end items-center activities-year-toggle cursor-pointer" style="height: 1.8rem;">
+                <div class="col-span-1 flex justify-end items-center activities-year-toggle cursor-pointer h-toggle">
                   <i class="fa-solid fa-chevron-right text-p1 transition-all duration-fast rotate-90"></i>
                 </div>
                 <!-- Year (Column 2) -->
@@ -358,7 +358,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Draggable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>
-  <script src="../js/main.js"></script>
+  <!-- Helper Functions - 必須在 main.js 之前載入 -->
+  <script src="../js/utils/helpers.js"></script>
+  <script type="module" src="../js/main-modular.js"></script>
 
 </body>
 </html>

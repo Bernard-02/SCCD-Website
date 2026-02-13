@@ -29,17 +29,17 @@
         <div class="h-full flex items-end gap-xl pb-2xl">
           <!-- Title on the left (50%) with -4deg rotation -->
           <div class="w-1/2">
-            <h1 class="text-white pb-xl" style="transform: rotate(-4deg);">RECORDS</h1>
+            <h1 class="text-white pb-xl hero-title">RECORDS</h1>
           </div>
 
           <!-- Content on the right (50%) -->
           <div class="w-1/2">
             <!-- English text with 3deg rotation -->
-            <p class="text-white mb-xl" style="transform: rotate(3deg);">
+            <p class="text-white mb-xl hero-text-en">
               A collection of awards and recognitions achieved by students and faculty, celebrating the excellence of SCCD's creative community.
             </p>
             <!-- Chinese text with -2deg rotation -->
-            <p class="text-white" style="transform: rotate(-2deg);">
+            <p class="text-white hero-text-cn">
               學系學生以所學知識為核心，將個人觀點同自身探索融合轉化為創作能量，並將其應用於創作成果及集體展演。學系學生於在學期間攬獲無數獎項並受邀參與各類展演，其中包括美國學生奧斯卡獎、德國紅點獎、德國 iF 獎、美國 ADC 獎、美國 CA 獎、日本 GOOD DESIGN 獎、威尼斯影展、德國柏林短片影展、台北電影節等。
             </p>
           </div>
@@ -53,24 +53,19 @@
         <div class="grid-12">
 
           <!-- Year 2025 -->
-          <div class="col-span-12">
-            <div class="grid-12">
-              <!-- Year Toggle (Chevron + Year) -->
-              <div class="col-start-2 col-span-2 activities-year-toggle cursor-pointer self-start">
-                <div class="grid grid-cols-2 gap-sm items-center">
-                  <!-- Chevron (col-2, align right) -->
-                  <div class="flex justify-end items-center" style="height: 1.35rem;">
-                    <i class="fa-solid fa-chevron-right text-p1 transition-all duration-fast rotate-90"></i>
-                  </div>
-                  <!-- Year (col-3) -->
-                  <div>
-                    <h5>2025</h5>
-                  </div>
-                </div>
+          <div class="col-span-12 mb-xl">
+            <div class="grid-12 items-start pb-xl">
+              <!-- Chevron (Column 2) -->
+              <div class="col-start-2 col-span-1 flex justify-end items-center activities-year-toggle cursor-pointer h-toggle">
+                <i class="fa-solid fa-chevron-right text-p1 transition-all duration-fast rotate-90"></i>
+              </div>
+              <!-- Year (Column 3) -->
+              <div class="col-span-1 activities-year-toggle cursor-pointer">
+                <h5>2025</h5>
               </div>
 
-              <!-- Records List -->
-              <div class="col-start-4 col-span-9 activities-year-items flex flex-col">
+              <!-- Records List (Column 4-12) -->
+              <div class="col-span-9 activities-year-items flex flex-col">
 
                 <div class="grid grid-cols-9 items-center py-xs border-b border-gray-9">
                   <p class="col-span-1">台北</p>
@@ -105,31 +100,27 @@
                 </div>
 
               </div>
-
-              <!-- Divider Line (col-3 to col-12) -->
-              <div class="col-start-3 col-span-10 border-b border-gray-9 mt-lg mb-lg"></div>
+            </div>
+            <!-- Border line (from column 3 to end) -->
+            <div class="grid-12">
+              <div class="col-start-3 col-span-10 border-b border-gray-9"></div>
             </div>
           </div>
 
           <!-- Year 2024 -->
-          <div class="col-span-12">
-            <div class="grid-12">
-              <!-- Year Toggle (Chevron + Year) -->
-              <div class="col-start-2 col-span-2 activities-year-toggle cursor-pointer self-start">
-                <div class="grid grid-cols-2 gap-sm items-center">
-                  <!-- Chevron (col-2, align right) -->
-                  <div class="flex justify-end items-center" style="height: 1.35rem;">
-                    <i class="fa-solid fa-chevron-right text-p1 transition-all duration-fast rotate-90"></i>
-                  </div>
-                  <!-- Year (col-3) -->
-                  <div>
-                    <h5>2024</h5>
-                  </div>
-                </div>
+          <div class="col-span-12 mb-xl">
+            <div class="grid-12 items-start pb-xl">
+              <!-- Chevron (Column 2) -->
+              <div class="col-start-2 col-span-1 flex justify-end items-center activities-year-toggle cursor-pointer h-toggle">
+                <i class="fa-solid fa-chevron-right text-p1 transition-all duration-fast rotate-90"></i>
+              </div>
+              <!-- Year (Column 3) -->
+              <div class="col-span-1 activities-year-toggle cursor-pointer">
+                <h5>2024</h5>
               </div>
 
-              <!-- Records List -->
-              <div class="col-start-4 col-span-9 activities-year-items flex flex-col">
+              <!-- Records List (Column 4-12) -->
+              <div class="col-span-9 activities-year-items flex flex-col">
 
                 <div class="grid grid-cols-9 items-center py-xs border-b border-gray-9">
                   <p class="col-span-1">首爾</p>
@@ -164,31 +155,27 @@
                 </div>
 
               </div>
-
-              <!-- Divider Line (col-3 to col-12) -->
-              <div class="col-start-3 col-span-10 border-b border-gray-9 mt-lg mb-lg"></div>
+            </div>
+            <!-- Border line (from column 3 to end) -->
+            <div class="grid-12">
+              <div class="col-start-3 col-span-10 border-b border-gray-9"></div>
             </div>
           </div>
 
           <!-- Year 2023 (last year, no border) -->
           <div class="col-span-12">
-            <div class="grid-12">
-              <!-- Year Toggle (Chevron + Year) -->
-              <div class="col-start-2 col-span-2 activities-year-toggle cursor-pointer self-start">
-                <div class="grid grid-cols-2 gap-sm items-center">
-                  <!-- Chevron (col-2, align right) -->
-                  <div class="flex justify-end items-center" style="height: 1.35rem;">
-                    <i class="fa-solid fa-chevron-right text-p1 transition-all duration-fast rotate-90"></i>
-                  </div>
-                  <!-- Year (col-3) -->
-                  <div>
-                    <h5>2023</h5>
-                  </div>
-                </div>
+            <div class="grid-12 items-start pb-xl">
+              <!-- Chevron (Column 2) -->
+              <div class="col-start-2 col-span-1 flex justify-end items-center activities-year-toggle cursor-pointer h-toggle">
+                <i class="fa-solid fa-chevron-right text-p1 transition-all duration-fast rotate-90"></i>
+              </div>
+              <!-- Year (Column 3) -->
+              <div class="col-span-1 activities-year-toggle cursor-pointer">
+                <h5>2023</h5>
               </div>
 
-              <!-- Records List -->
-              <div class="col-start-4 col-span-9 activities-year-items flex flex-col">
+              <!-- Records List (Column 4-12) -->
+              <div class="col-span-9 activities-year-items flex flex-col">
 
                 <div class="grid grid-cols-9 items-center py-xs border-b border-gray-9">
                   <p class="col-span-1">東京</p>
@@ -240,7 +227,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Draggable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>
-  <script src="../js/main.js"></script>
+  <!-- Helper Functions - 必須在 main.js 之前載入 -->
+  <script src="../js/utils/helpers.js"></script>
+  <script type="module" src="../js/main-modular.js"></script>
 
 </body>
 </html>

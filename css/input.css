@@ -3,14 +3,14 @@
 /* Import Variables */
 @import 'variables.css';
 
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Import Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap');
-
-/* Custom Base Styles */
+/* ===== Base Styles: Typography ===== */
 @layer base {
   html {
     @apply text-base;
@@ -51,6 +51,7 @@
   }
 }
 
+/* ===== Base Styles: Scrollbar ===== */
 /* Custom Scrollbar Styles - Outside of @layer to avoid linter warnings */
 /* For Webkit browsers (Chrome, Safari, Edge) */
 ::-webkit-scrollbar {
@@ -134,27 +135,25 @@
   background: #FFFFFF !important;
 }
 
-/* Custom Components */
+/* ===== Components ===== */
 @layer components {
-  /* Container with 60px padding */
+  /* Layout: Grid and Container */
   .site-container {
     @apply w-full px-container-padding mx-auto;
   }
 
-  /* 12 Column Grid System */
   .grid-12 {
     @apply grid grid-cols-12 gap-gutter;
   }
 
-  /* Navigation Styles */
-  .nav-link {
-    @apply text-p1 font-regular transition-all duration-fast;
+  .py-4xl {
+    padding-top: var(--spacing-4xl);
+    padding-bottom: var(--spacing-4xl);
   }
 
-  .nav-link:hover {
-    font-weight: 700;
-    transform: rotate(3deg);
-    display: inline-block;
+  /* Navigation */
+  .nav-link {
+    @apply text-p1 font-regular transition-all duration-fast;
   }
 
   .nav-link .nav-link-cn {
@@ -172,28 +171,25 @@
     margin-left: 0.25rem;
   }
 
-  .nav-link:hover .nav-link-cn {
-    display: inline;
-    margin-left: 0.25rem;
+  @media (min-width: 768px) {
+    .nav-link:hover {
+      font-weight: 700;
+      transform: rotate(3deg);
+      display: inline-block;
+    }
+
+    .nav-link:hover .nav-link-cn {
+      display: inline;
+      margin-left: 0.25rem;
+    }
   }
 
-  /* Custom Spacing Utility */
-  .py-4xl {
-    padding-top: var(--spacing-4xl);
-    padding-bottom: var(--spacing-4xl);
-  }
-
-  .submenu-link.active span {
-    font-weight: 700;
-  }
-
-  /* Header Hide Animation */
   header {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
-    z-index: 9999 !important; /* 強制最高層級，確保蓋過所有內容 */
+    z-index: 9999 !important;
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
@@ -203,7 +199,6 @@
     pointer-events: none;
   }
 
-  /* Mega Menu Styles - Full Width beyond container padding */
   .mega-menu {
     position: fixed;
     left: 0;
@@ -223,49 +218,16 @@
     @apply block py-xs text-p1 text-left transition-all duration-fast;
   }
 
-  .submenu-link:hover span {
+  @media (min-width: 768px) {
+    .submenu-link:hover span {
+      font-weight: 700;
+    }
+  }
+
+  .submenu-link.active span {
     font-weight: 700;
   }
 
-  /* Faculty Filter Buttons */
-  .faculty-filter-btn.active {
-    color: #26BCFF;
-    font-weight: 700;
-    transform: rotate(3deg);
-    display: inline-block;
-  }
-
-  /* Courses Filter Buttons */
-  .courses-filter-btn.active {
-    color: #FF448A;
-    font-weight: 700;
-    transform: rotate(3deg);
-    display: inline-block;
-  }
-
-  /* Activities Filter Buttons */
-  .activities-filter-btn.active {
-    color: #00FF80;
-    font-weight: 700;
-    transform: rotate(3deg);
-    display: inline-block;
-  }
-
-  /* Works Filter Buttons */
-  .works-filter-btn {
-    border: 1px solid #000000;
-    background: transparent;
-    color: #000000;
-    cursor: pointer;
-  }
-
-  .works-filter-btn.active {
-    background: #000000;
-    color: #FFFFFF;
-    font-weight: 700;
-  }
-
-  /* About Page Anchor Navigation Buttons */
   .anchor-nav-btn {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     background: none;
@@ -287,18 +249,58 @@
     margin-top: -0.25rem;
   }
 
-  .anchor-nav-btn:hover div {
-    font-weight: 700;
-    transform: rotate(3deg);
-  }
-
   .anchor-nav-btn.active div {
     color: #26BCFF;
     font-weight: 700;
     transform: rotate(4deg);
   }
 
-  /* BFA Division Toggle Buttons */
+  @media (min-width: 768px) {
+    .anchor-nav-btn:hover div {
+      font-weight: 700;
+      transform: rotate(3deg);
+    }
+
+    #faculty-back-btn:hover i {
+      transform: rotate(-10deg);
+    }
+  }
+
+  /* Buttons */
+  .faculty-filter-btn.active {
+    color: #26BCFF;
+    font-weight: 700;
+    transform: rotate(3deg);
+    display: inline-block;
+  }
+
+  .courses-filter-btn.active {
+    color: #FF448A;
+    font-weight: 700;
+    transform: rotate(3deg);
+    display: inline-block;
+  }
+
+  .activities-filter-btn.active {
+    color: #00FF80;
+    font-weight: 700;
+    transform: rotate(3deg);
+    display: inline-block;
+  }
+
+  .works-filter-btn {
+    border: 1px solid #000000;
+    background: transparent;
+    color: #000000;
+    cursor: pointer;
+  }
+
+  .works-filter-btn.active {
+    background: #000000;
+    color: #FFFFFF;
+    font-weight: 700;
+  }
+
   .bfa-division-btn {
     border: 1px solid #000000;
     background: transparent;
@@ -312,12 +314,80 @@
     font-weight: 700;
   }
 
-  /* Course Accordion - First item in each year group has pt-sm */
-  .course-item:first-child .course-header {
-    padding-top: 1rem !important; /* pt-sm */
+  /* Cards */
+  .faculty-card {
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  /* Workshop Accordion - Auto padding based on position */
+  .faculty-card-image-wrapper {
+    overflow: hidden;
+    cursor: default;
+    position: relative;
+  }
+
+  .faculty-card[data-category="fulltime"] .faculty-card-image-wrapper,
+  .faculty-card[data-category="admin"] .faculty-card-image-wrapper {
+    cursor: pointer;
+  }
+
+  .faculty-card-image {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .faculty-card[data-category="parttime"] .faculty-card-image-wrapper::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-color: #26BCFF;
+    mix-blend-mode: screen;
+    opacity: 0;
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+  }
+
+  .degree-show-img-wrapper {
+    overflow: hidden;
+  }
+
+  .degree-show-img-wrapper img {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  @media (min-width: 768px) {
+    .faculty-card[data-category="fulltime"] .faculty-card-image-wrapper:hover .faculty-card-image,
+    .faculty-card[data-category="admin"] .faculty-card-image-wrapper:hover .faculty-card-image {
+      transform: scale(1.1);
+    }
+
+    .faculty-card[data-category="parttime"] .faculty-card-image-wrapper:hover::after {
+      opacity: 1;
+    }
+
+    .faculty-card[data-category="parttime"] .faculty-card-image-wrapper:hover .faculty-card-image {
+      filter: grayscale(100%);
+    }
+
+    .library-card-image-wrapper:hover .library-card-image {
+      transform: scale(1.1);
+    }
+
+    .degree-show-img-wrapper:hover img {
+      transform: scale(1.05);
+    }
+  }
+
+  .brand-trail-img {
+    @apply absolute object-cover pointer-events-none z-50;
+    width: 200px;
+    aspect-ratio: 3/2;
+    transform: translate(-50%, -50%);
+  }
+
+  /* Accordion */
+  .course-item:first-child .course-header {
+    padding-top: 1rem !important;
+  }
+
   .workshop-item:first-child .workshop-header {
     padding-bottom: var(--spacing-md);
     padding-top: 0;
@@ -333,88 +403,14 @@
     padding-bottom: var(--spacing-md);
   }
 
-  /* Workshop Year Toggle - chevron rotation */
   .workshop-year-toggle .fa-chevron-right {
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  /* Activities Year Toggle - chevron rotation */
   .activities-year-toggle .fa-chevron-right {
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  /* Activities List Item - Unified Style */
-  .activities-item {
-    @apply grid grid-cols-9 gap-gutter items-center py-md;
-  }
-
-  /* Faculty Cards */
-  .faculty-card {
-    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .faculty-card-image-wrapper {
-    overflow: hidden;
-    cursor: default;
-    position: relative;
-  }
-
-  /* Fulltime and admin cards are clickable */
-  .faculty-card[data-category="fulltime"] .faculty-card-image-wrapper,
-  .faculty-card[data-category="admin"] .faculty-card-image-wrapper {
-    cursor: pointer;
-  }
-
-  .faculty-card-image {
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  /* Fulltime and admin cards: image scale on hover */
-  .faculty-card[data-category="fulltime"] .faculty-card-image-wrapper:hover .faculty-card-image,
-  .faculty-card[data-category="admin"] .faculty-card-image-wrapper:hover .faculty-card-image {
-    transform: scale(1.1);
-  }
-
-  /* Parttime cards: blue overlay on hover */
-  .faculty-card[data-category="parttime"] .faculty-card-image-wrapper::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-color: #26BCFF; /* 藍色 100% */
-    mix-blend-mode: screen;
-    opacity: 0;
-    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    pointer-events: none;
-  }
-
-  .faculty-card[data-category="parttime"] .faculty-card-image-wrapper:hover::after {
-    opacity: 1;
-  }
-
-  /* Parttime cards: grayscale image on hover */
-  .faculty-card[data-category="parttime"] .faculty-card-image-wrapper:hover .faculty-card-image {
-    filter: grayscale(100%);
-  }
-
-  /* Library Card Hover Effect */
-  .library-card-image-wrapper:hover .library-card-image {
-    transform: scale(1.1);
-  }
-
-  /* Degree Show Image Hover */
-  .degree-show-img-wrapper {
-    overflow: hidden;
-  }
-
-  .degree-show-img-wrapper img {
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .degree-show-img-wrapper:hover img {
-    transform: scale(1.05);
-  }
-
-  /* Horizontal Accordion Styles */
   .accordion-wrapper {
     display: flex;
   }
@@ -422,9 +418,9 @@
   .accordion-panel {
     position: relative;
     cursor: pointer;
-    overflow: hidden; /* 確保圖片放大時不會超出邊界 */
-    flex-basis: 0;    /* 關鍵：設定基礎寬度為 0，讓 flex-grow 完全控制比例 */
-    min-width: 0;     /* 防止內容撐開容器 */
+    overflow: hidden;
+    flex-basis: 0;
+    min-width: 0;
   }
 
   .accordion-panel img {
@@ -436,7 +432,7 @@
   .accordion-overlay {
     position: absolute;
     inset: 0;
-    background: rgba(0, 0, 0, 0.7); /* 純黑半透明遮罩，展開時顯示 */
+    background: rgba(0, 0, 0, 0.7);
     transition: none;
   }
 
@@ -447,17 +443,162 @@
     transition: none;
   }
 
-  /* Brand Trail Image (Mouse Trail Effect) */
-  .brand-trail-img {
-    @apply absolute object-cover pointer-events-none z-50;
-    width: 200px;       /* 調整寬度 */
-    aspect-ratio: 3/2;  /* 固定比例 3:2 */
-    transform: translate(-50%, -50%); /* 讓圖片中心對準滑鼠 */
+  /* Hero */
+  .hero-title {
+    transform: rotate(-2deg);
   }
 
-  /* Faculty Back Button Hover */
-  #faculty-back-btn:hover i {
-    transform: rotate(-10deg);
+  .hero-text-en {
+    transform: rotate(1deg);
+  }
+
+  .hero-text-cn {
+    transform: rotate(-1deg);
+  }
+
+  @media (min-width: 768px) {
+    .hero-title {
+      transform: rotate(-4deg);
+    }
+
+    .hero-text-en {
+      transform: rotate(3deg);
+    }
+
+    .hero-text-cn {
+      transform: rotate(-2deg);
+    }
+  }
+
+  /* Lists */
+  .activities-item {
+    @apply grid grid-cols-9 gap-gutter items-center py-md;
+  }
+
+  /* Utilities: Helpers */
+  .flex-1 {
+    flex: 1;
+  }
+
+  .flex-0-20 {
+    flex: 0 0 20%;
+  }
+
+  .flex-0-25-gap {
+    flex: 0 0 calc(25% - 0.625rem);
+  }
+
+  .flex-0-30 {
+    flex: 0 0 30%;
+  }
+
+  .flex-0-50 {
+    flex: 0 0 50%;
+  }
+
+  .flex-0-70 {
+    flex: 0 0 70%;
+  }
+
+  .flex-0-100 {
+    flex: 0 0 100%;
+  }
+
+  .card-stack-1 {
+    transform: rotate(-4deg);
+    position: relative;
+    z-index: 1;
+  }
+
+  .card-stack-2 {
+    transform: rotate(3deg);
+    position: relative;
+    z-index: 2;
+  }
+
+  .card-stack-3 {
+    transform: rotate(-2deg);
+    position: relative;
+    z-index: 3;
+  }
+
+  @media (min-width: 768px) {
+    .hover-tilt-left:hover {
+      transform: rotate(-4deg);
+    }
+
+    .hover-tilt-right:hover {
+      transform: rotate(4deg);
+    }
+  }
+
+  .works-container {
+    height: var(--works-container-height, 500px);
+  }
+
+  /* Footer Layout */
+  @media (min-width: 768px) {
+    .footer-logo {
+      position: absolute;
+      top: 0;
+      left: 1%;
+    }
+
+    .footer-fax {
+      position: absolute;
+      top: 20vh;
+      left: 46%;
+      transform: rotate(12deg);
+    }
+
+    .footer-tel {
+      position: absolute;
+      top: 35vh;
+      left: 17%;
+      transform: rotate(-18deg);
+    }
+
+    .footer-office {
+      position: absolute;
+      top: 40vh;
+      left: 34%;
+      transform: rotate(-10deg);
+    }
+
+    .footer-email {
+      position: absolute;
+      top: 60vh;
+      left: 9%;
+      transform: rotate(15deg);
+    }
+
+    .footer-links {
+      position: absolute;
+      top: 70vh;
+      left: 51%;
+      transform: rotate(18deg);
+    }
+
+    .footer-social .footer-youtube {
+      position: absolute;
+      top: 50%;
+      left: 68%;
+      transform: rotate(-15deg);
+    }
+
+    .footer-social .footer-instagram {
+      position: absolute;
+      top: 42%;
+      left: 85%;
+      transform: rotate(15deg);
+    }
+
+    .footer-social .footer-facebook {
+      position: absolute;
+      top: 58%;
+      left: 85%;
+      transform: rotate(-12deg);
+    }
   }
 }
 

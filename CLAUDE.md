@@ -83,9 +83,95 @@
 - 支援詳細頁對應到父層導航（如 admission-detail.html → admission.html）
 
 ### 響應式設計
+
+### RWD 核心原則（Desktop-First）
+**重要：手機版的任何修改都不能影響到桌面版**
+
 - 使用 12 欄網格系統（grid-12）
 - Container 最大寬度: 1200px
 - 需支援桌面和行動裝置
+
+### RWD 實現規範
+
+#### 1. CSS Variables（設計系統層）
+- 預設值 = 桌面版（絕對不修改）
+- 手機版必須使用 `@media (max-width: 767px)` 覆蓋
+- 範例：
+  ```css
+  :root {
+    --font-size-h1: 8rem;  /* 桌面版預設，不可改 */
+  }
+
+  @media (max-width: 767px) {
+    :root {
+      --font-size-h1: 3rem;  /* 手機版覆蓋 */
+    }
+  }
+  ```
+
+#### 2. Tailwind Classes（佈局層）
+- **只使用 `md:` prefix**（不使用 `sm:`）
+- 預設 class = 手機版
+- `md:` class = 桌面版（768px+）
+- 範例：
+  ```html
+  <!-- ✅ 正確 -->
+  <div class="col-span-12 md:col-span-2">
+  <div class="hidden md:block">
+  <img class="w-[100px] md:w-[180px]">
+
+  <!-- ❌ 錯誤 -->
+  <div class="sm:col-span-6 md:col-span-2">
+  ```
+
+#### 3. Hover 效果（桌面專用）
+- **手機版不應有任何 hover 效果**
+- 所有 hover 樣式必須包在 `@media (min-width: 768px)` 內
+- 範例：
+  ```css
+  .nav-link {
+    /* 基礎樣式（手機 + 桌面共用） */
+  }
+
+  @media (min-width: 768px) {
+    .nav-link:hover {
+      /* 只在桌面版生效 */
+      font-weight: 700;
+      transform: rotate(3deg);
+    }
+  }
+  ```
+
+#### 4. JavaScript（行為層）
+- 使用條件式執行，避免互相干擾
+- 桌面專用函數必須檢查 `if (!isDesktop()) return;`
+- 手機專用函數必須檢查 `if (!isMobile()) return;`
+- 範例：
+  ```javascript
+  function isMobile() {
+    return window.innerWidth < 768;
+  }
+
+  function isDesktop() {
+    return window.innerWidth >= 768;
+  }
+
+  function initDesktopAnimations() {
+    if (!isDesktop()) return; // 手機版跳出
+    // 桌面版專用邏輯
+  }
+
+  function initMobileMenu() {
+    if (!isMobile()) return; // 桌面版跳出
+    // 手機版專用邏輯
+  }
+  ```
+
+#### 5. Breakpoint 定義
+- `md`: 768px（桌面版起點）
+- `lg`: 1024px（大桌面）
+- `xl`: 1280px（超大桌面）
+- **不使用 `sm`** 避免混淆
 
 ## 工作流程
 
@@ -101,11 +187,27 @@
 - 不要自動提交，等待明確指示
 
 ### 測試檢查清單
+
+#### 桌面版測試
 - [ ] 所有頁面樣式一致
 - [ ] 導航高亮正確
 - [ ] Mega menu 正常運作
-- [ ] 響應式佈局正常
+- [ ] Hover 效果正常
+- [ ] GSAP 動畫流暢
 - [ ] 圖片和資源正確載入
+
+#### 手機版測試
+- [ ] 響應式佈局正常（375px, 414px, 768px）
+- [ ] 無 hover 效果殘留
+- [ ] 觸控操作流暢
+- [ ] 漢堡選單正常運作
+- [ ] 字體大小適中（最小 14px）
+- [ ] 點擊區域足夠大（最小 44x44px）
+
+#### RWD 互不影響測試
+- [ ] 手機版修改不影響桌面版
+- [ ] 媒體查詢正確包裹手機版樣式
+- [ ] JavaScript 條件式執行正確
 
 ## 偏好設定
 
@@ -131,3 +233,10 @@
 - 所有樣式修改需考慮設計系統的一致性
 - 頁面間的共用元件（header、footer）需保持同步
 - 雙語內容（中英文）需同時維護
+
+### RWD 開發注意事項
+- **絕對原則：手機版修改不能影響桌面版**
+- 桌面版是預設基準，手機版只能用媒體查詢覆蓋
+- 手機版沒有 hover 效果
+- 使用 Desktop-First 方法（預設桌面，`md:` 以下才是手機）
+- JavaScript 需條件式執行，避免手機和桌面邏輯衝突

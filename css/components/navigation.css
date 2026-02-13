@@ -1,0 +1,131 @@
+/**
+ * Navigation Components
+ * Header、導航連結、Mega Menu 等樣式
+ */
+
+@layer components {
+  /* ===== Navigation Links ===== */
+  .nav-link {
+    @apply text-p1 font-regular transition-all duration-fast;
+  }
+
+  .nav-link .nav-link-cn {
+    display: none;
+  }
+
+  .nav-link.active {
+    font-weight: 700;
+    transform: rotate(3deg);
+    display: inline-block;
+  }
+
+  .nav-link.active .nav-link-cn {
+    display: inline;
+    margin-left: 0.25rem;
+  }
+
+  /* Hover 效果：僅桌面版 */
+  @media (min-width: 768px) {
+    .nav-link:hover {
+      font-weight: 700;
+      transform: rotate(3deg);
+      display: inline-block;
+    }
+
+    .nav-link:hover .nav-link-cn {
+      display: inline;
+      margin-left: 0.25rem;
+    }
+  }
+
+  /* ===== Header ===== */
+  header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 9999 !important; /* 強制最高層級，確保蓋過所有內容 */
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  header.header-hidden {
+    transform: translateY(-100%);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* ===== Mega Menu ===== */
+  .mega-menu {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: calc(var(--header-height, 80px) - 0.5px);
+    width: 100vw;
+    height: auto;
+    background-color: white;
+    border-bottom: 1px solid #666666;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 40;
+  }
+
+  /* ===== Submenu Links ===== */
+  .submenu-link {
+    @apply block py-xs text-p1 text-left transition-all duration-fast;
+  }
+
+  /* Hover 效果：僅桌面版 */
+  @media (min-width: 768px) {
+    .submenu-link:hover span {
+      font-weight: 700;
+    }
+  }
+
+  .submenu-link.active span {
+    font-weight: 700;
+  }
+
+  /* ===== Anchor Navigation (About Page) ===== */
+  .anchor-nav-btn {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background: none;
+    border: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .anchor-nav-btn div {
+    background: white;
+    padding: 0;
+    display: inline-block;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .anchor-nav-btn div:nth-child(2) {
+    margin-top: -0.25rem;
+  }
+
+  .anchor-nav-btn.active div {
+    color: #26BCFF;
+    font-weight: 700;
+    transform: rotate(4deg);
+  }
+
+  /* Hover 效果：僅桌面版 */
+  @media (min-width: 768px) {
+    .anchor-nav-btn:hover div {
+      font-weight: 700;
+      transform: rotate(3deg);
+    }
+  }
+
+  /* ===== Faculty Back Button ===== */
+  @media (min-width: 768px) {
+    #faculty-back-btn:hover i {
+      transform: rotate(-10deg);
+    }
+  }
+}

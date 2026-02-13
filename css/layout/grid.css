@@ -1,0 +1,22 @@
+/**
+ * Grid and Container Layout
+ * Grid 系統、Container 樣式
+ */
+
+@layer components {
+  /* ===== Container with 60px padding ===== */
+  .site-container {
+    @apply w-full px-container-padding mx-auto;
+  }
+
+  /* ===== 12 Column Grid System ===== */
+  .grid-12 {
+    @apply grid grid-cols-12 gap-gutter;
+  }
+
+  /* ===== Custom Spacing Utility ===== */
+  .py-4xl {
+    padding-top: var(--spacing-4xl);
+    padding-bottom: var(--spacing-4xl);
+  }
+}

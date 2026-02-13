@@ -1,0 +1,30 @@
+[
+  {
+    "year": 2025,
+    "items": [
+      { "title": "Pitch Bible", "date": "10.10 - 10.12", "tutor": "Name Surname 中文姓名", "tutorTitle": "Tutor 講師", "intro": "This workshop focuses on the art of pitching creative ideas...", "image": "../images/2021-動畫-Pitch-Bible-01.png" },
+      { "title": "Character Design", "date": "10.10 - 10.12", "tutor": "Artist Name 藝術家", "tutorTitle": "Tutor 講師", "intro": "Exploring character shapes and personalities.", "image": "../images/2021-動畫-Pitch-Bible-01.png" },
+      { "title": "Motion Graphics", "date": "10.10 - 10.12", "tutor": "Motion Designer 動態設計師", "tutorTitle": "Tutor 講師", "intro": "Advanced techniques in After Effects.", "image": "../images/2021-動畫-Pitch-Bible-01.png" },
+      { "title": "Sound Design", "date": "10.10 - 10.12", "tutor": "Sound Engineer 音效師", "tutorTitle": "Tutor 講師", "intro": "Creating immersive soundscapes.", "image": "../images/2021-動畫-Pitch-Bible-01.png" }
+    ]
+  },
+  {
+    "year": 2024,
+    "items": [
+      { "title": "Interactive Art", "date": "", "tutor": "Coder 程式設計師", "tutorTitle": "Tutor 講師", "intro": "Processing and p5.js workshop.", "image": "../images/2021-動畫-Pitch-Bible-01.png" },
+      { "title": "Typography", "date": "", "tutor": "Type Designer 字體設計師", "tutorTitle": "Tutor 講師", "intro": "Experimental typography workshop.", "image": "../images/2021-動畫-Pitch-Bible-01.png" },
+      { "title": "VR Storytelling", "date": "", "tutor": "VR Director 導演", "tutorTitle": "Tutor 講師", "intro": "Immersive storytelling in virtual reality.", "image": "../images/2021-動畫-Pitch-Bible-01.png" },
+      { "title": "Stop Motion", "date": "", "tutor": "Animator 動畫師", "tutorTitle": "Tutor 講師", "intro": "Traditional stop motion techniques.", "image": "../images/2021-動畫-Pitch-Bible-01.png" }
+    ]
+  },
+  {
+    "year": 2023,
+    "items": [
+      { "title": "Game Design", "date": "", "tutor": "Game Developer 遊戲開發者", "tutorTitle": "Tutor 講師", "intro": "Unity game development basics.", "image": "../images/2021-動畫-Pitch-Bible-01.png" },
+      { "title": "Projection Mapping", "date": "", "tutor": "Visual Artist 視覺藝術家", "tutorTitle": "Tutor 講師", "intro": "Mapping visuals onto physical objects.", "image": "../images/2021-動畫-Pitch-Bible-01.png" },
+      { "title": "Experimental Film", "date": "", "tutor": "Filmmaker 電影製作人", "tutorTitle": "Tutor 講師", "intro": "Analog film techniques.", "image": "../images/2021-動畫-Pitch-Bible-01.png" },
+      { "title": "Generative Art", "date": "", "tutor": "Creative Coder 創意程式", "tutorTitle": "Tutor 講師", "intro": "Code as art.", "image": "../images/2021-動畫-Pitch-Bible-01.png" }
+    ]
+  }
+]
+

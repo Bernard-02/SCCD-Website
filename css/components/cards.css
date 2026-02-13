@@ -1,0 +1,89 @@
+/**
+ * Card Components
+ * Faculty Cards、Library Cards、Degree Show 等卡片樣式
+ */
+
+@layer components {
+  /* ===== Faculty Cards ===== */
+  .faculty-card {
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .faculty-card-image-wrapper {
+    overflow: hidden;
+    cursor: default;
+    position: relative;
+  }
+
+  /* Fulltime and admin cards are clickable */
+  .faculty-card[data-category="fulltime"] .faculty-card-image-wrapper,
+  .faculty-card[data-category="admin"] .faculty-card-image-wrapper {
+    cursor: pointer;
+  }
+
+  .faculty-card-image {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Parttime cards: blue overlay (基礎樣式) */
+  .faculty-card[data-category="parttime"] .faculty-card-image-wrapper::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-color: #26BCFF; /* 藍色 100% */
+    mix-blend-mode: screen;
+    opacity: 0;
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+  }
+
+  /* Hover 效果：僅桌面版 */
+  @media (min-width: 768px) {
+    /* Fulltime and admin cards: image scale on hover */
+    .faculty-card[data-category="fulltime"] .faculty-card-image-wrapper:hover .faculty-card-image,
+    .faculty-card[data-category="admin"] .faculty-card-image-wrapper:hover .faculty-card-image {
+      transform: scale(1.1);
+    }
+
+    /* Parttime cards: blue overlay on hover */
+    .faculty-card[data-category="parttime"] .faculty-card-image-wrapper:hover::after {
+      opacity: 1;
+    }
+
+    /* Parttime cards: grayscale image on hover */
+    .faculty-card[data-category="parttime"] .faculty-card-image-wrapper:hover .faculty-card-image {
+      filter: grayscale(100%);
+    }
+  }
+
+  /* ===== Library Card Hover Effect ===== */
+  @media (min-width: 768px) {
+    .library-card-image-wrapper:hover .library-card-image {
+      transform: scale(1.1);
+    }
+  }
+
+  /* ===== Degree Show Image ===== */
+  .degree-show-img-wrapper {
+    overflow: hidden;
+  }
+
+  .degree-show-img-wrapper img {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Hover 效果：僅桌面版 */
+  @media (min-width: 768px) {
+    .degree-show-img-wrapper:hover img {
+      transform: scale(1.05);
+    }
+  }
+
+  /* ===== Brand Trail Image (Mouse Trail Effect) ===== */
+  .brand-trail-img {
+    @apply absolute object-cover pointer-events-none z-50;
+    width: 200px;       /* 調整寬度 */
+    aspect-ratio: 3/2;  /* 固定比例 3:2 */
+    transform: translate(-50%, -50%); /* 讓圖片中心對準滑鼠 */
+  }
+}

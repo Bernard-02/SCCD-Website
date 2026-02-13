@@ -71,13 +71,13 @@
           <!-- Row 3: 3 張 -->
           <div class="grid-12">
             <div class="col-span-4">
-              <img src="../images/Degree Show.jpg" alt="" class="w-full object-cover" style="aspect-ratio: 4/3;">
+              <img src="../images/Degree Show.jpg" alt="" class="w-full object-cover aspect-[4/3]">
             </div>
             <div class="col-span-4">
-              <img src="../images/Degree Show.jpg" alt="" class="w-full object-cover" style="aspect-ratio: 4/3;">
+              <img src="../images/Degree Show.jpg" alt="" class="w-full object-cover aspect-[4/3]">
             </div>
             <div class="col-span-4">
-              <img src="../images/Degree Show.jpg" alt="" class="w-full object-cover" style="aspect-ratio: 4/3;">
+              <img src="../images/Degree Show.jpg" alt="" class="w-full object-cover aspect-[4/3]">
             </div>
           </div>
         </div>
@@ -100,14 +100,14 @@
       <div class="site-container h-full flex flex-col justify-center gap-4xl">
         <!-- 標題 -->
         <div>
-          <h3 style="transform: rotate(-6deg); white-space: nowrap;">Next Degree Show</h3>
+          <h3 class="-rotate-4 whitespace-nowrap">Next Degree Show</h3>
         </div>
 
         <!-- 縮圖 -->
         <div class="grid-12">
           <div class="col-start-4 col-end-12">
             <a id="next-link" href="#" class="block relative group">
-              <div class="relative overflow-hidden" style="aspect-ratio: 2/1; transform: rotate(3deg);">
+              <div class="relative overflow-hidden aspect-video rotate-3">
                 <img id="next-img" src="../images/Degree Show.jpg" alt="" class="w-full h-full object-cover">
                 <!-- Hover overlay + 文字 -->
                 <div class="absolute inset-0 bg-black opacity-0 group-hover:opacity-60 transition-opacity duration-300">
@@ -133,7 +133,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Draggable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>
-  <script src="../js/main.js"></script>
+  <!-- Helper Functions - 必須在 main.js 之前載入 -->
+  <script src="../js/utils/helpers.js"></script>
+  <script type="module" src="../js/main-modular.js"></script>
   <script>
     // ===== Degree Show Detail Data =====
     const degreeShowData = {

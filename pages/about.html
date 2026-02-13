@@ -29,17 +29,17 @@
         <div class="h-full flex items-end gap-xl pb-2xl">
           <!-- Title on the left (50%) with -4deg rotation -->
           <div class="w-1/2">
-            <h1 class="text-white pb-xl" style="transform: rotate(-4deg);">ABOUT</h1>
+            <h1 class="hero-title text-white pb-xl">ABOUT</h1>
           </div>
 
           <!-- Content on the right (50%) -->
           <div class="w-1/2">
             <!-- English text with 3deg rotation -->
-            <p class="text-white mb-xl" style="transform: rotate(3deg);">
+            <p class="hero-text-en text-white mb-xl">
               Discover the vision, mission, and values that drive the Shih Chien University Center for Creative Design.
             </p>
             <!-- Chinese text with -2deg rotation -->
-            <p class="text-white" style="transform: rotate(-2deg);">
+            <p class="hero-text-cn text-white">
               探索實踐大學媒體傳達設計學系的願景、使命與核心價值。
             </p>
           </div>
@@ -194,14 +194,14 @@
       <!-- BFA Class Section -->
       <section id="bfa-class" class="bg-white relative z-10">
         <!-- Banner with Image and Title -->
-        <div class="relative w-full" style="height: 100vh;">
+        <div class="relative w-full h-screen">
           <!-- Background Image -->
           <div class="absolute inset-0 w-full h-full">
             <img src="../images/SCCD-1-4-0.jpg" alt="BFA Class" class="w-full h-full object-cover">
           </div>
 
           <!-- Black Overlay (30%) -->
-          <div class="absolute inset-0 w-full h-full bg-black" style="opacity: 0.3;"></div>
+          <div class="absolute inset-0 w-full h-full bg-black opacity-30"></div>
 
           <!-- Title in Center -->
           <div class="absolute inset-0 w-full h-full flex items-center justify-center z-10">
@@ -215,7 +215,7 @@
         <!-- Content Section with Image and Text -->
         <div class="site-container py-6xl">
           <div class="grid-12">
-            <div class="col-start-2 col-span-5 relative flex justify-center items-center" style="height: 500px;">
+            <div class="col-start-2 col-span-5 relative flex justify-center items-center h-works-container">
               <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(-4deg); top: 0; left: 15%; z-index: 3;"></div>
               <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(4deg); top: 80px; left: 25%; z-index: 2;"></div>
               <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(-4deg); top: 160px; left: 5%; z-index: 1;"></div>
@@ -232,13 +232,13 @@
         <!-- Division Toggle Buttons -->
         <div class="site-container pb-6xl">
           <div class="flex justify-center gap-md mb-xl">
-            <button class="bfa-division-btn active px-lg py-sm text-p1 font-bold transition-all duration-fast" style="border-radius: 50px;" data-division="animation">
+            <button class="bfa-division-btn active px-lg py-sm text-p1 font-bold transition-all duration-fast rounded-[50px]" data-division="animation">
               <div>Division of Animation & Moving Image</div>
-              <div style="margin-top: 0.25rem;">動畫影像設計組</div>
+              <div class="mt-1">動畫影像設計組</div>
             </button>
-            <button class="bfa-division-btn px-lg py-sm text-p1 font-bold transition-all duration-fast" style="border-radius: 50px;" data-division="creative-media">
+            <button class="bfa-division-btn px-lg py-sm text-p1 font-bold transition-all duration-fast rounded-[50px]" data-division="creative-media">
               <div>Division of Creative Media Design</div>
-              <div style="margin-top: 0.25rem;">創意媒體設計組</div>
+              <div class="mt-1">創意媒體設計組</div>
             </button>
           </div>
 
@@ -272,7 +272,7 @@
 
               <!-- Image Content (Right) - col-8 to col-12 -->
               <div class="col-start-8 col-span-5 flex items-center">
-                <div class="relative w-full" style="height: 500px;">
+                <div class="relative w-full h-works-container">
                   <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(-4deg); top: 0; left: 20%; z-index: 3;"></div>
                   <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(4deg); top: 100px; left: 35%; z-index: 2;"></div>
                   <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(-4deg); top: 200px; left: 10%; z-index: 1;"></div>
@@ -282,7 +282,7 @@
           </div>
 
           <!-- Creative Media Division Content -->
-          <div class="bfa-division-content" data-division="creative-media" style="display: none;">
+          <div class="bfa-division-content hidden" data-division="creative-media">
             <div class="grid-12 items-center">
               <!-- Text Content (Left) - col-2 to col-6 -->
               <div class="col-start-2 col-span-5 flex flex-col gap-xl">
@@ -310,7 +310,7 @@
 
               <!-- Image Content (Right) - col-8 to col-12 -->
               <div class="col-start-8 col-span-5 flex items-center">
-                <div class="relative w-full" style="height: 500px;">
+                <div class="relative w-full h-works-container">
                   <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(-4deg); top: 0; left: 20%; z-index: 3;"></div>
                   <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(4deg); top: 100px; left: 35%; z-index: 2;"></div>
                   <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(-4deg); top: 200px; left: 10%; z-index: 1;"></div>
@@ -323,7 +323,7 @@
         <!-- Image and Text Section (Image Left, Text Right) -->
         <div class="site-container pb-6xl">
           <div class="grid-12">
-            <div class="col-start-2 col-span-5 relative flex justify-center items-center" style="height: 500px;">
+            <div class="col-start-2 col-span-5 relative flex justify-center items-center h-works-container">
               <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(-4deg); top: 0; left: 15%; z-index: 3;"></div>
               <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(4deg); top: 80px; left: 25%; z-index: 2;"></div>
               <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(-4deg); top: 160px; left: 5%; z-index: 1;"></div>
@@ -341,14 +341,14 @@
       <!-- MDES Class Section -->
       <section id="mdes-class" class="bg-white relative z-10">
         <!-- Banner with Image and Title -->
-        <div class="relative w-full" style="height: 100vh;">
+        <div class="relative w-full h-screen">
           <!-- Background Image -->
           <div class="absolute inset-0 w-full h-full">
             <img src="../images/SCCD-1-4-0.jpg" alt="MDES Class" class="w-full h-full object-cover">
           </div>
 
           <!-- Black Overlay (30%) -->
-          <div class="absolute inset-0 w-full h-full bg-black" style="opacity: 0.3;"></div>
+          <div class="absolute inset-0 w-full h-full bg-black opacity-30"></div>
 
           <!-- Title in Center -->
           <div class="absolute inset-0 w-full h-full flex items-center justify-center z-10">
@@ -362,7 +362,7 @@
         <!-- Image and Text Group 1 (Images Left, Text Right) -->
         <div class="site-container py-6xl">
           <div class="grid-12">
-            <div class="col-start-2 col-span-5 relative flex justify-center items-center" style="height: 500px;">
+            <div class="col-start-2 col-span-5 relative flex justify-center items-center h-works-container">
               <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(-4deg); top: 0; left: 15%; z-index: 3;"></div>
               <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(4deg); top: 80px; left: 25%; z-index: 2;"></div>
               <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(-4deg); top: 160px; left: 5%; z-index: 1;"></div>
@@ -385,7 +385,7 @@
                 <h5>透過密集的研究方法與合作工作坊，碩士班學生對當代設計挑戰發展批判性觀點。課程強調理論基礎與新興媒體情境中的實際應用。</h5>
               </div>
             </div>
-            <div class="col-start-8 col-span-5 relative flex justify-center items-center" style="height: 500px;">
+            <div class="col-start-8 col-span-5 relative flex justify-center items-center h-works-container">
               <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(-4deg); top: 0; left: 20%; z-index: 3;"></div>
               <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(4deg); top: 100px; left: 35%; z-index: 2;"></div>
               <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(-4deg); top: 200px; left: 10%; z-index: 1;"></div>
@@ -397,14 +397,14 @@
       <!-- Resources Section -->
       <section id="resources" class="bg-white relative z-10">
         <!-- Banner with Image and Title -->
-        <div class="relative w-full" style="height: 100vh;">
+        <div class="relative w-full h-screen">
           <!-- Background Image -->
           <div class="absolute inset-0 w-full h-full">
             <img src="../images/SCCD-1-4-0.jpg" alt="Resources" class="w-full h-full object-cover">
           </div>
 
           <!-- Black Overlay (30%) -->
-          <div class="absolute inset-0 w-full h-full bg-black" style="opacity: 0.3;"></div>
+          <div class="absolute inset-0 w-full h-full bg-black opacity-30"></div>
 
           <!-- Title in Center -->
           <div class="absolute inset-0 w-full h-full flex items-center justify-center z-10">
@@ -432,7 +432,7 @@
           <div class="grid-12">
             <!-- Image (Left) - col-2 to col-5 -->
             <div class="col-start-2 col-span-4">
-              <div class="bg-gray-9" style="aspect-ratio: 3/3.5; width: 100%;"></div>
+              <div id="resources-image" class="bg-gray-9" style="aspect-ratio: 3/3.5; width: 100%;"></div>
             </div>
 
             <!-- Text Content (Right) - col-7 to col-11 -->
@@ -462,14 +462,14 @@
       <!-- Alumni Section -->
       <section id="alumni" class="bg-white relative z-10">
         <!-- Banner with Image and Title -->
-        <div class="relative w-full" style="height: 100vh;">
+        <div class="relative w-full h-screen">
           <!-- Background Image -->
           <div class="absolute inset-0 w-full h-full">
             <img src="../images/SCCD-1-4-0.jpg" alt="Alumni" class="w-full h-full object-cover">
           </div>
 
           <!-- Black Overlay (30%) -->
-          <div class="absolute inset-0 w-full h-full bg-black" style="opacity: 0.3;"></div>
+          <div class="absolute inset-0 w-full h-full bg-black opacity-30"></div>
 
           <!-- Title in Center -->
           <div class="absolute inset-0 w-full h-full flex items-center justify-center z-10">
@@ -496,7 +496,7 @@
         <div class="site-container">
           <div class="grid-12">
             <!-- Images (Left) - col-2 to col-6 -->
-            <div class="col-start-2 col-span-5 relative flex justify-center items-center" style="height: 500px;">
+            <div class="col-start-2 col-span-5 relative flex justify-center items-center h-works-container">
               <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(-4deg); top: 0; left: 15%; z-index: 3;"></div>
               <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(4deg); top: 80px; left: 25%; z-index: 2;"></div>
               <div class="bg-gray-9 absolute" style="aspect-ratio: 3/3.5; width: 45%; transform: rotate(-4deg); top: 160px; left: 5%; z-index: 1;"></div>
@@ -551,7 +551,10 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Draggable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>
-  <script src="../js/main.js"></script>
+  <!-- Helper Functions - 必須在 main.js 之前載入 -->
+  <script src="../js/utils/helpers.js"></script>
+  <!-- Modular JS (New Architecture) -->
+  <script type="module" src="../js/main-modular.js"></script>
 
 </body>
 </html>

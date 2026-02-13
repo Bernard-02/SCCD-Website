@@ -15,7 +15,7 @@
   <!-- Main Content -->
   <main>
     <!-- Hero Section with Background Image -->
-    <section class="h-screen relative overflow-hidden">
+    <section class="min-h-screen md:h-screen relative overflow-hidden">
       <!-- Background Image -->
       <div class="absolute inset-0 w-full h-full">
         <img src="../images/SCCD-1-4-0.jpg" alt="Admission" class="w-full h-full object-cover">
@@ -26,20 +26,20 @@
 
       <!-- Content Container -->
       <div class="site-container h-full relative z-10">
-        <div class="h-full flex items-end gap-xl pb-2xl">
-          <!-- Title on the left (50%) with -4deg rotation -->
-          <div class="w-1/2">
-            <h1 class="text-white pb-xl" style="transform: rotate(-4deg);">ADMISSION</h1>
+        <div class="h-full flex flex-col md:flex-row items-end gap-lg md:gap-xl pb-3xl md:pb-2xl pt-[120px] md:pt-0">
+          <!-- Title: 手機版100%，桌面版50% -->
+          <div class="w-full md:w-1/2">
+            <h1 class="hero-title text-white pb-lg md:pb-xl">ADMISSION</h1>
           </div>
 
-          <!-- Content on the right (50%) -->
-          <div class="w-1/2">
-            <!-- English text with 3deg rotation -->
-            <p class="text-white mb-xl" style="transform: rotate(3deg);">
+          <!-- Content: 手機版100%，桌面版50% -->
+          <div class="w-full md:w-1/2">
+            <!-- English text -->
+            <p class="hero-text-en text-white mb-lg md:mb-xl">
               Welcome to SCCD. We invite passionate and creative individuals to join our program and explore the world of communications design.
             </p>
-            <!-- Chinese text with -2deg rotation -->
-            <p class="text-white" style="transform: rotate(-2deg);">
+            <!-- Chinese text -->
+            <p class="hero-text-cn text-white">
               歡迎對媒體傳達設計充滿熱情的朋友們，報考實踐大學媒體傳達設計學系，一起探索設計的無限可能。
             </p>
           </div>
@@ -48,10 +48,10 @@
     </section>
 
     <!-- Admission Content Section -->
-    <section class="bg-white py-6xl">
+    <section class="bg-white py-3xl md:py-6xl">
       <div class="site-container">
         <div class="grid-12">
-          <div class="col-start-3 col-span-8">
+          <div class="col-span-12 md:col-start-3 md:col-span-8">
             <!-- Admission List Container -->
             <div id="admission-list" class="flex flex-col gap-md">
               <!-- List Item 1 -->
@@ -148,7 +148,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Draggable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>
-  <script src="../js/main.js"></script>
+  <!-- Helper Functions - 必須在 main.js 之前載入 -->
+  <script src="../js/utils/helpers.js"></script>
+  <script type="module" src="../js/main-modular.js"></script>
 
 </body>
 </html>

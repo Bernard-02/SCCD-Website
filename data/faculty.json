@@ -1,0 +1,277 @@
+[
+  {
+    "id": "1",
+    "image": "../images/S__6742028.jpg",
+    "nameEn": "Ta-Lih Shieh",
+    "nameZh": "謝大立",
+    "titleEn": "Founder",
+    "titleZh": "創辦人",
+    "sections": [
+      {
+        "titleEn": "Education",
+        "titleZh": "學歷",
+        "content": "Pratt Institute Industrial Design, US | MID\n美國普瑞特藝術學院工業設計研究所 | 碩士"
+      },
+      {
+        "titleEn": "Experience",
+        "titleZh": "經歷",
+        "content": "實踐大學 | 校董事\n實踐大學時尚與媒體設計研究所 | 副教授兼所長\n實踐大學媒體傳達設計學系 | 副教授兼系主任\n實踐大學工業設計研究所 | 專任副教授\n實踐大學視覺傳達設計學系 | 副教授兼系主任\n實踐設計管理學院工業產品設計學系 | 專任講師\n實踐設計管理學院室內空間設計學系 | 專任講師\n實踐大學應用美術學系 | 專任講師\n實踐大學校園規劃興建 | 委員\n中華民國工業設計學會 | 理事\n中華民國外貿協會設計處 | 設計專員\n中華民國平面設計協會 TOP STAR | 作品評審委員\n行政院文建會國家藝術村方向研究計劃 | 諮詢委員\n全國工業類技職教育一貫課程規劃 | 設計組委員\n經濟部工業局98年度文化創意產業優惠貸款計畫設計業 | 技術審查委員\n教育部文藝獎設計類 | 評審委員\n國家工藝獎綜合決審會 | 評審委員\n臺北市立美術館美術品典藏審議委員會 | 審議委員會委員\nELLE STYLE AWARDS 風格人物大賞 | 專業評審團\n財團法人臺北市學學文創教育基金會 | 兼任董事\n美國現代美術館「創新媒材與當代設計」巡迴展台灣站 | 空間展場與視覺形象規劃設計"
+      },
+      {
+        "titleEn": "Awards",
+        "titleZh": "獲獎",
+        "content": "德國紅點設計獎 | 最佳品質設計教育獎 | 獲獎\n德國 Design Kalender 設計年鑑 | 收錄德國 Output 設計年鑑 |收錄\n義大利 MISURA EMUE 傢具公司國際設計競賽 | 創意作品\n日本大阪國際設計競賽 | 銅牌大賞\n日本大阪國際設計競賽 | 傑出作品\n日本名古屋國際設計大賽指導 | 銀獎、評審團大賞\n日本福岡亞洲數位藝術大賽 | 動態影像類組 | 入圍賞\n國際 Swarovski 水晶設計競賽 | 首獎"
+      }
+    ]
+  },
+  {
+    "id": "2",
+    "image": "../images/S__6742028.jpg",
+    "nameEn": "Rex Takeshi Chen",
+    "nameZh": "陳威志",
+    "titleEn": "Associate Professor",
+    "titleZh": "副教授",
+    "sections": [
+      {
+        "titleEn": "Education",
+        "titleZh": "學歷",
+        "content": "National Taiwan University | PhD in Design\n國立臺灣大學設計學系 | 博士"
+      },
+      {
+        "titleEn": "Experience",
+        "titleZh": "經歷",
+        "content": "實踐大學媒體傳達設計學系 | 副教授\n台北市立美術館 | 策展人\n台灣設計協會 | 理事"
+      }
+    ]
+  },
+  {
+    "id": "3",
+    "image": "../images/S__6742028.jpg",
+    "nameEn": "Professor Name 3",
+    "nameZh": "教授名字 3",
+    "titleEn": "Assistant Professor",
+    "titleZh": "助理教授",
+    "sections": [
+      {
+        "titleEn": "Education",
+        "titleZh": "學歷",
+        "content": "Royal College of Art, UK | MA in Communication Design\n英國皇家藝術學院傳達設計系 | 碩士"
+      },
+      {
+        "titleEn": "Experience",
+        "titleZh": "經歷",
+        "content": "實踐大學媒體傳達設計學系 | 助理教授\n自由設計師 | 平面設計與品牌顧問"
+      }
+    ]
+  },
+  {
+    "id": "4",
+    "image": "../images/S__6742028.jpg",
+    "nameEn": "Professor Name 4",
+    "nameZh": "教授名字 4",
+    "titleEn": "Assistant Professor",
+    "titleZh": "助理教授",
+    "sections": [
+      {
+        "titleEn": "Education",
+        "titleZh": "學歷",
+        "content": "Parsons School of Design, US | MFA\n美國帕森設計學院 | 藝術碩士"
+      },
+      {
+        "titleEn": "Experience",
+        "titleZh": "經歷",
+        "content": "實踐大學媒體傳達設計學系 | 助理教授\n國際設計競賽 | 評審委員"
+      }
+    ]
+  },
+  {
+    "id": "5",
+    "image": "../images/S__6742028.jpg",
+    "nameEn": "Professor Name 5",
+    "nameZh": "教授名字 5",
+    "titleEn": "Lecturer",
+    "titleZh": "講師",
+    "sections": [
+      {
+        "titleEn": "Education",
+        "titleZh": "學歷",
+        "content": "實踐大學媒體傳達設計學系 | 碩士"
+      },
+      {
+        "titleEn": "Experience",
+        "titleZh": "經歷",
+        "content": "實踐大學媒體傳達設計學系 | 講師\n數位媒體設計工作室 | 創意總監"
+      }
+    ]
+  },
+  {
+    "id": "6",
+    "image": "../images/S__6742028.jpg",
+    "nameEn": "Professor Name 6",
+    "nameZh": "教授名字 6",
+    "titleEn": "Lecturer",
+    "titleZh": "講師",
+    "sections": [
+      {
+        "titleEn": "Education",
+        "titleZh": "學歷",
+        "content": "國立台北科技大學設計學院 | 碩士"
+      },
+      {
+        "titleEn": "Experience",
+        "titleZh": "經歷",
+        "content": "實踐大學媒體傳達設計學系 | 講師\n品牌設計顧問公司 | 資深設計師"
+      }
+    ]
+  },
+  {
+    "id": "7",
+    "image": "../images/S__6742028.jpg",
+    "nameEn": "Professor Name 7",
+    "nameZh": "教授名字 7",
+    "titleEn": "Lecturer",
+    "titleZh": "講師",
+    "sections": [
+      {
+        "titleEn": "Education",
+        "titleZh": "學歷",
+        "content": "實踐大學時尚與媒體設計研究所 | 碩士"
+      },
+      {
+        "titleEn": "Experience",
+        "titleZh": "經歷",
+        "content": "實踐大學媒體傳達設計學系 | 講師\n動態影像設計工作室 | 設計總監"
+      }
+    ]
+  },
+  {
+    "id": "8",
+    "image": "../images/S__6742028.jpg",
+    "nameEn": "Professor Name 8",
+    "nameZh": "教授名字 8",
+    "titleEn": "Assistant Professor",
+    "titleZh": "助理教授",
+    "sections": [
+      {
+        "titleEn": "Education",
+        "titleZh": "學歷",
+        "content": "Savannah College of Art and Design | MFA\n美國薩凡納藝術設計學院 | 藝術碩士"
+      },
+      {
+        "titleEn": "Experience",
+        "titleZh": "經歷",
+        "content": "實踐大學媒體傳達設計學系 | 助理教授\n互動媒體設計 | 專業顧問"
+      }
+    ]
+  },
+  {
+    "id": "9",
+    "image": "../images/S__6742028.jpg",
+    "nameEn": "Professor Name 9",
+    "nameZh": "教授名字 9",
+    "titleEn": "Associate Professor",
+    "titleZh": "副教授",
+    "sections": [
+      {
+        "titleEn": "Education",
+        "titleZh": "學歷",
+        "content": "國立台灣師範大學設計學系 | 博士"
+      },
+      {
+        "titleEn": "Experience",
+        "titleZh": "經歷",
+        "content": "實踐大學媒體傳達設計學系 | 副教授\n台灣平面設計協會 | 常務理事"
+      }
+    ]
+  },
+  {
+    "id": "10",
+    "image": "../images/S__6742028.jpg",
+    "nameEn": "Professor Name 10",
+    "nameZh": "教授名字 10",
+    "titleEn": "Professor",
+    "titleZh": "教授",
+    "sections": [
+      {
+        "titleEn": "Education",
+        "titleZh": "學歷",
+        "content": "Tokyo University of the Arts | PhD\n日本東京藝術大學 | 博士"
+      },
+      {
+        "titleEn": "Experience",
+        "titleZh": "經歷",
+        "content": "實踐大學媒體傳達設計學系 | 教授\n亞洲設計聯盟 | 理事長"
+      }
+    ]
+  },
+  {
+    "id": "11",
+    "image": "../images/S__6742028.jpg",
+    "nameEn": "Professor Name 11",
+    "nameZh": "教授名字 11",
+    "titleEn": "Lecturer",
+    "titleZh": "講師",
+    "sections": [
+      {
+        "titleEn": "Education",
+        "titleZh": "學歷",
+        "content": "實踐大學媒體傳達設計學系 | 碩士"
+      },
+      {
+        "titleEn": "Experience",
+        "titleZh": "經歷",
+        "content": "實踐大學媒體傳達設計學系 | 講師\n包裝設計工作室 | 創意總監"
+      }
+    ]
+  },
+  {
+    "id": "12",
+    "image": "../images/S__6742028.jpg",
+    "nameEn": "Professor Name 12",
+    "nameZh": "教授名字 12",
+    "titleEn": "Assistant Professor",
+    "titleZh": "助理教授",
+    "sections": [
+      {
+        "titleEn": "Education",
+        "titleZh": "學歷",
+        "content": "Goldsmiths, University of London | MA in Design\n英國倫敦大學金匠學院設計系 | 碩士"
+      },
+      {
+        "titleEn": "Experience",
+        "titleZh": "經歷",
+        "content": "實踐大學媒體傳達設計學系 | 助理教授\nUI/UX 設計顧問 | 使用者經驗設計專家"
+      }
+    ]
+  },
+  {
+    "id": "admin-1",
+    "image": "../images/S__6742028.jpg",
+    "nameEn": "Secretary Name 1",
+    "nameZh": "執行秘書 1",
+    "titleEn": "Secretary",
+    "titleZh": "執行秘書",
+    "sections": [
+      {
+        "titleEn": "Contact",
+        "titleZh": "聯絡資訊",
+        "content": "Email: secretary1@sccd.edu.tw\nPhone: +886-2-1234-5678"
+      }
+    ]
+  },
+  {
+    "id": "admin-2",
+    "image": "../images/S__6742028.jpg",
+    "nameEn": "Secretary Name 2",
+    "nameZh": "執行秘書 2",
+    "titleEn": "Secretary",
+    "titleZh": "執行秘書",
+    "sections": [
+      {
+        "titleEn": "Contact",
+        "titleZh": "聯絡資訊",
+        "content": "Email: secretary2@sccd.edu.tw\nPhone: +886-2-1234-5679"
+      }
+    ]
+  }
+]

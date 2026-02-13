@@ -1,0 +1,44 @@
+/**
+ * Typography Styles
+ * 字體、標題、段落等基礎樣式
+ */
+
+@layer base {
+  html {
+    @apply text-base;
+  }
+
+  body {
+    @apply font-sans text-black bg-white leading-base;
+  }
+
+  h1 {
+    @apply text-h1 font-semibold leading-h1;
+  }
+
+  h2 {
+    @apply text-h2 font-semibold leading-h1;
+  }
+
+  h3 {
+    @apply text-h3 font-bold leading-base;
+  }
+
+  h4 {
+    font-size: var(--font-size-h4);
+    line-height: var(--line-height-h4);
+    @apply font-bold;
+  }
+
+  h5 {
+    @apply text-h5 font-bold leading-base;
+  }
+
+  h6 {
+    @apply text-h6 font-bold leading-base;
+  }
+
+  p {
+    @apply text-p1 font-regular leading-base;
+  }
+}

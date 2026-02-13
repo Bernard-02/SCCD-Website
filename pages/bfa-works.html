@@ -29,17 +29,17 @@
         <div class="h-full flex items-end gap-xl pb-2xl">
           <!-- Title on the left (50%) with -4deg rotation -->
           <div class="w-1/2">
-            <h1 class="text-white pb-xl" style="transform: rotate(-4deg);">BFA<br>WORKS</h1>
+            <h1 class="text-white pb-xl hero-title">BFA<br>WORKS</h1>
           </div>
 
           <!-- Content on the right (50%) -->
           <div class="w-1/2">
             <!-- English text with 3deg rotation -->
-            <p class="text-white mb-xl" style="transform: rotate(3deg);">
+            <p class="text-white mb-xl hero-text-en">
               A showcase of outstanding creative works by undergraduate students, demonstrating innovation and excellence in media design.
             </p>
             <!-- Chinese text with -2deg rotation -->
-            <p class="text-white" style="transform: rotate(-2deg);">
+            <p class="text-white hero-text-cn">
               展示學士班學生優秀的創意作品，展現媒體設計領域的創新與卓越。
             </p>
           </div>
@@ -53,17 +53,17 @@
 
         <!-- Shift Tab Navigation -->
         <div class="flex justify-center gap-md mb-6xl">
-          <button class="works-filter-btn active px-lg py-sm text-p1 font-bold transition-all duration-fast" style="border-radius: 50px;" data-filter="design-fundamental">
-            <div>Design Fundamental</div>
-            <div style="margin-top: 0.25rem;">創作基礎作品</div>
+          <button class="works-filter-btn active px-lg py-sm text-p1 font-bold transition-all duration-fast rounded-[50px] text-center" data-filter="design-fundamental">
+            <div class="whitespace-nowrap">Design Fundamental</div>
+            <div class="mt-1 whitespace-nowrap">創作基礎作品</div>
           </button>
-          <button class="works-filter-btn px-lg py-sm text-p1 font-bold transition-all duration-fast" style="border-radius: 50px;" data-filter="animation">
-            <div>Animation</div>
-            <div style="margin-top: 0.25rem;">動畫作品</div>
+          <button class="works-filter-btn px-lg py-sm text-p1 font-bold transition-all duration-fast rounded-[50px] text-center" data-filter="animation">
+            <div class="whitespace-nowrap">Animation</div>
+            <div class="mt-1 whitespace-nowrap">動畫作品</div>
           </button>
-          <button class="works-filter-btn px-lg py-sm text-p1 font-bold transition-all duration-fast" style="border-radius: 50px;" data-filter="creative-media">
-            <div>Creative Media</div>
-            <div style="margin-top: 0.25rem;">創意媒體作品</div>
+          <button class="works-filter-btn px-lg py-sm text-p1 font-bold transition-all duration-fast rounded-[50px] text-center" data-filter="creative-media">
+            <div class="whitespace-nowrap">Creative Media</div>
+            <div class="mt-1 whitespace-nowrap">創意媒體作品</div>
           </button>
         </div>
 
@@ -77,10 +77,10 @@
           <!-- Part 1: Text Description -->
           <div class="grid-12 mb-6xl">
             <div class="col-start-2 col-span-2">
-              <h3 style="transform: rotate(-4deg); display: inline-block;">Design<br>Fundamental<br>創作基礎作品</h3>
+              <h3 class="rotate--4 inline-block">Design<br>Fundamental<br>創作基礎作品</h3>
             </div>
             <div class="col-start-6 col-span-6 pt-xl">
-              <div style="transform: rotate(3deg); display: inline-block;">
+              <div class="rotate-3 inline-block">
                 <p class="mb-md">
                   Foundation courses that develop core design principles, visual literacy, and technical skills essential for creative media practice.
                 </p>
@@ -98,7 +98,7 @@
       <!-- Part 2: Full Width Image (16:9) - Design Fundamental -->
       <div class="works-content" data-category="design-fundamental">
         <div class="w-full mb-6xl mt-6xl">
-          <div class="w-full bg-gray-9" style="aspect-ratio: 16/9;"></div>
+          <div class="w-full bg-gray-9 aspect-video"></div>
         </div>
       </div>
 
@@ -110,7 +110,7 @@
 
             <!-- Group 1: Image Left, Text Right -->
             <div class="grid-12">
-              <div class="col-span-6 relative flex justify-center items-center" style="height: 500px;">
+              <div class="col-span-6 relative flex justify-center items-center h-works-container">
                 <div class="bg-gray-9 absolute" style="aspect-ratio: 4/3; width: 50%; transform: rotate(-4deg); top: 0; left: 15%; z-index: 3;"></div>
                 <div class="bg-gray-9 absolute" style="aspect-ratio: 4/3; width: 50%; transform: rotate(4deg); top: 80px; left: 25%; z-index: 2;"></div>
                 <div class="bg-gray-9 absolute" style="aspect-ratio: 4/3; width: 50%; transform: rotate(-4deg); top: 160px; left: 5%; z-index: 1;"></div>
@@ -133,7 +133,7 @@
                   <p>創作基礎修課學生包括大一新生、轉學生、僑生與外籍學生，學生橫跨文、理組，擁有不同的學背景，多數學在入學前從未接受過專業術科、音樂與肢體訓練，生活環境办缺美感教育，忽略自身的人文思考與心靈感受。為了體現學生背景的豐富性，並使學生於短期間內充份發揮個性特質，各單元訓練強調學生回歸個人思考探索自我，重新檢視個別情感經驗的差異，引導學生產生多元觀點詮釋「自我心靈」喚醒内在對事物的敏銳觀察力，重新啟發創意思維機制。</p>
                 </div>
               </div>
-              <div class="col-start-7 col-span-6 relative flex justify-center items-center" style="height: 500px;">
+              <div class="col-start-7 col-span-6 relative flex justify-center items-center h-works-container">
                 <div class="bg-gray-9 absolute" style="aspect-ratio: 4/3; width: 50%; transform: rotate(-4deg); top: 0; left: 25%; z-index: 3;"></div>
                 <div class="bg-gray-9 absolute" style="aspect-ratio: 4/3; width: 50%; transform: rotate(4deg); top: 80px; left: 35%; z-index: 2;"></div>
                 <div class="bg-gray-9 absolute" style="aspect-ratio: 4/3; width: 50%; transform: rotate(-4deg); top: 160px; left: 15%; z-index: 1;"></div>
@@ -142,7 +142,7 @@
 
             <!-- Group 3: Image Left, Text Right -->
             <div class="grid-12">
-              <div class="col-span-6 relative flex justify-center items-center" style="height: 500px;">
+              <div class="col-span-6 relative flex justify-center items-center h-works-container">
                 <div class="bg-gray-9 absolute" style="aspect-ratio: 4/3; width: 50%; transform: rotate(-4deg); top: 0; left: 15%; z-index: 3;"></div>
                 <div class="bg-gray-9 absolute" style="aspect-ratio: 4/3; width: 50%; transform: rotate(4deg); top: 80px; left: 25%; z-index: 2;"></div>
                 <div class="bg-gray-9 absolute" style="aspect-ratio: 4/3; width: 50%; transform: rotate(-4deg); top: 160px; left: 5%; z-index: 1;"></div>
@@ -161,22 +161,22 @@
           <!-- Part 4: Video (16:9) - Black Rectangle -->
           <div class="grid-12">
             <div class="col-span-12">
-              <div class="w-full bg-black" style="aspect-ratio: 16/9;"></div>
+              <div class="w-full bg-black aspect-video"></div>
             </div>
           </div>
 
         </div>
 
         <!-- Animation Content -->
-        <div class="works-content" data-category="animation" style="display: none;">
+        <div class="works-content" data-category="animation" class="hidden">
 
           <!-- Part 1: Text Description -->
           <div class="grid-12 mb-6xl">
             <div class="col-start-2 col-span-2">
-              <h3 style="transform: rotate(-4deg); display: inline-block;">Animation<br>動畫作品</h3>
+              <h3 class="rotate--4 inline-block">Animation<br>動畫作品</h3>
             </div>
             <div class="col-start-6 col-span-6 pt-xl">
-              <div style="transform: rotate(3deg); display: inline-block;">
+              <div class="rotate-3 inline-block">
                 <p class="mb-md">
                   Animated works that explore storytelling, motion design, and experimental animation techniques.
                 </p>
@@ -192,21 +192,21 @@
       </div>
 
       <!-- Part 2: Full Width Image (16:9) - Animation -->
-      <div class="works-content" data-category="animation" style="display: none;">
+      <div class="works-content" data-category="animation" class="hidden">
         <div class="w-full mb-6xl mt-6xl">
-          <div class="w-full bg-gray-9" style="aspect-ratio: 16/9;"></div>
+          <div class="w-full bg-gray-9 aspect-video"></div>
         </div>
       </div>
 
       <div class="site-container">
-        <div class="works-content" data-category="animation" style="display: none;">
+        <div class="works-content" data-category="animation" class="hidden">
 
           <!-- Part 3: Two Groups with Images and Text -->
           <div class="flex flex-col gap-6xl py-6xl">
 
             <!-- Group 1: Image Left, Text Right -->
             <div class="grid-12">
-              <div class="col-span-6 relative flex justify-center items-center" style="height: 500px;">
+              <div class="col-span-6 relative flex justify-center items-center h-works-container">
                 <div class="bg-gray-9 absolute" style="aspect-ratio: 4/3; width: 50%; transform: rotate(-4deg); top: 0; left: 15%; z-index: 3;"></div>
                 <div class="bg-gray-9 absolute" style="aspect-ratio: 4/3; width: 50%; transform: rotate(4deg); top: 80px; left: 25%; z-index: 2;"></div>
                 <div class="bg-gray-9 absolute" style="aspect-ratio: 4/3; width: 50%; transform: rotate(-4deg); top: 160px; left: 5%; z-index: 1;"></div>
@@ -227,7 +227,7 @@
                   <p>突破傳統動畫形式，探索新的視覺語言與動態表現方式。</p>
                 </div>
               </div>
-              <div class="col-start-7 col-span-6 relative flex justify-center items-center" style="height: 500px;">
+              <div class="col-start-7 col-span-6 relative flex justify-center items-center h-works-container">
                 <div class="bg-gray-9 absolute" style="aspect-ratio: 4/3; width: 50%; transform: rotate(-4deg); top: 0; left: 25%; z-index: 3;"></div>
                 <div class="bg-gray-9 absolute" style="aspect-ratio: 4/3; width: 50%; transform: rotate(4deg); top: 80px; left: 35%; z-index: 2;"></div>
                 <div class="bg-gray-9 absolute" style="aspect-ratio: 4/3; width: 50%; transform: rotate(-4deg); top: 160px; left: 15%; z-index: 1;"></div>
@@ -239,22 +239,22 @@
           <!-- Part 4: Video (16:9) - Black Rectangle -->
           <div class="grid-12">
             <div class="col-span-12">
-              <div class="w-full bg-black" style="aspect-ratio: 16/9;"></div>
+              <div class="w-full bg-black aspect-video"></div>
             </div>
           </div>
 
         </div>
 
         <!-- Creative Media Content -->
-        <div class="works-content" data-category="creative-media" style="display: none;">
+        <div class="works-content" data-category="creative-media" class="hidden">
 
           <!-- Part 1: Text Description -->
           <div class="grid-12 mb-6xl">
             <div class="col-start-2 col-span-2">
-              <h3 style="transform: rotate(-4deg); display: inline-block; white-space: nowrap;">Creative<br>Media<br>創意媒體作品</h3>
+              <h3 class="rotate--4 inline-block whitespace-nowrap">Creative<br>Media<br>創意媒體作品</h3>
             </div>
             <div class="col-start-6 col-span-6 pt-xl">
-              <div style="transform: rotate(3deg); display: inline-block;">
+              <div class="rotate-3 inline-block">
                 <p class="mb-md">
                   Innovative media projects that integrate technology, interactivity, and creative storytelling.
                 </p>
@@ -270,21 +270,21 @@
       </div>
 
       <!-- Part 2: Full Width Image (16:9) - Creative Media -->
-      <div class="works-content" data-category="creative-media" style="display: none;">
+      <div class="works-content" data-category="creative-media" class="hidden">
         <div class="w-full mb-6xl mt-6xl">
-          <div class="w-full bg-gray-9" style="aspect-ratio: 16/9;"></div>
+          <div class="w-full bg-gray-9 aspect-video"></div>
         </div>
       </div>
 
       <div class="site-container">
-        <div class="works-content" data-category="creative-media" style="display: none;">
+        <div class="works-content" data-category="creative-media" class="hidden">
 
           <!-- Part 3: Two Groups with Images and Text -->
           <div class="flex flex-col gap-6xl py-6xl">
 
             <!-- Group 1: Image Left, Text Right -->
             <div class="grid-12">
-              <div class="col-span-6 relative flex justify-center items-center" style="height: 500px;">
+              <div class="col-span-6 relative flex justify-center items-center h-works-container">
                 <div class="bg-gray-9 absolute" style="aspect-ratio: 4/3; width: 50%; transform: rotate(-4deg); top: 0; left: 15%; z-index: 3;"></div>
                 <div class="bg-gray-9 absolute" style="aspect-ratio: 4/3; width: 50%; transform: rotate(4deg); top: 80px; left: 25%; z-index: 2;"></div>
                 <div class="bg-gray-9 absolute" style="aspect-ratio: 4/3; width: 50%; transform: rotate(-4deg); top: 160px; left: 5%; z-index: 1;"></div>
@@ -305,7 +305,7 @@
                   <p>運用VR技術打造全新的敘事空間與感官體驗。</p>
                 </div>
               </div>
-              <div class="col-start-7 col-span-6 relative flex justify-center items-center" style="height: 500px;">
+              <div class="col-start-7 col-span-6 relative flex justify-center items-center h-works-container">
                 <div class="bg-gray-9 absolute" style="aspect-ratio: 4/3; width: 50%; transform: rotate(-4deg); top: 0; left: 25%; z-index: 3;"></div>
                 <div class="bg-gray-9 absolute" style="aspect-ratio: 4/3; width: 50%; transform: rotate(4deg); top: 80px; left: 35%; z-index: 2;"></div>
                 <div class="bg-gray-9 absolute" style="aspect-ratio: 4/3; width: 50%; transform: rotate(-4deg); top: 160px; left: 15%; z-index: 1;"></div>
@@ -317,7 +317,7 @@
           <!-- Part 4: Video (16:9) - Black Rectangle -->
           <div class="grid-12">
             <div class="col-span-12">
-              <div class="w-full bg-black" style="aspect-ratio: 16/9;"></div>
+              <div class="w-full bg-black aspect-video"></div>
             </div>
           </div>
 
@@ -336,7 +336,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Draggable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>
-  <script src="../js/main.js"></script>
+  <!-- Helper Functions - 必須在 main.js 之前載入 -->
+  <script src="../js/utils/helpers.js"></script>
+  <script type="module" src="../js/main-modular.js"></script>
 
 </body>
 </html>

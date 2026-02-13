@@ -1,0 +1,11 @@
+/**
+ * List Components
+ * Activities List 等列表項目樣式
+ */
+
+@layer components {
+  /* ===== Activities List Item - Unified Style ===== */
+  .activities-item {
+    @apply grid grid-cols-9 gap-gutter items-center py-md;
+  }
+}
