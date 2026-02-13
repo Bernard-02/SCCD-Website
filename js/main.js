@@ -845,7 +845,8 @@ Phone: +886-2-1234-5679`
 
   // Initialize heights for all containers on page load
   activitiesYearToggles.forEach(toggle => {
-    const yearGrid = toggle.closest('.grid.grid-cols-11');
+    // Try to find parent grid (either grid-cols-11 for general-activities or grid-12 for records)
+    const yearGrid = toggle.closest('.grid.grid-cols-11') || toggle.closest('.grid-12');
     if (yearGrid) {
       const itemsContainer = yearGrid.querySelector('.activities-year-items');
       const chevron = yearGrid.querySelector('.fa-chevron-right');
@@ -870,8 +871,8 @@ Phone: +886-2-1234-5679`
 
   activitiesYearToggles.forEach(toggle => {
     toggle.addEventListener('click', function() {
-      // Find the year group container (parent of the grid)
-      const yearGrid = this.closest('.grid.grid-cols-11');
+      // Find the year group container (parent of the grid) - support both grid-cols-11 and grid-12
+      const yearGrid = this.closest('.grid.grid-cols-11') || this.closest('.grid-12');
 
       if (!yearGrid) return;
 
