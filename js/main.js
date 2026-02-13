@@ -231,20 +231,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Get filter value
         const filterValue = this.getAttribute('data-filter');
 
-        // Adjust grid columns based on filter
-        if (facultyCardsGrid) {
-          if (filterValue === 'fulltime') {
-            // Fulltime: 3 columns
-            facultyCardsGrid.classList.remove('grid-cols-4');
-            facultyCardsGrid.classList.add('grid-cols-3');
-          } else {
-            // Parttime and Admin: 4 columns
-            facultyCardsGrid.classList.remove('grid-cols-3');
-            facultyCardsGrid.classList.add('grid-cols-4');
-          }
-        }
-
-        // Filter cards
+        // Filter cards (Always maintain 4 columns grid)
         facultyCards.forEach(card => {
           const cardCategory = card.getAttribute('data-category');
 
@@ -853,8 +840,33 @@ Phone: +886-2-1234-5679`
     });
   }
 
-  // Activities year toggle functionality
+  // Activities year toggle functionality with GSAP animation
   const activitiesYearToggles = document.querySelectorAll('.activities-year-toggle');
+
+  // Initialize heights for all containers on page load
+  activitiesYearToggles.forEach(toggle => {
+    const yearGrid = toggle.closest('.grid.grid-cols-11');
+    if (yearGrid) {
+      const itemsContainer = yearGrid.querySelector('.activities-year-items');
+      const chevron = yearGrid.querySelector('.fa-chevron-right');
+
+      if (itemsContainer) {
+        // Add overflow hidden to prevent content spillover during animation
+        itemsContainer.style.overflow = 'hidden';
+
+        // Check if chevron has rotate-90 class (indicates initially open)
+        const isInitiallyOpen = chevron && chevron.classList.contains('rotate-90');
+
+        if (isInitiallyOpen) {
+          // Set initial height to auto for open state
+          gsap.set(itemsContainer, { height: 'auto' });
+        } else {
+          // Set initial height to 0 and hide for closed state
+          gsap.set(itemsContainer, { height: 0, display: 'none' });
+        }
+      }
+    }
+  });
 
   activitiesYearToggles.forEach(toggle => {
     toggle.addEventListener('click', function() {
@@ -868,15 +880,97 @@ Phone: +886-2-1234-5679`
       const itemsContainer = yearGrid.querySelector('.activities-year-items');
 
       if (itemsContainer) {
-        // Check if currently open (either no style.display set, or set to 'flex')
-        const isOpen = itemsContainer.style.display !== 'none';
+        // Check if currently open (check if height is set and not 0)
+        const isOpen = itemsContainer.style.height && itemsContainer.style.height !== '0px';
 
         if (isOpen) {
-          itemsContainer.style.display = 'none';
-          if (chevron) chevron.classList.remove('rotate-90');
+          // Close with GSAP animation
+          gsap.to(itemsContainer, {
+            height: 0,
+            duration: 0.4,
+            ease: "power2.in",
+            onComplete: () => {
+              itemsContainer.style.display = 'none';
+            }
+          });
+          if (chevron) gsap.to(chevron, { rotation: 0, duration: 0.3 });
         } else {
+          // Open with GSAP animation
           itemsContainer.style.display = 'flex';
-          if (chevron) chevron.classList.add('rotate-90');
+          gsap.to(itemsContainer, {
+            height: 'auto',
+            duration: 0.5,
+            ease: "power2.out"
+          });
+          if (chevron) gsap.to(chevron, { rotation: 90, duration: 0.3 });
+        }
+      }
+    });
+  });
+
+  // Workshop year toggle functionality with GSAP animation
+  const workshopYearToggles = document.querySelectorAll('.workshop-year-toggle');
+
+  // Initialize heights for all containers on page load
+  workshopYearToggles.forEach(toggle => {
+    const yearGrid = toggle.closest('.grid-12');
+    if (yearGrid) {
+      const itemsContainer = yearGrid.querySelector('.workshop-year-items');
+      const chevron = yearGrid.querySelector('.fa-chevron-right');
+
+      if (itemsContainer) {
+        // Add overflow hidden to prevent content spillover during animation
+        itemsContainer.style.overflow = 'hidden';
+
+        // Check if chevron has rotate-90 class (indicates initially open)
+        const isInitiallyOpen = chevron && chevron.classList.contains('rotate-90');
+
+        if (isInitiallyOpen) {
+          // Set initial height to auto for open state
+          gsap.set(itemsContainer, { height: 'auto' });
+        } else {
+          // Set initial height to 0 and hide for closed state
+          gsap.set(itemsContainer, { height: 0, display: 'none' });
+        }
+      }
+    }
+  });
+
+  workshopYearToggles.forEach(toggle => {
+    toggle.addEventListener('click', function() {
+      // Find the year group container (parent of the grid-12)
+      const yearGrid = this.closest('.grid-12');
+
+      if (!yearGrid) return;
+
+      // Find the chevron and items container within this year group
+      const chevron = yearGrid.querySelector('.fa-chevron-right');
+      const itemsContainer = yearGrid.querySelector('.workshop-year-items');
+
+      if (itemsContainer) {
+        // Check if currently open (check if height is set and not 0)
+        const isOpen = itemsContainer.style.height && itemsContainer.style.height !== '0px';
+
+        if (isOpen) {
+          // Close with GSAP animation
+          gsap.to(itemsContainer, {
+            height: 0,
+            duration: 0.4,
+            ease: "power2.in",
+            onComplete: () => {
+              itemsContainer.style.display = 'none';
+            }
+          });
+          if (chevron) gsap.to(chevron, { rotation: 0, duration: 0.3 });
+        } else {
+          // Open with GSAP animation
+          itemsContainer.style.display = 'flex';
+          gsap.to(itemsContainer, {
+            height: 'auto',
+            duration: 0.5,
+            ease: "power2.out"
+          });
+          if (chevron) gsap.to(chevron, { rotation: 90, duration: 0.3 });
         }
       }
     });
@@ -1441,75 +1535,35 @@ Phone: +886-2-1234-5679`
     });
   }
 
-  // Summer Camp Read More/Less Functionality
-  const campItems = document.querySelectorAll('.summer-camp-item');
-  
-  if (campItems.length > 0) {
-    campItems.forEach(item => {
-      const textGroup = item.querySelector('.camp-text-group');
-      const desc = item.querySelector('.camp-desc');
-      const posterWrapper = item.querySelector('.camp-poster-wrapper');
-      const posterImg = item.querySelector('img');
-      const btn = item.querySelector('.read-more-btn');
-      const chevron = btn.querySelector('.fa-chevron-down');
-      const btnText = btn.querySelector('span');
+  // Summer Camp Accordion Functionality (using workshop-style structure)
+  const summerCampHeaders = document.querySelectorAll('.summer-camp-header');
 
-      // Initial State Configuration
-      const collapsedTextHeight = 100; // Approx 4 lines height
-      gsap.set(desc, { height: collapsedTextHeight });
+  if (summerCampHeaders.length > 0) {
+    summerCampHeaders.forEach(header => {
+      header.addEventListener('click', function() {
+        const content = this.nextElementSibling;
+        const chevron = this.querySelector('.fa-chevron-down');
 
-      // Function to sync poster height with text group
-      function initPosterHeight() {
-        // Calculate the height of the text group in its collapsed state
-        // textGroup height = Title height + margin + collapsed desc height
-        // We can simply measure the textGroup's current offsetHeight since desc is already set
-        const initialHeight = textGroup.offsetHeight;
-        gsap.set(posterWrapper, { height: initialHeight });
-      }
+        if (!content) return;
 
-      // Run initialization (use timeout to ensure layout is rendered)
-      setTimeout(initPosterHeight, 100);
-      // Also run on window resize to stay responsive
-      window.addEventListener('resize', initPosterHeight);
+        const isOpen = content.style.height && content.style.height !== '0px';
 
-      // Click Event
-      btn.addEventListener('click', () => {
-        const isExpanded = btn.classList.contains('expanded');
-
-        if (!isExpanded) {
-          // --- EXPAND ---
-          btn.classList.add('expanded');
-
-          const fullTextHeight = desc.scrollHeight;
-          const fullPosterHeight = posterImg.offsetHeight;
-
-          // Animate Text to full height
-          gsap.to(desc, { height: fullTextHeight, duration: 0.5, ease: "power2.out" });
-
-          // Animate Poster to full image height
-          gsap.to(posterWrapper, { height: fullPosterHeight, duration: 0.5, ease: "power2.out" });
-
-          // UI Updates
-          gsap.to(chevron, { rotation: 180, duration: 0.3 });
-          btnText.textContent = "Read Less 閱讀更少";
-
+        if (isOpen) {
+          // Close
+          gsap.to(content, {
+            height: 0,
+            duration: 0.4,
+            ease: "power2.in"
+          });
+          if (chevron) gsap.to(chevron, { rotation: 0, duration: 0.3 });
         } else {
-          // --- COLLAPSE ---
-          btn.classList.remove('expanded');
-
-          // Animate Text back to collapsed height
-          gsap.to(desc, { height: collapsedTextHeight, duration: 0.5, ease: "power2.out" });
-
-          // Animate Poster back to match the collapsed text group
-          // We calculate the target height: (Current TextGroup Height - Current Desc Height) + Collapsed Desc Height
-          const titleAndMarginHeight = textGroup.offsetHeight - desc.offsetHeight;
-          const targetPosterHeight = titleAndMarginHeight + collapsedTextHeight;
-
-          gsap.to(posterWrapper, { height: targetPosterHeight, duration: 0.5, ease: "power2.out" });
-
-          // UI Updates
-          gsap.to(chevron, { rotation: 0, duration: 0.3 });
-          btnText.textContent = "Read More 閱讀更多";
+          // Open
+          gsap.to(content, {
+            height: 'auto',
+            duration: 0.5,
+            ease: "power2.out"
+          });
+          if (chevron) gsap.to(chevron, { rotation: 180, duration: 0.3 });
         }
       });
     });
