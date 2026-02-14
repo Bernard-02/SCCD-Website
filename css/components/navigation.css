@@ -128,4 +128,69 @@
       transform: rotate(-10deg);
     }
   }
+
+  /* ===== Footer Layout (Desktop Absolute Positioning) ===== */
+  @media (min-width: 768px) {
+    .footer-logo {
+      position: absolute;
+      top: 0;
+      left: 1%;
+    }
+
+    .footer-fax {
+      position: absolute;
+      top: 20vh;
+      left: 46%;
+      transform: rotate(12deg);
+    }
+
+    .footer-tel {
+      position: absolute;
+      top: 35vh;
+      left: 17%;
+      transform: rotate(-18deg);
+    }
+
+    .footer-office {
+      position: absolute;
+      top: 40vh;
+      left: 34%;
+      transform: rotate(-10deg);
+    }
+
+    .footer-email {
+      position: absolute;
+      top: 60vh;
+      left: 9%;
+      transform: rotate(15deg);
+    }
+
+    .footer-links {
+      position: absolute;
+      top: 70vh;
+      left: 51%;
+      transform: rotate(18deg);
+    }
+
+    .footer-social .footer-youtube {
+      position: absolute;
+      top: 50%;
+      left: 68%;
+      transform: rotate(-15deg);
+    }
+
+    .footer-social .footer-instagram {
+      position: absolute;
+      top: 42%;
+      left: 85%;
+      transform: rotate(15deg);
+    }
+
+    .footer-social .footer-facebook {
+      position: absolute;
+      top: 58%;
+      left: 85%;
+      transform: rotate(-12deg);
+    }
+  }
 }

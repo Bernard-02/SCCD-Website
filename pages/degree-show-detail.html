@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Degree Show - SCCD</title>
+  <link rel="stylesheet" href="../css/variables.css">
   <link rel="stylesheet" href="../css/output.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
@@ -17,7 +18,7 @@
     <!-- Hero Section -->
     <section class="h-screen relative overflow-hidden">
       <div class="absolute inset-0 w-full h-full">
-        <img id="hero-img" src="../images/Degree Show.jpg" alt="Degree Show" class="w-full h-full object-cover">
+        <img id="hero-img" src="" alt="Degree Show" class="w-full h-full object-cover">
       </div>
     </section>
 
@@ -29,12 +30,12 @@
         <div class="grid-12 mb-4xl">
           <div class="col-start-3 col-span-10">
             <!-- 標題 + 年份 -->
-            <h2 id="text-title" class="mb-xs">獸</h2>
-            <h4 id="text-year" class="mb-2xl">2024</h4>
+            <h2 id="text-title" class="mb-xs"></h2>
+            <h4 id="text-year" class="mb-2xl"></h4>
 
             <!-- 英中說明 -->
-            <p id="text-desc-en" class="mb-md">Placeholder English description.</p>
-            <p id="text-desc-cn" class="mb-2xl">占位中文說明。</p>
+            <p id="text-desc-en" class="mb-md"></p>
+            <p id="text-desc-cn" class="mb-2xl"></p>
 
             <!-- Social Media Icons -->
             <div class="flex gap-lg">
@@ -52,42 +53,15 @@
         </div>
 
         <!-- 圖片區 -->
-        <div class="py-2xl">
-          <!-- Row 1: 2 張 -->
-          <div class="grid-12 mb-gutter">
-            <div class="col-span-6">
-              <img src="../images/Degree Show.jpg" alt="" class="w-full object-cover">
-            </div>
-            <div class="col-span-6">
-              <img src="../images/Degree Show.jpg" alt="" class="w-full object-cover">
-            </div>
-          </div>
-          <!-- Row 2: 1 張 -->
-          <div class="grid-12 mb-gutter">
-            <div class="col-span-12">
-              <img src="../images/Degree Show.jpg" alt="" class="w-full object-cover">
-            </div>
-          </div>
-          <!-- Row 3: 3 張 -->
-          <div class="grid-12">
-            <div class="col-span-4">
-              <img src="../images/Degree Show.jpg" alt="" class="w-full object-cover aspect-[4/3]">
-            </div>
-            <div class="col-span-4">
-              <img src="../images/Degree Show.jpg" alt="" class="w-full object-cover aspect-[4/3]">
-            </div>
-            <div class="col-span-4">
-              <img src="../images/Degree Show.jpg" alt="" class="w-full object-cover aspect-[4/3]">
-            </div>
-          </div>
+        <div id="gallery-container" class="py-2xl flex flex-col gap-gutter">
+          <!-- Images will be injected here by JS -->
         </div>
 
         <!-- 影片區 -->
-        <div class="grid-12">
+        <div id="video-section" class="grid-12 hidden">
           <div class="col-span-12">
-            <!-- Video placeholder -->
-            <div style="aspect-ratio: 16/9; background-color: #000;">
-              <p class="text-white text-center" style="padding-top: 45%; font-size: 1rem;">Video Placeholder</p>
+            <div id="video-wrapper" class="w-full aspect-video bg-black">
+              <!-- Video content injected by JS -->
             </div>
           </div>
         </div>
@@ -136,59 +110,6 @@
   <!-- Helper Functions - 必須在 main.js 之前載入 -->
   <script src="../js/utils/helpers.js"></script>
   <script type="module" src="../js/main-modular.js"></script>
-  <script>
-    // ===== Degree Show Detail Data =====
-    const degreeShowData = {
-      '2024': {
-        title: '獸',
-        descEn: "Professors of SCCD are composed of cross-disciplinary experts from academia, design industry and art field. Possess a theoretical and research background in design and art education at domestic and foreign, rich and diverse performance and creative practical experience, and have In-depth understanding of the professional education goals of the department. It is expected that students with different characteristics and attributes will expand their plasticity and give corresponding inspiration, strengthen student's professional skills and trend perception ability, and consolidate students expand their potential and explosive power whether in academic research, design practice, artistic creation with future vision.",
-        descCn: '實踐大學媒體傳達設計學系專、兼任教師皆為學術界、設計業界與藝術領域專家等跨領域組成，具備國內外設計藝術教育理論研究背景、豐富多樣的展演與創作實務經歷，對於學系之專業教育目標理解深入，期許針對不同特質屬性的學生擴展可塑性並給予相應之啟發，強化學生專業技能及趨勢感知能力，夯實學生未來不論於學術研究、設計實務、藝術創作皆能擴展其潛能、爆發力與未來願景。'
-      },
-      '2023': {
-        title: '獸',
-        descEn: 'The 2023 Degree Show showcases the creative works of graduating students, reflecting their growth and artistic vision.',
-        descCn: '2023 畢業展呈現了畢業生的創意作品，反映他們的成長與藝術視野。'
-      },
-      '2022': {
-        title: '獸',
-        descEn: 'The 2022 Degree Show showcases the creative works of graduating students, reflecting their growth and artistic vision.',
-        descCn: '2022 畢業展呈現了畢業生的創意作品，反映他們的成長與藝術視野。'
-      },
-      '2021': {
-        title: '獸',
-        descEn: 'The 2021 Degree Show showcases the creative works of graduating students, reflecting their growth and artistic vision.',
-        descCn: '2021 畢業展呈現了畢業生的創意作品，反映他們的成長與藝術視野。'
-      }
-    };
-
-    // ===== Read year from URL =====
-    const params = new URLSearchParams(window.location.search);
-    const year = params.get('year');
-    const data = degreeShowData[year];
-
-    // 年份列表（從新到舊）
-    const years = ['2024', '2023', '2022', '2021'];
-
-    if (data) {
-      document.title = `Degree Show ${year} - SCCD`;
-
-      // 文字區
-      document.getElementById('text-title').textContent = data.title;
-      document.getElementById('text-year').textContent = year;
-      document.getElementById('text-desc-en').textContent = data.descEn;
-      document.getElementById('text-desc-cn').textContent = data.descCn;
-
-      // Next Project（循環：首尾相接）
-      const idx = years.indexOf(year);
-      const nextYear = years[(idx + 1) % years.length];
-
-      document.getElementById('next-link').href = 'degree-show-detail.html?year=' + nextYear;
-      document.getElementById('next-year').textContent = nextYear;
-      document.getElementById('next-title').textContent = degreeShowData[nextYear].title;
-    } else {
-      window.location.href = 'degree-show.html';
-    }
-  </script>
 
 </body>
 </html>

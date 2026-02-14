@@ -1,0 +1,102 @@
+{
+  "bfa": [
+    {
+      "titleEn": "Design Fundamental",
+      "titleZh": "創作基礎",
+      "descriptionEn": "Design is a complex of different history, society, culture, knowledge, function, aesthetics, problem solving and decision making...",
+      "descriptionZh": "設計是經由不同的歷史、社會和文化層面知識領域的趨勢、作業功能、美學理想、問題解決和決策訂定形成的綜合體...",
+      "type": "required",
+      "grade": "freshman"
+    },
+    {
+      "titleEn": "Digital Prepress Design",
+      "titleZh": "數位編輯設計",
+      "descriptionEn": "Design is a complex of different history, society, culture, knowledge, function, aesthetics, problem solving and decision making...",
+      "descriptionZh": "設計是經由不同的歷史、社會和文化層面知識領域的趨勢、作業功能、美學理想、問題解決和決策訂定形成的綜合體...",
+      "type": "elective",
+      "grade": "freshman"
+    },
+    {
+      "titleEn": "Design Studio II",
+      "titleZh": "設計實務 (二)",
+      "descriptionEn": "Advanced design principles and application focusing on visual communication and user experience.",
+      "descriptionZh": "進階設計原則與應用，專注於視覺傳達與使用者體驗。",
+      "type": "required",
+      "grade": "sophomore"
+    },
+    {
+      "titleEn": "Typography",
+      "titleZh": "字體設計",
+      "descriptionEn": "Study of type forms, layout, and the expressive power of typography in design.",
+      "descriptionZh": "研究字體造型、版面編排以及字體在設計中的表現力。",
+      "type": "elective",
+      "grade": "sophomore"
+    },
+    {
+      "titleEn": "Design Studio III",
+      "titleZh": "設計實務 (三)",
+      "descriptionEn": "Professional design practice involving complex problem solving and project management.",
+      "descriptionZh": "涉及複雜問題解決與專案管理的專業設計實務。",
+      "type": "required",
+      "grade": "junior"
+    },
+    {
+      "titleEn": "Motion Graphics",
+      "titleZh": "動態圖像設計",
+      "descriptionEn": "Techniques and principles for creating animated graphics and visual effects.",
+      "descriptionZh": "創作動態圖像與視覺特效的技術與原則。",
+      "type": "elective",
+      "grade": "junior"
+    },
+    {
+      "titleEn": "Degree Project",
+      "titleZh": "畢業製作",
+      "descriptionEn": "Final year comprehensive design project demonstrating professional competency.",
+      "descriptionZh": "展現專業能力的畢業年度綜合設計專案。",
+      "type": "required",
+      "grade": "senior"
+    },
+    {
+      "titleEn": "Portfolio Design",
+      "titleZh": "作品集設計",
+      "descriptionEn": "Preparation of professional design portfolio and career planning.",
+      "descriptionZh": "專業設計作品集準備與職涯規劃。",
+      "type": "elective",
+      "grade": "senior"
+    }
+  ],
+  "mdes": [
+    {
+      "titleEn": "Creative Media & Design (I)",
+      "titleZh": "數位媒體創作（一）",
+      "descriptionEn": "Design is a complex of different history, society, culture, knowledge, function, aesthetics, problem solving and decision making...",
+      "descriptionZh": "設計是經由不同的歷史、社會和文化層面知識領域的趨勢、作業功能、美學理想、問題解決和決策訂定形成的綜合體...",
+      "type": "required",
+      "grade": "year1"
+    },
+    {
+      "titleEn": "Slow Design",
+      "titleZh": "慢設計",
+      "descriptionEn": "Design is a complex of different history, society, culture, knowledge, function, aesthetics, problem solving and decision making...",
+      "descriptionZh": "設計是經由不同的歷史、社會和文化層面知識領域的趨勢、作業功能、美學理想、問題解決和決策訂定形成的綜合體...",
+      "type": "elective",
+      "grade": "year1"
+    },
+    {
+      "titleEn": "Thesis Project",
+      "titleZh": "碩士論文創作",
+      "descriptionEn": "Independent research and design creation leading to a master's thesis.",
+      "descriptionZh": "導向碩士論文的獨立研究與設計創作。",
+      "type": "required",
+      "grade": "year2"
+    },
+    {
+      "titleEn": "Advanced Interaction Design",
+      "titleZh": "進階互動設計",
+      "descriptionEn": "Exploration of complex interactive systems and emerging technologies.",
+      "descriptionZh": "探索複雜互動系統與新興科技。",
+      "type": "elective",
+      "grade": "year2"
+    }
+  ]
+}

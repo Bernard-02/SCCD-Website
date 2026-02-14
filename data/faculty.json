@@ -1,6 +1,7 @@
 [
   {
     "id": "1",
+    "type": "fulltime",
     "image": "../images/S__6742028.jpg",
     "nameEn": "Ta-Lih Shieh",
     "nameZh": "謝大立",
@@ -26,6 +27,7 @@
   },
   {
     "id": "2",
+    "type": "fulltime",
     "image": "../images/S__6742028.jpg",
     "nameEn": "Rex Takeshi Chen",
     "nameZh": "陳威志",
@@ -46,6 +48,7 @@
   },
   {
     "id": "3",
+    "type": "fulltime",
     "image": "../images/S__6742028.jpg",
     "nameEn": "Professor Name 3",
     "nameZh": "教授名字 3",
@@ -66,6 +69,7 @@
   },
   {
     "id": "4",
+    "type": "fulltime",
     "image": "../images/S__6742028.jpg",
     "nameEn": "Professor Name 4",
     "nameZh": "教授名字 4",
@@ -86,6 +90,7 @@
   },
   {
     "id": "5",
+    "type": "parttime",
     "image": "../images/S__6742028.jpg",
     "nameEn": "Professor Name 5",
     "nameZh": "教授名字 5",
@@ -106,6 +111,7 @@
   },
   {
     "id": "6",
+    "type": "parttime",
     "image": "../images/S__6742028.jpg",
     "nameEn": "Professor Name 6",
     "nameZh": "教授名字 6",
@@ -126,6 +132,7 @@
   },
   {
     "id": "7",
+    "type": "parttime",
     "image": "../images/S__6742028.jpg",
     "nameEn": "Professor Name 7",
     "nameZh": "教授名字 7",
@@ -146,6 +153,7 @@
   },
   {
     "id": "8",
+    "type": "fulltime",
     "image": "../images/S__6742028.jpg",
     "nameEn": "Professor Name 8",
     "nameZh": "教授名字 8",
@@ -166,6 +174,7 @@
   },
   {
     "id": "9",
+    "type": "fulltime",
     "image": "../images/S__6742028.jpg",
     "nameEn": "Professor Name 9",
     "nameZh": "教授名字 9",
@@ -186,6 +195,7 @@
   },
   {
     "id": "10",
+    "type": "fulltime",
     "image": "../images/S__6742028.jpg",
     "nameEn": "Professor Name 10",
     "nameZh": "教授名字 10",
@@ -206,6 +216,7 @@
   },
   {
     "id": "11",
+    "type": "parttime",
     "image": "../images/S__6742028.jpg",
     "nameEn": "Professor Name 11",
     "nameZh": "教授名字 11",
@@ -226,6 +237,7 @@
   },
   {
     "id": "12",
+    "type": "fulltime",
     "image": "../images/S__6742028.jpg",
     "nameEn": "Professor Name 12",
     "nameZh": "教授名字 12",
@@ -246,6 +258,7 @@
   },
   {
     "id": "admin-1",
+    "type": "admin",
     "image": "../images/S__6742028.jpg",
     "nameEn": "Secretary Name 1",
     "nameZh": "執行秘書 1",
@@ -261,6 +274,7 @@
   },
   {
     "id": "admin-2",
+    "type": "admin",
     "image": "../images/S__6742028.jpg",
     "nameEn": "Secretary Name 2",
     "nameZh": "執行秘書 2",

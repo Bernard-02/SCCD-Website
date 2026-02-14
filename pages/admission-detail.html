@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admission Detail - SCCD</title>
+  <link rel="stylesheet" href="../css/variables.css">
   <link rel="stylesheet" href="../css/output.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
@@ -24,49 +25,16 @@
             <i class="fa-solid fa-arrow-left-long text-h5"></i>
           </a>
 
-          <div class="col-start-4 col-span-6 flex flex-col gap-2xl">
+          <div id="admission-detail-content" class="col-start-4 col-span-6 flex flex-col gap-2xl">
 
             <!-- Date + Title -->
             <div class="flex flex-col gap-xs">
-              <h6 class="font-regular">2026.02.04</h6>
-              <h3>113學年度大學申請入學第二階段指定項目甄試注意事項</h3>
+              <h6 id="admission-date" class="font-regular"></h6>
+              <h3 id="admission-title"></h3>
             </div>
 
             <!-- Body -->
-            <div class="flex flex-col gap-md">
-              <p>
-                一、術科注意事項<br>
-                文字書寫與圖像繪製應能完整表達個人思緒與風格，並能契合題意。繪製紙板由本校提供。
-              </p>
-
-              <p>
-                二、作品集面試注意事項：<br>
-                （一）作品集呈現僅接受輸出紙本，一式至少3份，未攜帶作品集者，該科目零分計算。<br>
-                （二）【動畫影像設計組】作品集面試報到時間：依登記梯次（一或二）報到時間，未報到視同棄權。<br>
-                （三）【創意媒體設計組】作品集面試報到時間：依登記梯次（三或四）報到時間，未報到視同棄權。
-              </p>
-
-              <p>
-                A401（考生報到暨家長休息室）<br>
-                A508（作品集面試）
-              </p>
-
-              <p>
-                050132 媒體傳達設計學系動畫影像設計組（臺北校區）<br>
-                面試考試時間：8:30~12:00<br>
-                第一梯次
-              </p>
-
-              <p>
-                3132003 張〇閔<br>
-                3132004 張〇如<br>
-                3132009 周〇<br>
-                3132015 黃〇蓁<br>
-                3132016 蘇〇雁<br>
-                3132018 侯〇甄<br>
-                3132020 黃〇彤
-              </p>
-            </div>
+            <div id="admission-body" class="flex flex-col gap-md"></div>
 
             <!-- Divider Line -->
             <div class="border-t border-gray-9 mt-2xl"></div>
@@ -87,6 +55,7 @@
                 <span>下一個</span>
                 <i class="fa-solid fa-arrow-right"></i>
               </a>
+              <div id="next-placeholder" style="display: none;"></div>
             </div>
 
           </div>

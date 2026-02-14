@@ -1,0 +1,51 @@
+{
+  "2024": {
+    "title": "獸",
+    "descEn": "Professors of SCCD are composed of cross-disciplinary experts from academia, design industry and art field. Possess a theoretical and research background in design and art education at domestic and foreign, rich and diverse performance and creative practical experience, and have In-depth understanding of the professional education goals of the department. It is expected that students with different characteristics and attributes will expand their plasticity and give corresponding inspiration, strengthen student's professional skills and trend perception ability, and consolidate students expand their potential and explosive power whether in academic research, design practice, artistic creation with future vision.",
+    "descCn": "實踐大學媒體傳達設計學系專、兼任教師皆為學術界、設計業界與藝術領域專家等跨領域組成，具備國內外設計藝術教育理論研究背景、豐富多樣的展演與創作實務經歷，對於學系之專業教育目標理解深入，期許針對不同特質屬性的學生擴展可塑性並給予相應之啟發，強化學生專業技能及趨勢感知能力，夯實學生未來不論於學術研究、設計實務、藝術創作皆能擴展其潛能、爆發力與未來願景。",
+    "coverImage": "../images/Degree Show.jpg",
+    "images": [
+      "../images/Degree Show.jpg",
+      "../images/Degree Show.jpg",
+      "../images/Degree Show.jpg",
+      "../images/Degree Show.jpg",
+      "../images/Degree Show.jpg",
+      "../images/Degree Show.jpg"
+    ],
+    "videoUrl": "https://www.youtube.com/embed/dQw4w9WgXcQ"
+  },
+  "2023": {
+    "title": "獸",
+    "descEn": "The 2023 Degree Show showcases the creative works of graduating students, reflecting their growth and artistic vision.",
+    "descCn": "2023 畢業展呈現了畢業生的創意作品，反映他們的成長與藝術視野。",
+    "coverImage": "../images/Degree Show.jpg",
+    "images": [
+      "../images/Degree Show.jpg",
+      "../images/Degree Show.jpg",
+      "../images/Degree Show.jpg",
+      "../images/Degree Show.jpg",
+      "../images/Degree Show.jpg",
+      "../images/Degree Show.jpg"
+    ]
+  },
+  "2022": {
+    "title": "獸",
+    "descEn": "The 2022 Degree Show showcases the creative works of graduating students, reflecting their growth and artistic vision.",
+    "descCn": "2022 畢業展呈現了畢業生的創意作品，反映他們的成長與藝術視野。",
+    "coverImage": "../images/Degree Show.jpg",
+    "images": [
+      "../images/Degree Show.jpg",
+      "../images/Degree Show.jpg",
+      "../images/Degree Show.jpg"
+    ]
+  },
+  "2021": {
+    "title": "獸",
+    "descEn": "The 2021 Degree Show showcases the creative works of graduating students, reflecting their growth and artistic vision.",
+    "descCn": "2021 畢業展呈現了畢業生的創意作品，反映他們的成長與藝術視野。",
+    "coverImage": "../images/Degree Show.jpg",
+    "images": [
+      "../images/Degree Show.jpg"
+    ]
+  }
+}

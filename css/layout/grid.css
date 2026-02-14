@@ -19,4 +19,39 @@
     padding-top: var(--spacing-4xl);
     padding-bottom: var(--spacing-4xl);
   }
+
+  /* ===== Main Content Structure ===== */
+  .main-content {
+    min-height: 60vh;
+    padding: var(--spacing-3xl) 0;
+  }
+
+  /* ===== Flex Helpers ===== */
+  .flex-1 {
+    flex: 1;
+  }
+
+  .flex-0-20 {
+    flex: 0 0 20%;
+  }
+
+  .flex-0-25-gap {
+    flex: 0 0 calc(25% - 0.625rem);
+  }
+
+  .flex-0-30 {
+    flex: 0 0 30%;
+  }
+
+  .flex-0-50 {
+    flex: 0 0 50%;
+  }
+
+  .flex-0-70 {
+    flex: 0 0 70%;
+  }
+
+  .flex-0-100 {
+    flex: 0 0 100%;
+  }
 }

@@ -4,6 +4,7 @@ module.exports = {
     "./*.html",
     "./pages/**/*.html",
     "./js/**/*.js",
+    "./data/**/*.json",
   ],
   theme: {
     extend: {
@@ -43,13 +44,13 @@ module.exports = {
 
       // 字體大小 (使用 rem)
       fontSize: {
-        'h1': '8rem',      // 128px
-        'h2': '6rem',      // 96px
-        'h3': '3.125rem',  // 50px
-        'h4': '2rem',      // 32px
-        'h5': '1.35rem',   // 21.6px
-        'h6': '1.25rem',   // 20px
-        'p1': '1rem',      // 16px
+        'h1': 'var(--font-size-h1)',
+        'h2': 'var(--font-size-h2)',
+        'h3': 'var(--font-size-h3)',
+        'h4': 'var(--font-size-h4)',
+        'h5': 'var(--font-size-h5)',
+        'h6': 'var(--font-size-h6)',
+        'p1': 'var(--font-size-p1)',
       },
 
       // 字體粗細
@@ -67,18 +68,18 @@ module.exports = {
 
       // 間距
       spacing: {
-        'xs': '0.5rem',   // 8px
-        'sm': '1rem',     // 16px
-        'md': '1.5rem',   // 24px
-        'lg': '2rem',     // 32px
-        'xl': '3rem',     // 48px
-        '2xl': '4rem',    // 64px
-        '3xl': '6rem',    // 96px
-        '4xl': '8rem',    // 128px
-        '5xl': '10rem',   // 160px
-        '6xl': '12rem',   // 192px
-        'gutter': '1.25rem',  // 20px - Grid gutter
-        'container-padding': '3.75rem',  // 60px - Container padding
+        'xs': 'var(--spacing-xs)',
+        'sm': 'var(--spacing-sm)',
+        'md': 'var(--spacing-md)',
+        'lg': 'var(--spacing-lg)',
+        'xl': 'var(--spacing-xl)',
+        '2xl': 'var(--spacing-2xl)',
+        '3xl': 'var(--spacing-3xl)',
+        '4xl': 'var(--spacing-4xl)',
+        '5xl': 'var(--spacing-5xl)',
+        '6xl': 'var(--spacing-6xl)',
+        'gutter': 'var(--spacing-gutter)',
+        'container-padding': 'var(--container-padding)',
       },
 
       // 容器最大寬度

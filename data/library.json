@@ -1,0 +1,66 @@
+[
+  {
+    "id": "1",
+    "titleEn": "Publication Title 1",
+    "titleZh": "出版物標題 1",
+    "year": "2025",
+    "image": "../images/2021-動畫-Pitch-Bible-01.png",
+    "pdfUrl": "../assets/sample.pdf"
+  },
+  {
+    "id": "2",
+    "titleEn": "Publication Title 2",
+    "titleZh": "出版物標題 2",
+    "year": "2025",
+    "image": "../images/2021-動畫-Pitch-Bible-01.png",
+    "pdfUrl": ""
+  },
+  {
+    "id": "3",
+    "titleEn": "Publication Title 3",
+    "titleZh": "出版物標題 3",
+    "year": "2024",
+    "image": "../images/2021-動畫-Pitch-Bible-01.png",
+    "pdfUrl": ""
+  },
+  {
+    "id": "4",
+    "titleEn": "Publication Title 4",
+    "titleZh": "出版物標題 4",
+    "year": "2024",
+    "image": "../images/2021-動畫-Pitch-Bible-01.png",
+    "pdfUrl": ""
+  },
+  {
+    "id": "5",
+    "titleEn": "Publication Title 5",
+    "titleZh": "出版物標題 5",
+    "year": "2023",
+    "image": "../images/2021-動畫-Pitch-Bible-01.png",
+    "pdfUrl": ""
+  },
+  {
+    "id": "6",
+    "titleEn": "Publication Title 6",
+    "titleZh": "出版物標題 6",
+    "year": "2023",
+    "image": "../images/2021-動畫-Pitch-Bible-01.png",
+    "pdfUrl": ""
+  },
+  {
+    "id": "7",
+    "titleEn": "Publication Title 7",
+    "titleZh": "出版物標題 7",
+    "year": "2022",
+    "image": "../images/2021-動畫-Pitch-Bible-01.png",
+    "pdfUrl": ""
+  },
+  {
+    "id": "8",
+    "titleEn": "Publication Title 8",
+    "titleZh": "出版物標題 8",
+    "year": "2022",
+    "image": "../images/2021-動畫-Pitch-Bible-01.png",
+    "pdfUrl": ""
+  }
+]

@@ -1,0 +1,102 @@
+{
+  "design-fundamental": {
+    "titleHtml": "Design<br>Fundamental<br>創作基礎作品",
+    "descriptionEn": "Foundation courses that develop core design principles, visual literacy, and technical skills essential for creative media practice.",
+    "descriptionZh": "培養核心設計原則、視覺素養與技術能力的基礎課程，為創意媒體實踐奠定根基。",
+    "heroImage": "../images/SCCD-1-4-0.jpg",
+    "projects": [
+      {
+        "layout": "image-left",
+        "title": "回歸個人經驗潛能，激發自我心靈與創意思維能力",
+        "textEn": "Professors of SCCD are composed of cross-disciplinary experts from academia, design industry and art field. Possess a theoretical and research background in design and art education at domestic and foreign, rich and diverse performance and creative practical experience, and have In-depth understanding of the professional education goals of the department. It is expected that students with different characteristics and attributes will expand their plasticity and give corresponding inspiration, strengthen student's professional skills and trend perception ability, and consolidate students expand their potential and explosive power whether in academic research, design practice, artistic creation with future vision.",
+        "textZh": "創作基礎修課學生包括大一新生、轉學生、僑生與外籍學生，學生橫跨文、理組，擁有不同的學背景，多數學在入學前從未接受過專業術科、音樂與肢體訓練，生活環境办缺美感教育，忽略自身的人文思考與心靈感受。為了體現學生背景的豐富性，並使學生於短期間內充份發揮個性特質，各單元訓練強調學生回歸個人思考探索自我，重新檢視個別情感經驗的差異，引導學生產生多元觀點詮釋「自我心靈」喚醒内在對事物的敏銳觀察力，重新啟發創意思維機制。",
+        "images": [
+          "../images/2021-動畫-Pitch-Bible-01.png",
+          "../images/2021-動畫-Pitch-Bible-01.png",
+          "../images/2021-動畫-Pitch-Bible-01.png"
+        ]
+      },
+      {
+        "layout": "text-left",
+        "title": "回歸個人經驗潛能，激發自我心靈與創意思維能力",
+        "textEn": "Professors of SCCD are composed of cross-disciplinary experts from academia, design industry and art field. Possess a theoretical and research background in design and art education at domestic and foreign, rich and diverse performance and creative practical experience, and have In-depth understanding of the professional education goals of the department. It is expected that students with different characteristics and attributes will expand their plasticity and give corresponding inspiration, strengthen student's professional skills and trend perception ability, and consolidate students expand their potential and explosive power whether in academic research, design practice, artistic creation with future vision.",
+        "textZh": "創作基礎修課學生包括大一新生、轉學生、僑生與外籍學生，學生橫跨文、理組，擁有不同的學背景，多數學在入學前從未接受過專業術科、音樂與肢體訓練，生活環境办缺美感教育，忽略自身的人文思考與心靈感受。為了體現學生背景的豐富性，並使學生於短期間內充份發揮個性特質，各單元訓練強調學生回歸個人思考探索自我，重新檢視個別情感經驗的差異，引導學生產生多元觀點詮釋「自我心靈」喚醒内在對事物的敏銳觀察力，重新啟發創意思維機制。",
+        "images": [
+          "../images/2021-動畫-Pitch-Bible-01.png",
+          "../images/2021-動畫-Pitch-Bible-01.png",
+          "../images/2021-動畫-Pitch-Bible-01.png"
+        ]
+      },
+      {
+        "layout": "image-left",
+        "title": "回歸個人經驗潛能，激發自我心靈與創意思維能力",
+        "textEn": "Professors of SCCD are composed of cross-disciplinary experts from academia, design industry and art field. Possess a theoretical and research background in design and art education at domestic and foreign, rich and diverse performance and creative practical experience, and have In-depth understanding of the professional education goals of the department. It is expected that students with different characteristics and attributes will expand their plasticity and give corresponding inspiration, strengthen student's professional skills and trend perception ability, and consolidate students expand their potential and explosive power whether in academic research, design practice, artistic creation with future vision.",
+        "textZh": "創作基礎修課學生包括大一新生、轉學生、僑生與外籍學生，學生橫跨文、理組，擁有不同的學背景，多數學在入學前從未接受過專業術科、音樂與肢體訓練，生活環境办缺美感教育，忽略自身的人文思考與心靈感受。為了體現學生背景的豐富性，並使學生於短期間內充份發揮個性特質，各單元訓練強調學生回歸個人思考探索自我，重新檢視個別情感經驗的差異，引導學生產生多元觀點詮釋「自我心靈」喚醒内在對事物的敏銳觀察力，重新啟發創意思維機制。",
+        "images": [
+          "../images/2021-動畫-Pitch-Bible-01.png",
+          "../images/2021-動畫-Pitch-Bible-01.png",
+          "../images/2021-動畫-Pitch-Bible-01.png"
+        ]
+      }
+    ],
+    "videoUrl": "https://www.youtube.com/embed/JBRReuUk4dE?list=PLG0DnOKlL-lko5mBve7UjN2itLz4KwxUF"
+  },
+  "animation": {
+    "titleHtml": "Animation<br>動畫作品",
+    "descriptionEn": "Animated works that explore storytelling, motion design, and experimental animation techniques.",
+    "descriptionZh": "探索敘事、動態設計與實驗動畫技術的動畫作品。",
+    "heroImage": "../images/SCCD-1-4-0.jpg",
+    "projects": [
+      {
+        "layout": "image-left",
+        "title": "Character Animation",
+        "textZh": "透過角色設計與動態演出，創造生動的故事世界與情感連結。",
+        "images": [
+          "../images/2021-動畫-Pitch-Bible-01.png",
+          "../images/2021-動畫-Pitch-Bible-01.png",
+          "../images/2021-動畫-Pitch-Bible-01.png"
+        ]
+      },
+      {
+        "layout": "text-left",
+        "title": "Experimental Animation",
+        "textZh": "突破傳統動畫形式，探索新的視覺語言與動態表現方式。",
+        "images": [
+          "../images/2021-動畫-Pitch-Bible-01.png",
+          "../images/2021-動畫-Pitch-Bible-01.png",
+          "../images/2021-動畫-Pitch-Bible-01.png"
+        ]
+      }
+    ],
+    "videoUrl": "https://www.youtube.com/embed/qklohUskSX4?list=PLG0DnOKlL-llBG3d2yiQeQnhN6MK95pM4"
+  },
+  "creative-media": {
+    "titleHtml": "Creative<br>Media<br>創意媒體作品",
+    "descriptionEn": "Innovative media projects that integrate technology, interactivity, and creative storytelling.",
+    "descriptionZh": "融合技術、互動與創意敘事的創新媒體專案。",
+    "heroImage": "../images/SCCD-1-4-0.jpg",
+    "projects": [
+      {
+        "layout": "image-left",
+        "title": "Interactive Installation",
+        "textZh": "結合感測技術與數位媒體，創造沉浸式的互動體驗空間。",
+        "images": [
+          "../images/2021-動畫-Pitch-Bible-01.png",
+          "../images/2021-動畫-Pitch-Bible-01.png",
+          "../images/2021-動畫-Pitch-Bible-01.png"
+        ]
+      },
+      {
+        "layout": "text-left",
+        "title": "Virtual Reality Creation",
+        "textZh": "運用VR技術打造全新的敘事空間與感官體驗。",
+        "images": [
+          "../images/2021-動畫-Pitch-Bible-01.png",
+          "../images/2021-動畫-Pitch-Bible-01.png",
+          "../images/2021-動畫-Pitch-Bible-01.png"
+        ]
+      }
+    ],
+    "videoUrl": "https://www.youtube.com/embed/hIbasPs5gho?list=PLG0DnOKlL-lm5Vdc2x-ULMdlo6fsM-pQn"
+  }
+}

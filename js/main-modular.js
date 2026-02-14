@@ -24,7 +24,6 @@ import { initTimeline } from './modules/pages/about/timeline.js';
 import { initAnchorNav } from './modules/navigation/anchor-nav.js';
 
 // Import Page Specific Modules
-import { initAdmissionLogic } from './modules/pages/admission-logic.js';
 import { initActivitiesPreview } from './modules/pages/activities-preview.js';
 import { initFacultySlideIn } from './modules/pages/faculty-slide-in.js';
 
@@ -36,7 +35,17 @@ import { initWorkshopAccordion } from './modules/accordions/workshop-accordion.j
 import { initActivitiesYearToggle } from './modules/accordions/activities-year-toggle.js';
 
 // Import Data Loaders
-import { loadGeneralActivities, loadRecords, loadWorkshops, loadSummerCamp } from './modules/pages/activities-data-loader.js';
+import { loadGeneralActivities, loadWorkshops, loadSummerCamp } from './modules/pages/activities-data-loader.js';
+import { loadRecords } from './modules/pages/records-data-loader.js';
+import { loadCourses } from './modules/pages/courses-data-loader.js';
+import { loadFacultyData } from './modules/pages/faculty-data-loader.js';
+import { loadBFAWorks } from './modules/pages/bfa-works-data-loader.js';
+import { loadMDESWorks } from './modules/pages/mdes-works-data-loader.js';
+import { loadLibraryData } from './modules/pages/library-data-loader.js';
+import { loadAdmissionData } from './modules/pages/admission-data-loader.js';
+import { loadSupportData } from './modules/pages/support-data-loader.js';
+import { loadLegalData } from './modules/pages/legal-data-loader.js';
+import { loadDegreeShowList, loadDegreeShowDetail } from './modules/pages/degree-show-data-loader.js';
 
 // Wait for DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', function() {
@@ -65,26 +74,43 @@ document.addEventListener('DOMContentLoaded', function() {
     initBFADivisionToggle();   // BFA Class 分組切換
   }
 
+  // --- Degree Show Pages ---
+  if (page.includes('degree-show.html')) {
+    loadDegreeShowList();
+  }
+  if (page.includes('degree-show-detail.html')) {
+    loadDegreeShowDetail();
+  }
+
   // --- Admission Pages (List & Detail) ---
   if (page.includes('admission')) {
-    initAdmissionLogic();
+    loadAdmissionData();
   }
 
   // --- Faculty Pages ---
   if (page.includes('faculty')) {
-    initFacultyFilter();
-    initFacultySlideIn();
+    loadFacultyData().then(() => {
+      initFacultyFilter();
+      initFacultySlideIn();
+    });
   }
 
   // --- Courses Page ---
   if (page.includes('courses')) {
-    initCoursesFilter();
-    initCourseAccordion();
+    // 判斷是 BFA 還是 MDES
+    const program = page.includes('bfa') ? 'bfa' : 'mdes';
+    
+    loadCourses(program).then(() => {
+      initCoursesFilter();
+      initCourseAccordion();
+    });
   }
 
   // --- Support Page ---
   if (page.includes('support.html')) {
-    initCourseAccordion();
+    loadSupportData().then(() => {
+      initCourseAccordion();
+    });
   }
 
   // --- Activities Page ---
@@ -124,7 +150,31 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // --- Works Page ---
   if (page.includes('works')) {
-    initWorksFilter();
+    // 如果是 BFA Works 頁面，先載入資料再初始化篩選器
+    if (page.includes('bfa-works')) {
+      loadBFAWorks().then(() => {
+        initWorksFilter();
+      });
+    } else if (page.includes('mdes-works')) {
+      loadMDESWorks().then(() => {
+        initWorksFilter();
+      });
+    } else {
+      initWorksFilter();
+    }
+  }
+
+  // --- Library Page ---
+  if (page.includes('library.html')) {
+    loadLibraryData();
+  }
+
+  // --- Legal Pages ---
+  if (page.includes('privacy-policy.html')) {
+    loadLegalData('privacy-policy');
+  }
+  if (page.includes('terms-and-conditions.html')) {
+    loadLegalData('terms-and-conditions');
   }
 
   console.log('✅ Page specific modules initialized');

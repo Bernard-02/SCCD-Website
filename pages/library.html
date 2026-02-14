@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Library - SCCD</title>
+  <link rel="stylesheet" href="../css/variables.css">
   <link rel="stylesheet" href="../css/output.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
@@ -53,109 +54,24 @@
         <!-- Library Cards Grid (Starting from Column 3) -->
         <div class="grid-12">
           <div class="col-start-3 col-span-10">
-            <div class="grid grid-cols-4 gap-x-2xl gap-y-4xl">
-              <!-- Card 1 -->
-              <div class="library-card cursor-pointer">
-                <div class="library-card-image-wrapper mb-md overflow-hidden" style="aspect-ratio: 4/5;">
-                  <img src="../images/2021-動畫-Pitch-Bible-01.png" alt="Publication 1" class="library-card-image transition-transform duration-300" style="width: 100%; height: 100%; object-fit: cover;">
-                </div>
-                <div class="text-left">
-                  <h5>Publication Title 1</h5>
-                  <h5>出版物標題 1</h5>
-                  <p class="text-p1 mt-xs">2025</p>
-                </div>
-              </div>
-
-              <!-- Card 2 -->
-              <div class="library-card cursor-pointer">
-                <div class="library-card-image-wrapper mb-md overflow-hidden" style="aspect-ratio: 4/5;">
-                  <img src="../images/2021-動畫-Pitch-Bible-01.png" alt="Publication 2" class="library-card-image transition-transform duration-300" style="width: 100%; height: 100%; object-fit: cover;">
-                </div>
-                <div class="text-left">
-                  <h5>Publication Title 2</h5>
-                  <h5>出版物標題 2</h5>
-                  <p class="text-p1 mt-xs">2025</p>
-                </div>
-              </div>
-
-              <!-- Card 3 -->
-              <div class="library-card cursor-pointer">
-                <div class="library-card-image-wrapper mb-md overflow-hidden" style="aspect-ratio: 4/5;">
-                  <img src="../images/2021-動畫-Pitch-Bible-01.png" alt="Publication 3" class="library-card-image transition-transform duration-300" style="width: 100%; height: 100%; object-fit: cover;">
-                </div>
-                <div class="text-left">
-                  <h5>Publication Title 3</h5>
-                  <h5>出版物標題 3</h5>
-                  <p class="text-p1 mt-xs">2024</p>
-                </div>
-              </div>
-
-              <!-- Card 4 -->
-              <div class="library-card cursor-pointer">
-                <div class="library-card-image-wrapper mb-md overflow-hidden" style="aspect-ratio: 4/5;">
-                  <img src="../images/2021-動畫-Pitch-Bible-01.png" alt="Publication 4" class="library-card-image transition-transform duration-300" style="width: 100%; height: 100%; object-fit: cover;">
-                </div>
-                <div class="text-left">
-                  <h5>Publication Title 4</h5>
-                  <h5>出版物標題 4</h5>
-                  <p class="text-p1 mt-xs">2024</p>
-                </div>
-              </div>
-
-              <!-- Card 5 -->
-              <div class="library-card cursor-pointer">
-                <div class="library-card-image-wrapper mb-md overflow-hidden" style="aspect-ratio: 4/5;">
-                  <img src="../images/2021-動畫-Pitch-Bible-01.png" alt="Publication 5" class="library-card-image transition-transform duration-300" style="width: 100%; height: 100%; object-fit: cover;">
-                </div>
-                <div class="text-left">
-                  <h5>Publication Title 5</h5>
-                  <h5>出版物標題 5</h5>
-                  <p class="text-p1 mt-xs">2023</p>
-                </div>
-              </div>
-
-              <!-- Card 6 -->
-              <div class="library-card cursor-pointer">
-                <div class="library-card-image-wrapper mb-md overflow-hidden" style="aspect-ratio: 4/5;">
-                  <img src="../images/2021-動畫-Pitch-Bible-01.png" alt="Publication 6" class="library-card-image transition-transform duration-300" style="width: 100%; height: 100%; object-fit: cover;">
-                </div>
-                <div class="text-left">
-                  <h5>Publication Title 6</h5>
-                  <h5>出版物標題 6</h5>
-                  <p class="text-p1 mt-xs">2023</p>
-                </div>
-              </div>
-
-              <!-- Card 7 -->
-              <div class="library-card cursor-pointer">
-                <div class="library-card-image-wrapper mb-md overflow-hidden" style="aspect-ratio: 4/5;">
-                  <img src="../images/2021-動畫-Pitch-Bible-01.png" alt="Publication 7" class="library-card-image transition-transform duration-300" style="width: 100%; height: 100%; object-fit: cover;">
-                </div>
-                <div class="text-left">
-                  <h5>Publication Title 7</h5>
-                  <h5>出版物標題 7</h5>
-                  <p class="text-p1 mt-xs">2022</p>
-                </div>
-              </div>
-
-              <!-- Card 8 -->
-              <div class="library-card cursor-pointer">
-                <div class="library-card-image-wrapper mb-md overflow-hidden" style="aspect-ratio: 4/5;">
-                  <img src="../images/2021-動畫-Pitch-Bible-01.png" alt="Publication 8" class="library-card-image transition-transform duration-300" style="width: 100%; height: 100%; object-fit: cover;">
-                </div>
-                <div class="text-left">
-                  <h5>Publication Title 8</h5>
-                  <h5>出版物標題 8</h5>
-                  <p class="text-p1 mt-xs">2022</p>
-                </div>
-              </div>
-
-            </div>
+            <div id="library-list-container" class="grid grid-cols-4 gap-x-2xl gap-y-4xl"></div>
           </div>
         </div>
       </div>
     </section>
   </main>
+
+  <!-- PDF Viewer Modal -->
+  <div id="pdf-viewer-modal" class="fixed inset-0 z-[200] hidden bg-black/90 flex justify-center p-md opacity-0 transition-opacity duration-300" style="padding-top: calc(var(--header-height) + 1.5rem);">
+    <div class="relative w-full h-full max-w-6xl flex flex-col">
+      <!-- Close Button -->
+      <button id="pdf-close-btn" class="absolute -top-10 right-0 md:top-0 md:-right-12 text-white hover:text-gray-4 transition-colors duration-fast p-2"><i class="fa-solid fa-xmark text-h4"></i></button>
+      <!-- Iframe Container -->
+      <div class="w-full h-full bg-white">
+        <iframe id="pdf-iframe" src="" class="w-full h-full" frameborder="0"></iframe>
+      </div>
+    </div>
+  </div>
 
   <!-- Footer -->
   <div id="site-footer"></div>

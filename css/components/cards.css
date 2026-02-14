@@ -86,4 +86,37 @@
     aspect-ratio: 3/2;  /* 固定比例 3:2 */
     transform: translate(-50%, -50%); /* 讓圖片中心對準滑鼠 */
   }
+
+  /* ===== Card Stacks & Effects ===== */
+  .card-stack-1 {
+    transform: rotate(-4deg);
+    position: relative;
+    z-index: 1;
+  }
+
+  .card-stack-2 {
+    transform: rotate(3deg);
+    position: relative;
+    z-index: 2;
+  }
+
+  .card-stack-3 {
+    transform: rotate(-2deg);
+    position: relative;
+    z-index: 3;
+  }
+
+  @media (min-width: 768px) {
+    .hover-tilt-left:hover {
+      transform: rotate(-4deg);
+    }
+
+    .hover-tilt-right:hover {
+      transform: rotate(4deg);
+    }
+  }
+
+  .works-container {
+    height: var(--works-container-height, 500px);
+  }
 }

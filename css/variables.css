@@ -64,11 +64,13 @@
   --spacing-2xl: 4rem;    /* 64px */
   --spacing-3xl: 6rem;    /* 96px */
   --spacing-4xl: 8rem;    /* 128px */
+  --spacing-5xl: 10rem;   /* 160px */
+  --spacing-6xl: 12rem;   /* 192px */
 
 
   /* ===== Layout ===== */
   --container-max-width: 1200px;
-  --container-padding: 2rem;
+  --container-padding: 3.75rem; /* 60px */
 
 
   /* ===== Transitions ===== */
@@ -93,6 +95,8 @@
     --spacing-2xl: 3rem;       /* 48px (桌面版 64px) */
     --spacing-3xl: 4rem;       /* 64px (桌面版 96px) */
     --spacing-4xl: 5rem;       /* 80px (桌面版 128px) */
+    --spacing-5xl: 6rem;       /* 96px (桌面版 160px) */
+    --spacing-6xl: 8rem;       /* 128px (桌面版 192px) */
 
     /* Container Padding */
     --container-padding: 1.5rem;  /* 24px (桌面版 32px) */
