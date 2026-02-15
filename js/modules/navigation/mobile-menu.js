@@ -4,30 +4,54 @@
  */
 
 export function initMobileMenu() {
-  if (SCCDHelpers.isDesktop()) return; // 只在手機版執行
-
   const menuBtn = document.querySelector('.mobile-menu-btn');
   const mobileNav = document.querySelector('.mobile-nav');
   const submenuToggles = document.querySelectorAll('.mobile-submenu-toggle');
+  const menuItems = mobileNav.querySelectorAll('nav > ul > li');
 
   if (!menuBtn || !mobileNav) return;
 
   // 漢堡按鈕點擊：開關選單
   menuBtn.addEventListener('click', function() {
-    const isOpen = mobileNav.style.transform === 'translateX(0px)';
+    const isOpen = mobileNav.classList.contains('open');
+    const icon = menuBtn.querySelector('i');
 
-    if (typeof gsap !== 'undefined') {
-      gsap.to(mobileNav, {
-        x: isOpen ? '-100%' : 0,
-        duration: 0.3,
-        ease: 'power2.out'
-      });
+    if (isOpen) {
+      // 關閉
+      mobileNav.classList.remove('open');
+      if (typeof gsap !== 'undefined') {
+        gsap.to(mobileNav, { x: '-100%', duration: 0.3, ease: 'power2.out' });
+      } else {
+        mobileNav.style.transform = 'translateX(-100%)';
+      }
+      document.body.style.overflow = 'auto';
+      
+      // 切換回漢堡圖示
+      if (icon) {
+        icon.classList.remove('fa-xmark');
+        icon.classList.add('fa-bars');
+      }
     } else {
-      mobileNav.style.transform = isOpen ? 'translateX(-100%)' : 'translateX(0)';
-    }
+      // 開啟
+      mobileNav.classList.add('open');
+      if (typeof gsap !== 'undefined') {
+        gsap.to(mobileNav, { x: '0%', duration: 0.5, ease: 'power2.out' });
+        // 選單項目逐一浮現 (Stagger Animation)
+        gsap.fromTo(menuItems, 
+          { y: 20, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.4, stagger: 0.05, ease: 'power2.out', delay: 1 }
+        );
+      } else {
+        mobileNav.style.transform = 'translateX(0)';
+      }
+      document.body.style.overflow = 'hidden';
 
-    // 切換 body overflow
-    document.body.style.overflow = isOpen ? 'auto' : 'hidden';
+      // 切換為 X 圖示
+      if (icon) {
+        icon.classList.remove('fa-bars');
+        icon.classList.add('fa-xmark');
+      }
+    }
   });
 
   // 子選單展開/收合
@@ -60,16 +84,20 @@ export function initMobileMenu() {
   const mobileNavLinks = mobileNav.querySelectorAll('a');
   mobileNavLinks.forEach(link => {
     link.addEventListener('click', function() {
+      mobileNav.classList.remove('open');
       if (typeof gsap !== 'undefined') {
-        gsap.to(mobileNav, {
-          x: '-100%',
-          duration: 0.3,
-          ease: 'power2.out'
-        });
+        gsap.to(mobileNav, { x: '-100%', duration: 0.3, ease: 'power2.out' });
       } else {
         mobileNav.style.transform = 'translateX(-100%)';
       }
       document.body.style.overflow = 'auto';
+
+      // 點擊連結後也要切換回漢堡圖示
+      const icon = menuBtn.querySelector('i');
+      if (icon) {
+        icon.classList.remove('fa-xmark');
+        icon.classList.add('fa-bars');
+      }
     });
   });
 }

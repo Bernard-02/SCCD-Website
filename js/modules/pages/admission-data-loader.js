@@ -37,9 +37,9 @@ function renderAdmissionList(data, container) {
 
     itemsToShow.forEach(item => {
       const html = `
-        <div class="admission-item flex items-baseline">
-          <h5 class="font-regular" style="flex: 0 0 20%;">${item.date}</h5>
-          <a href="admission-detail.html?id=${item.id}" class="border-b border-gray-9 pb-sm block group" style="flex: 1;">
+        <div class="admission-item grid grid-cols-12 gap-y-xs md:gap-x-lg items-baseline border-b border-gray-9 pb-md">
+          <h5 class="col-span-12 md:col-span-3 font-regular">${item.date}</h5>
+          <a href="admission-detail.html?id=${item.id}" class="col-span-12 md:col-span-9 block group w-full">
             <h5 class="font-regular group-hover:font-bold transition-all duration-fast">${item.title}</h5>
           </a>
         </div>

@@ -1,6 +1,6 @@
 {
   "design-fundamental": {
-    "titleHtml": "Design<br>Fundamental<br>創作基礎作品",
+    "titleHtml": "Design <br class=\"hidden md:inline\">Fundamental<br>創作基礎作品",
     "descriptionEn": "Foundation courses that develop core design principles, visual literacy, and technical skills essential for creative media practice.",
     "descriptionZh": "培養核心設計原則、視覺素養與技術能力的基礎課程，為創意媒體實踐奠定根基。",
     "heroImage": "../images/SCCD-1-4-0.jpg",
@@ -71,7 +71,7 @@
     "videoUrl": "https://www.youtube.com/embed/qklohUskSX4?list=PLG0DnOKlL-llBG3d2yiQeQnhN6MK95pM4"
   },
   "creative-media": {
-    "titleHtml": "Creative<br>Media<br>創意媒體作品",
+    "titleHtml": "Creative <br class=\"hidden md:inline\">Media<br>創意媒體作品",
     "descriptionEn": "Innovative media projects that integrate technology, interactivity, and creative storytelling.",
     "descriptionZh": "融合技術、互動與創意敘事的創新媒體專案。",
     "heroImage": "../images/SCCD-1-4-0.jpg",

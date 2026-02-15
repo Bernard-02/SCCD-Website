@@ -14,7 +14,7 @@ export async function loadSupportData() {
     container.innerHTML = data.map(item => `
       <div class="course-item overflow-hidden border-b border-gray-9">
         <div class="course-header flex items-center justify-between py-md cursor-pointer">
-          <h6>${item.title}</h6>
+          <h5>${item.title}</h5>
           <i class="fa-solid fa-chevron-down text-p1 transition-transform duration-300"></i>
         </div>
         <div class="course-content h-0 overflow-hidden">

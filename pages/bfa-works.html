@@ -7,6 +7,15 @@
   <link rel="stylesheet" href="../css/variables.css">
   <link rel="stylesheet" href="../css/output.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    .no-scrollbar::-webkit-scrollbar {
+      display: none !important;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
 </head>
 <body>
 
@@ -27,14 +36,14 @@
 
       <!-- Content Container -->
       <div class="site-container h-full relative z-10">
-        <div class="h-full flex items-end gap-xl pb-2xl">
-          <!-- Title on the left (50%) with -4deg rotation -->
-          <div class="w-1/2">
-            <h1 class="text-white pb-xl hero-title">BFA<br>WORKS</h1>
+        <div class="h-full flex flex-col md:flex-row justify-end md:justify-start items-start md:items-end gap-lg md:gap-xl pb-3xl md:pb-2xl pt-[120px] md:pt-0">
+          <!-- Title on the left (Mobile: 100%, Desktop: 50%) -->
+          <div class="w-full md:w-1/2">
+            <h1 class="text-white pb-lg md:pb-xl hero-title">BFA<br>WORKS</h1>
           </div>
 
-          <!-- Content on the right (50%) -->
-          <div class="w-1/2">
+          <!-- Content on the right (Mobile: 100%, Desktop: 50%) -->
+          <div class="w-full md:w-1/2">
             <!-- English text with 3deg rotation -->
             <p class="text-white mb-xl hero-text-en">
               A showcase of outstanding creative works by undergraduate students, demonstrating innovation and excellence in media design.
@@ -53,16 +62,16 @@
       <div class="site-container">
 
         <!-- Shift Tab Navigation -->
-        <div class="flex justify-center gap-md mb-6xl">
-          <button class="works-filter-btn active px-lg py-sm text-p1 font-bold transition-all duration-fast rounded-[50px] text-center" data-filter="design-fundamental">
+        <div class="flex overflow-x-auto md:justify-center gap-md mb-4xl md:pb-0 no-scrollbar mx-[calc(var(--container-padding)*-1)] px-[var(--container-padding)] md:mx-0 md:px-0">
+          <button class="works-filter-btn shrink-0 active px-lg py-sm text-p1 font-bold transition-all duration-fast rounded-[50px] text-center" data-filter="design-fundamental">
             <div class="whitespace-nowrap">Design Fundamental</div>
             <div class="mt-1 whitespace-nowrap">創作基礎作品</div>
           </button>
-          <button class="works-filter-btn px-lg py-sm text-p1 font-bold transition-all duration-fast rounded-[50px] text-center" data-filter="animation">
+          <button class="works-filter-btn shrink-0 px-lg py-sm text-p1 font-bold transition-all duration-fast rounded-[50px] text-center" data-filter="animation">
             <div class="whitespace-nowrap">Animation</div>
             <div class="mt-1 whitespace-nowrap">動畫作品</div>
           </button>
-          <button class="works-filter-btn px-lg py-sm text-p1 font-bold transition-all duration-fast rounded-[50px] text-center" data-filter="creative-media">
+          <button class="works-filter-btn shrink-0 px-lg py-sm text-p1 font-bold transition-all duration-fast rounded-[50px] text-center" data-filter="creative-media">
             <div class="whitespace-nowrap">Creative Media</div>
             <div class="mt-1 whitespace-nowrap">創意媒體作品</div>
           </button>

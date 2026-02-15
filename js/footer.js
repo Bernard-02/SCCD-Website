@@ -25,7 +25,10 @@ export function initFooter() {
         // if (yearSpan) yearSpan.textContent = new Date().getFullYear();
         // HTML 載入完成後，初始化拖曳功能
         // 使用 setTimeout 確保 DOM 已經完全渲染
-        setTimeout(initFooterDraggable, 100);
+        // 手機版暫時不啟用拖曳功能
+        if (window.innerWidth >= 768) {
+          setTimeout(initFooterDraggable, 100);
+        }
       })
       .catch(e => console.log('Footer load failed', e));
   }

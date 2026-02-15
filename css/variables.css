@@ -40,7 +40,7 @@
   --font-size-h2: 6rem;    /* 80px */
   --font-size-h3: 3.125rem;  /* 50px */
   --font-size-h4: 2rem;    /* 40px */
-  --font-size-h5: 1.35rem;    /* 24px */
+  --font-size-h5: 1.4rem;    /* 24px */
   --font-size-h6: 1.25rem;   /* 20px */
   --font-size-p1: 1rem;      /* 16px */
 
@@ -87,8 +87,9 @@
     --font-size-h2: 2.5rem;    /* 40px (桌面版 96px) */
     --font-size-h3: 2rem;      /* 32px (桌面版 50px) */
     --font-size-h4: 1.5rem;    /* 24px (桌面版 32px) */
-    --font-size-h5: 1.125rem;  /* 18px (桌面版 21.6px) */
+    --font-size-h5: 1.2rem;  /* 18px (桌面版 21.6px) */
     --font-size-h6: 1rem;      /* 16px (桌面版 20px) */
+    --font-size-p1: 0.875rem;  /* 14px (桌面版 16px) */
 
     /* 間距調整 */
     --spacing-xl: 2rem;        /* 32px (桌面版 48px) */

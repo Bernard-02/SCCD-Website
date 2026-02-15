@@ -16,9 +16,9 @@
   <!-- Main Content -->
   <main>
     <!-- Hero Section -->
-    <section class="h-screen relative overflow-hidden">
-      <div class="absolute inset-0 w-full h-full">
-        <img id="hero-img" src="" alt="Degree Show" class="w-full h-full object-cover">
+    <section class="h-[700px] md:h-screen relative overflow-hidden">
+      <div class="relative md:absolute inset-0 w-full h-full md:h-full">
+        <img id="hero-img" src="" alt="Degree Show" class="w-full h-full md:h-full object-cover">
       </div>
     </section>
 
@@ -28,7 +28,7 @@
 
         <!-- 文字區 -->
         <div class="grid-12 mb-4xl">
-          <div class="col-start-3 col-span-10">
+          <div class="col-span-12 md:col-start-3 md:col-span-10">
             <!-- 標題 + 年份 -->
             <h2 id="text-title" class="mb-xs"></h2>
             <h4 id="text-year" class="mb-2xl"></h4>
@@ -70,26 +70,31 @@
     </section>
 
     <!-- Next Project Section -->
-    <section id="next-project-section" class="bg-white h-screen pb-2xl">
-      <div class="site-container h-full flex flex-col justify-center gap-4xl">
-        <!-- 標題 -->
-        <div>
-          <h3 class="-rotate-4 whitespace-nowrap">Next Degree Show</h3>
-        </div>
+    <section id="next-project-section" class="bg-white h-auto pb-2xl md:pb-6xl">
+      <div class="site-container">
+        <div class="grid-12 items-start gap-y-xl md:gap-y-0">
+          <!-- 標題 -->
+          <div class="col-span-12 md:col-span-3">
+            <h3 class="md:-rotate-4 whitespace-nowrap leading-tight">Next<br>Degree Show</h3>
+          </div>
 
-        <!-- 縮圖 -->
-        <div class="grid-12">
-          <div class="col-start-4 col-end-12">
+          <!-- 縮圖 -->
+          <div class="col-span-12 md:col-start-6 md:col-span-7">
             <a id="next-link" href="#" class="block relative group">
-              <div class="relative overflow-hidden aspect-video rotate-3">
+              <div class="relative overflow-hidden aspect-video md:rotate-3">
                 <img id="next-img" src="../images/Degree Show.jpg" alt="" class="w-full h-full object-cover">
                 <!-- Hover overlay + 文字 -->
-                <div class="absolute inset-0 bg-black opacity-0 group-hover:opacity-60 transition-opacity duration-300">
+                <div class="hidden md:block absolute inset-0 bg-black opacity-0 group-hover:opacity-60 transition-opacity duration-300">
                 </div>
-                <div class="absolute bottom-0 left-0 p-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <h3 id="next-year" class="text-white whitespace-nowrap"></h3>
-                  <h3 id="next-title" class="text-white whitespace-nowrap"></h3>
+                <div class="hidden md:block absolute bottom-0 left-0 p-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <h4 id="next-year" class="text-white whitespace-nowrap mb-sm"></h4>
+                  <h4 id="next-title" class="text-white whitespace-nowrap"></h4>
                 </div>
+              </div>
+              <!-- Mobile Text (Below Image) -->
+              <div class="md:hidden mt-sm">
+                <h5 id="next-year-mobile" class="text-black whitespace-nowrap"></h5>
+                <h5 id="next-title-mobile" class="text-black whitespace-nowrap"></h5>
               </div>
             </a>
           </div>

@@ -7,6 +7,15 @@
   <link rel="stylesheet" href="../css/variables.css">
   <link rel="stylesheet" href="../css/output.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    .no-scrollbar::-webkit-scrollbar {
+      display: none !important;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
 </head>
 <body>
 
@@ -27,14 +36,14 @@
 
       <!-- Content Container -->
       <div class="site-container h-full relative z-10">
-        <div class="h-full flex items-end gap-xl pb-2xl">
-          <!-- Title on the left (50%) with -4deg rotation -->
-          <div class="w-1/2">
-            <h1 class="text-white pb-xl hero-title">FACULTY</h1>
+        <div class="h-full flex flex-col md:flex-row justify-end md:justify-start items-start md:items-end gap-lg md:gap-xl pb-3xl md:pb-2xl pt-[120px] md:pt-0">
+          <!-- Title on the left (Mobile: 100%, Desktop: 50%) -->
+          <div class="w-full md:w-1/2">
+            <h1 class="text-white pb-lg md:pb-xl hero-title">FACULTY</h1>
           </div>
 
-          <!-- Content on the right (50%) -->
-          <div class="w-1/2">
+          <!-- Content on the right (Mobile: 100%, Desktop: 50%) -->
+          <div class="w-full md:w-1/2">
             <!-- English text with 3deg rotation -->
             <p class="text-white mb-xl hero-text-en">
               Professors of SCCD are composed of cross-disciplinary experts from academia, design industry and art field. Possess a theoretical and research background in design and art education at domestic and foreign, rich and diverse performance and creative practical experience, and have In-depth understanding of the professional education goals of the department. It is expected that students with different characteristics and attributes will expand their plasticity and give corresponding inspiration, strengthen student’s professional skills and trend perception ability, and consolidate students expand their potential and explosive power whether in academic research, design practice, artistic creation with future vision.
@@ -51,19 +60,19 @@
     <!-- Faculty Cards Section -->
     <section id="faculty-cards" class="bg-white py-6xl">
       <div class="site-container">
-        <div class="flex gap-gutter">
+        <div class="flex flex-col md:flex-row gap-gutter">
           <!-- Filter Buttons (Left side - fixed width) -->
-          <div style="flex: 0 0 calc(25% - 1.25rem);">
-            <div class="sticky top-[200px] flex flex-col gap-md">
-              <button class="faculty-filter-btn active text-left nav-link transition-colors duration-fast" data-filter="fulltime">
-                <span class="block">Full-time Professors</span>
+          <div class="w-full md:flex-[0_0_calc(25%_-_1.25rem)]">
+            <div class="flex flex-row flex-wrap md:flex-col gap-md mb-xl md:mb-0 md:sticky md:top-[200px]">
+              <button class="faculty-filter-btn w-fit active text-left nav-link transition-colors duration-fast" data-filter="fulltime">
+                <span class="block">Full-time <br class="md:hidden">Professors</span>
                 <span class="block">專任教師</span>
               </button>
-              <button class="faculty-filter-btn text-left nav-link transition-colors duration-fast" data-filter="parttime">
-                <span class="block">Part-time Professors</span>
+              <button class="faculty-filter-btn w-fit text-left nav-link transition-colors duration-fast" data-filter="parttime">
+                <span class="block">Part-time <br class="md:hidden">Professors</span>
                 <span class="block">兼任教師</span>
               </button>
-              <button class="faculty-filter-btn text-left nav-link transition-colors duration-fast" data-filter="admin">
+              <button class="faculty-filter-btn w-fit text-left nav-link transition-colors duration-fast" data-filter="admin">
                 <span class="block">Administrators</span>
                 <span class="block">行政管理</span>
               </button>
@@ -71,11 +80,11 @@
           </div>
 
           <!-- Faculty Cards (Right side - flexible width) -->
-          <div class="flex-1 pr-16">
+          <div class="flex-1 md:pr-16">
             <!-- Containers for dynamic data -->
-            <div id="faculty-fulltime-list" class="grid grid-cols-4 gap-x-2xl gap-y-4xl"></div>
-            <div id="faculty-parttime-list" class="grid grid-cols-4 gap-x-2xl gap-y-4xl"></div>
-            <div id="faculty-admin-list" class="grid grid-cols-4 gap-x-2xl gap-y-4xl"></div>
+            <div id="faculty-fulltime-list" class="grid grid-cols-2 md:grid-cols-4 gap-x-md gap-y-xl md:gap-x-2xl md:gap-y-4xl"></div>
+            <div id="faculty-parttime-list" class="grid grid-cols-2 md:grid-cols-4 gap-x-md gap-y-xl md:gap-x-2xl md:gap-y-4xl"></div>
+            <div id="faculty-admin-list" class="grid grid-cols-2 md:grid-cols-4 gap-x-md gap-y-xl md:gap-x-2xl md:gap-y-4xl"></div>
           </div>
         </div>
       </div>
@@ -89,24 +98,30 @@
 
     <!-- Panel (White, Slide from right) -->
     <!-- Left position: 2.5 columns out of 12 approx 20.833% -->
-    <div id="faculty-panel" class="absolute top-0 right-0 bottom-0 bg-white transform translate-x-full overflow-visible" style="left: 20.8333%;">
+    <div id="faculty-panel" class="absolute top-0 right-0 bottom-0 bg-white transform translate-x-[110%] overflow-visible left-0 md:left-[20.8333%]">
 
-      <!-- Back Button (Outside left edge, bookmark style) -->
-      <button id="faculty-back-btn" class="absolute flex items-center justify-center bg-white cursor-pointer transform translate-x-full" style="width: 4rem; height: 4rem; left: -4rem; top: calc(var(--header-height, 80px) - 0.05rem); z-index: 30;">
+      <!-- Desktop Back Button (Absolute outside left) -->
+      <button id="faculty-back-btn" class="hidden md:flex absolute items-center justify-center cursor-pointer z-30 bg-white w-[4rem] h-[4rem] -left-[4rem] top-[calc(var(--header-height,80px)-0.05rem)]">
         <i class="fa-solid fa-arrow-left text-black text-xl transition-transform duration-300"></i>
       </button>
 
       <!-- Scrollable Content Wrapper -->
-      <div class="w-full h-full overflow-y-auto">
+      <div class="w-full h-full overflow-y-auto no-scrollbar">
       <!-- Content Container -->
       <!-- Padding right follows site container, Padding left custom -->
-      <div class="w-full min-h-full px-container-padding py-4xl box-border relative">
-        <div class="flex gap-3xl h-full relative">
+      <div class="w-full min-h-full px-container-padding pt-[calc(var(--header-height,80px)+3rem)] pb-4xl md:py-4xl box-border relative">
+        
+        <!-- Mobile Back Button (Relative inside flow) -->
+        <button id="faculty-back-btn-mobile" class="md:hidden block mb-xl cursor-pointer bg-transparent">
+          <i class="fa-solid fa-arrow-left text-black text-xl"></i>
+        </button>
+
+        <div class="flex flex-col md:flex-row gap-xl md:gap-3xl h-full relative">
 
           <!-- Left: Image and Name (Sticky) -->
-          <div class="sticky self-start" style="flex: 0 0 22%; top: 8rem;">
+          <div class="w-full md:w-[22%] md:sticky md:self-start md:top-[8rem]">
             <!-- Image with rotation -->
-            <div style="aspect-ratio: 4/5; width: 100%; transform: rotate(-4deg); margin-bottom: 4rem;">
+            <div class="mb-2xl md:mb-2xl w-[65%] ml-xl md:w-full md:ml-0" style="aspect-ratio: 4/5; transform: rotate(-4deg);">
               <img id="faculty-detail-image" src="../images/S__6742028.jpg" alt="Faculty" class="w-full h-full object-cover object-center">
             </div>
             <!-- Name below image -->
@@ -119,7 +134,7 @@
           <!-- Right: Title and Details (Scrollable) -->
           <div class="flex-1 flex flex-col">
             <!-- Teacher Title -->
-            <div class="mb-4xl">
+            <div class="mb-xl md:mb-4xl">
               <h6 id="faculty-detail-title-en" class="font-regular text-black">Founder</h6>
               <h6 id="faculty-detail-title-zh" class="font-regular text-black">創辦人</h6>
             </div>

@@ -48,16 +48,16 @@ function renderCourseGroup(courses, type, program) {
   grades.forEach((gradeInfo, gradeIndex) => {
     // 篩選出符合「目前類別 (type)」與「目前年級 (grade)」的課程
     // 這就是模擬 WordPress Tag 的篩選邏輯
-    const gradeCourses = courses.filter(c => c.type === type && c.grade === gradeInfo.key);
-    
+    let gradeCourses = courses.filter(c => c.type === type && c.grade === gradeInfo.key);
+
     if (gradeCourses.length > 0) {
       const gradeSection = document.createElement('div');
       
       // 判斷是否為最後一個年級 (樣式調整：最後一個不需要底線)
       const isLastGrade = gradeIndex === grades.length - 1;
       gradeSection.className = isLastGrade 
-        ? 'flex items-start' 
-        : 'flex items-start border-b border-gray-9 pb-xl mb-xl';
+        ? 'flex flex-col md:flex-row items-start' 
+        : 'flex flex-col md:flex-row items-start border-b border-gray-9 pb-xl mb-xl';
 
       let coursesHtml = '';
       gradeCourses.forEach((course, index) => {
@@ -84,8 +84,8 @@ function renderCourseGroup(courses, type, program) {
       });
 
       gradeSection.innerHTML = `
-        <h5 style="flex: 0 0 calc(25% - 0.625rem);" class="pt-sm font-regular">${gradeInfo.title}</h5>
-        <div class="flex flex-col" style="flex: 1;">
+        <h5 class="w-full md:flex-[0_0_calc(25%_-_0.625rem)] pt-sm font-regular mb-md md:mb-0">${gradeInfo.title}</h5>
+        <div class="flex flex-col w-full md:flex-1">
           ${coursesHtml}
         </div>
       `;

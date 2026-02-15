@@ -35,7 +35,8 @@ import { initWorkshopAccordion } from './modules/accordions/workshop-accordion.j
 import { initActivitiesYearToggle } from './modules/accordions/activities-year-toggle.js';
 
 // Import Data Loaders
-import { loadGeneralActivities, loadWorkshops, loadSummerCamp } from './modules/pages/activities-data-loader.js';
+import { loadWorkshops, loadSummerCamp } from './modules/pages/activities-data-loader.js';
+import { loadGeneralActivities } from './modules/pages/general-activities-data-loader.js';
 import { loadRecords } from './modules/pages/records-data-loader.js';
 import { loadCourses } from './modules/pages/courses-data-loader.js';
 import { loadFacultyData } from './modules/pages/faculty-data-loader.js';

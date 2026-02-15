@@ -10,15 +10,23 @@ export function initActivitiesYearToggle() {
 
   // Initialize heights for all containers on page load
   activitiesYearToggles.forEach(toggle => {
-    // Try to find parent grid (either grid-cols-11 for general-activities or grid-12 for records)
-    const yearGrid = toggle.closest('.grid.grid-cols-11') || toggle.closest('.grid-12');
+    // Try to find parent grid (support activities-year-grid or grid-12)
+    const yearGrid = toggle.closest('.activities-year-grid') || toggle.closest('.grid-12');
     if (yearGrid) {
       const itemsContainer = yearGrid.querySelector('.activities-year-items');
-      const chevron = yearGrid.querySelector('.fa-chevron-right');
+      const chevron = yearGrid.querySelector('.h-toggle i'); // Select generic icon
 
       if (itemsContainer) {
-        // Check if chevron has rotate-90 class (indicates initially open)
-        const isInitiallyOpen = chevron && chevron.classList.contains('rotate-90');
+        // Determine initial state based on chevron type or class
+        // For General Activities (chevron-down): initially open (0 deg), closed (180 deg)
+        // For Records (chevron-right): initially open (rotate-90), closed (0 deg)
+        
+        const isChevronDown = chevron && chevron.classList.contains('fa-chevron-down');
+        const isChevronRight = chevron && chevron.classList.contains('fa-chevron-right');
+        
+        // Default to open for General Activities (no rotate class needed for down icon to be open/down)
+        // For Records, check for rotate-90
+        const isInitiallyOpen = isChevronDown || (isChevronRight && chevron.classList.contains('rotate-90'));
 
         if (isInitiallyOpen) {
           // Set initial height to auto for open state
@@ -26,6 +34,8 @@ export function initActivitiesYearToggle() {
         } else {
           // Set initial height to 0 and hide for closed state
           gsap.set(itemsContainer, { height: 0, display: 'none', overflow: 'hidden' });
+          // If closed and chevron-down, set to 180 (Up)
+          if (isChevronDown) gsap.set(chevron, { rotation: 180 });
         }
       }
     }
@@ -34,13 +44,13 @@ export function initActivitiesYearToggle() {
   // Toggle click event
   activitiesYearToggles.forEach(toggle => {
     toggle.addEventListener('click', function() {
-      // Find the year group container (parent of the grid) - support both grid-cols-11 and grid-12
-      const yearGrid = this.closest('.grid.grid-cols-11') || this.closest('.grid-12');
+      // Find the year group container
+      const yearGrid = this.closest('.activities-year-grid') || this.closest('.grid-12');
 
       if (!yearGrid) return;
 
       // Find the chevron and items container within this year group
-      const chevron = yearGrid.querySelector('.fa-chevron-right');
+      const chevron = yearGrid.querySelector('.h-toggle i');
       const itemsContainer = yearGrid.querySelector('.activities-year-items');
 
       if (itemsContainer) {
@@ -58,7 +68,13 @@ export function initActivitiesYearToggle() {
               itemsContainer.style.display = 'none';
             }
           });
-          if (chevron) gsap.to(chevron, { rotation: 0, duration: 0.3 });
+          
+          if (chevron) {
+            // If chevron-down: rotate to 180 (Up)
+            // If chevron-right: rotate to 0 (Right)
+            const targetRotation = chevron.classList.contains('fa-chevron-down') ? 180 : 0;
+            gsap.to(chevron, { rotation: targetRotation, duration: 0.3 });
+          }
         } else {
           // Open with GSAP animation
           itemsContainer.style.display = 'flex';
@@ -71,7 +87,13 @@ export function initActivitiesYearToggle() {
               itemsContainer.style.overflow = 'visible'; // Set to visible after animation completes
             }
           });
-          if (chevron) gsap.to(chevron, { rotation: 90, duration: 0.3 });
+          
+          if (chevron) {
+            // If chevron-down: rotate to 0 (Down)
+            // If chevron-right: rotate to 90 (Down)
+            const targetRotation = chevron.classList.contains('fa-chevron-down') ? 0 : 90;
+            gsap.to(chevron, { rotation: targetRotation, duration: 0.3 });
+          }
         }
       }
     });

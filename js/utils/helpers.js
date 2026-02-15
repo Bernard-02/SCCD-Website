@@ -51,7 +51,19 @@ window.SCCDHelpers = window.SCCDHelpers || {};
     offset = offset || 0;
     behavior = behavior || 'smooth';
 
-    const element = typeof target === 'string' ? document.querySelector(target) : target;
+    let element;
+    if (typeof target === 'string') {
+      // 確保是 ID 選擇器，避免一般網址報錯
+      if (!target.startsWith('#')) return;
+      try {
+        element = document.querySelector(target);
+      } catch (e) {
+        return;
+      }
+    } else {
+      element = target;
+    }
+    
     if (!element) return;
 
     const y = element.getBoundingClientRect().top + window.pageYOffset + offset;

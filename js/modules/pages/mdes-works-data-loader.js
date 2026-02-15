@@ -48,7 +48,7 @@ export async function loadMDESWorks() {
       // 2. Render Hero Image
       const heroHtml = `
         <div class="works-content ${hiddenClass}" data-category="${categoryKey}">
-          <div class="w-full mb-6xl mt-6xl">
+          <div class="w-full md:mb-6xl md:mt-6xl">
             <img src="${categoryData.heroImage}" alt="${categoryKey}" class="w-full aspect-video object-cover">
           </div>
         </div>
@@ -72,12 +72,12 @@ export async function loadMDESWorks() {
           if (project.layout === 'image-left') {
             projectsHtml += `
               <div class="grid-12">
-                <div class="col-span-6 relative flex justify-center items-center h-works-container">
+                <div class="col-span-12 md:col-span-6 relative flex justify-center items-center works-container md:mb-0">
                   ${imagesStackHtml}
                 </div>
-                <div class="col-start-7 col-span-5 flex items-center">
+                <div class="col-span-12 md:col-start-7 md:col-span-5 flex items-center">
                   <div>
-                    <h5 class="mb-lg">${project.title}</h5>
+                    <h5 class="mb-sm md:mb-lg">${project.title}</h5>
                     ${project.textEn ? `<p class="mb-sm">${project.textEn}</p>` : ''}
                     <p>${project.textZh}</p>
                   </div>
@@ -87,14 +87,14 @@ export async function loadMDESWorks() {
           } else {
             projectsHtml += `
               <div class="grid-12">
-                <div class="col-start-2 col-span-5 flex items-center">
+                <div class="col-span-12 md:col-start-2 md:col-span-5 flex items-center order-2 md:order-none">
                   <div>
-                    <h5 class="mb-lg">${project.title}</h5>
+                    <h5 class="mb-sm md:mb-lg">${project.title}</h5>
                     ${project.textEn ? `<p class="mb-sm">${project.textEn}</p>` : ''}
                     <p>${project.textZh}</p>
                   </div>
                 </div>
-                <div class="col-start-7 col-span-6 relative flex justify-center items-center h-works-container">
+                <div class="col-span-12 md:col-start-7 md:col-span-6 relative flex justify-center items-center works-container order-1 md:order-none md:mb-0">
                   ${imagesStackHtml}
                 </div>
               </div>
@@ -105,7 +105,7 @@ export async function loadMDESWorks() {
 
       const detailsHtml = `
         <div class="works-content ${hiddenClass}" data-category="${categoryKey}">
-          <div class="flex flex-col gap-6xl py-6xl">
+          <div class="flex flex-col gap-6xl pt-6xl">
             ${projectsHtml}
           </div>
         </div>

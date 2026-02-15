@@ -29,11 +29,11 @@ export async function loadBFAWorks() {
       const introHtml = `
         <div class="works-content ${hiddenClass}" data-category="${categoryKey}">
           <div class="grid-12 mb-6xl">
-            <div class="col-start-2 col-span-2">
-              <h3 class="rotate--4 inline-block whitespace-nowrap">${categoryData.titleHtml}</h3>
+            <div class="col-span-12 md:col-start-2 md:col-span-2 mb-lg md:mb-0">
+              <h3 class="md:rotate--4 inline-block whitespace-nowrap">${categoryData.titleHtml}</h3>
             </div>
-            <div class="col-start-6 col-span-6 pt-xl">
-              <div class="rotate-3 inline-block">
+            <div class="col-span-12 md:col-start-6 md:col-span-6 pt-0 md:pt-xl">
+              <div class="md:rotate-3 inline-block">
                 <p class="mb-md">${categoryData.descriptionEn}</p>
                 <p>${categoryData.descriptionZh}</p>
               </div>
@@ -46,7 +46,7 @@ export async function loadBFAWorks() {
       // 2. Render Hero Image
       const heroHtml = `
         <div class="works-content ${hiddenClass}" data-category="${categoryKey}">
-          <div class="w-full mb-6xl mt-6xl">
+          <div class="w-full md:mb-6xl md:mt-6xl">
             <img src="${categoryData.heroImage}" alt="${categoryKey}" class="w-full aspect-video object-cover">
           </div>
         </div>
@@ -71,12 +71,12 @@ export async function loadBFAWorks() {
           if (project.layout === 'image-left') {
             projectsHtml += `
               <div class="grid-12">
-                <div class="col-span-6 relative flex justify-center items-center h-works-container">
+                <div class="col-span-12 md:col-span-6 relative flex justify-center items-center works-container md:mb-0">
                   ${imagesStackHtml}
                 </div>
-                <div class="col-start-7 col-span-5 flex items-center">
+                <div class="col-span-12 md:col-start-7 md:col-span-5 flex items-center">
                   <div>
-                    <h5 class="mb-lg">${project.title}</h5>
+                    <h5 class="mb-sm md:mb-lg">${project.title}</h5>
                     ${project.textEn ? `<p class="mb-sm">${project.textEn}</p>` : ''}
                     <p>${project.textZh}</p>
                   </div>
@@ -86,14 +86,14 @@ export async function loadBFAWorks() {
           } else {
             projectsHtml += `
               <div class="grid-12">
-                <div class="col-start-2 col-span-5 flex items-center">
+                <div class="col-span-12 md:col-start-2 md:col-span-5 flex items-center order-2 md:order-none">
                   <div>
-                    <h5 class="mb-lg">${project.title}</h5>
+                    <h5 class="mb-sm md:mb-lg">${project.title}</h5>
                     ${project.textEn ? `<p class="mb-sm">${project.textEn}</p>` : ''}
                     <p>${project.textZh}</p>
                   </div>
                 </div>
-                <div class="col-start-7 col-span-6 relative flex justify-center items-center h-works-container">
+                <div class="col-span-12 md:col-start-7 md:col-span-6 relative flex justify-center items-center works-container order-1 md:order-none md:mb-0">
                   ${imagesStackHtml}
                 </div>
               </div>
@@ -116,7 +116,7 @@ export async function loadBFAWorks() {
 
         videoHtml = `
           <div class="grid-12">
-              <div class="col-start-2 col-span-10">
+              <div class="col-span-12 md:col-start-2 md:col-span-10">
                   ${videoContent}
               </div>
           </div>

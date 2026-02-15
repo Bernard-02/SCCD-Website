@@ -119,4 +119,30 @@
   .works-container {
     height: var(--works-container-height, 500px);
   }
+
+  /* ===== Mobile Responsive for Works Container ===== */
+  @media (max-width: 767px) {
+    .works-container {
+      height: auto !important;
+      display: flex !important; /* 改為 Flex 佈局以支援橫向排列 */
+      overflow-x: auto;         /* 開啟橫向捲動 */
+      gap: 1rem;                /* 圖片間距 */
+      scroll-snap-type: x mandatory; /* 滑動吸附效果 */
+      padding-bottom: 1rem;     /* 預留空間 */
+      justify-content: flex-start !important; /* 確保靠左開始 */
+      scrollbar-width: none;    /* Firefox 隱藏捲軸 */
+    }
+    .works-container::-webkit-scrollbar { display: none; } /* Chrome/Safari 隱藏捲軸 */
+
+    .works-container img.absolute {
+      position: relative !important;
+      top: auto !important;
+      left: auto !important;
+      width: 85% !important;    /* 讓圖片佔據 85% 寬度，暗示可滑動 */
+      transform: none !important; /* 移除旋轉 */
+      margin-bottom: 0 !important;
+      flex-shrink: 0;           /* 防止圖片被壓縮 */
+      scroll-snap-align: center; /* 吸附對齊 */
+    }
+  }
 }

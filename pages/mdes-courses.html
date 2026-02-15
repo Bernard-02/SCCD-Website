@@ -27,20 +27,20 @@
 
       <!-- Content Container -->
       <div class="site-container h-full relative z-10">
-        <div class="h-full flex items-end gap-xl pb-2xl">
-          <!-- Title on the left (50%) with -4deg rotation -->
-          <div class="w-1/2">
-            <h1 class="text-white pb-xl" style="transform: rotate(-4deg);">MDES COURSES</h1>
+        <div class="h-full flex flex-col md:flex-row justify-end md:justify-start items-start md:items-end gap-lg md:gap-xl pb-3xl md:pb-2xl pt-[120px] md:pt-0">
+          <!-- Title on the left (Mobile: 100%, Desktop: 50%) -->
+          <div class="w-full md:w-1/2">
+            <h1 class="text-white pb-lg md:pb-xl hero-title">MDES COURSES</h1>
           </div>
 
-          <!-- Content on the right (50%) -->
-          <div class="w-1/2">
+          <!-- Content on the right (Mobile: 100%, Desktop: 50%) -->
+          <div class="w-full md:w-1/2">
             <!-- English text with 3deg rotation -->
-            <p class="text-white mb-xl" style="transform: rotate(3deg);">
+            <p class="text-white mb-xl hero-text-en">
               Advance your expertise with our Master of Design Studies program, focusing on research and innovation in communications design.
             </p>
             <!-- Chinese text with -2deg rotation -->
-            <p class="text-white" style="transform: rotate(-2deg);">
+            <p class="text-white hero-text-cn">
               碩士班課程，深入研究媒體傳達設計領域的理論與實務，開拓設計的前衛視野。
             </p>
           </div>
@@ -51,10 +51,10 @@
     <!-- MDES Courses Content Section -->
     <section id="mdes-courses-section" class="courses-content-section bg-white py-6xl">
       <div class="site-container">
-        <div class="flex gap-gutter">
+        <div class="flex flex-col md:flex-row gap-gutter">
           <!-- Filter Buttons (Left side) -->
-          <div style="flex: 0 0 calc(16.67% - 0.625rem);">
-            <div class="sticky top-[200px] flex flex-col gap-md">
+          <div class="w-full md:flex-[0_0_calc(16.67%_-_0.625rem)]">
+            <div class="flex flex-row md:flex-col gap-md mb-xl md:mb-0 md:sticky md:top-[200px]">
               <button class="courses-filter-btn active text-left nav-link transition-colors duration-fast" data-filter="required">
                 <span class="block">Required Courses</span>
                 <span class="block">必修課程</span>

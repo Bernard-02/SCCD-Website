@@ -3,7 +3,7 @@
  * 處理導航列、手機選單、Logo 動畫與滾動隱藏
  */
 
-import { initMobileMenu } from './modules/navigation/mobile-menu.js';
+import { initMobileMenu } from './mobile-menu.js';
 
 export function initHeader() {
   const headerContainer = document.getElementById('site-header');
@@ -47,23 +47,30 @@ export function initHeader() {
       });
     });
 
-    // 3. Logo Scale Animation (Desktop Only)
-    if (window.SCCDHelpers && window.SCCDHelpers.isDesktop()) {
-      const logo = document.getElementById('header-logo');
-      if (logo && typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined') {
-        gsap.set(logo, { width: 180, height: 180 });
-        gsap.to(logo, {
-          width: 100,
-          height: 100,
-          ease: 'none',
-          scrollTrigger: {
-            trigger: 'body',
-            start: 'top top',
-            end: '+=300',
-            scrub: 0.5,
-          }
-        });
-      }
+    // 3. Logo Scale Animation (Responsive)
+    const logo = document.getElementById('header-logo');
+    if (logo && typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined') {
+      ScrollTrigger.matchMedia({
+        // Desktop (min-width: 768px)
+        "(min-width: 768px)": function() {
+          gsap.set(logo, { width: 180, height: 180 });
+          gsap.to(logo, {
+            width: 100,
+            height: 100,
+            ease: 'none',
+            scrollTrigger: {
+              trigger: 'body',
+              start: 'top top',
+              end: '+=300',
+              scrub: 0.5,
+            }
+          });
+        },
+        // Mobile (max-width: 767px)
+        "(max-width: 767px)": function() {
+          gsap.set(logo, { width: 80, height: 80 });
+        }
+      });
     }
 
     // 4. Mobile Menu Logic

@@ -17,8 +17,8 @@ export async function loadDegreeShowList() {
       const item = data[year];
       const html = `
         <div class="grid-12">
-          <div class="col-span-2"><h5>${year}</h5></div>
-          <a href="degree-show-detail.html?year=${year}" class="col-start-3 col-span-10 block group">
+          <div class="col-span-12 md:col-span-2 mb-sm md:mb-0"><h5>${year}</h5></div>
+          <a href="degree-show-detail.html?year=${year}" class="col-span-12 md:col-start-3 md:col-span-10 block group">
             <div class="degree-show-img-wrapper overflow-hidden mb-md">
               <img src="${item.coverImage}" alt="Degree Show ${year}" loading="lazy" class="w-full object-cover transition-transform duration-700 group-hover:scale-105">
             </div>
@@ -81,8 +81,8 @@ export async function loadDegreeShowDetail() {
                 const row = document.createElement('div');
                 row.className = 'grid-12';
                 row.innerHTML = `
-                  <div class="col-span-6"><img src="${images[i]}" alt="" class="w-full object-cover"></div>
-                  <div class="col-span-6"><img src="${images[i+1]}" alt="" class="w-full object-cover"></div>
+                  <div class="col-span-12 md:col-span-6"><img src="${images[i]}" alt="" class="w-full object-cover"></div>
+                  <div class="col-span-12 md:col-span-6"><img src="${images[i+1]}" alt="" class="w-full object-cover"></div>
                 `;
                 galleryContainer.appendChild(row);
                 i += 2;
@@ -96,9 +96,9 @@ export async function loadDegreeShowDetail() {
                 const row = document.createElement('div');
                 row.className = 'grid-12';
                 row.innerHTML = `
-                  <div class="col-span-4"><img src="${images[i]}" alt="" class="w-full object-cover aspect-[4/3]"></div>
-                  <div class="col-span-4"><img src="${images[i+1]}" alt="" class="w-full object-cover aspect-[4/3]"></div>
-                  <div class="col-span-4"><img src="${images[i+2]}" alt="" class="w-full object-cover aspect-[4/3]"></div>
+                  <div class="col-span-12 md:col-span-4"><img src="${images[i]}" alt="" class="w-full object-cover aspect-[4/3]"></div>
+                  <div class="col-span-12 md:col-span-4"><img src="${images[i+1]}" alt="" class="w-full object-cover aspect-[4/3]"></div>
+                  <div class="col-span-12 md:col-span-4"><img src="${images[i+2]}" alt="" class="w-full object-cover aspect-[4/3]"></div>
                 `;
                 galleryContainer.appendChild(row);
                 i += 3;
@@ -139,11 +139,15 @@ export async function loadDegreeShowDetail() {
       const nextYearEl = document.getElementById('next-year');
       const nextTitleEl = document.getElementById('next-title');
       const nextImg = document.getElementById('next-img');
+      const nextYearMobileEl = document.getElementById('next-year-mobile');
+      const nextTitleMobileEl = document.getElementById('next-title-mobile');
 
       if (nextLink) nextLink.href = 'degree-show-detail.html?year=' + nextYear;
       if (nextYearEl) nextYearEl.textContent = nextYear;
       if (nextTitleEl) nextTitleEl.textContent = nextData.title;
       if (nextImg && nextData.coverImage) nextImg.src = nextData.coverImage;
+      if (nextYearMobileEl) nextYearMobileEl.textContent = nextYear;
+      if (nextTitleMobileEl) nextTitleMobileEl.textContent = nextData.title;
 
     } else {
       window.location.href = 'degree-show.html';

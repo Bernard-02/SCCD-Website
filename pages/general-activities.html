@@ -26,16 +26,16 @@
 
       <!-- Content Container -->
       <div class="site-container h-full relative z-10">
-        <div class="h-full flex items-end gap-xl pb-2xl">
-          <!-- Title on the left (50%) with -4deg rotation -->
-          <div class="w-1/2">
-            <h1 class="text-white pb-xl hero-title">GENERAL ACTIVITIES</h1>
+        <div class="h-full flex flex-col md:flex-row justify-end md:justify-start items-start md:items-end gap-lg md:gap-xl pb-3xl md:pb-2xl pt-[120px] md:pt-0">
+          <!-- Title on the left (Mobile: 100%, Desktop: 50%) -->
+          <div class="w-full md:w-1/2">
+            <h1 class="text-white pb-lg md:pb-xl hero-title">GENERAL ACTIVITIES</h1>
           </div>
 
-          <!-- Content on the right (50%) -->
-          <div class="w-1/2">
+          <!-- Content on the right (Mobile: 100%, Desktop: 50%) -->
+          <div class="w-full md:w-1/2">
             <!-- English text with 3deg rotation -->
-            <p class="text-white mb-xl hero-text-en">
+            <p class="text-white mb-lg md:mb-xl hero-text-en">
               Discover the vibrant activities organized by SCCD, from workshops and competitions to degree shows and cultural events that enrich the creative community.
             </p>
             <!-- Chinese text with -2deg rotation -->
@@ -50,299 +50,40 @@
     <!-- General Activities Content Section -->
     <section class="activities-content-section bg-white py-6xl">
       <div class="site-container">
-        <div class="grid-12">
-          <!-- Filter Buttons (Column 1, 1/12 = 8.33%) -->
-          <div class="col-span-1">
-            <div class="sticky flex flex-col gap-md activities-filter-sticky" style="top: 200px;">
-              <button class="activities-filter-btn active text-left nav-link transition-colors duration-fast" data-filter="all">
-                <span class="block">All</span>
-                <span class="block">全部</span>
+        <div class="flex flex-col md:grid md:grid-cols-12 gap-gutter">
+          <!-- Filter Buttons (Mobile: Top Scroll, Desktop: Left Col 1) -->
+          <div class="w-full md:col-span-1 relative z-20">
+            <div class="flex overflow-x-auto md:overflow-visible md:flex-col gap-md activities-filter-sticky mb-xl md:mb-0 md:sticky md:top-[200px] no-scrollbar mx-[calc(var(--container-padding)*-1)] px-[var(--container-padding)] md:mx-0 md:px-0">
+              <button class="activities-filter-btn w-fit shrink-0 active text-left nav-link transition-colors duration-fast" data-filter="all">
+                <span class="block whitespace-nowrap">All</span>
+                <span class="block whitespace-nowrap">全部</span>
               </button>
-              <button class="activities-filter-btn text-left nav-link transition-colors duration-fast" data-filter="seminars">
-                <span class="block">Lectures</span>
-                <span class="block">講座</span>
+              <button class="activities-filter-btn w-fit shrink-0 text-left nav-link transition-colors duration-fast" data-filter="seminars">
+                <span class="block whitespace-nowrap">Lectures</span>
+                <span class="block whitespace-nowrap">講座</span>
               </button>
-              <button class="activities-filter-btn text-left nav-link transition-colors duration-fast" data-filter="visits">
-                <span class="block">Visits</span>
-                <span class="block">參訪</span>
+              <button class="activities-filter-btn w-fit shrink-0 text-left nav-link transition-colors duration-fast" data-filter="visits">
+                <span class="block whitespace-nowrap">Visits</span>
+                <span class="block whitespace-nowrap">參訪</span>
               </button>
-              <button class="activities-filter-btn text-left nav-link transition-colors duration-fast" data-filter="exhibitions">
-                <span class="block">Exhibitions</span>
-                <span class="block">展演</span>
+              <button class="activities-filter-btn w-fit shrink-0 text-left nav-link transition-colors duration-fast" data-filter="exhibitions">
+                <span class="block whitespace-nowrap">Exhibitions</span>
+                <span class="block whitespace-nowrap">展演</span>
               </button>
-              <button class="activities-filter-btn text-left nav-link transition-colors duration-fast" data-filter="conferences">
-                <span class="block">Conferences</span>
-                <span class="block">研討會</span>
+              <button class="activities-filter-btn w-fit shrink-0 text-left nav-link transition-colors duration-fast" data-filter="conferences">
+                <span class="block whitespace-nowrap">Conferences</span>
+                <span class="block whitespace-nowrap">研討會</span>
               </button>
-              <button class="activities-filter-btn text-left nav-link transition-colors duration-fast" data-filter="competitions">
-                <span class="block">Competitions</span>
-                <span class="block">競賽</span>
+              <button class="activities-filter-btn w-fit shrink-0 text-left nav-link transition-colors duration-fast" data-filter="competitions">
+                <span class="block whitespace-nowrap">Competitions</span>
+                <span class="block whitespace-nowrap">競賽</span>
               </button>
             </div>
           </div>
 
           <!-- Years Container (Column 2-12, 11/12 = 91.67%) -->
-          <div class="col-span-11">
-            <!-- Year 2025 -->
-            <div class="mb-xl">
-              <div class="grid grid-cols-11 gap-gutter items-start pb-xl">
-                <!-- Chevron (Column 1) -->
-                <div class="col-span-1 flex justify-end items-center activities-year-toggle cursor-pointer h-toggle">
-                  <i class="fa-solid fa-chevron-right text-p1 transition-all duration-fast rotate-90"></i>
-                </div>
-                <!-- Year (Column 2) -->
-                <div class="col-span-1 activities-year-toggle cursor-pointer">
-                  <h5>2025</h5>
-                </div>
-                <!-- Activities List (Column 3-11) -->
-                <div class="col-span-9 activities-year-items flex flex-col">
-
-                <div class="activities-item" data-category="visits">
-                  <p class="col-span-5">豪華朗機工台北當代館大展</p>
-                  <p class="col-span-3">實踐大學台北校區</p>
-                  <p class="col-span-1">參訪</p>
-                </div>
-
-                <div class="activities-item" data-category="seminars">
-                  <p class="col-span-5">媒體設計國際講座</p>
-                  <p class="col-span-3">台北設計中心</p>
-                  <p class="col-span-1">講座</p>
-                </div>
-
-                <div class="activities-item" data-category="exhibitions">
-                  <p class="col-span-5">年度媒體傳達設計展</p>
-                  <p class="col-span-3">A棟1樓大廳</p>
-                  <p class="col-span-1">展演</p>
-                </div>
-
-                <div class="activities-item" data-category="competitions">
-                  <p class="col-span-5">國際學生設計競賽</p>
-                  <p class="col-span-3">線上</p>
-                  <p class="col-span-1">競賽</p>
-                </div>
-
-                <div class="activities-item" data-category="conferences">
-                  <p class="col-span-5">永續媒體設計研討會</p>
-                  <p class="col-span-3">實踐大學A棟</p>
-                  <p class="col-span-1">研討會</p>
-                </div>
-
-                <div class="activities-item" data-category="seminars">
-                  <p class="col-span-5">設計思考國際講座</p>
-                  <p class="col-span-3">設計中心大廳</p>
-                  <p class="col-span-1">講座</p>
-                </div>
-
-                <div class="activities-item" data-category="visits">
-                  <p class="col-span-5">新北市設計博物館參訪</p>
-                  <p class="col-span-3">新北市</p>
-                  <p class="col-span-1">參訪</p>
-                </div>
-
-                <div class="activities-item" data-category="exhibitions">
-                  <p class="col-span-5">學生優異作品展</p>
-                  <p class="col-span-3">B棟2樓廳</p>
-                  <p class="col-span-1">展演</p>
-                </div>
-
-                <div class="activities-item" data-category="competitions">
-                  <p class="col-span-5">亚太地區青年設計獎</p>
-                  <p class="col-span-3">線上投稿</p>
-                  <p class="col-span-1">競賽</p>
-                </div>
-
-                <div class="activities-item" data-category="conferences">
-                  <p class="col-span-5">媒體傳達設計前衛論坛</p>
-                  <p class="col-span-3">台北設計中心</p>
-                  <p class="col-span-1">研討會</p>
-                </div>
-
-                <div class="activities-item" data-category="visits">
-                  <p class="col-span-5">高雄設計文化參訪</p>
-                  <p class="col-span-3">高雄市</p>
-                  <p class="col-span-1">參訪</p>
-                </div>
-
-                </div>
-              </div>
-              <!-- Border line (from column 2 to end) -->
-              <div class="grid grid-cols-11 gap-gutter">
-                <div class="col-start-2 col-span-10 border-b border-gray-9"></div>
-              </div>
-            </div>
-
-            <!-- Year 2024 -->
-            <div class="mb-xl">
-              <div class="grid grid-cols-11 gap-gutter items-start pb-xl">
-                <!-- Chevron (Column 1) -->
-                <div class="col-span-1 flex justify-end items-center activities-year-toggle cursor-pointer h-toggle">
-                  <i class="fa-solid fa-chevron-right text-p1 transition-all duration-fast rotate-90"></i>
-                </div>
-                <!-- Year (Column 2) -->
-                <div class="col-span-1 activities-year-toggle cursor-pointer">
-                  <h5>2024</h5>
-                </div>
-                <!-- Activities List (Column 3-11) -->
-                <div class="col-span-9 activities-year-items flex flex-col">
-
-                <div class="activities-item" data-category="conferences">
-                  <p class="col-span-5">永續設計研討會</p>
-                  <p class="col-span-3">實踐大學台北校區</p>
-                  <p class="col-span-1">研討會</p>
-                </div>
-
-                <div class="activities-item" data-category="visits">
-                  <p class="col-span-5">東京設計參訪</p>
-                  <p class="col-span-3">東京日本</p>
-                  <p class="col-span-1">參訪</p>
-                </div>
-
-                <div class="activities-item" data-category="exhibitions">
-                  <p class="col-span-5">媒體傳達設計年展</p>
-                  <p class="col-span-3">B棟展覽廳</p>
-                  <p class="col-span-1">展演</p>
-                </div>
-
-                <div class="activities-item" data-category="seminars">
-                  <p class="col-span-5">交互設計國際講座</p>
-                  <p class="col-span-3">實踐大學台北校區</p>
-                  <p class="col-span-1">講座</p>
-                </div>
-
-                <div class="activities-item" data-category="competitions">
-                  <p class="col-span-5">全國大學生設計競賽</p>
-                  <p class="col-span-3">線上</p>
-                  <p class="col-span-1">競賽</p>
-                </div>
-
-                <div class="activities-item" data-category="visits">
-                  <p class="col-span-5">韓國設計中心參訪</p>
-                  <p class="col-span-3">首爾韓國</p>
-                  <p class="col-span-1">參訪</p>
-                </div>
-
-                <div class="activities-item" data-category="exhibitions">
-                  <p class="col-span-5">數位媒體艺术展</p>
-                  <p class="col-span-3">A棟大廳</p>
-                  <p class="col-span-1">展演</p>
-                </div>
-
-                <div class="activities-item" data-category="conferences">
-                  <p class="col-span-5">创意產業發展論坛</p>
-                  <p class="col-span-3">台北設計中心</p>
-                  <p class="col-span-1">研討會</p>
-                </div>
-
-                <div class="activities-item" data-category="seminars">
-                  <p class="col-span-5">動畫技術工作營講座</p>
-                  <p class="col-span-3">實踐大學B棟</p>
-                  <p class="col-span-1">講座</p>
-                </div>
-
-                <div class="activities-item" data-category="competitions">
-                  <p class="col-span-5">國際海報設計競賽</p>
-                  <p class="col-span-3">線上投稿</p>
-                  <p class="col-span-1">競賽</p>
-                </div>
-
-                <div class="activities-item" data-category="exhibitions">
-                  <p class="col-span-5">學系年度作品展覽</p>
-                  <p class="col-span-3">C棟展覽空間</p>
-                  <p class="col-span-1">展演</p>
-                </div>
-
-                </div>
-              </div>
-              <!-- Border line (from column 2 to end) -->
-              <div class="grid grid-cols-11 gap-gutter">
-                <div class="col-start-2 col-span-10 border-b border-gray-9"></div>
-              </div>
-            </div>
-
-            <!-- Year 2023 (last year, no border) -->
-            <div>
-              <div class="grid grid-cols-11 gap-gutter items-start pb-xl">
-                <!-- Chevron (Column 1) -->
-                <div class="col-span-1 flex justify-end items-center activities-year-toggle cursor-pointer h-toggle">
-                  <i class="fa-solid fa-chevron-right text-p1 transition-all duration-fast rotate-90"></i>
-                </div>
-                <!-- Year (Column 2) -->
-                <div class="col-span-1 activities-year-toggle cursor-pointer">
-                  <h5>2023</h5>
-                </div>
-                <!-- Activities List (Column 3-11) -->
-                <div class="col-span-9 activities-year-items flex flex-col">
-
-                <div class="activities-item" data-category="seminars">
-                  <p class="col-span-5">平面設計趨勢講座</p>
-                  <p class="col-span-3">實踐大學台北校區</p>
-                  <p class="col-span-1">講座</p>
-                </div>
-
-                <div class="activities-item" data-category="exhibitions">
-                  <p class="col-span-5">新媒體設計展覽</p>
-                  <p class="col-span-3">A棟1樓大廳</p>
-                  <p class="col-span-1">展演</p>
-                </div>
-
-                <div class="activities-item" data-category="visits">
-                  <p class="col-span-5">新加坡設計周參訪</p>
-                  <p class="col-span-3">新加坡</p>
-                  <p class="col-span-1">參訪</p>
-                </div>
-
-                <div class="activities-item" data-category="conferences">
-                  <p class="col-span-5">智慧城市設計論坛</p>
-                  <p class="col-span-3">台北設計中心</p>
-                  <p class="col-span-1">研討會</p>
-                </div>
-
-                <div class="activities-item" data-category="competitions">
-                  <p class="col-span-5">全亚最佳學生設計獎</p>
-                  <p class="col-span-3">線上投稿</p>
-                  <p class="col-span-1">競賽</p>
-                </div>
-
-                <div class="activities-item" data-category="seminars">
-                  <p class="col-span-5">品牌設計國際論坛</p>
-                  <p class="col-span-3">B棟2樓廳</p>
-                  <p class="col-span-1">講座</p>
-                </div>
-
-                <div class="activities-item" data-category="visits">
-                  <p class="col-span-5">東北大學設計學院參訪</p>
-                  <p class="col-span-3">東京日本</p>
-                  <p class="col-span-1">參訪</p>
-                </div>
-
-                <div class="activities-item" data-category="exhibitions">
-                  <p class="col-span-5">畢業生優異作品展</p>
-                  <p class="col-span-3">C棟展覽廳</p>
-                  <p class="col-span-1">展演</p>
-                </div>
-
-                <div class="activities-item" data-category="conferences">
-                  <p class="col-span-5">數位轉型設計研討會</p>
-                  <p class="col-span-3">實踐大學A棟</p>
-                  <p class="col-span-1">研討會</p>
-                </div>
-
-                <div class="activities-item" data-category="competitions">
-                  <p class="col-span-5">台灣青年設計獎</p>
-                  <p class="col-span-3">線上</p>
-                  <p class="col-span-1">競賽</p>
-                </div>
-
-                <div class="activities-item" data-category="visits">
-                  <p class="col-span-5">德國國際設計博物館參訪</p>
-                  <p class="col-span-3">柏林德國</p>
-                  <p class="col-span-1">參訪</p>
-                </div>
-
-                </div>
-              </div>
-            </div>
-
+          <div class="w-full md:col-start-2 md:col-span-11" id="general-activities-list">
+            <!-- Content will be injected here by JS -->
           </div>
         </div>
       </div>

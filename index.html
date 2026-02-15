@@ -10,18 +10,18 @@
 <body>
 
   <!-- Header -->
-  <header class="sticky top-0 bg-white border-b border-gray-9 z-50 relative">
+  <header class="fixed top-0 left-0 right-0 bg-white border-b border-gray-9 z-50">
     <div class="site-container">
       <div class="grid-12 items-center py-md">
-        <!-- Logo/Site Title (Column 1-2) -->
-        <div class="col-span-2 relative">
-          <a href="index.html" class="block absolute -top-4 left-0 z-50">
-            <img src="images/sccd_black.png" alt="SCCD" class="w-[100px] h-[100px] object-contain">
+        <!-- Logo/Site Title (手機版佔6欄，桌面版2欄) -->
+        <div class="col-span-6 md:col-span-2 relative">
+          <a href="index.html" class="absolute -top-4 left-0 z-50">
+            <img id="header-logo" src="images/sccd_black.png" alt="SCCD" class="w-[80px] h-[80px] md:w-[180px] md:h-[180px] object-contain">
           </a>
         </div>
 
-        <!-- Navigation Menu (Column 3-10) -->
-        <nav class="col-span-8">
+        <!-- 桌面導航：手機版隱藏 -->
+        <nav class="hidden md:block md:col-span-8">
           <ul class="flex items-center justify-between">
 
             <!-- About to Support Group -->
@@ -35,7 +35,7 @@
 
             <!-- Activities (with mega menu) -->
             <li class="group">
-              <a href="#" class="nav-link">Activities</a>
+              <a href="#" class="nav-link"><span>Activities</span><span class="nav-link-cn">活動</span></a>
               <div class="mega-menu group-hover:opacity-100 group-hover:visible">
                 <div class="site-container">
                   <div class="grid-12">
@@ -58,6 +58,10 @@
                           <span>Summer Camp</span>
                           <span>暑期設計體驗營</span>
                         </a>
+                        <a href="pages/students-present.html" class="submenu-link flex items-center gap-xs">
+                          <span>Students Present</span>
+                          <span>學生自主</span>
+                        </a>
                       </div>
                     </div>
                   </div>
@@ -67,7 +71,7 @@
 
             <!-- Courses (with mega menu) -->
             <li class="group">
-              <a href="#" class="nav-link">Courses</a>
+              <a href="#" class="nav-link"><span>Courses</span><span class="nav-link-cn">課程</span></a>
               <div class="mega-menu group-hover:opacity-100 group-hover:visible">
                 <div class="site-container">
                   <div class="grid-12">
@@ -91,7 +95,7 @@
 
             <!-- Works (with mega menu) -->
             <li class="group">
-              <a href="#" class="nav-link">Works</a>
+              <a href="#" class="nav-link"><span>Works</span><span class="nav-link-cn">作品</span></a>
               <div class="mega-menu group-hover:opacity-100 group-hover:visible">
                 <div class="site-container">
                   <div class="grid-12">
@@ -110,6 +114,10 @@
                           <span>Records</span>
                           <span>榮譽</span>
                         </a>
+                        <a href="pages/library.html" class="submenu-link flex items-center gap-xs">
+                          <span>Library</span>
+                          <span>專刊</span>
+                        </a>
                       </div>
                     </div>
                   </div>
@@ -118,21 +126,91 @@
             </li>
 
             <li class="relative">
-              <a href="pages/admission.html" class="nav-link">Admission</a>
+              <a href="pages/admission.html" class="nav-link"><span>Admission</span><span class="nav-link-cn">入學</span></a>
             </li>
 
             <li class="relative">
-              <a href="pages/support.html" class="nav-link">Support</a>
+              <a href="pages/support.html" class="nav-link"><span>Support</span><span class="nav-link-cn">支持</span></a>
             </li>
 
           </ul>
         </nav>
 
-        <!-- GENERATE! (Column 11-12) -->
-        <div class="col-span-2 flex justify-end">
+        <!-- 手機版漢堡按鈕：桌面版隱藏 -->
+        <!-- X / Hamburger Button Container (Inspect Here) -->
+        <div class="col-span-6 md:hidden flex justify-end items-center relative z-50">
+          <button class="mobile-menu-btn">
+            <i class="fa-solid fa-bars text-h4 text-black"></i>
+          </button>
+        </div>
+
+        <!-- GENERATE! 桌面版顯示，手機版隱藏 -->
+        <div class="hidden md:flex md:col-span-2 md:justify-end">
           <a href="#" class="nav-link">GENERATE!</a>
         </div>
 
+      </div>
+    </div>
+
+    <!-- 手機版全螢幕選單（桌面版隱藏） -->
+    <div class="mobile-nav fixed inset-0 bg-white z-40 md:hidden flex flex-col" style="transform: translateX(-100%);">
+      <div class="site-container flex-1 flex flex-col pt-6xl pb-3xl">
+        <!-- 手機版導航連結 -->
+        <nav class="flex-1 overflow-y-auto overflow-x-hidden">
+          <ul class="flex flex-col gap-md">
+          <li><a href="pages/about.html" class="mobile-nav-link block text-h4 font-semibold text-black">About <span class="text-black">關於</span></a></li>
+          <li><a href="pages/faculty.html" class="mobile-nav-link block text-h4 font-semibold text-black">Faculty <span class="text-black">師資</span></a></li>
+
+            <!-- Activities 子選單 -->
+            <li>
+              <button class="mobile-nav-link mobile-submenu-toggle block text-h4 font-semibold text-black text-left w-full flex justify-between items-center">
+              <span>Activities <span class="text-black">活動</span></span>
+                <i class="fa-solid fa-chevron-down ml-sm text-p1"></i>
+              </button>
+              <ul class="mobile-submenu flex flex-col gap-sm pt-sm hidden">
+              <li><a href="pages/general-activities.html" class="block text-h5 font-regular text-black">General Activities <span class="text-black">一般活動</span></a></li>
+              <li><a href="pages/workshop.html" class="block text-h5 font-regular text-black">Workshop <span class="text-black">工作營</span></a></li>
+              <li><a href="pages/degree-show.html" class="block text-h5 font-regular text-black">Degree Show <span class="text-black">畢業展</span></a></li>
+              <li><a href="pages/summer-camp.html" class="block text-h5 font-regular text-black">Summer Camp <span class="text-black">暑期設計體驗營</span></a></li>
+              <li><a href="pages/students-present.html" class="block text-h5 font-regular text-black">Students Present <span class="text-black">學生自主</span></a></li>
+              </ul>
+            </li>
+
+            <!-- Courses 子選單 -->
+            <li>
+              <button class="mobile-nav-link mobile-submenu-toggle block text-h4 font-semibold text-black text-left w-full flex justify-between items-center">
+              <span>Courses <span class="text-black">課程</span></span>
+                <i class="fa-solid fa-chevron-down ml-sm text-p1"></i>
+              </button>
+              <ul class="mobile-submenu flex flex-col gap-sm pt-sm hidden">
+              <li><a href="pages/bfa-courses.html" class="block text-h5 font-regular text-black">BFA Courses <span class="text-black">學士班</span></a></li>
+              <li><a href="pages/mdes-courses.html" class="block text-h5 font-regular text-black">MDES Courses <span class="text-black">碩士班</span></a></li>
+              </ul>
+            </li>
+
+            <!-- Works 子選單 -->
+            <li>
+              <button class="mobile-nav-link mobile-submenu-toggle block text-h4 font-semibold text-black text-left w-full flex justify-between items-center">
+              <span>Works <span class="text-black">作品</span></span>
+                <i class="fa-solid fa-chevron-down ml-sm text-p1"></i>
+              </button>
+              <ul class="mobile-submenu flex flex-col gap-sm pt-sm hidden">
+              <li><a href="pages/bfa-works.html" class="block text-h5 font-regular text-black">BFA Works <span class="text-black">學士班</span></a></li>
+              <li><a href="pages/mdes-works.html" class="block text-h5 font-regular text-black">MDES Works <span class="text-black">碩士班</span></a></li>
+              <li><a href="pages/records.html" class="block text-h5 font-regular text-black">Records <span class="text-black">榮譽</span></a></li>
+              <li><a href="pages/library.html" class="block text-h5 font-regular text-black">Library <span class="text-black">專刊</span></a></li>
+              </ul>
+            </li>
+
+          <li><a href="pages/admission.html" class="mobile-nav-link block text-h4 font-semibold text-black">Admission <span class="text-black">入學</span></a></li>
+          <li><a href="pages/support.html" class="mobile-nav-link block text-h4 font-semibold text-black">Support <span class="text-black">支持</span></a></li>
+          </ul>
+        </nav>
+
+        <!-- 手機版 GENERATE! -->
+        <div class="mt-2xl">
+          <a href="#" class="block text-h4 font-bold">GENERATE!</a>
+        </div>
       </div>
     </div>
   </header>
@@ -143,82 +221,84 @@
 
   <!-- Footer -->
   <footer class="h-screen bg-black text-white relative overflow-hidden">
-    <div class="site-container h-full" style="padding-top: var(--spacing-3xl);">
+    <div class="site-container h-full" style="padding-top: var(--spacing-3xl); padding-bottom: var(--spacing-xl);">
       <div class="grid-12 h-full relative">
 
-        <!-- Bottom Right Links (Privacy Policy) - Aligned Left at Col 11 -->
-        <div class="col-start-11 col-span-2 absolute bottom-0 pb-2xl z-10 flex flex-col items-start">
+        <!-- Privacy Policy Links -->
+        <div class="col-span-12 md:col-start-11 md:col-span-2 relative md:absolute md:bottom-0 md:pb-2xl z-10 flex flex-col items-start order-last md:order-none md:mb-0">
           <div class="flex flex-col gap-xs items-start">
-            <a href="#" class="text-white hover:text-gray-7 transition-colors duration-fast text-left">Privacy Policy</a>
-            <a href="#" class="text-white hover:text-gray-7 transition-colors duration-fast text-left">Terms and Conditions</a>
+            <a href="pages/privacy-policy.html" class="text-white hover:text-gray-7 transition-colors duration-fast text-left">Privacy Policy</a>
+            <a href="pages/terms-and-conditions.html" class="text-white hover:text-gray-7 transition-colors duration-fast text-left">Terms and Conditions</a>
             <p class="text-white text-left mt-lg">SCCD@ 2026</p>
           </div>
         </div>
 
-        <!-- Random positioned elements with rotation (Columns 1-10) -->
-        <div class="col-span-12 relative h-full">
+        <!-- Footer Content: 手機版線性堆疊，桌面版隨機定位 -->
+        <div class="col-span-12 flex flex-col md:block md:relative md:h-full gap-xl md:gap-0">
 
           <!-- Logo -->
-          <div class="absolute" style="top: 0; left: 1%;">
-            <img src="images/sccd_white.png" alt="SCCD" class="w-[250px] h-[250px] object-contain">
+          <div class="footer-logo mb-sm md:mb-0">
+            <img src="images/sccd_white.png" alt="SCCD" class="w-[100px] h-[100px] md:w-[250px] md:h-[250px] object-contain">
           </div>
 
-          <!-- FAX: Col 6 right bit (~46%), 20vh -->
-          <div class="absolute" style="top: 20vh; left: 46%; transform: rotate(12deg);">
+          <!-- FAX -->
+          <div class="footer-fax">
             <h6 class="mb-xs text-white">FAX 傳真</h6>
             <p class="text-white">+886 2 2538 1111 #7050</p>
           </div>
 
-          <!-- TEL: Col 3 (~17%), 35vh -->
-          <div class="absolute" style="top: 35vh; left: 17%; transform: rotate(-18deg);">
+          <!-- TEL -->
+          <div class="footer-tel">
             <h6 class="mb-xs text-white">TEL 電話</h6>
             <p class="text-white">+886 2 2538 1111 #7211</p>
           </div>
 
-          <!-- Office: Col 5 (~34%), 40vh -->
-          <div class="absolute" style="top: 40vh; left: 34%; transform: rotate(-10deg);">
+          <!-- Office -->
+          <div class="footer-office">
             <h6 class="mb-xs text-white">Office 學系辦公室</h6>
             <p class="text-white max-w-sm mb-sm">5F, Building A, Shih Chien University, No.70, Dazhi Street, Zhongshan District, Taipei City, Taiwan</p>
             <p class="text-white max-w-sm">台灣台北市中山區大直街70號 實踐大學A棟5樓</p>
           </div>
 
-          <!-- E-Mail: Col 2 (~9%), 60vh -->
-          <div class="absolute" style="top: 60vh; left: 9%; transform: rotate(15deg);">
+          <!-- E-Mail -->
+          <div class="footer-email">
             <h6 class="mb-xs text-white">E-Mail 電子郵件</h6>
             <p class="text-white">sccd@g2.usc.edu.tw</p>
           </div>
 
-          <!-- Links: Col 7 (~51%), 70vh -->
-          <div class="absolute" style="top: 70vh; left: 51%; transform: rotate(18deg);">
+          <!-- Links -->
+          <div class="footer-links">
             <h6 class="mb-xs text-white">Links 相關連結</h6>
             <div class="flex flex-col gap-xs">
-              <a href="#" class="text-white hover:text-gray-7 transition-colors duration-fast">
+              <a href="https://www.usc.edu.tw/" target="_blank" rel="noopener noreferrer" class="text-p1 text-white hover:text-gray-7 transition-colors duration-fast">
                 Shih Chien University 實踐大學
               </a>
-              <a href="#" class="text-white hover:text-gray-7 transition-colors duration-fast">
+              <a href="http://www.scdesign.usc.edu.tw/" target="_blank" rel="noopener noreferrer" class="text-p1 text-white hover:text-gray-7 transition-colors duration-fast">
                 College of Design, USC 實踐大學設計學院
               </a>
             </div>
           </div>
 
           <!-- Social Media Icons (Separated) -->
-          <!-- YouTube: Col 9 (~68%), ~50vh -->
-          <div class="absolute" style="top: 50%; left: 68%; transform: rotate(-15deg);">
-            <a href="https://www.youtube.com/@scsccd" target="_blank" rel="noopener noreferrer" class="text-white hover:text-gray-7 transition-colors duration-fast">
-              <i class="fa-brands fa-youtube text-h3"></i>
-            </a>
-          </div>
-          <!-- Instagram: Col 11 (~85%), Higher -->
-          <div class="absolute" style="top: 42%; left: 85%; transform: rotate(15deg);">
-            <a href="https://www.instagram.com/communications.design_sccd" target="_blank" rel="noopener noreferrer" class="text-white hover:text-gray-7 transition-colors duration-fast">
-              <i class="fa-brands fa-instagram text-h3"></i>
-            </a>
-          </div>
-          <!-- Facebook: Col 11 (~85%), Lower -->
-          <div class="absolute" style="top: 58%; left: 85%; transform: rotate(-12deg);">
-            <a href="https://www.facebook.com/communications.design" target="_blank" rel="noopener noreferrer" class="text-white hover:text-gray-7 transition-colors duration-fast">
-              <i class="fa-brands fa-facebook text-h3"></i>
-            </a>
+          <div class="flex gap-lg md:block footer-social">
+            <!-- YouTube -->
+            <div class="footer-youtube">
+              <a href="https://www.youtube.com/@scsccd" target="_blank" rel="noopener noreferrer" class="text-white hover:text-gray-7 transition-colors duration-fast">
+                <i class="fa-brands fa-youtube text-h3"></i>
+              </a>
+            </div>
+            <!-- Instagram -->
+            <div class="footer-instagram">
+              <a href="https://www.instagram.com/communications.design_sccd" target="_blank" rel="noopener noreferrer" class="text-white hover:text-gray-7 transition-colors duration-fast">
+                <i class="fa-brands fa-instagram text-h3"></i>
+              </a>
+            </div>
+            <!-- Facebook -->
+            <div class="footer-facebook">
+              <a href="https://www.facebook.com/communications.design" target="_blank" rel="noopener noreferrer" class="text-white hover:text-gray-7 transition-colors duration-fast">
+                <i class="fa-brands fa-facebook text-h3"></i>
+              </a>
+            </div>
           </div>
 
         </div>

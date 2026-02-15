@@ -9,6 +9,7 @@ export function initFacultySlideIn() {
   const slideInOverlay = document.getElementById('faculty-overlay');
   const closeBtn = document.getElementById('faculty-close-btn');
   const backBtn = document.getElementById('faculty-back-btn');
+  const backBtnMobile = document.getElementById('faculty-back-btn-mobile');
   const facultyCards = document.querySelectorAll('.faculty-card');
 
   if (!slideIn || facultyCards.length === 0) return;
@@ -58,8 +59,8 @@ export function initFacultySlideIn() {
         sectionsContainer.innerHTML = '';
         data.sections.forEach(section => {
           const sectionHTML = `
-            <div class="flex gap-gutter">
-              <div style="flex: 0 0 25%;">
+            <div class="flex flex-col md:flex-row gap-xs md:gap-gutter">
+              <div class="w-full md:w-[25%] mb-xs md:mb-0">
                 <h6 class="text-black">${section.titleEn} ${section.titleZh}</h6>
               </div>
               <div class="flex-1">
@@ -95,12 +96,12 @@ export function initFacultySlideIn() {
               if (typeof gsap !== 'undefined') {
                 const tl = gsap.timeline();
                 tl.to(slideInOverlay, { opacity: 0.8, duration: 0.3 })
-                  .to([slideInPanel, backBtn], { x: '0%', duration: 0.5, ease: 'power3.out' }, '-=0');
+                  .to(slideInPanel, { x: '0%', duration: 0.5, ease: 'power3.out' }, '-=0');
               } else {
                 // Fallback if GSAP is not loaded
                 slideInOverlay.style.opacity = '0.8';
                 slideInPanel.style.transform = 'translateX(0%)';
-                if (backBtn) backBtn.style.transform = 'translateX(0%)';
+                // backBtn moves with panel
               }
 
               // Prevent body scroll
@@ -118,8 +119,8 @@ export function initFacultySlideIn() {
 
     if (typeof gsap !== 'undefined') {
       gsap.to(slideInOverlay, { opacity: 0, duration: 0.4, delay: 0.1 });
-      gsap.to([slideInPanel, backBtn], {
-        x: '100%',
+      gsap.to(slideInPanel, {
+        x: '110%',
         duration: 0.5,
         ease: 'power3.in',
         onComplete: () => {
@@ -131,8 +132,8 @@ export function initFacultySlideIn() {
     } else {
       // Fallback
       slideInOverlay.style.opacity = '0';
-      slideInPanel.style.transform = 'translateX(100%)';
-      if (backBtn) backBtn.style.transform = 'translateX(100%)';
+      slideInPanel.style.transform = 'translateX(110%)';
+      // backBtn moves with panel
       setTimeout(() => {
         slideIn.classList.add('invisible', 'pointer-events-none');
         slideIn.classList.remove('pointer-events-auto');
@@ -143,5 +144,6 @@ export function initFacultySlideIn() {
 
   if (closeBtn) closeBtn.addEventListener('click', closeSlideIn);
   if (backBtn) backBtn.addEventListener('click', closeSlideIn);
+  if (backBtnMobile) backBtnMobile.addEventListener('click', closeSlideIn);
   if (slideInOverlay) slideInOverlay.addEventListener('click', closeSlideIn);
 }

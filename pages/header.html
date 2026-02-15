@@ -3,9 +3,9 @@
     <div class="grid-12 items-center py-md">
       <!-- Logo/Site Title (手機版佔6欄，桌面版2欄) -->
       <div class="col-span-6 md:col-span-2 relative">
-        <a href="../index.html" class="block md:absolute md:-top-4 md:left-0 z-50">
-          <!-- 手機版100px，桌面版180px -->
-          <img id="header-logo" src="../images/sccd_black.png" alt="SCCD" class="w-[100px] h-[100px] md:w-[180px] md:h-[180px] object-contain">
+        <a href="../index.html" class="absolute -top-4 left-0 z-50">
+          <!-- 手機版80px，桌面版180px -->
+          <img id="header-logo" src="../images/sccd_black.png" alt="SCCD" class="w-[80px] h-[80px] md:w-[180px] md:h-[180px] object-contain">
         </a>
       </div>
 
@@ -126,9 +126,10 @@
       </nav>
 
       <!-- 手機版漢堡按鈕：桌面版隱藏 -->
-      <div class="col-span-6 md:hidden flex justify-end items-center">
-        <button class="mobile-menu-btn p-sm">
-          <i class="fa-solid fa-bars text-h5"></i>
+      <!-- X / Hamburger Button Container (Inspect Here) -->
+      <div class="col-span-6 md:hidden flex justify-end items-center relative z-50">
+        <button class="mobile-menu-btn">
+          <i class="fa-solid fa-bars text-h4 text-black"></i>
         </button>
       </div>
 
@@ -142,56 +143,56 @@
 
   <!-- 手機版全螢幕選單（桌面版隱藏） -->
   <div class="mobile-nav fixed inset-0 bg-white z-40 md:hidden flex flex-col" style="transform: translateX(-100%);">
-    <div class="site-container flex-1 flex flex-col py-3xl">
+    <div class="site-container flex-1 flex flex-col pt-6xl pb-3xl">
       <!-- 手機版導航連結 -->
-      <nav class="flex-1">
-        <ul class="flex flex-col gap-lg">
-          <li><a href="about.html" class="mobile-nav-link block text-h5 font-regular">About <span class="text-gray-6">關於</span></a></li>
-          <li><a href="faculty.html" class="mobile-nav-link block text-h5 font-regular">Faculty <span class="text-gray-6">師資</span></a></li>
+      <nav class="flex-1 overflow-y-auto overflow-x-hidden">
+        <ul class="flex flex-col gap-md">
+          <li><a href="about.html" class="mobile-nav-link block text-h4 font-semibold text-black">About <span class="text-black">關於</span></a></li>
+          <li><a href="faculty.html" class="mobile-nav-link block text-h4 font-semibold text-black">Faculty <span class="text-black">師資</span></a></li>
 
           <!-- Activities 子選單 -->
           <li>
-            <button class="mobile-nav-link mobile-submenu-toggle block text-h5 font-regular text-left w-full">
-              Activities <span class="text-gray-6">活動</span>
+            <button class="mobile-nav-link mobile-submenu-toggle block text-h4 font-semibold text-black text-left w-full flex justify-between items-center">
+              <span>Activities <span class="text-black">活動</span></span>
               <i class="fa-solid fa-chevron-down ml-sm text-p1"></i>
             </button>
-            <ul class="mobile-submenu flex flex-col gap-md mt-md ml-lg hidden">
-              <li><a href="general-activities.html" class="block text-p1">General Activities <span class="text-gray-6">一般活動</span></a></li>
-              <li><a href="workshop.html" class="block text-p1">Workshop <span class="text-gray-6">工作營</span></a></li>
-              <li><a href="degree-show.html" class="block text-p1">Degree Show <span class="text-gray-6">畢業展</span></a></li>
-              <li><a href="summer-camp.html" class="block text-p1">Summer Camp <span class="text-gray-6">暑期設計體驗營</span></a></li>
-              <li><a href="students-present.html" class="block text-p1">Students Present <span class="text-gray-6">學生自主</span></a></li>
+            <ul class="mobile-submenu flex flex-col gap-sm pt-sm hidden">
+              <li><a href="general-activities.html" class="block text-h5 font-regular text-black">General Activities <span class="text-black">一般活動</span></a></li>
+              <li><a href="workshop.html" class="block text-h5 font-regular text-black">Workshop <span class="text-black">工作營</span></a></li>
+              <li><a href="degree-show.html" class="block text-h5 font-regular text-black">Degree Show <span class="text-black">畢業展</span></a></li>
+              <li><a href="summer-camp.html" class="block text-h5 font-regular text-black">Summer Camp <span class="text-black">暑期設計體驗營</span></a></li>
+              <li><a href="students-present.html" class="block text-h5 font-regular text-black">Students Present <span class="text-black">學生自主</span></a></li>
             </ul>
           </li>
 
           <!-- Courses 子選單 -->
           <li>
-            <button class="mobile-nav-link mobile-submenu-toggle block text-h5 font-regular text-left w-full">
-              Courses <span class="text-gray-6">課程</span>
+            <button class="mobile-nav-link mobile-submenu-toggle block text-h4 font-semibold text-black text-left w-full flex justify-between items-center">
+              <span>Courses <span class="text-black">課程</span></span>
               <i class="fa-solid fa-chevron-down ml-sm text-p1"></i>
             </button>
-            <ul class="mobile-submenu flex flex-col gap-md mt-md ml-lg hidden">
-              <li><a href="bfa-courses.html" class="block text-p1">BFA Courses <span class="text-gray-6">學士班</span></a></li>
-              <li><a href="mdes-courses.html" class="block text-p1">MDES Courses <span class="text-gray-6">碩士班</span></a></li>
+            <ul class="mobile-submenu flex flex-col gap-sm pt-sm hidden">
+              <li><a href="bfa-courses.html" class="block text-h5 font-regular text-black">BFA Courses <span class="text-black">學士班</span></a></li>
+              <li><a href="mdes-courses.html" class="block text-h5 font-regular text-black">MDES Courses <span class="text-black">碩士班</span></a></li>
             </ul>
           </li>
 
           <!-- Works 子選單 -->
           <li>
-            <button class="mobile-nav-link mobile-submenu-toggle block text-h5 font-regular text-left w-full">
-              Works <span class="text-gray-6">作品</span>
+            <button class="mobile-nav-link mobile-submenu-toggle block text-h4 font-semibold text-black text-left w-full flex justify-between items-center">
+              <span>Works <span class="text-black">作品</span></span>
               <i class="fa-solid fa-chevron-down ml-sm text-p1"></i>
             </button>
-            <ul class="mobile-submenu flex flex-col gap-md mt-md ml-lg hidden">
-              <li><a href="bfa-works.html" class="block text-p1">BFA Works <span class="text-gray-6">學士班</span></a></li>
-              <li><a href="mdes-works.html" class="block text-p1">MDES Works <span class="text-gray-6">碩士班</span></a></li>
-              <li><a href="records.html" class="block text-p1">Records <span class="text-gray-6">榮譽</span></a></li>
-              <li><a href="library.html" class="block text-p1">Library <span class="text-gray-6">專刊</span></a></li>
+            <ul class="mobile-submenu flex flex-col gap-sm pt-sm hidden">
+              <li><a href="bfa-works.html" class="block text-h5 font-regular text-black">BFA Works <span class="text-black">學士班</span></a></li>
+              <li><a href="mdes-works.html" class="block text-h5 font-regular text-black">MDES Works <span class="text-black">碩士班</span></a></li>
+              <li><a href="records.html" class="block text-h5 font-regular text-black">Records <span class="text-black">榮譽</span></a></li>
+              <li><a href="library.html" class="block text-h5 font-regular text-black">Library <span class="text-black">專刊</span></a></li>
             </ul>
           </li>
 
-          <li><a href="admission.html" class="mobile-nav-link block text-h5 font-regular">Admission <span class="text-gray-6">入學</span></a></li>
-          <li><a href="support.html" class="mobile-nav-link block text-h5 font-regular">Support <span class="text-gray-6">支持</span></a></li>
+          <li><a href="admission.html" class="mobile-nav-link block text-h4 font-semibold text-black">Admission <span class="text-black">入學</span></a></li>
+          <li><a href="support.html" class="mobile-nav-link block text-h4 font-semibold text-black">Support <span class="text-black">支持</span></a></li>
         </ul>
       </nav>
 
