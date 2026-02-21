@@ -36,36 +36,145 @@
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  /* ===== Horizontal Accordion (Degree Show) ===== */
+  /* ===== Horizontal Accordion ===== */
+
+  /* Wrapper: 桌面橫排，手機直排 */
   .accordion-wrapper {
     display: flex;
+    flex-direction: column;
+    gap: 2px; /* items 之間的間距 */
   }
 
-  .accordion-panel {
-    position: relative;
+  @media (min-width: 768px) {
+    .accordion-wrapper {
+      flex-direction: row;
+      gap: 2px;
+    }
+  }
+
+  /* Item: A + B 的外殼，桌面橫排 */
+  .accordion-item {
+    display: flex;
+    flex-direction: row;
     cursor: pointer;
-    overflow: hidden; /* 確保圖片放大時不會超出邊界 */
-    flex-basis: 0;    /* 關鍵：設定基礎寬度為 0，讓 flex-grow 完全控制比例 */
-    min-width: 0;     /* 防止內容撐開容器 */
+    min-width: 0;
   }
 
-  .accordion-panel img {
+  @media (min-width: 768px) {
+    .accordion-item {
+      height: 100%;
+    }
+  }
+
+  /* A: Label — 寬度由 writing-mode 垂直文字撐開，文字靠底部 */
+  .accordion-label {
+    flex-shrink: 0;
+    background: #000;
+    display: flex;
+    align-items: flex-end;    /* 文字靠底部 */
+    justify-content: center;
+    padding: var(--spacing-xl) var(--spacing-md);
+  }
+
+  /* Inner: 使用 writing-mode 實現垂直排版
+     writing-mode: vertical-rl + rotate(180deg)
+     = 頭往左傾閱讀，數字在視覺下方，標題在視覺上方
+     HTML 順序：<span>01</span> 在前（旋轉後在下），<span>標題</span> 在後（旋轉後在上） */
+  .accordion-label-inner {
+    white-space: nowrap;
+    color: #fff;
+    font-size: var(--font-size-h5);
+    font-weight: 700;
+    line-height: 1;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+  }
+
+  /* B: Body — width 0% ↔ 100% 切換，overflow:hidden 裁切內容 */
+  .accordion-body {
+    overflow: hidden;
+    min-width: 0;
+    width: 0;                 /* 初始收合 */
+    flex-shrink: 0;
+    box-sizing: border-box;
+    /* padding 移至 inner 或由 gap 控制，這裡保持乾淨以利寬度計算 */
+  }
+
+  /* Inner: 固定寬度容器，防止內容擠壓 */
+  .accordion-body-inner {
+    display: flex;
+    flex-direction: row;
+    height: 100%;
+    width: 100%; /* JS 會覆蓋此值為固定像素 */
+  }
+
+  .accordion-img-wrap {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .accordion-img-wrap img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    display: block;
   }
 
-  .accordion-overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.7); /* 純黑半透明遮罩，展開時顯示 */
-    transition: none;
+  .accordion-text-wrap {
+    flex: 1;
+    min-width: 0;
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: var(--spacing-xl);
+    overflow-y: auto;
   }
 
-  .accordion-content {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    transition: none;
+  /* ===== Mobile: 垂直堆疊 ===== */
+  @media (max-width: 767px) {
+    .accordion-item {
+      flex-direction: column;
+      /* Remove max-height and transition, let JS control body height */
+    }
+
+    .accordion-label {
+      width: 100%;
+      flex-direction: row;
+      align-items: center;
+      justify-content: flex-start;
+      padding: var(--spacing-md) var(--spacing-xl);
+      min-height: 60px;
+    }
+
+    .accordion-label-inner {
+      transform: none;
+      writing-mode: horizontal-tb;
+      flex-direction: row;   /* 手機: 標題 | 數字 水平排列 */
+      gap: var(--spacing-sm);
+    }
+
+    .accordion-body {
+      flex-direction: column;
+      width: 100%;           /* 手機: body 全寬 */
+      height: auto;
+    }
+
+    .accordion-body-inner {
+      flex-direction: column;
+      width: 100% !important; /* 手機版強制全寬，不使用 JS 計算的固定寬度 */
+    }
+
+    .accordion-img-wrap {
+      width: 100%;
+      height: 220px;
+      flex: none;
+    }
+
+    .accordion-text-wrap {
+      width: 100%;
+      flex: none;
+    }
   }
 }

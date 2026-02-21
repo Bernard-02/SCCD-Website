@@ -42,15 +42,15 @@
     font-weight: 700;
   }
 
-  /* ===== BFA Division Toggle Buttons ===== */
-  .bfa-division-btn {
+  /* ===== Class Division Toggle Buttons ===== */
+  .class-division-btn {
     border: 1px solid #000000;
     background: transparent;
     color: #000000;
     cursor: pointer;
   }
 
-  .bfa-division-btn.active {
+  .class-division-btn.active {
     background: #000000;
     color: #FFFFFF;
     font-weight: 700;

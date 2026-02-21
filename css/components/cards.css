@@ -134,7 +134,7 @@
     }
     .works-container::-webkit-scrollbar { display: none; } /* Chrome/Safari 隱藏捲軸 */
 
-    .works-container img.absolute {
+    .works-container img.absolute, .works-container > div.absolute {
       position: relative !important;
       top: auto !important;
       left: auto !important;

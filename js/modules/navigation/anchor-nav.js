@@ -1,63 +1,59 @@
 /**
- * Anchor Navigation Module (About Page)
- * About 頁面錨點導航功能
+ * Anchor Navigation Module
+ * 處理 About 頁面的左側錨點導航與 Scroll Spy
  */
 
 export function initAnchorNav() {
-  const anchorNav = document.getElementById('anchor-nav');
-  const anchorNavButtons = document.querySelectorAll('.anchor-nav-btn');
+  const navButtons = document.querySelectorAll('.anchor-nav-btn');
+  // 只選取有 id 的 section，避免選到其他無關元素
+  const sections = document.querySelectorAll('section[id]');
+  
+  if (navButtons.length === 0 || sections.length === 0) return;
 
-  if (!anchorNav || anchorNavButtons.length === 0) return;
-
-  // Handle anchor navigation clicks
-  anchorNavButtons.forEach(button => {
-    button.addEventListener('click', function() {
-      const targetId = this.getAttribute('data-target');
+  // 1. 點擊滾動功能
+  navButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetId = btn.getAttribute('data-target');
       const targetSection = document.getElementById(targetId);
-
+      
       if (targetSection) {
-        // Get the section's position and scroll with offset
-        const yOffset = 0; // Align to top of section
-        const y = targetSection.getBoundingClientRect().top + window.pageYOffset + yOffset;
-
-        window.scrollTo({
-          top: y,
-          behavior: 'smooth'
-        });
+        // 使用 helper 的平滑滾動，或者原生 scrollIntoView
+        if (window.SCCDHelpers && window.SCCDHelpers.scrollToElement) {
+          window.SCCDHelpers.scrollToElement(targetSection);
+        } else {
+          targetSection.scrollIntoView({ behavior: 'smooth' });
+        }
       }
-
-      this.blur();
     });
   });
 
-  // Highlight active anchor based on scroll position
-  window.addEventListener('scroll', function() {
-    const sections = ['overview', 'bfa-class', 'mdes-class', 'resources', 'alumni'];
-    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+  // 2. Scroll Spy (滾動監聽)
+  // 使用 IntersectionObserver 監聽區塊是否進入視窗中間
+  const observerOptions = {
+    root: null,
+    // rootMargin 設定為 '-50% 0px -50% 0px' 表示只偵測視窗正中間的一條線
+    // 這樣可以精確判斷當前視窗中心位於哪個區塊，解決區塊重疊或高度過高導致的誤判
+    rootMargin: '-50% 0px -50% 0px',
+    threshold: 0
+  };
 
-    let activeSection = null;
-
-    sections.forEach(sectionId => {
-      const section = document.getElementById(sectionId);
-      if (section) {
-        const rect = section.getBoundingClientRect();
-
-        // Check if the section's top is at or above the viewport top (y = 0)
-        // Use a small threshold to account for rounding
-        if (rect.top <= 50 && rect.bottom > 50) {
-          activeSection = sectionId;
-        }
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        // 更新按鈕狀態
+        navButtons.forEach(btn => {
+          if (btn.getAttribute('data-target') === id) {
+            btn.classList.add('active');
+          } else {
+            btn.classList.remove('active');
+          }
+        });
       }
     });
+  }, observerOptions);
 
-    if (activeSection) {
-      anchorNavButtons.forEach(btn => {
-        if (btn.getAttribute('data-target') === activeSection) {
-          btn.classList.add('active');
-        } else {
-          btn.classList.remove('active');
-        }
-      });
-    }
+  sections.forEach(section => {
+    observer.observe(section);
   });
 }

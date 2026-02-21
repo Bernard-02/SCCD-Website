@@ -20,7 +20,7 @@ import { initBFADivisionToggle } from './modules/ui/bfa-division-toggle.js';
 // Import About Page Modules
 import { initResourcesCycling } from './modules/pages/about/resources-cycling.js';
 import { initBrandTrail } from './modules/pages/about/brand-trail.js';
-import { initTimeline } from './modules/pages/about/timeline.js';
+import { initTimeline } from './modules/pages/about/timeline.js'; // Ensure this file exists
 import { initAnchorNav } from './modules/navigation/anchor-nav.js';
 
 // Import Page Specific Modules
@@ -71,7 +71,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initBrandTrail();
     initTimeline();
     initAnchorNav();
-    initHorizontalAccordion(); // About 頁面的 Accordion
+    initHorizontalAccordion(); // About 頁面的 Accordion（通用版）
     initBFADivisionToggle();   // BFA Class 分組切換
   }
 
