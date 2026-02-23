@@ -42,13 +42,13 @@
   .accordion-wrapper {
     display: flex;
     flex-direction: column;
-    gap: 2px; /* items 之間的間距 */
+    gap: 0; /* items 之間的間距 */
   }
 
   @media (min-width: 768px) {
     .accordion-wrapper {
       flex-direction: row;
-      gap: 2px;
+      gap: 0;
     }
   }
 
@@ -76,6 +76,36 @@
     padding: var(--spacing-xl) var(--spacing-md);
   }
 
+  /* Accordion Label Colors */
+  .colored-accordion .accordion-item:nth-child(3n+1) .accordion-label {
+    background-color: var(--color-pink);
+  }
+  .colored-accordion .accordion-item:nth-child(3n+2) .accordion-label {
+    background-color: var(--color-green);
+  }
+  .colored-accordion .accordion-item:nth-child(3n) .accordion-label {
+    background-color: var(--color-blue);
+  }
+  
+  /* Accordion Body Colors (Matching Label) */
+  .colored-accordion .accordion-item:nth-child(3n+1) .accordion-text-wrap {
+    background-color: var(--color-pink);
+  }
+  .colored-accordion .accordion-item:nth-child(3n+2) .accordion-text-wrap {
+    background-color: var(--color-green);
+  }
+  .colored-accordion .accordion-item:nth-child(3n) .accordion-text-wrap {
+    background-color: var(--color-blue);
+  }
+
+  /* Text color adjustment for contrast */
+  .colored-accordion .accordion-item:nth-child(3n+2) .accordion-label-inner,
+  .colored-accordion .accordion-item:nth-child(3n+2) .accordion-text-wrap p,
+  .colored-accordion .accordion-item:nth-child(3n) .accordion-label-inner,
+  .colored-accordion .accordion-item:nth-child(3n) .accordion-text-wrap p {
+    color: var(--color-black);
+  }
+
   /* Inner: 使用 writing-mode 實現垂直排版
      writing-mode: vertical-rl + rotate(180deg)
      = 頭往左傾閱讀，數字在視覺下方，標題在視覺上方
@@ -88,6 +118,7 @@
     line-height: 1;
     writing-mode: vertical-rl;
     transform: rotate(180deg);
+    text-orientation: sideways;
   }
 
   /* B: Body — width 0% ↔ 100% 切換，overflow:hidden 裁切內容 */

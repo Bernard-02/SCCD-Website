@@ -50,8 +50,42 @@
     <!-- Content Sections Wrapper -->
     <div id="about-content-wrapper" class="relative" style="padding-top: 50vh;">
 
-      <!-- Anchor Navigation positioned at column 1 -->
-      <div class="site-container absolute left-0 right-0 pointer-events-none z-[100]" style="top: 50vh; bottom: 0;">
+      <!-- Mobile Anchor Navigation (Floating Top Left) -->
+      <!-- Overlay -->
+      <div id="mobile-anchor-overlay" class="md:hidden fixed inset-0 bg-black/30 z-30 opacity-0 pointer-events-none transition-opacity duration-300"></div>
+      
+      <div id="mobile-anchor-container" class="md:hidden fixed top-[calc(var(--header-height,80px)+3rem)] left-4 z-40 pointer-events-none opacity-0 transition-opacity duration-300">
+        <!-- Wrapper for animation (Button becomes Menu) -->
+        <div id="mobile-anchor-wrapper" class="bg-black text-white w-12 h-12 rounded-[24px] overflow-hidden shadow-none border-none pointer-events-auto origin-top-left">
+          <!-- Toggle Button (Header) -->
+          <button id="mobile-anchor-toggle" class="w-12 h-12 flex-shrink-0 flex items-center justify-center">
+            <i class="fa-solid fa-list text-white text-h5 transition-transform duration-300"></i>
+          </button>
+          
+          <!-- Dropdown Menu (Content) -->
+          <div id="mobile-anchor-menu" class="flex flex-col gap-sm px-md pb-md opacity-0 transition-opacity duration-300 delay-75 hidden">
+            <button class="anchor-nav-btn text-left text-p1 font-regular transition-all duration-fast whitespace-nowrap text-white hover:text-gray-5" data-target="overview">
+              <div class="!bg-transparent">Overview</div>
+              <div class="!bg-transparent">綜述</div>
+            </button>
+            <button class="anchor-nav-btn text-left text-p1 font-regular transition-all duration-fast whitespace-nowrap text-white hover:text-gray-5" data-target="class">
+              <div class="!bg-transparent">Class</div>
+              <div class="!bg-transparent">班級</div>
+            </button>
+            <button class="anchor-nav-btn text-left text-p1 font-regular transition-all duration-fast whitespace-nowrap text-white hover:text-gray-5" data-target="resources">
+              <div class="!bg-transparent">Resources</div>
+              <div class="!bg-transparent">環境資源</div>
+            </button>
+            <button class="anchor-nav-btn text-left text-p1 font-regular transition-all duration-fast whitespace-nowrap text-white hover:text-gray-5" data-target="alumni">
+              <div class="!bg-transparent">Alumni</div>
+              <div class="!bg-transparent">系友發展</div>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Desktop Anchor Navigation (Hidden on Mobile) -->
+      <div class="hidden md:block site-container absolute left-0 right-0 pointer-events-none z-[100]" style="top: 50vh; bottom: 0;">
         <div class="grid-12 h-full">
           <div class="col-span-1">
             <div id="anchor-nav" class="sticky pointer-events-auto" style="top: 50vh; transform: translateY(-50%);">
@@ -103,13 +137,13 @@
             <div class="site-container">
               <div class="grid-12">
                 <div class="col-span-12 md:col-start-2 md:col-span-11 mx-[calc(var(--container-padding)*-1)] md:mx-0">
-                  <div class="accordion-wrapper h-auto md:h-[700px]">
+                  <div class="accordion-wrapper colored-accordion h-auto md:h-[700px]">
 
                     <!-- Accordion Item 1 -->
                     <div class="accordion-item" data-index="0">
                       <!-- A: Label (獨立，寬度由文字決定) -->
                       <div class="accordion-label">
-                        <div class="accordion-label-inner">01&emsp;Department Overview</div>
+                        <div class="accordion-label-inner">Department Overview&emsp;系所綜述</div>
                       </div>
                       <!-- B: Body (width 由 GSAP 控制，0 = 完全隱藏) -->
                       <div class="accordion-body">
@@ -129,7 +163,7 @@
                     <div class="accordion-item" data-index="1">
                       <!-- A: Label -->
                       <div class="accordion-label">
-                        <div class="accordion-label-inner">02&emsp;Teaching Direction</div>
+                        <div class="accordion-label-inner">Teaching Direction&emsp;教學特色</div>
                       </div>
                       <!-- B: Body -->
                       <div class="accordion-body">
@@ -149,7 +183,7 @@
                     <div class="accordion-item" data-index="2">
                       <!-- A: Label -->
                       <div class="accordion-label">
-                        <div class="accordion-label-inner">03&emsp;Awards &amp; Alumni</div>
+                        <div class="accordion-label-inner">Awards &amp; Alumni&emsp;獲獎與系友</div>
                       </div>
                       <!-- B: Body -->
                       <div class="accordion-body">
@@ -212,7 +246,20 @@
 
         <!-- Division Toggle Buttons -->
         <div class="site-container pb-6xl">
-          <div class="flex overflow-x-auto md:justify-center gap-md mb-4xl md:pb-0 no-scrollbar mx-[calc(var(--container-padding)*-1)] px-[var(--container-padding)] md:mx-0 md:px-0">
+          <!-- Mobile Controls -->
+          <div class="md:hidden flex items-start justify-between gap-2xl mb-xl">
+            <div id="mobile-division-title" class="flex-1">
+               <div class="text-h5 font-bold leading-tight">Division of Animation & Moving Image</div>
+               <div class="text-h5 font-bold mt-1">動畫影像設計組</div>
+            </div>
+            <div class="flex gap-sm shrink-0 pt-1">
+               <button id="mobile-division-prev" class="w-8 h-8 flex items-center justify-center"><i class="fa-solid fa-chevron-left text-p1"></i></button>
+               <button id="mobile-division-next" class="w-8 h-8 flex items-center justify-center"><i class="fa-solid fa-chevron-right text-p1"></i></button>
+            </div>
+          </div>
+
+          <!-- Desktop Buttons -->
+          <div class="hidden md:flex justify-center gap-md mb-4xl">
             <button class="class-division-btn shrink-0 active px-lg py-sm text-p1 font-bold transition-all duration-fast rounded-[50px] text-center" data-division="animation">
               <div class="whitespace-nowrap">Division of Animation & Moving Image</div>
               <div class="mt-1 whitespace-nowrap">動畫影像設計組</div>
@@ -374,34 +421,11 @@
           </div>
         </div>
 
-        <!-- Image and Cycling Text Section -->
-        <div class="site-container pb-6xl">
-          <div class="flex flex-col md:grid md:grid-cols-12 md:grid-rows-[auto_1fr] md:items-start gap-gutter md:gap-y-2xl">
-            <!-- 7-Segment Progress Line (Mobile: top, Desktop: above text col) -->
-            <div class="w-full md:col-start-7 md:col-span-5 md:row-start-1 order-1">
-              <div class="flex gap-xs mb-xl md:mb-0 md:mt-0">
-                <div class="resources-segment flex-1 bg-gray-9 transition-colors duration-fast cursor-pointer" style="height: 3px;" data-index="0"></div>
-                <div class="resources-segment flex-1 bg-gray-9 transition-colors duration-fast cursor-pointer" style="height: 3px;" data-index="1"></div>
-                <div class="resources-segment flex-1 bg-gray-9 transition-colors duration-fast cursor-pointer" style="height: 3px;" data-index="2"></div>
-                <div class="resources-segment flex-1 bg-gray-9 transition-colors duration-fast cursor-pointer" style="height: 3px;" data-index="3"></div>
-                <div class="resources-segment flex-1 bg-gray-9 transition-colors duration-fast cursor-pointer" style="height: 3px;" data-index="4"></div>
-                <div class="resources-segment flex-1 bg-gray-9 transition-colors duration-fast cursor-pointer" style="height: 3px;" data-index="5"></div>
-                <div class="resources-segment flex-1 bg-gray-9 transition-colors duration-fast cursor-pointer" style="height: 3px;" data-index="6"></div>
-              </div>
-            </div>
-
-            <!-- Image (Left) - col-2 to col-5, spans both rows -->
-            <div class="w-full md:col-start-2 md:col-span-4 md:row-start-1 md:row-span-2 order-2 md:order-1">
-              <div id="resources-image" class="bg-gray-9 aspect-[4/3] md:aspect-[3/3.5]" style="width: 100%;"></div>
-            </div>
-
-            <!-- Text Content (Right) - col-7 to col-11 -->
-            <div class="w-full md:col-start-7 md:col-span-5 md:row-start-2 order-3 md:order-2">
-              <div id="resources-cycling-content" class="h-[450px] md:h-auto overflow-y-auto md:overflow-visible">
-                <h5 class="mb-md" id="resources-title">Title 1 標題一</h5>
-                <p class="mb-sm" id="resources-text-en">English content for section 1 goes here.</p>
-                <p id="resources-text-zh">中文內容放在這裡。</p>
-              </div>
+        <!-- Resources Accordion Section -->
+        <div class="site-container pb-2xl md:pb-6xl">
+          <div class="grid-12">
+            <div id="resources-accordion-container" class="col-span-12 md:col-start-2 md:col-span-11 mx-[calc(var(--container-padding)*-1)] md:mx-0">
+              <!-- Accordion will be injected here by JS -->
             </div>
           </div>
         </div>
@@ -472,7 +496,7 @@
 
                 <!-- Mobile Brand Slideshow -->
                 <div id="brand-slideshow" class="md:hidden mb-2xl cursor-pointer flex justify-center">
-                  <div class="aspect-[4/3] w-1/2 bg-gray-9 overflow-hidden">
+                  <div class="aspect-[4/3] w-1/2 overflow-hidden">
                     <img id="brand-slide-img" src="../images/SCCD-1-4-0.jpg" alt="Alumni Brand" class="w-full h-full object-cover">
                   </div>
                 </div>

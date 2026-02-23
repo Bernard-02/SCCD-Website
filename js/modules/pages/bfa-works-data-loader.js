@@ -30,10 +30,10 @@ export async function loadBFAWorks() {
         <div class="works-content ${hiddenClass}" data-category="${categoryKey}">
           <div class="grid-12 mb-6xl">
             <div class="col-span-12 md:col-start-2 md:col-span-2 mb-lg md:mb-0">
-              <h3 class="md:rotate--4 inline-block whitespace-nowrap">${categoryData.titleHtml}</h3>
+              <h3 class="inline-block whitespace-nowrap">${categoryData.titleHtml}</h3>
             </div>
             <div class="col-span-12 md:col-start-6 md:col-span-6 pt-0 md:pt-xl">
-              <div class="md:rotate-3 inline-block">
+              <div class="inline-block">
                 <p class="mb-md">${categoryData.descriptionEn}</p>
                 <p>${categoryData.descriptionZh}</p>
               </div>

@@ -22,7 +22,10 @@ export function initCoursesFilter() {
       });
 
       // Scroll to the courses section
-      SCCDHelpers.scrollToElement('.courses-content-section');
+      const section = document.querySelector('.courses-content-section');
+      const header = document.querySelector('header');
+      const offset = header ? -header.offsetHeight : 0;
+      SCCDHelpers.scrollToElement(section, offset);
 
       this.blur();
     });

@@ -80,7 +80,7 @@ function renderAdmissionDetail(data) {
   const item = data[currentIndex];
 
   if (!item) {
-    window.location.href = 'admission.html'; // 找不到則導回列表
+    window.location.href = '404.html'; // 找不到則導向 404
     return;
   }
 

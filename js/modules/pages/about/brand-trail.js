@@ -4,14 +4,16 @@
  * 手機版：圖片輪播，每 1 秒自動切換，點擊切換到下一張
  */
 
-// 品牌圖片清單（暫用佔位圖，之後替換成實際 logo 圖片）
-const BRAND_IMAGES = [
-  '../images/SCCD-1-4-0.jpg',
-  '../images/SCCD-1-4-0.jpg',
-  '../images/SCCD-1-4-0.jpg',
-  '../images/SCCD-1-4-0.jpg',
-  '../images/SCCD-1-4-0.jpg',
+const BRANDS = [
+  'pixar', 'marvel', 'bluesky', 'apple', 'facebook', 'disneyland',
+  'teamlab', 'panerai', 'mercedes', 'bmw', 'skoda', 'lexus',
+  'gogoro', 'giant', 'kkbox', 'blizzard', 'sony', 'nyt',
+  'vogue', 'ubereats', 'foodpanda', 'nike', 'adidas', 'converse',
+  'newbalance', 'wsj', 'nvidia', 'htc', 'asus', 'samsung'
 ];
+
+// 預先載入圖片路徑
+const BRAND_IMAGES = BRANDS.map(name => `../images/brand-logo/${name}.png`);
 
 export function initBrandTrail() {
   initDesktopTrail();
@@ -26,8 +28,9 @@ function initDesktopTrail() {
   let lastX = 0;
   let lastY = 0;
   const distThreshold = 80;
-  const maxTrailImages = 15;
+  const maxTrailImages = 10; // 修改為保留 10 個圖片
   let trailImages = [];
+  let currentBrandIndex = 0; // 新增：用於追蹤目前顯示到第幾個 Logo
 
   brandTrailArea.addEventListener('mousemove', (e) => {
     const dist = Math.hypot(e.clientX - lastX, e.clientY - lastY);
@@ -42,7 +45,10 @@ function initDesktopTrail() {
     }
 
     const img = document.createElement('img');
-    img.src = '../images/SCCD-1-4-0.jpg';
+    // 依順序挑選一張，並循環
+    img.src = BRAND_IMAGES[currentBrandIndex];
+    currentBrandIndex = (currentBrandIndex + 1) % BRAND_IMAGES.length;
+
     img.classList.add('brand-trail-img');
     img.style.left = `${e.pageX}px`;
     img.style.top = `${e.pageY}px`;
@@ -78,6 +84,7 @@ function initMobileSlideshow() {
   function showNext() {
     currentIndex = (currentIndex + 1) % BRAND_IMAGES.length;
     slideImg.src = BRAND_IMAGES[currentIndex];
+    slideImg.style.objectFit = 'contain';
   }
 
   // 每 1 秒自動切換

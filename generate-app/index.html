@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+    <title>SCCD Logo Generator</title>
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Preload critical icons to prevent delay -->
+    <link rel="preload" href="Panel Icon/Standard.svg" as="image">
+    <link rel="preload" href="Panel Icon/Standard_Wireframe.svg" as="image">
+    <link rel="preload" href="Panel Icon/Inverse_White.svg" as="image">
+    <link rel="preload" href="Panel Icon/Inverse_Wireframe.svg" as="image">
+    <link rel="preload" href="Panel Icon/Play.svg" as="image">
+    <link rel="preload" href="Panel Icon/Play_Inverse.svg" as="image">
+    <link rel="preload" href="Panel Icon/Pause.svg" as="image">
+    <link rel="preload" href="Panel Icon/Pause_Inverse.svg" as="image">
+    <link rel="preload" href="Panel Icon/Custom.svg" as="image">
+    <link rel="preload" href="Panel Icon/Custom_Inverse.svg" as="image">
+    <link rel="preload" href="Panel Icon/Rotate.svg" as="image">
+    <link rel="preload" href="Panel Icon/Rotate_Inverse.svg" as="image">
+    <link rel="preload" href="Panel Icon/Random.svg" as="image">
+    <link rel="preload" href="Panel Icon/Random_Inverse.svg" as="image">
+    <link rel="preload" href="Panel Icon/Reset.svg" as="image">
+    <link rel="preload" href="Panel Icon/Reset_Inverse.svg" as="image">
+    <link rel="preload" href="Panel Icon/Download.svg" as="image">
+    <link rel="preload" href="Panel Icon/Download_Inverse.svg" as="image">
+    <link rel="preload" href="Panel Icon/Rotate_Phone.svg" as="image">
+    <link rel="preload" href="Panel Icon/Rotate_Phone_Inverse.svg" as="image">
+    <link rel="preload" href="Panel Icon/Gift.svg" as="image">
+    <link rel="preload" href="Panel Icon/Gift_Inverse.svg" as="image">
+    <link rel="preload" href="Panel Icon/Generate.svg" as="image">
+    <link rel="preload" href="Panel Icon/Generate_Inverse.svg" as="image">
+</head>
+<body>
+    <!-- 橫向模式提示覆蓋層 -->
+    <div id="landscape-overlay">
+        <img id="landscape-overlay-icon" src="Panel Icon/Rotate_Phone.svg" alt="Rotate Phone">
+        <div id="landscape-overlay-text">旋轉設備以獲取最佳體驗
+ROTATE FOR BEST EXPERIENCE</div>
+    </div>
+
+    <!-- 主容器，將使用 Flexbox 或 Grid 來進行整體佈局 -->
+    <main class="main-container">
+
+        <!-- 上方顯示區域（桌面版） -->
+        <section class="display-area desktop-only">
+            <!-- 左側：文字輸入區域 -->
+            <div class="input-container">
+                <textarea id="input-box" placeholder="TYPE&#10;AND&#10;ENTER" maxlength="40" rows="3"></textarea>
+            </div>
+
+            <!-- 右側：p5.js Canvas 容器 -->
+            <div id="desktop-canvas-container"></div>
+        </section>
+
+        <!-- 桌面版：下方控制面板區域 -->
+        <section class="control-panel">
+
+                <!-- 第一組：顏色模式 (單個循環按鈕) -->
+                <div class="control-box" id="colormode-box">
+                    <button class="custom-button custom-button-colormode" id="colormode-button">
+                        <img id="colormode-icon" src="Panel Icon/Standard.svg" alt="Color Mode">
+                    </button>
+                </div>
+
+                <!-- 色彩選擇器 (用於 Wireframe 模式) -->
+                <div class="control-box" id="colorpicker-box">
+                    <div id="colorpicker-container"></div>
+                    <!-- Color Wheel Play/Pause 按鈕 -->
+                    <button id="colorwheel-play-button" class="colorwheel-play-button">
+                        <img id="colorwheel-play-icon" src="Panel Icon/Play.svg" alt="Play">
+                    </button>
+                </div>
+
+                <!-- 第二組：旋轉模式（包含 Auto/Custom 和展開控制） -->
+                <div class="control-box" id="rotation-box">
+                    <!-- Custom 區域包裝容器 -->
+                    <div class="custom-area-wrapper" id="custom-area-wrapper">
+                        <!-- Custom 按鈕 -->
+                        <button class="custom-button custom-button-custom">
+                            <img id="custom-icon" src="Panel Icon/Custom.svg" alt="Custom">
+                        </button>
+
+                        <!-- 自訂角度控制 (由 JS 控制顯隱) -->
+                        <div class="control-group" id="custom-angle-controls">
+                            <div class="sliders-wrapper">
+                                <div class="slider-container">
+                                    <input type="range" id="r-slider" class="custom-slider" min="-360" max="360" value="0">
+                                    <input type="text" id="r-angle-label" class="angle-input" value="0" autocomplete="off">
+                                </div>
+                                <div class="slider-container">
+                                    <input type="range" id="g-slider" class="custom-slider" min="-360" max="360" value="0">
+                                    <input type="text" id="g-angle-label" class="angle-input" value="0" autocomplete="off">
+                                </div>
+                                <div class="slider-container">
+                                    <input type="range" id="b-slider" class="custom-slider" min="-360" max="360" value="0">
+                                    <input type="text" id="b-angle-label" class="angle-input" value="0" autocomplete="off">
+                                </div>
+                            </div>
+                            <div class="icon-buttons-wrapper">
+                                <button id="random-button" class="image-button">
+                                    <img id="random-img" src="Panel Icon/Random.svg" alt="Random Icon">
+                                </button>
+                                <button id="reset-button" class="image-button">
+                                    <img id="reset-img" src="Panel Icon/Reset.svg" alt="Reset Icon">
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Auto 按鈕 -->
+                    <button class="custom-button custom-button-rotate">
+                        <img id="rotate-icon" src="Panel Icon/Rotate.svg" alt="Auto Rotate">
+                    </button>
+                </div>
+
+                <!-- 第三組：儲存 -->
+                <div class="control-box" id="save-box">
+                    <div class="control-group-save" id="save-controls">
+                         <button id="save-button" class="image-button">
+                            <img id="save-img" src="Panel Icon/Download.svg" alt="Save Icon">
+                        </button>
+                    </div>
+                </div>
+
+        </section>
+
+
+        <!-- 手機版：統一的內容區域（包含 Logo、輸入框、Custom 區塊、Color Picker Bar） -->
+        <section class="mobile-content-section">
+            <!-- Logo 區域（從 display-area 移入） -->
+            <div class="mobile-logo-container">
+                <div id="canvas-container"></div>
+            </div>
+
+            <!-- 輸入框 -->
+            <div class="mobile-input-area">
+                <textarea id="mobile-input-box" placeholder="TYPE AND ENTER" maxlength="40" spellcheck="false" autocorrect="off" autocapitalize="off"></textarea>
+            </div>
+
+            <!-- Custom 調整區 -->
+            <div class="mobile-custom-angle-controls hidden">
+                <div class="controls-inner">
+                    <div class="sliders-box">
+                        <div class="sliders-wrapper">
+                            <div class="slider-container">
+                                <input type="range" id="mobile-r-slider" class="custom-slider" min="-360" max="360" value="0">
+                                <input type="text" id="mobile-r-angle-label" class="angle-input" value="0" readonly>
+                            </div>
+                            <div class="slider-container">
+                                <input type="range" id="mobile-g-slider" class="custom-slider" min="-360" max="360" value="0">
+                                <input type="text" id="mobile-g-angle-label" class="angle-input" value="0" readonly>
+                            </div>
+                            <div class="slider-container">
+                                <input type="range" id="mobile-b-slider" class="custom-slider" min="-360" max="360" value="0">
+                                <input type="text" id="mobile-b-angle-label" class="angle-input" value="0" readonly>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="icon-buttons-wrapper">
+                        <button id="mobile-random-button" class="image-button">
+                            <img id="mobile-random-img" src="Panel Icon/Random.svg" alt="Random Icon">
+                        </button>
+                        <button id="mobile-reset-button" class="image-button">
+                            <img id="mobile-reset-img" src="Panel Icon/Reset.svg" alt="Reset Icon">
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Color Picker Bar -->
+            <div class="mobile-colorpicker-bar hidden">
+                <div class="colorpicker-bar-inner">
+                    <div id="mobile-colorpicker-container"></div>
+                    <button id="mobile-colorwheel-play-button" class="mobile-colorwheel-play-btn">
+                        <img id="mobile-colorwheel-play-icon" src="Panel Icon/Play.svg" alt="Play">
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 手機版：底部 4 按鈕列 -->
+        <section class="mobile-bottom-bar">
+            <button class="mobile-bottom-btn mobile-mode-btn">
+                <img id="mobile-mode-icon" src="Panel Icon/Standard.svg" alt="Mode">
+            </button>
+            <!-- Custom + Rotate 按鈕組（共用外框） -->
+            <div class="mobile-rotation-group">
+                <button class="mobile-bottom-btn mobile-rotate-btn">
+                    <img id="mobile-rotate-icon" src="Panel Icon/Rotate.svg" alt="Rotate">
+                </button>
+                <button class="mobile-bottom-btn mobile-custom-btn">
+                    <img id="mobile-custom-icon" src="Panel Icon/Custom.svg" alt="Custom">
+                </button>
+            </div>
+            <button id="save-button-mobile" class="mobile-bottom-btn mobile-save-btn">
+                <img id="save-img-mobile" src="Panel Icon/Download.svg" alt="Save">
+            </button>
+        </section>
+
+    </main>
+
+    <!-- 下載提示框 -->
+    <div id="download-notification" class="notification hidden">
+        <span>Generating 生成中</span>
+    </div>
+
+    <!-- 依序載入 p5.js 函式庫和模塊化程式碼 -->
+    <script src="p5.min.js"></script>
+
+    <!-- 模塊化 JavaScript 文件 (按照依賴順序載入) -->
+    <script src="js/variables.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/mobile.js"></script>
+
+    <!-- 主程式 (已移除重複定義的變數和函數) -->
+    <!-- 色彩選擇器邏輯已整合至 sketch.js -->
+    <script src="sketch.js"></script>
+</body>
+</html>

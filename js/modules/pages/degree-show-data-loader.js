@@ -22,7 +22,7 @@ export async function loadDegreeShowList() {
             <div class="degree-show-img-wrapper overflow-hidden mb-md">
               <img src="${item.coverImage}" alt="Degree Show ${year}" loading="lazy" class="w-full object-cover transition-transform duration-700 group-hover:scale-105">
             </div>
-            <h5 class="mt-md group-hover:text-gray-6 transition-colors duration-fast">${item.title}</h5>
+            <h5 class="mt-md">${item.title}</h5>
           </a>
         </div>
       `;
@@ -38,7 +38,7 @@ export async function loadDegreeShowDetail() {
   const year = params.get('year');
 
   if (!year) {
-      window.location.href = 'degree-show.html';
+      window.location.href = '404.html';
       return;
   }
 
@@ -150,7 +150,7 @@ export async function loadDegreeShowDetail() {
       if (nextTitleMobileEl) nextTitleMobileEl.textContent = nextData.title;
 
     } else {
-      window.location.href = 'degree-show.html';
+      window.location.href = '404.html';
     }
   } catch (error) {
     console.error('Error loading degree show detail data:', error);

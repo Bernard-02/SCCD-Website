@@ -56,7 +56,9 @@ export function initActivitiesFilter() {
       updateActivitiesItemStyles();
 
       // Scroll to the activities section
-      SCCDHelpers.scrollToElement('.activities-content-section');
+      const header = document.querySelector('header');
+      const offset = header ? -header.offsetHeight : 0;
+      SCCDHelpers.scrollToElement('#activities-section', offset);
 
       this.blur();
     });

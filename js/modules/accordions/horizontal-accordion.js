@@ -7,10 +7,30 @@
  *   - Mobile: accordion-body 用 height 0px → auto 切換
  */
 
+let accordionWrappers = [];
+
 export function initHorizontalAccordion() {
-  const wrapper = document.querySelector('.accordion-wrapper');
-  const items = document.querySelectorAll('.accordion-item');
-  if (!wrapper || items.length === 0) return;
+  // Initialize all existing wrappers found in DOM
+  document.querySelectorAll('.accordion-wrapper').forEach(wrapper => {
+    initSingleAccordion(wrapper);
+  });
+
+  // Global Resize Listener
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      accordionWrappers.forEach(wrapper => updateAccordionLayout(wrapper));
+    }, 150);
+  });
+}
+
+export function initSingleAccordion(wrapper) {
+  if (!wrapper || accordionWrappers.includes(wrapper)) return;
+  
+  accordionWrappers.push(wrapper);
+  const items = wrapper.querySelectorAll('.accordion-item');
+  if (items.length === 0) return;
 
   let activeItem = items[0];
 
@@ -34,13 +54,13 @@ export function initHorizontalAccordion() {
     return wrapperW - totalLabelW - totalGap;
   }
 
-  // 初始化
-  function init() {
+  // 初始化 / 更新佈局
+  function updateLayout() {
     const mobile = isMobile();
     const expandedW = !mobile ? getExpandedContentWidth() : 0;
     
-    // 嘗試保留當前 active 狀態，否則預設第一個
-    const currentActive = document.querySelector('.accordion-item.active') || items[0];
+    // 嘗試保留當前 active 狀態，否則預設第一個 (scoped to this wrapper)
+    const currentActive = wrapper.querySelector('.accordion-item.active') || items[0];
     activeItem = currentActive;
     
     items.forEach((item, i) => {
@@ -80,7 +100,8 @@ export function initHorizontalAccordion() {
     });
   }
 
-  init();
+  // Initial layout update
+  updateLayout();
 
   // 點擊切換
   items.forEach(item => {
@@ -111,12 +132,11 @@ export function initHorizontalAccordion() {
     });
   });
 
-  // Resize 同步
-  let resizeTimer;
-  window.addEventListener('resize', () => {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => {
-      init(); // Re-initialize layout on resize
-    }, 150);
-  });
+  // Expose update function for global resize handler
+  wrapper.updateLayout = updateLayout;
+}
+
+// Helper for global resize loop
+function updateAccordionLayout(wrapper) {
+  if (wrapper.updateLayout) wrapper.updateLayout();
 }

@@ -56,4 +56,129 @@ export function initAnchorNav() {
   sections.forEach(section => {
     observer.observe(section);
   });
+
+  // 3. Mobile Menu Toggle Logic
+  const mobileToggle = document.getElementById('mobile-anchor-toggle');
+  const mobileWrapper = document.getElementById('mobile-anchor-wrapper');
+  const mobileMenu = document.getElementById('mobile-anchor-menu');
+  const mobileOverlay = document.getElementById('mobile-anchor-overlay');
+  const mobileContainer = document.getElementById('mobile-anchor-container');
+  const footer = document.getElementById('site-footer');
+
+  if (mobileToggle && mobileWrapper && mobileMenu && mobileContainer) {
+    let isOpen = false;
+    const icon = mobileToggle.querySelector('i');
+
+    const toggleMenu = () => {
+      isOpen = !isOpen;
+      
+      // 使用 GSAP 處理動畫
+      if (typeof gsap === 'undefined') return;
+
+      if (isOpen) {
+        // Open State
+        // 1. Show Overlay
+        if (mobileOverlay) {
+          mobileOverlay.classList.remove('pointer-events-none');
+          gsap.to(mobileOverlay, { opacity: 1, duration: 0.3 });
+        }
+
+        // 2. Prepare Menu (Show but invisible so height can be calculated)
+        mobileMenu.classList.remove('hidden');
+
+        // 3. Expand Wrapper (Circle -> Rounded Rect)
+        gsap.to(mobileWrapper, {
+          width: 160, // w-40
+          height: 'auto',
+          borderRadius: 15, // 設定展開後的圓角為 15px
+          duration: 0.5,
+          ease: 'power2.out'
+        });
+        
+        // 4. Show Menu Items
+        gsap.to(mobileMenu, { opacity: 1, duration: 0.3 });
+        
+        const menuItems = mobileMenu.querySelectorAll('.anchor-nav-btn');
+        gsap.fromTo(menuItems, 
+          { y: 10, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.4, stagger: 0.05, ease: 'power2.out' }
+        );
+
+        // 5. Icon Change (Rotate & Swap)
+        if (icon) icon.classList.replace('fa-list', 'fa-xmark');
+      } else {
+        // Closed State
+        // 1. Hide Overlay
+        if (mobileOverlay) {
+          mobileOverlay.classList.add('pointer-events-none');
+          gsap.to(mobileOverlay, { opacity: 0, duration: 0.3 });
+        }
+        
+        // 2. Collapse Wrapper
+        gsap.to(mobileWrapper, {
+          width: 48, // w-12
+          height: 48, // h-12
+          borderRadius: 24, // 使用 24px (48px的一半) 保持圓形，避免使用 % 造成動畫變形
+          duration: 0.3,
+          ease: 'power2.inOut'
+        });
+
+        // 3. Hide Menu Items
+        gsap.to(mobileMenu, { opacity: 0, duration: 0.2, onComplete: () => mobileMenu.classList.add('hidden') });
+
+        // 4. Icon Change
+        if (icon) icon.classList.replace('fa-xmark', 'fa-list');
+      }
+    };
+
+    mobileToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleMenu();
+    });
+
+    // Close when clicking outside
+    document.addEventListener('click', (e) => {
+      if (isOpen && !mobileWrapper.contains(e.target)) {
+        toggleMenu();
+      }
+    });
+    
+    // Close when clicking overlay
+    if (mobileOverlay) {
+      mobileOverlay.addEventListener('click', () => {
+        if (isOpen) toggleMenu();
+      });
+    }
+
+    // Close when clicking a link inside the mobile menu
+    const mobileLinks = mobileMenu.querySelectorAll('.anchor-nav-btn');
+    mobileLinks.forEach(link => {
+      link.addEventListener('click', () => {
+        if (isOpen) toggleMenu();
+      });
+    });
+
+    // 4. Scroll Visibility Logic
+    const handleScroll = () => {
+      const footerRect = footer ? footer.getBoundingClientRect() : null;
+      const isFooterVisible = footerRect ? (footerRect.top < window.innerHeight) : false;
+      const isPastHero = window.scrollY > window.innerHeight * 0.8;
+
+      // Visibility of the button container
+      if (isPastHero && !isFooterVisible) {
+        mobileContainer.classList.remove('opacity-0', 'pointer-events-none');
+        mobileContainer.classList.add('pointer-events-auto');
+      } else {
+        mobileContainer.classList.add('opacity-0', 'pointer-events-none');
+        mobileContainer.classList.remove('pointer-events-auto');
+      }
+
+      // Auto-close if open and footer is visible
+      if (isFooterVisible && isOpen) {
+        toggleMenu();
+      }
+    };
+    window.addEventListener('scroll', handleScroll);
+    handleScroll(); // Initial check
+  }
 }

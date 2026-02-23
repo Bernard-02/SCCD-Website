@@ -8,13 +8,20 @@ export async function loadRecords() {
     const response = await fetch('../data/records.json');
     const data = await response.json();
     const container = document.getElementById('records-list-container');
+    const tickerSection = document.getElementById('awards-ticker-section');
+    const tickerContainer = document.querySelector('.awards-ticker-wrapper');
 
     if (!container) return;
 
+    // 處理資料結構相容性 (支援舊版 Array 或新版 Object)
+    const recordsData = Array.isArray(data) ? data : data.records;
+    const awardsImages = Array.isArray(data) ? [] : data.awardsImages;
+
+    // 1. Render Records List
     container.innerHTML = '';
 
-    data.forEach((yearGroup, index) => {
-      const isLastYear = index === data.length - 1;
+    recordsData.forEach((yearGroup, index) => {
+      const isLastYear = index === recordsData.length - 1;
       
       // Generate items HTML
       let itemsHtml = '';
@@ -74,7 +81,66 @@ export async function loadRecords() {
       container.insertAdjacentHTML('beforeend', html);
     });
 
+    // 2. Render Awards Ticker
+    if (tickerContainer && awardsImages && awardsImages.length > 0) {
+      initAwardsTicker(tickerContainer, awardsImages);
+    } else if (tickerSection) {
+      // 如果沒有設定圖片，則隱藏整個 Ticker 區塊，避免留白
+      tickerSection.style.display = 'none';
+    }
+
   } catch (error) {
     console.error('Error loading records data:', error);
+  }
+}
+
+function initAwardsTicker(container, images) {
+  // 建立圖片 HTML
+  // 為了無縫滾動，我們需要複製足夠多的圖片來填滿寬度，這裡簡單複製兩份列表
+  // 實際 GSAP 處理時，通常會建立兩個相同的 track 進行交替
+  
+  const createTrack = () => {
+    const track = document.createElement('div');
+    track.className = 'flex gap-xl md:gap-3xl px-2xl flex-shrink-0 items-center'; // gap-4xl (128px) for spacing
+    
+    images.forEach(src => {
+      const img = document.createElement('img');
+      img.src = src;
+      img.alt = 'Award';
+      // 固定大小設定：高度固定，寬度自適應 (或根據需求設定固定寬高)
+      img.className = 'h-[50px] md:h-[100px] w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300'; 
+      
+      // 加入錯誤處理：如果圖片載入失敗（例如檔名錯誤），在 Console 顯示警告並隱藏該圖片
+      img.onerror = () => {
+        console.warn('Awards Ticker: Failed to load image', src);
+        img.style.display = 'none';
+      };
+
+      track.appendChild(img);
+    });
+    return track;
+  };
+
+  // 清空容器
+  container.innerHTML = '';
+
+  // 建立兩個 Track 以實現無縫滾動
+  const track1 = createTrack();
+  const track2 = createTrack();
+  
+  container.appendChild(track1);
+  container.appendChild(track2);
+
+  // GSAP Ticker Animation
+  // 讓兩個 track 一起向左移動
+  if (typeof gsap !== 'undefined') {
+    // 計算單個 track 的寬度可能需要等待圖片載入，
+    // 但使用 xPercent: -100 可以相對簡單地處理
+    gsap.to([track1, track2], {
+      xPercent: -100,
+      repeat: -1,
+      duration: 120, // 調整速度
+      ease: "none"
+    });
   }
 }

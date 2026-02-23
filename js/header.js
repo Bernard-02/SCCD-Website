@@ -22,6 +22,17 @@ export function initHeader() {
 
     // 2. Active Nav State
     let currentPage = window.location.pathname.split('/').pop();
+
+    // Special handling for Generate page: Hide Logo
+    if (currentPage === 'generate.html') {
+      const logo = document.getElementById('header-logo');
+      if (logo) {
+        logo.style.display = 'none';
+        const logoLink = logo.closest('a');
+        if (logoLink) logoLink.style.display = 'none';
+      }
+    }
+
     const pageMappings = {
       'admission-detail.html': 'admission.html',
       'degree-show-detail.html': 'degree-show.html',
@@ -45,6 +56,16 @@ export function initHeader() {
           link.classList.add('active');
         }
       });
+    });
+
+    // Handle standalone links (like GENERATE!)
+    document.querySelectorAll('a.nav-link').forEach(link => {
+      if (link.closest('nav')) return;
+
+      const href = link.getAttribute('href');
+      if (href && href.split('/').pop() === currentPage) {
+        link.classList.add('active');
+      }
     });
 
     // 3. Logo Scale Animation (Responsive)
