@@ -46,7 +46,7 @@ export function initHeader() {
       const parentLink = li.querySelector(':scope > a.nav-link');
       const subLinks = li.querySelectorAll('.submenu-link');
 
-      if (subLinks.length === 0 && parentLink && parentLink.getAttribute('href') === currentPage) {
+      if (parentLink && parentLink.getAttribute('href') === currentPage) {
         parentLink.classList.add('active');
       }
 

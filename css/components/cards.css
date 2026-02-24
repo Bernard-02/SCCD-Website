@@ -25,12 +25,12 @@
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  /* Parttime cards: blue overlay (基礎樣式) */
-  .faculty-card[data-category="parttime"] .faculty-card-image-wrapper::after {
+  /* All cards: color overlay (基礎樣式) */
+  .faculty-card .faculty-card-image-wrapper::after {
     content: '';
     position: absolute;
     inset: 0;
-    background-color: #26BCFF; /* 藍色 100% */
+    background-color: var(--card-color, #26BCFF);
     mix-blend-mode: screen;
     opacity: 0;
     transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -39,19 +39,12 @@
 
   /* Hover 效果：僅桌面版 */
   @media (min-width: 768px) {
-    /* Fulltime and admin cards: image scale on hover */
-    .faculty-card[data-category="fulltime"] .faculty-card-image-wrapper:hover .faculty-card-image,
-    .faculty-card[data-category="admin"] .faculty-card-image-wrapper:hover .faculty-card-image {
-      transform: scale(1.1);
-    }
-
-    /* Parttime cards: blue overlay on hover */
-    .faculty-card[data-category="parttime"] .faculty-card-image-wrapper:hover::after {
+    /* All cards: color overlay + grayscale on hover */
+    .faculty-card .faculty-card-image-wrapper:hover::after {
       opacity: 1;
     }
 
-    /* Parttime cards: grayscale image on hover */
-    .faculty-card[data-category="parttime"] .faculty-card-image-wrapper:hover .faculty-card-image {
+    .faculty-card .faculty-card-image-wrapper:hover .faculty-card-image {
       filter: grayscale(100%);
     }
   }
@@ -63,20 +56,45 @@
     }
   }
 
+  /* ===== Degree Show Cards ===== */
+  .degree-show-img-wrapper {
+    position: relative;
+  }
+
+  .degree-show-img {
+    transition: filter 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .degree-show-img-wrapper::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-color: var(--card-color, #26BCFF);
+    mix-blend-mode: screen;
+    opacity: 0;
+    transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+  }
+
+  @media (min-width: 768px) {
+    .degree-show-card:hover .degree-show-img {
+      filter: grayscale(100%);
+    }
+
+    .degree-show-card:hover .degree-show-img-wrapper::after {
+      opacity: 1;
+    }
+  }
+
   /* ===== Degree Show Image ===== */
+  /* ===== Faculty Section Tags ===== */
+  .faculty-tag {
+    @apply inline-block text-p1 border border-black px-xs py-[2px];
+    white-space: nowrap;
+  }
+
   .degree-show-img-wrapper {
     overflow: hidden;
-  }
-
-  .degree-show-img-wrapper img {
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  /* Hover 效果：僅桌面版 */
-  @media (min-width: 768px) {
-    .degree-show-img-wrapper:hover img {
-      transform: scale(1.05);
-    }
   }
 
   /* ===== Brand Trail Image (Mouse Trail Effect) ===== */

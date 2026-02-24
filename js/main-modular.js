@@ -16,6 +16,8 @@ import { initWorksFilter } from './modules/filters/works-filter.js';
 // Import UI Modules
 import { initSmoothScroll } from './modules/ui/smooth-scroll.js';
 import { initBFADivisionToggle } from './modules/ui/bfa-division-toggle.js';
+import { initBtnFillHover } from './modules/ui/btn-fill-hover.js';
+import { initSupportLinkColor } from './modules/ui/support-link-color.js';
 
 // Import About Page Modules
 import { initResourcesCycling } from './modules/pages/about/resources-cycling.js';
@@ -26,6 +28,7 @@ import { initAnchorNav } from './modules/navigation/anchor-nav.js';
 // Import Page Specific Modules
 import { initActivitiesPreview } from './modules/pages/activities-preview.js';
 import { initFacultySlideIn } from './modules/pages/faculty-slide-in.js';
+import { initActivitiesSectionSwitch } from './modules/pages/activities-section-switch.js';
 
 // Import Accordion Modules
 import { initHorizontalAccordion } from './modules/accordions/horizontal-accordion.js';
@@ -57,6 +60,7 @@ document.addEventListener('DOMContentLoaded', function() {
   initHeader();
   initFooter();
   initSmoothScroll();
+  initBtnFillHover();
 
   // 2. Page Specific Logic (根據頁面名稱執行對應模組)
   const path = window.location.pathname;
@@ -112,9 +116,15 @@ document.addEventListener('DOMContentLoaded', function() {
     loadSupportData().then(() => {
       initCourseAccordion();
     });
+    initSupportLinkColor();
   }
 
-  // --- Activities Page ---
+  // --- Activities Page (整合版) ---
+  if (page.includes('activities.html') && !page.includes('general-activities.html')) {
+    initActivitiesSectionSwitch();
+  }
+
+  // --- General Activities (舊獨立頁面) ---
   if (page.includes('general-activities.html')) {
     loadGeneralActivities().then(() => {
       initActivitiesFilter();

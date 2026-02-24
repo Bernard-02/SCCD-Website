@@ -61,10 +61,25 @@ export function initFacultyFilter() {
     }
   };
 
+  const FILTER_COLORS = ['#26BCFF', '#FF448A', '#00FF80'];
+  let lastColorIndex = -1;
+
+  function getRandomColor() {
+    let index;
+    do { index = Math.floor(Math.random() * FILTER_COLORS.length); } while (index === lastColorIndex);
+    lastColorIndex = index;
+    return FILTER_COLORS[index];
+  }
+
   // Filter button click event
   filterButtons.forEach(button => {
     button.addEventListener('click', function(e) {
       e.preventDefault();
+
+      // Reset color on all buttons, set random color on active
+      filterButtons.forEach(btn => btn.style.color = '');
+      const color = getRandomColor();
+      this.style.color = color;
 
       // Set active state using helper
       SCCDHelpers.setActive(this, filterButtons);

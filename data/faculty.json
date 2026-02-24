@@ -11,17 +11,42 @@
       {
         "titleEn": "Education",
         "titleZh": "學歷",
-        "content": "Pratt Institute Industrial Design, US | MID\n美國普瑞特藝術學院工業設計研究所 | 碩士"
+        "type": "education",
+        "items": [
+          {
+            "countryZh": "美國", "countryEn": "United States",
+            "schoolZh": "普瑞特藝術學院", "schoolEn": "Pratt Institute",
+            "majorZh": "工業設計", "majorEn": "Industrial Design",
+            "degreeZh": "碩士", "degreeEn": "M.I.D."
+          }
+        ]
       },
       {
         "titleEn": "Experience",
         "titleZh": "經歷",
-        "content": "實踐大學 | 校董事\n實踐大學時尚與媒體設計研究所 | 副教授兼所長\n實踐大學媒體傳達設計學系 | 副教授兼系主任\n實踐大學工業設計研究所 | 專任副教授\n實踐大學視覺傳達設計學系 | 副教授兼系主任\n實踐設計管理學院工業產品設計學系 | 專任講師\n實踐設計管理學院室內空間設計學系 | 專任講師\n實踐大學應用美術學系 | 專任講師\n實踐大學校園規劃興建 | 委員\n中華民國工業設計學會 | 理事\n中華民國外貿協會設計處 | 設計專員\n中華民國平面設計協會 TOP STAR | 作品評審委員\n行政院文建會國家藝術村方向研究計劃 | 諮詢委員\n全國工業類技職教育一貫課程規劃 | 設計組委員\n經濟部工業局98年度文化創意產業優惠貸款計畫設計業 | 技術審查委員\n教育部文藝獎設計類 | 評審委員\n國家工藝獎綜合決審會 | 評審委員\n臺北市立美術館美術品典藏審議委員會 | 審議委員會委員\nELLE STYLE AWARDS 風格人物大賞 | 專業評審團\n財團法人臺北市學學文創教育基金會 | 兼任董事\n美國現代美術館「創新媒材與當代設計」巡迴展台灣站 | 空間展場與視覺形象規劃設計"
+        "type": "experience",
+        "items": [
+          { "year": "1999", "organization": "全國工業類技職教育一貫課程規劃", "role": "設計組委員" },
+          { "year": "1999", "organization": "中華民國平面設計協會 TOP STAR", "role": "作品評審委員" },
+          { "year": "1999", "organization": "行政院文建會國家藝術村方向研究計劃", "role": "諮詢委員" },
+          { "year": "1995", "organization": "中華民國工業設計學會", "role": "理事" },
+          { "year": "1985", "organization": "實踐設計管理學院室內空間設計學系", "role": "" },
+          { "year": "1982", "organization": "外貿協會設計處", "role": "設計專員" }
+        ]
       },
       {
         "titleEn": "Awards",
         "titleZh": "獲獎",
-        "content": "德國紅點設計獎 | 最佳品質設計教育獎 | 獲獎\n德國 Design Kalender 設計年鑑 | 收錄德國 Output 設計年鑑 |收錄\n義大利 MISURA EMUE 傢具公司國際設計競賽 | 創意作品\n日本大阪國際設計競賽 | 銅牌大賞\n日本大阪國際設計競賽 | 傑出作品\n日本名古屋國際設計大賽指導 | 銀獎、評審團大賞\n日本福岡亞洲數位藝術大賽 | 動態影像類組 | 入圍賞\n國際 Swarovski 水晶設計競賽 | 首獎"
+        "type": "awards",
+        "items": [
+          { "year": "", "name": "德國紅點設計獎", "work": "", "award": "最佳品質設計教育獎" },
+          { "year": "", "name": "德國 Design Kalender 設計年鑑", "work": "", "award": "收錄" },
+          { "year": "", "name": "義大利 MISURA EMUE 傢具公司國際設計競賽", "work": "", "award": "創意作品" },
+          { "year": "", "name": "日本大阪國際設計競賽", "work": "", "award": "銅牌大賞" },
+          { "year": "", "name": "日本名古屋國際設計大賽", "work": "", "award": "銀獎、評審團大賞" },
+          { "year": "", "name": "日本福岡亞洲數位藝術大賽", "work": "動態影像類組", "award": "入圍賞" },
+          { "year": "", "name": "國際 Swarovski 水晶設計競賽", "work": "", "award": "首獎" }
+        ]
       }
     ]
   },
@@ -37,12 +62,20 @@
       {
         "titleEn": "Education",
         "titleZh": "學歷",
-        "content": "National Taiwan University | PhD in Design\n國立臺灣大學設計學系 | 博士"
+        "type": "education",
+        "items": [
+          { "country": "台灣", "school": "國立臺灣大學", "major": "設計學系", "degree": "博士" }
+        ]
       },
       {
         "titleEn": "Experience",
         "titleZh": "經歷",
-        "content": "實踐大學媒體傳達設計學系 | 副教授\n台北市立美術館 | 策展人\n台灣設計協會 | 理事"
+        "type": "experience",
+        "items": [
+          { "year": "", "organization": "實踐大學媒體傳達設計學系", "role": "副教授" },
+          { "year": "", "organization": "台北市立美術館", "role": "策展人" },
+          { "year": "", "organization": "台灣設計協會", "role": "理事" }
+        ]
       }
     ]
   },
@@ -58,12 +91,19 @@
       {
         "titleEn": "Education",
         "titleZh": "學歷",
-        "content": "Royal College of Art, UK | MA in Communication Design\n英國皇家藝術學院傳達設計系 | 碩士"
+        "type": "education",
+        "items": [
+          { "country": "英國", "school": "Royal College of Art", "major": "Communication Design", "degree": "MA" }
+        ]
       },
       {
         "titleEn": "Experience",
         "titleZh": "經歷",
-        "content": "實踐大學媒體傳達設計學系 | 助理教授\n自由設計師 | 平面設計與品牌顧問"
+        "type": "experience",
+        "items": [
+          { "year": "", "organization": "實踐大學媒體傳達設計學系", "role": "助理教授" },
+          { "year": "", "organization": "自由設計師", "role": "平面設計與品牌顧問" }
+        ]
       }
     ]
   },
@@ -79,12 +119,19 @@
       {
         "titleEn": "Education",
         "titleZh": "學歷",
-        "content": "Parsons School of Design, US | MFA\n美國帕森設計學院 | 藝術碩士"
+        "type": "education",
+        "items": [
+          { "country": "美國", "school": "Parsons School of Design", "major": "Fine Arts", "degree": "MFA" }
+        ]
       },
       {
         "titleEn": "Experience",
         "titleZh": "經歷",
-        "content": "實踐大學媒體傳達設計學系 | 助理教授\n國際設計競賽 | 評審委員"
+        "type": "experience",
+        "items": [
+          { "year": "", "organization": "實踐大學媒體傳達設計學系", "role": "助理教授" },
+          { "year": "", "organization": "國際設計競賽", "role": "評審委員" }
+        ]
       }
     ]
   },
@@ -95,19 +142,7 @@
     "nameEn": "Professor Name 5",
     "nameZh": "教授名字 5",
     "titleEn": "Lecturer",
-    "titleZh": "講師",
-    "sections": [
-      {
-        "titleEn": "Education",
-        "titleZh": "學歷",
-        "content": "實踐大學媒體傳達設計學系 | 碩士"
-      },
-      {
-        "titleEn": "Experience",
-        "titleZh": "經歷",
-        "content": "實踐大學媒體傳達設計學系 | 講師\n數位媒體設計工作室 | 創意總監"
-      }
-    ]
+    "titleZh": "講師"
   },
   {
     "id": "6",
@@ -116,19 +151,7 @@
     "nameEn": "Professor Name 6",
     "nameZh": "教授名字 6",
     "titleEn": "Lecturer",
-    "titleZh": "講師",
-    "sections": [
-      {
-        "titleEn": "Education",
-        "titleZh": "學歷",
-        "content": "國立台北科技大學設計學院 | 碩士"
-      },
-      {
-        "titleEn": "Experience",
-        "titleZh": "經歷",
-        "content": "實踐大學媒體傳達設計學系 | 講師\n品牌設計顧問公司 | 資深設計師"
-      }
-    ]
+    "titleZh": "講師"
   },
   {
     "id": "7",
@@ -137,19 +160,7 @@
     "nameEn": "Professor Name 7",
     "nameZh": "教授名字 7",
     "titleEn": "Lecturer",
-    "titleZh": "講師",
-    "sections": [
-      {
-        "titleEn": "Education",
-        "titleZh": "學歷",
-        "content": "實踐大學時尚與媒體設計研究所 | 碩士"
-      },
-      {
-        "titleEn": "Experience",
-        "titleZh": "經歷",
-        "content": "實踐大學媒體傳達設計學系 | 講師\n動態影像設計工作室 | 設計總監"
-      }
-    ]
+    "titleZh": "講師"
   },
   {
     "id": "8",
@@ -163,12 +174,19 @@
       {
         "titleEn": "Education",
         "titleZh": "學歷",
-        "content": "Savannah College of Art and Design | MFA\n美國薩凡納藝術設計學院 | 藝術碩士"
+        "type": "education",
+        "items": [
+          { "country": "美國", "school": "Savannah College of Art and Design", "major": "Fine Arts", "degree": "MFA" }
+        ]
       },
       {
         "titleEn": "Experience",
         "titleZh": "經歷",
-        "content": "實踐大學媒體傳達設計學系 | 助理教授\n互動媒體設計 | 專業顧問"
+        "type": "experience",
+        "items": [
+          { "year": "", "organization": "實踐大學媒體傳達設計學系", "role": "助理教授" },
+          { "year": "", "organization": "互動媒體設計", "role": "專業顧問" }
+        ]
       }
     ]
   },
@@ -184,12 +202,19 @@
       {
         "titleEn": "Education",
         "titleZh": "學歷",
-        "content": "國立台灣師範大學設計學系 | 博士"
+        "type": "education",
+        "items": [
+          { "country": "台灣", "school": "國立台灣師範大學", "major": "設計學系", "degree": "博士" }
+        ]
       },
       {
         "titleEn": "Experience",
         "titleZh": "經歷",
-        "content": "實踐大學媒體傳達設計學系 | 副教授\n台灣平面設計協會 | 常務理事"
+        "type": "experience",
+        "items": [
+          { "year": "", "organization": "實踐大學媒體傳達設計學系", "role": "副教授" },
+          { "year": "", "organization": "台灣平面設計協會", "role": "常務理事" }
+        ]
       }
     ]
   },
@@ -205,12 +230,19 @@
       {
         "titleEn": "Education",
         "titleZh": "學歷",
-        "content": "Tokyo University of the Arts | PhD\n日本東京藝術大學 | 博士"
+        "type": "education",
+        "items": [
+          { "country": "日本", "school": "Tokyo University of the Arts", "major": "Design", "degree": "PhD" }
+        ]
       },
       {
         "titleEn": "Experience",
         "titleZh": "經歷",
-        "content": "實踐大學媒體傳達設計學系 | 教授\n亞洲設計聯盟 | 理事長"
+        "type": "experience",
+        "items": [
+          { "year": "", "organization": "實踐大學媒體傳達設計學系", "role": "教授" },
+          { "year": "", "organization": "亞洲設計聯盟", "role": "理事長" }
+        ]
       }
     ]
   },
@@ -221,19 +253,7 @@
     "nameEn": "Professor Name 11",
     "nameZh": "教授名字 11",
     "titleEn": "Lecturer",
-    "titleZh": "講師",
-    "sections": [
-      {
-        "titleEn": "Education",
-        "titleZh": "學歷",
-        "content": "實踐大學媒體傳達設計學系 | 碩士"
-      },
-      {
-        "titleEn": "Experience",
-        "titleZh": "經歷",
-        "content": "實踐大學媒體傳達設計學系 | 講師\n包裝設計工作室 | 創意總監"
-      }
-    ]
+    "titleZh": "講師"
   },
   {
     "id": "12",
@@ -247,12 +267,19 @@
       {
         "titleEn": "Education",
         "titleZh": "學歷",
-        "content": "Goldsmiths, University of London | MA in Design\n英國倫敦大學金匠學院設計系 | 碩士"
+        "type": "education",
+        "items": [
+          { "country": "英國", "school": "Goldsmiths, University of London", "major": "Design", "degree": "MA" }
+        ]
       },
       {
         "titleEn": "Experience",
         "titleZh": "經歷",
-        "content": "實踐大學媒體傳達設計學系 | 助理教授\nUI/UX 設計顧問 | 使用者經驗設計專家"
+        "type": "experience",
+        "items": [
+          { "year": "", "organization": "實踐大學媒體傳達設計學系", "role": "助理教授" },
+          { "year": "", "organization": "UI/UX 設計顧問", "role": "使用者經驗設計專家" }
+        ]
       }
     ]
   },

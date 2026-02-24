@@ -37,16 +37,38 @@ export function initAnchorNav() {
     threshold: 0
   };
 
+  const NAV_COLORS = ['#26BCFF', '#FF448A', '#00FF80'];
+  let lastNavColorIndex = -1;
+
+  function getNavColor() {
+    let index;
+    do { index = Math.floor(Math.random() * NAV_COLORS.length); } while (index === lastNavColorIndex);
+    lastNavColorIndex = index;
+    return NAV_COLORS[index];
+  }
+
+  let currentActiveId = null;
+
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
         const id = entry.target.id;
+        // timeline 屬於 class section，不觸發任何狀態更新
+        if (id === 'timeline') return;
+        // 同一個 section 重複進入時不換色
+        if (id === currentActiveId) return;
+        currentActiveId = id;
+
+        const color = getNavColor();
+
         // 更新按鈕狀態
         navButtons.forEach(btn => {
           if (btn.getAttribute('data-target') === id) {
             btn.classList.add('active');
+            btn.style.color = color;
           } else {
             btn.classList.remove('active');
+            btn.style.color = '';
           }
         });
       }
@@ -54,6 +76,7 @@ export function initAnchorNav() {
   }, observerOptions);
 
   sections.forEach(section => {
+    if (section.id === 'timeline') return;
     observer.observe(section);
   });
 
@@ -158,13 +181,13 @@ export function initAnchorNav() {
       });
     });
 
-    // 4. Scroll Visibility Logic
+    // 4. Scroll Visibility Logic (Mobile)
     const handleScroll = () => {
       const footerRect = footer ? footer.getBoundingClientRect() : null;
       const isFooterVisible = footerRect ? (footerRect.top < window.innerHeight) : false;
       const isPastHero = window.scrollY > window.innerHeight * 0.8;
 
-      // Visibility of the button container
+      // Mobile: Visibility of the button container
       if (isPastHero && !isFooterVisible) {
         mobileContainer.classList.remove('opacity-0', 'pointer-events-none');
         mobileContainer.classList.add('pointer-events-auto');

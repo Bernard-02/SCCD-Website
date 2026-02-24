@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Activities - SCCD</title>
+  <link rel="stylesheet" href="../css/variables.css">
+  <link rel="stylesheet" href="../css/output.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    .no-scrollbar::-webkit-scrollbar { display: none !important; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div id="site-header"></div>
+
+  <!-- Main Content -->
+  <main>
+    <!-- Hero Section -->
+    <section class="h-screen relative overflow-hidden">
+      <div class="absolute inset-0 w-full h-full">
+        <img src="../images/SCCD-1-4-0.jpg" alt="Activities" class="w-full h-full object-cover">
+      </div>
+      <div class="absolute inset-0 w-full h-full bg-gradient-to-b from-transparent to-black"></div>
+      <div class="site-container h-full relative z-10">
+        <div class="h-full flex flex-col md:flex-row justify-end md:justify-start items-start md:items-end gap-lg md:gap-xl pb-3xl md:pb-2xl pt-[120px] md:pt-0">
+          <div class="w-full md:w-1/2">
+            <h1 class="text-white pb-lg md:pb-xl hero-title">ACTIVITIES</h1>
+          </div>
+          <div class="w-full md:w-1/2">
+            <p class="text-white mb-lg md:mb-xl hero-text-en">
+              From hands-on workshops and degree shows to summer camps and student-led initiatives, SCCD's activities enrich creative learning and foster a vibrant community of designers.
+            </p>
+            <p class="text-white hero-text-cn">
+              從工作營、畢業展到暑期體驗營與學生自主活動，學系透過多元的課外活動豐富學生的創意學習歷程，凝聚充滿活力的設計社群。
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Activities Content Section -->
+    <section class="bg-white py-6xl" id="activities-content-section">
+      <div class="site-container">
+        <div class="flex flex-col md:flex-row gap-gutter">
+
+          <!-- Left Filter Buttons (比照 faculty.html) -->
+          <div class="w-full md:flex-[0_0_calc(16.667%_-_1.25rem)]">
+            <div class="flex flex-row flex-wrap md:flex-col gap-md mb-xl md:mb-0 md:sticky md:top-[200px]">
+              <button class="activities-section-btn w-fit active text-left nav-link transition-colors duration-fast" data-section="general">
+                <span class="block">General Activities</span>
+                <span class="block">一般活動</span>
+              </button>
+              <button class="activities-section-btn w-fit text-left nav-link transition-colors duration-fast" data-section="workshop">
+                <span class="block">Workshop</span>
+                <span class="block">工作營</span>
+              </button>
+              <button class="activities-section-btn w-fit text-left nav-link transition-colors duration-fast" data-section="degree-show">
+                <span class="block">Degree Show</span>
+                <span class="block">畢業展</span>
+              </button>
+              <button class="activities-section-btn w-fit text-left nav-link transition-colors duration-fast" data-section="summer-camp">
+                <span class="block">Summer Camp</span>
+                <span class="block">暑期設計體驗營</span>
+              </button>
+              <button class="activities-section-btn w-fit text-left nav-link transition-colors duration-fast" data-section="students-present">
+                <span class="block">Students Present</span>
+                <span class="block">學生自主</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Right Content Panels -->
+          <div class="flex-1 min-w-0">
+
+            <!-- General Activities Panel -->
+            <div class="activities-panel" id="panel-general">
+              <!-- Category Filter (橫向，放在 list 上方) -->
+              <div class="flex flex-wrap gap-md mb-xl py-xs">
+                <button class="activities-filter-btn shrink-0 text-p1 whitespace-nowrap active" data-filter="all">All 全部</button>
+                <button class="activities-filter-btn shrink-0 text-p1 whitespace-nowrap" data-filter="seminars">Lectures 講座</button>
+                <button class="activities-filter-btn shrink-0 text-p1 whitespace-nowrap" data-filter="visits">Visits 參訪</button>
+                <button class="activities-filter-btn shrink-0 text-p1 whitespace-nowrap" data-filter="exhibitions">Exhibitions 展演</button>
+                <button class="activities-filter-btn shrink-0 text-p1 whitespace-nowrap" data-filter="conferences">Conferences 研討會</button>
+                <button class="activities-filter-btn shrink-0 text-p1 whitespace-nowrap" data-filter="competitions">Competitions 競賽</button>
+              </div>
+              <!-- List (workshop 設計) -->
+              <div id="general-activities-list"></div>
+            </div>
+
+            <!-- Workshop Panel -->
+            <div class="activities-panel hidden" id="panel-workshop">
+              <div id="workshop-list"></div>
+            </div>
+
+            <!-- Degree Show Panel -->
+            <div class="activities-panel hidden" id="panel-degree-show">
+              <div id="degree-show-list" class="flex flex-col gap-3xl"></div>
+            </div>
+
+            <!-- Summer Camp Panel -->
+            <div class="activities-panel hidden" id="panel-summer-camp">
+              <div id="summer-camp-list"></div>
+            </div>
+
+            <!-- Students Present Panel -->
+            <div class="activities-panel hidden" id="panel-students-present">
+              <div id="students-present-list"></div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <div id="site-footer"></div>
+
+  <!-- JavaScript -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Draggable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>
+  <script src="../js/utils/helpers.js"></script>
+  <script type="module" src="../js/main-modular.js"></script>
+
+</body>
+</html>

@@ -11,21 +11,8 @@
   }
 
   /* ===== Workshop Accordion ===== */
-  /* Auto padding based on position */
-  .workshop-item:first-child .workshop-header {
-    padding-bottom: var(--spacing-md);
-    padding-top: 0;
-  }
-
-  .workshop-item:not(:first-child):not(:last-child) .workshop-header {
-    padding-top: var(--spacing-md);
-    padding-bottom: var(--spacing-md);
-  }
-
-  .workshop-item:last-child:not(:first-child) .workshop-header {
-    padding-top: var(--spacing-md);
-    padding-bottom: var(--spacing-md);
-  }
+  /* Padding is controlled via JS/Tailwind classes (pt-md, pb-md)
+     to support dynamic filter reflow */
 
   /* ===== Year Toggle Chevron Rotation ===== */
   .workshop-year-toggle .fa-chevron-right {
@@ -42,13 +29,13 @@
   .accordion-wrapper {
     display: flex;
     flex-direction: column;
-    gap: 0; /* items 之間的間距 */
+    gap: 0 !important; /* 強制無間距 */
   }
 
   @media (min-width: 768px) {
     .accordion-wrapper {
       flex-direction: row;
-      gap: 0;
+      gap: 0 !important;
     }
   }
 
@@ -58,11 +45,21 @@
     flex-direction: row;
     cursor: pointer;
     min-width: 0;
+    margin: 0; /* 確保無外距 */
+    border: none; /* 確保無邊框 */
   }
 
   @media (min-width: 768px) {
     .accordion-item {
       height: 100%;
+    }
+
+    .accordion-item.active {
+      cursor: default;
+    }
+
+    .accordion-body-inner {
+      cursor: default;
     }
   }
 
@@ -119,6 +116,10 @@
     writing-mode: vertical-rl;
     transform: rotate(180deg);
     text-orientation: sideways;
+  }
+
+  .accordion-label-zh {
+    margin-top: 0.4em;
   }
 
   /* B: Body — width 0% ↔ 100% 切換，overflow:hidden 裁切內容 */
@@ -182,8 +183,20 @@
     .accordion-label-inner {
       transform: none;
       writing-mode: horizontal-tb;
-      flex-direction: row;   /* 手機: 標題 | 數字 水平排列 */
-      gap: var(--spacing-sm);
+      white-space: normal;
+    }
+
+    .accordion-label-en,
+    .accordion-label-zh {
+      display: block;
+    }
+
+    .accordion-label-sep {
+      display: none;
+    }
+
+    .accordion-label-zh {
+      margin-top: 0.5em;
     }
 
     .accordion-body {

@@ -9,9 +9,22 @@ export function initCoursesFilter() {
 
   if (coursesFilterButtons.length === 0 || coursesYearGroups.length === 0) return;
 
+  const FILTER_COLORS = ['#26BCFF', '#FF448A', '#00FF80'];
+  let lastColorIndex = -1;
+
+  function getRandomColor() {
+    let index;
+    do { index = Math.floor(Math.random() * FILTER_COLORS.length); } while (index === lastColorIndex);
+    lastColorIndex = index;
+    return FILTER_COLORS[index];
+  }
+
   coursesFilterButtons.forEach(button => {
     button.addEventListener('click', function(e) {
       e.preventDefault();
+
+      coursesFilterButtons.forEach(btn => btn.style.color = '');
+      this.style.color = getRandomColor();
 
       SCCDHelpers.setActive(this, coursesFilterButtons);
 

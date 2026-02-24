@@ -31,6 +31,36 @@ export function initFacultySlideIn() {
     })
     .catch(error => console.error('Error loading faculty data:', error));
 
+  // 渲染 section 內容：純文字，欄位間用空格隔開
+  function renderSectionContent(section) {
+    if (section.type === 'education' && section.items) {
+      return section.items.map(item => {
+        const hasBilingual = item.countryZh !== undefined;
+        if (hasBilingual) {
+          return `
+            <p class="text-p1 mb-xs">${item.countryZh} ${item.schoolZh} ${item.majorZh} ${item.degreeZh}</p>
+            <p class="text-p1 mb-xs">${item.countryEn} ${item.schoolEn} ${item.majorEn} ${item.degreeEn}</p>
+          `;
+        }
+        return `<p class="text-p1 mb-xs">${item.country} ${item.school} ${item.major} ${item.degree}</p>`;
+      }).join('');
+    }
+    if (section.type === 'experience' && section.items) {
+      return section.items.map(item => {
+        const parts = [item.year, item.organization, item.role].filter(Boolean);
+        return `<p class="text-p1 mb-xs">${parts.join(' ')}</p>`;
+      }).join('');
+    }
+    if (section.type === 'awards' && section.items) {
+      return section.items.map(item => {
+        const parts = [item.year, item.name, item.work, item.award].filter(Boolean);
+        return `<p class="text-p1 mb-xs">${parts.join(' ')}</p>`;
+      }).join('');
+    }
+    // fallback：純文字（parttime / admin）
+    return `<p class="text-p1" style="white-space: pre-line;">${section.content || ''}</p>`;
+  }
+
   function initializeFacultyInteractions(facultyData) {
     // Function to load faculty data into slide-in panel
     function loadFacultyData(facultyId) {
@@ -44,8 +74,18 @@ export function initFacultySlideIn() {
       // Update name
       const nameEnElement = document.getElementById('faculty-detail-name-en');
       const nameZhElement = document.getElementById('faculty-detail-name-zh');
-      if (nameEnElement) nameEnElement.textContent = data.nameEn;
-      if (nameZhElement) nameZhElement.textContent = data.nameZh;
+      if (nameEnElement) {
+        nameEnElement.textContent = data.nameEn;
+        const isDesktop = window.innerWidth >= 768;
+        nameEnElement.style.transform = (data.type === 'fulltime' && isDesktop) ? 'rotate(4deg)' : '';
+        nameEnElement.style.display = (data.type === 'fulltime' && isDesktop) ? 'inline-block' : '';
+      }
+      if (nameZhElement) {
+        nameZhElement.textContent = data.nameZh;
+        const isDesktop = window.innerWidth >= 768;
+        nameZhElement.style.transform = (data.type === 'fulltime' && isDesktop) ? 'rotate(4deg)' : '';
+        nameZhElement.style.display = (data.type === 'fulltime' && isDesktop) ? 'inline-block' : '';
+      }
 
       // Update title
       const titleEnElement = document.getElementById('faculty-detail-title-en');
@@ -58,13 +98,14 @@ export function initFacultySlideIn() {
       if (sectionsContainer) {
         sectionsContainer.innerHTML = '';
         data.sections.forEach(section => {
+          const contentHTML = renderSectionContent(section);
           const sectionHTML = `
             <div class="flex flex-col md:flex-row gap-xs md:gap-gutter">
               <div class="w-full md:w-[25%] mb-xs md:mb-0">
                 <h6 class="text-black">${section.titleEn} ${section.titleZh}</h6>
               </div>
               <div class="flex-1">
-                <p class="text-p1" style="white-space: pre-line;">${section.content}</p>
+                ${contentHTML}
               </div>
             </div>
           `;

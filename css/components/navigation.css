@@ -6,7 +6,7 @@
 @layer components {
   /* ===== Navigation Links ===== */
   .nav-link {
-    @apply text-p1 font-regular transition-all duration-fast;
+    @apply text-h6 font-regular transition-all duration-fast;
   }
 
   .nav-link .nav-link-cn {
@@ -72,7 +72,7 @@
 
   /* ===== Submenu Links ===== */
   .submenu-link {
-    @apply block py-xs text-p1 text-left transition-all duration-fast;
+    @apply block py-xs text-h6 text-left transition-all duration-fast;
   }
 
   /* Hover 效果：僅桌面版 */
@@ -109,7 +109,7 @@
   }
 
   .anchor-nav-btn.active div {
-    color: #26BCFF;
+    color: inherit;
     font-weight: 700;
     transform: rotate(4deg);
   }

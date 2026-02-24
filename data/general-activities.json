@@ -2,49 +2,49 @@
   {
     "year": 2025,
     "items": [
-      { "title": "豪華朗機工台北當代館大展", "location": "實踐大學台北校區", "category": "visits", "categoryLabel": "參訪" },
-      { "title": "媒體設計國際講座", "location": "台北設計中心", "category": "seminars", "categoryLabel": "講座" },
-      { "title": "年度媒體傳達設計展", "location": "A棟1樓大廳", "category": "exhibitions", "categoryLabel": "展演" },
-      { "title": "國際學生設計競賽", "location": "線上", "category": "competitions", "categoryLabel": "競賽" },
-      { "title": "永續媒體設計研討會", "location": "實踐大學A棟", "category": "conferences", "categoryLabel": "研討會" },
-      { "title": "設計思考國際講座", "location": "設計中心大廳", "category": "seminars", "categoryLabel": "講座" },
-      { "title": "新北市設計博物館參訪", "location": "新北市", "category": "visits", "categoryLabel": "參訪" },
-      { "title": "學生優異作品展", "location": "B棟2樓廳", "category": "exhibitions", "categoryLabel": "展演" },
-      { "title": "亚太地區青年設計獎", "location": "線上投稿", "category": "competitions", "categoryLabel": "競賽" },
-      { "title": "媒體傳達設計前衛論坛", "location": "台北設計中心", "category": "conferences", "categoryLabel": "研討會" },
-      { "title": "高雄設計文化參訪", "location": "高雄市", "category": "visits", "categoryLabel": "參訪" }
+      { "title": "豪華朗機工台北當代館大展", "date": "2025.03.15", "category": "visits", "categoryLabel": "參訪", "images": ["../images/SCCD-1-4-0.jpg", "../images/SCCD-1-4-1.jpg", "../images/SCCD-1-4-2.jpg"] },
+      { "title": "媒體設計國際講座", "date": "2025.04.02", "category": "seminars", "categoryLabel": "講座", "images": ["../images/SCCD-1-4-0.jpg", "../images/SCCD-1-4-1.jpg", "../images/SCCD-1-4-2.jpg", "../images/SCCD-1-4-3.jpg", "../images/SCCD-1-4-4.jpg", "../images/SCCD-1-4-5.jpg", "../images/SCCD-1-4-6.jpg"] },
+      { "title": "年度媒體傳達設計展", "date": "2025.05.10", "category": "exhibitions", "categoryLabel": "展演", "images": ["../images/SCCD-1-4-0.jpg", "../images/SCCD-1-4-1.jpg"] },
+      { "title": "國際學生設計競賽", "date": "2025.06.01", "category": "competitions", "categoryLabel": "競賽", "images": [] },
+      { "title": "永續媒體設計研討會", "date": "2025.07.20", "category": "conferences", "categoryLabel": "研討會", "images": ["../images/SCCD-1-4-0.jpg"] },
+      { "title": "設計思考國際講座", "date": "2025.08.05", "category": "seminars", "categoryLabel": "講座", "images": ["../images/SCCD-1-4-0.jpg", "../images/SCCD-1-4-1.jpg", "../images/SCCD-1-4-2.jpg", "../images/SCCD-1-4-3.jpg", "../images/SCCD-1-4-4.jpg", "../images/SCCD-1-4-5.jpg"] },
+      { "title": "新北市設計博物館參訪", "date": "2025.09.12", "category": "visits", "categoryLabel": "參訪", "images": ["../images/SCCD-1-4-0.jpg", "../images/SCCD-1-4-1.jpg", "../images/SCCD-1-4-2.jpg"] },
+      { "title": "學生優異作品展", "date": "2025.10.08", "category": "exhibitions", "categoryLabel": "展演", "images": ["../images/SCCD-1-4-0.jpg", "../images/SCCD-1-4-1.jpg", "../images/SCCD-1-4-2.jpg", "../images/SCCD-1-4-3.jpg", "../images/SCCD-1-4-4.jpg"] },
+      { "title": "亚太地區青年設計獎", "date": "2025.11.01", "category": "competitions", "categoryLabel": "競賽", "images": [] },
+      { "title": "媒體傳達設計前衛論坛", "date": "2025.11.25", "category": "conferences", "categoryLabel": "研討會", "images": ["../images/SCCD-1-4-0.jpg", "../images/SCCD-1-4-1.jpg"] },
+      { "title": "高雄設計文化參訪", "date": "2025.12.10", "category": "visits", "categoryLabel": "參訪", "images": ["../images/SCCD-1-4-0.jpg", "../images/SCCD-1-4-1.jpg", "../images/SCCD-1-4-2.jpg", "../images/SCCD-1-4-3.jpg", "../images/SCCD-1-4-4.jpg", "../images/SCCD-1-4-5.jpg", "../images/SCCD-1-4-6.jpg"] }
     ]
   },
   {
     "year": 2024,
     "items": [
-      { "title": "永續設計研討會", "location": "實踐大學台北校區", "category": "conferences", "categoryLabel": "研討會" },
-      { "title": "東京設計參訪", "location": "東京日本", "category": "visits", "categoryLabel": "參訪" },
-      { "title": "媒體傳達設計年展", "location": "B棟展覽廳", "category": "exhibitions", "categoryLabel": "展演" },
-      { "title": "交互設計國際講座", "location": "實踐大學台北校區", "category": "seminars", "categoryLabel": "講座" },
-      { "title": "全國大學生設計競賽", "location": "線上", "category": "competitions", "categoryLabel": "競賽" },
-      { "title": "韓國設計中心參訪", "location": "首爾韓國", "category": "visits", "categoryLabel": "參訪" },
-      { "title": "數位媒體艺术展", "location": "A棟大廳", "category": "exhibitions", "categoryLabel": "展演" },
-      { "title": "创意產業發展論坛", "location": "台北設計中心", "category": "conferences", "categoryLabel": "研討會" },
-      { "title": "動畫技術工作營講座", "location": "實踐大學B棟", "category": "seminars", "categoryLabel": "講座" },
-      { "title": "國際海報設計競賽", "location": "線上投稿", "category": "competitions", "categoryLabel": "競賽" },
-      { "title": "學系年度作品展覽", "location": "C棟展覽空間", "category": "exhibitions", "categoryLabel": "展演" }
+      { "title": "永續設計研討會", "date": "2024.03.08", "category": "conferences", "categoryLabel": "研討會", "images": ["../images/SCCD-1-4-0.jpg", "../images/SCCD-1-4-1.jpg", "../images/SCCD-1-4-2.jpg"] },
+      { "title": "東京設計參訪", "date": "2024.04.15", "category": "visits", "categoryLabel": "參訪", "images": ["../images/SCCD-1-4-0.jpg", "../images/SCCD-1-4-1.jpg", "../images/SCCD-1-4-2.jpg", "../images/SCCD-1-4-3.jpg", "../images/SCCD-1-4-4.jpg", "../images/SCCD-1-4-5.jpg"] },
+      { "title": "媒體傳達設計年展", "date": "2024.05.20", "category": "exhibitions", "categoryLabel": "展演", "images": ["../images/SCCD-1-4-0.jpg", "../images/SCCD-1-4-1.jpg"] },
+      { "title": "交互設計國際講座", "date": "2024.06.10", "category": "seminars", "categoryLabel": "講座", "images": ["../images/SCCD-1-4-0.jpg", "../images/SCCD-1-4-1.jpg", "../images/SCCD-1-4-2.jpg"] },
+      { "title": "全國大學生設計競賽", "date": "2024.07.01", "category": "competitions", "categoryLabel": "競賽", "images": [] },
+      { "title": "韓國設計中心參訪", "date": "2024.08.18", "category": "visits", "categoryLabel": "參訪", "images": ["../images/SCCD-1-4-0.jpg", "../images/SCCD-1-4-1.jpg", "../images/SCCD-1-4-2.jpg", "../images/SCCD-1-4-3.jpg", "../images/SCCD-1-4-4.jpg", "../images/SCCD-1-4-5.jpg", "../images/SCCD-1-4-6.jpg"] },
+      { "title": "數位媒體艺术展", "date": "2024.09.05", "category": "exhibitions", "categoryLabel": "展演", "images": ["../images/SCCD-1-4-0.jpg"] },
+      { "title": "创意產業發展論坛", "date": "2024.10.12", "category": "conferences", "categoryLabel": "研討會", "images": ["../images/SCCD-1-4-0.jpg", "../images/SCCD-1-4-1.jpg", "../images/SCCD-1-4-2.jpg"] },
+      { "title": "動畫技術工作營講座", "date": "2024.11.08", "category": "seminars", "categoryLabel": "講座", "images": ["../images/SCCD-1-4-0.jpg", "../images/SCCD-1-4-1.jpg", "../images/SCCD-1-4-2.jpg", "../images/SCCD-1-4-3.jpg", "../images/SCCD-1-4-4.jpg"] },
+      { "title": "國際海報設計競賽", "date": "2024.11.30", "category": "competitions", "categoryLabel": "競賽", "images": [] },
+      { "title": "學系年度作品展覽", "date": "2024.12.15", "category": "exhibitions", "categoryLabel": "展演", "images": ["../images/SCCD-1-4-0.jpg", "../images/SCCD-1-4-1.jpg", "../images/SCCD-1-4-2.jpg"] }
     ]
   },
   {
     "year": 2023,
     "items": [
-      { "title": "平面設計趨勢講座", "location": "實踐大學台北校區", "category": "seminars", "categoryLabel": "講座" },
-      { "title": "新媒體設計展覽", "location": "A棟1樓大廳", "category": "exhibitions", "categoryLabel": "展演" },
-      { "title": "新加坡設計周參訪", "location": "新加坡", "category": "visits", "categoryLabel": "參訪" },
-      { "title": "智慧城市設計論坛", "location": "台北設計中心", "category": "conferences", "categoryLabel": "研討會" },
-      { "title": "全亚最佳學生設計獎", "location": "線上投稿", "category": "competitions", "categoryLabel": "競賽" },
-      { "title": "品牌設計國際論坛", "location": "B棟2樓廳", "category": "seminars", "categoryLabel": "講座" },
-      { "title": "東北大學設計學院參訪", "location": "東京日本", "category": "visits", "categoryLabel": "參訪" },
-      { "title": "畢業生優異作品展", "location": "C棟展覽廳", "category": "exhibitions", "categoryLabel": "展演" },
-      { "title": "數位轉型設計研討會", "location": "實踐大學A棟", "category": "conferences", "categoryLabel": "研討會" },
-      { "title": "台灣青年設計獎", "location": "線上", "category": "competitions", "categoryLabel": "競賽" },
-      { "title": "德國國際設計博物館參訪", "location": "柏林德國", "category": "visits", "categoryLabel": "參訪" }
+      { "title": "平面設計趨勢講座", "date": "2023.03.20", "category": "seminars", "categoryLabel": "講座", "images": ["../images/SCCD-1-4-0.jpg", "../images/SCCD-1-4-1.jpg"] },
+      { "title": "新媒體設計展覽", "date": "2023.04.08", "category": "exhibitions", "categoryLabel": "展演", "images": ["../images/SCCD-1-4-0.jpg", "../images/SCCD-1-4-1.jpg", "../images/SCCD-1-4-2.jpg", "../images/SCCD-1-4-3.jpg", "../images/SCCD-1-4-4.jpg", "../images/SCCD-1-4-5.jpg"] },
+      { "title": "新加坡設計周參訪", "date": "2023.05.14", "category": "visits", "categoryLabel": "參訪", "images": ["../images/SCCD-1-4-0.jpg", "../images/SCCD-1-4-1.jpg", "../images/SCCD-1-4-2.jpg"] },
+      { "title": "智慧城市設計論坛", "date": "2023.06.22", "category": "conferences", "categoryLabel": "研討會", "images": ["../images/SCCD-1-4-0.jpg"] },
+      { "title": "全亚最佳學生設計獎", "date": "2023.07.10", "category": "competitions", "categoryLabel": "競賽", "images": [] },
+      { "title": "品牌設計國際論坛", "date": "2023.08.30", "category": "seminars", "categoryLabel": "講座", "images": ["../images/SCCD-1-4-0.jpg", "../images/SCCD-1-4-1.jpg", "../images/SCCD-1-4-2.jpg", "../images/SCCD-1-4-3.jpg", "../images/SCCD-1-4-4.jpg", "../images/SCCD-1-4-5.jpg", "../images/SCCD-1-4-6.jpg"] },
+      { "title": "東北大學設計學院參訪", "date": "2023.09.16", "category": "visits", "categoryLabel": "參訪", "images": ["../images/SCCD-1-4-0.jpg", "../images/SCCD-1-4-1.jpg"] },
+      { "title": "畢業生優異作品展", "date": "2023.10.05", "category": "exhibitions", "categoryLabel": "展演", "images": ["../images/SCCD-1-4-0.jpg", "../images/SCCD-1-4-1.jpg", "../images/SCCD-1-4-2.jpg"] },
+      { "title": "數位轉型設計研討會", "date": "2023.11.18", "category": "conferences", "categoryLabel": "研討會", "images": ["../images/SCCD-1-4-0.jpg", "../images/SCCD-1-4-1.jpg", "../images/SCCD-1-4-2.jpg", "../images/SCCD-1-4-3.jpg"] },
+      { "title": "台灣青年設計獎", "date": "2023.12.01", "category": "competitions", "categoryLabel": "競賽", "images": [] },
+      { "title": "德國國際設計博物館參訪", "date": "2023.12.20", "category": "visits", "categoryLabel": "參訪", "images": ["../images/SCCD-1-4-0.jpg", "../images/SCCD-1-4-1.jpg", "../images/SCCD-1-4-2.jpg", "../images/SCCD-1-4-3.jpg", "../images/SCCD-1-4-4.jpg"] }
     ]
   }
 ]

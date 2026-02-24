@@ -37,6 +37,8 @@ function initWorkshopYearToggle() {
   });
 
   workshopYearToggles.forEach(toggle => {
+    if (toggle.dataset.accordionInit) return;
+    toggle.dataset.accordionInit = '1';
     toggle.addEventListener('click', function() {
       // Find the year group container (parent of the grid-12)
       const yearGrid = this.closest('.grid-12');
@@ -86,6 +88,9 @@ function initWorkshopHeaderAccordion() {
   if (workshopHeaders.length === 0) return;
 
   workshopHeaders.forEach(header => {
+    if (header.dataset.accordionInit) return;
+    header.dataset.accordionInit = '1';
+
     // Initialization: Ensure content is hidden properly for GSAP
     const content = header.nextElementSibling;
     gsap.set(content, { height: 0, overflow: 'hidden' });

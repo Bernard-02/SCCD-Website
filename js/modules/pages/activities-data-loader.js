@@ -17,7 +17,13 @@ async function fetchData(url) {
 
 // 1. Workshops & Students Present Renderer (Shared Logic)
 export async function loadWorkshops(jsonFile, pageType = 'workshop') {
-  const container = document.querySelector('.bg-white .site-container');
+  return loadWorkshopsInto(jsonFile, pageType, null);
+}
+
+export async function loadWorkshopsInto(jsonFile, pageType = 'workshop', containerId = null) {
+  const container = containerId
+    ? document.getElementById(containerId)
+    : document.querySelector('.bg-white .site-container');
   if (!container) return;
 
   const data = await fetchData(jsonFile);
@@ -28,20 +34,20 @@ export async function loadWorkshops(jsonFile, pageType = 'workshop') {
   data.forEach((yearGroup, index) => {
     const isLast = index === data.length - 1;
     const itemsHtml = yearGroup.items.map((item, idx) => {
+      const isFirst = idx === 0;
       const isItemLast = idx === yearGroup.items.length - 1;
-      // Determine fields based on page type
       const date = item.date || '';
       const subTitle = pageType === 'workshop' ? 'Tutor 講師' : 'Organizer 主辦單位';
       const subValue = pageType === 'workshop' ? item.tutor : item.organizer;
-      
+
       return `
         <div class="workshop-item ${!isItemLast ? 'border-b border-gray-9' : ''} overflow-hidden">
-          <div class="workshop-header cursor-pointer group transition-colors duration-fast flex items-center justify-between ${isItemLast ? '' : 'pb-md'}">
+          <div class="workshop-header cursor-pointer group transition-colors duration-fast flex items-center justify-between ${isFirst ? '' : 'pt-md'} pb-md">
             <div class="text-h5 font-bold">${item.title}</div>
             <i class="fa-solid fa-chevron-down text-p1 transition-transform duration-300"></i>
           </div>
           <div class="workshop-content h-0 overflow-hidden">
-            <div class="pb-xl pt-xs flex flex-col-reverse md:flex-row gap-lg md:gap-3xl">
+            <div class="pb-xl flex flex-col-reverse md:flex-row gap-lg md:gap-3xl">
               <div class="flex-1 flex flex-col gap-lg">
                 ${date ? `<div><h6 class="text-black">${date}</h6></div>` : ''}
                 <div>
@@ -64,17 +70,15 @@ export async function loadWorkshops(jsonFile, pageType = 'workshop') {
 
     const html = `
       <div class="workshop-year-group grid-12 items-start">
-        <div class="col-span-11 md:col-span-1 md:col-start-3 workshop-year-toggle cursor-pointer flex items-center order-1 md:order-2">
+        <div class="col-span-12 md:col-span-1 md:col-start-1 workshop-year-toggle cursor-pointer flex items-center gap-sm">
+          <i class="fa-solid fa-chevron-right text-p1 transition-all duration-fast rotate-90"></i>
           <h5>${yearGroup.year}</h5>
         </div>
-        <div class="col-span-1 md:col-span-1 md:col-start-2 flex justify-center md:justify-end items-center workshop-year-toggle cursor-pointer h-toggle order-2 md:order-1" style="height: 1.8rem;">
-          <i class="fa-solid fa-chevron-right text-p1 transition-all duration-fast rotate-90"></i>
-        </div>
-        <div class="col-span-12 md:col-span-9 md:col-start-4 workshop-year-items flex flex-col order-3 mt-md md:mt-0">
+        <div class="col-span-12 md:col-span-11 md:col-start-2 workshop-year-items flex flex-col mt-md md:mt-0">
           ${itemsHtml}
         </div>
       </div>
-      ${!isLast ? '<div class="grid-12 pt-xl pb-2xl"><div class="col-span-12 md:col-start-3 md:col-span-10 border-b border-gray-9"></div></div>' : ''}
+      ${!isLast ? '<div class="grid-12 pt-md pb-2xl"><div class="col-span-12 border-b border-gray-9"></div></div>' : ''}
     `;
     container.insertAdjacentHTML('beforeend', html);
   });
@@ -82,7 +86,13 @@ export async function loadWorkshops(jsonFile, pageType = 'workshop') {
 
 // 2. Summer Camp Renderer
 export async function loadSummerCamp() {
-  const container = document.querySelector('.bg-white .site-container');
+  return loadSummerCampInto(null);
+}
+
+export async function loadSummerCampInto(containerId = null) {
+  const container = containerId
+    ? document.getElementById(containerId)
+    : document.querySelector('.bg-white .site-container');
   if (!container) return;
 
   const data = await fetchData('../data/summer-camp.json');
@@ -116,14 +126,14 @@ export async function loadSummerCamp() {
 
     const html = `
       <div class="summer-camp-year-group grid-12 items-start">
-        <div class="col-span-10 md:col-span-1 md:col-start-3 order-1 md:order-2">
+        <div class="col-span-12 md:col-span-1 md:col-start-1">
           <h5>${yearGroup.year}</h5>
         </div>
-        <div class="col-span-12 md:col-span-9 md:col-start-4 order-3 mt-md md:mt-0">
+        <div class="col-span-12 md:col-span-11 md:col-start-2 mt-md md:mt-0">
           ${itemsHtml}
         </div>
       </div>
-      ${!isLast ? '<div class="grid-12 pt-xl pb-2xl"><div class="col-span-12 md:col-start-3 md:col-span-10 border-b border-gray-9"></div></div>' : ''}
+      ${!isLast ? '<div class="grid-12 pt-md pb-xl"><div class="col-span-12 md:col-start-2 md:col-span-11 border-b border-gray-9"></div></div>' : ''}
     `;
     container.insertAdjacentHTML('beforeend', html);
   });

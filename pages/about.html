@@ -64,19 +64,19 @@
           
           <!-- Dropdown Menu (Content) -->
           <div id="mobile-anchor-menu" class="flex flex-col gap-sm px-md pb-md opacity-0 transition-opacity duration-300 delay-75 hidden">
-            <button class="anchor-nav-btn text-left text-p1 font-regular transition-all duration-fast whitespace-nowrap text-white hover:text-gray-5" data-target="overview">
+            <button class="anchor-nav-btn text-left text-h6 font-regular transition-all duration-fast whitespace-nowrap text-white hover:text-gray-5" data-target="overview">
               <div class="!bg-transparent">Overview</div>
               <div class="!bg-transparent">綜述</div>
             </button>
-            <button class="anchor-nav-btn text-left text-p1 font-regular transition-all duration-fast whitespace-nowrap text-white hover:text-gray-5" data-target="class">
+            <button class="anchor-nav-btn text-left text-h6 font-regular transition-all duration-fast whitespace-nowrap text-white hover:text-gray-5" data-target="class">
               <div class="!bg-transparent">Class</div>
               <div class="!bg-transparent">班級</div>
             </button>
-            <button class="anchor-nav-btn text-left text-p1 font-regular transition-all duration-fast whitespace-nowrap text-white hover:text-gray-5" data-target="resources">
+            <button class="anchor-nav-btn text-left text-h6 font-regular transition-all duration-fast whitespace-nowrap text-white hover:text-gray-5" data-target="resources">
               <div class="!bg-transparent">Resources</div>
               <div class="!bg-transparent">環境資源</div>
             </button>
-            <button class="anchor-nav-btn text-left text-p1 font-regular transition-all duration-fast whitespace-nowrap text-white hover:text-gray-5" data-target="alumni">
+            <button class="anchor-nav-btn text-left text-h6 font-regular transition-all duration-fast whitespace-nowrap text-white hover:text-gray-5" data-target="alumni">
               <div class="!bg-transparent">Alumni</div>
               <div class="!bg-transparent">系友發展</div>
             </button>
@@ -84,25 +84,25 @@
         </div>
       </div>
 
-      <!-- Desktop Anchor Navigation (Hidden on Mobile) -->
+      <!-- Desktop Anchor Navigation -->
       <div class="hidden md:block site-container absolute left-0 right-0 pointer-events-none z-[100]" style="top: 50vh; bottom: 0;">
         <div class="grid-12 h-full">
-          <div class="col-span-1">
+          <div class="col-span-1 h-full">
             <div id="anchor-nav" class="sticky pointer-events-auto" style="top: 50vh; transform: translateY(-50%);">
               <div class="flex flex-col gap-sm">
-                <button class="anchor-nav-btn text-left text-p1 font-regular transition-all duration-fast whitespace-nowrap" data-target="overview">
+                <button class="anchor-nav-btn text-left text-h6 font-regular transition-all duration-fast whitespace-nowrap" data-target="overview">
                   <div>Overview</div>
                   <div>綜述</div>
                 </button>
-                <button class="anchor-nav-btn text-left text-p1 font-regular transition-all duration-fast whitespace-nowrap" data-target="class">
+                <button class="anchor-nav-btn text-left text-h6 font-regular transition-all duration-fast whitespace-nowrap" data-target="class">
                   <div>Class</div>
                   <div>班級</div>
                 </button>
-                <button class="anchor-nav-btn text-left text-p1 font-regular transition-all duration-fast whitespace-nowrap" data-target="resources">
+                <button class="anchor-nav-btn text-left text-h6 font-regular transition-all duration-fast whitespace-nowrap" data-target="resources">
                   <div>Resources</div>
                   <div>環境資源</div>
                 </button>
-                <button class="anchor-nav-btn text-left text-p1 font-regular transition-all duration-fast whitespace-nowrap" data-target="alumni">
+                <button class="anchor-nav-btn text-left text-h6 font-regular transition-all duration-fast whitespace-nowrap" data-target="alumni">
                   <div>Alumni</div>
                   <div>系友發展</div>
                 </button>
@@ -143,7 +143,7 @@
                     <div class="accordion-item" data-index="0">
                       <!-- A: Label (獨立，寬度由文字決定) -->
                       <div class="accordion-label">
-                        <div class="accordion-label-inner">Department Overview&emsp;系所綜述</div>
+                        <div class="accordion-label-inner">Department Overview&ensp;系所綜述</div>
                       </div>
                       <!-- B: Body (width 由 GSAP 控制，0 = 完全隱藏) -->
                       <div class="accordion-body">
@@ -163,7 +163,7 @@
                     <div class="accordion-item" data-index="1">
                       <!-- A: Label -->
                       <div class="accordion-label">
-                        <div class="accordion-label-inner">Teaching Direction&emsp;教學特色</div>
+                        <div class="accordion-label-inner">Teaching Direction&ensp;教學特色</div>
                       </div>
                       <!-- B: Body -->
                       <div class="accordion-body">
@@ -183,7 +183,7 @@
                     <div class="accordion-item" data-index="2">
                       <!-- A: Label -->
                       <div class="accordion-label">
-                        <div class="accordion-label-inner">Awards &amp; Alumni&emsp;獲獎與系友</div>
+                        <div class="accordion-label-inner">Awards &amp; Alumni&ensp;獲獎與系友</div>
                       </div>
                       <!-- B: Body -->
                       <div class="accordion-body">
@@ -260,15 +260,15 @@
 
           <!-- Desktop Buttons -->
           <div class="hidden md:flex justify-center gap-md mb-4xl">
-            <button class="class-division-btn shrink-0 active px-lg py-sm text-p1 font-bold transition-all duration-fast rounded-[50px] text-center" data-division="animation">
+            <button class="class-division-btn btn-fill shrink-0 active px-lg py-sm text-p1 font-bold transition-all duration-fast rounded-[50px] text-center" data-division="animation">
               <div class="whitespace-nowrap">Division of Animation & Moving Image</div>
               <div class="mt-1 whitespace-nowrap">動畫影像設計組</div>
             </button>
-            <button class="class-division-btn shrink-0 px-lg py-sm text-p1 font-bold transition-all duration-fast rounded-[50px] text-center" data-division="creative-media">
+            <button class="class-division-btn btn-fill shrink-0 px-lg py-sm text-p1 font-bold transition-all duration-fast rounded-[50px] text-center" data-division="creative-media">
               <div class="whitespace-nowrap">Division of Creative Media Design</div>
               <div class="mt-1 whitespace-nowrap">創意媒體設計組</div>
             </button>
-            <button class="class-division-btn shrink-0 px-lg py-sm text-p1 font-bold transition-all duration-fast rounded-[50px] text-center" data-division="mdes">
+            <button class="class-division-btn btn-fill shrink-0 px-lg py-sm text-p1 font-bold transition-all duration-fast rounded-[50px] text-center" data-division="mdes">
               <div class="whitespace-nowrap">MDES Class</div>
               <div class="mt-1 whitespace-nowrap">碩士班</div>
             </button>
@@ -331,7 +331,7 @@
       </section>
 
       <!-- Timeline Section (Moved here) -->
-      <div class="timeline-wrapper mb-6xl" style="min-height: 1400vh;">
+      <section id="timeline" class="timeline-wrapper pb-6xl" style="min-height: 1400vh;">
         <!-- Sticky Timeline Display -->
         <div class="timeline-sticky-container sticky bg-white h-screen top-0 md:top-[50px]">
           <!-- Mobile Vertical Line: Inside sticky container to stay visible -->
@@ -386,7 +386,7 @@
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
       <!-- Resources Section -->
       <section id="resources" class="bg-white relative z-10">
@@ -422,7 +422,7 @@
         </div>
 
         <!-- Resources Accordion Section -->
-        <div class="site-container pb-2xl md:pb-6xl">
+        <div class="site-container pb-4xl md:pb-6xl">
           <div class="grid-12">
             <div id="resources-accordion-container" class="col-span-12 md:col-start-2 md:col-span-11 mx-[calc(var(--container-padding)*-1)] md:mx-0">
               <!-- Accordion will be injected here by JS -->
@@ -453,32 +453,12 @@
         </div>
 
         <!-- Text Content Only -->
-        <div class="site-container py-6xl">
+        <div class="site-container pt-6xl">
           <div class="grid-12">
             <div class="col-span-12 md:col-start-6 md:col-span-6">
               <div>
                 <h5 class="mb-sm">SCCD Alumni serve in various fields related to digital media or entertainment and creative industries, and many of them are engaged in cultural administration, art education, etc., or continue their studies in related fields at domestic and foreign, and actively participate in various arts , multimedia and other cross-border exhibitions. In addition to exhibiting, performing, and publishing books in various personal unique creative forms, alumni of the department also cooperate with many performing individuals and groups in the field of contemporary art performance, and participate in assisting in the planning, execution, and coordinating the production of various projects.</h5>
                 <h5>實踐大學媒體傳達設計學系畢業系友在各行各業均有任職人員或創業者，從設計、藝術、影視娛樂、多媒體、行銷公關甚至科技公司等，以設計思考橫跨多領域均表現傑出；於國外相關領域深造學術領域或海外就職者也為數甚多，積極於各產業領域發揮其美學與設計思考之影響力。</h5>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Image and Text Layout -->
-        <div class="site-container">
-          <div class="grid-12">
-            <!-- Images (Left on Desktop, Top on Mobile) -->
-            <div class="col-span-12 md:col-start-2 md:col-span-5 relative flex justify-center items-center works-container mb-xl md:mb-0 order-1">
-              <div class="bg-gray-9 absolute aspect-[4/3] md:aspect-[3/3.5]" style="width: 45%; transform: rotate(-4deg); top: 0; left: 15%; z-index: 3;"></div>
-              <div class="bg-gray-9 absolute aspect-[4/3] md:aspect-[3/3.5]" style="width: 45%; transform: rotate(4deg); top: 80px; left: 25%; z-index: 2;"></div>
-              <div class="bg-gray-9 absolute aspect-[4/3] md:aspect-[3/3.5]" style="width: 45%; transform: rotate(-4deg); top: 160px; left: 5%; z-index: 1;"></div>
-            </div>
-
-            <!-- Text (Right on Desktop, Bottom on Mobile) -->
-            <div class="col-span-12 md:col-start-7 md:col-span-5 flex items-center order-2">
-              <div>
-                <p class="mb-sm">Our alumni network spans across industries and continents, with graduates making significant contributions to the creative economy. Many have become industry leaders, award-winning designers, successful entrepreneurs, and educators who continue to shape the future of design.</p>
-                <p>我們的系友網絡跨越產業與國界，畢業生對創意經濟做出重大貢獻。許多人已成為業界領袖、獲獎設計師、成功企業家與教育工作者，持續塑造設計的未來。</p>
               </div>
             </div>
           </div>
@@ -512,12 +492,10 @@
 
         <!-- Back to Top Button -->
         <div class="w-full flex justify-center pb-6xl">
-          <a href="#about-hero" class="text-p1 font-regular hover:font-bold transition-all duration-fast cursor-pointer flex items-center gap-xs">
-            <i class="fa-solid fa-arrow-up"></i>
-            <span>Back to Top 回到頂部</span>
-          </a>
+          <a href="#about-hero" class="class-division-btn btn-fill shrink-0 px-lg py-sm text-p1 font-bold transition-all duration-fast rounded-[50px] whitespace-nowrap">Back to Top&ensp;回到頂部</a>
         </div>
       </section>
+
     </div>
   </main>
 

@@ -23,6 +23,8 @@ export async function loadFacultyData() {
   }
 }
 
+const CARD_COLORS = ['#FF448A', '#00FF80', '#26BCFF'];
+
 function renderFacultyList(containerId, items) {
   const container = document.getElementById(containerId);
   if (!container) return;
@@ -34,10 +36,12 @@ function renderFacultyList(containerId, items) {
   }
 
   // 生成 HTML
-  container.innerHTML = items.map(item => `
-    <div class="faculty-card group cursor-pointer" data-category="${item.type}" data-faculty-id="${item.id}">
+  container.innerHTML = items.map((item, index) => {
+    const color = CARD_COLORS[index % CARD_COLORS.length];
+    return `
+    <div class="faculty-card group cursor-pointer" data-category="${item.type}" data-faculty-id="${item.id}" style="--card-color: ${color}">
       <div class="faculty-card-image-wrapper overflow-hidden mb-sm aspect-[4/5] bg-gray-2 relative">
-        <img src="${item.image}" alt="${item.nameEn}" loading="lazy" class="faculty-card-image w-full h-full object-cover transition-transform duration-700 group-hover:scale-105">
+        <img src="${item.image}" alt="${item.nameEn}" loading="lazy" class="faculty-card-image w-full h-full object-cover">
       </div>
       <div class="text-left">
         <h5>${item.nameEn}</h5>
@@ -46,5 +50,6 @@ function renderFacultyList(containerId, items) {
         <p class="text-p1">${item.titleZh}</p>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }

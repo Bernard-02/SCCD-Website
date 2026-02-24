@@ -4,23 +4,29 @@
  */
 
 export async function loadDegreeShowList() {
+  return loadDegreeShowListInto('degree-show-list');
+}
+
+export async function loadDegreeShowListInto(containerId) {
   try {
     const response = await fetch('../data/degree-show.json');
     const data = await response.json();
-    const container = document.getElementById('degree-show-list');
+    const container = document.getElementById(containerId);
 
     if (!container) return;
 
     const years = Object.keys(data).sort((a, b) => b - a); // Sort years descending
+    const colors = ['#FF448A', '#00FF80', '#26BCFF'];
 
-    years.forEach(year => {
+    years.forEach((year, idx) => {
       const item = data[year];
+      const color = colors[idx % colors.length];
       const html = `
-        <div class="grid-12">
-          <div class="col-span-12 md:col-span-2 mb-sm md:mb-0"><h5>${year}</h5></div>
-          <a href="degree-show-detail.html?year=${year}" class="col-span-12 md:col-start-3 md:col-span-10 block group">
+        <div class="grid-12 items-start">
+          <div class="col-span-12 md:col-start-1 md:col-span-1 mb-sm md:mb-0"><h5>${year}</h5></div>
+          <a href="degree-show-detail.html?year=${year}" class="col-span-12 md:col-start-2 md:col-span-11 block degree-show-card" style="--card-color: ${color}">
             <div class="degree-show-img-wrapper overflow-hidden mb-md">
-              <img src="${item.coverImage}" alt="Degree Show ${year}" loading="lazy" class="w-full object-cover transition-transform duration-700 group-hover:scale-105">
+              <img src="${item.coverImage}" alt="Degree Show ${year}" loading="lazy" class="degree-show-img w-full object-cover">
             </div>
             <h5 class="mt-md">${item.title}</h5>
           </a>

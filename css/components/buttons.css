@@ -21,11 +21,25 @@
   }
 
   /* ===== Activities Filter Buttons ===== */
+  .activities-filter-btn {
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+  }
+
   .activities-filter-btn.active {
-    color: #00FF80;
     font-weight: 700;
     transform: rotate(3deg);
     display: inline-block;
+  }
+
+  @media (min-width: 768px) {
+    .activities-filter-btn:hover {
+      font-weight: 700;
+      transform: rotate(3deg);
+      display: inline-block;
+    }
   }
 
   /* ===== Works Filter Buttons ===== */
@@ -55,4 +69,21 @@
     color: #FFFFFF;
     font-weight: 700;
   }
+
+  /* ===== Btn Fill Hover Effect ===== */
+  .btn-fill {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .btn-fill-blob {
+    position: absolute;
+    border-radius: 50%;
+    background: #000000;
+    pointer-events: none;
+    transform-origin: center;
+    z-index: -1;
+  }
+
 }

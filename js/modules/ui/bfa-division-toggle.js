@@ -24,7 +24,7 @@ export function initBFADivisionToggle() {
 
   function updateDisplay(index) {
     const division = divisions[index];
-    
+
     // Update Content
     if (window.SCCDHelpers && window.SCCDHelpers.filterElements) {
       window.SCCDHelpers.filterElements(classDivisionContents, division.id, 'block', 'data-division');
