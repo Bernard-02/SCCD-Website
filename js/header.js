@@ -68,30 +68,47 @@ export function initHeader() {
       }
     });
 
-    // 3. Logo Scale Animation (Responsive)
+    // 3. Logo Lottie + Scale Animation (Responsive)
     const logo = document.getElementById('header-logo');
-    if (logo && typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined') {
-      ScrollTrigger.matchMedia({
-        // Desktop (min-width: 768px)
-        "(min-width: 768px)": function() {
-          gsap.set(logo, { width: 180, height: 180 });
-          gsap.to(logo, {
-            width: 100,
-            height: 100,
-            ease: 'none',
-            scrollTrigger: {
-              trigger: 'body',
-              start: 'top top',
-              end: '+=300',
-              scrub: 0.5,
-            }
-          });
-        },
-        // Mobile (max-width: 767px)
-        "(max-width: 767px)": function() {
-          gsap.set(logo, { width: 80, height: 80 });
+    if (logo && typeof lottie !== 'undefined') {
+      const isInPages = window.location.pathname.includes('/pages/');
+      const logoPath = isInPages ? '../data/SCCDLogoStandard.json' : 'data/SCCDLogoStandard.json';
+      const logoAnim = lottie.loadAnimation({
+        container: logo,
+        renderer: 'svg',
+        loop: true,
+        autoplay: true,
+        path: logoPath,
+        rendererSettings: {
+          preserveAspectRatio: 'xMidYMid meet',
         }
       });
+      logoAnim.addEventListener('DOMLoaded', () => {
+        const svg = logo.querySelector('svg');
+        if (svg) {
+          svg.style.overflow = 'visible';
+          svg.setAttribute('viewBox', '0 0 1080 1080');
+        }
+      });
+    }
+    if (logo && typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined') {
+      const isDesktop = window.matchMedia('(min-width: 768px)');
+      if (isDesktop.matches) {
+        gsap.set(logo, { width: 180, height: 180 });
+        gsap.to(logo, {
+          width: 100,
+          height: 100,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: 'body',
+            start: 'top top',
+            end: '+=300',
+            scrub: 0.5,
+          }
+        });
+      } else {
+        gsap.set(logo, { width: 80, height: 80 });
+      }
     }
 
     // 4. Mobile Menu Logic
@@ -101,16 +118,35 @@ export function initHeader() {
     }
 
     // 5. Header Hide on Footer Reveal
-    const mainContent = document.querySelector('main');
-    if (mainContent) {
+    // 支援靜態 footer（index.html）和動態載入 footer（其他頁面）
+    let logoHidden = false;
+    function bindFooterScroll() {
+      const footerEl = document.querySelector('footer');
+      if (!footerEl) return false;
+      const logoEl = document.getElementById('header-logo');
       window.addEventListener('scroll', () => {
-        const mainRect = mainContent.getBoundingClientRect();
-        if (mainRect.bottom < window.innerHeight * 0.5) {
-          header.classList.add('header-hidden');
-        } else {
-          header.classList.remove('header-hidden');
+        const isNearFooter = footerEl.getBoundingClientRect().top < window.innerHeight * 0.5;
+        header.classList.toggle('header-hidden', isNearFooter);
+        if (logoEl && typeof gsap !== 'undefined') {
+          if (isNearFooter && !logoHidden) {
+            logoHidden = true;
+            gsap.to(logoEl, { opacity: 0, duration: 0.3, ease: 'power2.out' });
+          } else if (!isNearFooter && logoHidden) {
+            logoHidden = false;
+            gsap.to(logoEl, { opacity: 1, duration: 0.3, ease: 'power2.out' });
+          }
         }
       });
+      return true;
+    }
+
+    // 先嘗試直接綁定（index.html 靜態 footer）
+    if (!bindFooterScroll()) {
+      // footer 尚未載入，用 MutationObserver 等待
+      const observer = new MutationObserver(() => {
+        if (bindFooterScroll()) observer.disconnect();
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
     }
   }
 

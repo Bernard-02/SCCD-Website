@@ -56,7 +56,21 @@
     font-weight: 700;
   }
 
-  /* ===== Class Division Toggle Buttons ===== */
+  /* ===== Class Parent Buttons (學士班 / 碩士班) ===== */
+  .class-parent-btn {
+    border: 1px solid #000000;
+    background: transparent;
+    color: #000000;
+    cursor: pointer;
+  }
+
+  .class-parent-btn.active {
+    background: #000000;
+    color: #FFFFFF;
+    font-weight: 700;
+  }
+
+  /* ===== Class Division Toggle Buttons (動畫組 / 創媒組) ===== */
   .class-division-btn {
     border: 1px solid #000000;
     background: transparent;
@@ -68,6 +82,11 @@
     background: #000000;
     color: #FFFFFF;
     font-weight: 700;
+  }
+
+  /* ===== BFA Sub-buttons Slide Container ===== */
+  #bfa-sub-btns {
+    transition: max-width 0.35s ease, opacity 0.3s ease, margin 0.35s ease;
   }
 
   /* ===== Btn Fill Hover Effect ===== */

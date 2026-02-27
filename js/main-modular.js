@@ -26,6 +26,7 @@ import { initTimeline } from './modules/pages/about/timeline.js'; // Ensure this
 import { initAnchorNav } from './modules/navigation/anchor-nav.js';
 
 // Import Page Specific Modules
+import { initIntroAnimation } from './modules/pages/intro-animation.js';
 import { initActivitiesPreview } from './modules/pages/activities-preview.js';
 import { initFacultySlideIn } from './modules/pages/faculty-slide-in.js';
 import { initActivitiesSectionSwitch } from './modules/pages/activities-section-switch.js';
@@ -66,6 +67,11 @@ document.addEventListener('DOMContentLoaded', function() {
   const path = window.location.pathname;
   // 取得當前檔案名稱 (例如: about.html)，如果路徑以 / 結尾則視為 index.html
   const page = path.split('/').pop() || 'index.html';
+
+  // --- Index Page ---
+  if (page === 'index.html' || page === '') {
+    initIntroAnimation();
+  }
 
   console.log(`Current Page: ${page}`);
 

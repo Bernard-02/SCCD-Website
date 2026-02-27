@@ -47,6 +47,28 @@ export function initTimeline() {
 
     const yearElements = document.querySelectorAll('.timeline-year-item');
 
+    // Store the desktop ScrollTrigger instance so clicks can use its scroll range
+    let desktopST = null;
+    let isScrollingToYear = false;
+
+    // Click: Jump to the corresponding year using the ScrollTrigger's actual scroll range
+    yearElements.forEach((el, i) => {
+      el.addEventListener('click', () => {
+        if (desktopST) {
+          const targetProgress = (i + 0.5) / items.length;
+          const targetScroll = desktopST.start + targetProgress * (desktopST.end - desktopST.start);
+          isScrollingToYear = true;
+          updateContent(i);
+          gsap.to(window, {
+            scrollTo: targetScroll,
+            duration: 0.8,
+            ease: 'power2.inOut',
+            onComplete: () => { isScrollingToYear = false; }
+          });
+        }
+      });
+    });
+
     // Helper: Update Content based on index
     const updateContent = (index) => {
       const item = items[index];
@@ -117,17 +139,16 @@ export function initTimeline() {
         const scrollDistance = items.length * 400; // 400px per item
         gsap.set(timelineWrapper, { height: scrollDistance + window.innerHeight });
 
-        const tl = gsap.timeline({
-          scrollTrigger: {
-            trigger: timelineWrapper,
-            start: "top 100px",
-            end: "bottom bottom",
-            scrub: 0.5,
-            pin: stickyContainer,
-            onUpdate: (self) => {
-              const index = Math.min(Math.floor(self.progress * items.length), items.length - 1);
-              updateContent(index);
-            }
+        desktopST = ScrollTrigger.create({
+          trigger: timelineWrapper,
+          start: "top 100px",
+          end: "bottom bottom",
+          scrub: 0.5,
+          pin: stickyContainer,
+          onUpdate: (self) => {
+            if (isScrollingToYear) return;
+            const index = Math.min(Math.floor(self.progress * items.length), items.length - 1);
+            updateContent(index);
           }
         });
       },

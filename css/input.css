@@ -19,6 +19,7 @@
 @import './components/accordion.css';
 @import './components/hero.css';
 @import './components/lists.css';
+@import './components/intro-animation.css';
 
 /* 3. Tailwind Directives */
 @tailwind base;

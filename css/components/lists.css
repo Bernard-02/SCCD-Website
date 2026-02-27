@@ -9,3 +9,11 @@
     @apply grid grid-cols-9 gap-gutter items-center py-md;
   }
 }
+
+/* ===== Timeline Year Item Hover (Desktop only) ===== */
+@media (min-width: 768px) {
+  .timeline-year-item:hover {
+    color: var(--color-pink) !important;
+    cursor: pointer;
+  }
+}

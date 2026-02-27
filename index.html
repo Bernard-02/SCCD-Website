@@ -6,8 +6,14 @@
   <title>SCCD - Shih Chien University</title>
   <link rel="stylesheet" href="css/output.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
 </head>
 <body>
+
+  <!-- Intro Animation Overlay -->
+  <div id="intro-overlay">
+    <div id="intro-lottie"></div>
+  </div>
 
   <!-- Header -->
   <header class="fixed top-0 left-0 right-0 bg-white border-b border-gray-9 z-50">
@@ -16,7 +22,7 @@
         <!-- Logo/Site Title (手機版佔6欄，桌面版2欄) -->
         <div class="col-span-6 md:col-span-2 relative">
           <a href="index.html" class="absolute -top-4 left-0 z-50">
-            <img id="header-logo" src="images/sccd_black.png" alt="SCCD" class="w-[80px] h-[80px] md:w-[180px] md:h-[180px] object-contain">
+            <div id="header-logo" class="w-[80px] h-[80px] md:w-[180px] md:h-[180px]"></div>
           </a>
         </div>
 
@@ -217,10 +223,11 @@
 
   <!-- Main Content -->
   <main>
+    <section class="h-screen"></section>
   </main>
 
   <!-- Footer -->
-  <footer class="h-screen bg-black text-white relative overflow-hidden">
+  <footer id="site-footer-static" class="h-screen bg-black text-white relative overflow-hidden">
     <div class="site-container h-full" style="padding-top: var(--spacing-3xl); padding-bottom: var(--spacing-xl);">
       <div class="grid-12 h-full relative">
 
@@ -238,7 +245,7 @@
 
           <!-- Logo -->
           <div class="footer-logo mb-sm md:mb-0">
-            <img src="images/sccd_white.png" alt="SCCD" class="w-[100px] h-[100px] md:w-[250px] md:h-[250px] object-contain">
+            <div id="footer-logo" class="w-[100px] h-[100px] md:w-[250px] md:h-[250px]"></div>
           </div>
 
           <!-- FAX -->
