@@ -55,7 +55,7 @@ export async function loadGeneralActivitiesInto(containerId) {
       }).join('');
 
       const html = `
-        <div class="workshop-year-group grid-12 items-start">
+        <div class="workshop-year-group grid-12 items-start ${!isLast ? 'border-b border-gray-9 pb-2xl mb-2xl' : ''}">
           <div class="col-span-12 md:col-span-1 md:col-start-1 workshop-year-toggle cursor-pointer flex items-center gap-sm order-1">
             <i class="fa-solid fa-chevron-right text-p1 transition-all duration-fast rotate-90"></i>
             <h5>${yearGroup.year}</h5>
@@ -64,10 +64,39 @@ export async function loadGeneralActivitiesInto(containerId) {
             ${itemsHtml}
           </div>
         </div>
-        ${!isLast ? '<div class="activities-separator grid-12 pt-md pb-2xl"><div class="col-span-12 border-b border-gray-9"></div></div>' : ''}
       `;
       container.insertAdjacentHTML('beforeend', html);
     });
+
+    // 進場動畫：每個 year group 進入視窗時，內部 items 逐條 stagger 出現（border 跟 group 一起）
+    if (typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined') {
+      container.querySelectorAll('.workshop-year-group').forEach(group => {
+        const yearToggle = group.querySelector('.workshop-year-toggle');
+        const items = group.querySelectorAll('.workshop-item');
+        const allItems = [...(yearToggle ? [yearToggle] : []), ...items];
+        if (allItems.length === 0) return;
+
+        gsap.set(group, { opacity: 0 });
+        gsap.set(allItems, { y: 100, opacity: 0 });
+
+        ScrollTrigger.create({
+          trigger: group,
+          start: 'top 90%',
+          once: true,
+          onEnter: () => {
+            gsap.set(group, { opacity: 1, clearProps: 'opacity' });
+            gsap.to(allItems, {
+              y: 0, opacity: 1,
+              duration: 0.6,
+              stagger: { each: 0.1, grid: 'auto', axis: 'y' },
+              ease: 'power2.out',
+              overwrite: true,
+              clearProps: 'transform,opacity',
+            });
+          },
+        });
+      });
+    }
   } catch (error) {
     console.error('Error loading general activities data:', error);
   }

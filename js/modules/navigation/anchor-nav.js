@@ -113,7 +113,7 @@ export function initAnchorNav() {
         gsap.to(mobileWrapper, {
           width: 160, // w-40
           height: 'auto',
-          borderRadius: 15, // 設定展開後的圓角為 15px
+          borderRadius: 24,
           duration: 0.5,
           ease: 'power2.out'
         });

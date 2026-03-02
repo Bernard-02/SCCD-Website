@@ -3,6 +3,8 @@
  * 課程篩選功能（BFA / MDES）
  */
 
+import { animateCards } from '../ui/scroll-animate.js';
+
 export function initCoursesFilter() {
   const coursesFilterButtons = document.querySelectorAll('.courses-filter-btn');
   const coursesYearGroups = document.querySelectorAll('.courses-year-group');
@@ -31,7 +33,12 @@ export function initCoursesFilter() {
       const filterValue = this.getAttribute('data-filter');
 
       coursesYearGroups.forEach(group => {
-        group.style.display = group.getAttribute('data-year') === filterValue ? 'block' : 'none';
+        const isActive = group.getAttribute('data-year') === filterValue;
+        group.style.display = isActive ? 'block' : 'none';
+        if (isActive) {
+          const blocks = group.querySelectorAll('.flex-col > div');
+          animateCards(blocks, false, { fadeIn: true });
+        }
       });
 
       // Scroll to the courses section

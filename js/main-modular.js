@@ -27,6 +27,7 @@ import { initAnchorNav } from './modules/navigation/anchor-nav.js';
 
 // Import Page Specific Modules
 import { initIntroAnimation } from './modules/pages/intro-animation.js';
+import { initHeroAnimation } from './modules/pages/hero-animation.js';
 import { initActivitiesPreview } from './modules/pages/activities-preview.js';
 import { initFacultySlideIn } from './modules/pages/faculty-slide-in.js';
 import { initActivitiesSectionSwitch } from './modules/pages/activities-section-switch.js';
@@ -62,6 +63,7 @@ document.addEventListener('DOMContentLoaded', function() {
   initFooter();
   initSmoothScroll();
   initBtnFillHover();
+  initHeroAnimation();
 
   // 2. Page Specific Logic (根據頁面名稱執行對應模組)
   const path = window.location.pathname;
@@ -119,8 +121,77 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // --- Support Page ---
   if (page.includes('support.html')) {
+    if (typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined') {
+      document.querySelectorAll('.support-group').forEach(group => {
+        const titleEl = group.querySelector('.support-group-title');
+        const titleWrap = group.querySelector('.support-group-title-wrap');
+        const contentEl = group.querySelector('.support-group-content');
+
+        // clip reveal：讓 h3 在 overflow:hidden 的 wrapper 內從下方滑入
+        // titleWrap 高度固定為 h3 的高度，overflow:hidden 做遮罩
+        if (titleWrap && titleEl) {
+          // 固定 wrapper 高度為 h3 當前高度，確保 overflow:hidden 能正確裁剪
+          titleWrap.style.height = titleEl.offsetHeight + 'px';
+          gsap.set(titleEl, { yPercent: 100 });
+        }
+        if (contentEl) {
+          gsap.set(contentEl, { y: 40, opacity: 0 });
+        }
+
+        ScrollTrigger.create({
+          trigger: group,
+          start: 'top 85%',
+          once: true,
+          onEnter: () => {
+            if (titleEl) {
+              gsap.to(titleEl, {
+                yPercent: 0,
+                duration: 0.8,
+                ease: 'power3.out',
+                clearProps: 'transform',
+                onComplete: () => { if (titleWrap) titleWrap.style.height = ''; },
+              });
+            }
+            if (contentEl) {
+              gsap.to(contentEl, {
+                y: 0,
+                opacity: 1,
+                duration: 0.7,
+                delay: 0.15,
+                ease: 'power2.out',
+                clearProps: 'transform,opacity',
+              });
+            }
+          },
+        });
+      });
+    }
+
     loadSupportData().then(() => {
       initCourseAccordion();
+      // accordion items stagger 進場（資料載入後才設定）
+      if (typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined') {
+        const items = document.querySelectorAll('#donation-methods-list .course-item');
+        if (items.length > 0) {
+          gsap.set(items, { y: 40, opacity: 0 });
+          ScrollTrigger.create({
+            trigger: '#donation-methods-list',
+            start: 'top 90%',
+            once: true,
+            onEnter: () => {
+              gsap.to(items, {
+                y: 0,
+                opacity: 1,
+                duration: 0.6,
+                stagger: { each: 0.1, axis: 'y' },
+                ease: 'power2.out',
+                clearProps: 'transform,opacity',
+              });
+            },
+          });
+        }
+        ScrollTrigger.refresh();
+      }
     });
     initSupportLinkColor();
   }

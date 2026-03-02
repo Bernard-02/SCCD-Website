@@ -323,3 +323,13 @@ window.SCCDHelpers = window.SCCDHelpers || {};
   };
 
 })(window.SCCDHelpers);
+
+// Register GSAP plugins（需在 GSAP 載入後執行）
+if (typeof gsap !== 'undefined') {
+  const plugins = [];
+  if (typeof ScrollTrigger !== 'undefined') plugins.push(ScrollTrigger);
+  if (typeof ScrollToPlugin !== 'undefined') plugins.push(ScrollToPlugin);
+  if (typeof Draggable !== 'undefined') plugins.push(Draggable);
+  if (typeof InertiaPlugin !== 'undefined') plugins.push(InertiaPlugin);
+  if (plugins.length > 0) gsap.registerPlugin(...plugins);
+}

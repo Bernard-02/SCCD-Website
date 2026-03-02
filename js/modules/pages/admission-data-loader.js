@@ -3,6 +3,8 @@
  * 負責讀取 Admission JSON 資料並渲染列表與詳情頁
  */
 
+import { animateCards } from '../ui/scroll-animate.js';
+
 export async function loadAdmissionData() {
   try {
     const response = await fetch('../data/admission.json');
@@ -30,42 +32,38 @@ function renderAdmissionList(data, container) {
   const loadMoreBtn = document.getElementById('load-more-btn');
   const loadMoreContainer = document.getElementById('load-more-container');
 
-  // 渲染函數
-  const render = (count) => {
-    container.innerHTML = '';
-    const itemsToShow = data.slice(0, count);
+  // 將單筆資料轉成 HTML 字串
+  const itemHTML = (item) => `
+    <div class="admission-item grid grid-cols-12 gap-y-xs md:gap-x-lg items-baseline border-b border-gray-9 pb-md">
+      <h5 class="col-span-12 md:col-span-3 font-regular">${item.date}</h5>
+      <a href="admission-detail.html?id=${item.id}" class="col-span-12 md:col-span-9 block group w-full">
+        <h5 class="font-regular group-hover:font-bold transition-all duration-fast">${item.title}</h5>
+      </a>
+    </div>
+  `;
 
-    itemsToShow.forEach(item => {
-      const html = `
-        <div class="admission-item grid grid-cols-12 gap-y-xs md:gap-x-lg items-baseline border-b border-gray-9 pb-md">
-          <h5 class="col-span-12 md:col-span-3 font-regular">${item.date}</h5>
-          <a href="admission-detail.html?id=${item.id}" class="col-span-12 md:col-span-9 block group w-full">
-            <h5 class="font-regular group-hover:font-bold transition-all duration-fast">${item.title}</h5>
-          </a>
-        </div>
-      `;
-      container.insertAdjacentHTML('beforeend', html);
-    });
+  // 初始渲染：渲染前 N 筆，用 ScrollTrigger 進場，按鈕等最後一個進場後 fade in
+  data.slice(0, visibleCount).forEach(item => container.insertAdjacentHTML('beforeend', itemHTML(item)));
+  const initialItems = container.querySelectorAll('.admission-item');
 
-    // 控制 Load More 按鈕顯示
-    if (count >= data.length) {
-      if (loadMoreContainer) loadMoreContainer.style.display = 'none';
-    } else {
-      if (loadMoreContainer) loadMoreContainer.style.display = 'flex';
-    }
-  };
+  if (loadMoreContainer) gsap.set(loadMoreContainer, { opacity: 0, display: 'flex' });
+  animateCards(initialItems, true, {
+    fadeIn: true,
+    onLastEnter: loadMoreContainer
+      ? () => gsap.to(loadMoreContainer, { opacity: 1, duration: 0.3, ease: 'power2.out' })
+      : null,
+  });
 
-  // 初始渲染
-  render(visibleCount);
-
-  // Load More 點擊事件
+  // Load More：只 append 新的 item，直接 stagger 進場，按鈕隱藏（已全部顯示）
   if (loadMoreBtn) {
     loadMoreBtn.addEventListener('click', () => {
-      visibleCount += ITEMS_PER_PAGE; // 每次多顯示 10 筆 (或顯示剩餘全部)
-      // 這裡簡單處理：直接顯示全部，或者您可以改為 visibleCount += 10
-      // 根據您的原始 HTML 邏輯，似乎是點擊後顯示全部剩餘的
-      visibleCount = data.length; 
-      render(visibleCount);
+      const prevCount = visibleCount;
+      visibleCount = data.length;
+      data.slice(prevCount, visibleCount).forEach(item => container.insertAdjacentHTML('beforeend', itemHTML(item)));
+      const allItems = container.querySelectorAll('.admission-item');
+      const newElements = Array.from(allItems).slice(prevCount);
+      if (loadMoreContainer) loadMoreContainer.style.display = 'none';
+      animateCards(newElements, false, { fadeIn: true });
     });
   }
 }

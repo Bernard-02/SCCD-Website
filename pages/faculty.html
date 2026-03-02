@@ -97,6 +97,12 @@
     <!-- Overlay (70% Black) -->
     <div id="faculty-overlay" class="absolute inset-0 bg-black opacity-0 cursor-pointer"></div>
 
+    <!-- Custom Cursor (Back Circle) -->
+    <div id="faculty-cursor" class="fixed pointer-events-none z-[101] w-[120px] h-[120px] rounded-full bg-black flex flex-col items-center justify-center gap-xs" style="opacity:0; transform: scale(0); top:0; left:0;">
+      <span class="text-white text-p1 font-semibold leading-none">Back</span>
+      <span class="text-white text-p1 font-semibold leading-none">返回</span>
+    </div>
+
     <!-- Panel (White, Slide from right) -->
     <!-- Left position: 2.5 columns out of 12 approx 20.833% -->
     <div id="faculty-panel" class="absolute top-0 right-0 bottom-0 bg-white transform translate-x-[110%] overflow-visible left-0 md:left-[20.8333%]">

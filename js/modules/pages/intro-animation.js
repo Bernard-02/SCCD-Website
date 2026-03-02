@@ -10,23 +10,13 @@
 export function initIntroAnimation() {
   const overlay = document.getElementById('intro-overlay');
   const container = document.getElementById('intro-lottie');
-  const header = document.querySelector('header');
 
   if (!overlay || !container) return;
 
-  // 1. 判斷是否第一次載入（同一個 session 只播一次）
-  // TODO: 測試完成後取消這行的註解，並把下面的 return 恢復
-  // if (sessionStorage.getItem('introPlayed')) {
-  //   overlay.style.display = 'none';
-  //   return;
-  // }
-  // sessionStorage.setItem('introPlayed', '1');
-
-  // 2. 隱藏 header，鎖定 scroll（隱藏 scrollbar）
-  if (header) gsap.set(header, { opacity: 0 });
+  // 鎖定 scroll（隱藏 scrollbar）
   document.body.style.overflow = 'hidden';
 
-  // 3. 播放 loader Lottie
+  // 播放 loader Lottie
   const anim = lottie.loadAnimation({
     container: container,
     renderer: 'svg',
@@ -35,26 +25,35 @@ export function initIntroAnimation() {
     path: 'data/SCCDLoader.json'
   });
 
-  // 5. 動畫結束後執行過渡
-  anim.addEventListener('complete', () => {
-    const tl = gsap.timeline({
-      onComplete: () => {
-        overlay.style.display = 'none';
+  // 等待 header 載入完成後再執行過渡（header 是非同步 fetch 注入的）
+  function runTransition() {
+    const header = document.querySelector('header');
+
+    anim.addEventListener('complete', () => {
+      // overlay fade out，header 同步 fade in
+      const tl = gsap.timeline({
+        onComplete: () => { overlay.style.display = 'none'; }
+      });
+
+      tl.to(overlay, { opacity: 0, duration: 0.5, ease: 'power2.out' });
+
+      if (header) {
+        tl.to(header, {
+          opacity: 1,
+          duration: 0.4,
+          ease: 'power2.out',
+          onStart: () => { document.body.style.overflow = ''; },
+        }, '<');
+      } else {
+        tl.call(() => { document.body.style.overflow = ''; }, null, '<');
       }
     });
+  }
 
-    // overlay fade out，同時 header 一起 fade in
-    tl.to(overlay, {
-      opacity: 0,
-      duration: 0.5,
-      ease: 'power2.out',
-    });
-
-    tl.to(header, {
-      opacity: 1,
-      duration: 0.4,
-      ease: 'power2.out',
-      onStart: () => { document.body.style.overflow = ''; },
-    }, '<');
-  });
+  // 若 header 已在 DOM，直接執行；否則等待 header:ready 事件
+  if (document.querySelector('header')) {
+    runTransition();
+  } else {
+    document.addEventListener('header:ready', runTransition, { once: true });
+  }
 }

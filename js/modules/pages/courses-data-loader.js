@@ -3,6 +3,8 @@
  * 負責讀取課程 JSON 資料並渲染到頁面上
  */
 
+import { animateCards } from '../ui/scroll-animate.js';
+
 export async function loadCourses(program) {
   try {
     const response = await fetch('../data/courses.json');
@@ -11,9 +13,12 @@ export async function loadCourses(program) {
 
     if (!courses) return;
 
-    // 渲染必修課程 (Required)
+    // 渲染必修課程 (Required)，初始可見，以年級 block 為單位進場
     renderCourseGroup(courses, 'required', program);
-    // 渲染選修課程 (Elective)
+    const requiredBlocks = document.querySelectorAll('.courses-year-group[data-year="required"] .flex-col > div');
+    animateCards(requiredBlocks, true, { fadeIn: true });
+
+    // 渲染選修課程 (Elective)，預設隱藏，不加 ScrollTrigger
     renderCourseGroup(courses, 'elective', program);
 
   } catch (error) {

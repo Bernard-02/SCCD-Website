@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="../css/output.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body>
 
@@ -63,12 +64,21 @@
   </main>
 
   <!-- PDF Viewer Modal -->
-  <div id="pdf-viewer-modal" class="fixed inset-0 z-[200] hidden bg-black/90 flex items-center justify-center p-md opacity-0 transition-opacity duration-300" style="padding-top: var(--header-height);">
+  <div id="pdf-viewer-modal" class="fixed inset-0 z-[200] bg-black/90 flex flex-col opacity-0 transition-opacity duration-300" style="display: none; padding: var(--header-height) 0 2rem;">
     <!-- Close Button -->
-    <button id="pdf-close-btn" class="absolute right-4 md:right-8 text-white hover:text-gray-6 transition-colors duration-fast p-2" style="top: calc(var(--header-height) + 1rem);"><i class="fa-solid fa-xmark text-h3"></i></button>
-    <div class="relative w-auto h-[70%] max-w-full bg-white shadow-2xl flex flex-col" style="aspect-ratio: 210/297; max-height: 70%;">
-      <!-- Iframe Container -->
-      <iframe id="pdf-iframe" src="" class="w-full h-full" frameborder="0"></iframe>
+    <button id="pdf-close-btn" class="absolute right-4 md:right-8 text-white transition-colors duration-fast p-2" style="top: calc(var(--header-height) + 1rem);"><i class="fa-solid fa-xmark text-h3"></i></button>
+
+    <!-- Canvas Area: flex-1 自動填滿剩餘空間 -->
+    <div class="flex items-center justify-center gap-0 w-full px-16 flex-1 min-h-0">
+      <canvas id="pdf-canvas-left" class="bg-white shadow-2xl block" style="max-height: 100%; max-width: 100%; width: auto; height: auto;"></canvas>
+      <canvas id="pdf-canvas-right" class="bg-white shadow-2xl hidden md:block" style="max-height: 100%; max-width: 100%; width: auto; height: auto;"></canvas>
+    </div>
+
+    <!-- Navigation Bar -->
+    <div class="flex items-center justify-center gap-xl mt-md text-white flex-shrink-0">
+      <button id="pdf-prev-btn" class="p-2 disabled:opacity-30 transition-opacity"><i class="fa-solid fa-chevron-left text-p1"></i></button>
+      <span id="pdf-page-info" class="text-p1"></span>
+      <button id="pdf-next-btn" class="p-2 disabled:opacity-30 transition-opacity"><i class="fa-solid fa-chevron-right text-p1"></i></button>
     </div>
   </div>
 

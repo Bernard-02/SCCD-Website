@@ -135,9 +135,10 @@ export function initFacultySlideIn() {
 
               // Animation Sequence: Overlay first, then Panel and Button slide in together
               if (typeof gsap !== 'undefined') {
+                cursorEnabled = false;
                 const tl = gsap.timeline();
                 tl.to(slideInOverlay, { opacity: 0.8, duration: 0.3 })
-                  .to(slideInPanel, { x: '0%', duration: 0.5, ease: 'power3.out' }, '-=0');
+                  .to(slideInPanel, { x: '0%', duration: 0.5, ease: 'power3.out', onComplete: () => { cursorEnabled = true; } }, '-=0');
               } else {
                 // Fallback if GSAP is not loaded
                 slideInOverlay.style.opacity = '0.8';
@@ -183,8 +184,59 @@ export function initFacultySlideIn() {
     }
   }
 
-  if (closeBtn) closeBtn.addEventListener('click', closeSlideIn);
-  if (backBtn) backBtn.addEventListener('click', closeSlideIn);
+  // Custom cursor on overlay (desktop only)
+  const cursor = document.getElementById('faculty-cursor');
+  let cursorEnabled = false;
+
+  function hideCursor(onComplete) {
+    if (!cursor) { if (onComplete) onComplete(); return; }
+    gsap.to(cursor, {
+      opacity: 0,
+      scale: 0,
+      duration: 0.2,
+      ease: 'power2.in',
+      overwrite: true,
+      onComplete: onComplete || null,
+    });
+  }
+
+  function closeWithCursor() {
+    cursorEnabled = false;
+    hideCursor(() => closeSlideIn());
+  }
+
+  if (closeBtn) closeBtn.addEventListener('click', closeWithCursor);
+  if (backBtn) backBtn.addEventListener('click', closeWithCursor);
   if (backBtnMobile) backBtnMobile.addEventListener('click', closeSlideIn);
-  if (slideInOverlay) slideInOverlay.addEventListener('click', closeSlideIn);
+  if (slideInOverlay) slideInOverlay.addEventListener('click', closeWithCursor);
+
+  if (cursor && slideInOverlay && typeof gsap !== 'undefined') {
+    // Track mouse position — 圓圈左上角貼在游標右下方
+    slideInOverlay.addEventListener('mousemove', (e) => {
+      gsap.to(cursor, {
+        left: e.clientX + 6,
+        top: e.clientY + 6,
+        duration: 0.4,
+        ease: 'power2.out',
+        overwrite: 'auto',
+      });
+    });
+
+    // Show cursor on hover（只有 slide in 完成後才啟用）
+    slideInOverlay.addEventListener('mouseenter', () => {
+      if (!cursorEnabled) return;
+      gsap.to(cursor, {
+        opacity: 1,
+        scale: 1,
+        duration: 0.3,
+        ease: 'back.out(1.7)',
+        overwrite: 'auto',
+      });
+    });
+
+    // Hide cursor on leave
+    slideInOverlay.addEventListener('mouseleave', () => {
+      hideCursor();
+    });
+  }
 }

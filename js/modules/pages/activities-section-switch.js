@@ -38,7 +38,7 @@ function getRandomColor() {
   return COLORS[Math.floor(Math.random() * COLORS.length)];
 }
 
-function switchToSection(section, btns, shouldScroll) {
+async function switchToSection(section, btns, shouldScroll) {
   // 更新按鈕 active 狀態與隨機顏色
   btns.forEach(b => {
     b.classList.remove('active');
@@ -57,6 +57,9 @@ function switchToSection(section, btns, shouldScroll) {
   const target = document.getElementById(`panel-${section}`);
   if (target) target.classList.remove('hidden');
 
+  // 懶載入：等資料載入完才 scroll（否則 panel 是空的，scroll 位置不準）
+  const playAnimation = await loadPanel(section);
+
   // Scroll to section（點擊時才 scroll，初始載入不 scroll）
   if (shouldScroll) {
     const sectionEl = document.getElementById('activities-content-section');
@@ -64,16 +67,29 @@ function switchToSection(section, btns, shouldScroll) {
       const header = document.querySelector('header');
       const offset = header ? header.offsetHeight : 0;
       const top = sectionEl.getBoundingClientRect().top + window.scrollY - offset;
-      window.scrollTo({ top, behavior: 'smooth' });
-    }
-  }
 
-  // 懶載入：只在第一次顯示時載入資料
-  loadPanel(section);
+      if (typeof gsap !== 'undefined' && typeof ScrollToPlugin !== 'undefined') {
+        // 用 GSAP scrollTo，scroll 完成後才播放進場動畫
+        gsap.to(window, {
+          scrollTo: { y: top },
+          duration: 0.5,
+          ease: 'power2.inOut',
+          onComplete: () => { if (playAnimation) playAnimation(); },
+        });
+      } else {
+        window.scrollTo({ top, behavior: 'smooth' });
+        if (playAnimation) setTimeout(playAnimation, 800);
+      }
+    }
+  } else {
+    // 初始載入不 scroll，但有動畫的 panel 直接播
+    if (playAnimation) playAnimation();
+  }
 }
 
+// 回傳 playAnimation function（需在 scroll 完成後呼叫），或 null
 async function loadPanel(section) {
-  if (loaded[section]) return;
+  if (loaded[section]) return null;
   loaded[section] = true;
 
   switch (section) {
@@ -82,25 +98,30 @@ async function loadPanel(section) {
       initActivitiesFilter();
       initActivitiesYearToggle();
       initWorkshopAccordion();
-      break;
+      if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh();
+      return null; // general 用 ScrollTrigger，不需要外部觸發
 
-    case 'workshop':
-      await loadWorkshopsInto('../data/workshops.json', 'workshop', 'workshop-list');
+    case 'workshop': {
+      const play = await loadWorkshopsInto('../data/workshops.json', 'workshop', 'workshop-list');
       initWorkshopAccordion();
-      break;
+      return play;
+    }
 
     case 'degree-show':
       await loadDegreeShowListInto('degree-show-list');
-      break;
+      return null;
 
-    case 'summer-camp':
-      await loadSummerCampInto('summer-camp-list');
+    case 'summer-camp': {
+      const play = await loadSummerCampInto('summer-camp-list');
       initSummerCampAccordion();
-      break;
+      return play;
+    }
 
-    case 'students-present':
-      await loadWorkshopsInto('../data/students-present.json', 'student', 'students-present-list');
+    case 'students-present': {
+      const play = await loadWorkshopsInto('../data/students-present.json', 'student', 'students-present-list');
       initWorkshopAccordion();
-      break;
+      return play;
+    }
   }
+  return null;
 }

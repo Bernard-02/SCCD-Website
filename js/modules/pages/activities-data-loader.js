@@ -69,7 +69,7 @@ export async function loadWorkshopsInto(jsonFile, pageType = 'workshop', contain
     }).join('');
 
     const html = `
-      <div class="workshop-year-group grid-12 items-start">
+      <div class="workshop-year-group grid-12 items-start ${!isLast ? 'border-b border-gray-9 pb-2xl mb-2xl' : ''}">
         <div class="col-span-12 md:col-span-1 md:col-start-1 workshop-year-toggle cursor-pointer flex items-center gap-sm">
           <i class="fa-solid fa-chevron-right text-p1 transition-all duration-fast rotate-90"></i>
           <h5>${yearGroup.year}</h5>
@@ -78,10 +78,42 @@ export async function loadWorkshopsInto(jsonFile, pageType = 'workshop', contain
           ${itemsHtml}
         </div>
       </div>
-      ${!isLast ? '<div class="grid-12 pt-md pb-2xl"><div class="col-span-12 border-b border-gray-9"></div></div>' : ''}
     `;
     container.insertAdjacentHTML('beforeend', html);
   });
+
+  // 準備進場動畫：每個 year group 的 items 逐條 stagger，border 跟 group 一起隱藏
+  if (typeof gsap !== 'undefined') {
+    const allSets = [...container.querySelectorAll('.workshop-year-group')].map(group => {
+      const yearToggle = group.querySelector('.workshop-year-toggle');
+      const items = group.querySelectorAll('.workshop-item');
+      return { group, items: [...(yearToggle ? [yearToggle] : []), ...items] };
+    }).filter(s => s.items.length > 0);
+
+    if (allSets.length === 0) return null;
+
+    allSets.forEach(({ group, items }) => {
+      gsap.set(group, { opacity: 0 });
+      gsap.set(items, { y: 100, opacity: 0 });
+    });
+
+    return () => {
+      allSets.forEach(({ group, items }, i) => {
+        const delay = i * 0.15;
+        gsap.to(group, { opacity: 1, duration: 0, delay, clearProps: 'opacity' });
+        gsap.to(items, {
+          y: 0, opacity: 1,
+          duration: 0.6,
+          delay,
+          stagger: { each: 0.1, grid: 'auto', axis: 'y' },
+          ease: 'power2.out',
+          clearProps: 'transform,opacity',
+        });
+      });
+    };
+  }
+
+  return null;
 }
 
 // 2. Summer Camp Renderer
@@ -125,7 +157,7 @@ export async function loadSummerCampInto(containerId = null) {
     `).join('');
 
     const html = `
-      <div class="summer-camp-year-group grid-12 items-start">
+      <div class="summer-camp-year-group grid-12 items-start ${!isLast ? 'border-b border-gray-9 pb-xl mb-xl' : ''}">
         <div class="col-span-12 md:col-span-1 md:col-start-1">
           <h5>${yearGroup.year}</h5>
         </div>
@@ -133,8 +165,40 @@ export async function loadSummerCampInto(containerId = null) {
           ${itemsHtml}
         </div>
       </div>
-      ${!isLast ? '<div class="grid-12 pt-md pb-xl"><div class="col-span-12 md:col-start-2 md:col-span-11 border-b border-gray-9"></div></div>' : ''}
     `;
     container.insertAdjacentHTML('beforeend', html);
   });
+
+  // 準備進場動畫：每個 year group 的 items 逐條 stagger，border 跟 group 一起隱藏
+  if (typeof gsap !== 'undefined') {
+    const allSets = [...container.querySelectorAll('.summer-camp-year-group')].map(group => {
+      const yearEl = group.querySelector('h5');
+      const items = group.querySelectorAll('.summer-camp-item');
+      return { group, items: [...(yearEl ? [yearEl] : []), ...items] };
+    }).filter(s => s.items.length > 0);
+
+    if (allSets.length === 0) return null;
+
+    allSets.forEach(({ group, items }) => {
+      gsap.set(group, { opacity: 0 });
+      gsap.set(items, { y: 100, opacity: 0 });
+    });
+
+    return () => {
+      allSets.forEach(({ group, items }, i) => {
+        const delay = i * 0.15;
+        gsap.to(group, { opacity: 1, duration: 0, delay, clearProps: 'opacity' });
+        gsap.to(items, {
+          y: 0, opacity: 1,
+          duration: 0.6,
+          delay,
+          stagger: { each: 0.1, grid: 'auto', axis: 'y' },
+          ease: 'power2.out',
+          clearProps: 'transform,opacity',
+        });
+      });
+    };
+  }
+
+  return null;
 }

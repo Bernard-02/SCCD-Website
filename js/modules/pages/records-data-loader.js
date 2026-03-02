@@ -81,6 +81,38 @@ export async function loadRecords() {
       container.insertAdjacentHTML('beforeend', html);
     });
 
+    // 年份 block 進場動畫：每個 year block 進入視窗時，內部 item 逐條 stagger 出現
+    if (typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined') {
+      const yearBlocks = container.querySelectorAll(':scope > .col-span-12');
+
+      yearBlocks.forEach(block => {
+        // 年份標題（chevron + year h5）與每一條 record item
+        const yearHeader = block.querySelectorAll('.activities-year-toggle');
+        const recordItems = block.querySelectorAll('.activities-year-items > div');
+        const allItems = [...yearHeader, ...recordItems];
+
+        if (allItems.length === 0) return;
+
+        gsap.set(allItems, { y: 40, opacity: 0 });
+
+        ScrollTrigger.create({
+          trigger: block,
+          start: 'top 90%',
+          once: true,
+          onEnter: () => {
+            gsap.to(allItems, {
+              y: 0,
+              opacity: 1,
+              duration: 0.4,
+              stagger: { each: 0.05 },
+              ease: 'power2.out',
+              clearProps: 'transform,opacity',
+            });
+          },
+        });
+      });
+    }
+
     // 2. Render Awards Ticker
     if (tickerContainer && awardsImages && awardsImages.length > 0) {
       initAwardsTicker(tickerContainer, awardsImages);
@@ -132,15 +164,53 @@ function initAwardsTicker(container, images) {
   container.appendChild(track2);
 
   // GSAP Ticker Animation
-  // 讓兩個 track 一起向左移動
   if (typeof gsap !== 'undefined') {
-    // 計算單個 track 的寬度可能需要等待圖片載入，
-    // 但使用 xPercent: -100 可以相對簡單地處理
-    gsap.to([track1, track2], {
+    const tween = gsap.to([track1, track2], {
       xPercent: -100,
       repeat: -1,
-      duration: 120, // 調整速度
+      duration: 120,
       ease: "none"
+    });
+
+    // hover ticker 區域時速度降 50%，離開後恢復
+    container.addEventListener('mouseenter', () => tween.timeScale(0.5));
+    container.addEventListener('mouseleave', () => tween.timeScale(1));
+  }
+
+  // hover 圖片時，其他圖片降至 0.3 不透明度（桌面版）
+  // 使用 mousemove + elementFromPoint 即時偵測，避免 ticker 移動時殘留高亮
+  if (SCCDHelpers.isDesktop()) {
+    let rafId = null;
+    let lastMouseX = 0, lastMouseY = 0;
+    let isInsideContainer = false;
+
+    const updateHighlight = () => {
+      const el = document.elementFromPoint(lastMouseX, lastMouseY);
+      const hovered = el ? el.closest('img') : null;
+      const allImgs = container.querySelectorAll('img');
+      allImgs.forEach(img => {
+        img.style.opacity = (!hovered || img === hovered) ? '1' : '0.3';
+      });
+      if (isInsideContainer) rafId = requestAnimationFrame(updateHighlight);
+    };
+
+    container.addEventListener('mouseenter', (e) => {
+      isInsideContainer = true;
+      lastMouseX = e.clientX;
+      lastMouseY = e.clientY;
+      rafId = requestAnimationFrame(updateHighlight);
+    });
+
+    container.addEventListener('mousemove', (e) => {
+      lastMouseX = e.clientX;
+      lastMouseY = e.clientY;
+    });
+
+    container.addEventListener('mouseleave', () => {
+      isInsideContainer = false;
+      cancelAnimationFrame(rafId);
+      const allImgs = container.querySelectorAll('img');
+      allImgs.forEach(img => { img.style.opacity = '1'; });
     });
   }
 }

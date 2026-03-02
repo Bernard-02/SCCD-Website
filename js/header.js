@@ -153,16 +153,32 @@ export function initHeader() {
   // Load Header HTML
   if (headerContainer) {
     // 判斷路徑：如果在 pages 資料夾內，直接讀取 header.html；如果在根目錄，讀取 pages/header.html
-    const path = window.location.pathname.includes('/pages/') ? 'header.html' : 'pages/header.html';
-    
-    fetch(path) 
+    const isInPages = window.location.pathname.includes('/pages/');
+    const path = isInPages ? 'header.html' : 'pages/header.html';
+
+    fetch(path)
       .then(res => {
         if(!res.ok) throw new Error('Network response was not ok');
         return res.text();
       })
       .then(html => {
         headerContainer.innerHTML = html;
+
+        // 根目錄載入時，header.html 內的連結是 pages/ 相對路徑，需加前綴
+        if (!isInPages) {
+          headerContainer.querySelectorAll('a[href]').forEach(a => {
+            const href = a.getAttribute('href');
+            // 只處理相對路徑（不含 http、#、../、pages/ 開頭）
+            if (href && !href.startsWith('http') && !href.startsWith('#') && !href.startsWith('pages/') && !href.startsWith('../') && href !== '') {
+              a.setAttribute('href', 'pages/' + href);
+            }
+          });
+        }
+
         setupHeaderLogic();
+
+        // header 載入完成後發出事件，讓其他模組（如 intro-animation）可以等待
+        document.dispatchEvent(new CustomEvent('header:ready'));
       })
       .catch(e => console.log('Header load failed', e));
   } else {

@@ -37,6 +37,9 @@ export function initWorksFilter() {
       // Scroll to the works section
       SCCDHelpers.scrollToElement('#works-section');
 
+      // 重新計算 ScrollTrigger 位置（切換分頁後 DOM 高度改變）
+      if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh();
+
       this.blur();
     });
   });

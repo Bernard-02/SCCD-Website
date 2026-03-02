@@ -3,6 +3,8 @@
  * 負責讀取 Degree Show JSON 資料並渲染列表與詳情頁
  */
 
+import { animateCards } from '../ui/scroll-animate.js';
+
 export async function loadDegreeShowList() {
   return loadDegreeShowListInto('degree-show-list');
 }
@@ -22,17 +24,23 @@ export async function loadDegreeShowListInto(containerId) {
       const item = data[year];
       const color = colors[idx % colors.length];
       const html = `
-        <div class="grid-12 items-start">
+        <a href="degree-show-detail.html?year=${year}" class="grid-12 items-start degree-show-card" style="--card-color: ${color}">
           <div class="col-span-12 md:col-start-1 md:col-span-1 mb-sm md:mb-0"><h5>${year}</h5></div>
-          <a href="degree-show-detail.html?year=${year}" class="col-span-12 md:col-start-2 md:col-span-11 block degree-show-card" style="--card-color: ${color}">
+          <div class="col-span-12 md:col-start-2 md:col-span-11">
             <div class="degree-show-img-wrapper overflow-hidden mb-md">
               <img src="${item.coverImage}" alt="Degree Show ${year}" loading="lazy" class="degree-show-img w-full object-cover">
             </div>
             <h5 class="mt-md">${item.title}</h5>
-          </a>
-        </div>
+          </div>
+        </a>
       `;
       container.insertAdjacentHTML('beforeend', html);
+    });
+
+    // 等 layout 穩定後再初始化 ScrollTrigger，確保正確偵測哪些卡片在 viewport 內
+    const cards = container.querySelectorAll('.degree-show-card');
+    requestAnimationFrame(() => {
+      animateCards(cards, true, { fadeIn: true });
     });
   } catch (error) {
     console.error('Error loading degree show data:', error);
