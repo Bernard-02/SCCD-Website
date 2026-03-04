@@ -109,10 +109,36 @@
     }
   }
 
+  /* ===== Faculty Slide-in Grid Rows ===== */
+  .faculty-grid-row {
+    display: grid;
+    gap: 0.5rem;
+    align-items: baseline;
+    padding-bottom: 0.5rem;
+    font-size: var(--font-size-p2);
+  }
+
+  /* 4 col: country(50px) | school(1fr) | major(1fr) | degree(1fr) */
+  .faculty-grid-4 {
+    grid-template-columns: 50px 1fr 1fr 1fr;
+    padding-right: 2rem;
+  }
+
+  /* 3 col: year(50px) | main(2fr) | detail(1fr) */
+  .faculty-grid-3 {
+    grid-template-columns: 50px 2fr 1fr;
+    padding-right: 2rem;
+  }
+
+  .faculty-grid-row span {
+    word-break: break-word;
+    line-height: var(--line-height-base);
+  }
+
   /* ===== Degree Show Image ===== */
   /* ===== Faculty Section Tags ===== */
   .faculty-tag {
-    @apply inline-block text-p1 border border-black px-xs py-[2px];
+    @apply inline-block text-p2 border border-black px-xs py-[2px];
     white-space: nowrap;
   }
 

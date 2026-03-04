@@ -44,7 +44,7 @@ export async function loadWorkshopsInto(jsonFile, pageType = 'workshop', contain
         <div class="workshop-item ${!isItemLast ? 'border-b border-gray-9' : ''} overflow-hidden">
           <div class="workshop-header cursor-pointer group transition-colors duration-fast flex items-center justify-between ${isFirst ? '' : 'pt-md'} pb-md">
             <div class="text-h5 font-bold">${item.title}</div>
-            <i class="fa-solid fa-chevron-down text-p1 transition-transform duration-300"></i>
+            <i class="fa-solid fa-chevron-down text-p2 transition-transform duration-300"></i>
           </div>
           <div class="workshop-content h-0 overflow-hidden">
             <div class="pb-xl flex flex-col-reverse md:flex-row gap-lg md:gap-3xl">
@@ -52,11 +52,11 @@ export async function loadWorkshopsInto(jsonFile, pageType = 'workshop', contain
                 ${date ? `<div><h6 class="text-black">${date}</h6></div>` : ''}
                 <div>
                   <h6 class="text-black mb-xs">${subTitle}</h6>
-                  <p class="text-p1">${subValue}</p>
+                  <p class="text-p2">${subValue}</p>
                 </div>
                 <div>
                   <h6 class="mb-xs text-black">Introduction 介紹</h6>
-                  <p class="text-p1">${item.intro}</p>
+                  <p class="text-p2">${item.intro}</p>
                 </div>
               </div>
               <div class="w-full md:w-[30%]">
@@ -71,7 +71,7 @@ export async function loadWorkshopsInto(jsonFile, pageType = 'workshop', contain
     const html = `
       <div class="workshop-year-group grid-12 items-start ${!isLast ? 'border-b border-gray-9 pb-2xl mb-2xl' : ''}">
         <div class="col-span-12 md:col-span-1 md:col-start-1 workshop-year-toggle cursor-pointer flex items-center gap-sm">
-          <i class="fa-solid fa-chevron-right text-p1 transition-all duration-fast rotate-90"></i>
+          <i class="fa-solid fa-chevron-right text-p2 transition-all duration-fast rotate-90"></i>
           <h5>${yearGroup.year}</h5>
         </div>
         <div class="col-span-12 md:col-span-11 md:col-start-2 workshop-year-items flex flex-col mt-md md:mt-0">
@@ -139,7 +139,7 @@ export async function loadSummerCampInto(containerId = null) {
         <div class="summer-camp-header cursor-pointer group transition-colors duration-fast">
           <div class="flex items-center justify-between pb-md">
             <h4 class="font-bold">${item.title}</h4>
-            <i class="fa-solid fa-chevron-down text-p1 transition-transform duration-300"></i>
+            <i class="fa-solid fa-chevron-down text-p2 transition-transform duration-300"></i>
           </div>
         </div>
         <div class="summer-camp-content h-0 overflow-hidden">

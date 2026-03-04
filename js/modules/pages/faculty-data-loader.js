@@ -46,8 +46,8 @@ function renderFacultyList(containerId, items) {
       <div class="text-left">
         <h5>${item.nameEn}</h5>
         <h5>${item.nameZh}</h5>
-        <p class="text-p1 mt-xs">${item.titleEn}</p>
-        <p class="text-p1">${item.titleZh}</p>
+        <p class="text-p2 mt-xs">${item.titleEn}</p>
+        <p class="text-p2">${item.titleZh}</p>
       </div>
     </div>
   `;

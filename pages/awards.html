@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BFA Courses - SCCD</title>
+  <title>Awards - SCCD</title>
   <link rel="stylesheet" href="../css/variables.css">
   <link rel="stylesheet" href="../css/output.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -20,7 +20,7 @@
     <section class="h-screen relative overflow-hidden">
       <!-- Background Image -->
       <div class="absolute inset-0 w-full h-full">
-        <img src="../images/SCCD-1-4-0.jpg" alt="BFA Courses" class="w-full h-full object-cover">
+        <img src="../images/SCCD-1-4-0.jpg" alt="Awards" class="w-full h-full object-cover">
       </div>
 
       <!-- Black Gradient Overlay (0% at top, 100% at bottom) -->
@@ -31,54 +31,36 @@
         <div class="h-full flex flex-col md:flex-row justify-end md:justify-start items-start md:items-end gap-lg md:gap-xl pb-3xl md:pb-2xl pt-[120px] md:pt-0">
           <!-- Title on the left (Mobile: 100%, Desktop: 50%) -->
           <div class="w-full md:w-1/2">
-            <h1 class="text-white pb-lg md:pb-xl hero-title">BFA COURSES</h1>
+            <h1 class="text-white pb-lg md:pb-xl hero-title">AWARDS</h1>
           </div>
 
           <!-- Content on the right (Mobile: 100%, Desktop: 50%) -->
           <div class="w-full md:w-1/2">
             <!-- English text with 3deg rotation -->
             <p class="text-white mb-xl hero-text-en">
-              Explore our Bachelor of Fine Arts program designed to nurture creativity and communication skills in media design.
+              A collection of awards and recognitions achieved by students and faculty, celebrating the excellence of SCCD's creative community.
             </p>
             <!-- Chinese text with -2deg rotation -->
             <p class="text-white hero-text-cn">
-              學士班課程，培育媒體傳達設計領域的創意與專業能力。
+              學系學生以所學知識為核心，將個人觀點同自身探索融合轉化為創作能量，並將其應用於創作成果及集體展演。學系學生於在學期間攬獲無數獎項並受邀參與各類展演，其中包括美國學生奧斯卡獎、德國紅點獎、德國 iF 獎、美國 ADC 獎、美國 CA 獎、日本 GOOD DESIGN 獎、威尼斯影展、德國柏林短片影展、台北電影節等。
             </p>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- BFA Courses Content Section -->
-    <section id="bfa-courses-section" class="courses-content-section bg-white py-6xl">
+    <!-- Awards Ticker Section -->
+    <section id="awards-ticker-section" class="bg-white pt-6xl pb-3xl overflow-hidden">
+      <!-- Ticker Container -->
+      <div class="awards-ticker-wrapper flex w-full">
+        <!-- Content will be injected by JS -->
+      </div>
+    </section>
+
+    <!-- Records Content Section -->
+    <section class="bg-white pb-6xl pt-3xl">
       <div class="site-container">
-        <div class="flex flex-col md:flex-row gap-gutter">
-          <!-- Filter Buttons (Left side) -->
-          <div class="w-full md:flex-[0_0_calc(16.67%_-_0.625rem)]">
-            <div class="flex flex-row md:flex-col gap-md mb-xl md:mb-0 md:sticky md:top-[200px]">
-              <button class="courses-filter-btn active text-left nav-link transition-colors duration-fast" data-filter="required">
-                <span class="block">Required Courses</span>
-                <span class="block">必修課程</span>
-              </button>
-              <button class="courses-filter-btn text-left nav-link transition-colors duration-fast" data-filter="elective">
-                <span class="block">Elective Courses</span>
-                <span class="block">選修課程</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Courses Content (Right side) -->
-          <div style="flex: 1;">
-            <div class="courses-year-group" data-year="required">
-              <div class="flex flex-col"></div>
-            </div>
-
-            <!-- Elective Courses (hidden by default, shown via filter) -->
-            <div class="courses-year-group" data-year="elective" style="display: none;">
-              <div class="flex flex-col"></div>
-            </div>
-          </div>
-        </div>
+        <div id="records-list-container" class="grid-12"></div>
       </div>
     </section>
   </main>
@@ -92,6 +74,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Draggable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>
+  <!-- Helper Functions - 必須在 main.js 之前載入 -->
   <script src="../js/utils/helpers.js"></script>
   <script type="module" src="../js/main-modular.js"></script>
 

@@ -15,7 +15,11 @@ export async function loadCourses(program) {
 
     // 渲染必修課程 (Required)，初始可見，以年級 block 為單位進場
     renderCourseGroup(courses, 'required', program);
-    const requiredBlocks = document.querySelectorAll('.courses-year-group[data-year="required"] .flex-col > div');
+    // 支援新版（data-program）和舊版（無 data-program）選取器
+    const requiredSelector = document.querySelector(`.courses-year-group[data-year="required"][data-program="${program}"]`)
+      ? `.courses-year-group[data-year="required"][data-program="${program}"] .flex-col > div`
+      : `.courses-year-group[data-year="required"] .flex-col > div`;
+    const requiredBlocks = document.querySelectorAll(requiredSelector);
     animateCards(requiredBlocks, true, { fadeIn: true });
 
     // 渲染選修課程 (Elective)，預設隱藏，不加 ScrollTrigger
@@ -27,8 +31,9 @@ export async function loadCourses(program) {
 }
 
 function renderCourseGroup(courses, type, program) {
-  // 找到對應的容器 (必修或選修)
-  const container = document.querySelector(`.courses-year-group[data-year="${type}"] .flex-col`);
+  // 支援新版（data-program）和舊版（無 data-program）選取器
+  const container = document.querySelector(`.courses-year-group[data-year="${type}"][data-program="${program}"] .flex-col`)
+    || document.querySelector(`.courses-year-group[data-year="${type}"] .flex-col`);
   if (!container) return;
 
   container.innerHTML = ''; // 清空現有內容
@@ -76,7 +81,7 @@ function renderCourseGroup(courses, type, program) {
                  <h5>${course.titleEn}</h5>
                  <h5>${course.titleZh}</h5>
                </div>
-               <i class="fa-solid fa-chevron-down text-p1 transition-transform duration-300"></i>
+               <i class="fa-solid fa-chevron-down text-p2 transition-transform duration-300"></i>
              </div>
              <div class="course-content h-0 overflow-hidden">
                <div class="pt-xs pb-md">
@@ -89,7 +94,7 @@ function renderCourseGroup(courses, type, program) {
       });
 
       gradeSection.innerHTML = `
-        <h5 class="w-full md:flex-[0_0_calc(25%_-_0.625rem)] pt-sm font-regular mb-md md:mb-0">${gradeInfo.title}</h5>
+        <h5 class="w-full md:flex-[0_0_calc(25%_-_0.625rem)] pt-sm font-bold mb-md md:mb-0">${gradeInfo.title}</h5>
         <div class="flex flex-col w-full md:flex-1">
           ${coursesHtml}
         </div>

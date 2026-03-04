@@ -15,7 +15,6 @@
 
   .nav-link.active {
     font-weight: 700;
-    transform: rotate(3deg);
     display: inline-block;
   }
 
@@ -28,7 +27,6 @@
   @media (min-width: 768px) {
     .nav-link:hover {
       font-weight: 700;
-      transform: rotate(3deg);
       display: inline-block;
     }
 
@@ -63,7 +61,6 @@
     width: 100vw;
     height: auto;
     background-color: white;
-    border-bottom: 1px solid #666666;
     opacity: 0;
     visibility: hidden;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -102,23 +99,30 @@
     padding: 0;
     display: inline-block;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+  }
+
+  .anchor-nav-btn div:nth-child(1) {
+    z-index: 1;
   }
 
   .anchor-nav-btn div:nth-child(2) {
     margin-top: -0.25rem;
+    z-index: 0;
   }
 
   .anchor-nav-btn.active div {
     color: inherit;
     font-weight: 700;
-    transform: rotate(4deg);
+    text-decoration: underline;
+    text-decoration-thickness: 4px;
+    /* rotation set via JS (random -4 to +6deg, excluding 0) */
   }
 
-  /* Hover 效果：僅桌面版 */
+  /* Hover 效果：僅桌面版，不旋轉 */
   @media (min-width: 768px) {
     .anchor-nav-btn:hover div {
       font-weight: 700;
-      transform: rotate(3deg);
     }
   }
 

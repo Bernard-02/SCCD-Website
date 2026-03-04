@@ -21,15 +21,34 @@ export function initFacultyFilter() {
     return FILTER_COLORS[index];
   }
 
+  function getRandomRotation() {
+    let deg;
+    do { deg = Math.round(Math.random() * 10) - 4; } while (deg === 0);
+    return deg;
+  }
+
+  function setActiveStyle(activeBtn, color) {
+    const rot = getRandomRotation();
+    filterButtons.forEach(btn => {
+      btn.querySelectorAll('span').forEach(span => {
+        span.style.color = '';
+        span.style.transform = '';
+      });
+    });
+    activeBtn.querySelectorAll('span').forEach(span => {
+      span.style.color = color;
+      span.style.transform = `rotate(${rot}deg)`;
+    });
+  }
+
   // Filter button click event
   filterButtons.forEach(button => {
     button.addEventListener('click', function(e) {
       e.preventDefault();
 
       // Reset color on all buttons, set random color on active
-      filterButtons.forEach(btn => btn.style.color = '');
       const color = getRandomColor();
-      this.style.color = color;
+      setActiveStyle(this, color);
 
       // Set active state using helper
       SCCDHelpers.setActive(this, filterButtons);
@@ -51,6 +70,10 @@ export function initFacultyFilter() {
       this.blur();
     });
   });
+
+  // Initialize: set random color on the default active button
+  const defaultBtn = [...filterButtons].find(b => b.getAttribute('data-filter') === 'fulltime');
+  if (defaultBtn) setActiveStyle(defaultBtn, getRandomColor());
 
   // Initialize: show only fulltime cards on page load
   const initialFilter = 'fulltime';

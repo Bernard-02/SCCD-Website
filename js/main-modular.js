@@ -6,11 +6,10 @@
 // Import Layout Modules
 import { initHeader } from './header.js';
 import { initFooter } from './footer.js';
+import { initThemeToggle } from './modules/ui/theme-toggle.js';
 
 // Import Filter Modules
 import { initFacultyFilter } from './modules/filters/faculty-filter.js';
-import { initCoursesFilter } from './modules/filters/courses-filter.js';
-import { initActivitiesFilter } from './modules/filters/activities-filter.js';
 import { initWorksFilter } from './modules/filters/works-filter.js';
 
 // Import UI Modules
@@ -28,22 +27,17 @@ import { initAnchorNav } from './modules/navigation/anchor-nav.js';
 // Import Page Specific Modules
 import { initIntroAnimation } from './modules/pages/intro-animation.js';
 import { initHeroAnimation } from './modules/pages/hero-animation.js';
-import { initActivitiesPreview } from './modules/pages/activities-preview.js';
 import { initFacultySlideIn } from './modules/pages/faculty-slide-in.js';
 import { initActivitiesSectionSwitch } from './modules/pages/activities-section-switch.js';
+import { initCoursesSectionSwitch } from './modules/pages/courses-section-switch.js';
 
 // Import Accordion Modules
 import { initHorizontalAccordion } from './modules/accordions/horizontal-accordion.js';
 import { initCourseAccordion } from './modules/accordions/course-accordion.js';
-import { initSummerCampAccordion } from './modules/accordions/summer-camp-accordion.js';
-import { initWorkshopAccordion } from './modules/accordions/workshop-accordion.js';
 import { initActivitiesYearToggle } from './modules/accordions/activities-year-toggle.js';
 
 // Import Data Loaders
-import { loadWorkshops, loadSummerCamp } from './modules/pages/activities-data-loader.js';
-import { loadGeneralActivities } from './modules/pages/general-activities-data-loader.js';
 import { loadRecords } from './modules/pages/records-data-loader.js';
-import { loadCourses } from './modules/pages/courses-data-loader.js';
 import { loadFacultyData } from './modules/pages/faculty-data-loader.js';
 import { loadBFAWorks } from './modules/pages/bfa-works-data-loader.js';
 import { loadMDESWorks } from './modules/pages/mdes-works-data-loader.js';
@@ -60,6 +54,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // 1. Global Modules (所有頁面都會執行)
   initHeader();
+  initThemeToggle();
   initFooter();
   initSmoothScroll();
   initBtnFillHover();
@@ -72,7 +67,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // --- Index Page ---
   if (page === 'index.html' || page === '') {
-    initIntroAnimation();
+    if (!sessionStorage.getItem('sccd-intro-shown')) {
+      sessionStorage.setItem('sccd-intro-shown', '1');
+      initIntroAnimation();
+    } else {
+      // 跳過 loader：直接隱藏 overlay，顯示 header
+      const overlay = document.getElementById('intro-overlay');
+      if (overlay) overlay.style.display = 'none';
+      document.body.style.overflow = '';
+
+      // header opacity 由 index.html inline style 設為 0，需手動還原
+      const showHeader = () => {
+        const header = document.querySelector('#site-header header');
+        if (header) header.style.opacity = '1';
+      };
+      if (document.querySelector('#site-header header')) {
+        showHeader();
+      } else {
+        document.addEventListener('header:ready', showHeader, { once: true });
+      }
+    }
   }
 
   console.log(`Current Page: ${page}`);
@@ -108,15 +122,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // --- Courses Page ---
-  if (page.includes('courses')) {
-    // 判斷是 BFA 還是 MDES
-    const program = page.includes('bfa') ? 'bfa' : 'mdes';
-    
-    loadCourses(program).then(() => {
-      initCoursesFilter();
-      initCourseAccordion();
-    });
+  // --- Courses Page (整合版) ---
+  if (page === 'courses.html') {
+    initCoursesSectionSwitch();
   }
 
   // --- Support Page ---
@@ -197,42 +205,14 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // --- Activities Page (整合版) ---
-  if (page.includes('activities.html') && !page.includes('general-activities.html')) {
+  if (page.includes('activities.html')) {
     initActivitiesSectionSwitch();
   }
 
-  // --- General Activities (舊獨立頁面) ---
-  if (page.includes('general-activities.html')) {
-    loadGeneralActivities().then(() => {
-      initActivitiesFilter();
-      initActivitiesPreview();
-      initActivitiesYearToggle();
-    });
-  }
-
   // --- Records Page ---
-  if (page.includes('records.html')) {
+  if (page.includes('awards.html')) {
     loadRecords().then(() => {
       initActivitiesYearToggle();
-    });
-  }
-
-  // --- Workshop & Students Present Pages ---
-  if (page.includes('workshop.html')) {
-    loadWorkshops('../data/workshops.json', 'workshop').then(() => {
-      initWorkshopAccordion();
-    });
-  }
-  if (page.includes('students-present.html')) {
-    loadWorkshops('../data/students-present.json', 'student').then(() => {
-      initWorkshopAccordion();
-    });
-  }
-
-  // --- Summer Camp Page ---
-  if (page.includes('summer-camp.html')) {
-    loadSummerCamp().then(() => {
-      initSummerCampAccordion();
     });
   }
 

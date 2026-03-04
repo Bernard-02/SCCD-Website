@@ -15,7 +15,7 @@ export async function loadSupportData() {
       <div class="course-item overflow-hidden border-b border-gray-9">
         <div class="course-header flex items-center justify-between py-md cursor-pointer">
           <h5>${item.title}</h5>
-          <i class="fa-solid fa-chevron-down text-p1 transition-transform duration-300"></i>
+          <i class="fa-solid fa-chevron-down text-p2 transition-transform duration-300"></i>
         </div>
         <div class="course-content h-0 overflow-hidden">
           <div class="pt-xs pb-md">

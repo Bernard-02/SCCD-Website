@@ -47,6 +47,12 @@ export function initAnchorNav() {
     return NAV_COLORS[index];
   }
 
+  function getNavRotation() {
+    let deg;
+    do { deg = Math.round(Math.random() * 10) - 4; } while (deg === 0 || deg > 6);
+    return deg;
+  }
+
   let currentActiveId = null;
 
   const observer = new IntersectionObserver((entries) => {
@@ -60,15 +66,18 @@ export function initAnchorNav() {
         currentActiveId = id;
 
         const color = getNavColor();
+        const rot = getNavRotation();
 
         // 更新按鈕狀態
         navButtons.forEach(btn => {
           if (btn.getAttribute('data-target') === id) {
             btn.classList.add('active');
             btn.style.color = color;
+            btn.querySelectorAll('div').forEach(div => { div.style.transform = `rotate(${rot}deg)`; });
           } else {
             btn.classList.remove('active');
             btn.style.color = '';
+            btn.querySelectorAll('div').forEach(div => { div.style.transform = ''; });
           }
         });
       }

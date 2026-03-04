@@ -31,34 +31,69 @@ export function initFacultySlideIn() {
     })
     .catch(error => console.error('Error loading faculty data:', error));
 
-  // 渲染 section 內容：純文字，欄位間用空格隔開
+  // 英文國名縮寫（中文保持原字）
+  const COUNTRY_SHORT_EN = {
+    'United States': 'US', 'United Kingdom': 'UK', 'Japan': 'JP',
+    'France': 'FR', 'Germany': 'DE', 'Italy': 'IT', 'Netherlands': 'NL',
+    'Spain': 'ES', 'Switzerland': 'CH', 'Australia': 'AU',
+    'Canada': 'CA', 'South Korea': 'KR', 'China': 'CN', 'Taiwan': 'TW',
+  };
+
+  function shortCountry(name) {
+    return COUNTRY_SHORT_EN[name] || name;
+  }
+
+  // 渲染 section 內容：grid 欄位版
   function renderSectionContent(section) {
     if (section.type === 'education' && section.items) {
+      // 4 col: country | school | major | degree
       return section.items.map(item => {
         const hasBilingual = item.countryZh !== undefined;
         if (hasBilingual) {
           return `
-            <p class="text-p1 mb-xs">${item.countryZh} ${item.schoolZh} ${item.majorZh} ${item.degreeZh}</p>
-            <p class="text-p1 mb-xs">${item.countryEn} ${item.schoolEn} ${item.majorEn} ${item.degreeEn}</p>
+            <div class="faculty-grid-row faculty-grid-4">
+              <span>${shortCountry(item.countryZh)}<br>${shortCountry(item.countryEn)}</span>
+              <span>${item.schoolZh}<br>${item.schoolEn}</span>
+              <span>${item.majorZh}<br>${item.majorEn}</span>
+              <span>${item.degreeZh}<br>${item.degreeEn}</span>
+            </div>
           `;
         }
-        return `<p class="text-p1 mb-xs">${item.country} ${item.school} ${item.major} ${item.degree}</p>`;
+        return `
+          <div class="faculty-grid-row faculty-grid-4">
+            <span>${shortCountry(item.country || '')}</span>
+            <span>${item.school || ''}</span>
+            <span>${item.major || ''}</span>
+            <span>${item.degree || ''}</span>
+          </div>
+        `;
       }).join('');
     }
     if (section.type === 'experience' && section.items) {
-      return section.items.map(item => {
-        const parts = [item.year, item.organization, item.role].filter(Boolean);
-        return `<p class="text-p1 mb-xs">${parts.join(' ')}</p>`;
-      }).join('');
+      // 3 col: year | organization | role
+      return section.items.map(item => `
+        <div class="faculty-grid-row faculty-grid-3">
+          <span>${item.year || ''}</span>
+          <span>${item.organization || ''}</span>
+          <span>${item.role || ''}</span>
+        </div>
+      `).join('');
     }
     if (section.type === 'awards' && section.items) {
+      // 3 col: year | name + work | award
       return section.items.map(item => {
-        const parts = [item.year, item.name, item.work, item.award].filter(Boolean);
-        return `<p class="text-p1 mb-xs">${parts.join(' ')}</p>`;
+        const nameWork = [item.name, item.work].filter(Boolean).join(' ');
+        return `
+          <div class="faculty-grid-row faculty-grid-3">
+            <span>${item.year || ''}</span>
+            <span>${nameWork}</span>
+            <span>${item.award || ''}</span>
+          </div>
+        `;
       }).join('');
     }
     // fallback：純文字（parttime / admin）
-    return `<p class="text-p1" style="white-space: pre-line;">${section.content || ''}</p>`;
+    return `<p class="text-p2" style="white-space: pre-line;">${section.content || ''}</p>`;
   }
 
   function initializeFacultyInteractions(facultyData) {

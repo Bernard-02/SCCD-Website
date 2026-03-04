@@ -50,24 +50,24 @@
 
           <!-- Left Filter Buttons (比照 faculty.html) -->
           <div class="w-full md:flex-[0_0_calc(16.667%_-_1.25rem)]">
-            <div class="flex flex-row flex-wrap md:flex-col gap-md mb-xl md:mb-0 md:sticky md:top-[200px]">
-              <button class="activities-section-btn w-fit active text-left nav-link transition-colors duration-fast" data-section="general">
+            <div class="flex flex-row flex-wrap md:flex-col gap-md mb-xl md:mb-0 md:sticky md:top-[160px]">
+              <button class="activities-section-btn w-fit active text-left transition-colors duration-fast" data-section="general">
                 <span class="block">General Activities</span>
                 <span class="block">一般活動</span>
               </button>
-              <button class="activities-section-btn w-fit text-left nav-link transition-colors duration-fast" data-section="workshop">
+              <button class="activities-section-btn w-fit text-left transition-colors duration-fast" data-section="workshop">
                 <span class="block">Workshop</span>
                 <span class="block">工作營</span>
               </button>
-              <button class="activities-section-btn w-fit text-left nav-link transition-colors duration-fast" data-section="degree-show">
+              <button class="activities-section-btn w-fit text-left transition-colors duration-fast" data-section="degree-show">
                 <span class="block">Degree Show</span>
                 <span class="block">畢業展</span>
               </button>
-              <button class="activities-section-btn w-fit text-left nav-link transition-colors duration-fast" data-section="summer-camp">
+              <button class="activities-section-btn w-fit text-left transition-colors duration-fast" data-section="summer-camp">
                 <span class="block">Summer Camp</span>
                 <span class="block">暑期設計體驗營</span>
               </button>
-              <button class="activities-section-btn w-fit text-left nav-link transition-colors duration-fast" data-section="students-present">
+              <button class="activities-section-btn w-fit text-left transition-colors duration-fast" data-section="students-present">
                 <span class="block">Students Present</span>
                 <span class="block">學生自主</span>
               </button>
@@ -79,14 +79,16 @@
 
             <!-- General Activities Panel -->
             <div class="activities-panel" id="panel-general">
-              <!-- Category Filter (橫向，放在 list 上方) -->
-              <div class="flex flex-wrap gap-md mb-xl py-xs">
-                <button class="activities-filter-btn shrink-0 text-p1 whitespace-nowrap active" data-filter="all">All 全部</button>
-                <button class="activities-filter-btn shrink-0 text-p1 whitespace-nowrap" data-filter="seminars">Lectures 講座</button>
-                <button class="activities-filter-btn shrink-0 text-p1 whitespace-nowrap" data-filter="visits">Visits 參訪</button>
-                <button class="activities-filter-btn shrink-0 text-p1 whitespace-nowrap" data-filter="exhibitions">Exhibitions 展演</button>
-                <button class="activities-filter-btn shrink-0 text-p1 whitespace-nowrap" data-filter="conferences">Conferences 研討會</button>
-                <button class="activities-filter-btn shrink-0 text-p1 whitespace-nowrap" data-filter="competitions">Competitions 競賽</button>
+              <!-- Category Filter（sticky，白色背景用 before 往上延伸 160px 遮擋往上捲的 list）-->
+              <div class="activities-filter-bar grid-12 mb-xl py-sm md:sticky md:top-[160px] bg-white z-10">
+                <div class="col-span-12 md:col-span-11 md:col-start-2 flex flex-wrap gap-lg md:pl-[41px]">
+                  <button class="activities-filter-btn shrink-0 text-p2 whitespace-nowrap active" data-filter="all">All 全部</button>
+                  <button class="activities-filter-btn shrink-0 text-p2 whitespace-nowrap" data-filter="seminars">Lectures 講座</button>
+                  <button class="activities-filter-btn shrink-0 text-p2 whitespace-nowrap" data-filter="visits">Visits 參訪</button>
+                  <button class="activities-filter-btn shrink-0 text-p2 whitespace-nowrap" data-filter="exhibitions">Exhibitions 展演</button>
+                  <button class="activities-filter-btn shrink-0 text-p2 whitespace-nowrap" data-filter="conferences">Conferences 研討會</button>
+                  <button class="activities-filter-btn shrink-0 text-p2 whitespace-nowrap" data-filter="competitions">Competitions 競賽</button>
+                </div>
               </div>
               <!-- List (workshop 設計) -->
               <div id="general-activities-list"></div>

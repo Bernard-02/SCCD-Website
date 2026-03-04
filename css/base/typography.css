@@ -39,6 +39,6 @@
   }
 
   p {
-    @apply text-p1 font-regular leading-base;
+    @apply text-p2 font-regular leading-base;
   }
 }

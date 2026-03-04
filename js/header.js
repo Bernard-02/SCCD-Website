@@ -42,17 +42,28 @@ export function initHeader() {
       currentPage = pageMappings[currentPage];
     }
 
+    function getNavRotation() {
+      let deg;
+      do { deg = Math.round(Math.random() * 12) - 6; } while (deg === 0);
+      return deg;
+    }
+
+    function setNavLinkActive(link) {
+      link.classList.add('active');
+      link.style.transform = `rotate(${getNavRotation()}deg)`;
+    }
+
     document.querySelectorAll('nav > ul > li').forEach(li => {
       const parentLink = li.querySelector(':scope > a.nav-link');
       const subLinks = li.querySelectorAll('.submenu-link');
 
       if (parentLink && parentLink.getAttribute('href') === currentPage) {
-        parentLink.classList.add('active');
+        setNavLinkActive(parentLink);
       }
 
       subLinks.forEach(link => {
         if (link.getAttribute('href') === currentPage) {
-          parentLink.classList.add('active');
+          setNavLinkActive(parentLink);
           link.classList.add('active');
         }
       });
@@ -64,7 +75,7 @@ export function initHeader() {
 
       const href = link.getAttribute('href');
       if (href && href.split('/').pop() === currentPage) {
-        link.classList.add('active');
+        setNavLinkActive(link);
       }
     });
 
@@ -72,12 +83,15 @@ export function initHeader() {
     const logo = document.getElementById('header-logo');
     if (logo && typeof lottie !== 'undefined') {
       const isInPages = window.location.pathname.includes('/pages/');
-      const logoPath = isInPages ? '../data/SCCDLogoStandard.json' : 'data/SCCDLogoStandard.json';
+      const isInverse = (localStorage.getItem('sccd-theme-mode') || 'standard') === 'inverse';
+      const logoFile = isInverse ? 'SCCDLogoInverse.json' : 'SCCDLogoStandard.json';
+      const logoPath = isInPages ? `../data/${logoFile}` : `data/${logoFile}`;
       const logoAnim = lottie.loadAnimation({
         container: logo,
         renderer: 'svg',
         loop: true,
         autoplay: true,
+        name: 'header-logo-anim',
         path: logoPath,
         rendererSettings: {
           preserveAspectRatio: 'xMidYMid meet',

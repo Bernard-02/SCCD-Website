@@ -4,20 +4,127 @@
  */
 
 @layer components {
-  /* ===== Faculty Filter Buttons ===== */
-  .faculty-filter-btn.active {
-    color: #26BCFF;
-    font-weight: 700;
-    transform: rotate(3deg);
-    display: inline-block;
+
+  /* ===== Theme Toggle Button ===== */
+  .theme-toggle-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid black;
+    background: transparent;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: border-color var(--transition-fast), background var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
   }
 
-  /* ===== Courses Filter Buttons ===== */
-  .courses-filter-btn.active {
-    color: #FF448A;
-    font-weight: 700;
-    transform: rotate(3deg);
+  .theme-toggle-circle {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: black;
+    transition: background var(--transition-fast);
+  }
+  /* ===== Faculty Filter Buttons ===== */
+  .faculty-filter-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .faculty-filter-btn span {
+    color: black;
     display: inline-block;
+    font-size: var(--font-size-h6);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .faculty-filter-btn.active span {
+    font-weight: 700;
+    text-decoration: underline;
+    text-decoration-thickness: 4px;
+    text-underline-offset: 4px;
+  }
+
+  @media (min-width: 768px) {
+    .faculty-filter-btn:hover span {
+      font-weight: 700;
+    }
+  }
+
+  /* ===== Activities Section Buttons ===== */
+  .activities-section-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .activities-section-btn span {
+    color: black;
+    display: inline-block;
+    font-size: var(--font-size-h6);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .activities-section-btn.active span {
+    font-weight: 700;
+    text-decoration: underline;
+    text-decoration-thickness: 4px;
+    text-underline-offset: 4px;
+  }
+
+  @media (min-width: 768px) {
+    .activities-section-btn:hover span {
+      font-weight: 700;
+    }
+  }
+
+  /* ===== Courses Program Buttons ===== */
+  .courses-program-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .courses-program-btn span {
+    color: black;
+    display: inline-block;
+    font-size: var(--font-size-h6);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .courses-program-btn.active span {
+    font-weight: 700;
+    text-decoration: underline;
+    text-decoration-thickness: 4px;
+    text-underline-offset: 4px;
+  }
+
+  @media (min-width: 768px) {
+    .courses-program-btn:hover span {
+      font-weight: 700;
+    }
+  }
+
+  /* ===== Activities / Courses Filter Bar ===== */
+  @media (min-width: 768px) {
+    .activities-filter-bar::before,
+    .courses-filter-bar::before {
+      content: '';
+      position: absolute;
+      top: -160px;
+      left: 0;
+      right: 0;
+      height: 160px;
+      background: white;
+    }
+    .activities-filter-bar,
+    .courses-filter-bar {
+      position: relative;
+    }
   }
 
   /* ===== Activities Filter Buttons ===== */
@@ -30,15 +137,35 @@
 
   .activities-filter-btn.active {
     font-weight: 700;
-    transform: rotate(3deg);
-    display: inline-block;
+    text-decoration: underline;
+    text-decoration-thickness: 4px;
+    text-underline-offset: 4px;
   }
 
   @media (min-width: 768px) {
     .activities-filter-btn:hover {
       font-weight: 700;
-      transform: rotate(3deg);
-      display: inline-block;
+    }
+  }
+
+  /* ===== Courses Filter Buttons ===== */
+  .courses-filter-btn {
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+  }
+
+  .courses-filter-btn.active {
+    font-weight: 700;
+    text-decoration: underline;
+    text-decoration-thickness: 4px;
+    text-underline-offset: 4px;
+  }
+
+  @media (min-width: 768px) {
+    .courses-filter-btn:hover {
+      font-weight: 700;
     }
   }
 

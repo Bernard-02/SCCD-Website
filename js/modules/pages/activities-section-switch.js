@@ -16,6 +16,9 @@ import { initSummerCampAccordion } from '../accordions/summer-camp-accordion.js'
 const loaded = {};
 const COLORS = ['#FF448A', '#00FF80', '#26BCFF'];
 
+let currentSectionColor = '';
+export function getCurrentSectionColor() { return currentSectionColor; }
+
 export function initActivitiesSectionSwitch() {
   const btns = document.querySelectorAll('.activities-section-btn');
   if (btns.length === 0) return;
@@ -38,24 +41,51 @@ function getRandomColor() {
   return COLORS[Math.floor(Math.random() * COLORS.length)];
 }
 
-async function switchToSection(section, btns, shouldScroll) {
-  // 更新按鈕 active 狀態與隨機顏色
+function getRandomRotation() {
+  let deg;
+  do { deg = Math.round(Math.random() * 10) - 4; } while (deg === 0);
+  return deg;
+}
+
+function setActiveSectionStyle(btns, activeBtn) {
+  const color = getRandomColor();
+  currentSectionColor = color;
+  const rot = getRandomRotation();
   btns.forEach(b => {
     b.classList.remove('active');
-    b.style.color = '';
+    b.querySelectorAll('span').forEach(span => {
+      span.style.color = '';
+      span.style.transform = '';
+    });
   });
-  const activeBtn = [...btns].find(b => b.getAttribute('data-section') === section);
   if (activeBtn) {
     activeBtn.classList.add('active');
-    activeBtn.style.color = getRandomColor();
+    activeBtn.querySelectorAll('span').forEach(span => {
+      span.style.color = color;
+      span.style.transform = `rotate(${rot}deg)`;
+    });
   }
+}
+
+async function switchToSection(section, btns, shouldScroll) {
+  // 更新按鈕 active 狀態、隨機顏色與角度
+  const activeBtn = [...btns].find(b => b.getAttribute('data-section') === section);
+  setActiveSectionStyle(btns, activeBtn);
 
   // 切換 panel 顯示
   document.querySelectorAll('.activities-panel').forEach(panel => {
     panel.classList.add('hidden');
   });
   const target = document.getElementById(`panel-${section}`);
-  if (target) target.classList.remove('hidden');
+  if (target) {
+    target.classList.remove('hidden');
+    // 同步 active filter btn 的顏色
+    const activeFilterBtn = target.querySelector('.activities-filter-btn.active');
+    if (activeFilterBtn) {
+      activeFilterBtn.style.color = currentSectionColor;
+      activeFilterBtn.style.transform = `rotate(${getRandomRotation()}deg)`;
+    }
+  }
 
   // 懶載入：等資料載入完才 scroll（否則 panel 是空的，scroll 位置不準）
   const playAnimation = await loadPanel(section);

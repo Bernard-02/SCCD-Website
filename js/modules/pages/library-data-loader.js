@@ -24,7 +24,7 @@ export async function loadLibraryData() {
         <div class="text-left">
           <h5>${item.titleEn}</h5>
           <h5>${item.titleZh}</h5>
-          <p class="text-p1 mt-xs">${item.year}</p>
+          <p class="text-p2 mt-xs">${item.year}</p>
         </div>
       </div>
     `).join('');

@@ -37,7 +37,7 @@ export async function loadRecords() {
           const borderClass = isLast ? '' : 'border-b border-gray-9';
 
           return `
-            <div class="grid grid-cols-12 md:grid-cols-9 gap-y-1 md:gap-y-0 items-center ${paddingClass} ${borderClass} text-xs md:text-p1">
+            <div class="grid grid-cols-12 md:grid-cols-9 gap-y-1 md:gap-y-0 items-center ${paddingClass} ${borderClass} text-xs md:text-p2">
               
               <!-- Mobile Row 1: Competition + Rank -->
               <div class="col-span-12 flex justify-between md:contents">
@@ -67,7 +67,7 @@ export async function loadRecords() {
 
             <!-- Chevron: Mobile Right (Col 11-12), Desktop Col 2 -->
             <div class="col-span-2 md:col-span-1 md:col-start-2 flex justify-end items-center activities-year-toggle cursor-pointer h-toggle order-2 md:order-1">
-              <i class="fa-solid fa-chevron-right text-p1 transition-all duration-fast rotate-90"></i>
+              <i class="fa-solid fa-chevron-right text-p2 transition-all duration-fast rotate-90"></i>
             </div>
 
             <!-- Records List: Mobile Full Width (Col 1-12), Desktop Col 4-12 -->

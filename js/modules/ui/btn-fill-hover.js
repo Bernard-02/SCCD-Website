@@ -45,8 +45,9 @@ export function applyBtnFillHover(btns) {
         duration: 0.5,
         ease: 'power2.out',
       });
+      const isInverse = document.body.classList.contains('mode-inverse');
       gsap.to(btn, {
-        color: '#FFFFFF',
+        color: isInverse ? '#000000' : '#FFFFFF',
         duration: 0.15,
         ease: 'none',
       });

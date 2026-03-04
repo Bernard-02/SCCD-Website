@@ -56,6 +56,10 @@ export function initFooter() {
           });
         }
 
+        // 年份自動更新
+        const yearEl = document.getElementById('footer-year');
+        if (yearEl) yearEl.textContent = new Date().getFullYear();
+
         // HTML 載入完成後，初始化拖曳功能
         // 使用 setTimeout 確保 DOM 已經完全渲染
         // 手機版暫時不啟用拖曳功能

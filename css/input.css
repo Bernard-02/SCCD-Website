@@ -21,6 +21,9 @@
 @import './components/lists.css';
 @import './components/intro-animation.css';
 
+/* Themes */
+@import './themes/inverse.css';
+
 /* 3. Tailwind Directives */
 @tailwind base;
 @tailwind components;
@@ -28,6 +31,10 @@
 
 /* 4. Custom Utilities */
 @layer utilities {
+  .text-p2 {
+    font-size: var(--font-size-p2);
+  }
+
   .text-gradient-green {
     @apply bg-gradient-to-r from-green to-blue bg-clip-text text-transparent;
   }
