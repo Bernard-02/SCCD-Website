@@ -154,38 +154,39 @@ export function initFacultySlideIn() {
       const category = card.getAttribute('data-category');
       // Add click event to fulltime and admin cards
       if (category === 'fulltime' || category === 'admin') {
-        const imageWrapper = card.querySelector('.faculty-card-image-wrapper');
-        if (imageWrapper) {
-          imageWrapper.addEventListener('click', function(e) {
-            e.preventDefault();
+        card.addEventListener('click', function(e) {
+          e.preventDefault();
 
-            const facultyId = card.getAttribute('data-faculty-id');
-            if (facultyId && slideIn) {
-              // Load faculty data
-              loadFacultyData(facultyId);
+          const facultyId = card.getAttribute('data-faculty-id');
+          if (facultyId && slideIn) {
+            // Load faculty data
+            loadFacultyData(facultyId);
 
-              // Show container
-              slideIn.classList.remove('invisible', 'pointer-events-none');
-              slideIn.classList.add('pointer-events-auto');
+            // Apply card color to panel background and back button
+            const cardColor = getComputedStyle(card).getPropertyValue('--card-color').trim() || '#ffffff';
+            slideInPanel.style.backgroundColor = cardColor;
+            if (backBtn) backBtn.style.backgroundColor = cardColor;
 
-              // Animation Sequence: Overlay first, then Panel and Button slide in together
-              if (typeof gsap !== 'undefined') {
-                cursorEnabled = false;
-                const tl = gsap.timeline();
-                tl.to(slideInOverlay, { opacity: 0.8, duration: 0.3 })
-                  .to(slideInPanel, { x: '0%', duration: 0.5, ease: 'power3.out', onComplete: () => { cursorEnabled = true; } }, '-=0');
-              } else {
-                // Fallback if GSAP is not loaded
-                slideInOverlay.style.opacity = '0.8';
-                slideInPanel.style.transform = 'translateX(0%)';
-                // backBtn moves with panel
-              }
+            // Show container
+            slideIn.classList.remove('invisible', 'pointer-events-none');
+            slideIn.classList.add('pointer-events-auto');
 
-              // Prevent body scroll
-              document.body.style.overflow = 'hidden';
+            // Animation Sequence: Overlay first, then Panel and Button slide in together
+            if (typeof gsap !== 'undefined') {
+              cursorEnabled = false;
+              const tl = gsap.timeline();
+              tl.to(slideInOverlay, { opacity: 0.8, duration: 0.3 })
+                .to(slideInPanel, { x: '0%', duration: 0.5, ease: 'power3.out', onComplete: () => { cursorEnabled = true; } }, '-=0');
+            } else {
+              // Fallback if GSAP is not loaded
+              slideInOverlay.style.opacity = '0.8';
+              slideInPanel.style.transform = 'translateX(0%)';
             }
-          });
-        }
+
+            // Prevent body scroll
+            document.body.style.overflow = 'hidden';
+          }
+        });
       }
     });
   }
@@ -203,6 +204,8 @@ export function initFacultySlideIn() {
         onComplete: () => {
           slideIn.classList.add('invisible', 'pointer-events-none');
           slideIn.classList.remove('pointer-events-auto');
+          slideInPanel.style.backgroundColor = '';
+          if (backBtn) backBtn.style.backgroundColor = '';
           document.body.style.overflow = '';
         }
       });

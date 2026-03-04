@@ -32,8 +32,8 @@ function getPosition(idx, total) {
 function applyItemPosition(item, position) {
   // Border only on first and middle
   const hasBorder = position === 'first' || position === 'middle';
-  item.classList.toggle('border-b', hasBorder);
-  item.classList.toggle('border-gray-9', hasBorder);
+  item.classList.toggle('border-b-4', hasBorder);
+  item.classList.toggle('border-black', hasBorder);
 
   // Padding on header (clearing is done by caller before this runs)
   const header = item.querySelector('.workshop-header');
@@ -71,7 +71,7 @@ export function initActivitiesFilter() {
 
       // 先清掉所有 item 的位置 class（包含被隱藏的）
       allItems.forEach(item => {
-        item.classList.remove('border-b', 'border-gray-9');
+        item.classList.remove('border-b-4', 'border-black');
         const header = item.querySelector('.workshop-header');
         if (header) header.classList.remove('pt-md', 'pb-md');
       });
@@ -128,8 +128,11 @@ export function initActivitiesFilter() {
     filterBtns.forEach(btn => {
       const isActive = btn.getAttribute('data-filter') === current;
       btn.classList.toggle('active', isActive);
-      btn.style.color = isActive ? color : '';
-      btn.style.transform = isActive ? `rotate(${rot}deg)` : '';
+      const inner = btn.querySelector('.anchor-nav-inner');
+      if (inner) {
+        inner.style.background = isActive ? color : '';
+        inner.style.transform = isActive ? `rotate(${rot}deg)` : '';
+      }
     });
   }
 

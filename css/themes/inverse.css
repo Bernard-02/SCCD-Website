@@ -149,12 +149,9 @@ body.mode-inverse .card-tag {
 }
 
 /* ===== About Anchor Nav ===== */
-body.mode-inverse .anchor-nav-btn {
-  color: white;
-}
-
-body.mode-inverse .anchor-nav-btn div {
+body.mode-inverse .anchor-nav-btn .anchor-nav-inner {
   background: black !important;
+  color: white;
 }
 
 /* ===== Faculty Slide-in ===== */

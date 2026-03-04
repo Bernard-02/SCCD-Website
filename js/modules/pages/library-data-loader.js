@@ -17,8 +17,8 @@ export async function loadLibraryData() {
 
     const cardColors = ['#FF448A', '#00FF80', '#26BCFF'];
     const html = data.map((item, index) => `
-      <div class="library-card cursor-pointer" data-pdf="${item.pdfUrl || ''}">
-        <div class="library-card-image-wrapper mb-md overflow-hidden bg-gray-2" style="aspect-ratio: 4/5; --card-color: ${cardColors[index % 3]};">
+      <div class="library-card cursor-pointer p-[6px]" data-pdf="${item.pdfUrl || ''}" style="--card-color: ${cardColors[index % 3]};">
+        <div class="library-card-image-wrapper mb-md overflow-hidden bg-gray-2" style="aspect-ratio: 4/5;">
           <img src="${item.image}" alt="${item.titleEn}" loading="lazy" class="library-card-image w-full h-full object-cover">
         </div>
         <div class="text-left">

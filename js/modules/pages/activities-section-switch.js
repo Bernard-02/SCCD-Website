@@ -53,17 +53,13 @@ function setActiveSectionStyle(btns, activeBtn) {
   const rot = getRandomRotation();
   btns.forEach(b => {
     b.classList.remove('active');
-    b.querySelectorAll('span').forEach(span => {
-      span.style.color = '';
-      span.style.transform = '';
-    });
+    const inner = b.querySelector('.anchor-nav-inner');
+    if (inner) { inner.style.background = ''; inner.style.transform = ''; }
   });
   if (activeBtn) {
     activeBtn.classList.add('active');
-    activeBtn.querySelectorAll('span').forEach(span => {
-      span.style.color = color;
-      span.style.transform = `rotate(${rot}deg)`;
-    });
+    const activeInner = activeBtn.querySelector('.anchor-nav-inner');
+    if (activeInner) { activeInner.style.background = color; activeInner.style.transform = `rotate(${rot}deg)`; }
   }
 }
 
@@ -82,8 +78,8 @@ async function switchToSection(section, btns, shouldScroll) {
     // 同步 active filter btn 的顏色
     const activeFilterBtn = target.querySelector('.activities-filter-btn.active');
     if (activeFilterBtn) {
-      activeFilterBtn.style.color = currentSectionColor;
-      activeFilterBtn.style.transform = `rotate(${getRandomRotation()}deg)`;
+      const filterInner = activeFilterBtn.querySelector('.anchor-nav-inner');
+      if (filterInner) { filterInner.style.background = currentSectionColor; filterInner.style.transform = `rotate(${getRandomRotation()}deg)`; }
     }
   }
 

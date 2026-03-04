@@ -13,10 +13,11 @@ export function buildGroupScrollTrigger(group) {
   if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') return null;
   const yearToggle = group.querySelector('.workshop-year-toggle');
   const items = [...group.querySelectorAll('.workshop-item')].filter(el => el.style.display !== 'none');
-  const allItems = [...(yearToggle ? [yearToggle] : []), ...items];
+  const divider = group.nextElementSibling?.classList.contains('activities-separator')
+    ? group.nextElementSibling : null;
+  const allItems = [...(yearToggle ? [yearToggle] : []), ...items, ...(divider ? [divider] : [])];
   if (allItems.length === 0) return null;
 
-  gsap.set(group, { opacity: 0 });
   gsap.set(allItems, { y: 100, opacity: 0 });
 
   return ScrollTrigger.create({
@@ -24,7 +25,6 @@ export function buildGroupScrollTrigger(group) {
     start: 'top 90%',
     once: true,
     onEnter: () => {
-      gsap.set(group, { opacity: 1, clearProps: 'opacity' });
       gsap.to(allItems, {
         y: 0, opacity: 1,
         duration: 0.6,
@@ -70,11 +70,11 @@ export async function loadGeneralActivitiesInto(containerId) {
 
         return `
           <div class="workshop-item overflow-hidden" data-category="${item.category}">
-            <div class="workshop-header cursor-pointer group transition-colors duration-fast flex items-center justify-between">
+            <div class="workshop-header cursor-pointer group transition-colors duration-fast flex items-center justify-between px-[4px] py-md">
               <div class="text-h5 font-bold">${item.title}</div>
               <i class="fa-solid fa-chevron-down text-p2 transition-transform duration-300"></i>
             </div>
-            <div class="workshop-content h-0 overflow-hidden">
+            <div class="workshop-content h-0 overflow-hidden px-[4px]">
               <div class="pb-xl flex flex-col gap-md">
                 <div class="flex gap-xl">
                   ${item.date ? `<h6 class="text-black">${item.date}</h6>` : ''}
@@ -88,8 +88,8 @@ export async function loadGeneralActivitiesInto(containerId) {
       }).join('');
 
       const html = `
-        <div class="workshop-year-group grid-12 items-start ${!isLast ? 'border-b border-gray-9 pb-2xl mb-2xl' : ''}">
-          <div class="col-span-12 md:col-span-1 md:col-start-1 workshop-year-toggle cursor-pointer flex items-center gap-sm order-1 md:sticky md:top-[264px] md:self-start md:pb-md">
+        <div class="workshop-year-group grid-12 items-start">
+          <div class="col-span-12 md:col-span-1 md:col-start-1 workshop-year-toggle cursor-pointer flex items-center gap-sm order-1 pt-md md:sticky md:top-[264px] md:self-start md:pb-md">
             <i class="fa-solid fa-chevron-right text-p2 transition-all duration-fast rotate-90"></i>
             <h5>${yearGroup.year}</h5>
           </div>
@@ -97,11 +97,12 @@ export async function loadGeneralActivitiesInto(containerId) {
             ${itemsHtml}
           </div>
         </div>
+        ${!isLast ? '<div class="activities-separator border-b-4 border-black"></div>' : ''}
       `;
       container.insertAdjacentHTML('beforeend', html);
     });
 
-    // 進場動畫：每個 year group 進入視窗時，內部 items 逐條 stagger 出現（border 跟 group 一起）
+    // 進場動畫：每個 year group 進入視窗時，內部 items 逐條 stagger 出現，分割線最後進場
     if (typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined') {
       container.querySelectorAll('.workshop-year-group').forEach(group => {
         const st = buildGroupScrollTrigger(group);

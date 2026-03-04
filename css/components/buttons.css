@@ -33,25 +33,21 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-  }
-
-  .faculty-filter-btn span {
-    color: black;
-    display: inline-block;
-    font-size: var(--font-size-h6);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .faculty-filter-btn.active span {
+    background: none;
+    border: none;
+    padding: 0;
     font-weight: 700;
-    text-decoration: underline;
-    text-decoration-thickness: 4px;
-    text-underline-offset: 4px;
+    font-size: var(--font-size-h6);
+  }
+
+  .faculty-filter-btn.active .anchor-nav-inner {
+    color: black;
+    /* background set via JS */
   }
 
   @media (min-width: 768px) {
-    .faculty-filter-btn:hover span {
-      font-weight: 700;
+    .faculty-filter-btn:hover .anchor-nav-inner {
+      color: rgba(0, 0, 0, 1);
     }
   }
 
@@ -60,25 +56,22 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-  }
-
-  .activities-section-btn span {
-    color: black;
-    display: inline-block;
-    font-size: var(--font-size-h6);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .activities-section-btn.active span {
+    background: none;
+    border: none;
+    padding: 0;
     font-weight: 700;
-    text-decoration: underline;
-    text-decoration-thickness: 4px;
-    text-underline-offset: 4px;
+    font-size: var(--font-size-h6);
+  }
+
+  .activities-section-btn.active .anchor-nav-inner {
+    color: black;
+    /* background & rotation set via JS */
   }
 
   @media (min-width: 768px) {
-    .activities-section-btn:hover span {
-      font-weight: 700;
+    .activities-section-btn:not(.active):hover .anchor-nav-inner {
+      background: rgba(255, 255, 255, 1);
+      color: rgba(0, 0, 0, 1);
     }
   }
 
@@ -87,25 +80,22 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-  }
-
-  .courses-program-btn span {
-    color: black;
-    display: inline-block;
-    font-size: var(--font-size-h6);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .courses-program-btn.active span {
+    background: none;
+    border: none;
+    padding: 0;
     font-weight: 700;
-    text-decoration: underline;
-    text-decoration-thickness: 4px;
-    text-underline-offset: 4px;
+    font-size: var(--font-size-h6);
+  }
+
+  .courses-program-btn.active .anchor-nav-inner {
+    color: black;
+    /* background & rotation set via JS */
   }
 
   @media (min-width: 768px) {
-    .courses-program-btn:hover span {
-      font-weight: 700;
+    .courses-program-btn:not(.active):hover .anchor-nav-inner {
+      background: rgba(255, 255, 255, 1);
+      color: rgba(0, 0, 0, 1);
     }
   }
 
@@ -133,18 +123,19 @@
     background: none;
     border: none;
     padding: 0;
+    font-weight: 700;
+    font-size: var(--font-size-p1);
   }
 
-  .activities-filter-btn.active {
-    font-weight: 700;
-    text-decoration: underline;
-    text-decoration-thickness: 4px;
-    text-underline-offset: 4px;
+  .activities-filter-btn.active .anchor-nav-inner {
+    color: black;
+    /* background & rotation set via JS */
   }
 
   @media (min-width: 768px) {
-    .activities-filter-btn:hover {
-      font-weight: 700;
+    .activities-filter-btn:not(.active):hover .anchor-nav-inner {
+      background: rgba(255, 255, 255, 1);
+      color: rgba(0, 0, 0, 1);
     }
   }
 
@@ -154,24 +145,26 @@
     background: none;
     border: none;
     padding: 0;
+    font-weight: 700;
+    font-size: var(--font-size-p1);
   }
 
-  .courses-filter-btn.active {
-    font-weight: 700;
-    text-decoration: underline;
-    text-decoration-thickness: 4px;
-    text-underline-offset: 4px;
+  .courses-filter-btn.active .anchor-nav-inner {
+    color: black;
+    /* background & rotation set via JS */
   }
 
   @media (min-width: 768px) {
-    .courses-filter-btn:hover {
-      font-weight: 700;
+    .courses-filter-btn:not(.active):hover .anchor-nav-inner {
+      background: rgba(255, 255, 255, 1);
+      color: rgba(0, 0, 0, 1);
     }
   }
 
   /* ===== Works Filter Buttons ===== */
   .works-filter-btn {
-    border: 1px solid #000000;
+    border: 4px solid #000000;
+    border-radius: 20px;
     background: transparent;
     color: #000000;
     cursor: pointer;
@@ -185,7 +178,8 @@
 
   /* ===== Class Parent Buttons (學士班 / 碩士班) ===== */
   .class-parent-btn {
-    border: 1px solid #000000;
+    border: 4px solid #000000;
+    border-radius: 20px;
     background: transparent;
     color: #000000;
     cursor: pointer;
@@ -199,7 +193,8 @@
 
   /* ===== Class Division Toggle Buttons (動畫組 / 創媒組) ===== */
   .class-division-btn {
-    border: 1px solid #000000;
+    border: 4px solid #000000;
+    border-radius: 20px;
     background: transparent;
     color: #000000;
     cursor: pointer;

@@ -34,19 +34,18 @@ export async function loadWorkshopsInto(jsonFile, pageType = 'workshop', contain
   data.forEach((yearGroup, index) => {
     const isLast = index === data.length - 1;
     const itemsHtml = yearGroup.items.map((item, idx) => {
-      const isFirst = idx === 0;
       const isItemLast = idx === yearGroup.items.length - 1;
       const date = item.date || '';
       const subTitle = pageType === 'workshop' ? 'Tutor 講師' : 'Organizer 主辦單位';
       const subValue = pageType === 'workshop' ? item.tutor : item.organizer;
 
       return `
-        <div class="workshop-item ${!isItemLast ? 'border-b border-gray-9' : ''} overflow-hidden">
-          <div class="workshop-header cursor-pointer group transition-colors duration-fast flex items-center justify-between ${isFirst ? '' : 'pt-md'} pb-md">
+        <div class="workshop-item ${!isItemLast ? 'border-b-4 border-black' : ''} overflow-hidden">
+          <div class="workshop-header cursor-pointer group transition-colors duration-fast flex items-center justify-between px-[4px] py-md">
             <div class="text-h5 font-bold">${item.title}</div>
             <i class="fa-solid fa-chevron-down text-p2 transition-transform duration-300"></i>
           </div>
-          <div class="workshop-content h-0 overflow-hidden">
+          <div class="workshop-content h-0 overflow-hidden px-[4px]">
             <div class="pb-xl flex flex-col-reverse md:flex-row gap-lg md:gap-3xl">
               <div class="flex-1 flex flex-col gap-lg">
                 ${date ? `<div><h6 class="text-black">${date}</h6></div>` : ''}
@@ -69,8 +68,8 @@ export async function loadWorkshopsInto(jsonFile, pageType = 'workshop', contain
     }).join('');
 
     const html = `
-      <div class="workshop-year-group grid-12 items-start ${!isLast ? 'border-b border-gray-9 pb-2xl mb-2xl' : ''}">
-        <div class="col-span-12 md:col-span-1 md:col-start-1 workshop-year-toggle cursor-pointer flex items-center gap-sm">
+      <div class="workshop-year-group grid-12 items-start">
+        <div class="col-span-12 md:col-span-1 md:col-start-1 workshop-year-toggle cursor-pointer flex items-center gap-sm pt-md">
           <i class="fa-solid fa-chevron-right text-p2 transition-all duration-fast rotate-90"></i>
           <h5>${yearGroup.year}</h5>
         </div>
@@ -78,29 +77,30 @@ export async function loadWorkshopsInto(jsonFile, pageType = 'workshop', contain
           ${itemsHtml}
         </div>
       </div>
+      ${!isLast ? '<div class="activities-separator border-b-4 border-black"></div>' : ''}
     `;
     container.insertAdjacentHTML('beforeend', html);
   });
 
-  // 準備進場動畫：每個 year group 的 items 逐條 stagger，border 跟 group 一起隱藏
+  // 準備進場動畫：每個 year group 的 items 逐條 stagger，分割線最後進場
   if (typeof gsap !== 'undefined') {
     const allSets = [...container.querySelectorAll('.workshop-year-group')].map(group => {
       const yearToggle = group.querySelector('.workshop-year-toggle');
       const items = group.querySelectorAll('.workshop-item');
-      return { group, items: [...(yearToggle ? [yearToggle] : []), ...items] };
+      const divider = group.nextElementSibling?.classList.contains('activities-separator')
+        ? group.nextElementSibling : null;
+      return { group, items: [...(yearToggle ? [yearToggle] : []), ...items, ...(divider ? [divider] : [])] };
     }).filter(s => s.items.length > 0);
 
     if (allSets.length === 0) return null;
 
-    allSets.forEach(({ group, items }) => {
-      gsap.set(group, { opacity: 0 });
+    allSets.forEach(({ items }) => {
       gsap.set(items, { y: 100, opacity: 0 });
     });
 
     return () => {
-      allSets.forEach(({ group, items }, i) => {
+      allSets.forEach(({ items }, i) => {
         const delay = i * 0.15;
-        gsap.to(group, { opacity: 1, duration: 0, delay, clearProps: 'opacity' });
         gsap.to(items, {
           y: 0, opacity: 1,
           duration: 0.6,
@@ -137,12 +137,12 @@ export async function loadSummerCampInto(containerId = null) {
     const itemsHtml = yearGroup.items.map(item => `
       <div class="summer-camp-item overflow-hidden">
         <div class="summer-camp-header cursor-pointer group transition-colors duration-fast">
-          <div class="flex items-center justify-between pb-md">
+          <div class="flex items-center justify-between px-[4px] py-lg">
             <h4 class="font-bold">${item.title}</h4>
             <i class="fa-solid fa-chevron-down text-p2 transition-transform duration-300"></i>
           </div>
         </div>
-        <div class="summer-camp-content h-0 overflow-hidden">
+        <div class="summer-camp-content h-0 overflow-hidden px-[4px]">
           <div class="pb-md pt-xs flex flex-col-reverse md:flex-row gap-lg md:gap-3xl">
             <div class="flex-1 flex flex-col gap-lg">
               <p>${item.descriptionEn}</p>
@@ -157,37 +157,38 @@ export async function loadSummerCampInto(containerId = null) {
     `).join('');
 
     const html = `
-      <div class="summer-camp-year-group grid-12 items-start ${!isLast ? 'border-b border-gray-9 pb-xl mb-xl' : ''}">
-        <div class="col-span-12 md:col-span-1 md:col-start-1">
+      <div class="summer-camp-year-group grid-12 items-start">
+        <div class="col-span-12 md:col-span-1 md:col-start-1 pt-lg">
           <h5>${yearGroup.year}</h5>
         </div>
         <div class="col-span-12 md:col-span-11 md:col-start-2 mt-md md:mt-0">
           ${itemsHtml}
         </div>
       </div>
+      ${!isLast ? '<div class="activities-separator border-b-4 border-black"></div>' : ''}
     `;
     container.insertAdjacentHTML('beforeend', html);
   });
 
-  // 準備進場動畫：每個 year group 的 items 逐條 stagger，border 跟 group 一起隱藏
+  // 準備進場動畫：每個 year group 的 items 逐條 stagger，分割線最後進場
   if (typeof gsap !== 'undefined') {
     const allSets = [...container.querySelectorAll('.summer-camp-year-group')].map(group => {
       const yearEl = group.querySelector('h5');
       const items = group.querySelectorAll('.summer-camp-item');
-      return { group, items: [...(yearEl ? [yearEl] : []), ...items] };
+      const divider = group.nextElementSibling?.classList.contains('activities-separator')
+        ? group.nextElementSibling : null;
+      return { group, items: [...(yearEl ? [yearEl] : []), ...items, ...(divider ? [divider] : [])] };
     }).filter(s => s.items.length > 0);
 
     if (allSets.length === 0) return null;
 
-    allSets.forEach(({ group, items }) => {
-      gsap.set(group, { opacity: 0 });
+    allSets.forEach(({ items }) => {
       gsap.set(items, { y: 100, opacity: 0 });
     });
 
     return () => {
-      allSets.forEach(({ group, items }, i) => {
+      allSets.forEach(({ items }, i) => {
         const delay = i * 0.15;
-        gsap.to(group, { opacity: 1, duration: 0, delay, clearProps: 'opacity' });
         gsap.to(items, {
           y: 0, opacity: 1,
           duration: 0.6,

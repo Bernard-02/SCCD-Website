@@ -4,12 +4,6 @@
  */
 
 @layer components {
-  /* ===== Course Accordion ===== */
-  /* First item in each year group has pt-sm */
-  .course-item:first-child .course-header {
-    padding-top: 1rem !important; /* pt-sm */
-  }
-
   /* ===== Workshop Accordion ===== */
   /* Padding is controlled via JS/Tailwind classes (pt-md, pb-md)
      to support dynamic filter reflow */

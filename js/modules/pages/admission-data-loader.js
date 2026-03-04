@@ -25,6 +25,8 @@ export async function loadAdmissionData() {
   }
 }
 
+const ACCENT_COLORS = ['#FF448A', '#00FF80', '#26BCFF'];
+
 // --- 列表頁邏輯 ---
 function renderAdmissionList(data, container) {
   const ITEMS_PER_PAGE = 10;
@@ -34,17 +36,30 @@ function renderAdmissionList(data, container) {
 
   // 將單筆資料轉成 HTML 字串
   const itemHTML = (item) => `
-    <div class="admission-item grid grid-cols-12 gap-y-xs md:gap-x-lg items-baseline border-b border-gray-9 pb-md">
-      <h5 class="col-span-12 md:col-span-3 font-regular">${item.date}</h5>
-      <a href="admission-detail.html?id=${item.id}" class="col-span-12 md:col-span-9 block group w-full">
-        <h5 class="font-regular group-hover:font-bold transition-all duration-fast">${item.title}</h5>
+    <div class="admission-item grid grid-cols-12 gap-y-xs md:gap-x-lg items-baseline border-b-4 border-black py-md px-[4px]">
+      <h5 class="col-span-12 md:col-span-3 font-bold">${item.date.toUpperCase()}</h5>
+      <a href="admission-detail.html?id=${item.id}" class="col-span-12 md:col-span-9 flex items-center justify-between w-full">
+        <h5 class="font-bold">${item.title.toUpperCase()}</h5>
+        <i class="fa-solid fa-arrow-right flex-shrink-0 ml-sm"></i>
       </a>
     </div>
   `;
 
+  // Hover 隨機顏色（桌面版）
+  function attachHoverColor(item) {
+    if (window.innerWidth < 768) return;
+    item.addEventListener('mouseenter', () => {
+      item.style.backgroundColor = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
+    });
+    item.addEventListener('mouseleave', () => {
+      item.style.backgroundColor = '';
+    });
+  }
+
   // 初始渲染：渲染前 N 筆，用 ScrollTrigger 進場，按鈕等最後一個進場後 fade in
   data.slice(0, visibleCount).forEach(item => container.insertAdjacentHTML('beforeend', itemHTML(item)));
   const initialItems = container.querySelectorAll('.admission-item');
+  initialItems.forEach(attachHoverColor);
 
   if (loadMoreContainer) gsap.set(loadMoreContainer, { opacity: 0, display: 'flex' });
   animateCards(initialItems, true, {
@@ -62,6 +77,7 @@ function renderAdmissionList(data, container) {
       data.slice(prevCount, visibleCount).forEach(item => container.insertAdjacentHTML('beforeend', itemHTML(item)));
       const allItems = container.querySelectorAll('.admission-item');
       const newElements = Array.from(allItems).slice(prevCount);
+      newElements.forEach(attachHoverColor);
       if (loadMoreContainer) loadMoreContainer.style.display = 'none';
       animateCards(newElements, false, { fadeIn: true });
     });

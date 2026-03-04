@@ -37,7 +37,7 @@ export function initAnchorNav() {
     threshold: 0
   };
 
-  const NAV_COLORS = ['#26BCFF', '#FF448A', '#00FF80'];
+  const NAV_COLORS = ['#FF448A', '#00FF80', '#26BCFF'];
   let lastNavColorIndex = -1;
 
   function getNavColor() {
@@ -65,19 +65,16 @@ export function initAnchorNav() {
         if (id === currentActiveId) return;
         currentActiveId = id;
 
-        const color = getNavColor();
         const rot = getNavRotation();
 
-        // 更新按鈕狀態
+        // active btn：隨機彩色底 + 旋轉；非 active：reset 回 CSS 預設（半透黑底）
         navButtons.forEach(btn => {
-          if (btn.getAttribute('data-target') === id) {
-            btn.classList.add('active');
-            btn.style.color = color;
-            btn.querySelectorAll('div').forEach(div => { div.style.transform = `rotate(${rot}deg)`; });
-          } else {
-            btn.classList.remove('active');
-            btn.style.color = '';
-            btn.querySelectorAll('div').forEach(div => { div.style.transform = ''; });
+          const isActive = btn.getAttribute('data-target') === id;
+          btn.classList.toggle('active', isActive);
+          const inner = btn.querySelector('.anchor-nav-inner');
+          if (inner) {
+            inner.style.background = isActive ? getNavColor() : '';
+            inner.style.transform = isActive ? `rotate(${rot}deg)` : '';
           }
         });
       }

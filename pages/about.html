@@ -65,19 +65,19 @@
           
           <!-- Dropdown Menu (Content) -->
           <div id="mobile-anchor-menu" class="flex flex-col gap-sm px-md pb-md opacity-0 transition-opacity duration-300 delay-75 hidden">
-            <button class="anchor-nav-btn text-left text-h6 font-regular transition-all duration-fast whitespace-nowrap text-white hover:text-gray-5" data-target="overview">
+            <button class="anchor-nav-btn text-left text-h6 transition-all duration-fast whitespace-nowrap text-white hover:text-gray-5" data-target="overview">
               <div class="!bg-transparent">Overview</div>
               <div class="!bg-transparent">綜述</div>
             </button>
-            <button class="anchor-nav-btn text-left text-h6 font-regular transition-all duration-fast whitespace-nowrap text-white hover:text-gray-5" data-target="class">
+            <button class="anchor-nav-btn text-left text-h6 transition-all duration-fast whitespace-nowrap text-white hover:text-gray-5" data-target="class">
               <div class="!bg-transparent">Class</div>
               <div class="!bg-transparent">班級</div>
             </button>
-            <button class="anchor-nav-btn text-left text-h6 font-regular transition-all duration-fast whitespace-nowrap text-white hover:text-gray-5" data-target="resources">
+            <button class="anchor-nav-btn text-left text-h6 transition-all duration-fast whitespace-nowrap text-white hover:text-gray-5" data-target="resources">
               <div class="!bg-transparent">Resources</div>
               <div class="!bg-transparent">環境資源</div>
             </button>
-            <button class="anchor-nav-btn text-left text-h6 font-regular transition-all duration-fast whitespace-nowrap text-white hover:text-gray-5" data-target="alumni">
+            <button class="anchor-nav-btn text-left text-h6 transition-all duration-fast whitespace-nowrap text-white hover:text-gray-5" data-target="alumni">
               <div class="!bg-transparent">Alumni</div>
               <div class="!bg-transparent">系友發展</div>
             </button>
@@ -92,21 +92,17 @@
         <!-- Nav sticky inside here — doesn't affect sections layout -->
         <div class="hidden md:block flex-shrink-0 pointer-events-none z-[100] py-6xl" style="width: 0; overflow: visible;">
           <div id="anchor-nav" class="sticky flex flex-col gap-sm pointer-events-auto" style="top: 200px; margin-left: var(--container-padding); width: max-content;">
-            <button class="anchor-nav-btn text-left text-h6 font-regular transition-all duration-fast whitespace-nowrap" data-target="overview">
-              <div>Overview</div>
-              <div>綜述</div>
+            <button class="anchor-nav-btn text-left text-h6 transition-all duration-fast whitespace-nowrap" data-target="overview">
+              <span class="anchor-nav-inner"><div>Overview</div><div>綜述</div></span>
             </button>
-            <button class="anchor-nav-btn text-left text-h6 font-regular transition-all duration-fast whitespace-nowrap" data-target="class">
-              <div>Class</div>
-              <div>班級</div>
+            <button class="anchor-nav-btn text-left text-h6 transition-all duration-fast whitespace-nowrap" data-target="class">
+              <span class="anchor-nav-inner"><div>Class</div><div>班級</div></span>
             </button>
-            <button class="anchor-nav-btn text-left text-h6 font-regular transition-all duration-fast whitespace-nowrap" data-target="resources">
-              <div>Resources</div>
-              <div>環境資源</div>
+            <button class="anchor-nav-btn text-left text-h6 transition-all duration-fast whitespace-nowrap" data-target="resources">
+              <span class="anchor-nav-inner"><div>Resources</div><div>環境資源</div></span>
             </button>
-            <button class="anchor-nav-btn text-left text-h6 font-regular transition-all duration-fast whitespace-nowrap" data-target="alumni">
-              <div>Alumni</div>
-              <div>系友發展</div>
+            <button class="anchor-nav-btn text-left text-h6 transition-all duration-fast whitespace-nowrap" data-target="alumni">
+              <span class="anchor-nav-inner"><div>Alumni</div><div>系友發展</div></span>
             </button>
           </div>
         </div>
@@ -120,14 +116,14 @@
           <div class="grid-12">
             <!-- English Text (Column 3-7) -->
             <div class="col-span-12 md:col-start-3 md:col-span-5 mb-lg md:mb-0">
-              <h5 class="text-black leading-base">
+              <h5 class="text-black leading-base" data-text-reveal>
                 Department of Communications Design, Shih Chien University / SCCD is the first academic institution to establish the "Communications Design" department in the country. The teaching of the department takes design thinking, humanities, and aesthetics as the cornerstones, uses multidimensional platforms as the foundation, diverse media as the carrier, and integrates teaching experiments and design training such as animation, narrative video, interaction, performance, game, product, space. and environment. Supplemented by intensive international workshop and industry-academy cooperation in various fields, as well as overseas exchange opportunities. It aims to cultivate director-type creative talents who can integrate "media" as the vehicle, "design" as the method, emphasize "communications" as the core of human civilization, and adapt to the rapid changes of the era.
               </h5>
             </div>
 
             <!-- Chinese Text (Column 8-12) -->
             <div class="col-span-12 md:col-start-8 md:col-span-5">
-              <h5 class="text-black leading-base">
+              <h5 class="text-black leading-base" data-text-reveal data-text-reveal-delay="0.1">
                 實踐大學媒體傳達設計學系為全國首創成立「媒體傳達設計」之學系。學系教學以設計思考、人文、美學為核心基石，運用多維度平台為基礎與多樣性媒材為載體，整合動畫、敘事影像、互動、展演、遊戲、商品、空間、環境等教學實驗與設計訓練，輔以密集舉辦之跨國工作與各領域產學合作，同時提供海外交換留學機會，旨在培育能整合「媒體」為乘載，「設計」為方法，強調「傳達」為人類文明之核心，得以適應時代快速變遷之總監型創作人才。
               </h5>
             </div>
@@ -263,25 +259,25 @@
           <!-- Desktop Buttons -->
           <div class="hidden md:flex justify-center items-center mb-4xl">
             <!-- BFA Parent Button -->
-            <button id="bfa-parent-btn" class="class-parent-btn btn-fill shrink-0 active px-lg py-sm text-p2 font-bold transition-all duration-fast rounded-[50px] text-center" data-group="bfa">
+            <button id="bfa-parent-btn" class="class-parent-btn btn-fill shrink-0 active px-sm py-sm text-p2 font-bold transition-all duration-fast rounded-[20px] text-center" data-group="bfa">
               <div class="whitespace-nowrap">BFA Class</div>
               <div class="mt-1 whitespace-nowrap">學士班</div>
             </button>
 
             <!-- BFA Sub-buttons (slide out to the right of BFA btn) -->
             <div id="bfa-sub-btns" class="flex gap-md overflow-hidden" style="max-width: 700px;">
-              <button class="class-division-btn btn-fill shrink-0 active px-lg py-sm text-p2 font-bold transition-all duration-fast rounded-[50px] text-center" data-division="animation">
+              <button class="class-division-btn btn-fill shrink-0 active px-sm py-sm text-p2 font-bold transition-all duration-fast rounded-[20px] text-center" data-division="animation">
                 <div class="whitespace-nowrap">Division of Animation & Moving Image</div>
                 <div class="mt-1 whitespace-nowrap">動畫影像設計組</div>
               </button>
-              <button class="class-division-btn btn-fill shrink-0 px-lg py-sm text-p2 font-bold transition-all duration-fast rounded-[50px] text-center" data-division="creative-media">
+              <button class="class-division-btn btn-fill shrink-0 px-sm py-sm text-p2 font-bold transition-all duration-fast rounded-[20px] text-center" data-division="creative-media">
                 <div class="whitespace-nowrap">Division of Creative Media Design</div>
                 <div class="mt-1 whitespace-nowrap">創意媒體設計組</div>
               </button>
             </div>
 
             <!-- MDES Button -->
-            <button id="mdes-parent-btn" class="class-parent-btn btn-fill shrink-0 px-lg py-sm text-p2 font-bold transition-all duration-fast rounded-[50px] text-center" data-group="mdes">
+            <button id="mdes-parent-btn" class="class-parent-btn btn-fill shrink-0 px-sm py-sm text-p2 font-bold transition-all duration-fast rounded-[20px] text-center" data-group="mdes">
               <div class="whitespace-nowrap">MDES Class</div>
               <div class="mt-1 whitespace-nowrap">碩士班</div>
             </button>
@@ -505,7 +501,7 @@
 
         <!-- Back to Top Button -->
         <div class="w-full flex justify-center pb-6xl">
-          <a href="#about-hero" class="class-division-btn btn-fill shrink-0 px-lg py-sm text-p2 font-bold transition-all duration-fast rounded-[50px] whitespace-nowrap">Back to Top&ensp;回到頂部</a>
+          <a href="#about-hero" class="class-division-btn btn-fill shrink-0 px-sm py-sm text-p2 font-bold transition-all duration-fast rounded-[20px] whitespace-nowrap">Back to Top&ensp;回到頂部</a>
         </div>
       </section>
 

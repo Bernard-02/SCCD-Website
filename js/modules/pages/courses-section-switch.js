@@ -48,12 +48,14 @@ export function initCoursesSectionSwitch() {
     const rot = getRandomRotation();
     btns.forEach(b => {
       b.classList.remove('active');
-      b.querySelectorAll('span').forEach(span => { span.style.color = ''; span.style.transform = ''; });
+      const inner = b.querySelector('.anchor-nav-inner');
+      if (inner) { inner.style.background = ''; inner.style.transform = ''; }
     });
     const activeBtn = [...btns].find(b => b.getAttribute('data-program') === program);
     if (activeBtn) {
       activeBtn.classList.add('active');
-      activeBtn.querySelectorAll('span').forEach(span => { span.style.color = color; span.style.transform = `rotate(${rot}deg)`; });
+      const activeInner = activeBtn.querySelector('.anchor-nav-inner');
+      if (activeInner) { activeInner.style.background = color; activeInner.style.transform = `rotate(${rot}deg)`; }
     }
 
     // 顯示對應 panel，隱藏其他
@@ -62,10 +64,10 @@ export function initCoursesSectionSwitch() {
     // 同步 active filter btn 的顏色
     const activePanel = document.getElementById(`panel-${program}`);
     if (activePanel) {
-      const activeFilterBtn = activePanel.querySelector('.courses-filter-btn.active');
+      const activeFilterBtn = activePanel.parentElement.querySelector('.courses-filter-btn.active');
       if (activeFilterBtn) {
-        activeFilterBtn.style.color = color;
-        activeFilterBtn.style.transform = `rotate(${getRandomRotation()}deg)`;
+        const filterInner = activeFilterBtn.querySelector('.anchor-nav-inner');
+        if (filterInner) { filterInner.style.background = color; filterInner.style.transform = `rotate(${getRandomRotation()}deg)`; }
       }
     }
 

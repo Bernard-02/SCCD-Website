@@ -14,23 +14,22 @@ function getRandomRotation() {
 }
 
 export function initCoursesFilter(program) {
-  // 新版：限定在對應的 program panel 內操作，避免跨 panel 互相干擾
-  const scope = program
-    ? document.getElementById(`panel-${program}`)
-    : document;
+  // filter bar 已移出 panel，從 panel 的父層（flex-1）找 btn；year group 仍在 panel 內
+  const panel = program ? document.getElementById(`panel-${program}`) : document;
+  const filterScope = (program && panel) ? panel.parentElement : document;
 
-  if (!scope) return;
+  if (!panel) return;
 
-  const coursesFilterButtons = scope.querySelectorAll('.courses-filter-btn');
-  const coursesYearGroups = scope.querySelectorAll('.courses-year-group');
+  const coursesFilterButtons = filterScope.querySelectorAll('.courses-filter-btn');
+  const coursesYearGroups = panel.querySelectorAll('.courses-year-group');
 
   if (coursesFilterButtons.length === 0 || coursesYearGroups.length === 0) return;
 
   // 初始化 active btn 的 color/rotation
-  const activeBtn = scope.querySelector('.courses-filter-btn.active');
+  const activeBtn = filterScope.querySelector('.courses-filter-btn.active');
   if (activeBtn) {
-    activeBtn.style.color = getCurrentProgramColor();
-    activeBtn.style.transform = `rotate(${getRandomRotation()}deg)`;
+    const activeInner = activeBtn.querySelector('.anchor-nav-inner');
+    if (activeInner) { activeInner.style.background = getCurrentProgramColor(); activeInner.style.transform = `rotate(${getRandomRotation()}deg)`; }
   }
 
   coursesFilterButtons.forEach(button => {
@@ -46,12 +45,12 @@ export function initCoursesFilter(program) {
       const rot = getRandomRotation();
       coursesFilterButtons.forEach(b => {
         b.classList.remove('active');
-        b.style.color = '';
-        b.style.transform = '';
+        const inner = b.querySelector('.anchor-nav-inner');
+        if (inner) { inner.style.background = ''; inner.style.transform = ''; }
       });
       this.classList.add('active');
-      this.style.color = color;
-      this.style.transform = `rotate(${rot}deg)`;
+      const activeInner = this.querySelector('.anchor-nav-inner');
+      if (activeInner) { activeInner.style.background = color; activeInner.style.transform = `rotate(${rot}deg)`; }
 
       const filterValue = this.getAttribute('data-filter');
 

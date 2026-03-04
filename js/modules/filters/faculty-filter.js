@@ -30,15 +30,17 @@ export function initFacultyFilter() {
   function setActiveStyle(activeBtn, color) {
     const rot = getRandomRotation();
     filterButtons.forEach(btn => {
-      btn.querySelectorAll('span').forEach(span => {
-        span.style.color = '';
-        span.style.transform = '';
-      });
+      const inner = btn.querySelector('.anchor-nav-inner');
+      if (inner) {
+        inner.style.background = '';
+        inner.style.transform = '';
+      }
     });
-    activeBtn.querySelectorAll('span').forEach(span => {
-      span.style.color = color;
-      span.style.transform = `rotate(${rot}deg)`;
-    });
+    const activeInner = activeBtn.querySelector('.anchor-nav-inner');
+    if (activeInner) {
+      activeInner.style.background = color;
+      activeInner.style.transform = `rotate(${rot}deg)`;
+    }
   }
 
   // Filter button click event

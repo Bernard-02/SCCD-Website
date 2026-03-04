@@ -36,19 +36,34 @@
     pointer-events: none;
   }
 
+  /* 卡片底色 transition */
+  .faculty-card {
+    background-color: transparent;
+    transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
   /* Hover 效果：僅桌面版 */
   @media (min-width: 768px) {
-    /* All cards: color overlay + grayscale on hover */
-    .faculty-card .faculty-card-image-wrapper:hover::after {
+    /* Hover 父容器：底色 + 圖片 overlay + grayscale */
+    .faculty-card:hover {
+      background-color: var(--card-color, #26BCFF);
+    }
+
+    .faculty-card:hover .faculty-card-image-wrapper::after {
       opacity: 1;
     }
 
-    .faculty-card .faculty-card-image-wrapper:hover .faculty-card-image {
+    .faculty-card:hover .faculty-card-image {
       filter: grayscale(100%);
     }
   }
 
   /* ===== Library Cards ===== */
+  .library-card {
+    background-color: transparent;
+    transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
   .library-card-image-wrapper {
     position: relative;
   }
@@ -70,12 +85,16 @@
 
   /* Hover 效果：僅桌面版 */
   @media (min-width: 768px) {
-    .library-card-image-wrapper:hover .library-card-image {
-      filter: grayscale(100%);
+    .library-card:hover {
+      background-color: var(--card-color, #26BCFF);
     }
 
-    .library-card-image-wrapper:hover::after {
+    .library-card:hover .library-card-image-wrapper::after {
       opacity: 1;
+    }
+
+    .library-card:hover .library-card-image {
+      filter: grayscale(100%);
     }
   }
 

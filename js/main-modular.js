@@ -17,6 +17,7 @@ import { initSmoothScroll } from './modules/ui/smooth-scroll.js';
 import { initBFADivisionToggle } from './modules/ui/bfa-division-toggle.js';
 import { initBtnFillHover } from './modules/ui/btn-fill-hover.js';
 import { initSupportLinkColor } from './modules/ui/support-link-color.js';
+import { initTextReveal } from './modules/ui/text-reveal.js';
 
 // Import About Page Modules
 import { initResourcesCycling } from './modules/pages/about/resources-cycling.js';
@@ -30,6 +31,7 @@ import { initHeroAnimation } from './modules/pages/hero-animation.js';
 import { initFacultySlideIn } from './modules/pages/faculty-slide-in.js';
 import { initActivitiesSectionSwitch } from './modules/pages/activities-section-switch.js';
 import { initCoursesSectionSwitch } from './modules/pages/courses-section-switch.js';
+import { initWorksSectionSwitch } from './modules/pages/works-section-switch.js';
 
 // Import Accordion Modules
 import { initHorizontalAccordion } from './modules/accordions/horizontal-accordion.js';
@@ -99,6 +101,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initAnchorNav();
     initHorizontalAccordion(); // About 頁面的 Accordion（通用版）
     initBFADivisionToggle();   // BFA Class 分組切換
+    initTextReveal();
   }
 
   // --- Degree Show Pages ---
@@ -216,20 +219,24 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // --- Works Page ---
-  if (page.includes('works')) {
-    // 如果是 BFA Works 頁面，先載入資料再初始化篩選器
-    if (page.includes('bfa-works')) {
-      loadBFAWorks().then(() => {
-        initWorksFilter();
-      });
-    } else if (page.includes('mdes-works')) {
-      loadMDESWorks().then(() => {
-        initWorksFilter();
-      });
-    } else {
+  // --- Works Page (合併版) ---
+  if (page === 'works.html') {
+    initWorksSectionSwitch(
+      () => loadBFAWorks().then(() => initWorksFilter()),
+      () => loadMDESWorks()
+    );
+  }
+
+  // --- Works Page (舊版，保留相容性) ---
+  if (page === 'bfa-works.html') {
+    loadBFAWorks().then(() => {
       initWorksFilter();
-    }
+    });
+  }
+  if (page === 'mdes-works.html') {
+    loadMDESWorks().then(() => {
+      initWorksFilter();
+    });
   }
 
   // --- Library Page ---

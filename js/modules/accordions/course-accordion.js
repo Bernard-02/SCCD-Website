@@ -3,6 +3,11 @@
  * 課程手風琴功能（BFA & MDES 課程列表）
  */
 
+const ACCENT_COLORS = ['#FF448A', '#00FF80', '#26BCFF'];
+function getRandomAccentColor() {
+  return ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
+}
+
 export function initCourseAccordion() {
   const courseHeaders = document.querySelectorAll('.course-header');
 
@@ -13,36 +18,46 @@ export function initCourseAccordion() {
     const content = header.nextElementSibling;
     gsap.set(content, { height: 0, overflow: 'hidden' });
 
+    // Hover: 未展開時顯示隨機色，展開後 hover 不改色
+    header.addEventListener('mouseenter', function() {
+      if (!this.classList.contains('active')) {
+        this.style.background = getRandomAccentColor();
+      }
+    });
+    header.addEventListener('mouseleave', function() {
+      if (!this.classList.contains('active')) {
+        this.style.background = '';
+      }
+    });
+
     header.addEventListener('click', function() {
       const content = this.nextElementSibling;
       const chevron = this.querySelector('.fa-chevron-down');
-      const isFirstItem = this.closest('.course-item').matches('.course-item:first-child');
 
       this.classList.toggle('active');
       const isActive = this.classList.contains('active');
 
       if (isActive) {
-        // Open - 先改變 padding，然後展開內文
+        // Open - 保留 hover 時的顏色，content 繼承同色
+        const color = this.style.background || getRandomAccentColor();
+        this.style.background = color;
+        content.style.background = color;
         this.classList.remove('py-md');
-        this.classList.add('pb-xs');
-        // 第一個 item 使用 pt-sm，其他使用 pt-md
-        if (isFirstItem) {
-          this.classList.add('pt-sm');
-        } else {
-          this.classList.add('pt-md');
-        }
+        this.classList.add('pt-md', 'pb-xs');
         gsap.to(content, { height: 'auto', duration: 0.5, ease: "power2.out" });
         if (chevron) gsap.to(chevron, { rotation: 180, duration: 0.3 });
       } else {
-        // Close - 先收起內文，等動畫完成後再恢復 padding
+        // Close - 收合完成後才清除顏色
+        const header = this;
         gsap.to(content, {
           height: 0,
           duration: 0.4,
           ease: "power2.in",
           onComplete: () => {
-            // 動畫完成後才恢復 py-md，這樣看起來更自然
-            this.classList.remove('pb-xs', 'pt-md', 'pt-sm');
-            this.classList.add('py-md');
+            header.style.background = '';
+            content.style.background = '';
+            header.classList.remove('pt-md', 'pb-xs');
+            header.classList.add('py-md');
           }
         });
         if (chevron) gsap.to(chevron, { rotation: 0, duration: 0.3 });

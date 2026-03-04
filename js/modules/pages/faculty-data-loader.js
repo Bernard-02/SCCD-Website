@@ -39,7 +39,7 @@ function renderFacultyList(containerId, items) {
   container.innerHTML = items.map((item, index) => {
     const color = CARD_COLORS[index % CARD_COLORS.length];
     return `
-    <div class="faculty-card group cursor-pointer" data-category="${item.type}" data-faculty-id="${item.id}" style="--card-color: ${color}">
+    <div class="faculty-card group cursor-pointer p-[6px]" data-category="${item.type}" data-faculty-id="${item.id}" style="--card-color: ${color}">
       <div class="faculty-card-image-wrapper overflow-hidden mb-sm aspect-[4/5] bg-gray-2 relative">
         <img src="${item.image}" alt="${item.nameEn}" loading="lazy" class="faculty-card-image w-full h-full object-cover">
       </div>
