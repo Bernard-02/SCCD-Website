@@ -90,18 +90,48 @@ body.mode-inverse .theme-toggle-circle {
 }
 
 /* ===== Nav Buttons (左側 section/program btn) ===== */
-/* inactive span 為白色；active 的彩色是 inline style，優先級更高，自然蓋過這裡 */
-body.mode-inverse .faculty-filter-btn span,
-body.mode-inverse .activities-section-btn span,
-body.mode-inverse .courses-program-btn span {
-  color: white;
+/* inactive: 50% 黑色透明底 + 白色文字；active 的彩色 background 由 JS inline style 設定 */
+body.mode-inverse .faculty-filter-btn:not(.active) .anchor-nav-inner,
+body.mode-inverse .activities-section-btn:not(.active) .anchor-nav-inner,
+body.mode-inverse .courses-program-btn:not(.active) .anchor-nav-inner {
+  background: rgba(0, 0, 0, 0.5) !important;
+  color: white !important;
+}
+
+body.mode-inverse .faculty-filter-btn.active .anchor-nav-inner,
+body.mode-inverse .activities-section-btn.active .anchor-nav-inner,
+body.mode-inverse .courses-program-btn.active .anchor-nav-inner {
+  /* background 由 JS 設定為隨機三原色 */
+  color: black !important;
+}
+
+@media (min-width: 768px) {
+  body.mode-inverse .faculty-filter-btn:not(.active):hover .anchor-nav-inner,
+  body.mode-inverse .activities-section-btn:not(.active):hover .anchor-nav-inner,
+  body.mode-inverse .courses-program-btn:not(.active):hover .anchor-nav-inner {
+    background: rgba(0, 0, 0, 0.8) !important;
+    color: white !important;
+  }
 }
 
 /* ===== Filter Buttons (右側 filter btn) ===== */
-/* inactive 為白色；active 的彩色 inline style 優先級更高，自然蓋過 */
-body.mode-inverse .activities-filter-btn,
-body.mode-inverse .courses-filter-btn {
-  color: white;
+body.mode-inverse .activities-filter-btn:not(.active) .anchor-nav-inner,
+body.mode-inverse .courses-filter-btn:not(.active) .anchor-nav-inner {
+  background: rgba(0, 0, 0, 0.5) !important;
+  color: white !important;
+}
+
+body.mode-inverse .activities-filter-btn.active .anchor-nav-inner,
+body.mode-inverse .courses-filter-btn.active .anchor-nav-inner {
+  color: black !important;
+}
+
+@media (min-width: 768px) {
+  body.mode-inverse .activities-filter-btn:not(.active):hover .anchor-nav-inner,
+  body.mode-inverse .courses-filter-btn:not(.active):hover .anchor-nav-inner {
+    background: rgba(0, 0, 0, 0.8) !important;
+    color: white !important;
+  }
 }
 
 /* ===== Filter Bar 上方遮擋 ::before ===== */
@@ -139,7 +169,7 @@ body.mode-inverse .btn-fill-blob {
 
 /* ===== Accordion / Course Items ===== */
 body.mode-inverse .course-item {
-  border-color: var(--gray-2) !important;
+  border-color: white !important;
 }
 
 /* ===== Cards ===== */
@@ -149,9 +179,21 @@ body.mode-inverse .card-tag {
 }
 
 /* ===== About Anchor Nav ===== */
-body.mode-inverse .anchor-nav-btn .anchor-nav-inner {
-  background: black !important;
-  color: white;
+body.mode-inverse .anchor-nav-btn:not(.active) .anchor-nav-inner {
+  background: rgba(0, 0, 0, 0.5) !important;
+  color: white !important;
+}
+
+body.mode-inverse .anchor-nav-btn.active .anchor-nav-inner {
+  /* background 由 JS 設定為隨機三原色 */
+  color: black !important;
+}
+
+@media (min-width: 768px) {
+  body.mode-inverse .anchor-nav-btn:not(.active):hover .anchor-nav-inner {
+    background: rgba(0, 0, 0, 0.8) !important;
+    color: white !important;
+  }
 }
 
 /* ===== Faculty Slide-in ===== */

@@ -4,18 +4,6 @@
  * 仿照 courses-section-switch.js 架構與視覺風格
  */
 
-const COLORS = ['#FF448A', '#00FF80', '#26BCFF'];
-
-function getRandomColor() {
-  return COLORS[Math.floor(Math.random() * COLORS.length)];
-}
-
-function getRandomRotation() {
-  let deg;
-  do { deg = Math.round(Math.random() * 10) - 4; } while (deg === 0);
-  return deg;
-}
-
 export function initWorksSectionSwitch(loadBFA, loadMDES) {
   const sectionBtns = document.querySelectorAll('.works-section-btn');
   if (!sectionBtns.length) return;
@@ -41,8 +29,8 @@ export function initWorksSectionSwitch(loadBFA, loadMDES) {
     currentSection = target;
 
     // 更新按鈕 active 狀態、隨機彩色 + 隨機旋轉
-    const color = getRandomColor();
-    const rot = getRandomRotation();
+    const color = SCCDHelpers.getRandomAccentColor();
+    const rot = SCCDHelpers.getRandomRotation();
 
     sectionBtns.forEach(b => {
       b.classList.remove('active');

@@ -9,20 +9,9 @@ import { initCourseAccordion } from '../accordions/course-accordion.js';
 import { initCoursesFilter } from '../filters/courses-filter.js';
 
 const loaded = new Set(); // 記錄已載入的 program，避免重複 fetch
-const COLORS = ['#FF448A', '#00FF80', '#26BCFF'];
 
 let currentProgramColor = '';
 export function getCurrentProgramColor() { return currentProgramColor; }
-
-function getRandomColor() {
-  return COLORS[Math.floor(Math.random() * COLORS.length)];
-}
-
-function getRandomRotation() {
-  let deg;
-  do { deg = Math.round(Math.random() * 10) - 4; } while (deg === 0);
-  return deg;
-}
 
 export function initCoursesSectionSwitch() {
   const programBtns = document.querySelectorAll('.courses-program-btn');
@@ -43,9 +32,9 @@ export function initCoursesSectionSwitch() {
 
   async function switchToProgram(program, btns, shouldScroll) {
     // 更新按鈕狀態與隨機顏色 + rotation
-    const color = getRandomColor();
+    const color = SCCDHelpers.getRandomAccentColor();
     currentProgramColor = color;
-    const rot = getRandomRotation();
+    const rot = SCCDHelpers.getRandomRotation();
     btns.forEach(b => {
       b.classList.remove('active');
       const inner = b.querySelector('.anchor-nav-inner');
@@ -67,7 +56,7 @@ export function initCoursesSectionSwitch() {
       const activeFilterBtn = activePanel.parentElement.querySelector('.courses-filter-btn.active');
       if (activeFilterBtn) {
         const filterInner = activeFilterBtn.querySelector('.anchor-nav-inner');
-        if (filterInner) { filterInner.style.background = color; filterInner.style.transform = `rotate(${getRandomRotation()}deg)`; }
+        if (filterInner) { filterInner.style.background = color; filterInner.style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`; }
       }
     }
 

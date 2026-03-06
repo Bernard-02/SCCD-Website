@@ -3,6 +3,45 @@
  * 負責讀取 JSON 資料並渲染 Activities 相關頁面的 HTML
  */
 
+import { openLightbox } from '../lightbox/activities-lightbox.js';
+
+// Helper: 為 workshop-item 內的海報及 gallery 圖片加上 hover 灰階 + screen overlay 效果
+export function bindMediaHover(container) {
+  container.querySelectorAll('.workshop-item').forEach(workshopItem => {
+    const header = workshopItem.querySelector('.workshop-header');
+
+    const applyHover = (wrapper) => {
+      if (wrapper.dataset.hoverInit) return;
+      wrapper.dataset.hoverInit = '1';
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position:absolute;inset:0;opacity:0;transition:opacity 0.3s ease;pointer-events:none;z-index:1;mix-blend-mode:screen;';
+      if (getComputedStyle(wrapper).position === 'static') wrapper.style.position = 'relative';
+      wrapper.appendChild(overlay);
+      wrapper.addEventListener('mouseenter', () => {
+        const color = header?.style.background || '#888888';
+        overlay.style.background = color;
+        overlay.style.opacity = '1';
+        const img = wrapper.querySelector('img');
+        if (img) img.style.filter = 'grayscale(100%)';
+      });
+      wrapper.addEventListener('mouseleave', () => {
+        overlay.style.opacity = '0';
+        const img = wrapper.querySelector('img');
+        if (img) img.style.filter = '';
+      });
+    };
+
+    // 海報及所有有 data-lightbox-open 的容器
+    workshopItem.querySelectorAll('[data-lightbox-open]').forEach(wrapper => applyHover(wrapper));
+
+    // gallery 裸 <img>（沒有包在 [data-lightbox-open] 裡的）
+    workshopItem.querySelectorAll('.gallery-inner img').forEach(img => {
+      const existingWrapper = img.closest('[data-lightbox-open]');
+      if (!existingWrapper) applyHover(img.parentElement);
+    });
+  });
+}
+
 // Helper: Fetch JSON
 async function fetchData(url) {
   try {
@@ -15,7 +54,165 @@ async function fetchData(url) {
   }
 }
 
-// 1. Workshops & Students Present Renderer (Shared Logic)
+// ── Shared HTML Builders ─────────────────────────────────────────────────────
+
+// 建立 media list（海報 → videos → images）
+export function buildItemMedia(item) {
+  return [
+    ...(item.poster ? [{ type: 'image', src: item.poster, thumb: item.poster }] : []),
+    ...(item.videos || []).map(url => {
+      const vid = url.match(/(?:v=|youtu\.be\/)([^&?/]+)/)?.[1];
+      return vid ? { type: 'video', src: `https://www.youtube.com/embed/${vid}`, thumb: `https://img.youtube.com/vi/${vid}/hqdefault.jpg` } : null;
+    }).filter(Boolean),
+    ...(item.images || []).map(src => ({ type: 'image', src, thumb: src })),
+  ];
+}
+
+// 海報區塊 HTML
+export function buildPosterHtml(item) {
+  if (!item.poster) return '';
+  return `
+    <div class="overflow-hidden cursor-pointer" data-lightbox-open data-lightbox-index="0">
+      <img src="${item.poster}" alt="${item.title} poster" class="poster-img w-full block object-cover">
+    </div>
+  `;
+}
+
+// Gallery 區塊 HTML（videos + images）
+export function buildGalleryHtml(item) {
+  const posterOffset = item.poster ? 1 : 0;
+  const galleryItems = [
+    ...(item.videos || []).map((url, vi) => {
+      const videoId = url.match(/(?:v=|youtu\.be\/)([^&?/]+)/)?.[1];
+      if (!videoId) return '';
+      const lbIndex = posterOffset + vi;
+      return `<div class="h-full flex-shrink-0 aspect-video relative cursor-pointer" data-lightbox-open data-lightbox-index="${lbIndex}">
+        <img src="https://img.youtube.com/vi/${videoId}/hqdefault.jpg" alt="" class="w-full h-full object-cover block">
+        <div class="absolute inset-0 bg-black" style="opacity:0.2;"></div>
+        <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <svg width="20" height="24" viewBox="0 0 20 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <polygon points="0,0 20,12 0,24" fill="white" fill-opacity="0.5"/>
+          </svg>
+        </div>
+      </div>`;
+    }),
+    ...(item.images || []).map((src, ii) => {
+      const lbIndex = posterOffset + (item.videos || []).length + ii;
+      return `<div class="h-full flex-shrink-0 relative cursor-pointer" data-lightbox-open data-lightbox-index="${lbIndex}">
+        <img src="${src}" alt="" class="h-full w-auto block">
+      </div>`;
+    }),
+  ].filter(Boolean);
+
+  if (galleryItems.length === 0) return '';
+  return `
+    <div class="gallery-section px-xs pb-lg flex items-center gap-xs">
+      <button class="gallery-prev invisible flex-shrink-0 w-[32px] h-[32px] flex items-center justify-center text-p2 hover:opacity-60 transition-opacity">
+        <i class="fa-solid fa-chevron-left"></i>
+      </button>
+      <div class="gallery-track flex-1 overflow-hidden" style="height: 120px;">
+        <div class="gallery-inner flex gap-md h-full" style="transition: transform 0.3s ease;">
+          ${galleryItems.join('')}
+        </div>
+      </div>
+      <button class="gallery-next invisible flex-shrink-0 w-[32px] h-[32px] flex items-center justify-center text-p2 hover:opacity-60 transition-opacity">
+        <i class="fa-solid fa-chevron-right"></i>
+      </button>
+    </div>
+  `;
+}
+
+// ── Shared Post-Render Bindings ───────────────────────────────────────────────
+
+// Gallery 滑動、Lightbox、hover、海報比例偵測；回傳 GSAP 動畫啟動函數
+export function bindInteractions(container) {
+  // Gallery 左右滑動
+  container.querySelectorAll('.gallery-section').forEach(gallery => {
+    const inner = gallery.querySelector('.gallery-inner');
+    const track = gallery.querySelector('.gallery-track');
+    const prevBtn = gallery.querySelector('.gallery-prev');
+    const nextBtn = gallery.querySelector('.gallery-next');
+    if (!inner || !track) return;
+    let offset = 0;
+    const getMaxOffset = () => Math.max(0, inner.scrollWidth - track.clientWidth);
+    const updateChevrons = () => {
+      const max = getMaxOffset();
+      prevBtn?.classList.toggle('invisible', max === 0);
+      nextBtn?.classList.toggle('invisible', max === 0);
+    };
+    gallery.closest('.workshop-item')?.addEventListener('gallery:check', updateChevrons);
+    const STEP = () => track.clientWidth * 0.6;
+    prevBtn?.addEventListener('click', () => {
+      offset = Math.max(0, offset - STEP());
+      inner.style.transform = `translateX(-${offset}px)`;
+    });
+    nextBtn?.addEventListener('click', () => {
+      offset = Math.min(getMaxOffset(), offset + STEP());
+      inner.style.transform = `translateX(-${offset}px)`;
+    });
+  });
+
+  // Lightbox 綁定
+  container.querySelectorAll('.workshop-item').forEach(workshopItem => {
+    const media = JSON.parse(workshopItem.dataset.media || '[]');
+    if (media.length === 0) return;
+    workshopItem.querySelectorAll('[data-lightbox-open]').forEach(el => {
+      el.addEventListener('click', e => {
+        e.stopPropagation();
+        const index = parseInt(el.dataset.lightboxIndex, 10) || 0;
+        openLightbox(media, index);
+      });
+    });
+  });
+
+  // 海報 & gallery hover 效果
+  bindMediaHover(container);
+
+  // 海報比例偵測
+  container.querySelectorAll('.poster-img').forEach(img => {
+    const apply = () => {
+      const grid = img.closest('.workshop-content')?.querySelector('[style*="grid-template-columns"]');
+      if (img.naturalWidth > img.naturalHeight) {
+        img.classList.replace('object-cover', 'object-contain');
+        img.classList.add('object-top');
+        if (grid) grid.style.gridTemplateColumns = '8.5fr 3.5fr';
+      }
+    };
+    if (img.complete && img.naturalWidth) apply();
+    else img.addEventListener('load', apply, { once: true });
+  });
+
+  // 進場動畫：回傳啟動函數
+  if (typeof gsap === 'undefined') return null;
+
+  const allSets = [...container.querySelectorAll('.workshop-year-group')].map(group => {
+    const yearToggle = group.querySelector('.workshop-year-toggle');
+    const items = group.querySelectorAll('.workshop-item');
+    const divider = group.nextElementSibling?.classList.contains('activities-separator')
+      ? group.nextElementSibling : null;
+    return { items: [...(yearToggle ? [yearToggle] : []), ...items, ...(divider ? [divider] : [])] };
+  }).filter(s => s.items.length > 0);
+
+  if (allSets.length === 0) return null;
+
+  allSets.forEach(({ items }) => gsap.set(items, { y: 100, opacity: 0 }));
+
+  return () => {
+    allSets.forEach(({ items }, i) => {
+      gsap.to(items, {
+        y: 0, opacity: 1,
+        duration: 0.6,
+        delay: i * 0.15,
+        stagger: { each: 0.1, grid: 'auto', axis: 'y' },
+        ease: 'power2.out',
+        clearProps: 'transform,opacity',
+      });
+    });
+  };
+}
+
+// ── 1. Workshops & Students Present Renderer ──────────────────────────────────
+
 export async function loadWorkshops(jsonFile, pageType = 'workshop') {
   return loadWorkshopsInto(jsonFile, pageType, null);
 }
@@ -35,88 +232,52 @@ export async function loadWorkshopsInto(jsonFile, pageType = 'workshop', contain
     const isLast = index === data.length - 1;
     const itemsHtml = yearGroup.items.map((item, idx) => {
       const isItemLast = idx === yearGroup.items.length - 1;
-      const date = item.date || '';
-      const subTitle = pageType === 'workshop' ? 'Tutor 講師' : 'Organizer 主辦單位';
-      const subValue = pageType === 'workshop' ? item.tutor : item.organizer;
+      const mediaJson = JSON.stringify(buildItemMedia(item)).replace(/"/g, '&quot;');
 
       return `
-        <div class="workshop-item ${!isItemLast ? 'border-b-4 border-black' : ''} overflow-hidden">
+        <div class="workshop-item ${!isItemLast ? 'border-b-4 border-black' : ''} overflow-hidden" data-media="${mediaJson}">
           <div class="workshop-header cursor-pointer group transition-colors duration-fast flex items-center justify-between px-[4px] py-md">
             <div class="text-h5 font-bold">${item.title}</div>
             <i class="fa-solid fa-chevron-down text-p2 transition-transform duration-300"></i>
           </div>
-          <div class="workshop-content h-0 overflow-hidden px-[4px]">
-            <div class="pb-xl flex flex-col-reverse md:flex-row gap-lg md:gap-3xl">
-              <div class="flex-1 flex flex-col gap-lg">
-                ${date ? `<div><h6 class="text-black">${date}</h6></div>` : ''}
-                <div>
-                  <h6 class="text-black mb-xs">${subTitle}</h6>
-                  <p class="text-p2">${subValue}</p>
+          <div class="workshop-content h-0 overflow-hidden">
+            <div class="pb-lg px-xl grid gap-gutter items-start" style="grid-template-columns: 9.5fr 2.5fr;">
+              <div class="flex flex-col gap-md pr-2xl">
+                <div class="flex gap-xl items-baseline">
+                  ${item.date ? `<h6 class="text-black whitespace-nowrap flex-shrink-0">${item.date}</h6>` : ''}
+                  ${item.location ? `<h6 class="text-black truncate">${item.location}</h6>` : ''}
                 </div>
-                <div>
-                  <h6 class="mb-xs text-black">Introduction 介紹</h6>
-                  <p class="text-p2">${item.intro}</p>
+                <div class="overflow-y-auto" style="max-height: 250px;">
+                  <p class="text-p2 leading-base">${item.intro}</p>
                 </div>
               </div>
-              <div class="w-full md:w-[30%]">
-                <img src="${item.image}" class="w-full object-cover block">
-              </div>
+              ${buildPosterHtml(item)}
             </div>
+            ${buildGalleryHtml(item)}
           </div>
         </div>
       `;
     }).join('');
 
-    const html = `
+    container.insertAdjacentHTML('beforeend', `
       <div class="workshop-year-group grid-12 items-start">
-        <div class="col-span-12 md:col-span-1 md:col-start-1 workshop-year-toggle cursor-pointer flex items-center gap-sm pt-md">
+        <div class="col-span-12 md:col-span-1 md:col-start-1 workshop-year-toggle cursor-pointer flex items-center gap-sm order-1 py-md md:sticky md:top-[264px] md:self-start md:pb-md">
           <i class="fa-solid fa-chevron-right text-p2 transition-all duration-fast rotate-90"></i>
           <h5>${yearGroup.year}</h5>
         </div>
-        <div class="col-span-12 md:col-span-11 md:col-start-2 workshop-year-items flex flex-col mt-md md:mt-0">
+        <div class="col-span-12 md:col-span-11 md:col-start-2 workshop-year-items flex flex-col order-2 mt-md md:mt-0 md:pl-[41px]">
           ${itemsHtml}
         </div>
       </div>
       ${!isLast ? '<div class="activities-separator border-b-4 border-black"></div>' : ''}
-    `;
-    container.insertAdjacentHTML('beforeend', html);
+    `);
   });
 
-  // 準備進場動畫：每個 year group 的 items 逐條 stagger，分割線最後進場
-  if (typeof gsap !== 'undefined') {
-    const allSets = [...container.querySelectorAll('.workshop-year-group')].map(group => {
-      const yearToggle = group.querySelector('.workshop-year-toggle');
-      const items = group.querySelectorAll('.workshop-item');
-      const divider = group.nextElementSibling?.classList.contains('activities-separator')
-        ? group.nextElementSibling : null;
-      return { group, items: [...(yearToggle ? [yearToggle] : []), ...items, ...(divider ? [divider] : [])] };
-    }).filter(s => s.items.length > 0);
-
-    if (allSets.length === 0) return null;
-
-    allSets.forEach(({ items }) => {
-      gsap.set(items, { y: 100, opacity: 0 });
-    });
-
-    return () => {
-      allSets.forEach(({ items }, i) => {
-        const delay = i * 0.15;
-        gsap.to(items, {
-          y: 0, opacity: 1,
-          duration: 0.6,
-          delay,
-          stagger: { each: 0.1, grid: 'auto', axis: 'y' },
-          ease: 'power2.out',
-          clearProps: 'transform,opacity',
-        });
-      });
-    };
-  }
-
-  return null;
+  return bindInteractions(container);
 }
 
-// 2. Summer Camp Renderer
+// ── 2. Summer Camp Renderer ───────────────────────────────────────────────────
+
 export async function loadSummerCamp() {
   return loadSummerCampInto(null);
 }
@@ -134,72 +295,48 @@ export async function loadSummerCampInto(containerId = null) {
 
   data.forEach((yearGroup, index) => {
     const isLast = index === data.length - 1;
-    const itemsHtml = yearGroup.items.map(item => `
-      <div class="summer-camp-item overflow-hidden">
-        <div class="summer-camp-header cursor-pointer group transition-colors duration-fast">
-          <div class="flex items-center justify-between px-[4px] py-lg">
-            <h4 class="font-bold">${item.title}</h4>
-            <i class="fa-solid fa-chevron-down text-p2 transition-transform duration-300"></i>
-          </div>
-        </div>
-        <div class="summer-camp-content h-0 overflow-hidden px-[4px]">
-          <div class="pb-md pt-xs flex flex-col-reverse md:flex-row gap-lg md:gap-3xl">
-            <div class="flex-1 flex flex-col gap-lg">
-              <p>${item.descriptionEn}</p>
-              <p>${item.descriptionZh}</p>
-            </div>
-            <div class="w-full md:w-[30%]">
-              <img src="${item.image}" alt="Camp Poster" class="w-full object-cover block">
-            </div>
-          </div>
-        </div>
-      </div>
-    `).join('');
+    const itemsHtml = yearGroup.items.map((item, idx) => {
+      const isItemLast = idx === yearGroup.items.length - 1;
+      const mediaJson = JSON.stringify(buildItemMedia(item)).replace(/"/g, '&quot;');
 
-    const html = `
-      <div class="summer-camp-year-group grid-12 items-start">
-        <div class="col-span-12 md:col-span-1 md:col-start-1 pt-lg">
-          <h5>${yearGroup.year}</h5>
+      return `
+        <div class="workshop-item ${!isItemLast ? 'border-b-4 border-black' : ''} overflow-hidden" data-media="${mediaJson}">
+          <div class="flex items-start">
+            <h5 class="font-bold flex-shrink-0 py-md pr-xl">${yearGroup.year}</h5>
+            <div class="flex-1 min-w-0">
+              <div class="workshop-header cursor-pointer group transition-colors duration-fast flex items-center justify-between px-[4px] py-md">
+                <div class="text-h5 font-bold">${item.title}</div>
+                <i class="fa-solid fa-chevron-down text-p2 transition-transform duration-300"></i>
+              </div>
+              <div class="workshop-content h-0 overflow-hidden">
+                <div class="pb-lg px-xl grid gap-gutter items-start" style="grid-template-columns: 9.5fr 2.5fr;">
+                  <div class="flex flex-col gap-md pr-2xl">
+                    <div class="flex gap-xl items-baseline">
+                      ${item.date ? `<h6 class="text-black whitespace-nowrap flex-shrink-0">${item.date}</h6>` : ''}
+                      ${item.location ? `<h6 class="text-black truncate">${item.location}</h6>` : ''}
+                    </div>
+                    <div class="overflow-y-auto" style="max-height: 250px;">
+                      <p class="text-p2 leading-base">${item.descriptionEn}</p>
+                      ${item.descriptionZh ? `<p class="text-p2 leading-base mt-md">${item.descriptionZh}</p>` : ''}
+                    </div>
+                  </div>
+                  ${buildPosterHtml(item)}
+                </div>
+                ${buildGalleryHtml(item)}
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="col-span-12 md:col-span-11 md:col-start-2 mt-md md:mt-0">
-          ${itemsHtml}
-        </div>
+      `;
+    }).join('');
+
+    container.insertAdjacentHTML('beforeend', `
+      <div class="workshop-year-group">
+        ${itemsHtml}
       </div>
       ${!isLast ? '<div class="activities-separator border-b-4 border-black"></div>' : ''}
-    `;
-    container.insertAdjacentHTML('beforeend', html);
+    `);
   });
 
-  // 準備進場動畫：每個 year group 的 items 逐條 stagger，分割線最後進場
-  if (typeof gsap !== 'undefined') {
-    const allSets = [...container.querySelectorAll('.summer-camp-year-group')].map(group => {
-      const yearEl = group.querySelector('h5');
-      const items = group.querySelectorAll('.summer-camp-item');
-      const divider = group.nextElementSibling?.classList.contains('activities-separator')
-        ? group.nextElementSibling : null;
-      return { group, items: [...(yearEl ? [yearEl] : []), ...items, ...(divider ? [divider] : [])] };
-    }).filter(s => s.items.length > 0);
-
-    if (allSets.length === 0) return null;
-
-    allSets.forEach(({ items }) => {
-      gsap.set(items, { y: 100, opacity: 0 });
-    });
-
-    return () => {
-      allSets.forEach(({ items }, i) => {
-        const delay = i * 0.15;
-        gsap.to(items, {
-          y: 0, opacity: 1,
-          duration: 0.6,
-          delay,
-          stagger: { each: 0.1, grid: 'auto', axis: 'y' },
-          ease: 'power2.out',
-          clearProps: 'transform,opacity',
-        });
-      });
-    };
-  }
-
-  return null;
+  return bindInteractions(container);
 }

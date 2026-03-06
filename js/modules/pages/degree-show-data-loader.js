@@ -26,7 +26,7 @@ export async function loadDegreeShowListInto(containerId) {
       const html = `
         <a href="degree-show-detail.html?year=${year}" class="grid-12 items-start degree-show-card" style="--card-color: ${color}">
           <div class="col-span-12 md:col-start-1 md:col-span-1 mb-sm md:mb-0"><h5>${year}</h5></div>
-          <div class="col-span-12 md:col-start-2 md:col-span-11">
+          <div class="degree-show-card-content col-span-12 md:col-start-2 md:col-span-11 p-[6px] transition-colors duration-fast">
             <div class="degree-show-img-wrapper overflow-hidden mb-md">
               <img src="${item.coverImage}" alt="Degree Show ${year}" loading="lazy" class="degree-show-img w-full object-cover">
             </div>
@@ -39,6 +39,17 @@ export async function loadDegreeShowListInto(containerId) {
 
     // 等 layout 穩定後再初始化 ScrollTrigger，確保正確偵測哪些卡片在 viewport 內
     const cards = container.querySelectorAll('.degree-show-card');
+
+    // Hover color (desktop only)
+    if (window.innerWidth >= 768) {
+      cards.forEach(card => {
+        const content = card.querySelector('.degree-show-card-content');
+        const color = getComputedStyle(card).getPropertyValue('--card-color').trim();
+        card.addEventListener('mouseenter', () => { if (content) content.style.backgroundColor = color; });
+        card.addEventListener('mouseleave', () => { if (content) content.style.backgroundColor = ''; });
+      });
+    }
+
     requestAnimationFrame(() => {
       animateCards(cards, true, { fadeIn: true });
     });

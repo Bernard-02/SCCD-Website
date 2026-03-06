@@ -54,7 +54,7 @@ export async function loadRecords() {
         <div class="year-block grid-12 items-start">
 
           <!-- Year + Chevron: Mobile Full (Col 1-12), Desktop Col 3 -->
-          <div class="col-span-12 md:col-span-1 md:col-start-3 activities-year-toggle cursor-pointer flex items-center gap-sm pt-sm h-toggle">
+          <div class="col-span-12 md:col-span-1 md:col-start-3 activities-year-toggle cursor-pointer flex items-center gap-sm pt-xs pb-md">
             <i class="fa-solid fa-chevron-right text-p2 transition-all duration-fast rotate-90"></i>
             <h6>${yearGroup.year}</h6>
           </div>
@@ -68,6 +68,16 @@ export async function loadRecords() {
       `;
       container.insertAdjacentHTML('beforeend', html);
     });
+
+    // 預設所有 year items 為展開狀態（給 activities-year-toggle.js 正確判斷）
+    if (typeof gsap !== 'undefined') {
+      container.querySelectorAll('.activities-year-items').forEach(el => {
+        gsap.set(el, { height: 'auto', overflow: 'visible', display: 'flex' });
+      });
+      container.querySelectorAll('.activities-year-toggle .fa-chevron-right').forEach(el => {
+        gsap.set(el, { rotation: 90 });
+      });
+    }
 
     // 年份 block 進場動畫：每個 year block 進入視窗時，內部 item 逐條 stagger 出現，分割線最後進場
     if (typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined') {

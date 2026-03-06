@@ -14,7 +14,7 @@ export function initActivitiesYearToggle() {
     const yearGrid = toggle.closest('.activities-year-grid') || toggle.closest('.grid-12');
     if (yearGrid) {
       const itemsContainer = yearGrid.querySelector('.activities-year-items');
-      const chevron = yearGrid.querySelector('.h-toggle i'); // Select generic icon
+      const chevron = toggle.querySelector('i') || yearGrid.querySelector('.h-toggle i'); // Support both inline toggle and h-toggle wrapper
 
       if (itemsContainer) {
         // Determine initial state based on chevron type or class
@@ -50,7 +50,7 @@ export function initActivitiesYearToggle() {
       if (!yearGrid) return;
 
       // Find the chevron and items container within this year group
-      const chevron = yearGrid.querySelector('.h-toggle i');
+      const chevron = this.querySelector('i') || yearGrid.querySelector('.h-toggle i');
       const itemsContainer = yearGrid.querySelector('.activities-year-items');
 
       if (itemsContainer) {

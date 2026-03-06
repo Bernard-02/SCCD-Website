@@ -116,15 +116,9 @@ export function initActivitiesFilter() {
     if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh();
   }
 
-  function getRandomRotation() {
-    let deg;
-    do { deg = Math.round(Math.random() * 10) - 4; } while (deg === 0);
-    return deg;
-  }
-
   function updateBtnStates() {
     const color = getCurrentSectionColor();
-    const rot = getRandomRotation();
+    const rot = SCCDHelpers.getRandomRotation();
     filterBtns.forEach(btn => {
       const isActive = btn.getAttribute('data-filter') === current;
       btn.classList.toggle('active', isActive);

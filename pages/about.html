@@ -208,16 +208,21 @@
       <section id="class" class="bg-white relative z-10">
         <!-- Banner with Image and Title -->
         <div class="relative w-full aspect-[3/4] md:aspect-auto md:h-screen">
-          <!-- Background Image -->
-          <div class="absolute inset-0 w-full h-full">
-            <img src="../images/SCCD-1-4-0.jpg" alt="BFA Class" class="w-full h-full object-cover">
+          <!-- Overflow wrapper: clips banner during expand animation -->
+          <div class="section-banner-clip absolute inset-0 flex justify-center overflow-hidden">
+            <!-- Inner container: width animated by GSAP -->
+            <div class="section-banner-inner relative h-full flex-shrink-0" data-section-banner style="width: 50%;">
+              <!-- Background Image -->
+              <div class="absolute inset-0 w-full h-full">
+                <img src="../images/SCCD-1-4-0.jpg" alt="BFA Class" class="w-full h-full object-cover">
+              </div>
+              <!-- Black Overlay (30%) - animated in -->
+              <div class="section-banner-overlay absolute inset-0 w-full h-full bg-black opacity-0"></div>
+            </div>
           </div>
 
-          <!-- Black Overlay (30%) -->
-          <div class="absolute inset-0 w-full h-full bg-black opacity-30"></div>
-
-          <!-- Title in Center -->
-          <div class="absolute inset-0 w-full h-full flex items-center justify-center z-10">
+          <!-- Title: outside clip wrapper, full width, z-10 -->
+          <div class="section-banner-title absolute inset-0 w-full h-full flex items-center justify-center z-10 opacity-0 pointer-events-none">
             <div class="text-center">
               <h1 class="text-white transform rotate-[-2deg] md:rotate-[-4deg] translate-x-0 md:translate-x-[-200px]">Class</h1>
               <h1 class="text-white mt-md transform rotate-[2deg] md:rotate-[4deg] translate-x-0 md:translate-x-[300px]">班級</h1>
@@ -344,7 +349,7 @@
         <!-- Sticky Timeline Display -->
         <div class="timeline-sticky-container sticky bg-white h-screen top-0 md:top-[50px]">
           <!-- Mobile Vertical Line: Inside sticky container to stay visible -->
-          <div class="md:hidden w-[1px] bg-gray-9 absolute left-8 top-0 h-full z-0"></div>
+          <div class="md:hidden w-[4px] bg-black absolute left-8 top-0 h-full z-0"></div>
 
           <!-- Era Label (with container) -->
           <div class="site-container pt-[120px] md:pt-0">
@@ -374,7 +379,7 @@
           </div>
 
           <!-- Full Width Line (True full viewport width: 100vw from edge to edge) -->
-          <div class="hidden md:block h-[1px] bg-gray-9 mt-lg" style="width: 100vw; position: relative; left: 50%; right: 50%; margin-left: -50vw; margin-right: -50vw;"></div>
+          <div class="hidden md:block h-[4px] bg-black mt-lg" style="width: 100vw; position: relative; left: 50%; right: 50%; margin-left: -50vw; margin-right: -50vw;"></div>
 
           <div class="site-container pb-4xl">
             <!-- Timeline Content (Image + Text) -->
@@ -401,16 +406,16 @@
       <section id="resources" class="bg-white relative z-10">
         <!-- Banner with Image and Title -->
         <div class="relative w-full aspect-[3/4] md:aspect-auto md:h-screen">
-          <!-- Background Image -->
-          <div class="absolute inset-0 w-full h-full">
-            <img src="../images/SCCD-1-4-0.jpg" alt="Resources" class="w-full h-full object-cover">
+          <div class="section-banner-clip absolute inset-0 flex justify-center overflow-hidden">
+            <div class="section-banner-inner relative h-full flex-shrink-0" data-section-banner style="width: 50%;">
+              <div class="absolute inset-0 w-full h-full">
+                <img src="../images/SCCD-1-4-0.jpg" alt="Resources" class="w-full h-full object-cover">
+              </div>
+              <div class="section-banner-overlay absolute inset-0 w-full h-full bg-black opacity-0"></div>
+            </div>
           </div>
 
-          <!-- Black Overlay (30%) -->
-          <div class="absolute inset-0 w-full h-full bg-black opacity-30"></div>
-
-          <!-- Title in Center -->
-          <div class="absolute inset-0 w-full h-full flex items-center justify-center z-10">
+          <div class="section-banner-title absolute inset-0 w-full h-full flex items-center justify-center z-10 opacity-0 pointer-events-none">
             <div class="text-center">
               <h1 class="text-white transform rotate-[-2deg] md:rotate-[-4deg] translate-x-0 md:translate-x-[-200px]">Resources</h1>
               <h1 class="text-white mt-md transform rotate-[2deg] md:rotate-[4deg] translate-x-0 md:translate-x-[300px]">環境資源</h1>
@@ -444,16 +449,16 @@
       <section id="alumni" class="bg-white relative z-10">
         <!-- Banner with Image and Title -->
         <div class="relative w-full aspect-[3/4] md:aspect-auto md:h-screen">
-          <!-- Background Image -->
-          <div class="absolute inset-0 w-full h-full">
-            <img src="../images/SCCD-1-4-0.jpg" alt="Alumni" class="w-full h-full object-cover">
+          <div class="section-banner-clip absolute inset-0 flex justify-center overflow-hidden">
+            <div class="section-banner-inner relative h-full flex-shrink-0" data-section-banner style="width: 50%;">
+              <div class="absolute inset-0 w-full h-full">
+                <img src="../images/SCCD-1-4-0.jpg" alt="Alumni" class="w-full h-full object-cover">
+              </div>
+              <div class="section-banner-overlay absolute inset-0 w-full h-full bg-black opacity-0"></div>
+            </div>
           </div>
 
-          <!-- Black Overlay (30%) -->
-          <div class="absolute inset-0 w-full h-full bg-black opacity-30"></div>
-
-          <!-- Title in Center -->
-          <div class="absolute inset-0 w-full h-full flex items-center justify-center z-10">
+          <div class="section-banner-title absolute inset-0 w-full h-full flex items-center justify-center z-10 opacity-0 pointer-events-none">
             <div class="text-center">
               <h1 class="text-white transform rotate-[-2deg] md:rotate-[-4deg] translate-x-0 md:translate-x-[-200px]">Alumni</h1>
               <h1 class="text-white mt-md transform rotate-[2deg] md:rotate-[4deg] translate-x-0 md:translate-x-[300px]">系友發展</h1>

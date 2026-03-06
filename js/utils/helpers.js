@@ -271,6 +271,32 @@ window.SCCDHelpers = window.SCCDHelpers || {};
     });
   };
 
+  // ===== UI 隨機效果 =====
+
+  const ACCENT_COLORS = ['#FF448A', '#00FF80', '#26BCFF'];
+  let _lastColorIndex = -1;
+
+  /**
+   * 從三原色中隨機取一個（避免與上次相同）
+   * @returns {string} hex color
+   */
+  Helpers.getRandomAccentColor = function() {
+    let index;
+    do { index = Math.floor(Math.random() * ACCENT_COLORS.length); } while (index === _lastColorIndex);
+    _lastColorIndex = index;
+    return ACCENT_COLORS[index];
+  };
+
+  /**
+   * 隨機旋轉角度（-4 ~ 4 deg，排除 0）
+   * @returns {number}
+   */
+  Helpers.getRandomRotation = function() {
+    let deg;
+    do { deg = Math.round(Math.random() * 10) - 4; } while (deg === 0);
+    return deg;
+  };
+
   // ===== 資料處理 =====
 
   /**

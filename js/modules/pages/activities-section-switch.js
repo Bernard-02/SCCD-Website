@@ -10,11 +10,9 @@ import { loadDegreeShowListInto } from './degree-show-data-loader.js';
 import { initActivitiesFilter } from '../filters/activities-filter.js';
 import { initActivitiesYearToggle } from '../accordions/activities-year-toggle.js';
 import { initWorkshopAccordion } from '../accordions/workshop-accordion.js';
-import { initSummerCampAccordion } from '../accordions/summer-camp-accordion.js';
 
 // 追蹤哪些 panel 已載入過資料
 const loaded = {};
-const COLORS = ['#FF448A', '#00FF80', '#26BCFF'];
 
 let currentSectionColor = '';
 export function getCurrentSectionColor() { return currentSectionColor; }
@@ -37,20 +35,10 @@ export function initActivitiesSectionSwitch() {
   });
 }
 
-function getRandomColor() {
-  return COLORS[Math.floor(Math.random() * COLORS.length)];
-}
-
-function getRandomRotation() {
-  let deg;
-  do { deg = Math.round(Math.random() * 10) - 4; } while (deg === 0);
-  return deg;
-}
-
 function setActiveSectionStyle(btns, activeBtn) {
-  const color = getRandomColor();
+  const color = SCCDHelpers.getRandomAccentColor();
   currentSectionColor = color;
-  const rot = getRandomRotation();
+  const rot = SCCDHelpers.getRandomRotation();
   btns.forEach(b => {
     b.classList.remove('active');
     const inner = b.querySelector('.anchor-nav-inner');
@@ -79,7 +67,7 @@ async function switchToSection(section, btns, shouldScroll) {
     const activeFilterBtn = target.querySelector('.activities-filter-btn.active');
     if (activeFilterBtn) {
       const filterInner = activeFilterBtn.querySelector('.anchor-nav-inner');
-      if (filterInner) { filterInner.style.background = currentSectionColor; filterInner.style.transform = `rotate(${getRandomRotation()}deg)`; }
+      if (filterInner) { filterInner.style.background = currentSectionColor; filterInner.style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`; }
     }
   }
 
@@ -139,7 +127,7 @@ async function loadPanel(section) {
 
     case 'summer-camp': {
       const play = await loadSummerCampInto('summer-camp-list');
-      initSummerCampAccordion();
+      initWorkshopAccordion();
       return play;
     }
 

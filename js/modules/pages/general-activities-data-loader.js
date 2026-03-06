@@ -4,6 +4,14 @@
  * Item 的 first/last 樣式完全由 activities-filter.js 動態控制
  */
 
+import { buildItemMedia, buildPosterHtml, buildGalleryHtml, bindInteractions } from './activities-data-loader.js';
+
+// 日期格式：去掉年份，只留月份與日期，支援 range
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  return dateStr.replace(/\d{4}\./g, '').trim();
+}
+
 // 每個 group 對應的 ScrollTrigger instance，供 filter 重建動畫用
 const groupScrollTriggers = new Map();
 export function getGroupScrollTriggers() { return groupScrollTriggers; }
@@ -57,40 +65,40 @@ export async function loadGeneralActivitiesInto(containerId) {
       const isLast = index === data.length - 1;
 
       const itemsHtml = yearGroup.items.map(item => {
-        const images = (item.images || []).slice(0, 5);
-        const galleryHtml = images.length > 0 ? `
-          <div class="activity-gallery flex gap-sm mt-md">
-            ${images.map(src => `
-              <div class="flex-1 min-w-0">
-                <img src="${src}" alt="" class="w-full h-[160px] object-cover block">
-              </div>
-            `).join('')}
-          </div>
-        ` : '';
+        const mediaJson = JSON.stringify(buildItemMedia(item)).replace(/"/g, '&quot;');
+        const dateDisplay = formatDate(item.date);
 
         return `
-          <div class="workshop-item overflow-hidden" data-category="${item.category}">
+          <div class="workshop-item overflow-hidden" data-category="${item.category}" data-media="${mediaJson}">
             <div class="workshop-header cursor-pointer group transition-colors duration-fast flex items-center justify-between px-[4px] py-md">
               <div class="text-h5 font-bold">${item.title}</div>
               <i class="fa-solid fa-chevron-down text-p2 transition-transform duration-300"></i>
             </div>
-            <div class="workshop-content h-0 overflow-hidden px-[4px]">
-              <div class="pb-xl flex flex-col gap-md">
-                <div class="flex gap-xl">
-                  ${item.date ? `<h6 class="text-black">${item.date}</h6>` : ''}
-                  <h6 class="text-black">${item.categoryLabel}</h6>
+            <div class="workshop-content h-0 overflow-hidden">
+              <div class="pb-lg px-xl grid gap-gutter items-start" style="grid-template-columns: 9.5fr 2.5fr;">
+                <div class="flex flex-col gap-md pr-2xl">
+                  <div class="flex gap-xl items-baseline">
+                    ${dateDisplay ? `<h6 class="text-black whitespace-nowrap flex-shrink-0">${dateDisplay}</h6>` : ''}
+                    ${item.location ? `<h6 class="text-black truncate">${item.location}</h6>` : ''}
+                  </div>
+                  ${item.description ? `
+                  <div class="overflow-y-auto" style="max-height: 250px;">
+                    <p class="text-p2 leading-base">${item.description}</p>
+                  </div>
+                  ` : ''}
                 </div>
-                ${galleryHtml}
+                ${buildPosterHtml(item)}
               </div>
+              ${buildGalleryHtml(item)}
             </div>
           </div>
         `;
       }).join('');
 
-      const html = `
+      container.insertAdjacentHTML('beforeend', `
         <div class="workshop-year-group grid-12 items-start">
-          <div class="col-span-12 md:col-span-1 md:col-start-1 workshop-year-toggle cursor-pointer flex items-center gap-sm order-1 pt-md md:sticky md:top-[264px] md:self-start md:pb-md">
-            <i class="fa-solid fa-chevron-right text-p2 transition-all duration-fast rotate-90"></i>
+          <div class="col-span-12 md:col-span-1 md:col-start-1 workshop-year-toggle cursor-pointer flex items-center gap-sm order-1 py-md md:sticky md:top-[264px] md:self-start md:pb-md">
+            <i class="fa-solid fa-chevron-right text-p2 transition-all duration-fast rotate-90 pl-xs"></i>
             <h5>${yearGroup.year}</h5>
           </div>
           <div class="col-span-12 md:col-span-11 md:col-start-2 workshop-year-items flex flex-col order-2 mt-md md:mt-0 md:pl-[41px]">
@@ -98,11 +106,13 @@ export async function loadGeneralActivitiesInto(containerId) {
           </div>
         </div>
         ${!isLast ? '<div class="activities-separator border-b-4 border-black"></div>' : ''}
-      `;
-      container.insertAdjacentHTML('beforeend', html);
+      `);
     });
 
-    // 進場動畫：每個 year group 進入視窗時，內部 items 逐條 stagger 出現，分割線最後進場
+    // Gallery 左右滑動、Lightbox、hover 效果、海報比例偵測
+    bindInteractions(container);
+
+    // 進場動畫：ScrollTrigger（general activities 使用 ScrollTrigger，不同於其他用 GSAP 直播）
     if (typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined') {
       container.querySelectorAll('.workshop-year-group').forEach(group => {
         const st = buildGroupScrollTrigger(group);

@@ -23,6 +23,7 @@ import { initTextReveal } from './modules/ui/text-reveal.js';
 import { initResourcesCycling } from './modules/pages/about/resources-cycling.js';
 import { initBrandTrail } from './modules/pages/about/brand-trail.js';
 import { initTimeline } from './modules/pages/about/timeline.js'; // Ensure this file exists
+import { initSectionBannerReveal } from './modules/pages/about/section-banner-reveal.js';
 import { initAnchorNav } from './modules/navigation/anchor-nav.js';
 
 // Import Page Specific Modules
@@ -41,8 +42,7 @@ import { initActivitiesYearToggle } from './modules/accordions/activities-year-t
 // Import Data Loaders
 import { loadRecords } from './modules/pages/records-data-loader.js';
 import { loadFacultyData } from './modules/pages/faculty-data-loader.js';
-import { loadBFAWorks } from './modules/pages/bfa-works-data-loader.js';
-import { loadMDESWorks } from './modules/pages/mdes-works-data-loader.js';
+import { loadBFAWorks, loadMDESWorks } from './modules/pages/bfa-works-data-loader.js';
 import { loadLibraryData } from './modules/pages/library-data-loader.js';
 import { loadAdmissionData } from './modules/pages/admission-data-loader.js';
 import { loadSupportData } from './modules/pages/support-data-loader.js';
@@ -102,6 +102,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initHorizontalAccordion(); // About 頁面的 Accordion（通用版）
     initBFADivisionToggle();   // BFA Class 分組切換
     initTextReveal();
+    initSectionBannerReveal(); // Section banner 放大進場動畫
   }
 
   // --- Degree Show Pages ---
@@ -225,18 +226,6 @@ document.addEventListener('DOMContentLoaded', function() {
       () => loadBFAWorks().then(() => initWorksFilter()),
       () => loadMDESWorks()
     );
-  }
-
-  // --- Works Page (舊版，保留相容性) ---
-  if (page === 'bfa-works.html') {
-    loadBFAWorks().then(() => {
-      initWorksFilter();
-    });
-  }
-  if (page === 'mdes-works.html') {
-    loadMDESWorks().then(() => {
-      initWorksFilter();
-    });
   }
 
   // --- Library Page ---

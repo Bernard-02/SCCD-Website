@@ -7,11 +7,6 @@
 import { animateCards } from '../ui/scroll-animate.js';
 import { getCurrentProgramColor } from '../pages/courses-section-switch.js';
 
-function getRandomRotation() {
-  let deg;
-  do { deg = Math.round(Math.random() * 10) - 4; } while (deg === 0);
-  return deg;
-}
 
 export function initCoursesFilter(program) {
   // filter bar 已移出 panel，從 panel 的父層（flex-1）找 btn；year group 仍在 panel 內
@@ -29,7 +24,7 @@ export function initCoursesFilter(program) {
   const activeBtn = filterScope.querySelector('.courses-filter-btn.active');
   if (activeBtn) {
     const activeInner = activeBtn.querySelector('.anchor-nav-inner');
-    if (activeInner) { activeInner.style.background = getCurrentProgramColor(); activeInner.style.transform = `rotate(${getRandomRotation()}deg)`; }
+    if (activeInner) { activeInner.style.background = getCurrentProgramColor(); activeInner.style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`; }
   }
 
   coursesFilterButtons.forEach(button => {
@@ -42,7 +37,7 @@ export function initCoursesFilter(program) {
 
       // 更新 active 狀態與 color/rotation
       const color = getCurrentProgramColor();
-      const rot = getRandomRotation();
+      const rot = SCCDHelpers.getRandomRotation();
       coursesFilterButtons.forEach(b => {
         b.classList.remove('active');
         const inner = b.querySelector('.anchor-nav-inner');

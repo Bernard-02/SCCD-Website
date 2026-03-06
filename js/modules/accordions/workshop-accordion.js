@@ -79,11 +79,6 @@ function initWorkshopYearToggle() {
   });
 }
 
-const ACCENT_COLORS = ['#FF448A', '#00FF80', '#26BCFF'];
-function getRandomAccentColor() {
-  return ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
-}
-
 /**
  * Initialize Workshop Header Accordion (個別工作營展開/收合)
  */
@@ -97,13 +92,16 @@ function initWorkshopHeaderAccordion() {
     header.dataset.accordionInit = '1';
 
     // Initialization: Ensure content is hidden properly for GSAP
-    const content = header.nextElementSibling;
+    // nextElementSibling may be the flex wrapper; fall back to .workshop-content in parent
+    const content = (header.nextElementSibling?.classList.contains('workshop-content')
+      ? header.nextElementSibling
+      : header.closest('.workshop-item')?.querySelector('.workshop-content')) || header.nextElementSibling;
     gsap.set(content, { height: 0, overflow: 'hidden' });
 
     // Hover: 未展開時顯示隨機色，展開後 hover 不改色
     header.addEventListener('mouseenter', function() {
       if (!this.classList.contains('active')) {
-        this.style.background = getRandomAccentColor();
+        this.style.background = SCCDHelpers.getRandomAccentColor();
       }
     });
     header.addEventListener('mouseleave', function() {
@@ -113,7 +111,9 @@ function initWorkshopHeaderAccordion() {
     });
 
     header.addEventListener('click', function() {
-      const content = this.nextElementSibling;
+      const content = (this.nextElementSibling?.classList.contains('workshop-content')
+        ? this.nextElementSibling
+        : this.closest('.workshop-item')?.querySelector('.workshop-content')) || this.nextElementSibling;
       const chevron = this.querySelector('.fa-chevron-down');
 
       // Toggle active state
@@ -122,10 +122,16 @@ function initWorkshopHeaderAccordion() {
 
       if (isActive) {
         // Open - 保留 hover 時的顏色，content 繼承同色
-        const color = this.style.background || getRandomAccentColor();
+        const color = this.style.background || SCCDHelpers.getRandomAccentColor();
         this.style.background = color;
         content.style.background = color;
-        gsap.to(content, { height: 'auto', duration: 0.5, ease: "power2.out" });
+        const workshopItem = this.closest('.workshop-item');
+        gsap.to(content, {
+          height: 'auto', duration: 0.5, ease: "power2.out",
+          onComplete: () => {
+            workshopItem?.dispatchEvent(new Event('gallery:check'));
+          }
+        });
         gsap.to(chevron, { rotation: 180, duration: 0.3 });
       } else {
         // Close - 收合完成後才清除顏色

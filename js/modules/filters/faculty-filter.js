@@ -11,24 +11,8 @@ export function initFacultyFilter() {
 
   if (filterButtons.length === 0 || facultyCards.length === 0) return;
 
-  const FILTER_COLORS = ['#26BCFF', '#FF448A', '#00FF80'];
-  let lastColorIndex = -1;
-
-  function getRandomColor() {
-    let index;
-    do { index = Math.floor(Math.random() * FILTER_COLORS.length); } while (index === lastColorIndex);
-    lastColorIndex = index;
-    return FILTER_COLORS[index];
-  }
-
-  function getRandomRotation() {
-    let deg;
-    do { deg = Math.round(Math.random() * 10) - 4; } while (deg === 0);
-    return deg;
-  }
-
   function setActiveStyle(activeBtn, color) {
-    const rot = getRandomRotation();
+    const rot = SCCDHelpers.getRandomRotation();
     filterButtons.forEach(btn => {
       const inner = btn.querySelector('.anchor-nav-inner');
       if (inner) {
@@ -49,7 +33,7 @@ export function initFacultyFilter() {
       e.preventDefault();
 
       // Reset color on all buttons, set random color on active
-      const color = getRandomColor();
+      const color = SCCDHelpers.getRandomAccentColor();
       setActiveStyle(this, color);
 
       // Set active state using helper
@@ -75,7 +59,7 @@ export function initFacultyFilter() {
 
   // Initialize: set random color on the default active button
   const defaultBtn = [...filterButtons].find(b => b.getAttribute('data-filter') === 'fulltime');
-  if (defaultBtn) setActiveStyle(defaultBtn, getRandomColor());
+  if (defaultBtn) setActiveStyle(defaultBtn, SCCDHelpers.getRandomAccentColor());
 
   // Initialize: show only fulltime cards on page load
   const initialFilter = 'fulltime';
