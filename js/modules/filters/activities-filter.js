@@ -12,15 +12,7 @@
  */
 
 import { getCurrentSectionColor } from '../pages/activities-section-switch.js';
-import { buildGroupScrollTrigger, getGroupScrollTriggers } from '../pages/general-activities-data-loader.js';
-
-// 每種位置套用到 header 的 class 集合
-const POSITION_HEADER = {
-  first:  ['pb-md'],
-  only:   ['pb-md'],
-  middle: ['pt-md', 'pb-md'],
-  last:   ['pt-md', 'pb-md'],
-};
+import { getGroupScrollTriggers, playGroupsInSequence } from '../pages/general-activities-data-loader.js';
 
 function getPosition(idx, total) {
   if (total === 1) return 'only';
@@ -30,17 +22,24 @@ function getPosition(idx, total) {
 }
 
 function applyItemPosition(item, position) {
-  // Border only on first and middle
+  // Border only on first and middle (last item has no bottom border)
   const hasBorder = position === 'first' || position === 'middle';
   item.classList.toggle('border-b-4', hasBorder);
   item.classList.toggle('border-black', hasBorder);
-
-  // Padding on header (clearing is done by caller before this runs)
-  const header = item.querySelector('.workshop-header');
-  if (!header) return;
-  const classes = POSITION_HEADER[position];
-  if (classes.length) header.classList.add(...classes);
 }
+
+let _applyFilter = null;
+let _getMomentQuery = null;
+export function reapplyMomentFilter() {
+  const query = _getMomentQuery ? _getMomentQuery() : '';
+  if (query) {
+    // 有搜尋關鍵字時，通知 search module 重跑搜尋（以搜尋結果為主）
+    document.dispatchEvent(new CustomEvent('moment-reapply-search'));
+  } else {
+    if (_applyFilter) _applyFilter();
+  }
+}
+export function setMomentQueryGetter(fn) { _getMomentQuery = fn; }
 
 export function initActivitiesFilter() {
   const filterBtns = document.querySelectorAll('.activities-filter-btn');
@@ -52,17 +51,22 @@ export function initActivitiesFilter() {
   function applyFilter() {
     const panelGeneral = document.getElementById('panel-general');
     if (!panelGeneral) return;
+
+    // 顯示/隱藏分類標籤：只有 all 時顯示
+    panelGeneral.querySelectorAll('.item-category-label').forEach(el => {
+      el.style.display = current === 'all' ? '' : 'none';
+    });
+
     const yearGroups = panelGeneral.querySelectorAll('.workshop-year-group');
     if (yearGroups.length === 0) return;
-    const stMap = getGroupScrollTriggers();
 
     yearGroups.forEach(group => {
       const allItems = [...group.querySelectorAll('.workshop-item[data-category]')];
 
-      // 顯示/隱藏 items
+      // 顯示/隱藏 items（seminars 已移至 lectures panel，moment 不顯示）
       allItems.forEach(item => {
         const cat = item.getAttribute('data-category');
-        const visible = current === 'all' || cat === current;
+        const visible = cat !== 'seminars' && (current === 'all' || cat === current);
         item.style.display = visible ? '' : 'none';
       });
 
@@ -72,8 +76,6 @@ export function initActivitiesFilter() {
       // 先清掉所有 item 的位置 class（包含被隱藏的）
       allItems.forEach(item => {
         item.classList.remove('border-b-4', 'border-black');
-        const header = item.querySelector('.workshop-header');
-        if (header) header.classList.remove('pt-md', 'pb-md');
       });
 
       // 對可見 item 套用正確的位置樣式
@@ -91,13 +93,6 @@ export function initActivitiesFilter() {
         separator.style.display = hasVisible ? '' : 'none';
       }
 
-      // Kill 舊的 ScrollTrigger，重建（讓 visible items 有進場動畫）
-      if (hasVisible) {
-        const oldSt = stMap.get(group);
-        if (oldSt) oldSt.kill();
-        const newSt = buildGroupScrollTrigger(group);
-        if (newSt) stMap.set(group, newSt);
-      }
     });
 
     // 最後一個可見 group 的分隔線強制隱藏（避免尾端多一條線）
@@ -112,7 +107,14 @@ export function initActivitiesFilter() {
       }
     }
 
-    // 重建後刷新 ScrollTrigger 位置計算
+    // Kill 舊的 ScrollTriggers，改用統一依序播放動畫
+    const stMap = getGroupScrollTriggers();
+    stMap.forEach(st => st && st.kill());
+    stMap.clear();
+
+    const visibleGroups = [...yearGroups].filter(g => g.style.display !== 'none');
+    playGroupsInSequence(visibleGroups);
+
     if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh();
   }
 
@@ -134,11 +136,12 @@ export function initActivitiesFilter() {
     btn.addEventListener('click', function () {
       current = this.getAttribute('data-filter');
       updateBtnStates();
-      applyFilter();
+      reapplyMomentFilter();
     });
   });
 
   // 初始化
+  _applyFilter = applyFilter;
   updateBtnStates();
   applyFilter();
 }

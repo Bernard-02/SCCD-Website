@@ -3,6 +3,21 @@
  * Activities List 等列表項目樣式
  */
 
+/* ===== Activities Search Bar ===== */
+.activities-search-input::placeholder {
+  color: rgba(0, 0, 0, 0.5);
+  font-weight: 700;
+}
+
+.activities-search-inner {
+  border-bottom: 4px solid black;
+}
+
+.activities-search-icon {
+  color: black;
+  flex-shrink: 0;
+}
+
 @layer components {
   /* ===== Activities List Item - Unified Style ===== */
   .activities-item {

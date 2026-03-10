@@ -55,35 +55,48 @@ export function initAnchorNav() {
 
   let currentActiveId = null;
 
+  function setActiveBtn(id) {
+    if (id === currentActiveId) return;
+    currentActiveId = id;
+    const rot = getNavRotation();
+    navButtons.forEach(btn => {
+      const isActive = btn.getAttribute('data-target') === id;
+      btn.classList.toggle('active', isActive);
+      const inner = btn.querySelector('.anchor-nav-inner');
+      if (inner) {
+        inner.style.background = isActive ? getNavColor() : '';
+        inner.style.transform = isActive ? `rotate(${rot}deg)` : '';
+      }
+    });
+  }
+
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
         const id = entry.target.id;
-        // timeline 屬於 class section，不觸發任何狀態更新
-        if (id === 'timeline') return;
-        // 同一個 section 重複進入時不換色
-        if (id === currentActiveId) return;
-        currentActiveId = id;
-
-        const rot = getNavRotation();
-
-        // active btn：隨機彩色底 + 旋轉；非 active：reset 回 CSS 預設（半透黑底）
-        navButtons.forEach(btn => {
-          const isActive = btn.getAttribute('data-target') === id;
-          btn.classList.toggle('active', isActive);
-          const inner = btn.querySelector('.anchor-nav-inner');
-          if (inner) {
-            inner.style.background = isActive ? getNavColor() : '';
-            inner.style.transform = isActive ? `rotate(${rot}deg)` : '';
-          }
-        });
+        // timeline 屬於 class section，active 指向 class
+        if (id === 'timeline') {
+          setActiveBtn('class');
+          return;
+        }
+        setActiveBtn(id);
       }
     });
   }, observerOptions);
 
+  // timeline 用較寬鬆的 threshold，只要頂部進入視窗即觸發
+  const timelineObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) setActiveBtn('class');
+    });
+  }, { root: null, rootMargin: '0px', threshold: 0 });
+
   sections.forEach(section => {
-    if (section.id === 'timeline') return;
-    observer.observe(section);
+    if (section.id === 'timeline') {
+      timelineObserver.observe(section);
+    } else {
+      observer.observe(section);
+    }
   });
 
   // 3. Mobile Menu Toggle Logic

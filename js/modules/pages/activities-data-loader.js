@@ -5,6 +5,17 @@
 
 import { openLightbox } from '../lightbox/activities-lightbox.js';
 
+// 動態設定年份 toggle 的 sticky top（對應所在 panel 的 search bar 底部）
+function updateYearToggleStickyTopForPanel(container) {
+  if (window.innerWidth < 768) return;
+  const panel = container.closest('.activities-panel');
+  const filterBar = panel ? panel.querySelector('.activities-filter-bar') : null;
+  const stickyTop = filterBar ? 160 + filterBar.offsetHeight : 160;
+  container.querySelectorAll('.workshop-year-toggle').forEach(el => {
+    el.style.top = stickyTop + 'px';
+  });
+}
+
 // Helper: 為 workshop-item 內的海報及 gallery 圖片加上 hover 灰階 + screen overlay 效果
 export function bindMediaHover(container) {
   container.querySelectorAll('.workshop-item').forEach(workshopItem => {
@@ -261,7 +272,7 @@ export async function loadWorkshopsInto(jsonFile, pageType = 'workshop', contain
 
     container.insertAdjacentHTML('beforeend', `
       <div class="workshop-year-group grid-12 items-start">
-        <div class="col-span-12 md:col-span-1 md:col-start-1 workshop-year-toggle cursor-pointer flex items-center gap-sm order-1 py-md md:sticky md:top-[264px] md:self-start md:pb-md">
+        <div class="col-span-12 md:col-span-1 md:col-start-1 workshop-year-toggle cursor-pointer flex items-center gap-sm order-1 py-md pl-xs md:sticky md:self-start md:pb-md">
           <i class="fa-solid fa-chevron-right text-p2 transition-all duration-fast rotate-90"></i>
           <h5>${yearGroup.year}</h5>
         </div>
@@ -273,6 +284,7 @@ export async function loadWorkshopsInto(jsonFile, pageType = 'workshop', contain
     `);
   });
 
+  updateYearToggleStickyTopForPanel(container);
   return bindInteractions(container);
 }
 

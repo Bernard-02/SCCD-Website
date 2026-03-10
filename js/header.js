@@ -79,7 +79,83 @@ export function initHeader() {
       }
     });
 
-    // 3. Logo Lottie + Scale Animation (Responsive)
+    // 3. Header Bar Random Rotation
+    // About組、Library、Generate 各自隨機旋轉 -4 到 +6°
+    // 規則：最多只能有一個 0°，其餘必須有角度
+    (function initBarRotations() {
+      const aboutBar = header.querySelector('[data-bar="about"]');
+      const libraryBar = header.querySelector('[data-bar="library"]');
+      const generateBar = header.querySelector('[data-bar="generate"]');
+      const barEls = [aboutBar, libraryBar, generateBar].filter(Boolean);
+
+      if (barEls.length === 0) return;
+
+      // About bar：-1 到 +1°，含小數點後一位，可以是 0
+      function getAboutDeg() {
+        return Math.round((Math.random() * 3 - 1.5) * 10) / 10;
+      }
+
+      // Library / Generate：-4 到 +5°，整數，最多一個 0
+      function getSmallBarDegrees(count) {
+        const degs = [];
+        let zeroUsed = false;
+        for (let i = 0; i < count; i++) {
+          let deg;
+          if (!zeroUsed && Math.random() < 0.3) {
+            deg = 0;
+            zeroUsed = true;
+          } else {
+            do { deg = Math.round(Math.random() * 9) - 4; } while (deg === 0);
+          }
+          degs.push(deg);
+        }
+        return degs;
+      }
+
+      // 套用 About bar
+      if (aboutBar) {
+        const deg = getAboutDeg();
+        aboutBar.style.transform = `rotate(${deg}deg)`;
+        aboutBar.style.transformOrigin = 'center center';
+      }
+
+      // 套用 Library、Generate
+      const smallBars = [libraryBar, generateBar].filter(Boolean);
+      const smallDegs = getSmallBarDegrees(smallBars.length);
+      smallBars.forEach((el, i) => {
+        el.style.transform = `rotate(${smallDegs[i]}deg)`;
+        el.style.transformOrigin = 'center center';
+      });
+    })();
+
+    // 4. About Bar Scroll Collapse（GSAP + ScrollTrigger）
+    (function initAboutBarScroll() {
+      if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') return;
+
+      const aboutBar = header.querySelector('[data-bar="about"]');
+      const aboutNav = aboutBar ? aboutBar.querySelector('nav') : null;
+      if (!aboutBar || !aboutNav) return;
+
+      // 初始：ml = 2xl(64px)
+      // scroll 後：ml 縮到 0 → bar 往左移貼近 logo
+      const ML_START = 64;  // 2xl
+      const ML_END = 0;
+
+      gsap.set(aboutBar, { marginLeft: ML_START });
+
+      ScrollTrigger.create({
+        trigger: 'body',
+        start: 'top top',
+        end: '+=120',
+        scrub: 0.6,
+        onUpdate: (self) => {
+          const ml = ML_START + (ML_END - ML_START) * self.progress;
+          gsap.to(aboutBar, { marginLeft: ml, duration: 0.4, ease: 'power2.out', overwrite: 'auto' });
+        }
+      });
+    })();
+
+    // 5. Logo Lottie + Scale Animation (Responsive)
     const logo = document.getElementById('header-logo');
     if (logo && typeof lottie !== 'undefined') {
       const isInPages = window.location.pathname.includes('/pages/');

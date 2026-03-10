@@ -31,6 +31,7 @@ import { initIntroAnimation } from './modules/pages/intro-animation.js';
 import { initHeroAnimation } from './modules/pages/hero-animation.js';
 import { initFacultySlideIn } from './modules/pages/faculty-slide-in.js';
 import { initActivitiesSectionSwitch } from './modules/pages/activities-section-switch.js';
+import { initActivitiesSearch } from './modules/ui/activities-search.js';
 import { initCoursesSectionSwitch } from './modules/pages/courses-section-switch.js';
 import { initWorksSectionSwitch } from './modules/pages/works-section-switch.js';
 
@@ -103,6 +104,31 @@ document.addEventListener('DOMContentLoaded', function() {
     initBFADivisionToggle();   // BFA Class 分組切換
     initTextReveal();
     initSectionBannerReveal(); // Section banner 放大進場動畫
+
+    // Class section 圖片 fade in + hover z-index
+    const classImages = document.querySelector('[data-class-images]');
+    if (classImages) {
+      const imgs = classImages.querySelectorAll('img');
+      ScrollTrigger.create({
+        trigger: classImages,
+        start: 'top 88%',
+        once: true,
+        onEnter: () => {
+          gsap.from(imgs, {
+            y: 40, opacity: 0, duration: 0.7, stagger: 0.1, ease: 'power3.out',
+            clearProps: 'all'
+          });
+        }
+      });
+
+      // Hover: 用 mouseenter/mouseleave 控制 z-index，避免 CSS hover 因圖層切換失效
+      if (window.innerWidth >= 768) {
+        imgs.forEach(img => {
+          img.addEventListener('mouseenter', () => { img.style.zIndex = '10'; });
+          img.addEventListener('mouseleave', () => { img.style.zIndex = ''; });
+        });
+      }
+    }
   }
 
   // --- Degree Show Pages ---
@@ -211,6 +237,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // --- Activities Page (整合版) ---
   if (page.includes('activities.html')) {
     initActivitiesSectionSwitch();
+    initActivitiesSearch();
   }
 
   // --- Records Page ---

@@ -36,10 +36,31 @@ export function initBFADivisionToggle() {
 
   // ─── Helpers ───────────────────────────────────────────────
 
-  function showContent(divisionId) {
+  function playAnimation(el) {
+    if (typeof gsap === 'undefined') return;
+    const imgs = el.querySelectorAll('.division-images img');
+    const texts = el.querySelectorAll('.division-text');
+
+    gsap.from(imgs, { y: 40, opacity: 0, duration: 0.6, stagger: 0.08, ease: 'power3.out', clearProps: 'all' });
+    gsap.from(texts, { y: 24, opacity: 0, duration: 0.6, stagger: 0.1, ease: 'power3.out', clearProps: 'transform,opacity' });
+
+    // Hover z-index（用 dataset 避免重複綁定）
+    if (window.innerWidth >= 768) {
+      imgs.forEach(img => {
+        if (!img.dataset.hoverBound) {
+          img.dataset.hoverBound = '1';
+          img.addEventListener('mouseenter', () => { img.style.zIndex = '10'; });
+          img.addEventListener('mouseleave', () => { img.style.zIndex = ''; });
+        }
+      });
+    }
+  }
+
+  function showContent(divisionId, animate = true) {
     classDivisionContents.forEach(el => {
       if (el.getAttribute('data-division') === divisionId) {
         el.classList.remove('hidden');
+        if (animate) playAnimation(el);
       } else {
         el.classList.add('hidden');
       }
@@ -84,7 +105,7 @@ export function initBFADivisionToggle() {
 
   // ─── Desktop: show BFA sub-buttons ─────────────────────────
 
-  function openBFA(divisionId = 'animation') {
+  function openBFA(divisionId = 'animation', animate = true) {
     syncBFAWidth();
 
     // Add gap between BFA btn and sub-btns, and between sub-btns and MDES btn
@@ -105,7 +126,7 @@ export function initBFADivisionToggle() {
     setSubBtnActive(divisionId);
 
     // Show content
-    showContent(divisionId);
+    showContent(divisionId, animate);
   }
 
   function openMDES() {
@@ -181,7 +202,20 @@ export function initBFADivisionToggle() {
   // 預設：BFA active，動畫組 active，子按鈕展開
   // 用 rAF 確保 DOM 完全渲染後再量測 MDES btn 寬度
   requestAnimationFrame(() => {
-    openBFA('animation');
+    openBFA('animation', false);
+
+    // 初始 division 用 ScrollTrigger 觸發進場動畫
+    if (typeof ScrollTrigger !== 'undefined') {
+      const initialEl = document.querySelector('.class-division-content[data-division="animation"]');
+      if (initialEl) {
+        ScrollTrigger.create({
+          trigger: initialEl,
+          start: 'top 88%',
+          once: true,
+          onEnter: () => { playAnimation(initialEl); }
+        });
+      }
+    }
   });
   updateMobileDisplay(0);
 }

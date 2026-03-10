@@ -105,3 +105,29 @@
     --container-padding: 1.5rem;  /* 24px (桌面版 32px) */
   }
 }
+
+/* ===== About Page - Class Section Images ===== */
+.class-img {
+  aspect-ratio: 4/3;
+  width: 50%;
+}
+.class-img--1 {
+  top: 50%;
+  left: 15%;
+  z-index: 1;
+  transform: rotate(-4deg) translateY(calc(-50% + -60px));
+}
+.class-img--2 {
+  top: 50%;
+  left: 28%;
+  z-index: 2;
+  transform: rotate(4deg) translateY(calc(-50% + 20px));
+}
+.class-img--3 {
+  top: 50%;
+  left: 10%;
+  z-index: 3;
+  transform: rotate(-3deg) translateY(calc(-50% + 80px));
+}
+
+

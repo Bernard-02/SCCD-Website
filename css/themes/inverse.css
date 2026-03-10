@@ -36,6 +36,11 @@ body.mode-inverse .text-gray-6 {
   color: var(--gray-5) !important;
 }
 
+/* ===== Timeline Lines ===== */
+body.mode-inverse .timeline-sticky-container .bg-black {
+  background-color: white !important;
+}
+
 /* ===== Borders ===== */
 body.mode-inverse .border-black {
   border-color: white !important;

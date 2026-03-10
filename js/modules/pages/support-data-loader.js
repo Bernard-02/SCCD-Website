@@ -12,13 +12,13 @@ export async function loadSupportData() {
     if (!container) return;
 
     container.innerHTML = data.map(item => `
-      <div class="course-item overflow-hidden border-b border-gray-9">
-        <div class="course-header flex items-center justify-between py-md cursor-pointer">
+      <div class="course-item overflow-hidden border-b-4 border-black">
+        <div class="course-header flex items-center justify-between py-md px-[4px] cursor-pointer">
           <h5>${item.title}</h5>
           <i class="fa-solid fa-chevron-down text-p2 transition-transform duration-300"></i>
         </div>
         <div class="course-content h-0 overflow-hidden">
-          <div class="pt-xs pb-md">
+          <div class="pt-xs pb-md px-[4px]">
             ${item.content}
           </div>
         </div>

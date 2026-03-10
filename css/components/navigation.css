@@ -10,7 +10,14 @@
   }
 
   .nav-link .nav-link-cn {
-    display: none;
+    display: inline-block;
+    max-width: 0;
+    overflow: hidden;
+    opacity: 0;
+    margin-left: 0;
+    vertical-align: middle;
+    transition: max-width 0.35s cubic-bezier(0.25, 0, 0, 1), opacity 0.3s ease-out, margin-left 0.3s ease-out;
+    white-space: nowrap;
   }
 
   .nav-link.active {
@@ -19,7 +26,8 @@
   }
 
   .nav-link.active .nav-link-cn {
-    display: inline;
+    max-width: 6rem;
+    opacity: 1;
     margin-left: 0.25rem;
   }
 
@@ -31,7 +39,8 @@
     }
 
     .nav-link:hover .nav-link-cn {
-      display: inline;
+      max-width: 6rem;
+      opacity: 1;
       margin-left: 0.25rem;
     }
   }

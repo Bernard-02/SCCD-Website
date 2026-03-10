@@ -233,15 +233,15 @@
         <!-- Content Section with Image and Text -->
         <div class="site-container py-6xl">
           <div class="flex flex-col md:grid md:grid-cols-12 gap-gutter">
-            <div class="w-full md:col-start-2 md:col-span-5 relative works-container mb-xl md:mb-0">
-              <img src="../images/SCCD-1-4-0.jpg" alt="Class" class="absolute object-cover" data-z="1" style="aspect-ratio: 4/3; width: 45%; transform: rotate(-4deg) translateY(calc(-50% + -80px)); top: 50%; left: 15%; z-index: 1;">
-              <img src="../images/SCCD-1-4-0.jpg" alt="Class" class="absolute object-cover" data-z="2" style="aspect-ratio: 4/3; width: 45%; transform: rotate(4deg) translateY(calc(-50% + 0px)); top: 50%; left: 25%; z-index: 2;">
-              <img src="../images/SCCD-1-4-0.jpg" alt="Class" class="absolute object-cover" data-z="3" style="aspect-ratio: 4/3; width: 45%; transform: rotate(-4deg) translateY(calc(-50% + 80px)); top: 50%; left: 5%; z-index: 3;">
+            <div class="w-full md:col-start-2 md:col-span-5 relative works-container mb-xl md:mb-0" data-class-images>
+              <img src="../images/SCCD-1-4-0.jpg" alt="Class" class="absolute object-cover class-img class-img--1">
+              <img src="../images/SCCD-1-4-0.jpg" alt="Class" class="absolute object-cover class-img class-img--2">
+              <img src="../images/SCCD-1-4-0.jpg" alt="Class" class="absolute object-cover class-img class-img--3">
             </div>
             <div class="w-full md:col-start-7 md:col-span-5 flex items-center">
               <div>
-                <h5 class="mb-sm">The Department offers both Bachelor of Fine Arts (BFA) and Master of Design (MDES) programs, cultivating creative talents through comprehensive design education. We integrate theory and practice across multiple media platforms, preparing students for diverse career paths in the design industry.</h5>
-                <h5>本系提供學士班 (BFA) 與碩士班 (MDES) 課程，透過全面的設計教育培養創意人才。我們整合理論與實踐，跨越多元媒體平台，為學生在設計產業的多元職涯做準備。</h5>
+                <h5 class="mb-sm" data-text-reveal>The Department offers both Bachelor of Fine Arts (BFA) and Master of Design (MDES) programs, cultivating creative talents through comprehensive design education. We integrate theory and practice across multiple media platforms, preparing students for diverse career paths in the design industry.</h5>
+                <h5 data-text-reveal data-text-reveal-delay="0.1">本系提供學士班 (BFA) 與碩士班 (MDES) 課程，透過全面的設計教育培養創意人才。我們整合理論與實踐，跨越多元媒體平台，為學生在設計產業的多元職涯做準備。</h5>
               </div>
             </div>
           </div>
@@ -290,54 +290,51 @@
 
           <!-- Animation Division Content -->
           <div class="class-division-content" data-division="animation">
-            <div class="flex flex-col md:grid md:grid-cols-12 md:items-center gap-gutter">
-              <!-- Image Content (Right on Desktop, Top on Mobile) -->
-              <div class="w-full md:col-start-8 md:col-span-5 relative order-1 md:order-2 mb-xl md:mb-0 works-container">
-                <img src="../images/SCCD-1-4-0.jpg" alt="Animation" class="absolute object-cover" data-z="1" style="aspect-ratio: 4/3; width: 45%; transform: rotate(-4deg) translateY(calc(-50% + -80px)); top: 50%; left: 15%; z-index: 1;">
-                <img src="../images/SCCD-1-4-0.jpg" alt="Animation" class="absolute object-cover" data-z="2" style="aspect-ratio: 4/3; width: 45%; transform: rotate(4deg) translateY(calc(-50% + 0px)); top: 50%; left: 25%; z-index: 2;">
-                <img src="../images/SCCD-1-4-0.jpg" alt="Animation" class="absolute object-cover" data-z="3" style="aspect-ratio: 4/3; width: 45%; transform: rotate(-4deg) translateY(calc(-50% + 80px)); top: 50%; left: 5%; z-index: 3;">
+            <div class="grid-12 md:items-center">
+              <!-- Text Content (col 3-6) -->
+              <div class="col-span-12 md:col-start-3 md:col-span-4 order-2 md:order-1 mt-xl md:mt-0">
+                <p class="mb-xs division-text">Explore the relationship between self and the environment through animation creation, and then extend the care and reflection on culture, ecology and humanities.</p>
+                <p class="division-text">透過動畫創作探討自我與環境的關係，進而延伸對文化、生態與人文之關懷與省思。</p>
               </div>
-
-              <!-- Text Content -->
-              <div class="w-full md:col-start-2 md:col-span-5 order-2 md:order-1">
-                <p class="mb-xs">Explore the relationship between self and the environment through animation creation, and then extend the care and reflection on culture, ecology and humanities.</p>
-                <p>透過動畫創作探討自我與環境的關係，進而延伸對文化、生態與人文之關懷與省思。</p>
+              <!-- Image Content (col 7-12) -->
+              <div class="col-span-12 md:col-start-8 md:col-span-5 relative order-1 md:order-2 mb-xl md:mb-0 works-container division-images">
+                <img src="../images/SCCD-1-4-0.jpg" alt="Animation" class="absolute object-cover class-img class-img--1">
+                <img src="../images/SCCD-1-4-0.jpg" alt="Animation" class="absolute object-cover class-img class-img--2">
+                <img src="../images/SCCD-1-4-0.jpg" alt="Animation" class="absolute object-cover class-img class-img--3">
               </div>
             </div>
           </div>
 
           <!-- Creative Media Division Content -->
           <div class="class-division-content hidden" data-division="creative-media">
-            <div class="flex flex-col md:grid md:grid-cols-12 md:items-center gap-gutter">
-              <!-- Image Content (Right on Desktop, Top on Mobile) -->
-              <div class="w-full md:col-start-8 md:col-span-5 relative order-1 md:order-2 mb-xl md:mb-0 works-container">
-                <img src="../images/SCCD-1-4-0.jpg" alt="Creative Media" class="absolute object-cover" data-z="1" style="aspect-ratio: 4/3; width: 45%; transform: rotate(-4deg) translateY(calc(-50% + -80px)); top: 50%; left: 15%; z-index: 1;">
-                <img src="../images/SCCD-1-4-0.jpg" alt="Creative Media" class="absolute object-cover" data-z="2" style="aspect-ratio: 4/3; width: 45%; transform: rotate(4deg) translateY(calc(-50% + 0px)); top: 50%; left: 25%; z-index: 2;">
-                <img src="../images/SCCD-1-4-0.jpg" alt="Creative Media" class="absolute object-cover" data-z="3" style="aspect-ratio: 4/3; width: 45%; transform: rotate(-4deg) translateY(calc(-50% + 80px)); top: 50%; left: 5%; z-index: 3;">
+            <div class="grid-12 md:items-center">
+              <!-- Text Content (col 3-6) -->
+              <div class="col-span-12 md:col-start-3 md:col-span-4 order-2 md:order-1 mt-xl md:mt-0">
+                <p class="mb-xs division-text">Explore the essence of new media interaction from multiple perspectives, furthermore, showing care and reflection on humanities, society, and the environment by these perspectives.</p>
+                <p class="division-text">多面向探討新媒體互動的本質，並藉此對人文、社會、環境作進一步之關懷與省思。</p>
               </div>
-
-              <!-- Text Content -->
-              <div class="w-full md:col-start-2 md:col-span-5 order-2 md:order-1">
-                <p class="mb-xs">Explore the essence of new media interaction from multiple perspectives, furthermore, showing care and reflection on humanities, society, and the environment by these perspectives.</p>
-                <p>多面向探討新媒體互動的本質，並藉此對人文、社會、環境作進一步之關懷與省思。</p>
+              <!-- Image Content (col 7-12) -->
+              <div class="col-span-12 md:col-start-8 md:col-span-5 relative order-1 md:order-2 mb-xl md:mb-0 works-container division-images">
+                <img src="../images/SCCD-1-4-0.jpg" alt="Creative Media" class="absolute object-cover class-img class-img--1">
+                <img src="../images/SCCD-1-4-0.jpg" alt="Creative Media" class="absolute object-cover class-img class-img--2">
+                <img src="../images/SCCD-1-4-0.jpg" alt="Creative Media" class="absolute object-cover class-img class-img--3">
               </div>
             </div>
           </div>
 
           <!-- MDES Division Content -->
           <div class="class-division-content hidden" data-division="mdes">
-            <div class="flex flex-col md:grid md:grid-cols-12 md:items-center gap-gutter">
-              <!-- Image Content (Right on Desktop, Top on Mobile) -->
-              <div class="w-full md:col-start-8 md:col-span-5 relative order-1 md:order-2 mb-xl md:mb-0 works-container">
-                <img src="../images/SCCD-1-4-0.jpg" alt="MDES" class="absolute object-cover" data-z="1" style="aspect-ratio: 4/3; width: 45%; transform: rotate(-4deg) translateY(calc(-50% + -80px)); top: 50%; left: 15%; z-index: 1;">
-                <img src="../images/SCCD-1-4-0.jpg" alt="MDES" class="absolute object-cover" data-z="2" style="aspect-ratio: 4/3; width: 45%; transform: rotate(4deg) translateY(calc(-50% + 0px)); top: 50%; left: 25%; z-index: 2;">
-                <img src="../images/SCCD-1-4-0.jpg" alt="MDES" class="absolute object-cover" data-z="3" style="aspect-ratio: 4/3; width: 45%; transform: rotate(-4deg) translateY(calc(-50% + 80px)); top: 50%; left: 5%; z-index: 3;">
+            <div class="grid-12 md:items-center">
+              <!-- Text Content (col 3-6) -->
+              <div class="col-span-12 md:col-start-3 md:col-span-4 order-2 md:order-1 mt-xl md:mt-0">
+                <p class="mb-xs division-text">The MDES program offers advanced research and creative practice opportunities, fostering innovation in communications design. Graduate students engage in cutting-edge projects that push the boundaries of design thinking and media expression.</p>
+                <p class="division-text">碩士班提供進階研究與創作實踐機會，培養媒體傳達設計的創新能力。研究生參與前瞻性專案，推進設計思維與媒體表達的界限。</p>
               </div>
-
-              <!-- Text Content -->
-              <div class="w-full md:col-start-2 md:col-span-5 order-2 md:order-1">
-                <p class="mb-xs">The MDES program offers advanced research and creative practice opportunities, fostering innovation in communications design. Graduate students engage in cutting-edge projects that push the boundaries of design thinking and media expression.</p>
-                <p>碩士班提供進階研究與創作實踐機會，培養媒體傳達設計的創新能力。研究生參與前瞻性專案，推進設計思維與媒體表達的界限。</p>
+              <!-- Image Content (col 7-12) -->
+              <div class="col-span-12 md:col-start-8 md:col-span-5 relative order-1 md:order-2 mb-xl md:mb-0 works-container division-images">
+                <img src="../images/SCCD-1-4-0.jpg" alt="MDES" class="absolute object-cover class-img class-img--1">
+                <img src="../images/SCCD-1-4-0.jpg" alt="MDES" class="absolute object-cover class-img class-img--2">
+                <img src="../images/SCCD-1-4-0.jpg" alt="MDES" class="absolute object-cover class-img class-img--3">
               </div>
             </div>
           </div>
@@ -522,11 +519,12 @@
 
   <!-- JavaScript -->
   <!-- GSAP & ScrollTrigger -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollToPlugin.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Draggable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollTrigger.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollToPlugin.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/Draggable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/SplitText.min.js"></script>
   <!-- Helper Functions - 必須在 main.js 之前載入 -->
   <script src="../js/utils/helpers.js"></script>
   <!-- Works Container Hover Effect -->

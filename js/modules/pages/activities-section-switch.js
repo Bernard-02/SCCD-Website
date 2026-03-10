@@ -4,7 +4,7 @@
  * 同時負責載入各區塊資料
  */
 
-import { loadGeneralActivitiesInto } from './general-activities-data-loader.js';
+import { loadGeneralActivitiesInto, loadLecturesInto } from './general-activities-data-loader.js';
 import { loadWorkshopsInto, loadSummerCampInto } from './activities-data-loader.js';
 import { loadDegreeShowListInto } from './degree-show-data-loader.js';
 import { initActivitiesFilter } from '../filters/activities-filter.js';
@@ -78,12 +78,9 @@ async function switchToSection(section, btns, shouldScroll) {
   if (shouldScroll) {
     const sectionEl = document.getElementById('activities-content-section');
     if (sectionEl) {
-      const header = document.querySelector('header');
-      const offset = header ? header.offsetHeight : 0;
-      const top = sectionEl.getBoundingClientRect().top + window.scrollY - offset;
+      const top = sectionEl.offsetTop;
 
       if (typeof gsap !== 'undefined' && typeof ScrollToPlugin !== 'undefined') {
-        // 用 GSAP scrollTo，scroll 完成後才播放進場動畫
         gsap.to(window, {
           scrollTo: { y: top },
           duration: 0.5,
@@ -114,6 +111,13 @@ async function loadPanel(section) {
       initWorkshopAccordion();
       if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh();
       return null; // general 用 ScrollTrigger，不需要外部觸發
+
+    case 'lectures':
+      await loadLecturesInto('lectures-list');
+      initActivitiesYearToggle();
+      initWorkshopAccordion();
+      if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh();
+      return null;
 
     case 'workshop': {
       const play = await loadWorkshopsInto('../data/workshops.json', 'workshop', 'workshop-list');

@@ -16,9 +16,8 @@ export function initCoursesFilter(program) {
   if (!panel) return;
 
   const coursesFilterButtons = filterScope.querySelectorAll('.courses-filter-btn');
-  const coursesYearGroups = panel.querySelectorAll('.courses-year-group');
 
-  if (coursesFilterButtons.length === 0 || coursesYearGroups.length === 0) return;
+  if (coursesFilterButtons.length === 0) return;
 
   // 初始化 active btn 的 color/rotation
   const activeBtn = filterScope.querySelector('.courses-filter-btn.active');
@@ -27,11 +26,11 @@ export function initCoursesFilter(program) {
     if (activeInner) { activeInner.style.background = getCurrentProgramColor(); activeInner.style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`; }
   }
 
-  coursesFilterButtons.forEach(button => {
-    // 避免重複綁定
-    if (button.dataset.filterBound) return;
-    button.dataset.filterBound = '1';
+  // 避免重複綁定（綁在 filterScope 上，只綁一次）
+  if (filterScope.dataset.filterBound) return;
+  filterScope.dataset.filterBound = '1';
 
+  coursesFilterButtons.forEach(button => {
     button.addEventListener('click', function(e) {
       e.preventDefault();
 
@@ -49,7 +48,10 @@ export function initCoursesFilter(program) {
 
       const filterValue = this.getAttribute('data-filter');
 
-      coursesYearGroups.forEach(group => {
+      // 動態抓當前顯示中的 panel 的 year groups
+      const activePanel = filterScope.querySelector('.courses-panel:not(.hidden)');
+      if (!activePanel) return;
+      activePanel.querySelectorAll('.courses-year-group').forEach(group => {
         const isActive = group.getAttribute('data-year') === filterValue;
         group.style.display = isActive ? 'block' : 'none';
         if (isActive) {
