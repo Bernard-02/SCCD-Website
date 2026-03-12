@@ -155,7 +155,7 @@ export async function loadGeneralActivitiesInto(containerId, categoryFilter = nu
 
         return `
           <div class="workshop-item overflow-hidden ${borderClass}" data-category="${item.category}" data-media="${mediaJson}">
-            <div class="workshop-header cursor-pointer group transition-colors duration-fast flex items-center justify-between px-[4px] py-md">
+            <div class="workshop-header cursor-pointer group transition-colors duration-fast flex items-center justify-between px-[4px] py-sm">
               <div class="text-h5 font-bold">${item.title}</div>
               <div class="flex items-center gap-md flex-shrink-0">
                 ${categoryLabelHtml}
@@ -185,7 +185,7 @@ export async function loadGeneralActivitiesInto(containerId, categoryFilter = nu
 
       container.insertAdjacentHTML('beforeend', `
         <div class="workshop-year-group grid-12 items-start">
-          <div class="col-span-12 md:col-span-1 md:col-start-1 workshop-year-toggle cursor-pointer flex items-center gap-sm order-1 py-md pl-xs md:sticky md:self-start md:pb-md">
+          <div class="col-span-12 md:col-span-1 md:col-start-1 workshop-year-toggle cursor-pointer flex items-center gap-sm order-1 py-sm pl-xs md:sticky md:self-start md:pb-sm">
             <i class="fa-solid fa-chevron-right text-p2 transition-all duration-fast rotate-90"></i>
             <h5>${yearGroup.year}</h5>
           </div>

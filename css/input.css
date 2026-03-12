@@ -35,6 +35,10 @@
     font-size: var(--font-size-p2);
   }
 
+  .text-p3 {
+    font-size: var(--font-size-p3);
+  }
+
   .text-gradient-green {
     @apply bg-gradient-to-r from-green to-blue bg-clip-text text-transparent;
   }

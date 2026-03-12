@@ -44,6 +44,7 @@
   --font-size-h6: 1.25rem;   /* 20px */
   --font-size-p1: 1.15rem;   /* 18.4px */
   --font-size-p2: 1rem;      /* 16px */
+  --font-size-p3: 0.9rem;    /* 14.4px */
 
   /* Font Weights */
   --font-weight-regular: 400;
@@ -92,6 +93,7 @@
     --font-size-h6: 1rem;      /* 16px (桌面版 20px) */
     --font-size-p1: 1rem;      /* 16px (桌面版 18.4px) */
     --font-size-p2: 0.875rem;  /* 14px (桌面版 16px) */
+    --font-size-p3: 0.8rem;    /* 12.8px (桌面版 14.4px) */
 
     /* 間距調整 */
     --spacing-xl: 2rem;        /* 32px (桌面版 48px) */

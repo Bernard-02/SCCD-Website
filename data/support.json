@@ -1,22 +1,58 @@
-[
-  {
-    "title": "一、現金捐款",
-    "content": "<p>請至本校職涯發展暨校友服務一組辦理或出納組辦理</p><p class=\"mt-xs\">捐款專線：02-25381111分機 3516陳小姐</p>"
-  },
-  {
-    "title": "二、支票捐款",
-    "content": "<p>請至本校職涯發展暨校友服務一組辦理或出納組辦理</p><p class=\"mt-xs\">捐款專線：02-25381111分機 3516陳小姐</p>"
-  },
-  {
-    "title": "三、郵政劃撥",
-    "content": "<p>請至本校職涯發展暨校友服務一組辦理或出納組辦理</p><p class=\"mt-xs\">捐款專線：02-25381111分機 3516陳小姐</p>"
-  },
-  {
-    "title": "四、銀行匯款與 ATM 轉帳",
-    "content": "<p>請至本校職涯發展暨校友服務一組辦理或出納組辦理</p><p class=\"mt-xs\">捐款專線：02-25381111分機 3516陳小姐</p>"
-  },
-  {
-    "title": "五、海外捐款",
-    "content": "<p>請至本校職涯發展暨校友服務一組辦理或出納組辦理</p><p class=\"mt-xs\">捐款專線：02-25381111分機 3516陳小姐</p>"
-  }
-]
+{
+  "sections": [
+    {
+      "titleEn": "Funds",
+      "titleZh": "資金",
+      "subsections": [
+        {
+          "subtitleEn": "Single",
+          "subtitleZh": "單次",
+          "items": [
+            {
+              "en": "Please obtain the DONATION FORM from Career Development and Alumni Service",
+              "zh": "請至本校 <a href=\"https://uscfund.usc.edu.tw/\" target=\"_blank\" class=\"support-link-plain\">職涯發展暨校友服務一組</a> 取得 捐款單"
+            },
+            {
+              "en": "\"指定用途 / 單位\" field on the form can be selected as follows:",
+              "zh": "於「指定用途 / 單位」欄位可選：",
+              "sub": [
+                {
+                  "en": "Check \"院系務發展基金\" and fill in \"Department of Communications Design\"",
+                  "zh": "勾選「院系務發展基金」並填寫「媒體傳達設計學系」"
+                },
+                {
+                  "en": "Check \"指定用途\" and fill in \"Degree Show, Department of Communications Design\" or customize.",
+                  "zh": "勾選「指定用途」並填寫「媒體傳達設計學系畢業展」或自訂"
+                }
+              ]
+            },
+            {
+              "en": "After completing the form, proceed to Career Development and Alumni Service for processing according to their instructions",
+              "zh": "填寫完畢後依 <a href=\"https://uscfund.usc.edu.tw/\" target=\"_blank\" class=\"support-link-plain\">職涯發展暨校友服務一組</a> 之說明於該單位辦理"
+            }
+          ]
+        },
+        {
+          "subtitleEn": "Regular",
+          "subtitleZh": "定期",
+          "note": {
+            "en": "e.g. Establish Scholarships",
+            "zh": "例如：設立獎學金"
+          },
+          "contact": {
+            "en": "Please Contact SCCD Office",
+            "zh": "請洽學系辦公室"
+          }
+        }
+      ]
+    },
+    {
+      "titleEn": "Others",
+      "titleZh": "其他項目",
+      "contact": {
+        "en": "Please Contact SCCD Office",
+        "zh": "請洽學系辦公室"
+      }
+    }
+  ]
+}

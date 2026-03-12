@@ -12,7 +12,7 @@ body.mode-inverse {
 
 /* ===== Layout ===== */
 body.mode-inverse header {
-  background-color: black;
+  background-color: transparent;
 }
 
 body.mode-inverse .bg-white {
@@ -212,4 +212,21 @@ body.mode-inverse #faculty-cursor {
 
 body.mode-inverse #faculty-cursor span {
   color: black;
+}
+
+/* ===== Search Bar ===== */
+body.mode-inverse .activities-search-inner {
+  border-bottom-color: white;
+}
+
+body.mode-inverse .activities-search-icon {
+  color: white !important;
+}
+
+body.mode-inverse .activities-search-input {
+  color: white;
+}
+
+body.mode-inverse .activities-search-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
 }

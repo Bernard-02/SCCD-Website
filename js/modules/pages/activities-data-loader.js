@@ -179,6 +179,37 @@ export function bindInteractions(container) {
   // 海報 & gallery hover 效果
   bindMediaHover(container);
 
+  // 標題跑馬燈：偵測是否溢出，是則加 is-overflow + 設定捲動距離
+  const initMarquees = () => {
+    if (window.innerWidth < 768) return;
+    container.querySelectorAll('.workshop-title-marquee').forEach(wrap => {
+      const p = wrap.querySelector('p');
+      if (!p) return;
+      const checkOverflow = () => {
+        if (p.scrollWidth > wrap.clientWidth + 1) {
+          wrap.classList.add('is-overflow');
+          if (!wrap.dataset.marqueeInit) {
+            wrap.dataset.marqueeInit = '1';
+            const clone = p.cloneNode(true);
+            clone.setAttribute('aria-hidden', 'true');
+            p.style.paddingRight = '3rem';
+            clone.style.paddingRight = '3rem';
+            wrap.appendChild(clone);
+          }
+          const offset = p.offsetWidth;
+          wrap.style.setProperty('--marquee-offset', `-${offset}px`);
+          const speed = Math.max(3, offset / 80);
+          wrap.style.setProperty('--marquee-duration', `${speed}s`);
+        } else {
+          wrap.classList.remove('is-overflow');
+        }
+      };
+      checkOverflow();
+      window.addEventListener('resize', checkOverflow);
+    });
+  };
+  requestAnimationFrame(initMarquees);
+
   // 海報比例偵測
   container.querySelectorAll('.poster-img').forEach(img => {
     const apply = () => {
@@ -247,19 +278,41 @@ export async function loadWorkshopsInto(jsonFile, pageType = 'workshop', contain
 
       return `
         <div class="workshop-item ${!isItemLast ? 'border-b-4 border-black' : ''} overflow-hidden" data-media="${mediaJson}">
-          <div class="workshop-header cursor-pointer group transition-colors duration-fast flex items-center justify-between px-[4px] py-md">
-            <div class="text-h5 font-bold">${item.title}</div>
-            <i class="fa-solid fa-chevron-down text-p2 transition-transform duration-300"></i>
+          <div class="workshop-header cursor-pointer group transition-colors duration-fast flex items-start justify-between px-[4px] py-sm">
+            <div class="flex flex-col gap-xs flex-1 min-w-0">
+              <div>
+                <div class="workshop-title-marquee"><p class="text-h5 font-bold">${item.title}</p></div>
+                ${item.title_zh ? `<div class="workshop-title-marquee"><p class="text-h5 font-bold">${item.title_zh}</p></div>` : ''}
+              </div>
+              ${(item.subtitle || item.subtitle_zh) ? `<div>
+                ${item.subtitle ? `<p class="text-p2">${item.subtitle}</p>` : ''}
+                ${item.subtitle_zh ? `<p class="text-p2">${item.subtitle_zh}</p>` : ''}
+              </div>` : ''}
+            </div>
+            <div class="flex items-start gap-sm flex-shrink-0 pt-[0.25rem]">
+              ${item.flag ? `<span class="fi fi-${item.flag}" style="width:1.5em;height:1.5em;border-radius:2px;"></span>` : ''}
+              <i class="fa-solid fa-chevron-down text-p2 transition-transform duration-300"></i>
+            </div>
           </div>
           <div class="workshop-content h-0 overflow-hidden">
-            <div class="pb-lg px-xl grid gap-gutter items-start" style="grid-template-columns: 9.5fr 2.5fr;">
+            <div class="pt-sm pb-lg px-xl grid gap-gutter items-start" style="grid-template-columns: 9.5fr 2.5fr;">
               <div class="flex flex-col gap-md pr-2xl">
-                <div class="flex gap-xl items-baseline">
-                  ${item.date ? `<h6 class="text-black whitespace-nowrap flex-shrink-0">${item.date}</h6>` : ''}
-                  ${item.location ? `<h6 class="text-black truncate">${item.location}</h6>` : ''}
-                </div>
-                <div class="overflow-y-auto" style="max-height: 250px;">
+                ${(item.date || item.location || item.location_zh) ? `<div class="flex gap-xl">
+                  ${item.date ? `<div class="flex-shrink-0"><p class="text-p2 font-bold">${item.date.replace(/ - /g, '&nbsp;&nbsp;-&nbsp;&nbsp;').replace(/ \/ /g, '&nbsp;/&nbsp;')}</p></div>` : ''}
+                  ${(item.location || item.location_zh) ? `<div>
+                    ${item.location ? `<p class="text-p2 font-bold">${item.location.replace(/  \/  /g, '&nbsp;&nbsp;/&nbsp;&nbsp;')}</p>` : ''}
+                    ${item.location_zh ? `<p class="text-p2 font-bold">${item.location_zh.replace(/  \/  /g, '&nbsp;&nbsp;/&nbsp;&nbsp;')}</p>` : ''}
+                  </div>` : ''}
+                </div>` : ''}
+                ${item.guests && item.guests.length ? `<div class="flex flex-col gap-xs">
+                  ${item.guests.map(g => `<div class="flex gap-2xl">
+                    <div class="flex-1"><p class="text-p2 font-bold">${g.name}</p><p class="text-p2 font-bold">${g.name_zh}</p>${g.affiliation ? `<p class="text-p3">${g.affiliation.length > 20 ? `${g.affiliation}<br>${g.affiliation_zh || ''}` : `${g.affiliation}${g.affiliation_zh ? ' ' + g.affiliation_zh : ''}`}</p>` : ''}</div>
+                    ${g.country ? `<div class="flex-shrink-0"><p class="text-p2">${g.country}${g.country_zh ? ` ${g.country_zh}` : ''}</p></div>` : ''}
+                  </div>`).join('')}
+                </div>` : ''}
+                <div class="overflow-y-auto pr-xl" style="max-height: 250px; background: transparent;">
                   <p class="text-p2 leading-base">${item.intro}</p>
+                  ${item.intro_zh ? `<p class="text-p2 leading-base mt-md">${item.intro_zh}</p>` : ''}
                 </div>
               </div>
               ${buildPosterHtml(item)}
@@ -272,7 +325,7 @@ export async function loadWorkshopsInto(jsonFile, pageType = 'workshop', contain
 
     container.insertAdjacentHTML('beforeend', `
       <div class="workshop-year-group grid-12 items-start">
-        <div class="col-span-12 md:col-span-1 md:col-start-1 workshop-year-toggle cursor-pointer flex items-center gap-sm order-1 py-md pl-xs md:sticky md:self-start md:pb-md">
+        <div class="col-span-12 md:col-span-1 md:col-start-1 workshop-year-toggle cursor-pointer flex items-center gap-sm order-1 py-sm pl-xs md:sticky md:self-start md:pb-sm">
           <i class="fa-solid fa-chevron-right text-p2 transition-all duration-fast rotate-90"></i>
           <h5>${yearGroup.year}</h5>
         </div>
@@ -314,9 +367,9 @@ export async function loadSummerCampInto(containerId = null) {
       return `
         <div class="workshop-item ${!isItemLast ? 'border-b-4 border-black' : ''} overflow-hidden" data-media="${mediaJson}">
           <div class="flex items-start">
-            <h5 class="font-bold flex-shrink-0 py-md pr-xl">${yearGroup.year}</h5>
+            <h5 class="font-bold flex-shrink-0 py-sm pr-xl">${yearGroup.year}</h5>
             <div class="flex-1 min-w-0">
-              <div class="workshop-header cursor-pointer group transition-colors duration-fast flex items-center justify-between px-[4px] py-md">
+              <div class="workshop-header cursor-pointer group transition-colors duration-fast flex items-start justify-between px-[4px] py-sm">
                 <div class="text-h5 font-bold">${item.title}</div>
                 <i class="fa-solid fa-chevron-down text-p2 transition-transform duration-300"></i>
               </div>
@@ -327,7 +380,7 @@ export async function loadSummerCampInto(containerId = null) {
                       ${item.date ? `<h6 class="text-black whitespace-nowrap flex-shrink-0">${item.date}</h6>` : ''}
                       ${item.location ? `<h6 class="text-black truncate">${item.location}</h6>` : ''}
                     </div>
-                    <div class="overflow-y-auto" style="max-height: 250px;">
+                    <div class="overflow-y-auto" style="max-height: 250px; background: transparent;">
                       <p class="text-p2 leading-base">${item.descriptionEn}</p>
                       ${item.descriptionZh ? `<p class="text-p2 leading-base mt-md">${item.descriptionZh}</p>` : ''}
                     </div>

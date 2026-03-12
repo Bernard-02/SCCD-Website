@@ -3,6 +3,13 @@
  * Activities List 等列表項目樣式
  */
 
+/* ===== Support Page ===== */
+.support-link-plain {
+  font-weight: 700;
+  text-decoration: none;
+}
+
+
 /* ===== Activities Search Bar ===== */
 .activities-search-input::placeholder {
   color: rgba(0, 0, 0, 0.5);
@@ -54,5 +61,42 @@
   .timeline-year-item:hover {
     color: var(--color-pink) !important;
     cursor: pointer;
+  }
+}
+
+/* ===== Workshop Content Scrollbar ===== */
+.workshop-content .overflow-y-auto::-webkit-scrollbar {
+  width: 5px !important;
+}
+
+.workshop-content .overflow-y-auto::-webkit-scrollbar-track,
+.workshop-content .overflow-y-auto::-webkit-scrollbar-track-piece,
+.workshop-content .overflow-y-auto::-webkit-scrollbar-corner {
+  background: transparent !important;
+}
+
+/* ===== Workshop Title Marquee (Desktop only) ===== */
+.workshop-title-marquee {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.workshop-title-marquee p {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+  .workshop-title-marquee.is-overflow p {
+    transition: none;
+  }
+
+  .workshop-title-marquee.is-overflow:hover p {
+    animation: workshop-marquee var(--marquee-duration, 4s) linear infinite;
+  }
+
+  @keyframes workshop-marquee {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(var(--marquee-offset, -50%)); }
   }
 }

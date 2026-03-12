@@ -16,7 +16,6 @@ import { initWorksFilter } from './modules/filters/works-filter.js';
 import { initSmoothScroll } from './modules/ui/smooth-scroll.js';
 import { initBFADivisionToggle } from './modules/ui/bfa-division-toggle.js';
 import { initBtnFillHover } from './modules/ui/btn-fill-hover.js';
-import { initSupportLinkColor } from './modules/ui/support-link-color.js';
 import { initTextReveal } from './modules/ui/text-reveal.js';
 
 // Import About Page Modules
@@ -37,7 +36,6 @@ import { initWorksSectionSwitch } from './modules/pages/works-section-switch.js'
 
 // Import Accordion Modules
 import { initHorizontalAccordion } from './modules/accordions/horizontal-accordion.js';
-import { initCourseAccordion } from './modules/accordions/course-accordion.js';
 import { initActivitiesYearToggle } from './modules/accordions/activities-year-toggle.js';
 
 // Import Data Loaders
@@ -159,79 +157,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // --- Support Page ---
   if (page.includes('support.html')) {
-    if (typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined') {
-      document.querySelectorAll('.support-group').forEach(group => {
-        const titleEl = group.querySelector('.support-group-title');
-        const titleWrap = group.querySelector('.support-group-title-wrap');
-        const contentEl = group.querySelector('.support-group-content');
-
-        // clip reveal：讓 h3 在 overflow:hidden 的 wrapper 內從下方滑入
-        // titleWrap 高度固定為 h3 的高度，overflow:hidden 做遮罩
-        if (titleWrap && titleEl) {
-          // 固定 wrapper 高度為 h3 當前高度，確保 overflow:hidden 能正確裁剪
-          titleWrap.style.height = titleEl.offsetHeight + 'px';
-          gsap.set(titleEl, { yPercent: 100 });
-        }
-        if (contentEl) {
-          gsap.set(contentEl, { y: 40, opacity: 0 });
-        }
-
-        ScrollTrigger.create({
-          trigger: group,
-          start: 'top 85%',
-          once: true,
-          onEnter: () => {
-            if (titleEl) {
-              gsap.to(titleEl, {
-                yPercent: 0,
-                duration: 0.8,
-                ease: 'power3.out',
-                clearProps: 'transform',
-                onComplete: () => { if (titleWrap) titleWrap.style.height = ''; },
-              });
-            }
-            if (contentEl) {
-              gsap.to(contentEl, {
-                y: 0,
-                opacity: 1,
-                duration: 0.7,
-                delay: 0.15,
-                ease: 'power2.out',
-                clearProps: 'transform,opacity',
-              });
-            }
-          },
-        });
-      });
-    }
-
-    loadSupportData().then(() => {
-      initCourseAccordion();
-      // accordion items stagger 進場（資料載入後才設定）
-      if (typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined') {
-        const items = document.querySelectorAll('#donation-methods-list .course-item');
-        if (items.length > 0) {
-          gsap.set(items, { y: 40, opacity: 0 });
-          ScrollTrigger.create({
-            trigger: '#donation-methods-list',
-            start: 'top 90%',
-            once: true,
-            onEnter: () => {
-              gsap.to(items, {
-                y: 0,
-                opacity: 1,
-                duration: 0.6,
-                stagger: { each: 0.1, axis: 'y' },
-                ease: 'power2.out',
-                clearProps: 'transform,opacity',
-              });
-            },
-          });
-        }
-        ScrollTrigger.refresh();
-      }
-    });
-    initSupportLinkColor();
+    loadSupportData();
   }
 
   // --- Activities Page (整合版) ---
