@@ -181,8 +181,15 @@ document.addEventListener('DOMContentLoaded', function() {
     );
   }
 
-  // --- Library Page ---
+  // --- Library / Museum Page ---
   if (page.includes('library.html')) {
+    // 初始化分頁切換（複用 activities section switch，預設 awards）
+    initActivitiesSectionSwitch('awards');
+    // Awards tab：載入 ticker + records
+    loadRecords().then(() => {
+      initActivitiesYearToggle();
+    });
+    // Files tab：載入 library 書籍卡片（PDF viewer）
     loadLibraryData();
   }
 

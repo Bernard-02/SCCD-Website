@@ -1,15 +1,14 @@
 /**
  * Theme Toggle Module
  * 切換 standard / inverse / color 模式
- * 狀態透過 localStorage 跨頁保持
+ * 同一 session 內跨頁保持，新開視窗/分頁重置為 standard
  */
 
 const MODES = ['standard', 'inverse', 'color'];
 const STORAGE_KEY = 'sccd-theme-mode';
 
 export function initThemeToggle() {
-  const savedMode = localStorage.getItem(STORAGE_KEY) || 'standard';
-  // 立刻套用 body class（不需要等 header）
+  const savedMode = sessionStorage.getItem(STORAGE_KEY) || 'standard';
   applyMode(savedMode);
 
   // header 是非同步注入的，等 header:ready 事件再綁定按鈕
@@ -22,12 +21,19 @@ export function initThemeToggle() {
 }
 
 function bindToggleBtns() {
+  const isGenPage = window.location.pathname.includes('generate.html');
   document.querySelectorAll('.theme-toggle-btn').forEach(btn => {
+    if (isGenPage) {
+      btn.style.opacity = '0.3';
+      btn.style.pointerEvents = 'none';
+      btn.title = 'Mode 由 Generate 控制';
+      return;
+    }
     btn.addEventListener('click', () => {
-      const current = localStorage.getItem(STORAGE_KEY) || 'standard';
+      const current = sessionStorage.getItem(STORAGE_KEY) || 'standard';
       const next = MODES[(MODES.indexOf(current) + 1) % MODES.length];
+      sessionStorage.setItem(STORAGE_KEY, next);
       applyMode(next);
-      localStorage.setItem(STORAGE_KEY, next);
     });
   });
 }

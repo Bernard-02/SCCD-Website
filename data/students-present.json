@@ -2,7 +2,7 @@
   {
     "year": 2025,
     "items": [
-      { "title": "Student Project Title 1", "date": "03.15 - 03.20", "location": "實踐大學設計學院", "intro": "Description of the student-led project or initiative goes here.", "poster": "../images/2021-動畫-Pitch-Bible-01.png", "videos": ["https://www.youtube.com/watch?v=dQw4w9WgXcQ"], "images": ["../images/SCCD-1-4-0.jpg", "../images/SCCD-1-4-1.jpg"] },
+      { "title": "Student Project Title 1", "title_zh": "學生專題計畫一", "date": "03.15 - 03.20", "location": "實踐大學設計學院", "intro": "Description of the student-led project or initiative goes here.", "poster": "../images/2021-動畫-Pitch-Bible-01.png", "videos": ["https://www.youtube.com/watch?v=dQw4w9WgXcQ"], "images": ["../images/SCCD-1-4-0.jpg", "../images/SCCD-1-4-1.jpg"] },
       { "title": "Student Project Title 2", "date": "04.10 - 04.15", "location": "實踐大學設計學院", "intro": "Description of the student-led project or initiative.", "poster": "../images/2021-動畫-Pitch-Bible-01.png", "videos": [], "images": [] },
       { "title": "Student Project Title 3", "date": "05.20 - 05.25", "location": "實踐大學設計學院", "intro": "Description of the student-led project or initiative.", "poster": "../images/2021-動畫-Pitch-Bible-01.png", "videos": [], "images": [] }
     ]

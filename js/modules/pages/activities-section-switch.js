@@ -5,7 +5,9 @@
  */
 
 import { loadGeneralActivitiesInto, loadLecturesInto } from './general-activities-data-loader.js';
+import { loadIndustryInto } from './industry-data-loader.js';
 import { loadWorkshopsInto, loadSummerCampInto } from './activities-data-loader.js';
+import { loadAlbumData } from './album-data-loader.js';
 import { loadDegreeShowListInto } from './degree-show-data-loader.js';
 import { initActivitiesFilter } from '../filters/activities-filter.js';
 import { initActivitiesYearToggle } from '../accordions/activities-year-toggle.js';
@@ -17,13 +19,42 @@ const loaded = {};
 let currentSectionColor = '';
 export function getCurrentSectionColor() { return currentSectionColor; }
 
-export function initActivitiesSectionSwitch() {
+// 從外部（如 industry reference 按鈕）導航到指定 section 的指定 item
+export async function navigateToItem(section, itemId) {
+  const btns = document.querySelectorAll('.activities-section-btn');
+  await switchToSection(section, btns, false);
+  if (!itemId) return;
+  // 等 DOM 渲染完成後再 scroll
+  setTimeout(() => {
+    const target = document.getElementById(`item-${itemId}`);
+    if (!target) return;
+    // scrollIntoView instant 後，位置穩定，再用 getBoundingClientRect 精確計算
+    target.scrollIntoView({ behavior: 'instant', block: 'start' });
+    const panel     = document.getElementById(`panel-${section}`);
+    const filterBar = panel?.querySelector('.activities-filter-bar');
+    const filterBarH = filterBar?.offsetHeight || 0;
+    // search bar sticky top 是 160px，補償 = 160 + filterBar 高度 + 小 padding
+    const compensate = 160 + filterBarH + 16;
+    // 此時 target.getBoundingClientRect().top 應接近 0，再往上補償
+    const finalTop = window.scrollY + target.getBoundingClientRect().top - compensate;
+    window.scrollTo({ top: finalTop, behavior: 'smooth' });
+    // 短暫 highlight
+    target.style.transition = 'background 0.3s';
+    target.style.background = currentSectionColor || '#00FF80';
+    setTimeout(() => { target.style.background = ''; }, 1200);
+  }, 150);
+}
+
+export function initActivitiesSectionSwitch(defaultSection = 'general') {
   const btns = document.querySelectorAll('.activities-section-btn');
   if (btns.length === 0) return;
 
+  // 暴露給 industry reference 按鈕使用（避免循環 import）
+  window.__sccdNavigateToItem = (section, itemId) => navigateToItem(section, itemId);
+
   // 支援 ?section= query string（從 mega menu 連結過來時直接切換）
   const params = new URLSearchParams(window.location.search);
-  const initialSection = params.get('section') || 'general';
+  const initialSection = params.get('section') || defaultSection;
 
   switchToSection(initialSection, btns, false);
 
@@ -63,12 +94,16 @@ async function switchToSection(section, btns, shouldScroll) {
   const target = document.getElementById(`panel-${section}`);
   if (target) {
     target.classList.remove('hidden');
-    // 同步 active filter btn 的顏色
-    const activeFilterBtn = target.querySelector('.activities-filter-btn.active');
-    if (activeFilterBtn) {
-      const filterInner = activeFilterBtn.querySelector('.anchor-nav-inner');
-      if (filterInner) { filterInner.style.background = currentSectionColor; filterInner.style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`; }
-    }
+    // 同步所有 active filter btn 的顏色
+    target.querySelectorAll('.activities-filter-btn.active, .album-filter-option.active').forEach(btn => {
+      const inner = btn.querySelector('.anchor-nav-inner');
+      if (inner) {
+        inner.style.background = currentSectionColor;
+        inner.style.transform  = '';
+      } else {
+        btn.style.background = currentSectionColor;
+      }
+    });
   }
 
   // 懶載入：等資料載入完才 scroll（否則 panel 是空的，scroll 位置不準）
@@ -76,7 +111,7 @@ async function switchToSection(section, btns, shouldScroll) {
 
   // Scroll to section（點擊時才 scroll，初始載入不 scroll）
   if (shouldScroll) {
-    const sectionEl = document.getElementById('activities-content-section');
+    const sectionEl = document.getElementById('activities-content-section') || document.getElementById('museum-content-section');
     if (sectionEl) {
       const top = sectionEl.offsetTop;
 
@@ -140,6 +175,17 @@ async function loadPanel(section) {
       initWorkshopAccordion();
       return play;
     }
+
+    case 'album':
+      await loadAlbumData('album-list-container');
+      return null;
+
+    case 'industry':
+      await loadIndustryInto('industry-list');
+      initActivitiesYearToggle();
+      initWorkshopAccordion();
+      if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh();
+      return null;
   }
   return null;
 }

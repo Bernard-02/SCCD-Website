@@ -30,7 +30,7 @@ export async function loadDegreeShowListInto(containerId) {
             <div class="degree-show-img-wrapper overflow-hidden mb-md">
               <img src="${item.coverImage}" alt="Degree Show ${year}" loading="lazy" class="degree-show-img w-full object-cover">
             </div>
-            <h5 class="mt-md">${item.title}</h5>
+            <h5 class="mt-md">${item.title_en ? item.title_en : item.title}${item.title_en ? `<br><span>${item.title}</span>` : ''}</h5>
           </div>
         </a>
       `;

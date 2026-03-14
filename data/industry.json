@@ -1,0 +1,26 @@
+[
+  {
+    "year": 2025,
+    "items": [
+      {
+        "id": "industry-project-1",
+        "title": "產學合作計畫一",
+        "title_en": "Industry-Academia Project 1",
+        "date": "2025.03.10",
+        "category": "seminars",
+        "guests": [
+          { "name": "Company Name", "name_zh": "合作公司名稱" }
+        ],
+        "images": ["../images/SCCD-1-4-0.jpg", "../images/SCCD-1-4-1.jpg"],
+        "reference": {
+          "section": "workshop",
+          "itemId": "listen-to-island",
+          "labelEn": "Workshop",
+          "labelZh": "工作坊",
+          "titleEn": "Listen to Island of Body: Sensory Awareness and Improvisational Body Texture Workshop (II)",
+          "titleZh": "傾聽身體之島：感官覺察與即興肢體質地工作坊（II）"
+        }
+      }
+    ]
+  }
+]

@@ -118,7 +118,7 @@ function navigate(dir) {
 // ── 開啟 ────────────────────────────────────────────────────────
 export function openLightbox(media, startIndex = 0) {
   ensureLightbox();
-  mediaList = media;
+  mediaList = media.filter(item => item.src && item.src.trim() !== '');
 
   // 建立 thumbnails：固定高度，寬度隨比例
   thumbsEl.innerHTML = '';

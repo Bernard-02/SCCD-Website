@@ -30,20 +30,24 @@ export async function loadRecords() {
           const isLast = i === yearGroup.items.length - 1;
           const borderClass = isLast ? '' : 'border-b-4 border-black';
 
+          const bilingual = (en, zh) => en
+            ? `<p>${en}</p><p>${zh}</p>`
+            : `<p>${zh}</p>`;
+
           return `
-            <div class="award-record-item grid grid-cols-12 md:grid-cols-9 gap-y-1 md:gap-y-0 items-center py-[0.75rem] ${borderClass} text-xs md:text-p2">
-              
+            <div class="award-record-item grid grid-cols-12 md:grid-cols-9 gap-y-1 md:gap-y-0 items-center py-[0.75rem] ml-md ${borderClass} text-xs md:text-p2">
+
               <!-- Mobile Row 1: Competition + Rank -->
               <div class="col-span-12 flex justify-between md:contents">
-                <p class="md:col-span-4 truncate md:order-2">${item.competition}</p>
-                <p class="md:col-span-1 text-right md:text-left truncate md:order-4">${item.rank}</p>
+                <div class="md:col-span-4 truncate md:order-2">${bilingual(item.competition_en, item.competition)}</div>
+                <div class="md:col-span-1 text-right md:text-left truncate md:order-4">${bilingual(item.rank_en, item.rank)}</div>
               </div>
 
               <!-- Mobile Row 2: Winner + Award + Location (Flex layout for compact left alignment) -->
-              <div class="col-span-12 flex gap-xs md:contents">
-                <p class="md:col-span-1 text-left truncate md:order-5">${item.winner}</p>
-                <p class="md:col-span-2 text-left truncate md:order-3">${item.award}</p>
-                <p class="md:col-span-1 text-left truncate md:order-1">${item.location}</p>
+              <div class="col-span-12 flex gap-xs items-start md:contents">
+                <div class="md:col-span-1 text-left truncate md:order-5">${bilingual(item.winner_en, item.winner)}</div>
+                <div class="md:col-span-2 text-left truncate md:order-3">${bilingual(item.award_en, item.award)}</div>
+                <div class="md:col-span-1 text-left md:order-1 self-start">${item.flag ? `<span class="fi fi-${item.flag}" style="width:1.5em;height:1em;display:inline-block;"></span>` : ''}</div>
               </div>
             </div>
           `;

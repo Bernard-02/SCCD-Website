@@ -70,6 +70,9 @@
               <button class="activities-section-btn w-fit text-left" data-section="students-present">
                 <span class="anchor-nav-inner"><span>Students Present</span><span>學生自主</span></span>
               </button>
+              <button class="activities-section-btn w-fit text-left" data-section="industry">
+                <span class="anchor-nav-inner"><span>Industry-Academia<br>Cooperation</span><span>產學合作</span></span>
+              </button>
             </div>
           </div>
 
@@ -84,10 +87,10 @@
                 <div class="grid-12 pb-xl">
                   <div class="col-span-12 md:col-span-11 md:col-start-2 flex flex-wrap gap-sm md:gap-lg md:pl-[41px]">
                     <button class="activities-filter-btn shrink-0 whitespace-nowrap active" data-filter="all"><span class="anchor-nav-inner">All 全部</span></button>
-                    <button class="activities-filter-btn shrink-0 whitespace-nowrap" data-filter="visits"><span class="anchor-nav-inner">Visits 參訪</span></button>
                     <button class="activities-filter-btn shrink-0 whitespace-nowrap" data-filter="exhibitions"><span class="anchor-nav-inner">Exhibitions 展演</span></button>
-                    <button class="activities-filter-btn shrink-0 whitespace-nowrap" data-filter="conferences"><span class="anchor-nav-inner">Conferences 研討會</span></button>
                     <button class="activities-filter-btn shrink-0 whitespace-nowrap" data-filter="competitions"><span class="anchor-nav-inner">Competitions 競賽</span></button>
+                    <button class="activities-filter-btn shrink-0 whitespace-nowrap" data-filter="visits"><span class="anchor-nav-inner">Visits 參訪</span></button>
+                    <button class="activities-filter-btn shrink-0 whitespace-nowrap" data-filter="conferences"><span class="anchor-nav-inner">Conferences 研討會</span></button>
                   </div>
                 </div>
                 <!-- Search Bar (Moment) — filter bar 遮罩內，收合時整體遮罩變短 -->
@@ -204,6 +207,28 @@
                 </div>
               </div>
               <div id="students-present-list"></div>
+            </div>
+
+            <!-- Industry Panel -->
+            <div class="activities-panel hidden" id="panel-industry">
+              <!-- Search Bar (Industry) -->
+              <div class="activities-filter-bar md:sticky md:top-[160px] bg-white z-10" id="activities-search-bar-industry">
+                <div class="grid-12 pb-xl">
+                  <div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px]">
+                    <div class="activities-search-inner flex items-center gap-sm pb-xs">
+                      <i class="fa-solid fa-magnifying-glass text-p2 activities-search-icon"></i>
+                      <input
+                        type="text"
+                        placeholder="Search 搜尋"
+                        class="activities-search-input flex-1 bg-transparent outline-none text-h5 font-bold"
+                        data-panel="panel-industry"
+                        autocomplete="off"
+                      >
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div id="industry-list"></div>
             </div>
 
           </div>

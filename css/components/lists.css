@@ -65,15 +65,41 @@
 }
 
 /* ===== Workshop Content Scrollbar ===== */
-.workshop-content .overflow-y-auto::-webkit-scrollbar {
+.workshop-content .overflow-y-auto::-webkit-scrollbar,
+#album-year-options-wrap::-webkit-scrollbar,
+#files-year-options-wrap::-webkit-scrollbar {
   width: 5px !important;
+  height: 5px !important;
 }
 
 .workshop-content .overflow-y-auto::-webkit-scrollbar-track,
 .workshop-content .overflow-y-auto::-webkit-scrollbar-track-piece,
-.workshop-content .overflow-y-auto::-webkit-scrollbar-corner {
+.workshop-content .overflow-y-auto::-webkit-scrollbar-corner,
+#album-year-options-wrap::-webkit-scrollbar-track,
+#album-year-options-wrap::-webkit-scrollbar-track-piece,
+#album-year-options-wrap::-webkit-scrollbar-corner,
+#files-year-options-wrap::-webkit-scrollbar-track,
+#files-year-options-wrap::-webkit-scrollbar-track-piece,
+#files-year-options-wrap::-webkit-scrollbar-corner {
   background: transparent !important;
 }
+
+.workshop-content .overflow-y-auto::-webkit-scrollbar-thumb,
+#album-year-options-wrap::-webkit-scrollbar-thumb,
+#files-year-options-wrap::-webkit-scrollbar-thumb {
+  background: #000000 !important;
+  border-radius: 0 !important;
+  border: none !important;
+}
+
+.workshop-content .overflow-y-auto::-webkit-scrollbar-button,
+#album-year-options-wrap::-webkit-scrollbar-button,
+#files-year-options-wrap::-webkit-scrollbar-button {
+  display: none !important;
+  height: 0 !important;
+  width: 0 !important;
+}
+
 
 /* ===== Workshop Title Marquee (Desktop only) ===== */
 .workshop-title-marquee {
@@ -96,6 +122,31 @@
   }
 
   @keyframes workshop-marquee {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(var(--marquee-offset, -50%)); }
+  }
+}
+
+.album-title-marquee {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.album-title-marquee h6 {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+  .album-title-marquee.is-overflow h6 {
+    transition: none;
+  }
+
+  .album-card:hover .album-title-marquee.is-overflow h6 {
+    animation: album-marquee var(--marquee-duration, 4s) linear infinite;
+  }
+
+  @keyframes album-marquee {
     0%   { transform: translateX(0); }
     100% { transform: translateX(var(--marquee-offset, -50%)); }
   }

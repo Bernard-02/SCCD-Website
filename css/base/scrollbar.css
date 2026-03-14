@@ -85,6 +85,7 @@
   background: #FFFFFF !important;
 }
 
+
 /* Utility: Hide Scrollbar but keep functionality */
 .no-scrollbar::-webkit-scrollbar {
   display: none !important;

@@ -139,6 +139,177 @@
     }
   }
 
+  /* ===== Album Filter Options (dropdown-column style) ===== */
+  .album-filter-option {
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: var(--font-size-p2);
+    font-weight: 700;
+    color: black;
+    line-height: 1.6;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+  }
+
+  /* 勾號在右邊：active 顯示，inactive 隱藏 */
+  .album-filter-option .album-cb { display: inline; flex-shrink: 0; }
+  .album-filter-option:not(.active) .album-cb { display: none; }
+
+  /* active 底色由 JS 設定（隨機三原色），這裡設 transition */
+  .album-filter-option {
+    transition: background var(--transition-fast);
+  }
+
+  /* Sort col：寬度固定為最寬選項，header 撐滿同寬 */
+  .album-sort-col {
+    flex-shrink: 0;
+    position: relative;
+    width: max-content;
+  }
+  .album-sort-col .album-filter-col-header {
+    width: max-content;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+  }
+  .album-sort-col .album-filter-col-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    padding-top: var(--spacing-xs);
+    gap: var(--spacing-xs);
+    width: max-content;
+    min-width: 100%;
+    background: white;
+    z-index: 20;
+  }
+
+  /* Sort col 選項：撐滿 list 寬，tick 頂右邊 */
+  .album-sort-col .album-filter-option {
+    font-size: var(--font-size-p1);
+    padding: 1px 4px;
+    color: rgba(0, 0, 0, 0.5);
+    gap: var(--spacing-md);
+    width: 100%;
+  }
+  .album-sort-col .album-filter-option.active {
+    color: black;
+  }
+  @media (min-width: 768px) {
+    .album-sort-col .album-filter-option:not(.active):hover {
+      color: black;
+    }
+  }
+
+  /* files panel 的 sort col：預設 max-content，panel visible 後由 JS 動態設定精確寬度 */
+  .files-sort-col {
+    width: max-content;
+  }
+
+  /* ===== Files Sort Col (mirrors album-sort-col) ===== */
+  .files-sort-col {
+    flex-shrink: 0;
+    position: relative;
+    width: max-content;
+  }
+  .files-sort-col .files-sort-col-header {
+    width: 100%;
+  }
+  .files-sort-col .files-sort-col-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    padding-top: var(--spacing-xs);
+    gap: var(--spacing-xs);
+    width: max-content;
+    min-width: 100%;
+    background: white;
+    z-index: 20;
+  }
+
+  .files-sort-option {
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 1px 4px;
+    font-size: var(--font-size-p1);
+    font-weight: 700;
+    color: rgba(0, 0, 0, 0.5);
+    line-height: 1.6;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+    width: 100%;
+    transition: background var(--transition-fast);
+  }
+  .files-sort-option.active {
+    color: black;
+  }
+
+  .files-sort-option .files-cb { display: inline; flex-shrink: 0; }
+  .files-sort-option:not(.active) .files-cb { display: none; }
+
+  @media (min-width: 768px) {
+    .files-sort-option:not(.active):hover {
+      color: black;
+    }
+  }
+
+  /* scrollbar for files sort list */
+  .files-sort-col-list::-webkit-scrollbar {
+    width: 6px;
+  }
+  .files-sort-col-list::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .files-sort-col-list::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 0;
+  }
+  .files-sort-col-list {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+  }
+
+  /* Filter tag */
+  .album-filter-tag {
+    cursor: pointer;
+    background: black;
+    color: white;
+    border: none;
+    padding: 2px var(--spacing-sm);
+    font-size: var(--font-size-p2);
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    white-space: nowrap;
+  }
+
+
+  /* scrollbar 細（6px），無圓角 */
+  .album-filter-col-list::-webkit-scrollbar {
+    width: 6px;
+  }
+  .album-filter-col-list::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .album-filter-col-list::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 0;
+  }
+  .album-filter-col-list {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+  }
+
   /* ===== Courses Filter Buttons ===== */
   .courses-filter-btn {
     cursor: pointer;

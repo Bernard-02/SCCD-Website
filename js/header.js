@@ -159,7 +159,7 @@ export function initHeader() {
     const logo = document.getElementById('header-logo');
     if (logo && typeof lottie !== 'undefined') {
       const isInPages = window.location.pathname.includes('/pages/');
-      const isInverse = (localStorage.getItem('sccd-theme-mode') || 'standard') === 'inverse';
+      const isInverse = document.body.classList.contains('mode-inverse');
       const logoFile = isInverse ? 'SCCDLogoInverse.json' : 'SCCDLogoStandard.json';
       const logoPath = isInPages ? `../data/${logoFile}` : `data/${logoFile}`;
       const logoAnim = lottie.loadAnimation({

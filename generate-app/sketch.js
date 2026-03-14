@@ -2510,9 +2510,11 @@ function updateUI() {
         if (isInverseTarget) {
             body.removeClass('standard-mode');
             body.addClass('inverse-mode');
+            window.parent.postMessage({ genMode: 'Inverse', bg: '#000000', text: '#ffffff' }, '*');
         } else {
             body.removeClass('inverse-mode');
             body.addClass('standard-mode');
+            window.parent.postMessage({ genMode: 'Standard', bg: '#ffffff', text: '#000000' }, '*');
         }
         // Standard/Inverse 模式下，清除 Wireframe 的 CSS 變數，讓背景色恢復為黑/白
         // 這樣可以確保從 Wireframe 切換回來時，背景顏色會正確重置
@@ -3831,6 +3833,9 @@ function updateBackgroundColor(bgColor, disableTransition = false) {
     document.documentElement.style.setProperty('--wireframe-bg', cssColor);
     document.documentElement.style.setProperty('--wireframe-border', borderCssColor);
     document.documentElement.style.setProperty('--wireframe-opacity', opacityValue);
+
+    // 通知外層 header 更新背景色（Wireframe 模式）
+    window.parent.postMessage({ genMode: 'Wireframe', bg: cssColor, text: borderCssColor }, '*');
 
     // 更新 landscape overlay 的 CSS 變數
     document.documentElement.style.setProperty('--current-wireframe-bg', cssColor);

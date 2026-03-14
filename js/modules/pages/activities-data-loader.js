@@ -224,6 +224,17 @@ export function bindInteractions(container) {
     else img.addEventListener('load', apply, { once: true });
   });
 
+  // Workshop reference 按鈕
+  container.querySelectorAll('.workshop-ref-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const section = btn.dataset.refSection;
+      const itemId  = btn.dataset.refItem;
+      if (typeof window.__sccdNavigateToItem === 'function') {
+        window.__sccdNavigateToItem(section, itemId || null);
+      }
+    });
+  });
+
   // 進場動畫：回傳啟動函數
   if (typeof gsap === 'undefined') return null;
 
@@ -277,7 +288,7 @@ export async function loadWorkshopsInto(jsonFile, pageType = 'workshop', contain
       const mediaJson = JSON.stringify(buildItemMedia(item)).replace(/"/g, '&quot;');
 
       return `
-        <div class="workshop-item ${!isItemLast ? 'border-b-4 border-black' : ''} overflow-hidden" data-media="${mediaJson}">
+        <div class="workshop-item ${!isItemLast ? 'border-b-4 border-black' : ''} overflow-hidden" data-media="${mediaJson}"${item.id ? ` id="item-${item.id}"` : ''}>
           <div class="workshop-header cursor-pointer group transition-colors duration-fast flex items-start justify-between px-[4px] py-sm">
             <div class="flex flex-col gap-xs flex-1 min-w-0">
               <div>
@@ -290,7 +301,7 @@ export async function loadWorkshopsInto(jsonFile, pageType = 'workshop', contain
               </div>` : ''}
             </div>
             <div class="flex items-start gap-sm flex-shrink-0 pt-[0.25rem]">
-              ${item.flag ? `<span class="fi fi-${item.flag}" style="width:1.5em;height:1.5em;border-radius:2px;"></span>` : ''}
+              ${item.flag ? `<span class="fi fi-${item.flag}" style="width:1.5em;height:1em;display:inline-block;"></span>` : ''}
               <i class="fa-solid fa-chevron-down text-p2 transition-transform duration-300"></i>
             </div>
           </div>
@@ -298,7 +309,7 @@ export async function loadWorkshopsInto(jsonFile, pageType = 'workshop', contain
             <div class="pt-sm pb-lg px-xl grid gap-gutter items-start" style="grid-template-columns: 9.5fr 2.5fr;">
               <div class="flex flex-col gap-md pr-2xl">
                 ${(item.date || item.location || item.location_zh) ? `<div class="flex gap-xl">
-                  ${item.date ? `<div class="flex-shrink-0"><p class="text-p2 font-bold">${item.date.replace(/ - /g, '&nbsp;&nbsp;-&nbsp;&nbsp;').replace(/ \/ /g, '&nbsp;/&nbsp;')}</p></div>` : ''}
+                  ${item.date ? `<div class="flex-shrink-0"><p class="text-p2 font-bold">${item.date.replace(/\./g, ' / ').replace(/ - /g, '&nbsp;&nbsp;-&nbsp;&nbsp;').replace(/ \/ /g, '&nbsp;/&nbsp;')}</p></div>` : ''}
                   ${(item.location || item.location_zh) ? `<div>
                     ${item.location ? `<p class="text-p2 font-bold">${item.location.replace(/  \/  /g, '&nbsp;&nbsp;/&nbsp;&nbsp;')}</p>` : ''}
                     ${item.location_zh ? `<p class="text-p2 font-bold">${item.location_zh.replace(/  \/  /g, '&nbsp;&nbsp;/&nbsp;&nbsp;')}</p>` : ''}
@@ -318,6 +329,19 @@ export async function loadWorkshopsInto(jsonFile, pageType = 'workshop', contain
               ${buildPosterHtml(item)}
             </div>
             ${buildGalleryHtml(item)}
+            ${item.reference ? `
+            <div class="px-xl pb-lg">
+              <button class="workshop-ref-btn cursor-pointer border-none bg-none p-0 flex items-start gap-sm"
+                data-ref-section="${item.reference.section}"
+                data-ref-item="${item.reference.itemId || ''}">
+                <i class="fa-solid fa-arrow-right text-p2 flex-shrink-0" style="padding-top: 0.25rem;"></i>
+                <div class="flex flex-col text-left">
+                  <p class="text-p2 text-black">${item.reference.labelEn || ''} ${item.reference.labelZh || ''}</p>
+                  ${item.reference.titleEn ? `<p class="text-p2 font-bold text-black">${item.reference.titleEn}</p>` : ''}
+                  ${item.reference.titleZh ? `<p class="text-p2 font-bold text-black">${item.reference.titleZh}</p>` : ''}
+                </div>
+              </button>
+            </div>` : ''}
           </div>
         </div>
       `;
@@ -370,17 +394,17 @@ export async function loadSummerCampInto(containerId = null) {
             <h5 class="font-bold flex-shrink-0 py-sm pr-xl">${yearGroup.year}</h5>
             <div class="flex-1 min-w-0">
               <div class="workshop-header cursor-pointer group transition-colors duration-fast flex items-start justify-between px-[4px] py-sm">
-                <div class="text-h5 font-bold">${item.title}</div>
+                <div class="text-h5 font-bold">${item.title_en ? item.title_en : item.title}${item.title_en ? `<br><span class="text-h5 font-bold">${item.title}</span>` : ''}</div>
                 <i class="fa-solid fa-chevron-down text-p2 transition-transform duration-300"></i>
               </div>
               <div class="workshop-content h-0 overflow-hidden">
-                <div class="pb-lg px-xl grid gap-gutter items-start" style="grid-template-columns: 9.5fr 2.5fr;">
+                <div class="pt-sm pb-lg px-xl grid gap-gutter items-start" style="grid-template-columns: 9.5fr 2.5fr;">
                   <div class="flex flex-col gap-md pr-2xl">
-                    <div class="flex gap-xl items-baseline">
-                      ${item.date ? `<h6 class="text-black whitespace-nowrap flex-shrink-0">${item.date}</h6>` : ''}
-                      ${item.location ? `<h6 class="text-black truncate">${item.location}</h6>` : ''}
-                    </div>
-                    <div class="overflow-y-auto" style="max-height: 250px; background: transparent;">
+                    ${(item.date || item.location) ? `<div class="flex gap-xl">
+                      ${item.date ? `<div class="flex-shrink-0"><p class="text-p2 font-bold">${item.date.replace(/\./g, ' / ')}</p></div>` : ''}
+                      ${item.location ? `<div><p class="text-p2 font-bold">${item.location}</p></div>` : ''}
+                    </div>` : ''}
+                    <div class="overflow-y-auto pr-xl" style="max-height: 250px; background: transparent;">
                       <p class="text-p2 leading-base">${item.descriptionEn}</p>
                       ${item.descriptionZh ? `<p class="text-p2 leading-base mt-md">${item.descriptionZh}</p>` : ''}
                     </div>

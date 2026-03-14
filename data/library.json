@@ -4,6 +4,7 @@
     "titleEn": "Publication Title 1",
     "titleZh": "出版物標題 1",
     "year": "2025",
+    "category": "degree-show",
     "image": "../images/2021-動畫-Pitch-Bible-01.png",
     "pdfUrl": "../assets/sample.pdf"
   },
@@ -12,6 +13,7 @@
     "titleEn": "Publication Title 2",
     "titleZh": "出版物標題 2",
     "year": "2025",
+    "category": "workshop",
     "image": "../images/2021-動畫-Pitch-Bible-01.png",
     "pdfUrl": ""
   },
@@ -20,6 +22,7 @@
     "titleEn": "Publication Title 3",
     "titleZh": "出版物標題 3",
     "year": "2024",
+    "category": "courses",
     "image": "../images/2021-動畫-Pitch-Bible-01.png",
     "pdfUrl": ""
   },
@@ -28,6 +31,7 @@
     "titleEn": "Publication Title 4",
     "titleZh": "出版物標題 4",
     "year": "2024",
+    "category": "degree-show",
     "image": "../images/2021-動畫-Pitch-Bible-01.png",
     "pdfUrl": ""
   },
@@ -36,6 +40,7 @@
     "titleEn": "Publication Title 5",
     "titleZh": "出版物標題 5",
     "year": "2023",
+    "category": "others",
     "image": "../images/2021-動畫-Pitch-Bible-01.png",
     "pdfUrl": ""
   },
@@ -44,6 +49,7 @@
     "titleEn": "Publication Title 6",
     "titleZh": "出版物標題 6",
     "year": "2023",
+    "category": "workshop",
     "image": "../images/2021-動畫-Pitch-Bible-01.png",
     "pdfUrl": ""
   },
@@ -52,6 +58,7 @@
     "titleEn": "Publication Title 7",
     "titleZh": "出版物標題 7",
     "year": "2022",
+    "category": "courses",
     "image": "../images/2021-動畫-Pitch-Bible-01.png",
     "pdfUrl": ""
   },
@@ -60,6 +67,7 @@
     "titleEn": "Publication Title 8",
     "titleZh": "出版物標題 8",
     "year": "2022",
+    "category": "others",
     "image": "../images/2021-動畫-Pitch-Bible-01.png",
     "pdfUrl": ""
   }
