@@ -6,8 +6,8 @@
 /**
  * Initialize Workshop Year Toggle (年份展開/收合)
  */
-function initWorkshopYearToggle() {
-  const workshopYearToggles = document.querySelectorAll('.workshop-year-toggle');
+function initListYearToggle() {
+  const workshopYearToggles = document.querySelectorAll('.list-year-toggle');
 
   if (workshopYearToggles.length === 0) return;
 
@@ -15,7 +15,7 @@ function initWorkshopYearToggle() {
   workshopYearToggles.forEach(toggle => {
     const yearGrid = toggle.closest('.grid-12');
     if (yearGrid) {
-      const itemsContainer = yearGrid.querySelector('.workshop-year-items');
+      const itemsContainer = yearGrid.querySelector('.list-year-items');
       const chevron = yearGrid.querySelector('.fa-chevron-right');
 
       if (itemsContainer) {
@@ -47,7 +47,7 @@ function initWorkshopYearToggle() {
 
       // Find the chevron and items container within this year group
       const chevron = yearGrid.querySelector('.fa-chevron-right');
-      const itemsContainer = yearGrid.querySelector('.workshop-year-items');
+      const itemsContainer = yearGrid.querySelector('.list-year-items');
 
       if (itemsContainer) {
         // Check if currently open (check if height is set and not 0)
@@ -82,8 +82,8 @@ function initWorkshopYearToggle() {
 /**
  * Initialize Workshop Header Accordion (個別工作營展開/收合)
  */
-function initWorkshopHeaderAccordion() {
-  const workshopHeaders = document.querySelectorAll('.workshop-header');
+function initListHeaderAccordion() {
+  const workshopHeaders = document.querySelectorAll('.list-header');
 
   if (workshopHeaders.length === 0) return;
 
@@ -92,10 +92,10 @@ function initWorkshopHeaderAccordion() {
     header.dataset.accordionInit = '1';
 
     // Initialization: Ensure content is hidden properly for GSAP
-    // nextElementSibling may be the flex wrapper; fall back to .workshop-content in parent
-    const content = (header.nextElementSibling?.classList.contains('workshop-content')
+    // nextElementSibling may be the flex wrapper; fall back to .list-content in parent
+    const content = (header.nextElementSibling?.classList.contains('list-content')
       ? header.nextElementSibling
-      : header.closest('.workshop-item')?.querySelector('.workshop-content')) || header.nextElementSibling;
+      : header.closest('.list-item')?.querySelector('.list-content')) || header.nextElementSibling;
     gsap.set(content, { height: 0, overflow: 'hidden' });
 
     // Hover: 未展開時顯示隨機色，展開後 hover 不改色
@@ -111,9 +111,9 @@ function initWorkshopHeaderAccordion() {
     });
 
     header.addEventListener('click', function() {
-      const content = (this.nextElementSibling?.classList.contains('workshop-content')
+      const content = (this.nextElementSibling?.classList.contains('list-content')
         ? this.nextElementSibling
-        : this.closest('.workshop-item')?.querySelector('.workshop-content')) || this.nextElementSibling;
+        : this.closest('.list-item')?.querySelector('.list-content')) || this.nextElementSibling;
       const chevron = this.querySelector('.fa-chevron-down');
 
       // Toggle active state
@@ -125,7 +125,7 @@ function initWorkshopHeaderAccordion() {
         const color = this.style.background || SCCDHelpers.getRandomAccentColor();
         this.style.background = color;
         content.style.background = color;
-        const workshopItem = this.closest('.workshop-item');
+        const workshopItem = this.closest('.list-item');
         gsap.to(content, {
           height: 'auto', duration: 0.5, ease: "power2.out",
           onComplete: () => {
@@ -154,7 +154,7 @@ function initWorkshopHeaderAccordion() {
 /**
  * Main export function
  */
-export function initWorkshopAccordion() {
-  initWorkshopYearToggle();
-  initWorkshopHeaderAccordion();
+export function initListAccordion() {
+  initListYearToggle();
+  initListHeaderAccordion();
 }

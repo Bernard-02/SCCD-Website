@@ -11,7 +11,7 @@ import { loadAlbumData } from './album-data-loader.js';
 import { loadDegreeShowListInto } from './degree-show-data-loader.js';
 import { initActivitiesFilter } from '../filters/activities-filter.js';
 import { initActivitiesYearToggle } from '../accordions/activities-year-toggle.js';
-import { initWorkshopAccordion } from '../accordions/workshop-accordion.js';
+import { initListAccordion } from '../accordions/list-accordion.js';
 
 // 追蹤哪些 panel 已載入過資料
 const loaded = {};
@@ -28,20 +28,40 @@ export async function navigateToItem(section, itemId) {
   setTimeout(() => {
     const target = document.getElementById(`item-${itemId}`);
     if (!target) return;
-    // scrollIntoView instant 後，位置穩定，再用 getBoundingClientRect 精確計算
+
+    // 若 year group 是收合的，先展開
+    const yearItems = target.closest('.list-year-items');
+    if (yearItems && (yearItems.style.height === '0px' || yearItems.style.display === 'none')) {
+      const yearGrid = yearItems.closest('.grid-12');
+      const yearToggle = yearGrid?.querySelector('.list-year-toggle');
+      if (yearToggle) yearToggle.click();
+    }
+
+    // 先 scroll 到 item
     target.scrollIntoView({ behavior: 'instant', block: 'start' });
     const panel     = document.getElementById(`panel-${section}`);
     const filterBar = panel?.querySelector('.activities-filter-bar');
     const filterBarH = filterBar?.offsetHeight || 0;
-    // search bar sticky top 是 160px，補償 = 160 + filterBar 高度 + 小 padding
     const compensate = 160 + filterBarH + 16;
-    // 此時 target.getBoundingClientRect().top 應接近 0，再往上補償
     const finalTop = window.scrollY + target.getBoundingClientRect().top - compensate;
     window.scrollTo({ top: finalTop, behavior: 'smooth' });
-    // 短暫 highlight
-    target.style.transition = 'background 0.3s';
-    target.style.background = currentSectionColor || '#00FF80';
-    setTimeout(() => { target.style.background = ''; }, 1200);
+
+    // scroll 完成後：先閃 highlight，再展開 accordion
+    setTimeout(() => {
+      // 先閃一下
+      const flashColor = currentSectionColor || '#00FF80';
+      target.style.transition = 'background 0.3s';
+      target.style.background = flashColor;
+      setTimeout(() => {
+        target.style.background = '';
+        // 閃完後展開，用同一個顏色
+        const header = target.querySelector('.list-header');
+        if (header && !header.classList.contains('active')) {
+          header.style.background = flashColor;
+          header.click();
+        }
+      }, 600);
+    }, 600);
   }, 150);
 }
 
@@ -111,7 +131,7 @@ async function switchToSection(section, btns, shouldScroll) {
 
   // Scroll to section（點擊時才 scroll，初始載入不 scroll）
   if (shouldScroll) {
-    const sectionEl = document.getElementById('activities-content-section') || document.getElementById('museum-content-section');
+    const sectionEl = document.getElementById('activities-content-section') || document.getElementById('library-content-section');
     if (sectionEl) {
       const top = sectionEl.offsetTop;
 
@@ -139,24 +159,44 @@ async function loadPanel(section) {
   loaded[section] = true;
 
   switch (section) {
-    case 'general':
-      await loadGeneralActivitiesInto('general-activities-list');
-      initActivitiesFilter();
+    case 'exhibitions':
+      await loadGeneralActivitiesInto('general-activities-list', 'exhibitions');
       initActivitiesYearToggle();
-      initWorkshopAccordion();
+      initListAccordion();
       if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh();
-      return null; // general 用 ScrollTrigger，不需要外部觸發
+      return null;
+
+    case 'visits':
+      await loadGeneralActivitiesInto('visits-list', 'visits');
+      initActivitiesYearToggle();
+      initListAccordion();
+      if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh();
+      return null;
+
+    case 'competitions':
+      await loadGeneralActivitiesInto('competitions-list', 'competitions');
+      initActivitiesYearToggle();
+      initListAccordion();
+      if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh();
+      return null;
+
+    case 'conferences':
+      await loadGeneralActivitiesInto('conferences-list', 'conferences');
+      initActivitiesYearToggle();
+      initListAccordion();
+      if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh();
+      return null;
 
     case 'lectures':
       await loadLecturesInto('lectures-list');
       initActivitiesYearToggle();
-      initWorkshopAccordion();
+      initListAccordion();
       if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh();
       return null;
 
     case 'workshop': {
       const play = await loadWorkshopsInto('../data/workshops.json', 'workshop', 'workshop-list');
-      initWorkshopAccordion();
+      initListAccordion();
       return play;
     }
 
@@ -166,13 +206,13 @@ async function loadPanel(section) {
 
     case 'summer-camp': {
       const play = await loadSummerCampInto('summer-camp-list');
-      initWorkshopAccordion();
+      initListAccordion();
       return play;
     }
 
     case 'students-present': {
       const play = await loadWorkshopsInto('../data/students-present.json', 'student', 'students-present-list');
-      initWorkshopAccordion();
+      initListAccordion();
       return play;
     }
 
@@ -183,7 +223,7 @@ async function loadPanel(section) {
     case 'industry':
       await loadIndustryInto('industry-list');
       initActivitiesYearToggle();
-      initWorkshopAccordion();
+      initListAccordion();
       if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh();
       return null;
   }

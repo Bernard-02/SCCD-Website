@@ -24,8 +24,8 @@ export function getGroupScrollTriggers() { return groupScrollTriggers; }
 
 // 取得 group 內要動畫的元素（供 filter 重建用）
 function getGroupItems(group) {
-  const yearToggle = group.querySelector('.workshop-year-toggle');
-  const items = [...group.querySelectorAll('.workshop-item')].filter(el => el.style.display !== 'none');
+  const yearToggle = group.querySelector('.list-year-toggle');
+  const items = [...group.querySelectorAll('.list-item')].filter(el => el.style.display !== 'none');
   const divider = group.nextElementSibling?.classList.contains('activities-separator')
     ? group.nextElementSibling : null;
   return [...(yearToggle ? [yearToggle] : []), ...items, ...(divider ? [divider] : [])];
@@ -84,7 +84,7 @@ function updateYearToggleStickyTop(container, panelSelector = '#panel-general') 
   if (!filterBar) return;
   // filter bar sticky 於 top 160px，年份 toggle 緊接在其下方
   const top = 160 + filterBar.offsetHeight;
-  container.querySelectorAll('.workshop-year-toggle').forEach(el => {
+  container.querySelectorAll('.list-year-toggle').forEach(el => {
     el.style.top = top + 'px';
   });
 }
@@ -92,7 +92,7 @@ function updateYearToggleStickyTop(container, panelSelector = '#panel-general') 
 // 初始載入時：每個 group 各自 ScrollTrigger，滾到才觸發，group 內 items 依序 stagger
 export function buildInitialScrollTrigger(container) {
   if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') return null;
-  const groups = [...container.querySelectorAll('.workshop-year-group')];
+  const groups = [...container.querySelectorAll('.list-year-group')];
   if (groups.length === 0) return null;
 
   groups.forEach(group => {
@@ -148,7 +148,9 @@ export async function loadGeneralActivitiesInto(containerId, categoryFilter = nu
 
       const total = yearGroup.items.length;
       const itemsHtml = yearGroup.items.map((item, itemIdx) => {
-        const mediaJson = JSON.stringify(buildItemMedia(item)).replace(/"/g, '&quot;');
+        const media = buildItemMedia(item);
+        const mediaJson = JSON.stringify(media).replace(/"/g, '&quot;');
+        const refCoverSrc = item.reference?.coverSrc || '';
         const dateDisplay = formatDate(item.date);
 
         const categoryEnMap = { seminars: 'Lectures', visits: 'Visits', exhibitions: 'Exhibitions', conferences: 'Conferences', competitions: 'Competitions' };
@@ -160,8 +162,8 @@ export async function loadGeneralActivitiesInto(containerId, categoryFilter = nu
         const borderClass = categoryFilter && !isLastItem ? 'border-b-4 border-black' : '';
 
         return `
-          <div class="workshop-item overflow-hidden ${borderClass}" data-category="${item.category}" data-media="${mediaJson}"${item.id ? ` id="item-${item.id}"` : ''}>
-            <div class="workshop-header cursor-pointer group transition-colors duration-fast flex items-center justify-between px-[4px] py-sm">
+          <div class="list-item overflow-hidden ${borderClass}" data-category="${item.category}" data-media="${mediaJson}"${item.id ? ` id="item-${item.id}"` : ''}>
+            <div class="list-header cursor-pointer group transition-colors duration-fast flex items-center justify-between px-[4px] py-sm">
               <div class="text-h5 font-bold">${item.title_en ? item.title_en : item.title}${item.title_en ? `<br><span class="text-h5 font-bold">${item.title}</span>` : ''}</div>
               <div class="flex items-start gap-sm flex-shrink-0 pt-[0.25rem]">
                 ${categoryLabelHtml}
@@ -170,7 +172,7 @@ export async function loadGeneralActivitiesInto(containerId, categoryFilter = nu
                 <i class="fa-solid fa-chevron-down text-p2 transition-transform duration-300"></i>
               </div>
             </div>
-            <div class="workshop-content h-0 overflow-hidden">
+            <div class="list-content h-0 overflow-hidden">
               <div class="pt-sm pb-lg px-xl grid gap-gutter items-start" style="grid-template-columns: 9.5fr 2.5fr;">
                 <div class="flex flex-col gap-md pr-2xl">
                   ${containerId !== 'industry-list' && (dateDisplay || item.location || item.location_zh) ? `<div class="flex gap-xl">
@@ -199,15 +201,20 @@ export async function loadGeneralActivitiesInto(containerId, categoryFilter = nu
               </div>
               ${buildGalleryHtml(item)}
               ${containerId === 'industry-list' && item.reference ? `
-              <div class="px-xl pb-lg">
-                <button class="industry-ref-btn cursor-pointer border-none bg-none p-0 flex items-start gap-sm"
+              <div class="px-xl pb-lg" style="max-width: calc(9.5 / 12 * 100%);">
+                <button class="industry-ref-btn cursor-pointer border-none bg-none p-0 w-full flex items-start gap-sm text-left"
                   data-ref-section="${item.reference.section}"
                   data-ref-item="${item.reference.itemId || ''}">
                   <i class="fa-solid fa-arrow-right text-p2 flex-shrink-0" style="padding-top: 0.25rem;"></i>
-                  <div class="flex flex-col text-left">
+                  <div class="flex flex-col flex-1 min-w-0 gap-xs">
                     <p class="text-p2 text-black">${item.reference.labelEn || ''} ${item.reference.labelZh || ''}</p>
-                    ${item.reference.titleEn ? `<p class="text-p2 font-bold text-black">${item.reference.titleEn}</p>` : ''}
-                    ${item.reference.titleZh ? `<p class="text-p2 font-bold text-black">${item.reference.titleZh}</p>` : ''}
+                    <div class="flex items-start justify-between gap-xl">
+                      <div class="flex flex-col min-w-0">
+                        ${item.reference.titleEn ? `<p class="text-p2 font-bold text-black">${item.reference.titleEn}</p>` : ''}
+                        ${item.reference.titleZh ? `<p class="text-p2 font-bold text-black">${item.reference.titleZh}</p>` : ''}
+                      </div>
+                      ${refCoverSrc ? `<div class="flex-shrink-0" style="height: 5rem;"><img src="${refCoverSrc}" alt="" class="ref-cover-img h-full w-auto block"></div>` : ''}
+                    </div>
                   </div>
                 </button>
               </div>` : ''}
@@ -217,12 +224,12 @@ export async function loadGeneralActivitiesInto(containerId, categoryFilter = nu
       }).join('');
 
       container.insertAdjacentHTML('beforeend', `
-        <div class="workshop-year-group grid-12 items-start">
-          <div class="col-span-12 md:col-span-1 md:col-start-1 workshop-year-toggle cursor-pointer flex items-center gap-sm order-1 py-sm pl-xs md:sticky md:self-start md:pb-sm">
+        <div class="list-year-group grid-12 items-start">
+          <div class="col-span-12 md:col-span-1 md:col-start-1 list-year-toggle cursor-pointer flex items-center gap-sm order-1 py-sm pl-xs md:sticky md:self-start md:pb-sm">
             <i class="fa-solid fa-chevron-right text-p2 transition-all duration-fast rotate-90"></i>
             <h5>${yearGroup.year}</h5>
           </div>
-          <div class="col-span-12 md:col-span-11 md:col-start-2 workshop-year-items flex flex-col order-2 mt-md md:mt-0 md:pl-[41px]">
+          <div class="col-span-12 md:col-span-11 md:col-start-2 list-year-items flex flex-col order-2 mt-md md:mt-0 md:pl-[41px]">
             ${itemsHtml}
           </div>
         </div>
@@ -253,8 +260,15 @@ export async function loadGeneralActivitiesInto(containerId, categoryFilter = nu
     }
 
     // 動態設定年份 toggle 的 sticky top（對應各自 panel 的 filter/search bar 底部）
-    const panelSelectorMap = { 'lectures-list': '#panel-lectures', 'industry-list': '#panel-industry' };
-    const panelSelector = panelSelectorMap[containerId] || '#panel-general';
+    const panelSelectorMap = {
+      'general-activities-list': '#panel-exhibitions',
+      'lectures-list': '#panel-lectures',
+      'industry-list': '#panel-industry',
+      'visits-list': '#panel-visits',
+      'competitions-list': '#panel-competitions',
+      'conferences-list': '#panel-conferences',
+    };
+    const panelSelector = panelSelectorMap[containerId] || '#panel-exhibitions';
     updateYearToggleStickyTop(container, panelSelector);
   } catch (error) {
     console.error('Error loading general activities data:', error);

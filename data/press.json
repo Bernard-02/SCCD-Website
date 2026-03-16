@@ -1,0 +1,29 @@
+[
+  {
+    "id": "press-1",
+    "titleEn": "Degree Show Coverage",
+    "titleZh": "畢業展報導",
+    "year": "2025",
+    "category": "degree-show",
+    "image": "../images/2021-動畫-Pitch-Bible-01.png",
+    "pdfUrl": "../assets/sample.pdf"
+  },
+  {
+    "id": "press-2",
+    "titleEn": "Workshop Feature",
+    "titleZh": "工作坊特輯",
+    "year": "2025",
+    "category": "workshop",
+    "image": "../images/2021-動畫-Pitch-Bible-01.png",
+    "pdfUrl": ""
+  },
+  {
+    "id": "press-3",
+    "titleEn": "Design Lecture Press",
+    "titleZh": "設計講座報導",
+    "year": "2024",
+    "category": "lectures",
+    "image": "../images/2021-動畫-Pitch-Bible-01.png",
+    "pdfUrl": ""
+  }
+]

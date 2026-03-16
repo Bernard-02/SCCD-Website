@@ -11,15 +11,15 @@ function updateYearToggleStickyTopForPanel(container) {
   const panel = container.closest('.activities-panel');
   const filterBar = panel ? panel.querySelector('.activities-filter-bar') : null;
   const stickyTop = filterBar ? 160 + filterBar.offsetHeight : 160;
-  container.querySelectorAll('.workshop-year-toggle').forEach(el => {
+  container.querySelectorAll('.list-year-toggle').forEach(el => {
     el.style.top = stickyTop + 'px';
   });
 }
 
-// Helper: 為 workshop-item 內的海報及 gallery 圖片加上 hover 灰階 + screen overlay 效果
+// Helper: 為 list-item 內的海報及 gallery 圖片加上 hover 灰階 + screen overlay 效果
 export function bindMediaHover(container) {
-  container.querySelectorAll('.workshop-item').forEach(workshopItem => {
-    const header = workshopItem.querySelector('.workshop-header');
+  container.querySelectorAll('.list-item').forEach(workshopItem => {
+    const header = workshopItem.querySelector('.list-header');
 
     const applyHover = (wrapper) => {
       if (wrapper.dataset.hoverInit) return;
@@ -151,7 +151,7 @@ export function bindInteractions(container) {
       prevBtn?.classList.toggle('invisible', max === 0);
       nextBtn?.classList.toggle('invisible', max === 0);
     };
-    gallery.closest('.workshop-item')?.addEventListener('gallery:check', updateChevrons);
+    gallery.closest('.list-item')?.addEventListener('gallery:check', updateChevrons);
     const STEP = () => track.clientWidth * 0.6;
     prevBtn?.addEventListener('click', () => {
       offset = Math.max(0, offset - STEP());
@@ -164,7 +164,7 @@ export function bindInteractions(container) {
   });
 
   // Lightbox 綁定
-  container.querySelectorAll('.workshop-item').forEach(workshopItem => {
+  container.querySelectorAll('.list-item').forEach(workshopItem => {
     const media = JSON.parse(workshopItem.dataset.media || '[]');
     if (media.length === 0) return;
     workshopItem.querySelectorAll('[data-lightbox-open]').forEach(el => {
@@ -182,7 +182,7 @@ export function bindInteractions(container) {
   // 標題跑馬燈：偵測是否溢出，是則加 is-overflow + 設定捲動距離
   const initMarquees = () => {
     if (window.innerWidth < 768) return;
-    container.querySelectorAll('.workshop-title-marquee').forEach(wrap => {
+    container.querySelectorAll('.list-title-marquee').forEach(wrap => {
       const p = wrap.querySelector('p');
       if (!p) return;
       const checkOverflow = () => {
@@ -213,11 +213,34 @@ export function bindInteractions(container) {
   // 海報比例偵測
   container.querySelectorAll('.poster-img').forEach(img => {
     const apply = () => {
-      const grid = img.closest('.workshop-content')?.querySelector('[style*="grid-template-columns"]');
+      const grid = img.closest('.list-content')?.querySelector('[style*="grid-template-columns"]');
       if (img.naturalWidth > img.naturalHeight) {
         img.classList.replace('object-cover', 'object-contain');
         img.classList.add('object-top');
         if (grid) grid.style.gridTemplateColumns = '8.5fr 3.5fr';
+      }
+    };
+    if (img.complete && img.naturalWidth) apply();
+    else img.addEventListener('load', apply, { once: true });
+  });
+
+  // Ref cover 比例偵測（直圖：固定小寬度；橫圖：擴大容器，object-contain）
+  container.querySelectorAll('.ref-cover-img').forEach(img => {
+    const apply = () => {
+      const wrapper = img.parentElement;
+      const titleDiv = wrapper?.previousElementSibling;
+      if (img.naturalWidth > img.naturalHeight) {
+        // 橫圖：圖佔較大比例，文字縮小
+        wrapper.style.width = '40%';
+        wrapper.style.flexShrink = '0';
+        img.style.objectFit = 'contain';
+        img.style.width = '100%';
+        img.style.height = '100%';
+        if (titleDiv) titleDiv.style.flex = '1';
+      } else {
+        // 直圖：圖保持小寬度
+        wrapper.style.width = 'auto';
+        wrapper.style.flexShrink = '0';
       }
     };
     if (img.complete && img.naturalWidth) apply();
@@ -238,9 +261,9 @@ export function bindInteractions(container) {
   // 進場動畫：回傳啟動函數
   if (typeof gsap === 'undefined') return null;
 
-  const allSets = [...container.querySelectorAll('.workshop-year-group')].map(group => {
-    const yearToggle = group.querySelector('.workshop-year-toggle');
-    const items = group.querySelectorAll('.workshop-item');
+  const allSets = [...container.querySelectorAll('.list-year-group')].map(group => {
+    const yearToggle = group.querySelector('.list-year-toggle');
+    const items = group.querySelectorAll('.list-item');
     const divider = group.nextElementSibling?.classList.contains('activities-separator')
       ? group.nextElementSibling : null;
     return { items: [...(yearToggle ? [yearToggle] : []), ...items, ...(divider ? [divider] : [])] };
@@ -285,15 +308,17 @@ export async function loadWorkshopsInto(jsonFile, pageType = 'workshop', contain
     const isLast = index === data.length - 1;
     const itemsHtml = yearGroup.items.map((item, idx) => {
       const isItemLast = idx === yearGroup.items.length - 1;
-      const mediaJson = JSON.stringify(buildItemMedia(item)).replace(/"/g, '&quot;');
+      const media = buildItemMedia(item);
+      const mediaJson = JSON.stringify(media).replace(/"/g, '&quot;');
+      const refCoverSrc = item.reference?.coverSrc || '';
 
       return `
-        <div class="workshop-item ${!isItemLast ? 'border-b-4 border-black' : ''} overflow-hidden" data-media="${mediaJson}"${item.id ? ` id="item-${item.id}"` : ''}>
-          <div class="workshop-header cursor-pointer group transition-colors duration-fast flex items-start justify-between px-[4px] py-sm">
+        <div class="list-item ${!isItemLast ? 'border-b-4 border-black' : ''} overflow-hidden" data-media="${mediaJson}"${item.id ? ` id="item-${item.id}"` : ''}>
+          <div class="list-header cursor-pointer group transition-colors duration-fast flex items-start justify-between px-[4px] py-sm">
             <div class="flex flex-col gap-xs flex-1 min-w-0">
               <div>
-                <div class="workshop-title-marquee"><p class="text-h5 font-bold">${item.title}</p></div>
-                ${item.title_zh ? `<div class="workshop-title-marquee"><p class="text-h5 font-bold">${item.title_zh}</p></div>` : ''}
+                <div class="list-title-marquee"><p class="text-h5 font-bold">${item.title}</p></div>
+                ${item.title_zh ? `<div class="list-title-marquee"><p class="text-h5 font-bold">${item.title_zh}</p></div>` : ''}
               </div>
               ${(item.subtitle || item.subtitle_zh) ? `<div>
                 ${item.subtitle ? `<p class="text-p2">${item.subtitle}</p>` : ''}
@@ -305,7 +330,7 @@ export async function loadWorkshopsInto(jsonFile, pageType = 'workshop', contain
               <i class="fa-solid fa-chevron-down text-p2 transition-transform duration-300"></i>
             </div>
           </div>
-          <div class="workshop-content h-0 overflow-hidden">
+          <div class="list-content h-0 overflow-hidden">
             <div class="pt-sm pb-lg px-xl grid gap-gutter items-start" style="grid-template-columns: 9.5fr 2.5fr;">
               <div class="flex flex-col gap-md pr-2xl">
                 ${(item.date || item.location || item.location_zh) ? `<div class="flex gap-xl">
@@ -330,15 +355,20 @@ export async function loadWorkshopsInto(jsonFile, pageType = 'workshop', contain
             </div>
             ${buildGalleryHtml(item)}
             ${item.reference ? `
-            <div class="px-xl pb-lg">
-              <button class="workshop-ref-btn cursor-pointer border-none bg-none p-0 flex items-start gap-sm"
+            <div class="px-xl pb-lg" style="max-width: calc(9.5 / 12 * 100%);">
+              <button class="workshop-ref-btn cursor-pointer border-none bg-none p-0 w-full flex items-start gap-sm text-left"
                 data-ref-section="${item.reference.section}"
                 data-ref-item="${item.reference.itemId || ''}">
                 <i class="fa-solid fa-arrow-right text-p2 flex-shrink-0" style="padding-top: 0.25rem;"></i>
-                <div class="flex flex-col text-left">
+                <div class="flex flex-col flex-1 min-w-0 gap-xs">
                   <p class="text-p2 text-black">${item.reference.labelEn || ''} ${item.reference.labelZh || ''}</p>
-                  ${item.reference.titleEn ? `<p class="text-p2 font-bold text-black">${item.reference.titleEn}</p>` : ''}
-                  ${item.reference.titleZh ? `<p class="text-p2 font-bold text-black">${item.reference.titleZh}</p>` : ''}
+                  <div class="flex items-start justify-between gap-xl">
+                    <div class="flex flex-col min-w-0">
+                      ${item.reference.titleEn ? `<p class="text-p2 font-bold text-black">${item.reference.titleEn}</p>` : ''}
+                      ${item.reference.titleZh ? `<p class="text-p2 font-bold text-black">${item.reference.titleZh}</p>` : ''}
+                    </div>
+                    ${refCoverSrc ? `<div class="flex-shrink-0" style="height: 5rem;"><img src="${refCoverSrc}" alt="" class="ref-cover-img h-full w-auto block"></div>` : ''}
+                  </div>
                 </div>
               </button>
             </div>` : ''}
@@ -348,12 +378,12 @@ export async function loadWorkshopsInto(jsonFile, pageType = 'workshop', contain
     }).join('');
 
     container.insertAdjacentHTML('beforeend', `
-      <div class="workshop-year-group grid-12 items-start">
-        <div class="col-span-12 md:col-span-1 md:col-start-1 workshop-year-toggle cursor-pointer flex items-center gap-sm order-1 py-sm pl-xs md:sticky md:self-start md:pb-sm">
+      <div class="list-year-group grid-12 items-start">
+        <div class="col-span-12 md:col-span-1 md:col-start-1 list-year-toggle cursor-pointer flex items-center gap-sm order-1 py-sm pl-xs md:sticky md:self-start md:pb-sm">
           <i class="fa-solid fa-chevron-right text-p2 transition-all duration-fast rotate-90"></i>
           <h5>${yearGroup.year}</h5>
         </div>
-        <div class="col-span-12 md:col-span-11 md:col-start-2 workshop-year-items flex flex-col order-2 mt-md md:mt-0 md:pl-[41px]">
+        <div class="col-span-12 md:col-span-11 md:col-start-2 list-year-items flex flex-col order-2 mt-md md:mt-0 md:pl-[41px]">
           ${itemsHtml}
         </div>
       </div>
@@ -389,15 +419,15 @@ export async function loadSummerCampInto(containerId = null) {
       const mediaJson = JSON.stringify(buildItemMedia(item)).replace(/"/g, '&quot;');
 
       return `
-        <div class="workshop-item ${!isItemLast ? 'border-b-4 border-black' : ''} overflow-hidden" data-media="${mediaJson}">
+        <div class="list-item ${!isItemLast ? 'border-b-4 border-black' : ''} overflow-hidden" data-media="${mediaJson}">
           <div class="flex items-start">
             <h5 class="font-bold flex-shrink-0 py-sm pr-xl">${yearGroup.year}</h5>
             <div class="flex-1 min-w-0">
-              <div class="workshop-header cursor-pointer group transition-colors duration-fast flex items-start justify-between px-[4px] py-sm">
+              <div class="list-header cursor-pointer group transition-colors duration-fast flex items-start justify-between px-[4px] py-sm">
                 <div class="text-h5 font-bold">${item.title_en ? item.title_en : item.title}${item.title_en ? `<br><span class="text-h5 font-bold">${item.title}</span>` : ''}</div>
                 <i class="fa-solid fa-chevron-down text-p2 transition-transform duration-300"></i>
               </div>
-              <div class="workshop-content h-0 overflow-hidden">
+              <div class="list-content h-0 overflow-hidden">
                 <div class="pt-sm pb-lg px-xl grid gap-gutter items-start" style="grid-template-columns: 9.5fr 2.5fr;">
                   <div class="flex flex-col gap-md pr-2xl">
                     ${(item.date || item.location) ? `<div class="flex gap-xl">
@@ -420,7 +450,7 @@ export async function loadSummerCampInto(containerId = null) {
     }).join('');
 
     container.insertAdjacentHTML('beforeend', `
-      <div class="workshop-year-group">
+      <div class="list-year-group">
         ${itemsHtml}
       </div>
       ${!isLast ? '<div class="activities-separator border-b-4 border-black"></div>' : ''}

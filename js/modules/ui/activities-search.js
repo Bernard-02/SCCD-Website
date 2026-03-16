@@ -16,9 +16,9 @@ function stripHtml(html) {
 
 function matchScore(item, query) {
   const q = query.toLowerCase();
-  const titleEl = item.querySelector('.workshop-header .text-h5, .workshop-header div[class*="font-bold"]');
+  const titleEl = item.querySelector('.list-header .text-h5, .list-header div[class*="font-bold"]');
   const title = titleEl ? titleEl.textContent.toLowerCase() : '';
-  const contentEl = item.querySelector('.workshop-content');
+  const contentEl = item.querySelector('.list-content');
   const content = contentEl ? stripHtml(contentEl.innerHTML).toLowerCase() : '';
 
   // 標題優先：完全符合=3，含關鍵字=2，只有內容含關鍵字=1
@@ -28,7 +28,7 @@ function matchScore(item, query) {
   return 0;
 }
 
-// ── Border 重建（不操作 mt，間距完全靠 workshop-header 的 py-md） ──────────
+// ── Border 重建（不操作 mt，間距完全靠 list-header 的 py-md） ──────────
 
 function rebuildBorders(visibleItems) {
   visibleItems.forEach((item, idx) => {
@@ -49,15 +49,15 @@ function getActiveMomentFilter() {
 const originalOrders = new Map();
 
 function saveOriginalOrder(panel) {
-  panel.querySelectorAll('.workshop-year-items').forEach(container => {
+  panel.querySelectorAll('.list-year-items').forEach(container => {
     if (!originalOrders.has(container)) {
-      originalOrders.set(container, [...container.querySelectorAll('.workshop-item[data-category]')]);
+      originalOrders.set(container, [...container.querySelectorAll('.list-item[data-category]')]);
     }
   });
 }
 
 function restoreOriginalOrder(panel) {
-  panel.querySelectorAll('.workshop-year-items').forEach(container => {
+  panel.querySelectorAll('.list-year-items').forEach(container => {
     const original = originalOrders.get(container);
     if (original) original.forEach(item => container.appendChild(item));
   });
@@ -71,10 +71,10 @@ function applyMomentSearch(query) {
 
   if (!query) {
     restoreOriginalOrder(panel);
-    panel.querySelectorAll('.workshop-item[data-category]').forEach(item => {
+    panel.querySelectorAll('.list-item[data-category]').forEach(item => {
       item.style.display = '';
     });
-    panel.querySelectorAll('.workshop-year-group').forEach(group => {
+    panel.querySelectorAll('.list-year-group').forEach(group => {
       group.style.display = '';
       const sep = group.nextElementSibling;
       if (sep?.classList.contains('activities-separator')) sep.style.display = '';
@@ -84,13 +84,13 @@ function applyMomentSearch(query) {
   }
 
   const activeFilter = getActiveMomentFilter();
-  const yearGroups = [...panel.querySelectorAll('.workshop-year-group')];
+  const yearGroups = [...panel.querySelectorAll('.list-year-group')];
 
   yearGroups.forEach(group => {
-    const allItems = [...group.querySelectorAll('.workshop-item[data-category]')];
+    const allItems = [...group.querySelectorAll('.list-item[data-category]')];
     if (!allItems.length) return;
 
-    const itemsContainer = group.querySelector('.workshop-year-items');
+    const itemsContainer = group.querySelector('.list-year-items');
 
     const scored = allItems.map(item => ({
       item,
@@ -145,23 +145,23 @@ function applyMomentSearch(query) {
 function applyGenericSearch(panelId, query) {
   const panel = document.getElementById(panelId);
   if (!panel) return;
-  const yearGroups = [...panel.querySelectorAll('.workshop-year-group')];
+  const yearGroups = [...panel.querySelectorAll('.list-year-group')];
 
   // 儲存原始 DOM 順序（第一次呼叫時記住）
   yearGroups.forEach(group => {
-    const container = group.querySelector('.workshop-year-items');
+    const container = group.querySelector('.list-year-items');
     if (container && !originalOrders.has(container)) {
-      originalOrders.set(container, [...container.querySelectorAll('.workshop-item')]);
+      originalOrders.set(container, [...container.querySelectorAll('.list-item')]);
     }
   });
 
   if (!query) {
     // 還原原始 DOM 順序
     yearGroups.forEach(group => {
-      const container = group.querySelector('.workshop-year-items');
+      const container = group.querySelector('.list-year-items');
       const original = container ? originalOrders.get(container) : null;
       if (original) original.forEach(item => container.appendChild(item));
-      const allItems = [...group.querySelectorAll('.workshop-item')];
+      const allItems = [...group.querySelectorAll('.list-item')];
       allItems.forEach(item => { item.style.display = ''; });
       group.style.display = '';
       const sep = group.nextElementSibling;
@@ -173,10 +173,10 @@ function applyGenericSearch(panelId, query) {
   }
 
   yearGroups.forEach(group => {
-    const allItems = [...group.querySelectorAll('.workshop-item')];
+    const allItems = [...group.querySelectorAll('.list-item')];
     if (!allItems.length) return;
 
-    const itemsContainer = group.querySelector('.workshop-year-items');
+    const itemsContainer = group.querySelector('.list-year-items');
     const matched = allItems
       .map(item => ({ item, score: matchScore(item, query) }))
       .filter(s => s.score > 0);

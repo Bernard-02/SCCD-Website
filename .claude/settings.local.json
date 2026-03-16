@@ -36,7 +36,14 @@
       "Bash(npm run)",
       "WebFetch(domain:cdnjs.cloudflare.com)",
       "WebFetch(domain:gsap.com)",
-      "Bash(curl -s https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css)"
+      "Bash(curl -s https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css)",
+      "Bash(while read:*)",
+      "Bash(do echo:*)",
+      "Read(//c/Users/Bernard Liew/Documents/實踐大學/SCCD Website/**)",
+      "Bash(xargs wc:*)",
+      "Bash(du -h css/*.css css/*/*.css)",
+      "Bash(wc -l js/modules/pages/*.js)",
+      "WebSearch"
     ]
   }
 }

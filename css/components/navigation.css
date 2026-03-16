@@ -102,6 +102,7 @@
     flex-direction: column;
     align-items: flex-start;
     font-weight: 700;
+    font-size: var(--font-size-p1);
   }
 
   .anchor-nav-inner {

@@ -9,7 +9,7 @@
      to support dynamic filter reflow */
 
   /* ===== Year Toggle Chevron Rotation ===== */
-  .workshop-year-toggle .fa-chevron-right {
+  .list-year-toggle .fa-chevron-right {
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 

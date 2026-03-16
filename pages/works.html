@@ -17,10 +17,6 @@
       scrollbar-width: none;
     }
 
-    /* works-section-btn 繼承 anchor-nav-btn 的 font-size */
-    .works-section-btn div {
-      font-size: var(--font-size-h6);
-    }
   </style>
 </head>
 <body>
@@ -81,7 +77,7 @@
 
         <!-- 零寬 sticky nav track：高度跟右側 flex-1 內容齊平，sticky 才有效 -->
         <div class="hidden md:block flex-shrink-0 pointer-events-none z-[100] py-6xl" style="width: 0; overflow: visible;">
-          <div id="works-nav" class="sticky flex flex-col gap-md pointer-events-auto" style="top: 160px; margin-left: var(--container-padding); width: max-content;">
+          <div id="works-nav" class="sticky flex flex-col gap-sm pointer-events-auto" style="top: 160px; margin-left: var(--container-padding); width: max-content;">
             <button class="works-section-btn anchor-nav-btn active w-fit text-left" data-section="bfa">
               <span class="anchor-nav-inner"><div>BFA</div><div>學士班</div></span>
             </button>

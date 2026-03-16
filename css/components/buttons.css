@@ -37,7 +37,7 @@
     border: none;
     padding: 0;
     font-weight: 700;
-    font-size: var(--font-size-h6);
+    font-size: var(--font-size-p1);
   }
 
   .faculty-filter-btn.active .anchor-nav-inner {
@@ -60,7 +60,7 @@
     border: none;
     padding: 0;
     font-weight: 700;
-    font-size: var(--font-size-h6);
+    font-size: var(--font-size-p1);
   }
 
   .activities-section-btn.active .anchor-nav-inner {
@@ -84,7 +84,7 @@
     border: none;
     padding: 0;
     font-weight: 700;
-    font-size: var(--font-size-h6);
+    font-size: var(--font-size-p1);
   }
 
   .courses-program-btn.active .anchor-nav-inner {

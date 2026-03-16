@@ -36,13 +36,13 @@ function renderAdmissionList(data, container) {
 
   // 將單筆資料轉成 HTML 字串
   const itemHTML = (item) => `
-    <div class="admission-item grid grid-cols-12 gap-y-xs md:gap-x-lg items-baseline border-b-4 border-black py-md px-[4px]">
+    <a href="admission-detail.html?id=${item.id}" class="admission-item grid grid-cols-12 gap-y-xs md:gap-x-lg items-baseline border-b-4 border-black py-md px-[4px]">
       <h5 class="col-span-12 md:col-span-3 font-bold">${item.date.toUpperCase()}</h5>
-      <a href="admission-detail.html?id=${item.id}" class="col-span-12 md:col-span-9 flex items-center justify-between w-full">
+      <div class="col-span-12 md:col-span-9 flex items-center justify-between w-full">
         <h5 class="font-bold">${item.title.toUpperCase()}</h5>
         <i class="fa-solid fa-arrow-right flex-shrink-0 ml-sm"></i>
-      </a>
-    </div>
+      </div>
+    </a>
   `;
 
   // Hover 隨機顏色（桌面版）

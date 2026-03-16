@@ -43,6 +43,7 @@ import { loadRecords } from './modules/pages/records-data-loader.js';
 import { loadFacultyData } from './modules/pages/faculty-data-loader.js';
 import { loadBFAWorks, loadMDESWorks } from './modules/pages/bfa-works-data-loader.js';
 import { loadLibraryData } from './modules/pages/library-data-loader.js';
+import { loadPressData } from './modules/pages/press-data-loader.js';
 import { loadAdmissionData } from './modules/pages/admission-data-loader.js';
 import { loadSupportData } from './modules/pages/support-data-loader.js';
 import { loadLegalData } from './modules/pages/legal-data-loader.js';
@@ -140,6 +141,53 @@ document.addEventListener('DOMContentLoaded', function() {
   // --- Admission Pages (List & Detail) ---
   if (page.includes('admission')) {
     loadAdmissionData();
+
+    // Section switch for admission.html
+    if (page === 'admission.html') {
+      const loaded = {};
+      const btns = document.querySelectorAll('.activities-section-btn');
+
+      const switchSection = (section) => {
+        btns.forEach(b => {
+          b.classList.remove('active');
+          const inner = b.querySelector('.anchor-nav-inner');
+          if (inner) { inner.style.background = ''; inner.style.transform = ''; }
+        });
+        const activeBtn = [...btns].find(b => b.dataset.section === section);
+        if (activeBtn) {
+          activeBtn.classList.add('active');
+          const inner = activeBtn.querySelector('.anchor-nav-inner');
+          if (inner) {
+            inner.style.background = SCCDHelpers.getRandomAccentColor();
+            inner.style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`;
+          }
+        }
+        document.querySelectorAll('.activities-panel').forEach(p => p.classList.add('hidden'));
+        const target = document.getElementById(`panel-${section}`);
+        if (target) target.classList.remove('hidden');
+
+        // Lazy load summer camp
+        if (section === 'summer-camp' && !loaded['summer-camp']) {
+          loaded['summer-camp'] = true;
+          Promise.all([
+            import('./modules/pages/activities-data-loader.js'),
+            import('./modules/accordions/list-accordion.js'),
+          ]).then(([{ loadSummerCampInto }, { initListAccordion }]) => {
+            loadSummerCampInto('summer-camp-list').then(playAnimation => {
+              initListAccordion();
+              if (playAnimation) playAnimation();
+            });
+          });
+        }
+      };
+
+      btns.forEach(btn => {
+        btn.addEventListener('click', () => switchSection(btn.dataset.section));
+      });
+
+      // 初始化預設 active 底色
+      switchSection('news');
+    }
   }
 
   // --- Faculty Pages ---
@@ -160,9 +208,9 @@ document.addEventListener('DOMContentLoaded', function() {
     loadSupportData();
   }
 
-  // --- Activities Page (整合版) ---
+  // --- Activities Page ---
   if (page.includes('activities.html')) {
-    initActivitiesSectionSwitch();
+    initActivitiesSectionSwitch('exhibitions');
     initActivitiesSearch();
   }
 
@@ -191,6 +239,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     // Files tab：載入 library 書籍卡片（PDF viewer）
     loadLibraryData();
+    // Press tab：載入 press 報導卡片（PDF viewer）
+    loadPressData();
   }
 
   // --- Legal Pages ---

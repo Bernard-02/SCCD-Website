@@ -49,14 +49,11 @@
       <div class="site-container">
         <div class="flex flex-col md:flex-row gap-gutter">
 
-          <!-- Left Filter Buttons (比照 faculty.html) -->
+          <!-- Left Section Buttons -->
           <div class="w-full md:flex-[0_0_calc(16.667%_-_1.25rem)]">
-            <div class="flex flex-row flex-wrap md:flex-col gap-md mb-xl md:mb-0 md:sticky md:top-[160px]">
-              <button class="activities-section-btn w-fit active text-left" data-section="general">
-                <span class="anchor-nav-inner"><span>Moment</span><span>動態</span></span>
-              </button>
-              <button class="activities-section-btn w-fit text-left" data-section="lectures">
-                <span class="anchor-nav-inner"><span>Lectures</span><span>講座</span></span>
+            <div class="flex flex-row flex-wrap md:flex-col gap-sm mb-xl md:mb-0 md:sticky md:top-[160px]">
+              <button class="activities-section-btn w-fit active text-left" data-section="exhibitions">
+                <span class="anchor-nav-inner"><span>Exhibitions</span><span>展演</span></span>
               </button>
               <button class="activities-section-btn w-fit text-left" data-section="workshop">
                 <span class="anchor-nav-inner"><span>Workshop</span><span>工作營</span></span>
@@ -64,8 +61,17 @@
               <button class="activities-section-btn w-fit text-left" data-section="degree-show">
                 <span class="anchor-nav-inner"><span>Degree Show</span><span>畢業展</span></span>
               </button>
-              <button class="activities-section-btn w-fit text-left" data-section="summer-camp">
-                <span class="anchor-nav-inner"><span>Summer Camp</span><span>暑期設計體驗營</span></span>
+              <button class="activities-section-btn w-fit text-left" data-section="lectures">
+                <span class="anchor-nav-inner"><span>Lectures</span><span>講座</span></span>
+              </button>
+              <button class="activities-section-btn w-fit text-left" data-section="visits">
+                <span class="anchor-nav-inner"><span>Visits</span><span>參訪</span></span>
+              </button>
+              <button class="activities-section-btn w-fit text-left" data-section="competitions">
+                <span class="anchor-nav-inner"><span>Competitions</span><span>競賽</span></span>
+              </button>
+              <button class="activities-section-btn w-fit text-left" data-section="conferences">
+                <span class="anchor-nav-inner"><span>Conferences</span><span>研討會</span></span>
               </button>
               <button class="activities-section-btn w-fit text-left" data-section="students-present">
                 <span class="anchor-nav-inner"><span>Students Present</span><span>學生自主</span></span>
@@ -79,85 +85,42 @@
           <!-- Right Content Panels -->
           <div class="flex-1 min-w-0">
 
-            <!-- General Activities Panel (Moment 動態) -->
-            <div class="activities-panel" id="panel-general">
-              <!-- Category Filter + Search Bar（整體 sticky，遮罩包含 search bar） -->
-              <div class="activities-filter-bar md:sticky md:top-[160px] bg-white z-10">
-                <!-- Filter Buttons -->
-                <div class="grid-12 pb-xl">
-                  <div class="col-span-12 md:col-span-11 md:col-start-2 flex flex-wrap gap-sm md:gap-lg md:pl-[41px]">
-                    <button class="activities-filter-btn shrink-0 whitespace-nowrap active" data-filter="all"><span class="anchor-nav-inner">All 全部</span></button>
-                    <button class="activities-filter-btn shrink-0 whitespace-nowrap" data-filter="exhibitions"><span class="anchor-nav-inner">Exhibitions 展演</span></button>
-                    <button class="activities-filter-btn shrink-0 whitespace-nowrap" data-filter="competitions"><span class="anchor-nav-inner">Competitions 競賽</span></button>
-                    <button class="activities-filter-btn shrink-0 whitespace-nowrap" data-filter="visits"><span class="anchor-nav-inner">Visits 參訪</span></button>
-                    <button class="activities-filter-btn shrink-0 whitespace-nowrap" data-filter="conferences"><span class="anchor-nav-inner">Conferences 研討會</span></button>
-                  </div>
+            <!-- Exhibitions Panel -->
+            <div class="activities-panel" id="panel-exhibitions">
+              <div class="grid-12 pb-5xl">
+                <div class="col-span-12 md:col-span-7 md:col-start-6">
+                  <h5 class="font-bold mb-xs">SCCD hosts and participates in various exhibitions throughout the year, showcasing student works and creative research across animation, interactive media, and visual design.</h5>
+                  <h5 class="font-bold">學系定期舉辦與參與各類展演活動，展示學生在動畫、互動媒體與視覺設計等領域的創作成果與研究實踐。</h5>
                 </div>
-                <!-- Search Bar (Moment) — filter bar 遮罩內，收合時整體遮罩變短 -->
+              </div>
+              <div class="activities-filter-bar md:sticky md:top-[160px] bg-white z-10">
                 <div class="grid-12" id="activities-search-bar">
                   <div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px] pb-xl">
                     <div class="activities-search-inner flex items-center gap-sm pb-xs">
                       <i class="fa-solid fa-magnifying-glass text-p2 activities-search-icon"></i>
-                      <input
-                        id="activities-search-input"
-                        type="text"
-                        placeholder="Search 搜尋"
-                        class="activities-search-input flex-1 bg-transparent outline-none text-h5 font-bold"
-                        autocomplete="off"
-                      >
+                      <input id="activities-search-input" type="text" placeholder="Search 搜尋" class="activities-search-input flex-1 bg-transparent outline-none text-h5 font-bold" autocomplete="off">
                     </div>
                   </div>
                 </div>
               </div>
-              <!-- Spacer：同步 search bar 高度，讓 list 正確被推動（sticky 不佔位） -->
               <div id="activities-search-spacer"></div>
-              <!-- List -->
               <div id="general-activities-list"></div>
-            </div>
-
-            <!-- Lectures Panel -->
-            <div class="activities-panel hidden" id="panel-lectures">
-              <!-- Search Bar (Lectures) -->
-              <div class="activities-filter-bar md:sticky md:top-[160px] bg-white z-10" id="activities-search-bar-lectures">
-                <div class="grid-12 pb-xl">
-                  <div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px]">
-                    <div class="activities-search-inner flex items-center gap-sm pb-xs">
-                      <i class="fa-solid fa-magnifying-glass text-p2 activities-search-icon"></i>
-                      <input
-                        type="text"
-                        placeholder="Search 搜尋"
-                        class="activities-search-input flex-1 bg-transparent outline-none text-h5 font-bold"
-                        data-panel="panel-lectures"
-                        autocomplete="off"
-                      >
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div id="lectures-list"></div>
             </div>
 
             <!-- Workshop Panel -->
             <div class="activities-panel hidden" id="panel-workshop">
               <div class="grid-12 pb-5xl">
-                <div class="col-span-12 md:col-start-6 md:col-span-6">
-                  <h5 class="mb-sm">Workshop description in English goes here. This is a placeholder text that can be replaced with the actual content later.</h5>
-                  <h5>工作營的中文介紹文字放在這裡，這是佔位文字，之後可以替換成正式內容。</h5>
+                <div class="col-span-12 md:col-span-7 md:col-start-6">
+                  <h5 class="font-bold mb-xs">Workshops at SCCD bring together students and industry professionals for intensive hands-on learning, exploring themes across design, technology, and creative practice.</h5>
+                  <h5 class="font-bold">工作營匯聚學生與業界專業人士，透過密集的實作課程，深入探索設計、科技與創意實踐等多元議題。</h5>
                 </div>
               </div>
-              <!-- Search Bar (Workshop) — 對齊 list 欄（col-start-2 pl-[41px]） -->
               <div class="activities-filter-bar md:sticky md:top-[160px] bg-white z-10">
                 <div class="grid-12 pb-xl">
                   <div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px]">
                     <div class="activities-search-inner flex items-center gap-sm pb-xs">
                       <i class="fa-solid fa-magnifying-glass text-p2 activities-search-icon"></i>
-                      <input
-                        type="text"
-                        placeholder="Search 搜尋"
-                        class="activities-search-input flex-1 bg-transparent outline-none text-h5 font-bold"
-                        data-panel="panel-workshop"
-                        autocomplete="off"
-                      >
+                      <input type="text" placeholder="Search 搜尋" class="activities-search-input flex-1 bg-transparent outline-none text-h5 font-bold" data-panel="panel-workshop" autocomplete="off">
                     </div>
                   </div>
                 </div>
@@ -165,43 +128,125 @@
               <div id="workshop-list"></div>
             </div>
 
-            <!-- Degree Show Panel (no search bar) -->
+            <!-- Degree Show Panel -->
             <div class="activities-panel hidden" id="panel-degree-show">
               <div class="grid-12 pb-5xl">
-                <div class="col-span-12 md:col-start-6 md:col-span-6">
-                  <h5 class="mb-sm">Degree Show description in English goes here. This is a placeholder text that can be replaced with the actual content later.</h5>
-                  <h5>畢業展的中文介紹文字放在這裡，這是佔位文字，之後可以替換成正式內容。</h5>
+                <div class="col-span-12 md:col-span-7 md:col-start-6">
+                  <h5 class="font-bold mb-xs">The annual Degree Show is the culminating showcase of graduating students' final projects, presenting their creative vision and professional development to the public.</h5>
+                  <h5 class="font-bold">年度畢業展是應屆畢業生展示畢業製作的重要舞台，向社會大眾呈現學生的創作理念與專業成長歷程。</h5>
+                </div>
+              </div>
+              <div class="activities-filter-bar md:sticky md:top-[160px] bg-white z-10">
+                <div class="grid-12 pb-xl">
+                  <div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px]">
+                    <div class="activities-search-inner flex items-center gap-sm pb-xs">
+                      <i class="fa-solid fa-magnifying-glass text-p2 activities-search-icon"></i>
+                      <input type="text" placeholder="Search 搜尋" class="activities-search-input flex-1 bg-transparent outline-none text-h5 font-bold" data-panel="panel-degree-show" autocomplete="off">
+                    </div>
+                  </div>
                 </div>
               </div>
               <div id="degree-show-list" class="flex flex-col gap-3xl"></div>
             </div>
 
-            <!-- Summer Camp Panel (no search bar) -->
-            <div class="activities-panel hidden" id="panel-summer-camp">
+            <!-- Lectures Panel -->
+            <div class="activities-panel hidden" id="panel-lectures">
               <div class="grid-12 pb-5xl">
-                <div class="col-span-12 md:col-start-6 md:col-span-6">
-                  <h5 class="mb-sm">Summer Camp description in English goes here. This is a placeholder text that can be replaced with the actual content later.</h5>
-                  <h5>暑期設計體驗營的中文介紹文字放在這裡，這是佔位文字，之後可以替換成正式內容。</h5>
+                <div class="col-span-12 md:col-span-7 md:col-start-6">
+                  <h5 class="font-bold mb-xs">SCCD regularly invites distinguished designers, artists, and industry leaders to share their insights and experiences through public lectures and talks.</h5>
+                  <h5 class="font-bold">學系定期邀請傑出設計師、藝術家及業界領袖，透過公開講座與演講分享其專業洞見與實踐經驗。</h5>
                 </div>
               </div>
-              <div id="summer-camp-list"></div>
-            </div>
-
-            <!-- Students Present Panel -->
-            <div class="activities-panel hidden" id="panel-students-present">
-              <!-- Search Bar (Students Present) -->
-              <div class="activities-filter-bar md:sticky md:top-[160px] bg-white z-10" id="activities-search-bar-students">
+              <div class="activities-filter-bar md:sticky md:top-[160px] bg-white z-10">
                 <div class="grid-12 pb-xl">
                   <div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px]">
                     <div class="activities-search-inner flex items-center gap-sm pb-xs">
                       <i class="fa-solid fa-magnifying-glass text-p2 activities-search-icon"></i>
-                      <input
-                        type="text"
-                        placeholder="Search 搜尋"
-                        class="activities-search-input flex-1 bg-transparent outline-none text-h5 font-bold"
-                        data-panel="panel-students-present"
-                        autocomplete="off"
-                      >
+                      <input type="text" placeholder="Search 搜尋" class="activities-search-input flex-1 bg-transparent outline-none text-h5 font-bold" data-panel="panel-lectures" autocomplete="off">
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div id="lectures-list"></div>
+            </div>
+
+            <!-- Visits Panel -->
+            <div class="activities-panel hidden" id="panel-visits">
+              <div class="grid-12 pb-5xl">
+                <div class="col-span-12 md:col-span-7 md:col-start-6">
+                  <h5 class="font-bold mb-xs">Study visits take students to design institutions, studios, and cultural venues both locally and internationally, broadening their perspectives beyond the classroom.</h5>
+                  <h5 class="font-bold">參訪活動帶領學生走訪國內外設計機構、工作室與文化場所，拓展課堂之外的視野與實務見識。</h5>
+                </div>
+              </div>
+              <div class="activities-filter-bar md:sticky md:top-[160px] bg-white z-10">
+                <div class="grid-12 pb-xl">
+                  <div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px]">
+                    <div class="activities-search-inner flex items-center gap-sm pb-xs">
+                      <i class="fa-solid fa-magnifying-glass text-p2 activities-search-icon"></i>
+                      <input type="text" placeholder="Search 搜尋" class="activities-search-input flex-1 bg-transparent outline-none text-h5 font-bold" data-panel="panel-visits" autocomplete="off">
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div id="visits-list"></div>
+            </div>
+
+            <!-- Competitions Panel -->
+            <div class="activities-panel hidden" id="panel-competitions">
+              <div class="grid-12 pb-5xl">
+                <div class="col-span-12 md:col-span-7 md:col-start-6">
+                  <h5 class="font-bold mb-xs">SCCD students actively participate in national and international design competitions, demonstrating their creative capabilities and earning recognition on the global stage.</h5>
+                  <h5 class="font-bold">學系學生積極參與國內外設計競賽，展現創作實力，並在國際舞台上獲得廣泛肯定與殊榮。</h5>
+                </div>
+              </div>
+              <div class="activities-filter-bar md:sticky md:top-[160px] bg-white z-10">
+                <div class="grid-12 pb-xl">
+                  <div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px]">
+                    <div class="activities-search-inner flex items-center gap-sm pb-xs">
+                      <i class="fa-solid fa-magnifying-glass text-p2 activities-search-icon"></i>
+                      <input type="text" placeholder="Search 搜尋" class="activities-search-input flex-1 bg-transparent outline-none text-h5 font-bold" data-panel="panel-competitions" autocomplete="off">
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div id="competitions-list"></div>
+            </div>
+
+            <!-- Conferences Panel -->
+            <div class="activities-panel hidden" id="panel-conferences">
+              <div class="grid-12 pb-5xl">
+                <div class="col-span-12 md:col-span-7 md:col-start-6">
+                  <h5 class="font-bold mb-xs">Academic conferences and symposiums organized or attended by SCCD foster dialogue between design research, education, and professional practice.</h5>
+                  <h5 class="font-bold">學系舉辦或參與的學術研討會，促進設計研究、教育與專業實踐之間的對話與交流。</h5>
+                </div>
+              </div>
+              <div class="activities-filter-bar md:sticky md:top-[160px] bg-white z-10">
+                <div class="grid-12 pb-xl">
+                  <div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px]">
+                    <div class="activities-search-inner flex items-center gap-sm pb-xs">
+                      <i class="fa-solid fa-magnifying-glass text-p2 activities-search-icon"></i>
+                      <input type="text" placeholder="Search 搜尋" class="activities-search-input flex-1 bg-transparent outline-none text-h5 font-bold" data-panel="panel-conferences" autocomplete="off">
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div id="conferences-list"></div>
+            </div>
+
+            <!-- Students Present Panel -->
+            <div class="activities-panel hidden" id="panel-students-present">
+              <div class="grid-12 pb-5xl">
+                <div class="col-span-12 md:col-span-7 md:col-start-6">
+                  <h5 class="font-bold mb-xs">Student-initiated projects and presentations highlight the independent creative spirit of SCCD students, from self-organized events to original research and productions.</h5>
+                  <h5 class="font-bold">學生自主活動展現學系學生的獨立創作精神，從自辦活動到原創研究與製作，充分體現學習的主動性。</h5>
+                </div>
+              </div>
+              <div class="activities-filter-bar md:sticky md:top-[160px] bg-white z-10">
+                <div class="grid-12 pb-xl">
+                  <div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px]">
+                    <div class="activities-search-inner flex items-center gap-sm pb-xs">
+                      <i class="fa-solid fa-magnifying-glass text-p2 activities-search-icon"></i>
+                      <input type="text" placeholder="Search 搜尋" class="activities-search-input flex-1 bg-transparent outline-none text-h5 font-bold" data-panel="panel-students-present" autocomplete="off">
                     </div>
                   </div>
                 </div>
@@ -211,19 +256,18 @@
 
             <!-- Industry Panel -->
             <div class="activities-panel hidden" id="panel-industry">
-              <!-- Search Bar (Industry) -->
-              <div class="activities-filter-bar md:sticky md:top-[160px] bg-white z-10" id="activities-search-bar-industry">
+              <div class="grid-12 pb-5xl">
+                <div class="col-span-12 md:col-span-7 md:col-start-6">
+                  <h5 class="font-bold mb-xs">Industry-academia cooperation projects connect students with real-world design challenges, fostering collaboration between SCCD and leading companies and organizations.</h5>
+                  <h5 class="font-bold">產學合作計畫連結學生與真實設計議題，促進學系與各大企業及機構的合作，將學術研究落地於實務應用。</h5>
+                </div>
+              </div>
+              <div class="activities-filter-bar md:sticky md:top-[160px] bg-white z-10">
                 <div class="grid-12 pb-xl">
                   <div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px]">
                     <div class="activities-search-inner flex items-center gap-sm pb-xs">
                       <i class="fa-solid fa-magnifying-glass text-p2 activities-search-icon"></i>
-                      <input
-                        type="text"
-                        placeholder="Search 搜尋"
-                        class="activities-search-input flex-1 bg-transparent outline-none text-h5 font-bold"
-                        data-panel="panel-industry"
-                        autocomplete="off"
-                      >
+                      <input type="text" placeholder="Search 搜尋" class="activities-search-input flex-1 bg-transparent outline-none text-h5 font-bold" data-panel="panel-industry" autocomplete="off">
                     </div>
                   </div>
                 </div>

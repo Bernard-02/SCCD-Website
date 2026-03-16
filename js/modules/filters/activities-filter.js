@@ -57,11 +57,11 @@ export function initActivitiesFilter() {
       el.style.display = current === 'all' ? '' : 'none';
     });
 
-    const yearGroups = panelGeneral.querySelectorAll('.workshop-year-group');
+    const yearGroups = panelGeneral.querySelectorAll('.list-year-group');
     if (yearGroups.length === 0) return;
 
     yearGroups.forEach(group => {
-      const allItems = [...group.querySelectorAll('.workshop-item[data-category]')];
+      const allItems = [...group.querySelectorAll('.list-item[data-category]')];
 
       // 顯示/隱藏 items（seminars 已移至 lectures panel，moment 不顯示）
       allItems.forEach(item => {

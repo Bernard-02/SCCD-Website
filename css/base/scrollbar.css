@@ -4,85 +4,105 @@
  */
 
 /* For Webkit browsers (Chrome, Safari, Edge) */
-::-webkit-scrollbar {
-  width: 10px !important;
-  height: 10px !important;
-  -webkit-appearance: none !important;
-  appearance: none !important;
+/* 用 html 作為 selector（specificity 0,0,1），確保 class selector 可以覆蓋 */
+html::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
-::-webkit-scrollbar-track {
-  background: #FFFFFF !important;
-  border: none !important;
-  -webkit-box-shadow: none !important;
-  box-shadow: none !important;
+html::-webkit-scrollbar-track {
+  background: #FFFFFF;
+  border: none;
 }
 
-::-webkit-scrollbar-track-piece {
-  background: #FFFFFF !important;
-  border: none !important;
+html::-webkit-scrollbar-track-piece {
+  background: #FFFFFF;
+  border: none;
 }
 
-::-webkit-scrollbar-thumb {
-  background: #000000 !important;
-  background-color: #000000 !important;
-  border-radius: 0 !important;
-  -webkit-border-radius: 0 !important;
-  border: none !important;
-  -webkit-box-shadow: none !important;
-  box-shadow: none !important;
-  outline: none !important;
+html::-webkit-scrollbar-thumb {
+  background: #000000;
+  border-radius: 0;
+  border: none;
 }
 
-::-webkit-scrollbar-thumb:window-inactive {
-  background: #000000 !important;
+html::-webkit-scrollbar-thumb:window-inactive {
+  background: #000000;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #000000 !important;
-  background-color: #000000 !important;
-  -webkit-box-shadow: none !important;
-  box-shadow: none !important;
+html::-webkit-scrollbar-thumb:hover {
+  background: #000000;
 }
 
-::-webkit-scrollbar-thumb:active {
-  background: #000000 !important;
-  background-color: #000000 !important;
+html::-webkit-scrollbar-thumb:active {
+  background: #000000;
 }
 
-/* Remove ALL scrollbar arrows/buttons with maximum specificity */
-::-webkit-scrollbar-button {
-  display: none !important;
-  height: 0 !important;
-  width: 0 !important;
-  background: transparent !important;
-  -webkit-appearance: none !important;
-  appearance: none !important;
+html::-webkit-scrollbar-button {
+  display: none;
+  height: 0;
+  width: 0;
 }
 
-::-webkit-scrollbar-button:single-button {
-  display: none !important;
+html::-webkit-scrollbar-button:single-button {
+  display: none;
 }
 
-::-webkit-scrollbar-button:double-button {
-  display: none !important;
+html::-webkit-scrollbar-button:double-button {
+  display: none;
 }
 
-::-webkit-scrollbar-button:start:decrement,
-::-webkit-scrollbar-button:end:increment {
-  display: none !important;
+html::-webkit-scrollbar-button:start:decrement,
+html::-webkit-scrollbar-button:end:increment {
+  display: none;
 }
 
-::-webkit-scrollbar-button:vertical:start:increment,
-::-webkit-scrollbar-button:vertical:end:decrement,
-::-webkit-scrollbar-button:vertical:start:decrement,
-::-webkit-scrollbar-button:vertical:end:increment {
-  display: none !important;
-  height: 0 !important;
+html::-webkit-scrollbar-button:vertical:start:increment,
+html::-webkit-scrollbar-button:vertical:end:decrement,
+html::-webkit-scrollbar-button:vertical:start:decrement,
+html::-webkit-scrollbar-button:vertical:end:increment {
+  display: none;
+  height: 0;
 }
 
-::-webkit-scrollbar-corner {
-  background: #FFFFFF !important;
+html::-webkit-scrollbar-corner {
+  background: #FFFFFF;
+}
+
+
+/* ===== List 內文：細 scrollbar，透明背景 ===== */
+/* class selector (0,1,0) > element selector (0,0,1)，可正確覆蓋上方全域規則 */
+
+.list-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #000000 transparent;
+}
+
+.list-scroll::-webkit-scrollbar {
+  width: 3px;
+  height: 3px;
+}
+
+.list-scroll::-webkit-scrollbar-track,
+.list-scroll::-webkit-scrollbar-track-piece,
+.list-scroll::-webkit-scrollbar-corner {
+  background: transparent;
+  border: none;
+}
+
+.list-scroll::-webkit-scrollbar-thumb {
+  background: #000000;
+  border-radius: 0;
+  border: none;
+  min-height: 20px;
+}
+
+.list-scroll::-webkit-scrollbar-button {
+  display: none;
+  height: 0;
+  width: 0;
 }
 
 
