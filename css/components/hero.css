@@ -1,0 +1,48 @@
+/**
+ * Hero Section Components
+ * Hero 標題文字旋轉效果（手機版較小角度，桌面版較大角度）
+ */
+
+@layer components {
+  /* 動畫初始隱藏：在 GSAP 接管前避免文字閃現 */
+  .hero-title,
+  .hero-text-en,
+  .hero-text-cn {
+    visibility: hidden;
+  }
+
+  /* Hero Section Text Rotation - rotate 套在 JS 動態生成的 wrapper 上 */
+  /* 手機版較小角度 */
+  .hero-title-wrapper {
+    transform: rotate(-2deg);
+    transform-origin: left center;
+    display: block;
+    overflow: hidden;
+  }
+
+  /* 副標題 rotate（直接套在元素上，不需 wrapper） */
+  .hero-text-en {
+    transform: rotate(1deg);
+    transform-origin: left center;
+  }
+
+  .hero-text-cn {
+    transform: rotate(-1deg);
+    transform-origin: left center;
+  }
+
+  /* 桌面版較大角度 */
+  @media (min-width: 768px) {
+    .hero-title-wrapper {
+      transform: rotate(-4deg);
+    }
+
+    .hero-text-en {
+      transform: rotate(3deg);
+    }
+
+    .hero-text-cn {
+      transform: rotate(-2deg);
+    }
+  }
+}

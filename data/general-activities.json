@@ -1,0 +1,515 @@
+[
+  {
+    "year": 2025,
+    "items": [
+      {
+        "title": "豪華朗機工台北當代館大展",
+        "title_en": "Luxury Logico: MOCA Taipei Exhibition",
+        "date": "2025.03.15",
+        "location": "台北當代藝術館",
+        "category": "visits",
+        "categoryLabel": "參訪",
+        "visitType": "outbound",
+        "description": "帶領學生參觀豪華朗機工於台北當代藝術館的大型裝置展覽，深入了解台灣當代藝術創作的跨域合作模式，並與藝術家進行交流座談。",
+        "poster": "../images/2021-動畫-Pitch-Bible-01.png",
+        "videos": [
+          "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+          "https://www.youtube.com/watch?v=jNQXAC9IVRw"
+        ],
+        "images": [
+          "../images/SCCD-1-4-0.jpg",
+          "../images/S__6742028.jpg",
+          "../images/SCCD-1-4-0.jpg"
+        ],
+        "id": "V-2025-01"
+      },
+      {
+        "title": "年度媒體傳達設計展",
+        "date": "2025.05.10 - 2025.05.20",
+        "location": "松山文創園區 5 號倉庫",
+        "category": "exhibitions",
+        "categoryLabel": "展演",
+        "exhibitionType": "special",
+        "description": "學系年度學生作品聯展，展出動畫、互動裝置、影像敘事等各組優秀作品，並設有開幕座談與導覽活動。",
+        "poster": "../images/SCCD-1-4-2.jpg",
+        "videos": [],
+        "images": [
+          "../images/SCCD-1-4-0.jpg",
+          "../images/SCCD-1-4-1.jpg"
+        ],
+        "references": [
+          {
+            "href": "../pages/courses.html?program=bfa&item=design-fundamental",
+            "labelEn": "Courses",
+            "labelZh": "課程",
+            "titleEn": "Design Fundamental",
+            "titleZh": "創作基礎",
+            "coverSrc": "../images/SCCD-1-4-0.jpg"
+          }
+        ],
+        "id": "ET-2025-01"
+      },
+      {
+        "title": "國際學生設計競賽",
+        "date": "2025.06.01",
+        "location": "線上",
+        "category": "competitions",
+        "categoryLabel": "競賽",
+        "description": "鼓勵學生參加國際學生設計競賽，本系多名學生入圍決賽，並於競賽期間舉辦內部分享會，協助學生準備提案與作品集。",
+        "poster": "",
+        "videos": [],
+        "images": [],
+        "id": "CP-2025-01"
+      },
+      {
+        "title": "永續媒體設計研討會",
+        "date": "2025.07.20",
+        "location": "台灣設計館 3F 會議室",
+        "category": "conferences",
+        "categoryLabel": "研討會",
+        "description": "探討永續發展與媒體設計的交叉議題，邀請學界與業界專家共同討論設計師的社會責任，以及如何透過設計實踐推動永續。",
+        "poster": "../images/SCCD-1-4-3.jpg",
+        "videos": [],
+        "images": [
+          "../images/SCCD-1-4-0.jpg"
+        ],
+        "id": "CF-2025-01"
+      },
+      {
+        "title": "新北市設計博物館",
+        "date": "2025.09.12",
+        "location": "新北市立鶯歌陶瓷博物館",
+        "category": "visits",
+        "categoryLabel": "參訪",
+        "visitType": "outbound",
+        "description": "帶領學生參訪新北市設計相關文化機構，實地考察空間設計、展示設計與在地文化如何結合，並進行現場速寫與紀錄。",
+        "poster": "../images/SCCD-1-4-5.jpg",
+        "videos": [],
+        "images": [
+          "../images/SCCD-1-4-0.jpg",
+          "../images/SCCD-1-4-1.jpg",
+          "../images/SCCD-1-4-2.jpg"
+        ],
+        "id": "V-2025-02"
+      },
+      {
+        "title": "學生優異作品展",
+        "date": "2025.10.08 - 2025.10.15",
+        "location": "實踐大學圖書館大廳",
+        "category": "exhibitions",
+        "categoryLabel": "展演",
+        "exhibitionType": "special",
+        "description": "展出本學期各課程評選出的優異學生作品，涵蓋動畫短片、互動裝置、影像創作等多元類型，開放全校師生參觀。",
+        "poster": "../images/SCCD-1-4-6.jpg",
+        "videos": [],
+        "images": [
+          "../images/SCCD-1-4-0.jpg",
+          "../images/SCCD-1-4-1.jpg",
+          "../images/SCCD-1-4-2.jpg",
+          "../images/SCCD-1-4-3.jpg",
+          "../images/SCCD-1-4-4.jpg"
+        ],
+        "id": "ET-2025-02"
+      },
+      {
+        "title": "亞太地區青年設計獎",
+        "date": "2025.11.01",
+        "location": "線上",
+        "category": "competitions",
+        "categoryLabel": "競賽",
+        "description": "本系學生積極參與亞太地區青年設計獎項，並獲得多個類別的入圍與得獎殊榮，展現學系在國際設計舞台的競爭力。",
+        "poster": "",
+        "videos": [],
+        "images": [],
+        "id": "CP-2025-02"
+      },
+      {
+        "title": "媒體傳達設計前衛論壇",
+        "date": "2025.11.25",
+        "location": "實踐大學大禮堂",
+        "category": "conferences",
+        "categoryLabel": "研討會",
+        "description": "匯聚國內外媒體設計領域的研究者與實踐者，就新媒體藝術、互動設計、敘事影像等議題進行深度對話，並發布學系年度研究成果。",
+        "poster": "../images/SCCD-1-4-0.jpg",
+        "videos": [],
+        "images": [
+          "../images/SCCD-1-4-0.jpg",
+          "../images/SCCD-1-4-1.jpg"
+        ],
+        "id": "CF-2025-02"
+      },
+      {
+        "title": "荷蘭設計學院交流",
+        "title_en": "Design Academy Eindhoven Exchange",
+        "date": "2025.02.20",
+        "location": "實踐大學 媒體傳達設計系",
+        "category": "visits",
+        "categoryLabel": "參訪",
+        "visitType": "inbound",
+        "description": "荷蘭設計學院（Design Academy Eindhoven）師生一行來訪，與本系師生進行工作坊交流，分享歐洲設計教育的理念與實踐方法。",
+        "poster": "../images/SCCD-1-4-4.jpg",
+        "videos": [],
+        "images": [
+          "../images/SCCD-1-4-0.jpg",
+          "../images/SCCD-1-4-1.jpg"
+        ],
+        "id": "V-2025-03"
+      },
+      {
+        "title": "高雄設計文化",
+        "date": "2025.12.10 - 2025.12.11",
+        "location": "高雄市立美術館 / 駁二藝術特區",
+        "category": "visits",
+        "categoryLabel": "參訪",
+        "visitType": "outbound",
+        "description": "兩日參訪行程，走訪高雄市立美術館、駁二藝術特區等重要文化場所，深入了解南台灣設計與藝術生態，並與在地設計師交流。",
+        "poster": "../images/SCCD-1-4-1.jpg",
+        "videos": [],
+        "images": [
+          "../images/SCCD-1-4-0.jpg",
+          "../images/SCCD-1-4-1.jpg",
+          "../images/SCCD-1-4-2.jpg",
+          "../images/SCCD-1-4-3.jpg",
+          "../images/SCCD-1-4-4.jpg",
+          "../images/SCCD-1-4-5.jpg",
+          "../images/SCCD-1-4-6.jpg"
+        ],
+        "id": "V-2025-04"
+      }
+    ]
+  },
+  {
+    "year": 2024,
+    "items": [
+      {
+        "title": "永續設計研討會",
+        "date": "2024.03.08",
+        "location": "台北設計館 3F",
+        "category": "conferences",
+        "categoryLabel": "研討會",
+        "description": "以永續設計為核心議題，邀請國內外學者與設計師共同探討氣候變遷背景下的設計實踐，並分享各自的創作案例與研究成果。",
+        "poster": "../images/SCCD-1-4-2.jpg",
+        "videos": [],
+        "images": [
+          "../images/SCCD-1-4-0.jpg",
+          "../images/SCCD-1-4-1.jpg",
+          "../images/SCCD-1-4-2.jpg"
+        ],
+        "id": "CF-2024-01"
+      },
+      {
+        "title": "東京設計",
+        "date": "2024.04.15 - 2024.04.19",
+        "location": "東京 / 日本",
+        "category": "visits",
+        "categoryLabel": "參訪",
+        "visitType": "outbound",
+        "description": "五日東京設計參訪之旅，走訪 21_21 Design Sight、teamLab、六本木 Hills 等設計與文化地標，並參觀多所日本設計學院。",
+        "poster": "../images/SCCD-1-4-3.jpg",
+        "videos": [],
+        "images": [
+          "../images/SCCD-1-4-0.jpg",
+          "../images/SCCD-1-4-1.jpg",
+          "../images/SCCD-1-4-2.jpg",
+          "../images/SCCD-1-4-3.jpg",
+          "../images/SCCD-1-4-4.jpg",
+          "../images/SCCD-1-4-5.jpg"
+        ],
+        "id": "V-2024-01"
+      },
+      {
+        "title": "媒體傳達設計年展",
+        "date": "2024.05.20 - 2024.05.28",
+        "location": "華山 1914 文化創意產業園區",
+        "category": "exhibitions",
+        "categoryLabel": "展演",
+        "exhibitionType": "special",
+        "description": "學系年度聯合展覽，主題聚焦於人與科技的未來關係，展出互動裝置、動態影像、沉浸式體驗等多元形式的學生創作作品。",
+        "poster": "../images/SCCD-1-4-4.jpg",
+        "videos": [],
+        "images": [
+          "../images/SCCD-1-4-0.jpg",
+          "../images/SCCD-1-4-1.jpg"
+        ],
+        "id": "ET-2024-01"
+      },
+      {
+        "title": "全國大學生設計競賽",
+        "date": "2024.07.01",
+        "location": "線上",
+        "category": "competitions",
+        "categoryLabel": "競賽",
+        "description": "本系學生參加全國大學生設計競賽，榮獲多項獎項，充分展現學系在設計教育上的成果與學生的創作能量。",
+        "poster": "",
+        "videos": [],
+        "images": [],
+        "id": "CP-2024-01"
+      },
+      {
+        "title": "京都精華大學交流",
+        "title_en": "Kyoto Seika University Exchange",
+        "date": "2024.06.05",
+        "location": "實踐大學 媒體傳達設計系",
+        "category": "visits",
+        "categoryLabel": "參訪",
+        "visitType": "inbound",
+        "description": "日本京都精華大學設計學院師生來訪，與本系進行學術交流及聯合創作工作坊，深化台日設計教育的合作關係。",
+        "poster": "../images/SCCD-1-4-2.jpg",
+        "videos": [],
+        "images": [
+          "../images/SCCD-1-4-0.jpg",
+          "../images/SCCD-1-4-3.jpg"
+        ],
+        "id": "V-2024-02"
+      },
+      {
+        "title": "韓國設計中心",
+        "date": "2024.08.18 - 2024.08.22",
+        "location": "首爾 / 韓國",
+        "category": "visits",
+        "categoryLabel": "參訪",
+        "visitType": "outbound",
+        "description": "赴韓國進行五日設計參訪，走訪首爾設計財團、東大門設計廣場（DDP）等重要設計機構，並與韓國弘益大學設計學系進行學術交流。",
+        "poster": "../images/SCCD-1-4-6.jpg",
+        "videos": [],
+        "images": [
+          "../images/SCCD-1-4-0.jpg",
+          "../images/SCCD-1-4-1.jpg",
+          "../images/SCCD-1-4-2.jpg",
+          "../images/SCCD-1-4-3.jpg",
+          "../images/SCCD-1-4-4.jpg",
+          "../images/SCCD-1-4-5.jpg",
+          "../images/SCCD-1-4-6.jpg"
+        ],
+        "id": "V-2024-03"
+      },
+      {
+        "title": "數位媒體藝術展",
+        "date": "2024.09.05 - 2024.09.12",
+        "location": "台北數位藝術中心",
+        "category": "exhibitions",
+        "categoryLabel": "展演",
+        "exhibitionType": "special",
+        "description": "與台北數位藝術中心合作舉辦學生作品展，展出以數位技術為媒介的藝術創作，探討科技、身體與空間的關係。",
+        "poster": "../images/SCCD-1-4-0.jpg",
+        "videos": [],
+        "images": [
+          "../images/SCCD-1-4-0.jpg"
+        ],
+        "id": "ET-2024-02"
+      },
+      {
+        "title": "創意產業發展論壇",
+        "date": "2024.10.12",
+        "location": "台北國際會議中心 202 室",
+        "category": "conferences",
+        "categoryLabel": "研討會",
+        "description": "集結創意產業各領域的專業人士，探討台灣創意產業的現況與未來發展方向，並分析設計教育如何與產業需求接軌。",
+        "poster": "../images/SCCD-1-4-1.jpg",
+        "videos": [],
+        "images": [
+          "../images/SCCD-1-4-0.jpg",
+          "../images/SCCD-1-4-1.jpg",
+          "../images/SCCD-1-4-2.jpg"
+        ],
+        "id": "CF-2024-02"
+      },
+      {
+        "title": "國際海報設計競賽",
+        "date": "2024.11.30",
+        "location": "線上",
+        "category": "competitions",
+        "categoryLabel": "競賽",
+        "description": "本系學生參加國際海報設計競賽並取得優異成績，作品展現出對全球議題的關注與設計語言的獨到詮釋。",
+        "poster": "",
+        "videos": [],
+        "images": [],
+        "id": "CP-2024-02"
+      },
+      {
+        "title": "學系年度作品展覽",
+        "date": "2024.12.15 - 2024.12.22",
+        "location": "實踐大學圖書館大廳",
+        "category": "exhibitions",
+        "categoryLabel": "展演",
+        "exhibitionType": "special",
+        "description": "學系年末作品展，匯集全學年各課程的優秀作品，包含動畫、互動、影像、空間等多元媒材，開放校內外參觀。",
+        "poster": "../images/SCCD-1-4-3.jpg",
+        "videos": [],
+        "images": [
+          "../images/SCCD-1-4-0.jpg",
+          "../images/SCCD-1-4-1.jpg",
+          "../images/SCCD-1-4-2.jpg"
+        ],
+        "id": "ET-2024-03"
+      }
+    ]
+  },
+  {
+    "year": 2023,
+    "items": [
+      {
+        "title": "新媒體設計展覽",
+        "date": "2023.04.08 - 2023.04.16",
+        "location": "台北當代藝術館 1F",
+        "category": "exhibitions",
+        "categoryLabel": "展演",
+        "exhibitionType": "special",
+        "description": "以新媒體為主題的學生聯展，探索虛擬與現實的邊界，展出 AR、VR、互動投影等前衛創作形式。",
+        "poster": "../images/SCCD-1-4-5.jpg",
+        "videos": [],
+        "images": [
+          "../images/SCCD-1-4-0.jpg",
+          "../images/SCCD-1-4-1.jpg",
+          "../images/SCCD-1-4-2.jpg",
+          "../images/SCCD-1-4-3.jpg",
+          "../images/SCCD-1-4-4.jpg",
+          "../images/SCCD-1-4-5.jpg"
+        ],
+        "id": "ET-2023-01"
+      },
+      {
+        "title": "新加坡設計周",
+        "date": "2023.05.14 - 2023.05.18",
+        "location": "新加坡 / Singapore",
+        "category": "visits",
+        "categoryLabel": "參訪",
+        "visitType": "outbound",
+        "description": "參加新加坡設計周活動，走訪多個設計展覽與論壇，深入了解東南亞設計生態，並與新加坡南洋理工大學藝術設計與媒體學院進行交流。",
+        "poster": "../images/SCCD-1-4-6.jpg",
+        "videos": [],
+        "images": [
+          "../images/SCCD-1-4-0.jpg",
+          "../images/SCCD-1-4-1.jpg",
+          "../images/SCCD-1-4-2.jpg"
+        ],
+        "id": "V-2023-01"
+      },
+      {
+        "title": "智慧城市設計論壇",
+        "date": "2023.06.22",
+        "location": "台北流行音樂中心 藍色音符廳",
+        "category": "conferences",
+        "categoryLabel": "研討會",
+        "description": "探討智慧城市背景下的設計挑戰，邀請城市規劃師、科技公司設計師與學者共同對話，分析設計師在未來城市中扮演的角色。",
+        "poster": "../images/SCCD-1-4-0.jpg",
+        "videos": [],
+        "images": [
+          "../images/SCCD-1-4-0.jpg"
+        ],
+        "id": "CF-2023-01"
+      },
+      {
+        "title": "全亞最佳學生設計獎",
+        "date": "2023.07.10",
+        "location": "線上",
+        "category": "competitions",
+        "categoryLabel": "競賽",
+        "description": "本系學生參加全亞最佳學生設計獎並榮獲殊榮，展現學系學生在亞洲設計舞台的卓越表現與創作實力。",
+        "poster": "",
+        "videos": [],
+        "images": [],
+        "id": "CP-2023-01"
+      },
+      {
+        "title": "東北大學設計學院",
+        "date": "2023.09.16 - 2023.09.18",
+        "location": "仙台 / 日本",
+        "category": "visits",
+        "categoryLabel": "參訪",
+        "visitType": "outbound",
+        "description": "赴日本東北大學進行三日學術交流，與設計學院師生共同進行設計工作坊，並分享各自學校的教學特色與學生作品。",
+        "poster": "../images/SCCD-1-4-2.jpg",
+        "videos": [],
+        "images": [
+          "../images/SCCD-1-4-0.jpg",
+          "../images/SCCD-1-4-1.jpg"
+        ],
+        "id": "V-2023-02"
+      },
+      {
+        "title": "畢業生優異作品展",
+        "date": "2023.10.05 - 2023.10.12",
+        "location": "實踐大學圖書館大廳",
+        "category": "exhibitions",
+        "categoryLabel": "展演",
+        "exhibitionType": "special",
+        "description": "展出本屆應屆畢業生的優秀畢業作品，涵蓋動畫、互動媒體、影像敘事等多元創作形式，為畢業生提供公開展示的平台。",
+        "poster": "../images/SCCD-1-4-3.jpg",
+        "videos": [],
+        "images": [
+          "../images/SCCD-1-4-0.jpg",
+          "../images/SCCD-1-4-1.jpg",
+          "../images/SCCD-1-4-2.jpg"
+        ],
+        "id": "ET-2023-02"
+      },
+      {
+        "title": "數位轉型設計研討會",
+        "date": "2023.11.18",
+        "location": "國立台灣科技大學 國際會議廳",
+        "category": "conferences",
+        "categoryLabel": "研討會",
+        "description": "探討企業數位轉型過程中設計扮演的角色，分析 UX 設計、服務設計如何協助組織適應數位時代的挑戰與機遇。",
+        "poster": "../images/SCCD-1-4-4.jpg",
+        "videos": [],
+        "images": [
+          "../images/SCCD-1-4-0.jpg",
+          "../images/SCCD-1-4-1.jpg",
+          "../images/SCCD-1-4-2.jpg",
+          "../images/SCCD-1-4-3.jpg"
+        ],
+        "id": "CF-2023-02"
+      },
+      {
+        "title": "台灣青年設計獎",
+        "date": "2023.12.01",
+        "location": "線上",
+        "category": "competitions",
+        "categoryLabel": "競賽",
+        "description": "鼓勵學生積極參加台灣青年設計獎，培養學生的競賽經驗與作品呈現能力，多名學生獲得入圍肯定。",
+        "poster": "",
+        "videos": [],
+        "images": [],
+        "id": "CP-2023-02"
+      },
+      {
+        "title": "首爾大學藝術學院",
+        "title_en": "Seoul National University College of Fine Arts",
+        "date": "2023.10.25",
+        "location": "實踐大學 媒體傳達設計系",
+        "category": "visits",
+        "categoryLabel": "參訪",
+        "visitType": "inbound",
+        "description": "韓國首爾大學藝術學院教授及學生代表團來訪，參觀本系工作室與設備，並就新媒體藝術與互動設計教育進行深度對談。",
+        "poster": "../images/SCCD-1-4-6.jpg",
+        "videos": [],
+        "images": [
+          "../images/SCCD-1-4-0.jpg",
+          "../images/SCCD-1-4-4.jpg"
+        ],
+        "id": "V-2023-03"
+      },
+      {
+        "title": "德國國際設計博物館",
+        "date": "2023.12.20 - 2023.12.27",
+        "location": "柏林 / 德國",
+        "date_end": "2023.12.27",
+        "category": "visits",
+        "categoryLabel": "參訪",
+        "visitType": "outbound",
+        "description": "年末赴德國進行八日設計參訪，走訪柏林設計博物館、包浩斯檔案館等重要設計聖地，深入了解德國設計傳統與現代設計發展。",
+        "poster": "../images/SCCD-1-4-5.jpg",
+        "videos": [],
+        "images": [
+          "../images/SCCD-1-4-0.jpg",
+          "../images/SCCD-1-4-1.jpg",
+          "../images/SCCD-1-4-2.jpg",
+          "../images/SCCD-1-4-3.jpg",
+          "../images/SCCD-1-4-4.jpg"
+        ],
+        "id": "V-2023-04"
+      }
+    ]
+  }
+]

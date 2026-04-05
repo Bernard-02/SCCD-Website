@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Faculty - SCCD</title>
+  <link rel="stylesheet" href="../css/variables.css">
+  <link rel="stylesheet" href="../css/output.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+  <style>
+    .no-scrollbar::-webkit-scrollbar {
+      display: none !important;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div id="site-header"></div>
+
+  <!-- Main Content -->
+  <main>
+    <!-- Faculty Section with Background Image -->
+    <section class="h-screen relative overflow-hidden">
+      <!-- Background Image -->
+      <div class="absolute inset-0 w-full h-full">
+        <img src="../images/SCCD-1-4-0.jpg" alt="Faculty" class="w-full h-full object-cover">
+      </div>
+
+      <!-- Black Gradient Overlay (0% at top, 100% at bottom) -->
+      <div class="absolute inset-0 w-full h-full bg-gradient-to-b from-transparent to-black"></div>
+
+      <!-- Content Container -->
+      <div class="site-container h-full relative z-10">
+        <div class="h-full flex flex-col md:flex-row justify-end md:justify-start items-start md:items-end gap-lg md:gap-xl pb-3xl md:pb-2xl pt-[120px] md:pt-0">
+          <!-- Title on the left (Mobile: 100%, Desktop: 50%) -->
+          <div class="w-full md:w-1/2">
+            <h1 class="text-white pb-lg md:pb-xl hero-title">FACULTY</h1>
+          </div>
+
+          <!-- Content on the right (Mobile: 100%, Desktop: 50%) -->
+          <div class="w-full md:w-1/2">
+            <!-- English text with 3deg rotation -->
+            <p class="text-white mb-xl hero-text-en">
+              Professors of SCCD are composed of cross-disciplinary experts from academia, design industry and art field. Possess a theoretical and research background in design and art education at domestic and foreign, rich and diverse performance and creative practical experience, and have In-depth understanding of the professional education goals of the department. It is expected that students with different characteristics and attributes will expand their plasticity and give corresponding inspiration, strengthen student’s professional skills and trend perception ability, and consolidate students expand their potential and explosive power whether in academic research, design practice, artistic creation with future vision.
+            </p>
+            <!-- Chinese text with -2deg rotation -->
+            <p class="text-white hero-text-cn">
+              實踐大學媒體傳達設計學系專、兼任教師皆為學術界、設計業界與藝術領域專家等跨領域組成，具備國內外設計藝術教育理論研究背景、豐富多樣的展演與創作實務經歷，對於學系之專業教育目標理解深入，期許針對不同特質屬性的學生擴展可塑性並給予相應之啟發，強化學生專業技能及趨勢感知能力，夯實學生未來不論於學術研究、設計實務、藝術創作皆能擴展其潛能、爆發力與未來願景。
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Faculty Cards Section -->
+    <section id="faculty-cards" class="bg-white py-6xl">
+      <div class="site-container">
+        <div class="flex flex-col md:flex-row gap-gutter">
+          <!-- Filter Buttons (Left side - fixed width) -->
+          <div class="w-full md:flex-[0_0_calc(25%_-_1.25rem)]">
+            <div class="flex flex-row flex-wrap md:flex-col gap-xs mb-xl md:mb-0 md:sticky md:top-[200px]">
+              <button class="faculty-filter-btn w-fit active text-left" data-filter="fulltime">
+                <span class="anchor-nav-inner"><span>Full-time Professors</span><span>專任教師</span></span>
+              </button>
+              <button class="faculty-filter-btn w-fit text-left" data-filter="parttime">
+                <span class="anchor-nav-inner"><span>Part-time Professors</span><span>兼任教師</span></span>
+              </button>
+              <button class="faculty-filter-btn w-fit text-left" data-filter="admin">
+                <span class="anchor-nav-inner"><span>Administrators</span><span>行政管理</span></span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Faculty Cards (Right side - flexible width) -->
+          <div class="flex-1 md:pr-[2rem]">
+            <!-- Containers for dynamic data -->
+            <div id="faculty-fulltime-list" class="grid grid-cols-2 md:grid-cols-4 gap-x-md gap-y-xl md:gap-x-2xl md:gap-y-4xl"></div>
+            <div id="faculty-parttime-list" class="grid grid-cols-2 md:grid-cols-4 gap-x-md gap-y-xl md:gap-x-2xl md:gap-y-4xl"></div>
+            <div id="faculty-admin-list" class="grid grid-cols-2 md:grid-cols-4 gap-x-md gap-y-xl md:gap-x-2xl md:gap-y-4xl"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Faculty Slide-in Panel (Hidden by default) -->
+  <div id="faculty-slide-in" class="fixed inset-0 z-[100] pointer-events-none invisible">
+    <!-- Overlay (70% Black) -->
+    <div id="faculty-overlay" class="absolute inset-0 bg-black opacity-0 cursor-pointer"></div>
+
+    <!-- Custom Cursor -->
+    <div id="faculty-cursor" class="fixed pointer-events-none z-[101] w-[80px] h-[80px] bg-black flex items-center justify-center" style="opacity:0; transform: scale(0); top:0; left:0;">
+      <i class="fa-solid fa-arrow-left text-black text-xl"></i>
+    </div>
+
+    <!-- Panel (White, Slide from right) -->
+    <!-- Left position: 2.5 columns out of 12 approx 20.833% -->
+    <div id="faculty-panel" class="absolute top-0 right-0 bottom-0 bg-white transform translate-x-[110%] overflow-visible left-0 md:left-[20.8333%]">
+
+      <!-- Scrollable Content Wrapper -->
+      <div class="w-full h-full overflow-y-auto no-scrollbar">
+      <!-- Content Container -->
+      <!-- Padding right follows site container, Padding left custom -->
+      <div class="w-full min-h-full px-container-padding pt-[calc(var(--header-height,80px)+3rem)] pb-4xl md:py-4xl box-border relative">
+        
+        <!-- Mobile Back Button (Relative inside flow) -->
+        <button id="faculty-back-btn-mobile" class="md:hidden block mb-xl cursor-pointer bg-transparent">
+          <i class="fa-solid fa-arrow-left text-black text-xl"></i>
+        </button>
+
+        <div class="flex flex-col md:flex-row gap-xl md:gap-3xl h-full relative">
+
+          <!-- Left: Image and Name (Sticky) -->
+          <div class="w-full md:w-[22%] md:sticky md:self-start md:top-[8rem]">
+            <!-- Image with rotation -->
+            <div class="mb-2xl md:mb-2xl w-[65%] ml-xl md:w-full md:ml-0" style="aspect-ratio: 4/5; transform: rotate(-4deg);">
+              <img id="faculty-detail-image" src="../images/S__6742028.jpg" alt="Faculty" class="w-full h-full object-cover object-center">
+            </div>
+            <!-- Name below image -->
+            <div>
+              <h4 id="faculty-detail-name-en" class="mb-xs whitespace-nowrap">Ta-Lih Shieh</h4>
+              <h4 id="faculty-detail-name-zh" class="whitespace-nowrap">謝大立</h4>
+            </div>
+          </div>
+
+          <!-- Right: Title and Details (Scrollable) -->
+          <div class="flex-1 flex flex-col">
+            <!-- Teacher Title -->
+            <div class="mb-xl md:mb-4xl">
+              <h6 id="faculty-detail-title-en" class="font-regular text-black">Founder</h6>
+              <h6 id="faculty-detail-title-zh" class="font-regular text-black">創辦人</h6>
+            </div>
+
+            <!-- Details (Education, Experience, etc.) -->
+            <div id="faculty-detail-sections" class="flex flex-col gap-2xl">
+              <!-- Sections will be dynamically generated -->
+            </div>
+          </div>
+
+        </div>
+      </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div id="site-footer"></div>
+
+  <!-- JavaScript -->
+  <!-- GSAP & ScrollTrigger -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollTrigger.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/Draggable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>
+  <!-- Helper Functions - 必須在 main.js 之前載入 -->
+  <script src="../js/utils/helpers.js"></script>
+  <script type="module" src="../js/main-modular.js"></script>
+
+</body>
+</html>

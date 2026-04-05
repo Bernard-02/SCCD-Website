@@ -1,0 +1,506 @@
+[
+  {
+    "id": "1",
+    "titleEn": "Degree Show 2025 Catalogue",
+    "titleZh": "2025 畢業展作品集",
+    "year": "2025",
+    "cover": "../images/Degree Show.jpg",
+    "pdfUrl": "../assets/sample.pdf",
+    "categories": [
+      "degree-show",
+      "exhibitions"
+    ]
+  },
+  {
+    "id": "2",
+    "titleEn": "Workshop Proceedings 2025",
+    "titleZh": "2025 工作坊論文集",
+    "year": "2025",
+    "cover": "../images/2021-動畫-Pitch-Bible-01.png",
+    "pdfUrl": "../assets/sample.pdf",
+    "categories": [
+      "workshop"
+    ]
+  },
+  {
+    "id": "3",
+    "titleEn": "Course Handbook 2025",
+    "titleZh": "2025 課程手冊",
+    "year": "2025",
+    "cover": "../images/Degree Show.jpg",
+    "pdfUrl": "../assets/sample.pdf",
+    "categories": [
+      "courses"
+    ]
+  },
+  {
+    "id": "4",
+    "titleEn": "Faculty Research Journal 2025",
+    "titleZh": "2025 教師研究期刊",
+    "year": "2025",
+    "cover": "../images/2021-動畫-Pitch-Bible-01.png",
+    "pdfUrl": "../assets/sample.pdf",
+    "categories": [
+      "conferences"
+    ]
+  },
+  {
+    "id": "5",
+    "titleEn": "International Exchange Report 2025",
+    "titleZh": "2025 國際交流報告",
+    "year": "2025",
+    "cover": "../images/Degree Show.jpg",
+    "pdfUrl": "../assets/sample.pdf",
+    "categories": [
+      "industry",
+      "visits"
+    ]
+  },
+  {
+    "id": "6",
+    "titleEn": "Lecture Series Compendium 2025",
+    "titleZh": "2025 講座系列彙編",
+    "year": "2025",
+    "cover": "../images/2021-動畫-Pitch-Bible-01.png",
+    "pdfUrl": "../assets/sample.pdf",
+    "categories": [
+      "lectures"
+    ]
+  },
+  {
+    "id": "7",
+    "titleEn": "SCCD Miscellany 2025",
+    "titleZh": "2025 媒傳雜誌",
+    "year": "2025",
+    "cover": "../images/Degree Show.jpg",
+    "pdfUrl": "../assets/sample.pdf",
+    "categories": [
+      "others"
+    ]
+  },
+  {
+    "id": "8",
+    "titleEn": "Degree Show 2024 Catalogue",
+    "titleZh": "2024 畢業展作品集",
+    "year": "2024",
+    "cover": "../images/Degree Show.jpg",
+    "pdfUrl": "../assets/sample.pdf",
+    "categories": [
+      "degree-show",
+      "exhibitions"
+    ]
+  },
+  {
+    "id": "9",
+    "titleEn": "Workshop Proceedings 2024",
+    "titleZh": "2024 工作坊論文集",
+    "year": "2024",
+    "cover": "../images/2021-動畫-Pitch-Bible-01.png",
+    "pdfUrl": "../assets/sample.pdf",
+    "categories": [
+      "workshop"
+    ]
+  },
+  {
+    "id": "10",
+    "titleEn": "Course Handbook 2024",
+    "titleZh": "2024 課程手冊",
+    "year": "2024",
+    "cover": "../images/Degree Show.jpg",
+    "pdfUrl": "",
+    "categories": [
+      "courses"
+    ]
+  },
+  {
+    "id": "11",
+    "titleEn": "Faculty Research Journal 2024",
+    "titleZh": "2024 教師研究期刊",
+    "year": "2024",
+    "cover": "../images/2021-動畫-Pitch-Bible-01.png",
+    "pdfUrl": "",
+    "categories": [
+      "conferences"
+    ]
+  },
+  {
+    "id": "12",
+    "titleEn": "Degree Show 2023 Catalogue",
+    "titleZh": "2023 畢業展作品集",
+    "year": "2023",
+    "cover": "../images/Degree Show.jpg",
+    "pdfUrl": "../assets/sample.pdf",
+    "categories": [
+      "degree-show",
+      "exhibitions"
+    ]
+  },
+  {
+    "id": "13",
+    "titleEn": "International Exchange Report 2023",
+    "titleZh": "2023 國際交流報告",
+    "year": "2023",
+    "cover": "../images/2021-動畫-Pitch-Bible-01.png",
+    "pdfUrl": "",
+    "categories": [
+      "industry",
+      "visits"
+    ]
+  },
+  {
+    "id": "14",
+    "titleEn": "Lecture Series Compendium 2023",
+    "titleZh": "2023 講座系列彙編",
+    "year": "2023",
+    "cover": "../images/Degree Show.jpg",
+    "pdfUrl": "",
+    "categories": [
+      "lectures"
+    ]
+  },
+  {
+    "id": "15",
+    "titleEn": "Degree Show 2022 Catalogue",
+    "titleZh": "2022 畢業展作品集",
+    "year": "2022",
+    "cover": "../images/Degree Show.jpg",
+    "pdfUrl": "../assets/sample.pdf",
+    "categories": [
+      "degree-show",
+      "exhibitions"
+    ]
+  },
+  {
+    "id": "16",
+    "titleEn": "Workshop Proceedings 2022",
+    "titleZh": "2022 工作坊論文集",
+    "year": "2022",
+    "cover": "../images/2021-動畫-Pitch-Bible-01.png",
+    "pdfUrl": "",
+    "categories": [
+      "workshop"
+    ]
+  },
+  {
+    "id": "17",
+    "titleEn": "SCCD Miscellany 2022",
+    "titleZh": "2022 媒傳雜誌",
+    "year": "2022",
+    "cover": "../images/Degree Show.jpg",
+    "pdfUrl": "",
+    "categories": [
+      "others"
+    ]
+  },
+  {
+    "id": "18",
+    "titleEn": "Degree Show 2021 Catalogue",
+    "titleZh": "2021 畢業展作品集",
+    "year": "2021",
+    "cover": "../images/Degree Show.jpg",
+    "pdfUrl": "../assets/sample.pdf",
+    "categories": [
+      "degree-show",
+      "exhibitions"
+    ]
+  },
+  {
+    "id": "19",
+    "titleEn": "Course Handbook 2021",
+    "titleZh": "2021 課程手冊",
+    "year": "2021",
+    "cover": "../images/2021-動畫-Pitch-Bible-01.png",
+    "pdfUrl": "",
+    "categories": [
+      "courses"
+    ]
+  },
+  {
+    "id": "20",
+    "titleEn": "Faculty Research Journal 2021",
+    "titleZh": "2021 教師研究期刊",
+    "year": "2021",
+    "cover": "../images/Degree Show.jpg",
+    "pdfUrl": "",
+    "categories": [
+      "conferences"
+    ]
+  },
+  {
+    "id": "21",
+    "titleEn": "Degree Show 2020 Catalogue",
+    "titleZh": "2020 畢業展作品集",
+    "year": "2020",
+    "cover": "../images/Degree Show.jpg",
+    "pdfUrl": "../assets/sample.pdf",
+    "categories": [
+      "degree-show",
+      "exhibitions"
+    ]
+  },
+  {
+    "id": "22",
+    "titleEn": "Lecture Series Compendium 2020",
+    "titleZh": "2020 講座系列彙編",
+    "year": "2020",
+    "cover": "../images/2021-動畫-Pitch-Bible-01.png",
+    "pdfUrl": "",
+    "categories": [
+      "lectures"
+    ]
+  },
+  {
+    "id": "23",
+    "titleEn": "Degree Show 2019 Catalogue",
+    "titleZh": "2019 畢業展作品集",
+    "year": "2019",
+    "cover": "../images/Degree Show.jpg",
+    "pdfUrl": "../assets/sample.pdf",
+    "categories": [
+      "degree-show",
+      "exhibitions"
+    ]
+  },
+  {
+    "id": "24",
+    "titleEn": "International Exchange Report 2019",
+    "titleZh": "2019 國際交流報告",
+    "year": "2019",
+    "cover": "../images/2021-動畫-Pitch-Bible-01.png",
+    "pdfUrl": "",
+    "categories": [
+      "industry",
+      "visits"
+    ]
+  },
+  {
+    "id": "25",
+    "titleEn": "Degree Show 2018 Catalogue",
+    "titleZh": "2018 畢業展作品集",
+    "year": "2018",
+    "cover": "../images/Degree Show.jpg",
+    "pdfUrl": "../assets/sample.pdf",
+    "categories": [
+      "degree-show",
+      "exhibitions"
+    ]
+  },
+  {
+    "id": "26",
+    "titleEn": "Workshop Proceedings 2018",
+    "titleZh": "2018 工作坊論文集",
+    "year": "2018",
+    "cover": "../images/2021-動畫-Pitch-Bible-01.png",
+    "pdfUrl": "",
+    "categories": [
+      "workshop"
+    ]
+  },
+  {
+    "id": "27",
+    "titleEn": "Degree Show 2017 Catalogue",
+    "titleZh": "2017 畢業展作品集",
+    "year": "2017",
+    "cover": "../images/Degree Show.jpg",
+    "pdfUrl": "../assets/sample.pdf",
+    "categories": [
+      "degree-show",
+      "exhibitions"
+    ]
+  },
+  {
+    "id": "28",
+    "titleEn": "SCCD Miscellany 2017",
+    "titleZh": "2017 媒傳雜誌",
+    "year": "2017",
+    "cover": "../images/2021-動畫-Pitch-Bible-01.png",
+    "pdfUrl": "",
+    "categories": [
+      "others"
+    ]
+  },
+  {
+    "id": "29",
+    "titleEn": "Degree Show 2016 Catalogue",
+    "titleZh": "2016 畢業展作品集",
+    "year": "2016",
+    "cover": "../images/Degree Show.jpg",
+    "pdfUrl": "../assets/sample.pdf",
+    "categories": [
+      "degree-show",
+      "exhibitions"
+    ]
+  },
+  {
+    "id": "30",
+    "titleEn": "Course Handbook 2016",
+    "titleZh": "2016 課程手冊",
+    "year": "2016",
+    "cover": "../images/2021-動畫-Pitch-Bible-01.png",
+    "pdfUrl": "",
+    "categories": [
+      "courses"
+    ]
+  },
+  {
+    "id": "31",
+    "titleEn": "Degree Show 2015 Catalogue",
+    "titleZh": "2015 畢業展作品集",
+    "year": "2015",
+    "cover": "../images/Degree Show.jpg",
+    "pdfUrl": "../assets/sample.pdf",
+    "categories": [
+      "degree-show",
+      "exhibitions"
+    ]
+  },
+  {
+    "id": "32",
+    "titleEn": "Faculty Research Journal 2015",
+    "titleZh": "2015 教師研究期刊",
+    "year": "2015",
+    "cover": "../images/2021-動畫-Pitch-Bible-01.png",
+    "pdfUrl": "",
+    "categories": [
+      "conferences"
+    ]
+  },
+  {
+    "id": "33",
+    "titleEn": "Degree Show 2014 Catalogue",
+    "titleZh": "2014 畢業展作品集",
+    "year": "2014",
+    "cover": "../images/Degree Show.jpg",
+    "pdfUrl": "../assets/sample.pdf",
+    "categories": [
+      "degree-show",
+      "exhibitions"
+    ]
+  },
+  {
+    "id": "34",
+    "titleEn": "Lecture Series Compendium 2014",
+    "titleZh": "2014 講座系列彙編",
+    "year": "2014",
+    "cover": "../images/2021-動畫-Pitch-Bible-01.png",
+    "pdfUrl": "",
+    "categories": [
+      "lectures"
+    ]
+  },
+  {
+    "id": "35",
+    "titleEn": "Degree Show 2013 Catalogue",
+    "titleZh": "2013 畢業展作品集",
+    "year": "2013",
+    "cover": "../images/Degree Show.jpg",
+    "pdfUrl": "../assets/sample.pdf",
+    "categories": [
+      "degree-show",
+      "exhibitions"
+    ]
+  },
+  {
+    "id": "36",
+    "titleEn": "International Exchange Report 2013",
+    "titleZh": "2013 國際交流報告",
+    "year": "2013",
+    "cover": "../images/2021-動畫-Pitch-Bible-01.png",
+    "pdfUrl": "",
+    "categories": [
+      "industry",
+      "visits"
+    ]
+  },
+  {
+    "id": "37",
+    "titleEn": "SCCD Miscellany 2013",
+    "titleZh": "2013 媒傳雜誌",
+    "year": "2013",
+    "cover": "../images/Degree Show.jpg",
+    "pdfUrl": "",
+    "categories": [
+      "others"
+    ]
+  },
+  {
+    "id": "38",
+    "titleEn": "Degree Show 2012 Catalogue",
+    "titleZh": "2012 畢業展作品集",
+    "year": "2012",
+    "cover": "../images/Degree Show.jpg",
+    "pdfUrl": "../assets/sample.pdf",
+    "categories": [
+      "degree-show",
+      "exhibitions"
+    ]
+  },
+  {
+    "id": "39",
+    "titleEn": "Workshop Proceedings 2012",
+    "titleZh": "2012 工作坊論文集",
+    "year": "2012",
+    "cover": "../images/2021-動畫-Pitch-Bible-01.png",
+    "pdfUrl": "",
+    "categories": [
+      "workshop"
+    ]
+  },
+  {
+    "id": "40",
+    "titleEn": "Degree Show 2011 Catalogue",
+    "titleZh": "2011 畢業展作品集",
+    "year": "2011",
+    "cover": "../images/Degree Show.jpg",
+    "pdfUrl": "../assets/sample.pdf",
+    "categories": [
+      "degree-show",
+      "exhibitions"
+    ]
+  },
+  {
+    "id": "41",
+    "titleEn": "Course Handbook 2011",
+    "titleZh": "2011 課程手冊",
+    "year": "2011",
+    "cover": "../images/2021-動畫-Pitch-Bible-01.png",
+    "pdfUrl": "",
+    "categories": [
+      "courses"
+    ]
+  },
+  {
+    "id": "42",
+    "titleEn": "Faculty Research Journal 2011",
+    "titleZh": "2011 教師研究期刊",
+    "year": "2011",
+    "cover": "../images/Degree Show.jpg",
+    "pdfUrl": "",
+    "categories": [
+      "conferences"
+    ]
+  },
+  {
+    "id": "43",
+    "titleEn": "Degree Show 2010 Catalogue",
+    "titleZh": "2010 畢業展作品集",
+    "year": "2010",
+    "cover": "../images/Degree Show.jpg",
+    "pdfUrl": "../assets/sample.pdf",
+    "categories": [
+      "degree-show",
+      "exhibitions"
+    ]
+  },
+  {
+    "id": "44",
+    "titleEn": "Lecture Series Compendium 2010",
+    "titleZh": "2010 講座系列彙編",
+    "year": "2010",
+    "cover": "../images/2021-動畫-Pitch-Bible-01.png",
+    "pdfUrl": "",
+    "categories": [
+      "lectures"
+    ]
+  }
+]

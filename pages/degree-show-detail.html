@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Degree Show - SCCD</title>
+  <link rel="stylesheet" href="../css/variables.css">
+  <link rel="stylesheet" href="../css/output.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+</head>
+<body>
+
+  <!-- Header -->
+  <div id="site-header"></div>
+
+  <!-- Main Content -->
+  <main>
+    <!-- Hero Section -->
+    <section class="h-[700px] md:h-screen relative overflow-hidden">
+      <div class="relative md:absolute inset-0 w-full h-full md:h-full">
+        <img id="hero-img" src="" alt="Degree Show" class="w-full h-full md:h-full object-cover">
+      </div>
+    </section>
+
+    <!-- Content Section -->
+    <section class="bg-white py-6xl">
+      <div class="site-container">
+
+        <!-- 文字區 -->
+        <div class="grid-12 mb-4xl">
+          <div class="col-span-12 md:col-start-3 md:col-span-10">
+            <!-- 標題 + 年份 -->
+            <h2 id="text-title" class="mb-xs"></h2>
+            <h4 id="text-year" class="mb-2xl"></h4>
+
+            <!-- 英中說明 -->
+            <p id="text-desc-en" class="mb-md"></p>
+            <p id="text-desc-cn" class="mb-2xl"></p>
+
+            <!-- Social Media Icons -->
+            <div class="flex gap-lg">
+              <a href="https://www.youtube.com/@scsccd" target="_blank" rel="noopener noreferrer" class="hover:text-gray-7 transition-colors duration-fast">
+                <i class="fa-brands fa-youtube text-h4"></i>
+              </a>
+              <a href="https://www.instagram.com/communications.design_sccd" target="_blank" rel="noopener noreferrer" class="hover:text-gray-7 transition-colors duration-fast">
+                <i class="fa-brands fa-instagram text-h4"></i>
+              </a>
+              <a href="https://www.facebook.com/communications.design" target="_blank" rel="noopener noreferrer" class="hover:text-gray-7 transition-colors duration-fast">
+                <i class="fa-brands fa-facebook text-h4"></i>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- 圖片區 -->
+        <div id="gallery-container" class="py-2xl flex flex-col gap-gutter">
+          <!-- Images will be injected here by JS -->
+        </div>
+
+        <!-- 影片區 -->
+        <div id="video-section" class="grid-12 hidden">
+          <div class="col-span-12">
+            <div id="video-wrapper" class="w-full aspect-video bg-black">
+              <!-- Video content injected by JS -->
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Next Project Section -->
+    <section id="next-project-section" class="bg-white h-auto pb-2xl md:pb-6xl">
+      <div class="site-container">
+        <div class="grid-12 items-start gap-y-xl md:gap-y-0">
+          <!-- 標題 -->
+          <div class="col-span-12 md:col-span-3">
+            <h3 class="md:-rotate-4 whitespace-nowrap leading-tight">Next<br>Degree Show</h3>
+          </div>
+
+          <!-- 縮圖 -->
+          <div class="col-span-12 md:col-start-6 md:col-span-7">
+            <a id="next-link" href="#" class="block relative group">
+              <div class="relative overflow-hidden aspect-video md:rotate-3">
+                <img id="next-img" src="../images/Degree Show.jpg" alt="" class="w-full h-full object-cover">
+                <!-- Hover overlay + 文字 -->
+                <div class="hidden md:block absolute inset-0 bg-black opacity-0 group-hover:opacity-60 transition-opacity duration-300">
+                </div>
+                <div class="hidden md:block absolute bottom-0 left-0 p-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <h4 id="next-year" class="text-white whitespace-nowrap mb-sm"></h4>
+                  <h4 id="next-title" class="text-white whitespace-nowrap"></h4>
+                </div>
+              </div>
+              <!-- Mobile Text (Below Image) -->
+              <div class="md:hidden mt-sm">
+                <h5 id="next-year-mobile" class="text-black whitespace-nowrap"></h5>
+                <h5 id="next-title-mobile" class="text-black whitespace-nowrap"></h5>
+              </div>
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <div id="site-footer"></div>
+
+  <!-- JavaScript -->
+  <!-- GSAP & ScrollTrigger -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollTrigger.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/Draggable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>
+  <!-- Helper Functions - 必須在 main.js 之前載入 -->
+  <script src="../js/utils/helpers.js"></script>
+  <script type="module" src="../js/main-modular.js"></script>
+
+</body>
+</html>

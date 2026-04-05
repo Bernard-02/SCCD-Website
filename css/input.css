@@ -1,0 +1,54 @@
+/* Tailwind CSS Input File */
+
+/* 1. Global Imports (Must be first) */
+@import 'variables.css';
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&family=Bitter:ital,wght@0,400;0,700;1,400;1,700&family=Noto+Serif+TC:wght@400;500;700&display=swap');
+
+/* 2. Layer Imports */
+/* Base */
+@import './base/typography.css';
+@import './base/scrollbar.css';
+
+/* Layout */
+@import './layout/grid.css';
+
+/* Components */
+@import './components/navigation.css';
+@import './components/buttons.css';
+@import './components/cards.css';
+@import './components/accordion.css';
+@import './components/hero.css';
+@import './components/lists.css';
+@import './components/intro-animation.css';
+
+/* Themes */
+@import './themes/inverse.css';
+
+/* 3. Tailwind Directives */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 4. Custom Utilities */
+@layer utilities {
+  .text-p2 {
+    font-size: var(--font-size-p2);
+  }
+
+  .text-p3 {
+    font-size: var(--font-size-p3);
+  }
+
+  .text-gradient-green {
+    @apply bg-gradient-to-r from-green to-blue bg-clip-text text-transparent;
+  }
+
+  .text-gradient-pink {
+    @apply bg-gradient-to-r from-pink to-blue bg-clip-text text-transparent;
+  }
+
+  .writing-mode-vertical {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+  }
+}

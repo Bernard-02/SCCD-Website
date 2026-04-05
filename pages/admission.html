@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admission - SCCD</title>
+  <link rel="stylesheet" href="../css/variables.css">
+  <link rel="stylesheet" href="../css/output.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+</head>
+<body>
+
+  <!-- Header -->
+  <div id="site-header"></div>
+
+  <!-- Main Content -->
+  <main>
+    <!-- Hero Section with Background Image -->
+    <section class="h-screen relative overflow-hidden">
+      <!-- Background Image -->
+      <div class="absolute inset-0 w-full h-full">
+        <img src="../images/SCCD-1-4-0.jpg" alt="Admission" class="w-full h-full object-cover">
+      </div>
+
+      <!-- Black Gradient Overlay (0% at top, 100% at bottom) -->
+      <div class="absolute inset-0 w-full h-full bg-gradient-to-b from-transparent to-black"></div>
+
+      <!-- Content Container -->
+      <div class="site-container h-full relative z-10">
+        <div class="h-full flex flex-col md:flex-row justify-end md:justify-start items-start md:items-end gap-lg md:gap-xl pb-3xl md:pb-2xl pt-[120px] md:pt-0">
+          <!-- Title: 手機版100%，桌面版50% -->
+          <div class="w-full md:w-1/2">
+            <h1 class="hero-title text-white pb-lg md:pb-xl">ADMISSION</h1>
+          </div>
+
+          <!-- Content: 手機版100%，桌面版50% -->
+          <div class="w-full md:w-1/2">
+            <!-- English text -->
+            <p class="hero-text-en text-white mb-lg md:mb-xl">
+              Welcome to SCCD. We invite passionate and creative individuals to join our program and explore the world of communications design.
+            </p>
+            <!-- Chinese text -->
+            <p class="hero-text-cn text-white">
+              歡迎對媒體傳達設計充滿熱情的朋友們，報考實踐大學媒體傳達設計學系，一起探索設計的無限可能。
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Admission Content Section -->
+    <section class="bg-white py-6xl" id="admission-content-section">
+      <div class="site-container">
+        <div class="flex flex-col md:flex-row gap-gutter">
+
+          <!-- Left Nav -->
+          <div class="w-full md:flex-[0_0_calc(16.667%_-_1.25rem)]">
+            <div class="flex flex-row flex-wrap md:flex-col gap-xs mb-xl md:mb-0 md:sticky md:top-[160px]">
+              <button class="activities-section-btn w-fit active text-left" data-section="news">
+                <span class="anchor-nav-inner"><span>News</span><span>最新消息</span></span>
+              </button>
+              <button class="activities-section-btn w-fit text-left" data-section="summer-camp">
+                <span class="anchor-nav-inner"><span>Summer Camp</span><span>暑期設計體驗營</span></span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Right Content Panels -->
+          <div class="flex-1 min-w-0">
+
+            <!-- News Panel (原 Admission list) -->
+            <div class="activities-panel" id="panel-news">
+              <div id="admission-list" class="flex flex-col"></div>
+              <div id="load-more-container" class="w-full flex justify-center mt-3xl">
+                <button id="load-more-btn" class="class-division-btn btn-fill shrink-0 px-sm py-sm text-p2 font-bold transition-all duration-fast rounded-[20px] whitespace-nowrap cursor-pointer">
+                  Load More 顯示更多
+                </button>
+              </div>
+            </div>
+
+            <!-- Summer Camp Panel -->
+            <div class="activities-panel hidden" id="panel-summer-camp">
+              <div id="summer-camp-list"></div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <div id="site-footer"></div>
+
+  <!-- JavaScript -->
+  <!-- GSAP & ScrollTrigger -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollTrigger.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/Draggable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>
+  <!-- Helper Functions - 必須在 main.js 之前載入 -->
+  <script src="../js/utils/helpers.js"></script>
+  <script type="module" src="../js/main-modular.js"></script>
+
+</body>
+</html>

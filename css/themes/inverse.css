@@ -1,0 +1,232 @@
+/**
+ * Inverse Mode Theme
+ * 黑底白字模式，透過 body.mode-inverse 觸發
+ * 所有 inverse 相關覆蓋集中在此檔案管理
+ */
+
+/* ===== Base ===== */
+body.mode-inverse {
+  background-color: black;
+  color: white;
+}
+
+/* ===== Layout ===== */
+body.mode-inverse header {
+  background-color: transparent;
+}
+
+body.mode-inverse .bg-white {
+  background-color: black !important;
+}
+
+body.mode-inverse .bg-gray-9 {
+  background-color: var(--gray-2) !important;
+}
+
+/* ===== Typography ===== */
+body.mode-inverse .text-black:not(.timeline-year-item) {
+  color: white !important;
+}
+
+body.mode-inverse .timeline-year-item {
+  color: white;
+}
+
+body.mode-inverse .text-gray-6 {
+  color: var(--gray-5) !important;
+}
+
+/* ===== Timeline Lines ===== */
+body.mode-inverse .timeline-sticky-container .bg-black {
+  background-color: white !important;
+}
+
+/* ===== Borders ===== */
+body.mode-inverse .border-black {
+  border-color: white !important;
+}
+
+body.mode-inverse .border-gray-9 {
+  border-color: var(--gray-2) !important;
+}
+
+/* ===== Navigation ===== */
+body.mode-inverse .nav-link {
+  color: white;
+}
+
+body.mode-inverse .mobile-nav-link {
+  color: white !important;
+}
+
+body.mode-inverse .mobile-nav-link span {
+  color: white !important;
+}
+
+body.mode-inverse .mobile-nav {
+  background-color: black;
+}
+
+body.mode-inverse .mega-menu {
+  background-color: black;
+}
+
+body.mode-inverse .submenu-link {
+  color: white;
+}
+
+@media (min-width: 768px) {
+  body.mode-inverse .nav-link:hover {
+    color: white;
+  }
+
+  body.mode-inverse .submenu-link:hover span {
+    color: white;
+  }
+}
+
+/* ===== Theme Toggle Button ===== */
+body.mode-inverse .theme-toggle-btn {
+  border-color: white;
+}
+
+body.mode-inverse .theme-toggle-circle {
+  background: white;
+}
+
+/* ===== Nav Buttons (左側 section/program btn) ===== */
+/* inactive: 50% 黑色透明底 + 白色文字；active 的彩色 background 由 JS inline style 設定 */
+body.mode-inverse .faculty-filter-btn:not(.active) .anchor-nav-inner,
+body.mode-inverse .activities-section-btn:not(.active) .anchor-nav-inner,
+body.mode-inverse .courses-program-btn:not(.active) .anchor-nav-inner {
+  background: rgba(0, 0, 0, 0.5) !important;
+  color: white !important;
+}
+
+body.mode-inverse .faculty-filter-btn.active .anchor-nav-inner,
+body.mode-inverse .activities-section-btn.active .anchor-nav-inner,
+body.mode-inverse .courses-program-btn.active .anchor-nav-inner {
+  /* background 由 JS 設定為隨機三原色 */
+  color: black !important;
+}
+
+@media (min-width: 768px) {
+  body.mode-inverse .faculty-filter-btn:not(.active):hover .anchor-nav-inner,
+  body.mode-inverse .activities-section-btn:not(.active):hover .anchor-nav-inner,
+  body.mode-inverse .courses-program-btn:not(.active):hover .anchor-nav-inner {
+    background: rgba(0, 0, 0, 0.8) !important;
+    color: white !important;
+  }
+}
+
+/* ===== Filter Buttons (右側 filter btn) ===== */
+body.mode-inverse .activities-filter-btn:not(.active) .anchor-nav-inner,
+body.mode-inverse .courses-filter-btn:not(.active) .anchor-nav-inner {
+  background: rgba(0, 0, 0, 0.5) !important;
+  color: white !important;
+}
+
+body.mode-inverse .activities-filter-btn.active .anchor-nav-inner,
+body.mode-inverse .courses-filter-btn.active .anchor-nav-inner {
+  color: black !important;
+}
+
+@media (min-width: 768px) {
+  body.mode-inverse .activities-filter-btn:not(.active):hover .anchor-nav-inner,
+  body.mode-inverse .courses-filter-btn:not(.active):hover .anchor-nav-inner {
+    background: rgba(0, 0, 0, 0.8) !important;
+    color: white !important;
+  }
+}
+
+/* ===== Filter Bar 上方遮擋 ::before ===== */
+@media (min-width: 768px) {
+  body.mode-inverse .activities-filter-bar::before,
+  body.mode-inverse .courses-filter-bar::before {
+    background: black;
+  }
+
+  body.mode-inverse .activities-filter-bar,
+  body.mode-inverse .courses-filter-bar {
+    background-color: black !important;
+  }
+}
+
+/* ===== Pill Buttons (works-filter-btn / class-parent-btn / class-division-btn) ===== */
+body.mode-inverse .works-filter-btn,
+body.mode-inverse .class-parent-btn,
+body.mode-inverse .class-division-btn {
+  border-color: white;
+  color: white;
+}
+
+body.mode-inverse .works-filter-btn.active,
+body.mode-inverse .class-parent-btn.active,
+body.mode-inverse .class-division-btn.active {
+  background: white;
+  color: black;
+}
+
+/* btn-fill blob 顏色反轉 */
+body.mode-inverse .btn-fill-blob {
+  background: white;
+}
+
+/* ===== Accordion / Course Items ===== */
+body.mode-inverse .course-item {
+  border-color: white !important;
+}
+
+/* ===== Cards ===== */
+body.mode-inverse .card-tag {
+  border-color: white !important;
+  color: white !important;
+}
+
+/* ===== About Anchor Nav ===== */
+body.mode-inverse .anchor-nav-btn:not(.active) .anchor-nav-inner {
+  background: rgba(0, 0, 0, 0.5) !important;
+  color: white !important;
+}
+
+body.mode-inverse .anchor-nav-btn.active .anchor-nav-inner {
+  /* background 由 JS 設定為隨機三原色 */
+  color: black !important;
+}
+
+@media (min-width: 768px) {
+  body.mode-inverse .anchor-nav-btn:not(.active):hover .anchor-nav-inner {
+    background: rgba(0, 0, 0, 0.8) !important;
+    color: white !important;
+  }
+}
+
+/* ===== Faculty Slide-in ===== */
+body.mode-inverse #faculty-overlay {
+  background-color: white;
+}
+
+body.mode-inverse #faculty-cursor {
+  background-color: white;
+}
+
+body.mode-inverse #faculty-cursor span {
+  color: black;
+}
+
+/* ===== Search Bar ===== */
+body.mode-inverse .activities-search-inner {
+  border-bottom-color: white;
+}
+
+body.mode-inverse .activities-search-icon {
+  color: white !important;
+}
+
+body.mode-inverse .activities-search-input {
+  color: white;
+}
+
+body.mode-inverse .activities-search-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}

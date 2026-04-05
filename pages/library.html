@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Library - SCCD</title>
+  <link rel="stylesheet" href="../css/variables.css">
+  <link rel="stylesheet" href="../css/output.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.2.3/css/flag-icons.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bitter:ital,wght@0,400;0,600;0,700;1,400&family=Noto+Serif+TC:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/components/library.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+</head>
+<body style="overflow: hidden; height: 100vh;">
+
+  <!-- Header -->
+  <div id="site-header"></div>
+
+  <!-- Main Content -->
+  <main>
+    <!-- Card Stack Hero -->
+    <section class="relative overflow-visible" style="height: calc(100vh - var(--header-height)); margin-top: var(--header-height);">
+      <div id="library-card-stack" class="absolute inset-0 flex items-center justify-center">
+        <!-- 三原色背景矩形（由 JS 生成） -->
+      </div>
+      <!-- 灰色主矩形（永遠在最上層） -->
+      <div id="library-card-main" class="absolute">
+
+        <!-- 內容層：用於 fade in/out -->
+        <div id="library-card-content" style="display: flex; flex-direction: column; width: 100%; height: 100%;">
+
+          <!-- ══ Awards Panel ══ -->
+          <div id="lib-panel-awards" style="display: flex; flex-direction: column; width: 100%; height: 100%; position: relative; overflow: visible;">
+
+            <!-- 標題（貼在 panel 左上角） -->
+            <p class="lib-panel-title" style="position: absolute; top: 0; left: calc(-1 * var(--spacing-lg)); font-size: var(--font-size-h5); font-weight: 700; display: inline-block; background: #000; color: #f2f2f2; padding: 6px 8px 5px; z-index: 1;">Awards 榮譽</p>
+
+            <!-- 內容區（flex: 1，不含 ticker） -->
+            <div style="flex: 1; min-height: 0; display: grid; grid-template-columns: max-content 1fr; grid-template-rows: 1fr; gap: 0 var(--spacing-2xl); padding: var(--spacing-md) var(--spacing-md) 0 var(--spacing-md);">
+
+              <!-- 左：年份 Picker -->
+              <div style="display: flex; flex-direction: column; min-height: 0; padding-top: var(--spacing-xl);">
+                <p style="font-weight: 700; font-size: var(--font-size-p3); padding: 0 0 var(--spacing-sm); flex-shrink: 0;">Year 年份</p>
+                <div id="library-year-picker-wrap" style="overflow-y: scroll; min-height: 0; padding-bottom: var(--spacing-sm);" class="no-scrollbar">
+                  <div id="library-year-picker" style="display: flex; flex-direction: column; gap: var(--spacing-xs);"></div>
+                </div>
+              </div>
+
+              <!-- 右：Search + Award List -->
+              <div style="min-width: 0; display: flex; flex-direction: column; min-height: 0;">
+                <div style="display: flex; align-items: flex-end; gap: var(--spacing-sm); flex-shrink: 0; margin-bottom: var(--spacing-sm);">
+                  <div style="flex: 1; display: flex; align-items: center; gap: var(--spacing-sm); border-bottom: 2px solid #000; padding-bottom: 4px;">
+                    <i class="fa-solid fa-magnifying-glass" style="font-size: var(--font-size-p3);"></i>
+                    <input type="text" id="library-awards-search" placeholder="Search 搜尋"
+                      style="flex: 1; background: transparent; border: none; outline: none; font-family: 'Bitter', 'Noto Serif TC', serif; font-size: var(--font-size-p3); font-weight: 700; color: #000;"
+                      autocomplete="off">
+                  </div>
+                  <button id="library-awards-sort-btn" style="background: none; border: none; padding: 0 0 4px; font-family: inherit; font-size: var(--font-size-p3); font-weight: 700; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: var(--spacing-xs);">Date 時間<i class="fa-solid fa-arrow-down sort-arrow" style="font-size: var(--font-size-p3);"></i></button>
+                </div>
+                <div id="library-awards-scroll" style="min-width: 0; overflow-y: auto; padding-bottom: var(--spacing-sm); flex: 1; min-height: 0;" class="no-scrollbar">
+                  <div id="library-awards-list"></div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Logo Ticker -->
+            <div id="library-awards-ticker" style="flex-shrink: 0; padding-top: var(--spacing-md); padding-bottom: var(--spacing-md); overflow: hidden; width: 100%;">
+              <div class="awards-ticker-wrapper" style="display: flex; width: 100%;"></div>
+            </div>
+
+          </div><!-- end #lib-panel-awards -->
+
+          <!-- ══ Press Panel ══ -->
+          <div id="lib-panel-press" style="display: none; flex-direction: column; width: 100%; height: 100%; position: relative; overflow: visible;">
+
+            <!-- 標題（貼在 panel 頂邊） -->
+            <p class="lib-panel-title" style="position: absolute; top: 0; left: calc(-1 * var(--spacing-lg)); font-size: var(--font-size-h5); font-weight: 700; display: inline-block; background: #000; color: #f2f2f2; padding: 6px 8px 5px; z-index: 1;">Press 報導</p>
+
+            <!-- 內容區：2 rows — 分類篩選/search、picker/list -->
+            <div style="flex: 1; min-height: 0; display: grid; grid-template-columns: max-content 1fr; grid-template-rows: auto 1fr; gap: 0 var(--spacing-2xl); padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm) var(--spacing-md);">
+
+              <!-- 左上：Year label -->
+              <div style="flex-shrink: 0; padding-bottom: var(--spacing-sm); align-self: end;">
+                <p style="font-weight: 700; font-size: var(--font-size-p3); padding: 0.35rem 0 0; flex-shrink: 0;">Year 年份</p>
+              </div>
+
+              <!-- 右上：Search + 分類篩選 -->
+              <div style="min-width: 0; padding-bottom: var(--spacing-sm);">
+                <div style="display: flex; align-items: flex-end; gap: var(--spacing-sm); margin-bottom: var(--spacing-sm);">
+                  <div style="flex: 1; display: flex; align-items: center; gap: var(--spacing-sm); border-bottom: 2px solid #000; padding-bottom: 4px;">
+                    <i class="fa-solid fa-magnifying-glass" style="font-size: var(--font-size-p3);"></i>
+                    <input type="text" id="library-press-search" placeholder="Search 搜尋"
+                      style="flex: 1; background: transparent; border: none; outline: none; font-family: 'Bitter', 'Noto Serif TC', serif; font-size: var(--font-size-p3); font-weight: 700; color: #000;"
+                      autocomplete="off">
+                  </div>
+                  <button id="library-press-sort-btn" style="background: none; border: none; padding: 0 0 4px; font-family: inherit; font-size: var(--font-size-p3); font-weight: 700; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: var(--spacing-xs);">Date 時間<i class="fa-solid fa-arrow-down sort-arrow" style="font-size: var(--font-size-p3);"></i></button>
+                </div>
+                <div id="library-press-cat-filter" style="display: flex; flex-wrap: wrap; gap: var(--spacing-sm) var(--spacing-lg); align-content: flex-start;">
+                  <button class="lib-press-cat-btn" data-cat="degree-show">Degree Show 畢業展</button>
+                  <button class="lib-press-cat-btn" data-cat="workshop">Workshop 工作營</button>
+                  <button class="lib-press-cat-btn" data-cat="lectures">Lectures 講座</button>
+                  <button class="lib-press-cat-btn" data-cat="visits">Visits 參訪</button>
+                  <button class="lib-press-cat-btn" data-cat="competitions">Competitions 競賽</button>
+                  <button class="lib-press-cat-btn" data-cat="conferences">Conferences 研討會</button>
+                  <button class="lib-press-cat-btn" data-cat="students-present">Students Present 學生自主</button>
+                  <button class="lib-press-cat-btn" data-cat="industry">Industry-Academia 產學合作</button>
+                  <button class="lib-press-cat-btn" data-cat="summer-camp">Summer Camp 暑期體驗營</button>
+                  <button class="lib-press-cat-btn" data-cat="others">Others 其他</button>
+                </div>
+              </div>
+
+              <!-- 左下：年份 Picker -->
+              <div style="display: flex; flex-direction: column; min-height: 0; height: 100%; overflow: hidden;">
+                <div id="library-press-year-picker-wrap" style="flex: 1; overflow-y: scroll; min-height: 0; padding-bottom: var(--spacing-sm);" class="no-scrollbar">
+                  <div id="library-press-year-picker" style="display: flex; flex-direction: column; gap: var(--spacing-xs);"></div>
+                </div>
+              </div>
+
+              <!-- 右下：Press List -->
+              <div id="library-press-scroll" style="min-width: 0; overflow-y: auto; padding-bottom: var(--spacing-sm);" class="no-scrollbar">
+                <div id="library-press-list"></div>
+              </div>
+
+            </div>
+
+          </div><!-- end #lib-panel-press -->
+
+          <!-- ══ Files Panel ══ -->
+          <div id="lib-panel-files" style="display: none; flex-direction: column; width: 100%; height: 100%; position: relative; overflow: visible;">
+
+            <!-- 標題（貼在 panel 頂邊） -->
+            <p class="lib-panel-title" style="position: absolute; top: 0; left: calc(-1 * var(--spacing-xl)); font-size: var(--font-size-h5); font-weight: 700; display: inline-block; background: #000; color: #f2f2f2; padding: 6px 8px 5px; z-index: 1;">Documents 文件</p>
+
+            <div style="flex: 1; min-height: 0; display: grid; grid-template-columns: max-content 1fr; grid-template-rows: auto 1fr; gap: 0 var(--spacing-2xl); padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm) var(--spacing-md);">
+
+              <!-- 左上：Year label -->
+              <div style="flex-shrink: 0; padding-bottom: var(--spacing-sm); align-self: end;">
+                <p style="font-weight: 700; font-size: var(--font-size-p3); padding: 0.35rem 0 0; flex-shrink: 0;">Year 年份</p>
+              </div>
+
+              <!-- 右上：分類篩選 + Search -->
+              <div style="min-width: 0; padding-bottom: var(--spacing-sm);">
+                <div style="display: flex; align-items: flex-end; gap: var(--spacing-sm); margin-bottom: var(--spacing-sm);">
+                  <div style="flex: 1; display: flex; align-items: center; gap: var(--spacing-sm); border-bottom: 2px solid #000; padding-bottom: 4px;">
+                    <i class="fa-solid fa-magnifying-glass" style="font-size: var(--font-size-p3);"></i>
+                    <input type="text" id="library-files-search" placeholder="Search 搜尋"
+                      style="flex: 1; background: transparent; border: none; outline: none; font-family: 'Bitter', 'Noto Serif TC', serif; font-size: var(--font-size-p3); font-weight: 700; color: #000;"
+                      autocomplete="off">
+                  </div>
+                  <button id="library-files-sort-btn" style="background: none; border: none; padding: 0 0 4px; font-family: inherit; font-size: var(--font-size-p3); font-weight: 700; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: var(--spacing-xs);">Date 時間<i class="fa-solid fa-arrow-down sort-arrow" style="font-size: var(--font-size-p3);"></i></button>
+                </div>
+                <div id="library-files-cat-filter" style="display: flex; flex-wrap: wrap; gap: var(--spacing-sm) var(--spacing-lg); align-content: flex-start;">
+                  <button class="lib-files-cat-btn" data-cat="degree-show">Degree Show 畢業展</button>
+                  <button class="lib-files-cat-btn" data-cat="exhibitions">Exhibitions 展演</button>
+                  <button class="lib-files-cat-btn" data-cat="workshop">Workshop 工作營</button>
+                  <button class="lib-files-cat-btn" data-cat="courses">Courses 課程</button>
+                  <button class="lib-files-cat-btn" data-cat="lectures">Lectures 講座</button>
+                  <button class="lib-files-cat-btn" data-cat="visits">Visits 參訪</button>
+                  <button class="lib-files-cat-btn" data-cat="competitions">Competitions 競賽</button>
+                  <button class="lib-files-cat-btn" data-cat="conferences">Conferences 研討會</button>
+                  <button class="lib-files-cat-btn" data-cat="students-present">Students Present 學生自主</button>
+                  <button class="lib-files-cat-btn" data-cat="industry">Industry-Academia 產學合作</button>
+                  <button class="lib-files-cat-btn" data-cat="summer-camp">Summer Camp 暑期體驗營</button>
+                  <button class="lib-files-cat-btn" data-cat="others">Others 其他</button>
+                </div>
+              </div>
+
+              <!-- 左下：年份 Picker -->
+              <div style="display: flex; flex-direction: column; min-height: 0; height: 100%; overflow: hidden;">
+                <div id="library-files-year-picker-wrap" style="flex: 1; overflow-y: scroll; min-height: 0; padding-bottom: var(--spacing-sm);" class="no-scrollbar">
+                  <div id="library-files-year-picker" style="display: flex; flex-direction: column; gap: var(--spacing-xs);"></div>
+                </div>
+              </div>
+
+              <!-- 右下：Files List -->
+              <div id="library-files-scroll" style="min-width: 0; overflow-y: auto; padding-bottom: var(--spacing-sm);" class="no-scrollbar">
+                <div id="library-files-list" style="display: flex; flex-direction: column; gap: var(--spacing-2xl);"></div>
+              </div>
+
+            </div>
+
+          </div><!-- end #lib-panel-files -->
+
+          <!-- ══ Album Panel ══ -->
+          <div id="lib-panel-album" style="display: none; flex-direction: column; width: 100%; height: 100%; position: relative; overflow: visible;">
+
+            <!-- 標題（貼在 panel 頂邊） -->
+            <p class="lib-panel-title" style="position: absolute; top: 0; left: calc(-1 * var(--spacing-lg)); font-size: var(--font-size-h5); font-weight: 700; display: inline-block; background: #000; color: #f2f2f2; padding: 6px 8px 5px; z-index: 1;">Album 相簿</p>
+
+            <div style="flex: 1; min-height: 0; display: grid; grid-template-columns: max-content 1fr; grid-template-rows: auto 1fr; gap: 0 var(--spacing-2xl); padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm) var(--spacing-md);">
+
+              <!-- 左上：Year label -->
+              <div style="flex-shrink: 0; padding-bottom: var(--spacing-sm); align-self: end;">
+                <p style="font-weight: 700; font-size: var(--font-size-p3); padding: 0.35rem 0 0; flex-shrink: 0;">Year 年份</p>
+              </div>
+
+              <!-- 右上：Search + 分類篩選 -->
+              <div style="min-width: 0; padding-bottom: var(--spacing-sm);">
+                <div style="display: flex; align-items: flex-end; gap: var(--spacing-sm); margin-bottom: var(--spacing-sm);">
+                  <div style="flex: 1; display: flex; align-items: center; gap: var(--spacing-sm); border-bottom: 2px solid #000; padding-bottom: 4px;">
+                    <i class="fa-solid fa-magnifying-glass" style="font-size: var(--font-size-p3);"></i>
+                    <input type="text" id="library-album-search" placeholder="Search 搜尋"
+                      style="flex: 1; background: transparent; border: none; outline: none; font-family: 'Bitter', 'Noto Serif TC', serif; font-size: var(--font-size-p3); font-weight: 700; color: #000;"
+                      autocomplete="off">
+                  </div>
+                  <button id="library-album-sort-btn" style="background: none; border: none; padding: 0 0 4px; font-family: inherit; font-size: var(--font-size-p3); font-weight: 700; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: var(--spacing-xs);">Date 時間<i class="fa-solid fa-arrow-down sort-arrow" style="font-size: var(--font-size-p3);"></i></button>
+                </div>
+                <div id="library-album-cat-filter" style="display: flex; flex-wrap: wrap; gap: var(--spacing-sm) var(--spacing-lg); align-content: flex-start;">
+                  <button class="lib-album-cat-btn" data-cat="degree-show">Degree Show 畢業展</button>
+                  <button class="lib-album-cat-btn" data-cat="exhibitions">Exhibitions 展演</button>
+                  <button class="lib-album-cat-btn" data-cat="workshop">Workshop 工作營</button>
+                  <button class="lib-album-cat-btn" data-cat="courses">Courses 課程</button>
+                  <button class="lib-album-cat-btn" data-cat="lectures">Lectures 講座</button>
+                  <button class="lib-album-cat-btn" data-cat="visits">Visits 參訪</button>
+                  <button class="lib-album-cat-btn" data-cat="competitions">Competitions 競賽</button>
+                  <button class="lib-album-cat-btn" data-cat="conferences">Conferences 研討會</button>
+                  <button class="lib-album-cat-btn" data-cat="students-present">Students Present 學生自主</button>
+                  <button class="lib-album-cat-btn" data-cat="industry">Industry-Academia 產學合作</button>
+                  <button class="lib-album-cat-btn" data-cat="summer-camp">Summer Camp 暑期體驗營</button>
+                  <button class="lib-album-cat-btn" data-cat="moment">Moment 日常</button>
+                  <button class="lib-album-cat-btn" data-cat="others">Others 其他</button>
+                </div>
+              </div>
+
+              <!-- 左下：年份 Picker -->
+              <div style="display: flex; flex-direction: column; min-height: 0; height: 100%; overflow: hidden;">
+                <div id="library-album-year-picker-wrap" style="flex: 1; overflow-y: scroll; min-height: 0; padding-bottom: var(--spacing-sm);" class="no-scrollbar">
+                  <div id="library-album-year-picker" style="display: flex; flex-direction: column; gap: var(--spacing-xs);"></div>
+                </div>
+              </div>
+
+              <!-- 右下：Album List -->
+              <div id="library-album-scroll" style="min-width: 0; overflow-y: auto; padding-bottom: var(--spacing-sm);" class="no-scrollbar">
+                <div id="library-album-list" style="display: flex; flex-direction: column; gap: var(--spacing-2xl);"></div>
+              </div>
+
+            </div>
+
+          </div><!-- end #lib-panel-album -->
+
+        </div><!-- end #library-card-content -->
+
+      </div>
+    </section>
+  </main>
+
+  <!-- PDF Viewer Modal -->
+  <div id="pdf-viewer-modal" class="fixed inset-0 z-[200] bg-black/90 flex flex-col opacity-0 transition-opacity duration-300" style="display: none; padding: var(--header-height) 0 2rem;">
+    <button id="pdf-close-btn" class="absolute right-4 md:right-8 text-white transition-colors duration-fast p-2" style="top: calc(var(--header-height) + 1rem);"><i class="fa-solid fa-xmark text-h3"></i></button>
+    <div class="flex items-center justify-center gap-0 w-full px-16 flex-1 min-h-0">
+      <canvas id="pdf-canvas-left" class="bg-white shadow-2xl block" style="max-height: 100%; max-width: 100%; width: auto; height: auto;"></canvas>
+      <canvas id="pdf-canvas-right" class="bg-white shadow-2xl hidden md:block" style="max-height: 100%; max-width: 100%; width: auto; height: auto;"></canvas>
+    </div>
+    <div class="flex items-center justify-center gap-xl mt-md text-white flex-shrink-0">
+      <button id="pdf-prev-btn" class="p-2 disabled:opacity-30 transition-opacity"><i class="fa-solid fa-chevron-left text-p2"></i></button>
+      <span id="pdf-page-info" class="text-p2"></span>
+      <button id="pdf-next-btn" class="p-2 disabled:opacity-30 transition-opacity"><i class="fa-solid fa-chevron-right text-p2"></i></button>
+    </div>
+  </div>
+
+  <!-- JavaScript -->
+  <script type="module">
+    import { initLibraryCard }   from '../js/modules/pages/library-card.js';
+    import { initLibraryPanels } from '../js/modules/pages/library-panels.js';
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const panels = initLibraryPanels();
+      initLibraryCard({
+        onTabSwitch:    panels.showPanel,
+        onEntranceDone: panels.onEntranceDone,
+      });
+    });
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollTrigger.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/Draggable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>
+  <script src="../js/utils/helpers.js"></script>
+  <script type="module" src="../js/main-modular.js"></script>
+  <script type="module">
+    import { openLightbox } from '../js/modules/lightbox/activities-lightbox.js';
+    document.addEventListener('sccd:open-lightbox', e => {
+      const { media, index } = e.detail;
+      openLightbox(media, index);
+    });
+  </script>
+
+  <script>
+    // ── PDF Viewer ────────────────────────────────────────────────
+    (function initPdfViewer() {
+      const modal      = document.getElementById('pdf-viewer-modal');
+      const canvasL    = document.getElementById('pdf-canvas-left');
+      const canvasR    = document.getElementById('pdf-canvas-right');
+      const prevBtn    = document.getElementById('pdf-prev-btn');
+      const nextBtn    = document.getElementById('pdf-next-btn');
+      const pageInfo   = document.getElementById('pdf-page-info');
+      const closeBtn   = document.getElementById('pdf-close-btn');
+
+      // pdf.js worker
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+      let pdfDoc   = null;
+      let curPage  = 1;  // always odd (left page of spread), or 1 for single
+      let rendering = false;
+
+      function isDesktop() { return window.innerWidth >= 768; }
+
+      async function renderSpread(leftPage) {
+        if (!pdfDoc || rendering) return;
+        rendering = true;
+
+        const totalPages = pdfDoc.numPages;
+        const showTwo = isDesktop() && leftPage + 1 <= totalPages;
+
+        // render one page onto a given canvas
+        async function renderPage(pageNum, canvas) {
+          const page = await pdfDoc.getPage(pageNum);
+          const container = modal.querySelector('.flex.items-center');
+          const availH = (container ? container.clientHeight : window.innerHeight * 0.8) * 0.75;
+          const availW = (container ? container.clientWidth  : window.innerWidth)  * (showTwo ? 0.42 : 0.60);
+          const base = page.getViewport({ scale: 1 });
+          const scaleH = availH / base.height;
+          const scaleW = availW / base.width;
+          const scale  = Math.min(scaleH, scaleW);
+          const vp = page.getViewport({ scale });
+          canvas.width  = vp.width;
+          canvas.height = vp.height;
+          await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+        }
+
+        await renderPage(leftPage, canvasL);
+        canvasL.style.display = 'block';
+
+        if (showTwo) {
+          await renderPage(leftPage + 1, canvasR);
+          canvasR.style.display = 'block';
+        } else {
+          canvasR.style.display = 'none';
+        }
+
+        const rightPage = showTwo ? leftPage + 1 : leftPage;
+        pageInfo.textContent = showTwo
+          ? `${leftPage} – ${rightPage} / ${totalPages}`
+          : `${leftPage} / ${totalPages}`;
+
+        prevBtn.disabled = leftPage <= 1;
+        nextBtn.disabled = showTwo ? leftPage + 2 > totalPages : leftPage >= totalPages;
+
+        rendering = false;
+      }
+
+      function openModal() {
+        modal.style.display = 'flex';
+        requestAnimationFrame(() => { modal.style.opacity = '1'; });
+        document.body.style.overflow = 'hidden';
+      }
+
+      function closeModal() {
+        modal.style.opacity = '0';
+        setTimeout(() => {
+          modal.style.display = 'none';
+          if (pdfDoc) { pdfDoc.destroy(); pdfDoc = null; }
+          canvasL.getContext('2d').clearRect(0, 0, canvasL.width, canvasL.height);
+          canvasR.getContext('2d').clearRect(0, 0, canvasR.width, canvasR.height);
+        }, 300);
+        document.body.style.overflow = 'hidden';
+      }
+
+      document.addEventListener('sccd:open-pdf', async (e) => {
+        const { pdfUrl } = e.detail;
+        if (!pdfUrl) return;
+        curPage = 1;
+        openModal();
+        try {
+          pdfDoc = await pdfjsLib.getDocument(pdfUrl).promise;
+          renderSpread(curPage);
+        } catch (err) {
+          console.error('PDF load error:', err);
+          closeModal();
+        }
+      });
+
+      prevBtn.addEventListener('click', () => {
+        const step = (isDesktop() && curPage > 2) ? 2 : 1;
+        curPage = Math.max(1, curPage - step);
+        renderSpread(curPage);
+      });
+
+      nextBtn.addEventListener('click', () => {
+        const step = isDesktop() ? 2 : 1;
+        curPage = Math.min(pdfDoc.numPages, curPage + step);
+        renderSpread(curPage);
+      });
+
+      closeBtn.addEventListener('click', closeModal);
+
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if (!pdfDoc || modal.style.display === 'none') return;
+        if (e.key === 'Escape') closeModal();
+        if (e.key === 'ArrowRight' && !nextBtn.disabled) nextBtn.click();
+        if (e.key === 'ArrowLeft'  && !prevBtn.disabled) prevBtn.click();
+      });
+    })();
+  </script>
+
+</body>
+</html>

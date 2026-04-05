@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>About - SCCD</title>
+  <link rel="stylesheet" href="../css/output.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+</head>
+<body style="overflow-x: hidden;">
+
+  <!-- Header -->
+  <div id="site-header"></div>
+
+  <!-- Main Content -->
+  <main>
+    <!-- Hero Section with Background Image -->
+    <section id="about-hero" class="h-screen relative overflow-hidden">
+      <!-- Background Image -->
+      <div class="absolute inset-0 w-full h-full">
+        <img src="../images/SCCD-1-4-0.jpg" alt="About SCCD" class="w-full h-full object-cover">
+      </div>
+
+      <!-- Black Gradient Overlay (0% at top, 100% at bottom) -->
+      <div class="absolute inset-0 w-full h-full bg-gradient-to-b from-transparent to-black"></div>
+
+      <!-- Content Container -->
+      <div class="site-container h-full relative z-10">
+        <div class="h-full flex flex-col md:flex-row justify-end md:justify-start items-start md:items-end gap-lg md:gap-xl pb-3xl md:pb-2xl pt-[120px] md:pt-0">
+          <!-- Title on the left (Mobile: 100%, Desktop: 50%) -->
+          <div class="w-full md:w-1/2">
+            <h1 class="hero-title text-white pb-lg md:pb-xl">ABOUT</h1>
+          </div>
+
+          <!-- Content on the right (Mobile: 100%, Desktop: 50%) -->
+          <div class="w-full md:w-1/2">
+            <!-- English text with 3deg rotation -->
+            <p class="hero-text-en text-white mb-lg md:mb-xl">
+              Discover the vision, mission, and values that drive the Shih Chien University Center for Creative Design.
+            </p>
+            <!-- Chinese text with -2deg rotation -->
+            <p class="hero-text-cn text-white">
+              探索實踐大學媒體傳達設計學系的願景、使命與核心價值。
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Content Sections Wrapper -->
+    <div id="about-content-wrapper" class="relative" style="padding-top: 50vh;">
+
+      <!-- Mobile Anchor Navigation (Floating Top Left) -->
+      <!-- Overlay -->
+      <div id="mobile-anchor-overlay" class="md:hidden fixed inset-0 bg-black/30 z-30 opacity-0 pointer-events-none transition-opacity duration-300"></div>
+      
+      <div id="mobile-anchor-container" class="md:hidden fixed top-[calc(var(--header-height,80px)+3rem)] left-4 z-40 pointer-events-none opacity-0 transition-opacity duration-300">
+        <!-- Wrapper for animation (Button becomes Menu) -->
+        <div id="mobile-anchor-wrapper" class="bg-black text-white w-12 h-12 rounded-[24px] overflow-hidden shadow-none border-none pointer-events-auto origin-top-left">
+          <!-- Toggle Button (Header) -->
+          <button id="mobile-anchor-toggle" class="w-12 h-12 flex-shrink-0 flex items-center justify-center">
+            <i class="fa-solid fa-list text-white text-h5 transition-transform duration-300"></i>
+          </button>
+          
+          <!-- Dropdown Menu (Content) -->
+          <div id="mobile-anchor-menu" class="flex flex-col gap-sm px-md pb-md opacity-0 transition-opacity duration-300 delay-75 hidden">
+            <button class="anchor-nav-btn text-left transition-all duration-fast whitespace-nowrap text-white hover:text-gray-5" data-target="overview">
+              <div class="!bg-transparent">Overview</div>
+              <div class="!bg-transparent">綜述</div>
+            </button>
+            <button class="anchor-nav-btn text-left transition-all duration-fast whitespace-nowrap text-white hover:text-gray-5" data-target="class">
+              <div class="!bg-transparent">Class</div>
+              <div class="!bg-transparent">班級</div>
+            </button>
+            <button class="anchor-nav-btn text-left transition-all duration-fast whitespace-nowrap text-white hover:text-gray-5" data-target="resources">
+              <div class="!bg-transparent">Resources</div>
+              <div class="!bg-transparent">環境資源</div>
+            </button>
+            <button class="anchor-nav-btn text-left transition-all duration-fast whitespace-nowrap text-white hover:text-gray-5" data-target="alumni">
+              <div class="!bg-transparent">Alumni</div>
+              <div class="!bg-transparent">系友發展</div>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sections + Desktop Anchor Nav wrapper -->
+      <div class="md:flex" style="margin-top: -50vh;">
+
+        <!-- Hidden track div: width 0, overflow visible, same height as sections via flex stretch -->
+        <!-- Nav sticky inside here — doesn't affect sections layout -->
+        <div class="hidden md:block flex-shrink-0 pointer-events-none z-[100] py-6xl" style="width: 0; overflow: visible;">
+          <div id="anchor-nav" class="sticky flex flex-col gap-xs pointer-events-auto" style="top: 200px; margin-left: var(--container-padding); width: max-content;">
+            <button class="anchor-nav-btn text-left transition-all duration-fast whitespace-nowrap" data-target="overview">
+              <span class="anchor-nav-inner"><div>Overview</div><div>綜述</div></span>
+            </button>
+            <button class="anchor-nav-btn text-left transition-all duration-fast whitespace-nowrap" data-target="class">
+              <span class="anchor-nav-inner"><div>Class</div><div>班級</div></span>
+            </button>
+            <button class="anchor-nav-btn text-left transition-all duration-fast whitespace-nowrap" data-target="resources">
+              <span class="anchor-nav-inner"><div>Resources</div><div>環境資源</div></span>
+            </button>
+            <button class="anchor-nav-btn text-left transition-all duration-fast whitespace-nowrap" data-target="alumni">
+              <span class="anchor-nav-inner"><div>Alumni</div><div>系友發展</div></span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Sections (full width, flex-1 to fill remaining space) -->
+        <div class="flex-1 min-w-0">
+
+      <!-- Overview Section -->
+      <section id="overview" class="bg-white py-6xl relative z-10">
+        <div class="site-container">
+          <div class="grid-12">
+            <!-- English Text (Column 3-7) -->
+            <div class="col-span-12 md:col-start-3 md:col-span-5 mb-lg md:mb-0">
+              <h5 class="text-black leading-base" data-text-reveal>
+                Department of Communications Design, Shih Chien University / SCCD is the first academic institution to establish the "Communications Design" department in the country. The teaching of the department takes design thinking, humanities, and aesthetics as the cornerstones, uses multidimensional platforms as the foundation, diverse media as the carrier, and integrates teaching experiments and design training such as animation, narrative video, interaction, performance, game, product, space. and environment. Supplemented by intensive international workshop and industry-academy cooperation in various fields, as well as overseas exchange opportunities. It aims to cultivate director-type creative talents who can integrate "media" as the vehicle, "design" as the method, emphasize "communications" as the core of human civilization, and adapt to the rapid changes of the era.
+              </h5>
+            </div>
+
+            <!-- Chinese Text (Column 8-12) -->
+            <div class="col-span-12 md:col-start-8 md:col-span-5">
+              <h5 class="text-black leading-base" data-text-reveal data-text-reveal-delay="0.1">
+                實踐大學媒體傳達設計學系為全國首創成立「媒體傳達設計」之學系。學系教學以設計思考、人文、美學為核心基石，運用多維度平台為基礎與多樣性媒材為載體，整合動畫、敘事影像、互動、展演、遊戲、商品、空間、環境等教學實驗與設計訓練，輔以密集舉辦之跨國工作與各領域產學合作，同時提供海外交換留學機會，旨在培育能整合「媒體」為乘載，「設計」為方法，強調「傳達」為人類文明之核心，得以適應時代快速變遷之總監型創作人才。
+              </h5>
+            </div>
+          </div>
+        </div>
+
+          <!-- Horizontal Accordion Section -->
+          <div class="mt-6xl">
+            <div class="site-container">
+              <div class="grid-12">
+                <div class="col-span-12 md:col-start-2 md:col-span-11 mx-[calc(var(--container-padding)*-1)] md:mx-0">
+                  <div class="accordion-wrapper colored-accordion h-auto md:h-[700px]">
+
+                    <!-- Accordion Item 1 -->
+                    <div class="accordion-item" data-index="0">
+                      <!-- A: Label (獨立，寬度由文字決定) -->
+                      <div class="accordion-label">
+                        <div class="accordion-label-inner">Department Overview&ensp;系所綜述</div>
+                      </div>
+                      <!-- B: Body (width 由 GSAP 控制，0 = 完全隱藏) -->
+                      <div class="accordion-body">
+                        <div class="accordion-body-inner">
+                          <div class="accordion-img-wrap">
+                            <img src="../images/SCCD-1-4-0.jpg" alt="Accordion 1" class="w-full h-full object-cover">
+                          </div>
+                          <div class="accordion-text-wrap">
+                            <p class="text-white mb-sm">Department of Communications Design, Shih Chien University / SCCD is the first academic institution to establish the "Communications Design" department in the country. The teaching of the department takes design thinking, humanities, and aesthetics as the cornerstones, uses multidimensional platforms as the foundation, diverse media as the carrier, and integrates teaching experiments and design training such as animation, narrative video, interaction, performance, game, product, space, and environment. Supplemented by intensive international workshop and industry-academy cooperation in various fields, as well as overseas exchange opportunities. It aims to cultivate director-type creative talents who can integrate "media" as the vehicle, "design" as the method, emphasize "communications" as the core of human civilization, and adapt to the rapid changes of the era.</p>
+                            <p class="text-white">實踐大學設計學院為美國 BusinessWeek 與 ranker.com 認定為全球前三十名之優良設計學院，歷年來獲得國內外各領域無數獎項與認可。學院多次被德國 Red Dot Design Award（紅點設計獎）與 iF Design Award（iF 設計獎）排名為亞太區獲獎數前四名。實踐大學多次被天下雜誌等各家媒體報導為院校排名類榜單前列，被評比為國內設計類系所排名第一、「企業最愛設計院校 Top 10」等。</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Accordion Item 2 -->
+                    <div class="accordion-item" data-index="1">
+                      <!-- A: Label -->
+                      <div class="accordion-label">
+                        <div class="accordion-label-inner">Teaching Direction&ensp;教學特色</div>
+                      </div>
+                      <!-- B: Body -->
+                      <div class="accordion-body">
+                        <div class="accordion-body-inner">
+                          <div class="accordion-img-wrap">
+                            <img src="../images/SCCD-1-4-0.jpg" alt="Accordion 2" class="w-full h-full object-cover">
+                          </div>
+                          <div class="accordion-text-wrap">
+                            <p class="text-white mb-sm">In view of the ability in integrate domestic and foreign industries, the department has a teaching feature on cultivating director-type creative design talents with global perspectives. Focusing on the development of digital image creation and interactive new media experience design, integrating creative teaching experiments with digital content, and combining the bred creative content results with industrial experience to guide students to have substantial influence in enterprises in various fields with aesthetic design and creative thinking. To display competitions, film exhibitions, art performances, and Industry-Academy cooperation performance at domestic and foreign design as development platforms and goals.</p>
+                            <p class="text-white">鑒於國內外產業接軌能力，學系以培養具有國際視野之總監型創意設計人才為教學特色，著重發展數位影像創作與新媒體互動體驗設計，在教學上以數位內容整合創意實驗，將孕育發展之創意內容成果結合產業經驗，導引學子在各領域企業中，以美學設計與創意思考產生實質影響力，以國內外設計競賽、影展、藝術展演、產學合作績效等為發展平台與目標。</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Accordion Item 3 -->
+                    <div class="accordion-item" data-index="2">
+                      <!-- A: Label -->
+                      <div class="accordion-label">
+                        <div class="accordion-label-inner">Awards &amp; Alumni&ensp;獲獎與系友</div>
+                      </div>
+                      <!-- B: Body -->
+                      <div class="accordion-body">
+                        <div class="accordion-body-inner">
+                          <div class="accordion-img-wrap">
+                            <img src="../images/SCCD-1-4-0.jpg" alt="Accordion 3" class="w-full h-full object-cover">
+                          </div>
+                          <div class="accordion-text-wrap">
+                            <p class="text-white mb-sm">Students and alumni of the department have been shortlisted and won numerous competitions at domestic and foreign awards, including the US Student Academy Awards, NYC ADC Annual Awards, US CA Design Award, German Red Dot Design Award, iF Design Award, Berlin Short Film Festival, Venice Film Festival, Japan GOOD DESIGN Award, Taiwan Golden Horse Awards, Taipei Film Festival, Golden Pin Design Award, etc. The development of alumni has expanded to various creative fields such as film, animation, advertising, MV directors, visual designers, product designers, photographers, graphic designers, new media artists, etc., and continues to light-up at domestic and foreign.</p>
+                            <p class="text-white">本系學生、系友入圍及獲獎國內外競賽無數，包含美國學生奧斯卡、紐約 ADC 設計獎、美國 CA 設計獎、德國紅點設計獎、iF 設計獎、柏林短片影展、威尼斯影展、日本 GOOD DESIGN 獎、台灣金馬獎、台北電影節、金點設計獎等。畢業系友發展擴及各創作領域如電影、動畫、廣告、MV 導演、視覺設計師、產品設計師、遊戲設計師、網站設計師、攝影師、平面設計師、新媒體藝術家等，持續於海內外發光發熱。</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+      </section>
+
+      <!-- Class Section (Merged BFA & MDES) -->
+      <section id="class" class="bg-white relative z-10">
+        <!-- Banner with Image and Title -->
+        <div class="relative w-full aspect-[3/4] md:aspect-auto md:h-screen">
+          <!-- Overflow wrapper: clips banner during expand animation -->
+          <div class="section-banner-clip absolute inset-0 flex justify-center overflow-hidden">
+            <!-- Inner container: width animated by GSAP -->
+            <div class="section-banner-inner relative h-full flex-shrink-0" data-section-banner style="width: 50%;">
+              <!-- Background Image -->
+              <div class="absolute inset-0 w-full h-full">
+                <img src="../images/SCCD-1-4-0.jpg" alt="BFA Class" class="w-full h-full object-cover">
+              </div>
+              <!-- Black Overlay (30%) - animated in -->
+              <div class="section-banner-overlay absolute inset-0 w-full h-full bg-black opacity-0"></div>
+            </div>
+          </div>
+
+          <!-- Title: outside clip wrapper, full width, z-10 -->
+          <div class="section-banner-title absolute inset-0 w-full h-full flex items-center justify-center z-10 opacity-0 pointer-events-none">
+            <div class="text-center">
+              <h1 class="text-white transform rotate-[-2deg] md:rotate-[-4deg] translate-x-0 md:translate-x-[-200px]">Class</h1>
+              <h1 class="text-white mt-md transform rotate-[2deg] md:rotate-[4deg] translate-x-0 md:translate-x-[300px]">班級</h1>
+            </div>
+          </div>
+        </div>
+
+        <!-- Content Section with Image and Text -->
+        <div class="site-container py-6xl">
+          <div class="flex flex-col md:grid md:grid-cols-12 gap-gutter">
+            <div class="w-full md:col-start-2 md:col-span-5 relative works-container mb-xl md:mb-0" data-class-images>
+              <img src="../images/SCCD-1-4-0.jpg" alt="Class" class="absolute object-cover class-img class-img--1">
+              <img src="../images/SCCD-1-4-0.jpg" alt="Class" class="absolute object-cover class-img class-img--2">
+              <img src="../images/SCCD-1-4-0.jpg" alt="Class" class="absolute object-cover class-img class-img--3">
+            </div>
+            <div class="w-full md:col-start-7 md:col-span-5 flex items-center">
+              <div>
+                <h5 class="mb-sm" data-text-reveal>The Department offers both Bachelor of Fine Arts (BFA) and Master of Design (MDES) programs, cultivating creative talents through comprehensive design education. We integrate theory and practice across multiple media platforms, preparing students for diverse career paths in the design industry.</h5>
+                <h5 data-text-reveal data-text-reveal-delay="0.1">本系提供學士班 (BFA) 與碩士班 (MDES) 課程，透過全面的設計教育培養創意人才。我們整合理論與實踐，跨越多元媒體平台，為學生在設計產業的多元職涯做準備。</h5>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Division Toggle Buttons -->
+        <div class="site-container pb-6xl">
+          <!-- Mobile Controls -->
+          <div class="md:hidden flex items-start justify-between gap-2xl mb-xl">
+            <div id="mobile-division-title" class="flex-1">
+               <div class="text-h5 font-bold leading-tight">Division of Animation & Moving Image</div>
+               <div class="text-h5 font-bold mt-1">動畫影像設計組</div>
+            </div>
+            <div class="flex gap-sm shrink-0 pt-1">
+               <button id="mobile-division-prev" class="w-8 h-8 flex items-center justify-center"><i class="fa-solid fa-chevron-left text-p2"></i></button>
+               <button id="mobile-division-next" class="w-8 h-8 flex items-center justify-center"><i class="fa-solid fa-chevron-right text-p2"></i></button>
+            </div>
+          </div>
+
+          <!-- Desktop Buttons -->
+          <div class="hidden md:flex justify-center items-center mb-4xl">
+            <!-- BFA Parent Button -->
+            <button id="bfa-parent-btn" class="class-parent-btn btn-fill shrink-0 active px-sm py-sm text-p2 font-bold transition-all duration-fast rounded-[20px] text-center" data-group="bfa">
+              <div class="whitespace-nowrap">BFA Class</div>
+              <div class="mt-1 whitespace-nowrap">學士班</div>
+            </button>
+
+            <!-- BFA Sub-buttons (slide out to the right of BFA btn) -->
+            <div id="bfa-sub-btns" class="flex gap-md overflow-hidden" style="max-width: 700px;">
+              <button class="class-division-btn btn-fill shrink-0 active px-sm py-sm text-p2 font-bold transition-all duration-fast rounded-[20px] text-center" data-division="animation">
+                <div class="whitespace-nowrap">Division of Animation & Moving Image</div>
+                <div class="mt-1 whitespace-nowrap">動畫影像設計組</div>
+              </button>
+              <button class="class-division-btn btn-fill shrink-0 px-sm py-sm text-p2 font-bold transition-all duration-fast rounded-[20px] text-center" data-division="creative-media">
+                <div class="whitespace-nowrap">Division of Creative Media Design</div>
+                <div class="mt-1 whitespace-nowrap">創意媒體設計組</div>
+              </button>
+            </div>
+
+            <!-- MDES Button -->
+            <button id="mdes-parent-btn" class="class-parent-btn btn-fill shrink-0 px-sm py-sm text-p2 font-bold transition-all duration-fast rounded-[20px] text-center" data-group="mdes">
+              <div class="whitespace-nowrap">MDES Class</div>
+              <div class="mt-1 whitespace-nowrap">碩士班</div>
+            </button>
+          </div>
+
+          <!-- Animation Division Content -->
+          <div class="class-division-content" data-division="animation">
+            <div class="grid-12 md:items-center">
+              <!-- Text Content (col 3-6) -->
+              <div class="col-span-12 md:col-start-3 md:col-span-4 order-2 md:order-1 mt-xl md:mt-0">
+                <p class="mb-xs division-text">Explore the relationship between self and the environment through animation creation, and then extend the care and reflection on culture, ecology and humanities.</p>
+                <p class="division-text">透過動畫創作探討自我與環境的關係，進而延伸對文化、生態與人文之關懷與省思。</p>
+              </div>
+              <!-- Image Content (col 7-12) -->
+              <div class="col-span-12 md:col-start-8 md:col-span-5 relative order-1 md:order-2 mb-xl md:mb-0 works-container division-images">
+                <img src="../images/SCCD-1-4-0.jpg" alt="Animation" class="absolute object-cover class-img class-img--1">
+                <img src="../images/SCCD-1-4-0.jpg" alt="Animation" class="absolute object-cover class-img class-img--2">
+                <img src="../images/SCCD-1-4-0.jpg" alt="Animation" class="absolute object-cover class-img class-img--3">
+              </div>
+            </div>
+          </div>
+
+          <!-- Creative Media Division Content -->
+          <div class="class-division-content hidden" data-division="creative-media">
+            <div class="grid-12 md:items-center">
+              <!-- Text Content (col 3-6) -->
+              <div class="col-span-12 md:col-start-3 md:col-span-4 order-2 md:order-1 mt-xl md:mt-0">
+                <p class="mb-xs division-text">Explore the essence of new media interaction from multiple perspectives, furthermore, showing care and reflection on humanities, society, and the environment by these perspectives.</p>
+                <p class="division-text">多面向探討新媒體互動的本質，並藉此對人文、社會、環境作進一步之關懷與省思。</p>
+              </div>
+              <!-- Image Content (col 7-12) -->
+              <div class="col-span-12 md:col-start-8 md:col-span-5 relative order-1 md:order-2 mb-xl md:mb-0 works-container division-images">
+                <img src="../images/SCCD-1-4-0.jpg" alt="Creative Media" class="absolute object-cover class-img class-img--1">
+                <img src="../images/SCCD-1-4-0.jpg" alt="Creative Media" class="absolute object-cover class-img class-img--2">
+                <img src="../images/SCCD-1-4-0.jpg" alt="Creative Media" class="absolute object-cover class-img class-img--3">
+              </div>
+            </div>
+          </div>
+
+          <!-- MDES Division Content -->
+          <div class="class-division-content hidden" data-division="mdes">
+            <div class="grid-12 md:items-center">
+              <!-- Text Content (col 3-6) -->
+              <div class="col-span-12 md:col-start-3 md:col-span-4 order-2 md:order-1 mt-xl md:mt-0">
+                <p class="mb-xs division-text">The MDES program offers advanced research and creative practice opportunities, fostering innovation in communications design. Graduate students engage in cutting-edge projects that push the boundaries of design thinking and media expression.</p>
+                <p class="division-text">碩士班提供進階研究與創作實踐機會，培養媒體傳達設計的創新能力。研究生參與前瞻性專案，推進設計思維與媒體表達的界限。</p>
+              </div>
+              <!-- Image Content (col 7-12) -->
+              <div class="col-span-12 md:col-start-8 md:col-span-5 relative order-1 md:order-2 mb-xl md:mb-0 works-container division-images">
+                <img src="../images/SCCD-1-4-0.jpg" alt="MDES" class="absolute object-cover class-img class-img--1">
+                <img src="../images/SCCD-1-4-0.jpg" alt="MDES" class="absolute object-cover class-img class-img--2">
+                <img src="../images/SCCD-1-4-0.jpg" alt="MDES" class="absolute object-cover class-img class-img--3">
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Timeline Section (Moved here) -->
+      <section id="timeline" class="timeline-wrapper pb-6xl" style="min-height: 1400vh;">
+        <!-- Sticky Timeline Display -->
+        <div class="timeline-sticky-container sticky bg-white h-screen top-0 md:top-[50px]">
+          <!-- Mobile Vertical Line: Inside sticky container to stay visible -->
+          <div class="md:hidden w-[4px] bg-black absolute left-8 top-0 h-full z-0"></div>
+
+          <!-- Era Label (with container) -->
+          <div class="site-container pt-[120px] md:pt-0">
+            <div class="grid-12 mb-sm md:mb-lg">
+              <!-- Era Label: Mobile shifted right (col-2), Desktop col-2 -->
+              <div class="col-span-11 col-start-2 md:col-start-2 md:col-span-10 pl-md md:pl-0">
+                <h4 id="timeline-era" class="text-black font-bold whitespace-nowrap text-h5 md:text-h4"></h4>
+              </div>
+            </div>
+          </div>
+
+          <!-- Years Display (True full viewport width: 100vw from edge to edge) -->
+          <!-- Desktop: Horizontal Scroll -->
+          <div class="hidden md:block overflow-hidden" style="width: 100vw; position: relative; left: 50%; right: 50%; margin-left: -50vw; margin-right: -50vw;">
+            <div id="timeline-years-container" class="flex flex-col md:flex-row flex-nowrap gap-5xl" style="transform: translateX(0);">
+              <!-- All years will be rendered here -->
+            </div>
+          </div>
+          
+          <!-- Mobile: Single Year Display (Below Era) -->
+          <div class="md:hidden site-container mb-sm">
+             <div class="grid-12">
+               <div class="col-span-11 col-start-2 pl-md">
+                 <h2 id="timeline-year-mobile" class="text-black font-bold"></h2>
+               </div>
+             </div>
+          </div>
+
+          <!-- Full Width Line (True full viewport width: 100vw from edge to edge) -->
+          <div class="hidden md:block h-[4px] bg-black mt-lg" style="width: 100vw; position: relative; left: 50%; right: 50%; margin-left: -50vw; margin-right: -50vw;"></div>
+
+          <div class="site-container pb-4xl">
+            <!-- Timeline Content (Image + Text) -->
+            <div class="grid-12 mt-2xl">
+              <!-- Image (col-2, custom width ~2.5 columns) -->
+              <!-- Mobile: Shifted right to avoid line, full width relative to col -->
+              <div class="col-span-11 col-start-2 md:col-start-2 md:col-span-3 pl-md md:pl-[calc(var(--container-padding)/2)] mb-lg md:mb-0">
+                <div id="timeline-image" class="bg-gray-9 w-[60%] md:w-[80%]" style="aspect-ratio: 3/3.5; transform: rotate(-4deg);">
+                  <img src="" alt="Timeline" class="w-full h-full object-cover opacity-0 transition-opacity duration-500">
+                </div>
+              </div>
+              <!-- Text (col-6 to col-11) -->
+              <div class="col-span-11 col-start-2 md:col-start-6 md:col-span-6 pl-md md:pl-0 flex items-center">
+                <div id="timeline-text" class="text-black opacity-0 transition-opacity duration-500 w-full">
+                  <p class="text-p2 leading-base">Timeline content will appear here...</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Resources Section -->
+      <section id="resources" class="bg-white relative z-10">
+        <!-- Banner with Image and Title -->
+        <div class="relative w-full aspect-[3/4] md:aspect-auto md:h-screen">
+          <div class="section-banner-clip absolute inset-0 flex justify-center overflow-hidden">
+            <div class="section-banner-inner relative h-full flex-shrink-0" data-section-banner style="width: 50%;">
+              <div class="absolute inset-0 w-full h-full">
+                <img src="../images/SCCD-1-4-0.jpg" alt="Resources" class="w-full h-full object-cover">
+              </div>
+              <div class="section-banner-overlay absolute inset-0 w-full h-full bg-black opacity-0"></div>
+            </div>
+          </div>
+
+          <div class="section-banner-title absolute inset-0 w-full h-full flex items-center justify-center z-10 opacity-0 pointer-events-none">
+            <div class="text-center">
+              <h1 class="text-white transform rotate-[-2deg] md:rotate-[-4deg] translate-x-0 md:translate-x-[-200px]">Resources</h1>
+              <h1 class="text-white mt-md transform rotate-[2deg] md:rotate-[4deg] translate-x-0 md:translate-x-[300px]">環境資源</h1>
+            </div>
+          </div>
+        </div>
+
+        <!-- Text Content Only -->
+        <div class="site-container py-6xl">
+          <div class="grid-12">
+            <div class="col-span-12 md:col-start-6 md:col-span-6">
+              <div>
+                <h5 class="mb-sm">SCCD is located in Dazhi Street, Zhongshan District, Taipei City. In hardware, there are many teaching buildings with international design standards. It combines the unique landscape of Dazhi area and interweaves into a teaching environment that fits design and creation. In software, in addition to the excellent faculty of the college of design, the rich international academic exchanges and industrial resources in various fields, as well as the mutual cooperation and exchange of inspiration among the various departments of the college of design, are all indispensable conditions for brewing students' design inspiration and creative energy.</h5>
+                <h5>實踐大學媒體傳達設計學系位於台北市中山區大直街，在硬體上設有具國際設計水準之眾多教學大樓，融合大直地區特有之山水地景，交織成契合設計與創作之教學環境。軟體上結合設計學院的優良師資以外，豐富的國際學術交流與各領域產業資源，設計學院各學系間的相互協作與交流啟發，皆是醞釀學生設計靈感與創作能量不可或缺之條件。</h5>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Resources Accordion Section -->
+        <div class="site-container pb-4xl md:pb-6xl">
+          <div class="grid-12">
+            <div id="resources-accordion-container" class="col-span-12 md:col-start-2 md:col-span-11 mx-[calc(var(--container-padding)*-1)] md:mx-0">
+              <!-- Accordion will be injected here by JS -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Alumni Section -->
+      <section id="alumni" class="bg-white relative z-10">
+        <!-- Banner with Image and Title -->
+        <div class="relative w-full aspect-[3/4] md:aspect-auto md:h-screen">
+          <div class="section-banner-clip absolute inset-0 flex justify-center overflow-hidden">
+            <div class="section-banner-inner relative h-full flex-shrink-0" data-section-banner style="width: 50%;">
+              <div class="absolute inset-0 w-full h-full">
+                <img src="../images/SCCD-1-4-0.jpg" alt="Alumni" class="w-full h-full object-cover">
+              </div>
+              <div class="section-banner-overlay absolute inset-0 w-full h-full bg-black opacity-0"></div>
+            </div>
+          </div>
+
+          <div class="section-banner-title absolute inset-0 w-full h-full flex items-center justify-center z-10 opacity-0 pointer-events-none">
+            <div class="text-center">
+              <h1 class="text-white transform rotate-[-2deg] md:rotate-[-4deg] translate-x-0 md:translate-x-[-200px]">Alumni</h1>
+              <h1 class="text-white mt-md transform rotate-[2deg] md:rotate-[4deg] translate-x-0 md:translate-x-[300px]">系友發展</h1>
+            </div>
+          </div>
+        </div>
+
+        <!-- Text Content Only -->
+        <div class="site-container pt-6xl">
+          <div class="grid-12">
+            <div class="col-span-12 md:col-start-6 md:col-span-6">
+              <div>
+                <h5 class="mb-sm">SCCD Alumni serve in various fields related to digital media or entertainment and creative industries, and many of them are engaged in cultural administration, art education, etc., or continue their studies in related fields at domestic and foreign, and actively participate in various arts , multimedia and other cross-border exhibitions. In addition to exhibiting, performing, and publishing books in various personal unique creative forms, alumni of the department also cooperate with many performing individuals and groups in the field of contemporary art performance, and participate in assisting in the planning, execution, and coordinating the production of various projects.</h5>
+                <h5>實踐大學媒體傳達設計學系畢業系友在各行各業均有任職人員或創業者，從設計、藝術、影視娛樂、多媒體、行銷公關甚至科技公司等，以設計思考橫跨多領域均表現傑出；於國外相關領域深造學術領域或海外就職者也為數甚多，積極於各產業領域發揮其美學與設計思考之影響力。</h5>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Alumni Companies Section -->
+        <div class="relative w-full py-6xl">
+          <div class="site-container">
+            <div class="grid-12">
+              <div class="col-span-12 md:col-start-2 md:col-span-10">
+                <h6 class="mb-2xl">SCCD Alumni serve in various industries, including<br>學系系友任職或與之合作各類型知名企業，包含：</h6>
+
+                <!-- Cursor Trail Area (Desktop) / Slideshow (Mobile) -->
+                <div id="brand-trail-area" class="relative w-full cursor-default md:flex md:items-center md:justify-center hidden md:block mb-xl md:mb-0" style="height: 300px;"></div>
+
+                <!-- Mobile Brand Slideshow -->
+                <div id="brand-slideshow" class="md:hidden mb-2xl cursor-pointer flex justify-center">
+                  <div class="aspect-[4/3] w-1/2 overflow-hidden">
+                    <img id="brand-slide-img" src="../images/SCCD-1-4-0.jpg" alt="Alumni Brand" class="w-full h-full object-cover">
+                  </div>
+                </div>
+
+                <!-- Brand Text Area -->
+                <h5 id="brand-text-area" class="text-h5 md:text-h4 font-regular relative z-20 overflow-visible cursor-default">
+                  PIXAR Studios / Marvel Studios / BlueSky Studios / Apple Inc. / Facebook (Meta) / Tokyo Disneyland / TeamLab / Panerai / Mercedes-Benz / BMW / Skoda / Lexus / Gogoro / Giant / KKBOX Group / Blizzard / Sony Entertainment / New York Times / Vogue / Uber Eats / Food Panda / NIKE / adidas / Converse / New Balance / The Wall Street Journal / NVIDIA / HTC / ASUS / SAMSUNG, etc.
+                </h5>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Back to Top Button -->
+        <div class="w-full flex justify-center pb-6xl">
+          <a href="#about-hero" class="class-division-btn btn-fill shrink-0 px-sm py-sm text-p2 font-bold transition-all duration-fast rounded-[20px] whitespace-nowrap">Back to Top&ensp;回到頂部</a>
+        </div>
+      </section>
+
+        </div><!-- end sections flex-1 -->
+
+      </div><!-- end sections wrapper -->
+
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <div id="site-footer"></div>
+
+  <!-- JavaScript -->
+  <!-- GSAP & ScrollTrigger -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollTrigger.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollToPlugin.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/Draggable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/SplitText.min.js"></script>
+  <!-- Helper Functions - 必須在 main.js 之前載入 -->
+  <script src="../js/utils/helpers.js"></script>
+  <!-- Works Container Hover Effect -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      if (!SCCDHelpers.isDesktop()) return;
+      document.body.addEventListener('mouseover', function (e) {
+        const img = e.target.closest('.works-container img');
+        if (!img) return;
+        img.style.zIndex = 10;
+      });
+      document.body.addEventListener('mouseout', function (e) {
+        const img = e.target.closest('.works-container img');
+        if (!img) return;
+        img.style.zIndex = img.dataset.z;
+      });
+    });
+  </script>
+  <!-- Modular JS (New Architecture) -->
+  <script type="module" src="../js/main-modular.js"></script>
+
+</body>
+</html>

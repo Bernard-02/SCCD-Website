@@ -1,0 +1,220 @@
+/**
+ * List Components
+ * Activities List 等列表項目樣式
+ */
+
+/* ===== Support Page ===== */
+.support-link-plain {
+  font-weight: 700;
+  text-decoration: none;
+}
+
+
+/* ===== Activities Search Bar ===== */
+/* search bar scroll hide */
+.activities-search-inner {
+  transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+  max-height: 80px;
+  overflow: hidden;
+}
+.activities-filter-bar.bar-hidden .activities-search-inner {
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+  padding-bottom: 0;
+}
+
+.activities-search-input::placeholder {
+  color: rgba(0, 0, 0, 0.5);
+  font-weight: 700;
+}
+
+.activities-search-inner {
+  border-bottom: 4px solid black;
+}
+
+.activities-search-icon {
+  color: black;
+  flex-shrink: 0;
+}
+
+@layer components {
+  /* ===== Activities List Item - Unified Style ===== */
+  .activities-item {
+    @apply grid grid-cols-9 gap-gutter items-center py-md;
+  }
+}
+
+/* ===== Award Record Item Hover Glow (Desktop only) ===== */
+.activities-year-items,
+.year-block,
+#records-list-container {
+  overflow: visible;
+}
+
+@media (min-width: 768px) {
+  .award-record-item {
+    overflow: visible;
+  }
+
+  .award-record-item:hover p {
+    overflow: visible;
+  }
+}
+
+/* ===== Timeline Year Item Hover (Desktop only) ===== */
+@media (min-width: 768px) {
+  .timeline-year-item:hover {
+    color: var(--color-pink) !important;
+    cursor: pointer;
+  }
+}
+
+/* ===== Workshop Content Scrollbar ===== */
+.list-content .overflow-y-auto::-webkit-scrollbar,
+#album-year-options-wrap::-webkit-scrollbar,
+#files-year-options-wrap::-webkit-scrollbar,
+#library-year-picker-wrap::-webkit-scrollbar {
+  width: 5px !important;
+  height: 5px !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+}
+
+.list-content .overflow-y-auto::-webkit-scrollbar-track,
+.list-content .overflow-y-auto::-webkit-scrollbar-track-piece,
+.list-content .overflow-y-auto::-webkit-scrollbar-corner,
+#album-year-options-wrap::-webkit-scrollbar-track,
+#album-year-options-wrap::-webkit-scrollbar-track-piece,
+#album-year-options-wrap::-webkit-scrollbar-corner,
+#files-year-options-wrap::-webkit-scrollbar-track,
+#files-year-options-wrap::-webkit-scrollbar-track-piece,
+#files-year-options-wrap::-webkit-scrollbar-corner,
+#library-year-picker-wrap::-webkit-scrollbar-track,
+#library-year-picker-wrap::-webkit-scrollbar-track-piece,
+#library-year-picker-wrap::-webkit-scrollbar-corner {
+  background: transparent !important;
+}
+
+.list-content .overflow-y-auto::-webkit-scrollbar-thumb,
+#album-year-options-wrap::-webkit-scrollbar-thumb,
+#files-year-options-wrap::-webkit-scrollbar-thumb,
+#library-year-picker-wrap::-webkit-scrollbar-thumb {
+  background: #000000 !important;
+  border-radius: 0 !important;
+  border: none !important;
+}
+
+.list-content .overflow-y-auto::-webkit-scrollbar-button,
+#album-year-options-wrap::-webkit-scrollbar-button,
+#files-year-options-wrap::-webkit-scrollbar-button,
+#library-year-picker-wrap::-webkit-scrollbar-button {
+  display: none !important;
+  height: 0 !important;
+  width: 0 !important;
+}
+
+
+/* ===== List Item Border with Hover Slide + Title Shift (Desktop only) ===== */
+.list-item-border {
+  position: relative;
+}
+
+.list-item-border::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: black;
+  transform-origin: right center;
+  transform: scaleX(1);
+  transition: transform 0.35s ease;
+}
+
+@media (min-width: 768px) {
+  .list-item-border:hover::after {
+    transform-origin: left center;
+    transform: scaleX(0);
+  }
+
+  .list-header > div:first-child {
+    padding-left: 0;
+    transition: padding-left 0.3s ease;
+  }
+
+  .list-header.active > div:first-child {
+    padding-left: calc(var(--spacing-md) - 4px);
+  }
+}
+
+/* ===== Workshop Title Marquee (Desktop only) ===== */
+.list-title-marquee {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.list-title-marquee p {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+  .list-title-marquee.is-overflow p {
+    transition: none;
+  }
+
+  .list-title-marquee.is-overflow:hover p,
+  .press-list-item:hover .list-title-marquee.is-overflow p,
+  .list-header:hover .list-title-marquee.is-overflow p {
+    animation: list-marquee var(--marquee-duration, 4s) linear infinite;
+  }
+
+  @keyframes list-marquee {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(var(--marquee-offset, -50%)); }
+  }
+}
+
+.album-title-marquee {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.album-title-marquee h6 {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+  .album-title-marquee.is-overflow h6 {
+    transition: none;
+  }
+
+  .album-card:hover .album-title-marquee.is-overflow h6 {
+    animation: album-marquee var(--marquee-duration, 4s) linear infinite;
+  }
+
+  @keyframes album-marquee {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(var(--marquee-offset, -50%)); }
+  }
+}
+
+/* ===== Homepage News Marquee ===== */
+.homepage-marquee {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.homepage-marquee-inner {
+  display: inline-block;
+  white-space: nowrap;
+  animation: homepage-marquee-scroll var(--marquee-duration, 20s) linear infinite;
+}
+
+@keyframes homepage-marquee-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}

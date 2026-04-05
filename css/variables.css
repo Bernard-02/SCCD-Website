@@ -1,0 +1,135 @@
+/* ========================================
+   CSS Variables - Design System
+   ======================================== */
+
+:root {
+  /* ===== Colors ===== */
+
+  /* Primary Colors */
+  --color-black: #000000;
+  --color-white: #FFFFFF;
+
+  /* Secondary Colors */
+  --color-green: #00FF80;
+  --color-pink: #FF448A;
+  --color-blue: #26BCFF;
+
+  /* Grayscale - 10 階層 */
+  --gray-0: #000000;   /* 黑色 */
+  --gray-1: #1A1A1A;   /* 最深灰 */
+  --gray-2: #333333;
+  --gray-3: #4D4D4D;
+  --gray-4: #666666;
+  --gray-5: #808080;   /* 中灰 */
+  --gray-6: #999999;
+  --gray-7: #B3B3B3;
+  --gray-8: #CCCCCC;
+  --gray-9: #E6E6E6;   /* 最淺灰 */
+  --gray-10: #FFFFFF;  /* 白色 */
+
+
+  /* ===== Typography ===== */
+
+  /* Font Families */
+  --font-en: 'Inter', sans-serif;
+  --font-zh: 'Noto Sans TC', sans-serif;
+  --font-default: var(--font-en), var(--font-zh), system-ui, -apple-system, sans-serif;
+
+  /* Font Sizes (rem) - Base: 16px */
+  --font-size-h1: 8rem;      /* 128px */
+  --font-size-h2: 6rem;    /* 80px */
+  --font-size-h3: 3.125rem;  /* 50px */
+  --font-size-h4: 2rem;    /* 40px */
+  --font-size-h5: 1.4rem;    /* 24px */
+  --font-size-h6: 1.25rem;   /* 20px */
+  --font-size-p1: 1.15rem;   /* 18.4px */
+  --font-size-p2: 1rem;      /* 16px */
+  --font-size-p3: 0.9rem;    /* 14.4px */
+
+  /* Font Weights */
+  --font-weight-regular: 400;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Line Heights */
+  --line-height-base: 1.5;
+  --line-height-h1: 1.1;
+  --line-height-h4: 1.1;
+
+
+  /* ===== Spacing ===== */
+  --spacing-xs: 0.5rem;   /* 8px */
+  --spacing-sm: 1rem;     /* 16px */
+  --spacing-md: 1.5rem;   /* 24px */
+  --spacing-lg: 2rem;     /* 32px */
+  --spacing-xl: 3rem;     /* 48px */
+  --spacing-2xl: 4rem;    /* 64px */
+  --spacing-3xl: 6rem;    /* 96px */
+  --spacing-4xl: 8rem;    /* 128px */
+  --spacing-5xl: 10rem;   /* 160px */
+  --spacing-6xl: 12rem;   /* 192px */
+
+
+  /* ===== Layout ===== */
+  --container-max-width: 1200px;
+  --container-padding: 3.75rem; /* 60px */
+
+
+  /* ===== Transitions ===== */
+  --transition-fast: 0.2s ease;
+  --transition-base: 0.3s ease;
+  --transition-slow: 0.5s ease;
+}
+
+/* ===== 手機版響應式設計 (Desktop-First) ===== */
+@media (max-width: 767px) {
+  :root {
+    /* 字體大小調整 */
+    --font-size-h1: 3rem;      /* 48px (桌面版 128px) */
+    --font-size-h2: 2.5rem;    /* 40px (桌面版 96px) */
+    --font-size-h3: 2rem;      /* 32px (桌面版 50px) */
+    --font-size-h4: 1.5rem;    /* 24px (桌面版 32px) */
+    --font-size-h5: 1.2rem;  /* 18px (桌面版 21.6px) */
+    --font-size-h6: 1rem;      /* 16px (桌面版 20px) */
+    --font-size-p1: 1rem;      /* 16px (桌面版 18.4px) */
+    --font-size-p2: 0.875rem;  /* 14px (桌面版 16px) */
+    --font-size-p3: 0.8rem;    /* 12.8px (桌面版 14.4px) */
+
+    /* 間距調整 */
+    --spacing-xl: 2rem;        /* 32px (桌面版 48px) */
+    --spacing-2xl: 3rem;       /* 48px (桌面版 64px) */
+    --spacing-3xl: 4rem;       /* 64px (桌面版 96px) */
+    --spacing-4xl: 5rem;       /* 80px (桌面版 128px) */
+    --spacing-5xl: 6rem;       /* 96px (桌面版 160px) */
+    --spacing-6xl: 8rem;       /* 128px (桌面版 192px) */
+
+    /* Container Padding */
+    --container-padding: 1.5rem;  /* 24px (桌面版 32px) */
+  }
+}
+
+/* ===== About Page - Class Section Images ===== */
+.class-img {
+  aspect-ratio: 4/3;
+  width: 50%;
+}
+.class-img--1 {
+  top: 50%;
+  left: 15%;
+  z-index: 1;
+  transform: rotate(-4deg) translateY(calc(-50% + -60px));
+}
+.class-img--2 {
+  top: 50%;
+  left: 28%;
+  z-index: 2;
+  transform: rotate(4deg) translateY(calc(-50% + 20px));
+}
+.class-img--3 {
+  top: 50%;
+  left: 10%;
+  z-index: 3;
+  transform: rotate(-3deg) translateY(calc(-50% + 80px));
+}
+
+

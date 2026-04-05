@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Awards - SCCD</title>
+  <link rel="stylesheet" href="../css/variables.css">
+  <link rel="stylesheet" href="../css/output.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.2.3/css/flag-icons.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+</head>
+<body>
+
+  <!-- Header -->
+  <div id="site-header"></div>
+
+  <!-- Main Content -->
+  <main>
+    <!-- Hero Section with Background Image -->
+    <section class="h-screen relative overflow-hidden">
+      <!-- Background Image -->
+      <div class="absolute inset-0 w-full h-full">
+        <img src="../images/SCCD-1-4-0.jpg" alt="Awards" class="w-full h-full object-cover">
+      </div>
+
+      <!-- Black Gradient Overlay (0% at top, 100% at bottom) -->
+      <div class="absolute inset-0 w-full h-full bg-gradient-to-b from-transparent to-black"></div>
+
+      <!-- Content Container -->
+      <div class="site-container h-full relative z-10">
+        <div class="h-full flex flex-col md:flex-row justify-end md:justify-start items-start md:items-end gap-lg md:gap-xl pb-3xl md:pb-2xl pt-[120px] md:pt-0">
+          <!-- Title on the left (Mobile: 100%, Desktop: 50%) -->
+          <div class="w-full md:w-1/2">
+            <h1 class="text-white pb-lg md:pb-xl hero-title">AWARDS</h1>
+          </div>
+
+          <!-- Content on the right (Mobile: 100%, Desktop: 50%) -->
+          <div class="w-full md:w-1/2">
+            <!-- English text with 3deg rotation -->
+            <p class="text-white mb-xl hero-text-en">
+              A collection of awards and recognitions achieved by students and faculty, celebrating the excellence of SCCD's creative community.
+            </p>
+            <!-- Chinese text with -2deg rotation -->
+            <p class="text-white hero-text-cn">
+              學系學生以所學知識為核心，將個人觀點同自身探索融合轉化為創作能量，並將其應用於創作成果及集體展演。學系學生於在學期間攬獲無數獎項並受邀參與各類展演，其中包括美國學生奧斯卡獎、德國紅點獎、德國 iF 獎、美國 ADC 獎、美國 CA 獎、日本 GOOD DESIGN 獎、威尼斯影展、德國柏林短片影展、台北電影節等。
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Awards Ticker Section -->
+    <section id="awards-ticker-section" class="bg-white pt-6xl pb-3xl overflow-hidden">
+      <!-- Ticker Container -->
+      <div class="awards-ticker-wrapper flex w-full">
+        <!-- Content will be injected by JS -->
+      </div>
+    </section>
+
+    <!-- Records Content Section -->
+    <section class="bg-white pb-6xl pt-3xl">
+      <div class="site-container">
+        <div id="records-list-container"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <div id="site-footer"></div>
+
+  <!-- JavaScript -->
+  <!-- GSAP & ScrollTrigger -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollTrigger.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/Draggable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>
+  <!-- Helper Functions - 必須在 main.js 之前載入 -->
+  <script src="../js/utils/helpers.js"></script>
+  <script type="module" src="../js/main-modular.js"></script>
+
+</body>
+</html>

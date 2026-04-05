@@ -1,0 +1,26 @@
+/**
+ * Intro Animation
+ * 網站進場動畫樣式
+ */
+
+@layer components {
+
+  /* ===== Overlay ===== */
+  #intro-overlay {
+    position: fixed;
+    inset: 0;
+    background: #ffffff;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: all;
+  }
+
+  /* ===== Lottie Container ===== */
+  #intro-lottie {
+    width: 90vw;
+  }
+
+
+}

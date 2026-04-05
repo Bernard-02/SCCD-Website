@@ -1,0 +1,251 @@
+/**
+ * Navigation Components
+ * Header、導航連結、Mega Menu 等樣式
+ */
+
+@layer components {
+  /* ===== Navigation Links ===== */
+  .nav-link {
+    @apply text-h6 font-bold transition-all duration-fast;
+    color: rgba(0, 0, 0, 1);
+  }
+
+  .nav-link .nav-link-cn {
+    display: inline-block;
+    max-width: 0;
+    overflow: hidden;
+    opacity: 0;
+    margin-left: 0;
+    vertical-align: middle;
+    transition: max-width 0.35s cubic-bezier(0.25, 0, 0, 1), opacity 0.3s ease-out, margin-left 0.3s ease-out;
+    white-space: nowrap;
+  }
+
+  .nav-link.active {
+    font-weight: 700;
+    display: inline-block;
+    color: rgba(0, 0, 0, 1);
+  }
+
+  /* side bar active/inactive 文字顏色（避免 inline style 被擴充功能干擾） */
+  [data-bar].bar-active .nav-link {
+    color: #fff !important;
+  }
+
+  [data-bar].bar-inactive .nav-link {
+    color: #000 !important;
+  }
+
+  .nav-link.active .nav-link-cn {
+    max-width: 6rem;
+    opacity: 1;
+    margin-left: 0.25rem;
+  }
+
+  /* Hover 效果：僅桌面版 */
+  @media (min-width: 768px) {
+    /* === 首頁（無 has-active）：hover 到某個選項時，其餘變半透明 === */
+    [data-bar="about"]:not(.has-active) .nav-link:hover ~ * .nav-link,
+    [data-bar="about"]:not(.has-active):has(.nav-link:hover) .nav-link:not(:hover) {
+      color: rgba(0, 0, 0, 0.5);
+    }
+
+    /* === 內頁（有 has-active）：預設非 active 為半透明 === */
+    [data-bar="about"].has-active .nav-link:not(.active) {
+      color: rgba(0, 0, 0, 0.5);
+    }
+
+    /* === 內頁 hover 到某個選項時：所有選項（含 active）變半透明，除了正在 hover 的 === */
+    [data-bar="about"].has-active:has(.nav-link:hover) .nav-link:not(:hover) {
+      color: rgba(0, 0, 0, 0.5);
+    }
+
+    /* === hover 到的選項永遠 100% 黑 === */
+    [data-bar="about"] .nav-link:hover,
+    [data-bar="about"].has-active .nav-link:hover,
+    [data-bar="about"].has-active:has(.nav-link:hover) .nav-link:hover {
+      font-weight: 700;
+      display: inline-block;
+      color: rgba(0, 0, 0, 1);
+    }
+
+    .nav-link:hover {
+      font-weight: 700;
+      display: inline-block;
+      color: rgba(0, 0, 0, 1);
+    }
+
+    .nav-link:hover .nav-link-cn {
+      max-width: 6rem;
+      opacity: 1;
+      margin-left: 0.25rem;
+    }
+  }
+
+  /* ===== Header ===== */
+  header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 9999 !important; /* 強制最高層級，確保蓋過所有內容 */
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  header.header-hidden {
+    transform: translateY(-100%);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  header.header-hidden .nav-link,
+  header.header-hidden .nav-link-inner,
+  header.header-hidden [data-bar] {
+    transform: rotate(0deg) !important;
+  }
+
+  /* ===== Mega Menu ===== */
+  .mega-menu {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: calc(var(--header-height, 80px) - 0.5px);
+    width: 100vw;
+    height: auto;
+    background-color: white;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 40;
+  }
+
+  /* ===== Submenu Links ===== */
+  .submenu-link {
+    @apply block py-xs text-h6 text-left transition-all duration-fast;
+  }
+
+  /* Hover 效果：僅桌面版 */
+  @media (min-width: 768px) {
+    .submenu-link:hover span {
+      font-weight: 700;
+    }
+  }
+
+  .submenu-link.active span {
+    font-weight: 700;
+  }
+
+  /* ===== Anchor Navigation (About Page) ===== */
+  .anchor-nav-btn {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background: none;
+    border: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    font-weight: 700;
+    font-size: var(--font-size-p1);
+  }
+
+  .anchor-nav-inner {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    background: rgba(255, 255, 255, 0.5);
+    padding: 6px 8px 5px;
+    color: rgba(0, 0, 0, 0.5);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .anchor-nav-btn div {
+    padding: 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+  }
+
+  .anchor-nav-btn.active .anchor-nav-inner {
+    color: black;
+    /* background & rotation set via JS */
+  }
+
+  /* Hover 效果：僅桌面版 */
+  @media (min-width: 768px) {
+    .anchor-nav-btn:not(.active):hover .anchor-nav-inner {
+      background: rgba(255, 255, 255, 1);
+      color: rgba(0, 0, 0, 1);
+    }
+  }
+
+  /* ===== Faculty Back Button ===== */
+  @media (min-width: 768px) {
+    #faculty-back-btn:hover i {
+      transform: rotate(-10deg);
+    }
+  }
+
+  /* ===== Footer Layout (Desktop Absolute Positioning) ===== */
+  @media (min-width: 768px) {
+    .footer-logo {
+      position: absolute;
+      top: 0;
+      left: 1%;
+    }
+
+    .footer-fax {
+      position: absolute;
+      top: 20vh;
+      left: 46%;
+      transform: rotate(12deg);
+    }
+
+    .footer-tel {
+      position: absolute;
+      top: 35vh;
+      left: 17%;
+      transform: rotate(-18deg);
+    }
+
+    .footer-office {
+      position: absolute;
+      top: 40vh;
+      left: 34%;
+      transform: rotate(-10deg);
+    }
+
+    .footer-email {
+      position: absolute;
+      top: 60vh;
+      left: 9%;
+      transform: rotate(15deg);
+    }
+
+    .footer-links {
+      position: absolute;
+      top: 70vh;
+      left: 51%;
+      transform: rotate(18deg);
+    }
+
+    .footer-social .footer-youtube {
+      position: absolute;
+      top: 50%;
+      left: 68%;
+      transform: rotate(-15deg);
+    }
+
+    .footer-social .footer-instagram {
+      position: absolute;
+      top: 42%;
+      left: 85%;
+      transform: rotate(15deg);
+    }
+
+    .footer-social .footer-facebook {
+      position: absolute;
+      top: 58%;
+      left: 85%;
+      transform: rotate(-12deg);
+    }
+  }
+}

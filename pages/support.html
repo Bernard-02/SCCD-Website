@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Support - SCCD</title>
+  <link rel="stylesheet" href="../css/variables.css">
+  <link rel="stylesheet" href="../css/output.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+</head>
+<body>
+
+  <!-- Header -->
+  <div id="site-header"></div>
+
+  <!-- Main Content -->
+  <main>
+    <!-- Hero Section with Background Image -->
+    <section class="h-screen relative overflow-hidden">
+      <!-- Background Image -->
+      <div class="absolute inset-0 w-full h-full">
+        <img src="../images/SCCD-1-4-0.jpg" alt="Support" class="w-full h-full object-cover">
+      </div>
+
+      <!-- Black Gradient Overlay (0% at top, 100% at bottom) -->
+      <div class="absolute inset-0 w-full h-full bg-gradient-to-b from-transparent to-black"></div>
+
+      <!-- Content Container -->
+      <div class="site-container h-full relative z-10">
+        <div class="h-full flex flex-col md:flex-row justify-end md:justify-start items-start md:items-end gap-lg md:gap-xl pb-3xl md:pb-2xl pt-[120px] md:pt-0">
+          <!-- Title on the left (Mobile: 100%, Desktop: 50%) -->
+          <div class="w-full md:w-1/2">
+            <h1 class="text-white pb-lg md:pb-xl hero-title">SUPPORT</h1>
+          </div>
+
+          <!-- Content on the right (Mobile: 100%, Desktop: 50%) -->
+          <div class="w-full md:w-1/2">
+            <!-- English text with 3deg rotation -->
+            <p class="text-white mb-xl hero-text-en">
+              We are here to support your journey. Explore the resources and services available to help you succeed at SCCD.
+            </p>
+            <!-- Chinese text with -2deg rotation -->
+            <p class="text-white hero-text-cn">
+              我們提供各種資源與服務，協助您在實踐大學媒體傳達設計學系的學習之路順利前進。
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Support Content Section -->
+    <section class="bg-white py-6xl">
+      <div class="site-container">
+        <div id="support-content"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <div id="site-footer"></div>
+
+  <!-- JavaScript -->
+  <!-- GSAP & ScrollTrigger -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollTrigger.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/Draggable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>
+  <script src="../js/utils/helpers.js"></script>
+  <script type="module" src="../js/main-modular.js"></script>
+
+</body>
+</html>

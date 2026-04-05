@@ -1,0 +1,197 @@
+[
+  {
+    "year": 2025,
+    "items": [
+      {
+        "title": "Listen to Island of Body: Sensory Awareness and Improvisational Body Texture Workshop (II)",
+        "title_zh": "傾聽身體之島：感官覺察與即興肢體質地工作坊（II）",
+        "subtitle": "Animation Creative Design Workshop (Beijing Summer Digital Entertainment Jam Series)",
+        "subtitle_zh": "動畫創意設計工作營（北京夏日數字娛樂節工作營系列）",
+        "flag": "tw",
+        "date": "10 / 10 - 10 / 12",
+        "location": "Shanghai, China  /  Zhejiang, China  /  Anhui, China",
+        "location_zh": "中國上海  /  中國浙江  /  中國安徽",
+        "guests": [
+          {
+            "name": "National Center for High-Performance Computing",
+            "name_zh": "國家高速網路與計算中心",
+            "affiliation": "Biodesign Academy",
+            "affiliation_zh": "生物設計學院",
+            "country": "TW",
+            "country_zh": "台灣"
+          },
+          {
+            "name": "School of Dance & Theatre, LASALLE College of the Arts, University of the Arts Singapore",
+            "name_zh": "新加坡藝術大學拉薩爾藝術學院舞蹈與戲劇學院",
+            "affiliation": "LASALLE College of the Arts, University of the Arts Singapore",
+            "affiliation_zh": "新加坡藝術大學拉薩爾藝術學院",
+            "country": "MY",
+            "country_zh": "馬來西亞"
+          },
+          {
+            "name": "Taiwan Contemporary Culture Lab",
+            "name_zh": "臺灣當代文化實驗場（C-LAB）",
+            "country": "US",
+            "country_zh": "美國"
+          }
+        ],
+        "intro": "Professors of SCCD are composed of cross-disciplinary experts from academia, design industry and art field. Possess a theoretical and research background in design and art education at domestic and foreign, rich and diverse performance and creative practical experience, and have In-depth understanding of the professional education goals of the department. It is expected that students with different characteristics and attributes will expand their plasticity and give corresponding inspiration, strengthen student's professional skills and trend perception ability, and consolidate students expand their potential and explosive power whether in academic research, design practice, artistic creation with future vision.",
+        "intro_zh": "實踐大學媒體傳達設計學系專、兼任教師皆為學術界、設計業界與藝術領域專家等跨領域組成，具備國內外設計藝術教育理論研究背景、豐富多樣的展演與創作實務經歷，對於學系之專業教育目標理解深入，期許針對不同特質屬性的學生擴展可塑性並給予相應之啟發，強化學生專業技能及趨勢感知能力，夯實學生未來不論於學術研究、設計實務、藝術創作皆能擴展其潛能、爆發力與未來願景。",
+        "poster": "../images/2021-動畫-Pitch-Bible-01.png",
+        "videos": [
+          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        ],
+        "images": [
+          "../images/S__6742028.jpg"
+        ],
+        "references": [
+          {
+            "section": "industry",
+            "itemId": "i-2025-a3hi06",
+            "labelEn": "Industry-Academia Cooperation",
+            "labelZh": "產學合作",
+            "titleEn": "Industry-Academia Project 1",
+            "titleZh": "產學合作計畫一",
+            "coverSrc": "../images/SCCD-1-4-0.jpg"
+          },
+          {
+            "href": "../pages/library.html?section=files&item=1",
+            "labelEn": "Files",
+            "labelZh": "檔案庫",
+            "titleEn": "Publication Title 1",
+            "titleZh": "出版物標題 1",
+            "coverSrc": "../images/2021-動畫-Pitch-Bible-01.png"
+          }
+        ],
+        "id": "w-2025-5y2sgp"
+      },
+      {
+        "title": "Font Osteopathic Class",
+        "title_zh": "字體整骨班",
+        "subtitle": "Workshop",
+        "subtitle_zh": "工作坊",
+        "date": "10 / 10 - 10 / 12",
+        "location": "Taiwan Contemporary Culture Lab (C-Lab)",
+        "location_zh": "臺灣當代文化實驗場（C-Lab）",
+        "cityEn": "Taipei, TW",
+        "cityZh": "台灣 台北",
+        "intro": "Exploring character shapes and personalities.",
+        "poster": "../images/2021-動畫-Pitch-Bible-01.png",
+        "videos": [],
+        "images": [],
+        "id": "w-2025-0xrhwu"
+      },
+      {
+        "title": "Animation Creation Workshop",
+        "title_zh": "動畫創作工作營",
+        "date": "10 / 10 - 10 / 12",
+        "location": "實踐大學設計學院",
+        "intro": "Advanced techniques in After Effects.",
+        "poster": "../images/2021-動畫-Pitch-Bible-01.png",
+        "videos": [],
+        "images": [],
+        "id": "w-2025-fbvdqk"
+      },
+      {
+        "title": "Sound Design",
+        "date": "10 / 10 - 10 / 12",
+        "location": "實踐大學設計學院",
+        "intro": "Creating immersive soundscapes.",
+        "poster": "../images/2021-動畫-Pitch-Bible-01.png",
+        "videos": [],
+        "images": [],
+        "id": "w-2025-owi17m"
+      }
+    ]
+  },
+  {
+    "year": 2024,
+    "items": [
+      {
+        "title": "Interactive Art",
+        "date": "",
+        "location": "實踐大學設計學院",
+        "intro": "Processing and p5.js workshop.",
+        "poster": "../images/2021-動畫-Pitch-Bible-01.png",
+        "videos": [],
+        "images": [],
+        "id": "w-2024-au5pma"
+      },
+      {
+        "title": "Typography",
+        "date": "",
+        "location": "實踐大學設計學院",
+        "intro": "Experimental typography workshop.",
+        "poster": "../images/2021-動畫-Pitch-Bible-01.png",
+        "videos": [],
+        "images": [],
+        "id": "w-2024-z05azw"
+      },
+      {
+        "title": "VR Storytelling",
+        "date": "",
+        "location": "實踐大學設計學院",
+        "intro": "Immersive storytelling in virtual reality.",
+        "poster": "../images/2021-動畫-Pitch-Bible-01.png",
+        "videos": [],
+        "images": [],
+        "id": "w-2024-6q18wq"
+      },
+      {
+        "title": "Stop Motion",
+        "date": "",
+        "location": "實踐大學設計學院",
+        "intro": "Traditional stop motion techniques.",
+        "poster": "../images/2021-動畫-Pitch-Bible-01.png",
+        "videos": [],
+        "images": [],
+        "id": "w-2024-tqp3o6"
+      }
+    ]
+  },
+  {
+    "year": 2023,
+    "items": [
+      {
+        "title": "Game Design",
+        "date": "",
+        "location": "實踐大學設計學院",
+        "intro": "Unity game development basics.",
+        "poster": "../images/2021-動畫-Pitch-Bible-01.png",
+        "videos": [],
+        "images": [],
+        "id": "w-2023-ucsu7n"
+      },
+      {
+        "title": "Projection Mapping",
+        "date": "",
+        "location": "實踐大學設計學院",
+        "intro": "Mapping visuals onto physical objects.",
+        "poster": "../images/2021-動畫-Pitch-Bible-01.png",
+        "videos": [],
+        "images": [],
+        "id": "w-2023-4co286"
+      },
+      {
+        "title": "Experimental Film",
+        "date": "",
+        "location": "實踐大學設計學院",
+        "intro": "Analog film techniques.",
+        "poster": "../images/2021-動畫-Pitch-Bible-01.png",
+        "videos": [],
+        "images": [],
+        "id": "w-2023-59lfir"
+      },
+      {
+        "title": "Generative Art",
+        "date": "",
+        "location": "實踐大學設計學院",
+        "intro": "Code as art.",
+        "poster": "../images/2021-動畫-Pitch-Bible-01.png",
+        "videos": [],
+        "images": [],
+        "id": "w-2023-zx9mk5"
+      }
+    ]
+  }
+]

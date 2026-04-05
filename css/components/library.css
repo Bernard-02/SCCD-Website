@@ -1,0 +1,459 @@
+/**
+ * Library Page
+ * library.html 專用樣式
+ */
+
+/* ── 捲軸隱藏 ──────────────────────────────────────────────── */
+.no-scrollbar::-webkit-scrollbar { display: none !important; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ── Color Rect Marquee ──────────────────────────────────────── */
+.color-rect-title {
+  position: absolute;
+  overflow: hidden;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 1;
+  display: flex;
+  visibility: hidden;    /* 預設隱藏，setAsColor 時設為 visible */
+  color: #000;
+}
+.color-rect-title-inner {
+  display: inline-block;
+  white-space: nowrap;
+  animation: color-rect-marquee 5s linear infinite;
+  font-family: 'Inter', 'Noto Sans TC', sans-serif;
+  font-size: var(--font-size-h4);
+  font-weight: 700;
+  color: inherit;
+  line-height: 1.2;
+}
+
+@keyframes color-rect-marquee {
+  0%   { transform: translate(0, 0); }
+  100% { transform: translate(var(--marquee-shift-x, -50%), var(--marquee-shift-y, 0)); }
+}
+
+/* ── Panel 標題字體（黑體） ──────────────────────────────────── */
+.lib-panel-title {
+  font-family: 'Inter', 'Noto Sans TC', sans-serif;
+}
+
+/* ── 灰色矩形內容字體 ────────────────────────────────────────── */
+#library-card-main,
+#library-card-content {
+  font-family: 'Bitter', 'Noto Serif TC', serif;
+}
+
+/* ── 進場動畫：頁面初始隱藏所有矩形 ─────────────────────────── */
+#library-card-stack > div,
+#library-card-main {
+  opacity: 0;
+}
+
+/* ── 灰色矩形內容層：fade in/out ──────────────────────────────── */
+#library-card-content {
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+#library-card-content.content-visible {
+  opacity: 1;
+}
+
+/* ── Search placeholder ────────────────────────────────────── */
+#library-awards-search::placeholder {
+  color: rgba(0, 0, 0, 0.3);
+}
+
+/* ── Award list：grid 欄位覆蓋（覆蓋 records-data-loader 的偏移） ── */
+#library-awards-list .year-block > [class*="col-start-3"] { grid-column-start: 1; }
+#library-awards-list .year-block > [class*="col-start-4"] { grid-column-start: 2; }
+#library-awards-list .year-block > [class*="col-span-9"]  { grid-column: 2 / span 11; }
+#library-awards-list .records-divider > [class*="col-start-3"] { grid-column-start: 1; }
+#library-awards-list .records-divider > [class*="col-span-10"] { grid-column: 1 / span 12; }
+
+/* ── Awards Ticker ──────────────────────────────────────────── */
+#library-awards-ticker {
+  background: #f2f2f2;
+}
+
+/* ── Press list container ─────────────────────────────────────── */
+#library-press-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xl);
+}
+
+/* ── Press year group ────────────────────────────────────────── */
+.press-year-label {
+  font-size: var(--font-size-p3);
+  font-weight: 700;
+  padding: 0.35rem 0 0.25rem;
+  position: sticky;
+  top: -1px;
+  background: #f2f2f2;
+  z-index: 2;
+  margin-top: -0.35rem;
+}
+
+/* ── Press list item ─────────────────────────────────────────── */
+.press-item {
+  padding: var(--spacing-sm) 0;
+  border-bottom: 2px solid #000;
+  cursor: default;
+  overflow: hidden;
+  transition: background 0.25s ease;
+}
+/* 每個 year block 第一個 item 加頂線 */
+.press-year-block:first-child .press-item:first-child {
+  border-top: 2px solid #000;
+}
+
+/* item 內部：grid 兩欄，左欄標題區，右欄分類 tag（all 模式才有） */
+.press-item-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0 var(--spacing-xl);
+  align-items: start;
+  min-width: 0;
+}
+
+/* 標題 + 副標 堆疊 */
+.press-item-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  overflow: hidden;
+  max-width: calc(100% - 5rem);
+}
+.press-item-title-en,
+.press-item-title-zh {
+  font-size: var(--font-size-p1);
+  font-weight: 700;
+  line-height: 1.3;
+  overflow: hidden;
+  white-space: nowrap;
+  display: block;
+}
+.press-marquee-inner {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+/* 副標在標題下方，固定欄寬讓各 list 的時間起始點對齊 */
+.press-item-meta {
+  display: grid;
+  grid-template-columns: 16rem max-content;
+  gap: 0 var(--spacing-md);
+}
+.press-item-subtitle {
+  font-size: var(--font-size-p3);
+  font-weight: 700;
+  color: rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  display: block;
+}
+.press-subtitle-inner {
+  display: inline-block;
+  white-space: nowrap;
+}
+.press-item-meta-right {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  white-space: nowrap;
+}
+.press-item-date {
+  font-size: var(--font-size-p3);
+  font-weight: 700;
+  color: rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+}
+.press-item-media-icon {
+  font-size: var(--font-size-p3);
+  color: rgba(0, 0, 0, 0.5);
+}
+
+/* 分類 tag（只在 all 模式顯示，對齊右側第二欄頂部） */
+.press-item-cat-tag {
+  font-size: var(--font-size-p3);
+  font-weight: 700;
+  color: rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+  align-self: start;
+}
+
+/* ── Press category filter buttons ──────────────────────────── */
+.lib-press-cat-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: var(--font-size-p3);
+  cursor: pointer;
+  font-weight: 700;
+  color: #000;
+}
+.lib-press-cat-btn.dimmed {
+  color: rgba(0, 0, 0, 0.3);
+}
+
+/* ── Search placeholder ──────────────────────────────────────── */
+#library-press-search::placeholder {
+  color: rgba(0, 0, 0, 0.3);
+}
+
+/* ── Press item hover marquee（桌面專用）────────────────────── */
+@media (min-width: 768px) {
+  /* 只在文字超出容器時才跑 marquee，速度由 JS 動態計算（80px/s） */
+  .press-item:hover .press-item-title-en.is-overflow .press-marquee-inner,
+  .press-item:hover .press-item-title-zh.is-overflow .press-marquee-inner,
+  .press-item:hover .press-item-subtitle.is-overflow .press-subtitle-inner {
+    animation: press-marquee var(--marquee-duration, 8s) linear infinite;
+  }
+}
+
+@keyframes press-marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(var(--marquee-distance, -50%)); }
+}
+
+/* ── Files list item ─────────────────────────────────────────── */
+.files-item {
+  padding: var(--spacing-sm) 0;
+  border-bottom: 2px solid #000;
+  cursor: pointer;
+  transition: background 0.25s ease;
+}
+.files-year-block .files-item:first-child {
+  border-top: 2px solid #000;
+}
+.files-item-subtitle-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-top: 0.1rem;
+  transition: opacity 0.3s ease;
+}
+.files-item-subtitle-tag {
+  font-size: var(--font-size-p3);
+  font-weight: 700;
+  color: rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+}
+.files-item-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0 var(--spacing-md);
+  align-items: start;
+  min-width: 0;
+  padding-right: var(--spacing-sm);
+}
+.files-item-cover-wrap {
+  height: 4.5rem;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  overflow: visible;
+}
+.files-item-cover-inner {
+  position: relative;
+  height: 100%;
+  width: auto;
+  overflow: visible;
+}
+.files-item-cover {
+  height: 100%;
+  width: auto;
+  display: block;
+  transition: filter 0.25s ease;
+}
+.files-thumb-overlay {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  mix-blend-mode: screen;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+.files-item-cover--empty {
+  background: rgba(0, 0, 0, 0.1);
+}
+.files-item-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  overflow: hidden;
+  transition: transform 0.35s ease;
+}
+.files-item-titles-text {
+  display: contents;
+}
+.files-item-titles-text--center {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.files-item-title-en,
+.files-item-title-zh {
+  font-size: var(--font-size-p1);
+  font-weight: 700;
+  line-height: 1.3;
+  overflow: hidden;
+  white-space: nowrap;
+  display: block;
+}
+.files-marquee-inner {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+/* ── Album category filter buttons ──────────────────────────── */
+.lib-album-cat-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: var(--font-size-p3);
+  cursor: pointer;
+  font-weight: 700;
+  color: #000;
+}
+.lib-album-cat-btn.dimmed {
+  color: rgba(0, 0, 0, 0.3);
+}
+
+/* ── Files category filter buttons ──────────────────────────── */
+.lib-files-cat-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: var(--font-size-p3);
+  cursor: pointer;
+  font-weight: 700;
+  color: #000;
+}
+.lib-files-cat-btn.dimmed {
+  color: rgba(0, 0, 0, 0.3);
+}
+
+/* ── Search placeholder ──────────────────────────────────────── */
+#library-files-search::placeholder,
+#library-album-search::placeholder {
+  color: rgba(0, 0, 0, 0.3);
+}
+
+/* ── Album item thumbnails ───────────────────────────────────── */
+
+/* row 要 stretch 讓 strip 撐滿高度，且 overflow visible 讓旋轉不被裁切 */
+.album-files-item-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0 var(--spacing-md);
+  align-items: stretch;
+  min-width: 0;
+  overflow: visible;
+}
+
+.album-thumb-strip-wrap {
+  padding-right: var(--spacing-sm);
+  display: flex;
+  align-items: center;
+}
+
+/* stack 容器 */
+.album-thumb-strip {
+  position: relative;
+  width: 8rem;
+  height: 4.5rem;
+  flex-shrink: 0;
+  overflow: visible;
+}
+
+/* 所有 thumb 靠右疊加 */
+.album-thumb {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  margin: auto 0;
+  transform-origin: center center;
+  overflow: visible;
+  flex-shrink: 0;
+}
+
+/* poster z-index 最高 */
+.album-thumb[data-thumb-index="0"] { z-index: 3; }
+.album-thumb[data-thumb-index="1"] { z-index: 2; }
+.album-thumb[data-thumb-index="2"] { z-index: 1; }
+
+.album-thumb img {
+  display: block;
+  transition: filter 0.25s ease;
+}
+
+.album-thumb-overlay {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  mix-blend-mode: screen;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+
+/* play icon：CSS 三角形 */
+.album-thumb-play {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.album-thumb-play::after {
+  content: '';
+  display: block;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 5px 0 5px 9px;
+  border-color: transparent transparent transparent rgba(255,255,255,0.5);
+  margin-left: 2px;
+}
+
+/* album 的 files-item 本身 overflow visible，讓旋轉可超出 */
+.album-panel-item {
+  overflow: visible;
+}
+
+@media (min-width: 768px) {
+  .files-item:hover .files-item-cover {
+    filter: grayscale(100%);
+  }
+  .files-item:hover .files-thumb-overlay {
+    opacity: 1;
+  }
+  .files-item:hover .album-thumb img {
+    filter: grayscale(100%);
+  }
+  .files-item:hover .album-thumb-overlay {
+    opacity: 1;
+  }
+}
+
+/* ── Files item hover marquee（桌面專用）─────────────────────── */
+@media (min-width: 768px) {
+  .files-item:hover .files-item-title-en.is-overflow .files-marquee-inner,
+  .files-item:hover .files-item-title-zh.is-overflow .files-marquee-inner {
+    animation: press-marquee var(--marquee-duration, 8s) linear infinite;
+  }
+}

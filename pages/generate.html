@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generate - SCCD</title>
+  <link rel="stylesheet" href="../css/output.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+</head>
+<body class="overflow-hidden">
+
+  <!-- Header -->
+  <div id="site-header"></div>
+
+  <!-- Main Content -->
+  <main class="w-full relative" style="height: 100vh; padding-top: var(--header-height, 80px);">
+    <iframe src="../generate-app/index.html" class="w-full h-full border-none block" title="Generate Art"></iframe>
+  </main>
+
+  <!-- JavaScript -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollTrigger.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/Draggable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>
+  <script src="../js/utils/helpers.js"></script>
+  <script type="module" src="../js/main-modular.js"></script>
+
+  <script>
+    // 接收 gen iframe 的 mode 通知，更新 header 背景色與文字色
+    let pendingGenMode = null;
+
+    function applyGenModeToHeader({ bg, text }) {
+      const header = document.querySelector('header');
+      if (!header) return;
+      // header 本身背景
+      header.style.backgroundColor = bg;
+      // 所有帶 bg-white 的子元素（bar、按鈕、圓形容器）
+      header.querySelectorAll('[class*="bg-white"]').forEach(el => {
+        el.style.backgroundColor = bg;
+      });
+      // 文字與 icon
+      header.querySelectorAll('a, span, button, i').forEach(el => {
+        el.style.color = text;
+      });
+    }
+
+    window.addEventListener('message', (e) => {
+      if (!e.data || !e.data.genMode) return;
+      pendingGenMode = e.data;
+      applyGenModeToHeader(e.data);
+    });
+
+    // header 是非同步注入的，ready 後套用緩存的 mode
+    document.addEventListener('header:ready', () => {
+      if (pendingGenMode) applyGenModeToHeader(pendingGenMode);
+    });
+  </script>
+
+</body>
+</html>

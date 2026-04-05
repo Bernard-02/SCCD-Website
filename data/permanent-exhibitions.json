@@ -1,0 +1,81 @@
+[
+  {
+    "year": "",
+    "items": [
+      {
+        "title": "創作基礎",
+        "title_en": "Design Fundamental",
+        "description": "每學期固定展出學生在創作基礎課程中的作品，涵蓋視覺設計基礎、版面構成與色彩應用等核心訓練成果。",
+        "poster": "../images/SCCD-1-4-0.jpg",
+        "videos": [],
+        "images": [],
+        "id": "ep-lngb93"
+      },
+      {
+        "title": "學期末混合總評",
+        "title_en": "End-of-Semester Mixed Review",
+        "date_en": "Once per semester",
+        "date": "每學期舉辦一次",
+        "description": "The End-of-Semester Mixed Review is a flagship event of the Department of Communications Design at Shih Chien University. Students from the Animation and Image Design track and the Creative Media Design track participate together. First-year undergraduate students may attend as observers, subject to announcement by their academic advisors. The review is held at the International Conference Hall (NB2F) of Shih Chien University, and is organized by the SCCD Student Association.",
+        "descriptionZh": "學期末混合總評（下稱「總評」）為實踐大學媒體傳達設計學系（下稱「本學系」）重點課程。總評由動畫影像設計組、創意媒體設計組學生共同參與。學士班一年級學生依導師公告參與觀摩。總評地點為實踐大學國際會議廳（NB2F）。總評由實踐媒傳系學會（下稱「系學會」）承辦。",
+        "poster": "../images/SCCD-1-4-1.jpg",
+        "videos": [],
+        "images": [],
+        "albums": [
+          {
+            "date": "06/17 - 06/19",
+            "location": "International Conference Hall, B2F, Bldg. N, Taipei Campus",
+            "location_zh": "台北校區 N 棟 B2F 國際會議廳",
+            "images": [
+              "../images/SCCD-1-4-0.jpg",
+              "../images/SCCD-1-4-1.jpg",
+              "../images/SCCD-1-4-2.jpg"
+            ]
+          },
+          {
+            "date": "01/07 - 01/09",
+            "location": "International Conference Hall, B2F, Bldg. N, Taipei Campus",
+            "location_zh": "台北校區 N 棟 B2F 國際會議廳",
+            "images": [
+              "../images/S__6742028.jpg",
+              "../images/SCCD-1-4-0.jpg"
+            ]
+          },
+          {
+            "date": "06/18 - 06/20",
+            "location": "International Conference Hall, B2F, Bldg. N, Taipei Campus",
+            "location_zh": "台北校區 N 棟 B2F 國際會議廳",
+            "images": [
+              "../images/SCCD-1-4-1.jpg",
+              "../images/SCCD-1-4-2.jpg"
+            ]
+          },
+          {
+            "date": "01/08 - 01/10",
+            "location": "International Conference Hall, B2F, Bldg. N, Taipei Campus",
+            "location_zh": "台北校區 N 棟 B2F 國際會議廳",
+            "images": []
+          },
+          {
+            "date": "06/19 - 06/21",
+            "location": "International Conference Hall, B2F, Bldg. N, Taipei Campus",
+            "location_zh": "台北校區 N 棟 B2F 國際會議廳",
+            "images": [
+              "../images/SCCD-1-4-0.jpg"
+            ]
+          }
+        ],
+        "id": "ep-hu9j1m"
+      },
+      {
+        "title": "碩士班學習評鑑",
+        "title_en": "Graduate Program Learning Assessment",
+        "description": "碩士班定期舉辦的學習成果評鑑展示，呈現研究生在論文研究、設計實踐與創作方法上的階段性成果。",
+        "poster": "../images/SCCD-1-4-2.jpg",
+        "videos": [],
+        "images": [],
+        "id": "ep-wjjthl"
+      }
+    ]
+  }
+]

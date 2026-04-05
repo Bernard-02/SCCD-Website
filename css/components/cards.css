@@ -1,0 +1,245 @@
+/**
+ * Card Components
+ * Faculty Cards、Library Cards、Degree Show 等卡片樣式
+ */
+
+@layer components {
+  /* ===== Faculty Cards ===== */
+  .faculty-card {
+  }
+
+  .faculty-card-image-wrapper {
+    overflow: hidden;
+    cursor: default;
+    position: relative;
+  }
+
+  /* Fulltime and admin cards are clickable */
+  .faculty-card[data-category="fulltime"] .faculty-card-image-wrapper,
+  .faculty-card[data-category="admin"] .faculty-card-image-wrapper {
+    cursor: pointer;
+  }
+
+  .faculty-card-image {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* All cards: color overlay (基礎樣式) */
+  .faculty-card .faculty-card-image-wrapper::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-color: var(--card-color, #26BCFF);
+    mix-blend-mode: screen;
+    opacity: 0;
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+  }
+
+  /* 卡片底色 transition */
+  .faculty-card {
+    background-color: transparent;
+    transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Hover 效果：僅桌面版 */
+  @media (min-width: 768px) {
+    /* Hover 父容器：底色 + 圖片 overlay + grayscale */
+    .faculty-card:hover {
+      background-color: var(--card-color, #26BCFF);
+    }
+
+    .faculty-card:hover .faculty-card-image-wrapper::after {
+      opacity: 1;
+    }
+
+    .faculty-card:hover .faculty-card-image {
+      filter: grayscale(100%);
+    }
+  }
+
+  /* ===== Album Cards ===== */
+  .album-card {
+    transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .album-card-img {
+    transition: filter 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* ===== Library Cards ===== */
+  .library-card {
+    background-color: transparent;
+    transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .library-card-image-wrapper {
+    position: relative;
+  }
+
+  .library-card-image {
+    transition: filter 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .library-card-image-wrapper::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-color: var(--card-color, #26BCFF);
+    mix-blend-mode: screen;
+    opacity: 0;
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+  }
+
+  /* Hover 效果：僅桌面版 */
+  @media (min-width: 768px) {
+    .library-card:hover {
+      background-color: var(--card-color, #26BCFF);
+    }
+
+    .library-card:hover .library-card-image-wrapper::after {
+      opacity: 1;
+    }
+
+    .library-card:hover .library-card-image {
+      filter: grayscale(100%);
+    }
+  }
+
+  /* ===== Degree Show Cards ===== */
+  .degree-show-img-wrapper {
+    position: relative;
+  }
+
+  .degree-show-img {
+    transition: filter 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .degree-show-img-wrapper::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-color: var(--card-color, #26BCFF);
+    mix-blend-mode: screen;
+    opacity: 0;
+    transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+  }
+
+  @media (min-width: 768px) {
+    .degree-show-img-wrapper:hover .degree-show-img {
+      filter: grayscale(100%);
+    }
+
+    .degree-show-img-wrapper:hover::after {
+      opacity: 1;
+    }
+  }
+
+  /* ===== Faculty Slide-in Grid Rows ===== */
+  .faculty-grid-row {
+    display: grid;
+    gap: 0.5rem;
+    align-items: baseline;
+    padding-bottom: 0.5rem;
+    font-size: var(--font-size-p2);
+  }
+
+  /* 4 col: country(50px) | school(1fr) | major(1fr) | degree(1fr) */
+  .faculty-grid-4 {
+    grid-template-columns: 50px 1fr 1fr 1fr;
+    padding-right: 2rem;
+  }
+
+  /* 3 col: year(50px) | main(2fr) | detail(1fr) */
+  .faculty-grid-3 {
+    grid-template-columns: 50px 2fr 1fr;
+    padding-right: 2rem;
+  }
+
+  .faculty-grid-row span {
+    word-break: break-word;
+    line-height: var(--line-height-base);
+  }
+
+  /* ===== Degree Show Image ===== */
+  /* ===== Faculty Section Tags ===== */
+  .faculty-tag {
+    @apply inline-block text-p2 border border-black px-xs py-[2px];
+    white-space: nowrap;
+  }
+
+  .degree-show-img-wrapper {
+    overflow: hidden;
+  }
+
+  /* ===== Brand Trail Image (Mouse Trail Effect) ===== */
+  .brand-trail-img {
+    @apply absolute object-contain pointer-events-none z-50; /* 改為 contain 以完整顯示 Logo */
+    width: 200px;       /* 設定統一寬度 */
+    height: 150px;      /* 設定統一高度 */
+    transform: translate(-50%, -50%); /* 讓圖片中心對準滑鼠 */
+  }
+
+  /* ===== Card Stacks & Effects ===== */
+  .card-stack-1 {
+    transform: rotate(-4deg);
+    position: relative;
+    z-index: 1;
+  }
+
+  .card-stack-2 {
+    transform: rotate(3deg);
+    position: relative;
+    z-index: 2;
+  }
+
+  .card-stack-3 {
+    transform: rotate(-2deg);
+    position: relative;
+    z-index: 3;
+  }
+
+  @media (min-width: 768px) {
+    .hover-tilt-left:hover {
+      transform: rotate(-4deg);
+    }
+
+    .hover-tilt-right:hover {
+      transform: rotate(4deg);
+    }
+  }
+
+  .works-container {
+    height: auto;
+    align-self: stretch;
+    min-height: var(--works-container-height, 320px);
+  }
+
+  /* ===== Mobile Responsive for Works Container ===== */
+  @media (max-width: 767px) {
+    .works-container {
+      height: auto !important;
+      display: flex !important; /* 改為 Flex 佈局以支援橫向排列 */
+      overflow-x: auto;         /* 開啟橫向捲動 */
+      gap: 1rem;                /* 圖片間距 */
+      scroll-snap-type: x mandatory; /* 滑動吸附效果 */
+      padding-bottom: 1rem;     /* 預留空間 */
+      justify-content: flex-start !important; /* 確保靠左開始 */
+      scrollbar-width: none;    /* Firefox 隱藏捲軸 */
+    }
+    .works-container::-webkit-scrollbar { display: none; } /* Chrome/Safari 隱藏捲軸 */
+
+    .works-container img.absolute, .works-container > div.absolute {
+      position: relative !important;
+      top: auto !important;
+      left: auto !important;
+      width: 85% !important;    /* 讓圖片佔據 85% 寬度，暗示可滑動 */
+      transform: none !important; /* 移除旋轉 */
+      margin-bottom: 0 !important;
+      flex-shrink: 0;           /* 防止圖片被壓縮 */
+      scroll-snap-align: center; /* 吸附對齊 */
+    }
+  }
+}

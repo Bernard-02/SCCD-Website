@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Works 作品 - SCCD</title>
+  <link rel="stylesheet" href="../css/variables.css">
+  <link rel="stylesheet" href="../css/output.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+  <style>
+    .no-scrollbar::-webkit-scrollbar {
+      display: none !important;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div id="site-header"></div>
+
+  <!-- Main Content -->
+  <main>
+    <!-- Hero Section with Background Image -->
+    <section class="h-screen relative overflow-hidden">
+      <!-- Background Image -->
+      <div class="absolute inset-0 w-full h-full">
+        <img src="../images/SCCD-1-4-0.jpg" alt="Works" class="w-full h-full object-cover">
+      </div>
+
+      <!-- Black Gradient Overlay (0% at top, 100% at bottom) -->
+      <div class="absolute inset-0 w-full h-full bg-gradient-to-b from-transparent to-black"></div>
+
+      <!-- Content Container -->
+      <div class="site-container h-full relative z-10">
+        <div class="h-full flex flex-col md:flex-row justify-end md:justify-start items-start md:items-end gap-lg md:gap-xl pb-3xl md:pb-2xl pt-[120px] md:pt-0">
+          <!-- Title on the left (Mobile: 100%, Desktop: 50%) -->
+          <div class="w-full md:w-1/2">
+            <h1 class="text-white pb-lg md:pb-xl hero-title">WORKS</h1>
+          </div>
+
+          <!-- Content on the right (Mobile: 100%, Desktop: 50%) -->
+          <div class="w-full md:w-1/2">
+            <p class="text-white mb-xl hero-text-en">
+              A showcase of creative works by students across BFA and MDES programs, demonstrating innovation and excellence in media design.
+            </p>
+            <p class="text-white hero-text-cn">
+              展示學士班與碩士班學生優秀的創意作品，展現媒體設計領域的創新與卓越。
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main Content Section -->
+    <section id="works-section" class="bg-white py-6xl md:py-0">
+
+      <!-- Mobile: 橫向按鈕列 -->
+      <div class="md:hidden site-container mb-xl">
+        <div class="flex flex-row gap-md overflow-x-auto no-scrollbar">
+          <button class="works-section-btn anchor-nav-btn active shrink-0 text-left" data-section="bfa">
+            <span class="anchor-nav-inner"><div>BFA</div><div>學士班</div></span>
+          </button>
+          <button class="works-section-btn anchor-nav-btn shrink-0 text-left" data-section="mdes">
+            <span class="anchor-nav-inner"><div>MDES</div><div>碩士班</div></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Desktop: flex wrapper — nav track + content (仿 about.html) -->
+      <div class="md:flex">
+
+        <!-- 零寬 sticky nav track：高度跟右側 flex-1 內容齊平，sticky 才有效 -->
+        <div class="hidden md:block flex-shrink-0 pointer-events-none z-[100] py-6xl" style="width: 0; overflow: visible;">
+          <div id="works-nav" class="sticky flex flex-col gap-sm pointer-events-auto" style="top: 160px; margin-left: var(--container-padding); width: max-content;">
+            <button class="works-section-btn anchor-nav-btn active w-fit text-left" data-section="bfa">
+              <span class="anchor-nav-inner"><div>BFA</div><div>學士班</div></span>
+            </button>
+            <button class="works-section-btn anchor-nav-btn w-fit text-left" data-section="mdes">
+              <span class="anchor-nav-inner"><div>MDES</div><div>碩士班</div></span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 右側內容：flex-1，高度決定 sticky 的滾動範圍 -->
+        <div class="flex-1 min-w-0 md:py-6xl">
+
+          <div class="site-container">
+            <!-- BFA Panel -->
+            <div class="works-section-panel" id="panel-bfa">
+              <!-- BFA: Category Filter Tabs -->
+              <div class="flex overflow-x-auto md:justify-center gap-md mb-4xl no-scrollbar mx-[calc(var(--container-padding)*-1)] px-[var(--container-padding)] md:mx-0 md:px-0">
+                <button class="works-filter-btn btn-fill shrink-0 active px-sm py-sm text-p2 font-bold transition-all duration-fast rounded-[20px] text-center" data-filter="design-fundamental">
+                  <div class="whitespace-nowrap">Design Fundamental</div>
+                  <div class="mt-1 whitespace-nowrap">創作基礎作品</div>
+                </button>
+                <button class="works-filter-btn btn-fill shrink-0 px-sm py-sm text-p2 font-bold transition-all duration-fast rounded-[20px] text-center" data-filter="animation">
+                  <div class="whitespace-nowrap">Animation</div>
+                  <div class="mt-1 whitespace-nowrap">動畫作品</div>
+                </button>
+                <button class="works-filter-btn btn-fill shrink-0 px-sm py-sm text-p2 font-bold transition-all duration-fast rounded-[20px] text-center" data-filter="creative-media">
+                  <div class="whitespace-nowrap">Creative Media</div>
+                  <div class="mt-1 whitespace-nowrap">創意媒體作品</div>
+                </button>
+              </div>
+              <!-- BFA: Text Description -->
+              <div id="works-intro-container"></div>
+            </div>
+
+            <!-- MDES Panel (hidden by default) -->
+            <div class="works-section-panel hidden" id="panel-mdes"></div>
+          </div>
+
+          <!-- Full Width Hero Image -->
+          <div id="works-hero-container"></div>
+
+          <div class="site-container">
+            <!-- Projects & Video -->
+            <div id="works-details-container"></div>
+          </div>
+
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <div id="site-footer"></div>
+
+  <!-- JavaScript -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollTrigger.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollToPlugin.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/Draggable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>
+  <script src="../js/utils/helpers.js"></script>
+  <script type="module" src="../js/main-modular.js"></script>
+
+</body>
+</html>

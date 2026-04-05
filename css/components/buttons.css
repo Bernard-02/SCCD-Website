@@ -1,0 +1,401 @@
+/**
+ * Button Components
+ * 各種按鈕樣式（Filter、Toggle、Division 等）
+ */
+
+@layer components {
+
+  /* ===== Theme Toggle Button ===== */
+  .theme-toggle-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid white;
+    background: transparent;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: border-color var(--transition-fast), background var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .theme-toggle-circle {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: white;
+    transition: background var(--transition-fast);
+  }
+  /* ===== Faculty Filter Buttons ===== */
+  .faculty-filter-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    background: none;
+    border: none;
+    padding: 0;
+    font-weight: 700;
+    font-size: var(--font-size-p1);
+  }
+
+  .faculty-filter-btn.active .anchor-nav-inner {
+    color: black;
+    /* background set via JS */
+  }
+
+  @media (min-width: 768px) {
+    .faculty-filter-btn:hover .anchor-nav-inner {
+      color: rgba(0, 0, 0, 1);
+    }
+  }
+
+  /* ===== Activities Section Buttons ===== */
+  .activities-section-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    background: none;
+    border: none;
+    padding: 0;
+    font-weight: 700;
+    font-size: var(--font-size-p1);
+  }
+
+  .activities-section-btn.active .anchor-nav-inner {
+    color: black;
+    /* background & rotation set via JS */
+  }
+
+  @media (min-width: 768px) {
+    .activities-section-btn:not(.active):hover .anchor-nav-inner {
+      background: rgba(255, 255, 255, 1);
+      color: rgba(0, 0, 0, 1);
+    }
+  }
+
+  /* ===== Courses Program Buttons ===== */
+  .courses-program-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    background: none;
+    border: none;
+    padding: 0;
+    font-weight: 700;
+    font-size: var(--font-size-p1);
+  }
+
+  .courses-program-btn.active .anchor-nav-inner {
+    color: black;
+    /* background & rotation set via JS */
+  }
+
+  @media (min-width: 768px) {
+    .courses-program-btn:not(.active):hover .anchor-nav-inner {
+      background: rgba(255, 255, 255, 1);
+      color: rgba(0, 0, 0, 1);
+    }
+  }
+
+  /* ===== Activities / Courses Filter Bar ===== */
+  @media (min-width: 768px) {
+    .activities-filter-bar::before,
+    .courses-filter-bar::before {
+      content: '';
+      position: absolute;
+      top: -160px;
+      left: 0;
+      right: 0;
+      height: 160px;
+      background: white;
+    }
+    .activities-filter-bar,
+    .courses-filter-bar {
+      position: relative;
+    }
+  }
+
+  /* ===== Activities Filter Buttons ===== */
+  .activities-filter-btn {
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+    font-weight: 700;
+    font-size: var(--font-size-p1);
+  }
+
+  .activities-filter-btn.active .anchor-nav-inner {
+    color: black;
+    /* background & rotation set via JS */
+  }
+
+  @media (min-width: 768px) {
+    .activities-filter-btn:not(.active):hover .anchor-nav-inner {
+      background: rgba(255, 255, 255, 1);
+      color: rgba(0, 0, 0, 1);
+    }
+  }
+
+  /* ===== Album Filter Options (dropdown-column style) ===== */
+  .album-filter-option {
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: var(--font-size-p2);
+    font-weight: 700;
+    color: black;
+    line-height: 1.6;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+  }
+
+  /* 勾號在右邊：active 顯示，inactive 隱藏 */
+  .album-filter-option .album-cb { display: inline; flex-shrink: 0; }
+  .album-filter-option:not(.active) .album-cb { display: none; }
+
+  /* active 底色由 JS 設定（隨機三原色），這裡設 transition */
+  .album-filter-option {
+    transition: background var(--transition-fast);
+  }
+
+  /* Sort col：寬度固定為最寬選項，header 撐滿同寬 */
+  .album-sort-col {
+    flex-shrink: 0;
+    position: relative;
+    width: max-content;
+  }
+  .album-sort-col .album-filter-col-header {
+    width: max-content;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+  }
+  .album-sort-col .album-filter-col-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    padding-top: var(--spacing-xs);
+    gap: var(--spacing-xs);
+    width: max-content;
+    min-width: 100%;
+    background: white;
+    z-index: 20;
+  }
+
+  /* Sort col 選項：撐滿 list 寬，tick 頂右邊 */
+  .album-sort-col .album-filter-option {
+    font-size: var(--font-size-p1);
+    padding: 1px 4px;
+    color: rgba(0, 0, 0, 0.5);
+    gap: var(--spacing-md);
+    width: 100%;
+  }
+  .album-sort-col .album-filter-option.active {
+    color: black;
+  }
+  @media (min-width: 768px) {
+    .album-sort-col .album-filter-option:not(.active):hover {
+      color: black;
+    }
+  }
+
+  /* files panel 的 sort col：預設 max-content，panel visible 後由 JS 動態設定精確寬度 */
+  .files-sort-col {
+    width: max-content;
+  }
+
+  /* ===== Files Sort Col (mirrors album-sort-col) ===== */
+  .files-sort-col {
+    flex-shrink: 0;
+    position: relative;
+    width: max-content;
+  }
+  .files-sort-col .files-sort-col-header {
+    width: 100%;
+  }
+  .files-sort-col .files-sort-col-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    padding-top: var(--spacing-xs);
+    gap: var(--spacing-xs);
+    width: max-content;
+    min-width: 100%;
+    background: white;
+    z-index: 20;
+  }
+
+  .files-sort-option {
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 1px 4px;
+    font-size: var(--font-size-p1);
+    font-weight: 700;
+    color: rgba(0, 0, 0, 0.5);
+    line-height: 1.6;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+    width: 100%;
+    transition: background var(--transition-fast);
+  }
+  .files-sort-option.active {
+    color: black;
+  }
+
+  .files-sort-option .files-cb { display: inline; flex-shrink: 0; }
+  .files-sort-option:not(.active) .files-cb { display: none; }
+
+  @media (min-width: 768px) {
+    .files-sort-option:not(.active):hover {
+      color: black;
+    }
+  }
+
+  /* scrollbar for files sort list */
+  .files-sort-col-list::-webkit-scrollbar {
+    width: 6px;
+  }
+  .files-sort-col-list::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .files-sort-col-list::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 0;
+  }
+  .files-sort-col-list {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+  }
+
+  /* Filter tag */
+  .album-filter-tag {
+    cursor: pointer;
+    background: black;
+    color: white;
+    border: none;
+    padding: 2px var(--spacing-sm);
+    font-size: var(--font-size-p2);
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    white-space: nowrap;
+  }
+
+
+  /* scrollbar 細（6px），無圓角 */
+  .album-filter-col-list::-webkit-scrollbar {
+    width: 6px;
+  }
+  .album-filter-col-list::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .album-filter-col-list::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 0;
+  }
+  .album-filter-col-list {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+  }
+
+  /* ===== Courses Filter Buttons ===== */
+  .courses-filter-btn {
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+    font-weight: 700;
+    font-size: var(--font-size-p1);
+  }
+
+  .courses-filter-btn.active .anchor-nav-inner {
+    color: black;
+    /* background & rotation set via JS */
+  }
+
+  @media (min-width: 768px) {
+    .courses-filter-btn:not(.active):hover .anchor-nav-inner {
+      background: rgba(255, 255, 255, 1);
+      color: rgba(0, 0, 0, 1);
+    }
+  }
+
+  /* ===== Works Filter Buttons ===== */
+  .works-filter-btn {
+    border: 4px solid #000000;
+    border-radius: 20px;
+    background: transparent;
+    color: #000000;
+    cursor: pointer;
+  }
+
+  .works-filter-btn.active {
+    background: #000000;
+    color: #FFFFFF;
+    font-weight: 700;
+  }
+
+  /* ===== Class Parent Buttons (學士班 / 碩士班) ===== */
+  .class-parent-btn {
+    border: 4px solid #000000;
+    border-radius: 20px;
+    background: transparent;
+    color: #000000;
+    cursor: pointer;
+  }
+
+  .class-parent-btn.active {
+    background: #000000;
+    color: #FFFFFF;
+    font-weight: 700;
+  }
+
+  /* ===== Class Division Toggle Buttons (動畫組 / 創媒組) ===== */
+  .class-division-btn {
+    border: 4px solid #000000;
+    border-radius: 20px;
+    background: transparent;
+    color: #000000;
+    cursor: pointer;
+  }
+
+  .class-division-btn.active {
+    background: #000000;
+    color: #FFFFFF;
+    font-weight: 700;
+  }
+
+  /* ===== BFA Sub-buttons Slide Container ===== */
+  #bfa-sub-btns {
+    transition: max-width 0.35s ease, opacity 0.3s ease, margin 0.35s ease;
+  }
+
+  /* ===== Btn Fill Hover Effect ===== */
+  .btn-fill {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .btn-fill-blob {
+    position: absolute;
+    border-radius: 50%;
+    background: #000000;
+    pointer-events: none;
+    transform-origin: center;
+    z-index: -1;
+  }
+
+}

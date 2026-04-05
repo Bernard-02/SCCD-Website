@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SCCD - Shih Chien University</title>
+  <style>
+    #intro-overlay { position: fixed; inset: 0; background: #ffffff; z-index: 9999; }
+    #site-header header { opacity: 0; }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&family=Bitter:ital,wght@0,400;0,600;0,700;1,400&family=Noto+Serif+TC:wght@400;600;700&display=swap">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <link rel="stylesheet" href="css/output.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.2.3/css/flag-icons.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+</head>
+<body>
+
+  <!-- Intro Animation Overlay -->
+  <div id="intro-overlay">
+    <div id="intro-lottie"></div>
+  </div>
+
+  <!-- Header -->
+  <div id="site-header"></div>
+
+  <!-- Main Content -->
+  <main id="page-content">
+    <section class="h-screen" style="display:flex; align-items:flex-end; padding: var(--spacing-xl); position:relative; z-index:9998; overflow:hidden;">
+
+      <!-- Floating Items Layer -->
+      <div id="floating-layer" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:0; overflow:hidden;"></div>
+
+      <!-- Marquee（獨立定位在 section 內） -->
+      <div id="homepage-marquee-wrap" style="position:absolute; z-index:10; cursor:pointer;">
+        <!-- 跑馬燈條 -->
+        <a id="homepage-marquee-link" href="#" target="_blank" rel="noopener noreferrer" style="display:block; background:#000; padding:0.35rem 0; overflow:hidden; text-decoration:none;">
+          <div class="homepage-marquee-inner">
+            <span id="homepage-marquee-text" class="text-h4" style="color:#fff; font-weight:700; font-size:2.2rem;"></span><span id="homepage-marquee-clone" class="text-h4" style="color:#fff; font-weight:700; font-size:2.2rem;"></span>
+          </div>
+        </a>
+        <!-- 海報展開區（hover 時出現） -->
+        <div id="homepage-marquee-poster" style="position:absolute; left:0; overflow:hidden; max-height:0; transition:max-height 0.4s cubic-bezier(0.25,0,0,1);">
+          <img id="homepage-marquee-poster-img" src="" alt="" style="display:block; width:100%; height:auto;">
+        </div>
+      </div>
+
+      <!-- YouTube Card：絕對定位，JS 負責隨機位置 + 旋轉 -->
+      <div id="homepage-yt-card" class="homepage-card" style="position:absolute; width:160px; height:160px; border-radius:50%; cursor:pointer; overflow:hidden; background:#000; display:flex; align-items:center; justify-content:center; z-index:5;">
+        <div id="homepage-yt-chars" style="position:absolute;inset:0;"></div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- Video Player Lightbox -->
+  <div id="video-player-overlay" style="display:none; position:fixed; inset:0; z-index:10000; background:#000; flex-direction:column; justify-content:center; align-items:center;">
+    <video id="video-player" style="width:95%; max-height:90%; object-fit:contain;" preload="metadata" controlsList="nodownload" oncontextmenu="return false;"></video>
+
+    <!-- Controls 容器（三個獨立區塊，絕對定位在底部偏上） -->
+    <div id="video-controls" style="position:absolute; bottom:3rem; left:0; right:0; padding: 0 24rem; display:flex; align-items:center; justify-content:space-between; pointer-events:none; opacity:0;">
+
+      <!-- 區塊 1：返回鍵 -->
+      <div id="video-block-close" style="background:transparent; padding:0.75rem 1rem; display:flex; align-items:center;">
+        <button id="video-close-btn" style="color:#fff; background:none; border:none; cursor:pointer; padding:0; line-height:1; display:flex; align-items:center;">
+          <i class="fa-solid fa-arrow-left" style="font-size:1.5rem;"></i>
+        </button>
+      </div>
+
+      <!-- 區塊 2：中間 control bar -->
+      <div id="video-block-center" style="background:transparent; padding:0.75rem 1.25rem; display:flex; align-items:center; gap:1.25rem; flex:1; min-width:0; margin:0 1rem;">
+
+        <!-- Play -->
+        <button id="video-play-btn" style="color:#fff; background:none; border:none; cursor:pointer; padding:0; line-height:1; width:1.5rem; text-align:center; flex-shrink:0;">
+          <i class="fa-solid fa-play fa-fw" style="font-size:1.5rem;"></i>
+        </button>
+
+        <!-- 時間軸（flex:1） -->
+        <div id="video-progress-track" style="flex:1; height:4px; background:rgba(255,255,255,0.3); cursor:pointer; position:relative; min-width:0;">
+          <div id="video-progress-fill" style="height:100%; width:0%; pointer-events:none; position:relative;">
+            <div id="video-progress-thumb" style="position:absolute; right:-7px; top:50%; transform:translateY(-50%); width:14px; height:14px; border-radius:50%; background:#000; pointer-events:none;"></div>
+          </div>
+        </div>
+
+        <!-- 剩餘時間 -->
+        <span id="video-time" class="text-p2" style="color:#fff; white-space:nowrap; flex-shrink:0;">0:00</span>
+
+        <!-- Volume -->
+        <div id="video-volume-wrap" style="display:flex; align-items:center; gap:0.75rem; flex-shrink:0;">
+          <button id="video-mute-btn" style="color:#fff; background:none; border:none; cursor:pointer; padding:0; line-height:1;">
+            <i class="fa-solid fa-volume-high" style="font-size:1.1rem;"></i>
+          </button>
+          <div id="video-volume-track" style="width:0; overflow:hidden; transition:width 0.25s cubic-bezier(0.25,0,0,1); height:4px; background:rgba(255,255,255,0.3); position:relative; cursor:pointer; flex-shrink:0;">
+            <div id="video-volume-fill" style="height:100%; width:100%; background:#000; pointer-events:none;"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 區塊 3：全螢幕 -->
+      <div id="video-block-fullscreen" style="background:transparent; padding:0.75rem 1rem; display:flex; align-items:center;">
+        <button id="video-fullscreen-btn" style="color:#fff; background:none; border:none; cursor:pointer; padding:0; line-height:1;">
+          <i class="fa-solid fa-expand" style="font-size:1.25rem;"></i>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer id="site-footer-static" class="h-screen bg-black text-white relative overflow-hidden">
+    <div class="site-container h-full" style="padding-top: var(--spacing-3xl); padding-bottom: var(--spacing-xl);">
+      <div class="grid-12 h-full relative">
+
+        <!-- Privacy Policy Links -->
+        <div class="col-span-12 md:col-start-11 md:col-span-2 relative md:absolute md:bottom-0 md:pb-2xl z-10 flex flex-col items-start order-last md:order-none md:mb-0">
+          <div class="flex flex-col gap-xs items-start">
+            <a href="pages/privacy-policy.html" class="text-white hover:text-gray-7 transition-colors duration-fast text-left">Privacy Policy</a>
+            <a href="pages/terms-and-conditions.html" class="text-white hover:text-gray-7 transition-colors duration-fast text-left">Terms and Conditions</a>
+            <p class="text-white text-left mt-lg">SCCD@ 2026</p>
+          </div>
+        </div>
+
+        <!-- Footer Content: 手機版線性堆疊，桌面版隨機定位 -->
+        <div class="col-span-12 flex flex-col md:block md:relative md:h-full gap-xl md:gap-0">
+
+          <!-- Logo -->
+          <div class="footer-logo mb-sm md:mb-0">
+            <div id="footer-logo" class="w-[100px] h-[100px] md:w-[250px] md:h-[250px]"></div>
+          </div>
+
+          <!-- FAX -->
+          <div class="footer-fax">
+            <h6 class="mb-xs text-white">FAX 傳真</h6>
+            <p class="text-white">+886 2 2538 1111 #7050</p>
+          </div>
+
+          <!-- TEL -->
+          <div class="footer-tel">
+            <h6 class="mb-xs text-white">TEL 電話</h6>
+            <p class="text-white">+886 2 2538 1111 #7211</p>
+          </div>
+
+          <!-- Office -->
+          <div class="footer-office">
+            <h6 class="mb-xs text-white">Office 學系辦公室</h6>
+            <p class="text-white max-w-sm mb-sm">5F, Building A, Shih Chien University, No.70, Dazhi Street, Zhongshan District, Taipei City, Taiwan</p>
+            <p class="text-white max-w-sm">台灣台北市中山區大直街70號 實踐大學A棟5樓</p>
+          </div>
+
+          <!-- E-Mail -->
+          <div class="footer-email">
+            <h6 class="mb-xs text-white">E-Mail 電子郵件</h6>
+            <p class="text-white">sccd@g2.usc.edu.tw</p>
+          </div>
+
+          <!-- Links -->
+          <div class="footer-links">
+            <h6 class="mb-xs text-white">Links 相關連結</h6>
+            <div class="flex flex-col gap-xs">
+              <a href="https://www.usc.edu.tw/" target="_blank" rel="noopener noreferrer" class="text-p2 text-white hover:text-gray-7 transition-colors duration-fast">
+                Shih Chien University 實踐大學
+              </a>
+              <a href="http://www.scdesign.usc.edu.tw/" target="_blank" rel="noopener noreferrer" class="text-p2 text-white hover:text-gray-7 transition-colors duration-fast">
+                College of Design, USC 實踐大學設計學院
+              </a>
+            </div>
+          </div>
+
+          <!-- Social Media Icons (Separated) -->
+          <div class="flex gap-lg md:block footer-social">
+            <!-- YouTube -->
+            <div class="footer-youtube">
+              <a href="https://www.youtube.com/@scsccd" target="_blank" rel="noopener noreferrer" class="text-white hover:text-gray-7 transition-colors duration-fast">
+                <i class="fa-brands fa-youtube text-h3"></i>
+              </a>
+            </div>
+            <!-- Instagram -->
+            <div class="footer-instagram">
+              <a href="https://www.instagram.com/communications.design_sccd" target="_blank" rel="noopener noreferrer" class="text-white hover:text-gray-7 transition-colors duration-fast">
+                <i class="fa-brands fa-instagram text-h3"></i>
+              </a>
+            </div>
+            <!-- Facebook -->
+            <div class="footer-facebook">
+              <a href="https://www.facebook.com/communications.design" target="_blank" rel="noopener noreferrer" class="text-white hover:text-gray-7 transition-colors duration-fast">
+                <i class="fa-brands fa-facebook text-h3"></i>
+              </a>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  </footer>
+
+  <!-- JavaScript -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollTrigger.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollToPlugin.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/Draggable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>
+  <!-- Helper Functions - 必須在 main.js 之前載入 -->
+  <script src="js/utils/helpers.js"></script>
+  <script type="module" src="js/main-modular.js"></script>
+
+</body>
+</html>

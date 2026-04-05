@@ -1,0 +1,327 @@
+[
+  {
+    "id": "1",
+    "type": "fulltime",
+    "image": "../images/S__6742028.jpg",
+    "nameEn": "Ta-Lih Shieh",
+    "nameZh": "謝大立",
+    "titleEn": "Founder",
+    "titleZh": "創辦人",
+    "sections": [
+      {
+        "titleEn": "Education",
+        "titleZh": "學歷",
+        "type": "education",
+        "items": [
+          {
+            "countryZh": "美國", "countryEn": "United States",
+            "schoolZh": "普瑞特藝術學院", "schoolEn": "Pratt Institute",
+            "majorZh": "工業設計", "majorEn": "Industrial Design",
+            "degreeZh": "碩士", "degreeEn": "M.I.D."
+          }
+        ]
+      },
+      {
+        "titleEn": "Experience",
+        "titleZh": "經歷",
+        "type": "experience",
+        "items": [
+          { "year": "1999", "organization": "全國工業類技職教育一貫課程規劃", "role": "設計組委員" },
+          { "year": "1999", "organization": "中華民國平面設計協會 TOP STAR", "role": "作品評審委員" },
+          { "year": "1999", "organization": "行政院文建會國家藝術村方向研究計劃", "role": "諮詢委員" },
+          { "year": "1995", "organization": "中華民國工業設計學會", "role": "理事" },
+          { "year": "1985", "organization": "實踐設計管理學院室內空間設計學系", "role": "" },
+          { "year": "1982", "organization": "外貿協會設計處", "role": "設計專員" }
+        ]
+      },
+      {
+        "titleEn": "Awards",
+        "titleZh": "獲獎",
+        "type": "awards",
+        "items": [
+          { "year": "", "name": "德國紅點設計獎", "work": "", "award": "最佳品質設計教育獎" },
+          { "year": "", "name": "德國 Design Kalender 設計年鑑", "work": "", "award": "收錄" },
+          { "year": "", "name": "義大利 MISURA EMUE 傢具公司國際設計競賽", "work": "", "award": "創意作品" },
+          { "year": "", "name": "日本大阪國際設計競賽", "work": "", "award": "銅牌大賞" },
+          { "year": "", "name": "日本名古屋國際設計大賽", "work": "", "award": "銀獎、評審團大賞" },
+          { "year": "", "name": "日本福岡亞洲數位藝術大賽", "work": "動態影像類組", "award": "入圍賞" },
+          { "year": "", "name": "國際 Swarovski 水晶設計競賽", "work": "", "award": "首獎" }
+        ]
+      },
+      {
+        "titleEn": "Courses",
+        "titleZh": "授課",
+        "type": "courses",
+        "items": [
+          { "titleEn": "Design Fundamental", "titleZh": "創作基礎", "courseId": "design-fundamental", "program": "bfa" },
+          { "titleEn": "Design Studio", "titleZh": "設計實務", "courseId": "design-studio", "program": "bfa" }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "2",
+    "type": "fulltime",
+    "image": "../images/S__6742028.jpg",
+    "nameEn": "Rex Takeshi Chen",
+    "nameZh": "陳威志",
+    "titleEn": "Associate Professor",
+    "titleZh": "副教授",
+    "sections": [
+      {
+        "titleEn": "Education",
+        "titleZh": "學歷",
+        "type": "education",
+        "items": [
+          { "country": "台灣", "school": "國立臺灣大學", "major": "設計學系", "degree": "博士" }
+        ]
+      },
+      {
+        "titleEn": "Experience",
+        "titleZh": "經歷",
+        "type": "experience",
+        "items": [
+          { "year": "", "organization": "實踐大學媒體傳達設計學系", "role": "副教授" },
+          { "year": "", "organization": "台北市立美術館", "role": "策展人" },
+          { "year": "", "organization": "台灣設計協會", "role": "理事" }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "3",
+    "type": "fulltime",
+    "image": "../images/S__6742028.jpg",
+    "nameEn": "Professor Name 3",
+    "nameZh": "教授名字 3",
+    "titleEn": "Assistant Professor",
+    "titleZh": "助理教授",
+    "sections": [
+      {
+        "titleEn": "Education",
+        "titleZh": "學歷",
+        "type": "education",
+        "items": [
+          { "country": "英國", "school": "Royal College of Art", "major": "Communication Design", "degree": "MA" }
+        ]
+      },
+      {
+        "titleEn": "Experience",
+        "titleZh": "經歷",
+        "type": "experience",
+        "items": [
+          { "year": "", "organization": "實踐大學媒體傳達設計學系", "role": "助理教授" },
+          { "year": "", "organization": "自由設計師", "role": "平面設計與品牌顧問" }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "4",
+    "type": "fulltime",
+    "image": "../images/S__6742028.jpg",
+    "nameEn": "Professor Name 4",
+    "nameZh": "教授名字 4",
+    "titleEn": "Assistant Professor",
+    "titleZh": "助理教授",
+    "sections": [
+      {
+        "titleEn": "Education",
+        "titleZh": "學歷",
+        "type": "education",
+        "items": [
+          { "country": "美國", "school": "Parsons School of Design", "major": "Fine Arts", "degree": "MFA" }
+        ]
+      },
+      {
+        "titleEn": "Experience",
+        "titleZh": "經歷",
+        "type": "experience",
+        "items": [
+          { "year": "", "organization": "實踐大學媒體傳達設計學系", "role": "助理教授" },
+          { "year": "", "organization": "國際設計競賽", "role": "評審委員" }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "5",
+    "type": "parttime",
+    "image": "../images/S__6742028.jpg",
+    "nameEn": "Professor Name 5",
+    "nameZh": "教授名字 5",
+    "titleEn": "Lecturer",
+    "titleZh": "講師"
+  },
+  {
+    "id": "6",
+    "type": "parttime",
+    "image": "../images/S__6742028.jpg",
+    "nameEn": "Professor Name 6",
+    "nameZh": "教授名字 6",
+    "titleEn": "Lecturer",
+    "titleZh": "講師"
+  },
+  {
+    "id": "7",
+    "type": "parttime",
+    "image": "../images/S__6742028.jpg",
+    "nameEn": "Professor Name 7",
+    "nameZh": "教授名字 7",
+    "titleEn": "Lecturer",
+    "titleZh": "講師"
+  },
+  {
+    "id": "8",
+    "type": "fulltime",
+    "image": "../images/S__6742028.jpg",
+    "nameEn": "Professor Name 8",
+    "nameZh": "教授名字 8",
+    "titleEn": "Assistant Professor",
+    "titleZh": "助理教授",
+    "sections": [
+      {
+        "titleEn": "Education",
+        "titleZh": "學歷",
+        "type": "education",
+        "items": [
+          { "country": "美國", "school": "Savannah College of Art and Design", "major": "Fine Arts", "degree": "MFA" }
+        ]
+      },
+      {
+        "titleEn": "Experience",
+        "titleZh": "經歷",
+        "type": "experience",
+        "items": [
+          { "year": "", "organization": "實踐大學媒體傳達設計學系", "role": "助理教授" },
+          { "year": "", "organization": "互動媒體設計", "role": "專業顧問" }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "9",
+    "type": "fulltime",
+    "image": "../images/S__6742028.jpg",
+    "nameEn": "Professor Name 9",
+    "nameZh": "教授名字 9",
+    "titleEn": "Associate Professor",
+    "titleZh": "副教授",
+    "sections": [
+      {
+        "titleEn": "Education",
+        "titleZh": "學歷",
+        "type": "education",
+        "items": [
+          { "country": "台灣", "school": "國立台灣師範大學", "major": "設計學系", "degree": "博士" }
+        ]
+      },
+      {
+        "titleEn": "Experience",
+        "titleZh": "經歷",
+        "type": "experience",
+        "items": [
+          { "year": "", "organization": "實踐大學媒體傳達設計學系", "role": "副教授" },
+          { "year": "", "organization": "台灣平面設計協會", "role": "常務理事" }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "10",
+    "type": "fulltime",
+    "image": "../images/S__6742028.jpg",
+    "nameEn": "Professor Name 10",
+    "nameZh": "教授名字 10",
+    "titleEn": "Professor",
+    "titleZh": "教授",
+    "sections": [
+      {
+        "titleEn": "Education",
+        "titleZh": "學歷",
+        "type": "education",
+        "items": [
+          { "country": "日本", "school": "Tokyo University of the Arts", "major": "Design", "degree": "PhD" }
+        ]
+      },
+      {
+        "titleEn": "Experience",
+        "titleZh": "經歷",
+        "type": "experience",
+        "items": [
+          { "year": "", "organization": "實踐大學媒體傳達設計學系", "role": "教授" },
+          { "year": "", "organization": "亞洲設計聯盟", "role": "理事長" }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "11",
+    "type": "parttime",
+    "image": "../images/S__6742028.jpg",
+    "nameEn": "Professor Name 11",
+    "nameZh": "教授名字 11",
+    "titleEn": "Lecturer",
+    "titleZh": "講師"
+  },
+  {
+    "id": "12",
+    "type": "fulltime",
+    "image": "../images/S__6742028.jpg",
+    "nameEn": "Professor Name 12",
+    "nameZh": "教授名字 12",
+    "titleEn": "Assistant Professor",
+    "titleZh": "助理教授",
+    "sections": [
+      {
+        "titleEn": "Education",
+        "titleZh": "學歷",
+        "type": "education",
+        "items": [
+          { "country": "英國", "school": "Goldsmiths, University of London", "major": "Design", "degree": "MA" }
+        ]
+      },
+      {
+        "titleEn": "Experience",
+        "titleZh": "經歷",
+        "type": "experience",
+        "items": [
+          { "year": "", "organization": "實踐大學媒體傳達設計學系", "role": "助理教授" },
+          { "year": "", "organization": "UI/UX 設計顧問", "role": "使用者經驗設計專家" }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin-1",
+    "type": "admin",
+    "image": "../images/S__6742028.jpg",
+    "nameEn": "Secretary Name 1",
+    "nameZh": "執行秘書 1",
+    "titleEn": "Secretary",
+    "titleZh": "執行秘書",
+    "sections": [
+      {
+        "titleEn": "Contact",
+        "titleZh": "聯絡資訊",
+        "content": "Email: secretary1@sccd.edu.tw\nPhone: +886-2-1234-5678"
+      }
+    ]
+  },
+  {
+    "id": "admin-2",
+    "type": "admin",
+    "image": "../images/S__6742028.jpg",
+    "nameEn": "Secretary Name 2",
+    "nameZh": "執行秘書 2",
+    "titleEn": "Secretary",
+    "titleZh": "執行秘書",
+    "sections": [
+      {
+        "titleEn": "Contact",
+        "titleZh": "聯絡資訊",
+        "content": "Email: secretary2@sccd.edu.tw\nPhone: +886-2-1234-5679"
+      }
+    ]
+  }
+]

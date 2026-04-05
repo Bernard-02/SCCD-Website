@@ -1,0 +1,93 @@
+<header class="fixed top-0 left-0 right-0 z-50">
+  <div class="site-container">
+    <!-- 桌面版：整排 flex，1rem top padding -->
+    <div class="hidden md:flex items-center pt-[2.5rem]">
+
+      <!-- Logo -->
+      <div class="relative flex-shrink-0 z-10">
+        <a href="../index.html" class="absolute -top-4 left-0 z-50">
+          <div id="header-logo" class="w-[180px] h-[180px]"></div>
+        </a>
+        <!-- 佔位撐開 logo 寬度 -->
+        <div class="w-[180px] h-[56px]"></div>
+      </div>
+
+      <!-- About ~ Admission 組（矩形，左邊往 logo 後面延伸） -->
+      <div data-bar="about" class="flex-shrink-0 ml-2xl bg-white rounded-none">
+        <nav>
+          <ul class="flex items-center gap-xl px-sm py-xs">
+            <li><a href="about.html" class="nav-link"><span>About</span><span class="nav-link-cn">關於學系</span></a></li>
+            <li><a href="faculty.html" class="nav-link"><span>Faculty</span><span class="nav-link-cn">師資</span></a></li>
+            <li><a href="courses.html" class="nav-link"><span>Courses</span><span class="nav-link-cn">課程</span></a></li>
+            <li><a href="works.html" class="nav-link"><span>Works</span><span class="nav-link-cn">作品</span></a></li>
+            <li><a href="activities.html" class="nav-link"><span>Activities</span><span class="nav-link-cn">動態</span></a></li>
+            <li><a href="admission.html" class="nav-link"><span>Admission</span><span class="nav-link-cn">入學</span></a></li>
+          </ul>
+        </nav>
+      </div>
+
+      <!-- 彈性空間，把右側三組推到最右 -->
+      <div class="flex-1"></div>
+
+      <!-- Library 組 -->
+      <div data-bar="library" class="flex-shrink-0 bg-black ml-lg" style="transition: background 0.4s ease;">
+        <div class="px-xs py-xs">
+          <a href="library.html" class="nav-link text-white"><span>Library</span><span class="nav-link-cn">檔案室</span></a>
+        </div>
+      </div>
+
+      <!-- Generate 組 -->
+      <div data-bar="generate" class="flex-shrink-0 bg-black ml-lg" style="transition: background 0.4s ease;">
+        <div class="px-xs py-xs">
+          <a href="generate.html" class="nav-link font-bold text-white">CREATE!</a>
+        </div>
+      </div>
+
+      <!-- Mode 按鈕（圓底） -->
+      <div id="mode-btn" class="flex-shrink-0 flex items-center justify-center ml-lg" style="transition: background 0.4s ease;">
+        <button class="theme-toggle-btn" title="切換模式">
+          <span class="theme-toggle-circle"></span>
+        </button>
+      </div>
+
+
+    </div>
+
+    <!-- 手機版：logo + 漢堡按鈕 -->
+    <div class="grid-12 items-center py-md md:hidden">
+      <div class="col-span-6 relative">
+        <a href="../index.html" class="absolute -top-4 left-0 z-50">
+          <div class="w-[80px] h-[80px]"></div>
+        </a>
+      </div>
+      <div class="col-span-6 flex justify-end items-center gap-sm relative z-50">
+        <button class="theme-toggle-btn" title="切換模式">
+          <span class="theme-toggle-circle"></span>
+        </button>
+        <button class="mobile-menu-btn">
+          <i class="fa-solid fa-bars text-h4 text-black"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 手機版全螢幕選單（桌面版隱藏） -->
+  <div class="mobile-nav fixed inset-0 bg-white z-40 md:hidden flex flex-col" style="transform: translateX(-100%);">
+    <div class="site-container flex-1 flex flex-col pt-6xl pb-3xl">
+      <nav class="flex-1 overflow-y-auto overflow-x-hidden">
+        <ul class="flex flex-col gap-md">
+          <li><a href="about.html" class="mobile-nav-link block text-h4 font-semibold text-white">About <span class="text-black">關於學系</span></a></li>
+          <li><a href="faculty.html" class="mobile-nav-link block text-h4 font-semibold text-white">Faculty <span class="text-black">師資</span></a></li>
+          <li><a href="courses.html" class="mobile-nav-link block text-h4 font-semibold text-white">Courses <span class="text-black">課程</span></a></li>
+          <li><a href="works.html" class="mobile-nav-link block text-h4 font-semibold text-white">Works <span class="text-black">作品</span></a></li>
+          <li><a href="activities.html" class="mobile-nav-link block text-h4 font-semibold text-white">Activities <span class="text-black">動態</span></a></li>
+          <li><a href="library.html" class="mobile-nav-link block text-h4 font-semibold text-white">Library <span class="text-black">檔案室</span></a></li>
+          <li><a href="admission.html" class="mobile-nav-link block text-h4 font-semibold text-white">Admission <span class="text-black">入學</span></a></li>
+        </ul>
+      </nav>
+      <div class="mt-2xl">
+        <a href="generate.html" class="block text-h4 font-bold">CREATE!</a>
+      </div>
+    </div>
+  </div>
+</header>

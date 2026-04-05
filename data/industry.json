@@ -1,0 +1,45 @@
+[
+  {
+    "year": 2025,
+    "items": [
+      {
+        "title": "產學合作計畫一",
+        "title_en": "Industry-Academia Project 1",
+        "subtitle": "University Social Responsibility (USR) Program",
+        "subtitle_zh": "大學社會責任實踐（USR）計畫",
+        "date": "2025.03.10",
+        "category": "seminars",
+        "guests": [
+          {
+            "name": "Company Name",
+            "name_zh": "合作公司名稱"
+          }
+        ],
+        "images": [
+          "../images/SCCD-1-4-0.jpg",
+          "../images/SCCD-1-4-1.jpg"
+        ],
+        "references": [
+          {
+            "section": "workshop",
+            "itemId": "w-2025-5y2sgp",
+            "labelEn": "Workshop",
+            "labelZh": "工作坊",
+            "titleEn": "Listen to Island of Body: Sensory Awareness and Improvisational Body Texture Workshop (II)",
+            "titleZh": "傾聽身體之島：感官覺察與即興肢體質地工作坊（II）",
+            "coverSrc": "../images/2021-動畫-Pitch-Bible-01.png"
+          },
+          {
+            "href": "../pages/library.html?section=files&item=1",
+            "labelEn": "Files",
+            "labelZh": "檔案庫",
+            "titleEn": "Publication Title 1",
+            "titleZh": "出版物標題 1",
+            "coverSrc": "../images/2021-動畫-Pitch-Bible-01.png"
+          }
+        ],
+        "id": "i-2025-a3hi06"
+      }
+    ]
+  }
+]
