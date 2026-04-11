@@ -199,10 +199,15 @@ export function reapplySearch(panelId) {
 
 // ── Init ───────────────────────────────────────────────────────────────────
 
+let scrollHandler = null;
+
 export function initActivitiesSearch() {
   // scroll hide/show filter bar
   let lastScrollY = window.scrollY;
-  window.addEventListener('scroll', () => {
+  if (scrollHandler) {
+    window.removeEventListener('scroll', scrollHandler);
+  }
+  scrollHandler = () => {
     const currentY = window.scrollY;
     const goingDown = currentY > lastScrollY;
     lastScrollY = currentY;
@@ -215,7 +220,8 @@ export function initActivitiesSearch() {
     } else {
       activeBar.classList.remove('bar-hidden');
     }
-  }, { passive: true });
+  };
+  window.addEventListener('scroll', scrollHandler, { passive: true });
 
   // 切換 panel 時清除所有 bar-hidden
   document.querySelectorAll('.activities-section-btn').forEach(btn => {

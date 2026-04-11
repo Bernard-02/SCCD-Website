@@ -581,7 +581,7 @@ export async function loadListInto(containerId, url, options = {}) {
       const filterBar = panelSelector
         ? document.querySelector(`${panelSelector} .activities-filter-bar`)
         : container.closest('.activities-panel')?.querySelector('.activities-filter-bar');
-      const top = filterBar ? 160 + filterBar.offsetHeight : 160;
+      const top = filterBar ? 200 + filterBar.offsetHeight : 200;
       container.querySelectorAll('.list-year-toggle').forEach(el => { el.style.top = top + 'px'; });
     }
   }
@@ -680,7 +680,7 @@ export async function loadIndustryInto(containerId) {
 
 // 分別載入特設 / 常設到各自的 container
 export async function loadExhibitionsInto() {
-  await Promise.all([
+  const fns = await Promise.all([
     loadListInto('exhibitions-list-special', '/data/general-activities.json', {
       categoryFilter: 'exhibitions',
       visitTypeFilter: 'special', visitTypeField: 'exhibitionType',
@@ -691,11 +691,14 @@ export async function loadExhibitionsInto() {
       panelSelector: '#panel-exhibitions', scrollTrigger: true,
     }),
   ]);
+  return () => {
+    fns.forEach(fn => { if (fn) fn(); });
+  };
 }
 
 // 分別載入 outbound / inbound 到各自的 container
 export async function loadVisitsInto() {
-  await Promise.all([
+  const fns = await Promise.all([
     loadListInto('visits-list-outbound', '/data/general-activities.json', {
       categoryFilter: 'visits', visitTypeFilter: 'outbound',
       panelSelector: '#panel-visits', scrollTrigger: true,
@@ -705,5 +708,7 @@ export async function loadVisitsInto() {
       panelSelector: '#panel-visits', scrollTrigger: true,
     }),
   ]);
+  return () => {
+    fns.forEach(fn => { if (fn) fn(); });
+  };
 }
-

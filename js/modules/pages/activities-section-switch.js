@@ -46,7 +46,7 @@ export async function navigateToItem(section, itemId) {
   const panel      = document.getElementById(`panel-${section}`);
   const filterBar  = panel?.querySelector('.activities-filter-bar');
   const filterBarH = filterBar?.offsetHeight || 0;
-  const compensate = 160 + filterBarH + 16;
+  const compensate = 200 + filterBarH + 16;
 
   let targetTop = 0;
   let el = target;
@@ -143,19 +143,8 @@ async function switchToSection(section, btns, shouldScroll) {
   if (shouldScroll) {
     const sectionEl = document.getElementById('activities-content-section') || document.getElementById('library-content-section');
     if (sectionEl) {
-      const top = sectionEl.offsetTop;
-
-      if (typeof gsap !== 'undefined' && typeof ScrollToPlugin !== 'undefined') {
-        gsap.to(window, {
-          scrollTo: { y: top },
-          duration: 0.5,
-          ease: 'power2.inOut',
-          onComplete: () => { if (playAnimation) playAnimation(); },
-        });
-      } else {
-        window.scrollTo({ top, behavior: 'smooth' });
-        if (playAnimation) setTimeout(playAnimation, 800);
-      }
+      sectionEl.scrollIntoView({ behavior: 'smooth' });
+      if (playAnimation) setTimeout(playAnimation, 600);
     }
   } else {
     // 初始載入不 scroll，但有動畫的 panel 直接播

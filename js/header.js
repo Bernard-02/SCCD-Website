@@ -12,7 +12,7 @@ export function triggerGenerateLogo() {
 
   // 清除舊的 SVG/cursor（避免重複觸發時疊加）
   const logoContainer = logo.parentNode;
-  logoContainer.querySelectorAll('svg, [data-gen-cursor]').forEach(el => el.remove());
+  logoContainer.querySelectorAll('#gen-logo-svg, [data-gen-cursor]').forEach(el => el.remove());
   logo.style.display = '';
 
   const isInverse = document.body.classList.contains('mode-inverse');
@@ -37,6 +37,7 @@ export function triggerGenerateLogo() {
   }
 
   const svgEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svgEl.id = 'gen-logo-svg';
   svgEl.setAttribute('viewBox', '0 0 1135 320');
   svgEl.setAttribute('preserveAspectRatio', 'xMinYMin meet');
   svgEl.style.cssText = 'height:205px;width:205px;position:absolute;top:16px;left:0;overflow:visible;pointer-events:none;z-index:1;';
@@ -74,7 +75,7 @@ export function triggerGenerateLogo() {
   tl.set(logo,   { display: 'none' });
   tl.to({}, { duration: 0.15 });
   tl.set(cursor, { visibility: 'hidden' });
-  tl.to({}, { duration: 1 });
+  tl.to({}, { duration: 0.5 });
   tl.set(cursorNew, { left: -GAP });
   tl.call(() => startBlink(cursorNew));
   tl.to({}, { duration: 530 * 3 / 1000 });
@@ -88,6 +89,14 @@ export function triggerGenerateLogo() {
   tl.to({}, { duration: 530 * 3 / 1000 });
   tl.call(() => stopBlink(cursorNew));
   tl.set(cursorNew, { visibility: 'hidden' });
+}
+
+export function restoreHeaderLogo() {
+  const logo = document.getElementById('header-logo');
+  if (!logo) return;
+  const logoContainer = logo.parentNode;
+  if (logoContainer) logoContainer.querySelectorAll('#gen-logo-svg, [data-gen-cursor]').forEach(el => el.remove());
+  logo.style.display = '';
 }
 
 // ── Active Nav State（Router 換頁時呼叫）──────────────────────
@@ -152,6 +161,30 @@ export function updateNavActive(page) {
   const isLibraryActive  = activePage === 'library';
   const isGenerateActive = activePage === 'generate';
 
+  // Logo 尺寸：generate 頁和一般頁都是大的（180），library 頁是小的（100）
+  const logoEl = document.getElementById('header-logo');
+  if (logoEl && typeof gsap !== 'undefined' && window.innerWidth >= 768) {
+    // ScrollTrigger の scroll shrink tween を全部 kill
+    if (typeof ScrollTrigger !== 'undefined') {
+      ScrollTrigger.getAll().forEach(st => {
+        if (st.vars && st.vars.trigger === 'body') st.kill();
+      });
+    }
+    gsap.killTweensOf(logoEl);
+    if (isLibraryActive) {
+      gsap.set(logoEl, { width: 100, height: 100 });
+    } else {
+      gsap.set(logoEl, { width: 180, height: 180 });
+      // 一般頁面重新建立 scroll shrink
+      if (!isGenerateActive && typeof ScrollTrigger !== 'undefined') {
+        gsap.to(logoEl, {
+          width: 100, height: 100, ease: 'none',
+          scrollTrigger: { trigger: 'body', start: 'top top', end: '+=300', scrub: 0.5 }
+        });
+      }
+    }
+  }
+
   function setSideBar(el, isActive) {
     if (!el) return;
     el.style.background = isActive ? '#000' : '#fff';
@@ -169,14 +202,27 @@ export function updateNavActive(page) {
     if (toggleCircle) { toggleCircle.style.background = '#000'; }
   }
 
-  // About bar scroll collapse：library 頁不縮
+  // About bar scroll collapse：library 頁不縮，一般頁面重建 ScrollTrigger
   const aboutBarScrollEl = header.querySelector('[data-bar="about"]');
   if (aboutBarScrollEl && typeof gsap !== 'undefined') {
     const ML_START = 64, ML_END = 0;
+    gsap.killTweensOf(aboutBarScrollEl);
     if (isLibraryActive) {
       gsap.set(aboutBarScrollEl, { marginLeft: ML_END });
     } else {
       gsap.set(aboutBarScrollEl, { marginLeft: ML_START });
+      if (!isGenerateActive && typeof ScrollTrigger !== 'undefined') {
+        ScrollTrigger.create({
+          trigger: 'body',
+          start: 'top top',
+          end: '+=120',
+          scrub: 0.6,
+          onUpdate: (self) => {
+            const ml = ML_START + (ML_END - ML_START) * self.progress;
+            gsap.to(aboutBarScrollEl, { marginLeft: ml, duration: 0.4, ease: 'power2.out', overwrite: 'auto' });
+          }
+        });
+      }
     }
   }
 }
@@ -316,12 +362,15 @@ export function initHeader() {
         }
       });
     }
-    if (logo && typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined' && currentPage !== 'generate') {
+    if (logo && typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined') {
       const isDesktop = window.matchMedia('(min-width: 768px)');
       const isLibrary = currentPage === 'library';
+      const isGenerate = currentPage === 'generate';
       if (isDesktop.matches) {
         if (isLibrary) {
           gsap.set(logo, { width: 100, height: 100 });
+        } else if (isGenerate) {
+          gsap.set(logo, { width: 180, height: 180 });
         } else {
           gsap.set(logo, { width: 180, height: 180 });
           gsap.to(logo, {
@@ -385,7 +434,7 @@ export function initHeader() {
       if (!footerEl) return false;
       const logoEl = document.getElementById('header-logo');
       window.addEventListener('scroll', () => {
-        const isNearFooter = footerEl.getBoundingClientRect().top < window.innerHeight * 0.5;
+        const isNearFooter = footerEl.offsetHeight > 0 && footerEl.getBoundingClientRect().top < window.innerHeight * 0.5;
         header.classList.toggle('header-hidden', isNearFooter);
         if (logoEl && typeof gsap !== 'undefined') {
           if (isNearFooter && !logoHidden) {

@@ -26,6 +26,11 @@
     gap: 0 !important; /* 強制無間距 */
   }
 
+  /* colored-accordion：旋轉卡片版，允許溢出 */
+  .colored-accordion {
+    overflow: visible !important;
+  }
+
   @media (min-width: 768px) {
     .accordion-wrapper {
       flex-direction: row;
@@ -64,7 +69,7 @@
     display: flex;
     align-items: flex-end;    /* 文字靠底部 */
     justify-content: center;
-    padding: var(--spacing-xl) var(--spacing-md);
+    padding: var(--spacing-md) var(--spacing-sm);
   }
 
   /* Accordion Label Colors */
@@ -90,6 +95,8 @@
   }
 
   /* Text color adjustment for contrast */
+  .colored-accordion .accordion-item:nth-child(3n+1) .accordion-label-inner,
+  .colored-accordion .accordion-item:nth-child(3n+1) .accordion-text-wrap p,
   .colored-accordion .accordion-item:nth-child(3n+2) .accordion-label-inner,
   .colored-accordion .accordion-item:nth-child(3n+2) .accordion-text-wrap p,
   .colored-accordion .accordion-item:nth-child(3n) .accordion-label-inner,
@@ -123,6 +130,7 @@
     width: 0;                 /* 初始收合 */
     flex-shrink: 0;
     box-sizing: border-box;
+    height: 100%;             /* colored-accordion 展開不跳動 */
     /* padding 移至 inner 或由 gap 控制，這裡保持乾淨以利寬度計算 */
   }
 
@@ -154,7 +162,7 @@
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
-    padding: var(--spacing-xl);
+    padding: var(--spacing-md) var(--spacing-lg) var(--spacing-md) var(--spacing-md);
     overflow-y: auto;
   }
 

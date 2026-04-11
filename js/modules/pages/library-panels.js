@@ -592,9 +592,12 @@ async function initFilesPanel() {
               </div>
               ${coverHtml}
             </div>`;
-          div.addEventListener('click', () => {
-            if (item.pdfUrl) document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl } }));
-          });
+          if (item.pdfUrl) {
+            div.style.cursor = 'pointer';
+            div.addEventListener('click', () => {
+              document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl } }));
+            });
+          }
 
           // 依比例設定 cover 尺寸（同 album thumb 邏輯）
           const coverImg = div.querySelector('.files-item-cover');

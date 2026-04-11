@@ -5,9 +5,30 @@
 
 export function initAnchorNav() {
   const navButtons = document.querySelectorAll('.anchor-nav-btn');
-  // 只選取有 id 的 section，避免選到其他無關元素
-  const sections = document.querySelectorAll('section[id]');
-  
+
+  // Build sectionMap: observed element → button target id
+  // Observe section[id] + any non-section nav targets (e.g. div#works)
+  // For zero-height anchor divs, observe their next sibling with content instead
+  const sectionMap = new Map();
+
+  document.querySelectorAll('section[id]').forEach(el => {
+    sectionMap.set(el, el.id);
+  });
+
+  navButtons.forEach(btn => {
+    const id = btn.getAttribute('data-target');
+    if (!id) return;
+    const el = document.getElementById(id);
+    if (!el || sectionMap.has(el)) return;
+    // Zero-height anchor divs: observe next sibling with actual content
+    const observeEl = (el.offsetHeight < 2 && el.nextElementSibling) ? el.nextElementSibling : el;
+    if (!sectionMap.has(observeEl)) {
+      sectionMap.set(observeEl, id);
+    }
+  });
+
+  const sections = [...sectionMap.keys()];
+
   if (navButtons.length === 0 || sections.length === 0) return;
 
   // 1. 點擊滾動功能
@@ -15,8 +36,14 @@ export function initAnchorNav() {
     btn.addEventListener('click', () => {
       const targetId = btn.getAttribute('data-target');
       const targetSection = document.getElementById(targetId);
-      
+
       if (targetSection) {
+        // 點擊時立即 active，並暫停 scroll spy 避免滾動過程中被覆蓋
+        setActiveBtn(targetId);
+        clickScrolling = true;
+        clearTimeout(clickScrollTimer);
+        clickScrollTimer = setTimeout(() => { clickScrolling = false; }, 1200);
+
         // 使用 helper 的平滑滾動，或者原生 scrollIntoView
         if (window.SCCDHelpers && window.SCCDHelpers.scrollToElement) {
           window.SCCDHelpers.scrollToElement(targetSection);
@@ -49,54 +76,68 @@ export function initAnchorNav() {
 
   function getNavRotation() {
     let deg;
-    do { deg = Math.round(Math.random() * 10) - 4; } while (deg === 0 || deg > 6);
+    do { deg = Math.round(Math.random() * 6) - 3; } while (Math.abs(deg) < 0.5);
     return deg;
   }
 
+  // 初始化每個 btn 的 base rotation
+  navButtons.forEach(btn => {
+    btn._baseRot = getNavRotation();
+    const inner = btn.querySelector('.anchor-nav-inner');
+    if (inner) inner.style.transform = `rotate(${btn._baseRot}deg)`;
+
+    // Hover：記錄新角度
+    inner && inner.addEventListener('mouseenter', () => {
+      if (btn.classList.contains('active')) return;
+      const rot = getNavRotation();
+      btn._pendingRot = rot;
+      inner.style.transform = `rotate(${rot}deg)`;
+    });
+    inner && inner.addEventListener('mouseleave', () => {
+      if (btn.classList.contains('active')) return;
+      inner.style.transform = `rotate(${btn._baseRot}deg)`;
+      btn._pendingRot = null;
+    });
+  });
+
   let currentActiveId = null;
+  let clickScrolling = false; // 點擊導航時暫停 scroll spy
+  let clickScrollTimer = null;
 
   function setActiveBtn(id) {
     if (id === currentActiveId) return;
     currentActiveId = id;
-    const rot = getNavRotation();
     navButtons.forEach(btn => {
       const isActive = btn.getAttribute('data-target') === id;
-      btn.classList.toggle('active', isActive);
       const inner = btn.querySelector('.anchor-nav-inner');
-      if (inner) {
-        inner.style.background = isActive ? getNavColor() : '';
-        inner.style.transform = isActive ? `rotate(${rot}deg)` : '';
+      btn.classList.toggle('active', isActive);
+      if (!inner) return;
+      if (isActive) {
+        const rot = btn._pendingRot ?? getNavRotation();
+        btn._baseRot = rot;
+        btn._pendingRot = null;
+        inner.style.background = getNavColor();
+        inner.style.transform = `rotate(${rot}deg)`;
+      } else {
+        inner.style.background = '';
+        // 保持各自 base rot，不歸零
+        inner.style.transform = `rotate(${btn._baseRot}deg)`;
       }
     });
   }
 
   const observer = new IntersectionObserver((entries) => {
+    if (clickScrolling) return; // 點擊滾動中，暫停 scroll spy
     entries.forEach(entry => {
       if (entry.isIntersecting) {
-        const id = entry.target.id;
-        // timeline 屬於 class section，active 指向 class
-        if (id === 'timeline') {
-          setActiveBtn('class');
-          return;
-        }
+        const id = sectionMap.get(entry.target) || entry.target.id;
         setActiveBtn(id);
       }
     });
   }, observerOptions);
 
-  // timeline 用較寬鬆的 threshold，只要頂部進入視窗即觸發
-  const timelineObserver = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) setActiveBtn('class');
-    });
-  }, { root: null, rootMargin: '0px', threshold: 0 });
-
   sections.forEach(section => {
-    if (section.id === 'timeline') {
-      timelineObserver.observe(section);
-    } else {
-      observer.observe(section);
-    }
+    observer.observe(section);
   });
 
   // 3. Mobile Menu Toggle Logic

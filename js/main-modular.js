@@ -11,7 +11,6 @@ import { initRouter } from './router.js';
 
 // Import Filter Modules
 import { initFacultyFilter } from './modules/filters/faculty-filter.js';
-import { initWorksFilter } from './modules/filters/works-filter.js';
 
 // Import UI Modules
 import { initFloatingItems, initWatchHover } from './modules/animations/floating-items.js';
@@ -25,6 +24,7 @@ import { initResourcesCycling } from './modules/pages/about/resources-cycling.js
 import { initBrandTrail } from './modules/pages/about/brand-trail.js';
 import { initTimeline } from './modules/pages/about/timeline.js';
 import { initSectionBannerReveal } from './modules/pages/about/section-banner-reveal.js';
+import { initClassButtonsSticky } from './modules/pages/about/class-buttons-sticky.js';
 import { initAnchorNav } from './modules/navigation/anchor-nav.js';
 
 // Import Page Specific Modules
@@ -49,11 +49,11 @@ import { initAdmissionSectionSwitch } from './modules/pages/admission-section-sw
 // Import Library Modules
 import { initLibraryCard } from './modules/pages/library-card.js';
 import { initLibraryPanels } from './modules/pages/library-panels.js';
+import { initLibraryViewer } from './modules/pages/library-viewer.js';
 
 // Import Data Loaders
 import { loadRecords } from './modules/pages/records-data-loader.js';
 import { loadFacultyData } from './modules/pages/faculty-data-loader.js';
-import { loadBFAWorks, loadMDESWorks } from './modules/pages/bfa-works-data-loader.js';
 import { loadAdmissionData } from './modules/pages/admission-data-loader.js';
 import { loadSupportData } from './modules/pages/support-data-loader.js';
 import { loadLegalData } from './modules/pages/legal-data-loader.js';
@@ -76,6 +76,10 @@ export function cleanupPageModules() {
   if (typeof gsap !== 'undefined') {
     gsap.killTweensOf(main.querySelectorAll('*'));
   }
+  // 恢復被 generate 頁面修改的 Logo
+  import('./header.js').then(({ restoreHeaderLogo }) => {
+    if (typeof restoreHeaderLogo === 'function') restoreHeaderLogo();
+  });
 }
 
 // ── 頁面模組初始化（router 每次換頁都會呼叫）──────────────────
@@ -120,6 +124,7 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
     initBFADivisionToggle();
     initTextReveal();
     initSectionBannerReveal();
+    initClassButtonsSticky();
 
     const classImages = document.querySelector('[data-class-images]');
     if (classImages) {
@@ -172,6 +177,7 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
   // --- Courses Page ---
   if (page === 'courses') {
     initCoursesSectionSwitch();
+    initBFADivisionToggle();
   }
 
   // --- Support Page ---
@@ -195,10 +201,7 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
 
   // --- Works Page ---
   if (page === 'works') {
-    initWorksSectionSwitch(
-      () => loadBFAWorks().then(() => initWorksFilter()),
-      () => loadMDESWorks()
-    );
+    initWorksSectionSwitch();
   }
 
   // --- Generate Page ---
@@ -211,6 +214,7 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
 
   // --- Library Page ---
   if (page === 'library') {
+    initLibraryViewer();
     const panels = initLibraryPanels();
     initLibraryCard({
       onTabSwitch: (tab) => panels.showPanel(tab),
@@ -249,6 +253,20 @@ document.addEventListener('DOMContentLoaded', function () {
 
   if (isIndex) {
     initPageModules('index');
+  } else {
+    // 直接進入內頁時，隱藏首頁的 intro overlay 並顯示 header
+    const overlay = document.getElementById('intro-overlay');
+    if (overlay) overlay.style.display = 'none';
+    document.body.style.overflow = '';
+    const showHeader = () => {
+      const header = document.querySelector('#site-header header');
+      if (header) header.style.opacity = '1';
+    };
+    if (document.querySelector('#site-header header')) {
+      showHeader();
+    } else {
+      document.addEventListener('header:ready', showHeader, { once: true });
+    }
   }
   // 非 index 的初始路由由 initRouter() 內部處理
 

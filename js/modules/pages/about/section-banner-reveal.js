@@ -1,87 +1,235 @@
 /**
  * Section Banner Reveal Animation
- * About 頁面各 section banner 的放大進場動畫
+ * About 頁面各 section banner 的動畫（三張圖片 clip-path reveal 版）
  *
  * 效果：
- * - 初始：圖片容器寬度 50%，居中，overflow hidden
- * - 隨著 viewport 進入 section，寬度從 50% → 100%（scrub）
- * - 到達 100% 時，overlay 從 opacity:0 → 0.3，文字從 opacity:0 → 1
- * - 文字出場參考 hero-animation：第一行 h1 clip reveal（yPercent），第二行 stagger
+ * - 三張圖片平行排列，進場前已固定位置
+ * - 使用 clip-path inset() 從四邊隨機 reveal，每張方向不同
+ * - 文字 block 使用剩餘的第四個方向 reveal
+ * - 三張圖片的旋轉角度各自不同，z-index 隨機
  */
+
+// clip-path reveal 四個方向（brand trail 同樣邏輯）
+const DIRS    = ['top', 'bottom', 'left', 'right'];
+const CLIP_END = 'inset(0% 0% 0% 0%)';
+
+function getClipStart(dir) {
+  switch (dir) {
+    case 'top':    return 'inset(0% 0% 100% 0%)';
+    case 'bottom': return 'inset(100% 0% 0% 0%)';
+    case 'left':   return 'inset(0% 100% 0% 0%)';
+    case 'right':  return 'inset(0% 0% 0% 100%)';
+  }
+}
+
+
+// 文字旋轉：-6 到 6°，排除 0°
+function randomTextRotation() {
+  const values = [-6, -5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 6];
+  return values[Math.floor(Math.random() * values.length)];
+}
+
+// 圖片旋轉：-4 到 4°，確保三張角度不同
+function pickThreeRotations() {
+  const pool = [-4, -3, -2, -1, 1, 2, 3, 4];
+  const picked = [];
+  while (picked.length < 3) {
+    const r = pool[Math.floor(Math.random() * pool.length)];
+    if (!picked.includes(r)) picked.push(r);
+  }
+  return picked;
+}
+
+// 三張圖片的隨機垂直偏移：-halfRange ~ +halfRange（vw）
+// 確保有上有下
+function pickVerticalOffsets(halfRange = 5) {
+  const pool = [];
+  for (let i = -halfRange; i <= halfRange; i++) {
+    if (i !== 0) pool.push(i);
+  }
+  let picked;
+  do {
+    picked = shuffle(pool).slice(0, 3);
+  } while (!picked.some(v => v > 0) || !picked.some(v => v < 0));
+  return picked;
+}
+
+// shuffle 陣列（Fisher-Yates）
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// 從 CSS variables 讀取三原色
+function getAccentColors() {
+  const style = getComputedStyle(document.documentElement);
+  return [
+    style.getPropertyValue('--color-green').trim(),
+    style.getPropertyValue('--color-pink').trim(),
+    style.getPropertyValue('--color-blue').trim(),
+  ];
+}
+
+// 分配欄位：col-start 2~6，col-end 固定 13（確保文字不超出右側邊界）
+function assignColumn(textBlock) {
+  const colStart = Math.floor(Math.random() * 5) + 2; // 2..6
+  textBlock.style.gridColumnStart = colStart;
+  textBlock.style.gridColumnEnd   = 13;
+}
+
+// 隨機垂直位置：header 高度以下 ~ 65vh
+function assignRandomTop(gridDiv) {
+  const headerH = parseFloat(
+    getComputedStyle(document.documentElement).getPropertyValue('--header-height')
+  ) || 80;
+  const maxTop   = window.innerHeight * 0.65;
+  const randomTop = headerH + Math.random() * (maxTop - headerH);
+  gridDiv.style.alignContent = 'start';
+  gridDiv.style.paddingTop   = `${randomTop}px`;
+}
 
 export function initSectionBannerReveal() {
   if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') return;
 
+  const accentColors = getAccentColors();
+
+  // --- Section Title Strips（class/resources/history 封鎖線風格）---
+  const sectionTitles = document.querySelectorAll('[data-section-title]');
+  sectionTitles.forEach((titleEl) => {
+    const bgColor = accentColors[Math.floor(Math.random() * accentColors.length)];
+    const rot = randomTextRotation();
+
+    // 封鎖線風格：隨機從左側或右側超出畫面
+    const fromRight = Math.random() < 0.5;
+    const overshoot = 50; // 超出畫面的 vw
+    const visibleEnd = 70 + Math.random() * 20; // 可見端到 70~90vw
+
+    titleEl.style.background = bgColor;
+
+    if (fromRight) {
+      // 右側超出畫面，左側在 10~30vw 結束
+      const leftStart = 100 - visibleEnd; // 對稱：10~30vw
+      titleEl.style.width = `calc(${overshoot}vw + ${100 - leftStart}vw)`;
+      titleEl.style.marginLeft = `${leftStart}vw`;
+      // 文字靠右側，從右邊算起留足空間
+      titleEl.style.paddingLeft = '4vw';
+      titleEl.style.paddingRight = `${overshoot}vw`;
+      titleEl.style.direction = 'rtl'; // 文字靠右對齊
+    } else {
+      // 左側超出畫面，右側到 70~90vw
+      titleEl.style.width = `calc(${overshoot}vw + ${visibleEnd}vw)`;
+      titleEl.style.marginLeft = `-${overshoot}vw`;
+      // 文字從 nav btn 右側開始（約 14vw），避開左側錨點導航
+      titleEl.style.paddingLeft = `calc(${overshoot}vw + 14vw)`;
+    }
+    titleEl.style.transform = `rotate(${rot}deg)`;
+
+    // clip-path reveal on scroll（只做左右方向）
+    const dir = Math.random() < 0.5 ? 'left' : 'right';
+    gsap.set(titleEl, { clipPath: getClipStart(dir), opacity: 1 });
+
+    if (window.innerWidth < 768) {
+      gsap.set(titleEl, { clipPath: CLIP_END });
+      return;
+    }
+
+    ScrollTrigger.create({
+      trigger: titleEl.closest('.section-title-strip') || titleEl,
+      start: 'top 85%',
+      once: true,
+      onEnter: () => {
+        gsap.to(titleEl, { clipPath: CLIP_END, duration: 1.0, ease: 'power3.out' });
+      },
+    });
+  });
+
+  // --- Section Banners（有圖片的完整版，如果還有的話）---
   const banners = document.querySelectorAll('[data-section-banner]');
   if (!banners.length) return;
 
   banners.forEach((banner) => {
-    const overlay = banner.querySelector('.section-banner-overlay');
-    // titleWrap 已移至 banner 外層（section 的直接子層），避免被 overflow-hidden 裁切
-    const section = banner.closest('section');
-    const titleWrap = section ? section.querySelector('.section-banner-title') : null;
-    const titles = titleWrap ? titleWrap.querySelectorAll('h1') : [];
+    const imgItems = Array.from(banner.querySelectorAll('.section-banner-img-item'));
 
-    // 手機版：直接顯示，不做動畫
+    // title area 可能在 banner 外（section 的直接子元素）
+    const titleArea = banner.querySelector('.section-banner-title-area') ||
+                      banner.parentElement?.querySelector('.section-banner-title-area');
+    const textBlock = titleArea?.querySelector('.section-banner-text-block');
+    const textInner = textBlock?.querySelector('.section-banner-text-inner');
+    const gridDiv   = titleArea?.querySelector('.grid-12');
+
+    if (!imgItems.length || !textBlock) return;
+
+    // --- 隨機值 ---
+    const rotations  = pickThreeRotations();
+    const zIndexes   = shuffle([1, 2, 3]);
+    // 左右偏移 ±5vw，中間偏移 ±2vw（讓中間圖片更接近垂直中心）
+    const topOffsets = pickVerticalOffsets(5);
+    const centerPool = [-2, -1, 1, 2];
+    topOffsets[1] = centerPool[Math.floor(Math.random() * centerPool.length)];
+    const bgColor    = accentColors[Math.floor(Math.random() * accentColors.length)];
+    const textRot    = randomTextRotation();
+
+    // 四個方向 shuffle：前三給圖片，第四給文字
+    const dirOrder   = shuffle([...DIRS]);
+    const imgDirs    = dirOrder.slice(0, 3);
+    const textDir    = dirOrder[3];
+
+    // --- 套用靜態樣式（旋轉、位置、底色等）---
+    // imgRotate 同時擁有 rotation + overflow:hidden + clip-path（同 brand trail wrapper）
+    // 這樣 clip-path 在 local space 作用，旋轉後角落不會被裁切
+    imgItems.forEach((item, i) => {
+      const imgRotate = item.querySelector('.section-banner-img-rotate');
+      if (imgRotate) {
+        imgRotate.style.overflow = 'hidden';
+        gsap.set(imgRotate, { rotation: rotations[i] });
+      }
+      item.style.zIndex = zIndexes[i];
+      item.style.top    = `calc(50vh - 22.5vw + ${topOffsets[i]}vw)`;
+    });
+
+    assignColumn(textBlock);
+    if (gridDiv)   assignRandomTop(gridDiv);
+    if (textInner) textInner.style.background = bgColor;
+    gsap.set(textBlock, { rotation: textRot });
+
+    // --- 手機版：直接顯示（無動畫）---
     if (window.innerWidth < 768) {
-      gsap.set(banner, { width: '100%' });
-      if (overlay) gsap.set(overlay, { opacity: 0.3 });
-      if (titleWrap) gsap.set(titleWrap, { opacity: 1 });
+      imgItems.forEach(item => {
+        const r = item.querySelector('.section-banner-img-rotate');
+        if (r) gsap.set(r, { clipPath: CLIP_END });
+      });
+      gsap.set(textBlock, { clipPath: CLIP_END, opacity: 1 });
       return;
     }
 
-    if (!section) return;
-
-    // --- Phase 1: Width expand (scrub) ---
-    // viewport 進入 section top 時開始，到 section center 時結束
-    const tl = gsap.timeline({
-      scrollTrigger: {
-        trigger: section,
-        start: 'top bottom',   // section 進入 viewport 底部時開始
-        end: 'top 20%',        // section 頂部到達 viewport 20% 時結束
-        scrub: 1,
-      },
+    // --- 桌面版：clip-path 初始 —— 套在 img-rotate（旋轉元素本身）---
+    // clip-path 在 local space 作用，會跟著旋轉一起變換，角落不會被切
+    imgItems.forEach((item, i) => {
+      const imgRotate = item.querySelector('.section-banner-img-rotate');
+      if (imgRotate) gsap.set(imgRotate, { clipPath: getClipStart(imgDirs[i]) });
     });
+    gsap.set(textBlock, { clipPath: getClipStart(textDir), opacity: 1 });
 
-    tl.fromTo(banner,
-      { width: '50%' },
-      { width: '100%', ease: 'power2.inOut' }
-    );
-
-    // --- Phase 2: Overlay + title reveal (once, triggered after expand) ---
-    // 寬度展開完成後，移除 overflow-hidden 再播文字動畫（避免 translate-x 被裁切）
+    // --- ScrollTrigger：進場 ---
     ScrollTrigger.create({
-      trigger: section,
-      start: 'top 15%',  // Phase 1 結束（top 20%）之後才觸發
+      trigger: banner,
+      start: 'top 80%',
       once: true,
       onEnter: () => {
-        // 強制確保 width 已到 100%，再移除 clip wrapper 的 overflow-hidden
-        gsap.set(banner, { width: '100%' });
-        const clipWrap = banner.closest('.section-banner-clip');
-        if (clipWrap) clipWrap.classList.remove('overflow-hidden');
+        const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
 
-        const tl2 = gsap.timeline({ defaults: { ease: 'power3.out' } });
+        // 三張圖同時 reveal
+        imgItems.forEach((item) => {
+          const imgRotate = item.querySelector('.section-banner-img-rotate');
+          if (imgRotate) tl.to(imgRotate, { clipPath: CLIP_END, duration: 1.2 }, 0);
+        });
 
-        // Overlay fade in
-        if (overlay) {
-          tl2.to(overlay, { opacity: 0.3, duration: 0.6 });
-        }
-
-        // Title reveal: 第一個 h1 clip reveal（yPercent），第二個 stagger
-        if (titles.length > 0) {
-          // 顯示 titleWrap
-          tl2.set(titleWrap, { opacity: 1 }, 0);
-
-          // 兩個 h1 都用 y + opacity 淡入，stagger 錯開
-          gsap.set(titles, { y: 40, opacity: 0 });
-          tl2.to(titles, {
-            y: 0,
-            opacity: 1,
-            duration: 0.7,
-            stagger: 0.15,
-            clearProps: 'y,opacity',
-          }, 0.2);
-        }
+        // 文字同時 reveal
+        tl.to(textBlock, { clipPath: CLIP_END, duration: 1.0 }, 0);
       },
     });
   });

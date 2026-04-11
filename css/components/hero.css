@@ -22,11 +22,13 @@
 
   /* 副標題 rotate（直接套在元素上，不需 wrapper） */
   .hero-text-en {
+    font-size: var(--font-size-p1);
     transform: rotate(1deg);
     transform-origin: left center;
   }
 
   .hero-text-cn {
+    font-size: var(--font-size-p1);
     transform: rotate(-1deg);
     transform-origin: left center;
   }

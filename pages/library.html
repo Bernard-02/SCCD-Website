@@ -264,18 +264,6 @@
   </div>
 
   <!-- JavaScript -->
-  <script type="module">
-    import { initLibraryCard }   from '../js/modules/pages/library-card.js';
-    import { initLibraryPanels } from '../js/modules/pages/library-panels.js';
-
-    document.addEventListener('DOMContentLoaded', () => {
-      const panels = initLibraryPanels();
-      initLibraryCard({
-        onTabSwitch:    panels.showPanel,
-        onEntranceDone: panels.onEntranceDone,
-      });
-    });
-  </script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/gsap.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollTrigger.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/Draggable.min.js"></script>

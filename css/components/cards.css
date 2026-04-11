@@ -177,8 +177,8 @@
   /* ===== Brand Trail Image (Mouse Trail Effect) ===== */
   .brand-trail-img {
     @apply absolute object-contain pointer-events-none z-50; /* 改為 contain 以完整顯示 Logo */
-    width: 200px;       /* 設定統一寬度 */
-    height: 150px;      /* 設定統一高度 */
+    width: 320px;       /* 設定統一寬度 */
+    height: 240px;      /* 設定統一高度 */
     transform: translate(-50%, -50%); /* 讓圖片中心對準滑鼠 */
   }
 

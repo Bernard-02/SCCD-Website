@@ -8,8 +8,8 @@ import { updateNavActive } from './header.js';
 
 // ── 路由表 ────────────────────────────────────────────────────
 const routes = {
-  '/':                        { page: 'index',                   htmlFile: null },
-  '/index.html':              { page: 'index',                   htmlFile: null },
+  '/':                        { page: 'index',                   htmlFile: 'index.html' },
+  '/index.html':              { page: 'index',                   htmlFile: 'index.html' },
   '/about':                   { page: 'about',                   htmlFile: 'pages/about.html' },
   '/about.html':              { page: 'about',                   htmlFile: 'pages/about.html' },
   '/faculty':                 { page: 'faculty',                 htmlFile: 'pages/faculty.html' },
@@ -73,16 +73,6 @@ async function loadPage(route, search = '') {
   const main = document.getElementById('page-content');
   if (!main) return;
 
-  // index 不需要 fetch，直接初始化
-  if (route.page === 'index') {
-    cleanupPageModules();
-    window.scrollTo(0, 0);
-    updateNavActive(route.page);
-    document.body.classList.remove('overflow-hidden');
-    initPageModules(route.page);
-    return;
-  }
-
   try {
     const res = await fetch(route.htmlFile);
     if (!res.ok) throw new Error(`Failed to load ${route.htmlFile}`);
@@ -120,11 +110,17 @@ async function loadPage(route, search = '') {
       footerEl.style.display = (route.page === 'generate' || route.page === 'library') ? 'none' : '';
     }
 
-    // 更新 body class（generate 需要 overflow-hidden）
+    // 更新 body class
     document.body.classList.toggle('overflow-hidden', route.page === 'generate');
+    document.body.style.overflowX = (route.page === 'about') ? 'hidden' : '';
 
     // 初始化新頁面模組（帶 query string 供 detail 頁用）
     initPageModules(route.page, new URLSearchParams(search));
+
+    // 刷新 ScrollTrigger，確保新內容載入、高度改變後，觸發位置能正確更新
+    if (typeof ScrollTrigger !== 'undefined') {
+      requestAnimationFrame(() => ScrollTrigger.refresh());
+    }
 
   } catch (err) {
     console.error('[Router] Page load error:', err);

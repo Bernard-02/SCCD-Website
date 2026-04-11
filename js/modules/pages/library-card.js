@@ -467,11 +467,13 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb 
 
     setTimeout(() => {
       _doSwitchTab(clickedEl, () => {
-        activeEl.appendChild(contentEl);
-        contentEl.style.transition = '';
-        contentEl.style.opacity    = '';
+        const contentEl = document.getElementById('library-card-content');
         if (onTabSwitch) onTabSwitch(tabOf.get(activeEl));
-        requestAnimationFrame(() => { contentEl.classList.add('content-visible'); });
+        if (contentEl) {
+          contentEl.style.transition = '';
+          contentEl.style.opacity    = '';
+          requestAnimationFrame(() => { contentEl.classList.add('content-visible'); });
+        }
         isSwitching = false;
       });
     }, 300);
@@ -487,16 +489,19 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb 
     const outgoingTab   = tabOf.get(outgoingEl);
     const incomingTab   = tabOf.get(clickedEl);
 
-    const contentEl = document.getElementById('library-card-content');
-    if (contentEl && contentEl.parentElement === outgoingEl) {
-      document.body.appendChild(contentEl);
-    }
-
     // 更新狀態
     activeEl = clickedEl;
     tabOf.set(clickedEl, incomingTab);
     tabOf.set(outgoingEl, outgoingTab);
     colorOf.set(outgoingEl, outgoingColor);
+
+    // 立即把內容層移入新的主矩形（保持 opacity:0），避免 clip 動畫期間矩形呈現空白
+    const contentEl = document.getElementById('library-card-content');
+    if (contentEl) {
+      contentEl.style.transition = 'none';
+      contentEl.style.opacity    = '0';
+      clickedEl.appendChild(contentEl);
+    }
 
     const gray = { cx: gCx, cy: gCy, w: MAIN_W, h: MAIN_H, rot: 0 };
     cfgCache.set(clickedEl, gray); // clickedEl 變成灰色

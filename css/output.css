@@ -2060,42 +2060,51 @@ header.header-hidden .nav-link,
   font-weight: 700;
 }
 
-/* ===== Class Parent Buttons (學士班 / 碩士班) ===== */
+/* ===== Class Group Label (BFA Class 學士班)：旋轉由 JS 設定 ===== */
 
-.class-parent-btn {
-  border: 4px solid #000000;
-  border-radius: 20px;
-  background: transparent;
-  color: #000000;
-  cursor: pointer;
-}
-
-.class-parent-btn.active {
+.class-group-label {
+  display: inline-block;
+  width: -moz-fit-content;
+  width: fit-content;
+  padding: 4px 6px 3px;
+  position: absolute;
+  bottom: calc(100% + var(--spacing-xs));
+  left: -12px;
+  z-index: 2;
   background: #000000;
-  color: #FFFFFF;
-  font-weight: 700;
+  color: #ffffff;
+  transition: background 0.2s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* ===== Class Division Toggle Buttons (動畫組 / 創媒組) ===== */
+/* ===== Class Division Toggle Buttons ===== */
 
 .class-division-btn {
-  border: 4px solid #000000;
-  border-radius: 20px;
-  background: transparent;
-  color: #000000;
-  cursor: pointer;
-}
-
-.class-division-btn.active {
   background: #000000;
   color: #FFFFFF;
-  font-weight: 700;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  padding: 6px 8px 5px;
+  text-align: left;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* ===== BFA Sub-buttons Slide Container ===== */
+/* ===== Class Buttons Sticky Container ===== */
 
-#bfa-sub-btns {
-  transition: max-width 0.35s ease, opacity 0.3s ease, margin 0.35s ease;
+#class-buttons-sticky {
+  padding-bottom: var(--spacing-md);
+}
+
+/* 補白：遮擋從下方往上滾的圖文內容 */
+
+#class-buttons-sticky::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  height: var(--spacing-6xl);
+  background: white;
 }
 
 /* ===== Btn Fill Hover Effect ===== */
@@ -2278,57 +2287,6 @@ header.header-hidden .nav-link,
 
 /* ===== Brand Trail Image (Mouse Trail Effect) ===== */
 
-@media (max-width: 767px) {
-  /* Chrome/Safari 隱藏捲軸 */
-
-  .works-container img.brand-trail-img, .works-container > div.brand-trail-img {
-    position: relative;
-    top: auto;
-    left: auto;
-    width: 85%;
-    /* 讓圖片佔據 85% 寬度，暗示可滑動 */
-    transform: none;
-    /* 移除旋轉 */
-    margin-bottom: 0;
-    flex-shrink: 0;
-    /* 防止圖片被壓縮 */
-    scroll-snap-align: center;
-    /* 吸附對齊 */
-  }
-
-  /* Chrome/Safari 隱藏捲軸 */
-
-  .works-container img.brand-trail-img, .works-container > div.brand-trail-img {
-    position: relative;
-    top: auto;
-    left: auto;
-    width: 85%;
-    /* 讓圖片佔據 85% 寬度，暗示可滑動 */
-    transform: none;
-    /* 移除旋轉 */
-    margin-bottom: 0;
-    flex-shrink: 0;
-    /* 防止圖片被壓縮 */
-    scroll-snap-align: center;
-    /* 吸附對齊 */
-  }
-}
-
-.brand-trail-img{
-  pointer-events: none;
-  position: absolute;
-  z-index: 50;
-  -o-object-fit: contain;
-     object-fit: contain;
-  /* 改為 contain 以完整顯示 Logo */
-  width: 200px;
-  /* 設定統一寬度 */
-  height: 150px;
-  /* 設定統一高度 */
-  transform: translate(-50%, -50%);
-  /* 讓圖片中心對準滑鼠 */
-}
-
 /* ===== Card Stacks & Effects ===== */
 
 .works-container {
@@ -2406,6 +2364,12 @@ header.header-hidden .nav-link,
   /* 強制無間距 */
 }
 
+/* colored-accordion：旋轉卡片版，允許溢出 */
+
+.colored-accordion {
+  overflow: visible !important;
+}
+
 @media (min-width: 768px) {
   .accordion-wrapper {
     flex-direction: row;
@@ -2449,7 +2413,7 @@ header.header-hidden .nav-link,
   align-items: flex-end;
   /* 文字靠底部 */
   justify-content: center;
-  padding: var(--spacing-xl) var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-sm);
 }
 
 /* Accordion Label Colors */
@@ -2482,7 +2446,9 @@ header.header-hidden .nav-link,
 
 /* Text color adjustment for contrast */
 
-.colored-accordion .accordion-item:nth-child(3n+2) .accordion-label-inner,
+.colored-accordion .accordion-item:nth-child(3n+1) .accordion-label-inner,
+  .colored-accordion .accordion-item:nth-child(3n+1) .accordion-text-wrap p,
+  .colored-accordion .accordion-item:nth-child(3n+2) .accordion-label-inner,
   .colored-accordion .accordion-item:nth-child(3n+2) .accordion-text-wrap p,
   .colored-accordion .accordion-item:nth-child(3n) .accordion-label-inner,
   .colored-accordion .accordion-item:nth-child(3n) .accordion-text-wrap p {
@@ -2518,6 +2484,8 @@ header.header-hidden .nav-link,
   /* 初始收合 */
   flex-shrink: 0;
   box-sizing: border-box;
+  height: 100%;
+  /* colored-accordion 展開不跳動 */
   /* padding 移至 inner 或由 gap 控制，這裡保持乾淨以利寬度計算 */
 }
 
@@ -2552,7 +2520,7 @@ header.header-hidden .nav-link,
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  padding: var(--spacing-xl);
+  padding: var(--spacing-md) var(--spacing-lg) var(--spacing-md) var(--spacing-md);
   overflow-y: auto;
 }
 
@@ -2639,11 +2607,13 @@ header.header-hidden .nav-link,
 /* 副標題 rotate（直接套在元素上，不需 wrapper） */
 
 .hero-text-en {
+  font-size: var(--font-size-p1);
   transform: rotate(1deg);
   transform-origin: left center;
 }
 
 .hero-text-cn {
+  font-size: var(--font-size-p1);
   transform: rotate(-1deg);
   transform-origin: left center;
 }
@@ -2745,10 +2715,6 @@ header.header-hidden .nav-link,
   left: 1rem;
 }
 
-.left-8{
-  left: 2rem;
-}
-
 .right-0{
   right: 0px;
 }
@@ -2759,6 +2725,10 @@ header.header-hidden .nav-link,
 
 .top-0{
   top: 0px;
+}
+
+.top-6xl{
+  top: var(--spacing-6xl);
 }
 
 .top-\[calc\(var\(--header-height\2c 80px\)\+3rem\)\]{
@@ -2821,10 +2791,6 @@ header.header-hidden .nav-link,
   grid-column: span 1 / span 1;
 }
 
-.col-span-11{
-  grid-column: span 11 / span 11;
-}
-
 .col-span-12{
   grid-column: span 12 / span 12;
 }
@@ -2837,18 +2803,9 @@ header.header-hidden .nav-link,
   grid-column: 1 / -1;
 }
 
-.col-start-2{
-  grid-column-start: 2;
-}
-
 .mx-\[calc\(var\(--container-padding\)\*-1\)\]{
   margin-left: calc(var(--container-padding) * -1);
   margin-right: calc(var(--container-padding) * -1);
-}
-
-.my-sm{
-  margin-top: var(--spacing-sm);
-  margin-bottom: var(--spacing-sm);
 }
 
 .mb-2xl{
@@ -2995,10 +2952,6 @@ header.header-hidden .nav-link,
   display: none;
 }
 
-.aspect-\[3\/4\]{
-  aspect-ratio: 3/4;
-}
-
 .aspect-\[4\/3\]{
   aspect-ratio: 4/3;
 }
@@ -3039,12 +2992,12 @@ header.header-hidden .nav-link,
   height: 44px;
 }
 
-.h-\[4px\]{
-  height: 4px;
-}
-
 .h-\[56px\]{
   height: 56px;
+}
+
+.h-\[60px\]{
+  height: 60px;
 }
 
 .h-\[700px\]{
@@ -3079,10 +3032,6 @@ header.header-hidden .nav-link,
   min-height: 100%;
 }
 
-.w-1\/2{
-  width: 50%;
-}
-
 .w-12{
   width: 3rem;
 }
@@ -3099,6 +3048,10 @@ header.header-hidden .nav-link,
   width: 100px;
 }
 
+.w-\[12vw\]{
+  width: 12vw;
+}
+
 .w-\[180px\]{
   width: 180px;
 }
@@ -3111,12 +3064,8 @@ header.header-hidden .nav-link,
   width: 44px;
 }
 
-.w-\[4px\]{
-  width: 4px;
-}
-
-.w-\[60\%\]{
-  width: 60%;
+.w-\[60px\]{
+  width: 60px;
 }
 
 .w-\[65\%\]{
@@ -3160,17 +3109,16 @@ header.header-hidden .nav-link,
   flex-shrink: 0;
 }
 
+.shrink{
+  flex-shrink: 1;
+}
+
 .shrink-0{
   flex-shrink: 0;
 }
 
 .origin-top-left{
   transform-origin: top left;
-}
-
-.translate-x-0{
-  --tw-translate-x: 0px;
-  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
 }
 
 .translate-x-\[110\%\]{
@@ -3195,16 +3143,6 @@ header.header-hidden .nav-link,
 
 .rotate-90{
   --tw-rotate: 90deg;
-  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
-}
-
-.rotate-\[-2deg\]{
-  --tw-rotate: -2deg;
-  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
-}
-
-.rotate-\[2deg\]{
-  --tw-rotate: 2deg;
   transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
 }
 
@@ -3254,12 +3192,12 @@ header.header-hidden .nav-link,
   flex-wrap: wrap;
 }
 
-.flex-nowrap{
-  flex-wrap: nowrap;
-}
-
 .items-start{
   align-items: flex-start;
+}
+
+.items-end{
+  align-items: flex-end;
 }
 
 .items-center{
@@ -3304,10 +3242,6 @@ header.header-hidden .nav-link,
 
 .gap-4xl{
   gap: var(--spacing-4xl);
-}
-
-.gap-5xl{
-  gap: var(--spacing-5xl);
 }
 
 .gap-6xl{
@@ -3432,6 +3366,10 @@ header.header-hidden .nav-link,
   border-width: 1px;
 }
 
+.border-0{
+  border-width: 0px;
+}
+
 .border-b-2{
   border-bottom-width: 2px;
 }
@@ -3495,11 +3433,6 @@ header.header-hidden .nav-link,
 .bg-gray-2{
   --tw-bg-opacity: 1;
   background-color: rgb(51 51 51 / var(--tw-bg-opacity, 1));
-}
-
-.bg-gray-9{
-  --tw-bg-opacity: 1;
-  background-color: rgb(230 230 230 / var(--tw-bg-opacity, 1));
 }
 
 .bg-transparent{
@@ -3570,6 +3503,14 @@ header.header-hidden .nav-link,
   padding: var(--spacing-lg);
 }
 
+.p-md{
+  padding: var(--spacing-md);
+}
+
+.p-sm{
+  padding: var(--spacing-sm);
+}
+
 .px-16{
   padding-left: 4rem;
   padding-right: 4rem;
@@ -3618,6 +3559,11 @@ header.header-hidden .nav-link,
 .py-2xl{
   padding-top: var(--spacing-2xl);
   padding-bottom: var(--spacing-2xl);
+}
+
+.py-3xl{
+  padding-top: var(--spacing-3xl);
+  padding-bottom: var(--spacing-3xl);
 }
 
 .py-6xl{
@@ -3685,10 +3631,6 @@ header.header-hidden .nav-link,
 
 .pb-xs{
   padding-bottom: var(--spacing-xs);
-}
-
-.pl-md{
-  padding-left: var(--spacing-md);
 }
 
 .pl-xl{
@@ -3775,10 +3717,6 @@ header.header-hidden .nav-link,
   text-align: right;
 }
 
-.text-h2{
-  font-size: var(--font-size-h2);
-}
-
 .text-h3{
   font-size: var(--font-size-h3);
 }
@@ -3793,6 +3731,11 @@ header.header-hidden .nav-link,
 
 .text-h6{
   font-size: var(--font-size-h6);
+}
+
+.text-lg{
+  font-size: 1.125rem;
+  line-height: 1.75rem;
 }
 
 .text-p1{
@@ -3859,6 +3802,10 @@ header.header-hidden .nav-link,
 
 .opacity-40{
   opacity: 0.4;
+}
+
+.opacity-70{
+  opacity: 0.7;
 }
 
 .shadow-2xl{
@@ -3940,10 +3887,6 @@ header.header-hidden .nav-link,
 
 .duration-300{
   transition-duration: 300ms;
-}
-
-.duration-500{
-  transition-duration: 500ms;
 }
 
 .duration-fast{
@@ -4093,16 +4036,8 @@ header.header-hidden .nav-link,
     right: 2rem;
   }
 
-  .md\:top-\[160px\]{
-    top: 160px;
-  }
-
   .md\:top-\[200px\]{
     top: 200px;
-  }
-
-  .md\:top-\[50px\]{
-    top: 50px;
   }
 
   .md\:top-\[8rem\]{
@@ -4238,6 +4173,10 @@ header.header-hidden .nav-link,
     margin-left: 0px;
   }
 
+  .md\:ml-xl{
+    margin-left: var(--spacing-xl);
+  }
+
   .md\:mt-0{
     margin-top: 0px;
   }
@@ -4258,20 +4197,12 @@ header.header-hidden .nav-link,
     display: flex;
   }
 
-  .md\:grid{
-    display: grid;
-  }
-
   .md\:contents{
     display: contents;
   }
 
   .md\:hidden{
     display: none;
-  }
-
-  .md\:aspect-auto{
-    aspect-ratio: auto;
   }
 
   .md\:h-\[250px\]{
@@ -4306,10 +4237,6 @@ header.header-hidden .nav-link,
     width: 250px;
   }
 
-  .md\:w-\[80\%\]{
-    width: 80%;
-  }
-
   .md\:w-full{
     width: 100%;
   }
@@ -4330,16 +4257,6 @@ header.header-hidden .nav-link,
     flex: 0 0 calc(25% - 1.25rem);
   }
 
-  .md\:translate-x-\[-200px\]{
-    --tw-translate-x: -200px;
-    transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
-  }
-
-  .md\:translate-x-\[300px\]{
-    --tw-translate-x: 300px;
-    transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
-  }
-
   .md\:-rotate-4{
     --tw-rotate: -4deg;
     transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
@@ -4348,20 +4265,6 @@ header.header-hidden .nav-link,
   .md\:rotate-3{
     --tw-rotate: 3deg;
     transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
-  }
-
-  .md\:rotate-\[-4deg\]{
-    --tw-rotate: -4deg;
-    transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
-  }
-
-  .md\:rotate-\[4deg\]{
-    --tw-rotate: 4deg;
-    transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
-  }
-
-  .md\:grid-cols-12{
-    grid-template-columns: repeat(12, minmax(0, 1fr));
   }
 
   .md\:grid-cols-4{
@@ -4378,6 +4281,10 @@ header.header-hidden .nav-link,
 
   .md\:flex-col{
     flex-direction: column;
+  }
+
+  .md\:items-start{
+    align-items: flex-start;
   }
 
   .md\:items-end{
@@ -4470,16 +4377,8 @@ header.header-hidden .nav-link,
     padding-bottom: var(--spacing-xl);
   }
 
-  .md\:pl-0{
-    padding-left: 0px;
-  }
-
   .md\:pl-\[41px\]{
     padding-left: 41px;
-  }
-
-  .md\:pl-\[calc\(var\(--container-padding\)\/2\)\]{
-    padding-left: calc(var(--container-padding) / 2);
   }
 
   .md\:pr-\[2rem\]{
@@ -4494,16 +4393,16 @@ header.header-hidden .nav-link,
     padding-top: var(--spacing-3xl);
   }
 
+  .md\:pt-6xl{
+    padding-top: var(--spacing-6xl);
+  }
+
   .md\:pt-xl{
     padding-top: var(--spacing-xl);
   }
 
   .md\:text-left{
     text-align: left;
-  }
-
-  .md\:text-h4{
-    font-size: var(--font-size-h4);
   }
 
   .md\:text-p2 {

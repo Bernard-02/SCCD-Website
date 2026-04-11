@@ -98,7 +98,7 @@ export function initCoursesSectionSwitch() {
           let targetTop = 0;
           let el = target;
           while (el) { targetTop += el.offsetTop; el = el.offsetParent; }
-          window.scrollTo({ top: targetTop - 160 - filterH, behavior: 'smooth' });
+          window.scrollTo({ top: targetTop - 200 - filterH, behavior: 'smooth' });
           history.replaceState(null, '', window.location.pathname);
 
           // scroll 完成後 flash，再展開
@@ -121,14 +121,7 @@ export function initCoursesSectionSwitch() {
 
     // 捲到 section 頂部
     if (shouldScroll && sectionEl) {
-      const header = document.querySelector('header');
-      const offset = header ? header.offsetHeight : 0;
-      const top = sectionEl.getBoundingClientRect().top + window.scrollY - offset;
-      if (typeof gsap !== 'undefined' && typeof ScrollToPlugin !== 'undefined') {
-        gsap.to(window, { scrollTo: { y: top }, duration: 0.5, ease: 'power2.inOut' });
-      } else {
-        window.scrollTo({ top, behavior: 'smooth' });
-      }
+      sectionEl.scrollIntoView({ behavior: 'smooth' });
     }
   }
 }

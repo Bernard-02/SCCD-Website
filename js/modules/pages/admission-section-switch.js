@@ -9,7 +9,7 @@ export function initAdmissionSectionSwitch() {
 
   const loaded = {};
 
-  function switchSection(section) {
+  function switchSection(section, shouldScroll = false) {
     btns.forEach(b => {
       b.classList.remove('active');
       const inner = b.querySelector('.anchor-nav-inner');
@@ -43,8 +43,13 @@ export function initAdmissionSectionSwitch() {
         });
       });
     }
+
+    if (shouldScroll) {
+      const sectionEl = document.getElementById('admission-content-section');
+      if (sectionEl) sectionEl.scrollIntoView({ behavior: 'smooth' });
+    }
   }
 
-  btns.forEach(btn => btn.addEventListener('click', () => switchSection(btn.dataset.section)));
-  switchSection('news');
+  btns.forEach(btn => btn.addEventListener('click', () => switchSection(btn.dataset.section, true)));
+  switchSection('news', false);
 }
