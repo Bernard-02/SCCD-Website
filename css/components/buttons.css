@@ -28,11 +28,18 @@
     background: white;
     transition: background var(--transition-fast);
   }
-  /* ===== Faculty Filter Buttons ===== */
-  .faculty-filter-btn {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
+  /* ===== Section Nav Buttons（共用基底樣式）=====
+   * 包含：faculty-filter / activities-section / courses-program /
+   *      activities-filter / courses-filter / section-nav-btn
+   * 新的 instance 可直接加 .section-nav-btn class 使用
+   */
+  .section-nav-btn,
+  .faculty-filter-btn,
+  .activities-section-btn,
+  .courses-program-btn,
+  .activities-filter-btn,
+  .courses-filter-btn {
+    cursor: pointer;
     background: none;
     border: none;
     padding: 0;
@@ -40,61 +47,36 @@
     font-size: var(--font-size-p1);
   }
 
-  .faculty-filter-btn.active .anchor-nav-inner {
-    color: black;
-    /* background set via JS */
-  }
-
-  @media (min-width: 768px) {
-    .faculty-filter-btn:hover .anchor-nav-inner {
-      color: rgba(0, 0, 0, 1);
-    }
-  }
-
-  /* ===== Activities Section Buttons ===== */
-  .activities-section-btn {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    background: none;
-    border: none;
-    padding: 0;
-    font-weight: 700;
-    font-size: var(--font-size-p1);
-  }
-
-  .activities-section-btn.active .anchor-nav-inner {
-    color: black;
-    /* background & rotation set via JS */
-  }
-
-  @media (min-width: 768px) {
-    .activities-section-btn:not(.active):hover .anchor-nav-inner {
-      background: rgba(255, 255, 255, 1);
-      color: rgba(0, 0, 0, 1);
-    }
-  }
-
-  /* ===== Courses Program Buttons ===== */
+  /* 直式堆疊（sticky 垂直導覽）*/
+  .section-nav-btn--stack,
+  .faculty-filter-btn,
+  .activities-section-btn,
   .courses-program-btn {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    background: none;
-    border: none;
-    padding: 0;
-    font-weight: 700;
-    font-size: var(--font-size-p1);
   }
 
-  .courses-program-btn.active .anchor-nav-inner {
+  /* Active 狀態（背景/旋轉由 JS 設定）*/
+  .section-nav-btn.active .anchor-nav-inner,
+  .faculty-filter-btn.active .anchor-nav-inner,
+  .activities-section-btn.active .anchor-nav-inner,
+  .courses-program-btn.active .anchor-nav-inner,
+  .activities-filter-btn.active .anchor-nav-inner,
+  .courses-filter-btn.active .anchor-nav-inner {
     color: black;
-    /* background & rotation set via JS */
   }
 
   @media (min-width: 768px) {
-    .courses-program-btn:not(.active):hover .anchor-nav-inner {
+    .section-nav-btn:not(.active):hover .anchor-nav-inner,
+    .activities-section-btn:not(.active):hover .anchor-nav-inner,
+    .courses-program-btn:not(.active):hover .anchor-nav-inner,
+    .activities-filter-btn:not(.active):hover .anchor-nav-inner,
+    .courses-filter-btn:not(.active):hover .anchor-nav-inner {
       background: rgba(255, 255, 255, 1);
+      color: rgba(0, 0, 0, 1);
+    }
+    .faculty-filter-btn:hover .anchor-nav-inner {
       color: rgba(0, 0, 0, 1);
     }
   }
@@ -114,28 +96,6 @@
     .activities-filter-bar,
     .courses-filter-bar {
       position: relative;
-    }
-  }
-
-  /* ===== Activities Filter Buttons ===== */
-  .activities-filter-btn {
-    cursor: pointer;
-    background: none;
-    border: none;
-    padding: 0;
-    font-weight: 700;
-    font-size: var(--font-size-p1);
-  }
-
-  .activities-filter-btn.active .anchor-nav-inner {
-    color: black;
-    /* background & rotation set via JS */
-  }
-
-  @media (min-width: 768px) {
-    .activities-filter-btn:not(.active):hover .anchor-nav-inner {
-      background: rgba(255, 255, 255, 1);
-      color: rgba(0, 0, 0, 1);
     }
   }
 
@@ -177,17 +137,7 @@
     align-items: center;
     gap: var(--spacing-sm);
   }
-  .album-sort-col .album-filter-col-list {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    padding-top: var(--spacing-xs);
-    gap: var(--spacing-xs);
-    width: max-content;
-    min-width: 100%;
-    background: white;
-    z-index: 20;
-  }
+  /* album-filter-col-list 樣式由 .filter-dropdown-list（見下方）統一提供 */
 
   /* Sort col 選項：撐滿 list 寬，tick 頂右邊 */
   .album-sort-col .album-filter-option {
@@ -220,17 +170,7 @@
   .files-sort-col .files-sort-col-header {
     width: 100%;
   }
-  .files-sort-col .files-sort-col-list {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    padding-top: var(--spacing-xs);
-    gap: var(--spacing-xs);
-    width: max-content;
-    min-width: 100%;
-    background: white;
-    z-index: 20;
-  }
+  /* files-sort-col-list 樣式由 .filter-dropdown-list（見下方）統一提供 */
 
   .files-sort-option {
     cursor: pointer;
@@ -262,20 +202,45 @@
     }
   }
 
-  /* scrollbar for files sort list */
-  .files-sort-col-list::-webkit-scrollbar {
-    width: 6px;
+  /* ===== Filter Dropdown List（統一元件）=====
+   * 用於 album-filter-col-list / files-sort-col-list 等下拉選項容器
+   */
+  .filter-dropdown-list,
+  .album-filter-col-list,
+  .files-sort-col-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    padding-top: var(--spacing-xs);
+    gap: var(--spacing-xs);
+    width: max-content;
+    min-width: 100%;
+    background: white;
+    z-index: 20;
   }
-  .files-sort-col-list::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  .files-sort-col-list::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 0;
-  }
+
+  /* ===== Scrollbar Thin（統一元件）===== */
+  .scrollbar-thin,
+  .album-filter-col-list,
   .files-sort-col-list {
     scrollbar-width: thin;
     scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar,
+  .album-filter-col-list::-webkit-scrollbar,
+  .files-sort-col-list::-webkit-scrollbar {
+    width: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track,
+  .album-filter-col-list::-webkit-scrollbar-track,
+  .files-sort-col-list::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb,
+  .album-filter-col-list::-webkit-scrollbar-thumb,
+  .files-sort-col-list::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 0;
   }
 
   /* Filter tag */
@@ -293,44 +258,6 @@
     white-space: nowrap;
   }
 
-
-  /* scrollbar 細（6px），無圓角 */
-  .album-filter-col-list::-webkit-scrollbar {
-    width: 6px;
-  }
-  .album-filter-col-list::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  .album-filter-col-list::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 0;
-  }
-  .album-filter-col-list {
-    scrollbar-width: thin;
-    scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
-  }
-
-  /* ===== Courses Filter Buttons ===== */
-  .courses-filter-btn {
-    cursor: pointer;
-    background: none;
-    border: none;
-    padding: 0;
-    font-weight: 700;
-    font-size: var(--font-size-p1);
-  }
-
-  .courses-filter-btn.active .anchor-nav-inner {
-    color: black;
-    /* background & rotation set via JS */
-  }
-
-  @media (min-width: 768px) {
-    .courses-filter-btn:not(.active):hover .anchor-nav-inner {
-      background: rgba(255, 255, 255, 1);
-      color: rgba(0, 0, 0, 1);
-    }
-  }
 
   /* ===== Works Filter Buttons ===== */
   .works-filter-btn {

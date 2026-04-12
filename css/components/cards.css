@@ -4,118 +4,40 @@
  */
 
 @layer components {
-  /* ===== Faculty Cards ===== */
-  .faculty-card {
-  }
-
-  .faculty-card-image-wrapper {
-    overflow: hidden;
-    cursor: default;
-    position: relative;
-  }
-
-  /* Fulltime and admin cards are clickable */
-  .faculty-card[data-category="fulltime"] .faculty-card-image-wrapper,
-  .faculty-card[data-category="admin"] .faculty-card-image-wrapper {
-    cursor: pointer;
-  }
-
-  .faculty-card-image {
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  /* All cards: color overlay (基礎樣式) */
-  .faculty-card .faculty-card-image-wrapper::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-color: var(--card-color, #26BCFF);
-    mix-blend-mode: screen;
-    opacity: 0;
-    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    pointer-events: none;
-  }
-
-  /* 卡片底色 transition */
-  .faculty-card {
-    background-color: transparent;
-    transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  /* Hover 效果：僅桌面版 */
-  @media (min-width: 768px) {
-    /* Hover 父容器：底色 + 圖片 overlay + grayscale */
-    .faculty-card:hover {
-      background-color: var(--card-color, #26BCFF);
-    }
-
-    .faculty-card:hover .faculty-card-image-wrapper::after {
-      opacity: 1;
-    }
-
-    .faculty-card:hover .faculty-card-image {
-      filter: grayscale(100%);
-    }
-  }
-
-  /* ===== Album Cards ===== */
-  .album-card {
-    transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .album-card-img {
-    transition: filter 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  /* ===== Library Cards ===== */
+  /* ===== Card Hover Overlay（共用元件）=====
+   * 適用：faculty-card / library-card / degree-show-img-wrapper
+   * 結構：card > image-wrapper > image
+   *   - card：hover 時底色變 var(--card-color)
+   *   - image-wrapper::after：screen blend 色塊，hover 時 opacity 1
+   *   - image：hover 時 grayscale
+   * 新 instance 可加 .card-hover-overlay / .card-hover-overlay__wrapper / .card-hover-overlay__image
+   */
+  .card-hover-overlay,
+  .faculty-card,
   .library-card {
     background-color: transparent;
     transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  .library-card-image-wrapper {
-    position: relative;
-  }
-
-  .library-card-image {
-    transition: filter 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .library-card-image-wrapper::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-color: var(--card-color, #26BCFF);
-    mix-blend-mode: screen;
-    opacity: 0;
-    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    pointer-events: none;
-  }
-
-  /* Hover 效果：僅桌面版 */
-  @media (min-width: 768px) {
-    .library-card:hover {
-      background-color: var(--card-color, #26BCFF);
-    }
-
-    .library-card:hover .library-card-image-wrapper::after {
-      opacity: 1;
-    }
-
-    .library-card:hover .library-card-image {
-      filter: grayscale(100%);
-    }
-  }
-
-  /* ===== Degree Show Cards ===== */
+  .card-hover-overlay__wrapper,
+  .faculty-card-image-wrapper,
+  .library-card-image-wrapper,
   .degree-show-img-wrapper {
     position: relative;
+    overflow: hidden;
   }
 
+  .card-hover-overlay__image,
+  .faculty-card-image,
+  .library-card-image,
   .degree-show-img {
-    transition: filter 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: filter 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
+  .card-hover-overlay__wrapper::after,
+  .faculty-card-image-wrapper::after,
+  .library-card-image-wrapper::after,
   .degree-show-img-wrapper::after {
     content: '';
     position: absolute;
@@ -123,18 +45,46 @@
     background-color: var(--card-color, #26BCFF);
     mix-blend-mode: screen;
     opacity: 0;
-    transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     pointer-events: none;
   }
 
+  /* Hover 效果（桌面版）*/
   @media (min-width: 768px) {
+    .card-hover-overlay:hover,
+    .faculty-card:hover,
+    .library-card:hover {
+      background-color: var(--card-color, #26BCFF);
+    }
+
+    .card-hover-overlay:hover .card-hover-overlay__image,
+    .faculty-card:hover .faculty-card-image,
+    .library-card:hover .library-card-image,
     .degree-show-img-wrapper:hover .degree-show-img {
       filter: grayscale(100%);
     }
 
+    .card-hover-overlay:hover .card-hover-overlay__wrapper::after,
+    .faculty-card:hover .faculty-card-image-wrapper::after,
+    .library-card:hover .library-card-image-wrapper::after,
     .degree-show-img-wrapper:hover::after {
       opacity: 1;
     }
+  }
+
+  /* Faculty 特定：只有 fulltime/admin 可點擊 */
+  .faculty-card-image-wrapper { cursor: default; }
+  .faculty-card[data-category="fulltime"] .faculty-card-image-wrapper,
+  .faculty-card[data-category="admin"] .faculty-card-image-wrapper {
+    cursor: pointer;
+  }
+
+  /* ===== Album Cards ===== */
+  .album-card {
+    transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .album-card-img {
+    transition: filter 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   /* ===== Faculty Slide-in Grid Rows ===== */
@@ -168,10 +118,6 @@
   .faculty-tag {
     @apply inline-block text-p2 border border-black px-xs py-[2px];
     white-space: nowrap;
-  }
-
-  .degree-show-img-wrapper {
-    overflow: hidden;
   }
 
   /* ===== Brand Trail Image (Mouse Trail Effect) ===== */

@@ -40,7 +40,11 @@ const routes = {
   '/privacy-policy.html':     { page: 'privacy-policy',          htmlFile: 'pages/privacy-policy.html' },
   '/terms-and-conditions':    { page: 'terms-and-conditions',    htmlFile: 'pages/terms-and-conditions.html' },
   '/terms-and-conditions.html':{ page: 'terms-and-conditions',   htmlFile: 'pages/terms-and-conditions.html' },
+  '/404':                     { page: '404',                     htmlFile: 'pages/404.html' },
+  '/404.html':                { page: '404',                     htmlFile: 'pages/404.html' },
 };
+
+const NOT_FOUND_ROUTE = routes['/404'];
 
 // ── 頁面專屬 CSS 動態載入 ────────────────────────────────────
 const PAGE_CSS = {
@@ -53,10 +57,12 @@ function loadPageCSS(page) {
   // 載入新的（如果有）
   const href = PAGE_CSS[page];
   if (!href) return;
-  if (document.querySelector(`link[href="${href}"]`)) return; // 已載入
+  // 使用 origin 為基底的絕對路徑，避免 pushState 影響
+  const absHref = new URL(href, window.location.origin).href;
+  if (document.querySelector(`link[href="${absHref}"]`)) return; // 已載入
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = href;
+  link.href = absHref;
   link.dataset.pageCss = page;
   document.head.appendChild(link);
 }
@@ -74,7 +80,9 @@ async function loadPage(route, search = '') {
   if (!main) return;
 
   try {
-    const res = await fetch(route.htmlFile);
+    // 使用 origin 為基底解析絕對路徑，避免 pushState 改變 baseURI 後的相對路徑錯亂
+    const fetchUrl = new URL(route.htmlFile, window.location.origin).href;
+    const res = await fetch(fetchUrl);
     if (!res.ok) throw new Error(`Failed to load ${route.htmlFile}`);
     const html = await res.text();
 
@@ -124,16 +132,20 @@ async function loadPage(route, search = '') {
 
   } catch (err) {
     console.error('[Router] Page load error:', err);
+    // 載入失敗且不是在載入 404 本身 → 嘗試載入 404 頁
+    if (route.page !== '404' && NOT_FOUND_ROUTE) {
+      loadPage(NOT_FOUND_ROUTE, search);
+    }
   }
 }
 
 // ── 導航 ──────────────────────────────────────────────────────
 export function navigateTo(url) {
-  const { pathname, search } = new URL(url, window.location.origin);
-  const route = resolveRoute(pathname);
-  if (!route) return false; // 讓瀏覽器自行處理
+  const { pathname, search, hash } = new URL(url, window.location.origin);
+  const route = resolveRoute(pathname) || NOT_FOUND_ROUTE;
 
-  window.history.pushState({ page: route.page }, '', pathname + search);
+  // 保留 hash 供 deep link 使用（如 library.html#a-2024-01）
+  window.history.pushState({ page: route.page }, '', pathname + search + hash);
   loadPage(route, search);
   return true;
 }
@@ -166,10 +178,10 @@ export function initRouter() {
   });
 
   // 瀏覽器上一頁/下一頁
-  window.addEventListener('popstate', (e) => {
+  window.addEventListener('popstate', () => {
     const { pathname, search } = window.location;
-    const route = resolveRoute(pathname);
-    if (route) loadPage(route, search);
+    const route = resolveRoute(pathname) || NOT_FOUND_ROUTE;
+    loadPage(route, search);
   });
 
   // 初始路由（頁面首次載入）
@@ -178,6 +190,9 @@ export function initRouter() {
   if (initRoute && initRoute.page !== 'index') {
     // 從非首頁 URL 直接進入（例如書籤）
     loadPage(initRoute, search);
+  } else if (!initRoute && pathname !== '/' && pathname !== '/index.html') {
+    // 找不到路由且非首頁 → 顯示 404
+    loadPage(NOT_FOUND_ROUTE, search);
   }
   // index 的初始化由 main-modular.js DOMContentLoaded 處理
 }

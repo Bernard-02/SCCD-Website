@@ -47,7 +47,9 @@
       "Bash(accordion \")",
       "Bash(sed -n '285,302p' pages/library.html)",
       "Bash(sed -n '1230,1248p' pages/library.html)",
-      "Bash(for f:*)"
+      "Bash(for f:*)",
+      "Bash(npm ls:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

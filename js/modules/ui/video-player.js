@@ -130,8 +130,17 @@ export function initVideoPlayer(videoUrl) {
   gsap.set(controls, { opacity: 0 });
   gsap.set(uiBlocks, { clipPath: 'inset(0% 0% 0% 0%)', rotation: 0 });
 
+  // 按鈕永遠可點擊（即使 controls 容器 pointer-events: none）
+  [playBtn, muteBtn, seekBackBtn, seekFwdBtn, fullscreenBtn, closeBtn].forEach(btn => {
+    if (btn) btn.style.pointerEvents = 'auto';
+  });
+  if (progressTrack) progressTrack.style.pointerEvents = 'auto';
+  if (volumeTrack) volumeTrack.style.pointerEvents = 'auto';
+
   overlay.addEventListener('mousemove', showControls);
   overlay.addEventListener('touchstart', showControls);
+  // click 時也觸發 showControls（避免靜止不動時 controls 消失後點不到）
+  overlay.addEventListener('click', showControls);
 
   // ── 點擊影片本身 播放/暫停 ────────────────────────────
   video.addEventListener('click', togglePlay);

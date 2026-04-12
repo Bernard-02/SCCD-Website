@@ -99,7 +99,7 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
       document.body.style.overflow = '';
 
       const showHeader = () => {
-        const header = document.querySelector('#site-header header');
+        const header = /** @type {HTMLElement | null} */ (document.querySelector('#site-header header'));
         if (header) header.style.opacity = '1';
       };
       if (document.querySelector('#site-header header')) {
@@ -216,9 +216,26 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
   if (page === 'library') {
     initLibraryViewer();
     const panels = initLibraryPanels();
+    // 進場動畫期間的第一次 onTabSwitch 是自動觸發的（預設 tab），不能覆蓋 deep-link hash
+    // 只有 onEntranceDone 後的 tab 切換才是使用者手動點擊
+    let entranceDone = false;
     initLibraryCard({
-      onTabSwitch: (tab) => panels.showPanel(tab),
-      onEntranceDone: () => panels.onEntranceDone(),
+      onTabSwitch: (tab) => {
+        panels.showPanel(tab);
+        if (!entranceDone) return; // 自動切換（進場動畫）→ 保留現有 hash
+
+        // 使用者手動切換 tab → 更新 URL hash
+        const currentHash = window.location.hash.slice(1);
+        if (currentHash !== tab) {
+          history.replaceState(null, '', window.location.pathname + '#' + tab);
+        }
+      },
+      onEntranceDone: () => {
+        panels.onEntranceDone();
+        // 進場動畫完成後處理 hash deep link（如 library.html#a-2024-01）
+        panels.handleHash();
+        entranceDone = true;
+      },
     });
   }
 
@@ -233,9 +250,6 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
 
 // ── 首次載入（DOMContentLoaded）────────────────────────────────
 document.addEventListener('DOMContentLoaded', function () {
-
-  console.log('🚀 SCCD Website - Modular JS Loaded');
-
   // Global Modules（只執行一次）
   initHeader();
   initThemeToggle();
@@ -259,7 +273,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (overlay) overlay.style.display = 'none';
     document.body.style.overflow = '';
     const showHeader = () => {
-      const header = document.querySelector('#site-header header');
+      const header = /** @type {HTMLElement | null} */ (document.querySelector('#site-header header'));
       if (header) header.style.opacity = '1';
     };
     if (document.querySelector('#site-header header')) {
@@ -269,6 +283,4 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
   // 非 index 的初始路由由 initRouter() 內部處理
-
-  console.log('✅ Page specific modules initialized');
 });

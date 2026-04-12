@@ -11,21 +11,86 @@ const MAX_TEXT_WIDTH = 300;
 
 // ── Pool 建立 ──────────────────────────────────────────────
 
-async function fetchActivityPosters() {
-  try {
-    const images = await fetch('data/floating-images.json').then(r => r.json());
-    // 隨機填充 TOTAL_ITEMS 張，可重複
-    return Array.from({ length: TOTAL_ITEMS }, () => ({
-      type: 'image',
-      src: images[Math.floor(Math.random() * images.length)].src,
-      url: null,
-    }));
-  } catch (_) {
-    return [];
-  }
+// 其他 JSON 內的圖片路徑用 "../images/..." 格式（相對於 pages/），
+// 但首頁在根目錄，需要去掉 "../" 才能正確載入
+function normalizeImagePath(src) {
+  if (!src) return src;
+  return src.replace(/^\.\.\//, '');
 }
 
-// 從 courses.json 撈課程 title（有導航）
+async function fetchActivityPosters() {
+  const pool = [];
+
+  // 活動類 JSON → 導航到 activities.html?section=X
+  const activitySources = [
+    { file: 'data/permanent-exhibitions.json', section: 'exhibitions' },
+    { file: 'data/lectures.json',              section: 'lectures' },
+    { file: 'data/workshops.json',             section: 'workshop' },
+    { file: 'data/summer-camp.json',           section: 'summer-camp' },
+    { file: 'data/students-present.json',      section: 'students-present' },
+    { file: 'data/general-activities.json',    section: 'competitions' },
+  ];
+
+  await Promise.all(activitySources.map(async (src) => {
+    try {
+      const data = await fetch(src.file).then(r => r.json());
+      const groups = Array.isArray(data) ? data : (data.items || data.records || []);
+      groups.forEach(group => {
+        const items = Array.isArray(group) ? group : (group.items || []);
+        items.forEach(item => {
+          if (item.poster) {
+            // 有 id 就加上 &item= 讓目標頁可以 highlight 該項目
+            const itemParam = item.id ? `&item=${item.id}` : '';
+            pool.push({
+              type: 'image',
+              src: normalizeImagePath(item.poster),
+              url: `pages/activities.html?section=${src.section}${itemParam}`,
+            });
+          }
+        });
+      });
+    } catch (_) {}
+  }));
+
+  // Library documents → library.html#f-{id}
+  try {
+    const files = await fetch('data/library.json').then(r => r.json());
+    files.forEach(item => {
+      if (item.cover && item.id) {
+        pool.push({
+          type: 'image',
+          src: normalizeImagePath(item.cover),
+          url: `pages/library.html#f-${item.id}`,
+        });
+      }
+    });
+  } catch (_) {}
+
+  // Album → library.html（無 id，只到 album panel）
+  try {
+    const albumGroups = await fetch('data/album-others.json').then(r => r.json());
+    albumGroups.forEach(group => {
+      (group.items || []).forEach(item => {
+        if (item.cover) {
+          pool.push({
+            type: 'image',
+            src: normalizeImagePath(item.cover),
+            url: 'pages/library.html',
+          });
+        }
+      });
+    });
+  } catch (_) {}
+
+  // 洗牌 + 取出足夠數量（pool 不夠時會重複）
+  shuffle(pool);
+  if (pool.length === 0) return [];
+  if (pool.length >= TOTAL_ITEMS) return pool.slice(0, TOTAL_ITEMS);
+  // pool 不足 → 重複填充
+  return Array.from({ length: TOTAL_ITEMS }, (_, i) => pool[i % pool.length]);
+}
+
+// 從 courses.json 撈課程 title（導航到對應 course item，並 highlight 該項目）
 async function fetchCourseTexts() {
   const pool = [];
   try {
@@ -38,9 +103,8 @@ async function fetchCourseTexts() {
         if (!zh && !en) return;
         const slug = en ? slugify(en) : '';
         const filter = course.type || 'required';
-        const url = slug
-          ? `pages/courses.html?program=${program}&filter=${filter}&item=${slug}`
-          : 'pages/courses.html';
+        const itemParam = slug ? `&item=${slug}` : '';
+        const url = `pages/courses.html?program=${program}&filter=${filter}${itemParam}`;
         pool.push({ type: 'text', textEn: en || '', textZh: zh || '', url });
       });
     });

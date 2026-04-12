@@ -3,6 +3,8 @@
  * admission.html 左側 section 切換邏輯
  */
 
+import { setActiveNavBtn, showPanel } from '../ui/section-switch-helpers.js';
+
 export function initAdmissionSectionSwitch() {
   const btns = document.querySelectorAll('.activities-section-btn');
   if (!btns.length) return;
@@ -10,25 +12,8 @@ export function initAdmissionSectionSwitch() {
   const loaded = {};
 
   function switchSection(section, shouldScroll = false) {
-    btns.forEach(b => {
-      b.classList.remove('active');
-      const inner = b.querySelector('.anchor-nav-inner');
-      if (inner) { inner.style.background = ''; inner.style.transform = ''; }
-    });
-
-    const activeBtn = [...btns].find(b => b.dataset.section === section);
-    if (activeBtn) {
-      activeBtn.classList.add('active');
-      const inner = activeBtn.querySelector('.anchor-nav-inner');
-      if (inner) {
-        inner.style.background = SCCDHelpers.getRandomAccentColor();
-        inner.style.transform  = `rotate(${SCCDHelpers.getRandomRotation()}deg)`;
-      }
-    }
-
-    document.querySelectorAll('.activities-panel').forEach(p => p.classList.add('hidden'));
-    const target = document.getElementById(`panel-${section}`);
-    if (target) target.classList.remove('hidden');
+    setActiveNavBtn(btns, section, 'data-section');
+    showPanel('.activities-panel', `panel-${section}`);
 
     // Lazy load summer camp
     if (section === 'summer-camp' && !loaded['summer-camp']) {

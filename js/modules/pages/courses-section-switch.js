@@ -1,14 +1,14 @@
 /**
  * Courses Section Switch Module
  * 處理 courses.html 的 BFA / MDES 切換
- * 仿照 activities-section-switch.js 架構
  */
 
 import { loadCourses } from './courses-data-loader.js';
 import { initCourseAccordion } from '../accordions/course-accordion.js';
 import { initCoursesFilter } from '../filters/courses-filter.js';
+import { setActiveNavBtn } from '../ui/section-switch-helpers.js';
 
-const loaded = new Set(); // 記錄已載入的 program，避免重複 fetch
+const loaded = new Set();
 
 let currentProgramColor = '';
 export function getCurrentProgramColor() { return currentProgramColor; }
@@ -20,43 +20,34 @@ export function initCoursesSectionSwitch() {
 
   if (!programBtns.length || !panels.length) return;
 
-  // SPA 換頁後 DOM 重建，需重置 loaded 狀態讓資料重新載入
   loaded.clear();
 
-  // 支援 ?program= 、?filter= 與 ?item= query string（從外部連結過來時直接切換並 highlight）
+  // 支援 query string
   const params = new URLSearchParams(window.location.search);
+  const hasQueryDeepLink = params.has('program') || params.has('filter') || params.has('item');
   const initialProgram = params.get('program') || 'bfa';
   const initialFilter  = params.get('filter') || null;
   const initialItem    = params.get('item');
 
-  // 初始載入預設分頁
+  // 有 ?item= → switchToProgram 內部的 1200ms setTimeout 會 scroll 到該課程 + flash
+  // 沒 ?item= 但有 ?program=/?filter= → 只 scroll 到 list section 頂部（停留 hero 1s）
   switchToProgram(initialProgram, programBtns, false, initialItem, initialFilter);
+  if (hasQueryDeepLink && !initialItem) {
+    setTimeout(() => {
+      if (sectionEl) sectionEl.scrollIntoView({ behavior: 'smooth' });
+    }, 1000);
+  }
 
   programBtns.forEach(btn => {
     btn.addEventListener('click', () => {
-      const program = btn.getAttribute('data-program');
-      switchToProgram(program, programBtns, true);
+      switchToProgram(btn.getAttribute('data-program'), programBtns, true);
     });
   });
 
   async function switchToProgram(program, btns, shouldScroll, highlightItem = null, highlightFilter = null) {
-    // 更新按鈕狀態與隨機顏色 + rotation
-    const color = SCCDHelpers.getRandomAccentColor();
+    // 按鈕 active + panel 切換
+    const { color } = setActiveNavBtn(btns, program, 'data-program');
     currentProgramColor = color;
-    const rot = SCCDHelpers.getRandomRotation();
-    btns.forEach(b => {
-      b.classList.remove('active');
-      const inner = b.querySelector('.anchor-nav-inner');
-      if (inner) { inner.style.background = ''; inner.style.transform = ''; }
-    });
-    const activeBtn = [...btns].find(b => b.getAttribute('data-program') === program);
-    if (activeBtn) {
-      activeBtn.classList.add('active');
-      const activeInner = activeBtn.querySelector('.anchor-nav-inner');
-      if (activeInner) { activeInner.style.background = color; activeInner.style.transform = `rotate(${rot}deg)`; }
-    }
-
-    // 顯示對應 panel，隱藏其他
     panels.forEach(p => p.classList.toggle('hidden', p.id !== `panel-${program}`));
 
     // 同步 active filter btn 的顏色
@@ -65,7 +56,10 @@ export function initCoursesSectionSwitch() {
       const activeFilterBtn = activePanel.parentElement.querySelector('.courses-filter-btn.active');
       if (activeFilterBtn) {
         const filterInner = activeFilterBtn.querySelector('.anchor-nav-inner');
-        if (filterInner) { filterInner.style.background = color; filterInner.style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`; }
+        if (filterInner) {
+          filterInner.style.background = color;
+          filterInner.style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`;
+        }
       }
     }
 
@@ -77,19 +71,21 @@ export function initCoursesSectionSwitch() {
       initCoursesFilter(program);
       if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh();
 
-      // 若有 ?item= 參數，scroll 到並展開對應課程
+      // Deep link 處理：?filter= 切換 filter tab
+      if (highlightFilter) {
+        setTimeout(() => {
+          const filterScope = document.getElementById(`panel-${program}`)?.parentElement;
+          const filterBtns = filterScope?.querySelectorAll('.courses-filter-btn');
+          const targetFilterBtn = filterBtns ? [...filterBtns].find(b => b.getAttribute('data-filter') === highlightFilter) : null;
+          if (targetFilterBtn && !targetFilterBtn.classList.contains('active')) {
+            targetFilterBtn.click();
+          }
+        }, 100);
+      }
+
+      // ?item= 深度連結：scroll + highlight + 展開（保留供其他用途）
       if (highlightItem) {
         setTimeout(() => {
-          // 若有 ?filter=，先切換到對應的 filter（required / elective）
-          if (highlightFilter) {
-            const filterScope = document.getElementById(`panel-${program}`)?.parentElement;
-            const filterBtns = filterScope?.querySelectorAll('.courses-filter-btn');
-            const targetFilterBtn = filterBtns ? [...filterBtns].find(b => b.getAttribute('data-filter') === highlightFilter) : null;
-            if (targetFilterBtn && !targetFilterBtn.classList.contains('active')) {
-              targetFilterBtn.click();
-            }
-          }
-
           const target = document.getElementById(`course-${highlightItem}`);
           if (!target) return;
 
@@ -101,14 +97,14 @@ export function initCoursesSectionSwitch() {
           window.scrollTo({ top: targetTop - 200 - filterH, behavior: 'smooth' });
           history.replaceState(null, '', window.location.pathname);
 
-          // scroll 完成後 flash，再展開
           const flashColor = color || '#00FF80';
+          const header = target.querySelector('.course-header');
+          const flashEl = header || target; // 優先 flash header，避免延伸到 overflow 區域
           setTimeout(() => {
-            target.style.transition = 'background 0.3s';
-            target.style.background = flashColor;
+            flashEl.style.transition = 'background 0.3s';
+            flashEl.style.background = flashColor;
             setTimeout(() => {
-              target.style.background = '';
-              const header = target.querySelector('.course-header');
+              flashEl.style.background = '';
               if (header && !header.classList.contains('active')) {
                 header.style.background = flashColor;
                 header.click();
@@ -119,9 +115,9 @@ export function initCoursesSectionSwitch() {
       }
     }
 
-    // 捲到 section 頂部
     if (shouldScroll && sectionEl) {
       sectionEl.scrollIntoView({ behavior: 'smooth' });
     }
   }
 }
+

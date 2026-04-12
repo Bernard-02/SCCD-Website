@@ -10,6 +10,7 @@ import { loadDegreeShowListInto } from './degree-show-data-loader.js';
 import { initActivitiesYearToggle } from '../accordions/activities-year-toggle.js';
 import { initListAccordion } from '../accordions/list-accordion.js';
 import { reapplySearch } from '../ui/activities-search.js';
+import { setActiveNavBtn, showPanel } from '../ui/section-switch-helpers.js';
 
 // 追蹤哪些 panel 已載入過資料
 const loaded = {};
@@ -81,11 +82,28 @@ export function initActivitiesSectionSwitch(defaultSection = 'general') {
   // 暴露給 industry reference 按鈕使用（避免循環 import）
   window.__sccdNavigateToItem = (section, itemId) => navigateToItem(section, itemId);
 
-  // 支援 ?section= query string（從 mega menu 連結過來時直接切換）
+  // 支援 ?section= 和 ?item= query string（從外部連結過來時切換 + highlight 特定項目）
   const params = new URLSearchParams(window.location.search);
   const initialSection = params.get('section') || defaultSection;
+  const initialItem = params.get('item');
 
-  switchToSection(initialSection, btns, false);
+  if (params.has('section')) {
+    // 從外部連結進來：先停留在 hero 1s，再 scroll（+ highlight 特定項目）
+    if (initialItem) {
+      // 有 ?item= → 用 navigateToItem 處理 scroll + 單一項目 highlight
+      switchToSection(initialSection, btns, false);
+      setTimeout(() => navigateToItem(initialSection, initialItem), 1000);
+    } else {
+      // 沒指定 item → 只 scroll 到 list section，不做 highlight
+      switchToSection(initialSection, btns, false);
+      setTimeout(() => {
+        const sectionEl = document.getElementById('activities-content-section');
+        if (sectionEl) sectionEl.scrollIntoView({ behavior: 'smooth' });
+      }, 1000);
+    }
+  } else {
+    switchToSection(initialSection, btns, false);
+  }
 
   btns.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -95,35 +113,15 @@ export function initActivitiesSectionSwitch(defaultSection = 'general') {
   });
 }
 
-function setActiveSectionStyle(btns, activeBtn) {
-  const color = SCCDHelpers.getRandomAccentColor();
-  currentSectionColor = color;
-  const rot = SCCDHelpers.getRandomRotation();
-  btns.forEach(b => {
-    b.classList.remove('active');
-    const inner = b.querySelector('.anchor-nav-inner');
-    if (inner) { inner.style.background = ''; inner.style.transform = ''; }
-  });
-  if (activeBtn) {
-    activeBtn.classList.add('active');
-    const activeInner = activeBtn.querySelector('.anchor-nav-inner');
-    if (activeInner) { activeInner.style.background = color; activeInner.style.transform = `rotate(${rot}deg)`; }
-  }
-  window.__sccdCurrentSectionColor = color;
-}
-
 async function switchToSection(section, btns, shouldScroll) {
-  // 更新按鈕 active 狀態、隨機顏色與角度
-  const activeBtn = [...btns].find(b => b.getAttribute('data-section') === section);
-  setActiveSectionStyle(btns, activeBtn);
+  // 更新按鈕 active 狀態（隨機顏色 + 旋轉）
+  const { color } = setActiveNavBtn(btns, section, 'data-section');
+  currentSectionColor = color;
+  window.__sccdCurrentSectionColor = color;
 
   // 切換 panel 顯示
-  document.querySelectorAll('.activities-panel').forEach(panel => {
-    panel.classList.add('hidden');
-  });
-  const target = document.getElementById(`panel-${section}`);
+  const target = showPanel('.activities-panel', `panel-${section}`);
   if (target) {
-    target.classList.remove('hidden');
     // 同步所有 active filter btn 的顏色
     target.querySelectorAll('.activities-filter-btn.active, .album-filter-option.active').forEach(btn => {
       const inner = btn.querySelector('.anchor-nav-inner');

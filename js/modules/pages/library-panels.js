@@ -413,6 +413,7 @@ async function initPressPanel() {
         group.items.forEach(item => {
           const div = document.createElement('div');
           div.className       = 'press-item';
+          if (item.id) div.id = item.id; // 供 hash deep link 使用
           div.dataset.year    = String(item.year);
           div.dataset.cat     = item.category || '';
           div.dataset.search  = [item.titleEn, item.titleZh, item.subtitleEn, item.subtitleZh].filter(Boolean).join(' ').toLowerCase();
@@ -561,6 +562,7 @@ async function initFilesPanel() {
         group.items.forEach(item => {
           const div  = document.createElement('div');
           div.className  = 'files-item';
+          if (item.id) div.id = `f-${item.id}`; // 供 hash deep link 使用（避免與其他 panel id 衝突）
           const cats = Array.isArray(item.categories) ? item.categories : (item.category ? [item.category] : []);
           div.dataset.year   = String(item.year);
           div.dataset.cats   = JSON.stringify(cats);
@@ -803,6 +805,7 @@ async function initAlbumPanel() {
         group.items.forEach(item => {
           const div = document.createElement('div');
           div.className      = 'files-item album-panel-item';
+          if (item.id) div.id = `album-${item.id}`; // 供 hash deep link 使用
           div.dataset.year   = String(item.year);
           div.dataset.cat    = item.cat;
           div.dataset.search = [item.titleEn, item.titleZh].filter(Boolean).join(' ').toLowerCase();
@@ -1048,7 +1051,11 @@ function showLibPanel(tab) {
 
 /**
  * 初始化所有 library panels
- * @returns {{ showPanel: Function, registerEntranceDone: Function }}
+ * @returns {{
+ *   showPanel: (tab: string) => void,
+ *   onEntranceDone: () => void,
+ *   handleHash: () => void
+ * }}
  */
 export function initLibraryPanels() {
   let _entranceDoneCb = null;
@@ -1069,5 +1076,64 @@ export function initLibraryPanels() {
     showPanel: showLibPanel,
     // library-card.js 呼叫此函式以觸發 ticker 動畫
     onEntranceDone: () => { if (typeof _entranceDoneCb === 'function') _entranceDoneCb(); },
+    handleHash: handleLibraryHash,
   };
+}
+
+/**
+ * Hash-based deep link：處理 library.html#item-id 連結
+ * 1. 從 hash 找對應的 DOM element（有 retry，因為 awards/album 是 async 載入）
+ * 2. 判斷它屬於哪個 panel（awards/press/files/album）
+ * 3. 切換 panel + 滾動 + 觸發一次該項目的 hover 效果
+ */
+function handleLibraryHash() {
+  const hash = window.location.hash.slice(1);
+  if (!hash) return;
+
+  // 純 tab 名稱（如 #awards / #press / #files / #album）→ 只切換 panel
+  if (Object.prototype.hasOwnProperty.call(PANEL_MAP, hash)) {
+    showLibPanel(hash);
+    return;
+  }
+
+  // Retry 找元素，最多等 3 秒（awards 需要 fetch + render，可能較慢）
+  const startTime = Date.now();
+  const MAX_WAIT = 3000;
+
+  function tryFindAndHandle() {
+    const el = document.getElementById(hash);
+    if (!el) {
+      if (Date.now() - startTime < MAX_WAIT) {
+        setTimeout(tryFindAndHandle, 100);
+      }
+      return;
+    }
+
+    // 判斷 element 屬於哪個 panel
+    const panelEl = el.closest('[id^="lib-panel-"]');
+    if (!panelEl) return;
+    const tab = panelEl.id.replace('lib-panel-', '');
+
+    // 切換到對應 panel
+    showLibPanel(tab);
+
+    // 等 panel 顯示 + layout 完成後再 scroll + 觸發 hover
+    requestAnimationFrame(() => {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+      // 觸發一次該項目既有的 hover 效果（1s）
+      // - dispatch mouseenter/leave：觸發 JS hover listener（awards 的文字變色）
+      // - 加 .is-hovered class：觸發 CSS :hover 樣式（files/album 的灰階 + overlay）
+      setTimeout(() => {
+        el.classList.add('is-hovered');
+        el.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+        setTimeout(() => {
+          el.classList.remove('is-hovered');
+          el.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+        }, 1000);
+      }, 600);
+    });
+  }
+
+  setTimeout(tryFindAndHandle, 300);
 }

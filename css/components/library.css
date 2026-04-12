@@ -7,6 +7,21 @@
 .no-scrollbar::-webkit-scrollbar { display: none !important; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
+/* ── Sort 按鈕（Awards / Press / Files / Album panel 共用） ── */
+.library-sort-btn {
+  background: none;
+  border: none;
+  padding: 0 0 4px;
+  font-family: inherit;
+  font-size: var(--font-size-p3);
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
 /* ── Color Rect Marquee ──────────────────────────────────────── */
 .color-rect-title {
   position: absolute;
@@ -435,17 +450,22 @@
   overflow: visible;
 }
 
+/* .is-hovered 供 JS 程式化觸發 hover 效果使用（如 hash deep link）*/
 @media (min-width: 768px) {
-  .files-item:hover .files-item-cover {
+  .files-item:hover .files-item-cover,
+  .files-item.is-hovered .files-item-cover {
     filter: grayscale(100%);
   }
-  .files-item:hover .files-thumb-overlay {
+  .files-item:hover .files-thumb-overlay,
+  .files-item.is-hovered .files-thumb-overlay {
     opacity: 1;
   }
-  .files-item:hover .album-thumb img {
+  .files-item:hover .album-thumb img,
+  .files-item.is-hovered .album-thumb img {
     filter: grayscale(100%);
   }
-  .files-item:hover .album-thumb-overlay {
+  .files-item:hover .album-thumb-overlay,
+  .files-item.is-hovered .album-thumb-overlay {
     opacity: 1;
   }
 }
@@ -453,7 +473,9 @@
 /* ── Files item hover marquee（桌面專用）─────────────────────── */
 @media (min-width: 768px) {
   .files-item:hover .files-item-title-en.is-overflow .files-marquee-inner,
-  .files-item:hover .files-item-title-zh.is-overflow .files-marquee-inner {
+  .files-item:hover .files-item-title-zh.is-overflow .files-marquee-inner,
+  .files-item.is-hovered .files-item-title-en.is-overflow .files-marquee-inner,
+  .files-item.is-hovered .files-item-title-zh.is-overflow .files-marquee-inner {
     animation: press-marquee var(--marquee-duration, 8s) linear infinite;
   }
 }
