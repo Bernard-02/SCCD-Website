@@ -18,9 +18,18 @@ function wrapElement(el, wrapperClass) {
 
 export function initHeroAnimation() {
   if (typeof gsap === 'undefined') {
-    document.querySelectorAll('.hero-title, .hero-text-en, .hero-text-cn')
+    document.querySelectorAll('.hero-title, .hero-text-en, .hero-text-cn, [data-hero-logo]')
       .forEach(el => { el.style.visibility = 'visible'; });
     return;
+  }
+
+  // --- Logo-only hero（如 about 頁）：y 軸位移到原位進場 ---
+  const heroLogo = document.querySelector('[data-hero-logo]');
+  if (heroLogo) {
+    gsap.fromTo(heroLogo,
+      { y: 120, opacity: 0, visibility: 'visible' },
+      { y: 0, opacity: 1, duration: 1.5, delay: 0.3, ease: 'power3.out', clearProps: 'transform' }
+    );
   }
 
   const title = document.querySelector('.hero-title');

@@ -3,7 +3,7 @@
  * Resources 區塊：讀取 JSON 並渲染為 Horizontal Accordion
  */
 
-import { initSingleAccordion } from '../../accordions/horizontal-accordion.js';
+import { initSingleAccordion, initRotatedAccordion } from '../../accordions/horizontal-accordion.js';
 
 export function initResourcesCycling() {
   const container = document.getElementById('resources-accordion-container');
@@ -24,7 +24,7 @@ export function initResourcesCycling() {
 function renderResourcesAccordion(data, container) {
   // 建立 Accordion Wrapper
   const wrapper = document.createElement('div');
-  wrapper.className = 'accordion-wrapper colored-accordion h-auto md:h-[700px]';
+  wrapper.className = 'accordion-wrapper colored-accordion h-auto';
 
   // 生成 HTML
   const html = data.map((item, index) => {
@@ -61,6 +61,10 @@ function renderResourcesAccordion(data, container) {
   wrapper.innerHTML = html;
   container.appendChild(wrapper);
 
-  // 初始化手風琴功能
-  initSingleAccordion(wrapper);
+  // 初始化旋轉卡片版手風琴（桌面旋轉堆疊，手機退回單列展開）
+  if (window.innerWidth >= 768) {
+    initRotatedAccordion(wrapper, { height: 600 });
+  } else {
+    initSingleAccordion(wrapper);
+  }
 }

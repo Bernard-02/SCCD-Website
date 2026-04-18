@@ -37,14 +37,86 @@ async function loadTrailImages() {
 }
 
 export async function initBrandTrail() {
+  initOverviewHighlight(); // 先跑（不依賴 fetch），避免下面出錯就不執行
+  initClassHighlight();
+  initWorksHighlight();
   await loadTrailImages();
   initDesktopTrail();
   initOverviewTrail();
   initMobileSlideshow();
 }
 
+// Class 文字底色：每個 .class-info-panel 隨機一色，整塊文字區同色
+function initClassHighlight() {
+  const panels = document.querySelectorAll('.class-info-panel');
+  if (!panels.length) return;
+  const colors = getAccentColors();
+  panels.forEach(panel => {
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    panel.querySelectorAll('[data-class-hl]').forEach(el => {
+      el.style.background = color;
+    });
+  });
+}
+
+// Works 底色：每個 .class-works-panel 隨機一色，標題/內文同色（整塊）
+function initWorksHighlight() {
+  const panels = document.querySelectorAll('.class-works-panel');
+  if (!panels.length) return;
+  const colors = getAccentColors();
+  panels.forEach(panel => {
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    panel.querySelectorAll('[data-works-hl]').forEach(el => {
+      el.style.background = color;
+    });
+  });
+}
+
+// Overview 文字底色（套在 span 上，只有文字部份有色）
+// 進場動畫：隨機四個方向 clip-path，中英文同時
+function initOverviewHighlight() {
+  const hls = /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('[data-overview-hl]'));
+  if (!hls.length) return;
+  const colors = getAccentColors();
+  const color = colors[Math.floor(Math.random() * colors.length)];
+  hls.forEach(el => { el.style.background = color; });
+
+  if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') return;
+
+  // 進場 clip-path：隨機四方向（百分比單位）
+  const dirs = [
+    'inset(0% 0% 100% 0%)', // 下方遮住（從上展開）
+    'inset(100% 0% 0% 0%)', // 上方遮住（從下展開）
+    'inset(0% 100% 0% 0%)', // 右方遮住（從左展開）
+    'inset(0% 0% 0% 100%)', // 左方遮住（從右展開）
+  ];
+  // 直接用 inline style 設初始 clipPath，確保立即生效
+  const fromClips = [];
+  hls.forEach(el => {
+    const fromClip = dirs[Math.floor(Math.random() * dirs.length)];
+    el.style.clipPath = fromClip;
+    /** @type {any} */ (el.style).webkitClipPath = fromClip;
+    fromClips.push(fromClip);
+  });
+
+  const first = hls[0].closest('h5') || hls[0];
+  ScrollTrigger.create({
+    trigger: first,
+    start: 'top 88%',
+    once: true,
+    onEnter: () => {
+      hls.forEach((el, i) => {
+        gsap.fromTo(el,
+          { clipPath: fromClips[i] },
+          { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.9, ease: 'power3.out' }
+        );
+      });
+    },
+  });
+}
+
 /**
- * 共用：生成一個 trail item（圖片 + 三原色 overlay wipe，仿首頁做法）
+ * 共用：生成一個 trail item（直接 clip-path 露出圖片，沒有色塊）
  * @param {string} imgSrc  - 圖片路徑
  * @param {number} x       - left（相對於 container）
  * @param {number} y       - top（相對於 container）
@@ -52,14 +124,12 @@ export async function initBrandTrail() {
  * @param {Array} registry - 用來限制數量的陣列
  */
 function spawnTrailItem(imgSrc, x, y, container, registry) {
-  const colors = getAccentColors();
-  const color  = colors[Math.floor(Math.random() * colors.length)];
-  const rot    = Math.random() * 30 - 15;
+  const rot = Math.random() * 30 - 15;
 
   const revealDir = CLIP_DIRS[Math.floor(Math.random() * CLIP_DIRS.length)];
   const exitDir   = CLIP_DIRS[Math.floor(Math.random() * CLIP_DIRS.length)];
 
-  // wrapper：wipe 進來（色塊先出現），clip-path 從 hidden → shown
+  // wrapper：clip-path 從 hidden → shown 直接露出圖片
   const wrapper = document.createElement('div');
   wrapper.style.cssText = `
     position: absolute;
@@ -74,7 +144,6 @@ function spawnTrailItem(imgSrc, x, y, container, registry) {
     transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);
   `;
 
-  // 底層：圖片，height: auto 讓高度自然
   const img = document.createElement('img');
   img.src = imgSrc;
   img.style.cssText = `
@@ -83,33 +152,16 @@ function spawnTrailItem(imgSrc, x, y, container, registry) {
     display: block;
   `;
 
-  // 上層：三原色 overlay，初始完全覆蓋，稍後 wipe 退出
-  const overlay = document.createElement('div');
-  overlay.style.cssText = `
-    position: absolute;
-    inset: 0;
-    background: ${color};
-    pointer-events: none;
-    clip-path: ${revealDir.to};
-    transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);
-  `;
-
   wrapper.appendChild(img);
-  wrapper.appendChild(overlay);
   container.appendChild(wrapper);
   registry.push(wrapper);
 
-  // Step 1：wrapper wipe 進來（色塊完整出現）
+  // Step 1：wrapper 直接 clip-path 露出圖片
   requestAnimationFrame(() => {
     wrapper.style.clipPath = revealDir.to;
   });
 
-  // Step 2：0.5s 後 overlay wipe 退出（同方向），圖片露出
-  setTimeout(() => {
-    overlay.style.clipPath = revealDir.from;
-  }, 500);
-
-  // Step 3：2s 後 wrapper 用隨機方向 clip-path 消失（圖片跟著消失）
+  // Step 2：2s 後 wrapper 用隨機方向 clip-path 消失（結束動畫不變）
   setTimeout(() => {
     wrapper.style.clipPath = exitDir.from;
     setTimeout(() => {

@@ -55,17 +55,23 @@ export function initBFADivisionToggle() {
     }
   }
 
+  // BFA 在 class 模式不存在 info panel，showContent 時 fallback 到 animation
+  function resolveInfoPanelId(divisionId) {
+    return divisionId === 'bfa' ? 'animation' : divisionId;
+  }
+
   function showContent(divisionId, animate = true) {
-    // 更新圖文 panel
+    const infoId = resolveInfoPanelId(divisionId);
+    // 更新圖文 panel（BFA 沒有圖文 panel，顯示 animation 的）
     classInfoPanels.forEach(el => {
-      if (el.getAttribute('data-division') === divisionId) {
+      if (el.getAttribute('data-division') === infoId) {
         el.classList.remove('hidden');
         if (animate) playAnimation(el);
       } else {
         el.classList.add('hidden');
       }
     });
-    // 同步更新 works panel（container 可見性由 class-buttons-sticky.js 控制）
+    // works panel 直接用 divisionId（BFA 有自己的 panel）
     classWorksPanels.forEach(el => {
       el.classList.toggle('hidden', el.getAttribute('data-division') !== divisionId);
     });
@@ -94,7 +100,8 @@ export function initBFADivisionToggle() {
 
   function initRotations() {
     divisionBtns.forEach(btn => {
-      const rot = randomRotation();
+      // BFA btn 在 class 模式預設 0°，旋轉只在 works 模式啟動後由 setActive 設定
+      const rot = btn.getAttribute('data-division') === 'bfa' ? 0 : randomRotation();
       btn._baseRot = rot;
       btn.style.transform = `rotate(${rot}deg)`;
       const label = btn.previousElementSibling?.classList.contains('class-group-label')
@@ -227,6 +234,21 @@ export function initBFADivisionToggle() {
       updateMobileDisplay(currentIndex);
     });
   }
+
+  // ─── 暴露給其他模組的 helper ─────────────────────────────────
+  // class-buttons-sticky.js 在離開 works context 時若 active=bfa 會呼叫此 helper 切回 animation
+  window.SCCD_setDivisionActive = function (divisionId) {
+    const color = randomColor();
+    const rot   = randomRotation();
+    setActive(divisionId, color, rot);
+    const ctx = window.SCCD_classContext || 'info';
+    if (ctx === 'works') {
+      switchWorksOnly(divisionId);
+    } else {
+      showContent(divisionId, false);
+    }
+    currentIndex = divisions.findIndex(d => d.id === divisionId);
+  };
 
   // ─── Initial State ───────────────────────────────────────────
 

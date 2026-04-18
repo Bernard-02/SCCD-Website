@@ -22,8 +22,7 @@ let rotationAngles = [];
 let originalRotationAngles = [];
 let shouldResetToZero = false;
 let resetEaseSpeed = 0.035;
-const baseSpeeds = [0.125, -0.125, 0.25]; // R, G, B 各自的基礎旋轉速度
-const placeholderBaseSpeeds = [0.125, -0.125, 0.25]; // Placeholder SVG 的旋轉速度
+const baseSpeeds = [0.125, -0.125, 0.25]; // R, G, B 各自的基礎旋轉速度（Logo 與 Placeholder 共用）
 
 // --- 旋轉相關常數 ---
 const MIN_LETTERS_FOR_CHANNELS = [1, 2, 3]; // R, G, B 所需的最小字母數

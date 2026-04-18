@@ -36,15 +36,9 @@ const HOVER_COLORS = ['#fffa32', '#c878ff', '#ffa046'];
 // ── 旋轉卡片版（colored-accordion）──────────────────────────────
 // 每張卡片結構：[label | 照片 | 說明]，label 在最右，卡片往左展開
 // 收合：只露 label 條，展開：整張卡片顯示
-// z-index：粉1 < 綠2 < 藍3（固定）
-// 點擊收合的卡片 → 展開它，並收合比它 z-index 更高的
-// 規則：
-//   - 粉 hover → label + body 變黃色
-//   - 綠 hover → label + body 變紫色
-//   - 藍：hover 不改色
-//   - 綠展開時，藍色位置不移動
-//   - 點藍色（且綠藍都收合）→ 綠也跟著展開
-function initRotatedAccordion(wrapper) {
+// z-index 由 index 決定（遞增）；顏色 nth-child(3n+1/2/3) 循環粉/綠/藍
+// Hover 時非展開的卡片換成循環 HOVER_COLORS
+export function initRotatedAccordion(wrapper, { height = 600 } = {}) {
   if (window.innerWidth < 768) {
     initSingleAccordion(wrapper);
     return;
@@ -52,8 +46,6 @@ function initRotatedAccordion(wrapper) {
 
   const items = Array.from(wrapper.querySelectorAll('.accordion-item'));
   if (!items.length) return;
-
-  const originalColors = ['var(--color-pink)', 'var(--color-green)', 'var(--color-blue)'];
 
   // 每個 item 隨機旋轉 ±2°（排除接近 0°）
   const rotations = items.map(() => {
@@ -63,23 +55,16 @@ function initRotatedAccordion(wrapper) {
   });
 
   // wrapper：相對定位容器
-  wrapper.style.cssText = `
-    position: relative;
-    height: 600px;
-    overflow: visible;
-  `;
+  wrapper.style.position = 'relative';
+  wrapper.style.overflow = 'visible';
+  wrapper.style.height = `${height}px`;
 
-  const LABEL_GAP = 8; // 收合卡片之間的錯開距離
-
-  // 目前展開的 index（預設 0 = 粉色展開）
+  // 目前展開的 index
   let openIndex = 0;
 
   function getLabelWidth(item) {
     return item.querySelector('.accordion-label').offsetWidth;
   }
-
-  // 固定展開寬度比例：粉 50%、綠 42%、藍用剩餘空間
-  const OPEN_WIDTH_RATIO = [null, null, null];
 
   function applyLayout(animate = false) {
     const wrapperW = wrapper.offsetWidth;
@@ -88,25 +73,14 @@ function initRotatedAccordion(wrapper) {
     const labelWidths = items.map(item => getLabelWidth(item));
     const totalLabelW = labelWidths.reduce((s, w) => s + w, 0);
 
-    // 各卡片固定展開 body 寬度
-    // 粉色固定比例（可超出 wrapper），綠藍各自填滿扣掉自身左側 label 後的剩餘空間
-    const openBodyWidths = items.map((_, i) => {
-      if (OPEN_WIDTH_RATIO[i] !== null) return Math.round(wrapperW * OPEN_WIDTH_RATIO[i]);
-      // 動態：wrapper 寬 - 此卡片左側所有 label 寬 - 自身 label 寬 - 右側所有 label 寬
-      const leftW = labelWidths.slice(0, i).reduce((s, w) => s + w, 0);
-      const rightW = labelWidths.slice(i + 1).reduce((s, w) => s + w, 0);
-      return wrapperW - leftW - labelWidths[i] - rightW;
-    });
+    // N 項通用：展開 body 寬度 = wrapper 寬扣掉全部 label
+    const openBodyW = Math.max(0, wrapperW - totalLabelW);
+    const openBodyWidths = items.map(() => openBodyW);
 
-    // 各卡片右錨點（right 值）：用 transformOrigin: top right 固定右上角
-    // 粉(0)：右邊距 = wrapperW - labelWidths[0] - openBodyWidths[0]
-    // 綠(1)：右邊距 = wrapperW - labelWidths[0] - labelWidths[1] - openBodyWidths[1]
-    // 藍(2)：右邊距 = wrapperW - labelWidths[0] - labelWidths[1] - labelWidths[2] - openBodyWidths[2]
-    const anchorRights = [
-      wrapperW - labelWidths[0] - openBodyWidths[0],
-      wrapperW - labelWidths[0] - labelWidths[1] - openBodyWidths[1],
-      wrapperW - labelWidths[0] - labelWidths[1] - labelWidths[2] - openBodyWidths[2]
-    ];
+    // N 項通用 right 錨點：等同自身右側所有 label 寬總和
+    const anchorRights = items.map((_, i) => {
+      return labelWidths.slice(i + 1).reduce((s, w) => s + w, 0);
+    });
 
     items.forEach((item, i) => {
       const body = item.querySelector('.accordion-body');
@@ -128,27 +102,14 @@ function initRotatedAccordion(wrapper) {
       item.style.overflow = 'hidden';
 
       const targetRight = anchorRights[i];
-      let targetBodyW;
-
-      if (isOpen) {
-        targetBodyW = openBodyWidths[i];
-      } else if (i < openIndex) {
-        item.classList.remove('active');
-        return;
-      } else {
-        targetBodyW = 0;
-      }
+      // i <= openIndex 都展開 body（前面的被「推出來」，z-index 由 i+1 決定層疊）
+      const targetBodyW = (i <= openIndex) ? openBodyWidths[i] : 0;
 
       if (inner) gsap.set(inner, { width: openBodyWidths[i] });
 
       if (animate) {
-        if (i < openIndex) {
-          gsap.set(item, { right: targetRight });
-          gsap.to(body, { width: targetBodyW, duration: dur, ease: 'power2.inOut' });
-        } else {
-          gsap.to(item, { right: targetRight, duration: dur, ease: 'power2.inOut' });
-          gsap.to(body, { width: targetBodyW, duration: dur, ease: 'power2.inOut' });
-        }
+        gsap.to(item, { right: targetRight, duration: dur, ease: 'power2.inOut' });
+        gsap.to(body, { width: targetBodyW, duration: dur, ease: 'power2.inOut' });
       } else {
         gsap.set(item, { right: targetRight });
         gsap.set(body, { width: targetBodyW });
@@ -175,7 +136,7 @@ function initRotatedAccordion(wrapper) {
     const textWrap = item.querySelector('.accordion-text-wrap');
     if (!label) return;
 
-    const hoverColor = HOVER_COLORS[i];
+    const hoverColor = HOVER_COLORS[i % HOVER_COLORS.length];
 
     item.addEventListener('mouseenter', () => {
       if (i === openIndex) return;
@@ -198,23 +159,8 @@ function initRotatedAccordion(wrapper) {
     });
 
     item.addEventListener('click', () => {
-      if (i === openIndex) return; // 點已展開的不動
-
+      if (i === openIndex) return;
       resetColors();
-
-      // 點藍色（index 2）且目前不是綠色展開 → 同時展開綠和藍
-      // 做法：先把 openIndex 設為 1（綠）執行一次 layout，
-      // 再立刻把 openIndex 設為 2（藍）執行第二次動畫，兩者同時跑
-      if (i === 2 && openIndex !== 1) {
-        // 第一步：展開綠色（計算綠色展開的位置並動畫）
-        openIndex = 1;
-        applyLayout(true);
-        // 第二步：立刻（同一 frame）再把藍色也展開覆蓋上去
-        openIndex = 2;
-        applyLayout(true);
-        return;
-      }
-
       openIndex = i;
       applyLayout(true);
     });

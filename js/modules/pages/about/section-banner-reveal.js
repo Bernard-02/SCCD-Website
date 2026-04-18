@@ -97,54 +97,63 @@ export function initSectionBannerReveal() {
 
   const accentColors = getAccentColors();
 
-  // --- Section Title Strips（class/resources/history 封鎖線風格）---
-  const sectionTitles = document.querySelectorAll('[data-section-title]');
-  sectionTitles.forEach((titleEl) => {
-    const bgColor = accentColors[Math.floor(Math.random() * accentColors.length)];
+  // 隨機套用封鎖線位置／旋轉（初始 + 每次 replay 都呼叫）
+  function applyRandomLayout(titleEl) {
     const rot = randomTextRotation();
-
-    // 封鎖線風格：隨機從左側或右側超出畫面
     const fromRight = Math.random() < 0.5;
     const overshoot = 50; // 超出畫面的 vw
     const visibleEnd = 70 + Math.random() * 20; // 可見端到 70~90vw
 
-    titleEl.style.background = bgColor;
-
     if (fromRight) {
-      // 右側超出畫面，左側在 10~30vw 結束
-      const leftStart = 100 - visibleEnd; // 對稱：10~30vw
+      const leftStart = 100 - visibleEnd;
       titleEl.style.width = `calc(${overshoot}vw + ${100 - leftStart}vw)`;
       titleEl.style.marginLeft = `${leftStart}vw`;
-      // 文字靠右側，從右邊算起留足空間
       titleEl.style.paddingLeft = '4vw';
       titleEl.style.paddingRight = `${overshoot}vw`;
-      titleEl.style.direction = 'rtl'; // 文字靠右對齊
+      titleEl.style.direction = 'rtl';
     } else {
-      // 左側超出畫面，右側到 70~90vw
       titleEl.style.width = `calc(${overshoot}vw + ${visibleEnd}vw)`;
       titleEl.style.marginLeft = `-${overshoot}vw`;
-      // 文字從 nav btn 右側開始（約 14vw），避開左側錨點導航
       titleEl.style.paddingLeft = `calc(${overshoot}vw + 14vw)`;
+      titleEl.style.paddingRight = '';
+      titleEl.style.direction = '';
     }
     titleEl.style.transform = `rotate(${rot}deg)`;
+  }
 
-    // clip-path reveal on scroll（只做左右方向）
-    const dir = Math.random() < 0.5 ? 'left' : 'right';
-    gsap.set(titleEl, { clipPath: getClipStart(dir), opacity: 1 });
+  // --- Section Title Strips（class/resources/history 封鎖線風格）---
+  // 不設初始顏色；顏色完全由 anchor-nav 在 active 切換時驅動
+  const sectionTitles = document.querySelectorAll('[data-section-title]');
+  sectionTitles.forEach((titleEl) => {
+    applyRandomLayout(titleEl);
 
+    // 初始狀態：隱藏（clip-path 全遮）
+    const initDir = Math.random() < 0.5 ? 'left' : 'right';
+    gsap.set(titleEl, { clipPath: getClipStart(initDir), opacity: 1 });
+
+    const strip = titleEl.closest('.section-title-strip') || titleEl;
+
+    // 手機版：直接顯示
     if (window.innerWidth < 768) {
       gsap.set(titleEl, { clipPath: CLIP_END });
-      return;
     }
 
-    ScrollTrigger.create({
-      trigger: titleEl.closest('.section-title-strip') || titleEl,
-      start: 'top 85%',
-      once: true,
-      onEnter: () => {
-        gsap.to(titleEl, { clipPath: CLIP_END, duration: 1.0, ease: 'power3.out' });
-      },
-    });
+    // replay：anchor-nav 在 active 切換時呼叫（同時負責首次 reveal）
+    // 每次都 random 新位置/方向 + 套新色 → reveal
+    /** @type {(color?: string) => void} */
+    const replay = (color) => {
+      if (color) titleEl.style.background = color;
+      if (window.innerWidth < 768) return;
+      gsap.killTweensOf(titleEl);
+      applyRandomLayout(titleEl);
+      const revealDir = Math.random() < 0.5 ? 'left' : 'right';
+      gsap.set(titleEl, { clipPath: getClipStart(revealDir) });
+      gsap.to(titleEl, { clipPath: CLIP_END, duration: 1.0, ease: 'power3.out' });
+    };
+    // @ts-ignore - 掛在 DOM 元素上給 anchor-nav 取用
+    strip._replayReveal = replay;
+    // @ts-ignore
+    titleEl._replayReveal = replay;
   });
 
   // --- Section Banners（有圖片的完整版，如果還有的話）---

@@ -18,6 +18,49 @@ export function initTimeline() {
 
   if (!area || !strip || !navLeft || !navRight) return;
 
+  // --- 動畫時長 / easing 常數 ---
+  const TIMING = {
+    // 入場 reveal（clip-path 展開）
+    revealDuration: 1.0,
+    revealEase: 'power3.out',
+    stagger: 0.08,
+    // 退場（clip-path 收起）
+    exitDuration: 0.5,
+    exitEase: 'power2.in',
+    // 字卡 reveal（切頁後入場）
+    cardRevealDuration: 0.6,
+    // 卷軸橫移
+    stripSlideDuration: 0.8,
+    stripSlideEase: 'power2.inOut',
+    // Era 字卡退場
+    eraExitDuration: 0.4,
+    // Cursor / Tooltip 跟隨
+    followDuration: 0.35,
+    followEase: 'power2.out',
+    // Tooltip 入/退場
+    tooltipShowDuration: 0.5,
+    tooltipShowEase: 'power2.inOut',
+    tooltipHideDuration: 0.2,
+    tooltipHideFastDuration: 0.15,
+    // Cursor 入/退場
+    cursorShowDuration: 0.3,
+    cursorShowEase: 'power3.out',
+    cursorHideDuration: 0.2,
+    // Photo raise/lower clip 週期
+    photoClipDuration: 0.5,
+    photoClipEase: 'power2.inOut',
+    // 邊界照片 dim/undim
+    dimDuration: 0.3,
+    // Reveal 完成後才開放 hover（= revealDuration + 5 * stagger）
+    hoverEnableDelay: 1.4,
+    // mouseleave → leaveAllHover 的 debounce（ms）
+    leaveDebounceMs: 50,
+    // resetTimeline 後第一年 reveal 的起始延遲
+    firstRevealDelay: 0.3,
+    // Era 新入場的額外 delay
+    eraEnterDelay: 0.05,
+  };
+
   // --- 工具函數 ---
   const ACCENT_COLORS = (() => {
     const s = getComputedStyle(document.documentElement);
@@ -63,7 +106,7 @@ export function initTimeline() {
     return r;
   }
 
-  function rectsOverlap(a, b, pad = 40) {
+  function rectsOverlap(a, b, pad = 60) {
     return !(a.x + a.w + pad < b.x || b.x + b.w + pad < a.x ||
              a.y + a.h + pad < b.y || b.y + b.h + pad < a.y);
   }
@@ -90,7 +133,7 @@ export function initTimeline() {
       return;
     }
     zone.addEventListener('mousemove', (e) => {
-      gsap.to(cursor, { left: e.clientX + 6, top: e.clientY + 6, duration: 0.35, ease: 'power2.out', overwrite: 'auto' });
+      gsap.to(cursor, { left: e.clientX + 6, top: e.clientY + 6, duration: TIMING.followDuration, ease: TIMING.followEase, overwrite: 'auto' });
     });
     zone.addEventListener('mouseenter', (e) => {
       gsap.set(cursor, {
@@ -98,12 +141,12 @@ export function initTimeline() {
         scale: 1, rotation: randRot(),
         clipPath: getClipStart(randomDirLR()), opacity: 1,
       });
-      gsap.to(cursor, { clipPath: CLIP_END, duration: 0.3, ease: 'power3.out', overwrite: 'auto' });
+      gsap.to(cursor, { clipPath: CLIP_END, duration: TIMING.cursorShowDuration, ease: TIMING.cursorShowEase, overwrite: 'auto' });
     });
     zone.addEventListener('mouseleave', () => {
       gsap.to(cursor, {
         clipPath: getClipStart(randomDirLR()),
-        duration: 0.2, ease: 'power2.in', overwrite: true,
+        duration: TIMING.cursorHideDuration, ease: TIMING.exitEase, overwrite: true,
         onComplete: () => gsap.set(cursor, { opacity: 0 }),
       });
     });
@@ -390,9 +433,9 @@ export function initTimeline() {
       page.style.pointerEvents = 'none';
       page.style.zIndex = '10'; // 字卡在照片（z-index 1~5）上方
 
-      const yearW = 200, yearH = 80;
+      const yearW = 220, yearH = 160; // 實際 h2 約 120~150px，加 buffer
       const descW = Math.min(450, cardSafeRight - cardSafeLeft - 20);
-      const descH = 180; // 加大碰撞高度，避免長文字互相重疊
+      const descH = 200; // 加大碰撞高度，避免長文字互相重疊
 
       const placed = [];
       if (currentEraRect) placed.push(currentEraRect);
@@ -453,37 +496,25 @@ export function initTimeline() {
     const allPhotos = Array.from(strip.querySelectorAll('.timeline-photo'));
     let activeHover = null;      // 當前 hover 的 photo element
     let hoverLeaveTimer = null;  // 延遲 leave，讓跨照片 hover 順暢
+    let hoverEnabled = false;    // 等頁面 reveal 完成後才允許 hover，避免 clip-path 打架
 
     // 收集當前頁面的邊界照片（slot 0,4）供 dim 用
     function getEdgePhotos() {
       return allPhotos.filter(p => p._tlSlot === 0 || p._tlSlot === 4);
     }
-    // hover 照片：clip 收起 → z-index → clip 展開
-    // 中斷時 smooth 反轉回去
+    // hover 照片：直接提升 z-index（不做 clip-path）
+    // 反向離開時由 lowerPhoto 做 clip-path 回到原本 z-index
     function raisePhoto(photo, showTooltip) {
       const rotateDiv = photo.querySelector('div');
       if (!rotateDiv) return;
 
       gsap.killTweensOf(rotateDiv);
+      // 確保可見（若之前有中斷的 lower 動畫殘留）
+      gsap.set(rotateDiv, { clipPath: CLIP_END });
 
-      const dir = randomDir4();
       photo._raising = true;
-
-      // 單色 + clip 收起同時進行
-      dimPhoto(photo);
-      gsap.to(rotateDiv, {
-        clipPath: getClipStart(dir), duration: 0.5, ease: 'power2.inOut',
-        onComplete: () => {
-          if (!photo._raising) return;
-          photo.style.zIndex = '20';
-          // 恢復原色 + clip 展開 + tooltip 同時出現
-          undimPhoto(photo);
-          if (showTooltip) showTooltip();
-          gsap.to(rotateDiv, {
-            clipPath: CLIP_END, duration: 0.5, ease: 'power2.inOut',
-          });
-        }
-      });
+      photo.style.zIndex = '20';
+      if (showTooltip) showTooltip();
     }
 
     function lowerPhoto(photo) {
@@ -495,17 +526,15 @@ export function initTimeline() {
 
       const dir = randomDir4();
 
-      // Step 1: clip 收起 + 單色
-      dimPhoto(photo);
+      // Step 1: clip 收起（不做單色）
       gsap.to(rotateDiv, {
-        clipPath: getClipStart(dir), duration: 0.5, ease: 'power2.inOut',
+        clipPath: getClipStart(dir), duration: TIMING.photoClipDuration, ease: TIMING.photoClipEase,
         onComplete: () => {
           // Step 2: 降 z-index（此時不可見）
           photo.style.zIndex = photo._tlOrigZ;
-          // Step 3: 恢復原色 + clip 展開
-          undimPhoto(photo);
+          // Step 3: clip 展開
           gsap.to(rotateDiv, {
-            clipPath: CLIP_END, duration: 0.5, ease: 'power2.inOut',
+            clipPath: CLIP_END, duration: TIMING.photoClipDuration, ease: TIMING.photoClipEase,
           });
         }
       });
@@ -518,7 +547,7 @@ export function initTimeline() {
       getEdgePhotos().forEach(p => {
         // 圖片灰階（同 faculty card hover）
         const img = p.querySelector('img');
-        if (img) gsap.to(img, { filter: 'grayscale(100%)', duration: 0.3 });
+        if (img) gsap.to(img, { filter: 'grayscale(100%)', duration: TIMING.dimDuration });
         // screen blend overlay（同 faculty card ::after）
         if (!p._screenOverlay) {
           const overlay = document.createElement('div');
@@ -527,72 +556,48 @@ export function initTimeline() {
           p._screenOverlay = overlay;
         }
         p._screenOverlay.style.background = color;
-        gsap.to(p._screenOverlay, { opacity: 1, duration: 0.3 });
+        gsap.to(p._screenOverlay, { opacity: 1, duration: TIMING.dimDuration });
       });
     }
     function undimEdgePhotos() {
       getEdgePhotos().forEach(p => {
         const img = p.querySelector('img');
-        if (img) gsap.to(img, { filter: 'grayscale(0%)', duration: 0.3 });
-        if (p._screenOverlay) gsap.to(p._screenOverlay, { opacity: 0, duration: 0.3 });
+        if (img) gsap.to(img, { filter: 'grayscale(0%)', duration: TIMING.dimDuration });
+        if (p._screenOverlay) gsap.to(p._screenOverlay, { opacity: 0, duration: TIMING.dimDuration });
       });
-    }
-
-    // 單張照片做單色處理
-    function dimPhoto(photo) {
-      const pd = pageData[currentIndex];
-      const color = pd?.yearEl?.querySelector('.timeline-card-inner')?.style.background || ACCENT_COLORS[0];
-      const img = photo.querySelector('img');
-      if (img) gsap.to(img, { filter: 'grayscale(100%)', duration: 0.3 });
-      if (!photo._screenOverlay) {
-        const overlay = document.createElement('div');
-        overlay.style.cssText = `position:absolute; inset:0; pointer-events:none; mix-blend-mode:screen; opacity:0; z-index:1;`;
-        photo.querySelector('div').appendChild(overlay);
-        photo._screenOverlay = overlay;
-      }
-      photo._screenOverlay.style.background = color;
-      gsap.to(photo._screenOverlay, { opacity: 1, duration: 0.3 });
-    }
-
-    function undimPhoto(photo) {
-      const img = photo.querySelector('img');
-      if (img) gsap.to(img, { filter: 'grayscale(0%)', duration: 0.3 });
-      if (photo._screenOverlay) gsap.to(photo._screenOverlay, { opacity: 0, duration: 0.3 });
     }
 
     // 進入 hover 狀態（中間照片 slot 1~3）
     function enterMiddleHover(photo, e) {
       const fromOtherPhoto = activeHover && activeHover !== photo;
+      // 只有前一張是中間照片才跑 reverse clip；邊界照片靠 dim 處理，不跑 clip
+      const fromMiddle = fromOtherPhoto && activeHover._tlSlot >= 1 && activeHover._tlSlot <= 3;
+      const tooltipVisible = photoTooltip && gsap.getProperty(photoTooltip, 'opacity') > 0;
 
-      if (fromOtherPhoto) {
+      if (fromMiddle) {
         lowerPhoto(activeHover);
       }
       activeHover = photo;
 
       if (photoTooltipText) photoTooltipText.innerHTML = photo._tlTooltip;
 
-      if (fromOtherPhoto) {
-        // 從另一張照片過來 → 前一張直接恢復（不做動畫），新照片直接提升
-        photo.style.zIndex = '20';
-        photo._raising = true; // 標記為已提升，離開時才會做 reverse
-        if (photoTooltip) {
-          gsap.to(photoTooltip, { left: e.clientX + 12, top: e.clientY + 12, duration: 0.2, overwrite: 'auto' });
-        }
-      } else {
-        // 首次 hover → 完整 clip 動畫 + tooltip
-        raisePhoto(photo, () => {
-          if (activeHover !== photo) return;
-          if (photoTooltip) {
-            gsap.set(photoTooltip, {
-              left: e.clientX + 12, top: e.clientY + 12,
-              rotation: randRot(),
-              clipPath: getClipStart(randomDirLR()), opacity: 1,
-            });
-            gsap.to(photoTooltip, { clipPath: CLIP_END, duration: 0.5, ease: 'power2.inOut' });
-          }
+      // 無論首次或跨照片：新照片都提升 z-index
+      raisePhoto(photo, () => {
+        if (activeHover !== photo) return;
+        if (!photoTooltip) return;
+        // Tooltip 已顯示 → 交給 mousemove 跟隨，這裡不要動位置
+        if (tooltipVisible) return;
+        // Tooltip 首次出現 → clip-path 入場
+        gsap.set(photoTooltip, {
+          left: e.clientX + 12, top: e.clientY + 12,
+          rotation: randRot(),
+          clipPath: getClipStart(randomDirLR()), opacity: 1,
         });
-        dimEdgePhotos();
-      }
+        gsap.to(photoTooltip, { clipPath: CLIP_END, duration: TIMING.tooltipShowDuration, ease: TIMING.tooltipShowEase });
+      });
+
+      // 每次進入 middle 都確保邊界照片是 dim 狀態（idempotent）
+      dimEdgePhotos();
     }
 
     // 離開所有 hover
@@ -607,7 +612,7 @@ export function initTimeline() {
       if (photoTooltip) {
         gsap.to(photoTooltip, {
           clipPath: getClipStart(randomDirLR()),
-          duration: 0.2, ease: 'power2.in',
+          duration: TIMING.tooltipHideDuration, ease: TIMING.exitEase,
           onComplete: () => gsap.set(photoTooltip, { opacity: 0 }),
         });
       }
@@ -623,7 +628,7 @@ export function initTimeline() {
         if (photoTooltip) {
           gsap.to(photoTooltip, {
             clipPath: getClipStart(randomDirLR()),
-            duration: 0.15, ease: 'power2.in',
+            duration: TIMING.tooltipHideFastDuration, ease: TIMING.exitEase,
             onComplete: () => gsap.set(photoTooltip, { opacity: 0 }),
           });
         }
@@ -640,6 +645,7 @@ export function initTimeline() {
       const isEdge = photo._tlSlot === 0 || photo._tlSlot === 4;
 
       photo.addEventListener('mouseenter', (e) => {
+        if (!hoverEnabled) return; // 等 reveal 完成才允許 hover
         clearTimeout(hoverLeaveTimer);
         if (isMiddle) {
           enterMiddleHover(photo, e);
@@ -650,14 +656,14 @@ export function initTimeline() {
 
       photo.addEventListener('mousemove', (e) => {
         if (isMiddle && photoTooltip && activeHover === photo) {
-          gsap.to(photoTooltip, { left: e.clientX + 12, top: e.clientY + 12, duration: 0.35, ease: 'power2.out', overwrite: 'auto' });
+          gsap.to(photoTooltip, { left: e.clientX + 12, top: e.clientY + 12, duration: TIMING.followDuration, ease: TIMING.followEase, overwrite: 'auto' });
         }
       });
 
       photo.addEventListener('mouseleave', () => {
         hoverLeaveTimer = setTimeout(() => {
           if (activeHover === photo) leaveAllHover();
-        }, 50);
+        }, TIMING.leaveDebounceMs);
       });
 
       // 邊界照片 cursor default，不做任何互動
@@ -688,27 +694,30 @@ export function initTimeline() {
       navRight.style.display = '';
     }
 
-    // 設定照片 clip-path 隱藏（每張隨機四方向）
+    // 邊界 slot（0 / 4）永遠不做 clip-path，隨時保持可見
+    const isEdgeSlot = (s) => s === 0 || s === 4;
+
+    // 設定照片 clip-path 隱藏（每張隨機四方向；跳過邊界）
     function hidePagePhotos(index) {
       if (revealedPages.has(index)) return;
       const rotates = pagePhotoRotates[index];
       if (!rotates) return;
       rotates.forEach(({ rotateDiv, slotIndex }) => {
-        if (index > 0 && slotIndex === 0) return;
+        if (isEdgeSlot(slotIndex)) return;
         gsap.set(rotateDiv, { clipPath: getClipStart(randomDir4()) });
       });
     }
 
-    // 照片 clip-path reveal
+    // 照片 clip-path reveal（跳過邊界）
     function revealPagePhotos(index) {
       if (revealedPages.has(index)) return;
       revealedPages.add(index);
       const rotates = pagePhotoRotates[index];
       if (!rotates) return;
       rotates.forEach(({ rotateDiv, slotIndex }, i) => {
-        if (index > 0 && slotIndex === 0) return;
+        if (isEdgeSlot(slotIndex)) return;
         gsap.to(rotateDiv, {
-          clipPath: CLIP_END, duration: 1.0, ease: 'power3.out', delay: i * 0.08
+          clipPath: CLIP_END, duration: TIMING.revealDuration, ease: TIMING.revealEase, delay: i * TIMING.stagger
         });
       });
     }
@@ -716,6 +725,18 @@ export function initTimeline() {
     function goTo(index) {
       if (isTransitioning || index < 0 || index >= items.length) return;
       isTransitioning = true;
+      hoverEnabled = false;
+
+      // 切換前：若有 activeHover 殘留，先清掉（避免指向舊頁照片）
+      if (activeHover) {
+        gsap.killTweensOf(activeHover.querySelector('div'));
+        activeHover.style.zIndex = activeHover._tlOrigZ;
+        activeHover._raising = false;
+        activeHover = null;
+        clearTimeout(hoverLeaveTimer);
+        if (photoTooltip) gsap.set(photoTooltip, { opacity: 0 });
+        undimEdgePhotos();
+      }
 
       const prevIndex = currentIndex;
       currentIndex = index;
@@ -737,7 +758,7 @@ export function initTimeline() {
         if (oldEraEl) {
           gsap.to(oldEraEl, {
             clipPath: getClipStart(randomDirLR()),
-            duration: 0.4, ease: 'power2.in',
+            duration: TIMING.eraExitDuration, ease: TIMING.exitEase,
             onComplete: () => { oldEraEl.style.display = 'none'; }
           });
         }
@@ -749,24 +770,26 @@ export function initTimeline() {
 
       gsap.to(strip, {
         left: -index * pageW,
-        duration: 0.8,
-        ease: 'power2.inOut',
+        duration: TIMING.stripSlideDuration,
+        ease: TIMING.stripSlideEase,
         onComplete: () => {
           // 到位後 reveal
           revealPagePhotos(index);
 
-          gsap.to(target.yearEl, { clipPath: CLIP_END, duration: 0.6, ease: 'power3.out' });
+          gsap.to(target.yearEl, { clipPath: CLIP_END, duration: TIMING.cardRevealDuration, ease: TIMING.revealEase });
           target.descEls.forEach((el, i) => {
-            gsap.to(el, { clipPath: CLIP_END, duration: 0.6, ease: 'power3.out', delay: 0.08 * (i + 1) });
+            gsap.to(el, { clipPath: CLIP_END, duration: TIMING.cardRevealDuration, ease: TIMING.revealEase, delay: TIMING.stagger * (i + 1) });
           });
 
           if (isEraChange) {
             const newEraEl = eraCards[target.eraTitle];
             if (newEraEl) {
-              gsap.to(newEraEl, { clipPath: CLIP_END, duration: 0.6, ease: 'power3.out', delay: 0.05 });
+              gsap.to(newEraEl, { clipPath: CLIP_END, duration: TIMING.cardRevealDuration, ease: TIMING.revealEase, delay: TIMING.eraEnterDelay });
             }
           }
           isTransitioning = false;
+          // reveal 動畫最久 = revealDuration + 5 * stagger ≈ hoverEnableDelay，之後才開放 hover
+          gsap.delayedCall(TIMING.hoverEnableDelay, () => { hoverEnabled = true; });
         },
       });
     }
@@ -775,14 +798,26 @@ export function initTimeline() {
     function resetTimeline() {
       if (isTransitioning) return;
       isTransitioning = true;
+      hoverEnabled = false;
+
+      // 清掉殘留 hover
+      if (activeHover) {
+        gsap.killTweensOf(activeHover.querySelector('div'));
+        activeHover.style.zIndex = activeHover._tlOrigZ;
+        activeHover._raising = false;
+        activeHover = null;
+        clearTimeout(hoverLeaveTimer);
+        if (photoTooltip) gsap.set(photoTooltip, { opacity: 0 });
+        undimEdgePhotos();
+      }
 
       const lastIdx = items.length - 1;
 
-      // Step 1: 用 clip-path 清空當前畫面（最後一年的所有照片 + 字卡 + era）
+      // Step 1: 用 clip-path 清空當前畫面（最後一年的照片 + 字卡 + era；跳過邊界 slot）
       const lastRotates = pagePhotoRotates[lastIdx] || [];
       const lastPage = pageData[lastIdx];
       const clearEls = [
-        ...lastRotates.map(r => r.rotateDiv),
+        ...lastRotates.filter(r => !isEdgeSlot(r.slotIndex)).map(r => r.rotateDiv),
         lastPage.yearEl,
         ...lastPage.descEls,
       ];
@@ -793,9 +828,10 @@ export function initTimeline() {
       // Step 1: clip-path 收起最後一年（用 timeline 確保全部完成後才繼續）
       const exitTl = gsap.timeline({
         onComplete: () => {
-          // Step 2: 隱藏所有年份的照片和字卡
+          // Step 2: 隱藏所有年份的照片和字卡（跳過邊界 slot）
           pagePhotoRotates.forEach(rotates => {
-            rotates.forEach(({ rotateDiv }) => {
+            rotates.forEach(({ rotateDiv, slotIndex }) => {
+              if (isEdgeSlot(slotIndex)) return;
               gsap.set(rotateDiv, { clipPath: getClipStart(randomDir4()) });
             });
           });
@@ -821,8 +857,10 @@ export function initTimeline() {
           // Step 4: 移回第一年
           gsap.set(strip, { left: 0 });
 
-          // Step 5: 準備第一年 reveal
-          const firstRotates = (pagePhotoRotates[0] || []).map(r => r.rotateDiv);
+          // Step 5: 準備第一年 reveal（邊界 slot 不做 clip，保持可見）
+          const firstRotates = (pagePhotoRotates[0] || [])
+            .filter(r => !isEdgeSlot(r.slotIndex))
+            .map(r => r.rotateDiv);
           const firstPageData = pageData[0];
           const firstCards = [firstPageData.yearEl, ...firstPageData.descEls];
           const allFirstEls = [...firstRotates, ...firstCards];
@@ -837,11 +875,12 @@ export function initTimeline() {
           // Step 6: Reveal 第一年
           allFirstEls.forEach((el, i) => {
             gsap.to(el, {
-              clipPath: CLIP_END, duration: 1.0, ease: 'power3.out', delay: 0.3 + i * 0.08,
+              clipPath: CLIP_END, duration: TIMING.revealDuration, ease: TIMING.revealEase, delay: TIMING.firstRevealDelay + i * TIMING.stagger,
             });
           });
           revealedPages.add(0);
           isTransitioning = false;
+          gsap.delayedCall(TIMING.hoverEnableDelay, () => { hoverEnabled = true; });
         }
       });
 
@@ -849,8 +888,8 @@ export function initTimeline() {
       clearEls.forEach(el => {
         exitTl.to(el, {
           clipPath: getClipStart(randomDir4()),
-          duration: 0.5,
-          ease: 'power2.in',
+          duration: TIMING.exitDuration,
+          ease: TIMING.exitEase,
         }, 0); // 全部在 time=0 同時開始
       });
     }
@@ -869,9 +908,11 @@ export function initTimeline() {
 
     updateNavZones();
 
-    // --- 第一年初始 clip-path reveal ---
+    // --- 第一年初始 clip-path reveal（邊界 slot 不做 clip，保持可見）---
     if (typeof ScrollTrigger !== 'undefined') {
-      const firstRotates = (pagePhotoRotates[0] || []).map(r => r.rotateDiv);
+      const firstRotates = (pagePhotoRotates[0] || [])
+        .filter(r => !isEdgeSlot(r.slotIndex))
+        .map(r => r.rotateDiv);
       const firstPage = strip.querySelector('.timeline-page');
       const firstCards = firstPage ? Array.from(firstPage.children) : [];
       const firstEraKey = Object.keys(eraCards)[0];
@@ -892,10 +933,12 @@ export function initTimeline() {
         onEnter: () => {
           allRevealEls.forEach((el, i) => {
             gsap.to(el, {
-              clipPath: CLIP_END, duration: 1.0, ease: 'power3.out', delay: i * 0.08,
+              clipPath: CLIP_END, duration: TIMING.revealDuration, ease: TIMING.revealEase, delay: i * TIMING.stagger,
             });
           });
           revealedPages.add(0);
+          const maxDelay = (allRevealEls.length - 1) * TIMING.stagger + TIMING.revealDuration;
+          gsap.delayedCall(maxDelay, () => { hoverEnabled = true; });
         },
       });
     }

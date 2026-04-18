@@ -5,6 +5,7 @@
     <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <title>SCCD Logo Generator</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="css/mobile.css">
 
     <!-- Preload critical icons to prevent delay -->
     <link rel="preload" href="Panel Icon/Standard.svg" as="image">
@@ -213,9 +214,14 @@ ROTATE FOR BEST EXPERIENCE</div>
     <script src="js/variables.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/mobile.js"></script>
+    <script src="js/color-picker.js"></script>
+    <script src="js/easter-eggs.js"></script>
+    <script src="js/save-download.js"></script>
+    <script src="js/draw-logo.js"></script>
+    <script src="js/input-handling.js"></script>
+    <script src="js/ui-state.js"></script>
 
-    <!-- 主程式 (已移除重複定義的變數和函數) -->
-    <!-- 色彩選擇器邏輯已整合至 sketch.js -->
+    <!-- 主程式 (p5.js 生命週期 + 核心繪圖邏輯) -->
     <script src="sketch.js"></script>
 </body>
 </html>

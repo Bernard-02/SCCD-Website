@@ -40,6 +40,20 @@ export function initClassButtonsSticky() {
   requestAnimationFrame(updateWorksScrollMargin);
   window.addEventListener('resize', updateWorksScrollMargin);
 
+  // ─── 封鎖綫可見性 → 切換 btn 白底遮罩 ─────────────────────
+  // 封鎖綫在視窗內：btn 透明（讓封鎖綫顯示）
+  // 封鎖綫離開視窗：btn 加白底 + ::before 補白（遮擋往上滾的內容）
+  const titleStrip = document.querySelector('#class .section-title-strip');
+  if (titleStrip) {
+    const stripObserver = new IntersectionObserver(
+      ([entry]) => {
+        classButtonsEl.classList.toggle('is-stuck', !entry.isIntersecting);
+      },
+      { threshold: 0 }
+    );
+    stripObserver.observe(titleStrip);
+  }
+
   // ─── 同步 info panel 與目前 active 的 division（無動畫） ──
   function syncInfoPanelToActive() {
     const activeBtn = document.querySelector('.class-division-btn.active');
@@ -51,6 +65,9 @@ export function initClassButtonsSticky() {
   }
 
   // ─── ScrollTrigger：圖文 → works 過渡 ────────────────────────
+  // 首次進入 works（本次 About 訪問）時自動 active BFA；之後保留使用者選擇
+  let hasEnteredWorks = false;
+
   ScrollTrigger.create({
     trigger: infoArea,
     start: 'bottom 55%',   // 圖文底部到達視窗 55% 時觸發
@@ -58,21 +75,50 @@ export function initClassButtonsSticky() {
     onEnter: () => {
       // 進入 works context
       window.SCCD_classContext = 'works';
+      classButtonsEl.classList.add('is-works-context');
       // 圖文取消互動，自然往上滾
       infoArea.style.pointerEvents = 'none';
       // works playlist 直接顯示（無 fade）
       gsap.set(worksPanels, { opacity: 1, pointerEvents: 'auto' });
+      // 首次進入：強制 active BFA（顯示 design fundamental 內容）
+      if (!hasEnteredWorks) {
+        hasEnteredWorks = true;
+        if (typeof window.SCCD_setDivisionActive === 'function') {
+          window.SCCD_setDivisionActive('bfa');
+        }
+      }
     },
 
     onLeaveBack: () => {
       // 回到 info context
       window.SCCD_classContext = 'info';
+      const activeBtn = document.querySelector('.class-division-btn.active');
+      const wasBfaActive = activeBtn?.getAttribute('data-division') === 'bfa';
+
+      // 移除 is-works-context，CSS transition 自然 reverse clip-path（左→右揭露的反向）
+      classButtonsEl.classList.remove('is-works-context');
       // 圖文恢復互動
       infoArea.style.pointerEvents = 'auto';
-      // 把 info panel 同步成目前 active 的 division，避免使用者在 works 切過後上來看到舊的
-      syncInfoPanelToActive();
       // works playlist 直接隱藏（無 fade）
       gsap.set(worksPanels, { opacity: 0, pointerEvents: 'none' });
+
+      if (wasBfaActive) {
+        // BFA 在 class mode 沒有 info panel，改顯示 animation 的
+        document.querySelectorAll('.class-info-panel').forEach(el => {
+          el.classList.toggle('hidden', el.getAttribute('data-division') !== 'animation');
+        });
+        // 等 wrap 完全收起後（CSS transition 0.5s）才重置 BFA 按鈕的 active 狀態，
+        // 避免使用者看到 BFA 顏色在收起過程中跳變
+        setTimeout(() => {
+          if (window.SCCD_classContext === 'info' &&
+              typeof window.SCCD_setDivisionActive === 'function') {
+            window.SCCD_setDivisionActive('animation');
+          }
+        }, 500);
+      } else {
+        // 把 info panel 同步成目前 active 的 division，避免使用者在 works 切過後上來看到舊的
+        syncInfoPanelToActive();
+      }
     }
   });
 

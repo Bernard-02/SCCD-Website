@@ -303,10 +303,15 @@
   /* ===== Class Buttons Sticky Container ===== */
   #class-buttons-sticky {
     padding-bottom: var(--spacing-md);
+    background: transparent;
   }
 
-  /* 補白：遮擋從下方往上滾的圖文內容 */
-  #class-buttons-sticky::before {
+  /* 只在 sticky 貼頂（封鎖綫離開視窗）時才出現白底 + 上方補白 */
+  #class-buttons-sticky.is-stuck {
+    background: white;
+  }
+
+  #class-buttons-sticky.is-stuck::before {
     content: '';
     position: absolute;
     bottom: 100%;
@@ -315,6 +320,31 @@
     height: var(--spacing-6xl);
     background: white;
   }
+
+  /* BFA btn wrapper
+     - 展開（is-works-context）：clip-path 從左→右揭露
+     - 四邊都留 -40px 給 btn 旋轉 clearance（避免裁切到旋轉角）
+     - BFA btn 在 class 模式強制 0°，確保不超出 clip 範圍（JS 控制） */
+  .class-division-bfa-wrap {
+    max-width: 0;
+    overflow: visible;
+    pointer-events: none;
+    /* 抵消 flex gap（xl = 3rem），收起時不佔 gap */
+    margin-right: calc(-1 * var(--spacing-xl));
+    clip-path: inset(-40px 100% -40px -40px);
+    transition: max-width 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+                margin-right 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+                clip-path 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* 展開：clip-path 左→右揭露 */
+  #class-buttons-sticky.is-works-context .class-division-bfa-wrap {
+    max-width: 320px;
+    pointer-events: auto;
+    margin-right: 0;
+    clip-path: inset(-40px -40px -40px -40px);
+  }
+
 
 
   /* ===== Btn Fill Hover Effect ===== */

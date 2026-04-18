@@ -39,17 +39,14 @@ export function initAnchorNav() {
 
       if (targetSection) {
         // 點擊時立即 active，並暫停 scroll spy 避免滾動過程中被覆蓋
-        setActiveBtn(targetId);
+        // force: true 讓即使已是 active 也會重新選色 + 重跑封鎖線動畫
+        setActiveBtn(targetId, { force: true });
         clickScrolling = true;
         clearTimeout(clickScrollTimer);
         clickScrollTimer = setTimeout(() => { clickScrolling = false; }, 1200);
 
-        // 使用 helper 的平滑滾動，或者原生 scrollIntoView
-        if (window.SCCDHelpers && window.SCCDHelpers.scrollToElement) {
-          window.SCCDHelpers.scrollToElement(targetSection);
-        } else {
-          targetSection.scrollIntoView({ behavior: 'smooth' });
-        }
+        // 使用 scrollIntoView，由各 section 的 scroll-margin-top 決定對齊位置
+        targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     });
   });
@@ -104,9 +101,10 @@ export function initAnchorNav() {
   let clickScrolling = false; // 點擊導航時暫停 scroll spy
   let clickScrollTimer = null;
 
-  function setActiveBtn(id) {
-    if (id === currentActiveId) return;
+  function setActiveBtn(id, { force = false } = {}) {
+    if (!force && id === currentActiveId) return;
     currentActiveId = id;
+    const color = getNavColor();
     navButtons.forEach(btn => {
       const isActive = btn.getAttribute('data-target') === id;
       const inner = btn.querySelector('.anchor-nav-inner');
@@ -116,7 +114,7 @@ export function initAnchorNav() {
         const rot = btn._pendingRot ?? getNavRotation();
         btn._baseRot = rot;
         btn._pendingRot = null;
-        inner.style.background = getNavColor();
+        inner.style.background = color;
         inner.style.transform = `rotate(${rot}deg)`;
       } else {
         inner.style.background = '';
@@ -124,6 +122,17 @@ export function initAnchorNav() {
         inner.style.transform = `rotate(${btn._baseRot}deg)`;
       }
     });
+
+    // 觸發對應 section 的封鎖線 replay（顏色跟 nav 同步）
+    // 如果顏色跟上次一樣，則不重跑動畫（避免無意義閃動）
+    const section = document.getElementById(id);
+    const strip = section?.querySelector('.section-title-strip');
+    if (strip && typeof strip._replayReveal === 'function') {
+      if (strip._lastReplayColor !== color) {
+        strip._lastReplayColor = color;
+        strip._replayReveal(color);
+      }
+    }
   }
 
   const observer = new IntersectionObserver((entries) => {

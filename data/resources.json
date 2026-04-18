@@ -30,10 +30,16 @@
     "textZh": "學系根據學生創作類型及需求設有專業工作室，給予學生個人創作空間及營造學生同儕間討論氛圍與創造思維碰撞的契機。"
   },
   {
-    "title": "Computer Lab & Media Library 電腦教室與複合媒體圖書館",
+    "title": "Computer Lab 電腦教室",
     "image": "../images/SCCD-1-4-0.jpg",
-    "textEn": "In response to the high-frequency computer drawing and image rendering needs of students, the department has a computer classroom for students to use freely. There is also a multimedia library within the department, which provides a large number of professional-related books and multimedia resources for students to borrow and use.",
-    "textZh": "因應在學生高頻的電腦繪製與影像渲染等需求，學系內設有電腦教室以供學生自由使用。另設有學系內專用多媒體圖書館，提供大量專業相關書籍與多媒體資源開放學生借閱與使用。"
+    "textEn": "In response to the high-frequency computer drawing and image rendering needs of students, the department has a computer classroom for students to use freely.",
+    "textZh": "因應在學生高頻的電腦繪製與影像渲染等需求，學系內設有電腦教室以供學生自由使用。"
+  },
+  {
+    "title": "Media Library 複合媒體圖書館",
+    "image": "../images/SCCD-1-4-0.jpg",
+    "textEn": "The department operates a dedicated multimedia library that provides a large number of professional-related books and multimedia resources for students to borrow and use.",
+    "textZh": "學系內另設有專用多媒體圖書館，提供大量專業相關書籍與多媒體資源開放學生借閱與使用。"
   },
   {
     "title": "Open Space 開放空間",

@@ -162,27 +162,50 @@ export function updateNavActive(page) {
   const isGenerateActive = activePage === 'generate';
 
   // Logo 尺寸：generate 頁和一般頁都是大的（180），library 頁是小的（100）
+  // SPA 切換時：從當前大小平滑過渡到目標大小，lottie 旋轉保持連續（不重新載入）
   const logoEl = document.getElementById('header-logo');
   if (logoEl && typeof gsap !== 'undefined' && window.innerWidth >= 768) {
-    // ScrollTrigger の scroll shrink tween を全部 kill
+    // 先精確捕捉目前尺寸（避免 ScrollTrigger 中斷造成不穩定）
+    const currentSize = logoEl.offsetWidth || 180;
+
+    // 清除舊的 ScrollTrigger 和 tween
     if (typeof ScrollTrigger !== 'undefined') {
       ScrollTrigger.getAll().forEach(st => {
         if (st.vars && st.vars.trigger === 'body') st.kill();
       });
     }
     gsap.killTweensOf(logoEl);
-    if (isLibraryActive) {
-      gsap.set(logoEl, { width: 100, height: 100 });
-    } else {
-      gsap.set(logoEl, { width: 180, height: 180 });
-      // 一般頁面重新建立 scroll shrink
-      if (!isGenerateActive && typeof ScrollTrigger !== 'undefined') {
-        gsap.to(logoEl, {
-          width: 100, height: 100, ease: 'none',
-          scrollTrigger: { trigger: 'body', start: 'top top', end: '+=300', scrub: 0.5 }
-        });
+
+    const SCROLL_END = 300;
+    const targetSize = isLibraryActive
+      ? 100
+      : (() => {
+          const progress = Math.min(window.scrollY / SCROLL_END, 1);
+          return 180 - (180 - 100) * progress;
+        })();
+
+    // 用 fromTo 強制指定起點尺寸（避免 GSAP 讀到不一致的狀態）
+    // lottie SVG 內部動畫不受 width/height 變化影響，持續旋轉
+    gsap.fromTo(logoEl,
+      { width: currentSize, height: currentSize },
+      {
+        width: targetSize,
+        height: targetSize,
+        duration: 0.6,
+        ease: 'power2.inOut',
+        onComplete: () => {
+          if (!isLibraryActive && !isGenerateActive && typeof ScrollTrigger !== 'undefined') {
+            gsap.fromTo(logoEl,
+              { width: 180, height: 180 },
+              {
+                width: 100, height: 100, ease: 'none',
+                scrollTrigger: { trigger: 'body', start: 'top top', end: `+=${SCROLL_END}`, scrub: 0.5 }
+              }
+            );
+          }
+        }
       }
-    }
+    );
   }
 
   function setSideBar(el, isActive) {
@@ -196,34 +219,40 @@ export function updateNavActive(page) {
   setSideBar(generateBarEl, isGenerateActive);
 
   if (modeBtnEl) {
-    const toggleBtn    = modeBtnEl.querySelector('.theme-toggle-btn');
-    const toggleCircle = modeBtnEl.querySelector('.theme-toggle-circle');
+    const toggleBtn    = /** @type {HTMLElement | null} */ (modeBtnEl.querySelector('.theme-toggle-btn'));
+    const toggleCircle = /** @type {HTMLElement | null} */ (modeBtnEl.querySelector('.theme-toggle-circle'));
     if (toggleBtn)    { toggleBtn.style.borderColor = '#000'; }
     if (toggleCircle) { toggleCircle.style.background = '#000'; }
   }
 
-  // About bar scroll collapse：library 頁不縮，一般頁面重建 ScrollTrigger
+  // About bar scroll collapse：library 頁 marginLeft=0（貼齊 logo），一般頁面 marginLeft=64
+  // SPA 切換時做 smooth 動畫（和 logo 同步）
   const aboutBarScrollEl = header.querySelector('[data-bar="about"]');
   if (aboutBarScrollEl && typeof gsap !== 'undefined') {
     const ML_START = 64, ML_END = 0;
     gsap.killTweensOf(aboutBarScrollEl);
-    if (isLibraryActive) {
-      gsap.set(aboutBarScrollEl, { marginLeft: ML_END });
-    } else {
-      gsap.set(aboutBarScrollEl, { marginLeft: ML_START });
-      if (!isGenerateActive && typeof ScrollTrigger !== 'undefined') {
-        ScrollTrigger.create({
-          trigger: 'body',
-          start: 'top top',
-          end: '+=120',
-          scrub: 0.6,
-          onUpdate: (self) => {
-            const ml = ML_START + (ML_END - ML_START) * self.progress;
-            gsap.to(aboutBarScrollEl, { marginLeft: ml, duration: 0.4, ease: 'power2.out', overwrite: 'auto' });
-          }
-        });
+
+    const targetML = isLibraryActive ? ML_END : ML_START;
+    gsap.to(aboutBarScrollEl, {
+      marginLeft: targetML,
+      duration: 0.6,
+      ease: 'power2.inOut',
+      onComplete: () => {
+        // 動畫完成後，一般頁面重建 scroll shrink
+        if (!isLibraryActive && !isGenerateActive && typeof ScrollTrigger !== 'undefined') {
+          ScrollTrigger.create({
+            trigger: 'body',
+            start: 'top top',
+            end: '+=120',
+            scrub: 0.6,
+            onUpdate: (/** @type {any} */ self) => {
+              const ml = ML_START + (ML_END - ML_START) * self.progress;
+              gsap.to(aboutBarScrollEl, { marginLeft: ml, duration: 0.4, ease: 'power2.out', overwrite: 'auto' });
+            }
+          });
+        }
       }
-    }
+    });
   }
 }
 
@@ -255,9 +284,9 @@ export function initHeader() {
 
     // 3. Header Bar Random Rotation
     (function initBarRotations() {
-      const aboutBar = header.querySelector('[data-bar="about"]');
-      const libraryBar = header.querySelector('[data-bar="library"]');
-      const generateBar = header.querySelector('[data-bar="generate"]');
+      const aboutBar = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="about"]'));
+      const libraryBar = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="library"]'));
+      const generateBar = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="generate"]'));
 
       function getAboutDeg() {
         return Math.round((Math.random() * 3 - 1.5) * 10) / 10;
@@ -281,9 +310,9 @@ export function initHeader() {
 
     // about bar hover：整條 bar 底色變三原色，hover 單一 item 時字 100% 黑
     const ACCENT_COLORS = ['#00FF80', '#FF448A', '#26BCFF'];
-    const aboutBar    = header.querySelector('[data-bar="about"]');
-    const libraryBar  = header.querySelector('[data-bar="library"]');
-    const generateBar = header.querySelector('[data-bar="generate"]');
+    const aboutBar    = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="about"]'));
+    const libraryBar  = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="library"]'));
+    const generateBar = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="generate"]'));
 
     // about bar hover：底色隨機三原色
     if (aboutBar) {
