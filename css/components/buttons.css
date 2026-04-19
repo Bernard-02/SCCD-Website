@@ -83,14 +83,15 @@
 
   /* ===== Activities / Courses Filter Bar ===== */
   @media (min-width: 768px) {
+    /* sticky top:200px → 遮罩延伸到視窗頂部，避免 header 收起時露出後方內容 */
     .activities-filter-bar::before,
     .courses-filter-bar::before {
       content: '';
       position: absolute;
-      top: -160px;
+      top: -200px;
       left: 0;
       right: 0;
-      height: 160px;
+      height: 200px;
       background: white;
     }
     .activities-filter-bar,
@@ -331,7 +332,9 @@
     pointer-events: none;
     /* 抵消 flex gap（xl = 3rem），收起時不佔 gap */
     margin-right: calc(-1 * var(--spacing-xl));
-    clip-path: inset(-40px 100% -40px -40px);
+    /* right 用 calc(100% + 40px) 確保左側 -40px 的 clearance 也被裁掉
+       避免 max-width:0 時左邊殘留一條可見區 */
+    clip-path: inset(-40px calc(100% + 40px) -40px -40px);
     transition: max-width 0.5s cubic-bezier(0.4, 0, 0.2, 1),
                 margin-right 0.5s cubic-bezier(0.4, 0, 0.2, 1),
                 clip-path 0.5s cubic-bezier(0.4, 0, 0.2, 1);

@@ -111,6 +111,22 @@ export function initTimeline() {
              a.y + a.h + pad < b.y || b.y + b.h + pad < a.y);
   }
 
+  // 計算兩矩形最小間距：>= 0 = 不重疊（值 = 最近邊距離），< 0 = 重疊（值 = 負的重疊深度）
+  function rectGap(a, b) {
+    const dxLeft = b.x - (a.x + a.w);
+    const dxRight = a.x - (b.x + b.w);
+    const dyTop = b.y - (a.y + a.h);
+    const dyBottom = a.y - (b.y + b.h);
+    const sepX = Math.max(dxLeft, dxRight);
+    const sepY = Math.max(dyTop, dyBottom);
+    if (sepX >= 0 || sepY >= 0) {
+      // 不重疊：取較小的軸距離（兩軸都 >=0 時）或正分離軸
+      return Math.max(sepX, sepY);
+    }
+    // 重疊：返回負的最小重疊量
+    return Math.max(sepX, sepY);
+  }
+
   // --- clip-path ---
   const CLIP_END = 'inset(0% 0% 0% 0%)';
   const ALL_DIRS = ['top', 'bottom', 'left', 'right'];
@@ -433,9 +449,27 @@ export function initTimeline() {
       page.style.pointerEvents = 'none';
       page.style.zIndex = '10'; // 字卡在照片（z-index 1~5）上方
 
-      const yearW = 220, yearH = 160; // 實際 h2 約 120~150px，加 buffer
+      const yearW = 220, yearH = 200; // h2 (96px) + line-height + padding，加 buffer 防旋轉
       const descW = Math.min(450, cardSafeRight - cardSafeLeft - 20);
-      const descH = 200; // 加大碰撞高度，避免長文字互相重疊
+
+      // 估算 desc 卡片實際高度：標題 + 每行 ~26px + padding
+      // text-p2 ≈ 16px / line-height base ≈ 26px / 寬 450 ≈ 50 字元/行（中英混排取保守值 35）
+      function estimateDescH(html) {
+        const hasTitle = /<h5/i.test(html);
+        // 計算 div 數量（每個 div = 一段文字，可能多行）
+        const divMatches = html.match(/<div[^>]*>([\s\S]*?)<\/div>/gi) || [];
+        let lines = 0;
+        divMatches.forEach(divHtml => {
+          const text = divHtml.replace(/<[^>]+>/g, '').trim();
+          // 中文字符較寬：算 1.6 字元；保守估每行 35 字元
+          const charsPerLine = 35;
+          lines += Math.max(1, Math.ceil(text.length / charsPerLine));
+        });
+        if (lines === 0) lines = 2;
+        let h = 32 + lines * 28; // padding 32 + 每行 28
+        if (hasTitle) h += 56; // h5 (~30px) + mb-sm (~16px) + buffer
+        return Math.max(140, h + 20); // 額外 20px buffer 防旋轉
+      }
 
       const placed = [];
       if (currentEraRect) placed.push(currentEraRect);
@@ -462,22 +496,38 @@ export function initTimeline() {
       page.appendChild(yearEl);
 
       const descEls = [];
+      // 貪婪 max-min-gap 演算法：每次選離現有卡片「最遠」的位置
+      // 比純隨機可靠，能處理 3+ 卡片擠在小區域的情況
+      const TARGET_GAP = 30; // 達到此間距就提早停止搜尋
       descriptions.forEach((desc, di) => {
-        let descPos = null;
-        for (let attempt = 0; attempt < 80; attempt++) {
-          const x = cardSafeLeft + Math.random() * Math.max(0, cardSafeRight - descW - cardSafeLeft);
-          const y = cardSafeTop + Math.random() * Math.max(0, cardSafeBottom - descH - cardSafeTop);
+        const descH = estimateDescH(desc);
+        const xRange = Math.max(0, cardSafeRight - descW - cardSafeLeft);
+        const yRange = Math.max(0, cardSafeBottom - descH - cardSafeTop);
+
+        let bestPos = null;
+        let bestScore = -Infinity;
+
+        for (let attempt = 0; attempt < 200; attempt++) {
+          const x = cardSafeLeft + Math.random() * xRange;
+          const y = cardSafeTop + Math.random() * yRange;
           const rect = { x, y, w: descW, h: descH };
-          if (placed.every(p => !rectsOverlap(rect, p))) { descPos = rect; break; }
+
+          // 計算與所有已放置卡片的最小間距（負值代表最大重疊量）
+          let minGap = Infinity;
+          for (const p of placed) {
+            const g = rectGap(rect, p);
+            if (g < minGap) minGap = g;
+          }
+
+          if (minGap > bestScore) {
+            bestScore = minGap;
+            bestPos = rect;
+          }
+          // 找到「夠遠」的位置就提早結束
+          if (bestScore >= TARGET_GAP) break;
         }
-        if (!descPos) {
-          const last = placed[placed.length - 1];
-          descPos = {
-            x: Math.min(last.x, cardSafeRight - descW),
-            y: Math.min(last.y + last.h + 20, cardSafeBottom - descH),
-            w: descW, h: descH
-          };
-        }
+
+        const descPos = bestPos || { x: cardSafeLeft, y: cardSafeTop, w: descW, h: descH };
         placed.push(descPos);
 
         const descEl = createCard(

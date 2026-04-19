@@ -48,7 +48,8 @@
     </section>
 
     <!-- Courses Content Section -->
-    <section class="bg-white py-6xl" id="courses-content-section">
+    <!-- overflow:clip：擋住 filter-bar ::before 白色遮罩超出 section 邊界（避免戳到 hero 區）；用 clip 不用 hidden 以保留內部 sticky 行為 -->
+    <section class="bg-white py-6xl" id="courses-content-section" style="overflow: clip;">
       <div class="site-container">
         <div class="flex flex-col md:flex-row gap-gutter">
 

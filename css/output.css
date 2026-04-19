@@ -139,32 +139,46 @@
   }
 }
 
-/* ===== About Page - Class Section Images ===== */
+/* ===== About Page - Class Section Images =====
+   由 JS (class-images-slideshow.js) 動態 render 3 張 .class-img 到 slot 1/2/3，
+   每 5s 輪播：slot1 消失 → slot2/3 左移 → 新圖進 slot3。
+   位置與旋轉由 GSAP 控制；CSS 只定義初始樣式與 container 基本佈局。 */
+
+.division-images {
+  position: relative;
+  min-height: 440px;
+}
 
 .class-img {
-  aspect-ratio: 4/3;
-  width: 60%;
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: auto;
+  height: auto;
+  max-width: 320px;
+  /* 橫圖由 JS 動態放寬（landscape class） */
+  transform-origin: center center;
+  will-change: transform, clip-path;
+  pointer-events: auto;
 }
 
-.class-img--1 {
-  top: 50%;
-  left: 15%;
-  z-index: 1;
-  transform: rotate(-4deg) translateY(calc(-50% + -60px));
+/* 橫圖（ratio > 1）放寬 */
+
+.class-img.class-img--landscape {
+  max-width: 440px;
 }
 
-.class-img--2 {
-  top: 50%;
-  left: 28%;
-  z-index: 2;
-  transform: rotate(4deg) translateY(calc(-50% + 20px));
+/* 進入 works context 時，class-info-panel 的圖片與 text highlight 淡出。
+   避免 scroll 過渡時 class 圖片從 btn bar 下方 pt-2xl 的區域露出。 */
+
+#class-info-sticky-wrapper .class-info-panel .division-images,
+#class-info-sticky-wrapper .class-info-panel [data-class-hl] {
+  transition: opacity 0.4s ease;
 }
 
-.class-img--3 {
-  top: 50%;
-  left: 10%;
-  z-index: 3;
-  transform: rotate(-3deg) translateY(calc(-50% + 80px));
+#class-info-sticky-wrapper.is-works-active .class-info-panel .division-images,
+#class-info-sticky-wrapper.is-works-active .class-info-panel [data-class-hl] {
+  opacity: 0;
 }
 
 /* 2. Layer Imports */
@@ -1854,14 +1868,16 @@ header.header-hidden .nav-link,
 /* ===== Activities / Courses Filter Bar ===== */
 
 @media (min-width: 768px) {
+  /* sticky top:200px → 遮罩延伸到視窗頂部，避免 header 收起時露出後方內容 */
+
   .activities-filter-bar::before,
     .courses-filter-bar::before {
     content: '';
     position: absolute;
-    top: -160px;
+    top: -200px;
     left: 0;
     right: 0;
-    height: 160px;
+    height: 200px;
     background: white;
   }
 
@@ -2076,7 +2092,9 @@ header.header-hidden .nav-link,
   pointer-events: none;
   /* 抵消 flex gap（xl = 3rem），收起時不佔 gap */
   margin-right: calc(-1 * var(--spacing-xl));
-  clip-path: inset(-40px 100% -40px -40px);
+  /* right 用 calc(100% + 40px) 確保左側 -40px 的 clearance 也被裁掉
+       避免 max-width:0 時左邊殘留一條可見區 */
+  clip-path: inset(-40px calc(100% + 40px) -40px -40px);
   transition: max-width 0.5s cubic-bezier(0.4, 0, 0.2, 1),
                 margin-right 0.5s cubic-bezier(0.4, 0, 0.2, 1),
                 clip-path 0.5s cubic-bezier(0.4, 0, 0.2, 1);
@@ -3506,11 +3524,6 @@ header.header-hidden .nav-link,
 .py-2xl{
   padding-top: var(--spacing-2xl);
   padding-bottom: var(--spacing-2xl);
-}
-
-.py-3xl{
-  padding-top: var(--spacing-3xl);
-  padding-bottom: var(--spacing-3xl);
 }
 
 .py-6xl{
