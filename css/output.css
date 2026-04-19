@@ -155,8 +155,8 @@
   left: 0;
   width: auto;
   height: auto;
-  max-width: 320px;
-  /* 橫圖由 JS 動態放寬（landscape class） */
+  max-width: 336px;
+  /* 橫圖由 JS 動態放寬（landscape class）；尺寸 +5% from 320 */
   transform-origin: center center;
   will-change: transform, clip-path;
   pointer-events: auto;
@@ -165,20 +165,8 @@
 /* 橫圖（ratio > 1）放寬 */
 
 .class-img.class-img--landscape {
-  max-width: 440px;
-}
-
-/* 進入 works context 時，class-info-panel 的圖片與 text highlight 淡出。
-   避免 scroll 過渡時 class 圖片從 btn bar 下方 pt-2xl 的區域露出。 */
-
-#class-info-sticky-wrapper .class-info-panel .division-images,
-#class-info-sticky-wrapper .class-info-panel [data-class-hl] {
-  transition: opacity 0.4s ease;
-}
-
-#class-info-sticky-wrapper.is-works-active .class-info-panel .division-images,
-#class-info-sticky-wrapper.is-works-active .class-info-panel [data-class-hl] {
-  opacity: 0;
+  max-width: 462px;
+  /* +5% from 440 */
 }
 
 /* 2. Layer Imports */
@@ -2700,10 +2688,6 @@ header.header-hidden .nav-link,
   top: calc(var(--header-height,80px) + 3rem);
 }
 
-.z-0{
-  z-index: 0;
-}
-
 .z-10{
   z-index: 10;
 }
@@ -2847,10 +2831,6 @@ header.header-hidden .nav-link,
 
 .mt-3xl{
   margin-top: var(--spacing-3xl);
-}
-
-.mt-6xl{
-  margin-top: var(--spacing-6xl);
 }
 
 .mt-\[4px\]{
@@ -3468,10 +3448,6 @@ header.header-hidden .nav-link,
   padding: var(--spacing-lg);
 }
 
-.p-md{
-  padding: var(--spacing-md);
-}
-
 .p-sm{
   padding: var(--spacing-sm);
 }
@@ -3623,10 +3599,6 @@ header.header-hidden .nav-link,
 
 .pt-3xl{
   padding-top: var(--spacing-3xl);
-}
-
-.pt-4xl{
-  padding-top: var(--spacing-4xl);
 }
 
 .pt-6xl{
@@ -4173,10 +4145,6 @@ header.header-hidden .nav-link,
     height: 250px;
   }
 
-  .md\:h-\[600px\]{
-    height: 600px;
-  }
-
   .md\:h-full{
     height: 100%;
   }
@@ -4347,6 +4315,10 @@ header.header-hidden .nav-link,
 
   .md\:pt-0{
     padding-top: 0px;
+  }
+
+  .md\:pt-2xl{
+    padding-top: var(--spacing-2xl);
   }
 
   .md\:pt-3xl{

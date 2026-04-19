@@ -143,6 +143,50 @@ export function initTimeline() {
   function randomDirLR() { return Math.random() < 0.5 ? 'left' : 'right'; }
 
   // --- Arrow Cursor ---
+  // 共用顯示/隱藏邏輯：edge photo 與 nav zone 都用同一份，避免兩者邊界切換時箭頭閃爍
+  // hide 排程延遲 50ms，若期間有任何 show 觸發會 cancel；已可見時 show 只更新位置不重跑入場動畫
+  const cursorHideTimers = new Map(); // cursor → timeout id
+
+  function cancelHideArrowCursor(cursor) {
+    const t = cursorHideTimers.get(cursor);
+    if (t) {
+      clearTimeout(t);
+      cursorHideTimers.delete(cursor);
+    }
+  }
+
+  function scheduleHideArrowCursor(cursor) {
+    if (!cursor || typeof gsap === 'undefined') return;
+    cancelHideArrowCursor(cursor);
+    const t = setTimeout(() => {
+      cursorHideTimers.delete(cursor);
+      gsap.to(cursor, {
+        clipPath: getClipStart(randomDirLR()),
+        duration: TIMING.cursorHideDuration, ease: TIMING.exitEase, overwrite: true,
+        onComplete: () => gsap.set(cursor, { opacity: 0 }),
+      });
+    }, 50);
+    cursorHideTimers.set(cursor, t);
+  }
+
+  function showArrowCursor(cursor, e) {
+    if (!cursor || typeof gsap === 'undefined') return;
+    cancelHideArrowCursor(cursor);
+    const opacity = parseFloat(gsap.getProperty(cursor, 'opacity')) || 0;
+    if (opacity > 0.5) {
+      // 已可見：只更新位置，不重跑入場（避免閃爍）
+      gsap.to(cursor, { left: e.clientX + 6, top: e.clientY + 6, duration: TIMING.followDuration, ease: TIMING.followEase, overwrite: 'auto' });
+    } else {
+      // 首次出現：完整入場動畫
+      gsap.set(cursor, {
+        left: e.clientX + 6, top: e.clientY + 6,
+        scale: 1, rotation: randRot(),
+        clipPath: getClipStart(randomDirLR()), opacity: 1,
+      });
+      gsap.to(cursor, { clipPath: CLIP_END, duration: TIMING.cursorShowDuration, ease: TIMING.cursorShowEase, overwrite: 'auto' });
+    }
+  }
+
   function setupCursorNav(zone, cursor, onClick) {
     if (!cursor || typeof gsap === 'undefined') {
       zone.addEventListener('click', onClick);
@@ -152,19 +196,10 @@ export function initTimeline() {
       gsap.to(cursor, { left: e.clientX + 6, top: e.clientY + 6, duration: TIMING.followDuration, ease: TIMING.followEase, overwrite: 'auto' });
     });
     zone.addEventListener('mouseenter', (e) => {
-      gsap.set(cursor, {
-        left: e.clientX + 6, top: e.clientY + 6,
-        scale: 1, rotation: randRot(),
-        clipPath: getClipStart(randomDirLR()), opacity: 1,
-      });
-      gsap.to(cursor, { clipPath: CLIP_END, duration: TIMING.cursorShowDuration, ease: TIMING.cursorShowEase, overwrite: 'auto' });
+      showArrowCursor(cursor, e);
     });
     zone.addEventListener('mouseleave', () => {
-      gsap.to(cursor, {
-        clipPath: getClipStart(randomDirLR()),
-        duration: TIMING.cursorHideDuration, ease: TIMING.exitEase, overwrite: true,
-        onComplete: () => gsap.set(cursor, { opacity: 0 }),
-      });
+      scheduleHideArrowCursor(cursor);
     });
     // 點擊：箭頭保持顯示（只要還在範圍內），只執行 callback
     zone.addEventListener('click', () => {
@@ -418,7 +453,7 @@ export function initTimeline() {
 
         const eraRot = pickUniqueRotations(1, -6, 6)[0];
         const eraEl = createCard(
-          `<h5 class="font-bold">${item.eraTitle} Era<br>${item.eraLabel}時期</h5>`,
+          `<div class="text-p2 leading-base font-bold">${item.eraTitle} Era<br>${item.eraLabel}時期</div>`,
           eraPos, eraRot, null, 'max-content', true
         );
         if (Object.keys(eraCards).length > 0) eraEl.style.display = 'none';
@@ -693,6 +728,12 @@ export function initTimeline() {
     allPhotos.forEach(photo => {
       const isMiddle = photo._tlSlot >= 1 && photo._tlSlot <= 3;
       const isEdge = photo._tlSlot === 0 || photo._tlSlot === 4;
+      // 1958（index 0）的 slot 0 是時間軸最左端，沒有上一年 → 不要箭頭、不要點擊
+      const isLeftmostFirst = isEdge && photo._tlSlot === 0 && photo._tlYear === 0;
+      // 可導航的邊界對應箭頭 cursor；最左端設 null 不啟用
+      const edgeCursor = (isEdge && !isLeftmostFirst)
+        ? (photo._tlSlot === 0 ? cursorLeft : cursorRight)
+        : null;
 
       photo.addEventListener('mouseenter', (e) => {
         if (!hoverEnabled) return; // 等 reveal 完成才允許 hover
@@ -701,6 +742,7 @@ export function initTimeline() {
           enterMiddleHover(photo, e);
         } else if (isEdge) {
           enterEdgeHover(photo);
+          if (edgeCursor) showArrowCursor(edgeCursor, e);
         }
       });
 
@@ -708,17 +750,30 @@ export function initTimeline() {
         if (isMiddle && photoTooltip && activeHover === photo) {
           gsap.to(photoTooltip, { left: e.clientX + 12, top: e.clientY + 12, duration: TIMING.followDuration, ease: TIMING.followEase, overwrite: 'auto' });
         }
+        if (edgeCursor && typeof gsap !== 'undefined' && hoverEnabled) {
+          gsap.to(edgeCursor, { left: e.clientX + 6, top: e.clientY + 6, duration: TIMING.followDuration, ease: TIMING.followEase, overwrite: 'auto' });
+        }
       });
 
       photo.addEventListener('mouseleave', () => {
         hoverLeaveTimer = setTimeout(() => {
           if (activeHover === photo) leaveAllHover();
         }, TIMING.leaveDebounceMs);
+        // 排程隱藏；若 50ms 內 nav zone 接手 mouseenter，會 cancel 不真的隱藏
+        if (edgeCursor) scheduleHideArrowCursor(edgeCursor);
       });
 
-      // 邊界照片 cursor default，不做任何互動
-      if (isEdge) {
-        photo.style.cursor = 'default';
+      // 邊界照片可點擊：行為同 nav zone（左 → 上一年、右 → 下一年/重置）；最左端不可點
+      if (isEdge && !isLeftmostFirst) {
+        photo.style.cursor = 'pointer';
+        photo.addEventListener('click', () => {
+          if (photo._tlSlot === 0) {
+            if (currentIndex > 0) goTo(currentIndex - 1);
+          } else {
+            if (currentIndex < items.length - 1) goTo(currentIndex + 1);
+            else resetTimeline();
+          }
+        });
       }
     });
 
@@ -1003,7 +1058,8 @@ export function initTimeline() {
     wrapper.style.transform = `rotate(${rotation}deg)`;
 
     const inner = document.createElement('div');
-    inner.className = 'timeline-card-inner p-sm';
+    inner.className = 'timeline-card-inner';
+    inner.style.padding = '0.5em 0.6em'; // 同 vision data-overview-hl 的內距
     if (width) inner.style.width = width;
     inner.style.maxWidth = '450px';
     if (isEra) {

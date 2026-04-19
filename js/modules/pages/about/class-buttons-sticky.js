@@ -24,9 +24,7 @@ export function initClassButtonsSticky() {
   // ─── 初始狀態 ──────────────────────────────────────────────
   // 預設 scroll context = 'info'，BFA toggle 可透過 window.SCCD_classContext 讀取
   window.SCCD_classContext = 'info';
-
-  // works panels 預設隱藏（桌面版）
-  gsap.set(worksPanels, { opacity: 0, pointerEvents: 'none' });
+  // works panels 不再用 opacity 隱藏；natural scroll 揭露
 
   // ─── 動態設定 #works 的 scroll-margin-top ─────────────────
   // 讓 anchor 跳轉時剛好停在 sticky btn 下方（btn 上緣 + btn 高度 + 些許 buffer）
@@ -55,13 +53,21 @@ export function initClassButtonsSticky() {
   }
 
   // ─── 同步 info panel 與目前 active 的 division（無動畫） ──
+  // 透過 slideshow.switchTo 進行切換，確保新 panel 的 images 會被 renderFresh
+  // （單純 toggle hidden 會讓 panel 顯示但 images container 為空）
   function syncInfoPanelToActive() {
     const activeBtn = document.querySelector('.class-division-btn.active');
     if (!activeBtn) return;
     const divisionId = activeBtn.getAttribute('data-division');
-    document.querySelectorAll('.class-info-panel').forEach(el => {
-      el.classList.toggle('hidden', el.getAttribute('data-division') !== divisionId);
-    });
+    // BFA 在 info ctx 沒有對應 panel → fallback 到 animation
+    const infoId = divisionId === 'bfa' ? 'animation' : divisionId;
+    if (window.SCCD_classSlideshow?.switchTo) {
+      window.SCCD_classSlideshow.switchTo(infoId, false);
+    } else {
+      document.querySelectorAll('.class-info-panel').forEach(el => {
+        el.classList.toggle('hidden', el.getAttribute('data-division') !== infoId);
+      });
+    }
   }
 
   // ─── ScrollTrigger：圖文 → works 過渡 ────────────────────────
@@ -76,15 +82,18 @@ export function initClassButtonsSticky() {
       // 進入 works context
       window.SCCD_classContext = 'works';
       classButtonsEl.classList.add('is-works-context');
+      // 讓 wrapper 也標記，供 CSS descendant 選到 class-info-panel 內的 imgs + text 淡出
+      const stickyWrapper = document.getElementById('class-info-sticky-wrapper');
+      if (stickyWrapper) stickyWrapper.classList.add('is-works-active');
       // 圖文取消互動，自然往上滾
       infoArea.style.pointerEvents = 'none';
-      // works playlist 直接顯示（無 fade）
-      gsap.set(worksPanels, { opacity: 1, pointerEvents: 'auto' });
+      // works panels 不再做 opacity，永遠 visible；natural scroll 過渡
       // 首次進入：強制 active BFA（顯示 design fundamental 內容）
+      // animate=false：直接 instant 顯示 bfa，避免出現「animation → bfa」切換動畫
       if (!hasEnteredWorks) {
         hasEnteredWorks = true;
         if (typeof window.SCCD_setDivisionActive === 'function') {
-          window.SCCD_setDivisionActive('bfa');
+          window.SCCD_setDivisionActive('bfa', false);
         }
       }
     },
@@ -97,10 +106,11 @@ export function initClassButtonsSticky() {
 
       // 移除 is-works-context，CSS transition 自然 reverse clip-path（左→右揭露的反向）
       classButtonsEl.classList.remove('is-works-context');
+      const stickyWrapper = document.getElementById('class-info-sticky-wrapper');
+      if (stickyWrapper) stickyWrapper.classList.remove('is-works-active');
       // 圖文恢復互動
       infoArea.style.pointerEvents = 'auto';
-      // works playlist 直接隱藏（無 fade）
-      gsap.set(worksPanels, { opacity: 0, pointerEvents: 'none' });
+      // works panels 維持 visible（不再 opacity 操作）
 
       if (wasBfaActive) {
         // BFA 在 class mode 沒有 info panel，改顯示 animation 的
@@ -125,15 +135,15 @@ export function initClassButtonsSticky() {
   // ─── 初始進場動畫（圖文第一次進入視窗）─────────────────────────
   const initialPanel = infoArea.querySelector('.class-info-panel[data-division="animation"]');
   if (initialPanel) {
+    // 不用 once:true，因為 slideshow 是 async init，ScrollTrigger 首次觸發時 slideshow 可能尚未 ready。
+    // slideshow.revealActive 內部用 revealed flag 自行控制只 reveal 一次，這裡允許重複觸發以重試。
     ScrollTrigger.create({
       trigger: initialPanel,
       start: 'top 88%',
-      once: true,
       onEnter: () => {
-        const imgs  = initialPanel.querySelectorAll('.division-images img');
-        const texts = initialPanel.querySelectorAll('.division-text');
-        gsap.from(imgs,  { y: 40, opacity: 0, duration: 0.6, stagger: 0.08, ease: 'power3.out', clearProps: 'all' });
-        gsap.from(texts, { y: 24, opacity: 0, duration: 0.6, stagger: 0.1,  ease: 'power3.out', clearProps: 'transform,opacity' });
+        if (window.SCCD_classSlideshow?.revealActive) {
+          window.SCCD_classSlideshow.revealActive();
+        }
       }
     });
   }

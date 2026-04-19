@@ -108,28 +108,29 @@
   }
 }
 
-/* ===== About Page - Class Section Images ===== */
+/* ===== About Page - Class Section Images =====
+   由 JS (class-images-slideshow.js) 動態 render 3 張 .class-img 到 slot 1/2/3，
+   每 5s 輪播：slot1 消失 → slot2/3 左移 → 新圖進 slot3。
+   位置與旋轉由 GSAP 控制；CSS 只定義初始樣式與 container 基本佈局。 */
+.division-images {
+  position: relative;
+  min-height: 440px;
+}
 .class-img {
-  aspect-ratio: 4/3;
-  width: 60%;
-}
-.class-img--1 {
+  position: absolute;
   top: 50%;
-  left: 15%;
-  z-index: 1;
-  transform: rotate(-4deg) translateY(calc(-50% + -60px));
+  left: 0;
+  width: auto;
+  height: auto;
+  max-width: 336px;  /* 橫圖由 JS 動態放寬（landscape class）；尺寸 +5% from 320 */
+  transform-origin: center center;
+  will-change: transform, clip-path;
+  pointer-events: auto;
 }
-.class-img--2 {
-  top: 50%;
-  left: 28%;
-  z-index: 2;
-  transform: rotate(4deg) translateY(calc(-50% + 20px));
+/* 橫圖（ratio > 1）放寬 */
+.class-img.class-img--landscape {
+  max-width: 462px; /* +5% from 440 */
 }
-.class-img--3 {
-  top: 50%;
-  left: 10%;
-  z-index: 3;
-  transform: rotate(-3deg) translateY(calc(-50% + 80px));
-}
+
 
 

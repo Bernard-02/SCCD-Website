@@ -119,6 +119,21 @@ export function initSectionBannerReveal() {
       titleEl.style.direction = '';
     }
     titleEl.style.transform = `rotate(${rot}deg)`;
+
+    // 隨機垂直位置：依容器實際高度算 max top，確保 strip 不會被 overflow:clip 切到。
+    // 容器高度可能小於 100vh，硬寫 vh 容易爆出邊界。
+    const strip = titleEl.closest('.section-title-strip');
+    if (strip && strip.parentElement) {
+      // 先把 strip 暫放回 top:0 才能量到正確的 offsetHeight（避免被先前 top 影響 layout）
+      strip.style.top = '0';
+      const container = strip.parentElement;
+      const containerH = container.offsetHeight;
+      const stripH = strip.offsetHeight;
+      const buffer = 20; // 旋轉的 bbox 外擴 buffer
+      const maxTop = Math.max(0, containerH - stripH - buffer);
+      const topPx = Math.random() * maxTop;
+      strip.style.top = `${topPx}px`;
+    }
   }
 
   // --- Section Title Strips（class/resources/history 封鎖線風格）---
