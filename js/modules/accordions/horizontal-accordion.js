@@ -38,7 +38,7 @@ const HOVER_COLORS = ['#fffa32', '#c878ff', '#ffa046'];
 // 收合：只露 label 條，展開：整張卡片顯示
 // z-index 由 index 決定（遞增）；顏色 nth-child(3n+1/2/3) 循環粉/綠/藍
 // Hover 時非展開的卡片換成循環 HOVER_COLORS
-export function initRotatedAccordion(wrapper, { height = 600 } = {}) {
+export function initRotatedAccordion(wrapper, { height = 600, animateEntry = false } = {}) {
   if (window.innerWidth < 768) {
     initSingleAccordion(wrapper);
     return;
@@ -59,8 +59,8 @@ export function initRotatedAccordion(wrapper, { height = 600 } = {}) {
   wrapper.style.overflow = 'visible';
   wrapper.style.height = `${height}px`;
 
-  // 目前展開的 index
-  let openIndex = 0;
+  // 進場動畫模式：所有 item 初始收合，進場完成後才打開 index 0
+  let openIndex = animateEntry ? -1 : 0;
 
   function getLabelWidth(item) {
     return item.querySelector('.accordion-label').offsetWidth;
@@ -120,6 +120,52 @@ export function initRotatedAccordion(wrapper, { height = 600 } = {}) {
   }
 
   applyLayout(false);
+
+  // 進場動畫：一半從正右方、一半從正下方（畫面外）飛入
+  // 最右（index N-1）先進場 → 最左（index 0）最後進場
+  // 全部就位後，打開 index 0（教學空間）
+  if (animateEntry && typeof ScrollTrigger !== 'undefined') {
+    // 平均分配：half fromRight + half fromBottom，再 Fisher-Yates 洗牌
+    const directions = items.map((_, i) => i < Math.ceil(items.length / 2) ? 'right' : 'bottom');
+    for (let i = directions.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [directions[i], directions[j]] = [directions[j], directions[i]];
+    }
+
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    items.forEach((item, i) => {
+      // 起始位置必須在 viewport 外（以 vw/vh 為基準，random 微調距離）
+      const offsetX = directions[i] === 'right' ? vw * 0.8 + Math.random() * 200 : 0;
+      const offsetY = directions[i] === 'bottom' ? vh * 0.9 + Math.random() * 200 : 0;
+      gsap.set(item, { x: offsetX, y: offsetY });
+    });
+
+    ScrollTrigger.create({
+      trigger: wrapper,
+      start: 'top 80%',
+      once: true,
+      onEnter: () => {
+        const tl = gsap.timeline({
+          onComplete: () => {
+            openIndex = 0;
+            applyLayout(true);
+          }
+        });
+
+        for (let i = items.length - 1; i >= 0; i--) {
+          const orderIdx = items.length - 1 - i;
+          tl.to(items[i], {
+            x: 0,
+            y: 0,
+            duration: 1.1,
+            ease: 'power3.out'
+          }, orderIdx * 0.12);
+        }
+      }
+    });
+  }
 
   function resetColors() {
     items.forEach((it) => {

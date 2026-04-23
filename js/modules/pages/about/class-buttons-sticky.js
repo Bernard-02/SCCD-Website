@@ -3,10 +3,12 @@
  * 桌面版：
  *   1. #class-buttons-sticky 用 CSS sticky 貼頂（純 CSS，此 JS 不重複設定）
  *      sticky 範圍涵蓋圖文（class-info-area）+ works（class-works-panels）
+ *      容器永遠透明，不加白底（封鎖綫可穿過）
  *   2. 圖文區塊底部到達視窗中線時，works playlist 直接顯示
  *   3. 同時切換 scroll context（'info' / 'works'），供 BFA toggle 判斷
  *      讓使用者在 works 區塊點按鈕時不觸發圖文進場動畫
- *   4. #works anchor 動態設定 scroll-margin-top，剛好停在 sticky btn 下方
+ *   4. #class / #works anchor 的 scroll-margin-top 由 HTML inline style 決定
+ *      (var(--header-height)) — JS 不再覆蓋
  * 手機版：不執行（直接 return）
  */
 
@@ -18,39 +20,16 @@ export function initClassButtonsSticky() {
   const worksPanels       = document.getElementById('class-works-panels');
   const classButtonsEl    = document.getElementById('class-buttons-sticky');
   const worksAnchor       = document.getElementById('works');
+  const stickyWrapper     = document.getElementById('class-info-sticky-wrapper');
 
-  if (!infoArea || !worksPanels || !classButtonsEl) return;
+  if (!infoArea || !worksPanels || !classButtonsEl || !worksAnchor || !stickyWrapper) return;
 
   // ─── 初始狀態 ──────────────────────────────────────────────
   // 預設 scroll context = 'info'，BFA toggle 可透過 window.SCCD_classContext 讀取
   window.SCCD_classContext = 'info';
   // works panels 不再用 opacity 隱藏；natural scroll 揭露
-
-  // ─── 動態設定 #works 的 scroll-margin-top ─────────────────
-  // 讓 anchor 跳轉時剛好停在 sticky btn 下方（btn 上緣 + btn 高度 + 些許 buffer）
-  function updateWorksScrollMargin() {
-    if (!worksAnchor) return;
-    const topOffset = parseFloat(getComputedStyle(classButtonsEl).top) || 0;
-    const btnHeight = classButtonsEl.getBoundingClientRect().height || 0;
-    worksAnchor.style.scrollMarginTop = `${topOffset + btnHeight + 16}px`;
-  }
-  // 等 layout 穩定後再量
-  requestAnimationFrame(updateWorksScrollMargin);
-  window.addEventListener('resize', updateWorksScrollMargin);
-
-  // ─── 封鎖綫可見性 → 切換 btn 白底遮罩 ─────────────────────
-  // 封鎖綫在視窗內：btn 透明（讓封鎖綫顯示）
-  // 封鎖綫離開視窗：btn 加白底 + ::before 補白（遮擋往上滾的內容）
-  const titleStrip = document.querySelector('#class .section-title-strip');
-  if (titleStrip) {
-    const stripObserver = new IntersectionObserver(
-      ([entry]) => {
-        classButtonsEl.classList.toggle('is-stuck', !entry.isIntersecting);
-      },
-      { threshold: 0 }
-    );
-    stripObserver.observe(titleStrip);
-  }
+  // #works 的 scroll-margin-top 由 inline style var(--header-height) 決定，不再動態覆蓋
+  // btn 永遠透明，不再隨封鎖綫可見性切換白底（避免裁掉經過的封鎖綫）
 
   // ─── 同步 info panel 與目前 active 的 division（無動畫） ──
   // 透過 slideshow.switchTo 進行切換，確保新 panel 的 images 會被 renderFresh
@@ -69,6 +48,28 @@ export function initClassButtonsSticky() {
       });
     }
   }
+
+  // ─── ScrollTrigger：works anchor 到達 100px → btn scroll-linked 往上 ──────
+  // 維持 sticky（flow 空間不變），translateY 讓 btn 隨捲動往上，
+  // 同時用 clip-path 從頂端裁切：裁切量 = |translateY|，
+  // 確保 btn 永遠不會超過 sticky line（100px）進入透明 header 區
+  // 視覺效果：btn 內容往上滑出，被 sticky line 切齊（類似滑進隱藏窗）
+  gsap.set(classButtonsEl, { clipPath: 'inset(0px 0px 0px 0px)' });
+
+  gsap.timeline({
+    scrollTrigger: {
+      trigger: worksAnchor,
+      start: 'top 100px',
+      end: () => `+=${classButtonsEl.offsetHeight}`,
+      scrub: true,
+      invalidateOnRefresh: true
+    }
+  })
+  .to(classButtonsEl, { y: () => -classButtonsEl.offsetHeight, ease: 'none' }, 0)
+  .to(classButtonsEl, {
+    clipPath: () => `inset(${classButtonsEl.offsetHeight}px 0px 0px 0px)`,
+    ease: 'none'
+  }, 0);
 
   // ─── ScrollTrigger：圖文 → works 過渡 ────────────────────────
   // 首次進入 works（本次 About 訪問）時自動 active BFA；之後保留使用者選擇

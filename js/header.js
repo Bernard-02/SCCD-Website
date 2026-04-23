@@ -426,33 +426,42 @@ export function initHeader() {
     }
 
     // 5. Scroll Hide：除 logo 外的 header 元素，向下滑時往上移出，向上滑時回來
+    // ⚠️ 目前關閉 — header 保持一直可見（不隨下滑位移）
+    // 要恢復：把下方 `// enableScrollHide();` 取消註解即可；邏輯保留作為參考
     (function initScrollHide() {
       if (typeof gsap === 'undefined') return;
       if (window.innerWidth < 768) return; // 桌面版才執行
 
-      const hideEls = [
-        header.querySelector('[data-bar="about"]'),
-        header.querySelector('[data-bar="library"]'),
-        header.querySelector('[data-bar="generate"]'),
-        header.querySelector('#mode-btn'),
-      ].filter(Boolean);
+      function enableScrollHide() {
+        const hideEls = [
+          header.querySelector('[data-bar="about"]'),
+          header.querySelector('[data-bar="library"]'),
+          header.querySelector('[data-bar="generate"]'),
+          header.querySelector('#mode-btn'),
+        ].filter(Boolean);
 
-      let lastY = window.scrollY;
-      let hidden = false;
+        let lastY = window.scrollY;
+        let hidden = false;
 
-      window.addEventListener('scroll', () => {
-        const currentY = window.scrollY;
-        const goingDown = currentY > lastY;
-        lastY = currentY;
+        window.addEventListener('scroll', () => {
+          const currentY = window.scrollY;
+          const goingDown = currentY > lastY;
+          lastY = currentY;
 
-        if (goingDown && !hidden && currentY > 50) {
-          hidden = true;
-          gsap.to(hideEls, { y: -120, duration: 0.35, ease: 'power2.inOut', overwrite: 'auto' });
-        } else if (!goingDown && hidden) {
-          hidden = false;
-          gsap.to(hideEls, { y: 0, duration: 0.35, ease: 'power2.inOut', overwrite: 'auto' });
-        }
-      }, { passive: true });
+          if (goingDown && !hidden && currentY > 50) {
+            hidden = true;
+            gsap.to(hideEls, { y: -120, duration: 0.35, ease: 'power2.inOut', overwrite: 'auto' });
+          } else if (!goingDown && hidden) {
+            hidden = false;
+            gsap.to(hideEls, { y: 0, duration: 0.35, ease: 'power2.inOut', overwrite: 'auto' });
+          }
+        }, { passive: true });
+      }
+
+      // 掛到 window 供 debug / 之後恢復時呼叫（也順便避免 unused warning）
+      /** @type {any} */ (window).__enableHeaderScrollHide = enableScrollHide;
+      // 要恢復預設行為：下一行取消註解
+      // enableScrollHide();
     })();
 
     // 6. Header Hide on Footer Reveal

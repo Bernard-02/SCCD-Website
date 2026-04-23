@@ -173,13 +173,14 @@ export function initTimeline() {
     if (!cursor || typeof gsap === 'undefined') return;
     cancelHideArrowCursor(cursor);
     const opacity = parseFloat(gsap.getProperty(cursor, 'opacity')) || 0;
+    // 位置 -30 讓 60×60 方塊置中貼合滑鼠點（取代系統 cursor）
     if (opacity > 0.5) {
-      // 已可見：只更新位置，不重跑入場（避免閃爍）
-      gsap.to(cursor, { left: e.clientX + 6, top: e.clientY + 6, duration: TIMING.followDuration, ease: TIMING.followEase, overwrite: 'auto' });
+      // 已可見：即時同步位置（無 follow 延遲）
+      gsap.set(cursor, { left: e.clientX - 30, top: e.clientY - 30, overwrite: 'auto' });
     } else {
       // 首次出現：完整入場動畫
       gsap.set(cursor, {
-        left: e.clientX + 6, top: e.clientY + 6,
+        left: e.clientX - 30, top: e.clientY - 30,
         scale: 1, rotation: randRot(),
         clipPath: getClipStart(randomDirLR()), opacity: 1,
       });
@@ -187,15 +188,19 @@ export function initTimeline() {
     }
   }
 
-  function setupCursorNav(zone, cursor, onClick) {
+  function setupCursorNav(zone, cursor, onClick, getColor) {
     if (!cursor || typeof gsap === 'undefined') {
       zone.addEventListener('click', onClick);
       return;
     }
     zone.addEventListener('mousemove', (e) => {
-      gsap.to(cursor, { left: e.clientX + 6, top: e.clientY + 6, duration: TIMING.followDuration, ease: TIMING.followEase, overwrite: 'auto' });
+      gsap.set(cursor, { left: e.clientX - 30, top: e.clientY - 30, overwrite: 'auto' });
     });
     zone.addEventListener('mouseenter', (e) => {
+      // 方塊底色：當前 accent 色（icon 本身已是黑色）
+      if (getColor) {
+        gsap.to(cursor, { backgroundColor: getColor(), duration: TIMING.dimDuration, overwrite: 'auto' });
+      }
       showArrowCursor(cursor, e);
     });
     zone.addEventListener('mouseleave', () => {
@@ -447,7 +452,16 @@ export function initTimeline() {
         const eraMinY = useBottom ? cardSafeTop + eraSafeH * 0.8 : cardSafeTop;
         const eraMaxY = useBottom ? cardSafeBottom - eraH : cardSafeTop + eraSafeH * 0.18;
 
-        const ex = cardSafeLeft + Math.random() * Math.max(0, cardSafeRight - eraW - cardSafeLeft);
+        // X 範圍：era 在上半時強制靠右半（避開 year 預留的左半區）；下半時左右都可
+        let exMin, exMax;
+        if (useBottom) {
+          exMin = cardSafeLeft;
+          exMax = cardSafeRight - eraW;
+        } else {
+          exMin = cardSafeLeft + (cardSafeRight - cardSafeLeft) * 0.5;
+          exMax = cardSafeRight - eraW;
+        }
+        const ex = exMin + Math.random() * Math.max(0, exMax - exMin);
         const ey = eraMinY + Math.random() * Math.max(0, eraMaxY - eraMinY);
         const eraPos = { x: ex, y: ey, w: eraW, h: eraH };
 
@@ -460,16 +474,16 @@ export function initTimeline() {
         eraContainer.appendChild(eraEl);
         eraCards[item.eraTitle] = eraEl;
         // 碰撞矩形加大（考慮旋轉 + 額外間距），防止字卡被 era 擋住
-        currentEraRect = { x: eraPos.x - 20, y: eraPos.y - 20, w: eraW + 40, h: eraH + 40 };
+        currentEraRect = { x: eraPos.x - 30, y: eraPos.y - 30, w: eraW + 60, h: eraH + 60 };
       }
 
       if (!currentEraRect) {
         const el = eraCards[item.eraTitle];
         if (el) {
           currentEraRect = {
-            x: (parseFloat(el.style.left) || 0) - 20,
-            y: (parseFloat(el.style.top) || 0) - 20,
-            w: 250 + 40, h: 50 + 40
+            x: (parseFloat(el.style.left) || 0) - 30,
+            y: (parseFloat(el.style.top) || 0) - 30,
+            w: 250 + 60, h: 50 + 60
           };
         }
       }
@@ -484,7 +498,8 @@ export function initTimeline() {
       page.style.pointerEvents = 'none';
       page.style.zIndex = '10'; // 字卡在照片（z-index 1~5）上方
 
-      const yearW = 220, yearH = 200; // h2 (96px) + line-height + padding，加 buffer 防旋轉
+      // h2 (96px) "1970" max-content + padding (~115px) + 旋轉 bbox 膨脹 → 實測接近 330x220
+      const yearW = 340, yearH = 240;
       const descW = Math.min(450, cardSafeRight - cardSafeLeft - 20);
 
       // 估算 desc 卡片實際高度：標題 + 每行 ~26px + padding
@@ -625,30 +640,17 @@ export function initTimeline() {
       });
     }
 
-    // Dim / undim 邊界照片
+    // Dim / undim 邊界照片（只灰階，不上色）
     function dimEdgePhotos() {
-      const pd = pageData[currentIndex];
-      const color = pd?.yearEl?.querySelector('.timeline-card-inner')?.style.background || ACCENT_COLORS[0];
       getEdgePhotos().forEach(p => {
-        // 圖片灰階（同 faculty card hover）
         const img = p.querySelector('img');
         if (img) gsap.to(img, { filter: 'grayscale(100%)', duration: TIMING.dimDuration });
-        // screen blend overlay（同 faculty card ::after）
-        if (!p._screenOverlay) {
-          const overlay = document.createElement('div');
-          overlay.style.cssText = `position:absolute; inset:0; pointer-events:none; mix-blend-mode:screen; opacity:0; z-index:1;`;
-          p.querySelector('div').appendChild(overlay); // 加在 rotateDiv 裡
-          p._screenOverlay = overlay;
-        }
-        p._screenOverlay.style.background = color;
-        gsap.to(p._screenOverlay, { opacity: 1, duration: TIMING.dimDuration });
       });
     }
     function undimEdgePhotos() {
       getEdgePhotos().forEach(p => {
         const img = p.querySelector('img');
         if (img) gsap.to(img, { filter: 'grayscale(0%)', duration: TIMING.dimDuration });
-        if (p._screenOverlay) gsap.to(p._screenOverlay, { opacity: 0, duration: TIMING.dimDuration });
       });
     }
 
@@ -724,16 +726,40 @@ export function initTimeline() {
       // 不改單色、不改 z-index
     }
 
+    // 邊界照片角色判斷（動態，依 currentIndex 決定是左箭頭還是右箭頭）
+    // slot 4 photo 同時是「year y 的右邊」跟「year (y+1) 的左邊」
+    // 所以當 currentIndex === y 時是 right（下一年）；currentIndex === y+1 時是 left（上一年）
+    function getEdgeRole(photo) {
+      const s = photo._tlSlot;
+      const y = photo._tlYear;
+      if (s === 0 && y === 0) return null; // 最左端，無上一年
+      if (s === 4) {
+        if (currentIndex === y) return 'right';
+        if (currentIndex === y + 1) return 'left';
+      }
+      return null;
+    }
+    function getEdgeCursor(photo) {
+      const role = getEdgeRole(photo);
+      if (role === 'left') return cursorLeft;
+      if (role === 'right') return cursorRight;
+      return null;
+    }
+    function getCurrentAccentColor() {
+      const pd = pageData[currentIndex];
+      return pd?.yearEl?.querySelector('.timeline-card-inner')?.style.background || ACCENT_COLORS[0];
+    }
+    function setArrowBg(cursor, color) {
+      if (!cursor || typeof gsap === 'undefined') return;
+      gsap.to(cursor, { backgroundColor: color, duration: TIMING.dimDuration, overwrite: 'auto' });
+    }
+
     // 綁定事件到所有照片
     allPhotos.forEach(photo => {
       const isMiddle = photo._tlSlot >= 1 && photo._tlSlot <= 3;
       const isEdge = photo._tlSlot === 0 || photo._tlSlot === 4;
       // 1958（index 0）的 slot 0 是時間軸最左端，沒有上一年 → 不要箭頭、不要點擊
       const isLeftmostFirst = isEdge && photo._tlSlot === 0 && photo._tlYear === 0;
-      // 可導航的邊界對應箭頭 cursor；最左端設 null 不啟用
-      const edgeCursor = (isEdge && !isLeftmostFirst)
-        ? (photo._tlSlot === 0 ? cursorLeft : cursorRight)
-        : null;
 
       photo.addEventListener('mouseenter', (e) => {
         if (!hoverEnabled) return; // 等 reveal 完成才允許 hover
@@ -742,7 +768,11 @@ export function initTimeline() {
           enterMiddleHover(photo, e);
         } else if (isEdge) {
           enterEdgeHover(photo);
-          if (edgeCursor) showArrowCursor(edgeCursor, e);
+          const cursor = getEdgeCursor(photo);
+          if (cursor) {
+            setArrowBg(cursor, getCurrentAccentColor());
+            showArrowCursor(cursor, e);
+          }
         }
       });
 
@@ -750,8 +780,11 @@ export function initTimeline() {
         if (isMiddle && photoTooltip && activeHover === photo) {
           gsap.to(photoTooltip, { left: e.clientX + 12, top: e.clientY + 12, duration: TIMING.followDuration, ease: TIMING.followEase, overwrite: 'auto' });
         }
-        if (edgeCursor && typeof gsap !== 'undefined' && hoverEnabled) {
-          gsap.to(edgeCursor, { left: e.clientX + 6, top: e.clientY + 6, duration: TIMING.followDuration, ease: TIMING.followEase, overwrite: 'auto' });
+        if (isEdge && hoverEnabled) {
+          const cursor = getEdgeCursor(photo);
+          if (cursor && typeof gsap !== 'undefined') {
+            gsap.set(cursor, { left: e.clientX - 30, top: e.clientY - 30, overwrite: 'auto' });
+          }
         }
       });
 
@@ -759,17 +792,21 @@ export function initTimeline() {
         hoverLeaveTimer = setTimeout(() => {
           if (activeHover === photo) leaveAllHover();
         }, TIMING.leaveDebounceMs);
-        // 排程隱藏；若 50ms 內 nav zone 接手 mouseenter，會 cancel 不真的隱藏
-        if (edgeCursor) scheduleHideArrowCursor(edgeCursor);
+        if (isEdge) {
+          const cursor = getEdgeCursor(photo);
+          if (cursor) scheduleHideArrowCursor(cursor);
+          // 箭頭顏色不重置 → 下次顯示保持 accent 色（不回黑）
+        }
       });
 
       // 邊界照片可點擊：行為同 nav zone（左 → 上一年、右 → 下一年/重置）；最左端不可點
       if (isEdge && !isLeftmostFirst) {
-        photo.style.cursor = 'pointer';
+        photo.style.cursor = 'none'; // 隱藏系統 cursor，由自訂箭頭取代
         photo.addEventListener('click', () => {
-          if (photo._tlSlot === 0) {
+          const role = getEdgeRole(photo);
+          if (role === 'left') {
             if (currentIndex > 0) goTo(currentIndex - 1);
-          } else {
+          } else if (role === 'right') {
             if (currentIndex < items.length - 1) goTo(currentIndex + 1);
             else resetTimeline();
           }
@@ -1001,7 +1038,7 @@ export function initTimeline() {
 
     setupCursorNav(navLeft, cursorLeft, () => {
       if (currentIndex > 0) goTo(currentIndex - 1);
-    });
+    }, getCurrentAccentColor);
     setupCursorNav(navRight, cursorRight, () => {
       if (currentIndex < items.length - 1) {
         goTo(currentIndex + 1);
@@ -1009,7 +1046,7 @@ export function initTimeline() {
         // 最後一年 → 重置 timeline
         resetTimeline();
       }
-    });
+    }, getCurrentAccentColor);
 
     updateNavZones();
 

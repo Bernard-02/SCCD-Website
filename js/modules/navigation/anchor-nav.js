@@ -9,20 +9,34 @@ export function initAnchorNav() {
   // Build sectionMap: observed element → button target id
   // Observe section[id] + any non-section nav targets (e.g. div#works)
   // For zero-height anchor divs, observe their next sibling with content instead
+  // OBSERVE_OVERRIDES：某些 anchor 的觀察對象不是 section/anchor 本身，而是該 anchor 的內容區
+  // - 'class' 觀察 class-info-area（Class 的內容區），否則整個 #class section 會一直 intersecting，蓋過 works 偵測
+  // - 'works' 觀察 class-works-panels（Works 的內容區），因為 #works 是零高度 wrapper
+  const OBSERVE_OVERRIDES = {
+    'class': 'class-info-area',
+    'works': 'class-works-panels',
+  };
   const sectionMap = new Map();
 
   document.querySelectorAll('section[id]').forEach(el => {
+    if (OBSERVE_OVERRIDES[el.id]) return; // 由下面 navButtons 迴圈透過 override 補登
     sectionMap.set(el, el.id);
   });
 
   navButtons.forEach(btn => {
     const id = btn.getAttribute('data-target');
     if (!id) return;
-    const el = document.getElementById(id);
-    if (!el || sectionMap.has(el)) return;
-    // Zero-height anchor divs: observe next sibling with actual content
-    const observeEl = (el.offsetHeight < 2 && el.nextElementSibling) ? el.nextElementSibling : el;
-    if (!sectionMap.has(observeEl)) {
+    const overrideId = OBSERVE_OVERRIDES[id];
+    let observeEl;
+    if (overrideId) {
+      observeEl = document.getElementById(overrideId);
+    } else {
+      const el = document.getElementById(id);
+      if (!el || sectionMap.has(el)) return;
+      // Zero-height anchor divs: observe next sibling with actual content
+      observeEl = (el.offsetHeight < 2 && el.nextElementSibling) ? el.nextElementSibling : el;
+    }
+    if (observeEl && !sectionMap.has(observeEl)) {
       sectionMap.set(observeEl, id);
     }
   });
@@ -123,10 +137,10 @@ export function initAnchorNav() {
       }
     });
 
-    // 觸發對應 section 的封鎖線 replay（顏色跟 nav 同步）
+    // 觸發對應 anchor 的封鎖綫 replay（顏色跟 nav 同步）
+    // 每個 anchor 有自己的 strip（透過 data-anchor="xxx" 對應），不共用
     // 如果顏色跟上次一樣，則不重跑動畫（避免無意義閃動）
-    const section = document.getElementById(id);
-    const strip = section?.querySelector('.section-title-strip');
+    const strip = document.querySelector(`.section-title-strip[data-anchor="${id}"]`);
     if (strip && typeof strip._replayReveal === 'function') {
       if (strip._lastReplayColor !== color) {
         strip._lastReplayColor = color;

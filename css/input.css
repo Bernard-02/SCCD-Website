@@ -29,7 +29,15 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 4. Custom Utilities */
+/* 4. Custom Base Styles */
+@layer base {
+  /* 封鎖綫預設隱藏；anchor-nav active 切換時才 reveal（見 section-banner-reveal.js） */
+  [data-section-title] {
+    clip-path: inset(0 100% 0 0);
+  }
+}
+
+/* 5. Custom Utilities */
 @layer utilities {
   .text-p2 {
     font-size: var(--font-size-p2);
@@ -50,5 +58,13 @@
   .writing-mode-vertical {
     writing-mode: vertical-rl;
     text-orientation: mixed;
+  }
+
+  .pt-7xl {
+    padding-top: var(--spacing-7xl);
+  }
+
+  .pt-8xl {
+    padding-top: var(--spacing-8xl);
   }
 }

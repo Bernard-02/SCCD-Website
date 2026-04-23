@@ -111,7 +111,10 @@ function initPdfViewer() {
     rendering = false;
   }
 
+  let bodyOverflowBefore = '';
+
   function openModal() {
+    bodyOverflowBefore = document.body.style.overflow;
     modal.style.display = 'flex';
     requestAnimationFrame(() => { modal.style.opacity = '1'; });
     document.body.style.overflow = 'hidden';
@@ -125,7 +128,7 @@ function initPdfViewer() {
       canvasL.getContext('2d').clearRect(0, 0, canvasL.width, canvasL.height);
       canvasR.getContext('2d').clearRect(0, 0, canvasR.width, canvasR.height);
     }, 300);
-    document.body.style.overflow = 'hidden';
+    document.body.style.overflow = bodyOverflowBefore;
   }
 
   _pdfListenerAdded = true;

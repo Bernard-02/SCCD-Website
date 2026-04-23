@@ -25,6 +25,7 @@ import { initBrandTrail } from './modules/pages/about/brand-trail.js';
 import { initTimeline } from './modules/pages/about/timeline.js';
 import { initSectionBannerReveal } from './modules/pages/about/section-banner-reveal.js';
 import { initClassButtonsSticky } from './modules/pages/about/class-buttons-sticky.js';
+import { initClassImagesSlideshow } from './modules/pages/about/class-images-slideshow.js';
 import { initAnchorNav } from './modules/navigation/anchor-nav.js';
 
 // Import Page Specific Modules
@@ -125,6 +126,7 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
     initTextReveal();
     initSectionBannerReveal();
     initClassButtonsSticky();
+    initClassImagesSlideshow();
 
     const classImages = document.querySelector('[data-class-images]');
     if (classImages) {

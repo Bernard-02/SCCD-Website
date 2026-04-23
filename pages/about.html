@@ -114,11 +114,23 @@
 
       </section>
 
-      <!-- Class + Works Section（封鎖線融合在 class-works-area 內，absolute 在 top） -->
-      <section id="class" class="bg-white relative z-20 overflow-visible">
+      <!-- Class + Works Section（兩個 sub-anchor 各自有零高度 anchor wrapper + 封鎖綫，皆 absolute 不吃 flow，不 sticky） -->
+      <section class="bg-white relative z-20 overflow-visible">
+
+      <!-- Class Anchor + 封鎖綫（零高度 positioned wrapper，與 works 一致結構；anchor 點 = btn 位置 100px；封鎖綫在 15vh）-->
+      <div id="class" class="relative w-full pointer-events-none" style="scroll-margin-top: 100px; height: 0;">
+        <div class="section-title-strip absolute left-0 right-0 flex items-center pointer-events-auto" style="top: 15vh; overflow: visible; z-index: 0; padding: var(--spacing-md) 0;" data-anchor="class">
+          <div class="section-title-inner flex gap-md" style="white-space: nowrap; padding: var(--spacing-md);" data-section-title>
+            <h1>Class</h1>
+            <h1>班級</h1>
+          </div>
+        </div>
+      </div>
 
       <!-- Class + Works Shared Area -->
-      <div id="class-works-area" class="bg-white relative z-10 md:pt-6xl md:pb-6xl">
+      <!-- 不加 bg-white：section 本身已是 bg-white；加了會蓋住封鎖綫（z-10 > 封鎖綫 z:0）-->
+      <!-- 移除 md:pt-6xl：讓 btn 自然位置就 ≤ sticky 閾值（96px），點擊 class 時 btn 立即貼頂 100px -->
+      <div id="class-works-area" class="relative z-10 md:pb-6xl">
 
 
         <!-- Mobile Controls -->
@@ -138,8 +150,8 @@
         <!-- Sticky 範圍容器：btn 的 sticky 只在 info 結束前生效 -->
         <div id="class-info-sticky-wrapper" class="relative z-10">
 
-        <!-- Desktop Sticky Division Buttons -->
-        <div id="class-buttons-sticky" class="hidden md:block sticky top-6xl z-40 pb-md">
+        <!-- Desktop Sticky Division Buttons：sticky top 100px = anchor 點，點擊 class/works 當下 btn 零位移 -->
+        <div id="class-buttons-sticky" class="hidden md:block sticky z-40 pt-3xl pb-md" style="top: 100px;">
           <div class="site-container">
             <div class="grid-12">
               <div class="md:col-start-3 md:col-span-10 flex items-end gap-xl">
@@ -178,10 +190,10 @@
 
         <!-- Class Info Panels (image + text) -->
         <!-- min-height:100vh：撐滿視窗，把下方 works panels 自然擠到下一個 viewport -->
-        <div id="class-info-area" class="site-container" style="min-height: 100vh;">
+        <div id="class-info-area" class="site-container pt-2xl" style="min-height: 100vh;">
 
           <!-- Animation -->
-          <div class="class-info-panel pt-2xl pb-3xl relative z-10" data-division="animation">
+          <div class="class-info-panel pb-3xl relative z-10" data-division="animation">
             <div class="grid-12 md:items-start">
               <div class="col-span-12 md:col-start-3 md:col-span-4 order-2 md:order-1 mt-xl md:mt-0">
                 <div data-class-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
@@ -198,7 +210,7 @@
           </div>
 
           <!-- Creative Media -->
-          <div class="class-info-panel pt-2xl pb-3xl hidden relative z-10" data-division="creative-media">
+          <div class="class-info-panel pb-3xl hidden relative z-10" data-division="creative-media">
             <div class="grid-12 md:items-start">
               <div class="col-span-12 md:col-start-3 md:col-span-4 order-2 md:order-1 mt-xl md:mt-0">
                 <div data-class-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
@@ -215,7 +227,7 @@
           </div>
 
           <!-- MDES -->
-          <div class="class-info-panel pt-2xl pb-3xl hidden relative z-10" data-division="mdes">
+          <div class="class-info-panel pb-3xl hidden relative z-10" data-division="mdes">
             <div class="grid-12 md:items-start">
               <div class="col-span-12 md:col-start-3 md:col-span-4 order-2 md:order-1 mt-xl md:mt-0">
                 <div data-class-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
@@ -233,12 +245,20 @@
 
         </div>
 
-        <!-- Works Anchor (for anchor nav) - scroll-margin-top 對齊 nav btn 位置 -->
-        <div id="works" class="w-full pointer-events-none" style="scroll-margin-top: 200px;"></div>
+        <!-- Works Anchor + 封鎖綫（零高度 positioned wrapper；anchor 點 = btn 位置 100px；封鎖綫在 15vh）-->
+        <div id="works" class="relative w-full pointer-events-none" style="scroll-margin-top: 100px; height: 0;">
+          <div class="section-title-strip absolute left-0 right-0 flex items-center pointer-events-auto" style="top: 15vh; overflow: visible; z-index: 0; padding: var(--spacing-md) 0;" data-anchor="works">
+            <div class="section-title-inner flex gap-md" style="white-space: nowrap; padding: var(--spacing-md);" data-section-title>
+              <h1>Works</h1>
+              <h1>作品</h1>
+            </div>
+          </div>
+        </div>
 
-        <!-- Works Panels (playlist) - JS controls desktop visibility
-             bg-white + relative z-10 用來遮蓋 class-info-panel 的圖片溢出（top:70% yPercent:-50 會往下延伸） -->
-        <div id="class-works-panels" class="site-container pt-xl relative z-10 bg-white">
+        <!-- Works Panels (playlist) - JS controls desktop visibility -->
+        <!-- 不加 bg-white：讓封鎖綫的旋轉 tail 能穿過（比照 Class 狀態 class-info-panel 也是透明）-->
+        <!-- sticky-to-absolute 切換由 JS（class-buttons-sticky.js）在 #works anchor 到 100px 時觸發 -->
+        <div id="class-works-panels" class="site-container pt-8xl relative z-10">
 
           <!-- BFA / Design Fundamental（學士班 btn 的預設內容） -->
           <div class="class-works-panel hidden" data-division="bfa">
@@ -320,7 +340,17 @@
       </section>
 
       <!-- Resources Section -->
-      <section id="resources" class="bg-white relative z-10 overflow-visible" style="min-height: 100vh; padding-top: 100px;">
+      <!-- z-20：封鎖綫旋轉後上角會凸出 section 頂邊（~150px），z-10 會被上面 class(z-20) 的 bg-white 蓋掉 -->
+      <section id="resources" class="bg-white relative z-20 overflow-visible" style="min-height: 100vh; padding-top: 100px;">
+
+        <!-- Section Title Strip（封鎖綫，h1 字體，位於 section 頂部）-->
+        <div class="section-title-strip absolute left-0 right-0 flex items-center" style="top: 0; overflow: visible; z-index: 0; padding: var(--spacing-md) 0;" data-anchor="resources">
+          <div class="section-title-inner flex gap-md" style="white-space: nowrap; padding: var(--spacing-md);" data-section-title>
+            <h1>Resources</h1>
+            <h1>環境資源</h1>
+          </div>
+        </div>
+
         <div class="site-container pt-3xl pb-lg md:pb-xl relative z-30">
           <div class="grid-12 relative z-10">
             <div id="resources-accordion-container" class="col-span-12 md:col-start-2 md:col-span-11 md:ml-xl mx-[calc(var(--container-padding)*-1)] md:mx-0">
@@ -332,6 +362,15 @@
 
       <!-- History / Timeline Section -->
       <section id="history" class="relative bg-white pb-6xl z-20" style="clip-path: inset(-100vh 0); padding-top: 100px;">
+
+        <!-- Section Title Strip（封鎖綫，h1 字體，位於 section 頂部）-->
+        <div class="section-title-strip absolute left-0 right-0 flex items-center" style="top: 0; overflow: visible; z-index: 0; padding: var(--spacing-md) 0;" data-anchor="history">
+          <div class="section-title-inner flex gap-md" style="white-space: nowrap; padding: var(--spacing-md);" data-section-title>
+            <h1>History</h1>
+            <h1>沿革</h1>
+          </div>
+        </div>
+
         <div id="timeline-area" class="relative w-full" style="height: calc(100vh - 100px);">
 
           <!-- 卷軸容器：照片 + 年份/說明字卡，JS 動態生成 -->
@@ -341,15 +380,15 @@
           <div id="timeline-era-container" class="absolute top-0 left-0 w-full h-full pointer-events-none z-10"></div>
 
           <!-- Nav Zones -->
-          <div id="timeline-nav-left" class="absolute left-0 top-0 w-[12vw] h-full z-20 cursor-pointer"></div>
-          <div id="timeline-nav-right" class="absolute right-0 top-0 w-[12vw] h-full z-20 cursor-pointer"></div>
+          <div id="timeline-nav-left" class="absolute left-0 top-0 w-[12vw] h-full z-20" style="cursor: none;"></div>
+          <div id="timeline-nav-right" class="absolute right-0 top-0 w-[12vw] h-full z-20" style="cursor: none;"></div>
 
           <!-- Arrow Cursors -->
-          <div id="timeline-cursor-left" class="fixed pointer-events-none z-30 w-[60px] h-[60px] bg-black flex items-center justify-center" style="opacity:0; transform:scale(0); top:0; left:0;">
-            <i class="fa-solid fa-arrow-left text-white text-lg"></i>
+          <div id="timeline-cursor-left" class="fixed pointer-events-none z-30 w-[60px] h-[60px] flex items-center justify-center" style="opacity:0; transform:scale(0); top:0; left:0; background:#000;">
+            <i class="fa-solid fa-arrow-left text-black text-lg"></i>
           </div>
-          <div id="timeline-cursor-right" class="fixed pointer-events-none z-30 w-[60px] h-[60px] bg-black flex items-center justify-center" style="opacity:0; transform:scale(0); top:0; left:0;">
-            <i class="fa-solid fa-arrow-right text-white text-lg"></i>
+          <div id="timeline-cursor-right" class="fixed pointer-events-none z-30 w-[60px] h-[60px] flex items-center justify-center" style="opacity:0; transform:scale(0); top:0; left:0; background:#000;">
+            <i class="fa-solid fa-arrow-right text-black text-lg"></i>
           </div>
 
           <!-- Photo Hover Tooltip -->

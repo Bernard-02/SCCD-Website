@@ -87,6 +87,10 @@
   /* 160px */
   --spacing-6xl: 12rem;
   /* 192px */
+  --spacing-7xl: 14rem;
+  /* 224px */
+  --spacing-8xl: 16rem;
+  /* 256px */
   /* ===== Layout ===== */
   --container-max-width: 1200px;
   --container-padding: 3.75rem;
@@ -133,6 +137,10 @@
     /* 96px (桌面版 160px) */
     --spacing-6xl: 8rem;
     /* 128px (桌面版 192px) */
+    --spacing-7xl: 10rem;
+    /* 160px (桌面版 224px) */
+    --spacing-8xl: 12rem;
+    /* 192px (桌面版 256px) */
     /* Container Padding */
     --container-padding: 1.5rem;
     /* 24px (桌面版 32px) */
@@ -1427,6 +1435,12 @@ p{
   font-size: var(--font-size-p2);
 }
 
+/* 封鎖綫預設隱藏；anchor-nav active 切換時才 reveal（見 section-banner-reveal.js） */
+
+[data-section-title] {
+  clip-path: inset(0 100% 0 0);
+}
+
 .\!container{
   width: 100% !important;
 }
@@ -2046,27 +2060,12 @@ header.header-hidden .nav-link,
   transition: background 0.2s ease, color 0.2s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* ===== Class Buttons Sticky Container ===== */
+/* ===== Class Buttons Sticky Container =====
+     完全透明；不加貼頂白底，避免遮擋/裁掉經過的封鎖綫 */
 
 #class-buttons-sticky {
   padding-bottom: var(--spacing-md);
   background: transparent;
-}
-
-/* 只在 sticky 貼頂（封鎖綫離開視窗）時才出現白底 + 上方補白 */
-
-#class-buttons-sticky.is-stuck {
-  background: white;
-}
-
-#class-buttons-sticky.is-stuck::before {
-  content: '';
-  position: absolute;
-  bottom: 100%;
-  left: 0;
-  right: 0;
-  height: var(--spacing-6xl);
-  background: white;
 }
 
 /* BFA btn wrapper
@@ -2678,10 +2677,6 @@ header.header-hidden .nav-link,
 
 .top-0{
   top: 0px;
-}
-
-.top-6xl{
-  top: var(--spacing-6xl);
 }
 
 .top-\[calc\(var\(--header-height\2c 80px\)\+3rem\)\]{
@@ -3845,7 +3840,13 @@ header.header-hidden .nav-link,
   font-size: var(--font-size-p3);
 }
 
-/* 4. Custom Utilities */
+.pt-8xl {
+  padding-top: var(--spacing-8xl);
+}
+
+/* 4. Custom Base Styles */
+
+/* 5. Custom Utilities */
 
 @media (min-width: 768px){
   .md\:py-4xl {
@@ -4317,16 +4318,8 @@ header.header-hidden .nav-link,
     padding-top: 0px;
   }
 
-  .md\:pt-2xl{
-    padding-top: var(--spacing-2xl);
-  }
-
   .md\:pt-3xl{
     padding-top: var(--spacing-3xl);
-  }
-
-  .md\:pt-6xl{
-    padding-top: var(--spacing-6xl);
   }
 
   .md\:pt-xl{

@@ -301,25 +301,11 @@
     transition: background 0.2s ease, color 0.2s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  /* ===== Class Buttons Sticky Container ===== */
+  /* ===== Class Buttons Sticky Container =====
+     完全透明；不加貼頂白底，避免遮擋/裁掉經過的封鎖綫 */
   #class-buttons-sticky {
     padding-bottom: var(--spacing-md);
     background: transparent;
-  }
-
-  /* 只在 sticky 貼頂（封鎖綫離開視窗）時才出現白底 + 上方補白 */
-  #class-buttons-sticky.is-stuck {
-    background: white;
-  }
-
-  #class-buttons-sticky.is-stuck::before {
-    content: '';
-    position: absolute;
-    bottom: 100%;
-    left: 0;
-    right: 0;
-    height: var(--spacing-6xl);
-    background: white;
   }
 
   /* BFA btn wrapper

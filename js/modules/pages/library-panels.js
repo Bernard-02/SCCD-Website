@@ -1119,7 +1119,10 @@ function handleLibraryHash() {
 
     // 等 panel 顯示 + layout 完成後再 scroll + 觸發 hover
     requestAnimationFrame(() => {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // block: 'start' → 對齊容器頂部（若剩餘空間不足會自動停在最大 scrollTop）
+      // awards 的 year 標題是 sticky，加 scroll-margin-top 避免被遮
+      el.style.scrollMarginTop = '2rem';
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
       // 觸發一次該項目既有的 hover 效果（1s）
       // - dispatch mouseenter/leave：觸發 JS hover listener（awards 的文字變色）

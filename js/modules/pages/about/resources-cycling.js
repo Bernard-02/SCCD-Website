@@ -63,7 +63,7 @@ function renderResourcesAccordion(data, container) {
 
   // 初始化旋轉卡片版手風琴（桌面旋轉堆疊，手機退回單列展開）
   if (window.innerWidth >= 768) {
-    initRotatedAccordion(wrapper, { height: 650 });
+    initRotatedAccordion(wrapper, { height: 650, animateEntry: true });
   } else {
     initSingleAccordion(wrapper);
   }

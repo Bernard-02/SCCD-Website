@@ -74,6 +74,13 @@ function resolveRoute(pathname) {
   return routes[normalized] || null;
 }
 
+// ── Scroll 重置工具 ──────────────────────────────────────────
+function scrollToTop() {
+  window.scrollTo(0, 0);
+  if (document.documentElement) document.documentElement.scrollTop = 0;
+  if (document.body) document.body.scrollTop = 0;
+}
+
 // ── 內容替換 ──────────────────────────────────────────────────
 async function loadPage(route, search = '') {
   const main = document.getElementById('page-content');
@@ -95,6 +102,9 @@ async function loadPage(route, search = '') {
     // Cleanup 上一頁
     cleanupPageModules();
 
+    // 先捲到頂部，避免替換後舊 scrollY 超過新頁高度被鎖在 footer
+    scrollToTop();
+
     // 替換內容
     main.innerHTML = newMain.innerHTML;
     main.className = newMain.className || '';
@@ -103,8 +113,8 @@ async function loadPage(route, search = '') {
       main.setAttribute('style', newMain.getAttribute('style'));
     }
 
-    // 捲到頂部
-    window.scrollTo(0, 0);
+    // 替換後再捲一次，保險覆蓋 reflow / scroll anchor 造成的位移
+    requestAnimationFrame(() => scrollToTop());
 
     // 動態載入頁面專屬 CSS（library 有自己的 css）
     loadPageCSS(route.page);
@@ -124,6 +134,10 @@ async function loadPage(route, search = '') {
 
     // 初始化新頁面模組（帶 query string 供 detail 頁用）
     initPageModules(route.page, new URLSearchParams(search));
+
+    // async 資料載入完成後頁面高度會變，再 scroll 一次保險
+    setTimeout(() => scrollToTop(), 0);
+    setTimeout(() => scrollToTop(), 100);
 
     // 刷新 ScrollTrigger，確保新內容載入、高度改變後，觸發位置能正確更新
     if (typeof ScrollTrigger !== 'undefined') {
@@ -152,6 +166,11 @@ export function navigateTo(url) {
 
 // ── 事件綁定 ──────────────────────────────────────────────────
 export function initRouter() {
+  // 停用瀏覽器自動恢復 scroll（由 SPA 自行控制）
+  if ('scrollRestoration' in history) {
+    history.scrollRestoration = 'manual';
+  }
+
   // 攔截所有內部連結點擊
   document.addEventListener('click', (e) => {
     const link = e.target.closest('a[href]');

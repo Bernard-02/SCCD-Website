@@ -68,6 +68,8 @@
   --spacing-4xl: 8rem;    /* 128px */
   --spacing-5xl: 10rem;   /* 160px */
   --spacing-6xl: 12rem;   /* 192px */
+  --spacing-7xl: 14rem;   /* 224px */
+  --spacing-8xl: 16rem;   /* 256px */
 
 
   /* ===== Layout ===== */
@@ -102,6 +104,8 @@
     --spacing-4xl: 5rem;       /* 80px (桌面版 128px) */
     --spacing-5xl: 6rem;       /* 96px (桌面版 160px) */
     --spacing-6xl: 8rem;       /* 128px (桌面版 192px) */
+    --spacing-7xl: 10rem;      /* 160px (桌面版 224px) */
+    --spacing-8xl: 12rem;      /* 192px (桌面版 256px) */
 
     /* Container Padding */
     --container-padding: 1.5rem;  /* 24px (桌面版 32px) */
