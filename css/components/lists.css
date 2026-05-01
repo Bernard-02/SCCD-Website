@@ -10,6 +10,14 @@
 }
 
 
+/* ===== Admission Detail Entrance Reveal ===== */
+/* date / title / body 預設 opacity 0（避免 GSAP 介入前閃現），data 載入完成後由 JS 從下到上 stagger 進場 */
+#admission-date,
+#admission-title,
+#admission-body {
+  opacity: 0;
+}
+
 /* ===== Activities Search Bar ===== */
 /* search bar scroll hide */
 .activities-search-inner {

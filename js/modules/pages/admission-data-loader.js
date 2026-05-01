@@ -131,4 +131,35 @@ function renderAdmissionDetail(data) {
     nextBtn.style.display = 'none';
     if (nextPlaceholder) nextPlaceholder.style.display = 'block';
   }
+
+  playDetailEntrance();
+}
+
+// 詳情頁進場動畫：date / title / body 依序從下到上 stagger 進場
+// y: 40 → 0：每個元素從原位置下方 40px 上升到原位
+// opacity: 0 → 1：配合 CSS 預設隱藏，淡入避免閃現
+function playDetailEntrance() {
+  const items = [
+    document.getElementById('admission-date'),
+    document.getElementById('admission-title'),
+    document.getElementById('admission-body'),
+  ].filter(Boolean);
+  if (items.length === 0) return;
+
+  if (typeof gsap === 'undefined') {
+    // GSAP 未載入時直接顯示，避免內容永遠卡住
+    items.forEach(el => { el.style.opacity = '1'; });
+    return;
+  }
+
+  gsap.fromTo(items,
+    { y: 40, opacity: 0 },
+    {
+      y: 0,
+      opacity: 1,
+      duration: 0.7,
+      ease: 'power3.out',
+      stagger: 0.15,
+    }
+  );
 }

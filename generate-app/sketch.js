@@ -729,6 +729,21 @@ function setup() {
     // 初始化時調用一次
     setTimeout(handleOrientationChange, 100);
   }
+
+  // --- 通知 parent (generate.html) 初始 mode，讓 header 同步底色 ---
+  if (window.parent && window.parent !== window) {
+    if (mode === "Inverse") {
+      window.parent.postMessage({ genMode: 'Inverse', bg: '#000000', text: '#ffffff' }, '*');
+    } else if (mode === "Wireframe" && wireframeColor) {
+      const r = red(wireframeColor), g = green(wireframeColor), b = blue(wireframeColor);
+      const cssBg = `rgb(${r}, ${g}, ${b})`;
+      const cc = getContrastColor(wireframeColor);
+      const cssText = `rgb(${red(cc)}, ${green(cc)}, ${blue(cc)})`;
+      window.parent.postMessage({ genMode: 'Wireframe', bg: cssBg, text: cssText }, '*');
+    } else {
+      window.parent.postMessage({ genMode: 'Standard', bg: '#ffffff', text: '#000000' }, '*');
+    }
+  }
 }
 
 // --- 處理螢幕方向變化（使用 JS 控制 landscape/portrait 模式）---

@@ -533,8 +533,9 @@ function updateBackgroundColor(bgColor, disableTransition = false) {
     document.documentElement.style.setProperty('--wireframe-border', borderCssColor);
     document.documentElement.style.setProperty('--wireframe-opacity', opacityValue);
 
-    // 通知外層 header 更新背景色（Wireframe 模式）
-    window.parent.postMessage({ genMode: 'Wireframe', bg: cssColor, text: borderCssColor }, '*');
+    // 通知外層 header 更新背景色（Wireframe 模式拖色環 / Play 模式旋轉）
+    // instant: true → header 跟 iframe 同步用 0s transition 即時追，避免 1s fade 落後感
+    window.parent.postMessage({ genMode: 'Wireframe', bg: cssColor, text: borderCssColor, instant: true }, '*');
 
     // 更新 landscape overlay 的 CSS 變數
     document.documentElement.style.setProperty('--current-wireframe-bg', cssColor);
@@ -571,6 +572,9 @@ function updateBackgroundColor(bgColor, disableTransition = false) {
     document.documentElement.style.setProperty('--wireframe-bg', cssColor);
     document.documentElement.style.setProperty('--wireframe-border', borderCssColor);
     document.documentElement.style.setProperty('--wireframe-opacity', opacityValue);
+
+    // 通知外層 header 更新背景色（Wireframe 模式切換進入時）
+    window.parent.postMessage({ genMode: 'Wireframe', bg: cssColor, text: borderCssColor }, '*');
 
     // 更新 landscape overlay 的 CSS 變數
     document.documentElement.style.setProperty('--current-wireframe-bg', cssColor);

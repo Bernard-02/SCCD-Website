@@ -229,7 +229,10 @@ export function initBFADivisionToggle() {
   // ─── Color + rotation ──────────────────────────────────────
 
   const ACCENT_COLORS = ['#00FF80', '#FF448A', '#26BCFF'];
-  const BTN_DEFAULT   = '#000000';
+  // 預設 bg/color 用 CSS 變數，跟 mode 走（standard=黑底白字 / inverse=白底黑字）
+  // active / hover 時改成 accent 隨機色 + 黑字（accent 永遠淺色，黑字才看得到）
+  const BTN_DEFAULT_BG    = 'var(--theme-fg)';
+  const BTN_DEFAULT_TEXT  = 'var(--theme-bg)';
 
   function randomColor()    { return ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)]; }
   function randomRotation() {
@@ -280,12 +283,12 @@ export function initBFADivisionToggle() {
         btn._activeColor = color;
       } else {
         btn.classList.remove('active');
-        btn.style.background = BTN_DEFAULT;
-        btn.style.color = '#FFFFFF';
+        btn.style.background = BTN_DEFAULT_BG;
+        btn.style.color = BTN_DEFAULT_TEXT;
         btn.style.transform = `rotate(${btn._baseRot}deg)`;
         if (label) {
-          label.style.background = '#000000';
-          label.style.color = '#FFFFFF';
+          label.style.background = BTN_DEFAULT_BG;
+          label.style.color = BTN_DEFAULT_TEXT;
           label.style.transform = `rotate(${label._baseRot}deg)`;
         }
         btn._activeColor = null;
@@ -320,12 +323,12 @@ export function initBFADivisionToggle() {
       if (btn.classList.contains('active')) return;
       const label = btn.previousElementSibling?.classList.contains('class-group-label')
         ? btn.previousElementSibling : null;
-      btn.style.background = BTN_DEFAULT;
-      btn.style.color = '#FFFFFF';
+      btn.style.background = BTN_DEFAULT_BG;
+      btn.style.color = BTN_DEFAULT_TEXT;
       btn.style.transform = `rotate(${btn._baseRot}deg)`;
       if (label) {
-        label.style.background = '#000000';
-        label.style.color = '#FFFFFF';
+        label.style.background = BTN_DEFAULT_BG;
+        label.style.color = BTN_DEFAULT_TEXT;
         label.style.transform = `rotate(${label._baseRot}deg)`;
         label._pendingRot = null;
       }

@@ -11,8 +11,14 @@ export function triggerGenerateLogo() {
   if (!logo || typeof gsap === 'undefined') return;
 
   // 清除舊的 SVG/cursor（避免重複觸發時疊加）
+  // 也要清除可能從別頁帶過來的 Lottie animation 與 SVG，避免跟 typewriter 視覺衝突
+  // 同時保留 #header-logo 的 180x180 layout 空間，讓父層 <a href="../index.html"> 維持有可點擊區域（typewriter 完整後仍可點 logo 回首頁）
   const logoContainer = logo.parentNode;
   logoContainer.querySelectorAll('#gen-logo-svg, [data-gen-cursor]').forEach(el => el.remove());
+  if (typeof lottie !== 'undefined') {
+    try { lottie.destroy('header-logo-anim'); } catch (e) { /* 沒 Lottie 就略過 */ }
+  }
+  logo.innerHTML = '';
   logo.style.display = '';
 
   const isInverse = document.body.classList.contains('mode-inverse');
@@ -72,7 +78,8 @@ export function triggerGenerateLogo() {
   tl.to({}, { duration: 530 * 3 / 1000 });
   tl.call(() => stopBlink(cursor));
   tl.set(cursor, { left: -GAP });
-  tl.set(logo,   { display: 'none' });
+  // 不再 display:none #header-logo，否則父層 <a> 會 collapse 成 0x0 失去可點擊區域
+  // logo 內容已在開頭 innerHTML='' 清空，display:block 的 180x180 空 div 維持父層 <a> 的 click target
   tl.to({}, { duration: 0.15 });
   tl.set(cursor, { visibility: 'hidden' });
   tl.to({}, { duration: 0.5 });
@@ -157,7 +164,6 @@ export function updateNavActive(page) {
   // library / generate side bar 狀態
   const libraryBarEl  = header.querySelector('[data-bar="library"]');
   const generateBarEl = header.querySelector('[data-bar="generate"]');
-  const modeBtnEl     = header.querySelector('#mode-btn');
   const isLibraryActive  = activePage === 'library';
   const isGenerateActive = activePage === 'generate';
 
@@ -213,17 +219,16 @@ export function updateNavActive(page) {
     el.style.background = isActive ? '#000' : '#fff';
     el.classList.toggle('bar-active',   isActive);
     el.classList.toggle('bar-inactive', !isActive);
+    // SPA 切頁時（cursor 可能還停在 btn 上）清除 hover class，避免黑底黑字殘影
+    el.classList.remove('is-bar-hover');
     el.querySelectorAll('a.nav-link').forEach(l => l.classList.toggle('active', isActive));
   }
   setSideBar(libraryBarEl,  isLibraryActive);
   setSideBar(generateBarEl, isGenerateActive);
 
-  if (modeBtnEl) {
-    const toggleBtn    = /** @type {HTMLElement | null} */ (modeBtnEl.querySelector('.theme-toggle-btn'));
-    const toggleCircle = /** @type {HTMLElement | null} */ (modeBtnEl.querySelector('.theme-toggle-circle'));
-    if (toggleBtn)    { toggleBtn.style.borderColor = '#000'; }
-    if (toggleCircle) { toggleCircle.style.background = '#000'; }
-  }
+  // mode-btn 顏色由 .theme-toggle-btn / .theme-toggle-circle 的 var(--theme-fg) 接管
+  // 不在這裡 inline-set，避免蓋掉 mode 切換時 CSS 變數的自動更新
+  // （/generate 頁的 inline override 由 generate-header-sync 處理，cleanup 時會清掉）
 
   // About bar scroll collapse：library 頁 marginLeft=0（貼齊 logo），一般頁面 marginLeft=64
   // SPA 切換時做 smooth 動畫（和 logo 同步）
@@ -326,11 +331,15 @@ export function initHeader() {
     }
 
     // library / gen / mode 各自 hover 時隨機三原色，互不影響
+    // 額外加 .is-bar-hover class 讓 CSS 文字色 hover 規則跟著走（class-driven 而非 :hover-driven），
+    // 這樣點擊後 setSideBar 可清除 class，避免「cursor 還在 btn / 已導航到 library 頁」造成黑底黑字
     [libraryBar, generateBar].filter(Boolean).forEach(el => {
       el.addEventListener('mouseenter', () => {
+        el.classList.add('is-bar-hover');
         el.style.background = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
       });
       el.addEventListener('mouseleave', () => {
+        el.classList.remove('is-bar-hover');
         // 恢復由 updateNavActive 設定的底色
         const isActive = el.classList.contains('bar-active');
         el.style.background = isActive ? '#000' : '#fff';

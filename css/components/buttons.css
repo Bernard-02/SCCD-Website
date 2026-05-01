@@ -6,11 +6,12 @@
 @layer components {
 
   /* ===== Theme Toggle Button ===== */
+  /* 邊框 + 圓點顏色用 var(--theme-fg)，mode 切換時自動跟著走（standard=黑 / inverse=白） */
   .theme-toggle-btn {
     width: 24px;
     height: 24px;
     border-radius: 50%;
-    border: 2px solid white;
+    border: 2px solid var(--theme-fg);
     background: transparent;
     cursor: pointer;
     flex-shrink: 0;
@@ -25,7 +26,7 @@
     width: 12px;
     height: 12px;
     border-radius: 50%;
-    background: white;
+    background: var(--theme-fg);
     transition: background var(--transition-fast);
   }
   /* ===== Section Nav Buttons（共用基底樣式）=====
@@ -276,6 +277,7 @@
   }
 
   /* ===== Class Group Label (BFA Class 學士班)：旋轉由 JS 設定 ===== */
+  /* bg/color 用 var(--theme-fg)/var(--theme-bg) 跟 mode 走（standard=黑底白字 / inverse=白底黑字） */
   .class-group-label {
     display: inline-block;
     width: fit-content;
@@ -284,15 +286,16 @@
     bottom: calc(100% + var(--spacing-xs));
     left: -12px;
     z-index: 2;
-    background: #000000;
-    color: #ffffff;
-    transition: background 0.2s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background: var(--theme-fg);
+    color: var(--theme-bg);
+    transition: background 0.2s ease, color 0.2s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   /* ===== Class Division Toggle Buttons ===== */
+  /* 同上：跟 mode 對比 pill */
   .class-division-btn {
-    background: #000000;
-    color: #FFFFFF;
+    background: var(--theme-fg);
+    color: var(--theme-bg);
     border: none;
     border-radius: 0;
     cursor: pointer;

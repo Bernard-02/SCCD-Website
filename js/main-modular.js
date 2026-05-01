@@ -6,7 +6,7 @@
 // Import Layout Modules
 import { initHeader } from './header.js';
 import { initFooter } from './footer.js';
-import { initThemeToggle } from './modules/ui/theme-toggle.js';
+import { initThemeToggle, applyModeForPage, updateToggleBtnVisualState } from './modules/ui/theme-toggle.js';
 import { initRouter } from './router.js';
 
 // Import Filter Modules
@@ -52,6 +52,9 @@ import { initLibraryCard } from './modules/pages/library-card.js';
 import { initLibraryPanels } from './modules/pages/library-panels.js';
 import { initLibraryViewer } from './modules/pages/library-viewer.js';
 
+// Import Generate Page Modules
+import { initGenerateHeaderSync, cleanupGenerateHeaderSync } from './modules/pages/generate-header-sync.js';
+
 // Import Data Loaders
 import { loadRecords } from './modules/pages/records-data-loader.js';
 import { loadFacultyData } from './modules/pages/faculty-data-loader.js';
@@ -62,6 +65,13 @@ import { loadDegreeShowList, loadDegreeShowDetail } from './modules/pages/degree
 
 // ── Cleanup（換頁前執行）────────────────────────────────────────
 export function cleanupPageModules() {
+  // 解鎖 body scroll：若離開頁面時某個 modal/slide-in（faculty / library viewer 等）
+  // 還沒關閉，body.style.overflow 可能被鎖成 hidden，造成下個頁面 scrollbar 消失
+  document.body.style.overflow = '';
+
+  // 移除 generate page 的 message listener / observer + 還原 header 顏色
+  cleanupGenerateHeaderSync();
+
   if (typeof ScrollTrigger === 'undefined') return;
   // 只 kill 頁面內容的 ScrollTrigger，不動 header 的（header trigger 綁在 body/header 元素上）
   const main = document.getElementById('page-content');
@@ -85,6 +95,11 @@ export function cleanupPageModules() {
 
 // ── 頁面模組初始化（router 每次換頁都會呼叫）──────────────────
 export function initPageModules(page, searchParams = new URLSearchParams()) {
+
+  // Theme mode：每次切頁 re-evaluate
+  // /generate 頁暫停 mode（移除 body class）+ 按鈕 disabled；其他頁恢復 sessionStorage 的 mode
+  applyModeForPage(page);
+  updateToggleBtnVisualState(page);
 
   // Hero animation 所有頁面都跑（有 hero section 就會觸發）
   initHeroAnimation();
@@ -212,6 +227,8 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
     import('./header.js').then(({ triggerGenerateLogo }) => {
       if (typeof triggerGenerateLogo === 'function') triggerGenerateLogo();
     });
+    // 接收 iframe postMessage，同步 header 底色 / logo 顏色（SPA 導航時 generate.html 內 inline script 不會跑，必須由模組 attach）
+    initGenerateHeaderSync();
   }
 
   // --- Library Page ---

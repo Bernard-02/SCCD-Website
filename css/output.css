@@ -99,6 +99,16 @@
   --transition-fast: 0.2s ease;
   --transition-base: 0.3s ease;
   --transition-slow: 0.5s ease;
+  /* ===== Theme tokens（依 mode 切換的全站對比色） =====
+   * 預設值 = standard mode（黑前景 / 白背景）
+   * inverse mode 會在 themes/inverse.css 用 body.mode-inverse 蓋掉
+   * 元件直接用 var(--theme-fg)/var(--theme-bg)，mode 切換時自動跟著走，不必逐元件寫 inline
+   * --theme-fg-rgb / --theme-bg-rgb 是 RGB 三元組（不含括號），給需要 alpha 的場景用 rgba(var(--theme-fg-rgb), 0.5)
+   */
+  --theme-fg: var(--color-black);
+  --theme-bg: var(--color-white);
+  --theme-fg-rgb: 0, 0, 0;
+  --theme-bg-rgb: 255, 255, 255;
 }
 
 /* ===== 手機版響應式設計 (Desktop-First) ===== */
@@ -321,6 +331,16 @@
 .support-link-plain {
   font-weight: 700;
   text-decoration: none;
+}
+
+/* ===== Admission Detail Entrance Reveal ===== */
+
+/* date / title / body 預設 opacity 0（避免 GSAP 介入前閃現），data 載入完成後由 JS 從下到上 stagger 進場 */
+
+#admission-date,
+#admission-title,
+#admission-body {
+  opacity: 0;
 }
 
 /* ===== Activities Search Bar ===== */
@@ -569,6 +589,11 @@
 /* ===== Base ===== */
 
 body.mode-inverse {
+  /* Theme tokens 反轉：所有用 var(--theme-fg)/var(--theme-bg) 的元件會自動跟著切換 */
+  --theme-fg: var(--color-white);
+  --theme-bg: var(--color-black);
+  --theme-fg-rgb: 255, 255, 255;
+  --theme-bg-rgb: 0, 0, 0;
   background-color: black;
   color: white;
 }
@@ -655,12 +680,53 @@ body.mode-inverse .submenu-link {
 
 /* ===== Theme Toggle Button ===== */
 
-body.mode-inverse .theme-toggle-btn {
-  border-color: white;
+/* 由 components/buttons.css 的 var(--theme-fg) 自動處理；此處不再覆蓋 */
+
+/* ===== Theme Invert（黑色靜態圖在 inverse mode 自動翻成白色）===== */
+
+/* 用法：對純黑（或單色）SVG/PNG 加 class="theme-invert"，inverse mode 自動 filter:invert(1) → 黑變白
+ * 適用：about 頁中間的 hero SCCD 黑色 logo 等 */
+
+body.mode-inverse .theme-invert {
+  filter: invert(1);
 }
 
-body.mode-inverse .theme-toggle-circle {
-  background: white;
+/* ===== Highlighted text 強制保留黑字 ===== */
+
+/* 文字底色由 JS 套成 accent（綠/粉/藍），這些都是淺色 → 文字必須維持黑色才看得到
+ * inverse mode 預設把文字反白，這裡 narrow 蓋過讓 accent bg 上的文字一律維持黑字
+ * 包含：about overview hl / class division hl / works hl / 封鎖綫 section-title-strip
+ *      timeline 年份卡片 + 敘述卡片（bg=accent，排除 era 卡片 .bg-black） */
+
+body.mode-inverse [data-overview-hl],
+body.mode-inverse [data-overview-hl] *,
+body.mode-inverse [data-class-hl],
+body.mode-inverse [data-class-hl] *,
+body.mode-inverse [data-works-hl],
+body.mode-inverse [data-works-hl] *,
+body.mode-inverse .section-title-strip,
+body.mode-inverse .section-title-strip *,
+body.mode-inverse .timeline-card-inner:not(.bg-black),
+body.mode-inverse .timeline-card-inner:not(.bg-black) *,
+body.mode-inverse #timeline-cursor-left,
+body.mode-inverse #timeline-cursor-left *,
+body.mode-inverse #timeline-cursor-right,
+body.mode-inverse #timeline-cursor-right * {
+  color: black !important;
+}
+
+/* ===== Timeline Era 卡片：inverse 反轉成白底黑字 ===== */
+
+/* 標準模式：bg-black + text-white（Tailwind class 寫死）
+ * inverse 模式：要變白底黑字（user 指定），這裡蓋過 */
+
+body.mode-inverse .timeline-card-inner.bg-black {
+  background-color: white !important;
+}
+
+body.mode-inverse .timeline-card-inner.bg-black,
+body.mode-inverse .timeline-card-inner.bg-black * {
+  color: black !important;
 }
 
 /* ===== Nav Buttons (左側 section/program btn) ===== */
@@ -725,18 +791,18 @@ body.mode-inverse .courses-filter-btn.active .anchor-nav-inner {
   }
 }
 
-/* ===== Pill Buttons (works-filter-btn / class-parent-btn / class-division-btn) ===== */
+/* ===== Pill Buttons (works-filter-btn / class-parent-btn) ===== */
+
+/* class-division-btn 已遷移到 var(--theme-fg)/var(--theme-bg)，這裡不再列入 */
 
 body.mode-inverse .works-filter-btn,
-body.mode-inverse .class-parent-btn,
-body.mode-inverse .class-division-btn {
+body.mode-inverse .class-parent-btn {
   border-color: white;
   color: white;
 }
 
 body.mode-inverse .works-filter-btn.active,
-body.mode-inverse .class-parent-btn.active,
-body.mode-inverse .class-division-btn.active {
+body.mode-inverse .class-parent-btn.active {
   background: white;
   color: black;
 }
@@ -1529,13 +1595,15 @@ p{
 
 /* ===== Navigation Links ===== */
 
+/* 用 var(--theme-fg) 跟著 mode 切換（standard=黑 / inverse=白）；library/generate bar 走 bar-active/inactive 不受影響 */
+
 .nav-link{
   font-size: var(--font-size-h6);
   font-weight: 700;
   transition-property: all;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 200ms;
-  color: rgba(0, 0, 0, 1);
+  color: var(--theme-fg);
 }
 
 .nav-link .nav-link-cn {
@@ -1552,7 +1620,7 @@ p{
 .nav-link.active {
   font-weight: 700;
   display: inline-block;
-  color: rgba(0, 0, 0, 1);
+  color: var(--theme-fg);
 }
 
 /* side bar active/inactive 文字顏色（避免 inline style 被擴充功能干擾） */
@@ -1573,40 +1641,50 @@ p{
 
 /* Hover 效果：僅桌面版 */
 
+/* about bar nav-link 用 var(--theme-fg-rgb) 而非寫死 0,0,0，inverse mode 自動切換成白色 50%/100% */
+
 @media (min-width: 768px) {
   /* === 首頁（無 has-active）：hover 到某個選項時，其餘變半透明 === */
 
   [data-bar="about"]:not(.has-active) .nav-link:hover ~ * .nav-link,
     [data-bar="about"]:not(.has-active):has(.nav-link:hover) .nav-link:not(:hover) {
-    color: rgba(0, 0, 0, 0.5);
+    color: rgba(var(--theme-fg-rgb), 0.5);
   }
 
   /* === 內頁（有 has-active）：預設非 active 為半透明 === */
 
   [data-bar="about"].has-active .nav-link:not(.active) {
-    color: rgba(0, 0, 0, 0.5);
+    color: rgba(var(--theme-fg-rgb), 0.5);
   }
 
   /* === 內頁 hover 到某個選項時：所有選項（含 active）變半透明，除了正在 hover 的 === */
 
   [data-bar="about"].has-active:has(.nav-link:hover) .nav-link:not(:hover) {
-    color: rgba(0, 0, 0, 0.5);
+    color: rgba(var(--theme-fg-rgb), 0.5);
   }
 
-  /* === hover 到的選項永遠 100% 黑 === */
+  /* === hover 到的選項永遠 100% 對比色 === */
 
   [data-bar="about"] .nav-link:hover,
     [data-bar="about"].has-active .nav-link:hover,
     [data-bar="about"].has-active:has(.nav-link:hover) .nav-link:hover {
     font-weight: 700;
     display: inline-block;
-    color: rgba(0, 0, 0, 1);
+    color: var(--theme-fg);
+  }
+
+  /* === Library bar hover：底色變三原色時，文字改黑色（覆蓋 bar-active 白字） === */
+
+  /* 用 .is-bar-hover class 而非 :hover，以便點擊後切換 active 時 JS 可同步清除 */
+
+  [data-bar="library"].is-bar-hover .nav-link {
+    color: #000 !important;
   }
 
   .nav-link:hover {
     font-weight: 700;
     display: inline-block;
-    color: rgba(0, 0, 0, 1);
+    color: var(--theme-fg);
   }
 
   .nav-link:hover .nav-link-cn {
@@ -1787,11 +1865,13 @@ header.header-hidden .nav-link,
 
 /* ===== Theme Toggle Button ===== */
 
+/* 邊框 + 圓點顏色用 var(--theme-fg)，mode 切換時自動跟著走（standard=黑 / inverse=白） */
+
 .theme-toggle-btn {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  border: 2px solid white;
+  border: 2px solid var(--theme-fg);
   background: transparent;
   cursor: pointer;
   flex-shrink: 0;
@@ -1806,7 +1886,7 @@ header.header-hidden .nav-link,
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: white;
+  background: var(--theme-fg);
   transition: background var(--transition-fast);
 }
 
@@ -2033,6 +2113,8 @@ header.header-hidden .nav-link,
 
 /* ===== Class Group Label (BFA Class 學士班)：旋轉由 JS 設定 ===== */
 
+/* bg/color 用 var(--theme-fg)/var(--theme-bg) 跟 mode 走（standard=黑底白字 / inverse=白底黑字） */
+
 .class-group-label {
   display: inline-block;
   width: -moz-fit-content;
@@ -2042,16 +2124,18 @@ header.header-hidden .nav-link,
   bottom: calc(100% + var(--spacing-xs));
   left: -12px;
   z-index: 2;
-  background: #000000;
-  color: #ffffff;
-  transition: background 0.2s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--theme-fg);
+  color: var(--theme-bg);
+  transition: background 0.2s ease, color 0.2s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* ===== Class Division Toggle Buttons ===== */
 
+/* 同上：跟 mode 對比 pill */
+
 .class-division-btn {
-  background: #000000;
-  color: #FFFFFF;
+  background: var(--theme-fg);
+  color: var(--theme-bg);
   border: none;
   border-radius: 0;
   cursor: pointer;

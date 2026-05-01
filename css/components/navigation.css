@@ -5,9 +5,10 @@
 
 @layer components {
   /* ===== Navigation Links ===== */
+  /* 用 var(--theme-fg) 跟著 mode 切換（standard=黑 / inverse=白）；library/generate bar 走 bar-active/inactive 不受影響 */
   .nav-link {
     @apply text-h6 font-bold transition-all duration-fast;
-    color: rgba(0, 0, 0, 1);
+    color: var(--theme-fg);
   }
 
   .nav-link .nav-link-cn {
@@ -24,7 +25,7 @@
   .nav-link.active {
     font-weight: 700;
     display: inline-block;
-    color: rgba(0, 0, 0, 1);
+    color: var(--theme-fg);
   }
 
   /* side bar active/inactive 文字顏色（避免 inline style 被擴充功能干擾） */
@@ -43,36 +44,43 @@
   }
 
   /* Hover 效果：僅桌面版 */
+  /* about bar nav-link 用 var(--theme-fg-rgb) 而非寫死 0,0,0，inverse mode 自動切換成白色 50%/100% */
   @media (min-width: 768px) {
     /* === 首頁（無 has-active）：hover 到某個選項時，其餘變半透明 === */
     [data-bar="about"]:not(.has-active) .nav-link:hover ~ * .nav-link,
     [data-bar="about"]:not(.has-active):has(.nav-link:hover) .nav-link:not(:hover) {
-      color: rgba(0, 0, 0, 0.5);
+      color: rgba(var(--theme-fg-rgb), 0.5);
     }
 
     /* === 內頁（有 has-active）：預設非 active 為半透明 === */
     [data-bar="about"].has-active .nav-link:not(.active) {
-      color: rgba(0, 0, 0, 0.5);
+      color: rgba(var(--theme-fg-rgb), 0.5);
     }
 
     /* === 內頁 hover 到某個選項時：所有選項（含 active）變半透明，除了正在 hover 的 === */
     [data-bar="about"].has-active:has(.nav-link:hover) .nav-link:not(:hover) {
-      color: rgba(0, 0, 0, 0.5);
+      color: rgba(var(--theme-fg-rgb), 0.5);
     }
 
-    /* === hover 到的選項永遠 100% 黑 === */
+    /* === hover 到的選項永遠 100% 對比色 === */
     [data-bar="about"] .nav-link:hover,
     [data-bar="about"].has-active .nav-link:hover,
     [data-bar="about"].has-active:has(.nav-link:hover) .nav-link:hover {
       font-weight: 700;
       display: inline-block;
-      color: rgba(0, 0, 0, 1);
+      color: var(--theme-fg);
+    }
+
+    /* === Library bar hover：底色變三原色時，文字改黑色（覆蓋 bar-active 白字） === */
+    /* 用 .is-bar-hover class 而非 :hover，以便點擊後切換 active 時 JS 可同步清除 */
+    [data-bar="library"].is-bar-hover .nav-link {
+      color: #000 !important;
     }
 
     .nav-link:hover {
       font-weight: 700;
       display: inline-block;
-      color: rgba(0, 0, 0, 1);
+      color: var(--theme-fg);
     }
 
     .nav-link:hover .nav-link-cn {

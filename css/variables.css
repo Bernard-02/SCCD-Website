@@ -81,6 +81,18 @@
   --transition-fast: 0.2s ease;
   --transition-base: 0.3s ease;
   --transition-slow: 0.5s ease;
+
+
+  /* ===== Theme tokens（依 mode 切換的全站對比色） =====
+   * 預設值 = standard mode（黑前景 / 白背景）
+   * inverse mode 會在 themes/inverse.css 用 body.mode-inverse 蓋掉
+   * 元件直接用 var(--theme-fg)/var(--theme-bg)，mode 切換時自動跟著走，不必逐元件寫 inline
+   * --theme-fg-rgb / --theme-bg-rgb 是 RGB 三元組（不含括號），給需要 alpha 的場景用 rgba(var(--theme-fg-rgb), 0.5)
+   */
+  --theme-fg: var(--color-black);
+  --theme-bg: var(--color-white);
+  --theme-fg-rgb: 0, 0, 0;
+  --theme-bg-rgb: 255, 255, 255;
 }
 
 /* ===== 手機版響應式設計 (Desktop-First) ===== */
