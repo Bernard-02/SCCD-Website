@@ -71,8 +71,9 @@
           <div class="flex-1 min-w-0">
 
             <!-- Sticky 滾動遮罩：sticky 在 top:200px，內部絕對定位元素遮蓋上方 200px，避免 list 滾動時露出 header 區（仿 courses-filter-bar ::before 模式） -->
+            <!-- background 用 var(--theme-bg) 跟著 mode 切換：standard=white, inverse=black，不會在 inverse 下露白 -->
             <div class="hidden md:block" style="position: sticky; top: 200px; height: 0; z-index: 10; pointer-events: none;" aria-hidden="true">
-              <div style="position: absolute; top: -200px; left: 0; right: 0; height: 200px; background: white;"></div>
+              <div style="position: absolute; top: -200px; left: 0; right: 0; height: 200px; background: var(--theme-bg);"></div>
             </div>
 
             <!-- News Panel (原 Admission list) -->

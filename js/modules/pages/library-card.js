@@ -354,9 +354,11 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb 
 
     el.addEventListener('mouseenter', () => {
       if (isSwitching || el === activeEl) return;
-      el.style.background    = '#000';
+      // inverse mode 反轉：白底黑字（standard 是黑底白字）
+      const isInverse = document.body.classList.contains('mode-inverse');
+      el.style.background    = isInverse ? '#fff' : '#000';
       el.style.zIndex        = '11';
-      titleEl.style.color    = '#fff';
+      titleEl.style.color    = isInverse ? '#000' : '#fff';
     });
     el.addEventListener('mouseleave', () => {
       if (el === activeEl) return;

@@ -12,6 +12,7 @@ let messageHandler = null;
 let logoObserver = null;
 let pendingGenMode = null;
 let barMouseleaveHandlers = [];  // { el, fn } 對 about/library/generate 三條 bar 的 mouseleave reapply
+let barMouseenterHandlers = [];  // { el, fn } library/generate bar hover 時把字色改成 hover 字色（規範：hover 字色 = 該 mode 一般字色）
 
 // 跟 iframe body transition 對齊：
 // - 預設 1s ease（generate-app/style.css:110 body transition）
@@ -166,6 +167,19 @@ export function initGenerateHeaderSync() {
       barMouseleaveHandlers.push({ el: bar, fn });
     });
 
+    // about/library/generate hover 時：規範要求字色一律黑（不分 mode，因 bg 是亮三原色）。
+    // paintBars 把字色用 inline !important 寫死了，CSS `.is-bar-hover` / `.nav-link:hover` 規則蓋不掉，
+    // 必須在 mouseenter 也用 inline override 蓋成黑字
+    barEls.forEach(bar => {
+      const fn = () => {
+        bar.querySelectorAll('a, span, i').forEach(el => {
+          el.style.setProperty('color', '#000', 'important');
+        });
+      };
+      bar.addEventListener('mouseenter', fn);
+      barMouseenterHandlers.push({ el: bar, fn });
+    });
+
     const logoEl = document.getElementById('header-logo');
     const logoContainer = logoEl ? logoEl.parentNode : null;
     if (!logoContainer) return;
@@ -185,7 +199,7 @@ export function initGenerateHeaderSync() {
 
 export function cleanupGenerateHeaderSync() {
   // 沒綁定過直接 return，避免每次切頁都動到 header
-  if (!messageHandler && !logoObserver && barMouseleaveHandlers.length === 0) return;
+  if (!messageHandler && !logoObserver && barMouseleaveHandlers.length === 0 && barMouseenterHandlers.length === 0) return;
 
   if (messageHandler) {
     window.removeEventListener('message', messageHandler);
@@ -197,6 +211,8 @@ export function cleanupGenerateHeaderSync() {
   }
   barMouseleaveHandlers.forEach(({ el, fn }) => el.removeEventListener('mouseleave', fn));
   barMouseleaveHandlers = [];
+  barMouseenterHandlers.forEach(({ el, fn }) => el.removeEventListener('mouseenter', fn));
+  barMouseenterHandlers = [];
   pendingGenMode = null;
 
   // 還原 header 為預設外觀（避免切到別頁仍殘留）

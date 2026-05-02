@@ -99,13 +99,14 @@ function initListHeaderAccordion() {
     gsap.set(content, { height: 0, overflow: 'hidden' });
 
     // Hover: 未展開時顯示隨機色，展開後 hover 不改色
+    // collapsing flag 防止收合動畫期間 cursor 離開時清掉 inline bg → 字色 flicker
     header.addEventListener('mouseenter', function() {
-      if (!this.classList.contains('active')) {
+      if (!this.classList.contains('active') && !this.dataset.collapsing) {
         this.style.background = SCCDHelpers.getRandomAccentColor();
       }
     });
     header.addEventListener('mouseleave', function() {
-      if (!this.classList.contains('active')) {
+      if (!this.classList.contains('active') && !this.dataset.collapsing) {
         this.style.background = '';
       }
     });
@@ -138,6 +139,7 @@ function initListHeaderAccordion() {
       } else {
         // Close - 收合完成後才清除顏色
         const header = this;
+        header.dataset.collapsing = 'true'; // mouseenter/mouseleave 在動畫期間不動 bg
         gsap.to(content, {
           height: 0,
           duration: 0.4,
@@ -146,6 +148,11 @@ function initListHeaderAccordion() {
             header.style.background = '';
             content.style.background = '';
             content.style.overflow = 'hidden';
+            delete header.dataset.collapsing;
+            // cursor 若仍在 header 上，補回 hover bg（mouseenter 不會 re-fire 因 cursor 沒離開過）
+            if (header.matches(':hover')) {
+              header.style.background = SCCDHelpers.getRandomAccentColor();
+            }
           }
         });
         gsap.to(chevron, { rotation: 0, duration: 0.3 });

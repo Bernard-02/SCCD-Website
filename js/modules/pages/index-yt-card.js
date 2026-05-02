@@ -135,13 +135,22 @@ function initWatchChars(ytCharsEl) {
         if (!layouts.length) return;
 
         const ctx = p.drawingContext;
-        function drawLayout() {
+        let lastPlaced = null;
+        function getCharColor() {
+          // 卡片底色 = var(--theme-fg)（standard=黑、inverse=白）→ 文字用反向 var(--theme-bg)
+          const bg = getComputedStyle(document.body).getPropertyValue('--theme-bg').trim();
+          return bg || '#fff';
+        }
+        function drawLayout(reuse = false) {
           p.clear();
-          const placed = layouts[Math.floor(Math.random() * layouts.length)];
-          for (const pos of placed) {
+          if (!reuse || !lastPlaced) {
+            lastPlaced = layouts[Math.floor(Math.random() * layouts.length)];
+          }
+          const color = getCharColor();
+          for (const pos of lastPlaced) {
             const cd = charData[pos.charIdx];
             ctx.save();
-            ctx.font = cd.fontStr; ctx.fillStyle = '#fff';
+            ctx.font = cd.fontStr; ctx.fillStyle = color;
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.translate(pos.cx, pos.cy); ctx.rotate(pos.angle);
             ctx.fillText(cd.ch, -cd.offX, -cd.offY);
@@ -149,7 +158,9 @@ function initWatchChars(ytCharsEl) {
           }
         }
         drawLayout();
-        setInterval(drawLayout, 3000);
+        setInterval(() => drawLayout(false), 3000);
+        // theme 切換時即時重繪（保持當前 layout 不洗牌）
+        window.addEventListener('theme:changed', () => drawLayout(true));
       };
     });
   });

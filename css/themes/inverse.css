@@ -21,7 +21,10 @@ body.mode-inverse header {
   background-color: transparent;
 }
 
-body.mode-inverse .bg-white {
+/* .bg-white 反轉黑底；about bar 用 :not(:hover) 讓 hover 時 JS inline 三原色不被蓋
+ * 排除 #faculty-panel：JS 設 inline cardColor（卡片隨機三原色），不能被 !important 蓋成黑 */
+body.mode-inverse .bg-white:not([data-bar="about"]):not(#faculty-panel),
+body.mode-inverse [data-bar="about"]:not(:hover) {
   background-color: black !important;
 }
 
@@ -217,6 +220,74 @@ body.mode-inverse .course-item {
   border-color: white !important;
 }
 
+/* list-item-border::after 是 4px 橫條 separator（lists.css 預設黑色）
+ * inverse 模式下分割線出現在 active 亮三原色底上，黑色對比清楚，維持 standard 預設不反轉 */
+
+/* 淺底/亮三原色底容器內的 .border-black 維持黑色分隔線（依全站對比原則：淺底→黑內容）
+ * - .list-content：active 亮三原色底（activities accordion 展開）
+ * - #library-card-content：JS 設 inline #f2f2f2 淺灰底
+ * 廣域 .border-black→white 會把分割線變白，這裡蓋回黑色 */
+body.mode-inverse .list-content .border-black,
+body.mode-inverse #library-card-content .border-black {
+  border-color: black !important;
+}
+
+/* ===== Library 灰色主矩形（#library-card-content）：完整 mode-isolated ===== */
+/* User 明示「library 設定基本上都不變」 = inverse 視覺等同 standard。
+ *
+ * Library 內字色機制（standard 下所有來源）：
+ *   1. JS 設 inline color（year picker `'#000'`/`'rgba(0,0,0,0.3)'`、cat tabs 同、award row hover `三原色`）
+ *   2. 元素自身 CSS class（如 `.lib-album-cat-btn { color: #000 }`、`.files-item-subtitle-tag { color: rgba(0,0,0,0.5) }`）
+ *   3. 沒設色的元素繼承 body 的 black（typography.css `body { @apply text-black }`）
+ *
+ * Inverse 模式只有來源 (3) 出問題：`body.mode-inverse { color: white }` 讓繼承色變白。
+ * 其餘 (1)(2) 的明確值不該動。
+ *
+ * 解：只把 #library-card-content 的根色設回 black，沒設色的子元素自然繼承（同 standard 機制）。
+ *   - 不加 `* { color: inherit }` — 那會 specificity (1,1,1) 蓋過元素自身 CSS class color，
+ *     例如 `.files-item-subtitle-tag { color: rgba(0,0,0,0.5) }` 半透明黑會被強制變不透明
+ *   - Button / input 等表單元素由 Tailwind preflight `button { color: inherit }` 處理，自然繼承
+ *   - JS inline color、元素自身 CSS class color 都比 inherit specificity 高，照常勝出
+ */
+body.mode-inverse #library-card-content {
+  color: black;
+}
+/* lib-panel-title 是 panel 黑底白字標題（inline color: #f2f2f2），明確保留 */
+body.mode-inverse #library-card-content .lib-panel-title {
+  color: #f2f2f2;
+}
+/* 顯式 set album row title 跟 panel 內年份 label：
+ * 這些元素沒自己 CSS color、應該繼承根 black，但實測 user 仍看到白字 — 可能某層中間繼承被切斷
+ * specificity (1,2,1) 比元素自身 (0,1,0) 高，但低於 .files-item-subtitle-tag 的 inverse override 路徑
+ * 不影響半透明黑 (.files-item-subtitle-tag color rgba(0,0,0,0.5) specificity 0,1,0 不會被這條 cover) */
+body.mode-inverse #library-card-content .files-item-title-en,
+body.mode-inverse #library-card-content .files-item-title-zh,
+body.mode-inverse #library-card-content .press-year-label {
+  color: black;
+}
+
+/* hover (未展開) 或 active (展開) 時 bg 變亮三原色（JS 設 inline），文字一律反黑
+ * cover course-accordion.js + list-accordion.js 兩個元件
+ *
+ * 觸發條件用 [style*="background"] 偵測 inline bg：
+ *   - hover: mouseenter 設 inline bg → match → 黑字；mouseleave 清 → 失效 → 回白
+ *   - active 期間：inline bg 一直在 → 一直黑字
+ *   - active 收合動畫期間：toggle 移除 .active 但 inline bg 仍在（onComplete 才清）→ 仍黑字（不會閃成白）
+ *   - 收合 onComplete 清 inline bg → 失效 → 回白（這時動畫已結束沒人看到）
+ *
+ * content 內含 ref-link 等帶 .text-black 的元素，廣域 .text-black→white 會蓋過繼承色，
+ * 所以需顯式 target `.list-content *` 用 !important 蓋回黑字 */
+@media (min-width: 768px) {
+  body.mode-inverse .course-header[style*="background"],
+  body.mode-inverse .course-header[style*="background"] + .course-content,
+  body.mode-inverse .course-header[style*="background"] + .course-content *,
+  body.mode-inverse .list-header[style*="background"],
+  body.mode-inverse .list-header[style*="background"] + .list-content,
+  body.mode-inverse .list-header[style*="background"] + .list-content * {
+    color: black !important;
+  }
+}
+
 /* ===== Cards ===== */
 body.mode-inverse .card-tag {
   border-color: white !important;
@@ -224,9 +295,10 @@ body.mode-inverse .card-tag {
 }
 
 /* ===== About Anchor Nav ===== */
+/* inactive 字色用半透明白（0.5），對稱 standard 的半透明黑；hover 才升到 1.0 對比 */
 body.mode-inverse .anchor-nav-btn:not(.active) .anchor-nav-inner {
   background: rgba(0, 0, 0, 0.5) !important;
-  color: white !important;
+  color: rgba(255, 255, 255, 0.5) !important;
 }
 
 body.mode-inverse .anchor-nav-btn.active .anchor-nav-inner {
@@ -241,17 +313,32 @@ body.mode-inverse .anchor-nav-btn.active .anchor-nav-inner {
   }
 }
 
-/* ===== Faculty Slide-in ===== */
-body.mode-inverse #faculty-overlay {
-  background-color: white;
+/* ===== Faculty Card / Admission Item hover：inverse 下文字反黑（因 bg 變亮三原色）===== */
+/* standard 下文字繼承黑色，hover 不需動；inverse 下繼承白色，hover 時亮底白字看不清，反黑 */
+@media (min-width: 768px) {
+  body.mode-inverse .faculty-card:hover,
+  body.mode-inverse .admission-item:hover {
+    color: black;
+  }
 }
 
-body.mode-inverse #faculty-cursor {
-  background-color: white;
-}
-
-body.mode-inverse #faculty-cursor span {
+/* ===== Faculty Slide-in：inverse 模式下視覺等同 standard ===== */
+/* 設計考量：slide-in 是視覺獨立 modal — 70% 黑遮罩、卡片隨機色 panel、彩色 cursor、黑箭頭、黑文字
+ * inverse mode 不反轉。
+ *
+ * Panel 底色：JS 動態設 inline cardColor（卡片隨機三原色），靠廣域 .bg-white inverse 規則
+ *           已加 :not(#faculty-panel) 排除，inline 直接生效，這裡不再蓋。
+ *
+ * 兩層 reset 處理文字色：
+ * 1. .text-black → 黑字（蓋 .text-black→white inverse 規則）
+ * 2. 子樹根繼承色 → 黑（蓋 body.mode-inverse {color:white} 繼承色，cover 動態生成
+ *    沒帶 .text-black 的元素如 faculty-grid-row 內的 <span>） */
+body.mode-inverse #faculty-slide-in {
   color: black;
+}
+
+body.mode-inverse #faculty-slide-in .text-black {
+  color: black !important;
 }
 
 /* ===== Search Bar ===== */
@@ -270,3 +357,58 @@ body.mode-inverse .activities-search-input {
 body.mode-inverse .activities-search-input::placeholder {
   color: rgba(255, 255, 255, 0.5);
 }
+
+/* ===== Homepage Marquee + YT Card：inverse 反轉成白底黑字 ===== */
+/* 標準模式：黑底白字（inline 寫死 background:#000 / color:#fff）
+ * inverse 模式：白底黑字；canvas WATCH! 文字由 index-yt-card.js 動態讀 --theme-bg 重繪 */
+body.mode-inverse #homepage-marquee-link {
+  background: white !important;
+}
+
+body.mode-inverse #homepage-marquee-text,
+body.mode-inverse #homepage-marquee-clone {
+  color: black !important;
+}
+
+body.mode-inverse #homepage-yt-card {
+  background: white !important;
+}
+
+/* ===== Library / CREATE! 側邊 bar：inverse 完整反轉色階 ===== */
+/* 三狀態對稱原則：
+ *   inactive (一般)：standard 白底黑字 ↔ inverse 黑底白字
+ *   active   (該頁)：standard 黑底白字 ↔ inverse 白底黑字
+ *   hover    (任意)：bg=隨機三原色（JS inline 設），文字 = 該 mode 的「一般字色」
+ *                    standard hover=黑字 / inverse hover=白字
+ *
+ * Notes:
+ *   - JS inline 設的 bg 須 !important 才蓋得過；hover 時 JS inline 改成三原色，
+ *     用 :not(.is-bar-hover) 避開 hover 狀態避免 #000/#fff 蓋掉三原色
+ *   - About bar 無需在此處理：本來就用 var(--theme-fg) 字色 + 現有 .bg-white→black 規則 */
+
+/* Inactive 一般情況反轉 */
+body.mode-inverse [data-bar="library"].bar-inactive:not(.is-bar-hover),
+body.mode-inverse [data-bar="generate"].bar-inactive:not(.is-bar-hover) {
+  background: #000 !important;
+}
+
+/* :not(.is-bar-hover) 讓 hover 時 navigation.css 的 is-bar-hover .nav-link { color:#000 } 規則生效（specificity 0,2,1）
+ * 否則此 inverse 規則 (0,3,2) 會壓過 hover 規則導致 hover 仍是白/黑色 */
+body.mode-inverse [data-bar="library"].bar-inactive:not(.is-bar-hover) .nav-link,
+body.mode-inverse [data-bar="generate"].bar-inactive:not(.is-bar-hover) .nav-link {
+  color: #fff !important;
+}
+
+/* Active 在自己頁面反轉 */
+body.mode-inverse [data-bar="library"].bar-active:not(.is-bar-hover),
+body.mode-inverse [data-bar="generate"].bar-active:not(.is-bar-hover) {
+  background: #fff !important;
+}
+
+body.mode-inverse [data-bar="library"].bar-active:not(.is-bar-hover) .nav-link,
+body.mode-inverse [data-bar="generate"].bar-active:not(.is-bar-hover) .nav-link {
+  color: #000 !important;
+}
+
+/* Hover 字色：standard / inverse 一律黑（亮三原色底對比），由 navigation.css 的
+ * `is-bar-hover .nav-link { color: #000 !important }` 處理，inverse 不再 override */

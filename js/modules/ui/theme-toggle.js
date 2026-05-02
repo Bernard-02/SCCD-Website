@@ -80,6 +80,9 @@ function applyMode(mode) {
   document.body.classList.remove('mode-standard', 'mode-inverse', 'mode-color');
   document.body.classList.add(`mode-${mode}`);
 
+  // 通知需即時反應的元件（如 canvas 繪製）theme 已變動
+  window.dispatchEvent(new CustomEvent('theme:changed', { detail: { mode } }));
+
   // /generate 頁有自己的 typewriter logo，不要套 Lottie 蓋掉
   if (getCurrentPage() === 'generate') return;
 

@@ -4,7 +4,6 @@
  */
 
 import { initFooterDraggable } from './modules/ui/footer-draggable.js';
-import { initSupportLinkColor } from './modules/ui/support-link-color.js';
 
 export function initFooter() {
   const footerContainer = document.getElementById('site-footer');
@@ -29,7 +28,6 @@ export function initFooter() {
   // index.html 靜態 footer 拖曳初始化
   const staticFooter = document.getElementById('site-footer-static');
   if (staticFooter) {
-    initSupportLinkColor();
     if (window.innerWidth >= 768) {
       setTimeout(initFooterDraggable, 100);
     }
@@ -64,8 +62,6 @@ export function initFooter() {
         // 年份自動更新
         const yearEl = document.getElementById('footer-year');
         if (yearEl) yearEl.textContent = new Date().getFullYear();
-
-        initSupportLinkColor();
 
         if (window.innerWidth >= 768) {
           setTimeout(initFooterDraggable, 100);
