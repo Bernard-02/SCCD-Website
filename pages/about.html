@@ -376,9 +376,6 @@
           <!-- 卷軸容器：照片 + 年份/說明字卡，JS 動態生成 -->
           <div id="timeline-strip" class="absolute top-0 left-0 h-full"></div>
 
-          <!-- Era 容器：不隨卷軸移動，sticky 在原位 -->
-          <div id="timeline-era-container" class="absolute top-0 left-0 w-full h-full pointer-events-none z-10"></div>
-
           <!-- Nav Zones -->
           <div id="timeline-nav-left" class="absolute left-0 top-0 w-[12vw] h-full z-20" style="cursor: none;"></div>
           <div id="timeline-nav-right" class="absolute right-0 top-0 w-[12vw] h-full z-20" style="cursor: none;"></div>
@@ -393,7 +390,7 @@
 
           <!-- Photo Hover Tooltip -->
           <div id="timeline-photo-tooltip" class="fixed pointer-events-none z-30" style="opacity:0; top:0; left:0;">
-            <div class="timeline-card-inner p-sm bg-black text-white" style="max-width:350px;">
+            <div class="timeline-card-inner p-sm bg-black text-white" style="max-width:260px;">
               <div id="timeline-photo-tooltip-text" class="text-p2 leading-base font-bold"></div>
             </div>
           </div>

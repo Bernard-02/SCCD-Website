@@ -137,9 +137,13 @@ function initWatchChars(ytCharsEl) {
         const ctx = p.drawingContext;
         let lastPlaced = null;
         function getCharColor() {
-          // 卡片底色 = var(--theme-fg)（standard=黑、inverse=白）→ 文字用反向 var(--theme-bg)
-          const bg = getComputedStyle(document.body).getPropertyValue('--theme-bg').trim();
-          return bg || '#fff';
+          // standard/inverse: 卡片底色 = var(--theme-fg)（黑/白）→ 文字用反向 var(--theme-bg)
+          // mode-color: 卡片底是 25% overlay 半透明隨機色，文字必須用 var(--theme-fg) 對比色
+          //   否則 var(--theme-bg)=隨機色 ≈ overlay 底色 → 看不見
+          const isColorMode = document.body.classList.contains('mode-color');
+          const varName = isColorMode ? '--theme-fg' : '--theme-bg';
+          const c = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+          return c || (isColorMode ? '#000' : '#fff');
         }
         function drawLayout(reuse = false) {
           p.clear();

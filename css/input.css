@@ -24,6 +24,7 @@
 
 /* Themes */
 @import './themes/inverse.css';
+@import './themes/color.css';
 
 /* 3. Tailwind Directives */
 @tailwind base;

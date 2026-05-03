@@ -1087,8 +1087,10 @@ function draw() {
       updateColorWheelIcon();
 
       // 重置背景顏色為黑色或白色（根據目標模式）
+      // silent=true：不要對 parent 發 Wireframe 訊息，否則會在 ui-state.js 的 Standard/Inverse 訊息之後覆蓋掉，
+      // 害 header bg 在 1s fade 中段繞去錯誤色（resetColor 也是反的：Standard→黑、Inverse→白）再被後續 updateUI 修正回來
       let resetColor = (targetMode === "Inverse") ? color(255) : color(0);
-      updateBackgroundColor(resetColor);
+      updateBackgroundColor(resetColor, false, true);
 
       // 恢復 transition，確保切換模式時有 fade 效果
       let body = select('body');

@@ -492,7 +492,8 @@ function updateInputTextColor() {
 }
 
 // 更新背景顏色（Wireframe 模式）- 使用 CSS 變數
-function updateBackgroundColor(bgColor, disableTransition = false) {
+// silent=true：不發 postMessage 給 parent；用於 leave-wireframe 時，避免覆蓋 ui-state.js 已送的 Standard/Inverse 訊息
+function updateBackgroundColor(bgColor, disableTransition = false, silent = false) {
   // 將顏色轉換為 CSS rgb 格式
   let r = red(bgColor);
   let g = green(bgColor);
@@ -535,7 +536,9 @@ function updateBackgroundColor(bgColor, disableTransition = false) {
 
     // 通知外層 header 更新背景色（Wireframe 模式拖色環 / Play 模式旋轉）
     // instant: true → header 跟 iframe 同步用 0s transition 即時追，避免 1s fade 落後感
-    window.parent.postMessage({ genMode: 'Wireframe', bg: cssColor, text: borderCssColor, instant: true }, '*');
+    if (!silent) {
+      window.parent.postMessage({ genMode: 'Wireframe', bg: cssColor, text: borderCssColor, instant: true }, '*');
+    }
 
     // 更新 landscape overlay 的 CSS 變數
     document.documentElement.style.setProperty('--current-wireframe-bg', cssColor);
@@ -574,7 +577,9 @@ function updateBackgroundColor(bgColor, disableTransition = false) {
     document.documentElement.style.setProperty('--wireframe-opacity', opacityValue);
 
     // 通知外層 header 更新背景色（Wireframe 模式切換進入時）
-    window.parent.postMessage({ genMode: 'Wireframe', bg: cssColor, text: borderCssColor }, '*');
+    if (!silent) {
+      window.parent.postMessage({ genMode: 'Wireframe', bg: cssColor, text: borderCssColor }, '*');
+    }
 
     // 更新 landscape overlay 的 CSS 變數
     document.documentElement.style.setProperty('--current-wireframe-bg', cssColor);

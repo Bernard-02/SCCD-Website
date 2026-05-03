@@ -8,10 +8,106 @@
  *   sessionStorage 保留原 mode；離開 /generate 時自動恢復
  * - 按鈕在 /generate 頁顯示為 disabled 狀態（opacity + pointer-events）；其他頁正常可點
  * - applyModeForPage / updateToggleBtnVisualState 由 main-modular.js 在每次切頁呼叫，SPA 也能即時 re-evaluate
+ *
+ * mode-color：持續變化的隨機色（直接複製 generate-app wireframe Play 實作）
+ *   - HSB(hue, 80, 100) ≡ HSL(hue, 100%, 60%)
+ *   - 速度：每幀 `hue += 0.125`（直抄 wireframe baseSpeeds[0]）— 跟 gen 觀感同步
+ *     不用時間驅動（dt × per-second rate），雖然理論值同 7.5°/s，但 gen 在實際環境下
+ *     fps 可能不滿 60，per-frame 才能在 user 螢幕上跟 gen 同節奏
+ *   - 對比文字色用 WCAG relative luminance（gamma-corrected sRGB），threshold 0.5
+ *   - 元件已用 var(--theme-fg)/(--theme-bg) 的會自動跟著走
+ *   - 純黑/白底 + 三原色 hl bg → CSS rule 用 var(--theme-overlay-25) 蓋成半透明，顯露隨機色
  */
 
 const MODES = ['standard', 'inverse', 'color'];
 const STORAGE_KEY = 'sccd-theme-mode';
+
+/* ===== mode-color: random hue loop ===== */
+let colorRAF = null;
+let colorHue = Math.random() * 360;
+let lastThemeDispatch = 0;
+// 降速：gen wireframe Play 用 0.125，但 gen sketch 重實際 fps 跑不滿，視覺較慢；
+// mode-color 每幀只 set 幾個 CSS var 跑滿 frame rate，需手動降增量才能跟 gen 視覺等速
+const HUE_PER_FRAME = 0.04;
+
+// HSB → RGB（對齊 generate-app wireframe color(hue, 80, 100) HSB 模式）
+function hsbToRgb(h, s, v) {
+  s /= 100; v /= 100;
+  const c = v * s;
+  const hp = (h % 360) / 60;
+  const x = c * (1 - Math.abs((hp % 2) - 1));
+  let r1 = 0, g1 = 0, b1 = 0;
+  if (hp < 1) { r1 = c; g1 = x; }
+  else if (hp < 2) { r1 = x; g1 = c; }
+  else if (hp < 3) { g1 = c; b1 = x; }
+  else if (hp < 4) { g1 = x; b1 = c; }
+  else if (hp < 5) { r1 = x; b1 = c; }
+  else { r1 = c; b1 = x; }
+  const m = v - c;
+  return {
+    r: Math.round((r1 + m) * 255),
+    g: Math.round((g1 + m) * 255),
+    b: Math.round((b1 + m) * 255),
+  };
+}
+
+// WCAG relative luminance（gamma-corrected sRGB）—— 對齊 generate-app getRelativeLuminance
+function relativeLuminance(r, g, b) {
+  const lin = (c) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+}
+
+function applyColorVars() {
+  const { r, g, b } = hsbToRgb(colorHue, 80, 100);
+  const lum = relativeLuminance(r, g, b);
+  const isLightBg = lum > 0.5; // WCAG threshold（同 wireframe getContrastColor）
+  const fgRgb = isLightBg ? '0, 0, 0' : '255, 255, 255';
+  const fgHex = isLightBg ? '#000000' : '#ffffff';
+
+  const root = document.documentElement;
+  root.style.setProperty('--theme-bg', `rgb(${r}, ${g}, ${b})`);
+  root.style.setProperty('--theme-bg-rgb', `${r}, ${g}, ${b}`);
+  root.style.setProperty('--theme-fg', fgHex);
+  root.style.setProperty('--theme-fg-rgb', fgRgb);
+  root.style.setProperty('--theme-overlay-25', `rgba(${fgRgb}, 0.25)`);
+
+  const now = performance.now();
+  if (now - lastThemeDispatch > 200) {
+    lastThemeDispatch = now;
+    window.dispatchEvent(new CustomEvent('theme:changed', {
+      detail: { mode: 'color', bg: `rgb(${r}, ${g}, ${b})`, fg: fgHex, hue: colorHue },
+    }));
+  }
+}
+
+function colorTick() {
+  colorHue = (colorHue + HUE_PER_FRAME) % 360;
+  applyColorVars();
+  colorRAF = requestAnimationFrame(colorTick);
+}
+
+function startColorLoop() {
+  if (colorRAF) return; // 已在跑（idempotent）
+  applyColorVars(); // 先 sync set 一次，避免第一幀 RAF 16ms 延遲讓 body bg 閃白
+  colorRAF = requestAnimationFrame(colorTick);
+}
+
+function stopColorLoop() {
+  if (colorRAF) {
+    cancelAnimationFrame(colorRAF);
+    colorRAF = null;
+  }
+  // 清 inline var，讓 :root / body.mode-* 的 CSS 規則重新生效
+  const root = document.documentElement;
+  root.style.removeProperty('--theme-bg');
+  root.style.removeProperty('--theme-bg-rgb');
+  root.style.removeProperty('--theme-fg');
+  root.style.removeProperty('--theme-fg-rgb');
+  root.style.removeProperty('--theme-overlay-25');
+}
 
 function getCurrentPage() {
   const path = window.location.pathname;
@@ -56,6 +152,7 @@ export function applyModeForPage(page) {
   if (page === 'generate') {
     // 暫停：清除 body mode class（sessionStorage 保留，離開時恢復）
     document.body.classList.remove('mode-standard', 'mode-inverse', 'mode-color');
+    stopColorLoop();
     return;
   }
   const savedMode = sessionStorage.getItem(STORAGE_KEY) || 'standard';
@@ -79,6 +176,12 @@ export function updateToggleBtnVisualState(page) {
 function applyMode(mode) {
   document.body.classList.remove('mode-standard', 'mode-inverse', 'mode-color');
   document.body.classList.add(`mode-${mode}`);
+
+  if (mode === 'color') {
+    startColorLoop(); // 內部 idempotent；SPA 切頁重呼 applyMode 不會多開
+  } else {
+    stopColorLoop();
+  }
 
   // 通知需即時反應的元件（如 canvas 繪製）theme 已變動
   window.dispatchEvent(new CustomEvent('theme:changed', { detail: { mode } }));

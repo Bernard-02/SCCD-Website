@@ -1,0 +1,305 @@
+/**
+ * Color Mode Theme
+ * 持續變化的隨機色背景模式，由 body.mode-color 觸發
+ *
+ * 機制：
+ * - JS (theme-toggle.js) RAF loop 每幀更新 --theme-bg/fg/overlay-25 inline CSS var
+ * - 隨機 hue 旋轉（HSL hue, 80%, 50%），對比文字色由 luminance 決定
+ * - 元件已用 var(--theme-fg)/(--theme-bg) 的會自動跟著走
+ * - 純黑/白底 + 三原色 hl bg → 用 var(--theme-overlay-25) 蓋成半透明（顯露隨機色）
+ *
+ * 第一版 cover 範圍：對齊 inverse.css 大部分區塊；isolated 子樹（faculty/library）沿用 inverse 待遇
+ * Hover 三原色 inline bg（bar/anchor 元件）由 :not(.is-bar-hover) / :not(:hover) 排除，仍走原色
+ */
+
+/* ===== Base ===== */
+body.mode-color {
+  background-color: var(--theme-bg);
+  color: var(--theme-fg);
+}
+
+/* ===== Layout ===== */
+body.mode-color header {
+  background-color: transparent;
+}
+
+/* ===== 純黑/白底 → 25% overlay ===== */
+/* 排除 #faculty-panel（modal isolated）跟 about bar hover（inline 三原色不能蓋） */
+body.mode-color .bg-white:not([data-bar="about"]):not(#faculty-panel),
+body.mode-color [data-bar="about"]:not(:hover) {
+  background-color: var(--theme-overlay-25) !important;
+}
+
+body.mode-color .bg-gray-9 {
+  background-color: var(--theme-overlay-25) !important;
+}
+
+/* ===== 三原色 highlight bg → 25% overlay ===== */
+body.mode-color [data-overview-hl],
+body.mode-color [data-class-hl],
+body.mode-color [data-works-hl],
+body.mode-color .section-title-strip,
+body.mode-color .timeline-card-inner:not(.bg-black) {
+  background-color: var(--theme-overlay-25) !important;
+}
+
+/* Timeline era 卡片（標準是 bg-black + text-white）→ 也 overlay */
+body.mode-color .timeline-card-inner.bg-black {
+  background-color: var(--theme-overlay-25) !important;
+}
+
+/* ===== Typography ===== */
+body.mode-color .text-black:not(.timeline-year-item) {
+  color: var(--theme-fg) !important;
+}
+
+body.mode-color .timeline-year-item {
+  color: var(--theme-fg);
+}
+
+body.mode-color .text-gray-6 {
+  color: rgba(var(--theme-fg-rgb), 0.6) !important;
+}
+
+/* Highlighted text 內字色（overlay 半透明上方文字）→ 對比 fg */
+body.mode-color [data-overview-hl],
+body.mode-color [data-overview-hl] *,
+body.mode-color [data-class-hl],
+body.mode-color [data-class-hl] *,
+body.mode-color [data-works-hl],
+body.mode-color [data-works-hl] *,
+body.mode-color .section-title-strip,
+body.mode-color .section-title-strip *,
+body.mode-color .timeline-card-inner,
+body.mode-color .timeline-card-inner * {
+  color: var(--theme-fg) !important;
+}
+
+/* ===== Timeline lines ===== */
+body.mode-color .timeline-sticky-container .bg-black {
+  background-color: var(--theme-fg) !important;
+}
+
+/* ===== Borders ===== */
+body.mode-color .border-black {
+  border-color: var(--theme-fg) !important;
+}
+
+body.mode-color .border-gray-9 {
+  border-color: rgba(var(--theme-fg-rgb), 0.3) !important;
+}
+
+/* 亮 overlay 上的分隔線維持黑色（同 inverse 規則） */
+body.mode-color .list-content .border-black,
+body.mode-color #library-card-content .border-black {
+  border-color: black !important;
+}
+
+/* ===== Navigation ===== */
+body.mode-color .nav-link {
+  color: var(--theme-fg);
+}
+
+body.mode-color .submenu-link {
+  color: var(--theme-fg);
+}
+
+body.mode-color .mobile-nav-link,
+body.mode-color .mobile-nav-link span {
+  color: var(--theme-fg) !important;
+}
+
+body.mode-color .mobile-nav,
+body.mode-color .mega-menu {
+  background-color: var(--theme-bg);
+}
+
+@media (min-width: 768px) {
+  body.mode-color .nav-link:hover,
+  body.mode-color .submenu-link:hover span {
+    color: var(--theme-fg);
+  }
+}
+
+/* ===== Theme Invert（黑色靜態圖反轉成對比色）===== */
+/* 簡化處理：純黑→白；mode-color 下白色在隨機 bg 上 ok（fg 是黑時略弱對比，先這樣） */
+body.mode-color .theme-invert {
+  filter: invert(1);
+}
+
+/* ===== Anchor / Filter Buttons ===== */
+body.mode-color .faculty-filter-btn:not(.active) .anchor-nav-inner,
+body.mode-color .activities-section-btn:not(.active) .anchor-nav-inner,
+body.mode-color .courses-program-btn:not(.active) .anchor-nav-inner,
+body.mode-color .activities-filter-btn:not(.active) .anchor-nav-inner,
+body.mode-color .courses-filter-btn:not(.active) .anchor-nav-inner {
+  background: rgba(var(--theme-fg-rgb), 0.5) !important;
+  color: var(--theme-bg) !important;
+}
+
+body.mode-color .faculty-filter-btn.active .anchor-nav-inner,
+body.mode-color .activities-section-btn.active .anchor-nav-inner,
+body.mode-color .courses-program-btn.active .anchor-nav-inner,
+body.mode-color .activities-filter-btn.active .anchor-nav-inner,
+body.mode-color .courses-filter-btn.active .anchor-nav-inner {
+  background: var(--theme-overlay-25) !important;
+  color: var(--theme-fg) !important;
+}
+
+@media (min-width: 768px) {
+  body.mode-color .faculty-filter-btn:not(.active):hover .anchor-nav-inner,
+  body.mode-color .activities-section-btn:not(.active):hover .anchor-nav-inner,
+  body.mode-color .courses-program-btn:not(.active):hover .anchor-nav-inner,
+  body.mode-color .activities-filter-btn:not(.active):hover .anchor-nav-inner,
+  body.mode-color .courses-filter-btn:not(.active):hover .anchor-nav-inner {
+    background: rgba(var(--theme-fg-rgb), 0.8) !important;
+    color: var(--theme-bg) !important;
+  }
+}
+
+/* ===== About anchor nav ===== */
+body.mode-color .anchor-nav-btn:not(.active) .anchor-nav-inner {
+  background: rgba(var(--theme-fg-rgb), 0.5) !important;
+  color: rgba(var(--theme-bg-rgb), 0.5) !important;
+}
+
+body.mode-color .anchor-nav-btn.active .anchor-nav-inner {
+  background: var(--theme-overlay-25) !important;
+  color: var(--theme-fg) !important;
+}
+
+@media (min-width: 768px) {
+  body.mode-color .anchor-nav-btn:not(.active):hover .anchor-nav-inner {
+    background: rgba(var(--theme-fg-rgb), 0.8) !important;
+    color: var(--theme-bg) !important;
+  }
+}
+
+/* ===== Filter Bar 上方遮擋 ===== */
+@media (min-width: 768px) {
+  body.mode-color .activities-filter-bar::before,
+  body.mode-color .courses-filter-bar::before {
+    background: var(--theme-bg);
+  }
+
+  body.mode-color .activities-filter-bar,
+  body.mode-color .courses-filter-bar {
+    background-color: var(--theme-bg) !important;
+  }
+}
+
+/* ===== Pill Buttons ===== */
+body.mode-color .works-filter-btn,
+body.mode-color .class-parent-btn {
+  border-color: var(--theme-fg);
+  color: var(--theme-fg);
+}
+
+body.mode-color .works-filter-btn.active,
+body.mode-color .class-parent-btn.active {
+  background: var(--theme-fg);
+  color: var(--theme-bg);
+}
+
+body.mode-color .btn-fill-blob {
+  background: var(--theme-fg);
+}
+
+/* ===== Accordion / Course Items ===== */
+body.mode-color .course-item {
+  border-color: var(--theme-fg) !important;
+}
+
+/* hover/active 三原色 inline bg → overlay；content 內文字反 fg */
+@media (min-width: 768px) {
+  body.mode-color .course-header[style*="background"],
+  body.mode-color .course-header[style*="background"] + .course-content,
+  body.mode-color .course-header[style*="background"] + .course-content *,
+  body.mode-color .list-header[style*="background"],
+  body.mode-color .list-header[style*="background"] + .list-content,
+  body.mode-color .list-header[style*="background"] + .list-content * {
+    color: var(--theme-fg) !important;
+  }
+}
+
+/* ===== Cards ===== */
+body.mode-color .card-tag {
+  border-color: var(--theme-fg) !important;
+  color: var(--theme-fg) !important;
+}
+
+/* ===== About Faculty / Admission hover ===== */
+@media (min-width: 768px) {
+  body.mode-color .faculty-card:hover,
+  body.mode-color .admission-item:hover {
+    color: var(--theme-fg);
+  }
+}
+
+/* ===== Faculty Slide-in：mode-color 也 isolated（同 inverse 待遇）===== */
+body.mode-color #faculty-slide-in {
+  color: black;
+}
+
+body.mode-color #faculty-slide-in .text-black {
+  color: black !important;
+}
+
+/* ===== Library card content：mode-color 也 isolated ===== */
+body.mode-color #library-card-content {
+  color: black;
+}
+
+body.mode-color #library-card-content .lib-panel-title {
+  color: #f2f2f2;
+}
+
+body.mode-color #library-card-content .files-item-title-en,
+body.mode-color #library-card-content .files-item-title-zh,
+body.mode-color #library-card-content .press-year-label {
+  color: black;
+}
+
+/* ===== Search Bar ===== */
+body.mode-color .activities-search-inner {
+  border-bottom-color: var(--theme-fg);
+}
+
+body.mode-color .activities-search-icon {
+  color: var(--theme-fg) !important;
+}
+
+body.mode-color .activities-search-input {
+  color: var(--theme-fg);
+}
+
+body.mode-color .activities-search-input::placeholder {
+  color: rgba(var(--theme-fg-rgb), 0.5);
+}
+
+/* ===== Homepage marquee + YT card ===== */
+body.mode-color #homepage-marquee-link,
+body.mode-color #homepage-yt-card {
+  background: var(--theme-overlay-25) !important;
+}
+
+body.mode-color #homepage-marquee-text,
+body.mode-color #homepage-marquee-clone {
+  color: var(--theme-fg) !important;
+}
+
+/* ===== Library / Generate 側邊 bar ===== */
+/* mode-color 下 inactive/active 視覺一致用 overlay；hover 仍走 nav 三原色（is-bar-hover） */
+body.mode-color [data-bar="library"].bar-inactive:not(.is-bar-hover),
+body.mode-color [data-bar="generate"].bar-inactive:not(.is-bar-hover),
+body.mode-color [data-bar="library"].bar-active:not(.is-bar-hover),
+body.mode-color [data-bar="generate"].bar-active:not(.is-bar-hover) {
+  background: var(--theme-overlay-25) !important;
+}
+
+body.mode-color [data-bar="library"].bar-inactive:not(.is-bar-hover) .nav-link,
+body.mode-color [data-bar="generate"].bar-inactive:not(.is-bar-hover) .nav-link,
+body.mode-color [data-bar="library"].bar-active:not(.is-bar-hover) .nav-link,
+body.mode-color [data-bar="generate"].bar-active:not(.is-bar-hover) .nav-link {
+  color: var(--theme-fg) !important;
+}
