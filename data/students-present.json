@@ -16,7 +16,7 @@
           "../images/SCCD-1-4-0.jpg",
           "../images/SCCD-1-4-1.jpg"
         ],
-        "id": "s-2025-ho6e6r"
+        "id": "SP-2025-01"
       },
       {
         "title": "Student Project Title 2",
@@ -26,7 +26,7 @@
         "poster": "../images/2021-動畫-Pitch-Bible-01.png",
         "videos": [],
         "images": [],
-        "id": "s-2025-3yhrbe"
+        "id": "SP-2025-02"
       },
       {
         "title": "Student Project Title 3",
@@ -36,7 +36,7 @@
         "poster": "../images/2021-動畫-Pitch-Bible-01.png",
         "videos": [],
         "images": [],
-        "id": "s-2025-cm8gt8"
+        "id": "SP-2025-03"
       }
     ]
   },
@@ -51,7 +51,7 @@
         "poster": "../images/2021-動畫-Pitch-Bible-01.png",
         "videos": [],
         "images": [],
-        "id": "s-2024-i86oin"
+        "id": "SP-2024-01"
       },
       {
         "title": "2024 Project 2",
@@ -61,7 +61,7 @@
         "poster": "../images/2021-動畫-Pitch-Bible-01.png",
         "videos": [],
         "images": [],
-        "id": "s-2024-7spjia"
+        "id": "SP-2024-02"
       }
     ]
   },
@@ -76,7 +76,7 @@
         "poster": "../images/2021-動畫-Pitch-Bible-01.png",
         "videos": [],
         "images": [],
-        "id": "s-2023-884prt"
+        "id": "SP-2023-01"
       }
     ]
   }

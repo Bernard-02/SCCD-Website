@@ -381,6 +381,8 @@ export function initHeader() {
       const isInverse = document.body.classList.contains('mode-inverse');
       const logoFile = isInverse ? 'SCCDLogoInverse.json' : 'SCCDLogoStandard.json';
       const logoPath = `data/${logoFile}`;
+      // 標記目前 logo type，讓 theme-toggle 的 switchHeaderLogo guard 能識別已載入的 logo
+      logo.dataset.logoType = isInverse ? 'inverse' : 'standard';
       const logoAnim = lottie.loadAnimation({
         container: logo,
         renderer: 'svg',

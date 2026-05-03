@@ -47,7 +47,7 @@
         "references": [
           {
             "section": "industry",
-            "itemId": "i-2025-a3hi06",
+            "itemId": "I-2025-01",
             "labelEn": "Industry-Academia Cooperation",
             "labelZh": "產學合作",
             "titleEn": "Industry-Academia Project 1",
@@ -63,7 +63,7 @@
             "coverSrc": "../images/2021-動畫-Pitch-Bible-01.png"
           }
         ],
-        "id": "w-2025-5y2sgp"
+        "id": "W-2025-01"
       },
       {
         "title": "Font Osteopathic Class",
@@ -79,7 +79,7 @@
         "poster": "../images/2021-動畫-Pitch-Bible-01.png",
         "videos": [],
         "images": [],
-        "id": "w-2025-0xrhwu"
+        "id": "W-2025-02"
       },
       {
         "title": "Animation Creation Workshop",
@@ -90,7 +90,7 @@
         "poster": "../images/2021-動畫-Pitch-Bible-01.png",
         "videos": [],
         "images": [],
-        "id": "w-2025-fbvdqk"
+        "id": "W-2025-03"
       },
       {
         "title": "Sound Design",
@@ -100,7 +100,7 @@
         "poster": "../images/2021-動畫-Pitch-Bible-01.png",
         "videos": [],
         "images": [],
-        "id": "w-2025-owi17m"
+        "id": "W-2025-04"
       }
     ]
   },
@@ -115,7 +115,7 @@
         "poster": "../images/2021-動畫-Pitch-Bible-01.png",
         "videos": [],
         "images": [],
-        "id": "w-2024-au5pma"
+        "id": "W-2024-01"
       },
       {
         "title": "Typography",
@@ -125,7 +125,7 @@
         "poster": "../images/2021-動畫-Pitch-Bible-01.png",
         "videos": [],
         "images": [],
-        "id": "w-2024-z05azw"
+        "id": "W-2024-02"
       },
       {
         "title": "VR Storytelling",
@@ -135,7 +135,7 @@
         "poster": "../images/2021-動畫-Pitch-Bible-01.png",
         "videos": [],
         "images": [],
-        "id": "w-2024-6q18wq"
+        "id": "W-2024-03"
       },
       {
         "title": "Stop Motion",
@@ -145,7 +145,7 @@
         "poster": "../images/2021-動畫-Pitch-Bible-01.png",
         "videos": [],
         "images": [],
-        "id": "w-2024-tqp3o6"
+        "id": "W-2024-04"
       }
     ]
   },
@@ -160,7 +160,7 @@
         "poster": "../images/2021-動畫-Pitch-Bible-01.png",
         "videos": [],
         "images": [],
-        "id": "w-2023-ucsu7n"
+        "id": "W-2023-01"
       },
       {
         "title": "Projection Mapping",
@@ -170,7 +170,7 @@
         "poster": "../images/2021-動畫-Pitch-Bible-01.png",
         "videos": [],
         "images": [],
-        "id": "w-2023-4co286"
+        "id": "W-2023-02"
       },
       {
         "title": "Experimental Film",
@@ -180,7 +180,7 @@
         "poster": "../images/2021-動畫-Pitch-Bible-01.png",
         "videos": [],
         "images": [],
-        "id": "w-2023-59lfir"
+        "id": "W-2023-03"
       },
       {
         "title": "Generative Art",
@@ -190,7 +190,7 @@
         "poster": "../images/2021-動畫-Pitch-Bible-01.png",
         "videos": [],
         "images": [],
-        "id": "w-2023-zx9mk5"
+        "id": "W-2023-04"
       }
     ]
   }

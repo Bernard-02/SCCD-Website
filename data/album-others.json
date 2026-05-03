@@ -2,157 +2,157 @@
   {
     "year": 2025,
     "items": [
-      { "title_en": "Spring Exhibition 2025", "title_zh": "2025 春季展覽", "cover": "../images/SCCD-1-4-0.jpg", "images": ["../images/SCCD-1-4-0.jpg"] }
+      { "id": "AO-2025-01", "title_en": "Spring Exhibition 2025", "title_zh": "2025 春季展覽", "cover": "../images/SCCD-1-4-0.jpg", "images": ["../images/SCCD-1-4-0.jpg"] }
     ]
   },
   {
     "year": 2024,
     "items": [
-      { "title_en": "Annual Exhibition 2024", "title_zh": "2024 年度展覽", "cover": "../images/SCCD-1-4-1.jpg", "images": ["../images/SCCD-1-4-1.jpg"] }
+      { "id": "AO-2024-01", "title_en": "Annual Exhibition 2024", "title_zh": "2024 年度展覽", "cover": "../images/SCCD-1-4-1.jpg", "images": ["../images/SCCD-1-4-1.jpg"] }
     ]
   },
   {
     "year": 2023,
     "items": [
-      { "title_en": "Annual Exhibition 2023", "title_zh": "2023 年度展覽", "cover": "../images/SCCD-1-4-2.jpg", "images": ["../images/SCCD-1-4-2.jpg"] }
+      { "id": "AO-2023-01", "title_en": "Annual Exhibition 2023", "title_zh": "2023 年度展覽", "cover": "../images/SCCD-1-4-2.jpg", "images": ["../images/SCCD-1-4-2.jpg"] }
     ]
   },
   {
     "year": 2022,
     "items": [
-      { "title_en": "Annual Exhibition 2022", "title_zh": "2022 年度展覽", "cover": "../images/SCCD-1-4-3.jpg", "images": ["../images/SCCD-1-4-3.jpg"] }
+      { "id": "AO-2022-01", "title_en": "Annual Exhibition 2022", "title_zh": "2022 年度展覽", "cover": "../images/SCCD-1-4-3.jpg", "images": ["../images/SCCD-1-4-3.jpg"] }
     ]
   },
   {
     "year": 2021,
     "items": [
-      { "title_en": "Annual Exhibition 2021", "title_zh": "2021 年度展覽", "cover": "../images/SCCD-1-4-4.jpg", "images": ["../images/SCCD-1-4-4.jpg"] }
+      { "id": "AO-2021-01", "title_en": "Annual Exhibition 2021", "title_zh": "2021 年度展覽", "cover": "../images/SCCD-1-4-4.jpg", "images": ["../images/SCCD-1-4-4.jpg"] }
     ]
   },
   {
     "year": 2020,
     "items": [
-      { "title_en": "Annual Exhibition 2020", "title_zh": "2020 年度展覽", "cover": "../images/SCCD-1-4-5.jpg", "images": ["../images/SCCD-1-4-5.jpg"] }
+      { "id": "AO-2020-01", "title_en": "Annual Exhibition 2020", "title_zh": "2020 年度展覽", "cover": "../images/SCCD-1-4-5.jpg", "images": ["../images/SCCD-1-4-5.jpg"] }
     ]
   },
   {
     "year": 2019,
     "items": [
-      { "title_en": "Annual Exhibition 2019", "title_zh": "2019 年度展覽", "cover": "../images/SCCD-1-4-0.jpg", "images": ["../images/SCCD-1-4-0.jpg"] }
+      { "id": "AO-2019-01", "title_en": "Annual Exhibition 2019", "title_zh": "2019 年度展覽", "cover": "../images/SCCD-1-4-0.jpg", "images": ["../images/SCCD-1-4-0.jpg"] }
     ]
   },
   {
     "year": 2018,
     "items": [
-      { "title_en": "Annual Exhibition 2018", "title_zh": "2018 年度展覽", "cover": "../images/SCCD-1-4-1.jpg", "images": ["../images/SCCD-1-4-1.jpg"] }
+      { "id": "AO-2018-01", "title_en": "Annual Exhibition 2018", "title_zh": "2018 年度展覽", "cover": "../images/SCCD-1-4-1.jpg", "images": ["../images/SCCD-1-4-1.jpg"] }
     ]
   },
   {
     "year": 2017,
     "items": [
-      { "title_en": "Annual Exhibition 2017", "title_zh": "2017 年度展覽", "cover": "../images/SCCD-1-4-2.jpg", "images": ["../images/SCCD-1-4-2.jpg"] }
+      { "id": "AO-2017-01", "title_en": "Annual Exhibition 2017", "title_zh": "2017 年度展覽", "cover": "../images/SCCD-1-4-2.jpg", "images": ["../images/SCCD-1-4-2.jpg"] }
     ]
   },
   {
     "year": 2016,
     "items": [
-      { "title_en": "Annual Exhibition 2016", "title_zh": "2016 年度展覽", "cover": "../images/SCCD-1-4-3.jpg", "images": ["../images/SCCD-1-4-3.jpg"] }
+      { "id": "AO-2016-01", "title_en": "Annual Exhibition 2016", "title_zh": "2016 年度展覽", "cover": "../images/SCCD-1-4-3.jpg", "images": ["../images/SCCD-1-4-3.jpg"] }
     ]
   },
   {
     "year": 2015,
     "items": [
-      { "title_en": "Annual Exhibition 2015", "title_zh": "2015 年度展覽", "cover": "../images/SCCD-1-4-4.jpg", "images": ["../images/SCCD-1-4-4.jpg"] }
+      { "id": "AO-2015-01", "title_en": "Annual Exhibition 2015", "title_zh": "2015 年度展覽", "cover": "../images/SCCD-1-4-4.jpg", "images": ["../images/SCCD-1-4-4.jpg"] }
     ]
   },
   {
     "year": 2014,
     "items": [
-      { "title_en": "Annual Exhibition 2014", "title_zh": "2014 年度展覽", "cover": "../images/SCCD-1-4-5.jpg", "images": ["../images/SCCD-1-4-5.jpg"] }
+      { "id": "AO-2014-01", "title_en": "Annual Exhibition 2014", "title_zh": "2014 年度展覽", "cover": "../images/SCCD-1-4-5.jpg", "images": ["../images/SCCD-1-4-5.jpg"] }
     ]
   },
   {
     "year": 2013,
     "items": [
-      { "title_en": "Annual Exhibition 2013", "title_zh": "2013 年度展覽", "cover": "../images/SCCD-1-4-0.jpg", "images": ["../images/SCCD-1-4-0.jpg"] }
+      { "id": "AO-2013-01", "title_en": "Annual Exhibition 2013", "title_zh": "2013 年度展覽", "cover": "../images/SCCD-1-4-0.jpg", "images": ["../images/SCCD-1-4-0.jpg"] }
     ]
   },
   {
     "year": 2012,
     "items": [
-      { "title_en": "Annual Exhibition 2012", "title_zh": "2012 年度展覽", "cover": "../images/SCCD-1-4-1.jpg", "images": ["../images/SCCD-1-4-1.jpg"] }
+      { "id": "AO-2012-01", "title_en": "Annual Exhibition 2012", "title_zh": "2012 年度展覽", "cover": "../images/SCCD-1-4-1.jpg", "images": ["../images/SCCD-1-4-1.jpg"] }
     ]
   },
   {
     "year": 2011,
     "items": [
-      { "title_en": "Annual Exhibition 2011", "title_zh": "2011 年度展覽", "cover": "../images/SCCD-1-4-2.jpg", "images": ["../images/SCCD-1-4-2.jpg"] }
+      { "id": "AO-2011-01", "title_en": "Annual Exhibition 2011", "title_zh": "2011 年度展覽", "cover": "../images/SCCD-1-4-2.jpg", "images": ["../images/SCCD-1-4-2.jpg"] }
     ]
   },
   {
     "year": 2010,
     "items": [
-      { "title_en": "Annual Exhibition 2010", "title_zh": "2010 年度展覽", "cover": "../images/SCCD-1-4-3.jpg", "images": ["../images/SCCD-1-4-3.jpg"] }
+      { "id": "AO-2010-01", "title_en": "Annual Exhibition 2010", "title_zh": "2010 年度展覽", "cover": "../images/SCCD-1-4-3.jpg", "images": ["../images/SCCD-1-4-3.jpg"] }
     ]
   },
   {
     "year": 2009,
     "items": [
-      { "title_en": "Annual Exhibition 2009", "title_zh": "2009 年度展覽", "cover": "../images/SCCD-1-4-4.jpg", "images": ["../images/SCCD-1-4-4.jpg"] }
+      { "id": "AO-2009-01", "title_en": "Annual Exhibition 2009", "title_zh": "2009 年度展覽", "cover": "../images/SCCD-1-4-4.jpg", "images": ["../images/SCCD-1-4-4.jpg"] }
     ]
   },
   {
     "year": 2008,
     "items": [
-      { "title_en": "Annual Exhibition 2008", "title_zh": "2008 年度展覽", "cover": "../images/SCCD-1-4-5.jpg", "images": ["../images/SCCD-1-4-5.jpg"] }
+      { "id": "AO-2008-01", "title_en": "Annual Exhibition 2008", "title_zh": "2008 年度展覽", "cover": "../images/SCCD-1-4-5.jpg", "images": ["../images/SCCD-1-4-5.jpg"] }
     ]
   },
   {
     "year": 2007,
     "items": [
-      { "title_en": "Annual Exhibition 2007", "title_zh": "2007 年度展覽", "cover": "../images/SCCD-1-4-0.jpg", "images": ["../images/SCCD-1-4-0.jpg"] }
+      { "id": "AO-2007-01", "title_en": "Annual Exhibition 2007", "title_zh": "2007 年度展覽", "cover": "../images/SCCD-1-4-0.jpg", "images": ["../images/SCCD-1-4-0.jpg"] }
     ]
   },
   {
     "year": 2006,
     "items": [
-      { "title_en": "Annual Exhibition 2006", "title_zh": "2006 年度展覽", "cover": "../images/SCCD-1-4-1.jpg", "images": ["../images/SCCD-1-4-1.jpg"] }
+      { "id": "AO-2006-01", "title_en": "Annual Exhibition 2006", "title_zh": "2006 年度展覽", "cover": "../images/SCCD-1-4-1.jpg", "images": ["../images/SCCD-1-4-1.jpg"] }
     ]
   },
   {
     "year": 2005,
     "items": [
-      { "title_en": "Annual Exhibition 2005", "title_zh": "2005 年度展覽", "cover": "../images/SCCD-1-4-2.jpg", "images": ["../images/SCCD-1-4-2.jpg"] }
+      { "id": "AO-2005-01", "title_en": "Annual Exhibition 2005", "title_zh": "2005 年度展覽", "cover": "../images/SCCD-1-4-2.jpg", "images": ["../images/SCCD-1-4-2.jpg"] }
     ]
   },
   {
     "year": 2004,
     "items": [
-      { "title_en": "Annual Exhibition 2004", "title_zh": "2004 年度展覽", "cover": "../images/SCCD-1-4-3.jpg", "images": ["../images/SCCD-1-4-3.jpg"] }
+      { "id": "AO-2004-01", "title_en": "Annual Exhibition 2004", "title_zh": "2004 年度展覽", "cover": "../images/SCCD-1-4-3.jpg", "images": ["../images/SCCD-1-4-3.jpg"] }
     ]
   },
   {
     "year": 2003,
     "items": [
-      { "title_en": "Annual Exhibition 2003", "title_zh": "2003 年度展覽", "cover": "../images/SCCD-1-4-4.jpg", "images": ["../images/SCCD-1-4-4.jpg"] }
+      { "id": "AO-2003-01", "title_en": "Annual Exhibition 2003", "title_zh": "2003 年度展覽", "cover": "../images/SCCD-1-4-4.jpg", "images": ["../images/SCCD-1-4-4.jpg"] }
     ]
   },
   {
     "year": 2002,
     "items": [
-      { "title_en": "Annual Exhibition 2002", "title_zh": "2002 年度展覽", "cover": "../images/SCCD-1-4-5.jpg", "images": ["../images/SCCD-1-4-5.jpg"] }
+      { "id": "AO-2002-01", "title_en": "Annual Exhibition 2002", "title_zh": "2002 年度展覽", "cover": "../images/SCCD-1-4-5.jpg", "images": ["../images/SCCD-1-4-5.jpg"] }
     ]
   },
   {
     "year": 2001,
     "items": [
-      { "title_en": "Annual Exhibition 2001", "title_zh": "2001 年度展覽", "cover": "../images/SCCD-1-4-0.jpg", "images": ["../images/SCCD-1-4-0.jpg"] }
+      { "id": "AO-2001-01", "title_en": "Annual Exhibition 2001", "title_zh": "2001 年度展覽", "cover": "../images/SCCD-1-4-0.jpg", "images": ["../images/SCCD-1-4-0.jpg"] }
     ]
   },
   {
     "year": 2000,
     "items": [
-      { "title_en": "Annual Exhibition 2000", "title_zh": "2000 年度展覽", "cover": "../images/SCCD-1-4-1.jpg", "images": ["../images/SCCD-1-4-1.jpg"] }
+      { "id": "AO-2000-01", "title_en": "Annual Exhibition 2000", "title_zh": "2000 年度展覽", "cover": "../images/SCCD-1-4-1.jpg", "images": ["../images/SCCD-1-4-1.jpg"] }
     ]
   }
 ]

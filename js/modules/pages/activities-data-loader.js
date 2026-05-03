@@ -7,6 +7,109 @@ import { openLightbox } from '../lightbox/activities-lightbox.js';
 import { buildInitialScrollTrigger } from '../animations/list-scroll-trigger.js';
 import { animateCards } from '../ui/scroll-animate.js';
 
+// ── Reference 自動 lookup ─────────────────────────────────────────────────────
+// ref 只填 { section, itemId } 即可；title/cover/label 渲染前自動從目標 JSON lookup。
+// 已手動填的欄位（titleEn/titleZh/coverSrc/labelEn/labelZh）視為 override，不覆蓋。
+
+const SECTION_DATA_URL = {
+  workshop:           '/data/workshops.json',
+  industry:           '/data/industry.json',
+  lectures:           '/data/lectures.json',
+  'students-present': '/data/students-present.json',
+  'summer-camp':      '/data/summer-camp.json',
+  exhibitions:        '/data/general-activities.json',
+  competitions:       '/data/general-activities.json',
+  conferences:        '/data/general-activities.json',
+  visits:             '/data/general-activities.json',
+};
+
+const SECTION_LABELS = {
+  workshop:           { en: 'Workshop',                      zh: '工作坊' },
+  industry:           { en: 'Industry-Academia Cooperation', zh: '產學合作' },
+  lectures:           { en: 'Lectures',                      zh: '講座' },
+  'students-present': { en: 'Students Present',              zh: '學生自主' },
+  'summer-camp':      { en: 'Summer Camp',                   zh: '暑期體驗營' },
+  exhibitions:        { en: 'Exhibitions',                   zh: '展演' },
+  competitions:       { en: 'Competitions',                  zh: '競賽' },
+  conferences:        { en: 'Conferences',                   zh: '研討會' },
+  visits:             { en: 'Visits',                        zh: '參訪' },
+};
+
+const _refDataCache = new Map();
+
+async function getSectionData(section) {
+  // 特例：exhibitions section 同時涵蓋 special（general-activities.json category=exhibitions）+ permanent（permanent-exhibitions.json）
+  if (section === 'exhibitions') {
+    const cacheKey = '__exhibitions_merged__';
+    if (_refDataCache.has(cacheKey)) return _refDataCache.get(cacheKey);
+    const promise = Promise.all([
+      fetch('/data/general-activities.json').then(r => r.json()),
+      fetch('/data/permanent-exhibitions.json').then(r => r.json()),
+    ]).then(([a, b]) => [
+      ...(Array.isArray(a) ? a : []),
+      ...(Array.isArray(b) ? b : []),
+    ]).catch(e => {
+      console.warn('ref lookup: failed to merge exhibitions', e);
+      return null;
+    });
+    _refDataCache.set(cacheKey, promise);
+    return promise;
+  }
+
+  const url = SECTION_DATA_URL[section];
+  if (!url) return null;
+  if (_refDataCache.has(url)) return _refDataCache.get(url);
+  const promise = fetch(url).then(r => r.json()).catch(e => {
+    console.warn('ref lookup: failed to load', url, e);
+    return null;
+  });
+  _refDataCache.set(url, promise);
+  return promise;
+}
+
+function findItemById(data, itemId) {
+  if (!Array.isArray(data)) return null;
+  for (const yg of data) {
+    for (const item of yg.items || []) {
+      if (item.id === itemId) return item;
+    }
+  }
+  return null;
+}
+
+// 補齊 ref 缺失欄位（title/cover/label）；已存在的欄位不覆蓋
+async function resolveRef(ref) {
+  if (!ref.section || !ref.itemId) return;
+
+  // label 用 section 對應表自動填（若 ref 沒寫）
+  const labelMap = SECTION_LABELS[ref.section];
+  if (labelMap) {
+    if (!ref.labelEn) ref.labelEn = labelMap.en;
+    if (!ref.labelZh) ref.labelZh = labelMap.zh;
+  }
+
+  // title/cover 需要去目標 JSON lookup
+  if (ref.titleEn && ref.titleZh && ref.coverSrc) return;
+
+  const data = await getSectionData(ref.section);
+  if (!data) return;
+  const item = findItemById(data, ref.itemId);
+  if (!item) return;
+
+  // 兩種命名模式：
+  //  A) title=zh, title_en=en（industry / lectures / summer-camp / general-activities）
+  //  B) title=en, title_zh=zh（workshops / students-present）
+  const isModeA = !!item.title_en;
+  const targetEn = isModeA ? item.title_en : item.title;
+  const targetZh = isModeA ? item.title    : item.title_zh;
+
+  if (!ref.titleEn  && targetEn) ref.titleEn  = targetEn;
+  if (!ref.titleZh  && targetZh) ref.titleZh  = targetZh;
+  if (!ref.coverSrc) {
+    ref.coverSrc = item.poster || item.cover || (item.images && item.images[0]) || '';
+  }
+}
+
 // Helper: 為 list-item 內的海報及 gallery 圖片加上 hover 灰階 + screen overlay 效果
 export function bindMediaHover(container) {
   container.querySelectorAll('.list-item').forEach(workshopItem => {
@@ -401,6 +504,14 @@ export async function loadListInto(containerId, url, options = {}) {
       ),
     }))
     .filter(yg => yg.items.length > 0);
+
+  // Resolve refs：補齊 title/cover/label（讓 ref 只填 section + itemId 即可運作）
+  await Promise.all(filteredData.flatMap(yg =>
+    yg.items.flatMap(item => {
+      const refs = item.references || (item.reference ? [item.reference] : []);
+      return refs.map(ref => resolveRef(ref));
+    })
+  ));
 
   filteredData.forEach((yearGroup, index) => {
     const isLast  = index === filteredData.length - 1;

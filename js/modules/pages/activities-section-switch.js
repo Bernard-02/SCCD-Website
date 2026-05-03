@@ -31,6 +31,23 @@ export async function navigateToItem(section, itemId) {
   const target = document.getElementById(`item-${itemId}`);
   if (!target) return;
 
+  // 若 target 在 sub-tab 隱藏的 list container（exhibitions 的 permanent / visits 的 inbound 等），先切到對應 sub-tab
+  const subListContainer = target.closest('#exhibitions-list-special, #exhibitions-list-permanent, #visits-list-outbound, #visits-list-inbound');
+  if (subListContainer && subListContainer instanceof HTMLElement && subListContainer.style.display === 'none') {
+    const subTabMap = {
+      'exhibitions-list-special':   '#exhibitions-type-filter [data-type="special"]',
+      'exhibitions-list-permanent': '#exhibitions-type-filter [data-type="permanent"]',
+      'visits-list-outbound':       '#visits-type-filter [data-type="outbound"]',
+      'visits-list-inbound':        '#visits-type-filter [data-type="inbound"]',
+    };
+    const tabBtnSelector = subTabMap[subListContainer.id];
+    if (tabBtnSelector) {
+      const tabBtn = /** @type {HTMLElement | null} */ (document.querySelector(tabBtnSelector));
+      tabBtn?.click();
+      await new Promise(r => setTimeout(r, 100));
+    }
+  }
+
   // 若 year group 是收合的，先展開
   const yearItems = target.closest('.list-year-items');
   if (yearItems && (yearItems.style.height === '0px' || yearItems.style.display === 'none')) {

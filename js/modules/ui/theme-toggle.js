@@ -98,8 +98,12 @@ function switchHeaderLogo(type) {
   const logo = document.getElementById('header-logo');
   if (!logo || typeof lottie === 'undefined') return;
 
+  // 已是相同 type 的 Lottie 在運行 → skip，避免每次 SPA 換頁 destroy + reload 造成旋轉跳回 0°
+  if (logo.dataset.logoType === type && logo.querySelector('svg')) return;
+
   lottie.destroy('header-logo-anim');
   logo.innerHTML = '';
+  logo.dataset.logoType = type;
 
   const isInPages = window.location.pathname.includes('/pages/');
   const basePath = isInPages ? '/data/' : 'data/';
