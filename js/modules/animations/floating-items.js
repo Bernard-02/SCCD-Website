@@ -313,8 +313,15 @@ function createTextEl(textEn, textZh, url) {
 
   if (url) {
     el.addEventListener('mouseenter', () => {
-      el.style.background = '#000';
-      el.style.color = '#fff';
+      // inverse 模式：hover 變白底黑字（與全站 inverse 調性一致）
+      // standard：hover 變黑底白字（accent → 黑）
+      if (document.body.classList.contains('mode-inverse')) {
+        el.style.background = '#ffffff';
+        el.style.color = '#000000';
+      } else {
+        el.style.background = '#000';
+        el.style.color = '#fff';
+      }
     });
     el.addEventListener('mouseleave', () => {
       el.style.background = defaultColor;

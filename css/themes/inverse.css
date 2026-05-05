@@ -388,6 +388,7 @@ body.mode-inverse #homepage-yt-card {
 
 /* Inactive 一般情況反轉 */
 body.mode-inverse [data-bar="library"].bar-inactive:not(.is-bar-hover),
+body.mode-inverse [data-bar="atlas"].bar-inactive:not(.is-bar-hover),
 body.mode-inverse [data-bar="generate"].bar-inactive:not(.is-bar-hover) {
   background: #000 !important;
 }
@@ -395,20 +396,30 @@ body.mode-inverse [data-bar="generate"].bar-inactive:not(.is-bar-hover) {
 /* :not(.is-bar-hover) 讓 hover 時 navigation.css 的 is-bar-hover .nav-link { color:#000 } 規則生效（specificity 0,2,1）
  * 否則此 inverse 規則 (0,3,2) 會壓過 hover 規則導致 hover 仍是白/黑色 */
 body.mode-inverse [data-bar="library"].bar-inactive:not(.is-bar-hover) .nav-link,
+body.mode-inverse [data-bar="atlas"].bar-inactive:not(.is-bar-hover) .nav-link,
 body.mode-inverse [data-bar="generate"].bar-inactive:not(.is-bar-hover) .nav-link {
   color: #fff !important;
 }
 
 /* Active 在自己頁面反轉 */
 body.mode-inverse [data-bar="library"].bar-active:not(.is-bar-hover),
+body.mode-inverse [data-bar="atlas"].bar-active:not(.is-bar-hover),
 body.mode-inverse [data-bar="generate"].bar-active:not(.is-bar-hover) {
   background: #fff !important;
 }
 
 body.mode-inverse [data-bar="library"].bar-active:not(.is-bar-hover) .nav-link,
+body.mode-inverse [data-bar="atlas"].bar-active:not(.is-bar-hover) .nav-link,
 body.mode-inverse [data-bar="generate"].bar-active:not(.is-bar-hover) .nav-link {
   color: #000 !important;
 }
 
 /* Hover 字色：standard / inverse 一律黑（亮三原色底對比），由 navigation.css 的
  * `is-bar-hover .nav-link { color: #000 !important }` 處理，inverse 不再 override */
+
+/* Degree Show card hover：JS inline 把 .degree-show-card-content bg 設成 accent 色（粉/綠/藍），
+ * inverse 預設 body color:white 會讓 h5 標題在 accent 底上看不清，force 回黑（全站對比規範） */
+body.mode-inverse .degree-show-card:hover .degree-show-card-content,
+body.mode-inverse .degree-show-card:hover .degree-show-card-content * {
+  color: #000 !important;
+}

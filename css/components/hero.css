@@ -11,40 +11,40 @@
     visibility: hidden;
   }
 
-  /* Hero Section Text Rotation - rotate 套在 JS 動態生成的 wrapper 上 */
+  /* Hero Section 旋轉 + clip reveal wrapper（rotation 套在 JS 動態生成的 wrapper 上）
+     wrapper 同時處理：1. rotate 角度 2. overflow:hidden 形成 yPercent slide-in 的遮罩 */
   /* 手機版較小角度 */
-  .hero-title-wrapper {
-    transform: rotate(-2deg);
+  .hero-title-wrapper,
+  .hero-text-en-wrapper,
+  .hero-text-cn-wrapper {
     transform-origin: left center;
     display: block;
     overflow: hidden;
   }
+  .hero-title-wrapper { transform: rotate(-2deg); }
+  .hero-text-en-wrapper { transform: rotate(1deg); }
+  .hero-text-cn-wrapper { transform: rotate(-1deg); }
 
-  /* 副標題 rotate（直接套在元素上，不需 wrapper） */
-  .hero-text-en {
-    font-size: var(--font-size-p1);
-    transform: rotate(1deg);
-    transform-origin: left center;
-  }
-
+  /* 副標 font-size（rotation 已移到 wrapper） */
+  .hero-text-en,
   .hero-text-cn {
     font-size: var(--font-size-p1);
-    transform: rotate(-1deg);
-    transform-origin: left center;
   }
 
   /* 桌面版較大角度 */
   @media (min-width: 768px) {
-    .hero-title-wrapper {
-      transform: rotate(-4deg);
-    }
+    .hero-title-wrapper { transform: rotate(-4deg); }
+    .hero-text-en-wrapper { transform: rotate(3deg); }
+    .hero-text-cn-wrapper { transform: rotate(-2deg); }
+  }
 
-    .hero-text-en {
-      transform: rotate(3deg);
-    }
-
-    .hero-text-cn {
-      transform: rotate(-2deg);
-    }
+  /* 全站對比規範：accent 底色（綠/粉/藍）文字一律黑（不分 standard / inverse）；
+     mode-color 暫不適用（用 contrast text 跟著走）。
+     hero-animation.js 對 [data-hero-hl] 設 inline 隨機 accent bg；inverse 預設白字會跟 accent 衝突，這裡 force 回黑。
+     specificity 註：inverse 有 `body.mode-inverse .text-black:not(.timeline-year-item)` (0,3,1)，
+     必須用 `[data-hero-hl][data-hero-hl]` 重複屬性提升到 0,3,1 + 後出順序才贏 */
+  body:not(.mode-color) [data-hero-hl][data-hero-hl],
+  body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
+    color: #000 !important;
   }
 }

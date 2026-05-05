@@ -67,6 +67,9 @@ export function initRotatedAccordion(wrapper, { height = 600, animateEntry = fal
   }
 
   function applyLayout(animate = false) {
+    // 清掉所有 inline hover 色：使用者在 entrance 動畫期間 hover 留下的 inline bg 會卡在那（mouseleave 因 i===openIndex 不清），openIndex 改變後變成 active item 仍是 hover 色
+    resetColors();
+
     const wrapperW = wrapper.offsetWidth;
     const dur = animate ? 0.6 : 0;
 

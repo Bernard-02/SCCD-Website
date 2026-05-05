@@ -1,0 +1,213 @@
+/* ========================================
+   Atlas Page
+   滿版單屏字雲 — 名稱組合成 SCCD logo 形狀
+   ======================================== */
+
+#atlas-main {
+  position: fixed;
+  inset: 0;
+  background: var(--theme-bg, #ffffff);
+  color: var(--theme-fg, #000000);
+  overflow: hidden;
+  z-index: 0;
+}
+
+#atlas-mask-canvas {
+  display: none;
+}
+
+#atlas-stage {
+  position: absolute;
+  top: var(--header-height, 80px); /* 從 header 下方開始，避免 logo 頂到 about bar */
+  left: 0;
+  right: 0;
+  bottom: 0;
+  /* 不改 cursor — 用瀏覽器預設 */
+}
+
+#atlas-zoom {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(1);
+  transform-origin: center center;
+  will-change: transform;
+}
+
+#atlas-content {
+  position: relative;
+  width: 90vh;
+  height: 90vh;
+  will-change: transform;
+}
+
+/* ── 名稱單元 ─────────────────────────────────────── */
+.atlas-anchor {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.atlas-name {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  pointer-events: auto;
+  font-family: var(--font-en, 'Inter'), var(--font-zh, 'Noto Sans TC'), system-ui, sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  user-select: none;
+  max-width: 140px;
+  text-align: left;
+  transition: opacity 0.3s ease;
+  animation: atlas-float var(--dur, 6s) ease-in-out infinite alternate;
+  transform-origin: center center;
+}
+
+/* 短的（雙語都短或只有單語）→ 一行排：EN、ZH 並排 */
+.atlas-name.atlas-name-compact {
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 0.5em;
+  align-items: baseline;
+  max-width: none;
+}
+
+.atlas-name-en,
+.atlas-name-zh {
+  display: block;
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.atlas-name.atlas-name-compact .atlas-name-en,
+.atlas-name.atlas-name-compact .atlas-name-zh {
+  white-space: nowrap;
+}
+
+@keyframes atlas-float {
+  0% {
+    transform: translate(0, 0) rotate(var(--base-rot, 0deg));
+  }
+  100% {
+    transform: translate(var(--tx, 0px), var(--ty, 0px))
+               rotate(calc(var(--base-rot, 0deg) + var(--rot-delta, 0deg)));
+  }
+}
+
+/* 黑色名稱（落在 logo 中央黑圓內）：inverse 模式下底是黑色，黑字看不見，反轉成白 */
+body.mode-inverse #atlas-content .atlas-name--dark {
+  color: #ffffff !important;
+}
+
+#atlas-content.atlas-dimmed .atlas-name {
+  opacity: 0.12;
+}
+
+#atlas-content.atlas-dimmed .atlas-name.atlas-highlight {
+  opacity: 1;
+  z-index: 10;
+  /* 不加 glow — 純 opacity 切換 */
+}
+
+/* ── 右下角細節面板 ─────────────────────────────── */
+#atlas-detail {
+  position: fixed;
+  right: 32px;
+  bottom: 32px;
+  max-width: 380px;
+  min-width: 240px;
+  padding: 18px 22px 20px;
+  background: var(--theme-bg, #ffffff);
+  color: var(--theme-fg, #000000);
+  border: 1px solid var(--theme-fg, #000000);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  z-index: 100;
+}
+
+#atlas-detail.atlas-detail-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.atlas-detail-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-bottom: 8px;
+  opacity: 0.65;
+}
+
+.atlas-detail-name {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.25;
+  margin-bottom: 10px;
+  word-break: break-word;
+}
+
+.atlas-detail-name .atlas-detail-name-zh {
+  font-size: 16px;
+  font-weight: 600;
+  margin-top: 2px;
+  opacity: 0.85;
+}
+
+.atlas-detail-desc {
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+/* ── 左下角操作提示 ─────────────────────────────── */
+#atlas-hint {
+  position: fixed;
+  left: 32px;
+  bottom: 32px;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--theme-fg, #000000);
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 50;
+}
+
+/* 手機版 */
+@media (max-width: 767px) {
+  #atlas-content {
+    width: 92vmin;
+    height: 92vmin;
+  }
+  .atlas-name {
+    font-size: 11px;
+    max-width: 180px;
+  }
+  #atlas-detail {
+    right: 16px;
+    bottom: 16px;
+    left: 16px;
+    max-width: none;
+    padding: 14px 16px 16px;
+  }
+  .atlas-detail-name {
+    font-size: 18px;
+  }
+  .atlas-detail-name .atlas-detail-name-zh {
+    font-size: 14px;
+  }
+  .atlas-detail-desc {
+    font-size: 13px;
+  }
+  #atlas-hint {
+    left: 16px;
+    bottom: 16px;
+    font-size: 10px;
+  }
+}

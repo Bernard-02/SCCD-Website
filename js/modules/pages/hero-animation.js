@@ -17,7 +17,43 @@ function wrapElement(el, wrapperClass) {
 }
 
 export function initHeroAnimation() {
+  // Hero highlight：所有 [data-hero-hl] 套同一個隨機 accent 色 + 固定 padding
+  // padding 用 rem 而非 em，避免 h1（font-size 大）的 padding 被等比例放大成過大色塊
+  // 跑在 gsap 早返回之前，確保無 gsap 也會套色
+  const heroHls = document.querySelectorAll('[data-hero-hl]');
+  if (heroHls.length > 0) {
+    const cs = getComputedStyle(document.documentElement);
+    const accentColors = [
+      cs.getPropertyValue('--color-green').trim(),
+      cs.getPropertyValue('--color-pink').trim(),
+      cs.getPropertyValue('--color-blue').trim(),
+    ];
+    const color = accentColors[Math.floor(Math.random() * accentColors.length)];
+    heroHls.forEach(el => {
+      /** @type {HTMLElement} */ (el).style.background = color;
+      /** @type {HTMLElement} */ (el).style.padding = '0.5rem 0.6rem';
+    });
+  }
+
+  // hero-text-en / hero-text-cn 之間的 gap：兩個段落各自旋轉，bbox 高度會增加 = width × sin(angle)
+  // 參考 history desc 的算法：gap = 兩 paragraph 的 rotation excursion 加總 + buffer
+  // 動態算 because 寬度依 viewport 而變；只算一次，resize 不重算（避免 SPA listener 累積）
+  const heroTextEn = /** @type {HTMLElement|null} */ (document.querySelector('.hero-text-en'));
+  const heroTextCn = /** @type {HTMLElement|null} */ (document.querySelector('.hero-text-cn'));
+  let heroGapPx = 0;
+  if (heroTextEn && heroTextCn) {
+    const isDesktop = window.innerWidth >= 768;
+    const enRotDeg = isDesktop ? 3 : 1;
+    const cnRotDeg = isDesktop ? 2 : 1;
+    const w = heroTextEn.offsetWidth;
+    const enExcursion = w * Math.sin(enRotDeg * Math.PI / 180);
+    const cnExcursion = w * Math.sin(cnRotDeg * Math.PI / 180);
+    const buffer = 12;
+    heroGapPx = Math.ceil(enExcursion + cnExcursion + buffer);
+  }
+
   if (typeof gsap === 'undefined') {
+    if (heroTextEn && heroGapPx > 0) heroTextEn.style.marginBottom = `${heroGapPx}px`;
     document.querySelectorAll('.hero-title, .hero-text-en, .hero-text-cn, [data-hero-logo]')
       .forEach(el => { el.style.visibility = 'visible'; });
     return;
@@ -52,17 +88,32 @@ export function initHeroAnimation() {
     });
   }
 
-  // --- 2. 英文 / 中文副標：y + opacity 淡入 ---
+  // --- 2. 英文 / 中文副標：clip reveal（同 title 模式：wrapper overflow:hidden + yPercent 100→0）---
+  if (textEn) {
+    wrapElement(textEn, 'hero-text-en-wrapper');
+    // Tailwind class（mb-lg/mb-xl）的 mb 在 wrap 後會在 wrapper 內部，浪費高度且讓 wrapper 變高 → 顯式清掉
+    /** @type {HTMLElement} */ (textEn).style.marginBottom = '0';
+    if (heroGapPx > 0 && textEn.parentElement) {
+      // 旋轉 excursion gap 改套到 wrapper 上（wrapper 才是 flow 中影響後續元素的元素）
+      textEn.parentElement.style.marginBottom = `${heroGapPx}px`;
+    }
+  }
+  if (textCn) {
+    wrapElement(textCn, 'hero-text-cn-wrapper');
+  }
   const subtitles = [textEn, textCn].filter(Boolean);
   if (subtitles.length > 0) {
-    gsap.set(subtitles, { visibility: 'visible', y: 40, opacity: 0 });
-    tl.to(subtitles, {
-      y: 0,
-      opacity: 1,
-      duration: 0.7,
-      stagger: 0.15,
-      clearProps: 'y,opacity',
-    }, '-=0.4');
+    // 預先設 yPercent:100（保持 CSS visibility:hidden 不動）；title 動畫接近結束才把 visibility 打開
+    // 為什麼分開：若 init 時就 visibility:visible + yPercent:100，sub-pixel rounding 會在 wrapper 底邊露出 ~0.5px 細綫，
+    // 動畫前等待的 0.5s 視覺上看得到。把可見性切換對齊動畫起點 = 露邊立刻被滑入動作蓋掉，視覺乾淨。
+    gsap.set(subtitles, { yPercent: 100 });
+    tl.set(subtitles, { visibility: 'visible' }, '-=0.4')
+      .to(subtitles, {
+        yPercent: 0,
+        duration: 0.9,
+        stagger: 0.15,
+        clearProps: 'transform',
+      }, '<');
   }
 
   // --- 3. Hero 背景圖：往下 scroll 時放大 + parallax；main section 蓋上來 ---

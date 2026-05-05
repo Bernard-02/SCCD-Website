@@ -55,6 +55,9 @@ import { initLibraryViewer } from './modules/pages/library-viewer.js';
 // Import Generate Page Modules
 import { initGenerateHeaderSync, cleanupGenerateHeaderSync } from './modules/pages/generate-header-sync.js';
 
+// Import Atlas Page Modules
+import { initAtlas, cleanupAtlas } from './modules/pages/atlas.js';
+
 // Import Data Loaders
 import { loadRecords } from './modules/pages/records-data-loader.js';
 import { loadFacultyData } from './modules/pages/faculty-data-loader.js';
@@ -71,6 +74,9 @@ export function cleanupPageModules() {
 
   // 移除 generate page 的 message listener / observer + 還原 header 顏色
   cleanupGenerateHeaderSync();
+
+  // Atlas 頁：移除 wheel listener / RAF
+  cleanupAtlas();
 
   if (typeof ScrollTrigger === 'undefined') return;
   // 只 kill 頁面內容的 ScrollTrigger，不動 header 的（header trigger 綁在 body/header 元素上）
@@ -219,6 +225,11 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
   // --- Works Page ---
   if (page === 'works') {
     initWorksSectionSwitch();
+  }
+
+  // --- Atlas Page ---
+  if (page === 'atlas') {
+    initAtlas();
   }
 
   // --- Generate Page ---

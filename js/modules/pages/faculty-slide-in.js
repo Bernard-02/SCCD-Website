@@ -132,17 +132,33 @@ export function initFacultySlideIn() {
         nameZhElement.style.display = (data.type === 'fulltime' && isDesktop) ? 'inline-block' : '';
       }
 
-      // Update title
-      const titleEnElement = document.getElementById('faculty-detail-title-en');
-      const titleZhElement = document.getElementById('faculty-detail-title-zh');
-      if (titleEnElement) titleEnElement.textContent = data.titleEn;
-      if (titleZhElement) titleZhElement.textContent = data.titleZh;
+      // Update titles（支援單一 string 或多個 title 陣列）
+      const titlesContainer = document.getElementById('faculty-detail-titles');
+      if (titlesContainer) {
+        const toArr = (v) => Array.isArray(v) ? v : (v ? [v] : []);
+        const titlesEn = toArr(data.titleEn);
+        const titlesZh = toArr(data.titleZh);
+        const count = Math.max(titlesEn.length, titlesZh.length);
+        let html = '';
+        for (let i = 0; i < count; i++) {
+          const en = titlesEn[i] || '';
+          const zh = titlesZh[i] || '';
+          // 多個 title 之間用 mb-sm 區隔；最後一個無 mb
+          const isLast = i === count - 1;
+          html += `<div${isLast ? '' : ' class="mb-sm"'}>` +
+            `<h6 class="font-regular text-black">${en}</h6>` +
+            `<h6 class="font-regular text-black">${zh}</h6>` +
+            `</div>`;
+        }
+        titlesContainer.innerHTML = html;
+      }
 
       // Update sections
       const sectionsContainer = document.getElementById('faculty-detail-sections');
       if (sectionsContainer) {
         sectionsContainer.innerHTML = '';
         data.sections.forEach(section => {
+          if (section.type === 'courses') return; // 不渲染 courses 區塊
           const contentHTML = renderSectionContent(section);
           const sectionHTML = `
             <div class="flex flex-col md:flex-row gap-xs md:gap-gutter">

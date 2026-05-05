@@ -148,7 +148,7 @@ export function updateNavActive(page) {
   // Standalone links（非 nav 內）
   header.querySelectorAll('a.nav-link').forEach(link => {
     if (link.closest('nav')) return;
-    if (link.closest('[data-bar="generate"]') || link.closest('[data-bar="library"]')) return;
+    if (link.closest('[data-bar="generate"]') || link.closest('[data-bar="library"]') || link.closest('[data-bar="atlas"]')) return;
     const href = link.getAttribute('href');
     if (href && href.split('/').pop() === activeHref) {
       setNavLinkActive(link);
@@ -161,10 +161,12 @@ export function updateNavActive(page) {
     aboutBarEl.classList.add('has-active');
   }
 
-  // library / generate side bar 狀態
+  // library / atlas / generate side bar 狀態
   const libraryBarEl  = header.querySelector('[data-bar="library"]');
+  const atlasBarEl    = header.querySelector('[data-bar="atlas"]');
   const generateBarEl = header.querySelector('[data-bar="generate"]');
   const isLibraryActive  = activePage === 'library';
+  const isAtlasActive    = activePage === 'atlas';
   const isGenerateActive = activePage === 'generate';
 
   // Logo 尺寸：generate 頁和一般頁都是大的（180），library 頁是小的（100）
@@ -224,6 +226,7 @@ export function updateNavActive(page) {
     el.querySelectorAll('a.nav-link').forEach(l => l.classList.toggle('active', isActive));
   }
   setSideBar(libraryBarEl,  isLibraryActive);
+  setSideBar(atlasBarEl,    isAtlasActive);
   setSideBar(generateBarEl, isGenerateActive);
 
   // mode-btn 顏色由 .theme-toggle-btn / .theme-toggle-circle 的 var(--theme-fg) 接管
@@ -291,6 +294,7 @@ export function initHeader() {
     (function initBarRotations() {
       const aboutBar = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="about"]'));
       const libraryBar = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="library"]'));
+      const atlasBar = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="atlas"]'));
       const generateBar = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="generate"]'));
 
       function getAboutDeg() {
@@ -307,7 +311,7 @@ export function initHeader() {
         aboutBar.style.transform = `rotate(${getAboutDeg()}deg)`;
         aboutBar.style.transformOrigin = 'center center';
       }
-      [libraryBar, generateBar].filter(Boolean).forEach(el => {
+      [libraryBar, atlasBar, generateBar].filter(Boolean).forEach(el => {
         el.style.transform = `rotate(${getSmallBarDeg()}deg)`;
         el.style.transformOrigin = 'center center';
       });
@@ -317,6 +321,7 @@ export function initHeader() {
     const ACCENT_COLORS = ['#00FF80', '#FF448A', '#26BCFF'];
     const aboutBar    = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="about"]'));
     const libraryBar  = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="library"]'));
+    const atlasBar    = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="atlas"]'));
     const generateBar = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="generate"]'));
 
     // about bar hover：底色隨機三原色
@@ -330,10 +335,10 @@ export function initHeader() {
       });
     }
 
-    // library / gen / mode 各自 hover 時隨機三原色，互不影響
+    // library / atlas / gen / mode 各自 hover 時隨機三原色，互不影響
     // 額外加 .is-bar-hover class 讓 CSS 文字色 hover 規則跟著走（class-driven 而非 :hover-driven），
     // 這樣點擊後 setSideBar 可清除 class，避免「cursor 還在 btn / 已導航到 library 頁」造成黑底黑字
-    [libraryBar, generateBar].filter(Boolean).forEach(el => {
+    [libraryBar, atlasBar, generateBar].filter(Boolean).forEach(el => {
       el.addEventListener('mouseenter', () => {
         el.classList.add('is-bar-hover');
         el.style.background = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
@@ -447,6 +452,7 @@ export function initHeader() {
         const hideEls = [
           header.querySelector('[data-bar="about"]'),
           header.querySelector('[data-bar="library"]'),
+          header.querySelector('[data-bar="atlas"]'),
           header.querySelector('[data-bar="generate"]'),
           header.querySelector('#mode-btn'),
         ].filter(Boolean);

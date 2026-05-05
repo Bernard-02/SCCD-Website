@@ -68,9 +68,10 @@
       color: #000 !important;
     }
 
-    /* === Library / CREATE! bar hover：底色變三原色時，文字改黑色（覆蓋 bar-active 白字） === */
+    /* === Library / Atlas / CREATE! bar hover：底色變三原色時，文字改黑色（覆蓋 bar-active 白字） === */
     /* 用 .is-bar-hover class 而非 :hover，以便點擊後切換 active 時 JS 可同步清除 */
     [data-bar="library"].is-bar-hover .nav-link,
+    [data-bar="atlas"].is-bar-hover .nav-link,
     [data-bar="generate"].is-bar-hover .nav-link {
       color: #000 !important;
     }

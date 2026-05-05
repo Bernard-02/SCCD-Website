@@ -429,6 +429,28 @@ export function initTimeline() {
         }
       }
 
+      // 計算每張 photo 是否需要 lower clip-path 動畫
+      // 規則：與任一「z 比自己更高」的 photo 有 bounding box 重疊 → 需要動畫（hover 離開後會被覆蓋）
+      // 反之（z 為該年最高，或不被任何更高 z photo 覆蓋）→ instant 切回，無動畫
+      // 註：水平軸 vw、垂直軸 vh 各自獨立比較，跨單位 OK（rect overlap 只比同軸值）
+      const needsLowerAnim = [];
+      for (let p = 0; p < 5; p++) {
+        let needs = false;
+        const aL = photoLeftsVW[p], aR = aL + photoSizes[p];
+        const aT = photoTopsVH[p], aB = aT + photoHsVH[p];
+        for (let q = 0; q < 5; q++) {
+          if (q === p) continue;
+          if (photoZs[q] <= photoZs[p]) continue;
+          const bL = photoLeftsVW[q], bR = bL + photoSizes[q];
+          const bT = photoTopsVH[q], bB = bT + photoHsVH[q];
+          if (!(aR < bL || bR < aL || aB < bT || bB < aT)) {
+            needs = true;
+            break;
+          }
+        }
+        needsLowerAnim[p] = needs;
+      }
+
       // Step 4: 建立 DOM
       const thisPageRotates = [];
 
@@ -448,22 +470,14 @@ export function initTimeline() {
         rotateDiv.style.cssText = `overflow:hidden; transform:rotate(${photoRots[p]}deg);`;
 
         const aspectDiv = document.createElement('div');
-        // position:relative 讓 screen overlay 可以 absolute 蓋在 img 上
-        aspectDiv.style.cssText = 'aspect-ratio:16/9; overflow:hidden; position:relative;';
+        aspectDiv.style.cssText = 'aspect-ratio:16/9; overflow:hidden;';
 
         const img = document.createElement('img');
         img.src = item.image;
         img.alt = `${item.year}`;
         img.style.cssText = 'width:100%; height:100%; object-fit:cover; display:block;';
 
-        // Screen tint overlay：dim 邊界照片時用 mix-blend-mode:screen + 當年 accent 色染色
-        // 預設 transparent + opacity:0；dimEdgePhotos 才設色與淡入
-        const screenOverlay = document.createElement('div');
-        screenOverlay.className = 'photo-screen-overlay';
-        screenOverlay.style.cssText = 'position:absolute; inset:0; mix-blend-mode:screen; background:transparent; opacity:0; pointer-events:none;';
-
         aspectDiv.appendChild(img);
-        aspectDiv.appendChild(screenOverlay);
         rotateDiv.appendChild(aspectDiv);
         photo.appendChild(rotateDiv);
         strip.appendChild(photo);
@@ -472,6 +486,7 @@ export function initTimeline() {
         photo._tlSlot = p;
         photo._tlYear = index;
         photo._tlOrigZ = photoZs[p];
+        photo._tlNeedsLowerAnim = needsLowerAnim[p];
         // 簡短假文：年份 + era（不含 desc，避免 tooltip 過長；之後可換成圖片本身的 caption）
         photo._tlTooltip = `<strong>${item.year}</strong> ${item.eraTitle} ${item.eraLabel}`;
 
@@ -599,48 +614,54 @@ export function initTimeline() {
     }
 
     function lowerPhoto(photo) {
-      const rotateDiv = photo.querySelector('div');
-      if (!rotateDiv) return;
-
       photo._raising = false;
+      const rotateDiv = photo.querySelector('div');
+      if (!rotateDiv) {
+        photo.style.zIndex = photo._tlOrigZ;
+        return;
+      }
+
       gsap.killTweensOf(rotateDiv);
 
-      const dir = randomDir4();
+      // _tlNeedsLowerAnim 在 buildStrip 預先計算（檢查是否被更高 z 的 photo 重疊覆蓋）
+      // false = 該年最高 z 或無重疊 → instant 切回，無動畫
+      if (!photo._tlNeedsLowerAnim) {
+        gsap.set(rotateDiv, { clipPath: CLIP_END });
+        photo.style.zIndex = photo._tlOrigZ;
+        return;
+      }
 
-      // Step 1: clip 收起（不做單色）
+      // 非最上層：clip-out → swap z → clip-in
+      // 動畫期間鎖住 photo._tlLowering，mouseenter handler 看到此 flag 會直接 skip，
+      // 避免 hover 離開後立刻再 hover 同一張造成中斷重啟
+      photo._tlLowering = true;
+      const clearLowering = () => { photo._tlLowering = false; };
+      const dir = randomDir4();
       gsap.to(rotateDiv, {
         clipPath: getClipStart(dir), duration: TIMING.photoClipDuration, ease: TIMING.photoClipEase,
+        onInterrupt: clearLowering,
         onComplete: () => {
-          // Step 2: 降 z-index（此時不可見）
           photo.style.zIndex = photo._tlOrigZ;
-          // Step 3: clip 展開
           gsap.to(rotateDiv, {
             clipPath: CLIP_END, duration: TIMING.photoClipDuration, ease: TIMING.photoClipEase,
+            onComplete: clearLowering,
+            onInterrupt: clearLowering,
           });
         }
       });
     }
 
-    // Dim / undim 邊界照片（grayscale + screen tint 當年 accent 色）
+    // Dim / undim 邊界照片（只用 grayscale）
     function dimEdgePhotos() {
-      const accent = getCurrentAccentColor();
       getEdgePhotos().forEach(p => {
         const img = p.querySelector('img');
-        const overlay = p.querySelector('.photo-screen-overlay');
         if (img) gsap.to(img, { filter: 'grayscale(100%)', duration: TIMING.dimDuration });
-        if (overlay) {
-          // 即時設色（不動畫）+ opacity 淡入；換年時 accent 變了，下次 dim 自動套新色
-          overlay.style.background = accent;
-          gsap.to(overlay, { opacity: 1, duration: TIMING.dimDuration });
-        }
       });
     }
     function undimEdgePhotos() {
       getEdgePhotos().forEach(p => {
         const img = p.querySelector('img');
-        const overlay = p.querySelector('.photo-screen-overlay');
         if (img) gsap.to(img, { filter: 'grayscale(0%)', duration: TIMING.dimDuration });
-        if (overlay) gsap.to(overlay, { opacity: 0, duration: TIMING.dimDuration });
       });
     }
 
@@ -660,49 +681,30 @@ export function initTimeline() {
       }
       activeHover = photo;
 
-      // 首次出現才立即設文字；跨照片切換的文字在 clip-out 完成後再換，避免舊框露新字
-      if (!tooltipVisible && photoTooltipText) photoTooltipText.innerHTML = photo._tlTooltip;
+      // 立即設文字（首次 / 跨照片切換都同步換）
+      if (photoTooltipText) photoTooltipText.innerHTML = photo._tlTooltip;
 
       // 無論首次或跨照片：新照片都提升 z-index
       raisePhoto(photo, () => {
         if (activeHover !== photo) return;
         if (!photoTooltip) return;
 
+        gsap.killTweensOf(photoTooltip);
+
         if (tooltipVisible) {
-          // 跨照片切換：clip-out 舊文字 → 換內容 → clip-in 新文字（每張描述都做 clip 動畫）
-          // 位置由 mousemove handler 持續 follow cursor，這裡不重設 left/top
-          gsap.killTweensOf(photoTooltip);
-          gsap.to(photoTooltip, {
-            clipPath: getClipStart(randomDirLR()),
-            duration: TIMING.tooltipHideFastDuration,
-            ease: TIMING.exitEase,
-            onComplete: () => {
-              if (activeHover !== photo) return;
-              if (photoTooltipText) photoTooltipText.innerHTML = photo._tlTooltip;
-              gsap.set(photoTooltip, {
-                clipPath: getClipStart(randomDirLR()),
-                rotation: randRot(),
-                opacity: 1,
-              });
-              gsap.to(photoTooltip, {
-                clipPath: CLIP_END,
-                duration: TIMING.tooltipShowDuration,
-                ease: TIMING.tooltipShowEase,
-              });
-            },
-          });
+          // 跨照片切換：位置由 mousemove handler 持續 follow，這裡只保持可見
+          gsap.set(photoTooltip, { clipPath: CLIP_END, opacity: 1 });
           return;
         }
 
-        // Tooltip 首次出現：以 cursor 入場位置為錨（之後 mousemove 跟著走）
+        // Tooltip 首次出現：instant 顯示（無 clip-path 動畫）
         gsap.set(photoTooltip, {
           right: 'auto', bottom: 'auto',
           xPercent: 0, yPercent: 0,
           left: e.clientX + TOOLTIP_OFFSET_X, top: e.clientY + TOOLTIP_OFFSET_Y,
           rotation: randRot(),
-          clipPath: getClipStart(randomDirLR()), opacity: 1,
+          clipPath: CLIP_END, opacity: 1,
         });
-        gsap.to(photoTooltip, { clipPath: CLIP_END, duration: TIMING.tooltipShowDuration, ease: TIMING.tooltipShowEase });
       });
 
       // 每次進入 middle 都確保邊界照片是 dim 狀態（idempotent）
@@ -719,10 +721,13 @@ export function initTimeline() {
         activeHover = null;
       }
       if (photoTooltip) {
+        gsap.killTweensOf(photoTooltip);
+        // clip-path 消失，完成後 reset 供下次 instant 出現
         gsap.to(photoTooltip, {
           clipPath: getClipStart(randomDirLR()),
-          duration: TIMING.tooltipHideDuration, ease: TIMING.exitEase,
-          onComplete: () => gsap.set(photoTooltip, { opacity: 0 }),
+          duration: TIMING.tooltipHideDuration,
+          ease: TIMING.exitEase,
+          onComplete: () => gsap.set(photoTooltip, { opacity: 0, clipPath: CLIP_END }),
         });
       }
       // 字卡自然恢復（照片 z-index 降回去後）
@@ -735,10 +740,13 @@ export function initTimeline() {
       if (activeHover && activeHover._tlSlot >= 1 && activeHover._tlSlot <= 3) {
         lowerPhoto(activeHover);
         if (photoTooltip) {
+          gsap.killTweensOf(photoTooltip);
+          // clip-path 消失（快版）
           gsap.to(photoTooltip, {
             clipPath: getClipStart(randomDirLR()),
-            duration: TIMING.tooltipHideFastDuration, ease: TIMING.exitEase,
-            onComplete: () => gsap.set(photoTooltip, { opacity: 0 }),
+            duration: TIMING.tooltipHideFastDuration,
+            ease: TIMING.exitEase,
+            onComplete: () => gsap.set(photoTooltip, { opacity: 0, clipPath: CLIP_END }),
           });
         }
         undimEdgePhotos();
@@ -785,6 +793,8 @@ export function initTimeline() {
 
       photo.addEventListener('mouseenter', (e) => {
         if (!hoverEnabled) return; // 等 reveal 完成才允許 hover
+        // 該照片自己的 lower clip-path 動畫進行中：先讓它跑完才允許再次 hover
+        if (photo._tlLowering) return;
         clearTimeout(hoverLeaveTimer);
         if (isMiddle) {
           enterMiddleHover(photo, e);
@@ -900,12 +910,15 @@ export function initTimeline() {
 
       // 切換前：若有 activeHover 殘留，先清掉（避免指向舊頁照片）
       if (activeHover) {
-        gsap.killTweensOf(activeHover.querySelector('div'));
+        const rd = activeHover.querySelector('div');
+        gsap.killTweensOf(rd);
+        if (rd) gsap.set(rd, { clipPath: CLIP_END });
         activeHover.style.zIndex = activeHover._tlOrigZ;
         activeHover._raising = false;
+        activeHover._tlLowering = false;
         activeHover = null;
         clearTimeout(hoverLeaveTimer);
-        if (photoTooltip) gsap.set(photoTooltip, { opacity: 0 });
+        if (photoTooltip) gsap.set(photoTooltip, { opacity: 0, clipPath: CLIP_END });
         undimEdgePhotos();
       }
 
@@ -963,12 +976,15 @@ export function initTimeline() {
 
       // 清掉殘留 hover
       if (activeHover) {
-        gsap.killTweensOf(activeHover.querySelector('div'));
+        const rd = activeHover.querySelector('div');
+        gsap.killTweensOf(rd);
+        if (rd) gsap.set(rd, { clipPath: CLIP_END });
         activeHover.style.zIndex = activeHover._tlOrigZ;
         activeHover._raising = false;
+        activeHover._tlLowering = false;
         activeHover = null;
         clearTimeout(hoverLeaveTimer);
-        if (photoTooltip) gsap.set(photoTooltip, { opacity: 0 });
+        if (photoTooltip) gsap.set(photoTooltip, { opacity: 0, clipPath: CLIP_END });
         undimEdgePhotos();
       }
 

@@ -1020,6 +1020,7 @@ body.mode-inverse #homepage-yt-card {
 /* Inactive 一般情況反轉 */
 
 body.mode-inverse [data-bar="library"].bar-inactive:not(.is-bar-hover),
+body.mode-inverse [data-bar="atlas"].bar-inactive:not(.is-bar-hover),
 body.mode-inverse [data-bar="generate"].bar-inactive:not(.is-bar-hover) {
   background: #000 !important;
 }
@@ -1028,6 +1029,7 @@ body.mode-inverse [data-bar="generate"].bar-inactive:not(.is-bar-hover) {
  * 否則此 inverse 規則 (0,3,2) 會壓過 hover 規則導致 hover 仍是白/黑色 */
 
 body.mode-inverse [data-bar="library"].bar-inactive:not(.is-bar-hover) .nav-link,
+body.mode-inverse [data-bar="atlas"].bar-inactive:not(.is-bar-hover) .nav-link,
 body.mode-inverse [data-bar="generate"].bar-inactive:not(.is-bar-hover) .nav-link {
   color: #fff !important;
 }
@@ -1035,17 +1037,26 @@ body.mode-inverse [data-bar="generate"].bar-inactive:not(.is-bar-hover) .nav-lin
 /* Active 在自己頁面反轉 */
 
 body.mode-inverse [data-bar="library"].bar-active:not(.is-bar-hover),
+body.mode-inverse [data-bar="atlas"].bar-active:not(.is-bar-hover),
 body.mode-inverse [data-bar="generate"].bar-active:not(.is-bar-hover) {
   background: #fff !important;
 }
 
 body.mode-inverse [data-bar="library"].bar-active:not(.is-bar-hover) .nav-link,
+body.mode-inverse [data-bar="atlas"].bar-active:not(.is-bar-hover) .nav-link,
 body.mode-inverse [data-bar="generate"].bar-active:not(.is-bar-hover) .nav-link {
   color: #000 !important;
 }
 
 /* Hover 字色：standard / inverse 一律黑（亮三原色底對比），由 navigation.css 的
  * `is-bar-hover .nav-link { color: #000 !important }` 處理，inverse 不再 override */
+
+/* Degree Show card hover：JS inline 把 .degree-show-card-content bg 設成 accent 色（粉/綠/藍），
+ * inverse 預設 body color:white 會讓 h5 標題在 accent 底上看不清，force 回黑（全站對比規範） */
+body.mode-inverse .degree-show-card:hover .degree-show-card-content,
+body.mode-inverse .degree-show-card:hover .degree-show-card-content * {
+  color: #000 !important;
+}
 
 /**
  * Color Mode Theme
@@ -1072,6 +1083,12 @@ body.mode-color {
 
 body.mode-color header {
   background-color: transparent;
+}
+
+/* Hero section（無 bg class）：mode-color 下也套 overlay-25 與下方 content 區一致 */
+
+body.mode-color main > section.h-screen {
+  background-color: var(--theme-overlay-25) !important;
 }
 
 /* ===== 純黑/白底 → 25% overlay ===== */
@@ -1372,15 +1389,19 @@ body.mode-color #homepage-marquee-clone {
 /* mode-color 下 inactive/active 視覺一致用 overlay；hover 仍走 nav 三原色（is-bar-hover） */
 
 body.mode-color [data-bar="library"].bar-inactive:not(.is-bar-hover),
+body.mode-color [data-bar="atlas"].bar-inactive:not(.is-bar-hover),
 body.mode-color [data-bar="generate"].bar-inactive:not(.is-bar-hover),
 body.mode-color [data-bar="library"].bar-active:not(.is-bar-hover),
+body.mode-color [data-bar="atlas"].bar-active:not(.is-bar-hover),
 body.mode-color [data-bar="generate"].bar-active:not(.is-bar-hover) {
   background: var(--theme-overlay-25) !important;
 }
 
 body.mode-color [data-bar="library"].bar-inactive:not(.is-bar-hover) .nav-link,
+body.mode-color [data-bar="atlas"].bar-inactive:not(.is-bar-hover) .nav-link,
 body.mode-color [data-bar="generate"].bar-inactive:not(.is-bar-hover) .nav-link,
 body.mode-color [data-bar="library"].bar-active:not(.is-bar-hover) .nav-link,
+body.mode-color [data-bar="atlas"].bar-active:not(.is-bar-hover) .nav-link,
 body.mode-color [data-bar="generate"].bar-active:not(.is-bar-hover) .nav-link {
   color: var(--theme-fg) !important;
 }
@@ -2261,6 +2282,7 @@ p{
   /* 用 .is-bar-hover class 而非 :hover，以便點擊後切換 active 時 JS 可同步清除 */
 
   [data-bar="library"].is-bar-hover .nav-link,
+    [data-bar="atlas"].is-bar-hover .nav-link,
     [data-bar="generate"].is-bar-hover .nav-link {
     color: #000 !important;
   }
@@ -3213,29 +3235,36 @@ header.header-hidden .nav-link,
   visibility: hidden;
 }
 
-/* Hero Section Text Rotation - rotate 套在 JS 動態生成的 wrapper 上 */
+/* Hero Section 旋轉 + clip reveal wrapper（rotation 套在 JS 動態生成的 wrapper 上）
+     wrapper 同時處理：1. rotate 角度 2. overflow:hidden 形成 yPercent slide-in 的遮罩 */
 
 /* 手機版較小角度 */
 
-.hero-title-wrapper {
-  transform: rotate(-2deg);
+.hero-title-wrapper,
+  .hero-text-en-wrapper,
+  .hero-text-cn-wrapper {
   transform-origin: left center;
   display: block;
   overflow: hidden;
 }
 
-/* 副標題 rotate（直接套在元素上，不需 wrapper） */
-
-.hero-text-en {
-  font-size: var(--font-size-p1);
-  transform: rotate(1deg);
-  transform-origin: left center;
+.hero-title-wrapper {
+  transform: rotate(-2deg);
 }
 
-.hero-text-cn {
-  font-size: var(--font-size-p1);
+.hero-text-en-wrapper {
+  transform: rotate(1deg);
+}
+
+.hero-text-cn-wrapper {
   transform: rotate(-1deg);
-  transform-origin: left center;
+}
+
+/* 副標 font-size（rotation 已移到 wrapper） */
+
+.hero-text-en,
+  .hero-text-cn {
+  font-size: var(--font-size-p1);
 }
 
 /* 桌面版較大角度 */
@@ -3245,13 +3274,23 @@ header.header-hidden .nav-link,
     transform: rotate(-4deg);
   }
 
-  .hero-text-en {
+  .hero-text-en-wrapper {
     transform: rotate(3deg);
   }
 
-  .hero-text-cn {
+  .hero-text-cn-wrapper {
     transform: rotate(-2deg);
   }
+}
+
+/* 全站對比規範：accent 底色（綠/粉/藍）文字一律黑（不分 standard / inverse）；
+   mode-color 暫不適用。hero-animation.js 對 [data-hero-hl] 設 inline 隨機 accent bg；
+   inverse 預設白字會跟 accent 衝突，這裡 force 回黑。
+   specificity：inverse `body.mode-inverse .text-black:not(.timeline-year-item)` (0,3,1)，
+   用 [data-hero-hl][data-hero-hl] 重複屬性提升到 0,3,1 + 後出順序贏 */
+body:not(.mode-color) [data-hero-hl][data-hero-hl],
+body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
+  color: #000 !important;
 }
 
 /* ===== Activities List Item - Unified Style ===== */
@@ -4760,10 +4799,6 @@ header.header-hidden .nav-link,
 
   .md\:mb-2xl{
     margin-bottom: var(--spacing-2xl);
-  }
-
-  .md\:mb-4xl{
-    margin-bottom: var(--spacing-4xl);
   }
 
   .md\:mb-lg{

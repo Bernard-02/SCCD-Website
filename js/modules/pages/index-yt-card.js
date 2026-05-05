@@ -140,9 +140,11 @@ function initWatchChars(ytCharsEl) {
           // standard/inverse: 卡片底色 = var(--theme-fg)（黑/白）→ 文字用反向 var(--theme-bg)
           // mode-color: 卡片底是 25% overlay 半透明隨機色，文字必須用 var(--theme-fg) 對比色
           //   否則 var(--theme-bg)=隨機色 ≈ overlay 底色 → 看不見
+          // ⚠️ 必須讀 document.body 而非 documentElement：--theme-bg/fg 定義在 body.mode-* 上，
+          //    從 <html> 讀永遠拿 :root 預設值（standard 的白），inverse 切換失效
           const isColorMode = document.body.classList.contains('mode-color');
           const varName = isColorMode ? '--theme-fg' : '--theme-bg';
-          const c = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+          const c = getComputedStyle(document.body).getPropertyValue(varName).trim();
           return c || (isColorMode ? '#000' : '#fff');
         }
         function drawLayout(reuse = false) {

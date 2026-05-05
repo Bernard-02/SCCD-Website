@@ -23,6 +23,11 @@ body.mode-color header {
   background-color: transparent;
 }
 
+/* Hero section（無 bg class）：mode-color 下也套 overlay-25 與下方 content 區一致，避免 hero 是飽和 --theme-bg、content 是淺 overlay 兩段不同色 */
+body.mode-color main > section.h-screen {
+  background-color: var(--theme-overlay-25) !important;
+}
+
 /* ===== 純黑/白底 → 25% overlay ===== */
 /* 排除 #faculty-panel（modal isolated）跟 about bar hover（inline 三原色不能蓋） */
 body.mode-color .bg-white:not([data-bar="about"]):not(#faculty-panel),
@@ -288,18 +293,22 @@ body.mode-color #homepage-marquee-clone {
   color: var(--theme-fg) !important;
 }
 
-/* ===== Library / Generate 側邊 bar ===== */
+/* ===== Library / Atlas / Generate 側邊 bar ===== */
 /* mode-color 下 inactive/active 視覺一致用 overlay；hover 仍走 nav 三原色（is-bar-hover） */
 body.mode-color [data-bar="library"].bar-inactive:not(.is-bar-hover),
+body.mode-color [data-bar="atlas"].bar-inactive:not(.is-bar-hover),
 body.mode-color [data-bar="generate"].bar-inactive:not(.is-bar-hover),
 body.mode-color [data-bar="library"].bar-active:not(.is-bar-hover),
+body.mode-color [data-bar="atlas"].bar-active:not(.is-bar-hover),
 body.mode-color [data-bar="generate"].bar-active:not(.is-bar-hover) {
   background: var(--theme-overlay-25) !important;
 }
 
 body.mode-color [data-bar="library"].bar-inactive:not(.is-bar-hover) .nav-link,
+body.mode-color [data-bar="atlas"].bar-inactive:not(.is-bar-hover) .nav-link,
 body.mode-color [data-bar="generate"].bar-inactive:not(.is-bar-hover) .nav-link,
 body.mode-color [data-bar="library"].bar-active:not(.is-bar-hover) .nav-link,
+body.mode-color [data-bar="atlas"].bar-active:not(.is-bar-hover) .nav-link,
 body.mode-color [data-bar="generate"].bar-active:not(.is-bar-hover) .nav-link {
   color: var(--theme-fg) !important;
 }

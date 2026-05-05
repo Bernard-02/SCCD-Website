@@ -34,6 +34,8 @@ const routes = {
   '/support.html':            { page: 'support',                 htmlFile: 'pages/support.html' },
   '/library':                 { page: 'library',                 htmlFile: 'pages/library.html' },
   '/library.html':            { page: 'library',                 htmlFile: 'pages/library.html' },
+  '/atlas':                   { page: 'atlas',                   htmlFile: 'pages/atlas.html' },
+  '/atlas.html':              { page: 'atlas',                   htmlFile: 'pages/atlas.html' },
   '/generate':                { page: 'generate',                htmlFile: 'pages/generate.html' },
   '/generate.html':           { page: 'generate',                htmlFile: 'pages/generate.html' },
   '/privacy-policy':          { page: 'privacy-policy',          htmlFile: 'pages/privacy-policy.html' },
@@ -49,6 +51,7 @@ const NOT_FOUND_ROUTE = routes['/404'];
 // ── 頁面專屬 CSS 動態載入 ────────────────────────────────────
 const PAGE_CSS = {
   library: 'css/components/library.css',
+  atlas: 'css/components/atlas.css',
 };
 
 function loadPageCSS(page) {
@@ -122,14 +125,14 @@ async function loadPage(route, search = '') {
     // 更新 nav active state
     updateNavActive(route.page);
 
-    // generate / library 頁不顯示 footer
+    // generate / library / atlas 頁不顯示 footer
     const footerEl = document.getElementById('site-footer') || document.getElementById('site-footer-static');
     if (footerEl) {
-      footerEl.style.display = (route.page === 'generate' || route.page === 'library') ? 'none' : '';
+      footerEl.style.display = (route.page === 'generate' || route.page === 'library' || route.page === 'atlas') ? 'none' : '';
     }
 
-    // 更新 body class
-    document.body.classList.toggle('overflow-hidden', route.page === 'generate');
+    // 更新 body class（generate / atlas 鎖頁面 scroll，滿版單屏）
+    document.body.classList.toggle('overflow-hidden', route.page === 'generate' || route.page === 'atlas');
     document.body.style.overflowX = (route.page === 'about') ? 'hidden' : '';
 
     // 初始化新頁面模組（帶 query string 供 detail 頁用）

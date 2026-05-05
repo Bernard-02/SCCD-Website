@@ -370,24 +370,17 @@ export function bindInteractions(container) {
     else img.addEventListener('load', apply, { once: true });
   });
 
-  // Ref cover 比例偵測（直圖：固定小寬度；橫圖：擴大容器，object-contain）
+  // Ref cover：title 拿剩餘空間，wrapper 寬度走圖片自然比例（h-full w-auto）
+  // 之前對橫圖強制 wrapper width:40% + object-fit:contain 會造成比例不符的 letterbox；
+  // hover 時 overlay (inset:0) 覆蓋整個 wrapper 含 letterbox 區，呈現圖片左右兩條色帶。
+  // 拿掉強制 width / object-fit 後，wrapper 寬度 = 圖實際渲染寬度，hover overlay 剛好蓋住圖片
   container.querySelectorAll('.ref-cover-img').forEach(img => {
     const apply = () => {
       const wrapper = img.parentElement;
       const titleDiv = wrapper?.previousElementSibling;
-      if (img.naturalWidth > img.naturalHeight) {
-        // 橫圖：圖佔較大比例，文字縮小
-        wrapper.style.width = '40%';
-        wrapper.style.flexShrink = '0';
-        img.style.objectFit = 'contain';
-        img.style.width = '100%';
-        img.style.height = '100%';
-        if (titleDiv) titleDiv.style.flex = '1';
-      } else {
-        // 直圖：圖保持小寬度
-        wrapper.style.width = 'auto';
-        wrapper.style.flexShrink = '0';
-      }
+      if (!wrapper) return;
+      wrapper.style.flexShrink = '0';
+      if (titleDiv) titleDiv.style.flex = '1';
     };
     if (img.complete && img.naturalWidth) apply();
     else img.addEventListener('load', apply, { once: true });
