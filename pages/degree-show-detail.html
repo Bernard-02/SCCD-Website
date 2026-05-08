@@ -17,48 +17,58 @@
   <!-- Main Content -->
   <main>
     <!-- Hero Section -->
-    <section class="h-[700px] md:h-screen relative overflow-hidden">
+    <!-- data-hero-title-last：hero-animation 改為 subtitles（年份/英文）先進場，主標（中文）最後 -->
+    <section class="h-[700px] md:h-screen relative overflow-hidden" data-hero-title-last>
       <div class="relative md:absolute inset-0 w-full h-full md:h-full">
-        <img id="hero-img" src="" alt="Degree Show" class="w-full h-full md:h-full object-cover">
+        <img id="hero-img" src="../images/CCC08866.jpg" alt="Degree Show" class="w-full h-full md:h-full object-cover">
+      </div>
+
+      <!-- 左下角：年份 + 英文名 + 中文名（三 chip 各自旋轉；hero-text-en/cn/title 各對應 querySelector 一個元素，避免衝突） -->
+      <div class="absolute inset-0 z-10 pointer-events-none">
+        <div class="site-container h-full">
+          <div class="h-full flex flex-col items-start justify-end pb-3xl md:pb-2xl gap-md">
+            <h4 id="text-year" class="hero-text-en text-h4 text-black inline-block" data-hero-hl></h4>
+            <h2 id="text-title-en" class="hero-text-cn text-h2 text-black inline-block font-bold" data-hero-hl></h2>
+            <h2 id="text-title" class="hero-title text-black inline-block font-bold" data-hero-hl></h2>
+          </div>
+        </div>
       </div>
     </section>
 
-    <!-- Content Section -->
-    <section class="bg-white py-6xl">
-      <div class="site-container">
-
-        <!-- 文字區 -->
-        <div class="grid-12 mb-4xl">
-          <div class="col-span-12 md:col-start-3 md:col-span-10">
-            <!-- 標題 + 年份 -->
-            <h2 id="text-title" class="mb-xs font-bold"></h2>
-            <h4 id="text-year" class="mb-2xl"></h4>
-
-            <!-- 英中說明 -->
-            <p id="text-desc-en" class="mb-md"></p>
-            <p id="text-desc-cn" class="mb-2xl"></p>
-
-            <!-- Social Media Icons -->
-            <div class="flex gap-lg">
-              <a href="https://www.youtube.com/@scsccd" target="_blank" rel="noopener noreferrer" class="hover:text-gray-7 transition-colors duration-fast">
-                <i class="fa-brands fa-youtube text-h4"></i>
-              </a>
-              <a href="https://www.instagram.com/communications.design_sccd" target="_blank" rel="noopener noreferrer" class="hover:text-gray-7 transition-colors duration-fast">
-                <i class="fa-brands fa-instagram text-h4"></i>
-              </a>
-              <a href="https://www.facebook.com/communications.design" target="_blank" rel="noopener noreferrer" class="hover:text-gray-7 transition-colors duration-fast">
-                <i class="fa-brands fa-facebook text-h4"></i>
-              </a>
-            </div>
+    <!-- 文字説明 Section（min 100vh；移除 flex 居中改用自然流，pt-6xl 給頂部呼吸空間） -->
+    <section class="bg-white relative" style="min-height: 100vh;">
+      <div class="site-container w-full pt-6xl pb-3xl">
+        <div class="grid-12">
+          <!-- English (左) -->
+          <div class="col-span-12 md:col-start-3 md:col-span-5 mb-lg md:mb-0">
+            <h5 class="text-black leading-snug">
+              <span id="text-desc-en" style="display: block;"></span>
+            </h5>
+          </div>
+          <!-- Chinese (右) -->
+          <div class="col-span-12 md:col-start-8 md:col-span-5">
+            <h5 class="text-black leading-base">
+              <span id="text-desc-cn" style="display: block;"></span>
+            </h5>
           </div>
         </div>
 
-        <!-- 圖片區 -->
-        <div id="gallery-container" class="py-2xl flex flex-col gap-gutter">
-          <!-- Images will be injected here by JS -->
+        <!-- Events List：活動清單（時間 / 活動 / 地點 / 城市 四欄 1:2:2:1），由 JS 依 data.events 動態渲染；無 events 則整塊 hidden -->
+        <!-- 文字一律 p1；活動/地點/城市顯示中英雙語（時間僅顯示一行） -->
+        <div id="events-section" class="grid-12 mt-4xl hidden">
+          <div class="col-span-12 md:col-start-3 md:col-span-10">
+            <!-- Data rows（JS render） -->
+            <div id="events-list"></div>
+          </div>
         </div>
+      </div>
+    </section>
 
-        <!-- 影片區 -->
+    <!-- 影片 + 圖片區 -->
+    <section class="bg-white py-3xl overflow-hidden">
+
+      <!-- 主影片（gallery 上方，site-container 內） -->
+      <div class="site-container">
         <div id="video-section" class="grid-12 hidden">
           <div class="col-span-12">
             <div id="video-wrapper" class="w-full aspect-video bg-black">
@@ -66,33 +76,64 @@
             </div>
           </div>
         </div>
-
       </div>
+
+      <!-- Gallery wrapper：用 py 給 gallery 上下呼吸空間。
+           不直接 py 在 gallery 上是因為 .division-images 的 min-height:440px + box-sizing:border-box
+           會把 padding 吃掉，視覺上沒效果；wrapper 在 flow 中所以 py 真實佔據空間。 -->
+      <div class="py-8xl">
+        <!-- Gallery：全寬橫跨頁面，沿用 about/class 的 .division-images + .class-img 視覺；JS 處理 5-slot 輪播 -->
+        <div id="gallery-container" class="division-images relative" data-gallery-pool>
+          <!-- JS 動態 render 5 張 .class-img -->
+        </div>
+      </div>
+
+      <!-- 紀錄影片（gallery 下方，site-container 內，僅在 data.documentaryUrl 存在時渲染） -->
+      <div class="site-container">
+        <div id="documentary-video-section" class="grid-12 hidden">
+          <div class="col-span-12">
+            <div id="documentary-video-wrapper" class="w-full aspect-video bg-black">
+              <!-- Documentary video content injected by JS -->
+            </div>
+          </div>
+        </div>
+      </div>
+
     </section>
 
-    <!-- Next Project Section -->
-    <section id="next-project-section" class="bg-white h-auto pb-2xl md:pb-6xl">
+    <!-- Next Project Section：左 = 上一年度（prev），右 = 下一年度（next）；卡片與標題各自隨機旋轉（desktop only） -->
+    <section id="next-project-section" class="bg-white h-auto pt-2xl md:pt-6xl pb-2xl md:pb-6xl overflow-hidden">
       <div class="site-container">
-        <div class="grid-12 items-start gap-y-xl md:gap-y-0">
-          <!-- 標題 -->
-          <div class="col-span-12 md:col-span-3">
-            <h3 class="md:-rotate-4 whitespace-nowrap leading-tight">Next<br>Degree Show</h3>
+        <div class="grid-12 items-start gap-y-3xl md:gap-y-0">
+          <!-- 上一年度（左） -->
+          <div id="prev-wrapper" class="col-span-12 md:col-start-1 md:col-span-7 md:row-start-1 relative">
+            <a id="prev-link" href="#" class="block relative group">
+              <div id="prev-card" class="relative overflow-hidden">
+                <img id="prev-img" src="../images/Degree Show.jpg" alt="" class="block w-full h-auto">
+                <div class="hidden md:block absolute inset-0 bg-black opacity-0 group-hover:opacity-60 transition-opacity duration-300"></div>
+                <div class="hidden md:block absolute bottom-0 left-0 p-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <h4 id="prev-year" class="text-white whitespace-nowrap mb-sm"></h4>
+                  <h4 id="prev-title" class="text-white whitespace-nowrap"></h4>
+                </div>
+              </div>
+              <div class="md:hidden mt-sm">
+                <h5 id="prev-year-mobile" class="text-black whitespace-nowrap"></h5>
+                <h5 id="prev-title-mobile" class="text-black whitespace-nowrap"></h5>
+              </div>
+            </a>
           </div>
 
-          <!-- 縮圖 -->
-          <div class="col-span-12 md:col-start-6 md:col-span-7">
+          <!-- 下一年度（右） -->
+          <div id="next-wrapper" class="col-span-12 md:col-start-6 md:col-span-7 md:row-start-1 relative">
             <a id="next-link" href="#" class="block relative group">
-              <div class="relative overflow-hidden aspect-video md:rotate-3">
-                <img id="next-img" src="../images/Degree Show.jpg" alt="" class="w-full h-full object-cover">
-                <!-- Hover overlay + 文字 -->
-                <div class="hidden md:block absolute inset-0 bg-black opacity-0 group-hover:opacity-60 transition-opacity duration-300">
-                </div>
+              <div id="next-card" class="relative overflow-hidden">
+                <img id="next-img" src="../images/Degree Show.jpg" alt="" class="block w-full h-auto">
+                <div class="hidden md:block absolute inset-0 bg-black opacity-0 group-hover:opacity-60 transition-opacity duration-300"></div>
                 <div class="hidden md:block absolute bottom-0 left-0 p-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   <h4 id="next-year" class="text-white whitespace-nowrap mb-sm"></h4>
                   <h4 id="next-title" class="text-white whitespace-nowrap"></h4>
                 </div>
               </div>
-              <!-- Mobile Text (Below Image) -->
               <div class="md:hidden mt-sm">
                 <h5 id="next-year-mobile" class="text-black whitespace-nowrap"></h5>
                 <h5 id="next-title-mobile" class="text-black whitespace-nowrap"></h5>

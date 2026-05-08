@@ -4,6 +4,8 @@
  */
 
 import { animateCards } from '../ui/scroll-animate.js';
+import { initDegreeShowGallery } from './degree-show-gallery.js';
+import { initHeroAnimation } from './hero-animation.js';
 
 export async function loadDegreeShowList() {
   return loadDegreeShowListInto('degree-show-list');
@@ -76,103 +78,171 @@ export async function loadDegreeShowDetail() {
     if (data) {
       document.title = `Degree Show ${year} - SCCD`;
 
-      // Text Content
+      // Text Content（hero chips：年份 + 英文名 + 中文名）
       const titleEl = document.getElementById('text-title');
+      const titleEnEl = document.getElementById('text-title-en');
       const yearEl = document.getElementById('text-year');
       const descEnEl = document.getElementById('text-desc-en');
       const descCnEl = document.getElementById('text-desc-cn');
 
       if (titleEl) titleEl.textContent = data.title;
+      if (titleEnEl) titleEnEl.textContent = data.title_en || '';
       if (yearEl) yearEl.textContent = year;
       if (descEnEl) descEnEl.textContent = data.descEn;
       if (descCnEl) descCnEl.textContent = data.descCn;
 
-      // Hero Image
+      // Hero 動畫必須在文字填入後才呼叫，否則會 wrap 並動畫空元素，clearProps 後文字才靜態出現
+      // section 上的 [data-hero-title-last] 會讓 hero-animation 改用「subtitles 先 → title 後」的順序
+      initHeroAnimation();
+
+      // Events 列表（時間 / 活動 / 地點 / 城市 — 1:2:2:1）：data.events 不存在或空陣列 → 整塊不渲染
+      // 活動 / 地點 / 城市顯示中英雙語（英文上、中文下）；時間僅一行；文字 semibold
+      const eventsSection = document.getElementById('events-section');
+      const eventsList = document.getElementById('events-list');
+      if (eventsSection && eventsList) {
+        if (Array.isArray(data.events) && data.events.length > 0) {
+          eventsList.innerHTML = data.events.map((ev, i) => `
+            <div class="grid grid-cols-[1fr_2fr_2fr_1fr] gap-md ${i > 0 ? 'mt-md' : ''}">
+              <p class="text-p1 text-black font-semibold">${ev.time || ''}</p>
+              <div>
+                ${ev.nameEn ? `<p class="text-p1 text-black font-semibold">${ev.nameEn}</p>` : ''}
+                <p class="text-p1 text-black font-semibold">${ev.name || ''}</p>
+              </div>
+              <div>
+                ${ev.locationEn ? `<p class="text-p1 text-black font-semibold">${ev.locationEn}</p>` : ''}
+                <p class="text-p1 text-black font-semibold">${ev.location || ''}</p>
+              </div>
+              <div>
+                ${ev.cityEn ? `<p class="text-p1 text-black font-semibold">${ev.cityEn}</p>` : ''}
+                <p class="text-p1 text-black font-semibold">${ev.city || ''}</p>
+              </div>
+            </div>
+          `).join('');
+          eventsSection.classList.remove('hidden');
+        } else {
+          eventsSection.classList.add('hidden');
+          eventsList.innerHTML = '';
+        }
+      }
+
+      // Hero Image：預設用 HTML 寫死的 CCC08866.jpg；data 有 heroImage 才覆蓋
       const heroImg = document.getElementById('hero-img');
-      if (heroImg && data.coverImage) {
-        heroImg.src = data.coverImage;
+      if (heroImg && data.heroImage) {
+        heroImg.src = data.heroImage;
       }
 
-      // Gallery
+      // Gallery：全寬 3-slot 輪播（沿用 about/class 視覺）
       const galleryContainer = document.getElementById('gallery-container');
-      if (galleryContainer) {
-          galleryContainer.innerHTML = '';
-          if (data.images && Array.isArray(data.images)) {
-            const images = data.images;
-            let i = 0;
-            while (i < images.length) {
-              const remaining = images.length - i;
-              if (i % 6 === 0 && remaining >= 2) {
-                const row = document.createElement('div');
-                row.className = 'grid-12';
-                row.innerHTML = `
-                  <div class="col-span-12 md:col-span-6"><img src="${images[i]}" alt="" class="w-full object-cover"></div>
-                  <div class="col-span-12 md:col-span-6"><img src="${images[i+1]}" alt="" class="w-full object-cover"></div>
-                `;
-                galleryContainer.appendChild(row);
-                i += 2;
-              } else if (i % 6 === 2 && remaining >= 1) {
-                const row = document.createElement('div');
-                row.className = 'grid-12';
-                row.innerHTML = `<div class="col-span-12"><img src="${images[i]}" alt="" class="w-full object-cover"></div>`;
-                galleryContainer.appendChild(row);
-                i += 1;
-              } else if (i % 6 === 3 && remaining >= 3) {
-                const row = document.createElement('div');
-                row.className = 'grid-12';
-                row.innerHTML = `
-                  <div class="col-span-12 md:col-span-4"><img src="${images[i]}" alt="" class="w-full object-cover aspect-[4/3]"></div>
-                  <div class="col-span-12 md:col-span-4"><img src="${images[i+1]}" alt="" class="w-full object-cover aspect-[4/3]"></div>
-                  <div class="col-span-12 md:col-span-4"><img src="${images[i+2]}" alt="" class="w-full object-cover aspect-[4/3]"></div>
-                `;
-                galleryContainer.appendChild(row);
-                i += 3;
-              } else {
-                const row = document.createElement('div');
-                row.className = 'grid-12';
-                row.innerHTML = `<div class="col-span-12"><img src="${images[i]}" alt="" class="w-full object-cover"></div>`;
-                galleryContainer.appendChild(row);
-                i += 1;
-              }
-            }
-          }
+      if (galleryContainer && Array.isArray(data.images) && data.images.length > 0) {
+        initDegreeShowGallery(galleryContainer, data.images);
       }
 
-      // Video
+      // 共用渲染函式：依 url 形式塞 iframe / video tag
+      const renderVideoInto = (wrapper, url) => {
+        if (url.includes('youtube') || url.includes('vimeo') || url.includes('embed')) {
+          wrapper.innerHTML = `<iframe class="w-full h-full" src="${url}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+        } else {
+          wrapper.innerHTML = `<video class="w-full h-full" controls><source src="${url}" type="video/mp4">Your browser does not support the video tag.</video>`;
+        }
+      };
+
+      // 主影片（gallery 上方）
       const videoSection = document.getElementById('video-section');
       const videoWrapper = document.getElementById('video-wrapper');
       if (videoSection && videoWrapper) {
           if (data.videoUrl) {
             videoSection.classList.remove('hidden');
-            if (data.videoUrl.includes('youtube') || data.videoUrl.includes('vimeo') || data.videoUrl.includes('embed')) {
-               videoWrapper.innerHTML = `<iframe class="w-full h-full" src="${data.videoUrl}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
-            } else {
-               videoWrapper.innerHTML = `<video class="w-full h-full" controls><source src="${data.videoUrl}" type="video/mp4">Your browser does not support the video tag.</video>`;
-            }
+            renderVideoInto(videoWrapper, data.videoUrl);
           } else {
             videoSection.classList.add('hidden');
             videoWrapper.innerHTML = '';
           }
       }
 
-      // Next Project
+      // 紀錄影片（gallery 下方，僅在 data.documentaryUrl 存在時渲染）
+      const docSection = document.getElementById('documentary-video-section');
+      const docWrapper = document.getElementById('documentary-video-wrapper');
+      if (docSection && docWrapper) {
+          if (data.documentaryUrl) {
+            docSection.classList.remove('hidden');
+            renderVideoInto(docWrapper, data.documentaryUrl);
+          } else {
+            docSection.classList.add('hidden');
+            docWrapper.innerHTML = '';
+          }
+      }
+
+      // Prev / Next 雙卡：sort desc 下 idx+1 = 上一年度（older），idx-1 = 下一年度（newer）；皆 wrap 維持循環導覽
       const idx = years.indexOf(year);
-      const nextYear = years[(idx + 1) % years.length];
+      const prevYear = years[(idx + 1) % years.length];
+      const nextYear = years[(idx - 1 + years.length) % years.length];
+      const prevData = degreeShowData[prevYear];
       const nextData = degreeShowData[nextYear];
 
-      const nextLink = document.getElementById('next-link');
-      const nextYearEl = document.getElementById('next-year');
-      const nextTitleEl = document.getElementById('next-title');
-      const nextImg = document.getElementById('next-img');
-      const nextYearMobileEl = document.getElementById('next-year-mobile');
-      const nextTitleMobileEl = document.getElementById('next-title-mobile');
+      const setupCard = (key, targetYear, targetData) => {
+        const link = document.getElementById(`${key}-link`);
+        const yearEl = document.getElementById(`${key}-year`);
+        const titleEl = document.getElementById(`${key}-title`);
+        const img = document.getElementById(`${key}-img`);
+        const yearMobileEl = document.getElementById(`${key}-year-mobile`);
+        const titleMobileEl = document.getElementById(`${key}-title-mobile`);
 
-      if (nextLink) nextLink.href = '/degree-show-detail?year=' + nextYear;
-      if (nextYearEl) nextYearEl.textContent = nextYear;
-      if (nextTitleEl) nextTitleEl.textContent = nextData.title;
-      if (nextImg && nextData.coverImage) nextImg.src = nextData.coverImage;
-      if (nextYearMobileEl) nextYearMobileEl.textContent = nextYear;
-      if (nextTitleMobileEl) nextTitleMobileEl.textContent = nextData.title;
+        if (link) link.href = '/degree-show-detail?year=' + targetYear;
+        if (yearEl) yearEl.textContent = targetYear;
+        if (titleEl) titleEl.textContent = targetData.title;
+        if (img && targetData.coverImage) img.src = targetData.coverImage;
+        if (yearMobileEl) yearMobileEl.textContent = targetYear;
+        if (titleMobileEl) titleMobileEl.textContent = targetData.title;
+      };
+
+      setupCard('prev', prevYear, prevData);
+      setupCard('next', nextYear, nextData);
+
+      // 卡片隨機旋轉（desktop only）：±2~4°，且兩張保證反向（一順一逆）避免視覺平行
+      if (typeof gsap !== 'undefined' && window.innerWidth >= 768) {
+        const sign = Math.random() < 0.5 ? -1 : 1;
+        const mag = () => 2 + Math.random() * 2;
+        const prevEl = document.getElementById('prev-card');
+        const nextEl = document.getElementById('next-card');
+        if (prevEl) gsap.set(prevEl, { rotation: sign * mag() });
+        if (nextEl) gsap.set(nextEl, { rotation: -sign * mag() });
+      }
+
+      // Hover z-index swap（desktop only）：被 hover 的卡片 z=10，另一張保持 z=1，使 overlap 區的視覺優先級可切換
+      if (window.innerWidth >= 768) {
+        const prevWrapper = document.getElementById('prev-wrapper');
+        const nextWrapper = document.getElementById('next-wrapper');
+        [prevWrapper, nextWrapper].forEach(w => {
+          if (!w) return;
+          w.style.zIndex = '1';
+          w.addEventListener('mouseenter', () => { w.style.zIndex = '10'; });
+          w.addEventListener('mouseleave', () => { w.style.zIndex = '1'; });
+        });
+      }
+
+      // 卡片進場：clip-path reveal；prev 從左 → 右、next 從右 → 左（鏡像對稱）
+      // gsap.set 設旋轉 + clipPath 都不會清掉，互不干擾
+      if (typeof ScrollTrigger !== 'undefined' && typeof gsap !== 'undefined') {
+        const setupReveal = (id, fromInset) => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          gsap.set(el, { clipPath: fromInset });
+          ScrollTrigger.create({
+            trigger: el,
+            start: 'top 85%',
+            once: true,
+            onEnter: () => {
+              gsap.to(el, {
+                clipPath: 'inset(0% 0% 0% 0%)',
+                duration: 0.5,
+                ease: 'cubic-bezier(0.25, 0, 0, 1)',
+              });
+            }
+          });
+        };
+        setupReveal('prev-card', 'inset(0% 100% 0% 0%)');
+        setupReveal('next-card', 'inset(0% 0% 0% 100%)');
+      }
 
     } else {
       window.location.href = '404.html';

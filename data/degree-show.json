@@ -7,14 +7,21 @@
     "descCn": "實踐大學媒體傳達設計學系專、兼任教師皆為學術界、設計業界與藝術領域專家等跨領域組成，具備國內外設計藝術教育理論研究背景、豐富多樣的展演與創作實務經歷，對於學系之專業教育目標理解深入，期許針對不同特質屬性的學生擴展可塑性並給予相應之啟發，強化學生專業技能及趨勢感知能力，夯實學生未來不論於學術研究、設計實務、藝術創作皆能擴展其潛能、爆發力與未來願景。",
     "coverImage": "../images/Degree Show.jpg",
     "images": [
-      "../images/Degree Show.jpg",
-      "../images/Degree Show.jpg",
-      "../images/Degree Show.jpg",
-      "../images/Degree Show.jpg",
-      "../images/Degree Show.jpg",
-      "../images/Degree Show.jpg"
+      "../images/CCC08866.jpg",
+      "../images/S__6742028.jpg",
+      "../images/2021-動畫-Pitch-Bible-01.png",
+      "../images/SCCD-1-4-0.jpg",
+      "../images/maxresdefault.jpg",
+      "../images/內頁_頁面_3.jpg",
+      "../images/491458887_17876137179316982_2662551741181181178_n.jpg",
+      "../images/tw-11134207-7qul0-lj9ky32mjy5w86.jpg"
     ],
-    "videoUrl": "https://www.youtube.com/embed/dQw4w9WgXcQ"
+    "videoUrl": "https://www.youtube.com/embed/jNQXAC9IVRw",
+    "documentaryUrl": "https://www.youtube.com/embed/aqz-KE-bpKQ",
+    "events": [
+      { "time": "05 / 17 - 05 / 20", "name": "新一代設計展", "nameEn": "Young Designers' Exhibition", "location": "南港展覽館 1 館", "locationEn": "Nangang Exhibition Center, Hall 1", "city": "台北", "cityEn": "Taipei" },
+      { "time": "06 / 14 - 06 / 30", "name": "華山獨立展", "nameEn": "Huashan Independent Exhibition", "location": "華山 1914 文化創意產業園區", "locationEn": "Huashan 1914 Creative Park", "city": "台北", "cityEn": "Taipei" }
+    ]
   },
   "2023": {
     "id": "DS-2023-01",
@@ -23,12 +30,13 @@
     "descCn": "2023 畢業展呈現了畢業生的創意作品，反映他們的成長與藝術視野。",
     "coverImage": "../images/Degree Show.jpg",
     "images": [
-      "../images/Degree Show.jpg",
-      "../images/Degree Show.jpg",
-      "../images/Degree Show.jpg",
-      "../images/Degree Show.jpg",
-      "../images/Degree Show.jpg",
-      "../images/Degree Show.jpg"
+      "../images/S__6742028.jpg",
+      "../images/CCC08866.jpg",
+      "../images/SCCD-1-4-0.jpg",
+      "../images/2021-動畫-Pitch-Bible-01.png",
+      "../images/內頁_頁面_3.jpg",
+      "../images/maxresdefault.jpg",
+      "../images/tw-11134207-7qul0-lj9ky32mjy5w86.jpg"
     ]
   },
   "2022": {
@@ -38,9 +46,12 @@
     "descCn": "2022 畢業展呈現了畢業生的創意作品，反映他們的成長與藝術視野。",
     "coverImage": "../images/Degree Show.jpg",
     "images": [
-      "../images/Degree Show.jpg",
-      "../images/Degree Show.jpg",
-      "../images/Degree Show.jpg"
+      "../images/2021-動畫-Pitch-Bible-01.png",
+      "../images/CCC08866.jpg",
+      "../images/SCCD-1-4-0.jpg",
+      "../images/S__6742028.jpg",
+      "../images/491458887_17876137179316982_2662551741181181178_n.jpg",
+      "../images/maxresdefault.jpg"
     ]
   },
   "2021": {
@@ -50,7 +61,12 @@
     "descCn": "2021 畢業展呈現了畢業生的創意作品，反映他們的成長與藝術視野。",
     "coverImage": "../images/Degree Show.jpg",
     "images": [
-      "../images/Degree Show.jpg"
+      "../images/maxresdefault.jpg",
+      "../images/內頁_頁面_3.jpg",
+      "../images/CCC08866.jpg",
+      "../images/SCCD-1-4-0.jpg",
+      "../images/S__6742028.jpg",
+      "../images/2021-動畫-Pitch-Bible-01.png"
     ]
   }
 }
