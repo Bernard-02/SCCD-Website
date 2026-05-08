@@ -6,7 +6,6 @@
   <title>Atlas - SCCD</title>
   <link rel="stylesheet" href="../css/variables.css">
   <link rel="stylesheet" href="../css/output.css">
-  <link rel="stylesheet" href="../css/components/atlas.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
 </head>
@@ -18,26 +17,31 @@
   <!-- Main Content -->
   <main id="page-content">
     <section id="atlas-main">
-      <canvas id="atlas-mask-canvas" aria-hidden="true"></canvas>
-
       <div id="atlas-stage">
         <div id="atlas-zoom">
           <div id="atlas-content">
-            <!-- 名稱由 atlas.js 注入 -->
+            <!-- SVG 線層 + 點+label 由 atlas.js 注入 -->
           </div>
         </div>
       </div>
 
-      <!-- 右下角細節面板 -->
+      <!-- 右下角細節面板（僅標題 + 説明，無 tag；城市不顯示卡片） -->
       <aside id="atlas-detail" aria-live="polite">
-        <div class="atlas-detail-label" data-atlas-detail-label></div>
         <div class="atlas-detail-name" data-atlas-detail-name></div>
         <div class="atlas-detail-desc" data-atlas-detail-desc></div>
       </aside>
 
-      <!-- 左下角操作提示 -->
-      <div id="atlas-hint" aria-hidden="true">
-        <span>scroll to zoom · hover to inspect</span>
+      <!-- 左下角 filter -->
+      <div id="atlas-filter" aria-label="Atlas filter">
+        <button class="atlas-filter-btn" data-filter="faculty">
+          <span class="anchor-nav-inner">Faculty 任教教師</span>
+        </button>
+        <button class="atlas-filter-btn" data-filter="alumni">
+          <span class="anchor-nav-inner">Alumni Career 系友職涯</span>
+        </button>
+        <button class="atlas-filter-btn" data-filter="partners">
+          <span class="anchor-nav-inner">Partners 合作單位</span>
+        </button>
       </div>
     </section>
   </main>

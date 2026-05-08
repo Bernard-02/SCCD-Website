@@ -1,70 +1,150 @@
 /**
- * Atlas Page
- * 由各種名稱（在職／離職教師、產學公司、校友任職企業、工作營合作對象、城市、講者）
- * 排列成 SCCD logo 形狀的互動字雲。
+ * Atlas Page — SCCD-Centered Living Textile
  *
- * 每個名稱顯示英文 + 中文（短的可一行；長的中文換到第二行）。
- * Hover 時：同一 group（工作營／產學專案）成員一起 highlight + 顯示共用 detail。
+ * 中心是 SCCD（virtual origin，沒有可見的點，也不畫圈）。
+ * A 老師圍繞中心，皆連回 SCCD。
+ * B 系友任職企業 + C 合作機構（工作營/產學/出訪）位於中環，亦連回 SCCD。
+ * D 城市散落畫面四方（不是規則環）。B/C 若有所在城市，會 cluster 到該城市附近，並另外連線到城市。
+ *
+ * 顏色：A 粉(R) / B 綠(G) / C 藍(B) / D 黑。
+ * Floating 只給 label（dot 已移除，線端點直接接到 label 起點/終點，視 label 在 line 哪一側）。
+ * Layout 用 seeded random，同一 viewport 重新整理會得到相同佈局。
+ * 進場：scale 0.8 → 1.0 緩動 ~3.5s；之後 user 可 zoom 到 1.8。
  */
 
-const PALETTE = {
-  green: '#00FF80',
-  pink:  '#FF448A',
-  blue:  '#26BCFF',
-  black: '#000000',
+// 三原色（A/B/C label 與線色從這裡選；D 永遠黑）
+const PRIMARY_COLORS = ['#FF448A', '#00FF80', '#26BCFF'];
+const COLOR_BLACK = '#000000';
+
+// 線端點不要直接插到字上，保留 px 間距
+const LINE_END_GAP = 22;
+
+// 每個 label 的隱形 box padding（線會接到 box 的 4 個邊中點之一，最靠近對方的那個）
+// 0 = 線端點直接貼字；6 = 留 ~6px 隱形緩衝，蓋過 ±6° rotation 把可見 bbox 外擴 ~4px 的影響
+// 不用動 .atlas-name 本身的 padding，純擴大連接 box（label 視覺不變）
+const BOX_PADDING = 6;
+
+// 4 個連線點：只取邊中點（T/R/B/L），不含 4 角
+// → 線一律垂直接邊，不會從角斜出去
+function getBoxPoints(box) {
+  const cx = (box.left + box.right) / 2;
+  const cy = (box.top + box.bottom) / 2;
+  return [
+    { x: cx,        y: box.top    },  // T
+    { x: box.right, y: cy         },  // R
+    { x: cx,        y: box.bottom },  // B
+    { x: box.left,  y: cy         },  // L
+  ];
+}
+
+function pickClosestBoxPoint(points, tx, ty) {
+  let best = points[0], bestD = Infinity;
+  for (const p of points) {
+    const d = (p.x - tx) ** 2 + (p.y - ty) ** 2;
+    if (d < bestD) { bestD = d; best = p; }
+  }
+  return best;
+}
+
+// 從 item 當前位置回推 box 範圍（含 BOX_PADDING）
+function computeBoxAt(item, x, y) {
+  const w = item._boxW || 60;
+  const h = item._boxH || 20;
+  const isSideLeft = item._isSideLeft;
+  const labelLeft  = isSideLeft ? x - w : x;
+  const labelRight = isSideLeft ? x : x + w;
+  return {
+    left:   labelLeft  - BOX_PADDING,
+    right:  labelRight + BOX_PADDING,
+    top:    y - h / 2  - BOX_PADDING,
+    bottom: y + h / 2  + BOX_PADDING,
+  };
+}
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+// 確定性 seed — 改這個就能換一個固定佈局
+const LAYOUT_SEED = 0xA71A5;
+
+// 是否把名稱換成 type-numbered placeholder（目前資料許多是假名／"Company Name"）
+const USE_TYPE_PLACEHOLDER = true;
+const TYPED_LABELS = {
+  fc:  { en: 'Current Faculty',  zh: '在職教師' },
+  ff:  { en: 'Former Faculty',   zh: '離職教師' },
+  lec: { en: 'Lecture Speaker',  zh: '講座講者' },
+  wsg: { en: 'Workshop Partner', zh: '工作營合作單位' },
+  ind: { en: 'Industry Partner', zh: '產學合作公司' },
+  co:  { en: 'Alumni Co.',       zh: '系友任職企業' },
 };
 
-const MIN_SCALE = 1;
-const MAX_SCALE = 4;         // 字小（9px），靠 zoom 放大閱讀
-const ZOOM_SPEED = 0.0015;
+// 19 個 canonical 城市（覆蓋 workshops 解析出來的 city，避免冒出系統不認得的城市）
+const CANONICAL_CITIES = [
+  { en: 'Tokyo',      zh: '東京'   },
+  { en: 'Kyoto',      zh: '京都'   },
+  { en: 'New York',   zh: '紐約'   },
+  { en: 'Shanghai',   zh: '上海'   },
+  { en: 'California', zh: '加州'   },
+  { en: 'Beijing',    zh: '北京'   },
+  { en: 'Chiang Mai', zh: '清邁'   },
+  { en: 'Bangkok',    zh: '曼谷'   },
+  { en: 'Nagoya',     zh: '名古屋' },
+  { en: 'Singapore',  zh: '新加坡' },
+  { en: 'London',     zh: '倫敦'   },
+  { en: 'Busan',      zh: '釜山'   },
+  { en: 'Seoul',      zh: '首爾'   },
+  { en: 'Osaka',      zh: '大阪'   },
+  { en: 'Paris',      zh: '巴黎'   },
+  { en: 'Taipei',     zh: '臺北'   },
+  { en: 'Tainan',     zh: '臺南'   },
+  { en: 'Yilan',      zh: '宜蘭'   },
+  { en: 'Hualien',    zh: '花蓮'   },
+];
 
-const PLACE_ATTEMPTS = 400;        // 每個名稱最多嘗試多少次找空位
-const OVERLAP_PADDING = 2;         // 名稱間最小間距（px）
-const ALPHA_THRESHOLD = 120;       // 像素 alpha 過濾門檻（含部分抗鋸齒邊緣）
-const SHORT_EN_LIMIT = 14;         // 短英文判定（短則允許單行）
-const SHORT_ZH_LIMIT = 8;
+// ── Layout 參數（px）─ 3 同心橢圓結構（v2.14）───────────────
+// 中心 A 老師 disc → 中環 B/C 機構 annulus → 外環 D 城市
+// 橢圓化（x 軸拉長 1.5x）填補 wide viewport 左右空間，y 軸不變
+const A_INNER_RADIUS    = 280;    // A 老師 disc 半徑（y 軸基準，x 軸 × ASPECT）
+const BC_RING_INNER     = 310;    // B/C 機構環內緣
+const BC_RING_OUTER     = 480;    // B/C 機構環外緣
+const LAYOUT_ASPECT_X   = 1.55;   // 橢圓寬高比（x 軸拉伸係數）
+const CITY_DIST_FROM_CENTER_MIN_FRAC = 0.85;  // 城市必須在外層 ring（>= 85% minDim）
+const CITY_EDGE_PAD     = 4;
+const CITY_MIN_SPACING  = 110;
+const ITEM_MIN_SPACING  = 80;
+const A_FROM_CITY_MIN   = 50;     // 防禦性：A 老師不貼城市（3 同心圓下基本不會觸發）
+const RELAX_ITERATIONS  = 6;
+
+// ── Zoom ────────────────────────────────────────────────
+const SCALE_INTRO_START = 0.55;   // 進場更遠的鏡頭
+const SCALE_DEFAULT     = 0.78;   // 預設留 ~20% 邊距，不貼邊
+const MIN_SCALE         = 0.78;
+const MAX_SCALE         = 3.5;    // zoom in 上限拉到 3.5x
+const ZOOM_SPEED        = 0.0015;
+const INTRO_DURATION    = 1.5;
+
+// 假資料：B/C 沒有 cityKey 時隨機指派一個 canonical 城市（seeded，方便看 cluster + 連線）
+// 真實資料補上 city 欄位後，這個 fallback 自動讓位給真資料
+const USE_FAKE_CITY_FILL = true;
 
 let cleanupFns = [];
 
 export function cleanupAtlas() {
   cleanupFns.forEach(fn => { try { fn(); } catch (_) { /* ignore */ } });
   cleanupFns = [];
+  document.body.style.cursor = '';
 }
 
 export async function initAtlas() {
   const main = document.getElementById('atlas-main');
   if (!main) return;
 
-  const canvas  = /** @type {HTMLCanvasElement} */ (document.getElementById('atlas-mask-canvas'));
   const stage   = document.getElementById('atlas-stage');
   const zoomEl  = document.getElementById('atlas-zoom');
   const content = document.getElementById('atlas-content');
   const detail  = document.getElementById('atlas-detail');
-  if (!canvas || !stage || !zoomEl || !content || !detail) return;
+  if (!stage || !zoomEl || !content || !detail) return;
 
-  // ── 1. 載入 logo 取像素資料 ─────────────────────────────
-  let img;
-  try {
-    img = await loadImage(absURL('images/sccd_black.png'));
-  } catch (e) {
-    console.error('[Atlas] Failed to load logo image', e);
-    return;
-  }
-  const W = img.naturalWidth || 800;
-  const H = img.naturalHeight || 800;
-  canvas.width = W;
-  canvas.height = H;
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(img, 0, 0, W, H);
-  let pixelData;
-  try {
-    pixelData = ctx.getImageData(0, 0, W, H).data;
-  } catch (e) {
-    console.error('[Atlas] Canvas tainted, cannot read pixels.', e);
-    return;
-  }
-
-  // ── 2. 平行載入所有資料來源 ─────────────────────────────
+  // ── 載入資料 ─────────────────────────────────────────
   const [facultyCurrent, facultyFormer, workshops, industry, companies, lectures] = await Promise.all([
     fetchJson('data/faculty.json'),
     fetchJson('data/faculty-former.json'),
@@ -74,193 +154,359 @@ export async function initAtlas() {
     fetchJson('data/lectures.json'),
   ]);
 
-  // ── 3. 構建 items + groups ─────────────────────────────
+  // ── 建構 items ──────────────────────────────────────
   const items = [];
-  const groups = new Map(); // groupId -> { detail, members:[itemId] }
+  const groups = new Map();
+  const cityIndex = new Map();   // canonical city EN → cityItemId
   let idCounter = 0;
   const uid = (prefix) => `${prefix}-${++idCounter}`;
 
-  // 在職教師
+  // 預先建好 D 城市（canonical 19 個）
+  CANONICAL_CITIES.forEach(c => {
+    const it = {
+      id: uid('city'), category: 'D',
+      textEn: c.en, textZh: c.zh,
+      labelEn: 'City', labelZh: '城市',
+      detail: '本系師生與合作對象足跡所及之城市。',
+      groups: [], cityKey: c.en,
+    };
+    items.push(it);
+    cityIndex.set(c.en, it.id);
+  });
+
+  // canonical city 比對表（以 EN normalize / ZH 完整字串）
+  const canonByEn = new Map(CANONICAL_CITIES.map(c => [c.en.toLowerCase().replace(/\s+/g, ''), c.en]));
+  const canonByZh = new Map(CANONICAL_CITIES.map(c => [c.zh, c.en]));
+  function matchCanonical(en, zh) {
+    if (en) {
+      const m = canonByEn.get(en.toLowerCase().replace(/\s+/g, ''));
+      if (m) return m;
+    }
+    if (zh) {
+      const m = canonByZh.get(zh);
+      if (m) return m;
+    }
+    return null;
+  }
+
+  // A: 在職教師
   (facultyCurrent || []).forEach(f => {
     if (!f.nameEn && !f.nameZh) return;
     items.push({
-      id: uid('fc'),
-      textEn: f.nameEn || '',
-      textZh: f.nameZh || '',
-      labelEn: 'Current Faculty',
-      labelZh: '在職教師',
+      id: uid('fc'), category: 'A',
+      textEn: f.nameEn || '', textZh: f.nameZh || '',
+      labelEn: 'Current Faculty', labelZh: '在職教師',
       detail: '目前任職於本系，從事教學、研究與創作實務。',
-      groups: [],
+      groups: [], cityKey: null,
     });
   });
 
-  // 離職教師
+  // A: 離職教師
   (facultyFormer || []).forEach(f => {
     if (!f.nameEn && !f.nameZh) return;
     const years = f.yearsActive ? `（${f.yearsActive}）` : '';
     const field = f.fieldZh || f.fieldEn || '';
     items.push({
-      id: uid('ff'),
-      textEn: f.nameEn || '',
-      textZh: f.nameZh || '',
-      labelEn: 'Former Faculty',
-      labelZh: '離職教師',
+      id: uid('ff'), category: 'A',
+      textEn: f.nameEn || '', textZh: f.nameZh || '',
+      labelEn: 'Former Faculty', labelZh: '離職教師',
       detail: `曾任職於本系${years}${field ? '，' + field + '領域' : ''}。`,
-      groups: [],
+      groups: [], cityKey: null,
     });
   });
 
-  // 工作營：guests + city（不含 title 本身，依使用者規格）
-  const cityIndex = new Map();
+  // A: 講座講者
+  (lectures || []).forEach(yearGroup => {
+    (yearGroup.items || []).forEach(lec => {
+      const lecGroupId = lec.id;
+      if (!lecGroupId) return;
+      const dt = (lec.description_zh || lec.description || '').trim().slice(0, 140) ||
+                 '本系邀請業界與學界專家進行專題講座。';
+      const memberIds = [];
+      (lec.guests || []).forEach(g => {
+        const en = g.name || g.affiliation || '';
+        const zh = g.name_zh || g.affiliation_zh || '';
+        if (!en && !zh) return;
+        const it = {
+          id: uid('lec'), category: 'A',
+          textEn: en, textZh: zh,
+          labelEn: 'Lecture Speaker', labelZh: '講座講者',
+          detail: dt, groups: [lecGroupId], cityKey: null,
+        };
+        items.push(it);
+        memberIds.push(it.id);
+      });
+      if (memberIds.length > 0) groups.set(lecGroupId, { detail: dt, members: memberIds });
+    });
+  });
+
+  // C: 工作營合作單位（cityKey 對到 canonical 城市）
   (workshops || []).forEach(yearGroup => {
     (yearGroup.items || []).forEach(ws => {
       const wsGroupId = ws.id;
       if (!wsGroupId) return;
-      const detail = (ws.intro_zh || ws.intro || '').trim().slice(0, 140) ||
-                     '本系與外部單位合作之工作營。';
+      const dt = (ws.intro_zh || ws.intro || '').trim().slice(0, 140) ||
+                 '本系與外部單位合作之工作營。';
       const memberIds = [];
+
+      const wsCities = parseCities(ws);
+      let primaryCanon = null;
+      for (const c of wsCities) {
+        const m = matchCanonical(c.en, c.zh);
+        if (m) { primaryCanon = m; break; }
+      }
 
       (ws.guests || []).forEach(g => {
         const en = g.name || g.affiliation || '';
         const zh = g.name_zh || g.affiliation_zh || '';
         if (!en && !zh) return;
         const it = {
-          id: uid('wsg'),
-          textEn: en,
-          textZh: zh,
-          labelEn: 'Workshop Partner',
-          labelZh: '工作營合作單位',
-          detail,
-          groups: [wsGroupId],
+          id: uid('wsg'), category: 'C',
+          textEn: en, textZh: zh,
+          labelEn: 'Workshop Partner', labelZh: '工作營合作單位',
+          detail: dt, groups: [wsGroupId], cityKey: primaryCanon,
         };
         items.push(it);
         memberIds.push(it.id);
       });
 
-      // 城市（並列拆 location / location_zh，可能多個）
-      const cities = parseCities(ws);
-      cities.forEach(({ en, zh }) => {
-        const key = `${en}|${zh}`;
-        if (cityIndex.has(key)) {
-          const existingId = cityIndex.get(key);
-          const cityItem = items.find(i => i.id === existingId);
-          if (cityItem && !cityItem.groups.includes(wsGroupId)) {
-            cityItem.groups.push(wsGroupId);
-          }
-          memberIds.push(existingId);
-        } else {
-          const it = {
-            id: uid('city'),
-            textEn: en,
-            textZh: zh,
-            labelEn: 'City',
-            labelZh: '城市',
-            detail,
-            groups: [wsGroupId],
-          };
-          items.push(it);
-          memberIds.push(it.id);
-          cityIndex.set(key, it.id);
-        }
-      });
+      // 將工作營掛到對應城市的 group（hover 城市時會 highlight 該工作營全部成員）
+      if (primaryCanon && cityIndex.has(primaryCanon)) {
+        const cityId = cityIndex.get(primaryCanon);
+        const cityItem = items.find(i => i.id === cityId);
+        if (cityItem && !cityItem.groups.includes(wsGroupId)) cityItem.groups.push(wsGroupId);
+        memberIds.push(cityId);
+      }
 
-      groups.set(wsGroupId, { detail, members: memberIds });
+      groups.set(wsGroupId, { detail: dt, members: memberIds });
     });
   });
 
-  // 講座 guests（與工作營類似但獨立 group）
-  (lectures || []).forEach(yearGroup => {
-    (yearGroup.items || []).forEach(lec => {
-      const lecGroupId = lec.id;
-      if (!lecGroupId) return;
-      const detail = (lec.description_zh || lec.description || '').trim().slice(0, 140) ||
-                     '本系邀請業界與學界專家進行專題講座。';
-      const memberIds = [];
-
-      (lec.guests || []).forEach(g => {
-        const en = g.name || g.affiliation || '';
-        const zh = g.name_zh || g.affiliation_zh || '';
-        if (!en && !zh) return;
-        const it = {
-          id: uid('lecg'),
-          textEn: en,
-          textZh: zh,
-          labelEn: 'Lecture Speaker',
-          labelZh: '講座講者',
-          detail,
-          groups: [lecGroupId],
-        };
-        items.push(it);
-        memberIds.push(it.id);
-      });
-
-      if (memberIds.length > 0) groups.set(lecGroupId, { detail, members: memberIds });
-    });
-  });
-
-  // 產學合作：guests（不含 title）
+  // C: 產學合作公司（無城市資料）
   (industry || []).forEach(yearGroup => {
     (yearGroup.items || []).forEach(ind => {
       const indGroupId = ind.id;
       if (!indGroupId) return;
-      const detail = '本系產學合作計畫，與業界共同推動實務研究與創新設計。';
+      const dt = '本系產學合作計畫，與業界共同推動實務研究與創新設計。';
       const memberIds = [];
-
       (ind.guests || []).forEach(g => {
         const en = g.name || '';
         const zh = g.name_zh || '';
         if (!en && !zh) return;
         const it = {
-          id: uid('indg'),
-          textEn: en,
-          textZh: zh,
-          labelEn: 'Industry Partner',
-          labelZh: '產學合作公司',
-          detail,
-          groups: [indGroupId],
+          id: uid('ind'), category: 'C',
+          textEn: en, textZh: zh,
+          labelEn: 'Industry Partner', labelZh: '產學合作公司',
+          detail: dt, groups: [indGroupId], cityKey: null,
         };
         items.push(it);
         memberIds.push(it.id);
       });
-
-      if (memberIds.length > 0) groups.set(indGroupId, { detail, members: memberIds });
+      if (memberIds.length > 0) groups.set(indGroupId, { detail: dt, members: memberIds });
     });
   });
 
-  // 校友任職企業（無連動 group）
+  // B: 系友任職企業（無城市資料）
   (companies || []).forEach(c => {
     if (!c.nameEn && !c.nameZh && !c.name) return;
     items.push({
-      id: uid('co'),
-      textEn: c.nameEn || c.name || '',
-      textZh: c.nameZh || '',
-      labelEn: 'Alumni Employer',
-      labelZh: '校友任職企業',
+      id: uid('co'), category: 'B',
+      textEn: c.nameEn || c.name || '', textZh: c.nameZh || '',
+      labelEn: 'Alumni Employer', labelZh: '系友任職企業',
       detail: '本系畢業生曾任職、實習或合作之企業。',
-      groups: [],
+      groups: [], cityKey: null,
     });
   });
 
   if (items.length === 0) {
-    console.warn('[Atlas] No items to render');
+    console.warn('[Atlas] No items');
     return;
   }
 
-  // ── 4. 建立 DOM（隱藏）並批次量測尺寸 ─────────────────────
-  shuffle(items);
+  // 假資料 fallback：B/C 缺 city 的隨機 assign canonical city
+  if (USE_FAKE_CITY_FILL) {
+    const fakeRand = mulberry32(LAYOUT_SEED ^ 0x9E3779B1);
+    items.forEach(it => {
+      if ((it.category === 'B' || it.category === 'C') && !it.cityKey) {
+        const idx = Math.floor(fakeRand() * CANONICAL_CITIES.length);
+        it.cityKey = CANONICAL_CITIES[idx].en;
+      }
+    });
+  }
 
+  // 套用 type-numbered placeholder（D 城市保留真名）
+  if (USE_TYPE_PLACEHOLDER) {
+    const counters = {};
+    items.forEach(it => {
+      if (it.category === 'D') return;
+      const prefix = String(it.id).split('-')[0];
+      const tpl = TYPED_LABELS[prefix];
+      if (!tpl) return;
+      counters[prefix] = (counters[prefix] || 0) + 1;
+      const n = counters[prefix];
+      it.textEn = `${tpl.en} ${n}`;
+      it.textZh = `${tpl.zh} ${n}`;
+    });
+  }
+
+  // 顏色配置：D 黑色；有 group 的同 group 共用一色；無 group 隨機三原色
+  const colorRand = mulberry32(LAYOUT_SEED ^ 0xC0107C);
+  const groupColor = new Map();
+  for (const groupId of groups.keys()) {
+    groupColor.set(groupId, PRIMARY_COLORS[Math.floor(colorRand() * PRIMARY_COLORS.length)]);
+  }
+  items.forEach(item => {
+    if (item.category === 'D') {
+      item.color = COLOR_BLACK;
+    } else if (item.groups.length > 0 && groupColor.has(item.groups[0])) {
+      item.color = groupColor.get(item.groups[0]);
+    } else {
+      // 純 SCCD 連線（A faculty / B alumni co）→ 隨機三原色
+      item.color = PRIMARY_COLORS[Math.floor(colorRand() * PRIMARY_COLORS.length)];
+    }
+  });
+
+  // ── 計算佈局（seeded random，同一個 viewport 每次重整都是相同位置）─
+  const W = stage.clientWidth  || window.innerWidth;
+  const H = stage.clientHeight || (window.innerHeight - 80);
+  const cx = W / 2, cy = H / 2;
+  const srand = mulberry32(LAYOUT_SEED);
+
+  layoutItems(items, W, H, srand);
+
+  // ── 城市軌道（每城自己的傾斜橢圓：rx + aspect + tilt 各自隨機）─
+  // ⚠️ 真正控制城市位置/分佈的是這些常數，不是上方 layoutItems 的 CITY_DIST_*（那些已被 orbit 覆寫）
+  // - RX_MIN_F / RX_MAX_F 範圍越大 → 城市軌道大小差異越大（避免「一圈規則橢圓」）
+  // - BBOX_*_MAX > 1 → 容許部分軌道衝出 viewport（極端遠軌效果）；< 1 → fitTiltedEllipse 會縮回去
+  const orbitRand = mulberry32(LAYOUT_SEED ^ 0x0B17A1);
+  const halfW = W / 2;
+  const halfH = H / 2;
+  const ORBIT_RX_MIN_F   = 0.30;              // 內圈城市可以靠近中心
+  const ORBIT_RX_MAX_F   = 1.20;              // 外圈城市略超 viewport
+  const ORBIT_ASPECT_MIN = 0.18;
+  const ORBIT_ASPECT_MAX = 0.70;
+  const ORBIT_TILT_MAX   = Math.PI / 4;       // ±45° 傾斜
+  const ORBIT_BBOX_W_MAX = halfW * 1.35;      // 橫向 bbox cap（保留溢出空間）
+  const ORBIT_BBOX_H_MAX = halfH * 1.15;      // 縱向 bbox cap
+
+  // 旋轉後橢圓 bbox 半寬/半高 → 縮放到 viewport 內
+  function fitTiltedEllipse(rx, ry, tilt) {
+    const cT = Math.cos(tilt), sT = Math.sin(tilt);
+    const bw = Math.sqrt((rx * cT) ** 2 + (ry * sT) ** 2);
+    const bh = Math.sqrt((rx * sT) ** 2 + (ry * cT) ** 2);
+    const sw = bw > ORBIT_BBOX_W_MAX ? ORBIT_BBOX_W_MAX / bw : 1;
+    const sh = bh > ORBIT_BBOX_H_MAX ? ORBIT_BBOX_H_MAX / bh : 1;
+    const s = Math.min(sw, sh);
+    return { rx: rx * s, ry: ry * s };
+  }
+
+  const cityList = items.filter(i => i.category === 'D');
+  cityList.forEach((city, idx) => {
+    const baseAngle = (idx / cityList.length) * Math.PI * 2;
+    const angle0 = baseAngle + (orbitRand() - 0.5) * (Math.PI / 4.5);
+    let rx = halfW * (ORBIT_RX_MIN_F + orbitRand() * (ORBIT_RX_MAX_F - ORBIT_RX_MIN_F));
+    const aspect = ORBIT_ASPECT_MIN + orbitRand() * (ORBIT_ASPECT_MAX - ORBIT_ASPECT_MIN);
+    let ry = rx * aspect;
+    const tilt = (orbitRand() - 0.5) * 2 * ORBIT_TILT_MAX;   // ±45°
+    ({ rx, ry } = fitTiltedEllipse(rx, ry, tilt));            // 縮到 viewport 內
+    city._orbit = {
+      cx, cy, rx, ry, tilt,
+      cosT: Math.cos(tilt), sinT: Math.sin(tilt),
+      angle0,
+      period:     240 + orbitRand() * 360,
+      dir:        orbitRand() < 0.5 ? -1 : 1,
+      tOffset:    0,
+      pauseStart: null,
+    };
+    // t=0 位置：先在 axis-aligned 橢圓上算 local，再用 tilt 旋轉到 world
+    const lx0 = Math.cos(angle0) * rx;
+    const ly0 = Math.sin(angle0) * ry;
+    city.x = cx + lx0 * city._orbit.cosT - ly0 * city._orbit.sinT;
+    city.y = cy + lx0 * city._orbit.sinT + ly0 * city._orbit.cosT;
+    city._initX = city.x;
+    city._initY = city.y;
+  });
+
+  const itemMap = new Map(items.map(i => [i.id, i]));
+
+  // ── 非老師項目軌道（B 系友、C 工作營/產學、A 講座 — 各自獨立橢圓，無引力拖曳）─
+  // 老師（fc/ff）保持中心 disc + label 浮動，不上軌道
+  // 非老師軌道：rx 範圍拉開讓個別橢圓視覺浮現；
+  // **aspect/tilt 用窄範圍（扁 + 接近水平）讓 N 個軌道聚合 cluster 也呈水平橢圓而非球**
+  const NF_RX_MIN_F  = 0.10;
+  const NF_RX_MAX_F  = 0.85;
+  const NF_ASPECT_MIN = 0.10;             // 軌道一律很扁（ry 最多 0.30 × rx）
+  const NF_ASPECT_MAX = 0.30;
+  const NF_TILT_MAX   = Math.PI / 12;     // ±15°（接近水平，不像城市的 ±45°）
+  items.forEach(item => {
+    if (item.category === 'D') return;        // 城市已經有軌道
+    const prefix = String(item.id).split('-')[0];
+    if (prefix === 'fc' || prefix === 'ff') return;  // 老師排除
+    const angle0 = orbitRand() * Math.PI * 2;
+    let rx = halfW * (NF_RX_MIN_F + orbitRand() * (NF_RX_MAX_F - NF_RX_MIN_F));
+    const aspect = NF_ASPECT_MIN + orbitRand() * (NF_ASPECT_MAX - NF_ASPECT_MIN);
+    let ry = rx * aspect;
+    const tilt = (orbitRand() - 0.5) * 2 * NF_TILT_MAX;
+    ({ rx, ry } = fitTiltedEllipse(rx, ry, tilt));
+    item._orbit = {
+      cx, cy, rx, ry, tilt,
+      cosT: Math.cos(tilt), sinT: Math.sin(tilt),
+      angle0,
+      period:     180 + orbitRand() * 300,    // 3 ~ 8 min（比城市稍快）
+      dir:        orbitRand() < 0.5 ? -1 : 1,
+      tOffset:    0,
+      pauseStart: null,
+    };
+    const lx0 = Math.cos(angle0) * rx;
+    const ly0 = Math.sin(angle0) * ry;
+    item.x = cx + lx0 * item._orbit.cosT - ly0 * item._orbit.sinT;
+    item.y = cy + lx0 * item._orbit.sinT + ly0 * item._orbit.cosT;
+    item._initX = item.x;
+    item._initY = item.y;
+  });
+
+  // ── 計算連線：每個非 D 連到中心；B/C 有城市的 → 連到城市 ─
+  // 線顏色決策延後到 SVG 渲染（依 fromItem.color / toItem === D 判斷漸變）
+  const connections = [];
+  // 只保留 B/C → D city 的線。中心連線（center → A/B/C）全部移除：
+  // - A 老師完全沒線，純 floating 文字
+  // - B/C 只有「指向所屬城市」的一條線
+  items.forEach(item => {
+    if ((item.category === 'B' || item.category === 'C') && item.cityKey && cityIndex.has(item.cityKey)) {
+      const cityId = cityIndex.get(item.cityKey);
+      connections.push({ fromId: item.id, toId: cityId });
+    }
+  });
+
+  const itemNeighbors = new Map(items.map(i => [i.id, new Set()]));
+  const itemLines = new Map(items.map(i => [i.id, []]));
+  connections.forEach(conn => {
+    if (conn.fromId !== 'center') {
+      itemNeighbors.get(conn.fromId).add(conn.toId);
+      itemNeighbors.get(conn.toId).add(conn.fromId);
+    }
+  });
+
+  console.log(`[Atlas] ${items.length} items (${countByCategory(items)}), ${connections.length} lines`);
+
+  // ── 渲染（先 labels → 量 box → 再 SVG 線）─────────────────
+  content.innerHTML = '';
+  content.style.width = '100%';
+  content.style.height = '100%';
+
+  // 1) HTML labels 先渲染（必須先 layout 才能量 offsetWidth/Height）
   const fragment = document.createDocumentFragment();
   items.forEach(item => {
     const anchor = document.createElement('div');
-    anchor.className = 'atlas-anchor';
-    anchor.style.left = '0%';
-    anchor.style.top = '0%';
-    anchor.style.visibility = 'hidden';
+    anchor.className = `atlas-anchor atlas-cat-${item.category.toLowerCase()}`;
+    anchor.style.left = `${(item.x / W) * 100}%`;
+    anchor.style.top  = `${(item.y / H) * 100}%`;
+    if (item.category !== 'A' && item.x < cx) anchor.classList.add('atlas-side-left');
 
     const span = document.createElement('span');
     span.className = 'atlas-name';
     span.dataset.itemId = item.id;
-    if (isShort(item.textEn, item.textZh)) span.classList.add('atlas-name-compact');
+    span.style.color = item.color;
 
     if (item.textEn) {
       const enEl = document.createElement('span');
@@ -275,93 +521,165 @@ export async function initAtlas() {
       span.appendChild(zhEl);
     }
 
+    if (item.category !== 'D') {
+      const dur = 3.5 + srand() * 4;
+      item._float = {
+        tx:       srand() * 14 - 7,
+        ty:       srand() * 14 - 7,
+        baseRot:  srand() * 6 - 3,
+        rotDelta: srand() * 6 - 3,
+        dur,
+        phase:    srand() * dur * 2,
+      };
+      span.style.transform = `translateY(-50%) rotate(${item._float.baseRot.toFixed(2)}deg)`;
+    }
+
     anchor.appendChild(span);
     fragment.appendChild(anchor);
     item._anchor = anchor;
     item._span = span;
   });
-
-  content.innerHTML = '';
   content.appendChild(fragment);
 
-  // 強制 layout（一次 reflow），後續 offsetWidth 都是 cached
-  void content.offsetWidth;
-
+  // 2) 量每個 label 的 box 尺寸（offsetWidth/Height 已 layout 完）
   items.forEach(item => {
-    const r = item._span.getBoundingClientRect();
-    item._w = r.width;
-    item._h = r.height;
+    if (!item._span) return;
+    item._boxW = item._span.offsetWidth;
+    item._boxH = item._span.offsetHeight;
+    item._isSideLeft = item._anchor.classList.contains('atlas-side-left');
   });
 
-  // ── 5. 不重疊放置 ─────────────────────────────
-  const cw = content.offsetWidth || content.getBoundingClientRect().width;
-  const ch = content.offsetHeight || content.getBoundingClientRect().height;
-  const placedRects = [];
-  const elementById = new Map();
-  let placedCount = 0;
+  // 3) SVG 線層 — 插在 content 第一個子元素，DOM 順序在前 = 視覺在 labels 下方
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('class', 'atlas-lines');
+  svg.setAttribute('width', '100%');
+  svg.setAttribute('height', '100%');
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('preserveAspectRatio', 'none');
+  content.insertBefore(svg, content.firstChild);
 
-  items.forEach(item => {
-    let placed = false;
+  // 4) 連線：每幀動態挑「當下最靠近的 box 邊中點」（兩端都動：B/C 浮動 + 城市軌道）
+  //    舊架構共享 cityEndpoint 只在 init 算一次 → 城市軌道後 endpoint 卡在原本那一邊，
+  //    被 city label 自己擋住。改成 tickFloat Phase 3 重新挑邊。
+  const allLines = [];
+  connections.forEach(conn => {
+    if (conn.fromId === 'center') return;
+    const fromItem = itemMap.get(conn.fromId);
+    const toItem   = itemMap.get(conn.toId);
 
-    for (let attempt = 0; attempt < PLACE_ATTEMPTS; attempt++) {
-      const pos = findValidPixel(pixelData, W, H, ALPHA_THRESHOLD);
-      if (!pos) continue;
+    const lineEl = document.createElementNS(SVG_NS, 'path');
+    lineEl.setAttribute('fill', 'none');
+    lineEl.setAttribute('stroke', fromItem.color);
+    // pathLength="1" 把 path 標準化為長度 1，讓 CSS stroke-dasharray:1 + stroke-dashoffset:1
+    // 做 "draw" 動畫；端點動了 dash 計算仍以 1 為基準，不會跑掉
+    lineEl.setAttribute('pathLength', '1');
+    // opacity / stroke-width 一律交給 CSS .atlas-line / .atlas-line-highlight；
+    // SVG presentation attr 跟 CSS transition 同時設會擋住 fade（attr 端點被視為 inline）
+    lineEl.setAttribute('class', 'atlas-line');
+    svg.appendChild(lineEl);
 
-      const px = (pos.x / W) * cw;
-      const py = (pos.y / H) * ch;
+    itemLines.get(conn.fromId).push(lineEl);
+    itemLines.get(conn.toId).push(lineEl);
+    allLines.push({ line: lineEl, src: fromItem, city: toItem });
+  });
 
-      const halfW = item._w / 2;
-      const halfH = item._h / 2;
-      if (px - halfW < -OVERLAP_PADDING || px + halfW > cw + OVERLAP_PADDING) continue;
-      if (py - halfH < -OVERLAP_PADDING || py + halfH > ch + OVERLAP_PADDING) continue;
+  // 動態挑端點：city 找離 source 最近的邊中點，再讓 source 找離該點最近的邊中點
+  // 兩端 item.x/y 都已在 Phase 1 軌道更新過；source 再加上 label 浮動 offset
+  function updateLineEndpoints(le) {
+    const src = le.src, city = le.city;
+    const srcX = src.x + (src._floatDx || 0);
+    const srcY = src.y + (src._floatDy || 0);
+    const cityBox = computeBoxAt(city, city.x, city.y);
+    const cityEdge = pickClosestBoxPoint(getBoxPoints(cityBox), srcX, srcY);
+    const srcBox = computeBoxAt(src, srcX, srcY);
+    const srcEdge = pickClosestBoxPoint(getBoxPoints(srcBox), cityEdge.x, cityEdge.y);
+    le.line.setAttribute('d', `M ${srcEdge.x.toFixed(2)} ${srcEdge.y.toFixed(2)} L ${cityEdge.x.toFixed(2)} ${cityEdge.y.toFixed(2)}`);
+  }
 
-      const rect = {
-        x: px - halfW - OVERLAP_PADDING,
-        y: py - halfH - OVERLAP_PADDING,
-        w: item._w + OVERLAP_PADDING * 2,
-        h: item._h + OVERLAP_PADDING * 2,
-      };
+  // 設個初始 d 避免首幀前線是 invisible 0-length path
+  allLines.forEach(updateLineEndpoints);
 
-      if (anyOverlap(rect, placedRects)) continue;
+  // ── Floating rAF loop（label 浮動，line 端點同步移動避免錯位）─
+  const floatStart = performance.now() / 1000;
+  let floatRunning = true;
+  let floatRaf = null;
 
-      // 放置 ✓
-      const accent = classifyColor(pos.r, pos.g, pos.b);
-      item._anchor.style.left = `${(pos.x / W) * 100}%`;
-      item._anchor.style.top  = `${(pos.y / H) * 100}%`;
-      item._span.style.color = accent;
-      // 標記黑色名稱（落在中央黑圓內）：inverse 模式下要用 CSS 反轉成白色
-      if (accent === PALETTE.black) item._span.classList.add('atlas-name--dark');
-      item._span.style.setProperty('--tx', `${rand(-2.5, 2.5).toFixed(2)}px`);
-      item._span.style.setProperty('--ty', `${rand(-2.5, 2.5).toFixed(2)}px`);
-      item._span.style.setProperty('--base-rot', `${rand(-3, 3).toFixed(2)}deg`);
-      item._span.style.setProperty('--rot-delta', `${rand(-1, 1).toFixed(2)}deg`);
-      item._span.style.setProperty('--dur', `${rand(4, 8).toFixed(2)}s`);
-      item._span.style.animationDelay = `${rand(-6, 0).toFixed(2)}s`;
-      item._anchor.style.visibility = '';
-      placedRects.push(rect);
-      elementById.set(item.id, item._span);
-      placed = true;
-      placedCount++;
-      break;
+  function tickFloat() {
+    const t = performance.now() / 1000 - floatStart;
+
+    // Phase 1: 城市軌道（傾斜橢圓；hover 時 pauseStart 凍結）
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (!item._orbit) continue;
+      const o = item._orbit;
+      const effT = o.pauseStart != null ? (o.pauseStart - o.tOffset) : (t - o.tOffset);
+      const angle = o.angle0 + (effT / o.period) * Math.PI * 2 * o.dir;
+      // axis-aligned 橢圓 local 座標 → 用 tilt 旋轉到 world
+      const lx = Math.cos(angle) * o.rx;
+      const ly = Math.sin(angle) * o.ry;
+      item.x = o.cx + lx * o.cosT - ly * o.sinT;
+      item.y = o.cy + lx * o.sinT + ly * o.cosT;
+      const ddx = item.x - item._initX;
+      const ddy = item.y - item._initY;
+      item._anchor.style.transform = `translate(${ddx.toFixed(2)}px, ${ddy.toFixed(2)}px)`;
     }
 
-    if (!placed) item._anchor.remove();   // 找不到不重疊位置 → 丟棄
+    // Phase 2: B/C label 浮動（只動 span transform；快取 _floatDx/Dy 給 Phase 3 用）
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (!item._float) continue;
+      const f = item._float;
+      const cycleLen = f.dur * 2;
+      const cyclePos = ((t + f.phase) % cycleLen + cycleLen) % cycleLen;
+      let p = cyclePos < f.dur ? cyclePos / f.dur : 2 - cyclePos / f.dur;
+      p = p * p * (3 - 2 * p);  // smoothstep ease in-out
+      const dx = f.tx * p, dy = f.ty * p, dRot = f.baseRot + f.rotDelta * p;
+      item._span.style.transform = `translateY(-50%) translate(${dx.toFixed(2)}px, ${dy.toFixed(2)}px) rotate(${dRot.toFixed(2)}deg)`;
+      item._floatDx = dx;
+      item._floatDy = dy;
+    }
+
+    // Phase 3: 線端點動態挑 box 邊（兩端都當下最近，避免被 city label 擋）
+    for (let i = 0; i < allLines.length; i++) {
+      updateLineEndpoints(allLines[i]);
+    }
+
+    if (floatRunning) floatRaf = requestAnimationFrame(tickFloat);
+  }
+  floatRaf = requestAnimationFrame(tickFloat);
+
+  function onVisibilityChange() {
+    if (document.hidden) {
+      floatRunning = false;
+      if (floatRaf) { cancelAnimationFrame(floatRaf); floatRaf = null; }
+    } else if (!floatRunning) {
+      floatRunning = true;
+      floatRaf = requestAnimationFrame(tickFloat);
+    }
+  }
+  document.addEventListener('visibilitychange', onVisibilityChange);
+  cleanupFns.push(() => {
+    floatRunning = false;
+    if (floatRaf) cancelAnimationFrame(floatRaf);
+    document.removeEventListener('visibilitychange', onVisibilityChange);
   });
 
-  console.log(`[Atlas] placed ${placedCount} / ${items.length} items (logo ${cw.toFixed(0)}×${ch.toFixed(0)}px)`);
+  // ── Hover 連動 + 細節面板 ────────────────────────────
+  const nameEl = detail.querySelector('[data-atlas-detail-name]');
+  const descEl = detail.querySelector('[data-atlas-detail-desc]');
 
-  // ── 6. Hover 連動 + 細節面板 ─────────────────────────────
-  const itemMap = new Map(items.map(i => [i.id, i]));
-  const labelEl = detail.querySelector('[data-atlas-detail-label]');
-  const nameEl  = detail.querySelector('[data-atlas-detail-name]');
-  const descEl  = detail.querySelector('[data-atlas-detail-desc]');
-
-  function showDetail(item, ids) {
+  function showDetail(item, ids, lineSet) {
     content.classList.add('atlas-dimmed');
-    elementById.forEach((el, id) => {
-      el.classList.toggle('atlas-highlight', ids.has(id));
-    });
-    if (labelEl) labelEl.textContent = `${item.labelEn || ''}${item.labelZh ? ' / ' + item.labelZh : ''}`;
+    items.forEach(i => i._span.classList.toggle('atlas-highlight', ids.has(i.id)));
+    Array.from(svg.children).forEach(line => line.classList.toggle('atlas-line-highlight', lineSet.has(line)));
+
+    // 每次出現都隨機三原色 bg + ±3° 旋轉，文字一律黑（亮三原色底→黑色內容原則）
+    const bg = PRIMARY_COLORS[Math.floor(Math.random() * PRIMARY_COLORS.length)];
+    const rot = (Math.random() * 6 - 3).toFixed(2);
+    detail.style.backgroundColor = bg;
+    detail.style.color = '#000000';
+    detail.style.setProperty('--atlas-detail-rot', `${rot}deg`);
+
     if (nameEl) {
       nameEl.innerHTML = '';
       if (item.textEn) {
@@ -376,22 +694,63 @@ export async function initAtlas() {
         nameEl.appendChild(zh);
       }
     }
-    if (descEl) descEl.textContent = item.detail || '';
+
+    if (descEl) {
+      descEl.innerHTML = '';
+      if (item.category === 'D') {
+        // 城市：desc 改列出所有相關 B/C 項目
+        const related = [...ids]
+          .filter(id => id !== item.id)
+          .map(id => itemMap.get(id))
+          .filter(Boolean);
+        related.forEach(rel => {
+          const row = document.createElement('div');
+          const en = rel.textEn || '';
+          const zh = rel.textZh && rel.textZh !== rel.textEn ? ' / ' + rel.textZh : '';
+          row.textContent = en + zh;
+          descEl.appendChild(row);
+        });
+      } else {
+        descEl.textContent = item.detail || '';
+      }
+    }
+
     detail.classList.add('atlas-detail-visible');
   }
+
   function clearDetail() {
     content.classList.remove('atlas-dimmed');
-    elementById.forEach(el => el.classList.remove('atlas-highlight'));
+    items.forEach(i => i._span.classList.remove('atlas-highlight'));
+    Array.from(svg.children).forEach(line => line.classList.remove('atlas-line-highlight'));
     detail.classList.remove('atlas-detail-visible');
   }
 
-  function onMouseOver(e) {
-    const target = e.target && e.target.closest && e.target.closest('.atlas-name');
-    if (!target) return;
-    const fromName = e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('.atlas-name');
-    if (target === fromName) return;
+  // 城市軌道暫停/恢復（hover 時凍結，移開後從停的位置接續）
+  function pauseCityOrbit(item) {
+    if (!item || !item._orbit || item._orbit.pauseStart != null) return;
+    item._orbit.pauseStart = performance.now() / 1000 - floatStart;
+  }
+  function resumeCityOrbit(item) {
+    if (!item || !item._orbit || item._orbit.pauseStart == null) return;
+    const now = performance.now() / 1000 - floatStart;
+    item._orbit.tOffset += now - item._orbit.pauseStart;
+    item._orbit.pauseStart = null;
+  }
 
-    const id = target.dataset.itemId;
+  function onMouseOver(e) {
+    if (isIntroActive()) return;   // 進場動畫期間不響應 hover
+    const span = e.target && e.target.closest && e.target.closest('.atlas-name');
+    if (!span) return;
+    const fromSpan = e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('.atlas-name');
+    if (span === fromSpan) return;
+
+    // 從前一個 city span 離開時恢復其軌道
+    if (fromSpan) {
+      const prev = itemMap.get(fromSpan.dataset.itemId);
+      if (prev && prev.category === 'D') resumeCityOrbit(prev);
+    }
+
+    const id = span.dataset.itemId;
     const item = itemMap.get(id);
     if (!item) return;
 
@@ -400,13 +759,24 @@ export async function initAtlas() {
       const g = groups.get(gid);
       if (g) g.members.forEach(m => ids.add(m));
     });
-    showDetail(item, ids);
+    itemNeighbors.get(id).forEach(n => ids.add(n));
+
+    const lineSet = new Set(itemLines.get(id) || []);
+    showDetail(item, ids, lineSet);
+
+    // hover 城市時暫停其軌道
+    if (item.category === 'D') pauseCityOrbit(item);
   }
 
   function onMouseOut(e) {
-    const from = e.target && e.target.closest && e.target.closest('.atlas-name');
-    const to   = e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('.atlas-name');
-    if (from && !to) clearDetail();
+    const fromSpan = e.target && e.target.closest && e.target.closest('.atlas-name');
+    const toSpan   = e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('.atlas-name');
+    if (fromSpan && !toSpan) {
+      clearDetail();
+      // 離開 atlas-name 區域，恢復離開的 city 軌道
+      const prev = itemMap.get(fromSpan.dataset.itemId);
+      if (prev && prev.category === 'D') resumeCityOrbit(prev);
+    }
   }
 
   content.addEventListener('mouseover', onMouseOver);
@@ -416,14 +786,31 @@ export async function initAtlas() {
     content.removeEventListener('mouseout',  onMouseOut);
   });
 
-  // ── 7. Wheel zoom（cursor-anchored）─────────────────────
-  let scale = 1, tx = 0, ty = 0;
+  // ── Zoom + Drag pan + Intro tween ────────────────────
+  let scale = SCALE_INTRO_START;
+  let tx = 0, ty = 0;
+  let introTween = null;
 
   function applyTransform() {
     zoomEl.style.transform = `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px)) scale(${scale})`;
   }
+
+  // will-change toggle：互動期間 promote layer 保流暢，idle 後移除讓瀏覽器
+  // re-rasterize 當前 scale → 高 zoom 文字不糊
+  let willChangeIdleTimer = null;
+  function markZoomActive() {
+    zoomEl.style.willChange = 'transform';
+    if (willChangeIdleTimer) clearTimeout(willChangeIdleTimer);
+    willChangeIdleTimer = setTimeout(() => {
+      zoomEl.style.willChange = 'auto';
+      willChangeIdleTimer = null;
+    }, 250);
+  }
+  cleanupFns.push(() => {
+    if (willChangeIdleTimer) clearTimeout(willChangeIdleTimer);
+    zoomEl.style.willChange = '';
+  });
   function clampOffsets() {
-    if (scale <= MIN_SCALE + 0.0001) { tx = 0; ty = 0; return; }
     const baseW = content.offsetWidth;
     const baseH = content.offsetHeight;
     const stageW = stage.clientWidth;
@@ -433,11 +820,38 @@ export async function initAtlas() {
     tx = Math.max(-maxX, Math.min(maxX, tx));
     ty = Math.max(-maxY, Math.min(maxY, ty));
   }
+  function isIntroActive() {
+    return introTween && introTween.isActive && introTween.isActive();
+  }
+
+  applyTransform();
+
+  if (typeof gsap !== 'undefined') {
+    introTween = gsap.to({ v: SCALE_INTRO_START }, {
+      v: SCALE_DEFAULT,
+      duration: INTRO_DURATION,
+      ease: 'sine.inOut',
+      onUpdate: function() {
+        scale = this.targets()[0].v;
+        applyTransform();
+      },
+    });
+    cleanupFns.push(() => introTween && introTween.kill());
+  } else {
+    scale = SCALE_DEFAULT;
+    applyTransform();
+  }
+
   function onWheel(e) {
     e.preventDefault();
+    if (isIntroActive()) {
+      introTween.kill();
+      scale = Math.max(MIN_SCALE, scale);
+      applyTransform();
+    }
     const rect = stage.getBoundingClientRect();
-    const cx = e.clientX - rect.left - rect.width  / 2;
-    const cy = e.clientY - rect.top  - rect.height / 2;
+    const px = e.clientX - rect.left - rect.width  / 2;
+    const py = e.clientY - rect.top  - rect.height / 2;
 
     const oldScale = scale;
     const factor = Math.exp(-e.deltaY * ZOOM_SPEED);
@@ -446,31 +860,30 @@ export async function initAtlas() {
     if (newScale === oldScale) return;
 
     const realFactor = newScale / oldScale;
-    tx = cx - (cx - tx) * realFactor;
-    ty = cy - (cy - ty) * realFactor;
+    tx = px - (px - tx) * realFactor;
+    ty = py - (py - ty) * realFactor;
     scale = newScale;
     clampOffsets();
     applyTransform();
+    markZoomActive();
   }
-
-  applyTransform();
   stage.addEventListener('wheel', onWheel, { passive: false });
   cleanupFns.push(() => stage.removeEventListener('wheel', onWheel));
 
-  // ── 7b. Drag pan（zoom 後可拖動畫面）─────────────────────
   let dragging = false;
-  let dragStartX = 0, dragStartY = 0;
-  let dragStartTx = 0, dragStartTy = 0;
-
+  let dragStartX = 0, dragStartY = 0, dragStartTx = 0, dragStartTy = 0;
   function onMouseDown(e) {
-    if (e.button !== 0) return;        // 只處理左鍵
+    if (e.button !== 0) return;
+    if (isIntroActive()) {
+      introTween.kill();
+      scale = Math.max(MIN_SCALE, scale);
+      applyTransform();
+    }
     dragging = true;
-    dragStartX = e.clientX;
-    dragStartY = e.clientY;
-    dragStartTx = tx;
-    dragStartTy = ty;
-    document.body.style.cursor = 'grabbing';   // 拖動時 cursor 改手掌（握）
-    e.preventDefault();                        // 避免 drag-select 文字
+    dragStartX = e.clientX; dragStartY = e.clientY;
+    dragStartTx = tx; dragStartTy = ty;
+    document.body.style.cursor = 'grabbing';
+    e.preventDefault();
   }
   function onMouseMove(e) {
     if (!dragging) return;
@@ -478,13 +891,13 @@ export async function initAtlas() {
     ty = dragStartTy + (e.clientY - dragStartY);
     clampOffsets();
     applyTransform();
+    markZoomActive();
   }
   function onMouseUp() {
     if (!dragging) return;
     dragging = false;
-    document.body.style.cursor = '';   // 還原預設 cursor
+    document.body.style.cursor = '';
   }
-
   stage.addEventListener('mousedown', onMouseDown);
   window.addEventListener('mousemove', onMouseMove);
   window.addEventListener('mouseup',   onMouseUp);
@@ -492,26 +905,236 @@ export async function initAtlas() {
     stage.removeEventListener('mousedown', onMouseDown);
     window.removeEventListener('mousemove', onMouseMove);
     window.removeEventListener('mouseup',   onMouseUp);
-    document.body.style.cursor = '';   // SPA 換頁時若還在拖動，還原 cursor
+    document.body.style.cursor = '';
   });
 
   function onResize() { clampOffsets(); applyTransform(); }
   window.addEventListener('resize', onResize);
   cleanupFns.push(() => window.removeEventListener('resize', onResize));
 
-  // ── 8. 整體 logo 呼吸動畫 ─────────────────────────────
-  if (typeof gsap !== 'undefined') {
-    gsap.killTweensOf(content);
-    const breath = gsap.to(content, {
-      scale: 1.012,
-      duration: 4.5,
-      yoyo: true,
-      repeat: -1,
-      ease: 'sine.inOut',
-      transformOrigin: '50% 50%',
-    });
-    cleanupFns.push(() => breath.kill());
+  // ── 左下角 Filter（Faculty / Alumni Career / Partners）─────
+  initAtlasFilter(items);
+}
+
+// ── Filter ─────────────────────────────────────────────
+// Faculty  = fc + ff（在職 + 離職教師）
+// Alumni   = co（系友任職企業）
+// Partners = wsg + ind + lec（工作營 / 產學合作 / 講座講者）
+// 城市 (D) 永遠可見，作為空間參考。
+const FILTER_PREFIXES = {
+  faculty:  ['fc', 'ff'],
+  alumni:   ['co'],
+  partners: ['wsg', 'ind', 'lec'],
+};
+
+function initAtlasFilter(items) {
+  const btns = [...document.querySelectorAll('.atlas-filter-btn')];
+  if (btns.length === 0) return;
+
+  // 預設 3 個皆選中（全部 active）；至少保留 1 個，最多可點掉 2 個
+  const selected = new Set(btns.map(b => b.dataset.filter));
+
+  // hover 隨機旋轉；click 沿用當下旋轉角度（mouseleave 時，inactive btn 才歸零）
+  function randDeg() {
+    return (typeof SCCDHelpers !== 'undefined' && SCCDHelpers.getRandomRotation)
+      ? SCCDHelpers.getRandomRotation()
+      : (Math.round(Math.random() * 10) - 4) || 3;
   }
+
+  // 預設 active 的 btn 給一個初始隨機角度（視為「已被 click 捕捉」的狀態）
+  btns.forEach(b => {
+    const inner = b.querySelector('.anchor-nav-inner');
+    if (!inner) return;
+    if (selected.has(b.dataset.filter)) {
+      inner.style.transform = `rotate(${randDeg()}deg)`;
+    }
+  });
+
+  function apply() {
+    const allowed = new Set();
+    selected.forEach(k => (FILTER_PREFIXES[k] || []).forEach(p => allowed.add(p)));
+    items.forEach(item => {
+      if (!item._anchor) return;
+      // D 城市永遠可見
+      if (item.category === 'D') {
+        item._anchor.classList.remove('atlas-filtered-out');
+        return;
+      }
+      const prefix = String(item.id).split('-')[0];
+      const visible = allowed.has(prefix);
+      item._anchor.classList.toggle('atlas-filtered-out', !visible);
+      // 連帶把該 item 端點的線一起隱藏（避免線飛向消失節點）
+      if (item._lineEndpoints) {
+        item._lineEndpoints.forEach(le => {
+          le.line.style.display = visible ? '' : 'none';
+        });
+      }
+    });
+    btns.forEach(b => {
+      b.classList.toggle('active', selected.has(b.dataset.filter));
+    });
+  }
+
+  btns.forEach(btn => {
+    const inner = btn.querySelector('.anchor-nav-inner');
+
+    btn.addEventListener('mouseenter', () => {
+      if (!inner) return;
+      // 已是 active 不再 hover 旋轉（角度已被 click 鎖定）
+      if (btn.classList.contains('active')) return;
+      inner.style.transform = `rotate(${randDeg()}deg)`;
+    });
+
+    btn.addEventListener('click', () => {
+      const k = btn.dataset.filter;
+      if (selected.has(k)) {
+        // 至少保留 1 個
+        if (selected.size <= 1) return;
+        selected.delete(k);
+      } else {
+        selected.add(k);
+      }
+      apply();
+    });
+  });
+
+  apply();
+}
+
+// ── Layout ─────────────────────────────────────────────
+
+function layoutItems(items, W, H, srand) {
+  const cx = W / 2, cy = H / 2;
+  const minDim = Math.min(W, H);
+
+  // 1. D 城市散佈：完全 chaotic（無圓心避讓），只看邊距 + 彼此最小距離
+  const cities = items.filter(i => i.category === 'D');
+  const placedCities = [];
+  cities.forEach(city => {
+    let placed = false;
+    for (let attempt = 0; attempt < 200; attempt++) {
+      const x = CITY_EDGE_PAD + srand() * (W - CITY_EDGE_PAD * 2);
+      const y = CITY_EDGE_PAD + srand() * (H - CITY_EDGE_PAD * 2);
+      let collides = false;
+      // 城市必須在外層 ring（最小距中心半徑 = CITY_DIST_FROM_CENTER_MIN_FRAC * minDim）
+      const dxC = x - cx, dyC = y - cy;
+      if (Math.sqrt(dxC*dxC + dyC*dyC) < CITY_DIST_FROM_CENTER_MIN_FRAC * minDim) continue;
+      for (const c of placedCities) {
+        const dx = x - c.x, dy = y - c.y;
+        if (Math.sqrt(dx*dx + dy*dy) < CITY_MIN_SPACING) { collides = true; break; }
+      }
+      if (collides) continue;
+      city.x = x; city.y = y;
+      placedCities.push(city);
+      placed = true; break;
+    }
+    if (!placed) {
+      city.x = CITY_EDGE_PAD + srand() * (W - CITY_EDGE_PAD * 2);
+      city.y = CITY_EDGE_PAD + srand() * (H - CITY_EDGE_PAD * 2);
+    }
+  });
+
+  const cityByKey = new Map(cities.map(c => [c.cityKey, c]));
+
+  // 2. B/C 機構：在中環 annulus → 橢圓化（x 軸 × LAYOUT_ASPECT_X）填補 wide viewport 左右
+  items.filter(i => i.category === 'B' || i.category === 'C').forEach(item => {
+    const angle = srand() * Math.PI * 2;
+    const rIn2 = BC_RING_INNER * BC_RING_INNER;
+    const rOut2 = BC_RING_OUTER * BC_RING_OUTER;
+    const r = Math.sqrt(rIn2 + srand() * (rOut2 - rIn2));
+    item.x = cx + Math.cos(angle) * r * LAYOUT_ASPECT_X;
+    item.y = cy + Math.sin(angle) * r;
+  });
+
+  // 3. A 老師：中心 disc → 橢圓化（x 軸 × LAYOUT_ASPECT_X）
+  items.filter(i => i.category === 'A').forEach(item => {
+    const angle = srand() * Math.PI * 2;
+    const r = Math.sqrt(srand()) * A_INNER_RADIUS;
+    item.x = cx + Math.cos(angle) * r * LAYOUT_ASPECT_X;
+    item.y = cy + Math.sin(angle) * r;
+  });
+
+  // 3b. A 不可出現在任何 D 城市附近（A 沒有 cityKey 關係，避免誤導視覺）
+  const cityList = cities;
+  items.filter(i => i.category === 'A').forEach(item => {
+    for (let pass = 0; pass < 4; pass++) {
+      let pushed = false;
+      for (const c of cityList) {
+        const dx = item.x - c.x, dy = item.y - c.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < A_FROM_CITY_MIN) {
+          if (dist < 0.001) {
+            const a = srand() * Math.PI * 2;
+            item.x = c.x + Math.cos(a) * A_FROM_CITY_MIN;
+            item.y = c.y + Math.sin(a) * A_FROM_CITY_MIN;
+          } else {
+            item.x = c.x + (dx / dist) * A_FROM_CITY_MIN;
+            item.y = c.y + (dy / dist) * A_FROM_CITY_MIN;
+          }
+          pushed = true;
+        }
+      }
+      if (!pushed) break;
+    }
+  });
+
+  // 4. 碰撞鬆弛 — **同層內才互推**（A-A、BC-BC），跨層不推
+  //    避免 A disc 外緣與 BC ring 內緣相互擠壓產生 boundary 波形（S 形分離的根因）
+  function sameRing(a, b) {
+    if (a.category === 'D' || b.category === 'D') return false;
+    const aIsA = a.category === 'A';
+    const bIsA = b.category === 'A';
+    return aIsA === bIsA;  // 同 A 或同 BC 才算同 ring
+  }
+  for (let iter = 0; iter < RELAX_ITERATIONS; iter++) {
+    for (let i = 0; i < items.length; i++) {
+      for (let j = i + 1; j < items.length; j++) {
+        const a = items[i], b = items[j];
+        if (!sameRing(a, b)) continue;
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const dist = Math.sqrt(dx*dx + dy*dy) || 0.0001;
+        if (dist < ITEM_MIN_SPACING) {
+          const push = (ITEM_MIN_SPACING - dist) * 0.5;
+          const px = (dx/dist) * push;
+          const py = (dy/dist) * push;
+          a.x -= px; a.y -= py;
+          b.x += px; b.y += py;
+        }
+      }
+    }
+    items.forEach(it => {
+      if (it.category === 'D') return;
+      const pad = 30;
+      it.x = Math.max(pad, Math.min(W - pad, it.x));
+      it.y = Math.max(pad, Math.min(H - pad, it.y));
+    });
+  }
+
+  // 5. 鬆弛後再 enforce 一次 A_FROM_CITY_MIN（relaxation 可能把 A 推進城市圈）
+  items.filter(i => i.category === 'A').forEach(item => {
+    for (let pass = 0; pass < 3; pass++) {
+      let pushed = false;
+      for (const c of cities) {
+        const dx = item.x - c.x, dy = item.y - c.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < A_FROM_CITY_MIN) {
+          if (dist < 0.001) {
+            const a = Math.random() * Math.PI * 2;
+            item.x = c.x + Math.cos(a) * A_FROM_CITY_MIN;
+            item.y = c.y + Math.sin(a) * A_FROM_CITY_MIN;
+          } else {
+            item.x = c.x + (dx / dist) * A_FROM_CITY_MIN;
+            item.y = c.y + (dy / dist) * A_FROM_CITY_MIN;
+          }
+          pushed = true;
+        }
+      }
+      if (!pushed) break;
+    }
+    const pad = 30;
+    item.x = Math.max(pad, Math.min(W - pad, item.x));
+    item.y = Math.max(pad, Math.min(H - pad, item.y));
+  });
 }
 
 // ── Helpers ────────────────────────────────────────────
@@ -525,74 +1148,30 @@ function fetchJson(rel) {
   }).catch(e => { console.warn('[Atlas]', e.message); return null; });
 }
 
-function loadImage(src) {
-  return new Promise((res, rej) => {
-    const im = new Image();
-    im.onload = () => res(im);
-    im.onerror = rej;
-    im.src = src;
-  });
+function mulberry32(seed) {
+  return function() {
+    seed = (seed + 0x6D2B79F5) | 0;
+    let t = seed;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }
 
-function rand(a, b) { return a + Math.random() * (b - a); }
-
-function shuffle(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
-
-function findValidPixel(data, W, H, alphaThreshold) {
-  for (let attempt = 0; attempt < 60; attempt++) {
-    const x = Math.floor(Math.random() * W);
-    const y = Math.floor(Math.random() * H);
-    const i = (y * W + x) * 4;
-    if (data[i + 3] > alphaThreshold) {
-      return { x, y, r: data[i], g: data[i + 1], b: data[i + 2] };
-    }
-  }
-  return null;
-}
-
-// 用「主導通道」分類，比 RGB 距離更可靠地把粉色撈出來
-function classifyColor(r, g, b) {
-  const max = Math.max(r, g, b);
-  if (max < 70) return PALETTE.black;            // 暗 → 黑
-  if (r >= g && r >= b) return PALETTE.pink;     // R 主導 → 粉
-  if (g >= b)           return PALETTE.green;    // G 主導 → 綠
-  return PALETTE.blue;                            // B 主導 → 藍
-}
-
-function anyOverlap(rect, placed) {
-  for (let i = 0; i < placed.length; i++) {
-    const p = placed[i];
-    if (rect.x < p.x + p.w && rect.x + rect.w > p.x &&
-        rect.y < p.y + p.h && rect.y + rect.h > p.y) {
-      return true;
-    }
-  }
-  return false;
-}
-
-function isShort(en, zh) {
-  const enLen = (en || '').length;
-  const zhLen = (zh || '').length;
-  if (!en || !zh) return true;             // 只有一語 → 自然單行
-  return enLen <= SHORT_EN_LIMIT && zhLen <= SHORT_ZH_LIMIT;
+function countByCategory(items) {
+  const c = { A: 0, B: 0, C: 0, D: 0 };
+  items.forEach(i => { c[i.category]++; });
+  return `A:${c.A} B:${c.B} C:${c.C} D:${c.D}`;
 }
 
 function parseCities(ws) {
   const out = [];
-  // 1. 優先 cityEn / cityZh（單城市）
   if (ws.cityEn || ws.cityZh) {
     const en = (ws.cityEn || '').trim();
     const zh = (ws.cityZh || '').trim();
     if (en || zh) out.push({ en, zh });
     return out;
   }
-  // 2. 由 location / location_zh 並列拆解（"/" 分隔多城市，", " 取首段為 city）
   const partsEn = (ws.location    || '').split('/').map(s => s.trim().split(',')[0].trim());
   const partsZh = (ws.location_zh || '').split('/').map(s => s.trim().split(',')[0].trim());
   const n = Math.max(partsEn.length, partsZh.length);

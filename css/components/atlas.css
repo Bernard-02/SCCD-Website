@@ -1,6 +1,6 @@
 /* ========================================
    Atlas Page
-   滿版單屏字雲 — 名稱組合成 SCCD logo 形狀
+   SCCD-centered Living Textile：純文字節點 + 連線網絡
    ======================================== */
 
 #atlas-main {
@@ -12,17 +12,12 @@
   z-index: 0;
 }
 
-#atlas-mask-canvas {
-  display: none;
-}
-
 #atlas-stage {
   position: absolute;
-  top: var(--header-height, 80px); /* 從 header 下方開始，避免 logo 頂到 about bar */
+  top: var(--header-height, 80px);
   left: 0;
   right: 0;
   bottom: 0;
-  /* 不改 cursor — 用瀏覽器預設 */
 }
 
 #atlas-zoom {
@@ -31,86 +26,115 @@
   left: 50%;
   transform: translate(-50%, -50%) scale(1);
   transform-origin: center center;
-  will-change: transform;
+  width: 100%;
+  height: 100%;
+  /* will-change 由 atlas.js 在 wheel/drag 期間動態加上，idle 後移除 — 避免
+     固定 will-change 把 layer 鎖在初始 scale 的 rasterize bitmap，zoom 後文字糊掉 */
 }
 
 #atlas-content {
   position: relative;
-  width: 90vh;
-  height: 90vh;
-  will-change: transform;
+  width: 100%;
+  height: 100%;
 }
 
-/* ── 名稱單元 ─────────────────────────────────────── */
+/* ── SVG 線層 ─────────────────────────────────────── */
+.atlas-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 0;
+}
+
+/* baseline：用 pathLength="1"（在 JS 端設）+ stroke-dasharray:1 + stroke-dashoffset:1
+   做動態端點的 "draw" 動畫；pathLength 把 path 長度標準化為 1，移動端點不影響 dash 計算
+   d 是 "M source L city"，dashoffset 1→0 會從 source 端延伸到 city 端：
+     - hover 非城市 → 線從 item 延伸到城市
+     - hover 城市   → 各 source 同時匯聚到該城市 */
+.atlas-line {
+  opacity: 0;
+  stroke-width: 0.7;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              stroke-width 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+              stroke-dashoffset 0.6s cubic-bezier(0.25, 0, 0.2, 1);
+  vector-effect: non-scaling-stroke;
+}
+
+.atlas-line.atlas-line-highlight {
+  opacity: 1;
+  stroke-width: 1.4;
+  stroke-dashoffset: 0;
+}
+
+/* ── 節點：純 label，沒有 dot 圈圈 ─────────────────── */
 .atlas-anchor {
   position: absolute;
-  transform: translate(-50%, -50%);
   pointer-events: none;
+  z-index: 1;
 }
 
+/* 預設：label 在 line 端點的右側（line 接到字的起點）
+   side-left：label 在 line 端點的左側（line 接到字的終點） */
 .atlas-name {
+  position: absolute;
+  left: 0;
+  top: 0;
   display: inline-flex;
   flex-direction: column;
   align-items: flex-start;
   pointer-events: auto;
   font-family: var(--font-en, 'Inter'), var(--font-zh, 'Noto Sans TC'), system-ui, sans-serif;
-  font-size: 9px;
-  font-weight: 700;
-  line-height: 1.2;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.25;
   letter-spacing: 0.01em;
+  /* 高 zoom 下文字銳利化 hint */
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   user-select: none;
-  max-width: 140px;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  width: max-content;
+  max-width: 170px;
   text-align: left;
+  cursor: default;
   transition: opacity 0.3s ease;
-  animation: atlas-float var(--dur, 6s) ease-in-out infinite alternate;
-  transform-origin: center center;
-}
+  /* floating 改由 atlas.js rAF 直接設 inline transform，line 端點同步移動 */
 
-/* 短的（雙語都短或只有單語）→ 一行排：EN、ZH 並排 */
-.atlas-name.atlas-name-compact {
-  flex-direction: row;
-  flex-wrap: nowrap;
-  gap: 0.5em;
-  align-items: baseline;
-  max-width: none;
+  /* 預設 translateY(-50%) 讓 box 垂直中心對齊 anchor.top（item.y）— 與 computeBoxAt
+     的 box 中心假設一致。非 D items 的 inline transform 也會帶 translateY(-50%) 覆蓋；
+     D 城市無 inline transform，靠這條 CSS 預設套上，否則 box 會比 visible 高 h/2。 */
+  transform: translateY(-50%);
 }
 
 .atlas-name-en,
 .atlas-name-zh {
   display: block;
-  white-space: normal;
-  word-break: keep-all;
-  overflow-wrap: anywhere;
 }
 
-.atlas-name.atlas-name-compact .atlas-name-en,
-.atlas-name.atlas-name-compact .atlas-name-zh {
-  white-space: nowrap;
+/* side-left：label 改放 line 端點的左側，文字仍靠左對齊（align-items: flex-start 預設） */
+.atlas-anchor.atlas-side-left .atlas-name {
+  left: auto;
+  right: 0;
 }
 
-@keyframes atlas-float {
-  0% {
-    transform: translate(0, 0) rotate(var(--base-rot, 0deg));
-  }
-  100% {
-    transform: translate(var(--tx, 0px), var(--ty, 0px))
-               rotate(calc(var(--base-rot, 0deg) + var(--rot-delta, 0deg)));
-  }
-}
+/* label 顏色由 atlas.js 設成 inline（依 group 配色 / 三原色 random / D 黑色），CSS 只管 D 字重 */
+.atlas-cat-d .atlas-name { font-weight: 700; }
 
-/* 黑色名稱（落在 logo 中央黑圓內）：inverse 模式下底是黑色，黑字看不見，反轉成白 */
-body.mode-inverse #atlas-content .atlas-name--dark {
-  color: #ffffff !important;
-}
-
+/* Hover 連動 */
 #atlas-content.atlas-dimmed .atlas-name {
   opacity: 0.12;
 }
-
 #atlas-content.atlas-dimmed .atlas-name.atlas-highlight {
   opacity: 1;
   z-index: 10;
-  /* 不加 glow — 純 opacity 切換 */
 }
 
 /* ── 右下角細節面板 ─────────────────────────────── */
@@ -120,35 +144,30 @@ body.mode-inverse #atlas-content .atlas-name--dark {
   bottom: 32px;
   max-width: 380px;
   min-width: 240px;
-  padding: 18px 22px 20px;
+  /* padding 仿 about/overview 的 vision highlight：左右收窄到貼近字（約 0.6em） */
+  padding: 12px 14px;
+  max-height: 70vh;
+  overflow: hidden;
+  /* bg / color 由 atlas.js 在 showDetail 設成 inline 三原色 + 黑字（每次隨機） */
   background: var(--theme-bg, #ffffff);
   color: var(--theme-fg, #000000);
-  border: 1px solid var(--theme-fg, #000000);
   pointer-events: none;
   opacity: 0;
-  transform: translateY(8px);
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  transform: translateY(8px) rotate(var(--atlas-detail-rot, 0deg));
+  transform-origin: center center;
+  transition: opacity 0.3s ease, transform 0.3s ease, background-color 0.3s ease;
   z-index: 100;
 }
 
 #atlas-detail.atlas-detail-visible {
   opacity: 1;
-  transform: translateY(0);
-}
-
-.atlas-detail-label {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  margin-bottom: 8px;
-  opacity: 0.65;
+  transform: translateY(0) rotate(var(--atlas-detail-rot, 0deg));
 }
 
 .atlas-detail-name {
-  font-size: 22px;
+  font-size: 16px;
   font-weight: 700;
-  line-height: 1.25;
+  line-height: 1.35;
   margin-bottom: 10px;
   word-break: break-word;
 }
@@ -165,39 +184,85 @@ body.mode-inverse #atlas-content .atlas-name--dark {
   line-height: 1.55;
 }
 
-/* ── 左下角操作提示 ─────────────────────────────── */
-#atlas-hint {
+/* ── 左下角 Filter（仿 activities-section-btn 樣式：anchor-nav-inner chip）─────── */
+#atlas-filter {
   position: fixed;
   left: 32px;
   bottom: 32px;
-  font-size: 11px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--theme-fg, #000000);
-  opacity: 0.5;
-  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.7rem;
   z-index: 50;
 }
 
-/* 手機版 */
-@media (max-width: 767px) {
-  #atlas-content {
-    width: 92vmin;
-    height: 92vmin;
+.atlas-filter-btn {
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: var(--font-size-p3);
+  text-align: left;
+  transition: opacity 0.2s ease;
+}
+
+.atlas-filter-btn .anchor-nav-inner {
+  display: inline-flex;
+  background: transparent;
+  color: rgba(0, 0, 0, 0.5);
+  padding: 6px 8px 5px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (min-width: 768px) {
+  .atlas-filter-btn:not(.active):hover .anchor-nav-inner {
+    color: rgba(0, 0, 0, 1);
   }
+}
+
+/* Active 狀態：黑底白字 */
+.atlas-filter-btn.active .anchor-nav-inner {
+  background: black;
+  color: white;
+}
+
+/* 被 filter 過濾掉的 anchor */
+.atlas-anchor.atlas-filtered-out {
+  display: none;
+}
+
+/* ── Inverse mode ───────── */
+body.mode-inverse .atlas-cat-d .atlas-name {
+  color: #ffffff !important;
+}
+
+body.mode-inverse .atlas-filter-btn:not(.active) .anchor-nav-inner {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+@media (min-width: 768px) {
+  body.mode-inverse .atlas-filter-btn:not(.active):hover .anchor-nav-inner {
+    color: rgba(255, 255, 255, 1);
+  }
+}
+
+/* ── 手機版 ──────────────────────────────────────── */
+@media (max-width: 767px) {
   .atlas-name {
-    font-size: 11px;
-    max-width: 180px;
+    font-size: 10px;
+    max-width: 150px;
   }
   #atlas-detail {
     right: 16px;
     bottom: 16px;
     left: 16px;
     max-width: none;
-    padding: 14px 16px 16px;
+    padding: 10px 12px;
   }
   .atlas-detail-name {
-    font-size: 18px;
+    font-size: 14px;
   }
   .atlas-detail-name .atlas-detail-name-zh {
     font-size: 14px;
@@ -205,9 +270,12 @@ body.mode-inverse #atlas-content .atlas-name--dark {
   .atlas-detail-desc {
     font-size: 13px;
   }
-  #atlas-hint {
+  #atlas-filter {
     left: 16px;
     bottom: 16px;
-    font-size: 10px;
+    gap: 0.5rem;
+  }
+  .atlas-filter-btn {
+    font-size: 12px;
   }
 }

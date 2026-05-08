@@ -109,6 +109,14 @@
   --theme-bg: var(--color-white);
   --theme-fg-rgb: 0, 0, 0;
   --theme-bg-rgb: 255, 255, 255;
+  /* ===== Library 主矩形（#library-card-content）色彩 token =====
+   * 預設 standard：淺灰底（#f2f2f2）+ 黑字
+   * inverse mode 在 themes/inverse.css 蓋成深灰底（#434343）+ 白字
+   * --lib-fg-rgb 是 RGB 三元組，給半透明文字 rgba(var(--lib-fg-rgb), X) 用
+   */
+  --lib-bg: #f2f2f2;
+  --lib-fg: #000000;
+  --lib-fg-rgb: 0, 0, 0;
 }
 
 /* ===== 手機版響應式設計 (Desktop-First) ===== */
@@ -338,14 +346,52 @@
   text-decoration: none;
 }
 
-/* ===== Admission Detail Entrance Reveal ===== */
+/* ===== Admission（採 list-item 結構共用 list-accordion）===== */
 
-/* date / title / body 預設 opacity 0（避免 GSAP 介入前閃現），data 載入完成後由 JS 從下到上 stagger 進場 */
+/* admission 直接用 list-item / list-header / list-content classes（與 activities 共享 accordion）：
+ *  - hover 隨機色、click 展開、active title padding-left 右移
+ *  - --item-color-deep 由 list-accordion 自動 set，attachments（用 list-ref-btn class）跟著拿到底色
+ * admission 限定：
+ *  - rich HTML content 的 <p> 排版用 .admission-body 控
+ *  - sticky title（活用 list-header）只在 admission 頁啟用，scope 到 #admission-content-section
+ *    避免影響 activities 同 class 的 list-header */
 
-#admission-date,
-#admission-title,
-#admission-body {
-  opacity: 0;
+.admission-body p {
+  margin: 0;
+  font-size: var(--font-size-p2);
+  line-height: var(--line-height-base);
+}
+
+/* Tailwind .list-item utility 是 display:list-item，預設會 render disc marker
+ * activities 用 overflow-hidden 順便藏掉 marker；admission 為 sticky 不能 overflow-hidden
+ * 防禦性：.list-item 全站去 marker，避免依賴 overflow 副作用 */
+
+.list-item {
+  list-style: none;
+}
+
+/* 桌面版：list-header sticky 只在 .active（展開）狀態啟用 — 滑動長內文時使用者看到當前條目標題。
+ * - inactive 條目（收合）：不 sticky，header 隨自然 flow 走；user 滑過下方未展開條目時不會誤 sticky
+ * - active 條目（展開）：sticky 在 cut line 為止；自然 top 在 cut line 下方 → CSS sticky 不 engage（停留自然位置）
+ * 預設 top:200px（對齊全站左欄 nav 與遮罩底邊，admission 場景）；
+ * activities 等有 filter-bar 的頁面 JS 計算後設 --list-header-sticky-top 蓋過（避免蓋住 filter bar）。 */
+
+@media (min-width: 768px) {
+  .list-header.active {
+    position: sticky;
+    top: var(--list-header-sticky-top, 200px);
+    z-index: 5;
+  }
+
+  /* Sticky paint seam fix（往下 scroll 看到的 1-2px image 細綫）：
+   * sticky list-header 與相鄰 .list-content 即使 layout 上緊貼，paint 邊界在
+   * device pixel 上 round 不一致仍會留 1-2px 縫；image 在縫底下直接露出。
+   * 用 padding-top 4px 同色 buffer：list-item 父層 bg accent 色透過 list-content
+   * 透明 padding 區露出，把 image 往下推 4px，縫底下見到的是 accent bg 而非 image。 */
+
+  .list-header.active + .list-content {
+    padding-top: 4px;
+  }
 }
 
 /* ===== Activities Search Bar ===== */
@@ -481,14 +527,44 @@
     transform: scaleX(0);
   }
 
+  /* active 時 title 往右推一格 spacing-md - 4px。
+   * 用 transform translateX 不用 padding-left — padding-left 會收縮 content area
+   * 觸發換行→list-header 變高（=> 視覺上 title「往下偏移」bug）；transform 純視覺位移
+   * 不影響 layout flow，安全。
+   * 全站共用：admission / activities / summer camp 等所有用 .list-header 的場景一致。 */
+
   .list-header > div:first-child {
     padding-left: 0;
-    transition: padding-left 0.3s ease;
+    transition: transform 0.3s ease;
   }
 
   .list-header.active > div:first-child {
-    padding-left: calc(var(--spacing-md) - 4px);
+    transform: translateX(calc(var(--spacing-md) - 4px));
   }
+}
+
+/* ===== Activities Reference Chip ===== */
+
+/* list-ref-btn 為 list-content 內 ref 元素：
+ *  - 整條從 list-content 左到右，無 px padding（py-sm 縮小上下）
+ *  - header / content 為 100% accent；ref 用對應 deep 色（pink #f52d78 / green #23eb7d / blue #23a5ff）
+ *    --item-color / --item-color-deep 由 list-accordion.js 在 list-item open/close 時 set/remove
+ *  - 文字一律黑色（不被 inverse mode 反白：用 component class color，避開 .text-black utility）
+ *  - hover 翻黑底白字（!important 蓋過 inline accent 與 .text-* utility 子元素色）*/
+
+.list-ref-btn {
+  color: black;
+  background: var(--item-color-deep, transparent);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.list-ref-btn:hover {
+  background: black !important;
+  color: white !important;
+}
+
+.list-ref-btn:hover * {
+  color: white !important;
 }
 
 /* ===== Workshop Title Marquee (Desktop only) ===== */
@@ -583,6 +659,327 @@
  * 網站進場動畫樣式
  */
 
+/**
+ * Courses Page Components
+ * Inline grid layout（學期 × 必修/選修 × 年級）+ 右側 25% sticky desc panel
+ *
+ * Layout（桌面）：
+ *   ┌────────── flex row ─────────────────────┐
+ *   │ Left 75%                  │ Right 25%   │
+ *   │ ┌─ program btn bar ─┐     │             │
+ *   │ │ (對齊年級第一欄)   │     │             │
+ *   │ ├─ courses-grid ────┤     │ desc panel  │
+ *   │ │  sem | type | yr*N│     │ (sticky 底) │
+ *   │ └───────────────────┘     │             │
+ *   └─────────────────────────────────────────┘
+ */
+
+/* ========================================
+   Atlas Page
+   SCCD-centered Living Textile：純文字節點 + 連線網絡
+   ======================================== */
+
+#atlas-main {
+  position: fixed;
+  inset: 0;
+  background: var(--theme-bg, #ffffff);
+  color: var(--theme-fg, #000000);
+  overflow: hidden;
+  z-index: 0;
+}
+
+#atlas-stage {
+  position: absolute;
+  top: var(--header-height, 80px);
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+#atlas-zoom {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(1);
+  transform-origin: center center;
+  width: 100%;
+  height: 100%;
+  /* will-change 由 atlas.js 在 wheel/drag 期間動態加上，idle 後移除 — 避免
+     固定 will-change 把 layer 鎖在初始 scale 的 rasterize bitmap，zoom 後文字糊掉 */
+}
+
+#atlas-content {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* ── SVG 線層 ─────────────────────────────────────── */
+
+.atlas-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 0;
+}
+
+/* baseline：用 pathLength="1"（在 JS 端設）+ stroke-dasharray:1 + stroke-dashoffset:1
+   做動態端點的 "draw" 動畫；pathLength 把 path 長度標準化為 1，移動端點不影響 dash 計算
+   d 是 "M source L city"，dashoffset 1→0 會從 source 端延伸到 city 端：
+     - hover 非城市 → 線從 item 延伸到城市
+     - hover 城市   → 各 source 同時匯聚到該城市 */
+
+.atlas-line {
+  opacity: 0;
+  stroke-width: 0.7;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              stroke-width 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+              stroke-dashoffset 0.6s cubic-bezier(0.25, 0, 0.2, 1);
+  vector-effect: non-scaling-stroke;
+}
+
+.atlas-line.atlas-line-highlight {
+  opacity: 1;
+  stroke-width: 1.4;
+  stroke-dashoffset: 0;
+}
+
+/* ── 節點：純 label，沒有 dot 圈圈 ─────────────────── */
+
+.atlas-anchor {
+  position: absolute;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* 預設：label 在 line 端點的右側（line 接到字的起點）
+   side-left：label 在 line 端點的左側（line 接到字的終點） */
+
+.atlas-name {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  pointer-events: auto;
+  font-family: var(--font-en, 'Inter'), var(--font-zh, 'Noto Sans TC'), system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: 0.01em;
+  /* 高 zoom 下文字銳利化 hint */
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-user-select: none;
+     -moz-user-select: none;
+          user-select: none;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  width: -moz-max-content;
+  width: max-content;
+  max-width: 170px;
+  text-align: left;
+  cursor: default;
+  transition: opacity 0.3s ease;
+  /* floating 改由 atlas.js rAF 直接設 inline transform，line 端點同步移動 */
+  /* 預設 translateY(-50%) 讓 box 垂直中心對齊 anchor.top（item.y）— 與 computeBoxAt
+     的 box 中心假設一致。非 D items 的 inline transform 也會帶 translateY(-50%) 覆蓋；
+     D 城市無 inline transform，靠這條 CSS 預設套上，否則 box 會比 visible 高 h/2。 */
+  transform: translateY(-50%);
+}
+
+.atlas-name-en,
+.atlas-name-zh {
+  display: block;
+}
+
+/* side-left：label 改放 line 端點的左側，文字仍靠左對齊（align-items: flex-start 預設） */
+
+.atlas-anchor.atlas-side-left .atlas-name {
+  left: auto;
+  right: 0;
+}
+
+/* label 顏色由 atlas.js 設成 inline（依 group 配色 / 三原色 random / D 黑色），CSS 只管 D 字重 */
+
+.atlas-cat-d .atlas-name {
+  font-weight: 700;
+}
+
+/* Hover 連動 */
+
+#atlas-content.atlas-dimmed .atlas-name {
+  opacity: 0.12;
+}
+
+#atlas-content.atlas-dimmed .atlas-name.atlas-highlight {
+  opacity: 1;
+  z-index: 10;
+}
+
+/* ── 右下角細節面板 ─────────────────────────────── */
+
+#atlas-detail {
+  position: fixed;
+  right: 32px;
+  bottom: 32px;
+  max-width: 380px;
+  min-width: 240px;
+  /* padding 仿 about/overview 的 vision highlight：左右收窄到貼近字（約 0.6em） */
+  padding: 12px 14px;
+  max-height: 70vh;
+  overflow: hidden;
+  /* bg / color 由 atlas.js 在 showDetail 設成 inline 三原色 + 黑字（每次隨機） */
+  background: var(--theme-bg, #ffffff);
+  color: var(--theme-fg, #000000);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(8px) rotate(var(--atlas-detail-rot, 0deg));
+  transform-origin: center center;
+  transition: opacity 0.3s ease, transform 0.3s ease, background-color 0.3s ease;
+  z-index: 100;
+}
+
+#atlas-detail.atlas-detail-visible {
+  opacity: 1;
+  transform: translateY(0) rotate(var(--atlas-detail-rot, 0deg));
+}
+
+.atlas-detail-name {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.35;
+  margin-bottom: 10px;
+  word-break: break-word;
+}
+
+.atlas-detail-name .atlas-detail-name-zh {
+  font-size: 16px;
+  font-weight: 600;
+  margin-top: 2px;
+  opacity: 0.85;
+}
+
+.atlas-detail-desc {
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+/* ── 左下角 Filter（仿 activities-section-btn 樣式：anchor-nav-inner chip）─────── */
+
+#atlas-filter {
+  position: fixed;
+  left: 32px;
+  bottom: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.7rem;
+  z-index: 50;
+}
+
+.atlas-filter-btn {
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: var(--font-size-p3);
+  text-align: left;
+  transition: opacity 0.2s ease;
+}
+
+.atlas-filter-btn .anchor-nav-inner {
+  display: inline-flex;
+  background: transparent;
+  color: rgba(0, 0, 0, 0.5);
+  padding: 6px 8px 5px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (min-width: 768px) {
+  .atlas-filter-btn:not(.active):hover .anchor-nav-inner {
+    color: rgba(0, 0, 0, 1);
+  }
+}
+
+/* Active 狀態：黑底白字 */
+
+.atlas-filter-btn.active .anchor-nav-inner {
+  background: black;
+  color: white;
+}
+
+/* 被 filter 過濾掉的 anchor */
+
+.atlas-anchor.atlas-filtered-out {
+  display: none;
+}
+
+/* ── Inverse mode ───────── */
+
+body.mode-inverse .atlas-cat-d .atlas-name {
+  color: #ffffff !important;
+}
+
+body.mode-inverse .atlas-filter-btn:not(.active) .anchor-nav-inner {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+@media (min-width: 768px) {
+  body.mode-inverse .atlas-filter-btn:not(.active):hover .anchor-nav-inner {
+    color: rgba(255, 255, 255, 1);
+  }
+}
+
+/* ── 手機版 ──────────────────────────────────────── */
+
+@media (max-width: 767px) {
+  .atlas-name {
+    font-size: 10px;
+    max-width: 150px;
+  }
+
+  #atlas-detail {
+    right: 16px;
+    bottom: 16px;
+    left: 16px;
+    max-width: none;
+    padding: 10px 12px;
+  }
+
+  .atlas-detail-name {
+    font-size: 14px;
+  }
+
+  .atlas-detail-name .atlas-detail-name-zh {
+    font-size: 14px;
+  }
+
+  .atlas-detail-desc {
+    font-size: 13px;
+  }
+
+  #atlas-filter {
+    left: 16px;
+    bottom: 16px;
+    gap: 0.5rem;
+  }
+
+  .atlas-filter-btn {
+    font-size: 12px;
+  }
+}
+
 /* Themes */
 
 /**
@@ -599,6 +996,10 @@ body.mode-inverse {
   --theme-bg: var(--color-black);
   --theme-fg-rgb: 255, 255, 255;
   --theme-bg-rgb: 0, 0, 0;
+  /* Library 主矩形：淺灰 → 深灰，文字黑 → 白；半透明文字同 alpha 但反成 rgba(255,...) */
+  --lib-bg: #333333;
+  --lib-fg: #ffffff;
+  --lib-fg-rgb: 255, 255, 255;
   background-color: black;
   color: white;
 }
@@ -789,13 +1190,11 @@ body.mode-inverse .courses-filter-btn.active .anchor-nav-inner {
 /* ===== Filter Bar 上方遮擋 ::before ===== */
 
 @media (min-width: 768px) {
-  body.mode-inverse .activities-filter-bar::before,
-  body.mode-inverse .courses-filter-bar::before {
+  body.mode-inverse .activities-filter-bar::before {
     background: black;
   }
 
-  body.mode-inverse .activities-filter-bar,
-  body.mode-inverse .courses-filter-bar {
+  body.mode-inverse .activities-filter-bar {
     background-color: black !important;
   }
 }
@@ -833,52 +1232,28 @@ body.mode-inverse .course-item {
 
 /* 淺底/亮三原色底容器內的 .border-black 維持黑色分隔線（依全站對比原則：淺底→黑內容）
  * - .list-content：active 亮三原色底（activities accordion 展開）
- * - #library-card-content：JS 設 inline #f2f2f2 淺灰底
- * 廣域 .border-black→white 會把分割線變白，這裡蓋回黑色 */
+ * 廣域 .border-black→white 會把分割線變白，這裡蓋回黑色
+ *
+ * #library-card-content 已不在此清單：library 主矩形 inverse 已改深灰底（#333333）+ 白文字，
+ * 分隔線改用 var(--lib-fg) 跟著翻白，不用蓋回黑 */
 
-body.mode-inverse .list-content .border-black,
-body.mode-inverse #library-card-content .border-black {
+body.mode-inverse .list-content .border-black {
   border-color: black !important;
 }
 
-/* ===== Library 灰色主矩形（#library-card-content）：完整 mode-isolated ===== */
+/* ===== Library 灰色主矩形（#library-card-content）：跟 mode 翻 ===== */
 
-/* User 明示「library 設定基本上都不變」 = inverse 視覺等同 standard。
+/* 標準色 #f2f2f2 + 黑字 ↔ inverse #333333 + 白字（半透明同 alpha 翻成 rgba(255,...)）
+ * --lib-bg / --lib-fg / --lib-fg-rgb 在 variables.css + 此檔 body.mode-inverse 各有定義
+ * library.css / library.html / library-panels.js / library-card.js 都用 var() 取色，自動跟 mode
  *
- * Library 內字色機制（standard 下所有來源）：
- *   1. JS 設 inline color（year picker `'#000'`/`'rgba(0,0,0,0.3)'`、cat tabs 同、award row hover `三原色`）
- *   2. 元素自身 CSS class（如 `.lib-album-cat-btn { color: #000 }`、`.files-item-subtitle-tag { color: rgba(0,0,0,0.5) }`）
- *   3. 沒設色的元素繼承 body 的 black（typography.css `body { @apply text-black }`）
- *
- * Inverse 模式只有來源 (3) 出問題：`body.mode-inverse { color: white }` 讓繼承色變白。
- * 其餘 (1)(2) 的明確值不該動。
- *
- * 解：只把 #library-card-content 的根色設回 black，沒設色的子元素自然繼承（同 standard 機制）。
- *   - 不加 `* { color: inherit }` — 那會 specificity (1,1,1) 蓋過元素自身 CSS class color，
- *     例如 `.files-item-subtitle-tag { color: rgba(0,0,0,0.5) }` 半透明黑會被強制變不透明
- *   - Button / input 等表單元素由 Tailwind preflight `button { color: inherit }` 處理，自然繼承
- *   - JS inline color、元素自身 CSS class color 都比 inherit specificity 高，照常勝出
- */
+ * lib-panel-title chip 也用 var：HTML inline 設 bg=var(--lib-fg)、text=var(--lib-bg)
+ * → standard 黑底淺字、inverse 白底深字，自動跟 mode 翻；此檔不必再 override */
 
-body.mode-inverse #library-card-content {
-  color: black;
-}
+/* Awards ticker logos：黑色 PNG → inverse 模式下翻白（!important 蓋過 JS inline filter:grayscale） */
 
-/* lib-panel-title 是 panel 黑底白字標題（inline color: #f2f2f2），明確保留 */
-
-body.mode-inverse #library-card-content .lib-panel-title {
-  color: #f2f2f2;
-}
-
-/* 顯式 set album row title 跟 panel 內年份 label：
- * 這些元素沒自己 CSS color、應該繼承根 black，但實測 user 仍看到白字 — 可能某層中間繼承被切斷
- * specificity (1,2,1) 比元素自身 (0,1,0) 高，但低於 .files-item-subtitle-tag 的 inverse override 路徑
- * 不影響半透明黑 (.files-item-subtitle-tag color rgba(0,0,0,0.5) specificity 0,1,0 不會被這條 cover) */
-
-body.mode-inverse #library-card-content .files-item-title-en,
-body.mode-inverse #library-card-content .files-item-title-zh,
-body.mode-inverse #library-card-content .press-year-label {
-  color: black;
+body.mode-inverse #library-awards-ticker .awards-ticker-wrapper img {
+  filter: invert(1) !important;
 }
 
 /* hover (未展開) 或 active (展開) 時 bg 變亮三原色（JS 設 inline），文字一律反黑
@@ -901,6 +1276,29 @@ body.mode-inverse #library-card-content .press-year-label {
   body.mode-inverse .list-header[style*="background"] + .list-content,
   body.mode-inverse .list-header[style*="background"] + .list-content * {
     color: black !important;
+  }
+}
+
+/* ===== Library Files / Album / Press hover：亮三原色底文字一律反黑 ===== */
+
+/* bindListItemHover (library-panels.js) mouseenter 設 inline bg=accent，mouseleave 清掉
+ * 用 [style*="background"] 偵測 hover 狀態 → 文字全部反黑（含半透明 0.5 白 → 0.5 黑）
+ * 涵蓋：.files-item（files + album panel 共用）、.press-item */
+
+@media (min-width: 768px) {
+  body.mode-inverse .files-item[style*="background"],
+  body.mode-inverse .files-item[style*="background"] *,
+  body.mode-inverse .press-item[style*="background"],
+  body.mode-inverse .press-item[style*="background"] * {
+    color: black !important;
+  }
+
+  body.mode-inverse .files-item[style*="background"] .files-item-subtitle-tag,
+  body.mode-inverse .press-item[style*="background"] .press-item-subtitle,
+  body.mode-inverse .press-item[style*="background"] .press-item-date,
+  body.mode-inverse .press-item[style*="background"] .press-item-media-icon,
+  body.mode-inverse .press-item[style*="background"] .press-item-cat-tag {
+    color: rgba(0, 0, 0, 0.5) !important;
   }
 }
 
@@ -935,6 +1333,12 @@ body.mode-inverse .anchor-nav-btn.active .anchor-nav-inner {
 /* ===== Faculty Card / Admission Item hover：inverse 下文字反黑（因 bg 變亮三原色）===== */
 
 /* standard 下文字繼承黑色，hover 不需動；inverse 下繼承白色，hover 時亮底白字看不清，反黑 */
+
+/* admission-item.active（accordion 展開）同樣有亮底，需脫離 hover media query 一併反黑 */
+
+body.mode-inverse .admission-item.active {
+  color: black;
+}
 
 @media (min-width: 768px) {
   body.mode-inverse .faculty-card:hover,
@@ -1053,6 +1457,7 @@ body.mode-inverse [data-bar="generate"].bar-active:not(.is-bar-hover) .nav-link 
 
 /* Degree Show card hover：JS inline 把 .degree-show-card-content bg 設成 accent 色（粉/綠/藍），
  * inverse 預設 body color:white 會讓 h5 標題在 accent 底上看不清，force 回黑（全站對比規範） */
+
 body.mode-inverse .degree-show-card:hover .degree-show-card-content,
 body.mode-inverse .degree-show-card:hover .degree-show-card-content * {
   color: #000 !important;
@@ -1085,7 +1490,7 @@ body.mode-color header {
   background-color: transparent;
 }
 
-/* Hero section（無 bg class）：mode-color 下也套 overlay-25 與下方 content 區一致 */
+/* Hero section（無 bg class）：mode-color 下也套 overlay-25 與下方 content 區一致，避免 hero 是飽和 --theme-bg、content 是淺 overlay 兩段不同色 */
 
 body.mode-color main > section.h-screen {
   background-color: var(--theme-overlay-25) !important;
@@ -1260,13 +1665,11 @@ body.mode-color .anchor-nav-btn.active .anchor-nav-inner {
 /* ===== Filter Bar 上方遮擋 ===== */
 
 @media (min-width: 768px) {
-  body.mode-color .activities-filter-bar::before,
-  body.mode-color .courses-filter-bar::before {
+  body.mode-color .activities-filter-bar::before {
     background: var(--theme-bg);
   }
 
-  body.mode-color .activities-filter-bar,
-  body.mode-color .courses-filter-bar {
+  body.mode-color .activities-filter-bar {
     background-color: var(--theme-bg) !important;
   }
 }
@@ -1317,6 +1720,12 @@ body.mode-color .card-tag {
 
 /* ===== About Faculty / Admission hover ===== */
 
+/* admission-item.active（accordion 展開）同樣有亮底，需脫離 hover media query 一併處理 */
+
+body.mode-color .admission-item.active {
+  color: var(--theme-fg);
+}
+
 @media (min-width: 768px) {
   body.mode-color .faculty-card:hover,
   body.mode-color .admission-item:hover {
@@ -1340,9 +1749,7 @@ body.mode-color #library-card-content {
   color: black;
 }
 
-body.mode-color #library-card-content .lib-panel-title {
-  color: #f2f2f2;
-}
+/* lib-panel-title chip：HTML inline 用 var(--lib-fg)/(--lib-bg)；mode-color 不覆蓋 var → 沿用 standard 黑底淺字 */
 
 body.mode-color #library-card-content .files-item-title-en,
 body.mode-color #library-card-content .files-item-title-zh,
@@ -1384,7 +1791,7 @@ body.mode-color #homepage-marquee-clone {
   color: var(--theme-fg) !important;
 }
 
-/* ===== Library / Generate 側邊 bar ===== */
+/* ===== Library / Atlas / Generate 側邊 bar ===== */
 
 /* mode-color 下 inactive/active 視覺一致用 overlay；hover 仍走 nav 三原色（is-bar-hover） */
 
@@ -2048,6 +2455,13 @@ p{
   clip-path: inset(0 100% 0 0);
 }
 
+/* Degree Show detail 的 Next 卡片進場：預設 clip 隱藏右側，ScrollTrigger 進 viewport 時 GSAP tween 到 inset(0% 0% 0% 0%) 由左往右展開
+     注意：四個值必須全用 %，與 JS 端 GSAP tween 終值單位一致；混用 unitless 與 % 會讓 GSAP 直接跳終值不動畫 */
+
+#next-card {
+  clip-path: inset(0% 100% 0% 0%);
+}
+
 .\!container{
   width: 100% !important;
 }
@@ -2277,7 +2691,7 @@ p{
     color: #000 !important;
   }
 
-  /* === Library / CREATE! bar hover：底色變三原色時，文字改黑色（覆蓋 bar-active 白字） === */
+  /* === Library / Atlas / CREATE! bar hover：底色變三原色時，文字改黑色（覆蓋 bar-active 白字） === */
 
   /* 用 .is-bar-hover class 而非 :hover，以便點擊後切換 active 時 JS 可同步清除 */
 
@@ -2553,13 +2967,12 @@ header.header-hidden .nav-link,
   }
 }
 
-/* ===== Activities / Courses Filter Bar ===== */
+/* ===== Activities Filter Bar ===== */
 
 @media (min-width: 768px) {
   /* sticky top:200px → 遮罩延伸到視窗頂部，避免 header 收起時露出後方內容 */
 
-  .activities-filter-bar::before,
-    .courses-filter-bar::before {
+  .activities-filter-bar::before {
     content: '';
     position: absolute;
     top: -200px;
@@ -2569,8 +2982,7 @@ header.header-hidden .nav-link,
     background: white;
   }
 
-  .activities-filter-bar,
-    .courses-filter-bar {
+  .activities-filter-bar {
     position: relative;
   }
 }
@@ -2859,17 +3271,15 @@ header.header-hidden .nav-link,
   }
 
   .card-hover-overlay:hover .card-hover-overlay__image,
-    .faculty-card:hover .faculty-card-image,
     .library-card:hover .library-card-image,
     .degree-show-img-wrapper:hover .degree-show-img {
     filter: grayscale(100%);
   }
 
   .card-hover-overlay:hover .card-hover-overlay__wrapper::after,
-    .faculty-card:hover .faculty-card-image-wrapper::after,
     .library-card:hover .library-card-image-wrapper::after,
     .degree-show-img-wrapper:hover::after {
-    opacity: 1;
+    opacity: 0.8;
   }
 }
 
@@ -2882,6 +3292,21 @@ header.header-hidden .nav-link,
 .faculty-card[data-category="fulltime"] .faculty-card-image-wrapper,
   .faculty-card[data-category="admin"] .faculty-card-image-wrapper {
   cursor: pointer;
+}
+
+/* Faculty 卡片預設旋轉（JS 設 --init-deg），hover 恢復 0° 對齊下方文字
+   * 旋轉套在 wrapper 而非 img：image 用 object-cover w-full h-full 完整貼合 wrapper，
+   * wrapper overflow:hidden 維持矩形邊界跟著旋轉；0° 時 wrapper 自然與下方文字 flow 對齊 */
+
+.faculty-card-image-wrapper {
+  transform: rotate(var(--init-deg, 0deg));
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (min-width: 768px) {
+  .faculty-card:hover .faculty-card-image-wrapper {
+    transform: rotate(0deg);
+  }
 }
 
 /* ===== Album Cards ===== */
@@ -3284,12 +3709,13 @@ header.header-hidden .nav-link,
 }
 
 /* 全站對比規範：accent 底色（綠/粉/藍）文字一律黑（不分 standard / inverse）；
-   mode-color 暫不適用。hero-animation.js 對 [data-hero-hl] 設 inline 隨機 accent bg；
-   inverse 預設白字會跟 accent 衝突，這裡 force 回黑。
-   specificity：inverse `body.mode-inverse .text-black:not(.timeline-year-item)` (0,3,1)，
-   用 [data-hero-hl][data-hero-hl] 重複屬性提升到 0,3,1 + 後出順序贏 */
+     mode-color 暫不適用（用 contrast text 跟著走）。
+     hero-animation.js 對 [data-hero-hl] 設 inline 隨機 accent bg；inverse 預設白字會跟 accent 衝突，這裡 force 回黑。
+     specificity 註：inverse 有 `body.mode-inverse .text-black:not(.timeline-year-item)` (0,3,1)，
+     必須用 `[data-hero-hl][data-hero-hl]` 重複屬性提升到 0,3,1 + 後出順序才贏 */
+
 body:not(.mode-color) [data-hero-hl][data-hero-hl],
-body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
+  body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
   color: #000 !important;
 }
 
@@ -3314,12 +3740,486 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
   width: 90vw;
 }
 
+/* ===== Section-level CSS variables（grid 與 program-bar 共用） =====
+   * 6 cols：sem-col + type-col + 4 個年級欄（1fr）。
+   * Fall/Spring sem-label 在 col 1（sem-col）裡，跨 2 sub-row（required + elective）。
+   * 點卡片改成 faculty-style slide-in 模態，不再縮 grid，所以 grid 寬度不會 toggle。
+   * Section overflow-x: clip：擋住其他 absolute children 超出 section 的水平 scroll。
+   */
+
+#courses-content-section {
+  --courses-grid-sem-col: 4rem;
+  --courses-grid-type-col: 4rem;
+  --courses-grid-col-gap: var(--spacing-xl);
+  /* overflow:clip 雙軸：x 防 absolute children 溢位；y 裁掉 sticky bar (corner / year-header)
+       的 ::before 在 natural flow 時向上延伸超出 section top 進到 hero section 的部分
+       （sticky 行為不受 clip 影響） */
+  overflow-x: clip;
+  overflow-y: clip;
+}
+
+/* 桌面：把 section padding-top 加大到 200px（= cover sticky top）讓 panels.top 等於 sticky 線。
+     這樣 anchor scroll 到 section.top=0 時，cover 剛好開始 sticky 黏住、第一行卡片 (row 2) 自然
+     位置 = panels.top(200) + cover height(48) + row-gap(32) = 280 = sticky labels top，完美對齊。
+     原本 py-6xl(192) 會讓 anchor landing 時卡片往上偏 8px 被 cover 切掉 */
+
+@media (min-width: 768px) {
+  #courses-content-section {
+    padding-top: 200px;
+  }
+}
+
+/* ===== Program button bar =====
+   * 桌面：左側 vertical sticky 側欄（fixed width）；
+   *       buttons 直向堆疊、各 group 含 absolute label，gap-2xl 給 label clearance
+   * 手機：bar 不 sticky，自然流（HTML class flex-col + mb-2xl 給下方 panels 留距離）
+   *
+   * Sticky stack（桌面，三組 top: 200px 對齊 faculty 篩選 btn 的 sticky 位置）：
+   *   1) program-bar     top: 200px（vertical 側欄黏左邊頂端，bg=var(--theme-bg)）
+   *   2) year-header     top: 200px（grid 內 row 1）
+   *   3) sem-label       top: 200px（col 1，跟 year-header 同 top 不互相蓋因為不同 col）
+   * z 由 1/2/3 往上。bg 全用 var(--theme-bg) 跟 mode 走。
+   *
+   * year-header 用 ::before 向上延伸 200px bg 蓋住 cards scroll 過 sticky 後在
+   * viewport y=0..200 露出的破口（仿 .activities-filter-bar::before pattern）。
+   */
+
+@media (min-width: 768px) {
+  .courses-program-bar {
+    flex: 0 0 14rem;
+    width: 14rem;
+    margin-right: var(--spacing-2xl);
+    align-self: flex-start;
+    position: sticky;
+    top: 200px;
+    z-index: 3;
+    background: var(--theme-bg);
+    /* padding-top: 0 — 第 1 個 BFA btn 對齊 grid 年級表頭頂部（兩個都在 row 0）。
+         label absolute 在 btn 上方往外露，落在 section py-6xl 預留的上方空間裡 */
+    padding-top: 0;
+    padding-bottom: var(--spacing-md);
+  }
+}
+
+/* btn 內文左對齊（覆蓋 <button> 預設 text-align:center，避免換行時 "Image" 之類置中） */
+
+.courses-program-btn {
+  text-align: left;
+}
+
+/* program btn 的 EN span：
+     - white-space:nowrap 確保「Creative Media Design」「MDES Class」維持單行不 auto-wrap。
+     - 「Animation & Moving Image」用 HTML 顯式 <br> 強制斷行（line 1: "Animation & Moving"，line 2: "Image"），
+       避免靠 max-width 鎖寬度造成 chip 寬度 = max-width 而非「最長一行寬度」（會讓右 padding 大於左）。
+     - line-height 1.2 + margin-bottom 0.15em 補回收緊後的半 leading，給多行情境用。 */
+
+.courses-program-btn .anchor-nav-inner > span:first-child {
+  line-height: 1.2;
+  margin-bottom: 0.15em;
+  white-space: nowrap;
+}
+
+/* MDES btn 沒有上方 label，不需要 BFA-cmd 那種被 label 吃掉一半 gap 的 clearance；
+     用 negative margin-top 把 gap 砍半（4rem → 2rem），視覺上 BFA-cmd→MDES 跟其他兩段
+     btn-to-btn 的「乾淨剩餘」距離吻合。selector：bar 的 direct child + .courses-program-btn
+     只有 MDES 符合（BFA btn 被包在 .courses-program-group div 裡）。 */
+
+@media (min-width: 768px) {
+  .courses-program-bar > .courses-program-btn {
+    margin-top: calc(var(--spacing-2xl) * -0.5);
+  }
+}
+
+/* Program group：relative，讓 label absolute 定位用 */
+
+.courses-program-group {
+  position: relative;
+}
+
+/* BFA Class 學士班 小標籤（每個 BFA btn 上方一個）
+   * - 位置/旋轉比照 about .class-group-label：absolute 在 btn 上方 + 隨機旋轉（JS 設）
+   * - 預設**透明底 + 50% 灰字**（不要黑底，跟 about 不同）
+   *     hover  = JS 設 accent 底 + 黑字（隨 btn 一起聯動）
+   *     active = JS 設 accent 底 + 黑字（rotate 與 btn 各自獨立）
+   * - padding 4/6/3 對齊 about；font-size 保持 p1；transform transition 0.3s
+   */
+
+.courses-bfa-label {
+  display: inline-block;
+  width: -moz-fit-content;
+  width: fit-content;
+  padding: 8px 6px 7px;
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: -12px;
+  z-index: 2;
+  font-size: var(--font-size-p2);
+  font-weight: 700;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.5);
+  background: transparent;
+  white-space: nowrap;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.courses-program-group:has(.courses-program-btn.active) .courses-bfa-label {
+  color: black;
+}
+
+/* ===== Grid container =====
+   * 桌面：sem-col + type-col + N 個年級欄（N = --year-cols，由 JS 依 program 設）
+   *   - BFA = 4 cols (freshman/sophomore/junior/senior)
+   *   - MDES = 2 cols (year1/year2) → 兩欄平均吃掉 grid 寬度
+   * repeat() 吃 var()（modern browsers 支援），fallback 4
+   */
+
+.courses-grid {
+  display: grid;
+  /* year cols 用 minmax(0, 1fr) 不用 1fr：grid 預設 track 至少撐到 cell min-content，
+       而 marquee 雙份的 inner 會把 cell min-content 撐到 2 倍寬 → track 被擴張破版；
+       minmax(0, 1fr) 解放 min-content 限制，track 永遠 fair share，cell 用 overflow 自己 clip */
+  grid-template-columns:
+      var(--courses-grid-sem-col)
+      var(--courses-grid-type-col)
+      repeat(var(--year-cols, 4), minmax(0, 1fr));
+  -moz-column-gap: var(--courses-grid-col-gap);
+       column-gap: var(--courses-grid-col-gap);
+  /* outer row-gap = sm：cover ↔ Fall semester / Fall ↔ Spring 之間 */
+  row-gap: var(--spacing-sm);
+  align-items: start;
+}
+
+/* ===== Nested subgrid 結構（限定 sticky scope）=====
+   * .courses-semester 包整個學期（required + elective），grid-column 1/-1，subgrid 繼承外層 6 cols
+   *   → sem-label sticky containing block = 學期 → 學期到底時 sem-label 跟著上去
+   * .courses-required-row / .courses-elective-row 包該 type 整列，grid-column 2/-1
+   *   → type-label sticky containing block = 該 row → 必修/選修到底時 type-label 跟著上去
+   * 原本一張大 grid 共用 sticky 範圍會讓 sem/type label 都黏到整張 grid 結束才釋放，
+   * 重構後 label 各自在自己的 row 範圍內 sticky，到底就跟著走 */
+
+.courses-semester {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  row-gap: var(--spacing-lg);
+  align-items: start;
+}
+
+.courses-required-row,
+  .courses-elective-row {
+  grid-column: 2 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  align-items: start;
+}
+
+/* 第 2+ 個學期 wrapper 上方額外 sm，搭配 outer grid sm row-gap 合計兩學期間距 = 2 × sm */
+
+.courses-grid-sem-start {
+  margin-top: var(--spacing-sm);
+}
+
+/* 第一個學期 wrapper 上方 16px buffer：±2° rotation × 寬 ~232px 卡片 corner protrusion ~4px，
+     sm(16) 已遠超需要。
+     sticky labels 新 top(280) = cover top 200 + cover height 48 + row-gap sm(16) + buffer sm(16)
+     selector 用 adjacent sibling 對 Fall semester（.courses-grid-row-cover 之後第一個 .courses-semester）：
+     `.courses-semester:first-of-type` 會看 tag (div) 而 row-cover 也是 div，匹配不到 Fall */
+
+@media (min-width: 768px) {
+  .courses-grid > .courses-grid-row-cover + .courses-semester {
+    margin-top: var(--spacing-sm);
+  }
+}
+
+/* （v9 拿掉 is-active year margin trick — 點卡片改 slide-in 模態，grid 不再縮窄不需要） */
+
+/* 左上兩個 corner cell：cover 內 col 1/col 2，empty content。Cover 自己處理 sticky/bg */
+
+.courses-grid-corner {
+}
+
+/* Year row cover：包住整個 row 1（corners + year-headers）的 sticky bar。
+     - outer grid 中：grid-column:1/-1 橫跨整列（含 col gaps）
+     - 自己跑 inner grid（同 template）讓內部 corners + year-headers 對齊 outer cols
+     - sticky top:200 + ::before 向上 200px 蓋住 cards/labels scroll 過 sticky 露出的部分
+     - ::after 向下 spacing-lg 蓋掉 row 1↔row 2 之間的 row-gap，避免 cards scroll 過 sticky
+       時在 cover 與 sem/type 之間的 32px 空隙露出
+     - z:1 在 cards (z=auto) 之上；sem-label / type-label (z:2) 在 cover 下方浮層
+   */
+
+.courses-grid-row-cover {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns:
+      var(--courses-grid-sem-col)
+      var(--courses-grid-type-col)
+      repeat(var(--year-cols, 4), minmax(0, 1fr));
+  -moz-column-gap: var(--courses-grid-col-gap);
+       column-gap: var(--courses-grid-col-gap);
+}
+
+@media (min-width: 768px) {
+  .courses-grid-row-cover {
+    position: sticky;
+    top: 200px;
+    /* z:3 高於 sem-label/type-label (z:1)，讓 sem-label/type-label 在 release（學期/列結束）
+         時被往上推進 cover 區域時被 cover 蓋住，不會「露餡」上去重疊 cover 文字 */
+    z-index: 3;
+    background: var(--theme-bg);
+    padding-bottom: var(--spacing-xs);
+  }
+
+  .courses-grid-row-cover::before {
+    content: '';
+    position: absolute;
+    top: -200px;
+    left: 0;
+    right: 0;
+    height: 200px;
+    background: var(--theme-bg);
+  }
+
+  /* ::after 向下蓋整個 row-gap，確保 scroll 時 sticky-cover 正常遞進蓋掉卡片
+       高度需 = .courses-grid 的 row-gap（sm=16）。第一行卡片的 rotation 凸出 buffer 在
+       .courses-grid > .courses-grid-row-cover + .courses-semester margin-top 處理 */
+
+  .courses-grid-row-cover::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    height: var(--spacing-sm);
+    background: var(--theme-bg);
+  }
+}
+
+/* 年級表頭（EN 上 / ZH 下）— 字體大小對齊 .courses-grid-type-label（p2）
+     EN 保 700、ZH 保 600 + opacity 0.85，僅尺寸跟必修/選修統一
+     桌面 sticky：top = header + bar 高度，bg 跟 mode；containment 是其 grid area
+     （單行 row 1，但 sticky 範圍含整個 grid 因為 grid container 是 containing block） */
+
+.courses-grid-col-header {
+  font-weight: 700;
+  font-size: var(--font-size-p2);
+  line-height: 1.2;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* year-header 是 cover bar 的內部 grid item，不再 sticky（cover 自己 sticky）；
+     padding-bottom 留在 cover 上不需要這裡 */
+
+.courses-grid-col-zh {
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+/* 學期 label（Fall/Spring）— 在 col 1（sem-col）裡，grid-row: span 2 跨必修+選修
+     字體大小對齊 type-label（p2）。桌面 sticky containing block = .courses-semester，
+     學期到底時自然跟著上去 */
+
+.courses-grid-sem-label {
+  font-weight: 700;
+  font-size: var(--font-size-p2);
+  line-height: 1.2;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-self: start;
+  padding-top: 6px;
+}
+
+@media (min-width: 768px) {
+  .courses-grid-sem-label {
+    position: sticky;
+    /* sticky top 對齊 row 2（第一行卡片）top：cover 200 + 自身 height(~48) + row-gap(16) + buffer(16) = 280 */
+    top: 280px;
+    z-index: 1;
+    /* 低於 cover (z:3)，release 時 leak 上來會被 cover 蓋住 */
+  }
+}
+
+/* 類別 label（必修/選修）— 黑色實心、無半透明、無底色（col 2 type-col 內無卡片，
+     不需要 bg 蓋背景）。桌面 sticky containing block = .courses-required-row /
+     .courses-elective-row，row 到底時 label 跟著上去 */
+
+.courses-grid-type-label {
+  font-weight: 600;
+  font-size: var(--font-size-p2);
+  line-height: 1.2;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-self: start;
+  padding-top: 6px;
+  color: black;
+}
+
+@media (min-width: 768px) {
+  .courses-grid-type-label {
+    position: sticky;
+    top: 280px;
+    z-index: 1;
+    /* 低於 cover (z:3)，release 時 leak 上來會被 cover 蓋住 */
+  }
+}
+
+.courses-grid-sem-zh {
+  opacity: 0.85;
+}
+
+/* Cell：縱向堆疊卡片 */
+
+.courses-grid-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* ===== 卡片 =====
+   * 預設淺灰底；hover 時 inline style 設 accent 色（JS bind）
+   * 標題溢出 marquee 仿 library.css（runMarqueeOverflow pattern）：
+   *   1) JS 偵測 overflow + 加 .is-overflow + 把 inner 內容換成兩份 .marquee-copy（seamless loop）
+   *   2) JS 量 copyWidth 後設 --marquee-distance / --marquee-duration（80px/s, min 3s）
+   *   3) CSS 只在 hover 時跑 animation，translateX 一份 copy 寬度後正好接到第二份起點
+   */
+
+.courses-grid-card {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  width: -moz-fit-content;
+  width: fit-content;
+  max-width: 100%;
+  padding: 6px 10px 5px;
+  background: rgba(0, 0, 0, 0.06);
+  color: black;
+  font-size: var(--font-size-p2);
+  line-height: 1.2;
+  cursor: pointer;
+  -webkit-user-select: none;
+     -moz-user-select: none;
+          user-select: none;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+  box-sizing: border-box;
+}
+
+.courses-grid-card-en,
+  .courses-grid-card-zh {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: clip;
+  max-width: 100%;
+}
+
+.courses-grid-card-en {
+  font-weight: 700;
+}
+
+.courses-grid-card-zh {
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.courses-marquee-inner {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.courses-marquee-inner > .marquee-copy {
+  display: inline-block;
+  padding-right: 3em;
+}
+
+@media (min-width: 768px) {
+  .courses-grid-card:hover .courses-grid-card-en.is-overflow .courses-marquee-inner,
+    .courses-grid-card:hover .courses-grid-card-zh.is-overflow .courses-marquee-inner {
+    animation: courses-marquee var(--marquee-duration, 8s) linear infinite;
+  }
+}
+
+@keyframes courses-marquee {
+  0%   {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(var(--marquee-distance, -50%));
+  }
+}
+
+/* ===== Slide-in modal（v9 取代 desc-column）=====
+   * 點卡片時從右滑入，比照 #faculty-slide-in pattern：
+   *   - container 預設 invisible + pointer-events:none
+   *   - overlay opacity 0 → 0.8（dim grid）
+   *   - panel translateX 110% → 0 滑入；bg 套 card.dataset.accent
+   *   - close: overlay 點擊 / close btn / Esc
+   *   - body.overflow:hidden 鎖捲動，close 還原
+   * GSAP timeline 控動畫，無 GSAP fallback inline transition
+   */
+
+#courses-slide-in {
+  transition: visibility 0s linear 0s;
+}
+
+#courses-overlay {
+  transition: opacity 0.3s ease;
+}
+
+#courses-detail-panel {
+  transition: background 0.3s ease;
+}
+
+.courses-detail-title-en,
+  .courses-detail-title-zh,
+  .courses-detail-desc-en,
+  .courses-detail-desc-zh {
+  color: black;
+}
+
+/* ===== Mobile（< 768px） ===== */
+
+@media (max-width: 767px) {
+  #courses-content-section {
+    --courses-grid-sem-col: 4rem;
+    --courses-grid-type-col: 3rem;
+    --courses-grid-col-gap: var(--spacing-sm);
+  }
+
+  .courses-grid {
+    row-gap: var(--spacing-md);
+  }
+
+  .courses-grid-col-header {
+    font-size: var(--font-size-p3);
+  }
+
+  .courses-grid-sem-label,
+    .courses-grid-type-label {
+    font-size: var(--font-size-p3);
+  }
+
+  .courses-grid-card {
+    font-size: var(--font-size-p3);
+    padding: 4px 6px 3px;
+  }
+}
+
 .pointer-events-none{
   pointer-events: none;
 }
 
 .pointer-events-auto{
   pointer-events: auto;
+}
+
+.\!visible{
+  visibility: visible !important;
 }
 
 .visible{
@@ -3418,6 +4318,10 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
   z-index: 101;
 }
 
+.z-\[150\]{
+  z-index: 150;
+}
+
 .z-\[200\]{
   z-index: 200;
 }
@@ -3442,12 +4346,24 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
   grid-column: span 1 / span 1;
 }
 
+.col-span-11{
+  grid-column: span 11 / span 11;
+}
+
 .col-span-12{
   grid-column: span 12 / span 12;
 }
 
+.col-span-4{
+  grid-column: span 4 / span 4;
+}
+
 .col-span-6{
   grid-column: span 6 / span 6;
+}
+
+.col-span-7{
+  grid-column: span 7 / span 7;
 }
 
 .col-span-full{
@@ -3457,6 +4373,10 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
 .mx-\[calc\(var\(--container-padding\)\*-1\)\]{
   margin-left: calc(var(--container-padding) * -1);
   margin-right: calc(var(--container-padding) * -1);
+}
+
+.mb-0{
+  margin-bottom: 0px;
 }
 
 .mb-2xl{
@@ -3511,10 +4431,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
   margin-left: var(--spacing-md);
 }
 
-.ml-sm{
-  margin-left: var(--spacing-sm);
-}
-
 .ml-xl{
   margin-left: var(--spacing-xl);
 }
@@ -3535,8 +4451,16 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
   margin-top: var(--spacing-3xl);
 }
 
+.mt-4xl{
+  margin-top: var(--spacing-4xl);
+}
+
 .mt-\[4px\]{
   margin-top: 4px;
+}
+
+.mt-auto{
+  margin-top: auto;
 }
 
 .mt-lg{
@@ -3579,6 +4503,10 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
   display: flex;
 }
 
+.\!grid{
+  display: grid !important;
+}
+
 .grid{
   display: grid;
 }
@@ -3597,10 +4525,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
 
 .hidden{
   display: none;
-}
-
-.aspect-\[4\/3\]{
-  aspect-ratio: 4/3;
 }
 
 .aspect-\[4\/5\]{
@@ -3819,12 +4743,20 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
   list-style-type: disc;
 }
 
+.list-none{
+  list-style-type: none;
+}
+
 .grid-cols-12{
   grid-template-columns: repeat(12, minmax(0, 1fr));
 }
 
 .grid-cols-2{
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.grid-cols-\[1fr_2fr_2fr_1fr\]{
+  grid-template-columns: 1fr 2fr 2fr 1fr;
 }
 
 .flex-row{
@@ -3849,10 +4781,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
 
 .items-center{
   align-items: center;
-}
-
-.items-baseline{
-  align-items: baseline;
 }
 
 .items-stretch{
@@ -3939,10 +4867,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
 
 .gap-y-xl{
   row-gap: var(--spacing-xl);
-}
-
-.gap-y-xs{
-  row-gap: var(--spacing-xs);
 }
 
 .space-y-xs > :not([hidden]) ~ :not([hidden]){
@@ -4033,10 +4957,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
   border-top-width: 2px;
 }
 
-.border-t-4{
-  border-top-width: 4px;
-}
-
 .border-none{
   border-style: none;
 }
@@ -4095,10 +5015,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
   background-image: linear-gradient(to bottom, var(--tw-gradient-stops));
 }
 
-.bg-none{
-  background-image: none;
-}
-
 .from-transparent{
   --tw-gradient-from: transparent var(--tw-gradient-from-position);
   --tw-gradient-to: rgb(0 0 0 / 0) var(--tw-gradient-to-position);
@@ -4134,12 +5050,12 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
      object-position: top;
 }
 
-.p-0{
-  padding: 0px;
-}
-
 .p-2{
   padding: 0.5rem;
+}
+
+.p-2xl{
+  padding: var(--spacing-2xl);
 }
 
 .p-\[6px\]{
@@ -4199,14 +5115,19 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
   padding-right: var(--spacing-xs);
 }
 
-.py-2xl{
-  padding-top: var(--spacing-2xl);
-  padding-bottom: var(--spacing-2xl);
+.py-3xl{
+  padding-top: var(--spacing-3xl);
+  padding-bottom: var(--spacing-3xl);
 }
 
 .py-6xl{
   padding-top: var(--spacing-6xl);
   padding-bottom: var(--spacing-6xl);
+}
+
+.py-8xl{
+  padding-top: var(--spacing-8xl);
+  padding-bottom: var(--spacing-8xl);
 }
 
 .py-\[0\.5rem\]{
@@ -4307,6 +5228,10 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
   padding-top: var(--spacing-6xl);
 }
 
+.pt-8xl{
+  padding-top: var(--spacing-8xl);
+}
+
 .pt-\[0\.25rem\]{
   padding-top: 0.25rem;
 }
@@ -4325,10 +5250,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
 
 .pt-lg{
   padding-top: var(--spacing-lg);
-}
-
-.pt-md{
-  padding-top: var(--spacing-md);
 }
 
 .pt-sm{
@@ -4355,6 +5276,10 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
   text-align: right;
 }
 
+.text-h2{
+  font-size: var(--font-size-h2);
+}
+
 .text-h3{
   font-size: var(--font-size-h3);
 }
@@ -4365,10 +5290,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
 
 .text-h5{
   font-size: var(--font-size-h5);
-}
-
-.text-h6{
-  font-size: var(--font-size-h6);
 }
 
 .text-lg{
@@ -4475,6 +5396,12 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
   outline-color: #FFFFFF;
 }
 
+.ring{
+  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(3px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+  box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+}
+
 .blur{
   --tw-blur: blur(8px);
   filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
@@ -4482,6 +5409,11 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
 
 .grayscale{
   --tw-grayscale: grayscale(100%);
+  filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
+}
+
+.invert{
+  --tw-invert: invert(100%);
   filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
 }
 
@@ -4561,10 +5493,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
     padding-bottom: var(--spacing-4xl);
   }
 
-  .md\:flex-1 {
-    flex: 1;
-  }
-
   @media (max-width: 767px) {
     /* Chrome/Safari 隱藏捲軸 */
 
@@ -4607,10 +5535,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
   background-color: rgb(0 0 0 / var(--tw-bg-opacity, 1));
 }
 
-.hover\:font-bold:hover{
-  font-weight: 700;
-}
-
 .hover\:text-gray-5:hover{
   --tw-text-opacity: 1;
   color: rgb(128 128 128 / var(--tw-text-opacity, 1));
@@ -4645,14 +5569,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
 
 .disabled\:opacity-30:disabled{
   opacity: 0.3;
-}
-
-.group:hover .group-hover\:opacity-100{
-  opacity: 1;
-}
-
-.group:hover .group-hover\:opacity-60{
-  opacity: 0.6;
 }
 
 @media (min-width: 768px){
@@ -4873,34 +5789,20 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
     width: 250px;
   }
 
-  .md\:w-full{
-    width: 100%;
+  .md\:w-\[40vw\]{
+    width: 40vw;
   }
 
-  .md\:flex-1{
-    flex: 1 1 0%;
+  .md\:w-full{
+    width: 100%;
   }
 
   .md\:flex-\[0_0_calc\(16\.667\%_-_1\.25rem\)\]{
     flex: 0 0 calc(16.667% - 1.25rem);
   }
 
-  .md\:flex-\[0_0_calc\(25\%_-_0\.625rem\)\]{
-    flex: 0 0 calc(25% - 0.625rem);
-  }
-
   .md\:flex-\[0_0_calc\(25\%_-_1\.25rem\)\]{
     flex: 0 0 calc(25% - 1.25rem);
-  }
-
-  .md\:-rotate-4{
-    --tw-rotate: -4deg;
-    transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
-  }
-
-  .md\:rotate-3{
-    --tw-rotate: 3deg;
-    transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
   }
 
   .md\:grid-cols-4{
@@ -4939,6 +5841,10 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
     gap: 0px;
   }
 
+  .md\:gap-2xl{
+    gap: var(--spacing-2xl);
+  }
+
   .md\:gap-3xl{
     gap: var(--spacing-3xl);
   }
@@ -4954,11 +5860,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
   .md\:gap-x-2xl{
     -moz-column-gap: var(--spacing-2xl);
          column-gap: var(--spacing-2xl);
-  }
-
-  .md\:gap-x-lg{
-    -moz-column-gap: var(--spacing-lg);
-         column-gap: var(--spacing-lg);
   }
 
   .md\:gap-y-0{
@@ -5023,6 +5924,10 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
 
   .md\:pt-3xl{
     padding-top: var(--spacing-3xl);
+  }
+
+  .md\:pt-6xl{
+    padding-top: var(--spacing-6xl);
   }
 
   .md\:pt-xl{
