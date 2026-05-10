@@ -182,13 +182,11 @@ body.mode-color .anchor-nav-btn.active .anchor-nav-inner {
 
 /* ===== Filter Bar 上方遮擋 ===== */
 @media (min-width: 768px) {
-  body.mode-color .activities-filter-bar::before,
-  body.mode-color .courses-filter-bar::before {
+  body.mode-color .activities-filter-bar::before {
     background: var(--theme-bg);
   }
 
-  body.mode-color .activities-filter-bar,
-  body.mode-color .courses-filter-bar {
+  body.mode-color .activities-filter-bar {
     background-color: var(--theme-bg) !important;
   }
 }
@@ -234,6 +232,10 @@ body.mode-color .card-tag {
 }
 
 /* ===== About Faculty / Admission hover ===== */
+/* admission-item.active（accordion 展開）同樣有亮底，需脫離 hover media query 一併處理 */
+body.mode-color .admission-item.active {
+  color: var(--theme-fg);
+}
 @media (min-width: 768px) {
   body.mode-color .faculty-card:hover,
   body.mode-color .admission-item:hover {
@@ -255,9 +257,7 @@ body.mode-color #library-card-content {
   color: black;
 }
 
-body.mode-color #library-card-content .lib-panel-title {
-  color: #f2f2f2;
-}
+/* lib-panel-title chip：HTML inline 用 var(--lib-fg)/(--lib-bg)；mode-color 不覆蓋 var → 沿用 standard 黑底淺字 */
 
 body.mode-color #library-card-content .files-item-title-en,
 body.mode-color #library-card-content .files-item-title-zh,

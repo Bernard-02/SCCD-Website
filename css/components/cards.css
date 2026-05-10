@@ -58,17 +58,15 @@
     }
 
     .card-hover-overlay:hover .card-hover-overlay__image,
-    .faculty-card:hover .faculty-card-image,
     .library-card:hover .library-card-image,
     .degree-show-img-wrapper:hover .degree-show-img {
       filter: grayscale(100%);
     }
 
     .card-hover-overlay:hover .card-hover-overlay__wrapper::after,
-    .faculty-card:hover .faculty-card-image-wrapper::after,
     .library-card:hover .library-card-image-wrapper::after,
     .degree-show-img-wrapper:hover::after {
-      opacity: 1;
+      opacity: 0.8;
     }
   }
 
@@ -77,6 +75,20 @@
   .faculty-card[data-category="fulltime"] .faculty-card-image-wrapper,
   .faculty-card[data-category="admin"] .faculty-card-image-wrapper {
     cursor: pointer;
+  }
+
+  /* Faculty 卡片預設旋轉（JS 設 --init-deg），hover 恢復 0° 對齊下方文字
+   * 旋轉套在 wrapper 而非 img：image 用 object-cover w-full h-full 完整貼合 wrapper，
+   * wrapper overflow:hidden 維持矩形邊界跟著旋轉；0° 時 wrapper 自然與下方文字 flow 對齊 */
+  .faculty-card-image-wrapper {
+    transform: rotate(var(--init-deg, 0deg));
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  @media (min-width: 768px) {
+    .faculty-card:hover .faculty-card-image-wrapper {
+      transform: rotate(0deg);
+    }
   }
 
   /* ===== Album Cards ===== */

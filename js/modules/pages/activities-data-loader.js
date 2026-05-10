@@ -4,12 +4,11 @@
  */
 
 import { openLightbox } from '../lightbox/activities-lightbox.js';
-import { buildInitialScrollTrigger } from '../animations/list-scroll-trigger.js';
-import { animateCards } from '../ui/scroll-animate.js';
+import { animateCardsClipReveal } from '../ui/scroll-animate.js';
 
 // ── Reference 自動 lookup ─────────────────────────────────────────────────────
-// ref 只填 { section, itemId } 即可；title/cover/label 渲染前自動從目標 JSON lookup。
-// 已手動填的欄位（titleEn/titleZh/coverSrc/labelEn/labelZh）視為 override，不覆蓋。
+// ref 只填 { section, itemId } 即可；title/label 渲染前自動從目標 JSON lookup。
+// 已手動填的欄位（titleEn/titleZh/labelEn/labelZh）視為 override，不覆蓋。
 
 const SECTION_DATA_URL = {
   workshop:           '/data/workshops.json',
@@ -88,8 +87,8 @@ async function resolveRef(ref) {
     if (!ref.labelZh) ref.labelZh = labelMap.zh;
   }
 
-  // title/cover 需要去目標 JSON lookup
-  if (ref.titleEn && ref.titleZh && ref.coverSrc) return;
+  // title 需要去目標 JSON lookup
+  if (ref.titleEn && ref.titleZh) return;
 
   const data = await getSectionData(ref.section);
   if (!data) return;
@@ -103,36 +102,31 @@ async function resolveRef(ref) {
   const targetEn = isModeA ? item.title_en : item.title;
   const targetZh = isModeA ? item.title    : item.title_zh;
 
-  if (!ref.titleEn  && targetEn) ref.titleEn  = targetEn;
-  if (!ref.titleZh  && targetZh) ref.titleZh  = targetZh;
-  if (!ref.coverSrc) {
-    ref.coverSrc = item.poster || item.cover || (item.images && item.images[0]) || '';
-  }
+  if (!ref.titleEn && targetEn) ref.titleEn = targetEn;
+  if (!ref.titleZh && targetZh) ref.titleZh = targetZh;
 }
 
-// Helper: 為 list-item 內的海報及 gallery 圖片加上 hover 灰階 + screen overlay 效果
+// Helper: 為 list-item 內的海報及 gallery 圖片加上 hover 旋轉歸 0 效果
+// 對齊 library files/album 模式：random rotation 1~3°（兩邊隨機 sign），hover 歸 0
 export function bindMediaHover(container) {
   container.querySelectorAll('.list-item').forEach(workshopItem => {
-    const header = workshopItem.querySelector('.list-header');
-
     const applyHover = (wrapper) => {
       if (wrapper.dataset.hoverInit) return;
       wrapper.dataset.hoverInit = '1';
-      const overlay = document.createElement('div');
-      overlay.style.cssText = 'position:absolute;inset:0;opacity:0;transition:opacity 0.3s ease;pointer-events:none;z-index:1;mix-blend-mode:screen;';
-      if (getComputedStyle(wrapper).position === 'static') wrapper.style.position = 'relative';
-      wrapper.appendChild(overlay);
+      const img = wrapper.querySelector('img');
+      if (!img) return;
+      // overflow:visible 避免 wrapper 上 .overflow-hidden（poster）裁掉旋轉後的角
+      wrapper.style.overflow = 'visible';
+      // 旋轉幅度刻意小（0.5°~1.5°），避免外溢過多影響 layout
+      const initDeg = (Math.random() < 0.5 ? -1 : 1) * (0.5 + Math.random() * 1);
+      img.dataset.initDeg = String(initDeg);
+      gsap.set(img, { rotation: initDeg });
       wrapper.addEventListener('mouseenter', () => {
-        const color = header?.style.background || '#888888';
-        overlay.style.background = color;
-        overlay.style.opacity = '1';
-        const img = wrapper.querySelector('img');
-        if (img) img.style.filter = 'grayscale(100%)';
+        gsap.to(img, { rotation: 0, duration: 0.3, ease: 'power2.out' });
       });
       wrapper.addEventListener('mouseleave', () => {
-        overlay.style.opacity = '0';
-        const img = wrapper.querySelector('img');
-        if (img) img.style.filter = '';
+        const deg = parseFloat(img.dataset.initDeg) || 0;
+        gsap.to(img, { rotation: deg, duration: 0.3, ease: 'power2.out' });
       });
     };
 
@@ -236,7 +230,7 @@ export function buildGalleryHtml(item) {
       <button class="gallery-prev invisible flex-shrink-0 w-[32px] h-[32px] flex items-center justify-center text-p2 hover:opacity-60 transition-opacity">
         <i class="fa-solid fa-chevron-left"></i>
       </button>
-      <div class="gallery-track flex-1 overflow-hidden" style="height: 120px;">
+      <div class="gallery-track flex-1" style="height: 120px; overflow-x: clip; overflow-y: visible;">
         <div class="gallery-inner flex gap-md h-full" style="transition: transform 0.3s ease;">
           ${galleryItems.join('')}
         </div>
@@ -299,29 +293,6 @@ export function bindInteractions(container) {
     });
   });
 
-  // Ref link hover：cover grayscale + screen overlay（同 bindMediaHover 做法）
-  if (window.innerWidth >= 768) {
-    container.querySelectorAll('.list-ref-btn').forEach(btn => {
-      const wrapper = btn.querySelector('.ref-cover-wrapper');
-      const img = btn.querySelector('.ref-cover-img');
-      if (!wrapper || !img) return;
-      const overlay = document.createElement('div');
-      overlay.style.cssText = 'position:absolute;inset:0;opacity:0;transition:opacity 0.3s ease;pointer-events:none;z-index:1;mix-blend-mode:screen;';
-      wrapper.appendChild(overlay);
-      btn.addEventListener('mouseenter', () => {
-        const listHeader = btn.closest('.list-item')?.querySelector('.list-header');
-        const color = listHeader?.style.background || '#888888';
-        overlay.style.background = color;
-        overlay.style.opacity = '1';
-        img.style.filter = 'grayscale(100%)';
-      });
-      btn.addEventListener('mouseleave', () => {
-        overlay.style.opacity = '0';
-        img.style.filter = '';
-      });
-    });
-  }
-
   // 海報 & gallery hover 效果
   bindMediaHover(container);
 
@@ -370,22 +341,6 @@ export function bindInteractions(container) {
     else img.addEventListener('load', apply, { once: true });
   });
 
-  // Ref cover：title 拿剩餘空間，wrapper 寬度走圖片自然比例（h-full w-auto）
-  // 之前對橫圖強制 wrapper width:40% + object-fit:contain 會造成比例不符的 letterbox；
-  // hover 時 overlay (inset:0) 覆蓋整個 wrapper 含 letterbox 區，呈現圖片左右兩條色帶。
-  // 拿掉強制 width / object-fit 後，wrapper 寬度 = 圖實際渲染寬度，hover overlay 剛好蓋住圖片
-  container.querySelectorAll('.ref-cover-img').forEach(img => {
-    const apply = () => {
-      const wrapper = img.parentElement;
-      const titleDiv = wrapper?.previousElementSibling;
-      if (!wrapper) return;
-      wrapper.style.flexShrink = '0';
-      if (titleDiv) titleDiv.style.flex = '1';
-    };
-    if (img.complete && img.naturalWidth) apply();
-    else img.addEventListener('load', apply, { once: true });
-  });
-
   // Reference 按鈕（舊 workshop-ref-btn / industry-ref-btn 已統一為 list-ref-btn，此處保留相容）
   container.querySelectorAll('.workshop-ref-btn, .list-ref-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -397,33 +352,15 @@ export function bindInteractions(container) {
     });
   });
 
-  // 進場動畫：回傳啟動函數
+  // 進場動畫：仿 admission 模式 — setupClipReveal + ScrollTrigger.batch per row
+  // 每個 .list-reveal-row 獨立進入 viewport 時觸發，無需外部 play function
   if (typeof gsap === 'undefined') return null;
 
-  const allSets = [...container.querySelectorAll('.list-year-group')].map(group => {
-    const yearToggle = group.querySelector('.list-year-toggle');
-    const items = group.querySelectorAll('.list-item');
-    const divider = group.nextElementSibling?.classList.contains('activities-separator')
-      ? group.nextElementSibling : null;
-    return { items: [...(yearToggle ? [yearToggle] : []), ...items, ...(divider ? [divider] : [])] };
-  }).filter(s => s.items.length > 0);
+  const allRows = [...container.querySelectorAll('.list-reveal-row')];
+  if (allRows.length === 0) return null;
 
-  if (allSets.length === 0) return null;
-
-  allSets.forEach(({ items }) => gsap.set(items, { y: 100, opacity: 0 }));
-
-  return () => {
-    allSets.forEach(({ items }, i) => {
-      gsap.to(items, {
-        y: 0, opacity: 1,
-        duration: 0.6,
-        delay: i * 0.15,
-        stagger: { each: 0.1, grid: 'auto', axis: 'y' },
-        ease: 'power2.out',
-        clearProps: 'transform,opacity',
-      });
-    });
-  };
+  animateCardsClipReveal(allRows, true);
+  return null;
 }
 
 // ── 日期格式：去掉年份，只留月份與日期 ────────────────────────────────────────
@@ -516,7 +453,8 @@ export async function loadListInto(containerId, url, options = {}) {
       // 向下相容：支援舊的 reference 單一物件 → 自動轉為 array
       const references = item.references || (item.reference ? [item.reference] : []);
       const isLastItem   = itemIdx === total - 1;
-      const borderClass  = !isLastItem ? 'border-b-4 border-black' : '';
+      // height:4px 必須顯式設置 — 空 div 的 height:auto = 0，yPercent:100 = translateY(0) 不移動，setupClipReveal 無法隱藏
+      const dividerHtml  = `<div class="list-item-divider list-reveal-row border-b-4 border-black" style="height:4px; ${isLastItem ? 'display: none;' : ''}"></div>`;
 
       // 日期（date_en 英文在上，date 中文在下；無 date_en 則只顯示 date）
       const formatDate = (d) => fullDate
@@ -532,14 +470,15 @@ export async function loadListInto(containerId, url, options = {}) {
       // title HTML（所有 list 統一使用 marquee，文字太長時自動捲動）
       const titleLine1 = item.title_en ? item.title_en : item.title;
       const titleLine2 = item.title_en ? item.title : (item.title_zh || '');
+      // 每行字（title 中英、subtitle 中英）各自為 .list-reveal-row → animateCardsClipReveal 時逐行 stagger
       const titleHtml = `<div class="flex flex-col gap-xs flex-1 min-w-0">
           <div>
-            <div class="list-title-marquee"><p class="text-h5 font-bold">${titleLine1}</p></div>
-            ${titleLine2 ? `<div class="list-title-marquee"><p class="text-h5 font-bold">${titleLine2}</p></div>` : ''}
+            <div class="list-title-marquee list-reveal-row"><p class="text-h5 font-bold">${titleLine1}</p></div>
+            ${titleLine2 ? `<div class="list-title-marquee list-reveal-row"><p class="text-h5 font-bold">${titleLine2}</p></div>` : ''}
           </div>
           ${showSubtitle && (item.subtitle || item.subtitle_zh) ? `<div>
-            ${item.subtitle ? `<p class="text-p2">${item.subtitle}</p>` : ''}
-            ${item.subtitle_zh ? `<p class="text-p2">${item.subtitle_zh}</p>` : ''}
+            ${item.subtitle ? `<div class="list-reveal-row"><p class="text-p2">${item.subtitle}</p></div>` : ''}
+            ${item.subtitle_zh ? `<div class="list-reveal-row"><p class="text-p2">${item.subtitle_zh}</p></div>` : ''}
           </div>` : ''}
         </div>`;
 
@@ -553,7 +492,7 @@ export async function loadListInto(containerId, url, options = {}) {
       ].filter(Boolean).join(' ').toLowerCase().replace(/"/g, '&quot;');
 
       return `
-        <div class="list-item overflow-hidden ${borderClass}" data-category="${item.category || ''}" data-media="${mediaJson}" data-search="${searchText}"${item.visitType ? ` data-visit-type="${item.visitType}"` : ''}${item.id ? ` id="item-${item.id}"` : ''}>
+        <div class="list-item" data-category="${item.category || ''}" data-media="${mediaJson}" data-search="${searchText}"${item.visitType ? ` data-visit-type="${item.visitType}"` : ''}${item.id ? ` id="item-${item.id}"` : ''}>
           <div class="list-header cursor-pointer group transition-colors duration-fast flex items-stretch justify-between px-[4px] py-sm">
             ${titleHtml}
             <div class="flex items-stretch gap-sm flex-shrink-0 pt-[0.25rem]">
@@ -623,29 +562,30 @@ export async function loadListInto(containerId, url, options = {}) {
             </div>
             ${buildGalleryHtml(item)}
             ${showReference && references.length ? `
-            <div class="px-md pb-lg flex flex-col gap-sm" style="max-width: calc(9.5 / 12 * 100%);">
+            <div class="flex flex-col mt-md">
               ${references.map(ref => `
               ${ref.href
-                ? `<a class="list-ref-btn cursor-pointer p-0 w-full flex items-start gap-sm text-left no-underline" href="${ref.href}">`
-                : `<button class="list-ref-btn cursor-pointer border-none bg-none p-0 w-full flex items-start gap-sm text-left"
+                ? `<a class="list-ref-btn cursor-pointer w-full grid grid-cols-12 gap-x-md items-start py-sm no-underline" href="${ref.href}">`
+                : `<button class="list-ref-btn cursor-pointer border-none w-full grid grid-cols-12 gap-x-md items-start py-sm text-left"
                     data-ref-section="${ref.section || ''}"
                     data-ref-item="${ref.itemId || ''}">`
               }
-                <i class="fa-solid fa-arrow-right text-p2 flex-shrink-0" style="padding-top: 0.25rem;"></i>
-                <div class="flex flex-col flex-1 min-w-0 gap-xs">
-                  <p class="text-p2 text-black">${ref.labelEn || ''} ${ref.labelZh || ''}</p>
-                  <div class="flex items-start justify-between gap-xl">
-                    <div class="flex flex-col min-w-0">
-                      ${ref.titleEn ? `<p class="text-p2 font-bold text-black">${ref.titleEn}</p>` : ''}
-                      ${ref.titleZh ? `<p class="text-p2 font-bold text-black">${ref.titleZh}</p>` : ''}
-                    </div>
-                    ${ref.coverSrc ? `<div class="ref-cover-wrapper flex-shrink-0 overflow-hidden" style="height: 5rem; position: relative;"><img src="${ref.coverSrc}" alt="" class="ref-cover-img h-full w-auto block"></div>` : ''}
-                  </div>
+                <div class="col-span-1 flex justify-center" style="padding-top: 0.25em;">
+                  <i class="fa-solid fa-arrow-right text-p2"></i>
+                </div>
+                <div class="col-span-4 flex flex-col">
+                  ${ref.labelEn ? `<p class="text-p2">${ref.labelEn}</p>` : ''}
+                  ${ref.labelZh ? `<p class="text-p2">${ref.labelZh}</p>` : ''}
+                </div>
+                <div class="col-span-7 flex flex-col">
+                  ${ref.titleEn ? `<p class="text-p2 font-bold">${ref.titleEn}</p>` : ''}
+                  ${ref.titleZh ? `<p class="text-p2 font-bold">${ref.titleZh}</p>` : ''}
                 </div>
               ${ref.href ? `</a>` : `</button>`}
               `).join('')}
             </div>` : ''}
           </div>
+          ${dividerHtml}
         </div>
       `;
     }).join('');
@@ -654,22 +594,22 @@ export async function loadListInto(containerId, url, options = {}) {
       <div class="list-year-group grid-12 items-start">
         ${hideYearHeader ? '' : showYearToggle ? `
         <div class="col-span-12 md:col-span-1 md:col-start-1 list-year-toggle cursor-pointer flex items-center gap-sm order-1 py-sm pl-xs md:sticky md:self-start md:pb-sm">
-          <i class="fa-solid fa-chevron-right text-p2 transition-all duration-fast rotate-90"></i>
-          <h5>${yearGroup.year}</h5>
+          <div class="list-reveal-row"><i class="fa-solid fa-chevron-right text-p2 transition-all duration-fast rotate-90"></i></div>
+          <h5 class="list-reveal-row">${yearGroup.year}</h5>
         </div>` : `
         <div class="col-span-12 md:col-span-1 md:col-start-1 flex items-center order-1 py-sm pl-xs">
-          <h5>${yearGroup.year}</h5>
+          <h5 class="list-reveal-row">${yearGroup.year}</h5>
         </div>`}
         <div class="col-span-12 md:col-span-11 md:col-start-2 list-year-items flex flex-col order-2 ${hideYearHeader ? 'md:pl-[41px]' : 'mt-md md:mt-0 md:pl-[41px]'}">
           ${itemsHtml}
         </div>
       </div>
-      ${!isLast ? '<div class="activities-separator border-b-4 border-black"></div>' : ''}
+      ${!isLast ? '<div class="activities-separator list-reveal-row border-b-4 border-black" style="height:4px"></div>' : ''}
     `);
   });
 
   // ref 按鈕導航
-  container.querySelectorAll('.list-ref-btn').forEach(btn => {
+  container.querySelectorAll('.list-ref-btn').forEach((/** @type {any} */ btn) => {
     btn.addEventListener('click', () => {
       const section = btn.dataset.refSection;
       const itemId  = btn.dataset.refItem;
@@ -679,19 +619,27 @@ export async function loadListInto(containerId, url, options = {}) {
     });
   });
 
-  // sticky top（year toggle 的 sticky top 緊接在 filter bar 下方）
-  if (showYearToggle) {
-    if (window.innerWidth >= 768) {
-      const filterBar = panelSelector
-        ? document.querySelector(`${panelSelector} .activities-filter-bar`)
-        : container.closest('.activities-panel')?.querySelector('.activities-filter-bar');
-      const top = filterBar ? 200 + filterBar.offsetHeight : 200;
-      container.querySelectorAll('.list-year-toggle').forEach(el => { el.style.top = top + 'px'; });
+  // sticky top（year toggle 與 list-header 的 sticky top 緊接在 filter bar 下方）
+  // --list-header-sticky-top 由 lists.css `.list-header` sticky 規則讀取，預設 200（admission 用）
+  // 用 ResizeObserver 跟著 filter-bar 高度變化即時同步：bar-hidden 收起 search-inner 時 filter-bar 縮 ~80px，
+  // 不同步會讓 sticky title 跟 filter-bar 底部之間出現透視縫，捲動內容穿過
+  if (window.innerWidth >= 768) {
+    const filterBar = /** @type {HTMLElement | null} */ (panelSelector
+      ? document.querySelector(`${panelSelector} .activities-filter-bar`)
+      : container.closest('.activities-panel')?.querySelector('.activities-filter-bar'));
+    const updateStickyTop = () => {
+      // 扣除 1px 讓它與 filter bar 稍微重疊，避免因瀏覽器 Sub-pixel 渲染造成 1px 透視縫
+      const top = filterBar ? 200 + filterBar.offsetHeight - 1 : 200;
+      container.style.setProperty('--list-header-sticky-top', top + 'px');
+      if (showYearToggle) {
+        container.querySelectorAll('.list-year-toggle').forEach((/** @type {any} */ el) => { el.style.top = top + 'px'; });
+      }
+    };
+    updateStickyTop();
+    if (filterBar && typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(updateStickyTop).observe(filterBar);
     }
   }
-
-  // ScrollTrigger 進場動畫
-  if (scrollTrigger) buildInitialScrollTrigger(container);
 
   return bindInteractions(container);
 }
@@ -722,23 +670,10 @@ export async function loadSummerCampInto(containerId = null) {
     return el?.id || null;
   })();
   if (!id) return;
-  await loadListInto(id, '/data/summer-camp.json', {
+  return loadListInto(id, '/data/summer-camp.json', {
     showYearToggle: false,
     fullDate: true,
   });
-  const container = document.getElementById(id);
-  if (!container) return null;
-  // 年份 header + list-item 全部平鋪，依序 stagger 進場（ScrollTrigger.batch）
-  const flat = [...container.querySelectorAll('.list-year-group')].flatMap(group => {
-    const sep = group.nextElementSibling?.classList.contains('activities-separator')
-      ? group.nextElementSibling : null;
-    return [
-      group.querySelector(':scope > div:first-child'),
-      ...group.querySelectorAll('.list-item'),
-      ...(sep ? [sep] : []),
-    ];
-  }).filter(Boolean);
-  return () => animateCards(flat, true, { fadeIn: true });
 }
 
 // ── General Activities / Lectures / Industry wrappers ─────────────────────────

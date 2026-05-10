@@ -3,7 +3,7 @@
  * Netflix 風格全螢幕播放器
  */
 
-export function initVideoPlayer(videoUrl) {
+export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete } = {}) {
   const overlay       = document.getElementById('video-player-overlay');
   const video         = document.getElementById('video-player');
   const playBtn       = document.getElementById('video-play-btn');
@@ -47,11 +47,22 @@ export function initVideoPlayer(videoUrl) {
 
   applyIconColor('#000');
 
+  // ── 預載入影片（不顯示 overlay、不播放）──────────────
+  // 在 cover 動畫啟動時呼叫，讓 video 在 cover 期間 buffer 資料；
+  // openPlayer 時 .play() 直接吃 buffered 資料，黑色過渡縮到 <100ms
+  function preloadVideo() {
+    if (video.src !== videoUrl) {
+      video.src = videoUrl;
+      video.preload = 'auto';
+      video.load();
+    }
+  }
+
   // ── 開啟播放器 ──────────────────────────────────────────
   function openPlayer({ accentColor = '#00FF80' } = {}) {
-    // 粉色 → 白色 icon，其他（綠、藍）→ 黑色 icon
-    const uiIconColor = accentColor === '#FF448A' ? '#fff' : '#000';
-    video.src = videoUrl;
+    // 全部三原色（綠/粉/藍）底色一律配黑色 icon
+    const uiIconColor = '#000';
+    if (video.src !== videoUrl) video.src = videoUrl; // 萬一沒 preload 也 fallback
     overlay.style.display = 'flex';
     document.body.style.overflow = 'hidden';
     // 三個矩形區塊各自設背景色
@@ -66,11 +77,42 @@ export function initVideoPlayer(videoUrl) {
   // ── 關閉播放器 ──────────────────────────────────────────
   function closePlayer() {
     video.pause();
-    video.src = '';
-    overlay.style.display = 'none';
-    document.body.style.overflow = '';
     clearTimeout(hideTimer);
     if (document.fullscreenElement) document.exitFullscreen?.();
+
+    const rect = getCardRect?.();
+    if (!rect || typeof gsap === 'undefined') {
+      video.src = '';
+      overlay.style.display = 'none';
+      document.body.style.overflow = '';
+      return;
+    }
+
+    gsap.set(controls, { opacity: 0 });
+    controls.style.pointerEvents = 'none';
+    isVisible = false;
+
+    const vW = window.innerWidth, vH = window.innerHeight;
+    const cardCx = rect.left + rect.width / 2;
+    const cardCy = rect.top + rect.height / 2;
+    const maxDist = Math.max(...[[0,0],[vW,0],[0,vH],[vW,vH]].map(([cx,cy]) => Math.hypot(cx - cardCx, cy - cardCy)));
+    const fromScale = (maxDist / (rect.width / 2)) * 2.2;
+
+    const clone = document.createElement('div');
+    clone.style.cssText = `position:fixed; left:${cardCx}px; top:${cardCy}px; width:${rect.width}px; height:${rect.height}px; margin-left:${-rect.width/2}px; margin-top:${-rect.height/2}px; background:#000; border-radius:50%; z-index:10001; transform:scale(${fromScale}); transform-origin:center center;`;
+    document.body.appendChild(clone);
+
+    overlay.style.display = 'none';
+    document.body.style.overflow = '';
+
+    gsap.to(clone, {
+      scale: 1, duration: 0.5, ease: 'power3.out',
+      onComplete: () => {
+        clone.remove();
+        video.src = '';
+        onCloseAnimComplete?.();
+      }
+    });
   }
 
   // ── 控制列自動隱藏 ──────────────────────────────────────
@@ -285,10 +327,9 @@ export function initVideoPlayer(videoUrl) {
   });
 
   // ── 影片結束 ───────────────────────────────────────────
+  // 自動關閉 player 回首頁
   video.addEventListener('ended', () => {
-    updatePlayIcon();
-    showControls();
-    clearTimeout(hideTimer);
+    closePlayer();
   });
 
   // ── 格式化時間 ─────────────────────────────────────────
@@ -298,5 +339,5 @@ export function initVideoPlayer(videoUrl) {
     return `${m}:${sec.toString().padStart(2, '0')}`;
   }
 
-  return { openPlayer };
+  return { openPlayer, preloadVideo };
 }

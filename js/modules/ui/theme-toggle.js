@@ -74,6 +74,14 @@ function applyColorVars() {
   root.style.setProperty('--theme-fg-rgb', fgRgb);
   root.style.setProperty('--theme-overlay-25', `rgba(${fgRgb}, 0.25)`);
 
+  // Header logo（wireframe）對比翻色：wireframe-standard base 黑色，暗底套 invert(1) 變白
+  // 直接比對 style.filter（cheap read）避免維護 lastIsLightBg 狀態 + 處理 logo async load 的 race
+  const logo = document.getElementById('header-logo');
+  if (logo && logo.dataset.logoType === 'wireframe') {
+    const desired = isLightBg ? 'none' : 'invert(1)';
+    if (logo.style.filter !== desired) logo.style.filter = desired;
+  }
+
   const now = performance.now();
   if (now - lastThemeDispatch > 200) {
     lastThemeDispatch = now;
@@ -107,6 +115,9 @@ function stopColorLoop() {
   root.style.removeProperty('--theme-fg');
   root.style.removeProperty('--theme-fg-rgb');
   root.style.removeProperty('--theme-overlay-25');
+  // 清 wireframe logo 的 invert filter
+  const logo = document.getElementById('header-logo');
+  if (logo) logo.style.filter = '';
 }
 
 function getCurrentPage() {
@@ -189,7 +200,12 @@ function applyMode(mode) {
   // /generate 頁有自己的 typewriter logo，不要套 Lottie 蓋掉
   if (getCurrentPage() === 'generate') return;
 
-  const logoType = mode === 'inverse' ? 'inverse' : 'standard';
+  // mode-color 用 wireframe logo（base 黑色），暗底 hue 由 applyColorVars 套 filter:invert(1) 翻白
+  let logoType;
+  if (mode === 'color') logoType = 'wireframe';
+  else if (mode === 'inverse') logoType = 'inverse';
+  else logoType = 'standard';
+
   if (document.getElementById('header-logo')) {
     switchHeaderLogo(logoType);
   } else {
@@ -210,7 +226,10 @@ function switchHeaderLogo(type) {
 
   const isInPages = window.location.pathname.includes('/pages/');
   const basePath = isInPages ? '/data/' : 'data/';
-  const file = type === 'inverse' ? 'SCCDLogoInverse.json' : 'SCCDLogoStandard.json';
+  let file;
+  if (type === 'wireframe') file = 'SCCDLogoWireframeStandard.json';
+  else if (type === 'inverse') file = 'SCCDLogoInverse.json';
+  else file = 'SCCDLogoStandard.json';
 
   const anim = lottie.loadAnimation({
     container: logo,

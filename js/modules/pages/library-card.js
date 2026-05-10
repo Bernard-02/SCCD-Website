@@ -202,7 +202,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb 
   // ── 矩形樣式設定 ─────────────────────────────────────────────
 
   function setAsGray(el, sw, sh) {
-    el.style.background     = '#f2f2f2';
+    el.style.background     = 'var(--lib-bg)';
     el.style.cursor         = 'default';
     el.style.zIndex         = '10';
     el.style.width          = `${MAIN_W}px`;
@@ -640,7 +640,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb 
       roInitialized = true;
       MAIN_W = Math.round(sw * 0.85);
       MAIN_H = Math.round(sw * 0.87 * 10.5 / 21);
-      grayEl.style.cssText = `position:absolute;background:#f2f2f2;z-index:10;cursor:default;display:flex;flex-direction:column;overflow:visible;width:${MAIN_W}px;height:${MAIN_H}px;left:${Math.round(sw/2)}px;top:${Math.round(sh/2)}px;transform:translate(-50%,-50%) rotate(0deg);opacity:0;`;
+      grayEl.style.cssText = `position:absolute;background:var(--lib-bg);z-index:10;cursor:default;display:flex;flex-direction:column;overflow:visible;width:${MAIN_W}px;height:${MAIN_H}px;left:${Math.round(sw/2)}px;top:${Math.round(sh/2)}px;transform:translate(-50%,-50%) rotate(0deg);opacity:0;`;
       initColorEls(sw, sh);
       colorEls.forEach(el => { el.style.opacity = '0'; });
       requestAnimationFrame(() => { playEntranceAnimation(sw, sh); });

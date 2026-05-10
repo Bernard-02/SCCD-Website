@@ -108,7 +108,11 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
   updateToggleBtnVisualState(page);
 
   // Hero animation 所有頁面都跑（有 hero section 就會觸發）
-  initHeroAnimation();
+  // 例外：degree-show-detail 的 hero 文字由 async fetch 填入，必須等 data loader 設好 textContent 後再呼叫，
+  // 否則動畫跑在空元素上、clearProps 完才填字，使用者看到的是靜態文字（中文標題沒有進場動畫）
+  if (page !== 'degree-show-detail') {
+    initHeroAnimation();
+  }
 
   // --- Index Page ---
   if (page === 'index') {
@@ -181,12 +185,10 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
     loadDegreeShowDetail();
   }
 
-  // --- Admission Pages ---
-  if (page === 'admission' || page === 'admission-detail') {
+  // --- Admission Page ---
+  if (page === 'admission') {
     loadAdmissionData();
-    if (page === 'admission') {
-      initAdmissionSectionSwitch();
-    }
+    initAdmissionSectionSwitch();
   }
 
   // --- Faculty Pages ---
@@ -200,7 +202,6 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
   // --- Courses Page ---
   if (page === 'courses') {
     initCoursesSectionSwitch();
-    initBFADivisionToggle();
   }
 
   // --- Support Page ---

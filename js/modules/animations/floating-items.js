@@ -190,19 +190,8 @@ function createImageEl(src, url, showPlayIcon = false) {
     width: 100%;
     height: auto;
     display: block;
-    transition: filter 0.3s ease;
   `;
   img.onerror = () => { wrapper.remove(); };
-
-  // hover overlay（item 自身 hover，grayscale + screen）
-  const hoverOverlay = document.createElement('div');
-  hoverOverlay.style.cssText = `
-    position: absolute; inset: 0;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    pointer-events: none;
-    mix-blend-mode: screen;
-  `;
 
   // news hover overlay（從上到下 wipe，無 blend mode）
   const newsOverlay = document.createElement('div');
@@ -215,7 +204,6 @@ function createImageEl(src, url, showPlayIcon = false) {
   `;
 
   wrapper.appendChild(img);
-  wrapper.appendChild(hoverOverlay);
 
   if (showPlayIcon) {
     const playIcon = document.createElement('div');
@@ -230,19 +218,6 @@ function createImageEl(src, url, showPlayIcon = false) {
 
   // newsOverlay 放最後，蓋住 img、hoverOverlay、playIcon
   wrapper.appendChild(newsOverlay);
-
-  if (url) {
-    wrapper.addEventListener('mouseenter', () => {
-      const color = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
-      img.style.filter = 'grayscale(100%)';
-      hoverOverlay.style.background = color;
-      hoverOverlay.style.opacity = '1';
-    });
-    wrapper.addEventListener('mouseleave', () => {
-      img.style.filter = '';
-      hoverOverlay.style.opacity = '0';
-    });
-  }
 
   // 隨機選一個 wipe 方向（上/下/左/右）
   const wipeDirections = [
@@ -273,7 +248,7 @@ function createTextEl(textEn, textZh, url) {
     el.style.cursor = 'pointer';
   }
   const defaultColor = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
-  const defaultTextColor = (defaultColor === '#FF448A') ? '#fff' : '#000';
+  const defaultTextColor = '#000';
   el.style.cssText = `
     display: inline-block;
     position: absolute;
@@ -363,9 +338,14 @@ export function initWatchHover() {
   });
 
   watchBtn.addEventListener('mouseleave', () => {
+    if (watchBtn.dataset.clickAnimating === '1') return;
     overlay.style.opacity = '0';
     removeNewsHover();
   });
+  watchBtn.__closeSpotlight = () => {
+    overlay.style.opacity = '0';
+    removeNewsHover();
+  };
 }
 
 const FALLBACK_IMAGES = [

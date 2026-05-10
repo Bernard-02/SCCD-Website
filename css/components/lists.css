@@ -10,12 +10,47 @@
 }
 
 
-/* ===== Admission Detail Entrance Reveal ===== */
-/* date / title / body 預設 opacity 0（避免 GSAP 介入前閃現），data 載入完成後由 JS 從下到上 stagger 進場 */
-#admission-date,
-#admission-title,
-#admission-body {
-  opacity: 0;
+/* ===== Admission（採 list-item 結構共用 list-accordion）===== */
+/* admission 直接用 list-item / list-header / list-content classes（與 activities 共享 accordion）：
+ *  - hover 隨機色、click 展開、active title padding-left 右移
+ *  - --item-color-deep 由 list-accordion 自動 set，attachments（用 list-ref-btn class）跟著拿到底色
+ * admission 限定：
+ *  - rich HTML content 的 <p> 排版用 .admission-body 控
+ *  - sticky title（活用 list-header）只在 admission 頁啟用，scope 到 #admission-content-section
+ *    避免影響 activities 同 class 的 list-header */
+.admission-body p {
+  margin: 0;
+  font-size: var(--font-size-p2);
+  line-height: var(--line-height-base);
+}
+
+/* Tailwind .list-item utility 是 display:list-item，預設會 render disc marker
+ * activities 用 overflow-hidden 順便藏掉 marker；admission 為 sticky 不能 overflow-hidden
+ * 防禦性：.list-item 全站去 marker，避免依賴 overflow 副作用 */
+.list-item {
+  list-style: none;
+}
+
+/* 桌面版：list-header sticky 只在 .active（展開）狀態啟用 — 滑動長內文時使用者看到當前條目標題。
+ * - inactive 條目（收合）：不 sticky，header 隨自然 flow 走；user 滑過下方未展開條目時不會誤 sticky
+ * - active 條目（展開）：sticky 在 cut line 為止；自然 top 在 cut line 下方 → CSS sticky 不 engage（停留自然位置）
+ * 預設 top:200px（對齊全站左欄 nav 與遮罩底邊，admission 場景）；
+ * activities 等有 filter-bar 的頁面 JS 計算後設 --list-header-sticky-top 蓋過（避免蓋住 filter bar）。 */
+@media (min-width: 768px) {
+  .list-header.active {
+    position: sticky;
+    top: var(--list-header-sticky-top, 200px);
+    z-index: 5;
+  }
+
+  /* Sticky paint seam fix（往下 scroll 看到的 1-2px image 細綫）：
+   * sticky list-header 與相鄰 .list-content 即使 layout 上緊貼，paint 邊界在
+   * device pixel 上 round 不一致仍會留 1-2px 縫；image 在縫底下直接露出。
+   * 用 padding-top 4px 同色 buffer：list-item 父層 bg accent 色透過 list-content
+   * 透明 padding 區露出，把 image 往下推 4px，縫底下見到的是 accent bg 而非 image。 */
+  .list-header.active + .list-content {
+    padding-top: 4px;
+  }
 }
 
 /* ===== Activities Search Bar ===== */
@@ -147,14 +182,40 @@
     transform: scaleX(0);
   }
 
+  /* active 時 title 往右推一格 spacing-md - 4px。
+   * 用 transform translateX 不用 padding-left — padding-left 會收縮 content area
+   * 觸發換行→list-header 變高（=> 視覺上 title「往下偏移」bug）；transform 純視覺位移
+   * 不影響 layout flow，安全。
+   * 全站共用：admission / activities / summer camp 等所有用 .list-header 的場景一致。 */
   .list-header > div:first-child {
     padding-left: 0;
-    transition: padding-left 0.3s ease;
+    transition: transform 0.3s ease;
   }
-
   .list-header.active > div:first-child {
-    padding-left: calc(var(--spacing-md) - 4px);
+    transform: translateX(calc(var(--spacing-md) - 4px));
   }
+}
+
+/* ===== Activities Reference Chip ===== */
+/* list-ref-btn 為 list-content 內 ref 元素：
+ *  - 整條從 list-content 左到右，無 px padding（py-sm 縮小上下）
+ *  - header / content 為 100% accent；ref 用對應 deep 色（pink #f52d78 / green #23eb7d / blue #23a5ff）
+ *    --item-color / --item-color-deep 由 list-accordion.js 在 list-item open/close 時 set/remove
+ *  - 文字一律黑色（不被 inverse mode 反白：用 component class color，避開 .text-black utility）
+ *  - hover 翻黑底白字（!important 蓋過 inline accent 與 .text-* utility 子元素色）*/
+.list-ref-btn {
+  color: black;
+  background: var(--item-color-deep, transparent);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.list-ref-btn:hover {
+  background: black !important;
+  color: white !important;
+}
+
+.list-ref-btn:hover * {
+  color: white !important;
 }
 
 /* ===== Workshop Title Marquee (Desktop only) ===== */

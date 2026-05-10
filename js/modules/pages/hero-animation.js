@@ -76,19 +76,8 @@ export function initHeroAnimation() {
 
   const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
 
-  // --- 1. Hero Title: clip reveal ---
-  if (title) {
-    wrapElement(title, 'hero-title-wrapper');
-    // title 設為可見，從 yPercent: 100（在 wrapper 外底部）滑入
-    gsap.set(title, { visibility: 'visible', yPercent: 100 });
-    tl.to(title, {
-      yPercent: 0,
-      duration: 0.9,
-      clearProps: 'transform',
-    });
-  }
-
-  // --- 2. 英文 / 中文副標：clip reveal（同 title 模式：wrapper overflow:hidden + yPercent 100→0）---
+  // 預先 wrap，避免動畫順序判斷影響 wrap 邏輯（wrapper 同時負責 rotate + clip overflow）
+  if (title) wrapElement(title, 'hero-title-wrapper');
   if (textEn) {
     wrapElement(textEn, 'hero-text-en-wrapper');
     // Tailwind class（mb-lg/mb-xl）的 mb 在 wrap 後會在 wrapper 內部，浪費高度且讓 wrapper 變高 → 顯式清掉
@@ -98,22 +87,58 @@ export function initHeroAnimation() {
       textEn.parentElement.style.marginBottom = `${heroGapPx}px`;
     }
   }
-  if (textCn) {
-    wrapElement(textCn, 'hero-text-cn-wrapper');
-  }
+  if (textCn) wrapElement(textCn, 'hero-text-cn-wrapper');
+
   const subtitles = [textEn, textCn].filter(Boolean);
-  if (subtitles.length > 0) {
-    // 預先設 yPercent:100（保持 CSS visibility:hidden 不動）；title 動畫接近結束才把 visibility 打開
-    // 為什麼分開：若 init 時就 visibility:visible + yPercent:100，sub-pixel rounding 會在 wrapper 底邊露出 ~0.5px 細綫，
-    // 動畫前等待的 0.5s 視覺上看得到。把可見性切換對齊動畫起點 = 露邊立刻被滑入動作蓋掉，視覺乾淨。
-    gsap.set(subtitles, { yPercent: 100 });
-    tl.set(subtitles, { visibility: 'visible' }, '-=0.4')
-      .to(subtitles, {
+  // opt-in：[data-hero-title-last] 存在時 → subtitles 先進場，title 最後
+  // 用於 hero 結構為「年份 → 英文 → 中文標題」這種底部為主標的版面（如 degree-show-detail）
+  const titleLast = document.querySelector('[data-hero-title-last]') !== null;
+
+  // 為什麼 visibility:visible 用 tl.set 對齊動畫起點而非 gsap.set 立即打開：
+  // 若 init 時就 visibility:visible + yPercent:100，sub-pixel rounding 會在 wrapper 底邊露出 ~0.5px 細綫，
+  // 動畫前等待視覺上看得到。把可見性切換對齊動畫起點 = 露邊立刻被滑入動作蓋掉，視覺乾淨。
+
+  if (titleLast) {
+    // Subtitles 先（年份 → 英文 stagger），title 後 overlap 進場
+    if (subtitles.length > 0) {
+      gsap.set(subtitles, { yPercent: 100 });
+      tl.set(subtitles, { visibility: 'visible' })
+        .to(subtitles, {
+          yPercent: 0,
+          duration: 0.9,
+          stagger: 0.15,
+          clearProps: 'transform',
+        });
+    }
+    if (title) {
+      gsap.set(title, { yPercent: 100 });
+      tl.set(title, { visibility: 'visible' }, '-=0.4')
+        .to(title, {
+          yPercent: 0,
+          duration: 0.9,
+          clearProps: 'transform',
+        }, '<');
+    }
+  } else {
+    // 預設：title 先，subtitles 後 overlap 進場
+    if (title) {
+      gsap.set(title, { visibility: 'visible', yPercent: 100 });
+      tl.to(title, {
         yPercent: 0,
         duration: 0.9,
-        stagger: 0.15,
         clearProps: 'transform',
-      }, '<');
+      });
+    }
+    if (subtitles.length > 0) {
+      gsap.set(subtitles, { yPercent: 100 });
+      tl.set(subtitles, { visibility: 'visible' }, '-=0.4')
+        .to(subtitles, {
+          yPercent: 0,
+          duration: 0.9,
+          stagger: 0.15,
+          clearProps: 'transform',
+        }, '<');
+    }
   }
 
   // --- 3. Hero 背景圖：往下 scroll 時放大 + parallax；main section 蓋上來 ---

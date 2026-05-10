@@ -15,7 +15,7 @@ const CAT_LABELS = {
   'competitions':     'Competitions 競賽',
   'conferences':      'Conferences 研討會',
   'students-present': 'Students Present 學生自主',
-  'industry':         'Industry-Academia 產學合作',
+  'industry':         'Industry-Academia Cooperation 產學合作',
   'summer-camp':      'Summer Camp 暑期體驗營',
   'moment':           'Moment 日常',
   'others':           'Others 其他',
@@ -50,7 +50,7 @@ function createYearPicker(pickerEl, years, onFilter) {
   const updateStyles = () => {
     const hasSel = selected.size > 0;
     pickerEl.querySelectorAll('button').forEach(b => {
-      b.style.color = (!hasSel || selected.has(b.dataset.year)) ? '#000' : 'rgba(0,0,0,0.3)';
+      b.style.color = (!hasSel || selected.has(b.dataset.year)) ? 'var(--lib-fg)' : 'rgba(var(--lib-fg-rgb),0.3)';
     });
   };
 
@@ -58,7 +58,7 @@ function createYearPicker(pickerEl, years, onFilter) {
     const btn = document.createElement('button');
     btn.textContent = year;
     btn.dataset.year = year;
-    btn.style.cssText = 'text-align:left;background:none;border:none;padding:0;font-family:inherit;font-size:var(--font-size-p3);cursor:pointer;font-weight:700;color:#000;';
+    btn.style.cssText = 'text-align:left;background:none;border:none;padding:0;font-family:inherit;font-size:var(--font-size-p3);cursor:pointer;font-weight:700;color:var(--lib-fg);';
     btn.addEventListener('click', () => {
       if (selected.has(year)) { selected.delete(year); } else { selected.add(year); }
       if (selected.size === years.length) selected.clear();
@@ -137,14 +137,20 @@ function bindCoverRatio(containerEl) {
  * @param {string} innerSelector    - 內部 span 選擇器，e.g. '.files-marquee-inner'
  */
 function runMarqueeOverflow(containerEl, rowSelector, innerSelector) {
+  // 兩份相同內容首尾相接（gap 由 .marquee-copy 的 padding-right 提供），
+  // 動畫只移動「一份 copy 寬度（含 padding）」→ 第二份滑入起點時與第一份完全重合，無接縫
   containerEl.querySelectorAll(rowSelector).forEach(el => {
     const inner = el.querySelector(innerSelector);
     if (!inner) return;
     const overflow = inner.scrollWidth - el.offsetWidth;
     if (overflow > 0) {
       el.classList.add('is-overflow');
-      el.style.setProperty('--marquee-distance', `-${inner.scrollWidth}px`);
-      el.style.setProperty('--marquee-duration', `${Math.max(3, inner.scrollWidth / 80)}s`);
+      const html = inner.innerHTML;
+      inner.innerHTML = `<span class="marquee-copy">${html}</span><span class="marquee-copy">${html}</span>`;
+      // getBoundingClientRect 對 inline-block 準確；offsetWidth 在某些情境會回 0
+      const copyWidth = inner.querySelector('.marquee-copy').getBoundingClientRect().width;
+      el.style.setProperty('--marquee-distance', `-${copyWidth}px`);
+      el.style.setProperty('--marquee-duration', `${Math.max(3, copyWidth / 80)}s`);
     }
   });
 }
@@ -224,7 +230,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
 
         listEl.insertAdjacentHTML('beforeend', `
           <div class="year-block" data-year="${yearGroup.year}" style="margin-bottom: var(--spacing-2xl);">
-            <div style="font-size: var(--font-size-p3); font-weight: 700; padding: 0.35rem 0 0.25rem; position: sticky; top: -1px; background: #f2f2f2; z-index: 2; margin-top: -0.35rem;">${yearGroup.year}</div>
+            <div style="font-size: var(--font-size-p3); font-weight: 700; padding: 0.35rem 0 0.25rem; position: sticky; top: -1px; background: var(--lib-bg); z-index: 2; margin-top: -0.35rem;">${yearGroup.year}</div>
             <div class="flex flex-col">${itemsHtml}</div>
           </div>`);
       });
@@ -257,7 +263,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
       const updateBtns = () => {
         const hasSel = selectedYears.size > 0;
         yearPickerEl.querySelectorAll('button').forEach(b => {
-          b.style.color = (!hasSel || selectedYears.has(b.dataset.year)) ? '#000' : 'rgba(0,0,0,0.3)';
+          b.style.color = (!hasSel || selectedYears.has(b.dataset.year)) ? 'var(--lib-fg)' : 'rgba(var(--lib-fg-rgb),0.3)';
         });
       };
 
@@ -266,7 +272,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         const btn = document.createElement('button');
         btn.textContent  = year;
         btn.dataset.year = String(year);
-        btn.style.cssText = 'text-align:left;background:none;border:none;padding:0;font-family:inherit;font-size:var(--font-size-p3);cursor:pointer;font-weight:700;color:#000;';
+        btn.style.cssText = 'text-align:left;background:none;border:none;padding:0;font-family:inherit;font-size:var(--font-size-p3);cursor:pointer;font-weight:700;color:var(--lib-fg);';
         btn.addEventListener('click', () => {
           if (selectedYears.has(String(year))) { selectedYears.delete(String(year)); } else { selectedYears.add(String(year)); }
           updateBtns();
@@ -503,7 +509,7 @@ async function initPressPanel() {
         : null;
       document.querySelectorAll('.lib-press-cat-btn').forEach(b => {
         b.classList.toggle('dimmed', hasSel && !selectedCats.has(b.dataset.cat));
-        b.style.color = (catsWithMatch && !catsWithMatch.has(b.dataset.cat)) ? 'rgba(0,0,0,0.3)' : '';
+        b.style.color = (catsWithMatch && !catsWithMatch.has(b.dataset.cat)) ? 'rgba(var(--lib-fg-rgb),0.3)' : '';
       });
     }
 
@@ -559,41 +565,43 @@ async function initFilesPanel() {
         label.textContent = group.year;
         block.appendChild(label);
 
+        const grid = document.createElement('div');
+        grid.className = 'files-grid';
+
         group.items.forEach(item => {
           const div  = document.createElement('div');
-          div.className  = 'files-item';
-          if (item.id) div.id = `f-${item.id}`; // 供 hash deep link 使用（避免與其他 panel id 衝突）
+          div.className  = 'files-item files-item-card';
+          if (item.id) div.id = `f-${item.id}`;
           const cats = Array.isArray(item.categories) ? item.categories : (item.category ? [item.category] : []);
           div.dataset.year   = String(item.year);
           div.dataset.cats   = JSON.stringify(cats);
           div.dataset.search = [item.titleEn, item.titleZh].filter(Boolean).join(' ').toLowerCase();
           const catTagsHtml  = cats.map(c => CAT_LABELS[c]).filter(Boolean)
-            .map(l => `<span class="files-item-subtitle-tag">${l}</span>`).join('');
+            .map(l => `<span class="files-item-subtitle-tag"><span class="files-marquee-inner">${l}</span></span>`).join('');
 
           const accentColor = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
-          const sign = Math.random() < 0.4 ? -1 : 1;
-          const finalDeg = sign > 0 ? (Math.random() * 5.5 + 0.5) : -(Math.random() * 3.5 + 0.5);
+          // 旋轉：sign 隨機 × magnitude 1~3，範圍 [-3,-1] ∪ [1,3]，排除 0 和近 0 避免卡片看起來都一樣
+          const finalDeg = (Math.random() < 0.5 ? -1 : 1) * (1 + Math.random() * 2);
+          // rotation 直接套在 image / empty placeholder 上（不是 inner），transform-origin = image 中心
           const coverContent = item.cover
-            ? `<img class="files-item-cover" src="${item.cover}" alt="">`
-            : `<div class="files-item-cover files-item-cover--empty"></div>`;
+            ? `<img class="files-item-cover" data-init-deg="${finalDeg}" style="transform: rotate(${finalDeg}deg);" src="${item.cover}" alt="">`
+            : `<div class="files-item-cover files-item-cover--empty" data-init-deg="${finalDeg}" style="transform: rotate(${finalDeg}deg);"></div>`;
           const coverHtml = `
-            <div class="files-item-cover-wrap">
-              <div class="files-item-cover-inner" data-init-deg="${finalDeg}" style="transform: rotate(${finalDeg}deg);">
+            <div class="files-card-cover-wrap">
+              <div class="files-item-cover-inner">
                 ${coverContent}
                 <div class="files-thumb-overlay" style="background: ${accentColor};"></div>
               </div>
             </div>`;
           const titleEnHtml = item.titleEn ? `<p class="files-item-title-en"><span class="files-marquee-inner">${item.titleEn}</span></p>` : '';
           const titleZhHtml = item.titleZh ? `<p class="files-item-title-zh"><span class="files-marquee-inner">${item.titleZh}</span></p>` : '';
-          const oneLang = !!(item.titleEn) !== !!(item.titleZh);
           div.innerHTML = `
-            <div class="files-item-row">
-              <div class="files-item-titles">
-                <div class="files-item-titles-text${oneLang ? ' files-item-titles-text--center' : ''}">${titleEnHtml}${titleZhHtml}</div>
-                ${catTagsHtml ? `<div class="files-item-subtitle-wrap">${catTagsHtml}</div>` : ''}
-              </div>
-              ${coverHtml}
+            ${coverHtml}
+            <div class="files-item-titles files-card-info">
+              <div class="files-item-titles-text">${titleEnHtml}${titleZhHtml}</div>
+              ${catTagsHtml ? `<div class="files-item-subtitle-wrap">${catTagsHtml}</div>` : ''}
             </div>`;
+
           if (item.pdfUrl) {
             div.style.cursor = 'pointer';
             div.addEventListener('click', () => {
@@ -601,44 +609,23 @@ async function initFilesPanel() {
             });
           }
 
-          // 依比例設定 cover 尺寸（同 album thumb 邏輯）
-          const coverImg = div.querySelector('.files-item-cover');
-          if (coverImg && coverImg.tagName === 'IMG') {
-            const applyRatio = () => {
-              const isLandscape = coverImg.naturalWidth > coverImg.naturalHeight;
-              const wrap = div.querySelector('.files-item-cover-wrap');
-              if (isLandscape) {
-                wrap.style.maxWidth = '8rem';
-                coverImg.style.height = '100%';
-                coverImg.style.width = 'auto';
-              } else {
-                wrap.style.maxWidth = '';
-                coverImg.style.height = '100%';
-                coverImg.style.width = 'auto';
-              }
-            };
-            if (coverImg.complete && coverImg.naturalWidth) applyRatio();
-            else coverImg.addEventListener('load', applyRatio, { once: true });
-          }
-
-          block.appendChild(div);
+          grid.appendChild(div);
         });
 
+        block.appendChild(grid);
         listEl.appendChild(block);
       });
 
-      bindCoverRatio(listEl);
-
       if (window.innerWidth >= 768) {
-        listEl.querySelectorAll('.files-item').forEach(item => {
-          const inner = item.querySelector('.files-item-cover-inner');
-          if (!inner) return;
+        listEl.querySelectorAll('.files-item-card').forEach(item => {
+          const cover = item.querySelector('.files-item-cover');
+          if (!cover) return;
           item.addEventListener('mouseenter', () => {
-            gsap.to(inner, { rotation: 0, duration: 0.3, ease: 'power2.out' });
+            gsap.to(cover, { rotation: 0, duration: 0.3, ease: 'power2.out' });
           });
           item.addEventListener('mouseleave', () => {
-            const deg = parseFloat(inner.dataset.initDeg) || 0;
-            gsap.to(inner, { rotation: deg, duration: 0.3, ease: 'power2.out' });
+            const deg = parseFloat(cover.dataset.initDeg) || 0;
+            gsap.to(cover, { rotation: deg, duration: 0.3, ease: 'power2.out' });
           });
         });
       }
@@ -646,7 +633,7 @@ async function initFilesPanel() {
       bindListItemHover(listEl, '.files-item', '.files-thumb-overlay');
 
       window._filesMarqueeInit = () => {
-        runMarqueeOverflow(listEl, '.files-item-title-en, .files-item-title-zh', '.files-marquee-inner');
+        runMarqueeOverflow(listEl, '.files-item-title-en, .files-item-title-zh, .files-item-subtitle-tag', '.files-marquee-inner');
         window._filesMarqueeInit = null;
       };
     }
@@ -691,7 +678,7 @@ async function initFilesPanel() {
         : null;
       document.querySelectorAll('.lib-files-cat-btn').forEach(b => {
         b.classList.toggle('dimmed', hasSel && !selectedCats.has(b.dataset.cat));
-        b.style.color = (catsWithMatch && !catsWithMatch.has(b.dataset.cat)) ? 'rgba(0,0,0,0.3)' : '';
+        b.style.color = (catsWithMatch && !catsWithMatch.has(b.dataset.cat)) ? 'rgba(var(--lib-fg-rgb),0.3)' : '';
       });
     }
 
@@ -903,17 +890,17 @@ async function initAlbumPanel() {
           if (!strip || !thumbs.length) return;
 
           item.addEventListener('mouseenter', () => {
-            // 計算展開位置：從右到左排列
-            const gap = 12; // 稍微加大圖片之間的間距讓視覺更明顯、舒適
+            // 計算展開位置：從右到左排列（用 x 偏移而非 right，避免 CSS layout + transform 混用導致垂直偏移）
+            const gap = 12;
             let cursor = 0;
-            const rights = [];
+            const offsets = [];
             for (let i = thumbs.length - 1; i >= 0; i--) {
-              rights[i] = cursor;
+              offsets[i] = cursor;
               cursor += thumbs[i].offsetWidth + gap;
             }
             thumbs.forEach((t, i) => {
               gsap.to(t, {
-                right: rights[i],
+                x: -offsets[i],
                 rotation: 0,
                 duration: 0.3,
                 ease: 'power2.out',
@@ -925,7 +912,7 @@ async function initAlbumPanel() {
             thumbs.forEach(t => {
               const deg = parseFloat(t.dataset.initDeg) || 0;
               gsap.to(t, {
-                right: 0,
+                x: 0,
                 rotation: deg,
                 duration: 0.3,
                 ease: 'power2.out',
@@ -980,7 +967,7 @@ async function initAlbumPanel() {
         : null;
       document.querySelectorAll('.lib-album-cat-btn').forEach(b => {
         b.classList.toggle('dimmed', hasSel && !selectedCats.has(b.dataset.cat));
-        b.style.color = (catsWithMatch && !catsWithMatch.has(b.dataset.cat)) ? 'rgba(0,0,0,0.3)' : '';
+        b.style.color = (catsWithMatch && !catsWithMatch.has(b.dataset.cat)) ? 'rgba(var(--lib-fg-rgb),0.3)' : '';
       });
     }
 

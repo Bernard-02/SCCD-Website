@@ -17,7 +17,7 @@ export const CATEGORY_LABELS = {
   'summer-camp':      'Summer Camp 暑期體驗營',
   'moment':           'Moment 動態',
   'students-present': 'Students Present 學生自主',
-  'industry':         'Industry-Academia 產學合作',
+  'industry':         'Industry-Academia Cooperation 產學合作',
   'others':           'Others 其他',
 };
 

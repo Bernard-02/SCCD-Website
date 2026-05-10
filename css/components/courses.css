@@ -1,0 +1,421 @@
+/**
+ * Courses Page Components
+ * Inline grid layout（學期 × 必修/選修 × 年級）+ 右側 25% sticky desc panel
+ *
+ * Layout（桌面）：
+ *   ┌────────── flex row ─────────────────────┐
+ *   │ Left 75%                  │ Right 25%   │
+ *   │ ┌─ program btn bar ─┐     │             │
+ *   │ │ (對齊年級第一欄)   │     │             │
+ *   │ ├─ courses-grid ────┤     │ desc panel  │
+ *   │ │  sem | type | yr*N│     │ (sticky 底) │
+ *   │ └───────────────────┘     │             │
+ *   └─────────────────────────────────────────┘
+ */
+
+@layer components {
+
+  /* ===== Section-level CSS variables（grid 與 program-bar 共用） =====
+   * 6 cols：sem-col + type-col + 4 個年級欄（1fr）。
+   * Fall/Spring sem-label 在 col 1（sem-col）裡，跨 2 sub-row（required + elective）。
+   * 點卡片改成 faculty-style slide-in 模態，不再縮 grid，所以 grid 寬度不會 toggle。
+   * Section overflow-x: clip：擋住其他 absolute children 超出 section 的水平 scroll。
+   */
+  #courses-content-section {
+    --courses-grid-sem-col: 4rem;
+    --courses-grid-type-col: 4rem;
+    --courses-grid-col-gap: var(--spacing-xl);
+    /* overflow:clip 雙軸：x 防 absolute children 溢位；y 裁掉 sticky bar (corner / year-header)
+       的 ::before 在 natural flow 時向上延伸超出 section top 進到 hero section 的部分
+       （sticky 行為不受 clip 影響） */
+    overflow-x: clip;
+    overflow-y: clip;
+  }
+  /* 桌面：把 section padding-top 加大到 200px（= cover sticky top）讓 panels.top 等於 sticky 線。
+     這樣 anchor scroll 到 section.top=0 時，cover 剛好開始 sticky 黏住、第一行卡片 (row 2) 自然
+     位置 = panels.top(200) + cover height(48) + row-gap(32) = 280 = sticky labels top，完美對齊。
+     原本 py-6xl(192) 會讓 anchor landing 時卡片往上偏 8px 被 cover 切掉 */
+  @media (min-width: 768px) {
+    #courses-content-section {
+      padding-top: 200px;
+    }
+  }
+
+  /* ===== Program button bar =====
+   * 桌面：左側 vertical sticky 側欄（fixed width）；
+   *       buttons 直向堆疊、各 group 含 absolute label，gap-2xl 給 label clearance
+   * 手機：bar 不 sticky，自然流（HTML class flex-col + mb-2xl 給下方 panels 留距離）
+   *
+   * Sticky stack（桌面，三組 top: 200px 對齊 faculty 篩選 btn 的 sticky 位置）：
+   *   1) program-bar     top: 200px（vertical 側欄黏左邊頂端，bg=var(--theme-bg)）
+   *   2) year-header     top: 200px（grid 內 row 1）
+   *   3) sem-label       top: 200px（col 1，跟 year-header 同 top 不互相蓋因為不同 col）
+   * z 由 1/2/3 往上。bg 全用 var(--theme-bg) 跟 mode 走。
+   *
+   * year-header 用 ::before 向上延伸 200px bg 蓋住 cards scroll 過 sticky 後在
+   * viewport y=0..200 露出的破口（仿 .activities-filter-bar::before pattern）。
+   */
+  @media (min-width: 768px) {
+    .courses-program-bar {
+      flex: 0 0 14rem;
+      width: 14rem;
+      margin-right: var(--spacing-2xl);
+      align-self: flex-start;
+      position: sticky;
+      top: 200px;
+      z-index: 3;
+      background: var(--theme-bg);
+      /* padding-top: 0 — 第 1 個 BFA btn 對齊 grid 年級表頭頂部（兩個都在 row 0）。
+         label absolute 在 btn 上方往外露，落在 section py-6xl 預留的上方空間裡 */
+      padding-top: 0;
+      padding-bottom: var(--spacing-md);
+    }
+  }
+  /* btn 內文左對齊（覆蓋 <button> 預設 text-align:center，避免換行時 "Image" 之類置中） */
+  .courses-program-btn {
+    text-align: left;
+  }
+
+  /* program btn 的 EN span：
+     - white-space:nowrap 確保「Creative Media Design」「MDES Class」維持單行不 auto-wrap。
+     - 「Animation & Moving Image」用 HTML 顯式 <br> 強制斷行（line 1: "Animation & Moving"，line 2: "Image"），
+       避免靠 max-width 鎖寬度造成 chip 寬度 = max-width 而非「最長一行寬度」（會讓右 padding 大於左）。
+     - line-height 1.2 + margin-bottom 0.15em 補回收緊後的半 leading，給多行情境用。 */
+  .courses-program-btn .anchor-nav-inner > span:first-child {
+    line-height: 1.2;
+    margin-bottom: 0.15em;
+    white-space: nowrap;
+  }
+
+  /* MDES btn 沒有上方 label，不需要 BFA-cmd 那種被 label 吃掉一半 gap 的 clearance；
+     用 negative margin-top 把 gap 砍半（4rem → 2rem），視覺上 BFA-cmd→MDES 跟其他兩段
+     btn-to-btn 的「乾淨剩餘」距離吻合。selector：bar 的 direct child + .courses-program-btn
+     只有 MDES 符合（BFA btn 被包在 .courses-program-group div 裡）。 */
+  @media (min-width: 768px) {
+    .courses-program-bar > .courses-program-btn {
+      margin-top: calc(var(--spacing-2xl) * -0.5);
+    }
+  }
+
+  /* Program group：relative，讓 label absolute 定位用 */
+  .courses-program-group {
+    position: relative;
+  }
+
+  /* BFA Class 學士班 小標籤（每個 BFA btn 上方一個）
+   * - 位置/旋轉比照 about .class-group-label：absolute 在 btn 上方 + 隨機旋轉（JS 設）
+   * - 預設**透明底 + 50% 灰字**（不要黑底，跟 about 不同）
+   *     hover  = JS 設 accent 底 + 黑字（隨 btn 一起聯動）
+   *     active = JS 設 accent 底 + 黑字（rotate 與 btn 各自獨立）
+   * - padding 4/6/3 對齊 about；font-size 保持 p1；transform transition 0.3s
+   */
+  .courses-bfa-label {
+    display: inline-block;
+    width: fit-content;
+    padding: 7px 6px 6px;
+    position: absolute;
+    bottom: calc(100% + 4px);
+    left: -12px;
+    z-index: 2;
+    font-size: var(--font-size-p2);
+    font-weight: 700;
+    line-height: 1;
+    color: rgba(0, 0, 0, 0.5);
+    background: transparent;
+    white-space: nowrap;
+    transition: background 0.2s ease, color 0.2s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .courses-program-group:has(.courses-program-btn.active) .courses-bfa-label {
+    color: black;
+  }
+
+  /* ===== Grid container =====
+   * 桌面：sem-col + type-col + N 個年級欄（N = --year-cols，由 JS 依 program 設）
+   *   - BFA = 4 cols (freshman/sophomore/junior/senior)
+   *   - MDES = 2 cols (year1/year2) → 兩欄平均吃掉 grid 寬度
+   * repeat() 吃 var()（modern browsers 支援），fallback 4
+   */
+  .courses-grid {
+    display: grid;
+    /* year cols 用 minmax(0, 1fr) 不用 1fr：grid 預設 track 至少撐到 cell min-content，
+       而 marquee 雙份的 inner 會把 cell min-content 撐到 2 倍寬 → track 被擴張破版；
+       minmax(0, 1fr) 解放 min-content 限制，track 永遠 fair share，cell 用 overflow 自己 clip */
+    grid-template-columns:
+      var(--courses-grid-sem-col)
+      var(--courses-grid-type-col)
+      repeat(var(--year-cols, 4), minmax(0, 1fr));
+    column-gap: var(--courses-grid-col-gap);
+    /* outer row-gap = sm：cover ↔ Fall semester / Fall ↔ Spring 之間 */
+    row-gap: var(--spacing-sm);
+    align-items: start;
+  }
+
+  /* ===== Nested subgrid 結構（限定 sticky scope）=====
+   * .courses-semester 包整個學期（required + elective），grid-column 1/-1，subgrid 繼承外層 6 cols
+   *   → sem-label sticky containing block = 學期 → 學期到底時 sem-label 跟著上去
+   * .courses-required-row / .courses-elective-row 包該 type 整列，grid-column 2/-1
+   *   → type-label sticky containing block = 該 row → 必修/選修到底時 type-label 跟著上去
+   * 原本一張大 grid 共用 sticky 範圍會讓 sem/type label 都黏到整張 grid 結束才釋放，
+   * 重構後 label 各自在自己的 row 範圍內 sticky，到底就跟著走 */
+  .courses-semester {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: subgrid;
+    row-gap: var(--spacing-lg);
+    align-items: start;
+  }
+  .courses-required-row,
+  .courses-elective-row {
+    grid-column: 2 / -1;
+    display: grid;
+    grid-template-columns: subgrid;
+    align-items: start;
+  }
+  /* 第 2+ 個學期 wrapper 上方額外 sm，搭配 outer grid sm row-gap 合計兩學期間距 = 2 × sm */
+  .courses-grid-sem-start {
+    margin-top: var(--spacing-sm);
+  }
+
+  /* 第一個學期 wrapper 上方 16px buffer：±2° rotation × 寬 ~232px 卡片 corner protrusion ~4px，
+     sm(16) 已遠超需要。
+     sticky labels 新 top(280) = cover top 200 + cover height 48 + row-gap sm(16) + buffer sm(16)
+     selector 用 adjacent sibling 對 Fall semester（.courses-grid-row-cover 之後第一個 .courses-semester）：
+     `.courses-semester:first-of-type` 會看 tag (div) 而 row-cover 也是 div，匹配不到 Fall */
+  @media (min-width: 768px) {
+    .courses-grid > .courses-grid-row-cover + .courses-semester {
+      margin-top: var(--spacing-sm);
+    }
+  }
+
+  /* （v9 拿掉 is-active year margin trick — 點卡片改 slide-in 模態，grid 不再縮窄不需要） */
+
+  /* 左上兩個 corner cell：cover 內 col 1/col 2，empty content。Cover 自己處理 sticky/bg */
+  .courses-grid-corner { }
+
+  /* Year row cover：包住整個 row 1（corners + year-headers）的 sticky bar。
+     - outer grid 中：grid-column:1/-1 橫跨整列（含 col gaps）
+     - 自己跑 inner grid（同 template）讓內部 corners + year-headers 對齊 outer cols
+     - sticky top:200 + ::before 向上 200px 蓋住 cards/labels scroll 過 sticky 露出的部分
+     - ::after 向下 spacing-lg 蓋掉 row 1↔row 2 之間的 row-gap，避免 cards scroll 過 sticky
+       時在 cover 與 sem/type 之間的 32px 空隙露出
+     - z:1 在 cards (z=auto) 之上；sem-label / type-label (z:2) 在 cover 下方浮層
+   */
+  .courses-grid-row-cover {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns:
+      var(--courses-grid-sem-col)
+      var(--courses-grid-type-col)
+      repeat(var(--year-cols, 4), minmax(0, 1fr));
+    column-gap: var(--courses-grid-col-gap);
+  }
+  @media (min-width: 768px) {
+    .courses-grid-row-cover {
+      position: sticky;
+      top: 200px;
+      /* z:3 高於 sem-label/type-label (z:1)，讓 sem-label/type-label 在 release（學期/列結束）
+         時被往上推進 cover 區域時被 cover 蓋住，不會「露餡」上去重疊 cover 文字 */
+      z-index: 3;
+      background: var(--theme-bg);
+      padding-bottom: var(--spacing-xs);
+    }
+    .courses-grid-row-cover::before {
+      content: '';
+      position: absolute;
+      top: -200px;
+      left: 0;
+      right: 0;
+      height: 200px;
+      background: var(--theme-bg);
+    }
+    /* ::after 向下蓋整個 row-gap，確保 scroll 時 sticky-cover 正常遞進蓋掉卡片
+       高度需 = .courses-grid 的 row-gap（sm=16）。第一行卡片的 rotation 凸出 buffer 在
+       .courses-grid > .courses-grid-row-cover + .courses-semester margin-top 處理 */
+    .courses-grid-row-cover::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      height: var(--spacing-sm);
+      background: var(--theme-bg);
+    }
+  }
+
+  /* 年級表頭（EN 上 / ZH 下）— 字體大小對齊 .courses-grid-type-label（p2）
+     EN 保 700、ZH 保 600 + opacity 0.85，僅尺寸跟必修/選修統一
+     桌面 sticky：top = header + bar 高度，bg 跟 mode；containment 是其 grid area
+     （單行 row 1，但 sticky 範圍含整個 grid 因為 grid container 是 containing block） */
+  .courses-grid-col-header {
+    font-weight: 700;
+    font-size: var(--font-size-p2);
+    line-height: 1.2;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  /* year-header 是 cover bar 的內部 grid item，不再 sticky（cover 自己 sticky）；
+     padding-bottom 留在 cover 上不需要這裡 */
+  .courses-grid-col-zh {
+    font-weight: 600;
+    opacity: 0.85;
+  }
+
+  /* 學期 label（Fall/Spring）— 在 col 1（sem-col）裡，grid-row: span 2 跨必修+選修
+     字體大小對齊 type-label（p2）。桌面 sticky containing block = .courses-semester，
+     學期到底時自然跟著上去 */
+  .courses-grid-sem-label {
+    font-weight: 700;
+    font-size: var(--font-size-p2);
+    line-height: 1.2;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    align-self: start;
+    padding-top: 6px;
+  }
+  @media (min-width: 768px) {
+    .courses-grid-sem-label {
+      position: sticky;
+      /* sticky top 對齊 row 2（第一行卡片）top：cover 200 + 自身 height(~48) + row-gap(16) + buffer(16) = 280 */
+      top: 280px;
+      z-index: 1;  /* 低於 cover (z:3)，release 時 leak 上來會被 cover 蓋住 */
+    }
+  }
+
+  /* 類別 label（必修/選修）— 黑色實心、無半透明、無底色（col 2 type-col 內無卡片，
+     不需要 bg 蓋背景）。桌面 sticky containing block = .courses-required-row /
+     .courses-elective-row，row 到底時 label 跟著上去 */
+  .courses-grid-type-label {
+    font-weight: 600;
+    font-size: var(--font-size-p2);
+    line-height: 1.2;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    align-self: start;
+    padding-top: 6px;
+    color: black;
+  }
+  @media (min-width: 768px) {
+    .courses-grid-type-label {
+      position: sticky;
+      top: 280px;
+      z-index: 1;  /* 低於 cover (z:3)，release 時 leak 上來會被 cover 蓋住 */
+    }
+  }
+
+  .courses-grid-sem-zh {
+    opacity: 0.85;
+  }
+
+  /* Cell：縱向堆疊卡片 */
+  .courses-grid-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    min-width: 0;
+  }
+
+  /* ===== 卡片 =====
+   * 預設淺灰底；hover 時 inline style 設 accent 色（JS bind）
+   * 標題溢出 marquee 仿 library.css（runMarqueeOverflow pattern）：
+   *   1) JS 偵測 overflow + 加 .is-overflow + 把 inner 內容換成兩份 .marquee-copy（seamless loop）
+   *   2) JS 量 copyWidth 後設 --marquee-distance / --marquee-duration（80px/s, min 3s）
+   *   3) CSS 只在 hover 時跑 animation，translateX 一份 copy 寬度後正好接到第二份起點
+   */
+  .courses-grid-card {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 2px;
+    width: fit-content;
+    max-width: 100%;
+    padding: 6px 10px 5px;
+    background: rgba(0, 0, 0, 0.06);
+    color: black;
+    font-size: var(--font-size-p2);
+    line-height: 1.2;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+    box-sizing: border-box;
+  }
+  .courses-grid-card-en,
+  .courses-grid-card-zh {
+    display: block;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: clip;
+    max-width: 100%;
+  }
+  .courses-grid-card-en { font-weight: 700; }
+  .courses-grid-card-zh { font-weight: 600; opacity: 0.85; }
+  .courses-marquee-inner {
+    display: inline-block;
+    white-space: nowrap;
+  }
+  .courses-marquee-inner > .marquee-copy {
+    display: inline-block;
+    padding-right: 3em;
+  }
+  @media (min-width: 768px) {
+    .courses-grid-card:hover .courses-grid-card-en.is-overflow .courses-marquee-inner,
+    .courses-grid-card:hover .courses-grid-card-zh.is-overflow .courses-marquee-inner {
+      animation: courses-marquee var(--marquee-duration, 8s) linear infinite;
+    }
+  }
+  @keyframes courses-marquee {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(var(--marquee-distance, -50%)); }
+  }
+
+  /* ===== Slide-in modal（v9 取代 desc-column）=====
+   * 點卡片時從右滑入，比照 #faculty-slide-in pattern：
+   *   - container 預設 invisible + pointer-events:none
+   *   - overlay opacity 0 → 0.8（dim grid）
+   *   - panel translateX 110% → 0 滑入；bg 套 card.dataset.accent
+   *   - close: overlay 點擊 / close btn / Esc
+   *   - body.overflow:hidden 鎖捲動，close 還原
+   * GSAP timeline 控動畫，無 GSAP fallback inline transition
+   */
+  #courses-slide-in {
+    transition: visibility 0s linear 0s;
+  }
+  #courses-overlay {
+    transition: opacity 0.3s ease;
+  }
+  #courses-detail-panel {
+    transition: background 0.3s ease;
+  }
+  .courses-detail-title-en,
+  .courses-detail-title-zh,
+  .courses-detail-desc-en,
+  .courses-detail-desc-zh {
+    color: black;
+  }
+
+  /* ===== Mobile（< 768px） ===== */
+  @media (max-width: 767px) {
+    #courses-content-section {
+      --courses-grid-sem-col: 4rem;
+      --courses-grid-type-col: 3rem;
+      --courses-grid-col-gap: var(--spacing-sm);
+    }
+    .courses-grid {
+      row-gap: var(--spacing-md);
+    }
+    .courses-grid-col-header {
+      font-size: var(--font-size-p3);
+    }
+    .courses-grid-sem-label,
+    .courses-grid-type-label {
+      font-size: var(--font-size-p3);
+    }
+    .courses-grid-card {
+      font-size: var(--font-size-p3);
+      padding: 4px 6px 3px;
+    }
+  }
+
+}

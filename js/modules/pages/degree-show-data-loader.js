@@ -172,82 +172,212 @@ export async function loadDegreeShowDetail() {
           }
       }
 
-      // Prev / Next 雙卡：sort desc 下 idx+1 = 上一年度（older），idx-1 = 下一年度（newer）；皆 wrap 維持循環導覽
+      // Prev / Next 雙卡：sort desc 下 idx+1 = 上一年度（older 左上），idx-1 = 下一年度（newer 右下）；皆 wrap 維持循環導覽
       const idx = years.indexOf(year);
       const prevYear = years[(idx + 1) % years.length];
       const nextYear = years[(idx - 1 + years.length) % years.length];
       const prevData = degreeShowData[prevYear];
       const nextData = degreeShowData[nextYear];
 
-      const setupCard = (key, targetYear, targetData) => {
-        const link = document.getElementById(`${key}-link`);
-        const yearEl = document.getElementById(`${key}-year`);
-        const titleEl = document.getElementById(`${key}-title`);
-        const img = document.getElementById(`${key}-img`);
-        const yearMobileEl = document.getElementById(`${key}-year-mobile`);
-        const titleMobileEl = document.getElementById(`${key}-title-mobile`);
-
-        if (link) link.href = '/degree-show-detail?year=' + targetYear;
-        if (yearEl) yearEl.textContent = targetYear;
-        if (titleEl) titleEl.textContent = targetData.title;
-        if (img && targetData.coverImage) img.src = targetData.coverImage;
-        if (yearMobileEl) yearMobileEl.textContent = targetYear;
-        if (titleMobileEl) titleMobileEl.textContent = targetData.title;
-      };
-
-      setupCard('prev', prevYear, prevData);
-      setupCard('next', nextYear, nextData);
-
-      // 卡片隨機旋轉（desktop only）：±2~4°，且兩張保證反向（一順一逆）避免視覺平行
-      if (typeof gsap !== 'undefined' && window.innerWidth >= 768) {
-        const sign = Math.random() < 0.5 ? -1 : 1;
-        const mag = () => 2 + Math.random() * 2;
-        const prevEl = document.getElementById('prev-card');
-        const nextEl = document.getElementById('next-card');
-        if (prevEl) gsap.set(prevEl, { rotation: sign * mag() });
-        if (nextEl) gsap.set(nextEl, { rotation: -sign * mag() });
-      }
-
-      // Hover z-index swap（desktop only）：被 hover 的卡片 z=10，另一張保持 z=1，使 overlap 區的視覺優先級可切換
-      if (window.innerWidth >= 768) {
-        const prevWrapper = document.getElementById('prev-wrapper');
-        const nextWrapper = document.getElementById('next-wrapper');
-        [prevWrapper, nextWrapper].forEach(w => {
-          if (!w) return;
-          w.style.zIndex = '1';
-          w.addEventListener('mouseenter', () => { w.style.zIndex = '10'; });
-          w.addEventListener('mouseleave', () => { w.style.zIndex = '1'; });
-        });
-      }
-
-      // 卡片進場：clip-path reveal；prev 從左 → 右、next 從右 → 左（鏡像對稱）
-      // gsap.set 設旋轉 + clipPath 都不會清掉，互不干擾
-      if (typeof ScrollTrigger !== 'undefined' && typeof gsap !== 'undefined') {
-        const setupReveal = (id, fromInset) => {
-          const el = document.getElementById(id);
-          if (!el) return;
-          gsap.set(el, { clipPath: fromInset });
-          ScrollTrigger.create({
-            trigger: el,
-            start: 'top 85%',
-            once: true,
-            onEnter: () => {
-              gsap.to(el, {
-                clipPath: 'inset(0% 0% 0% 0%)',
-                duration: 0.5,
-                ease: 'cubic-bezier(0.25, 0, 0, 1)',
-              });
-            }
-          });
-        };
-        setupReveal('prev-card', 'inset(0% 100% 0% 0%)');
-        setupReveal('next-card', 'inset(0% 0% 0% 100%)');
-      }
+      setupNextProject(prevYear, prevData, nextYear, nextData);
 
     } else {
       window.location.href = '404.html';
     }
   } catch (error) {
     console.error('Error loading degree show detail data:', error);
+  }
+}
+
+/**
+ * Next Project section setup（左 = older / 上方，右 = newer / 下方 50% offset）
+ * 桌面：兩張海報 56vw 各占 80% 視覺、預設 50% 黑 dim、hover 取消 dim + 顯示三 chip（年份/英/中）
+ *      其中 chip 隨機色 + 旋轉 + 水平範圍（左 0-50vw / 右 51-100vw）；另一張同時 clip-path 掃入隨機色（仿首頁 newsOverlay）
+ * 手機：簡單 stack
+ */
+function setupNextProject(prevYear, prevData, nextYear, nextData) {
+  const ACCENT = ['#00FF80', '#FF448A', '#26BCFF'];
+  const CLIP_DIRS = [
+    { hidden: 'inset(100% 0 0 0)', shown: 'inset(0% 0 0 0)' },   // 上→下
+    { hidden: 'inset(0 0 100% 0)', shown: 'inset(0 0 0% 0)' },   // 下→上
+    { hidden: 'inset(0 100% 0 0)', shown: 'inset(0 0% 0 0)' },   // 右→左
+    { hidden: 'inset(0 0 0 100%)', shown: 'inset(0 0 0 0%)' },   // 左→右
+  ];
+
+  // 手機 stack
+  const setMobile = (key, year, data) => {
+    const link = /** @type {HTMLAnchorElement | null} */ (document.getElementById(`${key}-link-m`));
+    const img = /** @type {HTMLImageElement | null} */ (document.getElementById(`${key}-img-m`));
+    const yearEl = document.getElementById(`${key}-year-mobile`);
+    const titleEl = document.getElementById(`${key}-title-mobile`);
+    if (link) link.href = '/degree-show-detail?year=' + year;
+    if (img) img.src = data.poster || data.coverImage;
+    if (yearEl) yearEl.textContent = year;
+    if (titleEl) titleEl.textContent = data.title || '';
+  };
+  setMobile('prev', prevYear, prevData);
+  setMobile('next', nextYear, nextData);
+
+  if (window.innerWidth < 768) return;
+
+  // 桌面 desktop
+  const setDesktop = (key, year, data) => {
+    const link = /** @type {HTMLAnchorElement | null} */ (document.getElementById(`${key}-link`));
+    const img = /** @type {HTMLImageElement | null} */ (document.getElementById(`${key}-img`));
+    const yearEl = document.getElementById(`${key}-year`);
+    const titleEnEl = document.getElementById(`${key}-title-en`);
+    const titleEl = document.getElementById(`${key}-title`);
+    if (link) link.href = '/degree-show-detail?year=' + year;
+    if (img) img.src = data.poster || data.coverImage;
+    if (yearEl) yearEl.textContent = year;
+    if (titleEnEl) titleEnEl.textContent = data.title_en || '';
+    if (titleEl) titleEl.textContent = data.title || '';
+  };
+  setDesktop('prev', prevYear, prevData);
+  setDesktop('next', nextYear, nextData);
+
+  // 本地隨機旋轉：-6° ~ 6°（不含 0），用於 cards 與 labels
+  const localRot = () => {
+    let deg;
+    do { deg = Math.round(Math.random() * 12) - 6; } while (deg === 0);
+    return deg;
+  };
+
+  // 海報隨機旋轉，兩張獨立
+  const prevCard = /** @type {HTMLElement | null} */ (document.getElementById('prev-card'));
+  const nextCard = /** @type {HTMLElement | null} */ (document.getElementById('next-card'));
+  if (prevCard) prevCard.style.transform = `rotate(${localRot()}deg)`;
+  if (nextCard) nextCard.style.transform = `rotate(${localRot()}deg)`;
+
+  // Labels：rotation 各自隨機（init 時固定）；底色 cardColor 改為每次 mouseenter 重新挑
+  // → 同張海報的 3 chip 仍共用同一色，但跨 hover 不一定相同
+  const LABEL_IDS = ['year', 'title-en', 'title'];
+  ['prev', 'next'].forEach(key => {
+    LABEL_IDS.forEach(id => {
+      const el = /** @type {HTMLElement | null} */ (document.getElementById(`${key}-${id}`));
+      if (!el) return;
+      el.style.transform = `rotate(${localRot()}deg)`;
+    });
+  });
+
+  // 位置計算：等兩張圖載入完後，依 naturalWidth/Height 計算高度，設 next.top + stage.minHeight
+  // labels 已搬進 card 內、靠 corner 絕對定位（左下 / 右上），不需要 JS 算 vw 位置
+  const recompute = () => {
+    const stage = /** @type {HTMLElement | null} */ (document.getElementById('next-project-stage'));
+    const prevImg = /** @type {HTMLImageElement | null} */ (document.getElementById('prev-img'));
+    const nextImg = /** @type {HTMLImageElement | null} */ (document.getElementById('next-img'));
+    const nextLink = /** @type {HTMLElement | null} */ (document.getElementById('next-link'));
+    if (!stage || !prevImg || !nextImg || !nextLink) return;
+    if (!prevImg.naturalWidth || !nextImg.naturalWidth) return;
+
+    const posterW = window.innerWidth * 0.66;
+    const prevH = posterW * (prevImg.naturalHeight / prevImg.naturalWidth);
+    const nextH = posterW * (nextImg.naturalHeight / nextImg.naturalWidth);
+    const nextTop = prevH * 0.5;
+
+    nextLink.style.top = nextTop + 'px';
+    stage.style.minHeight = (nextTop + nextH) + 'px';
+  };
+
+  const waitImg = (img) => new Promise(r => {
+    if (!img) { r(undefined); return; }
+    if (img.complete && img.naturalWidth) r(undefined);
+    else {
+      img.addEventListener('load', () => r(undefined), { once: true });
+      img.addEventListener('error', () => r(undefined), { once: true });
+    }
+  });
+  Promise.all([
+    waitImg(/** @type {HTMLImageElement | null} */ (document.getElementById('prev-img'))),
+    waitImg(/** @type {HTMLImageElement | null} */ (document.getElementById('next-img'))),
+  ]).then(() => {
+    recompute();
+    window.addEventListener('resize', recompute);
+  });
+
+  // Hover：被 hover 的 card → z 提高 + 移除 dim + 顯示 labels group；另一張 → clip-path 掃入隨機色
+  const setupHover = (myKey, otherKey) => {
+    const myLink = /** @type {HTMLElement | null} */ (document.getElementById(`${myKey}-link`));
+    const otherLink = /** @type {HTMLElement | null} */ (document.getElementById(`${otherKey}-link`));
+    const myDim = /** @type {HTMLElement | null} */ (document.getElementById(`${myKey}-dim`));
+    const myLabels = /** @type {HTMLElement | null} */ (document.getElementById(`${myKey}-labels`));
+    const otherClip = /** @type {HTMLElement | null} */ (document.getElementById(`${otherKey}-clip`));
+    if (!myLink || !myDim || !otherClip) return;
+
+    // chip clip-path stagger 設定：從 transform-origin 那側 reveal
+    // prev: transform-origin left → reveal 從左到右 → hidden inset(0 100% 0 0)
+    // next: transform-origin right → reveal 從右到左 → hidden inset(0 0 0 100%)
+    const HIDDEN_INSET = myKey === 'prev' ? 'inset(0 100% 0 0)' : 'inset(0 0 0 100%)';
+    const SHOWN_INSET  = 'inset(0 0 0 0)';
+
+    myLink.addEventListener('mouseenter', () => {
+      myLink.style.zIndex = '3';
+      if (otherLink) otherLink.style.zIndex = '1';
+      myDim.style.opacity = '0';
+
+      // 每次 hover 重新挑 cardColor（不一定每次都一樣），同步套到 3 個 chip
+      // 同時每次 hover 重新 random 旋轉角度（chip 此時 clip-path 還是 hidden，新角度會在 reveal 時直接呈現）
+      const myCardColor = ACCENT[Math.floor(Math.random() * ACCENT.length)];
+      myLink.dataset.cardColor = myCardColor;
+      if (myLabels) {
+        const chips = /** @type {NodeListOf<HTMLElement>} */ (myLabels.querySelectorAll('h4, h2'));
+        chips.forEach((chip, i) => {
+          chip.style.transform = `rotate(${localRot()}deg)`;
+          chip.style.background = myCardColor;
+          chip.style.transitionDelay = (i * 0.08) + 's';
+          chip.style.clipPath = SHOWN_INSET;
+        });
+      }
+
+      // 隨機方向 + 隨機色，先 disable transition snap 到 hidden 再 reflow + apply shown
+      // clip color 從候選排除掉「被 hover 卡片的 cardColor」，避免文字底色與覆蓋色撞色
+      const dir = CLIP_DIRS[Math.floor(Math.random() * CLIP_DIRS.length)];
+      const clipPool = ACCENT.filter(c => c !== myCardColor);
+      const color = clipPool[Math.floor(Math.random() * clipPool.length)];
+      otherClip.dataset.hiddenClip = dir.hidden;
+      otherClip.style.transition = 'none';
+      otherClip.style.clipPath = dir.hidden;
+      otherClip.style.background = color;
+      void otherClip.offsetHeight;
+      otherClip.style.transition = 'clip-path 0.5s cubic-bezier(0.25,0,0,1)';
+      otherClip.style.clipPath = dir.shown;
+    });
+
+    myLink.addEventListener('mouseleave', () => {
+      myDim.style.opacity = '0.5';
+      if (myLabels) {
+        const chips = /** @type {NodeListOf<HTMLElement>} */ (myLabels.querySelectorAll('h4, h2'));
+        chips.forEach((chip) => {
+          chip.style.transitionDelay = '0s';
+          chip.style.clipPath = HIDDEN_INSET;
+        });
+      }
+      otherClip.style.clipPath = otherClip.dataset.hiddenClip || 'inset(100% 0 0 0)';
+    });
+  };
+  setupHover('prev', 'next');
+  setupHover('next', 'prev');
+
+  // 進場動畫保留 clip-path reveal（prev 由左→右、next 由右→左）
+  if (typeof ScrollTrigger !== 'undefined' && typeof gsap !== 'undefined') {
+    const setupReveal = (id, fromInset) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      gsap.set(el, { clipPath: fromInset });
+      ScrollTrigger.create({
+        trigger: el,
+        start: 'top 85%',
+        once: true,
+        onEnter: () => {
+          gsap.to(el, {
+            clipPath: 'inset(0% 0% 0% 0%)',
+            duration: 0.5,
+            ease: 'cubic-bezier(0.25, 0, 0, 1)',
+          });
+        }
+      });
+    };
+    setupReveal('prev-card', 'inset(0% 100% 0% 0%)');
+    setupReveal('next-card', 'inset(0% 0% 0% 100%)');
   }
 }

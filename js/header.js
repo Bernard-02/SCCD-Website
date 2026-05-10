@@ -112,9 +112,10 @@ export function updateNavActive(page) {
   if (!header) return;
 
   // page mappings（detail 頁對應到父層）
+  // degree-show 與 degree-show-detail 都隸屬 activities.html 的 panel，需高亮 Activities
   const pageMappings = {
-    'admission-detail':    'admission',
-    'degree-show-detail':  'degree-show',
+    'degree-show':         'activities',
+    'degree-show-detail':  'activities',
     'faculty-detail':      'faculty',
   };
   const activePage = pageMappings[page] || page;
@@ -169,7 +170,7 @@ export function updateNavActive(page) {
   const isAtlasActive    = activePage === 'atlas';
   const isGenerateActive = activePage === 'generate';
 
-  // Logo 尺寸：generate 頁和一般頁都是大的（180），library 頁是小的（100）
+  // Logo 尺寸：generate 頁和一般頁都是大的（180），library / atlas 頁是小的（100）
   // SPA 切換時：從當前大小平滑過渡到目標大小，lottie 旋轉保持連續（不重新載入）
   const logoEl = document.getElementById('header-logo');
   if (logoEl && typeof gsap !== 'undefined' && window.innerWidth >= 768) {
@@ -185,7 +186,7 @@ export function updateNavActive(page) {
     gsap.killTweensOf(logoEl);
 
     const SCROLL_END = 300;
-    const targetSize = isLibraryActive
+    const targetSize = (isLibraryActive || isAtlasActive)
       ? 100
       : (() => {
           const progress = Math.min(window.scrollY / SCROLL_END, 1);
@@ -202,7 +203,7 @@ export function updateNavActive(page) {
         duration: 0.6,
         ease: 'power2.inOut',
         onComplete: () => {
-          if (!isLibraryActive && !isGenerateActive && typeof ScrollTrigger !== 'undefined') {
+          if (!isLibraryActive && !isAtlasActive && !isGenerateActive && typeof ScrollTrigger !== 'undefined') {
             gsap.fromTo(logoEl,
               { width: 180, height: 180 },
               {
@@ -240,14 +241,14 @@ export function updateNavActive(page) {
     const ML_START = 64, ML_END = 0;
     gsap.killTweensOf(aboutBarScrollEl);
 
-    const targetML = isLibraryActive ? ML_END : ML_START;
+    const targetML = (isLibraryActive || isAtlasActive) ? ML_END : ML_START;
     gsap.to(aboutBarScrollEl, {
       marginLeft: targetML,
       duration: 0.6,
       ease: 'power2.inOut',
       onComplete: () => {
         // 動畫完成後，一般頁面重建 scroll shrink
-        if (!isLibraryActive && !isGenerateActive && typeof ScrollTrigger !== 'undefined') {
+        if (!isLibraryActive && !isAtlasActive && !isGenerateActive && typeof ScrollTrigger !== 'undefined') {
           ScrollTrigger.create({
             trigger: 'body',
             start: 'top top',
@@ -362,8 +363,9 @@ export function initHeader() {
       const ML_START = 64;  // 2xl
       const ML_END = 0;
       const isLibrary = currentPage === 'library';
+      const isAtlas   = currentPage === 'atlas';
 
-      if (isLibrary) {
+      if (isLibrary || isAtlas) {
         gsap.set(aboutBar, { marginLeft: ML_END });
       } else {
         gsap.set(aboutBar, { marginLeft: ML_START });
@@ -384,10 +386,16 @@ export function initHeader() {
     const logo = document.getElementById('header-logo');
     if (logo && typeof lottie !== 'undefined' && currentPage !== 'generate') {
       const isInverse = document.body.classList.contains('mode-inverse');
-      const logoFile = isInverse ? 'SCCDLogoInverse.json' : 'SCCDLogoStandard.json';
+      const isColor = document.body.classList.contains('mode-color');
+      // mode-color 用 wireframe logo；filter:invert 由 theme-toggle applyColorVars 控制
+      let logoFile;
+      let logoTypeTag;
+      if (isColor) { logoFile = 'SCCDLogoWireframeStandard.json'; logoTypeTag = 'wireframe'; }
+      else if (isInverse) { logoFile = 'SCCDLogoInverse.json'; logoTypeTag = 'inverse'; }
+      else { logoFile = 'SCCDLogoStandard.json'; logoTypeTag = 'standard'; }
       const logoPath = `data/${logoFile}`;
       // 標記目前 logo type，讓 theme-toggle 的 switchHeaderLogo guard 能識別已載入的 logo
-      logo.dataset.logoType = isInverse ? 'inverse' : 'standard';
+      logo.dataset.logoType = logoTypeTag;
       const logoAnim = lottie.loadAnimation({
         container: logo,
         renderer: 'svg',
@@ -410,9 +418,10 @@ export function initHeader() {
     if (logo && typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined') {
       const isDesktop = window.matchMedia('(min-width: 768px)');
       const isLibrary = currentPage === 'library';
+      const isAtlas   = currentPage === 'atlas';
       const isGenerate = currentPage === 'generate';
       if (isDesktop.matches) {
-        if (isLibrary) {
+        if (isLibrary || isAtlas) {
           gsap.set(logo, { width: 100, height: 100 });
         } else if (isGenerate) {
           gsap.set(logo, { width: 180, height: 180 });

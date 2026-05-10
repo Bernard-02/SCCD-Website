@@ -78,6 +78,7 @@ module.exports = {
         '4xl': 'var(--spacing-4xl)',
         '5xl': 'var(--spacing-5xl)',
         '6xl': 'var(--spacing-6xl)',
+        '8xl': 'var(--spacing-8xl)',
         'gutter': 'var(--spacing-gutter)',
         'container-padding': 'var(--container-padding)',
       },

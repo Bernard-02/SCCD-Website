@@ -1,5 +1,25 @@
 {
-  "bfa": [
+  "bfa-animation": [
+    {
+      "titleEn": "Introduction to Design",
+      "titleZh": "設計概論",
+      "type": "required",
+      "grade": "freshman",
+      "parts": [
+        { "titleEn": "Introduction to Design", "titleZh": "設計概論" },
+        { "titleEn": "Introduction to Design (II)", "titleZh": "設計概論(二)" }
+      ]
+    },
+    {
+      "titleEn": "Design Drawing",
+      "titleZh": "設計繪畫",
+      "type": "required",
+      "grade": "freshman",
+      "parts": [
+        { "titleEn": "Design Drawing", "titleZh": "設計繪畫" },
+        { "titleEn": "Design Drawing (II)", "titleZh": "設計繪畫(二)" }
+      ]
+    },
     {
       "titleEn": "Design Fundamental",
       "titleZh": "創作基礎",
@@ -7,26 +27,278 @@
       "grade": "freshman",
       "parts": [
         {
-          "titleEn": "Design Fundamental I",
-          "titleZh": "創作基礎（一）",
-          "descriptionEn": "Design is a complex of different history, society, culture, knowledge, function, aesthetics, problem solving and decision making...",
-          "descriptionZh": "設計是經由不同的歷史、社會和文化層面知識領域的趨勢、作業功能、美學理想、問題解決和決策訂定形成的綜合體..."
+          "titleEn": "Design Fundamental",
+          "titleZh": "創作基礎",
+          "descriptionEn": "This course urges students to explore their sensibilities, make dialogues between people and develop their sense of design. Students are encouraged to think in various views of multi-disciplines, and to make works in diverse formats. They will be able to understand the basic entities of design, such as composition, space, materials, structure, light and motion. Aesthetics, literature, and design methodology are the basis of creative ideas, students are requested to make the works of various medium and materials in spontaneous styles from these. Instructor will provide feedback to each student besides \"Entire Class\" critiques.",
+          "descriptionZh": "啟發學生自身的心靈感受，強調人與週遭事物的對話，用心去感受世界進而創作，鼓勵學生內在的美感韻律，培養和諧、敏銳的眼光與品質標準的價值觀，由多元化的思考與觀念，透過各種媒介投射於多樣化的創作中。經由這類創作，學生將了解造型、空間、材料、結構、量體、尺度、光線與動感等基本元素。"
         },
         {
-          "titleEn": "Design Fundamental II",
-          "titleZh": "創作基礎（二）",
-          "descriptionEn": "Design is a complex of different history, society, culture, knowledge, function, aesthetics, problem solving and decision making...",
-          "descriptionZh": "設計是經由不同的歷史、社會和文化層面知識領域的趨勢、作業功能、美學理想、問題解決和決策訂定形成的綜合體..."
+          "titleEn": "Design Fundamental (II)",
+          "titleZh": "創作基礎(二)",
+          "descriptionEn": "This course urges students to explore their sensibilities, make dialogues between people and develop their sense of design. Students are encouraged to think in various views of multi-disciplines, and to make works in diverse formats. They will be able to understand the basic entities of design, such as composition, space, materials, structure, light and motion. Aesthetics, literature, and design methodology are the basis of creative ideas, students are requested to make the works of various medium and materials in spontaneous styles from these. Instructor will provide feedback to each student besides \"Entire Class\" critiques.",
+          "descriptionZh": "啟發學生自身的心靈感受，強調人與週遭事物的對話，用心去感受世界進而創作，鼓勵學生內在的美感韻律，培養和諧、敏銳的眼光與品質標準的價值觀，由多元化的思考與觀念，透過各種媒介投射於多樣化的創作中。經由這類創作，學生將了解造型、空間、材料、結構、量體、尺度、光線與動感等基本元素。"
         }
       ]
+    },
+    {
+      "titleEn": "Cross-disciplinary Creative Thinking",
+      "titleZh": "跨域創作思考",
+      "type": "required",
+      "grade": "freshman",
+      "semester": "lower"
+    },
+    {
+      "titleEn": "Media Aesthetics",
+      "titleZh": "媒體美學",
+      "type": "required",
+      "grade": "freshman",
+      "semester": "lower"
     },
     {
       "titleEn": "Digital Prepress Design",
       "titleZh": "數位編輯設計",
       "type": "elective",
       "grade": "freshman",
+      "semester": "upper",
       "descriptionEn": "Design is a complex of different history, society, culture, knowledge, function, aesthetics, problem solving and decision making...",
       "descriptionZh": "設計是經由不同的歷史、社會和文化層面知識領域的趨勢、作業功能、美學理想、問題解決和決策訂定形成的綜合體..."
+    },
+    {
+      "titleEn": "Digital Film Making",
+      "titleZh": "數位影像創作",
+      "type": "elective",
+      "grade": "freshman",
+      "semester": "upper"
+    },
+    {
+      "titleEn": "Digital Video Making",
+      "titleZh": "錄像實務創作",
+      "type": "elective",
+      "grade": "freshman",
+      "semester": "upper"
+    },
+    {
+      "titleEn": "Visual Psychology",
+      "titleZh": "視覺心理學",
+      "type": "elective",
+      "grade": "freshman",
+      "semester": "upper"
+    },
+    {
+      "titleEn": "Contemporary Art History",
+      "titleZh": "當代藝術史",
+      "type": "elective",
+      "grade": "freshman",
+      "semester": "upper"
+    },
+    {
+      "titleEn": "Digital Prepress Design Production",
+      "titleZh": "數位編輯設計製作",
+      "type": "elective",
+      "grade": "freshman",
+      "semester": "lower"
+    },
+    {
+      "titleEn": "3D Computer Graphics",
+      "titleZh": "3D 電腦繪圖",
+      "type": "elective",
+      "grade": "freshman",
+      "semester": "lower"
+    },
+    {
+      "titleEn": "Digital Film Making",
+      "titleZh": "數位影像創作",
+      "type": "elective",
+      "grade": "freshman",
+      "semester": "lower"
+    },
+    {
+      "titleEn": "Digital Video Making",
+      "titleZh": "錄像實務創作",
+      "type": "elective",
+      "grade": "freshman",
+      "semester": "lower"
+    },
+    {
+      "titleEn": "Design Studio",
+      "titleZh": "設計實務",
+      "type": "required",
+      "grade": "sophomore",
+      "parts": [
+        {
+          "titleEn": "Design Studio II",
+          "titleZh": "設計實務（二）",
+          "descriptionEn": "Advanced design principles and application focusing on visual communication and user experience.",
+          "descriptionZh": "進階設計原則與應用，專注於視覺傳達與使用者體驗。"
+        }
+      ]
+    },
+    {
+      "titleEn": "Typography",
+      "titleZh": "字體設計",
+      "type": "elective",
+      "grade": "sophomore",
+      "descriptionEn": "Study of type forms, layout, and the expressive power of typography in design.",
+      "descriptionZh": "研究字體造型、版面編排以及字體在設計中的表現力。"
+    },
+    {
+      "titleEn": "Design Studio",
+      "titleZh": "設計實務",
+      "type": "required",
+      "grade": "junior",
+      "parts": [
+        {
+          "titleEn": "Design Studio III",
+          "titleZh": "設計實務（三）",
+          "descriptionEn": "Professional design practice involving complex problem solving and project management.",
+          "descriptionZh": "涉及複雜問題解決與專案管理的專業設計實務。"
+        }
+      ]
+    },
+    {
+      "titleEn": "Motion Graphics",
+      "titleZh": "動態圖像設計",
+      "type": "elective",
+      "grade": "junior",
+      "descriptionEn": "Techniques and principles for creating animated graphics and visual effects.",
+      "descriptionZh": "創作動態圖像與視覺特效的技術與原則。"
+    },
+    {
+      "titleEn": "Degree Project",
+      "titleZh": "畢業製作",
+      "type": "required",
+      "grade": "senior",
+      "descriptionEn": "Final year comprehensive design project demonstrating professional competency.",
+      "descriptionZh": "展現專業能力的畢業年度綜合設計專案。"
+    },
+    {
+      "titleEn": "Portfolio Design",
+      "titleZh": "作品集設計",
+      "type": "elective",
+      "grade": "senior",
+      "descriptionEn": "Preparation of professional design portfolio and career planning.",
+      "descriptionZh": "專業設計作品集準備與職涯規劃。"
+    }
+  ],
+  "bfa-cmd": [
+    {
+      "titleEn": "Introduction to Design",
+      "titleZh": "設計概論",
+      "type": "required",
+      "grade": "freshman",
+      "parts": [
+        { "titleEn": "Introduction to Design", "titleZh": "設計概論" },
+        { "titleEn": "Introduction to Design (II)", "titleZh": "設計概論(二)" }
+      ]
+    },
+    {
+      "titleEn": "Design Drawing",
+      "titleZh": "設計繪畫",
+      "type": "required",
+      "grade": "freshman",
+      "parts": [
+        { "titleEn": "Design Drawing", "titleZh": "設計繪畫" },
+        { "titleEn": "Design Drawing (II)", "titleZh": "設計繪畫(二)" }
+      ]
+    },
+    {
+      "titleEn": "Design Fundamental",
+      "titleZh": "創作基礎",
+      "type": "required",
+      "grade": "freshman",
+      "parts": [
+        {
+          "titleEn": "Design Fundamental",
+          "titleZh": "創作基礎",
+          "descriptionEn": "This course urges students to explore their sensibilities, make dialogues between people and develop their sense of design. Students are encouraged to think in various views of multi-disciplines, and to make works in diverse formats. They will be able to understand the basic entities of design, such as composition, space, materials, structure, light and motion. Aesthetics, literature, and design methodology are the basis of creative ideas, students are requested to make the works of various medium and materials in spontaneous styles from these. Instructor will provide feedback to each student besides \"Entire Class\" critiques.",
+          "descriptionZh": "啟發學生自身的心靈感受，強調人與週遭事物的對話，用心去感受世界進而創作，鼓勵學生內在的美感韻律，培養和諧、敏銳的眼光與品質標準的價值觀，由多元化的思考與觀念，透過各種媒介投射於多樣化的創作中。經由這類創作，學生將了解造型、空間、材料、結構、量體、尺度、光線與動感等基本元素。"
+        },
+        {
+          "titleEn": "Design Fundamental (II)",
+          "titleZh": "創作基礎(二)",
+          "descriptionEn": "This course urges students to explore their sensibilities, make dialogues between people and develop their sense of design. Students are encouraged to think in various views of multi-disciplines, and to make works in diverse formats. They will be able to understand the basic entities of design, such as composition, space, materials, structure, light and motion. Aesthetics, literature, and design methodology are the basis of creative ideas, students are requested to make the works of various medium and materials in spontaneous styles from these. Instructor will provide feedback to each student besides \"Entire Class\" critiques.",
+          "descriptionZh": "啟發學生自身的心靈感受，強調人與週遭事物的對話，用心去感受世界進而創作，鼓勵學生內在的美感韻律，培養和諧、敏銳的眼光與品質標準的價值觀，由多元化的思考與觀念，透過各種媒介投射於多樣化的創作中。經由這類創作，學生將了解造型、空間、材料、結構、量體、尺度、光線與動感等基本元素。"
+        }
+      ]
+    },
+    {
+      "titleEn": "Cross-disciplinary Creative Thinking",
+      "titleZh": "跨域創作思考",
+      "type": "required",
+      "grade": "freshman",
+      "semester": "lower"
+    },
+    {
+      "titleEn": "Media Aesthetics",
+      "titleZh": "媒體美學",
+      "type": "required",
+      "grade": "freshman",
+      "semester": "lower"
+    },
+    {
+      "titleEn": "Digital Prepress Design",
+      "titleZh": "數位編輯設計",
+      "type": "elective",
+      "grade": "freshman",
+      "semester": "upper",
+      "descriptionEn": "Design is a complex of different history, society, culture, knowledge, function, aesthetics, problem solving and decision making...",
+      "descriptionZh": "設計是經由不同的歷史、社會和文化層面知識領域的趨勢、作業功能、美學理想、問題解決和決策訂定形成的綜合體..."
+    },
+    {
+      "titleEn": "Digital Film Making",
+      "titleZh": "數位影像創作",
+      "type": "elective",
+      "grade": "freshman",
+      "semester": "upper"
+    },
+    {
+      "titleEn": "Digital Video Making",
+      "titleZh": "錄像實務創作",
+      "type": "elective",
+      "grade": "freshman",
+      "semester": "upper"
+    },
+    {
+      "titleEn": "Visual Psychology",
+      "titleZh": "視覺心理學",
+      "type": "elective",
+      "grade": "freshman",
+      "semester": "upper"
+    },
+    {
+      "titleEn": "Contemporary Art History",
+      "titleZh": "當代藝術史",
+      "type": "elective",
+      "grade": "freshman",
+      "semester": "upper"
+    },
+    {
+      "titleEn": "Digital Prepress Design Production",
+      "titleZh": "數位編輯設計製作",
+      "type": "elective",
+      "grade": "freshman",
+      "semester": "lower"
+    },
+    {
+      "titleEn": "3D Computer Graphics",
+      "titleZh": "3D 電腦繪圖",
+      "type": "elective",
+      "grade": "freshman",
+      "semester": "lower"
+    },
+    {
+      "titleEn": "Digital Film Making",
+      "titleZh": "數位影像創作",
+      "type": "elective",
+      "grade": "freshman",
+      "semester": "lower"
+    },
+    {
+      "titleEn": "Digital Video Making",
+      "titleZh": "錄像實務創作",
+      "type": "elective",
+      "grade": "freshman",
+      "semester": "lower"
     },
     {
       "titleEn": "Design Studio",

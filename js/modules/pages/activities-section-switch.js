@@ -188,10 +188,21 @@ function initExhibitionsTypeFilter() {
       const inner = btn.querySelector('.anchor-nav-inner');
       if (inner) { inner.style.background = currentSectionColor || '#00FF80'; inner.style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`; }
 
+      // 切換前後抓 filter bar 視窗 Y 位置，補回 delta 保留 sticky 視覺位置；
+      // 否則新 list 比舊 list 短時瀏覽器會 clamp scrollY → 像跳回頂部
+      const filterBar = document.querySelector('#panel-exhibitions .activities-filter-bar');
+      const beforeTop = filterBar?.getBoundingClientRect().top ?? 0;
+
       const type = btn.dataset.type;
       document.getElementById('exhibitions-list-special').style.display  = type === 'special'   ? '' : 'none';
       document.getElementById('exhibitions-list-permanent').style.display = type === 'permanent' ? '' : 'none';
       reapplySearch('panel-exhibitions');
+
+      if (filterBar) {
+        const afterTop = filterBar.getBoundingClientRect().top;
+        const delta = afterTop - beforeTop;
+        if (delta !== 0) window.scrollBy(0, delta);
+      }
     });
   });
 }
@@ -218,10 +229,21 @@ function initVisitsTypeFilter() {
       const inner = btn.querySelector('.anchor-nav-inner');
       if (inner) { inner.style.background = currentSectionColor || '#00FF80'; inner.style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`; }
 
+      // 切換前後抓 filter bar 視窗 Y 位置，補回 delta 保留 sticky 視覺位置；
+      // 否則新 list 比舊 list 短時瀏覽器會 clamp scrollY → 像跳回頂部
+      const filterBar = document.querySelector('#panel-visits .activities-filter-bar');
+      const beforeTop = filterBar?.getBoundingClientRect().top ?? 0;
+
       const type = btn.dataset.type;
       document.getElementById('visits-list-outbound').style.display = type === 'outbound' ? '' : 'none';
       document.getElementById('visits-list-inbound').style.display  = type === 'inbound'  ? '' : 'none';
       reapplySearch('panel-visits');
+
+      if (filterBar) {
+        const afterTop = filterBar.getBoundingClientRect().top;
+        const delta = afterTop - beforeTop;
+        if (delta !== 0) window.scrollBy(0, delta);
+      }
     });
   });
 }

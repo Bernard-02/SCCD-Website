@@ -22,8 +22,6 @@ const routes = {
   '/activities.html':         { page: 'activities',              htmlFile: 'pages/activities.html' },
   '/admission':               { page: 'admission',               htmlFile: 'pages/admission.html' },
   '/admission.html':          { page: 'admission',               htmlFile: 'pages/admission.html' },
-  '/admission-detail':        { page: 'admission-detail',        htmlFile: 'pages/admission-detail.html' },
-  '/admission-detail.html':   { page: 'admission-detail',        htmlFile: 'pages/admission-detail.html' },
   '/awards':                  { page: 'awards',                  htmlFile: 'pages/awards.html' },
   '/awards.html':             { page: 'awards',                  htmlFile: 'pages/awards.html' },
   '/degree-show':             { page: 'degree-show',             htmlFile: 'pages/degree-show.html' },

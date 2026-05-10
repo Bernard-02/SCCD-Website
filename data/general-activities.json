@@ -37,16 +37,6 @@
           "../images/SCCD-1-4-0.jpg",
           "../images/SCCD-1-4-1.jpg"
         ],
-        "references": [
-          {
-            "href": "../pages/courses.html?program=bfa&item=design-fundamental",
-            "labelEn": "Courses",
-            "labelZh": "課程",
-            "titleEn": "Design Fundamental",
-            "titleZh": "創作基礎",
-            "coverSrc": "../images/SCCD-1-4-0.jpg"
-          }
-        ],
         "id": "ET-2025-01"
       },
       {

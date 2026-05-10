@@ -31,22 +31,9 @@ const HIDE_CLIPS = [
 ];
 const SHOW_CLIP = 'inset(0% 0% 0% 0%)';
 
-// hover screen-blend 用的三原色（同 timeline edge dim）
-const ACCENT_COLORS = (() => {
-  if (typeof getComputedStyle !== 'function') return ['#00FF80', '#FF448A', '#26BCFF'];
-  const s = getComputedStyle(document.documentElement);
-  const fallbacks = ['#00FF80', '#FF448A', '#26BCFF'];
-  return ['--color-green', '--color-pink', '--color-blue'].map((v, i) =>
-    s.getPropertyValue(v).trim() || fallbacks[i]
-  );
-})();
-function randomAccent() { return ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)]; }
-
 function randomHideClip() { return HIDE_CLIPS[Math.floor(Math.random() * HIDE_CLIPS.length)]; }
 function randomRotation() { return parseFloat(((Math.random() * 2 - 1) * 4).toFixed(2)); }
 
-// 回傳 wrapper div（套 .class-img class），內含 img + screen-blend overlay
-// 包 wrapper 是為了 hover 時 overlay 能用 mix-blend-mode:screen 蓋在 img 上
 // wrapper 寬度在 img 載入後依 natural 尺寸（capped at max-width）明確設定，
 // 避免 wrapper width:auto + img max-width:100% 的循環依賴造成尺寸不對
 function buildImg(src) {
@@ -58,13 +45,7 @@ function buildImg(src) {
   img.alt = '';
   img.style.cssText = 'display:block; width:100%; height:auto;';
 
-  const overlay = document.createElement('div');
-  overlay.style.cssText = 'position:absolute; inset:0; mix-blend-mode:screen; opacity:0; pointer-events:none;';
-
   wrapper.appendChild(img);
-  wrapper.appendChild(overlay);
-  wrapper._img = img;
-  wrapper._overlay = overlay;
 
   // 載入後依 natural 尺寸決定 wrapper 寬度（不會放大、不會超出 max-width）
   const sizeWrapper = () => {
@@ -89,6 +70,8 @@ function placeInSlot(img, slotIdx, extra = {}) {
     zIndex: 3 - slotIdx,
     ...extra,
   });
+  // 記錄原始旋轉，hover/leave 時用來還原
+  if (extra.rotation !== undefined) img._rotation = extra.rotation;
 }
 
 // ── 每個 container 的 slideshow 實例 ─────────────────────────────────────────
@@ -106,22 +89,12 @@ function initContainer(container, pool) {
   let isShifting = false; // 移動中：禁用 hover、避免重複觸發
 
   function clearHoverState(wrapper) {
-    if (wrapper._img) {
-      gsap.killTweensOf(wrapper._img);
-      gsap.set(wrapper._img, { filter: 'grayscale(0%)' });
-    }
-    if (wrapper._overlay) {
-      gsap.killTweensOf(wrapper._overlay);
-      gsap.set(wrapper._overlay, { opacity: 0 });
-    }
+    if (wrapper._rotation === undefined) return;
+    gsap.to(wrapper, { rotation: wrapper._rotation, duration: HOVER_DUR, overwrite: 'auto' });
   }
 
   function activateHover(wrapper) {
-    if (wrapper._img) gsap.to(wrapper._img, { filter: 'grayscale(100%)', duration: HOVER_DUR });
-    if (wrapper._overlay) {
-      wrapper._overlay.style.background = randomAccent();
-      gsap.to(wrapper._overlay, { opacity: 1, duration: HOVER_DUR });
-    }
+    gsap.to(wrapper, { rotation: 0, duration: HOVER_DUR, overwrite: 'auto' });
   }
 
   // shift 完成後呼叫：若游標仍停在某 slot 上（slot 1 或 2），立刻啟用 hover；
@@ -142,7 +115,7 @@ function initContainer(container, pool) {
 
   // 點擊第 2 或第 3 張：觸發一次 shift-left（行為等同 tick），整列 slot 往左移一格。
   // 第 1 張（slot 0）不動作。移動期間 hover 失效。
-  // hover：圖片 grayscale + 隨機三原色 screen blend overlay（仿 timeline edge dim）；slot 0 不啟用。
+  // hover：旋轉歸 0°，leave 還原原始隨機角度；slot 0 不啟用。
   // cursor 由 updateCursors() 依 slot 位置動態設定（slot 0 = default，其餘 = pointer）。
   function attachInteractions(wrapper) {
     wrapper.addEventListener('click', () => {
@@ -194,7 +167,7 @@ function initContainer(container, pool) {
     if (isShifting) return;
     isShifting = true;
 
-    // 移動前清掉所有 slot 的 hover 狀態（避免移動中還停留 grayscale/overlay）
+    // 移動前清掉所有 slot 的 hover 狀態（旋轉還原）
     slots.forEach(clearHoverState);
 
     const leaving = slots[0];

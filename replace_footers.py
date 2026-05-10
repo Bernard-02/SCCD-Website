@@ -11,7 +11,6 @@ files = [
     "faculty-detail.html",
     "support.html",
     "admission.html",
-    "admission-detail.html",
     "degree-show.html",
     "degree-show-detail.html",
 ]

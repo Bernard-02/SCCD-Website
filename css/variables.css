@@ -93,6 +93,15 @@
   --theme-bg: var(--color-white);
   --theme-fg-rgb: 0, 0, 0;
   --theme-bg-rgb: 255, 255, 255;
+
+  /* ===== Library 主矩形（#library-card-content）色彩 token =====
+   * 預設 standard：淺灰底（#f2f2f2）+ 黑字
+   * inverse mode 在 themes/inverse.css 蓋成深灰底（#434343）+ 白字
+   * --lib-fg-rgb 是 RGB 三元組，給半透明文字 rgba(var(--lib-fg-rgb), X) 用
+   */
+  --lib-bg: #f2f2f2;
+  --lib-fg: #000000;
+  --lib-fg-rgb: 0, 0, 0;
 }
 
 /* ===== 手機版響應式設計 (Desktop-First) ===== */

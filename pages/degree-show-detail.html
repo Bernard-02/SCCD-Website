@@ -101,46 +101,61 @@
 
     </section>
 
-    <!-- Next Project Section：左 = 上一年度（prev），右 = 下一年度（next）；卡片與標題各自隨機旋轉（desktop only） -->
-    <section id="next-project-section" class="bg-white h-auto pt-2xl md:pt-6xl pb-2xl md:pb-6xl overflow-hidden">
-      <div class="site-container">
-        <div class="grid-12 items-start gap-y-3xl md:gap-y-0">
-          <!-- 上一年度（左） -->
-          <div id="prev-wrapper" class="col-span-12 md:col-start-1 md:col-span-7 md:row-start-1 relative">
-            <a id="prev-link" href="#" class="block relative group">
-              <div id="prev-card" class="relative overflow-hidden">
-                <img id="prev-img" src="../images/Degree Show.jpg" alt="" class="block w-full h-auto">
-                <div class="hidden md:block absolute inset-0 bg-black opacity-0 group-hover:opacity-60 transition-opacity duration-300"></div>
-                <div class="hidden md:block absolute bottom-0 left-0 p-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <h4 id="prev-year" class="text-white whitespace-nowrap mb-sm"></h4>
-                  <h4 id="prev-title" class="text-white whitespace-nowrap"></h4>
-                </div>
-              </div>
-              <div class="md:hidden mt-sm">
-                <h5 id="prev-year-mobile" class="text-black whitespace-nowrap"></h5>
-                <h5 id="prev-title-mobile" class="text-black whitespace-nowrap"></h5>
-              </div>
-            </a>
+    <!-- Next Project Section：
+         桌面：兩張 poster overlap（左=prev/older 在上，右=next/newer 在下偏 50%），
+              預設 50% 黑 overlay，hover 取消 overlay + 顯示年份/英中標題（隨機色與旋轉，year 在上、名稱在下），
+              另一張同時 clip-path 掃入隨機色（仿首頁 newsOverlay）；
+         手機：單純 stack。
+         posters 隨機旋轉 -4°~6°（排除 0）。 -->
+    <section id="next-project-section" class="bg-white relative overflow-hidden pt-3xl pb-3xl md:pt-6xl md:pb-6xl">
+      <!-- 桌面版：overlap stage -->
+      <div id="next-project-stage" class="hidden md:block relative w-full">
+        <!-- prev：older year，左上（66vw + 左移 -8vw，與 next 在中段重疊） -->
+        <a id="prev-link" href="#" class="block absolute" style="top: 0; left: -8vw; width: 66vw; z-index: 1;">
+          <div id="prev-card" class="relative">
+            <img id="prev-img" src="../images/Degree Show.jpg" alt="" class="block w-full h-auto pointer-events-none">
+            <div id="prev-dim" class="absolute inset-0 bg-black pointer-events-none" style="opacity: 0.5; transition: opacity 0.3s ease;"></div>
+            <div id="prev-clip" class="absolute inset-0 pointer-events-none" style="clip-path: inset(100% 0 0 0); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></div>
           </div>
+        </a>
+        <!-- next：newer year，右下（66vw + 右移 -8vw） -->
+        <a id="next-link" href="#" class="block absolute" style="right: -8vw; width: 66vw; z-index: 1;">
+          <div id="next-card" class="relative">
+            <img id="next-img" src="../images/Degree Show.jpg" alt="" class="block w-full h-auto pointer-events-none">
+            <div id="next-dim" class="absolute inset-0 bg-black pointer-events-none" style="opacity: 0.5; transition: opacity 0.3s ease;"></div>
+            <div id="next-clip" class="absolute inset-0 pointer-events-none" style="clip-path: inset(100% 0 0 0); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></div>
+          </div>
+        </a>
 
-          <!-- 下一年度（右） -->
-          <div id="next-wrapper" class="col-span-12 md:col-start-6 md:col-span-7 md:row-start-1 relative">
-            <a id="next-link" href="#" class="block relative group">
-              <div id="next-card" class="relative overflow-hidden">
-                <img id="next-img" src="../images/Degree Show.jpg" alt="" class="block w-full h-auto">
-                <div class="hidden md:block absolute inset-0 bg-black opacity-0 group-hover:opacity-60 transition-opacity duration-300"></div>
-                <div class="hidden md:block absolute bottom-0 left-0 p-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <h4 id="next-year" class="text-white whitespace-nowrap mb-sm"></h4>
-                  <h4 id="next-title" class="text-white whitespace-nowrap"></h4>
-                </div>
-              </div>
-              <div class="md:hidden mt-sm">
-                <h5 id="next-year-mobile" class="text-black whitespace-nowrap"></h5>
-                <h5 id="next-title-mobile" class="text-black whitespace-nowrap"></h5>
-              </div>
-            </a>
-          </div>
+        <!-- Labels groups 改放到 stage level（不再 nested in card 內），位置以 viewport 為主：
+             - prev 釘 stage 左下、next 釘 stage 右上（這是「圖片之外」的相對白空間）
+             - 不被 card rotation 影響、不被 card 結構裁切
+             - gap 對齊 hero `gap-md`（1.5rem）
+             - chip 預設 clip-path 隱藏，hover 時 stagger reveal（prev 從左到右、next 從右到左） -->
+        <div id="prev-labels" class="absolute flex flex-col items-start pointer-events-none" style="bottom: 20%; left: 5vw; gap: 1.5rem; z-index: 5;">
+          <h4 id="prev-year" class="font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: left center; clip-path: inset(0 100% 0 0); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></h4>
+          <h2 id="prev-title-en" class="font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: left center; clip-path: inset(0 100% 0 0); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></h2>
+          <h2 id="prev-title" class="font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: left center; clip-path: inset(0 100% 0 0); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></h2>
         </div>
+        <div id="next-labels" class="absolute flex flex-col items-end pointer-events-none" style="top: 20%; right: 5vw; gap: 1.5rem; z-index: 5;">
+          <h4 id="next-year" class="font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: right center; clip-path: inset(0 0 0 100%); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></h4>
+          <h2 id="next-title-en" class="font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: right center; clip-path: inset(0 0 0 100%); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></h2>
+          <h2 id="next-title" class="font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: right center; clip-path: inset(0 0 0 100%); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></h2>
+        </div>
+      </div>
+
+      <!-- 手機版：簡單 stack -->
+      <div class="md:hidden site-container">
+        <a id="prev-link-m" href="#" class="block mb-3xl">
+          <img id="prev-img-m" src="../images/Degree Show.jpg" alt="" class="block w-full h-auto">
+          <h5 id="prev-year-mobile" class="text-black whitespace-nowrap mt-sm"></h5>
+          <h5 id="prev-title-mobile" class="text-black whitespace-nowrap"></h5>
+        </a>
+        <a id="next-link-m" href="#" class="block">
+          <img id="next-img-m" src="../images/Degree Show.jpg" alt="" class="block w-full h-auto">
+          <h5 id="next-year-mobile" class="text-black whitespace-nowrap mt-sm"></h5>
+          <h5 id="next-title-mobile" class="text-black whitespace-nowrap"></h5>
+        </a>
       </div>
     </section>
   </main>

@@ -27,20 +27,23 @@ export function setActiveNavBtn(btns, activeKey, attrName, opts = {}) {
 
   btns.forEach(b => {
     b.classList.remove('active');
-    const inner = b.querySelector('.anchor-nav-inner');
-    if (inner) {
+    // 支援單 pill 或多 pill 結構（如 courses-program-btn--stacked）
+    b.querySelectorAll('.anchor-nav-inner').forEach(inner => {
       inner.style.background = '';
       inner.style.transform = '';
-    }
+    });
   });
 
   [...btns].filter(b => b.getAttribute(attrName) === activeKey).forEach(b => {
     b.classList.add('active');
-    const inner = b.querySelector('.anchor-nav-inner');
-    if (inner) {
+    const inners = b.querySelectorAll('.anchor-nav-inner');
+    inners.forEach((inner, idx) => {
       inner.style.background = color;
-      inner.style.transform = `rotate(${rotation}deg)`;
-    }
+      // 多 pill 時每個 pill 各自隨機 rotation（仿 about division btn 視覺）；
+      // 第一個沿用 caller 指定（或既有）rotation 確保 returned 值與實際一致
+      const r = idx === 0 ? rotation : SCCDHelpers.getRandomRotation();
+      inner.style.transform = `rotate(${r}deg)`;
+    });
   });
 
   return { color, rotation };

@@ -16,7 +16,7 @@
 ├── pages/                  # 所有內頁
 │   ├── about.html
 │   ├── faculty.html
-│   ├── admission-detail.html
+│   ├── admission.html
 │   ├── degree-show-detail.html
 │   └── ...
 ├── css/
@@ -80,7 +80,7 @@
 - Sticky header（固定在頂部）
 - Mega menu（大型下拉選單）
 - 自動高亮當前頁面
-- 支援詳細頁對應到父層導航（如 admission-detail.html → admission.html）
+- 支援詳細頁對應到父層導航（如 degree-show-detail.html → degree-show.html）
 
 ### 響應式設計
 

@@ -38,8 +38,10 @@ function renderFacultyList(containerId, items) {
   // 生成 HTML
   container.innerHTML = items.map((item, index) => {
     const color = CARD_COLORS[index % CARD_COLORS.length];
+    const sign = Math.random() < 0.5 ? -1 : 1;
+    const initDeg = (sign * (3 + Math.random() * 3)).toFixed(2);
     return `
-    <div class="faculty-card group ${item.type === 'parttime' ? 'cursor-default' : 'cursor-pointer'} p-[6px]" data-category="${item.type}" data-faculty-id="${item.id}" style="--card-color: ${color}">
+    <div class="faculty-card group ${item.type === 'parttime' ? 'cursor-default' : 'cursor-pointer'} p-[6px]" data-category="${item.type}" data-faculty-id="${item.id}" style="--card-color: ${color}; --init-deg: ${initDeg}deg">
       <div class="faculty-card-image-wrapper overflow-hidden mb-sm aspect-[4/5] bg-gray-2 relative">
         <img src="${item.image}" alt="${item.nameEn}" loading="lazy" class="faculty-card-image w-full h-full object-cover">
       </div>

@@ -21,6 +21,8 @@
 @import './components/hero.css';
 @import './components/lists.css';
 @import './components/intro-animation.css';
+@import './components/courses.css';
+@import './components/atlas.css';
 
 /* Themes */
 @import './themes/inverse.css';
@@ -36,6 +38,12 @@
   /* 封鎖綫預設隱藏；anchor-nav active 切換時才 reveal（見 section-banner-reveal.js） */
   [data-section-title] {
     clip-path: inset(0 100% 0 0);
+  }
+
+  /* Degree Show detail 的 Next 卡片進場：預設 clip 隱藏右側，ScrollTrigger 進 viewport 時 GSAP tween 到 inset(0% 0% 0% 0%) 由左往右展開
+     注意：四個值必須全用 %，與 JS 端 GSAP tween 終值單位一致；混用 unitless 與 % 會讓 GSAP 直接跳終值不動畫 */
+  #next-card {
+    clip-path: inset(0% 100% 0% 0%);
   }
 }
 

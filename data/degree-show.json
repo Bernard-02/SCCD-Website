@@ -26,6 +26,7 @@
   "2023": {
     "id": "DS-2023-01",
     "title": "獸",
+    "title_en": "Beast",
     "descEn": "The 2023 Degree Show showcases the creative works of graduating students, reflecting their growth and artistic vision.",
     "descCn": "2023 畢業展呈現了畢業生的創意作品，反映他們的成長與藝術視野。",
     "coverImage": "../images/Degree Show.jpg",
@@ -42,6 +43,7 @@
   "2022": {
     "id": "DS-2022-01",
     "title": "獸",
+    "title_en": "Beast",
     "descEn": "The 2022 Degree Show showcases the creative works of graduating students, reflecting their growth and artistic vision.",
     "descCn": "2022 畢業展呈現了畢業生的創意作品，反映他們的成長與藝術視野。",
     "coverImage": "../images/Degree Show.jpg",
@@ -56,10 +58,12 @@
   },
   "2021": {
     "id": "DS-2021-01",
-    "title": "獸",
+    "title": "回川",
+    "title_en": "Conation",
     "descEn": "The 2021 Degree Show showcases the creative works of graduating students, reflecting their growth and artistic vision.",
     "descCn": "2021 畢業展呈現了畢業生的創意作品，反映他們的成長與藝術視野。",
     "coverImage": "../images/Degree Show.jpg",
+    "poster": "../images/回川poster.jpg",
     "images": [
       "../images/maxresdefault.jpg",
       "../images/內頁_頁面_3.jpg",

@@ -77,7 +77,7 @@
 
 /* ── Search placeholder ────────────────────────────────────── */
 #library-awards-search::placeholder {
-  color: rgba(0, 0, 0, 0.3);
+  color: rgba(var(--lib-fg-rgb), 0.3);
 }
 
 /* ── Award list：grid 欄位覆蓋（覆蓋 records-data-loader 的偏移） ── */
@@ -89,7 +89,7 @@
 
 /* ── Awards Ticker ──────────────────────────────────────────── */
 #library-awards-ticker {
-  background: #f2f2f2;
+  background: var(--lib-bg);
 }
 
 /* ── Press list container ─────────────────────────────────────── */
@@ -106,22 +106,24 @@
   padding: 0.35rem 0 0.25rem;
   position: sticky;
   top: -1px;
-  background: #f2f2f2;
-  z-index: 2;
+  background: var(--lib-bg);
+  /* 必須高於 album thumb 的 z-index（1/2/3），thumb 飄出 row 時才會被 header bg 蓋住，
+     視覺上跟 row bg 一起在同一條線被切 */
+  z-index: 5;
   margin-top: -0.35rem;
 }
 
 /* ── Press list item ─────────────────────────────────────────── */
 .press-item {
   padding: var(--spacing-sm) 0;
-  border-bottom: 2px solid #000;
+  border-bottom: 2px solid var(--lib-fg);
   cursor: default;
   overflow: hidden;
   transition: background 0.25s ease;
 }
 /* 每個 year block 第一個 item 加頂線 */
 .press-year-block:first-child .press-item:first-child {
-  border-top: 2px solid #000;
+  border-top: 2px solid var(--lib-fg);
 }
 
 /* item 內部：grid 兩欄，左欄標題區，右欄分類 tag（all 模式才有） */
@@ -165,7 +167,7 @@
 .press-item-subtitle {
   font-size: var(--font-size-p3);
   font-weight: 700;
-  color: rgba(0, 0, 0, 0.5);
+  color: rgba(var(--lib-fg-rgb), 0.5);
   white-space: nowrap;
   overflow: hidden;
   display: block;
@@ -183,19 +185,19 @@
 .press-item-date {
   font-size: var(--font-size-p3);
   font-weight: 700;
-  color: rgba(0, 0, 0, 0.5);
+  color: rgba(var(--lib-fg-rgb), 0.5);
   white-space: nowrap;
 }
 .press-item-media-icon {
   font-size: var(--font-size-p3);
-  color: rgba(0, 0, 0, 0.5);
+  color: rgba(var(--lib-fg-rgb), 0.5);
 }
 
 /* 分類 tag（只在 all 模式顯示，對齊右側第二欄頂部） */
 .press-item-cat-tag {
   font-size: var(--font-size-p3);
   font-weight: 700;
-  color: rgba(0, 0, 0, 0.5);
+  color: rgba(var(--lib-fg-rgb), 0.5);
   white-space: nowrap;
   align-self: start;
 }
@@ -209,15 +211,15 @@
   font-size: var(--font-size-p3);
   cursor: pointer;
   font-weight: 700;
-  color: #000;
+  color: var(--lib-fg);
 }
 .lib-press-cat-btn.dimmed {
-  color: rgba(0, 0, 0, 0.3);
+  color: rgba(var(--lib-fg-rgb), 0.3);
 }
 
 /* ── Search placeholder ──────────────────────────────────────── */
 #library-press-search::placeholder {
-  color: rgba(0, 0, 0, 0.3);
+  color: rgba(var(--lib-fg-rgb), 0.3);
 }
 
 /* ── Press item hover marquee（桌面專用）────────────────────── */
@@ -235,27 +237,103 @@
   100% { transform: translateX(var(--marquee-distance, -50%)); }
 }
 
+/* Marquee 兩份 copy 並排：inline-block 才能量寬度，padding-right 提供兩份之間的 gap */
+.press-marquee-inner > .marquee-copy,
+.press-subtitle-inner > .marquee-copy,
+.files-marquee-inner > .marquee-copy {
+  display: inline-block;
+  padding-right: 3em;
+}
+
 /* ── Files list item ─────────────────────────────────────────── */
 .files-item {
   padding: var(--spacing-sm) 0;
-  border-bottom: 2px solid #000;
+  border-bottom: 2px solid var(--lib-fg);
   cursor: pointer;
   transition: background 0.25s ease;
 }
 .files-year-block .files-item:first-child {
-  border-top: 2px solid #000;
+  border-top: 2px solid var(--lib-fg);
+}
+
+/* ── Files Grid（card layout）────────────────────────────────── */
+.files-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--spacing-4xl) var(--spacing-2xl);
+  padding-top: var(--spacing-sm);
+  min-width: 0;
+}
+
+.files-item-card {
+  padding: 6px;
+  border-bottom: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  min-width: 0;
+  overflow: visible;
+}
+
+.files-year-block .files-item-card:first-child {
+  border-top: none;
+}
+
+.files-card-cover-wrap {
+  aspect-ratio: 4 / 5;
+  width: 100%;
+  position: relative;
+  overflow: visible;
+  flex-shrink: 0;
+}
+
+/* inner 鋪滿 wrap 當 flex container，bottom-align + horizontally center 圖片
+   rotation 移到 image 本身，避免 inner 中心 ≠ image 中心時的「甩繩」感 */
+.files-item-card .files-item-cover-inner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: visible;
+}
+
+/* 圖片用 contain 邏輯（仿 Windows File Explorer）：
+   - max-w 100% / max-h 100%：兩個方向都不超出 wrap
+   - width/height auto + 圖片原始尺寸：保持完整性，瀏覽器自動取最緊的限制
+   - 高 portrait（aspect 比 3:4 還瘦）：被 max-height 撞到 → 寬度反推變窄，置中 + 貼底
+   - 寬圖：被 max-width 撞到 → 高度反推變矮，貼底
+   - 3:4 portrait：剛好填滿
+   transform-origin 預設 center = 圖片自身中心，旋轉視覺自然 */
+.files-item-card .files-item-cover {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  display: block;
+}
+
+.files-item-card .files-item-cover--empty {
+  width: 100%;
+  aspect-ratio: 4 / 5;
+}
+
+.files-card-info {
+  min-width: 0;
+  overflow: hidden;
 }
 .files-item-subtitle-wrap {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--spacing-sm);
+  column-gap: var(--spacing-sm);
+  row-gap: 0;
   margin-top: 0.1rem;
   transition: opacity 0.3s ease;
 }
 .files-item-subtitle-tag {
   font-size: var(--font-size-p3);
   font-weight: 700;
-  color: rgba(0, 0, 0, 0.5);
+  color: rgba(var(--lib-fg-rgb), 0.5);
   white-space: nowrap;
 }
 .files-item-row {
@@ -294,7 +372,7 @@
   pointer-events: none;
 }
 .files-item-cover--empty {
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(var(--lib-fg-rgb), 0.1);
 }
 .files-item-titles {
   display: flex;
@@ -339,10 +417,10 @@
   font-size: var(--font-size-p3);
   cursor: pointer;
   font-weight: 700;
-  color: #000;
+  color: var(--lib-fg);
 }
 .lib-album-cat-btn.dimmed {
-  color: rgba(0, 0, 0, 0.3);
+  color: rgba(var(--lib-fg-rgb), 0.3);
 }
 
 /* ── Files category filter buttons ──────────────────────────── */
@@ -354,16 +432,16 @@
   font-size: var(--font-size-p3);
   cursor: pointer;
   font-weight: 700;
-  color: #000;
+  color: var(--lib-fg);
 }
 .lib-files-cat-btn.dimmed {
-  color: rgba(0, 0, 0, 0.3);
+  color: rgba(var(--lib-fg-rgb), 0.3);
 }
 
 /* ── Search placeholder ──────────────────────────────────────── */
 #library-files-search::placeholder,
 #library-album-search::placeholder {
-  color: rgba(0, 0, 0, 0.3);
+  color: rgba(var(--lib-fg-rgb), 0.3);
 }
 
 /* ── Album item thumbnails ───────────────────────────────────── */
@@ -382,6 +460,9 @@
   padding-right: var(--spacing-sm);
   display: flex;
   align-items: center;
+  /* 鎖死最小高度避免 grid auto-sizing 把 flex container 壓到比 strip 矮，
+     導致 strip（flex-shrink:0 + align-items:center）上下等量溢出飄出 row */
+  min-height: 4.5rem;
 }
 
 /* stack 容器 */
@@ -450,25 +531,8 @@
   overflow: visible;
 }
 
-/* .is-hovered 供 JS 程式化觸發 hover 效果使用（如 hash deep link）*/
-@media (min-width: 768px) {
-  .files-item:hover .files-item-cover,
-  .files-item.is-hovered .files-item-cover {
-    filter: grayscale(100%);
-  }
-  .files-item:hover .files-thumb-overlay,
-  .files-item.is-hovered .files-thumb-overlay {
-    opacity: 1;
-  }
-  .files-item:hover .album-thumb img,
-  .files-item.is-hovered .album-thumb img {
-    filter: grayscale(100%);
-  }
-  .files-item:hover .album-thumb-overlay,
-  .files-item.is-hovered .album-thumb-overlay {
-    opacity: 1;
-  }
-}
+/* .is-hovered 供 JS 程式化觸發 hover 效果使用（如 hash deep link）
+ * 卡片 hover 不對圖片做 grayscale + screen 三原色，僅保留 row 底色變化（由 JS 控制） */
 
 /* ── Files item hover marquee（桌面專用）─────────────────────── */
 @media (min-width: 768px) {
@@ -476,6 +540,31 @@
   .files-item:hover .files-item-title-zh.is-overflow .files-marquee-inner,
   .files-item.is-hovered .files-item-title-en.is-overflow .files-marquee-inner,
   .files-item.is-hovered .files-item-title-zh.is-overflow .files-marquee-inner {
+    animation: press-marquee var(--marquee-duration, 8s) linear infinite;
+  }
+}
+
+/* ── Files panel cat-tag 單獨溢出時 hover 才 marquee ──
+ * 改 wrap 為 block + tag 為 inline-block + max-width:100%；
+ * 過長 tag 自己 nowrap 截斷，含 .files-marquee-inner 偵測為 .is-overflow → hover 跑 marquee；
+ * 短 tag 自然撐開不超寬，不加 .is-overflow，hover 也不動。Album 不受影響（scoped to #library-files-list）*/
+#library-files-list .files-item-subtitle-wrap {
+  display: block;
+}
+#library-files-list .files-item-subtitle-tag {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  vertical-align: bottom;
+  margin-right: var(--spacing-sm);
+}
+#library-files-list .files-item-subtitle-tag .files-marquee-inner {
+  display: inline-block;
+}
+@media (min-width: 768px) {
+  #library-files-list .files-item:hover .files-item-subtitle-tag.is-overflow .files-marquee-inner,
+  #library-files-list .files-item.is-hovered .files-item-subtitle-tag.is-overflow .files-marquee-inner {
     animation: press-marquee var(--marquee-duration, 8s) linear infinite;
   }
 }

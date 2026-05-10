@@ -12,6 +12,11 @@ body.mode-inverse {
   --theme-fg-rgb: 255, 255, 255;
   --theme-bg-rgb: 0, 0, 0;
 
+  /* Library 主矩形：淺灰 → 深灰，文字黑 → 白；半透明文字同 alpha 但反成 rgba(255,...) */
+  --lib-bg: #333333;
+  --lib-fg: #ffffff;
+  --lib-fg-rgb: 255, 255, 255;
+
   background-color: black;
   color: white;
 }
@@ -185,13 +190,11 @@ body.mode-inverse .courses-filter-btn.active .anchor-nav-inner {
 
 /* ===== Filter Bar 上方遮擋 ::before ===== */
 @media (min-width: 768px) {
-  body.mode-inverse .activities-filter-bar::before,
-  body.mode-inverse .courses-filter-bar::before {
+  body.mode-inverse .activities-filter-bar::before {
     background: black;
   }
 
-  body.mode-inverse .activities-filter-bar,
-  body.mode-inverse .courses-filter-bar {
+  body.mode-inverse .activities-filter-bar {
     background-color: black !important;
   }
 }
@@ -225,45 +228,25 @@ body.mode-inverse .course-item {
 
 /* 淺底/亮三原色底容器內的 .border-black 維持黑色分隔線（依全站對比原則：淺底→黑內容）
  * - .list-content：active 亮三原色底（activities accordion 展開）
- * - #library-card-content：JS 設 inline #f2f2f2 淺灰底
- * 廣域 .border-black→white 會把分割線變白，這裡蓋回黑色 */
-body.mode-inverse .list-content .border-black,
-body.mode-inverse #library-card-content .border-black {
+ * 廣域 .border-black→white 會把分割線變白，這裡蓋回黑色
+ *
+ * #library-card-content 已不在此清單：library 主矩形 inverse 已改深灰底（#333333）+ 白文字，
+ * 分隔線改用 var(--lib-fg) 跟著翻白，不用蓋回黑 */
+body.mode-inverse .list-content .border-black {
   border-color: black !important;
 }
 
-/* ===== Library 灰色主矩形（#library-card-content）：完整 mode-isolated ===== */
-/* User 明示「library 設定基本上都不變」 = inverse 視覺等同 standard。
+/* ===== Library 灰色主矩形（#library-card-content）：跟 mode 翻 ===== */
+/* 標準色 #f2f2f2 + 黑字 ↔ inverse #333333 + 白字（半透明同 alpha 翻成 rgba(255,...)）
+ * --lib-bg / --lib-fg / --lib-fg-rgb 在 variables.css + 此檔 body.mode-inverse 各有定義
+ * library.css / library.html / library-panels.js / library-card.js 都用 var() 取色，自動跟 mode
  *
- * Library 內字色機制（standard 下所有來源）：
- *   1. JS 設 inline color（year picker `'#000'`/`'rgba(0,0,0,0.3)'`、cat tabs 同、award row hover `三原色`）
- *   2. 元素自身 CSS class（如 `.lib-album-cat-btn { color: #000 }`、`.files-item-subtitle-tag { color: rgba(0,0,0,0.5) }`）
- *   3. 沒設色的元素繼承 body 的 black（typography.css `body { @apply text-black }`）
- *
- * Inverse 模式只有來源 (3) 出問題：`body.mode-inverse { color: white }` 讓繼承色變白。
- * 其餘 (1)(2) 的明確值不該動。
- *
- * 解：只把 #library-card-content 的根色設回 black，沒設色的子元素自然繼承（同 standard 機制）。
- *   - 不加 `* { color: inherit }` — 那會 specificity (1,1,1) 蓋過元素自身 CSS class color，
- *     例如 `.files-item-subtitle-tag { color: rgba(0,0,0,0.5) }` 半透明黑會被強制變不透明
- *   - Button / input 等表單元素由 Tailwind preflight `button { color: inherit }` 處理，自然繼承
- *   - JS inline color、元素自身 CSS class color 都比 inherit specificity 高，照常勝出
- */
-body.mode-inverse #library-card-content {
-  color: black;
-}
-/* lib-panel-title 是 panel 黑底白字標題（inline color: #f2f2f2），明確保留 */
-body.mode-inverse #library-card-content .lib-panel-title {
-  color: #f2f2f2;
-}
-/* 顯式 set album row title 跟 panel 內年份 label：
- * 這些元素沒自己 CSS color、應該繼承根 black，但實測 user 仍看到白字 — 可能某層中間繼承被切斷
- * specificity (1,2,1) 比元素自身 (0,1,0) 高，但低於 .files-item-subtitle-tag 的 inverse override 路徑
- * 不影響半透明黑 (.files-item-subtitle-tag color rgba(0,0,0,0.5) specificity 0,1,0 不會被這條 cover) */
-body.mode-inverse #library-card-content .files-item-title-en,
-body.mode-inverse #library-card-content .files-item-title-zh,
-body.mode-inverse #library-card-content .press-year-label {
-  color: black;
+ * lib-panel-title chip 也用 var：HTML inline 設 bg=var(--lib-fg)、text=var(--lib-bg)
+ * → standard 黑底淺字、inverse 白底深字，自動跟 mode 翻；此檔不必再 override */
+
+/* Awards ticker logos：黑色 PNG → inverse 模式下翻白（!important 蓋過 JS inline filter:grayscale） */
+body.mode-inverse #library-awards-ticker .awards-ticker-wrapper img {
+  filter: invert(1) !important;
 }
 
 /* hover (未展開) 或 active (展開) 時 bg 變亮三原色（JS 設 inline），文字一律反黑
@@ -285,6 +268,27 @@ body.mode-inverse #library-card-content .press-year-label {
   body.mode-inverse .list-header[style*="background"] + .list-content,
   body.mode-inverse .list-header[style*="background"] + .list-content * {
     color: black !important;
+  }
+}
+
+/* ===== Library Files / Album / Press hover：亮三原色底文字一律反黑 ===== */
+/* bindListItemHover (library-panels.js) mouseenter 設 inline bg=accent，mouseleave 清掉
+ * 用 [style*="background"] 偵測 hover 狀態 → 文字全部反黑（含半透明 0.5 白 → 0.5 黑）
+ * 涵蓋：.files-item（files + album panel 共用）、.press-item */
+@media (min-width: 768px) {
+  body.mode-inverse .files-item[style*="background"],
+  body.mode-inverse .files-item[style*="background"] *,
+  body.mode-inverse .press-item[style*="background"],
+  body.mode-inverse .press-item[style*="background"] * {
+    color: black !important;
+  }
+
+  body.mode-inverse .files-item[style*="background"] .files-item-subtitle-tag,
+  body.mode-inverse .press-item[style*="background"] .press-item-subtitle,
+  body.mode-inverse .press-item[style*="background"] .press-item-date,
+  body.mode-inverse .press-item[style*="background"] .press-item-media-icon,
+  body.mode-inverse .press-item[style*="background"] .press-item-cat-tag {
+    color: rgba(0, 0, 0, 0.5) !important;
   }
 }
 
@@ -315,6 +319,10 @@ body.mode-inverse .anchor-nav-btn.active .anchor-nav-inner {
 
 /* ===== Faculty Card / Admission Item hover：inverse 下文字反黑（因 bg 變亮三原色）===== */
 /* standard 下文字繼承黑色，hover 不需動；inverse 下繼承白色，hover 時亮底白字看不清，反黑 */
+/* admission-item.active（accordion 展開）同樣有亮底，需脫離 hover media query 一併反黑 */
+body.mode-inverse .admission-item.active {
+  color: black;
+}
 @media (min-width: 768px) {
   body.mode-inverse .faculty-card:hover,
   body.mode-inverse .admission-item:hover {

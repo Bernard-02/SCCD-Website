@@ -16,6 +16,7 @@
 
   <!-- Main Content -->
   <main>
+
     <!-- Hero Section with Background Image -->
     <section class="h-screen relative overflow-hidden">
       <!-- Background Image -->
@@ -44,60 +45,64 @@
       </div>
     </section>
 
-    <!-- Courses Content Section -->
-    <!-- overflow:clip：擋住 filter-bar ::before 白色遮罩超出 section 邊界（避免戳到 hero 區）；用 clip 不用 hidden 以保留內部 sticky 行為 -->
-    <section class="bg-white py-6xl" id="courses-content-section" style="overflow: clip;">
+    <!-- Courses Content Section
+         Layout（桌面）：左 program bar (vertical sticky) ｜ 中 grid panels ｜ 右 sticky desc panel
+                Mobile：垂直堆疊（bar → panels → desc 隱藏）
+    -->
+    <section class="bg-white py-6xl" id="courses-content-section">
       <div class="site-container">
-        <div class="flex flex-col md:flex-row gap-gutter">
+        <div class="courses-content-row flex flex-col md:flex-row">
 
-          <!-- Left Program Buttons -->
-          <div class="w-full md:flex-[0_0_calc(16.667%_-_1.25rem)]">
-            <div class="flex flex-row flex-wrap md:flex-col gap-xs mb-xl md:mb-0 md:sticky md:top-[200px]">
-              <button class="courses-program-btn w-fit active text-left" data-program="bfa">
-                <span class="anchor-nav-inner"><span>BFA</span><span>學士班</span></span>
-              </button>
-              <button class="courses-program-btn w-fit text-left" data-program="mdes">
-                <span class="anchor-nav-inner"><span>MDES</span><span>碩士班</span></span>
+          <!-- Left column: program btn bar（桌面 vertical sticky；mobile 直接 flex-col 自然流） -->
+          <div class="courses-program-bar flex flex-col items-start gap-lg md:gap-2xl mb-2xl md:mb-0">
+            <div class="courses-program-group flex flex-col items-start gap-xs">
+              <span class="courses-bfa-label">BFA Class&ensp;學士班</span>
+              <button class="courses-program-btn active" data-program="bfa-animation">
+                <span class="anchor-nav-inner"><span>Animation &amp; Moving<br>Image</span><span>動畫影像設計組</span></span>
               </button>
             </div>
+            <div class="courses-program-group flex flex-col items-start gap-xs">
+              <span class="courses-bfa-label">BFA Class&ensp;學士班</span>
+              <button class="courses-program-btn" data-program="bfa-cmd">
+                <span class="anchor-nav-inner"><span>Creative Media Design</span><span>創意媒體設計組</span></span>
+              </button>
+            </div>
+            <button class="courses-program-btn" data-program="mdes">
+              <span class="anchor-nav-inner"><span>MDES Class</span><span>碩士班</span></span>
+            </button>
           </div>
 
-          <!-- Right Content Panels -->
-          <!-- pb-2xl：讓 filter bar sticky 提早停止，不貼底 -->
+          <!-- Middle column: 三個 program panel（grid 由 JS 渲染） -->
           <div class="flex-1 min-w-0">
-
-            <!-- Filter Bar: 在 flex-1 頂層 sticky，範圍等於整個右側內容（與左側 nav 同步） -->
-            <div class="courses-filter-bar flex flex-wrap gap-lg py-sm md:sticky md:top-[200px] bg-white z-10">
-              <button class="courses-filter-btn active whitespace-nowrap" data-filter="required"><span class="anchor-nav-inner">Required 必修</span></button>
-              <button class="courses-filter-btn whitespace-nowrap" data-filter="elective"><span class="anchor-nav-inner">Elective 選修</span></button>
+            <div class="courses-panel" id="panel-bfa-animation">
+              <div class="courses-grid"></div>
             </div>
-
-            <!-- BFA Panel -->
-            <div class="courses-panel pt-md" id="panel-bfa">
-              <!-- Course List -->
-              <div class="courses-year-group" data-year="required" data-program="bfa">
-                <div class="flex flex-col"></div>
-              </div>
-              <div class="courses-year-group" data-year="elective" data-program="bfa" style="display: none;">
-                <div class="flex flex-col"></div>
-              </div>
+            <div class="courses-panel hidden" id="panel-bfa-cmd">
+              <div class="courses-grid"></div>
             </div>
-
-            <!-- MDES Panel (hidden by default) -->
-            <div class="courses-panel hidden pt-md" id="panel-mdes">
-              <!-- Course List -->
-              <div class="courses-year-group" data-year="required" data-program="mdes">
-                <div class="flex flex-col"></div>
-              </div>
-              <div class="courses-year-group" data-year="elective" data-program="mdes" style="display: none;">
-                <div class="flex flex-col"></div>
-              </div>
+            <div class="courses-panel hidden" id="panel-mdes">
+              <div class="courses-grid"></div>
             </div>
-
           </div>
+
         </div>
       </div>
     </section>
+
+    <!-- Course Detail Slide-in Modal（仿 #faculty-slide-in pattern）
+         click 卡片 → 從右滑入；overlay/close-btn/Esc 關閉；body.overflow lock 鎖捲動 -->
+    <div id="courses-slide-in" class="invisible pointer-events-none fixed inset-0 z-[150]">
+      <div id="courses-overlay" class="absolute inset-0 bg-black opacity-0 cursor-pointer"></div>
+      <!-- flex-col + 標題保留 mt-3xl 在頂端原位 / desc-en mt-auto 把描述推到 panel 底部
+           （title 群與 desc 群分區：title 上、desc 下，中間空白由 mt-auto 吸收） -->
+      <div id="courses-detail-panel" class="absolute right-0 top-0 bottom-0 w-full md:w-[40vw] overflow-y-auto p-2xl flex flex-col"
+           style="background: white; transform: translateX(110%);">
+        <h5 id="courses-detail-title-en" class="courses-detail-title-en text-h5 font-bold mb-0 mt-3xl"></h5>
+        <h5 id="courses-detail-title-zh" class="courses-detail-title-zh text-h5 font-bold mb-0"></h5>
+        <p id="courses-detail-desc-en" class="courses-detail-desc-en text-p2 mt-auto mb-lg" style="line-height: 1.6;"></p>
+        <p id="courses-detail-desc-zh" class="courses-detail-desc-zh text-p2" style="line-height: 1.6;"></p>
+      </div>
+    </div>
   </main>
 
   <!-- Footer -->

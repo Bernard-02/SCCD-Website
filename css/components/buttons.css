@@ -82,11 +82,10 @@
     }
   }
 
-  /* ===== Activities / Courses Filter Bar ===== */
+  /* ===== Activities Filter Bar ===== */
   @media (min-width: 768px) {
     /* sticky top:200px → 遮罩延伸到視窗頂部，避免 header 收起時露出後方內容 */
-    .activities-filter-bar::before,
-    .courses-filter-bar::before {
+    .activities-filter-bar::before {
       content: '';
       position: absolute;
       top: -200px;
@@ -95,8 +94,7 @@
       height: 200px;
       background: white;
     }
-    .activities-filter-bar,
-    .courses-filter-bar {
+    .activities-filter-bar {
       position: relative;
     }
   }
