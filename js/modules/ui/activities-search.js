@@ -1,3 +1,4 @@
+/* global gsap */
 /**
  * Activities Search Module
  * 各 panel 各自的 search input，對應各自 panel 內容
@@ -34,8 +35,10 @@ function setEmptyState(panel, show) {
 function rebuildBorders(visibleItems) {
   visibleItems.forEach((item, idx) => {
     const isLast = idx === visibleItems.length - 1;
-    item.classList.toggle('border-b-4', !isLast);
-    item.classList.toggle('border-black', !isLast);
+    const divider = item.querySelector('.list-item-divider');
+    if (divider) {
+      divider.style.display = isLast ? 'none' : '';
+    }
   });
 }
 
@@ -92,7 +95,7 @@ function applyGenericSearch(panelId, query) {
         container.style.display = 'none';
         container.style.height = '0px';
         const chevron = group.querySelector('.list-year-toggle .fa-chevron-right');
-        if (chevron) gsap.set(chevron, { rotation: 0 });
+        if (chevron && typeof gsap !== 'undefined') gsap.set(chevron, { rotation: 0 });
         collapsedBySearch.delete(container);
       }
     });
@@ -126,7 +129,8 @@ function applyGenericSearch(panelId, query) {
 
     allItems.forEach(item => {
       item.style.display = 'none';
-      item.classList.remove('border-b-4', 'border-black');
+      const divider = item.querySelector('.list-item-divider');
+      if (divider) divider.style.display = 'none';
     });
 
     matched.sort((a, b) => b.score - a.score);
@@ -140,7 +144,7 @@ function applyGenericSearch(panelId, query) {
       container.style.display = 'flex';
       container.style.height = 'auto';
       const chevron = group.querySelector('.list-year-toggle .fa-chevron-right');
-      if (chevron) gsap.set(chevron, { rotation: 90 });
+      if (chevron && typeof gsap !== 'undefined') gsap.set(chevron, { rotation: 90 });
     }
   });
 
@@ -152,10 +156,11 @@ function applyGenericSearch(panelId, query) {
 }
 
 function hideLastSeparator(yearGroups) {
+  /** @type {Element | null} */
   let lastVisible = null;
   yearGroups.forEach(g => { if (g.style.display !== 'none') lastVisible = g; });
   if (lastVisible) {
-    const sep = lastVisible.nextElementSibling;
+    const sep = /** @type {HTMLElement | null} */ (lastVisible.nextElementSibling);
     if (sep?.classList.contains('activities-separator')) sep.style.display = 'none';
   }
 }
@@ -165,7 +170,7 @@ function hideLastSeparator(yearGroups) {
 function applyDegreeShowSearch(query) {
   const container = document.getElementById('degree-show-list');
   if (!container) return;
-  const cards = [...container.querySelectorAll('.degree-show-card')];
+  const cards = /** @type {HTMLElement[]} */ ([...container.querySelectorAll('.degree-show-card')]);
   const q = query.toLowerCase();
   cards.forEach(card => {
     if (!query) {
@@ -187,7 +192,7 @@ function applyDegreeShowSearch(query) {
 export function reapplySearch(panelId) {
   const panel = document.getElementById(panelId);
   if (!panel) return;
-  const input = panel.querySelector(`.activities-search-input[data-panel="${panelId}"]`);
+  const input = /** @type {HTMLInputElement | null} */ (panel.querySelector(`.activities-search-input[data-panel="${panelId}"]`));
   if (!input) return;
   const query = input.value.trim();
   if (panelId === 'panel-degree-show') {
@@ -233,7 +238,7 @@ export function initActivitiesSearch() {
     });
   });
 
-  const panelInputs = document.querySelectorAll('.activities-search-input[data-panel]');
+  const panelInputs = /** @type {NodeListOf<HTMLInputElement>} */ (document.querySelectorAll('.activities-search-input[data-panel]'));
   panelInputs.forEach(input => {
     const panelId = input.getAttribute('data-panel');
     input.addEventListener('input', () => {
@@ -250,7 +255,7 @@ export function initActivitiesSearch() {
     btn.addEventListener('click', () => {
       const section = btn.getAttribute('data-section');
       setTimeout(() => {
-        const panelInput = document.querySelector(`.activities-search-input[data-panel="panel-${section}"]`);
+        const panelInput = /** @type {HTMLInputElement | null} */ (document.querySelector(`.activities-search-input[data-panel="panel-${section}"]`));
         if (!panelInput) return;
         if (section === 'degree-show') {
           applyDegreeShowSearch(panelInput.value.trim());
