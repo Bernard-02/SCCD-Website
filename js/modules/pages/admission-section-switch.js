@@ -1,40 +1,68 @@
 /**
  * Admission Section Switch
- * admission.html 左側 section 切換邏輯
+ * admission.html 左側 section 切換邏輯：當前 panel 統一往下退場 → 切換 → 新 panel per-item 進場
  */
 
 import { setActiveNavBtn, showPanel } from '../ui/section-switch-helpers.js';
+import {
+  playAdmissionPanelExit,
+  playAdmissionPanelReveal,
+  setupAdmissionReveal,
+} from './admission-data-loader.js';
 
 export function initAdmissionSectionSwitch() {
   const btns = document.querySelectorAll('.activities-section-btn');
   if (!btns.length) return;
 
   const loaded = {};
+  let switching = false;  // 防連點
 
-  function switchSection(section, shouldScroll = false) {
+  async function switchSection(section, shouldScroll = false, isInitial = false) {
+    if (switching) return;
+    const currentPanel = /** @type {HTMLElement | null} */ (document.querySelector('.activities-panel:not(.hidden)'));
+    const targetId = `panel-${section}`;
+    if (currentPanel && currentPanel.id === targetId && !isInitial) return;
+
+    switching = true;
+
+    // 1. 退場（首次 init 跳過）
+    if (!isInitial && currentPanel) {
+      await playAdmissionPanelExit(currentPanel);
+    }
+
+    // 2. 切 active btn + show 新 panel
     setActiveNavBtn(btns, section, 'data-section');
-    showPanel('.activities-panel', `panel-${section}`);
+    const newPanel = /** @type {HTMLElement | null} */ (showPanel('.activities-panel', targetId));
 
-    // Lazy load summer camp
+    // 3. 立即 setup 已存在的 rows（描述塊等 HTML 寫死的元素）— 避免 lazy load 期間描述塊 flash 顯示
+    //    （第一次切 summer-camp 時 list 還沒載入，但描述塊已在 panel HTML 內）
+    if (newPanel && !isInitial) setupAdmissionReveal(newPanel);
+
+    // 4. Lazy load summer camp（首次切到時才載入；autoReveal:false 由本模組接管 reveal）
     if (section === 'summer-camp' && !loaded['summer-camp']) {
       loaded['summer-camp'] = true;
-      Promise.all([
+      const [{ loadSummerCampInto }, { initListAccordion }] = await Promise.all([
         import('./activities-data-loader.js'),
         import('../accordions/list-accordion.js'),
-      ]).then(([{ loadSummerCampInto }, { initListAccordion }]) => {
-        loadSummerCampInto('summer-camp-list').then(playAnimation => {
-          initListAccordion();
-          if (playAnimation) playAnimation();
-        });
-      });
+      ]);
+      await loadSummerCampInto('summer-camp-list', { autoReveal: false });
+      initListAccordion();
+    }
+
+    // 5. 進場：首次 init 用 ScrollTrigger（rows 在 viewport 外時等捲入再播），後續切換立即播放
+    //    （lazy load 完成後新渲染的 list-items 已由 loadListInto 內部 setupClipReveal 處理，不需再 setup）
+    if (newPanel) {
+      playAdmissionPanelReveal(newPanel, { useScrollTrigger: isInitial });
     }
 
     if (shouldScroll) {
       const sectionEl = document.getElementById('admission-content-section');
       if (sectionEl) sectionEl.scrollIntoView({ behavior: 'smooth' });
     }
+
+    switching = false;
   }
 
   btns.forEach(btn => btn.addEventListener('click', () => switchSection(btn.dataset.section, true)));
-  switchSection('news', false);
+  switchSection('news', false, true);
 }

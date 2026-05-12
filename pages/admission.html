@@ -75,6 +75,16 @@
 
             <!-- News Panel (原 Admission list) -->
             <div class="activities-panel" id="panel-news">
+              <!-- relative z-20：描述滾動時要蓋過 sticky 遮罩（z-10），與 summer-camp 模式一致 -->
+              <div class="grid-12 mb-xl relative z-20">
+                <div class="col-span-12 md:col-span-7 md:col-start-6">
+                  <!-- list-reveal-row：panel 切換時與 items 一起參與 reveal/exit；DOM 順序在 list 前 → 先進場 -->
+                  <div class="list-reveal-row">
+                    <p class="text-p1 font-bold mb-xs">Stay informed with SCCD admission updates — application deadlines, special programs, and important announcements for prospective students.</p>
+                    <p class="text-p1 font-bold">掌握 SCCD 最新招生資訊，包括申請截止日期、特別招生計畫，以及給未來新生的重要公告。</p>
+                  </div>
+                </div>
+              </div>
               <div id="admission-list" class="flex flex-col"></div>
               <div id="load-more-container" class="w-full flex justify-center mt-3xl">
                 <button id="load-more-btn" class="class-division-btn btn-fill shrink-0 px-sm py-sm text-p2 font-bold transition-all duration-fast rounded-[20px] whitespace-nowrap cursor-pointer">
@@ -88,8 +98,11 @@
               <!-- relative z-20：描述滾動時要蓋過 sticky 遮罩（z-10），仿 activities workshop 模式 -->
               <div class="grid-12 mb-xl relative z-20">
                 <div class="col-span-12 md:col-span-7 md:col-start-6">
-                  <p class="text-p1 font-bold mb-xs">SCCD Summer Camp offers high school students an immersive introduction to communications design, blending creative workshops, studio visits, and hands-on projects.</p>
-                  <p class="text-p1 font-bold">暑期設計體驗營為高中生提供沉浸式的媒體傳達設計入門體驗，結合創意工作坊、工作室參訪與實作專題，讓學生提前感受設計學習的樣貌。</p>
+                  <!-- list-reveal-row：panel 切換時與年份/items 一起參與 reveal/exit；DOM 順序在 list 前 → 先進場 -->
+                  <div class="list-reveal-row">
+                    <p class="text-p1 font-bold mb-xs">SCCD Summer Camp offers high school students an immersive introduction to communications design, blending creative workshops, studio visits, and hands-on projects.</p>
+                    <p class="text-p1 font-bold">暑期設計體驗營為高中生提供沉浸式的媒體傳達設計入門體驗，結合創意工作坊、工作室參訪與實作專題，讓學生提前感受設計學習的樣貌。</p>
+                  </div>
                 </div>
               </div>
               <div id="summer-camp-list"></div>

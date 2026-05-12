@@ -31,6 +31,11 @@
   list-style: none;
 }
 
+/* 進場動畫未完成時禁止 hover/click */
+.list-item[data-pre-reveal] {
+  pointer-events: none;
+}
+
 /* 桌面版：list-header sticky 只在 .active（展開）狀態啟用 — 滑動長內文時使用者看到當前條目標題。
  * - inactive 條目（收合）：不 sticky，header 隨自然 flow 走；user 滑過下方未展開條目時不會誤 sticky
  * - active 條目（展開）：sticky 在 cut line 為止；自然 top 在 cut line 下方 → CSS sticky 不 engage（停留自然位置）

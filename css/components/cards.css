@@ -5,7 +5,7 @@
 
 @layer components {
   /* ===== Card Hover Overlay（共用元件）=====
-   * 適用：faculty-card / library-card / degree-show-img-wrapper
+   * 適用：faculty-card / library-card
    * 結構：card > image-wrapper > image
    *   - card：hover 時底色變 var(--card-color)
    *   - image-wrapper::after：screen blend 色塊，hover 時 opacity 1
@@ -21,7 +21,11 @@
 
   .card-hover-overlay__wrapper,
   .faculty-card-image-wrapper,
-  .library-card-image-wrapper,
+  .library-card-image-wrapper {
+    position: relative;
+    overflow: hidden;
+  }
+
   .degree-show-img-wrapper {
     position: relative;
     overflow: hidden;
@@ -29,16 +33,14 @@
 
   .card-hover-overlay__image,
   .faculty-card-image,
-  .library-card-image,
-  .degree-show-img {
+  .library-card-image {
     transition: filter 0.3s cubic-bezier(0.4, 0, 0.2, 1),
                 transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .card-hover-overlay__wrapper::after,
   .faculty-card-image-wrapper::after,
-  .library-card-image-wrapper::after,
-  .degree-show-img-wrapper::after {
+  .library-card-image-wrapper::after {
     content: '';
     position: absolute;
     inset: 0;
@@ -58,14 +60,12 @@
     }
 
     .card-hover-overlay:hover .card-hover-overlay__image,
-    .library-card:hover .library-card-image,
-    .degree-show-img-wrapper:hover .degree-show-img {
+    .library-card:hover .library-card-image {
       filter: grayscale(100%);
     }
 
     .card-hover-overlay:hover .card-hover-overlay__wrapper::after,
-    .library-card:hover .library-card-image-wrapper::after,
-    .degree-show-img-wrapper:hover::after {
+    .library-card:hover .library-card-image-wrapper::after {
       opacity: 0.8;
     }
   }

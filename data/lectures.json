@@ -37,6 +37,16 @@
         "location": "實踐大學設計學院 B1 演講廳",
         "category": "seminars",
         "categoryLabel": "講座",
+        "guests": [
+          {
+            "name": "Jan de Vries",
+            "name_zh": "楊·德弗里斯",
+            "affiliation": "Design Academy Eindhoven",
+            "affiliation_zh": "荷蘭設計學院",
+            "country": "NL",
+            "country_zh": "荷蘭"
+          }
+        ],
         "description": "邀請來自荷蘭設計學院的訪問教授，分享設計思考在教育現場的實踐方法，並帶領工作坊讓學生動手進行快速原型製作。",
         "poster": "../images/SCCD-1-4-4.jpg",
         "videos": [],
@@ -61,6 +71,16 @@
         "location": "實踐大學設計學院 B1 演講廳",
         "category": "seminars",
         "categoryLabel": "講座",
+        "guests": [
+          {
+            "name": "Elena Marchetti",
+            "name_zh": "艾蓮娜·馬切蒂",
+            "affiliation": "Google Design",
+            "affiliation_zh": "Google 設計部門",
+            "country": "US",
+            "country_zh": "美國"
+          }
+        ],
         "description": "邀請來自 Google Design 的資深互動設計師分享其在科技巨頭的設計實踐經驗，並與學生進行作品集評圖與職涯諮詢。",
         "poster": "../images/SCCD-1-4-5.jpg",
         "videos": [],
@@ -77,6 +97,24 @@
         "location": "實踐大學設計學院 B1 演講廳",
         "category": "seminars",
         "categoryLabel": "講座",
+        "guests": [
+          {
+            "name": "Takeshi Mori",
+            "name_zh": "森武志",
+            "affiliation": "Dwarf Studio",
+            "affiliation_zh": "矮人工作室",
+            "country": "JP",
+            "country_zh": "日本"
+          },
+          {
+            "name": "Li-Wei Tsai",
+            "name_zh": "蔡力維",
+            "affiliation": "Taiwan Animation Academy",
+            "affiliation_zh": "台灣動畫學院",
+            "country": "TW",
+            "country_zh": "台灣"
+          }
+        ],
         "description": "邀請業界資深動畫師分享最新動畫技術與製作流程，涵蓋 3D 動畫、逐格動畫、動態設計等主題，並提供實際操作示範。",
         "poster": "../images/SCCD-1-4-2.jpg",
         "videos": [],
@@ -100,6 +138,16 @@
         "location": "實踐大學設計學院 B1 演講廳",
         "category": "seminars",
         "categoryLabel": "講座",
+        "guests": [
+          {
+            "name": "Marcus Chen",
+            "name_zh": "陳明修",
+            "affiliation": "Pentagram",
+            "affiliation_zh": "五芒星設計公司",
+            "country": "UK",
+            "country_zh": "英國"
+          }
+        ],
         "description": "分析全球平面設計最新趨勢，從品牌識別、排版設計到動態視覺，深入探討數位時代下平面設計的演變與未來。",
         "poster": "../images/SCCD-1-4-4.jpg",
         "videos": [],
@@ -115,6 +163,32 @@
         "location": "台北萬豪酒店 國際會議廳",
         "category": "seminars",
         "categoryLabel": "講座",
+        "guests": [
+          {
+            "name": "Sophie Laurent",
+            "name_zh": "蘇菲·勞倫",
+            "affiliation": "Wolff Olins",
+            "affiliation_zh": "沃爾夫·奧林斯品牌設計",
+            "country": "FR",
+            "country_zh": "法國"
+          },
+          {
+            "name": "Wei-Lin Huang",
+            "name_zh": "黃威霖",
+            "affiliation": "Landor & Fitch Taiwan",
+            "affiliation_zh": "朗濤設計台灣",
+            "country": "TW",
+            "country_zh": "台灣"
+          },
+          {
+            "name": "Arjun Mehta",
+            "name_zh": "阿尊·梅塔",
+            "affiliation": "Superflux",
+            "affiliation_zh": "超流設計工作室",
+            "country": "IN",
+            "country_zh": "印度"
+          }
+        ],
         "description": "邀請多位國際品牌設計師進行演講與圓桌討論，探討品牌在數位時代的演變，以及如何透過設計建立具有文化深度的品牌識別。",
         "poster": "../images/SCCD-1-4-1.jpg",
         "videos": [],

@@ -187,8 +187,7 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
 
   // --- Admission Page ---
   if (page === 'admission') {
-    loadAdmissionData();
-    initAdmissionSectionSwitch();
+    loadAdmissionData().then(() => initAdmissionSectionSwitch());
   }
 
   // --- Faculty Pages ---

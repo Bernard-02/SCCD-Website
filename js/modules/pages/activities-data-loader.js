@@ -4,7 +4,7 @@
  */
 
 import { openLightbox } from '../lightbox/activities-lightbox.js';
-import { animateCardsClipReveal } from '../ui/scroll-animate.js';
+import { setupClipReveal, playClipReveal } from '../ui/scroll-animate.js';
 
 // ── Reference 自動 lookup ─────────────────────────────────────────────────────
 // ref 只填 { section, itemId } 即可；title/label 渲染前自動從目標 JSON lookup。
@@ -245,7 +245,7 @@ export function buildGalleryHtml(item) {
 // ── Shared Post-Render Bindings ───────────────────────────────────────────────
 
 // Gallery 滑動、Lightbox、hover、海報比例偵測；回傳 GSAP 動畫啟動函數
-export function bindInteractions(container) {
+export function bindInteractions(container, { autoReveal = true } = {}) {
   // Albums lightbox（每個 album-thumb-item 各自有 data-album-media）
   container.querySelectorAll('.album-thumb-item[data-album-media]').forEach(thumb => {
     thumb.addEventListener('click', () => {
@@ -352,14 +352,30 @@ export function bindInteractions(container) {
     });
   });
 
-  // 進場動畫：仿 admission 模式 — setupClipReveal + ScrollTrigger.batch per row
-  // 每個 .list-reveal-row 獨立進入 viewport 時觸發，無需外部 play function
+  // 進場動畫：per-row clip reveal + data-pre-reveal 守門（動畫前禁 hover/click）
+  // onEnter 時同步移除 closest .list-item 的 data-pre-reveal，解鎖互動
+  // autoReveal=false 時跳過此段，由 caller 自行管理 reveal（admission lazy load summer-camp 用）
   if (typeof gsap === 'undefined') return null;
 
   const allRows = [...container.querySelectorAll('.list-reveal-row')];
   if (allRows.length === 0) return null;
 
-  animateCardsClipReveal(allRows, true);
+  const items = setupClipReveal(allRows);
+  if (!autoReveal) return null;
+  if (typeof ScrollTrigger !== 'undefined') {
+    ScrollTrigger.batch(items, {
+      start: 'top 90%',
+      onEnter: /** @param {HTMLElement[]} batch */ batch => {
+        playClipReveal(batch);
+        batch.forEach(/** @param {HTMLElement} row */ row => {
+          const listItem = row.closest('.list-item');
+          if (listItem) listItem.removeAttribute('data-pre-reveal');
+        });
+      },
+    });
+  } else {
+    playClipReveal(items);
+  }
   return null;
 }
 
@@ -387,6 +403,8 @@ function formatDateShort(dateStr) {
 //   introField           {string}       內文 field 名稱（預設 'description'）
 //   panelSelector        {string}       sticky top 參考的 panel selector
 //   scrollTrigger        {boolean}      載入後自動建立 ScrollTrigger 動畫（預設 false）
+//   autoReveal           {boolean}      載入後自動 setupClipReveal + ScrollTrigger.batch reveal（預設 true）；
+//                                       false 時只 render，由 caller 自行管理 reveal（admission lazy load summer-camp 用）
 
 export async function loadListInto(containerId, url, options = {}) {
   const {
@@ -408,6 +426,7 @@ export async function loadListInto(containerId, url, options = {}) {
     introField           = 'description',
     panelSelector        = null,
     scrollTrigger        = false,
+    autoReveal           = true,
   } = options;
 
   const container = document.getElementById(containerId);
@@ -470,15 +489,15 @@ export async function loadListInto(containerId, url, options = {}) {
       // title HTML（所有 list 統一使用 marquee，文字太長時自動捲動）
       const titleLine1 = item.title_en ? item.title_en : item.title;
       const titleLine2 = item.title_en ? item.title : (item.title_zh || '');
-      // 每行字（title 中英、subtitle 中英）各自為 .list-reveal-row → animateCardsClipReveal 時逐行 stagger
+      // 標題（EN+ZH）同一個 list-reveal-row → 同步進場；副標亦同
       const titleHtml = `<div class="flex flex-col gap-xs flex-1 min-w-0">
-          <div>
-            <div class="list-title-marquee list-reveal-row"><p class="text-h5 font-bold">${titleLine1}</p></div>
-            ${titleLine2 ? `<div class="list-title-marquee list-reveal-row"><p class="text-h5 font-bold">${titleLine2}</p></div>` : ''}
+          <div class="list-reveal-row">
+            <div class="list-title-marquee"><p class="text-h5 font-bold">${titleLine1}</p></div>
+            ${titleLine2 ? `<div class="list-title-marquee"><p class="text-h5 font-bold">${titleLine2}</p></div>` : ''}
           </div>
-          ${showSubtitle && (item.subtitle || item.subtitle_zh) ? `<div>
-            ${item.subtitle ? `<div class="list-reveal-row"><p class="text-p2">${item.subtitle}</p></div>` : ''}
-            ${item.subtitle_zh ? `<div class="list-reveal-row"><p class="text-p2">${item.subtitle_zh}</p></div>` : ''}
+          ${showSubtitle && (item.subtitle || item.subtitle_zh) ? `<div class="list-reveal-row">
+            ${item.subtitle ? `<p class="text-p2">${item.subtitle}</p>` : ''}
+            ${item.subtitle_zh ? `<p class="text-p2">${item.subtitle_zh}</p>` : ''}
           </div>` : ''}
         </div>`;
 
@@ -492,7 +511,7 @@ export async function loadListInto(containerId, url, options = {}) {
       ].filter(Boolean).join(' ').toLowerCase().replace(/"/g, '&quot;');
 
       return `
-        <div class="list-item" data-category="${item.category || ''}" data-media="${mediaJson}" data-search="${searchText}"${item.visitType ? ` data-visit-type="${item.visitType}"` : ''}${item.id ? ` id="item-${item.id}"` : ''}>
+        <div class="list-item" data-pre-reveal data-category="${item.category || ''}" data-media="${mediaJson}" data-search="${searchText}"${item.visitType ? ` data-visit-type="${item.visitType}"` : ''}${item.id ? ` id="item-${item.id}"` : ''}>
           <div class="list-header cursor-pointer group transition-colors duration-fast flex items-stretch justify-between px-[4px] py-sm">
             ${titleHtml}
             <div class="flex items-stretch gap-sm flex-shrink-0 pt-[0.25rem]">
@@ -501,18 +520,22 @@ export async function loadListInto(containerId, url, options = {}) {
                 const hasFlag = !!item.flag;
                 const justify = (hasAlumni || hasFlag) ? 'justify-between' : 'justify-start';
                 return `<div class="flex flex-col ${justify} self-stretch">
-                <div class="flex items-center gap-sm">
+                <div class="list-reveal-row flex items-center gap-sm">
                   ${hasAlumni ? `<i class="fa-solid fa-graduation-cap text-p2"></i>` : ''}
                   ${hasFlag ? `<span class="fi fi-${item.flag}" style="width:1.5em;height:1em;display:inline-block;"></span>` : ''}
                 </div>
-                <div class="flex justify-end pb-xs">
+                <div class="list-reveal-row flex justify-end pb-xs">
                   <button data-share-btn class="hover:opacity-60 transition-opacity">
                     <i class="fa-solid fa-share-nodes text-h5"></i>
                   </button>
                 </div>
               </div>`;
               })()}
-              <i class="fa-solid fa-chevron-down text-p2 transition-transform duration-300 self-start"></i>
+              <div class="flex-shrink-0 self-start" style="overflow:clip; height:1.5em; width:1.5em;">
+                <div class="list-reveal-row flex justify-center items-center w-full h-full">
+                  <i class="fa-solid fa-chevron-down text-p2 transition-transform duration-300"></i>
+                </div>
+              </div>
             </div>
           </div>
           <div class="list-content h-0 overflow-hidden">
@@ -594,7 +617,7 @@ export async function loadListInto(containerId, url, options = {}) {
       <div class="list-year-group grid-12 items-start">
         ${hideYearHeader ? '' : showYearToggle ? `
         <div class="col-span-12 md:col-span-1 md:col-start-1 list-year-toggle cursor-pointer flex items-center gap-sm order-1 py-sm pl-xs md:sticky md:self-start md:pb-sm">
-          <div class="list-reveal-row"><i class="fa-solid fa-chevron-right text-p2 transition-all duration-fast rotate-90"></i></div>
+          <div class="list-reveal-row flex justify-center items-center w-[1.5em] h-[1.5em] flex-shrink-0"><i class="fa-solid fa-chevron-right text-p2 transition-all duration-fast rotate-90"></i></div>
           <h5 class="list-reveal-row">${yearGroup.year}</h5>
         </div>` : `
         <div class="col-span-12 md:col-span-1 md:col-start-1 flex items-center order-1 py-sm pl-xs">
@@ -641,7 +664,7 @@ export async function loadListInto(containerId, url, options = {}) {
     }
   }
 
-  return bindInteractions(container);
+  return bindInteractions(container, { autoReveal });
 }
 
 // ── Workshop / Students Present / Summer Camp ─────────────────────────────────
@@ -663,7 +686,7 @@ export async function loadWorkshopsInto(jsonFile, containerId = null) {
   });
 }
 
-export async function loadSummerCampInto(containerId = null) {
+export async function loadSummerCampInto(containerId = null, options = {}) {
   const id = containerId || (() => {
     const el = document.querySelector('.bg-white .site-container');
     if (el && !el.id) el.id = '__sc_fallback__';
@@ -673,6 +696,7 @@ export async function loadSummerCampInto(containerId = null) {
   return loadListInto(id, '/data/summer-camp.json', {
     showYearToggle: false,
     fullDate: true,
+    ...options,
   });
 }
 

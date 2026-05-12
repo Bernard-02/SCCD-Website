@@ -11,8 +11,8 @@
         "category": "seminars",
         "guests": [
           {
-            "name": "Company Name",
-            "name_zh": "合作公司名稱"
+            "name": "Poseidon Creative Studio",
+            "name_zh": "波賽頓創意工作室"
           }
         ],
         "images": [
@@ -37,6 +37,223 @@
           }
         ],
         "id": "I-2025-01"
+      },
+      {
+        "title": "UI/UX 設計產學合作",
+        "title_en": "UI/UX Design Industry Partnership",
+        "subtitle": "Digital Product Design Mentorship",
+        "subtitle_zh": "數位產品設計業師計畫",
+        "date": "2025.09.15",
+        "category": "seminars",
+        "guests": [
+          {
+            "name": "91APP",
+            "name_zh": "九一一科技股份有限公司"
+          },
+          {
+            "name": "Shopline",
+            "name_zh": "商線科技"
+          }
+        ],
+        "images": [
+          "../images/SCCD-1-4-2.jpg",
+          "../images/SCCD-1-4-3.jpg"
+        ],
+        "id": "I-2025-02"
+      }
+    ]
+  },
+  {
+    "year": 2024,
+    "items": [
+      {
+        "title": "影像製作產學合作計畫",
+        "title_en": "Film Production Industry-Academia Program",
+        "subtitle": "Visual Storytelling & Brand Film",
+        "subtitle_zh": "視覺敘事與品牌影片製作",
+        "date": "2024.05.20",
+        "category": "seminars",
+        "guests": [
+          {
+            "name": "Bito",
+            "name_zh": "比托創意有限公司"
+          },
+          {
+            "name": "Qooxi Media",
+            "name_zh": "庫奇傳播媒體"
+          }
+        ],
+        "images": [
+          "../images/SCCD-1-4-1.jpg",
+          "../images/SCCD-1-4-2.jpg"
+        ],
+        "id": "I-2024-01"
+      },
+      {
+        "title": "品牌策略與設計產學計畫",
+        "title_en": "Brand Strategy & Design Industry Program",
+        "date": "2024.10.01",
+        "category": "seminars",
+        "guests": [
+          {
+            "name": "Interbrand Taiwan",
+            "name_zh": "英特品牌顧問台灣"
+          }
+        ],
+        "images": [
+          "../images/SCCD-1-4-4.jpg"
+        ],
+        "id": "I-2024-02"
+      }
+    ]
+  },
+  {
+    "year": 2023,
+    "items": [
+      {
+        "title": "互動裝置藝術產學合作",
+        "title_en": "Interactive Installation Art Industry Partnership",
+        "date": "2023.04.10",
+        "category": "seminars",
+        "guests": [
+          {
+            "name": "AESPA Digital Arts",
+            "name_zh": "藝思派數位藝術"
+          },
+          {
+            "name": "TeamLab Taiwan",
+            "name_zh": "數字藝術台灣"
+          }
+        ],
+        "images": [
+          "../images/SCCD-1-4-0.jpg",
+          "../images/SCCD-1-4-1.jpg"
+        ],
+        "id": "I-2023-01"
+      },
+      {
+        "title": "動態影像設計產學計畫",
+        "title_en": "Motion Design Industry Program",
+        "date": "2023.09.01",
+        "category": "seminars",
+        "guests": [
+          {
+            "name": "Wunderman Thompson Taiwan",
+            "name_zh": "偉門智威台灣"
+          },
+          {
+            "name": "Grey Taiwan",
+            "name_zh": "葛瑞廣告台灣"
+          },
+          {
+            "name": "Ogilvy Taiwan",
+            "name_zh": "奧美廣告台灣"
+          }
+        ],
+        "id": "I-2023-02"
+      }
+    ]
+  },
+  {
+    "year": 2022,
+    "items": [
+      {
+        "title": "數位行銷設計產學合作",
+        "title_en": "Digital Marketing Design Industry Partnership",
+        "date": "2022.03.15",
+        "category": "seminars",
+        "guests": [
+          {
+            "name": "Dentsu Taiwan",
+            "name_zh": "電通台灣"
+          },
+          {
+            "name": "McCann Taiwan",
+            "name_zh": "麥肯廣告台灣"
+          }
+        ],
+        "id": "I-2022-01"
+      },
+      {
+        "title": "遊戲美術產學計畫",
+        "title_en": "Game Art Industry Program",
+        "date": "2022.07.20",
+        "category": "seminars",
+        "guests": [
+          {
+            "name": "Rayark Inc.",
+            "name_zh": "雷亞遊戲"
+          },
+          {
+            "name": "Softstar Entertainment",
+            "name_zh": "大宇資訊"
+          },
+          {
+            "name": "Gamania Digital Entertainment",
+            "name_zh": "遊戲橘子數位科技"
+          }
+        ],
+        "id": "I-2022-02"
+      },
+      {
+        "title": "展覽設計產學合作",
+        "title_en": "Exhibition Design Industry Partnership",
+        "date": "2022.10.01",
+        "category": "seminars",
+        "guests": [
+          {
+            "name": "National Palace Museum",
+            "name_zh": "國立故宮博物院"
+          },
+          {
+            "name": "Taipei Fine Arts Museum",
+            "name_zh": "台北市立美術館"
+          }
+        ],
+        "id": "I-2022-03"
+      }
+    ]
+  },
+  {
+    "year": 2021,
+    "items": [
+      {
+        "title": "字體設計產學計畫",
+        "title_en": "Type Design Industry Program",
+        "date": "2021.04.01",
+        "category": "seminars",
+        "guests": [
+          {
+            "name": "Arphic Technology",
+            "name_zh": "文鼎科技"
+          },
+          {
+            "name": "justfont",
+            "name_zh": "字體設計公司"
+          }
+        ],
+        "id": "I-2021-01"
+      },
+      {
+        "title": "社會設計產學合作",
+        "title_en": "Social Design Industry Partnership",
+        "date": "2021.09.10",
+        "category": "seminars",
+        "guests": [
+          {
+            "name": "IKEA Taiwan",
+            "name_zh": "宜家家居台灣"
+          },
+          {
+            "name": "IDEO",
+            "name_zh": "艾迪歐設計顧問"
+          },
+          {
+            "name": "frog design",
+            "name_zh": "青蛙設計"
+          }
+        ],
+        "id": "I-2021-02"
       }
     ]
   }

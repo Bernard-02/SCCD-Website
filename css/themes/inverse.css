@@ -425,9 +425,10 @@ body.mode-inverse [data-bar="generate"].bar-active:not(.is-bar-hover) .nav-link 
 /* Hover 字色：standard / inverse 一律黑（亮三原色底對比），由 navigation.css 的
  * `is-bar-hover .nav-link { color: #000 !important }` 處理，inverse 不再 override */
 
-/* Degree Show card hover：JS inline 把 .degree-show-card-content bg 設成 accent 色（粉/綠/藍），
- * inverse 預設 body color:white 會讓 h5 標題在 accent 底上看不清，force 回黑（全站對比規範） */
-body.mode-inverse .degree-show-card:hover .degree-show-card-content,
-body.mode-inverse .degree-show-card:hover .degree-show-card-content * {
+/* Degree Show card hover：圖片 wrapper hover 把 .degree-show-card-content bg 設成 accent 色，
+ * inverse 預設 body color:white 會讓標題在 accent 底上看不清，force 回黑（全站對比規範） */
+body.mode-inverse .degree-show-card-content[style*="background"] *,
+body.mode-inverse .degree-show-card-content[style*="background"] {
   color: #000 !important;
 }
+

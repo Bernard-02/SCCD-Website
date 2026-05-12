@@ -3,6 +3,11 @@
  * 自訂捲軸樣式（黑白配色）
  */
 
+/* 全站預留 scrollbar gutter：避免有捲軸頁 ↔ 無捲軸頁（library/atlas/create）切換時 viewport 寬度抖動 */
+html {
+  scrollbar-gutter: stable;
+}
+
 /* For Webkit browsers (Chrome, Safari, Edge) */
 /* 全域用 !important 覆蓋瀏覽器 UA stylesheet（包含所有 div 的預設圓角+箭頭） */
 ::-webkit-scrollbar {

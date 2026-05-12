@@ -1,9 +1,9 @@
+/* global gsap, ScrollTrigger */
 /**
  * Degree Show Data Loader
  * 負責讀取 Degree Show JSON 資料並渲染列表與詳情頁
  */
 
-import { animateCards } from '../ui/scroll-animate.js';
 import { initDegreeShowGallery } from './degree-show-gallery.js';
 import { initHeroAnimation } from './hero-animation.js';
 
@@ -19,7 +19,7 @@ export async function loadDegreeShowListInto(containerId) {
 
     if (!container) return;
 
-    const years = Object.keys(data).sort((a, b) => b - a); // Sort years descending
+    const years = Object.keys(data).sort((a, b) => Number(b) - Number(a)); // Sort years descending
     const colors = ['#FF448A', '#00FF80', '#26BCFF'];
 
     years.forEach((year, idx) => {
@@ -27,7 +27,9 @@ export async function loadDegreeShowListInto(containerId) {
       const color = colors[idx % colors.length];
       const html = `
         <a href="/degree-show-detail?year=${year}" class="grid-12 items-start degree-show-card" style="--card-color: ${color}">
-          <div class="col-span-12 md:col-start-1 md:col-span-1 mb-sm md:mb-0"><h5>${year}</h5></div>
+          <div class="col-span-12 md:col-start-1 md:col-span-1 mb-sm md:mb-0">
+            <h5>${year}</h5>
+          </div>
           <div class="degree-show-card-content col-span-12 md:col-start-2 md:col-span-11 p-[6px] ml-lg transition-colors duration-fast">
             <div class="degree-show-img-wrapper overflow-hidden mb-md">
               <img src="${item.coverImage}" alt="Degree Show ${year}" loading="lazy" class="degree-show-img w-full object-cover">
@@ -37,23 +39,46 @@ export async function loadDegreeShowListInto(containerId) {
         </a>
       `;
       container.insertAdjacentHTML('beforeend', html);
+      // 插入後立即設初始隱藏狀態，避免 rAF 前的一幀閃現
+      if (typeof gsap !== 'undefined') {
+        gsap.set(/** @type {HTMLElement} */ (container.lastElementChild), { y: 40, autoAlpha: 0 });
+      }
     });
 
-    // 等 layout 穩定後再初始化 ScrollTrigger，確保正確偵測哪些卡片在 viewport 內
-    const cards = container.querySelectorAll('.degree-show-card');
-
-    // Hover color (desktop only)
+    // Hover：accent 底色套在 content div，觸發範圍限縮到圖片 wrapper（桌面版）
     if (window.innerWidth >= 768) {
-      cards.forEach(card => {
-        const content = card.querySelector('.degree-show-card-content');
+      container.querySelectorAll('.degree-show-card').forEach(card => {
+        const content = /** @type {HTMLElement | null} */ (card.querySelector('.degree-show-card-content'));
+        const imgWrapper = card.querySelector('.degree-show-img-wrapper');
         const color = getComputedStyle(card).getPropertyValue('--card-color').trim();
-        card.addEventListener('mouseenter', () => { if (content) content.style.backgroundColor = color; });
-        card.addEventListener('mouseleave', () => { if (content) content.style.backgroundColor = ''; });
+        if (!imgWrapper || !content) return;
+        imgWrapper.addEventListener('mouseenter', () => { content.style.backgroundColor = color; });
+        imgWrapper.addEventListener('mouseleave', () => { content.style.backgroundColor = ''; });
       });
     }
 
+    // 卡片整體 scroll-triggered 進場（y + autoAlpha）
+    // 不用 yPercent/clip-reveal：圖片 lazy load 時高度為 0，yPercent:100 = translateY(0) 無法隱藏
+    // 用 ScrollTrigger.batch 統一批次處理（含 stagger），避免 per-card create + once:true 在面板切換時錯過
     requestAnimationFrame(() => {
-      animateCards(cards, true, { fadeIn: true });
+      if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') return;
+      const cards = [...container.querySelectorAll('.degree-show-card')];
+      if (!cards.length) return;
+      ScrollTrigger.refresh();
+      ScrollTrigger.batch(cards, {
+        start: 'top 90%',
+        onEnter: /** @param {HTMLElement[]} batch */ batch => {
+          gsap.to(batch, {
+            y: 0,
+            autoAlpha: 1,
+            duration: 0.7,
+            ease: 'power3.out',
+            stagger: 0.15,
+            overwrite: true,
+            clearProps: 'transform,opacity,visibility',
+          });
+        },
+      });
     });
   } catch (error) {
     console.error('Error loading degree show data:', error);
@@ -73,7 +98,7 @@ export async function loadDegreeShowDetail() {
     const response = await fetch('/data/degree-show.json');
     const degreeShowData = await response.json();
     const data = degreeShowData[year];
-    const years = Object.keys(degreeShowData).sort((a, b) => b - a);
+    const years = Object.keys(degreeShowData).sort((a, b) => Number(b) - Number(a));
 
     if (data) {
       document.title = `Degree Show ${year} - SCCD`;
@@ -126,7 +151,7 @@ export async function loadDegreeShowDetail() {
       }
 
       // Hero Image：預設用 HTML 寫死的 CCC08866.jpg；data 有 heroImage 才覆蓋
-      const heroImg = document.getElementById('hero-img');
+      const heroImg = /** @type {HTMLImageElement | null} */ (document.getElementById('hero-img'));
       if (heroImg && data.heroImage) {
         heroImg.src = data.heroImage;
       }
