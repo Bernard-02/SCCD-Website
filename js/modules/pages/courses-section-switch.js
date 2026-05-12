@@ -135,6 +135,15 @@ export function initCoursesSectionSwitch() {
     });
   });
 
+  // inset 四值用 % 單位（GSAP tween inset() 四值單位需一致，否則直接跳終值不動畫）
+  const CLIP_DIRS = [
+    'inset(100% 0% 0% 0%)',  // 上 → 下
+    'inset(0% 0% 100% 0%)',  // 下 → 上
+    'inset(0% 100% 0% 0%)',  // 左 → 右
+    'inset(0% 0% 0% 100%)',  // 右 → 左
+  ];
+  function pickClipDir() { return CLIP_DIRS[Math.floor(Math.random() * CLIP_DIRS.length)]; }
+
   async function switchToProgram(program, btns, shouldScroll) {
     // 找出將被 active 的 btn，把 hover 留下的 _pendingColor / _pendingRot / _pendingLabelRot
     // 拿出來餵給 setActiveNavBtn，達成「hover 看到什麼角度，click 就停在什麼角度」的記憶效果（仿 about）
@@ -143,6 +152,74 @@ export function initCoursesSectionSwitch() {
     if (incomingBtn?._pendingColor) opts.color = incomingBtn._pendingColor;
     if (incomingBtn?._pendingRot != null) opts.rotation = incomingBtn._pendingRot;
     const pendingLabelRot = incomingBtn?._pendingLabelRot;
+
+    // 切換時（shouldScroll=true）先 exit 舊 panel 的卡片 +（涉及 MDES 時）年級表頭 inner，再 toggle hidden；初次 init 跳過 exit
+    // 已隱藏的卡片（從未 reveal 過）的 clipPath 已是 CLIP_DIR，tween 到另一個 CLIP_DIR 視覺上無變化，無需特別 guard
+    const isSwitch = shouldScroll;
+    const newPanelId = `panel-${program}`;
+    const prevPanel = document.querySelector('.courses-panel:not(.hidden)');
+
+    // 修 bug：開頭無條件 clear 所有 panel 的 headers inner 殘留 transform
+    // 場景：BFA-A→MDES（BFA-A inner 退到 ±100 殘留）→ MDES→BFA-CMD（不動 BFA-A）→ BFA-CMD→BFA-A（involvesMdes=false 不 enter 動畫）
+    //       → BFA-A inner 還停在 ±100 = off-screen 看不見
+    if (typeof gsap !== 'undefined') {
+      const allHeadersInner = document.querySelectorAll('.courses-grid-col-header-inner');
+      if (allHeadersInner.length) {
+        gsap.killTweensOf(allHeadersInner);
+        gsap.set(allHeadersInner, { clearProps: 'transform' });
+      }
+    }
+    // 年級表頭只在涉及 MDES 切換時動畫（BFA Animation ↔ BFA CMD 共用同年級表頭 Freshman/Sophomore/Junior/Senior，無需動畫）
+    const involvesMdes = isSwitch && prevPanel && (prevPanel.id === 'panel-mdes' || newPanelId === 'panel-mdes');
+    // 年級表頭 exit 方向（4 方向 random：上下左右），enter 階段用反向 mirror（仿 hero-title-wrapper + atlas list view pattern）
+    const HEADER_EXIT_DIRS = [
+      { axis: 'y', percent: -100 }, // up
+      { axis: 'y', percent: 100 },  // down
+      { axis: 'x', percent: -100 }, // left
+      { axis: 'x', percent: 100 },  // right
+    ];
+    /** @typedef {{ axis: 'x' | 'y', percent: number }} HeaderDir */
+    let headerExitDirs = /** @type {HeaderDir[] | null} */ (null);
+    if (isSwitch && prevPanel && prevPanel.id !== newPanelId && typeof gsap !== 'undefined') {
+      const prevCards = prevPanel.querySelectorAll('.courses-grid-card');
+      const prevHeadersInner = prevPanel.querySelectorAll('.courses-grid-col-header-inner');
+      // headers inner 殘留 transform 已在開頭統一 clear，此處不需重複 kill
+      const exitPromises = [];
+      if (prevCards.length) {
+        exitPromises.push(new Promise(resolve => {
+          gsap.killTweensOf(prevCards);
+          gsap.to(prevCards, {
+            clipPath: () => pickClipDir(),
+            duration: 0.35,
+            ease: 'cubic-bezier(0.25, 0, 0, 1)',
+            overwrite: true,
+            onComplete: resolve,
+          });
+        }));
+      }
+      if (involvesMdes && prevHeadersInner.length) {
+        headerExitDirs = [...prevHeadersInner].map(() =>
+          /** @type {HeaderDir} */ (HEADER_EXIT_DIRS[Math.floor(Math.random() * HEADER_EXIT_DIRS.length)])
+        );
+        exitPromises.push(new Promise(resolve => {
+          gsap.to(prevHeadersInner, {
+            yPercent: (/** @type {number} */ i) => {
+              const d = headerExitDirs && headerExitDirs[i];
+              return d && d.axis === 'y' ? d.percent : 0;
+            },
+            xPercent: (/** @type {number} */ i) => {
+              const d = headerExitDirs && headerExitDirs[i];
+              return d && d.axis === 'x' ? d.percent : 0;
+            },
+            duration: 0.5,
+            ease: 'power3.in',
+            overwrite: true,
+            onComplete: resolve,
+          });
+        }));
+      }
+      await Promise.all(exitPromises);
+    }
 
     const { color } = setActiveNavBtn(btns, program, 'data-program', opts);
     currentProgramColor = color;
@@ -188,22 +265,17 @@ export function initCoursesSectionSwitch() {
     await renderCoursesGrid(program);
     if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh();
 
-    // 卡片進場 clip-path reveal：所有卡片同時出現（無 stagger），每張隨機從 4 方向之一展開
-    // inset 四值用 % 單位（GSAP tween inset() 四值單位需一致，否則直接跳終值不動畫）
-    const CLIP_DIRS = [
-      'inset(100% 0% 0% 0%)',  // 上 → 下
-      'inset(0% 0% 100% 0%)',  // 下 → 上
-      'inset(0% 100% 0% 0%)',  // 左 → 右
-      'inset(0% 0% 0% 100%)',  // 右 → 左
-    ];
+    // 卡片進場 clip-path reveal：每張隨機從 4 方向之一展開
+    // - 初次 init（isSwitch=false）：stagger 一個個進場，ScrollTrigger 等使用者滑到才播
+    // - 切換 program（isSwitch=true）：無 stagger 同時進場，已在視圖內直接播
+    // 年級表頭 enter（僅 isSwitch）：mirror exit direction — 舊 up exit → 新 from below；舊 down exit → 新 from above
     const activePanel = document.getElementById(`panel-${program}`);
     if (activePanel && typeof gsap !== 'undefined') {
       const allCards = activePanel.querySelectorAll('.courses-grid-card');
       if (allCards.length) {
         gsap.killTweensOf(allCards);
         allCards.forEach(card => {
-          const dir = CLIP_DIRS[Math.floor(Math.random() * CLIP_DIRS.length)];
-          gsap.set(card, { clipPath: dir });
+          gsap.set(card, { clipPath: pickClipDir() });
         });
 
         const playReveal = () => {
@@ -211,12 +283,15 @@ export function initCoursesSectionSwitch() {
             clipPath: 'inset(0% 0% 0% 0%)',
             duration: 0.4,
             ease: 'cubic-bezier(0.25, 0, 0, 1)',
+            stagger: isSwitch ? 0 : 0.02,
             overwrite: true,
             clearProps: 'clipPath',
           });
         };
 
-        if (typeof ScrollTrigger !== 'undefined') {
+        if (isSwitch) {
+          playReveal();
+        } else if (typeof ScrollTrigger !== 'undefined') {
           ScrollTrigger.create({
             trigger: activePanel,
             start: 'top 90%',
@@ -225,6 +300,67 @@ export function initCoursesSectionSwitch() {
           });
         } else {
           playReveal();
+        }
+      }
+
+      // 年級表頭 enter：
+      // - 切換（isSwitch + headerExitDirs）：mirror exit 同軸反向
+      // - 初次 init（!isSwitch）：4 方向 random，ScrollTrigger 等使用者滑到才播（同卡片）
+      // - BFA↔BFA 切換（isSwitch 但 headerExitDirs=null）：不動畫，headers 維持 rest（已在開頭 clearProps）
+      const newHeadersInner = activePanel.querySelectorAll('.courses-grid-col-header-inner');
+      if (newHeadersInner.length) {
+        gsap.killTweensOf(newHeadersInner);
+        if (isSwitch && headerExitDirs) {
+          const exitDirs = headerExitDirs;
+          gsap.fromTo(newHeadersInner,
+            {
+              yPercent: (/** @type {number} */ i) => {
+                const d = exitDirs[i % exitDirs.length];
+                return d.axis === 'y' ? -d.percent : 0;
+              },
+              xPercent: (/** @type {number} */ i) => {
+                const d = exitDirs[i % exitDirs.length];
+                return d.axis === 'x' ? -d.percent : 0;
+              },
+            },
+            {
+              yPercent: 0,
+              xPercent: 0,
+              duration: 0.9,
+              ease: 'power3.out',
+              overwrite: true,
+              clearProps: 'transform',
+            }
+          );
+        } else if (!isSwitch) {
+          const initDirs = [...newHeadersInner].map(() =>
+            /** @type {HeaderDir} */ (HEADER_EXIT_DIRS[Math.floor(Math.random() * HEADER_EXIT_DIRS.length)])
+          );
+          gsap.set(newHeadersInner, {
+            yPercent: (/** @type {number} */ i) => initDirs[i].axis === 'y' ? initDirs[i].percent : 0,
+            xPercent: (/** @type {number} */ i) => initDirs[i].axis === 'x' ? initDirs[i].percent : 0,
+          });
+          const playHeaderReveal = () => {
+            gsap.to(newHeadersInner, {
+              yPercent: 0,
+              xPercent: 0,
+              duration: 0.9,
+              ease: 'power3.out',
+              stagger: 0.08,
+              overwrite: true,
+              clearProps: 'transform',
+            });
+          };
+          if (typeof ScrollTrigger !== 'undefined') {
+            ScrollTrigger.create({
+              trigger: activePanel,
+              start: 'top 90%',
+              once: true,
+              onEnter: playHeaderReveal,
+            });
+          } else {
+            playHeaderReveal();
+          }
         }
       }
     }

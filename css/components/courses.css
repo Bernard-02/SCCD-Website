@@ -189,9 +189,6 @@
 
   /* （v9 拿掉 is-active year margin trick — 點卡片改 slide-in 模態，grid 不再縮窄不需要） */
 
-  /* 左上兩個 corner cell：cover 內 col 1/col 2，empty content。Cover 自己處理 sticky/bg */
-  .courses-grid-corner { }
-
   /* Year row cover：包住整個 row 1（corners + year-headers）的 sticky bar。
      - outer grid 中：grid-column:1/-1 橫跨整列（含 col gaps）
      - 自己跑 inner grid（同 template）讓內部 corners + year-headers 對齊 outer cols
@@ -250,6 +247,13 @@
     font-weight: 700;
     font-size: var(--font-size-p2);
     line-height: 1.2;
+    /* MDES 切換時 inner 做 slide 進出，外層當遮罩（仿 hero-title-wrapper pattern）
+       justify-self:start 讓 header 也縮成 content 寬度（grid cell 仍 1fr，header 只佔左側 content）
+       — 否則 mask 是整個 column 寬，inner 只移動文字寬度的距離還在可見區內 */
+    overflow: hidden;
+    justify-self: start;
+  }
+  .courses-grid-col-header-inner {
     display: flex;
     flex-direction: column;
     gap: 2px;

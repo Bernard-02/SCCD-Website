@@ -209,6 +209,12 @@
  * 自訂捲軸樣式（黑白配色）
  */
 
+/* 全站預留 scrollbar gutter：避免有捲軸頁 ↔ 無捲軸頁（library/atlas/create）切換時 viewport 寬度抖動 */
+
+html {
+  scrollbar-gutter: stable;
+}
+
 /* For Webkit browsers (Chrome, Safari, Edge) */
 
 /* 全域用 !important 覆蓋瀏覽器 UA stylesheet（包含所有 div 的預設圓角+箭頭） */
@@ -368,6 +374,12 @@
 
 .list-item {
   list-style: none;
+}
+
+/* 進場動畫未完成時禁止 hover/click */
+
+.list-item[data-pre-reveal] {
+  pointer-events: none;
 }
 
 /* 桌面版：list-header sticky 只在 .active（展開）狀態啟用 — 滑動長內文時使用者看到當前條目標題。
@@ -749,6 +761,22 @@
   stroke-dashoffset: 0;
 }
 
+/* 城市間預設連線：visible 常駐、random 三原色（stroke 由 JS 設）；端點每幀重算（atlas.js tickFloat） */
+
+.atlas-city-line {
+  opacity: 1;
+  stroke-width: 0.7;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+/* hover dim：避免 hover label 時城市連線干擾焦點 */
+
+#atlas-content.atlas-dimmed .atlas-city-line {
+  opacity: 0.15;
+}
+
 /* ── 節點：純 label，沒有 dot 圈圈 ─────────────────── */
 
 .atlas-anchor {
@@ -882,7 +910,7 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.7rem;
+  gap: 0.5rem;
   z-index: 50;
 }
 
@@ -925,60 +953,249 @@
   bottom: 84px;
   /* above layout btn: 32px + 36px + 16px */
   right: 32px;
-  /* left: set dynamically by JS after measuring filter width */
-  -moz-column-width: 160px;
-       column-width: 160px;
-  -moz-column-gap: 24px;
-       column-gap: 24px;
-  -moz-column-fill: auto;
-       column-fill: auto;
-  overflow-x: auto;
-  overflow-y: hidden;
+  /* left: set dynamically by JS after measuring container padding */
   display: none;
+  flex-direction: row;
+  gap: var(--spacing-xl, 3rem);
+  align-items: stretch;
   z-index: 50;
   pointer-events: auto;
-  cursor: grab;
   -webkit-user-select: none;
      -moz-user-select: none;
           user-select: none;
 }
 
-#atlas-list-view::-webkit-scrollbar {
+#atlas-list-view.visible {
+  display: flex;
+}
+
+/* ── Column ── */
+
+.atlas-list-col {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  gap: var(--spacing-md, 1.5rem);
+  min-width: 0;
+  overflow: visible;
+  /* title chip 旋轉不裁切 */
+  height: 100%;
+}
+
+/* ── Column title wrapper（仿 hero-title-wrapper：rotate + overflow:hidden 形成 yPercent slide-in 遮罩） ── */
+
+.atlas-list-col-title-wrapper {
+  flex-shrink: 0;
+  align-self: flex-start;
+  display: block;
+  overflow: hidden;
+  transform-origin: left center;
+  /* 旋轉角度由 JS 設成 inline transform */
+}
+
+/* ── Column title chip（黑底白字，英上中下） ── */
+
+.atlas-list-col-title {
+  background: black;
+  color: white;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 110px;
+  /* 固定標題區塊寬度，確保右側三欄的內容區絕對等寬 */
+}
+
+.atlas-list-col-title-en {
+  display: block;
+  font-family: var(--font-en, 'Inter'), system-ui, sans-serif;
+  font-size: var(--font-size-p3, 0.9rem);
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: normal;
+  /* 允許過長的英文自動換行 (如 Alumni Career) */
+  word-break: break-word;
+}
+
+.atlas-list-col-title-zh {
+  display: block;
+  font-family: var(--font-zh, 'Noto Sans TC'), system-ui, sans-serif;
+  font-size: var(--font-size-p3, 0.9rem);
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: normal;
+  word-break: keep-all;
+}
+
+/* ── Column items（2 explicit sub-col，無 CSS columns，nav 貼底） ── */
+
+.atlas-list-col-items {
+  display: flex;
+  flex-direction: row;
+  gap: var(--spacing-md, 1.5rem);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  height: 100%;
+}
+
+.atlas-list-sub-col {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  gap: var(--list-gap, 0px);
+  /* 讀取 JS 精算出的間距，讓剩餘空間完美均分 */
+  /* containing block for absolute nav-item（chevron 永遠貼 sub-col 底，不被 items 推） */
+  position: relative;
+}
+
+/* Chrome/Safari 隱藏捲軸 */
+
+.atlas-list-sub-col::-webkit-scrollbar {
   display: none;
 }
 
-#atlas-list-view.visible {
-  display: block;
+/* ── Item wrapper（仿 hero-title-wrapper：overflow:hidden 形成 yPercent slide-in 遮罩） ── */
+
+/* JS 從 calcListPageSize 寫入 --list-item-h；min-height 在 wrapper 上 → col1 / col2 共享統一 row 高，
+   col2 末尾的 nav-item 取同樣 min-height → chevron 與 col1 最後一個 item 底部對齊 */
+
+.atlas-list-item-wrapper {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: var(--list-item-h, 84px);
 }
 
 .atlas-list-item {
-  -moz-column-break-inside: avoid;
-       break-inside: avoid;
-  margin-bottom: 10px;
+  color: black;
+  margin-bottom: 0;
+  padding-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  /* flex:1 撐滿 wrapper 高度 → yPercent:100 等於 100% wrapper.height，item 完全藏在 overflow:hidden 外 */
+  flex: 1;
+}
+
+/* Item 內每行（title / 各副標）的獨立遮罩：title 先進場、副標後接，再下一個 item */
+
+.atlas-list-line-clip {
+  overflow: hidden;
 }
 
 .atlas-list-item-name {
   display: flex;
   flex-direction: column;
   font-family: var(--font-en, 'Inter'), var(--font-zh, 'Noto Sans TC'), system-ui, sans-serif;
-  font-size: 11px;
+  font-size: var(--font-size-p3, 0.9rem);
   font-weight: 600;
   line-height: 1.3;
 }
 
+/* 主標每行單行顯示 + overflow:hidden；過長時 JS 偵測加 .is-overflow，hover 觸發 marquee */
+
+.atlas-list-name-en,
 .atlas-list-name-zh {
-  font-weight: 400;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.atlas-list-name-zh {
+  font-weight: 600;
   opacity: 0.8;
 }
 
+/* Marquee inner：雙 .marquee-copy seamless loop（仿 library.css runMarqueeOverflow pattern） */
+
+.atlas-marquee-inner {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.atlas-marquee-inner > .marquee-copy {
+  display: inline-block;
+  padding-right: 2em;
+  /* 兩份 copy 之間的視覺 gap */
+}
+
+@media (min-width: 768px) {
+  .atlas-list-item:hover .atlas-list-name-en.is-overflow .atlas-marquee-inner,
+  .atlas-list-item:hover .atlas-list-name-zh.is-overflow .atlas-marquee-inner {
+    animation: atlas-marquee var(--marquee-duration, 8s) linear infinite;
+  }
+}
+
+@keyframes atlas-marquee {
+  0%   {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(var(--marquee-distance, -50%));
+  }
+}
+
 .atlas-list-item-label {
-  font-size: 9px;
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  line-height: 1.3;
   font-weight: 400;
   opacity: 0.6;
   margin-top: 2px;
-  font-family: var(--font-en, 'Inter'), system-ui, sans-serif;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  font-family: var(--font-en, 'Inter'), var(--font-zh, 'Noto Sans TC'), system-ui, sans-serif;
+}
+
+/* 兩個副標相鄰時（partners：類型 + 國家）拉開一點視覺間距 */
+
+.atlas-list-item-label + .atlas-list-item-label {
+  margin-top: 6px;
+}
+
+/* ── 分頁 nav item（absolute 定位在 sub-col 底部，不被 items 推；chevron 貼 col1 末尾 item 底） ── */
+
+.atlas-list-nav-item {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 12px;
+  /* 設定按鈕之間的固定間距 */
+  align-items: flex-end;
+  /* row direction 下 cross-axis = 垂直，chevron 貼 slot 底 */
+  min-height: var(--list-item-h, 84px);
+  padding-bottom: 10px;
+  /* 與一般項目保持相同的下方間距，讓底部視覺切齊 */
+}
+
+.atlas-list-nav-btn {
+  background: none;
+  border: none;
+  padding: 4px 6px;
+  cursor: pointer;
+  color: black;
+  opacity: 1;
+  font-size: 19.5px;
+  line-height: 1;
+  transition: opacity 0.2s ease;
+}
+
+.atlas-list-nav-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+@media (min-width: 768px) {
+  .atlas-list-nav-btn:not(:disabled):hover {
+    opacity: 1;
+  }
 }
 
 .atlas-filter-btn {
@@ -990,7 +1207,16 @@
   font-weight: 700;
   font-size: var(--font-size-p3);
   text-align: left;
-  transition: opacity 0.2s ease;
+  /* 初始 clip 起點：左→右 wipe reveal；JS 加 .atlas-filter-revealed 才揭露
+     （等 header logo 縮小 0.6s 完成後）— 直接寫 CSS 避免 atlas.js await JSON 期間閃現
+     inset 四值全用負 12px 把 clip 區域擴大覆蓋 .anchor-nav-inner 的 ±3° 旋轉外溢；
+     起點 right 用 calc(100% + 12px) 把右側往左 cover 整個 box 才會 0 寬完全隱藏 */
+  clip-path: inset(-12px calc(100% + 12px) -12px -12px);
+  transition: opacity 0.2s ease, clip-path 0.5s cubic-bezier(0.25, 0, 0, 1);
+}
+
+.atlas-filter-btn.atlas-filter-revealed {
+  clip-path: inset(-12px -12px -12px -12px);
 }
 
 .atlas-filter-btn .anchor-nav-inner {
@@ -1062,7 +1288,7 @@ body.mode-inverse .atlas-filter-btn:not(.active) .anchor-nav-inner {
   #atlas-filter {
     left: 16px;
     top: calc(var(--header-height, 80px) + 60px);
-    gap: 0.5rem;
+    gap: 0.25rem;
   }
 
   .atlas-filter-btn {
@@ -1077,11 +1303,6 @@ body.mode-inverse .atlas-filter-btn:not(.active) .anchor-nav-inner {
   #atlas-list-view {
     bottom: 72px;
     right: 16px;
-    -moz-column-width: 130px;
-         column-width: 130px;
-    -moz-column-gap: 16px;
-         column-gap: 16px;
-    cursor: grab;
   }
 }
 
@@ -1560,11 +1781,11 @@ body.mode-inverse [data-bar="generate"].bar-active:not(.is-bar-hover) .nav-link 
 /* Hover 字色：standard / inverse 一律黑（亮三原色底對比），由 navigation.css 的
  * `is-bar-hover .nav-link { color: #000 !important }` 處理，inverse 不再 override */
 
-/* Degree Show card hover：JS inline 把 .degree-show-card-content bg 設成 accent 色（粉/綠/藍），
- * inverse 預設 body color:white 會讓 h5 標題在 accent 底上看不清，force 回黑（全站對比規範） */
+/* Degree Show card hover：圖片 wrapper hover 把 .degree-show-card-content bg 設成 accent 色，
+ * inverse 預設 body color:white 會讓標題在 accent 底上看不清，force 回黑（全站對比規範） */
 
-body.mode-inverse .degree-show-card:hover .degree-show-card-content,
-body.mode-inverse .degree-show-card:hover .degree-show-card-content * {
+body.mode-inverse .degree-show-card-content[style*="background"] *,
+body.mode-inverse .degree-show-card-content[style*="background"] {
   color: #000 !important;
 }
 
@@ -3321,7 +3542,7 @@ header.header-hidden .nav-link,
 }
 
 /* ===== Card Hover Overlay（共用元件）=====
-   * 適用：faculty-card / library-card / degree-show-img-wrapper
+   * 適用：faculty-card / library-card
    * 結構：card > image-wrapper > image
    *   - card：hover 時底色變 var(--card-color)
    *   - image-wrapper::after：screen blend 色塊，hover 時 opacity 1
@@ -3338,24 +3559,26 @@ header.header-hidden .nav-link,
 
 .card-hover-overlay__wrapper,
   .faculty-card-image-wrapper,
-  .library-card-image-wrapper,
-  .degree-show-img-wrapper {
+  .library-card-image-wrapper {
+  position: relative;
+  overflow: hidden;
+}
+
+.degree-show-img-wrapper {
   position: relative;
   overflow: hidden;
 }
 
 .card-hover-overlay__image,
   .faculty-card-image,
-  .library-card-image,
-  .degree-show-img {
+  .library-card-image {
   transition: filter 0.3s cubic-bezier(0.4, 0, 0.2, 1),
                 transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .card-hover-overlay__wrapper::after,
   .faculty-card-image-wrapper::after,
-  .library-card-image-wrapper::after,
-  .degree-show-img-wrapper::after {
+  .library-card-image-wrapper::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -3376,14 +3599,12 @@ header.header-hidden .nav-link,
   }
 
   .card-hover-overlay:hover .card-hover-overlay__image,
-    .library-card:hover .library-card-image,
-    .degree-show-img-wrapper:hover .degree-show-img {
+    .library-card:hover .library-card-image {
     filter: grayscale(100%);
   }
 
   .card-hover-overlay:hover .card-hover-overlay__wrapper::after,
-    .library-card:hover .library-card-image-wrapper::after,
-    .degree-show-img-wrapper:hover::after {
+    .library-card:hover .library-card-image-wrapper::after {
     opacity: 0.8;
   }
 }
@@ -4038,11 +4259,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 
 /* （v9 拿掉 is-active year margin trick — 點卡片改 slide-in 模態，grid 不再縮窄不需要） */
 
-/* 左上兩個 corner cell：cover 內 col 1/col 2，empty content。Cover 自己處理 sticky/bg */
-
-.courses-grid-corner {
-}
-
 /* Year row cover：包住整個 row 1（corners + year-headers）的 sticky bar。
      - outer grid 中：grid-column:1/-1 橫跨整列（含 col gaps）
      - 自己跑 inner grid（同 template）讓內部 corners + year-headers 對齊 outer cols
@@ -4108,6 +4324,14 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
   font-weight: 700;
   font-size: var(--font-size-p2);
   line-height: 1.2;
+  /* MDES 切換時 inner 做 slide 進出，外層當遮罩（仿 hero-title-wrapper pattern）
+       justify-self:start 讓 header 也縮成 content 寬度（grid cell 仍 1fr，header 只佔左側 content）
+       — 否則 mask 是整個 column 寬，inner 只移動文字寬度的距離還在可見區內 */
+  overflow: hidden;
+  justify-self: start;
+}
+
+.courses-grid-col-header-inner {
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -4652,6 +4876,10 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
   height: 2rem;
 }
 
+.h-\[1\.5em\]{
+  height: 1.5em;
+}
+
 .h-\[100px\]{
   height: 100px;
 }
@@ -4718,6 +4946,10 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 
 .w-8{
   width: 2rem;
+}
+
+.w-\[1\.5em\]{
+  width: 1.5em;
 }
 
 .w-\[100px\]{

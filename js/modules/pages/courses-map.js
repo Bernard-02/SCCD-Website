@@ -4,9 +4,9 @@
  *
  * Layout（每個 program panel 一張表）：
  *                              | 1年級 | 2年級 | 3年級 | 4年級
- *   上學期 | 必修               | cells...
- *           選修
- *   下學期 | 必修
+ *   第一學期 | 必修               | cells...
+ *             選修
+ *   第二學期 | 必修
  *           選修
  *
  * 互動：hover 卡片 → 右下角固定 desc panel 換成該卡片的描述 + 同色
@@ -29,8 +29,8 @@ function gradesOf(program) {
 }
 
 const SEMESTERS = [
-  { key: 'upper', en: 'Fall',   zh: '上學期' },
-  { key: 'lower', en: 'Spring', zh: '下學期' },
+  { key: 'upper', en: '1st Semester', zh: '第一學期' },
+  { key: 'lower', en: '2nd Semester', zh: '第二學期' },
 ];
 
 const TYPES = [
@@ -193,10 +193,13 @@ function buildHTML(program, courses) {
   for (let i = 0; i < TOTAL_YEAR_COLS; i++) {
     const g = grades[i];
     if (g) {
+      // header 外層 overflow:hidden 當 yPercent slide-in 遮罩；inner 是 yPercent 動畫目標（仿 hero-title-wrapper pattern）
       coverInnerHtml += `
         <div class="courses-grid-col-header ${yearCls(i)}">
-          <span class="courses-grid-col-en">${g.en}</span>
-          <span class="courses-grid-col-zh">${g.zh}</span>
+          <div class="courses-grid-col-header-inner">
+            <span class="courses-grid-col-en">${g.en}</span>
+            <span class="courses-grid-col-zh">${g.zh}</span>
+          </div>
         </div>`;
     } else {
       coverInnerHtml += `<div class="courses-grid-col-header ${yearCls(i)}"></div>`;

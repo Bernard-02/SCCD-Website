@@ -71,6 +71,20 @@
   stroke-dashoffset: 0;
 }
 
+/* 城市間預設連線：visible 常駐、random 三原色（stroke 由 JS 設）；端點每幀重算（atlas.js tickFloat） */
+.atlas-city-line {
+  opacity: 1;
+  stroke-width: 0.7;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+/* hover dim：避免 hover label 時城市連線干擾焦點 */
+#atlas-content.atlas-dimmed .atlas-city-line {
+  opacity: 0.15;
+}
+
 /* ── 節點：純 label，沒有 dot 圈圈 ─────────────────── */
 .atlas-anchor {
   position: absolute;
@@ -232,54 +246,222 @@
   top: calc(var(--header-height, 80px) + 64px);
   bottom: 84px; /* above layout btn: 32px + 36px + 16px */
   right: 32px;
-  /* left: set dynamically by JS after measuring filter width */
-  column-width: 160px;
-  column-gap: 24px;
-  column-fill: auto;
-  overflow-x: auto;
-  overflow-y: hidden;
+  /* left: set dynamically by JS after measuring container padding */
   display: none;
+  flex-direction: row;
+  gap: var(--spacing-xl, 3rem);
+  align-items: stretch;
   z-index: 50;
   pointer-events: auto;
-  cursor: grab;
   user-select: none;
 }
 
-#atlas-list-view::-webkit-scrollbar {
+#atlas-list-view.visible {
+  display: flex;
+}
+
+/* ── Column ── */
+.atlas-list-col {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  gap: var(--spacing-md, 1.5rem);
+  min-width: 0;
+  overflow: visible; /* title chip 旋轉不裁切 */
+  height: 100%;
+}
+
+/* ── Column title wrapper（仿 hero-title-wrapper：rotate + overflow:hidden 形成 yPercent slide-in 遮罩） ── */
+.atlas-list-col-title-wrapper {
+  flex-shrink: 0;
+  align-self: flex-start;
+  display: block;
+  overflow: hidden;
+  transform-origin: left center;
+  /* 旋轉角度由 JS 設成 inline transform */
+}
+
+/* ── Column title chip（黑底白字，英上中下） ── */
+.atlas-list-col-title {
+  background: black;
+  color: white;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 110px; /* 固定標題區塊寬度，確保右側三欄的內容區絕對等寬 */
+}
+
+.atlas-list-col-title-en {
+  display: block;
+  font-family: var(--font-en, 'Inter'), system-ui, sans-serif;
+  font-size: var(--font-size-p3, 0.9rem);
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: normal; /* 允許過長的英文自動換行 (如 Alumni Career) */
+  word-break: break-word;
+}
+
+.atlas-list-col-title-zh {
+  display: block;
+  font-family: var(--font-zh, 'Noto Sans TC'), system-ui, sans-serif;
+  font-size: var(--font-size-p3, 0.9rem);
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: normal;
+  word-break: keep-all;
+}
+
+/* ── Column items（2 explicit sub-col，無 CSS columns，nav 貼底） ── */
+.atlas-list-col-items {
+  display: flex;
+  flex-direction: row;
+  gap: var(--spacing-md, 1.5rem);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  height: 100%;
+}
+
+.atlas-list-sub-col {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  gap: var(--list-gap, 0px); /* 讀取 JS 精算出的間距，讓剩餘空間完美均分 */
+  /* containing block for absolute nav-item（chevron 永遠貼 sub-col 底，不被 items 推） */
+  position: relative;
+}
+
+/* Chrome/Safari 隱藏捲軸 */
+.atlas-list-sub-col::-webkit-scrollbar {
   display: none;
 }
 
-#atlas-list-view.visible {
-  display: block;
+/* ── Item wrapper（仿 hero-title-wrapper：overflow:hidden 形成 yPercent slide-in 遮罩） ── */
+/* JS 從 calcListPageSize 寫入 --list-item-h；min-height 在 wrapper 上 → col1 / col2 共享統一 row 高，
+   col2 末尾的 nav-item 取同樣 min-height → chevron 與 col1 最後一個 item 底部對齊 */
+.atlas-list-item-wrapper {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: var(--list-item-h, 84px);
 }
 
 .atlas-list-item {
-  break-inside: avoid;
-  margin-bottom: 10px;
+  color: black;
+  margin-bottom: 0;
+  padding-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  /* flex:1 撐滿 wrapper 高度 → yPercent:100 等於 100% wrapper.height，item 完全藏在 overflow:hidden 外 */
+  flex: 1;
+}
+
+/* Item 內每行（title / 各副標）的獨立遮罩：title 先進場、副標後接，再下一個 item */
+.atlas-list-line-clip {
+  overflow: hidden;
 }
 
 .atlas-list-item-name {
   display: flex;
   flex-direction: column;
   font-family: var(--font-en, 'Inter'), var(--font-zh, 'Noto Sans TC'), system-ui, sans-serif;
-  font-size: 11px;
+  font-size: var(--font-size-p3, 0.9rem);
   font-weight: 600;
   line-height: 1.3;
 }
 
+/* 主標每行單行顯示 + overflow:hidden；過長時 JS 偵測加 .is-overflow，hover 觸發 marquee */
+.atlas-list-name-en,
 .atlas-list-name-zh {
-  font-weight: 400;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.atlas-list-name-zh {
+  font-weight: 600;
   opacity: 0.8;
 }
 
+/* Marquee inner：雙 .marquee-copy seamless loop（仿 library.css runMarqueeOverflow pattern） */
+.atlas-marquee-inner {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.atlas-marquee-inner > .marquee-copy {
+  display: inline-block;
+  padding-right: 2em; /* 兩份 copy 之間的視覺 gap */
+}
+
+@media (min-width: 768px) {
+  .atlas-list-item:hover .atlas-list-name-en.is-overflow .atlas-marquee-inner,
+  .atlas-list-item:hover .atlas-list-name-zh.is-overflow .atlas-marquee-inner {
+    animation: atlas-marquee var(--marquee-duration, 8s) linear infinite;
+  }
+}
+
+@keyframes atlas-marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(var(--marquee-distance, -50%)); }
+}
+
 .atlas-list-item-label {
-  font-size: 9px;
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  line-height: 1.3;
   font-weight: 400;
   opacity: 0.6;
   margin-top: 2px;
-  font-family: var(--font-en, 'Inter'), system-ui, sans-serif;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  font-family: var(--font-en, 'Inter'), var(--font-zh, 'Noto Sans TC'), system-ui, sans-serif;
+}
+
+/* 兩個副標相鄰時（partners：類型 + 國家）拉開一點視覺間距 */
+.atlas-list-item-label + .atlas-list-item-label {
+  margin-top: 6px;
+}
+
+/* ── 分頁 nav item（absolute 定位在 sub-col 底部，不被 items 推；chevron 貼 col1 末尾 item 底） ── */
+.atlas-list-nav-item {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 12px; /* 設定按鈕之間的固定間距 */
+  align-items: flex-end; /* row direction 下 cross-axis = 垂直，chevron 貼 slot 底 */
+  min-height: var(--list-item-h, 84px);
+  padding-bottom: 10px; /* 與一般項目保持相同的下方間距，讓底部視覺切齊 */
+}
+
+.atlas-list-nav-btn {
+  background: none;
+  border: none;
+  padding: 4px 6px;
+  cursor: pointer;
+  color: black;
+  opacity: 1;
+  font-size: 19.5px;
+  line-height: 1;
+  transition: opacity 0.2s ease;
+}
+
+.atlas-list-nav-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+@media (min-width: 768px) {
+  .atlas-list-nav-btn:not(:disabled):hover {
+    opacity: 1;
+  }
 }
 
 .atlas-filter-btn {
@@ -291,7 +473,16 @@
   font-weight: 700;
   font-size: var(--font-size-p3);
   text-align: left;
-  transition: opacity 0.2s ease;
+  /* 初始 clip 起點：左→右 wipe reveal；JS 加 .atlas-filter-revealed 才揭露
+     （等 header logo 縮小 0.6s 完成後）— 直接寫 CSS 避免 atlas.js await JSON 期間閃現
+     inset 四值全用負 12px 把 clip 區域擴大覆蓋 .anchor-nav-inner 的 ±3° 旋轉外溢；
+     起點 right 用 calc(100% + 12px) 把右側往左 cover 整個 box 才會 0 寬完全隱藏 */
+  clip-path: inset(-12px calc(100% + 12px) -12px -12px);
+  transition: opacity 0.2s ease, clip-path 0.5s cubic-bezier(0.25, 0, 0, 1);
+}
+
+.atlas-filter-btn.atlas-filter-revealed {
+  clip-path: inset(-12px -12px -12px -12px);
 }
 
 .atlas-filter-btn .anchor-nav-inner {
@@ -367,8 +558,5 @@ body.mode-inverse .atlas-filter-btn:not(.active) .anchor-nav-inner {
   #atlas-list-view {
     bottom: 72px;
     right: 16px;
-    column-width: 130px;
-    column-gap: 16px;
-    cursor: grab;
   }
 }

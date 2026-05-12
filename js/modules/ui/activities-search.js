@@ -220,7 +220,12 @@ export function initActivitiesSearch() {
     const activeBar = document.querySelector('.activities-panel:not(.hidden) .activities-filter-bar');
     if (!activeBar) return;
 
-    if (goingDown && currentY > 50) {
+    // hero 是 h-screen，滑過 hero 進入 content 區之前不觸發 hide
+    // 否則使用者進入 exhibitions panel 時 search bar 已被向下滑收掉
+    const contentSection = document.getElementById('activities-content-section');
+    const threshold = contentSection ? contentSection.offsetTop : 50;
+
+    if (goingDown && currentY > threshold) {
       activeBar.classList.add('bar-hidden');
     } else {
       activeBar.classList.remove('bar-hidden');

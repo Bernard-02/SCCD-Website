@@ -74,8 +74,9 @@ function computeBoxAt(item, x, y) {
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-// 確定性 seed — 改這個就能換一個固定佈局
-const LAYOUT_SEED = 0xA71A5;
+// 每次 reload 隨機重新洗一次佈局（城市軌道、labels 位置、faculty placeholder、list 三原色 shuffle 等都跟著變）
+// 想暫時鎖固定佈局除錯時改回 const LAYOUT_SEED = 0xA71A5
+const LAYOUT_SEED = Math.floor(Math.random() * 0xFFFFFFFF);
 
 // 是否把名稱換成 type-numbered placeholder（目前資料許多是假名／"Company Name"）
 const USE_TYPE_PLACEHOLDER = true;
@@ -111,6 +112,58 @@ const CANONICAL_CITIES = [
   { en: 'Hualien',    zh: '花蓮'   },
 ];
 
+// 城市 → ISO 兩碼 + 中文國名（list view 副標用）
+const CITY_COUNTRY = {
+  'Tokyo':      { iso: 'JP', countryZh: '日本'   },
+  'Kyoto':      { iso: 'JP', countryZh: '日本'   },
+  'Nagoya':     { iso: 'JP', countryZh: '日本'   },
+  'Osaka':      { iso: 'JP', countryZh: '日本'   },
+  'New York':   { iso: 'US', countryZh: '美國'   },
+  'California': { iso: 'US', countryZh: '美國'   },
+  'Shanghai':   { iso: 'CN', countryZh: '中國'   },
+  'Beijing':    { iso: 'CN', countryZh: '中國'   },
+  'Chiang Mai': { iso: 'TH', countryZh: '泰國'   },
+  'Bangkok':    { iso: 'TH', countryZh: '泰國'   },
+  'Singapore':  { iso: 'SG', countryZh: '新加坡' },
+  'London':     { iso: 'GB', countryZh: '英國'   },
+  'Busan':      { iso: 'KR', countryZh: '韓國'   },
+  'Seoul':      { iso: 'KR', countryZh: '韓國'   },
+  'Paris':      { iso: 'FR', countryZh: '法國'   },
+  'Taipei':     { iso: 'TW', countryZh: '臺灣'   },
+  'Tainan':     { iso: 'TW', countryZh: '臺灣'   },
+  'Yilan':      { iso: 'TW', countryZh: '臺灣'   },
+  'Hualien':    { iso: 'TW', countryZh: '臺灣'   },
+};
+
+// Faculty 隨機公司名池（list view 副標用，因目前是 placeholder 教師資料）
+const FAKE_COMPANIES = [
+  { en: 'Studio One',         zh: '一號設計工作室' },
+  { en: 'Atlas Design',       zh: '亞特拉斯設計'   },
+  { en: 'Pentagram',          zh: '五角設計'       },
+  { en: 'IDEO',               zh: 'IDEO 設計顧問'  },
+  { en: 'Frog Design',        zh: '青蛙設計'       },
+  { en: 'Wieden+Kennedy',     zh: '威頓肯尼迪'     },
+  { en: 'Saatchi & Saatchi',  zh: '盛世長城'       },
+  { en: 'Ogilvy',             zh: '奧美廣告'       },
+  { en: 'Dentsu',             zh: '電通廣告'       },
+  { en: 'BBDO',               zh: 'BBDO 廣告'      },
+  { en: 'Hakuhodo',           zh: '博報堂'         },
+  { en: 'Method Design',      zh: '方法設計'       },
+  { en: 'Local Projects',     zh: '在地計畫'       },
+  { en: 'Field Studio',       zh: '田野工作室'     },
+  { en: 'Studio Dumbar',      zh: '杜姆巴設計'     },
+  { en: 'MetaDesign',         zh: '元設計'         },
+  { en: 'R/GA',               zh: 'R/GA 數位設計'  },
+  { en: 'Wolff Olins',        zh: '沃爾夫奧林斯'   },
+];
+
+// Partner 類型對應（wsg/ind/lec 各自映射）
+const PARTNER_TYPES = {
+  wsg: { en: 'Workshop',                       zh: '工作營'   },
+  ind: { en: 'Industry-Academia Cooperation',  zh: '產學合作' },
+  lec: { en: 'Lectures',                       zh: '講座'     },
+};
+
 // ── Layout 參數（px）─ Rugby ball (橢圓) 中央 + Saturn ring 外環 ───────────
 // 非城市 (A/B/C) uniform scatter 在橢圓內（橄欖球型，兩端漸尖，中間胖）
 // 城市 (D) 走外環 orbit（看上方 city orbit 區段）
@@ -132,6 +185,11 @@ const MIN_SCALE         = 0.78;
 const MAX_SCALE         = 3.5;    // zoom in 上限拉到 3.5x
 const ZOOM_SPEED        = 0.0015;
 const INTRO_DURATION    = 1.5;
+// View 切換時星雲鏡頭穿越用：scale 飆到此值 content 飛出 viewport 只剩白底
+// switchToList 從 SCALE_DEFAULT zoom in 到此；switchToMap 從此 zoom out 回 SCALE_DEFAULT
+const ZOOM_TRANSITION_SCALE = 20;
+// switchToMap 的 zoom out 時長（比 initAtlas 的 INTRO_DURATION 短，view 切換要俐落）
+const VIEW_SWITCH_ZOOM_DURATION = 0.9;
 
 // 假資料：B/C 沒有 cityKey 時隨機指派一個 canonical 城市（seeded，方便看 cluster + 連線）
 // 真實資料補上 city 欄位後，這個 fallback 自動讓位給真資料
@@ -359,6 +417,44 @@ export async function initAtlas() {
       it.textZh = `${tpl.zh} ${n}`;
     });
   }
+
+  // ── List view 副標資料（seeded，跨 reload 穩定）─────────
+  // faculty: 隨機公司名 / alumni: 城市+國家 / partners: 類型+國家
+  const listRand = mulberry32(LAYOUT_SEED ^ 0xC0FFEE);
+  const cityKeysAll = Object.keys(CITY_COUNTRY);
+  const canonZhByEn = new Map(CANONICAL_CITIES.map(c => [c.en, c.zh]));
+  items.forEach(item => {
+    if (item.category === 'D') return;
+    const prefix = String(item.id).split('-')[0];
+    const cat = Object.keys(FILTER_PREFIXES).find(k => FILTER_PREFIXES[k].includes(prefix));
+    if (cat === 'faculty') {
+      const c = FAKE_COMPANIES[Math.floor(listRand() * FAKE_COMPANIES.length)];
+      item._listSubEn = c.en;
+      item._listSubZh = c.zh;
+    } else if (cat === 'alumni') {
+      const cityEn = item.cityKey;
+      const meta = CITY_COUNTRY[cityEn];
+      const cityZh = canonZhByEn.get(cityEn) || cityEn;
+      if (meta) {
+        item._listSubEn = `${cityEn}, ${meta.iso}`;
+        item._listSubZh = `${meta.countryZh}${cityZh}`;
+      }
+    } else if (cat === 'partners') {
+      const type = PARTNER_TYPES[prefix];
+      if (type) {
+        item._listTypeEn = type.en;
+        item._listTypeZh = type.zh;
+      }
+      let cityEn = item.cityKey;
+      if (!cityEn) cityEn = cityKeysAll[Math.floor(listRand() * cityKeysAll.length)];
+      const meta = CITY_COUNTRY[cityEn];
+      const cityZh = canonZhByEn.get(cityEn) || cityEn;
+      if (meta) {
+        item._listCountryEn = `${cityEn}, ${meta.iso}`;
+        item._listCountryZh = `${meta.countryZh}${cityZh}`;
+      }
+    }
+  });
 
   // 顏色配置：每次 reload random 洗牌三原色，分配給三個 filter 類別（category D 永遠黑）
   const filterColors = shuffleListColors();
@@ -601,6 +697,44 @@ export async function initAtlas() {
   // 設個初始 d 避免首幀前線是 invisible 0-length path
   allLines.forEach(updateLineEndpoints);
 
+  // ── 城市間預設連線（環形拓樸：城市按相對中心角度排序，連成閉環，每座有 2 個 ring 鄰居）──
+  // 「相鄰」指 ring 順序的前後，不是地理最近。拓樸 init 時定一次（用 orbit 中心算角度），不重算；端點每幀更新
+  const cityItems = items.filter(i => i.category === 'D');
+  const centerX = W / 2;
+  const centerY = H / 2;
+  const cityRing = cityItems
+    .map(c => ({
+      city: c,
+      angle: Math.atan2(
+        ((c._orbit && c._orbit.cy) || c.y) - centerY,
+        ((c._orbit && c._orbit.cx) || c.x) - centerX
+      ),
+    }))
+    .sort((u, v) => u.angle - v.angle)
+    .map(o => o.city);
+  const cityLines = [];
+  for (let i = 0; i < cityRing.length; i++) {
+    const a = cityRing[i];
+    const b = cityRing[(i + 1) % cityRing.length];
+    if (a === b) continue; // 只有 1 座城市 → 跳過
+    const color = PRIMARY_COLORS[Math.floor(Math.random() * PRIMARY_COLORS.length)];
+    const lineEl = document.createElementNS(SVG_NS, 'path');
+    lineEl.setAttribute('fill', 'none');
+    lineEl.setAttribute('stroke', color);
+    lineEl.setAttribute('class', 'atlas-city-line');
+    svg.appendChild(lineEl);
+    cityLines.push({ line: lineEl, a, b });
+  }
+  function updateCityLineEndpoints(cl) {
+    const a = cl.a, b = cl.b;
+    const aBox = computeBoxAt(a, a.x, a.y);
+    const bBox = computeBoxAt(b, b.x, b.y);
+    const aEdge = pickClosestBoxPoint(getBoxPoints(aBox), b.x, b.y);
+    const bEdge = pickClosestBoxPoint(getBoxPoints(bBox), a.x, a.y);
+    cl.line.setAttribute('d', `M ${aEdge.x.toFixed(2)} ${aEdge.y.toFixed(2)} L ${bEdge.x.toFixed(2)} ${bEdge.y.toFixed(2)}`);
+  }
+  cityLines.forEach(updateCityLineEndpoints);
+
   // ── Floating rAF loop（label 浮動，line 端點同步移動避免錯位）─
   const floatStart = performance.now() / 1000;
   let floatRunning = true;
@@ -644,6 +778,10 @@ export async function initAtlas() {
     // Phase 3: 線端點動態挑 box 邊（兩端都當下最近，避免被 city label 擋）
     for (let i = 0; i < allLines.length; i++) {
       updateLineEndpoints(allLines[i]);
+    }
+    // Phase 3b: 城市間預設連線端點同步（兩端都是城市，都在 Phase 1 orbit 後位置更新）
+    for (let i = 0; i < cityLines.length; i++) {
+      updateCityLineEndpoints(cityLines[i]);
     }
 
     if (floatRunning) floatRaf = requestAnimationFrame(tickFloat);
@@ -713,7 +851,25 @@ export async function initAtlas() {
           descEl.appendChild(row);
         });
       } else {
-        descEl.textContent = item.detail || '';
+        const prefix = String(item.id).split('-')[0];
+        const isFaculty = FILTER_PREFIXES.faculty.includes(prefix);
+        const isPartner = FILTER_PREFIXES.partners.includes(prefix);
+        const subEn = isFaculty ? item._listSubEn : (isPartner ? item._listTypeEn : null);
+        const subZh = isFaculty ? item._listSubZh : (isPartner ? item._listTypeZh : null);
+        if (subEn || subZh) {
+          if (subEn) {
+            const en = document.createElement('div');
+            en.textContent = subEn;
+            descEl.appendChild(en);
+          }
+          if (subZh) {
+            const zh = document.createElement('div');
+            zh.textContent = subZh;
+            descEl.appendChild(zh);
+          }
+        } else {
+          descEl.textContent = item.detail || '';
+        }
       }
     }
 
@@ -919,40 +1075,37 @@ export async function initAtlas() {
   const btns = /** @type {HTMLElement[]} */ ([...document.querySelectorAll('.atlas-filter-btn')]);
   const selected = new Set(btns.map(b => b.dataset.filter));
 
+  // 星雲 intro zoom 完成後才依序加 .atlas-filter-revealed 觸發 clip-path wipe
+  // → 與 switchToMap 一致：主視覺先、UI chrome 後，避免並行搶注意力
+  // CSS 已設 clip-path: inset(0 100% 0 0) 初始隱藏，避免 init await 期間閃現
+  const STAGGER = 100;
+  const revealTimers = /** @type {number[]} */ ([]);
+  const revealFilters = () => {
+    btns.forEach((btn, i) => {
+      const t = setTimeout(() => {
+        if (btn.isConnected) btn.classList.add('atlas-filter-revealed');
+      }, i * STAGGER);
+      revealTimers.push(t);
+    });
+  };
+  if (introTween) {
+    // GSAP tween .then() = onComplete promise；intro 已完成則 resolve 立刻 fire
+    introTween.then(revealFilters);
+  } else {
+    revealFilters();
+  }
+  cleanupFns.push(() => {
+    revealTimers.forEach(t => clearTimeout(t));
+  });
+
   let currentView = 'map';
 
   const listView = document.createElement('div');
   listView.id = 'atlas-list-view';
   main.appendChild(listView);
 
-  // Drag-to-scroll for list view
-  let listDragging = false;
-  let listDragStartX = 0;
-  let listScrollStart = 0;
-  function onListMouseDown(e) {
-    if (currentView !== 'list') return;
-    listDragging = true;
-    listDragStartX = e.clientX;
-    listScrollStart = listView.scrollLeft;
-    listView.style.cursor = 'grabbing';
-    e.preventDefault();
-  }
-  function onListMouseMove(e) {
-    if (!listDragging) return;
-    listView.scrollLeft = listScrollStart + (listDragStartX - e.clientX);
-  }
-  function onListMouseUp() {
-    if (!listDragging) return;
-    listDragging = false;
-    listView.style.cursor = '';
-  }
-  listView.addEventListener('mousedown', onListMouseDown);
-  window.addEventListener('mousemove', onListMouseMove);
-  window.addEventListener('mouseup', onListMouseUp);
   cleanupFns.push(() => {
-    listView.removeEventListener('mousedown', onListMouseDown);
-    window.removeEventListener('mousemove', onListMouseMove);
-    window.removeEventListener('mouseup', onListMouseUp);
+    if (filterEl) filterEl.style.display = '';
   });
 
   function randDeg() {
@@ -978,52 +1131,296 @@ export async function initAtlas() {
     return { faculty: colors[0], alumni: colors[1], partners: colors[2] };
   }
 
+  // 分頁狀態（跨 page switch 保持，切回 map 不重置）
+  const listGrouped = /** @type {Record<string, object[]>} */ ({ faculty: [], alumni: [], partners: [] });
+  const listPageState = /** @type {Record<string, number>} */ ({ faculty: 0, alumni: 0, partners: 0 });
+
+  function calcListPageSize(cat) {
+    const headerH = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--header-height').trim()) || 80;
+    const containerH = window.innerHeight - headerH - 64 - 84;
+    // 副標 12px line-height 1.3 → 每行 ~15.6px；name 14.4px × 1.3 → 每行 ~18.7px
+    // faculty/alumni: name(37) + margin(2) + label(31) + padding(10) ≈ 84
+    // partners: name(37) + margin(2) + label(31) + margin(6) + label(31) + padding(10) ≈ 120
+    const itemH = cat === 'partners' ? 120 : 84;
+    const rowsPerCol = Math.max(3, Math.floor(containerH / itemH));
+    const leftover = Math.max(0, containerH - (rowsPerCol * itemH));
+    const gap = rowsPerCol > 1 ? leftover / (rowsPerCol - 1) : 0; // 將剩餘高度平均分配給間隙
+    return { rowsPerCol, gap, itemH };
+  }
+
+  /** @param {any} item @param {string} cat @returns {HTMLElement} */
+  function buildListItemEl(item, cat) {
+    // 外層 wrapper：min-height 撐 row slot；內部每行包 .atlas-list-line-clip 各自獨立 yPercent reveal
+    const wrapper = document.createElement('div');
+    wrapper.className = 'atlas-list-item-wrapper';
+
+    const el = document.createElement('div');
+    el.className = 'atlas-list-item';
+    el.dataset.category = cat;
+
+    // line-clip helper：每行（title / 副標）獨立 overflow:hidden 遮罩 → 進場 title 先、副標後
+    /** @param {HTMLElement} child */
+    function appendLine(child) {
+      const clip = document.createElement('div');
+      clip.className = 'atlas-list-line-clip';
+      clip.appendChild(child);
+      el.appendChild(clip);
+    }
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'atlas-list-item-name';
+    // 主標 en/zh 各一行；用 .atlas-marquee-inner 包文字便於 overflow 時 marquee
+    if (item.textEn) {
+      const en = document.createElement('span');
+      en.className = 'atlas-list-name-en';
+      const enInner = document.createElement('span');
+      enInner.className = 'atlas-marquee-inner';
+      enInner.textContent = item.textEn;
+      en.appendChild(enInner);
+      nameEl.appendChild(en);
+    }
+    if (item.textZh && item.textZh !== item.textEn) {
+      const zh = document.createElement('span');
+      zh.className = 'atlas-list-name-zh';
+      const zhInner = document.createElement('span');
+      zhInner.className = 'atlas-marquee-inner';
+      zhInner.textContent = item.textZh;
+      zh.appendChild(zhInner);
+      nameEl.appendChild(zh);
+    }
+    appendLine(nameEl);
+
+    // 副標 helper：英上中下，各一行（每個副標自成一條 line-clip → 獨立 reveal）
+    /** @param {string|undefined} en @param {string|undefined} zh */
+    function appendSub(en, zh) {
+      if (!en && !zh) return;
+      const sub = document.createElement('div');
+      sub.className = 'atlas-list-item-label';
+      if (en) {
+        const enLabel = document.createElement('span');
+        enLabel.className = 'atlas-list-item-label-en';
+        enLabel.textContent = en;
+        sub.appendChild(enLabel);
+      }
+      if (zh) {
+        const zhLabel = document.createElement('span');
+        zhLabel.className = 'atlas-list-item-label-zh';
+        zhLabel.textContent = zh;
+        sub.appendChild(zhLabel);
+      }
+      appendLine(sub);
+    }
+
+    if (cat === 'faculty' || cat === 'alumni') {
+      // faculty: 隨機公司名；alumni: 城市 + 國家
+      appendSub(item._listSubEn, item._listSubZh);
+    } else if (cat === 'partners') {
+      // 先類型、後國家
+      appendSub(item._listTypeEn, item._listTypeZh);
+      appendSub(item._listCountryEn, item._listCountryZh);
+    }
+    wrapper.appendChild(el);
+    return wrapper;
+  }
+
+  /** @param {HTMLElement} col @param {string} cat @param {number} page @param {boolean} [skipAnim] */
+  function renderListPage(col, cat, page, skipAnim = false) {
+    // 切頁過渡期間擋 double-click（exit 期間若再點 chevron 會抓到正在 exit 的 lines 動亂）
+    if (col.dataset.transitioning === '1') return;
+
+    const itemsEl = /** @type {HTMLElement} */ (col.querySelector('.atlas-list-col-items'));
+    const linesPerItem = cat === 'partners' ? 3 : 2;
+    const useAnim = !skipAnim && typeof gsap !== 'undefined';
+    // 先抓舊 lines（exit 動畫對象）。skipAnim 時不需要 → 跳過量測
+    const existingLines = useAnim
+      ? /** @type {HTMLElement[]} */ ([...itemsEl.querySelectorAll('.atlas-list-line-clip > *')])
+      : [];
+
+    const sizeInfo = calcListPageSize(cat);
+    const rowsPerCol = sizeInfo.rowsPerCol;
+    col.style.setProperty('--list-gap', `${sizeInfo.gap}px`);
+    // 每格高度透過 CSS var 同步給 .atlas-list-item 與 .atlas-list-nav-item 的 min-height
+    // → col2 nav 佔 1 個 slot，與 col1 最後一個 item 底部對齊
+    col.style.setProperty('--list-item-h', `${sizeInfo.itemH}px`);
+
+    const allItems = listGrouped[cat];
+    // col1 有 rowsPerCol 個 items；col2 有 rowsPerCol - 1 個 items + 1 個 nav slot
+    const itemsPerPage = rowsPerCol * 2 - 1;
+    const maxPage = Math.max(0, Math.ceil(allItems.length / itemsPerPage) - 1);
+    const safePage = Math.min(Math.max(0, page), maxPage);
+    listPageState[cat] = safePage;
+
+    const start = safePage * itemsPerPage;
+    const pageItems = /** @type {any[]} */ (allItems).slice(start, start + itemsPerPage);
+
+    // 抽出 build 邏輯：清空舊 DOM、塞新 sub-cols、跑 enter 動畫
+    // enterDirsHint：exit 階段傳來的「反向」方向陣列，讓新 item 從舊 item 退場的反方向進場
+    // chevron 切頁時保持不動（使用者要求：只在 view 切換時動，分頁切換不動）
+    /** @param {(number|undefined)[]|null} enterDirsHint */
+    function build(enterDirsHint) {
+      itemsEl.innerHTML = ''; // clears both sub-cols
+
+      // Sub-col 1：前 rowsPerCol 個 items
+      const subCol1 = document.createElement('div');
+      subCol1.className = 'atlas-list-sub-col';
+      pageItems.slice(0, rowsPerCol).forEach(item => subCol1.appendChild(buildListItemEl(item, cat)));
+
+      // Sub-col 2：後 (rowsPerCol - 1) 個 items；nav 走 absolute 定位、永遠貼 sub-col 底
+      // → 不再補 empty placeholder（chevron 不靠 flex flow 撐到底部，items 數量變化不會推到它）
+      const subCol2 = document.createElement('div');
+      subCol2.className = 'atlas-list-sub-col';
+      const col2Items = pageItems.slice(rowsPerCol);
+      col2Items.forEach(item => subCol2.appendChild(buildListItemEl(item, cat)));
+
+      const navItem = document.createElement('div');
+      navItem.className = 'atlas-list-nav-item';
+
+      const prevBtn = document.createElement('button');
+      prevBtn.className = 'atlas-list-nav-btn';
+      prevBtn.innerHTML = '<i class="fa-solid fa-chevron-left"></i>';
+      prevBtn.disabled = safePage <= 0;
+      prevBtn.addEventListener('click', () => renderListPage(col, cat, safePage - 1));
+
+      const nextBtn = document.createElement('button');
+      nextBtn.className = 'atlas-list-nav-btn';
+      nextBtn.innerHTML = '<i class="fa-solid fa-chevron-right"></i>';
+      nextBtn.disabled = safePage >= maxPage;
+      nextBtn.addEventListener('click', () => renderListPage(col, cat, safePage + 1));
+
+      navItem.appendChild(prevBtn);
+      navItem.appendChild(nextBtn);
+      subCol2.appendChild(navItem);
+
+      itemsEl.appendChild(subCol1);
+      itemsEl.appendChild(subCol2);
+
+      // 主標 marquee：DOM 進入 layout 後（次幀）量寬決定是否需要 marquee
+      requestAnimationFrame(() => applyListMarquee(itemsEl));
+
+      if (!useAnim) return;
+
+      // Enter 動畫：title / 副標分別進場（每行 overflow:hidden 遮罩 + yPercent:±100→0）
+      // chevron 切頁時不動（使用者要求：只在 view 切換動，分頁切換不動）
+      // 方向：若有 hint（從 exit 反向）就用，沒有則 random
+      const lines = /** @type {HTMLElement[]} */ ([...itemsEl.querySelectorAll('.atlas-list-line-clip > *')]);
+      const numItems = Math.ceil(lines.length / linesPerItem);
+      const enterDirs = Array.from({ length: numItems }, (_, idx) => {
+        const hint = enterDirsHint && enterDirsHint[idx];
+        return (hint === 100 || hint === -100) ? hint : (Math.random() < 0.5 ? 100 : -100);
+      });
+      // 切頁進場：所有 lines 同時進場（無 stagger）
+      gsap.fromTo(lines,
+        { yPercent: (/** @type {number} */ i) => enterDirs[Math.floor(i / linesPerItem)] },
+        { yPercent: 0, duration: 0.9, ease: 'power3.out', clearProps: 'transform', overwrite: true }
+      );
+    }
+
+    // 有舊內容且開啟動畫 → 同時退場 → 完成後 build 新內容並反向進場
+    // chevron 不動（lines only）
+    if (useAnim && existingLines.length > 0) {
+      const oldNumItems = Math.ceil(existingLines.length / linesPerItem);
+      const exitDirs = Array.from({ length: oldNumItems }, () => Math.random() < 0.5 ? 100 : -100);
+      col.dataset.transitioning = '1';
+      gsap.to(existingLines, {
+        yPercent: (/** @type {number} */ i) => exitDirs[Math.floor(i / linesPerItem)],
+        duration: 0.5,
+        ease: 'power3.in',
+        overwrite: true,
+        onComplete: () => {
+          // 新 item 進場方向 = 舊退場方向的反向（同 position 對應 ±100 互換）
+          build(exitDirs.map(d => -d));
+          col.dataset.transitioning = '';
+        },
+      });
+    } else {
+      build(null);
+    }
+  }
+
+  // 主標 marquee 偵測：仿 library.css runMarqueeOverflow pattern
+  // 雙 .marquee-copy seamless loop + CSS hover animation + 動態 duration（80px/s, min 3s）
+  /** @param {HTMLElement} container */
+  function applyListMarquee(container) {
+    const rows = /** @type {HTMLElement[]} */ ([...container.querySelectorAll('.atlas-list-name-en, .atlas-list-name-zh')]);
+    rows.forEach(row => {
+      const inner = /** @type {HTMLElement|null} */ (row.querySelector('.atlas-marquee-inner'));
+      if (!inner) return;
+      // 重置：page 切換重 render 時，inner 可能已被改成 dual-copy
+      row.classList.remove('is-overflow');
+      if (inner.children.length === 2 && inner.firstElementChild?.classList.contains('marquee-copy')) {
+        inner.innerHTML = /** @type {HTMLElement} */ (inner.firstElementChild).textContent || '';
+      }
+      const overflow = inner.scrollWidth - row.offsetWidth;
+      if (overflow > 0) {
+        row.classList.add('is-overflow');
+        const text = inner.textContent || '';
+        inner.innerHTML = `<span class="marquee-copy">${text}</span><span class="marquee-copy">${text}</span>`;
+        const copy = /** @type {HTMLElement|null} */ (inner.querySelector('.marquee-copy'));
+        const copyWidth = copy ? copy.getBoundingClientRect().width : 0;
+        row.style.setProperty('--marquee-distance', `-${copyWidth}px`);
+        row.style.setProperty('--marquee-duration', `${Math.max(3, copyWidth / 80)}s`);
+      }
+    });
+  }
+
   function renderList() {
     listView.innerHTML = '';
-    const filterRect = filterEl.getBoundingClientRect();
-    listView.style.left = `${filterRect.right + 40}px`;
 
-    items.forEach(item => {
-      if (item.category === 'D') return;
+    // Align left to logo position (container left + paddingLeft)
+    const siteContainer = /** @type {HTMLElement|null} */ (document.querySelector('.site-container'));
+    const containerLeft = siteContainer
+      ? Math.round(siteContainer.getBoundingClientRect().left + parseFloat(getComputedStyle(siteContainer).paddingLeft))
+      : 60;
+    listView.style.left = `${containerLeft}px`;
+
+    Object.keys(listGrouped).forEach(k => { listGrouped[k] = []; });
+    items.filter(i => i.category !== 'D').forEach(item => {
       const cat = getItemCat(item);
-      if (!cat) return;
+      if (cat && listGrouped[cat]) listGrouped[cat].push(item);
+    });
 
-      const el = document.createElement('div');
-      el.className = 'atlas-list-item';
-      el.dataset.category = cat;
-      el.style.color = filterColors[cat];
+    const CAT_LABELS = {
+      faculty:  { en: 'Faculty',       zh: '任職教師' },
+      alumni:   { en: 'Alumni Career', zh: '系友職涯' },
+      partners: { en: 'Partners',      zh: '合作單位' },
+    };
 
-      const nameEl = document.createElement('div');
-      nameEl.className = 'atlas-list-item-name';
-      if (item.textEn) {
-        const en = document.createElement('span');
-        en.className = 'atlas-list-name-en';
-        en.textContent = item.textEn;
-        nameEl.appendChild(en);
-      }
-      if (item.textZh && item.textZh !== item.textEn) {
-        const zh = document.createElement('span');
-        zh.className = 'atlas-list-name-zh';
-        zh.textContent = item.textZh;
-        nameEl.appendChild(zh);
-      }
-      el.appendChild(nameEl);
+    Object.keys(FILTER_PREFIXES).forEach(cat => {
+      const label = CAT_LABELS[cat];
+      const col = document.createElement('div');
+      col.className = 'atlas-list-col';
+      col.dataset.category = cat;
 
-      if (cat === 'alumni' || cat === 'partners') {
-        const sub = document.createElement('div');
-        sub.className = 'atlas-list-item-label';
-        sub.textContent = item.labelEn || '';
-        el.appendChild(sub);
-      }
+      // 欄標題（黑底白字，英上中下，隨機旋轉）— 仿 hero-title-wrapper：
+      // wrapper 負責 rotate + overflow:hidden（yPercent slide-in 遮罩），title 本體做 yPercent 動畫
+      const titleWrapper = document.createElement('div');
+      titleWrapper.className = 'atlas-list-col-title-wrapper';
+      titleWrapper.style.transform = `rotate(${randDeg()}deg)`;
+      const titleEl = document.createElement('div');
+      titleEl.className = 'atlas-list-col-title';
+      const enSpan = document.createElement('span');
+      enSpan.className = 'atlas-list-col-title-en';
+      enSpan.textContent = label.en;
+      const zhSpan = document.createElement('span');
+      zhSpan.className = 'atlas-list-col-title-zh';
+      zhSpan.textContent = label.zh;
+      titleEl.appendChild(enSpan);
+      titleEl.appendChild(zhSpan);
+      titleWrapper.appendChild(titleEl);
+      col.appendChild(titleWrapper);
 
-      listView.appendChild(el);
+      // itemsEl：直接作為 overflow:hidden 容器，內含 2 個 sub-col
+      const itemsEl = document.createElement('div');
+      itemsEl.className = 'atlas-list-col-items';
+      col.appendChild(itemsEl);
+
+      listView.appendChild(col);
+      renderListPage(col, cat, listPageState[cat] || 0, true);
     });
   }
 
   function applyListFilter() {
-    /** @type {NodeListOf<HTMLElement>} */ (listView.querySelectorAll('.atlas-list-item')).forEach(el => {
-      el.style.display = selected.has(el.dataset.category) ? '' : 'none';
-    });
+    // List view 固定顯示三欄；filter 只作用於 map view
   }
 
   function updateFilterBtnColors() {
@@ -1097,24 +1494,189 @@ export async function initAtlas() {
   const layoutBtn = document.getElementById('atlas-layout-btn');
 
   function switchToList() {
+    if (currentView === 'list') return;
     currentView = 'list';
-    stage.style.display = 'none';
     clearDetail();
-    renderList();
-    applyListFilter();
-    listView.classList.add('visible');
-    updateFilterBtnColors();
-    const icon = layoutBtn?.querySelector('i');
-    if (icon) icon.className = 'fa-solid fa-diagram-project';
+
+    // startList：filter / stage 收完之後跑：實際切 view + 一個個進場
+    const startList = () => {
+      stage.style.display = 'none';
+      stage.style.opacity = '';
+      if (filterEl) filterEl.style.display = 'none';
+      renderList();
+      applyListFilter();
+      listView.classList.add('visible');
+      updateFilterBtnColors();
+      const icon = layoutBtn?.querySelector('i');
+      if (icon) icon.className = 'fa-solid fa-diagram-project';
+
+      if (typeof gsap === 'undefined') return;
+
+      // Per-column 仿 hero-title reveal：每行（title / 各副標）各自 overflow:hidden + yPercent:100→0
+      // title wrapper 在 col 層級獨立 reveal；item 內每行 .atlas-list-line-clip 由 line-stagger
+      // 控制 title 先、副標後、然後下一個 item
+      const visibleCols = [.../** @type {NodeListOf<HTMLElement>} */ (listView.querySelectorAll('.atlas-list-col'))]
+        .filter(col => col.style.display !== 'none');
+      visibleCols.forEach((col, colIdx) => {
+        const delay = colIdx * 0.08;
+        const titleEl = /** @type {HTMLElement|null} */ (col.querySelector('.atlas-list-col-title'));
+        if (titleEl) {
+          gsap.fromTo(titleEl,
+            { yPercent: 100 },
+            { yPercent: 0, duration: 0.9, delay, ease: 'power3.out', clearProps: 'transform', overwrite: true }
+          );
+        }
+        const cat = col.dataset.category;
+        const linesPerItem = cat === 'partners' ? 3 : 2;
+        const lines = /** @type {HTMLElement[]} */ ([...col.querySelectorAll('.atlas-list-line-clip > *')]);
+        const navItem = /** @type {HTMLElement|null} */ (col.querySelector('.atlas-list-nav-item'));
+        const numItems = lines.length ? Math.ceil(lines.length / linesPerItem) : 0;
+        if (lines.length) {
+          // 每個 item 隨機從上方或下方滑入（item 內 lines 共用同方向）
+          const itemDirs = Array.from({ length: numItems }, () => Math.random() < 0.5 ? 100 : -100);
+          gsap.fromTo(lines,
+            { yPercent: (/** @type {number} */ i) => itemDirs[Math.floor(i / linesPerItem)] },
+            {
+              yPercent: 0, duration: 0.9, delay, ease: 'power3.out', clearProps: 'transform', overwrite: true,
+              stagger: (/** @type {number} */ i) => Math.floor(i / linesPerItem) * 0.08 + (i % linesPerItem) * 0.05,
+            }
+          );
+        }
+        // chevron 進場：clip-path inset 原地揭露（位置固定 / 不平移）；timing 接在最後 item 之後
+        // inset 四值必須統一用 % 單位，否則 GSAP 解析不到、直接跳終值（看起來像「跳進來」）
+        if (navItem) {
+          gsap.fromTo(navItem,
+            { clipPath: 'inset(0% 0% 100% 0%)' },
+            {
+              clipPath: 'inset(0% 0% 0% 0%)',
+              duration: 0.9,
+              delay: delay + numItems * 0.08,
+              ease: 'power3.out',
+              clearProps: 'clipPath',
+              overwrite: true,
+            }
+          );
+        }
+      });
+    };
+
+    if (typeof gsap === 'undefined') {
+      startList();
+      return;
+    }
+
+    // 平行收 map：
+    // - filter wipe out（移除 .atlas-filter-revealed → CSS transition 0.5s clip-path 收回）
+    // - 星雲快速 zoom in 到「全白」：scale 飆到 ZOOM_TRANSITION_SCALE，content 飛出 viewport
+    //   → #atlas-main 白底顯示 → 過渡到 list view 的視覺鏡頭穿越感
+    btns.forEach(b => b.classList.remove('atlas-filter-revealed'));
+    if (introTween) introTween.kill();
+    introTween = gsap.to({ v: scale }, {
+      v: ZOOM_TRANSITION_SCALE,
+      duration: 0.5,
+      ease: 'power2.in',
+      overwrite: true,
+      onUpdate: function() {
+        scale = this.targets()[0].v;
+        applyTransform();
+      },
+      onComplete: () => gsap.delayedCall(0.1, startList),
+    });
   }
 
   function switchToMap() {
-    currentView = 'map';
-    stage.style.display = '';
-    listView.classList.remove('visible');
-    apply();
-    const icon = layoutBtn?.querySelector('i');
-    if (icon) icon.className = 'fa-solid fa-list';
+    if (currentView === 'map') return;
+
+    // finalize：list 收完之後跑：切 view 狀態 → 星雲從「外面」zoom out 回原大小 → filter wipe in
+    const finalize = () => {
+      currentView = 'map';
+      stage.style.display = '';
+      stage.style.opacity = ''; // 清除 switchToList 若有殘留 opacity
+      listView.classList.remove('visible');
+      if (filterEl) filterEl.style.display = '';
+      // 確保 filter btn 從未 reveal 狀態開始（switchToList 已移過 class，但 reload 等情境保險再清一次）
+      btns.forEach(b => b.classList.remove('atlas-filter-revealed'));
+      apply(); // 套 filter btn 配色（先設好再 wipe in）
+      const icon = layoutBtn?.querySelector('i');
+      if (icon) icon.className = 'fa-solid fa-list';
+
+      if (typeof gsap === 'undefined') {
+        scale = SCALE_DEFAULT;
+        applyTransform();
+        btns.forEach(b => b.classList.add('atlas-filter-revealed'));
+        return;
+      }
+
+      // 星雲「從外面回到原本大小」：scale 從 ZOOM_TRANSITION_SCALE（content 飛在 viewport 外、白底）
+      // zoom out 回 SCALE_DEFAULT，鏡頭由極近拉遠 → 內容從邊緣縮入畫面成形
+      // intro 完成後才依序 wipe in filter（主視覺先、UI chrome 後）
+      if (introTween) introTween.kill();
+      scale = ZOOM_TRANSITION_SCALE;
+      tx = 0; ty = 0;
+      applyTransform();
+      introTween = gsap.to({ v: ZOOM_TRANSITION_SCALE }, {
+        v: SCALE_DEFAULT,
+        duration: VIEW_SWITCH_ZOOM_DURATION,
+        ease: 'sine.inOut',
+        onUpdate: function() {
+          scale = this.targets()[0].v;
+          applyTransform();
+        },
+        onComplete: () => {
+          // Filter wipe in：仿 initAtlas pattern，依序加 .atlas-filter-revealed 觸發 CSS clip-path 0.5s wipe
+          const STAGGER = 100;
+          btns.forEach((btn, i) => {
+            setTimeout(() => { if (btn.isConnected) btn.classList.add('atlas-filter-revealed'); }, i * STAGGER);
+          });
+        },
+      });
+    };
+
+    // 同時退場：
+    // - lines + col titles 跑 yPercent → ±100（per-element random、無 stagger）
+    // - chevron 用 clip-path inset 原地收起（不平移、位置固定）
+    // duration 0.6 + ease power2.in 統一；0.2 buffer 後再 finalize
+    if (typeof gsap === 'undefined') {
+      finalize();
+      return;
+    }
+    const yPercentExitTargets = /** @type {HTMLElement[]} */ ([
+      ...listView.querySelectorAll('.atlas-list-line-clip > *'),
+      ...listView.querySelectorAll('.atlas-list-col-title'),
+    ]);
+    const navExitTargets = /** @type {HTMLElement[]} */ ([...listView.querySelectorAll('.atlas-list-nav-item')]);
+    if (yPercentExitTargets.length === 0 && navExitTargets.length === 0) {
+      finalize();
+      return;
+    }
+    // 同 duration / ease 保證兩種動畫同時結束；onComplete 掛在主 tween 上（lines 通常較多、跑最久）
+    const mainTargets = yPercentExitTargets.length > 0 ? yPercentExitTargets : navExitTargets;
+    if (yPercentExitTargets.length > 0) {
+      gsap.to(yPercentExitTargets, {
+        yPercent: () => Math.random() < 0.5 ? 100 : -100,
+        duration: 0.6,
+        ease: 'power2.in',
+        overwrite: true,
+        onComplete: mainTargets === yPercentExitTargets
+          ? () => gsap.delayedCall(0.2, finalize)
+          : undefined,
+      });
+    }
+    if (navExitTargets.length > 0) {
+      // inset 四值統一用 %（與 entry 一致，避免 GSAP 跳終值）；fromTo 確保 from-state 不是 'none'
+      gsap.fromTo(navExitTargets,
+        { clipPath: 'inset(0% 0% 0% 0%)' },
+        {
+          clipPath: 'inset(0% 0% 100% 0%)',
+          duration: 0.6,
+          ease: 'power2.in',
+          overwrite: true,
+          onComplete: mainTargets === navExitTargets
+            ? () => gsap.delayedCall(0.2, finalize)
+            : undefined,
+        }
+      );
+    }
   }
 
   if (layoutBtn) {
