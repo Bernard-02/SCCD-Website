@@ -17,6 +17,38 @@
 const PRIMARY_COLORS = ['#FF448A', '#00FF80', '#26BCFF'];
 const COLOR_BLACK = '#000000';
 
+// Alumni filter 下方輪播職業（雙語，每 3s 切換一個 + clip-path 動畫）
+const ALUMNI_CAREERS = [
+  { en: 'Animation directors', zh: '動畫導演' },
+  { en: 'New media artists', zh: '新媒體藝術家' },
+  { en: 'Creative directors', zh: '創意總監' },
+  { en: 'Art directors', zh: '藝術總監' },
+  { en: 'Design directors', zh: '設計總監' },
+  { en: 'Graphic designers', zh: '平面設計師' },
+  { en: 'Game designers', zh: '遊戲設計師' },
+  { en: 'Web designers', zh: '網站設計師' },
+  { en: 'Artists', zh: '藝術家' },
+  { en: 'Photographers', zh: '攝影師' },
+  { en: 'Curators', zh: '策展人' },
+  { en: 'Painters', zh: '畫家' },
+  { en: 'Cartoonist', zh: '漫畫家' },
+  { en: 'Illustration Designer', zh: '插畫家' },
+  { en: 'Film, Advertising, MV Director', zh: '電影 / 廣告 / MV 導演' },
+  { en: 'UI, UX Designer', zh: 'UI / UX 設計師' },
+  { en: 'Product Designer', zh: '產品設計師' },
+  { en: 'Costume Designer', zh: '服裝設計師' },
+  { en: 'Interior Designer', zh: '室內設計師' },
+  { en: 'Type Designer', zh: '字體設計師' },
+  { en: 'Concept Design', zh: '概念設計' },
+  { en: 'Art Design', zh: '美術設計' },
+  { en: 'Event Planner', zh: '活動策劃' },
+  { en: 'Occupational Therapy Artist', zh: '職能治療藝術家' },
+  { en: 'Brand Design', zh: '品牌設計' },
+  { en: 'Manager', zh: '經紀人' },
+  { en: 'Lead vocal of the band', zh: '樂團主唱' },
+  { en: 'Polar explorer', zh: '極地探險家' },
+];
+
 // ── Filter ─────────────────────────────────────────────
 // Faculty  = fc + ff（在職 + 離職教師）
 // Alumni   = co（系友任職企業）
@@ -185,11 +217,6 @@ const MIN_SCALE         = 0.78;
 const MAX_SCALE         = 3.5;    // zoom in 上限拉到 3.5x
 const ZOOM_SPEED        = 0.0015;
 const INTRO_DURATION    = 1.5;
-// View 切換時星雲鏡頭穿越用：scale 飆到此值 content 飛出 viewport 只剩白底
-// switchToList 從 SCALE_DEFAULT zoom in 到此；switchToMap 從此 zoom out 回 SCALE_DEFAULT
-const ZOOM_TRANSITION_SCALE = 20;
-// switchToMap 的 zoom out 時長（比 initAtlas 的 INTRO_DURATION 短，view 切換要俐落）
-const VIEW_SWITCH_ZOOM_DURATION = 0.9;
 
 // 假資料：B/C 沒有 cityKey 時隨機指派一個 canonical 城市（seeded，方便看 cluster + 連線）
 // 真實資料補上 city 欄位後，這個 fallback 自動讓位給真資料
@@ -456,15 +483,13 @@ export async function initAtlas() {
     }
   });
 
-  // 顏色配置：每次 reload random 洗牌三原色，分配給三個 filter 類別（category D 永遠黑）
-  const filterColors = shuffleListColors();
+  // 顏色配置：城市 = 黑字 + 隨機三原色 chip 底；其他 item 每個獨立隨機挑三原色（連線 stroke 沿用 item.color）
   items.forEach(item => {
     if (item.category === 'D') {
       item.color = COLOR_BLACK;
+      item.bgColor = PRIMARY_COLORS[Math.floor(Math.random() * PRIMARY_COLORS.length)];
     } else {
-      const prefix = String(item.id).split('-')[0];
-      const cat = Object.keys(FILTER_PREFIXES).find(k => FILTER_PREFIXES[k].includes(prefix));
-      item.color = cat ? filterColors[cat] : PRIMARY_COLORS[0];
+      item.color = PRIMARY_COLORS[Math.floor(Math.random() * PRIMARY_COLORS.length)];
     }
   });
 
@@ -506,28 +531,51 @@ export async function initAtlas() {
   }
 
   const cityList = items.filter(i => i.category === 'D');
+  // 城市初始位置最小距離（避免兩 city label 在 t=0 重疊）；超出 retry 上限就接受最後一次結果
+  const CITY_MIN_INIT_DIST = 130;
+  const CITY_INIT_MAX_RETRIES = 30;
   cityList.forEach((city, idx) => {
     const baseAngle = (idx / cityList.length) * Math.PI * 2;
-    const angle0 = baseAngle + (orbitRand() - 0.5) * (Math.PI / 4.5);
-    let rx = halfW * (ORBIT_RX_MIN_F + orbitRand() * (ORBIT_RX_MAX_F - ORBIT_RX_MIN_F));
-    const aspect = ORBIT_ASPECT_MIN + orbitRand() * (ORBIT_ASPECT_MAX - ORBIT_ASPECT_MIN);
-    let ry = rx * aspect;
-    const tilt = (orbitRand() - 0.5) * 2 * ORBIT_TILT_MAX;   // ±45°
-    ({ rx, ry } = fitTiltedEllipse(rx, ry, tilt));            // 縮到 viewport 內
+    let attempt = 0;
+    let chosen = null;
+    while (attempt < CITY_INIT_MAX_RETRIES) {
+      const angle0 = baseAngle + (orbitRand() - 0.5) * (Math.PI / 4.5);
+      let rx = halfW * (ORBIT_RX_MIN_F + orbitRand() * (ORBIT_RX_MAX_F - ORBIT_RX_MIN_F));
+      const aspect = ORBIT_ASPECT_MIN + orbitRand() * (ORBIT_ASPECT_MAX - ORBIT_ASPECT_MIN);
+      let ry = rx * aspect;
+      const tilt = (orbitRand() - 0.5) * 2 * ORBIT_TILT_MAX;
+      ({ rx, ry } = fitTiltedEllipse(rx, ry, tilt));
+      const cosT = Math.cos(tilt), sinT = Math.sin(tilt);
+      const lx0 = Math.cos(angle0) * rx;
+      const ly0 = Math.sin(angle0) * ry;
+      const x = cx + lx0 * cosT - ly0 * sinT;
+      const y = cy + lx0 * sinT + ly0 * cosT;
+      // 檢查與已 init 的 city 距離
+      let tooClose = false;
+      for (let j = 0; j < idx; j++) {
+        const other = cityList[j];
+        const dx = x - other.x, dy = y - other.y;
+        if (dx * dx + dy * dy < CITY_MIN_INIT_DIST * CITY_MIN_INIT_DIST) { tooClose = true; break; }
+      }
+      chosen = { angle0, rx, ry, tilt, cosT, sinT, x, y };
+      if (!tooClose) break;
+      attempt++;
+    }
     city._orbit = {
-      cx, cy, rx, ry, tilt,
-      cosT: Math.cos(tilt), sinT: Math.sin(tilt),
-      angle0,
+      cx, cy,
+      rx: chosen.rx,
+      ry: chosen.ry,
+      tilt: chosen.tilt,
+      cosT: chosen.cosT,
+      sinT: chosen.sinT,
+      angle0: chosen.angle0,
       period:     240 + orbitRand() * 360,
       dir:        orbitRand() < 0.5 ? -1 : 1,
       tOffset:    0,
       pauseStart: null,
     };
-    // t=0 位置：先在 axis-aligned 橢圓上算 local，再用 tilt 旋轉到 world
-    const lx0 = Math.cos(angle0) * rx;
-    const ly0 = Math.sin(angle0) * ry;
-    city.x = cx + lx0 * city._orbit.cosT - ly0 * city._orbit.sinT;
-    city.y = cy + lx0 * city._orbit.sinT + ly0 * city._orbit.cosT;
+    city.x = chosen.x;
+    city.y = chosen.y;
     city._initX = city.x;
     city._initY = city.y;
   });
@@ -605,6 +653,9 @@ export async function initAtlas() {
     span.className = 'atlas-name';
     span.dataset.itemId = item.id;
     span.style.color = item.color;
+    if (item.category === 'D' && item.bgColor) {
+      span.style.backgroundColor = item.bgColor;
+    }
 
     if (item.textEn) {
       const enEl = document.createElement('span');
@@ -632,10 +683,19 @@ export async function initAtlas() {
       span.style.transform = `translateY(-50%) rotate(${item._float.baseRot.toFixed(2)}deg)`;
     }
 
+    // View 切換動畫用 cover 層：absolute inset:0 蓋住 span box，bg = item 主色（非 D = item.color；D = bgColor）
+    // 預設 clip-path inset(0% 100% 0% 0%) 隱藏 → idle 不可見；switchToList/switchToMap 期間動 clip-path 蓋住/退開文字
+    // DOM 順序放最後 = 絕對定位天然蓋在前面 in-flow 文字上方
+    const cover = document.createElement('span');
+    cover.className = 'atlas-name-cover';
+    cover.style.backgroundColor = item.category === 'D' ? (item.bgColor || PRIMARY_COLORS[0]) : item.color;
+    span.appendChild(cover);
+
     anchor.appendChild(span);
     fragment.appendChild(anchor);
     item._anchor = anchor;
     item._span = span;
+    item._cover = cover;
   });
   content.appendChild(fragment);
 
@@ -656,29 +716,56 @@ export async function initAtlas() {
   svg.setAttribute('preserveAspectRatio', 'none');
   content.insertBefore(svg, content.firstChild);
 
+  // defs 放城市連綫的 linearGradient（兩端城市底色不同時用，相同則純色 stroke）
+  const defs = document.createElementNS(SVG_NS, 'defs');
+  svg.appendChild(defs);
+
   // 4) 連線：每幀動態挑「當下最靠近的 box 邊中點」（兩端都動：B/C 浮動 + 城市軌道）
   //    舊架構共享 cityEndpoint 只在 init 算一次 → 城市軌道後 endpoint 卡在原本那一邊，
   //    被 city label 自己擋住。改成 tickFloat Phase 3 重新挑邊。
   const allLines = [];
-  connections.forEach(conn => {
+  connections.forEach((conn, idx) => {
     if (conn.fromId === 'center') return;
     const fromItem = itemMap.get(conn.fromId);
     const toItem   = itemMap.get(conn.toId);
 
     const lineEl = document.createElementNS(SVG_NS, 'path');
     lineEl.setAttribute('fill', 'none');
-    lineEl.setAttribute('stroke', fromItem.color);
     // pathLength="1" 把 path 標準化為長度 1，讓 CSS stroke-dasharray:1 + stroke-dashoffset:1
     // 做 "draw" 動畫；端點動了 dash 計算仍以 1 為基準，不會跑掉
     lineEl.setAttribute('pathLength', '1');
     // opacity / stroke-width 一律交給 CSS .atlas-line / .atlas-line-highlight；
     // SVG presentation attr 跟 CSS transition 同時設會擋住 fade（attr 端點被視為 inline）
     lineEl.setAttribute('class', 'atlas-line');
+
+    // 兩端顏色：src=item 類別色、city 端=city.bgColor（city label 高亮色）
+    // 不同色用 linearGradient（與城市間連綫一致），同色純色 stroke
+    const srcColor  = fromItem.color;
+    const cityColor = toItem.bgColor || PRIMARY_COLORS[0];
+    let gradientEl = null;
+    if (srcColor === cityColor) {
+      lineEl.setAttribute('stroke', srcColor);
+    } else {
+      const gid = `atlas-line-grad-${idx}`;
+      gradientEl = document.createElementNS(SVG_NS, 'linearGradient');
+      gradientEl.setAttribute('id', gid);
+      gradientEl.setAttribute('gradientUnits', 'userSpaceOnUse');
+      const stop1 = document.createElementNS(SVG_NS, 'stop');
+      stop1.setAttribute('offset', '0%');
+      stop1.setAttribute('stop-color', srcColor);
+      const stop2 = document.createElementNS(SVG_NS, 'stop');
+      stop2.setAttribute('offset', '100%');
+      stop2.setAttribute('stop-color', cityColor);
+      gradientEl.appendChild(stop1);
+      gradientEl.appendChild(stop2);
+      defs.appendChild(gradientEl);
+      lineEl.setAttribute('stroke', `url(#${gid})`);
+    }
     svg.appendChild(lineEl);
 
     itemLines.get(conn.fromId).push(lineEl);
     itemLines.get(conn.toId).push(lineEl);
-    allLines.push({ line: lineEl, src: fromItem, city: toItem });
+    allLines.push({ line: lineEl, src: fromItem, city: toItem, gradient: gradientEl });
   });
 
   // 動態挑端點：city 找離 source 最近的邊中點，再讓 source 找離該點最近的邊中點
@@ -692,48 +779,113 @@ export async function initAtlas() {
     const srcBox = computeBoxAt(src, srcX, srcY);
     const srcEdge = pickClosestBoxPoint(getBoxPoints(srcBox), cityEdge.x, cityEdge.y);
     le.line.setAttribute('d', `M ${srcEdge.x.toFixed(2)} ${srcEdge.y.toFixed(2)} L ${cityEdge.x.toFixed(2)} ${cityEdge.y.toFixed(2)}`);
+    // gradient 端點同步（userSpaceOnUse）：src=stop 0%、city=stop 100%
+    if (le.gradient) {
+      le.gradient.setAttribute('x1', srcEdge.x.toFixed(2));
+      le.gradient.setAttribute('y1', srcEdge.y.toFixed(2));
+      le.gradient.setAttribute('x2', cityEdge.x.toFixed(2));
+      le.gradient.setAttribute('y2', cityEdge.y.toFixed(2));
+    }
   }
 
   // 設個初始 d 避免首幀前線是 invisible 0-length path
   allLines.forEach(updateLineEndpoints);
 
-  // ── 城市間預設連線（環形拓樸：城市按相對中心角度排序，連成閉環，每座有 2 個 ring 鄰居）──
-  // 「相鄰」指 ring 順序的前後，不是地理最近。拓樸 init 時定一次（用 orbit 中心算角度），不重算；端點每幀更新
+  // ── 城市間預設連線（Hamilton cycle：每座城市恰有 2 條連綫）──
+  // 用 seeded shuffle 打亂順序避免「按角度排成外緣圓形」的視覺；連綫橫跨內部變網狀
   const cityItems = items.filter(i => i.category === 'D');
-  const centerX = W / 2;
-  const centerY = H / 2;
-  const cityRing = cityItems
-    .map(c => ({
-      city: c,
-      angle: Math.atan2(
-        ((c._orbit && c._orbit.cy) || c.y) - centerY,
-        ((c._orbit && c._orbit.cx) || c.x) - centerX
-      ),
-    }))
-    .sort((u, v) => u.angle - v.angle)
-    .map(o => o.city);
+  const ringRand = mulberry32(LAYOUT_SEED ^ 0xC17ABE);
+  const cityRing = cityItems.slice();
+  for (let i = cityRing.length - 1; i > 0; i--) {
+    const j = Math.floor(ringRand() * (i + 1));
+    [cityRing[i], cityRing[j]] = [cityRing[j], cityRing[i]];
+  }
   const cityLines = [];
   for (let i = 0; i < cityRing.length; i++) {
     const a = cityRing[i];
     const b = cityRing[(i + 1) % cityRing.length];
     if (a === b) continue; // 只有 1 座城市 → 跳過
-    const color = PRIMARY_COLORS[Math.floor(Math.random() * PRIMARY_COLORS.length)];
+    const aColor = a.bgColor || PRIMARY_COLORS[0];
+    const bColor = b.bgColor || PRIMARY_COLORS[0];
     const lineEl = document.createElementNS(SVG_NS, 'path');
     lineEl.setAttribute('fill', 'none');
-    lineEl.setAttribute('stroke', color);
     lineEl.setAttribute('class', 'atlas-city-line');
+    // pathLength="1" 把實際長度標準化，搭配 CSS stroke-dasharray:1 → view 切換時動 dashoffset 1↔0 做「從一端 draw / 從一端 erase」效果
+    lineEl.setAttribute('pathLength', '1');
+    let gradientEl = null;
+    if (aColor === bColor) {
+      lineEl.setAttribute('stroke', aColor);
+    } else {
+      const gid = `atlas-city-grad-${i}`;
+      gradientEl = document.createElementNS(SVG_NS, 'linearGradient');
+      gradientEl.setAttribute('id', gid);
+      gradientEl.setAttribute('gradientUnits', 'userSpaceOnUse');
+      const stop1 = document.createElementNS(SVG_NS, 'stop');
+      stop1.setAttribute('offset', '0%');
+      stop1.setAttribute('stop-color', aColor);
+      const stop2 = document.createElementNS(SVG_NS, 'stop');
+      stop2.setAttribute('offset', '100%');
+      stop2.setAttribute('stop-color', bColor);
+      gradientEl.appendChild(stop1);
+      gradientEl.appendChild(stop2);
+      defs.appendChild(gradientEl);
+      lineEl.setAttribute('stroke', `url(#${gid})`);
+    }
     svg.appendChild(lineEl);
-    cityLines.push({ line: lineEl, a, b });
+    cityLines.push({ line: lineEl, a, b, retractT: 0, hoveredEnd: null, gradient: gradientEl });
   }
   function updateCityLineEndpoints(cl) {
     const a = cl.a, b = cl.b;
     const aBox = computeBoxAt(a, a.x, a.y);
     const bBox = computeBoxAt(b, b.x, b.y);
-    const aEdge = pickClosestBoxPoint(getBoxPoints(aBox), b.x, b.y);
-    const bEdge = pickClosestBoxPoint(getBoxPoints(bBox), a.x, a.y);
+    let aEdge = pickClosestBoxPoint(getBoxPoints(aBox), b.x, b.y);
+    let bEdge = pickClosestBoxPoint(getBoxPoints(bBox), a.x, a.y);
+    // hover 城市時：被 hover 端 lerp 向另一端「散開消失」（retractT 0→1）
+    const t = cl.retractT;
+    if (t > 0 && cl.hoveredEnd) {
+      if (cl.hoveredEnd === 'a') {
+        aEdge = { x: aEdge.x + (bEdge.x - aEdge.x) * t, y: aEdge.y + (bEdge.y - aEdge.y) * t };
+      } else {
+        bEdge = { x: bEdge.x + (aEdge.x - bEdge.x) * t, y: bEdge.y + (aEdge.y - bEdge.y) * t };
+      }
+    }
     cl.line.setAttribute('d', `M ${aEdge.x.toFixed(2)} ${aEdge.y.toFixed(2)} L ${bEdge.x.toFixed(2)} ${bEdge.y.toFixed(2)}`);
+    // gradient 端點同步（userSpaceOnUse 座標系）：a 端=stop 0%、b 端=stop 100%
+    if (cl.gradient) {
+      cl.gradient.setAttribute('x1', aEdge.x.toFixed(2));
+      cl.gradient.setAttribute('y1', aEdge.y.toFixed(2));
+      cl.gradient.setAttribute('x2', bEdge.x.toFixed(2));
+      cl.gradient.setAttribute('y2', bEdge.y.toFixed(2));
+    }
   }
   cityLines.forEach(updateCityLineEndpoints);
+
+  // hover 城市時觸發全部城市綫段「散開消失」：連到 hover 城市的從該端散，其他綫段隨機挑一端散
+  function setCityLineRetract(hoveredCity) {
+    cityLines.forEach(cl => {
+      let targetT = 0;
+      let isActive = false;
+      if (hoveredCity) {
+        isActive = true;
+        targetT = 1;
+        if (cl.a === hoveredCity) cl.hoveredEnd = 'a';
+        else if (cl.b === hoveredCity) cl.hoveredEnd = 'b';
+        else cl.hoveredEnd = Math.random() < 0.5 ? 'a' : 'b';
+      }
+      cl.line.classList.toggle('atlas-city-line-active', isActive);
+      if (typeof gsap !== 'undefined') {
+        gsap.killTweensOf(cl);
+        gsap.to(cl, { retractT: targetT, duration: 0.5, ease: 'power2.out' });
+      } else {
+        cl.retractT = targetT;
+      }
+    });
+  }
+  cleanupFns.push(() => {
+    if (typeof gsap !== 'undefined') {
+      cityLines.forEach(cl => gsap.killTweensOf(cl));
+    }
+  });
 
   // ── Floating rAF loop（label 浮動，line 端點同步移動避免錯位）─
   const floatStart = performance.now() / 1000;
@@ -808,11 +960,21 @@ export async function initAtlas() {
   const nameEl = detail.querySelector('[data-atlas-detail-name]');
   const descEl = detail.querySelector('[data-atlas-detail-desc]');
 
-  function showDetail(item, ids, lineSet) {
-    content.classList.add('atlas-dimmed');
-    items.forEach(i => i._span.classList.toggle('atlas-highlight', ids.has(i.id)));
-    Array.from(svg.children).forEach(line => line.classList.toggle('atlas-line-highlight', lineSet.has(line)));
+  // 4 個方向的隱藏 inset（visible 區壓向各邊到 0）
+  const DETAIL_HIDDEN_INSETS = [
+    'inset(100% 0% 0% 0%)', // 從上方刷掉
+    'inset(0% 0% 100% 0%)', // 從下方刷掉
+    'inset(0% 100% 0% 0%)', // 從右方刷掉
+    'inset(0% 0% 0% 100%)', // 從左方刷掉
+  ];
+  const DETAIL_VISIBLE_INSET = 'inset(0% 0% 0% 0%)';
+  const randomHiddenInset = () => DETAIL_HIDDEN_INSETS[Math.floor(Math.random() * DETAIL_HIDDEN_INSETS.length)];
 
+  let detailTween = null;
+  /** @type {'hidden' | 'visible'} */
+  let panelTarget = 'hidden';
+
+  function fillDetailContent(item, ids) {
     // 每次出現都隨機三原色 bg + ±3° 旋轉，文字一律黑（亮三原色底→黑色內容原則）
     const bg = PRIMARY_COLORS[Math.floor(Math.random() * PRIMARY_COLORS.length)];
     const rot = (Math.random() * 6 - 3).toFixed(2);
@@ -872,15 +1034,72 @@ export async function initAtlas() {
         }
       }
     }
+  }
 
-    detail.classList.add('atlas-detail-visible');
+  // 進來新內容：先填文字 + bg + rotation。
+  //   target 已是 visible（idle 或 reveal 中）→ 不動 tween，純文字 swap 撐過快速 hover
+  //   target 是 hidden（idle 或 hide 中）→ 啟動 clip-in（從當前 clip-path 反向，避免重新 set 造成跳點）
+  function detailRevealNew(item, ids) {
+    fillDetailContent(item, ids);
+
+    if (panelTarget === 'visible') return;
+
+    panelTarget = 'visible';
+
+    if (typeof gsap === 'undefined') {
+      detail.style.clipPath = DETAIL_VISIBLE_INSET;
+      return;
+    }
+
+    // 只有「panel 完全 hidden 且無進行中 tween」時才從隨機方向 reveal
+    // 若 hide tween 進行中，保留當前 clip-path 作起點 → 平滑反轉成 reveal
+    if (!detailTween) {
+      gsap.set(detail, { clipPath: randomHiddenInset() });
+    } else {
+      detailTween.kill();
+    }
+    detailTween = gsap.to(detail, {
+      clipPath: DETAIL_VISIBLE_INSET,
+      duration: 0.3,
+      ease: 'power2.out',
+      onComplete: () => { detailTween = null; },
+    });
+  }
+
+  function detailHide() {
+    if (panelTarget === 'hidden') return;
+    panelTarget = 'hidden';
+    if (typeof gsap === 'undefined') {
+      detail.style.clipPath = randomHiddenInset();
+      return;
+    }
+    if (detailTween) detailTween.kill();
+    detailTween = gsap.to(detail, {
+      clipPath: randomHiddenInset(),
+      duration: 0.25,
+      ease: 'power2.in',
+      onComplete: () => { detailTween = null; },
+    });
+  }
+
+  cleanupFns.push(() => {
+    if (detailTween && typeof detailTween.kill === 'function') detailTween.kill();
+  });
+
+  function showDetail(item, ids, lineSet) {
+    content.classList.add('atlas-dimmed');
+    setCityLineRetract(item.category === 'D' ? item : null);
+    items.forEach(i => i._span.classList.toggle('atlas-highlight', ids.has(i.id)));
+    Array.from(svg.children).forEach(line => line.classList.toggle('atlas-line-highlight', lineSet.has(line)));
+    detailRevealNew(item, ids);
   }
 
   function clearDetail() {
     content.classList.remove('atlas-dimmed');
+    setCityLineRetract(null);
     items.forEach(i => i._span.classList.remove('atlas-highlight'));
     Array.from(svg.children).forEach(line => line.classList.remove('atlas-line-highlight'));
-    detail.classList.remove('atlas-detail-visible');
+    detailHide();
   }
 
   // 城市軌道暫停/恢復（hover 時凍結，移開後從停的位置接續）
@@ -969,12 +1188,22 @@ export async function initAtlas() {
     zoomEl.style.willChange = '';
   });
   function clampOffsets() {
+    // default（= MIN_SCALE）整個鎖死不可拖；zoom in 後才解鎖
+    if (scale <= MIN_SCALE) {
+      tx = 0;
+      ty = 0;
+      return;
+    }
     const baseW = content.offsetWidth;
     const baseH = content.offsetHeight;
     const stageW = stage.clientWidth;
     const stageH = stage.clientHeight;
-    const maxX = Math.max(0, (baseW * scale - stageW) / 2);
-    const maxY = Math.max(0, (baseH * scale - stageH) / 2);
+    // 拖曳範圍 = 內容溢出 stage 的一半（content 邊緣對齊 stage 邊緣）
+    //   + 半個 stage 的 overshoot：讓 content 邊緣可拖到 stage 中央，
+    //     把貼邊 / 外溢的 label 完整拉進視窗
+    const PAN_OVERSHOOT_FRAC = 0.5;
+    const maxX = Math.max(0, (baseW * scale - stageW) / 2) + stageW * PAN_OVERSHOOT_FRAC;
+    const maxY = Math.max(0, (baseH * scale - stageH) / 2) + stageH * PAN_OVERSHOOT_FRAC;
     tx = Math.max(-maxX, Math.min(maxX, tx));
     ty = Math.max(-maxY, Math.min(maxY, ty));
   }
@@ -1002,11 +1231,9 @@ export async function initAtlas() {
 
   function onWheel(e) {
     e.preventDefault();
-    if (isIntroActive()) {
-      introTween.kill();
-      scale = Math.max(MIN_SCALE, scale);
-      applyTransform();
-    }
+    // intro 進場動畫期間：擋 scroll（preventDefault 已做）但不殺 intro tween
+    // 殺掉的話 introTween.then(revealFilters) 不會 fire → filter btn 不會 wipe in
+    if (isIntroActive()) return;
     const rect = stage.getBoundingClientRect();
     const px = e.clientX - rect.left - rect.width  / 2;
     const py = e.clientY - rect.top  - rect.height / 2;
@@ -1075,6 +1302,119 @@ export async function initAtlas() {
   const btns = /** @type {HTMLElement[]} */ ([...document.querySelectorAll('.atlas-filter-btn')]);
   const selected = new Set(btns.map(b => b.dataset.filter));
 
+  // ── Alumni career rotating chip（插在 alumni btn 後當 sibling flex item）──
+  const alumniBtn = btns.find(b => b.dataset.filter === 'alumni') || null;
+  /** @type {HTMLElement | null} */
+  let careerEl = null;
+  /** @type {HTMLElement | null} */
+  let careerEnEl = null;
+  /** @type {HTMLElement | null} */
+  let careerZhEl = null;
+  let careerIdx = 0;
+  /** @type {number | null} */
+  let careerInterval = null;
+  let careerTween = null;
+  let careerVisible = false;
+  const CAREER_HIDDEN_INSETS = [
+    'inset(100% 0% 0% 0%)',
+    'inset(0% 0% 100% 0%)',
+    'inset(0% 100% 0% 0%)',
+    'inset(0% 0% 0% 100%)',
+  ];
+  const randomCareerHiddenInset = () => CAREER_HIDDEN_INSETS[Math.floor(Math.random() * CAREER_HIDDEN_INSETS.length)];
+
+  if (alumniBtn) {
+    careerEl = document.createElement('div');
+    careerEl.className = 'atlas-alumni-career';
+    careerEnEl = document.createElement('span');
+    careerEnEl.className = 'atlas-alumni-career-en';
+    careerZhEl = document.createElement('span');
+    careerZhEl.className = 'atlas-alumni-career-zh';
+    careerEl.appendChild(careerEnEl);
+    careerEl.appendChild(careerZhEl);
+    alumniBtn.insertAdjacentElement('afterend', careerEl);
+  }
+
+  function fillCareer(career) {
+    if (!careerEnEl || !careerZhEl || !careerEl) return;
+    careerEnEl.textContent = career.en;
+    careerZhEl.textContent = career.zh;
+    careerEl.style.backgroundColor = PRIMARY_COLORS[Math.floor(Math.random() * PRIMARY_COLORS.length)];
+  }
+
+  // 切下一個職業：clip-out → 換內容 + 換色 → clip-in（每 3s 由 careerInterval 觸發一次）
+  function rotateCareerOnce() {
+    if (!careerEl || typeof gsap === 'undefined') return;
+    careerIdx = (careerIdx + 1) % ALUMNI_CAREERS.length;
+    if (careerTween) careerTween.kill();
+    const targetEl = careerEl;
+    careerTween = gsap.to(targetEl, {
+      clipPath: randomCareerHiddenInset(),
+      duration: 0.3,
+      ease: 'power2.in',
+      onComplete: () => {
+        fillCareer(ALUMNI_CAREERS[careerIdx]);
+        gsap.set(targetEl, { clipPath: randomCareerHiddenInset() });
+        careerTween = gsap.to(targetEl, {
+          clipPath: 'inset(0% 0% 0% 0%)',
+          duration: 0.4,
+          ease: 'power2.out',
+        });
+      },
+    });
+  }
+
+  function showCareer() {
+    if (!careerEl || careerVisible) return;
+    careerVisible = true;
+    careerIdx = Math.floor(Math.random() * ALUMNI_CAREERS.length);
+    fillCareer(ALUMNI_CAREERS[careerIdx]);
+    // 跟著 alumni btn 的 .anchor-nav-inner rotation 一起轉（一起的視覺）
+    if (alumniBtn) {
+      const inner = /** @type {HTMLElement | null} */ (alumniBtn.querySelector('.anchor-nav-inner'));
+      careerEl.style.transform = inner && inner.style.transform ? inner.style.transform : '';
+    }
+    if (typeof gsap === 'undefined') {
+      careerEl.style.clipPath = 'inset(0% 0% 0% 0%)';
+      return;
+    }
+    if (careerTween) careerTween.kill();
+    gsap.set(careerEl, { clipPath: randomCareerHiddenInset() });
+    careerTween = gsap.to(careerEl, {
+      clipPath: 'inset(0% 0% 0% 0%)',
+      duration: 0.4,
+      ease: 'power2.out',
+    });
+    if (careerInterval) clearInterval(careerInterval);
+    careerInterval = /** @type {any} */ (setInterval(rotateCareerOnce, 3000));
+  }
+
+  function hideCareer() {
+    if (!careerEl || !careerVisible) return;
+    careerVisible = false;
+    if (careerInterval) { clearInterval(careerInterval); careerInterval = null; }
+    if (typeof gsap === 'undefined') {
+      careerEl.style.clipPath = randomCareerHiddenInset();
+      return;
+    }
+    if (careerTween) careerTween.kill();
+    careerTween = gsap.to(careerEl, {
+      clipPath: randomCareerHiddenInset(),
+      duration: 0.3,
+      ease: 'power2.in',
+    });
+  }
+
+  function syncCareer() {
+    if (selected.has('alumni')) showCareer();
+    else hideCareer();
+  }
+
+  cleanupFns.push(() => {
+    if (careerInterval) clearInterval(careerInterval);
+    if (careerTween) careerTween.kill();
+  });
+
   // 星雲 intro zoom 完成後才依序加 .atlas-filter-revealed 觸發 clip-path wipe
   // → 與 switchToMap 一致：主視覺先、UI chrome 後，避免並行搶注意力
   // CSS 已設 clip-path: inset(0 100% 0 0) 初始隱藏，避免 init await 期間閃現
@@ -1087,6 +1427,10 @@ export async function initAtlas() {
       }, i * STAGGER);
       revealTimers.push(t);
     });
+    // 等所有 btn revealed 後再 sync career（alumni 為 default active 即會 reveal）
+    const totalT = btns.length * STAGGER + 100;
+    const syncT = /** @type {any} */ (setTimeout(syncCareer, totalT));
+    revealTimers.push(syncT);
   };
   if (introTween) {
     // GSAP tween .then() = onComplete promise；intro 已完成則 resolve 立刻 fire
@@ -1120,15 +1464,6 @@ export async function initAtlas() {
       if (prefixes.includes(prefix)) return cat;
     }
     return null;
-  }
-
-  function shuffleListColors() {
-    const colors = [...PRIMARY_COLORS];
-    for (let i = colors.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [colors[i], colors[j]] = [colors[j], colors[i]];
-    }
-    return { faculty: colors[0], alumni: colors[1], partners: colors[2] };
   }
 
   // 分頁狀態（跨 page switch 保持，切回 map 不重置）
@@ -1380,9 +1715,9 @@ export async function initAtlas() {
     });
 
     const CAT_LABELS = {
-      faculty:  { en: 'Faculty',       zh: '任職教師' },
-      alumni:   { en: 'Alumni Career', zh: '系友職涯' },
-      partners: { en: 'Partners',      zh: '合作單位' },
+      faculty:  { en: 'Professors',     zh: '歷屆教師' },
+      alumni:   { en: 'Alumni Careers', zh: '系友職涯' },
+      partners: { en: 'Partners',       zh: '合作單位' },
     };
 
     Object.keys(FILTER_PREFIXES).forEach(cat => {
@@ -1426,12 +1761,11 @@ export async function initAtlas() {
   function updateFilterBtnColors() {
     btns.forEach(b => {
       const cat = b.dataset.filter;
-      const color = filterColors[cat];
       const inner = /** @type {HTMLElement | null} */ (b.querySelector('.anchor-nav-inner'));
-      if (!inner || !color) return;
+      if (!inner || !cat) return;
       if (selected.has(cat)) {
-        inner.style.background = color;
-        inner.style.color = '#000000';
+        inner.style.background = '#000000';
+        inner.style.color = '#FFFFFF';
         inner.style.opacity = '';
         if (!inner.style.transform) {
           inner.style.transform = `rotate(${randDeg()}deg)`;
@@ -1445,10 +1779,12 @@ export async function initAtlas() {
     });
   }
 
-  function applyMapFilter() {
+  function applyMapFilter(animate = false) {
     const allowed = new Set();
     selected.forEach(k => (FILTER_PREFIXES[k] || []).forEach(p => allowed.add(p)));
-    allLines.forEach(le => { le.line.style.display = ''; });
+
+    const toShow = [];
+    const toHide = [];
     items.forEach(item => {
       if (!item._anchor) return;
       if (item.category === 'D') {
@@ -1457,21 +1793,83 @@ export async function initAtlas() {
       }
       const prefix = String(item.id).split('-')[0];
       const visible = allowed.has(prefix);
-      item._anchor.classList.toggle('atlas-filtered-out', !visible);
-      if (!visible) {
+      const wasFiltered = item._anchor.classList.contains('atlas-filtered-out');
+      if (visible && wasFiltered) toShow.push(item);
+      else if (!visible && !wasFiltered) toHide.push(item);
+      else if (!visible) {
         (itemLines.get(item.id) || []).forEach(lineEl => { lineEl.style.display = 'none'; });
+      } else if (visible) {
+        (itemLines.get(item.id) || []).forEach(lineEl => { lineEl.style.display = ''; });
       }
+    });
+
+    if (!animate || typeof gsap === 'undefined') {
+      // Init / 無 gsap：instant toggle
+      toShow.forEach(item => {
+        item._anchor.classList.remove('atlas-filtered-out');
+        (itemLines.get(item.id) || []).forEach(lineEl => { lineEl.style.display = ''; });
+      });
+      toHide.forEach(item => {
+        item._anchor.classList.add('atlas-filtered-out');
+        (itemLines.get(item.id) || []).forEach(lineEl => { lineEl.style.display = 'none'; });
+      });
+      return;
+    }
+
+    // Animated：item span clip-path 收/放，stagger 同時結束
+    // ease 全用 power2.out（front-loaded）讓每個 item 的視覺收縮/揭露發生在各自起跑點，stagger 看得見
+    // 隱藏終點 / 出現起點 per-item 從 4 方向隨機挑（往左/右/上/下收縮），show 與 hide 各自獨立 random
+    const HIDDEN_INSETS = [
+      'inset(0% 0% 0% 100%)', // 往右收（左 100% inset）
+      'inset(0% 100% 0% 0%)', // 往左收
+      'inset(100% 0% 0% 0%)', // 往下收
+      'inset(0% 0% 100% 0%)', // 往上收
+    ];
+    const randomHiddenInset = () => HIDDEN_INSETS[Math.floor(Math.random() * HIDDEN_INSETS.length)];
+
+    const TOTAL = 0.4;
+    const RANGE = 0.25;
+    toHide.forEach(item => {
+      const d = Math.random() * RANGE;
+      gsap.to(item._span, {
+        clipPath: randomHiddenInset(),
+        duration: TOTAL - d,
+        delay: d,
+        ease: 'power2.out',
+        overwrite: true,
+        onComplete: () => {
+          item._anchor.classList.add('atlas-filtered-out');
+          item._span.style.clipPath = '';
+          (itemLines.get(item.id) || []).forEach(lineEl => { lineEl.style.display = 'none'; });
+        },
+      });
+    });
+    toShow.forEach(item => {
+      item._anchor.classList.remove('atlas-filtered-out');
+      (itemLines.get(item.id) || []).forEach(lineEl => { lineEl.style.display = ''; });
+      gsap.set(item._span, { clipPath: randomHiddenInset() });
+      const d = Math.random() * RANGE;
+      gsap.to(item._span, {
+        clipPath: 'inset(0% 0% 0% 0%)',
+        duration: TOTAL - d,
+        delay: d,
+        ease: 'power2.out',
+        overwrite: true,
+        onComplete: () => { item._span.style.clipPath = ''; },
+      });
     });
   }
 
-  function apply() {
+  function apply(animate = false) {
     btns.forEach(b => b.classList.toggle('active', selected.has(b.dataset.filter)));
     if (currentView === 'map') {
-      applyMapFilter();
+      applyMapFilter(animate);
     } else {
       applyListFilter();
     }
     updateFilterBtnColors();
+    // animate=true 表示使用者點擊（非 init / view 切換），同步 career 顯隱
+    if (animate) syncCareer();
   }
 
   // Initial rotation for active btns
@@ -1484,7 +1882,7 @@ export async function initAtlas() {
       } else {
         selected.add(k);
       }
-      apply();
+      apply(true);
     });
   });
 
@@ -1566,70 +1964,193 @@ export async function initAtlas() {
     }
 
     // 平行收 map：
-    // - filter wipe out（移除 .atlas-filter-revealed → CSS transition 0.5s clip-path 收回）
-    // - 星雲快速 zoom in 到「全白」：scale 飆到 ZOOM_TRANSITION_SCALE，content 飛出 viewport
-    //   → #atlas-main 白底顯示 → 過渡到 list view 的視覺鏡頭穿越感
+    // - filter wipe out
+    // - Phase 1：所有 cover clip-path 由左→右揭露成 chip（隨機起跑，duration = TOTAL - delay → 同時結束）
+    // - Phase 2：所有 span clip-path 由左→右收掉（chip + 文字一起消失）+ cityLines stroke-dashoffset 0→1 點對點 erase
+    //   stagger 範圍 RANGE 拉大讓「先後散開」更明顯
     btns.forEach(b => b.classList.remove('atlas-filter-revealed'));
+    hideCareer();
     if (introTween) introTween.kill();
-    introTween = gsap.to({ v: scale }, {
-      v: ZOOM_TRANSITION_SCALE,
-      duration: 0.5,
-      ease: 'power2.in',
-      overwrite: true,
-      onUpdate: function() {
-        scale = this.targets()[0].v;
-        applyTransform();
+
+    const REVEAL_TOTAL = 0.35;
+    const HIDE_TOTAL   = 0.4;   // 拉長：phase 2 用 power2.out 把可見收縮搬到各自起跑點，需足夠時長
+    const REVEAL_RANGE = 0.2;
+    const HIDE_RANGE   = 0.28;  // 拉大 stagger 範圍讓「先後散開」明顯
+    const PHASE_GAP    = 0;
+    const allWithSpan = items.filter(i => i._span);
+    const allSpans  = allWithSpan.map(i => i._span);
+    const allCovers = allWithSpan.map(i => i._cover).filter(Boolean);
+
+    // init：cover clip-path hidden；cityLines retractT 從 0（full visible）開始
+    gsap.set(allCovers, { clipPath: 'inset(0% 100% 0% 0%)' });
+
+    introTween = gsap.timeline({
+      onComplete: () => {
+        // 0.2s buffer：chips 已全部 clip 掉 / lines 已 retract 掉但 stage 還沒 hide → 視覺全空白
+        // 跟 switchToMap 進場前的 0.2s buffer 對稱，讓兩個方向的「全白過場」節奏一致
+        gsap.delayedCall(0.2, () => {
+          allSpans.forEach(s => { s.style.clipPath = ''; });
+          allCovers.forEach(c => { c.style.clipPath = ''; });
+          // 不重置 retractT — 留給下次 entry 的 init 設成 1 起點；或 stage 被 hide 後也無感
+          startList();
+        });
       },
-      onComplete: () => gsap.delayedCall(0.1, startList),
+    });
+
+    // Phase 1：cover 揭露
+    allCovers.forEach(cover => {
+      const d = Math.random() * REVEAL_RANGE;
+      introTween.to(cover, {
+        clipPath: 'inset(0% 0% 0% 0%)',
+        duration: REVEAL_TOTAL - d,
+        ease: 'power2.out',
+      }, d);
+    });
+
+    // Phase 2：span 收掉（4 方向 random clip-path）+ cityLines retractT 0→1 物理 retract
+    const p2Start = REVEAL_TOTAL + PHASE_GAP;
+    // 4 個 random 收掉方向（left/right/top/bottom 各一）
+    const HIDE_DIRS = [
+      'inset(0% 0% 0% 100%)', // 從左收（visible 從右側慢慢被吃掉）
+      'inset(0% 100% 0% 0%)', // 從右收
+      'inset(100% 0% 0% 0%)', // 從上收
+      'inset(0% 0% 100% 0%)', // 從下收
+    ];
+    allSpans.forEach(span => {
+      const d = Math.random() * HIDE_RANGE;
+      const dir = HIDE_DIRS[Math.floor(Math.random() * 4)];
+      introTween.to(span, {
+        clipPath: dir,
+        duration: HIDE_TOTAL - d,
+        ease: 'power2.out',  // front-loaded → 每個 item 在各自起跑點收縮，stagger 看得見
+      }, p2Start + d);
+    });
+    // cityLines 收回：用 retractT 物理收縮 endpoint（沿用 hover retract pattern）
+    // tickFloat 的 updateCityLineEndpoints 每幀依 cl.retractT + cl.hoveredEnd lerp endpoint
+    // 從 t=0（phase 1 cover reveal 同步）就開始收，跨整個 exit 動畫到 phase 2 結束
+    // ease='linear' 等速收：避免 power2.in 把大部分動作擠到最後 25%，造成「前面卡著、最後一刻直接不見」
+    // overwrite:true 防止 clearDetail() 觸發的 setCityLineRetract 反向 tween 拉扯
+    cityLines.forEach(cl => {
+      cl.hoveredEnd = Math.random() < 0.5 ? 'a' : 'b';
+    });
+    cityLines.forEach(cl => {
+      introTween.to(cl, {
+        retractT: 1,
+        duration: REVEAL_TOTAL + HIDE_TOTAL,
+        ease: 'linear',
+        overwrite: true,
+      }, 0);
     });
   }
 
   function switchToMap() {
     if (currentView === 'map') return;
 
-    // finalize：list 收完之後跑：切 view 狀態 → 星雲從「外面」zoom out 回原大小 → filter wipe in
+    // finalize：list 收完之後跑：切 view 狀態 → 反向 switchToList 動畫進場 → filter wipe in
+    // 反向結構（剛好對應 switchToList 倒過來）：
+    //   Phase B1（反向 phase 2）：所有 label span clip-path 由左→右揭露（露出 chip 狀態：色塊蓋住文字）+ cityLines opacity 0→1
+    //   Phase B2（反向 phase 1）：所有 cover clip-path 由左→右收掉 → 露出底下文字（D 仍保留 span bgColor 為背景；非 D 純色字 idle 狀態）
     const finalize = () => {
       currentView = 'map';
       stage.style.display = '';
-      stage.style.opacity = ''; // 清除 switchToList 若有殘留 opacity
+      stage.style.opacity = '';
       listView.classList.remove('visible');
       if (filterEl) filterEl.style.display = '';
-      // 確保 filter btn 從未 reveal 狀態開始（switchToList 已移過 class，但 reload 等情境保險再清一次）
       btns.forEach(b => b.classList.remove('atlas-filter-revealed'));
-      apply(); // 套 filter btn 配色（先設好再 wipe in）
+      apply();
       const icon = layoutBtn?.querySelector('i');
       if (icon) icon.className = 'fa-solid fa-list';
 
+      const allWithSpan = items.filter(i => i._span);
+      const allSpans  = allWithSpan.map(i => i._span);
+      const allCovers = allWithSpan.map(i => i._cover).filter(Boolean);
+
       if (typeof gsap === 'undefined') {
+        allSpans.forEach(s => { s.style.clipPath = ''; });
+        allCovers.forEach(c => { c.style.clipPath = ''; });
+        cityLines.forEach(cl => { cl.retractT = 0; });
         scale = SCALE_DEFAULT;
         applyTransform();
         btns.forEach(b => b.classList.add('atlas-filter-revealed'));
+        syncCareer();
         return;
       }
 
-      // 星雲「從外面回到原本大小」：scale 從 ZOOM_TRANSITION_SCALE（content 飛在 viewport 外、白底）
-      // zoom out 回 SCALE_DEFAULT，鏡頭由極近拉遠 → 內容從邊緣縮入畫面成形
-      // intro 完成後才依序 wipe in filter（主視覺先、UI chrome 後）
-      if (introTween) introTween.kill();
-      scale = ZOOM_TRANSITION_SCALE;
+      // 4 個 random 起點方向（與 exit phase 2 對稱）
+      const HIDE_DIRS = [
+        'inset(0% 0% 0% 100%)',
+        'inset(0% 100% 0% 0%)',
+        'inset(100% 0% 0% 0%)',
+        'inset(0% 0% 100% 0%)',
+      ];
+      // init：每個 span 從 random 方向 hidden 起；cover 揭露蓋住文字；
+      //       cityLines retractT=1（線縮到一點、不可見）+ hoveredEnd random（決定從哪端 draw 出來）
+      //       立刻 updateCityLineEndpoints 同步 path d，避免 stage 顯示瞬間先閃一幀 full line
+      allSpans.forEach(s => { s.style.clipPath = HIDE_DIRS[Math.floor(Math.random() * 4)]; });
+      gsap.set(allCovers, { clipPath: 'inset(0% 0% 0% 0%)' });
+      cityLines.forEach(cl => {
+        cl.hoveredEnd = Math.random() < 0.5 ? 'a' : 'b';
+        cl.retractT = 1;
+        updateCityLineEndpoints(cl);
+      });
+
+      scale = SCALE_DEFAULT;
       tx = 0; ty = 0;
       applyTransform();
-      introTween = gsap.to({ v: ZOOM_TRANSITION_SCALE }, {
-        v: SCALE_DEFAULT,
-        duration: VIEW_SWITCH_ZOOM_DURATION,
-        ease: 'sine.inOut',
-        onUpdate: function() {
-          scale = this.targets()[0].v;
-          applyTransform();
-        },
+
+      const REVEAL_TOTAL = 0.4;   // 對齊 exit phase 2，拉長讓 stagger 看得到
+      const HIDE_TOTAL   = 0.35;
+      const REVEAL_RANGE = 0.28;
+      const HIDE_RANGE   = 0.2;
+      const PHASE_GAP    = 0;
+
+      if (introTween) introTween.kill();
+      introTween = gsap.timeline({
         onComplete: () => {
-          // Filter wipe in：仿 initAtlas pattern，依序加 .atlas-filter-revealed 觸發 CSS clip-path 0.5s wipe
+          allSpans.forEach(s => { s.style.clipPath = ''; });
+          allCovers.forEach(c => { c.style.clipPath = ''; });
+          // Filter wipe in
           const STAGGER = 100;
           btns.forEach((btn, i) => {
             setTimeout(() => { if (btn.isConnected) btn.classList.add('atlas-filter-revealed'); }, i * STAGGER);
           });
+          // 等所有 btn revealed 後 sync career（alumni 仍 active 則 reveal）
+          setTimeout(syncCareer, btns.length * STAGGER + 100);
         },
       });
+
+      // Phase B1：span 揭露（4 方向 random）+ cityLines retractT 1→0 物理 draw 出來
+      allSpans.forEach(span => {
+        const d = Math.random() * REVEAL_RANGE;
+        introTween.to(span, {
+          clipPath: 'inset(0% 0% 0% 0%)',
+          duration: REVEAL_TOTAL - d,
+          ease: 'power2.out',
+        }, d);
+      });
+      // cityLines 物理 draw：retractT 1→0，updateCityLineEndpoints 每幀 lerp endpoint
+      // 從 t=0（phase B1 span reveal 同步）開始 draw，跨整個 entry 到 phase B2 結束
+      // ease='linear' 等速 draw，避免線條早早幾乎全長然後尾巴拖過 phase B2 才補完
+      cityLines.forEach(cl => {
+        introTween.to(cl, {
+          retractT: 0,
+          duration: REVEAL_TOTAL + HIDE_TOTAL,
+          ease: 'linear',
+          overwrite: true,
+        }, 0);
+      });
+
+      // Phase B2：cover 收掉露出文字（front-loaded ease 讓 stagger 看得見）
+      const p2Start = REVEAL_TOTAL + PHASE_GAP;
+      allCovers.forEach(cover => {
+        const d = Math.random() * HIDE_RANGE;
+        introTween.to(cover, {
+          clipPath: 'inset(0% 100% 0% 0%)',
+          duration: HIDE_TOTAL - d,
+          ease: 'power2.out',
+        }, p2Start + d);
+      });
+      if (allCovers.length === 0) introTween.to({}, { duration: HIDE_TOTAL }, p2Start);
     };
 
     // 同時退場：

@@ -59,12 +59,23 @@ export function initHeroAnimation() {
     return;
   }
 
-  // --- Logo-only hero（如 about 頁）：y 軸位移到原位進場 ---
-  const heroLogo = document.querySelector('[data-hero-logo]');
+  // --- Logo-only hero（如 about 頁）：clip y 位移進場 — yPercent 100→0，wrapper overflow:hidden 當遮罩 ---
+  const heroLogo = /** @type {HTMLElement | null} */ (document.querySelector('[data-hero-logo]'));
   if (heroLogo) {
+    const logoWrapper = /** @type {HTMLElement | null} */ (heroLogo.closest('.hero-logo-wrapper'));
     gsap.fromTo(heroLogo,
-      { y: 120, opacity: 0, visibility: 'visible' },
-      { y: 0, opacity: 1, duration: 1.5, delay: 0.3, ease: 'power3.out', clearProps: 'transform' }
+      { yPercent: 100, visibility: 'visible' },
+      {
+        yPercent: 0,
+        duration: 1.5,
+        delay: 0.3,
+        ease: 'power3.out',
+        clearProps: 'transform',
+        onComplete: () => {
+          // 解除 wrapper 裁切，讓後續 scroll parallax (scale+yPercent) 顯示完整 logo
+          if (logoWrapper) logoWrapper.style.overflow = 'visible';
+        },
+      }
     );
   }
 

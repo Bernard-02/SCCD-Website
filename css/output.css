@@ -761,11 +761,14 @@ html {
   stroke-dashoffset: 0;
 }
 
-/* 城市間預設連線：visible 常駐、random 三原色（stroke 由 JS 設）；端點每幀重算（atlas.js tickFloat） */
+/* 城市間預設連線：visible 常駐、random 三原色（stroke 由 JS 設）；端點每幀重算（atlas.js tickFloat）
+   stroke-dasharray:1 + pathLength="1"（在 JS 端設）→ view 切換時動 dashoffset 1↔0 做點對點 draw / erase */
 
 .atlas-city-line {
   opacity: 1;
-  stroke-width: 0.7;
+  stroke-width: 1;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
   vector-effect: non-scaling-stroke;
   pointer-events: none;
   transition: opacity 0.3s ease;
@@ -777,12 +780,24 @@ html {
   opacity: 0.15;
 }
 
+/* hover 城市時連到該城市的綫段保留全 opacity（端點 retract 由 atlas.js 動畫驅動「從城市出發散開」） */
+
+#atlas-content.atlas-dimmed .atlas-city-line.atlas-city-line-active {
+  opacity: 1;
+}
+
 /* ── 節點：純 label，沒有 dot 圈圈 ─────────────────── */
 
 .atlas-anchor {
   position: absolute;
   pointer-events: none;
   z-index: 1;
+}
+
+/* 城市 anchor 永遠在所有 item / line 之上（含其他 item 的 highlight z:10） */
+
+.atlas-anchor.atlas-cat-d {
+  z-index: 20;
 }
 
 /* 預設：label 在 line 端點的右側（line 接到字的起點）
@@ -829,6 +844,17 @@ html {
   display: block;
 }
 
+/* View 切換時 chip 色塊蓋層：idle 隱藏，clip-path 由 JS 切換時動畫
+   absolute inset:0 蓋滿 span box；位於文字上方（DOM 排序最後 → 絕對定位天然在前面 in-flow 之上）
+   D items 已有 span backgroundColor，cover 用同色蓋在文字上呈現「色塊吞文字」效果 */
+
+.atlas-name-cover {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  clip-path: inset(0% 100% 0% 0%);
+}
+
 /* side-left：label 改放 line 端點的左側，文字仍靠左對齊（align-items: flex-start 預設） */
 
 .atlas-anchor.atlas-side-left .atlas-name {
@@ -836,10 +862,11 @@ html {
   right: 0;
 }
 
-/* label 顏色由 atlas.js 設成 inline（依 group 配色 / 三原色 random / D 黑色），CSS 只管 D 字重 */
+/* label 顏色由 atlas.js 設成 inline（依 group 配色 / 三原色 random / D 黑底字），CSS 給 D 字重 + chip padding */
 
 .atlas-cat-d .atlas-name {
   font-weight: 700;
+  padding: 3px 5px;
 }
 
 /* Hover 連動 */
@@ -869,16 +896,14 @@ html {
   background: var(--theme-bg, #ffffff);
   color: var(--theme-fg, #000000);
   pointer-events: none;
-  opacity: 0;
-  transform: translateY(8px) rotate(var(--atlas-detail-rot, 0deg));
+  transform: rotate(var(--atlas-detail-rot, 0deg));
   transform-origin: center center;
-  transition: opacity 0.3s ease, transform 0.3s ease, background-color 0.3s ease;
+  /* clip-path 由 atlas.js GSAP 驅動（4 方向隨機 reveal / hide；切換內容時 clip-out 舊 → 換 → clip-in 新）
+     預設 inset(100% 0 0 0) 完全隱藏，避免首次 hover 前閃現 */
+  clip-path: inset(100% 0% 0% 0%);
+  /* 不 transition bg-color：bg 切換發生在 clip-out 完成的 onComplete（panel 完全隱藏的瞬間），
+     若加 transition 會在 clip-in 期間看到 bg 還在過渡（藍→紅 中間色 = 紫色殘留） */
   z-index: 100;
-}
-
-#atlas-detail.atlas-detail-visible {
-  opacity: 1;
-  transform: translateY(0) rotate(var(--atlas-detail-rot, 0deg));
 }
 
 .atlas-detail-name {
@@ -899,6 +924,31 @@ html {
 .atlas-detail-desc {
   font-size: 14px;
   line-height: 1.55;
+}
+
+/* ── Alumni filter 下方輪播職業 chip（每 3s 切一個職業，random 三原色 bg + 黑字，雙語 EN 上 ZH 下）─────── */
+
+.atlas-alumni-career {
+  display: inline-block;
+  align-self: flex-start;
+  padding: 6px 8px 5px;
+  font-family: var(--font-en, 'Inter'), var(--font-zh, 'Noto Sans TC'), system-ui, sans-serif;
+  font-size: var(--font-size-p3);
+  font-weight: 700;
+  line-height: 1.25;
+  color: #000;
+  /* bg 由 atlas.js inline 設 random 三原色；clip-path 由 GSAP 驅動 4 方向隨機 reveal / hide / 切換 */
+  clip-path: inset(100% 0% 0% 0%);
+  max-width: 240px;
+  word-break: break-word;
+  user-select: none;
+  pointer-events: none;
+  margin-top: -0.5rem;
+}
+
+.atlas-alumni-career-en,
+.atlas-alumni-career-zh {
+  display: block;
 }
 
 /* ── 左上角 Filter（仿 activities-section-btn 樣式：anchor-nav-inner chip）─────── */
@@ -1002,8 +1052,8 @@ html {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  width: 110px;
-  /* 固定標題區塊寬度，確保右側三欄的內容區絕對等寬 */
+  width: max-content;
+  /* bg 寬度貼合最寬那行文字（EN 或 ZH），不再撐成固定寬 */
 }
 
 .atlas-list-col-title-en {
@@ -1242,10 +1292,7 @@ html {
 }
 
 /* ── Inverse mode ───────── */
-
-body.mode-inverse .atlas-cat-d .atlas-name {
-  color: #ffffff !important;
-}
+/* 城市 chip 在兩 mode 下都是三原色底 + 黑字，bg 由 JS inline 設；不需 inverse 翻字色 */
 
 body.mode-inverse .atlas-filter-btn:not(.active) .anchor-nav-inner {
   color: rgba(255, 255, 255, 0.5);
@@ -4009,6 +4056,14 @@ header.header-hidden .nav-link,
 
 .hero-text-cn-wrapper {
   transform: rotate(-1deg);
+}
+
+/* SCCD logo（about hero）— overflow:hidden 形成 yPercent slide-in 遮罩
+   JS 動畫完成 onComplete 改 overflow:visible，讓後續 scroll parallax (scale+yPercent) 不被裁 */
+
+.hero-logo-wrapper {
+  display: inline-block;
+  overflow: hidden;
 }
 
 /* 副標 font-size（rotation 已移到 wrapper） */

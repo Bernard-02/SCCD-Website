@@ -25,6 +25,13 @@
   .hero-text-en-wrapper { transform: rotate(1deg); }
   .hero-text-cn-wrapper { transform: rotate(-1deg); }
 
+  /* SCCD logo（about hero）— overflow:hidden 形成 yPercent slide-in 遮罩
+     JS 動畫完成 onComplete 改 overflow:visible，讓後續 scroll parallax (scale+yPercent) 不被裁 */
+  .hero-logo-wrapper {
+    display: inline-block;
+    overflow: hidden;
+  }
+
   /* 副標 font-size（rotation 已移到 wrapper） */
   .hero-text-en,
   .hero-text-cn {
