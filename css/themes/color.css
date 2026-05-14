@@ -29,9 +29,8 @@ body.mode-color main > section.h-screen {
 }
 
 /* ===== 純黑/白底 → 25% overlay ===== */
-/* 排除 #faculty-panel（modal isolated）跟 about bar hover（inline 三原色不能蓋） */
-body.mode-color .bg-white:not([data-bar="about"]):not(#faculty-panel),
-body.mode-color [data-bar="about"]:not(:hover) {
+/* 排除 #faculty-panel（modal isolated）跟 about bar（改走 fg/fg-inverse strict 對比，見下方 header bar 統一規則） */
+body.mode-color .bg-white:not([data-bar="about"]):not(#faculty-panel) {
   background-color: var(--theme-overlay-25) !important;
 }
 
@@ -40,12 +39,18 @@ body.mode-color .bg-gray-9 {
 }
 
 /* ===== 三原色 highlight bg → 25% overlay ===== */
-body.mode-color [data-overview-hl],
-body.mode-color [data-class-hl],
-body.mode-color [data-works-hl],
+/* section-title-strip / timeline-card-inner 用 overlay（標題色塊 / timeline 卡片視覺需要底色） */
 body.mode-color .section-title-strip,
 body.mode-color .timeline-card-inner:not(.bg-black) {
   background-color: var(--theme-overlay-25) !important;
+}
+
+/* about overview/class/works highlight chip：JS 在 inline style 設三原色 bg，
+ * mode-color 必須 !important 蓋掉，改 fg bg + fg-inverse 字（strict 對比，跟其他 strict 元件一起翻黑白） */
+body.mode-color [data-overview-hl],
+body.mode-color [data-class-hl],
+body.mode-color [data-works-hl] {
+  background: var(--theme-fg) !important;
 }
 
 /* Timeline era 卡片（標準是 bg-black + text-white）→ 也 overlay */
@@ -67,12 +72,17 @@ body.mode-color .text-gray-6 {
 }
 
 /* Highlighted text 內字色（overlay 半透明上方文字）→ 對比 fg */
+/* data-*-hl bg 已改 var(--theme-fg) → 字必須 fg-inverse 才看得到 */
 body.mode-color [data-overview-hl],
 body.mode-color [data-overview-hl] *,
 body.mode-color [data-class-hl],
 body.mode-color [data-class-hl] *,
 body.mode-color [data-works-hl],
-body.mode-color [data-works-hl] *,
+body.mode-color [data-works-hl] * {
+  color: var(--theme-fg-inverse) !important;
+}
+
+/* section-title-strip / timeline-card-inner bg 是 overlay-25 半透明 → 字仍用 fg */
 body.mode-color .section-title-strip,
 body.mode-color .section-title-strip *,
 body.mode-color .timeline-card-inner,
@@ -127,9 +137,12 @@ body.mode-color .mega-menu {
 }
 
 /* ===== Theme Invert（黑色靜態圖反轉成對比色）===== */
-/* 簡化處理：純黑→白；mode-color 下白色在隨機 bg 上 ok（fg 是黑時略弱對比，先這樣） */
+/* --theme-invert-filter 由 theme-toggle.js applyColorVars 設：
+ *   page bg 亮（luminance > 0.5）→ 'none'（黑 SVG 保留黑色對比）
+ *   page bg 暗 → 'invert(1)'（黑 SVG 翻白色對比）
+ * hue cycle 過閾值時自動翻色，與 fg/fg-inverse pattern 一致 */
 body.mode-color .theme-invert {
-  filter: invert(1);
+  filter: var(--theme-invert-filter, invert(1));
 }
 
 /* ===== Anchor / Filter Buttons ===== */
@@ -163,20 +176,19 @@ body.mode-color .courses-filter-btn.active .anchor-nav-inner {
 }
 
 /* ===== About anchor nav ===== */
-body.mode-color .anchor-nav-btn:not(.active) .anchor-nav-inner {
-  background: rgba(var(--theme-fg-rgb), 0.5) !important;
-  color: rgba(var(--theme-bg-rgb), 0.5) !important;
+/* strict 對比：active 100% opaque、inactive 50%；hue cycle 翻黑白時跟其他 strict 元件一起翻 */
+body.mode-color .anchor-nav-btn .anchor-nav-inner {
+  background: var(--theme-fg) !important;
+  color: var(--theme-fg-inverse) !important;
 }
 
-body.mode-color .anchor-nav-btn.active .anchor-nav-inner {
-  background: var(--theme-overlay-25) !important;
-  color: var(--theme-fg) !important;
+body.mode-color .anchor-nav-btn:not(.active) .anchor-nav-inner {
+  opacity: 0.5;
 }
 
 @media (min-width: 768px) {
   body.mode-color .anchor-nav-btn:not(.active):hover .anchor-nav-inner {
-    background: rgba(var(--theme-fg-rgb), 0.8) !important;
-    color: var(--theme-bg) !important;
+    opacity: 0.8;
   }
 }
 
@@ -283,32 +295,73 @@ body.mode-color .activities-search-input::placeholder {
 }
 
 /* ===== Homepage marquee + YT card ===== */
+/* mode-color：strict 黑白對比（floating items 同套），不用 overlay-25 */
 body.mode-color #homepage-marquee-link,
 body.mode-color #homepage-yt-card {
-  background: var(--theme-overlay-25) !important;
+  background: var(--theme-fg) !important;
 }
 
 body.mode-color #homepage-marquee-text,
 body.mode-color #homepage-marquee-clone {
-  color: var(--theme-fg) !important;
+  color: var(--theme-fg-inverse) !important;
 }
 
-/* ===== Library / Atlas / Generate 側邊 bar ===== */
-/* mode-color 下 inactive/active 視覺一致用 overlay；hover 仍走 nav 三原色（is-bar-hover） */
+/* ===== Header bars 統一 strict 對比 ===== */
+/* 4 個 header bar（about / library / atlas / generate）在 mode-color 下 inactive/active 一律 fg bg + fg-inverse 字
+ * hover 仍走 nav 三原色（is-bar-hover 或 :hover），由其它規則接管 */
+body.mode-color [data-bar="about"]:not(:hover),
 body.mode-color [data-bar="library"].bar-inactive:not(.is-bar-hover),
 body.mode-color [data-bar="atlas"].bar-inactive:not(.is-bar-hover),
 body.mode-color [data-bar="generate"].bar-inactive:not(.is-bar-hover),
 body.mode-color [data-bar="library"].bar-active:not(.is-bar-hover),
 body.mode-color [data-bar="atlas"].bar-active:not(.is-bar-hover),
 body.mode-color [data-bar="generate"].bar-active:not(.is-bar-hover) {
-  background: var(--theme-overlay-25) !important;
+  background: var(--theme-fg) !important;
 }
 
+body.mode-color [data-bar="about"]:not(:hover) .nav-link,
 body.mode-color [data-bar="library"].bar-inactive:not(.is-bar-hover) .nav-link,
 body.mode-color [data-bar="atlas"].bar-inactive:not(.is-bar-hover) .nav-link,
 body.mode-color [data-bar="generate"].bar-inactive:not(.is-bar-hover) .nav-link,
 body.mode-color [data-bar="library"].bar-active:not(.is-bar-hover) .nav-link,
 body.mode-color [data-bar="atlas"].bar-active:not(.is-bar-hover) .nav-link,
 body.mode-color [data-bar="generate"].bar-active:not(.is-bar-hover) .nav-link {
+  color: var(--theme-fg-inverse) !important;
+}
+
+/* ===== Class Division Buttons + Group Labels：strict B/W in mode-color =====
+ * JS 預設 inline 用 var(--theme-fg) bg + var(--theme-bg) color；var(--theme-bg) 是隨機
+ * hue → 在 mode-color 下變透明感，需強制 fg-inverse strict B/W 對比。
+ * active/hover JS 設三原色 + #000，這裡蓋成「反向 B/W」：inactive=黑底白字 → active=白底黑字
+ * label 沒 .active class，用 :has(+) 跟 sibling btn 狀態聯動 */
+body.mode-color .class-division-btn,
+body.mode-color .class-group-label {
+  background: var(--theme-fg) !important;
+  color: var(--theme-fg-inverse) !important;
+}
+
+body.mode-color .class-division-btn.active,
+body.mode-color .class-group-label:has(+ .class-division-btn.active) {
+  background: var(--theme-fg-inverse) !important;
   color: var(--theme-fg) !important;
+}
+
+@media (min-width: 768px) {
+  body.mode-color .class-division-btn:not(.active):hover,
+  body.mode-color .class-group-label:has(+ .class-division-btn:not(.active):hover) {
+    background: var(--theme-fg-inverse) !important;
+    color: var(--theme-fg) !important;
+  }
+}
+
+/* ===== 封鎖綫 (.section-title-inner[data-section-title]) chip：strict B/W in mode-color =====
+ * JS 在 inline 設 accent bg（綠/粉/藍）；跟 [data-*-hl] 圖文 chip 對齊：mode-color 一律 fg + fg-inverse。
+ * 上方既有 `.section-title-strip *` color=fg 規則被以下 `[data-section-title] *` (0,2,2) 蓋過 */
+body.mode-color [data-section-title] {
+  background: var(--theme-fg) !important;
+}
+
+body.mode-color [data-section-title],
+body.mode-color [data-section-title] * {
+  color: var(--theme-fg-inverse) !important;
 }

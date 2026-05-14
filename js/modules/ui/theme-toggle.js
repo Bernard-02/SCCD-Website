@@ -66,13 +66,17 @@ function applyColorVars() {
   const isLightBg = lum > 0.5; // WCAG threshold（同 wireframe getContrastColor）
   const fgRgb = isLightBg ? '0, 0, 0' : '255, 255, 255';
   const fgHex = isLightBg ? '#000000' : '#ffffff';
+  const fgInverseHex = isLightBg ? '#ffffff' : '#000000';
 
   const root = document.documentElement;
   root.style.setProperty('--theme-bg', `rgb(${r}, ${g}, ${b})`);
   root.style.setProperty('--theme-bg-rgb', `${r}, ${g}, ${b}`);
   root.style.setProperty('--theme-fg', fgHex);
   root.style.setProperty('--theme-fg-rgb', fgRgb);
+  root.style.setProperty('--theme-fg-inverse', fgInverseHex);
   root.style.setProperty('--theme-overlay-25', `rgba(${fgRgb}, 0.25)`);
+  // .theme-invert（黑色靜態 SVG/PNG）對比翻色：page bg 亮時不 invert（保留黑），暗時 invert(1) 變白
+  root.style.setProperty('--theme-invert-filter', isLightBg ? 'none' : 'invert(1)');
 
   // Header logo（wireframe）對比翻色：wireframe-standard base 黑色，暗底套 invert(1) 變白
   // 直接比對 style.filter（cheap read）避免維護 lastIsLightBg 狀態 + 處理 logo async load 的 race
@@ -114,7 +118,9 @@ function stopColorLoop() {
   root.style.removeProperty('--theme-bg-rgb');
   root.style.removeProperty('--theme-fg');
   root.style.removeProperty('--theme-fg-rgb');
+  root.style.removeProperty('--theme-fg-inverse');
   root.style.removeProperty('--theme-overlay-25');
+  root.style.removeProperty('--theme-invert-filter');
   // 清 wireframe logo 的 invert filter
   const logo = document.getElementById('header-logo');
   if (logo) logo.style.filter = '';
@@ -248,4 +254,13 @@ function switchHeaderLogo(type) {
       svg.setAttribute('viewBox', '0 0 1080 1080');
     }
   });
+}
+
+// 對 main-modular.js 暴露：進入 /create 時讀當前 site mode + colorHue，帶進 iframe URL params
+// 讓 generate-app 承襲 site 的 mode（不重置成 Standard）；mode-color 時還帶當前 hue 讓色環接續 site 的 hue 直接 Play
+export function getStoredMode() {
+  return sessionStorage.getItem(STORAGE_KEY) || 'standard';
+}
+export function getColorHue() {
+  return colorHue;
 }

@@ -230,8 +230,13 @@ function createImageEl(src, url, showPlayIcon = false) {
   newsOverlay.style.clipPath = wipe.hidden;
 
   // 訂閱 news hover 事件：每次 enter 時隨機選色
+  // mode-color：用 var(--theme-fg) strict 對比，不隨機（與整體 B/W 對比 pattern 一致）
   newsHoverListeners.enter.push(() => {
-    newsOverlay.style.background = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
+    if (document.body.classList.contains('mode-color')) {
+      newsOverlay.style.background = 'var(--theme-fg)';
+    } else {
+      newsOverlay.style.background = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
+    }
     newsOverlay.style.clipPath = wipe.shown;
   });
   newsHoverListeners.leave.push(() => {
@@ -255,8 +260,6 @@ function createTextEl(textEn, textZh, url) {
     top: 0; left: 0;
     padding: 0.5rem 0.75rem;
     font-weight: 600;
-    color: ${defaultTextColor};
-    background: ${defaultColor};
     line-height: 1.4;
     will-change: transform;
     pointer-events: ${url ? 'auto' : 'none'};
@@ -277,20 +280,50 @@ function createTextEl(textEn, textZh, url) {
     el.appendChild(zhLine);
   }
 
-  // 訂閱 news hover：文字色改成底色（變純色 block）
+  // mode-color：對比色底 + 反色字（var(--theme-fg)/(--theme-fg-inverse) 隨 hue 翻黑白）
+  // 其他模式：accent 底 + 黑字
+  function setColors() {
+    if (document.body.classList.contains('mode-color')) {
+      el.style.background = 'var(--theme-fg)';
+      el.style.color = 'var(--theme-fg-inverse)';
+    } else {
+      el.style.background = defaultColor;
+      el.style.color = defaultTextColor;
+    }
+  }
+  setColors();
+  // 切 mode 時透過 theme:changed 重套；el 脫離 DOM 後 listener 自我清理
+  function onThemeChange() {
+    if (!el.isConnected) {
+      window.removeEventListener('theme:changed', onThemeChange);
+      return;
+    }
+    if (el.dataset.hovering === '1') return; // 不蓋 hover state
+    setColors();
+  }
+  window.addEventListener('theme:changed', onThemeChange);
+
+  // 訂閱 news hover：文字色改成底色（變純色 block）；mode-color 不適用（保持黑白）
   newsHoverListeners.enter.push(() => {
+    if (document.body.classList.contains('mode-color')) return;
     el.style.color = defaultColor;
     el.style.transition = 'color 0.4s ease, background 0.25s ease';
   });
   newsHoverListeners.leave.push(() => {
+    if (document.body.classList.contains('mode-color')) return;
     el.style.color = defaultTextColor;
   });
 
   if (url) {
     el.addEventListener('mouseenter', () => {
-      // inverse 模式：hover 變白底黑字（與全站 inverse 調性一致）
+      el.dataset.hovering = '1';
+      // mode-color：hover 反色（default 黑底白字 → 白底黑字，跟著 hue 動態翻）
+      // inverse 模式：hover 變白底黑字
       // standard：hover 變黑底白字（accent → 黑）
-      if (document.body.classList.contains('mode-inverse')) {
+      if (document.body.classList.contains('mode-color')) {
+        el.style.background = 'var(--theme-fg-inverse)';
+        el.style.color = 'var(--theme-fg)';
+      } else if (document.body.classList.contains('mode-inverse')) {
         el.style.background = '#ffffff';
         el.style.color = '#000000';
       } else {
@@ -299,8 +332,8 @@ function createTextEl(textEn, textZh, url) {
       }
     });
     el.addEventListener('mouseleave', () => {
-      el.style.background = defaultColor;
-      el.style.color = defaultTextColor;
+      el.dataset.hovering = '0';
+      setColors();
     });
   }
 

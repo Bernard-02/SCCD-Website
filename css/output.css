@@ -761,7 +761,7 @@ html {
   stroke-dashoffset: 0;
 }
 
-/* 城市間預設連線：visible 常駐、random 三原色（stroke 由 JS 設）；端點每幀重算（atlas.js tickFloat）
+/* 城市間預設連線：visible 常駐、兩端城市底色 gradient / 同色純色（stroke 由 JS 設）；端點每幀重算（atlas.js tickFloat）
    stroke-dasharray:1 + pathLength="1"（在 JS 端設）→ view 切換時動 dashoffset 1↔0 做點對點 draw / erase */
 
 .atlas-city-line {
@@ -926,7 +926,9 @@ html {
   line-height: 1.55;
 }
 
-/* ── Alumni filter 下方輪播職業 chip（每 3s 切一個職業，random 三原色 bg + 黑字，雙語 EN 上 ZH 下）─────── */
+/* ── Alumni filter 下方輪播職業 chip（每 3s 切一個職業，random 三原色 bg + 黑字，雙語 EN 上 ZH 下）
+   font / weight / padding 都對齊 filter btn 的 .anchor-nav-inner；margin-top:-0.5rem 抵消父層 gap 讓它跟 alumni btn 接起來；
+   旋轉同步 alumni 的 inline rotate；上下兩 chip 共用「接縫 pivot」（alumni 繞 BL、career 繞 TL）保證旋轉後仍緊貼 ─────── */
 
 .atlas-alumni-career {
   display: inline-block;
@@ -937,13 +939,20 @@ html {
   font-weight: 700;
   line-height: 1.25;
   color: #000;
-  /* bg 由 atlas.js inline 設 random 三原色；clip-path 由 GSAP 驅動 4 方向隨機 reveal / hide / 切換 */
-  clip-path: inset(100% 0% 0% 0%);
+  /* bg 由 atlas.js inline 設 random 三原色；clip-path 統一上→下 reveal、下→上 collapse（hidden = bottom 100%） */
+  clip-path: inset(0% 0% 100% 0%);
   max-width: 240px;
   word-break: break-word;
-  user-select: none;
+  -webkit-user-select: none;
+     -moz-user-select: none;
+          user-select: none;
   pointer-events: none;
   margin-top: -0.5rem;
+  /* 收/展時 height + padding 由 JS 同步動畫，overflow:hidden 讓內容隨 height 乾淨裁切，flex 兄弟自動 reflow 上移 */
+  overflow: hidden;
+  /* 與 alumni inner 共用「接縫 pivot」— career 繞 top-left、alumni 繞 bottom-left
+     兩個角在 layout 上是同一點 → 旋轉同角度後仍緊貼，與 about resources accordion 的 top-right pivot 同 pattern */
+  transform-origin: top left;
 }
 
 .atlas-alumni-career-en,
@@ -1032,15 +1041,53 @@ html {
   height: 100%;
 }
 
-/* ── Column title wrapper（仿 hero-title-wrapper：rotate + overflow:hidden 形成 yPercent slide-in 遮罩） ── */
+/* ── Column title block（旋轉 host，flex-column 包 title-wrapper + 可選的 career chip）
+   旋轉由 JS 設在這層，title 與 career 共用 pivot 永遠緊貼（與 about resources accordion 同 pattern） ── */
+
+.atlas-list-col-titleblock {
+  flex-shrink: 0;
+  align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  transform-origin: left center;
+  /* 旋轉角度由 JS 設成 inline transform */
+}
+
+/* ── Column title wrapper（overflow:hidden 形成 yPercent slide-in 遮罩；不再 host 旋轉） ── */
 
 .atlas-list-col-title-wrapper {
-  flex-shrink: 0;
   align-self: flex-start;
   display: block;
   overflow: hidden;
-  transform-origin: left center;
-  /* 旋轉角度由 JS 設成 inline transform */
+}
+
+/* ── List view 的 career chip（只用於 alumni 欄；padding / clip-path / overflow 全與 .atlas-alumni-career 對齊） ── */
+
+.atlas-list-col-career {
+  align-self: flex-start;
+  width: -moz-max-content;
+  width: max-content;
+  max-width: 240px;
+  padding: 6px 8px 5px;
+  font-family: var(--font-en, 'Inter'), var(--font-zh, 'Noto Sans TC'), system-ui, sans-serif;
+  font-size: var(--font-size-p3);
+  font-weight: 700;
+  line-height: 1.25;
+  color: #000;
+  /* bg 由 JS inline 設 random 三原色；clip-path 統一上→下 reveal、下→上 collapse */
+  clip-path: inset(0% 0% 100% 0%);
+  word-break: break-word;
+  -webkit-user-select: none;
+     -moz-user-select: none;
+          user-select: none;
+  pointer-events: none;
+  /* 收/展 height + padding 動畫，overflow:hidden 讓內容隨 height 乾淨裁切 */
+  overflow: hidden;
+}
+
+.atlas-list-col-career-en,
+.atlas-list-col-career-zh {
+  display: block;
 }
 
 /* ── Column title chip（黑底白字，英上中下） ── */
@@ -1052,6 +1099,7 @@ html {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  width: -moz-max-content;
   width: max-content;
   /* bg 寬度貼合最寬那行文字（EN 或 ZH），不再撐成固定寬 */
 }
@@ -1277,6 +1325,14 @@ html {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* alumni btn 與下方 career chip 共用「接縫 pivot」：
+   alumni inner 繞 bottom-left，career chip 繞 top-left；
+   兩者 layout 上的這兩個角是同一點（margin-top:-0.5rem 抵消 gap）→ 旋轉同角度仍緊貼 */
+
+.atlas-filter-btn[data-filter="alumni"] .anchor-nav-inner {
+  transform-origin: bottom left;
+}
+
 @media (min-width: 768px) {
   .atlas-filter-btn:not(.active):hover .anchor-nav-inner {
     color: rgba(0, 0, 0, 1);
@@ -1292,6 +1348,7 @@ html {
 }
 
 /* ── Inverse mode ───────── */
+
 /* 城市 chip 在兩 mode 下都是三原色底 + 黑字，bg 由 JS inline 設；不需 inverse 翻字色 */
 
 body.mode-inverse .atlas-filter-btn:not(.active) .anchor-nav-inner {
@@ -1871,10 +1928,9 @@ body.mode-color main > section.h-screen {
 
 /* ===== 純黑/白底 → 25% overlay ===== */
 
-/* 排除 #faculty-panel（modal isolated）跟 about bar hover（inline 三原色不能蓋） */
+/* 排除 #faculty-panel（modal isolated）跟 about bar（改走 fg/fg-inverse strict 對比，見下方 header bar 統一規則） */
 
-body.mode-color .bg-white:not([data-bar="about"]):not(#faculty-panel),
-body.mode-color [data-bar="about"]:not(:hover) {
+body.mode-color .bg-white:not([data-bar="about"]):not(#faculty-panel) {
   background-color: var(--theme-overlay-25) !important;
 }
 
@@ -1884,12 +1940,20 @@ body.mode-color .bg-gray-9 {
 
 /* ===== 三原色 highlight bg → 25% overlay ===== */
 
-body.mode-color [data-overview-hl],
-body.mode-color [data-class-hl],
-body.mode-color [data-works-hl],
+/* section-title-strip / timeline-card-inner 用 overlay（標題色塊 / timeline 卡片視覺需要底色） */
+
 body.mode-color .section-title-strip,
 body.mode-color .timeline-card-inner:not(.bg-black) {
   background-color: var(--theme-overlay-25) !important;
+}
+
+/* about overview/class/works highlight chip：JS 在 inline style 設三原色 bg，
+ * mode-color 必須 !important 蓋掉，改 fg bg + fg-inverse 字（strict 對比，跟其他 strict 元件一起翻黑白） */
+
+body.mode-color [data-overview-hl],
+body.mode-color [data-class-hl],
+body.mode-color [data-works-hl] {
+  background: var(--theme-fg) !important;
 }
 
 /* Timeline era 卡片（標準是 bg-black + text-white）→ 也 overlay */
@@ -1914,12 +1978,19 @@ body.mode-color .text-gray-6 {
 
 /* Highlighted text 內字色（overlay 半透明上方文字）→ 對比 fg */
 
+/* data-*-hl bg 已改 var(--theme-fg) → 字必須 fg-inverse 才看得到 */
+
 body.mode-color [data-overview-hl],
 body.mode-color [data-overview-hl] *,
 body.mode-color [data-class-hl],
 body.mode-color [data-class-hl] *,
 body.mode-color [data-works-hl],
-body.mode-color [data-works-hl] *,
+body.mode-color [data-works-hl] * {
+  color: var(--theme-fg-inverse) !important;
+}
+
+/* section-title-strip / timeline-card-inner bg 是 overlay-25 半透明 → 字仍用 fg */
+
 body.mode-color .section-title-strip,
 body.mode-color .section-title-strip *,
 body.mode-color .timeline-card-inner,
@@ -1979,10 +2050,13 @@ body.mode-color .mega-menu {
 
 /* ===== Theme Invert（黑色靜態圖反轉成對比色）===== */
 
-/* 簡化處理：純黑→白；mode-color 下白色在隨機 bg 上 ok（fg 是黑時略弱對比，先這樣） */
+/* --theme-invert-filter 由 theme-toggle.js applyColorVars 設：
+ *   page bg 亮（luminance > 0.5）→ 'none'（黑 SVG 保留黑色對比）
+ *   page bg 暗 → 'invert(1)'（黑 SVG 翻白色對比）
+ * hue cycle 過閾值時自動翻色，與 fg/fg-inverse pattern 一致 */
 
 body.mode-color .theme-invert {
-  filter: invert(1);
+  filter: var(--theme-invert-filter, invert(1));
 }
 
 /* ===== Anchor / Filter Buttons ===== */
@@ -2018,20 +2092,20 @@ body.mode-color .courses-filter-btn.active .anchor-nav-inner {
 
 /* ===== About anchor nav ===== */
 
-body.mode-color .anchor-nav-btn:not(.active) .anchor-nav-inner {
-  background: rgba(var(--theme-fg-rgb), 0.5) !important;
-  color: rgba(var(--theme-bg-rgb), 0.5) !important;
+/* strict 對比：active 100% opaque、inactive 50%；hue cycle 翻黑白時跟其他 strict 元件一起翻 */
+
+body.mode-color .anchor-nav-btn .anchor-nav-inner {
+  background: var(--theme-fg) !important;
+  color: var(--theme-fg-inverse) !important;
 }
 
-body.mode-color .anchor-nav-btn.active .anchor-nav-inner {
-  background: var(--theme-overlay-25) !important;
-  color: var(--theme-fg) !important;
+body.mode-color .anchor-nav-btn:not(.active) .anchor-nav-inner {
+  opacity: 0.5;
 }
 
 @media (min-width: 768px) {
   body.mode-color .anchor-nav-btn:not(.active):hover .anchor-nav-inner {
-    background: rgba(var(--theme-fg-rgb), 0.8) !important;
-    color: var(--theme-bg) !important;
+    opacity: 0.8;
   }
 }
 
@@ -2154,36 +2228,80 @@ body.mode-color .activities-search-input::placeholder {
 
 /* ===== Homepage marquee + YT card ===== */
 
+/* mode-color：strict 黑白對比（floating items 同套），不用 overlay-25 */
+
 body.mode-color #homepage-marquee-link,
 body.mode-color #homepage-yt-card {
-  background: var(--theme-overlay-25) !important;
+  background: var(--theme-fg) !important;
 }
 
 body.mode-color #homepage-marquee-text,
 body.mode-color #homepage-marquee-clone {
-  color: var(--theme-fg) !important;
+  color: var(--theme-fg-inverse) !important;
 }
 
-/* ===== Library / Atlas / Generate 側邊 bar ===== */
+/* ===== Header bars 統一 strict 對比 ===== */
 
-/* mode-color 下 inactive/active 視覺一致用 overlay；hover 仍走 nav 三原色（is-bar-hover） */
+/* 4 個 header bar（about / library / atlas / generate）在 mode-color 下 inactive/active 一律 fg bg + fg-inverse 字
+ * hover 仍走 nav 三原色（is-bar-hover 或 :hover），由其它規則接管 */
 
+body.mode-color [data-bar="about"]:not(:hover),
 body.mode-color [data-bar="library"].bar-inactive:not(.is-bar-hover),
 body.mode-color [data-bar="atlas"].bar-inactive:not(.is-bar-hover),
 body.mode-color [data-bar="generate"].bar-inactive:not(.is-bar-hover),
 body.mode-color [data-bar="library"].bar-active:not(.is-bar-hover),
 body.mode-color [data-bar="atlas"].bar-active:not(.is-bar-hover),
 body.mode-color [data-bar="generate"].bar-active:not(.is-bar-hover) {
-  background: var(--theme-overlay-25) !important;
+  background: var(--theme-fg) !important;
 }
 
+body.mode-color [data-bar="about"]:not(:hover) .nav-link,
 body.mode-color [data-bar="library"].bar-inactive:not(.is-bar-hover) .nav-link,
 body.mode-color [data-bar="atlas"].bar-inactive:not(.is-bar-hover) .nav-link,
 body.mode-color [data-bar="generate"].bar-inactive:not(.is-bar-hover) .nav-link,
 body.mode-color [data-bar="library"].bar-active:not(.is-bar-hover) .nav-link,
 body.mode-color [data-bar="atlas"].bar-active:not(.is-bar-hover) .nav-link,
 body.mode-color [data-bar="generate"].bar-active:not(.is-bar-hover) .nav-link {
+  color: var(--theme-fg-inverse) !important;
+}
+
+/* ===== Class Division Buttons + Group Labels：strict B/W in mode-color =====
+ * JS 預設 inline 用 var(--theme-fg) bg + var(--theme-bg) color；var(--theme-bg) 是隨機
+ * hue → 在 mode-color 下變透明感，需強制 fg-inverse strict B/W 對比。
+ * active/hover JS 設三原色 + #000，這裡蓋成「反向 B/W」：inactive=黑底白字 → active=白底黑字
+ * label 沒 .active class，用 :has(+) 跟 sibling btn 狀態聯動 */
+
+body.mode-color .class-division-btn,
+body.mode-color .class-group-label {
+  background: var(--theme-fg) !important;
+  color: var(--theme-fg-inverse) !important;
+}
+
+body.mode-color .class-division-btn.active,
+body.mode-color .class-group-label:has(+ .class-division-btn.active) {
+  background: var(--theme-fg-inverse) !important;
   color: var(--theme-fg) !important;
+}
+
+@media (min-width: 768px) {
+  body.mode-color .class-division-btn:not(.active):hover,
+  body.mode-color .class-group-label:has(+ .class-division-btn:not(.active):hover) {
+    background: var(--theme-fg-inverse) !important;
+    color: var(--theme-fg) !important;
+  }
+}
+
+/* ===== 封鎖綫 (.section-title-inner[data-section-title]) chip：strict B/W in mode-color =====
+ * JS 在 inline 設 accent bg（綠/粉/藍）；跟 [data-*-hl] 圖文 chip 對齊：mode-color 一律 fg + fg-inverse。
+ * 上方既有 `.section-title-strip *` color=fg 規則被以下 `[data-section-title] *` (0,2,2) 蓋過 */
+
+body.mode-color [data-section-title] {
+  background: var(--theme-fg) !important;
+}
+
+body.mode-color [data-section-title],
+body.mode-color [data-section-title] * {
+  color: var(--theme-fg-inverse) !important;
 }
 
 /* 3. Tailwind Directives */
@@ -4028,6 +4146,7 @@ header.header-hidden .nav-link,
 /* 動畫初始隱藏：在 GSAP 接管前避免文字閃現 */
 
 .hero-title,
+  .hero-title-cn,
   .hero-text-en,
   .hero-text-cn {
   visibility: hidden;
@@ -4039,6 +4158,7 @@ header.header-hidden .nav-link,
 /* 手機版較小角度 */
 
 .hero-title-wrapper,
+  .hero-title-cn-wrapper,
   .hero-text-en-wrapper,
   .hero-text-cn-wrapper {
   transform-origin: left center;
@@ -4050,6 +4170,10 @@ header.header-hidden .nav-link,
   transform: rotate(-2deg);
 }
 
+.hero-title-cn-wrapper {
+  transform: rotate(2deg);
+}
+
 .hero-text-en-wrapper {
   transform: rotate(1deg);
 }
@@ -4059,7 +4183,7 @@ header.header-hidden .nav-link,
 }
 
 /* SCCD logo（about hero）— overflow:hidden 形成 yPercent slide-in 遮罩
-   JS 動畫完成 onComplete 改 overflow:visible，讓後續 scroll parallax (scale+yPercent) 不被裁 */
+     JS 動畫完成 onComplete 改 overflow:visible，讓後續 scroll parallax (scale+yPercent) 不被裁 */
 
 .hero-logo-wrapper {
   display: inline-block;
@@ -4080,6 +4204,10 @@ header.header-hidden .nav-link,
     transform: rotate(-4deg);
   }
 
+  .hero-title-cn-wrapper {
+    transform: rotate(3deg);
+  }
+
   .hero-text-en-wrapper {
     transform: rotate(3deg);
   }
@@ -4098,6 +4226,99 @@ header.header-hidden .nav-link,
 body:not(.mode-color) [data-hero-hl][data-hero-hl],
   body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
   color: #000 !important;
+}
+
+/* Hero random layout（faculty / courses / activities / admission 共用）
+     桌面：所有元素 position:absolute，JS 用 getBoundingClientRect 量測旋轉後 bbox 並隨機派 (top, left)，
+           bounds 避開 header（viewport top 140px buffer）；元素可彼此重疊（特別是文字疊在 banner 上）
+     手機：flex stack 維持原本由上至下版面，random 不適用（RWD 互不影響原則） */
+
+.hero-rand-grid {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* 桌面：所有直系子（title-wrapper / banner / EN-wrapper / CN-wrapper）一律 absolute；JS 設 top/left */
+
+@media (min-width: 768px) {
+  .hero-rand-grid > * {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+}
+
+/* wrappers 預設 block；改 inline-block 讓 intrinsic 寬決定大小，不被 absolute 撐到 100vw */
+
+.hero-rand-grid .hero-title-wrapper,
+  .hero-rand-grid .hero-title-cn-wrapper,
+  .hero-rand-grid .hero-text-en-wrapper,
+  .hero-rand-grid .hero-text-cn-wrapper {
+  display: inline-block;
+}
+
+/* 段落 max-width，限制 wrap 寬度 */
+
+.hero-rand-grid .hero-text-en,
+  .hero-rand-grid .hero-text-cn {
+  max-width: clamp(220px, 28vw, 420px);
+}
+
+/* Banner：85vw 16:9；JS 設 transform: rotate(N deg) 隨機；transform-origin 用 center 旋轉視覺平衡
+     文字可疊在 banner 上 → 文字 z-index 高於 banner
+     width min() cap：在 viewport 高度有限時自動縮小（多項式 1.6 = 旋轉 ±3° 下 bbH/bannerWidth 反比近似），
+     確保旋轉後 bbox 完整落在 [BANNER_TOP_BOUND=90, 100vh-BOTTOM_MARGIN=30] 範圍內，不被下一 section 切 */
+
+.hero-banner {
+  width: min(85vw, calc((100vh - 120px) * 1.6));
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  visibility: hidden;
+  transform-origin: center center;
+}
+
+.hero-banner img {
+  width: 100%;
+  height: 100%;
+  -o-object-fit: cover;
+     object-fit: cover;
+  display: block;
+}
+
+/* 文字疊在 banner 上：z-index 拉高 */
+
+.hero-rand-grid .hero-title-wrapper,
+  .hero-rand-grid .hero-title-cn-wrapper,
+  .hero-rand-grid .hero-text-en-wrapper,
+  .hero-rand-grid .hero-text-cn-wrapper {
+  z-index: 2;
+}
+
+.hero-rand-grid .hero-banner {
+  z-index: 1;
+}
+
+/* 手機：拋棄 absolute 改 flex stack（不用 random） */
+
+@media (max-width: 767px) {
+  .hero-rand-grid {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: flex-start;
+    gap: 1.5rem;
+    padding: 120px var(--container-padding) 4rem;
+  }
+
+  .hero-rand-grid .hero-text-en,
+    .hero-rand-grid .hero-text-cn {
+    max-width: 100%;
+  }
+
+  .hero-banner {
+    width: 75vw;
+  }
 }
 
 /* ===== Activities List Item - Unified Style ===== */
@@ -6111,10 +6332,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 
   .md\:mb-lg{
     margin-bottom: var(--spacing-lg);
-  }
-
-  .md\:mb-xl{
-    margin-bottom: var(--spacing-xl);
   }
 
   .md\:ml-0{

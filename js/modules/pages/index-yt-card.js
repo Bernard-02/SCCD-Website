@@ -138,14 +138,14 @@ function initWatchChars(ytCharsEl) {
         let lastPlaced = null;
         function getCharColor() {
           // standard/inverse: 卡片底色 = var(--theme-fg)（黑/白）→ 文字用反向 var(--theme-bg)
-          // mode-color: 卡片底是 25% overlay 半透明隨機色，文字必須用 var(--theme-fg) 對比色
-          //   否則 var(--theme-bg)=隨機色 ≈ overlay 底色 → 看不見
+          // mode-color: 卡片底改為 var(--theme-fg) strict 對比 → 文字用 var(--theme-fg-inverse)
           // ⚠️ 必須讀 document.body 而非 documentElement：--theme-bg/fg 定義在 body.mode-* 上，
           //    從 <html> 讀永遠拿 :root 預設值（standard 的白），inverse 切換失效
+          //    （--theme-fg-inverse 是 mode-color 由 theme-toggle.js 設在 documentElement，cascade 下來 body 也讀得到）
           const isColorMode = document.body.classList.contains('mode-color');
-          const varName = isColorMode ? '--theme-fg' : '--theme-bg';
+          const varName = isColorMode ? '--theme-fg-inverse' : '--theme-bg';
           const c = getComputedStyle(document.body).getPropertyValue(varName).trim();
-          return c || (isColorMode ? '#000' : '#fff');
+          return c || (isColorMode ? '#fff' : '#fff');
         }
         function drawLayout(reuse = false) {
           p.clear();
