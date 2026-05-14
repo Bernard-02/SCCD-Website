@@ -142,11 +142,14 @@ function renderAdmissionList(data, container) {
 
 /**
  * 為 container 內所有 reveal-row（包括 list-item 外的年份/separator）套 clip-reveal init
+ *
+ * hide=true（預設）：wrap + 推 yPercent:100 隱藏準備 reveal
+ * hide=false：只 wrap 不隱藏 — 初次載入時描述塊在 HTML 已可見，但需 clip-wrapper 讓首次 exit 能乾淨剪裁
  */
-export function setupAdmissionReveal(container) {
+export function setupAdmissionReveal(container, { hide = true } = {}) {
   if (typeof gsap === 'undefined' || !container) return;
   const rows = container.querySelectorAll('.list-reveal-row');
-  setupClipReveal(rows);
+  setupClipReveal(rows, { hide });
 }
 
 /**

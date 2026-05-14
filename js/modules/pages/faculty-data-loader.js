@@ -24,6 +24,12 @@ export async function loadFacultyData() {
 }
 
 const CARD_COLORS = ['#FF448A', '#00FF80', '#26BCFF'];
+// 圖片進場用：4 個方向 random 抽，filter 用 setupFacultyCardAnim 讀 data-img-dir
+const IMG_ENTRY_DIRS = ['top', 'right', 'bottom', 'left'];
+
+function randomImgDir() {
+  return IMG_ENTRY_DIRS[Math.floor(Math.random() * IMG_ENTRY_DIRS.length)];
+}
 
 function renderFacultyList(containerId, items) {
   const container = document.getElementById(containerId);
@@ -40,16 +46,22 @@ function renderFacultyList(containerId, items) {
     const color = CARD_COLORS[index % CARD_COLORS.length];
     const sign = Math.random() < 0.5 ? -1 : 1;
     const initDeg = (sign * (3 + Math.random() * 3)).toFixed(2);
+    // 圖片進場：4 方向 clip-path（filter 端讀 data-img-dir）
+    const imgDir = randomImgDir();
     return `
-    <div class="faculty-card group ${item.type === 'parttime' ? 'cursor-default' : 'cursor-pointer'} p-[6px]" data-category="${item.type}" data-faculty-id="${item.id}" style="--card-color: ${color}; --init-deg: ${initDeg}deg">
-      <div class="faculty-card-image-wrapper overflow-hidden mb-sm aspect-[4/5] bg-gray-2 relative">
+    <div class="faculty-card group ${item.type === 'parttime' ? 'cursor-default' : 'cursor-pointer'} p-[6px]" data-category="${item.type}" data-faculty-id="${item.id}" data-img-dir="${imgDir}" style="--card-color: ${color}; --init-deg: ${initDeg}deg">
+      <div class="faculty-card-image-wrapper overflow-hidden mb-md aspect-[4/5] bg-gray-2 relative">
         <img src="${item.image}" alt="${item.nameEn}" loading="lazy" class="faculty-card-image w-full h-full object-cover">
       </div>
       <div class="text-left">
-        <h5>${item.nameEn}</h5>
-        <h5>${item.nameZh}</h5>
-        <p class="text-p2 mt-xs">${item.titleEn}</p>
-        <p class="text-p2">${item.titleZh}</p>
+        <div class="faculty-card-name">
+          <h5>${item.nameEn}</h5>
+          <h5>${item.nameZh}</h5>
+        </div>
+        <div class="faculty-card-title mt-xs">
+          <p class="text-p2">${item.titleEn}</p>
+          <p class="text-p2">${item.titleZh}</p>
+        </div>
       </div>
     </div>
   `;

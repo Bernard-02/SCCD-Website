@@ -65,6 +65,9 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete } =
     if (video.src !== videoUrl) video.src = videoUrl; // 萬一沒 preload 也 fallback
     overlay.style.display = 'flex';
     document.body.style.overflow = 'hidden';
+    // html { scrollbar-gutter: stable } 保留 10px gutter；overlay fixed inset:0 蓋不到，
+    // 預設 track 白色會在 overlay 右側露出。把 html bg 染黑讓 gutter 條隱形
+    document.documentElement.style.backgroundColor = '#000';
     // 三個矩形區塊各自設背景色
     uiBlocks.forEach(block => { if (block) block.style.background = accentColor; });
     applyIconColor(uiIconColor);
@@ -85,6 +88,7 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete } =
       video.src = '';
       overlay.style.display = 'none';
       document.body.style.overflow = '';
+      document.documentElement.style.backgroundColor = '';
       return;
     }
 
@@ -110,6 +114,8 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete } =
       onComplete: () => {
         clone.remove();
         video.src = '';
+        // 黑色 clone 完全縮回後才恢復 html bg，避免 gutter 條閃白
+        document.documentElement.style.backgroundColor = '';
         onCloseAnimComplete?.();
       }
     });

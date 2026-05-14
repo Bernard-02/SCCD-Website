@@ -15,7 +15,9 @@
 
   <!-- Main Content -->
   <main class="w-full relative" style="height: 100vh; padding-top: var(--header-height, 80px);">
-    <iframe src="../generate-app/index.html" class="w-full h-full border-none block" title="Generate Art"></iframe>
+    <!-- src 由 main-modular.js（page === 'generate'）依當前 site theme mode 動態組成 -->
+    <!-- 用 data-src 而非 src：避免 iframe 先載入 default Standard 再被切到承襲的 mode 造成閃爍 -->
+    <iframe data-src="../generate-app/index.html" class="w-full h-full border-none block" title="Generate Art"></iframe>
   </main>
 
   <!-- JavaScript -->

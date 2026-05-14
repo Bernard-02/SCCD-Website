@@ -145,6 +145,13 @@ export function initCoursesSectionSwitch() {
   function pickClipDir() { return CLIP_DIRS[Math.floor(Math.random() * CLIP_DIRS.length)]; }
 
   async function switchToProgram(program, btns, shouldScroll) {
+    const newPanelId = `panel-${program}`;
+    const prevPanel = document.querySelector('.courses-panel:not(.hidden)');
+    // 已 active 同 panel：跳過退場/進場 + active btn 重 roll；如果是 click（shouldScroll）仍 scroll 對齊 anchor
+    if (prevPanel && prevPanel.id === newPanelId && shouldScroll) {
+      if (sectionEl) sectionEl.scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
     // 找出將被 active 的 btn，把 hover 留下的 _pendingColor / _pendingRot / _pendingLabelRot
     // 拿出來餵給 setActiveNavBtn，達成「hover 看到什麼角度，click 就停在什麼角度」的記憶效果（仿 about）
     const incomingBtn = /** @type {any} */ ([...btns].find(b => b.getAttribute('data-program') === program));
@@ -156,8 +163,6 @@ export function initCoursesSectionSwitch() {
     // 切換時（shouldScroll=true）先 exit 舊 panel 的卡片 +（涉及 MDES 時）年級表頭 inner，再 toggle hidden；初次 init 跳過 exit
     // 已隱藏的卡片（從未 reveal 過）的 clipPath 已是 CLIP_DIR，tween 到另一個 CLIP_DIR 視覺上無變化，無需特別 guard
     const isSwitch = shouldScroll;
-    const newPanelId = `panel-${program}`;
-    const prevPanel = document.querySelector('.courses-panel:not(.hidden)');
 
     // 修 bug：開頭無條件 clear 所有 panel 的 headers inner 殘留 transform
     // 場景：BFA-A→MDES（BFA-A inner 退到 ±100 殘留）→ MDES→BFA-CMD（不動 BFA-A）→ BFA-CMD→BFA-A（involvesMdes=false 不 enter 動畫）

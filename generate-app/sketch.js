@@ -87,6 +87,28 @@ function setup() {
   let canvas = createCanvas(canvasSize.width, canvasSize.height);
   canvas.parent(canvasContainerId);
 
+  // --- 承襲外層 site theme mode（由 main-modular.js 透過 iframe URL params 帶入）---
+  // standard → Standard / inverse → Inverse / color → Wireframe（+ 當前 hue + Play 狀態）
+  // 必須在 updateUI() / body class init / 初始 postMessage 之前先設好 mode/targetMode 及 Wireframe 相關狀態，
+  // 否則下面流程會用 default Standard 跑完一遍才被改寫；放在 createCanvas 之後，p5 的 colorMode()/color() 才有 renderer 可用
+  const _initParams = new URLSearchParams(window.location.search);
+  const _initMode = _initParams.get('mode');
+  if (_initMode === 'Standard' || _initMode === 'Inverse' || _initMode === 'Wireframe') {
+    mode = _initMode;
+    targetMode = _initMode;
+    if (_initMode === 'Wireframe') {
+      const _hueRaw = parseFloat(_initParams.get('hue'));
+      selectedHue = isNaN(_hueRaw) ? random(0, 360) : ((_hueRaw % 360) + 360) % 360;
+      colorMode(HSB, 360, 100, 100);
+      wireframeColor = color(selectedHue, 80, 100);
+      colorMode(RGB, 255);
+      wireframeStrokeColor = getContrastColor(wireframeColor);
+      currentStrokeColor = wireframeStrokeColor;
+      targetStrokeColor = wireframeStrokeColor;
+      if (_initParams.get('play') === '1') isColorWheelRotating = true;
+    }
+  }
+
   // p5.js 繪圖設定
   textFont(font);
   // 根據 canvas 尺寸動態調整文字大小
@@ -728,6 +750,12 @@ function setup() {
 
     // 初始化時調用一次
     setTimeout(handleOrientationChange, 100);
+  }
+
+  // 承襲自 site mode-color 進場時 isColorWheelRotating 已是 true（URL params 帶 play=1），
+  // 但 colorWheelPlayIcon 預設 src 是 Play.svg；補一次 updateColorWheelIcon 讓 icon 跟狀態一致顯示 Pause
+  if (mode === "Wireframe" && isColorWheelRotating) {
+    updateColorWheelIcon();
   }
 
   // --- 通知 parent (generate.html) 初始 mode，讓 header 同步底色 ---

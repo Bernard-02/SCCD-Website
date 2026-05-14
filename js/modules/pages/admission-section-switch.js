@@ -21,7 +21,14 @@ export function initAdmissionSectionSwitch() {
     if (switching) return;
     const currentPanel = /** @type {HTMLElement | null} */ (document.querySelector('.activities-panel:not(.hidden)'));
     const targetId = `panel-${section}`;
-    if (currentPanel && currentPanel.id === targetId && !isInitial) return;
+    // 已 active 同 panel：跳過退場/進場動畫；如果是 click（shouldScroll）仍 scroll 對齊 anchor
+    if (currentPanel && currentPanel.id === targetId && !isInitial) {
+      if (shouldScroll) {
+        const sectionEl = document.getElementById('admission-content-section');
+        if (sectionEl) sectionEl.scrollIntoView({ behavior: 'smooth' });
+      }
+      return;
+    }
 
     switching = true;
 
@@ -36,7 +43,9 @@ export function initAdmissionSectionSwitch() {
 
     // 3. 立即 setup 已存在的 rows（描述塊等 HTML 寫死的元素）— 避免 lazy load 期間描述塊 flash 顯示
     //    （第一次切 summer-camp 時 list 還沒載入，但描述塊已在 panel HTML 內）
-    if (newPanel && !isInitial) setupAdmissionReveal(newPanel);
+    //    初次 init（hide:false）只 wrap 不隱藏：描述塊 HTML 已可見，但需 clip-wrapper 讓首次 exit 能乾淨剪裁
+    //    （無 wrapper 時 yPercent 0→100 會把描述塊推出自然 flow 看起來「掉出去」而非裁切）
+    if (newPanel) setupAdmissionReveal(newPanel, { hide: !isInitial });
 
     // 4. Lazy load summer camp（首次切到時才載入；autoReveal:false 由本模組接管 reveal）
     if (section === 'summer-camp' && !loaded['summer-camp']) {

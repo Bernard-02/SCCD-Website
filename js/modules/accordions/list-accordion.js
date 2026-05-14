@@ -184,9 +184,38 @@ function initListHeaderAccordion() {
         // 預設一次只開一個：開啟前先關掉同 panel 內其他展開中的 accordion
         // 非 activities 頁面（如 admission detail）無 .activities-panel，fallback 到 document
         const scope = this.closest('.activities-panel') || document;
-        scope.querySelectorAll('.list-header.active').forEach(other => {
-          if (other !== this) closeListHeader(other);
+        const others = [...scope.querySelectorAll('.list-header.active')].filter(o => o !== this);
+
+        // Scroll 對齊：點開時把 header 帶到 sticky 位置（與 close/open height tween 0.5s 同步）
+        // 為什麼：A 收起時 document 縮短但 scrollY 不變 → B 自然位置被往上拉，sticky 規則只在 active
+        // 啟用，動畫期間若 B 自然位置仍在 stickyTop 之下、collapse 過程又把整段往上推，B 可能整段
+        // 飄出 viewport 上緣；點開前主動 tween scrollY 到「B 的最終 stickyTop 位置」確保收尾時對齊
+        const headerRect = this.getBoundingClientRect();
+        let collapseAbove = 0;
+        others.forEach(other => {
+          if (other.getBoundingClientRect().top < headerRect.top) {
+            const c = (other.nextElementSibling?.classList.contains('list-content')
+              ? other.nextElementSibling
+              : other.closest('.list-item')?.querySelector('.list-content'));
+            if (c) collapseAbove += c.offsetHeight;
+          }
         });
+        const stickyTopVar = getComputedStyle(this).getPropertyValue('--list-header-sticky-top').trim();
+        const stickyTop = parseFloat(stickyTopVar) || (window.innerWidth >= 768 ? 200 : 100);
+        const targetScrollY = Math.max(0, window.scrollY + headerRect.top - collapseAbove - stickyTop);
+        if (Math.abs(targetScrollY - window.scrollY) > 1) {
+          if (typeof window.ScrollToPlugin !== 'undefined') {
+            gsap.to(window, {
+              scrollTo: { y: targetScrollY, autoKill: false },
+              duration: 0.5,
+              ease: "power2.inOut",
+            });
+          } else {
+            window.scrollTo({ top: targetScrollY, behavior: 'smooth' });
+          }
+        }
+
+        others.forEach(other => closeListHeader(other));
         // Open - header / content 都保留 100% accent；ref 用對應 deep 色
         // workshopItem 也染同色：sticky header 與 content 在 fractional pixel 位置會出現 1-2px paint 縫，
         // 父層 .list-item 連續底色蓋住該縫；header 自己仍須保留 bg 用於 sticky 飄到別 item 上方時的覆蓋

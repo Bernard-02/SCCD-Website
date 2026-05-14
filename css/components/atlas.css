@@ -224,7 +224,7 @@
 
 /* ── Alumni filter 下方輪播職業 chip（每 3s 切一個職業，random 三原色 bg + 黑字，雙語 EN 上 ZH 下）
    font / weight / padding 都對齊 filter btn 的 .anchor-nav-inner；margin-top:-0.5rem 抵消父層 gap 讓它跟 alumni btn 接起來；
-   rotation 由 atlas.js 動態同步 alumni btn inner 的角度（一起轉） ─────── */
+   旋轉同步 alumni 的 inline rotate；上下兩 chip 共用「接縫 pivot」（alumni 繞 BL、career 繞 TL）保證旋轉後仍緊貼 ─────── */
 .atlas-alumni-career {
   display: inline-block;
   align-self: flex-start;
@@ -234,13 +234,18 @@
   font-weight: 700;
   line-height: 1.25;
   color: #000;
-  /* bg 由 atlas.js inline 設 random 三原色；clip-path 由 GSAP 驅動 4 方向隨機 reveal / hide / 切換 */
-  clip-path: inset(100% 0% 0% 0%);
+  /* bg 由 atlas.js inline 設 random 三原色；clip-path 統一上→下 reveal、下→上 collapse（hidden = bottom 100%） */
+  clip-path: inset(0% 0% 100% 0%);
   max-width: 240px;
   word-break: break-word;
   user-select: none;
   pointer-events: none;
   margin-top: -0.5rem;
+  /* 收/展時 height + padding 由 JS 同步動畫，overflow:hidden 讓內容隨 height 乾淨裁切，flex 兄弟自動 reflow 上移 */
+  overflow: hidden;
+  /* 與 alumni inner 共用「接縫 pivot」— career 繞 top-left、alumni 繞 bottom-left
+     兩個角在 layout 上是同一點 → 旋轉同角度後仍緊貼，與 about resources accordion 的 top-right pivot 同 pattern */
+  transform-origin: top left;
 }
 .atlas-alumni-career-en,
 .atlas-alumni-career-zh {
@@ -320,14 +325,47 @@
   height: 100%;
 }
 
-/* ── Column title wrapper（仿 hero-title-wrapper：rotate + overflow:hidden 形成 yPercent slide-in 遮罩） ── */
-.atlas-list-col-title-wrapper {
+/* ── Column title block（旋轉 host，flex-column 包 title-wrapper + 可選的 career chip）
+   旋轉由 JS 設在這層，title 與 career 共用 pivot 永遠緊貼（與 about resources accordion 同 pattern） ── */
+.atlas-list-col-titleblock {
   flex-shrink: 0;
+  align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  transform-origin: left center;
+  /* 旋轉角度由 JS 設成 inline transform */
+}
+
+/* ── Column title wrapper（overflow:hidden 形成 yPercent slide-in 遮罩；不再 host 旋轉） ── */
+.atlas-list-col-title-wrapper {
   align-self: flex-start;
   display: block;
   overflow: hidden;
-  transform-origin: left center;
-  /* 旋轉角度由 JS 設成 inline transform */
+}
+
+/* ── List view 的 career chip（只用於 alumni 欄；padding / clip-path / overflow 全與 .atlas-alumni-career 對齊） ── */
+.atlas-list-col-career {
+  align-self: flex-start;
+  width: max-content;
+  max-width: 240px;
+  padding: 6px 8px 5px;
+  font-family: var(--font-en, 'Inter'), var(--font-zh, 'Noto Sans TC'), system-ui, sans-serif;
+  font-size: var(--font-size-p3);
+  font-weight: 700;
+  line-height: 1.25;
+  color: #000;
+  /* bg 由 JS inline 設 random 三原色；clip-path 統一上→下 reveal、下→上 collapse */
+  clip-path: inset(0% 0% 100% 0%);
+  word-break: break-word;
+  user-select: none;
+  pointer-events: none;
+  /* 收/展 height + padding 動畫，overflow:hidden 讓內容隨 height 乾淨裁切 */
+  overflow: hidden;
+}
+
+.atlas-list-col-career-en,
+.atlas-list-col-career-zh {
+  display: block;
 }
 
 /* ── Column title chip（黑底白字，英上中下） ── */
@@ -540,6 +578,13 @@
   color: rgba(0, 0, 0, 0.5);
   padding: 6px 8px 5px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* alumni btn 與下方 career chip 共用「接縫 pivot」：
+   alumni inner 繞 bottom-left，career chip 繞 top-left；
+   兩者 layout 上的這兩個角是同一點（margin-top:-0.5rem 抵消 gap）→ 旋轉同角度仍緊貼 */
+.atlas-filter-btn[data-filter="alumni"] .anchor-nav-inner {
+  transform-origin: bottom left;
 }
 
 @media (min-width: 768px) {

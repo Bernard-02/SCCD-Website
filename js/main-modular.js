@@ -6,7 +6,7 @@
 // Import Layout Modules
 import { initHeader } from './header.js';
 import { initFooter } from './footer.js';
-import { initThemeToggle, applyModeForPage, updateToggleBtnVisualState } from './modules/ui/theme-toggle.js';
+import { initThemeToggle, applyModeForPage, updateToggleBtnVisualState, getStoredMode, getColorHue } from './modules/ui/theme-toggle.js';
 import { initRouter } from './router.js';
 
 // Import Filter Modules
@@ -110,8 +110,15 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
   // Hero animation 所有頁面都跑（有 hero section 就會觸發）
   // 例外：degree-show-detail 的 hero 文字由 async fetch 填入，必須等 data loader 設好 textContent 後再呼叫，
   // 否則動畫跑在空元素上、clearProps 完才填字，使用者看到的是靜態文字（中文標題沒有進場動畫）
+  //
+  // 需等 header:ready：randomizeHeroLayout 要量 #header-logo bounds 避免文字被 logo 切到（faculty 等頁有 hero-rand-grid 隨機排版），
+  // header 是 async fetch 注入，未 ready 時 querySelector('#header-logo') 為 null
   if (page !== 'degree-show-detail') {
-    initHeroAnimation();
+    if (document.querySelector('#site-header header')) {
+      initHeroAnimation();
+    } else {
+      document.addEventListener('header:ready', initHeroAnimation, { once: true });
+    }
   }
 
   // --- Index Page ---
@@ -234,6 +241,24 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
 
   // --- Generate Page ---
   if (page === 'generate') {
+    // 把當前 site theme mode（standard/inverse/color）轉成 generate-app mode（Standard/Inverse/Wireframe）
+    // 帶入 iframe URL params：mode 一律帶；color 額外帶 hue + play=1 讓色環接續 site 的 hue 進入 Play 狀態
+    // create.html 用 data-src 占位，src 在這裡才設定，避免 iframe 先載入 default Standard 再切造成閃爍
+    const iframe = /** @type {HTMLIFrameElement | null} */ (document.querySelector('#page-content iframe[data-src]'));
+    if (iframe) {
+      const siteMode = getStoredMode();
+      const genMode = siteMode === 'inverse' ? 'Inverse'
+                    : siteMode === 'color'   ? 'Wireframe'
+                                             : 'Standard';
+      const params = new URLSearchParams();
+      params.set('mode', genMode);
+      if (genMode === 'Wireframe') {
+        params.set('hue', String(getColorHue()));
+        params.set('play', '1');
+      }
+      iframe.src = iframe.dataset.src + '?' + params.toString();
+    }
+
     // 觸發 header logo typewriter 動畫（SPA 模式下 header 不重載，需手動觸發）
     import('./header.js').then(({ triggerGenerateLogo }) => {
       if (typeof triggerGenerateLogo === 'function') triggerGenerateLogo();

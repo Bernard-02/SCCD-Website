@@ -173,6 +173,30 @@
 - `xl`: 1280px（超大桌面）
 - **不使用 `sm`** 避免混淆
 
+## 共用動畫模式（命名約定）
+
+### Clip-Reveal Entrance（hero-style 由下而上揭露）
+- **效果**：元素 `yPercent: 100 → 0`，外層包一層 `overflow: clip` wrapper，視覺上從容器底邊乾淨滑入
+- **參考實作**：`js/modules/pages/hero-animation.js`（hero `<h1>.hero-title` 與 subtitle 進場）
+- **共用 helpers**：`js/modules/ui/scroll-animate.js`
+  - `setupClipReveal(elements)` — wrap + 預設 yPercent:100（idempotent）
+  - `playClipReveal(elements, { onComplete })` — 0.9s `power3.out` + stagger 0.12s + clearProps:transform
+  - `animateCardsClipReveal(elements, useScrollTrigger)` — 整合版（含 ScrollTrigger.batch）
+- **規範**：
+  - **不配 opacity fade**（一律用 clip 揭露代替）
+  - 標準 duration 0.9s + `power3.out`；同層 stagger 0.12s，跨卡 stagger 0.08s
+  - 文字 wrap 後 `mb-*` 等 margin 要顯式搬到 wrapper（內部 margin 會被 clip 蓋掉）
+- **用詞**：對話中講「**clip-reveal**」或「**hero 標題那個進場**」就是這個 pattern；新進場動畫優先沿用這套，不另外發明
+
+### Clip-Path Inset Reveal（4 方向圖片揭露）
+- **效果**：元素 `clip-path: inset(...)` 從 100% → 0% 揭露（top/right/bottom/left 四選一）
+- **參考實作**：`js/modules/filters/faculty-filter.js` 的 `setupFacultyCardAnim` / `playFacultyCardAnim`
+- **規範**：
+  - inset 四值單位**必須一致**（全用 `%` 或全用 px）— 混用 `0` 與 `100%` 會讓 interpolate 失敗，視覺看起來「沒動畫直接出現」
+  - 起點：`inset(0% 0% 100% 0%)`（從 top 揭露）/ `inset(100% 0% 0% 0%)`（從 bottom）/ `inset(0% 100% 0% 0%)`（從 left）/ `inset(0% 0% 0% 100%)`（從 right）
+  - 終點：`inset(0% 0% 0% 0%)`
+  - 圖片進場優先用這個（4 方向 random 增加變化），文字進場用 clip-reveal
+
 ## 工作流程
 
 ### 開發流程

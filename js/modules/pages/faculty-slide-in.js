@@ -198,15 +198,29 @@ export function initFacultySlideIn() {
             slideIn.classList.add('pointer-events-auto');
 
             // Animation Sequence: Overlay first, then Panel and Button slide in together
+            // html { scrollbar-gutter: stable } 保留的 10px gutter 在 panel 終點右側會露白縫，
+            // 需把 html bg 染成 cardColor 融進 panel；用 GSAP tween 與 panel slide 同 duration 同 ease
+            // 並行漸變（不是同步瞬切、也不是 onComplete 才瞬切），讓 gutter 顏色與 panel 進場同步
             if (typeof gsap !== 'undefined') {
               cursorEnabled = false;
               const tl = gsap.timeline();
               tl.to(slideInOverlay, { opacity: 0.8, duration: 0.3 })
-                .to(slideInPanel, { x: '0%', duration: 0.5, ease: 'power3.out', onComplete: () => { cursorEnabled = true; } }, '-=0');
+                .to(slideInPanel, {
+                  x: '0%',
+                  duration: 0.5,
+                  ease: 'power3.out',
+                  onComplete: () => { cursorEnabled = true; }
+                }, '-=0')
+                .fromTo(document.documentElement,
+                  { backgroundColor: '#ffffff' },
+                  { backgroundColor: cardColor, duration: 0.5, ease: 'power3.out' },
+                  '<'
+                );
             } else {
               // Fallback if GSAP is not loaded
               slideInOverlay.style.opacity = '0.8';
               slideInPanel.style.transform = 'translateX(0%)';
+              document.documentElement.style.backgroundColor = cardColor;
             }
 
             // Prevent body scroll
@@ -223,6 +237,8 @@ export function initFacultySlideIn() {
 
     if (typeof gsap !== 'undefined') {
       gsap.to(slideInOverlay, { opacity: 0, duration: 0.4, delay: 0.1 });
+      // html bg 與 panel slide-out 同步漸變回白色（對稱開啟動畫，避免「panel 滑完才瞬切回白」）
+      gsap.to(document.documentElement, { backgroundColor: '#ffffff', duration: 0.5, ease: 'power3.in' });
       gsap.to(slideInPanel, {
         x: '110%',
         duration: 0.5,
@@ -231,6 +247,7 @@ export function initFacultySlideIn() {
           slideIn.classList.add('invisible', 'pointer-events-none');
           slideIn.classList.remove('pointer-events-auto');
           slideInPanel.style.backgroundColor = '';
+          document.documentElement.style.backgroundColor = '';
           document.body.style.overflow = '';
         }
       });
@@ -242,6 +259,7 @@ export function initFacultySlideIn() {
       setTimeout(() => {
         slideIn.classList.add('invisible', 'pointer-events-none');
         slideIn.classList.remove('pointer-events-auto');
+        document.documentElement.style.backgroundColor = '';
         document.body.style.overflow = '';
       }, 500);
     }

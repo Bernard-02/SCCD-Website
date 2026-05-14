@@ -16,33 +16,20 @@
 
   <!-- Main Content -->
   <main>
-    <!-- Hero Section with Background Image -->
+    <!-- Admission Hero Section（4 元素隨機 corner 排版，見 hero-animation.js randomizeHeroLayout） -->
     <section class="h-screen relative overflow-hidden">
-      <!-- Background Image -->
-      <div class="absolute inset-0 w-full h-full">
-        <img src="../images/SCCD-1-4-0.jpg" alt="Admission" class="w-full h-full object-cover">
-      </div>
-
-      <!-- Content Container -->
-      <div class="site-container h-full relative z-10">
-        <div class="h-full flex flex-col md:flex-row justify-end md:justify-start items-start md:items-end gap-lg md:gap-xl pb-3xl md:pb-2xl pt-[120px] md:pt-0">
-          <!-- Title: 手機版100%，桌面版50% -->
-          <div class="w-full md:w-1/2">
-            <h1 class="hero-title text-black inline-block" data-hero-hl>ADMISSION</h1>
-          </div>
-
-          <!-- Content: 手機版100%，桌面版50% -->
-          <div class="w-full md:w-1/2">
-            <!-- English text -->
-            <p class="hero-text-en text-black mb-lg md:mb-xl text-p1" data-hero-hl>
-              Welcome to SCCD. We invite passionate and creative individuals to join our program and explore the world of communications design.
-            </p>
-            <!-- Chinese text -->
-            <p class="hero-text-cn text-black text-p1" data-hero-hl>
-              歡迎對媒體傳達設計充滿熱情的朋友們，報考實踐大學媒體傳達設計學系，一起探索設計的無限可能。
-            </p>
-          </div>
+      <div class="hero-rand-grid">
+        <h1 class="hero-title text-black inline-block" data-hero-hl>ADMISSION</h1>
+        <h1 class="hero-title-cn text-black inline-block" data-hero-hl>入學</h1>
+        <div class="hero-banner">
+          <img src="../images/SCCD-1-4-0.jpg" alt="Admission">
         </div>
+        <p class="hero-text-en text-black text-p1" data-hero-hl>
+          Welcome to SCCD. We invite passionate and creative individuals to join our program and explore the world of communications design.
+        </p>
+        <p class="hero-text-cn text-black text-p1" data-hero-hl>
+          歡迎對媒體傳達設計充滿熱情的朋友們，報考實踐大學媒體傳達設計學系，一起探索設計的無限可能。
+        </p>
       </div>
     </section>
 

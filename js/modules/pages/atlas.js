@@ -19,14 +19,14 @@ const COLOR_BLACK = '#000000';
 
 // Alumni filter 下方輪播職業（雙語，每 3s 切換一個 + clip-path 動畫）
 const ALUMNI_CAREERS = [
-  { en: 'Animation directors', zh: '動畫導演' },
-  { en: 'New media artists', zh: '新媒體藝術家' },
-  { en: 'Creative directors', zh: '創意總監' },
-  { en: 'Art directors', zh: '藝術總監' },
-  { en: 'Design directors', zh: '設計總監' },
-  { en: 'Graphic designers', zh: '平面設計師' },
-  { en: 'Game designers', zh: '遊戲設計師' },
-  { en: 'Web designers', zh: '網站設計師' },
+  { en: 'Animation Directors', zh: '動畫導演' },
+  { en: 'New Media Artists', zh: '新媒體藝術家' },
+  { en: 'Creative Directors', zh: '創意總監' },
+  { en: 'Art Directors', zh: '藝術總監' },
+  { en: 'Design Directors', zh: '設計總監' },
+  { en: 'Graphic Designers', zh: '平面設計師' },
+  { en: 'Game Designers', zh: '遊戲設計師' },
+  { en: 'Web Designers', zh: '網站設計師' },
   { en: 'Artists', zh: '藝術家' },
   { en: 'Photographers', zh: '攝影師' },
   { en: 'Curators', zh: '策展人' },
@@ -45,8 +45,8 @@ const ALUMNI_CAREERS = [
   { en: 'Occupational Therapy Artist', zh: '職能治療藝術家' },
   { en: 'Brand Design', zh: '品牌設計' },
   { en: 'Manager', zh: '經紀人' },
-  { en: 'Lead vocal of the band', zh: '樂團主唱' },
-  { en: 'Polar explorer', zh: '極地探險家' },
+  { en: 'Lead Vocal of the Band', zh: '樂團主唱' },
+  { en: 'Polar Explorer', zh: '極地探險家' },
 ];
 
 // ── Filter ─────────────────────────────────────────────
@@ -1302,117 +1302,197 @@ export async function initAtlas() {
   const btns = /** @type {HTMLElement[]} */ ([...document.querySelectorAll('.atlas-filter-btn')]);
   const selected = new Set(btns.map(b => b.dataset.filter));
 
-  // ── Alumni career rotating chip（插在 alumni btn 後當 sibling flex item）──
+  // ── Alumni career rotating chip：map view 一個（alumni filter btn 下方）、list view 一個（alumni 欄 title 下方）
+  // 用 controller factory 包 state，map / list 各持一個 instance ──
   const alumniBtn = btns.find(b => b.dataset.filter === 'alumni') || null;
+  // 收/展 clip 統一上→下 reveal、下→上 collapse（hidden 狀態 = 可見區壓在頂部 0 高度）
+  const CAREER_HIDDEN_CLIP = 'inset(0% 0% 100% 0%)';
+  const CAREER_VISIBLE_CLIP = 'inset(0% 0% 0% 0%)';
+  // padding 自然值（與 CSS 一致）— 收起時 → 0，展開時 → 此值
+  const CAREER_PAD_TOP = 6;
+  const CAREER_PAD_BOTTOM = 5;
+  const CAREER_PAD_HORIZONTAL = 8;  // 左右各 8px（CSS padding: 6px 8px 5px）
+
+  /**
+   * @param {HTMLElement} el
+   * @param {HTMLElement} enEl
+   * @param {HTMLElement} zhEl
+   */
+  function createCareerController(el, enEl, zhEl) {
+    let idx = 0;
+    /** @type {number | null} */
+    let interval = null;
+    /** @type {any} */
+    let tween = null;
+    let visible = false;
+
+    /** @param {{ en: string, zh: string }} career */
+    function fill(career) {
+      enEl.textContent = career.en;
+      zhEl.textContent = career.zh;
+      el.style.backgroundColor = PRIMARY_COLORS[Math.floor(Math.random() * PRIMARY_COLORS.length)];
+    }
+
+    // 換行時 chip width 鎖到「實際最寬那行 + 對稱左右 padding」
+    // 不然 max-width 卡寬度時右側會留 padding 比左側大的不對稱空白
+    // Range API 量單行 rect：display:block span 的 getClientRects 是 border-box 一個 rect，要用 Range 才拿得到 per-line rects
+    function fitWidth() {
+      // 重設 inline width 讓 CSS width:max-content 接管，文字在 max-width 限制下 wrap
+      el.style.width = '';
+      let maxLineW = 0;
+      for (const child of [enEl, zhEl]) {
+        if (!child.firstChild) continue;
+        const range = document.createRange();
+        range.selectNodeContents(child);
+        const rects = range.getClientRects();
+        for (let i = 0; i < rects.length; i++) {
+          if (rects[i].width > maxLineW) maxLineW = rects[i].width;
+        }
+      }
+      if (maxLineW > 0) {
+        el.style.width = `${Math.ceil(maxLineW) + CAREER_PAD_HORIZONTAL * 2}px`;
+      }
+    }
+
+    // 切下一個職業：clip-out（下→上）→ 換內容 + 換色 + 重 fit 寬度 → clip-in（上→下）
+    function rotateOnce() {
+      if (typeof gsap === 'undefined') return;
+      idx = (idx + 1) % ALUMNI_CAREERS.length;
+      if (tween) tween.kill();
+      tween = gsap.to(el, {
+        clipPath: CAREER_HIDDEN_CLIP,
+        duration: 0.3,
+        ease: 'power2.in',
+        onComplete: () => {
+          fill(ALUMNI_CAREERS[idx]);
+          // chip clip-hidden 期間調整寬度，視覺上看不到 box 變動
+          fitWidth();
+          gsap.set(el, { clipPath: CAREER_HIDDEN_CLIP });
+          tween = gsap.to(el, {
+            clipPath: CAREER_VISIBLE_CLIP,
+            duration: 0.4,
+            ease: 'power2.out',
+          });
+        },
+      });
+    }
+
+    /** @param {{ delay?: number }} [opts] */
+    function show(opts) {
+      if (visible) return;
+      visible = true;
+      idx = Math.floor(Math.random() * ALUMNI_CAREERS.length);
+      fill(ALUMNI_CAREERS[idx]);
+      if (typeof gsap === 'undefined') {
+        el.style.height = '';
+        el.style.paddingTop = '';
+        el.style.paddingBottom = '';
+        fitWidth();
+        el.style.clipPath = CAREER_VISIBLE_CLIP;
+        return;
+      }
+      if (tween) tween.kill();
+      // 先量寬度（要先把 padding 還原讓文字 wrap），再量自然高度
+      gsap.set(el, { paddingTop: CAREER_PAD_TOP, paddingBottom: CAREER_PAD_BOTTOM });
+      fitWidth();
+      gsap.set(el, { height: 'auto' });
+      const naturalH = el.offsetHeight;
+      gsap.set(el, { height: 0, paddingTop: 0, paddingBottom: 0, clipPath: CAREER_HIDDEN_CLIP });
+      tween = gsap.to(el, {
+        height: naturalH,
+        paddingTop: CAREER_PAD_TOP,
+        paddingBottom: CAREER_PAD_BOTTOM,
+        clipPath: CAREER_VISIBLE_CLIP,
+        duration: 0.4,
+        delay: (opts && opts.delay) || 0,
+        ease: 'power2.out',
+        onComplete: () => { gsap.set(el, { height: 'auto' }); },
+      });
+      if (interval) clearInterval(interval);
+      interval = /** @type {any} */ (setInterval(rotateOnce, 3000));
+    }
+
+    function hide() {
+      if (!visible) return;
+      visible = false;
+      if (interval) { clearInterval(interval); interval = null; }
+      if (typeof gsap === 'undefined') {
+        el.style.height = '0';
+        el.style.paddingTop = '0';
+        el.style.paddingBottom = '0';
+        el.style.clipPath = CAREER_HIDDEN_CLIP;
+        return;
+      }
+      if (tween) tween.kill();
+      // height:auto 對 GSAP tween 不友善 → 鎖當下 px 為起點
+      const currentH = el.offsetHeight;
+      gsap.set(el, { height: currentH });
+      tween = gsap.to(el, {
+        height: 0,
+        paddingTop: 0,
+        paddingBottom: 0,
+        clipPath: CAREER_HIDDEN_CLIP,
+        duration: 0.3,
+        ease: 'power2.in',
+      });
+    }
+
+    function destroy() {
+      if (interval) { clearInterval(interval); interval = null; }
+      if (tween) { tween.kill(); tween = null; }
+    }
+
+    return { show, hide, destroy, isVisible: () => visible };
+  }
+
+  // ── Map view career chip（插在 alumni btn 後當 sibling flex item）──
   /** @type {HTMLElement | null} */
   let careerEl = null;
-  /** @type {HTMLElement | null} */
-  let careerEnEl = null;
-  /** @type {HTMLElement | null} */
-  let careerZhEl = null;
-  let careerIdx = 0;
-  /** @type {number | null} */
-  let careerInterval = null;
-  let careerTween = null;
-  let careerVisible = false;
-  const CAREER_HIDDEN_INSETS = [
-    'inset(100% 0% 0% 0%)',
-    'inset(0% 0% 100% 0%)',
-    'inset(0% 100% 0% 0%)',
-    'inset(0% 0% 0% 100%)',
-  ];
-  const randomCareerHiddenInset = () => CAREER_HIDDEN_INSETS[Math.floor(Math.random() * CAREER_HIDDEN_INSETS.length)];
+  /** @type {ReturnType<typeof createCareerController> | null} */
+  let mapCareerCtrl = null;
 
   if (alumniBtn) {
     careerEl = document.createElement('div');
     careerEl.className = 'atlas-alumni-career';
-    careerEnEl = document.createElement('span');
+    const careerEnEl = document.createElement('span');
     careerEnEl.className = 'atlas-alumni-career-en';
-    careerZhEl = document.createElement('span');
+    const careerZhEl = document.createElement('span');
     careerZhEl.className = 'atlas-alumni-career-zh';
     careerEl.appendChild(careerEnEl);
     careerEl.appendChild(careerZhEl);
     alumniBtn.insertAdjacentElement('afterend', careerEl);
+    // 初始 inline 為「完全收起」狀態 — height/padding 為 0，partners 直接緊貼 alumni；
+    // 等 alumni active 時 showCareer 動畫展開（避免 init 期間先佔 row 高度再收起的閃動）
+    careerEl.style.height = '0';
+    careerEl.style.paddingTop = '0';
+    careerEl.style.paddingBottom = '0';
+    mapCareerCtrl = createCareerController(careerEl, careerEnEl, careerZhEl);
   }
 
-  function fillCareer(career) {
-    if (!careerEnEl || !careerZhEl || !careerEl) return;
-    careerEnEl.textContent = career.en;
-    careerZhEl.textContent = career.zh;
-    careerEl.style.backgroundColor = PRIMARY_COLORS[Math.floor(Math.random() * PRIMARY_COLORS.length)];
-  }
+  // ── List view career chip 由 renderList 動態建立、destroy 由 cleanup / renderList 自己管 ──
+  /** @type {ReturnType<typeof createCareerController> | null} */
+  let listCareerCtrl = null;
 
-  // 切下一個職業：clip-out → 換內容 + 換色 → clip-in（每 3s 由 careerInterval 觸發一次）
-  function rotateCareerOnce() {
-    if (!careerEl || typeof gsap === 'undefined') return;
-    careerIdx = (careerIdx + 1) % ALUMNI_CAREERS.length;
-    if (careerTween) careerTween.kill();
-    const targetEl = careerEl;
-    careerTween = gsap.to(targetEl, {
-      clipPath: randomCareerHiddenInset(),
-      duration: 0.3,
-      ease: 'power2.in',
-      onComplete: () => {
-        fillCareer(ALUMNI_CAREERS[careerIdx]);
-        gsap.set(targetEl, { clipPath: randomCareerHiddenInset() });
-        careerTween = gsap.to(targetEl, {
-          clipPath: 'inset(0% 0% 0% 0%)',
-          duration: 0.4,
-          ease: 'power2.out',
-        });
-      },
-    });
-  }
-
+  // Map view 專用 wrapper — 同步 alumni btn 的 inline rotation（pivot 由 CSS transform-origin 控制）
   function showCareer() {
-    if (!careerEl || careerVisible) return;
-    careerVisible = true;
-    careerIdx = Math.floor(Math.random() * ALUMNI_CAREERS.length);
-    fillCareer(ALUMNI_CAREERS[careerIdx]);
-    // 跟著 alumni btn 的 .anchor-nav-inner rotation 一起轉（一起的視覺）
+    if (!mapCareerCtrl || !careerEl) return;
     if (alumniBtn) {
       const inner = /** @type {HTMLElement | null} */ (alumniBtn.querySelector('.anchor-nav-inner'));
       careerEl.style.transform = inner && inner.style.transform ? inner.style.transform : '';
     }
-    if (typeof gsap === 'undefined') {
-      careerEl.style.clipPath = 'inset(0% 0% 0% 0%)';
-      return;
-    }
-    if (careerTween) careerTween.kill();
-    gsap.set(careerEl, { clipPath: randomCareerHiddenInset() });
-    careerTween = gsap.to(careerEl, {
-      clipPath: 'inset(0% 0% 0% 0%)',
-      duration: 0.4,
-      ease: 'power2.out',
-    });
-    if (careerInterval) clearInterval(careerInterval);
-    careerInterval = /** @type {any} */ (setInterval(rotateCareerOnce, 3000));
+    mapCareerCtrl.show();
   }
-
   function hideCareer() {
-    if (!careerEl || !careerVisible) return;
-    careerVisible = false;
-    if (careerInterval) { clearInterval(careerInterval); careerInterval = null; }
-    if (typeof gsap === 'undefined') {
-      careerEl.style.clipPath = randomCareerHiddenInset();
-      return;
-    }
-    if (careerTween) careerTween.kill();
-    careerTween = gsap.to(careerEl, {
-      clipPath: randomCareerHiddenInset(),
-      duration: 0.3,
-      ease: 'power2.in',
-    });
+    if (mapCareerCtrl) mapCareerCtrl.hide();
   }
-
   function syncCareer() {
     if (selected.has('alumni')) showCareer();
     else hideCareer();
   }
 
   cleanupFns.push(() => {
-    if (careerInterval) clearInterval(careerInterval);
-    if (careerTween) careerTween.kill();
+    if (mapCareerCtrl) mapCareerCtrl.destroy();
+    if (listCareerCtrl) listCareerCtrl.destroy();
   });
 
   // 星雲 intro zoom 完成後才依序加 .atlas-filter-revealed 觸發 clip-path wipe
@@ -1720,17 +1800,24 @@ export async function initAtlas() {
       partners: { en: 'Partners',       zh: '合作單位' },
     };
 
+    // 切 list view → 舊 listCareerCtrl 已過期（DOM 即將被 innerHTML='' 清掉）→ 先 destroy
+    if (listCareerCtrl) { listCareerCtrl.destroy(); listCareerCtrl = null; }
+
     Object.keys(FILTER_PREFIXES).forEach(cat => {
       const label = CAT_LABELS[cat];
       const col = document.createElement('div');
       col.className = 'atlas-list-col';
       col.dataset.category = cat;
 
-      // 欄標題（黑底白字，英上中下，隨機旋轉）— 仿 hero-title-wrapper：
-      // wrapper 負責 rotate + overflow:hidden（yPercent slide-in 遮罩），title 本體做 yPercent 動畫
+      // titleblock：旋轉 host（flex-column），包 title-wrapper 與 alumni 欄選配的 career chip
+      // 旋轉放外層 → title 與 career 共用 pivot，永遠緊貼（shared wrapper pattern，類似 about resources）
+      const titleblock = document.createElement('div');
+      titleblock.className = 'atlas-list-col-titleblock';
+      titleblock.style.transform = `rotate(${randDeg()}deg)`;
+
+      // title-wrapper：overflow:hidden 為 yPercent slide-in 遮罩（不再 host 旋轉）
       const titleWrapper = document.createElement('div');
       titleWrapper.className = 'atlas-list-col-title-wrapper';
-      titleWrapper.style.transform = `rotate(${randDeg()}deg)`;
       const titleEl = document.createElement('div');
       titleEl.className = 'atlas-list-col-title';
       const enSpan = document.createElement('span');
@@ -1742,7 +1829,27 @@ export async function initAtlas() {
       titleEl.appendChild(enSpan);
       titleEl.appendChild(zhSpan);
       titleWrapper.appendChild(titleEl);
-      col.appendChild(titleWrapper);
+      titleblock.appendChild(titleWrapper);
+
+      // alumni 欄專屬：title 下方加 career rotating chip（mirror map view）
+      if (cat === 'alumni') {
+        const careerListEl = document.createElement('div');
+        careerListEl.className = 'atlas-list-col-career';
+        const careerEnSpan = document.createElement('span');
+        careerEnSpan.className = 'atlas-list-col-career-en';
+        const careerZhSpan = document.createElement('span');
+        careerZhSpan.className = 'atlas-list-col-career-zh';
+        careerListEl.appendChild(careerEnSpan);
+        careerListEl.appendChild(careerZhSpan);
+        // 初始 collapsed 狀態，等 startList 動畫階段 show()
+        careerListEl.style.height = '0';
+        careerListEl.style.paddingTop = '0';
+        careerListEl.style.paddingBottom = '0';
+        titleblock.appendChild(careerListEl);
+        listCareerCtrl = createCareerController(careerListEl, careerEnSpan, careerZhSpan);
+      }
+
+      col.appendChild(titleblock);
 
       // itemsEl：直接作為 overflow:hidden 容器，內含 2 個 sub-col
       const itemsEl = document.createElement('div');
@@ -1924,6 +2031,17 @@ export async function initAtlas() {
             { yPercent: 0, duration: 0.9, delay, ease: 'power3.out', clearProps: 'transform', overwrite: true }
           );
         }
+        // alumni 欄：career chip 跟 title 同時 reveal（共用 col 的 stagger delay）
+        if (col.dataset.category === 'alumni' && listCareerCtrl) {
+          // 量 title 寬度當 career 的 maxWidth：長文字會在 title 寬度內 wrap，不把 titleblock 撐寬推擠右側 items
+          const careerListEl = /** @type {HTMLElement|null} */ (col.querySelector('.atlas-list-col-career'));
+          const titleListEl = /** @type {HTMLElement|null} */ (col.querySelector('.atlas-list-col-title'));
+          if (careerListEl && titleListEl) {
+            const titleW = titleListEl.offsetWidth;
+            if (titleW > 0) careerListEl.style.maxWidth = `${titleW}px`;
+          }
+          listCareerCtrl.show({ delay });
+        }
         const cat = col.dataset.category;
         const linesPerItem = cat === 'partners' ? 3 : 2;
         const lines = /** @type {HTMLElement[]} */ ([...col.querySelectorAll('.atlas-list-line-clip > *')]);
@@ -2027,8 +2145,10 @@ export async function initAtlas() {
     });
     // cityLines 收回：用 retractT 物理收縮 endpoint（沿用 hover retract pattern）
     // tickFloat 的 updateCityLineEndpoints 每幀依 cl.retractT + cl.hoveredEnd lerp endpoint
-    // 從 t=0（phase 1 cover reveal 同步）就開始收，跨整個 exit 動畫到 phase 2 結束
-    // ease='linear' 等速收：避免 power2.in 把大部分動作擠到最後 25%，造成「前面卡著、最後一刻直接不見」
+    // 從 t=0 起跑跨整段（與 Phase 1 cover reveal 同步起點），ease='power2.out' 把大部分動作壓在前半段：
+    // - 避免 linear 在前 35% 視覺幾乎沒變化（covers front-loaded 大幅 reveal 對比下 line「沒動」）
+    // - 避免 power2.in 把動作擠到最後 25% 造成「前面卡著、最後一刻直接不見」
+    // power2.out 跟 cover reveal 的 ease 一致 → line 與 chip 動畫同節奏出發
     // overwrite:true 防止 clearDetail() 觸發的 setCityLineRetract 反向 tween 拉扯
     cityLines.forEach(cl => {
       cl.hoveredEnd = Math.random() < 0.5 ? 'a' : 'b';
@@ -2037,7 +2157,7 @@ export async function initAtlas() {
       introTween.to(cl, {
         retractT: 1,
         duration: REVEAL_TOTAL + HIDE_TOTAL,
-        ease: 'linear',
+        ease: 'power2.out',
         overwrite: true,
       }, 0);
     });
@@ -2129,13 +2249,13 @@ export async function initAtlas() {
         }, d);
       });
       // cityLines 物理 draw：retractT 1→0，updateCityLineEndpoints 每幀 lerp endpoint
-      // 從 t=0（phase B1 span reveal 同步）開始 draw，跨整個 entry 到 phase B2 結束
-      // ease='linear' 等速 draw，避免線條早早幾乎全長然後尾巴拖過 phase B2 才補完
+      // 從 t=0 起跑跨整段（與 Phase B1 spans reveal 同步起點），ease='power2.out' 與 spans reveal 同節奏
+      // 避免 linear 跨整段時前半段視覺幾乎沒變化，被 spans 大幅 reveal 蓋過顯得「沒動」
       cityLines.forEach(cl => {
         introTween.to(cl, {
           retractT: 0,
           duration: REVEAL_TOTAL + HIDE_TOTAL,
-          ease: 'linear',
+          ease: 'power2.out',
           overwrite: true,
         }, 0);
       });
@@ -2156,11 +2276,16 @@ export async function initAtlas() {
     // 同時退場：
     // - lines + col titles 跑 yPercent → ±100（per-element random、無 stagger）
     // - chevron 用 clip-path inset 原地收起（不平移、位置固定）
+    // - career chip 跑 hide() 收 clip-path + height/padding → entrance 的反向操作（不混進 yPercent 群）
     // duration 0.6 + ease power2.in 統一；0.2 buffer 後再 finalize
     if (typeof gsap === 'undefined') {
+      if (listCareerCtrl) { listCareerCtrl.destroy(); listCareerCtrl = null; }
       finalize();
       return;
     }
+    // career 用 hide() 反向收（clip-path bottom→top collapse + height/padding → 0）
+    // hide() 內已停 interval / kill 舊 tween；destroy 留給 renderList 或 cleanupFns 處理
+    if (listCareerCtrl) listCareerCtrl.hide();
     const yPercentExitTargets = /** @type {HTMLElement[]} */ ([
       ...listView.querySelectorAll('.atlas-list-line-clip > *'),
       ...listView.querySelectorAll('.atlas-list-col-title'),

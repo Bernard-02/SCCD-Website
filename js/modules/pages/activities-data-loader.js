@@ -669,7 +669,7 @@ export async function loadListInto(containerId, url, options = {}) {
 
 // ── Workshop / Students Present / Summer Camp ─────────────────────────────────
 
-export async function loadWorkshopsInto(jsonFile, containerId = null) {
+export async function loadWorkshopsInto(jsonFile, containerId = null, options = {}) {
   // containerId 為 null 時 fallback 到舊頁面容器（非 activities 分頁用）
   const id = containerId || (() => {
     const el = document.querySelector('.bg-white .site-container');
@@ -683,6 +683,7 @@ export async function loadWorkshopsInto(jsonFile, containerId = null) {
     fullDate: true,
     introField: 'intro',
     showAlumniIcon: false,
+    ...options,
   });
 }
 
@@ -714,7 +715,7 @@ const _panelSelectorMap = {
   'students-present-list':      '#panel-students-present',
 };
 
-export async function loadGeneralActivitiesInto(containerId, categoryFilter = null, url = '/data/general-activities.json') {
+export async function loadGeneralActivitiesInto(containerId, categoryFilter = null, url = '/data/general-activities.json', options = {}) {
   const isIndustry = containerId === 'industry-list';
   const isLectures = containerId === 'lectures-list';
   return loadListInto(containerId, url, {
@@ -730,28 +731,31 @@ export async function loadGeneralActivitiesInto(containerId, categoryFilter = nu
     showGuestCountry:     !isIndustry,
     panelSelector:        _panelSelectorMap[containerId] || '#panel-exhibitions',
     scrollTrigger:        true,
+    ...options,
   });
 }
 
-export async function loadLecturesInto(containerId) {
-  return loadGeneralActivitiesInto(containerId, null, '/data/lectures.json');
+export async function loadLecturesInto(containerId, options = {}) {
+  return loadGeneralActivitiesInto(containerId, null, '/data/lectures.json', options);
 }
 
-export async function loadIndustryInto(containerId) {
-  return loadGeneralActivitiesInto(containerId, null, '/data/industry.json');
+export async function loadIndustryInto(containerId, options = {}) {
+  return loadGeneralActivitiesInto(containerId, null, '/data/industry.json', options);
 }
 
 // 分別載入特設 / 常設到各自的 container
-export async function loadExhibitionsInto() {
+export async function loadExhibitionsInto(options = {}) {
   const fns = await Promise.all([
     loadListInto('exhibitions-list-special', '/data/general-activities.json', {
       categoryFilter: 'exhibitions',
       visitTypeFilter: 'special', visitTypeField: 'exhibitionType',
       panelSelector: '#panel-exhibitions', scrollTrigger: true,
+      ...options,
     }),
     loadListInto('exhibitions-list-permanent', '/data/permanent-exhibitions.json', {
       hideYearHeader: true,
       panelSelector: '#panel-exhibitions', scrollTrigger: true,
+      ...options,
     }),
   ]);
   return () => {
@@ -760,15 +764,17 @@ export async function loadExhibitionsInto() {
 }
 
 // 分別載入 outbound / inbound 到各自的 container
-export async function loadVisitsInto() {
+export async function loadVisitsInto(options = {}) {
   const fns = await Promise.all([
     loadListInto('visits-list-outbound', '/data/general-activities.json', {
       categoryFilter: 'visits', visitTypeFilter: 'outbound',
       panelSelector: '#panel-visits', scrollTrigger: true,
+      ...options,
     }),
     loadListInto('visits-list-inbound', '/data/general-activities.json', {
       categoryFilter: 'visits', visitTypeFilter: 'inbound',
       panelSelector: '#panel-visits', scrollTrigger: true,
+      ...options,
     }),
   ]);
   return () => {

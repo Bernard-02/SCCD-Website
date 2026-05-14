@@ -12,7 +12,11 @@
 
 // 為每個 element wrap 一個 overflow:clip 容器並 set yPercent:100 隱藏
 // idempotent（dataset.clipWrapped 守衛）；render 後立即呼叫，避免在 ScrollTrigger 觸發前先閃現
-export function setupClipReveal(elements) {
+//
+// hide=true（預設）：wrap + 設 yPercent:100（隱藏準備 reveal）
+// hide=false：只 wrap 不動 yPercent — 適合「初次載入 HTML 已可見描述塊，但仍需 clip-wrapper 讓未來 exit 能正確剪裁」
+//             場景。沒 wrapper 時 exit yPercent:100 會把元素推出自然 flow 看起來「掉出去」而非乾淨剪裁
+export function setupClipReveal(elements, { hide = true } = {}) {
   if (typeof gsap === 'undefined') return [];
   const items = Array.from(elements);
   if (items.length === 0) return [];
@@ -38,7 +42,7 @@ export function setupClipReveal(elements) {
     el.dataset.clipWrapped = '1';
   });
 
-  gsap.set(items, { yPercent: 100 });
+  if (hide) gsap.set(items, { yPercent: 100 });
   return items;
 }
 

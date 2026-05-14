@@ -6,6 +6,7 @@
 @layer components {
   /* 動畫初始隱藏：在 GSAP 接管前避免文字閃現 */
   .hero-title,
+  .hero-title-cn,
   .hero-text-en,
   .hero-text-cn {
     visibility: hidden;
@@ -15,6 +16,7 @@
      wrapper 同時處理：1. rotate 角度 2. overflow:hidden 形成 yPercent slide-in 的遮罩 */
   /* 手機版較小角度 */
   .hero-title-wrapper,
+  .hero-title-cn-wrapper,
   .hero-text-en-wrapper,
   .hero-text-cn-wrapper {
     transform-origin: left center;
@@ -22,6 +24,7 @@
     overflow: hidden;
   }
   .hero-title-wrapper { transform: rotate(-2deg); }
+  .hero-title-cn-wrapper { transform: rotate(2deg); }
   .hero-text-en-wrapper { transform: rotate(1deg); }
   .hero-text-cn-wrapper { transform: rotate(-1deg); }
 
@@ -41,6 +44,7 @@
   /* 桌面版較大角度 */
   @media (min-width: 768px) {
     .hero-title-wrapper { transform: rotate(-4deg); }
+    .hero-title-cn-wrapper { transform: rotate(3deg); }
     .hero-text-en-wrapper { transform: rotate(3deg); }
     .hero-text-cn-wrapper { transform: rotate(-2deg); }
   }
@@ -53,5 +57,86 @@
   body:not(.mode-color) [data-hero-hl][data-hero-hl],
   body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
     color: #000 !important;
+  }
+
+  /* Hero random layout（faculty / courses / activities / admission 共用）
+     桌面：所有元素 position:absolute，JS 用 getBoundingClientRect 量測旋轉後 bbox 並隨機派 (top, left)，
+           bounds 避開 header（viewport top 140px buffer）；元素可彼此重疊（特別是文字疊在 banner 上）
+     手機：flex stack 維持原本由上至下版面，random 不適用（RWD 互不影響原則） */
+  .hero-rand-grid {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* 桌面：所有直系子（title-wrapper / banner / EN-wrapper / CN-wrapper）一律 absolute；JS 設 top/left */
+  @media (min-width: 768px) {
+    .hero-rand-grid > * {
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+  }
+
+  /* wrappers 預設 block；改 inline-block 讓 intrinsic 寬決定大小，不被 absolute 撐到 100vw */
+  .hero-rand-grid .hero-title-wrapper,
+  .hero-rand-grid .hero-title-cn-wrapper,
+  .hero-rand-grid .hero-text-en-wrapper,
+  .hero-rand-grid .hero-text-cn-wrapper {
+    display: inline-block;
+  }
+
+  /* 段落 max-width，限制 wrap 寬度 */
+  .hero-rand-grid .hero-text-en,
+  .hero-rand-grid .hero-text-cn {
+    max-width: clamp(220px, 28vw, 420px);
+  }
+
+  /* Banner：85vw 16:9；JS 設 transform: rotate(N deg) 隨機；transform-origin 用 center 旋轉視覺平衡
+     文字可疊在 banner 上 → 文字 z-index 高於 banner
+     width min() cap：在 viewport 高度有限時自動縮小（多項式 1.6 = 旋轉 ±3° 下 bbH/bannerWidth 反比近似），
+     確保旋轉後 bbox 完整落在 [BANNER_TOP_BOUND=90, 100vh-BOTTOM_MARGIN=30] 範圍內，不被下一 section 切 */
+  .hero-banner {
+    width: min(85vw, calc((100vh - 120px) * 1.6));
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    visibility: hidden;
+    transform-origin: center center;
+  }
+  .hero-banner img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* 文字疊在 banner 上：z-index 拉高 */
+  .hero-rand-grid .hero-title-wrapper,
+  .hero-rand-grid .hero-title-cn-wrapper,
+  .hero-rand-grid .hero-text-en-wrapper,
+  .hero-rand-grid .hero-text-cn-wrapper {
+    z-index: 2;
+  }
+  .hero-rand-grid .hero-banner {
+    z-index: 1;
+  }
+
+  /* 手機：拋棄 absolute 改 flex stack（不用 random） */
+  @media (max-width: 767px) {
+    .hero-rand-grid {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: flex-start;
+      gap: 1.5rem;
+      padding: 120px var(--container-padding) 4rem;
+    }
+    .hero-rand-grid .hero-text-en,
+    .hero-rand-grid .hero-text-cn {
+      max-width: 100%;
+    }
+    .hero-banner {
+      width: 75vw;
+    }
   }
 }
