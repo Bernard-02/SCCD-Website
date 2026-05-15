@@ -49,9 +49,13 @@
   100% { transform: translate(var(--marquee-shift-x, -50%), var(--marquee-shift-y, 0)); }
 }
 
-/* ── Panel 標題字體（黑體） ──────────────────────────────────── */
+/* ── Panel 標題 chip ──────────────────────────────────────────
+ * 統一純黑底白字（standard）；inverse → 純白底黑字（themes/inverse.css 覆蓋）；
+ * mode-color → bg=var(--theme-fg) + text=var(--theme-fg-inverse)（依 hue luminance 自動翻黑白，themes/color.css 覆蓋）*/
 .lib-panel-title {
   font-family: 'Inter', 'Noto Sans TC', sans-serif;
+  background: #000;
+  color: #fff;
 }
 
 /* ── 灰色矩形內容字體 ────────────────────────────────────────── */

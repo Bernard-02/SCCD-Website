@@ -377,8 +377,16 @@ let _slideInBound = false;
 function ensureSlideInClose() {
   if (_slideInBound) return;
   _slideInBound = true;
-  const overlay = getSlideOverlay();
-  if (overlay) overlay.addEventListener('click', closeCourseSlideIn);
+  // overlay 點擊用 document delegation：SPA 切頁時 <main> 會被換掉，原本綁在
+  // overlay element 上的 listener 隨 element 一起消失，flag 又設過 true → 切回來時
+  // 新 overlay 沒監聽 = 點空白關不掉。改 document 級 + e.target.id 比對才能跨 SPA 存活
+  document.addEventListener('click', (e) => {
+    const t = e.target;
+    if (!(t instanceof Element) || t.id !== 'courses-overlay') return;
+    const slideIn = getSlideIn();
+    if (!slideIn || slideIn.classList.contains('invisible')) return;
+    closeCourseSlideIn();
+  });
   document.addEventListener('keydown', (e) => {
     const slideIn = getSlideIn();
     if (e.key === 'Escape' && slideIn && !slideIn.classList.contains('invisible')) {

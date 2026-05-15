@@ -3,6 +3,10 @@
  * 點擊 [data-share-btn] 後，置中彈出 lightbox，顯示 QR code + 可複製的分享連結
  */
 
+import { enterLightboxMode, exitLightboxMode } from './../lightbox/lightbox-shell.js';
+
+let shareOpen = false;
+
 function openShareLightbox(url) {
   const lightbox = document.getElementById('share-lightbox');
   if (!lightbox) return;
@@ -19,16 +23,21 @@ function openShareLightbox(url) {
   const hint = document.getElementById('share-copy-hint');
   if (hint) hint.style.opacity = '0';
 
-  // 顯示
   lightbox.style.display = 'flex';
-  document.body.style.overflow = 'hidden';
+  if (!shareOpen) {
+    shareOpen = true;
+    enterLightboxMode();
+  }
 }
 
 function closeShareLightbox() {
   const lightbox = document.getElementById('share-lightbox');
   if (!lightbox) return;
   lightbox.style.display = 'none';
-  document.body.style.overflow = '';
+  if (shareOpen) {
+    shareOpen = false;
+    exitLightboxMode();
+  }
 }
 
 function showCopyHint(msg) {

@@ -37,7 +37,7 @@
           <div id="lib-panel-awards" style="display: flex; flex-direction: column; width: 100%; height: 100%; position: relative; overflow: visible;">
 
             <!-- 標題（貼在 panel 左上角） -->
-            <p class="lib-panel-title" style="position: absolute; top: 0; left: calc(-1 * var(--spacing-lg)); font-size: var(--font-size-h5); font-weight: 700; display: inline-block; background: var(--lib-fg); color: var(--lib-bg); padding: 6px 8px 5px; z-index: 1;">Awards 榮譽</p>
+            <p class="lib-panel-title" style="position: absolute; top: 0; left: calc(-1 * var(--spacing-lg)); font-size: var(--font-size-h5); font-weight: 700; display: inline-block; padding: 6px 8px 5px; z-index: 1;">Awards 榮譽</p>
 
             <!-- 內容區（flex: 1，不含 ticker） -->
             <div style="flex: 1; min-height: 0; display: grid; grid-template-columns: max-content 1fr; grid-template-rows: 1fr; gap: 0 var(--spacing-2xl); padding: var(--spacing-md) var(--spacing-md) 0 var(--spacing-md);">
@@ -79,7 +79,7 @@
           <div id="lib-panel-press" style="display: none; flex-direction: column; width: 100%; height: 100%; position: relative; overflow: visible;">
 
             <!-- 標題（貼在 panel 頂邊） -->
-            <p class="lib-panel-title" style="position: absolute; top: 0; left: calc(-1 * var(--spacing-lg)); font-size: var(--font-size-h5); font-weight: 700; display: inline-block; background: var(--lib-fg); color: var(--lib-bg); padding: 6px 8px 5px; z-index: 1;">Press 報導</p>
+            <p class="lib-panel-title" style="position: absolute; top: 0; left: calc(-1 * var(--spacing-lg)); font-size: var(--font-size-h5); font-weight: 700; display: inline-block; padding: 6px 8px 5px; z-index: 1;">Press 報導</p>
 
             <!-- 內容區：2 rows — 分類篩選/search、picker/list -->
             <div style="flex: 1; min-height: 0; display: grid; grid-template-columns: max-content 1fr; grid-template-rows: auto 1fr; gap: 0 var(--spacing-2xl); padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm) var(--spacing-md);">
@@ -134,7 +134,7 @@
           <div id="lib-panel-files" style="display: none; flex-direction: column; width: 100%; height: 100%; position: relative; overflow: visible;">
 
             <!-- 標題（貼在 panel 頂邊） -->
-            <p class="lib-panel-title" style="position: absolute; top: 0; left: calc(-1 * var(--spacing-xl)); font-size: var(--font-size-h5); font-weight: 700; display: inline-block; background: var(--lib-fg); color: var(--lib-bg); padding: 6px 8px 5px; z-index: 1;">Documents 文件</p>
+            <p class="lib-panel-title" style="position: absolute; top: 0; left: calc(-1 * var(--spacing-xl)); font-size: var(--font-size-h5); font-weight: 700; display: inline-block; padding: 6px 8px 5px; z-index: 1;">Documents 文件</p>
 
             <div style="flex: 1; min-height: 0; display: grid; grid-template-columns: max-content 1fr; grid-template-rows: auto 1fr; gap: 0 var(--spacing-2xl); padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm) var(--spacing-md);">
 
@@ -190,7 +190,7 @@
           <div id="lib-panel-album" style="display: none; flex-direction: column; width: 100%; height: 100%; position: relative; overflow: visible;">
 
             <!-- 標題（貼在 panel 頂邊） -->
-            <p class="lib-panel-title" style="position: absolute; top: 0; left: calc(-1 * var(--spacing-lg)); font-size: var(--font-size-h5); font-weight: 700; display: inline-block; background: var(--lib-fg); color: var(--lib-bg); padding: 6px 8px 5px; z-index: 1;">Album 相簿</p>
+            <p class="lib-panel-title" style="position: absolute; top: 0; left: calc(-1 * var(--spacing-lg)); font-size: var(--font-size-h5); font-weight: 700; display: inline-block; padding: 6px 8px 5px; z-index: 1;">Album 相簿</p>
 
             <div style="flex: 1; min-height: 0; display: grid; grid-template-columns: max-content 1fr; grid-template-rows: auto 1fr; gap: 0 var(--spacing-2xl); padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm) var(--spacing-md);">
 
@@ -249,17 +249,19 @@
     </section>
   </main>
 
-  <!-- PDF Viewer Modal -->
-  <div id="pdf-viewer-modal" class="fixed inset-0 z-[200] bg-black/90 flex flex-col opacity-0 transition-opacity duration-300" style="display: none; padding: var(--header-height) 0 2rem;">
-    <button id="pdf-close-btn" class="absolute right-4 md:right-8 text-white transition-colors duration-fast p-2" style="top: calc(var(--header-height) + 1rem);"><i class="fa-solid fa-xmark text-h3"></i></button>
-    <div class="flex items-center justify-center gap-0 w-full px-16 flex-1 min-h-0">
-      <canvas id="pdf-canvas-left" class="bg-white shadow-2xl block" style="max-height: 100%; max-width: 100%; width: auto; height: auto;"></canvas>
-      <canvas id="pdf-canvas-right" class="bg-white shadow-2xl hidden md:block" style="max-height: 100%; max-width: 100%; width: auto; height: auto;"></canvas>
+  <!-- PDF Viewer Modal（layout 對齊 activities-lightbox：X 右上 + prev/next 左右 absolute + 底部資訊條） -->
+  <div id="pdf-viewer-modal" class="fixed inset-0 z-[9999] bg-black/90 flex flex-col opacity-0 transition-opacity duration-300" style="display: none;">
+    <button id="pdf-close-btn" class="absolute right-4 md:right-8 text-white p-2 transition-opacity hover:opacity-60" style="top: 1rem; z-index: 50;"><i class="fa-solid fa-xmark text-h3"></i></button>
+    <div class="flex items-center justify-center w-full px-16 py-xl flex-1 min-h-0 relative">
+      <button id="pdf-prev-btn" class="absolute left-4 text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 disabled:opacity-20"><i class="fa-solid fa-chevron-left text-p1"></i></button>
+      <div class="pdf-canvas-row flex items-center justify-center gap-0 w-full h-full">
+        <canvas id="pdf-canvas-left" class="bg-white shadow-2xl block" style="max-height: 100%; max-width: 100%; width: auto; height: auto;"></canvas>
+        <canvas id="pdf-canvas-right" class="bg-white shadow-2xl hidden md:block" style="max-height: 100%; max-width: 100%; width: auto; height: auto;"></canvas>
+      </div>
+      <button id="pdf-next-btn" class="absolute right-4 text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 disabled:opacity-20"><i class="fa-solid fa-chevron-right text-p1"></i></button>
     </div>
-    <div class="flex items-center justify-center gap-xl mt-md text-white flex-shrink-0">
-      <button id="pdf-prev-btn" class="p-2 disabled:opacity-30 transition-opacity"><i class="fa-solid fa-chevron-left text-p2"></i></button>
+    <div class="flex items-center justify-center px-xl py-md flex-shrink-0 text-white">
       <span id="pdf-page-info" class="text-p2"></span>
-      <button id="pdf-next-btn" class="p-2 disabled:opacity-30 transition-opacity"><i class="fa-solid fa-chevron-right text-p2"></i></button>
     </div>
   </div>
 

@@ -36,7 +36,11 @@ export function setupClipReveal(elements, { hide = true } = {}) {
     }
     const wrapper = document.createElement('div');
     wrapper.className = 'clip-reveal-wrapper';
-    wrapper.style.overflow = 'clip';
+    // 只做縱向 clip（reveal 動畫 yPercent:100→0 只動 y 軸）；橫向 visible 讓子元素旋轉 chip 凸出邊界不被裁
+    // CSS spec：overflow-x:visible + overflow-y:clip 兩值都保留（hidden+visible 會強制 visible→auto，clip 沒這限制）
+    // 修：activities-filter 旋轉 chip 左邊被 wrapper 切掉的問題（負 margin 解不掉因為裁剪發生在 wrapper boundary 不是 element box）
+    wrapper.style.overflowY = 'clip';
+    wrapper.style.overflowX = 'visible';
     el.parentNode.insertBefore(wrapper, el);
     wrapper.appendChild(el);
     el.dataset.clipWrapped = '1';

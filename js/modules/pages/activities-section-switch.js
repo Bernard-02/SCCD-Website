@@ -8,7 +8,7 @@ import { loadExhibitionsInto, loadGeneralActivitiesInto, loadLecturesInto, loadI
 import { loadAlbumData } from './album-data-loader.js';
 import { loadDegreeShowListInto } from './degree-show-data-loader.js';
 import { initActivitiesYearToggle } from '../accordions/activities-year-toggle.js';
-import { initListAccordion } from '../accordions/list-accordion.js';
+import { initListAccordion, resetListAccordionsInPanel } from '../accordions/list-accordion.js';
 import { reapplySearch } from '../ui/activities-search.js';
 import { setActiveNavBtn, showPanel } from '../ui/section-switch-helpers.js';
 import { playAdmissionPanelExit, playAdmissionPanelReveal, setupAdmissionReveal } from './admission-data-loader.js';
@@ -162,6 +162,8 @@ async function switchToSection(section, btns, shouldScroll, isInitial = false) {
   // 3. 切 panel 顯示
   const target = /** @type {HTMLElement | null} */ (showPanel('.activities-panel', targetId));
   if (target) {
+    // 收起 target panel 內遺留的 open accordion（avoid「切到別的 panel 再切回來時 accordion 仍打開」殘留體驗）
+    resetListAccordionsInPanel(target);
     // 同步所有 active filter btn 的顏色
     target.querySelectorAll('.activities-filter-btn.active, .album-filter-option.active').forEach(btn => {
       const inner = btn.querySelector('.anchor-nav-inner');

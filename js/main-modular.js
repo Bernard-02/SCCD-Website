@@ -18,6 +18,7 @@ import { initSmoothScroll } from './modules/ui/smooth-scroll.js';
 import { initBFADivisionToggle } from './modules/ui/bfa-division-toggle.js';
 import { initBtnFillHover } from './modules/ui/btn-fill-hover.js';
 import { initTextReveal } from './modules/ui/text-reveal.js';
+import { initIdleStandby } from './modules/ui/idle-standby.js';
 
 // Import About Page Modules
 import { initResourcesCycling } from './modules/pages/about/resources-cycling.js';
@@ -52,6 +53,9 @@ import { initLibraryCard } from './modules/pages/library-card.js';
 import { initLibraryPanels } from './modules/pages/library-panels.js';
 import { initLibraryViewer } from './modules/pages/library-viewer.js';
 
+// Import Lightbox Shell（共用 enter/exit 行為；SPA cleanup 需 reset openCount）
+import { resetLightboxMode } from './modules/lightbox/lightbox-shell.js';
+
 // Import Generate Page Modules
 import { initGenerateHeaderSync, cleanupGenerateHeaderSync } from './modules/pages/generate-header-sync.js';
 
@@ -71,6 +75,25 @@ export function cleanupPageModules() {
   // 解鎖 body scroll：若離開頁面時某個 modal/slide-in（faculty / library viewer 等）
   // 還沒關閉，body.style.overflow 可能被鎖成 hidden，造成下個頁面 scrollbar 消失
   document.body.style.overflow = '';
+  // lightbox 殘留全域副作用：class 殘留會持續隱藏 header，html bg 殘留會讓 scrollbar gutter 一直黑
+  document.body.classList.remove('lightbox-open');
+  document.documentElement.style.backgroundColor = '';
+  // lightbox-shell openCount 歸零，避免某個 modal 沒走 exit 流程時 state 殘留導致下次開不觸發 enter
+  resetLightboxMode();
+  // lightbox header bars 殘留 inline clipPath → 切頁後 header bars 持續被 clip 隱藏；kill tween + 清 inline
+  if (typeof gsap !== 'undefined') {
+    const headerEl = document.querySelector('#site-header header');
+    if (headerEl) {
+      const lbHeaderTargets = /** @type {HTMLElement[]} */ ([
+        ...headerEl.querySelectorAll(':scope > .site-container > .md\\:flex > [data-bar]'),
+        headerEl.querySelector(':scope > .site-container > .md\\:flex > #mode-btn'),
+      ].filter(Boolean));
+      if (lbHeaderTargets.length) {
+        gsap.killTweensOf(lbHeaderTargets);
+        lbHeaderTargets.forEach(el => { el.style.clipPath = ''; el.style.visibility = ''; });
+      }
+    }
+  }
 
   // 移除 generate page 的 message listener / observer + 還原 header 顏色
   cleanupGenerateHeaderSync();
@@ -260,9 +283,18 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
     }
 
     // 觸發 header logo typewriter 動畫（SPA 模式下 header 不重載，需手動觸發）
-    import('./header.js').then(({ triggerGenerateLogo }) => {
-      if (typeof triggerGenerateLogo === 'function') triggerGenerateLogo();
-    });
+    // 冷載入 /create：header 是 async fetch 注入，未 ready 時 document.getElementById('header-logo')
+    // 為 null，triggerGenerateLogo early return → logo 永遠不出現。等 header:ready 才呼叫。
+    const fireGenLogo = () => {
+      import('./header.js').then(({ triggerGenerateLogo }) => {
+        if (typeof triggerGenerateLogo === 'function') triggerGenerateLogo();
+      });
+    };
+    if (document.querySelector('#site-header header')) {
+      fireGenLogo();
+    } else {
+      document.addEventListener('header:ready', fireGenLogo, { once: true });
+    }
     // 接收 iframe postMessage，同步 header 底色 / logo 顏色（SPA 導航時 generate.html 內 inline script 不會跑，必須由模組 attach）
     initGenerateHeaderSync();
   }
@@ -311,6 +343,7 @@ document.addEventListener('DOMContentLoaded', function () {
   initFooter();
   initSmoothScroll();
   initBtnFillHover();
+  initIdleStandby();
 
   // 啟動 Router（攔截連結、處理 popstate）
   initRouter();

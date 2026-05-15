@@ -22,6 +22,16 @@
 const MODES = ['standard', 'inverse', 'color'];
 const STORAGE_KEY = 'sccd-theme-mode';
 
+// Mode 切換 fade：applyMode 在 body/html 加 .mode-switching class（typography.css 規則套 0.5s transition 到全 subtree），
+//   0.5s 後移除 → 穩態下無 transition，避免 mode-color RAF 高頻更新 --theme-bg 跟 transition 衝突 lag
+// 首次 apply（page load）跳過 fade，避免 default 白底 → 目標 mode 的閃爍
+const MODE_FADE_MS = 500;
+let hasAppliedModeOnce = false;
+let modeSwitchTimer = null;
+// mode-color RAF 延後啟動：fade 期間凍結 --theme-bg/fg，避免 1) RAF 每幀 retarget 讓 transition 不走純 ease 曲線
+//                                                          2) --theme-fg 在 luminance threshold 上下二元翻黑/白導致 [data-section-title] 等用 fg bg 的元件抖動
+let colorRAFStartTimer = null;
+
 /* ===== mode-color: random hue loop ===== */
 let colorRAF = null;
 let colorHue = Math.random() * 360;
@@ -65,6 +75,7 @@ function applyColorVars() {
   const lum = relativeLuminance(r, g, b);
   const isLightBg = lum > 0.5; // WCAG threshold（同 wireframe getContrastColor）
   const fgRgb = isLightBg ? '0, 0, 0' : '255, 255, 255';
+  const fgInverseRgb = isLightBg ? '255, 255, 255' : '0, 0, 0';
   const fgHex = isLightBg ? '#000000' : '#ffffff';
   const fgInverseHex = isLightBg ? '#ffffff' : '#000000';
 
@@ -74,9 +85,16 @@ function applyColorVars() {
   root.style.setProperty('--theme-fg', fgHex);
   root.style.setProperty('--theme-fg-rgb', fgRgb);
   root.style.setProperty('--theme-fg-inverse', fgInverseHex);
+  root.style.setProperty('--theme-fg-inverse-rgb', fgInverseRgb);
   root.style.setProperty('--theme-overlay-25', `rgba(${fgRgb}, 0.25)`);
   // .theme-invert（黑色靜態 SVG/PNG）對比翻色：page bg 亮時不 invert（保留黑），暗時 invert(1) 變白
   root.style.setProperty('--theme-invert-filter', isLightBg ? 'none' : 'invert(1)');
+  // 中性灰浮層（card/chip 想在 vivid hue 上顯純灰不帶 hue tint）：對齊 mode1 #F0F0F0 / mode2 var(--gray-2)
+  // 亮 hue → gray-9 (#E6E6E6 最淺灰)、暗 hue → gray-2 (#333333，跟 inverse 卡片底一致)
+  root.style.setProperty('--theme-neutral-gray', isLightBg ? 'var(--gray-9)' : 'var(--gray-2)');
+  // 反向中性灰：給「在 active list-content 等本地容器內」的元件用，本地容器 bg = theme-fg（亮頁=黑、暗頁=白），
+  // ref/chip 在容器內要跟 theme-fg 同側才能襯托而非合體 → 亮 hue → gray-2 深灰、暗 hue → gray-9 淺灰
+  root.style.setProperty('--theme-neutral-gray-inverse', isLightBg ? 'var(--gray-2)' : 'var(--gray-9)');
 
   // Header logo（wireframe）對比翻色：wireframe-standard base 黑色，暗底套 invert(1) 變白
   // 直接比對 style.filter（cheap read）避免維護 lastIsLightBg 狀態 + 處理 logo async load 的 race
@@ -102,15 +120,24 @@ function colorTick() {
 }
 
 function startColorLoop() {
-  if (colorRAF) return; // 已在跑（idempotent）
-  applyColorVars(); // 先 sync set 一次，避免第一幀 RAF 16ms 延遲讓 body bg 閃白
-  colorRAF = requestAnimationFrame(colorTick);
+  if (colorRAF || colorRAFStartTimer) return; // 已在跑或即將啟動（idempotent）
+  applyColorVars(); // 先 sync set 一次：fade 期間 hue 凍結，避免 RAF retarget 干擾 ease 曲線
+  // 延後 MODE_FADE_MS 才啟動 RAF：等 .mode-switching transition 跑完純 ease 曲線後再開始 hue 旋轉
+  colorRAFStartTimer = setTimeout(() => {
+    colorRAFStartTimer = null;
+    if (colorRAF) return; // 已被啟動或又被取消
+    colorRAF = requestAnimationFrame(colorTick);
+  }, MODE_FADE_MS);
 }
 
 function stopColorLoop() {
   if (colorRAF) {
     cancelAnimationFrame(colorRAF);
     colorRAF = null;
+  }
+  if (colorRAFStartTimer) {
+    clearTimeout(colorRAFStartTimer);
+    colorRAFStartTimer = null;
   }
   // 清 inline var，讓 :root / body.mode-* 的 CSS 規則重新生效
   const root = document.documentElement;
@@ -119,8 +146,11 @@ function stopColorLoop() {
   root.style.removeProperty('--theme-fg');
   root.style.removeProperty('--theme-fg-rgb');
   root.style.removeProperty('--theme-fg-inverse');
+  root.style.removeProperty('--theme-fg-inverse-rgb');
   root.style.removeProperty('--theme-overlay-25');
   root.style.removeProperty('--theme-invert-filter');
+  root.style.removeProperty('--theme-neutral-gray');
+  root.style.removeProperty('--theme-neutral-gray-inverse');
   // 清 wireframe logo 的 invert filter
   const logo = document.getElementById('header-logo');
   if (logo) logo.style.filter = '';
@@ -191,6 +221,28 @@ export function updateToggleBtnVisualState(page) {
 }
 
 function applyMode(mode) {
+  const isFirstApply = !hasAppliedModeOnce;
+  hasAppliedModeOnce = true;
+
+  // SPA 切頁同 mode 重 apply：body class 不會變，body bg 不會變，不用動 transition
+  const currentMode = document.body.classList.contains('mode-color') ? 'color'
+                    : document.body.classList.contains('mode-inverse') ? 'inverse'
+                    : document.body.classList.contains('mode-standard') ? 'standard' : null;
+  const isSameMode = currentMode === mode;
+
+  // 非首次 + 真的會切換 mode 才加 fade class
+  // 首次 apply 跳過：避免從 default 白底 → 目標 mode 的閃爍
+  if (!isFirstApply && !isSameMode) {
+    document.body.classList.add('mode-switching');
+    document.documentElement.classList.add('mode-switching');
+    if (modeSwitchTimer) clearTimeout(modeSwitchTimer);
+    modeSwitchTimer = setTimeout(() => {
+      document.body.classList.remove('mode-switching');
+      document.documentElement.classList.remove('mode-switching');
+      modeSwitchTimer = null;
+    }, MODE_FADE_MS);
+  }
+
   document.body.classList.remove('mode-standard', 'mode-inverse', 'mode-color');
   document.body.classList.add(`mode-${mode}`);
 

@@ -10,15 +10,11 @@ export function triggerGenerateLogo() {
   const logo = document.getElementById('header-logo');
   if (!logo || typeof gsap === 'undefined') return;
 
-  // 清除舊的 SVG/cursor（避免重複觸發時疊加）
-  // 也要清除可能從別頁帶過來的 Lottie animation 與 SVG，避免跟 typewriter 視覺衝突
-  // 同時保留 #header-logo 的 180x180 layout 空間，讓父層 <a href="../index.html"> 維持有可點擊區域（typewriter 完整後仍可點 logo 回首頁）
+  // 清除舊的 typewriter SVG/cursor（避免重複觸發疊加），但**不**動 Lottie
+  // 原本在這裡就 destroy Lottie + 清 innerHTML → Lottie 完全沒機會被使用者看到
+  // 改成 Lottie 保留，由 timeline 在 cursor 從右往左跳的瞬間才 destroy（視覺上像 indicator 把它刪掉）
   const logoContainer = logo.parentNode;
   logoContainer.querySelectorAll('#gen-logo-svg, [data-gen-cursor]').forEach(el => el.remove());
-  if (typeof lottie !== 'undefined') {
-    try { lottie.destroy('header-logo-anim'); } catch (e) { /* 沒 Lottie 就略過 */ }
-  }
-  logo.innerHTML = '';
   logo.style.display = '';
 
   const isInverse = document.body.classList.contains('mode-inverse');
@@ -77,6 +73,15 @@ export function triggerGenerateLogo() {
   tl.call(() => startBlink(cursor));
   tl.to({}, { duration: 530 * 3 / 1000 });
   tl.call(() => stopBlink(cursor));
+  // Lottie 旋轉 logo 在這個瞬間「被 indicator 刪掉」
+  // 之前在 triggerGenerateLogo 起頭就 destroy 是 bug → Lottie 完全沒機會出現
+  // 改成 cursor 右邊閃完、從右往左跳的瞬間才 destroy，視覺上 cursor 切過 logo 把它清掉
+  tl.call(() => {
+    if (typeof lottie !== 'undefined') {
+      try { lottie.destroy('header-logo-anim'); } catch (e) { /* 沒 Lottie 就略過 */ }
+    }
+    logo.innerHTML = '';
+  });
   tl.set(cursor, { left: -GAP });
   // 不再 display:none #header-logo，否則父層 <a> 會 collapse 成 0x0 失去可點擊區域
   // logo 內容已在開頭 innerHTML='' 清空，display:block 的 180x180 空 div 維持父層 <a> 的 click target

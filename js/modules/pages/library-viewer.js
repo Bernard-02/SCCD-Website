@@ -4,6 +4,7 @@
  */
 
 import { openLightbox } from '../lightbox/activities-lightbox.js';
+import { enterLightboxMode, exitLightboxMode } from '../lightbox/lightbox-shell.js';
 
 // ── Lightbox ──────────────────────────────────────────────────────────────────
 
@@ -27,20 +28,27 @@ function ensurePdfModal() {
 
   const modal = document.createElement('div');
   modal.id        = 'pdf-viewer-modal';
-  modal.className = 'fixed inset-0 z-[200] bg-black/90 flex flex-col opacity-0 transition-opacity duration-300';
-  modal.style.cssText = 'display:none; padding: var(--header-height) 0 2rem;';
+  // 結構對齊 activities-lightbox：X 右上 + prev/next 主區域左右 absolute + 底部資訊條
+  modal.className = 'fixed inset-0 z-[9999] bg-black/90 flex flex-col opacity-0 transition-opacity duration-300';
+  modal.style.display = 'none';
   modal.innerHTML = `
-    <button id="pdf-close-btn" class="absolute right-4 md:right-8 text-white transition-colors duration-fast p-2" style="top: calc(var(--header-height) + 1rem);">
+    <button id="pdf-close-btn" class="absolute right-4 md:right-8 text-white p-2 transition-opacity hover:opacity-60" style="top: 1rem; z-index: 50;">
       <i class="fa-solid fa-xmark text-h3"></i>
     </button>
-    <div class="flex items-center justify-center gap-0 w-full px-16 flex-1 min-h-0">
-      <canvas id="pdf-canvas-left"  class="bg-white shadow-2xl block"      style="max-height:100%;max-width:100%;width:auto;height:auto;"></canvas>
-      <canvas id="pdf-canvas-right" class="bg-white shadow-2xl hidden md:block" style="max-height:100%;max-width:100%;width:auto;height:auto;"></canvas>
+    <div class="flex items-center justify-center w-full px-16 py-xl flex-1 min-h-0 relative">
+      <button id="pdf-prev-btn" class="absolute left-4 text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 disabled:opacity-20">
+        <i class="fa-solid fa-chevron-left text-p1"></i>
+      </button>
+      <div class="pdf-canvas-row flex items-center justify-center gap-0 w-full h-full">
+        <canvas id="pdf-canvas-left"  class="bg-white shadow-2xl block"            style="max-height:100%;max-width:100%;width:auto;height:auto;"></canvas>
+        <canvas id="pdf-canvas-right" class="bg-white shadow-2xl hidden md:block" style="max-height:100%;max-width:100%;width:auto;height:auto;"></canvas>
+      </div>
+      <button id="pdf-next-btn" class="absolute right-4 text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 disabled:opacity-20">
+        <i class="fa-solid fa-chevron-right text-p1"></i>
+      </button>
     </div>
-    <div class="flex items-center justify-center gap-xl mt-md text-white flex-shrink-0">
-      <button id="pdf-prev-btn" class="p-2 disabled:opacity-30 transition-opacity"><i class="fa-solid fa-chevron-left text-p2"></i></button>
-      <span   id="pdf-page-info" class="text-p2"></span>
-      <button id="pdf-next-btn" class="p-2 disabled:opacity-30 transition-opacity"><i class="fa-solid fa-chevron-right text-p2"></i></button>
+    <div class="flex items-center justify-center px-xl py-md flex-shrink-0 text-white">
+      <span id="pdf-page-info" class="text-p2"></span>
     </div>`;
   document.body.appendChild(modal);
 }
@@ -80,9 +88,12 @@ function initPdfViewer() {
 
     async function renderPage(pageNum, canvas) {
       const page = await pdfDoc.getPage(pageNum);
-      const container = modal.querySelector('.flex.items-center');
-      const availH = (container ? container.clientHeight : window.innerHeight * 0.8) * 0.75;
-      const availW = (container ? container.clientWidth  : window.innerWidth)  * (showTwo ? 0.42 : 0.60);
+      const container = modal.querySelector('.pdf-canvas-row');
+      // container = .pdf-canvas-row（w-full h-full），位於主區域內 px-16 py-xl 內側
+      // 雙頁 0.48 each 留 4% 給左右 prev/next 視覺間距；單頁 0.92
+      // landscape PDF 仍會被 aspect-ratio 卡 width-constrained，上下對稱空白 = items-center 自然行為
+      const availH = container ? container.clientHeight : window.innerHeight * 0.8;
+      const availW = (container ? container.clientWidth : window.innerWidth) * (showTwo ? 0.48 : 0.92);
       const base = page.getViewport({ scale: 1 });
       const scale = Math.min(availH / base.height, availW / base.width);
       const vp = page.getViewport({ scale });
@@ -111,24 +122,21 @@ function initPdfViewer() {
     rendering = false;
   }
 
-  let bodyOverflowBefore = '';
-
   function openModal() {
-    bodyOverflowBefore = document.body.style.overflow;
     modal.style.display = 'flex';
     requestAnimationFrame(() => { modal.style.opacity = '1'; });
-    document.body.style.overflow = 'hidden';
+    enterLightboxMode();
   }
 
   function closeModal() {
     modal.style.opacity = '0';
+    exitLightboxMode();
     setTimeout(() => {
       modal.style.display = 'none';
       if (pdfDoc) { pdfDoc.destroy(); pdfDoc = null; }
       canvasL.getContext('2d').clearRect(0, 0, canvasL.width, canvasL.height);
       canvasR.getContext('2d').clearRect(0, 0, canvasR.width, canvasR.height);
     }, 300);
-    document.body.style.overflow = bodyOverflowBefore;
   }
 
   _pdfListenerAdded = true;

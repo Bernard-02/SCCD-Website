@@ -42,3 +42,25 @@
     @apply text-p2 font-regular leading-base;
   }
 }
+
+/* Mode 切換 fade window：theme-toggle.js applyMode() 加 .mode-switching 0.5s 後移除
+ * - 速度 0.5s（比 create iframe 1s 快一半）：1s 全 subtree lockstep 一起 melt 感覺 unnatural；
+ *   0.5s 快到不會被視覺鎖在「同步緩慢」的感覺，但仍 smooth 不 snap
+ * - body/html + 全 subtree（所有元素的 bg/color/border/fill）一律 0.5s ease fade（matches create 'ease' curve）
+ * - 故意 `*` broad cover：sections (.bg-white 翻黑底/.text-black 翻白字 等) 才會跟著 fade 不只 body
+ *   （drop universal 會讓 section instant snap，body fade 反而被覆蓋看不出 smooth）
+ * - 0.5s window 結束移除 class：穩態下不留 transition，避免 mode-color RAF 高頻更新 --theme-bg 跟 transition 衝突 lag
+ * - !important 確保覆蓋 element 既有的 transition（e.g. button hover transition: 0.3s）；過渡期間統一 0.5s 同步感
+ * - 用 `html.mode-switching body.mode-switching *`（0,2,2 specificity）蓋過 color.css 對 [data-bar] / sticky 等元件
+ *   寫死的 `transition: color 0.3s, transform 0.3s !important`（0,2,1）：那條規則為 RAF 穩態排除 bg transition，
+ *   但 mode 切換時 bar bg 必須跟 body 一起 fade，否則 bar snap 到目標色而 body 還在 fade → 視覺 desync */
+html.mode-switching,
+body.mode-switching {
+  transition: background-color 0.5s ease, color 0.5s ease !important;
+}
+
+html.mode-switching body.mode-switching *,
+html.mode-switching body.mode-switching *::before,
+html.mode-switching body.mode-switching *::after {
+  transition: background-color 0.5s ease, color 0.5s ease, border-color 0.5s ease, fill 0.5s ease, stroke 0.5s ease !important;
+}

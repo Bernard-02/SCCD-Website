@@ -60,6 +60,7 @@ export async function loadDegreeShowListInto(containerId) {
     // 卡片整體 scroll-triggered 進場（y + autoAlpha）
     // 不用 yPercent/clip-reveal：圖片 lazy load 時高度為 0，yPercent:100 = translateY(0) 無法隱藏
     // 用 ScrollTrigger.batch 統一批次處理（含 stagger），避免 per-card create + once:true 在面板切換時錯過
+    // delay 0.8s 讓上方 description + search bar 的 list-reveal-row 動畫（duration 0.6 + stagger 0.1）先跑完
     requestAnimationFrame(() => {
       if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') return;
       const cards = [...container.querySelectorAll('.degree-show-card')];
@@ -72,6 +73,7 @@ export async function loadDegreeShowListInto(containerId) {
             y: 0,
             autoAlpha: 1,
             duration: 0.7,
+            delay: 0.8,
             ease: 'power3.out',
             stagger: 0.15,
             overwrite: true,

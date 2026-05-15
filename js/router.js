@@ -155,14 +155,14 @@ async function loadPage(route, search = '') {
 }
 
 // ── 導航 ──────────────────────────────────────────────────────
+// 回傳 loadPage promise，方便 caller（如 idle-standby fade transition）等待頁面替換完成
 export function navigateTo(url) {
   const { pathname, search, hash } = new URL(url, window.location.origin);
   const route = resolveRoute(pathname) || NOT_FOUND_ROUTE;
 
   // 保留 hash 供 deep link 使用（如 library.html#a-2024-01）
   window.history.pushState({ page: route.page }, '', pathname + search + hash);
-  loadPage(route, search);
-  return true;
+  return loadPage(route, search);
 }
 
 // ── 事件綁定 ──────────────────────────────────────────────────
@@ -174,7 +174,8 @@ export function initRouter() {
 
   // 攔截所有內部連結點擊
   document.addEventListener('click', (e) => {
-    const link = e.target.closest('a[href]');
+    const target = /** @type {Element | null} */ (e.target);
+    const link = target?.closest('a[href]');
     if (!link) return;
 
     const href = link.getAttribute('href');

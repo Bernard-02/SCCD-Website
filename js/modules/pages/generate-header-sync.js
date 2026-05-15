@@ -41,25 +41,10 @@ function isWhiteText(text) {
 // 規則（user 指定）：依 iframe text 是黑字還是白字決定，跟 iframe 的對比色判斷對齊
 // - iframe text=黑（→ header 是亮色：Standard）→ inactive=白 pill 黑字、active=黑 pill 白字
 // - iframe text=白（→ header 是暗色：Inverse）→ inactive=黑 pill 白字、active=白 pill 黑字
-// - genMode === 'Wireframe'：bar 用半透明 tint（bg 跟 text 同色，wireframe 透出）
-//   * iframe text=白 → active=半透明黑底黑字 / inactive=半透明白底白字
-//   * iframe text=黑 → active=半透明白底白字 / inactive=半透明黑底黑字
 // 必須顯式設值不能用空字串清空 inline，否則 library/generate bar 的 `class="bg-black"` 會浮上來
-const WIREFRAME_BAR_ALPHA = 0.28;   // 對齊 generate-app control-box 的 rgba(255,255,255,0.28) bg
-function computeBarColors(text, isActive, genMode) {
+// 註：以前 Wireframe genMode 走半透明 tint 特例，已移除（全站統一 solid B/W flip 邏輯）
+function computeBarColors(text, isActive) {
   const headerIsDark = isWhiteText(text); // 白字 → header 暗
-
-  if (genMode === 'Wireframe') {
-    const a = WIREFRAME_BAR_ALPHA;
-    if (headerIsDark) {
-      return isActive
-        ? { barBg: `rgba(0,0,0,${a})`,       barText: '#000' }
-        : { barBg: `rgba(255,255,255,${a})`, barText: '#fff' };
-    }
-    return isActive
-      ? { barBg: `rgba(255,255,255,${a})`, barText: '#fff' }
-      : { barBg: `rgba(0,0,0,${a})`,       barText: '#000' };
-  }
 
   if (headerIsDark) {
     return isActive
@@ -78,7 +63,7 @@ function computeBarColors(text, isActive, genMode) {
 // - 其他頁面 about bar / library bar / generate bar 都是 inline `transition: background 0.4s ease`（hover 反應要快）
 // - 我們也用 0.4s ease 跟其他頁一致；mode switch 雖然 desync header bg 1s 一點點但 bars 0.4s 比較貼近 hover 反應該有的速度
 // - Play 模式（FADE='0s'）整個 instant
-function paintBars(header, text, genMode) {
+function paintBars(header, text) {
   const barFade = FADE === '0s' ? '0s' : '0.4s ease';
   const bars = [
     header.querySelector('[data-bar="about"]'),
@@ -89,7 +74,7 @@ function paintBars(header, text, genMode) {
 
   bars.forEach(bar => {
     const isActive = bar.classList.contains('bar-active');
-    const { barBg, barText } = computeBarColors(text, isActive, genMode);
+    const { barBg, barText } = computeBarColors(text, isActive);
 
     bar.style.transition = `background-color ${barFade}`;
     bar.style.backgroundColor = barBg;
@@ -116,8 +101,8 @@ function applyGenModeToHeader({ genMode, bg, text, instant }) {
   header.style.transition = `background-color ${FADE}`;
   header.style.backgroundColor = bg;
 
-  // about/library/atlas/generate bar：依 iframe text（對比色）二分；wireframe 走半透明 tint
-  paintBars(header, text, genMode);
+  // about/library/atlas/generate bar：依 iframe text（對比色）二分 solid B/W
+  paintBars(header, text);
 
   // mode btn (圓圈 toggle)：邊框 + 圓點用對比色（iframe text）
   const modeBtn = header.querySelector('#mode-btn');
@@ -169,7 +154,7 @@ export function initGenerateHeaderSync() {
     const header = document.querySelector('header');
 
     // 三條 bar 的既有 hover handler 都會在 mouseleave 時把 bg 重設（about='', library/generate='#000'/'#fff' 依 active 狀態），
-    // 會把我們 wireframe 套的 pill 顏色清掉。掛後援 listener 在原 handler 之後再跑，重新 paintBars()
+    // 會把我們套的 pill 顏色清掉。掛後援 listener 在原 handler 之後再跑，重新 paintBars()
     // （addEventListener 按註冊順序執行：原 handler 先跑 → 我們後跑 → 淨效果是 reapply）
     const barEls = header ? [
       header.querySelector('[data-bar="about"]'),
@@ -180,20 +165,37 @@ export function initGenerateHeaderSync() {
     barEls.forEach(bar => {
       const fn = () => {
         if (!pendingGenMode) return;
-        paintBars(header, pendingGenMode.text, pendingGenMode.genMode);
+        paintBars(header, pendingGenMode.text);
       };
       bar.addEventListener('mouseleave', fn);
       barMouseleaveHandlers.push({ el: bar, fn });
     });
 
-    // about/library/generate hover 時：規範要求字色一律黑（不分 mode，因 bg 是亮三原色）。
-    // paintBars 把字色用 inline !important 寫死了，CSS `.is-bar-hover` / `.nav-link:hover` 規則蓋不掉，
-    // 必須在 mouseenter 也用 inline override 蓋成黑字
+    // about/library/atlas/generate hover 時的字色（以及 mode3 的 bg）邏輯：
+    // - mode1/2：header.js 在 mouseenter 設 inline 三原色 bg；本層只蓋字色一律黑（亮三原色底配黑字）
+    // - mode3：site 規範「無三原色」，hover 改 contrast 翻轉預覽 active 樣態（對齊全域 CSS
+    //   `body.mode-color [data-bar].bar-inactive:hover { background: var(--theme-fg-inverse) !important }`）
+    //   /create 頁 body.mode-color 被 applyModeForPage('generate') 移除，CSS override 失效，
+    //   只能在此 JS 顯式翻轉並蓋掉 header.js 設的 inline 三原色 bg
+    // paintBars 把字色用 inline !important 寫死了，CSS hover 規則蓋不掉，所以一律走 inline override
     barEls.forEach(bar => {
       const fn = () => {
-        bar.querySelectorAll('a, span, i').forEach(el => {
-          el.style.setProperty('color', '#000', 'important');
-        });
+        const storedMode = sessionStorage.getItem('sccd-theme-mode') || 'standard';
+        if (storedMode === 'color' && pendingGenMode) {
+          // mode3：用 active-style B/W 蓋掉 header.js 設的 inline 三原色 bg
+          const { barBg, barText } = computeBarColors(pendingGenMode.text, true);
+          bar.style.transition = `background-color 0.4s ease, color 0.4s ease`;
+          bar.style.backgroundColor = barBg;
+          bar.querySelectorAll('a, span, i').forEach(el => {
+            el.style.transition = `color 0.4s ease`;
+            el.style.setProperty('color', barText, 'important');
+          });
+        } else {
+          // mode1/2：字色強制黑（bg 是 header.js 設的亮三原色）
+          bar.querySelectorAll('a, span, i').forEach(el => {
+            el.style.setProperty('color', '#000', 'important');
+          });
+        }
       };
       bar.addEventListener('mouseenter', fn);
       barMouseenterHandlers.push({ el: bar, fn });

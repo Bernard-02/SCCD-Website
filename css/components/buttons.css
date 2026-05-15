@@ -58,6 +58,18 @@
     align-items: flex-start;
   }
 
+  /* Inactive 狀態：純白底 + 半透明 theme-fg（對齊 about #anchor-nav 的 pattern；
+     inverse 在 themes/inverse.css 翻成純黑底 + 半透明白字）*/
+  .section-nav-btn:not(.active) .anchor-nav-inner,
+  .faculty-filter-btn:not(.active) .anchor-nav-inner,
+  .activities-section-btn:not(.active) .anchor-nav-inner,
+  .courses-program-btn:not(.active) .anchor-nav-inner,
+  .activities-filter-btn:not(.active) .anchor-nav-inner,
+  .courses-filter-btn:not(.active) .anchor-nav-inner {
+    background: rgba(255, 255, 255, 1);
+    color: rgba(var(--theme-fg-rgb), 0.5);
+  }
+
   /* Active 狀態（背景/旋轉由 JS 設定）*/
   .section-nav-btn.active .anchor-nav-inner,
   .faculty-filter-btn.active .anchor-nav-inner,

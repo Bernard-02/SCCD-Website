@@ -111,6 +111,16 @@
     transform: rotate(0deg) !important;
   }
 
+  /* Lightbox 打開時 header 動畫由 activities-lightbox.js 接手做 clip-path inset 退場
+   * （per-element 隨機 top/bottom 方向，bar 原地被擦掉，logo 不動）
+   *
+   * z-index：lightbox z-[9999] 與 header 同層但後 append，疊在 header 之上
+   * → header 消失動畫在 lightbox 底下進行，X 按鈕不會跟 header bars 視覺打架
+   * pointer-events:none 仍保留，避免 hover/focus 觸發到底下 header 元素的副作用 */
+  body.lightbox-open #site-header {
+    pointer-events: none;
+  }
+
   /* ===== Mega Menu ===== */
   .mega-menu {
     position: fixed;
@@ -174,6 +184,13 @@
   .anchor-nav-btn.active .anchor-nav-inner {
     color: black;
     /* background & rotation set via JS */
+  }
+
+  /* About 頁專用：底色不透明、文字半透明 theme-fg（對齊 header bar inactive nav-link 的 50% 半透明文字 pattern） */
+  #anchor-nav .anchor-nav-btn:not(.active) .anchor-nav-inner,
+  #mobile-anchor-menu .anchor-nav-btn:not(.active) .anchor-nav-inner {
+    background: rgba(255, 255, 255, 1);
+    color: rgba(var(--theme-fg-rgb), 0.5);
   }
 
   /* Hover 效果：僅桌面版 */

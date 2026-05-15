@@ -7,6 +7,18 @@
   <link rel="stylesheet" href="../css/output.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+  <style>
+    /* 防止 GSAP 動畫與 Mode 主題切換的 CSS transition 衝突導致封鎖線抖動 */
+    .section-title-strip,
+    .section-title-inner,
+    .section-title-strip * {
+      transition-property: background-color, color, border-color, fill, stroke !important;
+      /* 強制硬體加速與建立獨立 GPU 圖層，阻隔 Mode 3 的 filter 或 blend-mode 造成的重繪干擾 */
+      will-change: transform;
+      backface-visibility: hidden;
+      transform: translateZ(0);
+    }
+  </style>
 </head>
 <body style="overflow-x: hidden;">
 

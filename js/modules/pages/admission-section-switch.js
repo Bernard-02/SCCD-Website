@@ -9,6 +9,7 @@ import {
   playAdmissionPanelReveal,
   setupAdmissionReveal,
 } from './admission-data-loader.js';
+import { resetListAccordionsInPanel } from '../accordions/list-accordion.js';
 
 export function initAdmissionSectionSwitch() {
   const btns = document.querySelectorAll('.activities-section-btn');
@@ -40,6 +41,8 @@ export function initAdmissionSectionSwitch() {
     // 2. 切 active btn + show 新 panel
     setActiveNavBtn(btns, section, 'data-section');
     const newPanel = /** @type {HTMLElement | null} */ (showPanel('.activities-panel', targetId));
+    // 收起 target panel 內遺留的 open accordion（avoid「切到別的 panel 再切回來時 accordion 仍打開」殘留體驗）
+    if (newPanel) resetListAccordionsInPanel(newPanel);
 
     // 3. 立即 setup 已存在的 rows（描述塊等 HTML 寫死的元素）— 避免 lazy load 期間描述塊 flash 顯示
     //    （第一次切 summer-camp 時 list 還沒載入，但描述塊已在 panel HTML 內）

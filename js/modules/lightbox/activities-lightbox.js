@@ -4,6 +4,8 @@
  * 媒體順序：海報 → videos → images
  */
 
+import { enterLightboxMode, exitLightboxMode } from './lightbox-shell.js';
+
 let lightboxEl = null;
 let mainEl = null;
 let thumbsEl = null;
@@ -20,13 +22,15 @@ function ensureLightbox() {
 
   lightboxEl = document.createElement('div');
   lightboxEl.id = 'activities-lightbox';
-  lightboxEl.className = 'fixed inset-0 z-[300] bg-black/95 flex flex-col opacity-0 transition-opacity duration-300';
+  // bg-black/90 半透明黑（user 偏好；不全黑，讓底下 page 微微透出但 chips 不會搶眼）
+  // z-[9999] 與 header 同層，但 lightbox 後 append 到 body → 蓋在 header 之上
+  // → header 消失動畫（clip-path）在 lightbox 下方進行，不與 X 按鈕打架；仍低於 idle standby z-10000
+  lightboxEl.className = 'fixed inset-0 z-[9999] bg-black/90 flex flex-col opacity-0 transition-opacity duration-300';
   lightboxEl.style.display = 'none';
-  lightboxEl.style.paddingTop = 'var(--header-height, 80px)';
 
   lightboxEl.innerHTML = `
-    <!-- Close -->
-    <button class="alb-close absolute right-4 md:right-8 text-white p-2 transition-opacity hover:opacity-60" style="top: calc(var(--header-height, 80px) + 1rem); z-index: 10;">
+    <!-- Close（lightbox 蓋過 header，X 直接在最頂層）-->
+    <button class="alb-close absolute right-4 md:right-8 text-white p-2 transition-opacity hover:opacity-60" style="top: 1rem; z-index: 50;">
       <i class="fa-solid fa-xmark text-h3"></i>
     </button>
 
@@ -116,12 +120,9 @@ function navigate(dir) {
 }
 
 // ── 開啟 ────────────────────────────────────────────────────────
-let bodyOverflowBefore = '';
-
 export function openLightbox(media, startIndex = 0) {
   ensureLightbox();
   mediaList = media.filter(item => item.src && item.src.trim() !== '');
-  bodyOverflowBefore = document.body.style.overflow;
 
   // 建立 thumbnails：固定高度，寬度隨比例
   thumbsEl.innerHTML = '';
@@ -147,17 +148,17 @@ export function openLightbox(media, startIndex = 0) {
   requestAnimationFrame(() => {
     lightboxEl.style.opacity = '1';
   });
-  document.body.style.overflow = 'hidden';
+  enterLightboxMode();
 }
 
 // ── 關閉 ────────────────────────────────────────────────────────
 function closeLightbox() {
   if (iframeEl) iframeEl.src = '';
   lightboxEl.style.opacity = '0';
+  exitLightboxMode();
   setTimeout(() => {
     lightboxEl.style.display = 'none';
     mainEl.innerHTML = '';
   }, 300);
-  document.body.style.overflow = bodyOverflowBefore;
   document.dispatchEvent(new CustomEvent('sccd:close-lightbox'));
 }

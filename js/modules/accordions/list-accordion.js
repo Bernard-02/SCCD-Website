@@ -92,6 +92,48 @@ const ACCENT_TO_DEEP = {
   '#26BCFF': '#23a5ff', '#26bcff': '#23a5ff',
 };
 
+/**
+ * Instant 收合 panel 內所有打開的 list-header accordion（無動畫）
+ * 用於 activities/admission section 切換時把 target panel 內遺留的 open state 清空，
+ * 避免「打開 A → 切到 B → 切回 A 時 accordion 仍開」的殘留體驗
+ * 重置範圍對齊 closeListHeader 的 onComplete cleanup（active class / inline bg / dataset / item color var / content height / chevron rotation）
+ */
+export function resetListAccordionsInPanel(panel) {
+  if (!panel) return;
+  const openHeaders = panel.querySelectorAll('.list-header.active');
+  if (!openHeaders.length) return;
+
+  openHeaders.forEach(header => {
+    const content = (header.nextElementSibling?.classList.contains('list-content')
+      ? header.nextElementSibling
+      : header.closest('.list-item')?.querySelector('.list-content')) || header.nextElementSibling;
+    const chevron = header.querySelector('.fa-chevron-down');
+    const workshopItem = header.closest('.list-item');
+
+    header.classList.remove('active');
+    header.style.background = '';
+    delete header.dataset.accentHex;
+    delete header.dataset.collapsing;
+
+    if (workshopItem) {
+      workshopItem.style.background = '';
+      workshopItem.style.removeProperty('--item-color');
+      workshopItem.style.removeProperty('--item-color-deep');
+    }
+
+    if (content && typeof gsap !== 'undefined') {
+      gsap.killTweensOf(content);
+      gsap.set(content, { height: 0, overflow: 'hidden' });
+      content.style.background = '';
+    }
+
+    if (chevron && typeof gsap !== 'undefined') {
+      gsap.killTweensOf(chevron);
+      gsap.set(chevron, { rotation: 0 });
+    }
+  });
+}
+
 // 收合單一 header（從 click handler 與「開新時關舊」共用）
 // 收合順序：先 collapse content（保留 .active）→ onComplete 移除 .active 觸發 title 往左 transform transition
 function closeListHeader(header) {

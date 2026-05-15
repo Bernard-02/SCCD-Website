@@ -144,12 +144,12 @@ body.mode-inverse .timeline-card-inner.bg-black * {
 }
 
 /* ===== Nav Buttons (左側 section/program btn) ===== */
-/* inactive: 50% 黑色透明底 + 白色文字；active 的彩色 background 由 JS inline style 設定 */
+/* inactive: 純黑底 + 半透明白字（對齊 about #anchor-nav）；active 彩色 background 由 JS inline 設定 */
 body.mode-inverse .faculty-filter-btn:not(.active) .anchor-nav-inner,
 body.mode-inverse .activities-section-btn:not(.active) .anchor-nav-inner,
 body.mode-inverse .courses-program-btn:not(.active) .anchor-nav-inner {
-  background: rgba(0, 0, 0, 0.5) !important;
-  color: white !important;
+  background: rgba(0, 0, 0, 1) !important;
+  color: rgba(255, 255, 255, 0.5) !important;
 }
 
 body.mode-inverse .faculty-filter-btn.active .anchor-nav-inner,
@@ -161,18 +161,47 @@ body.mode-inverse .courses-program-btn.active .anchor-nav-inner {
 
 @media (min-width: 768px) {
   body.mode-inverse .faculty-filter-btn:not(.active):hover .anchor-nav-inner,
-  body.mode-inverse .activities-section-btn:not(.active):hover .anchor-nav-inner,
-  body.mode-inverse .courses-program-btn:not(.active):hover .anchor-nav-inner {
+  body.mode-inverse .activities-section-btn:not(.active):hover .anchor-nav-inner {
     background: rgba(0, 0, 0, 0.8) !important;
+    color: white !important;
+  }
+
+  /* courses-program-btn 在 inverse 模式下 hover 行為跟 faculty/activities 不同：
+   *   - 不覆寫 background → JS mouseenter 設的 inline accent bg（綠/粉/藍）保留顯示
+   *   - 文字 → 100% 白（蓋掉 inactive 的 50% 白 + active rule 的 #000 黑字）
+   *   - active 也參與（用 :hover 不加 :not(.active)）→ active btn hover 也會有 100% 白字反饋
+   * 鏡像 standard mode 的「accent + 黑字」→ inverse 變「accent + 白字」 */
+  body.mode-inverse .courses-program-btn:hover .anchor-nav-inner {
+    color: white !important;
+  }
+}
+
+/* ===== Courses BFA Class label =====
+ * courses.css base color 是 rgba(0, 0, 0, 0.5) — 在 inverse 黑底完全看不見（黑 on 黑）
+ * 三狀態鏡像 mode-color 那套：
+ *   - inactive label（無 inline bg）：透明底 + 50% 白文字
+ *   - active group label / hover label（JS 設 inline accent bg + #000 字）：保留 JS inline 黑字，CSS 不蓋
+ *     用 [style*="background"] 偵測 JS-set inline bg；inline color: #000000 已是 JS 設好的不需 CSS override
+ *     :not([style*="background"]) 鎖 inactive default 避免 !important 蓋過 JS inline color */
+body.mode-inverse .courses-bfa-label:not([style*="background"]) {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Hover override：inactive btn hover 時同 group 內 label 文字升到 100% 白
+ * （courses-section-switch.js bindHover spec：hover 不換底色、僅文字 100%，由 CSS 控制）
+ * 用 :has(.courses-program-btn:not(.active):hover) 跨選 group → label；!important 蓋過 50% inactive 規則 */
+@media (min-width: 768px) {
+  body.mode-inverse .courses-program-group:has(.courses-program-btn:not(.active):hover) .courses-bfa-label {
     color: white !important;
   }
 }
 
 /* ===== Filter Buttons (右側 filter btn) ===== */
+/* inactive: 純黑底 + 半透明白字（對齊 about #anchor-nav）*/
 body.mode-inverse .activities-filter-btn:not(.active) .anchor-nav-inner,
 body.mode-inverse .courses-filter-btn:not(.active) .anchor-nav-inner {
-  background: rgba(0, 0, 0, 0.5) !important;
-  color: white !important;
+  background: rgba(0, 0, 0, 1) !important;
+  color: rgba(255, 255, 255, 0.5) !important;
 }
 
 body.mode-inverse .activities-filter-btn.active .anchor-nav-inner,
@@ -239,10 +268,13 @@ body.mode-inverse .list-content .border-black {
 /* ===== Library 灰色主矩形（#library-card-content）：跟 mode 翻 ===== */
 /* 標準色 #f2f2f2 + 黑字 ↔ inverse #333333 + 白字（半透明同 alpha 翻成 rgba(255,...)）
  * --lib-bg / --lib-fg / --lib-fg-rgb 在 variables.css + 此檔 body.mode-inverse 各有定義
- * library.css / library.html / library-panels.js / library-card.js 都用 var() 取色，自動跟 mode
- *
- * lib-panel-title chip 也用 var：HTML inline 設 bg=var(--lib-fg)、text=var(--lib-bg)
- * → standard 黑底淺字、inverse 白底深字，自動跟 mode 翻；此檔不必再 override */
+ * library.css / library.html / library-panels.js / library-card.js 都用 var() 取色，自動跟 mode */
+
+/* lib-panel-title chip：inverse 翻成純白底黑字（standard 是純黑底白字，由 library.css 定義） */
+body.mode-inverse .lib-panel-title {
+  background: #fff;
+  color: #000;
+}
 
 /* Awards ticker logos：黑色 PNG → inverse 模式下翻白（!important 蓋過 JS inline filter:grayscale） */
 body.mode-inverse #library-awards-ticker .awards-ticker-wrapper img {
@@ -268,6 +300,14 @@ body.mode-inverse #library-awards-ticker .awards-ticker-wrapper img {
   body.mode-inverse .list-header[style*="background"] + .list-content,
   body.mode-inverse .list-header[style*="background"] + .list-content * {
     color: black !important;
+  }
+
+  /* list-ref-btn hover：黑底白字（base lists.css hover 已設 bg=black + color=white，但上方 .list-content * → color:black
+   * 規則 specificity 0,4,1 蓋過 base `.list-ref-btn:hover *` 0,2,1 → ref hover 變黑底黑字看不到）
+   * 用 .list-header[...] + .list-content .list-ref-btn:hover * 提升 specificity 至 0,6,1 蓋回 white */
+  body.mode-inverse .list-header[style*="background"] + .list-content .list-ref-btn:hover,
+  body.mode-inverse .list-header[style*="background"] + .list-content .list-ref-btn:hover * {
+    color: white !important;
   }
 }
 
@@ -298,10 +338,32 @@ body.mode-inverse .card-tag {
   color: white !important;
 }
 
+/* ===== Courses Grid Cards：inverse 反轉成深灰底白字 =====
+ * 標準色 rgba(0,0,0,0.06) on white ≈ #F0F0F0（淺灰） ↔ inverse var(--gray-2) #333 + 白字
+ * hover/active 期間 JS 設 inline accent bg（亮三原色），需保留 inline bg 跟 standard 一致：
+ *   default rule 必須用 :not([style*="background"]) 排除 hover 狀態，否則 `!important` 會蓋過
+ *   JS inline accent bg（inline 不帶 !important，CSS !important 勝），inverse hover 變成
+ *   深灰底而非三原色底 — 跟 standard hover (accent + black 字) 視覺不一致 */
+body.mode-inverse .courses-grid-card:not([style*="background"]) {
+  background: var(--gray-2) !important;
+  color: white !important;
+}
+
+body.mode-inverse .courses-grid-card[style*="background"] {
+  color: black !important;
+}
+
 /* ===== About Anchor Nav ===== */
 /* inactive 字色用半透明白（0.5），對稱 standard 的半透明黑；hover 才升到 1.0 對比 */
 body.mode-inverse .anchor-nav-btn:not(.active) .anchor-nav-inner {
   background: rgba(0, 0, 0, 0.5) !important;
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* About 頁專用 override：底色不透明、文字半透明 theme-fg（對齊 standard mode 的 about 處理） */
+body.mode-inverse #anchor-nav .anchor-nav-btn:not(.active) .anchor-nav-inner,
+body.mode-inverse #mobile-anchor-menu .anchor-nav-btn:not(.active) .anchor-nav-inner {
+  background: rgba(0, 0, 0, 1) !important;
   color: rgba(255, 255, 255, 0.5) !important;
 }
 
@@ -328,6 +390,26 @@ body.mode-inverse .admission-item.active {
   body.mode-inverse .admission-item:hover {
     color: black;
   }
+}
+
+/* ===== List Accordion hover / active：inverse 下強制白底黑字（不要三原色 accent）=====
+ * list-accordion.js 在 .list-header hover 跟 active 時 inline 設 accent bg（綠/粉/藍），active 連 .list-content / .list-item 也染同色；
+ * inverse 模式下這些三原色 accent 不要出現，全部改成 strict 白底黑字（user 指定）。
+ * 用 [style*="background"] attribute selector 只 match 有 inline bg 的狀態（hover 或 active）。
+ * 涵蓋 admission / activities / 任何用 list-accordion 的頁面。 */
+body.mode-inverse .list-header[style*="background"],
+body.mode-inverse .list-content[style*="background"],
+body.mode-inverse .list-item[style*="background"] {
+  background: #fff !important;
+}
+
+body.mode-inverse .list-header[style*="background"],
+body.mode-inverse .list-header[style*="background"] *,
+body.mode-inverse .list-content[style*="background"],
+body.mode-inverse .list-content[style*="background"] *,
+body.mode-inverse .list-item[style*="background"],
+body.mode-inverse .list-item[style*="background"] * {
+  color: #000 !important;
 }
 
 /* ===== Faculty Slide-in：inverse 模式下視覺等同 standard ===== */
@@ -430,5 +512,22 @@ body.mode-inverse [data-bar="generate"].bar-active:not(.is-bar-hover) .nav-link 
 body.mode-inverse .degree-show-card-content[style*="background"] *,
 body.mode-inverse .degree-show-card-content[style*="background"] {
   color: #000 !important;
+}
+
+/* ===== Atlas List View：inverse 反轉 =====
+ * atlas.css 用 raw `color: black` 不是 .text-black utility class，
+ * 廣域 .text-black→white 規則抓不到，要顯式 override：
+ *   - .atlas-list-item / .atlas-list-nav-btn（chevron）：black → white
+ *     子元素 .atlas-list-name-zh (opacity 0.8) / .atlas-list-item-label (opacity 0.6)
+ *     自然繼承白色 → 變半透明白（user 要的「副標白色透明」）
+ *   - .atlas-list-col-title chip：原本黑底白字 → 翻成白底黑字（user 指定） */
+body.mode-inverse .atlas-list-item,
+body.mode-inverse .atlas-list-nav-btn {
+  color: white !important;
+}
+
+body.mode-inverse .atlas-list-col-title {
+  background: white !important;
+  color: black !important;
 }
 

@@ -110,7 +110,7 @@ export function initSectionBannerReveal() {
     titleEl.style.paddingRight = 'var(--spacing-md)';
     titleEl.style.direction = '';
     titleEl.style.justifyContent = '';
-    titleEl.style.transform = 'rotate(0deg)';
+    titleEl.style.transform = 'rotate(0deg) translateZ(0)';
     const vw = window.innerWidth / 100;
     const textVW = titleEl.offsetWidth / vw; // 包含 md padding
     // 文字左緣起點（fromRight=false 時從 14vw 起算）+ 文字寬 + buffer → 最低 visibleEnd
@@ -138,7 +138,9 @@ export function initSectionBannerReveal() {
       titleEl.style.direction = '';
       titleEl.style.justifyContent = '';
     }
-    titleEl.style.transform = `rotate(${rot}deg)`;
+    // translateZ(0) 永久 GPU layer：避免 mode 切換時 background-color transition 期間 layer promote/demote
+    // 造成旋轉元素 sub-pixel rounding 飄移（symmetric 左右抖動）
+    titleEl.style.transform = `rotate(${rot}deg) translateZ(0)`;
     // strip 的 top 由 inline style 決定（class/works: 10vh；resources/history: 0），不再由 JS 覆蓋
   }
 

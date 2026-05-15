@@ -24,12 +24,12 @@ function getRot() {
   while (Math.abs(r) < 0.5) r = parseFloat((Math.random() * 4 - 2).toFixed(2));
   return r;
 }
-function getColor() { return SCCDHelpers.getRandomAccentColor(); }
 
 // 替每個 .courses-bfa-label 與 inactive btn-inner 寫入 _baseRot 並套 transform，
-// 同時清掉 inactive btn-inner 的殘留 inline bg/color（避免之前 active/hover 期間
-// 設過 inline color: #000000，切換後 .active 被移除但 inline color 還在 → 文字還是黑色）
+// 同時清掉 inactive btn-inner 的殘留 inline bg/color（避免上次 active 期間設過 inline
+// color: #000000，切換 active 後 .active 被移除但 inline color 還在 → 文字還是黑色）
 // setActiveNavBtn 只清 bg 與 transform，不清 color，所以 color 要在這手動清
+// 註：hover 已不再 inline 設 bg/color（user spec：hover 只變文字 opacity，由 CSS 處理），故只需處理 active 殘留
 function applyBaseRotations() {
   document.querySelectorAll('.courses-bfa-label').forEach(label => {
     const el = /** @type {HTMLElement & { _baseRot?: number }} */ (label);
@@ -69,38 +69,23 @@ function bindHover(btn) {
 
   btn.addEventListener('mouseenter', () => {
     if (btn.classList.contains('active')) return;
-    const color = getColor();
+    // hover 不換底色（user spec：bg 不變，僅文字 100%，由 CSS hover rule 控制；不再 JS inline 設 accent bg / color）
+    // 仍保留 rotation 變化作為 hover 視覺回饋
     const rot = getRot();
     const labelRot = getRot();
-    if (inner) {
-      inner.style.background = color;
-      inner.style.color = '#000000';
-      inner.style.transform = `rotate(${rot}deg)`;
-    }
-    if (label) {
-      label.style.background = color;
-      label.style.color = '#000000';
-      label.style.transform = `rotate(${labelRot}deg)`;
-    }
-    // _pending* 給 click 用：點下去保留剛剛 hover 看到的角度+顏色（仿 about/bfa-division-toggle.js）
-    /** @type {any} */ (btn)._pendingColor = color;
+    if (inner) inner.style.transform = `rotate(${rot}deg)`;
+    if (label) label.style.transform = `rotate(${labelRot}deg)`;
+    // _pendingRot / _pendingLabelRot 給 click 用：點下去保留剛剛 hover 看到的角度（仿 about/bfa-division-toggle.js）
+    // _pendingColor 不再儲存（hover 無 color 預覽）→ click 時 getColor() 自動 roll 新色
     /** @type {any} */ (btn)._pendingRot = rot;
     /** @type {any} */ (btn)._pendingLabelRot = labelRot;
   });
 
   btn.addEventListener('mouseleave', () => {
     if (btn.classList.contains('active')) return;
-    if (inner) {
-      inner.style.background = '';
-      inner.style.color = '';
-      inner.style.transform = `rotate(${inner._baseRot || 0}deg)`;
-    }
-    if (label) {
-      label.style.background = '';
-      label.style.color = '';
-      label.style.transform = `rotate(${label._baseRot || 0}deg)`;
-    }
-    /** @type {any} */ (btn)._pendingColor = null;
+    // hover 沒設 inline bg/color，mouseleave 只還原 rotation
+    if (inner) inner.style.transform = `rotate(${inner._baseRot || 0}deg)`;
+    if (label) label.style.transform = `rotate(${label._baseRot || 0}deg)`;
     /** @type {any} */ (btn)._pendingRot = null;
     /** @type {any} */ (btn)._pendingLabelRot = null;
   });
@@ -152,11 +137,11 @@ export function initCoursesSectionSwitch() {
       if (sectionEl) sectionEl.scrollIntoView({ behavior: 'smooth' });
       return;
     }
-    // 找出將被 active 的 btn，把 hover 留下的 _pendingColor / _pendingRot / _pendingLabelRot
-    // 拿出來餵給 setActiveNavBtn，達成「hover 看到什麼角度，click 就停在什麼角度」的記憶效果（仿 about）
+    // 找出將被 active 的 btn，把 hover 留下的 _pendingRot / _pendingLabelRot 拿出來
+    // 達成「hover 看到什麼角度，click 就停在什麼角度」的記憶效果（仿 about）
+    // 注意：_pendingColor 已移除（hover 不再 preview accent 色），active 色由 setActiveNavBtn 內部 roll
     const incomingBtn = /** @type {any} */ ([...btns].find(b => b.getAttribute('data-program') === program));
     const opts = {};
-    if (incomingBtn?._pendingColor) opts.color = incomingBtn._pendingColor;
     if (incomingBtn?._pendingRot != null) opts.rotation = incomingBtn._pendingRot;
     const pendingLabelRot = incomingBtn?._pendingLabelRot;
 
@@ -262,7 +247,6 @@ export function initCoursesSectionSwitch() {
 
     // click 後要清掉 _pending（避免下次無 hover 直接點時還沿用舊值）
     if (incomingBtn) {
-      incomingBtn._pendingColor = null;
       incomingBtn._pendingRot = null;
       incomingBtn._pendingLabelRot = null;
     }

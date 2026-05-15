@@ -129,6 +129,12 @@
     color: black;
   }
 
+  /* hover inactive btn → BFA label 文字 100% theme-fg（spec：bg 不變、僅文字加深）
+   * 用 var(--theme-fg-rgb) 而非 hard-coded 黑，讓 mode-color/inverse 自動翻色 */
+  .courses-program-group:has(.courses-program-btn:not(.active):hover) .courses-bfa-label {
+    color: rgba(var(--theme-fg-rgb), 1);
+  }
+
   /* ===== Grid container =====
    * 桌面：sem-col + type-col + N 個年級欄（N = --year-cols，由 JS 依 program 設）
    *   - BFA = 4 cols (freshman/sophomore/junior/senior)
@@ -287,9 +293,11 @@
     }
   }
 
-  /* 類別 label（必修/選修）— 黑色實心、無半透明、無底色（col 2 type-col 內無卡片，
+  /* 類別 label（必修/選修）— 實心、無半透明、無底色（col 2 type-col 內無卡片，
      不需要 bg 蓋背景）。桌面 sticky containing block = .courses-required-row /
-     .courses-elective-row，row 到底時 label 跟著上去 */
+     .courses-elective-row，row 到底時 label 跟著上去
+     color 用 var(--theme-fg) 自動跟 mode 走：standard=black / inverse=white / mode-color=動態對比色
+     不可硬寫 black，否則 inverse 變黑底黑字看不見 */
   .courses-grid-type-label {
     font-weight: 600;
     font-size: var(--font-size-p2);
@@ -299,7 +307,7 @@
     gap: 2px;
     align-self: start;
     padding-top: 6px;
-    color: black;
+    color: var(--theme-fg);
   }
   @media (min-width: 768px) {
     .courses-grid-type-label {

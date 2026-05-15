@@ -58,6 +58,20 @@
   }
 }
 
+/* ===== Activities Type Filter Row - clip-reveal rotation clearance =====
+ * #exhibitions-type-filter / #visits-type-filter 掛 .list-reveal-row → scroll-animate.js setupClipReveal
+ * 動態包一層 overflow:clip wrapper。active btn 的 .anchor-nav-inner 由 activities-section-switch.js JS 設
+ * transform: rotate(±4~6deg)，rotation 後 chip corner（尤其左/右端）凸出 layout box 被 wrapper 裁掉。
+ * 給 padding 留 rotation clearance + 對應 negative margin 抵消，保證 btn 視覺位置與裁前一致。
+ * （vertical 不用補：.list-reveal-row 已有 pt-lg pb-lg 32px 足夠覆蓋 rotation y-protrusion） */
+#exhibitions-type-filter,
+#visits-type-filter {
+  padding-left: 16px;
+  padding-right: 16px;
+  margin-left: -16px;
+  margin-right: -16px;
+}
+
 /* ===== Activities Search Bar ===== */
 /* search bar scroll hide */
 .activities-search-inner {

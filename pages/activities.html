@@ -303,8 +303,8 @@
     </section>
   </main>
 
-  <!-- Share Lightbox -->
-  <div id="share-lightbox" style="display:none; position:fixed; inset:0; z-index:400; background:rgba(0,0,0,0.6); align-items:center; justify-content:center;">
+  <!-- Share Lightbox（z-index:9999 蓋過 header，與其他 lightbox 統一） -->
+  <div id="share-lightbox" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.9); align-items:center; justify-content:center;">
     <div style="background:#fff; width:320px; padding: var(--spacing-lg); display:flex; flex-direction:column; gap: var(--spacing-md);">
       <!-- Header -->
       <div style="position:relative; display:flex; align-items:center; justify-content:center;">
