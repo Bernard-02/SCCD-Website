@@ -601,15 +601,26 @@
 }
 
 /* ── Inverse mode ───────── */
-/* 城市 chip 在兩 mode 下都是三原色底 + 黑字，bg 由 JS inline 設；不需 inverse 翻字色 */
+/* 城市 chip 在兩 mode 下都是三原色底 + 黑字，bg 由 JS inline 設；不需 inverse 翻字色
+ * filter btns（三個可點擊選項：Professors / Alumni Careers / Partners）：user 明示 inverse 改成白底黑字 chip 化
+ *   - inactive：白底 + 半透明黑字（對齊 standard inactive 透明底+rgba(0,0,0,0.5) 字的「dim」對比層級）
+ *   - active：白底 + 100% 黑字（覆蓋 atlas.js updateFilterBtnColors 設的 #000000 bg + #FFFFFF 字 — 在 inverse 黑底會跟 body 融合）
+ *   - hover (inactive)：白底 + 100% 黑字（brighten 文字）
+ * career chip (.atlas-alumni-career / .atlas-list-col-career) 不在此規則 — 保留 accent 三原色 */
+body.mode-inverse .atlas-filter-btn .anchor-nav-inner {
+  background: white !important;
+  color: rgba(0, 0, 0, 0.5) !important;
+}
 
-body.mode-inverse .atlas-filter-btn:not(.active) .anchor-nav-inner {
-  color: rgba(255, 255, 255, 0.5);
+body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
+  background: white !important;
+  color: black !important;
 }
 
 @media (min-width: 768px) {
   body.mode-inverse .atlas-filter-btn:not(.active):hover .anchor-nav-inner {
-    color: rgba(255, 255, 255, 1);
+    background: white !important;
+    color: black !important;
   }
 }
 
@@ -651,4 +662,26 @@ body.mode-inverse .atlas-filter-btn:not(.active) .anchor-nav-inner {
     bottom: 72px;
     right: 16px;
   }
+}
+
+/* ── Idle Standby Mode ──────────────────────────────────────────
+ * 由 idle-standby.js 在 3 分鐘無操作後加上 body.idle-standby
+ * Header / atlas-filter / atlas-layout-btn 由 idle-standby.js 用 clip-path 控制收起/展開
+ *   （不在這裡 display:none 否則破壞動畫）
+ * atlas-list-view / atlas-detail 待機時無需動畫，瞬間 display:none 即可
+ * overlay 內那份 atlas（非 atlas 頁時 mount）的 filter / layout-btn 仍要 display:none
+ *   — 因為非 atlas 頁時這兩個 btn 不該出現在待機畫面（不是 atlas 頁本身的 btn）
+ * atlas 元素 pointer-events: none → 無 hover 效果，但 window-level
+ * mousemove 仍可觸發離開待機 */
+body.idle-standby #atlas-list-view,
+body.idle-standby #atlas-detail,
+body.idle-standby #idle-standby-overlay #atlas-filter,
+body.idle-standby #idle-standby-overlay #atlas-layout-btn {
+  display: none !important;
+}
+
+body.idle-standby #atlas-content,
+body.idle-standby .atlas-name,
+body.idle-standby .atlas-line {
+  pointer-events: none !important;
 }

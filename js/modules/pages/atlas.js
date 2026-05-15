@@ -230,14 +230,22 @@ export function cleanupAtlas() {
   document.body.style.cursor = '';
 }
 
-export async function initAtlas() {
-  const main = document.getElementById('atlas-main');
+export async function initAtlas(options = {}) {
+  // root 預設為 document（atlas 頁正常 init）；idle-standby 可傳入 overlay 內的 container
+  // 讓同份 atlas 模組在多個 root 上同時運作
+  const root = options.root || document;
+  /** @type {(sel: string) => HTMLElement | null} */
+  const $  = (sel) => root.querySelector(sel);
+  /** @type {(sel: string) => NodeListOf<HTMLElement>} */
+  const $$ = (sel) => root.querySelectorAll(sel);
+
+  const main = $('#atlas-main');
   if (!main) return;
 
-  const stage   = document.getElementById('atlas-stage');
-  const zoomEl  = document.getElementById('atlas-zoom');
-  const content = document.getElementById('atlas-content');
-  const detail  = document.getElementById('atlas-detail');
+  const stage   = $('#atlas-stage');
+  const zoomEl  = $('#atlas-zoom');
+  const content = $('#atlas-content');
+  const detail  = $('#atlas-detail');
   if (!stage || !zoomEl || !content || !detail) return;
 
   // ── 載入資料 ─────────────────────────────────────────
@@ -1298,8 +1306,8 @@ export async function initAtlas() {
   cleanupFns.push(() => window.removeEventListener('resize', onResize));
 
   // ── Filter + Layout Toggle ─────────────────────────────────────────
-  const filterEl = document.getElementById('atlas-filter');
-  const btns = /** @type {HTMLElement[]} */ ([...document.querySelectorAll('.atlas-filter-btn')]);
+  const filterEl = $('#atlas-filter');
+  const btns = /** @type {HTMLElement[]} */ ([...$$('.atlas-filter-btn')]);
   const selected = new Set(btns.map(b => b.dataset.filter));
 
   // ── Alumni career rotating chip：map view 一個（alumni filter btn 下方）、list view 一個（alumni 欄 title 下方）
@@ -1996,7 +2004,7 @@ export async function initAtlas() {
   apply();
 
   // ── Layout toggle ──────────────────────────────────────────────────
-  const layoutBtn = document.getElementById('atlas-layout-btn');
+  const layoutBtn = $('#atlas-layout-btn');
 
   function switchToList() {
     if (currentView === 'list') return;
