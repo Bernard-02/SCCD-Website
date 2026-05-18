@@ -622,11 +622,27 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb 
     return (lb && lb.style.display !== 'none') || (pdf && pdf.style.display !== 'none');
   }
 
+  /** @type {{sw: number, sh: number} | null} */
+  let pendingResize = null;
+
   const ro = new ResizeObserver(() => {
-    if (isViewerOpen()) return;
     const sec = grayEl.closest('section');
     if (sec.offsetWidth === 0 || sec.offsetHeight === 0) return;
     const sw = sec.offsetWidth, sh = sec.offsetHeight;
+    // viewer 開啟期間 size 若改變（user 拉視窗），記下來；viewer 關閉後 lightbox-shell 還原 scrollbar-gutter
+    // 也會 trigger RO，那時 short-circuit 走「等於 pendingResize 就接受」分支 → 完整 re-layout
+    if (isViewerOpen()) {
+      if (!lastAcceptedSize || lastAcceptedSize.sw !== sw || lastAcceptedSize.sh !== sh) {
+        pendingResize = { sw, sh };
+      }
+      return;
+    }
+    // Viewer 關閉後第一個 RO callback：若 viewer-open 期間有 pendingResize，強制走 re-layout 分支
+    // （即使現在 size 等於 lastAcceptedSize，因為 layout 是按 viewer-open 前的 size 算的，已過時）
+    if (pendingResize) {
+      pendingResize = null;
+      lastAcceptedSize = null; // 強制下方比對不會 short-circuit
+    }
 
     // Short-circuit：size 跟上次接受的相同就跳過
     // 原因：lightbox 關閉時 lightbox-shell removeProperty('scrollbar-gutter') 還原 gutter 讓 body 寬 -10px、section 寬跟著變

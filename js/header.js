@@ -455,33 +455,20 @@ export function initHeader() {
     // 呼叫 updateNavActive 設定初始 active 狀態
     updateNavActive(currentPage);
 
-    // 3. Header Bar Random Rotation
-    (function initBarRotations() {
-      const aboutBar = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="about"]'));
-      const libraryBar = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="library"]'));
-      const atlasBar = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="atlas"]'));
-      const generateBar = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="generate"]'));
-      const alumniBar = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="alumni"]'));
-
-      function getAboutDeg() {
-        return Math.round((Math.random() * 3 - 1.5) * 10) / 10;
+    // 3. Header Bar Random Rotation（about: -1.5~1.5°；其他 small bar: -4~4° 排除 0）
+    {
+      const aboutBarInit = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="about"]'));
+      if (aboutBarInit) {
+        aboutBarInit.style.transform = `rotate(${Math.round((Math.random() * 3 - 1.5) * 10) / 10}deg)`;
+        aboutBarInit.style.transformOrigin = 'center center';
       }
-
-      function getSmallBarDeg() {
+      header.querySelectorAll('[data-bar="library"], [data-bar="atlas"], [data-bar="generate"], [data-bar="alumni"]').forEach(el => {
         let deg;
         do { deg = Math.round(Math.random() * 9) - 4; } while (deg === 0);
-        return deg;
-      }
-
-      if (aboutBar) {
-        aboutBar.style.transform = `rotate(${getAboutDeg()}deg)`;
-        aboutBar.style.transformOrigin = 'center center';
-      }
-      [libraryBar, atlasBar, generateBar, alumniBar].filter(Boolean).forEach(el => {
-        el.style.transform = `rotate(${getSmallBarDeg()}deg)`;
-        el.style.transformOrigin = 'center center';
+        /** @type {HTMLElement} */ (el).style.transform = `rotate(${deg}deg)`;
+        /** @type {HTMLElement} */ (el).style.transformOrigin = 'center center';
       });
-    })();
+    }
 
     // about bar hover：整條 bar 底色變三原色，hover 單一 item 時字 100% 黑
     const ACCENT_COLORS = ['#00FF80', '#FF448A', '#26BCFF'];

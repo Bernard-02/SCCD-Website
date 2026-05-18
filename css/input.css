@@ -61,19 +61,6 @@
     font-size: var(--font-size-p3);
   }
 
-  .text-gradient-green {
-    @apply bg-gradient-to-r from-green to-blue bg-clip-text text-transparent;
-  }
-
-  .text-gradient-pink {
-    @apply bg-gradient-to-r from-pink to-blue bg-clip-text text-transparent;
-  }
-
-  .writing-mode-vertical {
-    writing-mode: vertical-rl;
-    text-orientation: mixed;
-  }
-
   .pt-7xl {
     padding-top: var(--spacing-7xl);
   }

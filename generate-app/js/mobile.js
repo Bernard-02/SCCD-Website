@@ -1051,6 +1051,10 @@ if (window.visualViewport) {
 
   window.visualViewport.addEventListener('resize', () => {
     if (!isMobileMode) return;
+    // _p5 為 null = user 已離開 /create（cleanupCreateApp 跑過）。top-level listener 無法 remove
+    // （script 載入時就綁），加 guard 避免 callback 對其他頁的 DOM 跑（querySelector .main-container
+    // 等回 null 雖有 if 守衛 silent skip，但 scroll handler 那條會主動 scrollTo(0,0) 阻擋其他頁 scroll）
+    if (typeof _p5 === 'undefined' || _p5 === null) return;
 
     const currentHeight = window.visualViewport.height;
     const keyboardHeight = initialHeight - currentHeight;
@@ -1216,6 +1220,8 @@ if (window.visualViewport) {
   // 偵測 scroll 事件，防止頁面被鍵盤推上去
   window.visualViewport.addEventListener('scroll', () => {
     if (!isMobileMode) return;
+    // _p5 guard：離開 /create 後 scrollTo(0,0) 會阻擋其他頁 scroll（高 severity bug，比 resize 那條重要）
+    if (typeof _p5 === 'undefined' || _p5 === null) return;
     // 強制回到原位
     window.scrollTo(0, 0);
   });

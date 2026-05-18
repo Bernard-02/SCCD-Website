@@ -254,7 +254,6 @@
   }
 
   .list-title-marquee.is-overflow:hover p,
-  .press-list-item:hover .list-title-marquee.is-overflow p,
   .list-header:hover .list-title-marquee.is-overflow p {
     animation: list-marquee var(--marquee-duration, 4s) linear infinite;
   }

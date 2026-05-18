@@ -10,16 +10,13 @@
    *   - card：hover 時底色變 var(--card-color)
    *   - image-wrapper::after：screen blend 色塊，hover 時 opacity 1
    *   - image：hover 時 grayscale
-   * 新 instance 可加 .card-hover-overlay / .card-hover-overlay__wrapper / .card-hover-overlay__image
    */
-  .card-hover-overlay,
   .faculty-card,
   .library-card {
     background-color: transparent;
     transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  .card-hover-overlay__wrapper,
   .faculty-card-image-wrapper,
   .library-card-image-wrapper {
     position: relative;
@@ -31,14 +28,12 @@
     overflow: hidden;
   }
 
-  .card-hover-overlay__image,
   .faculty-card-image,
   .library-card-image {
     transition: filter 0.3s cubic-bezier(0.4, 0, 0.2, 1),
                 transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  .card-hover-overlay__wrapper::after,
   .faculty-card-image-wrapper::after,
   .library-card-image-wrapper::after {
     content: '';
@@ -53,18 +48,15 @@
 
   /* Hover 效果（桌面版）*/
   @media (min-width: 768px) {
-    .card-hover-overlay:hover,
     .faculty-card:hover,
     .library-card:hover {
       background-color: var(--card-color, #26BCFF);
     }
 
-    .card-hover-overlay:hover .card-hover-overlay__image,
     .library-card:hover .library-card-image {
       filter: grayscale(100%);
     }
 
-    .card-hover-overlay:hover .card-hover-overlay__wrapper::after,
     .library-card:hover .library-card-image-wrapper::after {
       opacity: 0.8;
     }
@@ -130,43 +122,6 @@
   .faculty-tag {
     @apply inline-block text-p2 border border-black px-xs py-[2px];
     white-space: nowrap;
-  }
-
-  /* ===== Brand Trail Image (Mouse Trail Effect) ===== */
-  .brand-trail-img {
-    @apply absolute object-contain pointer-events-none z-50; /* 改為 contain 以完整顯示 Logo */
-    width: 320px;       /* 設定統一寬度 */
-    height: 240px;      /* 設定統一高度 */
-    transform: translate(-50%, -50%); /* 讓圖片中心對準滑鼠 */
-  }
-
-  /* ===== Card Stacks & Effects ===== */
-  .card-stack-1 {
-    transform: rotate(-4deg);
-    position: relative;
-    z-index: 1;
-  }
-
-  .card-stack-2 {
-    transform: rotate(3deg);
-    position: relative;
-    z-index: 2;
-  }
-
-  .card-stack-3 {
-    transform: rotate(-2deg);
-    position: relative;
-    z-index: 3;
-  }
-
-  @media (min-width: 768px) {
-    .hover-tilt-left:hover {
-      transform: rotate(-4deg);
-    }
-
-    .hover-tilt-right:hover {
-      transform: rotate(4deg);
-    }
   }
 
   .works-container {

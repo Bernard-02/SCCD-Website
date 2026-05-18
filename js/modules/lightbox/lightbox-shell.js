@@ -72,7 +72,6 @@ export function animateHeaderShow(targets) {
 
 // 多個 lightbox 同時/連續開關時保持 body state 一致
 let openCount = 0;
-let bodyOverflowBefore = '';
 let savedHeaderZ = null;
 
 // lightbox 容器 z-[9999] + 後 append 到 body → DOM order 比 header 後 → 同 z 下 lightbox 蓋過 header
@@ -133,7 +132,8 @@ function restoreLightboxTops() {
 
 export function enterLightboxMode() {
   if (openCount === 0) {
-    bodyOverflowBefore = document.body.style.overflow;
+    // 不再 save/restore bodyOverflowBefore：cleanupPageModules 開頭 blanket reset body.style.overflow=''，
+    // 加上 lightbox 開關情境下 body 預期就是 '' → 永遠存到 '' 又還原成 ''，純 no-op
     document.body.style.overflow = 'hidden';
     document.body.classList.add('lightbox-open');
     raiseHeaderZ();
@@ -146,7 +146,7 @@ export function enterLightboxMode() {
 export function exitLightboxMode() {
   openCount = Math.max(0, openCount - 1);
   if (openCount === 0) {
-    document.body.style.overflow = bodyOverflowBefore;
+    document.body.style.overflow = '';
     document.body.classList.remove('lightbox-open');
     animateHeaderShow(getHeaderTargets());
     restoreHeaderZ();

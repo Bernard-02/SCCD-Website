@@ -3,9 +3,7 @@
  * library.html 專用樣式
  */
 
-/* ── 捲軸隱藏 ──────────────────────────────────────────────── */
-.no-scrollbar::-webkit-scrollbar { display: none !important; }
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+/* `.no-scrollbar` 全域定義在 css/base/scrollbar.css，這邊不重複 */
 
 /* ── Sort 按鈕（Awards / Press / Files / Album panel 共用） ── */
 .library-sort-btn {

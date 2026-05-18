@@ -171,7 +171,5 @@ export function initCustomScrollbar() {
   thumbEl.addEventListener('pointermove', onPointerMove);
   thumbEl.addEventListener('pointerup', onPointerUp);
   thumbEl.addEventListener('pointercancel', onPointerUp);
-
-  // 開放給其他模組手動 trigger 重算（e.g. lightbox 開關後）
-  window.__recomputeScrollbar = recompute;
+  // ResizeObserver + scroll listener 已自動 cover SPA 換頁 / lazy load / accordion 等情境
 }
