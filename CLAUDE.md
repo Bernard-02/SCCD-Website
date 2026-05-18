@@ -267,3 +267,47 @@ xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96p
 
 ## auto-memory
 本 repo 配有完整的 auto-memory 系統（`~/.claude/projects/.../memory/`），存了 150+ feedback / project / user / reference entries，包含許多「看似 bug 但其實是刻意 workaround」的歷史脈絡。改 code 前若覺得某段奇怪，先翻 memory 看有沒有相關紀錄，避免回退已修過的問題。CLAUDE.md 不重複 memory 已有的內容。
+
+## 未做的優化清單（Future Optimization Backlog）
+
+歷次 audit 找出但**這次沒做**的工作；按「之後如果要碰相關區塊順手做」的視角列。每項標 ROI / 工程量 / 觸發時機。已做的不在這裡列。
+
+### A. 等下次碰到相關區塊順手做（低風險）
+
+| 項目 | 工程量 | 觸發時機 |
+|---|---|---|
+| `hero-animation.js randomizeHeroLayout` → 用 `awaitLayoutReady` | 小 | 動到 hero animation 時 |
+| `error-404.js randomizeAllPlacements` → 用 `awaitLayoutReady` | 小 | 動到 404 頁時 |
+| `faculty-data-loader.js` / `records-data-loader.js` / `legal-data-loader.js` / `degree-show-data-loader.js` → 用 `loadAndRender` helper | 小（每檔約 -10 行） | 動到該 loader 時 |
+| `inverse.css` / `color.css` 同 selector 規則合併（用 `body:is(.mode-inverse, .mode-color)` + `var(--theme-fg)`）| 中（需 audit 每對語義 + 視覺回歸） | 動該頁 theme 規則時順手 |
+| `themes/inverse.css` 內 `/* 不再 / 不再列入 */` 等 dead 註解殘留清理 | 極小 | 動到該檔時 |
+
+### B. 結構性對齊（需 HTML/CSS 一起改）
+
+| 項目 | 工程量 | 為何延後 |
+|---|---|---|
+| **alumni city tabs → `setActiveNavBtn`** | 中 | 需 HTML 加 `.anchor-nav-inner` wrapper + 改 CSS active style scope；user 已說想對齊 courses program switch |
+| **components 從 Tailwind hardcoded class (`border-black`/`bg-white`) → var-based custom class** | 大 | 真正能砍 themes/inverse.css + color.css 大部分重複的根本作法；但要全 codebase 改 HTML，建議一頁一頁來 |
+
+### C. 中等嚴重度殘留 bug（發生機率低，遇到 user 回報再修）
+
+| 項目 | 位置 | 影響 |
+|---|---|---|
+| `library-viewer.js` PDF listeners 無 remove | js/modules/pages/library-viewer.js | modal 是單例 guard，目前不重綁不出問題；極端情境若 modal 被某 race 重建會疊 listener |
+| `library-panels.js` Press/Files/Album 內 helper listener cleanup | js/modules/pages/library-panels.js | 跨 SPA accumulate 可能；需 audit 每個 binding helper |
+| admission news 無 pagination（移除 load-more）| admission-data-loader.js | 目前 4 items 不需要；資料成長到 >10 再考慮加回（loadListInto 加 append mode 或 caller 自管 slice + 重 render）|
+
+### D. TIER 3 大架構（明確不做，列出做為設計決策記錄）
+
+- ❌ **section-switch 4 個 caller 抽 helper**：admission/activities/courses/works 各有 quirks（lazy load / sub-filter / 頭部動畫 / BFA-MDES toggle），抽出 helper hook 後複雜度跟原本 4 份差不多，違反「不過度工程化」
+- ❌ **`renderCard()` 通用 card builder**：5 種 card 結構差異 > 共用因子（faculty / library / courses-grid / alumni-sponsor / activities list-item），共用 helpers 已抽（card-panel-helpers.js）
+- ❌ **Web Components / Custom Elements**：原生 JS SPA 是技術選擇，不引入新範式
+- ❌ **header bars `[data-bar]` selector 完全集中化**：about / library / atlas / generate / alumni 各有客製互動，header.js 內保留多處 selector 比集中後配 hook 簡單
+
+### E. Component-first 長期方向（user 目標，分階段累積）
+
+1. **Utility helpers**（已大半完成）— scroll-animate / lightbox-shell / page-cleanup / awaitLayoutReady / loadAndRender / marquee-overflow / section-switch-helpers / theme-toggle / custom-scrollbar
+2. **Render templates**（進行中）— `loadListInto` 是 canonical list template，`card-panel-helpers` 是 card 共用 helpers。下一階段可考慮抽：
+   - 統一 ref/attachment block builder（目前 list-ref-btn HTML 散在多處）
+   - 統一 gallery + lightbox bind helpers（loadListInto 內部已有，可獨立 export 給非 list 場景）
+3. **Self-contained widgets**（不做）— 需 Web Components 或框架支援，跟現有 vanilla JS SPA 衝突
