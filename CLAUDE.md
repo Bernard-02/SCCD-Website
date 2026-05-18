@@ -1,270 +1,263 @@
 # SCCD 網站專案指南
 
 ## 專案概述
-實踐大學媒體傳達設計系（SCCD - Shih Chien University Communications Design）官方網站
+實踐大學媒體傳達設計系（SCCD - Shih Chien University Communications Design）官方網站。原生 JS SPA，無框架。
 
 ## 技術棧
-- **前端框架**: 原生 HTML/CSS/JavaScript（無框架）
-- **CSS 工具**: Tailwind CSS（使用 output.css）
-- **設計系統**: CSS Variables（定義在 variables.css）
-- **字體**: Inter (英文) + Noto Sans TC (中文)
-- **圖示**: Font Awesome 6.5.1
+- **前端**：原生 HTML/CSS/JavaScript（ES6 modules）
+- **架構**：自製 SPA router（`js/router.js`）+ 模組化頁面初始化
+- **CSS 工具**：Tailwind CSS（`css/output.css` 為編譯產物）
+- **設計系統**：CSS Variables（`css/variables.css`）
+- **動畫**：GSAP 3.14（含 ScrollTrigger / Draggable / InertiaPlugin）
+- **p5.js**：/create 頁的 generator app inline 跑 p5 instance（已從 iframe 拆除）
+- **Lottie**：header / footer logo 動畫
+- **字體**：Inter (EN) + Noto Sans TC (ZH)
+- **圖示**：Font Awesome 6.5.1
 
 ## 專案結構
+
 ```
-├── index.html              # 首頁
-├── pages/                  # 所有內頁
-│   ├── about.html
-│   ├── faculty.html
-│   ├── admission.html
-│   ├── degree-show-detail.html
-│   └── ...
+├── index.html                  # 首頁（含 #site-footer-static 靜態 footer + intro overlay）
+├── pages/                      # 所有內頁（SPA router 把 <main> 內容 swap 進來）
+│   ├── about / faculty / courses / works / activities / admission / awards
+│   ├── degree-show / degree-show-detail
+│   ├── alumni / library / atlas / create
+│   ├── support / privacy-policy / accessibility / 404
+│   ├── header.html             # async fetch 載入到 #site-header
+│   └── footer.html             # async fetch 載入到 #site-footer（SPA 容器）
 ├── css/
-│   ├── variables.css       # 設計系統變數（顏色、字型、間距等）
-│   ├── input.css           # Tailwind 輸入文件
-│   └── output.css          # 編譯後的 CSS
+│   ├── variables.css           # 設計系統變數（顏色 / 字型 / 間距 / breakpoints）
+│   ├── input.css               # Tailwind 入口 + @import 串接 base/layout/components/themes
+│   ├── output.css              # build 產物
+│   ├── base/                   # typography / scrollbar
+│   ├── layout/                 # grid / footer
+│   ├── components/             # navigation / buttons / cards / accordion / hero /
+│   │                             lists / atlas / alumni / courses / create / library /
+│   │                             intro-animation
+│   └── themes/                 # color (mode-color) / inverse (mode-inverse)
 ├── js/
-│   └── main.js             # 主要 JavaScript 邏輯
-├── images/                 # 圖片資源
-├── data/                   # 資料文件
-└── assets/                 # 其他靜態資源
+│   ├── main-modular.js         # DOMContentLoaded 入口、initPageModules dispatch、cleanupPageModules
+│   ├── router.js               # SPA router（fetch + innerHTML swap + nav state）
+│   ├── header.js / footer.js   # 全域 header/footer 初始化（DOMContentLoaded 跑一次）
+│   └── modules/
+│       ├── pages/              # 各頁專屬模組（create-app / atlas / alumni / library-* / 等）
+│       │   └── about/          # about 頁拆分（resources-cycling / brand-trail / timeline / ...）
+│       ├── ui/                 # 共用 UI（theme-toggle / page-exit / page-cleanup /
+│       │                         custom-scrollbar / scroll-animate / marquee-overflow / ...）
+│       ├── lightbox/           # lightbox-shell（共用 enter/exit + header bar 收展）
+│       ├── navigation/         # anchor-nav
+│       ├── filters/ accordions/ animations/
+│       └── pages/about/        # about 頁專屬子模組
+├── generate-app/               # /create 頁 p5 sketch 與資源
+│   ├── sketch.js               # p5 instance 主檔（initCreateApp / cleanupCreateApp 暴露給 SPA）
+│   ├── js/                     # classic scripts（variables / utils / mobile / color-picker / ...）
+│   ├── p5.min.js               # local p5 build
+│   └── Panel Icon/ Easter Egg/ # 資源
+├── data/                       # 所有 JSON 資料（news / faculty / admission / records / alumni-* / ...）
+├── images/  assets/            # 圖片與其他資源
+└── package.json                # tailwind build script
 ```
+
+## SPA 架構
+
+### Router 流程（`js/router.js`）
+1. **攔截 `a[href]`**：document-level click listener → `navigateTo(url)` → `loadPage(route)`
+2. **`loadPage`**：
+   - `navSeq` race guard：每次 ++navSeq，await 後若 mySeq ≠ navSeq 則 abort（用戶連點不同連結時新請求接手）
+   - `Promise.all([runPageExit(route), fetch(htmlFile)])` 並行：退場動畫 + fetch
+   - `cleanupPageModules()` 統一清理（見下）
+   - `main.innerHTML = newMain.innerHTML` 只替換 `<main id="page-content">`，header/footer 不動
+   - `loadPageCSS(page)` 動態載入頁面專屬 CSS（library / atlas / create / alumni）
+   - `updateNavActive(page)` 更新 header logo size + nav 高亮
+   - footer display:none toggle（generate/library/atlas 隱藏）+ broken-init recovery（無 `.footer-anchor` 則重 init）
+   - `body.classList.toggle('overflow-hidden')` for generate/atlas（鎖頁 scroll）
+   - `body.style.overflowX = 'hidden'` for about/alumni（section-title-strip overflow viewport 右側）
+   - `initPageModules(page, searchParams)` 跑頁面專屬 init
+   - `setTimeout scrollToTop` + `ScrollTrigger.refresh` 收尾
+
+### 路由表特殊規則
+- `pushState` 用「真實檔案路徑」（`/pages/X.html`）而非乾淨 URL — dev server 無 SPA fallback，refresh 才不會 404
+- `/create` URL 對應到 `route.page === 'generate'`（歷史殘留，邏輯名稱與 URL 不同）
+- 404 fallback：找不到 route → 載入 `/pages/404.html`
+
+### `cleanupPageModules`（`main-modular.js`）
+順序敏感，做這些事：
+1. **`runPageCleanups()`**：drain `page-cleanup` registry（各模組註冊的 window/document listener、observer、interval）
+2. body / html overflow reset + slide-in/lightbox class 清除
+3. `resetLightboxMode()` openCount 歸零
+4. `cleanupCreateApp()`（p5 instance + 全 listener + special-easter-egg DOM）
+5. `cleanupAtlas()` / `cleanup404()`
+6. ScrollTrigger.getAll 只 kill trigger 在 `#page-content` 內的（保留 trigger 是 body/document/header 的）
+7. `gsap.killTweensOf(main.querySelectorAll('*'))`
+8. 動態 import 補 `restoreHeaderLogo`（generate 頁可能改 logo）
+
+### Page Cleanup Registry（`js/modules/ui/page-cleanup.js`）
+為了避免 window/document 級 listener 跨 SPA 累積，各模組用：
+```js
+import { registerPageCleanup } from '../ui/page-cleanup.js';
+window.addEventListener('scroll', handler);
+registerPageCleanup(() => window.removeEventListener('scroll', handler));
+```
+`cleanupPageModules` 開頭 `runPageCleanups()` 統一 drain。已用模組：activities-search / anchor-nav / activities-data-loader / index-yt-card。
+
+### Page Exit Animation（`js/modules/ui/page-exit.js`）
+頁面可註冊「離頁前要跑的動畫」（如 /create 的 SCCD 反向 typewriter + control panel y-reveal、alumni 的 header bar 收起）：
+```js
+import { registerPageExit } from '../ui/page-exit.js';
+registerPageExit(async (destinationRoute) => { /* animate; await; */ });
+```
+router 換頁時 `runPageExit(route)` await 完成才繼續 cleanup + swap。
 
 ## 設計系統
 
-### 顏色規範
-- **主色**: 黑色 (#000000) 和白色 (#FFFFFF)
-- **輔助色**:
-  - 綠色: #00FF80
-  - 粉紅: #FF448A
-  - 藍色: #26BCFF
-- **灰階**: gray-0 到 gray-10（10 階層系統）
+### 顏色
+- **主色**：黑 `#000000` / 白 `#FFFFFF`
+- **三原色（ACCENT_COLORS / 「rgb」）**：綠 `#00FF80` / 粉 `#FF448A` / 藍 `#26BCFF`
+- **灰階**：`--gray-0` ~ `--gray-9`（注意：是 `--gray-N` 不是 `--color-gray-N`）
+- 中性灰用 `var(--gray-N)` 不要用 `rgba(0,0,0,X)` 透明黑（mode 切換時透明黑會疊底色脫節）
 
-### 字體規範
-- **標題**: H1 (8rem) 到 H6 (1.25rem)
-- **內文**: P1 (1rem / 16px)
-- **字重**: Regular (400), Semibold (600), Bold (700)
+### 三主題模式
+通常用 `mode1/mode2/mode3` 指稱：
+- **mode1 / standard**：白底黑字（`body.mode-standard` 或無 class）
+- **mode2 / inverse**：黑底白字（`body.mode-inverse`，規則在 `themes/inverse.css`）
+- **mode3 / color**：彩色背景（`body.mode-color`，hue 由 JS 動態設 CSS var；規則在 `themes/color.css`）
 
-### 間距系統
-- xs: 0.5rem (8px)
-- sm: 1rem (16px)
-- md: 1.5rem (24px)
-- lg: 2rem (32px)
-- xl: 3rem (48px)
-- 2xl: 4rem (64px)
-- 3xl: 6rem (96px)
-- 4xl: 8rem (128px)
+切換由 `theme-toggle.js` 控制；`/create` 頁特殊（body class 暫停，由 generate-app 自己處理）。
+
+### 模式切換 transition（whitelist）
+`css/base/typography.css` 有一段 whitelist 規則，列舉哪些元件 mode 切換時要 0.4s fade 而不是 snap。新增 mode-aware 元件必須補進 whitelist（不在 list 內 = 視覺 snap）。已含：header / nav-link / [data-bar] / bg-* / text-* / timeline-card / list-header / footer / scrollbar / alumni-* / courses-* / atlas-* / library-* 等。
+
+### 字體
+- **標題**：H1 (8rem) ~ H6 (1.25rem)
+- **內文**：P1 (1rem) / P2 / P3
+- **字重**：Regular (400) / Semibold (600) / Bold (700)
+
+### 間距
+xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96px) / 4xl (128px) / 7xl / 8xl
+
+## RWD（Desktop-First）
+
+**絕對原則：手機版的修改不能影響桌面版。**
+
+### 規範
+1. **CSS Variables**：預設值 = 桌面版（不可改），手機版用 `@media (max-width: 767px)` 覆蓋
+2. **Tailwind classes**：**只用 `md:` prefix**（不用 `sm:`）；預設 class = 手機，`md:` = 桌面 (768px+)
+3. **Hover**：手機版不應有 hover；所有 hover 包在 `@media (min-width: 768px)` 內
+4. **JavaScript**：條件式執行
+   ```js
+   function isMobile() { return window.innerWidth < 768; }
+   function isDesktop() { return window.innerWidth >= 768; }
+   ```
+5. **Breakpoint**：md (768) / lg (1024) / xl (1280) — **不用 sm**
+
+## 共用動畫模式
+
+### Clip-Reveal Entrance（hero-style 由下而上揭露）
+- 元素 `yPercent: 100 → 0`，外層 `overflow: clip` wrapper，視覺從容器底邊滑入
+- **參考**：`js/modules/pages/hero-animation.js`
+- **共用 helper**：`js/modules/ui/scroll-animate.js`
+  - `setupClipReveal(elements, opts)` — wrap + 預設 yPercent:110
+  - `playClipReveal(elements, opts)` — 0.9s power3.out + stagger
+- **規範**：不配 opacity fade；duration 0.9s + power3.out；stagger 0.12s（同層）/ 0.08s（跨卡）
+- **用詞**：對話中講「**clip-reveal**」或「**hero 標題那個進場**」就是這個 pattern
+
+### Clip-Path Inset Reveal（4 方向擦除/揭露）
+- `clip-path: inset(...)` 從 100%→0% reveal 或 0%→100% hide，方向 top/right/bottom/left 四選一
+- **參考**：
+  - 圖片進場：`js/modules/filters/faculty-filter.js`
+  - hide/show 對稱：`js/modules/lightbox/lightbox-shell.js` 的 `animateHeaderHide` / `animateHeaderShow`（lightbox / slide-in / footer-reveal 共用）
+- **規範**：inset 四值單位必須一致（全 % 或全 px），混用會讓 interpolate 失敗看起來「直接出現」
+- **用詞**：對話中講「**clip-path**」就是這個 pattern
+
+## 共用模組（重要！新功能優先沿用）
+
+| 模組 | 用途 |
+|---|---|
+| `js/modules/ui/scroll-animate.js` | clip-reveal entrance helpers |
+| `js/modules/ui/page-exit.js` | 註冊頁面退場動畫 |
+| `js/modules/ui/page-cleanup.js` | 註冊離頁要解綁的 listener / observer |
+| `js/modules/ui/theme-toggle.js` | mode 切換 + color hue loop + 全域 dispatch `theme:changed` |
+| `js/modules/ui/custom-scrollbar.js` | 全站隱藏原生 scrollbar + 自製 fixed thumb div + drag + footer 區換色 |
+| `js/modules/ui/marquee-overflow.js` | 文字 overflow → seamless loop marquee（atlas/courses/library 共用） |
+| `js/modules/ui/section-switch-helpers.js` | `setActiveNavBtn` + `showPanel`（4 個 section-switch 共用） |
+| `js/modules/lightbox/lightbox-shell.js` | enter/exit + body lock + header bar 收展（給 lightbox / slide-in / full-screen overlay 共用） |
+| `js/modules/accordions/list-accordion.js` | list-header → list-content 展開（必須在 `loadListInto` 後 call `initListAccordion`） |
+| `js/modules/pages/activities-data-loader.js` `loadListInto` | 通用 list 渲染（activities / admission summer-camp 等） |
 
 ## 編碼規範
 
 ### HTML
-- 語言設定為繁體中文：`lang="zh-Hant"`
-- 語義化標籤優先
-- 導航連結使用雙語顯示（英文+中文）
+- `lang="zh-Hant"`、語義化標籤、雙語顯示（英 + 中）
+- **新頁面必備兩個容器**：
+  - `<main id="page-content">` — router 替換目標
+  - `<div id="site-footer"></div>` — 即使該頁不顯示 footer 也要加（router 自會處理 display:none，否則 first-load 該頁時 footer 永久消失）
 
 ### CSS
-- 優先使用 CSS Variables（定義在 variables.css）
-- 使用 Tailwind 工具類別
-- 客製化樣式遵循設計系統
-- 修改設計系統變數時，需同步更新 variables.css
+- 優先使用 CSS Variables；客製化遵循設計系統
+- 改設計系統值同步更新 `variables.css`
+- `@import` 順序看 `input.css`（cascade 後者勝）
 
 ### JavaScript
-- 使用原生 JavaScript（ES6+）
-- 模組化結構
-- 等待 DOM 完全載入後執行（DOMContentLoaded）
-- 詳細註解說明邏輯
+- ES6+ 原生 / 模組化
+- DOMContentLoaded 才執行 init 邏輯
+- 跨 SPA 換頁的 window/document listener 必須註冊 cleanup（用 `page-cleanup` registry）
+- 註解寫 **WHY** 不寫 WHAT；只在非顯而易見的時候寫
+- 不要過度工程化（user 偏好「3 行類似 code 比 premature abstraction 好」）
 
 ## 功能特性
 
-### 導航系統
-- Sticky header（固定在頂部）
-- Mega menu（大型下拉選單）
-- 自動高亮當前頁面
-- 支援詳細頁對應到父層導航（如 degree-show-detail.html → degree-show.html）
+### 導航
+- Sticky header + mega menu + 雙語 hover 切換
+- 自動高亮當前頁；detail 頁對應到父層（degree-show-detail → degree-show）
 
-### 響應式設計
+### Header logo 動畫（`js/header.js`）
+- Lottie SCCD logo，size 隨頁面變（180px / 100px — library/atlas）
+- /create 頁有 typewriter entry + reverse backspace exit
+- 退場時根據 logo state（State A/B/C）決定 backspace / skip / fade
 
-### RWD 核心原則（Desktop-First）
-**重要：手機版的任何修改都不能影響到桌面版**
+### Footer scatter（`js/modules/ui/footer-draggable.js`）
+**注意：檔名含 "draggable" 是歷史殘留，drag 功能已移除。** 現在是 JS random scatter + collision resolution 8 items + 10 個 pre-computed verified layouts cache + 每 10s shuffle 動畫（hidden 頁自動 pause）。
 
-- 使用 12 欄網格系統（grid-12）
-- Container 最大寬度: 1200px
-- 需支援桌面和行動裝置
-
-### RWD 實現規範
-
-#### 1. CSS Variables（設計系統層）
-- 預設值 = 桌面版（絕對不修改）
-- 手機版必須使用 `@media (max-width: 767px)` 覆蓋
-- 範例：
-  ```css
-  :root {
-    --font-size-h1: 8rem;  /* 桌面版預設，不可改 */
-  }
-
-  @media (max-width: 767px) {
-    :root {
-      --font-size-h1: 3rem;  /* 手機版覆蓋 */
-    }
-  }
-  ```
-
-#### 2. Tailwind Classes（佈局層）
-- **只使用 `md:` prefix**（不使用 `sm:`）
-- 預設 class = 手機版
-- `md:` class = 桌面版（768px+）
-- 範例：
-  ```html
-  <!-- ✅ 正確 -->
-  <div class="col-span-12 md:col-span-2">
-  <div class="hidden md:block">
-  <img class="w-[100px] md:w-[180px]">
-
-  <!-- ❌ 錯誤 -->
-  <div class="sm:col-span-6 md:col-span-2">
-  ```
-
-#### 3. Hover 效果（桌面專用）
-- **手機版不應有任何 hover 效果**
-- 所有 hover 樣式必須包在 `@media (min-width: 768px)` 內
-- 範例：
-  ```css
-  .nav-link {
-    /* 基礎樣式（手機 + 桌面共用） */
-  }
-
-  @media (min-width: 768px) {
-    .nav-link:hover {
-      /* 只在桌面版生效 */
-      font-weight: 700;
-      transform: rotate(3deg);
-    }
-  }
-  ```
-
-#### 4. JavaScript（行為層）
-- 使用條件式執行，避免互相干擾
-- 桌面專用函數必須檢查 `if (!isDesktop()) return;`
-- 手機專用函數必須檢查 `if (!isMobile()) return;`
-- 範例：
-  ```javascript
-  function isMobile() {
-    return window.innerWidth < 768;
-  }
-
-  function isDesktop() {
-    return window.innerWidth >= 768;
-  }
-
-  function initDesktopAnimations() {
-    if (!isDesktop()) return; // 手機版跳出
-    // 桌面版專用邏輯
-  }
-
-  function initMobileMenu() {
-    if (!isMobile()) return; // 桌面版跳出
-    // 手機版專用邏輯
-  }
-  ```
-
-#### 5. Breakpoint 定義
-- `md`: 768px（桌面版起點）
-- `lg`: 1024px（大桌面）
-- `xl`: 1280px（超大桌面）
-- **不使用 `sm`** 避免混淆
-
-## 共用動畫模式（命名約定）
-
-### Clip-Reveal Entrance（hero-style 由下而上揭露）
-- **效果**：元素 `yPercent: 100 → 0`，外層包一層 `overflow: clip` wrapper，視覺上從容器底邊乾淨滑入
-- **參考實作**：`js/modules/pages/hero-animation.js`（hero `<h1>.hero-title` 與 subtitle 進場）
-- **共用 helpers**：`js/modules/ui/scroll-animate.js`
-  - `setupClipReveal(elements)` — wrap + 預設 yPercent:100（idempotent）
-  - `playClipReveal(elements, { onComplete })` — 0.9s `power3.out` + stagger 0.12s + clearProps:transform
-  - `animateCardsClipReveal(elements, useScrollTrigger)` — 整合版（含 ScrollTrigger.batch）
-- **規範**：
-  - **不配 opacity fade**（一律用 clip 揭露代替）
-  - 標準 duration 0.9s + `power3.out`；同層 stagger 0.12s，跨卡 stagger 0.08s
-  - 文字 wrap 後 `mb-*` 等 margin 要顯式搬到 wrapper（內部 margin 會被 clip 蓋掉）
-- **用詞**：對話中講「**clip-reveal**」或「**hero 標題那個進場**」就是這個 pattern；新進場動畫優先沿用這套，不另外發明
-
-### Clip-Path Inset Reveal（4 方向擦除/揭露）
-- **效果**：元素 `clip-path: inset(...)` 從 100% → 0% 揭露（reveal）或 0% → 100% 擦掉（hide），方向 top/right/bottom/left 四選一
-- **參考實作**：
-  - 圖片進場 reveal：`js/modules/filters/faculty-filter.js` 的 `setupFacultyCardAnim` / `playFacultyCardAnim`
-  - hide/show 對稱版（per-element random top/bottom）：`js/modules/lightbox/lightbox-shell.js` 的 `animateHeaderHide` / `animateHeaderShow`，供 lightbox / slide-in / footer-reveal 共用收/展 header bars + logo
-- **規範**：
-  - inset 四值單位**必須一致**（全用 `%` 或全用 px）— 混用 `0` 與 `100%` 會讓 interpolate 失敗，視覺看起來「沒動畫直接出現」
-  - 起點（reveal）：`inset(0% 0% 100% 0%)`（從 top 揭露）/ `inset(100% 0% 0% 0%)`（從 bottom）/ `inset(0% 100% 0% 0%)`（從 left）/ `inset(0% 0% 0% 100%)`（從 right）
-  - 終點（reveal）：`inset(0% 0% 0% 0%)`
-  - hide 方向反向（從 `inset(0%)` → 某邊 `100%`）視覺是「擦掉」
-  - 圖片進場優先用這個（4 方向 random 增加變化），文字進場用 clip-reveal
-- **用詞**：對話中講「**clip-path**」就是這個 pattern（含 reveal 與 hide 兩方向）
+### 主要互動頁
+- **/create**：inline p5 generator（拆 iframe 後），三 mode（Standard / Inverse / Wireframe）對應 site mode（standard / inverse / color），rotation slider + color picker + save PNG + 彩蛋
+- **/atlas**：SCCD-centered living textile，4 類 chip (A 老師 / B 系友企業 / C 合作 / D 城市) + 軌道環 + 動態連線 + scale 0.78 永久 + 1.0~1.8 zoom
+- **/library**：4 panel (Awards / Press / Files / Album)，year picker + cat filter + marquee overflow + viewer modal
+- **/alumni**：sponsor cards (random rotate + hover accent) + city tabs + members 用 .faculty-card + organization renderer
 
 ## 工作流程
 
-### 開發流程
-1. 修改 CSS 時，若涉及設計系統變數，請更新 variables.css
-2. 修改 Tailwind 樣式時，需重新編譯（npm run build 或類似指令）
-3. 測試時需檢查所有頁面的一致性
-4. 確保導航系統在所有頁面正常運作
+### 開發
+1. 改設計系統變數 → 同步 `variables.css`
+2. 改 Tailwind → 重新 build（看 package.json）
+3. 跨頁一致性檢查
+4. 加 page-level listener 時用 `registerPageCleanup`，加 page exit 動畫用 `registerPageExit`
 
-### Git 提交規範
-- 使用繁體中文撰寫提交訊息
-- 清楚描述修改內容
-- 不要自動提交，等待明確指示
+### Git
+- 繁體中文 commit message
+- WIP rollup commits 用「工作樹 WIP 整理：[主題]」格式
+- 不要自動 commit，等明確指示
 
-### 測試檢查清單
-
-#### 桌面版測試
-- [ ] 所有頁面樣式一致
-- [ ] 導航高亮正確
-- [ ] Mega menu 正常運作
-- [ ] Hover 效果正常
-- [ ] GSAP 動畫流暢
-- [ ] 圖片和資源正確載入
-
-#### 手機版測試
-- [ ] 響應式佈局正常（375px, 414px, 768px）
-- [ ] 無 hover 效果殘留
-- [ ] 觸控操作流暢
-- [ ] 漢堡選單正常運作
-- [ ] 字體大小適中（最小 14px）
-- [ ] 點擊區域足夠大（最小 44x44px）
-
-#### RWD 互不影響測試
-- [ ] 手機版修改不影響桌面版
-- [ ] 媒體查詢正確包裹手機版樣式
-- [ ] JavaScript 條件式執行正確
+### 測試 checklist
+- **桌面**：所有頁樣式一致 / nav 高亮 / mega menu / hover / GSAP 動畫流暢 / 資源載入
+- **手機**：響應式（375/414/768）/ 無 hover 殘留 / 觸控流暢 / 漢堡選單 / 字體 ≥14px / 點擊區 ≥44×44
+- **RWD 互不影響**：手機改不影響桌面 / 媒體查詢正確包裹 / JS 條件式執行
+- **SPA 換頁**：footer 顯隱正確 / body overflow 復原 / listener 不累積（DevTools Memory 看 listener count）
 
 ## 偏好設定
-
-### 溝通方式
-- 使用繁體中文溝通
-- 簡潔清楚的說明
-- 提供具體的檔案路徑和行號
-
-### 程式碼風格
-- 保持簡潔和可讀性
-- 優先考慮可維護性
-- 遵循現有的程式碼結構和命名慣例
-- 不要過度工程化
-
-### 修改原則
-- 只修改必要的部分
-- 保持與現有程式碼風格一致
-- 修改前先閱讀相關檔案
-- 優先編輯現有檔案而非創建新檔案
+- 繁體中文溝通
+- 簡潔說明 + 具體 file:line refs
+- 簡潔可讀 > 完美抽象
+- 只改必要部分，遵循現有風格
+- 優先編輯既有檔案而非創建新檔案
 
 ## 重要提醒
-- 本專案使用原生 JavaScript，不使用 React、Vue 等框架
-- 所有樣式修改需考慮設計系統的一致性
-- 頁面間的共用元件（header、footer）需保持同步
-- 雙語內容（中英文）需同時維護
+- **原生 JS，無框架**
+- **新頁面 body 必須含 `<main id="page-content">` 和 `<div id="site-footer"></div>`**
+- 設計系統改一處同步全站
+- 共用元件（header / footer）兩份 HTML 改一份必同步另一份
+- 雙語內容兩語同步維護
+- 跨 SPA listener 一律走 `registerPageCleanup`
+- **手機版修改不能影響桌面版**（desktop-first，手機用 media query 覆蓋）
 
-### RWD 開發注意事項
-- **絕對原則：手機版修改不能影響桌面版**
-- 桌面版是預設基準，手機版只能用媒體查詢覆蓋
-- 手機版沒有 hover 效果
-- 使用 Desktop-First 方法（預設桌面，`md:` 以下才是手機）
-- JavaScript 需條件式執行，避免手機和桌面邏輯衝突
+## auto-memory
+本 repo 配有完整的 auto-memory 系統（`~/.claude/projects/.../memory/`），存了 150+ feedback / project / user / reference entries，包含許多「看似 bug 但其實是刻意 workaround」的歷史脈絡。改 code 前若覺得某段奇怪，先翻 memory 看有沒有相關紀錄，避免回退已修過的問題。CLAUDE.md 不重複 memory 已有的內容。

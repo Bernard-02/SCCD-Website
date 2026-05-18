@@ -1,4 +1,6 @@
 /* global gsap */
+import { applyMarqueeOverflow } from '../ui/marquee-overflow.js';
+
 /**
  * Atlas Page — SCCD-Centered Living Textile
  *
@@ -2002,30 +2004,10 @@ export async function initAtlas(options = {}) {
     }
   }
 
-  // 主標 marquee 偵測：仿 library.css runMarqueeOverflow pattern
-  // 雙 .marquee-copy seamless loop + CSS hover animation + 動態 duration（80px/s, min 3s）
+  // 主標 marquee 偵測：用共用 utility applyMarqueeOverflow（取代 atlas/courses-map/library-panels 三處重複）
   /** @param {HTMLElement} container */
   function applyListMarquee(container) {
-    const rows = /** @type {HTMLElement[]} */ ([...container.querySelectorAll('.atlas-list-name-en, .atlas-list-name-zh')]);
-    rows.forEach(row => {
-      const inner = /** @type {HTMLElement|null} */ (row.querySelector('.atlas-marquee-inner'));
-      if (!inner) return;
-      // 重置：page 切換重 render 時，inner 可能已被改成 dual-copy
-      row.classList.remove('is-overflow');
-      if (inner.children.length === 2 && inner.firstElementChild?.classList.contains('marquee-copy')) {
-        inner.innerHTML = /** @type {HTMLElement} */ (inner.firstElementChild).textContent || '';
-      }
-      const overflow = inner.scrollWidth - row.offsetWidth;
-      if (overflow > 0) {
-        row.classList.add('is-overflow');
-        const text = inner.textContent || '';
-        inner.innerHTML = `<span class="marquee-copy">${text}</span><span class="marquee-copy">${text}</span>`;
-        const copy = /** @type {HTMLElement|null} */ (inner.querySelector('.marquee-copy'));
-        const copyWidth = copy ? copy.getBoundingClientRect().width : 0;
-        row.style.setProperty('--marquee-distance', `-${copyWidth}px`);
-        row.style.setProperty('--marquee-duration', `${Math.max(3, copyWidth / 80)}s`);
-      }
-    });
+    applyMarqueeOverflow(container, '.atlas-list-name-en, .atlas-list-name-zh', '.atlas-marquee-inner');
   }
 
   function renderList() {

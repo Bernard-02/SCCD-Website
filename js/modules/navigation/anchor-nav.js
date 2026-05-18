@@ -3,6 +3,8 @@
  * 處理 About 頁面的左側錨點導航與 Scroll Spy
  */
 
+import { registerPageCleanup } from '../ui/page-cleanup.js';
+
 export function initAnchorNav() {
   const navButtons = document.querySelectorAll('.anchor-nav-btn');
 
@@ -162,6 +164,8 @@ export function initAnchorNav() {
   sections.forEach(section => {
     observer.observe(section);
   });
+  // SPA 離開 about 時 disconnect，否則 observer 持續 hold 已被 router.innerHTML swap 掉的 section refs
+  registerPageCleanup(() => observer.disconnect());
 
   // 3. Mobile Menu Toggle Logic
   const mobileToggle = document.getElementById('mobile-anchor-toggle');
@@ -286,5 +290,7 @@ export function initAnchorNav() {
     };
     window.addEventListener('scroll', handleScroll);
     handleScroll(); // Initial check
+    // SPA 離開 about 時解綁，避免下一頁 scroll 持續觸發 query about 專屬 DOM
+    registerPageCleanup(() => window.removeEventListener('scroll', handleScroll));
   }
 }

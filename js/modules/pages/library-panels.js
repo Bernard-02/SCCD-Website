@@ -3,6 +3,8 @@
  * 負責 Awards / Press / Files / Album 四個 panel 的資料載入、渲染、篩選邏輯
  */
 
+import { applyMarqueeOverflow } from '../ui/marquee-overflow.js';
+
 // ── 共用常數 ──────────────────────────────────────────────────────────────────
 
 const CAT_LABELS = {
@@ -144,28 +146,13 @@ function bindCoverRatio(containerEl) {
 }
 
 /**
- * 偵測文字溢出並啟動 marquee 動畫（一次性）
+ * 偵測文字溢出並啟動 marquee 動畫（一次性）— delegate 到共用 utility
  * @param {HTMLElement} containerEl
- * @param {string} rowSelector      - 標題列選擇器，e.g. '.files-item-title-en, .files-item-title-zh'
- * @param {string} innerSelector    - 內部 span 選擇器，e.g. '.files-marquee-inner'
+ * @param {string} rowSelector
+ * @param {string} innerSelector
  */
 function runMarqueeOverflow(containerEl, rowSelector, innerSelector) {
-  // 兩份相同內容首尾相接（gap 由 .marquee-copy 的 padding-right 提供），
-  // 動畫只移動「一份 copy 寬度（含 padding）」→ 第二份滑入起點時與第一份完全重合，無接縫
-  containerEl.querySelectorAll(rowSelector).forEach(el => {
-    const inner = el.querySelector(innerSelector);
-    if (!inner) return;
-    const overflow = inner.scrollWidth - el.offsetWidth;
-    if (overflow > 0) {
-      el.classList.add('is-overflow');
-      const html = inner.innerHTML;
-      inner.innerHTML = `<span class="marquee-copy">${html}</span><span class="marquee-copy">${html}</span>`;
-      // getBoundingClientRect 對 inline-block 準確；offsetWidth 在某些情境會回 0
-      const copyWidth = inner.querySelector('.marquee-copy').getBoundingClientRect().width;
-      el.style.setProperty('--marquee-distance', `-${copyWidth}px`);
-      el.style.setProperty('--marquee-duration', `${Math.max(3, copyWidth / 80)}s`);
-    }
-  });
+  applyMarqueeOverflow(containerEl, rowSelector, innerSelector);
 }
 
 // ── Awards Panel ──────────────────────────────────────────────────────────────

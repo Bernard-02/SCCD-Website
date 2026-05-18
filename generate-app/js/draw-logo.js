@@ -1,6 +1,6 @@
 // ========================================
 // Logo 繪圖模組
-// drawPlaceholder (無文字時的 SVG 輪廓) / drawLogo (核心繪圖) / drawCentralCircle
+// drawPlaceholder (無文字時的 SVG 輪廓) / drawLogo (核心繪圖)
 // 依賴：variables.js（大量狀態變數）、utils.js 內的 normalizeAngle
 // ========================================
 
@@ -327,15 +327,3 @@ function drawLogo(pg, alphaMultiplier = 255) {
   pg.pop();
 }
 
-// --- 繪製中央圓圈的函數 ---
-function drawCentralCircle(pg, alpha, diameter = 250) {
-    pg.push();
-    // 修正：統一使用畫布的中心 width/2, height/2
-    pg.translate(_p5.width / 2, _p5.height / 2);
-    // 根據模式設定圓圈顏色
-    pg.fill(mode === "Inverse" ? 255 : 0, alpha);
-    pg.noStroke();
-    // 圓圈直徑（可自訂，預設 250）
-    pg.circle(0, 0, diameter);
-    pg.pop();
-}

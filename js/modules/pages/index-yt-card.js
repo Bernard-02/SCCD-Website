@@ -5,6 +5,7 @@
 
 import { applyNewsHover, removeNewsHover } from '../animations/floating-items.js';
 import { initVideoPlayer } from '../ui/video-player.js';
+import { registerPageCleanup } from '../ui/page-cleanup.js';
 
 // ── p5 字母排版 ────────────────────────────────────────────────
 
@@ -195,8 +196,14 @@ function initWatchChars(ytCharsEl) {
         // 每 3 秒重新洗牌 layout — 暴露 pause/resume 給 click 動畫期間用，
         // 否則 reshuffle 會把已 fade 的字母 reset _scale=1 重新畫出來，造成「卡畫面」
         let layoutInterval = setInterval(() => drawLayout(false), 3000);
-        // theme 切換時即時重繪（保持當前 layout 不洗牌）
-        window.addEventListener('theme:changed', () => drawLayout(true));
+        // theme 切換時即時重繪（保持當前 layout 不洗牌）— named ref 給 cleanup remove 用
+        const onThemeChanged = () => drawLayout(true);
+        window.addEventListener('theme:changed', onThemeChanged);
+        // SPA 離開 index 時解綁 + 停 reshuffle interval，避免回 index 時新 p5 + 舊 listener 並存重繪 N 倍
+        registerPageCleanup(() => {
+          window.removeEventListener('theme:changed', onThemeChanged);
+          clearInterval(layoutInterval);
+        });
 
         // 暴露 fadeOut/reset hooks 給 click handler 用：
         // - fadeOutWatch：依 chars 順序 stagger 把每字 _scale 直接從 1 切到 0（瞬間不見，不縮小），onUpdate 每幀 redraw

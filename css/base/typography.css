@@ -88,7 +88,25 @@ html.mode-switching.mode-switching .degree-show-card-content,
 html.mode-switching.mode-switching .error-404-card,
 html.mode-switching.mode-switching .footer-shell,
 html.mode-switching.mode-switching .footer-link,
-html.mode-switching.mode-switching #custom-scrollbar-thumb {
+html.mode-switching.mode-switching #custom-scrollbar-thumb,
+/* alumni 頁 */
+html.mode-switching.mode-switching .alumni-sponsor-card,
+html.mode-switching.mode-switching .alumni-charter-sticky,
+html.mode-switching.mode-switching .alumni-city-btn,
+/* courses 頁 */
+html.mode-switching.mode-switching .courses-grid-card,
+html.mode-switching.mode-switching .courses-program-btn,
+/* atlas 頁 */
+html.mode-switching.mode-switching .atlas-name,
+html.mode-switching.mode-switching .atlas-list-col-title,
+html.mode-switching.mode-switching .atlas-list-item,
+html.mode-switching.mode-switching .atlas-alumni-career,
+html.mode-switching.mode-switching .color-rect-title,
+/* library 頁 */
+html.mode-switching.mode-switching .lib-panel-title,
+html.mode-switching.mode-switching .press-item,
+html.mode-switching.mode-switching .files-item,
+html.mode-switching.mode-switching .library-card-content {
   transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease !important;
 }
 

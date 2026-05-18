@@ -83,18 +83,13 @@ function performDownload() {
     let tempHeight = _p5.height;
 
     // 暫時修改 instance 屬性為原始canvas尺寸（540），而不是saveSize（1080）
-    // 這樣 drawLogo 和 drawCentralCircle 會使用 540/2 = 270 作為中心點
+    // 這樣 drawLogo 會使用 540/2 = 270 作為中心點
     // （drawLogo 內部讀 window.width / _p5.width 都會看到這個值）
     _p5.width = saveSize / scaleFactor; // 540
     _p5.height = saveSize / scaleFactor; // 540
 
     pg.push();
     pg.scale(scaleFactor); // 將整個內容放大2倍
-
-    // 圓圈功能已移除，不再在儲存時繪製圓圈
-    // if (showCircle) {
-    //   drawCentralCircle(pg, 255); // 使用預設直徑 250
-    // }
 
     // 繪製logo（使用原本的參數）
     drawLogo(pg, 255);

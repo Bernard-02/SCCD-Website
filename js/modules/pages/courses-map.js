@@ -16,6 +16,7 @@
  */
 
 import { enterLightboxMode, exitLightboxMode } from '../lightbox/lightbox-shell.js';
+import { applyMarqueeOverflow } from '../ui/marquee-overflow.js';
 
 const PRIMARY_COLORS = ['#00FF80', '#FF448A', '#26BCFF'];
 
@@ -554,23 +555,9 @@ function bindCardHover(panelEl) {
 //   3) 量 copyWidth + 設 --marquee-distance / --marquee-duration（80px/s, min 3s）
 //   4) CSS hover 時 animation translateX(0) → translateX(-copyWidth) 無接縫接到第二份
 // 偵測一次性，render 後跑（panel 已 visible 才量得到正確寬度，所以 panel hidden 不能跑）
+// 使用共用 utility applyMarqueeOverflow（取代 atlas/courses-map/library-panels 三處重複實作）
 function runMarqueeOverflow(panelEl) {
-  panelEl.querySelectorAll('.courses-grid-card-en, .courses-grid-card-zh').forEach(rowEl => {
-    const row = /** @type {HTMLElement} */ (rowEl);
-    const inner = /** @type {HTMLElement|null} */ (row.querySelector('.courses-marquee-inner'));
-    if (!inner) return;
-    const overflow = inner.scrollWidth - row.offsetWidth;
-    if (overflow > 0) {
-      row.classList.add('is-overflow');
-      const html = inner.innerHTML;
-      inner.innerHTML = `<span class="marquee-copy">${html}</span><span class="marquee-copy">${html}</span>`;
-      const copy = /** @type {HTMLElement|null} */ (inner.querySelector('.marquee-copy'));
-      if (!copy) return;
-      const copyWidth = copy.getBoundingClientRect().width;
-      row.style.setProperty('--marquee-distance', `-${copyWidth}px`);
-      row.style.setProperty('--marquee-duration', `${Math.max(3, copyWidth / 80)}s`);
-    }
-  });
+  applyMarqueeOverflow(panelEl, '.courses-grid-card-en, .courses-grid-card-zh', '.courses-marquee-inner');
 }
 
 /**

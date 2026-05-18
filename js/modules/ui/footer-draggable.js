@@ -324,6 +324,10 @@ function pickRandomLayout(layouts) {
  */
 function shuffleAll(area, anchors, items, layouts) {
   if (typeof gsap === 'undefined' || layouts.length === 0) return;
+  // generate / library / atlas 頁 router 把 footer 設 display:none，shuffleTimer 不清會繼續對隱藏
+  // anchors 做 GSAP tween + apply layout（讀 area.getBoundingClientRect 為 0×0 → 數學運算閒置成本 + reflow）
+  // offsetParent === null 是 display:none 最便宜的偵測（含任何 ancestor display:none）
+  if (!area || area.offsetParent === null) return;
   gsap.killTweensOf(items);
 
   // Exit: random direction per item

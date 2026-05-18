@@ -125,10 +125,10 @@ body.page-alumni .list-header.active {
   gap: var(--spacing-md);
   align-items: baseline;
   padding: var(--spacing-sm) 0;
-  border-bottom: 1px solid var(--color-gray-3);
+  border-bottom: 1px solid var(--gray-3);
 }
 .alumni-contact-row:first-child {
-  border-top: 1px solid var(--color-gray-3);
+  border-top: 1px solid var(--gray-3);
 }
 .alumni-contact-row .role {
   grid-column: 1 / span 4;

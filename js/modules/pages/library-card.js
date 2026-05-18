@@ -178,25 +178,15 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb 
   }
 
   // 回傳 'top'|'right'|'bottom'|'left'
+  // 找四邊中兩端點都未被遮的邊，找不到 fallback 'top'（原有 mid-point fallback 寫在 unconditional return 後是 dead code，已刪）
   function findFreeEdge(cfg, occluders) {
     const c = rectWorldCorners(cfg);
     const edges = [[0,1,'top'], [1,2,'right'], [2,3,'bottom'], [3,0,'left']];
-    // 優先：找兩端點都可見的邊
     for (const [ai,bi,name] of edges) {
       if (!isCornerOccluded(c[ai], occluders) && !isCornerOccluded(c[bi], occluders))
         return name;
     }
     return 'top';
-    // Fallback：如果找不到，改找任何一個「中點」可見的邊
-    for (const [ai,bi,name] of edges) {
-      const midX = (c[ai].x + c[bi].x) / 2;
-      const midY = (c[ai].y + c[bi].y) / 2;
-      if (!occluders.some(occ => pointInRect(midX, midY, occ))) {
-        return name;
-      }
-    }
-    // Final fallback
-    return 'top'; 
   }
 
   // ── 矩形樣式設定 ─────────────────────────────────────────────

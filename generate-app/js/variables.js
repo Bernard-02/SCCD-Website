@@ -9,12 +9,6 @@ let font;
 // --- Canvas 相關 ---
 let canvasContainer;
 
-// --- 動畫與視覺效果變數 ---
-let showCircle = false;
-let circleAlpha = 0;
-let circleShrinking = false;
-let circleFillTimeout = null;
-
 // --- 旋轉相關變數 ---
 let autoRotate = false;
 let rotationFactor = 0;

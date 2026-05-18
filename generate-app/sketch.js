@@ -8,6 +8,21 @@
 // p5 instance 建立邏輯見檔尾 `new p5((p) => { _p5 = p; ... })`。
 let _p5 = null;
 
+// SPA cleanup 用：setup() 內登記的 window/document 級 listeners，每次 initCreateApp 都重綁，
+// 沒在 cleanupCreateApp removeEventListener 會累積（feedback_async_init_must_recheck_context_after_await
+// 同類陷阱）；module-scope 保 handler ref + initialHeight 給 cleanup 用
+let _initialMobileHeight = 0;
+function _handleVisualViewportResize() {
+  if (!window.visualViewport) return;
+  const currentHeight = window.visualViewport.height;
+  const keyboardHeight = _initialMobileHeight - currentHeight;
+  if (keyboardHeight > 150) {
+    adjustLayoutForKeyboard(keyboardHeight);
+  } else {
+    resetLayoutAfterKeyboard();
+  }
+}
+
 // --- p5.js 預載入 ---
 function preload() {
   // 載入必要的字體
@@ -275,14 +290,14 @@ function setup() {
 
     // 手機版：鍵盤彈出檢測
     if (isMobileMode) {
-      let initialHeight = window.innerHeight;
+      _initialMobileHeight = window.innerHeight;
 
       // 監聽 focus 事件（鍵盤即將彈出）
       mobileInputBoxBottom.elt.addEventListener('focus', function() {
         // 給一點延遲讓鍵盤完全彈出
         setTimeout(() => {
           let currentHeight = window.innerHeight;
-          let keyboardHeight = initialHeight - currentHeight;
+          let keyboardHeight = _initialMobileHeight - currentHeight;
 
           // 如果高度差異大於 150px，認為是鍵盤彈出
           if (keyboardHeight > 150) {
@@ -298,17 +313,8 @@ function setup() {
         }, 100);
       });
 
-      // 監聽視窗大小變化（更精確的鍵盤檢測）
-      window.visualViewport?.addEventListener('resize', () => {
-        let currentHeight = window.visualViewport.height;
-        let keyboardHeight = initialHeight - currentHeight;
-
-        if (keyboardHeight > 150) {
-          adjustLayoutForKeyboard(keyboardHeight);
-        } else {
-          resetLayoutAfterKeyboard();
-        }
-      });
+      // 監聽視窗大小變化（更精確的鍵盤檢測）— 用 named ref 才能在 cleanupCreateApp removeEventListener
+      window.visualViewport?.addEventListener('resize', _handleVisualViewportResize);
     }
   }
   
@@ -1808,10 +1814,6 @@ function keyPressed() {
     isAutoRotateMode = false;
     resetRotationOffsets();
     rotationAngles = [...originalRotationAngles];
-    if (circleFillTimeout) {
-      clearTimeout(circleFillTimeout);
-      circleFillTimeout = null;
-    }
     // inputBox.input() 會在之後觸發，所以這裡只需更新樣式
     updateUI();
   }
@@ -1890,9 +1892,7 @@ function initCreateApp() {
   // 之前 `if (_p5) return` 在 SPA 重進時若 cleanup chain 出問題會 silently 略過初始化
   // → 新頁面沒 canvas、沒 p5 draw loop、CSS-default opacity 讓 control panel 顯示但 canvas slot 空白
   if (_p5) {
-    try { _p5.remove(); } catch (e) { /* 已壞掉的 p5 instance 略過 */ }
-    _p5 = null;
-    window.removeEventListener('theme:changed', handleSiteThemeChange);
+    cleanupCreateApp(); // 走完整 cleanup（全 listener + DOM 解綁）再重 init
   }
   resetCreateAppUserState();
   new p5((p) => {
@@ -1910,10 +1910,28 @@ function initCreateApp() {
 
 function cleanupCreateApp() {
   if (!_p5) return;
+
+  // 解綁 setup() 內登記的 window/document 級 listeners（p5.remove() 只解 p5 自管的，
+  // 全域 listener 跨 SPA 換頁累積，每次重進 /create 觸發 N 倍 callback）
+  window.removeEventListener('theme:changed', handleSiteThemeChange);
+  window.removeEventListener('orientationchange', handleOrientationChange);
+  window.removeEventListener('resize', handleOrientationChange);
+  window.visualViewport?.removeEventListener('resize', _handleVisualViewportResize);
+  // color picker 拖曳追蹤：sketch.js:1247-1249 + ui-state.js:93-95 兩處都會綁同 fn ref，
+  // addEventListener 同 ref 只註冊一次，這裡移除一次即清乾淨；user 沒進過 Wireframe 也安全（no-op）
+  document.removeEventListener('mousemove', handleColorPickerMouseMove);
+  document.removeEventListener('mouseup', handleColorPickerMouseUp);
+  document.removeEventListener('touchend', handleColorPickerMouseUp);
+
+  // Special easter egg DOM 容器 + 它自帶的 window resize/orientationchange listeners
+  // （easter-eggs.js 內 createSpecialEasterEggContainer 每次 setup 都 append 新 div 到 body 不清舊的）
+  if (typeof destroySpecialEasterEggContainer === 'function') {
+    destroySpecialEasterEggContainer();
+  }
+
   // p5.remove() 內建會：移除 canvas DOM、停止 draw loop、解除 event listeners、release graphics buffers
   _p5.remove();
   _p5 = null;
-  window.removeEventListener('theme:changed', handleSiteThemeChange);
 }
 
 // Phase 2 listener：site mode 變 → generate-app targetMode 跟著變 + updateUI 觸發切換流程

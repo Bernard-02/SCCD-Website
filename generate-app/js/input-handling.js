@@ -239,18 +239,6 @@ function handleInput(event) {
     // 更新字體大小
     adjustInputFontSize();
 
-    // 圓圈顯示邏輯 - 已移除
-    // 清理任何待處理的 timeout
-    if (circleFillTimeout) {
-      clearTimeout(circleFillTimeout);
-      circleFillTimeout = null;
-    }
-
-    // 確保圓圈始終不顯示
-    showCircle = false;
-    circleShrinking = false;
-    circleAlpha = 0;
-
     // 在函數結尾呼叫 UI 更新
     updateUI();
 }

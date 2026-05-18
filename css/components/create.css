@@ -54,7 +54,11 @@
   text-align: left;
 }
 
-:root {
+/* generate-app 專屬變數 scope 到 #create-app（之前注入 :root 會洩漏到全站，
+   --font-family 跟 variables.css 的 --font-default/--font-en 命名空間衝突；
+   --r-color/--g-color/--b-color/--disabled-color 也是 generate-app 內部術語，
+   不該污染 site theme system）。landscape-overlay 改用 #create-app 後代規則覆蓋。 */
+#create-app {
   --font-family: "Inter-Medium", -apple-system, BlinkMacSystemFont, "Segoe UI",
     Roboto, "Helvetica Neue", Arial, sans-serif;
   --standard-bg: white;

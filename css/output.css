@@ -257,7 +257,25 @@ html.mode-switching.mode-switching .degree-show-card-content,
 html.mode-switching.mode-switching .error-404-card,
 html.mode-switching.mode-switching .footer-shell,
 html.mode-switching.mode-switching .footer-link,
-html.mode-switching.mode-switching #custom-scrollbar-thumb {
+html.mode-switching.mode-switching #custom-scrollbar-thumb,
+/* alumni 頁 */
+html.mode-switching.mode-switching .alumni-sponsor-card,
+html.mode-switching.mode-switching .alumni-charter-sticky,
+html.mode-switching.mode-switching .alumni-city-btn,
+/* courses 頁 */
+html.mode-switching.mode-switching .courses-grid-card,
+html.mode-switching.mode-switching .courses-program-btn,
+/* atlas 頁 */
+html.mode-switching.mode-switching .atlas-name,
+html.mode-switching.mode-switching .atlas-list-col-title,
+html.mode-switching.mode-switching .atlas-list-item,
+html.mode-switching.mode-switching .atlas-alumni-career,
+html.mode-switching.mode-switching .color-rect-title,
+/* library 頁 */
+html.mode-switching.mode-switching .lib-panel-title,
+html.mode-switching.mode-switching .press-item,
+html.mode-switching.mode-switching .files-item,
+html.mode-switching.mode-switching .library-card-content {
   transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease !important;
 }
 
@@ -4177,12 +4195,6 @@ header {
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-header.header-hidden .nav-link,
-  header.header-hidden .nav-link-inner,
-  header.header-hidden [data-bar] {
-  transform: rotate(0deg) !important;
-}
-
 /* Lightbox 打開時 header 動畫由 activities-lightbox.js 接手做 clip-path inset 退場
    * （per-element 隨機 top/bottom 方向，bar 原地被擦掉，logo 不動）
    *
@@ -6065,10 +6077,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 
 .list-item{
   display: list-item;
-}
-
-.\!hidden{
-  display: none !important;
 }
 
 .hidden{

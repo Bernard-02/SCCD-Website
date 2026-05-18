@@ -5,6 +5,7 @@
 
 import { openLightbox } from '../lightbox/activities-lightbox.js';
 import { setupClipReveal, playClipReveal } from '../ui/scroll-animate.js';
+import { registerPageCleanup } from '../ui/page-cleanup.js';
 
 // ── Reference 自動 lookup ─────────────────────────────────────────────────────
 // ref 只填 { section, itemId } 即可；title/label 渲染前自動從目標 JSON lookup。
@@ -323,6 +324,8 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
       };
       checkOverflow();
       window.addEventListener('resize', checkOverflow);
+      // SPA 離開 activities 時解綁；每個 panel render 都會疊一份 listener，跨頁累積到 user 反映 resize 變慢
+      registerPageCleanup(() => window.removeEventListener('resize', checkOverflow));
     });
   };
   requestAnimationFrame(initMarquees);

@@ -173,6 +173,27 @@ let specialEasterEggContainer = null;
 let specialEasterEggOverlay = null; // 半透明背景圖層
 let specialEasterEggImgElement = null;
 
+// 模組級 named handler，給 destroySpecialEasterEggContainer removeEventListener 用
+// （之前用 inline arrow 抓不到 ref，listener 跨 SPA 切頁累積每次 +2）
+function _updateEasterEggContainerHeight() {
+  if (specialEasterEggContainer) {
+    specialEasterEggContainer.style.height = `${window.innerHeight}px`;
+  }
+}
+
+// SPA cleanup（cleanupCreateApp 呼叫）：移除 body 內 #special-easter-egg-container DOM +
+// 解綁 resize/orientationchange listeners；不清的話每次重進 /create 多一份 DOM + 兩個 window listener
+function destroySpecialEasterEggContainer() {
+  window.removeEventListener('resize', _updateEasterEggContainerHeight);
+  window.removeEventListener('orientationchange', _updateEasterEggContainerHeight);
+  if (specialEasterEggContainer && specialEasterEggContainer.parentNode) {
+    specialEasterEggContainer.parentNode.removeChild(specialEasterEggContainer);
+  }
+  specialEasterEggContainer = null;
+  specialEasterEggOverlay = null;
+  specialEasterEggImgElement = null;
+}
+
 function createSpecialEasterEggContainer() {
   // 創建一個覆蓋整個視窗的容器
   specialEasterEggContainer = document.createElement('div');
@@ -190,13 +211,8 @@ function createSpecialEasterEggContainer() {
   specialEasterEggContainer.style.pointerEvents = 'none'; // 預設不阻擋事件，顯示時會改為 auto
 
   // 監聽視窗大小變化，動態更新容器高度（處理地址欄顯示/隱藏、螢幕旋轉等情況）
-  const updateContainerHeight = () => {
-    if (specialEasterEggContainer) {
-      specialEasterEggContainer.style.height = `${window.innerHeight}px`;
-    }
-  };
-  window.addEventListener('resize', updateContainerHeight);
-  window.addEventListener('orientationchange', updateContainerHeight);
+  window.addEventListener('resize', _updateEasterEggContainerHeight);
+  window.addEventListener('orientationchange', _updateEasterEggContainerHeight);
 
   // 創建半透明背景圖層（用於阻擋互動和提供視覺焦點）
   specialEasterEggOverlay = document.createElement('div');

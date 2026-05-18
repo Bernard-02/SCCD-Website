@@ -238,6 +238,8 @@ export function reapplySearch(panelId) {
 
 // ── Init ───────────────────────────────────────────────────────────────────
 
+import { registerPageCleanup } from '../ui/page-cleanup.js';
+
 let scrollHandler = null;
 
 export function initActivitiesSearch() {
@@ -266,6 +268,13 @@ export function initActivitiesSearch() {
     }
   };
   window.addEventListener('scroll', scrollHandler, { passive: true });
+  // SPA 離開 activities 時解綁，避免下一頁 scroll 持續觸發 query activities DOM
+  registerPageCleanup(() => {
+    if (scrollHandler) {
+      window.removeEventListener('scroll', scrollHandler);
+      scrollHandler = null;
+    }
+  });
 
   // 切換 panel 時清除所有 bar-hidden
   document.querySelectorAll('.activities-section-btn').forEach(btn => {

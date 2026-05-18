@@ -99,18 +99,6 @@
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  header.header-hidden {
-    transform: translateY(-100%);
-    opacity: 0;
-    pointer-events: none;
-  }
-
-  header.header-hidden .nav-link,
-  header.header-hidden .nav-link-inner,
-  header.header-hidden [data-bar] {
-    transform: rotate(0deg) !important;
-  }
-
   /* Lightbox 打開時 header 動畫由 activities-lightbox.js 接手做 clip-path inset 退場
    * （per-element 隨機 top/bottom 方向，bar 原地被擦掉，logo 不動）
    *

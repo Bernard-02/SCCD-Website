@@ -57,6 +57,9 @@ import { initLibraryViewer } from './modules/pages/library-viewer.js';
 // Import Lightbox Shell（共用 enter/exit 行為；SPA cleanup 需 reset openCount）
 import { resetLightboxMode } from './modules/lightbox/lightbox-shell.js';
 
+// Import Page Cleanup Registry（各模組註冊離頁要解綁的 window/document listener，SPA 換頁統一 drain）
+import { runPageCleanups } from './modules/ui/page-cleanup.js';
+
 // Import Generate Page Modules
 import { initCreatePage, cleanupCreatePage } from './modules/pages/create-app.js';
 
@@ -77,6 +80,10 @@ import { init404, cleanup404 } from './modules/pages/error-404.js';
 
 // ── Cleanup（換頁前執行）────────────────────────────────────────
 export function cleanupPageModules() {
+  // 各模組註冊的 page-level cleanup（window/document listener、interval、observer）
+  // 必須早於後續 ScrollTrigger.kill / gsap.killTweensOf — 那些只清 DOM 內 trigger，window 級無感
+  runPageCleanups();
+
   // 解鎖 body scroll：若離開頁面時某個 modal/slide-in（faculty / library viewer 等）
   // 還沒關閉，body.style.overflow 可能被鎖成 hidden，造成下個頁面 scrollbar 消失
   document.body.style.overflow = '';
