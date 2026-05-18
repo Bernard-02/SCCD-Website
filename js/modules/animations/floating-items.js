@@ -91,12 +91,15 @@ async function fetchActivityPosters() {
 }
 
 // 從 courses.json 撈課程 title（導航到對應 course item，並 highlight 該項目）
+// courses.json 有 3 個 program key（bfa-animation / bfa-cmd / mdes）；
+// 早期版本誤用 data.bfa / data.mdes，結果 BFA 兩組課完全不會出現在首頁 pool 裡
 async function fetchCourseTexts() {
   const pool = [];
   try {
     const data = await fetch('data/courses.json').then(r => r.json());
     const slugify = str => str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-    [['bfa', data.bfa || []], ['mdes', data.mdes || []]].forEach(([program, courses]) => {
+    ['bfa-animation', 'bfa-cmd', 'mdes'].forEach(program => {
+      const courses = data[program] || [];
       courses.forEach(course => {
         const zh = course.titleZh;
         const en = course.titleEn;

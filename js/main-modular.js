@@ -51,7 +51,7 @@ import { initAdmissionSectionSwitch } from './modules/pages/admission-section-sw
 
 // Import Library Modules
 import { initLibraryCard } from './modules/pages/library-card.js';
-import { initLibraryPanels } from './modules/pages/library-panels.js';
+import { initLibraryPanels, resolveInitialTabFromHash } from './modules/pages/library-panels.js';
 import { initLibraryViewer } from './modules/pages/library-viewer.js';
 
 // Import Lightbox Shell（共用 enter/exit 行為；SPA cleanup 需 reset openCount）
@@ -307,10 +307,21 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
   if (page === 'library') {
     initLibraryViewer();
     const panels = initLibraryPanels();
+
+    // deep-link 進場時直接以 hash 推測的目標 panel 為 gray 中心，
+    // 不要先進 awards 再 switchPanel（會看到 awards 一閃即逝）。
+    // resolveInitialTabFromHash 看 hash 前綴（如 #f-* → files），無 hash 則 awards。
+    const initialTab = resolveInitialTabFromHash();
+    if (initialTab !== 'awards') {
+      // 預先 swap panel display，讓 content 層 fade-in 時看到的就是目標 panel
+      panels.showPanel(initialTab);
+    }
+
     // 進場動畫期間的第一次 onTabSwitch 是自動觸發的（預設 tab），不能覆蓋 deep-link hash
     // 只有 onEntranceDone 後的 tab 切換才是使用者手動點擊
     let entranceDone = false;
     initLibraryCard({
+      initialTab,
       onTabSwitch: (tab) => {
         panels.showPanel(tab);
         if (!entranceDone) return; // 自動切換（進場動畫）→ 保留現有 hash
@@ -324,6 +335,8 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
       onEntranceDone: () => {
         panels.onEntranceDone();
         // 進場動畫完成後處理 hash deep link（如 library.html#a-2024-01）
+        // 已 pre-swap 到目標 panel；handleHash 內 showLibPanel 為 idempotent，
+        // 主要工作變成 scroll-into-view + 該項目 hover flash
         panels.handleHash();
         entranceDone = true;
       },

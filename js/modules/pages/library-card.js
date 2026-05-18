@@ -3,7 +3,7 @@
  * 顏色矩形卡片的幾何計算、切換動畫、marquee 渲染
  */
 
-export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb }) {
+export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb, initialTab = 'awards' }) {
 
   const PRIMARY_COLORS = ['#FF448A', '#00FF80', '#26BCFF'];
   const stack   = document.getElementById('library-card-stack');
@@ -373,10 +373,16 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb 
   const allEls = [grayEl, ...colorEls];
 
   activeEl = grayEl;
-  tabOf.set(grayEl, 'awards');
+  // initialTab swap：deep-link 進場時直接讓目標 panel 對應到 grayEl（中央大矩形），
+  // 不再先進 awards 再 switchTab → 視覺上不會看到 awards 一閃即逝。
+  // grayEl 永遠 = activeEl（中央顯示），所以對應 tab 必須是 initialTab。
+  // 其餘三 tab 隨機散到 colorEls。
+  const ALL_TABS = ['awards', 'press', 'files', 'album'];
+  const validInitial = ALL_TABS.includes(initialTab) ? initialTab : 'awards';
+  tabOf.set(grayEl, validInitial);
   colorOf.set(grayEl, '#f2f2f2');
   cfgCache.set(grayEl, null);
-  const remainingTabs = shuffle(['press', 'files', 'album']);
+  const remainingTabs = shuffle(ALL_TABS.filter(t => t !== validInitial));
   colorEls.forEach((el, i) => { tabOf.set(el, remainingTabs[i]); });
 
   // ── 初始化顏色矩形位置 ────────────────────────────────────────

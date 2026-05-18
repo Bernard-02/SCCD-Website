@@ -6,134 +6,75 @@
  */
 
 import { setupClipReveal } from '../ui/scroll-animate.js';
-import { openLightbox } from '../lightbox/activities-lightbox.js';
 import { initListAccordion } from '../accordions/list-accordion.js';
-import { buildItemMedia, buildGalleryHtml, bindMediaHover } from './activities-data-loader.js';
+import { loadListInto, bindGallery, bindLightbox, bindMediaHover } from './activities-data-loader.js';
 
 const ITEMS_PER_PAGE = 10;
 
-// 完整日期：仿 list fullDate=true，"2026.02.04" → "2026 / 02 / 04"
-function formatFullDate(dateStr) {
-  if (!dateStr) return '';
-  return dateStr
-    .replace(/\./g, ' / ')
-    .replace(/ - /g, '&nbsp;&nbsp;-&nbsp;&nbsp;')
-    .replace(/ \/ /g, '&nbsp;/&nbsp;');
-}
-
-// 附件 = ref：用 list-ref-btn class 拿 deep accent 底色 + hover 反黑；連檔案 URL，不導頁
-const buildAttachmentsHtml = (item) => {
-  const attachments = Array.isArray(item.attachments) ? item.attachments : [];
-  if (attachments.length === 0) return '';
-  return `
-    <div class="flex flex-col mt-md">
-      ${attachments.map((a, i) => `
-        <a class="list-ref-btn cursor-pointer w-full grid grid-cols-12 gap-x-md items-start py-sm no-underline" href="${a.url || '#'}" target="_blank" rel="noopener">
-          <div class="col-span-1 flex justify-center" style="padding-top: 0.25em;">
-            <i class="fa-solid fa-paperclip text-p2"></i>
-          </div>
-          <div class="col-span-11 flex flex-col">
-            <p class="text-p2 font-bold">Attachment ${i + 1}</p>
-            <p class="text-p2 font-bold">附件 ${i + 1}</p>
-          </div>
-        </a>
-      `).join('')}
-    </div>
-  `;
-};
-
-// Item HTML：list-item / list-header / list-content（list-accordion 自動接管 hover/click/--item-color-deep）
-// list-none：覆蓋 Tailwind .list-item utility 的 display:list-item 帶來的 disc marker
-//           （activities 用 overflow-hidden 順便藏 marker；admission 為 sticky 不能 overflow-hidden，需顯式 list-none）
-// border 移到 list-item 末端 .admission-divider 元素：與 title/date 同樣是 .list-reveal-row，
-// 進場動畫會以 axis:'y' stagger 在 title→date→divider 順序 clip-reveal，避免 list-item 上的靜態 border
-// 在 row 還沒滑入時就已出現的視覺破綻
-const itemHTML = (item) => {
-  const media = buildItemMedia(item);
-  const mediaJson = JSON.stringify(media).replace(/"/g, '&quot;');
-  return `
-    <div class="list-item list-none" data-pre-reveal data-media="${mediaJson}"${item.id ? ` id="item-admission-${item.id}"` : ''}>
-      <div class="list-header cursor-pointer group transition-colors duration-fast flex items-stretch justify-between px-[4px] py-sm">
-        <!-- title + date subtitle 合併為單一 list-reveal-row：reveal 順序對齊「title → chevron → divider」三 phase（仿 list-row 複製貼上）
-             外層 div 保留 flex-1：dynamic clip-wrapper 不帶 flex-1，flex-1 必須在 wrapper 外才能撐 list-header 中間 col -->
-        <div class="flex-1 min-w-0">
-          <div class="list-reveal-row flex flex-col gap-xs">
-            <div class="list-title-marquee"><p class="text-h5 font-bold">${item.title}</p></div>
-            ${item.date ? `<p class="text-p2">${formatFullDate(item.date)}</p>` : ''}
-          </div>
-        </div>
-        <!-- chevron 顯式 overflow:clip wrapper：避免父層 items-stretch 拉伸 dynamic clip-wrapper 導致 yPercent:100 不夠隱藏 -->
-        <div class="flex items-stretch flex-shrink-0 pt-[0.25rem]">
-          <div class="flex-shrink-0 self-start" style="overflow:clip; height:1.5em; width:1.5em;">
-            <div class="list-reveal-row flex justify-center items-center w-full h-full">
-              <i class="fa-solid fa-chevron-down text-p2 transition-transform duration-300"></i>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="list-content h-0 overflow-hidden">
-        <div class="pt-sm pb-lg px-md flex flex-col gap-md">
-          ${item.content ? `<div class="admission-body flex flex-col gap-md">${item.content}</div>` : ''}
-        </div>
-        ${buildGalleryHtml(item)}
-        ${buildAttachmentsHtml(item)}
-      </div>
-      <div class="list-reveal-row list-item-divider border-b-4 border-black" style="height:4px"></div>
-    </div>
-  `;
-};
+// admission news 走通用 loadListInto（canonical list template），靠 options 切變體：
+//   - flatList: true             — data 是 flat array（非 year-grouped）
+//   - bodyField: 'content'       — content rich HTML 放進 .admission-body（不走結構化 metadata）
+//   - attachmentsField: 'attachments' — 附件清單以 paperclip + Attachment N 渲染
+//   - dateInHeader: true         — date 顯示在 header 當 title 副標
+//   - fullDate: true             — 完整日期格式 "2026 / 02 / 04"
+//   - hideYearHeader: true       — 無年份欄
+//   - showShareBtn: false        — 不顯示 share 按鈕
+//   - showAlumniIcon: false      — 不顯示畢業帽 icon
 
 // ── Main ─────────────────────────────────────────────────────────────────
+
+const ADMISSION_LIST_OPTIONS = {
+  flatList:        true,            // admission.json 是 flat array 不是 [{year, items}]
+  bodyField:       'content',       // rich HTML body 渲染到 .admission-body（不走結構化 metadata）
+  attachmentsField: 'attachments',  // 附件 paperclip + Attachment N
+  dateInHeader:    true,            // date 在 title 副標
+  fullDate:        true,            // "2026 / 02 / 04" 完整格式
+  hideYearHeader:  true,            // 無年份欄，list 靠齊左邊
+  showShareBtn:    false,
+  showAlumniIcon:  false,
+  autoReveal:      false,           // reveal 由 admission-section-switch 接管（playAdmissionPanelReveal）
+};
 
 export async function loadAdmissionData() {
   const container = document.getElementById('admission-list');
   if (!container) return;
+  let allData;
   try {
     const response = await fetch('/data/admission.json');
-    const data = await response.json();
-    renderAdmissionList(data, container);
+    allData = await response.json();
   } catch (error) {
     console.error('Error loading admission data:', error);
+    return;
   }
-}
 
-function renderAdmissionList(data, container) {
   let visibleCount = ITEMS_PER_PAGE;
-  const loadMoreBtn = document.getElementById('load-more-btn');
   const loadMoreContainer = document.getElementById('load-more-container');
+  const loadMoreBtn = document.getElementById('load-more-btn');
 
-  data.slice(0, visibleCount).forEach(item => container.insertAdjacentHTML('beforeend', itemHTML(item)));
-  initListAccordion();         // hover 隨機色 + click 展開 + --item-color/-deep（dataset.accordionInit 守衛）
-  bindGallery(container);
-  bindLightbox(container);
-  bindMediaHover(container);   // 圖片 random rotation + hover 歸 0（與 activities 共用）
-  initMarquees(container);
+  // 初次：用 loadListInto 渲染前 N 筆（傳 data 跳過 fetch）
+  await loadListInto('admission-list', '', { ...ADMISSION_LIST_OPTIONS, data: allData.slice(0, visibleCount) });
+  initListAccordion();
 
-  // 為所有 list-item 預備 clip-reveal（rows 推到 yPercent:100 隱藏）；播放由 caller（admission-section-switch）控制
-  setupAdmissionReveal(container);
+  // load-more-container 預設 invisible，等 panel reveal 顯示；無更多 data 時直接隱藏
+  if (loadMoreContainer) {
+    if (allData.length <= visibleCount) {
+      loadMoreContainer.style.display = 'none';
+    } else if (typeof gsap !== 'undefined') {
+      gsap.set(loadMoreContainer, { opacity: 0, display: 'flex' });
+    }
+  }
 
-  // load-more-container 預設隱藏，等 reveal 完成由 panel reveal 顯示
-  if (loadMoreContainer) gsap.set(loadMoreContainer, { opacity: 0, display: 'flex' });
-
-  if (loadMoreBtn) {
-    loadMoreBtn.addEventListener('click', () => {
-      const prevCount = visibleCount;
-      visibleCount = data.length;
-      data.slice(prevCount, visibleCount).forEach(item => container.insertAdjacentHTML('beforeend', itemHTML(item)));
-      const allItems = container.querySelectorAll('.list-item');
-      const newItems = Array.from(allItems).slice(prevCount);
+  if (loadMoreBtn && allData.length > visibleCount) {
+    loadMoreBtn.addEventListener('click', async () => {
+      visibleCount = allData.length;
+      // 重 render 全部 data：loadListInto 內部 container.innerHTML='' 會清舊 items
+      // append 模式較複雜（reveal 動畫只跑新 items），4 items 級資料用 full re-render 體感差異不大
+      await loadListInto('admission-list', '', { ...ADMISSION_LIST_OPTIONS, data: allData });
       initListAccordion();
-      bindGallery(container);
-      bindLightbox(container);
-      bindMediaHover(container);
-      initMarquees(container);
       if (loadMoreContainer) loadMoreContainer.style.display = 'none';
-      // 新 items：setup + 立即 per-item stagger 進場（無 ScrollTrigger，使用者已在當前 panel）
-      newItems.forEach(/** @type {HTMLElement} */ item => {
-        const rows = item.querySelectorAll('.list-reveal-row');
-        setupClipReveal(rows);
-      });
-      playItemsReveal(newItems, { useScrollTrigger: false });
+      // 新 items reveal：用既有 playItemsReveal 對全部 items（無 ScrollTrigger，user 已在 panel）
+      const allItems = container.querySelectorAll('.list-item');
+      playItemsReveal(Array.from(allItems), { useScrollTrigger: false });
     });
   }
 }
@@ -349,83 +290,5 @@ export function playAdmissionPanelExit(panel) {
   });
 }
 
-// Gallery prev/next（仿 activities bindInteractions 內 gallery 段）
-// list-accordion onComplete 會 dispatch 'gallery:check' 觸發 chevron visibility 更新
-function bindGallery(container) {
-  container.querySelectorAll('.gallery-section').forEach(gallery => {
-    if (gallery.dataset.galleryInit) return;
-    gallery.dataset.galleryInit = '1';
-    const inner = gallery.querySelector('.gallery-inner');
-    const track = gallery.querySelector('.gallery-track');
-    const prevBtn = gallery.querySelector('.gallery-prev');
-    const nextBtn = gallery.querySelector('.gallery-next');
-    if (!inner || !track) return;
-    let offset = 0;
-    const getMaxOffset = () => Math.max(0, inner.scrollWidth - track.clientWidth);
-    const updateChevrons = () => {
-      const max = getMaxOffset();
-      prevBtn?.classList.toggle('invisible', max === 0);
-      nextBtn?.classList.toggle('invisible', max === 0);
-    };
-    gallery.closest('.list-item')?.addEventListener('gallery:check', updateChevrons);
-    const STEP = () => track.clientWidth * 0.6;
-    prevBtn?.addEventListener('click', () => {
-      offset = Math.max(0, offset - STEP());
-      inner.style.transform = `translateX(-${offset}px)`;
-    });
-    nextBtn?.addEventListener('click', () => {
-      offset = Math.min(getMaxOffset(), offset + STEP());
-      inner.style.transform = `translateX(-${offset}px)`;
-    });
-  });
-}
-
-// Lightbox：每個 list-item 的 [data-lightbox-open] 點擊開 lightbox（媒體序列由 data-media 指定）
-function bindLightbox(container) {
-  container.querySelectorAll('.list-item').forEach(item => {
-    if (item.dataset.lbInit) return;
-    item.dataset.lbInit = '1';
-    const media = JSON.parse((item.dataset.media || '[]').replace(/&quot;/g, '"'));
-    if (media.length === 0) return;
-    item.querySelectorAll('[data-lightbox-open]').forEach(el => {
-      el.addEventListener('click', e => {
-        e.stopPropagation();
-        const index = parseInt(el.dataset.lightboxIndex, 10) || 0;
-        openLightbox(media, index);
-      });
-    });
-  });
-}
-
-// title marquee 偵測 overflow（仿 activities bindInteractions.initMarquees）
-function initMarquees(container) {
-  if (window.innerWidth < 768) return;
-  requestAnimationFrame(() => {
-    container.querySelectorAll('.list-title-marquee').forEach(wrap => {
-      if (wrap.dataset.marqueeInit) return;
-      const p = wrap.querySelector('p');
-      if (!p) return;
-      const checkOverflow = () => {
-        if (p.scrollWidth > wrap.clientWidth + 1) {
-          wrap.classList.add('is-overflow');
-          if (!wrap.dataset.marqueeInit) {
-            wrap.dataset.marqueeInit = '1';
-            const clone = p.cloneNode(true);
-            clone.setAttribute('aria-hidden', 'true');
-            p.style.paddingRight = '3rem';
-            clone.style.paddingRight = '3rem';
-            wrap.appendChild(clone);
-          }
-          const offset = p.offsetWidth;
-          wrap.style.setProperty('--marquee-offset', `-${offset}px`);
-          const speed = Math.max(3, offset / 80);
-          wrap.style.setProperty('--marquee-duration', `${speed}s`);
-        } else {
-          wrap.classList.remove('is-overflow');
-        }
-      };
-      checkOverflow();
-      window.addEventListener('resize', checkOverflow);
-    });
-  });
-}
+// bindGallery / bindLightbox / initMarquees 已由 loadListInto 內部 bindInteractions 統一處理，
+// admission 改走 loadListInto 後不需要本地副本（2026-05-18 重構移除）。

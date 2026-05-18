@@ -102,13 +102,22 @@
   /* ===== Theme tokens（依 mode 切換的全站對比色） =====
    * 預設值 = standard mode（黑前景 / 白背景）
    * inverse mode 會在 themes/inverse.css 用 body.mode-inverse 蓋掉
+   * color mode 由 theme-toggle.js applyColorVars 每幀 setProperty 動態更新
    * 元件直接用 var(--theme-fg)/var(--theme-bg)，mode 切換時自動跟著走，不必逐元件寫 inline
-   * --theme-fg-rgb / --theme-bg-rgb 是 RGB 三元組（不含括號），給需要 alpha 的場景用 rgba(var(--theme-fg-rgb), 0.5)
+   *
+   * --theme-fg-inverse：fg 的對比色（strict B/W 用）— mode-color 由 JS 依 hue luminance 翻黑/白以維持對比
+   * --theme-fg-rgb / --theme-bg-rgb：RGB 三元組（不含括號）給 alpha 用 → rgba(var(--theme-fg-rgb), 0.5)
+   *
+   * 統一所有 mode 都定義 --theme-fg-inverse + --theme-fg-inverse-rgb（之前只 mode-color 才設造成
+   * `feedback_theme_fg_inverse_only_in_color_mode` 限制，2026-05-18 解除：standard/inverse 也定義固定值）
    */
   --theme-fg: var(--color-black);
   --theme-bg: var(--color-white);
+  --theme-fg-inverse: var(--color-white);
+  /* standard fg=黑，對比色=白 */
   --theme-fg-rgb: 0, 0, 0;
   --theme-bg-rgb: 255, 255, 255;
+  --theme-fg-inverse-rgb: 255, 255, 255;
   /* ===== Footer 主題色 token =====
    * 預設 standard：黑底白字
    * inverse mode 在 themes/inverse.css 翻成白底黑字
@@ -1573,6 +1582,11 @@ body.idle-standby .atlas-line {
  * Inverse Mode Theme
  * 黑底白字模式，透過 body.mode-inverse 觸發
  * 所有 inverse 相關覆蓋集中在此檔案管理
+ *
+ * 寫新 mode-aware 規則時優先用 var(--theme-fg) / var(--theme-fg-inverse) / var(--theme-fg-rgb)
+ * 對組，三 mode 都可用（2026-05-18 起 standard/inverse 也定義了固定值）。
+ * 之後可寫 `body:is(.mode-inverse, .mode-color) .X { color: var(--theme-fg) }` 一條規則
+ * 覆蓋兩 mode，取代兩檔各寫一份的重複。本檔尚未全 migrate（風險>收益），新加規則照新 pattern。
  */
 
 /* ===== Base ===== */
@@ -1581,8 +1595,11 @@ body.mode-inverse {
   /* Theme tokens 反轉：所有用 var(--theme-fg)/var(--theme-bg) 的元件會自動跟著切換 */
   --theme-fg: var(--color-white);
   --theme-bg: var(--color-black);
+  --theme-fg-inverse: var(--color-black);
+  /* inverse fg=白，對比色=黑 */
   --theme-fg-rgb: 255, 255, 255;
   --theme-bg-rgb: 0, 0, 0;
+  --theme-fg-inverse-rgb: 0, 0, 0;
   /* Library 主矩形：淺灰 → 深灰，文字黑 → 白；半透明文字同 alpha 但反成 rgba(255,...) */
   --lib-bg: #333333;
   --lib-fg: #ffffff;
@@ -2189,6 +2206,10 @@ body.mode-inverse .atlas-cat-b .atlas-name-cover {
 /**
  * Color Mode Theme
  * 持續變化的隨機色背景模式，由 body.mode-color 觸發
+ *
+ * 寫新 mode-aware 規則時優先用 var(--theme-fg) / var(--theme-fg-inverse) / var(--theme-fg-rgb)
+ * 對組（2026-05-18 起三 mode 都可用）；可寫 `body:is(.mode-inverse, .mode-color) .X` 一條規則
+ * 覆蓋兩 mode 取代雙寫，新加規則照新 pattern。本檔尚未全 migrate。
  *
  * 機制：
  * - JS (theme-toggle.js) RAF loop 每幀更新 --theme-bg/fg/overlay-25 inline CSS var
@@ -6284,10 +6305,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 
 .list-disc{
   list-style-type: disc;
-}
-
-.list-none{
-  list-style-type: none;
 }
 
 .grid-cols-12{

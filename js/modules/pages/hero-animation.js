@@ -258,7 +258,42 @@ function randomizeHeroLayout() {
   }
 }
 
+// Hero 進場動畫完成信號：SPA 換頁時 deep-link 邏輯（如 courses ?item= scroll + slide-in）
+// 必須等 hero 動畫跑完才能 scroll，否則使用者看到動畫被向下捲走。
+// - `_heroDone` flag：給「監聽器晚於 dispatch 註冊」的呼叫端做 fast-path return
+// - `hero:animation-done` event on document：給「監聽器先於 dispatch 註冊」的常見路徑
+// - SPA 每次 initHeroAnimation 重置 flag（每頁都會跑一次新的 hero）
+let _heroDone = false;
+
+function signalHeroDone() {
+  _heroDone = true;
+  document.dispatchEvent(new Event('hero:animation-done'));
+}
+
+/**
+ * 等到 hero 進場動畫完成。已完成則 resolve 立刻；否則監聽事件，並帶 timeoutMs 兜底
+ * （避免某些頁面 hero 結構不存在、event 永遠不會 fire 時 caller 卡死）。
+ * @param {number} [timeoutMs=2500]
+ */
+export function waitForHeroAnimDone(timeoutMs = 2500) {
+  if (_heroDone) return Promise.resolve();
+  return new Promise(resolve => {
+    let done = false;
+    const fire = () => {
+      if (done) return;
+      done = true;
+      document.removeEventListener('hero:animation-done', fire);
+      resolve();
+    };
+    document.addEventListener('hero:animation-done', fire);
+    setTimeout(fire, timeoutMs);
+  });
+}
+
 export function initHeroAnimation() {
+  // SPA 每頁重置：上頁殘留 `_heroDone=true` 會讓本頁 deep-link 不等動畫直接 scroll
+  _heroDone = false;
+
   // Hero highlight：所有 [data-hero-hl] 套同一個隨機 accent 色 + 固定 padding
   // padding 用 rem 而非 em，避免 h1（font-size 大）的 padding 被等比例放大成過大色塊
   // 跑在 gsap 早返回之前，確保無 gsap 也會套色
@@ -301,6 +336,7 @@ export function initHeroAnimation() {
     document.querySelectorAll('.hero-title, .hero-title-cn, .hero-text-en, .hero-text-cn, .hero-banner, [data-hero-logo]')
       .forEach(el => { /** @type {HTMLElement} */ (el).style.visibility = 'visible'; });
     randomizeHeroLayout();
+    signalHeroDone();
     return;
   }
 
@@ -330,9 +366,16 @@ export function initHeroAnimation() {
   const textEn = document.querySelector('.hero-text-en');
   const textCn = document.querySelector('.hero-text-cn');
 
-  if (!title && !titleCn && !textEn && !textCn) return;
+  if (!title && !titleCn && !textEn && !textCn) {
+    // 沒任何 hero 文字（如僅 logo 頁），不會經過 timeline → 直接 signal 避免 caller 等到 timeout
+    signalHeroDone();
+    return;
+  }
 
-  const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
+  const tl = gsap.timeline({
+    defaults: { ease: 'power3.out' },
+    onComplete: signalHeroDone,
+  });
 
   // 預先 wrap，避免動畫順序判斷影響 wrap 邏輯（wrapper 同時負責 rotate + clip overflow）
   if (title) wrapElement(title, 'hero-title-wrapper');

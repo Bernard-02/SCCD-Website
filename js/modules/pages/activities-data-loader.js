@@ -389,6 +389,17 @@ function formatDateShort(dateStr) {
 }
 
 // ── 統一 List Renderer ────────────────────────────────────────────────────────
+//
+// 「Canonical list template」— 所有 list 樣式內容（activities / admission / alumni 各 list）
+// 應該都走這個 function，不要再自己寫一份 list-item / list-header / list-content HTML。
+// 「有填就渲染、沒填就不渲染」邏輯內建在條件 template 中（item.location ? ... : ''）。
+//
+// 變體（用 options 切）：
+//   - activities default：結構化 metadata（date row + guests + description scroll + poster + gallery + refs）
+//   - admission news：bodyField='content' + attachmentsField + dateInHeader + flatList
+//   - alumni Gatherings：default + categoryFilter + hideYearHeader
+//   - alumni Organization：bodyField='term' + flatList + hideYearHeader
+//
 // options（全部預設顯示，需隱藏的才設 false）：
 //   categoryFilter       {string|null}  過濾 item.category
 //   showYearToggle       {boolean}      年份收合 toggle（預設 true；false = 顯示年份但不可收合，summer camp 用）
@@ -408,6 +419,14 @@ function formatDateShort(dateStr) {
 //   scrollTrigger        {boolean}      載入後自動建立 ScrollTrigger 動畫（預設 false）
 //   autoReveal           {boolean}      載入後自動 setupClipReveal + ScrollTrigger.batch reveal（預設 true）；
 //                                       false 時只 render，由 caller 自行管理 reveal（admission lazy load summer-camp 用）
+//   flatList             {boolean}      data 是 flat array（admission / alumni Organization）而非 year-grouped
+//                                       預設 false（活動類 data 是 [{year, items: []}]）；true 時把 data 當單一 virtual yearGroup
+//   bodyField            {string|null}  expand 區改用 item[bodyField] 當 rich HTML body 渲染（admission='content'/
+//                                       alumni Organization='term'），取代結構化 metadata（date row/guests/description/poster/gallery）
+//   attachmentsField     {string}       attachments field 名（預設 'attachments'）— 附件清單以 paperclip + Attachment N 渲染
+//   dateInHeader         {boolean}      date 顯示在 header 當 title 副標（admission news 用）；預設 false（date 在 expand 區）
+//   data                 {Array|null}   直接傳 data 不 fetch（admission load-more pagination 用：caller 自己控 fetch + slice）
+//                                       傳了 data 仍可傳 url（會被忽略）；data 必須 truthy 才走這條路
 
 export async function loadListInto(containerId, url, options = {}) {
   const {
@@ -431,27 +450,41 @@ export async function loadListInto(containerId, url, options = {}) {
     panelSelector        = null,
     scrollTrigger        = false,
     autoReveal           = true,
+    flatList             = false,
+    bodyField            = null,
+    attachmentsField     = 'attachments',
+    dateInHeader         = false,
+    data: providedData   = null,
   } = options;
 
   const container = document.getElementById(containerId);
   if (!container) return;
 
   let data;
-  try {
-    const res = await fetch(url);
-    data = await res.json();
-  } catch (e) {
-    console.error('loadListInto: failed to load', url, e);
-    return;
+  if (providedData) {
+    // caller 自己 fetch + slice（admission load-more 用），跳過 fetch
+    data = providedData;
+  } else {
+    try {
+      const res = await fetch(url);
+      data = await res.json();
+    } catch (e) {
+      console.error('loadListInto: failed to load', url, e);
+      return;
+    }
   }
   if (!data?.length) return;
 
   container.innerHTML = '';
 
-  const filteredData = data
+  // flatList=true：把 flat array 包成單一 virtual yearGroup（year:'' + items:data）
+  // 之後流程跟 year-grouped 一致；year header 由 hideYearHeader 隱藏（flatList 通常配 hideYearHeader:true）
+  const sourceData = flatList ? [{ year: '', items: data }] : data;
+
+  const filteredData = sourceData
     .map(yg => ({
       ...yg,
-      items: yg.items.filter(i =>
+      items: (yg.items || []).filter(i =>
         (!categoryFilter  || i.category          === categoryFilter) &&
         (!visitTypeFilter || i[visitTypeField]   === visitTypeFilter)
       ),
@@ -494,10 +527,12 @@ export async function loadListInto(containerId, url, options = {}) {
       const titleLine1 = item.title_en ? item.title_en : item.title;
       const titleLine2 = item.title_en ? item.title : (item.title_zh || '');
       // 標題（EN+ZH）同一個 list-reveal-row → 同步進場；副標亦同
+      // dateInHeader 時 date 顯示在 title 下方（admission news 用），不在 expand 區再渲染一次
       const titleHtml = `<div class="flex flex-col gap-xs flex-1 min-w-0">
           <div class="list-reveal-row">
             <div class="list-title-marquee"><p class="text-h5 font-bold">${titleLine1}</p></div>
             ${titleLine2 ? `<div class="list-title-marquee"><p class="text-h5 font-bold">${titleLine2}</p></div>` : ''}
+            ${dateInHeader && dateDisplay ? `<p class="text-p2">${dateDisplay}</p>` : ''}
           </div>
           ${showSubtitle && (item.subtitle || item.subtitle_zh) ? `<div class="list-reveal-row">
             ${item.subtitle ? `<p class="text-p2">${item.subtitle}</p>` : ''}
@@ -543,10 +578,14 @@ export async function loadListInto(containerId, url, options = {}) {
             </div>
           </div>
           <div class="list-content h-0 overflow-hidden">
+            ${bodyField && item[bodyField] ? `
+            <div class="pt-sm pb-lg px-md flex flex-col gap-md">
+              <div class="admission-body flex flex-col gap-md">${item[bodyField]}</div>
+            </div>` : `
             <div class="pt-sm pb-lg px-md grid gap-gutter items-start" style="grid-template-columns: 9.5fr 2.5fr;">
               <div class="flex flex-col gap-md pr-2xl">
-                ${((showDate && dateDisplay) || (showLocation && (item.location || item.location_zh))) ? `<div class="flex gap-xl">
-                  ${showDate && dateDisplay ? `<div class="flex-shrink-0">
+                ${(((showDate && dateDisplay && !dateInHeader)) || (showLocation && (item.location || item.location_zh))) ? `<div class="flex gap-xl">
+                  ${showDate && dateDisplay && !dateInHeader ? `<div class="flex-shrink-0">
                     <p class="text-p2 font-bold">${dateDisplay}</p>
                     ${dateDisplayZh ? `<p class="text-p2 font-bold">${dateDisplayZh}</p>` : ''}
                   </div>` : ''}
@@ -586,8 +625,22 @@ export async function loadListInto(containerId, url, options = {}) {
                 ${buildAlbumsHtml(item)}
               </div>
               ${showPoster ? buildPosterHtml(item) : ''}
-            </div>
+            </div>`}
             ${buildGalleryHtml(item)}
+            ${attachmentsField && Array.isArray(item[attachmentsField]) && item[attachmentsField].length ? `
+            <div class="flex flex-col mt-md">
+              ${item[attachmentsField].map((a, i) => `
+                <a class="list-ref-btn cursor-pointer w-full grid grid-cols-12 gap-x-md items-start py-sm no-underline" href="${a.url || '#'}" target="_blank" rel="noopener">
+                  <div class="col-span-1 flex justify-center" style="padding-top: 0.25em;">
+                    <i class="fa-solid fa-paperclip text-p2"></i>
+                  </div>
+                  <div class="col-span-11 flex flex-col">
+                    <p class="text-p2 font-bold">${a.labelEn || `Attachment ${i + 1}`}</p>
+                    <p class="text-p2 font-bold">${a.labelZh || `附件 ${i + 1}`}</p>
+                  </div>
+                </a>
+              `).join('')}
+            </div>` : ''}
             ${showReference && references.length ? `
             <div class="flex flex-col mt-md">
               ${references.map(ref => `

@@ -88,11 +88,18 @@ function detectSemester(titleEn, titleZh) {
   return 'upper';
 }
 
+// 與 floating-items.js 一致的 slug 規則；給 deep-link `?item=slug` 比對用
+function slugify(str) {
+  return String(str || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
 // 把 courses.json 攤成 chips（每個 part 各自一張）
 // semester 優先順序：part.semester > course.semester > 從標題偵測
+// slug 由「母 course.titleEn」decide 並透傳到所有 parts，配合 floating-items.js 同算法
 function flattenToChips(courses) {
   const chips = [];
   courses.forEach(course => {
+    const parentSlug = slugify(course.titleEn);
     if (Array.isArray(course.parts) && course.parts.length > 0) {
       course.parts.forEach(part => {
         chips.push({
@@ -103,6 +110,7 @@ function flattenToChips(courses) {
           type: course.type,
           grade: course.grade,
           semester: part.semester || course.semester || detectSemester(part.titleEn, part.titleZh),
+          slug: parentSlug,
         });
       });
     } else {
@@ -114,6 +122,7 @@ function flattenToChips(courses) {
         type: course.type,
         grade: course.grade,
         semester: course.semester || detectSemester(course.titleEn, course.titleZh),
+        slug: parentSlug,
       });
     }
   });
@@ -159,16 +168,19 @@ function renderCard(chip) {
   // 卡片底色不在 render 時固定 — 改由 hover/click 即時挑三原色（applyHoverColor）
   // rotation 同思路：render 時的 rot 存為 dataset.baseRot 當「resting」角度，
   // hover 時 re-roll（applyHoverRot）→ click 時 promote 為新 baseRot → deselect 還原 baseRot
+  // data-slug：母 course.titleEn 的 slug，供 `?item=slug` deep-link 比對；
+  // 有 parts 的課程兩張卡共用同一 slug（點任一張都會 highlight + 開 slide-in）
   const rot = pickRotation();
   const descEn = escapeAttr(chip.descriptionEn);
   const descZh = escapeAttr(chip.descriptionZh);
   const titleEn = chip.titleEn || '';
   const titleZh = chip.titleZh || '';
+  const slugAttr = chip.slug ? ` data-slug="${escapeAttr(chip.slug)}"` : '';
   return `
     <div class="courses-grid-card"
          data-base-rot="${rot}"
          data-desc-en="${descEn}"
-         data-desc-zh="${descZh}"
+         data-desc-zh="${descZh}"${slugAttr}
          style="transform: rotate(${rot}deg);">
       <span class="courses-grid-card-en"><span class="courses-marquee-inner">${titleEn}</span></span>
       <span class="courses-grid-card-zh"><span class="courses-marquee-inner">${titleZh}</span></span>
@@ -492,6 +504,19 @@ function selectCard(card) {
 // router.innerHTML swap 掉的 detached node，後續 deselectActiveCard 對 dead element 操作邏輯混亂）
 export function resetCoursesMapState() {
   activeCard = null;
+}
+
+// 給 `?item=slug` deep-link 用：在指定 program panel 內找 data-slug 相符的卡片並 selectCard
+// 有 parts 的課程兩張卡共用 slug → 取第一張（querySelector）即可
+// 找不到回傳 false 讓呼叫端可 fallback（例如該 slug 在別的 program）
+export function selectCardBySlugInPanel(program, slug) {
+  if (!slug) return false;
+  const panel = document.getElementById(`panel-${program}`);
+  if (!panel) return false;
+  const card = /** @type {HTMLElement|null} */ (panel.querySelector(`.courses-grid-card[data-slug="${CSS.escape(slug)}"]`));
+  if (!card) return false;
+  selectCard(card);
+  return true;
 }
 
 export function deselectActiveCard() {

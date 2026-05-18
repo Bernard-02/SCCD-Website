@@ -1092,6 +1092,30 @@ export function initLibraryPanels() {
 }
 
 /**
+ * 從 URL hash 推測 deep-link 目標 panel（不等 panels 渲染完，純看 hash 前綴）。
+ * 給 SPA 進場時 pre-swap library-card 的 grayEl tab 用 — 避免進場先顯示 awards、
+ * 等 handleLibraryHash 才 switchPanel，視覺上 awards 一閃即逝。
+ *
+ * 前綴規則（與 panels.js 內 render 的 id 樣式對應）：
+ *   #f-*      → files     (files.json id 加 `f-` 前綴)
+ *   #album-*  → album     (album item.id 加 `album-` 前綴)
+ *   #press-*  → press     (press.json id 本身就是 `press-N`)
+ *   #a-*      → awards    (records.json id 為 `a-YYYY-NN`)
+ *   #awards | #press | #files | #album → 對應 tab
+ *   其他 / 空 → awards
+ */
+export function resolveInitialTabFromHash() {
+  const hash = (window.location.hash || '').slice(1);
+  if (!hash) return 'awards';
+  if (Object.prototype.hasOwnProperty.call(PANEL_MAP, hash)) return hash;
+  if (hash.startsWith('f-')) return 'files';
+  if (hash.startsWith('album-')) return 'album';
+  if (hash.startsWith('press-')) return 'press';
+  if (hash.startsWith('a-')) return 'awards';
+  return 'awards';
+}
+
+/**
  * Hash-based deep link：處理 library.html#item-id 連結
  * 1. 從 hash 找對應的 DOM element（有 retry，因為 awards/album 是 async 載入）
  * 2. 判斷它屬於哪個 panel（awards/press/files/album）

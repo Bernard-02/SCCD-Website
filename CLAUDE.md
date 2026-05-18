@@ -127,6 +127,12 @@ router 換頁時 `runPageExit(route)` await 完成才繼續 cleanup + swap。
 ### 模式切換 transition（whitelist）
 `css/base/typography.css` 有一段 whitelist 規則，列舉哪些元件 mode 切換時要 0.4s fade 而不是 snap。新增 mode-aware 元件必須補進 whitelist（不在 list 內 = 視覺 snap）。已含：header / nav-link / [data-bar] / bg-* / text-* / timeline-card / list-header / footer / scrollbar / alumni-* / courses-* / atlas-* / library-* 等。
 
+### Theme variables（推薦給新元件用）
+- `--theme-fg` / `--theme-bg`：fg / bg，依 mode 切換
+- `--theme-fg-inverse`：fg 的對比色（strict B/W 用），三 mode 都已定義（2026-05-18 起）
+- `--theme-fg-rgb` / `--theme-bg-rgb` / `--theme-fg-inverse-rgb`：RGB 三元組，給 `rgba(var(--X), 0.5)` 用
+- 新元件 mode-aware 規則優先寫 `body:is(.mode-inverse, .mode-color) .X { color: var(--theme-fg) }` 一條，取代雙寫
+
 ### 字體
 - **標題**：H1 (8rem) ~ H6 (1.25rem)
 - **內文**：P1 (1rem) / P2 / P3

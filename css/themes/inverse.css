@@ -2,6 +2,11 @@
  * Inverse Mode Theme
  * 黑底白字模式，透過 body.mode-inverse 觸發
  * 所有 inverse 相關覆蓋集中在此檔案管理
+ *
+ * 寫新 mode-aware 規則時優先用 var(--theme-fg) / var(--theme-fg-inverse) / var(--theme-fg-rgb)
+ * 對組，三 mode 都可用（2026-05-18 起 standard/inverse 也定義了固定值）。
+ * 之後可寫 `body:is(.mode-inverse, .mode-color) .X { color: var(--theme-fg) }` 一條規則
+ * 覆蓋兩 mode，取代兩檔各寫一份的重複。本檔尚未全 migrate（風險>收益），新加規則照新 pattern。
  */
 
 /* ===== Base ===== */
@@ -9,8 +14,10 @@ body.mode-inverse {
   /* Theme tokens 反轉：所有用 var(--theme-fg)/var(--theme-bg) 的元件會自動跟著切換 */
   --theme-fg: var(--color-white);
   --theme-bg: var(--color-black);
+  --theme-fg-inverse: var(--color-black);     /* inverse fg=白，對比色=黑 */
   --theme-fg-rgb: 255, 255, 255;
   --theme-bg-rgb: 0, 0, 0;
+  --theme-fg-inverse-rgb: 0, 0, 0;
 
   /* Library 主矩形：淺灰 → 深灰，文字黑 → 白；半透明文字同 alpha 但反成 rgba(255,...) */
   --lib-bg: #333333;

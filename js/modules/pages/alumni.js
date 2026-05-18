@@ -4,9 +4,10 @@
  *   2. Activities 活動   — loadListInto + initListAccordion（不顯示 share btn）
  *   3. Members    系友   — faculty-card 樣式
  *   4. Sponsors   贊助   — 3×3 grid <a> 連官網（旋轉 + hover 三原色）
- *   5. Organization 組織 — loadListInto，year 顯示實際年份，只渲染 title（無 description/share/expand）
- *   6. Gatherings 召集   — 城市 tab + loadListInto (categoryFilter) + initListAccordion
- *                        會議紀錄 ref href 攔截開 PDF lightbox
+ *   5. Organization 組織 — loadListInto (flatList + bodyField:'term' + hideYearHeader)；
+ *                        sticky charter 在 list 底部
+ *   6. Gatherings 召集   — 城市 tab（class-division-btn 自製，未走 setActiveNavBtn — HTML 結構未對齊 anchor-nav-inner）
+ *                        + loadListInto (categoryFilter + hideYearHeader)；會議紀錄 ref href 攔截開 PDF lightbox
  *   7. Contact    聯絡   — name + email 兩欄純文字（全黑）
  */
 
@@ -224,14 +225,13 @@ async function renderGatherings(data) {
   const tagRow = document.getElementById('alumni-city-tags');
   if (!tagRow || !data.gatheringCities?.length) return;
 
-  // 一次性 load gatherings JSON 並攤平到 _gatheringsData.allGatherings（按 city filter 用）
+  // 一次性 load gatherings JSON 並 cache（year-grouped 結構；loadListInto categoryFilter 處理城市篩選 + hideYearHeader 隱藏年份）
   try {
     const res = await fetch(GATHERINGS_URL);
-    const yearGroups = await res.json();
-    _gatheringsData.allGatherings = yearGroups.flatMap(yg => yg.items || []);
+    _gatheringsData.yearGroups = await res.json();
   } catch (e) {
     console.error('[Alumni] gatherings load failed', e);
-    _gatheringsData.allGatherings = [];
+    _gatheringsData.yearGroups = [];
   }
 
   // 城市 tab：class-division-btn 樣式 + 隨機旋轉 + 一級小（text-p1）
@@ -276,154 +276,89 @@ async function renderGatherings(data) {
   showGatheringCity(data.gatheringCities[0].id);
 }
 
-// ── Gatherings list（admission-news pattern：無左年份欄；EN/ZH title 兩行；展開 date+location+description+會議紀錄 ref） ──
-// 由 City tab 切換時 filter 並重 render；初次 render 由 renderGatherings 觸發
+// ── Gatherings list（loadListInto + categoryFilter + hideYearHeader） ──
+// City tab 切換時 re-render：loadListInto 內部 container.innerHTML='' + categoryFilter 過濾、
+// hideYearHeader 隱藏年份欄（city 為主軸不是 year）
 async function showGatheringCity(cityId) {
   if (!_gatheringsData || _currentGatheringCity === cityId) return;
   _currentGatheringCity = cityId;
-  // flat-filter：跨 year-group 攤平 items，按 category 過濾
-  const items = (_gatheringsData.allGatherings || []).filter(it => it.category === cityId);
-  renderGatheringsList(items);
-  initListAccordion();
-  bindMeetingMinutesPdf();
-  // 進場 clip-reveal：跟 admission/activities list 同 pattern
-  setupListEntryReveal(document.getElementById('alumni-gatherings-list'));
-}
 
-function renderGatheringsList(items) {
   const container = document.getElementById('alumni-gatherings-list');
   if (!container) return;
-  if (!items.length) {
+
+  // 空 city：顯示 placeholder 提示
+  const cityItems = (_gatheringsData.yearGroups || []).flatMap(yg => yg.items || [])
+    .filter(it => it.category === cityId);
+  if (!cityItems.length) {
     container.innerHTML = '<p class="text-p2 opacity-60 py-md">No gatherings yet 尚無聚會紀錄</p>';
     return;
   }
-  container.innerHTML = `
-    <div class="flex flex-col">
-      ${items.map((it, i) => {
-        const isLast = i === items.length - 1;
-        const refs = it.references || [];
-        return `
-          <div class="list-item list-none" id="item-alumni-ga-${escapeHtml(it.id || String(i))}">
-            <div class="list-header cursor-pointer group transition-colors duration-fast flex items-stretch justify-between px-[4px] py-sm">
-              <div class="flex-1 min-w-0">
-                <div class="list-reveal-row flex flex-col gap-xs">
-                  <div class="list-title-marquee"><p class="text-h5 font-bold">${escapeHtml(it.title)}</p></div>
-                  <div class="list-title-marquee"><p class="text-h5 font-bold">${escapeHtml(it.title_zh || '')}</p></div>
-                </div>
-              </div>
-              <div class="flex items-stretch flex-shrink-0 pt-[0.25rem]">
-                <div class="flex-shrink-0 self-start" style="overflow:clip; height:1.5em; width:1.5em;">
-                  <div class="list-reveal-row flex justify-center items-center w-full h-full">
-                    <i class="fa-solid fa-chevron-down text-p2 transition-transform duration-300"></i>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="list-content h-0 overflow-hidden">
-              <div class="pt-sm pb-lg px-md flex flex-col gap-md">
-                ${(it.date_en || it.date || it.location || it.location_zh) ? `<div class="flex gap-xl flex-wrap">
-                  ${(it.date_en || it.date) ? `<div class="flex-shrink-0">
-                    <p class="text-p2 font-bold">${escapeHtml(it.date_en || it.date)}</p>
-                    ${it.date_en ? `<p class="text-p2 font-bold">${escapeHtml(it.date)}</p>` : ''}
-                  </div>` : ''}
-                  ${(it.location || it.location_zh) ? `<div class="flex-1 min-w-0">
-                    ${it.location ? `<p class="text-p2 font-bold">${escapeHtml(it.location)}</p>` : ''}
-                    ${it.location_zh ? `<p class="text-p2 font-bold">${escapeHtml(it.location_zh)}</p>` : ''}
-                  </div>` : ''}
-                </div>` : ''}
-                ${(it.description || it.descriptionZh) ? `<div class="flex flex-col gap-xs">
-                  ${it.description ? `<p class="text-p2 leading-base">${escapeHtml(it.description)}</p>` : ''}
-                  ${it.descriptionZh ? `<p class="text-p2 leading-base">${escapeHtml(it.descriptionZh)}</p>` : ''}
-                </div>` : ''}
-              </div>
-              ${refs.length ? `<div class="flex flex-col">
-                ${refs.map(ref => `
-                  <a class="list-ref-btn cursor-pointer w-full grid grid-cols-12 gap-x-md items-start py-sm no-underline"
-                     href="${escapeHtml(ref.href || '#')}" data-pdf-href="${escapeHtml(ref.href || SAMPLE_PDF_URL)}">
-                    <div class="col-span-1 flex justify-center" style="padding-top: 0.25em;">
-                      <i class="fa-solid fa-paperclip text-p2"></i>
-                    </div>
-                    <div class="col-span-4 flex flex-col">
-                      ${ref.labelEn ? `<p class="text-p2">${escapeHtml(ref.labelEn)}</p>` : ''}
-                      ${ref.labelZh ? `<p class="text-p2">${escapeHtml(ref.labelZh)}</p>` : ''}
-                    </div>
-                    <div class="col-span-7 flex flex-col">
-                      ${ref.titleEn ? `<p class="text-p2 font-bold">${escapeHtml(ref.titleEn)}</p>` : ''}
-                      ${ref.titleZh ? `<p class="text-p2 font-bold">${escapeHtml(ref.titleZh)}</p>` : ''}
-                    </div>
-                  </a>
-                `).join('')}
-              </div>` : ''}
-            </div>
-            ${!isLast ? '<div class="list-reveal-row list-item-divider border-b-4 border-black" style="height:4px"></div>' : ''}
-          </div>
-        `;
-      }).join('')}
-    </div>
-  `;
+
+  await loadListInto('alumni-gatherings-list', '', {
+    data:             _gatheringsData.yearGroups,
+    categoryFilter:   cityId,
+    hideYearHeader:   true,
+    showShareBtn:     false,
+    showPoster:       false,
+    showAlumniIcon:   false,
+    autoReveal:       false,  // setupListEntryReveal 接管 ScrollTrigger reveal
+  });
+  initListAccordion();
+  bindMeetingMinutesPdf();
+  setupListEntryReveal(container);
 }
 
-// 會議紀錄 ref 點擊 → 觸發 sccd:open-pdf 事件（library-viewer initPdfViewer listener 接管 PDF canvas 渲染）
-// stopImmediatePropagation：擋掉 SPA router 的 document-level click listener，
-// 否則 router 看到 href="/assets/sample.pdf" 找不到 route → 走 404 fallback 把頁面替換成 404 內容
+// 會議紀錄 ref：loadListInto 渲染的 <a href> 會被 SPA router document click 攔截走 404。
+// 攔截 click 並 dispatch sccd:open-pdf 讓 library-viewer initPdfViewer 接管 PDF canvas 渲染。
 function bindMeetingMinutesPdf() {
   const list = document.getElementById('alumni-gatherings-list');
   if (!list) return;
-  list.querySelectorAll('.list-ref-btn').forEach(btn => {
+  list.querySelectorAll('.list-ref-btn[href]').forEach(btn => {
     if (btn.dataset.pdfBound) return;
     btn.dataset.pdfBound = '1';
     btn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopImmediatePropagation();
-      const pdfUrl = btn.dataset.pdfHref || SAMPLE_PDF_URL;
+      const pdfUrl = btn.getAttribute('href') || SAMPLE_PDF_URL;
       document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl } }));
     });
   });
 }
 
-// ── Organization（admission-news pattern：無左年份欄；EN/ZH title 兩行；term 在展開內容） ──
-// 不帶 data-pre-reveal — 該屬性在 lists.css 會讓 list-item pointer-events:none 直到 reveal 動畫移除；
-// 自製 renderer 沒跑 reveal 流程，附該屬性會讓 chevron 永久不可點
-// .list-reveal-row 加在 header/content 區塊讓 setupListEntryReveal 跑 clip-reveal 進場（同 admission/activities）
-function renderOrganization(terms) {
+// ── Organization（loadListInto + flatList + bodyField='term' + hideYearHeader） ──
+// term 是純文字「Term 2024 - 2026」，bodyField 渲染需 pre-wrap 成 <p class="text-p2 font-bold"> 保持原視覺
+async function renderOrganization(terms) {
   const container = document.getElementById('alumni-org-list');
   if (!container) return;
-  container.innerHTML = `
-    <div class="alumni-org-wrapper flex flex-col">
-      ${terms.map((t, i) => {
-        return `
-          <div class="list-item list-none" id="item-alumni-org-${escapeHtml(t.id || String(i))}">
-            <div class="list-header cursor-pointer group transition-colors duration-fast flex items-stretch justify-between px-[4px] py-sm">
-              <div class="flex-1 min-w-0">
-                <div class="list-reveal-row flex flex-col gap-xs">
-                  <div class="list-title-marquee"><p class="text-h5 font-bold">${escapeHtml(t.titleEn)}</p></div>
-                  <div class="list-title-marquee"><p class="text-h5 font-bold">${escapeHtml(t.titleZh)}</p></div>
-                </div>
-              </div>
-              <div class="flex items-stretch flex-shrink-0 pt-[0.25rem]">
-                <div class="flex-shrink-0 self-start" style="overflow:clip; height:1.5em; width:1.5em;">
-                  <div class="list-reveal-row flex justify-center items-center w-full h-full">
-                    <i class="fa-solid fa-chevron-down text-p2 transition-transform duration-300"></i>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="list-content h-0 overflow-hidden">
-              <div class="pt-sm pb-lg px-md flex flex-col gap-md">
-                <p class="text-p2 font-bold">${escapeHtml(t.term || '')}</p>
-              </div>
-            </div>
-            <div class="list-reveal-row list-item-divider border-b-4 border-black" style="height:4px"></div>
-          </div>
-        `;
-      }).join('')}
-      <!-- Charter 章程：永久 sticky 在 list 底部（黑底白字），點擊開 PDF lightbox -->
-      <a class="alumni-charter-sticky" href="${escapeHtml(SAMPLE_PDF_URL)}" data-pdf-href="${escapeHtml(SAMPLE_PDF_URL)}">
-        <span class="charter-en">Charter</span>
-        <span class="charter-zh">章程</span>
-      </a>
-    </div>
-  `;
+
+  // 映射欄位給 loadListInto：titleEn → title_en、titleZh → title；term 包成 <p> HTML 供 bodyField 渲染
+  const data = terms.map(t => ({
+    ...t,
+    title_en: t.titleEn,
+    title:    t.titleZh,
+    term:     t.term ? `<p class="text-p2 font-bold">${escapeHtml(t.term)}</p>` : '',
+  }));
+
+  await loadListInto('alumni-org-list', '', {
+    data,
+    flatList:        true,
+    bodyField:       'term',
+    hideYearHeader:  true,
+    showShareBtn:    false,
+    showAlumniIcon:  false,
+    autoReveal:      false,
+  });
+  initListAccordion();
+  setupListEntryReveal(container);
+
+  // Charter 章程：永久 sticky 在 list 底部（黑底白字），點擊開 PDF lightbox
+  // loadListInto 渲染後 append 到 container（loadListInto 內部清 innerHTML，所以必須 render 完才 append）
+  container.insertAdjacentHTML('beforeend', `
+    <a class="alumni-charter-sticky" href="${escapeHtml(SAMPLE_PDF_URL)}" data-pdf-href="${escapeHtml(SAMPLE_PDF_URL)}">
+      <span class="charter-en">Charter</span>
+      <span class="charter-zh">章程</span>
+    </a>
+  `);
 
   // Charter click → 開 PDF lightbox（同會議紀錄機制，需 stopImmediatePropagation 擋 SPA router）
   const charter = container.querySelector('.alumni-charter-sticky');

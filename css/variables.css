@@ -86,13 +86,21 @@
   /* ===== Theme tokens（依 mode 切換的全站對比色） =====
    * 預設值 = standard mode（黑前景 / 白背景）
    * inverse mode 會在 themes/inverse.css 用 body.mode-inverse 蓋掉
+   * color mode 由 theme-toggle.js applyColorVars 每幀 setProperty 動態更新
    * 元件直接用 var(--theme-fg)/var(--theme-bg)，mode 切換時自動跟著走，不必逐元件寫 inline
-   * --theme-fg-rgb / --theme-bg-rgb 是 RGB 三元組（不含括號），給需要 alpha 的場景用 rgba(var(--theme-fg-rgb), 0.5)
+   *
+   * --theme-fg-inverse：fg 的對比色（strict B/W 用）— mode-color 由 JS 依 hue luminance 翻黑/白以維持對比
+   * --theme-fg-rgb / --theme-bg-rgb：RGB 三元組（不含括號）給 alpha 用 → rgba(var(--theme-fg-rgb), 0.5)
+   *
+   * 統一所有 mode 都定義 --theme-fg-inverse + --theme-fg-inverse-rgb（之前只 mode-color 才設造成
+   * `feedback_theme_fg_inverse_only_in_color_mode` 限制，2026-05-18 解除：standard/inverse 也定義固定值）
    */
   --theme-fg: var(--color-black);
   --theme-bg: var(--color-white);
+  --theme-fg-inverse: var(--color-white);     /* standard fg=黑，對比色=白 */
   --theme-fg-rgb: 0, 0, 0;
   --theme-bg-rgb: 255, 255, 255;
+  --theme-fg-inverse-rgb: 255, 255, 255;
 
   /* ===== Footer 主題色 token =====
    * 預設 standard：黑底白字

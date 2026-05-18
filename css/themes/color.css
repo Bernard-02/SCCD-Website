@@ -2,6 +2,10 @@
  * Color Mode Theme
  * 持續變化的隨機色背景模式，由 body.mode-color 觸發
  *
+ * 寫新 mode-aware 規則時優先用 var(--theme-fg) / var(--theme-fg-inverse) / var(--theme-fg-rgb)
+ * 對組（2026-05-18 起三 mode 都可用）；可寫 `body:is(.mode-inverse, .mode-color) .X` 一條規則
+ * 覆蓋兩 mode 取代雙寫，新加規則照新 pattern。本檔尚未全 migrate。
+ *
  * 機制：
  * - JS (theme-toggle.js) RAF loop 每幀更新 --theme-bg/fg/overlay-25 inline CSS var
  * - 隨機 hue 旋轉（HSL hue, 80%, 50%），對比文字色由 luminance 決定

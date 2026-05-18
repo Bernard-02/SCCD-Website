@@ -11,9 +11,10 @@
  *   - 內容改 grid（學期×必修/選修×年級）+ 右下 sticky desc panel
  */
 
-import { renderCoursesGrid, deselectActiveCard, resetCoursesMapState } from './courses-map.js';
+import { renderCoursesGrid, deselectActiveCard, resetCoursesMapState, selectCardBySlugInPanel } from './courses-map.js';
 import { setActiveNavBtn } from '../ui/section-switch-helpers.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
+import { waitForHeroAnimDone } from './hero-animation.js';
 
 let currentProgramColor = '';
 export function getCurrentProgramColor() { return currentProgramColor; }
@@ -111,12 +112,22 @@ export function initCoursesSectionSwitch() {
   const hasQueryDeepLink = params.has('program');
   const rawProgram = params.get('program');
   const initialProgram = (rawProgram === 'bfa') ? 'bfa-animation' : (rawProgram || 'bfa-animation');
+  const itemSlug = params.get('item');
 
-  switchToProgram(initialProgram, programBtns, false);
+  const initSwitchPromise = switchToProgram(initialProgram, programBtns, false);
+
+  // deep-link flow（從首頁 floating course card 點擊或外部 ?program= URL）：
+  // 1) 等 hero 進場動畫做完才 auto-scroll（沒等的話視覺上字還沒滑進來就被推走）
+  // 2) renderCoursesGrid 完成 + ?item= 存在時 → 找對應 data-slug 卡片並 selectCard
+  //    → highlight + 開 slide-in（用戶從首頁點課程卡片應直接進該課程詳細）
   if (hasQueryDeepLink) {
-    setTimeout(() => {
+    Promise.all([initSwitchPromise, waitForHeroAnimDone()]).then(() => {
       if (sectionEl) sectionEl.scrollIntoView({ behavior: 'smooth' });
-    }, 1000);
+      if (itemSlug) {
+        // 卡片 hover marquee 量測在 renderCoursesGrid 末段，selectCard 立刻可用
+        selectCardBySlugInPanel(initialProgram, itemSlug);
+      }
+    });
   }
 
   programBtns.forEach(btn => {

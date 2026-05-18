@@ -18,6 +18,7 @@
 
 // 注意：原本用 playClipReveal (僅 yPercent)；改成 4-direction 自己處理 x/y 兩軸
 // import { playClipReveal } from './scroll-animate.js';
+import { awaitLayoutReady } from './await-layout-ready.js';
 
 // 4 個 entry/exit 方向（random per item per shuffle）— 對齊 hero clip-reveal pattern 但擴成雙軸
 const ENTRY_DIRECTIONS = ['top', 'right', 'bottom', 'left'];
@@ -75,7 +76,6 @@ const ROTATION_RANGE = 12;          // ±度數
 const CARD_GAP_PX = 24;             // 卡片間 + obstacle buffer（bbox 階段用）
 const VERIFY_PADDING_PX = 8;        // actual-rect verify 階段 padding
 const MAX_PLACE_ATTEMPTS = 200;     // 單張卡找位置最多試幾次
-const LAYOUT_READY_MAX_ATTEMPTS = 60;
 
 // Links 限定在 area 底部 30% 區域
 const LINKS_BOTTOM_REGION_RATIO = 0.7;
@@ -118,17 +118,7 @@ function domRectsOverlap(a, b, padding) {
   );
 }
 
-async function waitForLayoutReady(area) {
-  if (document.fonts && document.fonts.ready) {
-    try { await document.fonts.ready; } catch (_) {}
-  }
-  for (let i = 0; i < LAYOUT_READY_MAX_ATTEMPTS; i++) {
-    const rect = area.getBoundingClientRect();
-    if (rect.width > 100 && rect.height > 100) return true;
-    await new Promise((r) => requestAnimationFrame(r));
-  }
-  return false;
-}
+// waitForLayoutReady 已抽出到 js/modules/ui/await-layout-ready.js（共用 helper）
 
 function wrapItemsInAnchors(items) {
   return items.map((item) => {
@@ -384,7 +374,7 @@ export async function initFooterScatter(scope) {
   const privacy = footer.querySelector('.footer-privacy');
   const obstacles = privacy ? [privacy] : [];
 
-  const ready = await waitForLayoutReady(area);
+  const ready = await awaitLayoutReady(area);
   if (!ready) {
     anchors.forEach((a) => { a.style.opacity = '1'; });
     return;
