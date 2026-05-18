@@ -7,7 +7,7 @@
 
 import { setupClipReveal } from '../ui/scroll-animate.js';
 import { initListAccordion } from '../accordions/list-accordion.js';
-import { loadListInto, bindGallery, bindLightbox, bindMediaHover } from './activities-data-loader.js';
+import { loadListInto } from './activities-data-loader.js';
 
 const ITEMS_PER_PAGE = 10;
 

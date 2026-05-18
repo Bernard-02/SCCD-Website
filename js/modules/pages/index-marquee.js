@@ -269,20 +269,54 @@ function runMarqueeStack(stack, items) {
   const banners = []; // index 0 = 第一個（最上方 / 最舊），index 2 = 最後一個（最下方 / 最新）
   let cursor = 0;
   let hoverCount = 0;
-  let pending = false;
+
+  // setTimeout-based pause/resume：hover 期間真的「凍結倒數」，離開後用剩餘秒數重排
+  // （舊版 setInterval + pending 在 hover 跨 tick 時離開瞬間立刻 advance，視覺上像「沒等夠」）
+  let timeoutId = null;
+  let scheduledAt = 0;        // Date.now() of current setTimeout 排程時間
+  let scheduledDuration = 0;  // 該次 setTimeout 排定的 ms
+  let pausedRemaining = 0;    // pause 那一刻剩多少 ms 才該 fire
+
+  function scheduleAdvance(ms) {
+    if (timeoutId) clearTimeout(timeoutId);
+    scheduledAt = Date.now();
+    scheduledDuration = ms;
+    timeoutId = setTimeout(() => {
+      timeoutId = null;
+      // SPA 離開 index 後 stack 從 DOM 消失，停止自我重排（沿用舊版 isConnected guard）
+      if (!stack.isConnected) return;
+      advance();
+      scheduleAdvance(CYCLE_INTERVAL);
+    }, ms);
+  }
+
+  function pauseCycle() {
+    if (!timeoutId) return;
+    const elapsed = Date.now() - scheduledAt;
+    pausedRemaining = Math.max(0, scheduledDuration - elapsed);
+    clearTimeout(timeoutId);
+    timeoutId = null;
+  }
+
+  function resumeCycle() {
+    if (timeoutId) return;
+    // 有剩餘就用剩餘排（連續性），無剩餘代表 hover 期間完全沒在排程 → 走完整週期
+    scheduleAdvance(pausedRemaining > 0 ? pausedRemaining : CYCLE_INTERVAL);
+    pausedRemaining = 0;
+  }
 
   const onEnter = () => {
     hoverCount++;
-    if (hoverCount === 1) applyNewsHover();
+    if (hoverCount === 1) {
+      applyNewsHover();
+      pauseCycle();
+    }
   };
   const onLeave = () => {
     hoverCount = Math.max(0, hoverCount - 1);
     if (hoverCount === 0) {
       removeNewsHover();
-      if (pending) {
-        pending = false;
-        advance();
-      }
+      resumeCycle();
     }
   };
 
@@ -352,15 +386,5 @@ function runMarqueeStack(stack, items) {
     banners.push(nb);
   }
 
-  const intervalId = setInterval(() => {
-    if (!stack.isConnected) {
-      clearInterval(intervalId);
-      return;
-    }
-    if (hoverCount > 0) {
-      pending = true;
-      return;
-    }
-    advance();
-  }, CYCLE_INTERVAL);
+  scheduleAdvance(CYCLE_INTERVAL);
 }

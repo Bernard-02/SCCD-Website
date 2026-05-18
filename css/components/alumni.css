@@ -125,10 +125,6 @@ body.page-alumni .list-header.active {
   gap: var(--spacing-md);
   align-items: baseline;
   padding: var(--spacing-sm) 0;
-  border-bottom: 1px solid var(--gray-3);
-}
-.alumni-contact-row:first-child {
-  border-top: 1px solid var(--gray-3);
 }
 .alumni-contact-row .role {
   grid-column: 1 / span 4;
@@ -152,7 +148,7 @@ body.page-alumni .list-header.active {
   font-weight: 700;
   color: #000;
   text-decoration: none;
-  /* 每個文字 box 自己白底，封鎖綫從欄位間隙透出 */
+  /* 每個文字 box 自己白底：擋掉背後 section-title-strip 的彩色斜帶，文字才看得清 */
   background: #fff;
   padding: 0.25em 0.5em;
   width: fit-content;
