@@ -5,6 +5,8 @@
 
 import { initPageModules, cleanupPageModules } from './main-modular.js';
 import { updateNavActive } from './header.js';
+import { runPageExit } from './modules/ui/page-exit.js';
+import { initFooter } from './footer.js';
 
 // ── 路由表 ────────────────────────────────────────────────────
 const routes = {
@@ -30,6 +32,8 @@ const routes = {
   '/degree-show-detail.html': { page: 'degree-show-detail',      htmlFile: 'pages/degree-show-detail.html' },
   '/support':                 { page: 'support',                 htmlFile: 'pages/support.html' },
   '/support.html':            { page: 'support',                 htmlFile: 'pages/support.html' },
+  '/alumni':                  { page: 'alumni',                  htmlFile: 'pages/alumni.html' },
+  '/alumni.html':             { page: 'alumni',                  htmlFile: 'pages/alumni.html' },
   '/library':                 { page: 'library',                 htmlFile: 'pages/library.html' },
   '/library.html':            { page: 'library',                 htmlFile: 'pages/library.html' },
   '/atlas':                   { page: 'atlas',                   htmlFile: 'pages/atlas.html' },
@@ -38,8 +42,8 @@ const routes = {
   '/create.html':             { page: 'generate',                htmlFile: 'pages/create.html' },
   '/privacy-policy':          { page: 'privacy-policy',          htmlFile: 'pages/privacy-policy.html' },
   '/privacy-policy.html':     { page: 'privacy-policy',          htmlFile: 'pages/privacy-policy.html' },
-  '/terms-and-conditions':    { page: 'terms-and-conditions',    htmlFile: 'pages/terms-and-conditions.html' },
-  '/terms-and-conditions.html':{ page: 'terms-and-conditions',   htmlFile: 'pages/terms-and-conditions.html' },
+  '/accessibility':           { page: 'accessibility',           htmlFile: 'pages/accessibility.html' },
+  '/accessibility.html':      { page: 'accessibility',           htmlFile: 'pages/accessibility.html' },
   '/404':                     { page: '404',                     htmlFile: 'pages/404.html' },
   '/404.html':                { page: '404',                     htmlFile: 'pages/404.html' },
 };
@@ -50,6 +54,8 @@ const NOT_FOUND_ROUTE = routes['/404'];
 const PAGE_CSS = {
   library: 'css/components/library.css',
   atlas: 'css/components/atlas.css',
+  generate: 'css/components/create.css',
+  alumni: 'css/components/alumni.css',
 };
 
 function loadPageCSS(page) {
@@ -83,16 +89,32 @@ function scrollToTop() {
 }
 
 // ── 內容替換 ──────────────────────────────────────────────────
+// 全域 nav sequence：每次 loadPage 取一個 unique 號碼，await 後檢查是否已被更新的 nav 蓋過
+// → 解決 race：A(去 /about, exit anim 0.85s) 中途 B(回 /create, exit handler 已 null fetch 50ms)
+//   若無 guard，B 先完成 swap+init 後 A 再完成又 swap 走 → user 點 /create 卻被 A 拉去 /about
+//   且 /create 的 p5 typewriter 被 A 的 cleanup 殺掉 → placeholder 消失
+let navSeq = 0;
+
 async function loadPage(route, search = '') {
   const main = document.getElementById('page-content');
   if (!main) return;
 
+  const mySeq = ++navSeq;
+  // 內部 helper：在每個 await 後檢查是否還是最新 nav，不是就 abort
+  const isStale = () => mySeq !== navSeq;
+
   try {
     // 使用 origin 為基底解析絕對路徑，避免 pushState 改變 baseURI 後的相對路徑錯亂
     const fetchUrl = new URL(route.htmlFile, window.location.origin).href;
-    const res = await fetch(fetchUrl);
+
+    // 退場動畫（當前頁有 register 才會跑）跟 fetch 並行：anim ~0.7s + fetch 通常更快，
+    // 兩者平行省 0.3-0.5s 過場時間；await 兩個都完成才繼續 cleanup + DOM 替換
+    const [_exit, res] = await Promise.all([runPageExit(route), fetch(fetchUrl)]);
+    if (isStale()) return; // 中途有新 nav，放棄這次（不 cleanup 不 swap，讓新 nav 接手）
+    void _exit;
     if (!res.ok) throw new Error(`Failed to load ${route.htmlFile}`);
     const html = await res.text();
+    if (isStale()) return;
 
     // 解析出 <main> 內容
     const parser = new DOMParser();
@@ -123,15 +145,25 @@ async function loadPage(route, search = '') {
     // 更新 nav active state
     updateNavActive(route.page);
 
-    // generate / library / atlas 頁不顯示 footer
+    // generate / library / atlas 頁不顯示 footer（404 顯示，使用者可 scroll 看到）
     const footerEl = document.getElementById('site-footer') || document.getElementById('site-footer-static');
     if (footerEl) {
-      footerEl.style.display = (route.page === 'generate' || route.page === 'library' || route.page === 'atlas') ? 'none' : '';
+      const shouldHide = route.page === 'generate' || route.page === 'library' || route.page === 'atlas';
+      footerEl.style.display = shouldHide ? 'none' : '';
+      // first-load /create 時 initFooter fetch 跟 router.loadPage fetch race，若 router 先設 display:none
+      // 才回，footer html 寫進隱藏容器 → Lottie 載 0×0 + footerScatter waitForLayoutReady 60 frames 全 0 abort →
+      // items 卡 opacity:0、無 .footer-anchor。換頁要露 footer 時用 .footer-anchor 缺失當「broken init」proxy 重跑 initFooter。
+      // 只限 SPA 容器（#site-footer）；index.html 的 #site-footer-static 不會撞 display:none race。
+      if (!shouldHide && footerEl.id === 'site-footer' && !footerEl.querySelector('.footer-anchor')) {
+        initFooter();
+      }
     }
 
     // 更新 body class（generate / atlas 鎖頁面 scroll，滿版單屏）
     document.body.classList.toggle('overflow-hidden', route.page === 'generate' || route.page === 'atlas');
-    document.body.style.overflowX = (route.page === 'about') ? 'hidden' : '';
+    // about + alumni 用寬封鎖綫（section-title-strip width:calc(50vw+) 會 overflow viewport 右側）
+    // 必須 body.overflowX: hidden 才不會出現橫向 scroll
+    document.body.style.overflowX = (route.page === 'about' || route.page === 'alumni') ? 'hidden' : '';
 
     // 初始化新頁面模組（帶 query string 供 detail 頁用）
     initPageModules(route.page, new URLSearchParams(search));
@@ -160,8 +192,13 @@ export function navigateTo(url) {
   const { pathname, search, hash } = new URL(url, window.location.origin);
   const route = resolveRoute(pathname) || NOT_FOUND_ROUTE;
 
+  // pushState 用「真實檔案路徑」(/pages/X.html or /index.html)，不用乾淨 URL：
+  // 開發 server (Live Server) 沒 SPA fallback，乾淨 URL (/support) refresh 會 404；
+  // push 真實檔案路徑 → 任何時候 refresh 都能找到實體 HTML，server 直接回檔案。
+  const realPath = route.htmlFile === 'index.html' ? '/' : '/' + route.htmlFile;
+
   // 保留 hash 供 deep link 使用（如 library.html#a-2024-01）
-  window.history.pushState({ page: route.page }, '', pathname + search + hash);
+  window.history.pushState({ page: route.page }, '', realPath + search + hash);
   return loadPage(route, search);
 }
 

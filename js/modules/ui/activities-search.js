@@ -19,7 +19,7 @@ function getOrCreateEmptyState(panel) {
   if (!el) {
     el = document.createElement('div');
     el.className = 'search-empty-state hidden grid-12';
-    el.innerHTML = '<div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px] py-xl text-center"><p class="text-p1">Nothing here</p><p class="text-p1">這裡什麼都沒有</p></div>';
+    el.innerHTML = '<div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px] py-xl text-left"><p class="text-p1">No Result</p><p class="text-p1">無結果</p></div>';
     panel.appendChild(el);
   }
   return el;
@@ -28,6 +28,38 @@ function getOrCreateEmptyState(panel) {
 function setEmptyState(panel, show) {
   const el = getOrCreateEmptyState(panel);
   el.classList.toggle('hidden', !show);
+}
+
+// setupClipReveal 把 .activities-separator（有 .list-reveal-row class）wrap 進 .clip-reveal-wrapper，
+// 所以 group.nextElementSibling 拿到的是 wrapper 不是 separator 本身；下列 helper 統一處理 wrapped / unwrapped 兩種結構
+function getSeparatorAfter(group) {
+  const next = group.nextElementSibling;
+  if (!next) return null;
+  if (next.classList.contains('clip-reveal-wrapper') && next.firstElementChild?.classList.contains('activities-separator')) {
+    return /** @type {HTMLElement} */ (next.firstElementChild);
+  }
+  if (next.classList.contains('activities-separator')) return /** @type {HTMLElement} */ (next);
+  return null;
+}
+function setSeparatorVisibility(sep, show) {
+  if (!sep) return;
+  // wrapper 才是真正佔位的 sibling；wrapper 不存在就直接操作 separator
+  const wrapper = sep.parentElement?.classList.contains('clip-reveal-wrapper') ? sep.parentElement : null;
+  /** @type {HTMLElement} */ ((wrapper || sep)).style.display = show ? '' : 'none';
+  if (show) {
+    // separator 本身要清掉 inline display:none 且 yPercent reset 到 0
+    // （ScrollTrigger reveal 在 search 期間若沒 fire 過會留 yPercent:100 被 wrapper clip 看不見）
+    sep.style.display = '';
+    if (typeof gsap !== 'undefined') gsap.set(sep, { yPercent: 0 });
+  }
+}
+
+// 空結果時把 panel 內所有 .activities-separator 一律收掉
+// 避免 search bar 下方殘留多餘橫綫；清空 search 時 !query 分支會逐一恢復
+function hideAllSeparators(panel) {
+  panel.querySelectorAll('.activities-separator').forEach(sep => {
+    setSeparatorVisibility(/** @type {HTMLElement} */ (sep), false);
+  });
 }
 
 // ── Border 重建 ───────────────────────────────────────────────────────────
@@ -80,6 +112,11 @@ function applyGenericSearch(panelId, query) {
   });
 
   if (!query) {
+    // 防禦性：先把 panel 內所有 .activities-separator restore（含 wrapper），再讓 hideLastSeparator
+    // 收掉最後一條。覆蓋任何前一輪 no-match 狀態下 hideAllSeparators 殘留的 hidden 分隔線。
+    panel.querySelectorAll('.activities-separator').forEach(sep => {
+      setSeparatorVisibility(/** @type {HTMLElement} */ (sep), true);
+    });
     yearGroups.forEach(group => {
       const container = group.querySelector('.list-year-items');
       const original = container ? originalOrders.get(container) : null;
@@ -87,8 +124,7 @@ function applyGenericSearch(panelId, query) {
       const allItems = [...group.querySelectorAll('.list-item')];
       allItems.forEach(item => { item.style.display = ''; });
       group.style.display = '';
-      const sep = group.nextElementSibling;
-      if (sep?.classList.contains('activities-separator')) sep.style.display = '';
+      setSeparatorVisibility(getSeparatorAfter(group), true);
       rebuildBorders(allItems);
       // 還原被 search 強制展開的 year-items
       if (container && collapsedBySearch.has(container)) {
@@ -118,14 +154,12 @@ function applyGenericSearch(panelId, query) {
     if (!matched.length) {
       allItems.forEach(item => { item.style.display = 'none'; });
       group.style.display = 'none';
-      const sep = group.nextElementSibling;
-      if (sep?.classList.contains('activities-separator')) sep.style.display = 'none';
+      setSeparatorVisibility(getSeparatorAfter(group), false);
       return;
     }
 
     group.style.display = '';
-    const sep = group.nextElementSibling;
-    if (sep?.classList.contains('activities-separator')) sep.style.display = '';
+    setSeparatorVisibility(getSeparatorAfter(group), true);
 
     allItems.forEach(item => {
       item.style.display = 'none';
@@ -152,6 +186,7 @@ function applyGenericSearch(panelId, query) {
 
   // Empty state
   const anyVisible = yearGroups.some(g => g.style.display !== 'none');
+  if (query && !anyVisible) hideAllSeparators(panel);
   setEmptyState(panel, query && !anyVisible);
 }
 
@@ -160,8 +195,7 @@ function hideLastSeparator(yearGroups) {
   let lastVisible = null;
   yearGroups.forEach(g => { if (g.style.display !== 'none') lastVisible = g; });
   if (lastVisible) {
-    const sep = /** @type {HTMLElement | null} */ (lastVisible.nextElementSibling);
-    if (sep?.classList.contains('activities-separator')) sep.style.display = 'none';
+    setSeparatorVisibility(getSeparatorAfter(lastVisible), false);
   }
 }
 

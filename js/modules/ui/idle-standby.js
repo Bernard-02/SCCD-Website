@@ -29,7 +29,6 @@
  *   3. 並行：header clip-path 展 + logo 還原
  *   4. reset header z-index
  *
- * /create iframe activity 透過 postMessage 通知（parent-activity-ping.js）
  * 過場期間 isTransitioning flag 擋掉 activity reset 避免 race，結束後主動 reset 一次
  */
 
@@ -408,18 +407,11 @@ function resetTimer() {
 
 export function initIdleStandby() {
   if (initialized) return;
-  // 在 iframe 內不啟動（避免 generate-app 等子 iframe 跑同份程式）
-  if (window.parent !== window) return;
   initialized = true;
 
   const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'wheel', 'scroll'];
   events.forEach(evt => {
     window.addEventListener(evt, resetTimer, { passive: true });
-  });
-
-  // generate-app iframe 內 activity 透過 postMessage 通知（parent-activity-ping.js）
-  window.addEventListener('message', (e) => {
-    if (e && e.data && e.data.idleActivity === true) resetTimer();
   });
 
   resetTimer();

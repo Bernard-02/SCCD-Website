@@ -17,8 +17,16 @@ body.mode-inverse {
   --lib-fg: #ffffff;
   --lib-fg-rgb: 255, 255, 255;
 
+  /* Footer 反轉：黑底白字 → 白底黑字 */
+  --footer-bg: var(--color-white);
+  --footer-fg: var(--color-black);
+
   background-color: black;
   color: white;
+}
+
+html.mode-inverse {
+  background-color: black !important;
 }
 
 /* ===== Layout ===== */
@@ -103,6 +111,9 @@ body.mode-inverse .submenu-link {
 /* 由 components/buttons.css 的 var(--theme-fg) 自動處理；此處不再覆蓋 */
 
 
+/* Footer logo：inverse mode 由 footer.js 直接載入 SCCDLogoStandard.json (黑 filled)，
+ * 不需 CSS filter；default filter:none 沿用 footer.css */
+
 /* ===== Theme Invert（黑色靜態圖在 inverse mode 自動翻成白色）===== */
 /* 用法：對純黑（或單色）SVG/PNG 加 class="theme-invert"，inverse mode 自動 filter:invert(1) → 黑變白
  * 適用：about 頁中間的 hero SCCD 黑色 logo 等 */
@@ -148,7 +159,7 @@ body.mode-inverse .timeline-card-inner.bg-black * {
 body.mode-inverse .faculty-filter-btn:not(.active) .anchor-nav-inner,
 body.mode-inverse .activities-section-btn:not(.active) .anchor-nav-inner,
 body.mode-inverse .courses-program-btn:not(.active) .anchor-nav-inner {
-  background: rgba(0, 0, 0, 1) !important;
+  background-color: rgba(0, 0, 0, 1) !important;
   color: rgba(255, 255, 255, 0.5) !important;
 }
 
@@ -162,7 +173,7 @@ body.mode-inverse .courses-program-btn.active .anchor-nav-inner {
 @media (min-width: 768px) {
   body.mode-inverse .faculty-filter-btn:not(.active):hover .anchor-nav-inner,
   body.mode-inverse .activities-section-btn:not(.active):hover .anchor-nav-inner {
-    background: rgba(0, 0, 0, 0.8) !important;
+    background-color: rgba(0, 0, 0, 0.8) !important;
     color: white !important;
   }
 
@@ -200,7 +211,7 @@ body.mode-inverse .courses-bfa-label:not([style*="background"]) {
 /* inactive: 純黑底 + 半透明白字（對齊 about #anchor-nav）*/
 body.mode-inverse .activities-filter-btn:not(.active) .anchor-nav-inner,
 body.mode-inverse .courses-filter-btn:not(.active) .anchor-nav-inner {
-  background: rgba(0, 0, 0, 1) !important;
+  background-color: rgba(0, 0, 0, 1) !important;
   color: rgba(255, 255, 255, 0.5) !important;
 }
 
@@ -212,7 +223,7 @@ body.mode-inverse .courses-filter-btn.active .anchor-nav-inner {
 @media (min-width: 768px) {
   body.mode-inverse .activities-filter-btn:not(.active):hover .anchor-nav-inner,
   body.mode-inverse .courses-filter-btn:not(.active):hover .anchor-nav-inner {
-    background: rgba(0, 0, 0, 0.8) !important;
+    background-color: rgba(0, 0, 0, 0.8) !important;
     color: white !important;
   }
 }
@@ -356,14 +367,14 @@ body.mode-inverse .courses-grid-card[style*="background"] {
 /* ===== About Anchor Nav ===== */
 /* inactive 字色用半透明白（0.5），對稱 standard 的半透明黑；hover 才升到 1.0 對比 */
 body.mode-inverse .anchor-nav-btn:not(.active) .anchor-nav-inner {
-  background: rgba(0, 0, 0, 0.5) !important;
+  background-color: rgba(0, 0, 0, 0.5) !important;
   color: rgba(255, 255, 255, 0.5) !important;
 }
 
 /* About 頁專用 override：底色不透明、文字半透明 theme-fg（對齊 standard mode 的 about 處理） */
 body.mode-inverse #anchor-nav .anchor-nav-btn:not(.active) .anchor-nav-inner,
 body.mode-inverse #mobile-anchor-menu .anchor-nav-btn:not(.active) .anchor-nav-inner {
-  background: rgba(0, 0, 0, 1) !important;
+  background-color: rgba(0, 0, 0, 1) !important;
   color: rgba(255, 255, 255, 0.5) !important;
 }
 
@@ -374,7 +385,7 @@ body.mode-inverse .anchor-nav-btn.active .anchor-nav-inner {
 
 @media (min-width: 768px) {
   body.mode-inverse .anchor-nav-btn:not(.active):hover .anchor-nav-inner {
-    background: rgba(0, 0, 0, 0.8) !important;
+    background-color: rgba(0, 0, 0, 0.8) !important;
     color: white !important;
   }
 }
@@ -451,12 +462,12 @@ body.mode-inverse .activities-search-input::placeholder {
 /* ===== Homepage Marquee + YT Card：inverse 反轉成白底黑字 ===== */
 /* 標準模式：黑底白字（inline 寫死 background:#000 / color:#fff）
  * inverse 模式：白底黑字；canvas WATCH! 文字由 index-yt-card.js 動態讀 --theme-bg 重繪 */
-body.mode-inverse #homepage-marquee-link {
+body.mode-inverse .homepage-marquee-link {
   background: white !important;
 }
 
-body.mode-inverse #homepage-marquee-text,
-body.mode-inverse #homepage-marquee-clone {
+body.mode-inverse .homepage-marquee-text,
+body.mode-inverse .homepage-marquee-clone {
   color: black !important;
 }
 
@@ -479,7 +490,8 @@ body.mode-inverse #homepage-yt-card {
 /* Inactive 一般情況反轉 */
 body.mode-inverse [data-bar="library"].bar-inactive:not(.is-bar-hover),
 body.mode-inverse [data-bar="atlas"].bar-inactive:not(.is-bar-hover),
-body.mode-inverse [data-bar="generate"].bar-inactive:not(.is-bar-hover) {
+body.mode-inverse [data-bar="generate"].bar-inactive:not(.is-bar-hover),
+body.mode-inverse [data-bar="alumni"].bar-inactive:not(.is-bar-hover) {
   background: #000 !important;
 }
 
@@ -487,20 +499,23 @@ body.mode-inverse [data-bar="generate"].bar-inactive:not(.is-bar-hover) {
  * 否則此 inverse 規則 (0,3,2) 會壓過 hover 規則導致 hover 仍是白/黑色 */
 body.mode-inverse [data-bar="library"].bar-inactive:not(.is-bar-hover) .nav-link,
 body.mode-inverse [data-bar="atlas"].bar-inactive:not(.is-bar-hover) .nav-link,
-body.mode-inverse [data-bar="generate"].bar-inactive:not(.is-bar-hover) .nav-link {
+body.mode-inverse [data-bar="generate"].bar-inactive:not(.is-bar-hover) .nav-link,
+body.mode-inverse [data-bar="alumni"].bar-inactive:not(.is-bar-hover) .nav-link {
   color: #fff !important;
 }
 
-/* Active 在自己頁面反轉 */
+/* Active 在自己頁面反轉（alumni 在 alumni 頁時 display:none，保留規則對齊但無視覺生效） */
 body.mode-inverse [data-bar="library"].bar-active:not(.is-bar-hover),
 body.mode-inverse [data-bar="atlas"].bar-active:not(.is-bar-hover),
-body.mode-inverse [data-bar="generate"].bar-active:not(.is-bar-hover) {
+body.mode-inverse [data-bar="generate"].bar-active:not(.is-bar-hover),
+body.mode-inverse [data-bar="alumni"].bar-active:not(.is-bar-hover) {
   background: #fff !important;
 }
 
 body.mode-inverse [data-bar="library"].bar-active:not(.is-bar-hover) .nav-link,
 body.mode-inverse [data-bar="atlas"].bar-active:not(.is-bar-hover) .nav-link,
-body.mode-inverse [data-bar="generate"].bar-active:not(.is-bar-hover) .nav-link {
+body.mode-inverse [data-bar="generate"].bar-active:not(.is-bar-hover) .nav-link,
+body.mode-inverse [data-bar="alumni"].bar-active:not(.is-bar-hover) .nav-link {
   color: #000 !important;
 }
 
@@ -531,3 +546,13 @@ body.mode-inverse .atlas-list-col-title {
   color: black !important;
 }
 
+/* B 企業環 chip：standard 黑底白字 → inverse 翻白底黑字（對齊 atlas-list-col-title pattern）
+   JS inline 設 backgroundColor=black + color=white，CSS 必須 !important 覆蓋；
+   cover 層動畫顏色也跟著翻（chip 揭露/收回視覺連續） */
+body.mode-inverse .atlas-cat-b .atlas-name {
+  background-color: white !important;
+  color: black !important;
+}
+body.mode-inverse .atlas-cat-b .atlas-name-cover {
+  background-color: white !important;
+}

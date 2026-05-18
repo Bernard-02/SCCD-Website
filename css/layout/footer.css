@@ -1,71 +1,189 @@
 /**
  * Footer Layout
- * Footer 響應式定位（桌面版隨機定位，手機版線性堆疊）
+ *
+ * 三層結構（桌面）：
+ *   .footer-shell        : h-screen + 全域 padding (var(--container-padding) 四邊一致)
+ *     .footer-inner      : flex-row 左右分欄
+ *       .footer-logo-area : 正方形 logo，aspect-ratio 1，height 吃滿可用高度
+ *       .footer-right    : 右側剩餘空間，flex-col
+ *         .footer-random  : 上半 flex:1，flex-wrap 排列各 item（每個 item CSS 固定旋轉角度）；手機線性堆疊
+ *         .footer-privacy : 下半 auto height，私隱條款（位置在 bottom-right，但文字 left-aligned）
+ *
+ * 手機（< 768px）：垂直堆疊 logo → 各項目 → privacy
+ *
+ * 主題色：
+ *   --footer-bg / --footer-fg 由 themes/inverse.css / themes/color.css 覆寫
+ *   standard = 黑底白字 / inverse = 白底黑字 / color = 互補 hue + auto-contrast 字
  */
 
 @layer components {
-  /* Footer Responsive Positioning - 桌面版隨機定位，手機版線性堆疊 */
+
+  /* ===== Shell + base colors ===== */
+  .footer-shell {
+    height: 100vh;
+    background-color: var(--footer-bg, #000);
+    color: var(--footer-fg, #fff);
+  }
+
+  .footer-link {
+    color: var(--footer-fg, #fff);
+    transition: opacity var(--transition-fast);
+  }
+
+  /* Scatter items 內所有文字（標題 h6 + 內文 p + 連結 a）統一 p1 字級
+   * 涵蓋 a 是因為 Links 區的 anchor 有 .text-p2 class（=1rem 比 p1=1.15rem 小）需要被蓋掉
+   * .footer-random a 的 specificity (0,1,1) > .text-p2 (0,1,0) 直接 win */
+  .footer-random h6,
+  .footer-random p,
+  .footer-random a {
+    font-size: var(--font-size-p1);
+  }
+
+  /* Office 地址 min-width：避免某些 random 配置下 anchor 被擠太窄、address 多行截斷讀不順
+   * 配合 .max-w-sm（24rem max）→ 區間 = 22-24rem 寬，address 行寬剛好閱讀 */
+  .footer-random .footer-office {
+    min-width: 22rem;
+  }
+
+  /* 預設所有 scatter items 內 p / a 強制單行（title h6 + 一行內容 = 2 行；Links 3 行）
+   * Office 地址 exception：保留 wrap 才能讀完整地址 */
+  .footer-random p,
+  .footer-random a {
+    white-space: nowrap;
+  }
+
+  .footer-random .footer-office p {
+    white-space: normal;
+  }
+
+  /* 所有 footer scatter icon（.fa-brands social + .fa-solid donation）：放大 1.5× （base 是 .text-h3） */
+  .footer-random .fa-brands,
+  .footer-random .fa-solid {
+    font-size: calc(var(--font-size-h3) * 1.5);
+  }
+
+  /* Logo Lottie 檔案依 mode 由 footer.js 直接挑檔（不靠 CSS filter 翻色）：
+   *   standard (footer bg=黑) → SCCDLogoInverse.json (白 filled)
+   *   inverse  (footer bg=白) → SCCDLogoStandard.json (黑 filled)
+   *   color    (footer bg=互補 hue) → SCCDLogoWireframeStandard.json (黑 wireframe)
+   *                                  + --footer-invert-filter（依 contrast bg luminance 翻白）
+   * 預設 filter:none；mode-color 規則在 themes/color.css 套 --footer-invert-filter */
+
   @media (min-width: 768px) {
-    .footer-logo {
-      position: absolute;
-      top: 0;
-      left: 1%;
+    .footer-link:hover {
+      opacity: 0.6;
+    }
+  }
+
+  /* ===== Mobile (default)：線性堆疊 ===== */
+  .footer-inner {
+    padding: var(--container-padding);
+    gap: var(--spacing-xl);
+  }
+
+  .footer-logo-area {
+    flex-shrink: 0;
+  }
+
+  .footer-logo-inner {
+    width: 100px;
+    height: 100px;
+  }
+
+  .footer-right {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xl);
+  }
+
+  .footer-random {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xl);
+  }
+
+  .footer-social {
+    display: flex;
+    gap: var(--spacing-lg);
+  }
+
+  .footer-privacy {
+    /* 手機線性最後 */
+  }
+
+  /* ===== Desktop (≥ 768px)：logo 左、右欄分上下 ===== */
+  @media (min-width: 768px) {
+    .footer-inner {
+      gap: var(--container-padding);
     }
 
-    .footer-fax {
-      position: absolute;
-      top: 20vh;
-      left: 46%;
-      transform: rotate(12deg);
+    /* logo 區：正方形吃滿 footer 可用高度（總高 - 上下 padding）
+     * 用 aspect-ratio:1 + height:100% 保持正方形
+     * inline 容器高度由 flex parent 提供（footer-inner h-full + flex-row → 子元素 stretch 滿高） */
+    .footer-logo-area {
+      aspect-ratio: 1 / 1;
+      height: 100%;
+      align-self: stretch;
     }
 
-    .footer-tel {
-      position: absolute;
-      top: 35vh;
-      left: 17%;
-      transform: rotate(-18deg);
+    .footer-logo-inner {
+      width: 100%;
+      height: 100%;
     }
 
-    .footer-office {
-      position: absolute;
-      top: 40vh;
-      left: 34%;
-      transform: rotate(-10deg);
+    /* 右側欄：fill 剩餘寬度，flex-col 把 random（flex:1）跟 privacy（auto）分上下 */
+    .footer-right {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      position: relative;
     }
 
-    .footer-email {
-      position: absolute;
-      top: 60vh;
-      left: 9%;
-      transform: rotate(15deg);
+    /* random 區：absolute positioning context；JS (initFooterScatter) 設 inline top/left/transform 隨機散佈
+     * + collision resolution 演算法保證 items 不重疊；每次刷新都不同 */
+    .footer-random {
+      position: relative;
+      flex: 1;
+      display: block;
+      min-height: 0;
     }
 
-    .footer-links {
+    /* footer-anchor (JS 動態包) = position: absolute + overflow: clip mask + opacity: 0 預設
+     * 包 inner item 做 yPercent reveal（404 pattern）；GSAP 接管所有動畫不留 CSS transition
+     * 這條 rule selector 用 `> div` 因為 JS wrap 後 .footer-anchor 變成 .footer-random / .footer-social 的直接 div 子元素 */
+    .footer-random > div,
+    .footer-social > div {
       position: absolute;
-      top: 70vh;
-      left: 51%;
-      transform: rotate(18deg);
+      opacity: 0;
+      overflow: clip;
     }
 
-    .footer-social .footer-youtube {
-      position: absolute;
-      top: 50%;
-      left: 68%;
-      transform: rotate(-15deg);
+    /* 桌面：.footer-social wrapper 自己不生成 box，3 個 icon wrapper 直接當 .footer-random 子元素散佈
+     * 抵消手機 default display: flex，讓 YT/IG/FB 各自被 JS scatter 而非整個 social block 當單一 unit */
+    .footer-social {
+      display: contents;
     }
 
-    .footer-social .footer-instagram {
+    /* privacy 桌面：absolute bottom-right 出 flex flow → footer-random (flex:1) 吃滿整個 footer-right 高度
+     * 讓 scatter items 可以散到 privacy 左邊的區塊（不再被 privacy 卡在上半）
+     * 文字 left-aligned 對齊在同一條左邊綫上（!important 防 cached HTML 含 md:items-end）
+     * padding-top/-left = container-padding：把 privacy 視覺 rect 往上往左擴 → JS scatter 的 obstacle
+     * 推開算法會基於這個更大的 rect → items 不會貼到 privacy 文字。content 留在 bottom-right 不動
+     * （絕對定位 + 內容 auto-size：padding-top 讓 border-box 變高、content 仍貼底 → 視覺上等於「在 privacy 上方/左邊保留一片空地」） */
+    .footer-privacy {
       position: absolute;
-      top: 42%;
-      left: 85%;
-      transform: rotate(15deg);
+      bottom: 0;
+      right: 0;
+      padding-top: var(--container-padding);
+      padding-left: var(--container-padding);
+      text-align: left;
     }
 
-    .footer-social .footer-facebook {
-      position: absolute;
-      top: 58%;
-      left: 85%;
-      transform: rotate(-12deg);
+    .footer-privacy > div {
+      align-items: flex-start !important;
+      text-align: left;
     }
   }
 }

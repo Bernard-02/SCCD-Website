@@ -19,7 +19,7 @@ function syncInputBoxes(sourceValue) {
         inputBoxMobile.value(sourceValue);
     }
     // 同步新的手機版底部輸入框
-    let mobileInputBoxBottom = select("#mobile-input-box");
+    let mobileInputBoxBottom = _p5.select("#mobile-input-box");
     if (mobileInputBoxBottom) {
         mobileInputBoxBottom.value(sourceValue);
     }
@@ -69,7 +69,7 @@ function handleInput(event) {
     syncInputBoxes(validInput);
 
     // 根據字數調整手機版輸入框的字體大小
-    let mobileInputBoxBottom = select("#mobile-input-box");
+    let mobileInputBoxBottom = _p5.select("#mobile-input-box");
     if (mobileInputBoxBottom) {
         // 計算純字母數量（不含空格和換行）
         let pureLetterCount = validInput.replace(/[\s\n]/g, "").length;
@@ -93,7 +93,7 @@ function handleInput(event) {
 
     // 手機版：設置彩蛋 data 屬性（用於 CSS 高度調整）
     if (isMobileMode) {
-      const mobileInputBox = select('#mobile-input-box');
+      const mobileInputBox = _p5.select('#mobile-input-box');
       if (mobileInputBox) {
         if (normalizedInput === "SCCD") {
           mobileInputBox.attribute('data-easter-egg', 'sccd');
@@ -177,13 +177,13 @@ function handleInput(event) {
 
     if (isEasterEggActive !== previousEasterEggState) {
         isFading = true;
-        fadeStartTime = millis();
+        fadeStartTime = _p5.millis();
     }
 
     // 手機版：如果在 Wireframe + Custom 模式，檢查文字溢出狀態
     if (isMobileMode && mode === 'Wireframe' && typeof checkInputOverflow === 'function') {
         // 如果 custom 區塊是打開的
-        const mobileInputBox = select('#mobile-input-box');
+        const mobileInputBox = _p5.select('#mobile-input-box');
         if (mobileInputBox && mobileInputBox.hasClass('custom-open')) {
             setTimeout(() => checkInputOverflow(), 0); // 延遲執行以確保 DOM 更新
         }

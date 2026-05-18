@@ -420,6 +420,7 @@ export async function loadListInto(containerId, url, options = {}) {
     showLocation         = true,
     showPoster           = true,
     showReference        = true,
+    showShareBtn         = true,
     showGuestAffiliation = true,
     showGuestCountry     = true,
     fullDate             = false,
@@ -524,11 +525,11 @@ export async function loadListInto(containerId, url, options = {}) {
                   ${hasAlumni ? `<i class="fa-solid fa-graduation-cap text-p2"></i>` : ''}
                   ${hasFlag ? `<span class="fi fi-${item.flag}" style="width:1.5em;height:1em;display:inline-block;"></span>` : ''}
                 </div>
-                <div class="list-reveal-row flex justify-end pb-xs">
+                ${showShareBtn ? `<div class="list-reveal-row flex justify-end pb-xs">
                   <button data-share-btn class="hover:opacity-60 transition-opacity">
                     <i class="fa-solid fa-share-nodes text-h5"></i>
                   </button>
-                </div>
+                </div>` : ''}
               </div>`;
               })()}
               <div class="flex-shrink-0 self-start" style="overflow:clip; height:1.5em; width:1.5em;">

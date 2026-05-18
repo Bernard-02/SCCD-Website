@@ -21,7 +21,7 @@
   <div id="site-header"></div>
 
   <!-- Main Content -->
-  <main>
+  <main id="page-content">
     <!-- Card Stack Hero -->
     <section class="relative overflow-visible" style="height: calc(100vh - var(--header-height)); margin-top: var(--header-height);">
       <div id="library-card-stack" class="absolute inset-0 flex items-center justify-center">
@@ -249,7 +249,7 @@
     </section>
   </main>
 
-  <!-- PDF Viewer Modal（layout 對齊 activities-lightbox：X 右上 + prev/next 左右 absolute + 底部資訊條） -->
+  <!-- PDF Viewer Modal（layout 對齊 activities-lightbox：X 右上 + prev/next 左右 absolute + 底部資訊條；gutter 由 lightbox-shell 染 html bg 處理） -->
   <div id="pdf-viewer-modal" class="fixed inset-0 z-[9999] bg-black/90 flex flex-col opacity-0 transition-opacity duration-300" style="display: none;">
     <button id="pdf-close-btn" class="absolute right-4 md:right-8 text-white p-2 transition-opacity hover:opacity-60" style="top: 1rem; z-index: 50;"><i class="fa-solid fa-xmark text-h3"></i></button>
     <div class="flex items-center justify-center w-full px-16 py-xl flex-1 min-h-0 relative">

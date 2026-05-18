@@ -2,16 +2,26 @@
 // SCCD Logo Generator - 主程式
 // ====================================
 
+// _p5 = shared p5 instance reference。所有 sub-modules（utils.js / color-picker.js / draw-logo.js
+// / ui-state.js / mobile.js / input-handling.js / save-download.js / easter-eggs.js）跟 sketch.js
+// 自己都透過 `_p5.xxx` 存取 p5 API（select / color / radians / HSB / width / drawingContext 等）。
+// p5 instance 建立邏輯見檔尾 `new p5((p) => { _p5 = p; ... })`。
+let _p5 = null;
+
 // --- p5.js 預載入 ---
 function preload() {
   // 載入必要的字體
-  font = loadFont("Inter-Medium.ttf");
+  font = _p5.loadFont("/generate-app/Inter-Medium.ttf");
 
   // 預載入彩蛋顯示圖片（_2 版本），確保彩蛋激活時能即時顯示
-  sccdBlackImg_2 = loadImage('Easter Egg/sccd_black_2.png');
-  sccdWhiteImg_2 = loadImage('Easter Egg/sccd_white_2.png');
-  sccdBlackWireframeImg_2 = loadImage('Easter Egg/SCCD_Black Wireframe_2.png');
-  sccdWhiteWireframeImg_2 = loadImage('Easter Egg/SCCD_White Wireframe_2.png');
+  sccdBlackImg_2 = _p5.loadImage('/generate-app/Easter Egg/sccd_black_2.png');
+  sccdWhiteImg_2 = _p5.loadImage('/generate-app/Easter Egg/sccd_white_2.png');
+  sccdBlackWireframeImg_2 = _p5.loadImage('/generate-app/Easter Egg/SCCD_Black Wireframe_2.png');
+  sccdWhiteWireframeImg_2 = _p5.loadImage('/generate-app/Easter Egg/SCCD_White Wireframe_2.png');
+
+  // Placeholder SVG：必須在 preload 載入（不在 draw 延遲載），否則 SPA 重進 /create 時
+  // 舊 image obj 綁在已銷毀 p5 instance，新 p5 不會自動重 load → drawPlaceholder 對 dead-instance obj 不渲染
+  loadPlaceholderImages();
 
   // 新彩蛋圖片（COOLGUY, CHILLGUY）改為延遲載入（透過 HTML img.src），不再預載入
 }
@@ -19,23 +29,24 @@ function preload() {
 // --- 延遲載入彩蛋下載圖片（只在需要下載時載入）---
 function loadEasterEggDownloadImages() {
   if (!sccdBlackImg) {
-    sccdBlackImg = loadImage('Easter Egg/sccd_black.png');
-    sccdWhiteImg = loadImage('Easter Egg/sccd_white.png');
-    sccdBlackWireframeImg = loadImage('Easter Egg/SCCD_Black Wireframe.png');
-    sccdWhiteWireframeImg = loadImage('Easter Egg/SCCD_White Wireframe.png');
+    sccdBlackImg = _p5.loadImage('/generate-app/Easter Egg/sccd_black.png');
+    sccdWhiteImg = _p5.loadImage('/generate-app/Easter Egg/sccd_white.png');
+    sccdBlackWireframeImg = _p5.loadImage('/generate-app/Easter Egg/SCCD_Black Wireframe.png');
+    sccdWhiteWireframeImg = _p5.loadImage('/generate-app/Easter Egg/SCCD_White Wireframe.png');
   }
 }
 
-// --- 延遲載入 placeholder SVG（只在沒有文字時載入）---
+// --- 載入 placeholder SVG ---
+// 之前用 `if (!placeholderR)` 守衛只 load 一次 → SPA 重進 /create 時舊 image 綁的是已銷毀的 p5 instance
+// 仍 truthy 故跳過 reload，draw 時 pg.image 對 dead-instance image obj 不渲染（user 看到「畫布空白」）
+// 移除守衛 + 直接覆寫；瀏覽器 cache 命中後 loadImage 開銷極低
 function loadPlaceholderImages() {
-  if (!placeholderR) {
-    placeholderR = loadImage('Placeholder Logo/SCCD_R.svg');
-    placeholderG = loadImage('Placeholder Logo/SCCD_G.svg');
-    placeholderB = loadImage('Placeholder Logo/SCCD_B.svg');
-    placeholderR_white = loadImage('Placeholder Logo/SCCD_R_white.svg');
-    placeholderG_white = loadImage('Placeholder Logo/SCCD_G_white.svg');
-    placeholderB_white = loadImage('Placeholder Logo/SCCD_B_white.svg');
-  }
+  placeholderR = _p5.loadImage('/generate-app/Placeholder Logo/SCCD_R.svg');
+  placeholderG = _p5.loadImage('/generate-app/Placeholder Logo/SCCD_G.svg');
+  placeholderB = _p5.loadImage('/generate-app/Placeholder Logo/SCCD_B.svg');
+  placeholderR_white = _p5.loadImage('/generate-app/Placeholder Logo/SCCD_R_white.svg');
+  placeholderG_white = _p5.loadImage('/generate-app/Placeholder Logo/SCCD_G_white.svg');
+  placeholderB_white = _p5.loadImage('/generate-app/Placeholder Logo/SCCD_B_white.svg');
 }
 
 // --- 計算去飽和顏色（將 Saturation 設為 0）---
@@ -80,118 +91,121 @@ function setup() {
   // 根據設備選擇正確的 Canvas 容器
   // 桌面版使用 desktop-canvas-container，手機版使用 canvas-container
   let canvasContainerId = isMobileMode ? 'canvas-container' : 'desktop-canvas-container';
-  canvasContainer = select('#' + canvasContainerId);
+  canvasContainer = _p5.select('#' + canvasContainerId);
 
   // 根據模式創建合適尺寸的Canvas
   let canvasSize = getCanvasSize();
-  let canvas = createCanvas(canvasSize.width, canvasSize.height);
+  let canvas = _p5.createCanvas(canvasSize.width, canvasSize.height);
   canvas.parent(canvasContainerId);
 
-  // --- 承襲外層 site theme mode（由 main-modular.js 透過 iframe URL params 帶入）---
-  // standard → Standard / inverse → Inverse / color → Wireframe（+ 當前 hue + Play 狀態）
-  // 必須在 updateUI() / body class init / 初始 postMessage 之前先設好 mode/targetMode 及 Wireframe 相關狀態，
-  // 否則下面流程會用 default Standard 跑完一遍才被改寫；放在 createCanvas 之後，p5 的 colorMode()/color() 才有 renderer 可用
-  const _initParams = new URLSearchParams(window.location.search);
-  const _initMode = _initParams.get('mode');
+  // --- 承襲 site theme mode ---
+  // 從 sessionStorage 'sccd-theme-mode' 讀（site theme-toggle 寫入），必須在 updateUI() / body class init
+  // 之前設好 mode/targetMode 及 Wireframe 相關狀態，否則下面流程會用 default Standard 跑完一遍才被改寫；
+  // 放在 createCanvas 之後，p5 的 colorMode()/color() 才有 renderer 可用
+  const _siteMode = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('sccd-theme-mode')) || 'standard';
+  const _siteToGen = { standard: 'Standard', inverse: 'Inverse', color: 'Wireframe' };
+  const _initMode = _siteToGen[_siteMode];
   if (_initMode === 'Standard' || _initMode === 'Inverse' || _initMode === 'Wireframe') {
     mode = _initMode;
     targetMode = _initMode;
     if (_initMode === 'Wireframe') {
-      const _hueRaw = parseFloat(_initParams.get('hue'));
-      selectedHue = isNaN(_hueRaw) ? random(0, 360) : ((_hueRaw % 360) + 360) % 360;
-      colorMode(HSB, 360, 100, 100);
-      wireframeColor = color(selectedHue, 80, 100);
-      colorMode(RGB, 255);
+      // 從 site theme-toggle 讀當前 colorHue 接續轉
+      selectedHue = (typeof window.sccdGetColorHue === 'function') ? window.sccdGetColorHue() : _p5.random(0, 360);
+      _p5.colorMode(_p5.HSB, 360, 100, 100);
+      wireframeColor = _p5.color(selectedHue, 80, 100);
+      _p5.colorMode(_p5.RGB, 255);
       wireframeStrokeColor = getContrastColor(wireframeColor);
       currentStrokeColor = wireframeStrokeColor;
       targetStrokeColor = wireframeStrokeColor;
-      if (_initParams.get('play') === '1') isColorWheelRotating = true;
+      // isColorWheelRotating 預設 true（icon 顯示 Pause = 可按下停）— 進入 Wireframe 預期 site colorLoop 即將/已啟動
+      // sccdIsColorLoopRunning() 在這個時點可能 false（applyMode 1s 延遲）但 visually 我們要呈現 Play 中
+      isColorWheelRotating = true;
     }
   }
 
   // p5.js 繪圖設定
-  textFont(font);
+  _p5.textFont(font);
   // 根據 canvas 尺寸動態調整文字大小
   // 桌面版基準：432x540 canvas，textSize = 367.5
   // 手機版：按相同比例縮放，再縮小 4% 作為安全邊距確保不被裁切
   // 計算方式：(canvas寬度 / 432) × 367.5 × 0.96
   let baseTextSize = isMobileMode ? (canvasSize.width / 432) * 367.5 * 1.1 : 367.5;
-  textSize(baseTextSize);
-  textAlign(CENTER, CENTER);
-  imageMode(CENTER); // <-- 新增：將圖片的繪製模式設定為中心對齊
+  _p5.textSize(baseTextSize);
+  _p5.textAlign(_p5.CENTER, _p5.CENTER);
+  _p5.imageMode(_p5.CENTER); // <-- 新增：將圖片的繪製模式設定為中心對齊
 
   // --- 修正：使用 Class 選擇器來選取所有 UI 元素 ---
-  inputBox = select("#input-box");
+  inputBox = _p5.select("#input-box");
 
-  rotateButton = select(".custom-button-rotate");
-  customButton = select(".custom-button-custom");
-  colormodeButton = select("#colormode-button");
-  colormodeBox = select("#colormode-box"); // 選取整個 colormode-box 容器
+  rotateButton = _p5.select(".custom-button-rotate");
+  customButton = _p5.select(".custom-button-custom");
+  colormodeButton = _p5.select("#colormode-button");
+  colormodeBox = _p5.select("#colormode-box"); // 選取整個 colormode-box 容器
 
   // 這些按鈕本身是 button，裡面的 img 只是圖示
-  randomButton = select("#random-button");
-  resetButton = select("#reset-button");
-  saveButton = select("#save-button");
-  saveBox = select("#save-box"); // 選取整個 save-box 容器
+  randomButton = _p5.select("#random-button");
+  resetButton = _p5.select("#reset-button");
+  saveButton = _p5.select("#save-button");
+  saveBox = _p5.select("#save-box"); // 選取整個 save-box 容器
 
-  randomImg = select('#random-img');
-  resetImg = select('#reset-img');
-  saveImg = select('#save-img');
-  rotateIcon = select('#rotate-icon');
-  customIcon = select('#custom-icon');
-  colormodeIcon = select('#colormode-icon');
+  randomImg = _p5.select('#random-img');
+  resetImg = _p5.select('#reset-img');
+  saveImg = _p5.select('#save-img');
+  rotateIcon = _p5.select('#rotate-icon');
+  customIcon = _p5.select('#custom-icon');
+  colormodeIcon = _p5.select('#colormode-icon');
 
   // 使用陣列選取 sliders 和 labels
-  sliders[0] = select("#r-slider");
-  sliders[1] = select("#g-slider");
-  sliders[2] = select("#b-slider");
+  sliders[0] = _p5.select("#r-slider");
+  sliders[1] = _p5.select("#g-slider");
+  sliders[2] = _p5.select("#b-slider");
 
   // 初始化 slider 的當前值和目標值（已在 variables.js 初始化為 [0,0,0]）
 
-  angleLabels[0] = select("#r-angle-label");
-  angleLabels[1] = select("#g-angle-label");
-  angleLabels[2] = select("#b-angle-label");
+  angleLabels[0] = _p5.select("#r-angle-label");
+  angleLabels[1] = _p5.select("#g-angle-label");
+  angleLabels[2] = _p5.select("#b-angle-label");
 
   // --- 選取手機版元素 ---
-  inputBoxMobile = select("#input-box-mobile");
+  inputBoxMobile = _p5.select("#input-box-mobile");
   // 新的手機版底部輸入框（位於 logo 和按鈕列之間）
-  let mobileInputBoxBottom = select("#mobile-input-box");
-  saveButtonMobile = select("#save-button-mobile");
-  saveImgMobile = select("#save-img-mobile");
+  let mobileInputBoxBottom = _p5.select("#mobile-input-box");
+  saveButtonMobile = _p5.select("#save-button-mobile");
+  saveImgMobile = _p5.select("#save-img-mobile");
 
   // 選取手機版按鈕
-  mobileStandardButton = select(".mobile-standard");
-  mobileInverseButton = select(".mobile-inverse");
-  mobileRotateButton = select(".mobile-rotate");
-  mobileCustomButton = select(".mobile-custom");
-  mobileRandomButton = select(".mobile-random-button");
-  mobileResetButton = select(".mobile-reset-button");
-  let mobileColormodeIndicator = select(".mobile-colormode-indicator");
+  mobileStandardButton = _p5.select(".mobile-standard");
+  mobileInverseButton = _p5.select(".mobile-inverse");
+  mobileRotateButton = _p5.select(".mobile-rotate");
+  mobileCustomButton = _p5.select(".mobile-custom");
+  mobileRandomButton = _p5.select(".mobile-random-button");
+  mobileResetButton = _p5.select(".mobile-reset-button");
+  let mobileColormodeIndicator = _p5.select(".mobile-colormode-indicator");
 
   // 使用陣列選取手機版滑桿和 labels
-  mobileSliders[0] = select("#mobile-r-slider");
-  mobileSliders[1] = select("#mobile-g-slider");
-  mobileSliders[2] = select("#mobile-b-slider");
-  mobileAngleLabels[0] = select("#mobile-r-angle-label");
-  mobileAngleLabels[1] = select("#mobile-g-angle-label");
-  mobileAngleLabels[2] = select("#mobile-b-angle-label");
+  mobileSliders[0] = _p5.select("#mobile-r-slider");
+  mobileSliders[1] = _p5.select("#mobile-g-slider");
+  mobileSliders[2] = _p5.select("#mobile-b-slider");
+  mobileAngleLabels[0] = _p5.select("#mobile-r-angle-label");
+  mobileAngleLabels[1] = _p5.select("#mobile-g-angle-label");
+  mobileAngleLabels[2] = _p5.select("#mobile-b-angle-label");
 
   // 選取手機版圖片
-  mobileRandomImg = select("#mobile-random-img");
-  mobileResetImg = select("#mobile-reset-img");
-  mobileRotateIcon = select("#mobile-rotate-icon");
-  mobileCustomIcon = select("#mobile-custom-icon");
+  mobileRandomImg = _p5.select("#mobile-random-img");
+  mobileResetImg = _p5.select("#mobile-reset-img");
+  mobileRotateIcon = _p5.select("#mobile-rotate-icon");
+  mobileCustomIcon = _p5.select("#mobile-custom-icon");
 
   // --- 手機版 UI 元素已移至 js/mobile.js 管理 ---
 
   // --- 選取下載提示框 ---
-  downloadNotification = select("#download-notification");
+  downloadNotification = _p5.select("#download-notification");
 
   // --- 初始化色彩選擇器 ---
-  colorPickerContainer = select("#colorpicker-container");
-  colorPickerBox = select("#colorpicker-box");
-  colorWheelPlayButton = select("#colorwheel-play-button");
-  colorWheelPlayIcon = select("#colorwheel-play-icon");
+  colorPickerContainer = _p5.select("#colorpicker-container");
+  colorPickerBox = _p5.select("#colorpicker-box");
+  colorWheelPlayButton = _p5.select("#colorwheel-play-button");
+  colorWheelPlayIcon = _p5.select("#colorwheel-play-icon");
   // Color picker initialization moved inline to draw() function
 
   // --- 綁定所有 UI 事件 ---
@@ -370,37 +384,38 @@ function setup() {
       animateModeIconRotation(colormodeIcon);
     }
 
-    switch(targetMode) {
-      case "Standard":
-        targetMode = "Inverse";
-        break;
-      case "Inverse":
-        targetMode = "Wireframe";
-        break;
-      case "Wireframe":
-        targetMode = "Standard";
-        break;
-      default:
-        targetMode = "Standard";
+    // Phase 2：colormode btn 直接 call site setSiteMode，讓 site mode + create-app 同步
+    // 不再自己 cycle local targetMode；targetMode 由 'theme:changed' listener (見檔尾) 更新
+    // standard → inverse → color → standard，跟 header mode-btn 一樣
+    const _siteCycle = { Standard: 'inverse', Inverse: 'color', Wireframe: 'standard' };
+    const _nextSiteMode = _siteCycle[targetMode] || 'standard';
+    if (typeof window.sccdSetMode === 'function') {
+      window.sccdSetMode(_nextSiteMode);
     }
-    updateUI();
   });
 
   // Color Wheel Play/Pause 按鈕
   if (colorWheelPlayButton) {
     colorWheelPlayButton.mousePressed(() => {
       if (mode === "Wireframe") {
-        // 切換 Play/Pause 狀態
-        // Play 時：selectedHue 會在 draw() 中持續增加
-        // Pause 時：selectedHue 停在當前位置，用戶可以點擊 bar 選擇新顏色
-        isColorWheelRotating = !isColorWheelRotating;
+        // Phase 2：Play/Pause 直接控制 site colorTick RAF
+        // hue 的來源變成 site 的 colorHue（getColorHue），draw() 每幀讀；
+        // isColorWheelRotating 仍維持為 local mirror 讓 icon 切換邏輯不變
+        const _running = (typeof window.sccdIsColorLoopRunning === 'function') && window.sccdIsColorLoopRunning();
+        if (_running) {
+          if (typeof window.sccdStopColorLoop === 'function') window.sccdStopColorLoop();
+          isColorWheelRotating = false;
+        } else {
+          if (typeof window.sccdStartColorLoop === 'function') window.sccdStartColorLoop();
+          isColorWheelRotating = true;
+        }
         updateColorWheelIcon();
 
         // 如果從 Play 切換到 Pause，恢復 transition
         if (!isColorWheelRotating) {
-          let body = select('body');
-          let canvasContainer = select('#canvas-container');
-          let desktopCanvasContainer = select('#desktop-canvas-container');
+          let body = _p5.select('#create-app');
+          let canvasContainer = _p5.select('#canvas-container');
+          let desktopCanvasContainer = _p5.select('#desktop-canvas-container');
 
           if (body) {
             body.elt.style.transition = '';
@@ -423,7 +438,7 @@ function setup() {
 
         // 使用陣列迴圈處理 R/G/B（簡化重複邏輯）
         for (let i = 0; i < 3; i++) {
-          const newAngle = (letterCount >= MIN_LETTERS_FOR_CHANNELS[i]) ? floor(random(ROTATION_ANGLE_MIN, ROTATION_ANGLE_MAX)) : 0;
+          const newAngle = (letterCount >= MIN_LETTERS_FOR_CHANNELS[i]) ? _p5.floor(_p5.random(ROTATION_ANGLE_MIN, ROTATION_ANGLE_MAX)) : 0;
           const diff = getShortestRotation(rotationOffsets[i], newAngle);
           targetRotationOffsets[i] = rotationOffsets[i] + diff;
           targetSliderValues[i] = normalizeAngle(targetRotationOffsets[i]);
@@ -523,7 +538,7 @@ function setup() {
   if (mobileStandardButton) {
     mobileStandardButton.mousePressed(() => {
       // 隨機旋轉手機版 mode icon
-      const mobileModeIcon = select('#mobile-mode-icon');
+      const mobileModeIcon = _p5.select('#mobile-mode-icon');
       if (mobileModeIcon) {
         animateModeIconRotation(mobileModeIcon);
       }
@@ -536,7 +551,7 @@ function setup() {
   if (mobileInverseButton) {
     mobileInverseButton.mousePressed(() => {
       // 隨機旋轉手機版 mode icon
-      const mobileModeIcon = select('#mobile-mode-icon');
+      const mobileModeIcon = _p5.select('#mobile-mode-icon');
       if (mobileModeIcon) {
         animateModeIconRotation(mobileModeIcon);
       }
@@ -604,7 +619,7 @@ function setup() {
 
         // 使用陣列迴圈處理 R/G/B
         for (let i = 0; i < 3; i++) {
-          const newAngle = (letterCount >= MIN_LETTERS_FOR_CHANNELS[i]) ? floor(random(ROTATION_ANGLE_MIN, ROTATION_ANGLE_MAX)) : 0;
+          const newAngle = (letterCount >= MIN_LETTERS_FOR_CHANNELS[i]) ? _p5.floor(_p5.random(ROTATION_ANGLE_MIN, ROTATION_ANGLE_MAX)) : 0;
           const diff = getShortestRotation(rotationOffsets[i], newAngle);
           targetRotationOffsets[i] = rotationOffsets[i] + diff;
           targetSliderValues[i] = normalizeAngle(targetRotationOffsets[i]);
@@ -710,7 +725,7 @@ function setup() {
   }, 100); // 稍微延遲以確保頁面完全載入
 
   // 初始化頁面載入動畫
-  pageLoadStartTime = millis();
+  pageLoadStartTime = _p5.millis();
   // CSS 已經將所有元素預設為 opacity: 0，這裡不需要重複設定
   // placeholder 的 opacity 由 logoOpacity 變數控制，在 draw() 中處理
 
@@ -730,7 +745,7 @@ function setup() {
   createSpecialEasterEggContainer();
 
   // --- 初始化 body class（確保背景色正確顯示）---
-  let body = select('body');
+  let body = _p5.select('#create-app');
   if (body) {
     // 根據初始模式設置 body class
     if (mode === "Wireframe") {
@@ -758,20 +773,6 @@ function setup() {
     updateColorWheelIcon();
   }
 
-  // --- 通知 parent (generate.html) 初始 mode，讓 header 同步底色 ---
-  if (window.parent && window.parent !== window) {
-    if (mode === "Inverse") {
-      window.parent.postMessage({ genMode: 'Inverse', bg: '#000000', text: '#ffffff' }, '*');
-    } else if (mode === "Wireframe" && wireframeColor) {
-      const r = red(wireframeColor), g = green(wireframeColor), b = blue(wireframeColor);
-      const cssBg = `rgb(${r}, ${g}, ${b})`;
-      const cc = getContrastColor(wireframeColor);
-      const cssText = `rgb(${red(cc)}, ${green(cc)}, ${blue(cc)})`;
-      window.parent.postMessage({ genMode: 'Wireframe', bg: cssBg, text: cssText }, '*');
-    } else {
-      window.parent.postMessage({ genMode: 'Standard', bg: '#ffffff', text: '#000000' }, '*');
-    }
-  }
 }
 
 // --- 處理螢幕方向變化（使用 JS 控制 landscape/portrait 模式）---
@@ -795,15 +796,15 @@ function handleOrientationChange() {
       document.documentElement.style.setProperty('--current-wireframe-bg', 'black');
       document.documentElement.style.setProperty('--current-wireframe-text', 'white');
     } else if (mode === "Wireframe" && wireframeColor) {
-      let r = red(wireframeColor);
-      let g = green(wireframeColor);
-      let b = blue(wireframeColor);
+      let r = _p5.red(wireframeColor);
+      let g = _p5.green(wireframeColor);
+      let b = _p5.blue(wireframeColor);
       let cssColor = `rgb(${r}, ${g}, ${b})`;
 
       let contrastColor = getContrastColor(wireframeColor);
-      let borderR = red(contrastColor);
-      let borderG = green(contrastColor);
-      let borderB = blue(contrastColor);
+      let borderR = _p5.red(contrastColor);
+      let borderG = _p5.green(contrastColor);
+      let borderB = _p5.blue(contrastColor);
       let borderCssColor = `rgb(${borderR}, ${borderG}, ${borderB})`;
 
       document.documentElement.style.setProperty('--current-wireframe-bg', cssColor);
@@ -851,7 +852,7 @@ function startTypewriterAnimation() {
   // 初始化動畫參數
   typewriterCurrentLine = 0;
   typewriterCurrentChar = 0;
-  typewriterStartTime = millis();
+  typewriterStartTime = _p5.millis();
   typewriterActive = true;
 
   // 清空 placeholder 準備開始動畫
@@ -864,7 +865,7 @@ function startTypewriterAnimation() {
 // --- p5.js 繪圖迴圈 ---
 function draw() {
   // 保持canvas透明，讓CSS控制頁面背景
-  clear();
+  _p5.clear();
 
   // --- 更新新彩蛋動畫 ---
   updateSpecialEasterEggAnimation();
@@ -875,15 +876,15 @@ function draw() {
   // --- 描邊顏色 Lerp 動畫 ---
   if (mode === "Wireframe" && strokeColorLerpProgress < 1) {
     // 計算 lerp 進度
-    let elapsedTime = millis() - strokeColorLerpStartTime;
-    strokeColorLerpProgress = constrain(elapsedTime / strokeColorLerpDuration, 0, 1);
+    let elapsedTime = _p5.millis() - strokeColorLerpStartTime;
+    strokeColorLerpProgress = _p5.constrain(elapsedTime / strokeColorLerpDuration, 0, 1);
 
     // 使用 easing function（ease-out）
-    let easedProgress = 1 - pow(1 - strokeColorLerpProgress, 3);
+    let easedProgress = 1 - _p5.pow(1 - strokeColorLerpProgress, 3);
 
     // Lerp 顏色
     if (currentStrokeColor && targetStrokeColor) {
-      wireframeStrokeColor = lerpColor(currentStrokeColor, targetStrokeColor, easedProgress);
+      wireframeStrokeColor = _p5.lerpColor(currentStrokeColor, targetStrokeColor, easedProgress);
 
       // 更新輸入框文字顏色和 icons（跟隨顏色變化）
       updateInputTextColor();
@@ -892,13 +893,13 @@ function draw() {
   }
 
   // --- 頁面載入動畫 ---
-  let timeSinceLoad = millis() - pageLoadStartTime;
+  let timeSinceLoad = _p5.millis() - pageLoadStartTime;
 
   // === 桌面版動畫 ===
   if (!isMobileMode) {
     // 1. 輸入框 fade in (0ms - fadeInDuration)
     if (timeSinceLoad < fadeInDuration) {
-      inputBoxOpacity = map(timeSinceLoad, 0, fadeInDuration, 0, 1);
+      inputBoxOpacity = _p5.map(timeSinceLoad, 0, fadeInDuration, 0, 1);
     } else {
       inputBoxOpacity = 1;
     }
@@ -911,14 +912,14 @@ function draw() {
 
     // Logo fade in
     if (timeSinceLoad >= logoAndPanelStartTime && timeSinceLoad < logoAndPanelStartTime + fadeInDuration) {
-      logoOpacity = map(timeSinceLoad, logoAndPanelStartTime, logoAndPanelStartTime + fadeInDuration, 0, 1);
+      logoOpacity = _p5.map(timeSinceLoad, logoAndPanelStartTime, logoAndPanelStartTime + fadeInDuration, 0, 1);
     } else if (timeSinceLoad >= logoAndPanelStartTime + fadeInDuration) {
       logoOpacity = 1;
     }
 
     // Control panel fade in (與 Logo 同時開始)
     if (timeSinceLoad >= logoAndPanelStartTime && timeSinceLoad < logoAndPanelStartTime + fadeInDuration) {
-      controlPanelOpacity = map(timeSinceLoad, logoAndPanelStartTime, logoAndPanelStartTime + fadeInDuration, 0, 1);
+      controlPanelOpacity = _p5.map(timeSinceLoad, logoAndPanelStartTime, logoAndPanelStartTime + fadeInDuration, 0, 1);
     } else if (timeSinceLoad >= logoAndPanelStartTime + fadeInDuration) {
       controlPanelOpacity = 1;
     }
@@ -927,7 +928,7 @@ function draw() {
   else {
     // 1. Logo fade in (0ms - fadeInDuration)
     if (timeSinceLoad < fadeInDuration) {
-      logoOpacity = map(timeSinceLoad, 0, fadeInDuration, 0, 1);
+      logoOpacity = _p5.map(timeSinceLoad, 0, fadeInDuration, 0, 1);
     } else {
       logoOpacity = 1;
     }
@@ -935,7 +936,7 @@ function draw() {
     // 2. 輸入框在 Logo 完成後 + fadeInDelay 延遲後 fade in
     let inputBoxStartTime = fadeInDuration + fadeInDelay;
     if (timeSinceLoad >= inputBoxStartTime && timeSinceLoad < inputBoxStartTime + fadeInDuration) {
-      inputBoxOpacity = map(timeSinceLoad, inputBoxStartTime, inputBoxStartTime + fadeInDuration, 0, 1);
+      inputBoxOpacity = _p5.map(timeSinceLoad, inputBoxStartTime, inputBoxStartTime + fadeInDuration, 0, 1);
     } else if (timeSinceLoad >= inputBoxStartTime + fadeInDuration) {
       inputBoxOpacity = 1;
     } else {
@@ -945,7 +946,7 @@ function draw() {
     // 3. Btn Bar 在輸入框完成後 + fadeInDelay 延遲後 fade in
     let btnBarStartTime = inputBoxStartTime + fadeInDuration + fadeInDelay;
     if (timeSinceLoad >= btnBarStartTime && timeSinceLoad < btnBarStartTime + fadeInDuration) {
-      controlPanelOpacity = map(timeSinceLoad, btnBarStartTime, btnBarStartTime + fadeInDuration, 0, 1);
+      controlPanelOpacity = _p5.map(timeSinceLoad, btnBarStartTime, btnBarStartTime + fadeInDuration, 0, 1);
     } else if (timeSinceLoad >= btnBarStartTime + fadeInDuration) {
       controlPanelOpacity = 1;
     } else {
@@ -957,19 +958,19 @@ function draw() {
   if (inputBox) inputBox.style('opacity', inputBoxOpacity.toString());
   if (inputBoxMobile) inputBoxMobile.style('opacity', inputBoxOpacity.toString());
   // 新的手機版底部輸入框也套用透明度
-  let mobileInputBoxBottom = select("#mobile-input-box");
+  let mobileInputBoxBottom = _p5.select("#mobile-input-box");
   if (mobileInputBoxBottom) mobileInputBoxBottom.style('opacity', inputBoxOpacity.toString());
   // 桌面版：輸入框容器跟隨輸入框透明度
-  let inputContainer = select('.input-container');
+  let inputContainer = _p5.select('.input-container');
   if (inputContainer && !isMobileMode) inputContainer.style('opacity', inputBoxOpacity.toString());
   // Canvas 容器跟隨 logo 透明度
   if (canvasContainer) canvasContainer.style('opacity', logoOpacity.toString());
   // 控制面板
-  let controlPanel = select('.control-panel');
+  let controlPanel = _p5.select('.control-panel');
   if (controlPanel && !isMobileMode) controlPanel.style('opacity', controlPanelOpacity.toString());
 
   // 手機版：輸入框區域的滑入動畫
-  let mobileInputArea = select('.mobile-input-area');
+  let mobileInputArea = _p5.select('.mobile-input-area');
   if (mobileInputArea && isMobileMode) {
     let inputBoxStartTime = fadeInDuration + fadeInDelay;
     if (timeSinceLoad >= inputBoxStartTime && timeSinceLoad < inputBoxStartTime + fadeInDuration) {
@@ -989,18 +990,18 @@ function draw() {
   }
 
   // 手機版：底部按鈕列
-  let mobileBottomBar = select('.mobile-bottom-bar');
+  let mobileBottomBar = _p5.select('.mobile-bottom-bar');
   if (mobileBottomBar && isMobileMode) {
     mobileBottomBar.style('opacity', controlPanelOpacity.toString());
   }
 
   // --- 打字機動畫更新 ---
   if (typewriterActive) {
-    let elapsed = millis() - typewriterStartTime;
-    let progress = constrain(elapsed / typewriterDuration, 0, 1);
+    let elapsed = _p5.millis() - typewriterStartTime;
+    let progress = _p5.constrain(elapsed / typewriterDuration, 0, 1);
 
     // 計算當前應該已經打了多少個字元（總計）
-    let targetTotalChars = floor(progress * typewriterTotalChars);
+    let targetTotalChars = _p5.floor(progress * typewriterTotalChars);
 
     // 計算目前已經打了多少字元
     let currentTotalChars = 0;
@@ -1084,18 +1085,18 @@ function draw() {
         colorPickerCanvas = null;
       }
 
-      // 立即設定wireframe顏色（隨機色相），確保updateIconsForMode能使用正確的顏色
-      selectedHue = random(0, 360);
-      colorMode(HSB, 360, 100, 100);
-      wireframeColor = color(selectedHue, 80, 100);
-      colorMode(RGB, 255);
+      // Phase 2：mode 切到 Wireframe 時讀 site colorHue，跟 header --theme-bg 同步（不再 random）
+      selectedHue = (typeof window.sccdGetColorHue === 'function') ? window.sccdGetColorHue() : _p5.random(0, 360);
+      _p5.colorMode(_p5.HSB, 360, 100, 100);
+      wireframeColor = _p5.color(selectedHue, 80, 100);
+      _p5.colorMode(_p5.RGB, 255);
 
       // 啟動描邊顏色過渡動畫（而不是直接設置）
       let newStrokeColor = getContrastColor(wireframeColor);
       startStrokeColorTransition(newStrokeColor);
 
       // 先設置 body class 為 wireframe-mode，避免背景閃爍
-      let body = select('body');
+      let body = _p5.select('#create-app');
       if (body) {
         body.removeClass('standard-mode');
         body.removeClass('inverse-mode');
@@ -1109,74 +1110,57 @@ function draw() {
       updateInputTextColor();
     }
 
-    // 如果離開 Wireframe 模式，停止 color wheel 旋轉並重置背景顏色
+    // 如果離開 Wireframe 模式，停止 color wheel 旋轉
     if (previousMode === "Wireframe" && targetMode !== "Wireframe") {
       isColorWheelRotating = false;
       updateColorWheelIcon();
-
-      // 重置背景顏色為黑色或白色（根據目標模式）
-      // silent=true：不要對 parent 發 Wireframe 訊息，否則會在 ui-state.js 的 Standard/Inverse 訊息之後覆蓋掉，
-      // 害 header bg 在 1s fade 中段繞去錯誤色（resetColor 也是反的：Standard→黑、Inverse→白）再被後續 updateUI 修正回來
-      let resetColor = (targetMode === "Inverse") ? color(255) : color(0);
-      updateBackgroundColor(resetColor, false, true);
-
-      // 恢復 transition，確保切換模式時有 fade 效果
-      let body = select('body');
-      let canvasContainer = select('#canvas-container');
-      let desktopCanvasContainer = select('#desktop-canvas-container');
-      if (body) {
-        body.elt.style.transition = '';
-      }
-      if (canvasContainer) {
-        canvasContainer.elt.style.transition = '';
-      }
-      if (desktopCanvasContainer) {
-        desktopCanvasContainer.elt.style.transition = '';
-      }
+      // 不重置 --wireframe-bg / body bg：讓 iframe body 從當下 wireframeColor 直接 1s transition
+      // 到目標 standard/inverse bg，跟 parent header trajectory 對齊
+      // （之前 reset 到反色會在 transition='none' 殘留下 instant snap，使視覺像「沒 transition 直接切換」）
     }
 
     mode = targetMode; // 立即切換模式
 
-    // 如果切換到非 Wireframe 模式，確保恢復 transition（即使 wheel 正在旋轉）
+    // 如果切換到非 Wireframe 模式，恢復 transition + 用 rAF 確保 class change 在下個 paint frame
     if (targetMode !== "Wireframe") {
-      let body = select('body');
-      let canvasContainer = select('#canvas-container');
-      let desktopCanvasContainer = select('#desktop-canvas-container');
-      if (body) {
-        body.elt.style.transition = '';
-      }
-      if (canvasContainer) {
-        canvasContainer.elt.style.transition = '';
-      }
-      if (desktopCanvasContainer) {
-        desktopCanvasContainer.elt.style.transition = '';
-      }
+      let body = _p5.select('#create-app');
+      let canvasContainer = _p5.select('#canvas-container');
+      let desktopCanvasContainer = _p5.select('#desktop-canvas-container');
+      if (body) body.elt.style.transition = '';
+      if (canvasContainer) canvasContainer.elt.style.transition = '';
+      if (desktopCanvasContainer) desktopCanvasContainer.elt.style.transition = '';
+      // force reflow 把 transition reset commit
+      if (body) void body.elt.offsetHeight;
+      // rAF 把 updateUI (= class change → bg change) 排到下個 paint frame
+      // 兩個 frame 之間瀏覽器 transition engine 完整 reset，1s rule 真的 trigger
+      // 否則 play 期間 RAF 每幀 set body.transition='none' 殘留，這裡 clear + 同 tick class change
+      // 會被視為 instant snap → bg 瞬間到目標色看起來「沒 transition」
+      requestAnimationFrame(updateUI);
+    } else {
+      updateUI(); // Wireframe 切換不走 1s，沒 transition race 問題
     }
-
-    updateUI(); // 立即更新UI，包括body class（此時wireframeStrokeColor已經設定好了）
   }
 
   // --- Color Wheel 旋轉動畫 ---
-  if (mode === "Wireframe" && isColorWheelRotating) {
-    // 使用與 R slider 相同的旋轉速度 (baseSpeeds[0] = 0.125)
-    // 直接更新 selectedHue，讓圓圈往右移動
-    selectedHue += baseSpeeds[0];
-
-    // Play 模式：允許 selectedHue 超出 0-360 範圍，實現循環效果
-    // 當完成一個完整循環（超過一個週期）時才重置
-    if (selectedHue >= 720) {
-      selectedHue -= 360;
-    } else if (selectedHue < -360) {
-      selectedHue += 360;
+  // Phase 2：hue 來源從 generate-app self-advancing 改成讀 site 的 colorHue（單一 source of truth）
+  // site 的 colorTick RAF 控制 hue 推進；generate-app draw() 只是讀當下值並 render
+  // **不再 gate `&& isColorWheelRotating`**：
+  // - Pause 時 site colorHue 也是 static，讀到的值相同，#create-app 跟 header bg 都 static 但同色
+  // - Play 時 site colorHue 推進，兩邊同 hue 一起轉
+  // - 之前 gate 造成 site colorLoop 1s 延遲期間 isColorWheelRotating=false 整個 block skip，
+  //   wireframeColor 卡在 setup 時的初始值跟 site `--theme-bg` 完全脫節（user 看到 cyan vs purple）
+  if (mode === "Wireframe") {
+    if (typeof window.sccdGetColorHue === 'function') {
+      selectedHue = window.sccdGetColorHue();
     }
 
     // 更新背景顏色（使用 selectedHue 的 normalizedHue）
     let normalizedHue = selectedHue % 360;
     if (normalizedHue < 0) normalizedHue += 360;
 
-    colorMode(HSB, 360, 100, 100);
-    wireframeColor = color(normalizedHue, 80, 100);
-    colorMode(RGB, 255);
+    _p5.colorMode(_p5.HSB, 360, 100, 100);
+    wireframeColor = _p5.color(normalizedHue, 80, 100);
+    _p5.colorMode(_p5.RGB, 255);
 
     // 根據亮度決定描邊顏色
     let newStrokeColor = getContrastColor(wireframeColor);
@@ -1186,10 +1170,10 @@ function draw() {
     updateBackgroundColor(wireframeColor, true);
 
     // 計算 indicator 在色環上的位置（桌面版用 normalizedHue）
-    let angleRad = radians(normalizedHue - 90); // -90 因為從頂部開始
+    let angleRad = _p5.radians(normalizedHue - 90); // -90 因為從頂部開始
     // 根據設備選擇正確的 container
     let containerId = isMobileMode ? 'mobile-colorpicker-container' : 'colorpicker-container';
-    let container = select('#' + containerId);
+    let container = _p5.select('#' + containerId);
     if (container) {
       let containerSize = Math.min(container.elt.clientWidth, container.elt.clientHeight);
       let outerRadius = containerSize / 2 - 2;
@@ -1197,8 +1181,8 @@ function draw() {
       let arcRadius = (outerRadius + innerRadius) / 2;
 
       // 將極坐標轉換為 0-1 範圍的 X, Y
-      colorPickerIndicatorX = (cos(angleRad) * arcRadius + containerSize / 2) / containerSize;
-      colorPickerIndicatorY = (sin(angleRad) * arcRadius + containerSize / 2) / containerSize;
+      colorPickerIndicatorX = (_p5.cos(angleRad) * arcRadius + containerSize / 2) / containerSize;
+      colorPickerIndicatorY = (_p5.sin(angleRad) * arcRadius + containerSize / 2) / containerSize;
     }
 
     // 更新輸入框文字顏色（即時更新，與背景同步）
@@ -1214,7 +1198,7 @@ function draw() {
       // 初始化色環（桌面版）或色條（手機版）
       // 根據設備選擇正確的 container
       let containerId = isMobileMode ? 'mobile-colorpicker-container' : 'colorpicker-container';
-      let container = select('#' + containerId);
+      let container = _p5.select('#' + containerId);
       if (container) {
         let containerWidth = container.elt.clientWidth;
         let containerHeight = container.elt.clientHeight;
@@ -1233,7 +1217,7 @@ function draw() {
         }
 
         if (canvasWidth > 0 && canvasHeight > 0) {
-          colorPickerCanvas = createGraphics(canvasWidth, canvasHeight);
+          colorPickerCanvas = _p5.createGraphics(canvasWidth, canvasHeight);
           colorPickerCanvas.parent(containerId);
 
           // 設置 canvas 樣式 - 不要設置 width/height 為 100%，讓它保持原始尺寸
@@ -1279,18 +1263,18 @@ function draw() {
   let currentEasterEggAlpha = easterEggAlpha;
 
   if (isFading) {
-    let elapsedTime = millis() - fadeStartTime;
+    let elapsedTime = _p5.millis() - fadeStartTime;
     // 根據是否為模式切換使用不同的 duration
     let duration = isModeTransition ? modeTransitionDuration : fadeDuration;
-    let fadeProgress = constrain(elapsedTime / duration, 0, 1);
+    let fadeProgress = _p5.constrain(elapsedTime / duration, 0, 1);
 
     if (isEasterEggActive) {
-      currentLogoAlpha = lerp(255, 0, fadeProgress);
-      currentEasterEggAlpha = lerp(0, 255, fadeProgress);
+      currentLogoAlpha = _p5.lerp(255, 0, fadeProgress);
+      currentEasterEggAlpha = _p5.lerp(0, 255, fadeProgress);
     } else {
       // 模式切換或一般 fade：從 0 fade in 到 255
-      currentLogoAlpha = lerp(0, 255, fadeProgress);
-      currentEasterEggAlpha = lerp(255, 0, fadeProgress);
+      currentLogoAlpha = _p5.lerp(0, 255, fadeProgress);
+      currentEasterEggAlpha = _p5.lerp(255, 0, fadeProgress);
     }
 
     if (fadeProgress === 1) {
@@ -1306,9 +1290,8 @@ function draw() {
   
   // --- Placeholder SVG 繪製 ---
   // 非彩蛋模式時，當沒有文字或正在 fade out 時繪製（透明度由 placeholderAlpha 控制）
+  // 圖片已在 preload 載好（SPA 重進每 p5 instance 重 load），這裡只 draw
   if (!isEasterEggActive && (letters.length === 0 || placeholderAlpha > 1)) {
-    // 延遲載入 placeholder 圖片（只在第一次需要時載入）
-    loadPlaceholderImages();
     drawPlaceholder(this);
   }
 
@@ -1316,26 +1299,26 @@ function draw() {
   // 只有在非彩蛋模式、有字母、且透明度大於 0 時才繪製動態 Logo
   if (!isEasterEggActive && letters.length > 0 && currentLogoAlpha > 0) {
     // 使用 push/pop 並設置全域透明度，讓整個 logo 作為一個整體 fade
-    push();
+    _p5.push();
 
     // 設置全域 alpha，這樣所有繪製操作都會受影響
-    drawingContext.globalAlpha = currentLogoAlpha / 255;
+    _p5.drawingContext.globalAlpha = currentLogoAlpha / 255;
 
     // 繪製 logo（內部 alpha 設為 255，因為透明度已在外層控制）
     drawLogo(this, 255);
 
-    pop(); // 恢復 globalAlpha
+    _p5.pop(); // 恢復 globalAlpha
   }
 
   // --- 彩蛋圖片繪製 ---
   if (isEasterEggActive && currentEasterEggAlpha > 0) {
-    push();
-    tint(255, currentEasterEggAlpha);
+    _p5.push();
+    _p5.tint(255, currentEasterEggAlpha);
     // 根據模式選擇要顯示的彩蛋圖片 (使用 _2 版本)
     let imgToShow;
     if (mode === 'Wireframe') {
       // Wireframe 模式：根據描邊顏色選擇黑色或白色線框版本
-      imgToShow = (wireframeStrokeColor && red(wireframeStrokeColor) > 128)
+      imgToShow = (wireframeStrokeColor && _p5.red(wireframeStrokeColor) > 128)
         ? sccdWhiteWireframeImg_2
         : sccdBlackWireframeImg_2;
     } else {
@@ -1346,9 +1329,9 @@ function draw() {
     // 動態計算彩蛋圖片大小，根據 canvas 尺寸縮放
     // 桌面版基準：432x540 canvas，圖片大小 378 (300 * 1.26)
     // 手機版和鍵盤模式：按照 canvas 寬度等比例縮放，並縮小 5% 避免裁切
-    let easterEggSize = isMobileMode ? (width / 432) * 378 * 0.95 : 378 * 0.95;
-    image(imgToShow, width / 2, height / 2, easterEggSize, easterEggSize);
-    pop();
+    let easterEggSize = isMobileMode ? (_p5.width / 432) * 378 * 0.95 : 378 * 0.95;
+    _p5.image(imgToShow, _p5.width / 2, _p5.height / 2, easterEggSize, easterEggSize);
+    _p5.pop();
   }
 
   // --- 新彩蛋圖片繪製（COOLGUY, CHILLGUY）---
@@ -1570,15 +1553,15 @@ function animateSaveButton(button, iconElement) {
     const getCurrentSuffix = () => getIconSuffix();
 
     // 動態獲取 Generate icon 路徑
-    const getGenerateIconSrc = () => `Panel Icon/Generate${getCurrentSuffix()}.svg`;
+    const getGenerateIconSrc = () => `/generate-app/Panel Icon/Generate${getCurrentSuffix()}.svg`;
 
     // 動態獲取原始 icon 路徑（根據當前狀態決定）
     const getOriginalIconSrc = () => {
         const suffix = getCurrentSuffix();
         if (isEasterEggActive) {
-            return `Panel Icon/Gift${suffix}.svg`;
+            return `/generate-app/Panel Icon/Gift${suffix}.svg`;
         }
-        return `Panel Icon/Download${suffix}.svg`;
+        return `/generate-app/Panel Icon/Download${suffix}.svg`;
     };
 
     // 獲取原生DOM元素
@@ -1731,11 +1714,11 @@ function resizeMobileCanvas() {
 
   // 重新計算 canvas 尺寸（會根據當前 logo-container 的大小）
   let canvasSize = getCanvasSize();
-  resizeCanvas(canvasSize.width, canvasSize.height, true); // noRedraw=true，防止自動重繪
+  _p5.resizeCanvas(canvasSize.width, canvasSize.height, true); // noRedraw=true，防止自動重繪
 
   // 根據 canvas 尺寸動態調整 logo 文字大小
   let baseTextSize = (canvasSize.width / 432) * 367.5 * 1.1;
-  textSize(baseTextSize);
+  _p5.textSize(baseTextSize);
 
   // --- 修復：手機螢幕旋轉後，確保 Wireframe 模式的背景顏色被重新應用 ---
   if (mode === 'Wireframe' && wireframeColor) {
@@ -1760,15 +1743,15 @@ function windowResized() {
             } else {
                 // Fallback：直接執行
                 let canvasSize = getCanvasSize();
-                resizeCanvas(canvasSize.width, canvasSize.height, true); // noRedraw=true
+                _p5.resizeCanvas(canvasSize.width, canvasSize.height, true); // noRedraw=true
                 let baseTextSize = (canvasSize.width / 432) * 367.5 * 1.1;
-                textSize(baseTextSize);
+                _p5.textSize(baseTextSize);
             }
         } else {
             // 桌面版：直接執行 resize
             let canvasSize = getCanvasSize();
-            resizeCanvas(canvasSize.width, canvasSize.height, true); // noRedraw=true
-            textSize(367.5);
+            _p5.resizeCanvas(canvasSize.width, canvasSize.height, true); // noRedraw=true
+            _p5.textSize(367.5);
             adjustInputFontSize(); // 這個函數內部會調用 adjustTextareaHeight()
         }
 
@@ -1804,7 +1787,7 @@ function keyPressed() {
   }
 
   // 當按下 ENTER 鍵時
-  if (keyCode === ENTER) {
+  if (_p5.keyCode === _p5.ENTER) {
     // 如果有字母且不在彩蛋模式，就觸發自動旋轉
     if (letters.length > 0 && !isEasterEggActive) {
       isAutoRotateMode = true;
@@ -1819,7 +1802,7 @@ function keyPressed() {
     // 阻止瀏覽器預設行為 (例如在 textarea 中換行)
     return false;
   }
-  else if (keyCode === BACKSPACE) {
+  else if (_p5.keyCode === _p5.BACKSPACE) {
     // 按下 BACKSPACE 時，停止自動旋轉並重設狀態
     autoRotate = false;
     isAutoRotateMode = false;
@@ -1836,3 +1819,116 @@ function keyPressed() {
 
 // 色彩選擇器相關函數已移至 js/color-picker.js
 
+// ====================================
+// p5 Instance Mode Bootstrap
+// ====================================
+// 純 p5 instance mode：所有 lifecycle hook 顯式綁到 p，p5 全域名稱（select / color / HSB
+// / width 等）不汙染 window。sketch.js + 所有 sub-modules 一律透過 `_p5.xxx` 存取 p5 API。
+//
+// 先抓 reference 再 null 掉 window：p5 的 _globalInit 會在 load event 檢查
+// `typeof window.setup === 'function'` 等，發現有的話自動再 new 一個 global-mode 的 p5
+// instance（兩個 instance 同時跑 = canvas 重複 / lifecycle 亂掉）。抹掉 window 上的 hook
+// 即可阻止 auto-init；instance callback 內的 reference 還是綁住原本的 function。
+const _preloadRef = preload;
+const _setupRef = setup;
+const _drawRef = draw;
+const _windowResizedRef = windowResized;
+const _keyPressedRef = keyPressed;
+window.preload = null;
+window.setup = null;
+window.draw = null;
+window.windowResized = null;
+window.keyPressed = null;
+
+// Phase 4a：把建立 / 拆除 p5 instance 的動作包成 function，供 SPA module 控制生命週期。
+// Phase 4a 期間（iframe 仍在）：檔尾 auto-call initCreateApp() 維持 standalone iframe 行為不變。
+// Phase 4b 拆 iframe 後：main-modular.js 在 page === 'generate' 時 call initCreateApp，
+// 離開頁面時 call cleanupCreateApp（_p5.remove() 釋放 canvas / RAF / listeners）。
+// SPA 重進 /create 時 reset 使用者輸入與互動 state；classic script 的 module-scope var 不會
+// 因 _p5.remove() 自動清掉，殘留會讓 draw() 用舊 letters 畫出上次 session 的 logo（input box 已是空白 placeholder）
+function resetCreateAppUserState() {
+  letters = [];
+  rotationAngles = [];
+  originalRotationAngles = [];
+  rotationOffsets = [0, 0, 0];
+  targetRotationOffsets = [0, 0, 0];
+  currentSliderValues = [0, 0, 0];
+  targetSliderValues = [0, 0, 0];
+  isEasingCustomRotation = false;
+  isEasingSlider = false;
+  rotationFactor = 0;
+  shouldResetToZero = false;
+  isAutoRotateMode = false;
+  isCustomMode = false;
+  autoRotate = false;
+  isEasterEggActive = false;
+  isSpecialEasterEggActive = false;
+  typewriterActive = false;
+  // colorPickerCanvas 必須 reset：_p5.remove() 後 p5.Graphics 失效但 module-scope var 仍非 null，
+  // updateUI() 的 if (!colorPickerCanvas) 會跳過建立新 canvas → 畫在已 detach 的舊 canvas 上
+  colorPickerCanvas = null;
+  colorPickerReady = false;
+  // 進場 fade-in opacity vars：上次 session 結束時是 1；draw() 早期 timeSinceLoad < startTime 階段
+  // 沒 else 分支不會把 opacity 回設 0 → 新 session control panel / logo / input 都從 1 開始（瞬出無 fade）
+  inputBoxOpacity = 0;
+  logoOpacity = 0;
+  controlPanelOpacity = 0;
+  // Placeholder SVG images：loadPlaceholderImages 用 if (!placeholderR) 守衛只 load 一次；
+  // SPA 重進 _p5.remove() 後 image 綁的是已銷毀的 p5 instance，留著 truthy → 新 p5 不重 load
+  // → drawPlaceholder 早期 null-check 走通但 pg.image 對舊 instance 的 image obj 不渲染（wireframe placeholder 不見）
+  placeholderR = null;
+  placeholderG = null;
+  placeholderB = null;
+  placeholderR_white = null;
+  placeholderG_white = null;
+  placeholderB_white = null;
+  // mode / targetMode 不 reset——setup() 會從 sessionStorage 重讀對齊 site theme
+}
+
+function initCreateApp() {
+  // 防禦：若 _p5 殘留（cleanup 未跑 / race），先強制 cleanup 再重 init
+  // 之前 `if (_p5) return` 在 SPA 重進時若 cleanup chain 出問題會 silently 略過初始化
+  // → 新頁面沒 canvas、沒 p5 draw loop、CSS-default opacity 讓 control panel 顯示但 canvas slot 空白
+  if (_p5) {
+    try { _p5.remove(); } catch (e) { /* 已壞掉的 p5 instance 略過 */ }
+    _p5 = null;
+    window.removeEventListener('theme:changed', handleSiteThemeChange);
+  }
+  resetCreateAppUserState();
+  new p5((p) => {
+    _p5 = p;
+    p.preload = _preloadRef;
+    p.setup = _setupRef;
+    p.draw = _drawRef;
+    p.windowResized = _windowResizedRef;
+    p.keyPressed = _keyPressedRef;
+  });
+  // Phase 2：site mode 變化（header mode-btn 或 colormode btn 點擊都會走 theme-toggle 的 applyMode → dispatch theme:changed）
+  // → generate-app 同步更新 targetMode + 重 render UI；避免兩邊 mode state 不一致
+  window.addEventListener('theme:changed', handleSiteThemeChange);
+}
+
+function cleanupCreateApp() {
+  if (!_p5) return;
+  // p5.remove() 內建會：移除 canvas DOM、停止 draw loop、解除 event listeners、release graphics buffers
+  _p5.remove();
+  _p5 = null;
+  window.removeEventListener('theme:changed', handleSiteThemeChange);
+}
+
+// Phase 2 listener：site mode 變 → generate-app targetMode 跟著變 + updateUI 觸發切換流程
+// 對齊 setSiteMode dispatch 的 detail: { mode: 'standard'|'inverse'|'color' }
+function handleSiteThemeChange(e) {
+  if (!e || !e.detail || !e.detail.mode) return;
+  const _siteToGen = { standard: 'Standard', inverse: 'Inverse', color: 'Wireframe' };
+  const _newTarget = _siteToGen[e.detail.mode];
+  if (!_newTarget || _newTarget === targetMode) return;
+  targetMode = _newTarget;
+  // updateUI 由 ui-state.js 提供 global function；走原本的 mode 切換流程（fade / class swap / icon update 等）
+  if (typeof updateUI === 'function') updateUI();
+}
+
+// 暴露給 site SPA module（js/modules/pages/create-app.js 載完所有 generate-app scripts 後抓來呼叫）
+// Phase 4b：iframe 已拆，不再 auto-init；由 main-modular.js page === 'generate' 時 call initCreatePage → window.initCreateApp
+window.initCreateApp = initCreateApp;
+window.cleanupCreateApp = cleanupCreateApp;

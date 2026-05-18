@@ -49,7 +49,24 @@
       "Bash(sed -n '1230,1248p' pages/library.html)",
       "Bash(for f:*)",
       "Bash(npm ls:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(git push origin main)",
+      "Bash(git push)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "marker=\"$HOME/.claude/.mem-reminder-active\"; now=$(date +%s); if [ -f \"$marker\" ]; then last=$(stat -c %Y \"$marker\" 2>/dev/null || stat -f %m \"$marker\" 2>/dev/null || echo 0); age=$((now - last)); if [ \"$age\" -lt 180 ]; then rm -f \"$marker\"; exit 0; fi; fi; mkdir -p \"$HOME/.claude\"; touch \"$marker\"; printf '%s' '{\"decision\":\"block\",\"reason\":\"請依照 auto memory 規範檢查本次對話是否有值得保存的 user / feedback / project / reference 記憶，有則更新 ~/.claude/projects/c--Users-Bernard-Liew-Documents------SCCD-Website/memory/ 內對應檔案及 MEMORY.md 索引；若無新資訊，簡短回覆「無新記憶需更新」後即可結束。注意：勿重複 CLAUDE.md 已記錄的內容。\"}'",
+            "timeout": 15
+          }
+        ]
+      }
     ]
   }
 }

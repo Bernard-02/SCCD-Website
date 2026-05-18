@@ -69,13 +69,37 @@ function obbAABB(corners) {
   return { x1: minX, y1: minY, x2: maxX, y2: maxY };
 }
 
-function initWatchChars(ytCharsEl) {
-  if (!ytCharsEl || typeof p5 === 'undefined') return;
+// p5 只在 index.html head 載入；子頁 URL 直訪後 SPA 切回 index 時 typeof p5 === 'undefined'
+// → 必須 lazy-load 否則 initWatchChars 早退、WATCH 字母不繪
+function ensureP5() {
+  return new Promise(resolve => {
+    if (typeof p5 !== 'undefined') { resolve(); return; }
+    const existing = /** @type {HTMLScriptElement | null} */ (document.querySelector('script[data-p5-lazy]'));
+    if (existing) {
+      existing.addEventListener('load', () => resolve(), { once: true });
+      existing.addEventListener('error', () => resolve(), { once: true });
+      return;
+    }
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js';
+    s.dataset.p5Lazy = '1';
+    s.onload = () => resolve();
+    s.onerror = () => resolve();
+    document.head.appendChild(s);
+  });
+}
 
-  Promise.all([
-    document.fonts.load('600 16px Inter'),
-    document.fonts.load('700 16px "Noto Sans TC"'),
-  ]).then(() => {
+function initWatchChars(ytCharsEl) {
+  if (!ytCharsEl) return;
+
+  ensureP5().then(() => {
+    if (typeof p5 === 'undefined') return;
+    return Promise.all([
+      document.fonts.load('600 16px Inter'),
+      document.fonts.load('700 16px "Noto Sans TC"'),
+    ]);
+  }).then(() => {
+    if (typeof p5 === 'undefined') return;
     new p5(function(p) {
       const chars = [...'WATCH!'];
       const GAP = 2, PADDING = 8;

@@ -38,7 +38,7 @@ function drawColorRing() {
   colorPickerCanvas.rect(0, 0, w, h);
 
   // 繪製色環 - 使用 HSB 顏色模式
-  colorPickerCanvas.colorMode(HSB, 360, 100, 100);
+  colorPickerCanvas.colorMode(_p5.HSB, 360, 100, 100);
   colorPickerCanvas.noStroke();
 
   // 繪製色環 - 使用弧形疊加
@@ -48,7 +48,7 @@ function drawColorRing() {
   // 設定線條粗細（色環的厚度）
   let ringThickness = outerRadius - innerRadius;
   colorPickerCanvas.strokeWeight(ringThickness);
-  colorPickerCanvas.strokeCap(SQUARE); // 使用方形端點，避免間隙
+  colorPickerCanvas.strokeCap(_p5.SQUARE); // 使用方形端點，避免間隙
 
   // 計算弧形的半徑（在內外圈中間）
   let arcRadius = (outerRadius + innerRadius) / 2;
@@ -60,8 +60,8 @@ function drawColorRing() {
 
     // 繪製一小段弧形（從頂部開始，順時針）
     // 稍微擴大角度範圍以確保完全覆蓋，避免間隙
-    let startAngle = radians(angle - 90 - 0.5);
-    let endAngle = radians(angle + 1 - 90 + 0.5);
+    let startAngle = _p5.radians(angle - 90 - 0.5);
+    let endAngle = _p5.radians(angle + 1 - 90 + 0.5);
 
     colorPickerCanvas.noFill();
     colorPickerCanvas.arc(0, 0, arcRadius * 2, arcRadius * 2, startAngle, endAngle);
@@ -70,7 +70,7 @@ function drawColorRing() {
   colorPickerCanvas.pop();
 
   // 切換回 RGB 模式繪製其他元素
-  colorPickerCanvas.colorMode(RGB, 255);
+  colorPickerCanvas.colorMode(_p5.RGB, 255);
 
   // 繪製中心 30% 透明白色圓形（清除中心區域）
   colorPickerCanvas.noFill(); // 30% 透明白色 (255 * 0.3 ≈ 77)
@@ -81,9 +81,9 @@ function drawColorRing() {
   colorPickerCanvas.noFill();
   // 使用對比色（與 wireframeStrokeColor 相同）
   if (wireframeStrokeColor) {
-    let r = red(wireframeStrokeColor);
-    let g = green(wireframeStrokeColor);
-    let b = blue(wireframeStrokeColor);
+    let r = _p5.red(wireframeStrokeColor);
+    let g = _p5.green(wireframeStrokeColor);
+    let b = _p5.blue(wireframeStrokeColor);
     colorPickerCanvas.stroke(r, g, b);
   } else {
     colorPickerCanvas.stroke(0); // 預設黑色
@@ -107,7 +107,7 @@ function drawColorBar() {
   colorPickerCanvas.clear();
 
   // 使用 HSB 顏色模式繪製漸變
-  colorPickerCanvas.colorMode(HSB, 360, 100, 100);
+  colorPickerCanvas.colorMode(_p5.HSB, 360, 100, 100);
 
   // 計算 indicator 的半徑
   let circleRadius = h * 0.4;
@@ -123,7 +123,7 @@ function drawColorBar() {
 
   // 中間色彩漸變區域（circleRadius 到 w - circleRadius）
   for (let x = circleRadius; x <= w - circleRadius; x++) {
-    let hue = map(x, circleRadius, w - circleRadius, 0, 360);
+    let hue = _p5.map(x, circleRadius, w - circleRadius, 0, 360);
     colorPickerCanvas.fill(hue, 80, 100);
     colorPickerCanvas.rect(x, 0, 1, h);
   }
@@ -133,11 +133,11 @@ function drawColorBar() {
   colorPickerCanvas.rect(w - circleRadius, 0, circleRadius, h);
 
   // === 第二層：繪製 indicator（圓圈），在 bar 上方 ===
-  colorPickerCanvas.colorMode(RGB, 255);
+  colorPickerCanvas.colorMode(_p5.RGB, 255);
   drawColorBarIndicator(w, h, circleRadius);
 
   // 切換回 RGB 模式
-  colorPickerCanvas.colorMode(RGB, 255);
+  colorPickerCanvas.colorMode(_p5.RGB, 255);
 }
 
 // 繪製色條的 indicator（圓圈）
@@ -209,26 +209,26 @@ function drawColorPickerIndicator(centerX, centerY, outerRadius, innerRadius) {
   if (!colorPickerCanvas) return;
 
   // 計算角度
-  let angle = map(selectedHue, 0, 360, 0, TWO_PI) - HALF_PI; // -HALF_PI 從頂部開始
+  let angle = _p5.map(selectedHue, 0, 360, 0, _p5.TWO_PI) - _p5.HALF_PI; // -HALF_PI 從頂部開始
 
   // 計算線段的起點和終點（從內圈到外圈）
-  let x1 = centerX + cos(angle) * innerRadius;
-  let y1 = centerY + sin(angle) * innerRadius;
-  let x2 = centerX + cos(angle) * outerRadius;
-  let y2 = centerY + sin(angle) * outerRadius;
+  let x1 = centerX + _p5.cos(angle) * innerRadius;
+  let y1 = centerY + _p5.sin(angle) * innerRadius;
+  let x2 = centerX + _p5.cos(angle) * outerRadius;
+  let y2 = centerY + _p5.sin(angle) * outerRadius;
 
   // 繪製線段（根據背景色自動選擇黑色或白色）
   // 使用對比色（與 wireframeStrokeColor 相同）
   if (wireframeStrokeColor) {
-    let r = red(wireframeStrokeColor);
-    let g = green(wireframeStrokeColor);
-    let b = blue(wireframeStrokeColor);
+    let r = _p5.red(wireframeStrokeColor);
+    let g = _p5.green(wireframeStrokeColor);
+    let b = _p5.blue(wireframeStrokeColor);
     colorPickerCanvas.stroke(r, g, b);
   } else {
     colorPickerCanvas.stroke(0); // 預設黑色
   }
   colorPickerCanvas.strokeWeight(1.8);
-  colorPickerCanvas.strokeCap(SQUARE); // 使用方形端點
+  colorPickerCanvas.strokeCap(_p5.SQUARE); // 使用方形端點
   colorPickerCanvas.line(x1, y1, x2, y2);
 }
 
@@ -271,9 +271,9 @@ function handleColorPickerMouseUp() {
   colorPickerDragging = false;
 
   // 恢復 transition（移除內聯樣式，讓 CSS 接管）
-  let body = select('body');
-  let canvasContainer = select('#canvas-container');
-  let desktopCanvasContainer = select('#desktop-canvas-container');
+  let body = _p5.select('#create-app');
+  let canvasContainer = _p5.select('#canvas-container');
+  let desktopCanvasContainer = _p5.select('#desktop-canvas-container');
 
   if (body) {
     body.elt.style.removeProperty('transition');
@@ -357,16 +357,18 @@ function updateColorFromMouse(e) {
 
     // 限制 x 在圓圈不被切掉的範圍內
     // 範圍：circleRadius (左邊緣) 到 w - circleRadius (右邊緣)
-    x = constrain(x, circleRadius, w - circleRadius);
+    x = _p5.constrain(x, circleRadius, w - circleRadius);
 
     // 根據 x 位置計算色相（0-360）
     // 使用與繪製相同的 mapping
-    selectedHue = map(x, circleRadius, w - circleRadius, 0, 360);
+    selectedHue = _p5.map(x, circleRadius, w - circleRadius, 0, 360);
+    // Phase 2：drag 必須寫回 site colorHue 變成 single source；否則 sketch.js draw() 下幀 sccdGetColorHue 立刻覆蓋
+    if (typeof window.sccdSetColorHue === 'function') window.sccdSetColorHue(selectedHue);
 
     // 更新 wireframeColor
-    colorMode(HSB, 360, 100, 100);
-    wireframeColor = color(selectedHue, 80, 100);
-    colorMode(RGB, 255);
+    _p5.colorMode(_p5.HSB, 360, 100, 100);
+    wireframeColor = _p5.color(selectedHue, 80, 100);
+    _p5.colorMode(_p5.RGB, 255);
 
     // 根據亮度決定描邊顏色
     let newStrokeColor = getContrastColor(wireframeColor);
@@ -395,12 +397,14 @@ function updateColorFromMouse(e) {
     // 1. atan2(dy, dx) 在右側 = 0，頂部 = -90度
     // 2. 我們要頂部 = 0度，所以加 90度
     // 3. 轉換到 0-360 範圍
-    selectedHue = (degrees(angle) + 90 + 360) % 360;
+    selectedHue = (_p5.degrees(angle) + 90 + 360) % 360;
+    // Phase 2：drag 必須寫回 site colorHue 變成 single source；否則 sketch.js draw() 下幀 sccdGetColorHue 立刻覆蓋
+    if (typeof window.sccdSetColorHue === 'function') window.sccdSetColorHue(selectedHue);
 
     // 更新 wireframeColor（使用 HSB 模式：飽和度 80%，亮度 100%）
-    colorMode(HSB, 360, 100, 100);
-    wireframeColor = color(selectedHue, 80, 100);
-    colorMode(RGB, 255);
+    _p5.colorMode(_p5.HSB, 360, 100, 100);
+    wireframeColor = _p5.color(selectedHue, 80, 100);
+    _p5.colorMode(_p5.RGB, 255);
 
     // 根據亮度決定描邊顏色（黑色或白色）- 啟動平滑過渡
     let newStrokeColor = getContrastColor(wireframeColor);
@@ -416,14 +420,14 @@ function updateColorFromMouse(e) {
 
 // 計算顏色的相對亮度（根據 WCAG 標準）
 function getRelativeLuminance(col) {
-  let r = red(col) / 255;
-  let g = green(col) / 255;
-  let b = blue(col) / 255;
+  let r = _p5.red(col) / 255;
+  let g = _p5.green(col) / 255;
+  let b = _p5.blue(col) / 255;
 
   // 應用 gamma 校正
-  r = r <= 0.03928 ? r / 12.92 : pow((r + 0.055) / 1.055, 2.4);
-  g = g <= 0.03928 ? g / 12.92 : pow((g + 0.055) / 1.055, 2.4);
-  b = b <= 0.03928 ? b / 12.92 : pow((b + 0.055) / 1.055, 2.4);
+  r = r <= 0.03928 ? r / 12.92 : _p5.pow((r + 0.055) / 1.055, 2.4);
+  g = g <= 0.03928 ? g / 12.92 : _p5.pow((g + 0.055) / 1.055, 2.4);
+  b = b <= 0.03928 ? b / 12.92 : _p5.pow((b + 0.055) / 1.055, 2.4);
 
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
@@ -434,9 +438,9 @@ function getContrastColor(bgColor) {
 
   // 如果亮度大於 0.5，使用黑色；否則使用白色
   if (luminance > 0.5) {
-    return color(0, 0, 0); // 黑色
+    return _p5.color(0, 0, 0); // 黑色
   } else {
-    return color(255, 255, 255); // 白色
+    return _p5.color(255, 255, 255); // 白色
   }
 }
 
@@ -444,10 +448,10 @@ function getContrastColor(bgColor) {
 function startStrokeColorTransition(newTargetColor) {
   // 記錄當前顏色作為 lerp 的起點
   if (wireframeStrokeColor) {
-    currentStrokeColor = color(
-      red(wireframeStrokeColor),
-      green(wireframeStrokeColor),
-      blue(wireframeStrokeColor)
+    currentStrokeColor = _p5.color(
+      _p5.red(wireframeStrokeColor),
+      _p5.green(wireframeStrokeColor),
+      _p5.blue(wireframeStrokeColor)
     );
   } else {
     // 如果還沒有當前顏色，使用目標顏色（第一次進入 Wireframe 模式）
@@ -461,9 +465,9 @@ function startStrokeColorTransition(newTargetColor) {
   targetStrokeColor = newTargetColor;
 
   // 檢查是否需要過渡（如果目標顏色與當前顏色相同，則不需要）
-  let currentR = red(currentStrokeColor);
-  let targetR = red(targetStrokeColor);
-  if (abs(currentR - targetR) < 1) {
+  let currentR = _p5.red(currentStrokeColor);
+  let targetR = _p5.red(targetStrokeColor);
+  if (_p5.abs(currentR - targetR) < 1) {
     // 顏色已經一樣，不需要過渡
     wireframeStrokeColor = targetStrokeColor;
     strokeColorLerpProgress = 1;
@@ -472,16 +476,16 @@ function startStrokeColorTransition(newTargetColor) {
 
   // 開始 lerp 動畫
   strokeColorLerpProgress = 0;
-  strokeColorLerpStartTime = millis();
+  strokeColorLerpStartTime = _p5.millis();
 }
 
 // 更新輸入框文字顏色（Wireframe 模式下使用對比色）
 function updateInputTextColor() {
   if (mode === "Wireframe" && wireframeStrokeColor) {
     // 使用與 logo 邊框相同的對比色
-    let r = red(wireframeStrokeColor);
-    let g = green(wireframeStrokeColor);
-    let b = blue(wireframeStrokeColor);
+    let r = _p5.red(wireframeStrokeColor);
+    let g = _p5.green(wireframeStrokeColor);
+    let b = _p5.blue(wireframeStrokeColor);
     let textColor = `rgb(${r}, ${g}, ${b})`;
 
     inputBox.style("color", textColor);
@@ -492,19 +496,18 @@ function updateInputTextColor() {
 }
 
 // 更新背景顏色（Wireframe 模式）- 使用 CSS 變數
-// silent=true：不發 postMessage 給 parent；用於 leave-wireframe 時，避免覆蓋 ui-state.js 已送的 Standard/Inverse 訊息
-function updateBackgroundColor(bgColor, disableTransition = false, silent = false) {
+function updateBackgroundColor(bgColor, disableTransition = false) {
   // 將顏色轉換為 CSS rgb 格式
-  let r = red(bgColor);
-  let g = green(bgColor);
-  let b = blue(bgColor);
+  let r = _p5.red(bgColor);
+  let g = _p5.green(bgColor);
+  let b = _p5.blue(bgColor);
   let cssColor = `rgb(${r}, ${g}, ${b})`;
 
   // 根據背景亮度計算對比色（黑色或白色）
   let contrastColor = getContrastColor(bgColor);
-  let borderR = red(contrastColor);
-  let borderG = green(contrastColor);
-  let borderB = blue(contrastColor);
+  let borderR = _p5.red(contrastColor);
+  let borderG = _p5.green(contrastColor);
+  let borderB = _p5.blue(contrastColor);
   let borderCssColor = `rgb(${borderR}, ${borderG}, ${borderB})`;
 
   // 判斷是否使用暗色 icon（黑色 icon）
@@ -515,9 +518,9 @@ function updateBackgroundColor(bgColor, disableTransition = false, silent = fals
 
   if (disableTransition) {
     // 拖動色環時：臨時禁用 transition，實現即時更新
-    let body = select('body');
-    let canvasContainer = select('#canvas-container');
-    let desktopCanvasContainer = select('#desktop-canvas-container');
+    let body = _p5.select('#create-app');
+    let canvasContainer = _p5.select('#canvas-container');
+    let desktopCanvasContainer = _p5.select('#desktop-canvas-container');
 
     if (body) {
       body.elt.style.transition = 'none';
@@ -533,12 +536,6 @@ function updateBackgroundColor(bgColor, disableTransition = false, silent = fals
     document.documentElement.style.setProperty('--wireframe-bg', cssColor);
     document.documentElement.style.setProperty('--wireframe-border', borderCssColor);
     document.documentElement.style.setProperty('--wireframe-opacity', opacityValue);
-
-    // 通知外層 header 更新背景色（Wireframe 模式拖色環 / Play 模式旋轉）
-    // instant: true → header 跟 iframe 同步用 0s transition 即時追，避免 1s fade 落後感
-    if (!silent) {
-      window.parent.postMessage({ genMode: 'Wireframe', bg: cssColor, text: borderCssColor, instant: true }, '*');
-    }
 
     // 更新 landscape overlay 的 CSS 變數
     document.documentElement.style.setProperty('--current-wireframe-bg', cssColor);
@@ -570,16 +567,11 @@ function updateBackgroundColor(bgColor, disableTransition = false, silent = fals
     }
   } else {
     // 切換模式時：使用 transition 動畫
-    let body = select('body');
+    let body = _p5.select('#create-app');
 
     document.documentElement.style.setProperty('--wireframe-bg', cssColor);
     document.documentElement.style.setProperty('--wireframe-border', borderCssColor);
     document.documentElement.style.setProperty('--wireframe-opacity', opacityValue);
-
-    // 通知外層 header 更新背景色（Wireframe 模式切換進入時）
-    if (!silent) {
-      window.parent.postMessage({ genMode: 'Wireframe', bg: cssColor, text: borderCssColor }, '*');
-    }
 
     // 更新 landscape overlay 的 CSS 變數
     document.documentElement.style.setProperty('--current-wireframe-bg', cssColor);

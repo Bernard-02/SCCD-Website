@@ -174,8 +174,8 @@ export async function loadRecords() {
         let emptyState = container.parentElement?.querySelector('.search-empty-state');
         if (!emptyState) {
           emptyState = document.createElement('div');
-          emptyState.className = 'search-empty-state hidden py-xl text-center w-full';
-          emptyState.innerHTML = '<p class="text-p1">Nothing here</p><p class="text-p1">這裡什麼都沒有</p>';
+          emptyState.className = 'search-empty-state hidden py-xl text-left w-full';
+          emptyState.innerHTML = '<p class="text-p1">No Result</p><p class="text-p1">無結果</p>';
           container.insertAdjacentElement('afterend', emptyState);
         }
         emptyState.classList.toggle('hidden', !q || visibleBlocks.length > 0);

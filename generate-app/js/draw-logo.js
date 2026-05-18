@@ -19,7 +19,7 @@ function drawPlaceholder(pg) {
 
   // Fade in/out 動畫（fade out: 0.3s，fade in: 0.5s）
   let fadeSpeed = (targetPlaceholderAlpha === 0) ? 0.3 : 0.15; // fade out 快，fade in 慢
-  placeholderAlpha = lerp(placeholderAlpha, targetPlaceholderAlpha, fadeSpeed);
+  placeholderAlpha = _p5.lerp(placeholderAlpha, targetPlaceholderAlpha, fadeSpeed);
 
   // 根據模式決定透明度倍數和版本
   let opacityMultiplier = 0.25; // 預設 25%（Standard 模式，黑色版本）
@@ -31,7 +31,7 @@ function drawPlaceholder(pg) {
     opacityMultiplier = 0.5;
   } else if (mode === 'Wireframe' && wireframeStrokeColor) {
     // Wireframe 模式：根據背景亮度決定使用黑色或白色版本及其透明度
-    let r = red(wireframeStrokeColor);
+    let r = _p5.red(wireframeStrokeColor);
     isWhiteVersion = r > 128;
     // 白色 50%，黑色 25%
     opacityMultiplier = isWhiteVersion ? 0.5 : 0.25;
@@ -41,13 +41,13 @@ function drawPlaceholder(pg) {
   let finalAlpha = placeholderAlpha * logoOpacity * opacityMultiplier;
 
   pg.push();
-  pg.translate(width / 2, height / 2);
-  pg.imageMode(CENTER);
+  pg.translate(_p5.width / 2, _p5.height / 2);
+  pg.imageMode(_p5.CENTER);
 
   // 繪製尺寸：根據 canvas 大小動態調整
   // 桌面版基準：432x540 canvas，svgSize = 485.1
   // 手機版：按相同比例縮放，縮小到 95% 讓 placeholder 更小
-  let svgSize = isMobileMode ? (width / 432) * 485.1 * 0.95 : 485.1 * 0.95;
+  let svgSize = isMobileMode ? (_p5.width / 432) * 485.1 * 0.95 : 485.1 * 0.95;
 
   // 根據 isWhiteVersion 選擇正確的 SVG 檔案
   let rImg = isWhiteVersion ? placeholderR_white : placeholderR;
@@ -56,21 +56,21 @@ function drawPlaceholder(pg) {
 
   // 繪製 R 層
   pg.push();
-  pg.rotate(radians(placeholderRotations[0]));
+  pg.rotate(_p5.radians(placeholderRotations[0]));
   pg.tint(255, finalAlpha);
   pg.image(rImg, 0, 0, svgSize, svgSize);
   pg.pop();
 
   // 繪製 G 層
   pg.push();
-  pg.rotate(radians(placeholderRotations[1]));
+  pg.rotate(_p5.radians(placeholderRotations[1]));
   pg.tint(255, finalAlpha);
   pg.image(gImg, 0, 0, svgSize, svgSize);
   pg.pop();
 
   // 繪製 B 層
   pg.push();
-  pg.rotate(radians(placeholderRotations[2]));
+  pg.rotate(_p5.radians(placeholderRotations[2]));
   pg.tint(255, finalAlpha);
   pg.image(bImg, 0, 0, svgSize, svgSize);
   pg.pop();
@@ -85,14 +85,14 @@ function drawLogo(pg, alphaMultiplier = 255) {
 
   // 確保 textSize 正確設定（避免 resizeCanvas 重置後遺失）
   // 桌面版固定 367.5，手機版根據 canvas 大小縮放
-  let currentTextSize = isMobileMode ? (width / 432) * 367.5 * 1.1 : 367.5;
+  let currentTextSize = isMobileMode ? (_p5.width / 432) * 367.5 * 1.1 : 367.5;
   pg.textSize(currentTextSize);
 
   // 計算每個字母應佔的角度
   let angleStep = 360 / totalLetters;
 
   // 簡單地將字母分為三組
-  let sectionSize = floor(totalLetters / 3);
+  let sectionSize = _p5.floor(totalLetters / 3);
   let remainder = totalLetters % 3;
   let rCount = sectionSize + (remainder > 0 ? 1 : 0);
   let gCount = sectionSize + (remainder > 1 ? 1 : 0);
@@ -100,13 +100,13 @@ function drawLogo(pg, alphaMultiplier = 255) {
   // 將原點移動到畫布中心
   pg.push();
   // 修正：統一使用畫布的中心 width/2, height/2
-  pg.translate(width / 2, height / 2);
+  pg.translate(_p5.width / 2, _p5.height / 2);
 
   // 判斷是否為wireframe模式
   let isWireframeMode = (mode === "Wireframe");
   // 根據當前模式設定混合模式（wireframe模式使用BLEND，不需要特殊混合）
   if (!isWireframeMode) {
-    pg.blendMode(mode === "Inverse" ? SCREEN : MULTIPLY);
+    pg.blendMode(mode === "Inverse" ? _p5.SCREEN : _p5.MULTIPLY);
   }
 
   // --- 旋轉效果 ---
@@ -125,10 +125,10 @@ function drawLogo(pg, alphaMultiplier = 255) {
     for (let i = 0; i < totalLetters; i++) {
       if (rotationAngles[i] !== undefined) {
         // 使用 lerp 讓角度平滑回到 0°
-        rotationAngles[i] = lerp(rotationAngles[i], 0, 0.08);
+        rotationAngles[i] = _p5.lerp(rotationAngles[i], 0, 0.08);
 
         // 檢查是否已經很接近 0°
-        if (abs(rotationAngles[i]) > EASE_THRESHOLD) {
+        if (_p5.abs(rotationAngles[i]) > EASE_THRESHOLD) {
           allReachedZero = false;
         }
       }
@@ -136,9 +136,9 @@ function drawLogo(pg, alphaMultiplier = 255) {
 
     // 處理手動偏移（Custom 模式的 offset）- 使用陣列迴圈
     for (let i = 0; i < 3; i++) {
-      rotationOffsets[i] = lerp(rotationOffsets[i], 0, 0.08);
+      rotationOffsets[i] = _p5.lerp(rotationOffsets[i], 0, 0.08);
       // 檢查 offset 是否也接近 0°
-      if (abs(rotationOffsets[i]) > EASE_THRESHOLD) {
+      if (_p5.abs(rotationOffsets[i]) > EASE_THRESHOLD) {
         allReachedZero = false;
       }
     }
@@ -158,10 +158,10 @@ function drawLogo(pg, alphaMultiplier = 255) {
     // 使用陣列迴圈處理 R/G/B rotation ease
     for (let i = 0; i < 3; i++) {
       // 使用 lerp 平滑過渡到目標角度
-      rotationOffsets[i] = lerp(rotationOffsets[i], targetRotationOffsets[i], customEaseSpeed);
+      rotationOffsets[i] = _p5.lerp(rotationOffsets[i], targetRotationOffsets[i], customEaseSpeed);
 
       // 檢查是否已經很接近目標角度
-      if (abs(rotationOffsets[i] - targetRotationOffsets[i]) > EASE_THRESHOLD) {
+      if (_p5.abs(rotationOffsets[i] - targetRotationOffsets[i]) > EASE_THRESHOLD) {
         allReachedTarget = false;
       }
     }
@@ -186,14 +186,14 @@ function drawLogo(pg, alphaMultiplier = 255) {
     // 使用陣列迴圈處理 R/G/B slider ease 動畫
     for (let i = 0; i < 3; i++) {
       // 使用 lerp 平滑過渡到目標 slider 值
-      currentSliderValues[i] = lerp(currentSliderValues[i], targetSliderValues[i], customEaseSpeed);
+      currentSliderValues[i] = _p5.lerp(currentSliderValues[i], targetSliderValues[i], customEaseSpeed);
 
       // 更新桌面版和手機版 slider 顯示值
       if (sliders[i]) sliders[i].value(currentSliderValues[i]);
       if (mobileSliders[i]) mobileSliders[i].value(currentSliderValues[i]);
 
       // 檢查是否已經很接近目標值
-      if (abs(currentSliderValues[i] - targetSliderValues[i]) > EASE_THRESHOLD) {
+      if (_p5.abs(currentSliderValues[i] - targetSliderValues[i]) > EASE_THRESHOLD) {
         allSlidersReachedTarget = false;
       }
     }
@@ -266,7 +266,7 @@ function drawLogo(pg, alphaMultiplier = 255) {
     // 計算並應用旋轉角度
     // 修正：減去最後一個字母的角度，確保最後一個字母在 0 度位置
     let rotationOffset = (totalLetters > 1) ? (totalLetters - 1) * angleStep : 0;
-    let finalAngle = radians(i * angleStep - rotationOffset + rotationAngles[i] + currentManualOffset);
+    let finalAngle = _p5.radians(i * angleStep - rotationOffset + rotationAngles[i] + currentManualOffset);
     pg.rotate(finalAngle);
 
     // 特殊處理 'W'，因為它通常比較寬
@@ -285,7 +285,7 @@ function drawLogo(pg, alphaMultiplier = 255) {
       // 第一次：繪製描邊（根據填充顏色亮度自動選擇黑色或白色）
       pg.noFill();
       if (wireframeStrokeColor) {
-        pg.stroke(red(wireframeStrokeColor), green(wireframeStrokeColor), blue(wireframeStrokeColor), letterAlpha);
+        pg.stroke(_p5.red(wireframeStrokeColor), _p5.green(wireframeStrokeColor), _p5.blue(wireframeStrokeColor), letterAlpha);
       } else {
         pg.stroke(0, 0, 0, letterAlpha); // 預設黑色
       }
@@ -302,7 +302,7 @@ function drawLogo(pg, alphaMultiplier = 255) {
 
       // 第二次：繪製填充顏色（來自色彩選擇器）
       if (wireframeColor) {
-        pg.fill(red(wireframeColor), green(wireframeColor), blue(wireframeColor), letterAlpha);
+        pg.fill(_p5.red(wireframeColor), _p5.green(wireframeColor), _p5.blue(wireframeColor), letterAlpha);
       } else {
         pg.fill(255, 255, 255, letterAlpha); // 預設白色
       }
@@ -323,7 +323,7 @@ function drawLogo(pg, alphaMultiplier = 255) {
   }
 
   // 恢復混合模式和坐標系
-  pg.blendMode(BLEND);
+  pg.blendMode(_p5.BLEND);
   pg.pop();
 }
 
@@ -331,7 +331,7 @@ function drawLogo(pg, alphaMultiplier = 255) {
 function drawCentralCircle(pg, alpha, diameter = 250) {
     pg.push();
     // 修正：統一使用畫布的中心 width/2, height/2
-    pg.translate(width / 2, height / 2);
+    pg.translate(_p5.width / 2, _p5.height / 2);
     // 根據模式設定圓圈顏色
     pg.fill(mode === "Inverse" ? 255 : 0, alpha);
     pg.noStroke();

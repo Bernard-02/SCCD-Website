@@ -13,7 +13,7 @@ function updateUI() {
     const isInverseMode = mode === "Inverse";
     const activeColor = isInverseMode ? "white" : "black";
     const activeBorder = isInverseMode ? "2px solid white" : "2px solid black";
-    const body = select('body');
+    const body = _p5.select('#create-app');
 
     // 更新 disabledColor 根據當前模式
     disabledColor = getDisabledColor();
@@ -51,7 +51,7 @@ function updateUI() {
                 if (!colorPickerCanvas) {
                     // 根據設備選擇正確的 container
                     let containerId = isMobileMode ? 'mobile-colorpicker-container' : 'colorpicker-container';
-                    let container = select('#' + containerId);
+                    let container = _p5.select('#' + containerId);
                     if (container) {
                         let containerWidth = container.elt.clientWidth;
                         let containerHeight = container.elt.clientHeight;
@@ -70,7 +70,7 @@ function updateUI() {
                         }
 
                         if (canvasWidth > 0 && canvasHeight > 0) {
-                            colorPickerCanvas = createGraphics(canvasWidth, canvasHeight);
+                            colorPickerCanvas = _p5.createGraphics(canvasWidth, canvasHeight);
                             colorPickerCanvas.parent(containerId);
                             colorPickerCanvas.elt.style.display = 'block';
                             colorPickerCanvas.elt.style.margin = 'auto';
@@ -117,11 +117,9 @@ function updateUI() {
         if (isInverseTarget) {
             body.removeClass('standard-mode');
             body.addClass('inverse-mode');
-            window.parent.postMessage({ genMode: 'Inverse', bg: '#000000', text: '#ffffff' }, '*');
         } else {
             body.removeClass('inverse-mode');
             body.addClass('standard-mode');
-            window.parent.postMessage({ genMode: 'Standard', bg: '#ffffff', text: '#000000' }, '*');
         }
         // Standard/Inverse 模式下，清除 Wireframe 的 CSS 變數，讓背景色恢復為黑/白
         // 這樣可以確保從 Wireframe 切換回來時，背景顏色會正確重置
@@ -130,8 +128,8 @@ function updateUI() {
         body.elt.style.removeProperty('--wireframe-icon-opacity');
 
         // 同時清除 canvas container 的 CSS 變數
-        let canvasContainer = select('#canvas-container');
-        let desktopCanvasContainer = select('#desktop-canvas-container');
+        let canvasContainer = _p5.select('#canvas-container');
+        let desktopCanvasContainer = _p5.select('#desktop-canvas-container');
         if (canvasContainer) {
             canvasContainer.elt.style.removeProperty('--wireframe-bg');
             canvasContainer.elt.style.removeProperty('--wireframe-border');
@@ -175,9 +173,9 @@ function updateUI() {
     let textColor = activeColor;
     if (isWireframeMode && wireframeStrokeColor) {
         // 使用與 logo 邊框相同的對比色
-        let r = red(wireframeStrokeColor);
-        let g = green(wireframeStrokeColor);
-        let b = blue(wireframeStrokeColor);
+        let r = _p5.red(wireframeStrokeColor);
+        let g = _p5.green(wireframeStrokeColor);
+        let b = _p5.blue(wireframeStrokeColor);
         textColor = `rgb(${r}, ${g}, ${b})`;
     }
 
@@ -189,7 +187,7 @@ function updateUI() {
     if (isEasterEggActive) {
         // --- 彩蛋模式 UI ---
         // 隱藏整個 rotation-box
-        select('#rotation-box').style('display', 'none');
+        _p5.select('#rotation-box').style('display', 'none');
 
         colormodeButton.style('display', 'flex');
         saveButton.style('display', 'flex');
@@ -204,7 +202,7 @@ function updateUI() {
     } else {
         // --- 正常模式 UI ---
         // 桌面版：顯示整個 rotation-box
-        let rotationBox = select('#rotation-box');
+        let rotationBox = _p5.select('#rotation-box');
         if (rotationBox) {
             rotationBox.style('display', 'flex');
 
@@ -217,7 +215,7 @@ function updateUI() {
         }
 
         // 更新 save-box 的 disabled 狀態
-        let saveBox = select('#save-box');
+        let saveBox = _p5.select('#save-box');
         if (saveBox) {
             if (hasText) {
                 saveBox.removeClass('disabled');
@@ -256,12 +254,12 @@ function updateUI() {
             if (hasText && !isAutoRotateMode) {
                 customButton.addClass('active');
                 // 為 custom-area-wrapper 添加 custom-mode class，顯示邊框和 padding
-                let customAreaWrapper = select('#custom-area-wrapper');
+                let customAreaWrapper = _p5.select('#custom-area-wrapper');
                 if (customAreaWrapper) customAreaWrapper.addClass('custom-mode');
             } else {
                 customButton.removeClass('active');
                 // 移除 custom-mode class
-                let customAreaWrapper = select('#custom-area-wrapper');
+                let customAreaWrapper = _p5.select('#custom-area-wrapper');
                 if (customAreaWrapper) customAreaWrapper.removeClass('custom-mode');
             }
         }
@@ -274,7 +272,7 @@ function updateUI() {
 
         // 更新 Custom 控制面板
         const customControlsEnabled = hasText && !isAutoRotateMode;
-        const customControlsContainer = select('#custom-angle-controls');
+        const customControlsContainer = _p5.select('#custom-angle-controls');
 
         if (customControlsContainer) {
             if (customControlsEnabled) {
@@ -425,11 +423,11 @@ function updateUI() {
     }
 
     // 手機版：更新UI（使用全域變數，不需要重新 select）
-    let mobileCustomAngleControls = select('.mobile-custom-angle-controls');
+    let mobileCustomAngleControls = _p5.select('.mobile-custom-angle-controls');
 
     // 更新手機版 control-box 的 disabled 狀態
-    let mobileRotationBox = select('.mobile-rotation-box');
-    let mobileSaveContainer = select('.mobile-save-container');
+    let mobileRotationBox = _p5.select('.mobile-rotation-box');
+    let mobileSaveContainer = _p5.select('.mobile-save-container');
     if (mobileRotationBox && mobileSaveContainer) {
         if (hasText) {
             mobileRotationBox.removeClass('disabled');
@@ -550,9 +548,9 @@ function updateUI() {
                 if (mode === "Wireframe") {
                     // Wireframe 模式：使用對比色（黑色或白色）
                     if (wireframeStrokeColor) {
-                        let r = red(wireframeStrokeColor);
-                        let g = green(wireframeStrokeColor);
-                        let b = blue(wireframeStrokeColor);
+                        let r = _p5.red(wireframeStrokeColor);
+                        let g = _p5.green(wireframeStrokeColor);
+                        let b = _p5.blue(wireframeStrokeColor);
                         sliderColor = `rgb(${r}, ${g}, ${b})`;
                         labelColor = sliderColor;
                     } else {

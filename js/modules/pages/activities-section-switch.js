@@ -149,62 +149,71 @@ async function switchToSection(section, btns, shouldScroll, isInitial = false) {
 
   switching = true;
 
-  // 1. 退場（首次 init 跳過；切到同 panel 也跳過）
-  if (!isInitial && currentPanel && currentPanel.id !== targetId) {
-    await playAdmissionPanelExit(currentPanel);
-  }
-
-  // 2. 切按鈕 active 狀態（隨機顏色 + 旋轉）
-  const { color } = setActiveNavBtn(btns, section, 'data-section');
-  currentSectionColor = color;
-  window.__sccdCurrentSectionColor = color;
-
-  // 3. 切 panel 顯示
-  const target = /** @type {HTMLElement | null} */ (showPanel('.activities-panel', targetId));
-  if (target) {
-    // 收起 target panel 內遺留的 open accordion（avoid「切到別的 panel 再切回來時 accordion 仍打開」殘留體驗）
-    resetListAccordionsInPanel(target);
-    // 同步所有 active filter btn 的顏色
-    target.querySelectorAll('.activities-filter-btn.active, .album-filter-option.active').forEach(btn => {
-      const inner = btn.querySelector('.anchor-nav-inner');
-      if (inner) {
-        /** @type {HTMLElement} */ (inner).style.background = currentSectionColor;
-        /** @type {HTMLElement} */ (inner).style.transform  = '';
-      } else {
-        /** @type {HTMLElement} */ (btn).style.background = currentSectionColor;
-      }
-    });
-  }
-
-  // 4. 進場 setup：把所有 rows 推到 yPercent:100（含 desc / filter / search）
-  //    初次 init 也 hide=true：rows 由 ScrollTrigger 在進 viewport 時觸發 reveal，
-  //    user 還在 hero 時看不到 list 區的 desc/filter，捲到才顯示 → 真正的 scroll-in-view 效果
-  if (target) setupAdmissionReveal(target, { hide: true });
-
-  // 5. 懶載入資料（autoReveal:false → reveal 由本模組接管，避免與既有 ScrollTrigger.batch 雙觸發）
-  await loadPanel(section);
-
-  // 6. Scroll to section（點擊時才 scroll，初始載入不 scroll）
-  if (shouldScroll) {
-    const sectionEl = document.getElementById('activities-content-section') || document.getElementById('library-content-section');
-    if (sectionEl) sectionEl.scrollIntoView({ behavior: 'smooth' });
-  }
-
-  // 7. 進場 reveal：
-  //    - 一律 useScrollTrigger=true：rows 進 viewport 才觸發，user 沒捲到的不先 reveal
-  //    - 點擊切換：等 scrollIntoView 完成（600ms）再 create 觸發器，這樣 trigger 評估位置是新 scroll 後的視口
-  //    - 不再用 false 直接 sequential 跑 master timeline，避免使用者看到還沒捲到的下方 list 已動畫跑完
-  if (target) {
-    if (isInitial) {
-      playAdmissionPanelReveal(target, { useScrollTrigger: true });
-    } else if (shouldScroll) {
-      setTimeout(() => playAdmissionPanelReveal(target, { useScrollTrigger: true }), 600);
-    } else {
-      playAdmissionPanelReveal(target, { useScrollTrigger: true });
+  // ⚠️ try/finally：第 4 步把 rows 推到 yPercent:100 (hidden)，第 7 步才 reveal 回 yPercent:0。
+  //    若中間第 5 步 await loadPanel 拋錯（fetch 被瀏覽器在 SPA 換頁時 cancel / JSON parse 失敗），
+  //    reveal 永遠不會跑 → rows 卡在 yPercent:100 看不到（user 看到 desc/filter 卻沒 list cards），
+  //    且 switching=true 永遠不重置 → 下次切 panel 全被擋。finally 保證 reveal + switching reset 兩個必跑
+  let target = null;
+  try {
+    // 1. 退場（首次 init 跳過；切到同 panel 也跳過）
+    if (!isInitial && currentPanel && currentPanel.id !== targetId) {
+      await playAdmissionPanelExit(currentPanel);
     }
-  }
 
-  switching = false;
+    // 2. 切按鈕 active 狀態（隨機顏色 + 旋轉）
+    const { color } = setActiveNavBtn(btns, section, 'data-section');
+    currentSectionColor = color;
+    window.__sccdCurrentSectionColor = color;
+
+    // 3. 切 panel 顯示
+    target = /** @type {HTMLElement | null} */ (showPanel('.activities-panel', targetId));
+    if (target) {
+      // 收起 target panel 內遺留的 open accordion（avoid「切到別的 panel 再切回來時 accordion 仍打開」殘留體驗）
+      resetListAccordionsInPanel(target);
+      // 同步所有 active filter btn 的顏色
+      target.querySelectorAll('.activities-filter-btn.active, .album-filter-option.active').forEach(btn => {
+        const inner = btn.querySelector('.anchor-nav-inner');
+        if (inner) {
+          /** @type {HTMLElement} */ (inner).style.background = currentSectionColor;
+          /** @type {HTMLElement} */ (inner).style.transform  = '';
+        } else {
+          /** @type {HTMLElement} */ (btn).style.background = currentSectionColor;
+        }
+      });
+    }
+
+    // 4. 進場 setup：把所有 rows 推到 yPercent:100（含 desc / filter / search）
+    //    初次 init 也 hide=true：rows 由 ScrollTrigger 在進 viewport 時觸發 reveal，
+    //    user 還在 hero 時看不到 list 區的 desc/filter，捲到才顯示 → 真正的 scroll-in-view 效果
+    if (target) setupAdmissionReveal(target, { hide: true });
+
+    // 5. 懶載入資料（autoReveal:false → reveal 由本模組接管，避免與既有 ScrollTrigger.batch 雙觸發）
+    await loadPanel(section);
+
+    // 6. Scroll to section（點擊時才 scroll，初始載入不 scroll）
+    if (shouldScroll) {
+      const sectionEl = document.getElementById('activities-content-section') || document.getElementById('library-content-section');
+      if (sectionEl) sectionEl.scrollIntoView({ behavior: 'smooth' });
+    }
+  } catch (err) {
+    console.error('[activities-section-switch] switchToSection error:', err);
+    // loadPanel 失敗時把 loaded[] 旗標清掉，user 重切回此 panel 才會再試 fetch
+    delete loaded[section];
+  } finally {
+    // 7. 進場 reveal — 無論成不成功都跑，否則 rows 卡 yPercent:100
+    //    一律 useScrollTrigger=true：rows 進 viewport 才觸發
+    //    點擊切換：等 scrollIntoView 完成（600ms）再 create 觸發器
+    if (target) {
+      if (isInitial) {
+        playAdmissionPanelReveal(target, { useScrollTrigger: true });
+      } else if (shouldScroll) {
+        setTimeout(() => playAdmissionPanelReveal(target, { useScrollTrigger: true }), 600);
+      } else {
+        playAdmissionPanelReveal(target, { useScrollTrigger: true });
+      }
+    }
+    switching = false;
+  }
 }
 
 function initExhibitionsTypeFilter() {
@@ -293,6 +302,8 @@ function initVisitsTypeFilter() {
 async function loadPanel(section) {
   if (loaded[section]) return;
   loaded[section] = true;
+  // ⚠️ 設 flag 後出錯（fetch fail / DOM missing）→ switchToSection 的 catch 會 delete loaded[section]
+  //    讓 user 重切回此 panel 能 retry。本函數不另外 try/catch（讓 error propagate 給 caller 統一處理）
 
   const opts = { autoReveal: false };
 

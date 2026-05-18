@@ -15,7 +15,7 @@
       <!-- About ~ Admission 組（矩形，左邊往 logo 後面延伸） -->
       <div data-bar="about" class="flex-shrink-0 ml-2xl bg-white rounded-none">
         <nav>
-          <ul class="flex items-center gap-xl px-sm py-xs">
+          <ul class="flex items-center gap-xl px-xs py-xs">
             <li><a href="about.html" class="nav-link"><span>About</span><span class="nav-link-cn">關於學系</span></a></li>
             <li><a href="faculty.html" class="nav-link"><span>Faculty</span><span class="nav-link-cn">師資</span></a></li>
             <li><a href="courses.html" class="nav-link"><span>Courses</span><span class="nav-link-cn">課程</span></a></li>
@@ -25,8 +25,27 @@
         </nav>
       </div>
 
-      <!-- 彈性空間，把右側三組推到最右 -->
+      <!-- Alumni Full Bar — 預設隱藏，body.page-alumni 時 clip-reveal 從左進場、padding 同 about-bar (px-xs py-xs)。
+           白底黑字（跟 about-bar 同款），單獨一個 bar 方便動畫獨立控制 -->
+      <div data-bar="alumni-full" class="flex-shrink-0 ml-2xl bg-white rounded-none" style="display: none;">
+        <nav>
+          <ul class="flex items-center gap-xl px-xs py-xs">
+            <li><a href="alumni.html" class="nav-link"><span>Alumni Association</span><span class="nav-link-cn">系友會</span></a></li>
+          </ul>
+        </nav>
+      </div>
+
+      <!-- 彈性空間，把右側組推到最右 -->
       <div class="flex-1"></div>
+
+      <!-- AA 小 bar（系友會入口）：hover 時 .nav-link-cn 展開「系友會」
+           點擊：JS 觸發 lightbox-style 收起所有 bars + alumni-full bar clip-reveal 從左進場（同一頁面 body.page-alumni 切換）
+           padding 對齊 about-bar inner items：px-xs py-xs -->
+      <div data-bar="alumni" class="flex-shrink-0 bg-black ml-lg" style="transition: background 0.4s ease;">
+        <div class="px-xs py-xs">
+          <a href="alumni.html" class="nav-link text-white"><span>AA</span><span class="nav-link-cn">系友會</span></a>
+        </div>
+      </div>
 
       <!-- Library 組 -->
       <div data-bar="library" class="flex-shrink-0 bg-black ml-lg" style="transition: background 0.4s ease;">
@@ -88,6 +107,7 @@
           <li><a href="activities.html" class="mobile-nav-link block text-h4 font-semibold text-white">Activities <span class="text-black">動態</span></a></li>
           <li><a href="library.html" class="mobile-nav-link block text-h4 font-semibold text-white">Library <span class="text-black">檔案室</span></a></li>
           <li><a href="atlas.html" class="mobile-nav-link block text-h4 font-semibold text-white">Atlas</a></li>
+          <li><a href="alumni.html" class="mobile-nav-link block text-h4 font-semibold text-white">Alumni <span class="text-black">系友會</span></a></li>
           <li><a href="admission.html" class="mobile-nav-link block text-h4 font-semibold text-white">Admission <span class="text-black">入學</span></a></li>
         </ul>
       </nav>

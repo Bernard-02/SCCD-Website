@@ -6,6 +6,7 @@
 @layer base {
   html {
     @apply text-base;
+    background-color: #FFFFFF;
   }
 
   body {
@@ -43,24 +44,59 @@
   }
 }
 
-/* Mode 切換 fade window：theme-toggle.js applyMode() 加 .mode-switching 0.5s 後移除
- * - 速度 0.5s（比 create iframe 1s 快一半）：1s 全 subtree lockstep 一起 melt 感覺 unnatural；
- *   0.5s 快到不會被視覺鎖在「同步緩慢」的感覺，但仍 smooth 不 snap
- * - body/html + 全 subtree（所有元素的 bg/color/border/fill）一律 0.5s ease fade（matches create 'ease' curve）
- * - 故意 `*` broad cover：sections (.bg-white 翻黑底/.text-black 翻白字 等) 才會跟著 fade 不只 body
- *   （drop universal 會讓 section instant snap，body fade 反而被覆蓋看不出 smooth）
- * - 0.5s window 結束移除 class：穩態下不留 transition，避免 mode-color RAF 高頻更新 --theme-bg 跟 transition 衝突 lag
- * - !important 確保覆蓋 element 既有的 transition（e.g. button hover transition: 0.3s）；過渡期間統一 0.5s 同步感
- * - 用 `html.mode-switching body.mode-switching *`（0,2,2 specificity）蓋過 color.css 對 [data-bar] / sticky 等元件
- *   寫死的 `transition: color 0.3s, transform 0.3s !important`（0,2,1）：那條規則為 RAF 穩態排除 bg transition，
- *   但 mode 切換時 bar bg 必須跟 body 一起 fade，否則 bar snap 到目標色而 body 還在 fade → 視覺 desync */
-html.mode-switching,
-body.mode-switching {
-  transition: background-color 0.5s ease, color 0.5s ease !important;
+/* Mode 切換 fade window：theme-toggle.js applyMode() 加 .mode-switching 0.4s 後移除
+ * - 速度 0.4s ease：對齊 theme-toggle.js MODE_FADE_MS
+ * - 早期版本用 `*` broad cover 讓所有 ::before/::after/border/fill 一起 fade，但 about 頁元素密度過高
+ *   （5 .bg-white section + N chips + N anchor + timeline + accordion）造成同時上百個 paint → frame drop = 抖動
+ * - 改 whitelist：只 fade 真會在 mode 之間變色的元件（依 themes/color.css 與 themes/inverse.css 實際 override list）
+ *   非 mode-aware 元素直接 instant snap，本來就不變色看不出差別，大幅降低同時 paint 區
+ * - 用 .mode-switching.mode-switching (0,3,N) 蓋過 color.css 的 `transition: color, transform !important` (0,2,1)
+ *   保留 body/html fade 給整片 bg 過渡 */
+html.mode-switching.mode-switching,
+body.mode-switching.mode-switching {
+  transition: background-color 0.4s ease, background 0.4s ease, color 0.4s ease !important;
 }
 
-html.mode-switching body.mode-switching *,
-html.mode-switching body.mode-switching *::before,
-html.mode-switching body.mode-switching *::after {
-  transition: background-color 0.5s ease, color 0.5s ease, border-color 0.5s ease, fill 0.5s ease, stroke 0.5s ease !important;
+html.mode-switching.mode-switching header,
+html.mode-switching.mode-switching .nav-link,
+html.mode-switching.mode-switching .mobile-nav-link,
+html.mode-switching.mode-switching [data-bar],
+html.mode-switching.mode-switching .bg-white,
+html.mode-switching.mode-switching .bg-black,
+html.mode-switching.mode-switching .bg-gray-9,
+html.mode-switching.mode-switching .text-black,
+html.mode-switching.mode-switching .text-white,
+html.mode-switching.mode-switching .border-black,
+html.mode-switching.mode-switching .border-gray-9,
+html.mode-switching.mode-switching [data-overview-hl],
+html.mode-switching.mode-switching [data-class-hl],
+html.mode-switching.mode-switching [data-works-hl],
+html.mode-switching.mode-switching [data-hero-hl],
+html.mode-switching.mode-switching [data-section-title],
+html.mode-switching.mode-switching .section-title-strip,
+html.mode-switching.mode-switching .timeline-card-inner,
+html.mode-switching.mode-switching .anchor-nav-inner,
+html.mode-switching.mode-switching .class-division-btn,
+html.mode-switching.mode-switching .courses-bfa-label,
+html.mode-switching.mode-switching .class-group-label,
+html.mode-switching.mode-switching .list-header,
+html.mode-switching.mode-switching .list-content,
+html.mode-switching.mode-switching #faculty-panel,
+html.mode-switching.mode-switching #courses-detail-panel,
+html.mode-switching.mode-switching .activities-filter-bar,
+html.mode-switching.mode-switching .degree-show-card-content,
+html.mode-switching.mode-switching .error-404-card,
+html.mode-switching.mode-switching .footer-shell,
+html.mode-switching.mode-switching .footer-link,
+html.mode-switching.mode-switching #custom-scrollbar-thumb {
+  transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease !important;
+}
+
+/* /create 頁：#create-app 的 background-color 不在上方 whitelist，mode 切換時 snap 而 header 有 0.4s fade，
+ * 造成兩者不同時轉換。加入 whitelist 讓 #create-app 背景跟 header 同節奏（class 從 wireframe-mode ↔ standard/inverse-mode）。
+ * canvas containers 也一起加入，避免容器內部 snap 而 #create-app 外框還在 fade 造成色差 */
+html.mode-switching.mode-switching #create-app,
+html.mode-switching.mode-switching #desktop-canvas-container,
+html.mode-switching.mode-switching #canvas-container {
+  transition: background-color 0.4s ease !important;
 }

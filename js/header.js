@@ -4,11 +4,60 @@
  */
 
 import { initMobileMenu } from './mobile-menu.js';
+import { animateHeaderHide, animateHeaderShow, getHeaderTargets } from './modules/lightbox/lightbox-shell.js';
+
+/**
+ * Typewriter SCCD 排版常數：每個字母「右邊緣」x 座標（PATHs 內 SVG viewBox 座標）+ scale 倍率。
+ * triggerGenerateLogo 跟 /create 退場動畫的反向 typewriter 共用，必須對齊；export 出去避免硬編兩份。
+ */
+export const GEN_LOGO_LAYOUT = {
+  LETTER_X: [230, 545, 855, 1135],
+  SCALE: 205 / 1135,
+  GAP: 6,
+  SVG_TOP: 16,
+};
+
+// Typewriter timeline reference：供 restoreHeaderLogo 在 SPA 換頁時 kill
+// 用戶在 destroy step（line ~79：lottie.destroy + logo.innerHTML=''）之前離開 /create，
+// 若不 kill timeline 會在新頁面繼續觸發 destroy → Lottie 被砸 + switchHeaderLogo 已 skip 不會重建
+let genLogoTimeline = null;
+
+// blink interval ref 拉到 module-scope，讓 killGenerateLogoTimeline 也能清掉。
+// 之前 blinkInterval 是 triggerGenerateLogo 內 local closure，timeline 被 kill 時 setInterval
+// 還是持續修改 cursor.style.visibility — 對 detached cursor 沒視覺影響但會跟退場 anim 的
+// cursor visibility/opacity 寫入競爭。共用單一 ref 因為 typewriter 序列上同時只有一個 cursor blink
+let genBlinkInterval = null;
+
+function clearGenBlink() {
+  if (genBlinkInterval) {
+    clearInterval(genBlinkInterval);
+    genBlinkInterval = null;
+  }
+}
+
+/**
+ * /create 退場動畫起手要 kill timeline，避免 typewriter 的 .set(pathEls[i], {opacity:1}) 在
+ * 退場 anim 跑 paths.opacity:0 時又把 opacity 拉回 1 形成閃爍。
+ * 同時清 blink interval，避免 cursor 持續被 setInterval 翻 visibility 干擾退場 anim 的 cursor 操作。
+ */
+export function killGenerateLogoTimeline() {
+  if (genLogoTimeline) {
+    genLogoTimeline.kill();
+    genLogoTimeline = null;
+  }
+  clearGenBlink();
+}
 
 // ── Generate Logo Typewriter 動畫（SPA 換頁時呼叫）────────────
 export function triggerGenerateLogo() {
   const logo = document.getElementById('header-logo');
   if (!logo || typeof gsap === 'undefined') return;
+
+  // 重複觸發或上一輪殘留 → kill 再重來
+  if (genLogoTimeline) {
+    genLogoTimeline.kill();
+    genLogoTimeline = null;
+  }
 
   // 清除舊的 typewriter SVG/cursor（避免重複觸發疊加），但**不**動 Lottie
   // 原本在這裡就 destroy Lottie + 清 innerHTML → Lottie 完全沒機會被使用者看到
@@ -16,25 +65,47 @@ export function triggerGenerateLogo() {
   const logoContainer = logo.parentNode;
   logoContainer.querySelectorAll('#gen-logo-svg, [data-gen-cursor]').forEach(el => el.remove());
   logo.style.display = '';
+  // 防禦：清掉 /create 退場動畫殘留的 inline style（opacity:0 + clip-path on parent <a>）
+  // 若 user 在 switchHeaderLogo entry reveal 完成前就再進 /create，殘留 opacity:0 會讓
+  // Lottie 在 2s typewriter delay 內 invisible
+  logo.style.opacity = '';
+  logo.style.clipPath = '';
+  // 殺掉 switchHeaderLogo runHeaderLogoReveal 留下的 clipPath tween（前一頁 reveal 還沒跑完就進 /create）
+  // 限定 'clipPath' property 避免誤殺 header.js scroll-shrink ScrollTrigger（綁 width/height）
+  if (typeof gsap !== 'undefined') {
+    gsap.killTweensOf(logo, 'clipPath');
+  }
+  if (logoContainer && /** @type {HTMLElement} */ (logoContainer).style) {
+    /** @type {HTMLElement} */ (logoContainer).style.clipPath = '';
+  }
 
-  const isInverse = document.body.classList.contains('mode-inverse');
-  const fillColor = isInverse ? '#fff' : '#000';
+  // currentColor 讓 fill / background 跟著 body.mode-* 設的 color 動態走（mode 切換時自動更新）
+  const fillColor = 'currentColor';
+
+  // 進場敘事：Lottie ring 先 shrink 到 100x100（如果還是 180）→ indicator cursor 出現在
+  // shrunk Lottie 右邊 → 短閃 → 摧毀 Lottie → cursor 跳左、type 出 SCCD
+  // 所以右側 cursor 的 left/height 對齊 100-size Lottie 而非原本 180-size
+  const SHRUNK_SIZE = 100;
+  const currentLogoSize = logo.offsetWidth || 180;
+  const needsShrink = currentLogoSize > SHRUNK_SIZE + 10;
 
   const cursor = document.createElement('div');
   cursor.dataset.genCursor = '1';
-  cursor.style.cssText = `position:absolute;top:8px;left:180px;width:1px;height:196px;background:${fillColor};z-index:10;visibility:hidden;`;
+  cursor.dataset.genCursorRole = 'indicator';
+  cursor.style.cssText = `position:absolute;top:8px;left:${SHRUNK_SIZE}px;width:1px;height:${SHRUNK_SIZE + 16}px;background:${fillColor};z-index:10;visibility:hidden;`;
   logoContainer.appendChild(cursor);
 
-  let blinkInterval = null;
+  // blink interval ref 上提到 module-scope（genBlinkInterval），讓 killGenerateLogoTimeline
+  // 也能清；之前 local var SetInterval timeline kill 後仍持續跑修改 cursor.visibility
   function startBlink(el) {
-    if (blinkInterval) clearInterval(blinkInterval);
+    clearGenBlink();
     el.style.visibility = 'visible';
-    blinkInterval = setInterval(() => {
+    genBlinkInterval = setInterval(() => {
       el.style.visibility = el.style.visibility === 'hidden' ? 'visible' : 'hidden';
     }, 530);
   }
   function stopBlink(el) {
-    if (blinkInterval) { clearInterval(blinkInterval); blinkInterval = null; }
+    clearGenBlink();
     el.style.visibility = 'visible';
   }
 
@@ -50,10 +121,7 @@ export function triggerGenerateLogo() {
     'M721.35,320c-28.44,0-53.54-6.73-75.32-20.18-21.78-13.45-38.77-32.18-50.98-56.18-12.21-24-18.31-51.81-18.31-83.43s6.1-59.85,18.31-83.85c12.2-24,29.16-42.72,50.87-56.18,21.71-13.45,46.85-20.18,75.42-20.18,22.61,0,43.1,4.44,61.48,13.32,18.38,8.88,33.6,21.4,45.67,37.56,12.07,16.16,19.9,35.27,23.51,57.32h-47.02c-4.58-21.08-14.32-37.35-29.23-48.79-14.91-11.44-32.91-17.17-53.99-17.17s-37.94,4.93-52.64,14.77c-14.7,9.85-26.04,23.65-34.02,41.4-7.98,17.76-11.96,38.35-11.96,61.79s3.95,43.97,11.86,61.59c7.91,17.62,19.25,31.35,34.02,41.2,14.77,9.85,32.35,14.77,52.74,14.77s38.87-5.69,53.78-17.06c14.91-11.37,24.79-27.53,29.65-48.48h46.81c-3.61,21.92-11.44,40.96-23.51,57.11-12.07,16.16-27.29,28.64-45.67,37.45-18.38,8.81-38.88,13.21-61.48,13.21Z',
     'M984.99,315.01h-100.29V4.99h103.41c30.38,0,56.56,6.24,78.54,18.73,21.98,12.48,38.87,30.27,50.66,53.37,11.79,23.1,17.69,50.6,17.69,82.5s-5.93,59.68-17.79,82.91c-11.86,23.23-28.99,41.13-51.39,53.68-22.4,12.56-49.35,18.83-80.83,18.83ZM930.89,274.85h51.18c36.2,0,63.01-10.2,80.42-30.59,17.41-20.39,26.11-48.62,26.11-84.68s-8.6-63.98-25.8-84.16c-17.2-20.18-43.07-30.27-77.61-30.27h-54.3v229.7Z',
   ];
-  const LETTER_X = [230, 545, 855, 1135];
-  const scale = 205 / 1135;
-  const GAP = 6;
-  const SVG_TOP = 16;
+  const { LETTER_X, SCALE: scale, GAP, SVG_TOP } = GEN_LOGO_LAYOUT;
   const letterHeight = Math.round(320 * scale);
 
   const pathEls = PATHS.map(d => {
@@ -65,11 +133,24 @@ export function triggerGenerateLogo() {
 
   const cursorNew = document.createElement('div');
   cursorNew.dataset.genCursor = '1';
+  cursorNew.dataset.genCursorRole = 'typewriter';
   cursorNew.style.cssText = `position:absolute;top:${SVG_TOP - 6}px;left:0;width:1px;height:${letterHeight + 12}px;background:${fillColor};z-index:3;visibility:hidden;`;
   logoContainer.appendChild(cursorNew);
   cursor.style.zIndex = '3';
 
-  const tl = gsap.timeline({ delay: 2 });
+  // Shrink Lottie 到 SHRUNK_SIZE：跟下面 timeline 的 delay:2 並行跑，0.6s 內完成，
+  // 不影響原本「delay 2s → cursor 3 cycles blink → destroy」的 indicator 出現節奏。
+  // SPA 從 library/atlas 進來 logo 已是 100 → 跳過 shrink；
+  // 從一般頁進來 updateNavActive 已 skip 不動 logo，這裡負責收。
+  if (needsShrink) {
+    gsap.to(logo, { width: SHRUNK_SIZE, height: SHRUNK_SIZE, duration: 0.6, ease: 'power2.inOut' });
+  }
+
+  // delay:2 保留原本節奏 — user 要求 indicator 「慢一點再出現」，跟改造前一致
+  // shrink 在這 2s 內悄悄完成，cursor 出現時 Lottie 已是 100 size + cursor 對齊在它右邊緣
+  const tl = gsap.timeline({ delay: 2, onComplete: () => { genLogoTimeline = null; } });
+  genLogoTimeline = tl;
+
   tl.call(() => startBlink(cursor));
   tl.to({}, { duration: 530 * 3 / 1000 });
   tl.call(() => stopBlink(cursor));
@@ -104,6 +185,13 @@ export function triggerGenerateLogo() {
 }
 
 export function restoreHeaderLogo() {
+  // 必須在清 DOM 前 kill timeline：用戶在 typewriter 完成前離開 /create 時，
+  // 尾段的 lottie.destroy() + logo.innerHTML='' 會在新頁面繼續觸發，把 Lottie 弄不見且沒人重建
+  // （switchHeaderLogo 在 applyMode 已 skip 不重建，因為當時 Lottie 還在）
+  if (genLogoTimeline) {
+    genLogoTimeline.kill();
+    genLogoTimeline = null;
+  }
   const logo = document.getElementById('header-logo');
   if (!logo) return;
   const logoContainer = logo.parentNode;
@@ -154,7 +242,7 @@ export function updateNavActive(page) {
   // Standalone links（非 nav 內）
   header.querySelectorAll('a.nav-link').forEach(link => {
     if (link.closest('nav')) return;
-    if (link.closest('[data-bar="generate"]') || link.closest('[data-bar="library"]') || link.closest('[data-bar="atlas"]')) return;
+    if (link.closest('[data-bar="generate"]') || link.closest('[data-bar="library"]') || link.closest('[data-bar="atlas"]') || link.closest('[data-bar="alumni"]')) return;
     const href = link.getAttribute('href');
     if (href && href.split('/').pop() === activeHref) {
       setNavLinkActive(link);
@@ -167,22 +255,86 @@ export function updateNavActive(page) {
     aboutBarEl.classList.add('has-active');
   }
 
-  // library / atlas / generate side bar 狀態
-  const libraryBarEl  = header.querySelector('[data-bar="library"]');
-  const atlasBarEl    = header.querySelector('[data-bar="atlas"]');
-  const generateBarEl = header.querySelector('[data-bar="generate"]');
+  // library / atlas / generate / alumni side bar 狀態
+  const libraryBarEl    = header.querySelector('[data-bar="library"]');
+  const atlasBarEl      = header.querySelector('[data-bar="atlas"]');
+  const generateBarEl   = header.querySelector('[data-bar="generate"]');
+  const alumniBarEl     = header.querySelector('[data-bar="alumni"]');
+  const alumniFullBarEl = header.querySelector('[data-bar="alumni-full"]');
+  const modeBtnEl       = header.querySelector('#mode-btn');
   const isLibraryActive  = activePage === 'library';
   const isAtlasActive    = activePage === 'atlas';
   const isGenerateActive = activePage === 'generate';
+  const isAlumniActive   = activePage === 'alumni';
 
-  // Logo 尺寸：generate 頁和一般頁都是大的（180），library / atlas 頁是小的（100）
-  // SPA 切換時：從當前大小平滑過渡到目標大小，lottie 旋轉保持連續（不重新載入）
+  // Alumni 頁面：alumni-full bar 取代 about-bar 位置，其他 bars 全部隱藏
+  // 設 display:none 而非 clip-path：navigation 完成後的最終狀態（直接訪問 URL / SPA 切回都正確）
+  // 收起動畫由 navigateToAlumni / playAlumniReveal 控制（在 click handler 觸發，這裡只負責 end state）
+  const wasAlumni = document.body.classList.contains('page-alumni');
+  const leavingAlumni = wasAlumni && !isAlumniActive;  // 偵測「離開 alumni」→ 觸發其他 bars reveal
+  document.body.classList.toggle('page-alumni', isAlumniActive);
+  if (alumniFullBarEl) /** @type {HTMLElement} */ (alumniFullBarEl).style.display = isAlumniActive ? '' : 'none';
+  const otherBarEls = [aboutBarEl, alumniBarEl, libraryBarEl, atlasBarEl, generateBarEl].filter(Boolean);
+  // mode-btn 在 alumni 頁要保留（user 要求），所以不在隱藏列表
+  // mode-btn 自己也清 clipPath（避免收起動畫殘留）
+  otherBarEls.forEach(el => {
+    /** @type {HTMLElement} */ (el).style.display = isAlumniActive ? 'none' : '';
+    // 離開 alumni 時不立即清 clipPath — 下方 reveal 動畫會 set inset 然後清；其他情況立即清
+    if (!leavingAlumni) /** @type {HTMLElement} */ (el).style.clipPath = '';
+  });
+  if (modeBtnEl) /** @type {HTMLElement} */ (modeBtnEl).style.clipPath = '';
+
+  // 離開 alumni → 其他 bars clip-reveal 進場（mirror 進 alumni 時的 collapse pattern）
+  // user 反饋 reveal 太快 → 拉長 duration 0.8 + stagger 0.08（總時長 ~1.12s），跟收起感覺一樣紮實
+  // page swap 在 reveal 之前發生（user 要求），所以 reveal 在新頁上跑 — 動畫變長讓視覺停留時間夠
+  if (leavingAlumni && otherBarEls.length && typeof gsap !== 'undefined') {
+    gsap.killTweensOf(otherBarEls);
+    otherBarEls.forEach(el => {
+      const dir = Math.random() < 0.5 ? 'inset(0% 0% 100% 0%)' : 'inset(100% 0% 0% 0%)';
+      gsap.set(el, { clipPath: dir });
+    });
+    gsap.to(otherBarEls, {
+      clipPath: 'inset(0% 0% 0% 0%)',
+      duration: 0.8,
+      ease: 'power2.out',
+      stagger: 0.08,
+      onComplete: () => {
+        otherBarEls.forEach(el => { /** @type {HTMLElement} */ (el).style.clipPath = ''; });
+      },
+    });
+  }
+
+  // alumni-full bar 進場：從左 clip-reveal（inset(0 100% 0 0) → inset(0)）
+  // 只在 SPA 切到 alumni 時跑（不是 alumni → alumni 重複觸發）
+  if (alumniFullBarEl && typeof gsap !== 'undefined') {
+    if (isAlumniActive) {
+      gsap.killTweensOf(alumniFullBarEl);
+      gsap.fromTo(alumniFullBarEl,
+        { clipPath: 'inset(0% 100% 0% 0%)' },
+        {
+          clipPath: 'inset(0% 0% 0% 0%)',
+          duration: 0.7,
+          ease: 'power3.out',
+          delay: 0.25,  // 等 bars 收起動畫先跑一段
+          onComplete: () => {
+            /** @type {HTMLElement} */ (alumniFullBarEl).style.clipPath = '';
+          },
+        }
+      );
+    } else {
+      /** @type {HTMLElement} */ (alumniFullBarEl).style.clipPath = '';
+    }
+  }
+
+  // Logo 尺寸：library / atlas 頁是小的（100）；一般頁是大的（180）會 scroll shrink
+  // /create 由 triggerGenerateLogo 自己管 size（shrink 180→100 是 typewriter 進場敘事的一部分），
+  // 這裡跑 width tween 會跟它的 shrink 競爭，所以對 generate 跳過 tween 但仍要清掉舊頁的 ScrollTrigger 和 tween
   const logoEl = document.getElementById('header-logo');
   if (logoEl && typeof gsap !== 'undefined' && window.innerWidth >= 768) {
     // 先精確捕捉目前尺寸（避免 ScrollTrigger 中斷造成不穩定）
     const currentSize = logoEl.offsetWidth || 180;
 
-    // 清除舊的 ScrollTrigger 和 tween
+    // 清除舊的 ScrollTrigger 和 tween（generate 也要清，否則前一頁的 body scroll-shrink trigger 殘留）
     if (typeof ScrollTrigger !== 'undefined') {
       ScrollTrigger.getAll().forEach(st => {
         if (st.vars && st.vars.trigger === 'body') st.kill();
@@ -190,36 +342,40 @@ export function updateNavActive(page) {
     }
     gsap.killTweensOf(logoEl);
 
-    const SCROLL_END = 300;
-    const targetSize = (isLibraryActive || isAtlasActive)
-      ? 100
-      : (() => {
-          const progress = Math.min(window.scrollY / SCROLL_END, 1);
-          return 180 - (180 - 100) * progress;
-        })();
+    // /create：清完就交棒給 triggerGenerateLogo，不在這裡 set 新 tween 否則跟 shrink 競爭
+    if (!isGenerateActive) {
+      const SCROLL_END = 300;
+      // SPA 切頁邏輯上應該起點 = page top（router scrollToTop 會在切頁時呼叫多次），
+      // 一般頁直接給 180 不從 window.scrollY 推算 — 否則 router scrollToTop 還沒收斂時
+      // （前一頁從 footer 切過來、新頁 innerHTML swap 期間 scroll-anchoring 殘留），
+      // 這裡會讀到舊的高 scrollY → logo 直接 snap 到小尺寸，但 about-bar marginLeft
+      // 不讀 scroll 仍是 64 → 大 about-bar + 小 logo 不匹配。
+      // 後續 user 真的開始 scroll 由 onComplete 裡建的 ScrollTrigger 負責 shrink。
+      const targetSize = (isLibraryActive || isAtlasActive) ? 100 : 180;
 
-    // 用 fromTo 強制指定起點尺寸（避免 GSAP 讀到不一致的狀態）
-    // lottie SVG 內部動畫不受 width/height 變化影響，持續旋轉
-    gsap.fromTo(logoEl,
-      { width: currentSize, height: currentSize },
-      {
-        width: targetSize,
-        height: targetSize,
-        duration: 0.6,
-        ease: 'power2.inOut',
-        onComplete: () => {
-          if (!isLibraryActive && !isAtlasActive && !isGenerateActive && typeof ScrollTrigger !== 'undefined') {
-            gsap.fromTo(logoEl,
-              { width: 180, height: 180 },
-              {
-                width: 100, height: 100, ease: 'none',
-                scrollTrigger: { trigger: 'body', start: 'top top', end: `+=${SCROLL_END}`, scrub: 0.5 }
-              }
-            );
+      // 用 fromTo 強制指定起點尺寸（避免 GSAP 讀到不一致的狀態）
+      // lottie SVG 內部動畫不受 width/height 變化影響，持續旋轉
+      gsap.fromTo(logoEl,
+        { width: currentSize, height: currentSize },
+        {
+          width: targetSize,
+          height: targetSize,
+          duration: 0.6,
+          ease: 'power2.inOut',
+          onComplete: () => {
+            if (!isLibraryActive && !isAtlasActive && typeof ScrollTrigger !== 'undefined') {
+              gsap.fromTo(logoEl,
+                { width: 180, height: 180 },
+                {
+                  width: 100, height: 100, ease: 'none',
+                  scrollTrigger: { trigger: 'body', start: 'top top', end: `+=${SCROLL_END}`, scrub: 0.5 }
+                }
+              );
+            }
           }
         }
-      }
-    );
+      );
+    }
   }
 
   function setSideBar(el, isActive) {
@@ -234,10 +390,10 @@ export function updateNavActive(page) {
   setSideBar(libraryBarEl,  isLibraryActive);
   setSideBar(atlasBarEl,    isAtlasActive);
   setSideBar(generateBarEl, isGenerateActive);
+  setSideBar(alumniBarEl,   isAlumniActive);
 
   // mode-btn 顏色由 .theme-toggle-btn / .theme-toggle-circle 的 var(--theme-fg) 接管
   // 不在這裡 inline-set，避免蓋掉 mode 切換時 CSS 變數的自動更新
-  // （/generate 頁的 inline override 由 generate-header-sync 處理，cleanup 時會清掉）
 
   // About bar scroll collapse：library 頁 marginLeft=0（貼齊 logo），一般頁面 marginLeft=64
   // SPA 切換時做 smooth 動畫（和 logo 同步）
@@ -289,6 +445,9 @@ export function initHeader() {
     let currentPage = window.location.pathname.split('/').pop().replace('.html', '') || 'index';
 
     // Generate page 初次載入時觸發 logo 動畫
+    // 注意：直接訪問 /create.html 時 currentPage='create'，這條 if 不會 fire，由 main-modular.js
+    // 的 fireGenLogo（header:ready listener）負責呼叫，避免兩邊都 fire 形成 race（double trigger
+    // 會讓第二次 call kill 第一次的 timeline 浪費 ~1 frame 的 shrink tween）
     if (currentPage === 'generate') {
       triggerGenerateLogo();
     }
@@ -302,6 +461,7 @@ export function initHeader() {
       const libraryBar = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="library"]'));
       const atlasBar = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="atlas"]'));
       const generateBar = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="generate"]'));
+      const alumniBar = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="alumni"]'));
 
       function getAboutDeg() {
         return Math.round((Math.random() * 3 - 1.5) * 10) / 10;
@@ -317,7 +477,7 @@ export function initHeader() {
         aboutBar.style.transform = `rotate(${getAboutDeg()}deg)`;
         aboutBar.style.transformOrigin = 'center center';
       }
-      [libraryBar, atlasBar, generateBar].filter(Boolean).forEach(el => {
+      [libraryBar, atlasBar, generateBar, alumniBar].filter(Boolean).forEach(el => {
         el.style.transform = `rotate(${getSmallBarDeg()}deg)`;
         el.style.transformOrigin = 'center center';
       });
@@ -329,6 +489,7 @@ export function initHeader() {
     const libraryBar  = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="library"]'));
     const atlasBar    = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="atlas"]'));
     const generateBar = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="generate"]'));
+    const alumniBar   = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="alumni"]'));
 
     // about bar hover：底色隨機三原色
     if (aboutBar) {
@@ -344,7 +505,7 @@ export function initHeader() {
     // library / atlas / gen / mode 各自 hover 時隨機三原色，互不影響
     // 額外加 .is-bar-hover class 讓 CSS 文字色 hover 規則跟著走（class-driven 而非 :hover-driven），
     // 這樣點擊後 setSideBar 可清除 class，避免「cursor 還在 btn / 已導航到 library 頁」造成黑底黑字
-    [libraryBar, atlasBar, generateBar].filter(Boolean).forEach(el => {
+    [libraryBar, atlasBar, generateBar, alumniBar].filter(Boolean).forEach(el => {
       el.addEventListener('mouseenter', () => {
         el.classList.add('is-bar-hover');
         el.style.background = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
@@ -356,6 +517,49 @@ export function initHeader() {
         el.style.background = isActive ? '#000' : '#fff';
       });
     });
+
+    // === Alumni 點擊 → 全部 bars clip-path 收起（lightbox-shell 風格隨機 top/bottom），動畫完才導航 ===
+    // stopImmediatePropagation() 擋掉 router 的 document-level click 攔截，動畫結束後手動呼叫 navigateTo
+    // 這樣使用者完整看到收起動畫，navigation 才開始（避免 updateNavActive 中途 display:none 把 bars snap 掉）
+    if (alumniBar && typeof gsap !== 'undefined') {
+      const link = alumniBar.querySelector('a.nav-link');
+      if (link) {
+        link.addEventListener('click', async (e) => {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          // mode-btn 不收起（要在 alumni 頁保留可見），其他 bars 全收
+          const bars = [
+            header.querySelector('[data-bar="about"]'),
+            header.querySelector('[data-bar="library"]'),
+            header.querySelector('[data-bar="atlas"]'),
+            header.querySelector('[data-bar="generate"]'),
+            header.querySelector('[data-bar="alumni"]'),
+          ].filter(Boolean);
+          gsap.killTweensOf(bars);
+          await new Promise(resolve => {
+            gsap.fromTo(bars,
+              { clipPath: 'inset(0% 0% 0% 0%)' },
+              {
+                clipPath: () => Math.random() < 0.5
+                  ? 'inset(0% 0% 100% 0%)'
+                  : 'inset(100% 0% 0% 0%)',
+                duration: 0.55,
+                ease: 'power2.out',
+                stagger: 0.05,
+                overwrite: true,
+                onComplete: resolve,
+              }
+            );
+          });
+          // 動畫完成後手動觸發 SPA navigation
+          const href = link.getAttribute('href');
+          if (href) {
+            const { navigateTo } = await import('./router.js');
+            navigateTo(new URL(href, window.location.origin).href);
+          }
+        });
+      }
+    }
 
     // 4. About Bar Scroll Collapse（GSAP + ScrollTrigger）
     (function initAboutBarScroll() {
@@ -398,7 +602,9 @@ export function initHeader() {
       if (isColor) { logoFile = 'SCCDLogoWireframeStandard.json'; logoTypeTag = 'wireframe'; }
       else if (isInverse) { logoFile = 'SCCDLogoInverse.json'; logoTypeTag = 'inverse'; }
       else { logoFile = 'SCCDLogoStandard.json'; logoTypeTag = 'standard'; }
-      const logoPath = `data/${logoFile}`;
+      // 用 origin 作 base 算出絕對路徑：相對 'data/X.json' 在 /pages/X.html 直接訪問時
+      // 會解析成 /pages/data/X.json → 404 → Lottie 載不到 logo 不出現（live-server / 直接訪問 sub-folder 頁時會踩到）
+      const logoPath = new URL(`data/${logoFile}`, window.location.origin).href;
       // 標記目前 logo type，讓 theme-toggle 的 switchHeaderLogo guard 能識別已載入的 logo
       logo.dataset.logoType = logoTypeTag;
       const logoAnim = lottie.loadAnimation({
@@ -424,7 +630,9 @@ export function initHeader() {
       const isDesktop = window.matchMedia('(min-width: 768px)');
       const isLibrary = currentPage === 'library';
       const isAtlas   = currentPage === 'atlas';
-      const isGenerate = currentPage === 'generate';
+      // /create 直接訪問 URL 是 'create'，SPA 內 routed page 名是 'generate'，兩個都要 catch
+      // 否則直接訪問會走 else 分支裝上 scroll-shrink ScrollTrigger，跟 triggerGenerateLogo 的 shrink tween 競爭同個 width prop
+      const isGenerate = currentPage === 'generate' || currentPage === 'create';
       if (isDesktop.matches) {
         if (isLibrary || isAtlas) {
           gsap.set(logo, { width: 100, height: 100 });
@@ -496,23 +704,27 @@ export function initHeader() {
     })();
 
     // 6. Header Hide on Footer Reveal
-    // 支援靜態 footer（index.html）和動態載入 footer（其他頁面）
-    let logoHidden = false;
+    // bars + logo 全走 lightbox-shell 共用的 clip-path 收/展（per-element random top/bottom 方向），跟 lightbox/slide-in 同款
+    // logo target 用 #header-logo 的 <a> 父層（純 link wrapper、無 gsap tween）：
+    //   直接 clip-path #header-logo 會被 animateHeaderHide 內的 killTweensOf 殺掉 logo scroll-shrink ScrollTrigger tween
+    //   <a> bbox == #header-logo bbox（唯一 child），視覺等效
+    let barsHidden = false;
     function bindFooterScroll() {
       const footerEl = document.querySelector('footer');
       if (!footerEl) return false;
-      const logoEl = document.getElementById('header-logo');
+      function getFooterHideTargets() {
+        const logoAnchor = document.getElementById('header-logo')?.parentElement;
+        return [...getHeaderTargets(), logoAnchor].filter(Boolean);
+      }
       window.addEventListener('scroll', () => {
         const isNearFooter = footerEl.offsetHeight > 0 && footerEl.getBoundingClientRect().top < window.innerHeight * 0.5;
-        header.classList.toggle('header-hidden', isNearFooter);
-        if (logoEl && typeof gsap !== 'undefined') {
-          if (isNearFooter && !logoHidden) {
-            logoHidden = true;
-            gsap.to(logoEl, { opacity: 0, duration: 0.3, ease: 'power2.out' });
-          } else if (!isNearFooter && logoHidden) {
-            logoHidden = false;
-            gsap.to(logoEl, { opacity: 1, duration: 0.3, ease: 'power2.out' });
-          }
+        if (typeof gsap === 'undefined') return;
+        if (isNearFooter && !barsHidden) {
+          barsHidden = true;
+          animateHeaderHide(getFooterHideTargets());
+        } else if (!isNearFooter && barsHidden) {
+          barsHidden = false;
+          animateHeaderShow(getFooterHideTargets());
         }
       });
       return true;
@@ -529,8 +741,11 @@ export function initHeader() {
   }
 
   // Load Header HTML（SPA：永遠從根目錄載入）
+  // 用絕對路徑：直接開 /pages/create.html 等子目錄頁面時，相對 'pages/header.html'
+  // 會解析成 /pages/pages/header.html 404；改 new URL(..., origin) 強制從 origin 根
   if (headerContainer) {
-    fetch('pages/header.html')
+    const headerUrl = new URL('pages/header.html', window.location.origin).href;
+    fetch(headerUrl)
       .then(res => {
         if (!res.ok) throw new Error('Network response was not ok');
         return res.text();

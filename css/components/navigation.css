@@ -208,68 +208,21 @@
     }
   }
 
-  /* ===== Footer Layout (Desktop Absolute Positioning) ===== */
-  @media (min-width: 768px) {
-    .footer-logo {
-      position: absolute;
-      top: 0;
-      left: 1%;
-    }
+  /* Footer 規則已遷移到 css/layout/footer.css（CSS Grid 3×2 + transform-origin: top left）。
+   * 原本這裡有一整塊「Footer Layout (Desktop Absolute Positioning)」用 position: absolute + 寫死 top: NNvh / left: NN%，
+   * 因為 navigation.css 在 input.css 裡 import 順序晚於 layout/footer.css → 同 specificity 勝過 footer.css 新版規則，
+   * 導致 grid layout 完全失效（items 全 absolute、IG/FB 都 left:85% 黏一起變成單一 icon）。已刪除。 */
 
-    .footer-fax {
-      position: absolute;
-      top: 20vh;
-      left: 46%;
-      transform: rotate(12deg);
-    }
-
-    .footer-tel {
-      position: absolute;
-      top: 35vh;
-      left: 17%;
-      transform: rotate(-18deg);
-    }
-
-    .footer-office {
-      position: absolute;
-      top: 40vh;
-      left: 34%;
-      transform: rotate(-10deg);
-    }
-
-    .footer-email {
-      position: absolute;
-      top: 60vh;
-      left: 9%;
-      transform: rotate(15deg);
-    }
-
-    .footer-links {
-      position: absolute;
-      top: 70vh;
-      left: 51%;
-      transform: rotate(18deg);
-    }
-
-    .footer-social .footer-youtube {
-      position: absolute;
-      top: 50%;
-      left: 68%;
-      transform: rotate(-15deg);
-    }
-
-    .footer-social .footer-instagram {
-      position: absolute;
-      top: 42%;
-      left: 85%;
-      transform: rotate(15deg);
-    }
-
-    .footer-social .footer-facebook {
-      position: absolute;
-      top: 58%;
-      left: 85%;
-      transform: rotate(-12deg);
-    }
-  }
+  /* ===== Alumni Bar (AA — 左 library 旁) =====
+   * 兩個 bar：
+   *   [data-bar="alumni"]      = 小 AA bar（右側預設位置），hover 展開「系友會」（沿用既有 .nav-link-cn 機制）
+   *   [data-bar="alumni-full"] = 完整名稱 bar（about-bar slot 左側）預設 display:none，body.page-alumni 時 JS display:'' 並 clip-reveal 進場
+   *
+   * 收起動畫：點 AA 時 JS 跑 lightbox-shell 風格（gsap clipPath inset 隨機 top/bottom 收掉所有 bars），
+   *   進場動畫由 header.js 設 inline clip-path 動畫，CSS 只負責顯示/隱藏切換
+   *
+   * Active（body.page-alumni）：
+   *   - alumni-full bar display:''（JS 設）
+   *   - 其他 bars（about/library/atlas/generate/mode-btn/alumni）display:none（JS 設）
+   *   - 這樣切頁進入 / 從 URL 直接訪問都有正確 end state；動畫只在 user 點擊時跑 */
 }

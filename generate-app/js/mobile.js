@@ -148,18 +148,18 @@ function initMobileUI() {
   if (!isMobileMode) return;
 
   // 選取所有元素
-  mobileElements.inputBtn = select('.mobile-input-btn');
-  mobileElements.modeBtn = select('.mobile-mode-btn');
-  mobileElements.customBtn = select('.mobile-custom-btn');
-  mobileElements.rotateBtn = select('.mobile-rotate-btn');
-  mobileElements.saveBtn = select('.mobile-save-btn');
+  mobileElements.inputBtn = _p5.select('.mobile-input-btn');
+  mobileElements.modeBtn = _p5.select('.mobile-mode-btn');
+  mobileElements.customBtn = _p5.select('.mobile-custom-btn');
+  mobileElements.rotateBtn = _p5.select('.mobile-rotate-btn');
+  mobileElements.saveBtn = _p5.select('.mobile-save-btn');
 
-  mobileElements.inputPanel = select('.mobile-input-panel');
-  mobileElements.colorpickerPanel = select('.mobile-colorpicker-panel');
-  mobileElements.rotatePanel = select('.mobile-rotate-panel');
+  mobileElements.inputPanel = _p5.select('.mobile-input-panel');
+  mobileElements.colorpickerPanel = _p5.select('.mobile-colorpicker-panel');
+  mobileElements.rotatePanel = _p5.select('.mobile-rotate-panel');
 
-  mobileElements.inputBox = select('#mobile-input-box');
-  mobileElements.modeIcon = select('#mobile-mode-icon');
+  mobileElements.inputBox = _p5.select('#mobile-input-box');
+  mobileElements.modeIcon = _p5.select('#mobile-mode-icon');
 
   // 創建隱藏的 div 用於測量文字高度（用於垂直置中）
   if (mobileElements.inputBox) {
@@ -178,45 +178,45 @@ function initMobileUI() {
     mobileHiddenMeasurer.style('box-sizing', 'border-box');
   }
 
-  mobileElements.bentoCustomBtn = select('.mobile-custom-button');
-  mobileElements.bentoPlayBtn = select('.mobile-play-button');
-  mobileElements.bentoCustomIcon = select('#mobile-custom-icon');
-  mobileElements.bentoPlayIcon = select('#mobile-rotate-icon');
+  mobileElements.bentoCustomBtn = _p5.select('.mobile-custom-button');
+  mobileElements.bentoPlayBtn = _p5.select('.mobile-play-button');
+  mobileElements.bentoCustomIcon = _p5.select('#mobile-custom-icon');
+  mobileElements.bentoPlayIcon = _p5.select('#mobile-rotate-icon');
 
-  mobileElements.rSlider = select('.mobile-r-slider');
-  mobileElements.gSlider = select('.mobile-g-slider');
-  mobileElements.bSlider = select('.mobile-b-slider');
-  mobileElements.rAngleLabel = select('.mobile-r-angle-label');
-  mobileElements.gAngleLabel = select('.mobile-g-angle-label');
-  mobileElements.bAngleLabel = select('.mobile-b-angle-label');
+  mobileElements.rSlider = _p5.select('.mobile-r-slider');
+  mobileElements.gSlider = _p5.select('.mobile-g-slider');
+  mobileElements.bSlider = _p5.select('.mobile-b-slider');
+  mobileElements.rAngleLabel = _p5.select('.mobile-r-angle-label');
+  mobileElements.gAngleLabel = _p5.select('.mobile-g-angle-label');
+  mobileElements.bAngleLabel = _p5.select('.mobile-b-angle-label');
 
-  mobileElements.randomBtn = select('.mobile-random-button');
-  mobileElements.resetBtn = select('.mobile-reset-button');
-  mobileElements.randomIcon = select('.mobile-random-img');
-  mobileElements.resetIcon = select('.mobile-reset-img');
+  mobileElements.randomBtn = _p5.select('.mobile-random-button');
+  mobileElements.resetBtn = _p5.select('.mobile-reset-button');
+  mobileElements.randomIcon = _p5.select('.mobile-random-img');
+  mobileElements.resetIcon = _p5.select('.mobile-reset-img');
 
-  mobileElements.colorpickerContainer = select('#mobile-colorpicker-container');
-  mobileElements.colorWheelPlayBtn = select('#mobile-colorwheel-play-button');
-  mobileElements.colorWheelPlayIcon = select('#mobile-colorwheel-play-icon');
+  mobileElements.colorpickerContainer = _p5.select('#mobile-colorpicker-container');
+  mobileElements.colorWheelPlayBtn = _p5.select('#mobile-colorwheel-play-button');
+  mobileElements.colorWheelPlayIcon = _p5.select('#mobile-colorwheel-play-icon');
 
   // 手機版 Color Picker Bar 元素
-  mobileElements.mobileColorpickerBar = select('.mobile-colorpicker-bar');
-  mobileElements.mobileColorpickerContainer = select('#mobile-colorpicker-container');
-  mobileElements.mobileColorWheelPlayBtn = select('#mobile-colorwheel-play-button');
-  mobileElements.mobileColorWheelPlayIcon = select('#mobile-colorwheel-play-icon');
+  mobileElements.mobileColorpickerBar = _p5.select('.mobile-colorpicker-bar');
+  mobileElements.mobileColorpickerContainer = _p5.select('#mobile-colorpicker-container');
+  mobileElements.mobileColorWheelPlayBtn = _p5.select('#mobile-colorwheel-play-button');
+  mobileElements.mobileColorWheelPlayIcon = _p5.select('#mobile-colorwheel-play-icon');
 
   // 手機版 Custom 調整區元素
-  mobileElements.customAngleControls = select('.mobile-custom-angle-controls');
-  mobileElements.mobileRSlider = select('#mobile-r-slider');
-  mobileElements.mobileGSlider = select('#mobile-g-slider');
-  mobileElements.mobileBSlider = select('#mobile-b-slider');
-  mobileElements.mobileRAngleLabel = select('#mobile-r-angle-label');
-  mobileElements.mobileGAngleLabel = select('#mobile-g-angle-label');
-  mobileElements.mobileBAngleLabel = select('#mobile-b-angle-label');
-  mobileElements.mobileRandomBtn = select('#mobile-random-button');
-  mobileElements.mobileResetBtn = select('#mobile-reset-button');
-  mobileElements.mobileRandomImg = select('#mobile-random-img');
-  mobileElements.mobileResetImg = select('#mobile-reset-img');
+  mobileElements.customAngleControls = _p5.select('.mobile-custom-angle-controls');
+  mobileElements.mobileRSlider = _p5.select('#mobile-r-slider');
+  mobileElements.mobileGSlider = _p5.select('#mobile-g-slider');
+  mobileElements.mobileBSlider = _p5.select('#mobile-b-slider');
+  mobileElements.mobileRAngleLabel = _p5.select('#mobile-r-angle-label');
+  mobileElements.mobileGAngleLabel = _p5.select('#mobile-g-angle-label');
+  mobileElements.mobileBAngleLabel = _p5.select('#mobile-b-angle-label');
+  mobileElements.mobileRandomBtn = _p5.select('#mobile-random-button');
+  mobileElements.mobileResetBtn = _p5.select('#mobile-reset-button');
+  mobileElements.mobileRandomImg = _p5.select('#mobile-random-img');
+  mobileElements.mobileResetImg = _p5.select('#mobile-reset-img');
 
   // 綁定事件
   bindMobileEvents();
@@ -748,7 +748,7 @@ function handleRandomButton() {
 
   // 使用陣列迴圈處理 R/G/B（簡化重複邏輯）
   for (let i = 0; i < 3; i++) {
-    const newAngle = (letterCount >= MIN_LETTERS_FOR_CHANNELS[i]) ? floor(random(ROTATION_ANGLE_MIN, ROTATION_ANGLE_MAX)) : 0;
+    const newAngle = (letterCount >= MIN_LETTERS_FOR_CHANNELS[i]) ? _p5.floor(_p5.random(ROTATION_ANGLE_MIN, ROTATION_ANGLE_MAX)) : 0;
     const diff = getShortestRotation(rotationOffsets[i], newAngle);
     targetRotationOffsets[i] = rotationOffsets[i] + diff;
     targetSliderValues[i] = normalizeAngle(targetRotationOffsets[i]);
@@ -949,23 +949,23 @@ function updateMobileIcons() {
 
   // Random/Reset 圖標（舊的 Bento 面板）
   if (mobileElements.randomIcon) {
-    mobileElements.randomIcon.attribute('src', `Panel Icon/Random${suffix}.svg`);
+    mobileElements.randomIcon.attribute('src', `/generate-app/Panel Icon/Random${suffix}.svg`);
   }
   if (mobileElements.resetIcon) {
-    mobileElements.resetIcon.attribute('src', `Panel Icon/Reset${suffix}.svg`);
+    mobileElements.resetIcon.attribute('src', `/generate-app/Panel Icon/Reset${suffix}.svg`);
   }
 
   // Random/Reset 圖標（新的 Custom 調整區）
   if (mobileElements.mobileRandomImg) {
-    mobileElements.mobileRandomImg.attribute('src', `Panel Icon/Random${suffix}.svg`);
+    mobileElements.mobileRandomImg.attribute('src', `/generate-app/Panel Icon/Random${suffix}.svg`);
   }
   if (mobileElements.mobileResetImg) {
-    mobileElements.mobileResetImg.attribute('src', `Panel Icon/Reset${suffix}.svg`);
+    mobileElements.mobileResetImg.attribute('src', `/generate-app/Panel Icon/Reset${suffix}.svg`);
   }
 
   // Custom 圖標
   if (mobileElements.bentoCustomIcon) {
-    mobileElements.bentoCustomIcon.attribute('src', `Panel Icon/Custom${suffix}.svg`);
+    mobileElements.bentoCustomIcon.attribute('src', `/generate-app/Panel Icon/Custom${suffix}.svg`);
   }
 
   // Play/Pause 圖標（Bento 面板）
@@ -974,10 +974,10 @@ function updateMobileIcons() {
   // 更新邊框顏色
   const borderColor = isWireframe ? getWireframeBorderColor() : null;
   const elements = [
-    ...selectAll('.mobile-bottom-btn'),
-    select('.mobile-bento-container'),
-    select('.mobile-bento-left'),
-    ...selectAll('.mobile-bento-button')
+    ..._p5.selectAll('.mobile-bottom-btn'),
+    _p5.select('.mobile-bento-container'),
+    _p5.select('.mobile-bento-left'),
+    ..._p5.selectAll('.mobile-bento-button')
   ];
   updateElementsBorderColor(elements, borderColor);
 }
@@ -992,15 +992,15 @@ function updateMobileBentoPlayIcon() {
   let iconSrc = '';
 
   if (!hasText) {
-    iconSrc = `Panel Icon/Rotate${suffix}.svg`;
+    iconSrc = `/generate-app/Panel Icon/Rotate${suffix}.svg`;
   } else if (isAutoRotateMode) {
     if (autoRotate) {
-      iconSrc = `Panel Icon/Pause${suffix}.svg`;
+      iconSrc = `/generate-app/Panel Icon/Pause${suffix}.svg`;
     } else {
-      iconSrc = `Panel Icon/Play${suffix}.svg`;
+      iconSrc = `/generate-app/Panel Icon/Play${suffix}.svg`;
     }
   } else {
-    iconSrc = `Panel Icon/Rotate${suffix}.svg`;
+    iconSrc = `/generate-app/Panel Icon/Rotate${suffix}.svg`;
   }
 
   mobileElements.bentoPlayIcon.attribute('src', iconSrc);
@@ -1014,10 +1014,10 @@ function updateMobileBorderColors() {
   if (!borderColor) return;
 
   const elements = [
-    ...selectAll('.mobile-bottom-btn'),
-    select('.mobile-bento-container'),
-    select('.mobile-bento-left'),
-    ...selectAll('.mobile-bento-button')
+    ..._p5.selectAll('.mobile-bottom-btn'),
+    _p5.select('.mobile-bento-container'),
+    _p5.select('.mobile-bento-left'),
+    ..._p5.selectAll('.mobile-bento-button')
   ];
   updateElementsBorderColor(elements, borderColor);
 }

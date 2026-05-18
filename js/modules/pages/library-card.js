@@ -623,6 +623,8 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb 
 
   let roInitialized = false;
   let roResizeTimer = null;
+  /** @type {{sw: number, sh: number} | null} */
+  let lastAcceptedSize = null;
 
   function isViewerOpen() {
     const lb  = document.getElementById('activities-lightbox');
@@ -635,6 +637,15 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb 
     const sec = grayEl.closest('section');
     if (sec.offsetWidth === 0 || sec.offsetHeight === 0) return;
     const sw = sec.offsetWidth, sh = sec.offsetHeight;
+
+    // Short-circuit：size 跟上次接受的相同就跳過
+    // 原因：lightbox 關閉時 lightbox-shell removeProperty('scrollbar-gutter') 還原 gutter 讓 body 寬 -10px、section 寬跟著變
+    // 這個 resize 觸發 RO，但 callback 真正執行時 lightbox display 已 'none'（同 tick 排程，display='none' 跟 gutter 還原都在 t+300 fire）
+    // → isViewerOpen 失效、進 resize 分支重排 cards 位置（每次 close 都隨機重排，user 觀察「打開時 cards 換位置」其實是上次關閉的殘留）
+    // size 比對能 short-circuit：lightbox 開/關只會讓 section 在 X ↔ X+10 切，最後回到 X = lastAccepted → 跳過
+    // 真實 viewport resize（user 拉視窗）size 會不同 → 正常進 resize 分支
+    if (lastAcceptedSize && lastAcceptedSize.sw === sw && lastAcceptedSize.sh === sh) return;
+    lastAcceptedSize = { sw, sh };
 
     if (!roInitialized) {
       roInitialized = true;

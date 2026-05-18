@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Generate - SCCD</title>
   <link rel="stylesheet" href="../css/output.css">
+  <link rel="stylesheet" href="../css/components/create.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
 </head>
@@ -13,12 +14,210 @@
   <!-- Header -->
   <div id="site-header"></div>
 
-  <!-- Main Content -->
-  <main class="w-full relative" style="height: 100vh; padding-top: var(--header-height, 80px);">
-    <!-- src 由 main-modular.js（page === 'generate'）依當前 site theme mode 動態組成 -->
-    <!-- 用 data-src 而非 src：避免 iframe 先載入 default Standard 再被切到承襲的 mode 造成閃爍 -->
-    <iframe data-src="../generate-app/index.html" class="w-full h-full border-none block" title="Generate Art"></iframe>
+  <!-- Main Content
+       id="page-content" 是 SPA router 的注入錨點 — 直接訪問 / refresh 時 router.loadPage 必須找到此 id
+       才會跑 initPageModules → initCreatePage → p5 init + body.overflow-hidden 設定
+       缺 id → loadPage early return → 整頁沒初始化（看到 static HTML 但 p5 canvas 不動 + scrollbar 跑出來） -->
+  <main id="page-content" class="w-full relative" style="height: 100vh; padding-top: var(--header-height, 80px);">
+    <!-- #create-app: generate-app namespace wrapper（從 iframe 拆出來後直接 inline 進 site）
+         mode class（standard-mode/inverse-mode/wireframe-mode）由首次載入的 inline script 或
+         SPA 切頁時的 create-app.js initCreatePage 設定 -->
+    <div id="create-app">
+    <!-- First-paint mode 設定：直接載入 /create 時，這 script 在 SPA module 跑之前就執行，
+         避免無 class 渲染白底再被切到 inverse/wireframe 造成閃爍。
+         SPA 切頁時這 script 不會跑（router 用 main.innerHTML 替換，<script> 不執行），
+         className 改由 create-app.js initCreatePage 設定（兩條路徑都覆蓋）-->
+    <script>
+        (function () {
+            var siteMode = sessionStorage.getItem('sccd-theme-mode') || 'standard';
+            var clsMap = { standard: 'standard-mode', inverse: 'inverse-mode', color: 'wireframe-mode' };
+            var cls = clsMap[siteMode] || 'standard-mode';
+            // parser 處理到這裡時 #create-app 開合已 in-DOM，getElementById 抓得到
+            var el = document.getElementById('create-app');
+            if (el) el.className = cls;
+        })();
+    </script>
+
+    <!-- 橫向模式提示覆蓋層 -->
+    <div id="landscape-overlay">
+        <img id="landscape-overlay-icon" src="/generate-app/Panel Icon/Rotate_Phone.svg" alt="Rotate Phone">
+        <div id="landscape-overlay-text">旋轉設備以獲取最佳體驗
+ROTATE FOR BEST EXPERIENCE</div>
+    </div>
+
+    <!-- 主容器，將使用 Flexbox 或 Grid 來進行整體佈局 -->
+    <main class="main-container">
+
+        <!-- 上方顯示區域（桌面版） -->
+        <section class="display-area desktop-only">
+            <!-- 左側：文字輸入區域 -->
+            <div class="input-container">
+                <textarea id="input-box" placeholder="TYPE&#10;AND&#10;ENTER" maxlength="40" rows="3"></textarea>
+            </div>
+
+            <!-- 右側：p5.js Canvas 容器 -->
+            <div id="desktop-canvas-container"></div>
+        </section>
+
+        <!-- 桌面版：下方控制面板區域 -->
+        <section class="control-panel">
+
+                <!-- 第一組：顏色模式 (單個循環按鈕) -->
+                <div class="control-box" id="colormode-box">
+                    <button class="custom-button custom-button-colormode" id="colormode-button">
+                        <img id="colormode-icon" src="/generate-app/Panel Icon/Standard.svg" alt="Color Mode">
+                    </button>
+                </div>
+
+                <!-- 色彩選擇器 (用於 Wireframe 模式) -->
+                <div class="control-box" id="colorpicker-box">
+                    <div id="colorpicker-container"></div>
+                    <!-- Color Wheel Play/Pause 按鈕 -->
+                    <button id="colorwheel-play-button" class="colorwheel-play-button">
+                        <img id="colorwheel-play-icon" src="/generate-app/Panel Icon/Play.svg" alt="Play">
+                    </button>
+                </div>
+
+                <!-- 第二組：旋轉模式（包含 Auto/Custom 和展開控制） -->
+                <div class="control-box" id="rotation-box">
+                    <!-- Custom 區域包裝容器 -->
+                    <div class="custom-area-wrapper" id="custom-area-wrapper">
+                        <!-- Custom 按鈕 -->
+                        <button class="custom-button custom-button-custom">
+                            <img id="custom-icon" src="/generate-app/Panel Icon/Custom.svg" alt="Custom">
+                        </button>
+
+                        <!-- 自訂角度控制 (由 JS 控制顯隱) -->
+                        <div class="control-group" id="custom-angle-controls">
+                            <div class="sliders-wrapper">
+                                <div class="slider-container">
+                                    <input type="range" id="r-slider" class="custom-slider" min="-360" max="360" value="0">
+                                    <input type="text" id="r-angle-label" class="angle-input" value="0" autocomplete="off">
+                                </div>
+                                <div class="slider-container">
+                                    <input type="range" id="g-slider" class="custom-slider" min="-360" max="360" value="0">
+                                    <input type="text" id="g-angle-label" class="angle-input" value="0" autocomplete="off">
+                                </div>
+                                <div class="slider-container">
+                                    <input type="range" id="b-slider" class="custom-slider" min="-360" max="360" value="0">
+                                    <input type="text" id="b-angle-label" class="angle-input" value="0" autocomplete="off">
+                                </div>
+                            </div>
+                            <div class="icon-buttons-wrapper">
+                                <button id="random-button" class="image-button">
+                                    <img id="random-img" src="/generate-app/Panel Icon/Random.svg" alt="Random Icon">
+                                </button>
+                                <button id="reset-button" class="image-button">
+                                    <img id="reset-img" src="/generate-app/Panel Icon/Reset.svg" alt="Reset Icon">
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Auto 按鈕 -->
+                    <button class="custom-button custom-button-rotate">
+                        <img id="rotate-icon" src="/generate-app/Panel Icon/Rotate.svg" alt="Auto Rotate">
+                    </button>
+                </div>
+
+                <!-- 第三組：儲存 -->
+                <div class="control-box" id="save-box">
+                    <div class="control-group-save" id="save-controls">
+                         <button id="save-button" class="image-button">
+                            <img id="save-img" src="/generate-app/Panel Icon/Download.svg" alt="Save Icon">
+                        </button>
+                    </div>
+                </div>
+
+        </section>
+
+
+        <!-- 手機版：統一的內容區域（包含 Logo、輸入框、Custom 區塊、Color Picker Bar） -->
+        <section class="mobile-content-section">
+            <!-- Logo 區域（從 display-area 移入） -->
+            <div class="mobile-logo-container">
+                <div id="canvas-container"></div>
+            </div>
+
+            <!-- 輸入框 -->
+            <div class="mobile-input-area">
+                <textarea id="mobile-input-box" placeholder="TYPE AND ENTER" maxlength="40" spellcheck="false" autocorrect="off" autocapitalize="off"></textarea>
+            </div>
+
+            <!-- Custom 調整區 -->
+            <div class="mobile-custom-angle-controls hidden">
+                <div class="controls-inner">
+                    <div class="sliders-box">
+                        <div class="sliders-wrapper">
+                            <div class="slider-container">
+                                <input type="range" id="mobile-r-slider" class="custom-slider" min="-360" max="360" value="0">
+                                <input type="text" id="mobile-r-angle-label" class="angle-input" value="0" readonly>
+                            </div>
+                            <div class="slider-container">
+                                <input type="range" id="mobile-g-slider" class="custom-slider" min="-360" max="360" value="0">
+                                <input type="text" id="mobile-g-angle-label" class="angle-input" value="0" readonly>
+                            </div>
+                            <div class="slider-container">
+                                <input type="range" id="mobile-b-slider" class="custom-slider" min="-360" max="360" value="0">
+                                <input type="text" id="mobile-b-angle-label" class="angle-input" value="0" readonly>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="icon-buttons-wrapper">
+                        <button id="mobile-random-button" class="image-button">
+                            <img id="mobile-random-img" src="/generate-app/Panel Icon/Random.svg" alt="Random Icon">
+                        </button>
+                        <button id="mobile-reset-button" class="image-button">
+                            <img id="mobile-reset-img" src="/generate-app/Panel Icon/Reset.svg" alt="Reset Icon">
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Color Picker Bar -->
+            <div class="mobile-colorpicker-bar hidden">
+                <div class="colorpicker-bar-inner">
+                    <div id="mobile-colorpicker-container"></div>
+                    <button id="mobile-colorwheel-play-button" class="mobile-colorwheel-play-btn">
+                        <img id="mobile-colorwheel-play-icon" src="/generate-app/Panel Icon/Play.svg" alt="Play">
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 手機版：底部 4 按鈕列 -->
+        <section class="mobile-bottom-bar">
+            <button class="mobile-bottom-btn mobile-mode-btn">
+                <img id="mobile-mode-icon" src="/generate-app/Panel Icon/Standard.svg" alt="Mode">
+            </button>
+            <!-- Custom + Rotate 按鈕組（共用外框） -->
+            <div class="mobile-rotation-group">
+                <button class="mobile-bottom-btn mobile-rotate-btn">
+                    <img id="mobile-rotate-icon" src="/generate-app/Panel Icon/Rotate.svg" alt="Rotate">
+                </button>
+                <button class="mobile-bottom-btn mobile-custom-btn">
+                    <img id="mobile-custom-icon" src="/generate-app/Panel Icon/Custom.svg" alt="Custom">
+                </button>
+            </div>
+            <button id="save-button-mobile" class="mobile-bottom-btn mobile-save-btn">
+                <img id="save-img-mobile" src="/generate-app/Panel Icon/Download.svg" alt="Save">
+            </button>
+        </section>
+
+    </main>
+
+    <!-- 下載提示框 -->
+    <div id="download-notification" class="notification hidden">
+        <span>Generating 生成中</span>
+    </div>
+
+    </div><!-- /#create-app -->
   </main>
+
+  <!-- Footer 容器：generate 頁視覺隱藏（router.js:138 toggle display:none），
+       但必須存在於 body，否則 first-load /create 時 initFooter 找不到容器 silent skip，
+       後續 SPA 切到其他頁 footer 永久消失（見 feedback_new_page_needs_site_footer_div） -->
+  <div id="site-footer"></div>
 
   <!-- JavaScript -->
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/gsap.min.js"></script>
@@ -27,9 +226,6 @@
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>
   <script src="../js/utils/helpers.js"></script>
   <script type="module" src="../js/main-modular.js"></script>
-
-  <!-- iframe mode → header 同步邏輯由 js/modules/pages/generate-header-sync.js 提供，
-       由 main-modular.js 在 page === 'generate' 時 init（涵蓋直接載入與 SPA 導航） -->
 
 </body>
 </html>

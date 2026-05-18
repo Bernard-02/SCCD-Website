@@ -20,7 +20,7 @@ function saveTransparentPNG() {
       ? mobileElements.saveBtn
       : saveButtonMobile;
     let mobileSaveImg = (typeof mobileElements !== 'undefined' && mobileElements.saveBtn)
-      ? select('#save-img-mobile')
+      ? _p5.select('#save-img-mobile')
       : saveImgMobile;
 
     if (mobileSaveBtn && mobileSaveImg) {
@@ -56,7 +56,7 @@ function performDownload() {
     let imgToSave;
     if (mode === 'Wireframe') {
       // Wireframe 模式：根據描邊顏色選擇黑色或白色線框版本
-      imgToSave = (wireframeStrokeColor && red(wireframeStrokeColor) > 128)
+      imgToSave = (wireframeStrokeColor && _p5.red(wireframeStrokeColor) > 128)
         ? sccdWhiteWireframeImg
         : sccdBlackWireframeImg;
     } else {
@@ -65,27 +65,28 @@ function performDownload() {
     }
     if (imgToSave) {
       // 直接保存圖片，不需要調整大小
-      save(imgToSave, fileName);
+      _p5.save(imgToSave, fileName);
     }
   } else {
     // 正常模式：創建一個 1080x1080 的高解析度畫布來儲存
-    let pg = createGraphics(saveSize, saveSize);
+    let pg = _p5.createGraphics(saveSize, saveSize);
     const scaleFactor = 2; // 放大倍數
 
     // 設定繪圖參數（保持原本的參數）
     pg.textFont(font);
     pg.textSize(367.5); // 350 * 1.05 = 367.5
-    pg.textAlign(CENTER, CENTER);
-    pg.imageMode(CENTER);
+    pg.textAlign(_p5.CENTER, _p5.CENTER);
+    pg.imageMode(_p5.CENTER);
 
-    // 臨時保存全域的 width 和 height
-    let tempWidth = width;
-    let tempHeight = height;
+    // 臨時保存 p5 instance 的 width 和 height
+    let tempWidth = _p5.width;
+    let tempHeight = _p5.height;
 
-    // 暫時修改全域變數為原始canvas尺寸（540），而不是saveSize（1080）
+    // 暫時修改 instance 屬性為原始canvas尺寸（540），而不是saveSize（1080）
     // 這樣 drawLogo 和 drawCentralCircle 會使用 540/2 = 270 作為中心點
-    width = saveSize / scaleFactor; // 540
-    height = saveSize / scaleFactor; // 540
+    // （drawLogo 內部讀 window.width / _p5.width 都會看到這個值）
+    _p5.width = saveSize / scaleFactor; // 540
+    _p5.height = saveSize / scaleFactor; // 540
 
     pg.push();
     pg.scale(scaleFactor); // 將整個內容放大2倍
@@ -101,8 +102,8 @@ function performDownload() {
     pg.pop();
 
     // 恢復原本的 width 和 height
-    width = tempWidth;
-    height = tempHeight;
+    _p5.width = tempWidth;
+    _p5.height = tempHeight;
 
     // 保存文件
     pg.save(fileName);
@@ -122,7 +123,7 @@ function generateFileName() {
     let currentInputBox = inputBox;
     if (isMobileMode) {
       // 手機版：直接選取實際的輸入框元素
-      let mobileInput = select("#mobile-input-box");
+      let mobileInput = _p5.select("#mobile-input-box");
       if (mobileInput) {
         currentInputBox = mobileInput;
       }
@@ -147,7 +148,7 @@ function generateFileName() {
   if (mode === "Wireframe") {
     // 根據 wireframeStrokeColor 判斷是黑色還是白色
     let strokeColorName = "Black"; // 預設黑色
-    if (wireframeStrokeColor && red(wireframeStrokeColor) > 128) {
+    if (wireframeStrokeColor && _p5.red(wireframeStrokeColor) > 128) {
       strokeColorName = "White";
     }
     modePart = `${strokeColorName} Wireframe`;

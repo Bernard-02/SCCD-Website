@@ -50,15 +50,18 @@ function randomizeHeroLayout() {
   const W = window.innerWidth;
   const H = window.innerHeight;
 
+  function randomizeParagraphWidths() {
+    ['hero-text-en', 'hero-text-cn'].forEach(cls => {
+      const p = /** @type {HTMLElement|null} */ (grid.querySelector(`.${cls}`));
+      if (p) {
+        const w = TEXT_MIN_W_PX + Math.random() * (TEXT_MAX_W_PX - TEXT_MIN_W_PX);
+        p.style.maxWidth = `${Math.round(w)}px`;
+      }
+    });
+  }
   // 隨機派 EN / CN 段落 max-width — 寬窄分佈讓版面變化更大
   // 必須在量測 bbox 之前設好，否則 rect 是舊寬度的 bbox
-  ['hero-text-en', 'hero-text-cn'].forEach(cls => {
-    const p = /** @type {HTMLElement|null} */ (grid.querySelector(`.${cls}`));
-    if (p) {
-      const w = TEXT_MIN_W_PX + Math.random() * (TEXT_MAX_W_PX - TEXT_MIN_W_PX);
-      p.style.maxWidth = `${Math.round(w)}px`;
-    }
-  });
+  randomizeParagraphWidths();
 
   const textItems = [];
   ['hero-title', 'hero-title-cn', 'hero-text-en', 'hero-text-cn'].forEach(cls => {
@@ -100,8 +103,7 @@ function randomizeHeroLayout() {
     return ox * oy;
   }
 
-  // 4 corner shuffle，取前 3 個當「偏好 corner」分給 text items
-  const corners = shuffleArr(['tl', 'tr', 'bl', 'br']);
+  // placedTextRects / usedCorners 每次 attempt 重置；初始空 array 給 tryPlaceAtCorner 閉包用
   const placedTextRects = [];
   const usedCorners = [];
 
@@ -154,13 +156,18 @@ function randomizeHeroLayout() {
   }
 
   // 試偏好 corner，失敗（仍有 overlap）則 fall back 試其他 corner，取 penalty 最低者
-  // 這解決「兩段都被 shuffle 到同一側 corner、bbH 加起來超過 viewport 高度」的不可避免重疊
+  // 順序：preferred → 未使用 corners（隨機洗牌） → 已使用 corners（隨機洗牌）
+  // 已使用 corner 排最後 = 避免兩個文字「擠在同一 corner」（這就是原本「字被白卡蓋住」的成因）
+  // 回傳該文字的 penalty（0 = 完全無重疊）
   function placeTextWithFallback(el, preferredCorner) {
     const rect = /** @type {HTMLElement} */ (el).getBoundingClientRect();
     const bbW = rect.width;
     const bbH = rect.height;
 
-    const tryOrder = [preferredCorner, ...shuffleArr(['tl', 'tr', 'bl', 'br'].filter(c => c !== preferredCorner))];
+    const remaining = ['tl', 'tr', 'bl', 'br'].filter(c => c !== preferredCorner);
+    const unusedRemaining = remaining.filter(c => !usedCorners.includes(c));
+    const usedRemaining = remaining.filter(c => usedCorners.includes(c));
+    const tryOrder = [preferredCorner, ...shuffleArr(unusedRemaining), ...shuffleArr(usedRemaining)];
     let best = null;
     for (const c of tryOrder) {
       const result = tryPlaceAtCorner(rect, c);
@@ -172,9 +179,56 @@ function randomizeHeroLayout() {
     /** @type {HTMLElement} */ (el).style.top = `${(best.vy - rect.top).toFixed(1)}px`;
     placedTextRects.push({ left: best.vx, top: best.vy, right: best.vx + bbW, bottom: best.vy + bbH });
     usedCorners.push(best.corner);
+    return best.penalty;
   }
 
-  textItems.forEach((el, i) => placeTextWithFallback(el, corners[i]));
+  // 整輪 placement = 重派 max-width + shuffle corners + 按 textItems 順序 place
+  // 整輪重試：避免 corner shuffle 順序在 cramped viewport 下卡進「兩個寬段都剩同邊 corner」死局
+  // 重要：snapshot 必須同時抓 max-width，因為位置是配那組 width 算的；
+  //       若只 restore 位置但段落寬度是最後一輪的（不同尺寸）→ 重新引入重疊或溢出
+  const paragraphs = ['hero-text-en', 'hero-text-cn']
+    .map(cls => /** @type {HTMLElement|null} */ (grid.querySelector(`.${cls}`)))
+    .filter(Boolean);
+  function runPlacementPass() {
+    placedTextRects.length = 0;
+    usedCorners.length = 0;
+    // Reset 每個 text item 回 top:0 left:0 — placeTextWithFallback 內部用 `vy - rect.top` 算 new style.top，
+    // 假設 rect.top == gridRect.top（element 在 top:0 時）。前一輪設的 style.top 會讓 rect.top 偏移，
+    // 12 attempts 累積飄移 → 最終 restore best 時 element 跑到 viewport 上方被切（chip 飛到 header 上面）
+    textItems.forEach(el => {
+      /** @type {HTMLElement} */ (el).style.left = '0px';
+      /** @type {HTMLElement} */ (el).style.top = '0px';
+    });
+    randomizeParagraphWidths();
+    void /** @type {HTMLElement} */ (grid).offsetHeight;  // 強制 reflow，下面 getBoundingClientRect 拿到新寬度
+    const corners = shuffleArr(['tl', 'tr', 'bl', 'br']);
+    let totalPenalty = 0;
+    textItems.forEach((el, i) => { totalPenalty += placeTextWithFallback(el, corners[i]); });
+    const positions = textItems.map(el => ({
+      el,
+      left: /** @type {HTMLElement} */ (el).style.left,
+      top: /** @type {HTMLElement} */ (el).style.top,
+    }));
+    const paragraphWidths = paragraphs.map(p => p.style.maxWidth);
+    return { totalPenalty, positions, paragraphWidths, usedCornersSnapshot: [...usedCorners] };
+  }
+
+  const MAX_LAYOUT_ATTEMPTS = 12;
+  let bestResult = null;
+  for (let attempt = 0; attempt < MAX_LAYOUT_ATTEMPTS; attempt++) {
+    const result = runPlacementPass();
+    if (!bestResult || result.totalPenalty < bestResult.totalPenalty) bestResult = result;
+    if (result.totalPenalty === 0) break;  // 完美無重疊 → 收工
+  }
+  // 套用最佳結果（widths + positions 必須一起 restore，否則 size/pos 配不上重新引入重疊）
+  bestResult.paragraphWidths.forEach((w, i) => { paragraphs[i].style.maxWidth = w; });
+  bestResult.positions.forEach(s => {
+    /** @type {HTMLElement} */ (s.el).style.left = s.left;
+    /** @type {HTMLElement} */ (s.el).style.top = s.top;
+  });
+  // Banner 用最佳 snapshot 的 usedCorners 找未占用角
+  usedCorners.length = 0;
+  bestResult.usedCornersSnapshot.forEach(c => usedCorners.push(c));
 
   // Banner：偏向「未被文字佔用」的第 4 個 corner，確保所有 corner 都有內容、無完全空白角
   if (banner) {
@@ -187,8 +241,10 @@ function randomizeHeroLayout() {
     const minVy = BANNER_TOP_BOUND;
     const maxVy = Math.max(minVy + 1, H - bbH - BOTTOM_MARGIN);
 
-    // 文字可能因 fallback 換 corner → 用 usedCorners 找實際沒被佔的（不是原本 shuffle 的 corners[3]）
-    const unusedCorner = ['tl', 'tr', 'bl', 'br'].find(c => !usedCorners.includes(c)) || corners[3];
+    // 文字可能因 fallback 換 corner → 用 usedCorners 找實際沒被佔的；4 corners 都被佔則 random 挑一個
+    const fallbackCorners = ['tl', 'tr', 'bl', 'br'];
+    const unusedCorner = fallbackCorners.find(c => !usedCorners.includes(c))
+      || fallbackCorners[Math.floor(Math.random() * 4)];
     const biasLeft = (unusedCorner === 'tl' || unusedCorner === 'bl');
     const biasTop = (unusedCorner === 'tl' || unusedCorner === 'tr');
     // tx ∈ [0.65, 1.0]：強偏向 unused corner（不到 1.0 是留小隨機感）

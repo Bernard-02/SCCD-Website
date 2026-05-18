@@ -8,13 +8,13 @@
 function triggerSpecialEasterEgg() {
   // 設定動畫狀態
   specialEasterEggAnimating = true;
-  specialEasterEggStartTime = millis();
+  specialEasterEggStartTime = _p5.millis();
   specialEasterEggAlpha = 0;
   specialEasterEggRotation = 0;
   specialEasterEggScale = 0;
 
   // 生成隨機的目標角度（-60 到 60 度）
-  specialEasterEggTargetAngle = random(-60, 60);
+  specialEasterEggTargetAngle = _p5.random(-60, 60);
 
   // 強制關閉鍵盤（使用多重策略確保在各種移動瀏覽器上都能工作）
   if (isMobileMode) {
@@ -28,7 +28,7 @@ function triggerSpecialEasterEgg() {
 
     // 策略3: 確保所有輸入框都失去焦點
     if (inputBoxMobile) inputBoxMobile.elt.blur();
-    let mobileInputBoxBottom = select('#mobile-input-box-bottom');
+    let mobileInputBoxBottom = _p5.select('#mobile-input-box-bottom');
     if (mobileInputBoxBottom) mobileInputBoxBottom.elt.blur();
 
     // 策略4: 短暫延遲後設置 disabled（給鍵盤關閉的時間）
@@ -140,13 +140,13 @@ function enableAllUI() {
 function updateSpecialEasterEggAnimation() {
   if (!specialEasterEggAnimating) return;
 
-  let elapsed = millis() - specialEasterEggStartTime;
+  let elapsed = _p5.millis() - specialEasterEggStartTime;
 
   // 階段 1: 0-2000ms，旋轉 3 圈加上隨機角度，同時放大和 fade in
   if (elapsed < 2000) {
     let progress = elapsed / 2000;
     // 使用 easeOutCubic 緩動函數（開始快，結束慢）
-    let eased = 1 - pow(1 - progress, 3);
+    let eased = 1 - _p5.pow(1 - progress, 3);
     // 直接旋轉到目標角度（3圈 + 隨機角度）
     specialEasterEggRotation = eased * (1080 + specialEasterEggTargetAngle);
     specialEasterEggAlpha = 255; // 立即顯示
@@ -163,7 +163,7 @@ function updateSpecialEasterEggAnimation() {
   else if (elapsed < 6000) {
     let progress = (elapsed - 4000) / 2000;
     specialEasterEggRotation = 1080 + specialEasterEggTargetAngle; // 保持在目標角度
-    specialEasterEggAlpha = lerp(255, 0, progress);
+    specialEasterEggAlpha = _p5.lerp(255, 0, progress);
     specialEasterEggScale = 1; // 保持完整大小
   }
 }
@@ -250,7 +250,7 @@ function updateSpecialEasterEggDisplay() {
       // Wireframe 模式：根據邊框顏色決定 overlay 顏色（與邊框相反）
       // 黑色邊框（深色背景）→ 白色 overlay
       // 白色邊框（淺色背景）→ 黑色 overlay
-      const isWhiteBorder = wireframeStrokeColor && red(wireframeStrokeColor) > 128;
+      const isWhiteBorder = wireframeStrokeColor && _p5.red(wireframeStrokeColor) > 128;
       overlayColor = isWhiteBorder ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.7)';
     } else {
       // Standard 模式：白色半透明
@@ -264,7 +264,7 @@ function updateSpecialEasterEggDisplay() {
 
     // 設定圖片來源
     if (specialEasterEggImgElement.src === '' || specialEasterEggImgElement.dataset.type !== specialEasterEggType) {
-      const imgSrc = (specialEasterEggType === "COOLGUY") ? 'Easter Egg/Rex.png' : 'Easter Egg/KC.png';
+      const imgSrc = (specialEasterEggType === "COOLGUY") ? '/generate-app/Easter Egg/Rex.png' : '/generate-app/Easter Egg/KC.png';
       specialEasterEggImgElement.src = imgSrc;
       specialEasterEggImgElement.dataset.type = specialEasterEggType;
     }

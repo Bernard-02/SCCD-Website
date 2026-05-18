@@ -22,6 +22,29 @@ function ensureLightboxListener() {
 // ── PDF Viewer ────────────────────────────────────────────────────────────────
 
 let _pdfListenerAdded = false;
+let _pdfjsLoadPromise = null;
+
+// SPA 從沒含 pdf.min.js 的頁面（about / courses 等）navigate 過來時，pdfjsLib 不存在
+// → click 一律 early return "pdf.js not loaded"。動態 inject script 補載入，cached idempotent。
+function ensurePdfjsLoaded() {
+  if (typeof pdfjsLib !== 'undefined') return Promise.resolve();
+  if (_pdfjsLoadPromise) return _pdfjsLoadPromise;
+  _pdfjsLoadPromise = new Promise((resolve, reject) => {
+    const existing = document.querySelector('script[data-pdfjs-dynamic]');
+    if (existing) {
+      existing.addEventListener('load', () => resolve());
+      existing.addEventListener('error', reject);
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    script.dataset.pdfjsDynamic = '1';
+    script.onload = () => resolve();
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+  return _pdfjsLoadPromise;
+}
 
 function ensurePdfModal() {
   if (document.getElementById('pdf-viewer-modal')) return;
@@ -29,6 +52,7 @@ function ensurePdfModal() {
   const modal = document.createElement('div');
   modal.id        = 'pdf-viewer-modal';
   // 結構對齊 activities-lightbox：X 右上 + prev/next 主區域左右 absolute + 底部資訊條
+  // scrollbar gutter 由 lightbox-shell 染 html bg 處理
   modal.className = 'fixed inset-0 z-[9999] bg-black/90 flex flex-col opacity-0 transition-opacity duration-300';
   modal.style.display = 'none';
   modal.innerHTML = `
@@ -53,16 +77,21 @@ function ensurePdfModal() {
   document.body.appendChild(modal);
 }
 
-function initPdfViewer() {
+// 共用 PDF viewer：library + alumni（會議紀錄）都用，dispatch 'sccd:open-pdf' { detail: {pdfUrl} }
+// idempotent：_pdfListenerAdded 防重複，listener / DOM 只建一次
+export function initPdfViewer() {
   if (_pdfListenerAdded) return;
 
   ensurePdfModal();
 
-  // pdf.js worker（cdnjs 版本與 library.html head 的 script 一致）
-  if (typeof pdfjsLib !== 'undefined') {
+  // pdf.js worker setup helper（idempotent；ensurePdfjsLoaded resolve 後 call 一次）
+  function setupPdfjsWorker() {
+    if (typeof pdfjsLib === 'undefined') return;
+    if (pdfjsLib.GlobalWorkerOptions.workerSrc) return;
     pdfjsLib.GlobalWorkerOptions.workerSrc =
       'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   }
+  setupPdfjsWorker();
 
   const modal    = document.getElementById('pdf-viewer-modal');
   const canvasL  = document.getElementById('pdf-canvas-left');
@@ -144,11 +173,12 @@ function initPdfViewer() {
   document.addEventListener('sccd:open-pdf', async (e) => {
     const { pdfUrl } = e.detail;
     if (!pdfUrl) return;
-    // 確保 pdfjsLib 已載入
-    if (typeof pdfjsLib === 'undefined') { console.error('pdf.js not loaded'); return; }
     curPage = 1;
     openModal();
     try {
+      // SPA navigated 進 library 時若 pdfjsLib 沒被頁面 head 載入，動態 inject
+      await ensurePdfjsLoaded();
+      setupPdfjsWorker();
       pdfDoc = await pdfjsLib.getDocument(pdfUrl).promise;
       renderSpread(curPage);
     } catch (err) {

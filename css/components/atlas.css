@@ -100,10 +100,8 @@
   z-index: 1;
 }
 
-/* 城市 anchor 永遠在所有 item / line 之上（含其他 item 的 highlight z:10） */
-.atlas-anchor.atlas-cat-d {
-  z-index: 20;
-}
+/* A/B/C 統一 z:1（上方 .atlas-anchor 預設）；D z-index 由 atlas.js tickFloat 動態管理（過分割綫 cy → 0 或 2）
+   B 不再寫死 z:20 — 與 A/C 同層平等，避免 chip 永遠蓋住純文字 item */
 
 /* 預設：label 在 line 端點的右側（line 接到字的起點）
    side-left：label 在 line 端點的左側（line 接到字的終點） */
@@ -162,10 +160,18 @@
   right: 0;
 }
 
-/* label 顏色由 atlas.js 設成 inline（依 group 配色 / 三原色 random / D 黑底字），CSS 給 D 字重 + chip padding */
-.atlas-cat-d .atlas-name {
+/* label 顏色由 atlas.js 設成 inline（依 group 配色 / 三原色 random / D 黑底字 / B 黑底白字），
+   CSS 給 D 國家 + B 系友任職企業 字重 + chip padding（兩者同為純色底 chip 結構） */
+.atlas-cat-d .atlas-name,
+.atlas-cat-b .atlas-name {
   font-weight: 700;
   padding: 3px 5px;
+}
+
+/* B 企業環 chip：box 中心對齊 anchor（= ellipse 邊上的點），ellipse 看起來穿過 chip 中段
+   覆蓋 .atlas-name baseline 的 translateY(-50%) → 改為雙軸置中（文字仍靠左對齊 = 沿用 .atlas-name align-items:flex-start） */
+.atlas-cat-b .atlas-name {
+  transform: translate(-50%, -50%);
 }
 
 /* Hover 連動 */
@@ -680,6 +686,7 @@ body.idle-standby #idle-standby-overlay #atlas-layout-btn {
   display: none !important;
 }
 
+body.idle-standby #atlas-stage,
 body.idle-standby #atlas-content,
 body.idle-standby .atlas-name,
 body.idle-standby .atlas-line {

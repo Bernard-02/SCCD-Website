@@ -25,6 +25,19 @@ const ACCENT_COLORS = ['#FF448A', '#00FF80', '#26BCFF'];
 
 // ── 共用 helpers ──────────────────────────────────────────────────────────────
 
+/** 建立 / 取得 search-empty-state 元素，插在 listEl 之後，左對齊 search bar 左緣 */
+function ensureEmptyState(listEl) {
+  let el = /** @type {HTMLDivElement | null} */ (listEl.parentElement?.querySelector('.search-empty-state'));
+  if (!el) {
+    el = document.createElement('div');
+    el.className = 'search-empty-state hidden';
+    el.style.cssText = 'padding: var(--spacing-xl) 0; text-align: left;';
+    el.innerHTML = '<p style="font-size: var(--font-size-p3); font-weight: 700;">No Result</p><p style="font-size: var(--font-size-p3); font-weight: 700;">無結果</p>';
+    listEl.insertAdjacentElement('afterend', el);
+  }
+  return el;
+}
+
 /** 依年份分組（維持原本順序，order 由呼叫端控制） */
 function groupByYear(items) {
   const byYear = [];
@@ -285,18 +298,28 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     // Search
     const searchInput = document.getElementById('library-awards-search');
     if (searchInput) {
+      // Empty state（No Result / 無結果，靠左對齊 search bar 左緣）
+      const emptyState = ensureEmptyState(listEl);
       searchInput.addEventListener('input', () => {
         const q = searchInput.value.trim().toLowerCase();
         listEl.querySelectorAll('.year-block').forEach(block => {
           const items   = [...block.querySelectorAll('.award-record-item')];
           const visible = items.filter(item => !q || (item.dataset.search || '').includes(q));
           items.forEach(item => { item.style.display = visible.includes(item) ? '' : 'none'; });
-          visible.forEach((item, i) => {
-            item.classList.toggle('border-b-4',   i < visible.length - 1);
-            item.classList.toggle('border-black', i < visible.length - 1);
+          // 不動 border classes — items 保持 render template 的 default `border-b-2 border-black`。
+          // 之前 toggle border-b-4 + border-black 兩個 bug：(1) toggle(border-black, false) 剝掉
+          // default class → last visible item 失色變灰；(2) border-b-4 疊在 default border-b-2 上
+          // user 感知成「重複繪製」加粗綫。完全不動 border 最乾淨，所有 visible items 一致 2px 黑。
+          // 防禦性 cleanup：之前舊邏輯可能留下 border-b-4，補移除一次（idempotent）。
+          items.forEach(item => {
+            item.classList.remove('border-b-4');
+            item.classList.add('border-black');
           });
           block.style.display = visible.length ? '' : 'none';
         });
+        // 顯示 / 隱藏 empty state
+        const anyVisible = /** @type {HTMLElement[]} */ ([...listEl.querySelectorAll('.year-block')]).some(b => b.style.display !== 'none');
+        emptyState.classList.toggle('hidden', !q || anyVisible);
       });
     }
 
@@ -480,6 +503,8 @@ async function initPressPanel() {
 
     renderItems(getSorted());
 
+    const pressEmptyState = ensureEmptyState(listEl);
+
     function applyFiltersWithRef() {
       const q     = searchInput ? searchInput.value.trim().toLowerCase() : '';
       const isAll = selectedCats.size === 0;
@@ -511,6 +536,9 @@ async function initPressPanel() {
         b.classList.toggle('dimmed', hasSel && !selectedCats.has(b.dataset.cat));
         b.style.color = (catsWithMatch && !catsWithMatch.has(b.dataset.cat)) ? 'rgba(var(--lib-fg-rgb),0.3)' : '';
       });
+      // Empty state：search 有輸入但沒任何 block 可見才顯示
+      const anyVisible = /** @type {HTMLElement[]} */ ([...listEl.querySelectorAll('.press-year-block')]).some(b => b.style.display !== 'none');
+      pressEmptyState.classList.toggle('hidden', !q || anyVisible);
     }
 
     // 分類按鈕 + 年份 Picker
@@ -640,6 +668,8 @@ async function initFilesPanel() {
 
     renderItems(getSorted());
 
+    const filesEmptyState = ensureEmptyState(listEl);
+
     const selectedCats  = new Set();
     const selYears      = (() => {
       const years = [...new Set(sorted.map(p => String(p.year)))].sort((a, b) => Number(b) - Number(a));
@@ -680,6 +710,9 @@ async function initFilesPanel() {
         b.classList.toggle('dimmed', hasSel && !selectedCats.has(b.dataset.cat));
         b.style.color = (catsWithMatch && !catsWithMatch.has(b.dataset.cat)) ? 'rgba(var(--lib-fg-rgb),0.3)' : '';
       });
+      // Empty state：search 有輸入但沒任何 block 可見才顯示
+      const anyVisible = /** @type {HTMLElement[]} */ ([...listEl.querySelectorAll('.files-year-block')]).some(b => b.style.display !== 'none');
+      filesEmptyState.classList.toggle('hidden', !q || anyVisible);
     }
 
     // 分類按鈕（手動綁定以共用 selectedCats）
@@ -932,6 +965,8 @@ async function initAlbumPanel() {
 
     renderItems(getSorted());
 
+    const albumEmptyState = ensureEmptyState(listEl);
+
     const selectedCats = new Set();
     const selYears     = (() => {
       const years = [...new Set(sorted.map(p => String(p.year)))].sort((a, b) => Number(b) - Number(a));
@@ -969,6 +1004,9 @@ async function initAlbumPanel() {
         b.classList.toggle('dimmed', hasSel && !selectedCats.has(b.dataset.cat));
         b.style.color = (catsWithMatch && !catsWithMatch.has(b.dataset.cat)) ? 'rgba(var(--lib-fg-rgb),0.3)' : '';
       });
+      // Empty state：search 有輸入但沒任何 block 可見才顯示
+      const anyVisible = /** @type {HTMLElement[]} */ ([...listEl.querySelectorAll('.album-year-block')]).some(b => b.style.display !== 'none');
+      albumEmptyState.classList.toggle('hidden', !q || anyVisible);
     }
 
     const albumCatBtns = [...document.querySelectorAll('.lib-album-cat-btn')];

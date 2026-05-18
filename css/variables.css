@@ -94,6 +94,15 @@
   --theme-fg-rgb: 0, 0, 0;
   --theme-bg-rgb: 255, 255, 255;
 
+  /* ===== Footer 主題色 token =====
+   * 預設 standard：黑底白字
+   * inverse mode 在 themes/inverse.css 翻成白底黑字
+   * color mode 在 themes/color.css 改用 --theme-bg-contrast / --theme-fg-contrast
+   *   （hue+180° 互補色 + 對應自動對比文字色，由 theme-toggle.js applyColorVars 每幀更新）
+   */
+  --footer-bg: var(--color-black);
+  --footer-fg: var(--color-white);
+
   /* ===== Library 主矩形（#library-card-content）色彩 token =====
    * 預設 standard：淺灰底（#f2f2f2）+ 黑字
    * inverse mode 在 themes/inverse.css 蓋成深灰底（#434343）+ 白字

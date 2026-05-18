@@ -188,14 +188,18 @@
   - 文字 wrap 後 `mb-*` 等 margin 要顯式搬到 wrapper（內部 margin 會被 clip 蓋掉）
 - **用詞**：對話中講「**clip-reveal**」或「**hero 標題那個進場**」就是這個 pattern；新進場動畫優先沿用這套，不另外發明
 
-### Clip-Path Inset Reveal（4 方向圖片揭露）
-- **效果**：元素 `clip-path: inset(...)` 從 100% → 0% 揭露（top/right/bottom/left 四選一）
-- **參考實作**：`js/modules/filters/faculty-filter.js` 的 `setupFacultyCardAnim` / `playFacultyCardAnim`
+### Clip-Path Inset Reveal（4 方向擦除/揭露）
+- **效果**：元素 `clip-path: inset(...)` 從 100% → 0% 揭露（reveal）或 0% → 100% 擦掉（hide），方向 top/right/bottom/left 四選一
+- **參考實作**：
+  - 圖片進場 reveal：`js/modules/filters/faculty-filter.js` 的 `setupFacultyCardAnim` / `playFacultyCardAnim`
+  - hide/show 對稱版（per-element random top/bottom）：`js/modules/lightbox/lightbox-shell.js` 的 `animateHeaderHide` / `animateHeaderShow`，供 lightbox / slide-in / footer-reveal 共用收/展 header bars + logo
 - **規範**：
   - inset 四值單位**必須一致**（全用 `%` 或全用 px）— 混用 `0` 與 `100%` 會讓 interpolate 失敗，視覺看起來「沒動畫直接出現」
-  - 起點：`inset(0% 0% 100% 0%)`（從 top 揭露）/ `inset(100% 0% 0% 0%)`（從 bottom）/ `inset(0% 100% 0% 0%)`（從 left）/ `inset(0% 0% 0% 100%)`（從 right）
-  - 終點：`inset(0% 0% 0% 0%)`
+  - 起點（reveal）：`inset(0% 0% 100% 0%)`（從 top 揭露）/ `inset(100% 0% 0% 0%)`（從 bottom）/ `inset(0% 100% 0% 0%)`（從 left）/ `inset(0% 0% 0% 100%)`（從 right）
+  - 終點（reveal）：`inset(0% 0% 0% 0%)`
+  - hide 方向反向（從 `inset(0%)` → 某邊 `100%`）視覺是「擦掉」
   - 圖片進場優先用這個（4 方向 random 增加變化），文字進場用 clip-reveal
+- **用詞**：對話中講「**clip-path**」就是這個 pattern（含 reveal 與 hide 兩方向）
 
 ## 工作流程
 

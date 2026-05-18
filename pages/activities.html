@@ -20,7 +20,7 @@
   <div id="site-header"></div>
 
   <!-- Main Content -->
-  <main>
+  <main id="page-content">
     <!-- Activities Hero Section（4 元素隨機 corner 排版，見 hero-animation.js randomizeHeroLayout） -->
     <section class="h-screen relative overflow-hidden">
       <div class="hero-rand-grid">
@@ -303,7 +303,7 @@
     </section>
   </main>
 
-  <!-- Share Lightbox（z-index:9999 蓋過 header，與其他 lightbox 統一） -->
+  <!-- Share Lightbox（z-index:9999 蓋過 header；gutter 由 lightbox-shell 染 html bg 處理，與其他 lightbox 統一） -->
   <div id="share-lightbox" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.9); align-items:center; justify-content:center;">
     <div style="background:#fff; width:320px; padding: var(--spacing-lg); display:flex; flex-direction:column; gap: var(--spacing-md);">
       <!-- Header -->

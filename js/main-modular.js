@@ -6,7 +6,7 @@
 // Import Layout Modules
 import { initHeader } from './header.js';
 import { initFooter } from './footer.js';
-import { initThemeToggle, applyModeForPage, updateToggleBtnVisualState, getStoredMode, getColorHue } from './modules/ui/theme-toggle.js';
+import { initThemeToggle, applyModeForPage, updateToggleBtnVisualState } from './modules/ui/theme-toggle.js';
 import { initRouter } from './router.js';
 
 // Import Filter Modules
@@ -19,6 +19,7 @@ import { initBFADivisionToggle } from './modules/ui/bfa-division-toggle.js';
 import { initBtnFillHover } from './modules/ui/btn-fill-hover.js';
 import { initTextReveal } from './modules/ui/text-reveal.js';
 import { initIdleStandby } from './modules/ui/idle-standby.js';
+import { initCustomScrollbar } from './modules/ui/custom-scrollbar.js';
 
 // Import About Page Modules
 import { initResourcesCycling } from './modules/pages/about/resources-cycling.js';
@@ -57,25 +58,34 @@ import { initLibraryViewer } from './modules/pages/library-viewer.js';
 import { resetLightboxMode } from './modules/lightbox/lightbox-shell.js';
 
 // Import Generate Page Modules
-import { initGenerateHeaderSync, cleanupGenerateHeaderSync } from './modules/pages/generate-header-sync.js';
+import { initCreatePage, cleanupCreatePage } from './modules/pages/create-app.js';
 
 // Import Atlas Page Modules
 import { initAtlas, cleanupAtlas } from './modules/pages/atlas.js';
+
+// Import Alumni Page Module
+import { initAlumni } from './modules/pages/alumni.js';
 
 // Import Data Loaders
 import { loadRecords } from './modules/pages/records-data-loader.js';
 import { loadFacultyData } from './modules/pages/faculty-data-loader.js';
 import { loadAdmissionData } from './modules/pages/admission-data-loader.js';
-import { loadSupportData } from './modules/pages/support-data-loader.js';
+import { initSupport } from './modules/pages/support.js';
 import { loadLegalData } from './modules/pages/legal-data-loader.js';
 import { loadDegreeShowList, loadDegreeShowDetail } from './modules/pages/degree-show-data-loader.js';
+import { init404, cleanup404 } from './modules/pages/error-404.js';
 
 // ── Cleanup（換頁前執行）────────────────────────────────────────
 export function cleanupPageModules() {
   // 解鎖 body scroll：若離開頁面時某個 modal/slide-in（faculty / library viewer 等）
   // 還沒關閉，body.style.overflow 可能被鎖成 hidden，造成下個頁面 scrollbar 消失
   document.body.style.overflow = '';
-  // lightbox 殘留全域副作用：class 殘留會持續隱藏 header，html bg 殘留會讓 scrollbar gutter 一直黑
+  document.documentElement.style.overflow = '';
+  // slide-in 殘留：切頁時若 faculty/courses slide-in 還開著，has-slide-in class 留下 → scrollbar.css 規則持續 !important 套 --slide-bg-color
+  document.documentElement.classList.remove('has-slide-in');
+  document.documentElement.style.removeProperty('--slide-bg-color');
+  // lightbox 殘留：class 殘留會持續 pointer-events:none 在 header；lightbox-shell 已不碰 html bg / gutter
+  // 保留 documentElement.style.backgroundColor reset 以清除其他模組（如 faculty-slide-in、video-player）的殘留
   document.body.classList.remove('lightbox-open');
   document.documentElement.style.backgroundColor = '';
   // lightbox-shell openCount 歸零，避免某個 modal 沒走 exit 流程時 state 殘留導致下次開不觸發 enter
@@ -95,11 +105,14 @@ export function cleanupPageModules() {
     }
   }
 
-  // 移除 generate page 的 message listener / observer + 還原 header 顏色
-  cleanupGenerateHeaderSync();
+  // 拆 iframe 後 generate-app 在主 window 跑 p5 instance，離開頁面要 _p5.remove() 釋放 RAF / canvas
+  cleanupCreatePage();
 
   // Atlas 頁：移除 wheel listener / RAF
   cleanupAtlas();
+
+  // 404 頁：移除 body.page-404 class（CSS rule 隨 main innerHTML 替換已消失，class 殘留不致影響其他頁但仍清掉保乾淨）
+  cleanup404();
 
   if (typeof ScrollTrigger === 'undefined') return;
   // 只 kill 頁面內容的 ScrollTrigger，不動 header 的（header trigger 綁在 body/header 元素上）
@@ -136,7 +149,10 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
   //
   // 需等 header:ready：randomizeHeroLayout 要量 #header-logo bounds 避免文字被 logo 切到（faculty 等頁有 hero-rand-grid 隨機排版），
   // header 是 async fetch 注入，未 ready 時 querySelector('#header-logo') 為 null
-  if (page !== 'degree-show-detail') {
+  // support 頁有自己的 hero（自訂 timeline + 隨機 layout），由 initSupport 接管，不走共用 initHeroAnimation；
+  // 共用版需等 header:ready，若 event 早於 listener 註冊 → 動畫不跑 → titles/banner 永遠 visibility:hidden，
+  // 是 support 頁 refresh 偶發「沒 load 出來」的成因。support 自己接管後不依賴 header race。
+  if (page !== 'degree-show-detail' && page !== 'support') {
     if (document.querySelector('#site-header header')) {
       initHeroAnimation();
     } else {
@@ -235,7 +251,7 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
 
   // --- Support Page ---
   if (page === 'support') {
-    loadSupportData();
+    initSupport();
   }
 
   // --- Activities Page ---
@@ -262,29 +278,17 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
     initAtlas();
   }
 
+  // --- Alumni Page ---
+  if (page === 'alumni') {
+    initAlumni();
+  }
+
   // --- Generate Page ---
   if (page === 'generate') {
-    // 把當前 site theme mode（standard/inverse/color）轉成 generate-app mode（Standard/Inverse/Wireframe）
-    // 帶入 iframe URL params：mode 一律帶；color 額外帶 hue + play=1 讓色環接續 site 的 hue 進入 Play 狀態
-    // create.html 用 data-src 占位，src 在這裡才設定，避免 iframe 先載入 default Standard 再切造成閃爍
-    const iframe = /** @type {HTMLIFrameElement | null} */ (document.querySelector('#page-content iframe[data-src]'));
-    if (iframe) {
-      const siteMode = getStoredMode();
-      const genMode = siteMode === 'inverse' ? 'Inverse'
-                    : siteMode === 'color'   ? 'Wireframe'
-                                             : 'Standard';
-      const params = new URLSearchParams();
-      params.set('mode', genMode);
-      if (genMode === 'Wireframe') {
-        params.set('hue', String(getColorHue()));
-        params.set('play', '1');
-      }
-      iframe.src = iframe.dataset.src + '?' + params.toString();
-    }
+    // generate-app 在主 window 跑 p5 instance（attach 到 #create-app），mode 由 sessionStorage 讀
+    initCreatePage();
 
-    // 觸發 header logo typewriter 動畫（SPA 模式下 header 不重載，需手動觸發）
-    // 冷載入 /create：header 是 async fetch 注入，未 ready 時 document.getElementById('header-logo')
-    // 為 null，triggerGenerateLogo early return → logo 永遠不出現。等 header:ready 才呼叫。
+    // 觸發 header logo typewriter 動畫；冷載入時 header async fetch 還沒到，等 header:ready
     const fireGenLogo = () => {
       import('./header.js').then(({ triggerGenerateLogo }) => {
         if (typeof triggerGenerateLogo === 'function') triggerGenerateLogo();
@@ -295,8 +299,6 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
     } else {
       document.addEventListener('header:ready', fireGenLogo, { once: true });
     }
-    // 接收 iframe postMessage，同步 header 底色 / logo 顏色（SPA 導航時 generate.html 內 inline script 不會跑，必須由模組 attach）
-    initGenerateHeaderSync();
   }
 
   // --- Library Page ---
@@ -330,8 +332,13 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
   if (page === 'privacy-policy') {
     loadLegalData('privacy-policy');
   }
-  if (page === 'terms-and-conditions') {
-    loadLegalData('terms-and-conditions');
+  if (page === 'accessibility') {
+    loadLegalData('accessibility');
+  }
+
+  // --- 404 Page ---
+  if (page === '404') {
+    init404();
   }
 }
 
@@ -344,6 +351,7 @@ document.addEventListener('DOMContentLoaded', function () {
   initSmoothScroll();
   initBtnFillHover();
   initIdleStandby();
+  initCustomScrollbar();
 
   // 啟動 Router（攔截連結、處理 popstate）
   initRouter();

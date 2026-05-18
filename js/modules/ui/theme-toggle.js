@@ -4,9 +4,7 @@
  *
  * 整合策略：
  * - mode 存 sessionStorage，跨頁保持，新開視窗/分頁重置為 standard
- * - /generate 頁「暫停」mode：移除 body class（讓 generate iframe + generate-header-sync 完全控制視覺），
- *   sessionStorage 保留原 mode；離開 /generate 時自動恢復
- * - 按鈕在 /generate 頁顯示為 disabled 狀態（opacity + pointer-events）；其他頁正常可點
+ * - /generate 頁跟其他頁共用 mode：header mode-btn 跟 generate-app colormode btn 都走 setSiteMode
  * - applyModeForPage / updateToggleBtnVisualState 由 main-modular.js 在每次切頁呼叫，SPA 也能即時 re-evaluate
  *
  * mode-color：持續變化的隨機色（直接複製 generate-app wireframe Play 實作）
@@ -22,12 +20,19 @@
 const MODES = ['standard', 'inverse', 'color'];
 const STORAGE_KEY = 'sccd-theme-mode';
 
-// Mode 切換 fade：applyMode 在 body/html 加 .mode-switching class（typography.css 規則套 0.5s transition 到全 subtree），
-//   0.5s 後移除 → 穩態下無 transition，避免 mode-color RAF 高頻更新 --theme-bg 跟 transition 衝突 lag
+// Mode 切換 fade：applyMode 在 body/html 加 .mode-switching class（typography.css 規則套 0.4s transition 到全 subtree），
+//   0.4s 後移除 → 穩態下無 transition，避免 mode-color RAF 高頻更新 --theme-bg 跟 transition 衝突 lag
 // 首次 apply（page load）跳過 fade，避免 default 白底 → 目標 mode 的閃爍
-const MODE_FADE_MS = 500;
+// 速度 0.4s：全域 mode 切換用同一節奏
+const MODE_FADE_MS = 400;
 let hasAppliedModeOnce = false;
 let modeSwitchTimer = null;
+let antiJitterStyle = null;
+// 獨立追蹤上次 apply 的 mode：不能用 body.mode-* class 偵測 currentMode，因為 /create 會把 body class
+// 移除（pause），回來時 body class=null 會被誤判為「換了 mode」觸發 fade；fade 的 *!important transition
+// 規則會蓋掉新頁進場動畫的 inline transition（如 library-card clipReveal 的 clip-path），導致卡片瞬間 snap
+// 沒揭露動畫。改用 module 狀態變數，/create paused 不重設，回來同 mode → isSameMode=true 跳過 fade
+let lastAppliedMode = null;
 // mode-color RAF 延後啟動：fade 期間凍結 --theme-bg/fg，避免 1) RAF 每幀 retarget 讓 transition 不走純 ease 曲線
 //                                                          2) --theme-fg 在 luminance threshold 上下二元翻黑/白導致 [data-section-title] 等用 fg bg 的元件抖動
 let colorRAFStartTimer = null;
@@ -87,6 +92,19 @@ function applyColorVars() {
   root.style.setProperty('--theme-fg-inverse', fgInverseHex);
   root.style.setProperty('--theme-fg-inverse-rgb', fgInverseRgb);
   root.style.setProperty('--theme-overlay-25', `rgba(${fgRgb}, 0.25)`);
+
+  // 互補 hue（hue + 180°）：footer 用，跟 body bg 永遠互補
+  // 對應的對比文字色獨立算（互補色亮度跟原色不同，可能在 luminance threshold 兩側）
+  const compHue = (colorHue + 180) % 360;
+  const { r: cr, g: cg, b: cb } = hsbToRgb(compHue, 80, 100);
+  const cLum = relativeLuminance(cr, cg, cb);
+  const cIsLightBg = cLum > 0.5;
+  const cFgHex = cIsLightBg ? '#000000' : '#ffffff';
+  root.style.setProperty('--theme-bg-contrast', `rgb(${cr}, ${cg}, ${cb})`);
+  root.style.setProperty('--theme-bg-contrast-rgb', `${cr}, ${cg}, ${cb}`);
+  root.style.setProperty('--theme-fg-contrast', cFgHex);
+  // Footer logo Lottie 是黑色版（SCCDLogoStandard.json）；亮 footer bg = 不翻、暗 footer bg = invert(1) 翻白
+  root.style.setProperty('--footer-invert-filter', cIsLightBg ? 'none' : 'invert(1)');
   // .theme-invert（黑色靜態 SVG/PNG）對比翻色：page bg 亮時不 invert（保留黑），暗時 invert(1) 變白
   root.style.setProperty('--theme-invert-filter', isLightBg ? 'none' : 'invert(1)');
   // 中性灰浮層（card/chip 想在 vivid hue 上顯純灰不帶 hue tint）：對齊 mode1 #F0F0F0 / mode2 var(--gray-2)
@@ -99,9 +117,13 @@ function applyColorVars() {
   // Header logo（wireframe）對比翻色：wireframe-standard base 黑色，暗底套 invert(1) 變白
   // 直接比對 style.filter（cheap read）避免維護 lastIsLightBg 狀態 + 處理 logo async load 的 race
   const logo = document.getElementById('header-logo');
-  if (logo && logo.dataset.logoType === 'wireframe') {
-    const desired = isLightBg ? 'none' : 'invert(1)';
-    if (logo.style.filter !== desired) logo.style.filter = desired;
+  if (logo) {
+    if (logo.dataset.logoType === 'wireframe') {
+      const desired = isLightBg ? 'none' : 'invert(1)';
+      if (logo.style.filter !== desired) logo.style.filter = desired;
+    } else if (logo.dataset.logoType === 'wireframe-inverse') {
+      if (logo.style.filter !== 'none') logo.style.filter = 'none';
+    }
   }
 
   const now = performance.now();
@@ -130,7 +152,7 @@ function startColorLoop() {
   }, MODE_FADE_MS);
 }
 
-function stopColorLoop() {
+function cancelColorLoopRAF() {
   if (colorRAF) {
     cancelAnimationFrame(colorRAF);
     colorRAF = null;
@@ -139,7 +161,14 @@ function stopColorLoop() {
     clearTimeout(colorRAFStartTimer);
     colorRAFStartTimer = null;
   }
-  // 清 inline var，讓 :root / body.mode-* 的 CSS 規則重新生效
+}
+
+/**
+ * 完整 stop：RAF 取消 + 清 inline CSS vars，讓 :root / body.mode-* 的 default CSS 規則重新生效。
+ * 給 applyMode('standard'/'inverse') 用——使用者切離 mode-color 時要 reset 視覺。
+ */
+function stopColorLoop() {
+  cancelColorLoopRAF();
   const root = document.documentElement;
   root.style.removeProperty('--theme-bg');
   root.style.removeProperty('--theme-bg-rgb');
@@ -151,9 +180,22 @@ function stopColorLoop() {
   root.style.removeProperty('--theme-invert-filter');
   root.style.removeProperty('--theme-neutral-gray');
   root.style.removeProperty('--theme-neutral-gray-inverse');
+  root.style.removeProperty('--theme-bg-contrast');
+  root.style.removeProperty('--theme-bg-contrast-rgb');
+  root.style.removeProperty('--theme-fg-contrast');
+  root.style.removeProperty('--footer-invert-filter');
   // 清 wireframe logo 的 invert filter
   const logo = document.getElementById('header-logo');
   if (logo) logo.style.filter = '';
+}
+
+/**
+ * Pause-only：取消 RAF 但保留 CSS vars 在當前值，hue 凍結。
+ * 給 generate-app Pause btn 用——user 仍在 mode-color，期望畫面停在當前色不是回 default。
+ * 若清掉 vars，body bg 失去 --theme-bg fallback 變白／預設色，跟 #create-app 不同色。
+ */
+function pauseColorLoop() {
+  cancelColorLoopRAF();
 }
 
 function getCurrentPage() {
@@ -161,8 +203,50 @@ function getCurrentPage() {
   return path.split('/').pop().replace('.html', '') || 'index';
 }
 
+let isSlideInOpen = false;
+
+function checkSlideInState() {
+  // slide-in (faculty/courses): html.has-slide-in
+  // 全螢幕 lightbox (activities/library-viewer): body.lightbox-open（lightbox-shell 加）
+  // 兩者都讓 logo 翻 inverse 在暗底 overlay 上可見
+  const hasSlideIn = document.documentElement.classList.contains('has-slide-in')
+    || document.body.classList.contains('lightbox-open');
+
+  if (isSlideInOpen !== hasSlideIn) {
+    isSlideInOpen = hasSlideIn;
+    const mode = getStoredMode();
+    
+    let logoType;
+    if (mode === 'color') logoType = isSlideInOpen ? 'wireframe-inverse' : 'wireframe';
+    else if (mode === 'inverse') logoType = 'inverse';
+    else logoType = isSlideInOpen ? 'inverse' : 'standard';
+
+    // /create 頁是 typewriter logo，slide-in 狀態變化不該切回 Lottie（同 applyMode 的 guard）
+    const _page = getCurrentPage();
+    if (_page !== 'create' && _page !== 'generate' && document.getElementById('header-logo')) {
+      switchHeaderLogo(logoType);
+    }
+
+        // 同步 Theme Toggle 按鈕顏色，讓它跟 Logo 一起平滑變色
+        const modeBtn = document.querySelector('#mode-btn');
+        if (modeBtn && typeof gsap !== 'undefined') {
+          const toggleBtn = modeBtn.querySelector('.theme-toggle-btn');
+          const toggleCircle = modeBtn.querySelector('.theme-toggle-circle');
+          const targetColor = isSlideInOpen ? '#FFFFFF' : ''; 
+          if (toggleBtn) gsap.to(toggleBtn, { borderColor: targetColor, duration: 0.3, ease: 'power2.inOut', overwrite: 'auto' });
+          if (toggleCircle) gsap.to(toggleCircle, { backgroundColor: targetColor, duration: 0.3, ease: 'power2.inOut', overwrite: 'auto' });
+        }
+  }
+}
+
 export function initThemeToggle() {
   applyModeForPage(getCurrentPage());
+
+  // 自動監聽 Slide-in / Lightbox 的開關狀態來切換 Logo
+  // html.has-slide-in (faculty/courses slide-in) + body.lightbox-open (activities/library lightbox)
+  const observer = new MutationObserver(checkSlideInState);
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+  observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
 
   // header 是非同步注入；ready 後綁 click 一次（後續 SPA 切頁不需重綁，listener 內部自己 check 頁面）
   document.addEventListener('header:ready', () => {
@@ -181,60 +265,145 @@ function bindToggleBtns() {
     if (btn.dataset.themeBound) return; // 防重複綁定
     btn.dataset.themeBound = '1';
     btn.addEventListener('click', () => {
-      // /generate 頁的視覺 disabled 已用 pointer-events:none 擋掉，這裡再 check 一次保險
-      if (getCurrentPage() === 'generate') return;
       const current = sessionStorage.getItem(STORAGE_KEY) || 'standard';
       const next = MODES[(MODES.indexOf(current) + 1) % MODES.length];
-      sessionStorage.setItem(STORAGE_KEY, next);
-      applyMode(next);
+      setSiteMode(next);
     });
   });
 }
 
-/**
- * 由 main-modular.js initPageModules 在每次 SPA 切頁時呼叫
- * /generate 暫停 mode，其他頁恢復 sessionStorage 的 mode
- */
-export function applyModeForPage(page) {
-  if (page === 'generate') {
-    // 暫停：清除 body mode class（sessionStorage 保留，離開時恢復）
-    document.body.classList.remove('mode-standard', 'mode-inverse', 'mode-color');
-    stopColorLoop();
-    return;
-  }
+/** 由 main-modular.js initPageModules 在每次 SPA 切頁時呼叫 */
+export function applyModeForPage(_page) {
   const savedMode = sessionStorage.getItem(STORAGE_KEY) || 'standard';
   applyMode(savedMode);
 }
 
-/**
- * 由 main-modular.js initPageModules 在每次 SPA 切頁時呼叫
- * /generate 頁按鈕視為 disabled
- */
+/** 由 main-modular.js initPageModules 在每次 SPA 切頁時呼叫
+ *  /create 頁停用 header mode-btn（mode 改由頁內 colormode-button 控制）；其他頁恢復可點 */
 export function updateToggleBtnVisualState(page) {
-  const isGenPage = page === 'generate';
-  document.querySelectorAll('.theme-toggle-btn').forEach(btn => {
-    btn.style.opacity = isGenPage ? '0.3' : '';
-    btn.style.pointerEvents = isGenPage ? 'none' : '';
-    // 不設 title：user 不要 hover 顯示原生 tooltip
-    btn.removeAttribute('title');
+  // 直接訪問 URL 是 'create'，SPA 內 routed page 名是 'generate'，兩個都要 catch
+  const isGenerate = page === 'generate' || page === 'create';
+  document.querySelectorAll('.theme-toggle-btn').forEach((btn) => {
+    const el = /** @type {HTMLButtonElement} */ (btn);
+    if (isGenerate) {
+      el.disabled = true;
+      el.style.opacity = '0.4';
+      el.style.pointerEvents = 'none';
+      el.setAttribute('title', 'Mode 由下方 control bar 控制');
+    } else {
+      el.disabled = false;
+      el.style.opacity = '';
+      el.style.pointerEvents = '';
+      el.removeAttribute('title');
+    }
   });
 }
 
-function applyMode(mode) {
+/**
+ * 給 generate-app classic scripts 用（透過 create-app.js bridge 到 window.sccdSetMode）：
+ * 寫 sessionStorage + applyMode，等效於 user 點 header mode-btn 的 click handler 內容
+ * @param {string} mode
+ * @param {Object} [opts]
+ * @param {boolean} [opts.autoStartColorLoop] 切到 'color' 時是否自動啟動 colorTick RAF；/create 內 colormode btn 預設 false（user 須手動點 Play），其他全域切換預設 true
+ */
+export function setSiteMode(mode, opts) {
+  if (!MODES.includes(mode)) return;
+  sessionStorage.setItem(STORAGE_KEY, mode);
+  applyMode(mode, opts);
+}
+
+/** generate-app Play btn 啟動 site colorTick RAF（內部 idempotent） */
+export function startSiteColorLoop() { startColorLoop(); }
+/** generate-app Pause btn 停 site colorTick RAF（hue 凍結在當前值；保留 CSS vars 不切回 default） */
+export function stopSiteColorLoop() { pauseColorLoop(); }
+/** generate-app 判斷 Play 是否正在跑（更新 Play/Pause icon） */
+export function isColorLoopRunning() { return colorRAF !== null; }
+
+/**
+ * user 拖 color wheel 時把選中的 hue 寫回 site
+ * 否則 sketch.js draw() 每幀讀 site colorHue 會立刻把 drag 設的值覆蓋（drag 看起來無效）
+ * Play 中：site colorTick 從新 hue 繼續轉；Pause 中：hue 停在新值
+ * @param {number} hue
+ */
+export function setColorHue(hue) {
+  const h = ((hue % 360) + 360) % 360;
+  colorHue = h;
+  // 若目前正處於 mode-color（colorRAF 跑或剛 stop），立刻 apply 一次 CSS var 讓 header / page bg 同步
+  if (document.body.classList.contains('mode-color')) {
+    applyColorVars();
+  }
+}
+
+/**
+ * @param {string} mode
+ * @param {Object} [opts]
+ * @param {boolean} [opts.autoStartColorLoop=true] 預設 true；/create 內 colormode btn 切到 color 傳 false
+ */
+function applyMode(mode, opts) {
+  const autoStartColorLoop = !(opts && opts.autoStartColorLoop === false);
   const isFirstApply = !hasAppliedModeOnce;
   hasAppliedModeOnce = true;
 
   // SPA 切頁同 mode 重 apply：body class 不會變，body bg 不會變，不用動 transition
-  const currentMode = document.body.classList.contains('mode-color') ? 'color'
-                    : document.body.classList.contains('mode-inverse') ? 'inverse'
-                    : document.body.classList.contains('mode-standard') ? 'standard' : null;
-  const isSameMode = currentMode === mode;
+  // 用 lastAppliedMode 而非讀 body class：/create 會 remove body.mode-* (pause)，body class=null 會誤判換 mode
+  const isSameMode = lastAppliedMode === mode;
+  lastAppliedMode = mode;
 
   // 非首次 + 真的會切換 mode 才加 fade class
   // 首次 apply 跳過：避免從 default 白底 → 目標 mode 的閃爍
   if (!isFirstApply && !isSameMode) {
     document.body.classList.add('mode-switching');
     document.documentElement.classList.add('mode-switching');
+
+    // 動態注入防抖動 CSS，只在 mode-switching 期間對旋轉元素開啟硬體加速，避免永久 will-change 破壞 z-index
+    if (!antiJitterStyle) {
+      antiJitterStyle = document.createElement('style');
+      antiJitterStyle.textContent = `
+        html.mode-switching.mode-switching .courses-grid-card,
+        html.mode-switching.mode-switching .atlas-name,
+        html.mode-switching.mode-switching .atlas-alumni-career,
+        html.mode-switching.mode-switching .atlas-list-col-career,
+        html.mode-switching.mode-switching .anchor-nav-inner,
+        html.mode-switching.mode-switching .class-group-label,
+        html.mode-switching.mode-switching .class-division-btn,
+        html.mode-switching.mode-switching .courses-bfa-label,
+        html.mode-switching.mode-switching .faculty-card-image-wrapper,
+        html.mode-switching.mode-switching .hero-title-wrapper,
+        html.mode-switching.mode-switching .hero-title-cn-wrapper,
+        html.mode-switching.mode-switching .hero-text-en-wrapper,
+        html.mode-switching.mode-switching .hero-text-cn-wrapper,
+        html.mode-switching.mode-switching .hero-banner,
+        html.mode-switching.mode-switching .color-rect-title,
+        html.mode-switching.mode-switching .timeline-card-inner,
+        html.mode-switching.mode-switching .lib-panel-title,
+        html.mode-switching.mode-switching .album-thumb,
+        html.mode-switching.mode-switching .class-img,
+        html.mode-switching.mode-switching #prev-card,
+        html.mode-switching.mode-switching #next-card,
+        html.mode-switching.mode-switching #prev-labels h4,
+        html.mode-switching.mode-switching #prev-labels h2,
+        html.mode-switching.mode-switching #next-labels h4,
+        html.mode-switching.mode-switching #next-labels h2,
+        html.mode-switching.mode-switching #homepage-marquee-wrap,
+        html.mode-switching.mode-switching #homepage-yt-card,
+        html.mode-switching.mode-switching [data-hero-hl],
+        html.mode-switching.mode-switching [data-section-title],
+        html.mode-switching.mode-switching .section-title-strip,
+        html.mode-switching.mode-switching img,
+        html.mode-switching.mode-switching canvas {
+          backface-visibility: hidden !important;
+          -webkit-backface-visibility: hidden !important;
+          -webkit-font-smoothing: subpixel-antialiased !important;
+          transform-style: preserve-3d !important;
+          -webkit-transform-style: preserve-3d !important;
+          outline: 1px solid transparent !important;
+          box-shadow: 0 0 1px rgba(0,0,0,0) !important;
+          will-change: transform !important;
+        }
+      `;
+      document.head.appendChild(antiJitterStyle);
+    }
+
     if (modeSwitchTimer) clearTimeout(modeSwitchTimer);
     modeSwitchTimer = setTimeout(() => {
       document.body.classList.remove('mode-switching');
@@ -244,10 +413,21 @@ function applyMode(mode) {
   }
 
   document.body.classList.remove('mode-standard', 'mode-inverse', 'mode-color');
+  document.documentElement.classList.remove('mode-standard', 'mode-inverse', 'mode-color');
   document.body.classList.add(`mode-${mode}`);
+  document.documentElement.classList.add(`mode-${mode}`);
 
   if (mode === 'color') {
-    startColorLoop(); // 內部 idempotent；SPA 切頁重呼 applyMode 不會多開
+    // autoStartColorLoop=false：/create 內 colormode btn 切到 color 時不自動啟動 RAF（user 須手動點 Play）。
+    // 已在跑的 loop 不會被這裡 stop——/create 內切到 color 前若 loop 早就在跑（從外面進來時 applyModeForPage 啟動），
+    // 維持 running 狀態（user paused 過會自己 stop）
+    if (autoStartColorLoop) {
+      startColorLoop(); // 內部 idempotent；SPA 切頁重呼 applyMode 不會多開
+    } else {
+      // 不啟動 RAF 但仍 sync 一次 CSS vars，否則 --theme-bg 為空 → header 失去 mode-color 色相回 default 白
+      // /create page bg 由 sketch.js 用同一 colorHue 算 wireframeColor → header / page 自動同色
+      applyColorVars();
+    }
   } else {
     stopColorLoop();
   }
@@ -255,14 +435,17 @@ function applyMode(mode) {
   // 通知需即時反應的元件（如 canvas 繪製）theme 已變動
   window.dispatchEvent(new CustomEvent('theme:changed', { detail: { mode } }));
 
-  // /generate 頁有自己的 typewriter logo，不要套 Lottie 蓋掉
-  if (getCurrentPage() === 'generate') return;
+  // /create 頁有自己的 typewriter logo（由 header.js triggerGenerateLogo 注入），不要套 Lottie 蓋掉
+  // 注意：getCurrentPage() 從 URL pathname 推出 'create'（不是 router 用的 logical 名稱 'generate'）
+  // 兩種都 guard 以防後續任何路徑改名
+  const _page = getCurrentPage();
+  if (_page === 'create' || _page === 'generate') return;
 
   // mode-color 用 wireframe logo（base 黑色），暗底 hue 由 applyColorVars 套 filter:invert(1) 翻白
   let logoType;
-  if (mode === 'color') logoType = 'wireframe';
+  if (mode === 'color') logoType = isSlideInOpen ? 'wireframe-inverse' : 'wireframe';
   else if (mode === 'inverse') logoType = 'inverse';
-  else logoType = 'standard';
+  else logoType = isSlideInOpen ? 'inverse' : 'standard';
 
   if (document.getElementById('header-logo')) {
     switchHeaderLogo(logoType);
@@ -271,13 +454,50 @@ function applyMode(mode) {
   }
 }
 
+/** Header logo 進場 reveal：左→右 clip-path inset 揭露 + 清 opacity
+ *  /create exit anim 把 logo.style.opacity:0；下一頁需要顯示時跑這個。
+ *  抽出 helper 因為「需要 reveal」的判斷點有兩處（doSwap 後 + skip path 後）。 */
+function runHeaderLogoReveal(logo) {
+  if (typeof gsap === 'undefined') {
+    logo.style.opacity = '1';
+    return;
+  }
+  logo.style.opacity = '1';
+  gsap.fromTo(logo,
+    { clipPath: 'inset(0% 100% 0% 0%)' },
+    {
+      clipPath: 'inset(0% 0% 0% 0%)',
+      duration: 0.9,
+      ease: 'power3.out',
+      clearProps: 'clipPath',
+    }
+  );
+}
+
+// 每次 switchHeaderLogo 遞增；DOMLoaded callback 比對 generation，過期的 stale load 直接 ignore
+// 防 race：lightbox 快速開→關時 switchHeaderLogo('inverse') 跟 ('standard') 連續觸發，
+// 舊 'inverse' Lottie 的 JSON fetch 若慢於 'standard' 完成，DOMLoaded 後到的 SVG 會覆蓋掉新 'standard' SVG。
+let logoLoadGeneration = 0;
+
 function switchHeaderLogo(type) {
   const logo = document.getElementById('header-logo');
   if (!logo || typeof lottie === 'undefined') return;
 
-  // 已是相同 type 的 Lottie 在運行 → skip，避免每次 SPA 換頁 destroy + reload 造成旋轉跳回 0°
-  if (logo.dataset.logoType === type && logo.querySelector('svg')) return;
+  // 不管 doSwap 走哪條路，都先記下「是否需要 reveal」— 從 /create 退場時 exit anim 把 logo.opacity 設為 0
+  // ⚠️ Recovery 機制：若 user 在 /create typewriter 沒跑完就切頁，Lottie 還留在 logo 內 + dataset.logoType
+  //    沒被 typewriter 改 → 下面 skip 條件成立 → 不跑 DOMLoaded → opacity:0 永遠卡住 → 下一頁 logo 不見
+  //    所以無論走 skip 還是 doSwap，需要 reveal 時都要主動跑 helper
+  const prevOpacity = parseFloat(logo.style.opacity);
+  const needsReveal = !isNaN(prevOpacity) && prevOpacity < 0.5;
 
+  // 已是相同 type 的 Lottie 在運行 → skip 大件事，但 opacity:0 仍要救
+  if (logo.dataset.logoType === type && logo.querySelector('svg')) {
+    if (needsReveal) runHeaderLogoReveal(logo);
+    return;
+  }
+
+  // doSwap：destroy 舊 Lottie + 載新 Lottie；DOMLoaded 後依 needsReveal 決定要不要 reveal
+  const myGeneration = ++logoLoadGeneration;
   lottie.destroy('header-logo-anim');
   logo.innerHTML = '';
   logo.dataset.logoType = type;
@@ -286,6 +506,7 @@ function switchHeaderLogo(type) {
   const basePath = isInPages ? '/data/' : 'data/';
   let file;
   if (type === 'wireframe') file = 'SCCDLogoWireframeStandard.json';
+  else if (type === 'wireframe-inverse') file = 'SCCDLogoWireframeInverse.json';
   else if (type === 'inverse') file = 'SCCDLogoInverse.json';
   else file = 'SCCDLogoStandard.json';
 
@@ -300,11 +521,21 @@ function switchHeaderLogo(type) {
   });
 
   anim.addEventListener('DOMLoaded', () => {
+    // Stale load guard：若 generation 對不上，這次 DOMLoaded 是被 supersede 的舊請求 — 直接 return
+    // 不要 destroy 因為 lottie.destroy 會把這支 anim 的 SVG 從 container 拿走，而 newer load 可能
+    // 還沒 inject 它的 SVG，會留下空 container；新 load 自己會處理自己的 lifecycle
+    if (myGeneration !== logoLoadGeneration) return;
     const svg = logo.querySelector('svg');
     if (svg) {
       svg.style.overflow = 'visible';
       svg.setAttribute('viewBox', '0 0 1080 1080');
     }
+    // 防 autoplay 在 race 情境下未真正啟動（symptom：Lottie 卡 frame 0 看不到 central circle）
+    if (typeof anim.play === 'function' && anim.isPaused) anim.play();
+    // **不能用 gsap.killTweensOf(logo)**：會把 header.js 的 scroll-shrink ScrollTrigger
+    // (180→100 scrub) 一起殺掉，logo 卡在 180 永遠不收縮
+    if (needsReveal) runHeaderLogoReveal(logo);
+    else logo.style.opacity = '1';
   });
 }
 

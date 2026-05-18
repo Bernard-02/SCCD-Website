@@ -16,14 +16,24 @@
 body.mode-color {
   background-color: var(--theme-bg);
   color: var(--theme-fg);
+
+  /* Footer：用互補 hue (hue+180°) 跟 body bg 永遠對比；--theme-bg-contrast / --theme-fg-contrast
+   * 由 theme-toggle.js applyColorVars 每幀同步更新，footer 自動跟著 cycle */
+  --footer-bg: var(--theme-bg-contrast);
+  --footer-fg: var(--theme-fg-contrast);
 }
 
-/* html bg 跟 body 同步：scrollbar-gutter:stable (base/scrollbar.css) 保留 10px gutter 顯示的是 html bg 不是 body bg；
- * 若 html 保留 default white 會在 viewport 右側出現一條白縫跟 vivid theme-bg body 不一致。
- * 也順便壓掉 faculty-slide-in.js GSAP 把 html bg tween 成 cardColor（accent）的動畫——mode-color 下 panel bg 已強制 = theme-bg，
- * gutter 也應該同步走 theme-bg，避免 panel/gutter 兩種顏色 */
+/* html bg 跟 body 同步：身為 body bg 在 body height < viewport 時的 fallback，
+ * 並順便壓掉 faculty-slide-in.js / courses-map.js instant 設 html bg = cardColor 的行為——
+ * mode-color 下 panel bg 已強制 = theme-bg，html 也跟著走 theme-bg 避免縫隙露白 */
 html:has(body.mode-color) {
   background-color: var(--theme-bg) !important;
+}
+
+/* Footer logo：mode-color 載入 SCCDLogoWireframeStandard.json (黑 wireframe)，
+ * 由 theme-toggle.js applyColorVars 依 footer bg (互補 hue) luminance 即時翻 invert(1)/none */
+body.mode-color .footer-logo-inner {
+  filter: var(--footer-invert-filter, invert(1));
 }
 
 /* ===== Layout ===== */
@@ -31,17 +41,22 @@ body.mode-color header {
   background-color: transparent;
 }
 
-/* ===== bg-white / bg-gray-9 / hero h-screen → 透明 =====
+/* ===== bg-white / bg-gray-9 / hero h-screen 處理 =====
  * mode-color 跟 generate-app wireframe Play 視覺對齊：整片 body --theme-bg vivid hue 流動，不加任何 overlay 軟化
  * 原本這些 section 套 var(--theme-overlay-25)（25% fg 半透明）軟化跟 vivid hue 對比，但會造成：
  *   1) section visible 色 ≠ body bg → 子元素（如 anchor-nav-btn）用 var(--theme-bg) 跟 visible 周圍對不上
  *   2) 跟 generate-app Wireframe Play（純 vivid 一片）視覺不一致
- * 改成 transparent 讓 body bg vivid 直接透出，跟 wireframe Play 一致。
+ * 
+ * Hero section 保持 transparent，直接透出 body 背景。
  * 排除 #faculty-panel（modal isolated）跟 about bar（走 fg/fg-inverse strict 對比，見下方 header bar 規則） */
-body.mode-color main > section.h-screen,
+body.mode-color main > section.h-screen {
+  background-color: transparent !important;
+}
+
+/* bg-white / bg-gray-9 轉為 var(--theme-bg) 避免切換 mode 時 transparent 造成的過渡色差 (灰色泥濘感) */
 body.mode-color .bg-white:not([data-bar="about"]):not(#faculty-panel):not(.activities-filter-bar),
 body.mode-color .bg-gray-9 {
-  background-color: transparent !important;
+  background-color: var(--theme-bg) !important;
 }
 
 /* sticky 元素必須有 opaque bg 才能蓋住滾動到下方的 list-content
@@ -272,7 +287,7 @@ body.mode-color .courses-program-btn.active .anchor-nav-inner,
 body.mode-color .activities-filter-btn.active .anchor-nav-inner,
 body.mode-color .courses-filter-btn.active .anchor-nav-inner,
 body.mode-color .atlas-filter-btn.active .anchor-nav-inner {
-  background: var(--theme-fg) !important;
+  background-color: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
   opacity: 1;
 }
@@ -285,7 +300,7 @@ body.mode-color .courses-program-btn:not(.active) .anchor-nav-inner,
 body.mode-color .activities-filter-btn:not(.active) .anchor-nav-inner,
 body.mode-color .courses-filter-btn:not(.active) .anchor-nav-inner,
 body.mode-color .atlas-filter-btn:not(.active) .anchor-nav-inner {
-  background: var(--theme-bg) !important;
+  background-color: var(--theme-bg) !important;
   color: rgba(var(--theme-fg-rgb), 0.5) !important;
   opacity: 1;
   transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
@@ -394,6 +409,18 @@ body.mode-color .courses-grid-card:not([style*="background"]) {
 }
 
 body.mode-color .courses-grid-card[style*="background"] {
+  background: var(--theme-fg) !important;
+  color: var(--theme-fg-inverse) !important;
+}
+
+/* Alumni sponsor 卡片 — 對齊 courses-grid-card mode-color pattern：
+ * default 灰底 + fg 字；hover/active（JS 設 inline bg=accent）走 strict B/W */
+body.mode-color .alumni-sponsor-card:not([style*="background"]) {
+  background: var(--theme-neutral-gray) !important;
+  color: var(--theme-fg) !important;
+}
+
+body.mode-color .alumni-sponsor-card[style*="background"] {
   background: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
 }
@@ -620,13 +647,15 @@ body.mode-color .activities-search-input::placeholder {
  * mode-color 全部蓋成 var(--theme-fg) + var(--theme-fg-inverse)（依 page hue luminance 翻黑白）
  * .atlas-filter-btn 已由上方統一 nav/filter 規則處理（active = fg chip / inactive = bg + half-fg），這裡不重複 */
 
-/* 非 D items label：text → fg；inline color (primary) 被 !important 蓋掉 */
-body.mode-color .atlas-anchor:not(.atlas-cat-d) .atlas-name {
+/* 非 chip items (A/C) label：text → fg；inline color (primary) 被 !important 蓋掉
+   D 國家 + B 系友任職企業 (chip) 不在此列，走下方 chip 翻盤規則 */
+body.mode-color .atlas-anchor:not(.atlas-cat-d):not(.atlas-cat-b) .atlas-name {
   color: var(--theme-fg) !important;
 }
 
-/* D 城市 chip：strict B/W chip 翻盤 standard 的 primary bg + 黑字 */
-body.mode-color .atlas-cat-d .atlas-name {
+/* D 國家 + B 系友任職企業 chip：strict B/W chip 翻盤 standard 的 chip bg + 對比字 */
+body.mode-color .atlas-cat-d .atlas-name,
+body.mode-color .atlas-cat-b .atlas-name {
   background-color: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
 }
@@ -673,14 +702,20 @@ body.mode-color .atlas-list-nav-btn {
 
 /* ===== Homepage marquee + YT card ===== */
 /* mode-color：strict 黑白對比（floating items 同套），不用 overlay-25 */
-body.mode-color #homepage-marquee-link,
+body.mode-color .homepage-marquee-link,
 body.mode-color #homepage-yt-card {
   background: var(--theme-fg) !important;
 }
 
-body.mode-color #homepage-marquee-text,
-body.mode-color #homepage-marquee-clone {
+body.mode-color .homepage-marquee-text,
+body.mode-color .homepage-marquee-clone {
   color: var(--theme-fg-inverse) !important;
+}
+
+/* News marquee 數字方塊（JS 設 inline accent bg）→ mode-color 切 strict 反色（bar 是 --theme-fg，square 用反色） */
+body.mode-color .hm-banner-num[style*="background"] {
+  background: var(--theme-fg-inverse) !important;
+  color: var(--theme-fg) !important;
 }
 
 /* ===== Header bars mode-color spec =====
@@ -722,13 +757,31 @@ body.mode-color [data-bar="about"].has-active .nav-link:not(.active) {
   body.mode-color [data-bar="about"].has-active .nav-link:not(.active):hover {
     color: var(--theme-fg) !important;
   }
+
+  /* hover 翻轉（對齊 Library/Atlas/Generate pattern）：bg = fg-inverse（strict B/W），text = fg
+   * header.js inline 設亮三原色 bg，用 !important 蓋過讓 mode-color 走 strict B/W 對比 */
+  body.mode-color [data-bar="about"]:hover {
+    background: var(--theme-fg-inverse) !important;
+  }
+
+  body.mode-color [data-bar="about"]:hover .nav-link.active,
+  body.mode-color [data-bar="about"]:hover .nav-link:hover {
+    color: var(--theme-fg) !important;
+  }
+
+  body.mode-color [data-bar="about"]:hover .nav-link:not(.active):not(:hover) {
+    color: color-mix(in srgb, var(--theme-fg), transparent 50%) !important;
+  }
 }
 
-/* (B) Library/Atlas/Generate — 100% solid，inactive vs active 翻轉
- * inline transition:background 0.4s 也要排除（同 about bar），避免 RAF var 更新 lag */
+/* (B) Library/Atlas/Generate/Alumni — 100% solid，inactive vs active 翻轉
+ * inline transition:background 0.4s 也要排除（同 about bar），避免 RAF var 更新 lag
+ * Alumni (AA) bar 視覺規格跟其他三個一致；on alumni 頁時 JS 把它 display:none 改顯示 alumni-full bar，
+ * 所以 .bar-active 規則對 alumni 不會視覺生效但保留對齊避免未來行為改變漏覆蓋 */
 body.mode-color [data-bar="library"],
 body.mode-color [data-bar="atlas"],
-body.mode-color [data-bar="generate"] {
+body.mode-color [data-bar="generate"],
+body.mode-color [data-bar="alumni"] {
   transition: color 0.3s ease, transform 0.3s ease !important;
 }
 
@@ -737,26 +790,30 @@ body.mode-color [data-bar="generate"] {
  * user spec：「100% 不透明」指 text，不是 bg；bg 一律隨 body */
 body.mode-color [data-bar="library"].bar-inactive,
 body.mode-color [data-bar="atlas"].bar-inactive,
-body.mode-color [data-bar="generate"].bar-inactive {
+body.mode-color [data-bar="generate"].bar-inactive,
+body.mode-color [data-bar="alumni"].bar-inactive {
   background: var(--theme-bg) !important;
 }
 
 body.mode-color [data-bar="library"].bar-inactive .nav-link,
 body.mode-color [data-bar="atlas"].bar-inactive .nav-link,
-body.mode-color [data-bar="generate"].bar-inactive .nav-link {
+body.mode-color [data-bar="generate"].bar-inactive .nav-link,
+body.mode-color [data-bar="alumni"].bar-inactive .nav-link {
   color: var(--theme-fg) !important;
 }
 
 /* Active：翻成 fg-inverse bg + fg text（user spec：黑底白字 / 白底黑字依 hue 對比自動翻） */
 body.mode-color [data-bar="library"].bar-active,
 body.mode-color [data-bar="atlas"].bar-active,
-body.mode-color [data-bar="generate"].bar-active {
+body.mode-color [data-bar="generate"].bar-active,
+body.mode-color [data-bar="alumni"].bar-active {
   background: var(--theme-fg-inverse) !important;
 }
 
 body.mode-color [data-bar="library"].bar-active .nav-link,
 body.mode-color [data-bar="atlas"].bar-active .nav-link,
-body.mode-color [data-bar="generate"].bar-active .nav-link {
+body.mode-color [data-bar="generate"].bar-active .nav-link,
+body.mode-color [data-bar="alumni"].bar-active .nav-link {
   color: var(--theme-fg) !important;
 }
 
@@ -767,7 +824,9 @@ body.mode-color [data-bar="generate"].bar-active .nav-link {
   body.mode-color [data-bar="atlas"].bar-inactive:hover,
   body.mode-color [data-bar="atlas"].bar-inactive.is-bar-hover,
   body.mode-color [data-bar="generate"].bar-inactive:hover,
-  body.mode-color [data-bar="generate"].bar-inactive.is-bar-hover {
+  body.mode-color [data-bar="generate"].bar-inactive.is-bar-hover,
+  body.mode-color [data-bar="alumni"].bar-inactive:hover,
+  body.mode-color [data-bar="alumni"].bar-inactive.is-bar-hover {
     background: var(--theme-fg-inverse) !important;
   }
 
@@ -776,7 +835,9 @@ body.mode-color [data-bar="generate"].bar-active .nav-link {
   body.mode-color [data-bar="atlas"].bar-inactive:hover .nav-link,
   body.mode-color [data-bar="atlas"].bar-inactive.is-bar-hover .nav-link,
   body.mode-color [data-bar="generate"].bar-inactive:hover .nav-link,
-  body.mode-color [data-bar="generate"].bar-inactive.is-bar-hover .nav-link {
+  body.mode-color [data-bar="generate"].bar-inactive.is-bar-hover .nav-link,
+  body.mode-color [data-bar="alumni"].bar-inactive:hover .nav-link,
+  body.mode-color [data-bar="alumni"].bar-inactive.is-bar-hover .nav-link {
     color: var(--theme-fg) !important;
   }
 }

@@ -1,7 +1,13 @@
 /**
  * Faculty Slide-in Module
  * 處理師資頁面的側邊滑入詳情頁功能
+ *
+ * Header 處理：比照 activities-lightbox / library-viewer 透過 lightbox-shell
+ * 把 header bars 用 clip-path 收掉（logo 不動），確保 overlay 上只剩 logo 浮在最上
  */
+
+import { enterLightboxMode, exitLightboxMode } from '../lightbox/lightbox-shell.js';
+import { openSlideInBg, closeSlideInBg } from '../ui/slide-in-bg-sync.js';
 
 export function initFacultySlideIn() {
   const slideIn = document.getElementById('faculty-slide-in');
@@ -189,7 +195,7 @@ export function initFacultySlideIn() {
             loadFacultyData(facultyId);
 
             // Apply card color to panel background
-            const cardColor = getComputedStyle(card).getPropertyValue('--card-color').trim() || '#ffffff';
+              const cardColor = getComputedStyle(card).getPropertyValue('--card-color').trim() || '#26BCFF';
             slideInPanel.style.backgroundColor = cardColor;
             currentCardColor = cardColor;
 
@@ -197,34 +203,17 @@ export function initFacultySlideIn() {
             slideIn.classList.remove('invisible', 'pointer-events-none');
             slideIn.classList.add('pointer-events-auto');
 
-            // Animation Sequence: Overlay first, then Panel and Button slide in together
-            // html { scrollbar-gutter: stable } 保留的 10px gutter 在 panel 終點右側會露白縫，
-            // 需把 html bg 染成 cardColor 融進 panel；用 GSAP tween 與 panel slide 同 duration 同 ease
-            // 並行漸變（不是同步瞬切、也不是 onComplete 才瞬切），讓 gutter 顏色與 panel 進場同步
-            if (typeof gsap !== 'undefined') {
-              cursorEnabled = false;
-              const tl = gsap.timeline();
-              tl.to(slideInOverlay, { opacity: 0.8, duration: 0.3 })
-                .to(slideInPanel, {
-                  x: '0%',
-                  duration: 0.5,
-                  ease: 'power3.out',
-                  onComplete: () => { cursorEnabled = true; }
-                }, '-=0')
-                .fromTo(document.documentElement,
-                  { backgroundColor: '#ffffff' },
-                  { backgroundColor: cardColor, duration: 0.5, ease: 'power3.out' },
-                  '<'
-                );
-            } else {
-              // Fallback if GSAP is not loaded
-              slideInOverlay.style.opacity = '0.8';
-              slideInPanel.style.transform = 'translateX(0%)';
-              document.documentElement.style.backgroundColor = cardColor;
-            }
-
-            // Prevent body scroll
-            document.body.style.overflow = 'hidden';
+            // header bars clip-path 收掉（logo 不動）+ body.overflow 鎖捲動（lightbox-shell 內處理）
+            // 不額外鎖 htmlEl.overflow：html overflow:hidden 會讓 html 失去 scroll container，
+            // 內層 md:sticky md:top-[200px]（faculty filter rail）失效退回 static → 整個 rail 飄上去 ~200px
+            enterLightboxMode();
+            cursorEnabled = false;
+            openSlideInBg({
+              overlay: slideInOverlay,
+              panel: slideInPanel,
+              panelBg: cardColor,
+              onPanelDone: () => { cursorEnabled = true; },
+            });
           }
         });
       }
@@ -234,35 +223,20 @@ export function initFacultySlideIn() {
   // Close functionality for Slide-in
   function closeSlideIn() {
     if (!slideIn) return;
+    if (slideIn.classList.contains('invisible')) return; // 防止重複觸發
 
-    if (typeof gsap !== 'undefined') {
-      gsap.to(slideInOverlay, { opacity: 0, duration: 0.4, delay: 0.1 });
-      // html bg 與 panel slide-out 同步漸變回白色（對稱開啟動畫，避免「panel 滑完才瞬切回白」）
-      gsap.to(document.documentElement, { backgroundColor: '#ffffff', duration: 0.5, ease: 'power3.in' });
-      gsap.to(slideInPanel, {
-        x: '110%',
-        duration: 0.5,
-        ease: 'power3.in',
-        onComplete: () => {
-          slideIn.classList.add('invisible', 'pointer-events-none');
-          slideIn.classList.remove('pointer-events-auto');
-          slideInPanel.style.backgroundColor = '';
-          document.documentElement.style.backgroundColor = '';
-          document.body.style.overflow = '';
-        }
-      });
-    } else {
-      // Fallback
-      slideInOverlay.style.opacity = '0';
-      slideInPanel.style.transform = 'translateX(110%)';
-      // backBtn moves with panel
-      setTimeout(() => {
+    // header bars clip-path 進場（logo 不動）+ 解除 body.lightbox-open
+    exitLightboxMode();
+
+    closeSlideInBg({
+      overlay: slideInOverlay,
+      panel: slideInPanel,
+      onComplete: () => {
         slideIn.classList.add('invisible', 'pointer-events-none');
         slideIn.classList.remove('pointer-events-auto');
-        document.documentElement.style.backgroundColor = '';
-        document.body.style.overflow = '';
-      }, 500);
-    }
+        slideInPanel.style.backgroundColor = '';
+      },
+    });
   }
 
   // Custom cursor on overlay (desktop only)

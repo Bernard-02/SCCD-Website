@@ -24,7 +24,7 @@ function ensureLightbox() {
   lightboxEl.id = 'activities-lightbox';
   // bg-black/90 半透明黑（user 偏好；不全黑，讓底下 page 微微透出但 chips 不會搶眼）
   // z-[9999] 與 header 同層，但 lightbox 後 append 到 body → 蓋在 header 之上
-  // → header 消失動畫（clip-path）在 lightbox 下方進行，不與 X 按鈕打架；仍低於 idle standby z-10000
+  // header 由 lightbox-shell 拉到 z=10000，logo 浮在 lightbox 黑底上、bars 用 clip-path 收掉
   lightboxEl.className = 'fixed inset-0 z-[9999] bg-black/90 flex flex-col opacity-0 transition-opacity duration-300';
   lightboxEl.style.display = 'none';
 

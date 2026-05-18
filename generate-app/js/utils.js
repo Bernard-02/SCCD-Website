@@ -35,7 +35,7 @@ function getIconSuffix(useTargetMode = false) {
   const currentMode = useTargetMode && typeof targetMode !== 'undefined' ? targetMode : mode;
 
   if (currentMode === "Wireframe") {
-    const isWhiteIcon = wireframeStrokeColor && red(wireframeStrokeColor) > 128;
+    const isWhiteIcon = wireframeStrokeColor && _p5.red(wireframeStrokeColor) > 128;
     return isWhiteIcon ? "_Inverse" : "";
   }
   return currentMode === "Inverse" ? "_Inverse" : "";
@@ -122,20 +122,20 @@ function updateRotateIcon() {
 
   if (!hasText) {
     // 沒有文字時：顯示 Rotate icon（disabled 狀態）
-    desktopIconSrc = `Panel Icon/Rotate${suffix}.svg`;
+    desktopIconSrc = `/generate-app/Panel Icon/Rotate${suffix}.svg`;
   } else if (autoRotateMode) {
     // 有文字且在 Auto Rotate 模式
     if (isRotating) {
       // 正在自動旋轉：顯示 Pause icon
-      desktopIconSrc = `Panel Icon/Pause${suffix}.svg`;
+      desktopIconSrc = `/generate-app/Panel Icon/Pause${suffix}.svg`;
     } else {
       // Auto 模式但暫停：顯示 Play icon
-      desktopIconSrc = `Panel Icon/Play${suffix}.svg`;
+      desktopIconSrc = `/generate-app/Panel Icon/Play${suffix}.svg`;
       desktopIsPlayIcon = true;
     }
   } else {
     // 有文字且在 Custom 模式：顯示 Rotate icon（disabled 狀態）
-    desktopIconSrc = `Panel Icon/Rotate${suffix}.svg`;
+    desktopIconSrc = `/generate-app/Panel Icon/Rotate${suffix}.svg`;
   }
 
   // 手機版：使用與桌面版相同的 Auto/Custom 模式邏輯
@@ -146,7 +146,7 @@ function updateRotateIcon() {
   if (rotateIcon) {
     rotateIcon.attribute('src', desktopIconSrc);
     // 添加或移除 play-icon class
-    let rotateButton = select('.custom-button-rotate');
+    let rotateButton = _p5.select('.custom-button-rotate');
     if (rotateButton) {
       if (desktopIsPlayIcon) {
         rotateButton.addClass('play-icon');
@@ -160,7 +160,7 @@ function updateRotateIcon() {
   if (mobileRotateIcon) {
     mobileRotateIcon.attribute('src', mobileIconSrc);
     // 添加或移除 play-icon class（手機版）
-    let mobileRotateButton = select('.mobile-rotate-btn');
+    let mobileRotateButton = _p5.select('.mobile-rotate-btn');
     if (mobileRotateButton) {
       if (mobileIsPlayIcon) {
         mobileRotateButton.addClass('play-icon');
@@ -180,16 +180,16 @@ function updateIconsForMode() {
   const colormodeIconSrc = getModeIconSrc();
 
   // Custom 圖標 - 統一使用當前模式的 icon，CSS 會根據 disabled 狀態調整 opacity
-  const customIconSrc = `Panel Icon/Custom${suffix}.svg`;
+  const customIconSrc = `/generate-app/Panel Icon/Custom${suffix}.svg`;
 
   // Download 圖標 - 彩蛋模式下使用 Gift icon，否則使用 Download icon
   const downloadIconSrc = isEasterEggActive
-    ? `Panel Icon/Gift${suffix}.svg`
-    : `Panel Icon/Download${suffix}.svg`;
+    ? `/generate-app/Panel Icon/Gift${suffix}.svg`
+    : `/generate-app/Panel Icon/Download${suffix}.svg`;
 
   // Random 和 Reset 圖標 - 統一使用當前模式的 icon
-  const randomIconSrc = `Panel Icon/Random${suffix}.svg`;
-  const resetIconSrc = `Panel Icon/Reset${suffix}.svg`;
+  const randomIconSrc = `/generate-app/Panel Icon/Random${suffix}.svg`;
+  const resetIconSrc = `/generate-app/Panel Icon/Reset${suffix}.svg`;
 
   // 更新桌面版圖標
   if (customIcon) customIcon.attribute('src', customIconSrc);
@@ -218,17 +218,17 @@ function updateIconsForMode() {
   // 更新橫向提示的 Rotate Phone 圖標
   const landscapeIcon = document.getElementById('landscape-overlay-icon');
   if (landscapeIcon) {
-    const rotatePhoneIconSrc = `Panel Icon/Rotate_Phone${suffix}.svg`;
+    const rotatePhoneIconSrc = `/generate-app/Panel Icon/Rotate_Phone${suffix}.svg`;
     landscapeIcon.src = rotatePhoneIconSrc;
   }
 
   // 更新手機版按鈕和面板的邊框顏色
   const borderColor = isWireframeMode ? getWireframeBorderColor() : null;
   const mobileElements = [
-    ...selectAll('.mobile-bottom-btn'),
-    ...selectAll('.mobile-panel'),
-    select('.mobile-bento-container'),
-    ...selectAll('.mobile-bento-button')
+    ..._p5.selectAll('.mobile-bottom-btn'),
+    ..._p5.selectAll('.mobile-panel'),
+    _p5.select('.mobile-bento-container'),
+    ..._p5.selectAll('.mobile-bento-button')
   ];
   updateElementsBorderColor(mobileElements, borderColor);
 }
@@ -239,8 +239,8 @@ function updateColorWheelIcon() {
 
   // 根據旋轉狀態選擇 Play 或 Pause icon
   let iconSrc = isColorWheelRotating
-    ? `Panel Icon/Pause${suffix}.svg`
-    : `Panel Icon/Play${suffix}.svg`;
+    ? `/generate-app/Panel Icon/Pause${suffix}.svg`
+    : `/generate-app/Panel Icon/Play${suffix}.svg`;
 
   // 更新桌面版 icon
   if (colorWheelPlayIcon && colorWheelPlayButton) {
@@ -255,7 +255,7 @@ function updateColorWheelIcon() {
   }
 
   // 更新手機版 Color Wheel Play icon
-  const mobileColorWheelPlayIcon = select('#mobile-colorwheel-play-icon');
+  const mobileColorWheelPlayIcon = _p5.select('#mobile-colorwheel-play-icon');
   if (mobileColorWheelPlayIcon) {
     mobileColorWheelPlayIcon.attribute('src', iconSrc);
   }
@@ -266,17 +266,17 @@ function getModeIconSrc() {
   const isWireframeMode = mode === "Wireframe";
 
   if (isWireframeMode) {
-    const isWhiteIcon = wireframeStrokeColor && red(wireframeStrokeColor) > 128;
-    return isWhiteIcon ? `Panel Icon/Inverse_Wireframe.svg` : `Panel Icon/Standard_Wireframe.svg`;
+    const isWhiteIcon = wireframeStrokeColor && _p5.red(wireframeStrokeColor) > 128;
+    return isWhiteIcon ? `/generate-app/Panel Icon/Inverse_Wireframe.svg` : `/generate-app/Panel Icon/Standard_Wireframe.svg`;
   }
 
-  return mode === "Inverse" ? `Panel Icon/Inverse_White.svg` : `Panel Icon/Standard.svg`;
+  return mode === "Inverse" ? `/generate-app/Panel Icon/Inverse_White.svg` : `/generate-app/Panel Icon/Standard.svg`;
 }
 
 // 獲取邊框顏色（Wireframe 模式專用）
 function getWireframeBorderColor() {
   if (!wireframeStrokeColor) return null;
-  return `rgb(${red(wireframeStrokeColor)}, ${green(wireframeStrokeColor)}, ${blue(wireframeStrokeColor)})`;
+  return `rgb(${_p5.red(wireframeStrokeColor)}, ${_p5.green(wireframeStrokeColor)}, ${_p5.blue(wireframeStrokeColor)})`;
 }
 
 // 更新元素邊框顏色（Wireframe 模式）
@@ -304,7 +304,7 @@ function updateElementsBorderColor(elements, borderColor) {
 
 // 更新手機版 Mode 按鈕圖標
 function updateMobileModeIcon() {
-  let mobileModeIcon = select("#mobile-mode-icon");
+  let mobileModeIcon = _p5.select("#mobile-mode-icon");
   if (!mobileModeIcon) return;
 
   mobileModeIcon.attribute('src', getModeIconSrc());

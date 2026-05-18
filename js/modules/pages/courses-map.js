@@ -10,7 +10,12 @@
  *           選修
  *
  * 互動：hover 卡片 → 右下角固定 desc panel 換成該卡片的描述 + 同色
+ *
+ * Slide-in header 處理：透過 lightbox-shell 把 header bars 用 clip-path 收掉
+ * （logo 不動），確保 overlay 上只剩 logo 浮在最上
  */
+
+import { enterLightboxMode, exitLightboxMode } from '../lightbox/lightbox-shell.js';
 
 const PRIMARY_COLORS = ['#00FF80', '#FF448A', '#26BCFF'];
 
@@ -319,41 +324,87 @@ function openCourseSlideIn(card) {
   if (enD) enD.textContent = descEn;
   if (zhD) zhD.textContent = descZh;
 
-  panel.style.backgroundColor = accent || 'white';
+  const panelBg = accent || 'white';
+  panel.style.backgroundColor = panelBg;
 
   // Show
   slideIn.classList.remove('invisible', 'pointer-events-none');
   slideIn.classList.add('pointer-events-auto');
 
+  // header bars clip-path 收掉（logo 不動）+ body.overflow 鎖捲動（lightbox-shell 內處理）
+  // 不額外鎖 htmlEl.overflow：html overflow:hidden 會讓 html 失去 scroll container，
+  // 內層 sticky（如 courses-program-bar）失效退回 static → 整段往上飄 header-height
+  enterLightboxMode();
+  const htmlEl = document.documentElement;
+
+  // 取得初始背景色與暗化目標色，讓 GSAP 分段接管 --slide-bg-color 的漸變
+  let startBg = getComputedStyle(htmlEl).backgroundColor;
+  if (startBg === 'rgba(0, 0, 0, 0)' || startBg === 'transparent') {
+    startBg = htmlEl.classList.contains('mode-inverse') ? '#000000' : '#ffffff';
+  }
+  const dimBg = htmlEl.classList.contains('mode-inverse') ? '#000000' : '#333333';
+
+  htmlEl.style.setProperty('--slide-bg-color', startBg);
+  htmlEl.classList.add('has-slide-in');
+
   if (typeof gsap !== 'undefined') {
     gsap.timeline()
-      .to(overlay, { opacity: 0.8, duration: 0.3 })
-      .to(panel, { x: '0%', duration: 0.5, ease: 'power3.out' }, '-=0');
+      .to(overlay, { opacity: 0.8, duration: 0.3 }, 0)
+      .to(htmlEl, { '--slide-bg-color': dimBg, duration: 0.3 }, 0)
+      .to(panel, { x: '0%', duration: 0.5, ease: 'power3.out' }, 0.3)
+      .to(htmlEl, { '--slide-bg-color': panelBg, duration: 0.5, ease: 'power3.out' }, 0.3);
   } else {
     overlay.style.opacity = '0.8';
+    htmlEl.style.setProperty('--slide-bg-color', panelBg);
     panel.style.transform = 'translateX(0%)';
   }
-
-  document.body.style.overflow = 'hidden';
 }
 
 export function closeCourseSlideIn() {
+  // 確保關閉時清除 activeCard 狀態與角度（處理 ESC 或點擊 overlay 關閉的情境）
+  if (activeCard) {
+    activeCard.style.background = '';
+    delete activeCard.dataset.currentColor;
+    const baseRot = activeCard.dataset.baseRot || '0';
+    activeCard.style.transform = `rotate(${baseRot}deg)`;
+    activeCard = null;
+  }
+
   const slideIn = getSlideIn();
   const panel = getSlidePanel();
   const overlay = getSlideOverlay();
   if (!slideIn || !panel || !overlay) return;
 
+  // 如果面板已經是隱藏狀態，直接 return，避免切換 program 分頁時觸發多餘的 CSS 變化
+  if (slideIn.classList.contains('invisible')) return;
+
+  // header bars clip-path 進場（logo 不動）+ 解除 body.lightbox-open
+  exitLightboxMode();
+
+  const htmlEl = document.documentElement;
+  
+  // 預先取得還原後的目標背景色
+  htmlEl.classList.remove('has-slide-in');
+  let targetBg = getComputedStyle(htmlEl).backgroundColor;
+  if (targetBg === 'rgba(0, 0, 0, 0)' || targetBg === 'transparent') {
+    targetBg = htmlEl.classList.contains('mode-inverse') ? '#000000' : '#ffffff';
+  }
+  const dimBg = htmlEl.classList.contains('mode-inverse') ? '#000000' : '#333333';
+  htmlEl.classList.add('has-slide-in');
+
   if (typeof gsap !== 'undefined') {
-    gsap.to(overlay, { opacity: 0, duration: 0.4, delay: 0.1 });
-    gsap.to(panel, {
-      x: '110%', duration: 0.5, ease: 'power3.in',
-      onComplete: () => {
+    gsap.timeline()
+      .to(panel, { x: '110%', duration: 0.5, ease: 'power3.in' }, 0)
+      .to(htmlEl, { '--slide-bg-color': dimBg, duration: 0.5, ease: 'power3.in' }, 0)
+      .to(overlay, { opacity: 0, duration: 0.3 }, 0.5)
+      .to(htmlEl, { '--slide-bg-color': targetBg, duration: 0.3 }, 0.5)
+      .call(() => {
         slideIn.classList.add('invisible', 'pointer-events-none');
         slideIn.classList.remove('pointer-events-auto');
         panel.style.backgroundColor = '';
-        document.body.style.overflow = '';
-      }
-    });
+        htmlEl.classList.remove('has-slide-in');
+        htmlEl.style.removeProperty('--slide-bg-color');
+      });
   } else {
     overlay.style.opacity = '0';
     panel.style.transform = 'translateX(110%)';
@@ -361,15 +412,9 @@ export function closeCourseSlideIn() {
       slideIn.classList.add('invisible', 'pointer-events-none');
       slideIn.classList.remove('pointer-events-auto');
       panel.style.backgroundColor = '';
-      document.body.style.overflow = '';
+      htmlEl.classList.remove('has-slide-in');
+      htmlEl.style.removeProperty('--slide-bg-color');
     }, 500);
-  }
-
-  // 清 active 卡片底色（給切 program 也呼叫到）
-  if (activeCard) {
-    activeCard.style.background = '';
-    delete activeCard.dataset.currentColor;
-    activeCard = null;
   }
 }
 
@@ -542,7 +587,7 @@ export async function renderCoursesGrid(program) {
   const courses = data[program];
   if (!courses) return;
 
-  const grid = panel.querySelector('.courses-grid');
+  const grid = /** @type {HTMLElement|null} */ (panel.querySelector('.courses-grid'));
   if (!grid) return;
 
   const grades = gradesOf(program);

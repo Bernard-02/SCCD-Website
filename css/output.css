@@ -109,6 +109,14 @@
   --theme-bg: var(--color-white);
   --theme-fg-rgb: 0, 0, 0;
   --theme-bg-rgb: 255, 255, 255;
+  /* ===== Footer 主題色 token =====
+   * 預設 standard：黑底白字
+   * inverse mode 在 themes/inverse.css 翻成白底黑字
+   * color mode 在 themes/color.css 改用 --theme-bg-contrast / --theme-fg-contrast
+   *   （hue+180° 互補色 + 對應自動對比文字色，由 theme-toggle.js applyColorVars 每幀更新）
+   */
+  --footer-bg: var(--color-black);
+  --footer-fg: var(--color-white);
   /* ===== Library 主矩形（#library-card-content）色彩 token =====
    * 預設 standard：淺灰底（#f2f2f2）+ 黑字
    * inverse mode 在 themes/inverse.css 蓋成深灰底（#434343）+ 白字
@@ -204,111 +212,152 @@
  * 字體、標題、段落等基礎樣式
  */
 
-/* Mode 切換 fade window：theme-toggle.js applyMode() 加 .mode-switching 0.5s 後移除
- * - 速度 0.5s（比 create iframe 1s 快一半）：1s 全 subtree lockstep 一起 melt 感覺 unnatural；
- *   0.5s 快到不會被視覺鎖在「同步緩慢」的感覺，但仍 smooth 不 snap
- * - body/html + 全 subtree（所有元素的 bg/color/border/fill）一律 0.5s ease fade（matches create 'ease' curve）
- * - 故意 `*` broad cover：sections (.bg-white 翻黑底/.text-black 翻白字 等) 才會跟著 fade 不只 body
- *   （drop universal 會讓 section instant snap，body fade 反而被覆蓋看不出 smooth）
- * - 0.5s window 結束移除 class：穩態下不留 transition，避免 mode-color RAF 高頻更新 --theme-bg 跟 transition 衝突 lag
- * - !important 確保覆蓋 element 既有的 transition（e.g. button hover transition: 0.3s）；過渡期間統一 0.5s 同步感
- * - 用 `html.mode-switching body.mode-switching *`（0,2,2 specificity）蓋過 color.css 對 [data-bar] / sticky 等元件
- *   寫死的 `transition: color 0.3s, transform 0.3s !important`（0,2,1）：那條規則為 RAF 穩態排除 bg transition，
- *   但 mode 切換時 bar bg 必須跟 body 一起 fade，否則 bar snap 到目標色而 body 還在 fade → 視覺 desync */
+/* Mode 切換 fade window：theme-toggle.js applyMode() 加 .mode-switching 0.4s 後移除
+ * - 速度 0.4s ease：對齊 theme-toggle.js MODE_FADE_MS
+ * - 早期版本用 `*` broad cover 讓所有 ::before/::after/border/fill 一起 fade，但 about 頁元素密度過高
+ *   （5 .bg-white section + N chips + N anchor + timeline + accordion）造成同時上百個 paint → frame drop = 抖動
+ * - 改 whitelist：只 fade 真會在 mode 之間變色的元件（依 themes/color.css 與 themes/inverse.css 實際 override list）
+ *   非 mode-aware 元素直接 instant snap，本來就不變色看不出差別，大幅降低同時 paint 區
+ * - 用 .mode-switching.mode-switching (0,3,N) 蓋過 color.css 的 `transition: color, transform !important` (0,2,1)
+ *   保留 body/html fade 給整片 bg 過渡 */
 
-html.mode-switching,
-body.mode-switching {
-  transition: background-color 0.5s ease, color 0.5s ease !important;
+html.mode-switching.mode-switching,
+body.mode-switching.mode-switching {
+  transition: background-color 0.4s ease, background 0.4s ease, color 0.4s ease !important;
 }
 
-html.mode-switching body.mode-switching *,
-html.mode-switching body.mode-switching *::before,
-html.mode-switching body.mode-switching *::after {
-  transition: background-color 0.5s ease, color 0.5s ease, border-color 0.5s ease, fill 0.5s ease, stroke 0.5s ease !important;
+html.mode-switching.mode-switching header,
+html.mode-switching.mode-switching .nav-link,
+html.mode-switching.mode-switching .mobile-nav-link,
+html.mode-switching.mode-switching [data-bar],
+html.mode-switching.mode-switching .bg-white,
+html.mode-switching.mode-switching .bg-black,
+html.mode-switching.mode-switching .bg-gray-9,
+html.mode-switching.mode-switching .text-black,
+html.mode-switching.mode-switching .text-white,
+html.mode-switching.mode-switching .border-black,
+html.mode-switching.mode-switching .border-gray-9,
+html.mode-switching.mode-switching [data-overview-hl],
+html.mode-switching.mode-switching [data-class-hl],
+html.mode-switching.mode-switching [data-works-hl],
+html.mode-switching.mode-switching [data-hero-hl],
+html.mode-switching.mode-switching [data-section-title],
+html.mode-switching.mode-switching .section-title-strip,
+html.mode-switching.mode-switching .timeline-card-inner,
+html.mode-switching.mode-switching .anchor-nav-inner,
+html.mode-switching.mode-switching .class-division-btn,
+html.mode-switching.mode-switching .courses-bfa-label,
+html.mode-switching.mode-switching .class-group-label,
+html.mode-switching.mode-switching .list-header,
+html.mode-switching.mode-switching .list-content,
+html.mode-switching.mode-switching #faculty-panel,
+html.mode-switching.mode-switching #courses-detail-panel,
+html.mode-switching.mode-switching .activities-filter-bar,
+html.mode-switching.mode-switching .degree-show-card-content,
+html.mode-switching.mode-switching .error-404-card,
+html.mode-switching.mode-switching .footer-shell,
+html.mode-switching.mode-switching .footer-link,
+html.mode-switching.mode-switching #custom-scrollbar-thumb {
+  transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease !important;
+}
+
+/* /create 頁：#create-app 的 background-color 不在上方 whitelist，mode 切換時 snap 而 header 有 0.4s fade，
+ * 造成兩者不同時轉換。加入 whitelist 讓 #create-app 背景跟 header 同節奏（class 從 wireframe-mode ↔ standard/inverse-mode）。
+ * canvas containers 也一起加入，避免容器內部 snap 而 #create-app 外框還在 fade 造成色差 */
+
+html.mode-switching.mode-switching #create-app,
+html.mode-switching.mode-switching #desktop-canvas-container,
+html.mode-switching.mode-switching #canvas-container {
+  transition: background-color 0.4s ease !important;
 }
 
 /**
  * Custom Scrollbar Styles
- * 自訂捲軸樣式（黑白配色）
+ * 完全隱藏原生 scrollbar，改用 JS 控制的浮動 thumb（js/modules/ui/custom-scrollbar.js）
+ *
+ * 好處：
+ * 1. 不再需要一堆 ::-webkit-scrollbar-* !important 覆蓋 UA stylesheet
+ * 2. mode 切換 / has-slide-in / lightbox 統一用 JS class 控制 visibility
+ * 3. 跨瀏覽器一致（Firefox/Chrome/Safari/Edge 都跑同一份 DOM thumb）
+ * 4. 不需要 scrollbar-gutter:stable，page bg 直接鋪滿 viewport
  */
 
-/* 全站預留 scrollbar gutter：避免有捲軸頁 ↔ 無捲軸頁（library/atlas/create）切換時 viewport 寬度抖動 */
+/* 隱藏原生 scrollbar（window 與所有子層） */
 
 html {
-  scrollbar-gutter: stable;
+  scrollbar-width: none;
+  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE/Edge legacy */
 }
 
-/* For Webkit browsers (Chrome, Safari, Edge) */
-
-/* 全域用 !important 覆蓋瀏覽器 UA stylesheet（包含所有 div 的預設圓角+箭頭） */
-
-::-webkit-scrollbar {
-  width: 10px !important;
-  height: 10px !important;
-  -webkit-appearance: none !important;
-  appearance: none !important;
+html::-webkit-scrollbar {
+  display: none;
 }
 
-::-webkit-scrollbar-track {
-  background: #FFFFFF !important;
-  border: none !important;
+/* ===== Custom Scrollbar Thumb =====
+ * 由 custom-scrollbar.js 動態 inject 一個 #custom-scrollbar-thumb 到 body
+ * top / height 由 JS 即時更新
+ *
+ * 顏色：var(--theme-fg)
+ *   → standard mode = 黑、inverse mode = 白、mode-color = 依背景 luminance 自動翻黑/白
+ *   → 跟其他 mode-aware 元件 (nav-link、courses 等) 同一個 token，mode 切換自動跟隨
+ *   → 沒有像素級反色能力，背景中段灰時對比較弱，但行為可預測、不依賴 stacking context */
+
+#custom-scrollbar-thumb {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 10px;
+  height: 0;
+  background: var(--theme-fg);
+  z-index: 9998;
+  /* 低於 intro-overlay / lightbox (9999) 自動被覆蓋 */
+  pointer-events: auto;
+  cursor: default;
+  /* hover / 拖拉時都用系統預設箭頭，不顯示 grab/grabbing 手勢 */
+  touch-action: none;
+  /* 拖拉時不被瀏覽器手勢搶走 */
+  -webkit-user-select: none;
+     -moz-user-select: none;
+          user-select: none;
+  will-change: transform, height;
+  display: none;
+  /* JS 偵測到可滾動才顯示 */
 }
 
-::-webkit-scrollbar-track-piece {
-  background: #FFFFFF !important;
-  border: none !important;
+/* thumb 視覺範圍重疊到 footer 時換用 footer-fg（custom-scrollbar.js 根據 footer rect 動態加/移 class）
+ * footer 在所有 mode 都是反色（standard 黑底/inverse 白底/color 互補 hue）
+ * → --footer-fg 永遠對比 footer bg，比 --theme-fg 更可靠 */
+
+#custom-scrollbar-thumb.is-over-footer {
+  background: var(--footer-fg);
 }
 
-::-webkit-scrollbar-thumb {
-  background: #000000 !important;
-  border-radius: 0 !important;
-  border: none !important;
-}
+/* slide-in 開啟時隱藏 thumb（panel 從 right 進場會擋到，視覺上重複） */
 
-::-webkit-scrollbar-thumb:window-inactive {
-  background: #000000 !important;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #000000 !important;
-}
-
-::-webkit-scrollbar-thumb:active {
-  background: #000000 !important;
-}
-
-::-webkit-scrollbar-button {
-  display: none !important;
-  height: 0 !important;
-  width: 0 !important;
-}
-
-::-webkit-scrollbar-button:single-button {
-  display: none !important;
-}
-
-::-webkit-scrollbar-button:double-button {
-  display: none !important;
-}
-
-::-webkit-scrollbar-button:start:decrement,
-::-webkit-scrollbar-button:end:increment {
+html.has-slide-in #custom-scrollbar-thumb {
   display: none !important;
 }
 
-::-webkit-scrollbar-button:vertical:start:increment,
-::-webkit-scrollbar-button:vertical:end:decrement,
-::-webkit-scrollbar-button:vertical:start:decrement,
-::-webkit-scrollbar-button:vertical:end:increment {
+/* body.overflow-hidden 時隱藏 thumb：/create / /atlas 鎖住 body scroll，
+ * 但 documentElement.scrollHeight 仍可能 > winH（小 viewport / 內容稍微 overflow / gsap inline transform）
+ * → custom-scrollbar.js recompute() 看到 docH > winH 就 display:block，視覺上多一條沒功能的 thumb
+ * CSS 一律蓋掉，不靠 JS 額外判斷 */
+
+body.overflow-hidden #custom-scrollbar-thumb {
   display: none !important;
-  height: 0 !important;
 }
 
-::-webkit-scrollbar-corner {
-  background: #FFFFFF !important;
+/* 手機版不顯示 thumb（原生行為就是隱藏） */
+
+@media (max-width: 767px) {
+  #custom-scrollbar-thumb {
+    display: none !important;
+  }
 }
 
-/* Utility: Hide Scrollbar but keep functionality */
+/* ===== Utility: Hide Scrollbar but keep functionality（給內部捲動容器用） ===== */
 
 .no-scrollbar::-webkit-scrollbar {
   display: none !important;
@@ -319,9 +368,7 @@ html {
 
 .no-scrollbar {
   -ms-overflow-style: none;
-  /* IE and Edge */
   scrollbar-width: none;
-  /* Firefox */
 }
 
 /* Layout */
@@ -333,7 +380,20 @@ html {
 
 /**
  * Footer Layout
- * Footer 響應式定位（桌面版隨機定位，手機版線性堆疊）
+ *
+ * 三層結構（桌面）：
+ *   .footer-shell        : h-screen + 全域 padding (var(--container-padding) 四邊一致)
+ *     .footer-inner      : flex-row 左右分欄
+ *       .footer-logo-area : 正方形 logo，aspect-ratio 1，height 吃滿可用高度
+ *       .footer-right    : 右側剩餘空間，flex-col
+ *         .footer-random  : 上半 flex:1，flex-wrap 排列各 item（每個 item CSS 固定旋轉角度）；手機線性堆疊
+ *         .footer-privacy : 下半 auto height，私隱條款（位置在 bottom-right，但文字 left-aligned）
+ *
+ * 手機（< 768px）：垂直堆疊 logo → 各項目 → privacy
+ *
+ * 主題色：
+ *   --footer-bg / --footer-fg 由 themes/inverse.css / themes/color.css 覆寫
+ *   standard = 黑底白字 / inverse = 白底黑字 / color = 互補 hue + auto-contrast 字
  */
 
 /* Components */
@@ -832,11 +892,8 @@ html {
   z-index: 1;
 }
 
-/* 城市 anchor 永遠在所有 item / line 之上（含其他 item 的 highlight z:10） */
-
-.atlas-anchor.atlas-cat-d {
-  z-index: 20;
-}
+/* A/B/C 統一 z:1（上方 .atlas-anchor 預設）；D z-index 由 atlas.js tickFloat 動態管理（過分割綫 cy → 0 或 2）
+   B 不再寫死 z:20 — 與 A/C 同層平等，避免 chip 永遠蓋住純文字 item */
 
 /* 預設：label 在 line 端點的右側（line 接到字的起點）
    side-left：label 在 line 端點的左側（line 接到字的終點） */
@@ -900,11 +957,20 @@ html {
   right: 0;
 }
 
-/* label 顏色由 atlas.js 設成 inline（依 group 配色 / 三原色 random / D 黑底字），CSS 給 D 字重 + chip padding */
+/* label 顏色由 atlas.js 設成 inline（依 group 配色 / 三原色 random / D 黑底字 / B 黑底白字），
+   CSS 給 D 國家 + B 系友任職企業 字重 + chip padding（兩者同為純色底 chip 結構） */
 
-.atlas-cat-d .atlas-name {
+.atlas-cat-d .atlas-name,
+.atlas-cat-b .atlas-name {
   font-weight: 700;
   padding: 3px 5px;
+}
+
+/* B 企業環 chip：box 中心對齊 anchor（= ellipse 邊上的點），ellipse 看起來穿過 chip 中段
+   覆蓋 .atlas-name baseline 的 translateY(-50%) → 改為雙軸置中（文字仍靠左對齊 = 沿用 .atlas-name align-items:flex-start） */
+
+.atlas-cat-b .atlas-name {
+  transform: translate(-50%, -50%);
 }
 
 /* Hover 連動 */
@@ -1477,6 +1543,7 @@ body.idle-standby #idle-standby-overlay #atlas-layout-btn {
   display: none !important;
 }
 
+body.idle-standby #atlas-stage,
 body.idle-standby #atlas-content,
 body.idle-standby .atlas-name,
 body.idle-standby .atlas-line {
@@ -1503,8 +1570,15 @@ body.mode-inverse {
   --lib-bg: #333333;
   --lib-fg: #ffffff;
   --lib-fg-rgb: 255, 255, 255;
+  /* Footer 反轉：黑底白字 → 白底黑字 */
+  --footer-bg: var(--color-white);
+  --footer-fg: var(--color-black);
   background-color: black;
   color: white;
+}
+
+html.mode-inverse {
+  background-color: black !important;
 }
 
 /* ===== Layout ===== */
@@ -1595,6 +1669,9 @@ body.mode-inverse .submenu-link {
 
 /* 由 components/buttons.css 的 var(--theme-fg) 自動處理；此處不再覆蓋 */
 
+/* Footer logo：inverse mode 由 footer.js 直接載入 SCCDLogoStandard.json (黑 filled)，
+ * 不需 CSS filter；default filter:none 沿用 footer.css */
+
 /* ===== Theme Invert（黑色靜態圖在 inverse mode 自動翻成白色）===== */
 
 /* 用法：對純黑（或單色）SVG/PNG 加 class="theme-invert"，inverse mode 自動 filter:invert(1) → 黑變白
@@ -1649,7 +1726,7 @@ body.mode-inverse .timeline-card-inner.bg-black * {
 body.mode-inverse .faculty-filter-btn:not(.active) .anchor-nav-inner,
 body.mode-inverse .activities-section-btn:not(.active) .anchor-nav-inner,
 body.mode-inverse .courses-program-btn:not(.active) .anchor-nav-inner {
-  background: rgba(0, 0, 0, 1) !important;
+  background-color: rgba(0, 0, 0, 1) !important;
   color: rgba(255, 255, 255, 0.5) !important;
 }
 
@@ -1663,7 +1740,7 @@ body.mode-inverse .courses-program-btn.active .anchor-nav-inner {
 @media (min-width: 768px) {
   body.mode-inverse .faculty-filter-btn:not(.active):hover .anchor-nav-inner,
   body.mode-inverse .activities-section-btn:not(.active):hover .anchor-nav-inner {
-    background: rgba(0, 0, 0, 0.8) !important;
+    background-color: rgba(0, 0, 0, 0.8) !important;
     color: white !important;
   }
 
@@ -1706,7 +1783,7 @@ body.mode-inverse .courses-bfa-label:not([style*="background"]) {
 
 body.mode-inverse .activities-filter-btn:not(.active) .anchor-nav-inner,
 body.mode-inverse .courses-filter-btn:not(.active) .anchor-nav-inner {
-  background: rgba(0, 0, 0, 1) !important;
+  background-color: rgba(0, 0, 0, 1) !important;
   color: rgba(255, 255, 255, 0.5) !important;
 }
 
@@ -1718,7 +1795,7 @@ body.mode-inverse .courses-filter-btn.active .anchor-nav-inner {
 @media (min-width: 768px) {
   body.mode-inverse .activities-filter-btn:not(.active):hover .anchor-nav-inner,
   body.mode-inverse .courses-filter-btn:not(.active):hover .anchor-nav-inner {
-    background: rgba(0, 0, 0, 0.8) !important;
+    background-color: rgba(0, 0, 0, 0.8) !important;
     color: white !important;
   }
 }
@@ -1879,7 +1956,7 @@ body.mode-inverse .courses-grid-card[style*="background"] {
 /* inactive 字色用半透明白（0.5），對稱 standard 的半透明黑；hover 才升到 1.0 對比 */
 
 body.mode-inverse .anchor-nav-btn:not(.active) .anchor-nav-inner {
-  background: rgba(0, 0, 0, 0.5) !important;
+  background-color: rgba(0, 0, 0, 0.5) !important;
   color: rgba(255, 255, 255, 0.5) !important;
 }
 
@@ -1887,7 +1964,7 @@ body.mode-inverse .anchor-nav-btn:not(.active) .anchor-nav-inner {
 
 body.mode-inverse #anchor-nav .anchor-nav-btn:not(.active) .anchor-nav-inner,
 body.mode-inverse #mobile-anchor-menu .anchor-nav-btn:not(.active) .anchor-nav-inner {
-  background: rgba(0, 0, 0, 1) !important;
+  background-color: rgba(0, 0, 0, 1) !important;
   color: rgba(255, 255, 255, 0.5) !important;
 }
 
@@ -1898,7 +1975,7 @@ body.mode-inverse .anchor-nav-btn.active .anchor-nav-inner {
 
 @media (min-width: 768px) {
   body.mode-inverse .anchor-nav-btn:not(.active):hover .anchor-nav-inner {
-    background: rgba(0, 0, 0, 0.8) !important;
+    background-color: rgba(0, 0, 0, 0.8) !important;
     color: white !important;
   }
 }
@@ -1989,12 +2066,12 @@ body.mode-inverse .activities-search-input::placeholder {
 /* 標準模式：黑底白字（inline 寫死 background:#000 / color:#fff）
  * inverse 模式：白底黑字；canvas WATCH! 文字由 index-yt-card.js 動態讀 --theme-bg 重繪 */
 
-body.mode-inverse #homepage-marquee-link {
+body.mode-inverse .homepage-marquee-link {
   background: white !important;
 }
 
-body.mode-inverse #homepage-marquee-text,
-body.mode-inverse #homepage-marquee-clone {
+body.mode-inverse .homepage-marquee-text,
+body.mode-inverse .homepage-marquee-clone {
   color: black !important;
 }
 
@@ -2019,7 +2096,8 @@ body.mode-inverse #homepage-yt-card {
 
 body.mode-inverse [data-bar="library"].bar-inactive:not(.is-bar-hover),
 body.mode-inverse [data-bar="atlas"].bar-inactive:not(.is-bar-hover),
-body.mode-inverse [data-bar="generate"].bar-inactive:not(.is-bar-hover) {
+body.mode-inverse [data-bar="generate"].bar-inactive:not(.is-bar-hover),
+body.mode-inverse [data-bar="alumni"].bar-inactive:not(.is-bar-hover) {
   background: #000 !important;
 }
 
@@ -2028,21 +2106,24 @@ body.mode-inverse [data-bar="generate"].bar-inactive:not(.is-bar-hover) {
 
 body.mode-inverse [data-bar="library"].bar-inactive:not(.is-bar-hover) .nav-link,
 body.mode-inverse [data-bar="atlas"].bar-inactive:not(.is-bar-hover) .nav-link,
-body.mode-inverse [data-bar="generate"].bar-inactive:not(.is-bar-hover) .nav-link {
+body.mode-inverse [data-bar="generate"].bar-inactive:not(.is-bar-hover) .nav-link,
+body.mode-inverse [data-bar="alumni"].bar-inactive:not(.is-bar-hover) .nav-link {
   color: #fff !important;
 }
 
-/* Active 在自己頁面反轉 */
+/* Active 在自己頁面反轉（alumni 在 alumni 頁時 display:none，保留規則對齊但無視覺生效） */
 
 body.mode-inverse [data-bar="library"].bar-active:not(.is-bar-hover),
 body.mode-inverse [data-bar="atlas"].bar-active:not(.is-bar-hover),
-body.mode-inverse [data-bar="generate"].bar-active:not(.is-bar-hover) {
+body.mode-inverse [data-bar="generate"].bar-active:not(.is-bar-hover),
+body.mode-inverse [data-bar="alumni"].bar-active:not(.is-bar-hover) {
   background: #fff !important;
 }
 
 body.mode-inverse [data-bar="library"].bar-active:not(.is-bar-hover) .nav-link,
 body.mode-inverse [data-bar="atlas"].bar-active:not(.is-bar-hover) .nav-link,
-body.mode-inverse [data-bar="generate"].bar-active:not(.is-bar-hover) .nav-link {
+body.mode-inverse [data-bar="generate"].bar-active:not(.is-bar-hover) .nav-link,
+body.mode-inverse [data-bar="alumni"].bar-active:not(.is-bar-hover) .nav-link {
   color: #000 !important;
 }
 
@@ -2075,6 +2156,19 @@ body.mode-inverse .atlas-list-col-title {
   color: black !important;
 }
 
+/* B 企業環 chip：standard 黑底白字 → inverse 翻白底黑字（對齊 atlas-list-col-title pattern）
+   JS inline 設 backgroundColor=black + color=white，CSS 必須 !important 覆蓋；
+   cover 層動畫顏色也跟著翻（chip 揭露/收回視覺連續） */
+
+body.mode-inverse .atlas-cat-b .atlas-name {
+  background-color: white !important;
+  color: black !important;
+}
+
+body.mode-inverse .atlas-cat-b .atlas-name-cover {
+  background-color: white !important;
+}
+
 /**
  * Color Mode Theme
  * 持續變化的隨機色背景模式，由 body.mode-color 觸發
@@ -2094,15 +2188,25 @@ body.mode-inverse .atlas-list-col-title {
 body.mode-color {
   background-color: var(--theme-bg);
   color: var(--theme-fg);
+  /* Footer：用互補 hue (hue+180°) 跟 body bg 永遠對比；--theme-bg-contrast / --theme-fg-contrast
+   * 由 theme-toggle.js applyColorVars 每幀同步更新，footer 自動跟著 cycle */
+  --footer-bg: var(--theme-bg-contrast);
+  --footer-fg: var(--theme-fg-contrast);
 }
 
-/* html bg 跟 body 同步：scrollbar-gutter:stable (base/scrollbar.css) 保留 10px gutter 顯示的是 html bg 不是 body bg；
- * 若 html 保留 default white 會在 viewport 右側出現一條白縫跟 vivid theme-bg body 不一致。
- * 也順便壓掉 faculty-slide-in.js GSAP 把 html bg tween 成 cardColor（accent）的動畫——mode-color 下 panel bg 已強制 = theme-bg，
- * gutter 也應該同步走 theme-bg，避免 panel/gutter 兩種顏色 */
+/* html bg 跟 body 同步：身為 body bg 在 body height < viewport 時的 fallback，
+ * 並順便壓掉 faculty-slide-in.js / courses-map.js instant 設 html bg = cardColor 的行為——
+ * mode-color 下 panel bg 已強制 = theme-bg，html 也跟著走 theme-bg 避免縫隙露白 */
 
 html:has(body.mode-color) {
   background-color: var(--theme-bg) !important;
+}
+
+/* Footer logo：mode-color 載入 SCCDLogoWireframeStandard.json (黑 wireframe)，
+ * 由 theme-toggle.js applyColorVars 依 footer bg (互補 hue) luminance 即時翻 invert(1)/none */
+
+body.mode-color .footer-logo-inner {
+  filter: var(--footer-invert-filter, invert(1));
 }
 
 /* ===== Layout ===== */
@@ -2111,18 +2215,24 @@ body.mode-color header {
   background-color: transparent;
 }
 
-/* ===== bg-white / bg-gray-9 / hero h-screen → 透明 =====
+/* ===== bg-white / bg-gray-9 / hero h-screen 處理 =====
  * mode-color 跟 generate-app wireframe Play 視覺對齊：整片 body --theme-bg vivid hue 流動，不加任何 overlay 軟化
  * 原本這些 section 套 var(--theme-overlay-25)（25% fg 半透明）軟化跟 vivid hue 對比，但會造成：
  *   1) section visible 色 ≠ body bg → 子元素（如 anchor-nav-btn）用 var(--theme-bg) 跟 visible 周圍對不上
  *   2) 跟 generate-app Wireframe Play（純 vivid 一片）視覺不一致
- * 改成 transparent 讓 body bg vivid 直接透出，跟 wireframe Play 一致。
+ * 
+ * Hero section 保持 transparent，直接透出 body 背景。
  * 排除 #faculty-panel（modal isolated）跟 about bar（走 fg/fg-inverse strict 對比，見下方 header bar 規則） */
 
-body.mode-color main > section.h-screen,
+body.mode-color main > section.h-screen {
+  background-color: transparent !important;
+}
+
+/* bg-white / bg-gray-9 轉為 var(--theme-bg) 避免切換 mode 時 transparent 造成的過渡色差 (灰色泥濘感) */
+
 body.mode-color .bg-white:not([data-bar="about"]):not(#faculty-panel):not(.activities-filter-bar),
 body.mode-color .bg-gray-9 {
-  background-color: transparent !important;
+  background-color: var(--theme-bg) !important;
 }
 
 /* sticky 元素必須有 opaque bg 才能蓋住滾動到下方的 list-content
@@ -2376,7 +2486,7 @@ body.mode-color .courses-program-btn.active .anchor-nav-inner,
 body.mode-color .activities-filter-btn.active .anchor-nav-inner,
 body.mode-color .courses-filter-btn.active .anchor-nav-inner,
 body.mode-color .atlas-filter-btn.active .anchor-nav-inner {
-  background: var(--theme-fg) !important;
+  background-color: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
   opacity: 1;
 }
@@ -2390,7 +2500,7 @@ body.mode-color .courses-program-btn:not(.active) .anchor-nav-inner,
 body.mode-color .activities-filter-btn:not(.active) .anchor-nav-inner,
 body.mode-color .courses-filter-btn:not(.active) .anchor-nav-inner,
 body.mode-color .atlas-filter-btn:not(.active) .anchor-nav-inner {
-  background: var(--theme-bg) !important;
+  background-color: var(--theme-bg) !important;
   color: rgba(var(--theme-fg-rgb), 0.5) !important;
   opacity: 1;
   transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
@@ -2510,6 +2620,19 @@ body.mode-color .courses-grid-card:not([style*="background"]) {
 }
 
 body.mode-color .courses-grid-card[style*="background"] {
+  background: var(--theme-fg) !important;
+  color: var(--theme-fg-inverse) !important;
+}
+
+/* Alumni sponsor 卡片 — 對齊 courses-grid-card mode-color pattern：
+ * default 灰底 + fg 字；hover/active（JS 設 inline bg=accent）走 strict B/W */
+
+body.mode-color .alumni-sponsor-card:not([style*="background"]) {
+  background: var(--theme-neutral-gray) !important;
+  color: var(--theme-fg) !important;
+}
+
+body.mode-color .alumni-sponsor-card[style*="background"] {
   background: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
 }
@@ -2761,15 +2884,17 @@ body.mode-color .activities-search-input::placeholder {
  * mode-color 全部蓋成 var(--theme-fg) + var(--theme-fg-inverse)（依 page hue luminance 翻黑白）
  * .atlas-filter-btn 已由上方統一 nav/filter 規則處理（active = fg chip / inactive = bg + half-fg），這裡不重複 */
 
-/* 非 D items label：text → fg；inline color (primary) 被 !important 蓋掉 */
+/* 非 chip items (A/C) label：text → fg；inline color (primary) 被 !important 蓋掉
+   D 國家 + B 系友任職企業 (chip) 不在此列，走下方 chip 翻盤規則 */
 
-body.mode-color .atlas-anchor:not(.atlas-cat-d) .atlas-name {
+body.mode-color .atlas-anchor:not(.atlas-cat-d):not(.atlas-cat-b) .atlas-name {
   color: var(--theme-fg) !important;
 }
 
-/* D 城市 chip：strict B/W chip 翻盤 standard 的 primary bg + 黑字 */
+/* D 國家 + B 系友任職企業 chip：strict B/W chip 翻盤 standard 的 chip bg + 對比字 */
 
-body.mode-color .atlas-cat-d .atlas-name {
+body.mode-color .atlas-cat-d .atlas-name,
+body.mode-color .atlas-cat-b .atlas-name {
   background-color: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
 }
@@ -2824,14 +2949,21 @@ body.mode-color .atlas-list-nav-btn {
 
 /* mode-color：strict 黑白對比（floating items 同套），不用 overlay-25 */
 
-body.mode-color #homepage-marquee-link,
+body.mode-color .homepage-marquee-link,
 body.mode-color #homepage-yt-card {
   background: var(--theme-fg) !important;
 }
 
-body.mode-color #homepage-marquee-text,
-body.mode-color #homepage-marquee-clone {
+body.mode-color .homepage-marquee-text,
+body.mode-color .homepage-marquee-clone {
   color: var(--theme-fg-inverse) !important;
+}
+
+/* News marquee 數字方塊（JS 設 inline accent bg）→ mode-color 切 strict 反色（bar 是 --theme-fg，square 用反色） */
+
+body.mode-color .hm-banner-num[style*="background"] {
+  background: var(--theme-fg-inverse) !important;
+  color: var(--theme-fg) !important;
 }
 
 /* ===== Header bars mode-color spec =====
@@ -2876,14 +3008,33 @@ body.mode-color [data-bar="about"].has-active .nav-link:not(.active) {
   body.mode-color [data-bar="about"].has-active .nav-link:not(.active):hover {
     color: var(--theme-fg) !important;
   }
+
+  /* hover 翻轉（對齊 Library/Atlas/Generate pattern）：bg = fg-inverse（strict B/W），text = fg
+   * header.js inline 設亮三原色 bg，用 !important 蓋過讓 mode-color 走 strict B/W 對比 */
+
+  body.mode-color [data-bar="about"]:hover {
+    background: var(--theme-fg-inverse) !important;
+  }
+
+  body.mode-color [data-bar="about"]:hover .nav-link.active,
+  body.mode-color [data-bar="about"]:hover .nav-link:hover {
+    color: var(--theme-fg) !important;
+  }
+
+  body.mode-color [data-bar="about"]:hover .nav-link:not(.active):not(:hover) {
+    color: color-mix(in srgb, var(--theme-fg), transparent 50%) !important;
+  }
 }
 
-/* (B) Library/Atlas/Generate — 100% solid，inactive vs active 翻轉
- * inline transition:background 0.4s 也要排除（同 about bar），避免 RAF var 更新 lag */
+/* (B) Library/Atlas/Generate/Alumni — 100% solid，inactive vs active 翻轉
+ * inline transition:background 0.4s 也要排除（同 about bar），避免 RAF var 更新 lag
+ * Alumni (AA) bar 視覺規格跟其他三個一致；on alumni 頁時 JS 把它 display:none 改顯示 alumni-full bar，
+ * 所以 .bar-active 規則對 alumni 不會視覺生效但保留對齊避免未來行為改變漏覆蓋 */
 
 body.mode-color [data-bar="library"],
 body.mode-color [data-bar="atlas"],
-body.mode-color [data-bar="generate"] {
+body.mode-color [data-bar="generate"],
+body.mode-color [data-bar="alumni"] {
   transition: color 0.3s ease, transform 0.3s ease !important;
 }
 
@@ -2893,13 +3044,15 @@ body.mode-color [data-bar="generate"] {
 
 body.mode-color [data-bar="library"].bar-inactive,
 body.mode-color [data-bar="atlas"].bar-inactive,
-body.mode-color [data-bar="generate"].bar-inactive {
+body.mode-color [data-bar="generate"].bar-inactive,
+body.mode-color [data-bar="alumni"].bar-inactive {
   background: var(--theme-bg) !important;
 }
 
 body.mode-color [data-bar="library"].bar-inactive .nav-link,
 body.mode-color [data-bar="atlas"].bar-inactive .nav-link,
-body.mode-color [data-bar="generate"].bar-inactive .nav-link {
+body.mode-color [data-bar="generate"].bar-inactive .nav-link,
+body.mode-color [data-bar="alumni"].bar-inactive .nav-link {
   color: var(--theme-fg) !important;
 }
 
@@ -2907,13 +3060,15 @@ body.mode-color [data-bar="generate"].bar-inactive .nav-link {
 
 body.mode-color [data-bar="library"].bar-active,
 body.mode-color [data-bar="atlas"].bar-active,
-body.mode-color [data-bar="generate"].bar-active {
+body.mode-color [data-bar="generate"].bar-active,
+body.mode-color [data-bar="alumni"].bar-active {
   background: var(--theme-fg-inverse) !important;
 }
 
 body.mode-color [data-bar="library"].bar-active .nav-link,
 body.mode-color [data-bar="atlas"].bar-active .nav-link,
-body.mode-color [data-bar="generate"].bar-active .nav-link {
+body.mode-color [data-bar="generate"].bar-active .nav-link,
+body.mode-color [data-bar="alumni"].bar-active .nav-link {
   color: var(--theme-fg) !important;
 }
 
@@ -2925,7 +3080,9 @@ body.mode-color [data-bar="generate"].bar-active .nav-link {
   body.mode-color [data-bar="atlas"].bar-inactive:hover,
   body.mode-color [data-bar="atlas"].bar-inactive.is-bar-hover,
   body.mode-color [data-bar="generate"].bar-inactive:hover,
-  body.mode-color [data-bar="generate"].bar-inactive.is-bar-hover {
+  body.mode-color [data-bar="generate"].bar-inactive.is-bar-hover,
+  body.mode-color [data-bar="alumni"].bar-inactive:hover,
+  body.mode-color [data-bar="alumni"].bar-inactive.is-bar-hover {
     background: var(--theme-fg-inverse) !important;
   }
 
@@ -2934,7 +3091,9 @@ body.mode-color [data-bar="generate"].bar-active .nav-link {
   body.mode-color [data-bar="atlas"].bar-inactive:hover .nav-link,
   body.mode-color [data-bar="atlas"].bar-inactive.is-bar-hover .nav-link,
   body.mode-color [data-bar="generate"].bar-inactive:hover .nav-link,
-  body.mode-color [data-bar="generate"].bar-inactive.is-bar-hover .nav-link {
+  body.mode-color [data-bar="generate"].bar-inactive.is-bar-hover .nav-link,
+  body.mode-color [data-bar="alumni"].bar-inactive:hover .nav-link,
+  body.mode-color [data-bar="alumni"].bar-inactive.is-bar-hover .nav-link {
     color: var(--theme-fg) !important;
   }
 }
@@ -3537,6 +3696,7 @@ video {
 html{
   font-size: 1rem;
   line-height: 1.5rem;
+  background-color: #FFFFFF;
 }
 
 body{
@@ -3546,6 +3706,11 @@ body{
   line-height: 1.5;
   --tw-text-opacity: 1;
   color: rgb(0 0 0 / var(--tw-text-opacity, 1));
+}
+
+
+html.mode-switching.mode-switching body {
+  transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease;
 }
 
 body.mode-inverse body:not([data-bar="about"]):not(#faculty-panel) {
@@ -3560,9 +3725,8 @@ body.mode-inverse #faculty-slide-in body {
   color: black;
 }
 
-
 body.mode-color body:not([data-bar="about"]):not(#faculty-panel):not(.activities-filter-bar) {
-  background-color: transparent;
+  background-color: var(--theme-bg);
 }
 
 body.mode-color body:not(.timeline-year-item):not([data-hero-hl]) {
@@ -3616,10 +3780,14 @@ p{
   font-size: var(--font-size-p2);
 }
 
-/* 封鎖綫預設隱藏；anchor-nav active 切換時才 reveal（見 section-banner-reveal.js） */
+/* 封鎖綫預設隱藏；anchor-nav active 切換時才 reveal（見 section-banner-reveal.js）
+   * will-change: transform 永久 GPU layer promote：JS 端 inline `transform: rotate translateZ(0)` 是弱 hint，
+   * 瀏覽器會在 bg-color transition 期間「臨時 promote」rotated 元素，promote/demote 瞬間 sub-pixel re-round
+   * 造成 mode 切換時封鎖綫往切的方向偏移幾 px 再回正。強 hint 鎖住永久 layer 消除 promote/demote 循環。 */
 
 [data-section-title] {
   clip-path: inset(0 100% 0 0);
+  will-change: transform;
 }
 
 /* Degree Show detail 的 Next 卡片進場：預設 clip 隱藏右側，ScrollTrigger 進 viewport 時 GSAP tween 到 inset(0% 0% 0% 0%) 由左往右展開
@@ -3715,69 +3883,185 @@ p{
   flex: 1;
 }
 
-/* Footer Responsive Positioning - 桌面版隨機定位，手機版線性堆疊 */
+/* ===== Shell + base colors ===== */
+
+.footer-shell {
+  height: 100vh;
+  background-color: var(--footer-bg, #000);
+  color: var(--footer-fg, #fff);
+}
+
+.footer-link {
+  color: var(--footer-fg, #fff);
+  transition: opacity var(--transition-fast);
+}
+
+/* Scatter items 內所有文字（標題 h6 + 內文 p + 連結 a）統一 p1 字級
+   * 涵蓋 a 是因為 Links 區的 anchor 有 .text-p2 class（=1rem 比 p1=1.15rem 小）需要被蓋掉
+   * .footer-random a 的 specificity (0,1,1) > .text-p2 (0,1,0) 直接 win */
+
+.footer-random h6,
+  .footer-random p,
+  .footer-random a {
+  font-size: var(--font-size-p1);
+}
+
+/* Office 地址 min-width：避免某些 random 配置下 anchor 被擠太窄、address 多行截斷讀不順
+   * 配合 .max-w-sm（24rem max）→ 區間 = 22-24rem 寬，address 行寬剛好閱讀 */
+
+.footer-random .footer-office {
+  min-width: 22rem;
+}
+
+/* 預設所有 scatter items 內 p / a 強制單行（title h6 + 一行內容 = 2 行；Links 3 行）
+   * Office 地址 exception：保留 wrap 才能讀完整地址 */
+
+.footer-random p,
+  .footer-random a {
+  white-space: nowrap;
+}
+
+.footer-random .footer-office p {
+  white-space: normal;
+}
+
+/* 所有 footer scatter icon（.fa-brands social + .fa-solid donation）：放大 1.5× （base 是 .text-h3） */
+
+.footer-random .fa-brands,
+  .footer-random .fa-solid {
+  font-size: calc(var(--font-size-h3) * 1.5);
+}
+
+/* Logo Lottie 檔案依 mode 由 footer.js 直接挑檔（不靠 CSS filter 翻色）：
+   *   standard (footer bg=黑) → SCCDLogoInverse.json (白 filled)
+   *   inverse  (footer bg=白) → SCCDLogoStandard.json (黑 filled)
+   *   color    (footer bg=互補 hue) → SCCDLogoWireframeStandard.json (黑 wireframe)
+   *                                  + --footer-invert-filter（依 contrast bg luminance 翻白）
+   * 預設 filter:none；mode-color 規則在 themes/color.css 套 --footer-invert-filter */
 
 @media (min-width: 768px) {
-  .footer-logo {
-    position: absolute;
-    top: 0;
-    left: 1%;
+  .footer-link:hover {
+    opacity: 0.6;
+  }
+}
+
+/* ===== Mobile (default)：線性堆疊 ===== */
+
+.footer-inner {
+  padding: var(--container-padding);
+  gap: var(--spacing-xl);
+}
+
+.footer-logo-area {
+  flex-shrink: 0;
+}
+
+.footer-logo-inner {
+  width: 100px;
+  height: 100px;
+}
+
+.footer-right {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+
+.footer-random {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+
+.footer-social {
+  display: flex;
+  gap: var(--spacing-lg);
+}
+
+.footer-privacy {
+  /* 手機線性最後 */
+}
+
+/* ===== Desktop (≥ 768px)：logo 左、右欄分上下 ===== */
+
+@media (min-width: 768px) {
+  .footer-inner {
+    gap: var(--container-padding);
   }
 
-  .footer-fax {
-    position: absolute;
-    top: 20vh;
-    left: 46%;
-    transform: rotate(12deg);
+  /* logo 區：正方形吃滿 footer 可用高度（總高 - 上下 padding）
+     * 用 aspect-ratio:1 + height:100% 保持正方形
+     * inline 容器高度由 flex parent 提供（footer-inner h-full + flex-row → 子元素 stretch 滿高） */
+
+  .footer-logo-area {
+    aspect-ratio: 1 / 1;
+    height: 100%;
+    align-self: stretch;
   }
 
-  .footer-tel {
-    position: absolute;
-    top: 35vh;
-    left: 17%;
-    transform: rotate(-18deg);
+  .footer-logo-inner {
+    width: 100%;
+    height: 100%;
   }
 
-  .footer-office {
-    position: absolute;
-    top: 40vh;
-    left: 34%;
-    transform: rotate(-10deg);
+  /* 右側欄：fill 剩餘寬度，flex-col 把 random（flex:1）跟 privacy（auto）分上下 */
+
+  .footer-right {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    position: relative;
   }
 
-  .footer-email {
-    position: absolute;
-    top: 60vh;
-    left: 9%;
-    transform: rotate(15deg);
+  /* random 區：absolute positioning context；JS (initFooterScatter) 設 inline top/left/transform 隨機散佈
+     * + collision resolution 演算法保證 items 不重疊；每次刷新都不同 */
+
+  .footer-random {
+    position: relative;
+    flex: 1;
+    display: block;
+    min-height: 0;
   }
 
-  .footer-links {
+  /* footer-anchor (JS 動態包) = position: absolute + overflow: clip mask + opacity: 0 預設
+     * 包 inner item 做 yPercent reveal（404 pattern）；GSAP 接管所有動畫不留 CSS transition
+     * 這條 rule selector 用 `> div` 因為 JS wrap 後 .footer-anchor 變成 .footer-random / .footer-social 的直接 div 子元素 */
+
+  .footer-random > div,
+    .footer-social > div {
     position: absolute;
-    top: 70vh;
-    left: 51%;
-    transform: rotate(18deg);
+    opacity: 0;
+    overflow: clip;
   }
 
-  .footer-social .footer-youtube {
-    position: absolute;
-    top: 50%;
-    left: 68%;
-    transform: rotate(-15deg);
+  /* 桌面：.footer-social wrapper 自己不生成 box，3 個 icon wrapper 直接當 .footer-random 子元素散佈
+     * 抵消手機 default display: flex，讓 YT/IG/FB 各自被 JS scatter 而非整個 social block 當單一 unit */
+
+  .footer-social {
+    display: contents;
   }
 
-  .footer-social .footer-instagram {
+  /* privacy 桌面：absolute bottom-right 出 flex flow → footer-random (flex:1) 吃滿整個 footer-right 高度
+     * 讓 scatter items 可以散到 privacy 左邊的區塊（不再被 privacy 卡在上半）
+     * 文字 left-aligned 對齊在同一條左邊綫上（!important 防 cached HTML 含 md:items-end）
+     * padding-top/-left = container-padding：把 privacy 視覺 rect 往上往左擴 → JS scatter 的 obstacle
+     * 推開算法會基於這個更大的 rect → items 不會貼到 privacy 文字。content 留在 bottom-right 不動
+     * （絕對定位 + 內容 auto-size：padding-top 讓 border-box 變高、content 仍貼底 → 視覺上等於「在 privacy 上方/左邊保留一片空地」） */
+
+  .footer-privacy {
     position: absolute;
-    top: 42%;
-    left: 85%;
-    transform: rotate(15deg);
+    bottom: 0;
+    right: 0;
+    padding-top: var(--container-padding);
+    padding-left: var(--container-padding);
+    text-align: left;
   }
 
-  .footer-social .footer-facebook {
-    position: absolute;
-    top: 58%;
-    left: 85%;
-    transform: rotate(-12deg);
+  .footer-privacy > div {
+    align-items: flex-start !important;
+    text-align: left;
   }
 }
 
@@ -3893,12 +4177,6 @@ header {
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-header.header-hidden {
-  transform: translateY(-100%);
-  opacity: 0;
-  pointer-events: none;
-}
-
 header.header-hidden .nav-link,
   header.header-hidden .nav-link-inner,
   header.header-hidden [data-bar] {
@@ -4003,71 +4281,23 @@ body.lightbox-open #site-header {
   }
 }
 
-/* ===== Footer Layout (Desktop Absolute Positioning) ===== */
+/* Footer 規則已遷移到 css/layout/footer.css（CSS Grid 3×2 + transform-origin: top left）。
+   * 原本這裡有一整塊「Footer Layout (Desktop Absolute Positioning)」用 position: absolute + 寫死 top: NNvh / left: NN%，
+   * 因為 navigation.css 在 input.css 裡 import 順序晚於 layout/footer.css → 同 specificity 勝過 footer.css 新版規則，
+   * 導致 grid layout 完全失效（items 全 absolute、IG/FB 都 left:85% 黏一起變成單一 icon）。已刪除。 */
 
-@media (min-width: 768px) {
-  .footer-logo {
-    position: absolute;
-    top: 0;
-    left: 1%;
-  }
-
-  .footer-fax {
-    position: absolute;
-    top: 20vh;
-    left: 46%;
-    transform: rotate(12deg);
-  }
-
-  .footer-tel {
-    position: absolute;
-    top: 35vh;
-    left: 17%;
-    transform: rotate(-18deg);
-  }
-
-  .footer-office {
-    position: absolute;
-    top: 40vh;
-    left: 34%;
-    transform: rotate(-10deg);
-  }
-
-  .footer-email {
-    position: absolute;
-    top: 60vh;
-    left: 9%;
-    transform: rotate(15deg);
-  }
-
-  .footer-links {
-    position: absolute;
-    top: 70vh;
-    left: 51%;
-    transform: rotate(18deg);
-  }
-
-  .footer-social .footer-youtube {
-    position: absolute;
-    top: 50%;
-    left: 68%;
-    transform: rotate(-15deg);
-  }
-
-  .footer-social .footer-instagram {
-    position: absolute;
-    top: 42%;
-    left: 85%;
-    transform: rotate(15deg);
-  }
-
-  .footer-social .footer-facebook {
-    position: absolute;
-    top: 58%;
-    left: 85%;
-    transform: rotate(-12deg);
-  }
-}
+/* ===== Alumni Bar (AA — 左 library 旁) =====
+   * 兩個 bar：
+   *   [data-bar="alumni"]      = 小 AA bar（右側預設位置），hover 展開「系友會」（沿用既有 .nav-link-cn 機制）
+   *   [data-bar="alumni-full"] = 完整名稱 bar（about-bar slot 左側）預設 display:none，body.page-alumni 時 JS display:'' 並 clip-reveal 進場
+   *
+   * 收起動畫：點 AA 時 JS 跑 lightbox-shell 風格（gsap clipPath inset 隨機 top/bottom 收掉所有 bars），
+   *   進場動畫由 header.js 設 inline clip-path 動畫，CSS 只負責顯示/隱藏切換
+   *
+   * Active（body.page-alumni）：
+   *   - alumni-full bar display:''（JS 設）
+   *   - 其他 bars（about/library/atlas/generate/mode-btn/alumni）display:none（JS 設）
+   *   - 這樣切頁進入 / 從 URL 直接訪問都有正確 end state；動畫只在 user 點擊時跑 */
 
 /* ===== Theme Toggle Button ===== */
 
@@ -5636,12 +5866,12 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
   z-index: 100;
 }
 
-.z-\[101\]{
-  z-index: 101;
-}
-
 .z-\[150\]{
   z-index: 150;
+}
+
+.z-\[151\]{
+  z-index: 151;
 }
 
 .z-\[9999\]{
@@ -5654,10 +5884,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 
 .order-2{
   order: 2;
-}
-
-.order-last{
-  order: 9999;
 }
 
 .col-span-1{
@@ -5805,6 +6031,10 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
   box-sizing: border-box;
 }
 
+.\!block{
+  display: block !important;
+}
+
 .block{
   display: block;
 }
@@ -5867,10 +6097,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 
 .h-\[1\.5em\]{
   height: 1.5em;
-}
-
-.h-\[100px\]{
-  height: 100px;
 }
 
 .h-\[180px\]{
@@ -5939,10 +6165,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 
 .w-\[1\.5em\]{
   width: 1.5em;
-}
-
-.w-\[100px\]{
-  width: 100px;
 }
 
 .w-\[12vw\]{
@@ -6239,20 +6461,12 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
   white-space: nowrap;
 }
 
-.rounded{
-  border-radius: 0.25rem;
-}
-
 .rounded-\[20px\]{
   border-radius: 20px;
 }
 
 .rounded-\[24px\]{
   border-radius: 24px;
-}
-
-.rounded-\[30px\]{
-  border-radius: 30px;
 }
 
 .rounded-none{
@@ -6275,10 +6489,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
   border-bottom-width: 4px;
 }
 
-.border-t{
-  border-top-width: 1px;
-}
-
 .border-t-2{
   border-top-width: 2px;
 }
@@ -6290,11 +6500,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 .border-black{
   --tw-border-opacity: 1;
   border-color: rgb(0 0 0 / var(--tw-border-opacity, 1));
-}
-
-.border-gray-9{
-  --tw-border-opacity: 1;
-  border-color: rgb(230 230 230 / var(--tw-border-opacity, 1));
 }
 
 .\!bg-transparent{
@@ -6312,11 +6517,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 
 .bg-black\/90{
   background-color: rgb(0 0 0 / 0.9);
-}
-
-.bg-gray-10{
-  --tw-bg-opacity: 1;
-  background-color: rgb(255 255 255 / var(--tw-bg-opacity, 1));
 }
 
 .bg-gray-2{
@@ -6382,10 +6582,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 
 .p-\[6px\]{
   padding: 6px;
-}
-
-.p-lg{
-  padding: var(--spacing-lg);
 }
 
 .p-sm{
@@ -6506,16 +6702,8 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
   padding-bottom: var(--spacing-md);
 }
 
-.pb-xl{
-  padding-bottom: var(--spacing-xl);
-}
-
 .pb-xs{
   padding-bottom: var(--spacing-xs);
-}
-
-.pl-xl{
-  padding-left: var(--spacing-xl);
 }
 
 .pl-xs{
@@ -6576,10 +6764,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 
 .pt-sm{
   padding-top: var(--spacing-sm);
-}
-
-.pt-xl{
-  padding-top: var(--spacing-xl);
 }
 
 .pt-xs{
@@ -6667,18 +6851,22 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
   color: rgb(128 128 128 / var(--tw-text-opacity, 1));
 }
 
-.text-gray-6{
-  --tw-text-opacity: 1;
-  color: rgb(153 153 153 / var(--tw-text-opacity, 1));
-}
-
 .text-white{
   --tw-text-opacity: 1;
   color: rgb(255 255 255 / var(--tw-text-opacity, 1));
 }
 
+.underline{
+  text-decoration-line: underline;
+}
+
 .no-underline{
   text-decoration-line: none;
+}
+
+.subpixel-antialiased{
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
 }
 
 .opacity-0{
@@ -6687,6 +6875,10 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 
 .opacity-40{
   opacity: 0.4;
+}
+
+.opacity-60{
+  opacity: 0.6;
 }
 
 .shadow-2xl{
@@ -6852,11 +7044,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
   }
 }
 
-.hover\:bg-black:hover{
-  --tw-bg-opacity: 1;
-  background-color: rgb(0 0 0 / var(--tw-bg-opacity, 1));
-}
-
 .hover\:text-gray-5:hover{
   --tw-text-opacity: 1;
   color: rgb(128 128 128 / var(--tw-text-opacity, 1));
@@ -6865,16 +7052,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 .hover\:text-gray-6:hover{
   --tw-text-opacity: 1;
   color: rgb(153 153 153 / var(--tw-text-opacity, 1));
-}
-
-.hover\:text-gray-7:hover{
-  --tw-text-opacity: 1;
-  color: rgb(179 179 179 / var(--tw-text-opacity, 1));
-}
-
-.hover\:text-white:hover{
-  --tw-text-opacity: 1;
-  color: rgb(255 255 255 / var(--tw-text-opacity, 1));
 }
 
 .hover\:underline:hover{
@@ -6894,20 +7071,8 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
     position: absolute;
   }
 
-  .md\:relative{
-    position: relative;
-  }
-
   .md\:sticky{
     position: sticky;
-  }
-
-  .md\:bottom-0{
-    bottom: 0px;
-  }
-
-  .md\:left-\[20\.8333\%\]{
-    left: 20.8333%;
   }
 
   .md\:right-8{
@@ -6982,20 +7147,12 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
     grid-column: span 7 / span 7;
   }
 
-  .md\:col-span-8{
-    grid-column: span 8 / span 8;
-  }
-
   .md\:col-span-9{
     grid-column: span 9 / span 9;
   }
 
   .md\:col-start-1{
     grid-column-start: 1;
-  }
-
-  .md\:col-start-11{
-    grid-column-start: 11;
   }
 
   .md\:col-start-2{
@@ -7075,10 +7232,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
     display: none;
   }
 
-  .md\:h-\[250px\]{
-    height: 250px;
-  }
-
   .md\:h-full{
     height: 100%;
   }
@@ -7099,12 +7252,12 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
     width: 25%;
   }
 
-  .md\:w-\[250px\]{
-    width: 250px;
+  .md\:w-\[40\%\]{
+    width: 40%;
   }
 
-  .md\:w-\[40vw\]{
-    width: 40vw;
+  .md\:w-\[79\.1666\%\]{
+    width: 79.1666%;
   }
 
   .md\:w-full{
@@ -7117,6 +7270,10 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 
   .md\:flex-\[0_0_calc\(25\%_-_1\.25rem\)\]{
     flex: 0 0 calc(25% - 1.25rem);
+  }
+
+  .md\:grid-cols-3{
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .md\:grid-cols-4{
@@ -7149,10 +7306,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 
   .md\:justify-center{
     justify-content: center;
-  }
-
-  .md\:gap-0{
-    gap: 0px;
   }
 
   .md\:gap-2xl{
@@ -7234,10 +7387,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 
   .md\:pt-0{
     padding-top: 0px;
-  }
-
-  .md\:pt-3xl{
-    padding-top: var(--spacing-3xl);
   }
 
   .md\:pt-6xl{
