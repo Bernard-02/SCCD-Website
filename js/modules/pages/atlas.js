@@ -1764,13 +1764,18 @@ export async function initAtlas(options = {}) {
     const syncT = /** @type {any} */ (setTimeout(syncCareer, totalT));
     revealTimers.push(syncT);
   };
+  // Race fix：gsap tween.kill() 會立刻 resolve .then() promise → revealFilters 在 cleanup 之後跑，
+  // push 進 revealTimers 的新 setTimeout 不在已 drain 的 cleanup 清單，syncCareer setTimeout 無 isConnected 守衛
+  // 會對 stale DOM 跑。destroyed flag 在 cleanup 時翻 true，revealFilters 走 .then() 路徑前先檢查。
+  let destroyed = false;
   if (introTween) {
     // GSAP tween .then() = onComplete promise；intro 已完成則 resolve 立刻 fire
-    introTween.then(revealFilters);
+    introTween.then(() => { if (!destroyed) revealFilters(); });
   } else {
     revealFilters();
   }
   cleanupFns.push(() => {
+    destroyed = true;
     revealTimers.forEach(t => clearTimeout(t));
   });
 

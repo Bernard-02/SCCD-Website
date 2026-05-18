@@ -488,6 +488,12 @@ function selectCard(card) {
   openCourseSlideIn(card);
 }
 
+// SPA 離開 courses 時呼叫：清掉 activeCard ref（避免下次回 courses 時 ref 還指向已被
+// router.innerHTML swap 掉的 detached node，後續 deselectActiveCard 對 dead element 操作邏輯混亂）
+export function resetCoursesMapState() {
+  activeCard = null;
+}
+
 export function deselectActiveCard() {
   if (activeCard) {
     const card = activeCard;

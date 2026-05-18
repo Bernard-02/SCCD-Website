@@ -479,12 +479,13 @@ async function initPressPanel() {
 
       bindListItemHover(listEl, '.press-item');
 
-      // marquee 溢出偵測（panel 顯示後才執行，只跑一次）
+      // marquee 溢出偵測（panel 顯示後才執行）
+      // 不 self-null：tab 切回 / window resize 變寬度後需重算；applyMarqueeOverflow 內含 dual-copy → single
+      // reset 邏輯所以重跑安全
       window._pressMarqueeInit = () => {
         runMarqueeOverflow(listEl,
           '.press-item-title-en, .press-item-title-zh, .press-item-subtitle',
           '.press-marquee-inner, .press-subtitle-inner');
-        window._pressMarqueeInit = null;
       };
     }
 
@@ -649,7 +650,6 @@ async function initFilesPanel() {
 
       window._filesMarqueeInit = () => {
         runMarqueeOverflow(listEl, '.files-item-title-en, .files-item-title-zh, .files-item-subtitle-tag', '.files-marquee-inner');
-        window._filesMarqueeInit = null;
       };
     }
 
@@ -946,7 +946,6 @@ async function initAlbumPanel() {
 
       window._albumMarqueeInit = () => {
         runMarqueeOverflow(listEl, '.files-item-title-en, .files-item-title-zh', '.files-marquee-inner');
-        window._albumMarqueeInit = null;
       };
     }
 

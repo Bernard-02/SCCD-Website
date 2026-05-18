@@ -11,8 +11,9 @@
  *   - 內容改 grid（學期×必修/選修×年級）+ 右下 sticky desc panel
  */
 
-import { renderCoursesGrid, deselectActiveCard } from './courses-map.js';
+import { renderCoursesGrid, deselectActiveCard, resetCoursesMapState } from './courses-map.js';
 import { setActiveNavBtn } from '../ui/section-switch-helpers.js';
+import { registerPageCleanup } from '../ui/page-cleanup.js';
 
 let currentProgramColor = '';
 export function getCurrentProgramColor() { return currentProgramColor; }
@@ -97,6 +98,10 @@ export function initCoursesSectionSwitch() {
   const sectionEl = document.getElementById('courses-content-section');
 
   if (!programBtns.length || !panels.length) return;
+
+  // SPA 離開 courses 時 reset activeCard module-scope ref，避免下次回 courses 時 ref 指向已被
+  // router.innerHTML swap 掉的 detached node（deselectActiveCard 對 dead element 操作雖無 crash 但邏輯混亂）
+  registerPageCleanup(() => resetCoursesMapState());
 
   // hover 一次性綁定（每 btn 帶 dataset flag 避免重綁）
   programBtns.forEach(bindHover);

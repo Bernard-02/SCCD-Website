@@ -55,7 +55,7 @@ import { initLibraryPanels } from './modules/pages/library-panels.js';
 import { initLibraryViewer } from './modules/pages/library-viewer.js';
 
 // Import Lightbox Shell（共用 enter/exit 行為；SPA cleanup 需 reset openCount）
-import { resetLightboxMode } from './modules/lightbox/lightbox-shell.js';
+import { resetLightboxMode, getHeaderTargets } from './modules/lightbox/lightbox-shell.js';
 
 // Import Page Cleanup Registry（各模組註冊離頁要解綁的 window/document listener，SPA 換頁統一 drain）
 import { runPageCleanups } from './modules/ui/page-cleanup.js';
@@ -98,17 +98,12 @@ export function cleanupPageModules() {
   // lightbox-shell openCount 歸零，避免某個 modal 沒走 exit 流程時 state 殘留導致下次開不觸發 enter
   resetLightboxMode();
   // lightbox header bars 殘留 inline clipPath → 切頁後 header bars 持續被 clip 隱藏；kill tween + 清 inline
+  // selector 集中走 lightbox-shell.getHeaderTargets()（之前是 selector 雙寫，header 結構改一處會漏改另一處）
   if (typeof gsap !== 'undefined') {
-    const headerEl = document.querySelector('#site-header header');
-    if (headerEl) {
-      const lbHeaderTargets = /** @type {HTMLElement[]} */ ([
-        ...headerEl.querySelectorAll(':scope > .site-container > .md\\:flex > [data-bar]'),
-        headerEl.querySelector(':scope > .site-container > .md\\:flex > #mode-btn'),
-      ].filter(Boolean));
-      if (lbHeaderTargets.length) {
-        gsap.killTweensOf(lbHeaderTargets);
-        lbHeaderTargets.forEach(el => { el.style.clipPath = ''; el.style.visibility = ''; });
-      }
+    const lbHeaderTargets = getHeaderTargets();
+    if (lbHeaderTargets.length) {
+      gsap.killTweensOf(lbHeaderTargets);
+      lbHeaderTargets.forEach(el => { el.style.clipPath = ''; el.style.visibility = ''; });
     }
   }
 
