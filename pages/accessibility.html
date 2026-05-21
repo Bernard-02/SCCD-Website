@@ -47,6 +47,10 @@
       .legal-content-col {
         padding-top: var(--spacing-6xl);
         padding-bottom: var(--spacing-6xl);
+        /* 避開 sticky 左欄 ACCESSIBILITY chip 旋轉後右下角壓進來
+           （chip 是 hero-animation.js 給 [data-hero-hl] 套的隨機旋轉，
+           最大角度下右下角會超出 col 5 邊界蓋到右欄第一行內文） */
+        padding-left: var(--spacing-4xl);
       }
 
       /* chip 共用：defensive 預設綠底，等 hero-animation.js 對 [data-hero-hl] 設 inline 隨機 accent
@@ -114,6 +118,8 @@
         }
         .legal-content-col {
           padding-top: var(--spacing-xl);
+          /* mobile stack 排列下 chip 不會壓內文，取消 desktop 的 pl 避位 */
+          padding-left: 0;
         }
       }
     </style>
@@ -122,10 +128,8 @@
       <div class="site-container">
         <div class="grid-12">
 
-          <!-- 左欄：sticky title chip（左下角，比照 support / privacy-policy）
-               col-span 拉到 7 是為了把右欄的起點推到 col 8，避免 ACCESSIBILITY chip（width:max-content）
-               視覺右邊緣切到右欄內文 -->
-          <div class="legal-title-col col-span-12 md:col-span-7">
+          <!-- 左欄：sticky title chip（左下角，比照 support / privacy-policy） -->
+          <div class="legal-title-col col-span-12 md:col-span-5">
             <div class="legal-title-block">
               <h2 class="hero-title text-black inline-block" data-hero-hl>
                 ACCESSIBILITY<br>STATEMENT
@@ -136,9 +140,8 @@
             </div>
           </div>
 
-          <!-- 右欄：內文（async 由 legal-data-loader 填入 #legal-content）
-               col-span-5（cols 8-12）讓右欄整體右推，避開左欄大 chip 的視覺寬度 -->
-          <div class="legal-content-col col-span-12 md:col-span-5">
+          <!-- 右欄：內文（async 由 legal-data-loader 填入 #legal-content） -->
+          <div class="legal-content-col col-span-12 md:col-span-7">
             <div id="legal-content"></div>
 
             <!-- Last Updated -->

@@ -1,0 +1,67 @@
+{
+  "cpt": "sccd_admission_hero",
+  "endpoint": "admission-hero",
+  "menu_order": 1,
+  "singleton": true,
+  "labels": {
+    "name": "Admission Hero",
+    "singular_name": "Admission Hero",
+    "menu_name": "招生頁 Hero",
+    "add_new": "新增 Hero（請只建 1 筆）",
+    "add_new_item": "新增 Admission Hero",
+    "edit_item": "編輯 Admission Hero",
+    "all_items": "招生頁 Hero"
+  },
+  "menu_group": {
+    "slug": "sccd-admission",
+    "label": "招生 Admission",
+    "icon": "dashicons-welcome-learn-more",
+    "position": 30.6
+  },
+  "menu_icon": "dashicons-cover-image",
+  "supports": [
+    "title"
+  ],
+  "fields": [
+    {
+      "id": "titleEn",
+      "name": "標題（英）",
+      "type": "text"
+    },
+    {
+      "id": "subtitleEn",
+      "name": "說明（英）",
+      "type": "textarea"
+    },
+    {
+      "id": "subtitleZh",
+      "name": "說明（中）",
+      "type": "textarea"
+    },
+    {
+      "id": "announcementDescEn",
+      "name": "招生公告說明文字（英）",
+      "type": "textarea"
+    },
+    {
+      "id": "announcementDescZh",
+      "name": "招生公告說明文字（中）",
+      "type": "textarea"
+    },
+    {
+      "id": "summerCampDescEn",
+      "name": "暑期營說明文字（英）",
+      "type": "textarea"
+    },
+    {
+      "id": "summerCampDescZh",
+      "name": "暑期營說明文字（中）",
+      "type": "textarea"
+    },
+    {
+      "id": "bannerImage",
+      "name": "Banner 圖片",
+      "type": "image"
+    }
+  ]
+}

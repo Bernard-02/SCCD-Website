@@ -1,0 +1,46 @@
+{
+  "cpt": "sccd_courses_hero",
+  "endpoint": "courses-hero",
+  "menu_order": 1,
+  "labels": {
+    "name": "Courses Hero",
+    "singular_name": "Courses Hero",
+    "menu_name": "課程頁 Hero",
+    "add_new": "新增 Hero（請只建 1 筆）",
+    "add_new_item": "新增 Courses Hero",
+    "edit_item": "編輯 Courses Hero",
+    "all_items": "課程頁 Hero"
+  },
+  "menu_group": {
+    "slug": "sccd-courses",
+    "label": "課程 Courses",
+    "icon": "dashicons-welcome-learn-more",
+    "position": 30.4
+  },
+  "menu_icon": "dashicons-cover-image",
+  "supports": [
+    "title"
+  ],
+  "fields": [
+    {
+      "id": "titleEn",
+      "name": "標題（英）",
+      "type": "text"
+    },
+    {
+      "id": "subtitleEn",
+      "name": "說明（英）",
+      "type": "textarea"
+    },
+    {
+      "id": "subtitleZh",
+      "name": "說明（中）",
+      "type": "textarea"
+    },
+    {
+      "id": "bannerImage",
+      "name": "Banner 圖片",
+      "type": "image"
+    }
+  ]
+}

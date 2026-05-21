@@ -1,0 +1,32 @@
+{
+  "cpt": "library_award_logo",
+  "endpoint": "library-award-logos",
+  "menu_order": 2,
+  "singleton": true,
+  "labels": {
+    "name": "Award Logos",
+    "singular_name": "獎項 Logo (ticker)",
+    "menu_name": "獎項 Logo (ticker)",
+    "add_new": "新增（請只建 1 筆，內含所有 logo）",
+    "add_new_item": "新增獎項 Logo 清單",
+    "edit_item": "編輯獎項 Logo 清單",
+    "all_items": "獎項 Logo (ticker)"
+  },
+  "menu_group": {
+    "slug": "sccd-library",
+    "label": "圖書館 Library",
+    "icon": "dashicons-book-alt",
+    "position": 30.7
+  },
+  "menu_icon": "dashicons-format-image",
+  "supports": [
+    "title"
+  ],
+  "fields": [
+    {
+      "id": "logos",
+      "name": "Logo 圖片清單（可一次選多張）",
+      "type": "image_list"
+    }
+  ]
+}

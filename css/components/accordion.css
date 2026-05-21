@@ -9,11 +9,8 @@
      to support dynamic filter reflow */
 
   /* ===== Year Toggle Chevron Rotation ===== */
-  .list-year-toggle .fa-chevron-right {
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .activities-year-toggle .fa-chevron-right {
+  .list-year-toggle .icon-chevron-list,
+  .activities-year-toggle .icon-chevron-list {
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
@@ -42,7 +39,7 @@
   .accordion-item {
     display: flex;
     flex-direction: row;
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
     min-width: 0;
     margin: 0; /* 確保無外距 */
     border: none; /* 確保無邊框 */
@@ -54,11 +51,11 @@
     }
 
     .accordion-item.active {
-      cursor: default;
+      cursor: var(--cursor-default);
     }
 
     .accordion-body-inner {
-      cursor: default;
+      cursor: var(--cursor-default);
     }
   }
 

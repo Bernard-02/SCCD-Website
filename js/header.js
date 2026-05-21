@@ -77,6 +77,10 @@ export function triggerGenerateLogo() {
   }
   if (logoContainer && /** @type {HTMLElement} */ (logoContainer).style) {
     /** @type {HTMLElement} */ (logoContainer).style.clipPath = '';
+    // 上一輪 typewriter 完成時撐過 click target（見 timeline 尾段 set），重進 /create 要先清，
+    // 否則 shrink 階段視覺只見 100x100 Lottie 但 <a> 還是 220x80 → user 在 Lottie 右側空白處點也會 nav
+    /** @type {HTMLElement} */ (logoContainer).style.width = '';
+    /** @type {HTMLElement} */ (logoContainer).style.height = '';
   }
 
   // currentColor 讓 fill / background 跟著 body.mode-* 設的 color 動態走（mode 切換時自動更新）
@@ -182,6 +186,73 @@ export function triggerGenerateLogo() {
   tl.to({}, { duration: 530 * 3 / 1000 });
   tl.call(() => stopBlink(cursorNew));
   tl.set(cursorNew, { visibility: 'hidden' });
+
+  // typewriter 完成後撐開 <a> click target 到 SCCD letter bbox：
+  // #header-logo shrink 到 100x100 後 <a> 也只剩 100x100（block child 撐父層），
+  // 但 SCCD svg 視覺占 0~205 x 16~74，右半邊（C/C/D）落在 click area 外 → 點不到。
+  // 設 220x80 涵蓋 SCCD bbox + 視覺 padding；下次進 /create 由開頭清 inline 重置
+  tl.set(logoContainer, { width: 220, height: 80 });
+}
+
+// ── Mode btn enter/exit anim for /create ──────────────────────
+// 進 /create 時 mode-btn 用 clip-reveal 消失（width+marginLeft → 0），
+// 同 flex row 內的右側 bars (AA/Library/Atlas/CREATE!) 自動往右 shift 填補（flex layout 自然行為）
+// 退場時反向
+// 桌面 desktop 的 #mode-btn 才動；手機版 .theme-toggle-btn 在 grid col 內，layout 不同，不處理
+// 用 GSAP 時間軸；caller 可 await Promise
+
+const MODE_BTN_ML = 32; // tailwind ml-lg = var(--spacing-lg) = 32px（CLAUDE.md 規範）
+
+export function animateHeaderModeBtnHide() {
+  if (typeof gsap === 'undefined') return Promise.resolve();
+  const modeBtn = document.querySelector('#mode-btn');
+  if (!modeBtn) return Promise.resolve();
+  return new Promise(resolve => {
+    gsap.to(modeBtn, {
+      width: 0,
+      marginLeft: 0,
+      // 從左往右 wipe：visible window 縮到右邊緣（icon 從右側退場）
+      clipPath: 'inset(0 0 0 100%)',
+      duration: 0.5,
+      ease: 'power3.inOut',
+      overwrite: 'auto',
+      onComplete: resolve,
+    });
+  });
+}
+
+export function animateHeaderModeBtnShow() {
+  if (typeof gsap === 'undefined') return Promise.resolve();
+  const modeBtn = document.querySelector('#mode-btn');
+  if (!modeBtn) return Promise.resolve();
+  // 用 fromTo 明確指定 from-state（= animateHeaderModeBtnHide 的 end-state），確保是 hide 的精確反向動畫
+  // 不依賴「modeBtn 仍保有 hide 殘留 inline 屬性」這個假設 — updateNavActive (header.js:337) 會在 SPA 換頁時
+  // 無條件清掉 modeBtn.style.clipPath，導致純 gsap.to 起始的 clipPath 不是 inset(0 0 0 100%) 而是 '' →
+  // clipPath 動畫直接跳值，視覺從「反向 wipe」變成「容器拉開」
+  return new Promise(resolve => {
+    gsap.fromTo(modeBtn,
+      {
+        width: 0,
+        marginLeft: 0,
+        clipPath: 'inset(0 0 0 100%)',
+      },
+      {
+        width: 24,
+        marginLeft: MODE_BTN_ML,
+        clipPath: 'inset(0 0 0 0)',
+        duration: 0.5,
+        ease: 'power3.inOut',
+        overwrite: 'auto',
+        onComplete: () => {
+          // 清 inline 讓 CSS 接管（恢復原生 auto width / margin / 無 clip-path）
+          modeBtn.style.width = '';
+          modeBtn.style.marginLeft = '';
+          modeBtn.style.clipPath = '';
+          resolve();
+        },
+      }
+    );
+  });
 }
 
 export function restoreHeaderLogo() {
@@ -195,7 +266,12 @@ export function restoreHeaderLogo() {
   const logo = document.getElementById('header-logo');
   if (!logo) return;
   const logoContainer = logo.parentNode;
-  if (logoContainer) logoContainer.querySelectorAll('#gen-logo-svg, [data-gen-cursor]').forEach(el => el.remove());
+  if (logoContainer) {
+    logoContainer.querySelectorAll('#gen-logo-svg, [data-gen-cursor]').forEach(el => el.remove());
+    // typewriter 撐 click target 留下的 inline width/height 清掉，讓 <a> 重回 child-derived size
+    /** @type {HTMLElement} */ (logoContainer).style.width = '';
+    /** @type {HTMLElement} */ (logoContainer).style.height = '';
+  }
   logo.style.display = '';
 }
 
@@ -392,8 +468,8 @@ export function updateNavActive(page) {
   setSideBar(generateBarEl, isGenerateActive);
   setSideBar(alumniBarEl,   isAlumniActive);
 
-  // mode-btn 顏色由 .theme-toggle-btn / .theme-toggle-circle 的 var(--theme-fg) 接管
-  // 不在這裡 inline-set，避免蓋掉 mode 切換時 CSS 變數的自動更新
+  // mode-btn 顏色由 .theme-toggle-btn color: var(--theme-fg)（CSS）接管
+  // icon 用 .icon mode_1/2/3 mask，background-color: currentColor 跟 btn color 走，不在這裡 inline-set
 
   // About bar scroll collapse：library 頁 marginLeft=0（貼齊 logo），一般頁面 marginLeft=64
   // SPA 切換時做 smooth 動畫（和 logo 同步）

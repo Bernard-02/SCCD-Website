@@ -2,12 +2,17 @@
  * Faculty Slide-in Module
  * 處理師資頁面的側邊滑入詳情頁功能
  *
+ * 對齊 WP CMB2 schema：educations[] / experiences[] / awards[] 三個 sibling group，
+ * 不再是舊版 sections[].items[] 雙層結構。本檔負責將打平資料重組成 3 個 section
+ * （學歷 / 經歷 / 獲獎）渲染到 #faculty-detail-sections。
+ *
  * Header 處理：比照 activities-lightbox / library-viewer 透過 lightbox-shell
  * 把 header bars 用 clip-path 收掉（logo 不動），確保 overlay 上只剩 logo 浮在最上
  */
 
 import { enterLightboxMode, exitLightboxMode } from '../lightbox/lightbox-shell.js';
 import { openSlideInBg, closeSlideInBg } from '../ui/slide-in-bg-sync.js';
+import { countryName } from '../../data/country-names.js';
 
 export function initFacultySlideIn() {
   const slideIn = document.getElementById('faculty-slide-in');
@@ -19,14 +24,12 @@ export function initFacultySlideIn() {
 
   if (!slideIn || facultyCards.length === 0) return;
 
-  // Fetch faculty data from JSON
   fetch('/data/faculty.json')
     .then(response => {
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status} - Check if data/faculty.json exists`);
       return response.json();
     })
     .then(data => {
-      // Convert array to object for O(1) lookup (mapping ID to data)
       const facultyData = data.reduce((acc, item) => {
         acc[item.id] = item;
         return acc;
@@ -36,170 +39,168 @@ export function initFacultySlideIn() {
     })
     .catch(error => console.error('Error loading faculty data:', error));
 
-  // 英文國名縮寫（中文保持原字）
-  const COUNTRY_SHORT_EN = {
-    'United States': 'US', 'United Kingdom': 'UK', 'Japan': 'JP',
-    'France': 'FR', 'Germany': 'DE', 'Italy': 'IT', 'Netherlands': 'NL',
-    'Spain': 'ES', 'Switzerland': 'CH', 'Australia': 'AU',
-    'Canada': 'CA', 'South Korea': 'KR', 'China': 'CN', 'Taiwan': 'TW',
-  };
-
-  function shortCountry(name) {
-    return COUNTRY_SHORT_EN[name] || name;
+  // year 區段顯示：endYear 空 → 單年；endYear 與 startYear 相同也顯示單年；否則 "start-end"
+  function formatYearRange(startYear, endYear) {
+    const s = (startYear || '').toString().trim();
+    const e = (endYear || '').toString().trim();
+    if (!s && !e) return '';
+    if (!e || e === s) return s;
+    if (!s) return e;
+    return `${s}-${e}`;
   }
 
-  // 渲染 section 內容：grid 欄位版
-  function renderSectionContent(section) {
-    if (section.type === 'education' && section.items) {
-      // 4 col: country | school | major | degree
-      return section.items.map(item => {
-        const hasBilingual = item.countryZh !== undefined;
-        if (hasBilingual) {
-          return `
-            <div class="faculty-grid-row faculty-grid-4">
-              <span>${shortCountry(item.countryZh)}<br>${shortCountry(item.countryEn)}</span>
-              <span>${item.schoolZh}<br>${item.schoolEn}</span>
-              <span>${item.majorZh}<br>${item.majorEn}</span>
-              <span>${item.degreeZh}<br>${item.degreeEn}</span>
-            </div>
-          `;
-        }
-        return `
-          <div class="faculty-grid-row faculty-grid-4">
-            <span>${shortCountry(item.country || '')}</span>
-            <span>${item.school || ''}</span>
-            <span>${item.major || ''}</span>
-            <span>${item.degree || ''}</span>
-          </div>
-        `;
-      }).join('');
-    }
-    if (section.type === 'experience' && section.items) {
-      // 3 col: year | organization | role
-      return section.items.map(item => `
-        <div class="faculty-grid-row faculty-grid-3">
-          <span>${item.year || ''}</span>
-          <span>${item.organization || ''}</span>
-          <span>${item.role || ''}</span>
+  // 學歷 row：country | school | major | degree（4 col 各 1）
+  function renderEducationRow(item) {
+    return `
+      <div class="faculty-grid-row">
+        <span>${countryName(item.country, 'zh')}<br>${countryName(item.country, 'en')}</span>
+        <span>${item.schoolZh || ''}<br>${item.schoolEn || ''}</span>
+        <span>${item.majorZh || ''}<br>${item.majorEn || ''}</span>
+        <span>${item.degreeZh || ''}<br>${item.degreeEn || ''}</span>
+      </div>
+    `;
+  }
+
+  // 經歷 row：year | organization(跨2 col) | role
+  function renderExperienceRow(item) {
+    const year = formatYearRange(item.startYear, item.endYear);
+    const orgZh = item.organizationZh || '';
+    const orgEn = item.organizationEn || '';
+    const roleZh = item.roleZh || '';
+    const roleEn = item.roleEn || '';
+    return `
+      <div class="faculty-grid-row">
+        <span>${year}</span>
+        <span class="faculty-grid-span2">${orgZh}${orgEn ? '<br>' + orgEn : ''}</span>
+        <span>${roleZh}${roleEn ? '<br>' + roleEn : ''}</span>
+      </div>
+    `;
+  }
+
+  // 獲獎 row：year | name | work(獎項) | category(獎別)
+  function renderAwardRow(item) {
+    const year = formatYearRange(item.startYear, item.endYear);
+    const nameZh = item.nameZh || '';
+    const nameEn = item.nameEn || '';
+    const workZh = item.workZh || '';
+    const workEn = item.workEn || '';
+    const catZh = item.categoryZh || '';
+    const catEn = item.categoryEn || '';
+    return `
+      <div class="faculty-grid-row">
+        <span>${year}</span>
+        <span>${nameZh}${nameEn ? '<br>' + nameEn : ''}</span>
+        <span>${workZh}${workEn ? '<br>' + workEn : ''}</span>
+        <span>${catZh}${catEn ? '<br>' + catEn : ''}</span>
+      </div>
+    `;
+  }
+
+  // 包一個 section 區塊（左標題 + 右內容）；items 為空就回空字串不渲染
+  function buildSection(titleEn, titleZh, items, renderRow) {
+    if (!Array.isArray(items) || items.length === 0) return '';
+    const rows = items.map(renderRow).join('');
+    return `
+      <div class="flex flex-col md:flex-row gap-xs md:gap-sm">
+        <div class="w-full md:w-[20%] mb-xs md:mb-0">
+          <h6 class="text-black whitespace-nowrap">${titleEn} ${titleZh}</h6>
         </div>
-      `).join('');
-    }
-    if (section.type === 'awards' && section.items) {
-      // 3 col: year | name + work | award
-      return section.items.map(item => {
-        const nameWork = [item.name, item.work].filter(Boolean).join(' ');
-        return `
-          <div class="faculty-grid-row faculty-grid-3">
-            <span>${item.year || ''}</span>
-            <span>${nameWork}</span>
-            <span>${item.award || ''}</span>
-          </div>
-        `;
-      }).join('');
-    }
-    if (section.type === 'courses' && section.items) {
-      return section.items.map(item => {
-        const href = item.courseId && item.program
-          ? `courses.html?program=${item.program}&item=${item.courseId}`
-          : null;
-        const inner = `<span>${item.titleEn}</span><span>${item.titleZh}</span>`;
-        return href
-          ? `<a href="${href}" class="faculty-grid-row faculty-grid-2 hover:underline">${inner}</a>`
-          : `<div class="faculty-grid-row faculty-grid-2">${inner}</div>`;
-      }).join('');
-    }
-    // fallback：純文字（parttime / admin）
-    return `<p class="text-p2" style="white-space: pre-line;">${section.content || ''}</p>`;
+        <div class="flex-1">
+          ${rows}
+        </div>
+      </div>
+    `;
+  }
+
+  // admin 的純文字 contact section
+  function buildContactSection(contact) {
+    if (!contact) return '';
+    return `
+      <div class="flex flex-col md:flex-row gap-xs md:gap-sm">
+        <div class="w-full md:w-[25%] mb-xs md:mb-0">
+          <h6 class="text-black">Contact 聯絡資訊</h6>
+        </div>
+        <div class="flex-1">
+          <p class="text-p2" style="white-space: pre-line;">${contact}</p>
+        </div>
+      </div>
+    `;
   }
 
   function initializeFacultyInteractions(facultyData) {
-    // Function to load faculty data into slide-in panel
     function loadFacultyData(facultyId) {
       const data = facultyData[facultyId];
       if (!data) return;
 
-      // Update image
-      const imgElement = document.getElementById('faculty-detail-image');
+      // 圖片
+      const imgElement = /** @type {HTMLImageElement | null} */ (document.getElementById('faculty-detail-image'));
       if (imgElement) imgElement.src = data.image;
 
-      // Update name
+      // 姓名 + fulltime 桌面旋轉
+      const isDesktop = window.innerWidth >= 768;
+      const rotateName = data.type === 'fulltime' && isDesktop;
       const nameEnElement = document.getElementById('faculty-detail-name-en');
       const nameZhElement = document.getElementById('faculty-detail-name-zh');
       if (nameEnElement) {
         nameEnElement.textContent = data.nameEn;
-        const isDesktop = window.innerWidth >= 768;
-        nameEnElement.style.transform = (data.type === 'fulltime' && isDesktop) ? 'rotate(4deg)' : '';
-        nameEnElement.style.display = (data.type === 'fulltime' && isDesktop) ? 'inline-block' : '';
+        nameEnElement.style.transform = rotateName ? 'rotate(4deg)' : '';
+        nameEnElement.style.display = rotateName ? 'inline-block' : '';
       }
       if (nameZhElement) {
         nameZhElement.textContent = data.nameZh;
-        const isDesktop = window.innerWidth >= 768;
-        nameZhElement.style.transform = (data.type === 'fulltime' && isDesktop) ? 'rotate(4deg)' : '';
-        nameZhElement.style.display = (data.type === 'fulltime' && isDesktop) ? 'inline-block' : '';
+        nameZhElement.style.transform = rotateName ? 'rotate(4deg)' : '';
+        nameZhElement.style.display = rotateName ? 'inline-block' : '';
       }
 
-      // Update titles（支援單一 string 或多個 title 陣列）
+      // Titles：fulltime/parttime 用 titles[] repeater；admin 用單 titleEn/titleZh
       const titlesContainer = document.getElementById('faculty-detail-titles');
       if (titlesContainer) {
-        const toArr = (v) => Array.isArray(v) ? v : (v ? [v] : []);
-        const titlesEn = toArr(data.titleEn);
-        const titlesZh = toArr(data.titleZh);
-        const count = Math.max(titlesEn.length, titlesZh.length);
-        let html = '';
-        for (let i = 0; i < count; i++) {
-          const en = titlesEn[i] || '';
-          const zh = titlesZh[i] || '';
-          // 多個 title 之間用 mb-sm 區隔；最後一個無 mb
-          const isLast = i === count - 1;
-          html += `<div${isLast ? '' : ' class="mb-sm"'}>` +
-            `<h6 class="font-regular text-black">${en}</h6>` +
-            `<h6 class="font-regular text-black">${zh}</h6>` +
-            `</div>`;
+        let pairs;
+        if (data.type === 'admin') {
+          pairs = [{ en: data.titleEn || '', zh: data.titleZh || '' }];
+        } else {
+          pairs = (data.titles || []).map(t => ({ en: t.titleEn || '', zh: t.titleZh || '' }));
         }
+        let html = '';
+        pairs.forEach((p, i) => {
+          const isLast = i === pairs.length - 1;
+          html += `<div${isLast ? '' : ' class="mb-sm"'}>` +
+            `<h6 class="font-regular text-black">${p.en}</h6>` +
+            `<h6 class="font-regular text-black">${p.zh}</h6>` +
+            `</div>`;
+        });
         titlesContainer.innerHTML = html;
       }
 
-      // Update sections
+      // Sections：依 type 組裝
       const sectionsContainer = document.getElementById('faculty-detail-sections');
       if (sectionsContainer) {
-        sectionsContainer.innerHTML = '';
-        data.sections.forEach(section => {
-          if (section.type === 'courses') return; // 不渲染 courses 區塊
-          const contentHTML = renderSectionContent(section);
-          const sectionHTML = `
-            <div class="flex flex-col md:flex-row gap-xs md:gap-gutter">
-              <div class="w-full md:w-[25%] mb-xs md:mb-0">
-                <h6 class="text-black">${section.titleEn} ${section.titleZh}</h6>
-              </div>
-              <div class="flex-1">
-                ${contentHTML}
-              </div>
-            </div>
-          `;
-          sectionsContainer.insertAdjacentHTML('beforeend', sectionHTML);
-        });
+        let html = '';
+        if (data.type === 'admin') {
+          html = buildContactSection(data.contact);
+        } else {
+          // fulltime（parttime 不走 slide-in，但保留結構容錯）
+          html += buildSection('Education', '學歷', data.educations, renderEducationRow);
+          html += buildSection('Experience', '經歷', data.experiences, renderExperienceRow);
+          html += buildSection('Awards', '獲獎', data.awards, renderAwardRow);
+        }
+        sectionsContainer.innerHTML = html;
       }
     }
 
-    // Add click event to fulltime and admin faculty cards
     facultyCards.forEach(card => {
       const category = card.getAttribute('data-category');
-      // Add click event to fulltime and admin cards
       if (category === 'fulltime' || category === 'admin') {
         card.addEventListener('click', function(e) {
           e.preventDefault();
 
           const facultyId = card.getAttribute('data-faculty-id');
           if (facultyId && slideIn) {
-            // Load faculty data
             loadFacultyData(facultyId);
 
-            // Apply card color to panel background
-              const cardColor = getComputedStyle(card).getPropertyValue('--card-color').trim() || '#26BCFF';
+            const cardColor = getComputedStyle(card).getPropertyValue('--card-color').trim() || '#26BCFF';
             slideInPanel.style.backgroundColor = cardColor;
-            currentCardColor = cardColor;
 
-            // Show container
             slideIn.classList.remove('invisible', 'pointer-events-none');
             slideIn.classList.add('pointer-events-auto');
 
@@ -207,12 +208,10 @@ export function initFacultySlideIn() {
             // 不額外鎖 htmlEl.overflow：html overflow:hidden 會讓 html 失去 scroll container，
             // 內層 md:sticky md:top-[200px]（faculty filter rail）失效退回 static → 整個 rail 飄上去 ~200px
             enterLightboxMode();
-            cursorEnabled = false;
             openSlideInBg({
               overlay: slideInOverlay,
               panel: slideInPanel,
               panelBg: cardColor,
-              onPanelDone: () => { cursorEnabled = true; },
             });
           }
         });
@@ -220,12 +219,10 @@ export function initFacultySlideIn() {
     });
   }
 
-  // Close functionality for Slide-in
   function closeSlideIn() {
     if (!slideIn) return;
-    if (slideIn.classList.contains('invisible')) return; // 防止重複觸發
+    if (slideIn.classList.contains('invisible')) return;
 
-    // header bars clip-path 進場（logo 不動）+ 解除 body.lightbox-open
     exitLightboxMode();
 
     closeSlideInBg({
@@ -239,68 +236,9 @@ export function initFacultySlideIn() {
     });
   }
 
-  // Custom cursor on overlay (desktop only)
-  const cursor = document.getElementById('faculty-cursor');
-  let cursorEnabled = false;
-  let currentCardColor = '#000000';
-
-  function randRot() {
-    // -4 到 6，排除 0
-    let r;
-    do { r = Math.floor(Math.random() * 11) - 4; } while (r === 0);
-    return r;
-  }
-
-  function hideCursor(onComplete) {
-    if (!cursor) { if (onComplete) onComplete(); return; }
-    gsap.to(cursor, {
-      opacity: 0,
-      scale: 0,
-      duration: 0.2,
-      ease: 'power2.in',
-      overwrite: true,
-      onComplete: onComplete || null,
-    });
-  }
-
-  function closeWithCursor() {
-    cursorEnabled = false;
-    hideCursor(() => closeSlideIn());
-  }
-
-  if (closeBtn) closeBtn.addEventListener('click', closeWithCursor);
+  // Overlay click + close button click 都關閉 slide-in
+  // overlay 的 left cursor 由 cursor.css 的 #faculty-slide-in-overlay 規則統一管
+  if (closeBtn) closeBtn.addEventListener('click', closeSlideIn);
   if (backBtnMobile) backBtnMobile.addEventListener('click', closeSlideIn);
-  if (slideInOverlay) slideInOverlay.addEventListener('click', closeWithCursor);
-
-  if (cursor && slideInOverlay && typeof gsap !== 'undefined') {
-    // Track mouse position — 圓圈左上角貼在游標右下方
-    slideInOverlay.addEventListener('mousemove', (e) => {
-      gsap.to(cursor, {
-        left: e.clientX + 6,
-        top: e.clientY + 6,
-        duration: 0.4,
-        ease: 'power2.out',
-        overwrite: 'auto',
-      });
-    });
-
-    // Show cursor on hover（只有 slide in 完成後才啟用）
-    slideInOverlay.addEventListener('mouseenter', () => {
-      if (!cursorEnabled) return;
-      cursor.style.backgroundColor = currentCardColor;
-      gsap.to(cursor, {
-        opacity: 1,
-        scale: 1,
-        rotation: randRot(),
-        duration: 0.3,
-        ease: 'back.out(1.7)',
-        overwrite: 'auto',
-      });
-    });
-
-    // Hide cursor on leave
-    slideInOverlay.addEventListener('mouseleave', () => {
-      hideCursor();
-    });
-  }
+  if (slideInOverlay) slideInOverlay.addEventListener('click', closeSlideIn);
 }

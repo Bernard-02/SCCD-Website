@@ -260,7 +260,6 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
   if (page === 'activities') {
     initActivitiesSectionSwitch('exhibitions');
     initActivitiesSearch();
-    initShareModal();
   }
 
   // --- Records Page ---
@@ -367,6 +366,7 @@ document.addEventListener('DOMContentLoaded', function () {
   initBtnFillHover();
   initIdleStandby();
   initCustomScrollbar();
+  initShareModal();
 
   // 啟動 Router（攔截連結、處理 popstate）
   initRouter();

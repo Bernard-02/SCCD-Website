@@ -1,0 +1,47 @@
+[
+  {
+    "image": "",
+    "nameZh": "謝大立",
+    "nameEn": "Ta-Lih Shieh",
+    "titles": [
+      {
+        "titleZh": "創辦人",
+        "titleEn": "Founder"
+      }
+    ],
+    "educations": [
+      {
+        "country": "us",
+        "schoolZh": "普瑞特藝術學院",
+        "schoolEn": "Pratt Institute",
+        "majorZh": "",
+        "majorEn": "",
+        "degreeZh": "",
+        "degreeEn": ""
+      }
+    ],
+    "experiences": [
+      {
+        "startYear": "2022",
+        "endYear": "",
+        "organizationZh": "亞洲大學創意設計學院",
+        "organizationEn": "",
+        "roleZh": "客座講座",
+        "roleEn": ""
+      }
+    ],
+    "awards": [
+      {
+        "startYear": "2023",
+        "endYear": "",
+        "nameZh": "iF Design Award",
+        "nameEn": "",
+        "workZh": "",
+        "workEn": "",
+        "categoryZh": "",
+        "categoryEn": ""
+      }
+    ],
+    "_post_title": "謝大立"
+  }
+]

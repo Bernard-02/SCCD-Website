@@ -65,7 +65,9 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        padding: 0.5rem 0.8rem;
+        /* 對稱 padding（上下=左右）讓底色成正方形 —— icon 為 1em×1em 方形（繼承 parent h3 font-size），
+           padding 對稱 → 整個 box 自然成 square；之前 0.5rem 0.8rem 不對稱會壓成橫向 rectangle */
+        padding: 0.5rem;
         transition: opacity 0.2s ease;
       }
 
@@ -93,7 +95,10 @@
       </div>
       <a href="../index.html" class="error-404-anchor" data-error-card="back" aria-label="Back to Home 回首頁">
         <span class="error-404-card is-btn">
-          <i class="fa-solid fa-arrow-left"></i>
+          <!-- 不帶 icon-* size class：讓 icon font-size 繼承 .is-btn 的 --font-size-h3（50px 桌面 / 32px 手機）
+               跟周圍 ERROR / 錯誤 大字 proportional；之前 icon-m=20px 太小
+               rotate-180：圖形朝右（指向首頁方向）— user 選擇用旋轉而非換 icon-arrow-right -->
+          <span class="icon icon-arrow-left rotate-180"></span>
         </span>
       </a>
     </section>

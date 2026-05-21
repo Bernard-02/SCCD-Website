@@ -56,9 +56,8 @@
     white-space: normal;
   }
 
-  /* 所有 footer scatter icon（.fa-brands social + .fa-solid donation）：放大 1.5× （base 是 .text-h3） */
-  .footer-random .fa-brands,
-  .footer-random .fa-solid {
+  /* 所有 footer scatter icon（social + donation）：放大 1.5× （base 是 .text-h3） */
+  .footer-random .icon {
     font-size: calc(var(--font-size-h3) * 1.5);
   }
 

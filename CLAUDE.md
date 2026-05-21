@@ -295,7 +295,6 @@ xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96p
 |---|---|---|
 | `library-viewer.js` PDF listeners 無 remove | js/modules/pages/library-viewer.js | modal 是單例 guard，目前不重綁不出問題；極端情境若 modal 被某 race 重建會疊 listener |
 | `library-panels.js` Press/Files/Album 內 helper listener cleanup | js/modules/pages/library-panels.js | 跨 SPA accumulate 可能；需 audit 每個 binding helper |
-| admission news 無 pagination（移除 load-more）| admission-data-loader.js | 目前 4 items 不需要；資料成長到 >10 再考慮加回（loadListInto 加 append mode 或 caller 自管 slice + 重 render）|
 
 ### D. TIER 3 大架構（明確不做，列出做為設計決策記錄）
 

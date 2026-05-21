@@ -1,0 +1,87 @@
+[
+  {
+    "titleEn": "An Ordinary Love Story",
+    "dates": [
+      {
+        "startYear": "2025",
+        "startMonth": "07",
+        "startDay": "14",
+        "endYear": "2025",
+        "endMonth": "07",
+        "endDay": "18"
+      }
+    ],
+    "locations": [
+      {
+        "nameZh": "實踐大學設計學院",
+        "nameEn": "",
+        "country": "tw"
+      }
+    ],
+    "descriptionZh": "這個沉浸式的暑期營隊帶領高中生認識設計思考的基礎...",
+    "descriptionEn": "This immersive summer camp introduces high school students to the fundamentals of design thinking...",
+    "poster": "../images/2021-動畫-Pitch-Bible-01.png",
+    "images": {
+      "0": "../images/SCCD-1-4-0.jpg",
+      "1": "../images/S__6742028.jpg"
+    },
+    "videos": [
+      {
+        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+      }
+    ],
+    "_post_title": "談一場平凡無奇的戀愛"
+  },
+  {
+    "titleEn": "",
+    "dates": [
+      {
+        "startYear": "2024",
+        "startMonth": "07",
+        "startDay": "15",
+        "endYear": "2024",
+        "endMonth": "07",
+        "endDay": "19"
+      }
+    ],
+    "locations": [
+      {
+        "nameZh": "實踐大學設計學院",
+        "nameEn": "",
+        "country": "tw"
+      }
+    ],
+    "descriptionZh": "這個沉浸式的暑期營隊帶領高中生認識設計思考的基礎...",
+    "descriptionEn": "This immersive summer camp introduces high school students to the fundamentals of design thinking...",
+    "poster": "../images/2021-動畫-Pitch-Bible-01.png",
+    "images": {},
+    "videos": [],
+    "_post_title": "我知道你想要對吧！"
+  },
+  {
+    "titleEn": "",
+    "dates": [
+      {
+        "startYear": "2023",
+        "startMonth": "07",
+        "startDay": "10",
+        "endYear": "2023",
+        "endMonth": "07",
+        "endDay": "14"
+      }
+    ],
+    "locations": [
+      {
+        "nameZh": "實踐大學設計學院",
+        "nameEn": "",
+        "country": "tw"
+      }
+    ],
+    "descriptionZh": "在這個密集工作坊中探索藝術與科技的交會點...",
+    "descriptionEn": "Explore the intersection of art and technology in this intensive workshop...",
+    "poster": "../images/2021-動畫-Pitch-Bible-01.png",
+    "images": {},
+    "videos": [],
+    "_post_title": "我以為我有魔法！"
+  }
+]

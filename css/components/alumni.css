@@ -54,7 +54,7 @@ body.page-alumni .list-header.active {
   text-decoration: none;
   padding: var(--spacing-md);
   font-weight: 700;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   z-index: 5;
   opacity: 0;
   pointer-events: none;
@@ -86,7 +86,7 @@ body.page-alumni .list-header.active {
   background: var(--gray-9);
   color: #000;
   text-decoration: none;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   user-select: none;
   transform: rotate(var(--init-deg, 0deg));
   transform-origin: center center;

@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
 </head>
-<body style="overflow: hidden; height: 100vh;">
+<body class="overflow-hidden h-screen">
 
   <!-- Header -->
   <div id="site-header"></div>
@@ -31,23 +31,32 @@
         <div class="atlas-detail-desc" data-atlas-detail-desc></div>
       </aside>
 
-      <!-- 左上角 filter -->
+      <!-- 左上角 filter — anchor-nav-inner 內 EN/ZH 兩行 stack（filter btn 專用 column override 在 atlas.css） -->
       <div id="atlas-filter" aria-label="Atlas filter">
         <button class="atlas-filter-btn w-fit text-left" data-filter="faculty">
-          <span class="anchor-nav-inner">Professors 歷屆教師</span>
+          <span class="anchor-nav-inner">
+            <span class="atlas-filter-en">Professors</span>
+            <span class="atlas-filter-zh">歷屆教師</span>
+          </span>
         </button>
         <button class="atlas-filter-btn w-fit text-left" data-filter="alumni">
-          <span class="anchor-nav-inner">Alumni Careers 系友職涯</span>
+          <span class="anchor-nav-inner">
+            <span class="atlas-filter-en">Alumni</span>
+            <span class="atlas-filter-zh">系友</span>
+          </span>
         </button>
         <button class="atlas-filter-btn w-fit text-left" data-filter="partners">
-          <span class="anchor-nav-inner">Partners 合作單位</span>
+          <span class="anchor-nav-inner">
+            <span class="atlas-filter-en">Partners</span>
+            <span class="atlas-filter-zh">合作單位</span>
+          </span>
         </button>
       </div>
 
       <!-- 左下角 layout toggle -->
       <button id="atlas-layout-btn" aria-label="切換視圖">
         <span class="atlas-layout-inner">
-          <i class="fa-solid fa-list"></i>
+          <span class="icon icon-atlas-list"></span>
         </span>
       </button>
     </section>

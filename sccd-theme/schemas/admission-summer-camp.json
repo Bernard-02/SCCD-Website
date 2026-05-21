@@ -1,0 +1,130 @@
+{
+  "cpt": "sccd_adm_summer_camp",
+  "endpoint": "admission-summer-camp",
+  "menu_order": 3,
+  "labels": {
+    "name": "Summer Camp",
+    "singular_name": "Summer Camp 暑期營",
+    "menu_name": "暑期營",
+    "add_new": "新增暑期營",
+    "add_new_item": "新增暑期營",
+    "edit_item": "編輯暑期營",
+    "all_items": "暑期營"
+  },
+  "menu_group": {
+    "slug": "sccd-admission",
+    "label": "招生 Admission",
+    "icon": "dashicons-welcome-learn-more",
+    "position": 30.6
+  },
+  "menu_icon": "dashicons-palmtree",
+  "supports": [
+    "title"
+  ],
+  "fields": [
+    {
+      "id": "titleEn",
+      "name": "主標題 EN",
+      "type": "text"
+    },
+    {
+      "id": "dates",
+      "name": "時間（可加多筆）",
+      "type": "group",
+      "item_label": "時間",
+      "fields": [
+        {
+          "id": "startYear",
+          "name": "起始年",
+          "type": "year"
+        },
+        {
+          "id": "startMonth",
+          "name": "起始月",
+          "type": "month"
+        },
+        {
+          "id": "startDay",
+          "name": "起始日",
+          "type": "day"
+        },
+        {
+          "id": "endYear",
+          "name": "結束年",
+          "type": "year"
+        },
+        {
+          "id": "endMonth",
+          "name": "結束月",
+          "type": "month"
+        },
+        {
+          "id": "endDay",
+          "name": "結束日",
+          "type": "day"
+        }
+      ]
+    },
+    {
+      "id": "locations",
+      "name": "地點（可加多個，前臺用 / 串接，第一個地點國家會渲染為標題國旗）",
+      "type": "group",
+      "item_label": "地點",
+      "fields": [
+        {
+          "id": "nameEn",
+          "name": "地點 EN",
+          "type": "text"
+        },
+        {
+          "id": "nameZh",
+          "name": "地點 中",
+          "type": "text"
+        },
+        {
+          "id": "country",
+          "name": "國家",
+          "type": "country"
+        }
+      ]
+    },
+    {
+      "id": "descriptionEn",
+      "name": "簡介 EN",
+      "type": "textarea"
+    },
+    {
+      "id": "descriptionZh",
+      "name": "簡介 中",
+      "type": "textarea"
+    },
+    {
+      "id": "poster",
+      "name": "海報",
+      "type": "image"
+    },
+    {
+      "id": "images",
+      "name": "相簿圖片（可一次選多張）",
+      "type": "image_list"
+    },
+    {
+      "id": "videoLinks",
+      "name": "影片連結（YouTube / 外部 URL，可加多筆）",
+      "type": "group",
+      "item_label": "影片連結",
+      "fields": [
+        {
+          "id": "url",
+          "name": "影片 URL",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "id": "videoFiles",
+      "name": "上傳影片檔案（可一次選多個）",
+      "type": "video_list"
+    }
+  ]
+}

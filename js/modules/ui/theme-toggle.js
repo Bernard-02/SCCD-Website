@@ -114,6 +114,13 @@ function applyColorVars() {
   // ref/chip 在容器內要跟 theme-fg 同側才能襯托而非合體 → 亮 hue → gray-2 深灰、暗 hue → gray-9 淺灰
   root.style.setProperty('--theme-neutral-gray-inverse', isLightBg ? 'var(--gray-2)' : 'var(--gray-9)');
 
+  // --lib-bg 連續動態純中性灰（mode3）：對比方向同 mode1/2（亮 page→淺灰底 / 暗 page→深灰底），
+  // 但深淺隨 page bg luminance 連續變化（不是兩階切換）
+  // 亮頁 (lum 0.5~1.0) → 灰 L 0.7~0.92；暗頁 (lum 0~0.5) → 灰 L 0.08~0.30
+  const grayL = isLightBg ? 0.7 + (lum - 0.5) * 0.44 : 0.08 + lum * 0.44;
+  const grayByte = Math.round(grayL * 255);
+  root.style.setProperty('--lib-bg', `rgb(${grayByte}, ${grayByte}, ${grayByte})`);
+
   // Header logo（wireframe）對比翻色：wireframe-standard base 黑色，暗底套 invert(1) 變白
   // 直接比對 style.filter（cheap read）避免維護 lastIsLightBg 狀態 + 處理 logo async load 的 race
   const logo = document.getElementById('header-logo');
@@ -180,6 +187,7 @@ function stopColorLoop() {
   root.style.removeProperty('--theme-invert-filter');
   root.style.removeProperty('--theme-neutral-gray');
   root.style.removeProperty('--theme-neutral-gray-inverse');
+  root.style.removeProperty('--lib-bg');
   root.style.removeProperty('--theme-bg-contrast');
   root.style.removeProperty('--theme-bg-contrast-rgb');
   root.style.removeProperty('--theme-fg-contrast');
@@ -227,15 +235,9 @@ function checkSlideInState() {
       switchHeaderLogo(logoType);
     }
 
-        // 同步 Theme Toggle 按鈕顏色，讓它跟 Logo 一起平滑變色
-        const modeBtn = document.querySelector('#mode-btn');
-        if (modeBtn && typeof gsap !== 'undefined') {
-          const toggleBtn = modeBtn.querySelector('.theme-toggle-btn');
-          const toggleCircle = modeBtn.querySelector('.theme-toggle-circle');
-          const targetColor = isSlideInOpen ? '#FFFFFF' : ''; 
-          if (toggleBtn) gsap.to(toggleBtn, { borderColor: targetColor, duration: 0.3, ease: 'power2.inOut', overwrite: 'auto' });
-          if (toggleCircle) gsap.to(toggleCircle, { backgroundColor: targetColor, duration: 0.3, ease: 'power2.inOut', overwrite: 'auto' });
-        }
+        // 舊版 .theme-toggle-circle 圓點+圓邊框已拆掉（改 .icon mode_1/2/3）；
+        // slide-in / lightbox 開時 icon 翻白由 CSS（html.has-slide-in .theme-toggle-btn { color:#fff }）handle，
+        // .theme-toggle-btn 有 `transition: color var(--transition-fast)` 自動平滑變色，不需 gsap 手動 inline
   }
 }
 
@@ -280,23 +282,34 @@ export function applyModeForPage(_page) {
 
 /** 由 main-modular.js initPageModules 在每次 SPA 切頁時呼叫
  *  /create 頁停用 header mode-btn（mode 改由頁內 colormode-button 控制）；其他頁恢復可點 */
+let _lastUpdateTogglePage = null;
 export function updateToggleBtnVisualState(page) {
   // 直接訪問 URL 是 'create'，SPA 內 routed page 名是 'generate'，兩個都要 catch
   const isGenerate = page === 'generate' || page === 'create';
+  const wasGenerate = _lastUpdateTogglePage === 'generate' || _lastUpdateTogglePage === 'create';
   document.querySelectorAll('.theme-toggle-btn').forEach((btn) => {
     const el = /** @type {HTMLButtonElement} */ (btn);
     if (isGenerate) {
       el.disabled = true;
-      el.style.opacity = '0.4';
       el.style.pointerEvents = 'none';
       el.setAttribute('title', 'Mode 由下方 control bar 控制');
     } else {
       el.disabled = false;
-      el.style.opacity = '';
       el.style.pointerEvents = '';
       el.removeAttribute('title');
     }
   });
+  // Header desktop mode-btn clip-reveal 進退場：
+  //   - 進 /create：hide（width 0 + clip 100%）→ 其他 bars 自然往右 shift 填補
+  //   - 離 /create：show（width 24 + clip 0%）→ 其他 bars 往左 shift 回原位
+  //   show 必須在新頁面 init 階段 fire（不是放 /create page-exit timeline 並行）— 否則 user 視線在
+  //   /create 主內容退場時 show 動畫已跑完，新頁面渲染後看起來像「flash」一閃就出現沒過程
+  if (isGenerate && !wasGenerate) {
+    import('../../header.js').then(({ animateHeaderModeBtnHide }) => animateHeaderModeBtnHide());
+  } else if (!isGenerate && wasGenerate) {
+    import('../../header.js').then(({ animateHeaderModeBtnShow }) => animateHeaderModeBtnShow());
+  }
+  _lastUpdateTogglePage = page;
 }
 
 /**
@@ -417,6 +430,12 @@ function applyMode(mode, opts) {
   document.body.classList.add(`mode-${mode}`);
   document.documentElement.classList.add(`mode-${mode}`);
 
+  // Header mode btn icon: 跟 mode 切換同步換 mode_1/2/3 SVG（.icon mask 系統，currentColor 跟 .theme-toggle-btn 走）
+  const MODE_TO_ICON_CLASS = { standard: 'icon-mode-1', inverse: 'icon-mode-2', color: 'icon-mode-3' };
+  document.querySelectorAll('[data-header-mode-icon]').forEach(el => {
+    el.className = `icon ${MODE_TO_ICON_CLASS[mode] || 'icon-mode-1'}`;
+  });
+
   if (mode === 'color') {
     // autoStartColorLoop=false：/create 內 colormode btn 切到 color 時不自動啟動 RAF（user 須手動點 Play）。
     // 已在跑的 loop 不會被這裡 stop——/create 內切到 color 前若 loop 早就在跑（從外面進來時 applyModeForPage 啟動），
@@ -479,7 +498,7 @@ function runHeaderLogoReveal(logo) {
 // 舊 'inverse' Lottie 的 JSON fetch 若慢於 'standard' 完成，DOMLoaded 後到的 SVG 會覆蓋掉新 'standard' SVG。
 let logoLoadGeneration = 0;
 
-function switchHeaderLogo(type) {
+export function switchHeaderLogo(type) {
   const logo = document.getElementById('header-logo');
   if (!logo || typeof lottie === 'undefined') return;
 

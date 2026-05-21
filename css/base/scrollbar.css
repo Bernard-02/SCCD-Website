@@ -35,7 +35,7 @@ html::-webkit-scrollbar {
   background: var(--theme-fg);
   z-index: 9998;                    /* 低於 intro-overlay / lightbox (9999) 自動被覆蓋 */
   pointer-events: auto;
-  cursor: default;                  /* hover / 拖拉時都用系統預設箭頭，不顯示 grab/grabbing 手勢 */
+  cursor: var(--cursor-default);                  /* hover / 拖拉時都用系統預設箭頭，不顯示 grab/grabbing 手勢 */
   touch-action: none;               /* 拖拉時不被瀏覽器手勢搶走 */
   user-select: none;
   will-change: transform, height;

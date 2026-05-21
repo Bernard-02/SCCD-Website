@@ -63,10 +63,10 @@
   }
 
   /* Faculty 特定：只有 fulltime/admin 可點擊 */
-  .faculty-card-image-wrapper { cursor: default; }
+  .faculty-card-image-wrapper { cursor: var(--cursor-default); }
   .faculty-card[data-category="fulltime"] .faculty-card-image-wrapper,
   .faculty-card[data-category="admin"] .faculty-card-image-wrapper {
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
   }
 
   /* Faculty 卡片預設旋轉（JS 設 --init-deg），hover 恢復 0° 對齊下方文字
@@ -91,25 +91,25 @@
     transition: filter 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  /* ===== Faculty Slide-in Grid Rows ===== */
+  /* ===== Faculty Slide-in Grid Rows =====
+     所有 section（學歷/經歷/獲獎）統一 4 col grid `1fr 4fr 2fr 2fr` 對齊：
+     - col1 (1fr): year / country
+     - col2 (4fr): school / name
+     - col3 (2fr): major / work
+     - col4 (2fr): degree / category / role
+     - 經歷的 organization 用 .faculty-grid-span2 跨 col2+col3 (4fr+2fr) 撐單位描述
+   */
   .faculty-grid-row {
     display: grid;
-    gap: 0.5rem;
+    grid-template-columns: 1fr 4fr 2fr 2fr;
+    gap: 1.5rem;
     align-items: baseline;
     padding-bottom: 0.5rem;
+    padding-right: 2rem;
     font-size: var(--font-size-p2);
   }
-
-  /* 4 col: country(50px) | school(1fr) | major(1fr) | degree(1fr) */
-  .faculty-grid-4 {
-    grid-template-columns: 50px 1fr 1fr 1fr;
-    padding-right: 2rem;
-  }
-
-  /* 3 col: year(50px) | main(2fr) | detail(1fr) */
-  .faculty-grid-3 {
-    grid-template-columns: 50px 2fr 1fr;
-    padding-right: 2rem;
+  .faculty-grid-row > .faculty-grid-span2 {
+    grid-column: span 2;
   }
 
   .faculty-grid-row span {

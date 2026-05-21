@@ -6,6 +6,7 @@
 import { openLightbox } from '../lightbox/activities-lightbox.js';
 import { setupClipReveal, playClipReveal } from '../ui/scroll-animate.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
+import { ensureFlagIconsCss } from '../ui/ensure-flag-icons.js';
 
 // ── Reference 自動 lookup ─────────────────────────────────────────────────────
 // ref 只填 { section, itemId } 即可；title/label 渲染前自動從目標 JSON lookup。
@@ -139,6 +140,9 @@ export function bindMediaHover(container) {
       const existingWrapper = img.closest('[data-lightbox-open]');
       if (!existingWrapper) applyHover(img.parentElement);
     });
+
+    // album thumbnails（buildAlbumsHtml 渲染的每張縮圖）
+    workshopItem.querySelectorAll('.album-thumb-btn').forEach(btn => applyHover(btn));
   });
 }
 
@@ -146,64 +150,184 @@ export function bindMediaHover(container) {
 // ── Shared HTML Builders ─────────────────────────────────────────────────────
 
 // 建立 media list（海報 → videos → images）
-export function buildItemMedia(item) {
+// Dedupe by src：poster 常常就是 images[0]（封面），不去重會 lightbox 出現「同圖兩張」chevron 切下去看起來沒變
+// 防禦性：images/videos 陣列裡若有 null/空字串/whitespace，map 前先 filter 掉避免 lightbox 出現空 thumbnail
+const isValidUrl = (s) => typeof s === 'string' && s.trim() !== '';
+// 把 item.videos / item.images 從新 endpoint group shape 還原成 string array
+// 支援 3 shape:
+//   - string array (legacy data/X.json): ["url", "url"]
+//   - group repeater array (CMB2 type:group): [{videoUrl|image|url: "url"}, ...]
+//   - dict object (CMB2 type:file_list a.k.a. image_list / video_list): { "12345": "url", "12346": "url" }
+function normalizeMediaArr(arr, key) {
+  if (!arr) return [];
+  // dict object (CMB2 file_list)
+  if (!Array.isArray(arr) && typeof arr === 'object') {
+    return Object.values(arr).filter(v => typeof v === 'string' && v);
+  }
+  return arr.map(x => typeof x === 'string' ? x : (x?.[key] || '')).filter(Boolean);
+}
+
+// 取整筆 item 所有影片 URL（merge 3 來源）：
+//   - item.videos (legacy group `[{videoUrl}]` or string array)
+//   - item.videoLinks (新 schema group `[{url}]`)
+//   - item.videoFiles (新 schema video_list dict `{id: url}`)
+function getAllVideos(item) {
   return [
-    ...(item.poster ? [{ type: 'image', src: item.poster, thumb: item.poster }] : []),
-    ...(item.videos || []).map(url => {
-      const vid = url.match(/(?:v=|youtu\.be\/)([^&?/]+)/)?.[1];
-      return vid ? { type: 'video', src: `https://www.youtube.com/embed/${vid}`, thumb: `https://img.youtube.com/vi/${vid}/hqdefault.jpg` } : null;
-    }).filter(Boolean),
-    ...(item.images || []).map(src => ({ type: 'image', src, thumb: src })),
+    ...normalizeMediaArr(item.videos, 'videoUrl'),
+    ...normalizeMediaArr(item.videoLinks, 'url'),
+    ...normalizeMediaArr(item.videoFiles, ''), // video_list dict，第二參數不重要
   ];
 }
 
-// Albums list HTML（每筆 = 一個 album，各自有獨立 media，點擊開 lightbox）
-export function buildAlbumsHtml(item) {
-  if (!item.albums?.length) return '';
+// wysiwyg content 後台 user 編輯後可能只剩純文字 + \r\n（TinyMCE Text mode / Shift+Enter）
+// 沒 <p> wrap 的話前端 admission-body flex gap-md 抓不到 children，視覺一坨。
+// 偵測到 raw 不含 <p>/<br>/<div>/<li> 等 block tag → wpautop-like 轉換：
+//   - 連續換行（空行）→ </p><p>
+//   - 單一換行 → <br>
+//   - 整段 wrap <p>
+// 已有 HTML tag 的（import source / TinyMCE Visual mode）直接 return 原樣
+function normalizeBodyHtml(raw) {
+  if (!raw || typeof raw !== 'string') return raw || '';
+  if (/<(p|br|div|li|h[1-6]|ul|ol)\b/i.test(raw)) return raw; // 已有 block tag → 原樣
+  const escaped = raw
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  const paragraphs = escaped.split(/\r?\n\s*\r?\n/).map(p => p.trim()).filter(Boolean);
+  return paragraphs.map(p => `<p>${p.replace(/\r?\n/g, '<br>')}</p>`).join('');
+}
+export function buildItemMedia(item) {
+  const videos = getAllVideos(item);
+  const images = normalizeMediaArr(item.images, 'image');
+  const all = [
+    ...(isValidUrl(item.poster) ? [{ type: 'image', src: item.poster.trim(), thumb: item.poster.trim() }] : []),
+    ...videos.filter(isValidUrl).map(url => {
+      const vid = url.match(/(?:v=|youtu\.be\/)([^&?/]+)/)?.[1];
+      return vid ? { type: 'video', src: `https://www.youtube.com/embed/${vid}`, thumb: `https://img.youtube.com/vi/${vid}/hqdefault.jpg` } : null;
+    }).filter(Boolean),
+    ...images.filter(isValidUrl).map(src => ({ type: 'image', src: src.trim(), thumb: src.trim() })),
+  ];
+  const seen = new Set();
+  return all.filter(m => {
+    if (!m.src || seen.has(m.src)) return false;
+    seen.add(m.src);
+    return true;
+  });
+}
 
-  const itemsHtml = item.albums.map((album, gi) => {
-    const isLast = gi === item.albums.length - 1;
-    const hasImages = album.images?.length > 0;
-    const mediaJson = hasImages
-      ? JSON.stringify(album.images.map(src => ({ type: 'image', src, thumb: src }))).replace(/"/g, '&quot;')
-      : '';
+// 視覺 poster：item.poster 沒填就 fallback 用 item.images[0]
+// caller buildPosterHtml / 過濾空 media 都靠這個判斷
+function getEffectivePoster(item) {
+  if (item.poster) return item.poster;
+  // images 可能是 string array 或 group repeater 物件 array
+  const first = item.images?.[0];
+  if (!first) return '';
+  return typeof first === 'string' ? first : (first.image || '');
+}
+
+// Albums list HTML（每筆 = 一個 album，各自有獨立 media，點擊開 lightbox）
+// 過濾掉沒有 images 的 album：user 反映「list 裡有些 album 沒圖片卻仍能切換過去」
+// 沒圖片就不該佔 list 位置（即使有 date/location 也不渲染）
+// unbounded=true 時拿掉內層 max-height + scroll（permanent exhibitions 預設展開，user 希望整個 album list 直接攤開不需內層 scroll）
+export function buildAlbumsHtml(item, { unbounded = false } = {}) {
+  if (!item.albums?.length) return '';
+  // 過濾單一 album：images 內任何 null/空字串/whitespace 都先剔除，再判斷 album 是否還有有效 image
+  // 沒有就整個 album 不渲染（避免 user 點進去 lightbox 因 mediaList 空 abort 表現為「點了沒反應」）
+  const albums = item.albums
+    .map(a => ({ ...a, images: (a.images || []).filter(isValidUrl).map(s => s.trim()) }))
+    .filter(a => a.images.length > 0);
+  if (albums.length === 0) return '';
+
+  const itemsHtml = albums.map((album, gi) => {
+    const isLast = gi === albums.length - 1;
+    const mediaJson = JSON.stringify(album.images.map(src => ({ type: 'image', src, thumb: src }))).replace(/"/g, '&quot;');
+    // Lightbox title 用「該 album 本身」(date + location)，不是父 list-item 標題
+    const albumTitleEn = [album.date, album.location].filter(Boolean).join('  ');
+    const albumTitleZh = album.location_zh || '';
+    const albumTitleJson = JSON.stringify({ en: albumTitleEn, zh: albumTitleZh }).replace(/"/g, '&quot;');
+    // 每張縮圖獨立 button + data-album-index，click 開 lightbox 對應 index
+    // onerror 自摧毀單張 thumb：broken 檔不留 broken icon（對齊 buildPosterHtml）
+    const thumbsHtml = album.images.map((src, i) => `
+      <button type="button" class="album-thumb-btn flex-shrink-0 overflow-hidden cursor-pointer" data-album-index="${i}" style="height: 72px;">
+        <img src="${src}" alt="" class="h-full w-auto block" onerror="this.parentElement.style.display='none'">
+      </button>
+    `).join('');
+    // 結構：外層 grid 2 col [year | content]，year 在最左 col1，content 在 col2
+    //   content (col2) = flex-col 兩段：
+    //     ① date + title 同一橫排 group（user 視為一組「上層 metadata」）
+    //     ② album-gallery（獨立區塊，視覺在 date/title group 下方，起點對齊 date 左緣 = col2 左緣）
+    //   user 指定：date 跟 album 「不是一起的」，album 是該 group 的下方延伸，所以 col2 內部用 flex-col 而非 nested grid
+    // 結構：外層 flex-col gap-md（避免 grid cell 各別 sticky 的問題）
+    //   ① sticky row：grid 3-col [year | date | title]，整列單一 sticky element
+    //   ② album-gallery row：同樣 grid 3-col template 對齊，第一個 col 空 spacer 撐 year 寬，
+    //      第二 col 起 album-gallery（chevron + thumbs），thumbnail 第一張視覺對齊 date 左緣
+    const gridTemplate = 'grid-template-columns: auto auto 1fr;';
     return `
-      <div class="album-thumb-item flex items-start gap-xl py-sm mr-xl ${!isLast ? 'border-b-4 border-black' : ''} ${hasImages ? 'cursor-pointer' : ''}"
-           ${hasImages ? `data-album-media="${mediaJson}"` : ''}>
-        ${album.date ? `<div class="flex-shrink-0"><p class="text-p2 font-bold">${album.date}</p></div>` : ''}
-        ${album.location || album.location_zh ? `<div class="flex flex-1 items-start justify-between gap-xl">
-          <div>
-            ${album.location ? `<p class="text-p2 font-bold">${album.location}</p>` : ''}
-            ${album.location_zh ? `<p class="text-p2 font-bold">${album.location_zh}</p>` : ''}
+      <div class="album-thumb-item flex flex-col gap-sm py-sm mr-xl ${!isLast ? 'border-b-4 border-black' : ''}"
+           data-album-media="${mediaJson}"
+           data-album-title="${albumTitleJson}">
+        <div class="album-sticky-cell grid items-start gap-x-xl pb-xs" style="${gridTemplate}">
+          ${album.year ? `<div class="flex-shrink-0"><p class="text-p2 font-bold">${album.year}</p></div>` : '<div></div>'}
+          ${album.date ? `<div class="flex-shrink-0"><p class="text-p2 font-bold">${album.date}</p></div>` : '<div></div>'}
+          ${album.location || album.location_zh ? `<div class="flex items-start justify-between gap-xl">
+            <div>
+              ${album.location ? `<p class="text-p2 font-bold">${album.location}</p>` : ''}
+              ${album.location_zh ? `<p class="text-p2 font-bold">${album.location_zh}</p>` : ''}
+            </div>
+          </div>` : '<div></div>'}
+        </div>
+        <!-- album-gallery row：grid 對齊 sticky row 同 template，col1=year spacer 留空，col2-3 跨 chevron+track+chevron
+             結果：album-prev chevron 對齊 date 左緣，第一張 thumb = chevron 之後（內縮 32px from date） -->
+        <div class="grid items-center gap-x-xl" style="${gridTemplate}">
+          <div></div>
+          <div class="album-gallery col-start-2 col-end-4 flex items-center">
+            <button type="button" class="album-prev invisible flex-shrink-0 w-[32px] h-[32px] flex items-center justify-center text-p2 hover:opacity-60 transition-opacity">
+              <span class="icon icon-chevron-list icon-s"></span>
+            </button>
+            <div class="album-track flex-1 min-w-0" style="overflow-x: clip; overflow-y: visible; padding: 8px 0;">
+              <div class="album-track-inner flex items-center gap-sm" style="transition: transform 0.3s ease;">
+                ${thumbsHtml}
+              </div>
+            </div>
+            <button type="button" class="album-next invisible flex-shrink-0 w-[32px] h-[32px] flex items-center justify-center text-p2 hover:opacity-60 transition-opacity">
+              <span class="icon icon-chevron-list icon-s rotate-180"></span>
+            </button>
           </div>
-          ${hasImages ? `<i class="fa-regular fa-images text-p2 flex-shrink-0"></i>` : ''}
-        </div>` : ''}
+        </div>
       </div>
     `;
   }).join('');
 
-  return `
-    <div class="item-albums overflow-y-auto" style="max-height: 320px;">
-      ${itemsHtml}
-    </div>
-  `;
+  return unbounded
+    ? `<div class="item-albums">${itemsHtml}</div>`
+    : `<div class="item-albums overflow-y-auto" style="max-height: 360px;">${itemsHtml}</div>`;
 }
 
 // 海報區塊 HTML
+// poster 沒填時 fallback 用 images[0]（user 指定：「poster 沒有就是第一個圖片，不顯示 broken link」）
+// onerror 自摧毀 wrapper：URL 對但圖檔 404 / 跨域擋下時不會留 broken icon
+// lightbox-index：poster 來自 item.poster 時對應 mediaList[0]；fallback 自 images[0] 時對應 videos.length（即 images 起點）
 export function buildPosterHtml(item) {
-  if (!item.poster) return '';
+  const src = getEffectivePoster(item);
+  if (!src) return '';
+  const lightboxIndex = item.poster ? 0 : (item.videos?.length || 0);
   return `
-    <div class="overflow-hidden cursor-pointer" data-lightbox-open data-lightbox-index="0">
-      <img src="${item.poster}" alt="${item.title} poster" class="poster-img w-full block object-cover">
+    <div class="overflow-hidden cursor-pointer" data-lightbox-open data-lightbox-index="${lightboxIndex}">
+      <img src="${src}" alt="${item.title} poster" class="poster-img w-full block object-cover" onerror="this.closest('[data-lightbox-open]').style.display='none'">
     </div>
   `;
 }
 
 // Gallery 區塊 HTML（videos + images）
+// 支援 2 種 input shape：
+//   - 舊：item.videos = ["url", "url"], item.images = ["url", "url"]
+//   - 新（WP endpoint group repeater）：item.videos = [{videoUrl: "url"}, ...], item.images = [{image: "url"}, ...]
 export function buildGalleryHtml(item) {
   const posterOffset = item.poster ? 1 : 0;
+  const videos = getAllVideos(item);
+  const images = normalizeMediaArr(item.images, 'image');
   const galleryItems = [
-    ...(item.videos || []).map((url, vi) => {
+    ...videos.map((url, vi) => {
       const videoId = url.match(/(?:v=|youtu\.be\/)([^&?/]+)/)?.[1];
       if (!videoId) return '';
       const lbIndex = posterOffset + vi;
@@ -217,10 +341,11 @@ export function buildGalleryHtml(item) {
         </div>
       </div>`;
     }),
-    ...(item.images || []).map((src, ii) => {
-      const lbIndex = posterOffset + (item.videos || []).length + ii;
+    // onerror 自摧毀 wrapper：URL 對但檔 404 / 跨域擋下時不會留 broken icon（對齊 buildPosterHtml）
+    ...images.map((src, ii) => {
+      const lbIndex = posterOffset + videos.length + ii;
       return `<div class="h-full flex-shrink-0 relative cursor-pointer" data-lightbox-open data-lightbox-index="${lbIndex}">
-        <img src="${src}" alt="" class="h-full w-auto block">
+        <img src="${src}" alt="" class="h-full w-auto block" onerror="this.closest('[data-lightbox-open]').style.display='none'">
       </div>`;
     }),
   ].filter(Boolean);
@@ -229,7 +354,7 @@ export function buildGalleryHtml(item) {
   return `
     <div class="gallery-section pb-lg flex items-center">
       <button class="gallery-prev invisible flex-shrink-0 w-[32px] h-[32px] flex items-center justify-center text-p2 hover:opacity-60 transition-opacity">
-        <i class="fa-solid fa-chevron-left"></i>
+        <span class="icon icon-chevron-list icon-s"></span>
       </button>
       <div class="gallery-track flex-1" style="height: 120px; overflow-x: clip; overflow-y: visible;">
         <div class="gallery-inner flex gap-md h-full" style="transition: transform 0.3s ease;">
@@ -237,7 +362,7 @@ export function buildGalleryHtml(item) {
         </div>
       </div>
       <button class="gallery-next invisible flex-shrink-0 w-[32px] h-[32px] flex items-center justify-center text-p2 hover:opacity-60 transition-opacity">
-        <i class="fa-solid fa-chevron-right"></i>
+        <span class="icon icon-chevron-list icon-s rotate-180"></span>
       </button>
     </div>
   `;
@@ -245,13 +370,79 @@ export function buildGalleryHtml(item) {
 
 // ── Shared Post-Render Bindings ───────────────────────────────────────────────
 
+// Lightbox title 改成 list-item 名稱（user 指定：不是 section 分類名稱），accent 底色仍從 active section 取
+// elem = 觸發 lightbox 的元素（album-thumb 或 [data-lightbox-open]），closest .list-item 即父層
+function getLightboxMeta(elem) {
+  const btn = document.querySelector('.activities-section-btn.active');
+  const inner = btn?.querySelector('.anchor-nav-inner');
+  const color = inner?.style.background || '';
+
+  const listItem = elem.closest('.list-item');
+  // marquee 溢出時會 append clone <p>，直接抓 :scope > .list-header 下「每個 marquee wrap 的第一個 p」才是真本文
+  const marquees = listItem?.querySelectorAll(':scope > .list-header .list-title-marquee') || [];
+  const title = {
+    en: marquees[0]?.querySelector('p')?.textContent.trim() || '',
+    zh: marquees[1]?.querySelector('p')?.textContent.trim() || ''
+  };
+
+  return { title, color };
+}
+
 // Gallery 滑動、Lightbox、hover、海報比例偵測；回傳 GSAP 動畫啟動函數
 export function bindInteractions(container, { autoReveal = true } = {}) {
-  // Albums lightbox（每個 album-thumb-item 各自有 data-album-media）
-  container.querySelectorAll('.album-thumb-item[data-album-media]').forEach(thumb => {
-    thumb.addEventListener('click', () => {
-      const media = JSON.parse(thumb.dataset.albumMedia.replace(/&quot;/g, '"'));
-      if (media.length) openLightbox(media, 0);
+  // Albums lightbox：click 單張 thumb 開 lightbox 對應 index
+  // data-album-media + data-album-title 在父 .album-thumb-item，data-album-index 在 .album-thumb-btn
+  // 整個 row 不再 click open（user 反映：要看 thumbnail 不是 row click → 視覺有 thumb 後點 thumb 才直觀）
+  // title override = 該 album 的 date+location；不用父 list-item title（user 指定）
+  container.querySelectorAll('.album-thumb-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();  // 避免父 list-header 收合
+      const albumEl = /** @type {HTMLElement | null} */ (btn.closest('.album-thumb-item'));
+      if (!albumEl) return;
+      const media = JSON.parse((albumEl.dataset.albumMedia || '').replace(/&quot;/g, '"'));
+      const index = parseInt(/** @type {HTMLElement} */ (btn).dataset.albumIndex || '0', 10) || 0;
+      if (!media.length) return;
+      const meta = getLightboxMeta(btn);
+      if (albumEl.dataset.albumTitle) {
+        try {
+          meta.title = JSON.parse(albumEl.dataset.albumTitle.replace(/&quot;/g, '"'));
+        } catch (_) { /* fallback 用 parent title */ }
+      }
+      openLightbox(media, index, meta);
+    });
+  });
+
+  // Album thumbnails 橫向 track：chevron 切換（跟 .gallery-section 同 pattern，只是 selector 不同）
+  // chevron absolute 蓋在 track 左右邊：thumbs 永遠對齊 location 左緣不被 chevron 推開
+  container.querySelectorAll('.album-gallery').forEach(gallery => {
+    const inner = /** @type {HTMLElement | null} */ (gallery.querySelector('.album-track-inner'));
+    const track = /** @type {HTMLElement | null} */ (gallery.querySelector('.album-track'));
+    const prevBtn = /** @type {HTMLElement | null} */ (gallery.querySelector('.album-prev'));
+    const nextBtn = /** @type {HTMLElement | null} */ (gallery.querySelector('.album-next'));
+    if (!inner || !track) return;
+    let offset = 0;
+    const getMaxOffset = () => Math.max(0, inner.scrollWidth - track.clientWidth);
+    const updateChevrons = () => {
+      const max = getMaxOffset();
+      prevBtn?.classList.toggle('invisible', max === 0);
+      nextBtn?.classList.toggle('invisible', max === 0);
+    };
+    // list-item 展開後 dispatch 'gallery:check'，這時 inner.scrollWidth 才是真實值
+    gallery.closest('.list-item')?.addEventListener('gallery:check', updateChevrons);
+    // 額外 ResizeObserver：track width 變化（grid layout reflow / window resize）時重算 chevron 顯隱
+    if (typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(updateChevrons).observe(track);
+    }
+    const STEP = () => track.clientWidth * 0.6;
+    prevBtn?.addEventListener('click', e => {
+      e.stopPropagation();
+      offset = Math.max(0, offset - STEP());
+      inner.style.transform = `translateX(-${offset}px)`;
+    });
+    nextBtn?.addEventListener('click', e => {
+      e.stopPropagation();
+      offset = Math.min(getMaxOffset(), offset + STEP());
+      inner.style.transform = `translateX(-${offset}px)`;
     });
   });
 
@@ -289,7 +480,7 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
       el.addEventListener('click', e => {
         e.stopPropagation();
         const index = parseInt(el.dataset.lightboxIndex, 10) || 0;
-        openLightbox(media, index);
+        openLightbox(media, index, getLightboxMeta(el));
       });
     });
   });
@@ -388,6 +579,41 @@ function formatDateShort(dateStr) {
   return dateStr.replace(/\d{4}\./g, '').replace(/\./g, ' / ').trim();
 }
 
+// ── 新 endpoint shape: dates group repeater → display string ────────────────
+// shape: [{ startYear, startMonth, startDay, endYear, endMonth, endDay }, ...]
+// rule per entry（2 個 flag 控制）：
+//   - includeStartYear：是否要把 start year 內嵌（false = 左邊有 year column 已顯示主年份，重複可省）
+//   - 跨年時 end year 永遠顯示（新資訊不能省）
+// 表格：
+//   includeStartYear=true  (admission hideYearHeader true)：
+//     - 單日 → YYYY.MM.DD
+//     - 同年跨日 → YYYY.MM.DD-MM.DD
+//     - 跨年 → YYYY.MM.DD-YYYY.MM.DD
+//   includeStartYear=false (summer-camp 等有 year column 場景)：
+//     - 單日 → MM.DD
+//     - 同年跨日 → MM.DD-MM.DD
+//     - 跨年 → MM.DD-YYYY.MM.DD
+// 多筆用 ", " 串接
+function formatDatesFromGroups(datesArr, { includeStartYear = false } = {}) {
+  if (!Array.isArray(datesArr) || datesArr.length === 0) return '';
+  const parts = datesArr
+    .map(d => formatSingleDateGroup(d, includeStartYear))
+    .filter(Boolean);
+  return parts.join(', ');
+}
+function formatSingleDateGroup(d, includeStartYear) {
+  if (!d) return '';
+  const sY = d.startYear, sM = d.startMonth, sD = d.startDay;
+  const eY = d.endYear || sY, eM = d.endMonth || sM, eD = d.endDay || sD;
+  if (!sM || !sD) return ''; // 至少要有起始月日
+  const sameYear = sY === eY;
+  const sameDate = sameYear && sM === eM && sD === eD;
+  const startPart = includeStartYear ? `${sY}.${sM}.${sD}` : `${sM}.${sD}`;
+  if (sameDate) return startPart;
+  const endPart = sameYear ? `${eM}.${eD}` : `${eY}.${eM}.${eD}`;
+  return `${startPart}-${endPart}`;
+}
+
 // ── 統一 List Renderer ────────────────────────────────────────────────────────
 //
 // 「Canonical list template」— 所有 list 樣式內容（activities / admission / alumni 各 list）
@@ -429,6 +655,7 @@ function formatDateShort(dateStr) {
 //                                       傳了 data 仍可傳 url（會被忽略）；data 必須 truthy 才走這條路
 
 export async function loadListInto(containerId, url, options = {}) {
+  ensureFlagIconsCss();
   const {
     categoryFilter       = null,
     visitTypeFilter      = null,
@@ -454,6 +681,7 @@ export async function loadListInto(containerId, url, options = {}) {
     bodyField            = null,
     attachmentsField     = 'attachments',
     dateInHeader         = false,
+    alwaysExpanded       = false,
     data: providedData   = null,
   } = options;
 
@@ -481,12 +709,31 @@ export async function loadListInto(containerId, url, options = {}) {
   // 之後流程跟 year-grouped 一致；year header 由 hideYearHeader 隱藏（flatList 通常配 hideYearHeader:true）
   const sourceData = flatList ? [{ year: '', items: data }] : data;
 
+  // 媒體導向 list (沒 bodyField，主內容是 poster/gallery/albums) 必須有可視 media 才渲染
+  // 文字導向 list (有 bodyField，如 admission news content) 跳過 media 檢查
+  // 「可視 media」= poster / images / videos / albums.any(images) 任一
+  // images / videos 可能是 array (group/legacy) 或 dict object (CMB2 file_list)
+  const mediaCount = (v) => {
+    if (!v) return 0;
+    if (Array.isArray(v)) return v.length;
+    if (typeof v === 'object') return Object.keys(v).length;
+    return 0;
+  };
+  const hasVisibleMedia = (i) =>
+    !!i.poster ||
+    mediaCount(i.images) > 0 ||
+    mediaCount(i.videos) > 0 ||
+    mediaCount(i.videoLinks) > 0 ||
+    mediaCount(i.videoFiles) > 0 ||
+    (i.albums?.some(a => mediaCount(a.images) > 0));
+
   const filteredData = sourceData
     .map(yg => ({
       ...yg,
       items: (yg.items || []).filter(i =>
         (!categoryFilter  || i.category          === categoryFilter) &&
-        (!visitTypeFilter || i[visitTypeField]   === visitTypeFilter)
+        (!visitTypeFilter || i[visitTypeField]   === visitTypeFilter) &&
+        (bodyField || hasVisibleMedia(i))
       ),
     }))
     .filter(yg => yg.items.length > 0);
@@ -512,32 +759,63 @@ export async function loadListInto(containerId, url, options = {}) {
       // height:4px 必須顯式設置 — 空 div 的 height:auto = 0，yPercent:100 = translateY(0) 不移動，setupClipReveal 無法隱藏
       const dividerHtml  = `<div class="list-item-divider list-reveal-row border-b-4 border-black" style="height:4px; ${isLastItem ? 'display: none;' : ''}"></div>`;
 
-      // 日期（date_en 英文在上，date 中文在下；無 date_en 則只顯示 date）
+      // 日期：優先用新 endpoint shape (dates group repeater)；fallback 到舊 item.date 字串
+      // 新 shape: item.dates = [{startYear,startMonth,startDay,endYear,endMonth,endDay},...]
       const formatDate = (d) => fullDate
         ? (d ? d.replace(/\./g, ' / ').replace(/ - /g, '&nbsp;&nbsp;-&nbsp;&nbsp;').replace(/ \/ /g, '&nbsp;/&nbsp;') : '')
         : formatDateShort(d);
-      const dateDisplay    = formatDate(item.date_en || item.date);
-      const dateDisplayZh  = item.date_en ? formatDate(item.date) : '';
+      let dateDisplay, dateDisplayZh;
+      if (Array.isArray(item.dates) && item.dates.length > 0) {
+        // includeStartYear：只有 hideYearHeader（無左側 year column）才嵌 start year
+        // summer-camp 等場景 year col 有 → start year 重複可省（user 指定）
+        const includeStartYear = !!hideYearHeader;
+        const rawDateStr = formatDatesFromGroups(item.dates, { includeStartYear });
+        // 套用 spacing 處理（dash 加空白等）
+        dateDisplay   = fullDate
+          ? rawDateStr.replace(/\./g, ' / ').replace(/-/g, '&nbsp;&nbsp;-&nbsp;&nbsp;').replace(/ \/ /g, '&nbsp;/&nbsp;')
+          : rawDateStr.replace(/\./g, ' / ').replace(/-/g, ' - ');
+        dateDisplayZh = '';
+      } else {
+        dateDisplay    = formatDate(item.date_en || item.date);
+        dateDisplayZh  = item.date_en ? formatDate(item.date) : '';
+      }
 
       // 內文 field（workshop 用 intro / intro_zh，其他用 description / descriptionZh）
       const introEn = item[introField] || item.description || '';
       const introZh = item[introField + '_zh'] || item.descriptionZh || '';
 
       // title HTML（所有 list 統一使用 marquee，文字太長時自動捲動）
-      const titleLine1 = item.title_en ? item.title_en : item.title;
-      const titleLine2 = item.title_en ? item.title : (item.title_zh || '');
+      // title 來源 normalize：
+      //   - 新 endpoint shape: item.titleZh (= post_title) / item.titleEn
+      //   - 舊 JSON shape: item.title (中文) / item.title_en / item.title_zh
+      const titleEn = item.title_en || item.titleEn || '';
+      const titleZh = item.title || item.titleZh || item.title_zh || '';
+      const titleLine1 = titleEn || titleZh;
+      const titleLine2 = titleEn ? titleZh : '';
       // 標題（EN+ZH）同一個 list-reveal-row → 同步進場；副標亦同
       // dateInHeader 時 date 顯示在 title 下方（admission news 用），不在 expand 區再渲染一次
       const titleHtml = `<div class="flex flex-col gap-xs flex-1 min-w-0">
           <div class="list-reveal-row">
             <div class="list-title-marquee"><p class="text-h5 font-bold">${titleLine1}</p></div>
             ${titleLine2 ? `<div class="list-title-marquee"><p class="text-h5 font-bold">${titleLine2}</p></div>` : ''}
-            ${dateInHeader && dateDisplay ? `<p class="text-p2">${dateDisplay}</p>` : ''}
+            ${dateInHeader ? (() => {
+              // dateInHeader 模式（admission 用）：date 優先，沒 date 用 subtitle 當副標
+              if (dateDisplay) return `<p class="text-p2">${dateDisplay}</p>`;
+              const subEn = item.subtitleEn || item.subtitle || '';
+              const subZh = item.subtitleZh || item.subtitle_zh || '';
+              return (subEn || subZh)
+                ? `${subEn ? `<p class="text-p2">${subEn}</p>` : ''}${subZh ? `<p class="text-p2">${subZh}</p>` : ''}`
+                : '';
+            })() : ''}
           </div>
-          ${showSubtitle && (item.subtitle || item.subtitle_zh) ? `<div class="list-reveal-row">
-            ${item.subtitle ? `<p class="text-p2">${item.subtitle}</p>` : ''}
-            ${item.subtitle_zh ? `<p class="text-p2">${item.subtitle_zh}</p>` : ''}
-          </div>` : ''}
+          ${showSubtitle ? (() => {
+            const subEn = item.subtitleEn || item.subtitle || '';
+            const subZh = item.subtitleZh || item.subtitle_zh || '';
+            return (subEn || subZh) ? `<div class="list-reveal-row">
+              ${subEn ? `<p class="text-p2">${subEn}</p>` : ''}
+              ${subZh ? `<p class="text-p2">${subZh}</p>` : ''}
+            </div>` : '';
+          })() : ''}
         </div>`;
 
       const searchText = [
@@ -549,50 +827,62 @@ export async function loadListInto(containerId, url, options = {}) {
         ...(item.guests || []).flatMap(g => [g.name, g.name_zh, g.affiliation, g.affiliation_zh]),
       ].filter(Boolean).join(' ').toLowerCase().replace(/"/g, '&quot;');
 
+      // 新 endpoint shape: item.locations = [{nameZh, nameEn, country}, ...]
+      // 多筆用 " / " 串接（中/英各自）；fallback 舊 item.location / item.location_zh 字串
+      let locationEn = item.location || '';
+      let locationZh = item.location_zh || '';
+      let countryCodes = item.flag ? [item.flag] : []; // 多 country code for cycle
+      if (Array.isArray(item.locations) && item.locations.length > 0) {
+        locationEn = item.locations.map(l => l?.nameEn).filter(Boolean).join(' / ');
+        locationZh = item.locations.map(l => l?.nameZh).filter(Boolean).join(' / ');
+        countryCodes = item.locations.map(l => l?.country).filter(Boolean);
+      }
+
+      const itemFlags = alwaysExpanded ? 'data-no-accordion' : 'data-pre-reveal';
       return `
-        <div class="list-item" data-pre-reveal data-category="${item.category || ''}" data-media="${mediaJson}" data-search="${searchText}"${item.visitType ? ` data-visit-type="${item.visitType}"` : ''}${item.id ? ` id="item-${item.id}"` : ''}>
-          <div class="list-header cursor-pointer group transition-colors duration-fast flex items-stretch justify-between px-[4px] py-sm">
+        <div class="list-item" ${itemFlags} data-category="${item.category || ''}" data-media="${mediaJson}" data-search="${searchText}"${item.visitType ? ` data-visit-type="${item.visitType}"` : ''}${item.id ? ` id="item-${item.id}"` : ''}>
+          <div class="list-header ${alwaysExpanded ? '' : 'cursor-pointer'} group transition-colors duration-fast flex items-stretch justify-between px-[4px] py-md">
             ${titleHtml}
-            <div class="flex items-stretch gap-sm flex-shrink-0 pt-[0.25rem]">
+            <div class="flex items-start gap-sm flex-shrink-0 pt-[0.25rem]">
               ${(() => {
-                const hasAlumni = showAlumniIcon && item.guests?.some(g => g.isAlumni);
-                const hasFlag = !!item.flag;
-                const justify = (hasAlumni || hasFlag) ? 'justify-between' : 'justify-start';
-                return `<div class="flex flex-col ${justify} self-stretch">
-                <div class="list-reveal-row flex items-center gap-sm">
-                  ${hasAlumni ? `<i class="fa-solid fa-graduation-cap text-p2"></i>` : ''}
-                  ${hasFlag ? `<span class="fi fi-${item.flag}" style="width:1.5em;height:1em;display:inline-block;"></span>` : ''}
-                </div>
-                ${showShareBtn ? `<div class="list-reveal-row flex justify-end pb-xs">
-                  <button data-share-btn class="hover:opacity-60 transition-opacity">
-                    <i class="fa-solid fa-share-nodes text-h5"></i>
-                  </button>
-                </div>` : ''}
-              </div>`;
+                // isAlumni 是 per-person checkbox（新 schema guests group 內）：任一 guest 有 isAlumni → 渲染 icon
+                const hasAlumni = showAlumniIcon && item.guests?.some(g => g.isAlumni === 'on' || g.isAlumni === true || g.isAlumni);
+                const hasFlag = countryCodes.length > 0;
+                const initialCountry = countryCodes[0] || '';
+                // 多 country codes 用 data-flag-cycle="tw,jp,kr" 帶下來，bindFlagCycles() 每 5s 切換 fi-XX class
+                const cycleAttr = countryCodes.length > 1 ? ` data-flag-cycle="${countryCodes.join(',')}"` : '';
+                // 順序：alumni icon → 國家 flag → share btn → chevron（同列），由 user 指定
+                return `<div class="list-reveal-row flex items-center gap-sm">
+                  ${hasAlumni ? `<span class="icon icon-alumni icon-s"></span>` : ''}
+                  ${hasFlag ? `<span class="fi fi-${initialCountry}"${cycleAttr} style="width:1.5em;height:1em;display:inline-block;"></span>` : ''}
+                  ${showShareBtn ? `<button data-share-btn class="inline-flex items-center">
+                    <span class="icon icon-share icon-s"></span>
+                  </button>` : ''}
+                </div>`;
               })()}
-              <div class="flex-shrink-0 self-start" style="overflow:clip; height:1.5em; width:1.5em;">
-                <div class="list-reveal-row flex justify-center items-center w-full h-full">
-                  <i class="fa-solid fa-chevron-down text-p2 transition-transform duration-300"></i>
+              ${alwaysExpanded ? '' : `<div class="flex-shrink-0 self-start" style="overflow:clip; height:1.5em; width:1.5em;">
+                <div class="list-reveal-row flex justify-center items-start w-full h-full">
+                  <span class="icon icon-chevron-list icon-s rotate-90 transition-transform duration-300"></span>
                 </div>
-              </div>
+              </div>`}
             </div>
           </div>
-          <div class="list-content h-0 overflow-hidden">
+          <div class="list-content ${alwaysExpanded ? '' : 'h-0 overflow-hidden'}">
             ${bodyField && item[bodyField] ? `
             <div class="pt-sm pb-lg px-md flex flex-col gap-md">
-              <div class="admission-body flex flex-col gap-md">${item[bodyField]}</div>
+              <div class="admission-body flex flex-col gap-md">${normalizeBodyHtml(item[bodyField])}</div>
             </div>` : `
             <div class="pt-sm pb-lg px-md grid gap-gutter items-start" style="grid-template-columns: 9.5fr 2.5fr;">
               <div class="flex flex-col gap-md pr-2xl">
-                ${(((showDate && dateDisplay && !dateInHeader)) || (showLocation && (item.location || item.location_zh))) ? `<div class="flex gap-xl">
+                ${(((showDate && dateDisplay && !dateInHeader)) || (showLocation && (locationEn || locationZh))) ? `<div class="flex gap-xl">
                   ${showDate && dateDisplay && !dateInHeader ? `<div class="flex-shrink-0">
                     <p class="text-p2 font-bold">${dateDisplay}</p>
                     ${dateDisplayZh ? `<p class="text-p2 font-bold">${dateDisplayZh}</p>` : ''}
                   </div>` : ''}
-                  ${showLocation && (item.location || item.location_zh) ? `<div class="flex flex-1 items-start justify-between gap-xl">
+                  ${showLocation && (locationEn || locationZh) ? `<div class="flex flex-1 items-start justify-between gap-xl">
                     <div>
-                      ${item.location ? `<p class="text-p2 font-bold">${item.location.replace(/  \/  /g, '&nbsp;&nbsp;/&nbsp;&nbsp;')}</p>` : ''}
-                      ${item.location_zh ? `<p class="text-p2 font-bold">${item.location_zh.replace(/  \/  /g, '&nbsp;&nbsp;/&nbsp;&nbsp;')}</p>` : ''}
+                      ${locationEn ? `<p class="text-p2 font-bold">${locationEn.replace(/ \/ /g, '&nbsp;/&nbsp;')}</p>` : ''}
+                      ${locationZh ? `<p class="text-p2 font-bold">${locationZh.replace(/ \/ /g, '&nbsp;/&nbsp;')}</p>` : ''}
                     </div>
                     ${(item.cityEn || item.cityZh) ? `<div class="flex-shrink-0 text-right">
                       ${item.cityEn ? `<p class="text-p2">${item.cityEn}</p>` : ''}
@@ -601,28 +891,40 @@ export async function loadListInto(containerId, url, options = {}) {
                   </div>` : ''}
                 </div>` : ''}
                 ${item.guests?.length ? `<div class="flex flex-col gap-sm">
-                  ${item.guests.map(g => `<div class="flex flex-col" style="gap: 0.25rem;">
-                    <div class="flex gap-2xl justify-between">
-                      <div class="flex-1">
-                        <p class="text-p2 font-bold">${g.name}</p>
-                        ${g.name_zh ? `<p class="text-p2 font-bold">${g.name_zh}</p>` : ''}
+                  ${item.guests.map(g => {
+                    // 兩種 shape 都接：
+                    //   新 (endpoint): nameZh / nameEn / country / orgZh / orgEn / orgCountry / isAlumni
+                    //   舊 (data/X.json): name / name_zh / country / country_zh / affiliation / affiliation_zh / isAlumni
+                    const gNameEn = g.nameEn || g.name || '';
+                    const gNameZh = g.nameZh || g.name_zh || '';
+                    const gCountry = g.country || ''; // 新 shape 是 ISO code，舊是顯示字串
+                    const gCountryZh = g.country_zh || '';
+                    const gOrgEn = g.orgEn || g.affiliation || '';
+                    const gOrgZh = g.orgZh || g.affiliation_zh || '';
+                    const gIsAlumni = g.isAlumni === 'on' || g.isAlumni === true || g.isAlumni;
+                    return `<div class="flex flex-col" style="gap: 0.25rem;">
+                      <div class="flex gap-2xl justify-between">
+                        <div class="flex-1">
+                          ${gNameEn ? `<p class="text-p2 font-bold">${gNameEn}</p>` : ''}
+                          ${gNameZh ? `<p class="text-p2 font-bold">${gNameZh}</p>` : ''}
+                        </div>
+                        ${showGuestCountry ? `<div class="flex-shrink-0 flex items-start gap-md">
+                          ${gIsAlumni ? `<p class="text-p2">Alumni 系友</p>` : ''}
+                          ${gCountry ? `<p class="text-p2">${gCountry}${gCountryZh ? ` ${gCountryZh}` : ''}</p>` : ''}
+                        </div>` : ''}
                       </div>
-                      ${showGuestCountry ? `<div class="flex-shrink-0 flex items-start gap-md">
-                        ${g.isAlumni ? `<p class="text-p2">Alumni 系友</p>` : ''}
-                        ${g.country ? `<p class="text-p2">${g.country}${g.country_zh ? ` ${g.country_zh}` : ''}</p>` : ''}
+                      ${showGuestAffiliation && gOrgEn ? `<div class="flex gap-2xl justify-between">
+                        <p class="text-p3">${gOrgEn.length > 20 ? `${gOrgEn}<br>${gOrgZh || ''}` : `${gOrgEn}${gOrgZh ? ' ' + gOrgZh : ''}`}</p>
+                        ${showGuestCountry && gCountry ? `<p class="text-p3 flex-shrink-0">${gCountry}${gCountryZh ? ` ${gCountryZh}` : ''}</p>` : ''}
                       </div>` : ''}
-                    </div>
-                    ${showGuestAffiliation && g.affiliation ? `<div class="flex gap-2xl justify-between">
-                      <p class="text-p3">${g.affiliation.length > 20 ? `${g.affiliation}<br>${g.affiliation_zh || ''}` : `${g.affiliation}${g.affiliation_zh ? ' ' + g.affiliation_zh : ''}`}</p>
-                      ${showGuestCountry && g.country ? `<p class="text-p3 flex-shrink-0">${g.country}${g.country_zh ? ` ${g.country_zh}` : ''}</p>` : ''}
-                    </div>` : ''}
-                  </div>`).join('')}
+                    </div>`;
+                  }).join('')}
                 </div>` : ''}
                 ${showDescription && (introEn || introZh) ? `<div class="overflow-y-auto pr-xl list-scroll" style="max-height: 250px;">
                   ${introEn ? `<p class="text-p2 leading-base">${introEn}</p>` : ''}
                   ${introZh ? `<p class="text-p2 leading-base mt-md">${introZh}</p>` : ''}
                 </div>` : ''}
-                ${buildAlbumsHtml(item)}
+                ${buildAlbumsHtml(item, { unbounded: alwaysExpanded })}
               </div>
               ${showPoster ? buildPosterHtml(item) : ''}
             </div>`}
@@ -632,7 +934,7 @@ export async function loadListInto(containerId, url, options = {}) {
               ${item[attachmentsField].map((a, i) => `
                 <a class="list-ref-btn cursor-pointer w-full grid grid-cols-12 gap-x-md items-start py-sm no-underline" href="${a.url || '#'}" target="_blank" rel="noopener">
                   <div class="col-span-1 flex justify-center" style="padding-top: 0.25em;">
-                    <i class="fa-solid fa-paperclip text-p2"></i>
+                    <span class="icon icon-attachment icon-s"></span>
                   </div>
                   <div class="col-span-11 flex flex-col">
                     <p class="text-p2 font-bold">${a.labelEn || `Attachment ${i + 1}`}</p>
@@ -651,7 +953,7 @@ export async function loadListInto(containerId, url, options = {}) {
                     data-ref-item="${ref.itemId || ''}">`
               }
                 <div class="col-span-1 flex justify-center" style="padding-top: 0.25em;">
-                  <i class="fa-solid fa-arrow-right text-p2"></i>
+                  <span class="icon icon-arrow-right icon-s"></span>
                 </div>
                 <div class="col-span-4 flex flex-col">
                   ${ref.labelEn ? `<p class="text-p2">${ref.labelEn}</p>` : ''}
@@ -670,20 +972,28 @@ export async function loadListInto(containerId, url, options = {}) {
       `;
     }).join('');
 
+    // 結構：year col 是「組件」，存在才包 grid-12 + 套 col-2/pl-41 gap；不存在則 list 純 flex flush-left
+    // pl-[41px] 屬於「年份欄→title 間距」，跟 col-span-1 年份欄共構，不該存在於 standalone list 上
+    const yearColHtml = showYearToggle
+      ? `<div class="col-span-12 md:col-span-1 md:col-start-1 list-year-toggle cursor-pointer flex items-center gap-sm order-1 py-md pl-xs md:sticky md:self-start md:pb-sm">
+          <div class="list-reveal-row flex justify-center items-center w-[1.5em] h-[1.5em] flex-shrink-0"><span class="icon icon-chevron-list icon-s transition-all duration-fast rotate-90"></span></div>
+          <h5 class="list-reveal-row">${yearGroup.year}</h5>
+        </div>`
+      : `<div class="col-span-12 md:col-span-1 md:col-start-1 flex items-center order-1 py-md pl-xs">
+          <h5 class="list-reveal-row">${yearGroup.year}</h5>
+        </div>`;
+
+    const groupHtml = hideYearHeader
+      ? `<div class="list-year-items flex flex-col">${itemsHtml}</div>`
+      : `<div class="list-year-group grid-12 items-start">
+          ${yearColHtml}
+          <div class="col-span-12 md:col-span-11 md:col-start-2 list-year-items flex flex-col order-2 mt-md md:mt-0 md:pl-[41px]">
+            ${itemsHtml}
+          </div>
+        </div>`;
+
     container.insertAdjacentHTML('beforeend', `
-      <div class="list-year-group grid-12 items-start">
-        ${hideYearHeader ? '' : showYearToggle ? `
-        <div class="col-span-12 md:col-span-1 md:col-start-1 list-year-toggle cursor-pointer flex items-center gap-sm order-1 py-sm pl-xs md:sticky md:self-start md:pb-sm">
-          <div class="list-reveal-row flex justify-center items-center w-[1.5em] h-[1.5em] flex-shrink-0"><i class="fa-solid fa-chevron-right text-p2 transition-all duration-fast rotate-90"></i></div>
-          <h5 class="list-reveal-row">${yearGroup.year}</h5>
-        </div>` : `
-        <div class="col-span-12 md:col-span-1 md:col-start-1 flex items-center order-1 py-sm pl-xs">
-          <h5 class="list-reveal-row">${yearGroup.year}</h5>
-        </div>`}
-        <div class="col-span-12 md:col-span-11 md:col-start-2 list-year-items flex flex-col order-2 ${hideYearHeader ? 'md:pl-[41px]' : 'mt-md md:mt-0 md:pl-[41px]'}">
-          ${itemsHtml}
-        </div>
-      </div>
+      ${groupHtml}
       ${!isLast ? '<div class="activities-separator list-reveal-row border-b-4 border-black" style="height:4px"></div>' : ''}
     `);
   });
@@ -721,7 +1031,37 @@ export async function loadListInto(containerId, url, options = {}) {
     }
   }
 
+  bindFlagCycles(container);
   return bindInteractions(container, { autoReveal });
+}
+
+// ── Flag cycle: 多 country code 每 5s 切換 fi-XX class ──────────────────
+// 對 `[data-flag-cycle="tw,jp,kr"]` 的 <span> 每 5s 切到下一個 country code
+// 同個 container 反覆 init 安全（重綁前先 clear 舊 interval id）
+const _FLAG_CYCLE_INTERVAL_MS = 5000;
+function bindFlagCycles(container) {
+  if (!container) return;
+  const flags = container.querySelectorAll('[data-flag-cycle]');
+  flags.forEach(el => {
+    if (el._sccdFlagCycleId) {
+      clearInterval(el._sccdFlagCycleId);
+      el._sccdFlagCycleId = null;
+    }
+    const codes = (el.dataset.flagCycle || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (codes.length < 2) return;
+    let idx = 0;
+    const intervalId = setInterval(() => {
+      idx = (idx + 1) % codes.length;
+      // 移掉所有 fi-XX class，加當前
+      [...el.classList].filter(c => c.startsWith('fi-')).forEach(c => el.classList.remove(c));
+      el.classList.add('fi-' + codes[idx]);
+    }, _FLAG_CYCLE_INTERVAL_MS);
+    el._sccdFlagCycleId = intervalId;
+    registerPageCleanup(() => {
+      clearInterval(intervalId);
+      el._sccdFlagCycleId = null;
+    });
+  });
 }
 
 // ── Workshop / Students Present / Summer Camp ─────────────────────────────────
@@ -734,12 +1074,21 @@ export async function loadWorkshopsInto(jsonFile, containerId = null, options = 
     return el?.id || null;
   })();
   if (!id) return;
+  // 自動推 endpoint：'/data/workshops.json' → 'activities-workshop'
+  //                  '/data/students-present.json' → 'activities-students-present'
+  const epMap = {
+    '/data/workshops.json': 'activities-workshop',
+    '/data/students-present.json': 'activities-students-present',
+  };
+  const endpoint = options.endpoint || epMap[jsonFile];
+  const data = endpoint ? await fetchActEndpointOrFallback(endpoint, jsonFile) : undefined;
   return loadListInto(id, jsonFile, {
     showSubtitle: true,
     marqueeTitle: true,
     fullDate: true,
     introField: 'intro',
     showAlumniIcon: false,
+    ...(data ? { data } : {}),
     ...options,
   });
 }
@@ -751,9 +1100,30 @@ export async function loadSummerCampInto(containerId = null, options = {}) {
     return el?.id || null;
   })();
   if (!id) return;
+  // WP endpoint 回 flat array；summer-camp.json fallback 是 year-grouped → 包成 flat 對齊
+  const WP_API_BASE = location.hostname === 'sccd-website.local' ? '' : 'http://sccd-website.local';
+  const data = await fetch(`${WP_API_BASE}/wp-json/sccd/v1/admission-summer-camp`)
+    .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+    .then(arr => {
+      if (!Array.isArray(arr) || arr.length === 0) throw new Error('endpoint returned 0 items');
+      // endpoint 是 flat：包成 year-grouped 對齊 loadListInto 預設 shape
+      // 主年份 = dates[0].startYear（新 schema 沒 top-level year field）
+      const byYear = new Map();
+      for (const it of arr) {
+        const y = it.dates?.[0]?.startYear || it.year || '';
+        if (!byYear.has(y)) byYear.set(y, []);
+        byYear.get(y).push(it);
+      }
+      return Array.from(byYear, ([year, items]) => ({ year, items }));
+    })
+    .catch(err => {
+      console.warn('[summer-camp] WP endpoint failed, fallback to data/summer-camp.json:', err.message);
+      return fetch('/data/summer-camp.json').then(r => r.json());
+    });
   return loadListInto(id, '/data/summer-camp.json', {
     showYearToggle: false,
     fullDate: true,
+    data,
     ...options,
   });
 }
@@ -772,9 +1142,33 @@ const _panelSelectorMap = {
   'students-present-list':      '#panel-students-present',
 };
 
+// 共用 fetch wrapper：WP endpoint 優先 + JSON fallback + endpoint 空也算 fail
+// 回 array of entries（無 categoryFilter / visitTypeFilter 套用，caller 自行 filter；本系列已拆 CPT 不需要）
+const _ACT_WP_BASE = location.hostname === 'sccd-website.local' ? '' : 'http://sccd-website.local';
+async function fetchActEndpointOrFallback(endpoint, fallbackUrl) {
+  try {
+    const res = await fetch(`${_ACT_WP_BASE}/wp-json/sccd/v1/${endpoint}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const arr = await res.json();
+    if (!Array.isArray(arr) || arr.length === 0) throw new Error('endpoint returned 0 items');
+    return arr;
+  } catch (err) {
+    console.warn(`[${endpoint}] WP endpoint failed, fallback to ${fallbackUrl}:`, err.message);
+    return fetch(fallbackUrl).then(r => r.json());
+  }
+}
+
 export async function loadGeneralActivitiesInto(containerId, categoryFilter = null, url = '/data/general-activities.json', options = {}) {
   const isIndustry = containerId === 'industry-list';
   const isLectures = containerId === 'lectures-list';
+  // categoryFilter (competitions / conferences) → 對應 endpoint
+  // endpoint 拆 CPT 後 endpoint 已 filter，前端 categoryFilter 變 noop（保留兼容性）
+  const catEpMap = {
+    'competitions': 'activities-competition',
+    'conferences': 'activities-conference',
+  };
+  const endpoint = options.endpoint || (categoryFilter ? catEpMap[categoryFilter] : null);
+  const data = (endpoint && !options.data) ? await fetchActEndpointOrFallback(endpoint, url) : null;
   return loadListInto(containerId, url, {
     categoryFilter,
     showAlumniIcon:       true,
@@ -788,27 +1182,33 @@ export async function loadGeneralActivitiesInto(containerId, categoryFilter = nu
     showGuestCountry:     !isIndustry,
     panelSelector:        _panelSelectorMap[containerId] || '#panel-exhibitions',
     scrollTrigger:        true,
+    ...(data ? { data } : {}),
     ...options,
   });
 }
 
 export async function loadLecturesInto(containerId, options = {}) {
-  return loadGeneralActivitiesInto(containerId, null, '/data/lectures.json', options);
+  const data = await fetchActEndpointOrFallback('activities-lecture', '/data/lectures.json');
+  return loadGeneralActivitiesInto(containerId, null, '/data/lectures.json', { ...options, data });
 }
 
 export async function loadIndustryInto(containerId, options = {}) {
-  return loadGeneralActivitiesInto(containerId, null, '/data/industry.json', options);
+  const data = await fetchActEndpointOrFallback('activities-industry', '/data/industry.json');
+  return loadGeneralActivitiesInto(containerId, null, '/data/industry.json', { ...options, data });
 }
 
 // 分別載入特設 / 常設到各自的 container
 export async function loadExhibitionsInto(options = {}) {
+  const specialData = await fetchActEndpointOrFallback('activities-exhibition-special', '/data/general-activities.json');
   const fns = await Promise.all([
     loadListInto('exhibitions-list-special', '/data/general-activities.json', {
       categoryFilter: 'exhibitions',
       visitTypeFilter: 'special', visitTypeField: 'exhibitionType',
       panelSelector: '#panel-exhibitions', scrollTrigger: true,
+      data: specialData,
       ...options,
     }),
+    // 常設展演 endpoint user 還沒做（晚點再給），保留舊 JSON 路徑
     loadListInto('exhibitions-list-permanent', '/data/permanent-exhibitions.json', {
       hideYearHeader: true,
       panelSelector: '#panel-exhibitions', scrollTrigger: true,
@@ -822,15 +1222,21 @@ export async function loadExhibitionsInto(options = {}) {
 
 // 分別載入 outbound / inbound 到各自的 container
 export async function loadVisitsInto(options = {}) {
+  const [outboundData, inboundData] = await Promise.all([
+    fetchActEndpointOrFallback('activities-visit-outbound', '/data/general-activities.json'),
+    fetchActEndpointOrFallback('activities-visit-inbound', '/data/general-activities.json'),
+  ]);
   const fns = await Promise.all([
     loadListInto('visits-list-outbound', '/data/general-activities.json', {
       categoryFilter: 'visits', visitTypeFilter: 'outbound',
       panelSelector: '#panel-visits', scrollTrigger: true,
+      data: outboundData,
       ...options,
     }),
     loadListInto('visits-list-inbound', '/data/general-activities.json', {
       categoryFilter: 'visits', visitTypeFilter: 'inbound',
       panelSelector: '#panel-visits', scrollTrigger: true,
+      data: inboundData,
       ...options,
     }),
   ]);

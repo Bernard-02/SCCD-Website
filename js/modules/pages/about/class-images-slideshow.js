@@ -109,7 +109,9 @@ function initContainer(container, pool) {
   // 依目前 slot 位置更新 cursor：slot 0 = default（不可點），其餘 = pointer
   function updateCursors() {
     slots.forEach((s, i) => {
-      s.style.cursor = i === 0 ? 'default' : 'pointer';
+      s.style.cursor = i === 0
+        ? "url('/custom-cursor/default.svg') 5 1, default"
+        : "url('/custom-cursor/pointer.svg') 16 8, pointer";
     });
   }
 

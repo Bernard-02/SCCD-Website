@@ -4,6 +4,7 @@
  */
 
 import { applyMarqueeOverflow } from '../ui/marquee-overflow.js';
+import { ensureFlagIconsCss } from '../ui/ensure-flag-icons.js';
 
 // ── 共用常數 ──────────────────────────────────────────────────────────────────
 
@@ -188,6 +189,7 @@ function buildMockRecords() {
 
 async function initAwardsPanel(onEntranceDoneCallback) {
   try {
+    ensureFlagIconsCss();
     const res = await fetch('/data/records.json');
     const data = await res.json();
     const realRecords  = Array.isArray(data) ? data : data.records;
@@ -315,7 +317,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     if (sortBtn) {
       sortBtn.addEventListener('click', () => {
         latestFirst = !latestFirst;
-        sortBtn.querySelector('.sort-arrow').className = `fa-solid ${latestFirst ? 'fa-arrow-down' : 'fa-arrow-up'} sort-arrow`;
+        sortBtn.querySelector('.sort-arrow').className = `icon ${latestFirst ? 'icon-arrow-down' : 'icon-arrow-up'} sort-arrow text-p3`;
         renderItems(getSorted());
       });
     }
@@ -440,7 +442,7 @@ async function initPressPanel() {
               ${subtitleText ? `<span class="press-item-subtitle"><span class="press-subtitle-inner">${subtitleText}</span></span>` : ''}
               <span class="press-item-meta-right">
                 ${item.date ? `<span class="press-item-date">${item.date}</span>` : ''}
-                ${hasMedia  ? `<i class="fa-regular fa-image press-item-media-icon"></i>` : ''}
+                ${hasMedia  ? `<span class="icon icon-album press-item-media-icon"></span>` : ''}
               </span>
             </div>` : '';
           div.innerHTML = `
@@ -453,7 +455,7 @@ async function initPressPanel() {
               <span class="press-item-cat-tag" data-show-in-all></span>
             </div>`;
           if (item.image || item.videoUrl) {
-            div.style.cursor = 'pointer';
+            div.style.cursor = "url('/custom-cursor/pointer.svg') 16 8, pointer";
             const media = [];
             if (item.image)    media.push({ type: 'image', src: item.image, thumb: item.image });
             if (item.videoUrl) {
@@ -461,14 +463,18 @@ async function initPressPanel() {
               if (vid) media.push({ type: 'video', src: `https://www.youtube.com/embed/${vid}`, thumb: `https://img.youtube.com/vi/${vid}/hqdefault.jpg` });
             }
             if (media.length) {
+              const lbTitle = { en: item.titleEn || '', zh: item.titleZh || '' };
+              const lbColor = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
               div.addEventListener('click', () => {
-                document.dispatchEvent(new CustomEvent('sccd:open-lightbox', { detail: { media, index: 0 } }));
+                document.dispatchEvent(new CustomEvent('sccd:open-lightbox', { detail: { media, index: 0, title: lbTitle, color: lbColor } }));
               });
             }
           } else if (item.pdfUrl) {
-            div.style.cursor = 'pointer';
+            div.style.cursor = "url('/custom-cursor/pointer.svg') 16 8, pointer";
+            const pdfTitle = { en: item.titleEn || '', zh: item.titleZh || '' };
+            const pdfColor = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
             div.addEventListener('click', () => {
-              document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl } }));
+              document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl, title: pdfTitle, color: pdfColor } }));
             });
           }
           block.appendChild(div);
@@ -539,7 +545,7 @@ async function initPressPanel() {
     if (sortBtn) {
       sortBtn.addEventListener('click', () => {
         latestFirst = !latestFirst;
-        sortBtn.querySelector('.sort-arrow').className = `fa-solid ${latestFirst ? 'fa-arrow-down' : 'fa-arrow-up'} sort-arrow`;
+        sortBtn.querySelector('.sort-arrow').className = `icon ${latestFirst ? 'icon-arrow-down' : 'icon-arrow-up'} sort-arrow text-p3`;
         renderItems(getSorted());
         applyFiltersWithRef();
       });
@@ -619,9 +625,10 @@ async function initFilesPanel() {
             </div>`;
 
           if (item.pdfUrl) {
-            div.style.cursor = 'pointer';
+            div.style.cursor = "url('/custom-cursor/pointer.svg') 16 8, pointer";
+            const pdfTitle = { en: item.titleEn || '', zh: item.titleZh || '' };
             div.addEventListener('click', () => {
-              document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl } }));
+              document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl, title: pdfTitle, color: accentColor } }));
             });
           }
 
@@ -717,7 +724,7 @@ async function initFilesPanel() {
     if (sortBtn) {
       sortBtn.addEventListener('click', () => {
         latestFirst = !latestFirst;
-        sortBtn.querySelector('.sort-arrow').className = `fa-solid ${latestFirst ? 'fa-arrow-down' : 'fa-arrow-up'} sort-arrow`;
+        sortBtn.querySelector('.sort-arrow').className = `icon ${latestFirst ? 'icon-arrow-down' : 'icon-arrow-up'} sort-arrow text-p3`;
         renderItems(getSorted());
         applyFilters();
       });
@@ -853,9 +860,11 @@ async function initAlbumPanel() {
             </div>`;
 
           if (item.media && item.media.length > 0) {
-            div.style.cursor = 'pointer';
+            div.style.cursor = "url('/custom-cursor/pointer.svg') 16 8, pointer";
+            const lbTitle = { en: item.titleEn || '', zh: item.titleZh || '' };
+            const lbColor = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
             div.addEventListener('click', () => {
-              document.dispatchEvent(new CustomEvent('sccd:open-lightbox', { detail: { media: item.media, index: 0 } }));
+              document.dispatchEvent(new CustomEvent('sccd:open-lightbox', { detail: { media: item.media, index: 0, title: lbTitle, color: lbColor } }));
             });
           }
 
@@ -1009,7 +1018,7 @@ async function initAlbumPanel() {
     if (sortBtn) {
       sortBtn.addEventListener('click', () => {
         latestFirst = !latestFirst;
-        sortBtn.querySelector('.sort-arrow').className = `fa-solid ${latestFirst ? 'fa-arrow-down' : 'fa-arrow-up'} sort-arrow`;
+        sortBtn.querySelector('.sort-arrow').className = `icon ${latestFirst ? 'icon-arrow-down' : 'icon-arrow-up'} sort-arrow text-p3`;
         renderItems(getSorted());
         applyFilters();
       });

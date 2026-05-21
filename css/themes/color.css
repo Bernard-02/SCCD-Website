@@ -541,14 +541,15 @@ body.mode-color #faculty-slide-in .text-black {
   color: var(--theme-fg) !important;
 }
 
-/* ===== Library 主卡片：mode-color 下跟 page bg 對比自動翻 light/dark grey =====
- * --lib-bg/fg 在 standard 是淺灰底黑字、inverse 是深灰底白字；mode-color 改成跟 page bg luminance 翻
- *   - 亮 hue (theme-fg=#000) → lib-bg = gray-9 淺灰 / lib-fg = 黑
- *   - 暗 hue (theme-fg=#fff) → lib-bg = gray-2 深灰 / lib-fg = 白 */
+/* ===== Library 主卡片：mode-color 下跟 page bg 動態算純中性灰 =====
+ * 對比邏輯：亮 page → 淺灰底黑字 / 暗 page → 深灰底白字（同 mode1/2 對比方向）
+ * --lib-bg 由 theme-toggle.js applyColorVars 每幀 RAF 動態 set RGB 純中性灰
+ *   亮 page (lum>0.5) → rgb(L_grey, L_grey, L_grey) 淺灰；暗 page → 深灰
+ *   不引入 hue（R=G=B），純中性灰 */
 body.mode-color {
-  --lib-bg: var(--theme-neutral-gray);
   --lib-fg: var(--theme-fg);
   --lib-fg-rgb: var(--theme-fg-rgb);
+  /* --lib-bg 由 JS RAF 動態 set，這裡不寫 default 避免蓋掉 */
 }
 
 /* lib-panel-title chip：mode-color 走 strict B/W 對比（依 page hue luminance 自動翻黑白）
@@ -671,10 +672,14 @@ body.mode-color .atlas-name-cover {
   background-color: var(--theme-fg) !important;
 }
 
-/* SVG 連線：stroke primary / gradient → 純 fg（CSS !important 蓋過 path 的 stroke 屬性與 url(#grad) 引用） */
+/* SVG 連線：stroke primary / gradient → 純 fg（CSS !important 蓋過 path 的 stroke 屬性與 url(#grad) 引用）
+   .atlas-company-ring-shape (B 企業環 outline) 排除 — user 要求拿掉橢圓的綫，三 mode 都不顯示 */
 body.mode-color .atlas-line,
-body.mode-color .atlas-city-line {
+body.mode-color .atlas-city-line:not(.atlas-company-ring-shape) {
   stroke: var(--theme-fg) !important;
+}
+body.mode-color .atlas-company-ring-shape {
+  stroke: none !important;
 }
 
 /* 右下 detail panel：bg primary + 黑字 → strict B/W；子層無顯式 color 自然 inherit */
@@ -695,6 +700,9 @@ body.mode-color .atlas-list-col-title {
   background: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
 }
+
+/* host/employ 副 title 在 mode-color 不蓋 — atlas.css 用 var(--lib-bg/fg)，
+   --lib-bg 在 color.css 已定義為 --theme-neutral-gray + --theme-fg，自動切換 */
 
 /* List 項目主標 / chevron nav btn：black → fg
  * 子層 .atlas-list-name-zh (opacity 0.8) / .atlas-list-item-label (opacity 0.6) 沒 explicit color

@@ -9,6 +9,19 @@
    ======================================== */
 
 :root {
+  /* ===== Custom Cursors（全站自製 cursor，2026-05-20 改 var() 統一管理） =====
+   * 任何 component CSS 用 cursor: var(--cursor-X) 就自動套自製圖；改 cursor 圖只動這裡。
+   * JS inline style.cursor 無法用 var()，仍需寫完整 url() 字串。
+   * Hotspot 已對齊 SVG 內 scale 0.65 後的實際尖端位置。 */
+  --cursor-default:  url('/custom-cursor/default.svg') 5 1, default;
+  --cursor-pointer:  url('/custom-cursor/pointer.svg') 7 1, pointer;
+  --cursor-text:     url('/custom-cursor/typing.svg') 8 8, text;
+  --cursor-grab:     url('/custom-cursor/drag_1.svg') 16 16, grab;
+  --cursor-grabbing: url('/custom-cursor/drag_2.svg') 16 16, grabbing;
+  --cursor-zoom-in:  url('/custom-cursor/zoom-in.svg') 4 4, zoom-in;
+  --cursor-zoom-out: url('/custom-cursor/zoom-out.svg') 4 4, zoom-out;
+  --cursor-w-resize: url('/custom-cursor/left.svg') 1 16, w-resize;
+  --cursor-e-resize: url('/custom-cursor/right.svg') 31 16, e-resize;
   /* ===== Colors ===== */
   /* Primary Colors */
   --color-black: #000000;
@@ -341,7 +354,7 @@ html::-webkit-scrollbar {
   z-index: 9998;
   /* 低於 intro-overlay / lightbox (9999) 自動被覆蓋 */
   pointer-events: auto;
-  cursor: default;
+  cursor: var(--cursor-default);
   /* hover / 拖拉時都用系統預設箭頭，不顯示 grab/grabbing 手勢 */
   touch-action: none;
   /* 拖拉時不被瀏覽器手勢搶走 */
@@ -514,6 +527,40 @@ body.overflow-hidden #custom-scrollbar-thumb {
   .list-header.active + .list-content {
     padding-top: 4px;
   }
+
+  /* album-thumb-item 內 year + date+title group 各自 sticky；scope 受父 .album-thumb-item 限制，
+   * 滾到下一筆 divider 自動換手（CSS sticky 行為，不需 IntersectionObserver）。
+   * sticky scroll container = .item-albums（overflow-y-auto max-h:360px 創 scroll context），
+   * 不是頁面 viewport，所以 top:0 黏在 .item-albums 上緣（= 父容器裁切線）。
+   * bg = 繼承 list-content active 時 list-accordion.js inline set 的 accent bg（三原色 / mode-color 下被
+   * themes/color.css 翻成 var(--theme-fg)）。中間 .item-albums / .album-thumb-item / 內層 col2 wrapper
+   * 全顯式 inherit 串鏈，才能把 list-content 的 inline bg 一路傳到 sticky cell。
+   * (CSS background-color: inherit 只繼承父的顯式 value；只設 cell 不串中間層 = 拿到 transparent。) */
+
+  .album-sticky-cell {
+    position: sticky;
+    top: 0;
+    background-color: inherit;
+    z-index: 4;
+  }
+
+  /* sticky cell bg = 跟 list-item active 時的 accent bg 同色（user 指定「list 打開時什麼顏色就什麼顏色」）。
+   * list-accordion.js active 時：
+   *   1. inline set list-item / list-header / list-content style.background = accent
+   *   2. inline set --item-color CSS var on list-item（line 274）← 直接讀這個！
+   * standard / inverse mode：accent 原色（綠/粉/藍三原色之一）
+   * mode-color mode：themes/color.css 把 inline bg 翻 var(--theme-fg) — sticky cell 同步翻 */
+
+  .album-sticky-cell {
+    background-color: var(--item-color, transparent);
+  }
+
+  /* mode-color：list-item active 雖然 --item-color 仍是原 accent，但視覺被 themes/color.css 蓋成 theme-fg；
+   * sticky cell 同步走 theme-fg 不讀 --item-color 才視覺對齊 */
+
+  body.mode-color .album-sticky-cell {
+    background-color: var(--theme-fg);
+  }
 }
 
 /* ===== Activities Type Filter Row - clip-reveal rotation clearance =====
@@ -590,7 +637,7 @@ body.overflow-hidden #custom-scrollbar-thumb {
 @media (min-width: 768px) {
   .timeline-year-item:hover {
     color: var(--color-pink) !important;
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
   }
 }
 
@@ -951,7 +998,7 @@ body.overflow-hidden #custom-scrollbar-thumb {
   width: max-content;
   max-width: 170px;
   text-align: left;
-  cursor: default;
+  cursor: var(--cursor-default);
   transition: opacity 0.3s ease;
   /* floating 改由 atlas.js rAF 直接設 inline transform，line 端點同步移動 */
   /* 預設 translateY(-50%) 讓 box 垂直中心對齊 anchor.top（item.y）— 與 computeBoxAt
@@ -1056,9 +1103,9 @@ body.overflow-hidden #custom-scrollbar-thumb {
   line-height: 1.55;
 }
 
-/* ── Alumni filter 下方輪播職業 chip（每 3s 切一個職業，random 三原色 bg + 黑字，雙語 EN 上 ZH 下）
-   font / weight / padding 都對齊 filter btn 的 .anchor-nav-inner；margin-top:-0.5rem 抵消父層 gap 讓它跟 alumni btn 接起來；
-   旋轉同步 alumni 的 inline rotate；上下兩 chip 共用「接縫 pivot」（alumni 繞 BL、career 繞 TL）保證旋轉後仍緊貼 ─────── */
+/* ── Alumni 旁邊的職業 chip（每 3s 輪播，random 三原色 bg + 黑字，EN 上 ZH 下）
+   2026-05-19 起 career chip 改放在 alumni btn 右側（atlas-alumni-row 內），不再上下接縫；
+   subchip (Hosting/Employment) 仍在 filter 主 column 內留在 alumni-row 下方 ─────── */
 
 .atlas-alumni-career {
   display: inline-block;
@@ -1067,21 +1114,19 @@ body.overflow-hidden #custom-scrollbar-thumb {
   font-family: var(--font-en, 'Inter'), var(--font-zh, 'Noto Sans TC'), system-ui, sans-serif;
   font-size: var(--font-size-p3);
   font-weight: 700;
-  line-height: 1.25;
+  line-height: 1.2;
+  /* 對齊 filter btn .atlas-filter-en/-zh 的 line-height 1.2，避免 career 比 alumni 高 ~1.4px */
   color: #000;
-  /* bg 由 atlas.js inline 設 random 三原色；clip-path 統一上→下 reveal、下→上 collapse（hidden = bottom 100%） */
-  clip-path: inset(0% 0% 100% 0%);
+  /* bg 由 atlas.js inline 設 random 三原色；clip-path：左→右 reveal、右→左 collapse（hidden = left 0 寬） */
+  clip-path: inset(0% 100% 0% 0%);
   max-width: 240px;
   word-break: break-word;
   -webkit-user-select: none;
      -moz-user-select: none;
           user-select: none;
   pointer-events: none;
-  margin-top: -0.5rem;
   /* 收/展時 height + padding 由 JS 同步動畫，overflow:hidden 讓內容隨 height 乾淨裁切，flex 兄弟自動 reflow 上移 */
   overflow: hidden;
-  /* 與 alumni inner 共用「接縫 pivot」— career 繞 top-left、alumni 繞 bottom-left
-     兩個角在 layout 上是同一點 → 旋轉同角度後仍緊貼，與 about resources accordion 的 top-right pivot 同 pattern */
   transform-origin: top left;
 }
 
@@ -1090,11 +1135,70 @@ body.overflow-hidden #custom-scrollbar-thumb {
   display: block;
 }
 
-/* ── 左上角 Filter（仿 activities-section-btn 樣式：anchor-nav-inner chip）─────── */
+/* alumni btn + career chip 並排 row（map view 才有 career chip insert；list view 無此 wrapper）
+   career 在 flex 流內貼 alumni 右側、頂部對齊 alumni 頂部（align-items: flex-start）
+   旋轉時靠「上方接縫 pivot」(alumni top-right / career top-left) 讓 career 沿 alumni 右側 slope 自然往右下延伸 */
+
+.atlas-alumni-row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0;
+}
+
+/* Map view host/employ 靜態 label chip — 灰底黑字（用 --lib-bg/--lib-fg 跟著 mode 切深淺灰）
+   共用 .atlas-alumni-career 結構（padding / show-hide anim 一致）
+   覆蓋 .atlas-alumni-career 預設的 clip-path:inset(0% 0% 100% 0%) — 靜態 chip 由 createStaticChipCtrl 只動 height/padding，
+   clip-path 殘留會讓 chip 永遠裁不可見；改 clip-path:none 純靠 height anim 收展
+   en/zh override：主 career chip span 預設 display:block 兩行堆疊（Photographers / 攝影師），
+   subchip (Hosting/主持、Employment/就職) 文字短，user 要求 EN+ZH 同行 → flex-row + spans inline + nowrap */
+
+.atlas-alumni-subchip {
+  background: var(--lib-bg);
+  color: var(--lib-fg);
+  /* subchip 跟著 career chip 一起左→右 reveal（CHIP_HIDDEN_CLIP 用 inset(0% 100% 0% 0%)）
+     順序：career → hosting → employment 依次 stagger 進場 */
+  clip-path: inset(0% 100% 0% 0%);
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.atlas-alumni-subchip .atlas-alumni-career-en,
+.atlas-alumni-subchip .atlas-alumni-career-zh {
+  display: inline;
+  white-space: nowrap;
+}
+
+/* Hosting↔Employment 之間額外 +0.25rem（visible gap = 0.5 base + 0.25 = 0.75rem）
+   user 多次調整：原 0.15rem 太擠、原 negative margin 已拿掉
+   collapsed state 時 marginTop 由 createStaticChipCtrl animate 到 -0.5rem 抵消 gap */
+
+.atlas-alumni-subchip + .atlas-alumni-subchip {
+  margin-top: 0.25rem;
+}
+
+/* Map view 下 subchip 可互動：cursor + 點擊由 atlas.js handle（hover 不調 opacity — user 要求對齊 activities filter 風格）
+   點擊 toggle .subchip-inactive → 去掉底色（同 activities filter inactive 視覺），文字保留 0.7 fade */
+
+.atlas-alumni-subchip {
+  pointer-events: auto;
+  cursor: var(--cursor-pointer);
+  transition: background-color 0.2s ease;
+}
+
+.atlas-alumni-subchip.subchip-inactive {
+  background: none;
+}
+
+/* ── 左上角 Filter（仿 activities-section-btn 樣式：anchor-nav-inner chip）
+   left 對齊 header logo 左緣（同 .site-container left padding）─────── */
 
 #atlas-filter {
   position: fixed;
-  left: 32px;
+  left: var(--container-padding, 32px);
   top: calc(var(--header-height, 80px) + 64px);
   display: flex;
   flex-direction: column;
@@ -1103,13 +1207,30 @@ body.overflow-hidden #custom-scrollbar-thumb {
   z-index: 50;
 }
 
-/* ── 左下角 Layout toggle button ─────────────────────────────────── */
+/* 主 filter btn (Faculty / Alumni-row / Partners) 之間額外 +0.5rem → 視覺 gap = 0.5 + 0.5 = 1rem
+   alumni-row 也視為主 btn；subchip 預設不套（保持 0.5rem 基礎 gap） */
+
+#atlas-filter > .atlas-filter-btn + .atlas-filter-btn,
+#atlas-filter > * + .atlas-alumni-row,
+#atlas-filter > .atlas-alumni-row + .atlas-filter-btn,
+#atlas-filter > .atlas-alumni-subchip + .atlas-filter-btn {
+  margin-top: 0.5rem;
+}
+
+/* AlumniRow → 第一個 subchip (Hosting) 之間額外 +0.5rem → 視覺 gap = 0.5 + 0.5 = 1rem
+   讓 Hosting 跟 alumni-row 之間有明顯區分（但比主 btn 間 gap 略大）*/
+
+#atlas-filter > .atlas-alumni-row + .atlas-alumni-subchip {
+  margin-top: 0.5rem;
+}
+
+/* ── 左下角 Layout toggle button — 也對齊 logo 左緣 ───────────────── */
 
 #atlas-layout-btn {
   position: fixed;
-  left: 32px;
+  left: var(--container-padding, 32px);
   bottom: 32px;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   background: none;
   border: none;
   padding: 0;
@@ -1120,11 +1241,12 @@ body.overflow-hidden #custom-scrollbar-thumb {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 48px;
+  height: 48px;
   background: var(--theme-fg, #000);
   color: var(--theme-bg, #fff);
-  font-size: 15px;
+  font-size: 32px;
+  transform: rotate(-8deg);
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -1136,17 +1258,21 @@ body.overflow-hidden #custom-scrollbar-thumb {
 
 /* ── List view ───────────────────────────────────────────────────── */
 
+/* 9-col grid 嚴格等寬（minmax(0,1fr) 忽略 cell 內 min-content 撐寬問題）
+   span 分配：faculty(2) + label(1) + host(2) + employ(2) + partners(2) = 9
+   middle alumni 區 5 cols 等寬（1 label + 4 host/employ sub-cols）；
+   faculty/partners 各 span 2 內含 2 sub-cols (= 視覺 col 寬度與 middle 一致) */
+
 #atlas-list-view {
   position: fixed;
   top: calc(var(--header-height, 80px) + 64px);
-  bottom: 84px;
-  /* above layout btn: 32px + 36px + 16px */
+  bottom: 96px;
+  /* above layout btn: 32px + 48px + 16px */
   right: 32px;
   /* left: set dynamically by JS after measuring container padding */
   display: none;
-  flex-direction: row;
-  gap: var(--spacing-xl, 3rem);
-  align-items: stretch;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: var(--spacing-lg, 2rem);
   z-index: 50;
   pointer-events: auto;
   -webkit-user-select: none;
@@ -1155,30 +1281,62 @@ body.overflow-hidden #custom-scrollbar-thumb {
 }
 
 #atlas-list-view.visible {
-  display: flex;
+  display: grid;
 }
 
-/* ── Column ── */
+/* alumniGroup wrapper 純 DOM 分組，不參與 layout —— display:contents 讓 labelCol/hostCol/employCol
+   直接變成 #atlas-list-view 的 grid children，與 facultyCol/partnersCol 同層共享 9-col 軌道 */
+
+.atlas-list-group {
+  display: contents;
+}
+
+/* ── Column ──
+   5 visual cols 直接是 #atlas-list-view 的 grid children：faculty / label / host / employ / partners
+   .atlas-list-col 套 span 2（faculty/host/employ/partners 內含 2 sub-cols）；
+   label col 套 span 1（只放 title + career chip，無 items 不需 sub-col）
+   title 置頂、items 排在 title 下方；items-container 用 flex:1 接收剩餘高度 */
 
 .atlas-list-col {
+  grid-column: span 2;
   display: flex;
-  flex-direction: row;
-  flex: 1;
-  gap: var(--spacing-md, 1.5rem);
+  flex-direction: column;
+  gap: var(--spacing-sm, 1rem);
   min-width: 0;
   overflow: visible;
   /* title chip 旋轉不裁切 */
   height: 100%;
 }
 
-/* ── Column title block（旋轉 host，flex-column 包 title-wrapper + 可選的 career chip）
-   旋轉由 JS 設在這層，title 與 career 共用 pivot 永遠緊貼（與 about resources accordion 同 pattern） ── */
+/* Label col：Alumni title + career chip 垂直堆疊（無 items list）
+   經 .atlas-list-group { display: contents } 提升為 #atlas-list-view grid 直接 child（與 faculty/host/employ/partners 同層）
+   span 1 = 1/9 viewport，與 host/employ 內每個 sub-col 等寬
+   career chip 用 width:100% + word-break:break-word 在窄欄內 wrap，不會推右側 cols
+   旋轉宿主在這層，title-wrapper 提供 yPercent reveal 遮罩 */
+
+.atlas-list-group-label-col {
+  grid-column: span 1;
+  align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs, 0.5rem);
+  min-width: 0;
+  transform-origin: left center;
+  /* 旋轉角度由 JS 設成 inline transform */
+}
+
+/* ── Column title block（旋轉 host，flex-row 把 title + 可選 career chip 並排）
+   旋轉由 JS 設在這層，title 與 career 共用 pivot 永遠緊貼（與 about resources accordion 同 pattern）
+   flex-wrap 防止窄欄時 career chip 撐爆 col 寬度 → 自動 wrap 到 title 下方 ── */
 
 .atlas-list-col-titleblock {
   flex-shrink: 0;
   align-self: flex-start;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--spacing-xs, 0.5rem);
   transform-origin: left center;
   /* 旋轉角度由 JS 設成 inline transform */
 }
@@ -1191,13 +1349,18 @@ body.overflow-hidden #custom-scrollbar-thumb {
   overflow: hidden;
 }
 
-/* ── List view 的 career chip（只用於 alumni 欄；padding / clip-path / overflow 全與 .atlas-alumni-career 對齊） ── */
+/* ── List view 的 career chip（只用於 alumni label-col，置於 Alumni title 下方；
+   padding / clip-path / overflow / margin-top 全與 .atlas-alumni-career (map view) 對齊
+   shrink-to-fit：width: max-content + max-width: 100% → 短文字 chip 緊貼文字寬，長文字 wrap 在 col 內
+   createCareerController.fitWidth() 在 fill / show / rotate 時量 per-line rects 把 inline width 鎖到「最寬行 + padding」
+   → 多行 wrap 後 chip bg 不留多餘 padding（user 要求 padding 抓實際文字寬度）
+   margin-top:-0.5rem → 抵消父層 .atlas-list-group-label-col 的 spacing-xs gap，視覺上跟 Alumni title 緊貼（map view 同手法） ── */
 
 .atlas-list-col-career {
   align-self: flex-start;
   width: -moz-max-content;
   width: max-content;
-  max-width: 240px;
+  max-width: 100%;
   padding: 6px 8px 5px;
   font-family: var(--font-en, 'Inter'), var(--font-zh, 'Noto Sans TC'), system-ui, sans-serif;
   font-size: var(--font-size-p3);
@@ -1213,6 +1376,8 @@ body.overflow-hidden #custom-scrollbar-thumb {
   pointer-events: none;
   /* 收/展 height + padding 動畫，overflow:hidden 讓內容隨 height 乾淨裁切 */
   overflow: hidden;
+  margin-top: -0.5rem;
+  box-sizing: border-box;
 }
 
 .atlas-list-col-career-en,
@@ -1220,51 +1385,66 @@ body.overflow-hidden #custom-scrollbar-thumb {
   display: block;
 }
 
-/* ── Column title chip（黑底白字，英上中下） ── */
+/* ── Column title chip（黑底白字，EN ZH 並排於同一行）
+   padding 對齊全站 .anchor-nav-inner / .atlas-list-col-career 標準 6px 8px 5px ── */
 
 .atlas-list-col-title {
   background: black;
   color: white;
-  padding: 8px 10px;
+  padding: 6px 8px 5px;
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 6px;
   width: -moz-max-content;
   width: max-content;
-  /* bg 寬度貼合最寬那行文字（EN 或 ZH），不再撐成固定寬 */
+  /* bg 寬度貼合一行文字總寬 */
+  white-space: nowrap;
+  /* EN + ZH 同行，不換行 */
 }
 
+/* host/employ 副 title：用 --lib-bg / --lib-fg（淺/深灰自動切 mode）區分跟主 cols 黑底白字 chip */
+
+.atlas-list-col[data-category="host"] .atlas-list-col-title,
+.atlas-list-col[data-category="employ"] .atlas-list-col-title {
+  background: var(--lib-bg);
+  color: var(--lib-fg);
+}
+
+/* output.css build 殘留 .atlas-list-col-title-en/-zh `display:block + white-space:normal`
+   舊版本是 column 堆疊；現在 title 改 flex-row + nowrap 但這兩個 span 沒顯式 reset →
+   stale rule 仍把 en/zh stack 成兩行（host/employ 灰底 chip 視覺壞）。顯式宣告 inline + nowrap 蓋掉 */
+
 .atlas-list-col-title-en {
-  display: block;
+  display: inline;
+  white-space: nowrap;
   font-family: var(--font-en, 'Inter'), system-ui, sans-serif;
   font-size: var(--font-size-p3, 0.9rem);
   font-weight: 700;
   line-height: 1.2;
-  white-space: normal;
-  /* 允許過長的英文自動換行 (如 Alumni Career) */
-  word-break: break-word;
 }
 
 .atlas-list-col-title-zh {
-  display: block;
+  display: inline;
+  white-space: nowrap;
   font-family: var(--font-zh, 'Noto Sans TC'), system-ui, sans-serif;
   font-size: var(--font-size-p3, 0.9rem);
   font-weight: 600;
   line-height: 1.2;
-  white-space: normal;
-  word-break: keep-all;
 }
 
 /* ── Column items（2 explicit sub-col，無 CSS columns，nav 貼底） ── */
 
+/* col 改 vertical 之後不能再 height:100%（會吃掉 titleblock 區段），用 flex:1 接收剩餘高 */
+
 .atlas-list-col-items {
   display: flex;
   flex-direction: row;
-  gap: var(--spacing-md, 1.5rem);
+  gap: var(--spacing-sm, 1rem);
   flex: 1;
   min-width: 0;
+  min-height: 0;
   overflow: hidden;
-  height: 100%;
 }
 
 .atlas-list-sub-col {
@@ -1272,6 +1452,11 @@ body.overflow-hidden #custom-scrollbar-thumb {
   flex-direction: column;
   flex: 1;
   min-width: 0;
+  /* min-height: 0 關鍵：flex item 預設 min-height:auto = min-content
+     items 內容比 --list-item-h slot 高時（partners 6 行 subheader 等），sub-col 的 min-content 大於 flex:1 available
+     → sub-col stretch 超過 items-area 高度 → 內含 absolute chevron 的 containing block 變更深 → chevron 跟著被推下
+     設 0 強迫 sub-col 高度純由 flex:1 接收，items 過長以 overflow:hidden 自身吃掉，sub-col 底邊 y 跨 col 嚴格一致 */
+  min-height: 0;
   overflow: hidden;
   gap: var(--list-gap, 0px);
   /* 讀取 JS 精算出的間距，讓剩餘空間完美均分 */
@@ -1384,30 +1569,30 @@ body.overflow-hidden #custom-scrollbar-thumb {
   margin-top: 6px;
 }
 
-/* ── 分頁 nav item（absolute 定位在 sub-col 底部，不被 items 推；chevron 貼 col1 末尾 item 底） ── */
+/* ── 分頁 nav item（absolute 定位在 sub-col 底部，box 自身 content-size 不吃 --list-item-h，跨 col 視覺 y 嚴格一致）
+   bottom: 10px 直接定 chevron 距 sub-col 底邊；不再用 bottom:0 + min-height:var(--list-item-h) + padding-bottom:10px
+   舊作法的 min-height 因 col 各自寫 --list-item-h (host=50 / faculty/employ=84 / partners=120) 害 chevron box 高度不一致，
+   雖然 align-items:flex-end 把 icon 推到 box 底邊，但部分瀏覽器 + 某些 reflow timing 下可能讓 absolute item 受 box 高度影響
+   → 改 content-sized box + 純 bottom 偏移，chevron y 完全脫離 items / col 內 var，絕對不動 ── */
 
 .atlas-list-nav-item {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: 10px;
   display: flex;
   flex-direction: row;
   justify-content: flex-start;
   gap: 12px;
   /* 設定按鈕之間的固定間距 */
   align-items: flex-end;
-  /* row direction 下 cross-axis = 垂直，chevron 貼 slot 底 */
-  min-height: var(--list-item-h, 84px);
-  padding-bottom: 10px;
-  /* 與一般項目保持相同的下方間距，讓底部視覺切齊 */
 }
 
 .atlas-list-nav-btn {
   background: none;
   border: none;
   padding: 4px 6px;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   color: black;
   opacity: 1;
   font-size: 19.5px;
@@ -1417,7 +1602,7 @@ body.overflow-hidden #custom-scrollbar-thumb {
 
 .atlas-list-nav-btn:disabled {
   opacity: 0.5;
-  cursor: default;
+  cursor: var(--cursor-default);
 }
 
 @media (min-width: 768px) {
@@ -1427,7 +1612,7 @@ body.overflow-hidden #custom-scrollbar-thumb {
 }
 
 .atlas-filter-btn {
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   background: none;
   border: none;
   padding: 0;
@@ -1449,18 +1634,29 @@ body.overflow-hidden #custom-scrollbar-thumb {
 
 .atlas-filter-btn .anchor-nav-inner {
   display: inline-flex;
+  flex-direction: column;
+  /* EN/ZH 兩行垂直 stack */
+  align-items: flex-start;
   background: transparent;
   color: rgba(0, 0, 0, 0.5);
   padding: 6px 8px 5px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* alumni btn 與下方 career chip 共用「接縫 pivot」：
-   alumni inner 繞 bottom-left，career chip 繞 top-left；
-   兩者 layout 上的這兩個角是同一點（margin-top:-0.5rem 抵消 gap）→ 旋轉同角度仍緊貼 */
+.atlas-filter-btn .atlas-filter-en,
+.atlas-filter-btn .atlas-filter-zh {
+  display: block;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+/* career chip 貼 alumni 右側（flex 流內 gap:0）→ 共用「右上接縫 pivot」：
+   alumni inner 繞 top-right、career 繞 top-left（已是 .atlas-alumni-career 預設 transform-origin）
+   兩個 pivot 是 layout 上同一點（alumni 的右上角 = career 的左上角）→ 旋轉同角度仍緊貼，
+   career 沿 alumni 右側 slope 往右下延伸（rotation 自帶下沉 slope，chip 頂部仍對齊 alumni 頂部） */
 
 .atlas-filter-btn[data-filter="alumni"] .anchor-nav-inner {
-  transform-origin: bottom left;
+  transform-origin: top right;
 }
 
 @media (min-width: 768px) {
@@ -1480,7 +1676,7 @@ body.overflow-hidden #custom-scrollbar-thumb {
 /* ── Inverse mode ───────── */
 
 /* 城市 chip 在兩 mode 下都是三原色底 + 黑字，bg 由 JS inline 設；不需 inverse 翻字色
- * filter btns（三個可點擊選項：Professors / Alumni Careers / Partners）：user 明示 inverse 改成白底黑字 chip 化
+ * filter btns（三個可點擊選項：Professors / Alumni / Partners）：user 明示 inverse 改成白底黑字 chip 化
  *   - inactive：白底 + 半透明黑字（對齊 standard inactive 透明底+rgba(0,0,0,0.5) 字的「dim」對比層級）
  *   - active：白底 + 100% 黑字（覆蓋 atlas.js updateFilterBtnColors 設的 #000000 bg + #FFFFFF 字 — 在 inverse 黑底會跟 body 融合）
  *   - hover (inactive)：白底 + 100% 黑字（brighten 文字）
@@ -1532,7 +1728,7 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   }
 
   #atlas-filter {
-    left: 16px;
+    /* desktop 用 var(--container-padding) 對齊 logo；mobile 沿用此 var（自動 = 1.5rem / 24px） */
     top: calc(var(--header-height, 80px) + 60px);
     gap: 0.25rem;
   }
@@ -1542,12 +1738,11 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   }
 
   #atlas-layout-btn {
-    left: 16px;
     bottom: 16px;
   }
 
   #atlas-list-view {
-    bottom: 72px;
+    bottom: 80px;
     right: 16px;
   }
 }
@@ -1574,6 +1769,345 @@ body.idle-standby #atlas-content,
 body.idle-standby .atlas-name,
 body.idle-standby .atlas-line {
   pointer-events: none !important;
+}
+
+/* SCCD custom icons — CSS mask 系統
+ * 用 mask + background-color: currentColor，icon 顏色繼承 text color（text-white / text-black / theme-fg 全套適用）
+ * 替換 FA：<i class="fa-solid fa-X"> → <span class="icon icon-X">
+ * size 沿用 FA 的 font-size 機制（width/height: 1em；text-h3 / text-p2 等仍生效）
+ */
+
+.icon {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.125em;
+  background-color: currentColor;
+  -webkit-mask-image: var(--icon);
+  mask-image: var(--icon);
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  flex-shrink: 0;
+}
+
+/* size tier — 5 階；外加 hero 級 (text-h3 social / atlas-layout-btn 仍 32px hardcoded 個案) */
+
+/* XL 32px = share modal 等需要強調的主操作 icon（2026-05-20 新增） */
+
+/* L  24px = 主控按鈕 (video player / header toggle 24px via .theme-toggle-btn) */
+
+/* M  20px = lightbox / page-level arrow / chevron / zoom */
+
+/* S  16px = list-item 內 inline icon */
+
+/* XS 14px = search / sort-arrow 等輔助級 */
+
+.icon-xl {
+  font-size: 2rem;
+}
+
+/* 32px */
+
+.icon-l  {
+  font-size: 1.5rem;
+}
+
+/* 24px */
+
+.icon-m  {
+  font-size: 1.25rem;
+}
+
+/* 20px */
+
+.icon-s  {
+  font-size: 1rem;
+}
+
+/* 16px */
+
+.icon-xs {
+  font-size: 0.875rem;
+}
+
+/* 14px */
+
+/* arrows */
+
+.icon-arrow-left   {
+  --icon: url('/Website%20Icons/arrow_left.svg');
+}
+
+.icon-arrow-right  {
+  --icon: url('/Website%20Icons/arrow_right.svg');
+}
+
+.icon-arrow-up     {
+  --icon: url('/Website%20Icons/arrow_up.svg');
+}
+
+.icon-arrow-down   {
+  --icon: url('/Website%20Icons/arrow_down.svg');
+}
+
+/* thin 變體：stroke 18 vs 28（粗版），用於 modal 等視覺重量需較輕的場景 */
+
+.icon-arrow-left-thin {
+  --icon: url('/Website%20Icons/arrow_left_thin.svg');
+}
+
+/* chevrons — 兩種粗度：lightbox(粗) / list(細)，方向用 Tailwind rotate class 達成：
+ *   default = left (圖形朝左)
+ *   rotate-180 = right
+ *   rotate-90  = down
+ *   -rotate-90 = up */
+
+.icon-chevron-lightbox {
+  --icon: url('/Website%20Icons/chevron_left_lightbox.svg');
+}
+
+.icon-chevron-list     {
+  --icon: url('/Website%20Icons/chevron_left_list.svg');
+}
+
+/* media controls (compress 尚未做先用 FA fallback) */
+
+.icon-play        {
+  --icon: url('/Website%20Icons/play_theater.svg');
+}
+
+.icon-pause       {
+  --icon: url('/Website%20Icons/pause.svg');
+}
+
+.icon-volume      {
+  --icon: url('/Website%20Icons/volume.svg');
+}
+
+.icon-volume-half {
+  --icon: url('/Website%20Icons/volume_half.svg');
+}
+
+.icon-mute        {
+  --icon: url('/Website%20Icons/mute.svg');
+}
+
+.icon-zoom-in     {
+  --icon: url('/Website%20Icons/zoom_in.svg');
+}
+
+.icon-zoom-out    {
+  --icon: url('/Website%20Icons/zoom_out.svg');
+}
+
+.icon-full-screen {
+  --icon: url('/Website%20Icons/full-screen.svg');
+}
+
+/* navigation / pages */
+
+/* TODO: menu.svg 待補 SVG */
+
+.icon-menu       {
+  --icon: url('/Website%20Icons/menu.svg');
+}
+
+.icon-atlas-list {
+  --icon: url('/Website%20Icons/atlas_list.svg');
+}
+
+.icon-atlas-view {
+  --icon: url('/Website%20Icons/atlas_view.svg');
+}
+
+.icon-search     {
+  --icon: url('/Website%20Icons/search.svg');
+}
+
+/* social */
+
+.icon-youtube   {
+  --icon: url('/Website%20Icons/youtube.svg');
+}
+
+.icon-instagram {
+  --icon: url('/Website%20Icons/instagram.svg');
+}
+
+.icon-facebook  {
+  --icon: url('/Website%20Icons/facebook.svg');
+}
+
+/* misc */
+
+/* album 是「相機」圖形，自然寬高比 ~1.43:1（外框長方形）；viewBox 已 tighten 到 0 24 160 112
+   去掉上下空白，CSS width 1.43em 讓 container 跟 SVG aspect 對齊 → mask 以高 fit、width 自然變寬
+   （同 alumni icon pattern：寬扁圖形不要硬塞 1em×1em container 否則被擠小） */
+
+.icon-album      {
+  --icon: url('/Website%20Icons/album.svg');
+  width: 1.43em;
+}
+
+/* alumni 是「畢業帽」圖形，自然寬高比 ~1.45:1（畫面比其他 1:1 圖示寬扁）；
+   viewBox 已 tighten 到 0 25 160 110 去掉上下空白，CSS width 設 1.5em 跟國旗 (.fi) 寬度一致，
+   讓 list 內 alumni icon 跟 flag icon 同一高度但 horizontal slot 較寬，避免被擠成小小一坨 */
+
+.icon-alumni     {
+  --icon: url('/Website%20Icons/alumni.svg');
+  width: 1.5em;
+}
+
+.icon-share      {
+  --icon: url('/Website%20Icons/share.svg');
+}
+
+.icon-attachment {
+  --icon: url('/Website%20Icons/attachment.svg');
+}
+
+.icon-copy       {
+  --icon: url('/Website%20Icons/copy.svg');
+}
+
+.icon-donate     {
+  --icon: url('/Website%20Icons/donate.svg');
+}
+
+.icon-download   {
+  --icon: url('/Website%20Icons/download_share.svg');
+}
+
+.icon-reset      {
+  --icon: url('/Website%20Icons/reset.svg');
+}
+
+.icon-shuffle    {
+  --icon: url('/Website%20Icons/shuffle.svg');
+}
+
+/* TODO: rotate_phone.svg 待補 SVG */
+
+.icon-rotate-phone {
+  --icon: url('/Website%20Icons/rotate_phone.svg');
+}
+
+.icon-custom     {
+  --icon: url('/Website%20Icons/custom.svg');
+}
+
+/* mode toggle */
+
+.icon-mode-1 {
+  --icon: url('/Website%20Icons/mode_1.svg');
+}
+
+.icon-mode-2 {
+  --icon: url('/Website%20Icons/mode_2.svg');
+}
+
+.icon-mode-3 {
+  --icon: url('/Website%20Icons/mode_3.svg');
+}
+
+/* 自製 cursor 系統（2026-05-20 方案 B：CSS variable 全域改寫）
+ *
+ * 主要邏輯：所有 component CSS 都用 `cursor: var(--cursor-X)` 直接套自製圖。
+ * 變數定義在 variables.css，改 cursor 圖只動 variables.css 那一處。
+ *
+ * 本檔只處理「component CSS 改不到」的場景：
+ * 1) Tailwind utility class（build 產物 `.cursor-pointer { cursor: pointer }` 無法改成 var）
+ * 2) HTML inline style="cursor:pointer"（指向 div 等沒走 component CSS 的元素）
+ * 3) 瀏覽器內建 cursor（a[href] / button / input 預設游標）
+ * 4) 特殊 cursor（left / right 方向箭頭）
+ *
+ * inline style.cursor (spec=1000) 永遠勝過本檔規則，lightbox JS 的 grab/grabbing 不受影響。
+ */
+
+/* ─────────────────────────────────────────────────────────────
+ * 1) Root default — html / body 跟所有未指定 cursor 的元素
+ * ───────────────────────────────────────────────────────────── */
+
+html {
+  cursor: var(--cursor-default);
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * 2) 瀏覽器內建 pointer 對應元素 + Tailwind utility .cursor-pointer
+ *    這些是 cursor.css 仍需列舉的元素：
+ *    - 瀏覽器 user-agent style 對 a[href]/button 套 pointer，但是用 keyword 不是 url()
+ *    - Tailwind 編譯產物 .cursor-pointer 也用 keyword
+ *    這裡用 body 拉 spec=11 蓋過。
+ * ───────────────────────────────────────────────────────────── */
+
+body a[href],
+body button:not(:disabled),
+body [role="button"],
+body [type="button"],
+body [type="submit"],
+body [type="reset"],
+body label[for],
+body summary,
+body .cursor-pointer {
+  cursor: var(--cursor-pointer);
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * 3) Typing cursor（text 輸入）
+ *    瀏覽器 user-agent 對 input/textarea 套 text，這裡用 var() 蓋。
+ * ───────────────────────────────────────────────────────────── */
+
+body input[type="text"],
+body input[type="search"],
+body input[type="email"],
+body input[type="url"],
+body input[type="tel"],
+body input[type="password"],
+body input[type="number"],
+body textarea,
+body [contenteditable="true"] {
+  cursor: var(--cursor-text);
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * 4) HTML inline style="cursor:pointer" 寫死 div / 特殊 element
+ *    這些 div 沒走 component CSS、也沒 .cursor-pointer class、不是 a/button，
+ *    必須點名 id 才能蓋。
+ * ───────────────────────────────────────────────────────────── */
+
+body #homepage-yt-card,
+body #homepage-yt-card *,
+body #video-progress-track,
+body #video-volume-track {
+  cursor: var(--cursor-pointer);
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * 5) Left / Right arrow cursors（特殊方向 cursor）
+ *    timeline 邊界照片 + nav zone
+ *    courses / faculty slide-in overlay 點任何處關閉 → 左箭頭暗示
+ * ───────────────────────────────────────────────────────────── */
+
+body .timeline-photo[data-tl-edge="left"],
+body .timeline-photo[data-tl-edge="left"] *,
+body [data-tl-nav-edge="left"],
+body [data-tl-nav-edge="left"] *,
+body #faculty-overlay,
+body #faculty-overlay *,
+body #courses-overlay,
+body #courses-overlay * {
+  cursor: var(--cursor-w-resize);
+}
+
+body .timeline-photo[data-tl-edge="right"],
+body .timeline-photo[data-tl-edge="right"] *,
+body [data-tl-nav-edge="right"],
+body [data-tl-nav-edge="right"] * {
+  cursor: var(--cursor-e-resize);
 }
 
 /* Themes */
@@ -1731,11 +2265,7 @@ body.mode-inverse [data-works-hl] *,
 body.mode-inverse .section-title-strip,
 body.mode-inverse .section-title-strip *,
 body.mode-inverse .timeline-card-inner:not(.bg-black),
-body.mode-inverse .timeline-card-inner:not(.bg-black) *,
-body.mode-inverse #timeline-cursor-left,
-body.mode-inverse #timeline-cursor-left *,
-body.mode-inverse #timeline-cursor-right,
-body.mode-inverse #timeline-cursor-right * {
+body.mode-inverse .timeline-card-inner:not(.bg-black) * {
   color: black !important;
 }
 
@@ -2031,17 +2561,11 @@ body.mode-inverse .admission-item.active {
   }
 }
 
-/* ===== List Accordion hover / active：inverse 下強制白底黑字（不要三原色 accent）=====
+/* ===== List Accordion hover / active：inverse 下保留三原色 accent，字色強制黑 =====
  * list-accordion.js 在 .list-header hover 跟 active 時 inline 設 accent bg（綠/粉/藍），active 連 .list-content / .list-item 也染同色；
- * inverse 模式下這些三原色 accent 不要出現，全部改成 strict 白底黑字（user 指定）。
+ * inverse 模式下 bg 保留三原色（user 指定），accent 底配黑字（與 mode1 一致）。
  * 用 [style*="background"] attribute selector 只 match 有 inline bg 的狀態（hover 或 active）。
  * 涵蓋 admission / activities / 任何用 list-accordion 的頁面。 */
-
-body.mode-inverse .list-header[style*="background"],
-body.mode-inverse .list-content[style*="background"],
-body.mode-inverse .list-item[style*="background"] {
-  background: #fff !important;
-}
 
 body.mode-inverse .list-header[style*="background"],
 body.mode-inverse .list-header[style*="background"] *,
@@ -2189,6 +2713,9 @@ body.mode-inverse .atlas-list-col-title {
   background: white !important;
   color: black !important;
 }
+
+/* host/employ 副 title 在 mode-inverse 不蓋 — atlas.css 用 var(--lib-bg/fg)，
+   --lib-bg 在 inverse.css 已定義為深灰底白字（#333333 + #ffffff），自動切換 */
 
 /* B 企業環 chip：standard 黑底白字 → inverse 翻白底黑字（對齊 atlas-list-col-title pattern）
    JS inline 設 backgroundColor=black + color=white，CSS 必須 !important 覆蓋；
@@ -2799,15 +3326,16 @@ body.mode-color #faculty-slide-in .text-black {
   color: var(--theme-fg) !important;
 }
 
-/* ===== Library 主卡片：mode-color 下跟 page bg 對比自動翻 light/dark grey =====
- * --lib-bg/fg 在 standard 是淺灰底黑字、inverse 是深灰底白字；mode-color 改成跟 page bg luminance 翻
- *   - 亮 hue (theme-fg=#000) → lib-bg = gray-9 淺灰 / lib-fg = 黑
- *   - 暗 hue (theme-fg=#fff) → lib-bg = gray-2 深灰 / lib-fg = 白 */
+/* ===== Library 主卡片：mode-color 下跟 page bg 動態算純中性灰 =====
+ * 對比邏輯：亮 page → 淺灰底黑字 / 暗 page → 深灰底白字（同 mode1/2 對比方向）
+ * --lib-bg 由 theme-toggle.js applyColorVars 每幀 RAF 動態 set RGB 純中性灰
+ *   亮 page (lum>0.5) → rgb(L_grey, L_grey, L_grey) 淺灰；暗 page → 深灰
+ *   不引入 hue（R=G=B），純中性灰 */
 
 body.mode-color {
-  --lib-bg: var(--theme-neutral-gray);
   --lib-fg: var(--theme-fg);
   --lib-fg-rgb: var(--theme-fg-rgb);
+  /* --lib-bg 由 JS RAF 動態 set，這裡不寫 default 避免蓋掉 */
 }
 
 /* lib-panel-title chip：mode-color 走 strict B/W 對比（依 page hue luminance 自動翻黑白）
@@ -2945,11 +3473,16 @@ body.mode-color .atlas-name-cover {
   background-color: var(--theme-fg) !important;
 }
 
-/* SVG 連線：stroke primary / gradient → 純 fg（CSS !important 蓋過 path 的 stroke 屬性與 url(#grad) 引用） */
+/* SVG 連線：stroke primary / gradient → 純 fg（CSS !important 蓋過 path 的 stroke 屬性與 url(#grad) 引用）
+   .atlas-company-ring-shape (B 企業環 outline) 排除 — user 要求拿掉橢圓的綫，三 mode 都不顯示 */
 
 body.mode-color .atlas-line,
-body.mode-color .atlas-city-line {
+body.mode-color .atlas-city-line:not(.atlas-company-ring-shape) {
   stroke: var(--theme-fg) !important;
+}
+
+body.mode-color .atlas-company-ring-shape {
+  stroke: none !important;
 }
 
 /* 右下 detail panel：bg primary + 黑字 → strict B/W；子層無顯式 color 自然 inherit */
@@ -2973,6 +3506,9 @@ body.mode-color .atlas-list-col-title {
   background: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
 }
+
+/* host/employ 副 title 在 mode-color 不蓋 — atlas.css 用 var(--lib-bg/fg)，
+   --lib-bg 在 color.css 已定義為 --theme-neutral-gray + --theme-fg，自動切換 */
 
 /* List 項目主標 / chevron nav btn：black → fg
  * 子層 .atlas-list-name-zh (opacity 0.8) / .atlas-list-item-label (opacity 0.6) 沒 explicit color
@@ -3178,111 +3714,111 @@ body.mode-color [data-section-title] * {
 /* 3. Tailwind Directives */
 
 *, ::before, ::after{
-  --tw-border-spacing-x: 0;
-  --tw-border-spacing-y: 0;
-  --tw-translate-x: 0;
-  --tw-translate-y: 0;
-  --tw-rotate: 0;
-  --tw-skew-x: 0;
-  --tw-skew-y: 0;
-  --tw-scale-x: 1;
-  --tw-scale-y: 1;
-  --tw-pan-x:  ;
-  --tw-pan-y:  ;
-  --tw-pinch-zoom:  ;
-  --tw-scroll-snap-strictness: proximity;
-  --tw-gradient-from-position:  ;
-  --tw-gradient-via-position:  ;
-  --tw-gradient-to-position:  ;
-  --tw-ordinal:  ;
-  --tw-slashed-zero:  ;
-  --tw-numeric-figure:  ;
-  --tw-numeric-spacing:  ;
-  --tw-numeric-fraction:  ;
-  --tw-ring-inset:  ;
-  --tw-ring-offset-width: 0px;
-  --tw-ring-offset-color: #fff;
-  --tw-ring-color: rgb(59 130 246 / 0.5);
-  --tw-ring-offset-shadow: 0 0 #0000;
-  --tw-ring-shadow: 0 0 #0000;
-  --tw-shadow: 0 0 #0000;
-  --tw-shadow-colored: 0 0 #0000;
-  --tw-blur:  ;
-  --tw-brightness:  ;
-  --tw-contrast:  ;
-  --tw-grayscale:  ;
-  --tw-hue-rotate:  ;
-  --tw-invert:  ;
-  --tw-saturate:  ;
-  --tw-sepia:  ;
-  --tw-drop-shadow:  ;
-  --tw-backdrop-blur:  ;
-  --tw-backdrop-brightness:  ;
-  --tw-backdrop-contrast:  ;
-  --tw-backdrop-grayscale:  ;
-  --tw-backdrop-hue-rotate:  ;
-  --tw-backdrop-invert:  ;
-  --tw-backdrop-opacity:  ;
-  --tw-backdrop-saturate:  ;
-  --tw-backdrop-sepia:  ;
-  --tw-contain-size:  ;
-  --tw-contain-layout:  ;
-  --tw-contain-paint:  ;
-  --tw-contain-style:  ;
+  --tw-border-spacing-x:  0;
+  --tw-border-spacing-y:  0;
+  --tw-translate-x:  0;
+  --tw-translate-y:  0;
+  --tw-rotate:  0;
+  --tw-skew-x:  0;
+  --tw-skew-y:  0;
+  --tw-scale-x:  1;
+  --tw-scale-y:  1;
+  --tw-pan-x:   ;
+  --tw-pan-y:   ;
+  --tw-pinch-zoom:   ;
+  --tw-scroll-snap-strictness:  proximity;
+  --tw-gradient-from-position:   ;
+  --tw-gradient-via-position:   ;
+  --tw-gradient-to-position:   ;
+  --tw-ordinal:   ;
+  --tw-slashed-zero:   ;
+  --tw-numeric-figure:   ;
+  --tw-numeric-spacing:   ;
+  --tw-numeric-fraction:   ;
+  --tw-ring-inset:   ;
+  --tw-ring-offset-width:  0px;
+  --tw-ring-offset-color:  #fff;
+  --tw-ring-color:  rgb(59 130 246 / 0.5);
+  --tw-ring-offset-shadow:  0 0 #0000;
+  --tw-ring-shadow:  0 0 #0000;
+  --tw-shadow:  0 0 #0000;
+  --tw-shadow-colored:  0 0 #0000;
+  --tw-blur:   ;
+  --tw-brightness:   ;
+  --tw-contrast:   ;
+  --tw-grayscale:   ;
+  --tw-hue-rotate:   ;
+  --tw-invert:   ;
+  --tw-saturate:   ;
+  --tw-sepia:   ;
+  --tw-drop-shadow:   ;
+  --tw-backdrop-blur:   ;
+  --tw-backdrop-brightness:   ;
+  --tw-backdrop-contrast:   ;
+  --tw-backdrop-grayscale:   ;
+  --tw-backdrop-hue-rotate:   ;
+  --tw-backdrop-invert:   ;
+  --tw-backdrop-opacity:   ;
+  --tw-backdrop-saturate:   ;
+  --tw-backdrop-sepia:   ;
+  --tw-contain-size:   ;
+  --tw-contain-layout:   ;
+  --tw-contain-paint:   ;
+  --tw-contain-style:   ;
 }
 
 ::backdrop{
-  --tw-border-spacing-x: 0;
-  --tw-border-spacing-y: 0;
-  --tw-translate-x: 0;
-  --tw-translate-y: 0;
-  --tw-rotate: 0;
-  --tw-skew-x: 0;
-  --tw-skew-y: 0;
-  --tw-scale-x: 1;
-  --tw-scale-y: 1;
-  --tw-pan-x:  ;
-  --tw-pan-y:  ;
-  --tw-pinch-zoom:  ;
-  --tw-scroll-snap-strictness: proximity;
-  --tw-gradient-from-position:  ;
-  --tw-gradient-via-position:  ;
-  --tw-gradient-to-position:  ;
-  --tw-ordinal:  ;
-  --tw-slashed-zero:  ;
-  --tw-numeric-figure:  ;
-  --tw-numeric-spacing:  ;
-  --tw-numeric-fraction:  ;
-  --tw-ring-inset:  ;
-  --tw-ring-offset-width: 0px;
-  --tw-ring-offset-color: #fff;
-  --tw-ring-color: rgb(59 130 246 / 0.5);
-  --tw-ring-offset-shadow: 0 0 #0000;
-  --tw-ring-shadow: 0 0 #0000;
-  --tw-shadow: 0 0 #0000;
-  --tw-shadow-colored: 0 0 #0000;
-  --tw-blur:  ;
-  --tw-brightness:  ;
-  --tw-contrast:  ;
-  --tw-grayscale:  ;
-  --tw-hue-rotate:  ;
-  --tw-invert:  ;
-  --tw-saturate:  ;
-  --tw-sepia:  ;
-  --tw-drop-shadow:  ;
-  --tw-backdrop-blur:  ;
-  --tw-backdrop-brightness:  ;
-  --tw-backdrop-contrast:  ;
-  --tw-backdrop-grayscale:  ;
-  --tw-backdrop-hue-rotate:  ;
-  --tw-backdrop-invert:  ;
-  --tw-backdrop-opacity:  ;
-  --tw-backdrop-saturate:  ;
-  --tw-backdrop-sepia:  ;
-  --tw-contain-size:  ;
-  --tw-contain-layout:  ;
-  --tw-contain-paint:  ;
-  --tw-contain-style:  ;
+  --tw-border-spacing-x:  0;
+  --tw-border-spacing-y:  0;
+  --tw-translate-x:  0;
+  --tw-translate-y:  0;
+  --tw-rotate:  0;
+  --tw-skew-x:  0;
+  --tw-skew-y:  0;
+  --tw-scale-x:  1;
+  --tw-scale-y:  1;
+  --tw-pan-x:   ;
+  --tw-pan-y:   ;
+  --tw-pinch-zoom:   ;
+  --tw-scroll-snap-strictness:  proximity;
+  --tw-gradient-from-position:   ;
+  --tw-gradient-via-position:   ;
+  --tw-gradient-to-position:   ;
+  --tw-ordinal:   ;
+  --tw-slashed-zero:   ;
+  --tw-numeric-figure:   ;
+  --tw-numeric-spacing:   ;
+  --tw-numeric-fraction:   ;
+  --tw-ring-inset:   ;
+  --tw-ring-offset-width:  0px;
+  --tw-ring-offset-color:  #fff;
+  --tw-ring-color:  rgb(59 130 246 / 0.5);
+  --tw-ring-offset-shadow:  0 0 #0000;
+  --tw-ring-shadow:  0 0 #0000;
+  --tw-shadow:  0 0 #0000;
+  --tw-shadow-colored:  0 0 #0000;
+  --tw-blur:   ;
+  --tw-brightness:   ;
+  --tw-contrast:   ;
+  --tw-grayscale:   ;
+  --tw-hue-rotate:   ;
+  --tw-invert:   ;
+  --tw-saturate:   ;
+  --tw-sepia:   ;
+  --tw-drop-shadow:   ;
+  --tw-backdrop-blur:   ;
+  --tw-backdrop-brightness:   ;
+  --tw-backdrop-contrast:   ;
+  --tw-backdrop-grayscale:   ;
+  --tw-backdrop-hue-rotate:   ;
+  --tw-backdrop-invert:   ;
+  --tw-backdrop-opacity:   ;
+  --tw-backdrop-saturate:   ;
+  --tw-backdrop-sepia:   ;
+  --tw-contain-size:   ;
+  --tw-contain-layout:   ;
+  --tw-contain-paint:   ;
+  --tw-contain-style:   ;
 }
 
 /* ! tailwindcss v3.4.18 | MIT License | https://tailwindcss.com */
@@ -3732,18 +4268,18 @@ video {
 }
 
 html{
-  font-size: 1rem;
-  line-height: 1.5rem;
+  font-size:  1rem;
+  line-height:  1.5rem;
   background-color: #FFFFFF;
 }
 
 body{
-  --tw-bg-opacity: 1;
-  background-color: rgb(255 255 255 / var(--tw-bg-opacity, 1));
-  font-family: Inter, Noto Sans TC, system-ui, -apple-system, sans-serif;
-  line-height: 1.5;
-  --tw-text-opacity: 1;
-  color: rgb(0 0 0 / var(--tw-text-opacity, 1));
+  --tw-bg-opacity:  1;
+  background-color:  rgb(255 255 255 / var(--tw-bg-opacity, 1));
+  font-family:  Inter, Noto Sans TC, system-ui, -apple-system, sans-serif;
+  line-height:  1.5;
+  --tw-text-opacity:  1;
+  color:  rgb(0 0 0 / var(--tw-text-opacity, 1));
 }
 
 
@@ -3777,44 +4313,44 @@ body.mode-color #faculty-slide-in body {
 }
 
 h1{
-  font-size: var(--font-size-h1);
-  font-weight: 600;
-  line-height: 1.1;
+  font-size:  var(--font-size-h1);
+  font-weight:  600;
+  line-height:  1.1;
 }
 
 h2{
-  font-size: var(--font-size-h2);
-  font-weight: 600;
-  line-height: 1.1;
+  font-size:  var(--font-size-h2);
+  font-weight:  600;
+  line-height:  1.1;
 }
 
 h3{
-  font-size: var(--font-size-h3);
-  font-weight: 700;
-  line-height: 1.5;
+  font-size:  var(--font-size-h3);
+  font-weight:  700;
+  line-height:  1.5;
 }
 
 h4 {
   font-size: var(--font-size-h4);
   line-height: var(--line-height-h4);
-  font-weight: 700;
+  font-weight:  700;
 }
 
 h5{
-  font-size: var(--font-size-h5);
-  font-weight: 700;
-  line-height: 1.5;
+  font-size:  var(--font-size-h5);
+  font-weight:  700;
+  line-height:  1.5;
 }
 
 h6{
-  font-size: var(--font-size-h6);
-  font-weight: 700;
-  line-height: 1.5;
+  font-size:  var(--font-size-h6);
+  font-weight:  700;
+  line-height:  1.5;
 }
 
 p{
-  font-weight: 400;
-  line-height: 1.5;
+  font-weight:  400;
+  line-height:  1.5;
   font-size: var(--font-size-p2);
 }
 
@@ -3836,79 +4372,79 @@ p{
 }
 
 .\!container{
-  width: 100% !important;
+  width:  100% !important;
 }
 
 .container{
-  width: 100%;
+  width:  100%;
 }
 
 @media (min-width: 640px){
   .\!container{
-    max-width: 640px !important;
+    max-width:  640px !important;
   }
 
   .container{
-    max-width: 640px;
+    max-width:  640px;
   }
 }
 
 @media (min-width: 768px){
   .\!container{
-    max-width: 768px !important;
+    max-width:  768px !important;
   }
 
   .container{
-    max-width: 768px;
+    max-width:  768px;
   }
 }
 
 @media (min-width: 1024px){
   .\!container{
-    max-width: 1024px !important;
+    max-width:  1024px !important;
   }
 
   .container{
-    max-width: 1024px;
+    max-width:  1024px;
   }
 }
 
 @media (min-width: 1280px){
   .\!container{
-    max-width: 1280px !important;
+    max-width:  1280px !important;
   }
 
   .container{
-    max-width: 1280px;
+    max-width:  1280px;
   }
 }
 
 @media (min-width: 1536px){
   .\!container{
-    max-width: 1536px !important;
+    max-width:  1536px !important;
   }
 
   .container{
-    max-width: 1536px;
+    max-width:  1536px;
   }
 }
 
 /* ===== Container with 60px padding ===== */
 
 .site-container{
-  margin-left: auto;
-  margin-right: auto;
-  width: 100%;
-  padding-left: var(--container-padding);
-  padding-right: var(--container-padding);
+  margin-left:  auto;
+  margin-right:  auto;
+  width:  100%;
+  padding-left:  var(--container-padding);
+  padding-right:  var(--container-padding);
 }
 
 /* ===== 12 Column Grid System ===== */
 
 .grid-12{
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 1.25rem;
+  display:  grid;
+  grid-template-columns:  repeat(12, minmax(0, 1fr));
+  gap:  1.25rem;
 }
 
 /* ===== Custom Spacing Utility ===== */
@@ -3963,11 +4499,14 @@ p{
   white-space: normal;
 }
 
-/* 所有 footer scatter icon（.fa-brands social + .fa-solid donation）：放大 1.5× （base 是 .text-h3） */
+/* 所有 footer scatter icon（social + donation）：放大 1.5× （base 是 .text-h3） */
 
-.footer-random .fa-brands,
-  .footer-random .fa-solid {
+.footer-random .icon {
   font-size: calc(var(--font-size-h3) * 1.5);
+}
+
+.footer-random .\!icon {
+  font-size: calc(var(--font-size-h3) * 1.5) !important;
 }
 
 /* Logo Lottie 檔案依 mode 由 footer.js 直接挑檔（不靠 CSS filter 翻色）：
@@ -4108,11 +4647,11 @@ p{
 /* 用 var(--theme-fg) 跟著 mode 切換（standard=黑 / inverse=白）；library/generate bar 走 bar-active/inactive 不受影響 */
 
 .nav-link{
-  font-size: var(--font-size-h6);
-  font-weight: 700;
-  transition-property: all;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 200ms;
+  font-size:  var(--font-size-h6);
+  font-weight:  700;
+  transition-property:  all;
+  transition-timing-function:  cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration:  200ms;
   color: var(--theme-fg);
 }
 
@@ -4231,14 +4770,14 @@ body.lightbox-open #site-header {
 /* ===== Submenu Links ===== */
 
 .submenu-link{
-  display: block;
-  padding-top: var(--spacing-xs);
-  padding-bottom: var(--spacing-xs);
-  text-align: left;
-  font-size: var(--font-size-h6);
-  transition-property: all;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 200ms;
+  display:  block;
+  padding-top:  var(--spacing-xs);
+  padding-bottom:  var(--spacing-xs);
+  text-align:  left;
+  font-size:  var(--font-size-h6);
+  transition-property:  all;
+  transition-timing-function:  cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration:  200ms;
 }
 
 /* Hover 效果：僅桌面版 */
@@ -4331,31 +4870,34 @@ body.lightbox-open #site-header {
    *   - 其他 bars（about/library/atlas/generate/mode-btn/alumni）display:none（JS 設）
    *   - 這樣切頁進入 / 從 URL 直接訪問都有正確 end state；動畫只在 user 點擊時跑 */
 
-/* ===== Theme Toggle Button ===== */
-
-/* 邊框 + 圓點顏色用 var(--theme-fg)，mode 切換時自動跟著走（standard=黑 / inverse=白） */
+/* ===== Theme Toggle Button =====
+   * 2026-05-19 改用 .icon mode_1/2/3 SVG（舊的 .theme-toggle-circle 圓點+圓邊框拿掉）
+   * icon 顏色走 currentColor → btn 用 var(--theme-fg) 自動跟 mode 切換；
+   * slide-in / lightbox 開時改白色由 CSS 覆蓋（取代舊 gsap inline 動畫）
+   */
 
 .theme-toggle-btn {
   width: 24px;
   height: 24px;
-  border-radius: 50%;
-  border: 2px solid var(--theme-fg);
   background: transparent;
-  cursor: pointer;
+  border: none;
+  cursor: var(--cursor-pointer);
   flex-shrink: 0;
-  transition: border-color var(--transition-fast), background var(--transition-fast);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
+  font-size: 24px;
+  /* .icon width/height: 1em → icon 撐滿 24px */
+  color: var(--theme-fg);
+  transition: color var(--transition-fast);
 }
 
-.theme-toggle-circle {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--theme-fg);
-  transition: background var(--transition-fast);
+/* slide-in（faculty / courses）或 lightbox 開啟時，header overlay 變黑底 → icon 統一白色 */
+
+html.has-slide-in .theme-toggle-btn,
+  body.lightbox-open .theme-toggle-btn {
+  color: #fff;
 }
 
 /* ===== Section Nav Buttons（共用基底樣式）=====
@@ -4370,7 +4912,7 @@ body.lightbox-open #site-header {
   .courses-program-btn,
   .activities-filter-btn,
   .courses-filter-btn {
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   background: none;
   border: none;
   padding: 0;
@@ -4451,7 +4993,7 @@ body.lightbox-open #site-header {
 /* ===== Album Filter Options (dropdown-column style) ===== */
 
 .album-filter-option {
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   background: none;
   border: none;
   padding: var(--spacing-xs) var(--spacing-sm);
@@ -4581,7 +5123,7 @@ body.lightbox-open #site-header {
   border-radius: 20px;
   background: transparent;
   color: #000000;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
 }
 
 .works-filter-btn.active {
@@ -4617,7 +5159,7 @@ body.lightbox-open #site-header {
   color: var(--theme-bg);
   border: none;
   border-radius: 0;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   padding: 6px 8px 5px;
   text-align: left;
   transition: background 0.2s ease, color 0.2s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -4739,12 +5281,12 @@ body.lightbox-open #site-header {
 /* Faculty 特定：只有 fulltime/admin 可點擊 */
 
 .faculty-card-image-wrapper {
-  cursor: default;
+  cursor: var(--cursor-default);
 }
 
 .faculty-card[data-category="fulltime"] .faculty-card-image-wrapper,
   .faculty-card[data-category="admin"] .faculty-card-image-wrapper {
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
 }
 
 /* Faculty 卡片預設旋轉（JS 設 --init-deg），hover 恢復 0° 對齊下方文字
@@ -4772,28 +5314,27 @@ body.lightbox-open #site-header {
   transition: filter 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* ===== Faculty Slide-in Grid Rows ===== */
+/* ===== Faculty Slide-in Grid Rows =====
+     所有 section（學歷/經歷/獲獎）統一 4 col grid `1fr 4fr 2fr 2fr` 對齊：
+     - col1 (1fr): year / country
+     - col2 (4fr): school / name
+     - col3 (2fr): major / work
+     - col4 (2fr): degree / category / role
+     - 經歷的 organization 用 .faculty-grid-span2 跨 col2+col3 (4fr+2fr) 撐單位描述
+   */
 
 .faculty-grid-row {
   display: grid;
-  gap: 0.5rem;
+  grid-template-columns: 1fr 4fr 2fr 2fr;
+  gap: 1.5rem;
   align-items: baseline;
   padding-bottom: 0.5rem;
+  padding-right: 2rem;
   font-size: var(--font-size-p2);
 }
 
-/* 4 col: country(50px) | school(1fr) | major(1fr) | degree(1fr) */
-
-.faculty-grid-4 {
-  grid-template-columns: 50px 1fr 1fr 1fr;
-  padding-right: 2rem;
-}
-
-/* 3 col: year(50px) | main(2fr) | detail(1fr) */
-
-.faculty-grid-3 {
-  grid-template-columns: 50px 2fr 1fr;
-  padding-right: 2rem;
+.faculty-grid-row > .faculty-grid-span2 {
+  grid-column: span 2;
 }
 
 .faculty-grid-row span {
@@ -4861,11 +5402,8 @@ body.lightbox-open #site-header {
 
 /* ===== Year Toggle Chevron Rotation ===== */
 
-.list-year-toggle .fa-chevron-right {
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.activities-year-toggle .fa-chevron-right {
+.list-year-toggle .icon-chevron-list,
+  .activities-year-toggle .icon-chevron-list {
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -4898,7 +5436,7 @@ body.lightbox-open #site-header {
 .accordion-item {
   display: flex;
   flex-direction: row;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   min-width: 0;
   margin: 0;
   /* 確保無外距 */
@@ -4912,11 +5450,11 @@ body.lightbox-open #site-header {
   }
 
   .accordion-item.active {
-    cursor: default;
+    cursor: var(--cursor-default);
   }
 
   .accordion-body-inner {
-    cursor: default;
+    cursor: var(--cursor-default);
   }
 }
 
@@ -5672,7 +6210,7 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
   color: black;
   font-size: var(--font-size-p2);
   line-height: 1.2;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   -webkit-user-select: none;
      -moz-user-select: none;
           user-select: none;
@@ -5783,1218 +6321,1218 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 }
 
 .pointer-events-none{
-  pointer-events: none;
+  pointer-events:  none;
 }
 
 .pointer-events-auto{
-  pointer-events: auto;
+  pointer-events:  auto;
 }
 
 .\!visible{
-  visibility: visible !important;
+  visibility:  visible !important;
 }
 
 .visible{
-  visibility: visible;
+  visibility:  visible;
 }
 
 .invisible{
-  visibility: hidden;
+  visibility:  hidden;
 }
 
 .collapse{
-  visibility: collapse;
+  visibility:  collapse;
 }
 
 .static{
-  position: static;
+  position:  static;
 }
 
 .fixed{
-  position: fixed;
+  position:  fixed;
 }
 
 .absolute{
-  position: absolute;
+  position:  absolute;
 }
 
 .relative{
-  position: relative;
+  position:  relative;
 }
 
 .sticky{
-  position: sticky;
+  position:  sticky;
 }
 
 .inset-0{
-  inset: 0px;
+  inset:  0px;
 }
 
 .-top-4{
-  top: -1rem;
+  top:  -1rem;
 }
 
 .bottom-0{
-  bottom: 0px;
+  bottom:  0px;
 }
 
 .left-0{
-  left: 0px;
+  left:  0px;
 }
 
 .left-4{
-  left: 1rem;
+  left:  1rem;
 }
 
 .right-0{
-  right: 0px;
-}
-
-.right-4{
-  right: 1rem;
+  right:  0px;
 }
 
 .top-0{
-  top: 0px;
+  top:  0px;
 }
 
 .top-\[calc\(var\(--header-height\2c 80px\)\+3rem\)\]{
-  top: calc(var(--header-height,80px) + 3rem);
+  top:  calc(var(--header-height,80px) + 3rem);
 }
 
 .z-10{
-  z-index: 10;
+  z-index:  10;
 }
 
 .z-20{
-  z-index: 20;
+  z-index:  20;
 }
 
 .z-30{
-  z-index: 30;
+  z-index:  30;
 }
 
 .z-40{
-  z-index: 40;
+  z-index:  40;
 }
 
 .z-50{
-  z-index: 50;
+  z-index:  50;
 }
 
 .z-\[100\]{
-  z-index: 100;
+  z-index:  100;
 }
 
 .z-\[150\]{
-  z-index: 150;
-}
-
-.z-\[151\]{
-  z-index: 151;
+  z-index:  150;
 }
 
 .z-\[9999\]{
-  z-index: 9999;
+  z-index:  9999;
 }
 
 .order-1{
-  order: 1;
+  order:  1;
 }
 
 .order-2{
-  order: 2;
+  order:  2;
 }
 
 .col-span-1{
-  grid-column: span 1 / span 1;
+  grid-column:  span 1 / span 1;
 }
 
 .col-span-11{
-  grid-column: span 11 / span 11;
+  grid-column:  span 11 / span 11;
 }
 
 .col-span-12{
-  grid-column: span 12 / span 12;
+  grid-column:  span 12 / span 12;
 }
 
 .col-span-4{
-  grid-column: span 4 / span 4;
+  grid-column:  span 4 / span 4;
 }
 
 .col-span-6{
-  grid-column: span 6 / span 6;
+  grid-column:  span 6 / span 6;
 }
 
 .col-span-7{
-  grid-column: span 7 / span 7;
+  grid-column:  span 7 / span 7;
 }
 
 .col-span-full{
-  grid-column: 1 / -1;
+  grid-column:  1 / -1;
+}
+
+.col-start-1{
+  grid-column-start:  1;
+}
+
+.col-start-2{
+  grid-column-start:  2;
+}
+
+.col-end-4{
+  grid-column-end:  4;
 }
 
 .mx-\[calc\(var\(--container-padding\)\*-1\)\]{
-  margin-left: calc(var(--container-padding) * -1);
-  margin-right: calc(var(--container-padding) * -1);
+  margin-left:  calc(var(--container-padding) * -1);
+  margin-right:  calc(var(--container-padding) * -1);
 }
 
 .mb-0{
-  margin-bottom: 0px;
+  margin-bottom:  0px;
 }
 
 .mb-2xl{
-  margin-bottom: var(--spacing-2xl);
+  margin-bottom:  var(--spacing-2xl);
 }
 
 .mb-3xl{
-  margin-bottom: var(--spacing-3xl);
+  margin-bottom:  var(--spacing-3xl);
 }
 
 .mb-4xl{
-  margin-bottom: var(--spacing-4xl);
+  margin-bottom:  var(--spacing-4xl);
 }
 
 .mb-6xl{
-  margin-bottom: var(--spacing-6xl);
+  margin-bottom:  var(--spacing-6xl);
 }
 
 .mb-\[0\.25rem\]{
-  margin-bottom: 0.25rem;
+  margin-bottom:  0.25rem;
 }
 
 .mb-lg{
-  margin-bottom: var(--spacing-lg);
+  margin-bottom:  var(--spacing-lg);
 }
 
 .mb-md{
-  margin-bottom: var(--spacing-md);
+  margin-bottom:  var(--spacing-md);
 }
 
 .mb-sm{
-  margin-bottom: var(--spacing-sm);
+  margin-bottom:  var(--spacing-sm);
 }
 
 .mb-xl{
-  margin-bottom: var(--spacing-xl);
+  margin-bottom:  var(--spacing-xl);
 }
 
 .mb-xs{
-  margin-bottom: var(--spacing-xs);
+  margin-bottom:  var(--spacing-xs);
 }
 
 .ml-2xl{
-  margin-left: var(--spacing-2xl);
+  margin-left:  var(--spacing-2xl);
 }
 
 .ml-lg{
-  margin-left: var(--spacing-lg);
+  margin-left:  var(--spacing-lg);
 }
 
 .ml-md{
-  margin-left: var(--spacing-md);
+  margin-left:  var(--spacing-md);
 }
 
 .ml-xl{
-  margin-left: var(--spacing-xl);
+  margin-left:  var(--spacing-xl);
 }
 
 .mr-xl{
-  margin-right: var(--spacing-xl);
+  margin-right:  var(--spacing-xl);
 }
 
 .mt-1{
-  margin-top: 0.25rem;
+  margin-top:  0.25rem;
 }
 
 .mt-2xl{
-  margin-top: var(--spacing-2xl);
+  margin-top:  var(--spacing-2xl);
 }
 
 .mt-3xl{
-  margin-top: var(--spacing-3xl);
+  margin-top:  var(--spacing-3xl);
 }
 
 .mt-4xl{
-  margin-top: var(--spacing-4xl);
+  margin-top:  var(--spacing-4xl);
 }
 
 .mt-\[4px\]{
-  margin-top: 4px;
+  margin-top:  4px;
 }
 
 .mt-auto{
-  margin-top: auto;
+  margin-top:  auto;
 }
 
 .mt-lg{
-  margin-top: var(--spacing-lg);
+  margin-top:  var(--spacing-lg);
 }
 
 .mt-md{
-  margin-top: var(--spacing-md);
+  margin-top:  var(--spacing-md);
 }
 
 .mt-sm{
-  margin-top: var(--spacing-sm);
+  margin-top:  var(--spacing-sm);
 }
 
 .mt-xl{
-  margin-top: var(--spacing-xl);
+  margin-top:  var(--spacing-xl);
 }
 
 .mt-xs{
-  margin-top: var(--spacing-xs);
+  margin-top:  var(--spacing-xs);
 }
 
 .box-border{
-  box-sizing: border-box;
+  box-sizing:  border-box;
 }
 
 .\!block{
-  display: block !important;
+  display:  block !important;
 }
 
 .block{
-  display: block;
+  display:  block;
 }
 
 .inline-block{
-  display: inline-block;
+  display:  inline-block;
 }
 
 .inline{
-  display: inline;
+  display:  inline;
 }
 
 .flex{
-  display: flex;
+  display:  flex;
+}
+
+.inline-flex{
+  display:  inline-flex;
 }
 
 .\!grid{
-  display: grid !important;
+  display:  grid !important;
 }
 
 .grid{
-  display: grid;
+  display:  grid;
 }
 
 .contents{
-  display: contents;
+  display:  contents;
 }
 
 .list-item{
-  display: list-item;
+  display:  list-item;
 }
 
 .hidden{
-  display: none;
+  display:  none;
 }
 
 .aspect-\[4\/5\]{
-  aspect-ratio: 4/5;
+  aspect-ratio:  4/5;
 }
 
 .aspect-video{
-  aspect-ratio: 16/9;
+  aspect-ratio:  16/9;
 }
 
 .h-0{
-  height: 0px;
+  height:  0px;
 }
 
 .h-12{
-  height: 3rem;
+  height:  3rem;
 }
 
 .h-8{
-  height: 2rem;
+  height:  2rem;
 }
 
 .h-\[1\.5em\]{
-  height: 1.5em;
+  height:  1.5em;
 }
 
 .h-\[180px\]{
-  height: 180px;
+  height:  180px;
 }
 
 .h-\[32px\]{
-  height: 32px;
+  height:  32px;
 }
 
 .h-\[44px\]{
-  height: 44px;
+  height:  44px;
 }
 
 .h-\[56px\]{
-  height: 56px;
-}
-
-.h-\[60px\]{
-  height: 60px;
+  height:  56px;
 }
 
 .h-\[700px\]{
-  height: 700px;
+  height:  700px;
 }
 
 .h-\[80px\]{
-  height: 80px;
+  height:  80px;
 }
 
 .h-auto{
-  height: auto;
+  height:  auto;
 }
 
 .h-full{
-  height: 100%;
+  height:  100%;
 }
 
 .h-screen{
-  height: 100vh;
+  height:  100vh;
 }
 
 .h-toggle{
-  height: 1.8rem;
+  height:  1.8rem;
 }
 
 .min-h-0{
-  min-height: 0px;
+  min-height:  0px;
 }
 
 .min-h-full{
-  min-height: 100%;
+  min-height:  100%;
 }
 
 .w-12{
-  width: 3rem;
+  width:  3rem;
 }
 
 .w-40{
-  width: 10rem;
+  width:  10rem;
 }
 
 .w-8{
-  width: 2rem;
+  width:  2rem;
 }
 
 .w-\[1\.5em\]{
-  width: 1.5em;
+  width:  1.5em;
 }
 
 .w-\[12vw\]{
-  width: 12vw;
+  width:  12vw;
 }
 
 .w-\[180px\]{
-  width: 180px;
+  width:  180px;
 }
 
 .w-\[32px\]{
-  width: 32px;
+  width:  32px;
 }
 
 .w-\[44px\]{
-  width: 44px;
-}
-
-.w-\[60px\]{
-  width: 60px;
+  width:  44px;
 }
 
 .w-\[65\%\]{
-  width: 65%;
+  width:  65%;
 }
 
 .w-\[80px\]{
-  width: 80px;
+  width:  80px;
 }
 
 .w-auto{
-  width: auto;
+  width:  auto;
 }
 
 .w-fit{
-  width: -moz-fit-content;
-  width: fit-content;
+  width:  -moz-fit-content;
+  width:  fit-content;
 }
 
 .w-full{
-  width: 100%;
+  width:  100%;
 }
 
 .min-w-0{
-  min-width: 0px;
+  min-width:  0px;
 }
 
 .max-w-sm{
-  max-width: 24rem;
+  max-width:  24rem;
 }
 
 .flex-1{
-  flex: 1 1 0%;
+  flex:  1 1 0%;
 }
 
 .flex-shrink{
-  flex-shrink: 1;
+  flex-shrink:  1;
 }
 
 .flex-shrink-0{
-  flex-shrink: 0;
+  flex-shrink:  0;
 }
 
 .shrink{
-  flex-shrink: 1;
+  flex-shrink:  1;
 }
 
 .shrink-0{
-  flex-shrink: 0;
+  flex-shrink:  0;
 }
 
 .origin-top-left{
-  transform-origin: top left;
+  transform-origin:  top left;
 }
 
 .translate-x-\[110\%\]{
-  --tw-translate-x: 110%;
-  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+  --tw-translate-x:  110%;
+  transform:  translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
 }
 
 .-rotate-4{
-  --tw-rotate: -4deg;
-  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+  --tw-rotate:  -4deg;
+  transform:  translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
 }
 
 .rotate-180{
-  --tw-rotate: 180deg;
-  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+  --tw-rotate:  180deg;
+  transform:  translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
 }
 
 .rotate-3{
-  --tw-rotate: 3deg;
-  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+  --tw-rotate:  3deg;
+  transform:  translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
 }
 
 .rotate-90{
-  --tw-rotate: 90deg;
-  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+  --tw-rotate:  90deg;
+  transform:  translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
 }
 
 .scale-\[1\.15\]{
-  --tw-scale-x: 1.15;
-  --tw-scale-y: 1.15;
-  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+  --tw-scale-x:  1.15;
+  --tw-scale-y:  1.15;
+  transform:  translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
 }
 
 .transform{
-  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+  transform:  translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
 }
 
 .cursor-default{
-  cursor: default;
+  cursor:  default;
 }
 
 .cursor-pointer{
-  cursor: pointer;
+  cursor:  pointer;
 }
 
 .resize{
-  resize: both;
+  resize:  both;
 }
 
 .list-disc{
-  list-style-type: disc;
+  list-style-type:  disc;
 }
 
 .grid-cols-12{
-  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-columns:  repeat(12, minmax(0, 1fr));
 }
 
 .grid-cols-2{
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns:  repeat(2, minmax(0, 1fr));
 }
 
 .grid-cols-\[1fr_2fr_2fr_1fr\]{
-  grid-template-columns: 1fr 2fr 2fr 1fr;
+  grid-template-columns:  1fr 2fr 2fr 1fr;
 }
 
 .flex-row{
-  flex-direction: row;
+  flex-direction:  row;
 }
 
 .flex-col{
-  flex-direction: column;
+  flex-direction:  column;
 }
 
 .flex-wrap{
-  flex-wrap: wrap;
+  flex-wrap:  wrap;
 }
 
 .items-start{
-  align-items: flex-start;
+  align-items:  flex-start;
 }
 
 .items-end{
-  align-items: flex-end;
+  align-items:  flex-end;
 }
 
 .items-center{
-  align-items: center;
+  align-items:  center;
 }
 
 .items-stretch{
-  align-items: stretch;
-}
-
-.justify-start{
-  justify-content: flex-start;
+  align-items:  stretch;
 }
 
 .justify-end{
-  justify-content: flex-end;
+  justify-content:  flex-end;
 }
 
 .justify-center{
-  justify-content: center;
+  justify-content:  center;
 }
 
 .justify-between{
-  justify-content: space-between;
+  justify-content:  space-between;
 }
 
 .gap-0{
-  gap: 0px;
+  gap:  0px;
 }
 
 .gap-2xl{
-  gap: var(--spacing-2xl);
+  gap:  var(--spacing-2xl);
 }
 
 .gap-3xl{
-  gap: var(--spacing-3xl);
+  gap:  var(--spacing-3xl);
 }
 
 .gap-4xl{
-  gap: var(--spacing-4xl);
+  gap:  var(--spacing-4xl);
 }
 
 .gap-6xl{
-  gap: var(--spacing-6xl);
+  gap:  var(--spacing-6xl);
 }
 
 .gap-gutter{
-  gap: 1.25rem;
+  gap:  1.25rem;
 }
 
 .gap-lg{
-  gap: var(--spacing-lg);
+  gap:  var(--spacing-lg);
 }
 
 .gap-md{
-  gap: var(--spacing-md);
+  gap:  var(--spacing-md);
 }
 
 .gap-sm{
-  gap: var(--spacing-sm);
+  gap:  var(--spacing-sm);
 }
 
 .gap-xl{
-  gap: var(--spacing-xl);
+  gap:  var(--spacing-xl);
 }
 
 .gap-xs{
-  gap: var(--spacing-xs);
+  gap:  var(--spacing-xs);
 }
 
 .gap-x-2xl{
-  -moz-column-gap: var(--spacing-2xl);
-       column-gap: var(--spacing-2xl);
+  -moz-column-gap:  var(--spacing-2xl);
+       column-gap:  var(--spacing-2xl);
 }
 
 .gap-x-md{
-  -moz-column-gap: var(--spacing-md);
-       column-gap: var(--spacing-md);
+  -moz-column-gap:  var(--spacing-md);
+       column-gap:  var(--spacing-md);
+}
+
+.gap-x-xl{
+  -moz-column-gap:  var(--spacing-xl);
+       column-gap:  var(--spacing-xl);
 }
 
 .gap-y-1{
-  row-gap: 0.25rem;
+  row-gap:  0.25rem;
 }
 
 .gap-y-4xl{
-  row-gap: var(--spacing-4xl);
+  row-gap:  var(--spacing-4xl);
 }
 
 .gap-y-xl{
-  row-gap: var(--spacing-xl);
+  row-gap:  var(--spacing-xl);
 }
 
 .space-y-xs > :not([hidden]) ~ :not([hidden]){
-  --tw-space-y-reverse: 0;
-  margin-top: calc(var(--spacing-xs) * calc(1 - var(--tw-space-y-reverse)));
-  margin-bottom: calc(var(--spacing-xs) * var(--tw-space-y-reverse));
+  --tw-space-y-reverse:  0;
+  margin-top:  calc(var(--spacing-xs) * calc(1 - var(--tw-space-y-reverse)));
+  margin-bottom:  calc(var(--spacing-xs) * var(--tw-space-y-reverse));
 }
 
 .self-start{
-  align-self: flex-start;
-}
-
-.self-stretch{
-  align-self: stretch;
+  align-self:  flex-start;
 }
 
 .overflow-hidden{
-  overflow: hidden;
+  overflow:  hidden;
 }
 
 .overflow-visible{
-  overflow: visible;
+  overflow:  visible;
 }
 
 .overflow-x-auto{
-  overflow-x: auto;
+  overflow-x:  auto;
 }
 
 .overflow-y-auto{
-  overflow-y: auto;
+  overflow-y:  auto;
 }
 
 .overflow-x-hidden{
-  overflow-x: hidden;
+  overflow-x:  hidden;
 }
 
 .truncate{
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow:  hidden;
+  text-overflow:  ellipsis;
+  white-space:  nowrap;
 }
 
 .whitespace-nowrap{
-  white-space: nowrap;
+  white-space:  nowrap;
 }
 
 .rounded-\[20px\]{
-  border-radius: 20px;
+  border-radius:  20px;
 }
 
 .rounded-\[24px\]{
-  border-radius: 24px;
+  border-radius:  24px;
 }
 
 .rounded-none{
-  border-radius: 0px;
+  border-radius:  0px;
 }
 
 .border{
-  border-width: 1px;
+  border-width:  1px;
 }
 
 .border-0{
-  border-width: 0px;
+  border-width:  0px;
 }
 
 .border-b-2{
-  border-bottom-width: 2px;
+  border-bottom-width:  2px;
 }
 
 .border-b-4{
-  border-bottom-width: 4px;
+  border-bottom-width:  4px;
 }
 
 .border-t-2{
-  border-top-width: 2px;
+  border-top-width:  2px;
 }
 
 .border-none{
-  border-style: none;
+  border-style:  none;
 }
 
 .border-black{
-  --tw-border-opacity: 1;
-  border-color: rgb(0 0 0 / var(--tw-border-opacity, 1));
+  --tw-border-opacity:  1;
+  border-color:  rgb(0 0 0 / var(--tw-border-opacity, 1));
 }
 
 .\!bg-transparent{
-  background-color: transparent !important;
+  background-color:  transparent !important;
 }
 
 .bg-black{
-  --tw-bg-opacity: 1;
-  background-color: rgb(0 0 0 / var(--tw-bg-opacity, 1));
+  --tw-bg-opacity:  1;
+  background-color:  rgb(0 0 0 / var(--tw-bg-opacity, 1));
 }
 
 .bg-black\/30{
-  background-color: rgb(0 0 0 / 0.3);
+  background-color:  rgb(0 0 0 / 0.3);
 }
 
 .bg-black\/90{
-  background-color: rgb(0 0 0 / 0.9);
+  background-color:  rgb(0 0 0 / 0.9);
 }
 
 .bg-gray-2{
-  --tw-bg-opacity: 1;
-  background-color: rgb(51 51 51 / var(--tw-bg-opacity, 1));
+  --tw-bg-opacity:  1;
+  background-color:  rgb(51 51 51 / var(--tw-bg-opacity, 1));
 }
 
 .bg-transparent{
-  background-color: transparent;
+  background-color:  transparent;
 }
 
 .bg-white{
-  --tw-bg-opacity: 1;
-  background-color: rgb(255 255 255 / var(--tw-bg-opacity, 1));
+  --tw-bg-opacity:  1;
+  background-color:  rgb(255 255 255 / var(--tw-bg-opacity, 1));
 }
 
 .bg-gradient-to-b{
-  background-image: linear-gradient(to bottom, var(--tw-gradient-stops));
+  background-image:  linear-gradient(to bottom, var(--tw-gradient-stops));
 }
 
 .from-transparent{
-  --tw-gradient-from: transparent var(--tw-gradient-from-position);
-  --tw-gradient-to: rgb(0 0 0 / 0) var(--tw-gradient-to-position);
-  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+  --tw-gradient-from:  transparent var(--tw-gradient-from-position);
+  --tw-gradient-to:  rgb(0 0 0 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops:  var(--tw-gradient-from), var(--tw-gradient-to);
 }
 
 .to-black{
-  --tw-gradient-to: #000000 var(--tw-gradient-to-position);
+  --tw-gradient-to:  #000000 var(--tw-gradient-to-position);
 }
 
 .object-contain{
-  -o-object-fit: contain;
-     object-fit: contain;
+  -o-object-fit:  contain;
+     object-fit:  contain;
 }
 
 .object-cover{
-  -o-object-fit: cover;
-     object-fit: cover;
+  -o-object-fit:  cover;
+     object-fit:  cover;
 }
 
 .object-bottom{
-  -o-object-position: bottom;
-     object-position: bottom;
+  -o-object-position:  bottom;
+     object-position:  bottom;
 }
 
 .object-center{
-  -o-object-position: center;
-     object-position: center;
+  -o-object-position:  center;
+     object-position:  center;
 }
 
 .object-top{
-  -o-object-position: top;
-     object-position: top;
+  -o-object-position:  top;
+     object-position:  top;
 }
 
 .p-2{
-  padding: 0.5rem;
+  padding:  0.5rem;
 }
 
 .p-2xl{
-  padding: var(--spacing-2xl);
+  padding:  var(--spacing-2xl);
 }
 
 .p-\[6px\]{
-  padding: 6px;
+  padding:  6px;
 }
 
 .p-sm{
-  padding: var(--spacing-sm);
+  padding:  var(--spacing-sm);
 }
 
 .px-16{
-  padding-left: 4rem;
-  padding-right: 4rem;
+  padding-left:  4rem;
+  padding-right:  4rem;
 }
 
 .px-2xl{
-  padding-left: var(--spacing-2xl);
-  padding-right: var(--spacing-2xl);
+  padding-left:  var(--spacing-2xl);
+  padding-right:  var(--spacing-2xl);
+}
+
+.px-32{
+  padding-left:  8rem;
+  padding-right:  8rem;
 }
 
 .px-\[4px\]{
-  padding-left: 4px;
-  padding-right: 4px;
+  padding-left:  4px;
+  padding-right:  4px;
 }
 
 .px-\[var\(--container-padding\)\]{
-  padding-left: var(--container-padding);
-  padding-right: var(--container-padding);
+  padding-left:  var(--container-padding);
+  padding-right:  var(--container-padding);
 }
 
 .px-container-padding{
-  padding-left: var(--container-padding);
-  padding-right: var(--container-padding);
+  padding-left:  var(--container-padding);
+  padding-right:  var(--container-padding);
 }
 
 .px-md{
-  padding-left: var(--spacing-md);
-  padding-right: var(--spacing-md);
+  padding-left:  var(--spacing-md);
+  padding-right:  var(--spacing-md);
 }
 
 .px-sm{
-  padding-left: var(--spacing-sm);
-  padding-right: var(--spacing-sm);
+  padding-left:  var(--spacing-sm);
+  padding-right:  var(--spacing-sm);
 }
 
 .px-xl{
-  padding-left: var(--spacing-xl);
-  padding-right: var(--spacing-xl);
+  padding-left:  var(--spacing-xl);
+  padding-right:  var(--spacing-xl);
 }
 
 .px-xs{
-  padding-left: var(--spacing-xs);
-  padding-right: var(--spacing-xs);
+  padding-left:  var(--spacing-xs);
+  padding-right:  var(--spacing-xs);
 }
 
 .py-3xl{
-  padding-top: var(--spacing-3xl);
-  padding-bottom: var(--spacing-3xl);
+  padding-top:  var(--spacing-3xl);
+  padding-bottom:  var(--spacing-3xl);
 }
 
 .py-6xl{
-  padding-top: var(--spacing-6xl);
-  padding-bottom: var(--spacing-6xl);
+  padding-top:  var(--spacing-6xl);
+  padding-bottom:  var(--spacing-6xl);
 }
 
 .py-8xl{
-  padding-top: var(--spacing-8xl);
-  padding-bottom: var(--spacing-8xl);
+  padding-top:  var(--spacing-8xl);
+  padding-bottom:  var(--spacing-8xl);
 }
 
 .py-\[0\.5rem\]{
-  padding-top: 0.5rem;
-  padding-bottom: 0.5rem;
+  padding-top:  0.5rem;
+  padding-bottom:  0.5rem;
 }
 
 .py-\[0\.75rem\]{
-  padding-top: 0.75rem;
-  padding-bottom: 0.75rem;
+  padding-top:  0.75rem;
+  padding-bottom:  0.75rem;
 }
 
 .py-md{
-  padding-top: var(--spacing-md);
-  padding-bottom: var(--spacing-md);
+  padding-top:  var(--spacing-md);
+  padding-bottom:  var(--spacing-md);
 }
 
 .py-sm{
-  padding-top: var(--spacing-sm);
-  padding-bottom: var(--spacing-sm);
+  padding-top:  var(--spacing-sm);
+  padding-bottom:  var(--spacing-sm);
 }
 
 .py-xl{
-  padding-top: var(--spacing-xl);
-  padding-bottom: var(--spacing-xl);
+  padding-top:  var(--spacing-xl);
+  padding-bottom:  var(--spacing-xl);
 }
 
 .py-xs{
-  padding-top: var(--spacing-xs);
-  padding-bottom: var(--spacing-xs);
+  padding-top:  var(--spacing-xs);
+  padding-bottom:  var(--spacing-xs);
 }
 
 .pb-2xl{
-  padding-bottom: var(--spacing-2xl);
+  padding-bottom:  var(--spacing-2xl);
 }
 
 .pb-3xl{
-  padding-bottom: var(--spacing-3xl);
+  padding-bottom:  var(--spacing-3xl);
 }
 
 .pb-4xl{
-  padding-bottom: var(--spacing-4xl);
+  padding-bottom:  var(--spacing-4xl);
 }
 
 .pb-6xl{
-  padding-bottom: var(--spacing-6xl);
+  padding-bottom:  var(--spacing-6xl);
 }
 
 .pb-lg{
-  padding-bottom: var(--spacing-lg);
+  padding-bottom:  var(--spacing-lg);
 }
 
 .pb-md{
-  padding-bottom: var(--spacing-md);
+  padding-bottom:  var(--spacing-md);
 }
 
 .pb-xs{
-  padding-bottom: var(--spacing-xs);
+  padding-bottom:  var(--spacing-xs);
+}
+
+.pl-\[41px\]{
+  padding-left:  41px;
 }
 
 .pl-xs{
-  padding-left: var(--spacing-xs);
+  padding-left:  var(--spacing-xs);
 }
 
 .pr-2xl{
-  padding-right: var(--spacing-2xl);
+  padding-right:  var(--spacing-2xl);
 }
 
 .pr-xl{
-  padding-right: var(--spacing-xl);
+  padding-right:  var(--spacing-xl);
 }
 
 .pt-0{
-  padding-top: 0px;
+  padding-top:  0px;
 }
 
 .pt-1{
-  padding-top: 0.25rem;
+  padding-top:  0.25rem;
 }
 
 .pt-2xl{
-  padding-top: var(--spacing-2xl);
+  padding-top:  var(--spacing-2xl);
 }
 
 .pt-3xl{
-  padding-top: var(--spacing-3xl);
+  padding-top:  var(--spacing-3xl);
 }
 
 .pt-6xl{
-  padding-top: var(--spacing-6xl);
+  padding-top:  var(--spacing-6xl);
 }
 
 .pt-8xl{
-  padding-top: var(--spacing-8xl);
+  padding-top:  var(--spacing-8xl);
 }
 
 .pt-\[0\.25rem\]{
-  padding-top: 0.25rem;
+  padding-top:  0.25rem;
 }
 
 .pt-\[120px\]{
-  padding-top: 120px;
+  padding-top:  120px;
 }
 
 .pt-\[2\.5rem\]{
-  padding-top: 2.5rem;
+  padding-top:  2.5rem;
 }
 
 .pt-\[calc\(var\(--header-height\2c 80px\)\+3rem\)\]{
-  padding-top: calc(var(--header-height,80px) + 3rem);
+  padding-top:  calc(var(--header-height,80px) + 3rem);
 }
 
 .pt-lg{
-  padding-top: var(--spacing-lg);
+  padding-top:  var(--spacing-lg);
 }
 
 .pt-sm{
-  padding-top: var(--spacing-sm);
+  padding-top:  var(--spacing-sm);
 }
 
 .pt-xs{
-  padding-top: var(--spacing-xs);
+  padding-top:  var(--spacing-xs);
+}
+
+.pb-sm{
+  padding-bottom:  var(--spacing-sm);
 }
 
 .text-left{
-  text-align: left;
+  text-align:  left;
 }
 
 .text-center{
-  text-align: center;
+  text-align:  center;
 }
 
 .text-right{
-  text-align: right;
+  text-align:  right;
 }
 
 .text-h2{
-  font-size: var(--font-size-h2);
+  font-size:  var(--font-size-h2);
 }
 
 .text-h3{
-  font-size: var(--font-size-h3);
+  font-size:  var(--font-size-h3);
 }
 
 .text-h4{
-  font-size: var(--font-size-h4);
+  font-size:  var(--font-size-h4);
 }
 
 .text-h5{
-  font-size: var(--font-size-h5);
-}
-
-.text-lg{
-  font-size: 1.125rem;
-  line-height: 1.75rem;
+  font-size:  var(--font-size-h5);
 }
 
 .text-p1{
-  font-size: var(--font-size-p1);
-}
-
-.text-xl{
-  font-size: 1.25rem;
-  line-height: 1.75rem;
+  font-size:  var(--font-size-p1);
 }
 
 .text-xs{
-  font-size: 0.75rem;
-  line-height: 1rem;
+  font-size:  0.75rem;
+  line-height:  1rem;
 }
 
 .font-bold{
-  font-weight: 700;
+  font-weight:  700;
 }
 
 .font-regular{
-  font-weight: 400;
+  font-weight:  400;
 }
 
 .font-semibold{
-  font-weight: 600;
+  font-weight:  600;
+}
+
+.uppercase{
+  text-transform:  uppercase;
 }
 
 .leading-base{
-  line-height: 1.5;
+  line-height:  1.5;
 }
 
 .leading-snug{
-  line-height: 1.375;
+  line-height:  1.375;
 }
 
 .leading-tight{
-  line-height: 1.25;
+  line-height:  1.25;
 }
 
 .text-black{
-  --tw-text-opacity: 1;
-  color: rgb(0 0 0 / var(--tw-text-opacity, 1));
+  --tw-text-opacity:  1;
+  color:  rgb(0 0 0 / var(--tw-text-opacity, 1));
 }
 
 .text-gray-5{
-  --tw-text-opacity: 1;
-  color: rgb(128 128 128 / var(--tw-text-opacity, 1));
+  --tw-text-opacity:  1;
+  color:  rgb(128 128 128 / var(--tw-text-opacity, 1));
 }
 
 .text-white{
-  --tw-text-opacity: 1;
-  color: rgb(255 255 255 / var(--tw-text-opacity, 1));
-}
-
-.underline{
-  text-decoration-line: underline;
+  --tw-text-opacity:  1;
+  color:  rgb(255 255 255 / var(--tw-text-opacity, 1));
 }
 
 .no-underline{
-  text-decoration-line: none;
+  text-decoration-line:  none;
 }
 
 .subpixel-antialiased{
-  -webkit-font-smoothing: auto;
-  -moz-osx-font-smoothing: auto;
+  -webkit-font-smoothing:  auto;
+  -moz-osx-font-smoothing:  auto;
 }
 
 .opacity-0{
-  opacity: 0;
+  opacity:  0;
+}
+
+.opacity-20{
+  opacity:  0.2;
+}
+
+.opacity-30{
+  opacity:  0.3;
 }
 
 .opacity-40{
-  opacity: 0.4;
+  opacity:  0.4;
 }
 
 .opacity-60{
-  opacity: 0.6;
+  opacity:  0.6;
 }
 
 .shadow-2xl{
-  --tw-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
-  --tw-shadow-colored: 0 25px 50px -12px var(--tw-shadow-color);
-  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+  --tw-shadow:  0 25px 50px -12px rgb(0 0 0 / 0.25);
+  --tw-shadow-colored:  0 25px 50px -12px var(--tw-shadow-color);
+  box-shadow:  var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
 }
 
 .shadow-none{
-  --tw-shadow: 0 0 #0000;
-  --tw-shadow-colored: 0 0 #0000;
-  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+  --tw-shadow:  0 0 #0000;
+  --tw-shadow-colored:  0 0 #0000;
+  box-shadow:  var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
 }
 
 .outline-none{
-  outline: 2px solid transparent;
-  outline-offset: 2px;
+  outline:  2px solid transparent;
+  outline-offset:  2px;
 }
 
 .outline{
-  outline-style: solid;
-}
-
-.outline-2{
-  outline-width: 2px;
-}
-
-.outline-white{
-  outline-color: #FFFFFF;
+  outline-style:  solid;
 }
 
 .ring{
-  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
-  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(3px + var(--tw-ring-offset-width)) var(--tw-ring-color);
-  box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+  --tw-ring-offset-shadow:  var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+  --tw-ring-shadow:  var(--tw-ring-inset) 0 0 0 calc(3px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+  box-shadow:  var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
 }
 
 .blur{
-  --tw-blur: blur(8px);
-  filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
+  --tw-blur:  blur(8px);
+  filter:  var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
 }
 
 .grayscale{
-  --tw-grayscale: grayscale(100%);
-  filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
+  --tw-grayscale:  grayscale(100%);
+  filter:  var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
 }
 
 .invert{
-  --tw-invert: invert(100%);
-  filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
+  --tw-invert:  invert(100%);
+  filter:  var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
 }
 
 .filter{
-  filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
+  filter:  var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
 }
 
 .transition{
-  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
+  transition-property:  color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
+  transition-timing-function:  cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration:  150ms;
 }
 
 .transition-all{
-  transition-property: all;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
+  transition-property:  all;
+  transition-timing-function:  cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration:  150ms;
 }
 
 .transition-colors{
-  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
+  transition-property:  color, background-color, border-color, text-decoration-color, fill, stroke;
+  transition-timing-function:  cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration:  150ms;
 }
 
 .transition-opacity{
-  transition-property: opacity;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
+  transition-property:  opacity;
+  transition-timing-function:  cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration:  150ms;
 }
 
 .transition-transform{
-  transition-property: transform;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
+  transition-property:  transform;
+  transition-timing-function:  cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration:  150ms;
 }
 
 .delay-75{
-  transition-delay: 75ms;
+  transition-delay:  75ms;
 }
 
 .duration-300{
-  transition-duration: 300ms;
+  transition-duration:  300ms;
 }
 
 .duration-fast{
-  transition-duration: 200ms;
+  transition-duration:  200ms;
 }
 
 .ease-in{
-  transition-timing-function: cubic-bezier(0.4, 0, 1, 1);
+  transition-timing-function:  cubic-bezier(0.4, 0, 1, 1);
 }
 
 .ease-out{
-  transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
+  transition-timing-function:  cubic-bezier(0, 0, 0.2, 1);
 }
 
 .text-p2 {
@@ -7057,360 +7595,378 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 }
 
 .hover\:text-gray-5:hover{
-  --tw-text-opacity: 1;
-  color: rgb(128 128 128 / var(--tw-text-opacity, 1));
+  --tw-text-opacity:  1;
+  color:  rgb(128 128 128 / var(--tw-text-opacity, 1));
 }
 
 .hover\:text-gray-6:hover{
-  --tw-text-opacity: 1;
-  color: rgb(153 153 153 / var(--tw-text-opacity, 1));
-}
-
-.hover\:underline:hover{
-  text-decoration-line: underline;
+  --tw-text-opacity:  1;
+  color:  rgb(153 153 153 / var(--tw-text-opacity, 1));
 }
 
 .hover\:opacity-60:hover{
-  opacity: 0.6;
+  opacity:  0.6;
+}
+
+.disabled\:cursor-not-allowed:disabled{
+  cursor:  not-allowed;
+}
+
+.disabled\:text-gray-500:disabled{
+  --tw-text-opacity:  1;
+  color:  rgb(107 114 128 / var(--tw-text-opacity, 1));
 }
 
 .disabled\:opacity-20:disabled{
-  opacity: 0.2;
+  opacity:  0.2;
+}
+
+.disabled\:opacity-30:disabled{
+  opacity:  0.3;
+}
+
+.disabled\:hover\:opacity-30:hover:disabled{
+  opacity:  0.3;
 }
 
 @media (min-width: 768px){
   .md\:absolute{
-    position: absolute;
+    position:  absolute;
   }
 
   .md\:sticky{
-    position: sticky;
-  }
-
-  .md\:right-8{
-    right: 2rem;
+    position:  sticky;
   }
 
   .md\:top-\[200px\]{
-    top: 200px;
+    top:  200px;
   }
 
   .md\:top-\[8rem\]{
-    top: 8rem;
+    top:  8rem;
   }
 
   .md\:order-1{
-    order: 1;
+    order:  1;
   }
 
   .md\:order-2{
-    order: 2;
+    order:  2;
   }
 
   .md\:order-3{
-    order: 3;
+    order:  3;
   }
 
   .md\:order-4{
-    order: 4;
+    order:  4;
   }
 
   .md\:order-5{
-    order: 5;
+    order:  5;
   }
 
   .md\:order-none{
-    order: 0;
+    order:  0;
   }
 
   .md\:col-span-1{
-    grid-column: span 1 / span 1;
+    grid-column:  span 1 / span 1;
   }
 
   .md\:col-span-10{
-    grid-column: span 10 / span 10;
+    grid-column:  span 10 / span 10;
   }
 
   .md\:col-span-11{
-    grid-column: span 11 / span 11;
+    grid-column:  span 11 / span 11;
   }
 
   .md\:col-span-2{
-    grid-column: span 2 / span 2;
+    grid-column:  span 2 / span 2;
   }
 
   .md\:col-span-3{
-    grid-column: span 3 / span 3;
+    grid-column:  span 3 / span 3;
   }
 
   .md\:col-span-4{
-    grid-column: span 4 / span 4;
+    grid-column:  span 4 / span 4;
   }
 
   .md\:col-span-5{
-    grid-column: span 5 / span 5;
+    grid-column:  span 5 / span 5;
   }
 
   .md\:col-span-6{
-    grid-column: span 6 / span 6;
+    grid-column:  span 6 / span 6;
   }
 
   .md\:col-span-7{
-    grid-column: span 7 / span 7;
+    grid-column:  span 7 / span 7;
   }
 
   .md\:col-span-9{
-    grid-column: span 9 / span 9;
+    grid-column:  span 9 / span 9;
   }
 
   .md\:col-start-1{
-    grid-column-start: 1;
+    grid-column-start:  1;
   }
 
   .md\:col-start-2{
-    grid-column-start: 2;
+    grid-column-start:  2;
   }
 
   .md\:col-start-3{
-    grid-column-start: 3;
+    grid-column-start:  3;
   }
 
   .md\:col-start-4{
-    grid-column-start: 4;
+    grid-column-start:  4;
   }
 
   .md\:col-start-6{
-    grid-column-start: 6;
+    grid-column-start:  6;
   }
 
   .md\:col-start-7{
-    grid-column-start: 7;
+    grid-column-start:  7;
   }
 
   .md\:col-start-8{
-    grid-column-start: 8;
+    grid-column-start:  8;
   }
 
   .md\:mx-0{
-    margin-left: 0px;
-    margin-right: 0px;
+    margin-left:  0px;
+    margin-right:  0px;
   }
 
   .md\:mb-0{
-    margin-bottom: 0px;
+    margin-bottom:  0px;
   }
 
   .md\:mb-2xl{
-    margin-bottom: var(--spacing-2xl);
+    margin-bottom:  var(--spacing-2xl);
   }
 
   .md\:mb-lg{
-    margin-bottom: var(--spacing-lg);
+    margin-bottom:  var(--spacing-lg);
   }
 
   .md\:ml-0{
-    margin-left: 0px;
+    margin-left:  0px;
   }
 
   .md\:ml-xl{
-    margin-left: var(--spacing-xl);
+    margin-left:  var(--spacing-xl);
   }
 
   .md\:mt-0{
-    margin-top: 0px;
+    margin-top:  0px;
   }
 
   .md\:mt-6xl{
-    margin-top: var(--spacing-6xl);
+    margin-top:  var(--spacing-6xl);
   }
 
   .md\:block{
-    display: block;
+    display:  block;
   }
 
   .md\:inline{
-    display: inline;
+    display:  inline;
   }
 
   .md\:flex{
-    display: flex;
+    display:  flex;
   }
 
   .md\:contents{
-    display: contents;
+    display:  contents;
   }
 
   .md\:hidden{
-    display: none;
+    display:  none;
   }
 
   .md\:h-full{
-    height: 100%;
+    height:  100%;
   }
 
   .md\:h-screen{
-    height: 100vh;
+    height:  100vh;
   }
 
   .md\:w-1\/2{
-    width: 50%;
+    width:  50%;
+  }
+
+  .md\:w-\[20\%\]{
+    width:  20%;
   }
 
   .md\:w-\[22\%\]{
-    width: 22%;
+    width:  22%;
   }
 
   .md\:w-\[25\%\]{
-    width: 25%;
+    width:  25%;
   }
 
   .md\:w-\[40\%\]{
-    width: 40%;
+    width:  40%;
   }
 
   .md\:w-\[79\.1666\%\]{
-    width: 79.1666%;
+    width:  79.1666%;
   }
 
   .md\:w-full{
-    width: 100%;
+    width:  100%;
   }
 
   .md\:flex-\[0_0_calc\(16\.667\%_-_1\.25rem\)\]{
-    flex: 0 0 calc(16.667% - 1.25rem);
+    flex:  0 0 calc(16.667% - 1.25rem);
   }
 
   .md\:flex-\[0_0_calc\(25\%_-_1\.25rem\)\]{
-    flex: 0 0 calc(25% - 1.25rem);
+    flex:  0 0 calc(25% - 1.25rem);
   }
 
   .md\:grid-cols-3{
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns:  repeat(3, minmax(0, 1fr));
   }
 
   .md\:grid-cols-4{
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns:  repeat(4, minmax(0, 1fr));
   }
 
   .md\:grid-cols-9{
-    grid-template-columns: repeat(9, minmax(0, 1fr));
+    grid-template-columns:  repeat(9, minmax(0, 1fr));
   }
 
   .md\:flex-row{
-    flex-direction: row;
+    flex-direction:  row;
   }
 
   .md\:flex-col{
-    flex-direction: column;
+    flex-direction:  column;
   }
 
   .md\:items-start{
-    align-items: flex-start;
+    align-items:  flex-start;
   }
 
   .md\:items-end{
-    align-items: flex-end;
+    align-items:  flex-end;
   }
 
   .md\:justify-start{
-    justify-content: flex-start;
+    justify-content:  flex-start;
   }
 
   .md\:justify-center{
-    justify-content: center;
+    justify-content:  center;
   }
 
   .md\:gap-2xl{
-    gap: var(--spacing-2xl);
+    gap:  var(--spacing-2xl);
   }
 
   .md\:gap-3xl{
-    gap: var(--spacing-3xl);
+    gap:  var(--spacing-3xl);
   }
 
-  .md\:gap-gutter{
-    gap: 1.25rem;
+  .md\:gap-sm{
+    gap:  var(--spacing-sm);
   }
 
   .md\:gap-xl{
-    gap: var(--spacing-xl);
+    gap:  var(--spacing-xl);
   }
 
   .md\:gap-x-2xl{
-    -moz-column-gap: var(--spacing-2xl);
-         column-gap: var(--spacing-2xl);
+    -moz-column-gap:  var(--spacing-2xl);
+         column-gap:  var(--spacing-2xl);
   }
 
   .md\:gap-y-0{
-    row-gap: 0px;
+    row-gap:  0px;
   }
 
   .md\:gap-y-4xl{
-    row-gap: var(--spacing-4xl);
+    row-gap:  var(--spacing-4xl);
   }
 
   .md\:self-start{
-    align-self: flex-start;
+    align-self:  flex-start;
   }
 
   .md\:px-0{
-    padding-left: 0px;
-    padding-right: 0px;
+    padding-left:  0px;
+    padding-right:  0px;
+  }
+
+  .md\:px-32{
+    padding-left:  8rem;
+    padding-right:  8rem;
   }
 
   .md\:py-0{
-    padding-top: 0px;
-    padding-bottom: 0px;
+    padding-top:  0px;
+    padding-bottom:  0px;
   }
 
   .md\:py-4xl{
-    padding-top: var(--spacing-4xl);
-    padding-bottom: var(--spacing-4xl);
+    padding-top:  var(--spacing-4xl);
+    padding-bottom:  var(--spacing-4xl);
   }
 
   .md\:py-6xl{
-    padding-top: var(--spacing-6xl);
-    padding-bottom: var(--spacing-6xl);
+    padding-top:  var(--spacing-6xl);
+    padding-bottom:  var(--spacing-6xl);
   }
 
   .md\:pb-2xl{
-    padding-bottom: var(--spacing-2xl);
+    padding-bottom:  var(--spacing-2xl);
   }
 
   .md\:pb-6xl{
-    padding-bottom: var(--spacing-6xl);
+    padding-bottom:  var(--spacing-6xl);
   }
 
   .md\:pb-sm{
-    padding-bottom: var(--spacing-sm);
+    padding-bottom:  var(--spacing-sm);
   }
 
   .md\:pb-xl{
-    padding-bottom: var(--spacing-xl);
+    padding-bottom:  var(--spacing-xl);
   }
 
   .md\:pl-\[41px\]{
-    padding-left: 41px;
+    padding-left:  41px;
   }
 
   .md\:pr-\[2rem\]{
-    padding-right: 2rem;
+    padding-right:  2rem;
   }
 
   .md\:pt-0{
-    padding-top: 0px;
+    padding-top:  0px;
   }
 
   .md\:pt-6xl{
-    padding-top: var(--spacing-6xl);
+    padding-top:  var(--spacing-6xl);
   }
 
   .md\:pt-xl{
-    padding-top: var(--spacing-xl);
+    padding-top:  var(--spacing-xl);
   }
 
   .md\:text-left{
-    text-align: left;
+    text-align:  left;
   }
 
   .md\:text-p2 {

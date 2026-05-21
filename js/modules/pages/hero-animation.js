@@ -4,9 +4,34 @@
  *
  * 架構：
  * - JS 動態為每個元素加一個 wrapper（帶 CSS class），wrapper 負責 rotate
- * - 元素本身做 yPercent: 100 → 0 的 clip reveal（從 wrapper 底部滑入）
+ * - 元素本身做 clip reveal：每次隨機從 4 方向（top/bottom/left/right）滑入，
+ *   用 wrapper overflow:hidden 當遮罩；退場時也隨機 4 方向滑出
  * - visibility: hidden 定義在 hero.css，CSS 載入後立即生效，防止閃爍
  */
+
+import { registerPageExit } from '../ui/page-exit.js';
+
+// 4 方向隨機 slide-in：用 wrapper overflow:hidden 當遮罩，child 從 wrapper 外的某方向滑入
+const HERO_DIRS = ['top', 'bottom', 'left', 'right'];
+function pickHeroDir() { return HERO_DIRS[Math.floor(Math.random() * HERO_DIRS.length)]; }
+
+// 該方向的「藏起」位移：child 移到 wrapper 外指定方向（width/height = wrapper bbox）
+function offsetFor(dir) {
+  switch (dir) {
+    case 'top':    return { xPercent: 0,    yPercent: -100 };
+    case 'bottom': return { xPercent: 0,    yPercent: 100  };
+    case 'left':   return { xPercent: -100, yPercent: 0    };
+    case 'right':  return { xPercent: 100,  yPercent: 0    };
+  }
+}
+
+// Banner clip-path 4 方向收/展（沿用 hero-banner 既有 inset reveal pattern）
+const BANNER_INSET_MAP = {
+  top:    'inset(0% 0% 100% 0%)',
+  right:  'inset(0% 0% 0% 100%)',
+  bottom: 'inset(100% 0% 0% 0%)',
+  left:   'inset(0% 100% 0% 0%)',
+};
 
 function wrapElement(el, wrapperClass) {
   const wrapper = document.createElement('div');
@@ -256,6 +281,78 @@ function randomizeHeroLayout() {
     banner.style.left = `${(vx - rect.left).toFixed(1)}px`;
     banner.style.top = `${(vy - rect.top).toFixed(1)}px`;
   }
+
+  // 收齊 .hero-text-en / .hero-text-cn chip 寬度 = 實際 wrap 後最長行 + padding。
+  // 根因：max-width 是 wrap 上限，不是 chip 視覺寬；最長行通常比 max-width 短，
+  // bg 跟著 <p> 寬度延伸 → 右側看起來比左 padding 大。用 Range API 量 wrapped lines 取最長一行寫回 width
+  // 收緊。位置已派完（基於原 max-width bbox），縮 width 只會讓 bbox 變小，不會引入重疊。
+  ['hero-text-en', 'hero-text-cn'].forEach(cls => {
+    const p = /** @type {HTMLElement|null} */ (grid.querySelector(`.${cls}`));
+    if (!p) return;
+    const range = document.createRange();
+    range.selectNodeContents(p);
+    const rects = range.getClientRects();
+    let maxLineW = 0;
+    for (const r of rects) if (r.width > maxLineW) maxLineW = r.width;
+    if (maxLineW <= 0) return;
+    const cs = getComputedStyle(p);
+    const padL = parseFloat(cs.paddingLeft) || 0;
+    const padR = parseFloat(cs.paddingRight) || 0;
+    p.style.width = `${Math.ceil(maxLineW + padL + padR)}px`;
+  });
+}
+
+/**
+ * Hero 退場動畫：text 4 方向隨機 slide-out + banner 4 方向 clip-path 收合。
+ * 與 page-specific exit handler 並行（page-exit.js 用 Promise.all）。
+ */
+async function playHeroExit() {
+  if (typeof gsap === 'undefined') return;
+
+  const texts = Array.from(document.querySelectorAll(
+    '.hero-title, .hero-title-cn, .hero-text-en, .hero-text-cn'
+  )).filter(el => /** @type {HTMLElement} */ (el).offsetParent !== null);
+  const banner = /** @type {HTMLElement | null} */ (document.querySelector('.hero-banner'));
+
+  if (texts.length === 0 && !banner) return;
+
+  const EXIT_DURATION = 0.5;
+  const EXIT_STAGGER = 0.06;
+
+  return new Promise(resolve => {
+    const tl = gsap.timeline({ onComplete: resolve });
+
+    // 用 fromTo 明確指定起點：進場 clearProps:'transform' 後元素無 inline transform，
+    // 直接 tl.to 仰賴 computed xPercent/yPercent=0 雖通常 OK，但同 reason 包進 fromTo 避免 GSAP 解析意外
+    texts.forEach((el, i) => {
+      const to = offsetFor(pickHeroDir());
+      tl.fromTo(el,
+        { xPercent: 0, yPercent: 0 },
+        {
+          xPercent: to.xPercent,
+          yPercent: to.yPercent,
+          duration: EXIT_DURATION,
+          ease: 'power3.in',
+          overwrite: true,
+        },
+        i * EXIT_STAGGER);
+    });
+
+    // Banner: 進場 clearProps:'clipPath' 後 computed clipPath = 'none'，無法 interpolate 到 inset(...)；
+    // 用 fromTo 指定 from = inset(0%) 是 explicit 起點
+    if (banner) {
+      const dir = pickHeroDir();
+      tl.fromTo(banner,
+        { clipPath: 'inset(0% 0% 0% 0%)' },
+        {
+          clipPath: BANNER_INSET_MAP[dir],
+          duration: EXIT_DURATION,
+          ease: 'power3.in',
+          overwrite: true,
+        },
+        0);
+    }
+  });
 }
 
 // Hero 進場動畫完成信號：SPA 換頁時 deep-link 邏輯（如 courses ?item= scroll + slide-in）
@@ -397,15 +494,8 @@ export function initHeroAnimation() {
   // Banner clip-path reveal（4 方向 random，與 faculty card 圖片進場一致風格）
   const heroBanner = /** @type {HTMLElement | null} */ (document.querySelector('.hero-banner'));
   if (heroBanner) {
-    const BANNER_CLIP_MAP = {
-      top:    'inset(0% 0% 100% 0%)',
-      right:  'inset(0% 0% 0% 100%)',
-      bottom: 'inset(100% 0% 0% 0%)',
-      left:   'inset(0% 100% 0% 0%)',
-    };
-    const dirs = Object.keys(BANNER_CLIP_MAP);
-    const dir = dirs[Math.floor(Math.random() * dirs.length)];
-    gsap.set(heroBanner, { clipPath: BANNER_CLIP_MAP[dir] });
+    const dir = pickHeroDir();
+    gsap.set(heroBanner, { clipPath: BANNER_INSET_MAP[dir] });
     tl.set(heroBanner, { visibility: 'visible' }, 0);
     tl.to(heroBanner, {
       clipPath: 'inset(0% 0% 0% 0%)',
@@ -422,53 +512,42 @@ export function initHeroAnimation() {
   const titleLast = document.querySelector('[data-hero-title-last]') !== null;
 
   // 為什麼 visibility:visible 用 tl.set 對齊動畫起點而非 gsap.set 立即打開：
-  // 若 init 時就 visibility:visible + yPercent:100，sub-pixel rounding 會在 wrapper 底邊露出 ~0.5px 細綫，
+  // 若 init 時就 visibility:visible + 位移到 wrapper 外，sub-pixel rounding 會在 wrapper 邊緣露出 ~0.5px 細綫，
   // 動畫前等待視覺上看得到。把可見性切換對齊動畫起點 = 露邊立刻被滑入動作蓋掉，視覺乾淨。
 
-  if (titleLast) {
-    // Subtitles 先（年份 → 英文 stagger），title 後 overlap 進場
-    if (subtitles.length > 0) {
-      gsap.set(subtitles, { yPercent: 100 });
-      tl.set(subtitles, { visibility: 'visible' })
-        .to(subtitles, {
-          yPercent: 0,
-          duration: 0.9,
-          stagger: 0.15,
-          clearProps: 'transform',
-        });
-    }
-    if (titles.length > 0) {
-      gsap.set(titles, { yPercent: 100 });
-      tl.set(titles, { visibility: 'visible' }, '-=0.4')
-        .to(titles, {
-          yPercent: 0,
-          duration: 0.9,
-          stagger: 0.15,
-          clearProps: 'transform',
-        }, '<');
-    }
-  } else {
-    // 預設：title 先（英中 stagger），subtitles 後 overlap 進場
-    if (titles.length > 0) {
-      gsap.set(titles, { visibility: 'visible', yPercent: 100 });
-      tl.to(titles, {
+  // 每個 text 元素獨立隨機挑方向，從 4 方向（top/bottom/left/right）任一滑入；
+  // 保留原 stagger 0.15 + duration 0.9 + overlap -0.4 節奏
+  const ENTER_STAGGER = 0.15;
+  const ENTER_DURATION = 0.9;
+  const ENTER_OVERLAP = 0.4;
+
+  function addGroupTo(timeline, group, baseTime) {
+    group.forEach((el, i) => {
+      const from = offsetFor(pickHeroDir());
+      gsap.set(el, from);
+      const at = baseTime + i * ENTER_STAGGER;
+      timeline.set(el, { visibility: 'visible' }, at);
+      timeline.to(el, {
+        xPercent: 0,
         yPercent: 0,
-        duration: 0.9,
-        stagger: 0.15,
+        duration: ENTER_DURATION,
         clearProps: 'transform',
-      });
-    }
-    if (subtitles.length > 0) {
-      gsap.set(subtitles, { yPercent: 100 });
-      tl.set(subtitles, { visibility: 'visible' }, '-=0.4')
-        .to(subtitles, {
-          yPercent: 0,
-          duration: 0.9,
-          stagger: 0.15,
-          clearProps: 'transform',
-        }, '<');
-    }
+      }, at);
+    });
   }
+
+  const firstGroup = titleLast ? subtitles : titles;
+  const secondGroup = titleLast ? titles : subtitles;
+  if (firstGroup.length > 0) addGroupTo(tl, firstGroup, 0);
+  if (secondGroup.length > 0) {
+    const secondStart = firstGroup.length > 0
+      ? Math.max(0, (firstGroup.length - 1) * ENTER_STAGGER + ENTER_DURATION - ENTER_OVERLAP)
+      : 0;
+    addGroupTo(tl, secondGroup, secondStart);
+  }
+
+  // 註冊退場動畫：4 方向隨機滑出（每元素獨立），與 banner clip-path 4 方向收合並行
+  registerPageExit(playHeroExit);
 
   // Hero 之後的 main section 蓋在 hero 上方，避免 hero 動畫殘影在 scroll 期間透出來
   if (typeof ScrollTrigger !== 'undefined') {

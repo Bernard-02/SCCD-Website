@@ -1,0 +1,92 @@
+{
+  "cpt": "sccd_about_history",
+  "endpoint": "about-history",
+  "menu_order": 5,
+  "labels": {
+    "name": "History",
+    "singular_name": "History 歷史照片",
+    "menu_name": "History 沿革",
+    "add_new": "新增條目",
+    "add_new_item": "新增條目",
+    "edit_item": "編輯條目",
+    "all_items": "History 沿革"
+  },
+  "menu_group": {
+    "slug": "sccd-about",
+    "label": "關於 About",
+    "icon": "dashicons-info",
+    "position": 30.2
+  },
+  "menu_icon": "dashicons-clock",
+  "supports": [
+    "title"
+  ],
+  "fields": [
+    {
+      "id": "year",
+      "name": "年份",
+      "type": "year"
+    },
+    {
+      "id": "eraEn",
+      "name": "時代分類（英）",
+      "type": "text"
+    },
+    {
+      "id": "eraZh",
+      "name": "時代分類（中，相同字串視為同一 era）",
+      "type": "text"
+    },
+    {
+      "id": "descriptions",
+      "name": "該年份說明（可加多筆；前臺第一筆對應主標、後續可加 BFA/MDES 等子段落）",
+      "type": "group",
+      "item_label": "說明段落",
+      "fields": [
+        {
+          "id": "titleEn",
+          "name": "段落標題（英，例：BFA Undergraduate）",
+          "type": "text"
+        },
+        {
+          "id": "titleZh",
+          "name": "段落標題（中，例：BFA 學士班）",
+          "type": "text"
+        },
+        {
+          "id": "descriptionEn",
+          "name": "說明文字（英）",
+          "type": "textarea"
+        },
+        {
+          "id": "descriptionZh",
+          "name": "說明文字（中）",
+          "type": "textarea"
+        }
+      ]
+    },
+    {
+      "id": "images",
+      "name": "照片（每張獨立加，含說明文字；第 1 / 第 5 張前臺不渲染 caption）",
+      "type": "group",
+      "item_label": "照片",
+      "fields": [
+        {
+          "id": "image",
+          "name": "圖片",
+          "type": "image"
+        },
+        {
+          "id": "captionEn",
+          "name": "圖片說明（英）",
+          "type": "textarea"
+        },
+        {
+          "id": "captionZh",
+          "name": "圖片說明（中）",
+          "type": "textarea"
+        }
+      ]
+    }
+  ]
+}

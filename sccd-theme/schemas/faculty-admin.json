@@ -1,0 +1,56 @@
+{
+  "cpt": "faculty_admin",
+  "endpoint": "faculty-admin",
+  "menu_order": 3,
+  "labels": {
+    "name": "Admin",
+    "singular_name": "行政管理",
+    "menu_name": "行政管理",
+    "add_new": "新增行政人員",
+    "add_new_item": "新增行政人員",
+    "edit_item": "編輯行政人員",
+    "all_items": "行政管理"
+  },
+  "menu_group": {
+    "slug": "sccd-faculty",
+    "label": "師資 Faculty",
+    "icon": "dashicons-groups",
+    "position": 30.3
+  },
+  "menu_icon": "dashicons-id",
+  "supports": [
+    "title"
+  ],
+  "fields": [
+    {
+      "id": "image",
+      "name": "照片",
+      "type": "image"
+    },
+    {
+      "id": "nameEn",
+      "name": "姓名（英）",
+      "type": "text"
+    },
+    {
+      "id": "nameZh",
+      "name": "姓名（中）",
+      "type": "text"
+    },
+    {
+      "id": "titleEn",
+      "name": "職稱（英）",
+      "type": "text"
+    },
+    {
+      "id": "titleZh",
+      "name": "職稱（中）",
+      "type": "text"
+    },
+    {
+      "id": "contact",
+      "name": "聯絡資訊（純文字）",
+      "type": "textarea"
+    }
+  ]
+}

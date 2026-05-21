@@ -44,61 +44,63 @@
       </div>
 
     </section>
-  </main>
 
-  <!-- Video Player Lightbox -->
+  <!-- Video Player Lightbox（必須在 <main> 內，否則 SPA 從別頁切回 index 時不會被 swap 進來） -->
   <div id="video-player-overlay" style="display:none; position:fixed; inset:0; z-index:10000; background:#000; flex-direction:column; justify-content:center; align-items:center;">
     <video id="video-player" style="width:95%; max-height:90%; object-fit:contain;" preload="metadata" controlsList="nodownload" oncontextmenu="return false;"></video>
 
     <!-- Controls 容器（三個獨立區塊，絕對定位在底部偏上） -->
     <div id="video-controls" style="position:absolute; bottom:3rem; left:0; right:0; padding: 0 24rem; display:flex; align-items:center; justify-content:space-between; pointer-events:none; opacity:0;">
 
-      <!-- 區塊 1：返回鍵 -->
-      <div id="video-block-close" style="background:transparent; padding:0.75rem 1rem; display:flex; align-items:center;">
+      <!-- 區塊 1：返回鍵 — height fix 3rem 避免內 icon size 變化影響 pill 高度 -->
+      <div id="video-block-close" style="background:transparent; padding:0 1rem; height:3rem; display:flex; align-items:center;">
         <button id="video-close-btn" style="color:#fff; background:none; border:none; cursor:pointer; padding:0; line-height:1; display:flex; align-items:center;">
-          <i class="fa-solid fa-arrow-left" style="font-size:1.5rem;"></i>
+          <span class="icon icon-arrow-left icon-l"></span>
         </button>
       </div>
 
       <!-- 區塊 2：中間 control bar -->
-      <div id="video-block-center" style="background:transparent; padding:0.75rem 1.25rem; display:flex; align-items:center; gap:1.25rem; flex:1; min-width:0; margin:0 1rem;">
+      <div id="video-block-center" style="background:transparent; padding:0 1.25rem; height:3rem; display:flex; align-items:center; gap:1.25rem; flex:1; min-width:0; margin:0 1rem;">
 
         <!-- Play -->
         <button id="video-play-btn" style="color:#fff; background:none; border:none; cursor:pointer; padding:0; line-height:1; width:1.5rem; text-align:center; flex-shrink:0;">
-          <i class="fa-solid fa-play fa-fw" style="font-size:1.5rem;"></i>
+          <span class="icon icon-play icon-l"></span>
         </button>
 
-        <!-- 時間軸（flex:1） -->
-        <div id="video-progress-track" style="flex:1; height:4px; background:rgba(255,255,255,0.3); cursor:pointer; position:relative; min-width:0;">
-          <div id="video-progress-fill" style="height:100%; width:0%; pointer-events:none; position:relative;">
-            <div id="video-progress-thumb" style="position:absolute; right:-7px; top:50%; transform:translateY(-50%); width:14px; height:14px; border-radius:50%; background:#000; pointer-events:none;"></div>
+        <!-- 時間軸（flex:1）— track 全黑 + fill 全黑（連續黑線）；thumb = 4px 寬黑色直線，靠上下伸出 5px 標位置 -->
+        <div id="video-progress-track" style="flex:1; height:4px; background:#000; cursor:pointer; position:relative; min-width:0;">
+          <div id="video-progress-fill" style="height:100%; width:0%; pointer-events:none; position:relative; background:#000;">
+            <div id="video-progress-thumb" style="position:absolute; right:-2px; top:50%; transform:translateY(-50%); width:4px; height:14px; background:#000; pointer-events:none;"></div>
           </div>
         </div>
 
         <!-- 剩餘時間 -->
         <span id="video-time" class="text-p2" style="color:#fff; white-space:nowrap; flex-shrink:0;">0:00</span>
 
-        <!-- Volume -->
+        <!-- Volume — hover 展開 slider；slider 全黑風格同 progress -->
         <div id="video-volume-wrap" style="display:flex; align-items:center; gap:0.75rem; flex-shrink:0;">
           <button id="video-mute-btn" style="color:#fff; background:none; border:none; cursor:pointer; padding:0; line-height:1;">
-            <i class="fa-solid fa-volume-high" style="font-size:1.1rem;"></i>
+            <span class="icon icon-volume icon-l"></span>
           </button>
-          <div id="video-volume-track" style="width:0; overflow:hidden; transition:width 0.25s cubic-bezier(0.25,0,0,1); height:4px; background:rgba(255,255,255,0.3); position:relative; cursor:pointer; flex-shrink:0;">
-            <div id="video-volume-fill" style="height:100%; width:100%; background:#000; pointer-events:none;"></div>
+          <div id="video-volume-track" style="width:0; overflow:visible; transition:width 0.25s cubic-bezier(0.25,0,0,1); height:4px; background:#000; position:relative; cursor:pointer; flex-shrink:0;">
+            <div id="video-volume-fill" style="height:100%; width:100%; background:#000; pointer-events:none; position:relative;">
+              <div id="video-volume-thumb" style="position:absolute; right:-2px; top:50%; transform:translateY(-50%); width:4px; height:14px; background:#000; pointer-events:none; opacity:0; transition:opacity 0.25s;"></div>
+            </div>
           </div>
         </div>
 
       </div>
 
       <!-- 區塊 3：全螢幕 -->
-      <div id="video-block-fullscreen" style="background:transparent; padding:0.75rem 1rem; display:flex; align-items:center;">
+      <div id="video-block-fullscreen" style="background:transparent; padding:0 1rem; height:3rem; display:flex; align-items:center;">
         <button id="video-fullscreen-btn" style="color:#fff; background:none; border:none; cursor:pointer; padding:0; line-height:1;">
-          <i class="fa-solid fa-expand" style="font-size:1.25rem;"></i>
+          <span class="icon icon-full-screen icon-l"></span>
         </button>
       </div>
 
     </div>
   </div>
+  </main>
 
   <!-- Footer -->
   <footer id="site-footer-static" class="footer-shell relative overflow-hidden">
@@ -151,17 +153,17 @@
           <div class="footer-social">
             <div class="footer-youtube">
               <a href="https://www.youtube.com/@scsccd" target="_blank" rel="noopener noreferrer" class="footer-link">
-                <i class="fa-brands fa-youtube text-h3"></i>
+                <span class="icon icon-youtube text-h3"></span>
               </a>
             </div>
             <div class="footer-instagram">
               <a href="https://www.instagram.com/communications.design_sccd" target="_blank" rel="noopener noreferrer" class="footer-link">
-                <i class="fa-brands fa-instagram text-h3"></i>
+                <span class="icon icon-instagram text-h3"></span>
               </a>
             </div>
             <div class="footer-facebook">
               <a href="https://www.facebook.com/communications.design" target="_blank" rel="noopener noreferrer" class="footer-link">
-                <i class="fa-brands fa-facebook text-h3"></i>
+                <span class="icon icon-facebook text-h3"></span>
               </a>
             </div>
           </div>
@@ -169,7 +171,7 @@
           <!-- Support (donation icon)：跟 social icons 同尺寸，加入 scatter pool -->
           <div class="footer-support">
             <a href="pages/support.html" class="footer-link" aria-label="Support / Donation">
-              <i class="fa-solid fa-hand-holding-heart text-h3"></i>
+              <span class="icon icon-donate text-h3"></span>
             </a>
           </div>
 

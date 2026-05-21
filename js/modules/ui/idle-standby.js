@@ -2,45 +2,46 @@
 /**
  * Idle Standby — 無操作後進入 Atlas 待機畫面
  *
- * 概念：待機 = 蓋一張「動的 atlas」紙在當前頁上，互動全關，離開時拿掉紙、原頁原樣
- * Logo 保留在待機畫面上（浮在紙上方），其他 header 元素收起
+ * 概念：純「蓋一張紙」邏輯 — atlas overlay 在 z:10000 覆蓋整個 viewport，把 header bar 自然蓋掉；
+ * logo 用 liftLogoToBody 抽到 body root + position:fixed + z:10001 浮在 atlas 之上。
+ * **不動 header bars 本身**（不改 z-index、不 clip-path 收起），離開待機原頁原樣回來。
  *
- * 實作（方案 A）：複用 initAtlas 模組，傳 root container 讓它 render 到 overlay 內
+ * 歷史：先前版本拉 header z 到 10001 讓 bars 浮上來、再用 clip-path 把 bars 收起（避免干擾畫面）—
+ * 是繞圈做法；且 GSAP 留下的 inline clipPath + caller-side mode-btn inline clipPath 互相干擾，
+ * 維護成本高。改成「不動 bars」後，bars 自然在 header 原 z-index（< overlay 10000）被蓋住。
+ *
+ * 實作：複用 initAtlas 模組，傳 root container 讓它 render 到 overlay 內
  *   - atlas 視覺、資料、動畫完全同正式 atlas 頁
  *   - body.idle-standby CSS 自帶 atlas 內部 UI 隱藏 + atlas 元素 pointer-events:none
- *   - Header items 用 clip-path inset random direction 收起（同 activities-lightbox pattern）
- *     - clip-path 在 local 座標系統 + 後 transform → header bar 的 inline rotation 不影響 clip 邊界
- *     - 比 yPercent 好：yPercent 配 rotation 視覺會位移失準
- *   - Logo 縮小與 header clip-path 收起並行（Promise.all 同時完成）
- *   - 待機時 header.zIndex 拉到 10001（高過 overlay 10000）讓 logo 浮在 atlas 之上
+ *   - Logo 縮小（若大於 threshold）
  *   - 離開時 cleanupAtlas + 清空 overlay，底下原頁完整保留（無 SPA 切換）
  *
  * 邊界（2b）：使用者本來在 atlas 頁時不蓋 overlay，僅切 body.idle-standby class
  *
  * 進入順序：
- *   1. set header z:10001（讓 logo 待會浮在 overlay 上）
- *   2. 並行：header clip-path 收 + logo 大→小（若大）
+ *   1. liftLogoToBody（logo 抽到 body z:10001 浮上來）
+ *   2. logo 大→小（若大）
  *   3. add body.idle-standby
  *   4. (非 atlas 頁) mount overlay atlas → bg fade in → 星雲 fade in
  *
  * 離開順序：
  *   1. (非 atlas 頁) 星雲 fade out → bg fade out → unmount atlas
  *   2. remove body.idle-standby
- *   3. 並行：header clip-path 展 + logo 還原
- *   4. reset header z-index
+ *   3. logo 還原
+ *   4. restoreLogoFromBody（logo 還回 header）
  *
  * 過場期間 isTransitioning flag 擋掉 activity reset 避免 race，結束後主動 reset 一次
  */
 
 import { initAtlas, cleanupAtlas } from '../pages/atlas.js';
+import { switchHeaderLogo, getStoredMode } from './theme-toggle.js';
 
 const IDLE_TIMEOUT = 3 * 60 * 1000; // 3 分鐘
 const PHASE_DURATION = 1.0;    // 星雲 / 背景 fade 每階段秒數
-const HEADER_DURATION = 0.6;   // header clip-path / logo 縮放秒數（對齊 activities-lightbox）
-const HEADER_STAGGER = 0.06;
+const LOGO_DURATION = 0.6;     // logo 縮放秒數
 const LOGO_SHRINK_THRESHOLD = 150; // logo 當前 width ≥ 此值才縮小
 const LOGO_SHRUNK_SIZE = 100;
-const HEADER_Z_ABOVE_OVERLAY = 10001; // overlay 是 10000，header 拉到 10001 讓 logo 浮上來
+const LIFTED_LOGO_Z = 10001;   // overlay 是 10000，lifted logo 拉到 10001 浮在 atlas 之上
 
 const ATLAS_MAIN_HTML = `
   <section id="atlas-main">
@@ -58,7 +59,7 @@ const ATLAS_MAIN_HTML = `
         <span class="anchor-nav-inner">Professors 歷屆教師</span>
       </button>
       <button class="atlas-filter-btn w-fit text-left" data-filter="alumni">
-        <span class="anchor-nav-inner">Alumni Careers 系友職涯</span>
+        <span class="anchor-nav-inner">Alumni 系友</span>
       </button>
       <button class="atlas-filter-btn w-fit text-left" data-filter="partners">
         <span class="anchor-nav-inner">Partners 合作單位</span>
@@ -66,7 +67,7 @@ const ATLAS_MAIN_HTML = `
     </div>
     <button id="atlas-layout-btn" aria-label="切換視圖">
       <span class="atlas-layout-inner">
-        <i class="fa-solid fa-list"></i>
+        <span class="icon icon-atlas-list"></span>
       </span>
     </button>
   </section>
@@ -78,12 +79,49 @@ let isTransitioning = false;
 let initialized = false;
 let atlasMounted = false;
 let savedLogoSize = null;
-let savedHeaderZ = null;
 /** @type {{ el: HTMLElement, parent: Node | null, nextSibling: Node | null, style: string } | null} */
 let liftedLogoData = null;
+// standby 進場前的 logoType（若是 slide-in 觸發的反色版需要記下來，exit 還原）
+// null = 進場時不是反色版，exit 不還原
+let savedLogoType = null;
 
-// per-element 隨機方向快取（同一輪 hide/show 一致；同 activities-lightbox pattern）
-const exitDirMap = new WeakMap();
+// 進入待機時：slide-in 觸發的反色 logo 在「待機背景 = page bg」的場景下不再合理，要切回非反色版
+// 待機 atlas-main 的 bg = var(--theme-bg) = 跟 page mode 同色：
+//   - mode1 standard：白底 → slide-in 開時 logo='inverse'(白) → 待機白底 + 白 logo 看不見 → 切回 'standard'(黑)
+//   - mode2 inverse：黑底 → slide-in 開時 logo='inverse'(白) → 待機黑底 + 白 logo 仍 OK → 不動
+//   - mode3 color：彩底 → slide-in 開時 logo='wireframe-inverse'(白) → 待機彩底 + 白看不清 → 切回 'wireframe'(黑)
+function maybeRevertInverseLogo() {
+  const logo = getLogo();
+  if (!logo) return;
+  const hasSlideIn = document.documentElement.classList.contains('has-slide-in')
+    || document.body.classList.contains('lightbox-open');
+  if (!hasSlideIn) {
+    savedLogoType = null;
+    return;
+  }
+  const mode = getStoredMode();
+  // mode2 (inverse) 不用改：page bg 黑，反色白 logo 在待機黑底上仍可見
+  if (mode === 'inverse') {
+    savedLogoType = null;
+    return;
+  }
+  const currentType = logo.dataset.logoType;
+  if (mode === 'standard' && currentType === 'inverse') {
+    savedLogoType = currentType;
+    switchHeaderLogo('standard');
+  } else if (mode === 'color' && currentType === 'wireframe-inverse') {
+    savedLogoType = currentType;
+    switchHeaderLogo('wireframe');
+  } else {
+    savedLogoType = null;
+  }
+}
+
+function restoreInverseLogo() {
+  if (savedLogoType === null) return;
+  switchHeaderLogo(savedLogoType);
+  savedLogoType = null;
+}
 
 function getPageKey() {
   const path = window.location.pathname.replace(/\/$/, '');
@@ -96,33 +134,8 @@ function isOnAtlas() {
   return getPageKey() === 'atlas';
 }
 
-// 桌面 header bars + mode-btn（不含 logo / mobile）— 同 activities-lightbox getHeaderTargets()
-// atlas 頁額外加入 #atlas-filter（左上）+ #atlas-layout-btn（左下），跟 header items 一起 stagger 收起/展開
-function getHeaderTargets() {
-  const header = document.querySelector('#site-header header');
-  if (!header) return [];
-  const items = /** @type {HTMLElement[]} */ ([
-    ...header.querySelectorAll(':scope > .site-container > .md\\:flex > [data-bar]'),
-    header.querySelector(':scope > .site-container > .md\\:flex > #mode-btn'),
-  ].filter(Boolean));
-
-  // atlas 頁：把頁面內的兩個 btn 加入 same timeline（同 stagger / duration）
-  if (isOnAtlas()) {
-    const filterEl = /** @type {HTMLElement|null} */ (document.getElementById('atlas-filter'));
-    const layoutBtn = /** @type {HTMLElement|null} */ (document.getElementById('atlas-layout-btn'));
-    if (filterEl) items.push(filterEl);
-    if (layoutBtn) items.push(layoutBtn);
-  }
-
-  return items;
-}
-
 function getLogo() {
   return /** @type {HTMLElement | null} */ (document.getElementById('header-logo'));
-}
-
-function getHeaderRoot() {
-  return /** @type {HTMLElement | null} */ (document.querySelector('#site-header header'));
 }
 
 function ensureOverlay() {
@@ -192,47 +205,6 @@ function fadeAtlasContent(to) {
   return fadeEl(content, to);
 }
 
-// Header items clip-path 收起（per-element 隨機方向，同 activities-lightbox）
-function tweenHeaderClipHide(targets) {
-  return new Promise(resolve => {
-    if (typeof gsap === 'undefined' || !targets.length) return resolve();
-    gsap.killTweensOf(targets);
-    targets.forEach(el => exitDirMap.set(el, Math.random() < 0.5 ? 'top' : 'bottom'));
-    gsap.fromTo(targets,
-      { clipPath: 'inset(0% 0% 0% 0%)' },
-      {
-        clipPath: i => exitDirMap.get(targets[i]) === 'top'
-          ? 'inset(0% 0% 100% 0%)'   // bottom→top 收
-          : 'inset(100% 0% 0% 0%)',  // top→bottom 收
-        duration: HEADER_DURATION,
-        ease: 'power2.in',
-        stagger: HEADER_STAGGER,
-        overwrite: true,
-        onComplete: resolve,
-      }
-    );
-  });
-}
-
-function tweenHeaderClipShow(targets) {
-  return new Promise(resolve => {
-    if (typeof gsap === 'undefined' || !targets.length) return resolve();
-    gsap.killTweensOf(targets);
-    gsap.to(targets, {
-      clipPath: 'inset(0% 0% 0% 0%)',
-      duration: HEADER_DURATION,
-      ease: 'power2.out',
-      stagger: HEADER_STAGGER,
-      overwrite: true,
-      onComplete: () => {
-        // 完整還原後清掉 inline clipPath（同 activities-lightbox）
-        targets.forEach(el => { el.style.clipPath = ''; });
-        resolve();
-      },
-    });
-  });
-}
-
 function tweenLogoShrink() {
   return new Promise(resolve => {
     const logo = getLogo();
@@ -246,7 +218,7 @@ function tweenLogoShrink() {
     gsap.to(logo, {
       width: LOGO_SHRUNK_SIZE,
       height: LOGO_SHRUNK_SIZE,
-      duration: HEADER_DURATION,
+      duration: LOGO_DURATION,
       ease: 'power3.inOut',
       onComplete: resolve,
     });
@@ -262,34 +234,16 @@ function tweenLogoRestore() {
     gsap.to(logo, {
       width: target,
       height: target,
-      duration: HEADER_DURATION,
+      duration: LOGO_DURATION,
       ease: 'power3.inOut',
       onComplete: resolve,
     });
   });
 }
 
-function raiseHeaderZ() {
-  const header = getHeaderRoot();
-  if (!header) return;
-  savedHeaderZ = header.style.zIndex || '';
-  header.style.setProperty('z-index', String(HEADER_Z_ABOVE_OVERLAY), 'important');
-}
-
-function restoreHeaderZ() {
-  const header = getHeaderRoot();
-  if (!header) return;
-  if (savedHeaderZ) {
-    header.style.setProperty('z-index', savedHeaderZ);
-  } else {
-    header.style.removeProperty('z-index');
-  }
-  savedHeaderZ = null;
-}
-
-// 把 logo `<a>` 從 header 抽到 body 直接 child + position:fixed
-// 徹底脫離 header stacking context，確保 logo 能浮在 overlay (z:10000) 之上
-// （單靠 raise header z-index 可能因 ancestor stacking quirk 失效）
+// 把 logo `<a>` 從 header 抽到 body 直接 child + position:fixed + z:10001
+// 徹底脫離 header stacking context，浮在 overlay (z:10000) 之上
+// 純「蓋一張紙」邏輯：不動 header bars，由 atlas overlay 自然蓋掉 header（header 在原 z < 10000）
 function liftLogoToBody() {
   if (liftedLogoData) return;
   const logo = getLogo();
@@ -309,7 +263,7 @@ function liftLogoToBody() {
     position: fixed !important;
     top: ${rect.top}px !important;
     left: ${rect.left}px !important;
-    z-index: ${HEADER_Z_ABOVE_OVERLAY} !important;
+    z-index: ${LIFTED_LOGO_Z} !important;
     margin: 0 !important;
   `;
   document.body.appendChild(a);
@@ -334,15 +288,16 @@ async function enterStandby() {
   isTransitioning = true;
   isStandby = true;
 
-  // 1. 拉高 header z-index（保險）+ lift logo `<a>` 到 body root（確保浮在 overlay 上）
-  raiseHeaderZ();
+  // 1. slide-in 反色 logo → 還原成正常版（atlas 黑底配反色 logo 看起來不對；
+  //    lift 之前先切，先用 dataset 換 Lottie 比較不會跟 fixed position 衝突）
+  maybeRevertInverseLogo();
+
+  // 2. lift logo `<a>` 到 body root z:10001（浮在即將出現的 overlay z:10000 之上）
+  //    header bars 留在原 z（< 10000）由 overlay 自然蓋掉，不主動動它們
   liftLogoToBody();
 
-  // 2. 並行：header items clip-path 收 + logo 縮小（若大）
-  await Promise.all([
-    tweenHeaderClipHide(getHeaderTargets()),
-    tweenLogoShrink(),
-  ]);
+  // 3. logo 縮小（若大）
+  await tweenLogoShrink();
 
   // 3. body class
   document.body.classList.add('idle-standby');
@@ -363,12 +318,8 @@ async function exitStandby() {
   if (!isStandby || isTransitioning) return;
   isTransitioning = true;
 
-  // header 進場 + atlas fade out 並行（同時開始、各自完成）
-  // 此時 logo 仍 lifted 在 body root、header z 仍 raised → header 浮在 atlas 之上
-  const headerInPromise = Promise.all([
-    tweenHeaderClipShow(getHeaderTargets()),
-    tweenLogoRestore(),
-  ]);
+  // logo 還原 size + atlas fade out 並行
+  const logoRestorePromise = tweenLogoRestore();
 
   const atlasFadeOutPromise = (async () => {
     if (isOnAtlas()) return;
@@ -377,15 +328,16 @@ async function exitStandby() {
     unmountStandbyAtlas();
   })();
 
-  await Promise.all([headerInPromise, atlasFadeOutPromise]);
+  await Promise.all([logoRestorePromise, atlasFadeOutPromise]);
 
   // body class
   document.body.classList.remove('idle-standby');
 
-  // atlas 已消失，這時才把 logo DOM 還原 + header z 還原
-  // （若在 atlas fade out 前還原 header z，header z-50 會被 atlas z-10000 蓋住）
+  // 若進場時改過 slide-in 反色 logo，這裡先還原（restoreLogoFromBody 不影響 logoType）
+  restoreInverseLogo();
+
+  // atlas 已消失，把 logo DOM 還回 header（lifted 期間 logo 浮在 body root z:10001）
   restoreLogoFromBody();
-  restoreHeaderZ();
 
   isStandby = false;
   isTransitioning = false;

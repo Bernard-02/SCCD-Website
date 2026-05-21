@@ -1,0 +1,134 @@
+{
+  "cpt": "sccd_act_degree_show",
+  "endpoint": "activities-degree-show",
+  "menu_order": 5,
+  "labels": {
+    "name": "Degree Show",
+    "singular_name": "畢業展",
+    "menu_name": "畢業展",
+    "add_new": "新增畢業展",
+    "add_new_item": "新增畢業展",
+    "edit_item": "編輯畢業展",
+    "all_items": "畢業展"
+  },
+  "menu_group": {
+    "slug": "sccd-activities",
+    "label": "活動 Activities",
+    "icon": "dashicons-calendar-alt",
+    "position": 30.5
+  },
+  "menu_icon": "dashicons-awards",
+  "supports": [
+    "title"
+  ],
+  "fields": [
+    {
+      "id": "titleEn",
+      "name": "主標題 EN",
+      "type": "text"
+    },
+    {
+      "id": "coverImage",
+      "name": "封面圖（list 圖 + detail next section 圖）",
+      "type": "image"
+    },
+    {
+      "id": "bannerImage",
+      "name": "Detail Hero Banner 圖",
+      "type": "image"
+    },
+    {
+      "id": "descriptionEn",
+      "name": "簡介 EN",
+      "type": "textarea"
+    },
+    {
+      "id": "descriptionZh",
+      "name": "簡介 中",
+      "type": "textarea"
+    },
+    {
+      "id": "events",
+      "name": "展演活動（可加多筆；list 主年份 = 第一筆 events 的起始年）",
+      "type": "group",
+      "item_label": "展演活動",
+      "fields": [
+        {
+          "id": "startYear",
+          "name": "起始年",
+          "type": "year"
+        },
+        {
+          "id": "startMonth",
+          "name": "起始月",
+          "type": "month"
+        },
+        {
+          "id": "startDay",
+          "name": "起始日",
+          "type": "day"
+        },
+        {
+          "id": "endYear",
+          "name": "結束年",
+          "type": "year"
+        },
+        {
+          "id": "endMonth",
+          "name": "結束月",
+          "type": "month"
+        },
+        {
+          "id": "endDay",
+          "name": "結束日",
+          "type": "day"
+        },
+        {
+          "id": "nameEn",
+          "name": "活動名稱 EN",
+          "type": "text"
+        },
+        {
+          "id": "nameZh",
+          "name": "活動名稱 中",
+          "type": "text"
+        },
+        {
+          "id": "locationEn",
+          "name": "地點 EN",
+          "type": "text"
+        },
+        {
+          "id": "locationZh",
+          "name": "地點 中",
+          "type": "text"
+        },
+        {
+          "id": "cityEn",
+          "name": "城市 EN",
+          "type": "text"
+        },
+        {
+          "id": "cityZh",
+          "name": "城市 中",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "id": "mainVideoUrl",
+      "name": "主視覺影片 URL",
+      "type": "text"
+    },
+    {
+      "id": "albumImages",
+      "name": "相簿圖片（可一次選多張）",
+      "type": "image_list"
+    },
+    {
+      "id": "documentaryUrl",
+      "name": "回顧影片 URL",
+      "type": "text"
+    }
+  ]
+}

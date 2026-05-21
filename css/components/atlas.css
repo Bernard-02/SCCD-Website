@@ -129,7 +129,7 @@
   width: max-content;
   max-width: 170px;
   text-align: left;
-  cursor: default;
+  cursor: var(--cursor-default);
   transition: opacity 0.3s ease;
   /* floating 改由 atlas.js rAF 直接設 inline transform，line 端點同步移動 */
 
@@ -228,9 +228,9 @@
   line-height: 1.55;
 }
 
-/* ── Alumni filter 下方輪播職業 chip（每 3s 切一個職業，random 三原色 bg + 黑字，雙語 EN 上 ZH 下）
-   font / weight / padding 都對齊 filter btn 的 .anchor-nav-inner；margin-top:-0.5rem 抵消父層 gap 讓它跟 alumni btn 接起來；
-   旋轉同步 alumni 的 inline rotate；上下兩 chip 共用「接縫 pivot」（alumni 繞 BL、career 繞 TL）保證旋轉後仍緊貼 ─────── */
+/* ── Alumni 旁邊的職業 chip（每 3s 輪播，random 三原色 bg + 黑字，EN 上 ZH 下）
+   2026-05-19 起 career chip 改放在 alumni btn 右側（atlas-alumni-row 內），不再上下接縫；
+   subchip (Hosting/Employment) 仍在 filter 主 column 內留在 alumni-row 下方 ─────── */
 .atlas-alumni-career {
   display: inline-block;
   align-self: flex-start;
@@ -238,19 +238,16 @@
   font-family: var(--font-en, 'Inter'), var(--font-zh, 'Noto Sans TC'), system-ui, sans-serif;
   font-size: var(--font-size-p3);
   font-weight: 700;
-  line-height: 1.25;
+  line-height: 1.2;  /* 對齊 filter btn .atlas-filter-en/-zh 的 line-height 1.2，避免 career 比 alumni 高 ~1.4px */
   color: #000;
-  /* bg 由 atlas.js inline 設 random 三原色；clip-path 統一上→下 reveal、下→上 collapse（hidden = bottom 100%） */
-  clip-path: inset(0% 0% 100% 0%);
+  /* bg 由 atlas.js inline 設 random 三原色；clip-path：左→右 reveal、右→左 collapse（hidden = left 0 寬） */
+  clip-path: inset(0% 100% 0% 0%);
   max-width: 240px;
   word-break: break-word;
   user-select: none;
   pointer-events: none;
-  margin-top: -0.5rem;
   /* 收/展時 height + padding 由 JS 同步動畫，overflow:hidden 讓內容隨 height 乾淨裁切，flex 兄弟自動 reflow 上移 */
   overflow: hidden;
-  /* 與 alumni inner 共用「接縫 pivot」— career 繞 top-left、alumni 繞 bottom-left
-     兩個角在 layout 上是同一點 → 旋轉同角度後仍緊貼，與 about resources accordion 的 top-right pivot 同 pattern */
   transform-origin: top left;
 }
 .atlas-alumni-career-en,
@@ -258,10 +255,62 @@
   display: block;
 }
 
-/* ── 左上角 Filter（仿 activities-section-btn 樣式：anchor-nav-inner chip）─────── */
+/* alumni btn + career chip 並排 row（map view 才有 career chip insert；list view 無此 wrapper）
+   career 在 flex 流內貼 alumni 右側、頂部對齊 alumni 頂部（align-items: flex-start）
+   旋轉時靠「上方接縫 pivot」(alumni top-right / career top-left) 讓 career 沿 alumni 右側 slope 自然往右下延伸 */
+.atlas-alumni-row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0;
+}
+
+/* Map view host/employ 靜態 label chip — 灰底黑字（用 --lib-bg/--lib-fg 跟著 mode 切深淺灰）
+   共用 .atlas-alumni-career 結構（padding / show-hide anim 一致）
+   覆蓋 .atlas-alumni-career 預設的 clip-path:inset(0% 0% 100% 0%) — 靜態 chip 由 createStaticChipCtrl 只動 height/padding，
+   clip-path 殘留會讓 chip 永遠裁不可見；改 clip-path:none 純靠 height anim 收展
+   en/zh override：主 career chip span 預設 display:block 兩行堆疊（Photographers / 攝影師），
+   subchip (Hosting/主持、Employment/就職) 文字短，user 要求 EN+ZH 同行 → flex-row + spans inline + nowrap */
+.atlas-alumni-subchip {
+  background: var(--lib-bg);
+  color: var(--lib-fg);
+  /* subchip 跟著 career chip 一起左→右 reveal（CHIP_HIDDEN_CLIP 用 inset(0% 100% 0% 0%)）
+     順序：career → hosting → employment 依次 stagger 進場 */
+  clip-path: inset(0% 100% 0% 0%);
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+}
+.atlas-alumni-subchip .atlas-alumni-career-en,
+.atlas-alumni-subchip .atlas-alumni-career-zh {
+  display: inline;
+  white-space: nowrap;
+}
+/* Hosting↔Employment 之間額外 +0.25rem（visible gap = 0.5 base + 0.25 = 0.75rem）
+   user 多次調整：原 0.15rem 太擠、原 negative margin 已拿掉
+   collapsed state 時 marginTop 由 createStaticChipCtrl animate 到 -0.5rem 抵消 gap */
+.atlas-alumni-subchip + .atlas-alumni-subchip {
+  margin-top: 0.25rem;
+}
+
+/* Map view 下 subchip 可互動：cursor + 點擊由 atlas.js handle（hover 不調 opacity — user 要求對齊 activities filter 風格）
+   點擊 toggle .subchip-inactive → 去掉底色（同 activities filter inactive 視覺），文字保留 0.7 fade */
+.atlas-alumni-subchip {
+  pointer-events: auto;
+  cursor: var(--cursor-pointer);
+  transition: background-color 0.2s ease;
+}
+.atlas-alumni-subchip.subchip-inactive {
+  background: none;
+}
+
+/* ── 左上角 Filter（仿 activities-section-btn 樣式：anchor-nav-inner chip）
+   left 對齊 header logo 左緣（同 .site-container left padding）─────── */
 #atlas-filter {
   position: fixed;
-  left: 32px;
+  left: var(--container-padding, 32px);
   top: calc(var(--header-height, 80px) + 64px);
   display: flex;
   flex-direction: column;
@@ -270,12 +319,27 @@
   z-index: 50;
 }
 
-/* ── 左下角 Layout toggle button ─────────────────────────────────── */
+/* 主 filter btn (Faculty / Alumni-row / Partners) 之間額外 +0.5rem → 視覺 gap = 0.5 + 0.5 = 1rem
+   alumni-row 也視為主 btn；subchip 預設不套（保持 0.5rem 基礎 gap） */
+#atlas-filter > .atlas-filter-btn + .atlas-filter-btn,
+#atlas-filter > * + .atlas-alumni-row,
+#atlas-filter > .atlas-alumni-row + .atlas-filter-btn,
+#atlas-filter > .atlas-alumni-subchip + .atlas-filter-btn {
+  margin-top: 0.5rem;
+}
+
+/* AlumniRow → 第一個 subchip (Hosting) 之間額外 +0.5rem → 視覺 gap = 0.5 + 0.5 = 1rem
+   讓 Hosting 跟 alumni-row 之間有明顯區分（但比主 btn 間 gap 略大）*/
+#atlas-filter > .atlas-alumni-row + .atlas-alumni-subchip {
+  margin-top: 0.5rem;
+}
+
+/* ── 左下角 Layout toggle button — 也對齊 logo 左緣 ───────────────── */
 #atlas-layout-btn {
   position: fixed;
-  left: 32px;
+  left: var(--container-padding, 32px);
   bottom: 32px;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   background: none;
   border: none;
   padding: 0;
@@ -286,11 +350,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 48px;
+  height: 48px;
   background: var(--theme-fg, #000);
   color: var(--theme-bg, #fff);
-  font-size: 15px;
+  font-size: 32px;
+  transform: rotate(-8deg);
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -301,43 +366,76 @@
 }
 
 /* ── List view ───────────────────────────────────────────────────── */
+/* 9-col grid 嚴格等寬（minmax(0,1fr) 忽略 cell 內 min-content 撐寬問題）
+   span 分配：faculty(2) + label(1) + host(2) + employ(2) + partners(2) = 9
+   middle alumni 區 5 cols 等寬（1 label + 4 host/employ sub-cols）；
+   faculty/partners 各 span 2 內含 2 sub-cols (= 視覺 col 寬度與 middle 一致) */
 #atlas-list-view {
   position: fixed;
   top: calc(var(--header-height, 80px) + 64px);
-  bottom: 84px; /* above layout btn: 32px + 36px + 16px */
+  bottom: 96px; /* above layout btn: 32px + 48px + 16px */
   right: 32px;
   /* left: set dynamically by JS after measuring container padding */
   display: none;
-  flex-direction: row;
-  gap: var(--spacing-xl, 3rem);
-  align-items: stretch;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: var(--spacing-lg, 2rem);
   z-index: 50;
   pointer-events: auto;
   user-select: none;
 }
 
 #atlas-list-view.visible {
-  display: flex;
+  display: grid;
 }
 
-/* ── Column ── */
+/* alumniGroup wrapper 純 DOM 分組，不參與 layout —— display:contents 讓 labelCol/hostCol/employCol
+   直接變成 #atlas-list-view 的 grid children，與 facultyCol/partnersCol 同層共享 9-col 軌道 */
+.atlas-list-group {
+  display: contents;
+}
+
+/* ── Column ──
+   5 visual cols 直接是 #atlas-list-view 的 grid children：faculty / label / host / employ / partners
+   .atlas-list-col 套 span 2（faculty/host/employ/partners 內含 2 sub-cols）；
+   label col 套 span 1（只放 title + career chip，無 items 不需 sub-col）
+   title 置頂、items 排在 title 下方；items-container 用 flex:1 接收剩餘高度 */
 .atlas-list-col {
+  grid-column: span 2;
   display: flex;
-  flex-direction: row;
-  flex: 1;
-  gap: var(--spacing-md, 1.5rem);
+  flex-direction: column;
+  gap: var(--spacing-sm, 1rem);
   min-width: 0;
   overflow: visible; /* title chip 旋轉不裁切 */
   height: 100%;
 }
 
-/* ── Column title block（旋轉 host，flex-column 包 title-wrapper + 可選的 career chip）
-   旋轉由 JS 設在這層，title 與 career 共用 pivot 永遠緊貼（與 about resources accordion 同 pattern） ── */
+/* Label col：Alumni title + career chip 垂直堆疊（無 items list）
+   經 .atlas-list-group { display: contents } 提升為 #atlas-list-view grid 直接 child（與 faculty/host/employ/partners 同層）
+   span 1 = 1/9 viewport，與 host/employ 內每個 sub-col 等寬
+   career chip 用 width:100% + word-break:break-word 在窄欄內 wrap，不會推右側 cols
+   旋轉宿主在這層，title-wrapper 提供 yPercent reveal 遮罩 */
+.atlas-list-group-label-col {
+  grid-column: span 1;
+  align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs, 0.5rem);
+  min-width: 0;
+  transform-origin: left center;
+  /* 旋轉角度由 JS 設成 inline transform */
+}
+
+/* ── Column title block（旋轉 host，flex-row 把 title + 可選 career chip 並排）
+   旋轉由 JS 設在這層，title 與 career 共用 pivot 永遠緊貼（與 about resources accordion 同 pattern）
+   flex-wrap 防止窄欄時 career chip 撐爆 col 寬度 → 自動 wrap 到 title 下方 ── */
 .atlas-list-col-titleblock {
   flex-shrink: 0;
   align-self: flex-start;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--spacing-xs, 0.5rem);
   transform-origin: left center;
   /* 旋轉角度由 JS 設成 inline transform */
 }
@@ -349,11 +447,16 @@
   overflow: hidden;
 }
 
-/* ── List view 的 career chip（只用於 alumni 欄；padding / clip-path / overflow 全與 .atlas-alumni-career 對齊） ── */
+/* ── List view 的 career chip（只用於 alumni label-col，置於 Alumni title 下方；
+   padding / clip-path / overflow / margin-top 全與 .atlas-alumni-career (map view) 對齊
+   shrink-to-fit：width: max-content + max-width: 100% → 短文字 chip 緊貼文字寬，長文字 wrap 在 col 內
+   createCareerController.fitWidth() 在 fill / show / rotate 時量 per-line rects 把 inline width 鎖到「最寬行 + padding」
+   → 多行 wrap 後 chip bg 不留多餘 padding（user 要求 padding 抓實際文字寬度）
+   margin-top:-0.5rem → 抵消父層 .atlas-list-group-label-col 的 spacing-xs gap，視覺上跟 Alumni title 緊貼（map view 同手法） ── */
 .atlas-list-col-career {
   align-self: flex-start;
   width: max-content;
-  max-width: 240px;
+  max-width: 100%;
   padding: 6px 8px 5px;
   font-family: var(--font-en, 'Inter'), var(--font-zh, 'Noto Sans TC'), system-ui, sans-serif;
   font-size: var(--font-size-p3);
@@ -367,6 +470,8 @@
   pointer-events: none;
   /* 收/展 height + padding 動畫，overflow:hidden 讓內容隨 height 乾淨裁切 */
   overflow: hidden;
+  margin-top: -0.5rem;
+  box-sizing: border-box;
 }
 
 .atlas-list-col-career-en,
@@ -374,46 +479,58 @@
   display: block;
 }
 
-/* ── Column title chip（黑底白字，英上中下） ── */
+/* ── Column title chip（黑底白字，EN ZH 並排於同一行）
+   padding 對齊全站 .anchor-nav-inner / .atlas-list-col-career 標準 6px 8px 5px ── */
 .atlas-list-col-title {
   background: black;
   color: white;
-  padding: 8px 10px;
+  padding: 6px 8px 5px;
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  width: max-content; /* bg 寬度貼合最寬那行文字（EN 或 ZH），不再撐成固定寬 */
+  flex-direction: row;
+  align-items: baseline;
+  gap: 6px;
+  width: max-content; /* bg 寬度貼合一行文字總寬 */
+  white-space: nowrap; /* EN + ZH 同行，不換行 */
 }
 
+/* host/employ 副 title：用 --lib-bg / --lib-fg（淺/深灰自動切 mode）區分跟主 cols 黑底白字 chip */
+.atlas-list-col[data-category="host"] .atlas-list-col-title,
+.atlas-list-col[data-category="employ"] .atlas-list-col-title {
+  background: var(--lib-bg);
+  color: var(--lib-fg);
+}
+
+/* output.css build 殘留 .atlas-list-col-title-en/-zh `display:block + white-space:normal`
+   舊版本是 column 堆疊；現在 title 改 flex-row + nowrap 但這兩個 span 沒顯式 reset →
+   stale rule 仍把 en/zh stack 成兩行（host/employ 灰底 chip 視覺壞）。顯式宣告 inline + nowrap 蓋掉 */
 .atlas-list-col-title-en {
-  display: block;
+  display: inline;
+  white-space: nowrap;
   font-family: var(--font-en, 'Inter'), system-ui, sans-serif;
   font-size: var(--font-size-p3, 0.9rem);
   font-weight: 700;
   line-height: 1.2;
-  white-space: normal; /* 允許過長的英文自動換行 (如 Alumni Career) */
-  word-break: break-word;
 }
 
 .atlas-list-col-title-zh {
-  display: block;
+  display: inline;
+  white-space: nowrap;
   font-family: var(--font-zh, 'Noto Sans TC'), system-ui, sans-serif;
   font-size: var(--font-size-p3, 0.9rem);
   font-weight: 600;
   line-height: 1.2;
-  white-space: normal;
-  word-break: keep-all;
 }
 
 /* ── Column items（2 explicit sub-col，無 CSS columns，nav 貼底） ── */
+/* col 改 vertical 之後不能再 height:100%（會吃掉 titleblock 區段），用 flex:1 接收剩餘高 */
 .atlas-list-col-items {
   display: flex;
   flex-direction: row;
-  gap: var(--spacing-md, 1.5rem);
+  gap: var(--spacing-sm, 1rem);
   flex: 1;
   min-width: 0;
+  min-height: 0;
   overflow: hidden;
-  height: 100%;
 }
 
 .atlas-list-sub-col {
@@ -421,6 +538,11 @@
   flex-direction: column;
   flex: 1;
   min-width: 0;
+  /* min-height: 0 關鍵：flex item 預設 min-height:auto = min-content
+     items 內容比 --list-item-h slot 高時（partners 6 行 subheader 等），sub-col 的 min-content 大於 flex:1 available
+     → sub-col stretch 超過 items-area 高度 → 內含 absolute chevron 的 containing block 變更深 → chevron 跟著被推下
+     設 0 強迫 sub-col 高度純由 flex:1 接收，items 過長以 overflow:hidden 自身吃掉，sub-col 底邊 y 跨 col 嚴格一致 */
+  min-height: 0;
   overflow: hidden;
   gap: var(--list-gap, 0px); /* 讀取 JS 精算出的間距，讓剩餘空間完美均分 */
   /* containing block for absolute nav-item（chevron 永遠貼 sub-col 底，不被 items 推） */
@@ -519,26 +641,28 @@
   margin-top: 6px;
 }
 
-/* ── 分頁 nav item（absolute 定位在 sub-col 底部，不被 items 推；chevron 貼 col1 末尾 item 底） ── */
+/* ── 分頁 nav item（absolute 定位在 sub-col 底部，box 自身 content-size 不吃 --list-item-h，跨 col 視覺 y 嚴格一致）
+   bottom: 10px 直接定 chevron 距 sub-col 底邊；不再用 bottom:0 + min-height:var(--list-item-h) + padding-bottom:10px
+   舊作法的 min-height 因 col 各自寫 --list-item-h (host=50 / faculty/employ=84 / partners=120) 害 chevron box 高度不一致，
+   雖然 align-items:flex-end 把 icon 推到 box 底邊，但部分瀏覽器 + 某些 reflow timing 下可能讓 absolute item 受 box 高度影響
+   → 改 content-sized box + 純 bottom 偏移，chevron y 完全脫離 items / col 內 var，絕對不動 ── */
 .atlas-list-nav-item {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: 10px;
   display: flex;
   flex-direction: row;
   justify-content: flex-start;
   gap: 12px; /* 設定按鈕之間的固定間距 */
-  align-items: flex-end; /* row direction 下 cross-axis = 垂直，chevron 貼 slot 底 */
-  min-height: var(--list-item-h, 84px);
-  padding-bottom: 10px; /* 與一般項目保持相同的下方間距，讓底部視覺切齊 */
+  align-items: flex-end;
 }
 
 .atlas-list-nav-btn {
   background: none;
   border: none;
   padding: 4px 6px;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   color: black;
   opacity: 1;
   font-size: 19.5px;
@@ -548,7 +672,7 @@
 
 .atlas-list-nav-btn:disabled {
   opacity: 0.5;
-  cursor: default;
+  cursor: var(--cursor-default);
 }
 
 @media (min-width: 768px) {
@@ -558,7 +682,7 @@
 }
 
 .atlas-filter-btn {
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   background: none;
   border: none;
   padding: 0;
@@ -580,17 +704,26 @@
 
 .atlas-filter-btn .anchor-nav-inner {
   display: inline-flex;
+  flex-direction: column;  /* EN/ZH 兩行垂直 stack */
+  align-items: flex-start;
   background: transparent;
   color: rgba(0, 0, 0, 0.5);
   padding: 6px 8px 5px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
+.atlas-filter-btn .atlas-filter-en,
+.atlas-filter-btn .atlas-filter-zh {
+  display: block;
+  white-space: nowrap;
+  line-height: 1.2;
+}
 
-/* alumni btn 與下方 career chip 共用「接縫 pivot」：
-   alumni inner 繞 bottom-left，career chip 繞 top-left；
-   兩者 layout 上的這兩個角是同一點（margin-top:-0.5rem 抵消 gap）→ 旋轉同角度仍緊貼 */
+/* career chip 貼 alumni 右側（flex 流內 gap:0）→ 共用「右上接縫 pivot」：
+   alumni inner 繞 top-right、career 繞 top-left（已是 .atlas-alumni-career 預設 transform-origin）
+   兩個 pivot 是 layout 上同一點（alumni 的右上角 = career 的左上角）→ 旋轉同角度仍緊貼，
+   career 沿 alumni 右側 slope 往右下延伸（rotation 自帶下沉 slope，chip 頂部仍對齊 alumni 頂部） */
 .atlas-filter-btn[data-filter="alumni"] .anchor-nav-inner {
-  transform-origin: bottom left;
+  transform-origin: top right;
 }
 
 @media (min-width: 768px) {
@@ -608,7 +741,7 @@
 
 /* ── Inverse mode ───────── */
 /* 城市 chip 在兩 mode 下都是三原色底 + 黑字，bg 由 JS inline 設；不需 inverse 翻字色
- * filter btns（三個可點擊選項：Professors / Alumni Careers / Partners）：user 明示 inverse 改成白底黑字 chip 化
+ * filter btns（三個可點擊選項：Professors / Alumni / Partners）：user 明示 inverse 改成白底黑字 chip 化
  *   - inactive：白底 + 半透明黑字（對齊 standard inactive 透明底+rgba(0,0,0,0.5) 字的「dim」對比層級）
  *   - active：白底 + 100% 黑字（覆蓋 atlas.js updateFilterBtnColors 設的 #000000 bg + #FFFFFF 字 — 在 inverse 黑底會跟 body 融合）
  *   - hover (inactive)：白底 + 100% 黑字（brighten 文字）
@@ -653,7 +786,7 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
     font-size: 13px;
   }
   #atlas-filter {
-    left: 16px;
+    /* desktop 用 var(--container-padding) 對齊 logo；mobile 沿用此 var（自動 = 1.5rem / 24px） */
     top: calc(var(--header-height, 80px) + 60px);
     gap: 0.25rem;
   }
@@ -661,11 +794,10 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
     font-size: 12px;
   }
   #atlas-layout-btn {
-    left: 16px;
     bottom: 16px;
   }
   #atlas-list-view {
-    bottom: 72px;
+    bottom: 80px;
     right: 16px;
   }
 }

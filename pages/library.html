@@ -15,7 +15,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
-<body style="overflow: hidden; height: 100vh;">
+<body class="overflow-hidden h-screen">
 
   <!-- Header -->
   <div id="site-header"></div>
@@ -54,12 +54,12 @@
               <div style="min-width: 0; display: flex; flex-direction: column; min-height: 0;">
                 <div style="display: flex; align-items: flex-end; gap: var(--spacing-sm); flex-shrink: 0; margin-bottom: var(--spacing-sm);">
                   <div style="flex: 1; display: flex; align-items: center; gap: var(--spacing-sm); border-bottom: 2px solid var(--lib-fg); padding-bottom: 4px;">
-                    <i class="fa-solid fa-magnifying-glass text-p3"></i>
+                    <span class="icon icon-search icon-xs"></span>
                     <input type="text" id="library-awards-search" placeholder="Search 搜尋"
                       style="flex: 1; background: transparent; border: none; outline: none; font-family: 'Bitter', 'Noto Serif TC', serif; font-size: var(--font-size-p3); font-weight: 700; color: var(--lib-fg);"
                       autocomplete="off">
                   </div>
-                  <button id="library-awards-sort-btn" class="library-sort-btn">Date 時間<i class="fa-solid fa-arrow-down sort-arrow text-p3"></i></button>
+                  <button id="library-awards-sort-btn" class="library-sort-btn">Date 時間<span class="icon icon-arrow-down sort-arrow icon-xs"></span></button>
                 </div>
                 <div id="library-awards-scroll" style="min-width: 0; overflow-y: auto; padding-bottom: var(--spacing-sm); flex: 1; min-height: 0;" class="no-scrollbar">
                   <div id="library-awards-list"></div>
@@ -93,12 +93,12 @@
               <div style="min-width: 0; padding-bottom: var(--spacing-sm);">
                 <div style="display: flex; align-items: flex-end; gap: var(--spacing-sm); margin-bottom: var(--spacing-sm);">
                   <div style="flex: 1; display: flex; align-items: center; gap: var(--spacing-sm); border-bottom: 2px solid var(--lib-fg); padding-bottom: 4px;">
-                    <i class="fa-solid fa-magnifying-glass text-p3"></i>
+                    <span class="icon icon-search icon-xs"></span>
                     <input type="text" id="library-press-search" placeholder="Search 搜尋"
                       style="flex: 1; background: transparent; border: none; outline: none; font-family: 'Bitter', 'Noto Serif TC', serif; font-size: var(--font-size-p3); font-weight: 700; color: var(--lib-fg);"
                       autocomplete="off">
                   </div>
-                  <button id="library-press-sort-btn" class="library-sort-btn">Date 時間<i class="fa-solid fa-arrow-down sort-arrow text-p3"></i></button>
+                  <button id="library-press-sort-btn" class="library-sort-btn">Date 時間<span class="icon icon-arrow-down sort-arrow icon-xs"></span></button>
                 </div>
                 <div id="library-press-cat-filter" style="display: flex; flex-wrap: wrap; gap: var(--spacing-sm) var(--spacing-lg); align-content: flex-start;">
                   <button class="lib-press-cat-btn" data-cat="degree-show">Degree Show 畢業展</button>
@@ -147,12 +147,12 @@
               <div style="min-width: 0; padding-bottom: var(--spacing-sm);">
                 <div style="display: flex; align-items: flex-end; gap: var(--spacing-sm); margin-bottom: var(--spacing-sm);">
                   <div style="flex: 1; display: flex; align-items: center; gap: var(--spacing-sm); border-bottom: 2px solid var(--lib-fg); padding-bottom: 4px;">
-                    <i class="fa-solid fa-magnifying-glass text-p3"></i>
+                    <span class="icon icon-search icon-xs"></span>
                     <input type="text" id="library-files-search" placeholder="Search 搜尋"
                       style="flex: 1; background: transparent; border: none; outline: none; font-family: 'Bitter', 'Noto Serif TC', serif; font-size: var(--font-size-p3); font-weight: 700; color: var(--lib-fg);"
                       autocomplete="off">
                   </div>
-                  <button id="library-files-sort-btn" class="library-sort-btn">Date 時間<i class="fa-solid fa-arrow-down sort-arrow text-p3"></i></button>
+                  <button id="library-files-sort-btn" class="library-sort-btn">Date 時間<span class="icon icon-arrow-down sort-arrow icon-xs"></span></button>
                 </div>
                 <div id="library-files-cat-filter" style="display: flex; flex-wrap: wrap; gap: var(--spacing-sm) var(--spacing-lg); align-content: flex-start;">
                   <button class="lib-files-cat-btn" data-cat="degree-show">Degree Show 畢業展</button>
@@ -203,12 +203,12 @@
               <div style="min-width: 0; padding-bottom: var(--spacing-sm);">
                 <div style="display: flex; align-items: flex-end; gap: var(--spacing-sm); margin-bottom: var(--spacing-sm);">
                   <div style="flex: 1; display: flex; align-items: center; gap: var(--spacing-sm); border-bottom: 2px solid var(--lib-fg); padding-bottom: 4px;">
-                    <i class="fa-solid fa-magnifying-glass text-p3"></i>
+                    <span class="icon icon-search icon-xs"></span>
                     <input type="text" id="library-album-search" placeholder="Search 搜尋"
                       style="flex: 1; background: transparent; border: none; outline: none; font-family: 'Bitter', 'Noto Serif TC', serif; font-size: var(--font-size-p3); font-weight: 700; color: var(--lib-fg);"
                       autocomplete="off">
                   </div>
-                  <button id="library-album-sort-btn" class="library-sort-btn">Date 時間<i class="fa-solid fa-arrow-down sort-arrow text-p3"></i></button>
+                  <button id="library-album-sort-btn" class="library-sort-btn">Date 時間<span class="icon icon-arrow-down sort-arrow icon-xs"></span></button>
                 </div>
                 <div id="library-album-cat-filter" style="display: flex; flex-wrap: wrap; gap: var(--spacing-sm) var(--spacing-lg); align-content: flex-start;">
                   <button class="lib-album-cat-btn" data-cat="degree-show">Degree Show 畢業展</button>
@@ -249,21 +249,8 @@
     </section>
   </main>
 
-  <!-- PDF Viewer Modal（layout 對齊 activities-lightbox：X 右上 + prev/next 左右 absolute + 底部資訊條；gutter 由 lightbox-shell 染 html bg 處理） -->
-  <div id="pdf-viewer-modal" class="fixed inset-0 z-[9999] bg-black/90 flex flex-col opacity-0 transition-opacity duration-300" style="display: none;">
-    <button id="pdf-close-btn" class="absolute right-4 md:right-8 text-white p-2 transition-opacity hover:opacity-60" style="top: 1rem; z-index: 50;"><i class="fa-solid fa-xmark text-h3"></i></button>
-    <div class="flex items-center justify-center w-full px-16 py-xl flex-1 min-h-0 relative">
-      <button id="pdf-prev-btn" class="absolute left-4 text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 disabled:opacity-20"><i class="fa-solid fa-chevron-left text-p1"></i></button>
-      <div class="pdf-canvas-row flex items-center justify-center gap-0 w-full h-full">
-        <canvas id="pdf-canvas-left" class="bg-white shadow-2xl block" style="max-height: 100%; max-width: 100%; width: auto; height: auto;"></canvas>
-        <canvas id="pdf-canvas-right" class="bg-white shadow-2xl hidden md:block" style="max-height: 100%; max-width: 100%; width: auto; height: auto;"></canvas>
-      </div>
-      <button id="pdf-next-btn" class="absolute right-4 text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 disabled:opacity-20"><i class="fa-solid fa-chevron-right text-p1"></i></button>
-    </div>
-    <div class="flex items-center justify-center px-xl py-md flex-shrink-0 text-white">
-      <span id="pdf-page-info" class="text-p2"></span>
-    </div>
-  </div>
+  <!-- PDF Viewer Modal 由 js/modules/pages/library-viewer.js 的 ensurePdfModal() 動態 append 到 body
+       行為包含 zoom +/- 按鈕、wheel 翻頁/pan、上下左右翻頁、左下 title pill — 集中在 module 內維護 -->
 
   <!-- JavaScript -->
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/gsap.min.js"></script>
@@ -272,136 +259,6 @@
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>
   <script src="../js/utils/helpers.js"></script>
   <script type="module" src="../js/main-modular.js"></script>
-  <script type="module">
-    import { openLightbox } from '../js/modules/lightbox/activities-lightbox.js';
-    document.addEventListener('sccd:open-lightbox', e => {
-      const { media, index } = e.detail;
-      openLightbox(media, index);
-    });
-  </script>
-
-  <script>
-    // ── PDF Viewer ────────────────────────────────────────────────
-    (function initPdfViewer() {
-      const modal      = document.getElementById('pdf-viewer-modal');
-      const canvasL    = document.getElementById('pdf-canvas-left');
-      const canvasR    = document.getElementById('pdf-canvas-right');
-      const prevBtn    = document.getElementById('pdf-prev-btn');
-      const nextBtn    = document.getElementById('pdf-next-btn');
-      const pageInfo   = document.getElementById('pdf-page-info');
-      const closeBtn   = document.getElementById('pdf-close-btn');
-
-      // pdf.js worker
-      pdfjsLib.GlobalWorkerOptions.workerSrc =
-        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
-      let pdfDoc   = null;
-      let curPage  = 1;  // always odd (left page of spread), or 1 for single
-      let rendering = false;
-
-      function isDesktop() { return window.innerWidth >= 768; }
-
-      async function renderSpread(leftPage) {
-        if (!pdfDoc || rendering) return;
-        rendering = true;
-
-        const totalPages = pdfDoc.numPages;
-        const showTwo = isDesktop() && leftPage + 1 <= totalPages;
-
-        // render one page onto a given canvas
-        async function renderPage(pageNum, canvas) {
-          const page = await pdfDoc.getPage(pageNum);
-          const container = modal.querySelector('.flex.items-center');
-          const availH = (container ? container.clientHeight : window.innerHeight * 0.8) * 0.75;
-          const availW = (container ? container.clientWidth  : window.innerWidth)  * (showTwo ? 0.42 : 0.60);
-          const base = page.getViewport({ scale: 1 });
-          const scaleH = availH / base.height;
-          const scaleW = availW / base.width;
-          const scale  = Math.min(scaleH, scaleW);
-          const vp = page.getViewport({ scale });
-          canvas.width  = vp.width;
-          canvas.height = vp.height;
-          await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
-        }
-
-        await renderPage(leftPage, canvasL);
-        canvasL.style.display = 'block';
-
-        if (showTwo) {
-          await renderPage(leftPage + 1, canvasR);
-          canvasR.style.display = 'block';
-        } else {
-          canvasR.style.display = 'none';
-        }
-
-        const rightPage = showTwo ? leftPage + 1 : leftPage;
-        pageInfo.textContent = showTwo
-          ? `${leftPage} – ${rightPage} / ${totalPages}`
-          : `${leftPage} / ${totalPages}`;
-
-        prevBtn.disabled = leftPage <= 1;
-        nextBtn.disabled = showTwo ? leftPage + 2 > totalPages : leftPage >= totalPages;
-
-        rendering = false;
-      }
-
-      function openModal() {
-        modal.style.display = 'flex';
-        requestAnimationFrame(() => { modal.style.opacity = '1'; });
-        document.body.style.overflow = 'hidden';
-      }
-
-      function closeModal() {
-        modal.style.opacity = '0';
-        setTimeout(() => {
-          modal.style.display = 'none';
-          if (pdfDoc) { pdfDoc.destroy(); pdfDoc = null; }
-          canvasL.getContext('2d').clearRect(0, 0, canvasL.width, canvasL.height);
-          canvasR.getContext('2d').clearRect(0, 0, canvasR.width, canvasR.height);
-        }, 300);
-        document.body.style.overflow = 'hidden';
-      }
-
-      document.addEventListener('sccd:open-pdf', async (e) => {
-        const { pdfUrl } = e.detail;
-        if (!pdfUrl) return;
-        curPage = 1;
-        openModal();
-        try {
-          pdfDoc = await pdfjsLib.getDocument(pdfUrl).promise;
-          renderSpread(curPage);
-        } catch (err) {
-          console.error('PDF load error:', err);
-          closeModal();
-        }
-      });
-
-      prevBtn.addEventListener('click', () => {
-        const step = (isDesktop() && curPage > 2) ? 2 : 1;
-        curPage = Math.max(1, curPage - step);
-        renderSpread(curPage);
-      });
-
-      nextBtn.addEventListener('click', () => {
-        const step = isDesktop() ? 2 : 1;
-        curPage = Math.min(pdfDoc.numPages, curPage + step);
-        renderSpread(curPage);
-      });
-
-      closeBtn.addEventListener('click', closeModal);
-
-      modal.addEventListener('click', (e) => {
-        if (e.target === modal) closeModal();
-      });
-
-      document.addEventListener('keydown', (e) => {
-        if (!pdfDoc || modal.style.display === 'none') return;
-        if (e.key === 'Escape') closeModal();
-        if (e.key === 'ArrowRight' && !nextBtn.disabled) nextBtn.click();
-        if (e.key === 'ArrowLeft'  && !prevBtn.disabled) prevBtn.click();
-      });
-    })();
-  </script>
 
 </body>
 </html>

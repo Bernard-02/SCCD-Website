@@ -159,8 +159,12 @@ async function loadPage(route, search = '') {
       }
     }
 
-    // 更新 body class（generate / atlas 鎖頁面 scroll，滿版單屏）
-    document.body.classList.toggle('overflow-hidden', route.page === 'generate' || route.page === 'atlas');
+    // 更新 body class（generate / atlas / library 鎖頁面 scroll，滿版單屏）
+    // library 必須走 class 不能靠 HTML inline style="overflow:hidden"：
+    //   1) SPA 導航時 body inline 不會替換（只替換 #page-content）→ library.html 的 inline 永遠不生效
+    //   2) lightbox-shell exitLightboxMode 會 `body.style.overflow=''`，會把 inline 的 overflow 清掉
+    // 用 class 兩個 case 都不受影響
+    document.body.classList.toggle('overflow-hidden', route.page === 'generate' || route.page === 'atlas' || route.page === 'library');
     // about + alumni 用寬封鎖綫（section-title-strip width:calc(50vw+) 會 overflow viewport 右側）
     // 必須 body.overflowX: hidden 才不會出現橫向 scroll
     document.body.style.overflowX = (route.page === 'about' || route.page === 'alumni') ? 'hidden' : '';

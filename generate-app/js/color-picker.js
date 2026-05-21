@@ -27,9 +27,10 @@ function drawColorRing() {
   let centerX = w / 2;
   let centerY = h / 2;
 
-  // 色環半徑基於 canvas 尺寸
-  let outerRadius = Math.min(w, h) / 2 - 2; // 留 2px 給邊框
-  let innerRadius = outerRadius * 0.55; // 內圈是外圈的 60%
+  // 色環半徑基於 canvas 尺寸（user 2026-05-20 五次調整：thickness 0.55→0.62 變細）
+  // outerRadius 0.49 留 ~1% 給 stroke 不被 canvas edge clip；thickness = 38% of outerRadius
+  let outerRadius = Math.min(w, h) * 0.49;
+  let innerRadius = outerRadius * 0.62;
 
   // 清空並設置 30% 透明白色背景
   colorPickerCanvas.clear(); // 先清空
@@ -77,17 +78,21 @@ function drawColorRing() {
   colorPickerCanvas.noStroke();
   colorPickerCanvas.circle(centerX, centerY, innerRadius * 2);
 
-  // 繪製邊框（根據背景色自動選擇黑色或白色）
-  colorPickerCanvas.noFill();
-  // 使用對比色（與 wireframeStrokeColor 相同）
-  if (wireframeStrokeColor) {
-    let r = _p5.red(wireframeStrokeColor);
-    let g = _p5.green(wireframeStrokeColor);
-    let b = _p5.blue(wireframeStrokeColor);
-    colorPickerCanvas.stroke(r, g, b);
-  } else {
-    colorPickerCanvas.stroke(0); // 預設黑色
+  // 兩圈 border 顏色 = box 內 fg（box bg = --lib-bg → border = --lib-fg）
+  // box 淺灰 → fg 黑 / box 深灰 → fg 白；三 mode 統一從 #colorpicker-box computed style 讀 color
+  // computedStyle.color 反映 .control-box 的 color: var(--lib-fg) cascade 結果
+  let borderShade = 255;
+  const pickerBox = document.getElementById('colorpicker-box');
+  if (pickerBox) {
+    const fg = getComputedStyle(pickerBox).color; // "rgb(R, G, B)" 格式
+    const match = fg.match(/\d+/g);
+    if (match && match.length >= 3) {
+      // 取 R 通道判斷亮度（--lib-fg 是純黑或純白，R 直接表示明暗）
+      borderShade = parseInt(match[0], 10) > 127 ? 255 : 0;
+    }
   }
+  colorPickerCanvas.noFill();
+  colorPickerCanvas.stroke(borderShade);
   colorPickerCanvas.strokeWeight(1.8);
   colorPickerCanvas.circle(centerX, centerY, outerRadius * 2); // 外圈
   colorPickerCanvas.circle(centerX, centerY, innerRadius * 2); // 內圈
@@ -217,18 +222,19 @@ function drawColorPickerIndicator(centerX, centerY, outerRadius, innerRadius) {
   let x2 = centerX + _p5.cos(angle) * outerRadius;
   let y2 = centerY + _p5.sin(angle) * outerRadius;
 
-  // 繪製線段（根據背景色自動選擇黑色或白色）
-  // 使用對比色（與 wireframeStrokeColor 相同）
-  if (wireframeStrokeColor) {
-    let r = _p5.red(wireframeStrokeColor);
-    let g = _p5.green(wireframeStrokeColor);
-    let b = _p5.blue(wireframeStrokeColor);
-    colorPickerCanvas.stroke(r, g, b);
-  } else {
-    colorPickerCanvas.stroke(0); // 預設黑色
+  // Indicator 與 wheel border 同源：都取 #colorpicker-box 的 --lib-fg（淺灰底→黑 / 深灰底→白）
+  let indicatorShade = 255;
+  const pickerBox = document.getElementById('colorpicker-box');
+  if (pickerBox) {
+    const fg = getComputedStyle(pickerBox).color;
+    const match = fg.match(/\d+/g);
+    if (match && match.length >= 3) {
+      indicatorShade = parseInt(match[0], 10) > 127 ? 255 : 0;
+    }
   }
-  colorPickerCanvas.strokeWeight(1.8);
-  colorPickerCanvas.strokeCap(_p5.SQUARE); // 使用方形端點
+  colorPickerCanvas.stroke(indicatorShade);
+  colorPickerCanvas.strokeWeight(3);
+  colorPickerCanvas.strokeCap(_p5.SQUARE);
   colorPickerCanvas.line(x1, y1, x2, y2);
 }
 
@@ -249,8 +255,9 @@ function handleColorPickerMouseDown(e) {
     let dy = y - centerY;
     let distance = Math.sqrt(dx * dx + dy * dy);
 
-    let outerRadius = w * 0.45;
-    let innerRadius = w * 0.25;
+    // 跟 drawColorRing 同步（outer 0.49 of canvas，inner = outer × 0.62）
+    let outerRadius = w * 0.49;
+    let innerRadius = w * 0.49 * 0.62;
 
     // 只有在色環範圍內按下時才開始拖曳
     if (distance < innerRadius || distance > outerRadius) {
@@ -305,8 +312,9 @@ function handleColorPickerTouchStart(e) {
     let dy = y - centerY;
     let distance = Math.sqrt(dx * dx + dy * dy);
 
-    let outerRadius = w * 0.45;
-    let innerRadius = w * 0.25;
+    // 跟 drawColorRing 同步（outer 0.49 of canvas，inner = outer × 0.62）
+    let outerRadius = w * 0.49;
+    let innerRadius = w * 0.49 * 0.62;
 
     // 只有在色環範圍內觸摸時才開始拖曳
     if (distance < innerRadius || distance > outerRadius) {

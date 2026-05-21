@@ -193,7 +193,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
 
   function setAsGray(el, sw, sh) {
     el.style.background     = 'var(--lib-bg)';
-    el.style.cursor         = 'default';
+    el.style.cursor         = "url('/custom-cursor/default.svg') 5 1, default";
     el.style.zIndex         = '10';
     el.style.width          = `${MAIN_W}px`;
     el.style.height         = `${MAIN_H}px`;
@@ -210,7 +210,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
 
   function setAsColor(el, color, config) {
     el.style.background = color;
-    el.style.cursor     = 'pointer';
+    el.style.cursor     = "url('/custom-cursor/pointer.svg') 16 8, pointer";
     el.style.width      = `${Math.round(config.w)}px`;
     el.style.height     = `${Math.round(config.h)}px`;
     el.style.left       = `${Math.round(config.cx)}px`;

@@ -26,9 +26,8 @@ function dimColor(htmlEl) {
  * @param {HTMLElement} args.overlay   slide-in 黑色 overlay（fade 到 0.8）
  * @param {HTMLElement} args.panel     滑入面板（x: 0%）
  * @param {string}      args.panelBg   面板色，html bg 最終目標色
- * @param {() => void} [args.onPanelDone]  面板滑入完成回呼（faculty 開啟 custom cursor 用）
  */
-export function openSlideInBg({ overlay, panel, panelBg, onPanelDone }) {
+export function openSlideInBg({ overlay, panel, panelBg }) {
   const htmlEl = document.documentElement;
   const startBg = readBg(htmlEl);
   const dimBg = dimColor(htmlEl);
@@ -40,14 +39,13 @@ export function openSlideInBg({ overlay, panel, panelBg, onPanelDone }) {
     overlay.style.opacity = '0.8';
     htmlEl.style.setProperty('--slide-bg-color', panelBg);
     panel.style.transform = 'translateX(0%)';
-    if (onPanelDone) onPanelDone();
     return null;
   }
 
   return gsap.timeline()
     .to(overlay, { opacity: 0.8, duration: 0.3 }, 0)
     .to(htmlEl,  { '--slide-bg-color': dimBg, duration: 0.3 }, 0)
-    .to(panel,   { x: '0%', duration: 0.5, ease: 'power3.out', onComplete: onPanelDone }, 0.3)
+    .to(panel,   { x: '0%', duration: 0.5, ease: 'power3.out' }, 0.3)
     .to(htmlEl,  { '--slide-bg-color': panelBg, duration: 0.5, ease: 'power3.out' }, 0.3);
 }
 

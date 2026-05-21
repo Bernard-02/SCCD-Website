@@ -12,6 +12,7 @@ import { initListAccordion, resetListAccordionsInPanel } from '../accordions/lis
 import { reapplySearch } from '../ui/activities-search.js';
 import { setActiveNavBtn, showPanel } from '../ui/section-switch-helpers.js';
 import { playAdmissionPanelExit, playAdmissionPanelReveal, setupAdmissionReveal } from './admission-data-loader.js';
+import { registerPageExit } from '../ui/page-exit.js';
 
 // 追蹤哪些 panel 已載入過資料
 const loaded = {};
@@ -92,9 +93,24 @@ export async function navigateToItem(section, itemId) {
   }, 600);
 }
 
+/**
+ * 離頁退場：對當前可見 panel 跑 playAdmissionPanelExit
+ * — 該函式已內建「先收 accordion → 再 rows fade-out」兩階段，這裡只需 forward。
+ *
+ * 回到此頁不需特別處理：router 換頁時 main.innerHTML 整段被新 HTML 替換 +
+ * initActivitiesSectionSwitch 開頭 reset loaded[]，DOM 與資料都是全新的，
+ * 自動「不記住之前打開的 list」。
+ */
+async function playActivitiesExit() {
+  const panel = /** @type {HTMLElement | null} */ (document.querySelector('.activities-panel:not(.hidden)'));
+  if (panel) await playAdmissionPanelExit(panel);
+}
+
 export function initActivitiesSectionSwitch(defaultSection = 'general') {
   const btns = document.querySelectorAll('.activities-section-btn');
   if (btns.length === 0) return;
+
+  registerPageExit(playActivitiesExit);
 
   // SPA 換頁後 DOM 重建，需重置 loaded 狀態讓資料重新載入
   Object.keys(loaded).forEach(k => delete loaded[k]);
@@ -216,6 +232,56 @@ async function switchToSection(section, btns, shouldScroll, isInitial = false) {
   }
 }
 
+// Filter 切 sub-list 共用流程：exit 舊 list → swap display → scroll 補償 → reveal 新 list
+// 跟 section-switch 用同 helpers（playAdmissionPanelExit/Reveal）保持動畫風格一致
+// switching guard 防 user 在動畫期間連點 → race 出現「兩個 list 同時可見」或 reveal 跑錯 target
+let subFilterSwitching = false;
+/**
+ * @param {string} panelId
+ * @param {Record<string, HTMLElement | null>} lists
+ * @param {string} targetType
+ */
+async function animatedSubListSwitch(panelId, lists, targetType) {
+  if (subFilterSwitching) return;
+  subFilterSwitching = true;
+  try {
+    const incoming = lists[targetType];
+    if (!incoming) return;
+    // outgoing = 當前可見的（display 不是 'none'）非 target list
+    let outgoing = /** @type {HTMLElement | null} */ (null);
+    for (const k of Object.keys(lists)) {
+      const el = lists[k];
+      if (k !== targetType && el && el.style.display !== 'none') { outgoing = el; break; }
+    }
+
+    if (outgoing) {
+      await playAdmissionPanelExit(outgoing);
+    }
+
+    // 切前後量 filter bar 視窗 Y 位置，sticky 視覺位置維持
+    const filterBar = /** @type {HTMLElement | null} */ (document.querySelector(`#${panelId} .activities-filter-bar`));
+    const beforeTop = filterBar?.getBoundingClientRect().top ?? 0;
+
+    for (const k of Object.keys(lists)) {
+      const el = lists[k];
+      if (el) el.style.display = k === targetType ? '' : 'none';
+    }
+    reapplySearch(panelId);
+
+    if (filterBar) {
+      const afterTop = filterBar.getBoundingClientRect().top;
+      const delta = afterTop - beforeTop;
+      if (delta !== 0) window.scrollBy(0, delta);
+    }
+
+    // 進場 reveal：useScrollTrigger=false 立刻播（不等捲到 viewport）
+    setupAdmissionReveal(incoming, { hide: true });
+    playAdmissionPanelReveal(incoming, { useScrollTrigger: false });
+  } finally {
+    subFilterSwitching = false;
+  }
+}
+
 function initExhibitionsTypeFilter() {
   const btns = document.querySelectorAll('#exhibitions-type-filter .exhibitions-type-btn');
   if (!btns.length) return;
@@ -228,6 +294,7 @@ function initExhibitionsTypeFilter() {
 
   btns.forEach(btn => {
     btn.addEventListener('click', () => {
+      if (btn.classList.contains('active')) return;
       btns.forEach(b => {
         b.classList.remove('active');
         const inner = b.querySelector('.anchor-nav-inner');
@@ -237,21 +304,14 @@ function initExhibitionsTypeFilter() {
       const inner = btn.querySelector('.anchor-nav-inner');
       if (inner) { inner.style.background = currentSectionColor || '#00FF80'; inner.style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`; }
 
-      // 切換前後抓 filter bar 視窗 Y 位置，補回 delta 保留 sticky 視覺位置；
-      // 否則新 list 比舊 list 短時瀏覽器會 clamp scrollY → 像跳回頂部
-      const filterBar = document.querySelector('#panel-exhibitions .activities-filter-bar');
-      const beforeTop = filterBar?.getBoundingClientRect().top ?? 0;
-
-      const type = btn.dataset.type;
-      document.getElementById('exhibitions-list-special').style.display  = type === 'special'   ? '' : 'none';
-      document.getElementById('exhibitions-list-permanent').style.display = type === 'permanent' ? '' : 'none';
-      reapplySearch('panel-exhibitions');
-
-      if (filterBar) {
-        const afterTop = filterBar.getBoundingClientRect().top;
-        const delta = afterTop - beforeTop;
-        if (delta !== 0) window.scrollBy(0, delta);
-      }
+      animatedSubListSwitch(
+        'panel-exhibitions',
+        {
+          special:   document.getElementById('exhibitions-list-special'),
+          permanent: document.getElementById('exhibitions-list-permanent'),
+        },
+        /** @type {HTMLElement} */ (btn).dataset.type || '',
+      );
     });
   });
 }
@@ -269,6 +329,7 @@ function initVisitsTypeFilter() {
 
   btns.forEach(btn => {
     btn.addEventListener('click', () => {
+      if (btn.classList.contains('active')) return;
       btns.forEach(b => {
         b.classList.remove('active');
         const inner = b.querySelector('.anchor-nav-inner');
@@ -278,21 +339,14 @@ function initVisitsTypeFilter() {
       const inner = btn.querySelector('.anchor-nav-inner');
       if (inner) { inner.style.background = currentSectionColor || '#00FF80'; inner.style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`; }
 
-      // 切換前後抓 filter bar 視窗 Y 位置，補回 delta 保留 sticky 視覺位置；
-      // 否則新 list 比舊 list 短時瀏覽器會 clamp scrollY → 像跳回頂部
-      const filterBar = document.querySelector('#panel-visits .activities-filter-bar');
-      const beforeTop = filterBar?.getBoundingClientRect().top ?? 0;
-
-      const type = btn.dataset.type;
-      document.getElementById('visits-list-outbound').style.display = type === 'outbound' ? '' : 'none';
-      document.getElementById('visits-list-inbound').style.display  = type === 'inbound'  ? '' : 'none';
-      reapplySearch('panel-visits');
-
-      if (filterBar) {
-        const afterTop = filterBar.getBoundingClientRect().top;
-        const delta = afterTop - beforeTop;
-        if (delta !== 0) window.scrollBy(0, delta);
-      }
+      animatedSubListSwitch(
+        'panel-visits',
+        {
+          outbound: document.getElementById('visits-list-outbound'),
+          inbound:  document.getElementById('visits-list-inbound'),
+        },
+        /** @type {HTMLElement} */ (btn).dataset.type || '',
+      );
     });
   });
 }

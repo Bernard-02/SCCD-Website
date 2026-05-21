@@ -56,6 +56,35 @@
   .list-header.active + .list-content {
     padding-top: 4px;
   }
+
+  /* album-thumb-item 內 year + date+title group 各自 sticky；scope 受父 .album-thumb-item 限制，
+   * 滾到下一筆 divider 自動換手（CSS sticky 行為，不需 IntersectionObserver）。
+   * sticky scroll container = .item-albums（overflow-y-auto max-h:360px 創 scroll context），
+   * 不是頁面 viewport，所以 top:0 黏在 .item-albums 上緣（= 父容器裁切線）。
+   * bg = 繼承 list-content active 時 list-accordion.js inline set 的 accent bg（三原色 / mode-color 下被
+   * themes/color.css 翻成 var(--theme-fg)）。中間 .item-albums / .album-thumb-item / 內層 col2 wrapper
+   * 全顯式 inherit 串鏈，才能把 list-content 的 inline bg 一路傳到 sticky cell。
+   * (CSS background-color: inherit 只繼承父的顯式 value；只設 cell 不串中間層 = 拿到 transparent。) */
+  .album-sticky-cell {
+    position: sticky;
+    top: 0;
+    background-color: inherit;
+    z-index: 4;
+  }
+  /* sticky cell bg = 跟 list-item active 時的 accent bg 同色（user 指定「list 打開時什麼顏色就什麼顏色」）。
+   * list-accordion.js active 時：
+   *   1. inline set list-item / list-header / list-content style.background = accent
+   *   2. inline set --item-color CSS var on list-item（line 274）← 直接讀這個！
+   * standard / inverse mode：accent 原色（綠/粉/藍三原色之一）
+   * mode-color mode：themes/color.css 把 inline bg 翻 var(--theme-fg) — sticky cell 同步翻 */
+  .album-sticky-cell {
+    background-color: var(--item-color, transparent);
+  }
+  /* mode-color：list-item active 雖然 --item-color 仍是原 accent，但視覺被 themes/color.css 蓋成 theme-fg；
+   * sticky cell 同步走 theme-fg 不讀 --item-color 才視覺對齊 */
+  body.mode-color .album-sticky-cell {
+    background-color: var(--theme-fg);
+  }
 }
 
 /* ===== Activities Type Filter Row - clip-reveal rotation clearance =====
@@ -128,7 +157,7 @@
 @media (min-width: 768px) {
   .timeline-year-item:hover {
     color: var(--color-pink) !important;
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
   }
 }
 

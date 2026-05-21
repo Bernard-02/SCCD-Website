@@ -7,16 +7,89 @@
 import { initDegreeShowGallery } from './degree-show-gallery.js';
 import { initHeroAnimation } from './hero-animation.js';
 
+// CMB2 file_list type 存 meta 為 dict `{ attachment_id: url, ... }`；舊 JSON 是 string array
+// normalize 成 string array of URLs（順序不保證、但前端 gallery 不依賴順序）
+function normalizeImageList(val) {
+  if (!val) return [];
+  if (Array.isArray(val)) {
+    // 舊 JSON 直接是 string array / 或 group repeater [{image}]
+    return val.map(x => typeof x === 'string' ? x : (x?.image || x?.url || '')).filter(Boolean);
+  }
+  if (typeof val === 'object') {
+    // CMB2 file_list dict
+    return Object.values(val).filter(v => typeof v === 'string' && v);
+  }
+  return [];
+}
+
+// ── New endpoint shape → legacy shape adapter ────────────────────────────────
+// WP endpoint 新 schema 跟前端歷史 shape 不對應，這 helper 把 endpoint entry 還原舊 shape
+// 給 list / detail page 都能消費；舊 fallback JSON 不過 adapter 直接 work
+function mapEndpointEntryToLegacyShape(entry) {
+  if (!entry) return entry;
+  // events: 新 shape startYear/Month/Day + endYear/Month/Day → 舊 shape time string "MM / DD - MM / DD"
+  // 同年同日 → "MM / DD"；同年跨日 → "MM / DD - MM / DD"；跨年 → "YYYY.MM.DD - YYYY.MM.DD"
+  const events = (entry.events || []).map(ev => {
+    const sM = ev.startMonth, sD = ev.startDay, eM = ev.endMonth || sM, eD = ev.endDay || sD;
+    const sY = ev.startYear, eY = ev.endYear || sY;
+    let time = '';
+    if (sM && sD) {
+      const sameDate = sY === eY && sM === eM && sD === eD;
+      if (sameDate) time = `${sM} / ${sD}`;
+      else if (sY === eY) time = `${sM} / ${sD} - ${eM} / ${eD}`;
+      else time = `${sY}.${sM}.${sD} - ${eY}.${eM}.${eD}`;
+    }
+    return {
+      time,
+      name: ev.nameZh || '',
+      nameEn: ev.nameEn || '',
+      location: ev.locationZh || '',
+      locationEn: ev.locationEn || '',
+      city: ev.cityZh || '',
+      cityEn: ev.cityEn || '',
+    };
+  });
+  return {
+    title: entry.titleZh || entry.title || '',
+    title_en: entry.titleEn || entry.title_en || '',
+    descCn: entry.descriptionZh || entry.descCn || '',
+    descEn: entry.descriptionEn || entry.descEn || '',
+    coverImage: entry.coverImage || '',
+    heroImage: entry.bannerImage || entry.heroImage || '',
+    poster: entry.poster || '',
+    images: normalizeImageList(entry.albumImages),
+    videoUrl: entry.mainVideoUrl || entry.videoUrl || '',
+    documentaryUrl: entry.documentaryUrl || '',
+    events,
+  };
+}
+
 export async function loadDegreeShowList() {
   return loadDegreeShowListInto('degree-show-list');
 }
 
 export async function loadDegreeShowListInto(containerId) {
   try {
-    const response = await fetch('/data/degree-show.json');
-    const data = await response.json();
-    const container = document.getElementById(containerId);
+    // WP endpoint 回 flat array，舊 JSON 是 dict by year — normalize 成 dict
+    const WP_API_BASE = location.hostname === 'sccd-website.local' ? '' : 'http://sccd-website.local';
+    let data;
+    try {
+      const res = await fetch(`${WP_API_BASE}/wp-json/sccd/v1/activities-degree-show`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const arr = await res.json();
+      if (!Array.isArray(arr) || arr.length === 0) throw new Error('endpoint returned 0 items');
+      // flat array → dict by events[0].startYear（list 主年份規則）
+      data = {};
+      for (const entry of arr) {
+        const y = entry.events?.[0]?.startYear || '';
+        if (y) data[y] = mapEndpointEntryToLegacyShape(entry);
+      }
+    } catch (err) {
+      console.warn('[degree-show] WP endpoint failed, fallback to data/degree-show.json:', err.message);
+      data = await fetch('/data/degree-show.json').then(r => r.json());
+    }
 
+    const container = document.getElementById(containerId);
     if (!container) return;
 
     const years = Object.keys(data).sort((a, b) => Number(b) - Number(a)); // Sort years descending
@@ -25,6 +98,8 @@ export async function loadDegreeShowListInto(containerId) {
     years.forEach((year, idx) => {
       const item = data[year];
       const color = colors[idx % colors.length];
+      const titleEn = item.title_en || item.titleEn || '';
+      const titleZh = item.title || item.titleZh || '';
       const html = `
         <a href="/degree-show-detail?year=${year}" class="grid-12 items-start degree-show-card" style="--card-color: ${color}">
           <div class="col-span-12 md:col-start-1 md:col-span-1 mb-sm md:mb-0">
@@ -34,7 +109,7 @@ export async function loadDegreeShowListInto(containerId) {
             <div class="degree-show-img-wrapper overflow-hidden mb-md">
               <img src="${item.coverImage}" alt="Degree Show ${year}" loading="lazy" class="degree-show-img w-full object-cover">
             </div>
-            <h5 class="mt-md">${item.title_en ? item.title_en : item.title}${item.title_en ? `<br><span>${item.title}</span>` : ''}</h5>
+            <h5 class="mt-md">${titleEn || titleZh}${titleEn && titleZh ? `<br><span>${titleZh}</span>` : ''}</h5>
           </div>
         </a>
       `;
@@ -97,8 +172,23 @@ export async function loadDegreeShowDetail() {
   }
 
   try {
-    const response = await fetch('/data/degree-show.json');
-    const degreeShowData = await response.json();
+    // WP endpoint 優先；endpoint 0 items or fail → fallback /data/degree-show.json
+    const WP_API_BASE = location.hostname === 'sccd-website.local' ? '' : 'http://sccd-website.local';
+    let degreeShowData;
+    try {
+      const res = await fetch(`${WP_API_BASE}/wp-json/sccd/v1/activities-degree-show`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const arr = await res.json();
+      if (!Array.isArray(arr) || arr.length === 0) throw new Error('endpoint returned 0 items');
+      degreeShowData = {};
+      for (const entry of arr) {
+        const y = entry.events?.[0]?.startYear || '';
+        if (y) degreeShowData[y] = mapEndpointEntryToLegacyShape(entry);
+      }
+    } catch (err) {
+      console.warn('[degree-show-detail] WP endpoint failed, fallback to data/degree-show.json:', err.message);
+      degreeShowData = await fetch('/data/degree-show.json').then(r => r.json());
+    }
     const data = degreeShowData[year];
     const years = Object.keys(degreeShowData).sort((a, b) => Number(b) - Number(a));
 

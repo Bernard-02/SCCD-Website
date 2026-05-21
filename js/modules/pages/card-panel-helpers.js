@@ -69,7 +69,7 @@ export function renderYearGroups(container, yearGroups, buildCardFn) {
       <div class="album-year-group border-t-2 border-black" data-year="${year}">
         <div class="album-year-toggle cursor-pointer flex items-center justify-between py-md">
           <h5>${year}</h5>
-          <i class="fa-solid fa-chevron-down text-p2 transition-all duration-fast"></i>
+          <span class="icon icon-chevron-list icon-s rotate-90 transition-all duration-fast"></span>
         </div>
         <div class="album-year-items">
           <div class="grid grid-cols-2 md:grid-cols-4 gap-x-2xl gap-y-4xl pb-2xl">

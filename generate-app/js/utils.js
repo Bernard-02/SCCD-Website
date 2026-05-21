@@ -41,6 +41,51 @@ function getIconSuffix(useTargetMode = false) {
   return currentMode === "Inverse" ? "_Inverse" : "";
 }
 
+// /create panel icon 路徑：對應 generate-app 舊命名 → /Website Icons/ 新檔。
+// Website Icons 都是單色黑版，沒有 _Inverse 變體；inverse mode 與 wireframe-needs-white 的白色化
+// 在 css/components/create.css 用 filter: invert(1) 處理（class .white-icons 切換）。
+// 2026-05-20 全部對應完成，/generate-app/Panel Icon/ 資料夾已刪。
+const _PANEL_ICON_MAP = {
+  Standard: 'mode_1',
+  Inverse_White: 'mode_2',
+  Standard_Wireframe: 'mode_3',
+  Inverse_Wireframe: 'mode_3',
+  Play: 'play_create',
+  Play_Inverse: 'play_create',
+  Pause: 'pause_create',
+  Pause_Inverse: 'pause_create',
+  Rotate: 'play_pause_create',
+  Rotate_Inverse: 'play_pause_create',
+  Custom: 'custom',
+  Custom_Inverse: 'custom',
+  Random: 'shuffle',
+  Random_Inverse: 'shuffle',
+  Reset: 'reset',
+  Reset_Inverse: 'reset',
+  Download: 'download_create',
+  Download_Inverse: 'download_create',
+  Rotate_Phone: 'rotate_phone',
+  Rotate_Phone_Inverse: 'rotate_phone',
+  Generate: 'generate',
+  Generate_Inverse: 'generate',
+  Gift: 'Gift',
+  Gift_Inverse: 'Gift',
+};
+function panelIcon(name) {
+  const mapped = _PANEL_ICON_MAP[name];
+  return mapped ? `/Website Icons/${mapped}.svg` : '';
+}
+
+// 切換 #create-app.white-icons class：inverse mode 一律白，wireframe 看 stroke 色亮度。
+// CSS 規則用 .white-icons 觸發 filter: invert(1)，把 Website Icons 黑版變白版。
+function updatePanelIconColorClass() {
+  const el = document.getElementById('create-app');
+  if (!el) return;
+  const useWhite = (mode === "Inverse") ||
+    (mode === "Wireframe" && wireframeStrokeColor && _p5.red(wireframeStrokeColor) > 128);
+  el.classList.toggle('white-icons', !!useWhite);
+}
+
 // 檢測手機模式
 function checkMobileMode() {
   // 使用 matchMedia API 與CSS媒體查詢保持同步
@@ -122,20 +167,20 @@ function updateRotateIcon() {
 
   if (!hasText) {
     // 沒有文字時：顯示 Rotate icon（disabled 狀態）
-    desktopIconSrc = `/generate-app/Panel Icon/Rotate${suffix}.svg`;
+    desktopIconSrc = panelIcon(`Rotate${suffix}`);
   } else if (autoRotateMode) {
     // 有文字且在 Auto Rotate 模式
     if (isRotating) {
       // 正在自動旋轉：顯示 Pause icon
-      desktopIconSrc = `/generate-app/Panel Icon/Pause${suffix}.svg`;
+      desktopIconSrc = panelIcon(`Pause${suffix}`);
     } else {
       // Auto 模式但暫停：顯示 Play icon
-      desktopIconSrc = `/generate-app/Panel Icon/Play${suffix}.svg`;
+      desktopIconSrc = panelIcon(`Play${suffix}`);
       desktopIsPlayIcon = true;
     }
   } else {
     // 有文字且在 Custom 模式：顯示 Rotate icon（disabled 狀態）
-    desktopIconSrc = `/generate-app/Panel Icon/Rotate${suffix}.svg`;
+    desktopIconSrc = panelIcon(`Rotate${suffix}`);
   }
 
   // 手機版：使用與桌面版相同的 Auto/Custom 模式邏輯
@@ -180,16 +225,16 @@ function updateIconsForMode() {
   const colormodeIconSrc = getModeIconSrc();
 
   // Custom 圖標 - 統一使用當前模式的 icon，CSS 會根據 disabled 狀態調整 opacity
-  const customIconSrc = `/generate-app/Panel Icon/Custom${suffix}.svg`;
+  const customIconSrc = panelIcon(`Custom${suffix}`);
 
-  // Download 圖標 - 彩蛋模式下使用 Gift icon，否則使用 Download icon
+  // Download 圖標 - 彩蛋模式下使用 Gift icon
   const downloadIconSrc = isEasterEggActive
-    ? `/generate-app/Panel Icon/Gift${suffix}.svg`
-    : `/generate-app/Panel Icon/Download${suffix}.svg`;
+    ? panelIcon(`Gift${suffix}`)
+    : panelIcon(`Download${suffix}`);
 
   // Random 和 Reset 圖標 - 統一使用當前模式的 icon
-  const randomIconSrc = `/generate-app/Panel Icon/Random${suffix}.svg`;
-  const resetIconSrc = `/generate-app/Panel Icon/Reset${suffix}.svg`;
+  const randomIconSrc = panelIcon(`Random${suffix}`);
+  const resetIconSrc = panelIcon(`Reset${suffix}`);
 
   // 更新桌面版圖標
   if (customIcon) customIcon.attribute('src', customIconSrc);
@@ -218,9 +263,11 @@ function updateIconsForMode() {
   // 更新橫向提示的 Rotate Phone 圖標
   const landscapeIcon = document.getElementById('landscape-overlay-icon');
   if (landscapeIcon) {
-    const rotatePhoneIconSrc = `/generate-app/Panel Icon/Rotate_Phone${suffix}.svg`;
-    landscapeIcon.src = rotatePhoneIconSrc;
+    landscapeIcon.src = panelIcon(`Rotate_Phone${suffix}`);
   }
+
+  // 同步 .white-icons class 給 CSS filter 用（取代舊 _Inverse 圖檔切換）
+  updatePanelIconColorClass();
 
   // 更新手機版按鈕和面板的邊框顏色
   const borderColor = isWireframeMode ? getWireframeBorderColor() : null;
@@ -239,8 +286,8 @@ function updateColorWheelIcon() {
 
   // 根據旋轉狀態選擇 Play 或 Pause icon
   let iconSrc = isColorWheelRotating
-    ? `/generate-app/Panel Icon/Pause${suffix}.svg`
-    : `/generate-app/Panel Icon/Play${suffix}.svg`;
+    ? panelIcon(`Pause${suffix}`)
+    : panelIcon(`Play${suffix}`);
 
   // 更新桌面版 icon
   if (colorWheelPlayIcon && colorWheelPlayButton) {
@@ -261,16 +308,11 @@ function updateColorWheelIcon() {
   }
 }
 
-// 獲取模式圖標路徑
+// 獲取模式圖標路徑（mode_1 / mode_2 / mode_3 對應三種模式；
+// inverse / wireframe-需白 走 CSS filter invert 處理顏色，這裡只決定幾何）
 function getModeIconSrc() {
-  const isWireframeMode = mode === "Wireframe";
-
-  if (isWireframeMode) {
-    const isWhiteIcon = wireframeStrokeColor && _p5.red(wireframeStrokeColor) > 128;
-    return isWhiteIcon ? `/generate-app/Panel Icon/Inverse_Wireframe.svg` : `/generate-app/Panel Icon/Standard_Wireframe.svg`;
-  }
-
-  return mode === "Inverse" ? `/generate-app/Panel Icon/Inverse_White.svg` : `/generate-app/Panel Icon/Standard.svg`;
+  if (mode === "Wireframe") return panelIcon('Standard_Wireframe');
+  return mode === "Inverse" ? panelIcon('Inverse_White') : panelIcon('Standard');
 }
 
 // 獲取邊框顏色（Wireframe 模式專用）

@@ -45,38 +45,25 @@ const TYPES = [
 ];
 
 // 維持 layout 密度的 placeholder 池（真實課表寫進 WP 後可逐步取代）
-const TARGET_REQUIRED_PER_CELL = 3;
-const ELECTIVE_RANGE = [4, 8];
-const PLACEHOLDER_POOL = [
-  { titleEn: 'Visual Communication', titleZh: '視覺傳達' },
-  { titleEn: 'Interactive Design',   titleZh: '互動設計' },
-  { titleEn: 'Branding Workshop',    titleZh: '品牌工作坊' },
-  { titleEn: 'Typography Studio',    titleZh: '字體實務' },
-  { titleEn: 'Motion Graphics',      titleZh: '動態設計' },
-  { titleEn: 'UI/UX Lab',            titleZh: '使用者介面實驗' },
-  { titleEn: 'Photography',          titleZh: '攝影實務' },
-  { titleEn: 'Editorial Design',     titleZh: '編輯設計' },
-  { titleEn: 'Information Design',   titleZh: '資訊設計' },
-  { titleEn: 'Creative Coding',      titleZh: '創意程式' },
-  { titleEn: 'Service Design',       titleZh: '服務設計' },
-  { titleEn: 'Packaging Studio',     titleZh: '包裝實務' },
-  { titleEn: 'Illustration',         titleZh: '插畫' },
-  { titleEn: 'Color Theory',         titleZh: '色彩學' },
-  { titleEn: 'Design Research',      titleZh: '設計研究' },
-  { titleEn: 'Generative Art',       titleZh: '生成藝術' },
-  { titleEn: 'Sound Design',         titleZh: '聲音設計' },
-  { titleEn: '3D Modeling',          titleZh: '3D 建模' },
-  { titleEn: 'Speculative Design',   titleZh: '推測設計' },
-  { titleEn: 'Critical Studies',     titleZh: '設計批評' },
-];
-const PLACEHOLDER_DESC_EN = 'Sample course description for layout preview.';
-const PLACEHOLDER_DESC_ZH = '此為佈局預覽用之範例課程說明。';
 
+// PoC：dev 從 LocalWP 拿、prod 從 same-origin theme 內拿；LocalWP 沒開 / CORS 擋 / 任一 leg 失敗
+// 都自動 fallback 到 same-origin 的 data/courses.json（schema 一致），避免整張表空白
+const WP_API_BASE = location.hostname === 'sccd-website.local' ? '' : 'http://sccd-website.local';
+const COURSES_JSON_FALLBACK = '/data/courses.json';
 let _coursesData = null;
 async function loadData() {
   if (_coursesData) return _coursesData;
-  const res = await fetch('/data/courses.json');
-  _coursesData = await res.json();
+  try {
+    const [animation, cmd, mdes] = await Promise.all([
+      fetch(`${WP_API_BASE}/wp-json/sccd/v1/bfa-animation`).then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json(); }),
+      fetch(`${WP_API_BASE}/wp-json/sccd/v1/bfa-cmd`).then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json(); }),
+      fetch(`${WP_API_BASE}/wp-json/sccd/v1/mdes`).then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json(); }),
+    ]);
+    _coursesData = { 'bfa-animation': animation, 'bfa-cmd': cmd, 'mdes': mdes };
+  } catch (_e) {
+    const res = await fetch(COURSES_JSON_FALLBACK);
+    _coursesData = await res.json();
+  }
   return _coursesData;
 }
 
@@ -129,26 +116,6 @@ function flattenToChips(courses) {
   return chips;
 }
 
-let _placeholderCursor = 0;
-function takePlaceholders(n, gradeKey, semKey, type) {
-  const out = [];
-  for (let i = 0; i < n; i++) {
-    const p = PLACEHOLDER_POOL[_placeholderCursor % PLACEHOLDER_POOL.length];
-    _placeholderCursor++;
-    out.push({
-      titleEn: p.titleEn,
-      titleZh: p.titleZh,
-      descriptionEn: PLACEHOLDER_DESC_EN,
-      descriptionZh: PLACEHOLDER_DESC_ZH,
-      type,
-      grade: gradeKey,
-      semester: semKey,
-      _placeholder: true,
-    });
-  }
-  return out;
-}
-
 function escapeAttr(s) {
   return String(s || '').replace(/"/g, '&quot;');
 }
@@ -192,7 +159,6 @@ function renderCard(chip) {
 const TOTAL_YEAR_COLS = 4;
 
 function buildHTML(program, courses) {
-  _placeholderCursor = 0;
   const grades = gradesOf(program);
   const realChips = flattenToChips(courses);
 
@@ -252,16 +218,9 @@ function buildHTML(program, courses) {
     for (let i = 0; i < TOTAL_YEAR_COLS; i++) {
       const g = grades[i];
       if (g) {
-        const realInCell = realChips.filter(rc =>
+        const cellChips = realChips.filter(rc =>
           rc.grade === g.key && rc.semester === sem.key && rc.type === 'required'
         );
-        let cellChips = [...realInCell];
-        if (cellChips.length < TARGET_REQUIRED_PER_CELL) {
-          cellChips = [
-            ...cellChips,
-            ...takePlaceholders(TARGET_REQUIRED_PER_CELL - cellChips.length, g.key, sem.key, 'required'),
-          ];
-        }
         reqInner += `<div class="courses-grid-cell ${yearCls(i)}">${cellChips.map(renderCard).join('')}</div>`;
       } else {
         reqInner += `<div class="courses-grid-cell ${yearCls(i)}"></div>`;
@@ -278,17 +237,9 @@ function buildHTML(program, courses) {
     for (let i = 0; i < TOTAL_YEAR_COLS; i++) {
       const g = grades[i];
       if (g) {
-        const realInCell = realChips.filter(rc =>
+        const cellChips = realChips.filter(rc =>
           rc.grade === g.key && rc.semester === sem.key && rc.type === 'elective'
         );
-        const target = ELECTIVE_RANGE[0] + Math.floor(Math.random() * (ELECTIVE_RANGE[1] - ELECTIVE_RANGE[0] + 1));
-        let cellChips = [...realInCell];
-        if (cellChips.length < target) {
-          cellChips = [
-            ...cellChips,
-            ...takePlaceholders(target - cellChips.length, g.key, sem.key, 'elective'),
-          ];
-        }
         elecInner += `<div class="courses-grid-cell ${yearCls(i)}">${cellChips.map(renderCard).join('')}</div>`;
       } else {
         elecInner += `<div class="courses-grid-cell ${yearCls(i)}"></div>`;
@@ -608,7 +559,6 @@ export async function renderCoursesGrid(program) {
   const grid = /** @type {HTMLElement|null} */ (panel.querySelector('.courses-grid'));
   if (!grid) return;
 
-  const grades = gradesOf(program);
   // 永遠 4 個年級欄保持 BFA layout 比例；MDES 只填前 2 cells（year1, year2），cols 5-6 留空
   // 這樣 MDES 的 1st/2nd year 欄寬跟 BFA 的 freshman/sophomore 對齊，視覺一致
   grid.style.setProperty('--year-cols', '4');

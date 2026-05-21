@@ -23,6 +23,8 @@
 @import './components/intro-animation.css';
 @import './components/courses.css';
 @import './components/atlas.css';
+@import './components/icon.css';
+@import './components/cursor.css';
 
 /* Themes */
 @import './themes/inverse.css';

@@ -3,14 +3,23 @@
  * Netflix 風格全螢幕播放器
  */
 
+// Cache 防多次 init 累積 listener（同一個 overlay 元素上重綁多次 listener
+// → 每次 click 觸發 N 次 togglePlay 偶數次就 net no-op → 「點 pause 不會 pause」成因之一）。
+// 但 SPA 換頁時 main.innerHTML swap 會把 overlay 元素整個換成新的（同 id 不同 reference）→
+// 舊 cached instance 指 detached 元素，openPlayer 對它 .style 無視覺效果。改用 _overlay
+// reference 比對，元素更新時自動 re-init。
+let _videoPlayerInstance = null;
+
 export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete } = {}) {
   const overlay       = document.getElementById('video-player-overlay');
+  if (_videoPlayerInstance && _videoPlayerInstance._overlay === overlay) return _videoPlayerInstance;
   const video         = document.getElementById('video-player');
   const playBtn       = document.getElementById('video-play-btn');
   const muteBtn        = document.getElementById('video-mute-btn');
   const volumeWrap     = document.getElementById('video-volume-wrap');
   const volumeTrack    = document.getElementById('video-volume-track');
   const volumeFill     = document.getElementById('video-volume-fill');
+  const volumeThumb    = document.getElementById('video-volume-thumb');
   const timeEl        = document.getElementById('video-time');
   const progressTrack = document.getElementById('video-progress-track');
   const progressFill  = document.getElementById('video-progress-fill');
@@ -33,12 +42,14 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete } =
 
   function applyIconColor(color) {
     iconColor = color;
-    const trackColor = color === '#fff' ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.25)';
+    // 進度條/音量條 user 指定：track + fill + thumb 全部同色（單一連續黑線），
+    // 位置由 thumb 上下伸出 5px 視覺呈現（thumb 14px 高，track 4px）
     if (progressFill)  progressFill.style.background  = color;
     if (progressThumb) progressThumb.style.background = color;
-    if (progressTrack) progressTrack.style.background = trackColor;
+    if (progressTrack) progressTrack.style.background = color;
     if (volumeFill)    volumeFill.style.background    = color;
-    if (volumeTrack)   volumeTrack.style.background   = trackColor;
+    if (volumeThumb)   volumeThumb.style.background   = color;
+    if (volumeTrack)   volumeTrack.style.background   = color;
     [playBtn, muteBtn, seekBackBtn, seekFwdBtn, fullscreenBtn, closeBtn].forEach(btn => {
       if (btn) btn.style.color = color;
     });
@@ -201,11 +212,10 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete } =
   }
 
   function updatePlayIcon() {
-    const icon = playBtn.querySelector('i');
+    const icon = playBtn?.firstElementChild;
     if (!icon) return;
-    // fa-pause 比 fa-play 窄，用固定寬度避免影響右邊元素位置
-    icon.className = video.paused ? 'fa-solid fa-play fa-fw' : 'fa-solid fa-pause fa-fw';
-    icon.style.fontSize = '1.75rem';
+    // size 由 HTML 上 .icon-l class 控制（兩態同 tier，避免 toggle 時 container 高度跳動）
+    icon.className = video.paused ? 'icon icon-play icon-l' : 'icon icon-pause icon-l';
   }
 
   playBtn.addEventListener('click', (e) => { e.stopPropagation(); togglePlay(); });
@@ -224,9 +234,12 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete } =
     showControls();
   });
 
-  // ── 進度條 ─────────────────────────────────────────────
+  // ── 進度條（YT-style drag：drag 期間只更新視覺，mouseup 才 seek video）─────
+  let dragging = false;
+  let dragPct = 0;
   let rafPending = false;
   video.addEventListener('timeupdate', () => {
+    if (dragging) return; // drag 期間 timeupdate 不能跟 visual update 搶 progressFill width
     if (rafPending || !video.duration) return;
     rafPending = true;
     requestAnimationFrame(() => {
@@ -238,46 +251,81 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete } =
     });
   });
 
-  function seekTo(e) {
-    const rect = progressTrack.getBoundingClientRect();
-    const pct  = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-    video.currentTime = pct * video.duration;
-    showControls();
+  function computePct(e, track) {
+    const rect = track.getBoundingClientRect();
+    return Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
   }
 
-  progressTrack.addEventListener('click', seekTo);
+  // drag 期間直接寫 progressFill width（不 seek video）→ 視覺即時、無 seek lag
+  function visualUpdateProgress(pct) {
+    progressFill.style.width = `${pct * 100}%`;
+    if (video.duration && timeEl) {
+      const remaining = (1 - pct) * video.duration;
+      timeEl.textContent = formatTime(remaining);
+    }
+  }
 
-  let dragging = false;
-  progressTrack.addEventListener('mousedown', (e) => { dragging = true; seekTo(e); });
-  document.addEventListener('mousemove', (e) => { if (dragging) seekTo(e); });
-  document.addEventListener('mouseup', () => { dragging = false; });
+  progressTrack.addEventListener('mousedown', (e) => {
+    dragging = true;
+    dragPct = computePct(e, progressTrack);
+    visualUpdateProgress(dragPct);
+    showControls();
+  });
 
-  // ── 音量 ───────────────────────────────────────────────
-  // Hover to expand volume track
+  // ── 音量 slider（hover expand + drag；thumb 預設 opacity:0，hover 才浮現）─────
   let volumeExpanded = false;
   volumeWrap?.addEventListener('mouseenter', () => {
     if (volumeTrack) volumeTrack.style.width = '80px';
+    if (volumeThumb) volumeThumb.style.opacity = '1';
     volumeExpanded = true;
   });
   volumeWrap?.addEventListener('mouseleave', () => {
-    if (volumeTrack) volumeTrack.style.width = '0';
+    if (volumeTrack && !volDragging) volumeTrack.style.width = '0';
+    if (volumeThumb && !volDragging) volumeThumb.style.opacity = '0';
     volumeExpanded = false;
   });
 
-  // Click on volume track to set volume
   let volDragging = false;
-  function seekVolume(e) {
-    const rect = volumeTrack.getBoundingClientRect();
-    const pct = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-    video.volume = pct;
-    video.muted = pct === 0;
-    updateVolumeUI();
-    showControls();
+  let volDragPct = 1;
+  function visualUpdateVolume(pct) {
+    if (volumeFill) volumeFill.style.width = `${pct * 100}%`;
   }
-  volumeTrack?.addEventListener('click', seekVolume);
-  volumeTrack?.addEventListener('mousedown', (e) => { volDragging = true; seekVolume(e); });
-  document.addEventListener('mousemove', (e) => { if (volDragging) seekVolume(e); });
-  document.addEventListener('mouseup', () => { volDragging = false; });
+
+  volumeTrack?.addEventListener('mousedown', (e) => {
+    volDragging = true;
+    volDragPct = computePct(e, volumeTrack);
+    visualUpdateVolume(volDragPct);
+    showControls();
+  });
+
+  // 共用 mousemove / mouseup：drag 期間視覺更新；釋放才 commit 到 video.currentTime / video.volume
+  document.addEventListener('mousemove', (e) => {
+    if (dragging) {
+      dragPct = computePct(e, progressTrack);
+      visualUpdateProgress(dragPct);
+    }
+    if (volDragging) {
+      volDragPct = computePct(e, volumeTrack);
+      visualUpdateVolume(volDragPct);
+    }
+  });
+  document.addEventListener('mouseup', () => {
+    if (dragging) {
+      dragging = false;
+      if (video.duration) video.currentTime = dragPct * video.duration;
+    }
+    if (volDragging) {
+      volDragging = false;
+      video.volume = volDragPct;
+      video.muted = volDragPct === 0;
+      updateMuteIcon();
+      // mouseup 若已不在 wrap 內就收回 slider + thumb
+      if (!volumeExpanded) {
+        if (volumeTrack) volumeTrack.style.width = '0';
+        if (volumeThumb) volumeThumb.style.opacity = '0';
+      }
+    }
+  });
 
   muteBtn?.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -294,12 +342,17 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete } =
   }
 
   function updateMuteIcon() {
-    const icon = muteBtn?.querySelector('i');
+    const icon = muteBtn?.firstElementChild;
     if (!icon) return;
-    icon.className = (video.muted || video.volume === 0)
-      ? 'fa-solid fa-volume-xmark'
-      : video.volume < 0.5 ? 'fa-solid fa-volume-low' : 'fa-solid fa-volume-high';
-    icon.style.fontSize = '1.25rem';
+    // mute / volume-half / volume 三態自製 SVG（size 由 .icon-l 控）
+    if (video.muted || video.volume === 0) {
+      icon.className = 'icon icon-mute icon-l';
+    } else if (video.volume < 0.5) {
+      icon.className = 'icon icon-volume-half icon-l';
+    } else {
+      icon.className = 'icon icon-volume icon-l';
+    }
+    icon.style.fontSize = '';
   }
 
   // ── 全螢幕 ─────────────────────────────────────────────
@@ -314,10 +367,17 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete } =
   });
 
   document.addEventListener('fullscreenchange', () => {
-    const icon = fullscreenBtn?.querySelector('i');
+    const icon = fullscreenBtn?.firstElementChild;
     if (!icon) return;
-    icon.className = document.fullscreenElement ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
-    icon.style.fontSize = '1.25rem';
+    // expand 用自製 SVG；compress SVG 尚未做，先用 FA fallback
+    // expand 走 .icon-l，FA compress fallback 用 inline 1.5rem 對齊
+    if (document.fullscreenElement) {
+      icon.className = 'fa-solid fa-compress';
+      icon.style.fontSize = '1.5rem';
+    } else {
+      icon.className = 'icon icon-full-screen icon-l';
+      icon.style.fontSize = '';
+    }
   });
 
   // ── 關閉 ───────────────────────────────────────────────
@@ -345,5 +405,6 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete } =
     return `${m}:${sec.toString().padStart(2, '0')}`;
   }
 
-  return { openPlayer, preloadVideo };
+  _videoPlayerInstance = { openPlayer, preloadVideo, _overlay: overlay };
+  return _videoPlayerInstance;
 }

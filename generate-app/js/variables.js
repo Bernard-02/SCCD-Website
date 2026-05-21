@@ -80,6 +80,9 @@ let isEasingSlider = false;
 // let hoveredSlider = null; // 'r', 'g', 'b', or null
 
 // --- DOM 元素 ---
+// setupComplete：p5 async — initCreateApp sync 加 theme:changed listener 後到 setup() 抓 DOM refs 完之前
+// 有 race window；handleSiteThemeChange 用此 flag 守住 updateUI，避免在 refs undefined 時跑進去炸
+let setupComplete = false;
 let inputBox, inputBoxMobile;
 let mobileHiddenMeasurer; // 用於測量手機版輸入框文字高度
 let rotateButton, customButton, colormodeButton, colormodeBox;

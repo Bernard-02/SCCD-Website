@@ -443,11 +443,6 @@ function toggleRotatePanel() {
 
 // 循環切換模式（Mode 按鈕）
 function cycleModeButton() {
-  // 隨機旋轉 mode icon
-  if (mobileElements.modeIcon) {
-    animateModeIconRotation(mobileElements.modeIcon);
-  }
-
   // 循環切換
   switch(targetMode) {
     case "Standard":
@@ -949,23 +944,23 @@ function updateMobileIcons() {
 
   // Random/Reset 圖標（舊的 Bento 面板）
   if (mobileElements.randomIcon) {
-    mobileElements.randomIcon.attribute('src', `/generate-app/Panel Icon/Random${suffix}.svg`);
+    mobileElements.randomIcon.attribute('src', panelIcon(`Random${suffix}`));
   }
   if (mobileElements.resetIcon) {
-    mobileElements.resetIcon.attribute('src', `/generate-app/Panel Icon/Reset${suffix}.svg`);
+    mobileElements.resetIcon.attribute('src', panelIcon(`Reset${suffix}`));
   }
 
   // Random/Reset 圖標（新的 Custom 調整區）
   if (mobileElements.mobileRandomImg) {
-    mobileElements.mobileRandomImg.attribute('src', `/generate-app/Panel Icon/Random${suffix}.svg`);
+    mobileElements.mobileRandomImg.attribute('src', panelIcon(`Random${suffix}`));
   }
   if (mobileElements.mobileResetImg) {
-    mobileElements.mobileResetImg.attribute('src', `/generate-app/Panel Icon/Reset${suffix}.svg`);
+    mobileElements.mobileResetImg.attribute('src', panelIcon(`Reset${suffix}`));
   }
 
   // Custom 圖標
   if (mobileElements.bentoCustomIcon) {
-    mobileElements.bentoCustomIcon.attribute('src', `/generate-app/Panel Icon/Custom${suffix}.svg`);
+    mobileElements.bentoCustomIcon.attribute('src', panelIcon(`Custom${suffix}`));
   }
 
   // Play/Pause 圖標（Bento 面板）
@@ -992,15 +987,15 @@ function updateMobileBentoPlayIcon() {
   let iconSrc = '';
 
   if (!hasText) {
-    iconSrc = `/generate-app/Panel Icon/Rotate${suffix}.svg`;
+    iconSrc = panelIcon(`Rotate${suffix}`);
   } else if (isAutoRotateMode) {
     if (autoRotate) {
-      iconSrc = `/generate-app/Panel Icon/Pause${suffix}.svg`;
+      iconSrc = panelIcon(`Pause${suffix}`);
     } else {
-      iconSrc = `/generate-app/Panel Icon/Play${suffix}.svg`;
+      iconSrc = panelIcon(`Play${suffix}`);
     }
   } else {
-    iconSrc = `/generate-app/Panel Icon/Rotate${suffix}.svg`;
+    iconSrc = panelIcon(`Rotate${suffix}`);
   }
 
   mobileElements.bentoPlayIcon.attribute('src', iconSrc);

@@ -142,11 +142,7 @@ body.mode-inverse [data-works-hl] *,
 body.mode-inverse .section-title-strip,
 body.mode-inverse .section-title-strip *,
 body.mode-inverse .timeline-card-inner:not(.bg-black),
-body.mode-inverse .timeline-card-inner:not(.bg-black) *,
-body.mode-inverse #timeline-cursor-left,
-body.mode-inverse #timeline-cursor-left *,
-body.mode-inverse #timeline-cursor-right,
-body.mode-inverse #timeline-cursor-right * {
+body.mode-inverse .timeline-card-inner:not(.bg-black) * {
   color: black !important;
 }
 
@@ -410,17 +406,11 @@ body.mode-inverse .admission-item.active {
   }
 }
 
-/* ===== List Accordion hover / active：inverse 下強制白底黑字（不要三原色 accent）=====
+/* ===== List Accordion hover / active：inverse 下保留三原色 accent，字色強制黑 =====
  * list-accordion.js 在 .list-header hover 跟 active 時 inline 設 accent bg（綠/粉/藍），active 連 .list-content / .list-item 也染同色；
- * inverse 模式下這些三原色 accent 不要出現，全部改成 strict 白底黑字（user 指定）。
+ * inverse 模式下 bg 保留三原色（user 指定），accent 底配黑字（與 mode1 一致）。
  * 用 [style*="background"] attribute selector 只 match 有 inline bg 的狀態（hover 或 active）。
  * 涵蓋 admission / activities / 任何用 list-accordion 的頁面。 */
-body.mode-inverse .list-header[style*="background"],
-body.mode-inverse .list-content[style*="background"],
-body.mode-inverse .list-item[style*="background"] {
-  background: #fff !important;
-}
-
 body.mode-inverse .list-header[style*="background"],
 body.mode-inverse .list-header[style*="background"] *,
 body.mode-inverse .list-content[style*="background"],
@@ -552,6 +542,9 @@ body.mode-inverse .atlas-list-col-title {
   background: white !important;
   color: black !important;
 }
+
+/* host/employ 副 title 在 mode-inverse 不蓋 — atlas.css 用 var(--lib-bg/fg)，
+   --lib-bg 在 inverse.css 已定義為深灰底白字（#333333 + #ffffff），自動切換 */
 
 /* B 企業環 chip：standard 黑底白字 → inverse 翻白底黑字（對齊 atlas-list-col-title pattern）
    JS inline 設 backgroundColor=black + color=white，CSS 必須 !important 覆蓋；

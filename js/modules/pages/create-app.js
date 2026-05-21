@@ -237,6 +237,10 @@ function playCreateExitAnimation(destinationRoute) {
 
     const tl = gsap.timeline({ onComplete: () => { clearTimeout(safety); done(); } });
 
+    // Header mode-btn show 動畫已移到 theme-toggle.js updateToggleBtnVisualState 內
+    // 偵測 leaving /create transition 時 fire — 在新頁面 init 階段 play，user 看到新頁面才開始展開
+    // 不放這裡跟 control-bar exit 並行：user 視線在主內容退場，mode-btn 動畫被「掩蓋」感覺像 flash
+
     // 1a. controlBarItems（control bar 拆元素）y-reveal pattern（與 hero title 同形）：
     //    yPercent 0 → ±110 overshoot，相鄰 item 上下交替方向，parent overflow-y:clip 當 mask
     //    先退場：stagger 0.05s（接近同時）、dur 0.55s → 最後一個約 0.65s 結束

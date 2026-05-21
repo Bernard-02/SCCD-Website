@@ -143,8 +143,8 @@
                <div class="text-h5 font-bold mt-1">動畫影像設計組</div>
             </div>
             <div class="flex gap-sm shrink-0 pt-1">
-               <button id="mobile-division-prev" class="w-8 h-8 flex items-center justify-center"><i class="fa-solid fa-chevron-left text-p2"></i></button>
-               <button id="mobile-division-next" class="w-8 h-8 flex items-center justify-center"><i class="fa-solid fa-chevron-right text-p2"></i></button>
+               <button id="mobile-division-prev" class="w-8 h-8 flex items-center justify-center"><span class="icon icon-chevron-list icon-s"></span></button>
+               <button id="mobile-division-next" class="w-8 h-8 flex items-center justify-center"><span class="icon icon-chevron-list icon-s rotate-180"></span></button>
             </div>
           </div>
         </div>
@@ -378,17 +378,9 @@
           <!-- 卷軸容器：照片 + 年份/說明字卡，JS 動態生成 -->
           <div id="timeline-strip" class="absolute top-0 left-0 h-full"></div>
 
-          <!-- Nav Zones -->
-          <div id="timeline-nav-left" class="absolute left-0 top-0 w-[12vw] h-full z-20" style="cursor: none;"></div>
-          <div id="timeline-nav-right" class="absolute right-0 top-0 w-[12vw] h-full z-20" style="cursor: none;"></div>
-
-          <!-- Arrow Cursors -->
-          <div id="timeline-cursor-left" class="fixed pointer-events-none z-30 w-[60px] h-[60px] flex items-center justify-center" style="opacity:0; transform:scale(0); top:0; left:0; background:#000;">
-            <i class="fa-solid fa-arrow-left text-black text-lg"></i>
-          </div>
-          <div id="timeline-cursor-right" class="fixed pointer-events-none z-30 w-[60px] h-[60px] flex items-center justify-center" style="opacity:0; transform:scale(0); top:0; left:0; background:#000;">
-            <i class="fa-solid fa-arrow-right text-black text-lg"></i>
-          </div>
+          <!-- Nav Zones（cursor 由 cursor.css 統一管，data-tl-nav-edge 對應 left/right.svg） -->
+          <div id="timeline-nav-left" data-tl-nav-edge="left" class="absolute left-0 top-0 w-[12vw] h-full z-20"></div>
+          <div id="timeline-nav-right" data-tl-nav-edge="right" class="absolute right-0 top-0 w-[12vw] h-full z-20"></div>
 
           <!-- Photo Hover Tooltip -->
           <div id="timeline-photo-tooltip" class="fixed pointer-events-none z-30" style="opacity:0; top:0; left:0;">

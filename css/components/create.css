@@ -65,11 +65,16 @@
   --standard-text: black;
   --inverse-bg: black;
   --inverse-text: white;
-  --wireframe-bg: white; /* Wireframe 模式的背景色，由 JS 動態更新 */
-  --wireframe-border: black; /* Wireframe 模式的邊框顏色，由 JS 根據背景亮度動態更新 */
-  --wireframe-opacity: 0.5; /* Wireframe 模式的透明度（白色版本預設 50%） */
-  --current-wireframe-bg: white; /* Landscape overlay 的背景色（當前 wireframe 顏色） */
-  --current-wireframe-text: black; /* Landscape overlay 的文字色（當前對比色） */
+  /* Wireframe 模式變數接 site theme-toggle 同步寫的 --theme-bg / --theme-fg（:root 在 variables.css always defined）
+     之前寫死 white 會 shadow 掉 generate-app/js/color-picker.js 寫到 documentElement 的值（#create-app 比 html
+     更接近子孫，cascade 永遠贏）→ slider track / placeholder / angle label 永遠是 white，
+     mode3 light hue（綠/黃）下顯示反向不對比；改 chain 之後跟 site theme 一致 */
+  --wireframe-bg: var(--theme-bg);
+  --wireframe-border: var(--theme-fg);
+  --wireframe-opacity: 0.5; /* Wireframe 模式的透明度（原本 light hue 走 0.25 / dark hue 走 0.5，現在統一 0.5；
+    user 抱怨「沒對比色」= 之前 placeholder/slider 走錯色 + 0.5 opacity 雙重壞，改色之後 0.5 = 更清楚） */
+  --current-wireframe-bg: var(--theme-bg); /* Landscape overlay 的背景色（跟 site theme 同步） */
+  --current-wireframe-text: var(--theme-fg); /* Landscape overlay 的文字色（跟 site theme 同步） */
   --disabled-color: rgba(0, 0, 0, 0.25); /* 統一使用黑色25%不透明度 */
   --disabled-color-inverse: rgba(0, 0, 0, 0.25); /* 統一使用黑色25%不透明度 */
   --r-color: rgb(255, 68, 138);
@@ -103,10 +108,10 @@
   --custom-area-padding-horizontal: calc(22px * var(--scale)); /* 左右 padding */
 
   /* Rotation control box 的固定高度（以 Custom 展開時為準） */
-  --rotation-box-min-height: calc(140px * var(--scale));
+  --rotation-box-min-height: calc(120px * var(--scale));
 
   /* 圖標尺寸 */
-  --icon-size: calc(24px * var(--scale)); /* Random/Reset 等 icon 按鈕 */
+  --icon-size: calc(32px * var(--scale)); /* Random/Reset 等 icon 按鈕（容器 32px 補償 SVG 內容只佔 viewBox ~65%，視覺內容 ≈ L tier 24px） */
   --button-icon-size: calc(48px * var(--scale)); /* Custom/Auto/Standard/Inverse 按鈕內的 icon */
   --icon-button-padding: calc(2px * var(--scale));
 
@@ -139,8 +144,24 @@
   color: var(--inverse-text);
 }
 #create-app.wireframe-mode {
-  background-color: var(--wireframe-bg); /* 使用 CSS 變數，由 JS 動態更新 */
-  color: var(--standard-text);
+  /* 優先用 site theme-toggle 的 --theme-bg（mode-color 永遠 set），fallback 給 sketch.js 設的 --wireframe-bg
+     direct visit /create 時 p5 還沒載 wireframeColor 還沒算，--theme-bg 由 initThemeToggle 同步設好，
+     用 var() fallback chain 避免「purple header + white body」的視覺脫節 */
+  background-color: var(--theme-bg, var(--wireframe-bg));
+  /* color 用 --wireframe-border（對比色）而非寫死 --standard-text，避免 #input-box { color: inherit }
+     在 p5 還沒跑前繼承到黑色，type-and-enter 文字在飽和色 bg 上看不見 */
+  color: var(--wireframe-border);
+}
+
+/* Panel icons 切換到 /Website Icons/ 後沒有 _Inverse 變體（單色黑版），
+   inverse mode 黑底會看不見；wireframe 模式視 stroke 色亮度決定要不要白。
+   utils.js updatePanelIconColorClass() 切 .white-icons class，這裡用 filter invert(1) 把黑變白。
+   landscape-overlay-icon 不在 button 內，獨立列；它跟 button img 用同一條件白色化。 */
+#create-app.inverse-mode button img,
+#create-app.white-icons button img,
+#create-app.inverse-mode #landscape-overlay-icon,
+#create-app.white-icons #landscape-overlay-icon {
+  filter: invert(1);
 }
 
 /* --- 主佈局 (上下結構) --- */
@@ -199,7 +220,8 @@
 }
 #create-app.wireframe-mode #canvas-container,
 #create-app.wireframe-mode #desktop-canvas-container {
-  background-color: var(--wireframe-bg); /* 使用 CSS 變數，由 JS 動態更新 */
+  /* 跟 #create-app body 同 fallback chain（理由見上方），避免 p5 初始化前 body 跟 canvas container 顏色脫節 */
+  background-color: var(--theme-bg, var(--wireframe-bg));
 }
 
 /* 桌面版 desktop-canvas-container 規則 */
@@ -276,27 +298,27 @@
 }
 
 /* --- 控制項佈局 --- */
-/* 新增：控制盒外框 */
+/* 控制盒：實心對比底 + 無邊框 + 無 radius；icon 用 opacity 半透明（user 要求 2026-05-20） */
 .control-box {
-  border: 2px solid;
-  border-radius: var(--panel-border-radius);
+  border: none;
+  border-radius: 0;
   padding: var(--control-box-padding);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  transition: border-color 0s ease, background-color 0.4s ease, opacity 0s ease;
+  transition: background-color 0.4s ease, opacity 0s ease;
 }
 
 /* 讓 colormode-box 和 save-box 整個區域都可以點擊 */
 #colormode-box,
 #save-box {
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
 }
 
 /* rotation-box 父容器使用 default cursor，因為點擊的是裡面的按鈕 */
 #rotation-box {
-  cursor: default;
+  cursor: var(--cursor-default);
 }
 
 /* Disabled 狀態下覆蓋 cursor */
@@ -306,41 +328,34 @@
   cursor: not-allowed !important;
 }
 
-/* 根據模式切換邊框顏色和背景色 */
-#create-app.standard-mode .control-box {
-  border-color: black;
-  background-color: transparent; /* 透明，會顯示為白色（因為 body 背景是白色） */
-}
-#create-app.inverse-mode .control-box {
-  border-color: white;
-  background-color: transparent; /* 透明，會顯示為黑色（因為 body 背景是黑色） */
-}
-#create-app.wireframe-mode .control-box {
-  border-color: var(--wireframe-border); /* 使用 CSS 變數，由 JS 根據背景亮度動態更新 */
-  background-color: rgba(255, 255, 255, 0.28); /* 半透明 30% 白色 */
+/* 底色 = 灰底（mode-aware --lib-bg/--lib-fg）：
+   mode1 淺灰底黑字 / mode2 深灰底白字 / mode3 依對比度自動切（見 themes/color.css）
+   --lib-fg 與頁面 fg 同色（mode1 黑/mode2 白/mode3 同 --theme-fg），所以盒內 icon 直接沿用 page-level invert
+   rule（行 160-165），不需 control-box 層再 override filter */
+.control-box {
+  background-color: var(--lib-bg);
+  color: var(--lib-fg);
 }
 
-/* 當 control-box 處於 disabled 狀態時，使用對應顏色 + 透明度 */
-#create-app.standard-mode .control-box.disabled {
-  border-color: black !important;
-  opacity: 0.25;
-  cursor: not-allowed;
-  transition: border-color 0.2s ease, background-color 0.4s ease; /* 移除 opacity transition 避免延遲 */
+/* 盒內 icon 預設 100%（active），inactive 狀態統一 50%（user 2026-05-20）
+   inactive = (1) box 整個 disabled  (2) 個別 button:disabled  (3) rotate/custom 非 active
+   colormode 不在 inactive selector 內（它沒有 active/inactive 概念，永遠 100%） */
+.control-box button img {
+  opacity: 1;
 }
-
-#create-app.inverse-mode .control-box.disabled {
-  border-color: white !important;
+.control-box.disabled button img,
+.control-box .custom-button:disabled img,
+.control-box .image-button:disabled img,
+.control-box .custom-button-rotate:not(.active):not(:disabled) img,
+.control-box .custom-button-custom:not(.active):not(:disabled) img {
   opacity: 0.5;
-  cursor: not-allowed;
-  transition: border-color 0.2s ease, background-color 0.4s ease; /* 移除 opacity transition 避免延遲 */
 }
 
-/* Wireframe 模式下 disabled 狀態的邊框使用對比色 + 透明度 */
-#create-app.wireframe-mode .control-box.disabled {
-  border-color: var(--wireframe-border) !important;
-  opacity: var(--wireframe-opacity);
+/* 當 control-box 處於 disabled 狀態時 — box bg 維持 100% 對比實心，
+   inactive 視覺由內部 icon/slider/label 自己半透明溝通（user 2026-05-20） */
+#create-app .control-box.disabled {
   cursor: not-allowed;
-  transition: border-color 0.2s ease, background-color 0.4s ease; /* 移除 opacity transition 避免延遲 */
+  transition: background-color 0.4s ease;
 }
 
 /* 顏色模式控制盒：讓它延伸填滿高度 */
@@ -356,7 +371,7 @@
   aspect-ratio: 1 / 1; /* 正方形 */
   display: none; /* 由 JavaScript 控制顯示/隱藏 */
   position: relative;
-  padding: calc(16px * var(--scale)); /* 稍小的 padding，讓色彩區域更大 */
+  padding: calc(16px * var(--scale)); /* user 2026-05-20 五次調整：padding 8→16，讓 ring 距 box 邊更多留白（ring 連同 canvas 一起被推離邊） */
   opacity: 0; /* 預設透明（包括 border 和背景） */
   overflow: hidden; /* 隱藏溢出內容，配合寬度動畫 */
   transition: max-width 0.2s ease, padding 0.2s ease, opacity 0.2s ease; /* 寬度、padding 和 opacity 過渡效果 */
@@ -378,6 +393,9 @@
   border-radius: 50%; /* 圓形 */
   overflow: visible; /* 改為 visible 避免裁切甜甜圈 */
   cursor: crosshair;
+  display: flex; /* canvas 縮小到 container × 0.7 後在 container 內置中（JS margin:auto 只置中水平不夠） */
+  align-items: center;
+  justify-content: center;
 }
 
 /* 旋轉控制盒：Custom(左) + Slider(中) + Auto(右) */
@@ -388,38 +406,31 @@
   position: relative; /* 為偽元素提供定位參考 */
   height: var(--rotation-box-min-height); /* 設定固定高度，不會因內容而變化 */
   overflow: visible; /* 確保內容不會被裁切 */
+  transition: gap 0.3s ease;
 }
 
-/* Custom 區域包裝容器 */
+/* Slider 展開時 (.custom-area-wrapper 帶 .custom-mode) 拿掉 wrapper 與 play btn 間 gap，
+   保留收起時的 gap（user 2026-05-20）*/
+#rotation-box:has(.custom-area-wrapper.custom-mode) {
+  gap: 0;
+}
+
+/* Custom 區域包裝容器（user 要求 border 拿掉） */
 .custom-area-wrapper {
   display: flex;
   flex-direction: row;
   align-items: stretch;
-  gap: 0; /* 縮排時沒有 gap */
-  /* 預設透明邊框 */
-  border: 2px solid transparent;
+  gap: 0;
+  border: none;
   border-radius: var(--border-radius);
-  padding: 0; /* 預設沒有 padding */
-  overflow: visible; /* 確保內容不會被裁切 */
-  /* 移除 transition，直接切換，不要淡出效果 */
+  padding: 0;
+  overflow: visible;
 }
 
-/* 當 Custom 模式啟用時，顯示邊框和 padding */
+/* 當 Custom 模式啟用時，只保留 padding + gap，不再加 border */
 .custom-area-wrapper.custom-mode {
-  /* padding: 上 右 下 左 */
   padding: var(--custom-area-padding-vertical) calc(var(--custom-area-padding-horizontal) + 2px) var(--custom-area-padding-vertical) var(--custom-area-padding-horizontal);
-  gap: 22px; /* 展開時才有 gap */
-}
-
-/* 根據模式切換邊框顏色 */
-#create-app.standard-mode .custom-area-wrapper.custom-mode {
-  border-color: var(--standard-text);
-}
-#create-app.inverse-mode .custom-area-wrapper.custom-mode {
-  border-color: var(--inverse-text);
-}
-#create-app.wireframe-mode .custom-area-wrapper.custom-mode {
-  border-color: var(--wireframe-border); /* 使用 CSS 變數，由 JS 根據背景亮度動態更新 */
+  gap: 22px;
 }
 
 /* rotation-box 內的按鈕需要填滿父容器高度，並保持正方形 */
@@ -493,26 +504,17 @@
   height: calc(32px * var(--scale));
 }
 
-/* 滑動邊框指示器 */
+/* 滑動邊框指示器 — user 要求拿掉 border，indicator 改為純隱形定位元件（保留邏輯但無視覺） */
 .button-indicator {
   position: absolute;
-  left: 0; /* 從左側開始定位 */
-  /* 使用 aspect-ratio 讓指示器也是正方形，寬度 = 高度 */
+  left: 0;
   height: 100%;
   aspect-ratio: 1 / 1;
-  border: 2px solid;
+  border: none;
   border-radius: var(--border-radius);
-  pointer-events: none; /* 不阻擋點擊事件 */
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0s ease;
-  z-index: 0; /* 在按鈕下方 */
-}
-
-/* 根據模式切換邊框顏色 */
-#create-app.standard-mode .button-indicator {
-  border-color: black;
-}
-#create-app.inverse-mode .button-indicator {
-  border-color: white;
+  pointer-events: none;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 0;
 }
 
 /* 指示器位置：Standard（初始位置，左側） */
@@ -565,7 +567,7 @@
 .image-button {
   background: none;
   border: none;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   padding: 0;
   display: flex;
   align-items: flex-start;
@@ -626,7 +628,7 @@
   padding: calc(10px * var(--scale));
   font-size: var(--button-font-size);
   font-weight: 400;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -646,14 +648,11 @@
   flex-shrink: 0;
 }
 
-/* Rotate 按鈕的 icon 視覺修正 */
+/* Rotate 按鈕的 icon 視覺修正：play_pause_create.svg 內三角形光學中心偏左，整體向右 3px 對齊 box 視覺中心
+   （play/pause 合在同一 SVG，不用再切 .play-icon class） */
 .custom-button-rotate img {
   position: relative;
-}
-
-/* 當 Rotate 按鈕顯示 Play icon 時，向右調整 2px（視覺修正） */
-.custom-button-rotate.play-icon img {
-  left: 2px;
+  left: 3px;
 }
 
 /* 按鈕內的文字樣式 */
@@ -683,16 +682,8 @@
   transform: scale(1.07);
 }
 
-/* rotation 按鈕的 active 狀態：按鈕本身需要邊框 */
-.custom-button-rotate.active {
-  border-color: var(--standard-text);
-}
-#create-app.inverse-mode .custom-button-rotate.active {
-  border-color: var(--inverse-text);
-}
-#create-app.wireframe-mode .custom-button-rotate.active {
-  border-color: var(--wireframe-border); /* 使用 CSS 變數，由 JS 根據背景亮度動態更新 */
-}
+/* rotation 按鈕 active 狀態不再加 border（user 2026-05-20）：
+   active/inactive 視覺差別由 icon opacity 處理（.control-box img inactive 0.5 / active 1，見上方 .control-box img 規則） */
 
 /* Custom 按鈕選中時：按鈕本身不要邊框，保持透明 */
 .custom-button-custom.active {
@@ -707,21 +698,8 @@
   color: var(--disabled-color);
 }
 
-/* Standard 模式下 Disabled 狀態的 custom button icon 圖片設定透明度（25%） */
-#create-app.standard-mode .control-box:not(.disabled) .custom-button:disabled img {
-  opacity: 0.25;
-}
-
-/* Inverse 模式下 Disabled 狀態的 custom button icon 圖片設定透明度（50%） */
-#create-app.inverse-mode .control-box:not(.disabled) .custom-button:disabled img {
-  opacity: 0.5;
-}
-
-/* Wireframe 模式下 Disabled 狀態的 custom button icon 圖片設定透明度 */
-/* 只在父容器不是 disabled 時才設定 icon 透明度（避免重複透明度計算） */
-#create-app.wireframe-mode .control-box:not(.disabled) .custom-button:disabled img {
-  opacity: var(--wireframe-opacity);
-}
+/* custom-button:disabled / image-button:disabled img 的舊 per-mode 0.25/0.5/wireframe-opacity
+   已被上面統一 .control-box ... img { opacity: 0.5 } 取代（user 2026-05-20） */
 
 /* active 狀態的按鈕（只改變文字顏色，邊框由指示器處理） */
 .custom-button.active {
@@ -742,62 +720,15 @@
   color: #888; /* Wireframe 模式下的 hover 顏色 */
 }
 
-/* Rotate 按鈕：未選中時無 border，hover 時顯示不透明的 border 和 icon */
-#create-app.standard-mode .custom-button-rotate:not(.active):not(:disabled) {
+/* Rotate / Custom 按鈕未選中：border 透明，icon 透明度由上面 .control-box img 規則處理
+   hover 時 icon 回到 100%（border 不再顯示，因為盒底已是高對比實心） */
+.custom-button-rotate:not(.active):not(:disabled),
+.custom-button-custom:not(.active):not(:disabled) {
   border-color: transparent;
-  opacity: 0.25;
 }
-#create-app.standard-mode .custom-button-rotate:not(.active):not(:disabled):hover {
-  border-color: black;
-  opacity: 1; /* hover 時完全不透明 */
-}
-
-#create-app.inverse-mode .custom-button-rotate:not(.active):not(:disabled) {
-  border-color: transparent;
-  opacity: 0.5;
-}
-#create-app.inverse-mode .custom-button-rotate:not(.active):not(:disabled):hover {
-  border-color: white;
-  opacity: 1; /* hover 時完全不透明 */
-}
-
-/* Wireframe 模式下未選中的 Rotate 按鈕：使用變數透明度 */
-#create-app.wireframe-mode .custom-button-rotate:not(.active):not(:disabled) {
-  border-color: transparent;
-  opacity: var(--wireframe-opacity);
-}
-#create-app.wireframe-mode .custom-button-rotate:not(.active):not(:disabled):hover {
-  border-color: var(--wireframe-border);
-  opacity: 1; /* hover 時完全不透明 */
-}
-
-/* Custom 按鈕：未選中時無 border，hover 時顯示不透明的 border 和 icon */
-#create-app.standard-mode .custom-button-custom:not(.active):not(:disabled) {
-  border-color: transparent;
-  opacity: 0.25;
-}
-#create-app.standard-mode .custom-button-custom:not(.active):not(:disabled):hover {
-  border-color: black;
-  opacity: 1; /* hover 時完全不透明 */
-}
-
-#create-app.inverse-mode .custom-button-custom:not(.active):not(:disabled) {
-  border-color: transparent;
-  opacity: 0.5;
-}
-#create-app.inverse-mode .custom-button-custom:not(.active):not(:disabled):hover {
-  border-color: white;
-  opacity: 1; /* hover 時完全不透明 */
-}
-
-/* Wireframe 模式下未選中的 Custom 按鈕：使用變數透明度 */
-#create-app.wireframe-mode .custom-button-custom:not(.active):not(:disabled) {
-  border-color: transparent;
-  opacity: var(--wireframe-opacity);
-}
-#create-app.wireframe-mode .custom-button-custom:not(.active):not(:disabled):hover {
-  border-color: var(--wireframe-border);
-  opacity: 1; /* hover 時完全不透明 */
+.control-box .custom-button-rotate:not(.active):not(:disabled):hover img,
+.control-box .custom-button-custom:not(.active):not(:disabled):hover img {
+  opacity: 1;
 }
 
 #create-app.inverse-mode .custom-button.active {
@@ -808,21 +739,7 @@
   cursor: not-allowed;
 }
 
-/* Standard 模式下 Disabled 狀態的 image button icon 圖片設定透明度（25%） */
-#create-app.standard-mode .control-box:not(.disabled) .image-button:disabled img {
-  opacity: 0.25;
-}
-
-/* Inverse 模式下 Disabled 狀態的 image button icon 圖片設定透明度（50%） */
-#create-app.inverse-mode .control-box:not(.disabled) .image-button:disabled img {
-  opacity: 0.5;
-}
-
-/* Wireframe 模式下 Disabled 狀態的 icon 圖片設定透明度 */
-/* 只在父容器不是 disabled 時才設定 icon 透明度（避免重複透明度計算） */
-#create-app.wireframe-mode .control-box:not(.disabled) .image-button:disabled img {
-  opacity: var(--wireframe-opacity);
-}
+/* image-button:disabled img 的舊 per-mode rules 也已統一到上面（user 2026-05-20） */
 
 /* --- 分隔線 --- */
 /* 移除桌面版分隔線 */
@@ -855,7 +772,7 @@
   width: var(--slider-thumb-size); /* 滑塊寬度 */
   height: var(--slider-thumb-size); /* 滑塊高度 */
   border-radius: 50%;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   border: none; /* 移除邊框 */
   background: #e6e6e6; /* 滑塊顏色 */
   transition: none; /* 移除 transition 避免顏色切換延遲 */
@@ -865,7 +782,7 @@
   width: var(--slider-thumb-size); /* 滑塊寬度 */
   height: var(--slider-thumb-size); /* 滑塊高度 */
   border-radius: 50%;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   border: none; /* 移除邊框 */
   background: #e6e6e6; /* 滑塊顏色 */
   transition: none; /* 移除 transition 避免顏色切換延遲 */
@@ -887,68 +804,56 @@
   transition: background 0.3s ease, box-shadow 0.3s ease; /* 添加 transition */
 }
 
-/* Standard 模式下，disabled slider 使用黑色 + 25% 透明度 */
-#create-app.standard-mode .custom-slider:not(.enabled) {
-  background: black;
-  opacity: 0.25;
-  transition: background 0.3s ease, opacity 0.3s ease; /* 添加 transition 讓切換更平滑 */
-}
-#create-app.standard-mode .custom-slider:not(.enabled)::-webkit-slider-thumb {
-  background: white;
-  box-shadow: inset 0 0 0 2.5px black;
-  transition: background 0.3s ease, box-shadow 0.3s ease; /* 添加 transition */
-}
+/* Inactive slider track + thumb 用「box-internal fg」色 = var(--lib-fg)（與 box bg --lib-bg 對比）
+   mode1 淺灰底 → 黑 slider / mode2 深灰底 → 白 slider（user 2026-05-20 統一灰底規格） */
+#create-app.standard-mode .custom-slider:not(.enabled),
+#create-app.standard-mode .custom-slider:not(.enabled)::-webkit-slider-thumb,
 #create-app.standard-mode .custom-slider:not(.enabled)::-moz-range-thumb {
-  background: white;
-  box-shadow: inset 0 0 0 2.5px black;
-  transition: background 0.3s ease, box-shadow 0.3s ease; /* 添加 transition */
+  background: black;
+  box-shadow: none;
+  transition: background 0.3s ease, opacity 0.3s ease;
 }
 
-/* Inverse 模式下，disabled slider 使用白色 + 50% 透明度 */
-#create-app.inverse-mode .custom-slider:not(.enabled) {
-  background: white;
-  opacity: 0.5;
-  transition: background 0.3s ease, opacity 0.3s ease; /* 添加 transition 讓切換更平滑 */
-}
-#create-app.inverse-mode .custom-slider:not(.enabled)::-webkit-slider-thumb {
-  background: black;
-  box-shadow: inset 0 0 0 2.5px white;
-  transition: background 0.3s ease, box-shadow 0.3s ease; /* 添加 transition */
-}
+#create-app.inverse-mode .custom-slider:not(.enabled),
+#create-app.inverse-mode .custom-slider:not(.enabled)::-webkit-slider-thumb,
 #create-app.inverse-mode .custom-slider:not(.enabled)::-moz-range-thumb {
-  background: black;
-  box-shadow: inset 0 0 0 2.5px white;
-  transition: background 0.3s ease, box-shadow 0.3s ease; /* 添加 transition */
+  background: white;
+  box-shadow: none;
+  transition: background 0.3s ease, opacity 0.3s ease;
 }
 
-/* Wireframe 模式下，disabled slider 使用黑色或白色 + 透明度（桌面版） */
-#create-app.wireframe-mode .custom-slider:not(.enabled) {
-  background: var(--wireframe-border);
-  opacity: var(--wireframe-opacity);
-}
-#create-app.wireframe-mode .custom-slider:not(.enabled)::-webkit-slider-thumb {
-  background: var(--wireframe-bg); /* 使用當前背景色作為基底 */
-  box-shadow:
-    inset 0 0 0 100px rgba(255, 255, 255, 0.28), /* 在背景色上疊加 28% 白色 */
-    inset 0 0 0 2.5px var(--wireframe-border); /* 描邊顏色，透明度由父元素的 opacity 控制 */
-}
-#create-app.wireframe-mode .custom-slider:not(.enabled)::-moz-range-thumb {
-  background: var(--wireframe-bg); /* 使用當前背景色作為基底 */
-  box-shadow:
-    inset 0 0 0 100px rgba(255, 255, 255, 0.28), /* 在背景色上疊加 28% 白色 */
-    inset 0 0 0 2.5px var(--wireframe-border); /* 描邊顏色，透明度由父元素的 opacity 控制 */
-}
+/* Wireframe mode (mode3) inactive slider 統一交給下面 wireframe-mode 整段 (.enabled / :not(.enabled) 同色)
+   差別只在 opacity，由 line ~862 .custom-slider:not(.enabled) { opacity: 0.5 } 處理 */
 
-/* Wireframe 模式下，enabled slider 使用黑色或白色（桌面版） */
+/* Wireframe (= site mode3) slider/thumb 顏色 = box 內 --lib-fg（box bg 深灰→白 slider / 淺灰→黑 slider）
+   .dark-icons class 由 color-picker.js 在「page bg 亮」時 add（contrastColor 是黑）：
+     → isLightBg=true → --theme-neutral-gray=--gray-9 淺灰 → box bg 淺灰 → slider 黑
+   :not(.dark-icons) = page bg 暗 → --gray-2 深灰 → box bg 深灰 → slider 白
+   active/inactive 差別只在 opacity（user 2026-05-20 規格）
+   用 !important 蓋 .custom-slider.enabled 的 var(--track-color) — 該 var 在 wireframe mode 沒設值會 fallback 到 initial */
+#create-app.wireframe-mode .custom-slider,
 #create-app.wireframe-mode .custom-slider.enabled {
-  background-color: var(--wireframe-border);
-  transition: opacity 0.2s ease;
+  background-color: white !important;
 }
+#create-app.wireframe-mode .custom-slider::-webkit-slider-thumb,
 #create-app.wireframe-mode .custom-slider.enabled::-webkit-slider-thumb {
-  background-color: var(--wireframe-border);
+  background-color: white !important;
 }
+#create-app.wireframe-mode .custom-slider::-moz-range-thumb,
 #create-app.wireframe-mode .custom-slider.enabled::-moz-range-thumb {
-  background-color: var(--wireframe-border);
+  background-color: white !important;
+}
+#create-app.wireframe-mode.dark-icons .custom-slider,
+#create-app.wireframe-mode.dark-icons .custom-slider.enabled {
+  background-color: black !important;
+}
+#create-app.wireframe-mode.dark-icons .custom-slider::-webkit-slider-thumb,
+#create-app.wireframe-mode.dark-icons .custom-slider.enabled::-webkit-slider-thumb {
+  background-color: black !important;
+}
+#create-app.wireframe-mode.dark-icons .custom-slider::-moz-range-thumb,
+#create-app.wireframe-mode.dark-icons .custom-slider.enabled::-moz-range-thumb {
+  background-color: black !important;
 }
 
 /* Slider hover 效果 */
@@ -990,41 +895,45 @@
   cursor: text;
 }
 
-/* Standard/Inverse 模式下的 enabled label 顏色 */
-#create-app:not(.wireframe-mode) #r-angle-label.enabled,
-#create-app:not(.wireframe-mode) .mobile-r-angle-label.enabled {
+/* Enabled label 顏色 = 三原色（user 2026-05-20：mode1/2 active 看三原色） */
+#r-angle-label.enabled,
+.mobile-r-angle-label.enabled {
   color: var(--r-color);
 }
-#create-app:not(.wireframe-mode) #g-angle-label.enabled,
-#create-app:not(.wireframe-mode) .mobile-g-angle-label.enabled {
+#g-angle-label.enabled,
+.mobile-g-angle-label.enabled {
   color: var(--g-color);
 }
-#create-app:not(.wireframe-mode) #b-angle-label.enabled,
-#create-app:not(.wireframe-mode) .mobile-b-angle-label.enabled {
+#b-angle-label.enabled,
+.mobile-b-angle-label.enabled {
   color: var(--b-color);
 }
 
-/* Standard 模式下，disabled label 使用黑色 + 25% 透明度 */
-#create-app.standard-mode .angle-input:not(.enabled) {
+/* Wireframe (= site mode3) angle label 對齊 slider 邏輯（= 對齊 --lib-fg）：
+   :not(.dark-icons) (page bg 暗 → box 深灰) → 白 label
+   .dark-icons (page bg 亮 → box 淺灰) → 黑 label */
+#create-app.wireframe-mode .angle-input {
+  color: white !important;
+}
+#create-app.wireframe-mode.dark-icons .angle-input {
   color: black !important;
-  opacity: 0.25;
 }
 
-/* Inverse 模式下，disabled label 使用白色 + 50% 透明度 */
+/* Inactive label 用 box-internal fg 色（= --lib-fg）+ 0.5 opacity（user 2026-05-20）；
+   mode1 淺灰底 → 黑 label / mode2 深灰底 → 白 label；
+   enabled label 已在上面 R/G/B color rule 走三原色，wireframe 不另 override */
+#create-app.standard-mode .angle-input:not(.enabled) {
+  color: black !important;
+  opacity: 0.5;
+}
 #create-app.inverse-mode .angle-input:not(.enabled) {
   color: white !important;
   opacity: 0.5;
 }
-
-/* Wireframe 模式下，enabled label 使用黑色或白色 */
-#create-app.wireframe-mode .angle-input.enabled {
-  color: var(--wireframe-border) !important;
-}
-
-/* Wireframe 模式下，disabled label 使用黑色或白色 + 透明度 */
+/* Wireframe inactive angle-input：color 已在上面 .angle-input 整段統一處理（active/inactive 同色寫死黑/白）；
+   inactive 的 opacity:0.5 仍要在此 declare，覆蓋 .enabled 的預設 opacity:1 */
 #create-app.wireframe-mode .angle-input:not(.enabled) {
-  color: var(--wireframe-border) !important;
-  opacity: var(--wireframe-opacity);
+  opacity: 0.5;
 }
 
 /* --- 通用 Class --- */
@@ -1056,7 +965,7 @@
   border-radius: 50%;
   background-color: transparent;
   border: none;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1065,14 +974,22 @@
   transition: opacity 0.2s ease; /* 只保留 opacity transition，移除 transform transition 避免抖動 */
 }
 
-/* Play 狀態時向右移動 1px */
+/* Play 狀態時向右移動 3px — 三角形 icon 光學中心偏左，幾何 center 視覺看起來左偏（user 2026-05-20 從 1px 加到 3px） */
 .colorwheel-play-button.is-play {
-  transform: translate(calc(-50% + 1px), -50%);
-  transition: opacity 0.2s ease; /* 確保 Play 狀態下也只有 opacity transition */
+  transform: translate(calc(-50% + 3px), -50%);
+  transition: opacity 0.2s ease;
 }
 
 .colorwheel-play-button:hover {
   opacity: 0.7;
+}
+
+/* 移除點擊/鍵盤聚焦時 browser 預設的 outline border（mode3 active 狀態下白色 rounded square 從 :focus-visible 來） */
+.colorwheel-play-button:focus,
+.colorwheel-play-button:focus-visible,
+.colorwheel-play-button:active {
+  outline: none;
+  border: none;
 }
 
 .colorwheel-play-button img {
@@ -1386,16 +1303,7 @@
     position: relative;
   }
 
-  /* 手機版：Rotate 按鈕的 active 狀態，按鈕本身需要邊框 */
-  #create-app.standard-mode .mobile-rotation-box .custom-button-rotate.active {
-    border-color: black;
-  }
-  #create-app.inverse-mode .mobile-rotation-box .custom-button-rotate.active {
-    border-color: white;
-  }
-  #create-app.wireframe-mode .mobile-rotation-box .custom-button-rotate.active {
-    border-color: var(--wireframe-border); /* 使用 CSS 變數，由 JS 根據背景亮度動態更新 */
-  }
+  /* 手機版：Rotate 按鈕 active 不再加 border（與桌面版同步，2026-05-20） */
 
   /* 手機版：Custom 按鈕的 active 狀態，按鈕本身不要邊框，保持透明 */
   #create-app.standard-mode .mobile-rotation-box .custom-button-custom.active {
@@ -1537,7 +1445,7 @@
     padding: 0;
     border: none;
     background: none;
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1554,7 +1462,7 @@
     padding: 0;
     border: none;
     background: none;
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1655,7 +1563,7 @@
     height: 30px; /* 加大到 30px */
     border: none; /* 移除外框 */
     background: none;
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1752,7 +1660,7 @@
     padding: 0;
     border: none;
     background: none;
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
   }
 
 
@@ -1861,7 +1769,7 @@
     border: 2px solid; /* 每個按鈕有自己的框 */
     border-radius: 12px;
     background: none;
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
     padding: 0.5rem;
     display: flex;
     align-items: center;
@@ -2143,7 +2051,7 @@
     flex-grow: 0; /* 不放大 */
     border: 2px solid;
     background: none;
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
     display: flex;
     align-items: center;
     justify-content: center;

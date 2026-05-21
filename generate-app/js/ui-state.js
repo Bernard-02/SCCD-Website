@@ -25,8 +25,19 @@ function updateUI() {
         body.removeClass('standard-mode');
         body.removeClass('inverse-mode');
         body.addClass('wireframe-mode');
-        // Wireframe 模式下，背景顏色使用 CSS 變數 --wireframe-bg
-        // 確保在 window resize（如手機轉向）時也能保持當前的背景顏色
+        // Lazy init wireframeColor：colormode-btn 從 Standard/Inverse 切到 Wireframe 時，若用戶此 session
+        // 沒進過 Wireframe（setup _initMode 不是 Wireframe），wireframeColor 還是 undefined → 下面
+        // `if (wireframeColor)` 會 skip → --wireframe-bg 卡 CSS 預設白色，要等下一個 draw() frame 的 transition
+        // block (sketch.js:1083) 才補上。同步從 site colorHue 算一份避免 1+ paint frame 的白底閃爍
+        if (!wireframeColor && typeof window.sccdGetColorHue === 'function' && typeof _p5 !== 'undefined' && _p5) {
+            const _hue = window.sccdGetColorHue();
+            _p5.colorMode(_p5.HSB, 360, 100, 100);
+            wireframeColor = _p5.color(_hue, 80, 100);
+            _p5.colorMode(_p5.RGB, 255);
+            wireframeStrokeColor = getContrastColor(wireframeColor);
+            currentStrokeColor = wireframeStrokeColor;
+            targetStrokeColor = wireframeStrokeColor;
+        }
         if (wireframeColor) {
             updateBackgroundColor(wireframeColor);
         }
@@ -63,7 +74,8 @@ function updateUI() {
                             canvasWidth = containerWidth;
                             canvasHeight = containerHeight;
                         } else {
-                            // 桌面版：取較小值確保是正方形
+                            // 桌面版：canvas 撐滿 container（user 2026-05-20 三次調整：要 ring 外緣 ≈ box 邊緣不留 padding）
+                            // drawColorRing 配 outerRadius ≈ 0.5 of canvas 把 ring 推到 canvas 邊
                             let containerSize = Math.min(containerWidth, containerHeight);
                             canvasWidth = containerSize;
                             canvasHeight = containerSize;

@@ -1,0 +1,20 @@
+[
+  {
+    "id": "admin-1",
+    "image": "../images/S__6742028.jpg",
+    "nameZh": "執行秘書 1",
+    "nameEn": "Secretary Name 1",
+    "titleZh": "執行秘書",
+    "titleEn": "Secretary",
+    "contact": "Email: secretary1@sccd.edu.tw\nPhone: +886-2-1234-5678"
+  },
+  {
+    "id": "admin-2",
+    "image": "../images/S__6742028.jpg",
+    "nameZh": "執行秘書 2",
+    "nameEn": "Secretary Name 2",
+    "titleZh": "執行秘書",
+    "titleEn": "Secretary",
+    "contact": "Email: secretary2@sccd.edu.tw\nPhone: +886-2-1234-5679"
+  }
+]

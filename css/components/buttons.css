@@ -5,29 +5,31 @@
 
 @layer components {
 
-  /* ===== Theme Toggle Button ===== */
-  /* 邊框 + 圓點顏色用 var(--theme-fg)，mode 切換時自動跟著走（standard=黑 / inverse=白） */
+  /* ===== Theme Toggle Button =====
+   * 2026-05-19 改用 .icon mode_1/2/3 SVG（舊的 .theme-toggle-circle 圓點+圓邊框拿掉）
+   * icon 顏色走 currentColor → btn 用 var(--theme-fg) 自動跟 mode 切換；
+   * slide-in / lightbox 開時改白色由 CSS 覆蓋（取代舊 gsap inline 動畫）
+   */
   .theme-toggle-btn {
     width: 24px;
     height: 24px;
-    border-radius: 50%;
-    border: 2px solid var(--theme-fg);
     background: transparent;
-    cursor: pointer;
+    border: none;
+    cursor: var(--cursor-pointer);
     flex-shrink: 0;
-    transition: border-color var(--transition-fast), background var(--transition-fast);
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 0;
+    font-size: 24px; /* .icon width/height: 1em → icon 撐滿 24px */
+    color: var(--theme-fg);
+    transition: color var(--transition-fast);
   }
 
-  .theme-toggle-circle {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: var(--theme-fg);
-    transition: background var(--transition-fast);
+  /* slide-in（faculty / courses）或 lightbox 開啟時，header overlay 變黑底 → icon 統一白色 */
+  html.has-slide-in .theme-toggle-btn,
+  body.lightbox-open .theme-toggle-btn {
+    color: #fff;
   }
   /* ===== Section Nav Buttons（共用基底樣式）=====
    * 包含：faculty-filter / activities-section / courses-program /
@@ -40,7 +42,7 @@
   .courses-program-btn,
   .activities-filter-btn,
   .courses-filter-btn {
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
     background: none;
     border: none;
     padding: 0;
@@ -113,7 +115,7 @@
 
   /* ===== Album Filter Options (dropdown-column style) ===== */
   .album-filter-option {
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
     background: none;
     border: none;
     padding: var(--spacing-xs) var(--spacing-sm);
@@ -185,7 +187,7 @@
   /* files-sort-col-list 樣式由 .filter-dropdown-list（見下方）統一提供 */
 
   .files-sort-option {
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
     background: none;
     border: none;
     padding: 1px 4px;
@@ -257,7 +259,7 @@
 
   /* Filter tag */
   .album-filter-tag {
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
     background: black;
     color: white;
     border: none;
@@ -277,7 +279,7 @@
     border-radius: 20px;
     background: transparent;
     color: #000000;
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
   }
 
   .works-filter-btn.active {
@@ -308,7 +310,7 @@
     color: var(--theme-bg);
     border: none;
     border-radius: 0;
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
     padding: 6px 8px 5px;
     text-align: left;
     transition: background 0.2s ease, color 0.2s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);

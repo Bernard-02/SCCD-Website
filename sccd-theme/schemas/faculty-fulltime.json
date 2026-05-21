@@ -1,0 +1,188 @@
+{
+  "cpt": "faculty_fulltime",
+  "endpoint": "faculty-fulltime",
+  "menu_order": 1,
+  "labels": {
+    "name": "Full-time",
+    "singular_name": "專任教師",
+    "menu_name": "專任教師",
+    "add_new": "新增專任教師",
+    "add_new_item": "新增專任教師",
+    "edit_item": "編輯專任教師",
+    "all_items": "專任教師"
+  },
+  "menu_group": {
+    "slug": "sccd-faculty",
+    "label": "師資 Faculty",
+    "icon": "dashicons-groups",
+    "position": 30.3
+  },
+  "menu_icon": "dashicons-businessperson",
+  "supports": [
+    "title"
+  ],
+  "fields": [
+    {
+      "id": "image",
+      "name": "照片",
+      "type": "image"
+    },
+    {
+      "id": "nameEn",
+      "name": "姓名（英）",
+      "type": "text"
+    },
+    {
+      "id": "nameZh",
+      "name": "姓名（中）",
+      "type": "text"
+    },
+    {
+      "id": "titles",
+      "name": "職稱（可加多筆）",
+      "type": "group",
+      "item_label": "職稱",
+      "fields": [
+        {
+          "id": "titleEn",
+          "name": "職稱（英）",
+          "type": "text"
+        },
+        {
+          "id": "titleZh",
+          "name": "職稱（中）",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "id": "educations",
+      "name": "學歷（可加多筆）",
+      "type": "group",
+      "item_label": "學歷",
+      "fields": [
+        {
+          "id": "country",
+          "name": "國家",
+          "type": "country"
+        },
+        {
+          "id": "schoolEn",
+          "name": "學校（英）",
+          "type": "text"
+        },
+        {
+          "id": "schoolZh",
+          "name": "學校（中）",
+          "type": "text"
+        },
+        {
+          "id": "majorEn",
+          "name": "專業（英）",
+          "type": "text"
+        },
+        {
+          "id": "majorZh",
+          "name": "專業（中）",
+          "type": "text"
+        },
+        {
+          "id": "degreeEn",
+          "name": "學位（英）",
+          "type": "text"
+        },
+        {
+          "id": "degreeZh",
+          "name": "學位（中）",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "id": "experiences",
+      "name": "經歷（可加多筆）",
+      "type": "group",
+      "item_label": "經歷",
+      "fields": [
+        {
+          "id": "startYear",
+          "name": "起始年",
+          "type": "year"
+        },
+        {
+          "id": "endYear",
+          "name": "結束年（單年留空）",
+          "type": "year"
+        },
+        {
+          "id": "organizationEn",
+          "name": "單位（英）",
+          "type": "text"
+        },
+        {
+          "id": "organizationZh",
+          "name": "單位（中）",
+          "type": "text"
+        },
+        {
+          "id": "roleEn",
+          "name": "職務（英）",
+          "type": "text"
+        },
+        {
+          "id": "roleZh",
+          "name": "職務（中）",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "id": "awards",
+      "name": "獲獎（可加多筆）",
+      "type": "group",
+      "item_label": "獲獎",
+      "fields": [
+        {
+          "id": "startYear",
+          "name": "起始年",
+          "type": "year"
+        },
+        {
+          "id": "endYear",
+          "name": "結束年（單年留空）",
+          "type": "year"
+        },
+        {
+          "id": "nameEn",
+          "name": "名稱（英）",
+          "type": "text"
+        },
+        {
+          "id": "nameZh",
+          "name": "名稱（中）",
+          "type": "text"
+        },
+        {
+          "id": "workEn",
+          "name": "獎項（英）",
+          "type": "text"
+        },
+        {
+          "id": "workZh",
+          "name": "獎項（中）",
+          "type": "text"
+        },
+        {
+          "id": "categoryEn",
+          "name": "獎別（英）",
+          "type": "text"
+        },
+        {
+          "id": "categoryZh",
+          "name": "獎別（中）",
+          "type": "text"
+        }
+      ]
+    }
+  ]
+}

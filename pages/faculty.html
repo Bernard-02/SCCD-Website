@@ -82,12 +82,7 @@
          header bars 由 lightbox-shell clip-path 收掉（logo 不動仍浮在最上） -->
     <div id="faculty-slide-in" class="invisible pointer-events-none fixed inset-0 z-[150]">
     <!-- Overlay (Full screen black dim) -->
-    <div id="faculty-overlay" class="absolute inset-0 bg-black opacity-0 cursor-pointer"></div>
-
-    <!-- Custom Cursor -->
-    <div id="faculty-cursor" class="fixed pointer-events-none z-[151] w-[80px] h-[80px] bg-black flex items-center justify-center" style="opacity:0; transform: scale(0); top:0; left:0;">
-      <i class="fa-solid fa-arrow-left text-black text-xl"></i>
-    </div>
+    <div id="faculty-overlay" class="absolute inset-0 bg-black opacity-0"></div>
 
     <!-- Panel (White, Slide from right) -->
     <div id="faculty-panel" class="absolute top-0 right-0 bottom-0 bg-white transform translate-x-[110%] overflow-visible w-full md:w-[79.1666%]">
@@ -100,7 +95,7 @@
         
         <!-- Mobile Back Button (Relative inside flow) -->
         <button id="faculty-back-btn-mobile" class="md:hidden block mb-xl cursor-pointer bg-transparent">
-          <i class="fa-solid fa-arrow-left text-black text-xl"></i>
+          <span class="icon icon-arrow-left text-black icon-m"></span>
         </button>
 
         <div class="flex flex-col md:flex-row gap-xl md:gap-3xl h-full relative">

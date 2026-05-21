@@ -130,8 +130,8 @@ function applyGenericSearch(panelId, query) {
       if (container && collapsedBySearch.has(container)) {
         container.style.display = 'none';
         container.style.height = '0px';
-        const chevron = group.querySelector('.list-year-toggle .fa-chevron-right');
-        if (chevron && typeof gsap !== 'undefined') gsap.set(chevron, { rotation: 0 });
+        const chevron = group.querySelector('.list-year-toggle .icon-chevron-list');
+        if (chevron && typeof gsap !== 'undefined') gsap.set(chevron, { rotation: 180 });  // close → 朝右
         collapsedBySearch.delete(container);
       }
     });
@@ -177,8 +177,8 @@ function applyGenericSearch(panelId, query) {
       collapsedBySearch.add(container);
       container.style.display = 'flex';
       container.style.height = 'auto';
-      const chevron = group.querySelector('.list-year-toggle .fa-chevron-right');
-      if (chevron && typeof gsap !== 'undefined') gsap.set(chevron, { rotation: 90 });
+      const chevron = group.querySelector('.list-year-toggle .icon-chevron-list');
+      if (chevron && typeof gsap !== 'undefined') gsap.set(chevron, { rotation: 90 });  // open → 朝下
     }
   });
 

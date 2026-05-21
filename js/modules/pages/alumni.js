@@ -310,6 +310,7 @@ async function showGatheringCity(cityId) {
 
 // 會議紀錄 ref：loadListInto 渲染的 <a href> 會被 SPA router document click 攔截走 404。
 // 攔截 click 並 dispatch sccd:open-pdf 讓 library-viewer initPdfViewer 接管 PDF canvas 渲染。
+// title 從 closest .list-item 的兩行 .list-title-marquee p 取（line1=en line2=zh）餵給 lightbox 左下 pill。
 function bindMeetingMinutesPdf() {
   const list = document.getElementById('alumni-gatherings-list');
   if (!list) return;
@@ -320,7 +321,12 @@ function bindMeetingMinutesPdf() {
       e.preventDefault();
       e.stopImmediatePropagation();
       const pdfUrl = btn.getAttribute('href') || SAMPLE_PDF_URL;
-      document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl } }));
+      const item = btn.closest('.list-item');
+      const titleLines = item ? item.querySelectorAll('.list-title-marquee p') : [];
+      const title = titleLines.length
+        ? { en: titleLines[0]?.textContent?.trim() || '', zh: titleLines[1]?.textContent?.trim() || '' }
+        : null;
+      document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl, title, color: randAccent() } }));
     });
   });
 }
@@ -367,7 +373,7 @@ async function renderOrganization(terms) {
       e.preventDefault();
       e.stopImmediatePropagation();
       const pdfUrl = charter.getAttribute('data-pdf-href') || SAMPLE_PDF_URL;
-      document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl } }));
+      document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl, title: { en: 'Charter', zh: '章程' }, color: randAccent() } }));
     });
 
     // 用 IntersectionObserver 控 visibility：只有 org section 進 viewport 才顯示 charter（sticky 仍永久 on）

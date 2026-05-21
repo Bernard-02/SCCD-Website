@@ -272,6 +272,8 @@ function initYTCardFloat(ytCard) {
   ytCard.style.left = '0'; ytCard.style.top = '0';
   ytCard.style.transform = `translate(${x}px, ${y}px) rotate(${rotation}deg)`;
 
+  // rAF id 註冊 page-cleanup：SPA 離開 index 取消，否則 tick 永遠在 detached ytCard 上跑（CPU 浪費）
+  let rafId;
   function tick() {
     if (!frozen) {
       x += vx; y += vy;
@@ -280,9 +282,10 @@ function initYTCardFloat(ytCard) {
       if (y > ch + 10) y = -cardH; else if (y < -cardH) y = ch + 10;
       ytCard.style.transform = `translate(${x}px, ${y}px) rotate(${rotation}deg)`;
     }
-    requestAnimationFrame(tick);
+    rafId = requestAnimationFrame(tick);
   }
-  requestAnimationFrame(tick);
+  rafId = requestAnimationFrame(tick);
+  registerPageCleanup(() => cancelAnimationFrame(rafId));
 
   ytCard.addEventListener('mouseenter', () => { frozen = true; });
   ytCard.addEventListener('mouseleave', () => {
@@ -296,7 +299,10 @@ function initYTCardFloat(ytCard) {
 
 // ── 點擊展開影片 ──────────────────────────────────────────────
 
-function initYTCardClick(ytCard, player) {
+// playerRef = { player: null }；caller 之後 fetch resolve 才 set player；
+// 這樣 click handler 能 sync 立刻掛在 init 開頭，fetch 沒 resolve 時 click 是 graceful no-op
+// 不會發生「fetch 還沒回 / 失敗 → handler 永遠不掛 → user 點沒反應」
+function initYTCardClick(ytCard, playerRef) {
   const ACCENT_COLORS = ['#00FF80', '#FF448A', '#26BCFF'];
 
   ytCard.addEventListener('mouseenter', () => applyNewsHover());
@@ -306,10 +312,25 @@ function initYTCardClick(ytCard, player) {
   });
 
   ytCard.addEventListener('click', () => {
+    // player 還沒 ready（fetch 還沒 resolve / 失敗 / json 缺 videoUrl）→ silent no-op
+    // 不要設 clickAnimating 也不要動 animation，user 再點一次（fetch 完成後）就能 work
+    const player = playerRef.player;
+    if (!player) {
+      console.warn('[YT card] click ignored: player not ready (fetch news.json pending or failed)');
+      return;
+    }
     // click 鎖：動畫期間（~1.16s）擋掉重複觸發，並強制 card frozen 不浮動
     if (ytCard.dataset.clickAnimating === '1') return;
     ytCard.dataset.clickAnimating = '1';
     ytCard.__setFrozen?.(true);
+    // Safety: 若 gsap onComplete 沒跑（被 kill / openPlayer 失敗 / fadePromise 卡），
+    // 5s 後強制解鎖，避免下次 click 永久被擋掉
+    const safetyClickRelease = setTimeout(() => {
+      if (ytCard.dataset.clickAnimating === '1') {
+        delete ytCard.dataset.clickAnimating;
+        ytCard.__setFrozen?.(false);
+      }
+    }, 5000);
 
     // 暫停 chars layout reshuffle interval，避免 fade 期間被 reset 卡畫面
     document.getElementById('homepage-yt-chars')?.__pauseLayoutInterval?.();
@@ -382,6 +403,7 @@ function initYTCardClick(ytCard, player) {
             ytCharsEl?.__resetWatchAlpha?.();
             ytCharsEl?.__resumeLayoutInterval?.();
             // 解鎖 click 動畫狀態 + 依當下 hover 還原 frozen（player 蓋住 card hover 自然 false）
+            clearTimeout(safetyClickRelease);
             delete ytCard.dataset.clickAnimating;
             ytCard.__setFrozen?.(ytCard.matches(':hover'));
           }
@@ -397,21 +419,53 @@ export function initYTCard() {
   const ytCard    = document.getElementById('homepage-yt-card');
   const ytCharsEl = document.getElementById('homepage-yt-chars');
   if (!ytCard) return;
+  // ytCard 在 main 內每次 SPA 回 index 都是 fresh 元素（dataset 空），guard 是無害 no-op；
+  // 真正防累積靠 initVideoPlayer 的 module-level singleton 跟 initWatchHover 自清舊 overlay
+  if (ytCard.dataset.ytInited === '1') return;
+  ytCard.dataset.ytInited = '1';
+  delete ytCard.dataset.clickAnimating;
 
   initYTCardFloat(ytCard);
   initWatchChars(ytCharsEl);
 
-  fetch('data/news.json')
-    .then(r => r.json())
+  // 立刻掛 click handler（不放在 fetch.then 內），player 用 mutable ref 後續 update
+  // 避免「fetch 還沒回 / 失敗 / videoUrl 缺漏 / preloadVideo 寫錯 optional chain → handler 永遠不掛
+  // → user 點 WATCH 沒反應 console 全乾淨」的 silent failure
+  const playerRef = { player: null };
+  initYTCardClick(ytCard, playerRef);
+
+  // WP endpoint，配 JSON fallback（LocalWP 沒跑 / endpoint 失敗時 fall back data/news.json）
+  // hostname-based dev/prod 切換：production 走 same-origin 相對 URL
+  const WP_API_BASE = location.hostname === 'sccd-website.local' ? '' : 'http://sccd-website.local';
+  const fetchTheater = () =>
+    fetch(`${WP_API_BASE}/wp-json/sccd/v1/index-theater`)
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      // endpoint 200 但 videoUrl 空（local 沒上傳影片）也算失敗 → fallback 到 data/news.json 看得到測試影片
+      .then(data => { if (!data?.videoUrl) throw new Error('endpoint returned empty videoUrl'); return data; })
+      .catch(err => {
+        console.warn('[initYTCard] WP endpoint failed, fallback to data/news.json:', err.message);
+        return fetch('data/news.json').then(r => r.json());
+      });
+
+  fetchTheater()
     .then(data => {
-      if (!data?.videoUrl) return;
+      if (!data?.videoUrl) {
+        console.warn('[initYTCard] index-theater 缺 videoUrl，WATCH 按鈕將 no-op');
+        return;
+      }
       const player = initVideoPlayer(data.videoUrl, {
-        getCardRect: () => ytCard.getBoundingClientRect(),
+        // lazy DOM query：initVideoPlayer 是 module singleton，第二次 call 直接 return cached，
+        // 新傳 lambda 被丟。closure 內若直接 close-capture ytCard reference，SPA back-nav 後 ytCard
+        // 已 detached → getBoundingClientRect 變 {0,0,0,0} → close 動畫破。改 lazy query 每次 fresh
+        getCardRect: () => document.getElementById('homepage-yt-card')?.getBoundingClientRect(),
         onCloseAnimComplete: () => {
           document.getElementById('homepage-yt-chars')?.__fadeInWatch?.();
         },
       });
-      player.preloadVideo?.();
-      initYTCardClick(ytCard, player);
-    }).catch(() => {});
+      // ⚠️ 必須 player?.preloadVideo?.() — initVideoPlayer 若 element 缺漏會 return undefined，
+      // 寫成 player.preloadVideo?.() 會 TypeError 被下面 .catch 吞掉 → playerRef.player 永遠 null
+      player?.preloadVideo?.();
+      playerRef.player = player;
+    })
+    .catch(err => console.warn('[initYTCard] index-theater load failed:', err));
 }

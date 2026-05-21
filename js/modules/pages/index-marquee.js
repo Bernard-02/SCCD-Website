@@ -46,8 +46,23 @@ export function initMarquee() {
   const stack = document.getElementById('homepage-marquee-stack');
   if (!stack) return;
 
-  fetch('data/news.json')
-    .then(r => r.json())
+  // WP endpoint 回 array of items；失敗時 fallback data/news.json (shape: { items: [...] })
+  const WP_API_BASE = location.hostname === 'sccd-website.local' ? '' : 'http://sccd-website.local';
+  const fetchNews = () =>
+    fetch(`${WP_API_BASE}/wp-json/sccd/v1/index-news`)
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then(arr => {
+        const items = Array.isArray(arr) ? arr : [];
+        // endpoint 200 但 0 items（local 沒灌資料）也算失敗 → fallback 看得到測試 marquee
+        if (items.length === 0) throw new Error('endpoint returned 0 items');
+        return { items };
+      })
+      .catch(err => {
+        console.warn('[initMarquee] WP endpoint failed, fallback to data/news.json:', err.message);
+        return fetch('data/news.json').then(r => r.json());
+      });
+
+  fetchNews()
     .then(async data => {
       const items = Array.isArray(data?.items) ? data.items.filter(it => it && it.text) : [];
       if (items.length === 0) return;

@@ -41,11 +41,14 @@
       <!-- AA 小 bar（系友會入口）：hover 時 .nav-link-cn 展開「系友會」
            點擊：JS 觸發 lightbox-style 收起所有 bars + alumni-full bar clip-reveal 從左進場（同一頁面 body.page-alumni 切換）
            padding 對齊 about-bar inner items：px-xs py-xs -->
+      <!-- TEMP HIDDEN 2026-05-21：AA 頁面暫時隱藏，header 不渲染系友會入口
       <div data-bar="alumni" class="flex-shrink-0 bg-black ml-lg" style="transition: background 0.4s ease;">
         <div class="px-xs py-xs">
           <a href="alumni.html" class="nav-link text-white"><span>AA</span><span class="nav-link-cn">系友會</span></a>
         </div>
       </div>
+      -->
+
 
       <!-- Library 組 -->
       <div data-bar="library" class="flex-shrink-0 bg-black ml-lg" style="transition: background 0.4s ease;">
@@ -70,8 +73,8 @@
 
       <!-- Mode 按鈕（圓底） -->
       <div id="mode-btn" class="flex-shrink-0 flex items-center justify-center ml-lg" style="transition: background 0.4s ease;">
-        <button class="theme-toggle-btn">
-          <span class="theme-toggle-circle"></span>
+        <button class="theme-toggle-btn" aria-label="Toggle theme mode">
+          <span class="icon icon-mode-1" data-header-mode-icon></span>
         </button>
       </div>
 
@@ -86,8 +89,8 @@
         </a>
       </div>
       <div class="col-span-6 flex justify-end items-center gap-sm relative z-50">
-        <button class="theme-toggle-btn">
-          <span class="theme-toggle-circle"></span>
+        <button class="theme-toggle-btn" aria-label="Toggle theme mode">
+          <span class="icon icon-mode-1" data-header-mode-icon></span>
         </button>
         <button class="mobile-menu-btn">
           <i class="fa-solid fa-bars text-h4 text-black"></i>

@@ -43,7 +43,7 @@
           <div class="w-full md:flex-[0_0_calc(16.667%_-_1.25rem)]">
             <div class="flex flex-row flex-wrap md:flex-col gap-xs mb-xl md:mb-0 md:sticky md:top-[200px]">
               <button class="activities-section-btn w-fit active text-left" data-section="news">
-                <span class="anchor-nav-inner"><span>News</span><span>最新消息</span></span>
+                <span class="anchor-nav-inner"><span>Announcement</span><span>公告</span></span>
               </button>
               <button class="activities-section-btn w-fit text-left" data-section="summer-camp">
                 <span class="anchor-nav-inner"><span>Summer Camp</span><span>暑期設計體驗營</span></span>
@@ -73,11 +73,8 @@
                 </div>
               </div>
               <div id="admission-list" class="flex flex-col"></div>
-              <div id="load-more-container" class="w-full flex justify-center mt-3xl">
-                <button id="load-more-btn" class="class-division-btn btn-fill shrink-0 px-sm py-sm text-p2 font-bold transition-all duration-fast rounded-[20px] whitespace-nowrap cursor-pointer">
-                  Load More 顯示更多
-                </button>
-              </div>
+              <!-- IntersectionObserver sentinel：進 viewport 觸發 load 下 10 筆（取代原 load-more 按鈕） -->
+              <div id="admission-scroll-sentinel" style="height: 1px;"></div>
             </div>
 
             <!-- Summer Camp Panel -->

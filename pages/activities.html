@@ -97,7 +97,7 @@
                       <button class="exhibitions-type-btn courses-filter-btn whitespace-nowrap" data-type="permanent"><span class="anchor-nav-inner">Permanent 常設</span></button>
                     </div>
                     <div class="activities-search-inner list-reveal-row flex items-center gap-sm pb-xs">
-                      <i class="fa-solid fa-magnifying-glass text-p2 activities-search-icon"></i>
+                      <span class="icon icon-search icon-m activities-search-icon"></span>
                       <input id="activities-search-input" type="text" placeholder="Search 搜尋" class="activities-search-input flex-1 bg-transparent outline-none text-h5 font-bold" data-panel="panel-exhibitions" autocomplete="off">
                     </div>
                   </div>
@@ -105,7 +105,12 @@
               </div>
               <div id="activities-search-spacer"></div>
               <div id="exhibitions-list-special"></div>
-              <div id="exhibitions-list-permanent" style="display: none;"></div>
+              <!-- Permanent list 是 hideYearHeader（loader 端 flush-left）；本 panel 要對齊 search bar
+                   → 用 grid-12 wrapper 把 list 推到跟 search bar 同位置（col-start-2 + pl-[41px]）。
+                   結構性對齊由 page 層處理，不污染 list component -->
+              <div class="grid-12">
+                <div id="exhibitions-list-permanent" class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px]" style="display: none;"></div>
+              </div>
             </div>
 
             <!-- Workshop Panel -->
@@ -122,7 +127,7 @@
                 <div class="grid-12 pb-lg">
                   <div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px]">
                     <div class="activities-search-inner list-reveal-row flex items-center gap-sm pb-xs">
-                      <i class="fa-solid fa-magnifying-glass text-p2 activities-search-icon"></i>
+                      <span class="icon icon-search icon-m activities-search-icon"></span>
                       <input type="text" placeholder="Search 搜尋" class="activities-search-input flex-1 bg-transparent outline-none text-h5 font-bold" data-panel="panel-workshop" autocomplete="off">
                     </div>
                   </div>
@@ -145,7 +150,7 @@
                 <div class="grid-12 pb-lg">
                   <div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px]">
                     <div class="activities-search-inner list-reveal-row flex items-center gap-sm pb-xs">
-                      <i class="fa-solid fa-magnifying-glass text-p2 activities-search-icon"></i>
+                      <span class="icon icon-search icon-m activities-search-icon"></span>
                       <input type="text" placeholder="Search 搜尋" class="activities-search-input flex-1 bg-transparent outline-none text-h5 font-bold" data-panel="panel-degree-show" autocomplete="off">
                     </div>
                   </div>
@@ -168,7 +173,7 @@
                 <div class="grid-12 pb-lg">
                   <div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px]">
                     <div class="activities-search-inner list-reveal-row flex items-center gap-sm pb-xs">
-                      <i class="fa-solid fa-magnifying-glass text-p2 activities-search-icon"></i>
+                      <span class="icon icon-search icon-m activities-search-icon"></span>
                       <input type="text" placeholder="Search 搜尋" class="activities-search-input flex-1 bg-transparent outline-none text-h5 font-bold" data-panel="panel-lectures" autocomplete="off">
                     </div>
                   </div>
@@ -195,7 +200,7 @@
                       <button class="visits-type-btn courses-filter-btn whitespace-nowrap" data-type="inbound"><span class="anchor-nav-inner">Inbound 來訪</span></button>
                     </div>
                     <div class="activities-search-inner list-reveal-row flex items-center gap-sm pb-xs">
-                      <i class="fa-solid fa-magnifying-glass text-p2 activities-search-icon"></i>
+                      <span class="icon icon-search icon-m activities-search-icon"></span>
                       <input type="text" placeholder="Search 搜尋" class="activities-search-input flex-1 bg-transparent outline-none text-h5 font-bold" data-panel="panel-visits" autocomplete="off">
                     </div>
                   </div>
@@ -219,7 +224,7 @@
                 <div class="grid-12 pb-lg">
                   <div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px]">
                     <div class="activities-search-inner list-reveal-row flex items-center gap-sm pb-xs">
-                      <i class="fa-solid fa-magnifying-glass text-p2 activities-search-icon"></i>
+                      <span class="icon icon-search icon-m activities-search-icon"></span>
                       <input type="text" placeholder="Search 搜尋" class="activities-search-input flex-1 bg-transparent outline-none text-h5 font-bold" data-panel="panel-competitions" autocomplete="off">
                     </div>
                   </div>
@@ -242,7 +247,7 @@
                 <div class="grid-12 pb-lg">
                   <div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px]">
                     <div class="activities-search-inner list-reveal-row flex items-center gap-sm pb-xs">
-                      <i class="fa-solid fa-magnifying-glass text-p2 activities-search-icon"></i>
+                      <span class="icon icon-search icon-m activities-search-icon"></span>
                       <input type="text" placeholder="Search 搜尋" class="activities-search-input flex-1 bg-transparent outline-none text-h5 font-bold" data-panel="panel-conferences" autocomplete="off">
                     </div>
                   </div>
@@ -265,7 +270,7 @@
                 <div class="grid-12 pb-lg">
                   <div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px]">
                     <div class="activities-search-inner list-reveal-row flex items-center gap-sm pb-xs">
-                      <i class="fa-solid fa-magnifying-glass text-p2 activities-search-icon"></i>
+                      <span class="icon icon-search icon-m activities-search-icon"></span>
                       <input type="text" placeholder="Search 搜尋" class="activities-search-input flex-1 bg-transparent outline-none text-h5 font-bold" data-panel="panel-students-present" autocomplete="off">
                     </div>
                   </div>
@@ -288,7 +293,7 @@
                 <div class="grid-12 pb-lg">
                   <div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px]">
                     <div class="activities-search-inner list-reveal-row flex items-center gap-sm pb-xs">
-                      <i class="fa-solid fa-magnifying-glass text-p2 activities-search-icon"></i>
+                      <span class="icon icon-search icon-m activities-search-icon"></span>
                       <input type="text" placeholder="Search 搜尋" class="activities-search-input flex-1 bg-transparent outline-none text-h5 font-bold" data-panel="panel-industry" autocomplete="off">
                     </div>
                   </div>
@@ -302,33 +307,6 @@
       </div>
     </section>
   </main>
-
-  <!-- Share Lightbox（z-index:9999 蓋過 header；gutter 由 lightbox-shell 染 html bg 處理，與其他 lightbox 統一） -->
-  <div id="share-lightbox" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.9); align-items:center; justify-content:center;">
-    <div style="background:#fff; width:320px; padding: var(--spacing-lg); display:flex; flex-direction:column; gap: var(--spacing-md);">
-      <!-- Header -->
-      <div style="position:relative; display:flex; align-items:center; justify-content:center;">
-        <p class="font-bold" style="font-size: 1rem;">Share 分享</p>
-        <button id="share-lightbox-close" style="position:absolute; right:0; line-height:1;">
-          <i class="fa-solid fa-xmark" style="font-size: 1.25rem;"></i>
-        </button>
-      </div>
-      <!-- QR Code -->
-      <div class="flex justify-center">
-        <img id="share-qr-img" src="" alt="QR Code" title="點擊複製圖片 Click to copy image" style="width:200px;height:200px;display:block;cursor:pointer;">
-      </div>
-      <!-- Copy Link -->
-      <div style="display:flex; flex-direction:column; gap: var(--spacing-md);">
-        <button id="share-copy-btn" class="btn-fill" style="display:flex; align-items:center; justify-content:center; gap: 0.5rem; width:100%; padding: 0.5rem 1rem; border: 4px solid black; border-radius: 20px;">
-          <i class="fa-regular fa-copy" style="font-size: 1rem;"></i>
-          <span style="font-size: 0.875rem; font-weight: 600;">Copy Link 複製連結</span>
-        </button>
-        <p id="share-copy-hint" style="font-size:0.75rem; opacity:0; transition:opacity 0.3s; text-align:center;">已複製 Copied!</p>
-      </div>
-      <!-- 隱藏 URL 供複製用 -->
-      <p id="share-url-text" style="display:none;"></p>
-    </div>
-  </div>
 
   <!-- Footer -->
   <div id="site-footer"></div>

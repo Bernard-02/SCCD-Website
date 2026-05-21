@@ -385,11 +385,6 @@ function setup() {
   // Standard -> Inverse -> Wireframe -> Standard
   // 將事件綁定到整個 colormode-box，讓整個容器都可以點擊
   colormodeBox.mousePressed(() => {
-    // 隨機旋轉 icon
-    if (colormodeIcon) {
-      animateModeIconRotation(colormodeIcon);
-    }
-
     // Phase 2：colormode btn 直接 call site setSiteMode，讓 site mode + create-app 同步
     // 不再自己 cycle local targetMode；targetMode 由 'theme:changed' listener (見檔尾) 更新
     // standard → inverse → color → standard，跟 header mode-btn 一樣
@@ -543,12 +538,6 @@ function setup() {
   // --- 綁定手機版按鈕事件（同步桌面版） ---
   if (mobileStandardButton) {
     mobileStandardButton.mousePressed(() => {
-      // 隨機旋轉手機版 mode icon
-      const mobileModeIcon = _p5.select('#mobile-mode-icon');
-      if (mobileModeIcon) {
-        animateModeIconRotation(mobileModeIcon);
-      }
-
       targetMode = "Standard";
       updateUI();
     });
@@ -556,12 +545,6 @@ function setup() {
 
   if (mobileInverseButton) {
     mobileInverseButton.mousePressed(() => {
-      // 隨機旋轉手機版 mode icon
-      const mobileModeIcon = _p5.select('#mobile-mode-icon');
-      if (mobileModeIcon) {
-        animateModeIconRotation(mobileModeIcon);
-      }
-
       targetMode = "Inverse";
       updateUI();
     });
@@ -712,6 +695,9 @@ function setup() {
       updateUI();
     }, 10);
   });
+
+  // setup 內所有 DOM refs 已 select 完，可放行 handleSiteThemeChange 觸發 updateUI
+  setupComplete = true;
 
   // 初始 UI 狀態設定
   updateUI();
@@ -1559,15 +1545,15 @@ function animateSaveButton(button, iconElement) {
     const getCurrentSuffix = () => getIconSuffix();
 
     // 動態獲取 Generate icon 路徑
-    const getGenerateIconSrc = () => `/generate-app/Panel Icon/Generate${getCurrentSuffix()}.svg`;
+    const getGenerateIconSrc = () => panelIcon(`Generate${getCurrentSuffix()}`);
 
     // 動態獲取原始 icon 路徑（根據當前狀態決定）
     const getOriginalIconSrc = () => {
         const suffix = getCurrentSuffix();
         if (isEasterEggActive) {
-            return `/generate-app/Panel Icon/Gift${suffix}.svg`;
+            return panelIcon(`Gift${suffix}`);
         }
-        return `/generate-app/Panel Icon/Download${suffix}.svg`;
+        return panelIcon(`Download${suffix}`);
     };
 
     // 獲取原生DOM元素
@@ -1870,6 +1856,8 @@ function resetCreateAppUserState() {
   // updateUI() 的 if (!colorPickerCanvas) 會跳過建立新 canvas → 畫在已 detach 的舊 canvas 上
   colorPickerCanvas = null;
   colorPickerReady = false;
+  // setup race guard：reset 才能讓下個 session 的 setup→done 流程重新走一次，否則直接 truthy 跳過守衛
+  setupComplete = false;
   // 進場 fade-in opacity vars：上次 session 結束時是 1；draw() 早期 timeSinceLoad < startTime 階段
   // 沒 else 分支不會把 opacity 回設 0 → 新 session control panel / logo / input 都從 1 開始（瞬出無 fade）
   inputBoxOpacity = 0;
@@ -1942,7 +1930,10 @@ function handleSiteThemeChange(e) {
   const _newTarget = _siteToGen[e.detail.mode];
   if (!_newTarget || _newTarget === targetMode) return;
   targetMode = _newTarget;
-  // updateUI 由 ui-state.js 提供 global function；走原本的 mode 切換流程（fade / class swap / icon update 等）
+  // p5 async：initCreateApp sync 加完 listener 但 setup() 還沒跑到 DOM ref select 之前，
+  // color mode 每 200ms 一次的 theme:changed dispatch 會打進來 → updateUI 內 inputBox/saveButton 等 undefined 炸。
+  // targetMode 已記下，setup 結尾本來就會 call updateUI() 一次同步，這裡 skip 即可
+  if (!setupComplete) return;
   if (typeof updateUI === 'function') updateUI();
 }
 

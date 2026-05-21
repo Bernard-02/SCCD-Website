@@ -10,8 +10,6 @@ export function initTimeline() {
   const strip = document.getElementById('timeline-strip');
   const navLeft = document.getElementById('timeline-nav-left');
   const navRight = document.getElementById('timeline-nav-right');
-  const cursorLeft = document.getElementById('timeline-cursor-left');
-  const cursorRight = document.getElementById('timeline-cursor-right');
   const photoTooltip = document.getElementById('timeline-photo-tooltip');
   const photoTooltipText = document.getElementById('timeline-photo-tooltip-text');
 
@@ -31,18 +29,9 @@ export function initTimeline() {
     // 卷軸橫移
     stripSlideDuration: 0.8,
     stripSlideEase: 'power2.inOut',
-    // Cursor / Tooltip 跟隨
-    followDuration: 0.35,
-    followEase: 'power2.out',
-    // Tooltip 入/退場
-    tooltipShowDuration: 0.5,
-    tooltipShowEase: 'power2.inOut',
+    // Tooltip 退場
     tooltipHideDuration: 0.2,
     tooltipHideFastDuration: 0.15,
-    // Cursor 入/退場
-    cursorShowDuration: 0.3,
-    cursorShowEase: 'power3.out',
-    cursorHideDuration: 0.2,
     // Photo raise/lower clip 週期
     photoClipDuration: 0.5,
     photoClipEase: 'power2.inOut',
@@ -115,76 +104,6 @@ export function initTimeline() {
   }
   function randomDir4() { return ALL_DIRS[Math.floor(Math.random() * 4)]; }
   function randomDirLR() { return Math.random() < 0.5 ? 'left' : 'right'; }
-
-  // --- Arrow Cursor ---
-  // 共用顯示/隱藏邏輯：edge photo 與 nav zone 都用同一份，避免兩者邊界切換時箭頭閃爍
-  // hide 排程延遲 50ms，若期間有任何 show 觸發會 cancel；已可見時 show 只更新位置不重跑入場動畫
-  const cursorHideTimers = new Map(); // cursor → timeout id
-
-  function cancelHideArrowCursor(cursor) {
-    const t = cursorHideTimers.get(cursor);
-    if (t) {
-      clearTimeout(t);
-      cursorHideTimers.delete(cursor);
-    }
-  }
-
-  function scheduleHideArrowCursor(cursor) {
-    if (!cursor || typeof gsap === 'undefined') return;
-    cancelHideArrowCursor(cursor);
-    const t = setTimeout(() => {
-      cursorHideTimers.delete(cursor);
-      gsap.to(cursor, {
-        clipPath: getClipStart(randomDirLR()),
-        duration: TIMING.cursorHideDuration, ease: TIMING.exitEase, overwrite: true,
-        onComplete: () => gsap.set(cursor, { opacity: 0 }),
-      });
-    }, 50);
-    cursorHideTimers.set(cursor, t);
-  }
-
-  function showArrowCursor(cursor, e) {
-    if (!cursor || typeof gsap === 'undefined') return;
-    cancelHideArrowCursor(cursor);
-    const opacity = parseFloat(gsap.getProperty(cursor, 'opacity')) || 0;
-    // 位置 -30 讓 60×60 方塊置中貼合滑鼠點（取代系統 cursor）
-    if (opacity > 0.5) {
-      // 已可見：即時同步位置（無 follow 延遲）
-      gsap.set(cursor, { left: e.clientX - 30, top: e.clientY - 30, overwrite: 'auto' });
-    } else {
-      // 首次出現：完整入場動畫
-      gsap.set(cursor, {
-        left: e.clientX - 30, top: e.clientY - 30,
-        scale: 1, rotation: randRot(),
-        clipPath: getClipStart(randomDirLR()), opacity: 1,
-      });
-      gsap.to(cursor, { clipPath: CLIP_END, duration: TIMING.cursorShowDuration, ease: TIMING.cursorShowEase, overwrite: 'auto' });
-    }
-  }
-
-  function setupCursorNav(zone, cursor, onClick, getColor) {
-    if (!cursor || typeof gsap === 'undefined') {
-      zone.addEventListener('click', onClick);
-      return;
-    }
-    zone.addEventListener('mousemove', (e) => {
-      gsap.set(cursor, { left: e.clientX - 30, top: e.clientY - 30, overwrite: 'auto' });
-    });
-    zone.addEventListener('mouseenter', (e) => {
-      // 方塊底色：當前 accent 色（icon 本身已是黑色）
-      if (getColor) {
-        gsap.to(cursor, { backgroundColor: getColor(), duration: TIMING.dimDuration, overwrite: 'auto' });
-      }
-      showArrowCursor(cursor, e);
-    });
-    zone.addEventListener('mouseleave', () => {
-      scheduleHideArrowCursor(cursor);
-    });
-    // 點擊：箭頭保持顯示（只要還在範圍內），只執行 callback
-    zone.addEventListener('click', () => {
-      onClick();
-    });
-  }
 
   // --- Fetch & Build ---
   fetch('/data/timeline.json')
@@ -274,6 +193,11 @@ export function initTimeline() {
       }
       return maxRight;
     }
+
+    // 導航 state（提到 forEach 前宣告：getEdgeRole 在 forEach 內同步讀 currentIndex，
+    // 若還在 TDZ 會 ReferenceError 中斷整個 buildStrip → nav click handler 沒綁上）
+    let currentIndex = 0;
+    let isTransitioning = false;
 
     // 固定位置（每年同 pos，隨機旋轉）
     const CARD_BOTTOM_PAD = 60;   // 距 viewport 底部
@@ -769,27 +693,17 @@ export function initTimeline() {
       }
       return null;
     }
-    function getEdgeCursor(photo) {
-      const role = getEdgeRole(photo);
-      if (role === 'left') return cursorLeft;
-      if (role === 'right') return cursorRight;
-      return null;
-    }
-    function getCurrentAccentColor() {
-      const pd = pageData[currentIndex];
-      return pd?.yearCard?.style.background || ACCENT_COLORS[0];
-    }
-    function setArrowBg(cursor, color) {
-      if (!cursor || typeof gsap === 'undefined') return;
-      gsap.to(cursor, { backgroundColor: color, duration: TIMING.dimDuration, overwrite: 'auto' });
-    }
-
     // 綁定事件到所有照片
     allPhotos.forEach(photo => {
       const isMiddle = photo._tlSlot >= 1 && photo._tlSlot <= 3;
       const isEdge = photo._tlSlot === 0 || photo._tlSlot === 4;
-      // 1958（index 0）的 slot 0 是時間軸最左端，沒有上一年 → 不要箭頭、不要點擊
+      // 1958（index 0）的 slot 0 是時間軸最左端，沒有上一年 → 不要點擊也不要 cursor
       const isLeftmostFirst = isEdge && photo._tlSlot === 0 && photo._tlYear === 0;
+
+      // edge photo 加 data-tl-edge 給 cursor.css hook（不可點擊的 leftmost 不加）
+      if (isEdge && !isLeftmostFirst) {
+        photo.dataset.tlEdge = getEdgeRole(photo); // 'left' or 'right'
+      }
 
       photo.addEventListener('mouseenter', (e) => {
         if (!hoverEnabled) return; // 等 reveal 完成才允許 hover
@@ -800,11 +714,6 @@ export function initTimeline() {
           enterMiddleHover(photo, e);
         } else if (isEdge) {
           enterEdgeHover(photo);
-          const cursor = getEdgeCursor(photo);
-          if (cursor) {
-            setArrowBg(cursor, getCurrentAccentColor());
-            showArrowCursor(cursor, e);
-          }
         }
       });
 
@@ -818,29 +727,16 @@ export function initTimeline() {
             overwrite: 'auto',
           });
         }
-        // edge photo：自訂箭頭 cursor follow
-        if (isEdge) {
-          const cursor = getEdgeCursor(photo);
-          if (cursor && typeof gsap !== 'undefined') {
-            gsap.set(cursor, { left: e.clientX - 30, top: e.clientY - 30, overwrite: 'auto' });
-          }
-        }
       });
 
       photo.addEventListener('mouseleave', () => {
         hoverLeaveTimer = setTimeout(() => {
           if (activeHover === photo) leaveAllHover();
         }, TIMING.leaveDebounceMs);
-        if (isEdge) {
-          const cursor = getEdgeCursor(photo);
-          if (cursor) scheduleHideArrowCursor(cursor);
-          // 箭頭顏色不重置 → 下次顯示保持 accent 色（不回黑）
-        }
       });
 
       // 邊界照片可點擊：行為同 nav zone（左 → 上一年、右 → 下一年/重置）；最左端不可點
       if (isEdge && !isLeftmostFirst) {
-        photo.style.cursor = 'none'; // 隱藏系統 cursor，由自訂箭頭取代
         photo.addEventListener('click', () => {
           const role = getEdgeRole(photo);
           if (role === 'left') {
@@ -865,9 +761,7 @@ export function initTimeline() {
       }
     }, true);
 
-    // --- 導航 ---
-    let currentIndex = 0;
-    let isTransitioning = false;
+    // --- 導航 ---（currentIndex / isTransitioning 已在 buildStrip 開頭宣告）
 
     function updateNavZones() {
       navLeft.style.display = currentIndex === 0 ? 'none' : '';
@@ -1057,17 +951,18 @@ export function initTimeline() {
       });
     }
 
-    setupCursorNav(navLeft, cursorLeft, () => {
+    // Nav zone click（cursor 由 cursor.css 的 [data-tl-nav-edge] 規則統一管）
+    navLeft.addEventListener('click', () => {
       if (currentIndex > 0) goTo(currentIndex - 1);
-    }, getCurrentAccentColor);
-    setupCursorNav(navRight, cursorRight, () => {
+    });
+    navRight.addEventListener('click', () => {
       if (currentIndex < items.length - 1) {
         goTo(currentIndex + 1);
       } else {
         // 最後一年 → 重置 timeline
         resetTimeline();
       }
-    }, getCurrentAccentColor);
+    });
 
     updateNavZones();
 

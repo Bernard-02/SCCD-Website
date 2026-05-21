@@ -1,0 +1,36 @@
+{
+  "cpt": "atlas_alumni_employ",
+  "endpoint": "atlas-alumni-employment",
+  "menu_order": 4,
+  "labels": {
+    "name": "Alumni Employment",
+    "singular_name": "系友就職",
+    "menu_name": "系友就職",
+    "add_new": "新增就職單位",
+    "add_new_item": "新增就職單位",
+    "edit_item": "編輯就職單位",
+    "all_items": "系友就職"
+  },
+  "menu_group": {
+    "slug": "sccd-atlas",
+    "label": "Atlas 圖譜",
+    "icon": "dashicons-networking",
+    "position": 30.8
+  },
+  "menu_icon": "dashicons-building",
+  "supports": [
+    "title"
+  ],
+  "fields": [
+    {
+      "id": "titleEn",
+      "name": "標題（英）",
+      "type": "text"
+    },
+    {
+      "id": "country",
+      "name": "國家",
+      "type": "country"
+    }
+  ]
+}

@@ -3,8 +3,11 @@
  * 負責讀取 Records JSON 資料並渲染到頁面上
  */
 
+import { ensureFlagIconsCss } from '../ui/ensure-flag-icons.js';
+
 export async function loadRecords() {
   try {
+    ensureFlagIconsCss();
     const response = await fetch('/data/records.json');
     const data = await response.json();
     const container = document.getElementById('records-list-container');
@@ -65,7 +68,7 @@ export async function loadRecords() {
 
           <!-- Year + Chevron: Mobile Full (Col 1-12), Desktop Col 3 -->
           <div class="col-span-12 md:col-span-1 md:col-start-3 md:sticky md:self-start activities-year-toggle cursor-pointer flex items-center gap-sm pt-xs" style="top: 224px; padding-bottom: 0.75rem">
-            <i class="fa-solid fa-chevron-right text-p2 transition-all duration-fast rotate-90"></i>
+            <span class="icon icon-chevron-list icon-s transition-all duration-fast rotate-90"></span>
             <h6>${yearGroup.year}</h6>
           </div>
 
@@ -104,7 +107,7 @@ export async function loadRecords() {
       container.querySelectorAll('.activities-year-items').forEach(el => {
         gsap.set(el, { height: 'auto', overflow: 'visible', display: 'flex' });
       });
-      container.querySelectorAll('.activities-year-toggle .fa-chevron-right').forEach(el => {
+      container.querySelectorAll('.activities-year-toggle .icon-chevron-list').forEach(el => {
         gsap.set(el, { rotation: 90 });
       });
     }

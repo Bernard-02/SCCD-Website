@@ -14,28 +14,17 @@ export function initActivitiesYearToggle() {
     const yearGrid = toggle.closest('.activities-year-grid') || toggle.closest('.grid-12');
     if (yearGrid) {
       const itemsContainer = yearGrid.querySelector('.activities-year-items');
-      const chevron = toggle.querySelector('i') || yearGrid.querySelector('.h-toggle i'); // Support both inline toggle and h-toggle wrapper
+      const chevron = toggle.querySelector('.icon') || yearGrid.querySelector('.h-toggle .icon'); // Support both inline toggle and h-toggle wrapper
 
       if (itemsContainer) {
-        // Determine initial state based on chevron type or class
-        // For General Activities (chevron-down): initially open (0 deg), closed (180 deg)
-        // For Records (chevron-right): initially open (rotate-90), closed (0 deg)
-        
-        const isChevronDown = chevron && chevron.classList.contains('fa-chevron-down');
-        const isChevronRight = chevron && chevron.classList.contains('fa-chevron-right');
-        
-        // Default to open for General Activities (no rotate class needed for down icon to be open/down)
-        // For Records, check for rotate-90
-        const isInitiallyOpen = isChevronDown || (isChevronRight && chevron.classList.contains('rotate-90'));
+        // chevron-list 圖形朝左（0deg），rotate-90 class → 朝下 = open state
+        // close state 用 rotation 0（朝左）
+        const isInitiallyOpen = chevron && chevron.classList.contains('rotate-90');
 
         if (isInitiallyOpen) {
-          // Set initial height to auto for open state
           gsap.set(itemsContainer, { height: 'auto', overflow: 'visible' });
         } else {
-          // Set initial height to 0 and hide for closed state
           gsap.set(itemsContainer, { height: 0, display: 'none', overflow: 'hidden' });
-          // If closed and chevron-down, set to 180 (Up)
-          if (isChevronDown) gsap.set(chevron, { rotation: 180 });
         }
       }
     }
@@ -50,7 +39,7 @@ export function initActivitiesYearToggle() {
       if (!yearGrid) return;
 
       // Find the chevron and items container within this year group
-      const chevron = this.querySelector('i') || yearGrid.querySelector('.h-toggle i');
+      const chevron = this.querySelector('.icon') || yearGrid.querySelector('.h-toggle .icon');
       const itemsContainer = yearGrid.querySelector('.activities-year-items');
 
       if (itemsContainer) {
@@ -70,10 +59,8 @@ export function initActivitiesYearToggle() {
           });
           
           if (chevron) {
-            // If chevron-down: rotate to 180 (Up)
-            // If chevron-right: rotate to 0 (Right)
-            const targetRotation = chevron.classList.contains('fa-chevron-down') ? 180 : 0;
-            gsap.to(chevron, { rotation: targetRotation, duration: 0.3 });
+            // close → chevron-list 朝右 (180)
+            gsap.to(chevron, { rotation: 180, duration: 0.3 });
           }
         } else {
           // Open with GSAP animation
@@ -89,10 +76,8 @@ export function initActivitiesYearToggle() {
           });
           
           if (chevron) {
-            // If chevron-down: rotate to 0 (Down)
-            // If chevron-right: rotate to 90 (Down)
-            const targetRotation = chevron.classList.contains('fa-chevron-down') ? 0 : 90;
-            gsap.to(chevron, { rotation: targetRotation, duration: 0.3 });
+            // open → chevron-list 朝下 (90)
+            gsap.to(chevron, { rotation: 90, duration: 0.3 });
           }
         }
       }

@@ -174,7 +174,7 @@ function createImageEl(src, url, showPlayIcon = false) {
   const wrapper = document.createElement(url ? 'a' : 'div');
   if (url) {
     wrapper.href = url;
-    wrapper.style.cursor = 'pointer';
+    wrapper.style.cursor = "url('/custom-cursor/pointer.svg') 16 8, pointer";
   }
   wrapper.style.cssText = `
     display: block;
@@ -253,7 +253,7 @@ function createTextEl(textEn, textZh, url) {
   const el = document.createElement(url ? 'a' : 'div');
   if (url) {
     el.href = url;
-    el.style.cursor = 'pointer';
+    el.style.cursor = "url('/custom-cursor/pointer.svg') 16 8, pointer";
   }
   const defaultColor = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
   const defaultTextColor = '#000';
@@ -348,8 +348,13 @@ export function initWatchHover() {
   const watchBtn = document.getElementById('homepage-yt-card');
   if (!watchBtn) return;
 
+  // SPA 回 index 時 watchBtn 是新的（main 內被 swap），但 body 內的舊 spotlight overlay 仍在 → 清掉
+  // 不然每次回 index body 累積一個透明 overlay（pointer-events:none 不擋 click 但 DOM leak）
+  document.querySelectorAll('[data-watch-spotlight]').forEach(el => el.remove());
+
   // 全頁暗化 overlay，中間挖洞 spotlight
   const overlay = document.createElement('div');
+  overlay.dataset.watchSpotlight = '1';
   overlay.style.cssText = `
     position: fixed; inset: 0;
     pointer-events: none;
@@ -363,20 +368,65 @@ export function initWatchHover() {
     const rect = watchBtn.getBoundingClientRect();
     const cx = rect.left + rect.width / 2;
     const cy = rect.top + rect.height / 2;
-    const r = rect.width / 2 + 8; // 稍微比按鈕大一點
+    // 用 offsetWidth（未旋轉）；getBoundingClientRect().width 是旋轉後 AABB，
+    // 隨 rotation 從 W 到 W√2 變動 → 每次 spotlight 大小不同
+    const r = watchBtn.offsetWidth / 2 + 8;
     overlay.style.background = `radial-gradient(circle ${r}px at ${cx}px ${cy}px, transparent 100%, rgba(0,0,0,0.85) 100%)`;
   }
 
+  // hover 期間鎖頁面 scroll：spotlight 用 mouseenter 當下 getBoundingClientRect 的 viewport
+  // 座標寫進 radial-gradient，scroll 會讓 watch 按鈕跟著 main 移位但 mask 留在 viewport 原位 → 跑位
+  // isLocked guard：rapid re-enter 在 unlock setTimeout 觸發前若再次抓 body.overflow 會抓到自己鎖的
+  // 'hidden'，後續 mouseleave 還原時把 hidden 寫回 → 永久鎖死。只在「首次 lock」時 snapshot
+  let savedBodyOverflow = '';
+  let isLocked = false;
+  let unlockTimer = null;
+  // rAF tracking：scroll inertia 中 hover，mouseenter → JS overflow:hidden 之間還有 in-flight
+  // frames 的 scroll 推進；overlay 可見期間每 frame 重算 spotlight，把 fade-in / fade-out
+  // 過渡期間的殘餘位移也吃掉
+  let trackingRaf = null;
+  function startTracking() {
+    if (trackingRaf) return;
+    function loop() {
+      updateSpotlight();
+      trackingRaf = requestAnimationFrame(loop);
+    }
+    trackingRaf = requestAnimationFrame(loop);
+  }
+  function stopTracking() {
+    if (trackingRaf) { cancelAnimationFrame(trackingRaf); trackingRaf = null; }
+  }
+
   watchBtn.addEventListener('mouseenter', () => {
+    if (unlockTimer) { clearTimeout(unlockTimer); unlockTimer = null; }
     updateSpotlight();
     overlay.style.opacity = '1';
     applyNewsHover();
+    if (!isLocked) {
+      savedBodyOverflow = document.body.style.overflow;
+      isLocked = true;
+    }
+    document.body.style.overflow = 'hidden';
+    startTracking();
   });
 
   watchBtn.addEventListener('mouseleave', () => {
-    if (watchBtn.dataset.clickAnimating === '1') return;
+    if (watchBtn.dataset.clickAnimating === '1') {
+      // 點擊動畫期間維持 spotlight 連續，scroll lock 交給 video-player overflow 管理接手
+      document.body.style.overflow = savedBodyOverflow;
+      isLocked = false;
+      return;
+    }
     overlay.style.opacity = '0';
     removeNewsHover();
+    // overlay 有 transition: opacity 0.3s，fade-out 期間 scroll 會讓 fading 中的 spotlight
+    // 在 viewport 原位 → 視覺跑位；等 fade 完才解鎖 scroll + 停 tracking
+    unlockTimer = setTimeout(() => {
+      document.body.style.overflow = savedBodyOverflow;
+      isLocked = false;
+      unlockTimer = null;
+      stopTracking();
+    }, 300);
   });
   watchBtn.__closeSpotlight = () => {
     overlay.style.opacity = '0';

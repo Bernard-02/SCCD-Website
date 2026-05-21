@@ -16,7 +16,7 @@ function initListYearToggle() {
     const yearGrid = toggle.closest('.grid-12');
     if (yearGrid) {
       const itemsContainer = yearGrid.querySelector('.list-year-items');
-      const chevron = yearGrid.querySelector('.fa-chevron-right');
+      const chevron = yearGrid.querySelector('.icon-chevron-list');
 
       if (itemsContainer) {
         // 用 overflow:clip 不用 hidden — hidden 會把這層變成 sticky 的 scroll container，
@@ -47,7 +47,7 @@ function initListYearToggle() {
       if (!yearGrid) return;
 
       // Find the chevron and items container within this year group
-      const chevron = yearGrid.querySelector('.fa-chevron-right');
+      const chevron = yearGrid.querySelector('.icon-chevron-list');
       const itemsContainer = yearGrid.querySelector('.list-year-items');
 
       if (itemsContainer) {
@@ -64,7 +64,7 @@ function initListYearToggle() {
               itemsContainer.style.display = 'none';
             }
           });
-          if (chevron) gsap.to(chevron, { rotation: 0, duration: 0.3 });
+          if (chevron) gsap.to(chevron, { rotation: 180, duration: 0.3 });  // close → 朝右
         } else {
           // Open with GSAP animation
           itemsContainer.style.display = 'flex';
@@ -107,7 +107,7 @@ export function resetListAccordionsInPanel(panel) {
     const content = (header.nextElementSibling?.classList.contains('list-content')
       ? header.nextElementSibling
       : header.closest('.list-item')?.querySelector('.list-content')) || header.nextElementSibling;
-    const chevron = header.querySelector('.fa-chevron-down');
+    const chevron = header.querySelector('.icon-chevron-list');
     const workshopItem = header.closest('.list-item');
 
     header.classList.remove('active');
@@ -129,7 +129,7 @@ export function resetListAccordionsInPanel(panel) {
 
     if (chevron && typeof gsap !== 'undefined') {
       gsap.killTweensOf(chevron);
-      gsap.set(chevron, { rotation: 0 });
+      gsap.set(chevron, { rotation: 90 });  // reset → list-header close state 朝下
     }
   });
 }
@@ -140,7 +140,7 @@ function closeListHeader(header) {
   const content = (header.nextElementSibling?.classList.contains('list-content')
     ? header.nextElementSibling
     : header.closest('.list-item')?.querySelector('.list-content')) || header.nextElementSibling;
-  const chevron = header.querySelector('.fa-chevron-down');
+  const chevron = header.querySelector('.icon-chevron-list');
   const workshopItem = header.closest('.list-item');
 
   header.dataset.collapsing = 'true';
@@ -172,7 +172,7 @@ function closeListHeader(header) {
       }
     }
   });
-  if (chevron) gsap.to(chevron, { rotation: 0, duration: 0.3 });
+  if (chevron) gsap.to(chevron, { rotation: 90, duration: 0.3 });  // close → 朝下
 }
 
 function initListHeaderAccordion() {
@@ -182,6 +182,9 @@ function initListHeaderAccordion() {
 
   workshopHeaders.forEach(header => {
     if (header.dataset.accordionInit) return;
+    // 永遠展開的 list-item（如 permanent exhibitions）— 跳過所有 accordion 行為
+    // 否則下方 gsap.set(content, height:0) 會把預設可見的 list-content 強制收起
+    if (header.closest('.list-item')?.hasAttribute('data-no-accordion')) return;
     header.dataset.accordionInit = '1';
 
     // Initialization: Ensure content is hidden properly for GSAP
@@ -212,7 +215,7 @@ function initListHeaderAccordion() {
       const content = (this.nextElementSibling?.classList.contains('list-content')
         ? this.nextElementSibling
         : this.closest('.list-item')?.querySelector('.list-content')) || this.nextElementSibling;
-      const chevron = this.querySelector('.fa-chevron-down');
+      const chevron = this.querySelector('.icon-chevron-list');
 
       // 先判斷狀態再決定動作 — close path 不可在這裡先移除 .active
       // （否則 title transform transition 立刻啟動，違反「先收起再 title 左移」順序）
@@ -278,7 +281,7 @@ function initListHeaderAccordion() {
             workshopItem?.dispatchEvent(new Event('gallery:check'));
           }
         });
-        gsap.to(chevron, { rotation: 180, duration: 0.3 });
+        gsap.to(chevron, { rotation: -90, duration: 0.3 });  // open → 朝上
       } else {
         closeListHeader(this);
       }

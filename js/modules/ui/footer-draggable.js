@@ -367,18 +367,18 @@ export async function initFooterScatter(scope) {
   );
   if (rawItems.length === 0) return;
 
+  // 必須先等 layout ready 才建 .footer-anchor。
+  // router.js 的「無 .footer-anchor → 重 init」recovery 機制把 anchor 存在當「init 成功」proxy；
+  // 若 await 前就 wrap，display:none / 0×0 race 時也會建 anchor → recovery 永遠跳過 → footer 卡壞狀態。
+  const ready = await awaitLayoutReady(area);
+  if (!ready) return;
+
   const anchors = wrapItemsInAnchors(rawItems);
   const items = anchors.map((a) => a.firstElementChild).filter(Boolean);
   if (anchors.length === 0 || items.length === 0) return;
 
   const privacy = footer.querySelector('.footer-privacy');
   const obstacles = privacy ? [privacy] : [];
-
-  const ready = await awaitLayoutReady(area);
-  if (!ready) {
-    anchors.forEach((a) => { a.style.opacity = '1'; });
-    return;
-  }
 
   // 初始：items 隨機 4 方向其一隱藏（anchor opacity 從 CSS default 0 起）
   hideItemsRandomDirection(items);

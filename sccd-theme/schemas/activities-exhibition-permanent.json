@@ -1,0 +1,104 @@
+{
+  "cpt": "sccd_act_exhi_pm",
+  "endpoint": "activities-exhibition-permanent",
+  "menu_order": 3,
+  "labels": {
+    "name": "常設展演",
+    "singular_name": "常設展演",
+    "menu_name": "常設展演",
+    "add_new": "新增常設展演",
+    "add_new_item": "新增常設展演",
+    "edit_item": "編輯常設展演",
+    "all_items": "常設展演"
+  },
+  "menu_group": {
+    "slug": "sccd-activities",
+    "label": "活動 Activities",
+    "icon": "dashicons-calendar-alt",
+    "position": 30.5
+  },
+  "menu_icon": "dashicons-format-gallery",
+  "supports": [
+    "title"
+  ],
+  "fields": [
+    {
+      "id": "titleEn",
+      "name": "主標題（英）",
+      "type": "text"
+    },
+    {
+      "id": "noteEn",
+      "name": "備注（英）",
+      "type": "text"
+    },
+    {
+      "id": "noteZh",
+      "name": "備注（中）",
+      "type": "text"
+    },
+    {
+      "id": "descriptionEn",
+      "name": "說明文字（英）",
+      "type": "textarea"
+    },
+    {
+      "id": "descriptionZh",
+      "name": "說明文字（中）",
+      "type": "textarea"
+    },
+    {
+      "id": "mainImage",
+      "name": "主圖片",
+      "type": "image"
+    },
+    {
+      "id": "events",
+      "name": "活動清單（可加多筆）",
+      "type": "group",
+      "item_label": "活動",
+      "fields": [
+        {
+          "id": "year",
+          "name": "年份",
+          "type": "year"
+        },
+        {
+          "id": "startMonth",
+          "name": "起始月",
+          "type": "month"
+        },
+        {
+          "id": "startDay",
+          "name": "起始日",
+          "type": "day"
+        },
+        {
+          "id": "endMonth",
+          "name": "結束月",
+          "type": "month"
+        },
+        {
+          "id": "endDay",
+          "name": "結束日",
+          "type": "day"
+        },
+        {
+          "id": "nameEn",
+          "name": "活動名稱（英）",
+          "type": "text"
+        },
+        {
+          "id": "nameZh",
+          "name": "活動名稱（中）",
+          "type": "text"
+        },
+        {
+          "id": "albumImages",
+          "name": "相簿（可一次選多張）",
+          "type": "image_list"
+        }
+      ]
+    }
+  ]
+}

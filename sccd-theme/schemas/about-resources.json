@@ -1,0 +1,47 @@
+{
+  "cpt": "sccd_about_resource",
+  "endpoint": "about-resources",
+  "menu_order": 4,
+  "labels": {
+    "name": "Resources",
+    "singular_name": "Resources 教學資源",
+    "menu_name": "Resources 環境資源",
+    "add_new": "新增資源",
+    "add_new_item": "新增環境資源",
+    "edit_item": "編輯環境資源",
+    "all_items": "Resources 環境資源"
+  },
+  "menu_group": {
+    "slug": "sccd-about",
+    "label": "關於 About",
+    "icon": "dashicons-info",
+    "position": 30.2
+  },
+  "menu_icon": "dashicons-book",
+  "supports": [
+    "title"
+  ],
+  "max_posts": 10,
+  "fields": [
+    {
+      "id": "titleEn",
+      "name": "標題（英）",
+      "type": "text"
+    },
+    {
+      "id": "descriptionEn",
+      "name": "說明文字（英）",
+      "type": "textarea"
+    },
+    {
+      "id": "descriptionZh",
+      "name": "說明文字（中）",
+      "type": "textarea"
+    },
+    {
+      "id": "image",
+      "name": "圖片",
+      "type": "image"
+    }
+  ]
+}
