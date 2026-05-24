@@ -52,7 +52,7 @@ import { initAdmissionSectionSwitch } from './modules/pages/admission-section-sw
 // Import Library Modules
 import { initLibraryCard } from './modules/pages/library-card.js';
 import { initLibraryPanels, resolveInitialTabFromHash } from './modules/pages/library-panels.js';
-import { initLibraryViewer } from './modules/pages/library-viewer.js';
+import { initLibraryViewer, initPdfViewer } from './modules/pages/library-viewer.js';
 
 // Import Lightbox Shell（共用 enter/exit 行為；SPA cleanup 需 reset openCount）
 import { resetLightboxMode, getHeaderTargets } from './modules/lightbox/lightbox-shell.js';
@@ -75,7 +75,7 @@ import { loadFacultyData } from './modules/pages/faculty-data-loader.js';
 import { loadAdmissionData } from './modules/pages/admission-data-loader.js';
 import { initSupport } from './modules/pages/support.js';
 import { loadLegalData } from './modules/pages/legal-data-loader.js';
-import { loadDegreeShowList, loadDegreeShowDetail } from './modules/pages/degree-show-data-loader.js';
+import { loadDegreeShowDetail } from './modules/pages/degree-show-data-loader.js';
 import { init404, cleanup404 } from './modules/pages/error-404.js';
 
 // ── Cleanup（換頁前執行）────────────────────────────────────────
@@ -99,8 +99,10 @@ export function cleanupPageModules() {
   resetLightboxMode();
   // lightbox header bars 殘留 inline clipPath → 切頁後 header bars 持續被 clip 隱藏；kill tween + 清 inline
   // selector 集中走 lightbox-shell.getHeaderTargets()（之前是 selector 雙寫，header 結構改一處會漏改另一處）
+  // 排除 #mode-btn：它的 inline clipPath 是 animateHeaderModeBtnHide 在 /create 頁刻意設的 hide 狀態，
+  // 不是 lightbox 殘留；清掉會讓 /create same-page reentry 時 mode-btn 視覺凍結現身
   if (typeof gsap !== 'undefined') {
-    const lbHeaderTargets = getHeaderTargets();
+    const lbHeaderTargets = getHeaderTargets().filter(el => el.id !== 'mode-btn');
     if (lbHeaderTargets.length) {
       gsap.killTweensOf(lbHeaderTargets);
       lbHeaderTargets.forEach(el => { el.style.clipPath = ''; el.style.visibility = ''; });
@@ -225,10 +227,8 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
     }
   }
 
-  // --- Degree Show Pages ---
-  if (page === 'degree-show') {
-    loadDegreeShowList();
-  }
+  // --- Degree Show Detail Page ---
+  // degree-show list 已整合到 activities panel（loadDegreeShowListInto），舊獨立頁已刪
   if (page === 'degree-show-detail') {
     loadDegreeShowDetail();
   }
@@ -260,6 +260,8 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
   if (page === 'activities') {
     initActivitiesSectionSwitch('exhibitions');
     initActivitiesSearch();
+    // ref 內 pdfUrl 觸發共用 PDF viewer（與 library / alumni 共用 sccd:open-pdf）
+    initPdfViewer();
   }
 
   // --- Records Page ---
@@ -313,7 +315,8 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
     const initialTab = resolveInitialTabFromHash();
     if (initialTab !== 'awards') {
       // 預先 swap panel display，讓 content 層 fade-in 時看到的就是目標 panel
-      panels.showPanel(initialTab);
+      // reveal:false → 只切 display 不跑 wipe；等 grayEl 進場揭露完 onTabSwitch 才 reveal
+      panels.showPanel(initialTab, { reveal: false });
     }
 
     // 進場動畫期間的第一次 onTabSwitch 是自動觸發的（預設 tab），不能覆蓋 deep-link hash
@@ -321,6 +324,11 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
     let entranceDone = false;
     initLibraryCard({
       initialTab,
+      // tab swap 揭露前 pre-swap panel display + hide children，
+      // 避免 clip 揭露中看到舊 panel 的 chip 在左上角 visible
+      onTabSwitchPre: (tab) => {
+        panels.showPanel(tab, { reveal: false });
+      },
       onTabSwitch: (tab) => {
         panels.showPanel(tab);
         if (!entranceDone) return; // 自動切換（進場動畫）→ 保留現有 hash

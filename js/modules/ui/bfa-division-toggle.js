@@ -1,3 +1,4 @@
+// @ts-nocheck — querySelector 密集，全為 TS2339 Element vs HTMLElement 雜訊
 /**
  * BFA Division Toggle Module
  * Class 分組切換功能
@@ -234,7 +235,21 @@ export function initBFADivisionToggle() {
   const BTN_DEFAULT_BG    = 'var(--theme-fg)';
   const BTN_DEFAULT_TEXT  = 'var(--theme-bg)';
 
-  function randomColor()    { return ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)]; }
+  // 讀取 Programs 區封鎖綫當前顏色（hex），active tab 取色時排除避免撞色
+  function getProgramsStripColor() {
+    const el = document.querySelector('.section-title-strip[data-anchor="class"] [data-section-title]');
+    if (!el) return null;
+    const c = (el.style.background || '').trim().toLowerCase();
+    return c || null;
+  }
+
+  function randomColor(exclude) {
+    const pool = exclude
+      ? ACCENT_COLORS.filter(c => c.toLowerCase() !== exclude.toLowerCase())
+      : ACCENT_COLORS;
+    const list = pool.length ? pool : ACCENT_COLORS;
+    return list[Math.floor(Math.random() * list.length)];
+  }
   function randomRotation() {
     let r = 0;
     while (Math.abs(r) < 0.5) r = parseFloat((Math.random() * 6 - 3).toFixed(2));
@@ -301,7 +316,7 @@ export function initBFADivisionToggle() {
   divisionBtns.forEach(btn => {
     btn.addEventListener('mouseenter', () => {
       if (btn.classList.contains('active')) return;
-      const color = randomColor();
+      const color = randomColor(getProgramsStripColor());
       const rot   = randomRotation();
       const label = btn.previousElementSibling?.classList.contains('class-group-label')
         ? btn.previousElementSibling : null;
@@ -341,7 +356,7 @@ export function initBFADivisionToggle() {
       if (isWorksAnimating) return;
 
       const id    = this.getAttribute('data-division');
-      const color = this._pendingColor || randomColor();
+      const color = this._pendingColor || randomColor(getProgramsStripColor());
       const rot   = this._pendingRot   || randomRotation();
       setActive(id, color, rot);
 
@@ -388,7 +403,7 @@ export function initBFADivisionToggle() {
   // 第二參數 animate=false 時：works ctx 也用 instant toggle，避免使用者第一次進 works
   // 看到「animation → bfa」的切換動畫（應直接呈現 bfa）。
   window.SCCD_setDivisionActive = function (divisionId, animate = true) {
-    const color = randomColor();
+    const color = randomColor(getProgramsStripColor());
     const rot   = randomRotation();
     setActive(divisionId, color, rot);
     const ctx = window.SCCD_classContext || 'info';
@@ -405,7 +420,7 @@ export function initBFADivisionToggle() {
 
   requestAnimationFrame(() => {
     initRotations();
-    setActive('animation', randomColor(), randomRotation());
+    setActive('animation', randomColor(getProgramsStripColor()), randomRotation());
     showContent('animation', false);
   });
 

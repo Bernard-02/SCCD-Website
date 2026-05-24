@@ -102,7 +102,7 @@ export function initFooter() {
 
   // Mode 切換時換 Lottie 檔
   // theme:changed 在 mode-color 期間每 ~200ms 也會 dispatch 帶 hue 更新 — 用 mode === currentFooterMode 短路避免重載
-  window.addEventListener('theme:changed', (e) => {
+  window.addEventListener('theme:changed', (/** @type {CustomEvent} */ e) => {
     const mode = e && e.detail && e.detail.mode;
     if (!mode || mode === currentFooterMode) return;
     const container = findFooterLogoContainer();

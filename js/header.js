@@ -6,6 +6,31 @@
 import { initMobileMenu } from './mobile-menu.js';
 import { animateHeaderHide, animateHeaderShow, getHeaderTargets } from './modules/lightbox/lightbox-shell.js';
 
+// Footer-near hide state（module-scope 讓 updateNavActive 能在 SPA 換頁時同步 reset）：
+// scroll listener 內 closure 變數會跨換頁存活，但 updateNavActive 拿不到 → 提升到 module scope
+let barsHidden = false;
+function getFooterHideTargets() {
+  const logoAnchor = document.getElementById('header-logo')?.parentElement;
+  return [...getHeaderTargets(), logoAnchor].filter(Boolean);
+}
+
+// lightbox / PDF viewer 開啟時要把 footer-near hide state 清零，否則 bars 仍卡 clip-path
+// （body lock scroll 期間 scroll listener 不 fire → barsHidden 殘留 true）
+// activities 頁可 scroll 才會中招，library 是 h-screen overflow-hidden 不會
+// 暴露給 window 讓 lightbox-shell.enterLightboxMode 自動 call（解耦避免循環依賴）
+export function resetFooterHide() {
+  if (!barsHidden) return;
+  if (typeof gsap !== 'undefined') {
+    const targets = getFooterHideTargets();
+    gsap.killTweensOf(targets);
+    targets.forEach(el => { el.style.clipPath = ''; });
+  }
+  barsHidden = false;
+}
+if (typeof window !== 'undefined') {
+  window.__sccdResetFooterHide = resetFooterHide;
+}
+
 /**
  * Typewriter SCCD 排版常數：每個字母「右邊緣」x 座標（PATHs 內 SVG viewBox 座標）+ scale 倍率。
  * triggerGenerateLogo 跟 /create 退場動畫的反向 typewriter 共用，必須對齊；export 出去避免硬編兩份。
@@ -223,7 +248,7 @@ export function animateHeaderModeBtnHide() {
 
 export function animateHeaderModeBtnShow() {
   if (typeof gsap === 'undefined') return Promise.resolve();
-  const modeBtn = document.querySelector('#mode-btn');
+  const modeBtn = /** @type {HTMLElement | null} */ (document.querySelector('#mode-btn'));
   if (!modeBtn) return Promise.resolve();
   // 用 fromTo 明確指定 from-state（= animateHeaderModeBtnHide 的 end-state），確保是 hide 的精確反向動畫
   // 不依賴「modeBtn 仍保有 hide 殘留 inline 屬性」這個假設 — updateNavActive (header.js:337) 會在 SPA 換頁時
@@ -237,7 +262,7 @@ export function animateHeaderModeBtnShow() {
         clipPath: 'inset(0 0 0 100%)',
       },
       {
-        width: 24,
+        width: 40,
         marginLeft: MODE_BTN_ML,
         clipPath: 'inset(0 0 0 0)',
         duration: 0.5,
@@ -280,10 +305,20 @@ export function updateNavActive(page) {
   const header = document.querySelector('#site-header header');
   if (!header) return;
 
+  // Footer-near hide 同步 reset：前頁 scroll 到 footer 時 bars/logo 已被 animateHeaderHide
+  // clip-path 收起；SPA 切到新頁後 scroll listener 是 async，等它偵測「離開 footer」再 show
+  // 期間 updateNavActive 的 logo/bar tween 已跑完 → user 看到「小 logo + ML=0」的中間態。
+  // 這裡同步清 clip-path + reset state，讓 tween 在 header 已 visible 的乾淨狀態下跑。
+  if (barsHidden && typeof gsap !== 'undefined') {
+    const targets = getFooterHideTargets();
+    gsap.killTweensOf(targets);
+    targets.forEach(el => { el.style.clipPath = ''; });
+    barsHidden = false;
+  }
+
   // page mappings（detail 頁對應到父層）
-  // degree-show 與 degree-show-detail 都隸屬 activities.html 的 panel，需高亮 Activities
+  // degree-show-detail 隸屬 activities.html 的 panel，需高亮 Activities
   const pageMappings = {
-    'degree-show':         'activities',
     'degree-show-detail':  'activities',
     'faculty-detail':      'faculty',
   };
@@ -358,7 +393,9 @@ export function updateNavActive(page) {
     // 離開 alumni 時不立即清 clipPath — 下方 reveal 動畫會 set inset 然後清；其他情況立即清
     if (!leavingAlumni) /** @type {HTMLElement} */ (el).style.clipPath = '';
   });
-  if (modeBtnEl) /** @type {HTMLElement} */ (modeBtnEl).style.clipPath = '';
+  // mode-btn 在 /create (generate) 頁需保留 hide 狀態（updateToggleBtnVisualState 隱藏的 clipPath inline）
+  // 不加 gate 的話 same-page reentry 時 hide 狀態被清掉、edge-detection 又不會 re-fire hide → 視覺凍結現身
+  if (modeBtnEl && !isGenerateActive) /** @type {HTMLElement} */ (modeBtnEl).style.clipPath = '';
 
   // 離開 alumni → 其他 bars clip-reveal 進場（mirror 進 alumni 時的 collapse pattern）
   // user 反饋 reveal 太快 → 拉長 duration 0.8 + stagger 0.08（總時長 ~1.12s），跟收起感覺一樣紮實
@@ -471,15 +508,21 @@ export function updateNavActive(page) {
   // mode-btn 顏色由 .theme-toggle-btn color: var(--theme-fg)（CSS）接管
   // icon 用 .icon mode_1/2/3 mask，background-color: currentColor 跟 btn color 走，不在這裡 inline-set
 
-  // About bar scroll collapse：library 頁 marginLeft=0（貼齊 logo），一般頁面 marginLeft=64
-  // SPA 切換時做 smooth 動畫（和 logo 同步）
-  const aboutBarScrollEl = header.querySelector('[data-bar="about"]');
-  if (aboutBarScrollEl && typeof gsap !== 'undefined') {
+  // About bar / Alumni-full bar scroll collapse：library/atlas 頁 marginLeft=0（貼齊 logo），一般頁面 marginLeft=64
+  // 兩條 bar 共用同步 tween：about 顯示時 alumni-full display:none，反之亦然，所以可安全共用
+  // SPA 切換時做 smooth 動畫（和 logo shrink 同步）
+  const leftBarEls = /** @type {HTMLElement[]} */ ([
+    header.querySelector('[data-bar="about"]'),
+    header.querySelector('[data-bar="alumni-full"]'),
+  ].filter(Boolean));
+  if (leftBarEls.length && typeof gsap !== 'undefined') {
     const ML_START = 64, ML_END = 0;
-    gsap.killTweensOf(aboutBarScrollEl);
+    // 只 kill marginLeft tween，避免把上方剛建的 alumni-full clip-reveal tween 一起殺掉
+    // （alumni-full bar 同時在 leftBarEls 陣列裡，全 kill 會卡在 inset(0% 100% 0% 0%) 完全不可見）
+    gsap.killTweensOf(leftBarEls, 'marginLeft');
 
     const targetML = (isLibraryActive || isAtlasActive) ? ML_END : ML_START;
-    gsap.to(aboutBarScrollEl, {
+    gsap.to(leftBarEls, {
       marginLeft: targetML,
       duration: 0.6,
       ease: 'power2.inOut',
@@ -493,7 +536,7 @@ export function updateNavActive(page) {
             scrub: 0.6,
             onUpdate: (/** @type {any} */ self) => {
               const ml = ML_START + (ML_END - ML_START) * self.progress;
-              gsap.to(aboutBarScrollEl, { marginLeft: ml, duration: 0.4, ease: 'power2.out', overwrite: 'auto' });
+              gsap.to(leftBarEls, { marginLeft: ml, duration: 0.4, ease: 'power2.out', overwrite: 'auto' });
             }
           });
         }
@@ -624,13 +667,16 @@ export function initHeader() {
       }
     }
 
-    // 4. About Bar Scroll Collapse（GSAP + ScrollTrigger）
-    (function initAboutBarScroll() {
+    // 4. About Bar / Alumni-full Bar Scroll Collapse（GSAP + ScrollTrigger）
+    // 兩條 bar 共用 collapse — 同時只有一條可見（about 顯示時 alumni-full display:none，反之亦然）
+    (function initLeftBarScroll() {
       if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') return;
 
-      const aboutBar = header.querySelector('[data-bar="about"]');
-      const aboutNav = aboutBar ? aboutBar.querySelector('nav') : null;
-      if (!aboutBar || !aboutNav) return;
+      const leftBars = /** @type {HTMLElement[]} */ ([
+        header.querySelector('[data-bar="about"]'),
+        header.querySelector('[data-bar="alumni-full"]'),
+      ].filter(Boolean));
+      if (!leftBars.length) return;
 
       const ML_START = 64;  // 2xl
       const ML_END = 0;
@@ -638,9 +684,9 @@ export function initHeader() {
       const isAtlas   = currentPage === 'atlas';
 
       if (isLibrary || isAtlas) {
-        gsap.set(aboutBar, { marginLeft: ML_END });
+        gsap.set(leftBars, { marginLeft: ML_END });
       } else {
-        gsap.set(aboutBar, { marginLeft: ML_START });
+        gsap.set(leftBars, { marginLeft: ML_START });
         ScrollTrigger.create({
           trigger: 'body',
           start: 'top top',
@@ -648,7 +694,7 @@ export function initHeader() {
           scrub: 0.6,
           onUpdate: (self) => {
             const ml = ML_START + (ML_END - ML_START) * self.progress;
-            gsap.to(aboutBar, { marginLeft: ml, duration: 0.4, ease: 'power2.out', overwrite: 'auto' });
+            gsap.to(leftBars, { marginLeft: ml, duration: 0.4, ease: 'power2.out', overwrite: 'auto' });
           }
         });
       }
@@ -731,14 +777,9 @@ export function initHeader() {
     // logo target 用 #header-logo 的 <a> 父層（純 link wrapper、無 gsap tween）：
     //   直接 clip-path #header-logo 會被 animateHeaderHide 內的 killTweensOf 殺掉 logo scroll-shrink ScrollTrigger tween
     //   <a> bbox == #header-logo bbox（唯一 child），視覺等效
-    let barsHidden = false;
     function bindFooterScroll() {
       const footerEl = document.querySelector('footer');
       if (!footerEl) return false;
-      function getFooterHideTargets() {
-        const logoAnchor = document.getElementById('header-logo')?.parentElement;
-        return [...getHeaderTargets(), logoAnchor].filter(Boolean);
-      }
       window.addEventListener('scroll', () => {
         const isNearFooter = footerEl.offsetHeight > 0 && footerEl.getBoundingClientRect().top < window.innerHeight * 0.5;
         if (typeof gsap === 'undefined') return;

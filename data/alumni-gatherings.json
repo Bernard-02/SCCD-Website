@@ -15,8 +15,26 @@
         "videos": [],
         "images": [],
         "category": "taipei",
-        "references": [{ "href": "/assets/sample.pdf", "labelEn": "Minutes", "labelZh": "會議紀錄", "titleEn": "Year-end Roundtable Minutes", "titleZh": "年末圓桌會會議紀錄" }],
-        "id": "ALGA-2024-TPE-02"
+        "references": [
+          {
+            "href": "/assets/sample.pdf",
+            "labelEn": "Minutes",
+            "labelZh": "會議紀錄",
+            "titleEn": "Year-end Roundtable Minutes",
+            "titleZh": "年末圓桌會會議紀錄"
+          }
+        ],
+        "id": "ALGA-2024-TPE-02",
+        "dates": [
+          {
+            "startYear": 2024,
+            "startMonth": 12,
+            "startDay": 10,
+            "endYear": 2024,
+            "endMonth": 12,
+            "endDay": 10
+          }
+        ]
       },
       {
         "title": "JB Alumni Casual Meet",
@@ -31,8 +49,26 @@
         "videos": [],
         "images": [],
         "category": "jb",
-        "references": [{ "href": "/assets/sample.pdf", "labelEn": "Minutes", "labelZh": "會議紀錄", "titleEn": "JB Casual Meet Minutes", "titleZh": "JB 輕鬆聚會議紀錄" }],
-        "id": "ALGA-2024-JB-01"
+        "references": [
+          {
+            "href": "/assets/sample.pdf",
+            "labelEn": "Minutes",
+            "labelZh": "會議紀錄",
+            "titleEn": "JB Casual Meet Minutes",
+            "titleZh": "JB 輕鬆聚會議紀錄"
+          }
+        ],
+        "id": "ALGA-2024-JB-01",
+        "dates": [
+          {
+            "startYear": 2024,
+            "startMonth": 10,
+            "startDay": 5,
+            "endYear": 2024,
+            "endMonth": 10,
+            "endDay": 5
+          }
+        ]
       },
       {
         "title": "LA Alumni Studio Tour",
@@ -47,8 +83,26 @@
         "videos": [],
         "images": [],
         "category": "la",
-        "references": [{ "href": "/assets/sample.pdf", "labelEn": "Minutes", "labelZh": "會議紀錄", "titleEn": "LA Studio Tour Minutes", "titleZh": "LA 工作室參訪會議紀錄" }],
-        "id": "ALGA-2024-LA-01"
+        "references": [
+          {
+            "href": "/assets/sample.pdf",
+            "labelEn": "Minutes",
+            "labelZh": "會議紀錄",
+            "titleEn": "LA Studio Tour Minutes",
+            "titleZh": "LA 工作室參訪會議紀錄"
+          }
+        ],
+        "id": "ALGA-2024-LA-01",
+        "dates": [
+          {
+            "startYear": 2024,
+            "startMonth": 9,
+            "startDay": 14,
+            "endYear": 2024,
+            "endMonth": 9,
+            "endDay": 14
+          }
+        ]
       },
       {
         "title": "Tokyo Design Walk",
@@ -63,8 +117,26 @@
         "videos": [],
         "images": [],
         "category": "tokyo",
-        "references": [{ "href": "/assets/sample.pdf", "labelEn": "Minutes", "labelZh": "會議紀錄", "titleEn": "Tokyo Design Walk Minutes", "titleZh": "東京設計散步會議紀錄" }],
-        "id": "ALGA-2024-TYO-01"
+        "references": [
+          {
+            "href": "/assets/sample.pdf",
+            "labelEn": "Minutes",
+            "labelZh": "會議紀錄",
+            "titleEn": "Tokyo Design Walk Minutes",
+            "titleZh": "東京設計散步會議紀錄"
+          }
+        ],
+        "id": "ALGA-2024-TYO-01",
+        "dates": [
+          {
+            "startYear": 2024,
+            "startMonth": 11,
+            "startDay": 30,
+            "endYear": 2024,
+            "endMonth": 11,
+            "endDay": 30
+          }
+        ]
       },
       {
         "title": "NYC Alumni Mixer",
@@ -79,8 +151,26 @@
         "videos": [],
         "images": [],
         "category": "nyc",
-        "references": [{ "href": "/assets/sample.pdf", "labelEn": "Minutes", "labelZh": "會議紀錄", "titleEn": "NYC Mixer Minutes", "titleZh": "紐約交流會議紀錄" }],
-        "id": "ALGA-2024-NYC-01"
+        "references": [
+          {
+            "href": "/assets/sample.pdf",
+            "labelEn": "Minutes",
+            "labelZh": "會議紀錄",
+            "titleEn": "NYC Mixer Minutes",
+            "titleZh": "紐約交流會議紀錄"
+          }
+        ],
+        "id": "ALGA-2024-NYC-01",
+        "dates": [
+          {
+            "startYear": 2024,
+            "startMonth": 8,
+            "startDay": 18,
+            "endYear": 2024,
+            "endMonth": 8,
+            "endDay": 18
+          }
+        ]
       }
     ]
   },
@@ -100,8 +190,26 @@
         "videos": [],
         "images": [],
         "category": "taipei",
-        "references": [{ "href": "/assets/sample.pdf", "labelEn": "Minutes", "labelZh": "會議紀錄", "titleEn": "Portfolio Night Minutes", "titleZh": "作品分享夜會議紀錄" }],
-        "id": "ALGA-2023-TPE-01"
+        "references": [
+          {
+            "href": "/assets/sample.pdf",
+            "labelEn": "Minutes",
+            "labelZh": "會議紀錄",
+            "titleEn": "Portfolio Night Minutes",
+            "titleZh": "作品分享夜會議紀錄"
+          }
+        ],
+        "id": "ALGA-2023-TPE-01",
+        "dates": [
+          {
+            "startYear": 2023,
+            "startMonth": 6,
+            "startDay": 22,
+            "endYear": 2023,
+            "endMonth": 6,
+            "endDay": 22
+          }
+        ]
       }
     ]
   }

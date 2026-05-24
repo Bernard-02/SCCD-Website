@@ -10,10 +10,14 @@
 // reference 比對，元素更新時自動 re-init。
 let _videoPlayerInstance = null;
 
+/**
+ * @param {string} videoUrl
+ * @param {{ getCardRect?: () => DOMRect, onCloseAnimComplete?: () => void }} [opts]
+ */
 export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete } = {}) {
   const overlay       = document.getElementById('video-player-overlay');
   if (_videoPlayerInstance && _videoPlayerInstance._overlay === overlay) return _videoPlayerInstance;
-  const video         = document.getElementById('video-player');
+  const video         = /** @type {HTMLVideoElement | null} */ (document.getElementById('video-player'));
   const playBtn       = document.getElementById('video-play-btn');
   const muteBtn        = document.getElementById('video-mute-btn');
   const volumeWrap     = document.getElementById('video-volume-wrap');
@@ -342,7 +346,7 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete } =
   }
 
   function updateMuteIcon() {
-    const icon = muteBtn?.firstElementChild;
+    const icon = /** @type {HTMLElement | null | undefined} */ (muteBtn?.firstElementChild);
     if (!icon) return;
     // mute / volume-half / volume 三態自製 SVG（size 由 .icon-l 控）
     if (video.muted || video.volume === 0) {
@@ -367,7 +371,7 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete } =
   });
 
   document.addEventListener('fullscreenchange', () => {
-    const icon = fullscreenBtn?.firstElementChild;
+    const icon = /** @type {HTMLElement | null | undefined} */ (fullscreenBtn?.firstElementChild);
     if (!icon) return;
     // expand 用自製 SVG；compress SVG 尚未做，先用 FA fallback
     // expand 走 .icon-l，FA compress fallback 用 inline 1.5rem 對齊

@@ -18,9 +18,9 @@
           <ul class="flex items-center gap-xl px-xs py-xs">
             <li><a href="about.html" class="nav-link"><span>About</span><span class="nav-link-cn">關於學系</span></a></li>
             <li><a href="faculty.html" class="nav-link"><span>Faculty</span><span class="nav-link-cn">師資</span></a></li>
-            <li><a href="courses.html" class="nav-link"><span>Courses</span><span class="nav-link-cn">課程</span></a></li>
+            <li><a href="courses.html" class="nav-link"><span>Curriculum</span><span class="nav-link-cn">課程</span></a></li>
             <li><a href="activities.html" class="nav-link"><span>Activities</span><span class="nav-link-cn">動態</span></a></li>
-            <li><a href="admission.html" class="nav-link"><span>Admission</span><span class="nav-link-cn">入學</span></a></li>
+            <li><a href="admission.html" class="nav-link"><span>Admissions</span><span class="nav-link-cn">入學</span></a></li>
           </ul>
         </nav>
       </div>
@@ -60,19 +60,26 @@
       <!-- Atlas 組 -->
       <div data-bar="atlas" class="flex-shrink-0 bg-black ml-lg" style="transition: background 0.4s ease;">
         <div class="px-xs py-xs">
-          <a href="atlas.html" class="nav-link text-white"><span>Atlas</span></a>
+          <a href="atlas.html" class="nav-link text-white"><span>Atlas</span><span class="nav-link-cn">圖譜</span></a>
+        </div>
+      </div>
+
+      <!-- Alumni 組（系友會入口，放在 atlas 與 create 之間） -->
+      <div data-bar="alumni" class="flex-shrink-0 bg-black ml-lg" style="transition: background 0.4s ease;">
+        <div class="px-xs py-xs">
+          <a href="alumni.html" class="nav-link text-white"><span>A.A.</span><span class="nav-link-cn">系友會</span></a>
         </div>
       </div>
 
       <!-- Generate 組 -->
       <div data-bar="generate" class="flex-shrink-0 bg-black ml-lg" style="transition: background 0.4s ease;">
         <div class="px-xs py-xs">
-          <a href="create.html" class="nav-link font-bold text-white">CREATE!</a>
+          <a href="create.html" class="nav-link font-bold text-white"><span>CREATE!</span><span class="nav-link-cn">創造！</span></a>
         </div>
       </div>
 
       <!-- Mode 按鈕（圓底） -->
-      <div id="mode-btn" class="flex-shrink-0 flex items-center justify-center ml-lg" style="transition: background 0.4s ease;">
+      <div id="mode-btn" data-bar="mode" class="flex-shrink-0 flex items-center justify-center ml-lg rounded-full" style="transition: background 0.4s ease;">
         <button class="theme-toggle-btn" aria-label="Toggle theme mode">
           <span class="icon icon-mode-1" data-header-mode-icon></span>
         </button>
@@ -106,16 +113,16 @@
         <ul class="flex flex-col gap-md">
           <li><a href="about.html" class="mobile-nav-link block text-h4 font-semibold text-white">About <span class="text-black">關於學系</span></a></li>
           <li><a href="faculty.html" class="mobile-nav-link block text-h4 font-semibold text-white">Faculty <span class="text-black">師資</span></a></li>
-          <li><a href="courses.html" class="mobile-nav-link block text-h4 font-semibold text-white">Courses <span class="text-black">課程</span></a></li>
+          <li><a href="courses.html" class="mobile-nav-link block text-h4 font-semibold text-white">Curriculum <span class="text-black">課程</span></a></li>
           <li><a href="activities.html" class="mobile-nav-link block text-h4 font-semibold text-white">Activities <span class="text-black">動態</span></a></li>
           <li><a href="library.html" class="mobile-nav-link block text-h4 font-semibold text-white">Library <span class="text-black">檔案室</span></a></li>
-          <li><a href="atlas.html" class="mobile-nav-link block text-h4 font-semibold text-white">Atlas</a></li>
-          <li><a href="alumni.html" class="mobile-nav-link block text-h4 font-semibold text-white">Alumni <span class="text-black">系友會</span></a></li>
-          <li><a href="admission.html" class="mobile-nav-link block text-h4 font-semibold text-white">Admission <span class="text-black">入學</span></a></li>
+          <li><a href="atlas.html" class="mobile-nav-link block text-h4 font-semibold text-white">Atlas <span class="text-black">圖譜</span></a></li>
+          <li><a href="alumni.html" class="mobile-nav-link block text-h4 font-semibold text-white">A.A. <span class="text-black">系友會</span></a></li>
+          <li><a href="admission.html" class="mobile-nav-link block text-h4 font-semibold text-white">Admissions <span class="text-black">入學</span></a></li>
         </ul>
       </nav>
       <div class="mt-2xl">
-        <a href="create.html" class="block text-h4 font-bold">CREATE!</a>
+        <a href="create.html" class="block text-h4 font-bold">CREATE! <span class="font-bold">創造！</span></a>
       </div>
     </div>
   </div>

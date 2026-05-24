@@ -19,8 +19,58 @@
     "videoUrl": "https://www.youtube.com/embed/jNQXAC9IVRw",
     "documentaryUrl": "https://www.youtube.com/embed/aqz-KE-bpKQ",
     "events": [
-      { "time": "05 / 17 - 05 / 20", "name": "新一代設計展", "nameEn": "Young Designers' Exhibition", "location": "南港展覽館 1 館", "locationEn": "Nangang Exhibition Center, Hall 1", "city": "台北", "cityEn": "Taipei" },
-      { "time": "06 / 14 - 06 / 30", "name": "華山獨立展", "nameEn": "Huashan Independent Exhibition", "location": "華山 1914 文化創意產業園區", "locationEn": "Huashan 1914 Creative Park", "city": "台北", "cityEn": "Taipei" }
+      {
+        "time": "05 / 17 - 05 / 20",
+        "name": "新一代設計展", "nameEn": "Young Designers' Exhibition",
+        "location": "南港展覽館 1 館", "locationEn": "Nangang Exhibition Center, Hall 1",
+        "city": "台北", "cityEn": "Taipei",
+        "images": [
+          "../images/CCC08866.jpg",
+          "../images/S__6742028.jpg",
+          "../images/2021-動畫-Pitch-Bible-01.png",
+          "../images/SCCD-1-4-0.jpg",
+          "../images/maxresdefault.jpg",
+          "../images/內頁_頁面_3.jpg",
+          "../images/491458887_17876137179316982_2662551741181181178_n.jpg",
+          "../images/tw-11134207-7qul0-lj9ky32mjy5w86.jpg"
+        ]
+      },
+      {
+        "time": "06 / 14 - 06 / 30",
+        "name": "華山獨立展", "nameEn": "Huashan Independent Exhibition",
+        "location": "華山 1914 文化創意產業園區", "locationEn": "Huashan 1914 Creative Park",
+        "city": "台北", "cityEn": "Taipei",
+        "images": [
+          "../images/S__6742028.jpg",
+          "../images/CCC08866.jpg",
+          "../images/SCCD-1-4-0.jpg",
+          "../images/2021-動畫-Pitch-Bible-01.png",
+          "../images/內頁_頁面_3.jpg",
+          "../images/maxresdefault.jpg",
+          "../images/tw-11134207-7qul0-lj9ky32mjy5w86.jpg"
+        ]
+      },
+      {
+        "type": "forum",
+        "time": "06 / 20",
+        "name": "畢業展論壇", "nameEn": "Degree Show Forum",
+        "location": "實踐大學設計學院 B1 演講廳", "locationEn": "SCCD B1 Lecture Hall",
+        "city": "台北", "cityEn": "Taipei",
+        "refs": [
+          { "source": "lectures", "id": "L-2025-01" },
+          { "source": "lectures", "id": "L-2025-02" }
+        ]
+      },
+      {
+        "type": "workshop",
+        "time": "06 / 25",
+        "name": "畢業展工作營", "nameEn": "Degree Show Workshop",
+        "location": "實踐大學設計學院", "locationEn": "SCCD Building",
+        "city": "台北", "cityEn": "Taipei",
+        "refs": [
+          { "source": "workshop", "id": "W-2025-01" }
+        ]
+      }
     ]
   },
   "2023": {
@@ -30,6 +80,8 @@
     "descEn": "The 2023 Degree Show showcases the creative works of graduating students, reflecting their growth and artistic vision.",
     "descCn": "2023 畢業展呈現了畢業生的創意作品，反映他們的成長與藝術視野。",
     "coverImage": "../images/Degree Show.jpg",
+    "videoUrl": "https://www.youtube.com/embed/jNQXAC9IVRw",
+    "documentaryUrl": "https://www.youtube.com/embed/aqz-KE-bpKQ",
     "images": [
       "../images/S__6742028.jpg",
       "../images/CCC08866.jpg",

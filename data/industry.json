@@ -29,14 +29,24 @@
             "titleZh": "傾聽身體之島：感官覺察與即興肢體質地工作坊（II）"
           },
           {
-            "href": "../pages/library.html?section=files&item=1",
-            "labelEn": "Files",
-            "labelZh": "檔案庫",
+            "pdfUrl": "../assets/sample.pdf",
+            "labelEn": "Documents",
+            "labelZh": "文件",
             "titleEn": "Publication Title 1",
             "titleZh": "出版物標題 1"
           }
         ],
-        "id": "I-2025-01"
+        "id": "I-2025-01",
+        "dates": [
+          {
+            "startYear": 2025,
+            "startMonth": 3,
+            "startDay": 10,
+            "endYear": 2025,
+            "endMonth": 3,
+            "endDay": 10
+          }
+        ]
       },
       {
         "title": "UI/UX 設計產學合作",
@@ -59,7 +69,17 @@
           "../images/SCCD-1-4-0.jpg",
           "../images/CCC08866.jpg"
         ],
-        "id": "I-2025-02"
+        "id": "I-2025-02",
+        "dates": [
+          {
+            "startYear": 2025,
+            "startMonth": 9,
+            "startDay": 15,
+            "endYear": 2025,
+            "endMonth": 9,
+            "endDay": 15
+          }
+        ]
       }
     ]
   },
@@ -87,7 +107,17 @@
           "../images/S__6742028.jpg",
           "../images/SCCD-1-4-0.jpg"
         ],
-        "id": "I-2024-01"
+        "id": "I-2024-01",
+        "dates": [
+          {
+            "startYear": 2024,
+            "startMonth": 5,
+            "startDay": 20,
+            "endYear": 2024,
+            "endMonth": 5,
+            "endDay": 20
+          }
+        ]
       },
       {
         "title": "品牌策略與設計產學計畫",
@@ -103,7 +133,17 @@
         "images": [
           "../images/Degree Show.jpg"
         ],
-        "id": "I-2024-02"
+        "id": "I-2024-02",
+        "dates": [
+          {
+            "startYear": 2024,
+            "startMonth": 10,
+            "startDay": 1,
+            "endYear": 2024,
+            "endMonth": 10,
+            "endDay": 1
+          }
+        ]
       }
     ]
   },
@@ -129,7 +169,17 @@
           "../images/SCCD-1-4-0.jpg",
           "../images/S__6742028.jpg"
         ],
-        "id": "I-2023-01"
+        "id": "I-2023-01",
+        "dates": [
+          {
+            "startYear": 2023,
+            "startMonth": 4,
+            "startDay": 10,
+            "endYear": 2023,
+            "endMonth": 4,
+            "endDay": 10
+          }
+        ]
       },
       {
         "title": "動態影像設計產學計畫",
@@ -150,7 +200,17 @@
             "name_zh": "奧美廣告台灣"
           }
         ],
-        "id": "I-2023-02"
+        "id": "I-2023-02",
+        "dates": [
+          {
+            "startYear": 2023,
+            "startMonth": 9,
+            "startDay": 1,
+            "endYear": 2023,
+            "endMonth": 9,
+            "endDay": 1
+          }
+        ]
       }
     ]
   },
@@ -172,7 +232,17 @@
             "name_zh": "麥肯廣告台灣"
           }
         ],
-        "id": "I-2022-01"
+        "id": "I-2022-01",
+        "dates": [
+          {
+            "startYear": 2022,
+            "startMonth": 3,
+            "startDay": 15,
+            "endYear": 2022,
+            "endMonth": 3,
+            "endDay": 15
+          }
+        ]
       },
       {
         "title": "遊戲美術產學計畫",
@@ -193,7 +263,17 @@
             "name_zh": "遊戲橘子數位科技"
           }
         ],
-        "id": "I-2022-02"
+        "id": "I-2022-02",
+        "dates": [
+          {
+            "startYear": 2022,
+            "startMonth": 7,
+            "startDay": 20,
+            "endYear": 2022,
+            "endMonth": 7,
+            "endDay": 20
+          }
+        ]
       },
       {
         "title": "展覽設計產學合作",
@@ -210,7 +290,17 @@
             "name_zh": "台北市立美術館"
           }
         ],
-        "id": "I-2022-03"
+        "id": "I-2022-03",
+        "dates": [
+          {
+            "startYear": 2022,
+            "startMonth": 10,
+            "startDay": 1,
+            "endYear": 2022,
+            "endMonth": 10,
+            "endDay": 1
+          }
+        ]
       }
     ]
   },
@@ -232,7 +322,17 @@
             "name_zh": "字體設計公司"
           }
         ],
-        "id": "I-2021-01"
+        "id": "I-2021-01",
+        "dates": [
+          {
+            "startYear": 2021,
+            "startMonth": 4,
+            "startDay": 1,
+            "endYear": 2021,
+            "endMonth": 4,
+            "endDay": 1
+          }
+        ]
       },
       {
         "title": "社會設計產學合作",
@@ -253,7 +353,17 @@
             "name_zh": "青蛙設計"
           }
         ],
-        "id": "I-2021-02"
+        "id": "I-2021-02",
+        "dates": [
+          {
+            "startYear": 2021,
+            "startMonth": 9,
+            "startDay": 10,
+            "endYear": 2021,
+            "endMonth": 9,
+            "endDay": 10
+          }
+        ]
       }
     ]
   }

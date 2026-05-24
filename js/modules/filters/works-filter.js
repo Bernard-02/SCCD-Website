@@ -4,8 +4,8 @@
  */
 
 export function initWorksFilter() {
-  const worksFilterButtons = document.querySelectorAll('.works-filter-btn');
-  const worksContents = document.querySelectorAll('.works-content');
+  const worksFilterButtons = /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.works-filter-btn'));
+  const worksContents = /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.works-content'));
 
   if (worksFilterButtons.length === 0 || worksContents.length === 0) return;
 

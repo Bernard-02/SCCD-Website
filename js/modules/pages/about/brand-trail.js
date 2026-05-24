@@ -53,7 +53,7 @@ function initClassHighlight() {
   const colors = getAccentColors();
   panels.forEach(panel => {
     const color = colors[Math.floor(Math.random() * colors.length)];
-    panel.querySelectorAll('[data-class-hl]').forEach(el => {
+    /** @type {NodeListOf<HTMLElement>} */ (panel.querySelectorAll('[data-class-hl]')).forEach(el => {
       el.style.background = color;
     });
   });
@@ -66,7 +66,7 @@ function initWorksHighlight() {
   const colors = getAccentColors();
   panels.forEach(panel => {
     const color = colors[Math.floor(Math.random() * colors.length)];
-    panel.querySelectorAll('[data-works-hl]').forEach(el => {
+    /** @type {NodeListOf<HTMLElement>} */ (panel.querySelectorAll('[data-works-hl]')).forEach(el => {
       el.style.background = color;
     });
   });
@@ -247,7 +247,7 @@ function initMobileSlideshow() {
   if (window.innerWidth >= 768) return;
 
   const slideshow = document.getElementById('brand-slideshow');
-  const slideImg = document.getElementById('brand-slide-img');
+  const slideImg = /** @type {HTMLImageElement | null} */ (document.getElementById('brand-slide-img'));
   if (!slideshow || !slideImg) return;
 
   let currentIndex = 0;

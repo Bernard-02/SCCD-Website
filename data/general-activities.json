@@ -21,7 +21,17 @@
           "../images/S__6742028.jpg",
           "../images/SCCD-1-4-0.jpg"
         ],
-        "id": "V-2025-01"
+        "id": "V-2025-01",
+        "dates": [
+          {
+            "startYear": 2025,
+            "startMonth": 3,
+            "startDay": 15,
+            "endYear": 2025,
+            "endMonth": 3,
+            "endDay": 15
+          }
+        ]
       },
       {
         "title": "年度媒體傳達設計展",
@@ -37,7 +47,17 @@
           "../images/SCCD-1-4-0.jpg",
           "../images/S__6742028.jpg"
         ],
-        "id": "ET-2025-01"
+        "id": "ET-2025-01",
+        "dates": [
+          {
+            "startYear": 2025,
+            "startMonth": 12,
+            "startDay": 20,
+            "endYear": 2026,
+            "endMonth": 1,
+            "endDay": 10
+          }
+        ]
       },
       {
         "title": "國際學生設計競賽",
@@ -49,7 +69,17 @@
         "poster": "",
         "videos": [],
         "images": [],
-        "id": "CP-2025-01"
+        "id": "CP-2025-01",
+        "dates": [
+          {
+            "startYear": 2025,
+            "startMonth": 6,
+            "startDay": 1,
+            "endYear": 2025,
+            "endMonth": 6,
+            "endDay": 1
+          }
+        ]
       },
       {
         "title": "永續媒體設計研討會",
@@ -63,7 +93,17 @@
         "images": [
           "../images/SCCD-1-4-0.jpg"
         ],
-        "id": "CF-2025-01"
+        "id": "CF-2025-01",
+        "dates": [
+          {
+            "startYear": 2025,
+            "startMonth": 7,
+            "startDay": 20,
+            "endYear": 2025,
+            "endMonth": 7,
+            "endDay": 20
+          }
+        ]
       },
       {
         "title": "新北市設計博物館",
@@ -80,7 +120,17 @@
           "../images/S__6742028.jpg",
           "../images/SCCD-1-4-0.jpg"
         ],
-        "id": "V-2025-02"
+        "id": "V-2025-02",
+        "dates": [
+          {
+            "startYear": 2025,
+            "startMonth": 9,
+            "startDay": 12,
+            "endYear": 2025,
+            "endMonth": 9,
+            "endDay": 12
+          }
+        ]
       },
       {
         "title": "學生優異作品展",
@@ -99,7 +149,17 @@
           "../images/CCC08866.jpg",
           "../images/Degree Show.jpg"
         ],
-        "id": "ET-2025-02"
+        "id": "ET-2025-02",
+        "dates": [
+          {
+            "startYear": 2025,
+            "startMonth": 10,
+            "startDay": 8,
+            "endYear": 2025,
+            "endMonth": 10,
+            "endDay": 15
+          }
+        ]
       },
       {
         "title": "亞太地區青年設計獎",
@@ -111,7 +171,17 @@
         "poster": "",
         "videos": [],
         "images": [],
-        "id": "CP-2025-02"
+        "id": "CP-2025-02",
+        "dates": [
+          {
+            "startYear": 2025,
+            "startMonth": 11,
+            "startDay": 1,
+            "endYear": 2025,
+            "endMonth": 11,
+            "endDay": 1
+          }
+        ]
       },
       {
         "title": "媒體傳達設計前衛論壇",
@@ -126,7 +196,17 @@
           "../images/SCCD-1-4-0.jpg",
           "../images/S__6742028.jpg"
         ],
-        "id": "CF-2025-02"
+        "id": "CF-2025-02",
+        "dates": [
+          {
+            "startYear": 2025,
+            "startMonth": 11,
+            "startDay": 25,
+            "endYear": 2025,
+            "endMonth": 11,
+            "endDay": 25
+          }
+        ]
       },
       {
         "title": "荷蘭設計學院交流",
@@ -143,7 +223,17 @@
           "../images/SCCD-1-4-0.jpg",
           "../images/S__6742028.jpg"
         ],
-        "id": "VI-2025-01"
+        "id": "VI-2025-01",
+        "dates": [
+          {
+            "startYear": 2025,
+            "startMonth": 2,
+            "startDay": 20,
+            "endYear": 2025,
+            "endMonth": 2,
+            "endDay": 20
+          }
+        ]
       },
       {
         "title": "高雄設計文化",
@@ -164,7 +254,17 @@
           "../images/maxresdefault.jpg",
           "../images/tw-11134207-7qul0-lj9ky32mjy5w86.jpg"
         ],
-        "id": "V-2025-04"
+        "id": "V-2025-04",
+        "dates": [
+          {
+            "startYear": 2025,
+            "startMonth": 12,
+            "startDay": 10,
+            "endYear": 2025,
+            "endMonth": 12,
+            "endDay": 11
+          }
+        ]
       }
     ]
   },
@@ -185,7 +285,17 @@
           "../images/S__6742028.jpg",
           "../images/SCCD-1-4-0.jpg"
         ],
-        "id": "CF-2024-01"
+        "id": "CF-2024-01",
+        "dates": [
+          {
+            "startYear": 2024,
+            "startMonth": 3,
+            "startDay": 8,
+            "endYear": 2024,
+            "endMonth": 3,
+            "endDay": 8
+          }
+        ]
       },
       {
         "title": "東京設計",
@@ -205,7 +315,17 @@
           "../images/Degree Show.jpg",
           "../images/maxresdefault.jpg"
         ],
-        "id": "V-2024-01"
+        "id": "V-2024-01",
+        "dates": [
+          {
+            "startYear": 2024,
+            "startMonth": 4,
+            "startDay": 15,
+            "endYear": 2024,
+            "endMonth": 4,
+            "endDay": 19
+          }
+        ]
       },
       {
         "title": "媒體傳達設計年展",
@@ -221,7 +341,17 @@
           "../images/SCCD-1-4-0.jpg",
           "../images/S__6742028.jpg"
         ],
-        "id": "ET-2024-01"
+        "id": "ET-2024-01",
+        "dates": [
+          {
+            "startYear": 2024,
+            "startMonth": 5,
+            "startDay": 20,
+            "endYear": 2024,
+            "endMonth": 5,
+            "endDay": 28
+          }
+        ]
       },
       {
         "title": "全國大學生設計競賽",
@@ -233,7 +363,17 @@
         "poster": "",
         "videos": [],
         "images": [],
-        "id": "CP-2024-01"
+        "id": "CP-2024-01",
+        "dates": [
+          {
+            "startYear": 2024,
+            "startMonth": 7,
+            "startDay": 1,
+            "endYear": 2024,
+            "endMonth": 7,
+            "endDay": 1
+          }
+        ]
       },
       {
         "title": "京都精華大學交流",
@@ -250,7 +390,17 @@
           "../images/SCCD-1-4-0.jpg",
           "../images/CCC08866.jpg"
         ],
-        "id": "VI-2024-01"
+        "id": "VI-2024-01",
+        "dates": [
+          {
+            "startYear": 2024,
+            "startMonth": 6,
+            "startDay": 5,
+            "endYear": 2024,
+            "endMonth": 6,
+            "endDay": 5
+          }
+        ]
       },
       {
         "title": "韓國設計中心",
@@ -271,7 +421,17 @@
           "../images/maxresdefault.jpg",
           "../images/tw-11134207-7qul0-lj9ky32mjy5w86.jpg"
         ],
-        "id": "V-2024-03"
+        "id": "V-2024-03",
+        "dates": [
+          {
+            "startYear": 2024,
+            "startMonth": 8,
+            "startDay": 18,
+            "endYear": 2024,
+            "endMonth": 8,
+            "endDay": 22
+          }
+        ]
       },
       {
         "title": "數位媒體藝術展",
@@ -286,7 +446,17 @@
         "images": [
           "../images/SCCD-1-4-0.jpg"
         ],
-        "id": "ET-2024-02"
+        "id": "ET-2024-02",
+        "dates": [
+          {
+            "startYear": 2024,
+            "startMonth": 9,
+            "startDay": 5,
+            "endYear": 2024,
+            "endMonth": 9,
+            "endDay": 12
+          }
+        ]
       },
       {
         "title": "創意產業發展論壇",
@@ -302,7 +472,17 @@
           "../images/S__6742028.jpg",
           "../images/SCCD-1-4-0.jpg"
         ],
-        "id": "CF-2024-02"
+        "id": "CF-2024-02",
+        "dates": [
+          {
+            "startYear": 2024,
+            "startMonth": 10,
+            "startDay": 12,
+            "endYear": 2024,
+            "endMonth": 10,
+            "endDay": 12
+          }
+        ]
       },
       {
         "title": "國際海報設計競賽",
@@ -314,7 +494,17 @@
         "poster": "",
         "videos": [],
         "images": [],
-        "id": "CP-2024-02"
+        "id": "CP-2024-02",
+        "dates": [
+          {
+            "startYear": 2024,
+            "startMonth": 11,
+            "startDay": 30,
+            "endYear": 2024,
+            "endMonth": 11,
+            "endDay": 30
+          }
+        ]
       },
       {
         "title": "學系年度作品展覽",
@@ -331,7 +521,17 @@
           "../images/S__6742028.jpg",
           "../images/SCCD-1-4-0.jpg"
         ],
-        "id": "ET-2024-03"
+        "id": "ET-2024-03",
+        "dates": [
+          {
+            "startYear": 2024,
+            "startMonth": 12,
+            "startDay": 15,
+            "endYear": 2024,
+            "endMonth": 12,
+            "endDay": 22
+          }
+        ]
       }
     ]
   },
@@ -356,7 +556,17 @@
           "../images/Degree Show.jpg",
           "../images/maxresdefault.jpg"
         ],
-        "id": "ET-2023-01"
+        "id": "ET-2023-01",
+        "dates": [
+          {
+            "startYear": 2023,
+            "startMonth": 4,
+            "startDay": 8,
+            "endYear": 2023,
+            "endMonth": 4,
+            "endDay": 16
+          }
+        ]
       },
       {
         "title": "新加坡設計周",
@@ -373,7 +583,17 @@
           "../images/S__6742028.jpg",
           "../images/SCCD-1-4-0.jpg"
         ],
-        "id": "V-2023-01"
+        "id": "V-2023-01",
+        "dates": [
+          {
+            "startYear": 2023,
+            "startMonth": 5,
+            "startDay": 14,
+            "endYear": 2023,
+            "endMonth": 5,
+            "endDay": 18
+          }
+        ]
       },
       {
         "title": "智慧城市設計論壇",
@@ -387,7 +607,17 @@
         "images": [
           "../images/SCCD-1-4-0.jpg"
         ],
-        "id": "CF-2023-01"
+        "id": "CF-2023-01",
+        "dates": [
+          {
+            "startYear": 2023,
+            "startMonth": 6,
+            "startDay": 22,
+            "endYear": 2023,
+            "endMonth": 6,
+            "endDay": 22
+          }
+        ]
       },
       {
         "title": "全亞最佳學生設計獎",
@@ -399,7 +629,17 @@
         "poster": "",
         "videos": [],
         "images": [],
-        "id": "CP-2023-01"
+        "id": "CP-2023-01",
+        "dates": [
+          {
+            "startYear": 2023,
+            "startMonth": 7,
+            "startDay": 10,
+            "endYear": 2023,
+            "endMonth": 7,
+            "endDay": 10
+          }
+        ]
       },
       {
         "title": "東北大學設計學院",
@@ -415,7 +655,17 @@
           "../images/SCCD-1-4-0.jpg",
           "../images/S__6742028.jpg"
         ],
-        "id": "V-2023-02"
+        "id": "V-2023-02",
+        "dates": [
+          {
+            "startYear": 2023,
+            "startMonth": 9,
+            "startDay": 16,
+            "endYear": 2023,
+            "endMonth": 9,
+            "endDay": 18
+          }
+        ]
       },
       {
         "title": "畢業生優異作品展",
@@ -432,7 +682,17 @@
           "../images/S__6742028.jpg",
           "../images/SCCD-1-4-0.jpg"
         ],
-        "id": "ET-2023-02"
+        "id": "ET-2023-02",
+        "dates": [
+          {
+            "startYear": 2023,
+            "startMonth": 10,
+            "startDay": 5,
+            "endYear": 2023,
+            "endMonth": 10,
+            "endDay": 12
+          }
+        ]
       },
       {
         "title": "數位轉型設計研討會",
@@ -449,7 +709,17 @@
           "../images/SCCD-1-4-0.jpg",
           "../images/CCC08866.jpg"
         ],
-        "id": "CF-2023-02"
+        "id": "CF-2023-02",
+        "dates": [
+          {
+            "startYear": 2023,
+            "startMonth": 11,
+            "startDay": 18,
+            "endYear": 2023,
+            "endMonth": 11,
+            "endDay": 18
+          }
+        ]
       },
       {
         "title": "台灣青年設計獎",
@@ -461,7 +731,17 @@
         "poster": "",
         "videos": [],
         "images": [],
-        "id": "CP-2023-02"
+        "id": "CP-2023-02",
+        "dates": [
+          {
+            "startYear": 2023,
+            "startMonth": 12,
+            "startDay": 1,
+            "endYear": 2023,
+            "endMonth": 12,
+            "endDay": 1
+          }
+        ]
       },
       {
         "title": "首爾大學藝術學院",
@@ -478,7 +758,17 @@
           "../images/SCCD-1-4-0.jpg",
           "../images/Degree Show.jpg"
         ],
-        "id": "VI-2023-01"
+        "id": "VI-2023-01",
+        "dates": [
+          {
+            "startYear": 2023,
+            "startMonth": 10,
+            "startDay": 25,
+            "endYear": 2023,
+            "endMonth": 10,
+            "endDay": 25
+          }
+        ]
       },
       {
         "title": "德國國際設計博物館",
@@ -498,7 +788,17 @@
           "../images/CCC08866.jpg",
           "../images/Degree Show.jpg"
         ],
-        "id": "V-2023-04"
+        "id": "V-2023-04",
+        "dates": [
+          {
+            "startYear": 2023,
+            "startMonth": 12,
+            "startDay": 20,
+            "endYear": 2023,
+            "endMonth": 12,
+            "endDay": 27
+          }
+        ]
       }
     ]
   }

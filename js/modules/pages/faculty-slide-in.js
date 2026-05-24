@@ -97,13 +97,18 @@ export function initFacultySlideIn() {
   }
 
   // 包一個 section 區塊（左標題 + 右內容）；items 為空就回空字串不渲染
+  // 桌面：左標題 md:sticky md:top-0，sticky reference 是右欄獨立 scroll container 上緣；
+  // 加 bg-white 蓋住 scroll 經過時下方 row 的字（否則 sticky title 半透疊字）；
+  // self-start 避免 flex stretch 讓 title col 等高失去 sticky；
+  // h6 leading-none 把 line-height 壓成 font-size 讓字頂貼 col top，跟右側 row p2 文字頂部對齊
+  // md:pb-2 (= 0.5rem)：對齊 .faculty-grid-row 自身 padding-bottom: 0.5rem，sticky 失效臨界點對齊最後一個 row 底邊
   function buildSection(titleEn, titleZh, items, renderRow) {
     if (!Array.isArray(items) || items.length === 0) return '';
     const rows = items.map(renderRow).join('');
     return `
       <div class="flex flex-col md:flex-row gap-xs md:gap-sm">
-        <div class="w-full md:w-[20%] mb-xs md:mb-0">
-          <h6 class="text-black whitespace-nowrap">${titleEn} ${titleZh}</h6>
+        <div class="faculty-section-title-col w-full md:w-[20%] mb-xs md:mb-0 md:pb-2 md:sticky md:top-0 md:self-start md:z-[1]">
+          <h6 class="text-black whitespace-nowrap leading-none">${titleEn} ${titleZh}</h6>
         </div>
         <div class="flex-1">
           ${rows}
@@ -200,6 +205,8 @@ export function initFacultySlideIn() {
 
             const cardColor = getComputedStyle(card).getPropertyValue('--card-color').trim() || '#26BCFF';
             slideInPanel.style.backgroundColor = cardColor;
+            // 右欄 sticky title 用此 var 蓋住下方 scroll 經過的字（inherit 抓不到 painted bg）
+            slideInPanel.style.setProperty('--faculty-panel-bg', cardColor);
 
             slideIn.classList.remove('invisible', 'pointer-events-none');
             slideIn.classList.add('pointer-events-auto');

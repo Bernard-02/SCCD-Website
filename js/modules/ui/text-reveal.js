@@ -11,7 +11,7 @@
 export function initTextReveal(selector = '[data-text-reveal]') {
   if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') return;
 
-  const elements = document.querySelectorAll(selector);
+  const elements = /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll(selector));
   if (!elements.length) return;
 
   elements.forEach(el => {

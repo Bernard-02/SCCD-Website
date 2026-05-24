@@ -11,8 +11,24 @@ import { enterLightboxMode, exitLightboxMode } from './../lightbox/lightbox-shel
 
 let initialized = false;
 let shareOpen = false;
+let closing = false;
 // 已 prefetch 過的 URL — 避免同一個 share btn 被 hover/touch 多次重複 fetch
 const prefetchedUrls = new Set();
+
+// clip-path 進出場：4 方向隨機 inset reveal
+// inset 四值全 %（記憶教訓：混用單位 GSAP 跳終值不動畫）
+// 'top'    起點 inset(100% 0 0 0)   = 從下往上揭露
+// 'right'  起點 inset(0 100% 0 0)   = 從左往右揭露
+// 'bottom' 起點 inset(0 0 100% 0)   = 從上往下揭露
+// 'left'   起點 inset(0 0 0 100%)   = 從右往左揭露
+const DIR_FROM = {
+  top:    'inset(100% 0% 0% 0%)',
+  right:  'inset(0% 100% 0% 0%)',
+  bottom: 'inset(0% 0% 100% 0%)',
+  left:   'inset(0% 0% 0% 100%)',
+};
+const DIR_KEYS = Object.keys(DIR_FROM);
+let lastDir = null;
 
 function getQrEndpoint(url, size = 200) {
   return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(url)}`;
@@ -47,7 +63,7 @@ function prefetchQr(url) {
 // 卡片背景寫死白色，跟著 mode 變白字 = 白底白字消失
 const LIGHTBOX_HTML = `
   <div id="share-lightbox" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.9); align-items:center; justify-content:center;">
-    <div style="background:#fff; color:#000; width:320px; padding: var(--spacing-md); display:flex; flex-direction:column; gap: var(--spacing-lg);">
+    <div id="share-lightbox-card" style="background:#fff; color:#000; width:320px; padding: var(--spacing-md); display:flex; flex-direction:column; gap: var(--spacing-lg);">
       <!-- gap-sm + icon-m (20px) → title 起點 = 20+16 = 36px，對齊 QR (200px) 在內容寬 (320-48=272) 居中時的左 offset (272-200)/2=36px -->
       <div style="display:flex; align-items:center; gap: var(--spacing-sm);">
         <button id="share-lightbox-close" style="line-height:1; color:#000;" aria-label="關閉 Close">
@@ -76,24 +92,50 @@ function injectHtml() {
   document.body.insertAdjacentHTML('beforeend', LIGHTBOX_HTML);
 }
 
+function pickDir() {
+  // 不重複上一輪方向，避免「同向又跑一次」感覺單調
+  const pool = lastDir ? DIR_KEYS.filter(d => d !== lastDir) : DIR_KEYS;
+  const dir = pool[Math.floor(Math.random() * pool.length)];
+  lastDir = dir;
+  return dir;
+}
+
 function openShareLightbox(url) {
   const lightbox = document.getElementById('share-lightbox');
-  if (!lightbox) return;
+  const card = document.getElementById('share-lightbox-card');
+  if (!lightbox || !card) return;
 
   // 填入 QR code 與 URL — crossOrigin 給 download 走 canvas 去背用
   // hover/touch 預先 prefetchQr 過時，這裡 src 設同 URL → HTTP cache hit → onload 同步 fire = 即時
   // 沒 prefetch 命中時 opacity:0 → onload 後 fade-in 蓋掉等待空窗
-  const qrImg = document.getElementById('share-qr-img');
+  const qrImg = /** @type {HTMLImageElement} */ (document.getElementById('share-qr-img'));
   qrImg.crossOrigin = 'anonymous';
   qrImg.style.opacity = '0';
   qrImg.onload = () => { qrImg.style.opacity = '1'; };
   qrImg.src = getQrEndpoint(url);
   const MAX_URL_LEN = 50;
-  const urlEl = document.getElementById('share-url-text');
+  const urlEl = /** @type {HTMLElement} */ (document.getElementById('share-url-text'));
   urlEl.textContent = url.length > MAX_URL_LEN ? url.slice(0, MAX_URL_LEN) : url;
   urlEl.dataset.fullUrl = url;
 
   lightbox.style.display = 'flex';
+  // 進場 clip-path：方向隨機，從一邊揭露整張卡片
+  // fromTo 確保 from-state 強制套用（避 first-open 從 'none' 跳終值）
+  if (typeof gsap !== 'undefined') {
+    const dir = pickDir();
+    card.dataset.enterDir = dir;
+    gsap.fromTo(card,
+      { clipPath: DIR_FROM[dir] },
+      {
+        clipPath: 'inset(0% 0% 0% 0%)',
+        duration: 0.6,
+        ease: 'power3.out',
+        overwrite: true,
+        onComplete: () => { card.style.clipPath = ''; },
+      }
+    );
+  }
+
   if (!shareOpen) {
     shareOpen = true;
     enterLightboxMode();
@@ -102,21 +144,46 @@ function openShareLightbox(url) {
 
 function closeShareLightbox() {
   const lightbox = document.getElementById('share-lightbox');
-  if (!lightbox) return;
-  lightbox.style.display = 'none';
-  if (shareOpen) {
-    shareOpen = false;
-    exitLightboxMode();
+  const card = document.getElementById('share-lightbox-card');
+  if (!lightbox || !card) return;
+  if (closing) return;
+
+  const finish = () => {
+    closing = false;
+    lightbox.style.display = 'none';
+    card.style.clipPath = '';
+    if (shareOpen) {
+      shareOpen = false;
+      exitLightboxMode();
+    }
+  };
+
+  // 退場 clip-path：用同一輪 enter 的方向收回去（對稱感）
+  if (typeof gsap !== 'undefined') {
+    closing = true;
+    const dir = card.dataset.enterDir && DIR_FROM[card.dataset.enterDir] ? card.dataset.enterDir : pickDir();
+    gsap.fromTo(card,
+      { clipPath: 'inset(0% 0% 0% 0%)' },
+      {
+        clipPath: DIR_FROM[dir],
+        duration: 0.5,
+        ease: 'power3.in',
+        overwrite: true,
+        onComplete: finish,
+      }
+    );
+  } else {
+    finish();
   }
 }
 
 // 把 QR PNG 的白底像素改透明 → 下載成去背 PNG
 // qrserver.com 不支援 transparent bgcolor 參數，必須 client-side canvas 處理
 async function downloadTransparentQr() {
-  const img = document.getElementById('share-qr-img');
+  const img = /** @type {HTMLImageElement | null} */ (document.getElementById('share-qr-img'));
   if (!img?.src) return;
   // 顯示用 200×200，下載另抓 512×512 高解析版（同 URL data，不同 size 參數）
-  const url = document.getElementById('share-url-text')?.dataset.fullUrl;
+  const url = /** @type {HTMLElement | null} */ (document.getElementById('share-url-text'))?.dataset.fullUrl;
   if (!url) return;
   const imgEl = new Image();
   imgEl.crossOrigin = 'anonymous';
@@ -184,7 +251,7 @@ export function initShareModal() {
 
   // Share btn delegation（支援任何頁面的 [data-share-btn]）
   document.addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-share-btn]');
+    const btn = /** @type {HTMLElement} */ (e.target).closest('[data-share-btn]');
     if (!btn) return;
     openShareLightbox(computeShareUrl(btn));
   });
@@ -192,14 +259,14 @@ export function initShareModal() {
   // Hover prefetch — 桌面 user hover 過後 QR 已在 HTTP cache，點擊瞬間 onload 即觸發
   // mouseover (bubbles) 而非 mouseenter (不 bubble) 才能 document-level delegate；e.target.closest 過濾子元素重複觸發
   document.addEventListener('mouseover', (e) => {
-    const btn = e.target.closest?.('[data-share-btn]');
+    const btn = /** @type {HTMLElement} */ (e.target).closest?.('[data-share-btn]');
     if (!btn) return;
     prefetchQr(computeShareUrl(btn));
   });
 
   // Touch prefetch — 手機沒 hover；touchstart 在 click 前 ~300ms（含 tap delay）觸發，足以塞滿 cache
   document.addEventListener('touchstart', (e) => {
-    const btn = e.target.closest?.('[data-share-btn]');
+    const btn = /** @type {HTMLElement} */ (e.target).closest?.('[data-share-btn]');
     if (!btn) return;
     prefetchQr(computeShareUrl(btn));
   }, { passive: true });

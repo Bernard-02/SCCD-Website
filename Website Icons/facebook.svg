@@ -5,16 +5,7 @@
       .cls-1 {
         stroke-width: 0px;
       }
-
-      .cls-2 {
-        fill: none;
-        stroke: #000;
-        stroke-miterlimit: 10;
-        stroke-width: 14px;
-      }
     </style>
   </defs>
-  <path class="cls-1" d="M138.06,22v116H22.06V22h116M152.06,8H8.06v144h144V8h0Z"/>
-  <polyline class="cls-2" points="96 144 96 48 120 48"/>
-  <line class="cls-2" x1="120" y1="80" x2="72" y2="80"/>
+  <path class="cls-1" d="M7.94,8v144h144V8H7.94ZM119.88,55h-17v18h17v14h-17v57h-14v-57h-17v-14h17v-32h31v14Z"/>
 </svg>

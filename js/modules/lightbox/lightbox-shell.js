@@ -130,11 +130,26 @@ function restoreLightboxTops() {
   });
 }
 
+// 可 scroll 頁（activities）user 滾到 footer 區時 header bars+logo 已被 footer-near scroll listener
+// clip 收起；body lock 後 listener 不再 fire → 殘留 hide state 蓋掉 lightbox 的 hide/show 動畫。
+// 用 window 全域 hook 解耦：header.js 載入時 set window.__sccdResetFooterHide，
+// shell 在 enterLightboxMode 時 call 一下；對 library 等 h-screen 頁是 no-op（barsHidden false）。
+// 不用 import header.js 避免循環依賴。
+function callResetFooterHide() {
+  if (typeof window !== 'undefined' && typeof window.__sccdResetFooterHide === 'function') {
+    window.__sccdResetFooterHide();
+  }
+}
+
 export function enterLightboxMode() {
   if (openCount === 0) {
+    callResetFooterHide();
     // 不再 save/restore bodyOverflowBefore：cleanupPageModules 開頭 blanket reset body.style.overflow=''，
     // 加上 lightbox 開關情境下 body 預期就是 '' → 永遠存到 '' 又還原成 ''，純 no-op
     document.body.style.overflow = 'hidden';
+    // logo 切換交給 theme-toggle MutationObserver 監聽 body.lightbox-open class：
+    // add → switchHeaderLogo(inverse/wireframe-inverse)；remove → switchHeaderLogo(standard/inverse/wireframe)
+    // caller 不應自己 call switchHeaderLogo，否則跟 Observer 撞 race（logoLoadGeneration +2 → 第一次 load stale）
     document.body.classList.add('lightbox-open');
     raiseHeaderZ();
     padLightboxTops();

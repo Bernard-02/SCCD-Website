@@ -54,7 +54,7 @@
 
       <!-- 區塊 1：返回鍵 — height fix 3rem 避免內 icon size 變化影響 pill 高度 -->
       <div id="video-block-close" style="background:transparent; padding:0 1rem; height:3rem; display:flex; align-items:center;">
-        <button id="video-close-btn" style="color:#fff; background:none; border:none; cursor:pointer; padding:0; line-height:1; display:flex; align-items:center;">
+        <button id="video-close-btn" style="color:#fff; background:none; border:none; padding:0; line-height:1; display:flex; align-items:center;">
           <span class="icon icon-arrow-left icon-l"></span>
         </button>
       </div>
@@ -63,12 +63,12 @@
       <div id="video-block-center" style="background:transparent; padding:0 1.25rem; height:3rem; display:flex; align-items:center; gap:1.25rem; flex:1; min-width:0; margin:0 1rem;">
 
         <!-- Play -->
-        <button id="video-play-btn" style="color:#fff; background:none; border:none; cursor:pointer; padding:0; line-height:1; width:1.5rem; text-align:center; flex-shrink:0;">
+        <button id="video-play-btn" style="color:#fff; background:none; border:none; padding:0; line-height:1; width:1.5rem; text-align:center; flex-shrink:0;">
           <span class="icon icon-play icon-l"></span>
         </button>
 
         <!-- 時間軸（flex:1）— track 全黑 + fill 全黑（連續黑線）；thumb = 4px 寬黑色直線，靠上下伸出 5px 標位置 -->
-        <div id="video-progress-track" style="flex:1; height:4px; background:#000; cursor:pointer; position:relative; min-width:0;">
+        <div id="video-progress-track" style="flex:1; height:4px; background:#000; position:relative; min-width:0;">
           <div id="video-progress-fill" style="height:100%; width:0%; pointer-events:none; position:relative; background:#000;">
             <div id="video-progress-thumb" style="position:absolute; right:-2px; top:50%; transform:translateY(-50%); width:4px; height:14px; background:#000; pointer-events:none;"></div>
           </div>
@@ -79,10 +79,10 @@
 
         <!-- Volume — hover 展開 slider；slider 全黑風格同 progress -->
         <div id="video-volume-wrap" style="display:flex; align-items:center; gap:0.75rem; flex-shrink:0;">
-          <button id="video-mute-btn" style="color:#fff; background:none; border:none; cursor:pointer; padding:0; line-height:1;">
+          <button id="video-mute-btn" style="color:#fff; background:none; border:none; padding:0; line-height:1;">
             <span class="icon icon-volume icon-l"></span>
           </button>
-          <div id="video-volume-track" style="width:0; overflow:visible; transition:width 0.25s cubic-bezier(0.25,0,0,1); height:4px; background:#000; position:relative; cursor:pointer; flex-shrink:0;">
+          <div id="video-volume-track" style="width:0; overflow:visible; transition:width 0.25s cubic-bezier(0.25,0,0,1); height:4px; background:#000; position:relative; flex-shrink:0;">
             <div id="video-volume-fill" style="height:100%; width:100%; background:#000; pointer-events:none; position:relative;">
               <div id="video-volume-thumb" style="position:absolute; right:-2px; top:50%; transform:translateY(-50%); width:4px; height:14px; background:#000; pointer-events:none; opacity:0; transition:opacity 0.25s;"></div>
             </div>
@@ -93,7 +93,7 @@
 
       <!-- 區塊 3：全螢幕 -->
       <div id="video-block-fullscreen" style="background:transparent; padding:0 1rem; height:3rem; display:flex; align-items:center;">
-        <button id="video-fullscreen-btn" style="color:#fff; background:none; border:none; cursor:pointer; padding:0; line-height:1;">
+        <button id="video-fullscreen-btn" style="color:#fff; background:none; border:none; padding:0; line-height:1;">
           <span class="icon icon-full-screen icon-l"></span>
         </button>
       </div>

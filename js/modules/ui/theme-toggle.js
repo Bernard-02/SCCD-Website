@@ -114,12 +114,9 @@ function applyColorVars() {
   // ref/chip 在容器內要跟 theme-fg 同側才能襯托而非合體 → 亮 hue → gray-2 深灰、暗 hue → gray-9 淺灰
   root.style.setProperty('--theme-neutral-gray-inverse', isLightBg ? 'var(--gray-2)' : 'var(--gray-9)');
 
-  // --lib-bg 連續動態純中性灰（mode3）：對比方向同 mode1/2（亮 page→淺灰底 / 暗 page→深灰底），
-  // 但深淺隨 page bg luminance 連續變化（不是兩階切換）
-  // 亮頁 (lum 0.5~1.0) → 灰 L 0.7~0.92；暗頁 (lum 0~0.5) → 灰 L 0.08~0.30
-  const grayL = isLightBg ? 0.7 + (lum - 0.5) * 0.44 : 0.08 + lum * 0.44;
-  const grayByte = Math.round(grayL * 255);
-  root.style.setProperty('--lib-bg', `rgb(${grayByte}, ${grayByte}, ${grayByte})`);
+  // --lib-bg 兩階切換（mode3）：對齊 mode1/2 的固定灰值，依 page bg luminance 翻
+  // 亮 page → #f2f2f2（同 mode1 standard）/ 暗 page → #333333（同 mode2 inverse）
+  root.style.setProperty('--lib-bg', isLightBg ? '#f2f2f2' : '#333333');
 
   // Header logo（wireframe）對比翻色：wireframe-standard base 黑色，暗底套 invert(1) 變白
   // 直接比對 style.filter（cheap read）避免維護 lastIsLightBg 狀態 + 處理 logo async load 的 race
@@ -263,7 +260,7 @@ export function initThemeToggle() {
 }
 
 function bindToggleBtns() {
-  document.querySelectorAll('.theme-toggle-btn').forEach(btn => {
+  /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.theme-toggle-btn')).forEach(btn => {
     if (btn.dataset.themeBound) return; // 防重複綁定
     btn.dataset.themeBound = '1';
     btn.addEventListener('click', () => {

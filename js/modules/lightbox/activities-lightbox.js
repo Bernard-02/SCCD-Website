@@ -5,6 +5,7 @@
  */
 
 import { enterLightboxMode, exitLightboxMode } from './lightbox-shell.js';
+import { createRefBtn } from './lightbox-ref-btn.js';
 
 let lightboxEl = null;
 let mainEl = null;
@@ -24,6 +25,7 @@ let zoomPctEl = null;
 let fitToggleBtn = null;
 let closePillEl = null;
 let mainContainerEl = null;
+let refUi = null;  // { btnEl, popoverEl, setReferences, setColor, reset }
 
 // ── Zoom 狀態（仿 Windows Photos：滾輪游標中心縮放 + 拖曳平移）─────
 // 只對 image 啟用。每次 renderMain 重置；mousemove/mouseup 綁 window 一次永久存活
@@ -62,12 +64,12 @@ function ensureLightbox() {
     <div class="alb-main-container flex items-center justify-center w-full px-16 md:px-32 py-xl flex-1 min-h-0 relative">
       <!-- chevron 左右對齊 container-padding（= logo / back btn pill 的 viewport margin），絕對定位獨立元件不受 back btn 隨機旋轉影響
            z-index:30 必要：chevron 在 alb-main 之前的 DOM siblings，下層；alb-main / zoomStage w-full h-full 蓋在上面 → 不拉 z 點不到
-           disabled 視覺：opacity-30 + grey + cursor-not-allowed（原 opacity-20 太淡看不到顏色變化） -->
-      <button class="alb-prev absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 disabled:opacity-30 disabled:text-gray-500 disabled:cursor-not-allowed disabled:hover:opacity-30" style="left: var(--container-padding, 1.5rem); z-index: 30;">
+           disabled 視覺：opacity-50 保留白色（user 要求：「到底了」的暗示，不是 disabled grey 感）+ cursor-not-allowed -->
+      <button class="alb-prev absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:opacity-50" style="left: var(--container-padding, 1.5rem); z-index: 30;">
         <span class="icon icon-chevron-lightbox icon-m"></span>
       </button>
       <div class="alb-main flex items-center justify-center w-full h-full"></div>
-      <button class="alb-next absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 disabled:opacity-30 disabled:text-gray-500 disabled:cursor-not-allowed disabled:hover:opacity-30" style="right: var(--container-padding, 1.5rem); z-index: 30;">
+      <button class="alb-next absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:opacity-50" style="right: var(--container-padding, 1.5rem); z-index: 30;">
         <span class="icon icon-chevron-lightbox icon-m rotate-180"></span>
       </button>
     </div>
@@ -122,6 +124,15 @@ function ensureLightbox() {
   fitToggleBtn   = lightboxEl.querySelector('.alb-fit-toggle');
   closePillEl    = lightboxEl.querySelector('.alb-close-pill');
   mainContainerEl = lightboxEl.querySelector('.alb-main-container');
+
+  // Ref btn：插在 close btn 跟 title pill 之間（flex 順序）；popover append 到 lightbox root
+  refUi = createRefBtn('#00FF80', () => closeLightboxAsync());
+  refUi.btnEl.classList.add('alb-ref-btn');
+  const topbarEl = lightboxEl.querySelector('.alb-topbar');
+  if (topbarEl && titleEl) {
+    topbarEl.insertBefore(refUi.btnEl, titleEl);
+  }
+  lightboxEl.appendChild(refUi.popoverEl);
 
   prevBtn.addEventListener('click', () => navigate(-1));
   nextBtn.addEventListener('click', () => navigate(1));
@@ -179,8 +190,8 @@ function ensureLightbox() {
     if (!isDragging) return;
     isDragging = false;
     if (zoomImg) zoomImg.style.cursor = zoom.scale > 1
-      ? "url('/custom-cursor/drag_1.svg') 16 16, grab"
-      : "url('/custom-cursor/zoom-in.svg') 4 4, zoom-in";
+      ? "url('/custom-cursor/drag_1.svg') 10 10, grab"
+      : "url('/custom-cursor/zoom-in.svg') 6 6, zoom-in";
   });
 }
 
@@ -190,10 +201,10 @@ function applyZoom(animated = false) {
   zoomImg.style.transition = animated ? 'transform 0.2s ease-out' : 'none';
   zoomImg.style.transform = `translate(${zoom.tx}px, ${zoom.ty}px) scale(${zoom.scale})`;
   zoomImg.style.cursor = isDragging
-    ? "url('/custom-cursor/drag_2.svg') 16 16, grabbing"
+    ? "url('/custom-cursor/drag_2.svg') 10 10, grabbing"
     : (zoom.scale > 1
-        ? "url('/custom-cursor/drag_1.svg') 16 16, grab"
-        : "url('/custom-cursor/zoom-in.svg') 4 4, zoom-in");
+        ? "url('/custom-cursor/drag_1.svg') 10 10, grab"
+        : "url('/custom-cursor/zoom-in.svg') 6 6, zoom-in");
   updateZoomUI();
 }
 
@@ -297,7 +308,7 @@ function renderMain(index) {
     zoomImg.alt = '';
     // transform-origin:center 配合 zoomAt 的數學（以 img 自身中心為旋轉基準）
     // user-select / -webkit-user-drag 關閉避免拖曳時觸發瀏覽器原生 image drag
-    zoomImg.style.cssText = "max-width:100%;max-height:100%;object-fit:contain;display:block;transform-origin:center;cursor:url('/custom-cursor/zoom-in.svg') 4 4, zoom-in;user-select:none;-webkit-user-drag:none;will-change:transform;";
+    zoomImg.style.cssText = "max-width:100%;max-height:100%;object-fit:contain;display:block;transform-origin:center;cursor:url('/custom-cursor/zoom-in.svg') 9 9, zoom-in;user-select:none;-webkit-user-drag:none;will-change:transform;";
     zoomImg.draggable = false;
 
     zoomStage.appendChild(zoomImg);
@@ -325,12 +336,15 @@ function renderMain(index) {
       isDragging = true;
       dragMoved = false;
       dragStart = { x: e.clientX, y: e.clientY, tx: zoom.tx, ty: zoom.ty };
-      zoomImg.style.cursor = "url('/custom-cursor/drag_2.svg') 16 16, grabbing";
+      zoomImg.style.cursor = "url('/custom-cursor/drag_2.svg') 15 15, grabbing";
       e.preventDefault();
     });
 
-    // 雙擊：在 fit ↔ DBLCLICK_SCALE 間切換（zoom-in 鎖游標位置）
-    zoomImg.addEventListener('dblclick', e => {
+    // 單擊 img：在 fit ↔ DBLCLICK_SCALE 間切換（zoom-in 鎖游標位置）
+    // cursor 顯示 zoom-in/grab 暗示「點擊可放大/收回」— affordance 一致
+    // 拖曳結束的 mouseup 也會 fire click，用 dragMoved gate 過濾
+    zoomImg.addEventListener('click', e => {
+      if (dragMoved) { dragMoved = false; return; }
       if (zoom.scale > 1) resetZoom(true);
       else zoomAt(e.clientX, e.clientY, DBLCLICK_SCALE, true);
     });
@@ -392,6 +406,8 @@ function probeImage(src) {
 // ── 開啟 ────────────────────────────────────────────────────────
 // opts.title = { en, zh }   左下角標題（含英中兩行）；省略則不顯示
 // opts.color = '#00FF80'    標題底色（建議帶入當前 section 的 accent 色）
+// opts.references = [{ section, itemId, labelEn, labelZh, titleEn, titleZh }]
+//                   為空 array 或省略 → ref btn 不顯示；點 ref chip 會關 lightbox 並 SPA 跳 activities
 export async function openLightbox(media, startIndex = 0, opts = {}) {
   ensureLightbox();
   const initial = media.filter(item => item && item.src && typeof item.src === 'string' && item.src.trim() !== '');
@@ -440,6 +456,11 @@ export async function openLightbox(media, startIndex = 0, opts = {}) {
   renderTitle(opts.title, opts.color);
   // 返回按鈕：底色用 caller 帶入 accent (與 title pill 同色)，隨機旋轉（每次開啟一個新角度）
   renderBackButton(opts.color);
+  // ref btn：跟 back btn 同 accent；無 references 時自動隱藏
+  if (refUi) {
+    refUi.setColor(opts.color || '#00FF80');
+    refUi.setReferences(opts.references);
+  }
   // 量 logo 底邊位置 → 同步 close btn top + main padding-top（避免 zoom image 蓋到 logo）
   positionUIRelativeToLogo();
 
@@ -546,6 +567,15 @@ function closeLightbox() {
     mainEl.innerHTML = '';
     // 清 zoom refs（fit/drag flags 等下次 renderMain 會重置）
     zoomImg = null; zoomStage = null; isDragging = false;
+    if (refUi) refUi.reset();
   }, 300);
   document.dispatchEvent(new CustomEvent('sccd:close-lightbox'));
+}
+
+// 給 ref btn 跳轉用：等 fadeout 完才 SPA 換頁，避免黑→新頁視覺斷層
+function closeLightboxAsync() {
+  return new Promise(resolve => {
+    closeLightbox();
+    setTimeout(resolve, 300);
+  });
 }

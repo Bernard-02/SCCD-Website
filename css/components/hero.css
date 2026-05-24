@@ -139,4 +139,60 @@
       width: 75vw;
     }
   }
+
+  /* Degree show detail sticky info card chip — 沿用 anchor-nav-inner pattern
+     外 .sticky-chip：transparent wrapper，吃 clip-path reveal + rotation；中性 transform-origin: left center
+     內 .sticky-chip-inner：inline-flex column，吃 padding + accent bg + text color
+     reveal 動畫：clip-path inset(0 0 100% 0) → inset(0 0 0 0)（由上往下露出），rotation 同步保留 */
+  .sticky-chip {
+    display: inline-block;
+    transform-origin: left center;
+    clip-path: inset(0 0 100% 0);
+    transition: clip-path 0.5s cubic-bezier(0.25, 0, 0, 1);
+  }
+  .sticky-chip-inner {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 6px 8px 5px;
+    color: #000;
+    line-height: 1.15;
+  }
+  /* branch chip（p1 雙語）行距對齊 anchor-nav-inner / nav-link 的 base 行距，
+     避免 sticky-chip-inner 預設 1.15 過緊讓中英太貼 */
+  #sticky-branch-chip .sticky-chip-inner {
+    line-height: var(--line-height-base);
+  }
+
+  /* Degree show detail 返回按鈕 — 沿用 .sticky-chip 結構（clip-path reveal 由上往下，與 sticky title chip 同節奏）
+     left 對齊 var(--container-padding)（與 hero 標題 / sticky-info-card / logo 左緣同列）
+     bottom 64px（atlas-layout-btn 32px 的雙倍，貼底但不擠著畫面底邊） */
+  #degree-show-back-btn {
+    position: fixed;
+    left: var(--container-padding, 60px);
+    bottom: 64px;
+    z-index: 50;
+    pointer-events: auto;
+    cursor: var(--cursor-pointer);
+    /* .sticky-chip 預設 transform-origin: left center + clip-path inset(0 0 100% 0) hidden；
+       reveal 由 JS 在 setupStickyAndHeroChips 切到 inset(0 0 0 0) */
+  }
+
+  #degree-show-back-btn .sticky-chip-inner {
+    /* sticky title 是 accent 底黑字，back btn 用 strict B/W（依 page bg 對比翻黑底白字/白底黑字，同 atlas-layout-inner pattern）
+       fg/fg-inverse 對 mode1/2/3 都 strict B/W（mode3 不會跟 hue 飄）
+       size 對齊 atlas layout btn 48×48 + icon 32px */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    background: var(--theme-fg, #000);
+    color: var(--theme-fg-inverse, #fff);
+    font-size: 32px;
+  }
 }
+
+/* sub-event tab btn 已遷移到 about .class-division-btn / .class-group-label（重用全站樣式 + JS 套色旋轉），
+   原 .event-extra-tab-btn 規則已刪除 */

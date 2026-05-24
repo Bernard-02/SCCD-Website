@@ -8,7 +8,8 @@
  */
 
 // 創建全域命名空間，避免污染全域變數
-window.SCCDHelpers = window.SCCDHelpers || {};
+// IIFE 之後填齊所有 method，但 TS 看 {} 無法滿足 SCCDHelpersAPI → cast 跳過此檢查
+window.SCCDHelpers = window.SCCDHelpers || /** @type {SCCDHelpersAPI} */ ({});
 
 (function(Helpers) {
   'use strict';
@@ -44,8 +45,8 @@ window.SCCDHelpers = window.SCCDHelpers || {};
   /**
    * 滾動到指定元素
    * @param {HTMLElement|string} target - 元素或選擇器
-   * @param {number} offset - 垂直偏移量（預設 0）
-   * @param {string} behavior - 滾動行為（預設 'smooth'）
+   * @param {number} [offset] - 垂直偏移量（預設 0）
+   * @param {ScrollBehavior} [behavior] - 滾動行為（預設 'smooth'）
    */
   Helpers.scrollToElement = function(target, offset, behavior) {
     offset = offset || 0;
@@ -315,7 +316,7 @@ window.SCCDHelpers = window.SCCDHelpers || {};
    * @param {string} value - 參數值
    */
   Helpers.setURLParam = function(param, value) {
-    const url = new URL(window.location);
+    const url = new URL(window.location.href);
     url.searchParams.set(param, value);
     window.history.pushState({}, '', url);
   };

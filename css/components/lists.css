@@ -9,6 +9,12 @@
   text-decoration: none;
 }
 
+/* ===== Panel Description（exhibitions / visits 分頁切換對應文字） =====
+ * 同 panel 內多個 .panel-desc 用 data-desc-type 對應 sub-tab type；
+ * 只有 .active 那個顯示，其他預設 hidden。JS 切 sub-filter 時同步切此 active class */
+.panel-desc-group .panel-desc { display: none; }
+.panel-desc-group .panel-desc.active { display: block; }
+
 
 /* ===== Admission（採 list-item 結構共用 list-accordion）===== */
 /* admission 直接用 list-item / list-header / list-content classes（與 activities 共享 accordion）：
@@ -55,6 +61,29 @@
    * 透明 padding 區露出，把 image 往下推 4px，縫底下見到的是 accent bg 而非 image。 */
   .list-header.active + .list-content {
     padding-top: 4px;
+  }
+
+  /* 副標 sticky-pinned collapse：list-header 開展 + 真正黏住 sticky-top 時收起副標，bar 只剩 title。
+   * is-pinned class 由 list-accordion.js 用 IntersectionObserver sentinel 偵測 sticky 真黏住的瞬間
+   * （CSS :stuck 偽類未實作）。
+   *
+   * 注意 `.list-subtitles` 進場時被 setupClipReveal 動態包進 `.clip-reveal-wrapper`，
+   * 所以 collapse 必須 target wrapper 否則 wrapper 高度撐住 list-subtitles 內部收了但 bar 不縮。
+   * 用 `:has()` 選有 .list-subtitles child 的 wrapper（與「title 那層 wrapper」區分），
+   * grid-template-rows 0fr↔1fr + child min-height:0 / overflow:hidden 做 height collapse；
+   * wrapper 預設 overflow-y:clip（setupClipReveal set），grid-rows 0fr 自動把可用 height 收為 0。 */
+  .list-header > * > .clip-reveal-wrapper:has(.list-subtitles) {
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows 0.3s ease, opacity 0.25s ease, margin-top 0.3s ease;
+  }
+  .list-header > * > .clip-reveal-wrapper:has(.list-subtitles) > * {
+    min-height: 0;
+  }
+  .list-header.active.is-pinned > * > .clip-reveal-wrapper:has(.list-subtitles) {
+    grid-template-rows: 0fr;
+    opacity: 0;
+    margin-top: -0.5rem;  /* 抵消父 flex-col gap-xs (0.5rem)，collapsed 後 title 不留視覺 gap */
   }
 
   /* album-thumb-item 內 year + date+title group 各自 sticky；scope 受父 .album-thumb-item 限制，
@@ -161,8 +190,11 @@
   }
 }
 
-/* ===== Workshop Content Scrollbar ===== */
-.list-content .overflow-y-auto::-webkit-scrollbar,
+/* ===== Inline Scrollbar (.list-scroll + library year pickers) =====
+ * .list-scroll 是統一 hook — activities/admission list 描述、courses slide-in desc、
+ * 未來任何 inline scroll 容器都套此 class 共用樣式（細黑 thumb / 無 track / 無箭頭）。
+ * library year picker 用 id selector 保留歷史寫法。 */
+.list-scroll::-webkit-scrollbar,
 #album-year-options-wrap::-webkit-scrollbar,
 #files-year-options-wrap::-webkit-scrollbar,
 #library-year-picker-wrap::-webkit-scrollbar {
@@ -172,9 +204,9 @@
   appearance: none !important;
 }
 
-.list-content .overflow-y-auto::-webkit-scrollbar-track,
-.list-content .overflow-y-auto::-webkit-scrollbar-track-piece,
-.list-content .overflow-y-auto::-webkit-scrollbar-corner,
+.list-scroll::-webkit-scrollbar-track,
+.list-scroll::-webkit-scrollbar-track-piece,
+.list-scroll::-webkit-scrollbar-corner,
 #album-year-options-wrap::-webkit-scrollbar-track,
 #album-year-options-wrap::-webkit-scrollbar-track-piece,
 #album-year-options-wrap::-webkit-scrollbar-corner,
@@ -187,7 +219,7 @@
   background: transparent !important;
 }
 
-.list-content .overflow-y-auto::-webkit-scrollbar-thumb,
+.list-scroll::-webkit-scrollbar-thumb,
 #album-year-options-wrap::-webkit-scrollbar-thumb,
 #files-year-options-wrap::-webkit-scrollbar-thumb,
 #library-year-picker-wrap::-webkit-scrollbar-thumb {
@@ -196,13 +228,25 @@
   border: none !important;
 }
 
-.list-content .overflow-y-auto::-webkit-scrollbar-button,
+.list-scroll::-webkit-scrollbar-button,
 #album-year-options-wrap::-webkit-scrollbar-button,
 #files-year-options-wrap::-webkit-scrollbar-button,
 #library-year-picker-wrap::-webkit-scrollbar-button {
   display: none !important;
   height: 0 !important;
   width: 0 !important;
+}
+
+/* Firefox 專屬 fallback — 用 @supports + -moz- 隔離，避免 Chromium 121+/Safari 18+
+ * 也實作 standard scrollbar-width 後切到系統 thin scrollbar（會帶 OS 風格小箭頭）覆蓋 webkit 自繪樣式 */
+@supports (-moz-appearance: none) {
+  .list-scroll,
+  #album-year-options-wrap,
+  #files-year-options-wrap,
+  #library-year-picker-wrap {
+    scrollbar-width: thin;
+    scrollbar-color: #000000 transparent;
+  }
 }
 
 

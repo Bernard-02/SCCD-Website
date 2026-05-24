@@ -117,6 +117,13 @@
     line-height: var(--line-height-base);
   }
 
+  /* Sticky section title col — 蓋住右欄 scroll 經過時下方 row 文字
+     bg = panel 卡片色（faculty-slide-in.js click 時 setProperty 寫入 panel inline）
+     inherit 在 CSS bg 拿不到 painted color 所以走 CSS var pattern */
+  .faculty-section-title-col {
+    background: var(--faculty-panel-bg, transparent);
+  }
+
   /* ===== Degree Show Image ===== */
   /* ===== Faculty Section Tags ===== */
   .faculty-tag {

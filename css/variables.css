@@ -6,16 +6,16 @@
   /* ===== Custom Cursors（全站自製 cursor，2026-05-20 改 var() 統一管理） =====
    * 任何 component CSS 用 cursor: var(--cursor-X) 就自動套自製圖；改 cursor 圖只動這裡。
    * JS inline style.cursor 無法用 var()，仍需寫完整 url() 字串。
-   * Hotspot 已對齊 SVG 內 scale 0.65 後的實際尖端位置。 */
-  --cursor-default:  url('/custom-cursor/default.svg') 5 1, default;
-  --cursor-pointer:  url('/custom-cursor/pointer.svg') 7 1, pointer;
-  --cursor-text:     url('/custom-cursor/typing.svg') 8 8, text;
-  --cursor-grab:     url('/custom-cursor/drag_1.svg') 16 16, grab;
-  --cursor-grabbing: url('/custom-cursor/drag_2.svg') 16 16, grabbing;
-  --cursor-zoom-in:  url('/custom-cursor/zoom-in.svg') 4 4, zoom-in;
-  --cursor-zoom-out: url('/custom-cursor/zoom-out.svg') 4 4, zoom-out;
-  --cursor-w-resize: url('/custom-cursor/left.svg') 1 16, w-resize;
-  --cursor-e-resize: url('/custom-cursor/right.svg') 31 16, e-resize;
+   * Hotspot 對齊 SVG 30px 渲染尺寸的尖端座標（viewBox 32 × 0.9375）。 */
+  --cursor-default:  url('/custom-cursor/default.svg') 9 2, default;
+  --cursor-pointer:  url('/custom-cursor/pointer.svg') 14 1, pointer;
+  --cursor-text:     url('/custom-cursor/typing.svg') 15 15, text;
+  --cursor-grab:     url('/custom-cursor/drag_1.svg') 15 15, grab;
+  --cursor-grabbing: url('/custom-cursor/drag_2.svg') 15 15, grabbing;
+  --cursor-zoom-in:  url('/custom-cursor/zoom-in.svg') 9 9, zoom-in;
+  --cursor-zoom-out: url('/custom-cursor/zoom-out.svg') 9 9, zoom-out;
+  --cursor-w-resize: url('/custom-cursor/left.svg') 2 15, w-resize;
+  --cursor-e-resize: url('/custom-cursor/right.svg') 28 15, e-resize;
 
   /* ===== Colors ===== */
 
@@ -171,6 +171,16 @@
 .division-images {
   position: relative;
   min-height: 440px;
+  /* 不加 overflow:clip — slot 2 + landscape 462px 在較窄 viewport 會超 container 右緣、
+     slot 0 旋轉 ±4° 投影超左緣，clip 會兩邊都裁掉。
+     水平 scroll 由 router.js 對 about 頁加的 body.style.overflowX='hidden' 兜住，
+     圖片可以視覺溢出 container 但不會跑出 viewport。 */
+}
+/* degree-show 跨全寬 + 統一 400px wrapper 比 about 圖大很多
+   portrait 圖高度 ≈ 533px + ±4° rotation bbox 投影 → ~570-600px
+   加 buffer 到 660px 避免 .class-img absolute top:50% 上下露出 container 邊界後與相鄰 event-gallery-section 視覺相切 */
+.division-images--degree-show {
+  min-height: 660px;
 }
 .class-img {
   position: absolute;

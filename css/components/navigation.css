@@ -213,4 +213,13 @@
    *   - alumni-full bar display:''（JS 設）
    *   - 其他 bars（about/library/atlas/generate/mode-btn/alumni）display:none（JS 設）
    *   - 這樣切頁進入 / 從 URL 直接訪問都有正確 end state；動畫只在 user 點擊時跑 */
+
+  /* alumni-full bar 內 .nav-link-cn 一律展開（與小 AA bar 行為刻意相反）
+   * 小 AA bar = 縮寫「A.A.」hover 才補「系友會」；
+   * alumni-full = 點開後的擴展版，必須直接看到全名「A.A. 系友會」不靠 active/hover */
+  [data-bar="alumni-full"] .nav-link .nav-link-cn {
+    max-width: 6rem;
+    opacity: 1;
+    margin-left: 0.25rem;
+  }
 }

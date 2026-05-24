@@ -1,3 +1,4 @@
+// @ts-nocheck — querySelector 密集，全為 TS2339 Element vs HTMLElement 雜訊
 /**
  * Anchor Navigation Module
  * 處理 About 頁面的左側錨點導航與 Scroll Spy
@@ -80,9 +81,24 @@ export function initAnchorNav() {
   const NAV_COLORS = ['#FF448A', '#00FF80', '#26BCFF'];
   let lastNavColorIndex = -1;
 
-  function getNavColor() {
+  // Programs 區封鎖綫換色時排除「當前 active division tab」顏色，避免兩者撞色
+  function getActiveDivisionColor() {
+    const el = document.querySelector('.class-division-btn.active');
+    if (!el) return null;
+    const c = (el.style.background || '').trim().toLowerCase();
+    return c || null;
+  }
+
+  function getNavColor(excludeColor) {
+    const excludeIdx = excludeColor
+      ? NAV_COLORS.findIndex(c => c.toLowerCase() === excludeColor.toLowerCase())
+      : -1;
     let index;
-    do { index = Math.floor(Math.random() * NAV_COLORS.length); } while (index === lastNavColorIndex);
+    let safety = 0;
+    do {
+      index = Math.floor(Math.random() * NAV_COLORS.length);
+      safety++;
+    } while ((index === lastNavColorIndex || index === excludeIdx) && safety < 20);
     lastNavColorIndex = index;
     return NAV_COLORS[index];
   }
@@ -120,7 +136,8 @@ export function initAnchorNav() {
   function setActiveBtn(id, { force = false } = {}) {
     if (!force && id === currentActiveId) return;
     currentActiveId = id;
-    const color = getNavColor();
+    // Programs 區封鎖綫排除當前 active division tab 色；其他 anchor 不限
+    const color = getNavColor(id === 'class' ? getActiveDivisionColor() : null);
     navButtons.forEach(btn => {
       const isActive = btn.getAttribute('data-target') === id;
       const inner = btn.querySelector('.anchor-nav-inner');
@@ -248,7 +265,7 @@ export function initAnchorNav() {
 
     // Close when clicking outside
     document.addEventListener('click', (e) => {
-      if (isOpen && !mobileWrapper.contains(e.target)) {
+      if (isOpen && !mobileWrapper.contains(/** @type {Node} */ (e.target))) {
         toggleMenu();
       }
     });

@@ -1,3 +1,5 @@
+// @ts-nocheck — 1164 行 querySelector 密集，72 個 TS2339 全為 Element vs HTMLElement 子型別雜訊；
+// 結構性問題（每個 .style/.dataset/.value access 都會報），逐處 cast 風險高於價值，整檔跳過
 /**
  * Library Panels
  * 負責 Awards / Press / Files / Album 四個 panel 的資料載入、渲染、篩選邏輯
@@ -18,7 +20,7 @@ const CAT_LABELS = {
   'competitions':     'Competitions 競賽',
   'conferences':      'Conferences 研討會',
   'students-present': 'Students Present 學生自主',
-  'industry':         'Industry-Academia Cooperation 產學合作',
+  'industry':         'Industry Partnerships 產學合作',
   'summer-camp':      'Summer Camp 暑期體驗營',
   'moment':           'Moment 日常',
   'others':           'Others 其他',
@@ -169,21 +171,37 @@ function buildMockRecords() {
   ];
   const awards = [['Design Award', '設計獎'], ['Animation Award', '動畫獎'], ['Media Award', '媒體獎']];
   const ranks  = [['Gold', '金獎'], ['Silver', '銀獎'], ['Merit', '優獎'], ['Special Award', '特獎']];
-  const names  = [['Chen Wei', '陳偉'], ['Lin Mei', '林美'], ['Wang Hao', '王浩'], ['Lee Ying', '李英'], ['Zhang Ming', '張明']];
+  const names  = [
+    ['Chen Wei', '陳偉'],
+    ['Lin Mei', '林美'],
+    ['Wang Hao', '王浩'],
+    ['Lee Ying', '李英'],
+    ['Zhang Ming', '張明'],
+    ['Huang Yi-Chen', '黃宜臻'],
+    ['Hsu Pei-Ling', '許珮玲'],
+    ['Wu Cheng-Hao', '吳承皓'],
+  ];
   const currentYear = new Date().getFullYear();
   return Array.from({ length: 20 }, (_, i) => ({
     year: currentYear - i,
-    items: Array.from({ length: 5 }, (_, j) => ({
-      flag:           flags[(i * 5 + j) % flags.length],
-      competition_en: comps[j][0],
-      competition:    comps[j][1],
-      award_en:       awards[j % awards.length][0],
-      award:          awards[j % awards.length][1],
-      rank_en:        ranks[(i + j) % ranks.length][0],
-      rank:           ranks[(i + j) % ranks.length][1],
-      winner_en:      names[j][0],
-      winner:         names[j][1],
-    })),
+    items: Array.from({ length: 5 }, (_, j) => {
+      // 每 row 1~4 個獲獎者（混合單人 / 團體獎），用 deterministic pattern 不依賴 Math.random
+      const winnerCount = ((i * 7 + j * 3) % 4) + 1;
+      const winners = Array.from({ length: winnerCount }, (_, k) => {
+        const idx = (i * 5 + j * 2 + k) % names.length;
+        return { en: names[idx][0], zh: names[idx][1] };
+      });
+      return {
+        flag:           flags[(i * 5 + j) % flags.length],
+        competition_en: comps[j][0],
+        competition:    comps[j][1],
+        award_en:       awards[j % awards.length][0],
+        award:          awards[j % awards.length][1],
+        rank_en:        ranks[(i + j) % ranks.length][0],
+        rank:           ranks[(i + j) % ranks.length][1],
+        winners,
+      };
+    }),
   }));
 }
 
@@ -212,11 +230,71 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     let latestFirst = true;
     const getSorted = () => latestFirst ? records : [...records].reverse();
 
+    // Winners normalize：支援新 schema `winners:[{en,zh}]` 與舊 `winner_en`/`winner` 單人
+    // 回傳統一 array of {en, zh}，至少 1 筆
+    const normalizeWinners = (item) => {
+      if (Array.isArray(item.winners) && item.winners.length) {
+        return item.winners.map(w => ({ en: w.en || w.winner_en || '', zh: w.zh || w.winner || '' }));
+      }
+      return [{ en: item.winner_en || '', zh: item.winner || '' }];
+    };
+
+    // 多 winner 時用「水平 marquee」自動跑：整列獲獎者橫向滾動，hover 不需要
+    // 結構：.award-winners (overflow:hidden) > .award-winners-track (橫向 inline-flex) > N × .award-winner-pair (column EN+ZH)
+    // pairs 之間用 padding-right 拉開 gap，避免兩位獲獎者文字黏在一起
+    const buildWinnersHtml = (winners) => {
+      const pairs = winners.map(w => {
+        const enHtml = w.en ? `<div class="award-winner-en" style="font-weight:700;">${w.en}</div>` : '';
+        const zhHtml = w.zh ? `<div class="award-winner-zh" style="font-weight:800;">${w.zh}</div>` : '';
+        return `<div class="award-winner-pair">${enHtml}${zhHtml}</div>`;
+      }).join('');
+      return `<div class="award-winners-track">${pairs}</div>`;
+    };
+
+    // 多獲獎者水平 marquee：每位獲獎者佔滿整個 col 寬，整位整位滾（不會卡到一半）
+    // viewport = grid col 寬 → 量 view.offsetWidth 當作 pair 寬，強制 set 到每個 pair
+    // 滾動距離 = pairW × pairs.length（=複製前 track 寬），複製一份接合 seamless loop
+    function applyWinnersHMarquee(scope) {
+      const SECONDS_PER_WINNER = 2.5; // 每位獲獎者在 viewport 停留視覺秒數（含過渡），多人 = 線性放大總時長
+      scope.querySelectorAll('.award-winners').forEach(viewport => {
+        const view = /** @type {HTMLElement} */ (viewport);
+        const track = /** @type {HTMLElement | null} */ (view.querySelector('.award-winners-track'));
+        if (!track) return;
+        const pairs = /** @type {HTMLElement[]} */ ([...track.querySelectorAll('.award-winner-pair')]);
+        if (pairs.length <= 1) return;
+
+        // 量 viewport 寬（= grid col 寬）當作每位獲獎者佔的單位寬度
+        const pairW = view.offsetWidth;
+        if (!pairW) return;
+
+        // 強制每個 pair 寬 = viewport 寬（取代 padding-right gap，靜止時剛好顯示一位）
+        pairs.forEach(p => { p.style.width = `${pairW}px`; p.style.paddingRight = '0'; });
+
+        // 滾動距離 = N 位獲獎者寬度（= 複製前的 track 寬）
+        const distance = pairW * pairs.length;
+
+        // 複製整段 pairs 一份接在後面 → seamless loop
+        const origHtml = track.innerHTML;
+        track.innerHTML = origHtml + origHtml;
+        // innerHTML reset 後新 pair 也要 set 寬（這次包含複製份）
+        track.querySelectorAll('.award-winner-pair').forEach(p => {
+          /** @type {HTMLElement} */ (p).style.width = `${pairW}px`;
+          /** @type {HTMLElement} */ (p).style.paddingRight = '0';
+        });
+
+        view.classList.add('is-hmarquee');
+        view.style.setProperty('--hmarquee-distance', `-${distance}px`);
+        view.style.setProperty('--hmarquee-duration', `${pairs.length * SECONDS_PER_WINNER}s`);
+      });
+    }
+
     function renderItems(data) {
       listEl.innerHTML = '';
       data.forEach(yearGroup => {
         const itemsHtml = (yearGroup.items || []).map((item) => {
-          const searchText = [item.competition_en, item.competition, item.award_en, item.award, item.winner_en, item.winner, item.rank_en, item.rank]
+          const winners = normalizeWinners(item);
+          const winnerSearch = winners.map(w => `${w.en} ${w.zh}`).join(' ');
+          const searchText = [item.competition_en, item.competition, item.award_en, item.award, winnerSearch, item.rank_en, item.rank]
             .filter(Boolean).join(' ').toLowerCase();
           return `
             <div class="award-record-item grid py-[0.5rem] border-b-2 border-black"
@@ -226,7 +304,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
               <div class="truncate flex flex-col">${bilingualBold(item.competition_en, item.competition)}</div>
               <div class="truncate flex flex-col">${bilingual(item.award_en, item.award)}</div>
               <div class="truncate flex flex-col">${bilingual(item.rank_en, item.rank)}</div>
-              <div class="truncate flex flex-col">${bilingualBold(item.winner_en, item.winner)}</div>
+              <div class="award-winners flex flex-col" style="min-width:0;">${buildWinnersHtml(winners)}</div>
             </div>`;
         }).join('');
 
@@ -243,6 +321,9 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         });
         item.addEventListener('mouseleave', () => { item.style.color = ''; });
       });
+
+      // 多獲獎者自動水平 marquee（不需 hover）
+      applyWinnersHMarquee(listEl);
     }
 
     renderItems(getSorted());
@@ -272,7 +353,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
       allYears.forEach(year => {
         if (!dataYears.has(String(year))) return;
         const btn = document.createElement('button');
-        btn.textContent  = year;
+        btn.textContent  = String(year);
         btn.dataset.year = String(year);
         btn.style.cssText = 'text-align:left;background:none;border:none;padding:0;font-family:inherit;font-size:var(--font-size-p3);cursor:pointer;font-weight:700;color:var(--lib-fg);';
         btn.addEventListener('click', () => {
@@ -455,7 +536,7 @@ async function initPressPanel() {
               <span class="press-item-cat-tag" data-show-in-all></span>
             </div>`;
           if (item.image || item.videoUrl) {
-            div.style.cursor = "url('/custom-cursor/pointer.svg') 16 8, pointer";
+            div.style.cursor = "url('/custom-cursor/pointer.svg') 14 1, pointer";
             const media = [];
             if (item.image)    media.push({ type: 'image', src: item.image, thumb: item.image });
             if (item.videoUrl) {
@@ -466,15 +547,15 @@ async function initPressPanel() {
               const lbTitle = { en: item.titleEn || '', zh: item.titleZh || '' };
               const lbColor = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
               div.addEventListener('click', () => {
-                document.dispatchEvent(new CustomEvent('sccd:open-lightbox', { detail: { media, index: 0, title: lbTitle, color: lbColor } }));
+                document.dispatchEvent(new CustomEvent('sccd:open-lightbox', { detail: { media, index: 0, title: lbTitle, color: lbColor, references: item.references } }));
               });
             }
           } else if (item.pdfUrl) {
-            div.style.cursor = "url('/custom-cursor/pointer.svg') 16 8, pointer";
+            div.style.cursor = "url('/custom-cursor/pointer.svg') 14 1, pointer";
             const pdfTitle = { en: item.titleEn || '', zh: item.titleZh || '' };
             const pdfColor = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
             div.addEventListener('click', () => {
-              document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl, title: pdfTitle, color: pdfColor } }));
+              document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl, title: pdfTitle, color: pdfColor, references: item.references } }));
             });
           }
           block.appendChild(div);
@@ -625,10 +706,10 @@ async function initFilesPanel() {
             </div>`;
 
           if (item.pdfUrl) {
-            div.style.cursor = "url('/custom-cursor/pointer.svg') 16 8, pointer";
+            div.style.cursor = "url('/custom-cursor/pointer.svg') 14 1, pointer";
             const pdfTitle = { en: item.titleEn || '', zh: item.titleZh || '' };
             div.addEventListener('click', () => {
-              document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl, title: pdfTitle, color: accentColor } }));
+              document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl, title: pdfTitle, color: accentColor, references: item.references } }));
             });
           }
 
@@ -788,7 +869,7 @@ async function initAlbumPanel() {
             }).filter(Boolean),
             ...images.map(src => ({ type: 'image', src, thumb: src })),
           ];
-          allItems.push({ year, cat, titleEn, titleZh, cover, media });
+          allItems.push({ year, cat, titleEn, titleZh, cover, media, references: item.references });
         });
       });
     });
@@ -860,11 +941,11 @@ async function initAlbumPanel() {
             </div>`;
 
           if (item.media && item.media.length > 0) {
-            div.style.cursor = "url('/custom-cursor/pointer.svg') 16 8, pointer";
+            div.style.cursor = "url('/custom-cursor/pointer.svg') 14 1, pointer";
             const lbTitle = { en: item.titleEn || '', zh: item.titleZh || '' };
             const lbColor = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
             div.addEventListener('click', () => {
-              document.dispatchEvent(new CustomEvent('sccd:open-lightbox', { detail: { media: item.media, index: 0, title: lbTitle, color: lbColor } }));
+              document.dispatchEvent(new CustomEvent('sccd:open-lightbox', { detail: { media: item.media, index: 0, title: lbTitle, color: lbColor, references: item.references } }));
             });
           }
 
@@ -1050,7 +1131,91 @@ function randomTitleTransform(el, isAwards = false) {
   el.style.transform = `translateY(${yPct}%) rotate(${deg}deg)`;
 }
 
-function showLibPanel(tab) {
+// 4 方向 clip-path 起點（終點統一 inset(0)）
+// 對齊 library-card.js _doSwitchTab 的 CLIP_DIRS pattern
+const REVEAL_HIDE_DIRS = [
+  'inset(0 0 100% 0)',  // 由上往下隱藏 → 從下揭露
+  'inset(100% 0 0 0)',  // 由下往上隱藏 → 從上揭露
+  'inset(0 100% 0 0)',  // 由右往左隱藏 → 從左揭露
+  'inset(0 0 0 100%)',  // 由左往右隱藏 → 從右揭露
+];
+function pickRevealHideDir() {
+  return REVEAL_HIDE_DIRS[Math.floor(Math.random() * REVEAL_HIDE_DIRS.length)];
+}
+
+// 對 panel 內 chip 跟非 chip 子元素各自隨機挑方向 clip wipe 進場
+// chip 跟內容區可以不同方向（兩者視覺獨立，多樣性更好）
+export function playPanelReveal(panelEl) {
+  if (!panelEl) return;
+  const title = panelEl.querySelector(':scope > .lib-panel-title');
+  const others = [...panelEl.querySelectorAll(':scope > :not(.lib-panel-title)')];
+  const all = title ? [title, ...others] : others;
+  if (!all.length) return;
+
+  // 各自挑方向
+  const dirs = all.map(() => pickRevealHideDir());
+
+  // 設起點（transition:none 避免從上次 inset(0) 反向走全程）
+  all.forEach((el, i) => {
+    /** @type {HTMLElement} */ (el).style.transition = 'none';
+    /** @type {HTMLElement} */ (el).style.clipPath   = dirs[i];
+  });
+
+  // 雙 rAF 確保起點 paint → 重設 transition → 設終點觸發 wipe
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      all.forEach(el => {
+        /** @type {HTMLElement} */ (el).style.transition = '';
+        /** @type {HTMLElement} */ (el).style.clipPath   = 'inset(0 0 0 0)';
+      });
+    });
+  });
+}
+
+// 退場：拆成兩階段 — chip 先 wipe，內容區之後跟 grayEl 同時 wipe
+// 由 library-card.js playExitAnimation 編排時序：playPanelTitleExit → grayEl + playPanelBodyExit 同步
+// Why: 視覺要先把「灰色卡片左上角」標籤 chip 抹掉再讓灰卡消失，否則 chip 殘留破壞收場節奏
+// chip position:absolute 突出 grayEl clip 邊界外，必須獨立 wipe
+export function playPanelTitleExit(panelEl, dur = 0.25) {
+  if (!panelEl) return;
+  const title = /** @type {HTMLElement|null} */ (panelEl.querySelector(':scope > .lib-panel-title'));
+  if (!title) return;
+  const hideDir = pickRevealHideDir();
+  title.style.transition = `clip-path ${dur}s ease-in`;
+  title.style.clipPath = hideDir;
+}
+
+export function playPanelBodyExit(panelEl, dur = 0.35) {
+  if (!panelEl) return;
+  const others = [...panelEl.querySelectorAll(':scope > :not(.lib-panel-title)')];
+  if (!others.length) return;
+  others.forEach(el => {
+    const hideDir = pickRevealHideDir();
+    /** @type {HTMLElement} */ (el).style.transition = `clip-path ${dur}s ease-in`;
+    /** @type {HTMLElement} */ (el).style.clipPath = hideDir;
+  });
+}
+
+// 舊 API：保留以防其他 caller 引用，內部分 phase（title 先，body 後）
+export function playPanelExit(panelEl, dur = 0.35) {
+  playPanelTitleExit(panelEl, dur * 0.7);
+  setTimeout(() => playPanelBodyExit(panelEl, dur), dur * 0.7 * 1000);
+}
+
+// 對 panel 內子元素設「隱藏」起點 clip-path，不觸發 transition（用於進場前預設）
+function hidePanelChildren(panelEl) {
+  if (!panelEl) return;
+  const title = panelEl.querySelector(':scope > .lib-panel-title');
+  const others = [...panelEl.querySelectorAll(':scope > :not(.lib-panel-title)')];
+  const all = title ? [title, ...others] : others;
+  all.forEach(el => {
+    /** @type {HTMLElement} */ (el).style.transition = 'none';
+    /** @type {HTMLElement} */ (el).style.clipPath   = 'inset(0 0 100% 0)';
+  });
+}
+
+// reveal=false：只切 display 不跑 wipe（library-card grayEl 進場前 pre-swap 用，避免 chip 提早 visible）
+function showLibPanel(tab, { reveal = true } = {}) {
   Object.entries(PANEL_MAP).forEach(([key, id]) => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -1058,6 +1223,12 @@ function showLibPanel(tab) {
       el.style.display = 'flex';
       const title = el.querySelector('.lib-panel-title');
       if (title) randomTitleTransform(title, key === 'awards');
+      if (reveal) {
+        playPanelReveal(el);
+      } else {
+        // 預設隱藏，等之後 onTabSwitch / 手動 showPanel 再 reveal
+        hidePanelChildren(el);
+      }
       if (key === 'press'  && typeof window._pressMarqueeInit === 'function') requestAnimationFrame(window._pressMarqueeInit);
       if (key === 'files'  && typeof window._filesMarqueeInit === 'function') requestAnimationFrame(window._filesMarqueeInit);
       if (key === 'album'  && typeof window._albumMarqueeInit === 'function') requestAnimationFrame(window._albumMarqueeInit);
@@ -1072,7 +1243,7 @@ function showLibPanel(tab) {
 /**
  * 初始化所有 library panels
  * @returns {{
- *   showPanel: (tab: string) => void,
+ *   showPanel: (tab: string, opts?: { reveal?: boolean }) => void,
  *   onEntranceDone: () => void,
  *   handleHash: () => void
  * }}
@@ -1090,6 +1261,12 @@ export function initLibraryPanels() {
   Object.entries(PANEL_MAP).forEach(([key, id]) => {
     const title = document.querySelector(`#${id} .lib-panel-title`);
     if (title) randomTitleTransform(title, key === 'awards');
+  });
+
+  // 預設所有 panel 內 chip + 內容隱藏（等 grayEl 進場揭露完 onTabSwitch 才 reveal）
+  // 不做的話 awards (HTML 預設 display:flex) chip 會在 grayEl clip wipe 時被一起揭出半身
+  Object.values(PANEL_MAP).forEach(id => {
+    hidePanelChildren(document.getElementById(id));
   });
 
   return {

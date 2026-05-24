@@ -3,7 +3,10 @@
  * 顏色矩形卡片的幾何計算、切換動畫、marquee 渲染
  */
 
-export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb, initialTab = 'awards' }) {
+import { registerPageExit } from '../ui/page-exit.js';
+import { playPanelTitleExit, playPanelBodyExit } from './library-panels.js';
+
+export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: onEntranceDoneCb, initialTab = 'awards' }) {
 
   const PRIMARY_COLORS = ['#FF448A', '#00FF80', '#26BCFF'];
   const stack   = document.getElementById('library-card-stack');
@@ -179,10 +182,12 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
 
   // 回傳 'top'|'right'|'bottom'|'left'
   // 找四邊中兩端點都未被遮的邊，找不到 fallback 'top'（原有 mid-point fallback 寫在 unconditional return 後是 dead code，已刪）
+  /** @returns {'top'|'right'|'bottom'|'left'} */
   function findFreeEdge(cfg, occluders) {
     const c = rectWorldCorners(cfg);
-    const edges = [[0,1,'top'], [1,2,'right'], [2,3,'bottom'], [3,0,'left']];
-    for (const [ai,bi,name] of edges) {
+    /** @type {Array<['top'|'right'|'bottom'|'left', number, number]>} */
+    const edges = [['top', 0, 1], ['right', 1, 2], ['bottom', 2, 3], ['left', 3, 0]];
+    for (const [name, ai, bi] of edges) {
       if (!isCornerOccluded(c[ai], occluders) && !isCornerOccluded(c[bi], occluders))
         return name;
     }
@@ -193,7 +198,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
 
   function setAsGray(el, sw, sh) {
     el.style.background     = 'var(--lib-bg)';
-    el.style.cursor         = "url('/custom-cursor/default.svg') 5 1, default";
+    el.style.cursor         = "url('/custom-cursor/default.svg') 9 2, default";
     el.style.zIndex         = '10';
     el.style.width          = `${MAIN_W}px`;
     el.style.height         = `${MAIN_H}px`;
@@ -210,7 +215,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
 
   function setAsColor(el, color, config) {
     el.style.background = color;
-    el.style.cursor     = "url('/custom-cursor/pointer.svg') 16 8, pointer";
+    el.style.cursor     = "url('/custom-cursor/pointer.svg') 14 1, pointer";
     el.style.width      = `${Math.round(config.w)}px`;
     el.style.height     = `${Math.round(config.h)}px`;
     el.style.left       = `${Math.round(config.cx)}px`;
@@ -219,9 +224,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     el.style.overflow   = 'hidden';
     const content = el.querySelector('#library-card-content');
     if (content) {
-      content.style.transition = 'none';
       content.classList.remove('content-visible');
-      content.style.opacity = '0';
     }
   }
 
@@ -322,7 +325,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
 
   function refreshMarquees() {
     allEls.forEach(el => {
-      const titleEl = el.querySelector('.color-rect-title');
+      const titleEl = /** @type {HTMLElement | null} */ (el.querySelector('.color-rect-title'));
       if (!titleEl) return;
       if (el === activeEl) {
         titleEl.style.visibility = 'hidden';
@@ -452,7 +455,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     isSwitching = true;
 
     allEls.forEach(el => {
-      const titleEl = el.querySelector('.color-rect-title');
+      const titleEl = /** @type {HTMLElement | null} */ (el.querySelector('.color-rect-title'));
       if (titleEl) titleEl.style.color = '#000';
       if (el !== activeEl) {
         el.style.background = colorOf.get(el);
@@ -468,8 +471,6 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
         const contentEl = document.getElementById('library-card-content');
         if (onTabSwitch) onTabSwitch(tabOf.get(activeEl));
         if (contentEl) {
-          contentEl.style.transition = '';
-          contentEl.style.opacity    = '';
           requestAnimationFrame(() => { contentEl.classList.add('content-visible'); });
         }
         isSwitching = false;
@@ -493,11 +494,14 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     tabOf.set(outgoingEl, outgoingTab);
     colorOf.set(outgoingEl, outgoingColor);
 
+    // pre-swap：clip 揭露前先切 panel display + hide children，
+    // 否則 clickedEl 揭露成新灰卡時內部顯示的是舊 panel（chip 在左上角已 visible），
+    // 等揭露完才 reveal 新 panel → 視覺上是「先看到舊 chip，再切到新 chip」
+    if (onTabSwitchPre) onTabSwitchPre(incomingTab);
+
     // 立即把內容層移入新的主矩形（保持 opacity:0），避免 clip 動畫期間矩形呈現空白
     const contentEl = document.getElementById('library-card-content');
     if (contentEl) {
-      contentEl.style.transition = 'none';
-      contentEl.style.opacity    = '0';
       clickedEl.appendChild(contentEl);
     }
 
@@ -614,6 +618,65 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
       });
     }, delay * 1000);
   }
+
+  // ── 退場動畫 ──────────────────────────────────────────────────
+  // 進場：colorEls 由低 z 到高 z stagger 0.2s 進，最後 grayEl 進
+  // 退場：反向 — grayEl 先收，colorEls 由高 z 到低 z stagger 收
+  // 時間壓短（fetch + cleanup + swap 同時跑，總體要 snappy）
+
+  // 進場時 clipReveal 把 clipPath 從 hide → show，最後 setAsGray/cfg 流程把 .clipPath='' 清掉
+  // 退場必須先把 clip-path 設回顯示狀態（不靠 transition），下一個 rAF 才從顯示 transition 到 hide
+  // 否則 from='' → to=inset(...) 瀏覽器在同 frame 內合併 = 直接 snap 不見
+  function exitOneCard(el, dir, dur) {
+    el.style.transition = 'none';
+    el.style.clipPath   = dir.show;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        el.style.transition = `clip-path ${dur}s ease-in`;
+        el.style.clipPath   = dir.hide;
+      });
+    });
+  }
+
+  function playExitAnimation() {
+    return new Promise(resolve => {
+      const TITLE_DUR = 0.25;  // chip 先 wipe 的時長（短，作為前置動作）
+      const EXIT_DUR  = 0.35;
+      const STAGGER   = 0.08;
+
+      // Phase 1：先把 active panel 左上角 chip (lib-panel-title) wipe 消失
+      // panel chip position:absolute 突出 grayEl 邊界外，必須在 grayEl 開始收之前
+      // 獨立做 clip wipe 動畫；否則 grayEl 收完 chip 殘留像「灰色卡片左上角」破壞節奏
+      const PANEL_IDS = ['lib-panel-awards', 'lib-panel-press', 'lib-panel-files', 'lib-panel-album'];
+      const activePanel = /** @type {HTMLElement|null} */ (
+        PANEL_IDS.map(id => document.getElementById(id)).find(p => p && getComputedStyle(p).display !== 'none') || null
+      );
+      if (activePanel) playPanelTitleExit(activePanel, TITLE_DUR);
+
+      // Phase 2：chip wipe 完才開始 grayEl + panel 內容 + colorEls 退場
+      setTimeout(() => {
+        const grayDir = randomClipDir();
+        exitOneCard(grayEl, grayDir, EXIT_DUR);
+        if (activePanel) playPanelBodyExit(activePanel, EXIT_DUR);
+
+        // 進場是 colorEls 由低 z → 高 z stagger，最後 grayEl
+        // 退場反過來：grayEl 收 → colorEls 由高 z → 低 z 倒序 stagger
+        const sortedByZDesc = [...colorEls].sort((a,b) => parseInt(b.style.zIndex) - parseInt(a.style.zIndex));
+        let delay = STAGGER;
+        sortedByZDesc.forEach(el => {
+          const dir = randomClipDir();
+          setTimeout(() => exitOneCard(el, dir, EXIT_DUR), delay * 1000);
+          delay += STAGGER;
+        });
+
+        // 等最後一個 card 收完
+        const totalMs = (delay - STAGGER + EXIT_DUR) * 1000;
+        setTimeout(resolve, totalMs);
+      }, TITLE_DUR * 1000);
+    });
+  }
+
+  registerPageExit(playExitAnimation);
 
   // ── ResizeObserver ────────────────────────────────────────────
 

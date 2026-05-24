@@ -49,6 +49,77 @@ function shuffle(arr) {
   return arr;
 }
 
+// Layout cache：per-page、per-viewport pre-computed pool (POOL_SIZE 組)
+// Why：randomizeHeroLayout 全量計算昂貴（12 attempts × 4 items × 30 candidates + 強制 reflow），
+// 同步阻塞換頁 paint 200-500ms。Pool 預存好 N 組，每次 SPA 進入 random pick 一組直接套用 = O(1)。
+// User spec：「20-30 組合循環用，沒人會察覺重複」。
+//
+// Cache key 構造：hero 文字內容 + viewport WxH。
+//   - 文字當 page identity：4 頁 hero 文字不同，自然 keyed by page
+//   - viewport 改變必須失效：placement 算式依賴 W/H/logo bounds
+// 失效：resize 後 key 變化 → 視為 cache miss 重建
+const POOL_SIZE = 24;
+const layoutPool = new Map();  // key -> array of layout snapshots
+
+function getPoolKey(grid) {
+  const heroTexts = ['hero-title', 'hero-title-cn', 'hero-text-en', 'hero-text-cn']
+    .map(cls => {
+      const el = grid.querySelector(`.${cls}`);
+      return el ? (el.textContent || '').slice(0, 40) : '';
+    })
+    .join('|');
+  return `${window.innerWidth}x${window.innerHeight}|${heroTexts}`;
+}
+
+// 套用 cache 內 snapshot 到當前 DOM（不重新量測，不跑 placement）
+function applyLayoutSnapshot(grid, snapshot) {
+  const paragraphs = ['hero-text-en', 'hero-text-cn']
+    .map(cls => grid.querySelector(`.${cls}`))
+    .filter(Boolean);
+  snapshot.paragraphWidths.forEach((w, i) => {
+    if (paragraphs[i]) paragraphs[i].style.maxWidth = w;
+  });
+  // wrapper selector 順序對應 buildLayoutOnce 內 textItems 收集順序
+  ['hero-title', 'hero-title-cn', 'hero-text-en', 'hero-text-cn'].forEach((cls, i) => {
+    const wrapper = grid.querySelector(`.${cls}-wrapper`) || grid.querySelector(`.${cls}`);
+    if (wrapper && snapshot.textPositions[i]) {
+      wrapper.style.left = snapshot.textPositions[i].left;
+      wrapper.style.top = snapshot.textPositions[i].top;
+    }
+  });
+  const banner = grid.querySelector('.hero-banner');
+  if (banner && snapshot.banner) {
+    banner.style.left = snapshot.banner.left;
+    banner.style.top = snapshot.banner.top;
+    banner.style.transform = snapshot.banner.transform;
+  }
+  // 套完後做 wrap-width 收緊（依當下 DOM 量測，cache 無法存因為 wrap 結果在當前 DOM 才存在）
+  tightenParagraphWidths(grid);
+}
+
+function tightenParagraphWidths(grid) {
+  ['hero-text-en', 'hero-text-cn'].forEach(cls => {
+    const p = grid.querySelector(`.${cls}`);
+    if (!p) return;
+    const range = document.createRange();
+    range.selectNodeContents(p);
+    const rects = range.getClientRects();
+    let maxLineW = 0;
+    for (const r of rects) if (r.width > maxLineW) maxLineW = r.width;
+    if (maxLineW <= 0) return;
+    const cs = getComputedStyle(p);
+    const padL = parseFloat(cs.paddingLeft) || 0;
+    const padR = parseFloat(cs.paddingRight) || 0;
+    p.style.width = `${Math.ceil(maxLineW + padL + padR)}px`;
+  });
+}
+
+// Build single layout snapshot. 副作用：DOM 上會留下這次的 inline left/top/maxWidth/transform。
+// 回傳 snapshot 給 cache 存。Caller 負責在第一次 build 時直接用此 snapshot 進場，避免雙 apply。
+function buildLayoutOnce(grid) {
+  return runPlacementAndBannerForCache(grid);
+}
+
 // 隨機定位 5 元素（title-wrapper / title-cn-wrapper / banner / EN-wrapper / CN-wrapper）至 absolute 座標
 // 必須在 wrapElement() 之後呼叫，這樣 wrapper 才是 grid 的直系子元素
 //
@@ -68,10 +139,18 @@ function randomizeHeroLayout() {
   const BANNER_TOP_BOUND = 90;
   const SIDE_MARGIN = 24;
   const BOTTOM_MARGIN = 30;
-  const TEXT_COLLISION_PAD = 12;
+  // BR/BL chip 額外往上抬的 buffer：wrapper rotate ±3° + 寬到 TEXT_MAX_W_PX=550 時
+  // 旋轉後 visual 最低點比 getBoundingClientRect 量到的 bbox 底再低 ~sin(3°)×550 ≈ 29px。
+  // 不補 buffer，scroll 時長段落 chip 底部會穿出 `<section h-screen overflow-hidden>` 被切。
+  // 只影響下方 corner（上方 corner 撞 header / logo 另有 TEXT_TOP_BOUND 處理）。
+  const BOTTOM_ROTATION_BUFFER = 60;
+  // wrapper rotate ±3° + 長段落 chip 寬可達 TEXT_MAX_W_PX=650：bbox 雖以 visual rect 量但兩 chip 視覺
+  // 邊緣仍可能因 rotation 投影貼很近；pad 32 ≈ sin(3°)×650 給足旋轉互不咬的視覺間距。
+  // 之前 12 在 user 截圖出現英文 chip 底部「vision.」被中文 chip 頂部蓋住的情況。
+  const TEXT_COLLISION_PAD = 32;
   const CORNER_JITTER_FRAC = 0.18;  // 文字距 corner anchor 最多 18% 可用空間（保留邊緣感）
-  const TEXT_MIN_W_PX = 400;        // EN / CN 段落最小 max-width（過窄會換太多行、bbox 變高觸發避碰失敗）
-  const TEXT_MAX_W_PX = 550;        // EN / CN 段落最大 max-width（每次 refresh 兩段各自隨機）
+  const TEXT_MIN_W_PX = 500;        // EN / CN 段落最小 max-width（過窄會換太多行、bbox 變高觸發避碰失敗）
+  const TEXT_MAX_W_PX = 650;        // EN / CN 段落最大 max-width（每次 refresh 兩段各自隨機）
   const W = window.innerWidth;
   const H = window.innerHeight;
 
@@ -132,17 +211,29 @@ function randomizeHeroLayout() {
   const placedTextRects = [];
   const usedCorners = [];
 
-  // 偵測 header logo（180×180、左上、會溢出 header 下方），給 text bbox 當 exclusion zone
+  // 偵測 header logo（180×180、左上，會溢出 header 下方），給 text bbox 當 exclusion zone。
+  // header.js 對 lottie SVG 設 `overflow: visible` + viewBox 1080×1080 → 齒輪實際 paint
+  // 區域比 180×180 容器大不少，bbox 直接量到的是容器尺寸，視覺上會超出。
+  // LOGO_VISUAL_PAD = 視覺溢出緩衝（涵蓋 lottie 三色齒輪外圈 + 視覺呼吸空間），
+  // 加太小（如 8）chip 雖在 bbox 外但仍會被齒輪尾蓋住。
+  const LOGO_VISUAL_PAD = 60;
   const logoEl = /** @type {HTMLElement|null} */ (document.querySelector('#header-logo'));
   let logoRect = null;
   if (logoEl) {
     const r = logoEl.getBoundingClientRect();
     if (r.width > 0 && r.height > 0) {
-      logoRect = { left: r.left - 8, top: r.top - 8, right: r.right + 8, bottom: r.bottom + 8 };
+      logoRect = {
+        left: r.left - LOGO_VISUAL_PAD,
+        top: r.top - LOGO_VISUAL_PAD,
+        right: r.right + LOGO_VISUAL_PAD,
+        bottom: r.bottom + LOGO_VISUAL_PAD,
+      };
     }
   }
 
   // 對特定 corner 嘗試放置；回傳最佳 (vx, vy, penalty)。不真的 apply。
+  // logo collision 硬規則：絕不接受，candidate 撞 logo 就 skip；整輪 30 次都撞就 return penalty=Infinity
+  // 強迫 placeTextWithFallback 試其他 corner（hero 4 個 chip 不能被左上大 logo 擋到）。
   function tryPlaceAtCorner(rect, corner) {
     const bbW = rect.width;
     const bbH = rect.height;
@@ -154,11 +245,15 @@ function randomizeHeroLayout() {
       if (xOverlapsLogo) effectiveTop = Math.max(TEXT_TOP_BOUND, logoRect.bottom);
     }
 
+    // 下方 corner 多扣 BOTTOM_ROTATION_BUFFER：留給 wrapper rotation 投影 + section overflow 邊界 buffer
+    const isBottomCorner = (corner === 'bl' || corner === 'br');
+    const effectiveBottom = BOTTOM_MARGIN + (isBottomCorner ? BOTTOM_ROTATION_BUFFER : 0);
     const xRange = Math.max(0, W - bbW - 2 * SIDE_MARGIN);
-    const yRange = Math.max(0, H - bbH - effectiveTop - BOTTOM_MARGIN);
+    const yRange = Math.max(0, H - bbH - effectiveTop - effectiveBottom);
 
     let bestVx = SIDE_MARGIN, bestVy = effectiveTop, bestPenalty = Infinity;
-    for (let i = 0; i < 30; i++) {
+    let anyLogoFree = false;
+    for (let i = 0; i < 10; i++) {
       const jx = Math.random() * CORNER_JITTER_FRAC * xRange;
       const jy = Math.random() * CORNER_JITTER_FRAC * yRange;
       const vx = (corner === 'tl' || corner === 'bl')
@@ -166,17 +261,20 @@ function randomizeHeroLayout() {
         : W - bbW - SIDE_MARGIN - jx;
       const vy = (corner === 'tl' || corner === 'tr')
         ? effectiveTop + jy
-        : H - bbH - BOTTOM_MARGIN - jy;
+        : H - bbH - effectiveBottom - jy;
 
       const candidate = { left: vx, top: vy, right: vx + bbW, bottom: vy + bbH };
-      const collidesText = placedTextRects.some(r => rectsOverlap(r, candidate, TEXT_COLLISION_PAD));
       const collidesLogo = logoRect ? rectsOverlap(logoRect, candidate, 0) : false;
-      if (!collidesText && !collidesLogo) { return { vx, vy, penalty: 0, corner }; }
+      if (collidesLogo) continue;  // 硬規則：跳過所有撞 logo 的 candidate
+      anyLogoFree = true;
+      const collidesText = placedTextRects.some(r => rectsOverlap(r, candidate, TEXT_COLLISION_PAD));
+      if (!collidesText) { return { vx, vy, penalty: 0, corner }; }
 
-      const penalty = placedTextRects.reduce((s, r) => s + overlapArea(r, candidate), 0)
-        + (collidesLogo ? overlapArea(logoRect, candidate) * 4 : 0);
+      const penalty = placedTextRects.reduce((s, r) => s + overlapArea(r, candidate), 0);
       if (penalty < bestPenalty) { bestPenalty = penalty; bestVx = vx; bestVy = vy; }
     }
+    // 整輪都撞 logo（極小 viewport / 巨大文字 bbox）→ Infinity，逼 fallback 換 corner
+    if (!anyLogoFree) return { vx: bestVx, vy: bestVy, penalty: Infinity, corner };
     return { vx: bestVx, vy: bestVy, penalty: bestPenalty, corner };
   }
 
@@ -238,7 +336,9 @@ function randomizeHeroLayout() {
     return { totalPenalty, positions, paragraphWidths, usedCornersSnapshot: [...usedCorners] };
   }
 
-  const MAX_LAYOUT_ATTEMPTS = 12;
+  // 3 attempts 對寬段落 + 大 collision pad 不足夠常找到 penalty=0；提到 6 保證更多 viewport 條件下
+  // 都能挑到 0-overlap 版本。cache hit 後是 O(1)，build cost 只在第一次 + idle 後台補滿時付。
+  const MAX_LAYOUT_ATTEMPTS = 6;
   let bestResult = null;
   for (let attempt = 0; attempt < MAX_LAYOUT_ATTEMPTS; attempt++) {
     const result = runPlacementPass();
@@ -286,21 +386,85 @@ function randomizeHeroLayout() {
   // 根因：max-width 是 wrap 上限，不是 chip 視覺寬；最長行通常比 max-width 短，
   // bg 跟著 <p> 寬度延伸 → 右側看起來比左 padding 大。用 Range API 量 wrapped lines 取最長一行寫回 width
   // 收緊。位置已派完（基於原 max-width bbox），縮 width 只會讓 bbox 變小，不會引入重疊。
-  ['hero-text-en', 'hero-text-cn'].forEach(cls => {
-    const p = /** @type {HTMLElement|null} */ (grid.querySelector(`.${cls}`));
-    if (!p) return;
-    const range = document.createRange();
-    range.selectNodeContents(p);
-    const rects = range.getClientRects();
-    let maxLineW = 0;
-    for (const r of rects) if (r.width > maxLineW) maxLineW = r.width;
-    if (maxLineW <= 0) return;
-    const cs = getComputedStyle(p);
-    const padL = parseFloat(cs.paddingLeft) || 0;
-    const padR = parseFloat(cs.paddingRight) || 0;
-    p.style.width = `${Math.ceil(maxLineW + padL + padR)}px`;
-  });
+  tightenParagraphWidths(grid);
 }
+
+// Cache build 用：跑 placement + banner，回傳 snapshot（不收緊 wrap width — 那是套 cache 時當下 DOM 才算）
+// 副作用：DOM 留下這次 inline left/top/maxWidth/transform；caller 第一次用可直接 commit 不另外 apply
+function runPlacementAndBannerForCache(grid) {
+  randomizeHeroLayout();  // 跑完整 placement，DOM 已更新
+
+  // 從 DOM 收 snapshot — 不存 raw rect，存 style inline 值，applyLayoutSnapshot 直接寫回
+  const textPositions = ['hero-title', 'hero-title-cn', 'hero-text-en', 'hero-text-cn'].map(cls => {
+    const wrapper = grid.querySelector(`.${cls}-wrapper`) || grid.querySelector(`.${cls}`);
+    return wrapper ? { left: wrapper.style.left, top: wrapper.style.top } : null;
+  });
+  const paragraphWidths = ['hero-text-en', 'hero-text-cn'].map(cls => {
+    const p = grid.querySelector(`.${cls}`);
+    return p ? p.style.maxWidth : '';
+  });
+  const banner = grid.querySelector('.hero-banner');
+  const bannerSnap = banner ? {
+    left: banner.style.left,
+    top: banner.style.top,
+    transform: banner.style.transform,
+  } : null;
+
+  return { textPositions, paragraphWidths, banner: bannerSnap };
+}
+
+// Pool 主入口：cache hit 直接套用，miss 則 build 1 組立即用 + 後台補滿剩餘
+function applyOrBuildLayout(grid) {
+  const key = getPoolKey(grid);
+  let pool = layoutPool.get(key);
+  if (pool && pool.length > 0) {
+    const snap = pool[Math.floor(Math.random() * pool.length)];
+    applyLayoutSnapshot(grid, snap);
+    return;
+  }
+
+  // Cache miss：build 1 組立刻用，後台補滿
+  pool = [];
+  layoutPool.set(key, pool);
+  const first = runPlacementAndBannerForCache(grid);
+  pool.push(first);
+  tightenParagraphWidths(grid);  // 第一組已 commit 到 DOM，補上 wrap-width 收緊（與 cached path 對齊）
+
+  // 後台補滿剩餘 POOL_SIZE-1 組：每組 build 都會動到 DOM inline style，但 buildLayoutOnce 自己會
+  // reset textItems 回 (0,0) 再算，所以後續 build 不會被前一組殘留干擾；不過視覺上 DOM 已是第一組
+  // 的 layout（user 看到的），這裡 build 完不要 commit 回 DOM 否則畫面跳。做法：build 完馬上 restore
+  // 回第一組 snapshot（cheap，純寫 inline style）
+  let nextIndex = 1;
+  function buildNext(deadline) {
+    while (nextIndex < POOL_SIZE && (!deadline || deadline.timeRemaining() > 2)) {
+      const snap = runPlacementAndBannerForCache(grid);
+      pool.push(snap);
+      nextIndex++;
+    }
+    // 不管中斷與否，restore DOM 回視覺中那組（第一組）
+    applyLayoutSnapshot(grid, pool[0]);
+    if (nextIndex < POOL_SIZE) {
+      scheduleBuild(buildNext);
+    }
+  }
+  scheduleBuild(buildNext);
+}
+
+function scheduleBuild(fn) {
+  if (typeof requestIdleCallback === 'function') {
+    requestIdleCallback(fn, { timeout: 1000 });
+  } else {
+    setTimeout(() => fn({ timeRemaining: () => 50 }), 16);
+  }
+}
+
+// Resize 失效：清整個 cache（user 拉視窗後新 viewport 第一次跑就 rebuild；同尺寸再 visit 再 cache）
+// throttle 200ms 避免 resize 中持續清；listener 全域只註冊一次（module load 時）
+let _resizeTimer = null;
+window.addEventListener('resize', () => {
+  if (_resizeTimer) clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(() => { layoutPool.clear(); }, 200);
+});
 
 /**
  * Hero 退場動畫：text 4 方向隨機 slide-out + banner 4 方向 clip-path 收合。
@@ -387,9 +551,15 @@ export function waitForHeroAnimDone(timeoutMs = 2500) {
   });
 }
 
+// 每次 initHeroAnimation bump 一次；rAF 內檢查是否仍是當前 init（避免使用者快速連點時
+// 上一頁的 rAF 在新頁 DOM 上跑出錯位 wrap）
+let _heroInitSeq = 0;
+
 export function initHeroAnimation() {
   // SPA 每頁重置：上頁殘留 `_heroDone=true` 會讓本頁 deep-link 不等動畫直接 scroll
   _heroDone = false;
+  const mySeq = ++_heroInitSeq;
+  const isStale = () => mySeq !== _heroInitSeq;
 
   // Hero highlight：所有 [data-hero-hl] 套同一個隨機 accent 色 + 固定 padding
   // padding 用 rem 而非 em，避免 h1（font-size 大）的 padding 被等比例放大成過大色塊
@@ -432,7 +602,8 @@ export function initHeroAnimation() {
     if (heroTextEn && heroGapPx > 0) heroTextEn.style.marginBottom = `${heroGapPx}px`;
     document.querySelectorAll('.hero-title, .hero-title-cn, .hero-text-en, .hero-text-cn, .hero-banner, [data-hero-logo]')
       .forEach(el => { /** @type {HTMLElement} */ (el).style.visibility = 'visible'; });
-    randomizeHeroLayout();
+    const gridNoGsap = document.querySelector('.hero-rand-grid');
+    if (gridNoGsap) applyOrBuildLayout(gridNoGsap);
     signalHeroDone();
     return;
   }
@@ -469,6 +640,18 @@ export function initHeroAnimation() {
     return;
   }
 
+  // 把 heavy work（wrap + layout pool + gsap timeline build）延到下一幀
+  // Why：router 剛 swap 完 main DOM，瀏覽器還沒 paint 新內容；若同步做 hero 動畫 build（含
+  // applyOrBuildLayout 第一次的 placement 計算 + 大量 getBoundingClientRect），main thread 阻塞
+  // 200-500ms 才 paint，user 視覺上「點連結 → 凍住 → 才看到動畫」。
+  // 用 requestAnimationFrame：先讓瀏覽器 paint 新頁靜態樣子（即使 hero 元素 visibility:hidden 也 OK），
+  // 下一幀再做 hero build → 視覺上「點連結 → 立刻換頁 → 16ms 後 hero 動畫進場」。
+  requestAnimationFrame(() => {
+    if (isStale()) return;  // 使用者已切到下一頁，放棄本次 build
+    buildHeroTimeline();
+  });
+
+  function buildHeroTimeline() {
   const tl = gsap.timeline({
     defaults: { ease: 'power3.out' },
     onComplete: signalHeroDone,
@@ -488,8 +671,10 @@ export function initHeroAnimation() {
   }
   if (textCn) wrapElement(textCn, 'hero-text-cn-wrapper');
 
-  // wrap 完成後再洗牌 grid：wrappers 是 grid 直系子元素，要在 wrap 後對 wrapper 派 grid styles
-  randomizeHeroLayout();
+  // wrap 完成後再算 layout：wrappers 是 grid 直系子元素，要在 wrap 後對 wrapper 派 grid styles
+  // Pool-cache 版：cache hit O(1) 套用；miss 才 build（且只 build 1 組立即用，剩餘 idle 補滿）
+  const grid = document.querySelector('.hero-rand-grid');
+  if (grid) applyOrBuildLayout(grid);
 
   // Banner clip-path reveal（4 方向 random，與 faculty card 圖片進場一致風格）
   const heroBanner = /** @type {HTMLElement | null} */ (document.querySelector('.hero-banner'));
@@ -560,4 +745,5 @@ export function initHeroAnimation() {
       /** @type {HTMLElement} */ (mainSection).style.zIndex = '1';
     }
   }
+  }  // end buildHeroTimeline
 }

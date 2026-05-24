@@ -7,7 +7,7 @@
  * Initialize Workshop Year Toggle (年份展開/收合)
  */
 function initListYearToggle() {
-  const workshopYearToggles = document.querySelectorAll('.list-year-toggle');
+  const workshopYearToggles = /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.list-year-toggle'));
 
   if (workshopYearToggles.length === 0) return;
 
@@ -15,7 +15,7 @@ function initListYearToggle() {
   workshopYearToggles.forEach(toggle => {
     const yearGrid = toggle.closest('.grid-12');
     if (yearGrid) {
-      const itemsContainer = yearGrid.querySelector('.list-year-items');
+      const itemsContainer = /** @type {HTMLElement | null} */ (yearGrid.querySelector('.list-year-items'));
       const chevron = yearGrid.querySelector('.icon-chevron-list');
 
       if (itemsContainer) {
@@ -48,7 +48,7 @@ function initListYearToggle() {
 
       // Find the chevron and items container within this year group
       const chevron = yearGrid.querySelector('.icon-chevron-list');
-      const itemsContainer = yearGrid.querySelector('.list-year-items');
+      const itemsContainer = /** @type {HTMLElement | null} */ (yearGrid.querySelector('.list-year-items'));
 
       if (itemsContainer) {
         // Check if currently open (check if height is set and not 0)
@@ -111,6 +111,7 @@ export function resetListAccordionsInPanel(panel) {
     const workshopItem = header.closest('.list-item');
 
     header.classList.remove('active');
+    detachStickyPinObserver(header);
     header.style.background = '';
     delete header.dataset.accentHex;
     delete header.dataset.collapsing;
@@ -134,6 +135,57 @@ export function resetListAccordionsInPanel(panel) {
   });
 }
 
+// Sticky-pinned 偵測：sentinel pattern — 在 list-header 上方塞 0 高度 sentinel div，IO 偵測 sentinel
+// 是否還在 sticky-top 線之下。sentinel 是純 scroll-driven flow 元素（非 sticky），IO 行為完全穩定，
+// 不會踩到「IO 對 sticky 元素 ratio 邊界 case 跨瀏覽器不穩」的坑。
+//
+// 原理：sentinel 位置 = list-header 自然位置上方。user 滾過 sticky-top 線時 sentinel 隨之消失到 root
+// reduced top 之上 → isIntersecting = false → header pinned → 加 .is-pinned；反之 unpinned。
+//
+// CSS :stuck 偽類 spec proposed but not implemented (2026)，sentinel/IO 是 workaround 標準做法。
+function attachStickyPinObserver(header) {
+  if (header._stickyPinIO) return;
+  // 計算 stickyTop：activities 頁是設在 container（不是 header）上，所以從 closest ancestor 找該 var
+  // closest 找不到走 header.computed → fallback 200 (admission 預設)
+  const container = header.closest('[style*="--list-header-sticky-top"]') || header;
+  const stickyTopVar = getComputedStyle(container).getPropertyValue('--list-header-sticky-top').trim();
+  const stickyTop = parseFloat(stickyTopVar) || 200;
+
+  // Inject sentinel into list-item as first child (before list-header)
+  const listItem = header.closest('.list-item');
+  if (!listItem) return;
+  let sentinel = /** @type {HTMLElement | null} */ (listItem.querySelector(':scope > .list-sticky-sentinel'));
+  if (!sentinel) {
+    sentinel = document.createElement('div');
+    sentinel.className = 'list-sticky-sentinel';
+    sentinel.style.cssText = 'height:1px;margin-bottom:-1px;pointer-events:none;';
+    listItem.insertBefore(sentinel, listItem.firstChild);
+  }
+
+  const io = new IntersectionObserver(([entry]) => {
+    // sentinel 滾過 sticky-top 線之上 = isIntersecting false → header pinned
+    header.classList.toggle('is-pinned', !entry.isIntersecting);
+  }, {
+    root: null,
+    rootMargin: `-${stickyTop}px 0px 0px 0px`,
+    threshold: 0,
+  });
+  io.observe(sentinel);
+  header._stickyPinIO = io;
+  header._stickyPinSentinel = sentinel;
+}
+function detachStickyPinObserver(header) {
+  if (header._stickyPinIO) {
+    header._stickyPinIO.disconnect();
+    delete header._stickyPinIO;
+  }
+  if (header._stickyPinSentinel) {
+    header._stickyPinSentinel.remove();
+    delete header._stickyPinSentinel;
+  }
+  header.classList.remove('is-pinned');
+}
+
 // 收合單一 header（從 click handler 與「開新時關舊」共用）
 // 收合順序：先 collapse content（保留 .active）→ onComplete 移除 .active 觸發 title 往左 transform transition
 function closeListHeader(header) {
@@ -155,6 +207,8 @@ function closeListHeader(header) {
     onComplete: () => {
       // collapse 完成才移除 .active → title transform 0.3s 往左滑（CSS transition 觸發）
       header.classList.remove('active');
+      // sticky-pin observer 跟著 active state 走：close 後不需偵測 pinned（header 已不 sticky）
+      detachStickyPinObserver(header);
       header.style.background = '';
       content.style.background = '';
       if (workshopItem) {
@@ -176,7 +230,7 @@ function closeListHeader(header) {
 }
 
 function initListHeaderAccordion() {
-  const workshopHeaders = document.querySelectorAll('.list-header');
+  const workshopHeaders = /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.list-header'));
 
   if (workshopHeaders.length === 0) return;
 
@@ -211,10 +265,10 @@ function initListHeaderAccordion() {
     });
 
     header.addEventListener('click', function(e) {
-      if (e.target.closest('[data-share-btn]')) return;
-      const content = (this.nextElementSibling?.classList.contains('list-content')
+      if (/** @type {HTMLElement} */ (e.target).closest('[data-share-btn]')) return;
+      const content = /** @type {HTMLElement} */ ((this.nextElementSibling?.classList.contains('list-content')
         ? this.nextElementSibling
-        : this.closest('.list-item')?.querySelector('.list-content')) || this.nextElementSibling;
+        : this.closest('.list-item')?.querySelector('.list-content')) || this.nextElementSibling);
       const chevron = this.querySelector('.icon-chevron-list');
 
       // 先判斷狀態再決定動作 — close path 不可在這裡先移除 .active
@@ -224,7 +278,7 @@ function initListHeaderAccordion() {
       const isActive = !wasActive;
       if (isActive) this.classList.add('active');
 
-      const workshopItem = this.closest('.list-item');
+      const workshopItem = /** @type {HTMLElement | null} */ (this.closest('.list-item'));
       if (isActive) {
         // 預設一次只開一個：開啟前先關掉同 panel 內其他展開中的 accordion
         // 非 activities 頁面（如 admission detail）無 .activities-panel，fallback 到 document
@@ -239,9 +293,9 @@ function initListHeaderAccordion() {
         let collapseAbove = 0;
         others.forEach(other => {
           if (other.getBoundingClientRect().top < headerRect.top) {
-            const c = (other.nextElementSibling?.classList.contains('list-content')
+            const c = /** @type {HTMLElement | null | undefined} */ ((other.nextElementSibling?.classList.contains('list-content')
               ? other.nextElementSibling
-              : other.closest('.list-item')?.querySelector('.list-content'));
+              : other.closest('.list-item')?.querySelector('.list-content')));
             if (c) collapseAbove += c.offsetHeight;
           }
         });
@@ -282,6 +336,9 @@ function initListHeaderAccordion() {
           }
         });
         gsap.to(chevron, { rotation: -90, duration: 0.3 });  // open → 朝上
+        // sticky-pin observer: 開展瞬間就 attach（user 還沒滾，header 在自然位置 ratio=1 → 不 pinned）
+        // 之後 user 滾過 sticky-top 線時 IO 才 fire 加上 .is-pinned 收起副標
+        attachStickyPinObserver(this);
       } else {
         closeListHeader(this);
       }

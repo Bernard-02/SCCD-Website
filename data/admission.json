@@ -13,74 +13,198 @@
       "../images/SCCD-1-4-0.jpg"
     ],
     "attachments": [
-      { "url": "#" },
-      { "url": "#" }
+      {
+        "url": "/assets/sample.pdf"
+      },
+      {
+        "url": "/assets/sample.pdf"
+      }
+    ],
+    "dates": [
+      {
+        "startYear": 2026,
+        "startMonth": 2,
+        "startDay": 4,
+        "endYear": 2026,
+        "endMonth": 2,
+        "endDay": 4
+      }
     ]
   },
   {
     "id": "2",
     "date": "2026.02.03",
     "title": "113學年度碩士班甄試入學招生簡章",
-    "content": "<p>詳細招生簡章內容請參閱教務處公告。</p>"
+    "content": "<p>詳細招生簡章內容請參閱教務處公告。</p>",
+    "dates": [
+      {
+        "startYear": 2026,
+        "startMonth": 2,
+        "startDay": 3,
+        "endYear": 2026,
+        "endMonth": 2,
+        "endDay": 3
+      }
+    ]
   },
   {
     "id": "3",
     "date": "2026.02.02",
     "title": "113學年度學士班特殊選才招生簡章",
-    "content": "<p>詳細招生簡章內容請參閱教務處公告。</p>"
+    "content": "<p>詳細招生簡章內容請參閱教務處公告。</p>",
+    "dates": [
+      {
+        "startYear": 2026,
+        "startMonth": 2,
+        "startDay": 2,
+        "endYear": 2026,
+        "endMonth": 2,
+        "endDay": 2
+      }
+    ]
   },
   {
     "id": "4",
     "date": "2026.02.01",
     "title": "113學年度碩士班考試入學招生簡章",
-    "content": "<p>詳細招生簡章內容請參閱教務處公告。</p>"
+    "content": "<p>詳細招生簡章內容請參閱教務處公告。</p>",
+    "dates": [
+      {
+        "startYear": 2026,
+        "startMonth": 2,
+        "startDay": 1,
+        "endYear": 2026,
+        "endMonth": 2,
+        "endDay": 1
+      }
+    ]
   },
   {
     "id": "5",
     "date": "2026.01.31",
     "title": "113學年度轉學生招生資訊",
-    "content": "<p>詳細招生簡章內容請參閱教務處公告。</p>"
+    "content": "<p>詳細招生簡章內容請參閱教務處公告。</p>",
+    "dates": [
+      {
+        "startYear": 2026,
+        "startMonth": 1,
+        "startDay": 31,
+        "endYear": 2026,
+        "endMonth": 1,
+        "endDay": 31
+      }
+    ]
   },
   {
     "id": "6",
     "date": "2026.01.30",
     "title": "113學年度僑生及港澳生申請入學招生簡章",
-    "content": "<p>詳細招生簡章內容請參閱教務處公告。</p>"
+    "content": "<p>詳細招生簡章內容請參閱教務處公告。</p>",
+    "dates": [
+      {
+        "startYear": 2026,
+        "startMonth": 1,
+        "startDay": 30,
+        "endYear": 2026,
+        "endMonth": 1,
+        "endDay": 30
+      }
+    ]
   },
   {
     "id": "7",
     "date": "2026.01.29",
     "title": "113學年度外國學生申請入學招生簡章",
-    "content": "<p>詳細招生簡章內容請參閱教務處公告。</p>"
+    "content": "<p>詳細招生簡章內容請參閱教務處公告。</p>",
+    "dates": [
+      {
+        "startYear": 2026,
+        "startMonth": 1,
+        "startDay": 29,
+        "endYear": 2026,
+        "endMonth": 1,
+        "endDay": 29
+      }
+    ]
   },
   {
     "id": "8",
     "date": "2026.01.28",
     "title": "113學年度運動績優生單獨招生簡章",
-    "content": "<p>詳細招生簡章內容請參閱教務處公告。</p>"
+    "content": "<p>詳細招生簡章內容請參閱教務處公告。</p>",
+    "dates": [
+      {
+        "startYear": 2026,
+        "startMonth": 1,
+        "startDay": 28,
+        "endYear": 2026,
+        "endMonth": 1,
+        "endDay": 28
+      }
+    ]
   },
   {
     "id": "9",
     "date": "2026.01.27",
     "title": "113學年度身心障礙學生升學大專校院甄試招生簡章",
-    "content": "<p>詳細招生簡章內容請參閱教務處公告。</p>"
+    "content": "<p>詳細招生簡章內容請參閱教務處公告。</p>",
+    "dates": [
+      {
+        "startYear": 2026,
+        "startMonth": 1,
+        "startDay": 27,
+        "endYear": 2026,
+        "endMonth": 1,
+        "endDay": 27
+      }
+    ]
   },
   {
     "id": "10",
     "date": "2026.01.26",
     "title": "113學年度繁星推薦入學招生簡章",
-    "content": "<p>詳細招生簡章內容請參閱教務處公告。</p>"
+    "content": "<p>詳細招生簡章內容請參閱教務處公告。</p>",
+    "dates": [
+      {
+        "startYear": 2026,
+        "startMonth": 1,
+        "startDay": 26,
+        "endYear": 2026,
+        "endMonth": 1,
+        "endDay": 26
+      }
+    ]
   },
   {
     "id": "11",
     "date": "2026.01.25",
     "title": "112學年度大學申請入學第二階段指定項目甄試注意事項",
-    "content": "<p>詳細招生簡章內容請參閱教務處公告。</p>"
+    "content": "<p>詳細招生簡章內容請參閱教務處公告。</p>",
+    "dates": [
+      {
+        "startYear": 2026,
+        "startMonth": 1,
+        "startDay": 25,
+        "endYear": 2026,
+        "endMonth": 1,
+        "endDay": 25
+      }
+    ]
   },
   {
     "id": "12",
     "date": "2026.01.24",
     "title": "112學年度碩士班甄試入學招生簡章",
-    "content": "<p>詳細招生簡章內容請參閱教務處公告。</p>"
+    "content": "<p>詳細招生簡章內容請參閱教務處公告。</p>",
+    "dates": [
+      {
+        "startYear": 2026,
+        "startMonth": 1,
+        "startDay": 24,
+        "endYear": 2026,
+        "endMonth": 1,
+        "endDay": 24
+      }
+    ]
   }
 ]

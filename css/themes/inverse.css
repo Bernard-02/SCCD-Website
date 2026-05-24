@@ -492,6 +492,15 @@ body.mode-inverse [data-bar="alumni"].bar-inactive:not(.is-bar-hover) {
   background: #000 !important;
 }
 
+/* Mode btn 圓底：底色 = page bg（融入頁面），inverse 黑底白 icon
+ * 沒 .bar-inactive/active 兩態（永遠顯示當前 mode icon），直接吃 [data-bar="mode"] */
+body.mode-inverse [data-bar="mode"] {
+  background: #000 !important;
+}
+body.mode-inverse [data-bar="mode"] .theme-toggle-btn {
+  color: #fff !important;
+}
+
 /* :not(.is-bar-hover) 讓 hover 時 navigation.css 的 is-bar-hover .nav-link { color:#000 } 規則生效（specificity 0,2,1）
  * 否則此 inverse 規則 (0,3,2) 會壓過 hover 規則導致 hover 仍是白/黑色 */
 body.mode-inverse [data-bar="library"].bar-inactive:not(.is-bar-hover) .nav-link,
@@ -538,13 +547,14 @@ body.mode-inverse .atlas-list-nav-btn {
   color: white !important;
 }
 
-body.mode-inverse .atlas-list-col-title {
+/* 主 col title (Faculty/Alumni/Partners)：黑底白字 → 翻白底黑字（user 指定）
+ * 排除 host/employ：那兩個走 atlas.css var(--lib-bg/fg) 深灰底白字（lib vars 在此檔 body.mode-inverse 已定義 #333333 + #ffffff）
+ * 排除做法：用 :not([data-category="host"]):not([data-category="employ"])，避開原本 !important 蓋過 atlas.css host/employ rule 的 bug */
+body.mode-inverse .atlas-list-col:not([data-category="host"]):not([data-category="employ"]) .atlas-list-col-title,
+body.mode-inverse .atlas-list-group-label-col .atlas-list-col-title {
   background: white !important;
   color: black !important;
 }
-
-/* host/employ 副 title 在 mode-inverse 不蓋 — atlas.css 用 var(--lib-bg/fg)，
-   --lib-bg 在 inverse.css 已定義為深灰底白字（#333333 + #ffffff），自動切換 */
 
 /* B 企業環 chip：standard 黑底白字 → inverse 翻白底黑字（對齊 atlas-list-col-title pattern）
    JS inline 設 backgroundColor=black + color=white，CSS 必須 !important 覆蓋；

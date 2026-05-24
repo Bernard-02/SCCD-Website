@@ -27,7 +27,6 @@
 
   .footer-link {
     color: var(--footer-fg, #fff);
-    transition: opacity var(--transition-fast);
   }
 
   /* Scatter items 內所有文字（標題 h6 + 內文 p + 連結 a）統一 p1 字級
@@ -67,12 +66,6 @@
    *   color    (footer bg=互補 hue) → SCCDLogoWireframeStandard.json (黑 wireframe)
    *                                  + --footer-invert-filter（依 contrast bg luminance 翻白）
    * 預設 filter:none；mode-color 規則在 themes/color.css 套 --footer-invert-filter */
-
-  @media (min-width: 768px) {
-    .footer-link:hover {
-      opacity: 0.6;
-    }
-  }
 
   /* ===== Mobile (default)：線性堆疊 ===== */
   .footer-inner {

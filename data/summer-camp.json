@@ -17,7 +17,17 @@
           "../images/S__6742028.jpg"
         ],
         "description": "This immersive summer camp introduces high school students to the fundamentals of design thinking...",
-        "id": "SC-2025-01"
+        "id": "SC-2025-01",
+        "dates": [
+          {
+            "startYear": 2025,
+            "startMonth": 7,
+            "startDay": 14,
+            "endYear": 2025,
+            "endMonth": 7,
+            "endDay": 18
+          }
+        ]
       }
     ]
   },
@@ -33,7 +43,17 @@
         "videos": [],
         "images": [],
         "description": "This immersive summer camp introduces high school students to the fundamentals of design thinking...",
-        "id": "SC-2024-01"
+        "id": "SC-2024-01",
+        "dates": [
+          {
+            "startYear": 2024,
+            "startMonth": 7,
+            "startDay": 15,
+            "endYear": 2024,
+            "endMonth": 7,
+            "endDay": 19
+          }
+        ]
       }
     ]
   },
@@ -49,7 +69,17 @@
         "videos": [],
         "images": [],
         "description": "Explore the intersection of art and technology in this intensive workshop...",
-        "id": "SC-2023-01"
+        "id": "SC-2023-01",
+        "dates": [
+          {
+            "startYear": 2023,
+            "startMonth": 7,
+            "startDay": 10,
+            "endYear": 2023,
+            "endMonth": 7,
+            "endDay": 14
+          }
+        ]
       }
     ]
   }

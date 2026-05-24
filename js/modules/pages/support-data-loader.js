@@ -55,7 +55,7 @@ export async function loadSupportData() {
     `).join('');
 
     const colors = ['var(--color-green)', 'var(--color-pink)', 'var(--color-blue)'];
-    container.querySelectorAll('.support-link-plain').forEach(link => {
+    /** @type {NodeListOf<HTMLElement>} */ (container.querySelectorAll('.support-link-plain')).forEach(link => {
       link.addEventListener('mouseenter', () => {
         link.style.color = colors[Math.floor(Math.random() * colors.length)];
       });

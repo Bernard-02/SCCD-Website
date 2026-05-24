@@ -75,6 +75,9 @@ function placeInSlot(img, slotIdx, extra = {}) {
 
 export function initDegreeShowGallery(container, pool) {
   if (!container || !Array.isArray(pool) || pool.length === 0) return null;
+  // about 用同 .division-images class min-height:440px 對窄欄夠用；
+  // degree-show 跨全寬 + 統一 400px wrapper → portrait 高度可達 ~533px，旋轉後再 +30 → 需 ~650px
+  container.classList.add('division-images--degree-show');
   if (typeof gsap === 'undefined') {
     container.innerHTML = '';
     const img = buildImg(pool[0]);
@@ -104,8 +107,8 @@ export function initDegreeShowGallery(container, pool) {
   function updateCursors() {
     slots.forEach((s, i) => {
       s.style.cursor = i === 0
-        ? "url('/custom-cursor/default.svg') 5 1, default"
-        : "url('/custom-cursor/pointer.svg') 16 8, pointer";
+        ? "url('/custom-cursor/default.svg') 6 1, default"
+        : "url('/custom-cursor/pointer.svg') 9 1, pointer";
     });
   }
 

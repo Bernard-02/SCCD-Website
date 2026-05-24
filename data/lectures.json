@@ -22,17 +22,31 @@
           }
         ],
         "description": "邀請國際知名媒體設計師進行專題演講，探討當代媒體設計的發展趨勢與跨文化創作的可能性，並分享個人創作歷程。",
+        "description_en": "Invites internationally renowned media designers to deliver keynote talks exploring contemporary trends in media design and the possibilities of cross-cultural creative practice, while sharing their personal creative journeys.",
         "poster": "../images/Degree Show.jpg",
         "videos": [
           "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
         ],
         "images": [
-          "../images/SCCD-1-4-0.jpg"
+          "../images/CCC08866.jpg",
+          "../images/2021-動畫-Pitch-Bible-01.png",
+          "../images/S__6742028.jpg"
         ],
-        "id": "L-2025-01"
+        "id": "L-2025-01",
+        "dates": [
+          {
+            "startYear": 2025,
+            "startMonth": 4,
+            "startDay": 2,
+            "endYear": 2025,
+            "endMonth": 4,
+            "endDay": 2
+          }
+        ]
       },
       {
         "title": "設計思考國際講座",
+        "title_en": "International Lecture on Design Thinking",
         "date": "2025.08.05",
         "location": "實踐大學設計學院 B1 演講廳",
         "category": "seminars",
@@ -58,7 +72,17 @@
           "../images/Degree Show.jpg",
           "../images/maxresdefault.jpg"
         ],
-        "id": "L-2025-02"
+        "id": "L-2025-02",
+        "dates": [
+          {
+            "startYear": 2025,
+            "startMonth": 8,
+            "startDay": 5,
+            "endYear": 2025,
+            "endMonth": 8,
+            "endDay": 5
+          }
+        ]
       }
     ]
   },
@@ -89,7 +113,17 @@
           "../images/S__6742028.jpg",
           "../images/SCCD-1-4-0.jpg"
         ],
-        "id": "L-2024-01"
+        "id": "L-2024-01",
+        "dates": [
+          {
+            "startYear": 2024,
+            "startMonth": 6,
+            "startDay": 10,
+            "endYear": 2024,
+            "endMonth": 6,
+            "endDay": 10
+          }
+        ]
       },
       {
         "title": "動畫技術工作營講座",
@@ -125,7 +159,17 @@
           "../images/CCC08866.jpg",
           "../images/Degree Show.jpg"
         ],
-        "id": "L-2024-02"
+        "id": "L-2024-02",
+        "dates": [
+          {
+            "startYear": 2024,
+            "startMonth": 11,
+            "startDay": 8,
+            "endYear": 2024,
+            "endMonth": 11,
+            "endDay": 8
+          }
+        ]
       }
     ]
   },
@@ -155,7 +199,17 @@
           "../images/SCCD-1-4-0.jpg",
           "../images/S__6742028.jpg"
         ],
-        "id": "L-2023-01"
+        "id": "L-2023-01",
+        "dates": [
+          {
+            "startYear": 2023,
+            "startMonth": 3,
+            "startDay": 20,
+            "endYear": 2023,
+            "endMonth": 3,
+            "endDay": 20
+          }
+        ]
       },
       {
         "title": "品牌設計國際論壇",
@@ -201,7 +255,17 @@
           "../images/maxresdefault.jpg",
           "../images/tw-11134207-7qul0-lj9ky32mjy5w86.jpg"
         ],
-        "id": "L-2023-02"
+        "id": "L-2023-02",
+        "dates": [
+          {
+            "startYear": 2023,
+            "startMonth": 8,
+            "startDay": 30,
+            "endYear": 2023,
+            "endMonth": 8,
+            "endDay": 30
+          }
+        ]
       }
     ]
   }

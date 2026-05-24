@@ -98,6 +98,7 @@ export function initSectionBannerReveal() {
   const accentColors = getAccentColors();
 
   // 隨機套用封鎖線位置／旋轉（初始 + 每次 replay 都呼叫）
+  /** @param {HTMLElement} titleEl */
   function applyRandomLayout(titleEl) {
     const rot = randomTextRotation();
     const fromRight = Math.random() < 0.5;
@@ -148,7 +149,7 @@ export function initSectionBannerReveal() {
   // reveal 完全由 anchor-nav active 切換驅動（透過 _replayReveal）
   // strip 預設隱藏（CSS clip-path inset(0 100% 0 0)），無底色，
   // anchor-nav 首次 active 時選色 + 觸發 reveal → 單一動畫無閃爍
-  const sectionTitles = document.querySelectorAll('[data-section-title]');
+  const sectionTitles = /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('[data-section-title]'));
   sectionTitles.forEach((titleEl) => {
     applyRandomLayout(titleEl);
 
@@ -182,17 +183,17 @@ export function initSectionBannerReveal() {
   });
 
   // --- Section Banners（有圖片的完整版，如果還有的話）---
-  const banners = document.querySelectorAll('[data-section-banner]');
+  const banners = /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('[data-section-banner]'));
   if (!banners.length) return;
 
   banners.forEach((banner) => {
-    const imgItems = Array.from(banner.querySelectorAll('.section-banner-img-item'));
+    const imgItems = /** @type {HTMLElement[]} */ (Array.from(banner.querySelectorAll('.section-banner-img-item')));
 
     // title area 可能在 banner 外（section 的直接子元素）
     const titleArea = banner.querySelector('.section-banner-title-area') ||
                       banner.parentElement?.querySelector('.section-banner-title-area');
     const textBlock = titleArea?.querySelector('.section-banner-text-block');
-    const textInner = textBlock?.querySelector('.section-banner-text-inner');
+    const textInner = /** @type {HTMLElement | null | undefined} */ (textBlock?.querySelector('.section-banner-text-inner'));
     const gridDiv   = titleArea?.querySelector('.grid-12');
 
     if (!imgItems.length || !textBlock) return;
@@ -216,7 +217,7 @@ export function initSectionBannerReveal() {
     // imgRotate 同時擁有 rotation + overflow:hidden + clip-path（同 brand trail wrapper）
     // 這樣 clip-path 在 local space 作用，旋轉後角落不會被裁切
     imgItems.forEach((item, i) => {
-      const imgRotate = item.querySelector('.section-banner-img-rotate');
+      const imgRotate = /** @type {HTMLElement | null} */ (item.querySelector('.section-banner-img-rotate'));
       if (imgRotate) {
         imgRotate.style.overflow = 'hidden';
         gsap.set(imgRotate, { rotation: rotations[i] });

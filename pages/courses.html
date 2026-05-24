@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Courses - SCCD</title>
+  <title>Curriculum - SCCD</title>
   <link rel="stylesheet" href="../css/variables.css">
   <link rel="stylesheet" href="../css/output.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -20,7 +20,7 @@
     <!-- Courses Hero Section（4 元素隨機 corner 排版，見 hero-animation.js randomizeHeroLayout） -->
     <section class="h-screen relative overflow-hidden">
       <div class="hero-rand-grid">
-        <h1 class="text-black hero-title inline-block" data-hero-hl>COURSES</h1>
+        <h1 class="text-black hero-title inline-block" data-hero-hl>CURRICULUM</h1>
         <h1 class="text-black hero-title-cn inline-block" data-hero-hl>課程</h1>
         <div class="hero-banner">
           <img src="../images/SCCD-1-4-0.jpg" alt="Courses">
@@ -45,19 +45,19 @@
           <!-- Left column: program btn bar（桌面 vertical sticky；mobile 直接 flex-col 自然流） -->
           <div class="courses-program-bar flex flex-col items-start gap-lg md:gap-2xl mb-2xl md:mb-0">
             <div class="courses-program-group flex flex-col items-start gap-xs">
-              <span class="courses-bfa-label">BFA Class&ensp;學士班</span>
+              <span class="courses-bfa-label">BFA 學士班</span>
               <button class="courses-program-btn active" data-program="bfa-animation">
                 <span class="anchor-nav-inner"><span>Animation &amp; Moving<br>Image</span><span>動畫影像設計組</span></span>
               </button>
             </div>
             <div class="courses-program-group flex flex-col items-start gap-xs">
-              <span class="courses-bfa-label">BFA Class&ensp;學士班</span>
+              <span class="courses-bfa-label">BFA 學士班</span>
               <button class="courses-program-btn" data-program="bfa-cmd">
                 <span class="anchor-nav-inner"><span>Creative Media Design</span><span>創意媒體設計組</span></span>
               </button>
             </div>
             <button class="courses-program-btn" data-program="mdes">
-              <span class="anchor-nav-inner"><span>MDES Class</span><span>碩士班</span></span>
+              <span class="anchor-nav-inner"><span>MDES</span><span>碩士班</span></span>
             </button>
           </div>
 
@@ -82,15 +82,16 @@
          click 卡片 → 從右滑入；overlay/close-btn/Esc 關閉；body.overflow lock 鎖捲動 -->
     <div id="courses-slide-in" class="invisible pointer-events-none fixed inset-0 z-[150]">
       <div id="courses-overlay" class="absolute inset-0 bg-black opacity-0 cursor-pointer"></div>
-      <!-- flex-col + 標題保留 mt-3xl 在頂端原位 / desc-en mt-auto 把描述推到 panel 底部
-           （title 群與 desc 群分區：title 上、desc 下，中間空白由 mt-auto 吸收） -->
-      <div id="courses-detail-panel" class="absolute right-0 top-0 bottom-0 w-full md:w-[40%] overflow-visible"
+      <!-- title 區 sticky 在頂端不動；desc 包進固定 wrapper，內部 overflow-y 自己 scroll（參考 activities list-scroll pattern） -->
+      <div id="courses-detail-panel" class="absolute right-0 top-0 bottom-0 w-full md:w-[40%] overflow-hidden"
            style="background: white; transform: translateX(110%);">
-        <div class="w-full h-full overflow-y-auto no-scrollbar p-2xl flex flex-col">
-          <h5 id="courses-detail-title-en" class="courses-detail-title-en text-h5 font-bold mb-0 mt-3xl"></h5>
+        <div class="w-full h-full px-2xl pt-4xl pb-2xl flex flex-col">
+          <h5 id="courses-detail-title-en" class="courses-detail-title-en text-h5 font-bold mb-0"></h5>
           <h5 id="courses-detail-title-zh" class="courses-detail-title-zh text-h5 font-bold mb-0"></h5>
-          <p id="courses-detail-desc-en" class="courses-detail-desc-en text-p2 mt-auto mb-lg" style="line-height: 1.6;"></p>
-          <p id="courses-detail-desc-zh" class="courses-detail-desc-zh text-p2" style="line-height: 1.6;"></p>
+          <div class="courses-detail-desc-wrapper flex-1 min-h-0 overflow-y-auto pr-xl list-scroll mt-xl">
+            <p id="courses-detail-desc-en" class="courses-detail-desc-en text-p2 mb-lg" style="line-height: 1.6;"></p>
+            <p id="courses-detail-desc-zh" class="courses-detail-desc-zh text-p2" style="line-height: 1.6;"></p>
+          </div>
         </div>
       </div>
     </div>

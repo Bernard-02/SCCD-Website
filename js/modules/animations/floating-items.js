@@ -173,8 +173,8 @@ function randomRotation() {
 function createImageEl(src, url, showPlayIcon = false) {
   const wrapper = document.createElement(url ? 'a' : 'div');
   if (url) {
-    wrapper.href = url;
-    wrapper.style.cursor = "url('/custom-cursor/pointer.svg') 16 8, pointer";
+    /** @type {HTMLAnchorElement} */ (wrapper).href = url;
+    wrapper.style.cursor = "url('/custom-cursor/pointer.svg') 14 1, pointer";
   }
   wrapper.style.cssText = `
     display: block;
@@ -252,8 +252,8 @@ function createImageEl(src, url, showPlayIcon = false) {
 function createTextEl(textEn, textZh, url) {
   const el = document.createElement(url ? 'a' : 'div');
   if (url) {
-    el.href = url;
-    el.style.cursor = "url('/custom-cursor/pointer.svg') 16 8, pointer";
+    /** @type {HTMLAnchorElement} */ (el).href = url;
+    el.style.cursor = "url('/custom-cursor/pointer.svg') 14 1, pointer";
   }
   const defaultColor = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
   const defaultTextColor = '#000';

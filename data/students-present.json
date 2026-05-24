@@ -16,7 +16,17 @@
           "../images/SCCD-1-4-0.jpg",
           "../images/S__6742028.jpg"
         ],
-        "id": "SP-2025-01"
+        "id": "SP-2025-01",
+        "dates": [
+          {
+            "startYear": 2025,
+            "startMonth": 3,
+            "startDay": 15,
+            "endYear": 2025,
+            "endMonth": 3,
+            "endDay": 20
+          }
+        ]
       },
       {
         "title": "Student Project Title 2",
@@ -26,7 +36,17 @@
         "poster": "../images/2021-動畫-Pitch-Bible-01.png",
         "videos": [],
         "images": [],
-        "id": "SP-2025-02"
+        "id": "SP-2025-02",
+        "dates": [
+          {
+            "startYear": 2025,
+            "startMonth": 4,
+            "startDay": 10,
+            "endYear": 2025,
+            "endMonth": 4,
+            "endDay": 15
+          }
+        ]
       },
       {
         "title": "Student Project Title 3",
@@ -36,7 +56,17 @@
         "poster": "../images/2021-動畫-Pitch-Bible-01.png",
         "videos": [],
         "images": [],
-        "id": "SP-2025-03"
+        "id": "SP-2025-03",
+        "dates": [
+          {
+            "startYear": 2025,
+            "startMonth": 5,
+            "startDay": 20,
+            "endYear": 2025,
+            "endMonth": 5,
+            "endDay": 25
+          }
+        ]
       }
     ]
   },
@@ -51,7 +81,17 @@
         "poster": "../images/2021-動畫-Pitch-Bible-01.png",
         "videos": [],
         "images": [],
-        "id": "SP-2024-01"
+        "id": "SP-2024-01",
+        "dates": [
+          {
+            "startYear": 2024,
+            "startMonth": 3,
+            "startDay": 15,
+            "endYear": 2024,
+            "endMonth": 3,
+            "endDay": 20
+          }
+        ]
       },
       {
         "title": "2024 Project 2",
@@ -61,7 +101,17 @@
         "poster": "../images/2021-動畫-Pitch-Bible-01.png",
         "videos": [],
         "images": [],
-        "id": "SP-2024-02"
+        "id": "SP-2024-02",
+        "dates": [
+          {
+            "startYear": 2024,
+            "startMonth": 4,
+            "startDay": 10,
+            "endYear": 2024,
+            "endMonth": 4,
+            "endDay": 15
+          }
+        ]
       }
     ]
   },
@@ -76,7 +126,17 @@
         "poster": "../images/2021-動畫-Pitch-Bible-01.png",
         "videos": [],
         "images": [],
-        "id": "SP-2023-01"
+        "id": "SP-2023-01",
+        "dates": [
+          {
+            "startYear": 2023,
+            "startMonth": 5,
+            "startDay": 20,
+            "endYear": 2023,
+            "endMonth": 5,
+            "endDay": 25
+          }
+        ]
       }
     ]
   }

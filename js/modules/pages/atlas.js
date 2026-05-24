@@ -1,5 +1,6 @@
 /* global gsap */
 import { applyMarqueeOverflow } from '../ui/marquee-overflow.js';
+import { registerPageExit } from '../ui/page-exit.js';
 
 /**
  * Atlas Page — SCCD-Centered Living Textile
@@ -53,11 +54,12 @@ const ALUMNI_CAREERS = [
 
 // ── Filter ─────────────────────────────────────────────
 // Faculty  = fc + ff（在職 + 離職教師）
-// Alumni   = co（系友任職企業）
+// Alumni   = co（系友任職企業 — 橢圓 ring chip，host subgroup）
+//          + em（系友就職企業 — 橢圓外 floating chip，employ subgroup；mock data 暫無真實 source）
 // Partners = wsg + ind + lec（工作營 / 產學合作 / 講座講者）
 const FILTER_PREFIXES = {
   faculty:  ['fc', 'ff'],
-  alumni:   ['co'],
+  alumni:   ['co', 'em'],
   partners: ['wsg', 'ind', 'lec'],
 };
 
@@ -232,7 +234,7 @@ const FAKE_COMPANIES = [
 // Partner 類型對應（wsg/ind/lec 各自映射）
 const PARTNER_TYPES = {
   wsg: { en: 'Workshop',                       zh: '工作營'   },
-  ind: { en: 'Industry-Academia Cooperation',  zh: '產學合作' },
+  ind: { en: 'Industry Partnerships',          zh: '產學合作' },
   lec: { en: 'Lectures',                       zh: '講座'     },
 };
 
@@ -470,6 +472,55 @@ export async function initAtlas(options = {}) {
     });
   });
 
+  // C 風格 floating chip：系友就職企業 mock data（橢圓 ring 外、有 cityKey 跟著城市 relocate）
+  // 用 category 'C' 視覺上跟 Partners 同（colored text、無 chip bg、小軌道、有連到城市的線）
+  // prefix 'em' 註冊在 FILTER_PREFIXES.alumni → alumni btn / employ subchip 控制顯隱
+  // cityKey 用 seeded random 分配 canonical 國家 → 線連到該國 D chip，城市 10s relocate 一起平移
+  // 真實 employment data 接入時：把這段換成從 data 來源 push（保留 prefix 'em' 即可）
+  const EMPLOY_MOCK = [
+    { textEn: 'Spotify',           textZh: 'Spotify 音樂'   },
+    { textEn: 'Netflix',           textZh: '網飛'           },
+    { textEn: 'Pinterest',         textZh: 'Pinterest'      },
+    { textEn: 'Twitch',            textZh: 'Twitch 直播'    },
+    { textEn: 'Discord',           textZh: 'Discord 社群'   },
+    { textEn: 'Reddit',            textZh: 'Reddit 論壇'    },
+    { textEn: 'YouTube',           textZh: 'YouTube'        },
+    { textEn: 'TikTok',            textZh: '抖音'           },
+    { textEn: 'X (Twitter)',       textZh: 'X 平台'         },
+    { textEn: 'LinkedIn',          textZh: '領英'           },
+    { textEn: 'Behance',           textZh: 'Behance 創意'   },
+    { textEn: 'Dribbble',          textZh: 'Dribbble 設計'  },
+    { textEn: 'Airbnb',            textZh: 'Airbnb'         },
+    { textEn: 'Uber',              textZh: 'Uber 優步'      },
+    { textEn: 'Lyft',              textZh: 'Lyft'           },
+    { textEn: 'Stripe',            textZh: 'Stripe 支付'    },
+    { textEn: 'Shopify',           textZh: 'Shopify 電商'   },
+    { textEn: 'Figma',             textZh: 'Figma 設計'     },
+    { textEn: 'Adobe',             textZh: 'Adobe 奧多比'   },
+    { textEn: 'IDEO',              textZh: 'IDEO 創新設計'  },
+    { textEn: 'Pentagram',         textZh: 'Pentagram 五角' },
+    { textEn: 'Wieden+Kennedy',    textZh: '威肯廣告'       },
+    { textEn: 'Ogilvy',            textZh: '奧美廣告'       },
+    { textEn: 'Dentsu',            textZh: '電通'           },
+    { textEn: 'BBDO',              textZh: 'BBDO 廣告'      },
+    { textEn: 'TBWA',              textZh: 'TBWA 媒體'      },
+    { textEn: 'R/GA',              textZh: 'R/GA 互動'      },
+    { textEn: 'Sagmeister & Walsh', textZh: 'Sagmeister 設計' },
+    { textEn: 'Bloomberg',         textZh: '彭博媒體'       },
+    { textEn: 'Condé Nast',        textZh: '康泰納仕'       },
+  ];
+  const employCityRand = mulberry32(LAYOUT_SEED ^ 0x5E170A);
+  EMPLOY_MOCK.forEach(em => {
+    const country = CANONICAL_COUNTRIES[Math.floor(employCityRand() * CANONICAL_COUNTRIES.length)];
+    items.push({
+      id: uid('em'), category: 'C',
+      textEn: em.textEn, textZh: em.textZh,
+      labelEn: 'Alumni Employer', labelZh: '系友就職企業',
+      detail: '本系畢業生就職之企業。',
+      groups: [], cityKey: country.en,
+    });
+  });
+
   if (items.length === 0) {
     console.warn('[Atlas] No items');
     return;
@@ -517,9 +568,9 @@ export async function initAtlas(options = {}) {
       item._listSubEn = c.en;
       item._listSubZh = c.zh;
     } else if (cat === 'alumni') {
-      // List view 4 列拆分：把 alumni 隨機分到 'host' (主持) / 'employ' (就職)
-      // 兩半在 map view 仍同屬 alumni filter；split 只影響 list view 顯示分組
-      item._listSubGroup = listRand() < 0.5 ? 'host' : 'employ';
+      // co-* (橢圓 ring 企業) → host（Hosting subchip 點掉 = 整圈消失）
+      // em-* (橢圓外 floating chip) → employ（Employment subchip 點掉 = floating chip 全收）
+      item._listSubGroup = prefix === 'em' ? 'employ' : 'host';
       const countryEn = item.cityKey;
       const countryZh = countryZhByEn.get(countryEn) || countryEn;
       // 渲染國家全名，ISO 代碼不寫（user 指定）
@@ -716,8 +767,10 @@ export async function initAtlas(options = {}) {
   const ORBIT_ASPECT_MIN = 0.45;              // 防扁軌道穿過中心
   const ORBIT_ASPECT_MAX = 0.55;
   const ORBIT_TILT_MAX   = Math.PI / 16;      // ±~11° 共平面
-  const ORBIT_BBOX_W_MAX = halfW * 1.35;      // 橫向 bbox cap（保留溢出空間）
-  const ORBIT_BBOX_H_MAX = halfH * 1.15;      // 縱向 bbox cap
+  // bbox cap = 軌道最遠處不超過 viewport 邊（user 指定 15s 變化位置不能超過 viewport）
+  // halfW * 0.92 保留 ~8% halfW 給 chip width / padding，避免 chip text 切到 viewport 邊外
+  const ORBIT_BBOX_W_MAX = halfW * 0.92;
+  const ORBIT_BBOX_H_MAX = halfH * 0.85;
 
   // 旋轉後橢圓 bbox 半寬/半高 → 縮放到 viewport 內
   function fitTiltedEllipse(rx, ry, tilt) {
@@ -790,6 +843,72 @@ export async function initAtlas(options = {}) {
   //   hover 暫停 / hidden tab 跳過
   const D_RELOCATE_INTERVAL_MS = 10000;
   const D_RELOCATE_TWEEN_DUR   = 1.2;
+  // city → 同 cityKey 的關聯 items（C 工作營/產學/講座；A faculty 故意排除 — user 指定老師不跟著走）
+  // 排除 B：B 鎖在中央橢圓 ring，cityKey 是假填資料只給 list view 用；跟著城市移會破壞 ring layout
+  // 注意：itemMap 建在這之後（行 860）+ C items 的 _orbit 行 866 才建；timer callback 在 +10s 第一次跑時兩者都已存在
+  /** @param {string} cityKey */
+  function getRelatedItemsForCity(cityKey) {
+    if (!cityKey) return [];
+    return items.filter(it =>
+      it.category === 'C' && it.cityKey === cityKey && it._orbit && it._anchor
+    );
+  }
+
+  // viewport clamp margin for relocated item orbit center（user 指定 15s 變化位置不能超過 viewport）
+  // item 視覺位置 = _orbit.cx ± rx（rx 30-70），margin 100 保 chip text 不切邊
+  const RELOC_MARGIN = 100;
+
+  /** 把單個 item 沿 (dx, dy) 平移 orbit center + tween anchor translate 0 → 同 city relocate 模式
+   *  @param {any} item @param {number} dx @param {number} dy */
+  function relocateRelatedItem(item, dx, dy) {
+    if (!item._orbit || item._orbit.pauseStart != null) return;
+    // 1. 平移 orbit center（tickFloat 下一幀 item 邏輯位置會跟著移 dx, dy）
+    //    _initX/Y **不能**平移：anchor.style.left/top 在 scatter 時鎖定 oldInitX，transform=item.x-_initX 是 runtime offset
+    //    若同步加 dx，transform 不變 → 視覺位置不變 → relocate 無效
+    //    保持 _initX 不變 → tickFloat 下幀 transform 自動 +dx（item.x 增 dx, _initX 不變）→ 視覺跳 dx
+    //    搭配下方 style.translate = -dx 抵銷此幀視覺跳變，再 tween translate → 0 平滑滑入新位置
+    //    Viewport clamp：新 orbit center 不可超出 [margin, W-margin] × [margin, H-margin]，
+    //                    若超出就縮 dx/dy 讓 cx/cy 剛好停在邊界內（不再 follow 城市完整位移，但保 chip 可見）
+    const targetCx = item._orbit.cx + dx;
+    const targetCy = item._orbit.cy + dy;
+    const clampedCx = Math.max(RELOC_MARGIN, Math.min(W - RELOC_MARGIN, targetCx));
+    const clampedCy = Math.max(RELOC_MARGIN, Math.min(H - RELOC_MARGIN, targetCy));
+    const effDx = clampedCx - item._orbit.cx;
+    const effDy = clampedCy - item._orbit.cy;
+    item._orbit.cx = clampedCx;
+    item._orbit.cy = clampedCy;
+    dx = effDx;
+    dy = effDy;
+
+    // 2. 反向 offset + tween 回 0（視覺仍在原位置 → 平滑滑到新位置）
+    if (item._anchor && typeof gsap !== 'undefined') {
+      if (item._relocateTween) item._relocateTween.kill();
+      const off = { x: -dx, y: -dy };
+      item._anchor.style.translate = `${-dx}px ${-dy}px`;
+      item._relocateOffsetX = -dx;
+      item._relocateOffsetY = -dy;
+      item._relocateTween = gsap.to(off, {
+        x: 0, y: 0,
+        duration: D_RELOCATE_TWEEN_DUR,
+        ease: 'power2.inOut',
+        onUpdate: () => {
+          if (item._anchor) item._anchor.style.translate = `${off.x.toFixed(2)}px ${off.y.toFixed(2)}px`;
+          item._relocateOffsetX = off.x;
+          item._relocateOffsetY = off.y;
+        },
+        onComplete: () => {
+          if (item._anchor) item._anchor.style.translate = '';
+          item._relocateOffsetX = 0;
+          item._relocateOffsetY = 0;
+          item._relocateTween = null;
+        },
+      });
+    } else {
+      item._relocateOffsetX = 0;
+      item._relocateOffsetY = 0;
+    }
+  }
+
   const dRelocateTimer = setInterval(() => {
     if (document.hidden) return;
     cityList.forEach(city => {
@@ -848,11 +967,19 @@ export async function initAtlas(options = {}) {
         city._relocateOffsetX = 0;
         city._relocateOffsetY = 0;
       }
+
+      // 6. 跟城市關聯的 C item（cityKey 相符）一起平移 → user 指定除老師外，城市相關資訊也跟著走
+      //    平移量 = city 新-舊位置（newX-oldX, newY-oldY），note: 上方 dx/dy 是 oldX-newX 反向，相關 item 要傳正向
+      const relatedDx = newX - oldX;
+      const relatedDy = newY - oldY;
+      const related = getRelatedItemsForCity(city.cityKey);
+      related.forEach(it => relocateRelatedItem(it, relatedDx, relatedDy));
     });
   }, D_RELOCATE_INTERVAL_MS);
   cleanupFns.push(() => {
     clearInterval(dRelocateTimer);
     cityList.forEach(city => { if (city._relocateTween) city._relocateTween.kill(); });
+    items.forEach(it => { if (it._relocateTween) it._relocateTween.kill(); });
   });
 
   const itemMap = new Map(items.map(i => [i.id, i]));
@@ -1059,8 +1186,9 @@ export async function initAtlas(options = {}) {
   // 兩端 item.x/y 都已在 Phase 1 軌道更新過；source 再加上 label 浮動 offset
   function updateLineEndpoints(le) {
     const src = le.src, city = le.city;
-    const srcX = src.x + (src._floatDx || 0);
-    const srcY = src.y + (src._floatDy || 0);
+    // C item 也可能在 10s 重定位 tween 期間（跟城市一起平移）→ 線端要跟著 chip 視覺位置走
+    const srcX = src.x + (src._floatDx || 0) + (src._relocateOffsetX || 0);
+    const srcY = src.y + (src._floatDy || 0) + (src._relocateOffsetY || 0);
     // 15s 重定位 tween 期間 city 視覺位置 = orbit position + relocate offset → 線端要跟著走
     const cityX = city.x + (city._relocateOffsetX || 0);
     const cityY = city.y + (city._relocateOffsetY || 0);
@@ -1672,6 +1800,10 @@ export async function initAtlas(options = {}) {
   applyTransform();
 
   if (typeof gsap !== 'undefined') {
+    // intro scale tween 期間整層 GPU promote，否則 50+ chip + ring + lines 一起 scale
+    // 每 frame 都得 re-rasterize → SPA 換頁剛 swap DOM 那刻特別卡
+    // tween 完才關，避免長期 promote 高 zoom 時文字糊
+    zoomEl.style.willChange = 'transform';
     introTween = gsap.to({ v: SCALE_INTRO_START }, {
       v: SCALE_DEFAULT,
       duration: INTRO_DURATION,
@@ -1679,6 +1811,9 @@ export async function initAtlas(options = {}) {
       onUpdate: function() {
         scale = this.targets()[0].v;
         applyTransform();
+      },
+      onComplete: () => {
+        zoomEl.style.willChange = 'auto';
       },
     });
     cleanupFns.push(() => introTween && introTween.kill());
@@ -1725,7 +1860,7 @@ export async function initAtlas(options = {}) {
     dragging = true;
     dragStartX = e.clientX; dragStartY = e.clientY;
     dragStartTx = tx; dragStartTy = ty;
-    document.body.style.cursor = "url('/custom-cursor/drag_2.svg') 16 16, grabbing";
+    document.body.style.cursor = "url('/custom-cursor/drag_2.svg') 15 15, grabbing";
     e.preventDefault();
   }
   function onMouseMove(e) {
@@ -2115,14 +2250,14 @@ export async function initAtlas(options = {}) {
     });
   }
 
-  // 純 clip-path show/hide 該 subgroup 的 alumni B chip，不動 ring 方向（避免 user 看到方向反轉）
+  // 純 clip-path show/hide 該 subgroup 的 alumni chip，不動 ring 方向（避免 user 看到方向反轉）
   // 也不動 career / subchip 容器（alumni 整體仍 active）；alumni 全 deactivate 路徑走 applyMapFilter 含 flipRingDir 是另回事
+  // host = B 環 co-* chips；employ = C floating em-* chips（兩種類型都 _listSubGroup 標記，filter by group）
   /** @param {string} key @param {boolean} visible */
   function setSubchipVisibility(key, visible) {
     const targets = items.filter(it =>
-      it.category === 'B' &&
       it._listSubGroup === key &&
-      String(it.id).split('-')[0] === 'co' &&
+      (String(it.id).split('-')[0] === 'co' || String(it.id).split('-')[0] === 'em') &&
       it._anchor
     );
     if (targets.length === 0) return;
@@ -2263,6 +2398,8 @@ export async function initAtlas(options = {}) {
   }
   const revealFilters = () => {
     drainRevealTimers();
+    // layoutBtn 跟第一個 filter btn (faculty) 同時 reveal（無 stagger delay）
+    if (layoutBtn) layoutBtn.classList.add('atlas-layout-revealed');
     btns.forEach((btn, i) => {
       const t = setTimeout(() => {
         if (btn.isConnected) btn.classList.add('atlas-filter-revealed');
@@ -2621,29 +2758,8 @@ export async function initAtlas(options = {}) {
       }
     });
 
-    // 額外 placeholder host items（拓寬 host 列假數據量；不進 items 陣列 → 不影響 map view cluster）
-    const FAKE_HOST_ADDITIONS = [
-      { textEn: 'Spotify',          textZh: 'Spotify 音樂'    },
-      { textEn: 'Netflix',          textZh: '網飛'            },
-      { textEn: 'Pinterest',        textZh: 'Pinterest'      },
-      { textEn: 'Twitch',           textZh: 'Twitch 直播'     },
-      { textEn: 'Discord',          textZh: 'Discord 社群'    },
-      { textEn: 'Reddit',           textZh: 'Reddit 論壇'     },
-      { textEn: 'YouTube',          textZh: 'YouTube'         },
-      { textEn: 'TikTok',           textZh: '抖音'            },
-      { textEn: 'X (Twitter)',      textZh: 'X 平台'          },
-      { textEn: 'LinkedIn',         textZh: '領英'            },
-      { textEn: 'Behance',          textZh: 'Behance 創意'    },
-      { textEn: 'Dribbble',         textZh: 'Dribbble 設計'   },
-    ];
-    FAKE_HOST_ADDITIONS.forEach((faux, idx) => {
-      listGrouped.host.push({
-        id: `host-fake-${idx}`,
-        category: 'B',
-        textEn: faux.textEn,
-        textZh: faux.textZh,
-      });
-    });
+    // em-* items（系友就職企業 mock）已在 items 陣列、走 alumni cat → _listSubGroup='employ' → 自動進 listGrouped.employ
+    // 不再需要這裡額外 push placeholder（之前繞 items 陣列直接餵 listGrouped 的 pattern 已 deprecate）
 
     const CAT_LABELS = {
       faculty:  { en: 'Professors', zh: '歷屆教師' },
@@ -2789,8 +2905,8 @@ export async function initAtlas(options = {}) {
       }
       const prefix = String(item.id).split('-')[0];
       let visible = allowed.has(prefix);
-      // alumni (co-*) B chip 再依 host/employ subchip 狀態二次過濾 — 該 subgroup 關掉就連帶藏 chip
-      if (visible && prefix === 'co' && item._listSubGroup) {
+      // alumni chip (co-* ring + em-* floating) 再依 host/employ subchip 狀態二次過濾 — 該 subgroup 關掉就連帶藏 chip
+      if (visible && (prefix === 'co' || prefix === 'em') && item._listSubGroup) {
         visible = subchipActive[item._listSubGroup] !== false;
       }
       const wasFiltered = item._anchor.classList.contains('atlas-filtered-out');
@@ -3070,18 +3186,15 @@ export async function initAtlas(options = {}) {
     // - Phase 1：所有 cover clip-path 由左→右揭露成 chip（隨機起跑，duration = TOTAL - delay → 同時結束）
     // - Phase 2：所有 span clip-path 由左→右收掉（chip + 文字一起消失）+ cityLines stroke-dashoffset 0→1 點對點 erase
     //   stagger 範圍 RANGE 拉大讓「先後散開」更明顯
-    // 反向 stagger：先收 subchips (employ → host → career)，0.3s 後 btns (partners → alumni → faculty)
-    // hideCareer 內部已處理 subchip reversal；btn collapse 用 setTimeout 反向排序 + push 進 revealTimers
+    // user 指定退場節奏（2026-05-24）：main btn + subchip 同時 t=0 收，全部壓在 introTween (~750ms) 期間
+    // 進場仍維持階梯（main btn 先 → subchip 後），但退場直接同時收避免 startList 後星雲還在的視覺斷層
     // 先 drain 任何前一次 switchToMap.finalize 殘留的 reveal timer，避免 race 後它們蓋回剛要收的 class
     drainRevealTimers();
     hideCareer({ stagger: SUBCHIP_STAGGER });
-    const SUBCHIP_DURATION = 700;  // 2-phase hide：clip-path 0.4s + layout collapse 0.3s = 0.7s 總長
-    // 最後一個 subchip (career) start = mapSubchipCtrls.length * SUBCHIP_STAGGER * 1000；結束時間再 +0.4s + 0.3s buffer
-    const btnCollapseStart = mapSubchipCtrls.length * (SUBCHIP_STAGGER * 1000) + SUBCHIP_DURATION + SUBCHIP_GAP;
     [...btns].reverse().forEach((btn, i) => {
       const t = setTimeout(() => {
         if (btn.isConnected) btn.classList.remove('atlas-filter-revealed');
-      }, btnCollapseStart + i * STAGGER);
+      }, i * STAGGER);
       revealTimers.push(t);
     });
     if (introTween) introTween.kill();
@@ -3102,6 +3215,8 @@ export async function initAtlas(options = {}) {
       onComplete: () => {
         // 0.2s buffer：chips 已全部 clip 掉 / lines 已 retract 掉但 stage 還沒 hide → 視覺全空白
         // 跟 switchToMap 進場前的 0.2s buffer 對稱，讓兩個方向的「全白過場」節奏一致
+        // btn / subchip collapse 跟 introTween t=0 同時起跑，預期都在 introTween 結束前完成（btn 500ms、subchip 最後一個 ~1000ms）
+        // subchip 略長但 chip 視覺層級比星雲 cover 低，可接受
         gsap.delayedCall(0.2, () => {
           allSpans.forEach(s => { s.style.clipPath = ''; });
           allCovers.forEach(c => { c.style.clipPath = ''; });
@@ -3343,6 +3458,101 @@ export async function initAtlas(options = {}) {
     layoutBtn.addEventListener('click', () => {
       if (currentView === 'map') switchToList();
       else switchToMap();
+    });
+  }
+
+  // ── Page exit：離開 atlas 時依當下 view 跑對應退場 ─────────────
+  // map view 用 switchToList 開頭的「東西消失」階段（subchip + btn collapse + cover/span hide + cityLines retract），
+  // list view 用 switchToMap 退場階段（yPercent col-title + line-clip + clip-path nav-item）；
+  // 兩者都不跑下游 startList / finalize，純做退場讓 router cleanup 接手
+  // idle-standby root 不是 document，不註冊（idle-standby 是 overlay 非 routed page）
+  if (options.root === undefined || options.root === document) {
+    registerPageExit(() => {
+      if (typeof gsap === 'undefined') return Promise.resolve();
+      if (currentView === 'list') return playListExit();
+      return playMapExit();
+    });
+  }
+
+  function playMapExit() {
+    return new Promise(resolve => {
+      drainRevealTimers();
+      if (listCareerCtrl) listCareerCtrl.hide();
+      hideCareer({ stagger: SUBCHIP_STAGGER });
+      if (layoutBtn) layoutBtn.classList.remove('atlas-layout-revealed');
+      [...btns].reverse().forEach((btn, i) => {
+        const t = setTimeout(() => {
+          if (btn.isConnected) btn.classList.remove('atlas-filter-revealed');
+        }, i * STAGGER);
+        revealTimers.push(t);
+      });
+      if (introTween) introTween.kill();
+
+      const REVEAL_TOTAL = 0.35;
+      const HIDE_TOTAL   = 0.4;
+      const REVEAL_RANGE = 0.2;
+      const HIDE_RANGE   = 0.28;
+      const allWithSpan = items.filter(i => i._span);
+      const allSpans  = allWithSpan.map(i => i._span);
+      const allCovers = allWithSpan.map(i => i._cover).filter(Boolean);
+
+      gsap.set(allCovers, { clipPath: 'inset(0% 100% 0% 0%)' });
+
+      const HIDE_DIRS = [
+        'inset(0% 0% 0% 100%)',
+        'inset(0% 100% 0% 0%)',
+        'inset(100% 0% 0% 0%)',
+        'inset(0% 0% 100% 0%)',
+      ];
+      introTween = gsap.timeline({ onComplete: () => gsap.delayedCall(0.2, resolve) });
+      allCovers.forEach(cover => {
+        const d = Math.random() * REVEAL_RANGE;
+        introTween.to(cover, { clipPath: 'inset(0% 0% 0% 0%)', duration: REVEAL_TOTAL - d, ease: 'power2.out' }, d);
+      });
+      const p2Start = REVEAL_TOTAL;
+      allSpans.forEach(span => {
+        const d = Math.random() * HIDE_RANGE;
+        const dir = HIDE_DIRS[Math.floor(Math.random() * 4)];
+        introTween.to(span, { clipPath: dir, duration: HIDE_TOTAL - d, ease: 'power2.out' }, p2Start + d);
+      });
+      hideLayoutIcon({ timeline: introTween, position: 0 });
+      cityLines.forEach(cl => { cl.hoveredEnd = Math.random() < 0.5 ? 'a' : 'b'; });
+      cityLines.forEach(cl => {
+        introTween.to(cl, { retractT: 1, duration: REVEAL_TOTAL + HIDE_TOTAL, ease: 'power2.out', overwrite: true }, 0);
+      });
+      if (allCovers.length === 0 && allSpans.length === 0) gsap.delayedCall(0.2, resolve);
+    });
+  }
+
+  function playListExit() {
+    return new Promise(resolve => {
+      if (listCareerCtrl) listCareerCtrl.hide();
+      if (layoutBtn) layoutBtn.classList.remove('atlas-layout-revealed');
+      hideLayoutIcon();
+      const yPercentExitTargets = /** @type {HTMLElement[]} */ ([
+        ...listView.querySelectorAll('.atlas-list-line-clip > *'),
+        ...listView.querySelectorAll('.atlas-list-col-title'),
+      ]);
+      const navExitTargets = /** @type {HTMLElement[]} */ ([...listView.querySelectorAll('.atlas-list-nav-item')]);
+      if (yPercentExitTargets.length === 0 && navExitTargets.length === 0) {
+        gsap.delayedCall(0.2, resolve);
+        return;
+      }
+      let done = 0;
+      const total = (yPercentExitTargets.length > 0 ? 1 : 0) + (navExitTargets.length > 0 ? 1 : 0);
+      const onOne = () => { if (++done >= total) gsap.delayedCall(0.2, resolve); };
+      if (yPercentExitTargets.length > 0) {
+        gsap.to(yPercentExitTargets, {
+          yPercent: () => Math.random() < 0.5 ? 100 : -100,
+          duration: 0.6, ease: 'power2.in', overwrite: true, onComplete: onOne,
+        });
+      }
+      if (navExitTargets.length > 0) {
+        gsap.fromTo(navExitTargets,
+          { clipPath: 'inset(0% 0% 0% 0%)' },
+          { clipPath: 'inset(0% 0% 100% 0%)', duration: 0.6, ease: 'power2.in', overwrite: true, onComplete: onOne },
+        );
+      }
     });
   }
 }

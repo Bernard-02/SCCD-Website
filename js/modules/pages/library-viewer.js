@@ -1,3 +1,4 @@
+// @ts-nocheck — querySelector 密集，全為 TS2339 Element vs HTMLElement 雜訊
 /**
  * Library Viewer
  * 初始化 lightbox listener 和 PDF viewer modal（供 SPA 路由呼叫）
@@ -5,6 +6,7 @@
 
 import { openLightbox } from '../lightbox/activities-lightbox.js';
 import { enterLightboxMode, exitLightboxMode } from '../lightbox/lightbox-shell.js';
+import { createRefBtn } from '../lightbox/lightbox-ref-btn.js';
 
 // ── Lightbox ──────────────────────────────────────────────────────────────────
 
@@ -14,9 +16,9 @@ function ensureLightboxListener() {
   if (_lightboxListenerAdded) return;
   _lightboxListenerAdded = true;
   document.addEventListener('sccd:open-lightbox', e => {
-    const { media, index, title, color } = e.detail;
-    // title / color 由 caller (library-panels) 帶入；沒帶就 fallback 不顯示 title pill
-    openLightbox(media, index, { title, color });
+    const { media, index, title, color, references } = e.detail;
+    // title / color / references 由 caller (library-panels) 帶入；沒帶就 fallback 不顯示對應 UI
+    openLightbox(media, index, { title, color, references });
   });
 }
 
@@ -63,10 +65,11 @@ function ensurePdfModal() {
          - title 對齊 PDF spread 左邊（fit 時實際 canvas 左緣，JS positionTitle 動態設）
          - 兩者都 transform-origin:left bottom 避免旋轉外溢 -->
     <button class="pdf-back-btn absolute" style="bottom: 2rem; left: var(--container-padding, 1.5rem); z-index: 50;">
-      <span class="pdf-back-pill" style="display:inline-flex;align-items:center;justify-content:center;background:#00FF80;color:#000;padding:0 14px;font-weight:700;font-size:var(--font-size-p1);line-height:1;transform:rotate(0deg);transform-origin:left bottom;box-sizing:border-box;">
+      <span class="pdf-back-pill" style="display:inline-flex;align-items:center;justify-content:center;background:#00FF80;color:#000;width:44px;height:44px;font-size:var(--font-size-p1);line-height:1;transform:rotate(0deg);transform-origin:left bottom;box-sizing:border-box;">
         <span class="icon icon-arrow-left icon-m"></span>
       </span>
     </button>
+    <!-- pdf-ref-btn-slot：ref btn 由 createRefBtn 動態插入，位置 absolute，left/bottom 由 positionRefBtn 算 -->
     <div class="pdf-title absolute" style="bottom: 2rem; left: 4rem; z-index: 50; display: none;"></div>
 
     <!-- px-16 md:px-32：desktop padding 加大讓 stage（=zoom mask）邊緣停在 chevron 內側，
@@ -142,6 +145,18 @@ export function initPdfViewer() {
   const fitToggleBtn = document.getElementById('pdf-fit-toggle');
   if (!modal || !canvasL || !canvasR || !stageEl || !rowEl) return;
 
+  // ── Ref btn（plug-in helper）─────────────────────────────────────
+  // 提供「跳轉到 activities 對應 item」的 chip popover；close lightbox 後 SPA 換頁
+  const refUi = createRefBtn('#00FF80', () => closeModal());
+  refUi.btnEl.classList.add('pdf-ref-btn');
+  refUi.btnEl.style.position = 'absolute';
+  refUi.btnEl.style.bottom = '2rem';
+  refUi.btnEl.style.zIndex = '50';
+  // left 由 positionRefBtn 動態算（anchor 到 back btn 右緣 + gap）；先給 fallback 避免閃位
+  refUi.btnEl.style.left = '4rem';
+  modal.appendChild(refUi.btnEl);
+  modal.appendChild(refUi.popoverEl);
+
   let pdfDoc   = null;
   let curPage  = 1;
   let rendering = false;
@@ -165,10 +180,10 @@ export function initPdfViewer() {
     rowEl.style.transition = animated ? 'transform 0.2s ease-out' : 'none';
     rowEl.style.transform = `translate(${zoom.tx}px, ${zoom.ty}px) scale(${zoom.scale})`;
     rowEl.style.cursor = isDragging
-      ? "url('/custom-cursor/drag_2.svg') 16 16, grabbing"
+      ? "url('/custom-cursor/drag_2.svg') 10 10, grabbing"
       : (zoom.scale > 1
-          ? "url('/custom-cursor/drag_1.svg') 16 16, grab"
-          : "url('/custom-cursor/default.svg') 5 1, default");
+          ? "url('/custom-cursor/drag_1.svg') 10 10, grab"
+          : "url('/custom-cursor/default.svg') 6 1, default");
     updateZoomUI();
   }
 
@@ -319,6 +334,7 @@ export function initPdfViewer() {
     titleEl.style.display = 'block';
     requestAnimationFrame(() => {
       syncBackBtnHeight();
+      positionRefBtn();
       positionTitle();
       setupTitleMarquee();
     });
@@ -354,62 +370,96 @@ export function initPdfViewer() {
     const bg = color || '#00FF80';
     backPill.style.background = bg;
     backPill.style.transform  = `rotate(${smallRot()}deg)`;
+    // ref btn 共用同 accent；旋轉角度 0（避免兩 pill 同時亂轉視覺雜訊）
+    refUi.setColor(bg);
   }
 
-  // 量 title pill 內 span（含 padding 視覺 bbox）→ 套到 backPill height；title 隱藏時 reset
+  // 量 title pill 內 span（含 padding 視覺 bbox）→ 套到 backPill / ref btn pill height；title 隱藏時 reset
   function syncBackBtnHeight() {
     if (!backPill) return;
+    const refPill = /** @type {HTMLElement | null} */ (refUi.btnEl.querySelector('.lightbox-ref-btn-pill'));
     const pill = titleEl && titleEl.querySelector('.pdf-title-pill');
     if (!pill || titleEl.style.display === 'none') {
       backPill.style.height = '';
+      if (refPill) refPill.style.height = '';
       return;
     }
     // offsetHeight 含 padding，跟 visual bbox 一致（rotation 不影響 offsetHeight）
     const h = /** @type {HTMLElement} */ (pill).offsetHeight;
-    if (h > 0) backPill.style.height = h + 'px';
+    if (h > 0) {
+      backPill.style.height = h + 'px';
+      if (refPill) refPill.style.height = h + 'px';
+    }
   }
 
-  // title 跟 back btn 固定 24px (md) gap（不對齊 PDF 本身，避免 PDF 寬度變化時 title 飄）
+  // 三 pill 統一 gap：back ↔ ref ↔ title 都 PILL_GAP 像素
+  const PILL_GAP = 20;
+
+  // ref btn 緊接 back btn 右邊
+  function positionRefBtn() {
+    if (!backBtn || refUi.btnEl.style.display === 'none') return;
+    const backRect = backBtn.getBoundingClientRect();
+    refUi.btnEl.style.left = (backRect.right + PILL_GAP) + 'px';
+  }
+
+  // title 跟「最右側 pill（ref btn 有就 ref，沒就 back）」固定 gap
+  // 不對齊 PDF 本身，避免 PDF 寬度變化時 title 飄
   function positionTitle() {
     if (!titleEl || titleEl.style.display === 'none') return;
     if (!backBtn) return;
-    const backRect = backBtn.getBoundingClientRect();
-    titleEl.style.left = (backRect.right + 24) + 'px';
+    const hasRef = refUi.btnEl.style.display !== 'none';
+    const anchorRect = hasRef
+      ? refUi.btnEl.getBoundingClientRect()
+      : backBtn.getBoundingClientRect();
+    titleEl.style.left = (anchorRect.right + PILL_GAP) + 'px';
   }
 
   function openModal() {
     modal.style.display = 'flex';
     requestAnimationFrame(() => { modal.style.opacity = '1'; });
+    // header bars hide + logo 切 inverse + footer-hide state 清零，全交給 enterLightboxMode
     enterLightboxMode();
   }
 
+  // closeModal 回 Promise：ref btn 跳轉時要等 fadeout 完才 SPA 換頁，避免 0.3s 黑→新頁的視覺斷層
   function closeModal() {
     modal.style.opacity = '0';
+    // exitLightboxMode：show bars + 移除 body.lightbox-open → theme-toggle MutationObserver
+    // 自動把 logo 切回 standard/inverse/wireframe（依當前 mode）
     exitLightboxMode();
     // 停 title marquee tween（同 activities-lightbox cleanup）
     if (typeof gsap !== 'undefined' && titleEl) {
       titleEl.querySelectorAll('.pdf-title-track').forEach(el => gsap.killTweensOf(el));
     }
-    setTimeout(() => {
-      modal.style.display = 'none';
-      if (pdfDoc) { pdfDoc.destroy(); pdfDoc = null; }
-      canvasL.getContext('2d').clearRect(0, 0, canvasL.width, canvasL.height);
-      canvasR.getContext('2d').clearRect(0, 0, canvasR.width, canvasR.height);
-      resetZoom(false);
-      renderTitle(null);
-    }, 300);
+    return new Promise(resolve => {
+      setTimeout(() => {
+        modal.style.display = 'none';
+        if (pdfDoc) { pdfDoc.destroy(); pdfDoc = null; }
+        canvasL.getContext('2d').clearRect(0, 0, canvasL.width, canvasL.height);
+        canvasR.getContext('2d').clearRect(0, 0, canvasR.width, canvasR.height);
+        resetZoom(false);
+        renderTitle(null);
+        refUi.reset();
+        resolve();
+      }, 300);
+    });
   }
 
   _pdfListenerAdded = true;
 
   document.addEventListener('sccd:open-pdf', async (e) => {
-    const { pdfUrl, title, color } = e.detail || {};
+    const { pdfUrl, title, color, references } = e.detail || {};
     if (!pdfUrl) return;
     curPage = 1;
     resetZoom(false);
     renderTitle(title, color);
     renderBackPill(color);
+    // ref 接口：references 為 array of { section, itemId, labelEn, labelZh, titleEn, titleZh }
+    // 無 references 或空 array → ref btn 自動不渲染
+    refUi.setReferences(references);
     openModal();
+    // 等 modal 顯示 + back btn 量到 rect 才 position ref btn（與 title 用同一 rAF cadence 對齊）
+    requestAnimationFrame(() => positionRefBtn());
     try {
       // SPA navigated 進 library 時若 pdfjsLib 沒被頁面 head 載入，動態 inject
       await ensurePdfjsLoaded();
@@ -459,7 +509,7 @@ export function initPdfViewer() {
     if (zoom.scale <= 1 || e.button !== 0) return;
     isDragging = true;
     dragStart = { x: e.clientX, y: e.clientY, tx: zoom.tx, ty: zoom.ty };
-    rowEl.style.cursor = "url('/custom-cursor/drag_2.svg') 16 16, grabbing";
+    rowEl.style.cursor = "url('/custom-cursor/drag_2.svg') 15 15, grabbing";
     e.preventDefault();
   });
   window.addEventListener('mousemove', (e) => {
@@ -473,8 +523,8 @@ export function initPdfViewer() {
     if (!isDragging) return;
     isDragging = false;
     rowEl.style.cursor = zoom.scale > 1
-      ? "url('/custom-cursor/drag_1.svg') 16 16, grab"
-      : "url('/custom-cursor/default.svg') 5 1, default";
+      ? "url('/custom-cursor/drag_1.svg') 10 10, grab"
+      : "url('/custom-cursor/default.svg') 6 1, default";
   });
 
   modal.addEventListener('click', (e) => {

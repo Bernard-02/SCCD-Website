@@ -8,7 +8,7 @@ import { initWorksFilter } from '../filters/works-filter.js';
 import { setActiveNavBtn, showPanel } from '../ui/section-switch-helpers.js';
 
 export function initWorksSectionSwitch() {
-  const sectionBtns = document.querySelectorAll('.works-section-btn');
+  const sectionBtns = /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.works-section-btn'));
   if (!sectionBtns.length) return;
 
   const sectionEl = document.getElementById('works-section');

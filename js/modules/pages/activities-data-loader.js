@@ -7,6 +7,7 @@ import { openLightbox } from '../lightbox/activities-lightbox.js';
 import { setupClipReveal, playClipReveal } from '../ui/scroll-animate.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { ensureFlagIconsCss } from '../ui/ensure-flag-icons.js';
+import { countryName } from '../../data/country-names.js';
 
 // ── Reference 自動 lookup ─────────────────────────────────────────────────────
 // ref 只填 { section, itemId } 即可；title/label 渲染前自動從目標 JSON lookup。
@@ -24,9 +25,9 @@ const SECTION_DATA_URL = {
   visits:             '/data/general-activities.json',
 };
 
-const SECTION_LABELS = {
+export const SECTION_LABELS = {
   workshop:           { en: 'Workshop',                      zh: '工作坊' },
-  industry:           { en: 'Industry-Academia Cooperation', zh: '產學合作' },
+  industry:           { en: 'Industry Partnerships',         zh: '產學合作' },
   lectures:           { en: 'Lectures',                      zh: '講座' },
   'students-present': { en: 'Students Present',              zh: '學生自主' },
   'summer-camp':      { en: 'Summer Camp',                   zh: '暑期體驗營' },
@@ -38,7 +39,7 @@ const SECTION_LABELS = {
 
 const _refDataCache = new Map();
 
-async function getSectionData(section) {
+export async function getSectionData(section) {
   // 特例：exhibitions section 同時涵蓋 special（general-activities.json category=exhibitions）+ permanent（permanent-exhibitions.json）
   if (section === 'exhibitions') {
     const cacheKey = '__exhibitions_merged__';
@@ -68,7 +69,7 @@ async function getSectionData(section) {
   return promise;
 }
 
-function findItemById(data, itemId) {
+export function findItemById(data, itemId) {
   if (!Array.isArray(data)) return null;
   for (const yg of data) {
     for (const item of yg.items || []) {
@@ -106,6 +107,29 @@ async function resolveRef(ref) {
 
   if (!ref.titleEn && targetEn) ref.titleEn = targetEn;
   if (!ref.titleZh && targetZh) ref.titleZh = targetZh;
+}
+
+// Ref btn click 分派：pdfUrl 走共用 PDF viewer（sccd:open-pdf）／否則走 SPA item 跳轉
+// pdfUrl btn 走 button + dataset；section/itemId btn 走 __sccdNavigateToItem；ref.href 走原生 <a> 不走此 handler
+const _REF_ACCENT_COLORS = ['#FF448A', '#00FF80', '#26BCFF'];
+function bindRefBtnClick(btn) {
+  btn.addEventListener('click', () => {
+    const pdfUrl = btn.dataset.refPdfUrl;
+    if (pdfUrl) {
+      const titleEn = btn.dataset.refTitleEn || '';
+      const titleZh = btn.dataset.refTitleZh || '';
+      const color = _REF_ACCENT_COLORS[Math.floor(Math.random() * _REF_ACCENT_COLORS.length)];
+      document.dispatchEvent(new CustomEvent('sccd:open-pdf', {
+        detail: { pdfUrl, title: { en: titleEn, zh: titleZh }, color },
+      }));
+      return;
+    }
+    const section = btn.dataset.refSection;
+    const itemId  = btn.dataset.refItem;
+    if (typeof window.__sccdNavigateToItem === 'function') {
+      window.__sccdNavigateToItem(section, itemId || null);
+    }
+  });
 }
 
 // Helper: 為 list-item 內的海報及 gallery 圖片加上 hover 旋轉歸 0 效果
@@ -150,7 +174,7 @@ export function bindMediaHover(container) {
 // ── Shared HTML Builders ─────────────────────────────────────────────────────
 
 // 建立 media list（海報 → videos → images）
-// Dedupe by src：poster 常常就是 images[0]（封面），不去重會 lightbox 出現「同圖兩張」chevron 切下去看起來沒變
+// 不去重：user 要求後台 key 兩張一樣的圖就放兩張（外層 thumbnail 與 lightbox 數量必須對齊）
 // 防禦性：images/videos 陣列裡若有 null/空字串/whitespace，map 前先 filter 掉避免 lightbox 出現空 thumbnail
 const isValidUrl = (s) => typeof s === 'string' && s.trim() !== '';
 // 把 item.videos / item.images 從新 endpoint group shape 還原成 string array
@@ -207,12 +231,7 @@ export function buildItemMedia(item) {
     }).filter(Boolean),
     ...images.filter(isValidUrl).map(src => ({ type: 'image', src: src.trim(), thumb: src.trim() })),
   ];
-  const seen = new Set();
-  return all.filter(m => {
-    if (!m.src || seen.has(m.src)) return false;
-    seen.add(m.src);
-    return true;
-  });
+  return all.filter(m => m.src);
 }
 
 // 視覺 poster：item.poster 沒填就 fallback 用 item.images[0]
@@ -300,7 +319,7 @@ export function buildAlbumsHtml(item, { unbounded = false } = {}) {
 
   return unbounded
     ? `<div class="item-albums">${itemsHtml}</div>`
-    : `<div class="item-albums overflow-y-auto" style="max-height: 360px;">${itemsHtml}</div>`;
+    : `<div class="item-albums overflow-y-auto list-scroll" style="max-height: 360px;">${itemsHtml}</div>`;
 }
 
 // 海報區塊 HTML
@@ -374,7 +393,7 @@ export function buildGalleryHtml(item) {
 // elem = 觸發 lightbox 的元素（album-thumb 或 [data-lightbox-open]），closest .list-item 即父層
 function getLightboxMeta(elem) {
   const btn = document.querySelector('.activities-section-btn.active');
-  const inner = btn?.querySelector('.anchor-nav-inner');
+  const inner = /** @type {HTMLElement | null | undefined} */ (btn?.querySelector('.anchor-nav-inner'));
   const color = inner?.style.background || '';
 
   const listItem = elem.closest('.list-item');
@@ -422,10 +441,14 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
     if (!inner || !track) return;
     let offset = 0;
     const getMaxOffset = () => Math.max(0, inner.scrollWidth - track.clientWidth);
+    // max==0 整顆隱藏（沒東西可滑）；否則依 offset 端點 50% 透明暗示「到底了」
     const updateChevrons = () => {
       const max = getMaxOffset();
-      prevBtn?.classList.toggle('invisible', max === 0);
-      nextBtn?.classList.toggle('invisible', max === 0);
+      const noScroll = max === 0;
+      prevBtn?.classList.toggle('invisible', noScroll);
+      nextBtn?.classList.toggle('invisible', noScroll);
+      if (prevBtn) prevBtn.style.opacity = (!noScroll && offset <= 0) ? '0.5' : '';
+      if (nextBtn) nextBtn.style.opacity = (!noScroll && offset >= max) ? '0.5' : '';
     };
     // list-item 展開後 dispatch 'gallery:check'，這時 inner.scrollWidth 才是真實值
     gallery.closest('.list-item')?.addEventListener('gallery:check', updateChevrons);
@@ -438,11 +461,13 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
       e.stopPropagation();
       offset = Math.max(0, offset - STEP());
       inner.style.transform = `translateX(-${offset}px)`;
+      updateChevrons();
     });
     nextBtn?.addEventListener('click', e => {
       e.stopPropagation();
       offset = Math.min(getMaxOffset(), offset + STEP());
       inner.style.transform = `translateX(-${offset}px)`;
+      updateChevrons();
     });
   });
 
@@ -457,18 +482,23 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
     const getMaxOffset = () => Math.max(0, inner.scrollWidth - track.clientWidth);
     const updateChevrons = () => {
       const max = getMaxOffset();
-      prevBtn?.classList.toggle('invisible', max === 0);
-      nextBtn?.classList.toggle('invisible', max === 0);
+      const noScroll = max === 0;
+      prevBtn?.classList.toggle('invisible', noScroll);
+      nextBtn?.classList.toggle('invisible', noScroll);
+      if (prevBtn) prevBtn.style.opacity = (!noScroll && offset <= 0) ? '0.5' : '';
+      if (nextBtn) nextBtn.style.opacity = (!noScroll && offset >= max) ? '0.5' : '';
     };
     gallery.closest('.list-item')?.addEventListener('gallery:check', updateChevrons);
     const STEP = () => track.clientWidth * 0.6;
     prevBtn?.addEventListener('click', () => {
       offset = Math.max(0, offset - STEP());
       inner.style.transform = `translateX(-${offset}px)`;
+      updateChevrons();
     });
     nextBtn?.addEventListener('click', () => {
       offset = Math.min(getMaxOffset(), offset + STEP());
       inner.style.transform = `translateX(-${offset}px)`;
+      updateChevrons();
     });
   });
 
@@ -489,6 +519,9 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
   bindMediaHover(container);
 
   // 標題跑馬燈：偵測是否溢出，是則加 is-overflow + 設定捲動距離
+  // list-content 內的 location marquee 渲染當下 clientWidth=0（h-0 overflow-hidden），會錯判 overflow；
+  // 對 list-content 內的 wrap 額外綁 'gallery:check' event，accordion 展開時 list-accordion.js
+  // 在 onComplete dispatch 該 event → 此時量 clientWidth 才是真值
   const initMarquees = () => {
     if (window.innerWidth < 768) return;
     container.querySelectorAll('.list-title-marquee').forEach(wrap => {
@@ -514,6 +547,10 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
         }
       };
       checkOverflow();
+      // 在 list-content 內的（location marquee）等 accordion 展開後再量
+      if (wrap.closest('.list-content')) {
+        wrap.closest('.list-item')?.addEventListener('gallery:check', checkOverflow);
+      }
       window.addEventListener('resize', checkOverflow);
       // SPA 離開 activities 時解綁；每個 panel render 都會疊一份 listener，跨頁累積到 user 反映 resize 變慢
       registerPageCleanup(() => window.removeEventListener('resize', checkOverflow));
@@ -537,13 +574,7 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
 
   // Reference 按鈕（舊 workshop-ref-btn / industry-ref-btn 已統一為 list-ref-btn，此處保留相容）
   container.querySelectorAll('.workshop-ref-btn, .list-ref-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const section = btn.dataset.refSection;
-      const itemId  = btn.dataset.refItem;
-      if (typeof window.__sccdNavigateToItem === 'function') {
-        window.__sccdNavigateToItem(section, itemId || null);
-      }
-    });
+    bindRefBtnClick(btn);
   });
 
   // 進場動畫：per-row clip reveal + data-pre-reveal 守門（動畫前禁 hover/click）
@@ -573,45 +604,40 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
   return null;
 }
 
-// ── 日期格式：去掉年份，只留月份與日期 ────────────────────────────────────────
-function formatDateShort(dateStr) {
-  if (!dateStr) return '';
-  return dateStr.replace(/\d{4}\./g, '').replace(/\./g, ' / ').trim();
-}
-
-// ── 新 endpoint shape: dates group repeater → display string ────────────────
+// ── dates group repeater → display string（前端統一格式 / 寫死寬度的 source of truth）─
 // shape: [{ startYear, startMonth, startDay, endYear, endMonth, endDay }, ...]
-// rule per entry（2 個 flag 控制）：
-//   - includeStartYear：是否要把 start year 內嵌（false = 左邊有 year column 已顯示主年份，重複可省）
-//   - 跨年時 end year 永遠顯示（新資訊不能省）
-// 表格：
-//   includeStartYear=true  (admission hideYearHeader true)：
-//     - 單日 → YYYY.MM.DD
-//     - 同年跨日 → YYYY.MM.DD-MM.DD
-//     - 跨年 → YYYY.MM.DD-YYYY.MM.DD
-//   includeStartYear=false (summer-camp 等有 year column 場景)：
-//     - 單日 → MM.DD
-//     - 同年跨日 → MM.DD-MM.DD
-//     - 跨年 → MM.DD-YYYY.MM.DD
+// 規格（user 契約 2026-05-25 v6，所有 list expand 區 date row 一致）：
+//   - 起始日永不渲染年份（年份歸 list grouping / year header）
+//   - 結束日只在跨年時才渲染年份（新資訊不能省）
+//   - 單日 → `MM / DD`
+//   - 同年跨日 → `MM / DD - MM / DD`
+//   - 跨年 → `MM / DD - YYYY / MM / DD`（前端 col 寬度按此基準寫死）
 // 多筆用 ", " 串接
+//
+// includeStartYear=true 例外：admission dateInHeader 用（沒 year column 副標需要完整日期）
+//   - 單日 → `YYYY / MM / DD`
+//   - 同年跨日 → `YYYY / MM / DD - MM / DD`
+//   - 跨年 → `YYYY / MM / DD - YYYY / MM / DD`
 function formatDatesFromGroups(datesArr, { includeStartYear = false } = {}) {
   if (!Array.isArray(datesArr) || datesArr.length === 0) return '';
-  const parts = datesArr
-    .map(d => formatSingleDateGroup(d, includeStartYear))
-    .filter(Boolean);
-  return parts.join(', ');
+  return datesArr.map(d => formatSingleDateGroup(d, includeStartYear)).filter(Boolean).join(', ');
 }
-function formatSingleDateGroup(d, includeStartYear) {
+function formatSingleDateGroup(d, includeStartYear = false) {
   if (!d) return '';
   const sY = d.startYear, sM = d.startMonth, sD = d.startDay;
   const eY = d.endYear || sY, eM = d.endMonth || sM, eD = d.endDay || sD;
-  if (!sM || !sD) return ''; // 至少要有起始月日
+  if (!sM || !sD) return '';
   const sameYear = sY === eY;
   const sameDate = sameYear && sM === eM && sD === eD;
-  const startPart = includeStartYear ? `${sY}.${sM}.${sD}` : `${sM}.${sD}`;
+  const pad = (n) => String(n).padStart(2, '0');
+  const startPart = includeStartYear
+    ? `${sY} / ${pad(sM)} / ${pad(sD)}`
+    : `${pad(sM)} / ${pad(sD)}`;
   if (sameDate) return startPart;
-  const endPart = sameYear ? `${eM}.${eD}` : `${eY}.${eM}.${eD}`;
-  return `${startPart}-${endPart}`;
+  const endPart = sameYear
+    ? `${pad(eM)} / ${pad(eD)}`
+    : `${eY} / ${pad(eM)} / ${pad(eD)}`;
+  return `${startPart} - ${endPart}`;
 }
 
 // ── 統一 List Renderer ────────────────────────────────────────────────────────
@@ -630,6 +656,7 @@ function formatSingleDateGroup(d, includeStartYear) {
 //   categoryFilter       {string|null}  過濾 item.category
 //   showYearToggle       {boolean}      年份收合 toggle（預設 true；false = 顯示年份但不可收合，summer camp 用）
 //   showSubtitle         {boolean}      subtitle / subtitle_zh（預設 false）
+//   subtitleFromGuests   {boolean}      副標改從 item.guests 派生（lectures 用：每位講者一段 EN+ZH，max 3 個）
 //   showAlumniIcon       {boolean}      畢業帽 icon（預設 true）
 //   showDate             {boolean}      date（預設 true）
 //   showDescription      {boolean}      description / descriptionZh（預設 true）
@@ -638,7 +665,6 @@ function formatSingleDateGroup(d, includeStartYear) {
 //   showReference        {boolean}      ref link（預設 true）
 //   showGuestAffiliation {boolean}      guest affiliation（預設 true）
 //   showGuestCountry     {boolean}      guest alumni + country（預設 true）
-//   fullDate             {boolean}      保留年份（預設 false = 去掉年份）
 //   marqueeTitle         {boolean}      title 用 marquee 包裝（預設 false）
 //   introField           {string}       內文 field 名稱（預設 'description'）
 //   panelSelector        {string}       sticky top 參考的 panel selector
@@ -663,6 +689,7 @@ export async function loadListInto(containerId, url, options = {}) {
     showYearToggle       = true,
     hideYearHeader       = false,
     showSubtitle         = false,
+    subtitleFromGuests   = false,
     showAlumniIcon       = true,
     showDescription      = true,
     showDate             = true,
@@ -672,7 +699,6 @@ export async function loadListInto(containerId, url, options = {}) {
     showShareBtn         = true,
     showGuestAffiliation = true,
     showGuestCountry     = true,
-    fullDate             = false,
     introField           = 'description',
     panelSelector        = null,
     scrollTrigger        = false,
@@ -746,6 +772,29 @@ export async function loadListInto(containerId, url, options = {}) {
     })
   ));
 
+  // 日期顯示邏輯抽 helper（pre-scan + render 兩處共用）
+  // 新 endpoint shape `item.dates` 優先，fallback 舊 `item.date` / `item.date_en` 字串
+  // dates 結構化欄位是 source of truth；舊 `item.date` 字串只在沒 dates 且為自由文字時 fallback 原樣輸出
+  //（permanent-exhibitions "每學期舉辦一次" 等）。完成 JSON 遷移後絕大多數走 dates path。
+  // dateInHeader（admission）沒 year column，header 副標需要完整日期含年份。
+  const computeDateDisplay = (item) => {
+    if (Array.isArray(item.dates) && item.dates.length > 0) {
+      return { en: formatDatesFromGroups(item.dates, { includeStartYear: dateInHeader }), zh: '' };
+    }
+    return {
+      en: item.date_en || item.date || '',
+      zh: item.date_en ? (item.date || '') : '',
+    };
+  };
+
+  // Date col 固定寬：永遠按「跨年最寬版本」`MM / DD - YYYY / MM / DD`（24 字符）為基準
+  // user 契約 v6 (2026-05-25)：前端 layout 固定，後台只給資料，不論該 list 是否有跨年 item
+  //   單日 / 同年跨日 → 留白同欄寬，location 起始點永遠對齊
+  //   不再有 fullDate ? '22ch' : '11ch' 切換（v5 已廢棄）
+  // dateInHeader（admission）副標自由排版不受此 col 約束
+  // 21ch：實測值，剛好夠裝跨年最寬 24 字符（粗體含空格 `/` 平均 < 1ch）；24ch 會多留白
+  const dateColMinWidth = '21ch';
+
   filteredData.forEach((yearGroup, index) => {
     const isLast  = index === filteredData.length - 1;
     const total   = yearGroup.items.length;
@@ -759,26 +808,7 @@ export async function loadListInto(containerId, url, options = {}) {
       // height:4px 必須顯式設置 — 空 div 的 height:auto = 0，yPercent:100 = translateY(0) 不移動，setupClipReveal 無法隱藏
       const dividerHtml  = `<div class="list-item-divider list-reveal-row border-b-4 border-black" style="height:4px; ${isLastItem ? 'display: none;' : ''}"></div>`;
 
-      // 日期：優先用新 endpoint shape (dates group repeater)；fallback 到舊 item.date 字串
-      // 新 shape: item.dates = [{startYear,startMonth,startDay,endYear,endMonth,endDay},...]
-      const formatDate = (d) => fullDate
-        ? (d ? d.replace(/\./g, ' / ').replace(/ - /g, '&nbsp;&nbsp;-&nbsp;&nbsp;').replace(/ \/ /g, '&nbsp;/&nbsp;') : '')
-        : formatDateShort(d);
-      let dateDisplay, dateDisplayZh;
-      if (Array.isArray(item.dates) && item.dates.length > 0) {
-        // includeStartYear：只有 hideYearHeader（無左側 year column）才嵌 start year
-        // summer-camp 等場景 year col 有 → start year 重複可省（user 指定）
-        const includeStartYear = !!hideYearHeader;
-        const rawDateStr = formatDatesFromGroups(item.dates, { includeStartYear });
-        // 套用 spacing 處理（dash 加空白等）
-        dateDisplay   = fullDate
-          ? rawDateStr.replace(/\./g, ' / ').replace(/-/g, '&nbsp;&nbsp;-&nbsp;&nbsp;').replace(/ \/ /g, '&nbsp;/&nbsp;')
-          : rawDateStr.replace(/\./g, ' / ').replace(/-/g, ' - ');
-        dateDisplayZh = '';
-      } else {
-        dateDisplay    = formatDate(item.date_en || item.date);
-        dateDisplayZh  = item.date_en ? formatDate(item.date) : '';
-      }
+      const { en: dateDisplay, zh: dateDisplayZh } = computeDateDisplay(item);
 
       // 內文 field（workshop 用 intro / intro_zh，其他用 description / descriptionZh）
       const introEn = item[introField] || item.description || '';
@@ -792,6 +822,42 @@ export async function loadListInto(containerId, url, options = {}) {
       const titleZh = item.title || item.titleZh || item.title_zh || '';
       const titleLine1 = titleEn || titleZh;
       const titleLine2 = titleEn ? titleZh : '';
+      // 副標 normalize：吃 array `subtitles: [{en, zh}]` 或字串 `subtitle / subtitleEn / subtitleZh`
+      // 都 → 統一 [{en, zh}] 形式（max 3 段）；空字串/空 obj 自動 filter。
+      // 兩處 render 點（dateInHeader fallback / showSubtitle 展開區）共用 → 行為一致。
+      // subtitleFromGuests=true（lectures 用）：改從 item.guests 派生簡名副標，每位講者一段 EN+ZH，
+      // expand 區的 guests 詳細資料（affiliation / country）保留不變
+      const subList = (() => {
+        if (subtitleFromGuests && Array.isArray(item.guests) && item.guests.length) {
+          return item.guests
+            .map(g => ({
+              en: g.nameEn || g.name || '',
+              zh: g.nameZh || g.name_zh || '',
+            }))
+            .filter(s => s.en || s.zh)
+            .slice(0, 3);
+        }
+        if (Array.isArray(item.subtitles)) {
+          return item.subtitles
+            .map(s => ({ en: s?.en || s?.subtitleEn || '', zh: s?.zh || s?.subtitleZh || '' }))
+            .filter(s => s.en || s.zh)
+            .slice(0, 3);
+        }
+        const en = item.subtitleEn || item.subtitle || '';
+        const zh = item.subtitleZh || item.subtitle_zh || '';
+        return (en || zh) ? [{ en, zh }] : [];
+      })();
+      // 副標 inner（無 wrapper）給 dateInHeader 模式直接拼進 list-reveal-row 用
+      const renderSubListInner = () => subList.map(s => `
+        ${s.en ? `<p class="text-p2">${s.en}</p>` : ''}
+        ${s.zh ? `<p class="text-p2">${s.zh}</p>` : ''}
+      `).join('');
+      // 副標 block（含 .list-subtitles wrapper）給 showSubtitle 模式用 — wrapper 是 sticky pinned 時
+      // 收起副標的 CSS 接口（list-header.is-pinned .list-subtitles → grid-rows 0fr collapse）
+      const renderSubListBlock = () => subList.length
+        ? `<div class="list-reveal-row list-subtitles">${renderSubListInner()}</div>`
+        : '';
+
       // 標題（EN+ZH）同一個 list-reveal-row → 同步進場；副標亦同
       // dateInHeader 時 date 顯示在 title 下方（admission news 用），不在 expand 區再渲染一次
       const titleHtml = `<div class="flex flex-col gap-xs flex-1 min-w-0">
@@ -801,42 +867,33 @@ export async function loadListInto(containerId, url, options = {}) {
             ${dateInHeader ? (() => {
               // dateInHeader 模式（admission 用）：date 優先，沒 date 用 subtitle 當副標
               if (dateDisplay) return `<p class="text-p2">${dateDisplay}</p>`;
-              const subEn = item.subtitleEn || item.subtitle || '';
-              const subZh = item.subtitleZh || item.subtitle_zh || '';
-              return (subEn || subZh)
-                ? `${subEn ? `<p class="text-p2">${subEn}</p>` : ''}${subZh ? `<p class="text-p2">${subZh}</p>` : ''}`
-                : '';
+              return renderSubListInner();
             })() : ''}
           </div>
-          ${showSubtitle ? (() => {
-            const subEn = item.subtitleEn || item.subtitle || '';
-            const subZh = item.subtitleZh || item.subtitle_zh || '';
-            return (subEn || subZh) ? `<div class="list-reveal-row">
-              ${subEn ? `<p class="text-p2">${subEn}</p>` : ''}
-              ${subZh ? `<p class="text-p2">${subZh}</p>` : ''}
-            </div>` : '';
-          })() : ''}
+          ${showSubtitle ? renderSubListBlock() : ''}
         </div>`;
 
       const searchText = [
         item.title, item.title_zh, item.title_en,
         item.subtitle, item.subtitle_zh,
+        ...subList.flatMap(s => [s.en, s.zh]),
         item[introField], item[introField + '_zh'],
         item.description, item.descriptionZh,
         item.location, item.location_zh,
         ...(item.guests || []).flatMap(g => [g.name, g.name_zh, g.affiliation, g.affiliation_zh]),
       ].filter(Boolean).join(' ').toLowerCase().replace(/"/g, '&quot;');
 
-      // 新 endpoint shape: item.locations = [{nameZh, nameEn, country}, ...]
-      // 多筆用 " / " 串接（中/英各自）；fallback 舊 item.location / item.location_zh 字串
-      let locationEn = item.location || '';
-      let locationZh = item.location_zh || '';
-      let countryCodes = item.flag ? [item.flag] : []; // 多 country code for cycle
-      if (Array.isArray(item.locations) && item.locations.length > 0) {
-        locationEn = item.locations.map(l => l?.nameEn).filter(Boolean).join(' / ');
-        locationZh = item.locations.map(l => l?.nameZh).filter(Boolean).join(' / ');
-        countryCodes = item.locations.map(l => l?.country).filter(Boolean);
-      }
+      // Locations 結構：每筆 {en, zh, country} 一個 row，渲染時 vertical stack（user 契約：往下增加）
+      // 新 endpoint shape `item.locations = [{nameZh, nameEn, country}, ...]` 優先；fallback 舊 `item.location / location_zh / flag` 字串包成單筆
+      const locationRows = Array.isArray(item.locations) && item.locations.length > 0
+        ? item.locations.map(l => ({ en: l?.nameEn || '', zh: l?.nameZh || '', country: l?.country || '' }))
+        : ((item.location || item.location_zh || item.flag)
+          ? [{ en: item.location || '', zh: item.location_zh || '', country: item.flag || '' }]
+          : []);
+      // 兩個 deprecated 變數保留給 search / country flag cycle 用（同上 join pattern）
+      const locationEn = locationRows.map(l => l.en).filter(Boolean).join(' / ');
+      const locationZh = locationRows.map(l => l.zh).filter(Boolean).join(' / ');
+      const countryCodes = locationRows.map(l => l.country).filter(Boolean);
 
       const itemFlags = alwaysExpanded ? 'data-no-accordion' : 'data-pre-reveal';
       return `
@@ -874,22 +931,43 @@ export async function loadListInto(containerId, url, options = {}) {
             </div>` : `
             <div class="pt-sm pb-lg px-md grid gap-gutter items-start" style="grid-template-columns: 9.5fr 2.5fr;">
               <div class="flex flex-col gap-md pr-2xl">
-                ${(((showDate && dateDisplay && !dateInHeader)) || (showLocation && (locationEn || locationZh))) ? `<div class="flex gap-xl">
-                  ${showDate && dateDisplay && !dateInHeader ? `<div class="flex-shrink-0">
-                    <p class="text-p2 font-bold">${dateDisplay}</p>
-                    ${dateDisplayZh ? `<p class="text-p2 font-bold">${dateDisplayZh}</p>` : ''}
-                  </div>` : ''}
-                  ${showLocation && (locationEn || locationZh) ? `<div class="flex flex-1 items-start justify-between gap-xl">
-                    <div>
-                      ${locationEn ? `<p class="text-p2 font-bold">${locationEn.replace(/ \/ /g, '&nbsp;/&nbsp;')}</p>` : ''}
-                      ${locationZh ? `<p class="text-p2 font-bold">${locationZh.replace(/ \/ /g, '&nbsp;/&nbsp;')}</p>` : ''}
+                ${(((showDate && dateDisplay && !dateInHeader)) || (showLocation && locationRows.length)) ? (() => {
+                  // 三欄 row-level grid：[date 連續時間寬 | location names stack | country stack]
+                  //   - date col 永遠寬到「連續時間」格式（單日 item 留白同欄寬），location 起始點對齊
+                  //   - location names / country 各自獨立 stack，行數靠 locationRows 對齊；
+                  //     name 過長走 list-title-marquee，country 一律右靠到第三欄
+                  // 國家行為與 guest 一致：ISO upper + 中文（per location row 各自顯示自己的 country）
+                  // showLocation=false 時 names / country 兩 stack 都不渲染
+                  const showDateCell = showDate && dateDisplay && !dateInHeader;
+                  const renderNameCell = (loc) => {
+                    const hasName = loc.en || loc.zh;
+                    if (!hasName) return `<div></div>`;
+                    return `<div class="min-w-0">
+                      ${loc.en ? `<div class="list-title-marquee"><p class="text-p2 font-bold">${loc.en}</p></div>` : ''}
+                      ${loc.zh ? `<div class="list-title-marquee"><p class="text-p2 font-bold">${loc.zh}</p></div>` : ''}
+                    </div>`;
+                  };
+                  const renderCountryCell = (loc) => {
+                    const cEn = loc.country ? loc.country.toUpperCase() : '';
+                    const cZh = loc.country ? countryName(loc.country, 'zh') : '';
+                    if (!cEn) return `<div></div>`;
+                    return `<div class="flex-shrink-0 text-right">
+                      <p class="text-p2">${cEn}${cZh ? ` ${cZh}` : ''}</p>
+                    </div>`;
+                  };
+                  return `<div class="grid items-start gap-x-xs" style="grid-template-columns: ${dateColMinWidth} 1fr auto;">
+                    ${showDateCell ? `<div class="flex-shrink-0">
+                      <p class="text-p2 font-bold">${dateDisplay}</p>
+                      ${dateDisplayZh ? `<p class="text-p2 font-bold">${dateDisplayZh}</p>` : ''}
+                    </div>` : '<div></div>'}
+                    ${showLocation && locationRows.length ? `<div class="flex flex-col gap-sm min-w-0">
+                      ${locationRows.map(renderNameCell).join('')}
                     </div>
-                    ${(item.cityEn || item.cityZh) ? `<div class="flex-shrink-0 text-right">
-                      ${item.cityEn ? `<p class="text-p2">${item.cityEn}</p>` : ''}
-                      ${item.cityZh ? `<p class="text-p2">${item.cityZh}</p>` : ''}
-                    </div>` : ''}
-                  </div>` : ''}
-                </div>` : ''}
+                    <div class="flex flex-col gap-sm flex-shrink-0">
+                      ${locationRows.map(renderCountryCell).join('')}
+                    </div>` : '<div></div><div></div>'}
+                  </div>`;
+                })() : ''}
                 ${item.guests?.length ? `<div class="flex flex-col gap-sm">
                   ${item.guests.map(g => {
                     // 兩種 shape 都接：
@@ -931,22 +1009,34 @@ export async function loadListInto(containerId, url, options = {}) {
             ${buildGalleryHtml(item)}
             ${attachmentsField && Array.isArray(item[attachmentsField]) && item[attachmentsField].length ? `
             <div class="flex flex-col mt-md">
-              ${item[attachmentsField].map((a, i) => `
-                <a class="list-ref-btn cursor-pointer w-full grid grid-cols-12 gap-x-md items-start py-sm no-underline" href="${a.url || '#'}" target="_blank" rel="noopener">
+              ${item[attachmentsField].map((a, i) => {
+                // 兼容兩種 schema：legacy JSON 用 { url, labelEn, labelZh }；WP schema group 用 { file, titleEn, titleZh }
+                const url = a.url || a.file || '#';
+                const labelEn = a.labelEn || a.titleEn || `Attachment ${i + 1}`;
+                const labelZh = a.labelZh || a.titleZh || `附件 ${i + 1}`;
+                // download 屬性指定 filename：取 URL pathname 最後段（sample.pdf）；無 URL 不渲染 download attr
+                const filename = url !== '#' ? url.split('/').pop().split('?')[0] : '';
+                return `
+                <a class="list-ref-btn cursor-pointer w-full grid grid-cols-12 gap-x-md items-start py-sm no-underline" href="${url}"${filename ? ` download="${filename}"` : ''}>
                   <div class="col-span-1 flex justify-center" style="padding-top: 0.25em;">
                     <span class="icon icon-attachment icon-s"></span>
                   </div>
                   <div class="col-span-11 flex flex-col">
-                    <p class="text-p2 font-bold">${a.labelEn || `Attachment ${i + 1}`}</p>
-                    <p class="text-p2 font-bold">${a.labelZh || `附件 ${i + 1}`}</p>
+                    <p class="text-p2 font-bold">${labelEn}</p>
+                    <p class="text-p2 font-bold">${labelZh}</p>
                   </div>
                 </a>
-              `).join('')}
+              `;}).join('')}
             </div>` : ''}
             ${showReference && references.length ? `
             <div class="flex flex-col mt-md">
               ${references.map(ref => `
-              ${ref.href
+              ${ref.pdfUrl
+                ? `<button class="list-ref-btn cursor-pointer border-none w-full grid grid-cols-12 gap-x-md items-start py-sm text-left"
+                    data-ref-pdf-url="${ref.pdfUrl}"
+                    data-ref-title-en="${(ref.titleEn || '').replace(/"/g, '&quot;')}"
+                    data-ref-title-zh="${(ref.titleZh || '').replace(/"/g, '&quot;')}">`
+                : ref.href
                 ? `<a class="list-ref-btn cursor-pointer w-full grid grid-cols-12 gap-x-md items-start py-sm no-underline" href="${ref.href}">`
                 : `<button class="list-ref-btn cursor-pointer border-none w-full grid grid-cols-12 gap-x-md items-start py-sm text-left"
                     data-ref-section="${ref.section || ''}"
@@ -963,7 +1053,7 @@ export async function loadListInto(containerId, url, options = {}) {
                   ${ref.titleEn ? `<p class="text-p2 font-bold">${ref.titleEn}</p>` : ''}
                   ${ref.titleZh ? `<p class="text-p2 font-bold">${ref.titleZh}</p>` : ''}
                 </div>
-              ${ref.href ? `</a>` : `</button>`}
+              ${ref.href && !ref.pdfUrl ? `</a>` : `</button>`}
               `).join('')}
             </div>` : ''}
           </div>
@@ -998,16 +1088,8 @@ export async function loadListInto(containerId, url, options = {}) {
     `);
   });
 
-  // ref 按鈕導航
-  container.querySelectorAll('.list-ref-btn').forEach((/** @type {any} */ btn) => {
-    btn.addEventListener('click', () => {
-      const section = btn.dataset.refSection;
-      const itemId  = btn.dataset.refItem;
-      if (typeof window.__sccdNavigateToItem === 'function') {
-        window.__sccdNavigateToItem(section, itemId || null);
-      }
-    });
-  });
+  // ref btn 綁定統一交給 bindInteractions（line 576）— 此處不再重複綁，否則同 btn 兩個 listener
+  // dispatch 兩次 sccd:open-pdf → openModal 跑兩次 → enterLightboxMode openCount=2，close 後卡 1 不 reset
 
   // sticky top（year toggle 與 list-header 的 sticky top 緊接在 filter bar 下方）
   // --list-header-sticky-top 由 lists.css `.list-header` sticky 規則讀取，預設 200（admission 用）
@@ -1085,7 +1167,6 @@ export async function loadWorkshopsInto(jsonFile, containerId = null, options = 
   return loadListInto(id, jsonFile, {
     showSubtitle: true,
     marqueeTitle: true,
-    fullDate: true,
     introField: 'intro',
     showAlumniIcon: false,
     ...(data ? { data } : {}),
@@ -1101,8 +1182,11 @@ export async function loadSummerCampInto(containerId = null, options = {}) {
   })();
   if (!id) return;
   // WP endpoint 回 flat array；summer-camp.json fallback 是 year-grouped → 包成 flat 對齊
+  // _SKIP_WP 時 dev 直接走 JSON 跳過 WP fetch（見 fetchActEndpointOrFallback 上方註解）
   const WP_API_BASE = location.hostname === 'sccd-website.local' ? '' : 'http://sccd-website.local';
-  const data = await fetch(`${WP_API_BASE}/wp-json/sccd/v1/admission-summer-camp`)
+  const data = _SKIP_WP
+    ? await fetch('/data/summer-camp.json').then(r => r.json())
+    : await fetch(`${WP_API_BASE}/wp-json/sccd/v1/admission-summer-camp`)
     .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
     .then(arr => {
       if (!Array.isArray(arr) || arr.length === 0) throw new Error('endpoint returned 0 items');
@@ -1122,7 +1206,6 @@ export async function loadSummerCampInto(containerId = null, options = {}) {
     });
   return loadListInto(id, '/data/summer-camp.json', {
     showYearToggle: false,
-    fullDate: true,
     data,
     ...options,
   });
@@ -1145,7 +1228,13 @@ const _panelSelectorMap = {
 // 共用 fetch wrapper：WP endpoint 優先 + JSON fallback + endpoint 空也算 fail
 // 回 array of entries（無 categoryFilter / visitTypeFilter 套用，caller 自行 filter；本系列已拆 CPT 不需要）
 const _ACT_WP_BASE = location.hostname === 'sccd-website.local' ? '' : 'http://sccd-website.local';
+// 本機 dev（非 WP host）跳過 WP fetch 直接走 JSON：WP 沒跑時 DNS / 連線失敗要等數秒才 reject，
+// 體感每次切分頁卡 3s。dev 時設 sessionStorage.wpDev='1' 可強制嘗試 WP 對接測試
+const _SKIP_WP = location.hostname !== 'sccd-website.local'
+  && /^(localhost|127\.0\.0\.1|0\.0\.0\.0|)$/.test(location.hostname)
+  && sessionStorage.getItem('wpDev') !== '1';
 async function fetchActEndpointOrFallback(endpoint, fallbackUrl) {
+  if (_SKIP_WP) return fetch(fallbackUrl).then(r => r.json());
   try {
     const res = await fetch(`${_ACT_WP_BASE}/wp-json/sccd/v1/${endpoint}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -1177,7 +1266,8 @@ export async function loadGeneralActivitiesInto(containerId, categoryFilter = nu
     showLocation:         !isIndustry,
     showPoster:           !isIndustry,
     showReference:        true,
-    showSubtitle:         isIndustry,
+    showSubtitle:         isIndustry || isLectures,
+    subtitleFromGuests:   isLectures,
     showGuestAffiliation: !isIndustry,
     showGuestCountry:     !isIndustry,
     panelSelector:        _panelSelectorMap[containerId] || '#panel-exhibitions',

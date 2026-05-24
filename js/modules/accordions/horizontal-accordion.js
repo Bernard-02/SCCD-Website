@@ -129,7 +129,7 @@ export function initRotatedAccordion(wrapper, { height = 600, animateEntry = fal
   // 全部就位後，打開 index 0（教學空間）
   if (animateEntry && typeof ScrollTrigger !== 'undefined') {
     // 平均分配：half fromRight + half fromBottom，再 Fisher-Yates 洗牌
-    const directions = items.map((_, i) => i < Math.ceil(items.length / 2) ? 'right' : 'bottom');
+    const directions = /** @type {Array<'right' | 'bottom'>} */ (items.map((_, i) => i < Math.ceil(items.length / 2) ? 'right' : 'bottom'));
     for (let i = directions.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [directions[i], directions[j]] = [directions[j], directions[i]];

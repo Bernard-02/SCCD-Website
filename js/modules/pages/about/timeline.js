@@ -1,3 +1,4 @@
+// @ts-nocheck — querySelector 密集，全為 TS2339 Element vs HTMLElement 雜訊
 /**
  * Timeline Module (About Page)
  * 卷軸概念：每年 5 張照片，第 1 張 = 上一年第 5 張，第 5 張 = 下一年第 1 張
@@ -160,64 +161,30 @@ export function initTimeline() {
     const pagePhotoRotates = [];
     const revealedPages = new Set();
 
-    // 量測卡片在實際寬度下的高度（用於 desc 堆疊位置計算）
-    function measureCardHeight(innerHtml, width) {
-      const tmp = document.createElement('div');
-      tmp.className = 'timeline-card-inner';
-      tmp.style.cssText = `position:absolute;visibility:hidden;padding:0.5em 0.6em;width:${width}px;left:-9999px;top:-9999px;box-sizing:border-box;`;
-      tmp.innerHTML = innerHtml;
-      document.body.appendChild(tmp);
-      const h = tmp.offsetHeight;
-      tmp.remove();
-      return h;
-    }
-
-    // 量測元素內最右側「文字 pixel」相對 element 外左緣的偏移
-    // 用 TreeWalker 走 text node 而非單一 Range：descriptions 含 <h5><div>(block elements)，
-    // Range 對 block 子元素回傳的 client rect 是 block 整體 bbox（=parent width），不是文字實際寬度
-    // 走到每個 text node 自己 Range 才能拿到 wrapped text 的逐行寬度
-    function measureTextRightOffset(rootEl) {
-      const walker = document.createTreeWalker(rootEl, NodeFilter.SHOW_TEXT);
-      const rootLeft = rootEl.getBoundingClientRect().left;
-      let maxRight = 0;
-      let node;
-      while ((node = walker.nextNode())) {
-        if (!node.nodeValue || !node.nodeValue.trim()) continue;
-        const range = document.createRange();
-        range.selectNodeContents(node);
-        const rects = range.getClientRects();
-        for (const r of rects) {
-          const offset = r.right - rootLeft;
-          if (offset > maxRight) maxRight = offset;
-        }
-      }
-      return maxRight;
-    }
-
     // 導航 state（提到 forEach 前宣告：getEdgeRole 在 forEach 內同步讀 currentIndex，
     // 若還在 TDZ 會 ReferenceError 中斷整個 buildStrip → nav click handler 沒綁上）
     let currentIndex = 0;
     let isTransitioning = false;
 
     // 固定位置（每年同 pos，隨機旋轉）
-    const CARD_BOTTOM_PAD = 60;   // 距 viewport 底部
-    const DESC_W = 360;           // desc 卡片左緣相對 nav col 的寬度（決定 desc 起始 col）
-    const DESC_MAX_ROT = 1;       // desc 卡片最大旋轉角度（度）—— 越大越容易撞鄰卡
-    const DESC_GAP_BUFFER = 4;    // desc 旋轉 excursion 上的視覺呼吸（gap = 2*excursion + buffer）
-    const ERA_OFFSET_TOP = 24;    // era 底部相對 year 底部的額外距離（year 高 ~66px、era 高 ~30px，24 → era 底部與 year 頂部視覺貼合/微疊）
-    const ERA_OFFSET_LEFT = -12;  // era 相對 year 的水平偏移
-    const YEAR_W_APPROX = 220;    // year card 估計寬度（"1979" h3 + padding，用於 tooltip 中央定位）
+    const CARD_BOTTOM_PAD = 60;       // 距 viewport 底部
+    const CARD_MAIN_ROT = 1;          // 主卡最大旋轉角度
+    const CARD_GAP = 28;              // 同年多張主卡之間的「視覺」垂直間距（chip 高度會額外加上去防重疊）
+    const BLOCK_GAP = 18;             // 同一張卡內，多筆 description 之間的垂直間距
+    const GRID_GAP_PX = 24;           // 主卡 grid 左右 col 中間 gap（= md spacing token）
+    const CHIP_GAP = 4;               // BFA/MDES chip 緊貼卡頂上方的小 gap（同 courses-bfa-label）
+    const CHIP_OFFSET_LEFT = -12;     // chip 相對主卡 left 邊的水平偏移（同 courses-bfa-label）
+    const ERA_OFFSET_TOP = 24;        // era 底部相對「最頂主卡頂部」的距離（隨主卡走）
+    const ERA_RANDOM_LEFT_SHIFT = 60; // era 在主卡左上區域允許的隨機水平偏移範圍（0~N px）
 
     // 每年共用的位置常數（不變於 forEach loop）
     const safeLeft = Math.max(PADDING, containerPad + 14 * vw);
-    const safeRight = pageW - 12 * vw - 40;
-    const descLeftEdge = safeRight - DESC_W;                          // desc 的 col 起點
-    const descRenderW = (pageW - containerPad) - descLeftEdge;        // desc 最大寬度（左緣到 col-12 右緣）
-    // tooltip 在 year 與 desc 之間的水平中點（不是 viewport 中央）
-    const tooltipBetweenLeft = (safeLeft + YEAR_W_APPROX + descLeftEdge) / 2;
-    // 旋轉後，每張卡片底邊最遠下沉 ≈ W*sin(θ)；兩張相鄰卡片最壞情況疊加 → 2*W*sin(maxRot) + buffer
-    const rotExcursion = descRenderW * Math.sin(DESC_MAX_ROT * Math.PI / 180);
-    const descGap = Math.ceil(2 * rotExcursion + DESC_GAP_BUFFER);
+    // 主卡靠右錨定：MAIN_CARD_RIGHT 越小 = 主卡越靠右
+    // 從 12vw+40 縮到 6vw+40 讓主卡視覺往右推 ~6vw
+    const safeRight = pageW - 6 * vw - 40;
+    const MAIN_CARD_W = Math.min(680, safeRight - safeLeft);
+    const MAIN_CARD_RIGHT = pageW - safeRight; // 主卡 right 偏移（從 viewport 右緣算）
+    const MAIN_CARD_LEFT = pageW - MAIN_CARD_RIGHT - MAIN_CARD_W; // 主卡 left 邊（用於 chip/era 對齊）
 
     items.forEach((item, index) => {
       const ox = index * pageW;
@@ -422,94 +389,186 @@ export function initTimeline() {
       // --- 字卡固定位置（不在 strip 內，疊在 cardsOverlay 上）---
 
       const cardColor = randomColor();
-      // 旋轉幅度刻意縮小：原 ±6/±12 視覺上 era 像「飄」在 year 上方有距離感
-      // 降到 ±3/±4 後兩者更服貼，配合 ERA_OFFSET_TOP=24 達成「貼緊」效果
-      const yearRot = pickUniqueRotations(1, -3, 3)[0];
       const eraRot = pickUniqueRotations(1, -4, 4)[0];
 
-      // === Year card（固定貼左下，nav col 右側；padding 視覺等同 desc）===
-      // h3 預設 leading-base (1.5)：50px 字體 → 75px inline-box，多出 25px 空白被誤認成 padding；
-      // 用 line-height:1 把 inline-box 收成 glyph 高度，padding 0.5rem 才是實際視覺 padding
-      const yearCard = document.createElement('div');
-      yearCard.className = 'timeline-card-inner absolute pointer-events-none';
-      yearCard.style.cssText = `left:${safeLeft}px;bottom:${CARD_BOTTOM_PAD}px;padding:0.5rem 0.6em;background:${cardColor};width:max-content;transform-origin:bottom left;transform:rotate(${yearRot}deg);`;
-      yearCard.innerHTML = `<h3 class="font-bold" style="line-height:1;">${item.year}</h3>`;
-      cardsOverlay.appendChild(yearCard);
-
-      // === Era badge（黑底白字，absolute 偏移於 year 左上角；獨立旋轉，比照 library 灰色矩形做法）===
-      const eraBadge = document.createElement('div');
-      eraBadge.className = 'timeline-card-inner bg-black text-white absolute pointer-events-none';
-      eraBadge.style.cssText = `left:${safeLeft + ERA_OFFSET_LEFT}px;bottom:${CARD_BOTTOM_PAD}px;padding:0.4em 0.7em;width:max-content;transform-origin:bottom left;transform:translateY(calc(-100% - ${ERA_OFFSET_TOP}px)) rotate(${eraRot}deg);z-index:2;`;
-      eraBadge.innerHTML = `<div class="text-p2 leading-base font-bold">${item.eraTitle} ${item.eraLabel}</div>`;
-      cardsOverlay.appendChild(eraBadge);
-
-      // === Desc cards（左對齊：左緣固定在 descLeftEdge；短文字縮窄、長文字 wrap 至 max-width）===
-      const descriptions = item.descriptions || (item.description ? [item.description] : []);
-      const descRots = pickUniqueRotations(descriptions.length, -DESC_MAX_ROT, DESC_MAX_ROT);
-      const descEls = [];
-
-      if (descriptions.length > 0) {
-        const heights = descriptions.map(d =>
-          measureCardHeight(`<div class="text-p2 leading-base font-bold">${d}</div>`, descRenderW)
-        );
-
-        // 從最後一張（newer）開始，bottom = CARD_BOTTOM_PAD；往上堆疊
-        let cumBottom = CARD_BOTTOM_PAD;
-        for (let i = descriptions.length - 1; i >= 0; i--) {
-          const descEl = document.createElement('div');
-          descEl.className = 'absolute pointer-events-none';
-          descEl.style.left = `${descLeftEdge}px`;
-          descEl.style.bottom = `${cumBottom}px`;
-          descEl.style.transformOrigin = 'bottom left';
-          descEl.style.transform = `rotate(${descRots[i] || 0}deg)`;
-          // 舊的（i 小）z 高、在上層；新的（i 大）z 低、在下層
-          descEl.style.zIndex = `${descriptions.length - i}`;
-
-          const inner = document.createElement('div');
-          inner.className = 'timeline-card-inner';
-          // 左右 padding 對稱（0.6em）；width:max-content 讓短文字縮窄、長文字 wrap 至 max-width
-          inner.style.cssText = `padding:0.5em 0.6em;background:${cardColor};width:max-content;max-width:${descRenderW}px;text-align:left;`;
-          inner.innerHTML = `<div class="text-p2 leading-base font-bold">${descriptions[i]}</div>`;
-
-          descEl.appendChild(inner);
-          cardsOverlay.appendChild(descEl);
-          descEls[i] = descEl;
-
-          // Snug width：量測「實際最右側文字 pixel」把 width 從 max-content 換成 explicit px
-          // 解決：max-content 對 block 子元素（h5/div）會 fill parent，框寬卡在 max-width 不會自然 shrink
-          // 必須走 text node 量測才能拿到真實 wrap 後行寬
-          const maxRight = measureTextRightOffset(inner);
-          if (maxRight > 0) {
-            const cs = getComputedStyle(inner);
-            const padR = parseFloat(cs.paddingRight);
-            // border-box (Tailwind preflight)：width = padL + content + padR
-            // maxRight 已含 padL（文字從 inner 內 padL 開始），再加 padR = 總寬；+1 buffer 防 sub-px re-wrap
-            inner.style.width = `${Math.ceil(maxRight + padR) + 1}px`;
+      // === Group descriptions by leading <h5>...</h5> token ===
+      // h5 開頭 → 獨立一張卡（chip = h5 文字）；無 h5 → 接續上一張卡作為其 description
+      // 即同年「BFA + MDES」會拆成 2 張獨立主卡（user 指定 chip 在卡外左上角，每張卡有自己的 chip）
+      const rawDescs = item.descriptions || (item.description ? [item.description] : []);
+      const cardsData = []; // [{ chip: string|null, items: string[] }]
+      const H5_RE = /^\s*<h5[^>]*>([\s\S]*?)<\/h5>/i;
+      let currentCard = null;
+      rawDescs.forEach(d => {
+        const m = d.match(H5_RE);
+        if (m) {
+          const chipText = m[1].trim();
+          const body = d.replace(H5_RE, '').trim();
+          currentCard = { chip: chipText, items: [body] };
+          cardsData.push(currentCard);
+        } else {
+          if (!currentCard) {
+            currentCard = { chip: null, items: [d] };
+            cardsData.push(currentCard);
+          } else {
+            currentCard.items.push(d);
           }
+        }
+      });
+      if (cardsData.length === 0) cardsData.push({ chip: null, items: [] });
 
-          cumBottom += heights[i] + descGap;
+      // === Build N 張主卡（從下往上堆疊；year 只放第一張[最下]，其他張左 col 空白對齊）===
+      const mainCards = [];
+      const chipEls = [];
+      let cumBottom = CARD_BOTTOM_PAD;
+
+      // 倒序建構（i=last 在底、i=0 在頂），但 cardsData[0] 視覺上仍是「主要那張」放底
+      // → 改順序：建構順序 = cardsData 順序，但 bottom 從下往上累加（cardsData[0] 在最下）
+      cardsData.forEach((card, ci) => {
+        const mainRot = pickUniqueRotations(1, -CARD_MAIN_ROT, CARD_MAIN_ROT)[0] || 0;
+        const isFirstCard = ci === 0; // 最底那張 = 顯示 year 的卡
+
+        const mainCard = document.createElement('div');
+        mainCard.className = 'timeline-card-inner absolute pointer-events-none';
+        // width:max-content + max-width 讓內容 fit，右 padding 才會視覺對稱
+        mainCard.style.cssText = `right:${MAIN_CARD_RIGHT}px;bottom:${cumBottom}px;padding:0.6rem 0.8rem;background:${cardColor};width:max-content;max-width:${MAIN_CARD_W}px;transform-origin:bottom right;transform:rotate(${mainRot}deg);`;
+
+        // items 多筆用 BLOCK_GAP 行間距分開
+        const itemsHtml = card.items.map((it, ii) =>
+          `<div${ii > 0 ? ` style="margin-top:${BLOCK_GAP}px;"` : ''}>${it}</div>`
+        ).join('');
+
+        // grid: auto 1fr — year 在第一張卡才顯示；後續卡片 year col 留空（保持對齊）
+        // 沒有 year（後續卡）也要保留 left col 才能讓右 col 文字落在跟第一張一樣的位置
+        const yearHtml = isFirstCard
+          ? `<h3 class="font-bold" style="line-height:1;">${item.year}</h3>`
+          : '';
+
+        mainCard.innerHTML = `
+          <div style="display:grid;grid-template-columns:auto 1fr;gap:${GRID_GAP_PX}px;align-items:start;">
+            <div style="min-width:${isFirstCard ? 'auto' : '0'};">${yearHtml}</div>
+            <div class="text-p2 leading-base font-bold">${itemsHtml}</div>
+          </div>
+        `;
+        cardsOverlay.appendChild(mainCard);
+
+        // === Snug width：兩 pass 量測（先 wrap-限寬再 snug）===
+        // 問題：max-content + grid `auto 1fr` 下 1fr 把右 col 撐到 max-width，量出 naturalW ≈ MAIN_CARD_W
+        // → 內容已 wrap 但量不到「實際最右文字寬」
+        // Pass 1: 切 `auto max-content` 拿無 wrap 寬度 W1（內容若 wrap 必超過 max-width）
+        // Pass 2: 把右 col max-width 鎖在 MAIN_CARD_W 內，讓 grid wrap，再用 TreeWalker 量實際最右文字 pixel
+        const gridEl = mainCard.firstElementChild;
+        const rightCol = gridEl.children[1];
+        const cs = getComputedStyle(mainCard);
+        const padL = parseFloat(cs.paddingLeft);
+        const padR = parseFloat(cs.paddingRight);
+        const leftColW = gridEl.children[0].getBoundingClientRect().width;
+        const rightColMaxW = MAIN_CARD_W - padL - padR - GRID_GAP_PX - leftColW;
+
+        // 鎖右 col 寬度上限讓文字 wrap
+        rightCol.style.maxWidth = `${rightColMaxW}px`;
+
+        // 量「實際最右文字 pixel」相對 rightCol 左緣的偏移 = TreeWalker 走 text node
+        const rootLeft = rightCol.getBoundingClientRect().left;
+        let maxRight = 0;
+        const walker = document.createTreeWalker(rightCol, NodeFilter.SHOW_TEXT);
+        let node;
+        while ((node = walker.nextNode())) {
+          if (!node.nodeValue || !node.nodeValue.trim()) continue;
+          const range = document.createRange();
+          range.selectNodeContents(node);
+          for (const r of range.getClientRects()) {
+            const off = r.right - rootLeft;
+            if (off > maxRight) maxRight = off;
+          }
+        }
+        // mainCard 總寬 = padL + leftColW + gap + 實際 rightCol 內容寬 + padR
+        const snugW = padL + leftColW + GRID_GAP_PX + Math.ceil(maxRight) + padR + 1;
+        mainCard.style.width = `${Math.min(snugW, MAIN_CARD_W)}px`;
+
+        // === Chip（卡外左上角，緊貼卡頂上方 — 走 courses-bfa-label pattern）===
+        // chip 放 cardsOverlay（不放 mainCard 內，因為 mainCard 之後會套 clip-path 會裁掉外凸子元素）
+        // 同色（cardColor）+ bottom = 此卡頂部 + 小 gap，視覺上像 stick label 黏在卡片上
+        // 加 .timeline-card-inner class 跟 era badge padding 規則一致（typography whitelist 也帶到）
+        let chipEl = null;
+        if (card.chip) {
+          const cardTopBottom = cumBottom + mainCard.offsetHeight + CHIP_GAP;
+          chipEl = document.createElement('div');
+          chipEl.className = 'timeline-card-inner pointer-events-none absolute';
+          chipEl.style.cssText = `left:${MAIN_CARD_LEFT + CHIP_OFFSET_LEFT}px;bottom:${cardTopBottom}px;padding:0.4em 0.7em;background:${cardColor};width:max-content;transform-origin:bottom left;transform:rotate(${pickUniqueRotations(1, -3, 3)[0] || 0}deg);z-index:3;`;
+          chipEl.innerHTML = `<div class="text-p2 leading-base font-bold">${card.chip}</div>`;
+          cardsOverlay.appendChild(chipEl);
         }
 
-        // 單卡 → 右對齊：避免短文字靠左留出大片右空白（多卡時最寬那張頂到右作為 anchor，短的靠左不突兀）
-        if (descriptions.length === 1 && descEls[0]) {
-          const onlyDescEl = descEls[0];
-          onlyDescEl.style.left = '';
-          onlyDescEl.style.right = `${containerPad}px`;
-          // 改右錨後 transform-origin 也要換，rotation 才會以右下為 pivot（top-left 隨 rotation 上揚）
-          onlyDescEl.style.transformOrigin = 'bottom right';
-        }
-      }
+        mainCards.push(mainCard);
+        chipEls.push(chipEl);
 
-      pageData.push({ yearCard, eraBadge, descEls });
+        // 累加：下一張卡的 bottom = 此卡 top + chip 高度 + CHIP_GAP + CARD_GAP
+        // chip 在卡頂上方佔 chipH + CHIP_GAP 空間；下一張卡若也有 chip，需從這之上再加 CARD_GAP 留視覺呼吸
+        // chipEl 可能 null（無 chip 那卡）→ 退化為 0
+        const chipOccupy = chipEl ? chipEl.offsetHeight + CHIP_GAP : 0;
+        cumBottom += mainCard.offsetHeight + chipOccupy + CARD_GAP;
+      });
+
+      pageData.push({ mainCards, chipEls, eraKey: `${item.eraTitle}|${item.eraLabel}`, eraTitle: item.eraTitle, eraLabel: item.eraLabel });
     });
 
-    // 初始：除第 0 年外其他年份的字卡全部 clip-path 隱藏（疊在同一位置，靠 clip-path 切換）
+    // === Era badges：每個 era 只建 1 個（共用 instance）===
+    // 位置 v6：畫面左半邊隨機散落、偏左下角（user 指定 2026-05-24）
+    //   - 水平範圍 left: containerPad ~ pageW * 0.45（不跨中線）
+    //   - 垂直範圍 bottom: CARD_BOTTOM_PAD ~ pageH * 0.35（從底部最多到頁面 35% 高 = 偏下）
+    //   - 不再跟主卡綁定（v4 left-of-main、v5 right-of-main 都棄用，主卡擠不擠都不影響 era 位置）
+    // 跨 era 切時 current/target eraBadge 共用 ref 自然不對到自己；sameEra 時是同 instance 自動不動
+    const ERA_LEFT_MAX_RATIO = 0.45;  // 水平最右停在 viewport 45%（不過中線）
+    const ERA_BOTTOM_MAX_RATIO = 0.35; // 垂直最高停在 viewport 35%（保持「下半」感）
+    const eraBadgesByKey = {};
+    pageData.forEach(pd => {
+      if (eraBadgesByKey[pd.eraKey]) {
+        pd.eraBadge = eraBadgesByKey[pd.eraKey];
+        return;
+      }
+      const eraRot = pickUniqueRotations(1, -4, 4)[0];
+      const eraBadge = document.createElement('div');
+      eraBadge.className = 'timeline-card-inner bg-black text-white absolute pointer-events-none';
+
+      // 隨機位置（先暫設讓元素 render 拿 offsetWidth 再 clamp 不超出）
+      eraBadge.style.cssText = `left:0px;bottom:0px;padding:0.4em 0.7em;width:max-content;transform-origin:bottom left;transform:rotate(${eraRot}deg);z-index:2;visibility:hidden;`;
+      eraBadge.innerHTML = `<div class="text-p2 leading-base font-bold">${pd.eraTitle} ${pd.eraLabel}</div>`;
+      cardsOverlay.appendChild(eraBadge);
+
+      const badgeW = eraBadge.offsetWidth;
+      const leftMax = Math.max(safeLeft, pageW * ERA_LEFT_MAX_RATIO - badgeW);
+      const leftMin = safeLeft;
+      const eraLeft = leftMin + Math.random() * Math.max(0, leftMax - leftMin);
+
+      const bottomMin = CARD_BOTTOM_PAD;
+      const bottomMax = pageH * ERA_BOTTOM_MAX_RATIO;
+      const eraBottom = bottomMin + Math.random() * Math.max(0, bottomMax - bottomMin);
+
+      eraBadge.style.cssText = `left:${eraLeft}px;bottom:${eraBottom}px;padding:0.4em 0.7em;width:max-content;transform-origin:bottom left;transform:rotate(${eraRot}deg);z-index:2;`;
+
+      eraBadgesByKey[pd.eraKey] = eraBadge;
+      pd.eraBadge = eraBadge;
+    });
+
+    // 同年「所有主卡 + 對應 chip」當一組元素處理（chip 在 cardsOverlay 跟主卡分離，需個別套 clip-path）
+    function getCardEls(pd) {
+      const out = [...pd.mainCards];
+      pd.chipEls.forEach(c => { if (c) out.push(c); });
+      return out;
+    }
+
+    // 初始：除第 0 年外其他年份的字卡全部 clip-path 隱藏
     for (let i = 1; i < pageData.length; i++) {
       const pd = pageData[i];
-      gsap.set(pd.yearCard, { clipPath: getClipStart(randomDirLR()) });
-      gsap.set(pd.eraBadge, { clipPath: getClipStart(randomDirLR()) });
-      pd.descEls.forEach(el => gsap.set(el, { clipPath: getClipStart(randomDirLR()) }));
+      getCardEls(pd).forEach(el => gsap.set(el, { clipPath: getClipStart(randomDirLR()) }));
     }
+    // Era badges：只有第 0 年的 era 顯示，其他 era badge 全部 clip-path 隱藏
+    const firstEraKey = pageData[0].eraKey;
+    Object.entries(eraBadgesByKey).forEach(([key, badge]) => {
+      if (key !== firstEraKey) {
+        gsap.set(badge, { clipPath: getClipStart(randomDirLR()) });
+      }
+    });
 
     // --- 統一 Photo Hover 系統 ---
     const allPhotos = Array.from(strip.querySelectorAll('.timeline-photo'));
@@ -822,20 +881,30 @@ export function initTimeline() {
 
       const current = pageData[prevIndex];
       const target = pageData[index];
+      const sameEra = current.eraKey === target.eraKey;
 
-      // Step 1: clip-out 當前年份的字卡（year/era/desc 不隨 strip 移動，原地用 clip-path 切換）
-      const currentEls = [current.yearCard, current.eraBadge, ...current.descEls];
-      currentEls.forEach(el => {
+      // Step 1: clip-out 當前年份的主卡 + chip；era 只有跨 era 才退場（current/target eraBadge 共用 ref，sameEra 時是同個 instance 跳過）
+      getCardEls(current).forEach(el => {
         gsap.to(el, {
           clipPath: getClipStart(randomDirLR()),
           duration: TIMING.exitDuration,
           ease: TIMING.exitEase,
         });
       });
+      if (!sameEra) {
+        gsap.to(current.eraBadge, {
+          clipPath: getClipStart(randomDirLR()),
+          duration: TIMING.exitDuration,
+          ease: TIMING.exitEase,
+        });
+      }
 
-      // Step 2: 確保目標字卡是隱藏狀態（buildStrip 已經設過，但保險）
-      const targetEls = [target.yearCard, target.eraBadge, ...target.descEls];
-      targetEls.forEach(el => gsap.set(el, { clipPath: getClipStart(randomDirLR()) }));
+      // Step 2: 確保目標字卡是隱藏狀態（保險）
+      getCardEls(target).forEach(el => gsap.set(el, { clipPath: getClipStart(randomDirLR()) }));
+      if (!sameEra) {
+        // 跨 era：target era 進場前設 clip start（共用 instance 可能還有 autoAlpha 殘留也清掉）
+        gsap.set(target.eraBadge, { autoAlpha: 1, clipPath: getClipStart(randomDirLR()) });
+      }
 
       // Step 3: 隱藏目標頁的照片（隨機四方向）
       hidePagePhotos(index);
@@ -849,14 +918,14 @@ export function initTimeline() {
           // 到位後 reveal 照片 + 目標字卡
           revealPagePhotos(index);
 
-          gsap.to(target.yearCard, { clipPath: CLIP_END, duration: TIMING.cardRevealDuration, ease: TIMING.revealEase });
-          gsap.to(target.eraBadge, { clipPath: CLIP_END, duration: TIMING.cardRevealDuration, ease: TIMING.revealEase, delay: TIMING.stagger });
-          target.descEls.forEach((el, i) => {
-            gsap.to(el, { clipPath: CLIP_END, duration: TIMING.cardRevealDuration, ease: TIMING.revealEase, delay: TIMING.stagger * (i + 2) });
+          getCardEls(target).forEach((el, i) => {
+            gsap.to(el, { clipPath: CLIP_END, duration: TIMING.cardRevealDuration, ease: TIMING.revealEase, delay: i * TIMING.stagger });
           });
+          if (!sameEra) {
+            gsap.to(target.eraBadge, { clipPath: CLIP_END, duration: TIMING.cardRevealDuration, ease: TIMING.revealEase, delay: TIMING.stagger });
+          }
 
           isTransitioning = false;
-          // reveal 動畫最久 = revealDuration + 5 * stagger ≈ hoverEnableDelay，之後才開放 hover
           gsap.delayedCall(TIMING.hoverEnableDelay, () => { hoverEnabled = true; });
         },
       });
@@ -887,11 +956,11 @@ export function initTimeline() {
       // Step 1: 用 clip-path 清空當前畫面（最後一年的照片 + 字卡；跳過邊界 slot）
       const lastRotates = pagePhotoRotates[lastIdx] || [];
       const lastPage = pageData[lastIdx];
+      // era badge：把「最後一年所屬 era」的共用 badge 一併收起
       const clearEls = [
         ...lastRotates.filter(r => !isEdgeSlot(r.slotIndex)).map(r => r.rotateDiv),
-        lastPage.yearCard,
+        ...getCardEls(lastPage),
         lastPage.eraBadge,
-        ...lastPage.descEls,
       ];
 
       // Step 1: clip-path 收起最後一年（用 timeline 確保全部完成後才繼續）
@@ -905,9 +974,11 @@ export function initTimeline() {
             });
           });
           pageData.forEach(pd => {
-            gsap.set(pd.yearCard, { clipPath: getClipStart(randomDirLR()) });
-            gsap.set(pd.eraBadge, { clipPath: getClipStart(randomDirLR()) });
-            pd.descEls.forEach(el => gsap.set(el, { clipPath: getClipStart(randomDirLR()) }));
+            getCardEls(pd).forEach(el => gsap.set(el, { clipPath: getClipStart(randomDirLR()) }));
+          });
+          // 所有 era badge clip-path 隱藏（reset 後從第 0 年的 era 重新 reveal）
+          Object.values(eraBadgesByKey).forEach(badge => {
+            gsap.set(badge, { autoAlpha: 1, clipPath: getClipStart(randomDirLR()) });
           });
 
           // Step 3: 重置狀態
@@ -923,7 +994,7 @@ export function initTimeline() {
             .filter(r => !isEdgeSlot(r.slotIndex))
             .map(r => r.rotateDiv);
           const firstPageData = pageData[0];
-          const firstCards = [firstPageData.yearCard, firstPageData.eraBadge, ...firstPageData.descEls];
+          const firstCards = [...getCardEls(firstPageData), firstPageData.eraBadge];
           const allFirstEls = [...firstRotates, ...firstCards];
 
           firstRotates.forEach(el => gsap.set(el, { clipPath: getClipStart(randomDir4()) }));
@@ -973,7 +1044,7 @@ export function initTimeline() {
         .map(r => r.rotateDiv);
       const firstPageData = pageData[0];
       const firstCards = firstPageData
-        ? [firstPageData.yearCard, firstPageData.eraBadge, ...firstPageData.descEls]
+        ? [...getCardEls(firstPageData), firstPageData.eraBadge]
         : [];
 
       const allRevealEls = [...firstRotates, ...firstCards];

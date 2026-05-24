@@ -25,9 +25,9 @@ interface SCCDHelpersAPI {
   fetchHTML(url: string): Promise<string>;
   loadHTMLInto(url: string, container: HTMLElement, callback?: () => void): Promise<void>;
 
-  // Utilities
-  debounce<T extends (...args: any[]) => any>(func: T, wait: number): T;
-  throttle<T extends (...args: any[]) => any>(func: T, limit: number): T;
+  // Utilities — 實作回傳泛型 Function（不轉嫁原 signature），呼叫端不靠 generic 推導
+  debounce(func: Function, wait?: number): Function;
+  throttle(func: Function, limit?: number): Function;
 
   // 動畫
   animateHeight(
@@ -60,9 +60,22 @@ interface Window {
   SCCDHelpers: SCCDHelpersAPI;
   __sccdNavigateToItem?: (section: string, itemId: string) => void;
   __sccdCurrentSectionColor?: string;
+  __sccdResetFooterHide?: () => void;
   _pressMarqueeInit?: () => void;
   _filesMarqueeInit?: () => void;
   _albumMarqueeInit?: () => void;
+  SCCD_classSlideshow?: any;
+}
+
+// ===== DOM 擴充（散在多處 element 上掛 callback / cached state）=====
+interface HTMLElement {
+  __closeSpotlight?: () => void;
+  __pauseLayoutInterval?: () => void;
+  __resumeLayoutInterval?: () => void;
+  __fadeOutWatch?: (opts?: any) => void | Promise<void>;
+  __fadeInWatch?: (opts?: any) => void | Promise<void>;
+  __resetWatchAlpha?: () => void;
+  _baseRot?: number;
 }
 
 // ===== CDN 全域 library（type: any 避免過度約束）=====
@@ -74,3 +87,4 @@ declare var ScrollToPlugin: any;
 declare var SplitText: any;
 declare var lottie: any;
 declare var pdfjsLib: any;
+declare var p5: any;

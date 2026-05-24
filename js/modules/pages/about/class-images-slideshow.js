@@ -15,7 +15,9 @@
  *   4. 新 panel 開始 loop
  */
 
-const SLOT_LEFTS = ['0%', '32%', '64%'];
+// slot 間距：slot 0 起始貼左、slot 1/2 各往右平移 ~28%（從 32% 縮小）
+// 避免 slot 2 + landscape 圖寬度溢出 .division-images 容器右緣（container ~720px 在 1920w，slot2 64% + 462 = ~923 溢出 200px）
+const SLOT_LEFTS = ['0%', '24%', '48%'];
 const ANIM_DUR   = 0.5;
 const ANIM_EASE  = 'cubic-bezier(0.25, 0, 0, 1)';
 const INTERVAL   = 3000;
@@ -76,12 +78,16 @@ function placeInSlot(img, slotIdx, extra = {}) {
 
 // ── 每個 container 的 slideshow 實例 ─────────────────────────────────────────
 
-function initContainer(container, pool) {
+// 也 export 給 degree-show-detail sub-event row 重用（同樣 slideshow 行為，但無 about 全域 state machine）
+// opts.textHlEl：要跟 imgs 同步 clip-path 的 text highlight 元素；不傳則自動從 closest('.class-info-panel') 找
+export function createClassImagesSlideshow(container, pool, opts = {}) {
   if (!container || typeof gsap === 'undefined') return null;
 
   // 同一個 panel 內的 text highlight 區塊（含底色），和 imgs 一起做 clip-path
-  const panelEl = container.closest('.class-info-panel');
-  const textHlEl = panelEl?.querySelector('[data-class-hl]') || null;
+  // about 場景自動從 .class-info-panel 找 [data-class-hl]；degree-show 場景可顯式傳入 textHlEl
+  const textHlEl = opts.textHlEl !== undefined
+    ? opts.textHlEl
+    : (container.closest('.class-info-panel')?.querySelector('[data-class-hl]') || null);
 
   let slots = [];
   let nextIdx = 0;
@@ -110,8 +116,8 @@ function initContainer(container, pool) {
   function updateCursors() {
     slots.forEach((s, i) => {
       s.style.cursor = i === 0
-        ? "url('/custom-cursor/default.svg') 5 1, default"
-        : "url('/custom-cursor/pointer.svg') 16 8, pointer";
+        ? "url('/custom-cursor/default.svg') 6 1, default"
+        : "url('/custom-cursor/pointer.svg') 9 1, pointer";
     });
   }
 
@@ -339,10 +345,10 @@ export async function initClassImagesSlideshow() {
     const pool = await res.json();
     if (!Array.isArray(pool) || pool.length === 0) return;
 
-    document.querySelectorAll('.division-images').forEach(container => {
+    /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.division-images')).forEach(container => {
       const division = container.dataset.division;
       if (!division) return;
-      const api = initContainer(container, pool);
+      const api = createClassImagesSlideshow(container, pool);
       if (api) slideshowsByDivision.set(division, api);
     });
 

@@ -374,7 +374,7 @@ function initYTCardClick(ytCard, playerRef) {
     }
 
     // 字母依序瞬間消失先跑（拍 1~6），第 7 拍才啟動圓圈 → 等序節奏
-    const fadePromise = ytCharsEl?.__fadeOutWatch?.(fadeOpts) ?? Promise.resolve();
+    const fadePromise = /** @type {Promise<void>} */ (ytCharsEl?.__fadeOutWatch?.(fadeOpts) ?? Promise.resolve());
     fadePromise.then(() => {
       // 等一拍（stagger），讓圓圈在「第 7 拍」啟動接續字母節奏
       setTimeout(() => {
@@ -436,9 +436,14 @@ export function initYTCard() {
 
   // WP endpoint，配 JSON fallback（LocalWP 沒跑 / endpoint 失敗時 fall back data/news.json）
   // hostname-based dev/prod 切換：production 走 same-origin 相對 URL
+  // _SKIP_WP：本機 dev 跳過 WP fetch（同 activities-data-loader），sessionStorage.wpDev='1' 可強制測 WP
   const WP_API_BASE = location.hostname === 'sccd-website.local' ? '' : 'http://sccd-website.local';
-  const fetchTheater = () =>
-    fetch(`${WP_API_BASE}/wp-json/sccd/v1/index-theater`)
+  const _SKIP_WP = location.hostname !== 'sccd-website.local'
+    && /^(localhost|127\.0\.0\.1|0\.0\.0\.0|)$/.test(location.hostname)
+    && sessionStorage.getItem('wpDev') !== '1';
+  const fetchTheater = () => {
+    if (_SKIP_WP) return fetch('data/news.json').then(r => r.json());
+    return fetch(`${WP_API_BASE}/wp-json/sccd/v1/index-theater`)
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       // endpoint 200 但 videoUrl 空（local 沒上傳影片）也算失敗 → fallback 到 data/news.json 看得到測試影片
       .then(data => { if (!data?.videoUrl) throw new Error('endpoint returned empty videoUrl'); return data; })
@@ -446,6 +451,7 @@ export function initYTCard() {
         console.warn('[initYTCard] WP endpoint failed, fallback to data/news.json:', err.message);
         return fetch('data/news.json').then(r => r.json());
       });
+  };
 
   fetchTheater()
     .then(data => {

@@ -314,7 +314,7 @@ async function showGatheringCity(cityId) {
 function bindMeetingMinutesPdf() {
   const list = document.getElementById('alumni-gatherings-list');
   if (!list) return;
-  list.querySelectorAll('.list-ref-btn[href]').forEach(btn => {
+  /** @type {NodeListOf<HTMLElement>} */ (list.querySelectorAll('.list-ref-btn[href]')).forEach(btn => {
     if (btn.dataset.pdfBound) return;
     btn.dataset.pdfBound = '1';
     btn.addEventListener('click', (e) => {
@@ -443,7 +443,6 @@ export async function initAlumni() {
   // Activities — 無 share btn
   await loadListInto('alumni-activities-list', ACTIVITIES_URL, {
     showYearToggle: false,
-    fullDate: true,
     showAlumniIcon: false,
     showShareBtn: false,
   });

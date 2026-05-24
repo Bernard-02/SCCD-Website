@@ -31,6 +31,20 @@
   body.lightbox-open .theme-toggle-btn {
     color: #fff;
   }
+
+  /* ===== Mode btn 圓底（桌面版 header）=====
+   * 底色 = page bg（融入頁面，不反色）：standard 白底黑 icon、
+   * inverse 黑底白 icon、mode-color 跟 page bg（規則在 themes/inverse.css + color.css）
+   * size 40×40 圓，icon 24 居中（= 8px padding）；
+   * width 寫死 40 是因為 header.js animateHeaderModeBtnShow fromTo width:0→40 需要對齊 */
+  #mode-btn {
+    width: 40px;
+    height: 40px;
+    background: #fff;
+  }
+  #mode-btn .theme-toggle-btn {
+    color: #000;
+  }
   /* ===== Section Nav Buttons（共用基底樣式）=====
    * 包含：faculty-filter / activities-section / courses-program /
    *      activities-filter / courses-filter / section-nav-btn

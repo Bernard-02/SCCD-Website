@@ -5,8 +5,20 @@
       {
         "title": "Listen to Island of Body: Sensory Awareness and Improvisational Body Texture Workshop (II)",
         "title_zh": "傾聽身體之島：感官覺察與即興肢體質地工作坊（II）",
-        "subtitle": "Animation Creative Design Workshop (Beijing Summer Digital Entertainment Jam Series)",
-        "subtitle_zh": "動畫創意設計工作營（北京夏日數字娛樂節工作營系列）",
+        "subtitles": [
+          {
+            "en": "Animation Creative Design Workshop (Beijing Summer Digital Entertainment Jam Series)",
+            "zh": "動畫創意設計工作營（北京夏日數字娛樂節工作營系列）"
+          },
+          {
+            "en": "Co-organized with National Center for High-Performance Computing",
+            "zh": "與國家高速網路與計算中心合辦"
+          },
+          {
+            "en": "Cross-school Summer Program",
+            "zh": "跨校暑期交流"
+          }
+        ],
         "flag": "tw",
         "date": "10 / 10 - 10 / 12",
         "location": "Shanghai, CN  /  Zhejiang, CN  /  Anhui, CN",
@@ -48,20 +60,30 @@
           {
             "section": "industry",
             "itemId": "I-2025-01",
-            "labelEn": "Industry-Academia Cooperation",
+            "labelEn": "Industry Partnerships",
             "labelZh": "產學合作",
             "titleEn": "Industry-Academia Project 1",
             "titleZh": "產學合作計畫一"
           },
           {
-            "href": "../pages/library.html?section=files&item=1",
-            "labelEn": "Files",
-            "labelZh": "檔案庫",
+            "pdfUrl": "../assets/sample.pdf",
+            "labelEn": "Documents",
+            "labelZh": "文件",
             "titleEn": "Publication Title 1",
             "titleZh": "出版物標題 1"
           }
         ],
-        "id": "W-2025-01"
+        "id": "W-2025-01",
+        "dates": [
+          {
+            "startYear": 2025,
+            "startMonth": 12,
+            "startDay": 25,
+            "endYear": 2026,
+            "endMonth": 1,
+            "endDay": 5
+          }
+        ]
       },
       {
         "title": "Font Osteopathic Class",
@@ -77,7 +99,17 @@
         "poster": "../images/2021-動畫-Pitch-Bible-01.png",
         "videos": [],
         "images": [],
-        "id": "W-2025-02"
+        "id": "W-2025-02",
+        "dates": [
+          {
+            "startYear": 2025,
+            "startMonth": 10,
+            "startDay": 10,
+            "endYear": 2025,
+            "endMonth": 10,
+            "endDay": 12
+          }
+        ]
       },
       {
         "title": "Animation Creation Workshop",
@@ -88,7 +120,17 @@
         "poster": "../images/2021-動畫-Pitch-Bible-01.png",
         "videos": [],
         "images": [],
-        "id": "W-2025-03"
+        "id": "W-2025-03",
+        "dates": [
+          {
+            "startYear": 2025,
+            "startMonth": 10,
+            "startDay": 10,
+            "endYear": 2025,
+            "endMonth": 10,
+            "endDay": 12
+          }
+        ]
       },
       {
         "title": "Sound Design",
@@ -98,7 +140,17 @@
         "poster": "../images/2021-動畫-Pitch-Bible-01.png",
         "videos": [],
         "images": [],
-        "id": "W-2025-04"
+        "id": "W-2025-04",
+        "dates": [
+          {
+            "startYear": 2025,
+            "startMonth": 10,
+            "startDay": 10,
+            "endYear": 2025,
+            "endMonth": 10,
+            "endDay": 12
+          }
+        ]
       }
     ]
   },

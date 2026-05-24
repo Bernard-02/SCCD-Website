@@ -295,15 +295,28 @@
   margin-top: 0.25rem;
 }
 
-/* Map view 下 subchip 可互動：cursor + 點擊由 atlas.js handle（hover 不調 opacity — user 要求對齊 activities filter 風格）
-   點擊 toggle .subchip-inactive → 去掉底色（同 activities filter inactive 視覺），文字保留 0.7 fade */
+/* Map view 下 subchip 可互動：cursor + 點擊由 atlas.js handle
+   完全對齊 .atlas-filter-btn 三態 pattern（只差預設底色 = 灰底而非透明，且文字單行 not 雙行 stack）：
+     active (預設)：灰底 var(--lib-bg) + 黑字 var(--lib-fg)
+     inactive：透明底 + 50% 字（rgba(var(--lib-fg-rgb), 0.5)）
+     inactive + hover：透明底 + 100% 字（純黑，dim 文字 brighten） */
 .atlas-alumni-subchip {
   pointer-events: auto;
   cursor: var(--cursor-pointer);
-  transition: background-color 0.2s ease;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 .atlas-alumni-subchip.subchip-inactive {
-  background: none;
+  background: transparent;
+}
+.atlas-alumni-subchip.subchip-inactive .atlas-alumni-career-en,
+.atlas-alumni-subchip.subchip-inactive .atlas-alumni-career-zh {
+  color: rgba(var(--lib-fg-rgb), 0.5);
+}
+@media (min-width: 768px) {
+  .atlas-alumni-subchip.subchip-inactive:hover .atlas-alumni-career-en,
+  .atlas-alumni-subchip.subchip-inactive:hover .atlas-alumni-career-zh {
+    color: rgba(var(--lib-fg-rgb), 1);
+  }
 }
 
 /* ── 左上角 Filter（仿 activities-section-btn 樣式：anchor-nav-inner chip）
@@ -356,7 +369,15 @@
   color: var(--theme-bg, #fff);
   font-size: 32px;
   transform: rotate(-8deg);
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  /* 進退場 clip-path wipe（atlas.js 進場 add / page-exit remove .atlas-layout-revealed）
+     對齊 .atlas-filter-btn：0.5s + 同 ease + -12px buffer 蓋 rotate(-8deg/15deg) 邊界外溢
+     transform 仍要 transition 給 hover rotate 用，兩 prop 並列 */
+  clip-path: inset(-12px calc(100% + 12px) -12px -12px);
+  transition: clip-path 0.5s cubic-bezier(0.25, 0, 0, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#atlas-layout-btn.atlas-layout-revealed .atlas-layout-inner {
+  clip-path: inset(-12px -12px -12px -12px);
 }
 
 @media (min-width: 768px) {

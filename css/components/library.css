@@ -68,13 +68,18 @@
   opacity: 0;
 }
 
-/* ── 灰色矩形內容層：fade in/out ──────────────────────────────── */
-#library-card-content {
-  opacity: 0;
-  transition: opacity 0.35s ease;
-}
-#library-card-content.content-visible {
-  opacity: 1;
+/* ── 灰色矩形內容層：clip-path wipe in/out ────────────────────
+ * 對齊 library cards 進場 pattern（都用 clip-path inset）。
+ * 不能對 #library-card-content 整層套 clip-path：chip (lib-panel-title) 用
+ * position:absolute top:0 + 隨機 rotate 浮出 panel 邊界，整層裁切會切掉 chip 上半。
+ * 改成「panel 內 chip 與非 chip 子元素」各自獨立 clip-path：兩者一起 wipe，
+ * 但各自只裁自己內容、不影響 chip 突出 panel 的部分。
+ *
+ * 起點 clip-path 由 JS 隨機挑 4 方向（library-panels.js playPanelReveal）後設 inline，
+ * 終點 inset(0) 也由 JS 設 → CSS 只負責 transition。 */
+[id^="lib-panel-"] > :not(.lib-panel-title),
+[id^="lib-panel-"] > .lib-panel-title {
+  transition: clip-path 0.35s ease;
 }
 
 /* ── Search placeholder ────────────────────────────────────── */
@@ -245,6 +250,38 @@
 .files-marquee-inner > .marquee-copy {
   display: inline-block;
   padding-right: 3em;
+}
+
+/* ── Award winners 水平 marquee（單格多獲獎者，自動跑）────── */
+/* 結構：.award-winners (overflow:hidden) > .award-winners-track (橫向 inline-flex) > N × .award-winner-pair (EN+ZH column)
+   單獲獎者：JS 不啟用 marquee，pair 直接靜態顯示
+   多獲獎者：JS 加 .is-hmarquee、複製 track HTML 一份、設 --hmarquee-distance/duration
+            自動跑（不需 hover）— translateX 從 0 → -trackW，到複製份接合處無接縫 */
+.award-winners {
+  overflow: hidden;
+  min-width: 0;
+}
+.award-winners-track {
+  display: inline-flex;
+  flex-direction: row;
+  white-space: nowrap;
+}
+.award-winner-pair {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  /* 寬度由 JS 動態設 = viewport 寬（grid col），讓每位獲獎者整位對齊 col */
+}
+
+@media (min-width: 768px) {
+  .award-record-item:hover .award-winners.is-hmarquee .award-winners-track {
+    animation: award-winners-hmarquee var(--hmarquee-duration, 10s) linear infinite;
+  }
+}
+
+@keyframes award-winners-hmarquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(var(--hmarquee-distance, -50%)); }
 }
 
 /* ── Files list item ─────────────────────────────────────────── */

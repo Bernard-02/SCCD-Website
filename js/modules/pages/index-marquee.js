@@ -47,9 +47,14 @@ export function initMarquee() {
   if (!stack) return;
 
   // WP endpoint 回 array of items；失敗時 fallback data/news.json (shape: { items: [...] })
+  // _SKIP_WP：本機 dev 跳過 WP fetch（同 activities-data-loader），sessionStorage.wpDev='1' 可強制測 WP
   const WP_API_BASE = location.hostname === 'sccd-website.local' ? '' : 'http://sccd-website.local';
-  const fetchNews = () =>
-    fetch(`${WP_API_BASE}/wp-json/sccd/v1/index-news`)
+  const _SKIP_WP = location.hostname !== 'sccd-website.local'
+    && /^(localhost|127\.0\.0\.1|0\.0\.0\.0|)$/.test(location.hostname)
+    && sessionStorage.getItem('wpDev') !== '1';
+  const fetchNews = () => {
+    if (_SKIP_WP) return fetch('data/news.json').then(r => r.json());
+    return fetch(`${WP_API_BASE}/wp-json/sccd/v1/index-news`)
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then(arr => {
         const items = Array.isArray(arr) ? arr : [];
@@ -61,6 +66,7 @@ export function initMarquee() {
         console.warn('[initMarquee] WP endpoint failed, fallback to data/news.json:', err.message);
         return fetch('data/news.json').then(r => r.json());
       });
+  };
 
   fetchNews()
     .then(async data => {

@@ -100,6 +100,15 @@ body.mode-color #next-labels h2[style*="background"] {
   color: var(--theme-fg-inverse) !important;
 }
 
+/* Degree Show detail sticky info chip（title / branch）：
+ * JS 在 .sticky-chip-inner inline 設 background = ACCENT 三原色（粉/綠/藍），mode-color 翻 strict B/W
+ * （依 page bg 對比自動翻黑/白，跟 atlas-layout-inner、degree-show-card-content 同 pattern） */
+body.mode-color #sticky-title-chip .sticky-chip-inner,
+body.mode-color #sticky-branch-chip .sticky-chip-inner {
+  background: var(--theme-fg) !important;
+  color: var(--theme-fg-inverse) !important;
+}
+
 /* ===== 三原色 highlight bg → strict B/W ===== */
 /* timeline-card-inner 改 strict B/W（不用 overlay-25 半透明）：
  *   - bg = var(--theme-fg)（根據 page bg 對比自動翻黑/白）
@@ -541,15 +550,12 @@ body.mode-color #faculty-slide-in .text-black {
   color: var(--theme-fg) !important;
 }
 
-/* ===== Library 主卡片：mode-color 下跟 page bg 動態算純中性灰 =====
+/* ===== Library 主卡片：mode-color 下依 page bg 對比度兩階切換固定灰 =====
  * 對比邏輯：亮 page → 淺灰底黑字 / 暗 page → 深灰底白字（同 mode1/2 對比方向）
- * --lib-bg 由 theme-toggle.js applyColorVars 每幀 RAF 動態 set RGB 純中性灰
- *   亮 page (lum>0.5) → rgb(L_grey, L_grey, L_grey) 淺灰；暗 page → 深灰
- *   不引入 hue（R=G=B），純中性灰 */
+ * --lib-bg 由 theme-toggle.js applyColorVars 兩階切換 #f2f2f2 / #333333（不寫 default 避免蓋掉 inline 值） */
 body.mode-color {
   --lib-fg: var(--theme-fg);
   --lib-fg-rgb: var(--theme-fg-rgb);
-  /* --lib-bg 由 JS RAF 動態 set，這裡不寫 default 避免蓋掉 */
 }
 
 /* lib-panel-title chip：mode-color 走 strict B/W 對比（依 page hue luminance 自動翻黑白）
@@ -688,15 +694,34 @@ body.mode-color #atlas-detail {
   color: var(--theme-fg-inverse) !important;
 }
 
-/* Career rotating chip（map + list 共用）：bg primary + 黑字 → strict B/W */
-body.mode-color .atlas-alumni-career,
+/* Career rotating chip（map + list 共用）：bg primary + 黑字 → lib-bg 灰底（mode3 視覺柔和）
+ * .atlas-alumni-subchip 跟 .atlas-alumni-career 共用 className 但走自己 active/inactive 邏輯（用 --lib-bg），排除避免被蓋
+ * 2026-05-25 user 反映 strict B/W 太強烈，改 --lib-bg（亮 hue→#f2f2f2 / 暗 hue→#333333 兩階） */
+body.mode-color .atlas-alumni-career:not(.atlas-alumni-subchip),
 body.mode-color .atlas-list-col-career {
-  background-color: var(--theme-fg) !important;
+  background-color: var(--lib-bg) !important;
+  color: var(--lib-fg) !important;
+}
+
+/* List view column title chip：分階級 mode-color 處理（2026-05-25 修）
+ *   主 col (Faculty/Alumni/Partners)：strict B/W chip（強對比，主分類）
+ *   副 col (host/employ)：lib-bg 灰底 chip（弱階級，子分類）
+ * 對齊 standard (#000/#f2f2f2) 跟 inverse (#fff/#333333) 的視覺層次 */
+body.mode-color .atlas-list-col:not([data-category="host"]):not([data-category="employ"]) .atlas-list-col-title,
+body.mode-color .atlas-list-group-label-col .atlas-list-col-title {
+  background: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
 }
 
-/* List view column title chip：黑底白字 → strict B/W（依 hue 翻） */
-body.mode-color .atlas-list-col-title {
+body.mode-color .atlas-list-col[data-category="host"] .atlas-list-col-title,
+body.mode-color .atlas-list-col[data-category="employ"] .atlas-list-col-title {
+  background: var(--lib-bg) !important;
+  color: var(--lib-fg) !important;
+}
+
+/* 左下 layout toggle btn：bg fg + icon 對比色 → strict B/W
+ * .icon 走 currentColor，色源跟 .atlas-layout-inner color 一致 */
+body.mode-color .atlas-layout-inner {
   background: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
 }
@@ -805,6 +830,18 @@ body.mode-color [data-bar="atlas"].bar-inactive,
 body.mode-color [data-bar="generate"].bar-inactive,
 body.mode-color [data-bar="alumni"].bar-inactive {
   background: var(--theme-bg) !important;
+}
+
+/* Mode btn 圓底：底色 = page bg（融入頁面），icon 對比走 theme-fg
+ * mode-color 下 bg 跟著 hue 變化，icon 用 fg（亮 hue→黑 / 暗 hue→白，由 applyColorVars 算）
+ * 關掉 transition：header.html inline `transition: background 0.4s ease` 是給 mode 切換 fade 用，
+ *   但 mode-color 內部 RAF 每幀更新 --theme-bg 會被 0.4s 平滑成連續 tween 跟 body bg 不同步（落後 ~0.4s） */
+body.mode-color [data-bar="mode"] {
+  background: var(--theme-bg) !important;
+  transition: none !important;
+}
+body.mode-color [data-bar="mode"] .theme-toggle-btn {
+  color: var(--theme-fg) !important;
 }
 
 body.mode-color [data-bar="library"].bar-inactive .nav-link,

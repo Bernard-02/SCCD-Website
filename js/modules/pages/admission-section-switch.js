@@ -12,7 +12,7 @@ import {
 import { resetListAccordionsInPanel } from '../accordions/list-accordion.js';
 
 export function initAdmissionSectionSwitch() {
-  const btns = document.querySelectorAll('.activities-section-btn');
+  const btns = /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.activities-section-btn'));
   if (!btns.length) return;
 
   const loaded = {};
