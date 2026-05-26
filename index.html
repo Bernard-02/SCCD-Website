@@ -38,8 +38,9 @@
       <!-- News Marquee Stack（4 個 banner 旋轉排列在左下角；JS 動態渲染 + cycling） -->
       <div id="homepage-marquee-stack" style="position:absolute; left:0; bottom:0; width:100%; height:100%; z-index:20; pointer-events:none;"></div>
 
-      <!-- YouTube Card：絕對定位，JS 負責隨機位置 + 旋轉 -->
-      <div id="homepage-yt-card" class="homepage-card" style="position:absolute; width:160px; height:160px; border-radius:50%; cursor:pointer; overflow:hidden; background:#000; display:flex; align-items:center; justify-content:center; z-index:15;">
+      <!-- YouTube Card：絕對定位，JS 負責隨機位置 + 旋轉
+           width/height 改由 .homepage-card class 控制（桌面 160 / 手機 96，CSS 分流） -->
+      <div id="homepage-yt-card" class="homepage-card" style="position:absolute; border-radius:50%; cursor:pointer; overflow:hidden; background:#000; display:flex; align-items:center; justify-content:center; z-index:15;">
         <div id="homepage-yt-chars" style="position:absolute;inset:0;"></div>
       </div>
 
@@ -48,6 +49,12 @@
   <!-- Video Player Lightbox（必須在 <main> 內，否則 SPA 從別頁切回 index 時不會被 swap 進來） -->
   <div id="video-player-overlay" style="display:none; position:fixed; inset:0; z-index:10000; background:#000; flex-direction:column; justify-content:center; align-items:center;">
     <video id="video-player" style="width:95%; max-height:90%; object-fit:contain;" preload="metadata" controlsList="nodownload" oncontextmenu="return false;"></video>
+
+    <!-- 手機專用左上返回鍵（桌面用 video-controls 內的 close btn，預設隱藏） -->
+    <!-- top:6rem 對齊手機 header logo 下方：header `py-md`(24px) + logo wrapper `-top-4`(-16px) + logo 80px = 88px 底邊 + ~8px 間距 ≈ 96px (6rem)；left 同 logo 邊距 -->
+    <button id="video-mobile-close-btn" style="display:none; position:absolute; top:6rem; left:1rem; z-index:10003; background:#00FF80; color:#000; border:none; padding:0.5rem 0.75rem; line-height:1; align-items:center; justify-content:center;">
+      <span class="icon icon-arrow-left icon-l"></span>
+    </button>
 
     <!-- Controls 容器（三個獨立區塊，絕對定位在底部偏上） -->
     <div id="video-controls" style="position:absolute; bottom:3rem; left:0; right:0; padding: 0 24rem; display:flex; align-items:center; justify-content:space-between; pointer-events:none; opacity:0;">
@@ -130,7 +137,7 @@
           <div class="footer-office">
             <h6 class="mb-xs">Office 學系辦公室</h6>
             <p class="max-w-sm mb-xs">5F, Building A, No.70, Dazhi Street, Zhongshan District, Taipei City 104336, Taiwan</p>
-            <p style="white-space:nowrap">104336<br>台灣台北市中山區大直街 70 號 A 棟 5 樓</p>
+            <p class="footer-office-zh">104336 <br class="footer-office-zh-br">台灣台北市中山區大直街 70 號 A 棟 5 樓</p>
           </div>
 
           <div class="footer-email">
@@ -150,7 +157,16 @@
             </div>
           </div>
 
+          <!-- Social Media Icons + Support
+               Support 放在 social 內部最左：手機 .footer-social flex-row 自然排列 (support → YT → IG → FB)；
+               桌面 .footer-social { display: contents } 把 4 個 icon wrapper 升級成 .footer-random 視覺子，
+               JS scatter (ITEM_SELECTORS 仍含 .footer-support) 各別散佈 -->
           <div class="footer-social">
+            <div class="footer-support">
+              <a href="pages/support.html" class="footer-link" aria-label="Support / Donation">
+                <span class="icon icon-donate text-h3"></span>
+              </a>
+            </div>
             <div class="footer-youtube">
               <a href="https://www.youtube.com/@scsccd" target="_blank" rel="noopener noreferrer" class="footer-link">
                 <span class="icon icon-youtube text-h3"></span>
@@ -166,13 +182,6 @@
                 <span class="icon icon-facebook text-h3"></span>
               </a>
             </div>
-          </div>
-
-          <!-- Support (donation icon)：跟 social icons 同尺寸，加入 scatter pool -->
-          <div class="footer-support">
-            <a href="pages/support.html" class="footer-link" aria-label="Support / Donation">
-              <span class="icon icon-donate text-h3"></span>
-            </a>
           </div>
 
         </div>

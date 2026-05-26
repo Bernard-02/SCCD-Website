@@ -16,6 +16,7 @@
   --cursor-zoom-out: url('/custom-cursor/zoom-out.svg') 9 9, zoom-out;
   --cursor-w-resize: url('/custom-cursor/left.svg') 2 15, w-resize;
   --cursor-e-resize: url('/custom-cursor/right.svg') 28 15, e-resize;
+  --cursor-not-allowed: url('/custom-cursor/ban.svg') 16 16, not-allowed;
 
   /* ===== Colors ===== */
 

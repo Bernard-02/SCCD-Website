@@ -179,7 +179,13 @@
         }
         .support-funds,
         .support-others { transform: none; }
-        .support-card-desc { width: 100%; max-width: 100%; }
+        /* desc card 走桌面 width: max-content + max-width: 100%（hug 內容 + 不超 viewport）：
+           Regular / Others-desc 文字短 → card 自動收緊 hug；Single 長 list → 撐到 100% max-width 兜住 */
+        /* Gap 對調：桌面用 grid row 3 拉開兩個 Others 元素跟 row 2 Regular 距離
+           手機 flex stack 下 Others-desc 緊跟 Others（同組視覺貼緊），
+           Others 自身拉大到 4xl 把 Regular → Others 之間 gap 撐到視覺有「分組斷點」感 */
+        .support-others { margin-top: var(--spacing-4xl) !important; }
+        .support-others-desc { margin-top: 0 !important; }
       }
     </style>
 

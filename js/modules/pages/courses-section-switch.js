@@ -19,6 +19,19 @@ import { waitForHeroAnimDone } from './hero-animation.js';
 let currentProgramColor = '';
 export function getCurrentProgramColor() { return currentProgramColor; }
 
+// scrollIntoView wrapper：加 header 高度 offset，避免 active tab / list 緊貼 viewport top 被 header logo 遮住
+// 同 activities-section-switch.js / admission-section-switch.js 的 scrollSectionIntoView pattern
+/**
+ * @param {HTMLElement | null} el
+ * @param {ScrollBehavior} [behavior]
+ */
+function scrollSectionIntoView(el, behavior = 'smooth') {
+  if (!el) return;
+  const headerH = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--header-height') || '80', 10);
+  const top = el.getBoundingClientRect().top + window.scrollY - headerH;
+  window.scrollTo({ top, behavior });
+}
+
 // courses 專用旋轉幅度 ±2°（排除 ±0.5）— 比 SCCDHelpers.getRandomRotation(-4~6) 小，
 // 配合寬 btn（如 "Animation & Moving Image" 兩行）與 BFA label 視覺較柔
 function getRot() {
@@ -122,7 +135,7 @@ export function initCoursesSectionSwitch() {
   //    → highlight + 開 slide-in（用戶從首頁點課程卡片應直接進該課程詳細）
   if (hasQueryDeepLink) {
     Promise.all([initSwitchPromise, waitForHeroAnimDone()]).then(() => {
-      if (sectionEl) sectionEl.scrollIntoView({ behavior: 'smooth' });
+      scrollSectionIntoView(sectionEl);
       if (itemSlug) {
         // 卡片 hover marquee 量測在 renderCoursesGrid 末段，selectCard 立刻可用
         selectCardBySlugInPanel(initialProgram, itemSlug);
@@ -150,7 +163,7 @@ export function initCoursesSectionSwitch() {
     const prevPanel = document.querySelector('.courses-panel:not(.hidden)');
     // 已 active 同 panel：跳過退場/進場 + active btn 重 roll；如果是 click（shouldScroll）仍 scroll 對齊 anchor
     if (prevPanel && prevPanel.id === newPanelId && shouldScroll) {
-      if (sectionEl) sectionEl.scrollIntoView({ behavior: 'smooth' });
+      scrollSectionIntoView(sectionEl);
       return;
     }
     // 找出將被 active 的 btn，把 hover 留下的 _pendingRot / _pendingLabelRot 拿出來
@@ -244,21 +257,24 @@ export function initCoursesSectionSwitch() {
     // 把 active btn-inner 的 inline rotation 同步到 _baseRot（供之後 mouseleave 還原用）
     syncActiveBaseRot(activeBtn);
 
-    // 全部 label 先清 inline bg/color；active group 那個重新套 accent + rotation
+    // active group label = accent + 新 rotation；其他 group label = 清 inline bg/color 回 CSS 預設
     // label rotation 優先用 hover pending，無 pending 才隨機（避免 click 後 label 角度突然亂跳）
+    // ⚠️ 不要對 active group label 先清再套：transition 0.2s 會跑「accent → transparent → accent」中間態，
+    //    視覺上看到一瞬間透明底但因 .active group 的 CSS rule (color:black) 接管 → 黑字浮在頁面背景上
+    //    （user 截圖回報 BFA label 一瞬間變黑色）。對 active group 一律直接覆蓋 inline 值。
+    const activeLabel = activeBtn
+      ? /** @type {HTMLElement & { _baseRot?: number } | null} */ (activeBtn.closest('.courses-program-group')?.querySelector('.courses-bfa-label') || null)
+      : null;
     document.querySelectorAll('.courses-bfa-label').forEach(l => {
+      if (l === activeLabel) return;
       /** @type {HTMLElement} */ (l).style.background = '';
       /** @type {HTMLElement} */ (l).style.color = '';
     });
-    if (activeBtn) {
-      const group = activeBtn.closest('.courses-program-group');
-      const label = /** @type {HTMLElement & { _baseRot?: number }} */ (group?.querySelector('.courses-bfa-label'));
-      if (label) {
-        label._baseRot = pendingLabelRot != null ? pendingLabelRot : getRot();
-        label.style.background = color;
-        label.style.color = '#000000';
-        label.style.transform = `rotate(${label._baseRot}deg)`;
-      }
+    if (activeLabel) {
+      activeLabel._baseRot = pendingLabelRot != null ? pendingLabelRot : getRot();
+      activeLabel.style.background = color;
+      activeLabel.style.color = '#000000';
+      activeLabel.style.transform = `rotate(${activeLabel._baseRot}deg)`;
     }
 
     // click 後要清掉 _pending（避免下次無 hover 直接點時還沿用舊值）
@@ -371,7 +387,7 @@ export function initCoursesSectionSwitch() {
     }
 
     if (shouldScroll && sectionEl) {
-      sectionEl.scrollIntoView({ behavior: 'smooth' });
+      scrollSectionIntoView(sectionEl);
     }
   }
 }

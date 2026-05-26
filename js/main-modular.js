@@ -33,6 +33,7 @@ import { initAnchorNav } from './modules/navigation/anchor-nav.js';
 // Import Page Specific Modules
 import { initIntroAnimation } from './modules/pages/intro-animation.js';
 import { initHeroAnimation } from './modules/pages/hero-animation.js';
+import { initHeroMobileSync } from './modules/pages/hero-mobile-sync.js';
 import { initFacultySlideIn } from './modules/pages/faculty-slide-in.js';
 import { initActivitiesSectionSwitch } from './modules/pages/activities-section-switch.js';
 import { initActivitiesSearch } from './modules/ui/activities-search.js';
@@ -53,6 +54,7 @@ import { initAdmissionSectionSwitch } from './modules/pages/admission-section-sw
 import { initLibraryCard } from './modules/pages/library-card.js';
 import { initLibraryPanels, resolveInitialTabFromHash } from './modules/pages/library-panels.js';
 import { initLibraryViewer, initPdfViewer } from './modules/pages/library-viewer.js';
+import { setActiveNavBtn } from './modules/ui/section-switch-helpers.js';
 
 // Import Lightbox Shell（共用 enter/exit 行為；SPA cleanup 需 reset openCount）
 import { resetLightboxMode, getHeaderTargets } from './modules/lightbox/lightbox-shell.js';
@@ -157,6 +159,10 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
   // 共用版需等 header:ready，若 event 早於 listener 註冊 → 動畫不跑 → titles/banner 永遠 visibility:hidden，
   // 是 support 頁 refresh 偶發「沒 load 出來」的成因。support 自己接管後不依賴 header race。
   if (page !== 'degree-show-detail' && page !== 'support') {
+    // hero-mobile-sync：4 頁共用 hero (faculty/courses/activities/admission) 手機 DOM 從桌面 clone 文案+banner src
+    // 必須在 initHeroAnimation 之前跑：hero-animation.js 對 [data-hero-hl] 套色時手機 chip 要已注入內容
+    // 其他頁無 .hero-mobile / .hero-rand-grid 結構 → sync 函式自身 early return 不影響
+    initHeroMobileSync();
     if (document.querySelector('#site-header header')) {
       initHeroAnimation();
     } else {
@@ -313,6 +319,54 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
     // 不要先進 awards 再 switchPanel（會看到 awards 一閃即逝）。
     // resolveInitialTabFromHash 看 hash 前綴（如 #f-* → files），無 hash 則 awards。
     const initialTab = resolveInitialTabFromHash();
+
+    // 手機版：跳過 card stack 幾何計算（randomize x/y 容易超出 viewport → 水平位移），
+    // 改用頂端 tab bar 直接 panels.showPanel；layout 由 CSS 處理
+    // tab bar 沿用 activities-section-bar pattern → 走 setActiveNavBtn 提供 active 隨機色 + 旋轉
+    if (window.innerWidth < 768) {
+      const tabsRoot = document.getElementById('library-mobile-tabs');
+      panels.showPanel(initialTab, { reveal: true });
+      panels.onEntranceDone();
+      panels.handleHash();
+
+      // press/files/album panel 桌面結構是 2×2 grid：Year 標題在 top-left、year-picker 在 bottom-left（兩個獨立 grandchildren）
+      // 手機要求「Year 標題跟 year-picker 是同一個 group」對齊 awards panel 樣式
+      // → DOM 搬：把 year-picker-wrap 整個搬到 Year 標題 wrapper 內當子，這樣 Year 標題 wrapper 變 group container
+      ['press', 'files', 'album'].forEach(name => {
+        const panel = document.getElementById(`lib-panel-${name}`);
+        if (!panel) return;
+        const grid = /** @type {HTMLElement|null} */ (panel.querySelector(':scope > div[style*="grid"]'));
+        if (!grid) return;
+        const children = /** @type {HTMLElement[]} */ ([...grid.children]);
+        if (children.length < 3) return;
+        const yearLabelWrap = children[0];    // top-left: Year 標題 wrapper
+        const yearPickerWrap = children[2];   // bottom-left: year-picker-wrap wrapper（含 picker）
+        if (yearLabelWrap && yearPickerWrap && yearPickerWrap.parentElement === grid) {
+          yearLabelWrap.appendChild(yearPickerWrap);
+        }
+      });
+
+      const tabBtns = tabsRoot?.querySelectorAll('.activities-section-btn') ?? [];
+      setActiveNavBtn(tabBtns, initialTab, 'data-tab');
+
+      tabsRoot?.addEventListener('click', (e) => {
+        const target = /** @type {HTMLElement} */ (e.target);
+        const btn = target.closest('.activities-section-btn');
+        if (!btn) return;
+        const tab = btn.getAttribute('data-tab');
+        if (!tab) return;
+        panels.showPanel(tab, { reveal: true });
+        setActiveNavBtn(tabBtns, tab, 'data-tab');
+        // 切 tab 後 scroll 回頁面頂讓 user 從 search bar 看起
+        window.scrollTo({ top: 0, behavior: 'instant' });
+        const currentHash = window.location.hash.slice(1);
+        if (currentHash !== tab) {
+          history.replaceState(null, '', window.location.pathname + '#' + tab);
+        }
+      });
+      return;
+    }
+
     if (initialTab !== 'awards') {
       // 預先 swap panel display，讓 content 層 fade-in 時看到的就是目標 panel
       // reveal:false → 只切 display 不跑 wipe；等 grayEl 進場揭露完 onTabSwitch 才 reveal

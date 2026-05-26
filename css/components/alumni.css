@@ -64,8 +64,11 @@ body.page-alumni .list-header.active {
   opacity: 1;
   pointer-events: auto;
 }
-.alumni-charter-sticky:hover {
-  opacity: 0.85;
+/* hover 包 desktop guard：手機 tap 後 0.85 opacity 殘留 */
+@media (min-width: 768px) {
+  .alumni-charter-sticky:hover {
+    opacity: 0.85;
+  }
 }
 /* charter EN + ZH 同字級、同色（都白色、無 opacity） */
 .alumni-charter-sticky .charter-en,

@@ -23,6 +23,15 @@
 export function getHeaderTargets() {
   const header = document.querySelector('#site-header header');
   if (!header) return [];
+  // 桌面 (≥768)：抓桌面 md:flex 內的 [data-bar] + #mode-btn（hidden md:flex 區，手機 display:none 抓不到）
+  // 手機 (<768)：抓手機 .grid-12 區內的 .mobile-header-btn 兩顆（mode-btn-mobile + menu-btn 外殼），logo 不收
+  // 兩邊都 include 也安全（手機 viewport 桌面元素 display:none 不影響 GSAP 動畫但會浪費 tween；分流更乾淨）
+  const isMobile = window.innerWidth < 768;
+  if (isMobile) {
+    return /** @type {HTMLElement[]} */ (
+      Array.from(header.querySelectorAll(':scope > .site-container > .grid-12 .mobile-header-btn'))
+    );
+  }
   return /** @type {HTMLElement[]} */ ([
     ...header.querySelectorAll(':scope > .site-container > .md\\:flex > [data-bar]'),
     header.querySelector(':scope > .site-container > .md\\:flex > #mode-btn'),

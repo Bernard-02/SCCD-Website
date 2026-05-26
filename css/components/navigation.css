@@ -109,6 +109,20 @@
     pointer-events: none;
   }
 
+  /* slide-in 場景例外（faculty / courses）：header bars 不被 clip-path 收，logo + mode + menu 視覺都還在
+   * → 允許 user 點 logo 回首頁 / 切 mode / 開選單；slide-in 本身用 backBtn / overlay 關閉
+   * has-slide-in class 由 slide-in-bg-sync.openSlideInBg / courses-map openSlideIn 加在 html，close 時移除
+   * 兩條規則：
+   *   1. 父層 #site-header pointer-events:auto（蓋過上面 body.lightbox-open 的 :none）
+   *   2. 手機 logo / mode-btn / menu-btn 直接 pointer-events:auto（雙保險，避免某 cascade order 翻車） */
+  html.has-slide-in body.lightbox-open #site-header,
+  html.has-slide-in body.lightbox-open #site-header a,
+  html.has-slide-in body.lightbox-open #site-header button,
+  html.has-slide-in body.lightbox-open #site-header #mode-btn-mobile,
+  html.has-slide-in body.lightbox-open #site-header .mobile-menu-btn {
+    pointer-events: auto;
+  }
+
   /* ===== Mega Menu ===== */
   .mega-menu {
     position: fixed;
@@ -223,3 +237,14 @@
     margin-left: 0.25rem;
   }
 }
+
+/* ===== Mobile Nav (漢堡選單) =====
+ * mobile-menu.js 用 GSAP stagger fade-in 進場（y: 20 → 0、opacity 0 → 1）
+ * 預設 color 繼承 body 文字色（mode-standard 黑 / mode-inverse 白 / mode-color theme-fg，後兩者在 themes/*.css 已覆寫）
+ * EN/ZH 並列：EN 走 semibold + 主字級、ZH 較細較淺，視覺主副區分但兩語都看得清 */
+.mobile-nav-en,
+.mobile-nav-zh {
+  /* EN/ZH 同色同 weight，僅 HTML 兩 span 間的 whitespace 區隔（user 2026-05-25 拍板「一個空格即可」） */
+  color: inherit;
+}
+

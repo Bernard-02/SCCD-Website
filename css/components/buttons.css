@@ -32,6 +32,11 @@
     color: #fff;
   }
 
+  /* slide-in / lightbox 開啟時手機只保留 logo，mode-btn + menu-btn 收起 — 動畫由 lightbox-shell.js
+     `animateHeaderHide(getHeaderTargets())` 統一管（跟桌面 #mode-btn / [data-bar] 走同一個 GSAP clip-path
+     per-element 隨機 top/bottom 收）。getHeaderTargets() 在手機 viewport 會 include .mobile-header-btn。
+     這裡不額外寫 CSS clip-path 動畫，避免跟 GSAP 撞 transition */
+
   /* ===== Mode btn 圓底（桌面版 header）=====
    * 底色 = page bg（融入頁面，不反色）：standard 白底黑 icon、
    * inverse 黑底白 icon、mode-color 跟 page bg（規則在 themes/inverse.css + color.css）
@@ -44,6 +49,20 @@
   }
   #mode-btn .theme-toggle-btn {
     color: #000;
+  }
+
+  /* ===== Mobile Header Buttons（mode-btn + menu-btn 圓底）=====
+   * 跟桌面 #mode-btn 同 bg 邏輯：圓底 + bg = page bg（融入頁面）
+   * 44×44 滿足觸控規範；icon 色走 currentColor 自動跟 mode 切換
+   * mode-aware bg 由 themes/inverse.css + color.css 覆寫（同 #mode-btn pattern）*/
+  .mobile-header-btn {
+    width: 44px;
+    height: 44px;
+    background: #fff;
+    color: #000;
+    /* transition 含 transform：mobile-menu.js 對 btn 外殼套 random rotation，每次點擊新角度需平滑切換
+       clip-path 動畫由 lightbox-shell GSAP 控（slide-in/lightbox 開時），不在 CSS transition 處理 */
+    transition: background var(--transition-fast), color var(--transition-fast), transform 0.4s ease;
   }
   /* ===== Section Nav Buttons（共用基底樣式）=====
    * 包含：faculty-filter / activities-section / courses-program /
@@ -107,6 +126,46 @@
     }
     .faculty-filter-btn:hover .anchor-nav-inner {
       color: rgba(0, 0, 0, 1);
+    }
+  }
+
+  /* ===== Activities Section Bar（手機水平 scroll；桌面 sticky vertical stack） =====
+   * 手機：force row + overflow-x:auto + 兩側負 margin 延伸到 viewport 邊（courses-program-bar 同 pattern）
+   *      - flex-direction:row + flex-wrap:nowrap !important 覆蓋 HTML 的 flex-row + flex-wrap (HTML 預設 flex-row)
+   *      - overflow-y:clip 與 x:auto 並存（CSS spec：另一軸非 visible 時視同 auto；用 clip 才真不裁切）
+   *      - gap-xs 給 btn 之間留呼吸感；btn flex-shrink:0 避免擠壓變窄
+   * 桌面：直接走 HTML md:flex-col + sticky，這段不介入 */
+  @media (max-width: 767px) {
+    .activities-section-bar {
+      flex-direction: row !important;
+      flex-wrap: nowrap !important;
+      overflow-x: auto;
+      /* overflow-y:clip 讓 active btn rotation 投影 y 軸不被裁切（spec：另一軸非 visible 視同 auto，clip 才真不切）
+         x 軸 scroll 為 host section 之外的隔離 container，rotation 投影在 padding-y buffer 內可見 */
+      overflow-y: clip;
+      margin-left: calc(-1 * var(--container-padding));
+      margin-right: calc(-1 * var(--container-padding));
+      padding-left: var(--container-padding);
+      padding-right: var(--container-padding);
+      /* padding-y 給 rotation buffer：active btn 旋轉後 chip 上下凸出 layout box；
+         沒有 buffer 投影會被 overflow-y:clip 切掉 */
+      padding-top: var(--spacing-sm);
+      padding-bottom: var(--spacing-sm);
+    }
+    .activities-section-bar::-webkit-scrollbar { display: none; }
+    .activities-section-bar > .activities-section-btn {
+      flex-shrink: 0;
+    }
+    /* Industry Partnerships btn 桌面 EN 強制換行（HTML hardcoded <br>），手機 single-line scroll bar
+       不需要換行；<br> 不能用 display:none（會讓 EN 黏成 IndustryPartnerships），
+       改成把 br 變 inline content 空格：content 替換 <br> 視覺內容為 ' '（display:none 後 ::after 不 render，
+       直接給 br 自身 display:inline + ::after content） */
+    .activities-section-bar .activities-section-btn br {
+      display: inline;
+    }
+    .activities-section-bar .activities-section-btn br::after {
+      content: ' ';
+      white-space: pre;
     }
   }
 

@@ -254,8 +254,11 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     // 多獲獎者水平 marquee：每位獲獎者佔滿整個 col 寬，整位整位滾（不會卡到一半）
     // viewport = grid col 寬 → 量 view.offsetWidth 當作 pair 寬，強制 set 到每個 pair
     // 滾動距離 = pairW × pairs.length（=複製前 track 寬），複製一份接合 seamless loop
+    // 手機（< 768）：pair 不 viewport-wide（會異常慢），改自然寬度排列 + 純 CSS marquee
+    //                CSS marquee keyframe = translateX(-50%) 配合複製一份 seamless；duration 依名字數線性放大
     function applyWinnersHMarquee(scope) {
-      const SECONDS_PER_WINNER = 2.5; // 每位獲獎者在 viewport 停留視覺秒數（含過渡），多人 = 線性放大總時長
+      const isMobile = window.innerWidth < 768;
+      const SECONDS_PER_WINNER = isMobile ? 3 : 2.5;
       scope.querySelectorAll('.award-winners').forEach(viewport => {
         const view = /** @type {HTMLElement} */ (viewport);
         const track = /** @type {HTMLElement | null} */ (view.querySelector('.award-winners-track'));
@@ -263,7 +266,17 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         const pairs = /** @type {HTMLElement[]} */ ([...track.querySelectorAll('.award-winner-pair')]);
         if (pairs.length <= 1) return;
 
-        // 量 viewport 寬（= grid col 寬）當作每位獲獎者佔的單位寬度
+        if (isMobile) {
+          // 手機：pair 自然寬度 + 複製一份 seamless（CSS keyframe translateX -50% 接合）
+          // pair 之間 gap 由 CSS .award-winners-track { gap: 2xl } 控
+          const origHtml = track.innerHTML;
+          track.innerHTML = origHtml + origHtml;
+          view.classList.add('is-hmarquee');
+          view.style.setProperty('--hmarquee-duration', `${pairs.length * SECONDS_PER_WINNER}s`);
+          return;
+        }
+
+        // 桌面：量 viewport 寬（= grid col 寬）當作每位獲獎者佔的單位寬度
         const pairW = view.offsetWidth;
         if (!pairW) return;
 
@@ -516,11 +529,14 @@ async function initPressPanel() {
           div.dataset.year    = String(item.year);
           div.dataset.cat     = item.category || '';
           div.dataset.search  = [item.titleEn, item.titleZh, item.subtitleEn, item.subtitleZh].filter(Boolean).join(' ').toLowerCase();
-          const subtitleText  = [item.subtitleEn, item.subtitleZh].filter(Boolean).join('&ensp;');
           const hasMedia  = !!(item.image || item.pdfUrl || item.videoUrl);
-          const metaHtml = (subtitleText || item.date) ? `
+          // 副標 EN/ZH 拆成兩個獨立 span：桌面 CSS inline 視覺一行（中間 &ensp; 由 ::after 補），手機 block 拆兩行
+          const subtitleEnHtml = item.subtitleEn ? `<span class="press-item-subtitle press-item-subtitle-en"><span class="press-subtitle-inner">${item.subtitleEn}</span></span>` : '';
+          const subtitleZhHtml = item.subtitleZh ? `<span class="press-item-subtitle press-item-subtitle-zh"><span class="press-subtitle-inner">${item.subtitleZh}</span></span>` : '';
+          const hasSubtitle = !!(item.subtitleEn || item.subtitleZh);
+          const metaHtml = (hasSubtitle || item.date) ? `
             <div class="press-item-meta">
-              ${subtitleText ? `<span class="press-item-subtitle"><span class="press-subtitle-inner">${subtitleText}</span></span>` : ''}
+              ${hasSubtitle ? `<span class="press-item-subtitle-wrap">${subtitleEnHtml}${subtitleZhHtml}</span>` : ''}
               <span class="press-item-meta-right">
                 ${item.date ? `<span class="press-item-date">${item.date}</span>` : ''}
                 ${hasMedia  ? `<span class="icon icon-album press-item-media-icon"></span>` : ''}
@@ -554,8 +570,21 @@ async function initPressPanel() {
             div.style.cursor = "url('/custom-cursor/pointer.svg') 14 1, pointer";
             const pdfTitle = { en: item.titleEn || '', zh: item.titleZh || '' };
             const pdfColor = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
-            div.addEventListener('click', () => {
-              document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl, title: pdfTitle, color: pdfColor, references: item.references } }));
+            // library 場景：references 反查所有 activity 中 ref 此 PDF 的來源（不 exclude，full list）
+            // 若 library item 內 user 手填 references，union 進去（自動反查 + 手填可並存）
+            div.addEventListener('click', async () => {
+              const { getPdfRefSources } = await import('./pdf-cross-ref-index.js');
+              const auto = await getPdfRefSources(item.pdfUrl);
+              const manual = Array.isArray(item.references) ? item.references : [];
+              const seen = new Set();
+              const references = [...auto, ...manual].filter(r => {
+                if (!r || !r.section || !r.itemId) return false;
+                const k = `${r.section}::${r.itemId}`;
+                if (seen.has(k)) return false;
+                seen.add(k);
+                return true;
+              });
+              document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl, title: pdfTitle, color: pdfColor, references } }));
             });
           }
           block.appendChild(div);
@@ -708,8 +737,20 @@ async function initFilesPanel() {
           if (item.pdfUrl) {
             div.style.cursor = "url('/custom-cursor/pointer.svg') 14 1, pointer";
             const pdfTitle = { en: item.titleEn || '', zh: item.titleZh || '' };
-            div.addEventListener('click', () => {
-              document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl, title: pdfTitle, color: accentColor, references: item.references } }));
+            // 同 Press panel：library 場景反查 activity → 此 PDF；手填 references union 進去
+            div.addEventListener('click', async () => {
+              const { getPdfRefSources } = await import('./pdf-cross-ref-index.js');
+              const auto = await getPdfRefSources(item.pdfUrl);
+              const manual = Array.isArray(item.references) ? item.references : [];
+              const seen = new Set();
+              const references = [...auto, ...manual].filter(r => {
+                if (!r || !r.section || !r.itemId) return false;
+                const k = `${r.section}::${r.itemId}`;
+                if (seen.has(k)) return false;
+                seen.add(k);
+                return true;
+              });
+              document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl, title: pdfTitle, color: accentColor, references } }));
             });
           }
 
@@ -910,8 +951,9 @@ async function initAlbumPanel() {
 
           const catTagHtml = `<span class="files-item-subtitle-tag">${CAT_LABELS[item.cat] || item.cat}</span>`;
 
-          // thumbnails: up to 3 from media array (already ordered: poster → video → photos)
-          const thumbMedia = (item.media || []).slice(0, 3);
+          // thumbnails: 全部 media（2026-05-27 user 要求「有幾張放幾張，自然排列、不要 stack」）
+          // 桌面 CSS 仍套舊 absolute stack 視覺，手機 CSS 改 flex-wrap 排成自然 row（library.css album 手機 rule）
+          const thumbMedia = (item.media || []);
           const thumbsHtml = thumbMedia.map((m, ti) => {
             const sign = Math.random() < 0.4 ? -1 : 1;
             const finalDeg = sign > 0 ? (Math.random() * 5.5 + 0.5) : -(Math.random() * 3.5 + 0.5);
@@ -1194,12 +1236,6 @@ export function playPanelBodyExit(panelEl, dur = 0.35) {
     /** @type {HTMLElement} */ (el).style.transition = `clip-path ${dur}s ease-in`;
     /** @type {HTMLElement} */ (el).style.clipPath = hideDir;
   });
-}
-
-// 舊 API：保留以防其他 caller 引用，內部分 phase（title 先，body 後）
-export function playPanelExit(panelEl, dur = 0.35) {
-  playPanelTitleExit(panelEl, dur * 0.7);
-  setTimeout(() => playPanelBodyExit(panelEl, dur), dur * 0.7 * 1000);
 }
 
 // 對 panel 內子元素設「隱藏」起點 clip-path，不觸發 transition（用於進場前預設）

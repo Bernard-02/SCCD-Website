@@ -28,7 +28,7 @@
         <div class="footer-office">
           <h6 class="mb-xs">Office 學系辦公室</h6>
           <p class="max-w-sm mb-xs">5F, Building A, No.70, Dazhi Street, Zhongshan District, Taipei City 104336, Taiwan</p>
-          <p style="white-space:nowrap">104336<br>台灣台北市中山區大直街 70 號 A 棟 5 樓</p>
+          <p class="footer-office-zh">104336 <br class="footer-office-zh-br">台灣台北市中山區大直街 70 號 A 棟 5 樓</p>
         </div>
 
         <!-- E-Mail -->
@@ -50,8 +50,16 @@
           </div>
         </div>
 
-        <!-- Social Media Icons -->
+        <!-- Social Media Icons + Support
+             Support 放在 social 內部最左：手機 .footer-social flex-row 自然排列 (support → YT → IG → FB)；
+             桌面 .footer-social { display: contents } 把 4 個 icon wrapper 升級成 .footer-random 視覺子，
+             JS scatter (ITEM_SELECTORS 仍含 .footer-support) 各別散佈 -->
         <div class="footer-social">
+          <div class="footer-support">
+            <a href="support.html" class="footer-link" aria-label="Support / Donation">
+              <span class="icon icon-donate text-h3"></span>
+            </a>
+          </div>
           <div class="footer-youtube">
             <a href="https://www.youtube.com/@scsccd" target="_blank" rel="noopener noreferrer" class="footer-link">
               <span class="icon icon-youtube text-h3"></span>
@@ -67,13 +75,6 @@
               <span class="icon icon-facebook text-h3"></span>
             </a>
           </div>
-        </div>
-
-        <!-- Support (donation icon)：跟 social icons 同尺寸，加入 scatter pool -->
-        <div class="footer-support">
-          <a href="support.html" class="footer-link" aria-label="Support / Donation">
-            <span class="icon icon-donate text-h3"></span>
-          </a>
         </div>
 
       </div>

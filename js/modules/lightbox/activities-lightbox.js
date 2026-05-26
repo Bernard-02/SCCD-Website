@@ -65,11 +65,11 @@ function ensureLightbox() {
       <!-- chevron 左右對齊 container-padding（= logo / back btn pill 的 viewport margin），絕對定位獨立元件不受 back btn 隨機旋轉影響
            z-index:30 必要：chevron 在 alb-main 之前的 DOM siblings，下層；alb-main / zoomStage w-full h-full 蓋在上面 → 不拉 z 點不到
            disabled 視覺：opacity-50 保留白色（user 要求：「到底了」的暗示，不是 disabled grey 感）+ cursor-not-allowed -->
-      <button class="alb-prev absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:opacity-50" style="left: var(--container-padding, 1.5rem); z-index: 30;">
+      <button class="alb-prev absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 disabled:opacity-50 disabled:[cursor:var(--cursor-not-allowed)] disabled:hover:opacity-50" style="left: var(--container-padding, 1.5rem); z-index: 30;">
         <span class="icon icon-chevron-lightbox icon-m"></span>
       </button>
       <div class="alb-main flex items-center justify-center w-full h-full"></div>
-      <button class="alb-next absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:opacity-50" style="right: var(--container-padding, 1.5rem); z-index: 30;">
+      <button class="alb-next absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 disabled:opacity-50 disabled:[cursor:var(--cursor-not-allowed)] disabled:hover:opacity-50" style="right: var(--container-padding, 1.5rem); z-index: 30;">
         <span class="icon icon-chevron-lightbox icon-m rotate-180"></span>
       </button>
     </div>

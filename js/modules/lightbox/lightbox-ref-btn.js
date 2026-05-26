@@ -40,14 +40,15 @@ export function createRefBtn(initialColor, onCloseLightbox) {
   btnEl.setAttribute('aria-label', 'Show references');
   btnEl.innerHTML = `
     <span class="lightbox-ref-btn-pill" style="display:inline-flex;align-items:center;justify-content:center;background:${initialColor || '#00FF80'};color:#000;width:44px;height:44px;font-size:var(--font-size-p1);line-height:1;transform:rotate(0deg);transform-origin:left bottom;box-sizing:border-box;">
-      <span class="icon icon-arrow-right icon-m"></span>
+      <span class="icon icon-ref-lightbox icon-m"></span>
     </span>
   `;
 
-  // popover 容器：absolute 定位到 btn 正上方；外層 overflow:clip 給內部 yPercent:100→0 clip-reveal 用
+  // popover 容器：absolute 定位到 btn 正上方
+  // overflow 由 openPopover / closePopover 動態切（進場期間 clip 給 clip-reveal 用，動畫後 visible 讓旋轉 card 角不被裁）
   const popoverEl = document.createElement('div');
   popoverEl.className = 'lightbox-ref-popover';
-  popoverEl.style.cssText = 'position:absolute;display:none;z-index:60;overflow:clip;';
+  popoverEl.style.cssText = 'position:absolute;display:none;z-index:60;';
 
   // 內層 stack：垂直堆疊 chip（gap / align-items 由 CSS 控）
   const stackEl = document.createElement('div');
@@ -211,9 +212,10 @@ export function createRefBtn(initialColor, onCloseLightbox) {
     if (isOpen || currentRefs.length === 0) return;
     isOpen = true;
     popoverEl.style.display = 'block';
+    // 進場期間 overflow:clip 給 clip-reveal 用（stackEl 從底邊長出，超出部分裁掉）；
+    // onComplete 後改 visible，否則 card 旋轉 ±3° 後超出 popover bbox 的角會被永久裁切
+    popoverEl.style.overflow = 'clip';
     positionPopover();
-    // clip-reveal：stackEl 從 yPercent:100 → 0；外層 popoverEl overflow:clip 把溢出部分裁掉
-    // 視覺：chip 列從 popover 底邊「長出來」，配合往上彈的位置 = 從 ref btn 上方湧出
     if (gsapAvailable()) {
       if (openCloseAnimation) openCloseAnimation.kill();
       gsap.set(stackEl, { yPercent: 100 });
@@ -221,9 +223,11 @@ export function createRefBtn(initialColor, onCloseLightbox) {
         yPercent: 0,
         duration: 0.5,
         ease: 'power3.out',
+        onComplete: () => { popoverEl.style.overflow = 'visible'; },
       });
     } else {
       stackEl.style.transform = '';
+      popoverEl.style.overflow = 'visible';
     }
   }
 
@@ -233,6 +237,8 @@ export function createRefBtn(initialColor, onCloseLightbox) {
       return;
     }
     isOpen = false;
+    // 退場前先把 overflow 切回 clip — 否則 yPercent 100→100 過程中旋轉 card 角會穿出 popover 底邊看不雅
+    popoverEl.style.overflow = 'clip';
     if (gsapAvailable() && animated) {
       if (openCloseAnimation) openCloseAnimation.kill();
       openCloseAnimation = gsap.to(stackEl, {
@@ -258,9 +264,16 @@ export function createRefBtn(initialColor, onCloseLightbox) {
     }
     // 2) 收起 popover 自己狀態
     closePopover(false);
-    // 3) SPA navigate 到 activities 對應 section/item
-    //    用 router 攔截的 a-click pattern：dispatch click on <a>，或直接改 location.href（router popstate 處理）
-    //    這裡選擇用 anchor click 觸發 router（router.js 攔截 document a[href] click）
+    // 3) 跳轉分流：
+    //    a) 已在 activities 頁 + __sccdNavigateToItem 可用 → 直接 in-page 跳（同 list 內 ref btn 行為）
+    //       避免「重 init 整頁 → 回 hero top → 再 scroll 到 item」的視覺鏈
+    //    b) 其他頁（library/alumni/index 等）→ <a> click 走 router SPA 換頁
+    const onActivitiesPage = /\/(activities|pages\/activities)\.?html?$/i.test(location.pathname)
+      || location.pathname === '/pages/activities.html';
+    if (onActivitiesPage && typeof window.__sccdNavigateToItem === 'function') {
+      window.__sccdNavigateToItem(ref.section, ref.itemId || null);
+      return;
+    }
     const url = `${ACTIVITIES_PATH}?section=${encodeURIComponent(ref.section)}&item=${encodeURIComponent(ref.itemId)}`;
     const a = document.createElement('a');
     a.href = url;

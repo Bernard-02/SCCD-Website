@@ -488,121 +488,33 @@ function startStrokeColorTransition(newTargetColor) {
 }
 
 // 更新輸入框文字顏色（Wireframe 模式下使用對比色）
+// user 2026-05-27 方向 C：CSS 已用 var(--wireframe-border) → alias 到 site --theme-fg 自動跟；
+// 不再 inline 覆蓋 textarea color（inline 會卡住 var alias 變化）；保留空函式給 caller call 不炸
 function updateInputTextColor() {
-  if (mode === "Wireframe" && wireframeStrokeColor) {
-    // 使用與 logo 邊框相同的對比色
-    let r = _p5.red(wireframeStrokeColor);
-    let g = _p5.green(wireframeStrokeColor);
-    let b = _p5.blue(wireframeStrokeColor);
-    let textColor = `rgb(${r}, ${g}, ${b})`;
-
-    inputBox.style("color", textColor);
-    if (inputBoxMobile) {
-      inputBoxMobile.style("color", textColor);
-    }
-  }
+  // intentionally no-op：留函式 ref 給 sketch.js / ui-state.js 既有 caller，不破壞 cleanup
 }
 
-// 更新背景顏色（Wireframe 模式）- 使用 CSS 變數
-function updateBackgroundColor(bgColor, disableTransition = false) {
-  // 將顏色轉換為 CSS rgb 格式
-  let r = _p5.red(bgColor);
-  let g = _p5.green(bgColor);
-  let b = _p5.blue(bgColor);
-  let cssColor = `rgb(${r}, ${g}, ${b})`;
-
-  // 根據背景亮度計算對比色（黑色或白色）
+// 更新背景顏色（Wireframe 模式）
+// user 2026-05-27 方向 C 改寫：page bg + contrast fg 全部由 site colorTick 寫 --theme-bg/-fg；
+// variables.css 已 alias --wireframe-* → site var；CSS 透過 var() 自動跟，不需 generate-app 再寫
+//
+// 本函式現在只做一件 generate-app 私有的事：**dark-icons class 跨閾值切換**
+// 這個 class 是 generate-app 在 create.css 內定義的（slider thumb 色、icon invert filter 等），
+// site 不管。為避免每幀 toggle 重設 + icon src 重寫拖累 frame rate，只在 isDark 跟上次不同才動作
+//
+// 事件型 caller 仍呼叫此函式（mode 切換 / colorpicker drag / windowResized / save）；
+// drag 場景 caller 已 sccdSetColorHue 回 site，site applyColorVars 會立刻寫 --theme-bg/-fg 同步 page bg
+function updateBackgroundColor(bgColor, _disableTransition) {
+  // WCAG 0.5 threshold 算 dark/light（getContrastColor 內部走同邏輯）
   let contrastColor = getContrastColor(bgColor);
   let borderR = _p5.red(contrastColor);
-  let borderG = _p5.green(contrastColor);
-  let borderB = _p5.blue(contrastColor);
-  let borderCssColor = `rgb(${borderR}, ${borderG}, ${borderB})`;
+  let isDarkIcons = borderR === 0;
 
-  // 判斷是否使用暗色 icon（黑色 icon）
-  let isDarkIcons = borderR === 0 && borderG === 0 && borderB === 0;
-
-  // 根據 icon 顏色設定透明度：白色 50%，黑色 25%
-  let opacityValue = isDarkIcons ? '0.25' : '0.5';
-
-  if (disableTransition) {
-    // 拖動色環時：臨時禁用 transition，實現即時更新
-    let body = _p5.select('#create-app');
-    let canvasContainer = _p5.select('#canvas-container');
-    let desktopCanvasContainer = _p5.select('#desktop-canvas-container');
-
-    if (body) {
-      body.elt.style.transition = 'none';
-    }
-    if (canvasContainer) {
-      canvasContainer.elt.style.transition = 'none';
-    }
-    if (desktopCanvasContainer) {
-      desktopCanvasContainer.elt.style.transition = 'none';
-    }
-
-    // 更新 CSS 變數
-    document.documentElement.style.setProperty('--wireframe-bg', cssColor);
-    document.documentElement.style.setProperty('--wireframe-border', borderCssColor);
-    document.documentElement.style.setProperty('--wireframe-opacity', opacityValue);
-
-    // 更新 landscape overlay 的 CSS 變數
-    document.documentElement.style.setProperty('--current-wireframe-bg', cssColor);
-    document.documentElement.style.setProperty('--current-wireframe-text', borderCssColor);
-
-    // landscape overlay 的顏色現在由 CSS 變數控制，不需要設置 inline style
-
-    // 根據 icon 顏色添加或移除 dark-icons class
-    if (isDarkIcons) {
-      body.addClass('dark-icons');
-    } else {
-      body.removeClass('dark-icons');
-    }
-
-    // 更新輸入框文字顏色（即時更新）
-    if (inputBox) {
-      inputBox.style("color", borderCssColor);
-    }
-    if (inputBoxMobile) {
-      inputBoxMobile.style("color", borderCssColor);
-    }
-
-    // 更新 icon 顏色（即時更新）
-    updateIconsForMode();
-
-    // 強制瀏覽器重新計算樣式（觸發 reflow）
-    if (body) {
-      body.elt.offsetHeight;
-    }
-  } else {
-    // 切換模式時：使用 transition 動畫
-    let body = _p5.select('#create-app');
-
-    document.documentElement.style.setProperty('--wireframe-bg', cssColor);
-    document.documentElement.style.setProperty('--wireframe-border', borderCssColor);
-    document.documentElement.style.setProperty('--wireframe-opacity', opacityValue);
-
-    // 更新 landscape overlay 的 CSS 變數
-    document.documentElement.style.setProperty('--current-wireframe-bg', cssColor);
-    document.documentElement.style.setProperty('--current-wireframe-text', borderCssColor);
-
-    // 根據 icon 顏色添加或移除 dark-icons class
-    if (body) {
-      if (isDarkIcons) {
-        body.addClass('dark-icons');
-      } else {
-        body.removeClass('dark-icons');
-      }
-    }
-
-    // 更新輸入框文字顏色（使用 transition 動畫）
-    if (inputBox) {
-      inputBox.style("color", borderCssColor);
-    }
-    if (inputBoxMobile) {
-      inputBoxMobile.style("color", borderCssColor);
-    }
-
-    // 更新 icon 顏色
-    updateIconsForMode();
+  let body = _p5.select('#create-app');
+  if (!body) return;
+  const had = body.elt.classList.contains('dark-icons');
+  if (isDarkIcons !== had) {
+    body.elt.classList.toggle('dark-icons', isDarkIcons);
+    if (typeof updateIconsForMode === 'function') updateIconsForMode();
   }
 }

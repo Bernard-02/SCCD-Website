@@ -108,6 +108,12 @@
     padding-right: 2rem;
     font-size: var(--font-size-p2);
   }
+  /* 手機：字級放大到 p1 易讀（窄 viewport 內 p2 太小） */
+  @media (max-width: 767px) {
+    .faculty-grid-row {
+      font-size: var(--font-size-p1);
+    }
+  }
   .faculty-grid-row > .faculty-grid-span2 {
     grid-column: span 2;
   }
@@ -115,6 +121,20 @@
   .faculty-grid-row span {
     word-break: break-word;
     line-height: var(--line-height-base);
+  }
+
+  /* 手機（2026-05-26 user 要求）：4 欄 grid 改縱向 stack（每個 span 一行），易讀性優先
+     桌面 grid 規則完全不動；padding-bottom 加大讓 row 與 row 間距更清楚（user 要求 gap 再大一點） */
+  @media (max-width: 767px) {
+    .faculty-grid-row {
+      grid-template-columns: 1fr;
+      gap: 0.25rem;
+      padding-bottom: 2rem;
+      padding-right: 0;
+    }
+    .faculty-grid-row > .faculty-grid-span2 {
+      grid-column: auto;
+    }
   }
 
   /* Sticky section title col — 蓋住右欄 scroll 經過時下方 row 文字
@@ -160,6 +180,23 @@
       margin-bottom: 0 !important;
       flex-shrink: 0;           /* 防止圖片被壓縮 */
       scroll-snap-align: center; /* 吸附對齊 */
+    }
+  }
+
+  /* ===== 首頁 WATCH! 圓形卡片（#homepage-yt-card.homepage-card） =====
+   * 桌面 160×160，手機 96×96。
+   * 尺寸由 CSS 而非 inline style 控制，方便 RWD 切換；
+   * inline style 仍保留 position/border-radius/background/z-index 等 layout 屬性。
+   * 內部 WATCH 字母在 index-yt-card.js 依 W/160 ratio 自動縮放，所以圓圈尺寸對了字母自動 fit。
+   */
+  .homepage-card {
+    width: 160px;
+    height: 160px;
+  }
+  @media (max-width: 767px) {
+    .homepage-card {
+      width: 96px;
+      height: 96px;
     }
   }
 }

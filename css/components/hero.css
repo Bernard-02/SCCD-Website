@@ -121,24 +121,96 @@
     z-index: 1;
   }
 
-  /* 手機：拋棄 absolute 改 flex stack（不用 random） */
+  /* ─────────────────────────────────────────────────────────────────
+     手機 hero（4 頁共用：faculty / courses / activities / admission）
+
+     架構決策（2026-05-26 user 拍板）：
+     - 桌面 .hero-rand-grid 跟手機 .hero-mobile 兩套獨立 DOM 並存
+     - CSS 用 display:none 切換而非 override（從 root 切割，避免 layer override hack）
+     - 內容單一來源：桌面 DOM 是 source，手機 DOM 由 hero-mobile-sync.js init 時 cloneNode
+     - 4 頁同視覺：圖墊底滿屏 + title/desc 從上往下 stack 疊在圖上
+
+     視覺規格：
+     - 圖鋪滿 hero 區當背景（top:0 z-index:0）
+     - 4 個文字 chip 自上而下：title-en → title-cn → desc-en → desc-cn (z-index:1)
+     - chip 沿用 [data-hero-hl] accent 底色（綠/粉/藍隨機 by hero-animation.js）
+     ───────────────────────────────────────────────────────────────── */
+
+  /* 預設手機顯示 mobile、隱藏桌面 grid */
+  .hero-rand-grid { display: none; }
+  .hero-mobile {
+    display: block;
+    position: relative;
+    width: 100%;
+    min-height: 100vh;
+    padding: 180px var(--container-padding) 3rem;
+    box-sizing: border-box;
+    /* sync 完才打開（hero-mobile-sync.js 設 inline visibility:visible） */
+    visibility: hidden;
+  }
+
+  /* 桌面切回 grid 模式 */
+  @media (min-width: 768px) {
+    .hero-rand-grid { display: block; }
+    .hero-mobile { display: none; }
+  }
+
+  /* Banner 背景：絕對定位墊底，鋪滿 hero 視覺區，旋轉製造張力（兩側溢出由父層 overflow-x:clip 兜） */
+  .hero-mobile-bg {
+    position: absolute;
+    top: 180px;
+    left: 50%;
+    width: 108vw;
+    aspect-ratio: 4 / 5.5;
+    transform: translateX(-50%) rotate(-5deg);
+    transform-origin: center center;
+    z-index: 0;
+    overflow: hidden;
+  }
+  .hero-mobile-bg img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* 文字 stack：自上而下，z-index 浮在 bg 上
+     gap：chip 之間預設 1rem；段落區跟標題區用 margin-top 拉開更大 breathing room */
+  .hero-mobile-text {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  .hero-mobile-text > * {
+    width: fit-content;
+    max-width: 100%;
+    /* 隨機旋轉：JS 在 hero-mobile-sync.js init 時注入 --hero-mobile-rot
+       transform-origin: left center 對齊 chip 左緣（跟桌面 hero-title-wrapper 同 pattern） */
+    transform: rotate(var(--hero-mobile-rot, 0deg));
+    transform-origin: left center;
+  }
+  /* 段落跟標題之間拉大 gap（標題區 → 段落區之間視覺斷點） */
+  .hero-mobile-text-en { margin-top: 1.5rem; }
+  /* 中英段落之間額外加 gap：±5° 旋轉後長段落 chip bbox 視覺底邊比 layout bbox 低 ~width×sin(5°)，
+     1rem (gap) 不夠避免英文 chip 底邊撞到中文 chip 頂邊；補到 2rem */
+  .hero-mobile-text-cn { margin-top: 1rem; }
+
+  /* 段落字體 p1（跟桌面 .hero-text-en/cn 一致） */
+  .hero-mobile-text-en,
+  .hero-mobile-text-cn {
+    font-size: var(--font-size-p1);
+  }
+
+  /* chip padding：跟桌面 [data-hero-hl] 一致；手機段落較長收窄 padding 視覺節制 */
   @media (max-width: 767px) {
-    .hero-rand-grid {
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-end;
-      align-items: flex-start;
-      gap: 1.5rem;
-      padding: 120px var(--container-padding) 4rem;
-    }
-    .hero-rand-grid .hero-text-en,
-    .hero-rand-grid .hero-text-cn {
-      max-width: 100%;
-    }
-    .hero-banner {
-      width: 75vw;
+    [data-hero-hl] {
+      padding: 0.3rem 0.45rem !important;
     }
   }
+
 
   /* Degree show detail sticky info card chip — 沿用 anchor-nav-inner pattern
      外 .sticky-chip：transparent wrapper，吃 clip-path reveal + rotation；中性 transform-origin: left center

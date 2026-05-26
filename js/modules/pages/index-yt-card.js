@@ -103,7 +103,8 @@ function initWatchChars(ytCharsEl) {
     if (typeof p5 === 'undefined') return;
     new p5(function(p) {
       const chars = [...'WATCH!'];
-      const GAP = 2, PADDING = 8;
+      // GAP / PADDING 也在 setup 內按卡片寬比例算（基準 W=160），避免縮卡時 padding 吃掉太多 inner 空間
+      let GAP = 2, PADDING = 8;
 
       p.setup = function() {
         const W = ytCharsEl.offsetWidth, H = ytCharsEl.offsetHeight;
@@ -114,8 +115,14 @@ function initWatchChars(ytCharsEl) {
         p.noLoop(); p.clear();
 
         const rootPx    = parseFloat(getComputedStyle(document.documentElement).fontSize);
-        const enSize    = Math.round(rootPx * 2.8);
-        const zhSize    = Math.round(rootPx * 2.7);
+        // 字體跟卡片寬度等比例縮放：原設計基準卡片 W=160 時 enSize=2.8rem / zhSize=2.7rem
+        // 卡片改 96 (60%) 後字也跟著 60% 縮；未來改卡片大小字會自動 fit 不必另調
+        const sizeRatio = W / 160;
+        const enSize    = Math.round(rootPx * 2.8 * sizeRatio);
+        const zhSize    = Math.round(rootPx * 2.7 * sizeRatio);
+        // GAP / PADDING 同步等比例縮（基準 W=160 時 GAP=2, PADDING=8）
+        GAP     = Math.max(1, Math.round(2 * sizeRatio));
+        PADDING = Math.max(3, Math.round(8 * sizeRatio));
         const f         = makeFont(enSize, zhSize);
         const charData  = chars.map(ch => { const fontStr = isChinese(ch) ? f.zh : f.en; return { ch, fontStr, ...getExactSize(ch, fontStr) }; });
         const circleCX  = W / 2, circleCY = H / 2;
@@ -258,8 +265,8 @@ function initWatchChars(ytCharsEl) {
 
 function initYTCardFloat(ytCard) {
   const section  = ytCard.parentElement;
-  const cardW    = ytCard.offsetWidth  || 160;
-  const cardH    = ytCard.offsetHeight || 160;
+  const cardW    = ytCard.offsetWidth  || 96;
+  const cardH    = ytCard.offsetHeight || 96;
   const rotation = SCCDHelpers.getRandomRotation();
   const speed    = 0.05 + Math.random() * 0.15;
   const angle    = Math.random() * Math.PI * 2;

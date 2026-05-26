@@ -141,23 +141,29 @@ export function initFacultySlideIn() {
       const imgElement = /** @type {HTMLImageElement | null} */ (document.getElementById('faculty-detail-image'));
       if (imgElement) imgElement.src = data.image;
 
-      // 姓名 + fulltime 桌面旋轉
-      const isDesktop = window.innerWidth >= 768;
-      const rotateName = data.type === 'fulltime' && isDesktop;
+      // 姓名 + titles 旋轉：fulltime 桌面手機都套（2026-05-26 user 要求手機也旋轉，桌面行為不變）
+      // 桌面用 inline-block 讓 rotate 不撐父寬；手機用 block 各佔一行（EN 一行 → ZH 一行 → titles 在下方）
+      const rotateName = data.type === 'fulltime';
+      const isMobile = window.innerWidth < 768;
       const nameEnElement = document.getElementById('faculty-detail-name-en');
       const nameZhElement = document.getElementById('faculty-detail-name-zh');
+      const nameDisplay = rotateName ? (isMobile ? 'block' : 'inline-block') : '';
       if (nameEnElement) {
         nameEnElement.textContent = data.nameEn;
         nameEnElement.style.transform = rotateName ? 'rotate(4deg)' : '';
-        nameEnElement.style.display = rotateName ? 'inline-block' : '';
+        nameEnElement.style.transformOrigin = rotateName ? 'left center' : '';
+        nameEnElement.style.display = nameDisplay;
       }
       if (nameZhElement) {
         nameZhElement.textContent = data.nameZh;
         nameZhElement.style.transform = rotateName ? 'rotate(4deg)' : '';
-        nameZhElement.style.display = rotateName ? 'inline-block' : '';
+        nameZhElement.style.transformOrigin = rotateName ? 'left center' : '';
+        nameZhElement.style.display = nameDisplay;
       }
 
       // Titles：fulltime/parttime 用 titles[] repeater；admin 用單 titleEn/titleZh
+      // 手機 fulltime titles 也 rotate(4deg)，但用 block display 不 inline-block，讓 titles 自然在 name 下方流（不會被擠到右邊）
+      const rotateTitles = rotateName && isMobile;
       const titlesContainer = document.getElementById('faculty-detail-titles');
       if (titlesContainer) {
         let pairs;
@@ -175,6 +181,10 @@ export function initFacultySlideIn() {
             `</div>`;
         });
         titlesContainer.innerHTML = html;
+        titlesContainer.style.transform = rotateTitles ? 'rotate(4deg)' : '';
+        titlesContainer.style.transformOrigin = rotateTitles ? 'left top' : '';
+        // 手機改 block 讓 titles 自然在 name 下方換行；桌面保留預設不動
+        titlesContainer.style.display = rotateTitles ? 'block' : '';
       }
 
       // Sections：依 type 組裝

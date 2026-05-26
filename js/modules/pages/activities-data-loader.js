@@ -111,16 +111,27 @@ async function resolveRef(ref) {
 
 // Ref btn click 分派：pdfUrl 走共用 PDF viewer（sccd:open-pdf）／否則走 SPA item 跳轉
 // pdfUrl btn 走 button + dataset；section/itemId btn 走 __sccdNavigateToItem；ref.href 走原生 <a> 不走此 handler
+// pdfUrl btn 額外 reverse-lookup「此 PDF 還被哪些 activity ref 到」，filter 掉當前 host 後給 viewer 顯示
 const _REF_ACCENT_COLORS = ['#FF448A', '#00FF80', '#26BCFF'];
 function bindRefBtnClick(btn) {
-  btn.addEventListener('click', () => {
+  btn.addEventListener('click', async () => {
     const pdfUrl = btn.dataset.refPdfUrl;
     if (pdfUrl) {
       const titleEn = btn.dataset.refTitleEn || '';
       const titleZh = btn.dataset.refTitleZh || '';
       const color = _REF_ACCENT_COLORS[Math.floor(Math.random() * _REF_ACCENT_COLORS.length)];
+      const hostSection = btn.dataset.refHostSection || '';
+      const hostItem    = btn.dataset.refHostItem || '';
+      // 先 dispatch（讓 viewer 立刻 open 不延遲），references 之後 lazy lookup 再 setReferences
+      // 但目前 viewer setReferences 是在 sccd:open-pdf handler 內同步呼叫，需把 references 也跟著 await
+      // — 索引第二次以後是 cached，僅首次 ~一次 fetch 延遲
+      const { getPdfRefSources } = await import('./pdf-cross-ref-index.js');
+      const references = await getPdfRefSources(pdfUrl, {
+        excludeSection: hostSection,
+        excludeItemId: hostItem,
+      });
       document.dispatchEvent(new CustomEvent('sccd:open-pdf', {
-        detail: { pdfUrl, title: { en: titleEn, zh: titleZh }, color },
+        detail: { pdfUrl, title: { en: titleEn, zh: titleZh }, color, references },
       }));
       return;
     }
@@ -319,7 +330,7 @@ export function buildAlbumsHtml(item, { unbounded = false } = {}) {
 
   return unbounded
     ? `<div class="item-albums">${itemsHtml}</div>`
-    : `<div class="item-albums overflow-y-auto list-scroll" style="max-height: 360px;">${itemsHtml}</div>`;
+    : `<div class="item-albums overflow-y-auto list-scroll" style="max-height: 252px;">${itemsHtml}</div>`;
 }
 
 // 海報區塊 HTML
@@ -489,6 +500,12 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
       if (nextBtn) nextBtn.style.opacity = (!noScroll && offset >= max) ? '0.5' : '';
     };
     gallery.closest('.list-item')?.addEventListener('gallery:check', updateChevrons);
+    // ResizeObserver：list-item 展開時 list-content height:0 → auto 過程中 track 寬度從 0 變實際值，
+    // 單純 gallery:check (展開瞬間 dispatch) 算到的 track.clientWidth 還是 0 → chevron 永遠 invisible
+    // 對齊 album-gallery 同 pattern (line 467-469)，跟著 track resize 重算
+    if (typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(updateChevrons).observe(track);
+    }
     const STEP = () => track.clientWidth * 0.6;
     prevBtn?.addEventListener('click', () => {
       offset = Math.max(0, offset - STEP());
@@ -523,7 +540,7 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
   // 對 list-content 內的 wrap 額外綁 'gallery:check' event，accordion 展開時 list-accordion.js
   // 在 onComplete dispatch 該 event → 此時量 clientWidth 才是真值
   const initMarquees = () => {
-    if (window.innerWidth < 768) return;
+    // 桌面手機都跑 — 手機 title 區窄更容易 overflow，user 要求收起時就要 marquee
     container.querySelectorAll('.list-title-marquee').forEach(wrap => {
       const p = wrap.querySelector('p');
       if (!p) return;
@@ -549,6 +566,11 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
       checkOverflow();
       // 在 list-content 內的（location marquee）等 accordion 展開後再量
       if (wrap.closest('.list-content')) {
+        wrap.closest('.list-item')?.addEventListener('gallery:check', checkOverflow);
+      }
+      // 在 list-header 內的（title marquee）accordion 展開時 title 向右 translateX 縮小可用寬度，
+      // 需要 re-check 以重設 marquee offset；展開動畫 0.5s 結束後 dispatch gallery:check 重量
+      if (wrap.closest('.list-header')) {
         wrap.closest('.list-item')?.addEventListener('gallery:check', checkOverflow);
       }
       window.addEventListener('resize', checkOverflow);
@@ -772,6 +794,9 @@ export async function loadListInto(containerId, url, options = {}) {
     })
   ));
 
+  // 推當前 list 的 section（給 PDF cross-ref 排除自己用）；推不出來 = null（PDF viewer 仍顯示全部來源）
+  const hostSection = deriveHostSection(url, categoryFilter, visitTypeFilter);
+
   // 日期顯示邏輯抽 helper（pre-scan + render 兩處共用）
   // 新 endpoint shape `item.dates` 優先，fallback 舊 `item.date` / `item.date_en` 字串
   // dates 結構化欄位是 source of truth；舊 `item.date` 字串只在沒 dates 且為自由文字時 fallback 原樣輸出
@@ -806,7 +831,10 @@ export async function loadListInto(containerId, url, options = {}) {
       const references = item.references || (item.reference ? [item.reference] : []);
       const isLastItem   = itemIdx === total - 1;
       // height:4px 必須顯式設置 — 空 div 的 height:auto = 0，yPercent:100 = translateY(0) 不移動，setupClipReveal 無法隱藏
-      const dividerHtml  = `<div class="list-item-divider list-reveal-row border-b-4 border-black" style="height:4px; ${isLastItem ? 'display: none;' : ''}"></div>`;
+      // 桌面：最後一筆 divider 隱藏（年份組末端走 .activities-separator，避免兩條 4px 疊成 8px）
+      // 手機：.activities-separator 在 lists.css 已 display:none，最後一筆 divider 要顯示提供視覺收尾
+      //       → 用 .is-last class 而非 inline display:none，CSS 走 media query 分流（桌面隱、手機顯）
+      const dividerHtml  = `<div class="list-item-divider list-reveal-row border-b-4 border-black${isLastItem ? ' is-last' : ''}" style="height:4px;"></div>`;
 
       const { en: dateDisplay, zh: dateDisplayZh } = computeDateDisplay(item);
 
@@ -908,20 +936,32 @@ export async function loadListInto(containerId, url, options = {}) {
                 const initialCountry = countryCodes[0] || '';
                 // 多 country codes 用 data-flag-cycle="tw,jp,kr" 帶下來，bindFlagCycles() 每 5s 切換 fi-XX class
                 const cycleAttr = countryCodes.length > 1 ? ` data-flag-cycle="${countryCodes.join(',')}"` : '';
-                // 順序：alumni icon → 國家 flag → share btn → chevron（同列），由 user 指定
-                return `<div class="list-reveal-row flex items-center gap-sm">
+                // alumni + flag 包成 .list-header-meta-icons：桌面跟 share btn / chevron 同列（flex inline），
+                // 手機 CSS 把這塊 absolute 浮到 title 下方副標位置（user 指定 layout 重設計）
+                // share btn 跟 chevron 跟 title 同列保持不動（functional control 兩 viewport 都靠右上）
+                return `<div class="list-header-meta-icons list-reveal-row flex items-center gap-sm">
                   ${hasAlumni ? `<span class="icon icon-alumni icon-s"></span>` : ''}
                   ${hasFlag ? `<span class="fi fi-${initialCountry}"${cycleAttr} style="width:1.5em;height:1em;display:inline-block;"></span>` : ''}
-                  ${showShareBtn ? `<button data-share-btn class="inline-flex items-center">
-                    <span class="icon icon-share icon-s"></span>
-                  </button>` : ''}
                 </div>`;
               })()}
-              ${alwaysExpanded ? '' : `<div class="flex-shrink-0 self-start" style="overflow:clip; height:1.5em; width:1.5em;">
-                <div class="list-reveal-row flex justify-center items-start w-full h-full">
-                  <span class="icon icon-chevron-list icon-s rotate-90 transition-transform duration-300"></span>
-                </div>
-              </div>`}
+              ${(() => {
+                // share btn 跟 chevron 合進同一個 .list-reveal-row wrapper 同步進場，
+                // 避免 share btn 沒 reveal class → 在 title yPercent reveal 動畫前就現身（user 反饋
+                // 2026-05-27「不要讓 share btn 先渲染」）
+                if (alwaysExpanded) return '';
+                return `<div class="flex items-start gap-sm flex-shrink-0">
+                  <div class="list-reveal-row flex items-center gap-sm">
+                    ${showShareBtn ? `<button data-share-btn class="inline-flex items-center">
+                      <span class="icon icon-share icon-s"></span>
+                    </button>` : ''}
+                    <div class="flex-shrink-0 self-start" style="overflow:clip; height:1.5em; width:1.5em;">
+                      <div class="flex justify-center items-start w-full h-full">
+                        <span class="icon icon-chevron-list icon-s rotate-90 transition-transform duration-300"></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>`;
+              })()}
             </div>
           </div>
           <div class="list-content ${alwaysExpanded ? '' : 'h-0 overflow-hidden'}">
@@ -1008,7 +1048,7 @@ export async function loadListInto(containerId, url, options = {}) {
             </div>`}
             ${buildGalleryHtml(item)}
             ${attachmentsField && Array.isArray(item[attachmentsField]) && item[attachmentsField].length ? `
-            <div class="flex flex-col mt-md">
+            <div class="list-ref-wrap flex flex-col mt-md">
               ${item[attachmentsField].map((a, i) => {
                 // 兼容兩種 schema：legacy JSON 用 { url, labelEn, labelZh }；WP schema group 用 { file, titleEn, titleZh }
                 const url = a.url || a.file || '#';
@@ -1017,9 +1057,9 @@ export async function loadListInto(containerId, url, options = {}) {
                 // download 屬性指定 filename：取 URL pathname 最後段（sample.pdf）；無 URL 不渲染 download attr
                 const filename = url !== '#' ? url.split('/').pop().split('?')[0] : '';
                 return `
-                <a class="list-ref-btn cursor-pointer w-full grid grid-cols-12 gap-x-md items-start py-sm no-underline" href="${url}"${filename ? ` download="${filename}"` : ''}>
-                  <div class="col-span-1 flex justify-center" style="padding-top: 0.25em;">
-                    <span class="icon icon-attachment icon-s"></span>
+                <a class="list-ref-btn cursor-pointer w-full grid grid-cols-12 gap-x-md items-start py-sm px-md no-underline" href="${url}"${filename ? ` download="${filename}"` : ''}>
+                  <div class="col-span-1 flex justify-center" style="padding-top: 0.05em;">
+                    <span class="icon icon-attachment icon-l"></span>
                   </div>
                   <div class="col-span-11 flex flex-col">
                     <p class="text-p2 font-bold">${labelEn}</p>
@@ -1029,13 +1069,15 @@ export async function loadListInto(containerId, url, options = {}) {
               `;}).join('')}
             </div>` : ''}
             ${showReference && references.length ? `
-            <div class="flex flex-col mt-md">
+            <div class="list-ref-wrap flex flex-col mt-md">
               ${references.map(ref => `
               ${ref.pdfUrl
                 ? `<button class="list-ref-btn cursor-pointer border-none w-full grid grid-cols-12 gap-x-md items-start py-sm text-left"
                     data-ref-pdf-url="${ref.pdfUrl}"
                     data-ref-title-en="${(ref.titleEn || '').replace(/"/g, '&quot;')}"
-                    data-ref-title-zh="${(ref.titleZh || '').replace(/"/g, '&quot;')}">`
+                    data-ref-title-zh="${(ref.titleZh || '').replace(/"/g, '&quot;')}"
+                    data-ref-host-section="${hostSection || ''}"
+                    data-ref-host-item="${item.id || ''}">`
                 : ref.href
                 ? `<a class="list-ref-btn cursor-pointer w-full grid grid-cols-12 gap-x-md items-start py-sm no-underline" href="${ref.href}">`
                 : `<button class="list-ref-btn cursor-pointer border-none w-full grid grid-cols-12 gap-x-md items-start py-sm text-left"
@@ -1043,7 +1085,7 @@ export async function loadListInto(containerId, url, options = {}) {
                     data-ref-item="${ref.itemId || ''}">`
               }
                 <div class="col-span-1 flex justify-center" style="padding-top: 0.25em;">
-                  <span class="icon icon-arrow-right icon-s"></span>
+                  <span class="icon icon-ref-list icon-s"></span>
                 </div>
                 <div class="col-span-4 flex flex-col">
                   ${ref.labelEn ? `<p class="text-p2">${ref.labelEn}</p>` : ''}
@@ -1224,6 +1266,25 @@ const _panelSelectorMap = {
   'conferences-list':           '#panel-conferences',
   'students-present-list':      '#panel-students-present',
 };
+
+// (url + categoryFilter) → host section（給 PDF cross-ref 用，dispatch 時排除自己）
+// general-activities.json 4 個 category 共用同檔，必須配 categoryFilter / visitTypeFilter 區分
+function deriveHostSection(url, categoryFilter, visitTypeFilter) {
+  const urlMap = {
+    '/data/workshops.json':              'workshop',
+    '/data/industry.json':               'industry',
+    '/data/lectures.json':               'lectures',
+    '/data/students-present.json':       'students-present',
+    '/data/summer-camp.json':            'summer-camp',
+    '/data/permanent-exhibitions.json':  'exhibitions',
+  };
+  if (urlMap[url]) return urlMap[url];
+  if (url === '/data/general-activities.json') {
+    if (categoryFilter) return categoryFilter; // exhibitions / competitions / conferences
+    if (visitTypeFilter) return 'visits';
+  }
+  return null;
+}
 
 // 共用 fetch wrapper：WP endpoint 優先 + JSON fallback + endpoint 空也算 fail
 // 回 array of entries（無 categoryFilter / visitTypeFilter 套用，caller 自行 filter；本系列已拆 CPT 不需要）

@@ -11,6 +11,19 @@ import {
 } from './admission-data-loader.js';
 import { resetListAccordionsInPanel } from '../accordions/list-accordion.js';
 
+// scrollIntoView wrapper：加 header 高度 offset，避免 active tab / list 緊貼 viewport top 被 header logo 遮住
+// 同 activities-section-switch.js 的 scrollSectionIntoView pattern
+/**
+ * @param {HTMLElement | null} el
+ * @param {ScrollBehavior} [behavior]
+ */
+function scrollSectionIntoView(el, behavior = 'smooth') {
+  if (!el) return;
+  const headerH = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--header-height') || '80', 10);
+  const top = el.getBoundingClientRect().top + window.scrollY - headerH;
+  window.scrollTo({ top, behavior });
+}
+
 export function initAdmissionSectionSwitch() {
   const btns = /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.activities-section-btn'));
   if (!btns.length) return;
@@ -25,8 +38,8 @@ export function initAdmissionSectionSwitch() {
     // 已 active 同 panel：跳過退場/進場動畫；如果是 click（shouldScroll）仍 scroll 對齊 anchor
     if (currentPanel && currentPanel.id === targetId && !isInitial) {
       if (shouldScroll) {
-        const sectionEl = document.getElementById('admission-content-section');
-        if (sectionEl) sectionEl.scrollIntoView({ behavior: 'smooth' });
+        const sectionEl = /** @type {HTMLElement | null} */ (document.getElementById('admission-content-section'));
+        scrollSectionIntoView(sectionEl);
       }
       return;
     }
@@ -71,8 +84,8 @@ export function initAdmissionSectionSwitch() {
       }
 
       if (shouldScroll) {
-        const sectionEl = document.getElementById('admission-content-section');
-        if (sectionEl) sectionEl.scrollIntoView({ behavior: 'smooth' });
+        const sectionEl = /** @type {HTMLElement | null} */ (document.getElementById('admission-content-section'));
+        scrollSectionIntoView(sectionEl);
       }
     } finally {
       switching = false;

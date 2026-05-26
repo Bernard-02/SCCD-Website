@@ -164,8 +164,16 @@ async function loadPage(route, search = '') {
     // 用 class 兩個 case 都不受影響
     document.body.classList.toggle('overflow-hidden', route.page === 'generate' || route.page === 'atlas' || route.page === 'library');
     // about + alumni 用寬封鎖綫（section-title-strip width:calc(50vw+) 會 overflow viewport 右側）
-    // 必須 body.overflowX: hidden 才不會出現橫向 scroll
-    document.body.style.overflowX = (route.page === 'about' || route.page === 'alumni') ? 'hidden' : '';
+    // faculty 手機 hero banner width:108vw + rotate(-5°) 兩側溢出 viewport
+    // activities 手機 .activities-section-bar negative margin 延伸到 viewport 邊 + active list-item
+    //   gallery thumbnail / list-content 某些情況可能溢出 → x 軸偶爾可滑（user 反饋 2026-05-26）
+    // 必須 overflowX: hidden 才不會出現橫向 scroll
+    // ⚠️ iOS Safari 在 body overflow-x:hidden 時會把 body 當 scroll container →
+    //    position:fixed 子元素（header）依附 body 而非 viewport、scroll 時跟著走。
+    //    html 級 clip 才能保證 position:fixed 依附 viewport；body 級保留為雙保險（桌面瀏覽器走 body 也 work）
+    const needsClipX = route.page === 'about' || route.page === 'alumni' || route.page === 'faculty' || route.page === 'activities';
+    document.documentElement.style.overflowX = needsClipX ? 'hidden' : '';
+    document.body.style.overflowX = needsClipX ? 'hidden' : '';
 
     // 初始化新頁面模組（帶 query string 供 detail 頁用）
     initPageModules(route.page, new URLSearchParams(search));

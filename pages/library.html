@@ -24,6 +24,23 @@
   <main id="page-content">
     <!-- Card Stack Hero -->
     <section class="relative overflow-visible" style="height: calc(100vh - var(--header-height)); margin-top: var(--header-height);">
+      <!-- Mobile-only tab bar（桌面 display:none，由 CSS 控；JS 在 < 768 不跑 card stack 改用此 tab bar）
+           沿用 .activities-section-bar / .activities-section-btn + anchor-nav-inner 結構，
+           繼承 buttons.css 樣式（pill + active 隨機色/旋轉 + 手機 horizontal scroll） -->
+      <div id="library-mobile-tabs" class="library-mobile-tabs activities-section-bar flex flex-row gap-xs no-scrollbar">
+        <button class="activities-section-btn w-fit active text-left" data-tab="awards">
+          <span class="anchor-nav-inner"><span>Awards</span><span>榮譽</span></span>
+        </button>
+        <button class="activities-section-btn w-fit text-left" data-tab="files">
+          <span class="anchor-nav-inner"><span>Documents</span><span>文件</span></span>
+        </button>
+        <button class="activities-section-btn w-fit text-left" data-tab="press">
+          <span class="anchor-nav-inner"><span>Press</span><span>報導</span></span>
+        </button>
+        <button class="activities-section-btn w-fit text-left" data-tab="album">
+          <span class="anchor-nav-inner"><span>Album</span><span>相簿</span></span>
+        </button>
+      </div>
       <div id="library-card-stack" class="absolute inset-0 flex items-center justify-center">
         <!-- 三原色背景矩形（由 JS 生成） -->
       </div>
@@ -101,16 +118,16 @@
                   <button id="library-press-sort-btn" class="library-sort-btn">Date 時間<span class="icon icon-arrow-down sort-arrow icon-xs"></span></button>
                 </div>
                 <div id="library-press-cat-filter" style="display: flex; flex-wrap: wrap; gap: var(--spacing-sm) var(--spacing-lg); align-content: flex-start;">
-                  <button class="lib-press-cat-btn" data-cat="degree-show">Degree Show 畢業展</button>
-                  <button class="lib-press-cat-btn" data-cat="workshop">Workshop 工作營</button>
-                  <button class="lib-press-cat-btn" data-cat="lectures">Lectures 講座</button>
-                  <button class="lib-press-cat-btn" data-cat="visits">Visits 參訪</button>
-                  <button class="lib-press-cat-btn" data-cat="competitions">Competitions 競賽</button>
-                  <button class="lib-press-cat-btn" data-cat="conferences">Conferences 研討會</button>
-                  <button class="lib-press-cat-btn" data-cat="students-present">Students Present 學生自主</button>
-                  <button class="lib-press-cat-btn" data-cat="industry">Industry Partnerships 產學合作</button>
-                  <button class="lib-press-cat-btn" data-cat="summer-camp">Summer Camp 暑期體驗營</button>
-                  <button class="lib-press-cat-btn" data-cat="others">Others 其他</button>
+                  <button class="lib-press-cat-btn" data-cat="degree-show"><span class="cat-btn-en">Degree Show</span><span class="cat-btn-zh">畢業展</span></button>
+                  <button class="lib-press-cat-btn" data-cat="workshop"><span class="cat-btn-en">Workshop</span><span class="cat-btn-zh">工作營</span></button>
+                  <button class="lib-press-cat-btn" data-cat="lectures"><span class="cat-btn-en">Lectures</span><span class="cat-btn-zh">講座</span></button>
+                  <button class="lib-press-cat-btn" data-cat="visits"><span class="cat-btn-en">Visits</span><span class="cat-btn-zh">參訪</span></button>
+                  <button class="lib-press-cat-btn" data-cat="competitions"><span class="cat-btn-en">Competitions</span><span class="cat-btn-zh">競賽</span></button>
+                  <button class="lib-press-cat-btn" data-cat="conferences"><span class="cat-btn-en">Conferences</span><span class="cat-btn-zh">研討會</span></button>
+                  <button class="lib-press-cat-btn" data-cat="students-present"><span class="cat-btn-en">Students Present</span><span class="cat-btn-zh">學生自主</span></button>
+                  <button class="lib-press-cat-btn" data-cat="industry"><span class="cat-btn-en">Industry Partnerships</span><span class="cat-btn-zh">產學合作</span></button>
+                  <button class="lib-press-cat-btn" data-cat="summer-camp"><span class="cat-btn-en">Summer Camp</span><span class="cat-btn-zh">暑期體驗營</span></button>
+                  <button class="lib-press-cat-btn" data-cat="others"><span class="cat-btn-en">Others</span><span class="cat-btn-zh">其他</span></button>
                 </div>
               </div>
 
@@ -155,18 +172,18 @@
                   <button id="library-files-sort-btn" class="library-sort-btn">Date 時間<span class="icon icon-arrow-down sort-arrow icon-xs"></span></button>
                 </div>
                 <div id="library-files-cat-filter" style="display: flex; flex-wrap: wrap; gap: var(--spacing-sm) var(--spacing-lg); align-content: flex-start;">
-                  <button class="lib-files-cat-btn" data-cat="degree-show">Degree Show 畢業展</button>
-                  <button class="lib-files-cat-btn" data-cat="exhibitions">Exhibitions 展演</button>
-                  <button class="lib-files-cat-btn" data-cat="workshop">Workshop 工作營</button>
-                  <button class="lib-files-cat-btn" data-cat="courses">Courses 課程</button>
-                  <button class="lib-files-cat-btn" data-cat="lectures">Lectures 講座</button>
-                  <button class="lib-files-cat-btn" data-cat="visits">Visits 參訪</button>
-                  <button class="lib-files-cat-btn" data-cat="competitions">Competitions 競賽</button>
-                  <button class="lib-files-cat-btn" data-cat="conferences">Conferences 研討會</button>
-                  <button class="lib-files-cat-btn" data-cat="students-present">Students Present 學生自主</button>
-                  <button class="lib-files-cat-btn" data-cat="industry">Industry Partnerships 產學合作</button>
-                  <button class="lib-files-cat-btn" data-cat="summer-camp">Summer Camp 暑期體驗營</button>
-                  <button class="lib-files-cat-btn" data-cat="others">Others 其他</button>
+                  <button class="lib-files-cat-btn" data-cat="degree-show"><span class="cat-btn-en">Degree Show</span><span class="cat-btn-zh">畢業展</span></button>
+                  <button class="lib-files-cat-btn" data-cat="exhibitions"><span class="cat-btn-en">Exhibitions</span><span class="cat-btn-zh">展演</span></button>
+                  <button class="lib-files-cat-btn" data-cat="workshop"><span class="cat-btn-en">Workshop</span><span class="cat-btn-zh">工作營</span></button>
+                  <button class="lib-files-cat-btn" data-cat="courses"><span class="cat-btn-en">Courses</span><span class="cat-btn-zh">課程</span></button>
+                  <button class="lib-files-cat-btn" data-cat="lectures"><span class="cat-btn-en">Lectures</span><span class="cat-btn-zh">講座</span></button>
+                  <button class="lib-files-cat-btn" data-cat="visits"><span class="cat-btn-en">Visits</span><span class="cat-btn-zh">參訪</span></button>
+                  <button class="lib-files-cat-btn" data-cat="competitions"><span class="cat-btn-en">Competitions</span><span class="cat-btn-zh">競賽</span></button>
+                  <button class="lib-files-cat-btn" data-cat="conferences"><span class="cat-btn-en">Conferences</span><span class="cat-btn-zh">研討會</span></button>
+                  <button class="lib-files-cat-btn" data-cat="students-present"><span class="cat-btn-en">Students Present</span><span class="cat-btn-zh">學生自主</span></button>
+                  <button class="lib-files-cat-btn" data-cat="industry"><span class="cat-btn-en">Industry Partnerships</span><span class="cat-btn-zh">產學合作</span></button>
+                  <button class="lib-files-cat-btn" data-cat="summer-camp"><span class="cat-btn-en">Summer Camp</span><span class="cat-btn-zh">暑期體驗營</span></button>
+                  <button class="lib-files-cat-btn" data-cat="others"><span class="cat-btn-en">Others</span><span class="cat-btn-zh">其他</span></button>
                 </div>
               </div>
 
@@ -211,19 +228,19 @@
                   <button id="library-album-sort-btn" class="library-sort-btn">Date 時間<span class="icon icon-arrow-down sort-arrow icon-xs"></span></button>
                 </div>
                 <div id="library-album-cat-filter" style="display: flex; flex-wrap: wrap; gap: var(--spacing-sm) var(--spacing-lg); align-content: flex-start;">
-                  <button class="lib-album-cat-btn" data-cat="degree-show">Degree Show 畢業展</button>
-                  <button class="lib-album-cat-btn" data-cat="exhibitions">Exhibitions 展演</button>
-                  <button class="lib-album-cat-btn" data-cat="workshop">Workshop 工作營</button>
-                  <button class="lib-album-cat-btn" data-cat="courses">Courses 課程</button>
-                  <button class="lib-album-cat-btn" data-cat="lectures">Lectures 講座</button>
-                  <button class="lib-album-cat-btn" data-cat="visits">Visits 參訪</button>
-                  <button class="lib-album-cat-btn" data-cat="competitions">Competitions 競賽</button>
-                  <button class="lib-album-cat-btn" data-cat="conferences">Conferences 研討會</button>
-                  <button class="lib-album-cat-btn" data-cat="students-present">Students Present 學生自主</button>
-                  <button class="lib-album-cat-btn" data-cat="industry">Industry Partnerships 產學合作</button>
-                  <button class="lib-album-cat-btn" data-cat="summer-camp">Summer Camp 暑期體驗營</button>
-                  <button class="lib-album-cat-btn" data-cat="moment">Moment 日常</button>
-                  <button class="lib-album-cat-btn" data-cat="others">Others 其他</button>
+                  <button class="lib-album-cat-btn" data-cat="degree-show"><span class="cat-btn-en">Degree Show</span><span class="cat-btn-zh">畢業展</span></button>
+                  <button class="lib-album-cat-btn" data-cat="exhibitions"><span class="cat-btn-en">Exhibitions</span><span class="cat-btn-zh">展演</span></button>
+                  <button class="lib-album-cat-btn" data-cat="workshop"><span class="cat-btn-en">Workshop</span><span class="cat-btn-zh">工作營</span></button>
+                  <button class="lib-album-cat-btn" data-cat="courses"><span class="cat-btn-en">Courses</span><span class="cat-btn-zh">課程</span></button>
+                  <button class="lib-album-cat-btn" data-cat="lectures"><span class="cat-btn-en">Lectures</span><span class="cat-btn-zh">講座</span></button>
+                  <button class="lib-album-cat-btn" data-cat="visits"><span class="cat-btn-en">Visits</span><span class="cat-btn-zh">參訪</span></button>
+                  <button class="lib-album-cat-btn" data-cat="competitions"><span class="cat-btn-en">Competitions</span><span class="cat-btn-zh">競賽</span></button>
+                  <button class="lib-album-cat-btn" data-cat="conferences"><span class="cat-btn-en">Conferences</span><span class="cat-btn-zh">研討會</span></button>
+                  <button class="lib-album-cat-btn" data-cat="students-present"><span class="cat-btn-en">Students Present</span><span class="cat-btn-zh">學生自主</span></button>
+                  <button class="lib-album-cat-btn" data-cat="industry"><span class="cat-btn-en">Industry Partnerships</span><span class="cat-btn-zh">產學合作</span></button>
+                  <button class="lib-album-cat-btn" data-cat="summer-camp"><span class="cat-btn-en">Summer Camp</span><span class="cat-btn-zh">暑期體驗營</span></button>
+                  <button class="lib-album-cat-btn" data-cat="moment"><span class="cat-btn-en">Moment</span><span class="cat-btn-zh">日常</span></button>
+                  <button class="lib-album-cat-btn" data-cat="others"><span class="cat-btn-en">Others</span><span class="cat-btn-zh">其他</span></button>
                 </div>
               </div>
 

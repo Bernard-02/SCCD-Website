@@ -16,8 +16,23 @@
 
   <!-- Main Content -->
   <main id="page-content">
-    <!-- Admission Hero Section（4 元素隨機 corner 排版，見 hero-animation.js randomizeHeroLayout） -->
-    <section class="h-screen relative overflow-hidden">
+    <!-- Admission Hero Section
+         桌面 .hero-rand-grid：4 元素隨機 corner 排版（hero-animation.js）
+         手機 .hero-mobile：圖墊底 + 文字 stack 疊在圖上（hero-mobile-sync.js 從桌面 clone） -->
+    <section class="min-h-screen md:h-screen relative overflow-x-clip md:overflow-hidden">
+      <!-- 手機版 -->
+      <div class="hero-mobile">
+        <div class="hero-mobile-bg">
+          <img src="" alt="">
+        </div>
+        <div class="hero-mobile-text">
+          <h1 class="text-black hero-mobile-title" data-hero-hl></h1>
+          <h1 class="text-black hero-mobile-title-cn" data-hero-hl></h1>
+          <p class="text-black hero-mobile-text-en" data-hero-hl></p>
+          <p class="text-black hero-mobile-text-cn" data-hero-hl></p>
+        </div>
+      </div>
+      <!-- 桌面版 -->
       <div class="hero-rand-grid">
         <h1 class="hero-title text-black inline-block" data-hero-hl>ADMISSIONS</h1>
         <h1 class="hero-title-cn text-black inline-block" data-hero-hl>入學</h1>
@@ -35,7 +50,7 @@
 
     <!-- Admission Content Section -->
     <!-- overflow:clip：擋住下方 sticky 遮罩超出 section 邊界，避免戳到 hero（同 courses 模式） -->
-    <section class="bg-white py-6xl" id="admission-content-section" style="overflow: clip;">
+    <section class="bg-white pt-3xl pb-6xl md:py-6xl" id="admission-content-section" style="overflow: clip;">
       <div class="site-container">
         <div class="flex flex-col md:flex-row gap-gutter">
 

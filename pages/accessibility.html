@@ -114,7 +114,8 @@
           height: auto;
           justify-content: flex-start;
           padding-bottom: var(--spacing-xl);
-          padding-top: var(--spacing-4xl);
+          /* padding-top 含 header 高度避免 title chip 被 logo 遮住（同 privacy-policy 2026-05-27） */
+          padding-top: calc(var(--header-height, 80px) + var(--spacing-3xl));
         }
         .legal-content-col {
           padding-top: var(--spacing-xl);

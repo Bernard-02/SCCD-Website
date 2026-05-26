@@ -41,6 +41,10 @@
 /* thin 變體：stroke 18 vs 28（粗版），用於 modal 等視覺重量需較輕的場景 */
 .icon-arrow-left-thin { --icon: url('/Website%20Icons/arrow_left_thin.svg'); }
 
+/* ref jump icons — list 內 (accordion 跳轉樣式) 跟 lightbox 內 (跳出 + 上箭頭) 兩種圖形 */
+.icon-ref-list     { --icon: url('/Website%20Icons/ref_accor.svg'); }
+.icon-ref-lightbox { --icon: url('/Website%20Icons/ref_lightbox.svg'); }
+
 /* chevrons — 兩種粗度：lightbox(粗) / list(細)，方向用 Tailwind rotate class 達成：
  *   default = left (圖形朝左)
  *   rotate-180 = right

@@ -14,9 +14,20 @@ import { applyNewsHover, removeNewsHover } from '../animations/floating-items.js
 
 const SLOT_COUNT = 3;
 const CYCLE_INTERVAL = 5000;
+// 桌面 banner 寬度：依 poster orientation
 const WIDTH_LANDSCAPE = 400;  // 比原本 600 短 1/3
 const WIDTH_PORTRAIT  = 300;
+// 手機統一寬度：user 2026-05-26 要求 full width 但留左右 padding
+// WIDTH_MOBILE() 是「totalWidth = 數字方塊 + bar」的目標值（createBanner 內 barWidth = WIDTH_MOBILE() - BAR_HEIGHT）
+// = innerWidth - 2 * MOBILE_PADDING_X 讓 banner 寬度 = viewport 扣兩邊呼吸空間
+// padding 同時給 rotation 邊角微凸視覺 buffer（rotation 樞紐在 left center，實際右側水平凸 ≈ 0、
+// y 凸 ~6px 在 slot gap 50px 內，但 padding 提供整體視覺呼吸感讓 banner 不貼齊 viewport 邊）
+const MOBILE_PADDING_X = 16;
+const WIDTH_MOBILE = () => window.innerWidth - MOBILE_PADDING_X * 2;
 const BAR_HEIGHT = 40;        // 數字方塊邊長 ≈ bar 高度（h5 font 1.4rem + 預設 line-height + padding 0.35rem*2 ≈ 40）
+function isMobile() {
+  return window.SCCDHelpers ? window.SCCDHelpers.isMobile() : window.innerWidth < 768;
+}
 // 數字方塊配色：專案三原色固定一輪（綠 / 粉 / 藍）；
 // cycle 時消失的 banner 顏色由新進場 banner 繼承 → 同時始終保有三色各一個
 const RGB_COLORS = ['#00FF80', '#FF448A', '#26BCFF'];
@@ -26,13 +37,20 @@ const PUSH_EASE = 'power2.inOut';
 
 // 全部 slot 同 x（左對齊），y 階梯排列；rotation 由 item 自帶
 // index 0 = 最上方（第一個 / 最舊），index 2 = 最下方（最後一個 / 最新）
-const SLOT_X = 60;
-// 相鄰 slot y 差 50px = BAR_HEIGHT(40) + 10px 視覺 gap
-const SLOT_CONFIGS = [
-  { x: SLOT_X, y: -170 },
-  { x: SLOT_X, y: -120 },
-  { x: SLOT_X, y:  -70 },
-];
+// 桌面 SLOT_X 60（user 2026-05-25 拍板，不動）
+// 手機 SLOT_X = MOBILE_PADDING_X（user 2026-05-26 要求 full width 但留左右 padding，
+//   配合 WIDTH_MOBILE=innerWidth-2*padding 讓 banner 在 viewport 內居中對稱貼邊）
+const SLOT_X_DESKTOP = 60;
+const SLOT_X_MOBILE = MOBILE_PADDING_X;
+function slotConfigs() {
+  const x = isMobile() ? SLOT_X_MOBILE : SLOT_X_DESKTOP;
+  // 相鄰 slot y 差 50px = BAR_HEIGHT(40) + 10px 視覺 gap
+  return [
+    { x, y: -170 },
+    { x, y: -120 },
+    { x, y:  -70 },
+  ];
+}
 
 // 旋轉角度刻意壓在 ±0.3° ~ ±1°：bar 寬 ~450px、transform-origin: left center 下，
 // 1° 右側邊緣垂直位移 ~7.85px ≈ slot gap (10px)；超過就會跟上下 banner 互相遮蓋
@@ -100,8 +118,13 @@ async function preloadOrientations(items) {
 // ── Banner builder ──────────────────────────────────────────
 
 function createBanner(item, squareColor) {
-  const barWidth = item.orientation === 'portrait' ? WIDTH_PORTRAIT : WIDTH_LANDSCAPE;
+  // 手機統一寬度（max-width 視 viewport），桌面依 poster orientation
+  const barWidth = isMobile()
+    ? WIDTH_MOBILE() - BAR_HEIGHT
+    : (item.orientation === 'portrait' ? WIDTH_PORTRAIT : WIDTH_LANDSCAPE);
   const totalWidth = BAR_HEIGHT + barWidth;
+  // rotation 樞紐 transform-origin: left center → 樞紐在左中，右側僅上下擺動 ~6px、水平凸 ≈ 0
+  // 手機加了 MOBILE_PADDING_X 後左右有 buffer，桌面手機都套隨機 rotation
   const rotation = randomRotation();
 
   const wrap = document.createElement('div');
@@ -219,7 +242,7 @@ function createBanner(item, squareColor) {
 }
 
 function applySlotTransform(b, slotIndex, animate) {
-  const cfg = SLOT_CONFIGS[slotIndex];
+  const cfg = slotConfigs()[slotIndex];
   // rotation 取 banner 自帶（item-bound）；slot 只決定 (x, y) 同 left x → 左對齊
   const props = { x: cfg.x, y: cfg.y, rotation: b.rotation };
   if (animate) {
@@ -268,20 +291,45 @@ function bindBannerInteraction(b, onEnter, onLeave, pushAbove, restoreAbove) {
     else img.addEventListener('load', calc, { once: true });
   }
 
-  b.el.addEventListener('mouseenter', () => {
+  // ── 開展 / 收合 helper（hover 跟 click 共用）──
+  const openPoster = () => {
     onEnter();
     if (b.posterEl && b._posterH) {
       b.posterEl.style.maxHeight = `${b._posterH + 20}px`;
       pushAbove(b);
     }
-  });
-  b.el.addEventListener('mouseleave', () => {
+  };
+  const closePoster = () => {
     if (b.posterEl) {
       b.posterEl.style.maxHeight = '0';
       restoreAbove(b);
     }
     onLeave();
-  });
+  };
+
+  if (isMobile()) {
+    // 手機：點 title (link / square / row) toggle poster 展開；poster 自己有 click → 跳轉（保留）
+    // link <a> 預設 click 會跳轉，preventDefault 改成 toggle
+    const toggleHandler = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const isOpen = b.posterEl && b.posterEl.style.maxHeight && b.posterEl.style.maxHeight !== '0px';
+      if (isOpen) closePoster();
+      else openPoster();
+    };
+    b.link.addEventListener('click', toggleHandler);
+    // square 數字方塊也算 title 區的一部分，點它也 toggle
+    const square = b.row?.querySelector('.hm-banner-num');
+    if (square) square.addEventListener('click', toggleHandler);
+    // poster 自己點 = 跳轉（在 createBanner 已綁，stopPropagation 避免冒泡到 toggle）
+    if (b.posterEl) {
+      b.posterEl.addEventListener('click', (e) => e.stopPropagation());
+    }
+  } else {
+    // 桌面：hover 開展，離開收合（既有行為）
+    b.el.addEventListener('mouseenter', openPoster);
+    b.el.addEventListener('mouseleave', closePoster);
+  }
 }
 
 // ── Stack runner ────────────────────────────────────────────
@@ -349,7 +397,7 @@ function runMarqueeStack(stack, items) {
     const pushAmount = (hovered._posterH || 0) + 20;
     for (let i = 0; i < idx; i++) {
       const above = banners[i];
-      const cfg = SLOT_CONFIGS[i];
+      const cfg = slotConfigs()[i];
       gsap.to(above.el, {
         y: cfg.y - pushAmount,
         duration: PUSH_DUR,
@@ -363,7 +411,7 @@ function runMarqueeStack(stack, items) {
     if (idx <= 0) return;
     for (let i = 0; i < idx; i++) {
       const above = banners[i];
-      const cfg = SLOT_CONFIGS[i];
+      const cfg = slotConfigs()[i];
       gsap.to(above.el, {
         y: cfg.y,
         duration: PUSH_DUR,

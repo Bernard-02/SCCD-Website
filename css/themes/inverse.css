@@ -501,6 +501,12 @@ body.mode-inverse [data-bar="mode"] .theme-toggle-btn {
   color: #fff !important;
 }
 
+/* mobile menu-btn 跟 mode-btn 同款圓底：inverse 黑底白 icon */
+body.mode-inverse .mobile-header-btn {
+  background: #000 !important;
+  color: #fff !important;
+}
+
 /* :not(.is-bar-hover) 讓 hover 時 navigation.css 的 is-bar-hover .nav-link { color:#000 } 規則生效（specificity 0,2,1）
  * 否則此 inverse 規則 (0,3,2) 會壓過 hover 規則導致 hover 仍是白/黑色 */
 body.mode-inverse [data-bar="library"].bar-inactive:not(.is-bar-hover) .nav-link,

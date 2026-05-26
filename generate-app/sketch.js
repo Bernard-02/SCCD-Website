@@ -1146,7 +1146,7 @@ function draw() {
       selectedHue = window.sccdGetColorHue();
     }
 
-    // 更新背景顏色（使用 selectedHue 的 normalizedHue）
+    // 計算 wireframeColor + stroke 對比色（給 p5 canvas 內 ring 繪製用，純 frame buffer 不碰 DOM）
     let normalizedHue = selectedHue % 360;
     if (normalizedHue < 0) normalizedHue += 360;
 
@@ -1154,16 +1154,11 @@ function draw() {
     wireframeColor = _p5.color(normalizedHue, 80, 100);
     _p5.colorMode(_p5.RGB, 255);
 
-    // 根據亮度決定描邊顏色
     let newStrokeColor = getContrastColor(wireframeColor);
     startStrokeColorTransition(newStrokeColor);
 
-    // 更新背景顏色
-    updateBackgroundColor(wireframeColor, true);
-
-    // 計算 indicator 在色環上的位置（桌面版用 normalizedHue）
-    let angleRad = _p5.radians(normalizedHue - 90); // -90 因為從頂部開始
-    // 根據設備選擇正確的 container
+    // 計算 indicator 在色環上的位置（colorpicker drag 跟著 site colorHue 動）
+    let angleRad = _p5.radians(normalizedHue - 90);
     let containerId = isMobileMode ? 'mobile-colorpicker-container' : 'colorpicker-container';
     let container = _p5.select('#' + containerId);
     if (container) {
@@ -1171,17 +1166,13 @@ function draw() {
       let outerRadius = containerSize / 2 - 2;
       let innerRadius = outerRadius * 0.55;
       let arcRadius = (outerRadius + innerRadius) / 2;
-
-      // 將極坐標轉換為 0-1 範圍的 X, Y
       colorPickerIndicatorX = (_p5.cos(angleRad) * arcRadius + containerSize / 2) / containerSize;
       colorPickerIndicatorY = (_p5.sin(angleRad) * arcRadius + containerSize / 2) / containerSize;
     }
 
-    // 更新輸入框文字顏色（即時更新，與背景同步）
-    updateInputTextColor();
-
-    // 更新所有 icon 顏色（包括 play/pause icon）
-    updateIconsForMode();
+    // user 2026-05-27 拍板方向 C：page bg / icon class / input text color 全由 site colorTick → --theme-bg/-fg
+    // 經 variables.css alias 自動傳達；draw() 不再每幀 call updateBackgroundColor/updateIconsForMode/updateInputTextColor
+    // dark-icons / white-icons class 切換改由 'theme:changed' listener 在 luminance 跨閾值時 toggle（sketch.js 底部 handler）
   }
 
   // --- 色環繪製 (Wireframe 模式) ---
@@ -1922,10 +1913,33 @@ function cleanupCreateApp() {
   _p5 = null;
 }
 
+// 上一輪 dark-icons class 狀態（避免每次 dispatch 都 toggle 重設）
+let _lastIsDarkIcons = null;
+
+// site theme:changed dispatch detail.fg 是 contrast color hex（#000 或 #fff），直接判斷 isDarkIcons = (fg === '#000000')
+// 不需自己重算 luminance，跟 site applyColorVars 走同一條邏輯避免兩邊算法偏差
+function syncDarkIconsClass(fgHex) {
+  if (!fgHex) return;
+  const isDark = fgHex === '#000000' || fgHex === '#000';
+  if (isDark === _lastIsDarkIcons) return; // 沒跨閾值不動
+  _lastIsDarkIcons = isDark;
+  const body = document.getElementById('create-app');
+  if (!body) return;
+  body.classList.toggle('dark-icons', isDark);
+  // icon src 也跟 dark/light 切；updateIconsForMode 內 9+ src setAttribute 較重，只在跨閾值才 call
+  if (typeof updateIconsForMode === 'function') updateIconsForMode();
+  if (typeof updateInputTextColor === 'function') updateInputTextColor();
+}
+
 // Phase 2 listener：site mode 變 → generate-app targetMode 跟著變 + updateUI 觸發切換流程
-// 對齊 setSiteMode dispatch 的 detail: { mode: 'standard'|'inverse'|'color' }
+// 對齊 setSiteMode dispatch 的 detail: { mode: 'standard'|'inverse'|'color', fg, bg, hue }
 function handleSiteThemeChange(e) {
   if (!e || !e.detail || !e.detail.mode) return;
+  // mode-color 下每 ~200ms 一次的 dispatch 帶當前 hue 對比色 fg，用它同步 dark-icons class
+  // （取代 draw() 每幀在 updateBackgroundColor 內 toggle 的舊邏輯，避手機 frame rate 拖累 DOM 寫入）
+  if (e.detail.mode === 'color' && setupComplete) {
+    syncDarkIconsClass(e.detail.fg);
+  }
   const _siteToGen = { standard: 'Standard', inverse: 'Inverse', color: 'Wireframe' };
   const _newTarget = _siteToGen[e.detail.mode];
   if (!_newTarget || _newTarget === targetMode) return;

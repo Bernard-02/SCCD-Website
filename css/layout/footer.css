@@ -75,11 +75,16 @@
 
   .footer-logo-area {
     flex-shrink: 0;
+    /* 對齊 header 手機 logo 視覺位置：header 內 logo 透過 `<a absolute -top-4>` 從 grid cell top
+     * 上偏 16px 視覺定位，但 cell 本身受 grid items-center + py-md 影響不貼容器頂；footer 是 flex
+     * column 第一子，自然貼 padding 起點 → 視覺比 header 還高。加 padding-top 把 logo 視覺下移 */
+    padding-top: 1rem;
   }
 
   .footer-logo-inner {
-    width: 100px;
-    height: 100px;
+    /* 手機對齊 header mobile logo 尺寸（pages/header.html #header-logo-mobile w-[80px] h-[80px]） */
+    width: 80px;
+    height: 80px;
   }
 
   .footer-right {
@@ -103,6 +108,36 @@
     /* 手機線性最後 */
   }
 
+  /* Mobile：icon 整體縮 50%（覆蓋 .footer-random .icon 的 1.5× 放大）。
+   * support 在 .footer-social 內當第一個子（HTML 結構），手機自然排成 support → YT → IG → FB 一橫排；
+   * 桌面 .footer-social { display: contents } 把 4 個 icon wrapper 升級成 .footer-random 視覺子，
+   * JS scatter 各別散佈，display:contents 對 selector `.footer-social > div` 仍生效（DOM tree 未變） */
+  @media (max-width: 767px) {
+    .footer-random .icon {
+      /* 0.75 → 0.975（+30%）：4 個 icon 視覺份量加大跟 footer 文字呼應，user 2026-05-27 反饋 */
+      font-size: calc(var(--font-size-h3) * 0.975);
+    }
+    /* 手機字級統一 p2（14px）— 蓋掉桌面 .footer-random h6/p/a → --font-size-p1 規則 */
+    .footer-random h6,
+    .footer-random p,
+    .footer-random a,
+    .footer-privacy p,
+    .footer-privacy a {
+      font-size: var(--font-size-p2);
+    }
+    /* 中文地址手機合為一段 p — 桌面為 scatter 視覺強制兩行（br + nowrap）
+     * 手機 viewport 較窄、又無 scatter 限制，br 換行造成「104336」獨佔一行很尷尬 → 拔 br + 讓 viewport 自然 wrap */
+    .footer-office-zh-br {
+      display: none;
+    }
+  }
+  /* 桌面預設：維持原本兩行 + nowrap（取代原 inline style，現由 class 接管） */
+  @media (min-width: 768px) {
+    .footer-office-zh {
+      white-space: nowrap;
+    }
+  }
+
   /* ===== Desktop (≥ 768px)：logo 左、右欄分上下 ===== */
   @media (min-width: 768px) {
     .footer-inner {
@@ -116,6 +151,8 @@
       aspect-ratio: 1 / 1;
       height: 100%;
       align-self: stretch;
+      /* reset 手機 padding-top（header 對齊用），桌面 logo stretch 滿不需偏移 */
+      padding-top: 0;
     }
 
     .footer-logo-inner {

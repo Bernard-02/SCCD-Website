@@ -163,7 +163,7 @@ function initMobileUI() {
 
   // 創建隱藏的 div 用於測量文字高度（用於垂直置中）
   if (mobileElements.inputBox) {
-    mobileHiddenMeasurer = createDiv('');
+    mobileHiddenMeasurer = _p5.createDiv('');
     mobileHiddenMeasurer.style('visibility', 'hidden');
     mobileHiddenMeasurer.style('position', 'absolute');
     mobileHiddenMeasurer.style('top', '-9999px');
@@ -225,8 +225,6 @@ function initMobileUI() {
   if (mobileElements.inputBox) {
     updateMobileInputBoxVerticalAlignment(mobileElements.inputBox, '');
   }
-
-  console.log('手機版 UI 初始化完成');
 }
 
 // 綁定手機版事件
@@ -329,11 +327,31 @@ function bindMobileEvents() {
   }
 
   // 手機版 Color Wheel Play 按鈕
+  // 對齊桌面 sketch.js:399-430：必須 call site sccdStartColorLoop/sccdStopColorLoop 才會啟動 RAF；
+  // Pause 時還要清 #create-app / canvas-container inline `transition:none`（draw() 每幀 disableTransition=true 留下），
+  // 不清 → 下次 Play 跑出來的 bg 變化 snap snap 不平滑，跟桌面 fade 速度感不一致
   if (mobileElements.mobileColorWheelPlayBtn) {
     mobileElements.mobileColorWheelPlayBtn.mousePressed(() => {
       if (mode === "Wireframe") {
-        isColorWheelRotating = !isColorWheelRotating;
+        const _running = (typeof window.sccdIsColorLoopRunning === 'function') && window.sccdIsColorLoopRunning();
+        if (_running) {
+          if (typeof window.sccdStopColorLoop === 'function') window.sccdStopColorLoop();
+          isColorWheelRotating = false;
+        } else {
+          if (typeof window.sccdStartColorLoop === 'function') window.sccdStartColorLoop();
+          isColorWheelRotating = true;
+        }
         updateColorWheelIcon();
+
+        // 從 Play 切換到 Pause：恢復 transition（讓 CSS 預設 transition 接管 fade）
+        if (!isColorWheelRotating) {
+          let body = _p5.select('#create-app');
+          let canvasContainer = _p5.select('#canvas-container');
+          let desktopCanvasContainer = _p5.select('#desktop-canvas-container');
+          if (body) body.elt.style.transition = '';
+          if (canvasContainer) canvasContainer.elt.style.transition = '';
+          if (desktopCanvasContainer) desktopCanvasContainer.elt.style.transition = '';
+        }
       }
     });
   }
@@ -443,19 +461,13 @@ function toggleRotatePanel() {
 
 // 循環切換模式（Mode 按鈕）
 function cycleModeButton() {
-  // 循環切換
-  switch(targetMode) {
-    case "Standard":
-      targetMode = "Inverse";
-      break;
-    case "Inverse":
-      targetMode = "Wireframe";
-      break;
-    case "Wireframe":
-      targetMode = "Standard";
-      break;
-    default:
-      targetMode = "Standard";
+  // 與桌面 colormodeBox.mousePressed 對齊：直接 call site setSiteMode，讓 site mode + create-app 同步
+  // 不自己 cycle local targetMode；targetMode 由 'theme:changed' listener 更新（sketch.js 末段）
+  // 否則手機版只切 local targetMode，body .mode-* class 沒換 → header 顏色不變、mode-color 整套不啟動
+  const _siteCycle = { Standard: 'inverse', Inverse: 'color', Wireframe: 'standard' };
+  const _nextSiteMode = _siteCycle[targetMode] || 'standard';
+  if (typeof window.sccdSetMode === 'function') {
+    window.sccdSetMode(_nextSiteMode);
   }
 
   // 根據模式自動顯示/隱藏 Color Picker Bar
@@ -1091,17 +1103,6 @@ if (window.visualViewport) {
       // 使用 paddingBottom 推內容上去，並額外增加一些 padding
       const inputBottomPadding = 10; // 輸入框下方額外的 padding
       const neededPaddingBottom = keyboardHeight + inputBottomPadding;
-
-      // Debug: 輸出計算值
-      console.log('=== 鍵盤佈局 ===');
-      console.log('currentHeight:', currentHeight);
-      console.log('topPadding:', topPadding);
-      console.log('availableHeight:', availableHeight);
-      console.log('idealLogoHeight:', idealLogoHeight);
-      console.log('inputHeight:', inputHeight);
-      console.log('totalContentHeight:', totalContentHeight);
-      console.log('keyboardHeight:', keyboardHeight);
-      console.log('neededPaddingBottom:', neededPaddingBottom);
 
       // 5. 設定 main-container 的 padding-top
       if (mainContainer) {

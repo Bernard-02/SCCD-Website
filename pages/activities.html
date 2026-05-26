@@ -21,8 +21,23 @@
 
   <!-- Main Content -->
   <main id="page-content">
-    <!-- Activities Hero Section（4 元素隨機 corner 排版，見 hero-animation.js randomizeHeroLayout） -->
-    <section class="h-screen relative overflow-hidden">
+    <!-- Activities Hero Section
+         桌面 .hero-rand-grid：4 元素隨機 corner 排版（hero-animation.js）
+         手機 .hero-mobile：圖墊底 + 文字 stack 疊在圖上（hero-mobile-sync.js 從桌面 clone） -->
+    <section class="min-h-screen md:h-screen relative overflow-x-clip md:overflow-hidden">
+      <!-- 手機版 -->
+      <div class="hero-mobile">
+        <div class="hero-mobile-bg">
+          <img src="" alt="">
+        </div>
+        <div class="hero-mobile-text">
+          <h1 class="text-black hero-mobile-title" data-hero-hl></h1>
+          <h1 class="text-black hero-mobile-title-cn" data-hero-hl></h1>
+          <p class="text-black hero-mobile-text-en" data-hero-hl></p>
+          <p class="text-black hero-mobile-text-cn" data-hero-hl></p>
+        </div>
+      </div>
+      <!-- 桌面版 -->
       <div class="hero-rand-grid">
         <h1 class="text-black hero-title inline-block" data-hero-hl>ACTIVITIES</h1>
         <h1 class="text-black hero-title-cn inline-block" data-hero-hl>動態</h1>
@@ -39,13 +54,13 @@
     </section>
 
     <!-- Activities Content Section -->
-    <section class="bg-white py-6xl" id="activities-content-section">
+    <section class="bg-white pt-3xl pb-6xl md:py-6xl" id="activities-content-section">
       <div class="site-container">
         <div class="flex flex-col md:flex-row gap-gutter">
 
           <!-- Left Section Buttons -->
           <div class="w-full md:flex-[0_0_calc(16.667%_-_1.25rem)]">
-            <div class="flex flex-row flex-wrap md:flex-col gap-xs mb-xl md:mb-0 md:sticky md:top-[200px]">
+            <div class="activities-section-bar flex flex-row md:flex-col gap-xs md:gap-xs mb-xl md:mb-0 md:sticky md:top-[200px] no-scrollbar">
               <button class="activities-section-btn w-fit active text-left" data-section="exhibitions">
                 <span class="anchor-nav-inner"><span>Exhibitions</span><span>展演</span></span>
               </button>

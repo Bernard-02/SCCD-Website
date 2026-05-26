@@ -116,7 +116,9 @@
           height: auto;
           justify-content: flex-start;
           padding-bottom: var(--spacing-xl);
-          padding-top: var(--spacing-4xl);
+          /* padding-top 需含 header 高度 (~80px) + 額外呼吸感，否則 title chip 進場 yPercent reveal 時
+             起點在 viewport 頂被 logo 遮住 (user 反饋 2026-05-27) */
+          padding-top: calc(var(--header-height, 80px) + var(--spacing-3xl));
         }
         .legal-content-col {
           padding-top: var(--spacing-xl);

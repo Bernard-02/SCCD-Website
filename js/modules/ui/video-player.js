@@ -33,8 +33,11 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete } =
   const fullscreenBtn = document.getElementById('video-fullscreen-btn');
   const seekBackBtn   = document.getElementById('video-seek-back');
   const seekFwdBtn    = document.getElementById('video-seek-fwd');
+  const mobileCloseBtn = document.getElementById('video-mobile-close-btn');
 
   if (!overlay || !video) return;
+
+  const isMobile = () => window.innerWidth < 768;
 
   const uiBlocks = [
     document.getElementById('video-block-close'),
@@ -83,13 +86,35 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete } =
     // html { scrollbar-gutter: stable } 保留 10px gutter；overlay fixed inset:0 蓋不到，
     // 預設 track 白色會在 overlay 右側露出。把 html bg 染黑讓 gutter 條隱形
     document.documentElement.style.backgroundColor = '#000';
-    // 三個矩形區塊各自設背景色
-    uiBlocks.forEach(block => { if (block) block.style.background = accentColor; });
-    applyIconColor(uiIconColor);
+
+    // 手機：用瀏覽器原生 video UI、video 撐滿視窗寬、custom controls 隱藏、左上顯示返回鍵
+    // 桌面：保留現有 custom controls 流程（accent 色塊 + 自定按鈕）
+    if (isMobile()) {
+      video.controls = true;
+      video.style.width = '100vw';
+      video.style.maxHeight = '100%';
+      controls.style.display = 'none';
+      if (mobileCloseBtn) {
+        mobileCloseBtn.style.background = accentColor;
+        // 同 footer / WATCH 卡片：getRandomRotation 範圍 -4~6 排除 0
+        const rot = window.SCCDHelpers?.getRandomRotation?.() ?? 0;
+        mobileCloseBtn.style.transform = `rotate(${rot}deg)`;
+        mobileCloseBtn.style.display = 'flex';
+      }
+    } else {
+      video.controls = false;
+      video.style.width = '95%';
+      video.style.maxHeight = '90%';
+      controls.style.display = '';
+      if (mobileCloseBtn) mobileCloseBtn.style.display = 'none';
+      // 三個矩形區塊各自設背景色
+      uiBlocks.forEach(block => { if (block) block.style.background = accentColor; });
+      applyIconColor(uiIconColor);
+      updatePlayIcon();
+      updateVolumeUI();
+      hideControls();
+    }
     video.play();
-    updatePlayIcon();
-    updateVolumeUI();
-    hideControls();
   }
 
   // ── 關閉播放器 ──────────────────────────────────────────
@@ -97,6 +122,9 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete } =
     video.pause();
     clearTimeout(hideTimer);
     if (document.fullscreenElement) document.exitFullscreen?.();
+    // 手機原生 controls / 返回鍵還原
+    video.controls = false;
+    if (mobileCloseBtn) mobileCloseBtn.style.display = 'none';
 
     const rect = getCardRect?.();
     if (!rect || typeof gsap === 'undefined') {
@@ -386,6 +414,7 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete } =
 
   // ── 關閉 ───────────────────────────────────────────────
   closeBtn?.addEventListener('click', (e) => { e.stopPropagation(); closePlayer(); });
+  mobileCloseBtn?.addEventListener('click', (e) => { e.stopPropagation(); closePlayer(); });
 
   // ── 鍵盤 ───────────────────────────────────────────────
   document.addEventListener('keydown', (e) => {

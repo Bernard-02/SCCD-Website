@@ -10,6 +10,7 @@
  */
 
 import { registerPageExit } from '../ui/page-exit.js';
+import { registerPageCleanup } from '../ui/page-cleanup.js';
 
 // 4 方向隨機 slide-in：用 wrapper overflow:hidden 當遮罩，child 從 wrapper 外的某方向滑入
 const HERO_DIRS = ['top', 'bottom', 'left', 'right'];
@@ -721,14 +722,47 @@ export function initHeroAnimation() {
     });
   }
 
-  const firstGroup = titleLast ? subtitles : titles;
-  const secondGroup = titleLast ? titles : subtitles;
+  // 手機 rand-grid：先前 faculty 段落流到第二屏需 ScrollTrigger reveal；2026-05-26 改 layout 後段落改成
+  // 接在 title 下方首屏可見，不再需要 ScrollTrigger 分流 → 全走主 timeline。
+  // 變數保留方便將來若有「段落仍在第二屏」的 rand-grid 頁面（courses/activities/admission 等）改回 true 時 toggle 條件
+  const isMobileRandGrid = false;
+  const subtitleScrollGroup = isMobileRandGrid ? subtitles : [];
+  const inlineSubtitles = isMobileRandGrid ? [] : subtitles;
+
+  const firstGroup = titleLast ? inlineSubtitles : titles;
+  const secondGroup = titleLast ? titles : inlineSubtitles;
   if (firstGroup.length > 0) addGroupTo(tl, firstGroup, 0);
   if (secondGroup.length > 0) {
     const secondStart = firstGroup.length > 0
       ? Math.max(0, (firstGroup.length - 1) * ENTER_STAGGER + ENTER_DURATION - ENTER_OVERLAP)
       : 0;
     addGroupTo(tl, secondGroup, secondStart);
+  }
+
+  // 手機段落 chip：scroll 到視窗時做 4 方向 slide-in（與 hero 標題同 pattern；wrapper overflow:hidden 已套）
+  if (subtitleScrollGroup.length > 0 && typeof ScrollTrigger !== 'undefined') {
+    // 預設 hidden：先設方向 offset + visibility（與 addGroupTo 對齊，避免 ScrollTrigger fire 前看到位置已就位）
+    const presets = subtitleScrollGroup.map(el => {
+      const from = offsetFor(pickHeroDir());
+      gsap.set(el, { ...from, visibility: 'visible' });
+      return { el, from };
+    });
+    const triggers = presets.map(({ el }, i) => ScrollTrigger.create({
+      trigger: el,
+      start: 'top 85%',
+      once: true,
+      onEnter: () => {
+        gsap.to(el, {
+          xPercent: 0,
+          yPercent: 0,
+          duration: ENTER_DURATION,
+          ease: 'power3.out',
+          delay: i * 0.1,
+          clearProps: 'transform',
+        });
+      },
+    }));
+    registerPageCleanup(() => triggers.forEach(t => t && t.kill()));
   }
 
   // 註冊退場動畫：4 方向隨機滑出（每元素獨立），與 banner clip-path 4 方向收合並行

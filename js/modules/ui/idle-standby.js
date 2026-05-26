@@ -135,7 +135,11 @@ function isOnAtlas() {
 }
 
 function getLogo() {
-  return /** @type {HTMLElement | null} */ (document.getElementById('header-logo'));
+  // 手機 viewport (<768px) 桌面 #header-logo 整塊 .hidden md:flex 在 display:none，
+  // BCR 會回 0/0/0/0 害 liftLogoToBody 把 logo 釘到左上角。改抓 mobile id。
+  const isMobile = window.innerWidth < 768;
+  const id = isMobile ? 'header-logo-mobile' : 'header-logo';
+  return /** @type {HTMLElement | null} */ (document.getElementById(id));
 }
 
 function ensureOverlay() {

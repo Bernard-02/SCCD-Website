@@ -20,6 +20,20 @@ const loaded = {};
 // 防連點：exit/reveal 動畫期間 swallow 重複觸發
 let switching = false;
 
+// scrollIntoView wrapper：對 activities-content-section 加 header 高度 offset，
+// 避免 active section btn / list-item 緊貼 viewport top 被 header logo 遮住
+// 桌面 header 100px / 手機 80px（由 --header-height CSS var 提供）
+/**
+ * @param {HTMLElement | null} el
+ * @param {ScrollBehavior} [behavior]
+ */
+function scrollSectionIntoView(el, behavior = 'smooth') {
+  if (!el) return;
+  const headerH = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--header-height') || '80', 10);
+  const top = el.getBoundingClientRect().top + window.scrollY - headerH;
+  window.scrollTo({ top, behavior });
+}
+
 let currentSectionColor = '';
 export function getCurrentSectionColor() { return currentSectionColor; }
 
@@ -134,8 +148,8 @@ export function initActivitiesSectionSwitch(defaultSection = 'general') {
       // 沒指定 item → 只 scroll 到 list section，不做 highlight
       switchToSection(initialSection, btns, false, true);
       setTimeout(() => {
-        const sectionEl = document.getElementById('activities-content-section');
-        if (sectionEl) sectionEl.scrollIntoView({ behavior: 'smooth' });
+        const sectionEl = /** @type {HTMLElement | null} */ (document.getElementById('activities-content-section'));
+        scrollSectionIntoView(sectionEl);
       }, 1000);
     }
   } else {
@@ -158,8 +172,8 @@ async function switchToSection(section, btns, shouldScroll, isInitial = false) {
   // 已 active 同 panel：跳過退場/進場動畫；如果是 click（shouldScroll）仍 scroll 對齊 anchor
   if (currentPanel && currentPanel.id === targetId && !isInitial) {
     if (shouldScroll) {
-      const sectionEl = document.getElementById('activities-content-section');
-      if (sectionEl) sectionEl.scrollIntoView({ behavior: 'smooth' });
+      const sectionEl = /** @type {HTMLElement | null} */ (document.getElementById('activities-content-section'));
+      scrollSectionIntoView(sectionEl);
     }
     return;
   }
@@ -220,10 +234,10 @@ async function switchToSection(section, btns, shouldScroll, isInitial = false) {
     //    量 scroll 距離給 step 8 動態 delay 用（已在 anchor 就 0ms）
     var scrollDistance = 0;
     if (shouldScroll) {
-      const sectionEl = document.getElementById('activities-content-section') || document.getElementById('library-content-section');
+      const sectionEl = /** @type {HTMLElement | null} */ (document.getElementById('activities-content-section') || document.getElementById('library-content-section'));
       if (sectionEl) {
         scrollDistance = Math.abs(sectionEl.getBoundingClientRect().top);
-        sectionEl.scrollIntoView({ behavior: 'smooth' });
+        scrollSectionIntoView(sectionEl);
       }
     }
   } catch (err) {

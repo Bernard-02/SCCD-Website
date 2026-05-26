@@ -8,12 +8,10 @@ interface SCCDHelpersAPI {
   // 響應式判斷
   isMobile(): boolean;
   isDesktop(): boolean;
-  isTablet(): boolean;
 
   // DOM 操作
   scrollToElement(target: HTMLElement | string, offset?: number, behavior?: ScrollBehavior): void;
   setActive(activeElement: HTMLElement, siblings: NodeList | HTMLElement[], activeClass?: string): void;
-  toggleClass(element: HTMLElement, className: string): void;
   filterElements(
     elements: NodeList | HTMLElement[],
     filterValue: string,
@@ -21,36 +19,9 @@ interface SCCDHelpersAPI {
     dataAttribute?: string
   ): void;
 
-  // HTTP
-  fetchHTML(url: string): Promise<string>;
-  loadHTMLInto(url: string, container: HTMLElement, callback?: () => void): Promise<void>;
-
-  // Utilities — 實作回傳泛型 Function（不轉嫁原 signature），呼叫端不靠 generic 推導
-  debounce(func: Function, wait?: number): Function;
-  throttle(func: Function, limit?: number): Function;
-
-  // 動畫
-  animateHeight(
-    element: HTMLElement,
-    targetHeight: number | string,
-    duration?: number,
-    ease?: string,
-    onComplete?: () => void
-  ): void;
-  animateRotation(element: HTMLElement, rotation: number, duration?: number, ease?: string): void;
-  animateOpacity(element: HTMLElement, opacity: number, duration?: number, onComplete?: () => void): void;
-
   // 隨機樣式
   getRandomAccentColor(): string;
   getRandomRotation(): number;
-
-  // URL
-  getURLParam(param: string): string | null;
-  setURLParam(param: string, value: string): void;
-
-  // 驗證 / 視窗
-  isValidEmail(email: string): boolean;
-  isInViewport(element: HTMLElement): boolean;
 }
 
 // ===== 全域變數 =====
@@ -81,8 +52,6 @@ interface HTMLElement {
 // ===== CDN 全域 library（type: any 避免過度約束）=====
 declare var gsap: any;
 declare var ScrollTrigger: any;
-declare var Draggable: any;
-declare var InertiaPlugin: any;
 declare var ScrollToPlugin: any;
 declare var SplitText: any;
 declare var lottie: any;

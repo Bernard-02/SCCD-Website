@@ -376,34 +376,35 @@ body.mode-color .course-item {
   border-color: var(--theme-fg) !important;
 }
 
-/* hover/active 三原色 inline bg → overlay；content 內文字反 fg */
+/* hover/active 三原色 inline bg → overlay；content 內文字反 fg（course-header 桌面 only：手機沒 hover、active 走另一條路徑） */
 @media (min-width: 768px) {
   body.mode-color .course-header[style*="background"],
   body.mode-color .course-header[style*="background"] + .course-content,
   body.mode-color .course-header[style*="background"] + .course-content * {
     color: var(--theme-fg) !important;
   }
+}
 
-  /* Activities list hover/active：三原色 accent 翻成 strict B/W chip
-   * JS list-accordion.js 在 hover / active 時設 inline bg=accent 在 .list-item / .list-header / .list-content 三處；
-   * mode-color 一律蓋成 var(--theme-fg)（依 page hue luminance 自動翻黑/白）、字 = var(--theme-fg-inverse) 對比
-   * 跟其他 strict 元件（faculty-card hover / timeline-card / hl chip）一起翻黑白 */
-  body.mode-color .list-item[style*="background"],
-  body.mode-color .list-header[style*="background"],
-  body.mode-color .list-header[style*="background"] + .list-content {
-    background: var(--theme-fg) !important;
-  }
-  body.mode-color .list-header[style*="background"],
-  body.mode-color .list-header[style*="background"] *,
-  body.mode-color .list-header[style*="background"] + .list-content,
-  body.mode-color .list-header[style*="background"] + .list-content * {
-    color: var(--theme-fg-inverse) !important;
-  }
-  /* list-content 內 .border-black 分隔線：active bg=fg → border 改 fg-inverse 對比
-   * 蓋過上方 `body.mode-color .list-content .border-black { border-color: black }` 規則 */
-  body.mode-color .list-header[style*="background"] + .list-content .border-black {
-    border-color: var(--theme-fg-inverse) !important;
-  }
+/* Activities list hover/active：三原色 accent 翻成 strict B/W chip
+ * JS list-accordion.js 在 hover / active 時設 inline bg=accent 在 .list-item / .list-header / .list-content 三處；
+ * mode-color 一律蓋成 var(--theme-fg)（依 page hue luminance 自動翻黑/白）、字 = var(--theme-fg-inverse) 對比
+ * 跟其他 strict 元件（faculty-card hover / timeline-card / hl chip）一起翻黑白
+ * 桌面手機都要 apply — 手機 active（點開 accordion）也會被 JS 設 inline bg，缺這條會看到原始三原色撞 page hue */
+body.mode-color .list-item[style*="background"],
+body.mode-color .list-header[style*="background"],
+body.mode-color .list-header[style*="background"] + .list-content {
+  background: var(--theme-fg) !important;
+}
+body.mode-color .list-header[style*="background"],
+body.mode-color .list-header[style*="background"] *,
+body.mode-color .list-header[style*="background"] + .list-content,
+body.mode-color .list-header[style*="background"] + .list-content * {
+  color: var(--theme-fg-inverse) !important;
+}
+/* list-content 內 .border-black 分隔線：active bg=fg → border 改 fg-inverse 對比
+ * 蓋過上方 `body.mode-color .list-content .border-black { border-color: black }` 規則 */
+body.mode-color .list-header[style*="background"] + .list-content .border-black {
+  border-color: var(--theme-fg-inverse) !important;
 }
 
 /* ===== Courses Grid Cards：mode-color 保持純灰，hover/active 走 strict B/W =====
@@ -842,6 +843,13 @@ body.mode-color [data-bar="mode"] {
 }
 body.mode-color [data-bar="mode"] .theme-toggle-btn {
   color: var(--theme-fg) !important;
+}
+
+/* mobile menu-btn 跟 mode-btn 同款圓底：mode-color bg 跟 page bg、icon 對比 theme-fg */
+body.mode-color .mobile-header-btn {
+  background: var(--theme-bg) !important;
+  color: var(--theme-fg) !important;
+  transition: none !important;
 }
 
 body.mode-color [data-bar="library"].bar-inactive .nav-link,

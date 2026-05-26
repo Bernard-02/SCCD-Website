@@ -3,7 +3,13 @@
  * 在首頁背景層漂浮的元素，像宇宙中的螢火蟲
  */
 
-const TOTAL_ITEMS = 20;
+// 桌面 20、手機 12（< 768px）。手機減量是視覺優化，不影響桌面。
+// GRID 初始分配避免 clustering（user 抱怨「擠在一起」），桌面 5×4=20、手機 4×3=12，
+// 兩者 COLS*ROWS 必須剛好等於 TOTAL_ITEMS 才能每 cell 一個 item 保證均勻
+function isMobileViewport() { return window.innerWidth < 768; }
+const TOTAL_ITEMS = isMobileViewport() ? 12 : 20;
+const GRID_COLS = isMobileViewport() ? 4 : 5;
+const GRID_ROWS = isMobileViewport() ? 3 : 4;
 const SPEED_MIN = 0.05;
 const SPEED_MAX = 0.25;
 const IMG_WIDTH = 200; // 所有圖片統一寬度，高度 auto follow 原比例
@@ -448,7 +454,7 @@ function createCircleEl() {
 
 // ── Spawn & Animate ─────────────────────────────────────────
 
-function spawnItem(container, poolEntry, fromEdge = false) {
+function spawnItem(container, poolEntry, fromEdge = false, cellIndex = -1) {
   const cw = container.clientWidth;
   const ch = container.clientHeight;
 
@@ -496,6 +502,20 @@ function spawnItem(container, poolEntry, fromEdge = false) {
     else if (edge === 1) { x = cw;               y = rand(-realH, ch); vx = -(Math.abs(vx) + SPEED_MIN); }
     else if (edge === 2) { x = rand(-realW, cw); y = ch;    vy = -(Math.abs(vy) + SPEED_MIN); }
     else                 { x = -realW;            y = rand(-realH, ch); vx = Math.abs(vx) + SPEED_MIN; }
+  } else if (cellIndex >= 0) {
+    // Grid-based 分配：item 落在指定 cell 內 random 位置，保證初始視覺均勻無 clustering
+    const cellW = cw / GRID_COLS;
+    const cellH = ch / GRID_ROWS;
+    const col = cellIndex % GRID_COLS;
+    const row = Math.floor(cellIndex / GRID_COLS);
+    // 在 cell 內 random，但給 item 寬高一些 padding 避免邊緣切到鄰格
+    const padX = Math.min(cellW * 0.1, 20);
+    const padY = Math.min(cellH * 0.1, 20);
+    x = rand(col * cellW + padX, (col + 1) * cellW - realW - padX);
+    y = rand(row * cellH + padY, (row + 1) * cellH - realH - padY);
+    // cell 太小放不下 item 時 fallback 用 cell 中心
+    if (isNaN(x) || x < 0) x = col * cellW + (cellW - realW) / 2;
+    if (isNaN(y) || y < 0) y = row * cellH + (cellH - realH) / 2;
   } else {
     x = rand(-realW * 0.5, cw - realW * 0.5);
     y = rand(-realH * 0.5, ch - realH * 0.5);
@@ -588,9 +608,11 @@ export async function initFloatingItems() {
 
   const items = [];
 
-  // 初始化 items
+  // 初始化 items：洗牌 cell 順序讓每次刷新位置不同，但每個 cell 都會有一個 item（保證均勻分佈）
+  const cellOrder = Array.from({ length: GRID_COLS * GRID_ROWS }, (_, i) => i);
+  shuffle(cellOrder);
   for (let i = 0; i < TOTAL_ITEMS; i++) {
-    items.push(spawnItem(container, nextPoolEntry(), false));
+    items.push(spawnItem(container, nextPoolEntry(), false, cellOrder[i % cellOrder.length]));
   }
 
   let running = true;

@@ -143,14 +143,14 @@
   background-color: var(--inverse-bg);
   color: var(--inverse-text);
 }
+/* user 2026-05-27 拍板：mode-color 邏輯整套靠 site body.mode-color 處理
+   site css 已寫 body.mode-color { background-color: var(--theme-bg); color: var(--theme-fg); }
+   #create-app.wireframe-mode 不再自己設 bg/color → 透明 → 透出 body bg；
+   header / main 也透明 → 整片視覺全來自 body 同一條 paint，不再有色差；
+   color 用 inherit 從 body 繼承 --theme-fg */
 #create-app.wireframe-mode {
-  /* 優先用 site theme-toggle 的 --theme-bg（mode-color 永遠 set），fallback 給 sketch.js 設的 --wireframe-bg
-     direct visit /create 時 p5 還沒載 wireframeColor 還沒算，--theme-bg 由 initThemeToggle 同步設好，
-     用 var() fallback chain 避免「purple header + white body」的視覺脫節 */
-  background-color: var(--theme-bg, var(--wireframe-bg));
-  /* color 用 --wireframe-border（對比色）而非寫死 --standard-text，避免 #input-box { color: inherit }
-     在 p5 還沒跑前繼承到黑色，type-and-enter 文字在飽和色 bg 上看不見 */
-  color: var(--wireframe-border);
+  background-color: transparent;
+  color: inherit;
 }
 
 /* Panel icons 切換到 /Website Icons/ 後沒有 _Inverse 變體（單色黑版），
@@ -220,8 +220,9 @@
 }
 #create-app.wireframe-mode #canvas-container,
 #create-app.wireframe-mode #desktop-canvas-container {
-  /* 跟 #create-app body 同 fallback chain（理由見上方），避免 p5 初始化前 body 跟 canvas container 顏色脫節 */
-  background-color: var(--theme-bg, var(--wireframe-bg));
+  /* user 2026-05-27 拍板：透明讓 body.mode-color bg 透過來，跟 #create-app 同一條 paint
+     不要自己寫 var(--theme-bg) 否則跟 body 是 separate paint context、hue 高頻變化時看起來色差 */
+  background-color: transparent;
 }
 
 /* 桌面版 desktop-canvas-container 規則 */
@@ -325,7 +326,7 @@
 #colormode-box.disabled,
 #rotation-box.disabled,
 #save-box.disabled {
-  cursor: not-allowed !important;
+  cursor: var(--cursor-not-allowed) !important;
 }
 
 /* 底色 = 灰底（mode-aware --lib-bg/--lib-fg）：
@@ -354,7 +355,7 @@
 /* 當 control-box 處於 disabled 狀態時 — box bg 維持 100% 對比實心，
    inactive 視覺由內部 icon/slider/label 自己半透明溝通（user 2026-05-20） */
 #create-app .control-box.disabled {
-  cursor: not-allowed;
+  cursor: var(--cursor-not-allowed);
   transition: background-color 0.4s ease;
 }
 
@@ -694,7 +695,7 @@
 /* wireframe模式下Custom按鈕的邊框顏色也保持透明 */
 
 .custom-button:disabled {
-  cursor: not-allowed;
+  cursor: var(--cursor-not-allowed);
   color: var(--disabled-color);
 }
 
@@ -736,7 +737,7 @@
 }
 
 .image-button:disabled {
-  cursor: not-allowed;
+  cursor: var(--cursor-not-allowed);
 }
 
 /* image-button:disabled img 的舊 per-mode rules 也已統一到上面（user 2026-05-20） */
@@ -867,7 +868,7 @@
 .custom-slider:not(.enabled) {
   opacity: 0.5;
   pointer-events: none; /* 禁用所有滑鼠互動 */
-  cursor: not-allowed; /* 顯示禁用游標 */
+  cursor: var(--cursor-not-allowed); /* 顯示禁用游標 */
 }
 
 /* 確保 disabled slider 的 thumb 也不會有任何互動反應 */
@@ -1011,7 +1012,7 @@
    ======================================== */
 
 /* --- 響應式設計 (RWD) --- */
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   /* 取消所有手機版的 hover 效果（但保留 :active 效果以提供觸摸反饋）*/
   /* 排除 save button icon，避免干擾動畫 */
   #create-app {
@@ -1163,14 +1164,14 @@
   #create-app.standard-mode .mobile-rotation-box.disabled {
     border-color: black !important;
     opacity: 0.25;
-    cursor: not-allowed;
+    cursor: var(--cursor-not-allowed);
     transition: border-color 0.2s ease; /* 移除 opacity transition 避免延遲 */
   }
 
   #create-app.inverse-mode .mobile-rotation-box.disabled {
     border-color: white !important;
     opacity: 0.5;
-    cursor: not-allowed;
+    cursor: var(--cursor-not-allowed);
     transition: border-color 0.2s ease; /* 移除 opacity transition 避免延遲 */
   }
 
@@ -1178,7 +1179,7 @@
   #create-app.wireframe-mode .mobile-rotation-box.disabled {
     border-color: var(--wireframe-border) !important;
     opacity: 0.5; /* 白色邊框時的透明度 */
-    cursor: not-allowed;
+    cursor: var(--cursor-not-allowed);
     transition: border-color 0.2s ease; /* 移除 opacity transition 避免延遲 */
   }
 
@@ -1342,32 +1343,20 @@
     opacity: 1;
   }
 
-  /* 內層容器：限制在 section padding 內 */
+  /* 內層容器：對齊桌面 .control-box — 灰底實心、無 border、直角 */
   .mobile-custom-angle-controls .controls-inner {
     display: flex;
     flex-direction: row;
     align-items: stretch;
     width: 100%;
     padding: 1.2rem;
-    border: 2px solid;
-    border-radius: 18px;
+    border: none;
+    background-color: var(--lib-bg);
+    border-radius: 0;
     box-sizing: border-box;
     gap: 0.8rem;
     overflow: hidden; /* 內容物不能超出 */
-  }
-
-  /* 根據模式設定邊框顏色 */
-  #create-app.standard-mode .mobile-custom-angle-controls .controls-inner {
-    border-color: black;
-  }
-
-  #create-app.inverse-mode .mobile-custom-angle-controls .controls-inner {
-    border-color: white;
-  }
-
-  #create-app.wireframe-mode .mobile-custom-angle-controls .controls-inner {
-    border-color: var(--wireframe-border);
-    background: rgba(255, 255, 255, 0.28); /* 0.28 白色底 */
+    transition: background-color 0.4s ease;
   }
 
   /* Sliders box - 左側區域 */
@@ -1437,40 +1426,25 @@
     gap: 0.8rem;
     flex-shrink: 0; /* 不縮小，保持固定寬度 */
     flex-grow: 0; /* 不放大 */
-    width: calc(var(--mobile-btn-size) * 0.35); /* 固定寬度 */
+    width: calc(var(--mobile-btn-size) * 0.7); /* 容納 44×44 touch target */
   }
 
-  /* Random 按鈕 - 扁一點 */
-  .mobile-custom-angle-controls .icon-buttons-wrapper #mobile-random-button {
-    padding: 0;
-    border: none;
-    background: none;
-    cursor: var(--cursor-pointer);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  /* Random / Reset 按鈕：純 icon 樣式繼承桌面 .image-button base（padding/border/background/cursor/display 全免重寫）
+     button 容器 ≥44×44 滿足 a11y touch target，icon 視覺尺寸繼續用 var 縮放 */
+  .mobile-custom-angle-controls .icon-buttons-wrapper .image-button {
+    width: 44px;
+    height: 44px;
   }
 
-  .mobile-custom-angle-controls .icon-buttons-wrapper #mobile-random-button img {
-    width: calc(var(--mobile-btn-size) * 0.35);
-    height: calc(var(--mobile-btn-size) * 0.28); /* 稍微扁一點 (0.35 * 0.8) */
+  .mobile-custom-angle-controls .icon-buttons-wrapper #mobile-random-img {
+    width: calc(var(--mobile-btn-size) * 0.5);
+    height: calc(var(--mobile-btn-size) * 0.4); /* Random icon 扁一點 */
     object-fit: contain;
   }
 
-  /* Reset 按鈕 - 方一點 */
-  .mobile-custom-angle-controls .icon-buttons-wrapper #mobile-reset-button {
-    padding: 0;
-    border: none;
-    background: none;
-    cursor: var(--cursor-pointer);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .mobile-custom-angle-controls .icon-buttons-wrapper #mobile-reset-button img {
-    width: calc(var(--mobile-btn-size) * 0.35);
-    height: calc(var(--mobile-btn-size) * 0.35); /* 正方形 */
+  .mobile-custom-angle-controls .icon-buttons-wrapper #mobile-reset-img {
+    width: calc(var(--mobile-btn-size) * 0.44);
+    height: calc(var(--mobile-btn-size) * 0.44); /* Reset icon 正方形 */
     object-fit: contain;
   }
 
@@ -1506,7 +1480,7 @@
     opacity: 1;
   }
 
-  /* 內層容器：bar 形狀 */
+  /* 內層容器：bar 形狀 — 對齊 .control-box / mobile-bottom-btn：灰底實心、無 border、直角 */
   .mobile-colorpicker-bar .colorpicker-bar-inner {
     display: flex;
     flex-direction: row;
@@ -1514,23 +1488,11 @@
     width: 100%;
     gap: 1rem; /* 與其他元素統一的 gap */
     padding: 1rem; /* 上下左右 1rem padding */
-    border: 2px solid;
-    border-radius: 18px; /* 與 btn bar 相同 */
+    border: none;
+    background-color: var(--lib-bg);
+    border-radius: 0;
     box-sizing: border-box;
-  }
-
-  /* 根據模式設定邊框顏色 */
-  #create-app.standard-mode .mobile-colorpicker-bar .colorpicker-bar-inner {
-    border-color: black;
-  }
-
-  #create-app.inverse-mode .mobile-colorpicker-bar .colorpicker-bar-inner {
-    border-color: white;
-  }
-
-  #create-app.wireframe-mode .mobile-colorpicker-bar .colorpicker-bar-inner {
-    border-color: var(--wireframe-border);
-    background: rgba(255, 255, 255, 0.28); /* 0.28 白色底 */
+    transition: background-color 0.4s ease;
   }
 
   /* Color Picker 容器：bar 形狀，9:1 比例的 9 */
@@ -1630,14 +1592,14 @@
   #create-app.standard-mode .mobile-save-container.disabled {
     border-color: black !important;
     opacity: 0.25;
-    cursor: not-allowed;
+    cursor: var(--cursor-not-allowed);
     transition: border-color 0.2s ease; /* 移除 opacity transition 避免延遲 */
   }
 
   #create-app.inverse-mode .mobile-save-container.disabled {
     border-color: white !important;
     opacity: 0.5;
-    cursor: not-allowed;
+    cursor: var(--cursor-not-allowed);
     transition: border-color 0.2s ease; /* 移除 opacity transition 避免延遲 */
   }
 
@@ -1645,7 +1607,7 @@
   #create-app.wireframe-mode .mobile-save-container.disabled {
     border-color: var(--wireframe-border) !important;
     opacity: 0.5; /* 白色邊框時的透明度 */
-    cursor: not-allowed;
+    cursor: var(--cursor-not-allowed);
     transition: border-color 0.2s ease; /* 移除 opacity transition 避免延遲 */
   }
 
@@ -2030,17 +1992,19 @@
     justify-content: center; /* 靠攏到中間 */
   }
 
-  /* Custom + Rotate 按鈕組容器（共用外框） */
+  /* Custom + Rotate 按鈕組容器（共用外框 → 改為對齊桌面 .control-box：灰底實心、無 border、直角） */
   .mobile-rotation-group {
     display: flex;
     flex-shrink: 0;
     flex-grow: 0; /* 不擴展容器寬度 */
     gap: 0.5rem; /* 內部兩個按鈕之間的間距 */
     height: var(--mobile-btn-size);
-    border: 2px solid;
-    border-radius: 18px; /* 與其他按鈕一致的圓角 */
+    border: none;
+    background-color: var(--lib-bg);
+    border-radius: 0;
     box-sizing: border-box;
     padding: 0 0.25rem; /* 左右內邊距讓按鈕不貼邊 */
+    transition: background-color 0.4s ease;
   }
 
   .mobile-bottom-btn {
@@ -2049,22 +2013,21 @@
     height: var(--mobile-btn-size);
     flex-shrink: 0; /* 不縮小 */
     flex-grow: 0; /* 不放大 */
-    border: 2px solid;
-    background: none;
+    border: none;
+    background-color: var(--lib-bg);
     cursor: var(--cursor-pointer);
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 0;
-    transition: opacity 0.2s ease, border-color 0s ease, background-color 0.2s ease;
+    transition: opacity 0.2s ease, background-color 0.4s ease;
     box-sizing: border-box;
   }
 
-  /* 在 rotation-group 內的按鈕移除外框（不需要分隔線） */
+  /* rotation-group 內的按鈕：底色已由外層容器提供，內部透明避免雙層疊色 */
   .mobile-rotation-group .mobile-bottom-btn {
-    border: none;
-    /* 調整高度以配合外層容器的 border，確保 icon 垂直居中 */
-    height: calc(var(--mobile-btn-size) - 4px); /* 扣除外層容器的上下 border (2px * 2) */
+    background-color: transparent;
+    height: var(--mobile-btn-size); /* 容器無 border 後不需 -4px 補償 */
   }
 
 
@@ -2131,14 +2094,14 @@
     animation-fill-mode: forwards;
   }
 
-  /* 前三個按鈕：圓角方形，增加圓角 */
+  /* 前三個按鈕：直角矩形（對齊桌面 .control-box border-radius: 0） */
   .mobile-mode-btn,
   .mobile-custom-btn,
   .mobile-rotate-btn {
-    border-radius: 18px; /* 增加圓角從 18px 到 24px */
+    border-radius: 0;
   }
 
-  /* Save 按鈕：圓形 */
+  /* Save 按鈕：圓形（對齊桌面 #save-box border-radius: 50%） */
   .mobile-save-btn {
     border-radius: 50%;
   }
@@ -2147,40 +2110,15 @@
     opacity: 0.6;
   }
 
-  /* Disabled 狀態下的按鈕 */
+  /* Disabled 狀態：對齊桌面 .control-box.disabled（user 2026-05-20，create.css:354-358）
+     box bg 維持 100% 對比實心（var(--lib-bg) 不動），inactive 視覺只靠內部 icon opacity 表達 */
   .mobile-bottom-btn:disabled {
-    cursor: not-allowed;
+    cursor: var(--cursor-not-allowed);
   }
 
-  #create-app.standard-mode .mobile-bottom-btn:disabled {
-    opacity: 0.25;
-  }
-
-  #create-app.inverse-mode .mobile-bottom-btn:disabled {
+  .mobile-bottom-btn:disabled img,
+  .mobile-rotation-group.disabled .mobile-bottom-btn img {
     opacity: 0.5;
-  }
-
-  #create-app.wireframe-mode .mobile-bottom-btn:disabled {
-    opacity: var(--wireframe-opacity);
-  }
-
-  /* Rotation group 的 disabled 狀態（使用 class 而非偽類）*/
-  /* 整個容器統一設定 opacity，內部按鈕保持 opacity: 1 避免疊加 */
-  #create-app.standard-mode .mobile-rotation-group.disabled {
-    opacity: 0.25;
-  }
-
-  #create-app.inverse-mode .mobile-rotation-group.disabled {
-    opacity: 0.5;
-  }
-
-  #create-app.wireframe-mode .mobile-rotation-group.disabled {
-    opacity: var(--wireframe-opacity);
-  }
-
-  /* 內部按鈕在 disabled 時保持 opacity: 1，避免與外框的 opacity 疊加 */
-  .mobile-rotation-group.disabled .mobile-bottom-btn:disabled {
-    opacity: 1 !important;
   }
 
 
@@ -2190,29 +2128,22 @@
     left: 2px;
   }
 
-  /* 根據模式設定底部按鈕邊框顏色 */
+  /* mode-aware 底色 / 文字色（對齊桌面 .control-box）
+     底色 var(--lib-bg) 已隨 mode 切換（mode1 淺灰 / mode2 深灰 / mode3 依對比度），不需再依 mode 寫 override；
+     icon 顏色由 page-level invert filter rule 處理（updateIconsForMode），這裡只設 color 給文字 icon */
   #create-app.standard-mode .mobile-bottom-btn,
   #create-app.standard-mode .mobile-rotation-group {
-    border-color: black;
-    color: black;
+    color: var(--lib-fg);
   }
 
   #create-app.inverse-mode .mobile-bottom-btn,
   #create-app.inverse-mode .mobile-rotation-group {
-    border-color: white;
-    color: white;
+    color: var(--lib-fg);
   }
 
   #create-app.wireframe-mode .mobile-bottom-btn,
   #create-app.wireframe-mode .mobile-rotation-group {
-    border-color: var(--wireframe-border);
-    color: var(--wireframe-border);
-    background-color: rgba(255, 255, 255, 0.28); /* 半透明 28% 白色 */
-  }
-
-  /* 移除 wireframe 模式下內部按鈕的背景 */
-  #create-app.wireframe-mode .mobile-rotation-group .mobile-bottom-btn {
-    background-color: transparent; /* 內部按鈕移除背景 */
+    color: var(--lib-fg);
   }
 
   /* Rotation group 內的按鈕 opacity 邏輯 */

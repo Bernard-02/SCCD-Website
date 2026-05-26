@@ -30,6 +30,18 @@
     ]
   },
   {
+    "id": "L-PUB-1",
+    "titleEn": "Publication Title 1",
+    "titleZh": "出版物標題 1",
+    "year": "2025",
+    "cover": "../images/2021-動畫-Pitch-Bible-01.png",
+    "pdfUrl": "../assets/sample.pdf",
+    "categories": [
+      "workshop",
+      "industry"
+    ]
+  },
+  {
     "id": "2",
     "titleEn": "Workshop Proceedings 2025",
     "titleZh": "2025 工作坊論文集",

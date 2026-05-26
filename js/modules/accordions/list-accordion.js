@@ -207,6 +207,8 @@ function closeListHeader(header) {
     onComplete: () => {
       // collapse 完成才移除 .active → title transform 0.3s 往左滑（CSS transition 觸發）
       header.classList.remove('active');
+      // title translateX 復位後 0.3s 才到位，等 transition 結束再 dispatch 讓 marquee 重新測寬
+      setTimeout(() => workshopItem?.dispatchEvent(new Event('gallery:check')), 320);
       // sticky-pin observer 跟著 active state 走：close 後不需偵測 pinned（header 已不 sticky）
       detachStickyPinObserver(header);
       header.style.background = '';
@@ -300,7 +302,12 @@ function initListHeaderAccordion() {
           }
         });
         const stickyTopVar = getComputedStyle(this).getPropertyValue('--list-header-sticky-top').trim();
-        const stickyTop = parseFloat(stickyTopVar) || (window.innerWidth >= 768 ? 200 : 100);
+        // 桌面：activities-data-loader 動態 set --list-header-sticky-top = 200 + filter-bar 高度
+        // 手機：沒人 set 此 var → fallback 用 --header-height + spacing-xl (=48) 給 list-header 跟 header 之間
+        // 留充足呼吸空間，title scroll 後不被 logo 半遮（user 反饋 2026-05-27）
+        // 原 hard-code 100 太小 (header 80 + 20 = 100)，title 邊緣會貼到 logo 下緣
+        const headerH = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--header-height') || '80', 10);
+        const stickyTop = parseFloat(stickyTopVar) || (window.innerWidth >= 768 ? 200 : headerH + 48);
         const targetScrollY = Math.max(0, window.scrollY + headerRect.top - collapseAbove - stickyTop);
         if (Math.abs(targetScrollY - window.scrollY) > 1) {
           if (typeof window.ScrollToPlugin !== 'undefined') {

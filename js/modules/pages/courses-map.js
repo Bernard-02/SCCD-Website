@@ -167,6 +167,51 @@ function renderCard(chip) {
 // 不能少 emit cell 否則 grid auto-flow 會把後續 sem-label/type-label 推到空欄位錯亂整張表
 const TOTAL_YEAR_COLS = 4;
 
+// 手機版改成年級為外層分組（一年級從上到下到四年級），每個年級內列出
+// 第一學期/第二學期 × 必修/選修 的 chips。桌面版維持 buildHTML 的橫排年級結構。
+// 兩種 DOM 結構共存（CSS media query 切顯示），同 program 的卡片各自存在 → 點擊兩邊都能觸發
+// slide-in（bindCardClick 走 panel 級 grid，兩個 grid 都會綁）
+function buildMobileHTML(program, courses) {
+  const grades = gradesOf(program);
+  const realChips = flattenToChips(courses);
+
+  let html = '';
+  grades.forEach(g => {
+    let blockInner = `
+      <div class="courses-mobile-grade-header">
+        <span class="courses-mobile-grade-en">${g.en}</span>
+        <span class="courses-mobile-grade-zh">${g.zh}</span>
+      </div>`;
+
+    SEMESTERS.forEach(sem => {
+      TYPES.forEach(t => {
+        const cellChips = realChips.filter(rc =>
+          rc.grade === g.key && rc.semester === sem.key && rc.type === t.key
+        );
+        if (cellChips.length === 0) return;
+        blockInner += `
+          <div class="courses-mobile-row">
+            <div class="courses-mobile-row-label">
+              <div class="courses-mobile-row-label-sem">
+                <span class="courses-mobile-sem-en">${sem.en}</span>
+                <span class="courses-mobile-sem-zh">${sem.zh}</span>
+              </div>
+              <div class="courses-mobile-row-label-type">
+                <span class="courses-mobile-type-en">${t.en}</span>
+                <span class="courses-mobile-type-zh">${t.zh}</span>
+              </div>
+            </div>
+            <div class="courses-mobile-cells">${cellChips.map(renderCard).join('')}</div>
+          </div>`;
+      });
+    });
+
+    html += `<div class="courses-mobile-grade-block">${blockInner}</div>`;
+  });
+
+  return html;
+}
+
 function buildHTML(program, courses) {
   const grades = gradesOf(program);
   const realChips = flattenToChips(courses);
@@ -398,9 +443,13 @@ function ensureSlideInClose() {
   // overlay 點擊用 document delegation：SPA 切頁時 <main> 會被換掉，原本綁在
   // overlay element 上的 listener 隨 element 一起消失，flag 又設過 true → 切回來時
   // 新 overlay 沒監聽 = 點空白關不掉。改 document 級 + e.target.id 比對才能跨 SPA 存活
+  // 手機返回鍵 #courses-back-btn-mobile 同 pattern（closest 兜 icon 點到 span 的情況）
   document.addEventListener('click', (e) => {
     const t = e.target;
-    if (!(t instanceof Element) || t.id !== 'courses-overlay') return;
+    if (!(t instanceof Element)) return;
+    const isOverlay = t.id === 'courses-overlay';
+    const isBackBtn = !!t.closest('#courses-back-btn-mobile');
+    if (!isOverlay && !isBackBtn) return;
     const slideIn = getSlideIn();
     if (!slideIn || slideIn.classList.contains('invisible')) return;
     closeCourseSlideIn();
@@ -499,11 +548,11 @@ export function deselectActiveCard() {
 }
 
 function bindCardClick(panelEl) {
-  const grid = /** @type {HTMLElement|null} */ (panelEl.querySelector('.courses-grid'));
-  if (!grid || grid.dataset.clickBound) return;
-  grid.dataset.clickBound = '1';
+  // 綁在 panel 級而非 .courses-grid，這樣 desktop grid + mobile grid 兩個 sibling 都涵蓋
+  if (panelEl.dataset.clickBound) return;
+  panelEl.dataset.clickBound = '1';
 
-  grid.addEventListener('click', (e) => {
+  panelEl.addEventListener('click', (e) => {
     const t = e.target;
     const card = /** @type {HTMLElement|null} */ (
       t instanceof Element ? t.closest('.courses-grid-card') : null
@@ -572,6 +621,16 @@ export async function renderCoursesGrid(program) {
   // 這樣 MDES 的 1st/2nd year 欄寬跟 BFA 的 freshman/sophomore 對齊，視覺一致
   grid.style.setProperty('--year-cols', '4');
   grid.innerHTML = buildHTML(program, courses);
+
+  // Mobile-only structure：年級為外層分組（從上到下排列），由 CSS 控制顯示
+  // 渲染進 .courses-grid 的 sibling .courses-grid-mobile，bindCardClick/Hover 對 panel 級綁定會涵蓋
+  let mobileGrid = /** @type {HTMLElement|null} */ (panel.querySelector('.courses-grid-mobile'));
+  if (!mobileGrid) {
+    mobileGrid = document.createElement('div');
+    mobileGrid.className = 'courses-grid-mobile';
+    grid.parentElement?.insertBefore(mobileGrid, grid.nextSibling);
+  }
+  mobileGrid.innerHTML = buildMobileHTML(program, courses);
 
   bindCardClick(panel);
   bindCardHover(panel);
