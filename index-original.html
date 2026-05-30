@@ -13,18 +13,12 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&family=Bitter:ital,wght@0,400;0,600;0,700;1,400&family=Noto+Serif+TC:wght@400;600;700&display=swap">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <link rel="stylesheet" href="css/output.css">
-  <!-- 臨時 Coming Soon CSS（degree show 2026 期間，還原時整檔刪 + 此 link 拔掉） -->
-  <link rel="stylesheet" href="css/coming-soon-temp.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.2.3/css/flag-icons.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
 </head>
-<body class="page-coming-soon" style="overflow:hidden">
-
-  <!-- 臨時 Coming Soon 隱藏/版面規則已搬到 [css/coming-soon-temp.css](css/coming-soon-temp.css)
-       原因：SPA 切到內頁 → 回 index 時 head 內 inline <style> 被 pages/X.html 的 head 替換，
-       index.html 規則失蹤造成字卡跑頂端 / footer 一堆東西跑出來。外部 css 讓所有頁 cascade。 -->
+<body style="overflow:hidden">
 
   <!-- Intro Animation Overlay -->
   <div id="intro-overlay">
@@ -36,21 +30,13 @@
 
   <!-- Main Content -->
   <main id="page-content">
-    <section id="coming-soon-stage">
+    <section class="h-screen" style="display:flex; align-items:flex-end; padding: var(--spacing-xl); position:relative; z-index:9998; overflow:hidden;">
 
-      <!-- Floating Items Layer（沿用原 index 結構，watch 圓圈會被 floating-items 抓進去隨機散） -->
+      <!-- Floating Items Layer -->
       <div id="floating-layer" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:0; overflow:hidden;"></div>
 
-      <!-- News Marquee Stack（只渲染 1 個 banner —— body.page-coming-soon 時 index-marquee.js 強制 single mode） -->
+      <!-- News Marquee Stack（4 個 banner 旋轉排列在左下角；JS 動態渲染 + cycling） -->
       <div id="homepage-marquee-stack" style="position:absolute; left:0; bottom:0; width:100%; height:100%; z-index:20; pointer-events:none;"></div>
-
-      <!-- Coming Soon 字卡（仿 404 雙語大字 + 隨機散落，沒返回鍵） -->
-      <div class="coming-soon-anchor" data-coming-soon-card="en">
-        <h1 class="coming-soon-card is-huge">COMING SOON</h1>
-      </div>
-      <div class="coming-soon-anchor" data-coming-soon-card="zh">
-        <h1 class="coming-soon-card is-huge">即將登場</h1>
-      </div>
 
       <!-- YouTube Card：絕對定位，JS 負責隨機位置 + 旋轉
            width/height 改由 .homepage-card class 控制（桌面 160 / 手機 96，CSS 分流） -->
@@ -65,6 +51,7 @@
     <video id="video-player" style="width:95%; max-height:90%; object-fit:contain;" preload="metadata" controlsList="nodownload" oncontextmenu="return false;"></video>
 
     <!-- 手機專用左上返回鍵（桌面用 video-controls 內的 close btn，預設隱藏） -->
+    <!-- top:6rem 對齊手機 header logo 下方：header `py-md`(24px) + logo wrapper `-top-4`(-16px) + logo 80px = 88px 底邊 + ~8px 間距 ≈ 96px (6rem)；left 同 logo 邊距 -->
     <button id="video-mobile-close-btn" style="display:none; position:absolute; top:6rem; left:1rem; z-index:10003; background:#00FF80; color:#000; border:none; padding:0.5rem 0.75rem; line-height:1; align-items:center; justify-content:center;">
       <span class="icon icon-arrow-left icon-l"></span>
     </button>
@@ -72,26 +59,32 @@
     <!-- Controls 容器（三個獨立區塊，絕對定位在底部偏上） -->
     <div id="video-controls" style="position:absolute; bottom:3rem; left:0; right:0; padding: 0 24rem; display:flex; align-items:center; justify-content:space-between; pointer-events:none; opacity:0;">
 
+      <!-- 區塊 1：返回鍵 — height fix 3rem 避免內 icon size 變化影響 pill 高度 -->
       <div id="video-block-close" style="background:transparent; padding:0 1rem; height:3rem; display:flex; align-items:center;">
         <button id="video-close-btn" style="color:#fff; background:none; border:none; padding:0; line-height:1; display:flex; align-items:center;">
           <span class="icon icon-arrow-left icon-l"></span>
         </button>
       </div>
 
+      <!-- 區塊 2：中間 control bar -->
       <div id="video-block-center" style="background:transparent; padding:0 1.25rem; height:3rem; display:flex; align-items:center; gap:1.25rem; flex:1; min-width:0; margin:0 1rem;">
 
+        <!-- Play -->
         <button id="video-play-btn" style="color:#fff; background:none; border:none; padding:0; line-height:1; width:1.5rem; text-align:center; flex-shrink:0;">
           <span class="icon icon-play icon-l"></span>
         </button>
 
+        <!-- 時間軸（flex:1）— track 全黑 + fill 全黑（連續黑線）；thumb = 4px 寬黑色直線，靠上下伸出 5px 標位置 -->
         <div id="video-progress-track" style="flex:1; height:4px; background:#000; position:relative; min-width:0;">
           <div id="video-progress-fill" style="height:100%; width:0%; pointer-events:none; position:relative; background:#000;">
             <div id="video-progress-thumb" style="position:absolute; right:-2px; top:50%; transform:translateY(-50%); width:4px; height:14px; background:#000; pointer-events:none;"></div>
           </div>
         </div>
 
+        <!-- 剩餘時間 -->
         <span id="video-time" class="text-p2" style="color:#fff; white-space:nowrap; flex-shrink:0;">0:00</span>
 
+        <!-- Volume — hover 展開 slider；slider 全黑風格同 progress -->
         <div id="video-volume-wrap" style="display:flex; align-items:center; gap:0.75rem; flex-shrink:0;">
           <button id="video-mute-btn" style="color:#fff; background:none; border:none; padding:0; line-height:1;">
             <span class="icon icon-volume icon-l"></span>
@@ -105,6 +98,7 @@
 
       </div>
 
+      <!-- 區塊 3：全螢幕 -->
       <div id="video-block-fullscreen" style="background:transparent; padding:0 1rem; height:3rem; display:flex; align-items:center;">
         <button id="video-fullscreen-btn" style="color:#fff; background:none; border:none; padding:0; line-height:1;">
           <span class="icon icon-full-screen icon-l"></span>
@@ -164,7 +158,9 @@
           </div>
 
           <!-- Social Media Icons + Support
-               臨時 index：.footer-support 由 body.page-coming-soon CSS 隱藏（不從 DOM 拔，避免改動 footer-draggable scatter pool） -->
+               Support 放在 social 內部最左：手機 .footer-social flex-row 自然排列 (support → YT → IG → FB)；
+               桌面 .footer-social { display: contents } 把 4 個 icon wrapper 升級成 .footer-random 視覺子，
+               JS scatter (ITEM_SELECTORS 仍含 .footer-support) 各別散佈 -->
           <div class="footer-social">
             <div class="footer-support">
               <a href="pages/support.html" class="footer-link" aria-label="Support / Donation">
@@ -190,7 +186,7 @@
 
         </div>
 
-        <!-- Privacy（臨時 index：兩個 link 由 body.page-coming-soon CSS 隱藏，保留 SCCD© 版權） -->
+        <!-- Privacy（桌面右下、手機線性最後）— Support 已移到 scatter pool；T&C → Accessibility -->
         <div class="footer-privacy">
           <div class="flex flex-col gap-xs items-start">
             <a href="pages/privacy-policy.html" class="footer-link">Privacy and Security Policies<br>隱私權及資訊安全政策</a>

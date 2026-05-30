@@ -4,16 +4,12 @@
  */
 
 // 桌面 20、手機 12（< 768px）。手機減量是視覺優化，不影響桌面。
-// GRID 初始分配避免 clustering（user 抱怨「擠在一起」），桌面 5×4=20、手機 4×3=12，
-// 兩者 COLS*ROWS 必須剛好等於 TOTAL_ITEMS 才能每 cell 一個 item 保證均勻
 function isMobileViewport() { return window.innerWidth < 768; }
 const TOTAL_ITEMS = isMobileViewport() ? 12 : 20;
-const GRID_COLS = isMobileViewport() ? 4 : 5;
-const GRID_ROWS = isMobileViewport() ? 3 : 4;
 const SPEED_MIN = 0.05;
 const SPEED_MAX = 0.25;
-const IMG_WIDTH = 200; // 所有圖片統一寬度，高度 auto follow 原比例
-const MAX_TEXT_WIDTH = 300;
+const IMG_WIDTH = 140; // 所有圖片統一寬度，高度 auto follow 原比例（2026-05-28 從 200 減 30%）
+const MAX_TEXT_WIDTH = 210; // 2026-05-28 從 300 減 30%
 
 // ── Pool 建立 ──────────────────────────────────────────────
 
@@ -176,7 +172,7 @@ function randomRotation() {
   return sign * (1 + Math.random() * (sign < 0 ? 3 : 5)); // 負：-1~-4，正：1~6
 }
 
-function createImageEl(src, url, showPlayIcon = false) {
+function createImageEl(src, url, showPlayIcon = false, interactive = true) {
   const wrapper = document.createElement(url ? 'a' : 'div');
   if (url) {
     /** @type {HTMLAnchorElement} */ (wrapper).href = url;
@@ -225,32 +221,35 @@ function createImageEl(src, url, showPlayIcon = false) {
     wrapper.appendChild(playIcon);
   }
 
-  // newsOverlay 放最後，蓋住 img、hoverOverlay、playIcon
-  wrapper.appendChild(newsOverlay);
+  // interactive=false：跳過 news hover wipe overlay（臨時 Coming Soon index 純展示用，不訂閱 listener）
+  if (interactive) {
+    // newsOverlay 放最後，蓋住 img、hoverOverlay、playIcon
+    wrapper.appendChild(newsOverlay);
 
-  // 隨機選一個 wipe 方向（上/下/左/右）
-  const wipeDirections = [
-    { hidden: 'inset(100% 0 0 0)', shown: 'inset(0% 0 0 0)' },   // 從上往下
-    { hidden: 'inset(0 0 100% 0)', shown: 'inset(0 0 0% 0)' },   // 從下往上
-    { hidden: 'inset(0 100% 0 0)', shown: 'inset(0 0% 0 0)' },   // 從右往左
-    { hidden: 'inset(0 0 0 100%)', shown: 'inset(0 0 0 0%)' },   // 從左往右
-  ];
-  const wipe = wipeDirections[Math.floor(Math.random() * wipeDirections.length)];
-  newsOverlay.style.clipPath = wipe.hidden;
-
-  // 訂閱 news hover 事件：每次 enter 時隨機選色
-  // mode-color：用 var(--theme-fg) strict 對比，不隨機（與整體 B/W 對比 pattern 一致）
-  newsHoverListeners.enter.push(() => {
-    if (document.body.classList.contains('mode-color')) {
-      newsOverlay.style.background = 'var(--theme-fg)';
-    } else {
-      newsOverlay.style.background = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
-    }
-    newsOverlay.style.clipPath = wipe.shown;
-  });
-  newsHoverListeners.leave.push(() => {
+    // 隨機選一個 wipe 方向（上/下/左/右）
+    const wipeDirections = [
+      { hidden: 'inset(100% 0 0 0)', shown: 'inset(0% 0 0 0)' },   // 從上往下
+      { hidden: 'inset(0 0 100% 0)', shown: 'inset(0 0 0% 0)' },   // 從下往上
+      { hidden: 'inset(0 100% 0 0)', shown: 'inset(0 0% 0 0)' },   // 從右往左
+      { hidden: 'inset(0 0 0 100%)', shown: 'inset(0 0 0 0%)' },   // 從左往右
+    ];
+    const wipe = wipeDirections[Math.floor(Math.random() * wipeDirections.length)];
     newsOverlay.style.clipPath = wipe.hidden;
-  });
+
+    // 訂閱 news hover 事件：每次 enter 時隨機選色
+    // mode-color：用 var(--theme-fg) strict 對比，不隨機（與整體 B/W 對比 pattern 一致）
+    newsHoverListeners.enter.push(() => {
+      if (document.body.classList.contains('mode-color')) {
+        newsOverlay.style.background = 'var(--theme-fg)';
+      } else {
+        newsOverlay.style.background = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
+      }
+      newsOverlay.style.clipPath = wipe.shown;
+    });
+    newsHoverListeners.leave.push(() => {
+      newsOverlay.style.clipPath = wipe.hidden;
+    });
+  }
 
   return { el: wrapper, w: IMG_WIDTH, h: IMG_WIDTH }; // h 暫用 IMG_WIDTH，實際由圖片決定
 }
@@ -454,7 +453,7 @@ function createCircleEl() {
 
 // ── Spawn & Animate ─────────────────────────────────────────
 
-function spawnItem(container, poolEntry, fromEdge = false, cellIndex = -1) {
+function spawnItem(container, poolEntry, fromEdge = false) {
   const cw = container.clientWidth;
   const ch = container.clientHeight;
 
@@ -462,9 +461,10 @@ function spawnItem(container, poolEntry, fromEdge = false, cellIndex = -1) {
   if (!poolEntry || poolEntry.type === 'circle') {
     elData = createCircleEl();
   } else if (poolEntry.type === 'image') {
-    elData = createImageEl(poolEntry.src, poolEntry.url, false);
+    // interactive 預設 true；poolEntry.interactive === false 跳過 news hover wipe（臨時 Coming Soon index）
+    elData = createImageEl(poolEntry.src, poolEntry.url, false, poolEntry.interactive !== false);
   } else if (poolEntry.type === 'video-thumb') {
-    elData = createImageEl(poolEntry.src, poolEntry.url, true);
+    elData = createImageEl(poolEntry.src, poolEntry.url, true, poolEntry.interactive !== false);
   } else if (poolEntry.type === 'text') {
     elData = createTextEl(poolEntry.textEn, poolEntry.textZh, poolEntry.url);
   } else {
@@ -502,20 +502,6 @@ function spawnItem(container, poolEntry, fromEdge = false, cellIndex = -1) {
     else if (edge === 1) { x = cw;               y = rand(-realH, ch); vx = -(Math.abs(vx) + SPEED_MIN); }
     else if (edge === 2) { x = rand(-realW, cw); y = ch;    vy = -(Math.abs(vy) + SPEED_MIN); }
     else                 { x = -realW;            y = rand(-realH, ch); vx = Math.abs(vx) + SPEED_MIN; }
-  } else if (cellIndex >= 0) {
-    // Grid-based 分配：item 落在指定 cell 內 random 位置，保證初始視覺均勻無 clustering
-    const cellW = cw / GRID_COLS;
-    const cellH = ch / GRID_ROWS;
-    const col = cellIndex % GRID_COLS;
-    const row = Math.floor(cellIndex / GRID_COLS);
-    // 在 cell 內 random，但給 item 寬高一些 padding 避免邊緣切到鄰格
-    const padX = Math.min(cellW * 0.1, 20);
-    const padY = Math.min(cellH * 0.1, 20);
-    x = rand(col * cellW + padX, (col + 1) * cellW - realW - padX);
-    y = rand(row * cellH + padY, (row + 1) * cellH - realH - padY);
-    // cell 太小放不下 item 時 fallback 用 cell 中心
-    if (isNaN(x) || x < 0) x = col * cellW + (cellW - realW) / 2;
-    if (isNaN(y) || y < 0) y = row * cellH + (cellH - realH) / 2;
   } else {
     x = rand(-realW * 0.5, cw - realW * 0.5);
     y = rand(-realH * 0.5, ch - realH * 0.5);
@@ -581,12 +567,35 @@ export async function initFloatingItems() {
   const container = document.getElementById('floating-layer');
   if (!container) return;
 
-  // 建立 pool：圖片 + 課程文字 + 獎項文字
-  const [imagePool, coursePool, awardPool] = await Promise.all([
-    fetchActivityPosters(),
-    fetchCourseTexts(),
-    fetchAwardTexts(),
-  ]);
+  // 臨時 Coming Soon index：跳過 activity/course/award fetch，imagePool 直接用 huashan-floating 30 張；
+  // url=null（不導航）+ interactive=false（不訂閱 news hover wipe overlay）
+  // user 2026-05-28 要求「不需要任何互動」
+  const isComingSoon = document.body.classList.contains('page-coming-soon');
+  let imagePool, coursePool, awardPool;
+  if (isComingSoon) {
+    const HUASHAN_FILES = [
+      '2001.jpg','2002.jpg','2003.jpg','2004.jpg','2005.jpg','2005b.jpg',
+      '2006.jpg','2006a.jpg','2007.jpg','2007a.jpg','2008.jpg','2008a.jpg',
+      '2009.jpg','2009a.jpg','2010.jpg','2011.jpg','2012.jpg','2013.jpg',
+      '2014.jpg','2015.jpg','2016.jpg','2017.jpg','2018.jpg','2019.jpg',
+      '2020.jpg','2021.jpg','2022.jpg','2023.jpg','2024.jpg','2025.jpg',
+    ];
+    imagePool = HUASHAN_FILES.map(name => ({
+      type: 'image',
+      src: `images/huashan-floating/${name}`,
+      url: null,
+      interactive: false,
+    }));
+    coursePool = [];
+    awardPool = [];
+  } else {
+    // 建立 pool：圖片 + 課程文字 + 獎項文字
+    [imagePool, coursePool, awardPool] = await Promise.all([
+      fetchActivityPosters(),
+      fetchCourseTexts(),
+      fetchAwardTexts(),
+    ]);
+  }
 
   // 各 pool 獨立洗牌，依 2:1:1 比例隨機取出
   shuffle(imagePool);
@@ -595,7 +604,8 @@ export async function initFloatingItems() {
   const poolCursors = [0, 0, 0];
   const pools = [imagePool, coursePool, awardPool];
   // 權重：圖片 2、課程 1、獎項 1 → 累積 [2, 3, 4]
-  const cumWeights = [2, 3, 4];
+  // 臨時 Coming Soon index：course/award pool 已在 early branch 設空陣列，[1,1,1] 確保命中第一個 image pool
+  const cumWeights = isComingSoon ? [1, 1, 1] : [2, 3, 4];
 
   function nextPoolEntry() {
     const r = Math.random() * cumWeights[cumWeights.length - 1];
@@ -608,11 +618,9 @@ export async function initFloatingItems() {
 
   const items = [];
 
-  // 初始化 items：洗牌 cell 順序讓每次刷新位置不同，但每個 cell 都會有一個 item（保證均勻分佈）
-  const cellOrder = Array.from({ length: GRID_COLS * GRID_ROWS }, (_, i) => i);
-  shuffle(cellOrder);
+  // 初始化 items：pure random 位置（每次刷新完全不同）
   for (let i = 0; i < TOTAL_ITEMS; i++) {
-    items.push(spawnItem(container, nextPoolEntry(), false, cellOrder[i % cellOrder.length]));
+    items.push(spawnItem(container, nextPoolEntry(), false));
   }
 
   let running = true;

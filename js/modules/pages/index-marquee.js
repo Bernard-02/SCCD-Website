@@ -44,12 +44,25 @@ const SLOT_X_DESKTOP = 60;
 const SLOT_X_MOBILE = MOBILE_PADDING_X;
 function slotConfigs() {
   const x = isMobile() ? SLOT_X_MOBILE : SLOT_X_DESKTOP;
+  // 臨時 Coming Soon index single-banner mode：唯一 banner 對齊底部（slot 0 y=-70 同原 slot 2 最底位置）
+  // 不影響 stack 模式（3 banner）— 走 isComingSoonSingle gate
+  if (isComingSoonSingle()) {
+    return [
+      { x, y: -70 },
+      { x, y: -70 },
+      { x, y: -70 },
+    ];
+  }
   // 相鄰 slot y 差 50px = BAR_HEIGHT(40) + 10px 視覺 gap
   return [
     { x, y: -170 },
     { x, y: -120 },
     { x, y:  -70 },
   ];
+}
+
+function isComingSoonSingle() {
+  return document.body.classList.contains('page-coming-soon');
 }
 
 // 旋轉角度刻意壓在 ±0.3° ~ ±1°：bar 寬 ~450px、transform-origin: left center 下，
@@ -63,6 +76,22 @@ function randomRotation() {
 export function initMarquee() {
   const stack = document.getElementById('homepage-marquee-stack');
   if (!stack) return;
+
+  // 臨時 index（body.page-coming-soon）：跳過 fetch，hardcode 單則 degree show banner
+  // 也跳過 cycling（runMarqueeStack 內 items.length <= SLOT_COUNT 時 line 435 自動 return 不 cycle）
+  if (document.body.classList.contains('page-coming-soon')) {
+    const item = {
+      _num: 1,
+      text: '2026 實踐大學設計學院聯展 × 媒體傳達設計學系獨立畢業展覽 進行中 2026 Shih Chien University College of Design Exhibition & Communications Design Degree Show Ongoing ',
+      url: 'https://sccddegreeshow2026.com/',
+      poster: 'images/kv_2.png',
+    };
+    (async () => {
+      await preloadOrientations([item]);
+      runMarqueeStack(stack, [item]);
+    })();
+    return;
+  }
 
   // WP endpoint 回 array of items；失敗時 fallback data/news.json (shape: { items: [...] })
   // _SKIP_WP：本機 dev 跳過 WP fetch（同 activities-data-loader），sessionStorage.wpDev='1' 可強制測 WP
