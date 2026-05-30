@@ -41,8 +41,8 @@ function getIconSuffix(useTargetMode = false) {
   return currentMode === "Inverse" ? "_Inverse" : "";
 }
 
-// /create panel icon 路徑：對應 generate-app 舊命名 → /Website Icons/ 新檔。
-// Website Icons 都是單色黑版，沒有 _Inverse 變體；inverse mode 與 wireframe-needs-white 的白色化
+// /create panel icon 路徑：對應 generate-app 舊命名 → /website-icons/ 新檔。
+// website-icons 都是單色黑版，沒有 _Inverse 變體；inverse mode 與 wireframe-needs-white 的白色化
 // 在 css/components/create.css 用 filter: invert(1) 處理（class .white-icons 切換）。
 // 2026-05-20 全部對應完成，/generate-app/Panel Icon/ 資料夾已刪。
 const _PANEL_ICON_MAP = {
@@ -73,11 +73,11 @@ const _PANEL_ICON_MAP = {
 };
 function panelIcon(name) {
   const mapped = _PANEL_ICON_MAP[name];
-  return mapped ? `/Website Icons/${mapped}.svg` : '';
+  return mapped ? `/website-icons/${mapped}.svg` : '';
 }
 
 // 切換 #create-app.white-icons class：inverse mode 一律白，wireframe 看 stroke 色亮度。
-// CSS 規則用 .white-icons 觸發 filter: invert(1)，把 Website Icons 黑版變白版。
+// CSS 規則用 .white-icons 觸發 filter: invert(1)，把 website-icons 黑版變白版。
 function updatePanelIconColorClass() {
   const el = document.getElementById('create-app');
   if (!el) return;

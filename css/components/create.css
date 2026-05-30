@@ -153,7 +153,7 @@
   color: inherit;
 }
 
-/* Panel icons 切換到 /Website Icons/ 後沒有 _Inverse 變體（單色黑版），
+/* Panel icons 切換到 /website-icons/ 後沒有 _Inverse 變體（單色黑版），
    inverse mode 黑底會看不見；wireframe 模式視 stroke 色亮度決定要不要白。
    utils.js updatePanelIconColorClass() 切 .white-icons class，這裡用 filter invert(1) 把黑變白。
    landscape-overlay-icon 不在 button 內，獨立列；它跟 button img 用同一條件白色化。 */
