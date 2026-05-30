@@ -9,6 +9,13 @@
  *   - `* { box-sizing }` 改 `#create-app *`（限縮 scope）
  * ============================================================ */
 
+/* 隱藏手機 header mode-btn（桌面 #mode-btn 已由 animateHeaderModeBtnHide clip-reveal 退場，
+   但手機 #mode-btn-mobile 沒對應動畫；create 頁 mode 由頁內 colormode-button 控制，
+   header mode-btn 留著只會誤點 — 桌面已 disabled 視覺也 hide，手機直接 display:none） */
+#mode-btn-mobile {
+  display: none !important;
+}
+
 
 @font-face {
   font-family: "Inter-Medium";

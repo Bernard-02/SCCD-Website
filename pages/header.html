@@ -92,11 +92,14 @@
 
     <!-- 手機版：logo + 漢堡按鈕 -->
     <div class="grid-12 items-center py-md md:hidden">
-      <div class="col-span-6 relative">
-        <a href="../index.html" class="absolute -top-4 left-0 z-50">
-          <!-- 手機 logo Lottie：id 用 header-logo-mobile（避 desktop #header-logo 撞 id），header.js 拿到後 lottie.loadAnimation 跟桌面同檔同 mode 切換 -->
+      <div class="col-span-6 relative flex items-center">
+        <!-- Lottie 圓圈 logo：absolute + -top-4 是因 80×80 圓圈視覺中心對齊 grid row 需要往上補 16px
+             SCCD 文字 logo：normal flow 在 col-span-6 內，flex items-center 自動垂直對齊 mode/menu btn 那排
+             兩個 sibling 互斥（Lottie 顯示時 SCCD .hidden；進 /create 反過來），由 header.js 切換 -->
+        <a href="../index.html" class="absolute -top-4 left-0 z-50" data-mobile-logo-lottie-anchor>
           <div id="header-logo-mobile" class="w-[80px] h-[80px]"></div>
         </a>
+        <a href="../index.html" id="header-logo-mobile-sccd" class="hidden z-50" data-mobile-logo-sccd-anchor></a>
       </div>
       <div class="col-span-6 flex justify-end items-center gap-sm relative z-50">
         <!-- mobile mode-btn：跟桌面 #mode-btn 同 bg 邏輯（bg = page bg / mode-aware）— 用 #mode-btn-mobile id 對接 buttons.css 規則

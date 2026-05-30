@@ -1143,7 +1143,26 @@ function draw() {
   //   wireframeColor 卡在 setup 時的初始值跟 site `--theme-bg` 完全脫節（user 看到 cyan vs purple）
   if (mode === "Wireframe") {
     if (typeof window.sccdGetColorHue === 'function') {
-      selectedHue = window.sccdGetColorHue();
+      // site colorHue 永遠 0-360 wrap；但 color-picker.js drawColorBarIndicator 的循環繪製
+      // （主圓推出右邊 + 左邊同步畫循環圓圈）依賴 selectedHue 在 0-720 區間滑才會 trigger，
+      // 否則手機 bar indicator 從 359.x → 0.x 會直接跳回左邊（user 2026-05-31 反饋「跳著出現」）
+      // 拆 iframe 前 sketch.js 自己 `+= baseSpeeds[0]` 推進在 720 才 -360，這裡 mimic 同效果：
+      // 偵測 site 跨 0 wrap（新值比 prev normalized 小很多）時補 360；到達 720 時再 reset
+      const siteHue = window.sccdGetColorHue();
+      const prevNorm = ((selectedHue % 360) + 360) % 360;
+      const inSecondLap = selectedHue >= 360;
+      const siteWrapped = siteHue + 30 < prevNorm;
+      if (inSecondLap && siteWrapped) {
+        // 完成第二圈（主圓已離開右邊、循環圓圈成為 bar 內新主圓）→ reset 回第一圈
+        selectedHue = siteHue;
+      } else if (siteWrapped) {
+        // 第一圈內 site 從 ~360 wrap 回 ~0：進入第二圈，selectedHue 持續往 720 滑
+        selectedHue = siteHue + 360;
+      } else if (inSecondLap) {
+        selectedHue = siteHue + 360;
+      } else {
+        selectedHue = siteHue;
+      }
     }
 
     // 計算 wireframeColor + stroke 對比色（給 p5 canvas 內 ring 繪製用，純 frame buffer 不碰 DOM）
@@ -1854,6 +1873,11 @@ function resetCreateAppUserState() {
   inputBoxOpacity = 0;
   logoOpacity = 0;
   controlPanelOpacity = 0;
+  // Placeholder alpha：user 上次 session 打過字 → targetPlaceholderAlpha=0, placeholderAlpha lerp 到 0
+  // 殘留下 session 重進 letters=[] 走 placeholder 分支，但 drawPlaceholder lerp(0, 0) 永遠 0 → 看不到
+  // 必須兩個都 reset 回 255，讓新 session 從 placeholder 顯示開始（user 2026-05-31 反饋）
+  placeholderAlpha = 255;
+  targetPlaceholderAlpha = 255;
   // Placeholder SVG images：loadPlaceholderImages 用 if (!placeholderR) 守衛只 load 一次；
   // SPA 重進 _p5.remove() 後 image 綁的是已銷毀的 p5 instance，留著 truthy → 新 p5 不重 load
   // → drawPlaceholder 早期 null-check 走通但 pg.image 對舊 instance 的 image obj 不渲染（wireframe placeholder 不見）

@@ -80,76 +80,127 @@ export function killGenerateLogoTimeline() {
 
 // ── 手機 /create 不跑 typewriter，直接把 Lottie 換成靜態 SCCD svg（user 2026-05-26 拍板「方向 2」）
 // 桌面 typewriter 敘事在 80x80 viewport 撐不開（字距常數寫死桌面 180→100 shrink），手機簡化視覺
-// 同 viewBox 1135:320 比例下 80x80 容器內 SCCD 字寬 ≈ 80，視覺重點放 canvas 不放 header
-const MOBILE_GEN_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1135 320" style="width:100%;height:auto;display:block;color:currentColor;fill:currentColor"><g><path d="M120.05,320c-37.17,0-66.48-9.4-87.91-28.19C10.72,273.01,0,247.25,0,214.51h46.19c.14,20.39,6.69,36.34,19.66,47.85,12.97,11.52,31.03,17.27,54.2,17.27,21.08,0,37.97-4.47,50.66-13.42,12.69-8.95,19.04-20.98,19.04-36.1,0-11.93-4.54-21.6-13.63-29.02-9.09-7.42-24.38-13.7-45.88-18.83l-33.91-8.11c-31.35-7.49-54.2-17.93-68.56-31.31-14.36-13.38-21.53-30.83-21.53-52.33,0-18.17,4.58-34.05,13.73-47.65,9.15-13.59,22.02-24.14,38.6-31.63C75.14,3.75,94.53,0,116.72,0c33.43,0,60.03,8.74,79.79,26.22,19.77,17.48,30.13,41.34,31.11,71.57h-44.73c-1.11-17.89-7.63-31.94-19.56-42.13-11.93-10.19-27.67-15.29-47.23-15.29s-34.05,4.47-45.98,13.42c-11.93,8.95-17.89,20.43-17.89,34.43,0,11.24,4.58,20.36,13.73,27.36,9.15,7.01,24.34,13.08,45.57,18.21l33.5,7.91c31.07,7.35,53.99,17.96,68.76,31.83,14.77,13.87,22.16,31.91,22.16,54.1,0,18.59-4.79,34.82-14.36,48.69-9.57,13.87-23.03,24.62-40.36,32.25-17.34,7.63-37.73,11.44-61.17,11.44Z"/><path d="M413,320c-28.44,0-53.54-6.73-75.32-20.18-21.78-13.45-38.77-32.18-50.98-56.18-12.21-24-18.31-51.81-18.31-83.43s6.1-59.85,18.31-83.85c12.2-24,29.16-42.72,50.87-56.18C359.29,6.73,384.43,0,413,0c22.61,0,43.1,4.44,61.48,13.32,18.38,8.88,33.6,21.4,45.67,37.56,12.07,16.16,19.9,35.27,23.51,57.32h-47.02c-4.58-21.08-14.32-37.35-29.23-48.79-14.91-11.44-32.91-17.17-53.99-17.17s-37.94,4.93-52.64,14.77c-14.7,9.85-26.04,23.65-34.02,41.4-7.98,17.76-11.96,38.35-11.96,61.79s3.95,43.97,11.86,61.59c7.91,17.62,19.25,31.35,34.02,41.2,14.77,9.85,32.35,14.77,52.74,14.77s38.87-5.69,53.78-17.06c14.91-11.37,24.79-27.53,29.65-48.48h46.81c-3.61,21.92-11.44,40.96-23.51,57.11-12.07,16.16-27.29,28.64-45.67,37.45-18.38,8.81-38.88,13.21-61.48,13.21Z"/><path d="M721.35,320c-28.44,0-53.54-6.73-75.32-20.18-21.78-13.45-38.77-32.18-50.98-56.18-12.21-24-18.31-51.81-18.31-83.43s6.1-59.85,18.31-83.85c12.2-24,29.16-42.72,50.87-56.18,21.71-13.45,46.85-20.18,75.42-20.18,22.61,0,43.1,4.44,61.48,13.32,18.38,8.88,33.6,21.4,45.67,37.56,12.07,16.16,19.9,35.27,23.51,57.32h-47.02c-4.58-21.08-14.32-37.35-29.23-48.79-14.91-11.44-32.91-17.17-53.99-17.17s-37.94,4.93-52.64,14.77c-14.7,9.85-26.04,23.65-34.02,41.4-7.98,17.76-11.96,38.35-11.96,61.79s3.95,43.97,11.86,61.59c7.91,17.62,19.25,31.35,34.02,41.2,14.77,9.85,32.35,14.77,52.74,14.77s38.87-5.69,53.78-17.06c14.91-11.37,24.79-27.53,29.65-48.48h46.81c-3.61,21.92-11.44,40.96-23.51,57.11-12.07,16.16-27.29,28.64-45.67,37.45-18.38,8.81-38.88,13.21-61.48,13.21Z"/><path d="M984.99,315.01h-100.29V4.99h103.41c30.38,0,56.56,6.24,78.54,18.73,21.98,12.48,38.87,30.27,50.66,53.37,11.79,23.1,17.69,50.6,17.69,82.5s-5.93,59.68-17.79,82.91c-11.86,23.23-28.99,41.13-51.39,53.68-22.4,12.56-49.35,18.83-80.83,18.83ZM930.89,274.85h51.18c36.2,0,63.01-10.2,80.42-30.59,17.41-20.39,26.11-48.62,26.11-84.68s-8.6-63.98-25.8-84.16c-17.2-20.18-43.07-30.27-77.61-30.27h-54.3v229.7Z"/></g></svg>`;
+// svg 用 height:44px 對齊 .mobile-header-btn（44×44），父 <a> -top-4 抵消（top:0）讓 SCCD 跟 mode/menu btn 同基線
+const MOBILE_GEN_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1135 320" style="width:80px;height:auto;display:block;color:currentColor;fill:currentColor"><g><path d="M120.05,320c-37.17,0-66.48-9.4-87.91-28.19C10.72,273.01,0,247.25,0,214.51h46.19c.14,20.39,6.69,36.34,19.66,47.85,12.97,11.52,31.03,17.27,54.2,17.27,21.08,0,37.97-4.47,50.66-13.42,12.69-8.95,19.04-20.98,19.04-36.1,0-11.93-4.54-21.6-13.63-29.02-9.09-7.42-24.38-13.7-45.88-18.83l-33.91-8.11c-31.35-7.49-54.2-17.93-68.56-31.31-14.36-13.38-21.53-30.83-21.53-52.33,0-18.17,4.58-34.05,13.73-47.65,9.15-13.59,22.02-24.14,38.6-31.63C75.14,3.75,94.53,0,116.72,0c33.43,0,60.03,8.74,79.79,26.22,19.77,17.48,30.13,41.34,31.11,71.57h-44.73c-1.11-17.89-7.63-31.94-19.56-42.13-11.93-10.19-27.67-15.29-47.23-15.29s-34.05,4.47-45.98,13.42c-11.93,8.95-17.89,20.43-17.89,34.43,0,11.24,4.58,20.36,13.73,27.36,9.15,7.01,24.34,13.08,45.57,18.21l33.5,7.91c31.07,7.35,53.99,17.96,68.76,31.83,14.77,13.87,22.16,31.91,22.16,54.1,0,18.59-4.79,34.82-14.36,48.69-9.57,13.87-23.03,24.62-40.36,32.25-17.34,7.63-37.73,11.44-61.17,11.44Z"/><path d="M413,320c-28.44,0-53.54-6.73-75.32-20.18-21.78-13.45-38.77-32.18-50.98-56.18-12.21-24-18.31-51.81-18.31-83.43s6.1-59.85,18.31-83.85c12.2-24,29.16-42.72,50.87-56.18C359.29,6.73,384.43,0,413,0c22.61,0,43.1,4.44,61.48,13.32,18.38,8.88,33.6,21.4,45.67,37.56,12.07,16.16,19.9,35.27,23.51,57.32h-47.02c-4.58-21.08-14.32-37.35-29.23-48.79-14.91-11.44-32.91-17.17-53.99-17.17s-37.94,4.93-52.64,14.77c-14.7,9.85-26.04,23.65-34.02,41.4-7.98,17.76-11.96,38.35-11.96,61.79s3.95,43.97,11.86,61.59c7.91,17.62,19.25,31.35,34.02,41.2,14.77,9.85,32.35,14.77,52.74,14.77s38.87-5.69,53.78-17.06c14.91-11.37,24.79-27.53,29.65-48.48h46.81c-3.61,21.92-11.44,40.96-23.51,57.11-12.07,16.16-27.29,28.64-45.67,37.45-18.38,8.81-38.88,13.21-61.48,13.21Z"/><path d="M721.35,320c-28.44,0-53.54-6.73-75.32-20.18-21.78-13.45-38.77-32.18-50.98-56.18-12.21-24-18.31-51.81-18.31-83.43s6.1-59.85,18.31-83.85c12.2-24,29.16-42.72,50.87-56.18,21.71-13.45,46.85-20.18,75.42-20.18,22.61,0,43.1,4.44,61.48,13.32,18.38,8.88,33.6,21.4,45.67,37.56,12.07,16.16,19.9,35.27,23.51,57.32h-47.02c-4.58-21.08-14.32-37.35-29.23-48.79-14.91-11.44-32.91-17.17-53.99-17.17s-37.94,4.93-52.64,14.77c-14.7,9.85-26.04,23.65-34.02,41.4-7.98,17.76-11.96,38.35-11.96,61.79s3.95,43.97,11.86,61.59c7.91,17.62,19.25,31.35,34.02,41.2,14.77,9.85,32.35,14.77,52.74,14.77s38.87-5.69,53.78-17.06c14.91-11.37,24.79-27.53,29.65-48.48h46.81c-3.61,21.92-11.44,40.96-23.51,57.11-12.07,16.16-27.29,28.64-45.67,37.45-18.38,8.81-38.88,13.21-61.48,13.21Z"/><path d="M984.99,315.01h-100.29V4.99h103.41c30.38,0,56.56,6.24,78.54,18.73,21.98,12.48,38.87,30.27,50.66,53.37,11.79,23.1,17.69,50.6,17.69,82.5s-5.93,59.68-17.79,82.91c-11.86,23.23-28.99,41.13-51.39,53.68-22.4,12.56-49.35,18.83-80.83,18.83ZM930.89,274.85h51.18c36.2,0,63.01-10.2,80.42-30.59,17.41-20.39,26.11-48.62,26.11-84.68s-8.6-63.98-25.8-84.16c-17.2-20.18-43.07-30.27-77.61-30.27h-54.3v229.7Z"/></g></svg>`;
 
 /**
- * 手機進 /create：清掉 Lottie ring + 注入靜態 SCCD svg
+ * 手機進 /create：fade out Lottie anchor → swap（Lottie hidden + SCCD show）→ fade in SCCD
+ * SCCD 注入到 sibling #header-logo-mobile-sccd（normal flow，flex items-center 在 grid row 內垂直對齊 mode-btn），
+ * Lottie 仍在原本 absolute -top-4 <a> 內 — 不改父 <a>，純切 hidden/show
  * fill:currentColor → 跟著 mode 自動切色（mode1 黑/mode2 白/mode3 currentColor 由 .mode-color rule 處理）
  */
 function applyMobileGenerateLogo() {
   const mobileLogo = document.getElementById('header-logo-mobile');
-  if (!mobileLogo) return;
-  if (typeof lottie !== 'undefined') {
-    try { lottie.destroy('header-logo-mobile-anim'); } catch (e) { /* 沒 anim 可砸時 silent */ }
+  const sccdAnchor = document.getElementById('header-logo-mobile-sccd');
+  if (!mobileLogo || !sccdAnchor) return;
+  // Same-page reentry skip：上一輪已注入 SCCD svg 還在 → noop（沒 destroy 沒 fade 重做）
+  if (sccdAnchor.dataset.logoType === 'mobile-generate-svg' && sccdAnchor.innerHTML.includes('<svg')) return;
+  const lottieAnchor = /** @type {HTMLElement | null} */ (mobileLogo.closest('a'));
+
+  const swap = () => {
+    if (typeof lottie !== 'undefined') {
+      try { lottie.destroy('header-logo-mobile-anim'); } catch (e) { /* 沒 anim 可砸時 silent */ }
+    }
+    mobileLogo.innerHTML = '';
+    if (lottieAnchor) lottieAnchor.classList.add('hidden');
+    sccdAnchor.innerHTML = MOBILE_GEN_LOGO_SVG;
+    sccdAnchor.classList.remove('hidden');
+    sccdAnchor.dataset.logoType = 'mobile-generate-svg'; // 給 restore guard 用
+  };
+
+  if (typeof gsap === 'undefined') { swap(); return; }
+  if (lottieAnchor) {
+    gsap.to(lottieAnchor, {
+      opacity: 0,
+      duration: 0.25,
+      ease: 'power2.out',
+      onComplete: () => {
+        swap();
+        lottieAnchor.style.opacity = ''; // 還原供下次 restore 時 fade 用
+        gsap.fromTo(sccdAnchor, { opacity: 0 }, { opacity: 1, duration: 0.35, ease: 'power2.out' });
+      }
+    });
+  } else {
+    swap();
+    gsap.fromTo(sccdAnchor, { opacity: 0 }, { opacity: 1, duration: 0.35, ease: 'power2.out' });
   }
-  mobileLogo.innerHTML = MOBILE_GEN_LOGO_SVG;
-  mobileLogo.dataset.logoType = 'mobile-generate-svg'; // 給 mode listener 區分用，避被誤當作 Lottie 重 load
-  // 用 flex 置中，並讓 svg 高度自然由寬度算（aspect-ratio 1135:320 ≈ 3.55）
-  mobileLogo.style.display = 'flex';
-  mobileLogo.style.alignItems = 'center';
-  mobileLogo.style.justifyContent = 'flex-start';
 }
 
 /**
- * 出 /create 還原手機 logo：清掉 SCCD svg + 讓 mode-listener 重 load Lottie
- * 直接 dispatch 一個假 theme:changed 不行（listener 內有 lastMode short-circuit）；
- * 改寫 dataset.logoType 後手動 dispatch mode change 不夠乾淨。最簡單：直接清 innerHTML + 重 init 一次 Lottie
+ * 出 /create 還原手機 logo：fade out SCCD → swap（SCCD hidden + Lottie show + 重 load Lottie）→ fade in Lottie
  */
 function restoreMobileGenerateLogo() {
   const mobileLogo = document.getElementById('header-logo-mobile');
-  if (!mobileLogo) return;
-  if (mobileLogo.dataset.logoType !== 'mobile-generate-svg') return; // 不是 /create 注入的 svg，不動
-  mobileLogo.innerHTML = '';
-  mobileLogo.style.display = '';
-  mobileLogo.style.alignItems = '';
-  mobileLogo.style.justifyContent = '';
-  delete mobileLogo.dataset.logoType;
-  if (typeof lottie === 'undefined') return;
-  // 跟 initHeader 內 loadMobileLogo 同邏輯：依當前 mode 載對應檔案
-  const isInverseM = document.body.classList.contains('mode-inverse');
-  const isColorM = document.body.classList.contains('mode-color');
-  let logoFileM;
-  if (isColorM) logoFileM = 'SCCDLogoWireframeStandard.json';
-  else if (isInverseM) logoFileM = 'SCCDLogoInverse.json';
-  else logoFileM = 'SCCDLogoStandard.json';
-  const logoPathM = new URL(`data/${logoFileM}`, window.location.origin).href;
-  const anim = lottie.loadAnimation({
-    container: mobileLogo,
-    renderer: 'svg',
-    loop: true,
-    autoplay: true,
-    name: 'header-logo-mobile-anim',
-    path: logoPathM,
-    rendererSettings: { preserveAspectRatio: 'xMidYMid meet' }
-  });
-  anim.addEventListener('DOMLoaded', () => {
-    const svg = mobileLogo.querySelector('svg');
-    if (svg) {
-      svg.style.overflow = 'visible';
-      svg.setAttribute('viewBox', '0 0 1080 1080');
+  const sccdAnchor = document.getElementById('header-logo-mobile-sccd');
+  if (!mobileLogo || !sccdAnchor) return;
+  if (sccdAnchor.dataset.logoType !== 'mobile-generate-svg') return; // 不是 /create 注入狀態，不動
+  const lottieAnchor = /** @type {HTMLElement | null} */ (mobileLogo.closest('a'));
+
+  const swap = () => {
+    sccdAnchor.innerHTML = '';
+    sccdAnchor.classList.add('hidden');
+    delete sccdAnchor.dataset.logoType;
+    if (lottieAnchor) lottieAnchor.classList.remove('hidden');
+    if (typeof lottie === 'undefined') return;
+    // 跟 initHeader 內 loadMobileLogo 同邏輯：依當前 mode 載對應檔案
+    const isInverseM = document.body.classList.contains('mode-inverse');
+    const isColorM = document.body.classList.contains('mode-color');
+    let logoFileM;
+    if (isColorM) logoFileM = 'SCCDLogoWireframeStandard.json';
+    else if (isInverseM) logoFileM = 'SCCDLogoInverse.json';
+    else logoFileM = 'SCCDLogoStandard.json';
+    const logoPathM = new URL(`data/${logoFileM}`, window.location.origin).href;
+    const anim = lottie.loadAnimation({
+      container: mobileLogo,
+      renderer: 'svg',
+      loop: true,
+      autoplay: true,
+      name: 'header-logo-mobile-anim',
+      path: logoPathM,
+      rendererSettings: { preserveAspectRatio: 'xMidYMid meet' }
+    });
+    anim.addEventListener('DOMLoaded', () => {
+      const svg = mobileLogo.querySelector('svg');
+      if (svg) {
+        svg.style.overflow = 'visible';
+        svg.setAttribute('viewBox', '0 0 1080 1080');
+      }
+    });
+  };
+
+  if (typeof gsap === 'undefined') { swap(); return; }
+  gsap.to(sccdAnchor, {
+    opacity: 0,
+    duration: 0.25,
+    ease: 'power2.out',
+    onComplete: () => {
+      swap();
+      sccdAnchor.style.opacity = '';
+      if (lottieAnchor) gsap.fromTo(lottieAnchor, { opacity: 0 }, { opacity: 1, duration: 0.35, ease: 'power2.out' });
     }
   });
 }
 
 // ── Generate Logo Typewriter 動畫（SPA 換頁時呼叫）────────────
 export function triggerGenerateLogo() {
+  const logo = document.getElementById('header-logo');
+  // Same-page reentry skip：cleanup 已 skip restoreHeaderLogo，typewriter SCCD svg + 4 letter 完成態仍在 logo container
+  // → 偵測到完成態（gen-logo-svg 存在 + 4 paths 全 opacity:1）就 noop，logo 完全靜止
+  // 必須在 mobile early-return 跟 timeline kill 之前判斷，避免重複觸發
+  const existingSvg = logo?.parentNode?.querySelector('#gen-logo-svg');
+  if (existingSvg) {
+    const paths = Array.from(existingSvg.querySelectorAll('path'));
+    const allVisible = paths.length === 4 && paths.every(
+      p => parseFloat(/** @type {HTMLElement} */ (p).style.opacity || '0') > 0.5
+    );
+    if (allVisible) return;
+  }
+
   // 手機走簡化版：靜態 SCCD svg，不跑 typewriter
   if (window.innerWidth < 768) {
     applyMobileGenerateLogo();
     return;
   }
-  const logo = document.getElementById('header-logo');
   if (!logo || typeof gsap === 'undefined') return;
 
   // 重複觸發或上一輪殘留 → kill 再重來
@@ -851,9 +902,10 @@ export function initHeader() {
                       : document.body.classList.contains('mode-inverse') ? 'inverse' : 'standard';
         if (newMode === lastMode) return; // hue update 跳過
         lastMode = newMode;
-        // /create 手機已用 applyMobileGenerateLogo 把 Lottie 換成 SCCD svg；mode 切換時不要 loadMobileLogo 蓋掉
-        // dataset.logoType === 'mobile-generate-svg' 是 applyMobileGenerateLogo 設的標記
-        if (mobileLogo.dataset.logoType === 'mobile-generate-svg') return;
+        // /create 手機已用 applyMobileGenerateLogo 把 Lottie hidden + show SCCD anchor；mode 切換時不要 loadMobileLogo 蓋掉
+        // sccdAnchor.dataset.logoType === 'mobile-generate-svg' 是 applyMobileGenerateLogo 設的標記（sibling anchor 上）
+        const sccdAnchorEl = document.getElementById('header-logo-mobile-sccd');
+        if (sccdAnchorEl && sccdAnchorEl.dataset.logoType === 'mobile-generate-svg') return;
         loadMobileLogo();
       });
     }

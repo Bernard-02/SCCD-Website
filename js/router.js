@@ -57,8 +57,26 @@ const PAGE_CSS = {
 };
 
 function loadPageCSS(page) {
-  // 移除舊的頁面專屬 CSS
-  document.querySelectorAll('link[data-page-css]').forEach(el => el.remove());
+  // 移除舊的頁面專屬 CSS：要同時涵蓋兩種來源
+  //   1. 上次切頁時 loadPageCSS 動態插入的（有 data-page-css attr）
+  //   2. 直接 refresh 內頁時 pages/X.html `<head>` 內 inline 寫死的 `<link href="../css/components/X.css">`
+  //      → 沒 data-page-css attr，但 href 一定命中 PAGE_CSS values
+  //   若只 query `[data-page-css]` 會漏 case 2，導致 refresh /create 後切回 index 時
+  //   create.css 永久殘留（user 2026-05-31 反饋 index 看不到 mode-btn-mobile，因 create.css
+  //   `#mode-btn-mobile { display:none !important }` 全頁繼續 cascade）
+  const pageCssBasenames = Object.values(PAGE_CSS).map(h => h.split('/').pop());
+  document.querySelectorAll('link[rel="stylesheet"]').forEach(el => {
+    const link = /** @type {HTMLLinkElement} */ (el);
+    if (link.dataset.pageCss) {
+      link.remove();
+      return;
+    }
+    // inline link：用 basename 比對避免 ../css/ vs /css/ 寫法差異
+    const linkBasename = link.href.split('/').pop();
+    if (linkBasename && pageCssBasenames.includes(linkBasename)) {
+      link.remove();
+    }
+  });
   // 載入新的（如果有）
   const href = PAGE_CSS[page];
   if (!href) return;
@@ -120,8 +138,8 @@ async function loadPage(route, search = '') {
     const newMain = doc.querySelector('main');
     if (!newMain) throw new Error('No <main> found in ' + route.htmlFile);
 
-    // Cleanup 上一頁
-    cleanupPageModules();
+    // Cleanup 上一頁；帶 destPage 讓 cleanup 知道是否是 same-page reentry（決定要不要 restoreHeaderLogo）
+    cleanupPageModules(route.page);
 
     // 先捲到頂部，避免替換後舊 scrollY 超過新頁高度被鎖在 footer
     scrollToTop();

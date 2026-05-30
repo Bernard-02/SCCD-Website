@@ -304,7 +304,13 @@ export function updateToggleBtnVisualState(page) {
   if (isGenerate && !wasGenerate) {
     import('../../header.js').then(({ animateHeaderModeBtnHide }) => animateHeaderModeBtnHide());
   } else if (!isGenerate && wasGenerate) {
-    import('../../header.js').then(({ animateHeaderModeBtnShow }) => animateHeaderModeBtnShow());
+    // 若 playCreateExitAnimation 已並行跑 show 動畫（user 2026-05-31 對稱反向需求），
+    // 這裡跳過避免重播；flag 由 create-app exit timeline set，用完即清
+    if (window.__sccdModeBtnShowInExit) {
+      window.__sccdModeBtnShowInExit = false;
+    } else {
+      import('../../header.js').then(({ animateHeaderModeBtnShow }) => animateHeaderModeBtnShow());
+    }
   }
   _lastUpdateTogglePage = page;
 }

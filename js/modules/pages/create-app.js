@@ -125,12 +125,18 @@ async function loadAllScripts() {
 function playCreateExitAnimation(destinationRoute) {
   if (typeof gsap === 'undefined') return Promise.resolve();
 
-  if (typeof killGenerateLogoTimeline === 'function') killGenerateLogoTimeline();
-
   const isMobile = window.matchMedia('(max-width: 768px)').matches;
   const destPage = destinationRoute?.page;
   // library / atlas 用 100px 小 logo；其他頁（含 alumni / about / index）皆 180px 大 logo
   const isSmallDestLogo = destPage === 'library' || destPage === 'atlas';
+  // Same-page reentry（/create 點 header CREATE!）：page exit 內 content 元素正常退場，
+  // 但 header logo (SCCD typewriter) **完全不動**——user 2026-05-31 拍板「邏輯跟其他頁切到同頁
+  // 旋轉 logo 不重做一樣，only header 不受影響、內容該退就退」
+  const isSamePageReentry = destPage === 'generate';
+
+  // Same-page reentry 不 kill timeline、不動 SCCD/cursor/logo size/opacity；
+  // 但 triggerGenerateLogo 開頭也會偵測 same-page skip 重播，所以前頁殘留 typewriter 完整保留
+  if (!isSamePageReentry && typeof killGenerateLogoTimeline === 'function') killGenerateLogoTimeline();
 
   // ── 偵測 logo 當前狀態 ──
   //   State A：typewriter 已跑到 Lottie destroy 步驟（SCCD letters 顯示，Lottie 不在 #header-logo 內）
@@ -147,7 +153,8 @@ function playCreateExitAnimation(destinationRoute) {
   // ── State A only：snap header-logo 尺寸 + 之後設 opacity:0 觸發下一頁 reveal ──
   //   State B (Lottie 還在) 不 snap、不 opacity:0：讓下一頁的 updateNavActive 跑 fromTo 平滑 resize，
   //   switchHeaderLogo 走 skip path（dataset.logoType 相符 + svg 在）+ needsReveal=false → 不跑 reveal
-  if (!lottieStillAlive && headerLogo && !isMobile) {
+  //   Same-page reentry 完全不碰 headerLogo（user 期望 header 完全靜止）
+  if (!isSamePageReentry && !lottieStillAlive && headerLogo && !isMobile) {
     const targetLogoSize = isSmallDestLogo ? 100 : 180;
     gsap.set(headerLogo, { width: targetLogoSize, height: targetLogoSize });
   }
@@ -192,10 +199,35 @@ function playCreateExitAnimation(destinationRoute) {
   // 元素 yPercent 移動時內容會滑出這個 clip window → 看起來像「內容剛好被剪在自己邊界」）
   // 量不到（canvas 還沒畫好 / textarea 空字串）就 fallback wrapper 原本大小（= container bbox）
   if (layoutItems.length > 0) {
+    // ⚠️ 先量 item 在 wrap 之前的實際 layout 尺寸（flex item / explicit width 等都已 resolve）
+    //    setupClipReveal 內部建 wrapper 時 wrapper 預設 display:block 沒 explicit width/height，
+    //    成為新的 flex item 後預設 fit-content 寬度 → textarea (width:100%) 會被擠窄
+    //    寬度變窄會讓 textarea placeholder/文字 re-wrap 視覺跳動（user 2026-05-31 反饋手機桌面都有）
+    //    解法：wrap 後對 wrapper 直接 set width/height 為 item 原 bbox，鎖住尺寸不變
+    const preWrapSizes = layoutItems.map(item => {
+      const r = item.getBoundingClientRect();
+      return { w: r.width, h: r.height };
+    });
     setupClipReveal(layoutItems, { hide: false });
-    layoutItems.forEach(item => {
+    layoutItems.forEach((item, i) => {
       const wrapper = /** @type {HTMLElement | null} */ (item.parentElement);
       if (!wrapper || !wrapper.classList.contains('clip-reveal-wrapper')) return;
+      // 鎖 wrapper 尺寸 = 原 item bbox，避免 wrap 後 collapse 造成 child 寬度跳動
+      const preSize = preWrapSizes[i];
+      if (preSize && preSize.w > 0 && preSize.h > 0) {
+        wrapper.style.width = `${preSize.w}px`;
+        wrapper.style.height = `${preSize.h}px`;
+        wrapper.style.flexShrink = '0';
+      }
+      // 手機跳過 measureLayoutItemBbox 精準裁剪：
+      //   1. mirror div 用 pre-wrap + word-wrap:break-word 量出來會 wrap 成多行，但實際 textarea
+      //      在手機渲染 placeholder「TYPE AND ENTER」是單行（textarea 行為跟 mirror 不一致），
+      //      bbox.width 算錯導致 clip-path 把 placeholder 右半截斷（user 2026-05-31 反饋）
+      //   2. 手機 .mobile-input-area / .mobile-logo-container 都緊貼內容沒大空白要剪，
+      //      用整個 wrapper 範圍當 clip 區即可（= 等同 overflow-y:clip 行為）
+      // 桌面仍需精準 bbox：input-container 540×540 + textarea 內容只占一部分，必須剪到內容邊界
+      // 才不會在 textarea 大塊空白區也跑 yPercent 動畫看起來怪
+      if (isMobile) return;
       const bbox = measureLayoutItemBbox(/** @type {HTMLElement} */ (item));
       if (!bbox) return;
       const ww = wrapper.offsetWidth, wh = wrapper.offsetHeight;
@@ -238,9 +270,35 @@ function playCreateExitAnimation(destinationRoute) {
 
     const tl = gsap.timeline({ onComplete: () => { clearTimeout(safety); done(); } });
 
-    // Header mode-btn show 動畫已移到 theme-toggle.js updateToggleBtnVisualState 內
-    // 偵測 leaving /create transition 時 fire — 在新頁面 init 階段 play，user 看到新頁面才開始展開
-    // 不放這裡跟 control-bar exit 並行：user 視線在主內容退場，mode-btn 動畫被「掩蓋」感覺像 flash
+    // Header mode-btn show 動畫：離開 /create 時並行 control-bar 退場跑（user 2026-05-31 拍板）
+    //   舊註解擔心「user 視線在主內容退場時 mode-btn show 跑完看起來像 flash」— 實測反饋是
+    //   user 期望 mode-btn 撐開把 CREATE! 往左推的視覺，要跟「進 /create 時 mode-btn 縮回 + bars 往右補位」
+    //   的對稱反向動作對齊。並行在 exit 階段才能讓 user 在 /create 退場過渡中看到推動，
+    //   進新頁時 mode-btn 已就位。flag set 給 updateToggleBtnVisualState 跳過 fire 避免重播。
+    // Same-page reentry (/create → /create) 跳過（mode-btn 維持 hide 狀態）
+    if (!isSamePageReentry) {
+      const modeBtn = /** @type {HTMLElement | null} */ (document.querySelector('#mode-btn'));
+      if (modeBtn) {
+        window.__sccdModeBtnShowInExit = true;
+        tl.fromTo(modeBtn,
+          { width: 0, marginLeft: 0, clipPath: 'inset(0 0 0 100%)' },
+          {
+            width: 40,
+            marginLeft: 32,
+            clipPath: 'inset(0 0 0 0)',
+            duration: 0.5,
+            ease: 'power3.inOut',
+            overwrite: 'auto',
+            onComplete: () => {
+              modeBtn.style.width = '';
+              modeBtn.style.marginLeft = '';
+              modeBtn.style.clipPath = '';
+            },
+          },
+          0
+        );
+      }
+    }
 
     // 1a. controlBarItems（control bar 拆元素）y-reveal pattern（與 hero title 同形）：
     //    yPercent 0 → ±110 overshoot，相鄰 item 上下交替方向，parent overflow-y:clip 當 mask
@@ -276,6 +334,13 @@ function playCreateExitAnimation(destinationRoute) {
         },
         0.2
       );
+    }
+
+    // Same-page reentry：content 退場跑完就結束，不動任何 header 相關元素
+    //   header 上 SCCD typewriter + cursor 整套靜止保留，triggerGenerateLogo 開頭會偵測 skip 重播
+    //   user 看到：control bar + input + logo canvas 退場 → 新內容 init 進場，header SCCD 自始至終不動
+    if (isSamePageReentry) {
+      return;
     }
 
     // 2. Lottie 還在的 State B：只 fade 掉 cursor（沒 SCCD 可刪），不動 headerLogo
