@@ -1,0 +1,690 @@
+/**
+ * List Components
+ * Activities List 等列表項目樣式
+ */
+
+/* ===== Support Page ===== */
+.support-link-plain {
+  font-weight: 700;
+  text-decoration: none;
+}
+
+/* ===== Panel Description（exhibitions / visits 分頁切換對應文字） =====
+ * 同 panel 內多個 .panel-desc 用 data-desc-type 對應 sub-tab type；
+ * 只有 .active 那個顯示，其他預設 hidden。JS 切 sub-filter 時同步切此 active class */
+.panel-desc-group .panel-desc { display: none; }
+.panel-desc-group .panel-desc.active { display: block; }
+
+/* ===== Activities Year Group（手機版節奏調整） =====
+ * 桌面：year col 1 + list col 11 sticky 並排佈局走 HTML grid utility，無需介入
+ * 手機：year header 在上、list 在下垂直堆疊（HTML order-1 / order-2）；
+ *   1. 年份標題 chevron 從左換到右（對齊 list-item .list-header 的 chevron 在右側 pattern）
+ *   2. 收緊 filter→年份距離：第一個 year-group 的 year-toggle py 改 pt-xs
+ *   3. 年份→list 間距 halve：mt-md(24px) → 12px
+ *   4. 年份組之間 gap 加大：activities-separator 加 my 把上下 group 撐開 */
+@media (max-width: 767px) {
+  .list-year-toggle {
+    flex-direction: row-reverse;
+    justify-content: space-between;
+    /* HTML 內嵌 Tailwind utility `pl-xs`（padding-left:8px）+ `py-md`（padding:24px 0），
+       output.css 中 utility 排序晚於 component rule → 不加 !important 會被蓋回 utility 值
+       （memory: project_tailwind_utility_overrides_component_rule）
+       左右 padding 對齊 list-item .list-header px-[4px]；底部歸 0 讓年份直接接 list 第一個 item */
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+    padding-bottom: 0 !important;
+  }
+  /* 非 toggle 版本（無 chevron）也對齊 list-header 左緣 — scope 到 admission，
+     避免影響 degree-show / activities 等其他用 .list-year-group 的頁面 */
+  #admission-content-section .list-year-group > .col-span-12:not(.list-year-toggle) {
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+  /* filter bar 緊接第一個 year-toggle：縮上方 padding（py-md 24px → 12px） */
+  .list-year-group:first-child .list-year-toggle {
+    padding-top: 12px;
+  }
+  /* 年份→list 間距：HTML 的 mt-md (24px) → 0（list-item 自帶 bottom border 接管視覺分隔） */
+  .list-year-items.mt-md {
+    margin-top: 0 !important;
+  }
+  /* 年份組分隔線在手機隱藏（改用 list-item 自帶 bottom border 視覺分隔） */
+  .activities-separator {
+    display: none;
+  }
+  /* 年份組之間 gap 在手機拉到 2xl（64px）：activities-separator 雖 display:none 但仍佔 DOM，
+     且 setupClipReveal 可能把 separator 包進 .clip-reveal-wrapper（activities-search.js:33）；
+     用 :not(:first-child) 給除了第一個 year-group 以外都加 margin-top，跨過 wrapper 結構問題；
+     第一組 year-toggle 的 pt:12px 不受影響 */
+  .list-year-group:not(:first-child) {
+    margin-top: var(--spacing-2xl);
+  }
+  /* list-item 之間的 4px 分隔線由 JS 渲染的 .list-item-divider 提供（activities-data-loader.js:828）
+     桌面：每個 list-item 自帶 divider，但年份組最後一筆走 .is-last 隱藏（避免跟 .activities-separator 疊 8px）
+     手機：.activities-separator 已 display:none，最後一筆 .is-last 反而要顯示提供視覺收尾 */
+  .list-item-divider.is-last {
+    display: block;
+  }
+
+  /* === admission summer-camp 手機 list-content layout 調整 ===
+   * 1. list-content 內 grid 9.5fr/2.5fr 桌面並排 desc+poster → 手機 stack 單欄
+   * 2. 順序反轉：poster 先（在 desc/date 之上）
+   * 3. padding：左右 var(--spacing-sm) 跟 activities 一致（user 2026-05-27 統一）
+   * scope 到 #admission-content-section，避免影響其他 panel 結構 */
+  #admission-content-section .list-content > .grid {
+    grid-template-columns: 1fr !important;
+    padding-left: var(--spacing-sm) !important;
+    padding-right: var(--spacing-sm) !important;
+    gap: var(--spacing-md);
+  }
+  /* poster 放最前面（DOM 順序是 desc col 在前、poster col 在後，用 order 反轉） */
+  #admission-content-section .list-content > .grid > :first-child {
+    order: 2;
+    padding-right: 0 !important;  /* 桌面 pr-2xl 內縮在手機 stack 後不需要 */
+  }
+  #admission-content-section .list-content > .grid > :last-child {
+    order: 1;
+  }
+
+  /* === summer-camp panel 限定（panel-summer-camp 在 #admission-content-section 內）=== */
+  /* Q5：inner grid (date 21ch | location names 1fr | country auto) 桌面橫排 → 手機 stack 垂直
+   * date 在上、location names/country 在下 */
+  #panel-summer-camp .list-content > .grid .grid {
+    grid-template-columns: 1fr !important;
+    gap: var(--spacing-xs);
+  }
+  /* Q3：poster image 手機加 max-width 避免佔滿全寬視覺過重 */
+  #panel-summer-camp .poster-img {
+    max-width: 240px;
+    width: 100%;
+    height: auto;
+  }
+  /* Q4：summer-camp expand 區 metadata + description 維持桌面 p2（user 2026-05-27 反饋
+     説明文字改 p2 跟 activities .list-scroll p 同節奏）— 移除 p1 override，走 HTML 預設 text-p2 */
+  /* Q2：年份組之間視覺距離拉大（separator 已 display:none，改用 group margin） */
+  #panel-summer-camp .list-year-group + .list-year-group {
+    margin-top: var(--spacing-xl);
+  }
+  /* bodyField 模式（admission news rich content）：左右給 spacing-sm 視覺呼吸感
+   * user 反饋「內文需要往裏面移動」— rich text content 緊貼 accent bg 邊緣視覺壓迫
+   * 用 :has(.admission-body) 精準鎖定 rich content wrapper，不影響 gallery / attachment / reference
+   * 等其他 .list-content 直接 children（attachment 自帶 list-ref-btn px-md，不應再被推內） */
+  #admission-content-section .list-content > div:has(> .admission-body) {
+    padding-left: var(--spacing-sm) !important;
+    padding-right: var(--spacing-sm) !important;
+  }
+
+  /* title (flex-1) 與右側 icons/chevron group 之間補 gap，避免 title marquee 文字直接撞上 chevron
+   * 桌面 title 區寬不需要，手機窄欄 marquee 跑時尾段沒呼吸感 */
+  .list-header {
+    gap: var(--spacing-sm);
+  }
+
+  /* list-header HTML inline 是 `py-md`（桌面要保留），手機收緊到 py-sm 視覺更節制 */
+  .list-header.py-md {
+    padding-top: var(--spacing-sm) !important;
+    padding-bottom: var(--spacing-sm) !important;
+  }
+
+  /* degree-show card content 容器手機去 padding + margin-left
+     桌面 HTML inline `p-[6px] ml-lg` 提供 hover accent bg padding + 年份欄→content gap，
+     手機沒 hover、年份 col 已 stack 在上方（col-span-12），不需要再加 ml-lg 推右 */
+  .degree-show-card-content {
+    padding: 0 !important;
+    margin-left: 0 !important;
+  }
+
+  /* list-header-meta-icons (alumni + flag) 手機從 title 同列移到 title 下方（副標位置右下）：
+     桌面保留 flex inline 在 right group，user 指定整個 component layout 重設計
+     做法：list-header 開 position:relative + meta-icons 用 absolute 浮到 title 下方右側，
+     原 right group (share + chevron) 自然收窄，title flex-1 自動撐開更多寬度 */
+  .list-header {
+    position: relative;
+  }
+  .list-header .list-header-meta-icons {
+    position: absolute;
+    bottom: var(--spacing-sm);
+    right: 4px;
+  }
+  /* meta-icons absolute 從原 right group 抽走後，title col flex-1 + share btn + chevron 還在原 group。
+     subtitle 區域底部要留 meta-icons 高度 (~1em) 的 padding 避免重疊 */
+  .list-header .list-subtitles {
+    padding-bottom: 1.5em;
+  }
+
+  /* === activities 手機 list-content layout 調整（同 admission pattern）===
+   * 桌面 .list-content > .grid 用 9.5fr/2.5fr 兩欄（desc/date + poster col）；
+   * 手機強制 single-col stack：
+   *   - left/right padding 改 spacing-sm (16px) 對齊 title translateX 的 16px 視覺左緣
+   *   - pb-lg(48px) → pb-sm(16px) 收緊 accent bg 底部空白
+   *   - DOM 順序 col1 (date/desc) 在前 col2 (poster) 在後，但 user 要 poster 視覺在 title 下方
+   *     → order 反轉：poster (col2) order:1、date/desc (col1) order:2 */
+  #activities-content-section .list-content > .grid {
+    grid-template-columns: 1fr !important;
+    padding-left: var(--spacing-sm) !important;
+    padding-right: var(--spacing-sm) !important;
+    padding-bottom: var(--spacing-sm) !important;
+    gap: var(--spacing-md);
+  }
+  /* date/desc col：DOM 第一個（pr-2xl wrapper），手機放下方 */
+  #activities-content-section .list-content > .grid > :first-child {
+    order: 2;
+    padding-right: 0 !important;  /* 桌面 pr-2xl 內縮在手機 stack 後不需要 */
+  }
+  /* poster col：DOM 第二個，手機放上方（緊接 title 下） */
+  #activities-content-section .list-content > .grid > :last-child {
+    order: 1;
+  }
+  /* list-content 直系子分四種：(1) .grid（active 主內容） (2) .gallery-section（圖片橫向 track）
+       (3) bodyField wrapper（rich content）  (4) .list-ref-wrap（attachment / reference 容器，mt-md）
+     只有 bodyField wrapper 在手機需要 px-sm（user 契約「內文需要往裏面移動」）；
+     gallery / ref-wrap 都要 full-bleed 不要 padding（user 明示「ref 左右沒 padding」） */
+  #activities-content-section .list-content > div:not(.grid):not(.gallery-section):not(.list-ref-wrap) {
+    padding-left: var(--spacing-sm) !important;
+    padding-right: var(--spacing-sm) !important;
+  }
+  /* ref / attachment 手機改 [arrow | label-or-title-stack] 兩 col：原桌面 12-col grid 收成
+     2 col [icon-col | text-col]，text-col 內 label / title stack 兩行
+     selector 不 scope panel 級：activities + admission 共用 .list-ref-wrap，layout 一致 */
+  .list-ref-wrap .list-ref-btn {
+    grid-template-columns: auto 1fr !important;
+    gap: 0 var(--spacing-md);
+    padding-left: var(--spacing-sm);
+    padding-right: var(--spacing-sm);
+  }
+  /* arrow icon col-span-1 → 第一 col，垂直 align top；padding-left 由 ref-btn 容器提供
+     對齊 title 視覺左緣（spacing-sm = 16px） */
+  .list-ref-wrap .list-ref-btn > :first-child {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+  }
+  /* label col (col-span-4) → 第二 col 第一 row */
+  .list-ref-wrap .list-ref-btn > :nth-child(2) {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  /* title col (col-span-7) → 第二 col 第二 row（user 指定「ref 類別在上、title 在下」） */
+  .list-ref-wrap .list-ref-btn > :nth-child(3) {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  /* description 容器 .list-scroll：桌面 pr-xl + max-height:250px + overflow-y:auto 限高 scroll
+     手機沒 scroll bar、頁面本身可往下滑 → 拔 pr / max-height / overflow，內文自然 fit-content 展開
+     inline style="max-height:250px" 必須 !important 才蓋得過 */
+  #activities-content-section .list-content .list-scroll {
+    padding-right: 0 !important;
+    max-height: none !important;
+    overflow-y: visible !important;
+  }
+  #activities-content-section .list-content .list-scroll p {
+    font-size: var(--font-size-p2);
+  }
+  /* 主 list-content > .gallery-section 在手機：
+     - 跟前一塊（grid 內 desc/poster stack 後）拉開 mt-md，避免視覺貼住
+     - 維持桌面 chevron flex inline 32px 左右設計，chevron 自身寬度已提供呼吸感，不再加 padding
+       （user 反饋「去掉 padding 位置就對了」確認） */
+  #activities-content-section .list-content > .gallery-section {
+    margin-top: var(--spacing-md);
+  }
+
+  /* === album-thumb-item（permanent-exhibitions 點開後的多筆 album 結構）===
+     桌面：.album-sticky-cell + .album-gallery 兩列 grid 共用 [year | date | location] 3-col template
+           album-gallery col1=spacer 留空對齊 date 左緣
+     手機：3-col 並排太擠 → year / date / location stack 單欄；
+           album-gallery 取消 spacer，flex full-width；
+           .item-albums.list-scroll 拔 max-height + overflow（同 .list-scroll 處理）
+           .album-thumb-item mr-xl 拔掉讓 gallery full-bleed */
+  #activities-content-section .item-albums .album-sticky-cell {
+    grid-template-columns: 1fr !important;
+    gap: var(--spacing-xs) !important;
+  }
+  /* album-gallery 同樣 3-col template，mobile 跳 grid 改 full-width flex */
+  #activities-content-section .item-albums .album-thumb-item > .grid:not(.album-sticky-cell) {
+    display: flex !important;
+    gap: 0 !important;
+  }
+  #activities-content-section .item-albums .album-thumb-item > .grid:not(.album-sticky-cell) > :first-child {
+    display: none;  /* col1 spacer 拔掉 */
+  }
+  #activities-content-section .item-albums .album-gallery {
+    width: 100%;
+  }
+  /* album-thumb-item 桌面 mr-xl 右側內縮拔掉，user 明示「這裏不會再加 padding 了」=
+     album-gallery 保持 full-bleed 不加 padding（跟主 gallery-section 有 px-sm 不同節奏） */
+  #activities-content-section .album-thumb-item {
+    margin-right: 0 !important;
+  }
+  /* .item-albums.list-scroll 桌面 max-height:252px + overflow-y:auto，手機拔掉走頁面 scroll */
+  #activities-content-section .item-albums.list-scroll {
+    max-height: none !important;
+    overflow-y: visible !important;
+  }
+  /* album sticky cell 字級從桌面 text-p2 升 p1，跟其他文字節奏一致 */
+  #activities-content-section .album-sticky-cell p {
+    font-size: var(--font-size-p1);
+  }
+  /* date / location 內部 grid（桌面 [date | names | country] 三欄並排）
+     手機 stack 單欄：date 在上、location 在下；country auto 收進 location 同行右側自然處理 */
+  #activities-content-section .list-content > .grid > :first-child > .grid {
+    grid-template-columns: 1fr !important;
+    gap: var(--spacing-xs);
+  }
+  /* date / location 字級從桌面 text-p2 升到 p1，跟 description 同節奏 */
+  #activities-content-section .list-content > .grid > :first-child > .grid p {
+    font-size: var(--font-size-p1);
+  }
+  /* country cell（inner grid 第三 col）字級保留桌面 p2 — user 反饋 country 比 location 名稱小一階比較好讀 */
+  #activities-content-section .list-content > .grid > :first-child > .grid > div:last-child p {
+    font-size: var(--font-size-p2);
+  }
+  /* 地點國家在手機靠左對齊（桌面 text-right + flex-shrink-0 對齊到 inner grid 右側 country col）
+     mobile inner grid 已 stack 單欄，三層加 !important 確保贏 Tailwind text-right utility：
+     1. wrapper text-align:left  2. justify-self:start 把 wrapper 推到 grid cell 左緣
+     3. 內部 <p> 也明示 text-align:left（防 utility specificity 高過 wrapper rule） */
+  #activities-content-section .list-content > .grid > :first-child > .grid > div:last-child {
+    text-align: left !important;
+    justify-self: start !important;
+  }
+  #activities-content-section .list-content > .grid > :first-child > .grid > div:last-child p {
+    text-align: left !important;
+  }
+  /* 人物 / 機構 row：桌面 [name flex-1 | country flex-shrink-0] 並排
+     手機改 stack — name 上、country 下；機構同 pattern。讓 name / org 都 full-width */
+  #activities-content-section .list-content > .grid > :first-child .flex.gap-2xl.justify-between {
+    flex-direction: column !important;
+    gap: 0 !important;
+    align-items: flex-start !important;
+  }
+  /* country wrapper 在 name 下方靠左 */
+  #activities-content-section .list-content > .grid > :first-child .flex.gap-2xl.justify-between > :last-child {
+    flex-shrink: 1;
+  }
+
+  /* 打開 list 時 title 往右移動：手機要視覺對齊 spacing-sm (16px)
+     list-header 自身已 px-[4px]，translateX 補 12px → title 視覺左緣 = 4 + 12 = 16px = spacing-sm
+     桌面在 lists.css :286 走 spacing-md - 4px = 20px 視覺，跟手機不同節奏 */
+  .list-header > div:first-child {
+    transition: transform 0.3s ease;
+  }
+  .list-header.active > div:first-child {
+    transform: translateX(calc(var(--spacing-sm) - 4px));
+  }
+}
+
+/* admission 內 gallery 縮高 -30%：120px → 84px 桌面手機共用
+ * inline style="height:120px" 必須用 !important 蓋過 — scope 到 admission 不影響其他 list 場景 */
+#admission-content-section .gallery-track {
+  height: 84px !important;
+}
+
+
+/* ===== Admission（採 list-item 結構共用 list-accordion）===== */
+/* admission 直接用 list-item / list-header / list-content classes（與 activities 共享 accordion）：
+ *  - hover 隨機色、click 展開、active title padding-left 右移
+ *  - --item-color-deep 由 list-accordion 自動 set，attachments（用 list-ref-btn class）跟著拿到底色
+ * admission 限定：
+ *  - rich HTML content 的 <p> 排版用 .admission-body 控
+ *  - sticky title（活用 list-header）只在 admission 頁啟用，scope 到 #admission-content-section
+ *    避免影響 activities 同 class 的 list-header */
+.admission-body p {
+  margin: 0;
+  font-size: var(--font-size-p2);
+  line-height: var(--line-height-base);
+}
+
+/* list-item-divider.is-last 桌面隱藏（年份組末端走 .activities-separator，避免 4+4=8px 疊線）
+ * 手機在上面 @media (max-width: 767px) block 把 .is-last 改回 display:block 提供視覺收尾 */
+@media (min-width: 768px) {
+  .list-item-divider.is-last {
+    display: none;
+  }
+}
+
+/* Tailwind .list-item utility 是 display:list-item，預設會 render disc marker
+ * activities 用 overflow-hidden 順便藏掉 marker；admission 為 sticky 不能 overflow-hidden
+ * 防禦性：.list-item 全站去 marker，避免依賴 overflow 副作用 */
+.list-item {
+  list-style: none;
+}
+
+/* 進場動畫未完成時禁止 hover/click */
+.list-item[data-pre-reveal] {
+  pointer-events: none;
+}
+
+/* 桌面版：list-header sticky 只在 .active（展開）狀態啟用 — 滑動長內文時使用者看到當前條目標題。
+ * - inactive 條目（收合）：不 sticky，header 隨自然 flow 走；user 滑過下方未展開條目時不會誤 sticky
+ * - active 條目（展開）：sticky 在 cut line 為止；自然 top 在 cut line 下方 → CSS sticky 不 engage（停留自然位置）
+ * 預設 top:200px（對齊全站左欄 nav 與遮罩底邊，admission 場景）；
+ * activities 等有 filter-bar 的頁面 JS 計算後設 --list-header-sticky-top 蓋過（避免蓋住 filter bar）。 */
+@media (min-width: 768px) {
+  .list-header.active {
+    position: sticky;
+    top: var(--list-header-sticky-top, 200px);
+    z-index: 5;
+  }
+
+  /* Sticky paint seam fix（往下 scroll 看到的 1-2px image 細綫）：
+   * sticky list-header 與相鄰 .list-content 即使 layout 上緊貼，paint 邊界在
+   * device pixel 上 round 不一致仍會留 1-2px 縫；image 在縫底下直接露出。
+   * 用 padding-top 4px 同色 buffer：list-item 父層 bg accent 色透過 list-content
+   * 透明 padding 區露出，把 image 往下推 4px，縫底下見到的是 accent bg 而非 image。 */
+  .list-header.active + .list-content {
+    padding-top: 4px;
+  }
+
+  /* 副標 sticky-pinned collapse：list-header 開展 + 真正黏住 sticky-top 時收起副標，bar 只剩 title。
+   * is-pinned class 由 list-accordion.js 用 IntersectionObserver sentinel 偵測 sticky 真黏住的瞬間
+   * （CSS :stuck 偽類未實作）。
+   *
+   * 注意 `.list-subtitles` 進場時被 setupClipReveal 動態包進 `.clip-reveal-wrapper`，
+   * 所以 collapse 必須 target wrapper 否則 wrapper 高度撐住 list-subtitles 內部收了但 bar 不縮。
+   * 用 `:has()` 選有 .list-subtitles child 的 wrapper（與「title 那層 wrapper」區分），
+   * grid-template-rows 0fr↔1fr + child min-height:0 / overflow:hidden 做 height collapse；
+   * wrapper 預設 overflow-y:clip（setupClipReveal set），grid-rows 0fr 自動把可用 height 收為 0。 */
+  .list-header > * > .clip-reveal-wrapper:has(.list-subtitles) {
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows 0.3s ease, opacity 0.25s ease, margin-top 0.3s ease;
+  }
+  .list-header > * > .clip-reveal-wrapper:has(.list-subtitles) > * {
+    min-height: 0;
+  }
+  .list-header.active.is-pinned > * > .clip-reveal-wrapper:has(.list-subtitles) {
+    grid-template-rows: 0fr;
+    opacity: 0;
+    margin-top: -0.5rem;  /* 抵消父 flex-col gap-xs (0.5rem)，collapsed 後 title 不留視覺 gap */
+  }
+
+  /* album-thumb-item 內 year + date+title group 各自 sticky；scope 受父 .album-thumb-item 限制，
+   * 滾到下一筆 divider 自動換手（CSS sticky 行為，不需 IntersectionObserver）。
+   * sticky scroll container = .item-albums（overflow-y-auto max-h:360px 創 scroll context），
+   * 不是頁面 viewport，所以 top:0 黏在 .item-albums 上緣（= 父容器裁切線）。
+   * bg = 繼承 list-content active 時 list-accordion.js inline set 的 accent bg（三原色 / mode-color 下被
+   * themes/color.css 翻成 var(--theme-fg)）。中間 .item-albums / .album-thumb-item / 內層 col2 wrapper
+   * 全顯式 inherit 串鏈，才能把 list-content 的 inline bg 一路傳到 sticky cell。
+   * (CSS background-color: inherit 只繼承父的顯式 value；只設 cell 不串中間層 = 拿到 transparent。) */
+  .album-sticky-cell {
+    position: sticky;
+    top: 0;
+    background-color: inherit;
+    z-index: 4;
+  }
+  /* sticky cell bg = 跟 list-item active 時的 accent bg 同色（user 指定「list 打開時什麼顏色就什麼顏色」）。
+   * list-accordion.js active 時：
+   *   1. inline set list-item / list-header / list-content style.background = accent
+   *   2. inline set --item-color CSS var on list-item（line 274）← 直接讀這個！
+   * standard / inverse mode：accent 原色（綠/粉/藍三原色之一）
+   * mode-color mode：themes/color.css 把 inline bg 翻 var(--theme-fg) — sticky cell 同步翻 */
+  .album-sticky-cell {
+    background-color: var(--item-color, transparent);
+  }
+  /* mode-color：list-item active 雖然 --item-color 仍是原 accent，但視覺被 themes/color.css 蓋成 theme-fg；
+   * sticky cell 同步走 theme-fg 不讀 --item-color 才視覺對齊 */
+  body.mode-color .album-sticky-cell {
+    background-color: var(--theme-fg);
+  }
+}
+
+/* ===== Activities Type Filter Row - clip-reveal rotation clearance =====
+ * #exhibitions-type-filter / #visits-type-filter 掛 .list-reveal-row → scroll-animate.js setupClipReveal
+ * 動態包一層 overflow:clip wrapper。active btn 的 .anchor-nav-inner 由 activities-section-switch.js JS 設
+ * transform: rotate(±4~6deg)，rotation 後 chip corner（尤其左/右端）凸出 layout box 被 wrapper 裁掉。
+ * 給 padding 留 rotation clearance + 對應 negative margin 抵消，保證 btn 視覺位置與裁前一致。
+ * （vertical 不用補：.list-reveal-row 已有 pt-lg pb-lg 32px 足夠覆蓋 rotation y-protrusion） */
+#exhibitions-type-filter,
+#visits-type-filter {
+  padding-left: 16px;
+  padding-right: 16px;
+  margin-left: -16px;
+  margin-right: -16px;
+}
+
+/* ===== Activities Search Bar ===== */
+/* search bar scroll hide */
+.activities-search-inner {
+  transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+  max-height: 80px;
+  overflow: hidden;
+}
+.activities-filter-bar.bar-hidden .activities-search-inner {
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+  padding-bottom: 0;
+}
+
+.activities-search-input::placeholder {
+  color: rgba(0, 0, 0, 0.5);
+  font-weight: 700;
+}
+
+.activities-search-inner {
+  border-bottom: 4px solid black;
+}
+
+.activities-search-icon {
+  color: black;
+  flex-shrink: 0;
+}
+
+@layer components {
+  /* ===== Activities List Item - Unified Style ===== */
+  .activities-item {
+    @apply grid grid-cols-9 gap-gutter items-center py-md;
+  }
+}
+
+/* ===== Award Record Item Hover Glow (Desktop only) ===== */
+.activities-year-items,
+.year-block,
+#records-list-container {
+  overflow: visible;
+}
+
+@media (min-width: 768px) {
+  .award-record-item {
+    overflow: visible;
+  }
+
+  .award-record-item:hover p {
+    overflow: visible;
+  }
+}
+
+/* ===== Timeline Year Item Hover (Desktop only) ===== */
+@media (min-width: 768px) {
+  .timeline-year-item:hover {
+    color: var(--color-pink) !important;
+    cursor: var(--cursor-pointer);
+  }
+}
+
+/* ===== Inline Scrollbar (.list-scroll + library year pickers) =====
+ * .list-scroll 是統一 hook — activities/admission list 描述、courses slide-in desc、
+ * 未來任何 inline scroll 容器都套此 class 共用樣式（細黑 thumb / 無 track / 無箭頭）。
+ * library year picker 用 id selector 保留歷史寫法。 */
+.list-scroll::-webkit-scrollbar,
+#album-year-options-wrap::-webkit-scrollbar,
+#files-year-options-wrap::-webkit-scrollbar,
+#library-year-picker-wrap::-webkit-scrollbar {
+  width: 5px !important;
+  height: 5px !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+}
+
+.list-scroll::-webkit-scrollbar-track,
+.list-scroll::-webkit-scrollbar-track-piece,
+.list-scroll::-webkit-scrollbar-corner,
+#album-year-options-wrap::-webkit-scrollbar-track,
+#album-year-options-wrap::-webkit-scrollbar-track-piece,
+#album-year-options-wrap::-webkit-scrollbar-corner,
+#files-year-options-wrap::-webkit-scrollbar-track,
+#files-year-options-wrap::-webkit-scrollbar-track-piece,
+#files-year-options-wrap::-webkit-scrollbar-corner,
+#library-year-picker-wrap::-webkit-scrollbar-track,
+#library-year-picker-wrap::-webkit-scrollbar-track-piece,
+#library-year-picker-wrap::-webkit-scrollbar-corner {
+  background: transparent !important;
+}
+
+.list-scroll::-webkit-scrollbar-thumb,
+#album-year-options-wrap::-webkit-scrollbar-thumb,
+#files-year-options-wrap::-webkit-scrollbar-thumb,
+#library-year-picker-wrap::-webkit-scrollbar-thumb {
+  background: #000000 !important;
+  border-radius: 0 !important;
+  border: none !important;
+}
+
+.list-scroll::-webkit-scrollbar-button,
+#album-year-options-wrap::-webkit-scrollbar-button,
+#files-year-options-wrap::-webkit-scrollbar-button,
+#library-year-picker-wrap::-webkit-scrollbar-button {
+  display: none !important;
+  height: 0 !important;
+  width: 0 !important;
+}
+
+/* Firefox 專屬 fallback — 用 @supports + -moz- 隔離，避免 Chromium 121+/Safari 18+
+ * 也實作 standard scrollbar-width 後切到系統 thin scrollbar（會帶 OS 風格小箭頭）覆蓋 webkit 自繪樣式 */
+@supports (-moz-appearance: none) {
+  .list-scroll,
+  #album-year-options-wrap,
+  #files-year-options-wrap,
+  #library-year-picker-wrap {
+    scrollbar-width: thin;
+    scrollbar-color: #000000 transparent;
+  }
+}
+
+
+/* ===== List Item Border with Hover Slide + Title Shift (Desktop only) ===== */
+.list-item-border {
+  position: relative;
+}
+
+.list-item-border::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: black;
+  transform-origin: right center;
+  transform: scaleX(1);
+  transition: transform 0.35s ease;
+}
+
+@media (min-width: 768px) {
+  .list-item-border:hover::after {
+    transform-origin: left center;
+    transform: scaleX(0);
+  }
+
+  /* active 時 title 往右推一格 spacing-md - 4px。
+   * 用 transform translateX 不用 padding-left — padding-left 會收縮 content area
+   * 觸發換行→list-header 變高（=> 視覺上 title「往下偏移」bug）；transform 純視覺位移
+   * 不影響 layout flow，安全。
+   * 全站共用：admission / activities / summer camp 等所有用 .list-header 的場景一致。 */
+  .list-header > div:first-child {
+    padding-left: 0;
+    transition: transform 0.3s ease;
+  }
+  .list-header.active > div:first-child {
+    transform: translateX(calc(var(--spacing-md) - 4px));
+  }
+}
+
+/* ===== Activities Reference Chip ===== */
+/* list-ref-btn 為 list-content 內 ref 元素：
+ *  - 整條從 list-content 左到右，無 px padding（py-sm 縮小上下）
+ *  - header / content 為 100% accent；ref 用對應 deep 色（pink #f52d78 / green #23eb7d / blue #23a5ff）
+ *    --item-color / --item-color-deep 由 list-accordion.js 在 list-item open/close 時 set/remove
+ *  - 文字一律黑色（不被 inverse mode 反白：用 component class color，避開 .text-black utility）
+ *  - hover 翻黑底白字（!important 蓋過 inline accent 與 .text-* utility 子元素色）*/
+.list-ref-btn {
+  color: black;
+  background: var(--item-color-deep, transparent);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+/* hover 包 desktop guard：手機 tap 後 sticky hover 會留黑底白字無法清除 */
+@media (min-width: 768px) {
+  .list-ref-btn:hover {
+    background: black !important;
+    color: white !important;
+  }
+
+  .list-ref-btn:hover * {
+    color: white !important;
+  }
+}
+
+/* ===== List Title Marquee（桌面手機共用） ===== */
+.list-title-marquee {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.list-title-marquee p {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+/* 自動 marquee：偵測到 overflow 就跑（不再依賴 :hover 也不再 desktop-only），
+ * collapse 與 active 狀態皆然；手機 title 區更窄更需要 marquee
+ * active 時 title 向右 translateX → 可用寬度變窄可能新觸發 overflow，需 JS 於展開後 re-check */
+.list-title-marquee.is-overflow p {
+  transition: none;
+  animation: list-marquee var(--marquee-duration, 4s) linear infinite;
+}
+
+@keyframes list-marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(var(--marquee-offset, -50%)); }
+}
+
+.album-title-marquee {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.album-title-marquee h6 {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+  .album-title-marquee.is-overflow h6 {
+    transition: none;
+  }
+
+  .album-card:hover .album-title-marquee.is-overflow h6 {
+    animation: album-marquee var(--marquee-duration, 4s) linear infinite;
+  }
+
+  @keyframes album-marquee {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(var(--marquee-offset, -50%)); }
+  }
+}
+
+/* ===== Homepage News Marquee ===== */
+.homepage-marquee {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.homepage-marquee-inner {
+  display: inline-block;
+  white-space: nowrap;
+  animation: homepage-marquee-scroll var(--marquee-duration, 20s) linear infinite;
+}
+
+@keyframes homepage-marquee-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}

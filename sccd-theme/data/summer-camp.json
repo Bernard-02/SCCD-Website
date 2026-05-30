@@ -1,0 +1,86 @@
+[
+  {
+    "year": 2025,
+    "items": [
+      {
+        "title": "談一場平凡無奇的戀愛",
+        "title_en": "An Ordinary Love Story",
+        "date": "07.14 - 07.18",
+        "location": "實踐大學設計學院",
+        "descriptionZh": "這個沉浸式的暑期營隊帶領高中生認識設計思考的基礎...",
+        "poster": "../images/2021-動畫-Pitch-Bible-01.png",
+        "videos": [
+          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        ],
+        "images": [
+          "../images/SCCD-1-4-0.jpg",
+          "../images/S__6742028.jpg"
+        ],
+        "description": "This immersive summer camp introduces high school students to the fundamentals of design thinking...",
+        "id": "SC-2025-01",
+        "dates": [
+          {
+            "startYear": 2025,
+            "startMonth": 7,
+            "startDay": 14,
+            "endYear": 2025,
+            "endMonth": 7,
+            "endDay": 18
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "year": 2024,
+    "items": [
+      {
+        "title": "我知道你想要對吧！",
+        "date": "07.15 - 07.19",
+        "location": "實踐大學設計學院",
+        "descriptionZh": "這個沉浸式的暑期營隊帶領高中生認識設計思考的基礎...",
+        "poster": "../images/2021-動畫-Pitch-Bible-01.png",
+        "videos": [],
+        "images": [],
+        "description": "This immersive summer camp introduces high school students to the fundamentals of design thinking...",
+        "id": "SC-2024-01",
+        "dates": [
+          {
+            "startYear": 2024,
+            "startMonth": 7,
+            "startDay": 15,
+            "endYear": 2024,
+            "endMonth": 7,
+            "endDay": 19
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "year": 2023,
+    "items": [
+      {
+        "title": "我以為我有魔法！",
+        "date": "07.10 - 07.14",
+        "location": "實踐大學設計學院",
+        "descriptionZh": "在這個密集工作坊中探索藝術與科技的交會點...",
+        "poster": "../images/2021-動畫-Pitch-Bible-01.png",
+        "videos": [],
+        "images": [],
+        "description": "Explore the intersection of art and technology in this intensive workshop...",
+        "id": "SC-2023-01",
+        "dates": [
+          {
+            "startYear": 2023,
+            "startMonth": 7,
+            "startDay": 10,
+            "endYear": 2023,
+            "endMonth": 7,
+            "endDay": 14
+          }
+        ]
+      }
+    ]
+  }
+]

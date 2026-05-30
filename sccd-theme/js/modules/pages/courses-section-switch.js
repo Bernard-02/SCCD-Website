@@ -1,0 +1,393 @@
+/**
+ * Courses Section Switch Module
+ * 處理 courses.html 的三組 program 切換（bfa-animation / bfa-cmd / mdes）
+ *
+ * 新版 layout：
+ *   - 三個按鈕橫排於頂部，BFA 兩 btn 各自上方有 .courses-bfa-label「BFA Class 學士班」
+ *     （仿 about.html class section 的 class-group-label 結構，每 BFA btn 各自一個 label）
+ *   - 點 bfa-* btn → 該 btn 上方的 label 同步套 active 色 + 新隨機旋轉
+ *   - 旋轉/位移/hover 比照 about/bfa-division-toggle.js：所有 btn-inner 與 label 都有
+ *     _baseRot；hover 時隨機切換 rotation+accent，mouseleave 還原 _baseRot
+ *   - 內容改 grid（學期×必修/選修×年級）+ 右下 sticky desc panel
+ */
+
+import { renderCoursesGrid, deselectActiveCard, resetCoursesMapState, selectCardBySlugInPanel } from './courses-map.js';
+import { setActiveNavBtn } from '../ui/section-switch-helpers.js';
+import { registerPageCleanup } from '../ui/page-cleanup.js';
+import { waitForHeroAnimDone } from './hero-animation.js';
+
+let currentProgramColor = '';
+export function getCurrentProgramColor() { return currentProgramColor; }
+
+// scrollIntoView wrapper：加 header 高度 offset，避免 active tab / list 緊貼 viewport top 被 header logo 遮住
+// 同 activities-section-switch.js / admission-section-switch.js 的 scrollSectionIntoView pattern
+/**
+ * @param {HTMLElement | null} el
+ * @param {ScrollBehavior} [behavior]
+ */
+function scrollSectionIntoView(el, behavior = 'smooth') {
+  if (!el) return;
+  const headerH = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--header-height') || '80', 10);
+  const top = el.getBoundingClientRect().top + window.scrollY - headerH;
+  window.scrollTo({ top, behavior });
+}
+
+// courses 專用旋轉幅度 ±2°（排除 ±0.5）— 比 SCCDHelpers.getRandomRotation(-4~6) 小，
+// 配合寬 btn（如 "Animation & Moving Image" 兩行）與 BFA label 視覺較柔
+function getRot() {
+  let r = 0;
+  while (Math.abs(r) < 0.5) r = parseFloat((Math.random() * 4 - 2).toFixed(2));
+  return r;
+}
+
+// 替每個 .courses-bfa-label 與 inactive btn-inner 寫入 _baseRot 並套 transform，
+// 同時清掉 inactive btn-inner 的殘留 inline bg/color（避免上次 active 期間設過 inline
+// color: #000000，切換 active 後 .active 被移除但 inline color 還在 → 文字還是黑色）
+// setActiveNavBtn 只清 bg 與 transform，不清 color，所以 color 要在這手動清
+// 註：hover 已不再 inline 設 bg/color（user spec：hover 只變文字 opacity，由 CSS 處理），故只需處理 active 殘留
+function applyBaseRotations() {
+  document.querySelectorAll('.courses-bfa-label').forEach(label => {
+    const el = /** @type {HTMLElement & { _baseRot?: number }} */ (label);
+    if (el._baseRot == null) el._baseRot = getRot();
+    el.style.transform = `rotate(${el._baseRot}deg)`;
+  });
+  document.querySelectorAll('.courses-program-btn:not(.active) .anchor-nav-inner').forEach(inner => {
+    const el = /** @type {HTMLElement & { _baseRot?: number }} */ (inner);
+    if (el._baseRot == null) el._baseRot = getRot();
+    el.style.transform = `rotate(${el._baseRot}deg)`;
+    el.style.background = '';
+    el.style.color = '';
+  });
+}
+
+// 替 active btn-inner 把當下 inline transform 取出記到 _baseRot，方便日後 mouseleave 還原
+/** @param {HTMLElement|null} activeBtn */
+function syncActiveBaseRot(activeBtn) {
+  if (!activeBtn) return;
+  activeBtn.querySelectorAll('.anchor-nav-inner').forEach(inner => {
+    const el = /** @type {HTMLElement & { _baseRot?: number }} */ (inner);
+    const m = el.style.transform.match(/rotate\(([-\d.]+)deg\)/);
+    if (m) el._baseRot = parseFloat(m[1]);
+  });
+}
+
+// hover handler：mouseenter 給 btn-inner 與同 group 的 label 一個臨時隨機 rotation + accent；
+// mouseleave 還原到各自的 _baseRot 並清 inline bg/color
+/** @param {HTMLElement} btn */
+function bindHover(btn) {
+  if (btn.dataset.hoverBound) return;
+  btn.dataset.hoverBound = '1';
+
+  const inner = /** @type {HTMLElement & { _baseRot?: number } | null} */ (btn.querySelector('.anchor-nav-inner'));
+  const group = btn.closest('.courses-program-group');
+  const label = /** @type {(HTMLElement & { _baseRot?: number }) | null} */ (group?.querySelector('.courses-bfa-label') || null);
+
+  btn.addEventListener('mouseenter', () => {
+    if (btn.classList.contains('active')) return;
+    // hover 不換底色（user spec：bg 不變，僅文字 100%，由 CSS hover rule 控制；不再 JS inline 設 accent bg / color）
+    // 仍保留 rotation 變化作為 hover 視覺回饋
+    const rot = getRot();
+    const labelRot = getRot();
+    if (inner) inner.style.transform = `rotate(${rot}deg)`;
+    if (label) label.style.transform = `rotate(${labelRot}deg)`;
+    // _pendingRot / _pendingLabelRot 給 click 用：點下去保留剛剛 hover 看到的角度（仿 about/bfa-division-toggle.js）
+    // _pendingColor 不再儲存（hover 無 color 預覽）→ click 時 getColor() 自動 roll 新色
+    /** @type {any} */ (btn)._pendingRot = rot;
+    /** @type {any} */ (btn)._pendingLabelRot = labelRot;
+  });
+
+  btn.addEventListener('mouseleave', () => {
+    if (btn.classList.contains('active')) return;
+    // hover 沒設 inline bg/color，mouseleave 只還原 rotation
+    if (inner) inner.style.transform = `rotate(${inner._baseRot || 0}deg)`;
+    if (label) label.style.transform = `rotate(${label._baseRot || 0}deg)`;
+    /** @type {any} */ (btn)._pendingRot = null;
+    /** @type {any} */ (btn)._pendingLabelRot = null;
+  });
+}
+
+export function initCoursesSectionSwitch() {
+  const programBtns = document.querySelectorAll('.courses-program-btn');
+  const panels = document.querySelectorAll('.courses-panel');
+  const sectionEl = document.getElementById('courses-content-section');
+
+  if (!programBtns.length || !panels.length) return;
+
+  // SPA 離開 courses 時 reset activeCard module-scope ref，避免下次回 courses 時 ref 指向已被
+  // router.innerHTML swap 掉的 detached node（deselectActiveCard 對 dead element 操作雖無 crash 但邏輯混亂）
+  registerPageCleanup(() => resetCoursesMapState());
+
+  // hover 一次性綁定（每 btn 帶 dataset flag 避免重綁）
+  programBtns.forEach(bindHover);
+
+  // ?program= 兼容：bfa → bfa-animation
+  const params = new URLSearchParams(window.location.search);
+  const hasQueryDeepLink = params.has('program');
+  const rawProgram = params.get('program');
+  const initialProgram = (rawProgram === 'bfa') ? 'bfa-animation' : (rawProgram || 'bfa-animation');
+  const itemSlug = params.get('item');
+
+  const initSwitchPromise = switchToProgram(initialProgram, programBtns, false);
+
+  // deep-link flow（從首頁 floating course card 點擊或外部 ?program= URL）：
+  // 1) 等 hero 進場動畫做完才 auto-scroll（沒等的話視覺上字還沒滑進來就被推走）
+  // 2) renderCoursesGrid 完成 + ?item= 存在時 → 找對應 data-slug 卡片並 selectCard
+  //    → highlight + 開 slide-in（用戶從首頁點課程卡片應直接進該課程詳細）
+  if (hasQueryDeepLink) {
+    Promise.all([initSwitchPromise, waitForHeroAnimDone()]).then(() => {
+      scrollSectionIntoView(sectionEl);
+      if (itemSlug) {
+        // 卡片 hover marquee 量測在 renderCoursesGrid 末段，selectCard 立刻可用
+        selectCardBySlugInPanel(initialProgram, itemSlug);
+      }
+    });
+  }
+
+  programBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      switchToProgram(btn.getAttribute('data-program'), programBtns, true);
+    });
+  });
+
+  // inset 四值用 % 單位（GSAP tween inset() 四值單位需一致，否則直接跳終值不動畫）
+  const CLIP_DIRS = [
+    'inset(100% 0% 0% 0%)',  // 上 → 下
+    'inset(0% 0% 100% 0%)',  // 下 → 上
+    'inset(0% 100% 0% 0%)',  // 左 → 右
+    'inset(0% 0% 0% 100%)',  // 右 → 左
+  ];
+  function pickClipDir() { return CLIP_DIRS[Math.floor(Math.random() * CLIP_DIRS.length)]; }
+
+  async function switchToProgram(program, btns, shouldScroll) {
+    const newPanelId = `panel-${program}`;
+    const prevPanel = document.querySelector('.courses-panel:not(.hidden)');
+    // 已 active 同 panel：跳過退場/進場 + active btn 重 roll；如果是 click（shouldScroll）仍 scroll 對齊 anchor
+    if (prevPanel && prevPanel.id === newPanelId && shouldScroll) {
+      scrollSectionIntoView(sectionEl);
+      return;
+    }
+    // 找出將被 active 的 btn，把 hover 留下的 _pendingRot / _pendingLabelRot 拿出來
+    // 達成「hover 看到什麼角度，click 就停在什麼角度」的記憶效果（仿 about）
+    // 注意：_pendingColor 已移除（hover 不再 preview accent 色），active 色由 setActiveNavBtn 內部 roll
+    const incomingBtn = /** @type {any} */ ([...btns].find(b => b.getAttribute('data-program') === program));
+    const opts = {};
+    if (incomingBtn?._pendingRot != null) opts.rotation = incomingBtn._pendingRot;
+    const pendingLabelRot = incomingBtn?._pendingLabelRot;
+
+    // 切換時（shouldScroll=true）先 exit 舊 panel 的卡片 +（涉及 MDES 時）年級表頭 inner，再 toggle hidden；初次 init 跳過 exit
+    // 已隱藏的卡片（從未 reveal 過）的 clipPath 已是 CLIP_DIR，tween 到另一個 CLIP_DIR 視覺上無變化，無需特別 guard
+    const isSwitch = shouldScroll;
+
+    // 修 bug：開頭無條件 clear 所有 panel 的 headers inner 殘留 transform
+    // 場景：BFA-A→MDES（BFA-A inner 退到 ±100 殘留）→ MDES→BFA-CMD（不動 BFA-A）→ BFA-CMD→BFA-A（involvesMdes=false 不 enter 動畫）
+    //       → BFA-A inner 還停在 ±100 = off-screen 看不見
+    if (typeof gsap !== 'undefined') {
+      const allHeadersInner = document.querySelectorAll('.courses-grid-col-header-inner');
+      if (allHeadersInner.length) {
+        gsap.killTweensOf(allHeadersInner);
+        gsap.set(allHeadersInner, { clearProps: 'transform' });
+      }
+    }
+    // 年級表頭只在涉及 MDES 切換時動畫（BFA Animation ↔ BFA CMD 共用同年級表頭 Freshman/Sophomore/Junior/Senior，無需動畫）
+    const involvesMdes = isSwitch && prevPanel && (prevPanel.id === 'panel-mdes' || newPanelId === 'panel-mdes');
+    // 年級表頭 exit 方向（4 方向 random：上下左右），enter 階段用反向 mirror（仿 hero-title-wrapper + atlas list view pattern）
+    const HEADER_EXIT_DIRS = [
+      { axis: 'y', percent: -100 }, // up
+      { axis: 'y', percent: 100 },  // down
+      { axis: 'x', percent: -100 }, // left
+      { axis: 'x', percent: 100 },  // right
+    ];
+    /** @typedef {{ axis: 'x' | 'y', percent: number }} HeaderDir */
+    let headerExitDirs = /** @type {HeaderDir[] | null} */ (null);
+    if (isSwitch && prevPanel && prevPanel.id !== newPanelId && typeof gsap !== 'undefined') {
+      const prevCards = prevPanel.querySelectorAll('.courses-grid-card');
+      const prevHeadersInner = prevPanel.querySelectorAll('.courses-grid-col-header-inner');
+      // headers inner 殘留 transform 已在開頭統一 clear，此處不需重複 kill
+      const exitPromises = [];
+      if (prevCards.length) {
+        exitPromises.push(new Promise(resolve => {
+          gsap.killTweensOf(prevCards);
+          gsap.to(prevCards, {
+            clipPath: () => pickClipDir(),
+            duration: 0.35,
+            ease: 'cubic-bezier(0.25, 0, 0, 1)',
+            overwrite: true,
+            onComplete: resolve,
+          });
+        }));
+      }
+      if (involvesMdes && prevHeadersInner.length) {
+        headerExitDirs = [...prevHeadersInner].map(() =>
+          /** @type {HeaderDir} */ (HEADER_EXIT_DIRS[Math.floor(Math.random() * HEADER_EXIT_DIRS.length)])
+        );
+        exitPromises.push(new Promise(resolve => {
+          gsap.to(prevHeadersInner, {
+            yPercent: (/** @type {number} */ i) => {
+              const d = headerExitDirs && headerExitDirs[i];
+              return d && d.axis === 'y' ? d.percent : 0;
+            },
+            xPercent: (/** @type {number} */ i) => {
+              const d = headerExitDirs && headerExitDirs[i];
+              return d && d.axis === 'x' ? d.percent : 0;
+            },
+            duration: 0.5,
+            ease: 'power3.in',
+            overwrite: true,
+            onComplete: resolve,
+          });
+        }));
+      }
+      await Promise.all(exitPromises);
+    }
+
+    const { color } = setActiveNavBtn(btns, program, 'data-program', opts);
+    currentProgramColor = color;
+    panels.forEach(p => p.classList.toggle('hidden', p.id !== `panel-${program}`));
+
+    // 切 program 時 reset 卡片選取狀態（避免 active card / slide-in 殘留）
+    deselectActiveCard();
+
+    // setActiveNavBtn 清掉 inactive btn-inner 的 inline transform，需 re-apply _baseRot
+    applyBaseRotations();
+
+    const activeBtn = /** @type {HTMLElement|null} */ (document.querySelector(
+      `.courses-program-btn.active[data-program="${program}"]`
+    ));
+
+    // 把 active btn-inner 的 inline rotation 同步到 _baseRot（供之後 mouseleave 還原用）
+    syncActiveBaseRot(activeBtn);
+
+    // active group label = accent + 新 rotation；其他 group label = 清 inline bg/color 回 CSS 預設
+    // label rotation 優先用 hover pending，無 pending 才隨機（避免 click 後 label 角度突然亂跳）
+    // ⚠️ 不要對 active group label 先清再套：transition 0.2s 會跑「accent → transparent → accent」中間態，
+    //    視覺上看到一瞬間透明底但因 .active group 的 CSS rule (color:black) 接管 → 黑字浮在頁面背景上
+    //    （user 截圖回報 BFA label 一瞬間變黑色）。對 active group 一律直接覆蓋 inline 值。
+    const activeLabel = activeBtn
+      ? /** @type {HTMLElement & { _baseRot?: number } | null} */ (activeBtn.closest('.courses-program-group')?.querySelector('.courses-bfa-label') || null)
+      : null;
+    document.querySelectorAll('.courses-bfa-label').forEach(l => {
+      if (l === activeLabel) return;
+      /** @type {HTMLElement} */ (l).style.background = '';
+      /** @type {HTMLElement} */ (l).style.color = '';
+    });
+    if (activeLabel) {
+      activeLabel._baseRot = pendingLabelRot != null ? pendingLabelRot : getRot();
+      activeLabel.style.background = color;
+      activeLabel.style.color = '#000000';
+      activeLabel.style.transform = `rotate(${activeLabel._baseRot}deg)`;
+    }
+
+    // click 後要清掉 _pending（避免下次無 hover 直接點時還沿用舊值）
+    if (incomingBtn) {
+      incomingBtn._pendingRot = null;
+      incomingBtn._pendingLabelRot = null;
+    }
+
+    await renderCoursesGrid(program);
+    if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh();
+
+    // 卡片進場 clip-path reveal：每張隨機從 4 方向之一展開
+    // - 初次 init（isSwitch=false）：stagger 一個個進場，ScrollTrigger 等使用者滑到才播
+    // - 切換 program（isSwitch=true）：無 stagger 同時進場，已在視圖內直接播
+    // 年級表頭 enter（僅 isSwitch）：mirror exit direction — 舊 up exit → 新 from below；舊 down exit → 新 from above
+    const activePanel = document.getElementById(`panel-${program}`);
+    if (activePanel && typeof gsap !== 'undefined') {
+      const allCards = activePanel.querySelectorAll('.courses-grid-card');
+      if (allCards.length) {
+        gsap.killTweensOf(allCards);
+        allCards.forEach(card => {
+          gsap.set(card, { clipPath: pickClipDir() });
+        });
+
+        const playReveal = () => {
+          gsap.to(allCards, {
+            clipPath: 'inset(0% 0% 0% 0%)',
+            duration: 0.4,
+            ease: 'cubic-bezier(0.25, 0, 0, 1)',
+            stagger: isSwitch ? 0 : 0.02,
+            overwrite: true,
+            clearProps: 'clipPath',
+          });
+        };
+
+        if (isSwitch) {
+          playReveal();
+        } else if (typeof ScrollTrigger !== 'undefined') {
+          ScrollTrigger.create({
+            trigger: activePanel,
+            start: 'top 90%',
+            once: true,
+            onEnter: playReveal,
+          });
+        } else {
+          playReveal();
+        }
+      }
+
+      // 年級表頭 enter：
+      // - 切換（isSwitch + headerExitDirs）：mirror exit 同軸反向
+      // - 初次 init（!isSwitch）：4 方向 random，ScrollTrigger 等使用者滑到才播（同卡片）
+      // - BFA↔BFA 切換（isSwitch 但 headerExitDirs=null）：不動畫，headers 維持 rest（已在開頭 clearProps）
+      const newHeadersInner = activePanel.querySelectorAll('.courses-grid-col-header-inner');
+      if (newHeadersInner.length) {
+        gsap.killTweensOf(newHeadersInner);
+        if (isSwitch && headerExitDirs) {
+          const exitDirs = headerExitDirs;
+          gsap.fromTo(newHeadersInner,
+            {
+              yPercent: (/** @type {number} */ i) => {
+                const d = exitDirs[i % exitDirs.length];
+                return d.axis === 'y' ? -d.percent : 0;
+              },
+              xPercent: (/** @type {number} */ i) => {
+                const d = exitDirs[i % exitDirs.length];
+                return d.axis === 'x' ? -d.percent : 0;
+              },
+            },
+            {
+              yPercent: 0,
+              xPercent: 0,
+              duration: 0.9,
+              ease: 'power3.out',
+              overwrite: true,
+              clearProps: 'transform',
+            }
+          );
+        } else if (!isSwitch) {
+          const initDirs = [...newHeadersInner].map(() =>
+            /** @type {HeaderDir} */ (HEADER_EXIT_DIRS[Math.floor(Math.random() * HEADER_EXIT_DIRS.length)])
+          );
+          gsap.set(newHeadersInner, {
+            yPercent: (/** @type {number} */ i) => initDirs[i].axis === 'y' ? initDirs[i].percent : 0,
+            xPercent: (/** @type {number} */ i) => initDirs[i].axis === 'x' ? initDirs[i].percent : 0,
+          });
+          const playHeaderReveal = () => {
+            gsap.to(newHeadersInner, {
+              yPercent: 0,
+              xPercent: 0,
+              duration: 0.9,
+              ease: 'power3.out',
+              stagger: 0.08,
+              overwrite: true,
+              clearProps: 'transform',
+            });
+          };
+          if (typeof ScrollTrigger !== 'undefined') {
+            ScrollTrigger.create({
+              trigger: activePanel,
+              start: 'top 90%',
+              once: true,
+              onEnter: playHeaderReveal,
+            });
+          } else {
+            playHeaderReveal();
+          }
+        }
+      }
+    }
+
+    if (shouldScroll && sectionEl) {
+      scrollSectionIntoView(sectionEl);
+    }
+  }
+}

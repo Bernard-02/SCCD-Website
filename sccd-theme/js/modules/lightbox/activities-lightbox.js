@@ -1,0 +1,581 @@
+/**
+ * Activities Lightbox
+ * 點擊海報或 gallery 媒體，以全螢幕 lightbox 顯示大圖/影片
+ * 媒體順序：海報 → videos → images
+ */
+
+import { enterLightboxMode, exitLightboxMode } from './lightbox-shell.js';
+import { createRefBtn } from './lightbox-ref-btn.js';
+
+let lightboxEl = null;
+let mainEl = null;
+let thumbsEl = null;
+let titleEl = null;
+let prevBtn = null;
+let nextBtn = null;
+let iframeEl = null;
+
+let mediaList = [];   // [{ type: 'image'|'video', src: string, thumb: string }]
+let currentIndex = 0;
+
+let zoomControlsEl = null;
+let zoomInBtn = null;
+let zoomOutBtn = null;
+let zoomPctEl = null;
+let fitToggleBtn = null;
+let closePillEl = null;
+let mainContainerEl = null;
+let refUi = null;  // { btnEl, popoverEl, setReferences, setColor, reset }
+
+// ── Zoom 狀態（仿 Windows Photos：滾輪游標中心縮放 + 拖曳平移）─────
+// 只對 image 啟用。每次 renderMain 重置；mousemove/mouseup 綁 window 一次永久存活
+let zoom = { scale: 1, tx: 0, ty: 0 };
+let zoomImg = null;
+let zoomStage = null;
+let fitDims = { w: 0, h: 0 };  // img 在 scale=1 時的 rendered fit 尺寸（object-fit:contain）
+let isDragging = false;
+let dragMoved = false;          // 用來避免 mouseup 在背景時誤觸 close
+let dragStart = { x: 0, y: 0, tx: 0, ty: 0 };
+const MIN_SCALE = 1;
+// 6x = 細節閱讀（小字 / 紋理）。再大 image pixel-grid 太明顯不實用
+const MAX_SCALE = 6;
+const DBLCLICK_SCALE = 2;
+// +/- 按鈕 snap 到這幾個離散 level（1 = fit；1.5/2/3 漸進裁切；4/6 細節閱讀）
+// 滾輪維持平滑（factor 1.15 per tick），按鈕走離散是給 user 可預測的縮放層級
+const ZOOM_STEPS = [1, 1.5, 2, 3, 4, 6];
+
+// ── 建立 DOM（只建一次）──────────────────────────────────────────
+function ensureLightbox() {
+  if (lightboxEl) return;
+
+  lightboxEl = document.createElement('div');
+  lightboxEl.id = 'activities-lightbox';
+  // bg-black/90 半透明黑（user 偏好；不全黑，讓底下 page 微微透出但 chips 不會搶眼）
+  // z-[9999] 與 header 同層，但 lightbox 後 append 到 body → 蓋在 header 之上
+  // header 由 lightbox-shell 拉到 z=10000，logo 浮在 lightbox 黑底上、bars 用 clip-path 收掉
+  lightboxEl.className = 'fixed inset-0 z-[9999] bg-black/90 flex flex-col opacity-0 transition-opacity duration-300';
+  lightboxEl.style.display = 'none';
+
+  lightboxEl.innerHTML = `
+    <!-- Main display: flex-1 填滿，py-xl 限制上下空間；padding-top 在 openLightbox 動態 override
+         讓 zoomStage 上邊緣對齊 logo 底邊（zoom 放大時影像被 overflow:hidden clip 不會蓋到 logo）
+         px-16 md:px-32：desktop 加大 padding 讓 zoom mask 邊停在 chevron 內側（chevron right ≈ 68px，
+         px-32 = 128px → 60px gap），避免高倍 zoom 時 image 視覺貼到 chevron 上。mobile 維持 px-16 -->
+    <div class="alb-main-container flex items-center justify-center w-full px-16 md:px-32 py-xl flex-1 min-h-0 relative">
+      <!-- chevron 左右對齊 container-padding（= logo / back btn pill 的 viewport margin），絕對定位獨立元件不受 back btn 隨機旋轉影響
+           z-index:30 必要：chevron 在 alb-main 之前的 DOM siblings，下層；alb-main / zoomStage w-full h-full 蓋在上面 → 不拉 z 點不到
+           disabled 視覺：opacity-50 保留白色（user 要求：「到底了」的暗示，不是 disabled grey 感）+ cursor-not-allowed -->
+      <button class="alb-prev absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 disabled:opacity-50 disabled:[cursor:var(--cursor-not-allowed)] disabled:hover:opacity-50" style="left: var(--container-padding, 1.5rem); z-index: 30;">
+        <span class="icon icon-chevron-lightbox icon-m"></span>
+      </button>
+      <div class="alb-main flex items-center justify-center w-full h-full"></div>
+      <button class="alb-next absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 disabled:opacity-50 disabled:[cursor:var(--cursor-not-allowed)] disabled:hover:opacity-50" style="right: var(--container-padding, 1.5rem); z-index: 30;">
+        <span class="icon icon-chevron-lightbox icon-m rotate-180"></span>
+      </button>
+    </div>
+
+    <!-- Thumbnails: outer wrap 永遠 full-width 置中；inner 受 max-width 控制 + 超出時內部 scroll -->
+    <!-- 用 wrapper 而非 .alb-thumbs 直接 max-width+margin:auto 是為了讓 justify-center 在 overflow 時不會 clip 左邊 -->
+    <!-- relative + 左側絕對定位 topbar(back+title) + 右側絕對定位 zoom controls：不影響 thumbs 置中 -->
+    <!-- py-xl（不是 py-md）：title pill 有 ±3° rotation + transform-origin:left bottom，右端會下沉～18px；
+         加上 wrap 自身的 bottom padding 才不會讓 title 文字「貼底」到 viewport 底邊（user 反映） -->
+    <div class="alb-thumbs-wrap relative flex justify-center w-full py-xl flex-shrink-0">
+      <!-- 左側：返回按鈕（arrow icon-only pill）+ title pill 並排，與 thumbs row 同高（vertically centered）
+           transform-origin:left bottom 讓兩 pill 從 bottom-left 樞紐，避免旋轉時 bbox 溢出視窗左邊 -->
+      <div class="alb-topbar absolute" style="left: var(--container-padding, 1.5rem); top: 50%; transform: translateY(-50%); z-index: 5; display: flex; align-items: flex-end; gap: 20px;">
+        <button class="alb-close">
+          <span class="alb-close-pill" style="display:inline-flex;align-items:center;justify-content:center;background:#00FF80;color:#000;width:44px;height:44px;font-size:var(--font-size-p1);line-height:1;transform:rotate(0deg);transform-origin:left bottom;">
+            <span class="icon icon-arrow-left icon-m"></span>
+          </span>
+        </button>
+        <!-- 標題 pill：caller 帶入 list-item 名稱 + accent 底色 + 隨機旋轉 + max-width 超出 marquee -->
+        <div class="alb-title" style="display: none;"></div>
+      </div>
+      <!-- padding-y: 6px 給 active outline (2px width + 2px offset = 4px) 預留空間 -->
+      <!-- overflow-x:auto 會讓 overflow-y 被瀏覽器隱式設成 auto，沒這 padding 上下 outline 會被 clip 掉 -->
+      <div class="alb-thumbs flex items-center gap-sm" style="max-width: min(80vw, 960px); overflow-x: auto; padding: 6px var(--spacing-md);"></div>
+      <div class="alb-zoom-controls absolute text-white" style="right: var(--container-padding, 1.5rem); top: 50%; transform: translateY(-50%); display: none; align-items: center; gap: 12px;">
+        <button class="alb-zoom-out p-2 transition-opacity hover:opacity-60 disabled:opacity-30" aria-label="Zoom out">
+          <span class="icon icon-zoom-out icon-m"></span>
+        </button>
+        <span class="alb-zoom-pct text-p2" style="font-variant-numeric: tabular-nums; min-width: 3.5rem; text-align: center;">100%</span>
+        <button class="alb-zoom-in p-2 transition-opacity hover:opacity-60 disabled:opacity-30" aria-label="Zoom in">
+          <span class="icon icon-zoom-in icon-m"></span>
+        </button>
+        <!-- Fit / 放大 toggle（仿 Windows Photos）：fit 時點 → 放大 2x；zoomed 時點 → 回 fit -->
+        <button class="alb-fit-toggle p-2 transition-opacity hover:opacity-60" aria-label="Fit / zoom toggle">
+          <i class="fa-solid fa-expand text-p1"></i>
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(lightboxEl);
+
+  mainEl   = lightboxEl.querySelector('.alb-main');
+  thumbsEl = lightboxEl.querySelector('.alb-thumbs');
+  titleEl  = lightboxEl.querySelector('.alb-title');
+  prevBtn  = lightboxEl.querySelector('.alb-prev');
+  nextBtn  = lightboxEl.querySelector('.alb-next');
+  zoomControlsEl = lightboxEl.querySelector('.alb-zoom-controls');
+  zoomInBtn      = lightboxEl.querySelector('.alb-zoom-in');
+  zoomOutBtn     = lightboxEl.querySelector('.alb-zoom-out');
+  zoomPctEl      = lightboxEl.querySelector('.alb-zoom-pct');
+  fitToggleBtn   = lightboxEl.querySelector('.alb-fit-toggle');
+  closePillEl    = lightboxEl.querySelector('.alb-close-pill');
+  mainContainerEl = lightboxEl.querySelector('.alb-main-container');
+
+  // Ref btn：插在 close btn 跟 title pill 之間（flex 順序）；popover append 到 lightbox root
+  refUi = createRefBtn('#00FF80', () => closeLightboxAsync());
+  refUi.btnEl.classList.add('alb-ref-btn');
+  const topbarEl = lightboxEl.querySelector('.alb-topbar');
+  if (topbarEl && titleEl) {
+    topbarEl.insertBefore(refUi.btnEl, titleEl);
+  }
+  lightboxEl.appendChild(refUi.popoverEl);
+
+  prevBtn.addEventListener('click', () => navigate(-1));
+  nextBtn.addEventListener('click', () => navigate(1));
+  lightboxEl.querySelector('.alb-close').addEventListener('click', closeLightbox);
+  zoomInBtn.addEventListener('click',  () => zoomToStep(+1));
+  zoomOutBtn.addEventListener('click', () => zoomToStep(-1));
+  fitToggleBtn.addEventListener('click', () => {
+    // zoomed → reset 回 fit；fit → 跳到 2x（中度放大，舒適閱讀；不直接 MAX_SCALE 避免太爆）
+    if (zoom.scale > 1.001) resetZoom(true);
+    else zoomAtStageCenter(2, true);
+  });
+
+  // 點擊背景關閉（拖曳後抑制一次以避免 pan 結束在背景時誤關）
+  lightboxEl.addEventListener('click', e => {
+    if (dragMoved) { dragMoved = false; return; }
+    if (e.target === lightboxEl) closeLightbox();
+  });
+
+  // 鍵盤：
+  //  - Esc / + - 0：縮放控制
+  //  - Arrow keys 雙模式：
+  //    · fit (scale<=1)：上/左 = 上一張、下/右 = 下一張（4 鍵都導航）
+  //    · zoomed (scale>1)：pan — scroll direction（按右往右看 / 按下往下看，圖往反方向移）
+  //      跟 PDF viewer / scroll convention 一致；mouse drag 仍維持「圖跟手」方向
+  document.addEventListener('keydown', e => {
+    if (lightboxEl.style.display === 'none') return;
+    if (e.key === 'Escape') { closeLightbox(); return; }
+
+    const zoomed = zoomImg && zoom.scale > 1.001;
+    const PAN_STEP = 80;
+    if (e.key === 'ArrowLeft')  { if (zoomed) { zoom.tx += PAN_STEP; clampPan(); applyZoom(true); } else navigate(-1); return; }
+    if (e.key === 'ArrowRight') { if (zoomed) { zoom.tx -= PAN_STEP; clampPan(); applyZoom(true); } else navigate(1);  return; }
+    if (e.key === 'ArrowUp')    { if (zoomed) { zoom.ty += PAN_STEP; clampPan(); applyZoom(true); } else navigate(-1); return; }
+    if (e.key === 'ArrowDown')  { if (zoomed) { zoom.ty -= PAN_STEP; clampPan(); applyZoom(true); } else navigate(1);  return; }
+
+    if (!zoomImg) return;
+    if (e.key === '+' || e.key === '=') zoomToStep(+1);
+    if (e.key === '-' || e.key === '_') zoomToStep(-1);
+    if (e.key === '0') resetZoom(true);
+  });
+
+  // Drag pan：mousemove/mouseup 綁 window 一次，永久存活
+  // 用 isDragging gate；scale=1 時 mousedown 不啟動，所以也不會空跑
+  window.addEventListener('mousemove', e => {
+    if (!isDragging) return;
+    zoom.tx = dragStart.tx + (e.clientX - dragStart.x);
+    zoom.ty = dragStart.ty + (e.clientY - dragStart.y);
+    if (Math.abs(e.clientX - dragStart.x) > 5 || Math.abs(e.clientY - dragStart.y) > 5) {
+      dragMoved = true;
+    }
+    clampPan();
+    applyZoom(false);
+  });
+  window.addEventListener('mouseup', () => {
+    if (!isDragging) return;
+    isDragging = false;
+    if (zoomImg) zoomImg.style.cursor = zoom.scale > 1
+      ? "url('/custom-cursor/drag_1.svg') 10 10, grab"
+      : "url('/custom-cursor/zoom-in.svg') 6 6, zoom-in";
+  });
+}
+
+// ── Zoom helpers ────────────────────────────────────────────────
+function applyZoom(animated = false) {
+  if (!zoomImg) return;
+  zoomImg.style.transition = animated ? 'transform 0.2s ease-out' : 'none';
+  zoomImg.style.transform = `translate(${zoom.tx}px, ${zoom.ty}px) scale(${zoom.scale})`;
+  zoomImg.style.cursor = isDragging
+    ? "url('/custom-cursor/drag_2.svg') 10 10, grabbing"
+    : (zoom.scale > 1
+        ? "url('/custom-cursor/drag_1.svg') 10 10, grab"
+        : "url('/custom-cursor/zoom-in.svg') 6 6, zoom-in");
+  updateZoomUI();
+}
+
+// 同步 zoom % 顯示 + +/- 按鈕到極值時的 disabled 狀態 + fit-toggle 圖示
+function updateZoomUI() {
+  if (!zoomPctEl) return;
+  zoomPctEl.textContent = `${Math.round(zoom.scale * 100)}%`;
+  zoomInBtn.disabled  = zoom.scale >= MAX_SCALE - 0.001;
+  zoomOutBtn.disabled = zoom.scale <= MIN_SCALE + 0.001;
+  // fit-toggle 圖示：fit 時顯示 expand（暗示「點擊放大」）；zoomed 時顯示 compress（暗示「點擊縮回 fit」）
+  if (fitToggleBtn) {
+    const icon = fitToggleBtn.querySelector('i');
+    if (icon) icon.className = zoom.scale > 1.001 ? 'fa-solid fa-compress text-p1' : 'fa-solid fa-expand text-p1';
+  }
+}
+
+function clampPan() {
+  if (zoom.scale <= 1) { zoom.tx = 0; zoom.ty = 0; return; }
+  const stageRect = zoomStage.getBoundingClientRect();
+  const scaledW = fitDims.w * zoom.scale;
+  const scaledH = fitDims.h * zoom.scale;
+  const maxTx = Math.max(0, (scaledW - stageRect.width) / 2);
+  const maxTy = Math.max(0, (scaledH - stageRect.height) / 2);
+  zoom.tx = Math.max(-maxTx, Math.min(maxTx, zoom.tx));
+  zoom.ty = Math.max(-maxTy, Math.min(maxTy, zoom.ty));
+}
+
+// 在 (clientX, clientY) 為焦點縮放 factor 倍。Windows Photos 風格：游標下的像素保持不動
+function zoomAt(clientX, clientY, factor, animated = false) {
+  if (!zoomStage || !zoomImg) return;
+  const stageRect = zoomStage.getBoundingClientRect();
+  const cx = clientX - stageRect.left;
+  const cy = clientY - stageRect.top;
+  const sw = stageRect.width, sh = stageRect.height;
+  // 游標下這個點在「img 自身、未縮放、相對 img 中心」的座標
+  const imgX = (cx - sw / 2 - zoom.tx) / zoom.scale;
+  const imgY = (cy - sh / 2 - zoom.ty) / zoom.scale;
+  const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, zoom.scale * factor));
+  if (newScale === zoom.scale) return;
+  // 解出 newTx 使該點在 stage 中的位置不變
+  zoom.tx = cx - sw / 2 - imgX * newScale;
+  zoom.ty = cy - sh / 2 - imgY * newScale;
+  zoom.scale = newScale;
+  clampPan();
+  applyZoom(animated);
+}
+
+function zoomAtStageCenter(factor, animated = false) {
+  if (!zoomStage) return;
+  const r = zoomStage.getBoundingClientRect();
+  zoomAt(r.left + r.width / 2, r.top + r.height / 2, factor, animated);
+}
+
+// +/- 按鈕：找 ZOOM_STEPS 中下一個（dir +1）/前一個（dir -1）level，scale 到該 level
+// 當前 scale 不一定在 ZOOM_STEPS（滾輪可能任意值），用 firstHigher / lastLower 找鄰近 step
+function zoomToStep(dir) {
+  if (!zoomStage) return;
+  let target;
+  if (dir > 0) {
+    target = ZOOM_STEPS.find(s => s > zoom.scale + 0.001);
+  } else {
+    target = [...ZOOM_STEPS].reverse().find(s => s < zoom.scale - 0.001);
+  }
+  if (target == null) return;
+  zoomAtStageCenter(target / zoom.scale, true);
+}
+
+function resetZoom(animated = false) {
+  zoom = { scale: 1, tx: 0, ty: 0 };
+  applyZoom(animated);
+}
+
+// ── 渲染指定 index ──────────────────────────────────────────────
+function renderMain(index) {
+  const item = mediaList[index];
+  mainEl.innerHTML = '';
+  // 切換媒體時重置 zoom 狀態（圖→影、影→圖、圖→圖 都要清）
+  zoomImg = null; zoomStage = null; isDragging = false; dragMoved = false;
+  zoom = { scale: 1, tx: 0, ty: 0 };
+
+  // zoom controls 只在 image 顯示（video iframe 無法 zoom）
+  if (zoomControlsEl) zoomControlsEl.style.display = item.type === 'video' ? 'none' : 'flex';
+
+  if (item.type === 'video') {
+    iframeEl = document.createElement('iframe');
+    iframeEl.src = item.src + '?autoplay=1';
+    iframeEl.setAttribute('frameborder', '0');
+    iframeEl.setAttribute('allowfullscreen', '');
+    iframeEl.setAttribute('allow', 'autoplay; encrypted-media');
+    iframeEl.style.cssText = 'width:100%;max-width:960px;aspect-ratio:16/9;max-height:100%;';
+    mainEl.appendChild(iframeEl);
+  } else {
+    iframeEl = null;
+    // zoomStage 充當 overflow:hidden 容器 + 滾輪/拖曳事件接收器
+    zoomStage = document.createElement('div');
+    zoomStage.className = 'alb-zoom-stage';
+    zoomStage.style.cssText = 'position:relative;width:100%;height:100%;overflow:hidden;display:flex;align-items:center;justify-content:center;';
+
+    zoomImg = document.createElement('img');
+    zoomImg.src = item.src;
+    zoomImg.alt = '';
+    // transform-origin:center 配合 zoomAt 的數學（以 img 自身中心為旋轉基準）
+    // user-select / -webkit-user-drag 關閉避免拖曳時觸發瀏覽器原生 image drag
+    zoomImg.style.cssText = "max-width:100%;max-height:100%;object-fit:contain;display:block;transform-origin:center;cursor:url('/custom-cursor/zoom-in.svg') 9 9, zoom-in;user-select:none;-webkit-user-drag:none;will-change:transform;";
+    zoomImg.draggable = false;
+
+    zoomStage.appendChild(zoomImg);
+    mainEl.appendChild(zoomStage);
+
+    // 量測 fit 尺寸（scale=1 時的 rendered bbox）給 clampPan 用
+    // img 已 max-width/height:100% + object-fit:contain，load 完 offsetW/H 就是 fit 結果
+    zoomImg.addEventListener('load', () => {
+      fitDims = { w: zoomImg.offsetWidth, h: zoomImg.offsetHeight };
+    });
+
+    // 切換到 image 時同步 zoom UI 到 100%（不靠 applyZoom；首次未動 transform）
+    updateZoomUI();
+
+    // 滾輪：游標中心縮放（仿 Windows Photos，不需 Ctrl）
+    zoomStage.addEventListener('wheel', e => {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+      zoomAt(e.clientX, e.clientY, factor, false);
+    }, { passive: false });
+
+    // 拖曳平移（只在 scale>1 時啟動）
+    zoomStage.addEventListener('mousedown', e => {
+      if (zoom.scale <= 1 || e.button !== 0) return;
+      isDragging = true;
+      dragMoved = false;
+      dragStart = { x: e.clientX, y: e.clientY, tx: zoom.tx, ty: zoom.ty };
+      zoomImg.style.cursor = "url('/custom-cursor/drag_2.svg') 15 15, grabbing";
+      e.preventDefault();
+    });
+
+    // 單擊 img：在 fit ↔ DBLCLICK_SCALE 間切換（zoom-in 鎖游標位置）
+    // cursor 顯示 zoom-in/grab 暗示「點擊可放大/收回」— affordance 一致
+    // 拖曳結束的 mouseup 也會 fire click，用 dragMoved gate 過濾
+    zoomImg.addEventListener('click', e => {
+      if (dragMoved) { dragMoved = false; return; }
+      if (zoom.scale > 1) resetZoom(true);
+      else zoomAt(e.clientX, e.clientY, DBLCLICK_SCALE, true);
+    });
+  }
+
+  // 更新 thumbnails active 狀態
+  // 用 outline + outline-offset 在圖片「外層」畫 2px 白 border（不佔 layout 空間，不會推擠相鄰 thumb）
+  // outline-offset:2px 讓 border 跟圖邊緣有 2px gap，視覺上明顯獨立框出來
+  thumbsEl.querySelectorAll('.alb-thumb').forEach((th, i) => {
+    if (i === index) {
+      th.style.outline = '2px solid #fff';
+      th.style.outlineOffset = '2px';
+    } else {
+      th.style.outline = '';
+      th.style.outlineOffset = '';
+    }
+    th.classList.toggle('opacity-40', i !== index);
+  });
+
+  // 更新 chevron 狀態：只 1 個 media 時整顆隱藏（disabled+opacity 視覺上仍可見會誤導點擊）
+  const singleMedia = mediaList.length <= 1;
+  prevBtn.style.display = singleMedia ? 'none' : '';
+  nextBtn.style.display = singleMedia ? 'none' : '';
+  prevBtn.disabled = index === 0;
+  nextBtn.disabled = index === mediaList.length - 1;
+  // 即使 single media 也顯示 thumbs row（含單張 thumb）：thumbs-wrap 是 flex-shrink-0 + py-md，
+  // 隱藏會讓 wrap 縮 60px → main flex:1 撐大 → image 變大、topbar/zoom controls 因 top:50% 跟著上移，
+  // 跟 multi-media 版面對不上。chevron 仍隱藏（無處可導航）足以表達「只有一張」
+  thumbsEl.style.display = '';
+  currentIndex = index;
+}
+
+// ── 切換 ────────────────────────────────────────────────────────
+function navigate(dir) {
+  const next = Math.max(0, Math.min(mediaList.length - 1, currentIndex + dir));
+  if (next !== currentIndex) {
+    if (iframeEl) iframeEl.src = '';
+    renderMain(next);
+  }
+}
+
+// ── Image 可載入性 probe（檔案 404 / 跨域擋 → 不要進 mediaList）─────
+// JSON 裡的 image path 可能對應到不存在的檔（user 還沒上傳 / 已刪除），純 string-non-empty 過濾不夠；
+// user 反映「chevron 切下去看到不存在的圖」=lightbox 拿到不能 load 的 src。
+// 此 cache 保存 src → boolean，避免每次開 lightbox 都重 probe（同一 src 重複下載）
+const _imageProbeCache = new Map();
+function probeImage(src) {
+  if (_imageProbeCache.has(src)) return _imageProbeCache.get(src);
+  const promise = new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => resolve(img.naturalWidth > 0);
+    img.onerror = () => resolve(false);
+    img.src = src;
+  });
+  _imageProbeCache.set(src, promise);
+  return promise;
+}
+
+// ── 開啟 ────────────────────────────────────────────────────────
+// opts.title = { en, zh }   左下角標題（含英中兩行）；省略則不顯示
+// opts.color = '#00FF80'    標題底色（建議帶入當前 section 的 accent 色）
+// opts.references = [{ section, itemId, labelEn, labelZh, titleEn, titleZh }]
+//                   為空 array 或省略 → ref btn 不顯示；點 ref chip 會關 lightbox 並 SPA 跳 activities
+export async function openLightbox(media, startIndex = 0, opts = {}) {
+  ensureLightbox();
+  const initial = media.filter(item => item && item.src && typeof item.src === 'string' && item.src.trim() !== '');
+  if (initial.length === 0) {
+    console.warn('openLightbox: no valid media items after filter, aborting');
+    return;
+  }
+
+  // Probe 每個 image 是否真的能載入（video 預設通過，YouTube embed 無法 cross-origin probe）
+  // Promise.all 跑完才往下：本地檔最壞情況 ~50ms（broken fire error 很快），cached 後續開 lightbox 是 sync
+  const probed = await Promise.all(initial.map(async item => {
+    if (item.type === 'video') return item;
+    const ok = await probeImage(item.src);
+    return ok ? item : null;
+  }));
+  mediaList = probed.filter(Boolean);
+  if (mediaList.length === 0) {
+    console.warn('openLightbox: all media failed to load, aborting');
+    return;
+  }
+  // startIndex 對應「過濾前」的原始 array — 找出原 startIndex 的 src，在過濾後 array 找最近的位置
+  // 例：raw=[poster, img0, img1] startIndex=0；poster 壞 → filtered=[img0, img1]，目標 src 不在 → 用 max(0, 0-1) = 0 落到 img0
+  const targetSrc = initial[startIndex]?.src;
+  const found = mediaList.findIndex(m => m.src === targetSrc);
+  startIndex = found >= 0 ? found : Math.max(0, Math.min(startIndex, mediaList.length - 1));
+
+  // 建立 thumbnails：固定高度 + width:auto 自然比例；object-fit:contain 防裁切（避免 cover 把窄圖兩側切掉）
+  thumbsEl.innerHTML = '';
+  mediaList.forEach((item, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'alb-thumb flex-shrink-0 overflow-hidden transition-opacity';
+    btn.style.height = '48px';
+    const img = document.createElement('img');
+    img.src = item.thumb;
+    img.alt = '';
+    img.style.cssText = 'height:100%;width:auto;display:block;object-fit:contain;';
+    btn.appendChild(img);
+    btn.addEventListener('click', () => {
+      if (iframeEl) iframeEl.src = '';
+      renderMain(i);
+    });
+    thumbsEl.appendChild(btn);
+  });
+
+  // 標題 pill：仿 activities-section-btn active 樣式（vertical en+zh + 隨機旋轉 + accent bg）
+  renderTitle(opts.title, opts.color);
+  // 返回按鈕：底色用 caller 帶入 accent (與 title pill 同色)，隨機旋轉（每次開啟一個新角度）
+  renderBackButton(opts.color);
+  // ref btn：跟 back btn 同 accent；無 references 時自動隱藏
+  if (refUi) {
+    refUi.setColor(opts.color || '#00FF80');
+    refUi.setReferences(opts.references);
+  }
+  // 量 logo 底邊位置 → 同步 close btn top + main padding-top（避免 zoom image 蓋到 logo）
+  positionUIRelativeToLogo();
+
+  renderMain(startIndex);
+
+  lightboxEl.style.display = 'flex';
+  requestAnimationFrame(() => {
+    lightboxEl.style.opacity = '1';
+  });
+  enterLightboxMode();
+}
+
+// 動態量 header logo bbox：main display 區 padding-top 推到 logo 底邊以下，
+// zoomStage overflow:hidden clip 防止 image 蓋 logo。為何動態：header.js scroll 切 180/100。
+// shell padLightboxTops 給 lightbox root 加 1.5rem(=24px) → main container padding-top = max(0, logoBottom + GAP - 24)
+// （topbar 已搬到 bottom-left，不再依賴 logo 位置；保留只給 main container paddingTop 用）
+function positionUIRelativeToLogo() {
+  const logo = document.querySelector('#header-logo');
+  if (!logo) return;
+  const rect = logo.getBoundingClientRect();
+  const logoBottom = rect.bottom;
+  const ZOOM_GAP = 16;
+  const SHELL_PT = 24;
+  if (mainContainerEl) mainContainerEl.style.paddingTop = `${Math.max(0, logoBottom + ZOOM_GAP - SHELL_PT)}px`;
+}
+
+function renderBackButton(color) {
+  if (!closePillEl) return;
+  const bg = color || '#00FF80';
+  const rot = (window.SCCDHelpers && SCCDHelpers.getRandomRotation)
+    ? SCCDHelpers.getRandomRotation()
+    : ((Math.round(Math.random() * 10) - 4) || 3);
+  closePillEl.style.background = bg;
+  closePillEl.style.transform = `rotate(${rot}deg)`;
+}
+
+function renderTitle(title, color) {
+  if (!title || (!title.en && !title.zh)) {
+    titleEl.style.display = 'none';
+    titleEl.innerHTML = '';
+    return;
+  }
+  const bg = color || '#00FF80';
+  const rot = (window.SCCDHelpers && SCCDHelpers.getRandomRotation)
+    ? SCCDHelpers.getRandomRotation()
+    : ((Math.round(Math.random() * 10) - 4) || 3);
+  // 結構：pill > window(overflow:hidden) > track(inline-block nowrap) > unit(column-flex EN+ZH)
+  // marquee 動畫 track translateX，dual-copy 時 unit 整組（EN+ZH）一起捲動 = 中英字 textbox 為一個單位
+  // 不是兩行各自 marquee 害 EN/ZH 互不同步
+  titleEl.innerHTML = `
+    <span class="alb-title-pill" style="display:inline-block;background:${bg};color:#000;padding:6px 8px 5px;font-weight:700;font-size:var(--font-size-p1);line-height:1.2;transform:rotate(${rot}deg);transform-origin:left bottom;max-width:min(40vw, 360px);box-sizing:border-box;">
+      <span class="alb-title-window" style="display:block;overflow:hidden;">
+        <span class="alb-title-track" style="display:inline-block;white-space:nowrap;will-change:transform;">
+          <span class="alb-title-unit" style="display:inline-flex;flex-direction:column;align-items:flex-start;white-space:nowrap;vertical-align:top;">
+            ${title.en ? `<span>${title.en}</span>` : ''}
+            ${title.zh ? `<span>${title.zh}</span>` : ''}
+          </span>
+        </span>
+      </span>
+    </span>
+  `;
+  titleEl.style.display = 'block';
+  requestAnimationFrame(() => setupTitleMarquee());
+}
+
+// title 文字超出 pill max-width 時 GSAP 連續 marquee：以 EN+ZH unit 整組為單位 dual-copy seamless loop
+function setupTitleMarquee() {
+  if (!titleEl) return;
+  const win   = /** @type {HTMLElement | null} */ (titleEl.querySelector('.alb-title-window'));
+  const track = /** @type {HTMLElement | null} */ (titleEl.querySelector('.alb-title-track'));
+  if (!win || !track) return;
+  if (typeof gsap !== 'undefined') gsap.killTweensOf(track);
+  track.style.transform = '';
+  // reset dual-copy（caller 可能多次 renderTitle）
+  while (track.children.length > 1) track.removeChild(track.lastElementChild);
+  const unit = /** @type {HTMLElement | null} */ (track.querySelector('.alb-title-unit'));
+  if (!unit) return;
+  const unitWidth = unit.getBoundingClientRect().width;
+  const winWidth  = win.clientWidth;
+  if (unitWidth <= winWidth + 4) return;  // 4px tolerance
+  // dual-copy seamless loop
+  const clone = /** @type {HTMLElement} */ (unit.cloneNode(true));
+  clone.style.marginLeft = '24px';
+  track.appendChild(clone);
+  const distance = unitWidth + 24;
+  if (typeof gsap !== 'undefined') {
+    gsap.fromTo(track, { x: 0 }, {
+      x: -distance, duration: Math.max(3, distance / 80), ease: 'none', repeat: -1,
+    });
+  }
+}
+
+// ── 關閉 ────────────────────────────────────────────────────────
+function closeLightbox() {
+  if (iframeEl) iframeEl.src = '';
+  lightboxEl.style.opacity = '0';
+  exitLightboxMode();
+  // 停 title marquee tween 避免關閉後仍在背景 rAF 跑
+  if (typeof gsap !== 'undefined' && titleEl) {
+    titleEl.querySelectorAll('.alb-title-track').forEach(el => gsap.killTweensOf(el));
+  }
+  setTimeout(() => {
+    lightboxEl.style.display = 'none';
+    mainEl.innerHTML = '';
+    // 清 zoom refs（fit/drag flags 等下次 renderMain 會重置）
+    zoomImg = null; zoomStage = null; isDragging = false;
+    if (refUi) refUi.reset();
+  }, 300);
+  document.dispatchEvent(new CustomEvent('sccd:close-lightbox'));
+}
+
+// 給 ref btn 跳轉用：等 fadeout 完才 SPA 換頁，避免黑→新頁視覺斷層
+function closeLightboxAsync() {
+  return new Promise(resolve => {
+    closeLightbox();
+    setTimeout(resolve, 300);
+  });
+}

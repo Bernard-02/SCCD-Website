@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Accessibility - SCCD</title>
+  <link rel="stylesheet" href="../css/variables.css">
+  <link rel="stylesheet" href="../css/output.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+</head>
+<body>
+
+  <!-- Header -->
+  <div id="site-header"></div>
+
+  <!-- Main Content
+       id="page-content" 是 SPA router 的注入錨點，直接訪問必須有；附帶 inline <style> 隨 main 切頁進出。
+       排版與 privacy-policy.html 同 pattern（左 sticky 大標題 chip + 右側內文 + 編號 section grid） -->
+  <main id="page-content">
+    <style>
+      /* ── Accessibility / Privacy Policy 共用：左 sticky 大標題（比照 support 的 chip 風格） + 右側內文 ── */
+      .legal-page-section {
+        position: relative;
+        min-height: 100vh;
+      }
+
+      .legal-title-col {
+        align-self: start;
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        /* padding-bottom 給 title chip 與 viewport 底部留呼吸（避免滑到 section 末段時 chip 貼 footer） */
+        padding-bottom: var(--spacing-3xl);
+      }
+
+      .legal-title-block {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-xs);
+      }
+
+      .legal-content-col {
+        padding-top: var(--spacing-6xl);
+        padding-bottom: var(--spacing-6xl);
+        /* 避開 sticky 左欄 ACCESSIBILITY chip 旋轉後右下角壓進來
+           （chip 是 hero-animation.js 給 [data-hero-hl] 套的隨機旋轉，
+           最大角度下右下角會超出 col 5 邊界蓋到右欄第一行內文） */
+        padding-left: var(--spacing-4xl);
+      }
+
+      /* chip 共用：defensive 預設綠底，等 hero-animation.js 對 [data-hero-hl] 設 inline 隨機 accent
+         width:max-content 讓 chip 嚴格 hug textbox（避免 .hero-title-wrapper block + flex align-start
+         下 wrapper 看起來右側 padding 過大） */
+      .legal-title-block .hero-title,
+      .legal-title-block .hero-title-cn {
+        background: var(--color-green);
+        padding: 0.5rem 0.6rem;
+        line-height: 1.05;
+        width: max-content;
+        max-width: 100%;
+      }
+
+      /* ── 編號 section：grid 兩欄（編號 / EN 標題+ZH 標題+內文）─── */
+      .legal-section {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        column-gap: var(--spacing-md);
+        margin-bottom: var(--spacing-3xl);
+      }
+      .legal-section-num {
+        font-size: var(--font-size-h4);
+        font-weight: var(--font-weight-bold);
+        line-height: var(--line-height-h4, 1.2);
+      }
+      .legal-section-body > .legal-section-title-en,
+      .legal-section-body > .legal-section-title-zh {
+        font-size: var(--font-size-h4);
+        font-weight: var(--font-weight-bold);
+        line-height: var(--line-height-h4, 1.2);
+        margin: 0;
+      }
+      /* EN→ZH gap：拉開兩語標題距離 */
+      .legal-section-body > .legal-section-title-en {
+        margin-bottom: var(--spacing-sm);
+      }
+      .legal-section-body > .legal-section-title-zh {
+        margin-bottom: var(--spacing-md);
+      }
+      .legal-section-body ul,
+      .legal-section-body ol {
+        padding-left: 1.25rem;
+        margin-bottom: var(--spacing-md);
+      }
+      .legal-section-body ul:last-child,
+      .legal-section-body ol:last-child {
+        margin-bottom: 0;
+      }
+      .legal-section-body > p {
+        margin-bottom: var(--spacing-sm);
+      }
+      .legal-section-body > p:last-child {
+        margin-bottom: 0;
+      }
+
+      /* 手機：取消 sticky，title 與內文 stack flow */
+      @media (max-width: 767px) {
+        .legal-title-col {
+          position: static;
+          height: auto;
+          justify-content: flex-start;
+          padding-bottom: var(--spacing-xl);
+          /* padding-top 含 header 高度避免 title chip 被 logo 遮住（同 privacy-policy 2026-05-27） */
+          padding-top: calc(var(--header-height, 80px) + var(--spacing-3xl));
+        }
+        .legal-content-col {
+          padding-top: var(--spacing-xl);
+          /* mobile stack 排列下 chip 不會壓內文，取消 desktop 的 pl 避位 */
+          padding-left: 0;
+        }
+      }
+    </style>
+
+    <section class="legal-page-section">
+      <div class="site-container">
+        <div class="grid-12">
+
+          <!-- 左欄：sticky title chip（左下角，比照 support / privacy-policy） -->
+          <div class="legal-title-col col-span-12 md:col-span-5">
+            <div class="legal-title-block">
+              <h2 class="hero-title text-black inline-block" data-hero-hl>
+                ACCESSIBILITY<br>STATEMENT
+              </h2>
+              <h2 class="hero-title-cn text-black inline-block" data-hero-hl>
+                無障礙聲明
+              </h2>
+            </div>
+          </div>
+
+          <!-- 右欄：內文（async 由 legal-data-loader 填入 #legal-content） -->
+          <div class="legal-content-col col-span-12 md:col-span-7">
+            <div id="legal-content"></div>
+
+            <!-- Last Updated -->
+            <div class="mt-3xl">
+              <p id="legal-updated-en" class="text-p2 text-black"></p>
+              <p id="legal-updated-zh" class="text-p2 text-black"></p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <div id="site-footer"></div>
+
+  <!-- JavaScript -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollTrigger.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/Draggable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>
+  <script src="../js/utils/helpers.js"></script>
+  <script type="module" src="../js/main-modular.js"></script>
+
+</body>
+</html>

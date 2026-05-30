@@ -1,0 +1,54 @@
+[
+  {
+    "year": 2025,
+    "items": [
+      {
+        "title": "Annual Alumni Reunion 2025",
+        "title_zh": "2025 系友年度大會",
+        "date": "07.05",
+        "date_en": "2025.07.05",
+        "location": "Shih Chien University, Taipei",
+        "location_zh": "實踐大學．台北校區",
+        "description": "Annual gathering bringing together graduates across cohorts for keynote talks, portfolio showcases, and networking sessions.",
+        "descriptionZh": "年度系友聚會，匯聚跨屆畢業生進行專題演講、作品展示與交流活動。",
+        "poster": "../images/SCCD-1-4-0.jpg",
+        "videos": [],
+        "images": [],
+        "id": "ALAC-2025-01"
+      },
+      {
+        "title": "Alumni Mentorship Kickoff",
+        "title_zh": "系友導師制啟動",
+        "date": "03.08",
+        "date_en": "2025.03.08",
+        "location": "Online / Hybrid",
+        "location_zh": "線上 / 實體",
+        "description": "Launch event pairing senior alumni mentors with current students for one-on-one career guidance throughout the year.",
+        "descriptionZh": "啟動儀式，由資深系友與在校學生配對，提供整年度一對一職涯指導。",
+        "poster": "",
+        "videos": [],
+        "images": [],
+        "id": "ALAC-2025-02"
+      }
+    ]
+  },
+  {
+    "year": 2024,
+    "items": [
+      {
+        "title": "Alumni Design Forum: Future of AI in Visual Storytelling",
+        "title_zh": "系友設計論壇：AI 與視覺敘事的未來",
+        "date": "11.16",
+        "date_en": "2024.11.16",
+        "location": "Songshan Cultural Park",
+        "location_zh": "松山文創園區",
+        "description": "Forum hosted by alumni discussing the impact of AI on the next decade of communications design.",
+        "descriptionZh": "由系友主辦的論壇，探討 AI 對下一個十年媒體傳達設計的影響。",
+        "poster": "",
+        "videos": [],
+        "images": [],
+        "id": "ALAC-2024-01"
+      }
+    ]
+  }
+]

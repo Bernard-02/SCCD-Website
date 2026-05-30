@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>404 Page Not Found - SCCD</title>
+  <link rel="stylesheet" href="../css/output.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <div id="site-header"></div>
+
+  <!-- Main Content -->
+  <main id="page-content">
+    <!-- 404-only 樣式：放 main 內，SPA innerHTML 切換時自動跟著進出（離開頁時隨 innerHTML 替換被移除） -->
+    <style>
+      /* 隱藏 nav bars + mobile menu btn；保留 logo + mode btn */
+      body.page-404 #site-header header [data-bar],
+      body.page-404 #site-header header .mobile-menu-btn,
+      body.page-404 .mobile-nav {
+        display: none !important;
+      }
+
+      /* Stage：占整個 viewport 高（100vh），cards 用 absolute % 在此分佈；
+         非 fixed，讓後續 footer 可隨 scroll 出現 */
+      #error-404-stage {
+        position: relative;
+        width: 100%;
+        height: 100vh;
+        overflow: hidden;
+        background: var(--theme-bg, #ffffff);
+        color: var(--theme-fg, #000000);
+      }
+
+      /* Anchor wrapper：負責 abs 定位 + 旋轉 + clip-reveal 遮罩
+         - overflow:clip 讓內層 card 做 yPercent:100→0 reveal 時超出邊界被剪
+         - inline-block 讓 wrapper 包緊 card content（不撐到 100%）
+         - JS 用 gsap.set xPercent:-50 yPercent:-50 居中 + rotation 隨機角度 */
+      .error-404-anchor {
+        position: absolute;
+        top: 0;
+        left: 0;
+        display: inline-block;
+        overflow: clip;
+        text-decoration: none;
+        transform-origin: center center;
+      }
+
+      /* Card 本體：bg / padding / 文字；padding 用 rem（對齊 hero [data-hero-hl] 規格，
+         避免 h1 8rem 字時 em padding 等比放大成過大色塊）*/
+      .error-404-card {
+        display: block;
+        margin: 0;
+        padding: 0.5rem 0.6rem;
+        color: #000;
+        white-space: nowrap;
+        user-select: none;
+      }
+
+      .error-404-card.is-btn {
+        font-size: var(--font-size-h3);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        /* 對稱 padding（上下=左右）讓底色成正方形 —— icon 為 1em×1em 方形（繼承 parent h3 font-size），
+           padding 對稱 → 整個 box 自然成 square；之前 0.5rem 0.8rem 不對稱會壓成橫向 rectangle */
+        padding: 0.5rem;
+        transition: opacity 0.2s ease;
+      }
+
+      @media (min-width: 768px) {
+        .error-404-anchor:hover .error-404-card.is-btn {
+          opacity: 0.75;
+        }
+      }
+
+      /* mode-color：bg 用 var(--theme-fg) = 純 #000 或 #fff（依 vivid hue WCAG luminance 決定），
+         text 用 var(--theme-fg-inverse) = 相反純色 → 黑底白字 / 白底黑字 對比最強；
+         !important 蓋 JS init404 對 card 設的 inline backgroundColor */
+      body.mode-color .error-404-card {
+        background-color: var(--theme-fg) !important;
+        color: var(--theme-fg-inverse) !important;
+      }
+    </style>
+
+    <section id="error-404-stage">
+      <div class="error-404-anchor" data-error-card="error">
+        <h1 class="error-404-card is-huge">ERROR</h1>
+      </div>
+      <div class="error-404-anchor" data-error-card="cuowu">
+        <h1 class="error-404-card is-huge">錯誤</h1>
+      </div>
+      <a href="../index.html" class="error-404-anchor" data-error-card="back" aria-label="Back to Home 回首頁">
+        <span class="error-404-card is-btn">
+          <!-- 不帶 icon-* size class：讓 icon font-size 繼承 .is-btn 的 --font-size-h3（50px 桌面 / 32px 手機）
+               跟周圍 ERROR / 錯誤 大字 proportional；之前 icon-m=20px 太小
+               rotate-180：圖形朝右（指向首頁方向）— user 選擇用旋轉而非換 icon-arrow-right -->
+          <span class="icon icon-arrow-left rotate-180"></span>
+        </span>
+      </a>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <div id="site-footer"></div>
+
+  <!-- JavaScript -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollTrigger.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/Draggable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>
+  <script src="../js/utils/helpers.js"></script>
+  <script type="module" src="../js/main-modular.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<!-- html 級 overflow-x:hidden：iOS Safari + body overflow-x:hidden 會破 position:fixed header（依附 body 而非 viewport），html 級 clip 才修得了 -->
+<html lang="zh-Hant" style="overflow-x: hidden;">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>About - SCCD</title>
+  <link rel="stylesheet" href="../css/output.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+</head>
+<body style="overflow-x: hidden;">
+
+  <!-- Header -->
+  <div id="site-header"></div>
+
+  <!-- Main Content -->
+  <main id="page-content">
+    <!-- Hero Section -->
+    <section class="h-screen relative overflow-hidden flex items-center justify-center">
+      <div class="hero-logo-wrapper" style="width: 60%; max-height: 60vh;">
+        <img data-hero-logo class="theme-invert" src="../images/SCCD - Black.svg" alt="SCCD" style="width: 100%; height: auto; max-height: 60vh; object-fit: contain; visibility: hidden;">
+      </div>
+    </section>
+
+    <!-- Content Sections Wrapper -->
+    <div id="about-content-wrapper" class="relative">
+
+      <!-- Mobile Anchor Navigation (Floating Top Left) -->
+      <!-- Overlay -->
+      <div id="mobile-anchor-overlay" class="md:hidden fixed inset-0 bg-black/30 z-30 opacity-0 pointer-events-none transition-opacity duration-300"></div>
+      
+      <div id="mobile-anchor-container" class="md:hidden fixed top-[calc(var(--header-height,80px)+3rem)] left-4 z-40 pointer-events-none opacity-0 transition-opacity duration-300">
+        <!-- Wrapper for animation (Button becomes Menu) -->
+        <div id="mobile-anchor-wrapper" class="bg-black text-white w-12 h-12 rounded-[24px] overflow-hidden shadow-none border-none pointer-events-auto origin-top-left">
+          <!-- Toggle Button (Header) -->
+          <button id="mobile-anchor-toggle" class="w-12 h-12 flex-shrink-0 flex items-center justify-center">
+            <i class="fa-solid fa-list text-white text-h5 transition-transform duration-300"></i>
+          </button>
+          
+          <!-- Dropdown Menu (Content) -->
+          <div id="mobile-anchor-menu" class="flex flex-col gap-sm px-md pb-md opacity-0 transition-opacity duration-300 delay-75 hidden">
+            <button class="anchor-nav-btn text-left transition-all duration-fast whitespace-nowrap text-white hover:text-gray-5" data-target="overview">
+              <div class="!bg-transparent">Vision</div>
+              <div class="!bg-transparent">理念</div>
+            </button>
+            <button class="anchor-nav-btn text-left transition-all duration-fast whitespace-nowrap text-white hover:text-gray-5" data-target="class">
+              <div class="!bg-transparent">Programs</div>
+              <div class="!bg-transparent">學制</div>
+            </button>
+            <button class="anchor-nav-btn text-left transition-all duration-fast whitespace-nowrap text-white hover:text-gray-5" data-target="works">
+              <div class="!bg-transparent">Works</div>
+              <div class="!bg-transparent">作品</div>
+            </button>
+            <button class="anchor-nav-btn text-left transition-all duration-fast whitespace-nowrap text-white hover:text-gray-5" data-target="resources">
+              <div class="!bg-transparent">Resources</div>
+              <div class="!bg-transparent">環境資源</div>
+            </button>
+            <button class="anchor-nav-btn text-left transition-all duration-fast whitespace-nowrap text-white hover:text-gray-5" data-target="history">
+              <div class="!bg-transparent">History</div>
+              <div class="!bg-transparent">沿革</div>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sections + Desktop Anchor Nav wrapper -->
+      <div class="md:flex">
+
+        <!-- Hidden track div: width 0, overflow visible, same height as sections via flex stretch -->
+        <!-- Nav sticky inside here — doesn't affect sections layout -->
+        <div class="hidden md:block flex-shrink-0 pointer-events-none z-[100] pb-6xl" style="width: 0; overflow: visible;">
+          <div id="anchor-nav" class="sticky flex flex-col gap-xs pointer-events-auto" style="top: 200px; margin-left: var(--container-padding); width: max-content;">
+            <button class="anchor-nav-btn text-left transition-all duration-fast whitespace-nowrap" data-target="overview">
+              <span class="anchor-nav-inner"><div>Vision</div><div>理念</div></span>
+            </button>
+            <button class="anchor-nav-btn text-left transition-all duration-fast whitespace-nowrap" data-target="class">
+              <span class="anchor-nav-inner"><div>Programs</div><div>學制</div></span>
+            </button>
+            <button class="anchor-nav-btn text-left transition-all duration-fast whitespace-nowrap" data-target="works">
+              <span class="anchor-nav-inner"><div>Works</div><div>作品</div></span>
+            </button>
+            <button class="anchor-nav-btn text-left transition-all duration-fast whitespace-nowrap" data-target="resources">
+              <span class="anchor-nav-inner"><div>Resources</div><div>環境資源</div></span>
+            </button>
+            <button class="anchor-nav-btn text-left transition-all duration-fast whitespace-nowrap" data-target="history">
+              <span class="anchor-nav-inner"><div>History</div><div>沿革</div></span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Sections (full width, flex-1 to fill remaining space) -->
+        <div class="flex-1 min-w-0">
+
+      <!-- Overview Section -->
+      <section id="overview" class="bg-white pb-6xl relative z-10 overflow-visible" style="scroll-margin-top: 200px;">
+
+        <div class="site-container relative z-10">
+          <!-- Mouse trail container（文字上方，z-20 高於 grid 的 text） -->
+          <div id="overview-trail-container" class="absolute inset-0 pointer-events-none z-20"></div>
+          <div class="grid-12">
+            <!-- English Text (Column 3-7) -->
+            <div class="col-span-12 md:col-start-3 md:col-span-5 mb-lg md:mb-0">
+              <h5 class="text-black leading-snug">
+                <span data-overview-hl style="display: block; padding: 0.5em 0.6em;">Department of Communications Design, Shih Chien University / SCCD is the first academic institution to establish the "Communications Design" department in the country. The teaching of the department takes design thinking, humanities, and aesthetics as the cornerstones, uses multidimensional platforms as the foundation, diverse media as the carrier, and integrates teaching experiments and design training such as animation, narrative video, interaction, performance, game, product, space. and environment. Supplemented by intensive international workshop and industry-academy cooperation in various fields, as well as overseas exchange opportunities. It aims to cultivate director-type creative talents who can integrate "media" as the vehicle, "design" as the method, emphasize "communications" as the core of human civilization, and adapt to the rapid changes of the era.</span>
+              </h5>
+            </div>
+
+            <!-- Chinese Text (Column 8-12) -->
+            <div class="col-span-12 md:col-start-8 md:col-span-5">
+              <h5 class="text-black leading-base">
+                <span data-overview-hl style="display: block; padding: 0.5em 0.6em;">實踐大學媒體傳達設計學系為全國首創成立「媒體傳達設計」之學系。學系教學以設計思考、人文、美學為核心基石，運用多維度平台為基礎與多樣性媒材為載體，整合動畫、敘事影像、互動、展演、遊戲、商品、空間、環境等教學實驗與設計訓練，輔以密集舉辦之跨國工作與各領域產學合作，同時提供海外交換留學機會，旨在培育能整合「媒體」為乘載，「設計」為方法，強調「傳達」為人類文明之核心，得以適應時代快速變遷之總監型創作人才。</span>
+              </h5>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Class + Works Section（兩個 sub-anchor 各自有零高度 anchor wrapper + 封鎖綫，皆 absolute 不吃 flow，不 sticky） -->
+      <section class="bg-white relative z-20 overflow-visible">
+
+      <!-- Class Anchor + 封鎖綫（零高度 positioned wrapper，與 works 一致結構；anchor 點 = btn 位置 100px；封鎖綫在 15vh）-->
+      <div id="class" class="relative w-full pointer-events-none" style="scroll-margin-top: 100px; height: 0;">
+        <div class="section-title-strip absolute left-0 right-0 flex items-center pointer-events-auto" style="top: 15vh; overflow: visible; z-index: 0; padding: var(--spacing-md) 0;" data-anchor="class">
+          <div class="section-title-inner flex gap-md" style="white-space: nowrap; padding: var(--spacing-md);" data-section-title>
+            <h1>Programs</h1>
+            <h1>學制</h1>
+          </div>
+        </div>
+      </div>
+
+      <!-- Class + Works Shared Area -->
+      <!-- 不加 bg-white：section 本身已是 bg-white；加了會蓋住封鎖綫（z-10 > 封鎖綫 z:0）-->
+      <!-- 移除 md:pt-6xl：讓 btn 自然位置就 ≤ sticky 閾值（96px），點擊 class 時 btn 立即貼頂 100px -->
+      <div id="class-works-area" class="relative z-10 md:pb-6xl">
+
+
+        <!-- Mobile Controls -->
+        <div class="md:hidden site-container pt-6xl relative z-10">
+          <div class="flex items-start justify-between gap-2xl mb-xl">
+            <div id="mobile-division-title" class="flex-1">
+               <div class="text-h5 font-bold leading-tight">Animation & Moving Image</div>
+               <div class="text-h5 font-bold mt-1">動畫影像設計組</div>
+            </div>
+            <div class="flex gap-sm shrink-0 pt-1">
+               <button id="mobile-division-prev" class="w-11 h-11 flex items-center justify-center"><span class="icon icon-chevron-list icon-s"></span></button>
+               <button id="mobile-division-next" class="w-11 h-11 flex items-center justify-center"><span class="icon icon-chevron-list icon-s rotate-180"></span></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sticky 範圍容器：btn 的 sticky 只在 info 結束前生效 -->
+        <div id="class-info-sticky-wrapper" class="relative z-10">
+
+        <!-- Desktop Sticky Division Buttons：sticky top 100px = anchor 點，點擊 class/works 當下 btn 零位移 -->
+        <div id="class-buttons-sticky" class="hidden md:block sticky z-40 pt-3xl pb-md" style="top: 100px;">
+          <div class="site-container">
+            <div class="grid-12">
+              <div class="md:col-start-3 md:col-span-10 flex items-end gap-xl">
+                <!-- BFA / Design Fundamental（works 模式才顯示，預設收起；樣式仿 MDES） -->
+                <div class="class-division-bfa-wrap">
+                  <button class="class-division-btn font-bold transition-all duration-fast text-left whitespace-nowrap" data-division="bfa">
+                    <div class="text-h5 font-bold whitespace-nowrap">Design Fundamental</div>
+                    <div class="text-h5 font-bold whitespace-nowrap">創作基礎</div>
+                  </button>
+                </div>
+                <!-- Animation: BFA label + btn -->
+                <div class="relative flex flex-col justify-end">
+                  <span class="class-group-label text-p1 font-bold whitespace-nowrap self-start">BFA 學士班</span>
+                  <button class="class-division-btn class-division-btn--bfa font-bold transition-all duration-fast text-left" data-division="animation">
+                    <div class="text-h5 font-bold whitespace-nowrap">Animation & Moving Image</div>
+                    <div class="text-h5 font-bold whitespace-nowrap">動畫影像設計組</div>
+                  </button>
+                </div>
+                <!-- Creative Media: BFA label + btn -->
+                <div class="relative flex flex-col justify-end">
+                  <span class="class-group-label text-p1 font-bold whitespace-nowrap self-start">BFA 學士班</span>
+                  <button class="class-division-btn class-division-btn--bfa font-bold transition-all duration-fast text-left" data-division="creative-media">
+                    <div class="text-h5 font-bold whitespace-nowrap">Creative Media Design</div>
+                    <div class="text-h5 font-bold whitespace-nowrap">創意媒體設計組</div>
+                  </button>
+                </div>
+                <!-- MDES -->
+                <button class="class-division-btn class-division-btn--bfa font-bold transition-all duration-fast text-left" data-division="mdes">
+                  <div class="text-h5 font-bold whitespace-nowrap">MDES</div>
+                  <div class="text-h5 font-bold whitespace-nowrap">碩士班</div>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Class Info Panels (image + text) -->
+        <!-- min-height:100vh：撐滿視窗，把下方 works panels 自然擠到下一個 viewport -->
+        <div id="class-info-area" class="site-container pt-2xl" style="min-height: 100vh;">
+
+          <!-- Animation -->
+          <div class="class-info-panel pb-3xl relative z-10" data-division="animation">
+            <div class="grid-12 md:items-start">
+              <div class="col-span-12 md:col-start-3 md:col-span-4 order-2 md:order-1 mt-xl md:mt-0">
+                <div data-class-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
+                  <p class="mb-xs division-text font-bold">Explore the relationship between self and the environment through animation creation, and then extend the care and reflection on culture, ecology and humanities.</p>
+                  <p class="mb-md division-text font-bold">透過動畫創作探討自我與環境的關係，進而延伸對文化、生態與人文之關懷與省思。</p>
+                  <p class="mb-xs division-text font-bold">The curriculum integrates 2D, 3D, stop-motion and experimental techniques, equipping students with both technical fluency and a distinctive visual storytelling voice.</p>
+                  <p class="division-text font-bold">課程結合 2D、3D、停格與實驗性手法，培養學生紮實的技術能力與獨特的視覺敘事觀點。</p>
+                </div>
+              </div>
+              <div class="col-span-12 md:col-start-8 md:col-span-5 relative order-1 md:order-2 mb-xl md:mb-0 works-container division-images" data-division="animation">
+                <!-- JS 動態 render 3 張 .class-img，5s 輪播（class-images-slideshow.js） -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Creative Media -->
+          <div class="class-info-panel pb-3xl hidden relative z-10" data-division="creative-media">
+            <div class="grid-12 md:items-start">
+              <div class="col-span-12 md:col-start-3 md:col-span-4 order-2 md:order-1 mt-xl md:mt-0">
+                <div data-class-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
+                  <p class="mb-xs division-text font-bold">Explore the essence of new media interaction from multiple perspectives, furthermore, showing care and reflection on humanities, society, and the environment by these perspectives.</p>
+                  <p class="mb-md division-text font-bold">多面向探討新媒體互動的本質，並藉此對人文、社會、環境作進一步之關懷與省思。</p>
+                  <p class="mb-xs division-text font-bold">Students engage with interactive installations, virtual reality and generative design, blending art, code and design thinking through cross-disciplinary experimentation.</p>
+                  <p class="division-text font-bold">學生接觸互動裝置、虛擬實境與生成式設計等新興技術，透過跨領域實驗結合藝術、程式與設計思維。</p>
+                </div>
+              </div>
+              <div class="col-span-12 md:col-start-8 md:col-span-5 relative order-1 md:order-2 mb-xl md:mb-0 works-container division-images" data-division="creative-media">
+                <!-- JS 動態 render 3 張 .class-img，5s 輪播 -->
+              </div>
+            </div>
+          </div>
+
+          <!-- MDES -->
+          <div class="class-info-panel pb-3xl hidden relative z-10" data-division="mdes">
+            <div class="grid-12 md:items-start">
+              <div class="col-span-12 md:col-start-3 md:col-span-4 order-2 md:order-1 mt-xl md:mt-0">
+                <div data-class-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
+                  <p class="mb-xs division-text font-bold">The MDES program offers advanced research and creative practice opportunities, fostering innovation in communications design. Graduate students engage in cutting-edge projects that push the boundaries of design thinking and media expression.</p>
+                  <p class="mb-md division-text font-bold">碩士班提供進階研究與創作實踐機會，培養媒體傳達設計的創新能力。研究生參與前瞻性專案，推進設計思維與媒體表達的界限。</p>
+                  <p class="mb-xs division-text font-bold">Through individual mentorship and collaborative studios, students develop original projects that contribute to contemporary discourse in visual communication and media arts.</p>
+                  <p class="division-text font-bold">透過個別指導與協作工作室，學生發展具原創性的專案，為當代視覺傳達與媒體藝術論述做出貢獻。</p>
+                </div>
+              </div>
+              <div class="col-span-12 md:col-start-8 md:col-span-5 relative order-1 md:order-2 mb-xl md:mb-0 works-container division-images" data-division="mdes">
+                <!-- JS 動態 render 3 張 .class-img，5s 輪播 -->
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Works Anchor + 封鎖綫（零高度 positioned wrapper；anchor 點 = btn 位置 100px；封鎖綫在 15vh）-->
+        <div id="works" class="relative w-full pointer-events-none" style="scroll-margin-top: 100px; height: 0;">
+          <div class="section-title-strip absolute left-0 right-0 flex items-center pointer-events-auto" style="top: 15vh; overflow: visible; z-index: 0; padding: var(--spacing-md) 0;" data-anchor="works">
+            <div class="section-title-inner flex gap-md" style="white-space: nowrap; padding: var(--spacing-md);" data-section-title>
+              <h1>Works</h1>
+              <h1>作品</h1>
+            </div>
+          </div>
+        </div>
+
+        <!-- Works Panels (playlist) - JS controls desktop visibility -->
+        <!-- 不加 bg-white：讓封鎖綫的旋轉 tail 能穿過（比照 Class 狀態 class-info-panel 也是透明）-->
+        <!-- sticky-to-absolute 切換由 JS（class-buttons-sticky.js）在 #works anchor 到 100px 時觸發 -->
+        <div id="class-works-panels" class="site-container pt-8xl relative z-10">
+
+          <!-- BFA / Design Fundamental（學士班 btn 的預設內容） -->
+          <div class="class-works-panel hidden" data-division="bfa">
+            <div class="grid-12 md:items-start">
+              <div class="col-span-12 md:col-start-3 md:col-span-3">
+                <div data-works-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
+                  <p class="text-p2 mb-xs font-bold">Foundation courses that develop core design principles, visual literacy, and technical skills essential for creative media practice.</p>
+                  <p class="text-p2 font-bold">培養核心設計原則、視覺素養與技術能力的基礎課程，為創意媒體實踐奠定根基。</p>
+                  <div class="works-playlist-list" data-division="bfa"></div>
+                </div>
+              </div>
+              <div class="col-span-12 md:col-start-6 md:col-span-7 md:ml-xl">
+                <div class="aspect-video w-full overflow-hidden">
+                  <iframe class="works-video-iframe w-full h-full border-0" data-division="bfa" src="https://www.youtube.com/embed/JBRReuUk4dE?list=PLG0DnOKlL-lko5mBve7UjN2itLz4KwxUF" allowfullscreen></iframe>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Animation -->
+          <div class="class-works-panel" data-division="animation">
+            <div class="grid-12 md:items-start">
+              <div class="col-span-12 md:col-start-3 md:col-span-3">
+                <div data-works-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
+                  <p class="text-p2 mb-xs font-bold">Animated works that explore storytelling, motion design, and experimental animation techniques.</p>
+                  <p class="text-p2 font-bold">探索敘事、動態設計與實驗動畫技術的動畫作品。</p>
+                  <div class="works-playlist-list" data-division="animation"></div>
+                </div>
+              </div>
+              <div class="col-span-12 md:col-start-6 md:col-span-7 md:ml-xl">
+                <div class="aspect-video w-full overflow-hidden">
+                  <iframe class="works-video-iframe w-full h-full border-0" data-division="animation" src="https://www.youtube.com/embed/qklohUskSX4?list=PLG0DnOKlL-llBG3d2yiQeQnhN6MK95pM4" allowfullscreen></iframe>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Creative Media -->
+          <div class="class-works-panel hidden" data-division="creative-media">
+            <div class="grid-12 md:items-start">
+              <div class="col-span-12 md:col-start-3 md:col-span-3">
+                <div data-works-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
+                  <p class="text-p2 mb-xs font-bold">Innovative media projects that integrate technology, interactivity, and creative storytelling.</p>
+                  <p class="text-p2 font-bold">融合技術、互動與創意敘事的創新媒體專案。</p>
+                  <div class="works-playlist-list" data-division="creative-media"></div>
+                </div>
+              </div>
+              <div class="col-span-12 md:col-start-6 md:col-span-7 md:ml-xl">
+                <div class="aspect-video w-full overflow-hidden">
+                  <iframe class="works-video-iframe w-full h-full border-0" data-division="creative-media" src="https://www.youtube.com/embed/hIbasPs5gho?list=PLG0DnOKlL-lm5Vdc2x-ULMdlo6fsM-pQn" allowfullscreen></iframe>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- MDES -->
+          <div class="class-works-panel hidden" data-division="mdes">
+            <div class="grid-12 md:items-start">
+              <div class="col-span-12 md:col-start-3 md:col-span-3">
+                <div data-works-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
+                  <p class="text-p2 mb-xs font-bold">Advanced research and creative practice fostering innovation in communications design.</p>
+                  <p class="text-p2 font-bold">碩士班提供進階研究與創作實踐機會，培養媒體傳達設計的創新能力。</p>
+                  <div class="works-playlist-list" data-division="mdes"></div>
+                </div>
+              </div>
+              <div class="col-span-12 md:col-start-6 md:col-span-7 md:ml-xl">
+                <div class="aspect-video w-full overflow-hidden">
+                  <iframe class="works-video-iframe w-full h-full border-0" data-division="mdes" src="" allowfullscreen></iframe>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        </div><!-- end class-info-sticky-wrapper -->
+
+      </div><!-- end class-works-area -->
+      </section>
+
+      <!-- Resources Section -->
+      <!-- z-20：封鎖綫旋轉後上角會凸出 section 頂邊（~150px），z-10 會被上面 class(z-20) 的 bg-white 蓋掉 -->
+      <section id="resources" class="bg-white relative z-20 overflow-visible" style="min-height: 100vh; padding-top: 100px;">
+
+        <!-- Section Title Strip（封鎖綫，h1 字體，位於 section 頂部）-->
+        <div class="section-title-strip absolute left-0 right-0 flex items-center" style="top: 0; overflow: visible; z-index: 0; padding: var(--spacing-md) 0;" data-anchor="resources">
+          <div class="section-title-inner flex gap-md" style="white-space: nowrap; padding: var(--spacing-md);" data-section-title>
+            <h1>Resources</h1>
+            <h1>環境資源</h1>
+          </div>
+        </div>
+
+        <div class="site-container pt-3xl pb-lg md:pb-xl relative z-30">
+          <div class="grid-12 relative z-10">
+            <div id="resources-accordion-container" class="col-span-12 md:col-start-2 md:col-span-11 md:ml-xl mx-[calc(var(--container-padding)*-1)] md:mx-0">
+              <!-- Accordion will be injected here by JS -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- History / Timeline Section -->
+      <section id="history" class="relative bg-white pb-6xl z-20" style="clip-path: inset(-100vh 0); padding-top: 100px;">
+
+        <!-- Section Title Strip（封鎖綫，h1 字體，位於 section 頂部）-->
+        <div class="section-title-strip absolute left-0 right-0 flex items-center" style="top: 0; overflow: visible; z-index: 0; padding: var(--spacing-md) 0;" data-anchor="history">
+          <div class="section-title-inner flex gap-md" style="white-space: nowrap; padding: var(--spacing-md);" data-section-title>
+            <h1>History</h1>
+            <h1>沿革</h1>
+          </div>
+        </div>
+
+        <div id="timeline-area" class="relative w-full" style="height: calc(100vh - 100px);">
+
+          <!-- 卷軸容器：照片 + 年份/說明字卡，JS 動態生成 -->
+          <div id="timeline-strip" class="absolute top-0 left-0 h-full"></div>
+
+          <!-- Nav Zones（cursor 由 cursor.css 統一管，data-tl-nav-edge 對應 left/right.svg） -->
+          <div id="timeline-nav-left" data-tl-nav-edge="left" class="absolute left-0 top-0 w-[12vw] h-full z-20"></div>
+          <div id="timeline-nav-right" data-tl-nav-edge="right" class="absolute right-0 top-0 w-[12vw] h-full z-20"></div>
+
+          <!-- Photo Hover Tooltip -->
+          <div id="timeline-photo-tooltip" class="fixed pointer-events-none z-30" style="opacity:0; top:0; left:0;">
+            <div class="timeline-card-inner bg-black text-white" style="max-width:260px; padding:0.5em 0.6em;">
+              <div id="timeline-photo-tooltip-text" class="text-p2 leading-base font-bold"></div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+        </div><!-- end sections flex-1 -->
+
+      </div><!-- end sections wrapper -->
+
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <div id="site-footer"></div>
+
+  <!-- JavaScript -->
+  <!-- GSAP & ScrollTrigger -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollTrigger.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollToPlugin.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/Draggable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/SplitText.min.js"></script>
+  <!-- Helper Functions - 必須在 main.js 之前載入 -->
+  <script src="../js/utils/helpers.js"></script>
+  <!-- Works Container Hover Effect -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      if (!SCCDHelpers.isDesktop()) return;
+      document.body.addEventListener('mouseover', function (e) {
+        const img = e.target.closest('.works-container img');
+        if (!img) return;
+        img.style.zIndex = 10;
+      });
+      document.body.addEventListener('mouseout', function (e) {
+        const img = e.target.closest('.works-container img');
+        if (!img) return;
+        img.style.zIndex = img.dataset.z;
+      });
+    });
+  </script>
+  <!-- Modular JS (New Architecture) -->
+  <script type="module" src="../js/main-modular.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<!-- html 級 overflow-x:hidden：iOS Safari + body overflow-x:hidden 會破 position:fixed header（依附 body 而非 viewport），html 級 clip 才修得了 -->
+<html lang="zh-Hant" style="overflow-x: hidden;">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>A.A. 系友會 - SCCD</title>
+  <link rel="stylesheet" href="../css/variables.css">
+  <link rel="stylesheet" href="../css/output.css">
+  <link rel="stylesheet" href="../css/components/alumni.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+  <!-- pdf.js — 用於會議紀錄 PDF viewer（與 library 共用 sccd:open-pdf 事件 + library-viewer.js initPdfViewer） -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+</head>
+<body style="overflow-x: hidden;">
+
+  <!-- Header -->
+  <div id="site-header"></div>
+
+  <!-- Main Content -->
+  <main id="page-content">
+    <!-- Alumni Hero — 置中大字；用 .hero-title class 接 hero-animation 的 clip-reveal 進場（yPercent 100→0），
+         wrapper 旋轉用 CSS 覆寫為 0（user 要求無旋轉），font-weight 用 medium -->
+    <section class="h-screen relative overflow-hidden flex items-center justify-center">
+      <div class="hero-title alumni-hero-text text-black">ALUMNI</div>
+    </section>
+
+    <!-- Content Section（activities-pattern flex：左 anchor nav + 右 flex-1 sections） -->
+    <section class="bg-white py-6xl" id="alumni-content-section" style="overflow: visible;">
+      <div class="site-container">
+        <div class="flex flex-col md:flex-row gap-gutter">
+
+          <!-- Left Anchor Nav — z-[100] 蓋過 section-title-strip（strip width 用 calc(50vw+) 可能 overflow 進 nav 欄位） -->
+          <div class="w-full md:flex-[0_0_calc(16.667%_-_1.25rem)] relative z-[100]">
+            <div id="anchor-nav" class="flex flex-row flex-wrap md:flex-col gap-xs mb-xl md:mb-0 md:sticky md:top-[200px] z-[100]">
+              <button class="anchor-nav-btn w-fit text-left transition-all duration-fast whitespace-nowrap" data-target="vision">
+                <span class="anchor-nav-inner"><div>Vision</div><div>精神</div></span>
+              </button>
+              <button class="anchor-nav-btn w-fit text-left transition-all duration-fast whitespace-nowrap" data-target="activities">
+                <span class="anchor-nav-inner"><div>Activities</div><div>活動</div></span>
+              </button>
+              <button class="anchor-nav-btn w-fit text-left transition-all duration-fast whitespace-nowrap" data-target="members">
+                <span class="anchor-nav-inner"><div>Members</div><div>系友</div></span>
+              </button>
+              <button class="anchor-nav-btn w-fit text-left transition-all duration-fast whitespace-nowrap" data-target="sponsors">
+                <span class="anchor-nav-inner"><div>Sponsors</div><div>贊助</div></span>
+              </button>
+              <button class="anchor-nav-btn w-fit text-left transition-all duration-fast whitespace-nowrap" data-target="organization">
+                <span class="anchor-nav-inner"><div>Organization</div><div>組織</div></span>
+              </button>
+              <button class="anchor-nav-btn w-fit text-left transition-all duration-fast whitespace-nowrap" data-target="gatherings">
+                <span class="anchor-nav-inner"><div>Gatherings</div><div>召集</div></span>
+              </button>
+              <button class="anchor-nav-btn w-fit text-left transition-all duration-fast whitespace-nowrap" data-target="contact">
+                <span class="anchor-nav-inner"><div>Contact</div><div>聯絡</div></span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Right Content (flex-1) -->
+          <div class="flex-1 min-w-0">
+
+            <!-- 1. Vision 精神 -->
+            <section id="vision" class="pb-6xl relative z-10 overflow-visible" style="scroll-margin-top: 200px;">
+              <div class="grid-12">
+                <div class="col-span-12 md:col-span-6 mb-lg md:mb-0">
+                  <h5 class="text-black leading-snug">
+                    <span data-overview-hl style="display: block; padding: 0.5em 0.6em;" id="alumni-vision-en"></span>
+                  </h5>
+                </div>
+                <div class="col-span-12 md:col-span-6">
+                  <h5 class="text-black leading-base">
+                    <span data-overview-hl style="display: block; padding: 0.5em 0.6em;" id="alumni-vision-zh"></span>
+                  </h5>
+                </div>
+              </div>
+            </section>
+
+            <!-- 2. Activities 活動 -->
+            <section id="activities" class="bg-white relative z-10 overflow-visible pb-6xl" style="scroll-margin-top: 200px; padding-top: 100px;">
+              <!-- 封鎖綫（仿 about resources/history 樣式：top:0、由 anchor-nav active 觸發 reveal） -->
+              <div class="section-title-strip absolute left-0 right-0 flex items-center" style="top: 0; overflow: visible; z-index: 0; padding: var(--spacing-md) 0;" data-anchor="activities">
+                <div class="section-title-inner flex gap-md" style="white-space: nowrap; padding: var(--spacing-md);" data-section-title>
+                  <h1>Activities</h1>
+                  <h1>活動</h1>
+                </div>
+              </div>
+              <div id="alumni-activities-list" class="relative z-10 bg-white"></div>
+            </section>
+
+            <!-- 3. Members 系友 — 比照 faculty.html 用 md:pr-[2rem] 對齊右邊距 -->
+            <section id="members" class="bg-white relative z-10 overflow-visible pb-6xl" style="scroll-margin-top: 200px; padding-top: 100px;">
+              <div class="section-title-strip absolute left-0 right-0 flex items-center" style="top: 0; overflow: visible; z-index: 0; padding: var(--spacing-md) 0;" data-anchor="members">
+                <div class="section-title-inner flex gap-md" style="white-space: nowrap; padding: var(--spacing-md);" data-section-title>
+                  <h1>Members</h1>
+                  <h1>系友</h1>
+                </div>
+              </div>
+              <div class="md:pr-[2rem] relative z-10">
+                <div id="alumni-members-list" class="grid grid-cols-2 md:grid-cols-4 gap-x-md gap-y-xl md:gap-x-2xl md:gap-y-4xl"></div>
+              </div>
+            </section>
+
+            <!-- 4. Sponsors 贊助 — 3x3 grid 可點擊（連官網） -->
+            <section id="sponsors" class="bg-white relative z-10 overflow-visible pb-6xl" style="scroll-margin-top: 200px; padding-top: 100px;">
+              <div class="section-title-strip absolute left-0 right-0 flex items-center" style="top: 0; overflow: visible; z-index: 0; padding: var(--spacing-md) 0;" data-anchor="sponsors">
+                <div class="section-title-inner flex gap-md" style="white-space: nowrap; padding: var(--spacing-md);" data-section-title>
+                  <h1>Sponsors</h1>
+                  <h1>贊助</h1>
+                </div>
+              </div>
+              <div id="alumni-sponsors-grid" class="grid grid-cols-2 md:grid-cols-3 gap-lg md:gap-xl relative z-10"></div>
+            </section>
+
+            <!-- 5. Organization 組織 — summer-camp list pattern，only title -->
+            <section id="organization" class="bg-white relative z-10 overflow-visible pb-6xl" style="scroll-margin-top: 200px; padding-top: 100px;">
+              <div class="section-title-strip absolute left-0 right-0 flex items-center" style="top: 0; overflow: visible; z-index: 0; padding: var(--spacing-md) 0;" data-anchor="organization">
+                <div class="section-title-inner flex gap-md" style="white-space: nowrap; padding: var(--spacing-md);" data-section-title>
+                  <h1>Organization</h1>
+                  <h1>組織</h1>
+                </div>
+              </div>
+              <div id="alumni-org-list" class="relative z-10 bg-white"></div>
+            </section>
+
+            <!-- 6. Gatherings 召集 — 城市 tab + summer-camp list with 會議紀錄 ref → lightbox PDF -->
+            <section id="gatherings" class="bg-white relative z-10 overflow-visible pb-6xl" style="scroll-margin-top: 200px; padding-top: 100px;">
+              <div class="section-title-strip absolute left-0 right-0 flex items-center" style="top: 0; overflow: visible; z-index: 0; padding: var(--spacing-md) 0;" data-anchor="gatherings">
+                <div class="section-title-inner flex gap-md" style="white-space: nowrap; padding: var(--spacing-md);" data-section-title>
+                  <h1>Gatherings</h1>
+                  <h1>召集</h1>
+                </div>
+              </div>
+              <div id="alumni-city-tags" class="flex flex-wrap items-end gap-xl mb-xl relative z-10"></div>
+              <div id="alumni-gatherings-list" class="relative z-10 bg-white"></div>
+            </section>
+
+            <!-- 7. Contact 聯絡 — 純文字單行（無描述） -->
+            <section id="contact" class="bg-white relative z-10 overflow-visible pb-6xl" style="scroll-margin-top: 200px; padding-top: 100px;">
+              <div class="section-title-strip absolute left-0 right-0 flex items-center" style="top: 0; overflow: visible; z-index: 0; padding: var(--spacing-md) 0;" data-anchor="contact">
+                <div class="section-title-inner flex gap-md" style="white-space: nowrap; padding: var(--spacing-md);" data-section-title>
+                  <h1>Contact</h1>
+                  <h1>聯絡</h1>
+                </div>
+              </div>
+              <div id="alumni-contact-list" class="flex flex-col relative z-10"></div>
+            </section>
+
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PDF Viewer 由 library-viewer.js 的 initPdfViewer() 共用 — DOM 由 ensurePdfModal() 自動 append 到 body
+         會議紀錄 click → dispatch CustomEvent('sccd:open-pdf', { detail: {pdfUrl} }) → 觸發兩頁 spread canvas 渲染 -->
+  </main>
+
+  <!-- Footer -->
+  <div id="site-footer"></div>
+
+  <!-- JavaScript -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollTrigger.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollToPlugin.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/Draggable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>
+  <script src="../js/utils/helpers.js"></script>
+  <script type="module" src="../js/main-modular.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,270 @@
+/**
+ * Hero Section Components
+ * Hero 標題文字旋轉效果（手機版較小角度，桌面版較大角度）
+ */
+
+@layer components {
+  /* 動畫初始隱藏：在 GSAP 接管前避免文字閃現 */
+  .hero-title,
+  .hero-title-cn,
+  .hero-text-en,
+  .hero-text-cn {
+    visibility: hidden;
+  }
+
+  /* Hero Section 旋轉 + clip reveal wrapper（rotation 套在 JS 動態生成的 wrapper 上）
+     wrapper 同時處理：1. rotate 角度 2. overflow:hidden 形成 yPercent slide-in 的遮罩 */
+  /* 手機版較小角度 */
+  .hero-title-wrapper,
+  .hero-title-cn-wrapper,
+  .hero-text-en-wrapper,
+  .hero-text-cn-wrapper {
+    transform-origin: left center;
+    display: block;
+    overflow: hidden;
+  }
+  .hero-title-wrapper { transform: rotate(-2deg); }
+  .hero-title-cn-wrapper { transform: rotate(2deg); }
+  .hero-text-en-wrapper { transform: rotate(1deg); }
+  .hero-text-cn-wrapper { transform: rotate(-1deg); }
+
+  /* SCCD logo（about hero）— overflow:hidden 形成 yPercent slide-in 遮罩
+     JS 動畫完成 onComplete 改 overflow:visible，讓後續 scroll parallax (scale+yPercent) 不被裁 */
+  .hero-logo-wrapper {
+    display: inline-block;
+    overflow: hidden;
+  }
+
+  /* 副標 font-size（rotation 已移到 wrapper） */
+  .hero-text-en,
+  .hero-text-cn {
+    font-size: var(--font-size-p1);
+  }
+
+  /* 桌面版較大角度 */
+  @media (min-width: 768px) {
+    .hero-title-wrapper { transform: rotate(-4deg); }
+    .hero-title-cn-wrapper { transform: rotate(3deg); }
+    .hero-text-en-wrapper { transform: rotate(3deg); }
+    .hero-text-cn-wrapper { transform: rotate(-2deg); }
+  }
+
+  /* 全站對比規範：accent 底色（綠/粉/藍）文字一律黑（不分 standard / inverse）；
+     mode-color 暫不適用（用 contrast text 跟著走）。
+     hero-animation.js 對 [data-hero-hl] 設 inline 隨機 accent bg；inverse 預設白字會跟 accent 衝突，這裡 force 回黑。
+     specificity 註：inverse 有 `body.mode-inverse .text-black:not(.timeline-year-item)` (0,3,1)，
+     必須用 `[data-hero-hl][data-hero-hl]` 重複屬性提升到 0,3,1 + 後出順序才贏 */
+  body:not(.mode-color) [data-hero-hl][data-hero-hl],
+  body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
+    color: #000 !important;
+  }
+
+  /* Hero random layout（faculty / courses / activities / admission 共用）
+     桌面：所有元素 position:absolute，JS 用 getBoundingClientRect 量測旋轉後 bbox 並隨機派 (top, left)，
+           bounds 避開 header（viewport top 140px buffer）；元素可彼此重疊（特別是文字疊在 banner 上）
+     手機：flex stack 維持原本由上至下版面，random 不適用（RWD 互不影響原則） */
+  .hero-rand-grid {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* 桌面：所有直系子（title-wrapper / banner / EN-wrapper / CN-wrapper）一律 absolute；JS 設 top/left */
+  @media (min-width: 768px) {
+    .hero-rand-grid > * {
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+  }
+
+  /* wrappers 預設 block；改 inline-block 讓 intrinsic 寬決定大小，不被 absolute 撐到 100vw */
+  .hero-rand-grid .hero-title-wrapper,
+  .hero-rand-grid .hero-title-cn-wrapper,
+  .hero-rand-grid .hero-text-en-wrapper,
+  .hero-rand-grid .hero-text-cn-wrapper {
+    display: inline-block;
+  }
+
+  /* 段落 max-width，限制 wrap 寬度 */
+  .hero-rand-grid .hero-text-en,
+  .hero-rand-grid .hero-text-cn {
+    max-width: clamp(220px, 28vw, 420px);
+  }
+
+  /* Banner：85vw 16:9；JS 設 transform: rotate(N deg) 隨機；transform-origin 用 center 旋轉視覺平衡
+     文字可疊在 banner 上 → 文字 z-index 高於 banner
+     width min() cap：在 viewport 高度有限時自動縮小（多項式 1.6 = 旋轉 ±3° 下 bbH/bannerWidth 反比近似），
+     確保旋轉後 bbox 完整落在 [BANNER_TOP_BOUND=90, 100vh-BOTTOM_MARGIN=30] 範圍內，不被下一 section 切 */
+  .hero-banner {
+    width: min(85vw, calc((100vh - 120px) * 1.6));
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    visibility: hidden;
+    transform-origin: center center;
+  }
+  .hero-banner img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* 文字疊在 banner 上：z-index 拉高 */
+  .hero-rand-grid .hero-title-wrapper,
+  .hero-rand-grid .hero-title-cn-wrapper,
+  .hero-rand-grid .hero-text-en-wrapper,
+  .hero-rand-grid .hero-text-cn-wrapper {
+    z-index: 2;
+  }
+  .hero-rand-grid .hero-banner {
+    z-index: 1;
+  }
+
+  /* ─────────────────────────────────────────────────────────────────
+     手機 hero（4 頁共用：faculty / courses / activities / admission）
+
+     架構決策（2026-05-26 user 拍板）：
+     - 桌面 .hero-rand-grid 跟手機 .hero-mobile 兩套獨立 DOM 並存
+     - CSS 用 display:none 切換而非 override（從 root 切割，避免 layer override hack）
+     - 內容單一來源：桌面 DOM 是 source，手機 DOM 由 hero-mobile-sync.js init 時 cloneNode
+     - 4 頁同視覺：圖墊底滿屏 + title/desc 從上往下 stack 疊在圖上
+
+     視覺規格：
+     - 圖鋪滿 hero 區當背景（top:0 z-index:0）
+     - 4 個文字 chip 自上而下：title-en → title-cn → desc-en → desc-cn (z-index:1)
+     - chip 沿用 [data-hero-hl] accent 底色（綠/粉/藍隨機 by hero-animation.js）
+     ───────────────────────────────────────────────────────────────── */
+
+  /* 預設手機顯示 mobile、隱藏桌面 grid */
+  .hero-rand-grid { display: none; }
+  .hero-mobile {
+    display: block;
+    position: relative;
+    width: 100%;
+    min-height: 100vh;
+    padding: 180px var(--container-padding) 3rem;
+    box-sizing: border-box;
+    /* sync 完才打開（hero-mobile-sync.js 設 inline visibility:visible） */
+    visibility: hidden;
+  }
+
+  /* 桌面切回 grid 模式 */
+  @media (min-width: 768px) {
+    .hero-rand-grid { display: block; }
+    .hero-mobile { display: none; }
+  }
+
+  /* Banner 背景：絕對定位墊底，鋪滿 hero 視覺區，旋轉製造張力（兩側溢出由父層 overflow-x:clip 兜） */
+  .hero-mobile-bg {
+    position: absolute;
+    top: 180px;
+    left: 50%;
+    width: 108vw;
+    aspect-ratio: 4 / 5.5;
+    transform: translateX(-50%) rotate(-5deg);
+    transform-origin: center center;
+    z-index: 0;
+    overflow: hidden;
+  }
+  .hero-mobile-bg img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* 文字 stack：自上而下，z-index 浮在 bg 上
+     gap：chip 之間預設 1rem；段落區跟標題區用 margin-top 拉開更大 breathing room */
+  .hero-mobile-text {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  .hero-mobile-text > * {
+    width: fit-content;
+    max-width: 100%;
+    /* 隨機旋轉：JS 在 hero-mobile-sync.js init 時注入 --hero-mobile-rot
+       transform-origin: left center 對齊 chip 左緣（跟桌面 hero-title-wrapper 同 pattern） */
+    transform: rotate(var(--hero-mobile-rot, 0deg));
+    transform-origin: left center;
+  }
+  /* 段落跟標題之間拉大 gap（標題區 → 段落區之間視覺斷點） */
+  .hero-mobile-text-en { margin-top: 1.5rem; }
+  /* 中英段落之間額外加 gap：±5° 旋轉後長段落 chip bbox 視覺底邊比 layout bbox 低 ~width×sin(5°)，
+     1rem (gap) 不夠避免英文 chip 底邊撞到中文 chip 頂邊；補到 2rem */
+  .hero-mobile-text-cn { margin-top: 1rem; }
+
+  /* 段落字體 p1（跟桌面 .hero-text-en/cn 一致） */
+  .hero-mobile-text-en,
+  .hero-mobile-text-cn {
+    font-size: var(--font-size-p1);
+  }
+
+  /* chip padding：跟桌面 [data-hero-hl] 一致；手機段落較長收窄 padding 視覺節制 */
+  @media (max-width: 767px) {
+    [data-hero-hl] {
+      padding: 0.3rem 0.45rem !important;
+    }
+  }
+
+
+  /* Degree show detail sticky info card chip — 沿用 anchor-nav-inner pattern
+     外 .sticky-chip：transparent wrapper，吃 clip-path reveal + rotation；中性 transform-origin: left center
+     內 .sticky-chip-inner：inline-flex column，吃 padding + accent bg + text color
+     reveal 動畫：clip-path inset(0 0 100% 0) → inset(0 0 0 0)（由上往下露出），rotation 同步保留 */
+  .sticky-chip {
+    display: inline-block;
+    transform-origin: left center;
+    clip-path: inset(0 0 100% 0);
+    transition: clip-path 0.5s cubic-bezier(0.25, 0, 0, 1);
+  }
+  .sticky-chip-inner {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 6px 8px 5px;
+    color: #000;
+    line-height: 1.15;
+  }
+  /* branch chip（p1 雙語）行距對齊 anchor-nav-inner / nav-link 的 base 行距，
+     避免 sticky-chip-inner 預設 1.15 過緊讓中英太貼 */
+  #sticky-branch-chip .sticky-chip-inner {
+    line-height: var(--line-height-base);
+  }
+
+  /* Degree show detail 返回按鈕 — 沿用 .sticky-chip 結構（clip-path reveal 由上往下，與 sticky title chip 同節奏）
+     left 對齊 var(--container-padding)（與 hero 標題 / sticky-info-card / logo 左緣同列）
+     bottom 64px（atlas-layout-btn 32px 的雙倍，貼底但不擠著畫面底邊） */
+  #degree-show-back-btn {
+    position: fixed;
+    left: var(--container-padding, 60px);
+    bottom: 64px;
+    z-index: 50;
+    pointer-events: auto;
+    cursor: var(--cursor-pointer);
+    /* .sticky-chip 預設 transform-origin: left center + clip-path inset(0 0 100% 0) hidden；
+       reveal 由 JS 在 setupStickyAndHeroChips 切到 inset(0 0 0 0) */
+  }
+
+  #degree-show-back-btn .sticky-chip-inner {
+    /* sticky title 是 accent 底黑字，back btn 用 strict B/W（依 page bg 對比翻黑底白字/白底黑字，同 atlas-layout-inner pattern）
+       fg/fg-inverse 對 mode1/2/3 都 strict B/W（mode3 不會跟 hue 飄）
+       size 對齊 atlas layout btn 48×48 + icon 32px */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    background: var(--theme-fg, #000);
+    color: var(--theme-fg-inverse, #fff);
+    font-size: 32px;
+  }
+}
+
+/* sub-event tab btn 已遷移到 about .class-division-btn / .class-group-label（重用全站樣式 + JS 套色旋轉），
+   原 .event-extra-tab-btn 規則已刪除 */

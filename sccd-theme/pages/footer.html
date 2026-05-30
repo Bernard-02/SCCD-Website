@@ -1,0 +1,95 @@
+<footer class="footer-shell relative overflow-hidden">
+  <div class="footer-inner h-full flex flex-col md:flex-row">
+
+    <!-- Logo：桌面靠左貼齊 padding，正方形吃滿可用高度 -->
+    <div class="footer-logo-area">
+      <div id="footer-logo" class="footer-logo-inner"></div>
+    </div>
+
+    <!-- 右側欄：桌面分上（隨機旋轉）下（privacy），手機線性堆疊 -->
+    <div class="footer-right">
+
+      <!-- 隨機分佈的旋轉項目（手機線性，桌面 absolute）-->
+      <div class="footer-random">
+
+        <!-- FAX -->
+        <div class="footer-fax">
+          <h6 class="mb-xs">FAX 傳真</h6>
+          <p>+886 2 2538 1111 #7050</p>
+        </div>
+
+        <!-- TEL -->
+        <div class="footer-tel">
+          <h6 class="mb-xs">TEL 電話</h6>
+          <p>+886 2 2538 1111 #7211</p>
+        </div>
+
+        <!-- Office -->
+        <div class="footer-office">
+          <h6 class="mb-xs">Office 學系辦公室</h6>
+          <p class="max-w-sm mb-xs">5F, Building A, No.70, Dazhi Street, Zhongshan District, Taipei City 104336, Taiwan</p>
+          <p class="footer-office-zh">104336 <br class="footer-office-zh-br">台灣台北市中山區大直街 70 號 A 棟 5 樓</p>
+        </div>
+
+        <!-- E-Mail -->
+        <div class="footer-email">
+          <h6 class="mb-xs">E-Mail 電子郵件</h6>
+          <p>sccd@g2.usc.edu.tw</p>
+        </div>
+
+        <!-- Links -->
+        <div class="footer-links">
+          <h6 class="mb-xs">Links 相關連結</h6>
+          <div class="flex flex-col gap-xs">
+            <a href="https://www.usc.edu.tw/" target="_blank" rel="noopener noreferrer" class="text-p2 footer-link">
+              Shih Chien University 實踐大學
+            </a>
+            <a href="http://www.scdesign.usc.edu.tw/" target="_blank" rel="noopener noreferrer" class="text-p2 footer-link">
+              College of Design, USC 實踐大學設計學院
+            </a>
+          </div>
+        </div>
+
+        <!-- Social Media Icons + Support
+             Support 放在 social 內部最左：手機 .footer-social flex-row 自然排列 (support → YT → IG → FB)；
+             桌面 .footer-social { display: contents } 把 4 個 icon wrapper 升級成 .footer-random 視覺子，
+             JS scatter (ITEM_SELECTORS 仍含 .footer-support) 各別散佈 -->
+        <div class="footer-social">
+          <div class="footer-support">
+            <a href="support.html" class="footer-link" aria-label="Support / Donation">
+              <span class="icon icon-donate text-h3"></span>
+            </a>
+          </div>
+          <div class="footer-youtube">
+            <a href="https://www.youtube.com/@scsccd" target="_blank" rel="noopener noreferrer" class="footer-link">
+              <span class="icon icon-youtube text-h3"></span>
+            </a>
+          </div>
+          <div class="footer-instagram">
+            <a href="https://www.instagram.com/communications.design_sccd" target="_blank" rel="noopener noreferrer" class="footer-link">
+              <span class="icon icon-instagram text-h3"></span>
+            </a>
+          </div>
+          <div class="footer-facebook">
+            <a href="https://www.facebook.com/communications.design" target="_blank" rel="noopener noreferrer" class="footer-link">
+              <span class="icon icon-facebook text-h3"></span>
+            </a>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Privacy Policy Links（桌面左下、手機線性最後）— Support 已移到 scatter pool
+           英文/中文用 <br> 分兩行；T&C 已移除改為 Accessibility -->
+      <div class="footer-privacy">
+        <div class="flex flex-col gap-xs items-start">
+          <a href="privacy-policy.html" class="footer-link">Privacy and Security Policies<br>隱私權及資訊安全政策</a>
+          <a href="accessibility.html" class="footer-link">Accessibility<br>無障礙聲明</a>
+          <p>SCCD©<span id="footer-year"></span></p>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</footer>

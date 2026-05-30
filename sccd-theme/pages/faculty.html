@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<!-- html 級 overflow-x:hidden：iOS Safari 在 body overflow-x:hidden 時會把 body 當 scroll container
+     → position:fixed 子元素依附 body 而非 viewport，scroll 時 header 跟著走。
+     html 級 clip 不影響 body scroll container 角色，position:fixed 正常依附 viewport。
+     2026-05-26 faculty 頁 header 不 fixed 的 root cause -->
+<html lang="zh-Hant" style="overflow-x: hidden;">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Faculty - SCCD</title>
+  <link rel="stylesheet" href="../css/variables.css">
+  <link rel="stylesheet" href="../css/output.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+  <style>
+    .no-scrollbar::-webkit-scrollbar {
+      display: none !important;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    /* 桌面：延伸 10px 蓋過 scrollbar-gutter:stable 保留的 10px gutter，視覺上 panel 直接接到 viewport 右邊緣
+       手機：沒有 scrollbar gutter（custom scrollbar 已隱藏），right:-10px 會讓 panel 左邊溢出 viewport 10px → user 視覺解讀為「panel 沒鋪滿、左邊有空隙」（其實是 panel 偏左 10px） */
+    @media (min-width: 768px) {
+      #faculty-panel {
+        right: -10px;
+      }
+    }
+  </style>
+</head>
+<body style="overflow-x: hidden;">
+
+  <!-- Header -->
+  <div id="site-header"></div>
+
+  <!-- Main Content -->
+  <main id="page-content">
+    <!-- Faculty Hero Section
+         桌面 .hero-rand-grid：4 元素隨機 2×2 grid 排版（hero-animation.js randomizeHeroLayout）
+         手機 .hero-mobile：圖墊底 + 文字 stack 疊在圖上（hero-mobile-sync.js init 時從桌面 clone 文案/圖）
+         兩套 DOM 並存，CSS @media 切 display；內容單一來源（桌面是 source） -->
+    <section class="min-h-screen md:h-screen relative overflow-x-clip md:overflow-hidden">
+      <!-- 手機版（< 768px）：圖+文字 stack -->
+      <div class="hero-mobile">
+        <div class="hero-mobile-bg">
+          <img src="" alt="">
+        </div>
+        <div class="hero-mobile-text">
+          <h1 class="text-black hero-mobile-title" data-hero-hl></h1>
+          <h1 class="text-black hero-mobile-title-cn" data-hero-hl></h1>
+          <p class="text-black hero-mobile-text-en" data-hero-hl></p>
+          <p class="text-black hero-mobile-text-cn" data-hero-hl></p>
+        </div>
+      </div>
+      <!-- 桌面版（≥ 768px）：random 2×2 grid -->
+      <div class="hero-rand-grid">
+        <h1 class="text-black hero-title inline-block" data-hero-hl>FACULTY</h1>
+        <h1 class="text-black hero-title-cn inline-block" data-hero-hl>師資</h1>
+        <div class="hero-banner">
+          <img src="../images/SCCD-1-4-0.jpg" alt="Faculty">
+        </div>
+        <p class="text-black hero-text-en" data-hero-hl>
+          Professors of SCCD are composed of cross-disciplinary experts from academia, design industry and art field. Possess a theoretical and research background in design and art education at domestic and foreign, rich and diverse performance and creative practical experience, and have In-depth understanding of the professional education goals of the department. It is expected that students with different characteristics and attributes will expand their plasticity and give corresponding inspiration, strengthen student’s professional skills and trend perception ability, and consolidate students expand their potential and explosive power whether in academic research, design practice, artistic creation with future vision.
+        </p>
+        <p class="text-black hero-text-cn" data-hero-hl>
+          實踐大學媒體傳達設計學系專、兼任教師皆為學術界、設計業界與藝術領域專家等跨領域組成，具備國內外設計藝術教育理論研究背景、豐富多樣的展演與創作實務經歷，對於學系之專業教育目標理解深入，期許針對不同特質屬性的學生擴展可塑性並給予相應之啟發，強化學生專業技能及趨勢感知能力，夯實學生未來不論於學術研究、設計實務、藝術創作皆能擴展其潛能、爆發力與未來願景。
+        </p>
+      </div>
+    </section>
+
+    <!-- Faculty Cards Section -->
+    <section id="faculty-cards" class="bg-white pt-3xl pb-6xl md:py-6xl">
+      <div class="site-container">
+        <div class="flex flex-col md:flex-row gap-gutter">
+          <!-- Filter Buttons (Left side - fixed width)
+               手機：水平 scroll（user 2026-05-25 不要 wrap 往下排）
+               桌面：保持原本 sticky vertical column 不變 -->
+          <div class="w-full md:flex-[0_0_calc(25%_-_1.25rem)]">
+            <!-- 手機：水平 scroll bar；scrollbar 隱藏走 no-scrollbar（faculty.html 已內嵌規則）
+                 padding-y 給 btn 旋轉 clearance（rotate 後突角不被 overflow 裁切），桌面 md:py-0 還原 -->
+            <div class="flex flex-row gap-md overflow-x-auto no-scrollbar md:overflow-x-visible md:flex-col md:gap-xs mb-xl md:mb-0 md:sticky md:top-[200px] -mx-md px-md md:mx-0 md:px-0 py-md md:py-0">
+              <button class="faculty-filter-btn shrink-0 active text-left" data-filter="fulltime">
+                <span class="anchor-nav-inner"><span>Full-time Professors</span><span>專任教師</span></span>
+              </button>
+              <button class="faculty-filter-btn shrink-0 text-left" data-filter="parttime">
+                <span class="anchor-nav-inner"><span>Part-time Professors</span><span>兼任教師</span></span>
+              </button>
+              <button class="faculty-filter-btn shrink-0 text-left" data-filter="admin">
+                <span class="anchor-nav-inner"><span>Administrators</span><span>行政管理</span></span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Faculty Cards (Right side - flexible width) -->
+          <div class="flex-1 md:pr-[2rem]">
+            <!-- Containers for dynamic data -->
+            <div id="faculty-fulltime-list" class="grid grid-cols-2 md:grid-cols-4 gap-x-md gap-y-xl md:gap-x-2xl md:gap-y-4xl"></div>
+            <div id="faculty-parttime-list" class="grid grid-cols-2 md:grid-cols-4 gap-x-md gap-y-xl md:gap-x-2xl md:gap-y-4xl"></div>
+            <div id="faculty-admin-list" class="grid grid-cols-2 md:grid-cols-4 gap-x-md gap-y-xl md:gap-x-2xl md:gap-y-4xl"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Faculty Slide-in Panel：放在 main 內供 SPA router 一併載入；
+         router 只搬 newMain.innerHTML，main 外的元素 SPA 切頁時不會出現 -->
+    <!-- 比照 #courses-slide-in pattern：z-[150] + 全螢幕 overlay + 右側 panel；
+         header bars 由 lightbox-shell clip-path 收掉（logo 不動仍浮在最上） -->
+    <div id="faculty-slide-in" class="invisible pointer-events-none fixed inset-0 z-[150]">
+    <!-- Overlay (Full screen black dim) -->
+    <div id="faculty-overlay" class="absolute inset-0 bg-black opacity-0"></div>
+
+    <!-- Panel (White, Slide from right) -->
+    <div id="faculty-panel" class="absolute top-0 right-0 bottom-0 bg-white transform translate-x-[110%] overflow-hidden w-full md:w-[79.1666%]">
+
+      <!-- Content Container（panel overflow-hidden + 內 flex-col；右欄獨立 scroll wrapper 自己裁切） -->
+      <!-- 桌面：h-full + flex-col 撐到 panel 高，右欄 min-h-0 overflow-y-auto 處理長文字
+           手機：保留原本整個 panel 可捲（避免左右分欄擠在小 viewport） -->
+      <!-- pb：手機 pb-6xl(128px)（2026-05-26 user 要求文字不貼底）、桌面 md:pb-2xl(48px) 維持不變 -->
+      <div class="w-full h-full px-container-padding pt-[calc(var(--header-height,80px)+5rem)] pb-6xl md:pt-4xl md:pb-2xl box-border relative flex flex-col overflow-y-auto md:overflow-hidden no-scrollbar">
+
+        <!-- Mobile Back Button (Relative inside flow)
+             self-start：父 flex-col 內靠左對齊（button 預設 text-align:center 會讓 icon 在 viewport 中間） -->
+        <button id="faculty-back-btn-mobile" class="md:hidden block self-start mb-xl cursor-pointer bg-transparent">
+          <span class="icon icon-arrow-left text-black icon-m"></span>
+        </button>
+
+        <div class="flex flex-col md:flex-row gap-xl md:gap-3xl flex-1 min-h-0 relative">
+
+          <!-- Left: Image and Name (固定不 scroll)
+               桌面：image → name+titles 由上到下
+               手機（2026-05-26 user 調整）：image 在上 → name+titles 在下，無 order 反轉（HTML 順序就是手機視覺順序） -->
+          <div class="w-full md:w-[22%] md:self-start flex flex-col">
+            <!-- Image with rotation -->
+            <div class="mb-2xl md:mb-2xl w-[65%] ml-xl md:w-full md:ml-0" style="aspect-ratio: 4/5; transform: rotate(-4deg);">
+              <img id="faculty-detail-image" src="../images/S__6742028.jpg" alt="Faculty" class="w-full h-full object-cover object-center">
+            </div>
+            <!-- Name + Titles -->
+            <div class="mb-xl md:mb-0">
+              <h4 id="faculty-detail-name-en" class="mb-xs whitespace-nowrap">Ta-Lih Shieh</h4>
+              <h4 id="faculty-detail-name-zh" class="whitespace-nowrap">謝大立</h4>
+              <!-- Titles (Founder 等)；多個 title 由 JS 動態 stack -->
+              <div id="faculty-detail-titles" class="mt-lg"></div>
+            </div>
+          </div>
+
+          <!-- Right: Details — 獨立 scroll wrapper（桌面才生效，手機隨外層 panel scroll） -->
+          <!-- min-h-0 解開 flex 子元素 implicit min-content；list-scroll 套全站 inline scrollbar 樣式 -->
+          <div class="flex-1 flex flex-col md:min-h-0 md:overflow-y-auto list-scroll md:pr-md">
+            <!-- pb-lg md:pb-0：手機在 sections 容器底再給 2rem padding，疊在外層 panel pb-6xl(128px) 之上
+                 確保 list 最後一個 row 跟 panel 底有更明顯間距；桌面 md:pb-0 不動原本行為 -->
+            <div id="faculty-detail-sections" class="flex flex-col gap-2xl pb-lg md:pb-0">
+              <!-- Sections will be dynamically generated -->
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <div id="site-footer"></div>
+
+  <!-- JavaScript -->
+  <!-- GSAP & ScrollTrigger -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollTrigger.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/Draggable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>
+  <!-- Helper Functions - 必須在 main.js 之前載入 -->
+  <script src="../js/utils/helpers.js"></script>
+  <script type="module" src="../js/main-modular.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,443 @@
+/**
+ * Button Components
+ * 各種按鈕樣式（Filter、Toggle、Division 等）
+ */
+
+@layer components {
+
+  /* ===== Theme Toggle Button =====
+   * 2026-05-19 改用 .icon mode_1/2/3 SVG（舊的 .theme-toggle-circle 圓點+圓邊框拿掉）
+   * icon 顏色走 currentColor → btn 用 var(--theme-fg) 自動跟 mode 切換；
+   * slide-in / lightbox 開時改白色由 CSS 覆蓋（取代舊 gsap inline 動畫）
+   */
+  .theme-toggle-btn {
+    width: 24px;
+    height: 24px;
+    background: transparent;
+    border: none;
+    cursor: var(--cursor-pointer);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    font-size: 24px; /* .icon width/height: 1em → icon 撐滿 24px */
+    color: var(--theme-fg);
+    transition: color var(--transition-fast);
+  }
+
+  /* slide-in（faculty / courses）或 lightbox 開啟時，header overlay 變黑底 → icon 統一白色 */
+  html.has-slide-in .theme-toggle-btn,
+  body.lightbox-open .theme-toggle-btn {
+    color: #fff;
+  }
+
+  /* slide-in / lightbox 開啟時手機只保留 logo，mode-btn + menu-btn 收起 — 動畫由 lightbox-shell.js
+     `animateHeaderHide(getHeaderTargets())` 統一管（跟桌面 #mode-btn / [data-bar] 走同一個 GSAP clip-path
+     per-element 隨機 top/bottom 收）。getHeaderTargets() 在手機 viewport 會 include .mobile-header-btn。
+     這裡不額外寫 CSS clip-path 動畫，避免跟 GSAP 撞 transition */
+
+  /* ===== Mode btn 圓底（桌面版 header）=====
+   * 底色 = page bg（融入頁面，不反色）：standard 白底黑 icon、
+   * inverse 黑底白 icon、mode-color 跟 page bg（規則在 themes/inverse.css + color.css）
+   * size 40×40 圓，icon 24 居中（= 8px padding）；
+   * width 寫死 40 是因為 header.js animateHeaderModeBtnShow fromTo width:0→40 需要對齊 */
+  #mode-btn {
+    width: 40px;
+    height: 40px;
+    background: #fff;
+  }
+  #mode-btn .theme-toggle-btn {
+    color: #000;
+  }
+
+  /* ===== Mobile Header Buttons（mode-btn + menu-btn 圓底）=====
+   * 跟桌面 #mode-btn 同 bg 邏輯：圓底 + bg = page bg（融入頁面）
+   * 44×44 滿足觸控規範；icon 色走 currentColor 自動跟 mode 切換
+   * mode-aware bg 由 themes/inverse.css + color.css 覆寫（同 #mode-btn pattern）*/
+  .mobile-header-btn {
+    width: 44px;
+    height: 44px;
+    background: #fff;
+    color: #000;
+    /* transition 含 transform：mobile-menu.js 對 btn 外殼套 random rotation，每次點擊新角度需平滑切換
+       clip-path 動畫由 lightbox-shell GSAP 控（slide-in/lightbox 開時），不在 CSS transition 處理 */
+    transition: background var(--transition-fast), color var(--transition-fast), transform 0.4s ease;
+  }
+  /* ===== Section Nav Buttons（共用基底樣式）=====
+   * 包含：faculty-filter / activities-section / courses-program /
+   *      activities-filter / courses-filter / section-nav-btn
+   * 新的 instance 可直接加 .section-nav-btn class 使用
+   */
+  .section-nav-btn,
+  .faculty-filter-btn,
+  .activities-section-btn,
+  .courses-program-btn,
+  .activities-filter-btn,
+  .courses-filter-btn {
+    cursor: var(--cursor-pointer);
+    background: none;
+    border: none;
+    padding: 0;
+    font-weight: 700;
+    font-size: var(--font-size-p1);
+  }
+
+  /* 直式堆疊（sticky 垂直導覽）*/
+  .section-nav-btn--stack,
+  .faculty-filter-btn,
+  .activities-section-btn,
+  .courses-program-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  /* Inactive 狀態：純白底 + 半透明 theme-fg（對齊 about #anchor-nav 的 pattern；
+     inverse 在 themes/inverse.css 翻成純黑底 + 半透明白字）*/
+  .section-nav-btn:not(.active) .anchor-nav-inner,
+  .faculty-filter-btn:not(.active) .anchor-nav-inner,
+  .activities-section-btn:not(.active) .anchor-nav-inner,
+  .courses-program-btn:not(.active) .anchor-nav-inner,
+  .activities-filter-btn:not(.active) .anchor-nav-inner,
+  .courses-filter-btn:not(.active) .anchor-nav-inner {
+    background: rgba(255, 255, 255, 1);
+    color: rgba(var(--theme-fg-rgb), 0.5);
+  }
+
+  /* Active 狀態（背景/旋轉由 JS 設定）*/
+  .section-nav-btn.active .anchor-nav-inner,
+  .faculty-filter-btn.active .anchor-nav-inner,
+  .activities-section-btn.active .anchor-nav-inner,
+  .courses-program-btn.active .anchor-nav-inner,
+  .activities-filter-btn.active .anchor-nav-inner,
+  .courses-filter-btn.active .anchor-nav-inner {
+    color: black;
+  }
+
+  @media (min-width: 768px) {
+    .section-nav-btn:not(.active):hover .anchor-nav-inner,
+    .activities-section-btn:not(.active):hover .anchor-nav-inner,
+    .courses-program-btn:not(.active):hover .anchor-nav-inner,
+    .activities-filter-btn:not(.active):hover .anchor-nav-inner,
+    .courses-filter-btn:not(.active):hover .anchor-nav-inner {
+      background: rgba(255, 255, 255, 1);
+      color: rgba(0, 0, 0, 1);
+    }
+    .faculty-filter-btn:hover .anchor-nav-inner {
+      color: rgba(0, 0, 0, 1);
+    }
+  }
+
+  /* ===== Activities Section Bar（手機水平 scroll；桌面 sticky vertical stack） =====
+   * 手機：force row + overflow-x:auto + 兩側負 margin 延伸到 viewport 邊（courses-program-bar 同 pattern）
+   *      - flex-direction:row + flex-wrap:nowrap !important 覆蓋 HTML 的 flex-row + flex-wrap (HTML 預設 flex-row)
+   *      - overflow-y:clip 與 x:auto 並存（CSS spec：另一軸非 visible 時視同 auto；用 clip 才真不裁切）
+   *      - gap-xs 給 btn 之間留呼吸感；btn flex-shrink:0 避免擠壓變窄
+   * 桌面：直接走 HTML md:flex-col + sticky，這段不介入 */
+  @media (max-width: 767px) {
+    .activities-section-bar {
+      flex-direction: row !important;
+      flex-wrap: nowrap !important;
+      overflow-x: auto;
+      /* overflow-y:clip 讓 active btn rotation 投影 y 軸不被裁切（spec：另一軸非 visible 視同 auto，clip 才真不切）
+         x 軸 scroll 為 host section 之外的隔離 container，rotation 投影在 padding-y buffer 內可見 */
+      overflow-y: clip;
+      margin-left: calc(-1 * var(--container-padding));
+      margin-right: calc(-1 * var(--container-padding));
+      padding-left: var(--container-padding);
+      padding-right: var(--container-padding);
+      /* padding-y 給 rotation buffer：active btn 旋轉後 chip 上下凸出 layout box；
+         沒有 buffer 投影會被 overflow-y:clip 切掉 */
+      padding-top: var(--spacing-sm);
+      padding-bottom: var(--spacing-sm);
+    }
+    .activities-section-bar::-webkit-scrollbar { display: none; }
+    .activities-section-bar > .activities-section-btn {
+      flex-shrink: 0;
+    }
+    /* Industry Partnerships btn 桌面 EN 強制換行（HTML hardcoded <br>），手機 single-line scroll bar
+       不需要換行；<br> 不能用 display:none（會讓 EN 黏成 IndustryPartnerships），
+       改成把 br 變 inline content 空格：content 替換 <br> 視覺內容為 ' '（display:none 後 ::after 不 render，
+       直接給 br 自身 display:inline + ::after content） */
+    .activities-section-bar .activities-section-btn br {
+      display: inline;
+    }
+    .activities-section-bar .activities-section-btn br::after {
+      content: ' ';
+      white-space: pre;
+    }
+  }
+
+  /* ===== Activities Filter Bar ===== */
+  @media (min-width: 768px) {
+    /* sticky top:200px → 遮罩延伸到視窗頂部，避免 header 收起時露出後方內容 */
+    .activities-filter-bar::before {
+      content: '';
+      position: absolute;
+      top: -200px;
+      left: 0;
+      right: 0;
+      height: 200px;
+      background: white;
+    }
+    .activities-filter-bar {
+      position: relative;
+    }
+  }
+
+  /* ===== Album Filter Options (dropdown-column style) ===== */
+  .album-filter-option {
+    cursor: var(--cursor-pointer);
+    background: none;
+    border: none;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: var(--font-size-p2);
+    font-weight: 700;
+    color: black;
+    line-height: 1.6;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+  }
+
+  /* 勾號在右邊：active 顯示，inactive 隱藏 */
+  .album-filter-option .album-cb { display: inline; flex-shrink: 0; }
+  .album-filter-option:not(.active) .album-cb { display: none; }
+
+  /* active 底色由 JS 設定（隨機三原色），這裡設 transition */
+  .album-filter-option {
+    transition: background var(--transition-fast);
+  }
+
+  /* Sort col：寬度固定為最寬選項，header 撐滿同寬 */
+  .album-sort-col {
+    flex-shrink: 0;
+    position: relative;
+    width: max-content;
+  }
+  .album-sort-col .album-filter-col-header {
+    width: max-content;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+  }
+  /* album-filter-col-list 樣式由 .filter-dropdown-list（見下方）統一提供 */
+
+  /* Sort col 選項：撐滿 list 寬，tick 頂右邊 */
+  .album-sort-col .album-filter-option {
+    font-size: var(--font-size-p1);
+    padding: 1px 4px;
+    color: rgba(0, 0, 0, 0.5);
+    gap: var(--spacing-md);
+    width: 100%;
+  }
+  .album-sort-col .album-filter-option.active {
+    color: black;
+  }
+  @media (min-width: 768px) {
+    .album-sort-col .album-filter-option:not(.active):hover {
+      color: black;
+    }
+  }
+
+  /* files panel 的 sort col：預設 max-content，panel visible 後由 JS 動態設定精確寬度 */
+  .files-sort-col {
+    width: max-content;
+  }
+
+  /* ===== Files Sort Col (mirrors album-sort-col) ===== */
+  .files-sort-col {
+    flex-shrink: 0;
+    position: relative;
+    width: max-content;
+  }
+  .files-sort-col .files-sort-col-header {
+    width: 100%;
+  }
+  /* files-sort-col-list 樣式由 .filter-dropdown-list（見下方）統一提供 */
+
+  .files-sort-option {
+    cursor: var(--cursor-pointer);
+    background: none;
+    border: none;
+    padding: 1px 4px;
+    font-size: var(--font-size-p1);
+    font-weight: 700;
+    color: rgba(0, 0, 0, 0.5);
+    line-height: 1.6;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+    width: 100%;
+    transition: background var(--transition-fast);
+  }
+  .files-sort-option.active {
+    color: black;
+  }
+
+  .files-sort-option .files-cb { display: inline; flex-shrink: 0; }
+  .files-sort-option:not(.active) .files-cb { display: none; }
+
+  @media (min-width: 768px) {
+    .files-sort-option:not(.active):hover {
+      color: black;
+    }
+  }
+
+  /* ===== Filter Dropdown List（統一元件）=====
+   * 用於 album-filter-col-list / files-sort-col-list 等下拉選項容器
+   */
+  .filter-dropdown-list,
+  .album-filter-col-list,
+  .files-sort-col-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    padding-top: var(--spacing-xs);
+    gap: var(--spacing-xs);
+    width: max-content;
+    min-width: 100%;
+    background: white;
+    z-index: 20;
+  }
+
+  /* ===== Scrollbar Thin（統一元件）===== */
+  .scrollbar-thin,
+  .album-filter-col-list,
+  .files-sort-col-list {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar,
+  .album-filter-col-list::-webkit-scrollbar,
+  .files-sort-col-list::-webkit-scrollbar {
+    width: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track,
+  .album-filter-col-list::-webkit-scrollbar-track,
+  .files-sort-col-list::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb,
+  .album-filter-col-list::-webkit-scrollbar-thumb,
+  .files-sort-col-list::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 0;
+  }
+
+  /* Filter tag */
+  .album-filter-tag {
+    cursor: var(--cursor-pointer);
+    background: black;
+    color: white;
+    border: none;
+    padding: 2px var(--spacing-sm);
+    font-size: var(--font-size-p2);
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    white-space: nowrap;
+  }
+
+
+  /* ===== Works Filter Buttons ===== */
+  .works-filter-btn {
+    border: 4px solid #000000;
+    border-radius: 20px;
+    background: transparent;
+    color: #000000;
+    cursor: var(--cursor-pointer);
+  }
+
+  .works-filter-btn.active {
+    background: #000000;
+    color: #FFFFFF;
+    font-weight: 700;
+  }
+
+  /* ===== Class Group Label (BFA Class 學士班)：旋轉由 JS 設定 ===== */
+  /* bg/color 用 var(--theme-fg)/var(--theme-bg) 跟 mode 走（standard=黑底白字 / inverse=白底黑字） */
+  .class-group-label {
+    display: inline-block;
+    width: fit-content;
+    padding: 4px 6px 3px;
+    position: absolute;
+    bottom: calc(100% + var(--spacing-xs));
+    left: -12px;
+    z-index: 2;
+    background: var(--theme-fg);
+    color: var(--theme-bg);
+    transition: background 0.2s ease, color 0.2s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* ===== Class Division Toggle Buttons ===== */
+  /* 同上：跟 mode 對比 pill */
+  .class-division-btn {
+    background: var(--theme-fg);
+    color: var(--theme-bg);
+    border: none;
+    border-radius: 0;
+    cursor: var(--cursor-pointer);
+    padding: 6px 8px 5px;
+    text-align: left;
+    transition: background 0.2s ease, color 0.2s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* ===== Class Buttons Sticky Container =====
+     完全透明；不加貼頂白底，避免遮擋/裁掉經過的封鎖綫 */
+  #class-buttons-sticky {
+    padding-bottom: var(--spacing-md);
+    background: transparent;
+  }
+
+  /* BFA btn wrapper
+     - 展開（is-works-context）：clip-path 從左→右揭露
+     - 四邊都留 -40px 給 btn 旋轉 clearance（避免裁切到旋轉角）
+     - BFA btn 在 class 模式強制 0°，確保不超出 clip 範圍（JS 控制） */
+  .class-division-bfa-wrap {
+    max-width: 0;
+    overflow: visible;
+    pointer-events: none;
+    /* 抵消 flex gap（xl = 3rem），收起時不佔 gap */
+    margin-right: calc(-1 * var(--spacing-xl));
+    /* right 用 calc(100% + 40px) 確保左側 -40px 的 clearance 也被裁掉
+       避免 max-width:0 時左邊殘留一條可見區 */
+    clip-path: inset(-40px calc(100% + 40px) -40px -40px);
+    transition: max-width 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+                margin-right 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+                clip-path 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* 展開：clip-path 左→右揭露 */
+  #class-buttons-sticky.is-works-context .class-division-bfa-wrap {
+    max-width: 320px;
+    pointer-events: auto;
+    margin-right: 0;
+    clip-path: inset(-40px -40px -40px -40px);
+  }
+
+
+
+  /* ===== Btn Fill Hover Effect ===== */
+  .btn-fill {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .btn-fill-blob {
+    position: absolute;
+    border-radius: 50%;
+    background: #000000;
+    pointer-events: none;
+    transform-origin: center;
+    z-index: -1;
+  }
+
+}

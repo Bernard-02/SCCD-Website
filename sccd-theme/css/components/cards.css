@@ -1,0 +1,202 @@
+/**
+ * Card Components
+ * Faculty Cards、Library Cards、Degree Show 等卡片樣式
+ */
+
+@layer components {
+  /* ===== Card Hover Overlay（共用元件）=====
+   * 適用：faculty-card / library-card
+   * 結構：card > image-wrapper > image
+   *   - card：hover 時底色變 var(--card-color)
+   *   - image-wrapper::after：screen blend 色塊，hover 時 opacity 1
+   *   - image：hover 時 grayscale
+   */
+  .faculty-card,
+  .library-card {
+    background-color: transparent;
+    transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .faculty-card-image-wrapper,
+  .library-card-image-wrapper {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .degree-show-img-wrapper {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .faculty-card-image,
+  .library-card-image {
+    transition: filter 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .faculty-card-image-wrapper::after,
+  .library-card-image-wrapper::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-color: var(--card-color, #26BCFF);
+    mix-blend-mode: screen;
+    opacity: 0;
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+  }
+
+  /* Hover 效果（桌面版）*/
+  @media (min-width: 768px) {
+    .faculty-card:hover,
+    .library-card:hover {
+      background-color: var(--card-color, #26BCFF);
+    }
+
+    .library-card:hover .library-card-image {
+      filter: grayscale(100%);
+    }
+
+    .library-card:hover .library-card-image-wrapper::after {
+      opacity: 0.8;
+    }
+  }
+
+  /* Faculty 特定：只有 fulltime/admin 可點擊 */
+  .faculty-card-image-wrapper { cursor: var(--cursor-default); }
+  .faculty-card[data-category="fulltime"] .faculty-card-image-wrapper,
+  .faculty-card[data-category="admin"] .faculty-card-image-wrapper {
+    cursor: var(--cursor-pointer);
+  }
+
+  /* Faculty 卡片預設旋轉（JS 設 --init-deg），hover 恢復 0° 對齊下方文字
+   * 旋轉套在 wrapper 而非 img：image 用 object-cover w-full h-full 完整貼合 wrapper，
+   * wrapper overflow:hidden 維持矩形邊界跟著旋轉；0° 時 wrapper 自然與下方文字 flow 對齊 */
+  .faculty-card-image-wrapper {
+    transform: rotate(var(--init-deg, 0deg));
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  @media (min-width: 768px) {
+    .faculty-card:hover .faculty-card-image-wrapper {
+      transform: rotate(0deg);
+    }
+  }
+
+  /* ===== Album Cards ===== */
+  .album-card {
+    transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .album-card-img {
+    transition: filter 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* ===== Faculty Slide-in Grid Rows =====
+     所有 section（學歷/經歷/獲獎）統一 4 col grid `1fr 4fr 2fr 2fr` 對齊：
+     - col1 (1fr): year / country
+     - col2 (4fr): school / name
+     - col3 (2fr): major / work
+     - col4 (2fr): degree / category / role
+     - 經歷的 organization 用 .faculty-grid-span2 跨 col2+col3 (4fr+2fr) 撐單位描述
+   */
+  .faculty-grid-row {
+    display: grid;
+    grid-template-columns: 1fr 4fr 2fr 2fr;
+    gap: 1.5rem;
+    align-items: baseline;
+    padding-bottom: 0.5rem;
+    padding-right: 2rem;
+    font-size: var(--font-size-p2);
+  }
+  /* 手機：字級放大到 p1 易讀（窄 viewport 內 p2 太小） */
+  @media (max-width: 767px) {
+    .faculty-grid-row {
+      font-size: var(--font-size-p1);
+    }
+  }
+  .faculty-grid-row > .faculty-grid-span2 {
+    grid-column: span 2;
+  }
+
+  .faculty-grid-row span {
+    word-break: break-word;
+    line-height: var(--line-height-base);
+  }
+
+  /* 手機（2026-05-26 user 要求）：4 欄 grid 改縱向 stack（每個 span 一行），易讀性優先
+     桌面 grid 規則完全不動；padding-bottom 加大讓 row 與 row 間距更清楚（user 要求 gap 再大一點） */
+  @media (max-width: 767px) {
+    .faculty-grid-row {
+      grid-template-columns: 1fr;
+      gap: 0.25rem;
+      padding-bottom: 2rem;
+      padding-right: 0;
+    }
+    .faculty-grid-row > .faculty-grid-span2 {
+      grid-column: auto;
+    }
+  }
+
+  /* Sticky section title col — 蓋住右欄 scroll 經過時下方 row 文字
+     bg = panel 卡片色（faculty-slide-in.js click 時 setProperty 寫入 panel inline）
+     inherit 在 CSS bg 拿不到 painted color 所以走 CSS var pattern */
+  .faculty-section-title-col {
+    background: var(--faculty-panel-bg, transparent);
+  }
+
+  /* ===== Degree Show Image ===== */
+  /* ===== Faculty Section Tags ===== */
+  .faculty-tag {
+    @apply inline-block text-p2 border border-black px-xs py-[2px];
+    white-space: nowrap;
+  }
+
+  .works-container {
+    height: auto;
+    align-self: stretch;
+    min-height: var(--works-container-height, 320px);
+  }
+
+  /* ===== Mobile Responsive for Works Container ===== */
+  @media (max-width: 767px) {
+    .works-container {
+      height: auto !important;
+      display: flex !important; /* 改為 Flex 佈局以支援橫向排列 */
+      overflow-x: auto;         /* 開啟橫向捲動 */
+      gap: 1rem;                /* 圖片間距 */
+      scroll-snap-type: x mandatory; /* 滑動吸附效果 */
+      padding-bottom: 1rem;     /* 預留空間 */
+      justify-content: flex-start !important; /* 確保靠左開始 */
+      scrollbar-width: none;    /* Firefox 隱藏捲軸 */
+    }
+    .works-container::-webkit-scrollbar { display: none; } /* Chrome/Safari 隱藏捲軸 */
+
+    .works-container img.absolute, .works-container > div.absolute {
+      position: relative !important;
+      top: auto !important;
+      left: auto !important;
+      width: 85% !important;    /* 讓圖片佔據 85% 寬度，暗示可滑動 */
+      transform: none !important; /* 移除旋轉 */
+      margin-bottom: 0 !important;
+      flex-shrink: 0;           /* 防止圖片被壓縮 */
+      scroll-snap-align: center; /* 吸附對齊 */
+    }
+  }
+
+  /* ===== 首頁 WATCH! 圓形卡片（#homepage-yt-card.homepage-card） =====
+   * 桌面 160×160，手機 96×96。
+   * 尺寸由 CSS 而非 inline style 控制，方便 RWD 切換；
+   * inline style 仍保留 position/border-radius/background/z-index 等 layout 屬性。
+   * 內部 WATCH 字母在 index-yt-card.js 依 W/160 ratio 自動縮放，所以圓圈尺寸對了字母自動 fit。
+   */
+  .homepage-card {
+    width: 160px;
+    height: 160px;
+  }
+  @media (max-width: 767px) {
+    .homepage-card {
+      width: 96px;
+      height: 96px;
+    }
+  }
+}

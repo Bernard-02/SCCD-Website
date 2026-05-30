@@ -1,19 +1,276 @@
 <?php
 /**
- * Theme entry. PoC 階段只放最小可動 placeholder。
- * 前端 SPA template 之後再接（會 echo SCCD Website 的 index.html 內容並 wp_head/wp_footer）
+ * SCCD Theme entry — Hack 版（PoC 上線）
+ *
+ * 策略：把 SPA 的 index.html 整個搬進來；用 <base href> 把所有相對路徑解析到 theme 目錄。
+ * - <head> 補 wp_head() 給外掛 hook（SEO / cache 等）
+ * - <body> 結尾補 wp_footer()
+ * - <base href> 後 anchor link (#) 與 SPA 內 a[href] 自動以 theme URL 為基底解析
+ * - SPA router pushState 走相對路徑會落到 /wp-content/themes/sccd-theme/pages/X.html
+ *   refresh 該 URL 仍可 404；之後上 .htaccess rewrite 或改 router 用 query string
+ *
+ * 注意：本檔在 LocalWP 跟 production 都會跑。Coming Soon 期間只需 index 前台，內頁進 SPA 後台。
  */
+
+if (!defined('ABSPATH')) exit;
+
+$theme_url = get_template_directory_uri();
 ?>
 <!DOCTYPE html>
 <html <?php language_attributes(); ?>>
 <head>
-<meta charset="<?php bloginfo('charset'); ?>">
-<title><?php bloginfo('name'); ?></title>
-<?php wp_head(); ?>
+  <meta charset="<?php bloginfo('charset'); ?>">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><?php bloginfo('name'); ?> - Shih Chien University</title>
+
+  <base href="<?php echo esc_url(trailingslashit($theme_url)); ?>">
+
+  <!-- 注入 theme URL 給 router.js 用（fetch SPA HTML 時用此為基底，繞過 origin-based 預設） -->
+  <script>window.SCCD_THEME_URL = '<?php echo esc_js(trailingslashit($theme_url)); ?>';</script>
+
+  <!-- Coming Soon 期間：不顯示 intro overlay，header 直接顯示 -->
+  <style>
+    #intro-overlay { display: none !important; }
+  </style>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&family=Bitter:ital,wght@0,400;0,600;0,700;1,400&family=Noto+Serif+TC:wght@400;600;700&display=swap">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <link rel="stylesheet" href="css/output.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.2.3/css/flag-icons.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+
+  <?php wp_head(); ?>
 </head>
-<body>
-<h1>SCCD Theme (PoC)</h1>
-<p>Theme installed. 後台 CPT / CMB2 / REST 已 active。前端 template 之後接前端 SPA。</p>
-<?php wp_footer(); ?>
+<body class="page-coming-soon" style="overflow:hidden">
+
+  <!-- 臨時 index（Coming Soon）— scoped 隱藏規則 -->
+  <style>
+    body.page-coming-soon #site-header header [data-bar="about"],
+    body.page-coming-soon #site-header header [data-bar="alumni-full"],
+    body.page-coming-soon #site-header header [data-bar="alumni"],
+    body.page-coming-soon #site-header header [data-bar="library"],
+    body.page-coming-soon #site-header header [data-bar="atlas"],
+    body.page-coming-soon #site-header header .mobile-menu-btn,
+    body.page-coming-soon .mobile-nav {
+      display: none !important;
+    }
+
+    body.page-coming-soon #site-footer-static .footer-support,
+    body.page-coming-soon #site-footer-static .footer-privacy a {
+      display: none !important;
+    }
+
+    body.page-coming-soon #site-footer-static .footer-inner {
+      padding-bottom: var(--spacing-3xl);
+    }
+
+    #coming-soon-stage {
+      position: relative;
+      width: 100%;
+      height: 100vh;
+      overflow: hidden;
+      background: var(--theme-bg, #ffffff);
+      color: var(--theme-fg, #000000);
+    }
+
+    .coming-soon-anchor {
+      position: absolute;
+      top: 0;
+      left: 0;
+      display: inline-block;
+      overflow: clip;
+      text-decoration: none;
+      transform-origin: center center;
+    }
+
+    .coming-soon-card {
+      display: block;
+      margin: 0;
+      padding: 0.5rem 0.6rem;
+      color: #000;
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    body.mode-color .coming-soon-card {
+      background-color: var(--theme-fg) !important;
+      color: var(--theme-fg-inverse) !important;
+    }
+  </style>
+
+  <!-- Header -->
+  <div id="site-header"></div>
+
+  <!-- Main Content -->
+  <main id="page-content">
+    <section id="coming-soon-stage">
+
+      <div id="floating-layer" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:0; overflow:hidden;"></div>
+
+      <div id="homepage-marquee-stack" style="position:absolute; left:0; bottom:0; width:100%; height:100%; z-index:20; pointer-events:none;"></div>
+
+      <div class="coming-soon-anchor" data-coming-soon-card="en">
+        <h1 class="coming-soon-card is-huge">COMING SOON</h1>
+      </div>
+      <div class="coming-soon-anchor" data-coming-soon-card="zh">
+        <h1 class="coming-soon-card is-huge">即將登場</h1>
+      </div>
+
+      <div id="homepage-yt-card" class="homepage-card" style="position:absolute; border-radius:50%; cursor:pointer; overflow:hidden; background:#000; display:flex; align-items:center; justify-content:center; z-index:15;">
+        <div id="homepage-yt-chars" style="position:absolute;inset:0;"></div>
+      </div>
+
+    </section>
+
+    <!-- Video Player Lightbox -->
+    <div id="video-player-overlay" style="display:none; position:fixed; inset:0; z-index:10000; background:#000; flex-direction:column; justify-content:center; align-items:center;">
+      <video id="video-player" style="width:95%; max-height:90%; object-fit:contain;" preload="metadata" controlsList="nodownload" oncontextmenu="return false;"></video>
+
+      <button id="video-mobile-close-btn" style="display:none; position:absolute; top:6rem; left:1rem; z-index:10003; background:#00FF80; color:#000; border:none; padding:0.5rem 0.75rem; line-height:1; align-items:center; justify-content:center;">
+        <span class="icon icon-arrow-left icon-l"></span>
+      </button>
+
+      <div id="video-controls" style="position:absolute; bottom:3rem; left:0; right:0; padding: 0 24rem; display:flex; align-items:center; justify-content:space-between; pointer-events:none; opacity:0;">
+
+        <div id="video-block-close" style="background:transparent; padding:0 1rem; height:3rem; display:flex; align-items:center;">
+          <button id="video-close-btn" style="color:#fff; background:none; border:none; padding:0; line-height:1; display:flex; align-items:center;">
+            <span class="icon icon-arrow-left icon-l"></span>
+          </button>
+        </div>
+
+        <div id="video-block-center" style="background:transparent; padding:0 1.25rem; height:3rem; display:flex; align-items:center; gap:1.25rem; flex:1; min-width:0; margin:0 1rem;">
+
+          <button id="video-play-btn" style="color:#fff; background:none; border:none; padding:0; line-height:1; width:1.5rem; text-align:center; flex-shrink:0;">
+            <span class="icon icon-play icon-l"></span>
+          </button>
+
+          <div id="video-progress-track" style="flex:1; height:4px; background:#000; position:relative; min-width:0;">
+            <div id="video-progress-fill" style="height:100%; width:0%; pointer-events:none; position:relative; background:#000;">
+              <div id="video-progress-thumb" style="position:absolute; right:-2px; top:50%; transform:translateY(-50%); width:4px; height:14px; background:#000; pointer-events:none;"></div>
+            </div>
+          </div>
+
+          <span id="video-time" class="text-p2" style="color:#fff; white-space:nowrap; flex-shrink:0;">0:00</span>
+
+          <div id="video-volume-wrap" style="display:flex; align-items:center; gap:0.75rem; flex-shrink:0;">
+            <button id="video-mute-btn" style="color:#fff; background:none; border:none; padding:0; line-height:1;">
+              <span class="icon icon-volume icon-l"></span>
+            </button>
+            <div id="video-volume-track" style="width:0; overflow:visible; transition:width 0.25s cubic-bezier(0.25,0,0,1); height:4px; background:#000; position:relative; flex-shrink:0;">
+              <div id="video-volume-fill" style="height:100%; width:100%; background:#000; pointer-events:none; position:relative;">
+                <div id="video-volume-thumb" style="position:absolute; right:-2px; top:50%; transform:translateY(-50%); width:4px; height:14px; background:#000; pointer-events:none; opacity:0; transition:opacity 0.25s;"></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div id="video-block-fullscreen" style="background:transparent; padding:0 1rem; height:3rem; display:flex; align-items:center;">
+          <button id="video-fullscreen-btn" style="color:#fff; background:none; border:none; padding:0; line-height:1;">
+            <span class="icon icon-full-screen icon-l"></span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer id="site-footer-static" class="footer-shell relative overflow-hidden">
+    <div class="footer-inner h-full flex flex-col md:flex-row">
+
+      <div class="footer-logo-area">
+        <div id="footer-logo" class="footer-logo-inner"></div>
+      </div>
+
+      <div class="footer-right">
+
+        <div class="footer-random">
+
+          <div class="footer-fax">
+            <h6 class="mb-xs">FAX 傳真</h6>
+            <p>+886 2 2538 1111 #7050</p>
+          </div>
+
+          <div class="footer-tel">
+            <h6 class="mb-xs">TEL 電話</h6>
+            <p>+886 2 2538 1111 #7211</p>
+          </div>
+
+          <div class="footer-office">
+            <h6 class="mb-xs">Office 學系辦公室</h6>
+            <p class="max-w-sm mb-xs">5F, Building A, No.70, Dazhi Street, Zhongshan District, Taipei City 104336, Taiwan</p>
+            <p class="footer-office-zh">104336 <br class="footer-office-zh-br">台灣台北市中山區大直街 70 號 A 棟 5 樓</p>
+          </div>
+
+          <div class="footer-email">
+            <h6 class="mb-xs">E-Mail 電子郵件</h6>
+            <p>sccd@g2.usc.edu.tw</p>
+          </div>
+
+          <div class="footer-links">
+            <h6 class="mb-xs">Links 相關連結</h6>
+            <div class="flex flex-col gap-xs">
+              <a href="https://www.usc.edu.tw/" target="_blank" rel="noopener noreferrer" class="text-p2 footer-link">
+                Shih Chien University 實踐大學
+              </a>
+              <a href="http://www.scdesign.usc.edu.tw/" target="_blank" rel="noopener noreferrer" class="text-p2 footer-link">
+                College of Design, USC 實踐大學設計學院
+              </a>
+            </div>
+          </div>
+
+          <div class="footer-social">
+            <div class="footer-support">
+              <a href="pages/support.html" class="footer-link" aria-label="Support / Donation">
+                <span class="icon icon-donate text-h3"></span>
+              </a>
+            </div>
+            <div class="footer-youtube">
+              <a href="https://www.youtube.com/@scsccd" target="_blank" rel="noopener noreferrer" class="footer-link">
+                <span class="icon icon-youtube text-h3"></span>
+              </a>
+            </div>
+            <div class="footer-instagram">
+              <a href="https://www.instagram.com/communications.design_sccd" target="_blank" rel="noopener noreferrer" class="footer-link">
+                <span class="icon icon-instagram text-h3"></span>
+              </a>
+            </div>
+            <div class="footer-facebook">
+              <a href="https://www.facebook.com/communications.design" target="_blank" rel="noopener noreferrer" class="footer-link">
+                <span class="icon icon-facebook text-h3"></span>
+              </a>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="footer-privacy">
+          <div class="flex flex-col gap-xs items-start">
+            <a href="pages/privacy-policy.html" class="footer-link">Privacy and Security Policies<br>隱私權及資訊安全政策</a>
+            <a href="pages/accessibility.html" class="footer-link">Accessibility<br>無障礙聲明</a>
+            <p>SCCD©<span id="footer-year-static"></span></p>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </footer>
+
+  <!-- JavaScript -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollTrigger.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollToPlugin.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/Draggable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>
+  <script src="js/utils/helpers.js"></script>
+  <script type="module" src="js/main-modular.js"></script>
+
+  <?php wp_footer(); ?>
 </body>
 </html>

@@ -1,0 +1,29 @@
+{
+  "main": {
+    "heroImage": "../images/SCCD-1-4-0.jpg",
+    "projects": [
+      {
+        "layout": "image-left",
+        "title": "Project Title 1",
+        "textEn": "Description of the first project showcasing advanced design research and application.",
+        "textZh": "第一個專案的描述，展示進階設計研究與應用。",
+        "images": [
+          "../images/2021-動畫-Pitch-Bible-01.png",
+          "../images/2021-動畫-Pitch-Bible-01.png",
+          "../images/2021-動畫-Pitch-Bible-01.png"
+        ]
+      },
+      {
+        "layout": "text-left",
+        "title": "Project Title 2",
+        "textEn": "Description of the second project focusing on innovation and creative problem solving.",
+        "textZh": "第二個專案的描述，專注於創新與創意問題解決。",
+        "images": [
+          "../images/2021-動畫-Pitch-Bible-01.png",
+          "../images/2021-動畫-Pitch-Bible-01.png",
+          "../images/2021-動畫-Pitch-Bible-01.png"
+        ]
+      }
+    ]
+  }
+}

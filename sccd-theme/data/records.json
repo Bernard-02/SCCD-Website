@@ -1,0 +1,58 @@
+{
+  "awardsImages": [
+    "../images/awards/award_01.png",
+    "../images/awards/award_02.png",
+    "../images/awards/award_03.png",
+    "../images/awards/award_04.png",
+    "../images/awards/award_05.png",
+    "../images/awards/award_06.png",
+    "../images/awards/award_07.png",
+    "../images/awards/award_08.png",
+    "../images/awards/award_09.png",
+    "../images/awards/award_10.png",
+    "../images/awards/award_11.png",
+    "../images/awards/award_12.png",
+    "../images/awards/award_13.png",
+    "../images/awards/award_14.png",
+    "../images/awards/award_15.png",
+    "../images/awards/award_16.png",
+    "../images/awards/award_17.png",
+    "../images/awards/award_18.png",
+    "../images/awards/award_19.png",
+    "../images/awards/award_20.png",
+    "../images/awards/award_21.png",
+    "../images/awards/award_22.png",
+    "../images/awards/award_23.png",
+    "../images/awards/award_24.png",
+    "../images/awards/award_25.png"
+  ],
+  "records": [
+    {
+      "year": 2025,
+      "items": [
+        { "id": "a-2025-01", "flag": "tw", "location_en": "Taipei", "competition": "國際媒體設計獎", "competition_en": "International Media Design Award", "award": "設計獎", "award_en": "Design Award", "rank": "金獎", "rank_en": "Gold", "winner": "陳大明", "winner_en": "Chen Da-Ming" },
+        { "id": "a-2025-02", "flag": "jp", "competition": "亚太青年設計競賽", "competition_en": "Asia-Pacific Youth Design Competition", "award": "競賽獎", "award_en": "Competition Award", "rank": "銀獎", "rank_en": "Silver", "winner": "林小萍", "winner_en": "Lin Hsiao-Ping" },
+        { "id": "a-2025-03", "flag": "tw", "competition": "全國大學生海報設計獎", "competition_en": "National University Poster Design Award", "award": "設計獎", "award_en": "Design Award", "rank": "優獎", "rank_en": "Merit", "winner": "王阿美", "winner_en": "Wang A-Mei" },
+        { "id": "a-2025-04", "flag": "tw", "competition": "新媒體艺术獎", "competition_en": "New Media Art Award", "award": "艺术獎", "award_en": "Art Award", "rank": "特獎", "rank_en": "Special Award", "winner": "張三", "winner_en": "Zhang San" }
+      ]
+    },
+    {
+      "year": 2024,
+      "items": [
+        { "id": "a-2024-01", "flag": "kr", "competition": "韓國國際設計獎", "competition_en": "Korea International Design Award", "award": "設計獎", "award_en": "Design Award", "rank": "金獎", "rank_en": "Gold", "winner": "李大頭", "winner_en": "Li Da-Tou" },
+        { "id": "a-2024-02", "flag": "tw", "competition": "永續設計思想獎", "competition_en": "Sustainable Design Thinking Award", "award": "設計獎", "award_en": "Design Award", "rank": "銀獎", "rank_en": "Silver", "winner": "黃阿雲", "winner_en": "Huang A-Yun" },
+        { "id": "a-2024-03", "flag": "tw", "competition": "亚太青年動畫獎", "competition_en": "Asia-Pacific Youth Animation Award", "award": "動畫獎", "award_en": "Animation Award", "rank": "優獎", "rank_en": "Merit", "winner": "周志明", "winner_en": "Zhou Zhi-Ming" },
+        { "id": "a-2024-04", "flag": "tw", "competition": "國內青年交互設計獎", "competition_en": "National Youth Interaction Design Award", "award": "設計獎", "award_en": "Design Award", "rank": "特獎", "rank_en": "Special Award", "winner": "吳大明", "winner_en": "Wu Da-Ming" }
+      ]
+    },
+    {
+      "year": 2023,
+      "items": [
+        { "id": "a-2023-01", "flag": "jp", "competition": "日本國際設計獎", "competition_en": "Japan International Design Award", "award": "設計獎", "award_en": "Design Award", "rank": "金獎", "rank_en": "Gold", "winner": "趙小玲", "winner_en": "Zhao Hsiao-Ling" },
+        { "id": "a-2023-02", "flag": "tw", "competition": "全國平面設計競賽", "competition_en": "National Graphic Design Competition", "award": "競賽獎", "award_en": "Competition Award", "rank": "銀獎", "rank_en": "Silver", "winner": "陳小萍", "winner_en": "Chen Hsiao-Ping" },
+        { "id": "a-2023-03", "flag": "sg", "competition": "亚太數位媒體獎", "competition_en": "Asia-Pacific Digital Media Award", "award": "媒體獎", "award_en": "Media Award", "rank": "優獎", "rank_en": "Merit", "winner": "林大頭", "winner_en": "Lin Da-Tou" },
+        { "id": "a-2023-04", "flag": "tw", "competition": "國際青年動畫節獎", "competition_en": "International Youth Animation Festival Award", "award": "動畫獎", "award_en": "Animation Award", "rank": "特獎", "rank_en": "Special Award", "winner": "王大明", "winner_en": "Wang Da-Ming" }
+      ]
+    }
+  ]
+}
