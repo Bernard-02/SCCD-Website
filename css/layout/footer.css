@@ -91,6 +91,8 @@
     display: flex;
     flex-direction: column;
     gap: var(--spacing-xl);
+    /* 手機：logo 留頂，文字內容整塊推到底（footer-shell h:100vh 提供空間） */
+    margin-top: auto;
   }
 
   .footer-random {
@@ -168,6 +170,8 @@
       flex-direction: column;
       gap: 0;
       position: relative;
+      /* reset 手機 margin-top:auto（手機 align-bottom 用，桌面 flex-row 不需要） */
+      margin-top: 0;
     }
 
     /* random 區：absolute positioning context；JS (initFooterScatter) 設 inline top/left/transform 隨機散佈

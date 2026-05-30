@@ -1,17 +1,16 @@
 /**
  * Footer Scatter Module (檔名沿用 footer-draggable.js；drag 功能已移除)
  *
- * 桌面 .footer-random 內 items 每次刷新 + 每 5s random 散佈。完整對齊 pages/404.html pattern：
+ * 桌面 .footer-random 內 items 每次刷新 + 每 10s random 散佈：
  *   1. wrapItemsInAnchors：動態包每個 item 在 .footer-anchor (position:absolute + overflow:clip + opacity:0)
- *   2. waitForLayoutReady：等 fonts.ready + container 尺寸
- *   3. buildLayoutCache：預先生成 TARGET_LAYOUTS=10 個 verified 完整 layouts（每個 layout 都保證
- *      所有 items 都成功 placed + actual rect 驗過無重疊）— 預設 cache 後 shuffle 不再 generate
- *   4. 初始 reveal：套 cache 內 random layout → anchor opacity:1 → playClipReveal items (yPercent 100→0)
- *   5. startShuffleLoop：每 5s 跑 shuffleAll = exit (yPercent 0→110) → 從 cache 隨機挑 layout 套 → playClipReveal
+ *   2. awaitLayoutReady：等 fonts.ready + container 尺寸
+ *   3. Init：build 1 個 verified layout 當 initial display + 後續 shuffle fallback
+ *   4. 初始 reveal：套 initial layout → anchor opacity:1 → playRandomDirReveal items
+ *   5. startShuffleLoop：每 10s 跑 shuffleAll = exit → 即時 generate+verify 新 layout → playRandomDirReveal
  *
- * Why cache 而非每次 generate：user spec「確保都可見」— 不能因 strict no-overlap 而隱藏 items；
- * 預先建 10 個 verified-complete-no-overlap layouts，shuffle 隨機挑一個 → 所有 items 永遠可見、永遠不重疊
- * (user spec：「數量夠多，第 1 個跟第 50 個根本看不出來」)
+ * 2026-05-29 從 pre-cache 10 個 layout 改成每次 shuffle 即時 generate — user 反饋
+ * 「每次 random 都是一樣 pos」(10 個 cache 輪播看得出來)；verified 機制保留（每次 generate 最多重試
+ * 30 次直到 no-overlap），確保「所有 items 都可見」原始 spec；30 次都失敗才 fallback init layout。
  *
  * Pattern reference: js/modules/pages/error-404.js
  */
@@ -88,9 +87,13 @@ const SHUFFLE_INTERVAL_MS = 10000;
 const SHUFFLE_EXIT_S = 0.6;
 const SHUFFLE_EXIT_STAGGER = 0.06;
 
-// 預先 build cache 參數
-const TARGET_LAYOUTS = 10;          // user spec：~10 個組合就夠
-const MAX_REGEN_PER_LAYOUT = 30;    // 單個 layout 最多重試幾次直到 verified pass
+// Init 階段 build 1 個 verified layout（第一眼正常）；後續每次 shuffle 在 exit 動畫期間
+// 即時重新 generate+verify 1 個新 layout（見 shuffleAll），不再從 cache 輪播。
+// 放棄 cache 是因為 user 反饋「每次 random 都是一樣 pos」— 10 個 layout 輪播 user 看得出來。
+// MAX_REGEN=30 保留 verified 機制確保所有 items 可見無重疊，build 平均幾十毫秒
+// shuffle 0.6s exit 期間 user 感覺不到延遲。
+const TARGET_LAYOUTS = 1;
+const MAX_REGEN_PER_LAYOUT = 30;
 
 let shuffleTimer = null;
 
@@ -305,15 +308,12 @@ async function buildLayoutCache(area, anchors, obstacles) {
   return layouts;
 }
 
-function pickRandomLayout(layouts) {
-  return layouts[Math.floor(Math.random() * layouts.length)];
-}
-
 /**
- * 三段式 shuffle: exit yPercent → onComplete 套 cache 內 random layout → playClipReveal
+ * 三段式 shuffle: exit yPercent → onComplete 即時 generate+verify 新 layout → playClipReveal
+ * fallbackLayout：init 階段 build 好的 layout，當即時 generate 30 次都失敗時 fallback 用它
  */
-function shuffleAll(area, anchors, items, layouts) {
-  if (typeof gsap === 'undefined' || layouts.length === 0) return;
+function shuffleAll(area, anchors, obstacles, items, fallbackLayout) {
+  if (typeof gsap === 'undefined') return;
   // generate / library / atlas 頁 router 把 footer 設 display:none，shuffleTimer 不清會繼續對隱藏
   // anchors 做 GSAP tween + apply layout（讀 area.getBoundingClientRect 為 0×0 → 數學運算閒置成本 + reflow）
   // offsetParent === null 是 display:none 最便宜的偵測（含任何 ancestor display:none）
@@ -330,7 +330,18 @@ function shuffleAll(area, anchors, items, layouts) {
     stagger: { each: SHUFFLE_EXIT_STAGGER, axis: 'y' },
     overwrite: 'auto',
     onComplete: () => {
-      applyPlacement(pickRandomLayout(layouts));
+      // 即時 generate + verify 新 layout（不再從 cache 挑）
+      let fresh = null;
+      for (let attempt = 0; attempt < MAX_REGEN_PER_LAYOUT; attempt++) {
+        const placement = generatePlacement(area, anchors, obstacles);
+        if (placement.length !== anchors.length) continue;
+        applyPlacement(placement);
+        if (verifyPlacement(area, anchors, obstacles)) {
+          fresh = placement;
+          break;
+        }
+      }
+      if (!fresh) applyPlacement(fallbackLayout);
       // Enter: reset items to new random direction (independent of exit dir)
       hideItemsRandomDirection(items);
       playRandomDirReveal(items);
@@ -338,10 +349,10 @@ function shuffleAll(area, anchors, items, layouts) {
   });
 }
 
-function startShuffleLoop(area, anchors, items, layouts) {
+function startShuffleLoop(area, anchors, obstacles, items, fallbackLayout) {
   stopShuffleLoop();
   shuffleTimer = window.setInterval(
-    () => shuffleAll(area, anchors, items, layouts),
+    () => shuffleAll(area, anchors, obstacles, items, fallbackLayout),
     SHUFFLE_INTERVAL_MS,
   );
 }
@@ -364,6 +375,11 @@ export async function initFooterScatter(scope) {
 
   const rawItems = /** @type {HTMLElement[]} */ (
     Array.from(footer.querySelectorAll(ITEM_SELECTORS.join(',')))
+      // 排除 display:none 的 item（如 page-coming-soon 期間隱藏的 .footer-support）。
+      // 不排除的話 wrapItemsInAnchors 會把 0×0 元素也包進 anchors，generatePlacement 對 0×0
+      // continue 跳過 → placement.length < anchors.length → verify 條件「length 必須相等」整輪丟
+      // → 每次 shuffle 都 30 次失敗走 fallbackLayout → 所有 item 回原位 = 看似沒 random。
+      .filter((el) => el.offsetParent !== null)
   );
   if (rawItems.length === 0) return;
 
@@ -383,12 +399,13 @@ export async function initFooterScatter(scope) {
   // 初始：items 隨機 4 方向其一隱藏（anchor opacity 從 CSS default 0 起）
   hideItemsRandomDirection(items);
 
-  // 預先 build cache 10 個 verified layouts（buildLayoutCache 內會多次 apply+verify，
-  // anchor opacity 還是 0 所以 user 不會看到 layout 試錯過程）
-  const layouts = await buildLayoutCache(area, anchors, obstacles);
+  // Init 階段 build 1 個 verified layout 當 initial display + 後續 shuffle fallback
+  // （shuffle 即時 generate 30 次都失敗時用這個保底）
+  const initialLayouts = await buildLayoutCache(area, anchors, obstacles);
+  const fallbackLayout = initialLayouts[0];
 
-  // 套 initial random layout（從 cache 挑一個）
-  applyPlacement(pickRandomLayout(layouts));
+  // 套 initial layout
+  applyPlacement(fallbackLayout);
 
   // 等 1 frame 讓 gsap.set 位置 settle 後再 reveal
   await new Promise((r) => requestAnimationFrame(r));
@@ -400,5 +417,5 @@ export async function initFooterScatter(scope) {
     anchors.forEach((a) => { a.style.opacity = '1'; });
   }
 
-  startShuffleLoop(area, anchors, items, layouts);
+  startShuffleLoop(area, anchors, obstacles, items, fallbackLayout);
 }
