@@ -18,7 +18,7 @@ import { initSmoothScroll } from './modules/ui/smooth-scroll.js';
 import { initBFADivisionToggle } from './modules/ui/bfa-division-toggle.js';
 import { initBtnFillHover } from './modules/ui/btn-fill-hover.js';
 import { initTextReveal } from './modules/ui/text-reveal.js';
-// import { initIdleStandby } from './modules/ui/idle-standby.js'; // 臨時 Coming Soon 版暫不需要
+import { initIdleStandby } from './modules/ui/idle-standby.js';
 import { initCustomScrollbar } from './modules/ui/custom-scrollbar.js';
 
 // Import About Page Modules
@@ -48,7 +48,6 @@ import { initActivitiesYearToggle } from './modules/accordions/activities-year-t
 // Import Index Page Modules
 import { initMarquee } from './modules/pages/index-marquee.js';
 import { initYTCard } from './modules/pages/index-yt-card.js';
-import { initComingSoon } from './modules/pages/coming-soon.js';
 import { initAdmissionSectionSwitch } from './modules/pages/admission-section-switch.js';
 
 // Import Library Modules
@@ -180,9 +179,7 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
 
   // --- Index Page ---
   if (page === 'index') {
-    // 臨時 Coming Soon 期間：跳過 intro 開場動畫，直接顯示頁面
-    const skipIntro = document.body.classList.contains('page-coming-soon');
-    if (!skipIntro && !sessionStorage.getItem('sccd-intro-shown')) {
+    if (!sessionStorage.getItem('sccd-intro-shown')) {
       sessionStorage.setItem('sccd-intro-shown', '1');
       initIntroAnimation();
     } else {
@@ -204,52 +201,6 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
     initFloatingItems();
     initWatchHover();
     initYTCard();
-    // 臨時 index（body.page-coming-soon）：散落字卡 + 5s shuffle
-    if (document.body.classList.contains('page-coming-soon')) {
-      initComingSoon();
-    }
-  }
-
-  // 臨時 Coming Soon 期間手機 CREATE! btn 注入：原本只在 page === 'index' 內跑，
-  // 但 refresh /create 時 page === 'generate' 不會命中 → 手機右上角缺 CREATE! btn（user 2026-05-31 反饋）
-  // 提到 page 分支外、改 body.page-coming-soon gate，所有頁 init 都跑（refresh /create 一樣注入）
-  // /create 頁按 CREATE! 後 router 解析 /create.html → 重 init /create，無 harm（行為等同 reload）
-  // 詳見 project_temp_coming_soon_index.md 第 9 條（手機 CREATE! 注入背景）+ 第 11 條（refresh 失效 pattern）
-  if (document.body.classList.contains('page-coming-soon')) {
-    // 手機 viewport：[data-bar="generate"] 在 header.html 桌面 flex 區 md:flex hidden 看不到 →
-    // 把手機 .mobile-menu-btn 的父 wrapper 換成 CREATE! link（暫時方案，未來真首頁回來時整段刪掉即可）
-    // wrapper 拔掉 .mobile-header-btn 的 44px 寬度限制，用 width:auto + padding 自動 fit 文字寬
-    // CREATE! 在左 / mode-btn 在右：對手機那 flex row 兩 sibling 加 order（user 2026-05-28 要求 mode 在 CREATE! 右邊）
-    const replaceMobileMenuWithCreate = () => {
-      const menuBtn = document.querySelector('.mobile-menu-btn');
-      if (!menuBtn) return;
-      const wrap = /** @type {HTMLElement | null} */ (menuBtn.parentElement);
-      if (!wrap) return;
-      // 已注入過就不重跑（refresh + SPA 切頁來回時防重複 setAttribute / innerHTML 抖動）
-      if (wrap.dataset.createInjected === '1') return;
-      wrap.dataset.createInjected = '1';
-      // wrapper padding 對齊桌面 nav btn 的 px-xs py-xs (8px)；高度不寫死讓 flex items-center 自然對齊 mode-btn 44
-      wrap.style.width = 'auto';
-      wrap.style.height = 'auto';
-      wrap.style.padding = '0.5rem 0.5rem';
-      wrap.style.order = '0';
-      wrap.style.flexShrink = '0';
-      wrap.innerHTML = '<a href="/create.html" class="w-full h-full flex items-center justify-center" style="text-decoration:none;color:currentColor;font-weight:700;font-size:1.125rem;letter-spacing:0.02em;white-space:nowrap">CREATE!</a>';
-      const modeBtn = /** @type {HTMLElement | null} */ (document.getElementById('mode-btn-mobile'));
-      if (modeBtn) {
-        modeBtn.style.order = '1';
-        // 防 flex container 內 mode-btn 被 CREATE! wrapper 擠寬變 oval：鎖 44×44 + flex-shrink:0
-        modeBtn.style.width = '44px';
-        modeBtn.style.height = '44px';
-        modeBtn.style.flexShrink = '0';
-      }
-      // 父 flex container 從 gap-sm (16px) 縮成 gap-xs (8px) 對齊桌面 nav btn 視覺
-      const flexRow = /** @type {HTMLElement | null} */ (wrap.parentElement);
-      if (flexRow) flexRow.style.gap = '0.5rem';
-    };
-    const headerReady = document.querySelector('.mobile-menu-btn');
-    if (headerReady) replaceMobileMenuWithCreate();
-    else document.addEventListener('header:ready', replaceMobileMenuWithCreate, { once: true });
   }
 
   // --- About Page ---
@@ -482,8 +433,7 @@ document.addEventListener('DOMContentLoaded', function () {
   initFooter();
   initSmoothScroll();
   initBtnFillHover();
-  // 臨時 Coming Soon 版暫不需要待機畫面（idle-standby 3 分鐘無操作 fade 到 atlas），先注解；還原首頁時取消注解即可
-  // initIdleStandby();
+  initIdleStandby();
   initCustomScrollbar();
   initShareModal();
 

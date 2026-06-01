@@ -567,35 +567,12 @@ export async function initFloatingItems() {
   const container = document.getElementById('floating-layer');
   if (!container) return;
 
-  // 臨時 Coming Soon index：跳過 activity/course/award fetch，imagePool 直接用 huashan-floating 30 張；
-  // url=null（不導航）+ interactive=false（不訂閱 news hover wipe overlay）
-  // user 2026-05-28 要求「不需要任何互動」
-  const isComingSoon = document.body.classList.contains('page-coming-soon');
-  let imagePool, coursePool, awardPool;
-  if (isComingSoon) {
-    const HUASHAN_FILES = [
-      '2001.jpg','2002.jpg','2003.jpg','2004.jpg','2005.jpg','2005b.jpg',
-      '2006.jpg','2006a.jpg','2007.jpg','2007a.jpg','2008.jpg','2008a.jpg',
-      '2009.jpg','2009a.jpg','2010.jpg','2011.jpg','2012.jpg','2013.jpg',
-      '2014.jpg','2015.jpg','2016.jpg','2017.jpg','2018.jpg','2019.jpg',
-      '2020.jpg','2021.jpg','2022.jpg','2023.jpg','2024.jpg','2025.jpg',
-    ];
-    imagePool = HUASHAN_FILES.map(name => ({
-      type: 'image',
-      src: `images/huashan-floating/${name}`,
-      url: null,
-      interactive: false,
-    }));
-    coursePool = [];
-    awardPool = [];
-  } else {
-    // 建立 pool：圖片 + 課程文字 + 獎項文字
-    [imagePool, coursePool, awardPool] = await Promise.all([
-      fetchActivityPosters(),
-      fetchCourseTexts(),
-      fetchAwardTexts(),
-    ]);
-  }
+  // 建立 pool：圖片 + 課程文字 + 獎項文字
+  const [imagePool, coursePool, awardPool] = await Promise.all([
+    fetchActivityPosters(),
+    fetchCourseTexts(),
+    fetchAwardTexts(),
+  ]);
 
   // 各 pool 獨立洗牌，依 2:1:1 比例隨機取出
   shuffle(imagePool);
@@ -604,8 +581,7 @@ export async function initFloatingItems() {
   const poolCursors = [0, 0, 0];
   const pools = [imagePool, coursePool, awardPool];
   // 權重：圖片 2、課程 1、獎項 1 → 累積 [2, 3, 4]
-  // 臨時 Coming Soon index：course/award pool 已在 early branch 設空陣列，[1,1,1] 確保命中第一個 image pool
-  const cumWeights = isComingSoon ? [1, 1, 1] : [2, 3, 4];
+  const cumWeights = [2, 3, 4];
 
   function nextPoolEntry() {
     const r = Math.random() * cumWeights[cumWeights.length - 1];

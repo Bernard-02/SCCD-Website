@@ -375,10 +375,9 @@ export async function initFooterScatter(scope) {
 
   const rawItems = /** @type {HTMLElement[]} */ (
     Array.from(footer.querySelectorAll(ITEM_SELECTORS.join(',')))
-      // 排除 display:none 的 item（如 page-coming-soon 期間隱藏的 .footer-support）。
-      // 不排除的話 wrapItemsInAnchors 會把 0×0 元素也包進 anchors，generatePlacement 對 0×0
-      // continue 跳過 → placement.length < anchors.length → verify 條件「length 必須相等」整輪丟
-      // → 每次 shuffle 都 30 次失敗走 fallbackLayout → 所有 item 回原位 = 看似沒 random。
+      // 排除 display:none 的 item。不排除的話 wrapItemsInAnchors 會把 0×0 元素也包進 anchors，
+      // generatePlacement 對 0×0 continue 跳過 → placement.length < anchors.length → verify 條件
+      // 「length 必須相等」整輪丟 → 每次 shuffle 都 30 次失敗走 fallbackLayout → 所有 item 回原位。
       .filter((el) => el.offsetParent !== null)
   );
   if (rawItems.length === 0) return;
