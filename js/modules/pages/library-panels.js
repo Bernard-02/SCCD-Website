@@ -951,9 +951,10 @@ async function initAlbumPanel() {
 
           const catTagHtml = `<span class="files-item-subtitle-tag">${CAT_LABELS[item.cat] || item.cat}</span>`;
 
-          // thumbnails: 全部 media（2026-05-27 user 要求「有幾張放幾張，自然排列、不要 stack」）
+          // thumbnails: 預設只顯示前 3 張（2026-06-01 user 改：「預設 thumbnail 最多 3 張不會全部呈現」）
+          // 點進 lightbox 後仍可看完整 media list（lightbox 取 item.media 不受此 slice 影響）
           // 桌面 CSS 仍套舊 absolute stack 視覺，手機 CSS 改 flex-wrap 排成自然 row（library.css album 手機 rule）
-          const thumbMedia = (item.media || []);
+          const thumbMedia = (item.media || []).slice(0, 3);
           const thumbsHtml = thumbMedia.map((m, ti) => {
             const sign = Math.random() < 0.4 ? -1 : 1;
             const finalDeg = sign > 0 ? (Math.random() * 5.5 + 0.5) : -(Math.random() * 3.5 + 0.5);

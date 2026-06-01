@@ -48,7 +48,9 @@ export function createRefBtn(initialColor, onCloseLightbox) {
   // overflow 由 openPopover / closePopover 動態切（進場期間 clip 給 clip-reveal 用，動畫後 visible 讓旋轉 card 角不被裁）
   const popoverEl = document.createElement('div');
   popoverEl.className = 'lightbox-ref-popover';
-  popoverEl.style.cssText = 'position:absolute;display:none;z-index:60;';
+  // z-index 9999：超過 PDF modal 內部 back/title/chevron (z:50) + modal 本身 (z:9999) 同層後 append
+  // user 要求 ref popover 顯示時在最上層不被任何 lightbox 元素蓋
+  popoverEl.style.cssText = 'position:absolute;display:none;z-index:9999;';
 
   // 內層 stack：垂直堆疊 chip（gap / align-items 由 CSS 控）
   const stackEl = document.createElement('div');
@@ -101,20 +103,34 @@ export function createRefBtn(initialColor, onCloseLightbox) {
       row.className = 'lightbox-ref-chip';
       row.dataset.refSection = ref.section || '';
       row.dataset.refItem = ref.itemId || '';
+      // chip layout 上下兩區：label 一行 EN+ZH 併排（上）、title EN/ZH 各自獨立 marquee row（下）
+      // 兩個 title row 各自獨立 marquee 因為 EN/ZH 長度差異很大、合在一起 marquee 短的會空跑
       row.innerHTML = `
         <div class="lightbox-ref-chip-label">
           ${ref.labelEn ? `<p class="text-p3">${escape(ref.labelEn)}</p>` : ''}
           ${ref.labelZh ? `<p class="text-p3">${escape(ref.labelZh)}</p>` : ''}
         </div>
         <div class="lightbox-ref-chip-title">
-          <div class="lightbox-ref-chip-title-window">
-            <div class="lightbox-ref-chip-title-track">
-              <div class="lightbox-ref-chip-title-unit">
-                ${ref.titleEn ? `<p class="text-p3 font-bold">${escape(ref.titleEn)}</p>` : ''}
-                ${ref.titleZh ? `<p class="text-p3 font-bold">${escape(ref.titleZh)}</p>` : ''}
+          ${ref.titleEn ? `
+            <div class="lightbox-ref-chip-title-row">
+              <div class="lightbox-ref-chip-title-window">
+                <div class="lightbox-ref-chip-title-track">
+                  <div class="lightbox-ref-chip-title-unit">
+                    <p class="text-p3 font-bold">${escape(ref.titleEn)}</p>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            </div>` : ''}
+          ${ref.titleZh ? `
+            <div class="lightbox-ref-chip-title-row">
+              <div class="lightbox-ref-chip-title-window">
+                <div class="lightbox-ref-chip-title-track">
+                  <div class="lightbox-ref-chip-title-unit">
+                    <p class="text-p3 font-bold">${escape(ref.titleZh)}</p>
+                  </div>
+                </div>
+              </div>
+            </div>` : ''}
         </div>
       `;
       row.addEventListener('click', e => {
@@ -124,42 +140,23 @@ export function createRefBtn(initialColor, onCloseLightbox) {
       card.appendChild(row);
     });
     stackEl.appendChild(card);
-    // 量最寬 label width 後 set 到 card css var，讓 title 欄跨 row 對齊
-    // 必須在 layout 後（rAF）量；marquee 也跑同 rAF
+    // 不再 alignLabelColumn（舊 layout label/title 並排需跨 row 對齊 title 起點；新 layout 上下排不需要）
     requestAnimationFrame(() => {
-      alignLabelColumn(card);
       setupAllMarquees();
     });
   }
 
-  function alignLabelColumn(card) {
-    // popover 可能 display:none（renderChips 在 setReferences 時跑，此時還沒 openPopover）
-    // → getBoundingClientRect 全 0，量不到實際寬度
-    // 暫時 visibility:hidden + display:block 量完還原；不會影響視覺也不會觸發 open animation
+  // 每個 title-row 獨立 marquee（EN/ZH 長度差異大，合在一起短的會空跑）
+  // 量時若 popover 還 display:none → 暫時 visibility:hidden + display:block 量完還原
+  function setupAllMarquees() {
     const wasDisplay = popoverEl.style.display;
     if (wasDisplay === 'none') {
       popoverEl.style.visibility = 'hidden';
       popoverEl.style.display = 'block';
     }
-    // 也要先清空 --ref-label-w 確保量「自然 intrinsic width」而非套了 var 後的固定值
-    card.style.removeProperty('--ref-label-w');
-    const labels = card.querySelectorAll('.lightbox-ref-chip-label');
-    let maxW = 0;
-    labels.forEach(el => {
-      const w = el.getBoundingClientRect().width;
-      if (w > maxW) maxW = w;
-    });
-    if (wasDisplay === 'none') {
-      popoverEl.style.display = 'none';
-      popoverEl.style.visibility = '';
-    }
-    if (maxW > 0) card.style.setProperty('--ref-label-w', `${Math.ceil(maxW)}px`);
-  }
-
-  function setupAllMarquees() {
-    stackEl.querySelectorAll('.lightbox-ref-chip').forEach(chip => {
-      const win = /** @type {HTMLElement | null} */ (chip.querySelector('.lightbox-ref-chip-title-window'));
-      const track = /** @type {HTMLElement | null} */ (chip.querySelector('.lightbox-ref-chip-title-track'));
+    stackEl.querySelectorAll('.lightbox-ref-chip-title-row').forEach(rowEl => {
+      const win = /** @type {HTMLElement | null} */ (rowEl.querySelector('.lightbox-ref-chip-title-window'));
+      const track = /** @type {HTMLElement | null} */ (rowEl.querySelector('.lightbox-ref-chip-title-track'));
       if (!win || !track) return;
       if (typeof gsap !== 'undefined') gsap.killTweensOf(track);
       track.style.transform = '';
@@ -179,6 +176,10 @@ export function createRefBtn(initialColor, onCloseLightbox) {
         });
       }
     });
+    if (wasDisplay === 'none') {
+      popoverEl.style.display = 'none';
+      popoverEl.style.visibility = '';
+    }
   }
 
   // popover 定位：btn 上緣往上彈出
@@ -204,8 +205,9 @@ export function createRefBtn(initialColor, onCloseLightbox) {
     // GAP 跟 padding 一起算：chip 底邊到 btn 視覺距離 ≈ padding(20) + GAP；GAP 設 0 即 padding 自然 buffer
     const GAP = 0;
     popoverEl.style.top = `${btnRect.top - parentRect.top - popH - GAP}px`;
-    // chip 左緣對齊 btn 左緣 → popover 自己往左偏 padding 量讓 chip(在 popover 內 padding-left:20) 對齊 btn
-    popoverEl.style.left = `${btnRect.left - parentRect.left - 20}px`;
+    // chip 左緣對齊 btn 左緣 → popover 自己往左偏 padding 量讓 chip(在 popover 內 padding-left:32) 對齊 btn
+    // padding 跟 lightbox.css .lightbox-ref-popover 同步（32px 給旋轉 card 角 breathing room）
+    popoverEl.style.left = `${btnRect.left - parentRect.left - 32}px`;
   }
 
   function openPopover() {

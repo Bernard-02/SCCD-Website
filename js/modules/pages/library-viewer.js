@@ -374,7 +374,9 @@ export function initPdfViewer() {
     refUi.setColor(bg);
   }
 
-  // 量 title pill 內 span（含 padding 視覺 bbox）→ 套到 backPill / ref btn pill height；title 隱藏時 reset
+  // title pill 高度由 EN+ZH 兩行自然撐，back/ref pill follow title 高度（user 2026-06-01 拍板）
+  // 之前曾嘗試 back/ref 鎖 44×44 但同 viewer 內 back 比 title 矮太多視覺不協調 → 改回 sync
+  // title 隱藏時三 pill 全 reset 回 CSS inline 預設 44px
   function syncBackBtnHeight() {
     if (!backPill) return;
     const refPill = /** @type {HTMLElement | null} */ (refUi.btnEl.querySelector('.lightbox-ref-btn-pill'));

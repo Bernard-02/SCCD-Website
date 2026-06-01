@@ -29,20 +29,23 @@ let refUi = null;  // { btnEl, popoverEl, setReferences, setColor, reset }
 
 // ── Zoom 狀態（仿 Windows Photos：滾輪游標中心縮放 + 拖曳平移）─────
 // 只對 image 啟用。每次 renderMain 重置；mousemove/mouseup 綁 window 一次永久存活
+// 內部 zoom.scale = 「相對 fit 的倍數」（clampPan/zoomAt 數學以此為基準乾淨）
+// UI 顯示的 % = 「相對原圖 natural pixel」(zoom.scale × fitRatio × 100)
+// 預設打開圖片 = actual size (顯示 100%) 即 scale = 1/fitRatio（user 指定 2026-06-01）
+// 例：4000px 寬圖 fit 到 800px stage → fitRatio=0.2；預設 scale=5 顯示 100%；fit-toggle 切到 scale=1 顯示 20%
 let zoom = { scale: 1, tx: 0, ty: 0 };
 let zoomImg = null;
 let zoomStage = null;
 let fitDims = { w: 0, h: 0 };  // img 在 scale=1 時的 rendered fit 尺寸（object-fit:contain）
+let naturalDims = { w: 0, h: 0 };  // img 原圖 pixel 尺寸（給 UI % 顯示 + ZOOM_STEPS 對齊用）
 let isDragging = false;
 let dragMoved = false;          // 用來避免 mouseup 在背景時誤觸 close
 let dragStart = { x: 0, y: 0, tx: 0, ty: 0 };
-const MIN_SCALE = 1;
-// 6x = 細節閱讀（小字 / 紋理）。再大 image pixel-grid 太明顯不實用
-const MAX_SCALE = 6;
-const DBLCLICK_SCALE = 2;
-// +/- 按鈕 snap 到這幾個離散 level（1 = fit；1.5/2/3 漸進裁切；4/6 細節閱讀）
-// 滾輪維持平滑（factor 1.15 per tick），按鈕走離散是給 user 可預測的縮放層級
-const ZOOM_STEPS = [1, 1.5, 2, 3, 4, 6];
+// +/- 按鈕 snap 到「相對原圖」的離散層級（仿 Windows Photos）：25/50/75/100/150/200/300/400%
+// zoomToStep 把 % 換算成內部 scale = pct / fitRatio；滾輪維持平滑（factor 1.15 per tick）
+const ZOOM_STEPS_PCT = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4];
+const MIN_PCT = ZOOM_STEPS_PCT[0];                       // 25% 原圖為下限
+const MAX_PCT = ZOOM_STEPS_PCT[ZOOM_STEPS_PCT.length-1]; // 400% 原圖為上限
 
 // ── 建立 DOM（只建一次）──────────────────────────────────────────
 function ensureLightbox() {
@@ -102,8 +105,8 @@ function ensureLightbox() {
         <button class="alb-zoom-in p-2 transition-opacity hover:opacity-60 disabled:opacity-30" aria-label="Zoom in">
           <span class="icon icon-zoom-in icon-m"></span>
         </button>
-        <!-- Fit / 放大 toggle（仿 Windows Photos）：fit 時點 → 放大 2x；zoomed 時點 → 回 fit -->
-        <button class="alb-fit-toggle p-2 transition-opacity hover:opacity-60" aria-label="Fit / zoom toggle">
+        <!-- Fit-to-window 按鈕（user 2026-06-02）：點下去切到 fit；已在 fit 時 disabled -->
+        <button class="alb-fit-toggle p-2 transition-opacity hover:opacity-60 disabled:opacity-30" aria-label="Fit to window">
           <i class="fa-solid fa-expand text-p1"></i>
         </button>
       </div>
@@ -140,9 +143,9 @@ function ensureLightbox() {
   zoomInBtn.addEventListener('click',  () => zoomToStep(+1));
   zoomOutBtn.addEventListener('click', () => zoomToStep(-1));
   fitToggleBtn.addEventListener('click', () => {
-    // zoomed → reset 回 fit；fit → 跳到 2x（中度放大，舒適閱讀；不直接 MAX_SCALE 避免太爆）
-    if (zoom.scale > 1.001) resetZoom(true);
-    else zoomAtStageCenter(2, true);
+    // fit-toggle 單一行為（user 2026-06-02）：點下去切到 fit-to-window；已在 fit 由 disabled 擋下
+    if (fitToggleBtn.disabled) return;
+    resetZoom(true);
   });
 
   // 點擊背景關閉（拖曳後抑制一次以避免 pan 結束在背景時誤關）
@@ -152,21 +155,21 @@ function ensureLightbox() {
   });
 
   // 鍵盤：
-  //  - Esc / + - 0：縮放控制
+  //  - Esc / + - 0：縮放控制（0 = 回 fit-to-window）
   //  - Arrow keys 雙模式：
-  //    · fit (scale<=1)：上/左 = 上一張、下/右 = 下一張（4 鍵都導航）
-  //    · zoomed (scale>1)：pan — scroll direction（按右往右看 / 按下往下看，圖往反方向移）
+  //    · 圖未超出 stage (scale <= fit)：上/左 = 上一張、下/右 = 下一張（4 鍵都導航）
+  //    · 圖已超出 stage (scale > fit)：pan — scroll direction（按右往右看 / 按下往下看，圖往反方向移）
   //      跟 PDF viewer / scroll convention 一致；mouse drag 仍維持「圖跟手」方向
   document.addEventListener('keydown', e => {
     if (lightboxEl.style.display === 'none') return;
     if (e.key === 'Escape') { closeLightbox(); return; }
 
-    const zoomed = zoomImg && zoom.scale > 1.001;
+    const canPan = zoomImg && zoom.scale > fitScale() + 0.001;
     const PAN_STEP = 80;
-    if (e.key === 'ArrowLeft')  { if (zoomed) { zoom.tx += PAN_STEP; clampPan(); applyZoom(true); } else navigate(-1); return; }
-    if (e.key === 'ArrowRight') { if (zoomed) { zoom.tx -= PAN_STEP; clampPan(); applyZoom(true); } else navigate(1);  return; }
-    if (e.key === 'ArrowUp')    { if (zoomed) { zoom.ty += PAN_STEP; clampPan(); applyZoom(true); } else navigate(-1); return; }
-    if (e.key === 'ArrowDown')  { if (zoomed) { zoom.ty -= PAN_STEP; clampPan(); applyZoom(true); } else navigate(1);  return; }
+    if (e.key === 'ArrowLeft')  { if (canPan) { zoom.tx += PAN_STEP; clampPan(); applyZoom(true); } else navigate(-1); return; }
+    if (e.key === 'ArrowRight') { if (canPan) { zoom.tx -= PAN_STEP; clampPan(); applyZoom(true); } else navigate(1);  return; }
+    if (e.key === 'ArrowUp')    { if (canPan) { zoom.ty += PAN_STEP; clampPan(); applyZoom(true); } else navigate(-1); return; }
+    if (e.key === 'ArrowDown')  { if (canPan) { zoom.ty -= PAN_STEP; clampPan(); applyZoom(true); } else navigate(1);  return; }
 
     if (!zoomImg) return;
     if (e.key === '+' || e.key === '=') zoomToStep(+1);
@@ -189,7 +192,7 @@ function ensureLightbox() {
   window.addEventListener('mouseup', () => {
     if (!isDragging) return;
     isDragging = false;
-    if (zoomImg) zoomImg.style.cursor = zoom.scale > 1
+    if (zoomImg) zoomImg.style.cursor = zoom.scale > fitScale() + 0.001
       ? "url('/custom-cursor/drag_1.svg') 10 10, grab"
       : "url('/custom-cursor/zoom-in.svg') 6 6, zoom-in";
   });
@@ -200,29 +203,62 @@ function applyZoom(animated = false) {
   if (!zoomImg) return;
   zoomImg.style.transition = animated ? 'transform 0.2s ease-out' : 'none';
   zoomImg.style.transform = `translate(${zoom.tx}px, ${zoom.ty}px) scale(${zoom.scale})`;
+  // cursor 跟 canPan 一致（圖填滿 stage 才顯示 grab）；其餘狀態給 zoom-in（暗示「可放大」）
+  const canPan = zoom.scale > fitScale() + 0.001;
   zoomImg.style.cursor = isDragging
     ? "url('/custom-cursor/drag_2.svg') 10 10, grabbing"
-    : (zoom.scale > 1
+    : (canPan
         ? "url('/custom-cursor/drag_1.svg') 10 10, grab"
         : "url('/custom-cursor/zoom-in.svg') 6 6, zoom-in");
   updateZoomUI();
 }
 
 // 同步 zoom % 顯示 + +/- 按鈕到極值時的 disabled 狀態 + fit-toggle 圖示
+// UI % = 相對原圖 natural pixel 的比例（zoom.scale × fitRatio × 100）— 仿 Windows Photos
+// load 前 naturalDims=0 用 fallback 顯示 internal scale*100（避免 0% 跳動）
 function updateZoomUI() {
   if (!zoomPctEl) return;
-  zoomPctEl.textContent = `${Math.round(zoom.scale * 100)}%`;
-  zoomInBtn.disabled  = zoom.scale >= MAX_SCALE - 0.001;
-  zoomOutBtn.disabled = zoom.scale <= MIN_SCALE + 0.001;
-  // fit-toggle 圖示：fit 時顯示 expand（暗示「點擊放大」）；zoomed 時顯示 compress（暗示「點擊縮回 fit」）
+  const fitRatio = getFitRatio();
+  const displayPct = Math.round(zoom.scale * (fitRatio > 0 ? fitRatio : 1) * 100);
+  zoomPctEl.textContent = `${displayPct}%`;
+  zoomInBtn.disabled  = zoom.scale >= maxScale() - 0.001;
+  zoomOutBtn.disabled = zoom.scale <= minScale() + 0.001;
+  // fit-toggle 永遠是 fa-expand（功能單一：切到 fit）；已在 fit 狀態時 disable（user 2026-06-02）
   if (fitToggleBtn) {
+    fitToggleBtn.disabled = Math.abs(zoom.scale - fitScale()) < 0.001;
     const icon = fitToggleBtn.querySelector('i');
-    if (icon) icon.className = zoom.scale > 1.001 ? 'fa-solid fa-compress text-p1' : 'fa-solid fa-expand text-p1';
+    if (icon) icon.className = 'fa-solid fa-expand text-p1';
   }
 }
 
+// fitRatio = fitDims.w / naturalDims.w：把「fit 後的 rendered px」對應回「原圖 1 px」的比例
+// 例：4000px 寬圖 fit 到 800px stage → fitRatio = 0.2（fit 顯示時 1 原圖 px = 0.2 stage px）
+// naturalDims 未 load 完回 0；caller 自己決定 fallback 行為
+function getFitRatio() {
+  return naturalDims.w > 0 && fitDims.w > 0 ? fitDims.w / naturalDims.w : 0;
+}
+
+// fit 對應的內部 scale 永遠 = 1（這是 zoom.scale 的定義）；helper 只是給語意對齊
+const fitScale = () => 1;
+// actual-size (100% 原圖) 對應的內部 scale = 1/fitRatio；fitRatio=0 fallback 1
+const actualScale = () => { const r = getFitRatio(); return r > 0 ? 1 / r : 1; };
+// MIN_PCT/MAX_PCT 對應的內部 scale 下/上限；fit 比 MIN_PCT 還小（fit < 25%）時放寬下限到 fit
+//（user 還是要能看到完整圖；fit > MIN_PCT 時鎖在 MIN_PCT 避免縮太小）
+function minScale() {
+  const r = getFitRatio();
+  if (r <= 0) return 1;
+  return Math.min(fitScale(), MIN_PCT / r);
+}
+function maxScale() {
+  const r = getFitRatio();
+  if (r <= 0) return 6; // load 前 fallback 內部 6x（同舊 MAX_SCALE）
+  // 400% 原圖；fit > MAX_PCT (極小圖 fit 就放大超過 400%) 仍允許到 fit
+  return Math.max(fitScale(), MAX_PCT / r);
+}
+
 function clampPan() {
-  if (zoom.scale <= 1) { zoom.tx = 0; zoom.ty = 0; return; }
+  // 圖未填滿 stage 時不允許平移（scale <= fit 等於圖被 contain）
+  if (zoom.scale <= fitScale() + 0.001) { zoom.tx = 0; zoom.ty = 0; return; }
   const stageRect = zoomStage.getBoundingClientRect();
   const scaledW = fitDims.w * zoom.scale;
   const scaledH = fitDims.h * zoom.scale;
@@ -242,8 +278,8 @@ function zoomAt(clientX, clientY, factor, animated = false) {
   // 游標下這個點在「img 自身、未縮放、相對 img 中心」的座標
   const imgX = (cx - sw / 2 - zoom.tx) / zoom.scale;
   const imgY = (cy - sh / 2 - zoom.ty) / zoom.scale;
-  const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, zoom.scale * factor));
-  if (newScale === zoom.scale) return;
+  const newScale = Math.max(minScale(), Math.min(maxScale(), zoom.scale * factor));
+  if (Math.abs(newScale - zoom.scale) < 0.0001) return;
   // 解出 newTx 使該點在 stage 中的位置不變
   zoom.tx = cx - sw / 2 - imgX * newScale;
   zoom.ty = cy - sh / 2 - imgY * newScale;
@@ -258,23 +294,43 @@ function zoomAtStageCenter(factor, animated = false) {
   zoomAt(r.left + r.width / 2, r.top + r.height / 2, factor, animated);
 }
 
-// +/- 按鈕：找 ZOOM_STEPS 中下一個（dir +1）/前一個（dir -1）level，scale 到該 level
-// 當前 scale 不一定在 ZOOM_STEPS（滾輪可能任意值），用 firstHigher / lastLower 找鄰近 step
-function zoomToStep(dir) {
+// 直接 set scale 到指定 target（用於 fit-toggle / 預設 actual size）；以 stage center 為錨點
+function zoomToScale(targetScale, animated = false) {
   if (!zoomStage) return;
-  let target;
-  if (dir > 0) {
-    target = ZOOM_STEPS.find(s => s > zoom.scale + 0.001);
-  } else {
-    target = [...ZOOM_STEPS].reverse().find(s => s < zoom.scale - 0.001);
-  }
-  if (target == null) return;
-  zoomAtStageCenter(target / zoom.scale, true);
+  targetScale = Math.max(minScale(), Math.min(maxScale(), targetScale));
+  if (Math.abs(targetScale - zoom.scale) < 0.0001) return;
+  zoomAtStageCenter(targetScale / zoom.scale, animated);
 }
 
+// +/- 按鈕：以「相對原圖 %」為單位 snap 到 ZOOM_STEPS_PCT 下一/前一檔
+// 內部 scale = displayPct / fitRatio；fitRatio 算不出時 fallback 走 1.5x 倍率 step
+function zoomToStep(dir) {
+  if (!zoomStage) return;
+  const fitRatio = getFitRatio();
+  if (fitRatio <= 0) {
+    const target = dir > 0 ? zoom.scale * 1.5 : zoom.scale / 1.5;
+    zoomToScale(target, true);
+    return;
+  }
+  const currentPct = zoom.scale * fitRatio;
+  let targetPct;
+  if (dir > 0) {
+    targetPct = ZOOM_STEPS_PCT.find(p => p > currentPct + 0.001);
+  } else {
+    targetPct = [...ZOOM_STEPS_PCT].reverse().find(p => p < currentPct - 0.001);
+  }
+  if (targetPct == null) return;
+  zoomToScale(targetPct / fitRatio, true);
+}
+
+// 回 fit-to-window（scale = 1）— 給 fit-toggle 用
 function resetZoom(animated = false) {
-  zoom = { scale: 1, tx: 0, ty: 0 };
-  applyZoom(animated);
+  zoomToScale(fitScale(), animated);
+}
+
+// 回 actual-size (100% 原圖) — 給打開圖片預設用
+function setActualSize(animated = false) {
+  zoomToScale(actualScale(), animated);
 }
 
 // ── 渲染指定 index ──────────────────────────────────────────────
@@ -284,6 +340,9 @@ function renderMain(index) {
   // 切換媒體時重置 zoom 狀態（圖→影、影→圖、圖→圖 都要清）
   zoomImg = null; zoomStage = null; isDragging = false; dragMoved = false;
   zoom = { scale: 1, tx: 0, ty: 0 };
+  // 切圖時 reset fitDims/naturalDims 避免新圖 load 前 UI 沿用上一張的 fitRatio 顯示錯誤 %
+  fitDims = { w: 0, h: 0 };
+  naturalDims = { w: 0, h: 0 };
 
   // zoom controls 只在 image 顯示（video iframe 無法 zoom）
   if (zoomControlsEl) zoomControlsEl.style.display = item.type === 'video' ? 'none' : 'flex';
@@ -314,10 +373,19 @@ function renderMain(index) {
     zoomStage.appendChild(zoomImg);
     mainEl.appendChild(zoomStage);
 
-    // 量測 fit 尺寸（scale=1 時的 rendered bbox）給 clampPan 用
+    // 量測 fit 尺寸（scale=1 時的 rendered bbox）給 clampPan 用 + naturalDims 給 UI % 顯示用
     // img 已 max-width/height:100% + object-fit:contain，load 完 offsetW/H 就是 fit 結果
+    // 預設規則（仿 Windows Photos，user 2026-06-02）：
+    //   原圖比 stage 大（fitRatio < 1）→ 套 fit（避免一打開就要拖曳找邊界）
+    //   原圖比 stage 小或等於（fitRatio >= 1）→ 套 actual size 100%（避免小圖被拉糊或留大白邊）
     zoomImg.addEventListener('load', () => {
       fitDims = { w: zoomImg.offsetWidth, h: zoomImg.offsetHeight };
+      naturalDims = { w: zoomImg.naturalWidth, h: zoomImg.naturalHeight };
+      const r = getFitRatio();
+      const target = r < 1 ? fitScale() : actualScale();
+      zoom.scale = Math.max(minScale(), Math.min(maxScale(), target));
+      zoom.tx = 0; zoom.ty = 0;
+      applyZoom(false);
     });
 
     // 切換到 image 時同步 zoom UI 到 100%（不靠 applyZoom；首次未動 transform）
@@ -330,9 +398,9 @@ function renderMain(index) {
       zoomAt(e.clientX, e.clientY, factor, false);
     }, { passive: false });
 
-    // 拖曳平移（只在 scale>1 時啟動）
+    // 拖曳平移（只在圖填滿 stage 時啟動，scale > fit）
     zoomStage.addEventListener('mousedown', e => {
-      if (zoom.scale <= 1 || e.button !== 0) return;
+      if (zoom.scale <= fitScale() + 0.001 || e.button !== 0) return;
       isDragging = true;
       dragMoved = false;
       dragStart = { x: e.clientX, y: e.clientY, tx: zoom.tx, ty: zoom.ty };
@@ -340,13 +408,18 @@ function renderMain(index) {
       e.preventDefault();
     });
 
-    // 單擊 img：在 fit ↔ DBLCLICK_SCALE 間切換（zoom-in 鎖游標位置）
-    // cursor 顯示 zoom-in/grab 暗示「點擊可放大/收回」— affordance 一致
+    // 單擊 img：fit ↔ actual size 間切換（鎖游標位置）
+    // 已在 fit → 跳到 actual size (100%)，以游標為焦點放大
+    // 非 fit → 回 fit
     // 拖曳結束的 mouseup 也會 fire click，用 dragMoved gate 過濾
     zoomImg.addEventListener('click', e => {
       if (dragMoved) { dragMoved = false; return; }
-      if (zoom.scale > 1) resetZoom(true);
-      else zoomAt(e.clientX, e.clientY, DBLCLICK_SCALE, true);
+      if (Math.abs(zoom.scale - fitScale()) < 0.001) {
+        const factor = actualScale() / zoom.scale;
+        zoomAt(e.clientX, e.clientY, factor, true);
+      } else {
+        resetZoom(true);
+      }
     });
   }
 
@@ -361,7 +434,6 @@ function renderMain(index) {
       th.style.outline = '';
       th.style.outlineOffset = '';
     }
-    th.classList.toggle('opacity-40', i !== index);
   });
 
   // 更新 chevron 狀態：只 1 個 media 時整顆隱藏（disabled+opacity 視覺上仍可見會誤導點擊）
@@ -428,11 +500,17 @@ export async function openLightbox(media, startIndex = 0, opts = {}) {
     console.warn('openLightbox: all media failed to load, aborting');
     return;
   }
-  // startIndex 對應「過濾前」的原始 array — 找出原 startIndex 的 src，在過濾後 array 找最近的位置
-  // 例：raw=[poster, img0, img1] startIndex=0；poster 壞 → filtered=[img0, img1]，目標 src 不在 → 用 max(0, 0-1) = 0 落到 img0
-  const targetSrc = initial[startIndex]?.src;
-  const found = mediaList.findIndex(m => m.src === targetSrc);
-  startIndex = found >= 0 ? found : Math.max(0, Math.min(startIndex, mediaList.length - 1));
+  // startIndex 對應「過濾前」的原始 array。沒任何 item 被 probe 掉時 mediaList === initial → 直接用原 startIndex
+  // (避免 findIndex(src===) 在 mediaList 有重複 src 時 collapse 到第一個 — 例如 item.poster 跟 images[0]
+  // 是同一張圖，user 點 images[0] thumb 想開 mediaList[1] 結果落到 mediaList[0])
+  // 有 item 被 probe 掉時 fallback 走 src 查找：壞掉的 startIndex 不在 mediaList 內就退一格
+  if (mediaList.length !== initial.length) {
+    const targetSrc = initial[startIndex]?.src;
+    const found = mediaList.findIndex(m => m.src === targetSrc);
+    startIndex = found >= 0 ? found : Math.max(0, Math.min(startIndex, mediaList.length - 1));
+  } else {
+    startIndex = Math.max(0, Math.min(startIndex, mediaList.length - 1));
+  }
 
   // 建立 thumbnails：固定高度 + width:auto 自然比例；object-fit:contain 防裁切（避免 cover 把窄圖兩側切掉）
   thumbsEl.innerHTML = '';
@@ -497,10 +575,31 @@ function renderBackButton(color) {
   closePillEl.style.transform = `rotate(${rot}deg)`;
 }
 
+// close/ref pill 高度 follow title pill 自然撐高（同 PDF viewer syncBackBtnHeight 規格）
+// rotation 不影響 offsetHeight 所以量 unrotated 套到 rotated pill 仍對齊
+function syncCloseBtnHeight() {
+  if (!closePillEl) return;
+  const refPill = refUi && refUi.btnEl
+    ? /** @type {HTMLElement | null} */ (refUi.btnEl.querySelector('.lightbox-ref-btn-pill'))
+    : null;
+  const pill = titleEl && titleEl.querySelector('.alb-title-pill');
+  if (!pill || titleEl.style.display === 'none') {
+    closePillEl.style.height = '';
+    if (refPill) refPill.style.height = '';
+    return;
+  }
+  const h = /** @type {HTMLElement} */ (pill).offsetHeight;
+  if (h > 0) {
+    closePillEl.style.height = h + 'px';
+    if (refPill) refPill.style.height = h + 'px';
+  }
+}
+
 function renderTitle(title, color) {
   if (!title || (!title.en && !title.zh)) {
     titleEl.style.display = 'none';
     titleEl.innerHTML = '';
+    syncCloseBtnHeight();
     return;
   }
   const bg = color || '#00FF80';
@@ -523,7 +622,10 @@ function renderTitle(title, color) {
     </span>
   `;
   titleEl.style.display = 'block';
-  requestAnimationFrame(() => setupTitleMarquee());
+  requestAnimationFrame(() => {
+    syncCloseBtnHeight();
+    setupTitleMarquee();
+  });
 }
 
 // title 文字超出 pill max-width 時 GSAP 連續 marquee：以 EN+ZH unit 整組為單位 dual-copy seamless loop
