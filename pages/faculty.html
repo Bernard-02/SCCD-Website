@@ -1,9 +1,11 @@
 <!DOCTYPE html>
-<!-- html 級 overflow-x:hidden：iOS Safari 在 body overflow-x:hidden 時會把 body 當 scroll container
-     → position:fixed 子元素依附 body 而非 viewport，scroll 時 header 跟著走。
-     html 級 clip 不影響 body scroll container 角色，position:fixed 正常依附 viewport。
-     2026-05-26 faculty 頁 header 不 fixed 的 root cause -->
-<html lang="zh-Hant" style="overflow-x: hidden;">
+<!-- html / body 用 overflow-x: clip 而非 hidden：
+     - hidden 會讓 html/body 變 scroll container（另一軸隱含 auto）→ 子孫 position:sticky 在頁面長度超過
+       viewport 時找錯 scroller，sticky 失效（user 反饋 faculty 加 footer 後左 nav 不 sticky，2026-06-01）
+     - clip（CSS Overflow L3）只裁切不建立 scroll container，sticky 仍對 viewport 釘
+     - iOS Safari header 不 fixed 的舊問題：clip 同樣防止 body 搶 scroll container 角色，行為一致
+     瀏覽器支援：Chrome 90+ / Safari 16+ / Firefox 81+ -->
+<html lang="zh-Hant" style="overflow-x: clip;">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -29,7 +31,7 @@
     }
   </style>
 </head>
-<body style="overflow-x: hidden;">
+<body style="overflow-x: clip;">
 
   <!-- Header -->
   <div id="site-header"></div>

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
-<!-- html 級 overflow-x:hidden：iOS Safari + body overflow-x:hidden 會破 position:fixed header（依附 body 而非 viewport），html 級 clip 才修得了 -->
-<html lang="zh-Hant" style="overflow-x: hidden;">
+<!-- overflow-x: clip 而非 hidden：hidden 讓 html/body 變 scroll container 在頁面 > viewport 時破壞子孫 position:sticky；clip 只裁切不建立 scroll container，sticky 仍對 viewport 釘（2026-06-01 修） -->
+<html lang="zh-Hant" style="overflow-x: clip;">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">

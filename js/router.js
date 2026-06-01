@@ -185,13 +185,16 @@ async function loadPage(route, search = '') {
     // faculty 手機 hero banner width:108vw + rotate(-5°) 兩側溢出 viewport
     // activities 手機 .activities-section-bar negative margin 延伸到 viewport 邊 + active list-item
     //   gallery thumbnail / list-content 某些情況可能溢出 → x 軸偶爾可滑（user 反饋 2026-05-26）
-    // 必須 overflowX: hidden 才不會出現橫向 scroll
-    // ⚠️ iOS Safari 在 body overflow-x:hidden 時會把 body 當 scroll container →
-    //    position:fixed 子元素（header）依附 body 而非 viewport、scroll 時跟著走。
-    //    html 級 clip 才能保證 position:fixed 依附 viewport；body 級保留為雙保險（桌面瀏覽器走 body 也 work）
+    // 用 overflow-x: clip 而非 hidden：
+    // - hidden 會讓 html/body 變 scroll container（另一軸隱含 auto），頁面 > viewport 時 body 自己成為
+    //   實際 scroller，子孫 position:sticky 找錯 scrolling ancestor → sticky 失效
+    //   （2026-06-01 user 反饋 faculty 加 footer 後左 nav 不 sticky 的 root cause；diagnoseSticky 證實）
+    // - clip（CSS Overflow L3）只裁切橫向溢出，不建立 scroll container，sticky 仍對 viewport 釘
+    // - iOS Safari position:fixed header 不 fix 的舊問題：clip 同樣防止 body 搶 scroll container 角色
+    // 瀏覽器支援：Chrome 90+ / Safari 16+ / Firefox 81+
     const needsClipX = route.page === 'about' || route.page === 'alumni' || route.page === 'faculty' || route.page === 'activities';
-    document.documentElement.style.overflowX = needsClipX ? 'hidden' : '';
-    document.body.style.overflowX = needsClipX ? 'hidden' : '';
+    document.documentElement.style.overflowX = needsClipX ? 'clip' : '';
+    document.body.style.overflowX = needsClipX ? 'clip' : '';
 
     // 初始化新頁面模組（帶 query string 供 detail 頁用）
     initPageModules(route.page, new URLSearchParams(search));
