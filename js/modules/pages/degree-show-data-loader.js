@@ -6,9 +6,10 @@
 
 import { initDegreeShowGallery } from './degree-show-gallery.js';
 import { initHeroAnimation } from './hero-animation.js';
+import { initHeroMobileSync } from './hero-mobile-sync.js';
 import { animateCardsClipReveal } from '../ui/scroll-animate.js';
 import { createClassImagesSlideshow } from './about/class-images-slideshow.js';
-import { getSectionData, findItemById } from './activities-data-loader.js';
+import { getSectionData, findItemById, SECTION_LABELS } from './activities-data-loader.js';
 
 // CMB2 file_list type 存 meta 為 dict `{ attachment_id: url, ... }`；舊 JSON 是 string array
 // normalize 成 string array of URLs（順序不保證、但前端 gallery 不依賴順序）
@@ -206,6 +207,10 @@ export async function loadDegreeShowDetail() {
       if (descEnEl) descEnEl.textContent = data.descEn;
       if (descCnEl) descCnEl.textContent = data.descCn;
 
+      // 桌面 → 手機 hero DOM clone：必須在 initHeroAnimation 之前
+      // （hero-animation 對 [data-hero-hl] 套色時手機 chip 內容已要在）
+      initHeroMobileSync();
+
       // Hero 動畫必須在文字填入後才呼叫，否則會 wrap 並動畫空元素，clearProps 後文字才靜態出現
       // section 上的 [data-hero-title-last] 會讓 hero-animation 改用「subtitles 先 → title 後」的順序
       initHeroAnimation();
@@ -250,6 +255,9 @@ export async function loadDegreeShowDetail() {
       // event.images 缺則 fallback 用 entry 層 data.images（過渡期相容；2024 已有 per-event images）
       // sticky chip scroll observer 依 .event-gallery-section 判定當前 event index
       await renderEventGalleries(data);
+
+      // Ref btn（back btn 右邊）：從 data.events 抽 non-exhibition refs 渲染 popover；無 refs → btn 整顆 hide
+      await setupRefBtn(data);
 
       // 共用渲染函式：依 url 形式塞 iframe / video tag
       const renderVideoInto = (wrapper, url) => {
@@ -775,6 +783,243 @@ function escapeHtml(s) {
   }[c]));
 }
 
+// ── Ref btn (back btn 右邊) ─────────────────────────────────────────────────
+// 從 data.events 抽 type !== 'exhibition' 的 events，flat 它們的 refs[]，渲染成 popover chip 列
+// chip 點擊 → SPA 跳 /activities?section=X&item=Y
+// 無 refs / 全 unresolvable → btn 整顆 display:none，setupStickyAndHeroChips 跳過 clip-reveal
+// 樣式：btn 本身用 sticky-chip strict B/W（CSS）；popover chip 沿用 .lightbox-ref-card / .lightbox-ref-chip
+// clip-reveal 顯隱由 setupStickyAndHeroChips 偵測 DOM 存在後加進 titleChips 陣列一起控
+async function setupRefBtn(data) {
+  const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('degree-show-ref-btn'));
+  const popover = document.getElementById('degree-show-ref-popover');
+  const stack = document.getElementById('degree-show-ref-stack');
+  if (!btn || !popover || !stack) return;
+
+  // 1) flat 所有 non-exhibition events 的 refs
+  const events = Array.isArray(data.events) ? data.events : [];
+  const allRefs = [];
+  for (const ev of events) {
+    if (!ev.type || ev.type === 'exhibition') continue;
+    if (!Array.isArray(ev.refs)) continue;
+    for (const ref of ev.refs) {
+      if (ref && ref.source && ref.id) allRefs.push(ref);
+    }
+  }
+  if (allRefs.length === 0) {
+    btn.style.display = 'none';
+    return;
+  }
+
+  // 2) 解每個 ref 拿 title — label 用 SECTION_LABELS（source → 工作坊/講座/...）
+  const resolved = [];
+  for (const ref of allRefs) {
+    const sectionData = await getSectionData(ref.source);
+    if (!sectionData) continue;
+    const item = findItemById(sectionData, ref.id);
+    if (!item) continue;
+    const isModeA = !!item.title_en;
+    const isModeB = !item.title_en && !!item.title_zh;
+    const titleEn = isModeA ? item.title_en : (isModeB ? item.title : '');
+    const titleZh = isModeA ? item.title    : (isModeB ? item.title_zh : item.title || '');
+    const label = SECTION_LABELS[ref.source] || { en: '', zh: '' };
+    resolved.push({
+      section: ref.source,
+      itemId: ref.id,
+      labelEn: label.en,
+      labelZh: label.zh,
+      titleEn,
+      titleZh,
+    });
+  }
+  if (resolved.length === 0) {
+    btn.style.display = 'none';
+    return;
+  }
+
+  // 3) 渲染 chip card — 結構同 lightbox-ref-btn renderChips（不抽共用函式：那邊綁 onClose lightbox 邏輯
+  //    跟這邊純跳轉行為差別大；視覺結構直接複製成本低）
+  const ACCENT = ['#00FF80', '#FF448A', '#26BCFF'];
+  const cardColor = ACCENT[Math.floor(Math.random() * ACCENT.length)];
+  stack.innerHTML = '';
+  const card = document.createElement('div');
+  card.className = 'lightbox-ref-card';
+  card.style.background = cardColor;
+  const rot = (Math.random() < 0.5 ? -1 : 1) * (1 + Math.random() * 2);
+  card.style.transform = `rotate(${rot}deg)`;
+  card.style.transformOrigin = 'left center';
+
+  resolved.forEach(ref => {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'lightbox-ref-chip';
+    row.dataset.refSection = ref.section;
+    row.dataset.refItem = ref.itemId;
+    row.innerHTML = `
+      <div class="lightbox-ref-chip-label">
+        ${ref.labelEn ? `<p class="text-p3">${escapeHtml(ref.labelEn)}</p>` : ''}
+        ${ref.labelZh ? `<p class="text-p3">${escapeHtml(ref.labelZh)}</p>` : ''}
+      </div>
+      <div class="lightbox-ref-chip-title">
+        <div class="lightbox-ref-chip-title-window">
+          <div class="lightbox-ref-chip-title-track">
+            <div class="lightbox-ref-chip-title-unit">
+              ${ref.titleEn ? `<p class="text-p3 font-bold">${escapeHtml(ref.titleEn)}</p>` : ''}
+              ${ref.titleZh ? `<p class="text-p3 font-bold">${escapeHtml(ref.titleZh)}</p>` : ''}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    row.addEventListener('click', e => {
+      e.stopPropagation();
+      navigateToRef(ref);
+    });
+    card.appendChild(row);
+  });
+  stack.appendChild(card);
+
+  // 4) Label column 對齊 + marquee（沿用 lightbox-ref-btn 同邏輯）
+  requestAnimationFrame(() => {
+    alignLabelColumn(card, popover);
+    setupChipMarquees(stack);
+  });
+
+  // 5) popover 開合 + clip-reveal 進退
+  let isOpen = false;
+  let openAnim = null;
+
+  function positionPopover() {
+    // popover 用 position:fixed → 直接吃 viewport coord（不需扣 offsetParent）
+    const btnRect = btn.getBoundingClientRect();
+    const wasDisplay = popover.style.display;
+    if (wasDisplay === 'none' || !wasDisplay) {
+      popover.style.visibility = 'hidden';
+      popover.style.display = 'block';
+    }
+    const popH = popover.offsetHeight;
+    if (wasDisplay === 'none' || !wasDisplay) {
+      popover.style.display = wasDisplay || 'none';
+      popover.style.visibility = '';
+    }
+    popover.style.top = `${btnRect.top - popH}px`;
+    // popover 自身 padding 32px → chip 左緣對齊 btn 左緣 = popover left = btn.left - 32
+    popover.style.left = `${btnRect.left - 32}px`;
+  }
+
+  function openPopover() {
+    if (isOpen) return;
+    isOpen = true;
+    popover.style.display = 'block';
+    popover.style.overflow = 'clip';
+    positionPopover();
+    if (typeof gsap !== 'undefined') {
+      if (openAnim) openAnim.kill();
+      gsap.set(stack, { yPercent: 100 });
+      openAnim = gsap.to(stack, {
+        yPercent: 0,
+        duration: 0.5,
+        ease: 'power3.out',
+        onComplete: () => { popover.style.overflow = 'visible'; },
+      });
+    } else {
+      stack.style.transform = '';
+      popover.style.overflow = 'visible';
+    }
+  }
+
+  function closePopover(animated = true) {
+    if (!isOpen) {
+      popover.style.display = 'none';
+      return;
+    }
+    isOpen = false;
+    popover.style.overflow = 'clip';
+    if (typeof gsap !== 'undefined' && animated) {
+      if (openAnim) openAnim.kill();
+      openAnim = gsap.to(stack, {
+        yPercent: 100,
+        duration: 0.35,
+        ease: 'power3.in',
+        onComplete: () => { popover.style.display = 'none'; },
+      });
+    } else {
+      popover.style.display = 'none';
+    }
+  }
+
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    if (isOpen) closePopover(true); else openPopover();
+  });
+
+  // 點外面關閉
+  const outsideClickHandler = (e) => {
+    if (!isOpen) return;
+    const target = /** @type {HTMLElement} */ (e.target);
+    if (btn.contains(target) || popover.contains(target)) return;
+    closePopover(true);
+  };
+  document.addEventListener('click', outsideClickHandler);
+}
+
+// SPA 跳轉到 activities?section=X&item=Y（沿用既有 <a> click 路徑讓 router 接管 + push history）
+function navigateToRef(ref) {
+  const url = `/pages/activities.html?section=${encodeURIComponent(ref.section)}&item=${encodeURIComponent(ref.itemId)}`;
+  const a = document.createElement('a');
+  a.href = url;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+// Label column 等寬對齊（複用 lightbox-ref-btn 演算法）
+function alignLabelColumn(card, popover) {
+  const wasDisplay = popover.style.display;
+  if (wasDisplay === 'none' || !wasDisplay) {
+    popover.style.visibility = 'hidden';
+    popover.style.display = 'block';
+  }
+  card.style.removeProperty('--ref-label-w');
+  const labels = card.querySelectorAll('.lightbox-ref-chip-label');
+  let maxW = 0;
+  labels.forEach(el => {
+    const w = el.getBoundingClientRect().width;
+    if (w > maxW) maxW = w;
+  });
+  if (wasDisplay === 'none' || !wasDisplay) {
+    popover.style.display = wasDisplay || 'none';
+    popover.style.visibility = '';
+  }
+  if (maxW > 0) card.style.setProperty('--ref-label-w', `${Math.ceil(maxW)}px`);
+}
+
+// Title overflow → marquee（dual-copy seamless loop，複用 lightbox-ref-btn 演算法）
+function setupChipMarquees(stack) {
+  stack.querySelectorAll('.lightbox-ref-chip').forEach(chip => {
+    const win = /** @type {HTMLElement | null} */ (chip.querySelector('.lightbox-ref-chip-title-window'));
+    const track = /** @type {HTMLElement | null} */ (chip.querySelector('.lightbox-ref-chip-title-track'));
+    if (!win || !track) return;
+    if (typeof gsap !== 'undefined') gsap.killTweensOf(track);
+    track.style.transform = '';
+    while (track.children.length > 1) track.removeChild(track.lastElementChild);
+    const unit = /** @type {HTMLElement | null} */ (track.querySelector('.lightbox-ref-chip-title-unit'));
+    if (!unit) return;
+    const unitWidth = unit.getBoundingClientRect().width;
+    const winWidth = win.clientWidth;
+    if (unitWidth <= winWidth + 4) return;
+    const clone = /** @type {HTMLElement} */ (unit.cloneNode(true));
+    clone.style.marginLeft = '24px';
+    track.appendChild(clone);
+    const distance = unitWidth + 24;
+    if (typeof gsap !== 'undefined') {
+      gsap.fromTo(track, { x: 0 }, {
+        x: -distance, duration: Math.max(3, distance / 80), ease: 'none', repeat: -1,
+      });
+    }
+  });
+}
+
 // ── Sticky info card ───────────────────────────────────────────────────────
 // 兩個 chip 設計：
 //   - title chip（h5）：英上中下同 chip
@@ -798,6 +1043,9 @@ function setupStickyAndHeroChips(data) {
   const branchZhEl = document.getElementById('sticky-branch');
   // 返回按鈕跟 sticky title 同步 fade（同 trigger 範圍），只有顯示時可點
   const backBtn = /** @type {HTMLElement | null} */ (document.getElementById('degree-show-back-btn'));
+  // Ref btn：setupRefBtn 已決定是否 display:none（無 refs 時整顆消失）；display:none 時不加進 titleChips 陣列
+  const refBtnEl = /** @type {HTMLElement | null} */ (document.getElementById('degree-show-ref-btn'));
+  const refBtn = (refBtnEl && refBtnEl.style.display !== 'none') ? refBtnEl : null;
   if (!card || !titleChip || !titleEnEl || !titleZhEl || !branchChip || !branchEnEl || !branchZhEl) return;
 
   // 填初始文字 — 套到 inner span 而非外 chip wrapper
@@ -824,13 +1072,16 @@ function setupStickyAndHeroChips(data) {
   titleChip.style.transform = `rotate(${randRot()}deg)`;
   branchChip.style.transform = `rotate(${randRot()}deg)`;
   if (backBtn) backBtn.style.transform = `rotate(${randRot()}deg)`;
+  if (refBtn) refBtn.style.transform = `rotate(${randRot()}deg)`;
 
   // clip-path 規則：CSS 已預設 inset(0 0 100% 0) hidden，這裡保留 mapping
   const HIDDEN = 'inset(0 0 100% 0)';
   const SHOWN = 'inset(0 0 0 0)';
-  // titleChips = [titleChip, backBtn]：兩者描述段 reveal、next-project 段 collapse 全程同步
-  // branchChip 仍獨立由 galleriesRoot 內各 event trigger 控（只在 galleries 段顯示）
-  const titleChips = backBtn ? [titleChip, backBtn] : [titleChip];
+  // titleChips = [titleChip, backBtn, refBtn]：三者描述段 reveal、next-project 段 collapse 全程同步
+  // refBtn 若 setupRefBtn 已 hide（無 refs）則不加入；branchChip 獨立由 galleriesRoot 內各 event trigger 控
+  const titleChips = [titleChip];
+  if (backBtn) titleChips.push(backBtn);
+  if (refBtn) titleChips.push(refBtn);
 
   function setChipsState(chips, visible, stagger = 0.08) {
     chips.forEach((chip, i) => {
@@ -880,8 +1131,9 @@ function setupStickyAndHeroChips(data) {
     cardShown = true;
     card.style.visibility = 'visible';
     gsap.to(card, { opacity: 1, duration: 0.3, ease: 'power2.out', overwrite: true });
-    // backBtn clip-path 收起時不該被點到 — show 時立即 visible 讓 hit-test 開啟
+    // backBtn / refBtn clip-path 收起時不該被點到 — show 時立即 visible 讓 hit-test 開啟
     if (backBtn) backBtn.style.visibility = 'visible';
+    if (refBtn) refBtn.style.visibility = 'visible';
     hideHeroChips();
     // sticky chip reveal 延後 = hero 收完才開始（backBtn 在 titleChips 內一起 clip-path reveal）
     if (stickyRevealTimer) { clearTimeout(stickyRevealTimer); stickyRevealTimer = null; }
@@ -907,10 +1159,15 @@ function setupStickyAndHeroChips(data) {
       overwrite: true,
       onComplete: () => { if (!cardShown) card.style.visibility = 'hidden'; },
     });
-    // backBtn clip-path collapse 完成（0.5s + 最後 chip stagger delay 0.16s ≈ 0.66s）→ 設 hidden 阻擋 hit-test
+    // backBtn / refBtn clip-path collapse 完成（0.5s + 最後 chip stagger delay 0.16s ≈ 0.66s）→ 設 hidden 阻擋 hit-test
     if (backBtn) {
       setTimeout(() => {
         if (!cardShown && backBtn) backBtn.style.visibility = 'hidden';
+      }, 700);
+    }
+    if (refBtn) {
+      setTimeout(() => {
+        if (!cardShown && refBtn) refBtn.style.visibility = 'hidden';
       }, 700);
     }
     showHeroChips();

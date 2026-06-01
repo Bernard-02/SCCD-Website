@@ -250,8 +250,9 @@
        reveal 由 JS 在 setupStickyAndHeroChips 切到 inset(0 0 0 0) */
   }
 
-  #degree-show-back-btn .sticky-chip-inner {
-    /* sticky title 是 accent 底黑字，back btn 用 strict B/W（依 page bg 對比翻黑底白字/白底黑字，同 atlas-layout-inner pattern）
+  #degree-show-back-btn .sticky-chip-inner,
+  #degree-show-ref-btn .sticky-chip-inner {
+    /* sticky title 是 accent 底黑字，back btn / ref btn 用 strict B/W（依 page bg 對比翻黑底白字/白底黑字，同 atlas-layout-inner pattern）
        fg/fg-inverse 對 mode1/2/3 都 strict B/W（mode3 不會跟 hue 飄）
        size 對齊 atlas layout btn 48×48 + icon 32px */
     display: flex;
@@ -263,6 +264,30 @@
     background: var(--theme-fg, #000);
     color: var(--theme-fg-inverse, #fff);
     font-size: 32px;
+  }
+
+  /* Ref btn：back btn 右邊，bottom 同高
+     left = container-padding + back btn 寬 (48px) + gap (16px) = container-padding + 64px
+     位置算式跟 back btn 同節奏 clip-reveal（由 JS 在 setupStickyAndHeroChips 加入 titleChips 陣列同步控） */
+  #degree-show-ref-btn {
+    position: fixed;
+    left: calc(var(--container-padding, 60px) + 64px);
+    bottom: 64px;
+    z-index: 50;
+    pointer-events: auto;
+    cursor: var(--cursor-pointer);
+    border: none;
+    padding: 0;
+    background: transparent;
+  }
+
+  /* Ref popover：fixed（跟 ref-btn 同 fixed 定位，scroll 時自動跟 btn 一起移動）
+     沿用 .lightbox-ref-popover 既有規則（padding 32 + clip-reveal overflow 動態切）
+     hidden 預設由 inline display:none 控；JS open 時切 block + clip-reveal */
+  #degree-show-ref-popover {
+    position: fixed;
+    display: none;
+    z-index: 9999;
   }
 }
 

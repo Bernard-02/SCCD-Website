@@ -16,15 +16,34 @@
 
   <!-- Main Content -->
   <main id="page-content">
-    <!-- Hero Section -->
-    <!-- data-hero-title-last：hero-animation 改為 subtitles（年份/英文）先進場，主標（中文）最後 -->
-    <section class="h-[700px] md:h-screen relative overflow-hidden" data-hero-title-last>
-      <div class="relative md:absolute inset-0 w-full h-full md:h-full">
-        <img id="hero-img" src="../images/CCC08866.jpg" alt="Degree Show" class="w-full h-full md:h-full object-cover">
+    <!-- Hero Section
+         背景圖改成 .hero-banner（占畫面一部分 + 隨機旋轉 + clip-path reveal 進場，跟其他 hero 一致）；
+         字卡保留原本固定左下三段排版（年份 h4 / 英標 h2 / 中標 hero-title 大字）— 不套 hero-rand-grid 不參與 random placement
+         手機版 .hero-mobile 圖墊底 + 文字 stack 疊在圖上（hero-mobile-sync.js 從桌面 clone 文案+banner src）
+         data-hero-title-last：hero-animation 改為 subtitles（年份/英文）先進場、主標（中文）最後 -->
+    <section class="h-[700px] md:h-screen relative overflow-x-clip md:overflow-hidden" data-hero-title-last>
+      <!-- 手機版（< 768px）：圖+文字 stack -->
+      <div class="hero-mobile">
+        <div class="hero-mobile-bg">
+          <img src="" alt="">
+        </div>
+        <div class="hero-mobile-text">
+          <h4 class="text-black hero-mobile-text-en" data-hero-hl></h4>
+          <h2 class="text-black hero-mobile-title" data-hero-hl></h2>
+          <h2 class="text-black hero-mobile-title-cn" data-hero-hl></h2>
+        </div>
+      </div>
+      <!-- 桌面版（≥ 768px）：
+           1) .hero-rand-grid 只包 banner（單一元素 → randomizeHeroLayout 仍會給它隨機 corner+rotation，clip-path reveal 不變）
+           2) 字卡是 grid 同層 sibling 用 absolute 左下定位（不在 grid 內 → 不吃 random placement，固定左下） -->
+      <div class="hero-rand-grid">
+        <div class="hero-banner">
+          <img id="hero-img" src="../images/CCC08866.jpg" alt="Degree Show">
+        </div>
       </div>
 
-      <!-- 左下角：年份 + 英文名 + 中文名（三 chip 各自旋轉；hero-text-en/cn/title 各對應 querySelector 一個元素，避免衝突） -->
-      <div class="absolute inset-0 z-10 pointer-events-none">
+      <!-- 字卡左下排版：保留原本 design 年份 h4 + 英標 h2 + 中標 hero-title 大字，固定位置不 random -->
+      <div class="hidden md:block absolute inset-0 z-10 pointer-events-none">
         <div class="site-container h-full">
           <div class="h-full flex flex-col items-start justify-end pb-3xl md:pb-2xl gap-md">
             <h4 id="text-year" class="hero-text-en text-h4 text-black inline-block" data-hero-hl></h4>
@@ -108,6 +127,21 @@
         <span class="icon icon-arrow-left"></span>
       </span>
     </a>
+
+    <!-- Ref 按鈕：back btn 右邊；點擊展開 ref chip list（論壇 / 工作營 / 講座 等 non-exhibition events 的 refs）
+         JS 在 loadDegreeShowDetail 內 setupRefBtn 動態填 popover；無 refs → 整顆 hidden
+         結構 / 樣式跟 back btn 一樣（sticky-chip + strict B/W），clip-reveal 由 setupStickyAndHeroChips 同步控
+         popover 內 chip card 沿用 lightbox-ref-popover / lightbox-ref-card 既有樣式 -->
+    <button type="button" id="degree-show-ref-btn"
+            class="sticky-chip hidden md:block"
+            aria-label="顯示 references">
+      <span class="sticky-chip-inner">
+        <span class="icon icon-ref-lightbox"></span>
+      </span>
+    </button>
+    <div id="degree-show-ref-popover" class="lightbox-ref-popover">
+      <div id="degree-show-ref-stack" class="lightbox-ref-stack"></div>
+    </div>
 
     <!-- 主影片 Section -->
     <section id="video-outer-section" class="bg-white pt-3xl hidden">
