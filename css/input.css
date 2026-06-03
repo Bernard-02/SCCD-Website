@@ -26,6 +26,8 @@
 @import './components/atlas.css';
 @import './components/icon.css';
 @import './components/cursor.css';
+@import './components/legal.css';
+@import './components/support.css';
 
 /* Themes */
 @import './themes/inverse.css';

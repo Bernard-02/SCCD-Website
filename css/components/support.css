@@ -1,0 +1,51 @@
+/**
+ * Support 頁：2026-06-03 改用 legal-page 兩欄 layout（比照 privacy-policy / accessibility）。
+ * 外層 shell（.legal-page-section / .legal-title-col / .legal-content-col / title chip）由
+ * css/components/legal.css 提供；本檔只負責右欄「捐款 / 支援方式」內文排版。
+ *
+ * 舊版單一 100vh hero（背景大圖 .support-image + 2×3 cards grid + 全絕對定位 + 自訂 GSAP
+ * 分組 timeline）已整段移除；title chip 進場改走共用 hero-animation.js（同 legal pages）。
+ */
+
+@layer components {
+  /* 群組（Funds / Others）間距 */
+  .support-group { margin-bottom: var(--spacing-3xl); }
+  .support-group:last-child { margin-bottom: 0; }
+
+  /* 群組大標 EN / ZH（比照 legal-section 標題級：h4 bold） */
+  .support-group-title-en,
+  .support-group-title-zh {
+    font-size: var(--font-size-h4);
+    font-weight: var(--font-weight-bold);
+    line-height: var(--line-height-h4, 1.2);
+    margin: 0;
+  }
+  .support-group-title-en { margin-bottom: var(--spacing-sm); }
+  .support-group-title-zh { margin-bottom: var(--spacing-md); }
+
+  /* 子標 Single / Regular（群組內小標） */
+  .support-subheading {
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-p1);
+    margin-top: var(--spacing-lg);
+    margin-bottom: var(--spacing-xs);
+  }
+
+  /* 內文段落 */
+  .support-group > p { margin-bottom: var(--spacing-sm); }
+  .support-group > p:last-child { margin-bottom: 0; }
+
+  /* 編號清單：主層 decimal、子層 lower-alpha，outside marker + 縮排（比照 legal list 風格） */
+  .support-list,
+  .support-list-sub { padding-left: 1.25rem; }
+  .support-list { list-style: decimal outside; margin-bottom: var(--spacing-md); }
+  .support-list:last-child { margin-bottom: 0; }
+  .support-list-sub { list-style: lower-alpha outside; margin-top: var(--spacing-xs); }
+  .support-list > li { margin-top: var(--spacing-xs); }
+  .support-list > li:first-child { margin-top: 0; }
+  .support-list-sub > li { margin-top: 0.2rem; }
+  .support-list-sub > li:first-child { margin-top: 0; }
+
+  /* 連結：繼承內文色、粗體、無底線（同 legal / 舊 support 風格） */
+  .support-link { color: inherit; text-decoration: none; font-weight: 700; }
+}
