@@ -153,6 +153,11 @@
           "type": "year"
         },
         {
+          "id": "country",
+          "name": "國家",
+          "type": "country"
+        },
+        {
           "id": "nameEn",
           "name": "名稱（英）",
           "type": "text"
@@ -160,16 +165,6 @@
         {
           "id": "nameZh",
           "name": "名稱（中）",
-          "type": "text"
-        },
-        {
-          "id": "workEn",
-          "name": "獎項（英）",
-          "type": "text"
-        },
-        {
-          "id": "workZh",
-          "name": "獎項（中）",
           "type": "text"
         },
         {
