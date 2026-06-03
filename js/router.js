@@ -109,7 +109,9 @@ function scrollToTop() {
 //   且 /create 的 p5 typewriter 被 A 的 cleanup 殺掉 → placeholder 消失
 let navSeq = 0;
 
-async function loadPage(route, search = '') {
+// fromUserNav：true=使用者點連結的 SPA 導航（navigateTo）；false=初始載入 / refresh / popstate。
+// 往下傳到 initPageModules → curriculum deep-link 用它判斷要不要播「自動捲到 section + 開 slide-in」。
+async function loadPage(route, search = '', fromUserNav = false) {
   const main = document.getElementById('page-content');
   if (!main) return;
 
@@ -135,6 +137,10 @@ async function loadPage(route, search = '') {
     const doc = parser.parseFromString(html, 'text/html');
     const newMain = doc.querySelector('main');
     if (!newMain) throw new Error('No <main> found in ' + route.htmlFile);
+
+    // 同步分頁標題（沿用該頁靜態 <title>；degree-show-detail 等之後在 initPageModules 內可再覆蓋更精確標題）
+    const newTitle = doc.querySelector('title')?.textContent;
+    if (newTitle) document.title = newTitle;
 
     // Cleanup 上一頁；帶 destPage 讓 cleanup 知道是否是 same-page reentry（決定要不要 restoreHeaderLogo）
     cleanupPageModules(route.page);
@@ -194,8 +200,8 @@ async function loadPage(route, search = '') {
     document.documentElement.style.overflowX = needsClipX ? 'clip' : '';
     document.body.style.overflowX = needsClipX ? 'clip' : '';
 
-    // 初始化新頁面模組（帶 query string 供 detail 頁用）
-    initPageModules(route.page, new URLSearchParams(search));
+    // 初始化新頁面模組（帶 query string 供 detail 頁用 + fromUserNav 供 deep-link 判斷）
+    initPageModules(route.page, new URLSearchParams(search), fromUserNav);
 
     // async 資料載入完成後頁面高度會變，再 scroll 一次保險
     setTimeout(() => scrollToTop(), 0);
@@ -228,7 +234,8 @@ export function navigateTo(url) {
 
   // 保留 hash 供 deep link 使用（如 library.html#a-2024-01）
   window.history.pushState({ page: route.page }, '', realPath + search + hash);
-  return loadPage(route, search);
+  // fromUserNav=true：使用者主動點連結才會走這（refresh / popstate / 初始載入不經此）→ 准許 deep-link 導航動畫
+  return loadPage(route, search, true);
 }
 
 // ── 事件綁定 ──────────────────────────────────────────────────

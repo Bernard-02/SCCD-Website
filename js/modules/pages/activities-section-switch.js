@@ -14,6 +14,7 @@ import { setActiveNavBtn, showPanel } from '../ui/section-switch-helpers.js';
 import { playAdmissionPanelExit, playAdmissionPanelReveal, setupAdmissionReveal } from './admission-data-loader.js';
 import { playClipReveal } from '../ui/scroll-animate.js';
 import { registerPageExit } from '../ui/page-exit.js';
+import { waitForHeroAnimDone } from './hero-animation.js';
 
 // 追蹤哪些 panel 已載入過資料
 const loaded = {};
@@ -37,8 +38,10 @@ function scrollSectionIntoView(el, behavior = 'smooth') {
 let currentSectionColor = '';
 export function getCurrentSectionColor() { return currentSectionColor; }
 
-// 從外部（如 industry reference 按鈕）導航到指定 section 的指定 item
-export async function navigateToItem(section, itemId) {
+// 從外部（如 industry reference 按鈕 / 首頁 floating 活動海報 deep-link）導航到指定 section 的指定 item
+// smooth=true（首頁 deep-link 用）：平滑捲到 item、捲到位後 delay 才展開 accordion（對齊 curriculum 節奏）；
+// smooth=false（預設，ref 按鈕等頁內跳轉）：instant 跳到位後立即 flash + 展開（維持原行為）
+export async function navigateToItem(section, itemId, { smooth = false } = {}) {
   const btns = document.querySelectorAll('.activities-section-btn');
   await switchToSection(section, btns, false);
   if (!itemId) return;
@@ -90,22 +93,36 @@ export async function navigateToItem(section, itemId) {
   while (el) { targetTop += el.offsetTop; el = /** @type {HTMLElement | null} */ (el.offsetParent); }
   const finalTop = targetTop - compensate;
 
-  // instant scroll：smooth 會經過 hero 區造成「先回 hero 再展開」視覺，
-  // 切 panel 後 user 期待直接看到 target list 就位 → 用 instant 跳到位，highlight + accordion 動畫提供視覺回饋
-  window.scrollTo({ top: finalTop, behavior: 'instant' });
-
-  // scroll 已 instant 就位，直接閃 highlight + 展開 accordion（不需等 smooth scroll 600ms）
+  // flash highlight + 展開 item accordion 的共用收尾（flash 亮 → 600ms → 關 flash + 點開 list-header）
   const flashColor = currentSectionColor || '#00FF80';
-  target.style.transition = 'background 0.3s';
-  target.style.background = flashColor;
-  setTimeout(() => {
-    target.style.background = '';
-    const header = /** @type {HTMLElement | null} */ (target.querySelector('.list-header'));
-    if (header && !header.classList.contains('active')) {
-      header.style.background = flashColor;
-      header.click();
+  const flashThenOpenAccordion = () => {
+    target.style.transition = 'background 0.3s';
+    target.style.background = flashColor;
+    setTimeout(() => {
+      target.style.background = '';
+      const header = /** @type {HTMLElement | null} */ (target.querySelector('.list-header'));
+      if (header && !header.classList.contains('active')) {
+        header.style.background = flashColor;
+        header.click();
+      }
+    }, 600);
+  };
+
+  if (smooth) {
+    // 首頁 deep-link（已等 hero 跑完）：平滑捲到 item 讓 user 看到往下捲，捲動「結束」才 flash + 展開 accordion
+    // （對齊 curriculum：hero done → 平滑 scroll → delay 才開）。GSAP ScrollToPlugin onComplete 確保到位才動；無 plugin 時估時 fallback。
+    if (typeof window.ScrollToPlugin !== 'undefined') {
+      gsap.to(window, { scrollTo: { y: finalTop, autoKill: false }, duration: 0.5, ease: 'power2.inOut', onComplete: flashThenOpenAccordion });
+    } else {
+      window.scrollTo({ top: finalTop, behavior: 'smooth' });
+      setTimeout(flashThenOpenAccordion, 500);
     }
-  }, 600);
+  } else {
+    // ref 按鈕等頁內跳轉：用 instant 跳到位（smooth 會經過 hero 區造成「先回 hero 再展開」視覺），
+    // 切 panel 後 user 期待直接看到 target list 就位 → 立即 flash + 展開
+    window.scrollTo({ top: finalTop, behavior: 'instant' });
+    flashThenOpenAccordion();
+  }
 }
 
 /**
@@ -139,18 +156,18 @@ export function initActivitiesSectionSwitch(defaultSection = 'general') {
   const initialItem = params.get('item');
 
   if (params.has('section')) {
-    // 從外部連結進來：先停留在 hero 1s，再 scroll（+ highlight 特定項目）
+    // 從外部連結（如首頁 floating 活動海報）進來：等 hero 進場動畫「實際跑完」才往下捲
+    // （waitForHeroAnimDone，follow hero 動畫長度、不寫死 1s；對齊 curriculum），再 scroll（+ highlight 特定項目）
+    switchToSection(initialSection, btns, false, true);
     if (initialItem) {
-      // 有 ?item= → 用 navigateToItem 處理 scroll + 單一項目 highlight
-      switchToSection(initialSection, btns, false, true);
-      setTimeout(() => navigateToItem(initialSection, initialItem), 1000);
+      // 有 ?item= → navigateToItem smooth:true：平滑捲到該項目 → 捲到位 delay 才展開 accordion
+      waitForHeroAnimDone().then(() => navigateToItem(initialSection, initialItem, { smooth: true }));
     } else {
-      // 沒指定 item → 只 scroll 到 list section，不做 highlight
-      switchToSection(initialSection, btns, false, true);
-      setTimeout(() => {
+      // 沒指定 item → 只平滑捲到 list section，不做 highlight
+      waitForHeroAnimDone().then(() => {
         const sectionEl = /** @type {HTMLElement | null} */ (document.getElementById('activities-content-section'));
         scrollSectionIntoView(sectionEl);
-      }, 1000);
+      });
     }
   } else {
     switchToSection(initialSection, btns, false, true);

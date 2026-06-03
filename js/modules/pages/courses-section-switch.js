@@ -19,17 +19,23 @@ import { waitForHeroAnimDone } from './hero-animation.js';
 let currentProgramColor = '';
 export function getCurrentProgramColor() { return currentProgramColor; }
 
-// scrollIntoView wrapper：加 header 高度 offset，避免 active tab / list 緊貼 viewport top 被 header logo 遮住
-// 同 activities-section-switch.js / admission-section-switch.js 的 scrollSectionIntoView pattern
+// courses content section 的 anchor 目標 = section 頂端對齊 viewport 頂端（section.top=0），**不扣 header 高度**。
+// Why：courses.css 特地把 #courses-content-section padding-top 設成 200px（= sticky bar top:200px），
+//   設計成「scroll 到 section.top=0 時 cover 剛好開始 sticky、第一行卡片完美對齊」（見 courses.css 該段註解）。
+//   若像 activities/admission 那樣扣掉 header 高度，會少捲 ~header 高 → 卡片偏下、對齊點不夠
+//   （user 2026-06-04 回報「往下的對齊點還不夠」）。section 的 200px 上 padding 已讓內容清開 fixed header，不需再扣。
+/** @param {HTMLElement} el */
+function sectionScrollTop(el) {
+  return el.getBoundingClientRect().top + window.scrollY;
+}
+
 /**
  * @param {HTMLElement | null} el
  * @param {ScrollBehavior} [behavior]
  */
 function scrollSectionIntoView(el, behavior = 'smooth') {
   if (!el) return;
-  const headerH = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--header-height') || '80', 10);
-  const top = el.getBoundingClientRect().top + window.scrollY - headerH;
-  window.scrollTo({ top, behavior });
+  window.scrollTo({ top: sectionScrollTop(el), behavior });
 }
 
 // courses 專用旋轉幅度 ±2°（排除 ±0.5）— 比 SCCDHelpers.getRandomRotation(-4~6) 小，
@@ -106,7 +112,12 @@ function bindHover(btn) {
   });
 }
 
-export function initCoursesSectionSwitch() {
+/**
+ * @param {boolean} [fromUserNav] true=使用者點連結的 SPA 導航（首頁課程卡片）；
+ *   false=初始載入 / refresh / 上一頁下一頁。只有 fromUserNav 才播 ?item= 的「捲到 section + 開 slide-in」
+ *   導航動畫，refresh 視為全新頁面（只套 ?program= tab，不重播）。
+ */
+export function initCoursesSectionSwitch(fromUserNav = false) {
   const programBtns = document.querySelectorAll('.courses-program-btn');
   const panels = document.querySelectorAll('.courses-panel');
   const sectionEl = document.getElementById('courses-content-section');
@@ -129,16 +140,48 @@ export function initCoursesSectionSwitch() {
 
   const initSwitchPromise = switchToProgram(initialProgram, programBtns, false);
 
-  // deep-link flow（從首頁 floating course card 點擊或外部 ?program= URL）：
-  // 1) 等 hero 進場動畫做完才 auto-scroll（沒等的話視覺上字還沒滑進來就被推走）
-  // 2) renderCoursesGrid 完成 + ?item= 存在時 → 找對應 data-slug 卡片並 selectCard
-  //    → highlight + 開 slide-in（用戶從首頁點課程卡片應直接進該課程詳細）
-  if (hasQueryDeepLink) {
+  // deep-link 導航動畫（只在使用者從首頁 floating course card 點進來的 SPA 導航才播）：
+  //   ① 等 hero 進場動畫「實際播完」才往下捲 — 用 waitForHeroAnimDone()（在 hero timeline onComplete 時 resolve），
+  //      所以往下滑的觸發時機 follow hero 動畫長度，不是寫死時間（user 2026-06-04）
+  //   ② 平滑捲到「該課程卡片」本身（不是只捲 section 頂端）— 課程卡片可能在 grid 下方，只捲 section
+  //      頂端的話卡片仍在 viewport 外、slider 就開了看不到卡片（user 2026-06-04）。捲到卡片進 viewport 才開。
+  //   ③ 捲到位後再 delay OPEN_DELAY_MS 才開 slide-in（一到就開會感覺過早，留個緩衝；同 activities 的 600）
+  // ⚠️ fromUserNav 守衛：refresh / 直接開連結 / 上一頁下一頁時 fromUserNav=false → 不重播這段
+  //    （= user 要求「打開 slider 後 refresh 應該是全新頁面，不再走導航動畫」）；
+  //    ?program= 對應 tab 仍由上面 initSwitchPromise 套好，只是不 auto-scroll 也不自動開 slide-in。
+  if (hasQueryDeepLink && fromUserNav) {
+    const OPEN_DELAY_MS = 600;   // 捲到卡片後、開 slide-in 前的緩衝（同 activities navigateToItem 的 600）
+    // 同時等 grid render（卡片存在才能 selectCardBySlugInPanel）+ hero 動畫播完才往下捲
     Promise.all([initSwitchPromise, waitForHeroAnimDone()]).then(() => {
-      scrollSectionIntoView(sectionEl);
-      if (itemSlug) {
-        // 卡片 hover marquee 量測在 renderCoursesGrid 末段，selectCard 立刻可用
-        selectCardBySlugInPanel(initialProgram, itemSlug);
+      if (!sectionEl) return;
+      if (!itemSlug) { scrollSectionIntoView(sectionEl); return; }
+      // 導航的卡片一律「對齊到第一排卡片所在的位置」（= section.top=0 時第一排的視窗高度），比固定 viewport 比例
+      // 更一致可預期（user 2026-06-04）。做法：在「可見」grid（桌面/手機只一份顯示，挑 offsetParent 非 null）內
+      // 量目標卡片與「最上排卡片」的垂直距離 delta，加到 section.top=0 → 目標卡片剛好落在第一排位置。
+      // 捲動「結束」才排程開 slide-in：openCourseSlideIn 的 enterLightboxMode() 會凍結捲動，半途開會卡在中途。
+      const panel = document.getElementById(`panel-${initialProgram}`);
+      let top = sectionScrollTop(sectionEl);
+      if (panel) {
+        /** @type {HTMLElement|null} */ let targetCard = null;
+        let firstRowTop = Infinity;
+        panel.querySelectorAll('.courses-grid-card').forEach(c => {
+          const el = /** @type {HTMLElement} */ (c);
+          if (el.offsetParent === null) return; // 跳過隱藏的另一份 grid（桌面/手機）
+          const rectTop = el.getBoundingClientRect().top;
+          if (rectTop < firstRowTop) firstRowTop = rectTop;
+          if (!targetCard && el.getAttribute('data-slug') === itemSlug) targetCard = el;
+        });
+        if (targetCard && firstRowTop !== Infinity) {
+          // delta = 目標與第一排的垂直距離（scroll 無關）；加到 section.top=0 即把目標移到第一排視窗位置
+          top = sectionScrollTop(sectionEl) + (targetCard.getBoundingClientRect().top - firstRowTop);
+        }
+      }
+      const openCard = () => setTimeout(() => selectCardBySlugInPanel(initialProgram, itemSlug), OPEN_DELAY_MS);
+      if (typeof window.ScrollToPlugin !== 'undefined') {
+        gsap.to(window, { scrollTo: { y: top, autoKill: false }, duration: 0.5, ease: 'power2.inOut', onComplete: openCard });
+      } else {
+        window.scrollTo({ top, behavior: 'smooth' });
+        setTimeout(openCard, 500);
       }
     });
   }

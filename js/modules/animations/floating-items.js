@@ -3,6 +3,8 @@
  * 在首頁背景層漂浮的元素，像宇宙中的螢火蟲
  */
 
+import { registerPageCleanup } from '../ui/page-cleanup.js';
+
 // 桌面 20、手機 12（< 768px）。手機減量是視覺優化，不影響桌面。
 function isMobileViewport() { return window.innerWidth < 768; }
 const TOTAL_ITEMS = isMobileViewport() ? 12 : 20;
@@ -24,13 +26,16 @@ async function fetchActivityPosters() {
   const pool = [];
 
   // 活動類 JSON → 導航到 activities.html?section=X
+  // ⚠️ general-activities.json 是「混合檔」（visits / exhibitions / competitions / conferences 四類混在同檔），
+  //    不能整包標成單一 section，否則 visits/exhibitions 的海報全被導到 competitions section（而 competitions
+  //    項目自己沒海報＝那頁本來就空的）。用 sectionFromCategory 旗標 → 每筆用自己的 item.category 當 section。
   const activitySources = [
     { file: 'data/permanent-exhibitions.json', section: 'exhibitions' },
     { file: 'data/lectures.json',              section: 'lectures' },
     { file: 'data/workshops.json',             section: 'workshop' },
     { file: 'data/summer-camp.json',           section: 'summer-camp' },
     { file: 'data/students-present.json',      section: 'students-present' },
-    { file: 'data/general-activities.json',    section: 'competitions' },
+    { file: 'data/general-activities.json',    sectionFromCategory: true },
   ];
 
   await Promise.all(activitySources.map(async (src) => {
@@ -41,12 +46,15 @@ async function fetchActivityPosters() {
         const items = Array.isArray(group) ? group : (group.items || []);
         items.forEach(item => {
           if (item.poster) {
+            // 混合檔（general-activities）每筆用自己的 category 當 section；其餘檔用固定 section
+            const section = src.sectionFromCategory ? item.category : src.section;
+            if (!section) return;
             // 有 id 就加上 &item= 讓目標頁可以 highlight 該項目
             const itemParam = item.id ? `&item=${item.id}` : '';
             pool.push({
               type: 'image',
               src: normalizeImagePath(item.poster),
-              url: `pages/activities.html?section=${src.section}${itemParam}`,
+              url: `pages/activities.html?section=${section}${itemParam}`,
             });
           }
         });
@@ -54,7 +62,7 @@ async function fetchActivityPosters() {
     } catch (_) {}
   }));
 
-  // Library documents → library.html#f-{id}
+  // Library documents（PDF）→ library.html#f-{id}（floating 不一定都導 activities；也帶使用者去 library 文件）
   try {
     const files = await fetch('data/library.json').then(r => r.json());
     files.forEach(item => {
@@ -68,7 +76,7 @@ async function fetchActivityPosters() {
     });
   } catch (_) {}
 
-  // Album → library.html（無 id，只到 album panel）
+  // Album → library.html#album-{id}（無 id 則只到 album panel）
   try {
     const albumGroups = await fetch('data/album-others.json').then(r => r.json());
     albumGroups.forEach(group => {
@@ -77,7 +85,7 @@ async function fetchActivityPosters() {
           pool.push({
             type: 'image',
             src: normalizeImagePath(item.cover),
-            url: 'pages/library.html',
+            url: item.id ? `pages/library.html#album-${item.id}` : 'pages/library.html',
           });
         }
       });
@@ -140,6 +148,23 @@ async function fetchAwardTexts() {
   return pool;
 }
 
+// 從 press.json 撈報導標題（導航到 library Press panel 對應文章）
+// press 沒有封面圖 → 跟 awards 一樣走文字浮動項；#press-N deep-link 由 library handleLibraryHash 處理
+async function fetchPressTexts() {
+  const pool = [];
+  try {
+    const items = await fetch('data/press.json').then(r => r.json());
+    items.forEach(item => {
+      if (!item.id) return;
+      const en = item.titleEn || '';
+      const zh = item.titleZh || '';
+      if (!en && !zh) return;
+      pool.push({ type: 'text', textEn: en, textZh: zh, url: `pages/library.html#${item.id}` });
+    });
+  } catch (_) {}
+  return pool;
+}
+
 // Fisher-Yates shuffle
 function shuffle(arr) {
   for (let i = arr.length - 1; i > 0; i--) {
@@ -162,6 +187,9 @@ function preventOrphan(text) {
 
 // 全局 news hover 狀態，所有 item 訂閱
 const newsHoverListeners = { enter: [], leave: [] };
+
+// 全局 theme:changed listener registry（離頁時統一移除，避免 SPA 換頁累積）
+const themeListeners = [];
 
 export function applyNewsHover() {
   newsHoverListeners.enter.forEach(fn => fn());
@@ -316,6 +344,7 @@ function createTextEl(textEn, textZh, url) {
     setColors();
   }
   window.addEventListener('theme:changed', onThemeChange);
+  themeListeners.push(onThemeChange);
 
   // 訂閱 news hover：文字色改成底色（變純色 block）；mode-color 不適用（保持黑白）
   newsHoverListeners.enter.push(() => {
@@ -494,6 +523,23 @@ function spawnItem(container, poolEntry, fromEdge = false) {
     el.style.whiteSpace = 'normal';
     el.style.wordBreak = 'break-word';
     el.style.width = `${MAX_TEXT_WIDTH}px`;
+    // 換行後把卡片收到「實際最寬那一行」的寬度，避免固定 210px 在較短折行右側留白
+    // （user 2026-06-04：floating 文字卡要 fit 文字本身寬度）。用 Range.getClientRects 量各行 box 取最大。
+    let widest = 0;
+    const range = document.createRange();
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      if (!n.textContent || !n.textContent.trim()) continue;
+      range.selectNodeContents(n);
+      const rects = range.getClientRects();
+      for (let i = 0; i < rects.length; i++) if (rects[i].width > widest) widest = rects[i].width;
+    }
+    if (widest > 0) {
+      const cs = getComputedStyle(el);
+      const extra = cs.boxSizing === 'border-box'
+        ? parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) : 0;
+      el.style.width = `${Math.ceil(widest) + extra}px`;
+    }
   }
   const realW = el.offsetWidth || w;
   const realH = el.offsetHeight || h;
@@ -573,21 +619,23 @@ export async function initFloatingItems() {
   const container = document.getElementById('floating-layer');
   if (!container) return;
 
-  // 建立 pool：圖片 + 課程文字 + 獎項文字
-  const [imagePool, coursePool, awardPool] = await Promise.all([
+  // 建立 pool：圖片（活動海報 + library 文件/相簿封面）+ 課程文字 + 獎項文字 + 報導文字
+  const [imagePool, coursePool, awardPool, pressPool] = await Promise.all([
     fetchActivityPosters(),
     fetchCourseTexts(),
     fetchAwardTexts(),
+    fetchPressTexts(),
   ]);
 
-  // 各 pool 獨立洗牌，依 2:1:1 比例隨機取出
+  // 各 pool 獨立洗牌，依 2:1:1:1 比例隨機取出
   shuffle(imagePool);
   shuffle(coursePool);
   shuffle(awardPool);
-  const poolCursors = [0, 0, 0];
-  const pools = [imagePool, coursePool, awardPool];
-  // 權重：圖片 2、課程 1、獎項 1 → 累積 [2, 3, 4]
-  const cumWeights = [2, 3, 4];
+  shuffle(pressPool);
+  const poolCursors = [0, 0, 0, 0];
+  const pools = [imagePool, coursePool, awardPool, pressPool];
+  // 權重：圖片 2、課程 1、獎項 1、報導 1 → 累積 [2, 3, 4, 5]
+  const cumWeights = [2, 3, 4, 5];
 
   function nextPoolEntry() {
     const r = Math.random() * cumWeights[cumWeights.length - 1];
@@ -652,7 +700,7 @@ export async function initFloatingItems() {
 
   rafId = requestAnimationFrame(tick);
 
-  document.addEventListener('visibilitychange', () => {
+  function onVisibilityChange() {
     if (document.hidden) {
       running = false;
       if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
@@ -660,5 +708,18 @@ export async function initFloatingItems() {
       running = true;
       if (!rafId) rafId = requestAnimationFrame(tick);
     }
+  }
+  document.addEventListener('visibilitychange', onVisibilityChange);
+
+  // SPA 離開首頁時停 RAF + 解綁所有 listener，避免每次回首頁累積
+  // （tick 對 detached DOM 空跑、visibilitychange 匿名 handler 複利、newsHoverListeners/themeListeners 無限增長）
+  registerPageCleanup(() => {
+    running = false;
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+    document.removeEventListener('visibilitychange', onVisibilityChange);
+    themeListeners.forEach(fn => window.removeEventListener('theme:changed', fn));
+    themeListeners.length = 0;
+    newsHoverListeners.enter.length = 0;
+    newsHoverListeners.leave.length = 0;
   });
 }

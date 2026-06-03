@@ -742,6 +742,7 @@ export async function loadListInto(containerId, url, options = {}) {
     attachmentsField     = 'attachments',
     dateInHeader         = false,
     alwaysExpanded       = false,
+    allowNoMedia         = false,
     data: providedData   = null,
   } = options;
 
@@ -793,7 +794,8 @@ export async function loadListInto(containerId, url, options = {}) {
       items: (yg.items || []).filter(i =>
         (!categoryFilter  || i.category          === categoryFilter) &&
         (!visitTypeFilter || i[visitTypeField]   === visitTypeFilter) &&
-        (bodyField || hasVisibleMedia(i))
+        // 媒體導向 list 要有可視 media 才渲染；但 allowNoMedia（competitions/conferences 純文字活動）放行無媒體項目
+        (bodyField || allowNoMedia || hasVisibleMedia(i))
       ),
     }))
     .filter(yg => yg.items.length > 0);
@@ -1319,6 +1321,8 @@ export async function loadGeneralActivitiesInto(containerId, categoryFilter = nu
   const data = (endpoint && !options.data) ? await fetchActEndpointOrFallback(endpoint, url) : null;
   return loadListInto(containerId, url, {
     categoryFilter,
+    // competitions / conferences 是純文字活動（標題＋日期＋描述，無海報/圖片），放行無媒體項目才不會被濾成空清單
+    allowNoMedia:         categoryFilter === 'competitions' || categoryFilter === 'conferences',
     showAlumniIcon:       true,
     showDate:             !isIndustry,
     showDescription:      !isLectures && !isIndustry,

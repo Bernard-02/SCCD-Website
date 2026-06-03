@@ -16,7 +16,6 @@ import { initFacultyFilter } from './modules/filters/faculty-filter.js';
 import { initFloatingItems, initWatchHover } from './modules/animations/floating-items.js';
 import { initSmoothScroll } from './modules/ui/smooth-scroll.js';
 import { initBFADivisionToggle } from './modules/ui/bfa-division-toggle.js';
-import { initBtnFillHover } from './modules/ui/btn-fill-hover.js';
 import { initTextReveal } from './modules/ui/text-reveal.js';
 import { initIdleStandby } from './modules/ui/idle-standby.js';
 import { initCustomScrollbar } from './modules/ui/custom-scrollbar.js';
@@ -73,6 +72,7 @@ import { initAlumni } from './modules/pages/alumni.js';
 import { loadFacultyData } from './modules/pages/faculty-data-loader.js';
 import { loadAdmissionData } from './modules/pages/admission-data-loader.js';
 import { loadLegalData } from './modules/pages/legal-data-loader.js';
+import { initLegalTitleRandom } from './modules/pages/legal-title-random.js';
 import { loadDegreeShowDetail } from './modules/pages/degree-show-data-loader.js';
 import { init404, cleanup404 } from './modules/pages/error-404.js';
 
@@ -145,7 +145,10 @@ export function cleanupPageModules(destPage) {
 }
 
 // ── 頁面模組初始化（router 每次換頁都會呼叫）──────────────────
-export function initPageModules(page, searchParams = new URLSearchParams()) {
+// fromUserNav：true=使用者點連結的 SPA 導航；false=初始載入 / refresh / 上一頁下一頁。
+// 給 curriculum 的 deep-link（?item= 自動捲到 section + 開 slide-in）判斷：只有從首頁卡片
+// 點進來（fromUserNav）才播這段導航動畫，refresh 視為全新頁面不重播。
+export function initPageModules(page, searchParams = new URLSearchParams(), fromUserNav = false) {
 
   // Theme mode：每次切頁 re-evaluate
   // /generate 頁暫停 mode（移除 body class）+ 按鈕 disabled；其他頁恢復 sessionStorage 的 mode
@@ -170,6 +173,9 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
     } else {
       document.addEventListener('header:ready', initHeroAnimation, { once: true });
     }
+    // legal-page 左欄大標題 chip 隨機傾角 + 水平位移（自我守衛：無 .legal-title-block 即 return）。
+    // 設 CSS var 在 .legal-title-block 上即可，不需等 hero wrapper 生成（wrapper 之後繼承讀 var）。
+    initLegalTitleRandom();
   }
 
   // --- Index Page ---
@@ -256,7 +262,7 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
 
   // --- Curriculum Page（route/file 改名 curriculum；內部模組/CSS class 仍叫 courses-*）---
   if (page === 'curriculum') {
-    initCoursesSectionSwitch();
+    initCoursesSectionSwitch(fromUserNav);
   }
 
   // --- Activities Page ---
@@ -414,7 +420,6 @@ document.addEventListener('DOMContentLoaded', function () {
   initThemeToggle();
   initFooter();
   initSmoothScroll();
-  initBtnFillHover();
   initIdleStandby();
   initCustomScrollbar();
   initShareModal();
