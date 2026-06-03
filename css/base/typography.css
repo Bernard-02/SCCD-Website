@@ -11,6 +11,9 @@
 
   body {
     @apply font-sans text-black bg-white leading-base;
+    /* 中文標點避頭（kinsoku）：。，、：；！？」』）] 等不出現在行首 */
+    line-break: strict;
+    word-break: normal;
   }
 
   h1 {

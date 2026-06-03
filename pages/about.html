@@ -98,16 +98,16 @@
         <div class="site-container relative z-10">
           <!-- Mouse trail container（文字上方，z-20 高於 grid 的 text） -->
           <div id="overview-trail-container" class="absolute inset-0 pointer-events-none z-20"></div>
-          <div class="grid-12">
-            <!-- English Text (Column 3-7) -->
-            <div class="col-span-12 md:col-start-3 md:col-span-5 mb-lg md:mb-0">
+          <div class="grid-20">
+            <!-- English Text (左半，cols 4-12) -->
+            <div class="col-span-full md:col-start-5 md:col-span-8 mb-lg md:mb-0">
               <h5 class="text-black leading-snug">
                 <span data-overview-hl style="display: block; padding: 0.5em 0.6em;">Department of Communications Design, Shih Chien University / SCCD is the first academic institution to establish the "Communications Design" department in the country. The teaching of the department takes design thinking, humanities, and aesthetics as the cornerstones, uses multidimensional platforms as the foundation, diverse media as the carrier, and integrates teaching experiments and design training such as animation, narrative video, interaction, performance, game, product, space. and environment. Supplemented by intensive international workshop and industry-academy cooperation in various fields, as well as overseas exchange opportunities. It aims to cultivate director-type creative talents who can integrate "media" as the vehicle, "design" as the method, emphasize "communications" as the core of human civilization, and adapt to the rapid changes of the era.</span>
               </h5>
             </div>
 
-            <!-- Chinese Text (Column 8-12) -->
-            <div class="col-span-12 md:col-start-8 md:col-span-5">
+            <!-- Chinese Text (右半，cols 13-20) -->
+            <div class="col-span-full md:col-start-13 md:col-span-8">
               <h5 class="text-black leading-base">
                 <span data-overview-hl style="display: block; padding: 0.5em 0.6em;">實踐大學媒體傳達設計學系為全國首創成立「媒體傳達設計」之學系。學系教學以設計思考、人文、美學為核心基石，運用多維度平台為基礎與多樣性媒材為載體，整合動畫、敘事影像、互動、展演、遊戲、商品、空間、環境等教學實驗與設計訓練，輔以密集舉辦之跨國工作與各領域產學合作，同時提供海外交換留學機會，旨在培育能整合「媒體」為乘載，「設計」為方法，強調「傳達」為人類文明之核心，得以適應時代快速變遷之總監型創作人才。</span>
               </h5>
@@ -156,8 +156,8 @@
         <!-- Desktop Sticky Division Buttons：sticky top 100px = anchor 點，點擊 class/works 當下 btn 零位移 -->
         <div id="class-buttons-sticky" class="hidden md:block sticky z-40 pt-3xl pb-md" style="top: 100px;">
           <div class="site-container">
-            <div class="grid-12">
-              <div class="md:col-start-3 md:col-span-10 flex items-end gap-xl">
+            <div class="grid-20">
+              <div class="md:col-start-5 md:col-span-16 flex items-end gap-xl">
                 <!-- BFA / Design Fundamental（works 模式才顯示，預設收起；樣式仿 MDES） -->
                 <div class="class-division-bfa-wrap">
                   <button class="class-division-btn font-bold transition-all duration-fast text-left whitespace-nowrap" data-division="bfa">
@@ -197,8 +197,8 @@
 
           <!-- Animation -->
           <div class="class-info-panel pb-3xl relative z-10" data-division="animation">
-            <div class="grid-12 md:items-start">
-              <div class="col-span-12 md:col-start-3 md:col-span-4 order-2 md:order-1 mt-xl md:mt-0">
+            <div class="grid-20 md:items-start">
+              <div class="col-span-full md:col-start-5 md:col-span-6 order-2 md:order-1 mt-xl md:mt-0">
                 <div data-class-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
                   <p class="mb-xs division-text font-bold">Explore the relationship between self and the environment through animation creation, and then extend the care and reflection on culture, ecology and humanities.</p>
                   <p class="mb-md division-text font-bold">透過動畫創作探討自我與環境的關係，進而延伸對文化、生態與人文之關懷與省思。</p>
@@ -206,7 +206,7 @@
                   <p class="division-text font-bold">課程結合 2D、3D、停格與實驗性手法，培養學生紮實的技術能力與獨特的視覺敘事觀點。</p>
                 </div>
               </div>
-              <div class="col-span-12 md:col-start-8 md:col-span-5 relative order-1 md:order-2 mb-xl md:mb-0 works-container division-images" data-division="animation">
+              <div class="col-span-full md:col-start-13 md:col-span-8 relative order-1 md:order-2 mb-xl md:mb-0 works-container division-images" data-division="animation">
                 <!-- JS 動態 render 3 張 .class-img，5s 輪播（class-images-slideshow.js） -->
               </div>
             </div>
@@ -214,8 +214,8 @@
 
           <!-- Creative Media -->
           <div class="class-info-panel pb-3xl hidden relative z-10" data-division="creative-media">
-            <div class="grid-12 md:items-start">
-              <div class="col-span-12 md:col-start-3 md:col-span-4 order-2 md:order-1 mt-xl md:mt-0">
+            <div class="grid-20 md:items-start">
+              <div class="col-span-full md:col-start-5 md:col-span-6 order-2 md:order-1 mt-xl md:mt-0">
                 <div data-class-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
                   <p class="mb-xs division-text font-bold">Explore the essence of new media interaction from multiple perspectives, furthermore, showing care and reflection on humanities, society, and the environment by these perspectives.</p>
                   <p class="mb-md division-text font-bold">多面向探討新媒體互動的本質，並藉此對人文、社會、環境作進一步之關懷與省思。</p>
@@ -223,7 +223,7 @@
                   <p class="division-text font-bold">學生接觸互動裝置、虛擬實境與生成式設計等新興技術，透過跨領域實驗結合藝術、程式與設計思維。</p>
                 </div>
               </div>
-              <div class="col-span-12 md:col-start-8 md:col-span-5 relative order-1 md:order-2 mb-xl md:mb-0 works-container division-images" data-division="creative-media">
+              <div class="col-span-full md:col-start-13 md:col-span-8 relative order-1 md:order-2 mb-xl md:mb-0 works-container division-images" data-division="creative-media">
                 <!-- JS 動態 render 3 張 .class-img，5s 輪播 -->
               </div>
             </div>
@@ -231,8 +231,8 @@
 
           <!-- MDES -->
           <div class="class-info-panel pb-3xl hidden relative z-10" data-division="mdes">
-            <div class="grid-12 md:items-start">
-              <div class="col-span-12 md:col-start-3 md:col-span-4 order-2 md:order-1 mt-xl md:mt-0">
+            <div class="grid-20 md:items-start">
+              <div class="col-span-full md:col-start-5 md:col-span-6 order-2 md:order-1 mt-xl md:mt-0">
                 <div data-class-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
                   <p class="mb-xs division-text font-bold">The MDES program offers advanced research and creative practice opportunities, fostering innovation in communications design. Graduate students engage in cutting-edge projects that push the boundaries of design thinking and media expression.</p>
                   <p class="mb-md division-text font-bold">碩士班提供進階研究與創作實踐機會，培養媒體傳達設計的創新能力。研究生參與前瞻性專案，推進設計思維與媒體表達的界限。</p>
@@ -240,7 +240,7 @@
                   <p class="division-text font-bold">透過個別指導與協作工作室，學生發展具原創性的專案，為當代視覺傳達與媒體藝術論述做出貢獻。</p>
                 </div>
               </div>
-              <div class="col-span-12 md:col-start-8 md:col-span-5 relative order-1 md:order-2 mb-xl md:mb-0 works-container division-images" data-division="mdes">
+              <div class="col-span-full md:col-start-13 md:col-span-8 relative order-1 md:order-2 mb-xl md:mb-0 works-container division-images" data-division="mdes">
                 <!-- JS 動態 render 3 張 .class-img，5s 輪播 -->
               </div>
             </div>
@@ -265,15 +265,15 @@
 
           <!-- BFA / Design Fundamental（學士班 btn 的預設內容） -->
           <div class="class-works-panel hidden" data-division="bfa">
-            <div class="grid-12 md:items-start">
-              <div class="col-span-12 md:col-start-3 md:col-span-3">
+            <div class="grid-20 md:items-start">
+              <div class="col-span-full md:col-start-5 md:col-span-4">
                 <div data-works-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
                   <p class="text-p2 mb-xs font-bold">Foundation courses that develop core design principles, visual literacy, and technical skills essential for creative media practice.</p>
                   <p class="text-p2 font-bold">培養核心設計原則、視覺素養與技術能力的基礎課程，為創意媒體實踐奠定根基。</p>
                   <div class="works-playlist-list" data-division="bfa"></div>
                 </div>
               </div>
-              <div class="col-span-12 md:col-start-6 md:col-span-7 md:ml-xl">
+              <div class="col-span-full md:col-start-9 md:col-span-12 md:ml-xl">
                 <div class="aspect-video w-full overflow-hidden">
                   <iframe class="works-video-iframe w-full h-full border-0" data-division="bfa" src="https://www.youtube.com/embed/JBRReuUk4dE?list=PLG0DnOKlL-lko5mBve7UjN2itLz4KwxUF" allowfullscreen></iframe>
                 </div>
@@ -283,15 +283,15 @@
 
           <!-- Animation -->
           <div class="class-works-panel" data-division="animation">
-            <div class="grid-12 md:items-start">
-              <div class="col-span-12 md:col-start-3 md:col-span-3">
+            <div class="grid-20 md:items-start">
+              <div class="col-span-full md:col-start-5 md:col-span-4">
                 <div data-works-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
                   <p class="text-p2 mb-xs font-bold">Animated works that explore storytelling, motion design, and experimental animation techniques.</p>
                   <p class="text-p2 font-bold">探索敘事、動態設計與實驗動畫技術的動畫作品。</p>
                   <div class="works-playlist-list" data-division="animation"></div>
                 </div>
               </div>
-              <div class="col-span-12 md:col-start-6 md:col-span-7 md:ml-xl">
+              <div class="col-span-full md:col-start-9 md:col-span-12 md:ml-xl">
                 <div class="aspect-video w-full overflow-hidden">
                   <iframe class="works-video-iframe w-full h-full border-0" data-division="animation" src="https://www.youtube.com/embed/qklohUskSX4?list=PLG0DnOKlL-llBG3d2yiQeQnhN6MK95pM4" allowfullscreen></iframe>
                 </div>
@@ -301,15 +301,15 @@
 
           <!-- Creative Media -->
           <div class="class-works-panel hidden" data-division="creative-media">
-            <div class="grid-12 md:items-start">
-              <div class="col-span-12 md:col-start-3 md:col-span-3">
+            <div class="grid-20 md:items-start">
+              <div class="col-span-full md:col-start-5 md:col-span-4">
                 <div data-works-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
                   <p class="text-p2 mb-xs font-bold">Innovative media projects that integrate technology, interactivity, and creative storytelling.</p>
                   <p class="text-p2 font-bold">融合技術、互動與創意敘事的創新媒體專案。</p>
                   <div class="works-playlist-list" data-division="creative-media"></div>
                 </div>
               </div>
-              <div class="col-span-12 md:col-start-6 md:col-span-7 md:ml-xl">
+              <div class="col-span-full md:col-start-9 md:col-span-12 md:ml-xl">
                 <div class="aspect-video w-full overflow-hidden">
                   <iframe class="works-video-iframe w-full h-full border-0" data-division="creative-media" src="https://www.youtube.com/embed/hIbasPs5gho?list=PLG0DnOKlL-lm5Vdc2x-ULMdlo6fsM-pQn" allowfullscreen></iframe>
                 </div>
@@ -319,15 +319,15 @@
 
           <!-- MDES -->
           <div class="class-works-panel hidden" data-division="mdes">
-            <div class="grid-12 md:items-start">
-              <div class="col-span-12 md:col-start-3 md:col-span-3">
+            <div class="grid-20 md:items-start">
+              <div class="col-span-full md:col-start-5 md:col-span-4">
                 <div data-works-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
                   <p class="text-p2 mb-xs font-bold">Advanced research and creative practice fostering innovation in communications design.</p>
                   <p class="text-p2 font-bold">碩士班提供進階研究與創作實踐機會，培養媒體傳達設計的創新能力。</p>
                   <div class="works-playlist-list" data-division="mdes"></div>
                 </div>
               </div>
-              <div class="col-span-12 md:col-start-6 md:col-span-7 md:ml-xl">
+              <div class="col-span-full md:col-start-9 md:col-span-12 md:ml-xl">
                 <div class="aspect-video w-full overflow-hidden">
                   <iframe class="works-video-iframe w-full h-full border-0" data-division="mdes" src="" allowfullscreen></iframe>
                 </div>
@@ -355,8 +355,8 @@
         </div>
 
         <div class="site-container pt-3xl pb-lg md:pb-xl relative z-30">
-          <div class="grid-12 relative z-10">
-            <div id="resources-accordion-container" class="col-span-12 md:col-start-2 md:col-span-11 md:ml-xl mx-[calc(var(--container-padding)*-1)] md:mx-0">
+          <div class="grid-20 relative z-10">
+            <div id="resources-accordion-container" class="col-span-full md:col-start-5 md:col-span-16 mx-[calc(var(--container-padding)*-1)] md:mx-0">
               <!-- Accordion will be injected here by JS -->
             </div>
           </div>

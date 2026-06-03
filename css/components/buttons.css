@@ -129,6 +129,17 @@
     }
   }
 
+  /* faculty 側欄占 4 欄（grid-20：nav col 1-4、卡片區 col 5-20）：
+   * 卡片移到 col-5 後 nav 有 cols 1-4 可用，主流桌面（≥~1125px）單行「Full-time Professors」(~185px)塞得下。
+   * chip = inline-flex content-sized：內容 < 側欄寬(4 欄) → 單行貼齊文字（底色 hug、左右 padding 對稱）；
+   *        內容 > 側欄寬(小筆電 768–1124) → max-width:100% 封頂 → 自動折行，仍不碰卡片(col-5)。
+   * btn width:100% 撐滿 4 欄當折行門檻 + click area。
+   * 只桌面：手機 nav 水平 scroll、btn shrink-0 content-width，維持單行不折。 */
+  @media (min-width: 768px) {
+    .faculty-filter-btn { width: 100%; }
+    .faculty-filter-btn .anchor-nav-inner { max-width: 100%; }
+  }
+
   /* ===== Activities Section Bar（手機水平 scroll；桌面 sticky vertical stack） =====
    * 手機：force row + overflow-x:auto + 兩側負 margin 延伸到 viewport 邊（courses-program-bar 同 pattern）
    *      - flex-direction:row + flex-wrap:nowrap !important 覆蓋 HTML 的 flex-row + flex-wrap (HTML 預設 flex-row)
@@ -343,22 +354,6 @@
     align-items: center;
     gap: var(--spacing-xs);
     white-space: nowrap;
-  }
-
-
-  /* ===== Works Filter Buttons ===== */
-  .works-filter-btn {
-    border: 4px solid #000000;
-    border-radius: 20px;
-    background: transparent;
-    color: #000000;
-    cursor: var(--cursor-pointer);
-  }
-
-  .works-filter-btn.active {
-    background: #000000;
-    color: #FFFFFF;
-    font-weight: 700;
   }
 
   /* ===== Class Group Label (BFA Class 學士班)：旋轉由 JS 設定 ===== */

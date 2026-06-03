@@ -1,6 +1,6 @@
 /**
  * Section Switch Helpers
- * 4 個 section-switch 模組（activities/courses/works/admission）共用的按鈕/面板切換邏輯
+ * 3 個 section-switch 模組（activities/courses/admission）共用的按鈕/面板切換邏輯
  *
  * 用法範例：
  *   const btns = document.querySelectorAll('.activities-section-btn');

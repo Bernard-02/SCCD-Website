@@ -39,11 +39,9 @@ import { initActivitiesSectionSwitch } from './modules/pages/activities-section-
 import { initActivitiesSearch } from './modules/ui/activities-search.js';
 import { initShareModal } from './modules/ui/share-modal.js';
 import { initCoursesSectionSwitch } from './modules/pages/courses-section-switch.js';
-import { initWorksSectionSwitch } from './modules/pages/works-section-switch.js';
 
 // Import Accordion Modules
 import { initHorizontalAccordion } from './modules/accordions/horizontal-accordion.js';
-import { initActivitiesYearToggle } from './modules/accordions/activities-year-toggle.js';
 
 // Import Index Page Modules
 import { initMarquee } from './modules/pages/index-marquee.js';
@@ -72,10 +70,8 @@ import { initAtlas, cleanupAtlas } from './modules/pages/atlas.js';
 import { initAlumni } from './modules/pages/alumni.js';
 
 // Import Data Loaders
-import { loadRecords } from './modules/pages/records-data-loader.js';
 import { loadFacultyData } from './modules/pages/faculty-data-loader.js';
 import { loadAdmissionData } from './modules/pages/admission-data-loader.js';
-import { initSupport } from './modules/pages/support.js';
 import { loadLegalData } from './modules/pages/legal-data-loader.js';
 import { loadDegreeShowDetail } from './modules/pages/degree-show-data-loader.js';
 import { init404, cleanup404 } from './modules/pages/error-404.js';
@@ -161,11 +157,10 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
   // 否則動畫跑在空元素上、clearProps 完才填字，使用者看到的是靜態文字（中文標題沒有進場動畫）
   //
   // 需等 header:ready：randomizeHeroLayout 要量 #header-logo bounds 避免文字被 logo 切到（faculty 等頁有 hero-rand-grid 隨機排版），
-  // header 是 async fetch 注入，未 ready 時 querySelector('#header-logo') 為 null
-  // support 頁有自己的 hero（自訂 timeline + 隨機 layout），由 initSupport 接管，不走共用 initHeroAnimation；
-  // 共用版需等 header:ready，若 event 早於 listener 註冊 → 動畫不跑 → titles/banner 永遠 visibility:hidden，
-  // 是 support 頁 refresh 偶發「沒 load 出來」的成因。support 自己接管後不依賴 header race。
-  if (page !== 'degree-show-detail' && page !== 'support') {
+  // header 是 async fetch 注入，未 ready 時 querySelector('#header-logo') 為 null；
+  // 下方 guard（header 已在則立即跑、否則等 event once）已消除「event 早於 listener」race，故各頁共用即可。
+  // support 頁 2026-06-03 改 legal-page layout（無 hero-rand-grid）後也回歸共用 initHeroAnimation（title chip 進場 + 派色）。
+  if (page !== 'degree-show-detail') {
     // hero-mobile-sync：4 頁共用 hero (faculty/courses/activities/admission) 手機 DOM 從桌面 clone 文案+banner src
     // 必須在 initHeroAnimation 之前跑：hero-animation.js 對 [data-hero-hl] 套色時手機 chip 要已注入內容
     // 其他頁無 .hero-mobile / .hero-rand-grid 結構 → sync 函式自身 early return 不影響
@@ -259,14 +254,9 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
     });
   }
 
-  // --- Courses Page ---
-  if (page === 'courses') {
+  // --- Curriculum Page（route/file 改名 curriculum；內部模組/CSS class 仍叫 courses-*）---
+  if (page === 'curriculum') {
     initCoursesSectionSwitch();
-  }
-
-  // --- Support Page ---
-  if (page === 'support') {
-    initSupport();
   }
 
   // --- Activities Page ---
@@ -277,17 +267,6 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
     initPdfViewer();
   }
 
-  // --- Records Page ---
-  if (page === 'awards') {
-    loadRecords().then(() => {
-      initActivitiesYearToggle();
-    });
-  }
-
-  // --- Works Page ---
-  if (page === 'works') {
-    initWorksSectionSwitch();
-  }
 
   // --- Atlas Page ---
   if (page === 'atlas') {
@@ -412,6 +391,9 @@ export function initPageModules(page, searchParams = new URLSearchParams()) {
   }
 
   // --- Legal Pages ---
+  if (page === 'regulations') {
+    loadLegalData('regulations');
+  }
   if (page === 'privacy-policy') {
     loadLegalData('privacy-policy');
   }

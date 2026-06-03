@@ -1572,6 +1572,16 @@ function animateSaveButton(button, iconElement) {
     // 檢查是否為手機版
     const isMobile = imgEl.id === 'save-img-mobile';
 
+    // 去程隨機抽 4 方向之一，回程用相反方向（視覺上反向回到原 icon）
+    const DIRS = ['up', 'down', 'left', 'right'];
+    const OPP = { up: 'down', down: 'up', left: 'right', right: 'left' };
+    const dir = DIRS[Math.floor(Math.random() * DIRS.length)];
+    const rev = OPP[dir];
+    // 桌面版 inline clip-path 值（對齊 keyframes）：out = 朝該方向收合，inFrom = 從相反邊長出
+    const CLIP_OUT = { up: 'inset(0 0 100% 0)', down: 'inset(100% 0 0 0)', left: 'inset(0 100% 0 0)', right: 'inset(0 0 0 100%)' };
+    const CLIP_IN_FROM = { up: 'inset(100% 0 0 0)', down: 'inset(0 0 100% 0)', left: 'inset(0 0 0 100%)', right: 'inset(0 100% 0 0)' };
+    const CLIP_VISIBLE = 'inset(0 0 0 0)';
+
     if (isMobile) {
         // === 手機版：使用 CSS Animation ===
         // 確保 icon 是正確的 Download/Gift icon（防止重複點擊或狀態異常）
@@ -1582,31 +1592,31 @@ function animateSaveButton(button, iconElement) {
         imgEl.classList.remove('save-icon-animating');
         void imgEl.offsetHeight; // 強制重繪
 
-        // 1. 縮小原 icon 並淡出
+        // 1. 原 icon clip 收回（去程隨機方向抹除）
         imgEl.classList.add('save-icon-animating');
-        imgEl.style.animation = `save-icon-shrink ${fadeInOutDuration}ms ease forwards`;
+        imgEl.style.animation = `save-icon-clip-out-${dir} ${fadeInOutDuration}ms ease forwards`;
 
-        // 2. fadeInOutDuration 後切換到 Generate icon，並快速放大
+        // 2. fadeInOutDuration 後切換到 Generate icon，clip 揭露（同方向）
         setTimeout(() => {
             iconElement.attribute('src', getGenerateIconSrc()); // 動態獲取正確的 Generate icon
-            imgEl.style.animation = `save-icon-grow ${scaleUpDuration}ms ease forwards`;
+            imgEl.style.animation = `save-icon-clip-in-${dir} ${scaleUpDuration}ms ease forwards`;
 
-            // 放大完成後立即開始旋轉
+            // 揭露完成後立即開始旋轉（Generate icon 自身的動畫）
             setTimeout(() => {
                 imgEl.style.animation = `save-icon-rotate ${rotateDuration}ms linear forwards`;
             }, scaleUpDuration);
         }, fadeInOutDuration);
 
-        // 3. 旋轉完成後立即縮小並消失（無停留）
+        // 3. 旋轉完成後 Generate icon clip 收回（相反方向抹除）
         setTimeout(() => {
-            imgEl.style.animation = `save-icon-shrink-rotated ${fadeInOutDuration}ms ease forwards`;
+            imgEl.style.animation = `save-icon-clip-out-${rev} ${fadeInOutDuration}ms ease forwards`;
         }, fadeInOutDuration + scaleUpDuration + rotateDuration);
 
-        // 4. Generate icon 縮小完成後，切換回原 icon 並放大
+        // 4. 切回原 icon，clip 揭露（相反方向，反向回到原本的 icon）
         setTimeout(() => {
             iconElement.attribute('src', getOriginalIconSrc()); // 使用函數動態獲取正確的 icon
             setTimeout(() => {
-                imgEl.style.animation = `save-icon-grow ${fadeInOutDuration}ms ease forwards`;
+                imgEl.style.animation = `save-icon-clip-in-${rev} ${fadeInOutDuration}ms ease forwards`;
                 setTimeout(() => {
                     imgEl.style.animation = '';
                     imgEl.classList.remove('save-icon-animating');
@@ -1614,7 +1624,7 @@ function animateSaveButton(button, iconElement) {
             }, 10);
         }, fadeInOutDuration + scaleUpDuration + rotateDuration + fadeInOutDuration);
     } else {
-        // === 桌面版：使用 JavaScript + CSS Transition ===
+        // === 桌面版：使用 JavaScript + CSS Transition（clip-path 揭露/收回 + 旋轉） ===
         // 確保 icon 是正確的 Download/Gift icon（防止重複點擊或狀態異常）
         iconElement.attribute('src', getOriginalIconSrc());
 
@@ -1622,63 +1632,68 @@ function animateSaveButton(button, iconElement) {
         imgEl.style.removeProperty('transform');
         imgEl.style.removeProperty('transition');
         imgEl.style.removeProperty('opacity');
-        imgEl.style.transform = 'scale(1) rotate(0deg)';
+        imgEl.style.removeProperty('clip-path');
+        imgEl.style.transform = 'rotate(0deg)';
+        imgEl.style.clipPath = CLIP_VISIBLE;
         imgEl.style.transition = 'none';
         imgEl.style.opacity = '1';
         void imgEl.offsetHeight;
 
-        // 1. 縮小原 icon 並淡出
-        imgEl.style.transition = `transform ${fadeInOutDuration}ms ease, opacity ${fadeInOutDuration}ms ease`;
+        // 1. 原 icon clip 收回（去程隨機方向抹除）
+        imgEl.style.transition = `clip-path ${fadeInOutDuration}ms ease`;
         requestAnimationFrame(() => {
-            imgEl.style.transform = 'scale(0) rotate(0deg)';
-            imgEl.style.opacity = '0';
+            imgEl.style.clipPath = CLIP_OUT[dir];
         });
 
-        // 2. fadeInOutDuration 後切換到 Generate icon，並快速放大
+        // 2. fadeInOutDuration 後切換到 Generate icon，clip 揭露（同方向）→ 旋轉
         setTimeout(() => {
             iconElement.attribute('src', getGenerateIconSrc()); // 動態獲取正確的 Generate icon
-            imgEl.style.transition = `transform ${scaleUpDuration}ms ease, opacity ${scaleUpDuration}ms ease`;
-            imgEl.style.transform = 'scale(1) rotate(0deg)';
-            imgEl.style.opacity = '1';
+            imgEl.style.transition = 'none';
+            imgEl.style.clipPath = CLIP_IN_FROM[dir]; // 從相反邊收合開始
+            void imgEl.offsetHeight;
+            imgEl.style.transition = `clip-path ${scaleUpDuration}ms ease`;
+            requestAnimationFrame(() => {
+                imgEl.style.clipPath = CLIP_VISIBLE;
+            });
 
-            // 放大完成後立即開始旋轉
+            // 揭露完成後立即開始旋轉（Generate icon 自身的動畫）
             setTimeout(() => {
                 imgEl.style.transition = `transform ${rotateDuration}ms linear`;
-                imgEl.style.transform = 'scale(1) rotate(360deg)';
+                imgEl.style.transform = 'rotate(360deg)';
             }, scaleUpDuration);
         }, fadeInOutDuration);
 
-        // 3. 旋轉完成後立即縮小並消失（無停留）
+        // 3. 旋轉完成後 Generate icon clip 收回（相反方向抹除）
         setTimeout(() => {
-            imgEl.style.transition = `transform ${fadeInOutDuration}ms ease, opacity ${fadeInOutDuration}ms ease`;
-            imgEl.style.transform = 'scale(0) rotate(360deg)';
-            imgEl.style.opacity = '0';
+            imgEl.style.transition = `clip-path ${fadeInOutDuration}ms ease`;
+            imgEl.style.clipPath = CLIP_OUT[rev];
         }, fadeInOutDuration + scaleUpDuration + rotateDuration);
 
-        // 4. Generate icon 縮小完成後，重置旋轉為 0 度並切換回原 icon
+        // 4. 切回原 icon，clip 揭露（相反方向，反向回到原本的 icon）
         setTimeout(() => {
             imgEl.style.transition = 'none';
-            imgEl.style.transform = 'scale(0) rotate(0deg)';
-            imgEl.style.opacity = '0';
+            imgEl.style.transform = 'rotate(0deg)';        // 重置旋轉（360≡0，無視覺跳動）
+            imgEl.style.clipPath = CLIP_IN_FROM[rev];      // 從相反邊收合開始
+            iconElement.attribute('src', getOriginalIconSrc()); // 使用函數動態獲取正確的 icon
+            void imgEl.offsetHeight;
 
             setTimeout(() => {
-                iconElement.attribute('src', getOriginalIconSrc()); // 使用函數動態獲取正確的 icon
-                setTimeout(() => {
-                    imgEl.style.transition = `transform ${fadeInOutDuration}ms ease, opacity ${fadeInOutDuration}ms ease`;
-                    imgEl.style.transform = 'scale(1) rotate(0deg)';
-                    imgEl.style.opacity = '1';
+                imgEl.style.transition = `clip-path ${fadeInOutDuration}ms ease`;
+                requestAnimationFrame(() => {
+                    imgEl.style.clipPath = CLIP_VISIBLE;
+                });
 
-                    setTimeout(() => {
-                        imgEl.style.removeProperty('transition');
-                        imgEl.style.removeProperty('transform');
-                        imgEl.style.removeProperty('opacity');
-                    }, fadeInOutDuration);
-                }, 10);
+                setTimeout(() => {
+                    imgEl.style.removeProperty('transition');
+                    imgEl.style.removeProperty('transform');
+                    imgEl.style.removeProperty('opacity');
+                    imgEl.style.removeProperty('clip-path');
+                }, fadeInOutDuration);
             }, 10);
         }, fadeInOutDuration + scaleUpDuration + rotateDuration + fadeInOutDuration);
     }
 
-    // 總時長：淡出(200) + 快速放大(100) + 旋轉(800) + 淡出(200) + 重置(10) + 淡入(200) = 1510ms
+    // 總時長：clip-out(200) + clip-in(100) + 旋轉(800) + clip-out(200) + 重置(10) + clip-in(200) = 1510ms
     return fadeInOutDuration * 3 + scaleUpDuration + rotateDuration + 10;
 }
 

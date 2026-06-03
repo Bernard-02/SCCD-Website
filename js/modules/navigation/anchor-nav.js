@@ -82,10 +82,13 @@ export function initAnchorNav() {
   let lastNavColorIndex = -1;
 
   // Programs 區封鎖綫換色時排除「當前 active division tab」顏色，避免兩者撞色
+  // 讀 dataset.accentHex 不讀 style.background：瀏覽器把 inline style 的顏色序列化成
+  // rgb(...) 回吐（'#00FF80' 讀回變 'rgb(0, 255, 128)'），跟 NAV_COLORS hex 比永遠不相等 →
+  // exclude 默默失效。寫色那端（bfa-division-toggle setActive）會同步把原始 hex 存進 dataset。
   function getActiveDivisionColor() {
-    const el = document.querySelector('.class-division-btn.active');
+    const el = /** @type {HTMLElement | null} */ (document.querySelector('.class-division-btn.active'));
     if (!el) return null;
-    const c = (el.style.background || '').trim().toLowerCase();
+    const c = (el.dataset.accentHex || '').trim().toLowerCase();
     return c || null;
   }
 
@@ -136,8 +139,8 @@ export function initAnchorNav() {
   function setActiveBtn(id, { force = false } = {}) {
     if (!force && id === currentActiveId) return;
     currentActiveId = id;
-    // Programs 區封鎖綫排除當前 active division tab 色；其他 anchor 不限
-    const color = getNavColor(id === 'class' ? getActiveDivisionColor() : null);
+    // Programs(class) 與 Works 兩條封鎖綫都排除當前 active division tab 色（共用同排 sticky btn）；其他 anchor 不限
+    const color = getNavColor((id === 'class' || id === 'works') ? getActiveDivisionColor() : null);
     navButtons.forEach(btn => {
       const isActive = btn.getAttribute('data-target') === id;
       const inner = btn.querySelector('.anchor-nav-inner');

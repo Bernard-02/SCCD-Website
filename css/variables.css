@@ -86,6 +86,9 @@
   --spacing-7xl: 14rem;   /* 224px */
   --spacing-8xl: 16rem;   /* 256px */
 
+  /* grid gutter（.grid-12 / .grid-20 的 gap，single source）；tailwind gap-gutter / *-gutter 都讀這個 */
+  --spacing-gutter: 1.25rem; /* 20px */
+
 
   /* ===== Layout ===== */
   --container-max-width: 1200px;

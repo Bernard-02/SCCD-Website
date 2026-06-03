@@ -349,9 +349,9 @@ function openCourseSlideIn(card) {
   slideIn.classList.remove('invisible', 'pointer-events-none');
   slideIn.classList.add('pointer-events-auto');
 
-  // header bars clip-path 收掉（logo 不動）+ body.overflow 鎖捲動（lightbox-shell 內處理）
-  // 不額外鎖 htmlEl.overflow：html overflow:hidden 會讓 html 失去 scroll container，
-  // 內層 sticky（如 courses-program-bar）失效退回 static → 整段往上飄 header-height
+  // freeze 底層捲動 + 凍結在原位（不跳頂部）+ header bars clip-path 收掉，全由 lightbox-shell 統一處理
+  // （內含 save/restore scrollTop，對付本頁 html overflow-x:clip 被 overflow-y:hidden 重算成 hidden
+  //   導致的 scroll reset；slide-in 與全螢幕 lightbox 共用同一套，不分流）
   enterLightboxMode();
   const htmlEl = document.documentElement;
 

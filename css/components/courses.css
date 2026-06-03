@@ -60,7 +60,7 @@
   /* 手機：bar 改水平 scroll
      - flex-direction:row 覆蓋 HTML inline flex-col
      - overflow-x:auto + no-scrollbar 隱藏原生 scrollbar
-     - 兩側 -container-padding margin + 同值 padding：scroll 區延伸到 viewport 邊（works.html 同 pattern）
+     - 兩側 -container-padding margin + 同值 padding：scroll 區延伸到 viewport 邊
      - gap 用 spacing-xl 給 BFA label 旋轉/突出 clearance（label absolute 在 btn 上方，gap 太小會擠）
      - padding-top 給 absolute label 上方留空間（label bottom: calc(100% + 4px) 凸出 btn 上沿 ~28px）
      - .courses-program-group 加 flex-shrink:0 + 子元素 nowrap，btn 才不被擠扁 */

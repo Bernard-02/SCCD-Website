@@ -109,7 +109,7 @@ async function fetchCourseTexts() {
         const slug = en ? slugify(en) : '';
         const filter = course.type || 'required';
         const itemParam = slug ? `&item=${slug}` : '';
-        const url = `pages/courses.html?program=${program}&filter=${filter}${itemParam}`;
+        const url = `pages/curriculum.html?program=${program}&filter=${filter}${itemParam}`;
         pool.push({ type: 'text', textEn: en || '', textZh: zh || '', url });
       });
     });
@@ -153,6 +153,12 @@ function shuffle(arr) {
 
 function rand(min, max) { return Math.random() * (max - min) + min; }
 function randInt(min, max) { return Math.floor(rand(min, max + 1)); }
+
+// 避免中文寡字：用 word joiner (U+2060) 黏住最後兩字，break-word 換行時不讓末字落單一行
+function preventOrphan(text) {
+  if (!text || text.length < 2) return text;
+  return text.slice(0, -1) + '⁠' + text.slice(-1);
+}
 
 // 全局 news hover 狀態，所有 item 訂閱
 const newsHoverListeners = { enter: [], leave: [] };
@@ -283,7 +289,7 @@ function createTextEl(textEn, textZh, url) {
   }
   if (textZh) {
     const zhLine = document.createElement('div');
-    zhLine.textContent = textZh;
+    zhLine.textContent = preventOrphan(textZh);
     zhLine.style.cssText = 'font-size: var(--font-size-p1);';
     el.appendChild(zhLine);
   }

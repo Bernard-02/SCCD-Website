@@ -221,10 +221,13 @@ function checkSlideInState() {
     isSlideInOpen = hasSlideIn;
     const mode = getStoredMode();
     
+    // overlay（slide-in / lightbox）開啟 → 一律用 wireframe 白色 logo（wireframe-inverse），統一三 mode 視覺；
+    // 關閉 → 依 mode 還原（color=wireframe / inverse=inverse / standard=standard）
     let logoType;
-    if (mode === 'color') logoType = isSlideInOpen ? 'wireframe-inverse' : 'wireframe';
+    if (isSlideInOpen) logoType = 'wireframe-inverse';
+    else if (mode === 'color') logoType = 'wireframe';
     else if (mode === 'inverse') logoType = 'inverse';
-    else logoType = isSlideInOpen ? 'inverse' : 'standard';
+    else logoType = 'standard';
 
     // /create 頁是 typewriter logo，slide-in 狀態變化不該切回 Lottie（同 applyMode 的 guard）
     const _page = getCurrentPage();
@@ -463,11 +466,13 @@ function applyMode(mode, opts) {
   const _page = getCurrentPage();
   if (_page === 'create' || _page === 'generate') return;
 
-  // mode-color 用 wireframe logo（base 黑色），暗底 hue 由 applyColorVars 套 filter:invert(1) 翻白
+  // overlay（slide-in / lightbox）開啟 → 一律 wireframe 白 logo（wireframe-inverse），統一三 mode；
+  // 關閉 → 依 mode：color=wireframe（base 黑、暗底由 applyColorVars 套 filter:invert(1) 翻白）/ inverse / standard
   let logoType;
-  if (mode === 'color') logoType = isSlideInOpen ? 'wireframe-inverse' : 'wireframe';
+  if (isSlideInOpen) logoType = 'wireframe-inverse';
+  else if (mode === 'color') logoType = 'wireframe';
   else if (mode === 'inverse') logoType = 'inverse';
-  else logoType = isSlideInOpen ? 'inverse' : 'standard';
+  else logoType = 'standard';
 
   if (document.getElementById('header-logo')) {
     switchHeaderLogo(logoType);

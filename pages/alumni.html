@@ -98,7 +98,7 @@
                 </div>
               </div>
               <div class="md:pr-[2rem] relative z-10">
-                <div id="alumni-members-list" class="grid grid-cols-2 md:grid-cols-4 gap-x-md gap-y-xl md:gap-x-2xl md:gap-y-4xl"></div>
+                <div id="alumni-members-list" class="faculty-card-wall"></div>
               </div>
             </section>
 
@@ -153,7 +153,7 @@
     </section>
 
     <!-- PDF Viewer 由 library-viewer.js 的 initPdfViewer() 共用 — DOM 由 ensurePdfModal() 自動 append 到 body
-         會議紀錄 click → dispatch CustomEvent('sccd:open-pdf', { detail: {pdfUrl} }) → 觸發兩頁 spread canvas 渲染 -->
+         會議紀錄 click → dispatch CustomEvent('sccd:open-pdf', { detail: {pdfUrl} }) → 觸發單頁 canvas 渲染 -->
   </main>
 
   <!-- Footer -->

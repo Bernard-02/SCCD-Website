@@ -97,6 +97,9 @@ export function initClassButtonsSticky() {
         if (typeof window.SCCD_setDivisionActive === 'function') {
           window.SCCD_setDivisionActive('bfa', false);
         }
+      } else if (typeof window.SCCD_recolorActiveDivision === 'function') {
+        // 之後每次滑進 works 都重新換色（保留當前 active division，只換色+旋轉，避開 works 封鎖綫）
+        window.SCCD_recolorActiveDivision();
       }
     },
 

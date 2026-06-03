@@ -14,6 +14,13 @@
     @apply grid grid-cols-12 gap-gutter;
   }
 
+  /* ===== 20 Column Grid System ===== */
+  /* 遷移中：逐頁把 .grid-12 換成 .grid-20（gap 同為 gutter=20px）。
+     子元素手機滿版一律用 col-span-full（= 1/-1，與欄數無關），桌面才用 md:col-start/span。 */
+  .grid-20 {
+    @apply grid grid-cols-20 gap-gutter;
+  }
+
   /* ===== Custom Spacing Utility ===== */
   .py-4xl {
     padding-top: var(--spacing-4xl);

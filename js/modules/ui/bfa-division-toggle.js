@@ -235,11 +235,17 @@ export function initBFADivisionToggle() {
   const BTN_DEFAULT_BG    = 'var(--theme-fg)';
   const BTN_DEFAULT_TEXT  = 'var(--theme-bg)';
 
-  // 讀取 Programs 區封鎖綫當前顏色（hex），active tab 取色時排除避免撞色
-  function getProgramsStripColor() {
-    const el = document.querySelector('.section-title-strip[data-anchor="class"] [data-section-title]');
+  // 讀取「當前 context 對應封鎖綫」的顏色（hex），active tab 取色時排除避免撞色：
+  // works context → 讀 works(作品) strip；否則（info/class）→ 讀 class(學制) strip。
+  // 同一排 sticky btn 同時服務 Programs 與 Works 兩區，各自的封鎖綫要分別避開（user 2026-06-03 works 也要避免）。
+  // 讀 dataset.accentHex 不讀 style.background：瀏覽器把 inline 顏色序列化成 rgb(...) 回吐，
+  // 跟 ACCENT_COLORS hex 比永遠不相等 → exclude 默默失效。寫色那端（section-banner-reveal
+  // replay）會同步把原始 hex 存進 dataset。
+  function getCurrentStripColor() {
+    const anchor = (window.SCCD_classContext || 'info') === 'works' ? 'works' : 'class';
+    const el = /** @type {HTMLElement | null} */ (document.querySelector(`.section-title-strip[data-anchor="${anchor}"] [data-section-title]`));
     if (!el) return null;
-    const c = (el.style.background || '').trim().toLowerCase();
+    const c = (el.dataset.accentHex || '').trim().toLowerCase();
     return c || null;
   }
 
@@ -285,6 +291,7 @@ export function initBFADivisionToggle() {
         btn._baseRot = rot;
         btn.classList.add('active');
         btn.style.background = color;
+        btn.dataset.accentHex = color;  // 原始 hex，給 anchor-nav exclude 比對（style.background 讀回是 rgb）
         btn.style.color = '#000000';
         btn.style.transform = `rotate(${rot}deg)`;
         if (label) {
@@ -299,6 +306,7 @@ export function initBFADivisionToggle() {
       } else {
         btn.classList.remove('active');
         btn.style.background = BTN_DEFAULT_BG;
+        delete btn.dataset.accentHex;
         btn.style.color = BTN_DEFAULT_TEXT;
         btn.style.transform = `rotate(${btn._baseRot}deg)`;
         if (label) {
@@ -316,7 +324,7 @@ export function initBFADivisionToggle() {
   divisionBtns.forEach(btn => {
     btn.addEventListener('mouseenter', () => {
       if (btn.classList.contains('active')) return;
-      const color = randomColor(getProgramsStripColor());
+      const color = randomColor(getCurrentStripColor());
       const rot   = randomRotation();
       const label = btn.previousElementSibling?.classList.contains('class-group-label')
         ? btn.previousElementSibling : null;
@@ -356,7 +364,7 @@ export function initBFADivisionToggle() {
       if (isWorksAnimating) return;
 
       const id    = this.getAttribute('data-division');
-      const color = this._pendingColor || randomColor(getProgramsStripColor());
+      const color = this._pendingColor || randomColor(getCurrentStripColor());
       const rot   = this._pendingRot   || randomRotation();
       setActive(id, color, rot);
 
@@ -403,7 +411,7 @@ export function initBFADivisionToggle() {
   // 第二參數 animate=false 時：works ctx 也用 instant toggle，避免使用者第一次進 works
   // 看到「animation → bfa」的切換動畫（應直接呈現 bfa）。
   window.SCCD_setDivisionActive = function (divisionId, animate = true) {
-    const color = randomColor(getProgramsStripColor());
+    const color = randomColor(getCurrentStripColor());
     const rot   = randomRotation();
     setActive(divisionId, color, rot);
     const ctx = window.SCCD_classContext || 'info';
@@ -416,11 +424,25 @@ export function initBFADivisionToggle() {
     currentIndex = divisions.findIndex(d => d.id === divisionId);
   };
 
+  // class-buttons-sticky.js 在「每次」滑進 works context 時呼叫：保留當前 active division，
+  // 只換色（不動旋轉、不切換內容）。新色避開當前 context 封鎖綫（user 2026-06-03）。
+  // dataset.accentHex 同步寫，維持與封鎖綫的雙向 exclude（見 getActiveDivisionColor）。
+  window.SCCD_recolorActiveDivision = function () {
+    const activeBtn = /** @type {HTMLElement | null} */ (document.querySelector('.class-division-btn.active'));
+    if (!activeBtn) return;
+    const color = randomColor(getCurrentStripColor());
+    activeBtn.style.background = color;
+    activeBtn.dataset.accentHex = color;
+    const label = activeBtn.previousElementSibling?.classList.contains('class-group-label')
+      ? /** @type {HTMLElement} */ (activeBtn.previousElementSibling) : null;
+    if (label) label.style.background = color;
+  };
+
   // ─── Initial State ───────────────────────────────────────────
 
   requestAnimationFrame(() => {
     initRotations();
-    setActive('animation', randomColor(getProgramsStripColor()), randomRotation());
+    setActive('animation', randomColor(getCurrentStripColor()), randomRotation());
     showContent('animation', false);
   });
 

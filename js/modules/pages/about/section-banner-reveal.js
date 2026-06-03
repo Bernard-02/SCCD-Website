@@ -161,6 +161,7 @@ export function initSectionBannerReveal() {
       // 手機版也需要底色，從 accent 取
       const mobileColor = accentColors[Math.floor(Math.random() * accentColors.length)];
       titleEl.style.background = mobileColor;
+      titleEl.dataset.accentHex = mobileColor;  // 原始 hex，給 bfa-division-toggle exclude 比對
     }
 
     // replay：anchor-nav 在 active 切換時呼叫（同時負責首次 reveal）
@@ -168,7 +169,7 @@ export function initSectionBannerReveal() {
     // keepLayout=false：重排位置 + clip-path reveal（anchor-nav 換色用）
     /** @type {(color?: string, keepLayout?: boolean) => void} */
     const replay = (color, keepLayout = false) => {
-      if (color) titleEl.style.background = color;
+      if (color) { titleEl.style.background = color; titleEl.dataset.accentHex = color; }  // dataset = 原始 hex 給 exclude 比對
       if (window.innerWidth < 768) return;
       gsap.killTweensOf(titleEl);
       if (!keepLayout) applyRandomLayout(titleEl);

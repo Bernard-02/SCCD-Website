@@ -52,10 +52,11 @@
     <!-- overflow:clip：擋住下方 sticky 遮罩超出 section 邊界，避免戳到 hero（同 courses 模式） -->
     <section class="bg-white pt-3xl pb-6xl md:py-6xl" id="admission-content-section" style="overflow: clip;">
       <div class="site-container">
-        <div class="flex flex-col md:flex-row gap-gutter">
+        <!-- grid-20：桌面 nav 占 cols 1-4、內容 cols 5-20（對齊 faculty/about/curriculum col-5）；手機 flex-col 堆疊 -->
+        <div class="flex flex-col gap-gutter md:grid md:grid-cols-20">
 
-          <!-- Left Nav -->
-          <div class="w-full md:flex-[0_0_calc(16.667%_-_1.25rem)]">
+          <!-- Left Nav（桌面 cols 1-4，vertical sticky；mobile flex-col 自然流） -->
+          <div class="w-full md:col-span-4">
             <div class="flex flex-row flex-wrap md:flex-col gap-xs mb-xl md:mb-0 md:sticky md:top-[200px]">
               <button class="activities-section-btn w-fit active text-left" data-section="news">
                 <span class="anchor-nav-inner"><span>Announcements</span><span>公告</span></span>
@@ -66,8 +67,8 @@
             </div>
           </div>
 
-          <!-- Right Content Panels -->
-          <div class="flex-1 min-w-0">
+          <!-- Right Content Panels（桌面占 cols 5-20） -->
+          <div class="min-w-0 md:col-start-5 md:col-span-16">
 
             <!-- Sticky 滾動遮罩：sticky 在 top:200px，內部絕對定位元素遮蓋上方 200px，避免 list 滾動時露出 header 區（仿 courses-filter-bar ::before 模式） -->
             <!-- background 用 var(--theme-bg) 跟著 mode 切換：standard=white, inverse=black，不會在 inverse 下露白 -->

@@ -6,7 +6,6 @@
  *
  * 已有 caller 候選：
  *   - faculty-data-loader.js loadFacultyData
- *   - records-data-loader.js loadRecords
  *   - legal-data-loader.js loadLegalData
  *   - degree-show-data-loader.js loadDegreeShowList / loadDegreeShowDetail
  *

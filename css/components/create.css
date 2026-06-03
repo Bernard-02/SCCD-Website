@@ -2048,52 +2048,55 @@
   #save-img-mobile,
   #save-img {
     transform-origin: center center;
-    will-change: transform, opacity;
+    will-change: transform, clip-path;
   }
 
-  /* 下載按鈕動畫：定義 keyframes */
-  @keyframes save-icon-shrink {
-    from {
-      transform: scale(1) rotate(0deg);
-      opacity: 1;
-    }
-    to {
-      transform: scale(0) rotate(0deg);
-      opacity: 0;
-    }
+  /* 下載按鈕動畫：clip 揭露/收回（不再用 scale shrink/grow）
+     去程隨機抽 4 方向之一抹除/揭露，回程用相反方向（視覺上是反向回到原 icon）。
+     out = 朝該方向收合消失；in = 從相反邊長出（同方向連續抹除感） */
+  @keyframes save-icon-clip-out-up {
+    from { clip-path: inset(0 0 0 0); }
+    to   { clip-path: inset(0 0 100% 0); }
   }
 
-  @keyframes save-icon-grow {
-    from {
-      transform: scale(0) rotate(0deg);
-      opacity: 0;
-    }
-    to {
-      transform: scale(1) rotate(0deg);
-      opacity: 1;
-    }
+  @keyframes save-icon-clip-in-up {
+    from { clip-path: inset(100% 0 0 0); }
+    to   { clip-path: inset(0 0 0 0); }
+  }
+
+  @keyframes save-icon-clip-out-down {
+    from { clip-path: inset(0 0 0 0); }
+    to   { clip-path: inset(100% 0 0 0); }
+  }
+
+  @keyframes save-icon-clip-in-down {
+    from { clip-path: inset(0 0 100% 0); }
+    to   { clip-path: inset(0 0 0 0); }
+  }
+
+  @keyframes save-icon-clip-out-left {
+    from { clip-path: inset(0 0 0 0); }
+    to   { clip-path: inset(0 100% 0 0); }
+  }
+
+  @keyframes save-icon-clip-in-left {
+    from { clip-path: inset(0 0 0 100%); }
+    to   { clip-path: inset(0 0 0 0); }
+  }
+
+  @keyframes save-icon-clip-out-right {
+    from { clip-path: inset(0 0 0 0); }
+    to   { clip-path: inset(0 0 0 100%); }
+  }
+
+  @keyframes save-icon-clip-in-right {
+    from { clip-path: inset(0 100% 0 0); }
+    to   { clip-path: inset(0 0 0 0); }
   }
 
   @keyframes save-icon-rotate {
-    from {
-      transform: scale(1) rotate(0deg);
-      opacity: 1;
-    }
-    to {
-      transform: scale(1) rotate(360deg);
-      opacity: 1;
-    }
-  }
-
-  @keyframes save-icon-shrink-rotated {
-    from {
-      transform: scale(1) rotate(360deg);
-      opacity: 1;
-    }
-    to {
-      transform: scale(0) rotate(360deg);
-      opacity: 0;
-    }
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
   }
 
   /* 桌面版和手機版共用的動畫 class */

@@ -105,7 +105,9 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete } =
       video.controls = false;
       video.style.width = '95%';
       video.style.maxHeight = '90%';
-      controls.style.display = '';
+      // 不能寫 '' 清 inline style — HTML 原本就是 inline `display: flex`，
+      // 清空會 fallback 成 block 讓三個 block 垂直堆疊
+      controls.style.display = 'flex';
       if (mobileCloseBtn) mobileCloseBtn.style.display = 'none';
       // 三個矩形區塊各自設背景色
       uiBlocks.forEach(block => { if (block) block.style.background = accentColor; });

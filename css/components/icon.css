@@ -62,6 +62,8 @@
 .icon-zoom-in     { --icon: url('/website-icons/zoom_in.svg'); }
 .icon-zoom-out    { --icon: url('/website-icons/zoom_out.svg'); }
 .icon-full-screen { --icon: url('/website-icons/full-screen.svg'); }
+.icon-fit-viewport { --icon: url('/website-icons/fit_to_viewport.svg'); }
+.icon-fit-width    { --icon: url('/website-icons/fit_width.svg'); }
 
 /* navigation / pages */
 /* TODO: menu.svg 待補 SVG */

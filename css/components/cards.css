@@ -83,6 +83,30 @@
     }
   }
 
+  /* ===== Faculty / Alumni 卡片牆：首張貼左、末張貼右，水平 gap 自動均分 =====
+   * user 2026-06-02：要 auto-distributed gap（卡片有上限寬、剩餘空間吃進 gap），不是固定 gutter，也不是 grid-20。
+   * grid + justify-content:space-between → 首 track 貼左、末 track 貼右，多餘空間均分到 track 之間。
+   * 用 minmax(0, MAX) 不用固定寬：窄螢幕卡片自動縮、永不 overflow；寬螢幕卡片封頂後 gap 自動加大。
+   * 不用 flex：flex space-between 末行不滿會被撐到兩端；grid 不滿一行靠左填 track（視覺一致）。
+   * column-gap = 最小水平間距（窄螢幕保底）；row-gap = 固定垂直行距（不 auto，維持留白韻律）。
+   * 兩個可調旋鈕：① 卡片上限寬（桌面 300 / 手機 200px）② 最小 column-gap。
+   * faculty 3 個 list + alumni 會員牆共用此 class（user：兩頁一起改）。*/
+  .faculty-card-wall {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 200px));
+    column-gap: var(--spacing-md);   /* 手機最小水平間距 24px */
+    row-gap: var(--spacing-xl);      /* 手機行距 32px */
+    justify-content: space-between;
+  }
+
+  @media (min-width: 768px) {
+    .faculty-card-wall {
+      grid-template-columns: repeat(4, minmax(0, 250px)); /* 卡片上限 250 → 圖片 ~238px（扣 12px padding）；user 2026-06-03 縮小 */
+      column-gap: var(--spacing-lg); /* 桌面最小水平間距 32px，寬螢幕 space-between 自動加大（卡片變小→gap 變大，user 接受） */
+      row-gap: var(--spacing-4xl);   /* 桌面行距 128px */
+    }
+  }
+
   /* ===== Album Cards ===== */
   .album-card {
     transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);

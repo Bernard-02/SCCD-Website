@@ -266,6 +266,10 @@
     </section>
   </main>
 
+  <!-- Footer：library 不顯示 footer，但容器必須存在 —— first-load 為 library 時 initFooter() 才找得到，
+       否則整個 session footer 永久消失（router 對 library 自動設 display:none） -->
+  <div id="site-footer"></div>
+
   <!-- PDF Viewer Modal 由 js/modules/pages/library-viewer.js 的 ensurePdfModal() 動態 append 到 body
        行為包含 zoom +/- 按鈕、wheel 翻頁/pan、上下左右翻頁、左下 title pill — 集中在 module 內維護 -->
 

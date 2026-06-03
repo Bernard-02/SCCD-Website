@@ -707,11 +707,11 @@ export function initHeroAnimation() {
   const ENTER_DURATION = 0.9;
   const ENTER_OVERLAP = 0.4;
 
-  function addGroupTo(timeline, group, baseTime) {
+  function addGroupTo(timeline, group, baseTime, stagger = ENTER_STAGGER) {
     group.forEach((el, i) => {
       const from = offsetFor(pickHeroDir());
       gsap.set(el, from);
-      const at = baseTime + i * ENTER_STAGGER;
+      const at = baseTime + i * stagger;
       timeline.set(el, { visibility: 'visible' }, at);
       timeline.to(el, {
         xPercent: 0,
@@ -729,15 +729,40 @@ export function initHeroAnimation() {
   const subtitleScrollGroup = isMobileRandGrid ? subtitles : [];
   const inlineSubtitles = isMobileRandGrid ? [] : subtitles;
 
-  const firstGroup = titleLast ? inlineSubtitles : titles;
-  const secondGroup = titleLast ? titles : inlineSubtitles;
-  if (firstGroup.length > 0) addGroupTo(tl, firstGroup, 0);
-  if (secondGroup.length > 0) {
-    const secondStart = firstGroup.length > 0
-      ? Math.max(0, (firstGroup.length - 1) * ENTER_STAGGER + ENTER_DURATION - ENTER_OVERLAP)
-      : 0;
-    addGroupTo(tl, secondGroup, secondStart);
+  // 進場 group 序列：group 之間 ENTER_OVERLAP 接續、group 內 ENTER_STAGGER。
+  // ① 顯式 [data-hero-enter="N"]（chip 自宣告組序，N 小先進、同 N 一組、組內 DOM 序）優先 —
+  //    給 hero-* class 語意跟視覺意圖不符的頁用（degree-show-detail：年份=hero-text-en / 英標=hero-text-cn /
+  //    中標=hero-title，class-based 分不出「年份先、英中標題一起」的意圖；user 2026-06-03）。
+  // ② 無顯式宣告 → class-based fallback：titles vs subtitles + [data-hero-title-last] 決定誰先。
+  const animatedChips = new Set([title, titleCn, textEn, textCn].filter(Boolean));
+  const explicitEls = Array.from(document.querySelectorAll('[data-hero-enter]'))
+    .filter(el => animatedChips.has(el));  // querySelectorAll = DOM 序 → 同組內自然 top-down
+  let enterGroups;
+  if (explicitEls.length > 0) {
+    const byGroup = new Map();
+    explicitEls.forEach(el => {
+      const n = parseInt(/** @type {HTMLElement} */ (el).getAttribute('data-hero-enter') || '0', 10) || 0;
+      if (!byGroup.has(n)) byGroup.set(n, []);
+      byGroup.get(n).push(el);
+    });
+    enterGroups = [...byGroup.keys()].sort((a, b) => a - b).map(k => byGroup.get(k));
+  } else {
+    enterGroups = titleLast ? [inlineSubtitles, titles] : [titles, inlineSubtitles];
   }
+
+  // 顯式分組：同 N 一組 = 一起進場（stagger 0、同 t）；class-based fallback 維持組內 0.15 stagger（faculty 等不變）
+  const groupStagger = explicitEls.length > 0 ? 0 : ENTER_STAGGER;
+  // 依序排程：每個非空 group 起跑 = 前一非空 group「最後一個 stagger + duration - overlap」
+  let groupStart = 0;
+  let prevLen = 0;
+  let scheduled = false;
+  enterGroups.forEach(group => {
+    if (!group || group.length === 0) return;
+    if (scheduled) groupStart = Math.max(0, groupStart + (prevLen - 1) * groupStagger + ENTER_DURATION - ENTER_OVERLAP);
+    addGroupTo(tl, group, groupStart, groupStagger);
+    prevLen = group.length;
+    scheduled = true;
+  });
 
   // 手機段落 chip：scroll 到視窗時做 4 方向 slide-in（與 hero 標題同 pattern；wrapper overflow:hidden 已套）
   if (subtitleScrollGroup.length > 0 && typeof ScrollTrigger !== 'undefined') {

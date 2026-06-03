@@ -130,12 +130,12 @@ function spawnTrailItem(imgSrc, x, y, container, registry) {
   const exitDir   = CLIP_DIRS[Math.floor(Math.random() * CLIP_DIRS.length)];
 
   // wrapper：clip-path 從 hidden → shown 直接露出圖片
+  // 不設固定寬：absolute + width auto = shrink-to-fit 圖片實際尺寸，wrapper 跟著 img 的 max box 縮
   const wrapper = document.createElement('div');
   wrapper.style.cssText = `
     position: absolute;
     left: ${x}px;
     top: ${y}px;
-    width: 320px;
     transform: translate(-50%, -50%) rotate(${rot}deg);
     pointer-events: none;
     z-index: 50;
@@ -144,11 +144,15 @@ function spawnTrailItem(imgSrc, x, y, container, registry) {
     transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);
   `;
 
+  // max-width/height 同上限 box（保持比例）：直幅海報不會被撐很高 → 在下方位置 spawn 時
+  // 不會凸到下一個 section（bg-white z-20）底下被蓋掉而像「被切到」（user 2026-06-03）
   const img = document.createElement('img');
   img.src = imgSrc;
   img.style.cssText = `
-    width: 100%;
+    width: auto;
     height: auto;
+    max-width: 260px;
+    max-height: 260px;
     display: block;
   `;
 
@@ -201,6 +205,25 @@ function initDesktopTrail() {
   });
 }
 
+// 取得（或建立）橫跨所有 section 的高 z overlay 當 trail host
+// 為何不直接用 #overview-trail-container：它在 #overview section(z-10) 內，圖片往下凸出時
+// 會被下一個 class section(z-20 + bg-white) 蓋掉看起來「被切」。改放到包住所有 section 的
+// #about-content-wrapper（仍在 #page-content 內，SPA 換頁會被清掉）上的 z-60 overlay，
+// 讓圖能畫在後續 section 之上不被遮（user 2026-06-03）
+function getOverviewTrailHost(trailContainer) {
+  const wrapper = trailContainer.closest('#about-content-wrapper');
+  if (!wrapper) return trailContainer;  // 結構異動時 fallback 回原 container
+  let overlay = wrapper.querySelector('#overview-trail-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'overview-trail-overlay';
+    overlay.className = 'absolute inset-0 pointer-events-none';
+    overlay.style.zIndex = '60';  // 高於 class/resources/history section 的 z-20
+    wrapper.appendChild(overlay);
+  }
+  return overlay;
+}
+
 // === Overview Section：游標拖尾（文字下方）===
 function initOverviewTrail() {
   if (window.innerWidth < 768) return;
@@ -211,6 +234,9 @@ function initOverviewTrail() {
   // 監聽 trailContainer 的父層（site-container），只在文字區內觸發
   const textArea = trailContainer.parentElement;
   if (!textArea) return;
+
+  // host = 橫跨所有 section 的高 z overlay（見 getOverviewTrailHost），座標相對它計算
+  const host = getOverviewTrailHost(trailContainer);
 
   let lastX = 0, lastY = 0;
   const distThreshold = 240;
@@ -229,16 +255,15 @@ function initOverviewTrail() {
       oldest.remove();
     }
 
-    // overview-trail-container 是 site-container 內的 absolute inset-0
-    // 相對座標 = clientX/Y 減去 container 的 viewport 位置
-    const containerRect = trailContainer.getBoundingClientRect();
-    const relX = e.clientX - containerRect.left;
-    const relY = e.clientY - containerRect.top;
+    // 相對座標 = clientX/Y 減去 host overlay 的 viewport 位置
+    const hostRect = host.getBoundingClientRect();
+    const relX = e.clientX - hostRect.left;
+    const relY = e.clientY - hostRect.top;
 
     const imgSrc = TRAIL_IMAGES[currentIndex];
     currentIndex = (currentIndex + 1) % TRAIL_IMAGES.length;
 
-    spawnTrailItem(imgSrc, relX, relY, trailContainer, registry);
+    spawnTrailItem(imgSrc, relX, relY, host, registry);
   });
 }
 

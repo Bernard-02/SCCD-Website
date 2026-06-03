@@ -3,7 +3,7 @@
  *
  * SPA router 只換 main，<head> 不換 → 子頁面 head 寫的 <link rel="stylesheet">
  * 在跨頁 SPA navigate 後不會生效。從 about / faculty / atlas 等沒有 flag-icons
- * link 的頁切到 library Awards / awards.html / activities → `.fi-tw` 等 class
+ * link 的頁切到 library Awards / activities → `.fi-tw` 等 class
  * 完全 unstyled、視覺空盒子。
  *
  * 任何要渲染 `<span class="fi fi-XX">` 的 renderer 在 render 前呼叫 ensureFlagIconsCss()

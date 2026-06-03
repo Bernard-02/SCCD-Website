@@ -56,10 +56,11 @@
     <!-- Activities Content Section -->
     <section class="bg-white pt-3xl pb-6xl md:py-6xl" id="activities-content-section">
       <div class="site-container">
-        <div class="flex flex-col md:flex-row gap-gutter">
+        <!-- grid-20：桌面 nav bar 占 cols 1-4、內容 cols 5-20（對齊 faculty/curriculum col-5）；手機 flex-col 堆疊 -->
+        <div class="flex flex-col gap-gutter md:grid md:grid-cols-20">
 
-          <!-- Left Section Buttons -->
-          <div class="w-full md:flex-[0_0_calc(16.667%_-_1.25rem)]">
+          <!-- Left Section Buttons（桌面 cols 1-4，nav btn 不動，內部 .activities-section-bar 仍 content-width sticky） -->
+          <div class="w-full md:col-span-4">
             <div class="activities-section-bar flex flex-row md:flex-col gap-xs md:gap-xs mb-xl md:mb-0 md:sticky md:top-[200px] no-scrollbar">
               <button class="activities-section-btn w-fit active text-left" data-section="exhibitions">
                 <span class="anchor-nav-inner"><span>Exhibitions</span><span>展演</span></span>
@@ -91,8 +92,8 @@
             </div>
           </div>
 
-          <!-- Right Content Panels -->
-          <div class="flex-1 min-w-0">
+          <!-- Right Content Panels（桌面 cols 5-20；內部各 panel 仍用 grid-12 排 desc/filter/list，相對內容區不衝突） -->
+          <div class="min-w-0 md:col-start-5 md:col-span-16">
 
             <!-- Exhibitions Panel -->
             <div class="activities-panel" id="panel-exhibitions">

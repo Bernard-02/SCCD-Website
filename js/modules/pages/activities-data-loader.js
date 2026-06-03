@@ -564,6 +564,9 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
         }
       };
       checkOverflow();
+      // 字體 async 載入後文字實寬會變 → 再量一次，確保「一進來就 marquee」不用等 hover / 展開才 re-check。
+      // （rAF 首量時 web font(Inter/Noto)常還沒載完、用 fallback 字寬偏窄會誤判「沒 overflow」→ 漏設 is-overflow）
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(checkOverflow);
       // 在 list-content 內的（location marquee）等 accordion 展開後再量
       if (wrap.closest('.list-content')) {
         wrap.closest('.list-item')?.addEventListener('gallery:check', checkOverflow);
@@ -573,9 +576,18 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
       if (wrap.closest('.list-header')) {
         wrap.closest('.list-item')?.addEventListener('gallery:check', checkOverflow);
       }
-      window.addEventListener('resize', checkOverflow);
-      // SPA 離開 activities 時解綁；每個 panel render 都會疊一份 listener，跨頁累積到 user 反映 resize 變慢
-      registerPageCleanup(() => window.removeEventListener('resize', checkOverflow));
+      // ResizeObserver 取代 window resize：除了視窗縮放，更重要是涵蓋「section 切換時 panel 由 display:none→顯示」。
+      // 非當前 section 的 panel 是 .hidden(display:none)，render 當下 title wrap clientWidth=0 量不到 overflow；
+      // 切到該 section 時 wrap 0→實寬，ResizeObserver 自動 fire → re-check → 載入即 marquee（不用展開 accordion）。
+      // 也順帶涵蓋展開時 active margin-right 讓 wrap 變窄的 re-check。
+      if (typeof ResizeObserver !== 'undefined') {
+        const ro = new ResizeObserver(checkOverflow);
+        ro.observe(wrap);
+        registerPageCleanup(() => ro.disconnect());
+      } else {
+        window.addEventListener('resize', checkOverflow);
+        registerPageCleanup(() => window.removeEventListener('resize', checkOverflow));
+      }
     });
   };
   requestAnimationFrame(initMarquees);
@@ -918,17 +930,19 @@ export async function loadListInto(containerId, url, options = {}) {
         : ((item.location || item.location_zh || item.flag)
           ? [{ en: item.location || '', zh: item.location_zh || '', country: item.flag || '' }]
           : []);
-      // 兩個 deprecated 變數保留給 search / country flag cycle 用（同上 join pattern）
+      // locationEn/Zh：search + 「一行地點顯示」用（venue 單一 / 多城市 ' / ' join 成一行）
       const locationEn = locationRows.map(l => l.en).filter(Boolean).join(' / ');
       const locationZh = locationRows.map(l => l.zh).filter(Boolean).join(' / ');
-      const countryCodes = locationRows.map(l => l.country).filter(Boolean);
+      // 標題國旗來源 = guests（人物/單位）的國家，去重 + 轉小寫給 flag-icons（fi-tw…）。
+      // 「地點的國家」(item.flag / locations[].country) 暫不納入 — user 2026-06-03：等後台處理 location-country 機制再加進來。
+      const countryCodes = [...new Set((item.guests || []).map(g => (g.country || '').toLowerCase().trim()).filter(Boolean))];
 
       const itemFlags = alwaysExpanded ? 'data-no-accordion' : 'data-pre-reveal';
       return `
         <div class="list-item" ${itemFlags} data-category="${item.category || ''}" data-media="${mediaJson}" data-search="${searchText}"${item.visitType ? ` data-visit-type="${item.visitType}"` : ''}${item.id ? ` id="item-${item.id}"` : ''}>
-          <div class="list-header ${alwaysExpanded ? '' : 'cursor-pointer'} group transition-colors duration-fast flex items-stretch justify-between px-[4px] py-md">
+          <div class="list-header ${alwaysExpanded ? '' : 'cursor-pointer'} group transition-colors duration-fast flex items-stretch justify-between gap-sm px-[4px] py-md">
             ${titleHtml}
-            <div class="flex items-start gap-sm flex-shrink-0 pt-[0.25rem]">
+            <div class="flex items-start gap-sm flex-shrink-0 pt-[0.55rem]">
               ${(() => {
                 // isAlumni 是 per-person checkbox（新 schema guests group 內）：任一 guest 有 isAlumni → 渲染 icon
                 const hasAlumni = showAlumniIcon && item.guests?.some(g => g.isAlumni === 'on' || g.isAlumni === true || g.isAlumni);
@@ -951,7 +965,7 @@ export async function loadListInto(containerId, url, options = {}) {
                 if (alwaysExpanded) return '';
                 return `<div class="flex items-start gap-sm flex-shrink-0">
                   <div class="list-reveal-row flex items-center gap-sm">
-                    ${showShareBtn ? `<button data-share-btn class="inline-flex items-center">
+                    ${showShareBtn ? `<button data-share-btn class="inline-flex items-center self-start">
                       <span class="icon icon-share icon-s"></span>
                     </button>` : ''}
                     <div class="flex-shrink-0 self-start" style="overflow:clip; height:1.5em; width:1.5em;">
@@ -979,33 +993,17 @@ export async function loadListInto(containerId, url, options = {}) {
                   // 國家行為與 guest 一致：ISO upper + 中文（per location row 各自顯示自己的 country）
                   // showLocation=false 時 names / country 兩 stack 都不渲染
                   const showDateCell = showDate && dateDisplay && !dateInHeader;
-                  const renderNameCell = (loc) => {
-                    const hasName = loc.en || loc.zh;
-                    if (!hasName) return `<div></div>`;
-                    return `<div class="min-w-0">
-                      ${loc.en ? `<div class="list-title-marquee"><p class="text-p2 font-bold">${loc.en}</p></div>` : ''}
-                      ${loc.zh ? `<div class="list-title-marquee"><p class="text-p2 font-bold">${loc.zh}</p></div>` : ''}
-                    </div>`;
-                  };
-                  const renderCountryCell = (loc) => {
-                    const cEn = loc.country ? loc.country.toUpperCase() : '';
-                    const cZh = loc.country ? countryName(loc.country, 'zh') : '';
-                    if (!cEn) return `<div></div>`;
-                    return `<div class="flex-shrink-0 text-right">
-                      <p class="text-p2">${cEn}${cZh ? ` ${cZh}` : ''}</p>
-                    </div>`;
-                  };
-                  return `<div class="grid items-start gap-x-xs" style="grid-template-columns: ${dateColMinWidth} 1fr auto;">
+                  // 地點一律「一行」：venue 單一 / 多城市都用 locationEn(Zh) 的 ' / ' join 串成一行（不再 per-row stack）。
+                  // 右邊不再有國家欄 — 國家改由標題國旗表示（來源 = guests）。user 2026-06-03 重設計。
+                  return `<div class="grid items-start gap-x-xs" style="grid-template-columns: ${dateColMinWidth} 1fr;">
                     ${showDateCell ? `<div class="flex-shrink-0">
                       <p class="text-p2 font-bold">${dateDisplay}</p>
                       ${dateDisplayZh ? `<p class="text-p2 font-bold">${dateDisplayZh}</p>` : ''}
                     </div>` : '<div></div>'}
-                    ${showLocation && locationRows.length ? `<div class="flex flex-col gap-sm min-w-0">
-                      ${locationRows.map(renderNameCell).join('')}
-                    </div>
-                    <div class="flex flex-col gap-sm flex-shrink-0">
-                      ${locationRows.map(renderCountryCell).join('')}
-                    </div>` : '<div></div><div></div>'}
+                    ${showLocation && (locationEn || locationZh) ? `<div class="min-w-0">
+                      ${locationEn ? `<div class="list-title-marquee"><p class="text-p2 font-bold">${locationEn}</p></div>` : ''}
+                      ${locationZh ? `<div class="list-title-marquee"><p class="text-p2 font-bold">${locationZh}</p></div>` : ''}
+                    </div>` : '<div></div>'}
                   </div>`;
                 })() : ''}
                 ${item.guests?.length ? `<div class="flex flex-col gap-sm">
@@ -1058,8 +1056,8 @@ export async function loadListInto(containerId, url, options = {}) {
                 const filename = url !== '#' ? url.split('/').pop().split('?')[0] : '';
                 return `
                 <a class="list-ref-btn cursor-pointer w-full grid grid-cols-12 gap-x-md items-start py-sm px-md no-underline" href="${url}"${filename ? ` download="${filename}"` : ''}>
-                  <div class="col-span-1 flex justify-center" style="padding-top: 0.05em;">
-                    <span class="icon icon-attachment icon-l"></span>
+                  <div class="col-span-1 flex justify-start" style="padding-top: 0.25em;">
+                    <span class="icon icon-attachment icon-m"></span>
                   </div>
                   <div class="col-span-11 flex flex-col">
                     <p class="text-p2 font-bold">${labelEn}</p>
@@ -1072,28 +1070,28 @@ export async function loadListInto(containerId, url, options = {}) {
             <div class="list-ref-wrap flex flex-col mt-md">
               ${references.map(ref => `
               ${ref.pdfUrl
-                ? `<button class="list-ref-btn cursor-pointer border-none w-full grid grid-cols-12 gap-x-md items-start py-sm text-left"
+                ? `<button class="list-ref-btn cursor-pointer border-none w-full grid grid-cols-12 gap-x-md items-start py-sm px-md text-left"
                     data-ref-pdf-url="${ref.pdfUrl}"
                     data-ref-title-en="${(ref.titleEn || '').replace(/"/g, '&quot;')}"
                     data-ref-title-zh="${(ref.titleZh || '').replace(/"/g, '&quot;')}"
                     data-ref-host-section="${hostSection || ''}"
                     data-ref-host-item="${item.id || ''}">`
                 : ref.href
-                ? `<a class="list-ref-btn cursor-pointer w-full grid grid-cols-12 gap-x-md items-start py-sm no-underline" href="${ref.href}">`
-                : `<button class="list-ref-btn cursor-pointer border-none w-full grid grid-cols-12 gap-x-md items-start py-sm text-left"
+                ? `<a class="list-ref-btn cursor-pointer w-full grid grid-cols-12 gap-x-md items-start py-sm px-md no-underline" href="${ref.href}">`
+                : `<button class="list-ref-btn cursor-pointer border-none w-full grid grid-cols-12 gap-x-md items-start py-sm px-md text-left"
                     data-ref-section="${ref.section || ''}"
                     data-ref-item="${ref.itemId || ''}">`
               }
-                <div class="col-span-1 flex justify-center" style="padding-top: 0.25em;">
+                <div class="col-span-1 flex justify-start" style="padding-top: 0.25em;">
                   <span class="icon icon-ref-list icon-s"></span>
                 </div>
-                <div class="col-span-4 flex flex-col">
+                <div class="col-span-3 flex flex-col">
                   ${ref.labelEn ? `<p class="text-p2">${ref.labelEn}</p>` : ''}
                   ${ref.labelZh ? `<p class="text-p2">${ref.labelZh}</p>` : ''}
                 </div>
-                <div class="col-span-7 flex flex-col">
-                  ${ref.titleEn ? `<p class="text-p2 font-bold">${ref.titleEn}</p>` : ''}
-                  ${ref.titleZh ? `<p class="text-p2 font-bold">${ref.titleZh}</p>` : ''}
+                <div class="col-start-5 col-span-8 flex flex-col min-w-0">
+                  ${ref.titleEn ? `<div class="list-title-marquee"><p class="text-p2 font-bold">${ref.titleEn}</p></div>` : ''}
+                  ${ref.titleZh ? `<div class="list-title-marquee"><p class="text-p2 font-bold">${ref.titleZh}</p></div>` : ''}
                 </div>
               ${ref.href && !ref.pdfUrl ? `</a>` : `</button>`}
               `).join('')}

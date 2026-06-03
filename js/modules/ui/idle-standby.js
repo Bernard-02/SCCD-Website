@@ -86,10 +86,10 @@ let liftedLogoData = null;
 let savedLogoType = null;
 
 // 進入待機時：slide-in 觸發的反色 logo 在「待機背景 = page bg」的場景下不再合理，要切回非反色版
-// 待機 atlas-main 的 bg = var(--theme-bg) = 跟 page mode 同色：
-//   - mode1 standard：白底 → slide-in 開時 logo='inverse'(白) → 待機白底 + 白 logo 看不見 → 切回 'standard'(黑)
-//   - mode2 inverse：黑底 → slide-in 開時 logo='inverse'(白) → 待機黑底 + 白 logo 仍 OK → 不動
-//   - mode3 color：彩底 → slide-in 開時 logo='wireframe-inverse'(白) → 待機彩底 + 白看不清 → 切回 'wireframe'(黑)
+// 待機 atlas-main 的 bg = var(--theme-bg) = 跟 page mode 同色（overlay 開時 logo 一律 'wireframe-inverse' 白）：
+//   - mode1 standard：白底 → 待機白底 + 白 logo 看不見 → 切回 'standard'(黑)
+//   - mode2 inverse：黑底 → 待機黑底 + 白 logo 仍 OK → 不動
+//   - mode3 color：彩底 → 待機彩底 + 白看不清 → 切回 'wireframe'(黑)
 function maybeRevertInverseLogo() {
   const logo = getLogo();
   if (!logo) return;
@@ -106,7 +106,8 @@ function maybeRevertInverseLogo() {
     return;
   }
   const currentType = logo.dataset.logoType;
-  if (mode === 'standard' && currentType === 'inverse') {
+  // overlay 開時白 logo 現一律 'wireframe-inverse'（舊路徑可能還有 'inverse'，兩者都接）
+  if (mode === 'standard' && (currentType === 'wireframe-inverse' || currentType === 'inverse')) {
     savedLogoType = currentType;
     switchHeaderLogo('standard');
   } else if (mode === 'color' && currentType === 'wireframe-inverse') {

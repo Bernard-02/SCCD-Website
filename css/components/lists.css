@@ -308,6 +308,7 @@
   }
   .list-header.active > div:first-child {
     transform: translateX(calc(var(--spacing-sm) - 4px));
+    margin-right: calc(var(--spacing-sm) - 4px); /* 抵消 translateX，title 右緣不戳控制項（同桌面 .list-header.active 說明）*/
   }
 }
 
@@ -595,6 +596,10 @@
   }
   .list-header.active > div:first-child {
     transform: translateX(calc(var(--spacing-md) - 4px));
+    /* 抵消上面的 translateX：title(flex-1) 寬度同步縮 20px → marquee 裁切邊界提前 20px，
+       位移後右緣剛好回到控制項左緣，不再戳進右側 flag/share/chevron。
+       （col-5 內容變窄後長 title 從「放得下」變「溢出貼右緣」才讓這個位移重疊現形）*/
+    margin-right: calc(var(--spacing-md) - 4px);
   }
 }
 

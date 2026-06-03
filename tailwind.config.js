@@ -92,10 +92,31 @@ module.exports = {
       // Grid 系統
       gridTemplateColumns: {
         '12': 'repeat(12, minmax(0, 1fr))',
+        '20': 'repeat(20, minmax(0, 1fr))',
+      },
+
+      // 20 欄 grid 用：Tailwind 預設 col-span 只到 12、col-start/end 只到 13，補滿到 20/21
+      gridColumn: {
+        'span-13': 'span 13 / span 13',
+        'span-14': 'span 14 / span 14',
+        'span-15': 'span 15 / span 15',
+        'span-16': 'span 16 / span 16',
+        'span-17': 'span 17 / span 17',
+        'span-18': 'span 18 / span 18',
+        'span-19': 'span 19 / span 19',
+        'span-20': 'span 20 / span 20',
+      },
+      gridColumnStart: {
+        '14': '14', '15': '15', '16': '16', '17': '17',
+        '18': '18', '19': '19', '20': '20', '21': '21',
+      },
+      gridColumnEnd: {
+        '14': '14', '15': '15', '16': '16', '17': '17',
+        '18': '18', '19': '19', '20': '20', '21': '21',
       },
 
       gap: {
-        'gutter': '1.25rem',  // 20px
+        'gutter': 'var(--spacing-gutter)',  // 20px，single source = variables.css
       },
 
       // 旋轉角度（常用於卡片和標題）

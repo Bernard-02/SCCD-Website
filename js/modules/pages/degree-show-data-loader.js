@@ -838,15 +838,16 @@ async function setupRefBtn(data) {
 
   // 3) 渲染 chip card — 結構同 lightbox-ref-btn renderChips（不抽共用函式：那邊綁 onClose lightbox 邏輯
   //    跟這邊純跳轉行為差別大；視覺結構直接複製成本低）
-  const ACCENT = ['#00FF80', '#FF448A', '#26BCFF'];
-  const cardColor = ACCENT[Math.floor(Math.random() * ACCENT.length)];
   stack.innerHTML = '';
   const card = document.createElement('div');
   card.className = 'lightbox-ref-card';
-  card.style.background = cardColor;
-  const rot = (Math.random() < 0.5 ? -1 : 1) * (1 + Math.random() * 2);
-  card.style.transform = `rotate(${rot}deg)`;
+  // 卡片 strict B/W（user 2026-06-02：黑底白字/白底黑字依 mode，不用三原色）。
+  // bg 不放 card、改放每個 chip（default var(--theme-fg) / hover var(--theme-fg-inverse)）：card 留透明，
+  // 旋轉後 hover 白填滿時不會從 card 邊漏 1px 細縫（無下層 card bg 可從旋轉邊 sub-pixel 漏色）。詳 hero.css scoped 規則
+  card.style.background = 'transparent';
   card.style.transformOrigin = 'left center';
+  // 卡片旋轉角度跟隨 ref btn（user 2026-06-02）：btn rotation 由 setupStickyAndHeroChips 設、晚於此處 render，
+  // 故不在 render 時讀，改在 openPopover 開啟前即時讀 btn.style.transform 套上（同 lightbox-ref-btn.js 卡片跟隨 pill 角度）
 
   resolved.forEach(ref => {
     const row = document.createElement('button');
@@ -881,7 +882,7 @@ async function setupRefBtn(data) {
   // 4) Label column 對齊 + marquee（沿用 lightbox-ref-btn 同邏輯）
   requestAnimationFrame(() => {
     alignLabelColumn(card, popover);
-    setupChipMarquees(stack);
+    setupChipMarquees(stack, popover);
   });
 
   // 5) popover 開合 + clip-reveal 進退
@@ -910,20 +911,25 @@ async function setupRefBtn(data) {
     if (isOpen) return;
     isOpen = true;
     popover.style.display = 'block';
-    popover.style.overflow = 'clip';
+    // 卡片旋轉跟隨 btn 當前角度（此時 setupStickyAndHeroChips 已套好 refBtn rotation）
+    const rotMatch = btn.style.transform.match(/rotate\(\s*(-?[\d.]+)deg\s*\)/);
+    card.style.transform = `rotate(${rotMatch ? rotMatch[1] : 0}deg)`;
     positionPopover();
     if (typeof gsap !== 'undefined') {
       if (openAnim) openAnim.kill();
-      gsap.set(stack, { yPercent: 100 });
-      openAnim = gsap.to(stack, {
-        yPercent: 0,
+      // clip-path 由下往上 reveal（content 留在最終位置原地揭露）— 不用 yPercent slide-up，
+      // 否則 stack 先被往下推 popH、再滑上來，視覺上「卡片在比較低的位置出現再上移、過程被切」（user 2026-06-02）
+      // clip-path 套在 popover（含 32px padding）而非 stack：旋轉 card 角落在 padding 內、reveal 期間不被裁
+      // onComplete 解除 clip-path 讓角完全自由
+      gsap.set(popover, { clipPath: 'inset(100% 0% 0% 0%)' });
+      openAnim = gsap.to(popover, {
+        clipPath: 'inset(0% 0% 0% 0%)',
         duration: 0.5,
         ease: 'power3.out',
-        onComplete: () => { popover.style.overflow = 'visible'; },
+        onComplete: () => { popover.style.clipPath = 'none'; },
       });
     } else {
-      stack.style.transform = '';
-      popover.style.overflow = 'visible';
+      popover.style.clipPath = 'none';
     }
   }
 
@@ -933,19 +939,25 @@ async function setupRefBtn(data) {
       return;
     }
     isOpen = false;
-    popover.style.overflow = 'clip';
     if (typeof gsap !== 'undefined' && animated) {
       if (openAnim) openAnim.kill();
-      openAnim = gsap.to(stack, {
-        yPercent: 100,
+      // 收起 = reveal 反向（由上往下收回底邊）；先補回 inset(0%) 起點（open onComplete 設成 none 無法 interpolate）
+      gsap.set(popover, { clipPath: 'inset(0% 0% 0% 0%)' });
+      openAnim = gsap.to(popover, {
+        clipPath: 'inset(100% 0% 0% 0%)',
         duration: 0.35,
         ease: 'power3.in',
-        onComplete: () => { popover.style.display = 'none'; },
+        onComplete: () => { popover.style.display = 'none'; popover.style.clipPath = 'none'; },
       });
     } else {
       popover.style.display = 'none';
+      popover.style.clipPath = 'none';
     }
   }
+
+  // 暴露 closePopover 給 setupStickyAndHeroChips 的 hideCard 用：
+  // ref btn 隨 scroll clip-collapse 消失時，open 中的 popover 不該留在原位 → 一起收起
+  /** @type {any} */ (btn)._closeRefPopover = () => closePopover(true);
 
   btn.addEventListener('click', e => {
     e.stopPropagation();
@@ -995,7 +1007,15 @@ function alignLabelColumn(card, popover) {
 }
 
 // Title overflow → marquee（dual-copy seamless loop，複用 lightbox-ref-btn 演算法）
-function setupChipMarquees(stack) {
+// 此函式在 render 時（rAF）跑，popover 仍 display:none → 量寬會全 0、永遠判定不 overflow（user 2026-06-02
+// 反映長 title 不 marquee 被切）。比照 alignLabelColumn / lightbox setupAllMarquees：量前暫時 display:block
+// + visibility:hidden 撐出 layout 才能量到真實寬度，量完還原。
+function setupChipMarquees(stack, popover) {
+  const wasDisplay = popover.style.display;
+  if (wasDisplay === 'none' || !wasDisplay) {
+    popover.style.visibility = 'hidden';
+    popover.style.display = 'block';
+  }
   stack.querySelectorAll('.lightbox-ref-chip').forEach(chip => {
     const win = /** @type {HTMLElement | null} */ (chip.querySelector('.lightbox-ref-chip-title-window'));
     const track = /** @type {HTMLElement | null} */ (chip.querySelector('.lightbox-ref-chip-title-track'));
@@ -1018,6 +1038,10 @@ function setupChipMarquees(stack) {
       });
     }
   });
+  if (wasDisplay === 'none' || !wasDisplay) {
+    popover.style.display = wasDisplay || 'none';
+    popover.style.visibility = '';
+  }
 }
 
 // ── Sticky info card ───────────────────────────────────────────────────────
@@ -1074,9 +1098,10 @@ function setupStickyAndHeroChips(data) {
   if (backBtn) backBtn.style.transform = `rotate(${randRot()}deg)`;
   if (refBtn) refBtn.style.transform = `rotate(${randRot()}deg)`;
 
-  // clip-path 規則：CSS 已預設 inset(0 0 100% 0) hidden，這裡保留 mapping
-  const HIDDEN = 'inset(0 0 100% 0)';
-  const SHOWN = 'inset(0 0 0 0)';
+  // clip-path 留 -12px buffer（仿 atlas .atlas-layout-inner）：ref btn hover 時 inner rotate(15deg) 角會超出 box，
+  // buffer 確保旋轉角不被 clip 切掉；HIDDEN wiped 邊用 calc(100% + 12px) 同帶 buffer（CSS 預設同步見 hero.css .sticky-chip）
+  const HIDDEN = 'inset(-12px -12px calc(100% + 12px) -12px)';
+  const SHOWN = 'inset(-12px -12px -12px -12px)';
   // titleChips = [titleChip, backBtn, refBtn]：三者描述段 reveal、next-project 段 collapse 全程同步
   // refBtn 若 setupRefBtn 已 hide（無 refs）則不加入；branchChip 獨立由 galleriesRoot 內各 event trigger 控
   const titleChips = [titleChip];
@@ -1149,6 +1174,10 @@ function setupStickyAndHeroChips(data) {
     // 取消 pending sticky reveal — 避免「showCard 排好延遲、user 快速 scroll 回去」期間 reveal 仍會 fire
     if (stickyRevealTimer) { clearTimeout(stickyRevealTimer); stickyRevealTimer = null; }
     setChipsState(titleChips, false);
+    // ref btn 跟著 clip-collapse 消失 → open 中的 ref popover 一起收起（不留在原位）
+    if (refBtn && typeof (/** @type {any} */ (refBtn)._closeRefPopover) === 'function') {
+      /** @type {any} */ (refBtn)._closeRefPopover();
+    }
     // branch chip 收起 + 重置 currentBranchIdx，讓下次 scroll 回來 onEnterBack 能重新 setBranch
     clearBranch();
     gsap.to(card, {

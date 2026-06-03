@@ -1,6 +1,6 @@
 /**
  * Courses Section Switch Module
- * 處理 courses.html 的三組 program 切換（bfa-animation / bfa-cmd / mdes）
+ * 處理 curriculum.html（route/file 原名 courses）的三組 program 切換（bfa-animation / bfa-cmd / mdes）
  *
  * 新版 layout：
  *   - 三個按鈕橫排於頂部，BFA 兩 btn 各自上方有 .courses-bfa-label「BFA Class 學士班」
