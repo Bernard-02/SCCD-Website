@@ -523,6 +523,16 @@ export function switchHeaderLogo(type) {
     return;
   }
 
+  // Frame 同步：destroy 前抓正在跑的 logo 當前 frame，新 logo 接同一 frame 繼續轉。
+  // 三個會 swap 的 logo JSON（Standard/WireframeStandard/WireframeInverse）時間軸完全相同
+  // （ip:0 / op:3600 / fr:60），frame number 1:1 對應同一旋轉角度；不接的話新 anim 從 frame 0
+  // 重起 → 環的旋轉角度 snap 回起點看起來「jump」（viewer 開/關切 wireframe 時最明顯）。
+  let resumeFrame = 0;
+  if (typeof lottie.getRegisteredAnimations === 'function') {
+    const prevAnim = lottie.getRegisteredAnimations().find((a) => a.name === 'header-logo-anim');
+    if (prevAnim) resumeFrame = prevAnim.currentFrame || 0;
+  }
+
   // doSwap：destroy 舊 Lottie + 載新 Lottie；DOMLoaded 後依 needsReveal 決定要不要 reveal
   const myGeneration = ++logoLoadGeneration;
   lottie.destroy('header-logo-anim');
@@ -559,6 +569,9 @@ export function switchHeaderLogo(type) {
     }
     // 防 autoplay 在 race 情境下未真正啟動（symptom：Lottie 卡 frame 0 看不到 central circle）
     if (typeof anim.play === 'function' && anim.isPaused) anim.play();
+    // Frame 同步（見上方 resumeFrame）：接上 destroy 前那支 logo 的旋轉角度繼續轉，消除 swap 的 jump。
+    // 在 DOMLoaded 同步設定，趕在首次 paint 前，不會閃 frame 0。
+    if (resumeFrame > 0 && typeof anim.goToAndPlay === 'function') anim.goToAndPlay(resumeFrame, true);
     // **不能用 gsap.killTweensOf(logo)**：會把 header.js 的 scroll-shrink ScrollTrigger
     // (180→100 scrub) 一起殺掉，logo 卡在 180 永遠不收縮
     if (needsReveal) runHeaderLogoReveal(logo);
