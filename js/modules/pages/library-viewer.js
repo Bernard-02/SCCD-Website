@@ -60,31 +60,20 @@ function ensurePdfModal() {
   modal.className = 'fixed inset-0 z-[9999] bg-black/90 flex flex-col opacity-0 transition-opacity duration-300';
   modal.style.display = 'none';
   modal.innerHTML = `
-    <!-- 左下角：返回按鈕 + title pill 分別 absolute（不用 flex wrapper）
-         - back btn 對齊 logo 左邊（left: var(--container-padding)）
-         - title 對齊 PDF spread 左邊（fit 時實際 canvas 左緣，JS positionTitle 動態設）
-         - 兩者都 transform-origin:left bottom 避免旋轉外溢 -->
-    <button class="pdf-back-btn absolute" style="bottom: 2rem; left: var(--container-padding, 1.5rem); z-index: 50;">
-      <span class="pdf-back-pill" style="display:inline-flex;align-items:center;justify-content:center;background:#00FF80;color:#000;width:44px;height:44px;font-size:var(--font-size-p1);line-height:1;transform:rotate(0deg);transform-origin:left bottom;box-sizing:border-box;">
-        <span class="icon icon-arrow-left icon-m"></span>
-      </span>
-    </button>
-    <!-- pdf-ref-btn-slot：ref btn 由 createRefBtn 動態插入，位置 absolute，left/bottom 由 positionRefBtn 算 -->
-    <div class="pdf-title absolute" style="bottom: 2rem; left: 4rem; z-index: 50; display: none;"></div>
+    <!-- back btn / title / ref btn 都改放到底部 .pdf-bottom-bar 內（見下），才能跟頁碼/zoom 同一水平線置中（user 2026-06-03）-->
 
     <!-- px-16 md:px-32：desktop padding 加大讓 stage（=zoom mask）邊緣停在 chevron 內側，
          避免 zoom 後 PDF/canvas 視覺貼到 chevron 上。chevron right edge ≈ container-padding + 44 = 68px，
-         px-32 = 128px → mask 邊 60px gap（對齊 user 提供的 album 352% 參考間距）。mobile 維持 px-16 -->
-    <div class="flex items-center justify-center w-full px-16 md:px-32 py-xl flex-1 min-h-0 relative">
-      <!-- chevron 對齊 logo 左/右邊（var(--container-padding)）= 跟 back btn 同 column；PDF spread 寬度需縮才不貼到 chevron -->
+         px-32 = 128px → mask 邊 60px gap。mobile 維持 px-16 -->
+    <div class="pdf-main-row flex items-center justify-center w-full px-16 md:px-32 pt-xl pb-md flex-1 min-h-0 relative">
+      <!-- chevron 對齊 logo 左/右邊（var(--container-padding)）= 跟 back btn 同 column -->
       <button id="pdf-prev-btn" class="absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 disabled:opacity-20" style="left: var(--container-padding, 1.5rem); z-index: 30;">
         <span class="icon icon-chevron-lightbox icon-m"></span>
       </button>
       <!-- zoom stage：overflow:hidden 容器，transform 套在 .pdf-canvas-row 上做 zoom + pan -->
       <div class="pdf-zoom-stage" style="position:relative;width:100%;height:100%;overflow:hidden;display:flex;align-items:center;justify-content:center;">
         <div class="pdf-canvas-row flex items-center justify-center gap-0 w-full h-full" style="transform-origin:center;will-change:transform;">
-          <canvas id="pdf-canvas-left"  class="bg-white shadow-2xl block"            style="user-select:none;"></canvas>
-          <canvas id="pdf-canvas-right" class="bg-white shadow-2xl hidden md:block" style="user-select:none;"></canvas>
+          <canvas id="pdf-canvas-left" class="bg-white block" style="user-select:none;"></canvas>
         </div>
       </div>
       <button id="pdf-next-btn" class="absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 disabled:opacity-20" style="right: var(--container-padding, 1.5rem); z-index: 30;">
@@ -92,20 +81,38 @@ function ensurePdfModal() {
       </button>
     </div>
 
-    <div class="relative flex items-center justify-center px-xl py-md flex-shrink-0 text-white">
+    <!-- PDF 無縮圖列，底部只放頁碼 + zoom controls → 不撐高，讓 PDF stage 盡量往下延伸（user 2026-06-02）。
+         （曾為對齊 album .alb-thumbs-wrap 撐到 156px，但 PDF 那段是空的，user 要求拿掉讓 PDF 更高）-->
+    <!-- min-height 108px：對齊 album .alb-thumbs-wrap 的 row 高度，讓底部 pill 的 breathing room 跟 album 一致。
+         album row = thumb 48px + .alb-thumbs padding 6×2 + pt-md/pb-md 24×2 = 108px；PDF 無縮圖列、自然只 ~72px，
+         pill（left bottom 旋轉、兩行 ~57px）在矮 bar 裡離底邊太近顯得比 album 低 → 補 min-height 拉到同高。
+         （此處刻意 re-add 之前為衝 stage 高度而移除的 min-height；user 2026-06-03 要 pill 對齊 album，接受 stage 少 ~36px） -->
+    <div class="pdf-bottom-bar relative flex items-center justify-center px-xl py-md flex-shrink-0 text-white" style="min-height: 108px;">
+      <!-- back btn + title（ref btn 由 JS 插入此 bar）：absolute 靠左 + top:50% translateY(-50%)，
+           與頁碼/zoom 同一水平線置中（user 2026-06-03；鏡像 album .alb-topbar 在 thumbs-wrap 內的做法）。
+           translateY 套外層定位元素、rotate 套內層 pill → 兩 transform 不衝突。
+           rotate 的 transform-origin = left bottom（與 album .alb-close-pill / .alb-title-pill 一致，user 2026-06-03 要求對齊 album）；
+           繞左下角轉會讓寬 title pill 右端下沉，跟 album 同樣的視覺（接受） -->
+      <button class="pdf-back-btn absolute" style="top: 50%; transform: translateY(-50%); left: var(--container-padding, 1.5rem); z-index: 50;">
+        <span class="pdf-back-pill" style="display:inline-flex;align-items:center;justify-content:center;background:#00FF80;color:#000;width:44px;height:44px;font-size:var(--font-size-p1);line-height:1;transform:rotate(0deg);transform-origin:left bottom;box-sizing:border-box;">
+          <span class="icon icon-arrow-left icon-m"></span>
+        </span>
+      </button>
+      <div class="pdf-title absolute" style="top: 50%; transform: translateY(-50%); left: 4rem; z-index: 50; display: none;"></div>
       <span id="pdf-page-info" class="text-p2"></span>
-      <!-- zoom controls：底部右側 absolute（鏡像 album）-->
+      <!-- 頁碼 justify-center 置中；zoom controls 靠右 absolute，top:50%+translateY(-50%) 與頁碼同一水平線
+           （user 2026-06-03 澄清：頁碼置中、controls 靠右、兩者對齊在同一水平線，不是整組置中）-->
       <div class="pdf-zoom-controls absolute text-white" style="right: var(--container-padding, 1.5rem); top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 12px;">
-        <button id="pdf-zoom-out" class="p-2 transition-opacity hover:opacity-60 disabled:opacity-30" aria-label="Zoom out">
+        <button id="pdf-zoom-out" class="p-2 transition-opacity hover:opacity-60 disabled:opacity-30 disabled:[cursor:var(--cursor-not-allowed)]" aria-label="Zoom out">
           <span class="icon icon-zoom-out icon-m"></span>
         </button>
         <span id="pdf-zoom-pct" class="text-p2" style="font-variant-numeric: tabular-nums; min-width: 3.5rem; text-align: center;">100%</span>
-        <button id="pdf-zoom-in" class="p-2 transition-opacity hover:opacity-60 disabled:opacity-30" aria-label="Zoom in">
+        <button id="pdf-zoom-in" class="p-2 transition-opacity hover:opacity-60 disabled:opacity-30 disabled:[cursor:var(--cursor-not-allowed)]" aria-label="Zoom in">
           <span class="icon icon-zoom-in icon-m"></span>
         </button>
-        <!-- Fit / 放大 toggle（鏡像 album）：fit 時點 → 放大 2x；zoomed 時點 → 回 fit -->
-        <button id="pdf-fit-toggle" class="p-2 transition-opacity hover:opacity-60" aria-label="Fit / zoom toggle">
-          <i class="fa-solid fa-expand text-p1"></i>
+        <!-- Fit Page ↔ Fit Width 雙態 toggle；icon 顯示「下一個動作」：預設 Fit Page → 顯示 fit_width（點了切滿寬）-->
+        <button id="pdf-fit-toggle" class="p-2 transition-opacity hover:opacity-60 disabled:opacity-30 disabled:[cursor:var(--cursor-not-allowed)]" aria-label="Fit / zoom toggle">
+          <span class="icon icon-fit-width icon-m"></span>
         </button>
       </div>
     </div>`;
@@ -130,7 +137,6 @@ export function initPdfViewer() {
 
   const modal     = document.getElementById('pdf-viewer-modal');
   const canvasL   = document.getElementById('pdf-canvas-left');
-  const canvasR   = document.getElementById('pdf-canvas-right');
   const prevBtn   = document.getElementById('pdf-prev-btn');
   const nextBtn   = document.getElementById('pdf-next-btn');
   const pageInfo  = document.getElementById('pdf-page-info');
@@ -138,94 +144,151 @@ export function initPdfViewer() {
   const backPill  = modal.querySelector('.pdf-back-pill');
   const stageEl   = modal.querySelector('.pdf-zoom-stage');
   const rowEl     = modal.querySelector('.pdf-canvas-row');
+  const mainRowEl = modal.querySelector('.pdf-main-row');
+  const bottomBarEl = modal.querySelector('.pdf-bottom-bar');
   const titleEl   = modal.querySelector('.pdf-title');
   const zoomInBtn  = document.getElementById('pdf-zoom-in');
   const zoomOutBtn = document.getElementById('pdf-zoom-out');
   const zoomPctEl  = document.getElementById('pdf-zoom-pct');
   const fitToggleBtn = document.getElementById('pdf-fit-toggle');
-  if (!modal || !canvasL || !canvasR || !stageEl || !rowEl) return;
+  if (!modal || !canvasL || !stageEl || !rowEl) return;
 
   // ── Ref btn（plug-in helper）─────────────────────────────────────
   // 提供「跳轉到 activities 對應 item」的 chip popover；close lightbox 後 SPA 換頁
   const refUi = createRefBtn('#00FF80', () => closeModal());
   refUi.btnEl.classList.add('pdf-ref-btn');
   refUi.btnEl.style.position = 'absolute';
-  refUi.btnEl.style.bottom = '2rem';
+  refUi.btnEl.style.top = '50%';
+  refUi.btnEl.style.transform = 'translateY(-50%)';   // 垂直置中於 bar，跟 back/title/頁碼同一水平線
   refUi.btnEl.style.zIndex = '50';
   // left 由 positionRefBtn 動態算（anchor 到 back btn 右緣 + gap）；先給 fallback 避免閃位
   refUi.btnEl.style.left = '4rem';
-  modal.appendChild(refUi.btnEl);
-  modal.appendChild(refUi.popoverEl);
+  (bottomBarEl || modal).appendChild(refUi.btnEl);    // ref btn 進 bar → 跟 back/title/頁碼/zoom 同一水平線
+  modal.appendChild(refUi.popoverEl);                 // popover 仍掛 modal（full overlay；positionPopover 用 viewport rect 算）
 
   let pdfDoc   = null;
   let curPage  = 1;
   let rendering = false;
 
-  // ── Zoom 狀態（fit=1，drag pan，wheel 行為依 scale 切換）────────────
-  // scale=1 時 wheel 翻頁；scale>1 時 wheel 在 viewport 內 pan。zoom 只能用 +/- 按鈕（與 album 行為不同）。
-  const MIN_SCALE = 1;
-  const MAX_SCALE = 6;
-  // 內部 canvas 多渲一倍像素 fit 用，放大時靠 CSS scale；MAX_SCALE 6 下高倍會略糊但細節仍可讀
+  // ── Zoom 狀態（對齊 activities-lightbox album viewer 邏輯）────────────────
+  // 內部 zoom.scale 恆以「fit-to-stage」為 1（同 album）。
+  // 顯示 % = zoom.scale × fitRatio × 100；fitRatio = fitDims/naturalDims = canvas 顯示寬 / PDF 原寸寬
+  // 預設打開 = Fit Page (zoom.scale=1 fit-to-stage)，仿 Acrobat「適合頁面」整頁撐滿視窗（user 2026-06-02）
+  // actual size (100% PDF 原寸) = zoom.scale = 1/fitRatio，要 zoom out 才到（同 Acrobat Actual Size 是選項非預設）
+  // fit-toggle = 回 zoom.scale=1（fit-to-stage / Fit Page）
+  const MIN_PCT = 0.10;   // 10% 下限（百分比 = 相對 PDF 原寸）
+  const MAX_PCT = 6;      // 600% 上限
+  // 渲染品質：每次切換 scale 重渲（不靠 CSS 放大避免高倍模糊；同 album 但 album 用 img naturalDims+CSS scale）
+  // PDF 不一樣：CSS scale 放大會糊文字，重渲較慢但清晰；採折衷 RENDER_QUALITY=2 平衡
   const RENDER_QUALITY = 2;
   let zoom = { scale: 1, tx: 0, ty: 0 };
+  // fitDims / naturalDims（同 album 命名）：
+  // - naturalDims = PDF 原寸 (PDF.js scale=1 的 viewport 寬高 = CSS px @96dpi)
+  // - fitDims = 在 stage 內 contain 後的渲染顯示尺寸（CSS px）；永遠 ≤ naturalDims（小 PDF 不放大）
+  let fitDims = { w: 0, h: 0 };
+  let naturalDims = { w: 0, h: 0 };
   let isDragging = false;
   let dragStart  = { x: 0, y: 0, tx: 0, ty: 0 };
   // wheel 翻頁 debounce：touchpad 一次手勢會 burst 多 events
   let wheelPageLock = 0;
   const WHEEL_PAGE_COOLDOWN = 350;
 
-  function isDesktop() { return window.innerWidth >= 768; }
+  function getFitRatio() {
+    return naturalDims.w > 0 && fitDims.w > 0 ? fitDims.w / naturalDims.w : 0;
+  }
+  const fitScale    = () => 1;
+  const actualScale = () => { const r = getFitRatio(); return r > 0 ? 1 / r : 1; };
+  function minScale() {
+    const r = getFitRatio();
+    if (r <= 0) return 1;
+    return Math.min(fitScale(), MIN_PCT / r);
+  }
+  function maxScale() {
+    const r = getFitRatio();
+    if (r <= 0) return 6;
+    return Math.max(actualScale(), MAX_PCT / r);
+  }
+  function isFit() { return Math.abs(zoom.scale - fitScale()) < 0.001; }
+
+  // Fit Width（仿 Acrobat「適合寬度」）：頁面寬度填滿 availW 對應的 scale。
+  // portrait 頁比 Fit Page 大（高度溢出 → 垂直 pan）；landscape 頁等於 Fit Page（Fit Page 已填滿寬）。
+  function fitWidthScale() {
+    if (fitDims.w <= 0) return fitScale();
+    const availW = stageEl.clientWidth || window.innerWidth;  // 填滿整個 stage 寬（不再 *0.92；px-32 已留 chevron clearance，user 2026-06-03 要 Fit Width 頂到邊）
+    return Math.max(fitScale(), availW / fitDims.w);
+  }
+  function isFitWidth() {
+    const fw = fitWidthScale();
+    return fw > fitScale() + 0.001 && Math.abs(zoom.scale - fw) < 0.001;
+  }
+  // Fit Width 進入時對齊「頁面頂端」（仿 Acrobat 適合寬度：頁高溢出時從頂部開始看，而非顯示中段）。
+  // top-align ty = +maxTy（把頁面頂端貼到 stage 頂端）；頁面不溢出（landscape）時 maxTy=0 即整頁置中。
+  // user 2026-06-03：點 Fit Width 預設要對齊頂部、不要從中間放大。
+  function fitWidthTopTy(scale) {
+    const scaledH = fitDims.h * scale;
+    return Math.max(0, (scaledH - stageEl.getBoundingClientRect().height) / 2);
+  }
+  function applyFitWidth(animated = false) {
+    zoom.scale = Math.max(minScale(), Math.min(maxScale(), fitWidthScale()));
+    zoom.tx = 0;
+    zoom.ty = fitWidthTopTy(zoom.scale);
+    applyZoom(animated);
+  }
 
   function applyZoom(animated = false) {
     rowEl.style.transition = animated ? 'transform 0.2s ease-out' : 'none';
     rowEl.style.transform = `translate(${zoom.tx}px, ${zoom.ty}px) scale(${zoom.scale})`;
+    const canPan = zoom.scale > fitScale() + 0.001;
     rowEl.style.cursor = isDragging
       ? "url('/custom-cursor/drag_2.svg') 10 10, grabbing"
-      : (zoom.scale > 1
+      : (canPan
           ? "url('/custom-cursor/drag_1.svg') 10 10, grab"
           : "url('/custom-cursor/default.svg') 6 1, default");
     updateZoomUI();
   }
 
   function updateZoomUI() {
-    if (zoomPctEl)  zoomPctEl.textContent = `${Math.round(zoom.scale * 100)}%`;
-    if (zoomInBtn)  zoomInBtn.disabled  = zoom.scale >= MAX_SCALE - 0.001;
-    if (zoomOutBtn) zoomOutBtn.disabled = zoom.scale <= MIN_SCALE + 0.001;
-    // fit-toggle 圖示：fit 時 expand（暗示「點擊放大」）；zoomed 時 compress（暗示「點擊縮回 fit」）
+    if (!zoomPctEl) return;
+    const fitRatio = getFitRatio();
+    const displayPct = Math.round(zoom.scale * (fitRatio > 0 ? fitRatio : 1) * 100);
+    zoomPctEl.textContent = `${displayPct}%`;
+    zoomInBtn.disabled  = zoom.scale >= maxScale() - 0.001;
+    zoomOutBtn.disabled = zoom.scale <= minScale() + 0.001;
+    // fit-toggle = Fit Page ↔ Fit Width 雙態切換（user 2026-06-02）；不 disable，icon 反映當前模式：
+    // 在 Fit Width → fit_width icon；其他（Fit Page / 手動 zoom）→ fit_to_viewport icon
     if (fitToggleBtn) {
-      const icon = fitToggleBtn.querySelector('i');
-      if (icon) icon.className = zoom.scale > 1.001 ? 'fa-solid fa-compress text-p1' : 'fa-solid fa-expand text-p1';
+      const fitIcon = fitToggleBtn.querySelector('.icon');
+      if (fitIcon) {
+        // icon 顯示「下一個動作」（user 2026-06-03）：在 Fit Width → fit_to_viewport（點了回 Fit Page）；
+        // 否則（Fit Page / 手動 zoom）→ fit_width（點了切 Fit Width）
+        const w = isFitWidth();
+        fitIcon.classList.toggle('icon-fit-viewport', w);
+        fitIcon.classList.toggle('icon-fit-width', !w);
+      }
     }
   }
 
   function clampPan() {
-    if (zoom.scale <= 1) { zoom.tx = 0; zoom.ty = 0; return; }
+    if (zoom.scale <= fitScale() + 0.001) { zoom.tx = 0; zoom.ty = 0; return; }
     const sr = stageEl.getBoundingClientRect();
-    // 用實際 canvas bbox 算 clamp，不是 row 的 w-full h-full
-    // row 是 w-full h-full 但 canvases 因 PDF aspect ≠ stage aspect 有 slack（A4 spread 在寬 stage 裡水平留白）
-    // 用 row 算會讓 pan 範圍超過實際 canvas 邊，pan 到極限露 mask 邊外空白（仿 Acrobat：page 邊永遠貼 mask 邊不留白）
-    const showTwo = canvasR.style.display !== 'none';
-    const contentW = canvasL.offsetWidth + (showTwo ? canvasR.offsetWidth : 0);
-    const contentH = Math.max(canvasL.offsetHeight, showTwo ? canvasR.offsetHeight : 0);
-    if (!contentW || !contentH) { zoom.tx = 0; zoom.ty = 0; return; }
-    const scaledW = contentW * zoom.scale;
-    const scaledH = contentH * zoom.scale;
+    const scaledW = fitDims.w * zoom.scale;
+    const scaledH = fitDims.h * zoom.scale;
     const maxTx = Math.max(0, (scaledW - sr.width)  / 2);
     const maxTy = Math.max(0, (scaledH - sr.height) / 2);
     zoom.tx = Math.max(-maxTx, Math.min(maxTx, zoom.tx));
     zoom.ty = Math.max(-maxTy, Math.min(maxTy, zoom.ty));
   }
 
-  // 在 (clientX, clientY) 為焦點縮放（zoom-button 用 stage 中心）。對齊 album 數學
+  // 在 (clientX, clientY) 為焦點縮放（zoom-button 用 stage 中心）— 完全比照 album zoomAt
   function zoomAt(clientX, clientY, factor, animated = false) {
     const sr = stageEl.getBoundingClientRect();
     const cx = clientX - sr.left;
     const cy = clientY - sr.top;
     const sw = sr.width, sh = sr.height;
-    const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, zoom.scale * factor));
-    if (newScale === zoom.scale) return;
     const imgX = (cx - sw / 2 - zoom.tx) / zoom.scale;
     const imgY = (cy - sh / 2 - zoom.ty) / zoom.scale;
+    const newScale = Math.max(minScale(), Math.min(maxScale(), zoom.scale * factor));
+    if (Math.abs(newScale - zoom.scale) < 0.0001) return;
     zoom.tx = cx - sw / 2 - imgX * newScale;
     zoom.ty = cy - sh / 2 - imgY * newScale;
     zoom.scale = newScale;
@@ -238,76 +301,91 @@ export function initPdfViewer() {
     zoomAt(r.left + r.width / 2, r.top + r.height / 2, factor, animated);
   }
 
-  function resetZoom(animated = false) {
-    zoom = { scale: 1, tx: 0, ty: 0 };
-    applyZoom(animated);
+  function zoomToScale(targetScale, animated = false) {
+    targetScale = Math.max(minScale(), Math.min(maxScale(), targetScale));
+    if (Math.abs(targetScale - zoom.scale) < 0.0001) return;
+    zoomAtStageCenter(targetScale / zoom.scale, animated);
   }
 
-  async function renderSpread(leftPage) {
+  function resetToFit(animated = false)    { zoomToScale(fitScale(),    animated); }
+  function setActualSize(animated = false) { zoomToScale(actualScale(), animated); }
+
+  // 渲染單頁（一頁一頁翻）；計算 fitDims/naturalDims，保留 wasFit/wasActual 狀態跨頁
+  async function renderPage(pageNum) {
     if (!pdfDoc || rendering) return;
     rendering = true;
 
+    // 先對齊 logo 下緣（再讀 stageEl.clientHeight，下方讀取會強制 reflow 拿到正確高度）
+    positionPdfStageRelativeToLogo();
+
     const totalPages = pdfDoc.numPages;
-    const showTwo = isDesktop() && leftPage + 1 <= totalPages;
+    const isFirstRender = naturalDims.w === 0;
+    const wasFit      = !isFirstRender && Math.abs(zoom.scale - fitScale())    < 0.001;
+    const wasFitWidth = !isFirstRender && isFitWidth();   // 用「舊」fitDims 判斷（此時尚未更新）
+    const wasActual   = !isFirstRender && Math.abs(zoom.scale - actualScale()) < 0.001;
 
-    async function renderPage(pageNum, canvas) {
-      const page = await pdfDoc.getPage(pageNum);
-      // 容器以 stage 為準（zoom 套在 .pdf-canvas-row 上，內部 canvas 不參與 transform 尺寸計算）
-      // 雙頁 0.48 each 留 4% 給左右 prev/next 視覺間距；單頁 0.92
-      const availH = stageEl.clientHeight || window.innerHeight * 0.8;
-      // chevron 改 left:var(--container-padding) 後跟 spread 視覺距離 = stage.left + (stage*(1-2*factor))/2 - chevron.right
-      // factor 0.46（雙頁）= 兩 canvas 各側 ~4% 留給 chevron+breathing；單頁 0.92 同理（user 要求縮小 chevron gap）
-      const availW = (stageEl.clientWidth || window.innerWidth) * (showTwo ? 0.46 : 0.92);
-      const base = page.getViewport({ scale: 1 });
-      const fitScale = Math.min(availH / base.height, availW / base.width);
-      // 內部 buffer 多渲 RENDER_QUALITY 倍給 zoom 用；CSS style.width/height 鎖在 fitScale display 尺寸
-      // — 不依賴 max-width:100% + flex shrink（兩 canvas intrinsic 加總 >100% 時 shrink 不會剛好對齊 fitScale 害 100% 看起來放大）
-      const vp = page.getViewport({ scale: fitScale * RENDER_QUALITY });
-      canvas.width  = vp.width;
-      canvas.height = vp.height;
-      canvas.style.width  = (vp.width  / RENDER_QUALITY) + 'px';
-      canvas.style.height = (vp.height / RENDER_QUALITY) + 'px';
-      await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
-    }
+    const page = await pdfDoc.getPage(pageNum);
+    const availH = stageEl.clientHeight || window.innerHeight * 0.8;
+    const availW = stageEl.clientWidth || window.innerWidth;  // 填滿整個 stage 寬（不再 *0.92；px-32 已留 chevron clearance，user 2026-06-03 要 Fit Width 頂到邊）
+    const base = page.getViewport({ scale: 1 });
+    naturalDims = { w: base.width, h: base.height };
+    // Fit Page（仿 Adobe Acrobat「適合頁面」）：整頁塞滿視窗，可放大可縮小，無「不放大」上限。
+    // 跟 album 點陣圖不同 — PDF 是向量，放大是重新 render（crisp 不糊，配 RENDER_QUALITY=2）；
+    // 小 PDF（A4 595×842 @96dpi）因此能撐滿，而非浮在大黑底中間（user 2026-06-02）。
+    const fitFactor = Math.min(availH / base.height, availW / base.width);
+    fitDims = { w: base.width * fitFactor, h: base.height * fitFactor };
 
-    await renderPage(leftPage, canvasL);
-    canvasL.style.display = 'block';
+    // 內部 buffer 多渲 RENDER_QUALITY 倍給 zoom 用；CSS 鎖在 fit 顯示尺寸
+    const vp = page.getViewport({ scale: fitFactor * RENDER_QUALITY });
+    canvasL.width  = vp.width;
+    canvasL.height = vp.height;
+    canvasL.style.width  = fitDims.w + 'px';
+    canvasL.style.height = fitDims.h + 'px';
+    await page.render({ canvasContext: canvasL.getContext('2d'), viewport: vp }).promise;
 
-    if (showTwo) {
-      await renderPage(leftPage + 1, canvasR);
-      canvasR.style.display = 'block';
+    // 跨頁 state：first render 預設 Fit Page（仿 Acrobat：一打開看到整頁、撐滿視窗）。
+    // 之前是 actual-size（同 album）→ A4 太小，user 2026-06-02 改採 Acrobat 邏輯。
+    // 之前在 fit/actual → 跟新 page 對齊；其他 zoom 維持 scale 但 clamp 進範圍
+    if (isFirstRender || wasFit) {
+      zoom.scale = fitScale();
+      zoom.tx = 0; zoom.ty = 0;
+    } else if (wasFitWidth) {
+      zoom.scale = fitWidthScale();   // 用新 fitDims 重算，跨頁維持 Fit Width
+      zoom.tx = 0;
+      zoom.ty = fitWidthTopTy(zoom.scale);   // 跨頁也對齊新頁頂端（同 applyFitWidth）
+    } else if (wasActual) {
+      zoom.scale = actualScale();
+      zoom.tx = 0; zoom.ty = 0;
     } else {
-      canvasR.style.display = 'none';
+      zoom.scale = Math.max(minScale(), Math.min(maxScale(), zoom.scale));
+      clampPan();
     }
+    applyZoom(false);
 
-    const rightPage = showTwo ? leftPage + 1 : leftPage;
-    pageInfo.textContent = showTwo
-      ? `${leftPage} – ${rightPage} / ${totalPages}`
-      : `${leftPage} / ${totalPages}`;
-
-    prevBtn.disabled = leftPage <= 1;
-    nextBtn.disabled = showTwo ? leftPage + 2 > totalPages : leftPage >= totalPages;
+    pageInfo.textContent = `${pageNum} / ${totalPages}`;
+    prevBtn.disabled = pageNum <= 1;
+    nextBtn.disabled = pageNum >= totalPages;
     rendering = false;
   }
 
-  // 上一/下一頁（spread 模式步進 2，邊界自動 clamp）；翻頁時重置 zoom
+  // 上一/下一頁（一頁一頁翻，邊界自動 clamp）
   function turnPage(dir) {
     if (!pdfDoc) return;
     if (dir > 0 && nextBtn.disabled) return;
     if (dir < 0 && prevBtn.disabled) return;
-    const step = isDesktop() ? 2 : 1;
-    if (dir > 0) {
-      curPage = Math.min(pdfDoc.numPages, curPage + step);
-    } else {
-      const back = (isDesktop() && curPage > 2) ? 2 : 1;
-      curPage = Math.max(1, curPage - back);
-    }
-    resetZoom(false);
-    renderSpread(curPage);
+    curPage = Math.max(1, Math.min(pdfDoc.numPages, curPage + dir));
+    renderPage(curPage);
   }
 
   // 旋轉角度範圍 ±1~±3°（user 偏好 PDF/album lightbox 標題 pill 比 section-btn 角度小）
   function smallRot() { return (Math.random() < 0.5 ? -1 : 1) * (1 + Math.random() * 2); }
+
+  // mode3（彩色背景）：去掉三原色，pill 一律白底黑字（對比 lightbox 黑底）。
+  // 跟 activities-lightbox.js resolvePillColor 同款 — PDF viewer 也是黑遮罩 host，白 pill 必定可見。
+  function resolvePillColor(color) {
+    if (document.body.classList.contains('mode-color')) return '#FFFFFF';
+    return color || '#00FF80';
+  }
 
   function renderTitle(title, color) {
     if (!titleEl) return;
@@ -317,7 +395,7 @@ export function initPdfViewer() {
       if (backPill) backPill.style.height = '';
       return;
     }
-    const bg = color || '#00FF80';
+    const bg = resolvePillColor(color);
     // 結構：pill > window(overflow:hidden) > track > unit(EN+ZH column-stacked)
     // EN+ZH 為單一 marquee unit 同步捲動（不是兩行各自 marquee 失同步）；max-width 防 Press 長標題撐爆 layout
     titleEl.innerHTML = `
@@ -367,7 +445,7 @@ export function initPdfViewer() {
 
   function renderBackPill(color) {
     if (!backPill) return;
-    const bg = color || '#00FF80';
+    const bg = resolvePillColor(color);
     backPill.style.background = bg;
     backPill.style.transform  = `rotate(${smallRot()}deg)`;
     // ref btn 共用同 accent；旋轉角度 0（避免兩 pill 同時亂轉視覺雜訊）
@@ -376,21 +454,24 @@ export function initPdfViewer() {
 
   // title pill 高度由 EN+ZH 兩行自然撐，back/ref pill follow title 高度（user 2026-06-01 拍板）
   // 之前曾嘗試 back/ref 鎖 44×44 但同 viewer 內 back 比 title 矮太多視覺不協調 → 改回 sync
-  // title 隱藏時三 pill 全 reset 回 CSS inline 預設 44px
+  // width = min(44, h)：單行 title（h<44）→ 縮成正方形（以短邊 h 為主、砍左右 padding，user 2026-06-03）；
+  //   兩行（h≥44）→ 維持 44 寬（高>寬、跟著 title 拉長）。避免單行時 44寬×33高 變橫向矩形被壓扁。
+  // title 隱藏時 reset 回預設 44×44 正方形（顯式寫 '44px' 不用 ''，否則連 HTML inline 預設一起清掉 → 變 icon 高）
   function syncBackBtnHeight() {
     if (!backPill) return;
     const refPill = /** @type {HTMLElement | null} */ (refUi.btnEl.querySelector('.lightbox-ref-btn-pill'));
     const pill = titleEl && titleEl.querySelector('.pdf-title-pill');
     if (!pill || titleEl.style.display === 'none') {
-      backPill.style.height = '';
-      if (refPill) refPill.style.height = '';
+      backPill.style.height = '44px'; backPill.style.width = '44px';
+      if (refPill) { refPill.style.height = '44px'; refPill.style.width = '44px'; }
       return;
     }
     // offsetHeight 含 padding，跟 visual bbox 一致（rotation 不影響 offsetHeight）
     const h = /** @type {HTMLElement} */ (pill).offsetHeight;
     if (h > 0) {
-      backPill.style.height = h + 'px';
-      if (refPill) refPill.style.height = h + 'px';
+      const w = Math.min(44, h);   // 以短邊為主：單行縮成正方形、兩行維持 44 寬
+      backPill.style.height = h + 'px'; backPill.style.width = w + 'px';
+      if (refPill) { refPill.style.height = h + 'px'; refPill.style.width = w + 'px'; }
     }
   }
 
@@ -416,6 +497,18 @@ export function initPdfViewer() {
     titleEl.style.left = (anchorRect.right + PILL_GAP) + 'px';
   }
 
+  // 把 stage 上緣推到 header logo 底邊以下，鏡像 activities-lightbox positionUIRelativeToLogo
+  // （讓 PDF fit 高度 == album fit 高度；user 2026-06-02 拍板「PDF 對齊 album」）。
+  // SHELL_PT=24：lightbox-shell padLightboxTops 已給 modal root 加 1.5rem(24px)，這裡扣回避免雙重下推
+  // → 淨 gap = logoBottom + ZOOM_GAP(16)。無 logo 時 early return，main row 維持原 py-xl 上緣。
+  function positionPdfStageRelativeToLogo() {
+    const logo = document.querySelector('#header-logo');
+    if (!logo || !mainRowEl) return;
+    const ZOOM_GAP = 16;
+    const SHELL_PT = 24;
+    mainRowEl.style.paddingTop = `${Math.max(0, logo.getBoundingClientRect().bottom + ZOOM_GAP - SHELL_PT)}px`;
+  }
+
   function openModal() {
     modal.style.display = 'flex';
     requestAnimationFrame(() => { modal.style.opacity = '1'; });
@@ -438,8 +531,11 @@ export function initPdfViewer() {
         modal.style.display = 'none';
         if (pdfDoc) { pdfDoc.destroy(); pdfDoc = null; }
         canvasL.getContext('2d').clearRect(0, 0, canvasL.width, canvasL.height);
-        canvasR.getContext('2d').clearRect(0, 0, canvasR.width, canvasR.height);
-        resetZoom(false);
+        // reset 內部狀態（下次 open 重新計 fitDims/naturalDims）
+        zoom = { scale: 1, tx: 0, ty: 0 };
+        fitDims = { w: 0, h: 0 };
+        naturalDims = { w: 0, h: 0 };
+        applyZoom(false);
         renderTitle(null);
         refUi.reset();
         resolve();
@@ -453,7 +549,10 @@ export function initPdfViewer() {
     const { pdfUrl, title, color, references } = e.detail || {};
     if (!pdfUrl) return;
     curPage = 1;
-    resetZoom(false);
+    // 重置內部狀態：naturalDims=0 讓 renderPage 視為「初次 render」自動套 actual size
+    zoom = { scale: 1, tx: 0, ty: 0 };
+    fitDims = { w: 0, h: 0 };
+    naturalDims = { w: 0, h: 0 };
     renderTitle(title, color);
     renderBackPill(color);
     // ref 接口：references 為 array of { section, itemId, labelEn, labelZh, titleEn, titleZh }
@@ -467,7 +566,7 @@ export function initPdfViewer() {
       await ensurePdfjsLoaded();
       setupPdfjsWorker();
       pdfDoc = await pdfjsLib.getDocument(pdfUrl).promise;
-      renderSpread(curPage);
+      renderPage(curPage);
     } catch (err) {
       console.error('PDF load error:', err);
       closeModal();
@@ -482,18 +581,20 @@ export function initPdfViewer() {
   zoomOutBtn.addEventListener('click', () => zoomAtStageCenter(1 / 1.5, true));
   if (fitToggleBtn) {
     fitToggleBtn.addEventListener('click', () => {
-      // zoomed → reset 回 fit；fit → 跳到 2x（中度放大，舒適閱讀；不直接 MAX 避免太爆）
-      if (zoom.scale > 1.001) resetZoom(true);
-      else zoomAtStageCenter(2, true);
+      // 雙態切換（user 2026-06-02）：Fit Page（整頁）↔ Fit Width（滿寬）。
+      // 在 Fit Width → 回 Fit Page；其他（Fit Page / 手動 zoom）→ 切 Fit Width。icon 由 updateZoomUI 換。
+      if (isFitWidth()) resetToFit(true);
+      else applyFitWidth(true);   // 切 Fit Width：對齊頁面頂端（非 stage 中心放大）
     });
   }
 
-  // Wheel：fit (scale=1) 翻頁；放大時 pan within viewport
+  // Wheel：在 fit 時翻頁；放大到「圖填滿 stage」後 pan within viewport
   // touchpad 一次手勢會丟多 events → 翻頁加 cooldown，pan 不需要（連續 delta 直接累加）
   stageEl.addEventListener('wheel', (e) => {
     if (!pdfDoc) return;
     e.preventDefault();
-    if (zoom.scale <= 1.001) {
+    const canPan = zoom.scale > fitScale() + 0.001;
+    if (!canPan) {
       const now = Date.now();
       if (now < wheelPageLock) return;
       wheelPageLock = now + WHEEL_PAGE_COOLDOWN;
@@ -506,9 +607,10 @@ export function initPdfViewer() {
     }
   }, { passive: false });
 
-  // Drag pan（只在 scale>1 時啟動）
+  // Drag pan（只在 canPan 時啟動）
   stageEl.addEventListener('mousedown', (e) => {
-    if (zoom.scale <= 1 || e.button !== 0) return;
+    const canPan = zoom.scale > fitScale() + 0.001;
+    if (!canPan || e.button !== 0) return;
     isDragging = true;
     dragStart = { x: e.clientX, y: e.clientY, tx: zoom.tx, ty: zoom.ty };
     rowEl.style.cursor = "url('/custom-cursor/drag_2.svg') 15 15, grabbing";
@@ -524,7 +626,8 @@ export function initPdfViewer() {
   window.addEventListener('mouseup', () => {
     if (!isDragging) return;
     isDragging = false;
-    rowEl.style.cursor = zoom.scale > 1
+    const canPan = zoom.scale > fitScale() + 0.001;
+    rowEl.style.cursor = canPan
       ? "url('/custom-cursor/drag_1.svg') 10 10, grab"
       : "url('/custom-cursor/default.svg') 6 1, default";
   });
@@ -536,11 +639,12 @@ export function initPdfViewer() {
   document.addEventListener('keydown', (e) => {
     if (!pdfDoc || modal.style.display === 'none') return;
     if (e.key === 'Escape') { closeModal(); return; }
-    // 上下左右：fit (scale=1) 時翻頁；放大時 pan（scroll direction：按右=往右看，圖往左移）
+    // 上下左右：圖未填滿 stage 時翻頁；可 pan 時 pan（scroll direction：按右=往右看，圖往左移）
     const isArrow = e.key === 'ArrowRight' || e.key === 'ArrowLeft' || e.key === 'ArrowDown' || e.key === 'ArrowUp';
+    const canPan = zoom.scale > fitScale() + 0.001;
     if (isArrow) {
       e.preventDefault();
-      if (zoom.scale > 1.001) {
+      if (canPan) {
         const STEP = 80;
         if (e.key === 'ArrowRight') zoom.tx -= STEP;
         if (e.key === 'ArrowLeft')  zoom.tx += STEP;
@@ -555,7 +659,7 @@ export function initPdfViewer() {
     }
     if (e.key === '+' || e.key === '=') zoomAtStageCenter(1.5, true);
     if (e.key === '-' || e.key === '_') zoomAtStageCenter(1 / 1.5, true);
-    if (e.key === '0') resetZoom(true);
+    if (e.key === '0') resetToFit(true);
   });
 }
 

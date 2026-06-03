@@ -50,10 +50,11 @@ export function initFacultySlideIn() {
   }
 
   // 學歷 row：country | school | major | degree（4 col 各 1）
+  // 國家英文用 ISO2 代碼（大寫，如 US / GB）而非全名（user 2026-06-03）；中文仍用全名
   function renderEducationRow(item) {
     return `
       <div class="faculty-grid-row">
-        <span>${countryName(item.country, 'zh')}<br>${countryName(item.country, 'en')}</span>
+        <span>${countryName(item.country, 'zh')}<br>${(item.country || '').toUpperCase()}</span>
         <span>${item.schoolZh || ''}<br>${item.schoolEn || ''}</span>
         <span>${item.majorZh || ''}<br>${item.majorEn || ''}</span>
         <span>${item.degreeZh || ''}<br>${item.degreeEn || ''}</span>
@@ -221,9 +222,9 @@ export function initFacultySlideIn() {
             slideIn.classList.remove('invisible', 'pointer-events-none');
             slideIn.classList.add('pointer-events-auto');
 
-            // header bars clip-path 收掉（logo 不動）+ body.overflow 鎖捲動（lightbox-shell 內處理）
-            // 不額外鎖 htmlEl.overflow：html overflow:hidden 會讓 html 失去 scroll container，
-            // 內層 md:sticky md:top-[200px]（faculty filter rail）失效退回 static → 整個 rail 飄上去 ~200px
+            // freeze 底層捲動 + 凍結在原位（不跳頂部）+ header bars clip-path 收掉，全由 lightbox-shell 統一處理
+            // （內含 save/restore scrollTop，對付本頁 html overflow-x:clip 被 overflow-y:hidden 重算成 hidden
+            //   導致的 scroll reset；slide-in 與全螢幕 lightbox 共用同一套，不分流）
             enterLightboxMode();
             openSlideInBg({
               overlay: slideInOverlay,

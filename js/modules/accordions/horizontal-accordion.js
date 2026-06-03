@@ -27,11 +27,12 @@ export function initHorizontalAccordion() {
   });
 }
 
-// ── Hover 顏色 ────────────────────────────────────────────────────
-// index 0 = 粉色 → hover 變黃色
-// index 1 = 綠色 → hover 變紫色
-// index 2 = 藍色 → hover 變橘色
-const HOVER_COLORS = ['#fffa32', '#c878ff', '#ffa046'];
+// ── Hover 色：strict B/W（依 mode + 對比度）──────────────────────
+// 舊版 hover 換黃/紫/橘 accent，已拿掉。現在 hover bg 一律設 var(--theme-fg)：
+//   standard（mode1）= 黑底、inverse（mode2）= 白底；字色由 accordion.css 的
+//   「非 mode-color hover」規則翻成 var(--theme-fg-inverse)（白/黑）。
+// mode-color（mode3）：這裡設的 inline bg 只當 hover 偵測 trigger，實際翻色由
+//   themes/color.css 的 .accordion-label[style*="background"] !important 規則接管。
 
 // ── 旋轉卡片版（colored-accordion）──────────────────────────────
 // 每張卡片結構：[label | 照片 | 說明]，label 在最右，卡片往左展開
@@ -185,12 +186,10 @@ export function initRotatedAccordion(wrapper, { height = 600, animateEntry = fal
     const textWrap = item.querySelector('.accordion-text-wrap');
     if (!label) return;
 
-    const hoverColor = HOVER_COLORS[i % HOVER_COLORS.length];
-
     item.addEventListener('mouseenter', () => {
       if (i === openIndex) return;
-      label.style.background = hoverColor;
-      if (textWrap) textWrap.style.background = hoverColor;
+      label.style.background = 'var(--theme-fg)';
+      if (textWrap) textWrap.style.background = 'var(--theme-fg)';
     });
     item.addEventListener('mouseleave', () => {
       if (i === openIndex) return;

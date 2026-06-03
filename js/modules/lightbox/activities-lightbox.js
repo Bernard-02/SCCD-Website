@@ -64,7 +64,7 @@ function ensureLightbox() {
          讓 zoomStage 上邊緣對齊 logo 底邊（zoom 放大時影像被 overflow:hidden clip 不會蓋到 logo）
          px-16 md:px-32：desktop 加大 padding 讓 zoom mask 邊停在 chevron 內側（chevron right ≈ 68px，
          px-32 = 128px → 60px gap），避免高倍 zoom 時 image 視覺貼到 chevron 上。mobile 維持 px-16 -->
-    <div class="alb-main-container flex items-center justify-center w-full px-16 md:px-32 py-xl flex-1 min-h-0 relative">
+    <div class="alb-main-container flex items-center justify-center w-full px-16 md:px-32 pt-xl pb-md flex-1 min-h-0 relative">
       <!-- chevron 左右對齊 container-padding（= logo / back btn pill 的 viewport margin），絕對定位獨立元件不受 back btn 隨機旋轉影響
            z-index:30 必要：chevron 在 alb-main 之前的 DOM siblings，下層；alb-main / zoomStage w-full h-full 蓋在上面 → 不拉 z 點不到
            disabled 視覺：opacity-50 保留白色（user 要求：「到底了」的暗示，不是 disabled grey 感）+ cursor-not-allowed -->
@@ -80,9 +80,9 @@ function ensureLightbox() {
     <!-- Thumbnails: outer wrap 永遠 full-width 置中；inner 受 max-width 控制 + 超出時內部 scroll -->
     <!-- 用 wrapper 而非 .alb-thumbs 直接 max-width+margin:auto 是為了讓 justify-center 在 overflow 時不會 clip 左邊 -->
     <!-- relative + 左側絕對定位 topbar(back+title) + 右側絕對定位 zoom controls：不影響 thumbs 置中 -->
-    <!-- py-xl（不是 py-md）：title pill 有 ±3° rotation + transform-origin:left bottom，右端會下沉～18px；
-         加上 wrap 自身的 bottom padding 才不會讓 title 文字「貼底」到 viewport 底邊（user 反映） -->
-    <div class="alb-thumbs-wrap relative flex justify-center w-full py-xl flex-shrink-0">
+    <!-- pt-md/pb-md：上下對稱 padding（user 2026-06-03 指定）。
+         （原為 pb-xl 補償 title pill 繞 left bottom 旋轉的 ~18px 下沉，user 改回對稱 md） -->
+    <div class="alb-thumbs-wrap relative flex justify-center w-full pt-md pb-md flex-shrink-0">
       <!-- 左側：返回按鈕（arrow icon-only pill）+ title pill 並排，與 thumbs row 同高（vertically centered）
            transform-origin:left bottom 讓兩 pill 從 bottom-left 樞紐，避免旋轉時 bbox 溢出視窗左邊 -->
       <div class="alb-topbar absolute" style="left: var(--container-padding, 1.5rem); top: 50%; transform: translateY(-50%); z-index: 5; display: flex; align-items: flex-end; gap: 20px;">
@@ -107,7 +107,7 @@ function ensureLightbox() {
         </button>
         <!-- Fit-to-window 按鈕（user 2026-06-02）：點下去切到 fit；已在 fit 時 disabled -->
         <button class="alb-fit-toggle p-2 transition-opacity hover:opacity-60 disabled:opacity-30" aria-label="Fit to window">
-          <i class="fa-solid fa-expand text-p1"></i>
+          <span class="icon icon-fit-viewport icon-m"></span>
         </button>
       </div>
     </div>
@@ -223,11 +223,10 @@ function updateZoomUI() {
   zoomPctEl.textContent = `${displayPct}%`;
   zoomInBtn.disabled  = zoom.scale >= maxScale() - 0.001;
   zoomOutBtn.disabled = zoom.scale <= minScale() + 0.001;
-  // fit-toggle 永遠是 fa-expand（功能單一：切到 fit）；已在 fit 狀態時 disable（user 2026-06-02）
+  // fit-toggle 功能單一（切到 fit）；已在 fit 狀態時 disable（user 2026-06-02）
+  // icon 用 CSS mask 系統 .icon-fit-viewport（HTML 寫死，不再 JS 切 className）
   if (fitToggleBtn) {
     fitToggleBtn.disabled = Math.abs(zoom.scale - fitScale()) < 0.001;
-    const icon = fitToggleBtn.querySelector('i');
-    if (icon) icon.className = 'fa-solid fa-expand text-p1';
   }
 }
 
@@ -536,7 +535,7 @@ export async function openLightbox(media, startIndex = 0, opts = {}) {
   renderBackButton(opts.color);
   // ref btn：跟 back btn 同 accent；無 references 時自動隱藏
   if (refUi) {
-    refUi.setColor(opts.color || '#00FF80');
+    refUi.setColor(resolvePillColor(opts.color));
     refUi.setReferences(opts.references);
   }
   // 量 logo 底邊位置 → 同步 close btn top + main padding-top（避免 zoom image 蓋到 logo）
@@ -565,9 +564,16 @@ function positionUIRelativeToLogo() {
   if (mainContainerEl) mainContainerEl.style.paddingTop = `${Math.max(0, logoBottom + ZOOM_GAP - SHELL_PT)}px`;
 }
 
+// mode3（彩色背景）：去掉三原色，pill 一律白底黑字（對比 lightbox 黑底，user 2026-06-03）
+// mode1/mode2 維持 caller 帶入的 accent；lightbox 黑底永遠 → mode3 取白 pill 必定可見
+function resolvePillColor(color) {
+  if (document.body.classList.contains('mode-color')) return '#FFFFFF';
+  return color || '#00FF80';
+}
+
 function renderBackButton(color) {
   if (!closePillEl) return;
-  const bg = color || '#00FF80';
+  const bg = resolvePillColor(color);
   const rot = (window.SCCDHelpers && SCCDHelpers.getRandomRotation)
     ? SCCDHelpers.getRandomRotation()
     : ((Math.round(Math.random() * 10) - 4) || 3);
@@ -577,6 +583,8 @@ function renderBackButton(color) {
 
 // close/ref pill 高度 follow title pill 自然撐高（同 PDF viewer syncBackBtnHeight 規格）
 // rotation 不影響 offsetHeight 所以量 unrotated 套到 rotated pill 仍對齊
+// width = min(44, h)：單行 title（h<44）→ 縮成正方形（以短邊 h 為主、砍左右 padding，user 2026-06-03）；
+//   兩行（h≥44）→ 維持 44 寬。reset 顯式寫 '44px' 不用 ''（否則連 HTML inline 預設一起清掉）。
 function syncCloseBtnHeight() {
   if (!closePillEl) return;
   const refPill = refUi && refUi.btnEl
@@ -584,15 +592,24 @@ function syncCloseBtnHeight() {
     : null;
   const pill = titleEl && titleEl.querySelector('.alb-title-pill');
   if (!pill || titleEl.style.display === 'none') {
-    closePillEl.style.height = '';
-    if (refPill) refPill.style.height = '';
+    closePillEl.style.height = '44px'; closePillEl.style.width = '44px';
+    if (refPill) { refPill.style.height = '44px'; refPill.style.width = '44px'; }
     return;
   }
   const h = /** @type {HTMLElement} */ (pill).offsetHeight;
   if (h > 0) {
-    closePillEl.style.height = h + 'px';
-    if (refPill) refPill.style.height = h + 'px';
+    const w = Math.min(44, h);   // 以短邊為主：單行縮成正方形、兩行維持 44 寬
+    closePillEl.style.height = h + 'px'; closePillEl.style.width = w + 'px';
+    if (refPill) { refPill.style.height = h + 'px'; refPill.style.width = w + 'px'; }
   }
+}
+
+// title pill 專用旋轉幅度 ±3°（排除 0）— 比 SCCDHelpers.getRandomRotation(-4~6) 小，
+// 寬 title pill 大角度看起來太歪（user 2026-06-03）
+function getTitleRotation() {
+  let r = 0;
+  while (Math.round(r) === 0) r = Math.random() * 6 - 3;
+  return r;
 }
 
 function renderTitle(title, color) {
@@ -602,10 +619,8 @@ function renderTitle(title, color) {
     syncCloseBtnHeight();
     return;
   }
-  const bg = color || '#00FF80';
-  const rot = (window.SCCDHelpers && SCCDHelpers.getRandomRotation)
-    ? SCCDHelpers.getRandomRotation()
-    : ((Math.round(Math.random() * 10) - 4) || 3);
+  const bg = resolvePillColor(color);
+  const rot = getTitleRotation();
   // 結構：pill > window(overflow:hidden) > track(inline-block nowrap) > unit(column-flex EN+ZH)
   // marquee 動畫 track translateX，dual-copy 時 unit 整組（EN+ZH）一起捲動 = 中英字 textbox 為一個單位
   // 不是兩行各自 marquee 害 EN/ZH 互不同步

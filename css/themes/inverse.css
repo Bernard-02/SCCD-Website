@@ -242,15 +242,13 @@ body.mode-inverse .courses-filter-btn.active .anchor-nav-inner {
   }
 }
 
-/* ===== Pill Buttons (works-filter-btn / class-parent-btn) ===== */
+/* ===== Pill Buttons (class-parent-btn) ===== */
 /* class-division-btn 已遷移到 var(--theme-fg)/var(--theme-bg)，這裡不再列入 */
-body.mode-inverse .works-filter-btn,
 body.mode-inverse .class-parent-btn {
   border-color: white;
   color: white;
 }
 
-body.mode-inverse .works-filter-btn.active,
 body.mode-inverse .class-parent-btn.active {
   background: white;
   color: black;

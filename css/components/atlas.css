@@ -610,7 +610,7 @@
   line-height: 1.3;
 }
 
-/* 主標每行單行顯示 + overflow:hidden；過長時 JS 偵測加 .is-overflow，hover 觸發 marquee */
+/* 主標每行單行顯示 + overflow:hidden；過長時 JS 偵測加 .is-overflow → 自動 marquee（不需 hover） */
 .atlas-list-name-en,
 .atlas-list-name-zh {
   display: block;
@@ -620,7 +620,6 @@
 
 .atlas-list-name-zh {
   font-weight: 600;
-  opacity: 0.8;
 }
 
 /* Marquee inner：雙 .marquee-copy seamless loop（仿 library.css runMarqueeOverflow pattern） */
@@ -634,11 +633,10 @@
   padding-right: 2em; /* 兩份 copy 之間的視覺 gap */
 }
 
-@media (min-width: 768px) {
-  .atlas-list-item:hover .atlas-list-name-en.is-overflow .atlas-marquee-inner,
-  .atlas-list-item:hover .atlas-list-name-zh.is-overflow .atlas-marquee-inner {
-    animation: atlas-marquee var(--marquee-duration, 8s) linear infinite;
-  }
+/* overflow 偵測到（.is-overflow）就自動捲動，載入即 marquee、不需 hover；桌面手機皆然（user 要求） */
+.atlas-list-name-en.is-overflow .atlas-marquee-inner,
+.atlas-list-name-zh.is-overflow .atlas-marquee-inner {
+  animation: atlas-marquee var(--marquee-duration, 8s) linear infinite;
 }
 
 @keyframes atlas-marquee {
@@ -693,7 +691,7 @@
 
 .atlas-list-nav-btn:disabled {
   opacity: 0.5;
-  cursor: var(--cursor-default);
+  cursor: var(--cursor-not-allowed);
 }
 
 @media (min-width: 768px) {

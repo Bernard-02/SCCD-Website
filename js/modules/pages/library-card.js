@@ -180,18 +180,22 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
     return occluders.some(occ => pointInRect(corner.x, corner.y, occ));
   }
 
-  // 回傳 'top'|'right'|'bottom'|'left'
-  // 找四邊中兩端點都未被遮的邊，找不到 fallback 'top'（原有 mid-point fallback 寫在 unconditional return 後是 dead code，已刪）
+  // 回傳 'top'|'right'|'bottom'|'left'：找四邊中「兩端點都未被遮」的第一條邊。
+  // 優先序依卡片長寬比，讓 marquee 順著「較長的邊」跑（top/bottom 長度=w 走水平、left/right 長度=h 走垂直）：
+  //   高卡 h>w → 先試 left/right（垂直 marquee）；寬卡 w≥h → 先試 top/bottom（水平 marquee）。
+  //   同方向兩條排前面、另一軸當 fallback；全被遮時 fallback 取最偏好方向的第一條（非固定 'top'）。
   /** @returns {'top'|'right'|'bottom'|'left'} */
   function findFreeEdge(cfg, occluders) {
     const c = rectWorldCorners(cfg);
     /** @type {Array<['top'|'right'|'bottom'|'left', number, number]>} */
-    const edges = [['top', 0, 1], ['right', 1, 2], ['bottom', 2, 3], ['left', 3, 0]];
+    const edges = cfg.h > cfg.w
+      ? [['left', 3, 0], ['right', 1, 2], ['top', 0, 1], ['bottom', 2, 3]]   // 高卡：偏好垂直（左右邊）
+      : [['top', 0, 1], ['bottom', 2, 3], ['left', 3, 0], ['right', 1, 2]];  // 寬卡：偏好水平（上下邊）
     for (const [name, ai, bi] of edges) {
       if (!isCornerOccluded(c[ai], occluders) && !isCornerOccluded(c[bi], occluders))
         return name;
     }
-    return 'top';
+    return edges[0][0];
   }
 
   // ── 矩形樣式設定 ─────────────────────────────────────────────

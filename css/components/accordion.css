@@ -101,6 +101,17 @@
     color: var(--color-black);
   }
 
+  /* Hover（非展開卡片）翻 strict B/W — 取代舊 JS HOVER_COLORS（黃/紫/橘）。
+   * 非 mode-color（standard/inverse）：bg 由 JS inline 設 var(--theme-fg)
+   *   （standard 黑 / inverse 白），此處只翻字色 = var(--theme-fg-inverse)（白/黑）。
+   * mode-color 的 hover 翻色另在 themes/color.css 處理（[style*="background"] 偵測）。 */
+  @media (min-width: 768px) {
+    body:not(.mode-color) .colored-accordion .accordion-item:hover:not(.active) .accordion-label-inner,
+    body:not(.mode-color) .colored-accordion .accordion-item:hover:not(.active) .accordion-text-wrap p {
+      color: var(--theme-fg-inverse) !important;
+    }
+  }
+
   /* Inner: 使用 writing-mode 實現垂直排版
      writing-mode: vertical-rl + rotate(180deg)
      = 頭往左傾閱讀，數字在視覺下方，標題在視覺上方

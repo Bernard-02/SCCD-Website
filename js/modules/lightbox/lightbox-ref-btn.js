@@ -19,6 +19,8 @@
  *   - chip title 雙語兩欄；title 過寬時 marquee（dual-copy seamless loop）
  */
 
+import { setupClipReveal } from '../ui/scroll-animate.js';
+
 const ACTIVITIES_PATH = '/pages/activities.html';
 
 let _gsapWarned = false;
@@ -90,8 +92,11 @@ export function createRefBtn(initialColor, onCloseLightbox) {
     const card = document.createElement('div');
     card.className = 'lightbox-ref-card';
     card.style.background = currentColor;
-    // 整張卡 ±1~3° 旋轉（取代既有 per-chip 旋轉）
-    const rot = (Math.random() < 0.5 ? -1 : 1) * (1 + Math.random() * 2);
+    // 整張卡旋轉跟隨 ref btn pill（user 2026-06-02）：讀 btn pill 當前 rotate 值套到 card，
+    // 不再自己隨機轉 → popover 視覺像從 btn 長出來的同角度單元。btn pill 預設 0deg → card 也 0deg。
+    const btnPill = /** @type {HTMLElement | null} */ (btnEl.querySelector('.lightbox-ref-btn-pill'));
+    const rotMatch = btnPill && btnPill.style.transform.match(/rotate\(\s*(-?[\d.]+)deg\s*\)/);
+    const rot = rotMatch ? parseFloat(rotMatch[1]) : 0;
     card.style.transform = `rotate(${rot}deg)`;
     card.style.transformOrigin = 'left center';
 
@@ -214,22 +219,32 @@ export function createRefBtn(initialColor, onCloseLightbox) {
     if (isOpen || currentRefs.length === 0) return;
     isOpen = true;
     popoverEl.style.display = 'block';
-    // 進場期間 overflow:clip 給 clip-reveal 用（stackEl 從底邊長出，超出部分裁掉）；
-    // onComplete 後改 visible，否則 card 旋轉 ±3° 後超出 popover bbox 的角會被永久裁切
-    popoverEl.style.overflow = 'clip';
-    positionPopover();
-    if (gsapAvailable()) {
+    const card = /** @type {HTMLElement | null} */ (stackEl.querySelector('.lightbox-ref-card'));
+    if (gsapAvailable() && card) {
       if (openCloseAnimation) openCloseAnimation.kill();
-      gsap.set(stackEl, { yPercent: 100 });
-      openCloseAnimation = gsap.to(stackEl, {
+      // 完全比照 hero title 進場（hero-animation.js addGroupTo + 共用 setupClipReveal）：
+      // setupClipReveal 給 card 包一個 **tight** wrapper（overflow-y:clip 當遮罩 / overflow-x:visible 旋轉角不被橫向裁）
+      // 並 set yPercent:100；再 yPercent→0 讓 card 從容器底邊滑入「原地」揭露。
+      // tight wrapper 是關鍵 — card 只滑自身高度、遮罩貼在最終位置 → 視覺「原地往上 reveal」，
+      // 不是舊版 overflow:clip 套整個 32px-padding popover 害 card 從更低處長距離上移（看起來被切）。
+      // 不用 playClipReveal（它 clearProps:transform 會清掉 card 的 rotate）— 自己 to yPercent:0 保留旋轉。
+      setupClipReveal([card]);
+      // setupClipReveal 包的 .clip-reveal-wrapper 是 overflow-x:visible + 無 max-width 的 block div：
+      // card 的 max-width:100% 改成相對 wrapper，wrapper 不受 popover max-width 約束 → 長 title 把 card
+      // 撐到 max-content（整列英文標題），破壞 popover max-width 跟 marquee（user 反映「寬度跑掉」）。
+      // 補 wrapper max-width:100% 讓它跟原本 card 一樣受 popover 寬度約束（短內容仍 shrink-to-fit）。
+      const clipWrapper = card.parentElement;
+      if (clipWrapper && clipWrapper.classList.contains('clip-reveal-wrapper')) {
+        clipWrapper.style.maxWidth = '100%';
+      }
+      positionPopover();
+      openCloseAnimation = gsap.to(card, {
         yPercent: 0,
-        duration: 0.5,
+        duration: 0.9,
         ease: 'power3.out',
-        onComplete: () => { popoverEl.style.overflow = 'visible'; },
       });
     } else {
-      stackEl.style.transform = '';
-      popoverEl.style.overflow = 'visible';
+      positionPopover();
     }
   }
 
@@ -239,11 +254,11 @@ export function createRefBtn(initialColor, onCloseLightbox) {
       return;
     }
     isOpen = false;
-    // 退場前先把 overflow 切回 clip — 否則 yPercent 100→100 過程中旋轉 card 角會穿出 popover 底邊看不雅
-    popoverEl.style.overflow = 'clip';
-    if (gsapAvailable() && animated) {
+    const card = /** @type {HTMLElement | null} */ (stackEl.querySelector('.lightbox-ref-card'));
+    if (gsapAvailable() && animated && card) {
       if (openCloseAnimation) openCloseAnimation.kill();
-      openCloseAnimation = gsap.to(stackEl, {
+      // 收合 = open 的反向：card 在 tight wrapper 內 yPercent 0→100 往下滑回遮罩（與 hero 退場同概念）
+      openCloseAnimation = gsap.to(card, {
         yPercent: 100,
         duration: 0.35,
         ease: 'power3.in',

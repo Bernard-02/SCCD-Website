@@ -328,9 +328,13 @@ async function initAwardsPanel(onEntranceDoneCallback) {
           </div>`);
       });
 
+      // hover 變色：mode1/2 隨機三原色；mode3（mode-color）套 var(--theme-bg)=當前 hue，
+      // theme-toggle RAF 每幀更新該 var → hover 不動文字色也跟著 hue 流動（免自寫 RAF）
       listEl.querySelectorAll('.award-record-item').forEach(item => {
         item.addEventListener('mouseenter', () => {
-          item.style.color = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
+          item.style.color = document.body.classList.contains('mode-color')
+            ? 'var(--theme-bg)'
+            : ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
         });
         item.addEventListener('mouseleave', () => { item.style.color = ''; });
       });

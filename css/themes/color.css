@@ -355,13 +355,11 @@ body.mode-color .courses-grid-type-label {
 }
 
 /* ===== Pill Buttons ===== */
-body.mode-color .works-filter-btn,
 body.mode-color .class-parent-btn {
   border-color: var(--theme-fg);
   color: var(--theme-fg);
 }
 
-body.mode-color .works-filter-btn.active,
 body.mode-color .class-parent-btn.active {
   background: var(--theme-fg);
   color: var(--theme-bg);
@@ -551,6 +549,29 @@ body.mode-color #faculty-slide-in .text-black {
   color: var(--theme-fg) !important;
 }
 
+/* 右欄 .list-scroll thumb：lists.css 寫死 #000000，mode-color 下 panel bg = theme-bg（vivid hue 每幀 cycle），
+ * 黑 thumb 在深 hue 幀變不可見 / 撞色 → 跟著 var(--theme-fg) 翻黑白，永遠對比 panel bg（同 panel 文字色）。
+ * 只 scope faculty panel：別處 .list-scroll 背景語意不同（如 activities list-content bg=theme-fg），不一起改。 */
+body.mode-color #faculty-panel .list-scroll::-webkit-scrollbar-thumb {
+  background: var(--theme-fg) !important;
+}
+/* Firefox 專屬：標準 scrollbar-color 必須包在 @supports(-moz) 內，否則 Chromium 121+/Safari 18+ 也認得它 →
+ * 切到系統 scrollbar（帶箭頭 + 粗 track）覆蓋上面的 webkit 5px 自繪 thumb（lists.css:551 同 pattern）。
+ * Chromium/Safari 的 thumb 色已由上一條 ::-webkit-scrollbar-thumb 處理，這裡只補 Firefox。 */
+@supports (-moz-appearance: none) {
+  body.mode-color #faculty-panel .list-scroll {
+    scrollbar-color: var(--theme-fg) transparent;
+  }
+}
+
+/* 右欄 sticky section title col（Education / Experience / Awards 標題）的遮罩底：
+ * base（cards.css）= var(--faculty-panel-bg)＝JS 寫入的 cardColor accent，standard/inverse 下 = panel bg 故無縫；
+ * 但 mode-color 下 panel bg 已被上面 !important 改成 theme-bg（cycling hue），遮罩仍是 accent → 露出三原色色塊。
+ * 跟 panel 一起走 theme-bg，視覺無縫（user 期望透明＝跟 panel 同色）。 */
+body.mode-color #faculty-panel .faculty-section-title-col {
+  background: var(--theme-bg) !important;
+}
+
 /* ===== Library 主卡片：mode-color 下依 page bg 對比度兩階切換固定灰 =====
  * 對比邏輯：亮 page → 淺灰底黑字 / 暗 page → 深灰底白字（同 mode1/2 對比方向）
  * --lib-bg 由 theme-toggle.js applyColorVars 兩階切換 #f2f2f2 / #333333（不寫 default 避免蓋掉 inline 值） */
@@ -582,8 +603,11 @@ body.mode-color #library-card-main:not([style*="--lib-bg"]) {
 }
 
 /* color-rect-title：JS inline 設 color='#000' inactive 或 '#000'/'#fff' hover；
- * mode-color 下 card bg 已強制 var(--theme-fg)，title 必須 var(--theme-fg-inverse) 才對比 */
-body.mode-color #library-card-stack .color-rect-title {
+ * mode-color 下 card bg 已強制 var(--theme-fg)，title 必須 var(--theme-fg-inverse) 才對比。
+ * #library-card-main 一併包進來：panel 切換後它會 demote 成 color rect（bg=theme-fg，sibling 不在 stack 內），
+ * 漏掉的話 demote 主卡的 title 停在 inline #000 → 亮 hue（theme-fg=黑）時黑字疊黑底看不見（bg/hover 規則早就含它，這條之前漏） */
+body.mode-color #library-card-stack .color-rect-title,
+body.mode-color #library-card-main .color-rect-title {
   color: var(--theme-fg-inverse) !important;
 }
 

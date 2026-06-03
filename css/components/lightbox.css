@@ -2,7 +2,7 @@
  * 共用 component：PDF viewer / activities-lightbox 內的 ref 跳轉 UI
  * 結構：
  *   - .lightbox-ref-btn (button)：跟 back btn 同 pill 視覺，icon-arrow-right
- *   - .lightbox-ref-popover (absolute, overflow:clip)：clip-reveal wrap
+ *   - .lightbox-ref-popover (absolute)：定位容器；進場 reveal 由 card 外層 tight clip wrapper 處理（setupClipReveal）
  *     └─ .lightbox-ref-stack (column flex)：垂直 chip 列
  *        └─ .lightbox-ref-chip (button, 沿用 .list-ref-btn 樣式)：白底 / hover 黑底白字
  *
@@ -17,14 +17,15 @@
   cursor: pointer;
 }
 
-/* Popover 容器：absolute by lightbox-ref-btn.js（inline top/left）+ overflow 由 JS 控
- * 進場 clip-reveal 期間 overflow:clip（chip 從底邊長出，外層裁掉超出部分）
- * 進場完成後 JS onComplete 改回 overflow:visible — 否則旋轉 card 超出 popover bbox 的角會被永久裁掉
+/* Popover 容器：absolute by lightbox-ref-btn.js（inline top/left），本身不做遮罩
+ * 進場 = 仿 hero title clip-reveal：openPopover 用共用 setupClipReveal 給 .lightbox-ref-card 包一個 tight
+ *   wrapper（overflow-y:clip 遮罩 / overflow-x:visible 讓旋轉角不被橫向裁）+ yPercent:100→0 原地滑入揭露。
+ *   tight wrapper 是關鍵：card 只滑自身高度、遮罩貼最終位置 → 原地往上 reveal，不是從更低處長距離上移
+ *   （2026-06-02 演進：yPercent 套整個 padded popover→上移太多像被切；clip-path→不夠像 hero；最後 tight wrapper yPercent）
  * max-width 對齊 pdf-title-pill `min(40vw, 360px)` 規格 — 短內容 popover 自然窄不會被撐到 360px；
  *   超長 title 才到上限由 chip-title marquee 處理（unitWidth > winWidth 時 dual-copy 滾動）
  * z-index 9999：超過 PDF modal 內部其他元素的 z-index:50（back btn / title / chevrons）+ modal 本身
- * padding 32px：card 旋轉 ±3° transform-origin:left center 下右側角往外突 ~16-20px，
- *   padding 給足讓進場 clip 期間角也不被切到視覺邊（user 反饋切角再恢復不雅 → 加 padding 解決） */
+ * padding 32px：card 旋轉跟隨 ref btn（預設 0deg）；給旋轉 card 角 breathing room（user 反饋切角再恢復不雅） */
 .lightbox-ref-popover {
   pointer-events: auto;
   padding: 32px;
