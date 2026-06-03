@@ -63,6 +63,34 @@
     max-width: 100%;
   }
 
+  /* 桌面：title chip 每次進頁隨機傾角 + 水平推右（值由 legal-title-random.js 設在 .legal-title-block 上）。
+     fallback 用原本固定角度，JS 未跑時維持舊樣式；shift 用 margin-left 在左欄 flex 內推右。
+     .legal-title-block 後代選擇器 (0,2,0) 蓋過 hero.css 全域 .hero-title-wrapper (0,1,0)。
+     只在桌面：手機 legal-title-col 是 static stack，沿用 hero.css 基礎角度，不 random（RWD 互不影響）。 */
+  @media (min-width: 768px) {
+    .legal-title-block .hero-title-wrapper {
+      transform: rotate(var(--legal-rot-en, -4deg));
+      margin-left: var(--legal-shift-en, 0px);
+      /* 旋轉後兩 chip 右端互相靠近會相疊 → JS 依角度算需要的垂直 gap 撐開（套在上方 EN wrapper） */
+      margin-bottom: var(--legal-gap, 0px);
+    }
+    .legal-title-block .hero-title-cn-wrapper {
+      transform: rotate(var(--legal-rot-cn, 3deg));
+      margin-left: var(--legal-shift-cn, 0px);
+    }
+  }
+
+  /* 前言（overview，loader 組出 .legal-intro）：與第一個編號 section 拉開距離 */
+  .legal-intro {
+    margin-bottom: var(--spacing-4xl);
+  }
+  .legal-intro > p {
+    margin-bottom: var(--spacing-sm);
+  }
+  .legal-intro > p:last-child {
+    margin-bottom: 0;
+  }
+
   /* ── 編號 section：grid 兩欄（編號 / EN 標題+ZH 標題+內文）─── */
   .legal-section {
     display: grid;
@@ -95,6 +123,11 @@
     padding-left: 1.25rem;
     margin-bottom: var(--spacing-md);
   }
+  /* Tailwind preflight 把 ul/ol 預設清成 list-style:none，loader 組出的清單要在此補回語意項目符號 */
+  .legal-section-body ul { list-style: disc; }
+  .legal-section-body ol { list-style: decimal; }
+  .legal-section-body li { margin-bottom: var(--spacing-xs); }
+  .legal-section-body li:last-child { margin-bottom: 0; }
   .legal-section-body ul:last-child,
   .legal-section-body ol:last-child {
     margin-bottom: 0;
@@ -104,6 +137,16 @@
   }
   .legal-section-body > p:last-child {
     margin-bottom: 0;
+  }
+  /* 內文連結（如聯絡 email）：底線 + 桌面 hover 轉灰（取代原本 inline 的 hover:text-gray-6） */
+  .legal-section-body a {
+    text-decoration: underline;
+    transition: color 0.2s;
+  }
+  @media (min-width: 768px) {
+    .legal-section-body a:hover {
+      color: var(--gray-6);
+    }
   }
 
   /* 手機：取消 sticky，title 與內文 stack flow；高度回 auto */
