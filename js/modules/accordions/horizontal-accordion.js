@@ -5,6 +5,8 @@
  * 其他 accordion：標準 width 展開版
  */
 
+import { registerPageCleanup } from '../ui/page-cleanup.js';
+
 let accordionWrappers = [];
 
 export function initHorizontalAccordion() {
@@ -17,13 +19,20 @@ export function initHorizontalAccordion() {
   });
 
   let resizeTimer;
-  window.addEventListener('resize', () => {
+  function onAccordionResize() {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
       accordionWrappers.forEach(wrapper => {
         if (wrapper.updateLayout) wrapper.updateLayout();
       });
     }, 150);
+  }
+  window.addEventListener('resize', onAccordionResize);
+  // SPA 離開時解綁 resize + 清掉 detached wrapper 參考（否則每訪 about 累積 listener + DOM leak）
+  registerPageCleanup(() => {
+    window.removeEventListener('resize', onAccordionResize);
+    clearTimeout(resizeTimer);
+    accordionWrappers.length = 0;
   });
 }
 

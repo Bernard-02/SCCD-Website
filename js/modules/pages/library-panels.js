@@ -914,7 +914,7 @@ async function initAlbumPanel() {
             }).filter(Boolean),
             ...images.map(src => ({ type: 'image', src, thumb: src })),
           ];
-          allItems.push({ year, cat, titleEn, titleZh, cover, media, references: item.references });
+          allItems.push({ id: item.id, year, cat, titleEn, titleZh, cover, media, references: item.references });
         });
       });
     });
@@ -1361,6 +1361,10 @@ function handleLibraryHash() {
   // Retry 找元素，最多等 3 秒（awards 需要 fetch + render，可能較慢）
   const startTime = Date.now();
   const MAX_WAIT = 3000;
+  // 灰卡進場打開後（desktop 在 onEntranceDone 才呼叫 handleHash）留個緩衝再開始捲，
+  // 否則「一打開就直接捲」感覺太急（user 2026-06-04）；對齊 curriculum deep-link 的 OPEN_DELAY=600。
+  // 這個值同時當「首次嘗試找元素」的延遲，找不到會往後 retry（不影響 async panel render 慢的情況）。
+  const SCROLL_DELAY = 600;
 
   function tryFindAndHandle() {
     const el = document.getElementById(hash);
@@ -1376,15 +1380,30 @@ function handleLibraryHash() {
     if (!panelEl) return;
     const tab = panelEl.id.replace('lib-panel-', '');
 
-    // 切換到對應 panel
-    showLibPanel(tab);
+    // 只在目標 panel 還沒顯示時才切換 + reveal。
+    // deep-link 常態：initialTab 由同一個 hash 推出 → 卡片進場 onTabSwitch 時就已 showLibPanel + reveal 過該 panel；
+    // 若這裡再無條件 showLibPanel(tab)，playPanelReveal 會**重播一次 wipe 揭露** = user 看到的「像 refresh 一次再 scroll」。
+    // 已顯示就跳過，直接讓內層清單平滑捲到該項目。
+    if (panelEl.style.display === 'none') {
+      showLibPanel(tab);
+    }
 
     // 等 panel 顯示 + layout 完成後再 scroll + 觸發 hover
     requestAnimationFrame(() => {
-      // block: 'start' → 對齊容器頂部（若剩餘空間不足會自動停在最大 scrollTop）
-      // awards 的 year 標題是 sticky，加 scroll-margin-top 避免被遮
-      el.style.scrollMarginTop = '2rem';
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // ⚠️ 只捲動該 panel 內層的 scroll 容器（id 以 `-scroll` 結尾：library-awards-scroll 等），
+      //    **不要用 el.scrollIntoView**：library 頁 body 是 `overflow-hidden h-screen`，但 overflow-hidden
+      //    只擋「使用者捲動」、擋不住「程式捲動」；scrollIntoView({block:'start'}) 會為了把元素對齊 viewport 頂端
+      //    連 body 一起捲（獎項在置中卡片裡、離頂 ~300px）→ 整張卡片被頂到 header 後面（user 2026-06-04 回報「整體往上位移」）。
+      //    改用內層 scroller 的 scrollBy（getBoundingClientRect 差值）只在容器內捲，body 完全不動。
+      const SCROLL_MARGIN = 32; // 2rem：awards year 標題 sticky，留空間不被遮
+      const scroller = /** @type {HTMLElement|null} */ (el.closest('[id$="-scroll"]'));
+      if (scroller) {
+        const delta = el.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+        scroller.scrollBy({ top: delta - SCROLL_MARGIN, behavior: 'smooth' });
+      } else {
+        // 理論上四個 panel 都有內層 scroller；萬一沒有，退回 nearest（不對齊頂端 → 不會大幅捲 body）
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
 
       // 觸發一次該項目既有的 hover 效果（1s）
       // - dispatch mouseenter/leave：觸發 JS hover listener（awards 的文字變色）
@@ -1400,5 +1419,5 @@ function handleLibraryHash() {
     });
   }
 
-  setTimeout(tryFindAndHandle, 300);
+  setTimeout(tryFindAndHandle, SCROLL_DELAY);
 }

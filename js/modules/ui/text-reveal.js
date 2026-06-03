@@ -1,6 +1,6 @@
 /**
  * Text Reveal Module
- * 逐行（line）進場動畫，使用 GSAP SplitText + ScrollTrigger
+ * 逐行（line）進場動畫（gsap.to y+opacity 逐行 fade-up），非真正 split lines
  *
  * 使用方式：
  *   1. 在目標元素加上 data-text-reveal attribute（可選 data-text-reveal-delay="0.2"）

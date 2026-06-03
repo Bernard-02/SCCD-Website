@@ -242,23 +242,6 @@ body.mode-inverse .courses-filter-btn.active .anchor-nav-inner {
   }
 }
 
-/* ===== Pill Buttons (class-parent-btn) ===== */
-/* class-division-btn 已遷移到 var(--theme-fg)/var(--theme-bg)，這裡不再列入 */
-body.mode-inverse .class-parent-btn {
-  border-color: white;
-  color: white;
-}
-
-body.mode-inverse .class-parent-btn.active {
-  background: white;
-  color: black;
-}
-
-/* btn-fill blob 顏色反轉 */
-body.mode-inverse .btn-fill-blob {
-  background: white;
-}
-
 /* ===== Accordion / Course Items ===== */
 body.mode-inverse .course-item {
   border-color: white !important;
@@ -342,12 +325,6 @@ body.mode-inverse #library-awards-ticker .awards-ticker-wrapper img {
   body.mode-inverse .press-item[style*="background"] .press-item-cat-tag {
     color: rgba(0, 0, 0, 0.5) !important;
   }
-}
-
-/* ===== Cards ===== */
-body.mode-inverse .card-tag {
-  border-color: white !important;
-  color: white !important;
 }
 
 /* ===== Courses Grid Cards：inverse 反轉成深灰底白字 =====

@@ -5,20 +5,17 @@
 
 @layer components {
   /* ===== Card Hover Overlay（共用元件）=====
-   * 適用：faculty-card / library-card
+   * 適用：faculty-card
    * 結構：card > image-wrapper > image
    *   - card：hover 時底色變 var(--card-color)
    *   - image-wrapper::after：screen blend 色塊，hover 時 opacity 1
-   *   - image：hover 時 grayscale
    */
-  .faculty-card,
-  .library-card {
+  .faculty-card {
     background-color: transparent;
     transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  .faculty-card-image-wrapper,
-  .library-card-image-wrapper {
+  .faculty-card-image-wrapper {
     position: relative;
     overflow: hidden;
   }
@@ -28,14 +25,12 @@
     overflow: hidden;
   }
 
-  .faculty-card-image,
-  .library-card-image {
+  .faculty-card-image {
     transition: filter 0.3s cubic-bezier(0.4, 0, 0.2, 1),
                 transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  .faculty-card-image-wrapper::after,
-  .library-card-image-wrapper::after {
+  .faculty-card-image-wrapper::after {
     content: '';
     position: absolute;
     inset: 0;
@@ -48,17 +43,8 @@
 
   /* Hover 效果（桌面版）*/
   @media (min-width: 768px) {
-    .faculty-card:hover,
-    .library-card:hover {
+    .faculty-card:hover {
       background-color: var(--card-color, #26BCFF);
-    }
-
-    .library-card:hover .library-card-image {
-      filter: grayscale(100%);
-    }
-
-    .library-card:hover .library-card-image-wrapper::after {
-      opacity: 0.8;
     }
   }
 
@@ -116,12 +102,13 @@
   }
 
   /* ===== Faculty Slide-in Grid Rows =====
-     所有 section（學歷/經歷/獲獎）統一 4 col grid `1fr 4fr 2fr 2fr` 對齊：
+     學歷/經歷統一 4 col grid `1fr 4fr 2fr 2fr` 對齊：
      - col1 (1fr): year / country
      - col2 (4fr): school / name
-     - col3 (2fr): major / work
+     - col3 (2fr): major
      - col4 (2fr): degree / category / role
      - 經歷的 organization 用 .faculty-grid-span2 跨 col2+col3 (4fr+2fr) 撐單位描述
+     獲獎用 .faculty-grid-row-award 變體：year(1fr) | country(1fr) | name(4fr) | category(2fr)
    */
   .faculty-grid-row {
     display: grid;
@@ -131,6 +118,12 @@
     padding-bottom: 0.5rem;
     padding-right: 2rem;
     font-size: var(--font-size-p2);
+  }
+  /* 獲獎 row：year(1fr) | country(1fr) | name(5fr) | category(2fr)；2026-06-04 user 移除獎別欄、改放國家
+     刻意總和 = 9fr 與學歷/經歷的 `1fr 4fr 2fr 2fr` 一致 → fr 單位相同：
+     col1 同寬故 country(col2) 左緣對齊上方 organization；col4 同起點(1+1+5 = 1+4+2 = 7fr)故 category 對齊上方 role */
+  .faculty-grid-row-award {
+    grid-template-columns: 1fr 1fr 5fr 2fr;
   }
   /* 手機：字級放大到 p1 易讀（窄 viewport 內 p2 太小） */
   @media (max-width: 767px) {
@@ -169,11 +162,6 @@
   }
 
   /* ===== Degree Show Image ===== */
-  /* ===== Faculty Section Tags ===== */
-  .faculty-tag {
-    @apply inline-block text-p2 border border-black px-xs py-[2px];
-    white-space: nowrap;
-  }
 
   .works-container {
     height: auto;

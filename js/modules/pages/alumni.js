@@ -18,6 +18,7 @@ import { setupClipReveal, playClipReveal } from '../ui/scroll-animate.js';
 import { initPdfViewer } from './library-viewer.js';
 import { initSectionBannerReveal } from './about/section-banner-reveal.js';
 import { registerPageExit } from '../ui/page-exit.js';
+import { registerPageCleanup } from '../ui/page-cleanup.js';
 
 // 共用：courses-card 風 4 方向 clip-path 隨機選一個
 const CARD_CLIP_DIRS = [
@@ -384,6 +385,8 @@ async function renderOrganization(terms) {
         charter.classList.toggle('is-visible', entry.isIntersecting);
       }, { threshold: 0 });
       observer.observe(orgSection);
+      // SPA 離開 alumni 時 disconnect（比照 anchor-nav.js，否則 observer 持有被 swap 掉的 section）
+      registerPageCleanup(() => observer.disconnect());
     } else {
       // fallback：直接顯示
       charter.classList.add('is-visible');

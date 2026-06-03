@@ -15,6 +15,8 @@
  *   4. 新 panel 開始 loop
  */
 
+import { registerPageCleanup } from '../../ui/page-cleanup.js';
+
 // slot 間距：slot 0 起始貼左、slot 1/2 各往右平移 ~28%（從 32% 縮小）
 // 避免 slot 2 + landscape 圖寬度溢出 .division-images 容器右緣（container ~720px 在 1920w，slot2 64% + 462 = ~923 溢出 200px）
 const SLOT_LEFTS = ['0%', '24%', '48%'];
@@ -335,6 +337,8 @@ async function switchTo(newDivision, animate = true) {
 
 export async function initClassImagesSlideshow() {
   // SPA 重新進入 about 時重置 module-level state（避免殘留舊 api / revealed flag）
+  // clear() 前先 stop() 舊 api，否則丟掉參考後它們的 setInterval 仍在跑（同頁重 init 殘留）
+  slideshowsByDivision.forEach(api => api.stop());
   slideshowsByDivision.clear();
   currentDivision = null;
   switching = false;
@@ -351,6 +355,9 @@ export async function initClassImagesSlideshow() {
       const api = createClassImagesSlideshow(container, pool);
       if (api) slideshowsByDivision.set(division, api);
     });
+
+    // SPA 離開 about 時停掉所有 slideshow interval（避免對 detached DOM 跑 gsap、每訪累積）
+    registerPageCleanup(() => slideshowsByDivision.forEach(api => api.stop()));
 
     // 暴露給 bfa-division-toggle.js 和 class-buttons-sticky.js 呼叫
     window.SCCD_classSlideshow = { switchTo, revealActive };

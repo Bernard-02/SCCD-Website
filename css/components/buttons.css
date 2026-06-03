@@ -341,21 +341,6 @@
     border-radius: 0;
   }
 
-  /* Filter tag */
-  .album-filter-tag {
-    cursor: var(--cursor-pointer);
-    background: black;
-    color: white;
-    border: none;
-    padding: 2px var(--spacing-sm);
-    font-size: var(--font-size-p2);
-    font-weight: 700;
-    display: inline-flex;
-    align-items: center;
-    gap: var(--spacing-xs);
-    white-space: nowrap;
-  }
-
   /* ===== Class Group Label (BFA Class 學士班)：旋轉由 JS 設定 ===== */
   /* bg/color 用 var(--theme-fg)/var(--theme-bg) 跟 mode 走（standard=黑底白字 / inverse=白底黑字） */
   .class-group-label {
@@ -416,23 +401,4 @@
     margin-right: 0;
     clip-path: inset(-40px -40px -40px -40px);
   }
-
-
-
-  /* ===== Btn Fill Hover Effect ===== */
-  .btn-fill {
-    position: relative;
-    overflow: hidden;
-    isolation: isolate;
-  }
-
-  .btn-fill-blob {
-    position: absolute;
-    border-radius: 50%;
-    background: #000000;
-    pointer-events: none;
-    transform-origin: center;
-    z-index: -1;
-  }
-
 }

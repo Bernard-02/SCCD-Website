@@ -78,20 +78,21 @@ export function initFacultySlideIn() {
     `;
   }
 
-  // 獲獎 row：year | name | work(獎項) | category(獎別)
+  // 獲獎 row：year | country | name | category（獎別欄已移除，改放國家；2026-06-04 user）
+  // 國家比照學歷 row：中文全名 + ISO2 代碼（大寫）
   function renderAwardRow(item) {
     const year = formatYearRange(item.startYear, item.endYear);
     const nameZh = item.nameZh || '';
     const nameEn = item.nameEn || '';
-    const workZh = item.workZh || '';
-    const workEn = item.workEn || '';
     const catZh = item.categoryZh || '';
     const catEn = item.categoryEn || '';
+    const countryZh = countryName(item.country, 'zh');
+    const countryCode = (item.country || '').toUpperCase();
     return `
-      <div class="faculty-grid-row">
+      <div class="faculty-grid-row faculty-grid-row-award">
         <span>${year}</span>
+        <span>${countryZh}${countryCode ? '<br>' + countryCode : ''}</span>
         <span>${nameZh}${nameEn ? '<br>' + nameEn : ''}</span>
-        <span>${workZh}${workEn ? '<br>' + workEn : ''}</span>
         <span>${catZh}${catEn ? '<br>' + catEn : ''}</span>
       </div>
     `;

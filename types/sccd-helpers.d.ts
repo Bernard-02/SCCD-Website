@@ -53,7 +53,6 @@ interface HTMLElement {
 declare var gsap: any;
 declare var ScrollTrigger: any;
 declare var ScrollToPlugin: any;
-declare var SplitText: any;
 declare var lottie: any;
 declare var pdfjsLib: any;
 declare var p5: any;

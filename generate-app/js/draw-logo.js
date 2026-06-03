@@ -236,20 +236,6 @@ function drawLogo(pg, alphaMultiplier = 255) {
         colorIndex = 2; // 藍色組
       }
 
-      // Hover 邏輯
-      // let isHoveredColor = false;
-      // if (hoveredSlider) {
-      //   if (hoveredSlider === 'r' && colorIndex === 0) isHoveredColor = true;
-      //   if (hoveredSlider === 'g' && colorIndex === 1) isHoveredColor = true;
-      //   if (hoveredSlider === 'b' && colorIndex === 2) isHoveredColor = true;
-      // }
-
-      // 第一次繪製時跳過 hover 的顏色，第二次只繪製 hover 的顏色
-      // if (drawingPasses === 2) {
-      //   if (pass === 0 && isHoveredColor) continue; // 第一批：跳過 hover 的
-      //   if (pass === 1 && !isHoveredColor) continue; // 第二批：只繪製 hover 的
-      // }
-
     // --- 更新每個字母的旋轉角度 ---
     // 只有在不是 ease 回 0° 的狀態下，才累積旋轉角度
     if (!shouldResetToZero) {
@@ -275,9 +261,7 @@ function drawLogo(pg, alphaMultiplier = 255) {
     }
 
     // 根據模式設定文字樣式並繪製
-    // Hover 時，非 hover 的字母 25% 不透明度
-    // let letterAlpha = (hoveredSlider && !isHoveredColor) ? 64 : 255;
-    let letterAlpha = 255; // 注解 hover 功能，固定為 100% 不透明度
+    let letterAlpha = 255; // hover 高亮功能已移除，固定 100% 不透明度
 
     if (isWireframeMode) {
       // Wireframe模式：使用色彩選擇器選擇的顏色

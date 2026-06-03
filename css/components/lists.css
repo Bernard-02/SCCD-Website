@@ -3,12 +3,6 @@
  * Activities List 等列表項目樣式
  */
 
-/* ===== Support Page ===== */
-.support-link-plain {
-  font-weight: 700;
-  text-decoration: none;
-}
-
 /* ===== Panel Description（exhibitions / visits 分頁切換對應文字） =====
  * 同 panel 內多個 .panel-desc 用 data-desc-type 對應 sub-tab type；
  * 只有 .active 那個顯示，其他預設 hidden。JS 切 sub-filter 時同步切此 active class */
@@ -467,13 +461,6 @@
 .activities-search-icon {
   color: black;
   flex-shrink: 0;
-}
-
-@layer components {
-  /* ===== Activities List Item - Unified Style ===== */
-  .activities-item {
-    @apply grid grid-cols-9 gap-gutter items-center py-md;
-  }
 }
 
 /* ===== Award Record Item Hover Glow (Desktop only) ===== */

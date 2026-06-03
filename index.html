@@ -11,12 +11,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&family=Bitter:ital,wght@0,400;0,600;0,700;1,400&family=Noto+Serif+TC:wght@400;600;700&display=swap">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <link rel="stylesheet" href="css/output.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.2.3/css/flag-icons.min.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+  <!-- p5 不放 head（移除 render-blocking）；首頁 WATCH 卡需要時才 lazy-load 本地 generate-app/p5.min.js（見 index-yt-card.js ensureP5），/create 也是載本地那份 -->
 </head>
 <body style="overflow:hidden">
 
@@ -30,6 +30,8 @@
 
   <!-- Main Content -->
   <main id="page-content">
+    <!-- 視覺隱藏的頁面主標題（語意/SEO/報讀器地標；首頁全視覺、無文字標題）-->
+    <h1 class="sr-only">實踐大學媒體傳達設計學系 Shih Chien University Department of Communications Design (SCCD)</h1>
     <section class="h-screen" style="display:flex; align-items:flex-end; padding: var(--spacing-xl); position:relative; z-index:9998; overflow:hidden;">
 
       <!-- Floating Items Layer -->
@@ -52,7 +54,7 @@
 
     <!-- 手機專用左上返回鍵（桌面用 video-controls 內的 close btn，預設隱藏） -->
     <!-- top:6rem 對齊手機 header logo 下方：header `py-md`(24px) + logo wrapper `-top-4`(-16px) + logo 80px = 88px 底邊 + ~8px 間距 ≈ 96px (6rem)；left 同 logo 邊距 -->
-    <button id="video-mobile-close-btn" style="display:none; position:absolute; top:6rem; left:1rem; z-index:10003; background:#00FF80; color:#000; border:none; padding:0.5rem 0.75rem; line-height:1; align-items:center; justify-content:center;">
+    <button id="video-mobile-close-btn" aria-label="關閉影片 Close video" style="display:none; position:absolute; top:6rem; left:1rem; z-index:10003; background:#00FF80; color:#000; border:none; padding:0.5rem 0.75rem; line-height:1; align-items:center; justify-content:center;">
       <span class="icon icon-arrow-left icon-l"></span>
     </button>
 
@@ -61,7 +63,7 @@
 
       <!-- 區塊 1：返回鍵 — height fix 3rem 避免內 icon size 變化影響 pill 高度 -->
       <div id="video-block-close" style="background:transparent; padding:0 1rem; height:3rem; display:flex; align-items:center;">
-        <button id="video-close-btn" style="color:#fff; background:none; border:none; padding:0; line-height:1; display:flex; align-items:center;">
+        <button id="video-close-btn" aria-label="關閉影片 Close video" style="color:#fff; background:none; border:none; padding:0; line-height:1; display:flex; align-items:center;">
           <span class="icon icon-arrow-left icon-l"></span>
         </button>
       </div>
@@ -70,7 +72,7 @@
       <div id="video-block-center" style="background:transparent; padding:0 1.25rem; height:3rem; display:flex; align-items:center; gap:1.25rem; flex:1; min-width:0; margin:0 1rem;">
 
         <!-- Play -->
-        <button id="video-play-btn" style="color:#fff; background:none; border:none; padding:0; line-height:1; width:1.5rem; text-align:center; flex-shrink:0;">
+        <button id="video-play-btn" aria-label="播放／暫停 Play/Pause" style="color:#fff; background:none; border:none; padding:0; line-height:1; width:1.5rem; text-align:center; flex-shrink:0;">
           <span class="icon icon-play icon-l"></span>
         </button>
 
@@ -86,7 +88,7 @@
 
         <!-- Volume — hover 展開 slider；slider 全黑風格同 progress -->
         <div id="video-volume-wrap" style="display:flex; align-items:center; gap:0.75rem; flex-shrink:0;">
-          <button id="video-mute-btn" style="color:#fff; background:none; border:none; padding:0; line-height:1;">
+          <button id="video-mute-btn" aria-label="靜音／取消靜音 Mute/Unmute" style="color:#fff; background:none; border:none; padding:0; line-height:1;">
             <span class="icon icon-volume icon-l"></span>
           </button>
           <div id="video-volume-track" style="width:0; overflow:visible; transition:width 0.25s cubic-bezier(0.25,0,0,1); height:4px; background:#000; position:relative; flex-shrink:0;">
@@ -100,7 +102,7 @@
 
       <!-- 區塊 3：全螢幕 -->
       <div id="video-block-fullscreen" style="background:transparent; padding:0 1rem; height:3rem; display:flex; align-items:center;">
-        <button id="video-fullscreen-btn" style="color:#fff; background:none; border:none; padding:0; line-height:1;">
+        <button id="video-fullscreen-btn" aria-label="全螢幕 Fullscreen" style="color:#fff; background:none; border:none; padding:0; line-height:1;">
           <span class="icon icon-full-screen icon-l"></span>
         </button>
       </div>

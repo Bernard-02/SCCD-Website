@@ -70,8 +70,9 @@ function obbAABB(corners) {
   return { x1: minX, y1: minY, x2: maxX, y2: maxY };
 }
 
-// p5 只在 index.html head 載入；子頁 URL 直訪後 SPA 切回 index 時 typeof p5 === 'undefined'
-// → 必須 lazy-load 否則 initWatchChars 早退、WATCH 字母不繪
+// p5 已不放 index.html head（移除 render-blocking CDN）；WATCH 卡第一次繪製時才 lazy-load
+// 本地 generate-app/p5.min.js（與 /create 同一份、同源）；SPA 子頁切回 index 時 typeof p5 仍可能
+// === 'undefined'，一樣靠這個 lazy-load，否則 initWatchChars 早退、WATCH 字母不繪
 function ensureP5() {
   return new Promise(resolve => {
     if (typeof p5 !== 'undefined') { resolve(); return; }
@@ -82,7 +83,7 @@ function ensureP5() {
       return;
     }
     const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js';
+    s.src = '/generate-app/p5.min.js';
     s.dataset.p5Lazy = '1';
     s.onload = () => resolve();
     s.onerror = () => resolve();

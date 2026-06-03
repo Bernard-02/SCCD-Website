@@ -46,7 +46,8 @@ ROTATE FOR BEST EXPERIENCE</div>
     </div>
 
     <!-- 主容器，將使用 Flexbox 或 Grid 來進行整體佈局 -->
-    <main class="main-container">
+    <!-- 用 div 不用 main：外層已有 main#page-content，巢狀 main 為 invalid HTML -->
+    <div class="main-container">
 
         <!-- 上方顯示區域（桌面版） -->
         <section class="display-area desktop-only">
@@ -91,16 +92,16 @@ ROTATE FOR BEST EXPERIENCE</div>
                         <div class="control-group" id="custom-angle-controls">
                             <div class="sliders-wrapper">
                                 <div class="slider-container">
-                                    <input type="range" id="r-slider" class="custom-slider" min="-360" max="360" value="0">
-                                    <input type="text" id="r-angle-label" class="angle-input" value="0" autocomplete="off">
+                                    <input type="range" id="r-slider" class="custom-slider" min="-360" max="360" value="0" aria-label="紅色旋轉角度 Red rotation angle">
+                                    <input type="text" id="r-angle-label" class="angle-input" value="0" autocomplete="off" aria-label="紅色旋轉角度 Red rotation angle">
                                 </div>
                                 <div class="slider-container">
-                                    <input type="range" id="g-slider" class="custom-slider" min="-360" max="360" value="0">
-                                    <input type="text" id="g-angle-label" class="angle-input" value="0" autocomplete="off">
+                                    <input type="range" id="g-slider" class="custom-slider" min="-360" max="360" value="0" aria-label="綠色旋轉角度 Green rotation angle">
+                                    <input type="text" id="g-angle-label" class="angle-input" value="0" autocomplete="off" aria-label="綠色旋轉角度 Green rotation angle">
                                 </div>
                                 <div class="slider-container">
-                                    <input type="range" id="b-slider" class="custom-slider" min="-360" max="360" value="0">
-                                    <input type="text" id="b-angle-label" class="angle-input" value="0" autocomplete="off">
+                                    <input type="range" id="b-slider" class="custom-slider" min="-360" max="360" value="0" aria-label="藍色旋轉角度 Blue rotation angle">
+                                    <input type="text" id="b-angle-label" class="angle-input" value="0" autocomplete="off" aria-label="藍色旋轉角度 Blue rotation angle">
                                 </div>
                             </div>
                             <div class="icon-buttons-wrapper">
@@ -151,15 +152,15 @@ ROTATE FOR BEST EXPERIENCE</div>
                         <div class="sliders-wrapper">
                             <div class="slider-container">
                                 <input type="range" id="mobile-r-slider" class="custom-slider" min="-360" max="360" value="0">
-                                <input type="text" id="mobile-r-angle-label" class="angle-input" value="0" readonly>
+                                <input type="text" id="mobile-r-angle-label" class="angle-input" value="0" readonly aria-label="紅色旋轉角度 Red rotation angle">
                             </div>
                             <div class="slider-container">
                                 <input type="range" id="mobile-g-slider" class="custom-slider" min="-360" max="360" value="0">
-                                <input type="text" id="mobile-g-angle-label" class="angle-input" value="0" readonly>
+                                <input type="text" id="mobile-g-angle-label" class="angle-input" value="0" readonly aria-label="綠色旋轉角度 Green rotation angle">
                             </div>
                             <div class="slider-container">
                                 <input type="range" id="mobile-b-slider" class="custom-slider" min="-360" max="360" value="0">
-                                <input type="text" id="mobile-b-angle-label" class="angle-input" value="0" readonly>
+                                <input type="text" id="mobile-b-angle-label" class="angle-input" value="0" readonly aria-label="藍色旋轉角度 Blue rotation angle">
                             </div>
                         </div>
                     </div>
@@ -212,7 +213,7 @@ ROTATE FOR BEST EXPERIENCE</div>
     </div>
 
     </div><!-- /#create-app -->
-  </main>
+  </div><!-- /.main-container -->
 
   <!-- Footer 容器：generate 頁視覺隱藏（router.js:138 toggle display:none），
        但必須存在於 body，否則 first-load /create 時 initFooter 找不到容器 silent skip，

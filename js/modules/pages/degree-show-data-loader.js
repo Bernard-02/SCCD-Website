@@ -10,6 +10,7 @@ import { initHeroMobileSync } from './hero-mobile-sync.js';
 import { animateCardsClipReveal } from '../ui/scroll-animate.js';
 import { createClassImagesSlideshow } from './about/class-images-slideshow.js';
 import { getSectionData, findItemById, SECTION_LABELS } from './activities-data-loader.js';
+import { registerPageCleanup } from '../ui/page-cleanup.js';
 
 // CMB2 file_list type 存 meta 為 dict `{ attachment_id: url, ... }`；舊 JSON 是 string array
 // normalize 成 string array of URLs（順序不保證、但前端 gallery 不依賴順序）
@@ -419,6 +420,7 @@ function setupNextProject(prevYear, prevData, nextYear, nextData) {
   ]).then(() => {
     recompute();
     window.addEventListener('resize', recompute);
+    registerPageCleanup(() => window.removeEventListener('resize', recompute));
   });
 
   // Hover：被 hover 的 card → z 提高 + 移除 dim + 顯示 labels group；另一張 → clip-path 掃入隨機色
@@ -559,7 +561,9 @@ function appendExhibitionSection(root, index, pool, branchEn, branchZh) {
   gallery.className = 'division-images relative';
   section.appendChild(gallery);
   root.appendChild(section);
-  initDegreeShowGallery(gallery, pool);
+  const galleryApi = initDegreeShowGallery(gallery, pool);
+  // SPA 離開時清掉 gallery 的 setInterval（destroy 已寫好，原本 caller 丟棄回傳值不清）
+  if (galleryApi) registerPageCleanup(() => galleryApi.destroy());
 }
 
 // ref-based section：refs[] 撈 activities source item 後渲染 tab + slideshow
@@ -678,6 +682,9 @@ async function appendRefBasedSection(root, index, ev, branchEn, branchZh) {
       apis.push(null);
     }
   });
+
+  // SPA 離開時停掉所有 slideshow interval（避免對 detached DOM 跑 gsap、每訪累積）
+  registerPageCleanup(() => apis.forEach(a => a?.stop()));
 
   // Tab 切換：套用 about bfa-division-toggle setActive 的視覺
   //   - active btn: 隨機 accent 底 + 黑字 + 新隨機旋轉（每次 active 重新 random，跟 about 一致）
@@ -972,6 +979,7 @@ async function setupRefBtn(data) {
     closePopover(true);
   };
   document.addEventListener('click', outsideClickHandler);
+  registerPageCleanup(() => document.removeEventListener('click', outsideClickHandler));
 }
 
 // SPA 跳轉到 activities?section=X&item=Y（沿用既有 <a> click 路徑讓 router 接管 + push history）

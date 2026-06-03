@@ -354,21 +354,6 @@ body.mode-color .courses-grid-type-label {
   color: var(--theme-fg) !important;
 }
 
-/* ===== Pill Buttons ===== */
-body.mode-color .class-parent-btn {
-  border-color: var(--theme-fg);
-  color: var(--theme-fg);
-}
-
-body.mode-color .class-parent-btn.active {
-  background: var(--theme-fg);
-  color: var(--theme-bg);
-}
-
-body.mode-color .btn-fill-blob {
-  background: var(--theme-fg);
-}
-
 /* ===== Accordion / Course Items ===== */
 body.mode-color .course-item {
   border-color: var(--theme-fg) !important;
@@ -505,12 +490,6 @@ body.mode-color .courses-detail-title-en,
 body.mode-color .courses-detail-title-zh,
 body.mode-color .courses-detail-desc-en,
 body.mode-color .courses-detail-desc-zh {
-  color: var(--theme-fg) !important;
-}
-
-/* ===== Cards ===== */
-body.mode-color .card-tag {
-  border-color: var(--theme-fg) !important;
   color: var(--theme-fg) !important;
 }
 

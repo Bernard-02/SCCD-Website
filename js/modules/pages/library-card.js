@@ -4,6 +4,7 @@
  */
 
 import { registerPageExit } from '../ui/page-exit.js';
+import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { playPanelTitleExit, playPanelBodyExit } from './library-panels.js';
 
 export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: onEntranceDoneCb, initialTab = 'awards' }) {
@@ -745,6 +746,8 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
     }
   });
   ro.observe(grayEl.closest('section'));
+  // SPA 離開 library 時 disconnect，避免 RO 持有 detached section + 每訪累積
+  registerPageCleanup(() => { clearTimeout(roResizeTimer); ro.disconnect(); });
 
   // 點擊事件
   colorEls.forEach(el => {

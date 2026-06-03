@@ -76,9 +76,6 @@ let currentSliderValues = [0, 0, 0];    // 當前 slider 值 [R, G, B]
 let targetSliderValues = [0, 0, 0];     // 目標 slider 值 [R, G, B]
 let isEasingSlider = false;
 
-// --- Slider Hover 狀態 ---
-// let hoveredSlider = null; // 'r', 'g', 'b', or null
-
 // --- DOM 元素 ---
 // setupComplete：p5 async — initCreateApp sync 加 theme:changed listener 後到 setup() 抓 DOM refs 完之前
 // 有 race window；handleSiteThemeChange 用此 flag 守住 updateUI，避免在 refs undefined 時跑進去炸
