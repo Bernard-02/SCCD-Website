@@ -298,7 +298,7 @@ xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96p
 
 ### D. TIER 3 大架構（明確不做，列出做為設計決策記錄）
 
-- ❌ **section-switch 4 個 caller 抽 helper**：admission/activities/courses/works 各有 quirks（lazy load / sub-filter / 頭部動畫 / BFA-MDES toggle），抽出 helper hook 後複雜度跟原本 4 份差不多，違反「不過度工程化」
+- ❌ **section-switch 3 個 caller 抽 helper**：admission/activities/courses 各有 quirks（lazy load / sub-filter / 頭部動畫 / BFA-MDES toggle），抽出 helper hook 後複雜度跟原本 3 份差不多，違反「不過度工程化」
 - ❌ **`renderCard()` 通用 card builder**：5 種 card 結構差異 > 共用因子（faculty / library / courses-grid / alumni-sponsor / activities list-item），共用 helpers 已抽（card-panel-helpers.js）
 - ❌ **Web Components / Custom Elements**：原生 JS SPA 是技術選擇，不引入新範式
 - ❌ **header bars `[data-bar]` selector 完全集中化**：about / library / atlas / generate / alumni 各有客製互動，header.js 內保留多處 selector 比集中後配 hook 簡單
