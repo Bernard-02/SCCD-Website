@@ -55,10 +55,12 @@
     -->
     <section class="bg-white pt-3xl pb-6xl md:py-6xl" id="courses-content-section">
       <div class="site-container">
-        <div class="courses-content-row flex flex-col md:flex-row">
+        <!-- grid-20：桌面 program bar 占 cols 1-4、課程內容 cols 5-20（對齊 faculty/about col-5）；手機 flex-col 堆疊 -->
+        <div class="courses-content-row flex flex-col gap-gutter md:grid md:grid-cols-20">
 
-          <!-- Left column: program btn bar（桌面 vertical sticky；mobile 直接 flex-col 自然流） -->
-          <div class="courses-program-bar flex flex-col items-start gap-lg md:gap-2xl mb-2xl md:mb-0">
+          <!-- Left column: program btn bar（桌面 cols 1-4，vertical sticky；mobile 直接 flex-col 自然流）
+               注意：bar 容器佔 col-span-4，但 courses.css 的 width:14rem 仍保留 bar 寬度＝按鈕不動 -->
+          <div class="courses-program-bar flex flex-col items-start gap-lg md:gap-2xl mb-2xl md:mb-0 md:col-span-4">
             <div class="courses-program-group flex flex-col items-start gap-xs">
               <span class="courses-bfa-label">BFA 學士班</span>
               <button class="courses-program-btn active" data-program="bfa-animation">
@@ -76,8 +78,8 @@
             </button>
           </div>
 
-          <!-- Middle column: 三個 program panel（grid 由 JS 渲染） -->
-          <div class="flex-1 min-w-0">
+          <!-- Middle column: 三個 program panel（grid 由 JS 渲染）；桌面占 cols 5-20 -->
+          <div class="min-w-0 md:col-start-5 md:col-span-16">
             <div class="courses-panel" id="panel-bfa-animation">
               <div class="courses-grid"></div>
             </div>
