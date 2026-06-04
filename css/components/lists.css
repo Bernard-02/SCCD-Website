@@ -298,7 +298,7 @@
      list-header 自身已 px-[4px]，translateX 補 12px → title 視覺左緣 = 4 + 12 = 16px = spacing-sm
      桌面在 lists.css :286 走 spacing-md - 4px = 20px 視覺，跟手機不同節奏 */
   .list-header > div:first-child {
-    transition: transform 0.3s ease;
+    transition: transform var(--dur-fast) ease;
   }
   .list-header.active > div:first-child {
     transform: translateX(calc(var(--spacing-sm) - 4px));
@@ -380,7 +380,7 @@
   .list-header > * > .clip-reveal-wrapper:has(.list-subtitles) {
     display: grid;
     grid-template-rows: 1fr;
-    transition: grid-template-rows 0.3s ease, opacity 0.25s ease, margin-top 0.3s ease;
+    transition: grid-template-rows var(--dur-fast) ease, opacity var(--dur-fast) ease, margin-top var(--dur-fast) ease;
   }
   .list-header > * > .clip-reveal-wrapper:has(.list-subtitles) > * {
     min-height: 0;
@@ -438,7 +438,7 @@
 /* ===== Activities Search Bar ===== */
 /* search bar scroll hide */
 .activities-search-inner {
-  transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+  transition: max-height var(--dur-fast) ease, opacity var(--dur-fast) ease, padding var(--dur-fast) ease;
   max-height: 80px;
   overflow: hidden;
 }
@@ -563,7 +563,7 @@
   background: black;
   transform-origin: right center;
   transform: scaleX(1);
-  transition: transform 0.35s ease;
+  transition: transform var(--dur-fast) ease;
 }
 
 @media (min-width: 768px) {
@@ -579,7 +579,7 @@
    * 全站共用：admission / activities / summer camp 等所有用 .list-header 的場景一致。 */
   .list-header > div:first-child {
     padding-left: 0;
-    transition: transform 0.3s ease;
+    transition: transform var(--dur-fast) ease;
   }
   .list-header.active > div:first-child {
     transform: translateX(calc(var(--spacing-md) - 4px));
@@ -600,7 +600,7 @@
 .list-ref-btn {
   color: black;
   background: var(--item-color-deep, transparent);
-  transition: background 0.2s ease, color 0.2s ease;
+  transition: background var(--dur-micro) ease, color var(--dur-micro) ease;
 }
 
 /* hover 包 desktop guard：手機 tap 後 sticky hover 會留黑底白字無法清除 */

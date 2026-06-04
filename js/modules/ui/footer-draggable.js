@@ -18,6 +18,7 @@
 // 注意：原本用 playClipReveal (僅 yPercent)；改成 4-direction 自己處理 x/y 兩軸
 // import { playClipReveal } from './scroll-animate.js';
 import { awaitLayoutReady } from './await-layout-ready.js';
+import { DUR, EASE } from './motion.js';
 
 // 4 個 entry/exit 方向（random per item per shuffle）— 對齊 hero clip-reveal pattern 但擴成雙軸
 const ENTRY_DIRECTIONS = ['top', 'right', 'bottom', 'left'];
@@ -50,8 +51,8 @@ function playRandomDirReveal(items) {
   gsap.to(items, {
     xPercent: 0,
     yPercent: 0,
-    duration: 0.9,
-    ease: 'power3.out',
+    duration: DUR.reveal,
+    ease: EASE.enter,
     stagger: { each: 0.12, axis: 'y' },
     overwrite: true,
     clearProps: 'transform',
@@ -326,7 +327,7 @@ function shuffleAll(area, anchors, obstacles, items, fallbackLayout) {
     xPercent: (i) => getHiddenTransform(exitDirs[i]).xPercent,
     yPercent: (i) => getHiddenTransform(exitDirs[i]).yPercent,
     duration: SHUFFLE_EXIT_S,
-    ease: 'power3.out',
+    ease: EASE.enter,
     stagger: { each: SHUFFLE_EXIT_STAGGER, axis: 'y' },
     overwrite: 'auto',
     onComplete: () => {

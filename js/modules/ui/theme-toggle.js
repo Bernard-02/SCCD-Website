@@ -1,3 +1,4 @@
+import { DUR, EASE } from './motion.js';
 /**
  * Theme Toggle Module
  * 切換 standard / inverse / color 模式（影響整個網站的 body class）
@@ -494,8 +495,8 @@ function runHeaderLogoReveal(logo) {
     { clipPath: 'inset(0% 100% 0% 0%)' },
     {
       clipPath: 'inset(0% 0% 0% 0%)',
-      duration: 0.9,
-      ease: 'power3.out',
+      duration: DUR.reveal,
+      ease: EASE.enter,
       clearProps: 'clipPath',
     }
   );

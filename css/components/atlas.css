@@ -59,9 +59,9 @@
   stroke-width: 0.7;
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-              stroke-width 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-              stroke-dashoffset 0.6s cubic-bezier(0.25, 0, 0.2, 1);
+  transition: opacity var(--dur-fast) var(--ease-standard),
+              stroke-width var(--dur-base) var(--ease-standard),
+              stroke-dashoffset var(--dur-slow) cubic-bezier(0.25, 0, 0.2, 1);
   vector-effect: non-scaling-stroke;
 }
 
@@ -80,7 +80,7 @@
   stroke-dashoffset: 0;
   vector-effect: non-scaling-stroke;
   pointer-events: none;
-  transition: opacity 0.3s ease;
+  transition: opacity var(--dur-fast) ease;
 }
 
 /* hover dim：避免 hover label 時城市連線干擾焦點 */
@@ -130,7 +130,7 @@
   max-width: 170px;
   text-align: left;
   cursor: var(--cursor-default);
-  transition: opacity 0.3s ease;
+  transition: opacity var(--dur-fast) ease;
   /* floating 改由 atlas.js rAF 直接設 inline transform，line 端點同步移動 */
 
   /* 預設 translateY(-50%) 讓 box 垂直中心對齊 anchor.top（item.y）— 與 computeBoxAt
@@ -303,7 +303,7 @@
 .atlas-alumni-subchip {
   pointer-events: auto;
   cursor: var(--cursor-pointer);
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition: background-color var(--dur-micro) ease, color var(--dur-micro) ease;
 }
 .atlas-alumni-subchip.subchip-inactive {
   background: transparent;
@@ -373,7 +373,7 @@
      對齊 .atlas-filter-btn：0.5s + 同 ease + -12px buffer 蓋 rotate(-8deg/15deg) 邊界外溢
      transform 仍要 transition 給 hover rotate 用，兩 prop 並列 */
   clip-path: inset(-12px calc(100% + 12px) -12px -12px);
-  transition: clip-path 0.5s cubic-bezier(0.25, 0, 0, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: clip-path var(--dur-medium) var(--ease-wipe), transform var(--dur-fast) var(--ease-standard);
 }
 
 #atlas-layout-btn.atlas-layout-revealed .atlas-layout-inner {
@@ -686,7 +686,7 @@
   opacity: 1;
   font-size: 19.5px;
   line-height: 1;
-  transition: opacity 0.2s ease;
+  transition: opacity var(--dur-micro) ease;
 }
 
 .atlas-list-nav-btn:disabled {
@@ -714,7 +714,7 @@
      inset 四值全用負 12px 把 clip 區域擴大覆蓋 .anchor-nav-inner 的 ±3° 旋轉外溢；
      起點 right 用 calc(100% + 12px) 把右側往左 cover 整個 box 才會 0 寬完全隱藏 */
   clip-path: inset(-12px calc(100% + 12px) -12px -12px);
-  transition: opacity 0.2s ease, clip-path 0.5s cubic-bezier(0.25, 0, 0, 1);
+  transition: opacity var(--dur-micro) ease, clip-path var(--dur-medium) var(--ease-wipe);
 }
 
 .atlas-filter-btn.atlas-filter-revealed {
@@ -728,7 +728,7 @@
   background: transparent;
   color: rgba(0, 0, 0, 0.5);
   padding: 6px 8px 5px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all var(--dur-fast) var(--ease-standard);
 }
 .atlas-filter-btn .atlas-filter-en,
 .atlas-filter-btn .atlas-filter-zh {

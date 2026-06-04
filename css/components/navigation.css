@@ -18,7 +18,7 @@
     opacity: 0;
     margin-left: 0;
     vertical-align: middle;
-    transition: max-width 0.35s cubic-bezier(0.25, 0, 0, 1), opacity 0.3s ease-out, margin-left 0.3s ease-out;
+    transition: max-width var(--dur-fast) var(--ease-wipe), opacity var(--dur-fast) ease-out, margin-left var(--dur-fast) ease-out;
     white-space: nowrap;
   }
 
@@ -96,7 +96,7 @@
     left: 0;
     width: 100%;
     z-index: 9999 !important; /* 強制最高層級，確保蓋過所有內容 */
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform var(--dur-fast) var(--ease-standard), opacity var(--dur-fast) var(--ease-standard);
   }
 
   /* Lightbox 打開時 header 動畫由 activities-lightbox.js 接手做 clip-path inset 退場
@@ -134,7 +134,7 @@
     background-color: white;
     opacity: 0;
     visibility: hidden;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all var(--dur-fast) var(--ease-standard);
     z-index: 40;
   }
 
@@ -156,7 +156,7 @@
 
   /* ===== Anchor Navigation (About Page) ===== */
   .anchor-nav-btn {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all var(--dur-fast) var(--ease-standard);
     background: none;
     border: none;
     padding: 0;
@@ -174,12 +174,12 @@
     background: rgba(255, 255, 255, 0.5);
     padding: 6px 8px 5px;
     color: rgba(0, 0, 0, 0.5);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all var(--dur-fast) var(--ease-standard);
   }
 
   .anchor-nav-btn div {
     padding: 0;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all var(--dur-fast) var(--ease-standard);
     position: relative;
   }
 

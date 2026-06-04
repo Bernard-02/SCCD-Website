@@ -67,12 +67,14 @@ function ensureLightbox() {
     <div class="alb-main-container flex items-center justify-center w-full px-16 md:px-32 pt-xl pb-md flex-1 min-h-0 relative">
       <!-- chevron 左右對齊 container-padding（= logo / back btn pill 的 viewport margin），絕對定位獨立元件不受 back btn 隨機旋轉影響
            z-index:30 必要：chevron 在 alb-main 之前的 DOM siblings，下層；alb-main / zoomStage w-full h-full 蓋在上面 → 不拉 z 點不到
-           disabled 視覺：opacity-50 保留白色（user 要求：「到底了」的暗示，不是 disabled grey 感）+ cursor-not-allowed -->
-      <button class="alb-prev absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 disabled:opacity-50 disabled:[cursor:var(--cursor-not-allowed)] disabled:hover:opacity-50" style="left: var(--container-padding, 1.5rem); z-index: 30;">
+           disabled 視覺：opacity-50 保留白色（user 要求：「到底了」的暗示，不是 disabled grey 感）+ cursor-not-allowed
+           用 aria-disabled 不用原生 disabled：Chrome 對原生 disabled 表單元素強制顯示預設箭頭，CSS cursor 無效（同 create.css 用 class 不用 :disabled 的原因）；
+           navigate() 本身有 clamp，到底時點擊本就是 no-op，不靠原生 disabled 擋 -->
+      <button class="alb-prev absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 aria-disabled:opacity-50 aria-disabled:[cursor:var(--cursor-not-allowed)] aria-disabled:hover:opacity-50" style="left: var(--container-padding, 1.5rem); z-index: 30;">
         <span class="icon icon-chevron-lightbox icon-m"></span>
       </button>
       <div class="alb-main flex items-center justify-center w-full h-full"></div>
-      <button class="alb-next absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 disabled:opacity-50 disabled:[cursor:var(--cursor-not-allowed)] disabled:hover:opacity-50" style="right: var(--container-padding, 1.5rem); z-index: 30;">
+      <button class="alb-next absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 aria-disabled:opacity-50 aria-disabled:[cursor:var(--cursor-not-allowed)] aria-disabled:hover:opacity-50" style="right: var(--container-padding, 1.5rem); z-index: 30;">
         <span class="icon icon-chevron-lightbox icon-m rotate-180"></span>
       </button>
     </div>
@@ -439,8 +441,9 @@ function renderMain(index) {
   const singleMedia = mediaList.length <= 1;
   prevBtn.style.display = singleMedia ? 'none' : '';
   nextBtn.style.display = singleMedia ? 'none' : '';
-  prevBtn.disabled = index === 0;
-  nextBtn.disabled = index === mediaList.length - 1;
+  // aria-disabled（非原生 disabled）：讓 disabled:[cursor:not-allowed] 真的顯示——Chrome 原生 disabled button 不吃 CSS cursor
+  prevBtn.setAttribute('aria-disabled', String(index === 0));
+  nextBtn.setAttribute('aria-disabled', String(index === mediaList.length - 1));
   // 即使 single media 也顯示 thumbs row（含單張 thumb）：thumbs-wrap 是 flex-shrink-0 + py-md，
   // 隱藏會讓 wrap 縮 60px → main flex:1 撐大 → image 變大、topbar/zoom controls 因 top:50% 跟著上移，
   // 跟 multi-media 版面對不上。chevron 仍隱藏（無處可導航）足以表達「只有一張」

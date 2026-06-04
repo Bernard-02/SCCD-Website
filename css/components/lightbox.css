@@ -72,7 +72,7 @@
   cursor: pointer;
   background: transparent;
   color: #000;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition: background var(--dur-micro) ease, color var(--dur-micro) ease;
   /* card rotate 後相鄰 row sub-pixel rendering 漏 1px accent 縫；margin -1 讓 row 重疊補縫 */
   margin: -1px 0;
 }

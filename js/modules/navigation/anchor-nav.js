@@ -5,6 +5,7 @@
  */
 
 import { registerPageCleanup } from '../ui/page-cleanup.js';
+import { DUR, EASE } from '../ui/motion.js';
 
 export function initAnchorNav() {
   const navButtons = document.querySelectorAll('.anchor-nav-btn');
@@ -210,7 +211,7 @@ export function initAnchorNav() {
         // 1. Show Overlay
         if (mobileOverlay) {
           mobileOverlay.classList.remove('pointer-events-none');
-          gsap.to(mobileOverlay, { opacity: 1, duration: 0.3 });
+          gsap.to(mobileOverlay, { opacity: 1, duration: DUR.fast });
         }
 
         // 2. Prepare Menu (Show but invisible so height can be calculated)
@@ -221,17 +222,17 @@ export function initAnchorNav() {
           width: 160, // w-40
           height: 'auto',
           borderRadius: 24,
-          duration: 0.5,
-          ease: 'power2.out'
+          duration: DUR.medium,
+          ease: EASE.enterSoft
         });
         
         // 4. Show Menu Items
-        gsap.to(mobileMenu, { opacity: 1, duration: 0.3 });
+        gsap.to(mobileMenu, { opacity: 1, duration: DUR.fast });
         
         const menuItems = mobileMenu.querySelectorAll('.anchor-nav-btn');
         gsap.fromTo(menuItems, 
           { y: 10, opacity: 0 },
-          { y: 0, opacity: 1, duration: 0.4, stagger: 0.05, ease: 'power2.out' }
+          { y: 0, opacity: 1, duration: DUR.base, stagger: 0.05, ease: EASE.enterSoft }
         );
 
         // 5. Icon Change (Rotate & Swap)
@@ -241,7 +242,7 @@ export function initAnchorNav() {
         // 1. Hide Overlay
         if (mobileOverlay) {
           mobileOverlay.classList.add('pointer-events-none');
-          gsap.to(mobileOverlay, { opacity: 0, duration: 0.3 });
+          gsap.to(mobileOverlay, { opacity: 0, duration: DUR.fast });
         }
         
         // 2. Collapse Wrapper
@@ -249,12 +250,12 @@ export function initAnchorNav() {
           width: 48, // w-12
           height: 48, // h-12
           borderRadius: 24, // 使用 24px (48px的一半) 保持圓形，避免使用 % 造成動畫變形
-          duration: 0.3,
-          ease: 'power2.inOut'
+          duration: DUR.fast,
+          ease: EASE.move
         });
 
         // 3. Hide Menu Items
-        gsap.to(mobileMenu, { opacity: 0, duration: 0.2, onComplete: () => mobileMenu.classList.add('hidden') });
+        gsap.to(mobileMenu, { opacity: 0, duration: DUR.micro, onComplete: () => mobileMenu.classList.add('hidden') });
 
         // 4. Icon Change
         if (icon) icon.classList.replace('fa-xmark', 'fa-list');

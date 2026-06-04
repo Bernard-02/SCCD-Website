@@ -45,7 +45,7 @@
   background: var(--current-wireframe-bg);
   color: var(--current-wireframe-text);
   /* 添加 transition 讓顏色變化平滑 */
-  transition: background 0.3s ease, color 0.3s ease;
+  transition: background var(--dur-fast) ease, color var(--dur-fast) ease;
 }
 
 #landscape-overlay-icon {
@@ -135,7 +135,7 @@
   margin: 0;
   padding: 0;
   overflow: hidden; /* 防止 wrapper 內部滾動 */
-  transition: background-color 0.4s ease, color 0.4s ease; /* 對齊全域 mode 切換 fade duration */
+  transition: background-color var(--dur-base) ease, color var(--dur-base) ease; /* 對齊全域 mode 切換 fade duration */
   /* 填滿父層 <main>（pages/create.html 設 height:100vh + padding-top:header-height，content area = 100vh-header）*/
   width: 100%;
   height: 100%;
@@ -211,7 +211,7 @@
 
 /* 為 control-panel 的直接子元素添加平滑位置過渡 */
 .control-panel > * {
-  transition: transform 0.3s ease, opacity 0.3s ease;
+  transition: transform var(--dur-fast) ease, opacity var(--dur-fast) ease;
 }
 
 /* --- Canvas & 輸入框 --- */
@@ -244,7 +244,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    transition: background-color 0.4s ease; /* 對齊 #create-app */
+    transition: background-color var(--dur-base) ease; /* 對齊 #create-app */
   }
 }
 
@@ -274,7 +274,7 @@
   box-sizing: border-box;
   line-height: 1.1;
   caret-color: inherit; /* 游標顏色跟隨文字顏色 */
-  transition: font-size 0.2s ease-out, padding-top 0.2s ease-out, line-height 0.2s ease-out; /* 平滑過渡，同步動畫 */
+  transition: font-size var(--dur-micro) ease-out, padding-top var(--dur-micro) ease-out, line-height var(--dur-micro) ease-out; /* 平滑過渡，同步動畫 */
 }
 
 /* Standard 模式下的 placeholder 顏色：黑色 + 25% 透明度 */
@@ -315,7 +315,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  transition: background-color 0.4s ease, opacity 0s ease;
+  transition: background-color var(--dur-base) ease, opacity 0s ease;
 }
 
 /* 讓 colormode-box 和 save-box 整個區域都可以點擊 */
@@ -363,7 +363,7 @@
    inactive 視覺由內部 icon/slider/label 自己半透明溝通（user 2026-05-20） */
 #create-app .control-box.disabled {
   cursor: var(--cursor-not-allowed);
-  transition: background-color 0.4s ease;
+  transition: background-color var(--dur-base) ease;
 }
 
 /* 顏色模式控制盒：讓它延伸填滿高度 */
@@ -382,7 +382,7 @@
   padding: calc(16px * var(--scale)); /* user 2026-05-20 五次調整：padding 8→16，讓 ring 距 box 邊更多留白（ring 連同 canvas 一起被推離邊） */
   opacity: 0; /* 預設透明（包括 border 和背景） */
   overflow: hidden; /* 隱藏溢出內容，配合寬度動畫 */
-  transition: max-width 0.2s ease, padding 0.2s ease, opacity 0.2s ease; /* 寬度、padding 和 opacity 過渡效果 */
+  transition: max-width var(--dur-micro) ease, padding var(--dur-micro) ease, opacity var(--dur-micro) ease; /* 寬度、padding 和 opacity 過渡效果 */
   max-width: 0; /* 預設寬度為 0 */
 }
 
@@ -390,7 +390,7 @@
 #colorpicker-box #colorpicker-container,
 #colorpicker-box #colorwheel-play-button {
   opacity: 0;
-  transition: opacity 0.5s ease; /* Color wheel 出現時間改為 0.1s */
+  transition: opacity var(--dur-medium) ease; /* Color wheel 出現時間改為 0.1s */
 }
 
 /* 色彩選擇器容器 */
@@ -414,7 +414,7 @@
   position: relative; /* 為偽元素提供定位參考 */
   height: var(--rotation-box-min-height); /* 設定固定高度，不會因內容而變化 */
   overflow: visible; /* 確保內容不會被裁切 */
-  transition: gap 0.3s ease;
+  transition: gap var(--dur-fast) ease;
 }
 
 /* Slider 展開時 (.custom-area-wrapper 帶 .custom-mode) 拿掉 wrapper 與 play btn 間 gap，
@@ -521,7 +521,7 @@
   border: none;
   border-radius: var(--border-radius);
   pointer-events: none;
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform var(--dur-fast) var(--ease-standard);
   z-index: 0;
 }
 
@@ -545,7 +545,7 @@
   max-width: 0; /* 預設寬度為 0（隱藏狀態）*/
   padding: 0; /* 預設無 padding */
   opacity: 0; /* 預設透明 */
-  transition: max-width 0.3s ease, padding 0.3s ease, opacity 0.3s ease; /* 添加平滑過渡 */
+  transition: max-width var(--dur-fast) ease, padding var(--dur-fast) ease, opacity var(--dur-fast) ease; /* 添加平滑過渡 */
 }
 
 /* 當 control-group 顯示時 */
@@ -580,11 +580,11 @@
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  transition: opacity 0.3s ease;
+  transition: opacity var(--dur-fast) ease;
 }
 
 .image-button img {
-  transition: opacity 0.3s ease;
+  transition: opacity var(--dur-fast) ease;
 }
 
 /* 確保按鈕內的圖片不會阻擋點擊事件 */
@@ -643,7 +643,7 @@
   align-items: center;
   justify-content: center;
   color: var(--disabled-color);
-  transition: color 0.3s ease, border-color 0.3s ease, opacity 0.3s ease;
+  transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease, opacity var(--dur-fast) ease;
   position: relative;
   z-index: 1;
   gap: 2px;
@@ -681,12 +681,12 @@
 
 /* Rotate 按鈕有過渡效果 */
 .custom-button-rotate {
-  transition: color 0.3s ease, border-color 0.3s ease, opacity 0.3s ease;
+  transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease, opacity var(--dur-fast) ease;
 }
 
 /* Custom 按鈕的過渡效果 */
 .custom-button-custom {
-  transition: color 0.3s ease, border-color 0.3s ease, opacity 0.3s ease, transform 0.3s ease;
+  transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease, opacity var(--dur-fast) ease, transform var(--dur-fast) ease;
   transform: scale(1.07);
 }
 
@@ -696,7 +696,7 @@
 /* Custom 按鈕選中時：按鈕本身不要邊框，保持透明 */
 .custom-button-custom.active {
   border-color: transparent;
-  transition: color 0.3s ease, opacity 0.3s ease, transform 0.3s ease;
+  transition: color var(--dur-fast) ease, opacity var(--dur-fast) ease, transform var(--dur-fast) ease;
   /* 移除 border-color 的 transition，讓 border 瞬間消失 */
 }
 /* wireframe模式下Custom按鈕的邊框顏色也保持透明 */
@@ -799,17 +799,17 @@
 /* 當啟用時，根據變數改變顏色 */
 .custom-slider.enabled {
   background-color: var(--track-color);
-  transition: background 0.3s ease, opacity 0.3s ease; /* 添加 transition 讓切換更平滑 */
+  transition: background var(--dur-fast) ease, opacity var(--dur-fast) ease; /* 添加 transition 讓切換更平滑 */
 }
 .custom-slider.enabled::-webkit-slider-thumb {
   background-color: var(--thumb-color);
   border: none;
-  transition: background 0.3s ease, box-shadow 0.3s ease; /* 添加 transition */
+  transition: background var(--dur-fast) ease, box-shadow var(--dur-fast) ease; /* 添加 transition */
 }
 .custom-slider.enabled::-moz-range-thumb {
   background-color: var(--thumb-color);
   border: none;
-  transition: background 0.3s ease, box-shadow 0.3s ease; /* 添加 transition */
+  transition: background var(--dur-fast) ease, box-shadow var(--dur-fast) ease; /* 添加 transition */
 }
 
 /* Inactive slider track + thumb 用「box-internal fg」色 = var(--lib-fg)（與 box bg --lib-bg 對比）
@@ -819,7 +819,7 @@
 #create-app.standard-mode .custom-slider:not(.enabled)::-moz-range-thumb {
   background: black;
   box-shadow: none;
-  transition: background 0.3s ease, opacity 0.3s ease;
+  transition: background var(--dur-fast) ease, opacity var(--dur-fast) ease;
 }
 
 #create-app.inverse-mode .custom-slider:not(.enabled),
@@ -827,7 +827,7 @@
 #create-app.inverse-mode .custom-slider:not(.enabled)::-moz-range-thumb {
   background: white;
   box-shadow: none;
-  transition: background 0.3s ease, opacity 0.3s ease;
+  transition: background var(--dur-fast) ease, opacity var(--dur-fast) ease;
 }
 
 /* Wireframe mode (mode3) inactive slider 統一交給下面 wireframe-mode 整段 (.enabled / :not(.enabled) 同色)
@@ -868,7 +868,7 @@
 /* 當 hover 在某個 slider 上時，其他 slider 變成 50% 透明 */
 /* .slider-container.dimmed .custom-slider {
   opacity: 0.5;
-  transition: opacity 0.2s ease;
+  transition: opacity var(--dur-micro) ease;
 } */
 
 /* Disabled slider 也要保持 50% 透明度（所有模式） */
@@ -895,7 +895,7 @@
   width: calc(40px * var(--scale));
   text-align: center;
   color: #999; /* 預設顏色 */
-  transition: color 0.3s ease, opacity 0.3s ease;
+  transition: color var(--dur-fast) ease, opacity var(--dur-fast) ease;
   background: none;
   border: none;
   outline: none;
@@ -979,13 +979,13 @@
   justify-content: center;
   padding: 0;
   z-index: 10;
-  transition: opacity 0.2s ease; /* 只保留 opacity transition，移除 transform transition 避免抖動 */
+  transition: opacity var(--dur-micro) ease; /* 只保留 opacity transition，移除 transform transition 避免抖動 */
 }
 
 /* Play 狀態時向右移動 3px — 三角形 icon 光學中心偏左，幾何 center 視覺看起來左偏（user 2026-05-20 從 1px 加到 3px） */
 .colorwheel-play-button.is-play {
   transform: translate(calc(-50% + 3px), -50%);
-  transition: opacity 0.2s ease;
+  transition: opacity var(--dur-micro) ease;
 }
 
 .colorwheel-play-button:hover {
@@ -1085,7 +1085,7 @@
     padding: 0;
     box-sizing: border-box;
     /* 添加平滑過渡效果 */
-    transition: width 0.3s ease, opacity 0.3s ease;
+    transition: width var(--dur-fast) ease, opacity var(--dur-fast) ease;
   }
 
   /* Logo 大小等級：直接控制寬度 */
@@ -1115,7 +1115,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    transition: background-color 0.4s ease; /* 對齊 #create-app */
+    transition: background-color var(--dur-base) ease; /* 對齊 #create-app */
     box-sizing: border-box;
   }
 
@@ -1139,7 +1139,7 @@
     box-sizing: border-box;
     overflow: visible; /* 允許內容展開 */
     justify-content: flex-end; /* 內容從底部開始排列，輸入框固定在底部 */
-    transition: flex 0.3s ease; /* 平滑過渡 flex 比例 */
+    transition: flex var(--dur-fast) ease; /* 平滑過渡 flex 比例 */
   }
 
   /* Custom展開時，放大操作區域，容納 Slider */
@@ -1172,14 +1172,14 @@
     border-color: black !important;
     opacity: 0.25;
     cursor: var(--cursor-not-allowed);
-    transition: border-color 0.2s ease; /* 移除 opacity transition 避免延遲 */
+    transition: border-color var(--dur-micro) ease; /* 移除 opacity transition 避免延遲 */
   }
 
   #create-app.inverse-mode .mobile-rotation-box.disabled {
     border-color: white !important;
     opacity: 0.5;
     cursor: var(--cursor-not-allowed);
-    transition: border-color 0.2s ease; /* 移除 opacity transition 避免延遲 */
+    transition: border-color var(--dur-micro) ease; /* 移除 opacity transition 避免延遲 */
   }
 
   /* 手機版 Wireframe 模式下 disabled 狀態的邊框使用對比色 + 透明度 */
@@ -1187,7 +1187,7 @@
     border-color: var(--wireframe-border) !important;
     opacity: 0.5; /* 白色邊框時的透明度 */
     cursor: var(--cursor-not-allowed);
-    transition: border-color 0.2s ease; /* 移除 opacity transition 避免延遲 */
+    transition: border-color var(--dur-micro) ease; /* 移除 opacity transition 避免延遲 */
   }
 
   /* 手機版 Wireframe 模式下黑色邊框時的透明度 */
@@ -1224,7 +1224,7 @@
     border: 2px solid;
     border-radius: 15px;
     pointer-events: none;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0s ease;
+    transition: transform var(--dur-fast) var(--ease-standard), border-color 0s ease;
     z-index: 0;
   }
 
@@ -1296,12 +1296,12 @@
 
   /* 手機版 Rotate 按鈕有過渡效果 */
   .mobile-rotation-box .custom-button-rotate {
-    transition: color 0.2s, border-color 0.3s;
+    transition: color var(--dur-micro), border-color var(--dur-fast);
   }
 
   /* 手機版 Custom 按鈕的邊框過渡效果較快（0.1s） */
   .mobile-rotation-box .custom-button-custom {
-    transition: color 0.2s, border-color 0.1s;
+    transition: color var(--dur-micro), border-color 0.1s;
     transform: scale(1.05);
   }
 
@@ -1334,8 +1334,8 @@
     max-height: 0;
     overflow: hidden;
     opacity: 0;
-    transition: max-height 0.4s cubic-bezier(0.4, 0.0, 0.2, 1),
-                opacity 0.4s cubic-bezier(0.4, 0.0, 0.2, 1);
+    transition: max-height var(--dur-base) var(--ease-standard),
+                opacity var(--dur-base) var(--ease-standard);
   }
 
   /* 隱藏狀態 */
@@ -1363,7 +1363,7 @@
     box-sizing: border-box;
     gap: 0.8rem;
     overflow: hidden; /* 內容物不能超出 */
-    transition: background-color 0.4s ease;
+    transition: background-color var(--dur-base) ease;
   }
 
   /* Sliders box - 左側區域 */
@@ -1471,8 +1471,8 @@
     max-height: 0;
     overflow: hidden;
     opacity: 0;
-    transition: max-height 0.4s cubic-bezier(0.4, 0.0, 0.2, 1),
-                opacity 0.4s cubic-bezier(0.4, 0.0, 0.2, 1);
+    transition: max-height var(--dur-base) var(--ease-standard),
+                opacity var(--dur-base) var(--ease-standard);
   }
 
   /* 隱藏狀態 */
@@ -1499,7 +1499,7 @@
     background-color: var(--lib-bg);
     border-radius: 0;
     box-sizing: border-box;
-    transition: background-color 0.4s ease;
+    transition: background-color var(--dur-base) ease;
   }
 
   /* Color Picker 容器：bar 形狀，9:1 比例的 9 */
@@ -1538,7 +1538,7 @@
     justify-content: center;
     padding: 0;
     box-sizing: border-box;
-    transition: opacity 0.2s ease;
+    transition: opacity var(--dur-micro) ease;
   }
 
   .mobile-colorwheel-play-btn img {
@@ -1600,14 +1600,14 @@
     border-color: black !important;
     opacity: 0.25;
     cursor: var(--cursor-not-allowed);
-    transition: border-color 0.2s ease; /* 移除 opacity transition 避免延遲 */
+    transition: border-color var(--dur-micro) ease; /* 移除 opacity transition 避免延遲 */
   }
 
   #create-app.inverse-mode .mobile-save-container.disabled {
     border-color: white !important;
     opacity: 0.5;
     cursor: var(--cursor-not-allowed);
-    transition: border-color 0.2s ease; /* 移除 opacity transition 避免延遲 */
+    transition: border-color var(--dur-micro) ease; /* 移除 opacity transition 避免延遲 */
   }
 
   /* 手機版 Wireframe 模式下 disabled 狀態的邊框使用對比色 + 透明度 */
@@ -1615,7 +1615,7 @@
     border-color: var(--wireframe-border) !important;
     opacity: 0.5; /* 白色邊框時的透明度 */
     cursor: var(--cursor-not-allowed);
-    transition: border-color 0.2s ease; /* 移除 opacity transition 避免延遲 */
+    transition: border-color var(--dur-micro) ease; /* 移除 opacity transition 避免延遲 */
   }
 
   /* 手機版 Wireframe 模式下黑色邊框時的透明度 */
@@ -1657,7 +1657,7 @@
     display: none; /* 預設隱藏 */
     opacity: 0;
     transform: translateY(-20px); /* 輕微向上偏移 */
-    transition: transform 0.3s ease, opacity 0.3s ease;
+    transition: transform var(--dur-fast) ease, opacity var(--dur-fast) ease;
     pointer-events: auto; /* 面板本身可互動 */
   }
 
@@ -1775,7 +1775,7 @@
     /* 使用固定高度而不是 min-height，確保字體大小變化時容器高度不變 */
     height: calc(2rem * 1.2 * 3); /* 固定高度：3行文字（基於 2rem 字體）*/
     margin-bottom: var(--mobile-content-gap); /* 畫面最大時，下方增加 gap */
-    transition: margin-bottom 0.3s ease, height 0.3s ease, margin-top 0.3s ease; /* 平滑過渡 */
+    transition: margin-bottom var(--dur-fast) ease, height var(--dur-fast) ease, margin-top var(--dur-fast) ease; /* 平滑過渡 */
     overflow: visible; /* 允許內容溢出但不影響容器高度 */
   }
 
@@ -1876,7 +1876,7 @@
     padding-top: 0;
     padding-bottom: 0;
     /* 同步 font-size 和 padding-top 的過渡動畫，與桌面版一致 */
-    transition: font-size 0.2s ease, padding-top 0.2s ease;
+    transition: font-size var(--dur-micro) ease, padding-top var(--dur-micro) ease;
   }
 
   /* 當有輸入且不超過 6 個字時，使用較大字體 */
@@ -2011,7 +2011,7 @@
     border-radius: 0;
     box-sizing: border-box;
     padding: 0 0.25rem; /* 左右內邊距讓按鈕不貼邊 */
-    transition: background-color 0.4s ease;
+    transition: background-color var(--dur-base) ease;
   }
 
   .mobile-bottom-btn {
@@ -2027,7 +2027,7 @@
     align-items: center;
     justify-content: center;
     padding: 0;
-    transition: opacity 0.2s ease, background-color 0.4s ease;
+    transition: opacity var(--dur-micro) ease, background-color var(--dur-base) ease;
     box-sizing: border-box;
   }
 

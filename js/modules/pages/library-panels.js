@@ -7,21 +7,22 @@
 
 import { applyMarqueeOverflow } from '../ui/marquee-overflow.js';
 import { ensureFlagIconsCss } from '../ui/ensure-flag-icons.js';
+import { DUR, EASE } from '../ui/motion.js';
 
 // ── 共用常數 ──────────────────────────────────────────────────────────────────
 
 const CAT_LABELS = {
-  'degree-show':      'Degree Show 畢業展',
+  'degree-show':      'Degree Shows 畢業展',
   'exhibitions':      'Exhibitions 展演',
-  'workshop':         'Workshop 工作營',
+  'workshop':         'Workshops 工作營',
   'courses':          'Courses 課程',
   'lectures':         'Lectures 講座',
   'visits':           'Visits 參訪',
   'competitions':     'Competitions 競賽',
-  'conferences':      'Conferences 研討會',
+  'conferences':      'Forums 論壇',
   'students-present': 'Students Present 學生自主',
   'industry':         'Industry Partnerships 產學合作',
-  'summer-camp':      'Summer Camp 暑期體驗營',
+  'summer-camp':      'Camp 體驗營',
   'moment':           'Moment 日常',
   'others':           'Others 其他',
 };
@@ -263,6 +264,21 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         const view = /** @type {HTMLElement} */ (viewport);
         const track = /** @type {HTMLElement | null} */ (view.querySelector('.award-winners-track'));
         if (!track) return;
+
+        // idempotent：本函式可被 showLibPanel 重跑（window._awardsMarqueeInit）。
+        // 首次 render 時若卡片尚未 sized（SPA 重訪 fetch cached 太快 resolve）→ 桌面 offsetWidth=0
+        // → 下方 early-return 沒套 marquee → 多名得獎者擠成一團（user 2026-06-05「award 名稱卡住」）。
+        // panel 顯示後再量一次才會對。首次記乾淨 track HTML（單份、無 inline width），
+        // 重跑時先還原再重套，避免複製份疊加。
+        if (view._hmOrig == null) {
+          view._hmOrig = track.innerHTML;
+        } else {
+          track.innerHTML = view._hmOrig;
+          view.classList.remove('is-hmarquee');
+          view.style.removeProperty('--hmarquee-distance');
+          view.style.removeProperty('--hmarquee-duration');
+        }
+
         const pairs = /** @type {HTMLElement[]} */ ([...track.querySelectorAll('.award-winner-pair')]);
         if (pairs.length <= 1) return;
 
@@ -278,7 +294,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
 
         // 桌面：量 viewport 寬（= grid col 寬）當作每位獲獎者佔的單位寬度
         const pairW = view.offsetWidth;
-        if (!pairW) return;
+        if (!pairW) return;  // 卡片尚未 sized；showLibPanel 顯示後會再呼叫一次（window._awardsMarqueeInit）重量
 
         // 強制每個 pair 寬 = viewport 寬（取代 padding-right gap，靜止時剛好顯示一位）
         pairs.forEach(p => { p.style.width = `${pairW}px`; p.style.paddingRight = '0'; });
@@ -344,6 +360,10 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     }
 
     renderItems(getSorted());
+
+    // showLibPanel('awards') 顯示 panel 後重量一次 winners marquee（首次 render 時卡片可能尚未 sized →
+    // offsetWidth=0 → 多名得獎者擠成一團）。對齊 press/files/album 的 _XMarqueeInit 重觸發 pattern。
+    window._awardsMarqueeInit = () => applyWinnersHMarquee(listEl);
 
     // 年份 Picker
     const yearPickerEl = document.getElementById('library-year-picker');
@@ -456,8 +476,8 @@ async function initAwardsPanel(onEntranceDoneCallback) {
             });
 
             // 滑鼠懸停 ticker 區域時，整體速度減半 (0.5)，離開時恢復 (1)
-            tickerWrapper.addEventListener('mouseenter', () => gsap.to(tween, { timeScale: 0.5, duration: 0.3 }));
-            tickerWrapper.addEventListener('mouseleave', () => gsap.to(tween, { timeScale: 1, duration: 0.3 }));
+            tickerWrapper.addEventListener('mouseenter', () => gsap.to(tween, { timeScale: 0.5, duration: DUR.fast }));
+            tickerWrapper.addEventListener('mouseleave', () => gsap.to(tween, { timeScale: 1, duration: DUR.fast }));
 
             // Hover 圖片時，其他圖片降至 50% 不透明度（桌面版專用）
             // 使用 mousemove + elementFromPoint 即時偵測，避免 ticker 移動時游標脫離元素造成閃爍
@@ -770,11 +790,11 @@ async function initFilesPanel() {
           const cover = item.querySelector('.files-item-cover');
           if (!cover) return;
           item.addEventListener('mouseenter', () => {
-            gsap.to(cover, { rotation: 0, duration: 0.3, ease: 'power2.out' });
+            gsap.to(cover, { rotation: 0, duration: DUR.fast, ease: EASE.enterSoft });
           });
           item.addEventListener('mouseleave', () => {
             const deg = parseFloat(cover.dataset.initDeg) || 0;
-            gsap.to(cover, { rotation: deg, duration: 0.3, ease: 'power2.out' });
+            gsap.to(cover, { rotation: deg, duration: DUR.fast, ease: EASE.enterSoft });
           });
         });
       }
@@ -1059,8 +1079,8 @@ async function initAlbumPanel() {
               gsap.to(t, {
                 x: -offsets[i],
                 rotation: 0,
-                duration: 0.3,
-                ease: 'power2.out',
+                duration: DUR.fast,
+                ease: EASE.enterSoft,
               });
             });
           });
@@ -1071,8 +1091,8 @@ async function initAlbumPanel() {
               gsap.to(t, {
                 x: 0,
                 rotation: deg,
-                duration: 0.3,
-                ease: 'power2.out',
+                duration: DUR.fast,
+                ease: EASE.enterSoft,
               });
             });
           });
@@ -1270,6 +1290,7 @@ function showLibPanel(tab, { reveal = true } = {}) {
         // 預設隱藏，等之後 onTabSwitch / 手動 showPanel 再 reveal
         hidePanelChildren(el);
       }
+      if (key === 'awards' && typeof window._awardsMarqueeInit === 'function') requestAnimationFrame(window._awardsMarqueeInit);
       if (key === 'press'  && typeof window._pressMarqueeInit === 'function') requestAnimationFrame(window._pressMarqueeInit);
       if (key === 'files'  && typeof window._filesMarqueeInit === 'function') requestAnimationFrame(window._filesMarqueeInit);
       if (key === 'album'  && typeof window._albumMarqueeInit === 'function') requestAnimationFrame(window._albumMarqueeInit);
@@ -1340,6 +1361,18 @@ export function resolveInitialTabFromHash() {
   if (hash.startsWith('press-')) return 'press';
   if (hash.startsWith('a-')) return 'awards';
   return 'awards';
+}
+
+/**
+ * hash 是不是「item 級 deep-link」（指向某清單項目：award `#a-*` / files `#f-*` / album `#album-*` / press `#press-*`），
+ * 而非純 tab 名（#awards/#press/#files/#album）或空。
+ * 給 refresh/直開/popstate 判斷要不要清掉 hash 回 default：只清 item 級導航，純 tab hash 是使用者瀏覽時
+ * 持久化的分頁狀態（onTabSwitch replaceState 寫的）要保留。
+ */
+export function isItemDeepLinkHash() {
+  const hash = (window.location.hash || '').slice(1);
+  if (!hash) return false;
+  return !Object.prototype.hasOwnProperty.call(PANEL_MAP, hash);
 }
 
 /**

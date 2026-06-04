@@ -20,6 +20,7 @@
  */
 
 import { setupClipReveal } from '../ui/scroll-animate.js';
+import { DUR, EASE } from '../ui/motion.js';
 
 const ACTIVITIES_PATH = '/pages/activities.html';
 
@@ -240,8 +241,8 @@ export function createRefBtn(initialColor, onCloseLightbox) {
       positionPopover();
       openCloseAnimation = gsap.to(card, {
         yPercent: 0,
-        duration: 0.9,
-        ease: 'power3.out',
+        duration: DUR.reveal,
+        ease: EASE.enter,
       });
     } else {
       positionPopover();
@@ -260,8 +261,8 @@ export function createRefBtn(initialColor, onCloseLightbox) {
       // 收合 = open 的反向：card 在 tight wrapper 內 yPercent 0→100 往下滑回遮罩（與 hero 退場同概念）
       openCloseAnimation = gsap.to(card, {
         yPercent: 100,
-        duration: 0.35,
-        ease: 'power3.in',
+        duration: DUR.fast,
+        ease: EASE.exit,
         onComplete: () => { popoverEl.style.display = 'none'; },
       });
     } else {

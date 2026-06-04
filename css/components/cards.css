@@ -12,7 +12,7 @@
    */
   .faculty-card {
     background-color: transparent;
-    transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: background-color var(--dur-fast) var(--ease-standard);
   }
 
   .faculty-card-image-wrapper {
@@ -26,8 +26,8 @@
   }
 
   .faculty-card-image {
-    transition: filter 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-                transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: filter var(--dur-fast) var(--ease-standard),
+                transform var(--dur-fast) var(--ease-standard);
   }
 
   .faculty-card-image-wrapper::after {
@@ -37,7 +37,7 @@
     background-color: var(--card-color, #26BCFF);
     mix-blend-mode: screen;
     opacity: 0;
-    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: opacity var(--dur-fast) var(--ease-standard);
     pointer-events: none;
   }
 
@@ -60,7 +60,7 @@
    * wrapper overflow:hidden 維持矩形邊界跟著旋轉；0° 時 wrapper 自然與下方文字 flow 對齊 */
   .faculty-card-image-wrapper {
     transform: rotate(var(--init-deg, 0deg));
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform var(--dur-fast) var(--ease-standard);
   }
 
   @media (min-width: 768px) {
@@ -95,10 +95,10 @@
 
   /* ===== Album Cards ===== */
   .album-card {
-    transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: background-color var(--dur-fast) var(--ease-standard);
   }
   .album-card-img {
-    transition: filter 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: filter var(--dur-fast) var(--ease-standard);
   }
 
   /* ===== Faculty Slide-in Grid Rows =====

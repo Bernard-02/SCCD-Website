@@ -316,9 +316,9 @@ body.mode-color .atlas-filter-btn:not(.active) .anchor-nav-inner {
   background-color: var(--theme-bg) !important;
   color: rgba(var(--theme-fg-rgb), 0.5) !important;
   opacity: 1;
-  transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-              opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-              transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition: color var(--dur-fast) var(--ease-standard),
+              opacity var(--dur-fast) var(--ease-standard),
+              transform var(--dur-fast) var(--ease-standard) !important;
 }
 
 /* Inactive Hover：文字 100% 對比 */
@@ -781,7 +781,7 @@ body.mode-color .hm-banner-num[style*="background"] {
  * （同 anchor-nav-btn pattern）。color 還留 transition 給 link hover feedback */
 body.mode-color [data-bar="about"] {
   background: var(--theme-bg) !important;
-  transition: color 0.3s ease, transform 0.3s ease !important;
+  transition: color var(--dur-fast) ease, transform var(--dur-fast) ease !important;
 }
 
 body.mode-color [data-bar="about"] .nav-link {
@@ -823,7 +823,7 @@ body.mode-color [data-bar="library"],
 body.mode-color [data-bar="atlas"],
 body.mode-color [data-bar="generate"],
 body.mode-color [data-bar="alumni"] {
-  transition: color 0.3s ease, transform 0.3s ease !important;
+  transition: color var(--dur-fast) ease, transform var(--dur-fast) ease !important;
 }
 
 /* Inactive：bg 跟 body 動態 + text 100% theme-fg

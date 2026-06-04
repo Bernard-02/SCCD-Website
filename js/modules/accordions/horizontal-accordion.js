@@ -6,6 +6,7 @@
  */
 
 import { registerPageCleanup } from '../ui/page-cleanup.js';
+import { DUR, EASE } from '../ui/motion.js';
 
 let accordionWrappers = [];
 
@@ -121,8 +122,8 @@ export function initRotatedAccordion(wrapper, { height = 600, animateEntry = fal
       if (inner) gsap.set(inner, { width: openBodyWidths[i] });
 
       if (animate) {
-        gsap.to(item, { right: targetRight, duration: dur, ease: 'power2.inOut' });
-        gsap.to(body, { width: targetBodyW, duration: dur, ease: 'power2.inOut' });
+        gsap.to(item, { right: targetRight, duration: dur, ease: EASE.move });
+        gsap.to(body, { width: targetBodyW, duration: dur, ease: EASE.move });
       } else {
         gsap.set(item, { right: targetRight });
         gsap.set(body, { width: targetBodyW });
@@ -172,8 +173,8 @@ export function initRotatedAccordion(wrapper, { height = 600, animateEntry = fal
           tl.to(items[i], {
             x: 0,
             y: 0,
-            duration: 1.1,
-            ease: 'power3.out'
+            duration: DUR.reveal,
+            ease: EASE.enter
           }, orderIdx * 0.12);
         }
       }
@@ -298,12 +299,12 @@ export function initSingleAccordion(wrapper) {
       const nextBody = nextItem.querySelector('.accordion-body');
 
       if (isMobile()) {
-        gsap.to(prevBody, { height: 0, duration: 0.5, ease: 'power2.inOut' });
-        gsap.to(nextBody, { height: 'auto', duration: 0.5, ease: 'power2.inOut' });
+        gsap.to(prevBody, { height: 0, duration: DUR.medium, ease: EASE.move });
+        gsap.to(nextBody, { height: 'auto', duration: DUR.medium, ease: EASE.move });
       } else {
         const expandedW = getExpandedContentWidth();
-        gsap.to(prevBody, { width: 0, duration: 0.5, ease: 'power2.inOut' });
-        gsap.to(nextBody, { width: expandedW, duration: 0.5, ease: 'power2.inOut' });
+        gsap.to(prevBody, { width: 0, duration: DUR.medium, ease: EASE.move });
+        gsap.to(nextBody, { width: expandedW, duration: DUR.medium, ease: EASE.move });
       }
 
       prevItem.classList.remove('active');

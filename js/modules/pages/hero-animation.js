@@ -11,6 +11,7 @@
 
 import { registerPageExit } from '../ui/page-exit.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
+import { DUR, EASE } from '../ui/motion.js';
 
 // 4 方向隨機 slide-in：用 wrapper overflow:hidden 當遮罩，child 從 wrapper 外的某方向滑入
 const HERO_DIRS = ['top', 'bottom', 'left', 'right'];
@@ -497,7 +498,7 @@ async function playHeroExit() {
           xPercent: to.xPercent,
           yPercent: to.yPercent,
           duration: EXIT_DURATION,
-          ease: 'power3.in',
+          ease: EASE.exit,
           overwrite: true,
         },
         i * EXIT_STAGGER);
@@ -512,7 +513,7 @@ async function playHeroExit() {
         {
           clipPath: BANNER_INSET_MAP[dir],
           duration: EXIT_DURATION,
-          ease: 'power3.in',
+          ease: EASE.exit,
           overwrite: true,
         },
         0);
@@ -618,9 +619,9 @@ export function initHeroAnimation() {
       { yPercent: 100, visibility: 'visible' },
       {
         yPercent: 0,
-        duration: 0.9,
+        duration: DUR.reveal,
         delay: 0.3,
-        ease: 'power3.out',
+        ease: EASE.enter,
         clearProps: 'transform',
         onComplete: () => {
           // 解除 wrapper 裁切，讓後續 scroll parallax (scale+yPercent) 顯示完整 logo
@@ -654,7 +655,7 @@ export function initHeroAnimation() {
 
   function buildHeroTimeline() {
   const tl = gsap.timeline({
-    defaults: { ease: 'power3.out' },
+    defaults: { ease: EASE.enter },
     onComplete: signalHeroDone,
   });
 
@@ -685,8 +686,8 @@ export function initHeroAnimation() {
     tl.set(heroBanner, { visibility: 'visible' }, 0);
     tl.to(heroBanner, {
       clipPath: 'inset(0% 0% 0% 0%)',
-      duration: 1.0,
-      ease: 'power3.out',
+      duration: DUR.reveal,
+      ease: EASE.enter,
       clearProps: 'clipPath',
     }, 0);
   }
@@ -781,7 +782,7 @@ export function initHeroAnimation() {
           xPercent: 0,
           yPercent: 0,
           duration: ENTER_DURATION,
-          ease: 'power3.out',
+          ease: EASE.enter,
           delay: i * 0.1,
           clearProps: 'transform',
         });

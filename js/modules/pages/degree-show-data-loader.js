@@ -11,6 +11,7 @@ import { animateCardsClipReveal } from '../ui/scroll-animate.js';
 import { createClassImagesSlideshow } from './about/class-images-slideshow.js';
 import { getSectionData, findItemById, SECTION_LABELS } from './activities-data-loader.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
+import { DUR, EASE } from '../ui/motion.js';
 
 // CMB2 file_list type 存 meta 為 dict `{ attachment_id: url, ... }`；舊 JSON 是 string array
 // normalize 成 string array of URLs（順序不保證、但前端 gallery 不依賴順序）
@@ -499,7 +500,7 @@ function setupNextProject(prevYear, prevData, nextYear, nextData) {
         onEnter: () => {
           gsap.to(el, {
             clipPath: 'inset(0% 0% 0% 0%)',
-            duration: 0.5,
+            duration: DUR.medium,
             ease: 'cubic-bezier(0.25, 0, 0, 1)',
           });
         }
@@ -931,8 +932,8 @@ async function setupRefBtn(data) {
       gsap.set(popover, { clipPath: 'inset(100% 0% 0% 0%)' });
       openAnim = gsap.to(popover, {
         clipPath: 'inset(0% 0% 0% 0%)',
-        duration: 0.5,
-        ease: 'power3.out',
+        duration: DUR.medium,
+        ease: EASE.enter,
         onComplete: () => { popover.style.clipPath = 'none'; },
       });
     } else {
@@ -952,8 +953,8 @@ async function setupRefBtn(data) {
       gsap.set(popover, { clipPath: 'inset(0% 0% 0% 0%)' });
       openAnim = gsap.to(popover, {
         clipPath: 'inset(100% 0% 0% 0%)',
-        duration: 0.35,
-        ease: 'power3.in',
+        duration: DUR.fast,
+        ease: EASE.exit,
         onComplete: () => { popover.style.display = 'none'; popover.style.clipPath = 'none'; },
       });
     } else {
@@ -1144,12 +1145,12 @@ function setupStickyAndHeroChips(data) {
   const HERO_SHOW_DUR = 0.6;
   function hideHeroChips() {
     heroChips.forEach((el, i) => {
-      gsap.to(el, { yPercent: 100, duration: HERO_HIDE_DUR, ease: 'power3.in', delay: i * 0.04, overwrite: true });
+      gsap.to(el, { yPercent: 100, duration: HERO_HIDE_DUR, ease: EASE.exit, delay: i * 0.04, overwrite: true });
     });
   }
   function showHeroChips() {
     heroChips.forEach((el, i) => {
-      gsap.to(el, { yPercent: 0, duration: HERO_SHOW_DUR, ease: 'power3.out', delay: i * 0.04, overwrite: true });
+      gsap.to(el, { yPercent: 0, duration: HERO_SHOW_DUR, ease: EASE.enter, delay: i * 0.04, overwrite: true });
     });
   }
 
@@ -1163,7 +1164,7 @@ function setupStickyAndHeroChips(data) {
     if (cardShown) return;
     cardShown = true;
     card.style.visibility = 'visible';
-    gsap.to(card, { opacity: 1, duration: 0.3, ease: 'power2.out', overwrite: true });
+    gsap.to(card, { opacity: 1, duration: DUR.fast, ease: EASE.enterSoft, overwrite: true });
     // backBtn / refBtn clip-path 收起時不該被點到 — show 時立即 visible 讓 hit-test 開啟
     if (backBtn) backBtn.style.visibility = 'visible';
     if (refBtn) refBtn.style.visibility = 'visible';
@@ -1190,9 +1191,9 @@ function setupStickyAndHeroChips(data) {
     clearBranch();
     gsap.to(card, {
       opacity: 0,
-      duration: 0.3,
+      duration: DUR.fast,
       delay: 0.5,
-      ease: 'power2.in',
+      ease: EASE.exitSoft,
       overwrite: true,
       onComplete: () => { if (!cardShown) card.style.visibility = 'hidden'; },
     });

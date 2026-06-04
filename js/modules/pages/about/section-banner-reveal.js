@@ -1,3 +1,4 @@
+import { DUR, EASE } from '../../ui/motion.js';
 /**
  * Section Banner Reveal Animation
  * About 頁面各 section banner 的動畫（三張圖片 clip-path reveal 版）
@@ -175,7 +176,7 @@ export function initSectionBannerReveal() {
       if (!keepLayout) applyRandomLayout(titleEl);
       const revealDir = Math.random() < 0.5 ? 'left' : 'right';
       gsap.set(titleEl, { clipPath: getClipStart(revealDir) });
-      gsap.to(titleEl, { clipPath: CLIP_END, duration: 1.0, ease: 'power3.out' });
+      gsap.to(titleEl, { clipPath: CLIP_END, duration: DUR.reveal, ease: EASE.enter });
     };
     // @ts-ignore - 掛在 DOM 元素上給 anchor-nav 取用
     strip._replayReveal = replay;
@@ -256,16 +257,16 @@ export function initSectionBannerReveal() {
       start: 'top 80%',
       once: true,
       onEnter: () => {
-        const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
+        const tl = gsap.timeline({ defaults: { ease: EASE.enter } });
 
         // 三張圖同時 reveal
         imgItems.forEach((item) => {
           const imgRotate = item.querySelector('.section-banner-img-rotate');
-          if (imgRotate) tl.to(imgRotate, { clipPath: CLIP_END, duration: 1.2 }, 0);
+          if (imgRotate) tl.to(imgRotate, { clipPath: CLIP_END, duration: DUR.reveal }, 0);
         });
 
         // 文字同時 reveal
-        tl.to(textBlock, { clipPath: CLIP_END, duration: 1.0 }, 0);
+        tl.to(textBlock, { clipPath: CLIP_END, duration: DUR.reveal }, 0);
       },
     });
   });

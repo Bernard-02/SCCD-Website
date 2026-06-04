@@ -8,6 +8,7 @@ import { setupClipReveal, playClipReveal } from '../ui/scroll-animate.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { ensureFlagIconsCss } from '../ui/ensure-flag-icons.js';
 import { countryName } from '../../data/country-names.js';
+import { DUR, EASE } from '../ui/motion.js';
 
 // ── Reference 自動 lookup ─────────────────────────────────────────────────────
 // ref 只填 { section, itemId } 即可；title/label 渲染前自動從目標 JSON lookup。
@@ -159,11 +160,11 @@ export function bindMediaHover(container) {
       img.dataset.initDeg = String(initDeg);
       gsap.set(img, { rotation: initDeg });
       wrapper.addEventListener('mouseenter', () => {
-        gsap.to(img, { rotation: 0, duration: 0.3, ease: 'power2.out' });
+        gsap.to(img, { rotation: 0, duration: DUR.fast, ease: EASE.enterSoft });
       });
       wrapper.addEventListener('mouseleave', () => {
         const deg = parseFloat(img.dataset.initDeg) || 0;
-        gsap.to(img, { rotation: deg, duration: 0.3, ease: 'power2.out' });
+        gsap.to(img, { rotation: deg, duration: DUR.fast, ease: EASE.enterSoft });
       });
     };
 
@@ -458,8 +459,12 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
       const noScroll = max === 0;
       prevBtn?.classList.toggle('invisible', noScroll);
       nextBtn?.classList.toggle('invisible', noScroll);
-      if (prevBtn) prevBtn.style.opacity = (!noScroll && offset <= 0) ? '0.5' : '';
-      if (nextBtn) nextBtn.style.opacity = (!noScroll && offset >= max) ? '0.5' : '';
+      // 到端點＝視覺暗示「到底了」：opacity 0.5 + not-allowed 游標。這些 chevron 不是原生 disabled（只改 opacity），
+      // inline style.cursor（spec=1000）直接生效；不設的話會吃到 cursor.css `button:not(:disabled)` 的 pointer。
+      const atStart = !noScroll && offset <= 0;
+      const atEnd   = !noScroll && offset >= max;
+      if (prevBtn) { prevBtn.style.opacity = atStart ? '0.5' : ''; prevBtn.style.cursor = atStart ? 'var(--cursor-not-allowed)' : ''; }
+      if (nextBtn) { nextBtn.style.opacity = atEnd ? '0.5' : ''; nextBtn.style.cursor = atEnd ? 'var(--cursor-not-allowed)' : ''; }
     };
     // list-item 展開後 dispatch 'gallery:check'，這時 inner.scrollWidth 才是真實值
     gallery.closest('.list-item')?.addEventListener('gallery:check', updateChevrons);
@@ -496,8 +501,11 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
       const noScroll = max === 0;
       prevBtn?.classList.toggle('invisible', noScroll);
       nextBtn?.classList.toggle('invisible', noScroll);
-      if (prevBtn) prevBtn.style.opacity = (!noScroll && offset <= 0) ? '0.5' : '';
-      if (nextBtn) nextBtn.style.opacity = (!noScroll && offset >= max) ? '0.5' : '';
+      // 到端點 opacity 0.5 + not-allowed 游標（同 album-gallery，非原生 disabled inline cursor 直接生效）
+      const atStart = !noScroll && offset <= 0;
+      const atEnd   = !noScroll && offset >= max;
+      if (prevBtn) { prevBtn.style.opacity = atStart ? '0.5' : ''; prevBtn.style.cursor = atStart ? 'var(--cursor-not-allowed)' : ''; }
+      if (nextBtn) { nextBtn.style.opacity = atEnd ? '0.5' : ''; nextBtn.style.cursor = atEnd ? 'var(--cursor-not-allowed)' : ''; }
     };
     gallery.closest('.list-item')?.addEventListener('gallery:check', updateChevrons);
     // ResizeObserver：list-item 展開時 list-content height:0 → auto 過程中 track 寬度從 0 變實際值，

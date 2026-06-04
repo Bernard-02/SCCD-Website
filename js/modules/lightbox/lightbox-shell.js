@@ -1,3 +1,4 @@
+import { DUR, EASE } from '../ui/motion.js';
 /**
  * Lightbox Shell（共用 utility）
  * 提供所有全螢幕 lightbox/modal 統一的 enter/exit 行為：
@@ -56,8 +57,8 @@ export function animateHeaderHide(targets) {
       clipPath: i => exitDirMap.get(targets[i]) === 'top'
         ? 'inset(0% 0% 100% 0%)'
         : 'inset(100% 0% 0% 0%)',
-      duration: 0.6,
-      ease: 'power2.out',
+      duration: DUR.slow,
+      ease: EASE.enterSoft,
       stagger: 0.06,
       overwrite: true,
     }
@@ -69,8 +70,8 @@ export function animateHeaderShow(targets) {
   gsap.killTweensOf(targets);
   gsap.to(targets, {
     clipPath: 'inset(0% 0% 0% 0%)',
-    duration: 0.6,
-    ease: 'power2.out',
+    duration: DUR.slow,
+    ease: EASE.enterSoft,
     stagger: 0.06,
     overwrite: true,
     onComplete: () => {

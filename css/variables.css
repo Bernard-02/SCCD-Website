@@ -95,10 +95,39 @@
   --container-padding: 3.75rem; /* 60px */
 
 
-  /* ===== Transitions ===== */
+  /* ===== Transitions（legacy；buttons.css 等仍用，逐步遷移到下方 motion token） ===== */
   --transition-fast: 0.2s ease;
   --transition-base: 0.3s ease;
   --transition-slow: 0.5s ease;
+
+  /* ===== Motion tokens（動畫時長 + ease，全站單一來源；2026-06-04 統一） =====
+   * duration：GSAP 端由 js/modules/ui/motion.js 用 getComputedStyle 讀進來
+   *   → 改這裡一處，CSS transition 與 GSAP tween 同步生效（真正單一來源）。
+   *   ⚠️ 改完必 `npm run build:css`（首頁 index.html 只吃 output.css 那份）。
+   * ease：GSAP 的 power* 與 CSS 的 cubic-bezier 是兩套數學無法共用，
+   *   GSAP ease 名定義在 motion.js（EASE），此處只放 CSS 用的 cubic-bezier。
+   *
+   * ── duration 階梯（第一階段沿用現有數值，零視覺變化）──
+   *   micro 0.2  hover 透明度 / 小淡出
+   *   fast  0.3  chevron 旋轉 / overlay 淡入 / CSS transition 主力 / hover transform
+   *   base  0.4  mode 切換 fade / 退場淡出
+   *   medium0.5  手風琴展收 / slide-in / clip 收展
+   *   slow  0.6  logo size / lightbox bar / 大型 layout
+   *   reveal  1.0  招牌 clip-reveal 進場 + atlas/大型 fly-in/idle standby（原 0.9 reveal 與 1.1 dramatic 已合併為 1.0s）
+   */
+  --dur-micro: 0.2s;
+  --dur-fast: 0.3s;
+  --dur-base: 0.4s;
+  --dur-medium: 0.5s;
+  --dur-slow: 0.6s;
+  --dur-reveal: 1s;
+
+  /* ── CSS ease 曲線（GSAP 端對照見 motion.js EASE）──
+   *   --ease-standard：transform / opacity / 顏色 主力（全站 ~40 處 cubic-bezier(0.4,0,0.2,1)）
+   *   --ease-wipe：clip-path 擦除（快出慢收）
+   */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-wipe: cubic-bezier(0.25, 0, 0, 1);
 
 
   /* ===== Theme tokens（依 mode 切換的全站對比色） =====

@@ -221,7 +221,7 @@
     display: inline-block;
     transform-origin: left center;
     clip-path: inset(-12px -12px calc(100% + 12px) -12px);
-    transition: clip-path 0.5s cubic-bezier(0.25, 0, 0, 1);
+    transition: clip-path var(--dur-medium) var(--ease-wipe);
   }
   .sticky-chip-inner {
     display: inline-flex;
@@ -266,7 +266,7 @@
     background: var(--theme-fg, #000);
     color: var(--theme-fg-inverse, #fff);
     font-size: 32px;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform var(--dur-fast) var(--ease-standard);
   }
 
   /* Ref btn：back btn 右邊，bottom 同高

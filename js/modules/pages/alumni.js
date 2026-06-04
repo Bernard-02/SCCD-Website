@@ -19,6 +19,7 @@ import { initPdfViewer } from './library-viewer.js';
 import { initSectionBannerReveal } from './about/section-banner-reveal.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
+import { DUR, EASE } from '../ui/motion.js';
 
 // 共用：courses-card 風 4 方向 clip-path 隨機選一個
 const CARD_CLIP_DIRS = [
@@ -146,9 +147,9 @@ function playMemberCards(cards) {
     const imgWrapper = card.querySelector('.faculty-card-image-wrapper');
     const name  = card.querySelector('.faculty-card-name');
     const title = card.querySelector('.faculty-card-title');
-    if (imgWrapper) gsap.to(imgWrapper, { clipPath: CLIP_REVEALED, duration: 0.8, ease: 'power3.out', delay: t, clearProps: 'clipPath' });
-    if (name)  gsap.to(name,  { yPercent: 0, duration: 0.7, ease: 'power3.out', delay: t + 0.4, clearProps: 'transform' });
-    if (title) gsap.to(title, { yPercent: 0, duration: 0.7, ease: 'power3.out', delay: t + 0.5, clearProps: 'transform' });
+    if (imgWrapper) gsap.to(imgWrapper, { clipPath: CLIP_REVEALED, duration: DUR.reveal, ease: EASE.enter, delay: t, clearProps: 'clipPath' });
+    if (name)  gsap.to(name,  { yPercent: 0, duration: DUR.slow, ease: EASE.enter, delay: t + 0.4, clearProps: 'transform' });
+    if (title) gsap.to(title, { yPercent: 0, duration: DUR.slow, ease: EASE.enter, delay: t + 0.5, clearProps: 'transform' });
   });
 }
 
@@ -186,7 +187,7 @@ function renderSponsors(data) {
   const playReveal = () => {
     gsap.to(cards, {
       clipPath: 'inset(0% 0% 0% 0%)',
-      duration: 0.4,
+      duration: DUR.base,
       ease: 'cubic-bezier(0.25, 0, 0, 1)',
       stagger: 0.04,
       overwrite: true,
@@ -418,8 +419,8 @@ function playAlumniExit() {
     gsap.killTweensOf(el);
     gsap.to(el, {
       clipPath: 'inset(0% 100% 0% 0%)',
-      duration: 0.5,
-      ease: 'power3.in',
+      duration: DUR.medium,
+      ease: EASE.exit,
       onComplete: resolve,
     });
   });

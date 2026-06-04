@@ -11,7 +11,7 @@
   /* ===== Year Toggle Chevron Rotation ===== */
   .list-year-toggle .icon-chevron-list,
   .activities-year-toggle .icon-chevron-list {
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform var(--dur-fast) var(--ease-standard);
   }
 
   /* ===== Horizontal Accordion ===== */

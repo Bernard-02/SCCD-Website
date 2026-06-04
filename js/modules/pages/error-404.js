@@ -17,6 +17,7 @@
  */
 
 import { setupClipReveal, playClipReveal } from '../ui/scroll-animate.js';
+import { EASE } from '../ui/motion.js';
 
 const PRIMARY_COLORS = ['#00FF80', '#FF448A', '#26BCFF'];
 
@@ -150,7 +151,7 @@ function shuffleAll(stage) {
   gsap.to(cards, {
     yPercent: 100,
     duration: EXIT_DURATION_S,
-    ease: 'power3.out',
+    ease: EASE.enter,
     stagger: { each: 0.08, axis: 'y' },
     overwrite: 'auto',
     onComplete: () => {

@@ -15,6 +15,7 @@ import { playAdmissionPanelExit, playAdmissionPanelReveal, setupAdmissionReveal 
 import { playClipReveal } from '../ui/scroll-animate.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { waitForHeroAnimDone } from './hero-animation.js';
+import { DUR, EASE } from '../ui/motion.js';
 
 // 追蹤哪些 panel 已載入過資料
 const loaded = {};
@@ -112,7 +113,7 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
     // 首頁 deep-link（已等 hero 跑完）：平滑捲到 item 讓 user 看到往下捲，捲動「結束」才 flash + 展開 accordion
     // （對齊 curriculum：hero done → 平滑 scroll → delay 才開）。GSAP ScrollToPlugin onComplete 確保到位才動；無 plugin 時估時 fallback。
     if (typeof window.ScrollToPlugin !== 'undefined') {
-      gsap.to(window, { scrollTo: { y: finalTop, autoKill: false }, duration: 0.5, ease: 'power2.inOut', onComplete: flashThenOpenAccordion });
+      gsap.to(window, { scrollTo: { y: finalTop, autoKill: false }, duration: DUR.medium, ease: EASE.move, onComplete: flashThenOpenAccordion });
     } else {
       window.scrollTo({ top: finalTop, behavior: 'smooth' });
       setTimeout(flashThenOpenAccordion, 500);
@@ -138,7 +139,9 @@ async function playActivitiesExit() {
   if (panel) await playAdmissionPanelExit(panel);
 }
 
-export function initActivitiesSectionSwitch(defaultSection = 'general') {
+// fromUserNav：true=使用者點連結的 SPA 導航（首頁 floating 活動海報）；false=初始載入 / refresh / 上一頁下一頁。
+// 只有 fromUserNav 才播 ?item= 的「捲到 item + flash + 展開 accordion」導航動畫，refresh 視為全新頁面（只套 ?section= 分頁，不重播）。
+export function initActivitiesSectionSwitch(defaultSection = 'general', fromUserNav = false) {
   const btns = document.querySelectorAll('.activities-section-btn');
   if (btns.length === 0) return;
 
@@ -150,15 +153,15 @@ export function initActivitiesSectionSwitch(defaultSection = 'general') {
   // 暴露給 industry reference 按鈕使用（避免循環 import）
   window.__sccdNavigateToItem = (section, itemId) => navigateToItem(section, itemId);
 
-  // 支援 ?section= 和 ?item= query string（從外部連結過來時切換 + highlight 特定項目）
+  // ?section= / ?item= deep-link：只有從首頁 floating 卡片點進來的 SPA 導航（fromUserNav）才套指定 section + 跑導航動畫。
   const params = new URLSearchParams(window.location.search);
-  const initialSection = params.get('section') || defaultSection;
-  const initialItem = params.get('item');
+  const hasDeepLink = params.has('section');
 
-  if (params.has('section')) {
-    // 從外部連結（如首頁 floating 活動海報）進來：等 hero 進場動畫「實際跑完」才往下捲
-    // （waitForHeroAnimDone，follow hero 動畫長度、不寫死 1s；對齊 curriculum），再 scroll（+ highlight 特定項目）
+  if (hasDeepLink && fromUserNav) {
+    const initialSection = params.get('section') || defaultSection;
+    const initialItem = params.get('item');
     switchToSection(initialSection, btns, false, true);
+    // 等 hero 進場動畫「實際跑完」才往下捲（waitForHeroAnimDone，follow hero 動畫長度、不寫死 1s；對齊 curriculum）
     if (initialItem) {
       // 有 ?item= → navigateToItem smooth:true：平滑捲到該項目 → 捲到位 delay 才展開 accordion
       waitForHeroAnimDone().then(() => navigateToItem(initialSection, initialItem, { smooth: true }));
@@ -170,7 +173,10 @@ export function initActivitiesSectionSwitch(defaultSection = 'general') {
       });
     }
   } else {
-    switchToSection(initialSection, btns, false, true);
+    // refresh / 直接開連結 / 上一頁下一頁（fromUserNav=false）：清掉 deep-link query（URL 變乾淨）+ 停在 default section
+    // ＝「直接點 activities 分頁的樣子」（user 2026-06-04），不停在 ?section= 指定的分頁也不導航
+    if (hasDeepLink) history.replaceState(history.state, '', window.location.pathname);
+    switchToSection(defaultSection, btns, false, true);
   }
 
   btns.forEach(btn => {
@@ -351,8 +357,8 @@ async function setPanelDescActive(panelId, descType) {
     await new Promise(resolve => {
       gsap.to(current, {
         yPercent: 100,
-        duration: 0.4,
-        ease: 'power3.in',
+        duration: DUR.base,
+        ease: EASE.exit,
         overwrite: true,
         onComplete: resolve,
       });

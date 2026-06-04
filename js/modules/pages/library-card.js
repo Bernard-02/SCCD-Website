@@ -6,6 +6,7 @@
 import { registerPageExit } from '../ui/page-exit.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { playPanelTitleExit, playPanelBodyExit } from './library-panels.js';
+import { DUR } from '../ui/motion.js';
 
 export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: onEntranceDoneCb, initialTab = 'awards' }) {
 
@@ -239,7 +240,7 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
     awards: 'Awards 獎項',
     press:  'Press 報導',
     files:  'Documents 文件',
-    album:  'Album 相簿',
+    album:  'Albums 相簿',
   };
 
   const PAD = '12px';
@@ -433,7 +434,7 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
     { hide: 'inset(0 100% 0 0)', show: 'inset(0 0% 0 0)' },
     { hide: 'inset(0 0 0 100%)', show: 'inset(0 0 0 0%)' },
   ];
-  const CLIP_DUR = 0.45;
+  const CLIP_DUR = DUR.medium;
 
   function randomClipDir() {
     return CLIP_DIRS[Math.floor(Math.random() * CLIP_DIRS.length)];
@@ -645,8 +646,8 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
 
   function playExitAnimation() {
     return new Promise(resolve => {
-      const TITLE_DUR = 0.25;  // chip 先 wipe 的時長（短，作為前置動作）
-      const EXIT_DUR  = 0.35;
+      const TITLE_DUR = DUR.fast;  // chip 先 wipe 的時長（短，作為前置動作）
+      const EXIT_DUR  = DUR.fast;
       const STAGGER   = 0.08;
 
       // Phase 1：先把 active panel 左上角 chip (lib-panel-title) wipe 消失

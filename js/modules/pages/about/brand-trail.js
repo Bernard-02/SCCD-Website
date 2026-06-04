@@ -1,3 +1,4 @@
+import { DUR, EASE } from '../../ui/motion.js';
 /**
  * Brand Trail Module (About Page)
  * 處理系友發展區塊的游標拖尾效果（桌面版）
@@ -108,7 +109,7 @@ function initOverviewHighlight() {
       hls.forEach((el, i) => {
         gsap.fromTo(el,
           { clipPath: fromClips[i] },
-          { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.9, ease: 'power3.out' }
+          { clipPath: 'inset(0% 0% 0% 0%)', duration: DUR.reveal, ease: EASE.enter }
         );
       });
     },

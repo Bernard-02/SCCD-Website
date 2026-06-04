@@ -1,3 +1,4 @@
+import { DUR, EASE } from '../ui/motion.js';
 /**
  * Intro Animation Module
  * 網站進場動畫 - 使用 Lottie 播放 AE 動畫
@@ -35,13 +36,13 @@ export function initIntroAnimation() {
         onComplete: () => { overlay.style.display = 'none'; }
       });
 
-      tl.to(overlay, { opacity: 0, duration: 0.5, ease: 'power2.out' });
+      tl.to(overlay, { opacity: 0, duration: DUR.medium, ease: EASE.enterSoft });
 
       if (header) {
         tl.to(header, {
           opacity: 1,
-          duration: 0.4,
-          ease: 'power2.out',
+          duration: DUR.base,
+          ease: EASE.enterSoft,
           onStart: () => { document.body.style.overflow = ''; },
         }, '<');
       } else {

@@ -8,6 +8,7 @@
  */
 
 import { enterLightboxMode, exitLightboxMode } from './../lightbox/lightbox-shell.js';
+import { DUR, EASE } from './motion.js';
 
 let initialized = false;
 let shareOpen = false;
@@ -128,8 +129,8 @@ function openShareLightbox(url) {
       { clipPath: DIR_FROM[dir] },
       {
         clipPath: 'inset(0% 0% 0% 0%)',
-        duration: 0.6,
-        ease: 'power3.out',
+        duration: DUR.slow,
+        ease: EASE.enter,
         overwrite: true,
         onComplete: () => { card.style.clipPath = ''; },
       }
@@ -166,8 +167,8 @@ function closeShareLightbox() {
       { clipPath: 'inset(0% 0% 0% 0%)' },
       {
         clipPath: DIR_FROM[dir],
-        duration: 0.5,
-        ease: 'power3.in',
+        duration: DUR.medium,
+        ease: EASE.exit,
         overwrite: true,
         onComplete: finish,
       }

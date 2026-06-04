@@ -29,6 +29,7 @@ import {
 import { registerPageExit } from '../ui/page-exit.js';
 import { setupClipReveal } from '../ui/scroll-animate.js';
 import { killGenerateLogoTimeline, GEN_LOGO_LAYOUT } from '../../header.js';
+import { DUR, EASE } from '../ui/motion.js';
 
 const ASSET_BASE = '/generate-app';
 
@@ -286,8 +287,8 @@ function playCreateExitAnimation(destinationRoute) {
             width: 40,
             marginLeft: 32,
             clipPath: 'inset(0 0 0 0)',
-            duration: 0.5,
-            ease: 'power3.inOut',
+            duration: DUR.medium,
+            ease: EASE.move,
             overwrite: 'auto',
             onComplete: () => {
               modeBtn.style.width = '';
@@ -309,8 +310,8 @@ function playCreateExitAnimation(destinationRoute) {
         { yPercent: 0 },
         {
           yPercent: i => yDirs[i],
-          duration: 0.55,
-          ease: 'power3.in',
+          duration: DUR.medium,
+          ease: EASE.exit,
           stagger: 0.05,
           overwrite: 'auto',
         },
@@ -327,8 +328,8 @@ function playCreateExitAnimation(destinationRoute) {
         { yPercent: 0 },
         {
           yPercent: i => layoutYDirs[i],
-          duration: 0.55,
-          ease: 'power3.in',
+          duration: DUR.medium,
+          ease: EASE.exit,
           stagger: 0.1,
           overwrite: 'auto',
         },
@@ -391,7 +392,7 @@ function playCreateExitAnimation(destinationRoute) {
 
       const tEnd = START_T + 4 * PER;
       tl.set(typewriterCursor, { left: -GAP }, tEnd);
-      tl.to(typewriterCursor, { opacity: 0, duration: 0.12, ease: 'power2.out' }, tEnd);
+      tl.to(typewriterCursor, { opacity: 0, duration: 0.12, ease: EASE.enterSoft }, tEnd);
     } else {
       // State A partial：1-3 個 letter 顯示 → 從右 stagger fade（只 fade 真的顯示的）
       const visiblePaths = sccdPaths.filter(
@@ -399,7 +400,7 @@ function playCreateExitAnimation(destinationRoute) {
       );
       tl.to(visiblePaths, {
         opacity: 0,
-        duration: 0.3,
+        duration: DUR.fast,
         stagger: { each: 0.06, from: 'end' },
         overwrite: 'auto',
       }, 0.1);
@@ -411,7 +412,7 @@ function playCreateExitAnimation(destinationRoute) {
     // 5. #header-logo opacity:0 → 下一頁 switchHeaderLogo 偵測 opacity<0.5 跑 clip-path 左→右 reveal
     //    State A/C only：Lottie 不在了，下一頁需要載新 Lottie + reveal 動畫；State B 跳出已 early return
     if (headerLogo) {
-      tl.to(headerLogo, { opacity: 0, duration: 0.15, ease: 'power2.out' }, 0.55);
+      tl.to(headerLogo, { opacity: 0, duration: 0.15, ease: EASE.enterSoft }, 0.55);
     }
   });
 }

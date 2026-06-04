@@ -1,3 +1,4 @@
+import { DUR, EASE } from './motion.js';
 /**
  * Text Reveal Module
  * 逐行（line）進場動畫（gsap.to y+opacity 逐行 fade-up），非真正 split lines
@@ -27,8 +28,8 @@ export function initTextReveal(selector = '[data-text-reveal]') {
         gsap.to(el, {
           y: 0,
           opacity: 1,
-          duration: 0.7,
-          ease: 'power3.out',
+          duration: DUR.slow,
+          ease: EASE.enter,
           delay,
           clearProps: 'transform,opacity',
         });

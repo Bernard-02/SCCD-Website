@@ -1,6 +1,7 @@
 /* global gsap */
 import { applyMarqueeOverflow } from '../ui/marquee-overflow.js';
 import { registerPageExit } from '../ui/page-exit.js';
+import { DUR, EASE } from '../ui/motion.js';
 
 /**
  * Atlas Page — SCCD-Centered Living Textile
@@ -842,7 +843,7 @@ export async function initAtlas(options = {}) {
   //   `translate` (individual property) 跟 tickFloat 寫的 `transform: translate(...)` 自動 compose，不打架
   //   hover 暫停 / hidden tab 跳過
   const D_RELOCATE_INTERVAL_MS = 10000;
-  const D_RELOCATE_TWEEN_DUR   = 1.2;
+  const D_RELOCATE_TWEEN_DUR   = DUR.reveal;
   // city → 同 cityKey 的關聯 items（C 工作營/產學/講座；A faculty 故意排除 — user 指定老師不跟著走）
   // 排除 B：B 鎖在中央橢圓 ring，cityKey 是假填資料只給 list view 用；跟著城市移會破壞 ring layout
   // 注意：itemMap 建在這之後（行 860）+ C items 的 _orbit 行 866 才建；timer callback 在 +10s 第一次跑時兩者都已存在
@@ -890,7 +891,7 @@ export async function initAtlas(options = {}) {
       item._relocateTween = gsap.to(off, {
         x: 0, y: 0,
         duration: D_RELOCATE_TWEEN_DUR,
-        ease: 'power2.inOut',
+        ease: EASE.move,
         onUpdate: () => {
           if (item._anchor) item._anchor.style.translate = `${off.x.toFixed(2)}px ${off.y.toFixed(2)}px`;
           item._relocateOffsetX = off.x;
@@ -948,7 +949,7 @@ export async function initAtlas(options = {}) {
         city._relocateTween = gsap.to(off, {
           x: 0, y: 0,
           duration: D_RELOCATE_TWEEN_DUR,
-          ease: 'power2.inOut',
+          ease: EASE.move,
           onUpdate: () => {
             // anchor 視覺位置 + 寫進 item 上的 offset 屬性 → updateLineEndpoints 同步把線端拉過來
             if (city._anchor) city._anchor.style.translate = `${off.x.toFixed(2)}px ${off.y.toFixed(2)}px`;
@@ -1320,7 +1321,7 @@ export async function initAtlas(options = {}) {
       cl.line.classList.toggle('atlas-city-line-active', isActive);
       if (typeof gsap !== 'undefined') {
         gsap.killTweensOf(cl);
-        gsap.to(cl, { retractT: targetT, duration: 0.5, ease: 'power2.out' });
+        gsap.to(cl, { retractT: targetT, duration: DUR.medium, ease: EASE.enterSoft });
       } else {
         cl.retractT = targetT;
       }
@@ -1612,8 +1613,8 @@ export async function initAtlas(options = {}) {
     }
     detailTween = gsap.to(detail, {
       clipPath: DETAIL_VISIBLE_INSET,
-      duration: 0.3,
-      ease: 'power2.out',
+      duration: DUR.fast,
+      ease: EASE.enterSoft,
       onComplete: () => { detailTween = null; },
     });
   }
@@ -1628,8 +1629,8 @@ export async function initAtlas(options = {}) {
     if (detailTween) detailTween.kill();
     detailTween = gsap.to(detail, {
       clipPath: randomHiddenInset(),
-      duration: 0.25,
-      ease: 'power2.in',
+      duration: DUR.fast,
+      ease: EASE.exitSoft,
       onComplete: () => { detailTween = null; },
     });
   }
@@ -1807,7 +1808,7 @@ export async function initAtlas(options = {}) {
     introTween = gsap.to({ v: SCALE_INTRO_START }, {
       v: SCALE_DEFAULT,
       duration: INTRO_DURATION,
-      ease: 'sine.inOut',
+      ease: EASE.sway,
       onUpdate: function() {
         scale = this.targets()[0].v;
         applyTransform();
@@ -1958,8 +1959,8 @@ export async function initAtlas(options = {}) {
       if (tween) tween.kill();
       tween = gsap.to(el, {
         clipPath: CAREER_HIDDEN_CLIP,
-        duration: 0.3,
-        ease: 'power2.in',
+        duration: DUR.fast,
+        ease: EASE.exitSoft,
         onComplete: () => {
           fill(ALUMNI_CAREERS[idx]);
           // chip clip-hidden 期間調整寬度，視覺上看不到 box 變動
@@ -1967,8 +1968,8 @@ export async function initAtlas(options = {}) {
           gsap.set(el, { clipPath: CAREER_HIDDEN_CLIP });
           tween = gsap.to(el, {
             clipPath: CAREER_VISIBLE_CLIP,
-            duration: 0.4,
-            ease: 'power2.out',
+            duration: DUR.base,
+            ease: EASE.enterSoft,
           });
         },
       });
@@ -2002,13 +2003,13 @@ export async function initAtlas(options = {}) {
         height: naturalH,
         paddingTop: CAREER_PAD_TOP,
         paddingBottom: CAREER_PAD_BOTTOM,
-        duration: 0.3,
-        ease: 'power2.out',
+        duration: DUR.fast,
+        ease: EASE.enterSoft,
       }, 0);
       tl.to(el, {
         clipPath: CAREER_VISIBLE_CLIP,
-        duration: 0.4,
-        ease: 'power2.out',
+        duration: DUR.base,
+        ease: EASE.enterSoft,
       }, 0.3);
       tl.eventCallback('onComplete', () => { gsap.set(el, { height: 'auto' }); });
       tween = tl;
@@ -2036,15 +2037,15 @@ export async function initAtlas(options = {}) {
       const tl = gsap.timeline({ delay: (opts && opts.delay) || 0 });
       tl.to(el, {
         clipPath: CAREER_HIDDEN_CLIP,
-        duration: 0.4,
-        ease: 'power2.in',
+        duration: DUR.base,
+        ease: EASE.exitSoft,
       }, 0);
       tl.to(el, {
         height: 0,
         paddingTop: 0,
         paddingBottom: 0,
-        duration: 0.3,
-        ease: 'power2.in',
+        duration: DUR.fast,
+        ease: EASE.exitSoft,
       }, 0.4);
       tween = tl;
     }
@@ -2107,13 +2108,13 @@ export async function initAtlas(options = {}) {
         paddingTop: naturalPaddingTop,
         paddingBottom: naturalPaddingBottom,
         marginTop: naturalMarginTop,
-        duration: 0.3,
-        ease: 'power2.out',
+        duration: DUR.fast,
+        ease: EASE.enterSoft,
       }, 0);
       tl.to(el, {
         clipPath: CHIP_VISIBLE_CLIP,
-        duration: 0.4,
-        ease: 'power2.out',
+        duration: DUR.base,
+        ease: EASE.enterSoft,
       }, 0.3);
       tl.eventCallback('onComplete', () => {
         // strip inline → CSS 接手（值相同無跳變）
@@ -2136,16 +2137,16 @@ export async function initAtlas(options = {}) {
       const tl = gsap.timeline({ delay: (opts && opts.delay) || 0 });
       tl.to(el, {
         clipPath: CHIP_HIDDEN_CLIP,
-        duration: 0.4,
-        ease: 'power2.in',
+        duration: DUR.base,
+        ease: EASE.exitSoft,
       }, 0);
       tl.to(el, {
         height: 0,
         paddingTop: 0,
         paddingBottom: 0,
         marginTop: COLLAPSED_MARGIN_TOP,
-        duration: 0.3,
-        ease: 'power2.in',
+        duration: DUR.fast,
+        ease: EASE.exitSoft,
       }, 0.4);
       tween = tl;
     }
@@ -2287,7 +2288,7 @@ export async function initAtlas(options = {}) {
           clipPath: randomHiddenInset(),
           duration: TOTAL - d,
           delay: d,
-          ease: 'power2.out',
+          ease: EASE.enterSoft,
           overwrite: true,
           onComplete: () => {
             item._anchor.classList.add('atlas-filtered-out');
@@ -2306,7 +2307,7 @@ export async function initAtlas(options = {}) {
           clipPath: 'inset(0% 0% 0% 0%)',
           duration: TOTAL - d,
           delay: d,
-          ease: 'power2.out',
+          ease: EASE.enterSoft,
           overwrite: true,
           onComplete: () => { item._span.style.clipPath = ''; },
         });
@@ -2362,7 +2363,7 @@ export async function initAtlas(options = {}) {
     const progress = { value: visible ? 0 : 1 };  // 0 = invisible, 1 = visible
     gsap.to(progress, {
       value: visible ? 1 : 0,
-      duration: 0.2,
+      duration: DUR.micro,
       ease: visible ? 'power2.out' : 'power2.in',
       overwrite: true,
       onUpdate: () => {
@@ -2703,7 +2704,7 @@ export async function initAtlas(options = {}) {
       // 切頁進場：所有 lines 同時進場（無 stagger）
       gsap.fromTo(lines,
         { yPercent: (/** @type {number} */ i) => enterDirs[Math.floor(i / linesPerItem)] },
-        { yPercent: 0, duration: 0.9, ease: 'power3.out', clearProps: 'transform', overwrite: true }
+        { yPercent: 0, duration: DUR.reveal, ease: EASE.enter, clearProps: 'transform', overwrite: true }
       );
     }
 
@@ -2715,8 +2716,8 @@ export async function initAtlas(options = {}) {
       col.dataset.transitioning = '1';
       gsap.to(existingLines, {
         yPercent: (/** @type {number} */ i) => exitDirs[Math.floor(i / linesPerItem)],
-        duration: 0.5,
-        ease: 'power3.in',
+        duration: DUR.medium,
+        ease: EASE.exit,
         overwrite: true,
         onComplete: () => {
           // 新 item 進場方向 = 舊退場方向的反向（同 position 對應 ±100 互換）
@@ -2971,7 +2972,7 @@ export async function initAtlas(options = {}) {
         clipPath: randomHiddenInset(),
         duration: TOTAL - d,
         delay: d,
-        ease: 'power2.out',
+        ease: EASE.enterSoft,
         overwrite: true,
         onComplete: () => {
           item._anchor.classList.add('atlas-filtered-out');
@@ -2989,7 +2990,7 @@ export async function initAtlas(options = {}) {
         clipPath: 'inset(0% 0% 0% 0%)',
         duration: TOTAL - d,
         delay: d,
-        ease: 'power2.out',
+        ease: EASE.enterSoft,
         overwrite: true,
         onComplete: () => { item._span.style.clipPath = ''; },
       });
@@ -3123,7 +3124,7 @@ export async function initAtlas(options = {}) {
       if (masterTitleEl) {
         gsap.fromTo(masterTitleEl,
           { yPercent: 100 },
-          { yPercent: 0, duration: 0.9, delay: ALUMNI_DELAY, ease: 'power3.out', clearProps: 'transform', overwrite: true }
+          { yPercent: 0, duration: DUR.reveal, delay: ALUMNI_DELAY, ease: EASE.enter, clearProps: 'transform', overwrite: true }
         );
       }
       if (listCareerCtrl) listCareerCtrl.show({ delay: ALUMNI_DELAY });
@@ -3135,7 +3136,7 @@ export async function initAtlas(options = {}) {
         if (titleEl) {
           gsap.fromTo(titleEl,
             { yPercent: 100 },
-            { yPercent: 0, duration: 0.9, delay, ease: 'power3.out', clearProps: 'transform', overwrite: true }
+            { yPercent: 0, duration: DUR.reveal, delay, ease: EASE.enter, clearProps: 'transform', overwrite: true }
           );
         }
         // host 1 行 / partners 3 行 / 其餘 2 行
@@ -3153,7 +3154,7 @@ export async function initAtlas(options = {}) {
           gsap.fromTo(lines,
             { yPercent: (/** @type {number} */ i) => itemDirs[Math.floor(i / linesPerItem)] },
             {
-              yPercent: 0, duration: 0.9, delay, ease: 'power3.out', clearProps: 'transform', overwrite: true,
+              yPercent: 0, duration: DUR.reveal, delay, ease: EASE.enter, clearProps: 'transform', overwrite: true,
               stagger: (/** @type {number} */ i) => Math.floor(i / linesPerItem) * itemStagger + (i % linesPerItem) * 0.05,
             }
           );
@@ -3165,9 +3166,9 @@ export async function initAtlas(options = {}) {
             { clipPath: 'inset(0% 0% 100% 0%)' },
             {
               clipPath: 'inset(0% 0% 0% 0%)',
-              duration: 0.9,
+              duration: DUR.reveal,
               delay: delay + numItems * itemStagger,
-              ease: 'power3.out',
+              ease: EASE.enter,
               clearProps: 'clipPath',
               overwrite: true,
             }
@@ -3232,7 +3233,7 @@ export async function initAtlas(options = {}) {
       introTween.to(cover, {
         clipPath: 'inset(0% 0% 0% 0%)',
         duration: REVEAL_TOTAL - d,
-        ease: 'power2.out',
+        ease: EASE.enterSoft,
       }, d);
     });
 
@@ -3251,7 +3252,7 @@ export async function initAtlas(options = {}) {
       introTween.to(span, {
         clipPath: dir,
         duration: HIDE_TOTAL - d,
-        ease: 'power2.out',  // front-loaded → 每個 item 在各自起跑點收縮，stagger 看得見
+        ease: EASE.enterSoft,  // front-loaded → 每個 item 在各自起跑點收縮，stagger 看得見
       }, p2Start + d);
     });
     // layout btn icon 跨整段 introTween 同步 hide（0→0.75，跟 chips 整段同節奏，不延遲）
@@ -3270,7 +3271,7 @@ export async function initAtlas(options = {}) {
       introTween.to(cl, {
         retractT: 1,
         duration: REVEAL_TOTAL + HIDE_TOTAL,
-        ease: 'power2.out',
+        ease: EASE.enterSoft,
         overwrite: true,
       }, 0);
     });
@@ -3370,7 +3371,7 @@ export async function initAtlas(options = {}) {
         introTween.to(span, {
           clipPath: 'inset(0% 0% 0% 0%)',
           duration: REVEAL_TOTAL - d,
-          ease: 'power2.out',
+          ease: EASE.enterSoft,
         }, d);
       });
       // cityLines 物理 draw：retractT 1→0，updateCityLineEndpoints 每幀 lerp endpoint
@@ -3380,7 +3381,7 @@ export async function initAtlas(options = {}) {
         introTween.to(cl, {
           retractT: 0,
           duration: REVEAL_TOTAL + HIDE_TOTAL,
-          ease: 'power2.out',
+          ease: EASE.enterSoft,
           overwrite: true,
         }, 0);
       });
@@ -3394,7 +3395,7 @@ export async function initAtlas(options = {}) {
         introTween.to(cover, {
           clipPath: 'inset(0% 100% 0% 0%)',
           duration: HIDE_TOTAL - d,
-          ease: 'power2.out',
+          ease: EASE.enterSoft,
         }, p2Start + d);
       });
       if (allCovers.length === 0) introTween.to({}, { duration: HIDE_TOTAL }, p2Start);
@@ -3429,8 +3430,8 @@ export async function initAtlas(options = {}) {
     if (yPercentExitTargets.length > 0) {
       gsap.to(yPercentExitTargets, {
         yPercent: () => Math.random() < 0.5 ? 100 : -100,
-        duration: 0.6,
-        ease: 'power2.in',
+        duration: DUR.slow,
+        ease: EASE.exitSoft,
         overwrite: true,
         onComplete: mainTargets === yPercentExitTargets
           ? () => gsap.delayedCall(0.2, finalize)
@@ -3443,8 +3444,8 @@ export async function initAtlas(options = {}) {
         { clipPath: 'inset(0% 0% 0% 0%)' },
         {
           clipPath: 'inset(0% 0% 100% 0%)',
-          duration: 0.6,
-          ease: 'power2.in',
+          duration: DUR.slow,
+          ease: EASE.exitSoft,
           overwrite: true,
           onComplete: mainTargets === navExitTargets
             ? () => gsap.delayedCall(0.2, finalize)
@@ -3507,18 +3508,18 @@ export async function initAtlas(options = {}) {
       introTween = gsap.timeline({ onComplete: () => gsap.delayedCall(0.2, resolve) });
       allCovers.forEach(cover => {
         const d = Math.random() * REVEAL_RANGE;
-        introTween.to(cover, { clipPath: 'inset(0% 0% 0% 0%)', duration: REVEAL_TOTAL - d, ease: 'power2.out' }, d);
+        introTween.to(cover, { clipPath: 'inset(0% 0% 0% 0%)', duration: REVEAL_TOTAL - d, ease: EASE.enterSoft }, d);
       });
       const p2Start = REVEAL_TOTAL;
       allSpans.forEach(span => {
         const d = Math.random() * HIDE_RANGE;
         const dir = HIDE_DIRS[Math.floor(Math.random() * 4)];
-        introTween.to(span, { clipPath: dir, duration: HIDE_TOTAL - d, ease: 'power2.out' }, p2Start + d);
+        introTween.to(span, { clipPath: dir, duration: HIDE_TOTAL - d, ease: EASE.enterSoft }, p2Start + d);
       });
       hideLayoutIcon({ timeline: introTween, position: 0 });
       cityLines.forEach(cl => { cl.hoveredEnd = Math.random() < 0.5 ? 'a' : 'b'; });
       cityLines.forEach(cl => {
-        introTween.to(cl, { retractT: 1, duration: REVEAL_TOTAL + HIDE_TOTAL, ease: 'power2.out', overwrite: true }, 0);
+        introTween.to(cl, { retractT: 1, duration: REVEAL_TOTAL + HIDE_TOTAL, ease: EASE.enterSoft, overwrite: true }, 0);
       });
       if (allCovers.length === 0 && allSpans.length === 0) gsap.delayedCall(0.2, resolve);
     });
@@ -3544,13 +3545,13 @@ export async function initAtlas(options = {}) {
       if (yPercentExitTargets.length > 0) {
         gsap.to(yPercentExitTargets, {
           yPercent: () => Math.random() < 0.5 ? 100 : -100,
-          duration: 0.6, ease: 'power2.in', overwrite: true, onComplete: onOne,
+          duration: DUR.slow, ease: EASE.exitSoft, overwrite: true, onComplete: onOne,
         });
       }
       if (navExitTargets.length > 0) {
         gsap.fromTo(navExitTargets,
           { clipPath: 'inset(0% 0% 0% 0%)' },
-          { clipPath: 'inset(0% 0% 100% 0%)', duration: 0.6, ease: 'power2.in', overwrite: true, onComplete: onOne },
+          { clipPath: 'inset(0% 0% 100% 0%)', duration: DUR.slow, ease: EASE.exitSoft, overwrite: true, onComplete: onOne },
         );
       }
     });

@@ -112,10 +112,37 @@
   --container-max-width: 1200px;
   --container-padding: 3.75rem;
   /* 60px */
-  /* ===== Transitions ===== */
+  /* ===== Transitions（legacy；buttons.css 等仍用，逐步遷移到下方 motion token） ===== */
   --transition-fast: 0.2s ease;
   --transition-base: 0.3s ease;
   --transition-slow: 0.5s ease;
+  /* ===== Motion tokens（動畫時長 + ease，全站單一來源；2026-06-04 統一） =====
+   * duration：GSAP 端由 js/modules/ui/motion.js 用 getComputedStyle 讀進來
+   *   → 改這裡一處，CSS transition 與 GSAP tween 同步生效（真正單一來源）。
+   *   ⚠️ 改完必 `npm run build:css`（首頁 index.html 只吃 output.css 那份）。
+   * ease：GSAP 的 power* 與 CSS 的 cubic-bezier 是兩套數學無法共用，
+   *   GSAP ease 名定義在 motion.js（EASE），此處只放 CSS 用的 cubic-bezier。
+   *
+   * ── duration 階梯（第一階段沿用現有數值，零視覺變化）──
+   *   micro 0.2  hover 透明度 / 小淡出
+   *   fast  0.3  chevron 旋轉 / overlay 淡入 / CSS transition 主力 / hover transform
+   *   base  0.4  mode 切換 fade / 退場淡出
+   *   medium0.5  手風琴展收 / slide-in / clip 收展
+   *   slow  0.6  logo size / lightbox bar / 大型 layout
+   *   reveal  1.0  招牌 clip-reveal 進場 + atlas/大型 fly-in/idle standby（原 0.9 reveal 與 1.1 dramatic 已合併為 1.0s）
+   */
+  --dur-micro: 0.2s;
+  --dur-fast: 0.3s;
+  --dur-base: 0.4s;
+  --dur-medium: 0.5s;
+  --dur-slow: 0.6s;
+  --dur-reveal: 1s;
+  /* ── CSS ease 曲線（GSAP 端對照見 motion.js EASE）──
+   *   --ease-standard：transform / opacity / 顏色 主力（全站 ~40 處 cubic-bezier(0.4,0,0.2,1)）
+   *   --ease-wipe：clip-path 擦除（快出慢收）
+   */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-wipe: cubic-bezier(0.25, 0, 0, 1);
   /* ===== Theme tokens（依 mode 切換的全站對比色） =====
    * 預設值 = standard mode（黑前景 / 白背景）
    * inverse mode 會在 themes/inverse.css 用 body.mode-inverse 蓋掉
@@ -261,7 +288,7 @@
 
 html.mode-switching.mode-switching,
 body.mode-switching.mode-switching {
-  transition: background-color 0.4s ease, background 0.4s ease, color 0.4s ease !important;
+  transition: background-color var(--dur-base) ease, background var(--dur-base) ease, color var(--dur-base) ease !important;
 }
 
 html.mode-switching.mode-switching header,
@@ -314,7 +341,7 @@ html.mode-switching.mode-switching .lib-panel-title,
 html.mode-switching.mode-switching .press-item,
 html.mode-switching.mode-switching .files-item,
 html.mode-switching.mode-switching .library-card-content {
-  transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease !important;
+  transition: background-color var(--dur-base) ease, color var(--dur-base) ease, border-color var(--dur-base) ease !important;
 }
 
 /* /create 頁：#create-app 的 background-color 不在上方 whitelist，mode 切換時 snap 而 header 有 0.4s fade，
@@ -324,7 +351,7 @@ html.mode-switching.mode-switching .library-card-content {
 html.mode-switching.mode-switching #create-app,
 html.mode-switching.mode-switching #desktop-canvas-container,
 html.mode-switching.mode-switching #canvas-container {
-  transition: background-color 0.4s ease !important;
+  transition: background-color var(--dur-base) ease !important;
 }
 
 /**
@@ -880,7 +907,7 @@ body.overflow-hidden #custom-scrollbar-thumb {
      桌面在 lists.css :286 走 spacing-md - 4px = 20px 視覺，跟手機不同節奏 */
 
   .list-header > div:first-child {
-    transition: transform 0.3s ease;
+    transition: transform var(--dur-fast) ease;
   }
 
   .list-header.active > div:first-child {
@@ -972,7 +999,7 @@ body.overflow-hidden #custom-scrollbar-thumb {
   .list-header > * > .clip-reveal-wrapper:has(.list-subtitles) {
     display: grid;
     grid-template-rows: 1fr;
-    transition: grid-template-rows 0.3s ease, opacity 0.25s ease, margin-top 0.3s ease;
+    transition: grid-template-rows var(--dur-fast) ease, opacity var(--dur-fast) ease, margin-top var(--dur-fast) ease;
   }
 
   .list-header > * > .clip-reveal-wrapper:has(.list-subtitles) > * {
@@ -1041,7 +1068,7 @@ body.overflow-hidden #custom-scrollbar-thumb {
 /* search bar scroll hide */
 
 .activities-search-inner {
-  transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+  transition: max-height var(--dur-fast) ease, opacity var(--dur-fast) ease, padding var(--dur-fast) ease;
   max-height: 80px;
   overflow: hidden;
 }
@@ -1176,7 +1203,7 @@ body.overflow-hidden #custom-scrollbar-thumb {
   background: black;
   transform-origin: right center;
   transform: scaleX(1);
-  transition: transform 0.35s ease;
+  transition: transform var(--dur-fast) ease;
 }
 
 @media (min-width: 768px) {
@@ -1193,7 +1220,7 @@ body.overflow-hidden #custom-scrollbar-thumb {
 
   .list-header > div:first-child {
     padding-left: 0;
-    transition: transform 0.3s ease;
+    transition: transform var(--dur-fast) ease;
   }
 
   .list-header.active > div:first-child {
@@ -1217,7 +1244,7 @@ body.overflow-hidden #custom-scrollbar-thumb {
 .list-ref-btn {
   color: black;
   background: var(--item-color-deep, transparent);
-  transition: background 0.2s ease, color 0.2s ease;
+  transition: background var(--dur-micro) ease, color var(--dur-micro) ease;
 }
 
 /* hover 包 desktop guard：手機 tap 後 sticky hover 會留黑底白字無法清除 */
@@ -1394,7 +1421,7 @@ body.overflow-hidden #custom-scrollbar-thumb {
   cursor: pointer;
   background: transparent;
   color: #000;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition: background var(--dur-micro) ease, color var(--dur-micro) ease;
   /* card rotate 後相鄰 row sub-pixel rendering 漏 1px accent 縫；margin -1 讓 row 重疊補縫 */
   margin: -1px 0;
 }
@@ -1542,9 +1569,9 @@ body.overflow-hidden #custom-scrollbar-thumb {
   stroke-width: 0.7;
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-              stroke-width 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-              stroke-dashoffset 0.6s cubic-bezier(0.25, 0, 0.2, 1);
+  transition: opacity var(--dur-fast) var(--ease-standard),
+              stroke-width var(--dur-base) var(--ease-standard),
+              stroke-dashoffset var(--dur-slow) cubic-bezier(0.25, 0, 0.2, 1);
   vector-effect: non-scaling-stroke;
 }
 
@@ -1564,7 +1591,7 @@ body.overflow-hidden #custom-scrollbar-thumb {
   stroke-dashoffset: 0;
   vector-effect: non-scaling-stroke;
   pointer-events: none;
-  transition: opacity 0.3s ease;
+  transition: opacity var(--dur-fast) ease;
 }
 
 /* hover dim：避免 hover label 時城市連線干擾焦點 */
@@ -1621,7 +1648,7 @@ body.overflow-hidden #custom-scrollbar-thumb {
   max-width: 170px;
   text-align: left;
   cursor: var(--cursor-default);
-  transition: opacity 0.3s ease;
+  transition: opacity var(--dur-fast) ease;
   /* floating 改由 atlas.js rAF 直接設 inline transform，line 端點同步移動 */
   /* 預設 translateY(-50%) 讓 box 垂直中心對齊 anchor.top（item.y）— 與 computeBoxAt
      的 box 中心假設一致。非 D items 的 inline transform 也會帶 translateY(-50%) 覆蓋；
@@ -1811,7 +1838,7 @@ body.overflow-hidden #custom-scrollbar-thumb {
 .atlas-alumni-subchip {
   pointer-events: auto;
   cursor: var(--cursor-pointer);
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition: background-color var(--dur-micro) ease, color var(--dur-micro) ease;
 }
 
 .atlas-alumni-subchip.subchip-inactive {
@@ -1888,7 +1915,7 @@ body.overflow-hidden #custom-scrollbar-thumb {
      對齊 .atlas-filter-btn：0.5s + 同 ease + -12px buffer 蓋 rotate(-8deg/15deg) 邊界外溢
      transform 仍要 transition 給 hover rotate 用，兩 prop 並列 */
   clip-path: inset(-12px calc(100% + 12px) -12px -12px);
-  transition: clip-path 0.5s cubic-bezier(0.25, 0, 0, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: clip-path var(--dur-medium) var(--ease-wipe), transform var(--dur-fast) var(--ease-standard);
 }
 
 #atlas-layout-btn.atlas-layout-revealed .atlas-layout-inner {
@@ -2241,7 +2268,7 @@ body.overflow-hidden #custom-scrollbar-thumb {
   opacity: 1;
   font-size: 19.5px;
   line-height: 1;
-  transition: opacity 0.2s ease;
+  transition: opacity var(--dur-micro) ease;
 }
 
 .atlas-list-nav-btn:disabled {
@@ -2269,7 +2296,7 @@ body.overflow-hidden #custom-scrollbar-thumb {
      inset 四值全用負 12px 把 clip 區域擴大覆蓋 .anchor-nav-inner 的 ±3° 旋轉外溢；
      起點 right 用 calc(100% + 12px) 把右側往左 cover 整個 box 才會 0 寬完全隱藏 */
   clip-path: inset(-12px calc(100% + 12px) -12px -12px);
-  transition: opacity 0.2s ease, clip-path 0.5s cubic-bezier(0.25, 0, 0, 1);
+  transition: opacity var(--dur-micro) ease, clip-path var(--dur-medium) var(--ease-wipe);
 }
 
 .atlas-filter-btn.atlas-filter-revealed {
@@ -2284,7 +2311,7 @@ body.overflow-hidden #custom-scrollbar-thumb {
   background: transparent;
   color: rgba(0, 0, 0, 0.5);
   padding: 6px 8px 5px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all var(--dur-fast) var(--ease-standard);
 }
 
 .atlas-filter-btn .atlas-filter-en,
@@ -3750,9 +3777,9 @@ body.mode-color .atlas-filter-btn:not(.active) .anchor-nav-inner {
   background-color: var(--theme-bg) !important;
   color: rgba(var(--theme-fg-rgb), 0.5) !important;
   opacity: 1;
-  transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-              opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-              transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition: color var(--dur-fast) var(--ease-standard),
+              opacity var(--dur-fast) var(--ease-standard),
+              transform var(--dur-fast) var(--ease-standard) !important;
 }
 
 /* Inactive Hover：文字 100% 對比 */
@@ -4268,7 +4295,7 @@ body.mode-color .hm-banner-num[style*="background"] {
 
 body.mode-color [data-bar="about"] {
   background: var(--theme-bg) !important;
-  transition: color 0.3s ease, transform 0.3s ease !important;
+  transition: color var(--dur-fast) ease, transform var(--dur-fast) ease !important;
 }
 
 body.mode-color [data-bar="about"] .nav-link {
@@ -4314,7 +4341,7 @@ body.mode-color [data-bar="library"],
 body.mode-color [data-bar="atlas"],
 body.mode-color [data-bar="generate"],
 body.mode-color [data-bar="alumni"] {
-  transition: color 0.3s ease, transform 0.3s ease !important;
+  transition: color var(--dur-fast) ease, transform var(--dur-fast) ease !important;
 }
 
 /* Inactive：bg 跟 body 動態 + text 100% theme-fg
@@ -5011,7 +5038,7 @@ body{
 
 
 html.mode-switching.mode-switching body {
-  transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease;
+  transition: background-color var(--dur-base) ease, color var(--dur-base) ease, border-color var(--dur-base) ease;
 }
 
 body.mode-inverse body:not([data-bar="about"]):not(#faculty-panel) {
@@ -5640,7 +5667,7 @@ p{
   opacity: 0;
   margin-left: 0;
   vertical-align: middle;
-  transition: max-width 0.35s cubic-bezier(0.25, 0, 0, 1), opacity 0.3s ease-out, margin-left 0.3s ease-out;
+  transition: max-width var(--dur-fast) var(--ease-wipe), opacity var(--dur-fast) ease-out, margin-left var(--dur-fast) ease-out;
   white-space: nowrap;
 }
 
@@ -5729,7 +5756,7 @@ header {
   width: 100%;
   z-index: 9999 !important;
   /* 強制最高層級，確保蓋過所有內容 */
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform var(--dur-fast) var(--ease-standard), opacity var(--dur-fast) var(--ease-standard);
 }
 
 /* Lightbox 打開時 header 動畫由 activities-lightbox.js 接手做 clip-path inset 退場
@@ -5788,7 +5815,7 @@ html.has-slide-in body.lightbox-open #site-header,
 /* ===== Anchor Navigation (About Page) ===== */
 
 .anchor-nav-btn {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all var(--dur-fast) var(--ease-standard);
   background: none;
   border: none;
   padding: 0;
@@ -5806,12 +5833,12 @@ html.has-slide-in body.lightbox-open #site-header,
   background: rgba(255, 255, 255, 0.5);
   padding: 6px 8px 5px;
   color: rgba(0, 0, 0, 0.5);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all var(--dur-fast) var(--ease-standard);
 }
 
 .anchor-nav-btn div {
   padding: 0;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all var(--dur-fast) var(--ease-standard);
   position: relative;
 }
 
@@ -5936,7 +5963,7 @@ html.has-slide-in .theme-toggle-btn,
   color: #000;
   /* transition 含 transform：mobile-menu.js 對 btn 外殼套 random rotation，每次點擊新角度需平滑切換
        clip-path 動畫由 lightbox-shell GSAP 控（slide-in/lightbox 開時），不在 CSS transition 處理 */
-  transition: background var(--transition-fast), color var(--transition-fast), transform 0.4s ease;
+  transition: background var(--transition-fast), color var(--transition-fast), transform var(--dur-base) ease;
 }
 
 /* ===== Section Nav Buttons（共用基底樣式）=====
@@ -6233,7 +6260,7 @@ html.has-slide-in .theme-toggle-btn,
   z-index: 2;
   background: var(--theme-fg);
   color: var(--theme-bg);
-  transition: background 0.2s ease, color 0.2s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background var(--dur-micro) ease, color var(--dur-micro) ease, transform var(--dur-fast) var(--ease-standard);
 }
 
 /* ===== Class Division Toggle Buttons ===== */
@@ -6248,7 +6275,7 @@ html.has-slide-in .theme-toggle-btn,
   cursor: var(--cursor-pointer);
   padding: 6px 8px 5px;
   text-align: left;
-  transition: background 0.2s ease, color 0.2s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background var(--dur-micro) ease, color var(--dur-micro) ease, transform var(--dur-fast) var(--ease-standard);
 }
 
 /* ===== Class Buttons Sticky Container =====
@@ -6273,9 +6300,9 @@ html.has-slide-in .theme-toggle-btn,
   /* right 用 calc(100% + 40px) 確保左側 -40px 的 clearance 也被裁掉
        避免 max-width:0 時左邊殘留一條可見區 */
   clip-path: inset(-40px calc(100% + 40px) -40px -40px);
-  transition: max-width 0.5s cubic-bezier(0.4, 0, 0.2, 1),
-                margin-right 0.5s cubic-bezier(0.4, 0, 0.2, 1),
-                clip-path 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: max-width var(--dur-medium) var(--ease-standard),
+                margin-right var(--dur-medium) var(--ease-standard),
+                clip-path var(--dur-medium) var(--ease-standard);
 }
 
 /* 展開：clip-path 左→右揭露 */
@@ -6296,7 +6323,7 @@ html.has-slide-in .theme-toggle-btn,
 
 .faculty-card {
   background-color: transparent;
-  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color var(--dur-fast) var(--ease-standard);
 }
 
 .faculty-card-image-wrapper {
@@ -6310,8 +6337,8 @@ html.has-slide-in .theme-toggle-btn,
 }
 
 .faculty-card-image {
-  transition: filter 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-                transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: filter var(--dur-fast) var(--ease-standard),
+                transform var(--dur-fast) var(--ease-standard);
 }
 
 .faculty-card-image-wrapper::after {
@@ -6321,7 +6348,7 @@ html.has-slide-in .theme-toggle-btn,
   background-color: var(--card-color, #26BCFF);
   mix-blend-mode: screen;
   opacity: 0;
-  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity var(--dur-fast) var(--ease-standard);
   pointer-events: none;
 }
 
@@ -6350,7 +6377,7 @@ html.has-slide-in .theme-toggle-btn,
 
 .faculty-card-image-wrapper {
   transform: rotate(var(--init-deg, 0deg));
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform var(--dur-fast) var(--ease-standard);
 }
 
 @media (min-width: 768px) {
@@ -6394,11 +6421,11 @@ html.has-slide-in .theme-toggle-btn,
 /* ===== Album Cards ===== */
 
 .album-card {
-  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color var(--dur-fast) var(--ease-standard);
 }
 
 .album-card-img {
-  transition: filter 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: filter var(--dur-fast) var(--ease-standard);
 }
 
 /* ===== Faculty Slide-in Grid Rows =====
@@ -6549,7 +6576,7 @@ html.has-slide-in .theme-toggle-btn,
 
 .list-year-toggle .icon-chevron-list,
   .activities-year-toggle .icon-chevron-list {
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform var(--dur-fast) var(--ease-standard);
 }
 
 /* ===== Horizontal Accordion ===== */
@@ -7078,7 +7105,7 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
   display: inline-block;
   transform-origin: left center;
   clip-path: inset(-12px -12px calc(100% + 12px) -12px);
-  transition: clip-path 0.5s cubic-bezier(0.25, 0, 0, 1);
+  transition: clip-path var(--dur-medium) var(--ease-wipe);
 }
 
 .sticky-chip-inner {
@@ -7127,7 +7154,7 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
   background: var(--theme-fg, #000);
   color: var(--theme-fg-inverse, #fff);
   font-size: 32px;
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform var(--dur-fast) var(--ease-standard);
 }
 
 /* Ref btn：back btn 右邊，bottom 同高
@@ -7380,7 +7407,7 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
   color: rgba(0, 0, 0, 0.5);
   background: transparent;
   white-space: nowrap;
-  transition: background 0.2s ease, color 0.2s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background var(--dur-micro) ease, color var(--dur-micro) ease, transform var(--dur-fast) var(--ease-standard);
 }
 
 .courses-program-group:has(.courses-program-btn.active) .courses-bfa-label {
@@ -7637,7 +7664,7 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
   -webkit-user-select: none;
      -moz-user-select: none;
           user-select: none;
-  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+  transition: background var(--dur-micro) ease, color var(--dur-micro) ease, transform var(--dur-micro) ease;
   box-sizing: border-box;
 }
 
@@ -7701,11 +7728,11 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 }
 
 #courses-overlay {
-  transition: opacity 0.3s ease;
+  transition: opacity var(--dur-fast) ease;
 }
 
 #courses-detail-panel {
-  transition: background 0.3s ease;
+  transition: background var(--dur-fast) ease;
 }
 
 .courses-detail-title-en,
@@ -7905,7 +7932,7 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 
 .legal-content-col {
   padding-top: var(--spacing-6xl);
-  padding-bottom: var(--spacing-6xl);
+  padding-bottom: var(--spacing-3xl);
 }
 
 /* accessibility / regulations 變體：ACCESSIBILITY / REGULATIONS 單字長、chip 旋轉後右下角會超出 col 5 邊界
@@ -7974,6 +8001,19 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
   margin-bottom: var(--spacing-3xl);
 }
 
+/* 不編號變體（如 support：Funds / Others 是分類非條款）→ 無 num 欄，body 撐滿單欄 */
+
+.legal-section--no-num {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* support：最後一個 section 不留尾端 margin（support 無 #legal-updated 區塊，否則底部多一段空白）。
+     只 scope support，其他 legal 頁最後 section 後面還接著「最後更新」區塊不受影響。 */
+
+.legal-support .legal-section:last-child {
+  margin-bottom: 0;
+}
+
 .legal-section-num {
   font-size: var(--font-size-h4);
   font-weight: var(--font-weight-bold);
@@ -7996,6 +8036,22 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 
 .legal-section-body > .legal-section-title-zh {
   margin-bottom: var(--spacing-md);
+}
+
+/* 內文次標題（如 support 的 Single/Regular）：比群組標題（h4）小一級的 h5，與前文拉開層級才清楚 */
+
+.legal-section-body h5 {
+  font-size: var(--font-size-h5);
+  font-weight: var(--font-weight-bold);
+  line-height: 1.2;
+  margin-top: var(--spacing-lg);
+  margin-bottom: var(--spacing-sm);
+}
+
+/* 緊接群組標題的第一個次標題不另加上距（群組標題已有 margin-bottom） */
+
+.legal-section-body .legal-section-title-zh + h5 {
+  margin-top: 0;
 }
 
 /* 內文 list / p：對齊到 col 2 左邊（與標題等距） */
@@ -8037,17 +8093,11 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
   margin-bottom: 0;
 }
 
-/* 內文連結（如聯絡 email）：底線 + 桌面 hover 轉灰（取代原本 inline 的 hover:text-gray-6） */
+/* 內文連結（如聯絡 email、捐款連結）：粗體、不加底線、無 hover 效果（user 偏好） */
 
 .legal-section-body a {
-  text-decoration: underline;
-  transition: color 0.2s;
-}
-
-@media (min-width: 768px) {
-  .legal-section-body a:hover {
-    color: var(--gray-6);
-  }
+  font-weight: var(--font-weight-bold);
+  text-decoration: none;
 }
 
 /* 手機：取消 sticky，title 與內文 stack flow；高度回 auto */
@@ -8077,95 +8127,15 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 
 /* 群組（Funds / Others）間距 */
 
-.support-group {
-  margin-bottom: var(--spacing-3xl);
-}
-
-.support-group:last-child {
-  margin-bottom: 0;
-}
-
 /* 群組大標 EN / ZH（比照 legal-section 標題級：h4 bold） */
-
-.support-group-title-en,
-  .support-group-title-zh {
-  font-size: var(--font-size-h4);
-  font-weight: var(--font-weight-bold);
-  line-height: var(--line-height-h4, 1.2);
-  margin: 0;
-}
-
-.support-group-title-en {
-  margin-bottom: var(--spacing-sm);
-}
-
-.support-group-title-zh {
-  margin-bottom: var(--spacing-md);
-}
 
 /* 子標 Single / Regular（群組內小標） */
 
-.support-subheading {
-  font-weight: var(--font-weight-bold);
-  font-size: var(--font-size-p1);
-  margin-top: var(--spacing-lg);
-  margin-bottom: var(--spacing-xs);
-}
-
 /* 內文段落 */
-
-.support-group > p {
-  margin-bottom: var(--spacing-sm);
-}
-
-.support-group > p:last-child {
-  margin-bottom: 0;
-}
 
 /* 編號清單：主層 decimal、子層 lower-alpha，outside marker + 縮排（比照 legal list 風格） */
 
-.support-list,
-  .support-list-sub {
-  padding-left: 1.25rem;
-}
-
-.support-list {
-  list-style: decimal outside;
-  margin-bottom: var(--spacing-md);
-}
-
-.support-list:last-child {
-  margin-bottom: 0;
-}
-
-.support-list-sub {
-  list-style: lower-alpha outside;
-  margin-top: var(--spacing-xs);
-}
-
-.support-list > li {
-  margin-top: var(--spacing-xs);
-}
-
-.support-list > li:first-child {
-  margin-top: 0;
-}
-
-.support-list-sub > li {
-  margin-top: 0.2rem;
-}
-
-.support-list-sub > li:first-child {
-  margin-top: 0;
-}
-
 /* 連結：繼承內文色、粗體、無底線（同 legal / 舊 support 風格） */
-
-.support-link {
-  color: inherit;
-  text-decoration: none;
-  font-weight: 700;
-}
 
 .sr-only{
   position:  absolute;
@@ -8371,10 +8341,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 
 .mb-3xl{
   margin-bottom:  var(--spacing-3xl);
-}
-
-.mb-4xl{
-  margin-bottom:  var(--spacing-4xl);
 }
 
 .mb-lg{
@@ -8689,10 +8655,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
   resize:  both;
 }
 
-.list-disc{
-  list-style-type:  disc;
-}
-
 .grid-cols-12{
   grid-template-columns:  repeat(12, minmax(0, 1fr));
 }
@@ -8807,12 +8769,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 
 .gap-y-4xl{
   row-gap:  var(--spacing-4xl);
-}
-
-.space-y-xs > :not([hidden]) ~ :not([hidden]){
-  --tw-space-y-reverse:  0;
-  margin-top:  calc(var(--spacing-xs) * calc(1 - var(--tw-space-y-reverse)));
-  margin-bottom:  calc(var(--spacing-xs) * var(--tw-space-y-reverse));
 }
 
 .self-start{
@@ -9339,11 +9295,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
   color:  rgb(128 128 128 / var(--tw-text-opacity, 1));
 }
 
-.hover\:text-gray-6:hover{
-  --tw-text-opacity:  1;
-  color:  rgb(153 153 153 / var(--tw-text-opacity, 1));
-}
-
 .hover\:opacity-60:hover{
   opacity:  0.6;
 }
@@ -9356,15 +9307,23 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
   opacity:  0.3;
 }
 
-.disabled\:opacity-50:disabled{
-  opacity:  0.5;
+.disabled\:\[cursor\:not-allowed\]:disabled{
+  cursor:  not-allowed;
 }
 
 .disabled\:\[cursor\:var\(--cursor-not-allowed\)\]:disabled{
   cursor:  var(--cursor-not-allowed);
 }
 
-.disabled\:hover\:opacity-50:hover:disabled{
+.aria-disabled\:opacity-50[aria-disabled="true"]{
+  opacity:  0.5;
+}
+
+.aria-disabled\:\[cursor\:var\(--cursor-not-allowed\)\][aria-disabled="true"]{
+  cursor:  var(--cursor-not-allowed);
+}
+
+.aria-disabled\:hover\:opacity-50:hover[aria-disabled="true"]{
   opacity:  0.5;
 }
 

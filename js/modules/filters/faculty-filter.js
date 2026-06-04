@@ -4,6 +4,7 @@
  */
 
 import { setupClipReveal } from '../ui/scroll-animate.js';
+import { DUR, EASE } from '../ui/motion.js';
 
 // 卡片進場動畫：
 //   圖片 → 4 方向 clip-path inset 揭露（每卡 data-img-dir 隨機）
@@ -39,8 +40,8 @@ function setupFacultyCardAnim(card) {
 //   重要約束：NAME_OFFSET 必須 ≥ CARD_ADVANCE，否則 title 會搶在「下一張 image 出現」之前 → 違反使用者要求
 //   row 與 row 之間：上一 row 最後一張卡片動畫完整結束 + ROW_GAP 才換 row
 //   卡片完整揭露（title 動畫結束）後才解除 pointer-events-none，重啟 hover
-const IMG_DUR = 0.8;
-const TEXT_DUR = 0.7;
+const IMG_DUR = DUR.reveal;
+const TEXT_DUR = DUR.slow;
 const CARD_ADVANCE = IMG_DUR / 2;     // image 一半時下一張 image 起跑 → 0.3
 const NAME_OFFSET = CARD_ADVANCE + 0.1; // 下一張 image 起跑後 0.1s 才 name 開始（保證 title 不搶在下一張 image 之前）→ 0.4
 const TITLE_OFFSET = NAME_OFFSET + 0.1; // name 之後 0.1s 接 title（subtitle 內部小 stagger）→ 0.5
@@ -80,7 +81,7 @@ function playFacultyCard(card, startTime) {
     gsap.to(imgWrapper, {
       clipPath: CLIP_REVEALED,
       duration: IMG_DUR,
-      ease: 'power3.out',
+      ease: EASE.enter,
       delay: startTime,
       clearProps: 'clipPath',
     });
@@ -89,7 +90,7 @@ function playFacultyCard(card, startTime) {
     gsap.to(name, {
       yPercent: 0,
       duration: TEXT_DUR,
-      ease: 'power3.out',
+      ease: EASE.enter,
       delay: startTime + NAME_OFFSET,
       clearProps: 'transform',
     });
@@ -98,7 +99,7 @@ function playFacultyCard(card, startTime) {
     gsap.to(title, {
       yPercent: 0,
       duration: TEXT_DUR,
-      ease: 'power3.out',
+      ease: EASE.enter,
       delay: startTime + TITLE_OFFSET,
       clearProps: 'transform',
     });
@@ -188,11 +189,11 @@ function exitFacultyCards(cards, onComplete) {
 
     if (title) {
       gsap.killTweensOf(title);
-      gsap.to(title, { yPercent: 100, duration: EXIT_DUR, ease: 'power3.in', delay: cardDelay });
+      gsap.to(title, { yPercent: 100, duration: EXIT_DUR, ease: EASE.exit, delay: cardDelay });
     }
     if (name) {
       gsap.killTweensOf(name);
-      gsap.to(name, { yPercent: 100, duration: EXIT_DUR, ease: 'power3.in', delay: cardDelay + EXIT_INTERNAL_STEP });
+      gsap.to(name, { yPercent: 100, duration: EXIT_DUR, ease: EASE.exit, delay: cardDelay + EXIT_INTERNAL_STEP });
     }
     if (imgWrapper) {
       gsap.killTweensOf(imgWrapper);
@@ -203,7 +204,7 @@ function exitFacultyCards(cards, onComplete) {
         {
           clipPath: CLIP_MAP[imgDir] || CLIP_MAP.bottom,
           duration: EXIT_DUR,
-          ease: 'power3.in',
+          ease: EASE.exit,
           delay: cardDelay + EXIT_INTERNAL_STEP * 2,
         }
       );

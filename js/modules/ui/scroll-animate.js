@@ -1,3 +1,4 @@
+import { DUR, EASE } from './motion.js';
 /**
  * Scroll Animate Module
  * 通用卡片進場動畫，可搭配 ScrollTrigger 或直接執行
@@ -59,9 +60,9 @@ export function playClipReveal(elements, { onComplete = null } = {}) {
   gsap.killTweensOf(items);
   gsap.to(items, {
     yPercent: 0,
-    duration: 0.9,
+    duration: DUR.reveal,
     stagger: { each: 0.12, grid: 'auto', axis: 'y' },
-    ease: 'power3.out',
+    ease: EASE.enter,
     overwrite: true,
     clearProps: 'transform',
     onComplete: onComplete || undefined,
@@ -120,9 +121,9 @@ export function animateCards(elements, useScrollTrigger = false, { fadeIn = fals
         const isLast = enteredCount >= items.length;
         gsap.to(batch, {
           ...toProps,
-          duration: 0.6,
+          duration: DUR.slow,
           stagger: { each: 0.1, grid: 'auto', axis: 'y' },
-          ease: 'power2.out',
+          ease: EASE.enterSoft,
           overwrite: true,
           clearProps,
           onComplete: isLast && onLastEnter ? onLastEnter : undefined,
@@ -134,9 +135,9 @@ export function animateCards(elements, useScrollTrigger = false, { fadeIn = fals
 
   gsap.to(items, {
     ...toProps,
-    duration: 0.6,
+    duration: DUR.slow,
     stagger: { each: 0.1, grid: 'auto', axis: 'y' },
-    ease: 'power2.out',
+    ease: EASE.enterSoft,
     clearProps,
     onComplete: onLastEnter || undefined,
   });

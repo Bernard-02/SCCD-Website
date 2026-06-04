@@ -9,6 +9,7 @@ import { setupClipReveal } from '../ui/scroll-animate.js';
 import { initListAccordion } from '../accordions/list-accordion.js';
 import { loadListInto } from './activities-data-loader.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
+import { DUR, EASE } from '../ui/motion.js';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -221,9 +222,9 @@ function playItemsReveal(items, { useScrollTrigger = true, onAllComplete = null 
     }
     gsap.to(rows, {
       yPercent: 0,
-      duration: 0.7,
+      duration: DUR.slow,
       stagger: { each: 0.08 },  // DOM 順序 = title → date → chevron → divider
-      ease: 'power3.out',
+      ease: EASE.enter,
       overwrite: true,
       clearProps: 'transform',
       onComplete: () => {
@@ -253,9 +254,9 @@ function playItemsReveal(items, { useScrollTrigger = true, onAllComplete = null 
       if (rows.length === 0) return;
       tl.to(rows, {
         yPercent: 0,
-        duration: 0.6,
+        duration: DUR.slow,
         stagger: { each: 0.06 },
-        ease: 'power3.out',
+        ease: EASE.enter,
         clearProps: 'transform',
         onComplete: () => item.removeAttribute('data-pre-reveal'),
       }, idx * 0.18);
@@ -316,8 +317,8 @@ export function playAdmissionPanelReveal(panel, { useScrollTrigger = false } = {
       ScrollTrigger.create({
         trigger: intro[0], start: 'top 90%', once: true,
         onEnter: () => gsap.to(intro, {
-          yPercent: 0, duration: 0.6, stagger: { each: 0.06 },
-          ease: 'power3.out', clearProps: 'transform',
+          yPercent: 0, duration: DUR.slow, stagger: { each: 0.06 },
+          ease: EASE.enter, clearProps: 'transform',
           onComplete: incComplete,
         }),
       });
@@ -328,8 +329,8 @@ export function playAdmissionPanelReveal(panel, { useScrollTrigger = false } = {
       ScrollTrigger.create({
         trigger: triggerEl, start: 'top 90%', once: true,
         onEnter: () => gsap.to(groupRows, {
-          yPercent: 0, duration: 0.6, stagger: { each: 0.06 },
-          ease: 'power3.out', clearProps: 'transform',
+          yPercent: 0, duration: DUR.slow, stagger: { each: 0.06 },
+          ease: EASE.enter, clearProps: 'transform',
           onComplete: () => { unlockGroup(groupRows); incComplete(); },
         }),
       });
@@ -339,16 +340,16 @@ export function playAdmissionPanelReveal(panel, { useScrollTrigger = false } = {
     const tl = gsap.timeline({ onComplete: onAllComplete });
     if (intro.length) {
       tl.to(intro, {
-        yPercent: 0, duration: 0.5, stagger: { each: 0.06 },
-        ease: 'power3.out', clearProps: 'transform',
+        yPercent: 0, duration: DUR.medium, stagger: { each: 0.06 },
+        ease: EASE.enter, clearProps: 'transform',
       }, 0);
     }
     const groupStart = intro.length ? 0.3 : 0;
     groups.forEach((groupRows, idx) => {
       if (groupRows.length === 0) return;
       tl.to(groupRows, {
-        yPercent: 0, duration: 0.6, stagger: { each: 0.06 },
-        ease: 'power3.out', clearProps: 'transform',
+        yPercent: 0, duration: DUR.slow, stagger: { each: 0.06 },
+        ease: EASE.enter, clearProps: 'transform',
         onComplete: () => unlockGroup(groupRows),
       }, groupStart + idx * 0.18);
     });
@@ -386,8 +387,8 @@ function collapseOpenAccordionsInPanel(panel) {
         /** @type {HTMLElement} */ (content).style.overflow = 'hidden';
         tl.to(content, {
           height: 0,
-          duration: 0.5,
-          ease: 'power2.in',
+          duration: DUR.medium,
+          ease: EASE.exitSoft,
           onComplete: () => {
             header.classList.remove('active');
             /** @type {HTMLElement} */ (header).style.background = '';
@@ -403,7 +404,7 @@ function collapseOpenAccordionsInPanel(panel) {
         }, 0);
         hasTween = true;
       }
-      if (chevron) tl.to(chevron, { rotation: 90, duration: 0.3 }, 0);  // close → list-header 朝下
+      if (chevron) tl.to(chevron, { rotation: 90, duration: DUR.fast }, 0);  // close → list-header 朝下
     });
     // 完全沒 tween 被加進去 → onComplete 不會 fire，手動 resolve
     if (!hasTween && tl.getChildren().length === 0) resolve(undefined);
@@ -434,8 +435,8 @@ export async function playAdmissionPanelExit(panel) {
     // rows 在 clip wrapper 內：用 yPercent:100 即可隱藏（不動 opacity）
     gsap.to(rows, {
       yPercent: 100,
-      duration: 0.4,
-      ease: 'power3.in',
+      duration: DUR.base,
+      ease: EASE.exit,
       overwrite: true,
       onComplete: resolve,
     });

@@ -1,3 +1,4 @@
+import { DUR, EASE } from './motion.js';
 /**
  * Slide-in 背景染色 GSAP timeline 共用模組
  *
@@ -43,10 +44,10 @@ export function openSlideInBg({ overlay, panel, panelBg }) {
   }
 
   return gsap.timeline()
-    .to(overlay, { opacity: 0.8, duration: 0.3 }, 0)
-    .to(htmlEl,  { '--slide-bg-color': dimBg, duration: 0.3 }, 0)
-    .to(panel,   { x: '0%', duration: 0.5, ease: 'power3.out' }, 0.3)
-    .to(htmlEl,  { '--slide-bg-color': panelBg, duration: 0.5, ease: 'power3.out' }, 0.3);
+    .to(overlay, { opacity: 0.8, duration: DUR.fast }, 0)
+    .to(htmlEl,  { '--slide-bg-color': dimBg, duration: DUR.fast }, 0)
+    .to(panel,   { x: '0%', duration: DUR.medium, ease: EASE.enter }, 0.3)
+    .to(htmlEl,  { '--slide-bg-color': panelBg, duration: DUR.medium, ease: EASE.enter }, 0.3);
 }
 
 /**
@@ -78,9 +79,9 @@ export function closeSlideInBg({ overlay, panel, onComplete }) {
   }
 
   return gsap.timeline()
-    .to(panel,   { x: '110%', duration: 0.5, ease: 'power3.in' }, 0)
-    .to(htmlEl,  { '--slide-bg-color': dimBg, duration: 0.5, ease: 'power3.in' }, 0)
-    .to(overlay, { opacity: 0, duration: 0.3 }, 0.5)
-    .to(htmlEl,  { '--slide-bg-color': targetBg, duration: 0.3 }, 0.5)
+    .to(panel,   { x: '110%', duration: DUR.medium, ease: EASE.exit }, 0)
+    .to(htmlEl,  { '--slide-bg-color': dimBg, duration: DUR.medium, ease: EASE.exit }, 0)
+    .to(overlay, { opacity: 0, duration: DUR.fast }, 0.5)
+    .to(htmlEl,  { '--slide-bg-color': targetBg, duration: DUR.fast }, 0.5)
     .call(cleanup);
 }

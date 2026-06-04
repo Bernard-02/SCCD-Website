@@ -5,6 +5,7 @@
  */
 
 import { getCurrentSectionColor } from './activities-section-switch.js';
+import { DUR, EASE } from '../ui/motion.js';
 
 // ── 常數 ──────────────────────────────────────────────────────────────────────
 
@@ -101,12 +102,12 @@ export function initAccordion(container) {
       if (isOpen) {
         group.dataset.open = 'false';
         gsap.set(items, { height: items.offsetHeight, overflow: 'hidden' });
-        gsap.to(items, { height: 0, duration: 0.4, ease: 'power2.in' });
+        gsap.to(items, { height: 0, duration: DUR.base, ease: EASE.exitSoft });
         if (icon) icon.classList.remove('rotate-180');
       } else {
         group.dataset.open = 'true';
         gsap.set(items, { overflow: 'hidden' });
-        gsap.to(items, { height: 'auto', duration: 0.5, ease: 'power2.out',
+        gsap.to(items, { height: 'auto', duration: DUR.medium, ease: EASE.enterSoft,
           onComplete: () => gsap.set(items, { overflow: 'visible' }) });
         if (icon) icon.classList.add('rotate-180');
       }
@@ -344,12 +345,12 @@ export function initFilterToggle(toggleBtn, rowsWrap, defaultOpen = true) {
   toggleBtn.addEventListener('click', () => {
     const isOpen = toggleBtn.dataset.open !== 'false';
     if (isOpen) {
-      gsap.to(rowsWrap, { height: 0, duration: 0.35, ease: 'power2.inOut' });
-      gsap.to(icon, { rotation: 180, duration: 0.35, ease: 'power2.inOut' });
+      gsap.to(rowsWrap, { height: 0, duration: DUR.fast, ease: EASE.move });
+      gsap.to(icon, { rotation: 180, duration: DUR.fast, ease: EASE.move });
       toggleBtn.dataset.open = 'false';
     } else {
-      gsap.to(rowsWrap, { height: 'auto', duration: 0.35, ease: 'power2.inOut' });
-      gsap.to(icon, { rotation: 0, duration: 0.35, ease: 'power2.inOut' });
+      gsap.to(rowsWrap, { height: 'auto', duration: DUR.fast, ease: EASE.move });
+      gsap.to(icon, { rotation: 0, duration: DUR.fast, ease: EASE.move });
       toggleBtn.dataset.open = 'true';
     }
   });

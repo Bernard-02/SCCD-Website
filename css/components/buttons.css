@@ -62,7 +62,7 @@
     color: #000;
     /* transition 含 transform：mobile-menu.js 對 btn 外殼套 random rotation，每次點擊新角度需平滑切換
        clip-path 動畫由 lightbox-shell GSAP 控（slide-in/lightbox 開時），不在 CSS transition 處理 */
-    transition: background var(--transition-fast), color var(--transition-fast), transform 0.4s ease;
+    transition: background var(--transition-fast), color var(--transition-fast), transform var(--dur-base) ease;
   }
   /* ===== Section Nav Buttons（共用基底樣式）=====
    * 包含：faculty-filter / activities-section / courses-program /
@@ -353,7 +353,7 @@
     z-index: 2;
     background: var(--theme-fg);
     color: var(--theme-bg);
-    transition: background 0.2s ease, color 0.2s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: background var(--dur-micro) ease, color var(--dur-micro) ease, transform var(--dur-fast) var(--ease-standard);
   }
 
   /* ===== Class Division Toggle Buttons ===== */
@@ -366,7 +366,7 @@
     cursor: var(--cursor-pointer);
     padding: 6px 8px 5px;
     text-align: left;
-    transition: background 0.2s ease, color 0.2s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: background var(--dur-micro) ease, color var(--dur-micro) ease, transform var(--dur-fast) var(--ease-standard);
   }
 
   /* ===== Class Buttons Sticky Container =====
@@ -389,9 +389,9 @@
     /* right 用 calc(100% + 40px) 確保左側 -40px 的 clearance 也被裁掉
        避免 max-width:0 時左邊殘留一條可見區 */
     clip-path: inset(-40px calc(100% + 40px) -40px -40px);
-    transition: max-width 0.5s cubic-bezier(0.4, 0, 0.2, 1),
-                margin-right 0.5s cubic-bezier(0.4, 0, 0.2, 1),
-                clip-path 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: max-width var(--dur-medium) var(--ease-standard),
+                margin-right var(--dur-medium) var(--ease-standard),
+                clip-path var(--dur-medium) var(--ease-standard);
   }
 
   /* 展開：clip-path 左→右揭露 */

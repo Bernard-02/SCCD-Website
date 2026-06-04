@@ -4,6 +4,8 @@
  */
 
 import { registerPageCleanup } from '../ui/page-cleanup.js';
+import { renderPdfCover } from '../ui/pdf-cover.js';
+import { DUR, EASE } from '../ui/motion.js';
 
 // 桌面 20、手機 12（< 768px）。手機減量是視覺優化，不影響桌面。
 function isMobileViewport() { return window.innerWidth < 768; }
@@ -148,21 +150,23 @@ async function fetchAwardTexts() {
   return pool;
 }
 
-// 從 press.json 撈報導標題（導航到 library Press panel 對應文章）
-// press 沒有封面圖 → 跟 awards 一樣走文字浮動項；#press-N deep-link 由 library handleLibraryHash 處理
-async function fetchPressTexts() {
-  const pool = [];
+// 從 press.json 撈報導，用「PDF 本身的封面」當浮動圖卡（非文字卡——文字卡只給 award / curriculum）。
+// PDF 第一頁 render 成 dataURL 較重 → 不阻塞首頁：傳入空 pool，render 好一筆 push 一筆，
+// nextPoolEntry live 讀 pool.length 自動遞補（render 期間 press 名額暫由圖片池補位）。
+// 只取有 pdfUrl 的項目；render 由 pdf-cover.js 依 URL 快取（sample 階段多筆共用 sample.pdf 只 render 一次）。
+// #press-N deep-link 由 library handleLibraryHash 處理。
+async function populatePressCovers(pool, isCancelled) {
+  let items;
   try {
-    const items = await fetch('data/press.json').then(r => r.json());
-    items.forEach(item => {
-      if (!item.id) return;
-      const en = item.titleEn || '';
-      const zh = item.titleZh || '';
-      if (!en && !zh) return;
-      pool.push({ type: 'text', textEn: en, textZh: zh, url: `pages/library.html#${item.id}` });
-    });
-  } catch (_) {}
-  return pool;
+    items = await fetch('data/press.json').then(r => r.json());
+  } catch (_) { return; }
+
+  await Promise.all(items.map(async (item) => {
+    if (!item.id || !item.pdfUrl) return;
+    const src = await renderPdfCover(normalizeImagePath(item.pdfUrl));
+    if (!src || isCancelled()) return;
+    pool.push({ type: 'image', src, url: `pages/library.html#${item.id}` });
+  }));
 }
 
 // Fisher-Yates shuffle
@@ -587,11 +591,11 @@ function spawnItem(container, poolEntry, fromEdge = false) {
   const durX   = rand(8, 13);
   const gsapTweenY = gsap.fromTo(rotator,
     { rotateY: startY },
-    { rotateY: endY, duration: durY, ease: 'sine.inOut', yoyo: true, repeat: -1 }
+    { rotateY: endY, duration: durY, ease: EASE.sway, yoyo: true, repeat: -1 }
   );
   const gsapTweenX = gsap.fromTo(rotator,
     { rotateX: startX },
-    { rotateX: endX, duration: durX, ease: 'sine.inOut', yoyo: true, repeat: -1 }
+    { rotateX: endX, duration: durX, ease: EASE.sway, yoyo: true, repeat: -1 }
   );
   const gsapTween = {
     pause:  () => { gsapTweenY.pause();  gsapTweenX.pause();  },
@@ -603,7 +607,7 @@ function spawnItem(container, poolEntry, fromEdge = false) {
   el.addEventListener('mouseenter', () => {
     item.hovered = true;
     gsapTween.pause();
-    gsap.to(rotator, { rotateY: 0, rotateX: 0, duration: 0.35, ease: 'power2.out' });
+    gsap.to(rotator, { rotateY: 0, rotateX: 0, duration: DUR.fast, ease: EASE.enterSoft });
   });
   el.addEventListener('mouseleave', () => {
     item.hovered = false;
@@ -619,19 +623,19 @@ export async function initFloatingItems() {
   const container = document.getElementById('floating-layer');
   if (!container) return;
 
-  // 建立 pool：圖片（活動海報 + library 文件/相簿封面）+ 課程文字 + 獎項文字 + 報導文字
-  const [imagePool, coursePool, awardPool, pressPool] = await Promise.all([
+  // 建立 pool：圖片（活動海報 + library 文件/相簿封面）+ 課程文字 + 獎項文字 + 報導 PDF 封面圖
+  const [imagePool, coursePool, awardPool] = await Promise.all([
     fetchActivityPosters(),
     fetchCourseTexts(),
     fetchAwardTexts(),
-    fetchPressTexts(),
   ]);
+  // press 走 PDF 封面圖（背景 render，不阻塞）；先給空 pool，render 好逐筆 push
+  const pressPool = [];
 
   // 各 pool 獨立洗牌，依 2:1:1:1 比例隨機取出
   shuffle(imagePool);
   shuffle(coursePool);
   shuffle(awardPool);
-  shuffle(pressPool);
   const poolCursors = [0, 0, 0, 0];
   const pools = [imagePool, coursePool, awardPool, pressPool];
   // 權重：圖片 2、課程 1、獎項 1、報導 1 → 累積 [2, 3, 4, 5]
@@ -639,7 +643,9 @@ export async function initFloatingItems() {
 
   function nextPoolEntry() {
     const r = Math.random() * cumWeights[cumWeights.length - 1];
-    const pi = cumWeights.findIndex(w => r < w);
+    let pi = cumWeights.findIndex(w => r < w);
+    // 空池（press PDF 封面背景 render 中）→ 退回圖片池補位，render 好自然遞補
+    if (!pools[pi] || pools[pi].length === 0) pi = 0;
     const pool = pools[pi];
     if (!pool || pool.length === 0) return null;
     if (poolCursors[pi] >= pool.length) { shuffle(pool); poolCursors[pi] = 0; }
@@ -647,6 +653,11 @@ export async function initFloatingItems() {
   }
 
   const items = [];
+
+  // press PDF 封面背景 render（不 await，render 好逐筆 push 進 pressPool 自動遞補）；
+  // 離頁後 cancelled 為 true，in-flight render 完成時不再 push（避免動已棄置的 pool）
+  let cancelled = false;
+  populatePressCovers(pressPool, () => cancelled);
 
   // 初始化 items：pure random 位置（每次刷新完全不同）
   for (let i = 0; i < TOTAL_ITEMS; i++) {
@@ -714,6 +725,7 @@ export async function initFloatingItems() {
   // SPA 離開首頁時停 RAF + 解綁所有 listener，避免每次回首頁累積
   // （tick 對 detached DOM 空跑、visibilitychange 匿名 handler 複利、newsHoverListeners/themeListeners 無限增長）
   registerPageCleanup(() => {
+    cancelled = true;
     running = false;
     if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
     document.removeEventListener('visibilitychange', onVisibilityChange);

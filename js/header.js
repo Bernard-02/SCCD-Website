@@ -5,6 +5,7 @@
 
 import { initMobileMenu } from './mobile-menu.js';
 import { animateHeaderHide, animateHeaderShow, getHeaderTargets } from './modules/lightbox/lightbox-shell.js';
+import { DUR, EASE } from './modules/ui/motion.js';
 
 // Footer-near hide state（module-scope 讓 updateNavActive 能在 SPA 換頁時同步 reset）：
 // scroll listener 內 closure 變數會跨換頁存活，但 updateNavActive 拿不到 → 提升到 module scope
@@ -112,17 +113,17 @@ function applyMobileGenerateLogo() {
   if (lottieAnchor) {
     gsap.to(lottieAnchor, {
       opacity: 0,
-      duration: 0.25,
-      ease: 'power2.out',
+      duration: DUR.fast,
+      ease: EASE.enterSoft,
       onComplete: () => {
         swap();
         lottieAnchor.style.opacity = ''; // 還原供下次 restore 時 fade 用
-        gsap.fromTo(sccdAnchor, { opacity: 0 }, { opacity: 1, duration: 0.35, ease: 'power2.out' });
+        gsap.fromTo(sccdAnchor, { opacity: 0 }, { opacity: 1, duration: DUR.fast, ease: EASE.enterSoft });
       }
     });
   } else {
     swap();
-    gsap.fromTo(sccdAnchor, { opacity: 0 }, { opacity: 1, duration: 0.35, ease: 'power2.out' });
+    gsap.fromTo(sccdAnchor, { opacity: 0 }, { opacity: 1, duration: DUR.fast, ease: EASE.enterSoft });
   }
 }
 
@@ -171,12 +172,12 @@ function restoreMobileGenerateLogo() {
   if (typeof gsap === 'undefined') { swap(); return; }
   gsap.to(sccdAnchor, {
     opacity: 0,
-    duration: 0.25,
-    ease: 'power2.out',
+    duration: DUR.fast,
+    ease: EASE.enterSoft,
     onComplete: () => {
       swap();
       sccdAnchor.style.opacity = '';
-      if (lottieAnchor) gsap.fromTo(lottieAnchor, { opacity: 0 }, { opacity: 1, duration: 0.35, ease: 'power2.out' });
+      if (lottieAnchor) gsap.fromTo(lottieAnchor, { opacity: 0 }, { opacity: 1, duration: DUR.fast, ease: EASE.enterSoft });
     }
   });
 }
@@ -297,7 +298,7 @@ export function triggerGenerateLogo() {
   // SPA 從 library/atlas 進來 logo 已是 100 → 跳過 shrink；
   // 從一般頁進來 updateNavActive 已 skip 不動 logo，這裡負責收。
   if (needsShrink) {
-    gsap.to(logo, { width: SHRUNK_SIZE, height: SHRUNK_SIZE, duration: 0.6, ease: 'power2.inOut' });
+    gsap.to(logo, { width: SHRUNK_SIZE, height: SHRUNK_SIZE, duration: DUR.slow, ease: EASE.move });
   }
 
   // delay:2 保留原本節奏 — user 要求 indicator 「慢一點再出現」，跟改造前一致
@@ -322,7 +323,7 @@ export function triggerGenerateLogo() {
   // logo 內容已在開頭 innerHTML='' 清空，display:block 的 180x180 空 div 維持父層 <a> 的 click target
   tl.to({}, { duration: 0.15 });
   tl.set(cursor, { visibility: 'hidden' });
-  tl.to({}, { duration: 0.5 });
+  tl.to({}, { duration: DUR.medium });
   tl.set(cursorNew, { left: -GAP });
   tl.call(() => startBlink(cursorNew));
   tl.to({}, { duration: 530 * 3 / 1000 });
@@ -363,8 +364,8 @@ export function animateHeaderModeBtnHide() {
       marginLeft: 0,
       // 從左往右 wipe：visible window 縮到右邊緣（icon 從右側退場）
       clipPath: 'inset(0 0 0 100%)',
-      duration: 0.5,
-      ease: 'power3.inOut',
+      duration: DUR.medium,
+      ease: EASE.move,
       overwrite: 'auto',
       onComplete: resolve,
     });
@@ -390,8 +391,8 @@ export function animateHeaderModeBtnShow() {
         width: 40,
         marginLeft: MODE_BTN_ML,
         clipPath: 'inset(0 0 0 0)',
-        duration: 0.5,
-        ease: 'power3.inOut',
+        duration: DUR.medium,
+        ease: EASE.move,
         overwrite: 'auto',
         onComplete: () => {
           // 清 inline 讓 CSS 接管（恢復原生 auto width / margin / 無 clip-path）
@@ -535,8 +536,8 @@ export function updateNavActive(page) {
     });
     gsap.to(otherBarEls, {
       clipPath: 'inset(0% 0% 0% 0%)',
-      duration: 0.8,
-      ease: 'power2.out',
+      duration: DUR.reveal,
+      ease: EASE.enterSoft,
       stagger: 0.08,
       onComplete: () => {
         otherBarEls.forEach(el => { /** @type {HTMLElement} */ (el).style.clipPath = ''; });
@@ -553,8 +554,8 @@ export function updateNavActive(page) {
         { clipPath: 'inset(0% 100% 0% 0%)' },
         {
           clipPath: 'inset(0% 0% 0% 0%)',
-          duration: 0.7,
-          ease: 'power3.out',
+          duration: DUR.slow,
+          ease: EASE.enter,
           delay: 0.25,  // 等 bars 收起動畫先跑一段
           onComplete: () => {
             /** @type {HTMLElement} */ (alumniFullBarEl).style.clipPath = '';
@@ -600,8 +601,8 @@ export function updateNavActive(page) {
         {
           width: targetSize,
           height: targetSize,
-          duration: 0.6,
-          ease: 'power2.inOut',
+          duration: DUR.slow,
+          ease: EASE.move,
           onComplete: () => {
             if (!isLibraryActive && !isAtlasActive && typeof ScrollTrigger !== 'undefined') {
               gsap.fromTo(logoEl,
@@ -651,8 +652,8 @@ export function updateNavActive(page) {
     const targetML = (isLibraryActive || isAtlasActive) ? ML_END : ML_START;
     gsap.to(leftBarEls, {
       marginLeft: targetML,
-      duration: 0.6,
-      ease: 'power2.inOut',
+      duration: DUR.slow,
+      ease: EASE.move,
       onComplete: () => {
         // 動畫完成後，一般頁面重建 scroll shrink
         if (!isLibraryActive && !isAtlasActive && !isGenerateActive && typeof ScrollTrigger !== 'undefined') {
@@ -663,7 +664,7 @@ export function updateNavActive(page) {
             scrub: 0.6,
             onUpdate: (/** @type {any} */ self) => {
               const ml = ML_START + (ML_END - ML_START) * self.progress;
-              gsap.to(leftBarEls, { marginLeft: ml, duration: 0.4, ease: 'power2.out', overwrite: 'auto' });
+              gsap.to(leftBarEls, { marginLeft: ml, duration: DUR.base, ease: EASE.enterSoft, overwrite: 'auto' });
             }
           });
         }
@@ -776,8 +777,8 @@ export function initHeader() {
                 clipPath: () => Math.random() < 0.5
                   ? 'inset(0% 0% 100% 0%)'
                   : 'inset(100% 0% 0% 0%)',
-                duration: 0.55,
-                ease: 'power2.out',
+                duration: DUR.medium,
+                ease: EASE.enterSoft,
                 stagger: 0.05,
                 overwrite: true,
                 onComplete: resolve,
@@ -821,7 +822,7 @@ export function initHeader() {
           scrub: 0.6,
           onUpdate: (self) => {
             const ml = ML_START + (ML_END - ML_START) * self.progress;
-            gsap.to(leftBars, { marginLeft: ml, duration: 0.4, ease: 'power2.out', overwrite: 'auto' });
+            gsap.to(leftBars, { marginLeft: ml, duration: DUR.base, ease: EASE.enterSoft, overwrite: 'auto' });
           }
         });
       }

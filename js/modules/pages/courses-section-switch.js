@@ -14,7 +14,9 @@
 import { renderCoursesGrid, deselectActiveCard, resetCoursesMapState, selectCardBySlugInPanel } from './courses-map.js';
 import { setActiveNavBtn } from '../ui/section-switch-helpers.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
+import { registerPageExit } from '../ui/page-exit.js';
 import { waitForHeroAnimDone } from './hero-animation.js';
+import { DUR, EASE } from '../ui/motion.js';
 
 let currentProgramColor = '';
 export function getCurrentProgramColor() { return currentProgramColor; }
@@ -131,12 +133,21 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
   // hover 一次性綁定（每 btn 帶 dataset flag 避免重綁）
   programBtns.forEach(bindHover);
 
-  // ?program= 兼容：bfa → bfa-animation
+  // ?program= deep-link：只有從首頁 floating course card 點進來的 SPA 導航（fromUserNav）才套指定 program + 跑導航動畫。
+  // refresh / 直接開 / 上一頁下一頁（fromUserNav=false）→ 清掉 query、回 default program（= 直接點 curriculum 的樣子，user 2026-06-04）。
   const params = new URLSearchParams(window.location.search);
   const hasQueryDeepLink = params.has('program');
-  const rawProgram = params.get('program');
-  const initialProgram = (rawProgram === 'bfa') ? 'bfa-animation' : (rawProgram || 'bfa-animation');
-  const itemSlug = params.get('item');
+  const DEFAULT_PROGRAM = 'bfa-animation';
+
+  let initialProgram = DEFAULT_PROGRAM;
+  let itemSlug = null;
+  if (hasQueryDeepLink && fromUserNav) {
+    const rawProgram = params.get('program');           // ?program= 兼容：bfa → bfa-animation
+    initialProgram = (rawProgram === 'bfa') ? 'bfa-animation' : (rawProgram || DEFAULT_PROGRAM);
+    itemSlug = params.get('item');
+  } else if (hasQueryDeepLink) {
+    history.replaceState(history.state, '', window.location.pathname);
+  }
 
   const initSwitchPromise = switchToProgram(initialProgram, programBtns, false);
 
@@ -178,7 +189,7 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
       }
       const openCard = () => setTimeout(() => selectCardBySlugInPanel(initialProgram, itemSlug), OPEN_DELAY_MS);
       if (typeof window.ScrollToPlugin !== 'undefined') {
-        gsap.to(window, { scrollTo: { y: top, autoKill: false }, duration: 0.5, ease: 'power2.inOut', onComplete: openCard });
+        gsap.to(window, { scrollTo: { y: top, autoKill: false }, duration: DUR.medium, ease: EASE.move, onComplete: openCard });
       } else {
         window.scrollTo({ top, behavior: 'smooth' });
         setTimeout(openCard, 500);
@@ -200,6 +211,27 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
     'inset(0% 0% 0% 100%)',  // 右 → 左
   ];
   function pickClipDir() { return CLIP_DIRS[Math.floor(Math.random() * CLIP_DIRS.length)]; }
+
+  // 頁面離場 = 卡片進場的反向：可見 inset(0) → 隨機方向 clip wipe out，反向 stagger（from:'end'）、
+  // 同 ease/duration（DUR.base + wipe 曲線）。比照 activities 的 registerPageExit；router 換頁前 await 完才 swap DOM。
+  // registerPageExit 在 runPageExit 後自動清空、不洩漏到別頁。
+  registerPageExit(async () => {
+    if (typeof gsap === 'undefined') return;
+    const panel = document.querySelector('.courses-panel:not(.hidden)');
+    const cards = panel ? panel.querySelectorAll('.courses-grid-card') : [];
+    if (!cards.length) return;
+    await new Promise(resolve => {
+      gsap.killTweensOf(cards);
+      gsap.to(cards, {
+        clipPath: () => pickClipDir(),
+        duration: DUR.base,
+        ease: 'cubic-bezier(0.25, 0, 0, 1)',
+        stagger: { each: 0.02, from: 'end' },
+        overwrite: true,
+        onComplete: resolve,
+      });
+    });
+  });
 
   async function switchToProgram(program, btns, shouldScroll) {
     const newPanelId = `panel-${program}`;
@@ -252,7 +284,7 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
           gsap.killTweensOf(prevCards);
           gsap.to(prevCards, {
             clipPath: () => pickClipDir(),
-            duration: 0.35,
+            duration: DUR.fast,
             ease: 'cubic-bezier(0.25, 0, 0, 1)',
             overwrite: true,
             onComplete: resolve,
@@ -273,8 +305,8 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
               const d = headerExitDirs && headerExitDirs[i];
               return d && d.axis === 'x' ? d.percent : 0;
             },
-            duration: 0.5,
-            ease: 'power3.in',
+            duration: DUR.medium,
+            ease: EASE.exit,
             overwrite: true,
             onComplete: resolve,
           });
@@ -335,6 +367,10 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
     // 年級表頭 enter（僅 isSwitch）：mirror exit direction — 舊 up exit → 新 from below；舊 down exit → 新 from above
     const activePanel = document.getElementById(`panel-${program}`);
     if (activePanel && typeof gsap !== 'undefined') {
+      // 初次 init 時 panel 若已在視窗內（top 已過 90% 線）就直接播進場，否則才靠 ScrollTrigger 等捲動。
+      // 避免「已在視圖內的卡片」靠 once-trigger 播時，與 line 340 + router 結尾的 ScrollTrigger.refresh()
+      // 搶時序：refresh 在 layout 定位前跑完 → trigger 判定已通過 once → 卡片偶爾不進場。
+      const panelInView = activePanel.getBoundingClientRect().top < window.innerHeight * 0.9;
       const allCards = activePanel.querySelectorAll('.courses-grid-card');
       if (allCards.length) {
         gsap.killTweensOf(allCards);
@@ -345,7 +381,7 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
         const playReveal = () => {
           gsap.to(allCards, {
             clipPath: 'inset(0% 0% 0% 0%)',
-            duration: 0.4,
+            duration: DUR.base,
             ease: 'cubic-bezier(0.25, 0, 0, 1)',
             stagger: isSwitch ? 0 : 0.02,
             overwrite: true,
@@ -353,7 +389,7 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
           });
         };
 
-        if (isSwitch) {
+        if (isSwitch || panelInView) {
           playReveal();
         } else if (typeof ScrollTrigger !== 'undefined') {
           ScrollTrigger.create({
@@ -390,8 +426,8 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
             {
               yPercent: 0,
               xPercent: 0,
-              duration: 0.9,
-              ease: 'power3.out',
+              duration: DUR.reveal,
+              ease: EASE.enter,
               overwrite: true,
               clearProps: 'transform',
             }
@@ -408,14 +444,16 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
             gsap.to(newHeadersInner, {
               yPercent: 0,
               xPercent: 0,
-              duration: 0.9,
-              ease: 'power3.out',
+              duration: DUR.reveal,
+              ease: EASE.enter,
               stagger: 0.08,
               overwrite: true,
               clearProps: 'transform',
             });
           };
-          if (typeof ScrollTrigger !== 'undefined') {
+          if (panelInView) {
+            playHeaderReveal();
+          } else if (typeof ScrollTrigger !== 'undefined') {
             ScrollTrigger.create({
               trigger: activePanel,
               start: 'top 90%',

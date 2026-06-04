@@ -35,9 +35,10 @@
 
 import { initAtlas, cleanupAtlas } from '../pages/atlas.js';
 import { switchHeaderLogo, getStoredMode } from './theme-toggle.js';
+import { DUR, EASE } from './motion.js';
 
 const IDLE_TIMEOUT = 3 * 60 * 1000; // 3 分鐘
-const PHASE_DURATION = 1.0;    // 星雲 / 背景 fade 每階段秒數
+const PHASE_DURATION = DUR.reveal;    // 星雲 / 背景 fade 每階段秒數
 const LOGO_DURATION = 0.6;     // logo 縮放秒數
 const LOGO_SHRINK_THRESHOLD = 150; // logo 當前 width ≥ 此值才縮小
 const LOGO_SHRUNK_SIZE = 100;
@@ -194,7 +195,7 @@ function fadeEl(el, to, duration = PHASE_DURATION) {
     gsap.to(el, {
       opacity: to,
       duration,
-      ease: 'power2.inOut',
+      ease: EASE.move,
       onComplete: resolve,
     });
   });
@@ -224,7 +225,7 @@ function tweenLogoShrink() {
       width: LOGO_SHRUNK_SIZE,
       height: LOGO_SHRUNK_SIZE,
       duration: LOGO_DURATION,
-      ease: 'power3.inOut',
+      ease: EASE.move,
       onComplete: resolve,
     });
   });
@@ -240,7 +241,7 @@ function tweenLogoRestore() {
       width: target,
       height: target,
       duration: LOGO_DURATION,
-      ease: 'power3.inOut',
+      ease: EASE.move,
       onComplete: resolve,
     });
   });

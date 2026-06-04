@@ -1,3 +1,4 @@
+import { DUR, EASE } from '../ui/motion.js';
 /**
  * Workshop Accordion Module
  * 工作營手風琴功能（包含 Year Toggle 和 Workshop Header）
@@ -58,22 +59,22 @@ function initListYearToggle() {
           // Close with GSAP animation
           gsap.to(itemsContainer, {
             height: 0,
-            duration: 0.4,
-            ease: "power2.in",
+            duration: DUR.base,
+            ease: EASE.exitSoft,
             onComplete: () => {
               itemsContainer.style.display = 'none';
             }
           });
-          if (chevron) gsap.to(chevron, { rotation: 180, duration: 0.3 });  // close → 朝右
+          if (chevron) gsap.to(chevron, { rotation: 180, duration: DUR.fast });  // close → 朝右
         } else {
           // Open with GSAP animation
           itemsContainer.style.display = 'flex';
           gsap.to(itemsContainer, {
             height: 'auto',
-            duration: 0.5,
-            ease: "power2.out"
+            duration: DUR.medium,
+            ease: EASE.enterSoft
           });
-          if (chevron) gsap.to(chevron, { rotation: 90, duration: 0.3 });
+          if (chevron) gsap.to(chevron, { rotation: 90, duration: DUR.fast });
         }
       }
     });
@@ -202,8 +203,8 @@ function closeListHeader(header) {
   content.style.overflow = 'hidden';
   gsap.to(content, {
     height: 0,
-    duration: 0.5,  // 與開啟動畫同 duration，確保「關舊+開新」同時開始同時結束
-    ease: "power2.in",
+    duration: DUR.medium,  // 與開啟動畫同 duration，確保「關舊+開新」同時開始同時結束
+    ease: EASE.exitSoft,
     onComplete: () => {
       // collapse 完成才移除 .active → title transform 0.3s 往左滑（CSS transition 觸發）
       header.classList.remove('active');
@@ -228,7 +229,7 @@ function closeListHeader(header) {
       }
     }
   });
-  if (chevron) gsap.to(chevron, { rotation: 90, duration: 0.3 });  // close → 朝下
+  if (chevron) gsap.to(chevron, { rotation: 90, duration: DUR.fast });  // close → 朝下
 }
 
 function initListHeaderAccordion() {
@@ -308,13 +309,28 @@ function initListHeaderAccordion() {
         // 原 hard-code 100 太小 (header 80 + 20 = 100)，title 邊緣會貼到 logo 下緣
         const headerH = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--header-height') || '80', 10);
         const stickyTop = parseFloat(stickyTopVar) || (window.innerWidth >= 768 ? 200 : headerH + 48);
-        const targetScrollY = Math.max(0, window.scrollY + headerRect.top - collapseAbove - stickyTop);
+
+        // 副標收合行為（user 2026-06-05）：
+        // - lecture：維持捲到 sticky 頂 → header 點開即 pinned → 副標立刻收（IO 在 sticky-top 線上 fire）。
+        // - 其他有副標 section（industry / workshop / students-present）：點開時「少捲一截」，
+        //   header 停在 sticky-top 線之下（副標仍可見、未 pinned）→ 副標 stay；之後 user 往下滑過
+        //   sticky-top 線 IO 才 fire is-pinned 收副標。差別純粹靠「落點是否壓到 pin 線」決定。
+        // 副標 is-pinned collapse 是桌面 only（lists.css @media min-width:768）→ offset 也只桌面套，
+        // 手機 open-scroll 維持原樣（手機副標本來就不收，少捲一截沒意義且違反「不動不需要的」）
+        const subtitleEl = /** @type {HTMLElement | null} */ (this.querySelector('.list-subtitles'));
+        const isLecturePanel = this.closest('.activities-panel')?.id === 'panel-lectures';
+        let subtitleKeepOffset = 0;
+        if (subtitleEl && !isLecturePanel && window.innerWidth >= 768) {
+          const wrap = subtitleEl.closest('.clip-reveal-wrapper') || subtitleEl;
+          subtitleKeepOffset = /** @type {HTMLElement} */ (wrap).offsetHeight + 8;  // + flex gap-xs，落點落在 pin 線下確保未 pinned
+        }
+        const targetScrollY = Math.max(0, window.scrollY + headerRect.top - collapseAbove - stickyTop - subtitleKeepOffset);
         if (Math.abs(targetScrollY - window.scrollY) > 1) {
           if (typeof window.ScrollToPlugin !== 'undefined') {
             gsap.to(window, {
               scrollTo: { y: targetScrollY, autoKill: false },
-              duration: 0.5,
-              ease: "power2.inOut",
+              duration: DUR.medium,
+              ease: EASE.move,
             });
           } else {
             window.scrollTo({ top: targetScrollY, behavior: 'smooth' });
@@ -336,13 +352,13 @@ function initListHeaderAccordion() {
           workshopItem.style.setProperty('--item-color-deep', deep);
         }
         gsap.to(content, {
-          height: 'auto', duration: 0.5, ease: "power2.out",
+          height: 'auto', duration: DUR.medium, ease: EASE.enterSoft,
           onComplete: () => {
             content.style.overflow = 'visible';
             workshopItem?.dispatchEvent(new Event('gallery:check'));
           }
         });
-        gsap.to(chevron, { rotation: -90, duration: 0.3 });  // open → 朝上
+        gsap.to(chevron, { rotation: -90, duration: DUR.fast });  // open → 朝上
         // sticky-pin observer: 開展瞬間就 attach（user 還沒滾，header 在自然位置 ratio=1 → 不 pinned）
         // 之後 user 滾過 sticky-top 線時 IO 才 fire 加上 .is-pinned 收起副標
         attachStickyPinObserver(this);

@@ -40,7 +40,7 @@
   /* 右欄：normal flow，padding-top/bottom 留呼吸；內文長度決定整 section 高度 → sticky range */
   .legal-content-col {
     padding-top: var(--spacing-6xl);
-    padding-bottom: var(--spacing-6xl);
+    padding-bottom: var(--spacing-3xl);
   }
 
   /* accessibility / regulations 變體：ACCESSIBILITY / REGULATIONS 單字長、chip 旋轉後右下角會超出 col 5 邊界
@@ -98,6 +98,15 @@
     column-gap: var(--spacing-md);
     margin-bottom: var(--spacing-3xl);
   }
+  /* 不編號變體（如 support：Funds / Others 是分類非條款）→ 無 num 欄，body 撐滿單欄 */
+  .legal-section--no-num {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* support：最後一個 section 不留尾端 margin（support 無 #legal-updated 區塊，否則底部多一段空白）。
+     只 scope support，其他 legal 頁最後 section 後面還接著「最後更新」區塊不受影響。 */
+  .legal-support .legal-section:last-child {
+    margin-bottom: 0;
+  }
   .legal-section-num {
     font-size: var(--font-size-h4);
     font-weight: var(--font-weight-bold);
@@ -116,6 +125,18 @@
   }
   .legal-section-body > .legal-section-title-zh {
     margin-bottom: var(--spacing-md);
+  }
+  /* 內文次標題（如 support 的 Single/Regular）：比群組標題（h4）小一級的 h5，與前文拉開層級才清楚 */
+  .legal-section-body h5 {
+    font-size: var(--font-size-h5);
+    font-weight: var(--font-weight-bold);
+    line-height: 1.2;
+    margin-top: var(--spacing-lg);
+    margin-bottom: var(--spacing-sm);
+  }
+  /* 緊接群組標題的第一個次標題不另加上距（群組標題已有 margin-bottom） */
+  .legal-section-body .legal-section-title-zh + h5 {
+    margin-top: 0;
   }
   /* 內文 list / p：對齊到 col 2 左邊（與標題等距） */
   .legal-section-body ul,
@@ -138,15 +159,10 @@
   .legal-section-body > p:last-child {
     margin-bottom: 0;
   }
-  /* 內文連結（如聯絡 email）：底線 + 桌面 hover 轉灰（取代原本 inline 的 hover:text-gray-6） */
+  /* 內文連結（如聯絡 email、捐款連結）：粗體、不加底線、無 hover 效果（user 偏好） */
   .legal-section-body a {
-    text-decoration: underline;
-    transition: color 0.2s;
-  }
-  @media (min-width: 768px) {
-    .legal-section-body a:hover {
-      color: var(--gray-6);
-    }
+    font-weight: var(--font-weight-bold);
+    text-decoration: none;
   }
 
   /* 手機：取消 sticky，title 與內文 stack flow；高度回 auto */

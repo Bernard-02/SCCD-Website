@@ -57,7 +57,7 @@
  *   保留 body/html fade 給整片 bg 過渡 */
 html.mode-switching.mode-switching,
 body.mode-switching.mode-switching {
-  transition: background-color 0.4s ease, background 0.4s ease, color 0.4s ease !important;
+  transition: background-color var(--dur-base) ease, background var(--dur-base) ease, color var(--dur-base) ease !important;
 }
 
 html.mode-switching.mode-switching header,
@@ -110,7 +110,7 @@ html.mode-switching.mode-switching .lib-panel-title,
 html.mode-switching.mode-switching .press-item,
 html.mode-switching.mode-switching .files-item,
 html.mode-switching.mode-switching .library-card-content {
-  transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease !important;
+  transition: background-color var(--dur-base) ease, color var(--dur-base) ease, border-color var(--dur-base) ease !important;
 }
 
 /* /create 頁：#create-app 的 background-color 不在上方 whitelist，mode 切換時 snap 而 header 有 0.4s fade，
@@ -119,5 +119,5 @@ html.mode-switching.mode-switching .library-card-content {
 html.mode-switching.mode-switching #create-app,
 html.mode-switching.mode-switching #desktop-canvas-container,
 html.mode-switching.mode-switching #canvas-container {
-  transition: background-color 0.4s ease !important;
+  transition: background-color var(--dur-base) ease !important;
 }

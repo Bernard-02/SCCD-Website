@@ -164,7 +164,7 @@
     color: rgba(0, 0, 0, 0.5);
     background: transparent;
     white-space: nowrap;
-    transition: background 0.2s ease, color 0.2s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: background var(--dur-micro) ease, color var(--dur-micro) ease, transform var(--dur-fast) var(--ease-standard);
   }
   .courses-program-group:has(.courses-program-btn.active) .courses-bfa-label {
     color: black;
@@ -391,7 +391,7 @@
     line-height: 1.2;
     cursor: var(--cursor-pointer);
     user-select: none;
-    transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+    transition: background var(--dur-micro) ease, color var(--dur-micro) ease, transform var(--dur-micro) ease;
     box-sizing: border-box;
   }
   .courses-grid-card-en,
@@ -436,10 +436,10 @@
     transition: visibility 0s linear 0s;
   }
   #courses-overlay {
-    transition: opacity 0.3s ease;
+    transition: opacity var(--dur-fast) ease;
   }
   #courses-detail-panel {
-    transition: background 0.3s ease;
+    transition: background var(--dur-fast) ease;
   }
   .courses-detail-title-en,
   .courses-detail-title-zh,

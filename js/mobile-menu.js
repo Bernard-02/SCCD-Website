@@ -6,6 +6,7 @@
 
 import { setupClipReveal } from './modules/ui/scroll-animate.js';
 import { navigateTo } from './router.js';
+import { DUR, EASE } from './modules/ui/motion.js';
 
 // 套 random rotation（user pattern：每次點開角度不一樣，跟 footer items / hero title 同款）
 // 走 CSS transition 平滑切換而非 GSAP，避免跟 hidden toggle 時序競爭
@@ -39,7 +40,7 @@ export function initMobileMenu() {
   function openMenu() {
     nav.classList.add('open');
     if (typeof gsap !== 'undefined') {
-      gsap.to(nav, { x: '0%', duration: 0.28, ease: 'power2.out' });
+      gsap.to(nav, { x: '0%', duration: DUR.fast, ease: EASE.enterSoft });
       // 進場：clip-reveal 下往上（hero title 同款）
       // 縮 30% 後不能呼叫 playClipReveal helper（它寫死 0.9s + stagger 0.12），inline 寫
       // 修「Faculty/Curriculum 沒進場」bug：
@@ -55,9 +56,9 @@ export function initMobileMenu() {
         gsap.delayedCall(0.105, () => {
           gsap.to(menuItems, {
             yPercent: 0,
-            duration: 0.63,
+            duration: DUR.slow,
             stagger: { each: 0.084, from: 'start' },
-            ease: 'power3.out',
+            ease: EASE.enter,
             overwrite: true,
             clearProps: 'transform',
           });
@@ -97,13 +98,13 @@ export function initMobileMenu() {
             yPercent: 100,
             duration: itemDur,
             stagger: { each: itemStagger, from: 'end' },
-            ease: 'power2.in',
+            ease: EASE.exitSoft,
           });
         }
         gsap.to(nav, {
           x: '-100%',
-          duration: 0.28,
-          ease: 'power2.in',
+          duration: DUR.fast,
+          ease: EASE.exitSoft,
           delay: itemsTotal,
           onComplete: resolve,
         });
@@ -160,8 +161,8 @@ export function initMobileMenu() {
               gsap.to(otherSubmenu, { 
                 height: 0, 
                 opacity: 0,
-                duration: 0.3, 
-                ease: 'power2.out', 
+                duration: DUR.fast, 
+                ease: EASE.enterSoft, 
                 onComplete: () => {
                   otherSubmenu.classList.add('hidden');
                   otherSubmenu.style.height = '';
@@ -169,7 +170,7 @@ export function initMobileMenu() {
                   otherSubmenu.style.overflow = '';
                 }
               });
-              gsap.to(otherChevron, { rotation: 0, duration: 0.3 });
+              gsap.to(otherChevron, { rotation: 0, duration: DUR.fast });
             } else {
               otherSubmenu.classList.add('hidden');
               otherChevron.style.transform = 'rotate(0deg)';
@@ -188,15 +189,15 @@ export function initMobileMenu() {
             { 
               height: 'auto', 
               opacity: 1, 
-              duration: 0.4, 
-              ease: 'power2.out',
+              duration: DUR.base, 
+              ease: EASE.enterSoft,
               onComplete: () => {
                 submenu.style.overflow = '';
                 submenu.style.height = '';
               }
             }
           );
-          gsap.to(chevron, { rotation: 180, duration: 0.3 });
+          gsap.to(chevron, { rotation: 180, duration: DUR.fast });
         } else {
           submenu.classList.remove('hidden');
           chevron.style.transform = 'rotate(180deg)';
@@ -207,8 +208,8 @@ export function initMobileMenu() {
           gsap.to(submenu, { 
             height: 0, 
             opacity: 0,
-            duration: 0.3, 
-            ease: 'power2.out', 
+            duration: DUR.fast, 
+            ease: EASE.enterSoft, 
             onComplete: () => {
               submenu.classList.add('hidden');
               submenu.style.height = '';
@@ -216,7 +217,7 @@ export function initMobileMenu() {
               submenu.style.overflow = '';
             }
           });
-          gsap.to(chevron, { rotation: 0, duration: 0.3 });
+          gsap.to(chevron, { rotation: 0, duration: DUR.fast });
         } else {
           submenu.classList.add('hidden');
           chevron.style.transform = 'rotate(0deg)';

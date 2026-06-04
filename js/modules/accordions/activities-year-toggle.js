@@ -1,3 +1,4 @@
+import { DUR, EASE } from '../ui/motion.js';
 /**
  * Activities Year Toggle Module
  * 活動年份展開/收合功能（GSAP 動畫）
@@ -51,8 +52,8 @@ export function initActivitiesYearToggle() {
           itemsContainer.style.overflow = 'hidden'; // Set overflow hidden during animation
           gsap.to(itemsContainer, {
             height: 0,
-            duration: 0.4,
-            ease: "power2.in",
+            duration: DUR.base,
+            ease: EASE.exitSoft,
             onComplete: () => {
               itemsContainer.style.display = 'none';
             }
@@ -60,7 +61,7 @@ export function initActivitiesYearToggle() {
           
           if (chevron) {
             // close → chevron-list 朝右 (180)
-            gsap.to(chevron, { rotation: 180, duration: 0.3 });
+            gsap.to(chevron, { rotation: 180, duration: DUR.fast });
           }
         } else {
           // Open with GSAP animation
@@ -68,8 +69,8 @@ export function initActivitiesYearToggle() {
           itemsContainer.style.overflow = 'hidden'; // Set overflow hidden during animation
           gsap.to(itemsContainer, {
             height: 'auto',
-            duration: 0.5,
-            ease: "power2.out",
+            duration: DUR.medium,
+            ease: EASE.enterSoft,
             onComplete: () => {
               itemsContainer.style.overflow = 'visible'; // Set to visible after animation completes
             }
@@ -77,7 +78,7 @@ export function initActivitiesYearToggle() {
           
           if (chevron) {
             // open → chevron-list 朝下 (90)
-            gsap.to(chevron, { rotation: 90, duration: 0.3 });
+            gsap.to(chevron, { rotation: 90, duration: DUR.fast });
           }
         }
       }
