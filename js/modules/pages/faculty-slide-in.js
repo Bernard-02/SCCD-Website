@@ -125,7 +125,7 @@ export function initFacultySlideIn() {
     return `
       <div class="flex flex-col md:flex-row gap-xs md:gap-sm">
         <div class="w-full md:w-[25%] mb-xs md:mb-0">
-          <h6 class="text-black">Contact 聯絡資訊</h6>
+          <h6 class="text-black">Contact 聯絡</h6>
         </div>
         <div class="flex-1">
           <p class="text-p2" style="white-space: pre-line;">${contact}</p>
@@ -198,8 +198,12 @@ export function initFacultySlideIn() {
         } else {
           // fulltime（parttime 不走 slide-in，但保留結構容錯）
           html += buildSection('Education', '學歷', data.educations, renderEducationRow);
+          // Journey 歷程：欄位與 Experience 相同（year | organization | role），收錄該老師與系上相關的經歷，
+          // 故直接複用 renderExperienceRow；data.journey 空/未填時 buildSection 回空字串不渲染。
+          // 順序排在 Experience 之前（user 2026-06-05）。
+          html += buildSection('Journey', '歷程', data.journey, renderExperienceRow);
           html += buildSection('Experience', '經歷', data.experiences, renderExperienceRow);
-          html += buildSection('Awards', '獲獎', data.awards, renderAwardRow);
+          html += buildSection('Awards', '榮譽', data.awards, renderAwardRow);
         }
         sectionsContainer.innerHTML = html;
       }

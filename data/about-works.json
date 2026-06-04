@@ -1,0 +1,26 @@
+[
+  {
+    "divisionKey": "bfa",
+    "descriptionEn": "Foundation courses that develop core design principles, visual literacy, and technical skills essential for creative media practice.",
+    "descriptionZh": "培養核心設計原則、視覺素養與技術能力的基礎課程，為創意媒體實踐奠定根基。",
+    "youtubePlaylist": "https://www.youtube.com/playlist?list=PLG0DnOKlL-lko5mBve7UjN2itLz4KwxUF"
+  },
+  {
+    "divisionKey": "animation",
+    "descriptionEn": "Animated works that explore storytelling, motion design, and experimental animation techniques.",
+    "descriptionZh": "探索敘事、動態設計與實驗動畫技術的動畫作品。",
+    "youtubePlaylist": "https://www.youtube.com/playlist?list=PLG0DnOKlL-llBG3d2yiQeQnhN6MK95pM4"
+  },
+  {
+    "divisionKey": "creative-media",
+    "descriptionEn": "Innovative media projects that integrate technology, interactivity, and creative storytelling.",
+    "descriptionZh": "融合技術、互動與創意敘事的創新媒體專案。",
+    "youtubePlaylist": "https://www.youtube.com/playlist?list=PLG0DnOKlL-lm5Vdc2x-ULMdlo6fsM-pQn"
+  },
+  {
+    "divisionKey": "mdes",
+    "descriptionEn": "Advanced research and creative practice fostering innovation in communications design.",
+    "descriptionZh": "碩士班提供進階研究與創作實踐機會，培養媒體傳達設計的創新能力。",
+    "youtubePlaylist": ""
+  }
+]

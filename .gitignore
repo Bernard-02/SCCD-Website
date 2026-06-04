@@ -10,6 +10,9 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 
+# Directus static token（匯入 script 用，絕不入庫）
+scripts/.directus-token
+
 # Editor
 .vscode/
 .idea/

@@ -11,6 +11,8 @@
  */
 
 import { applyNewsHover, removeNewsHover } from '../animations/floating-items.js';
+import { DUR, EASE } from '../ui/motion.js';
+import { CMS_API_BASE, CMS_ASSETS_BASE } from '../../config/api.js';
 
 const SLOT_COUNT = 3;
 const CYCLE_INTERVAL = 5000;
@@ -64,27 +66,22 @@ export function initMarquee() {
   const stack = document.getElementById('homepage-marquee-stack');
   if (!stack) return;
 
-  // WP endpoint 回 array of items；失敗時 fallback data/news.json (shape: { items: [...] })
-  // _SKIP_WP：本機 dev 跳過 WP fetch（同 activities-data-loader），sessionStorage.wpDev='1' 可強制測 WP
-  const WP_API_BASE = location.hostname === 'sccd-website.local' ? '' : 'http://sccd-website.local';
-  const _SKIP_WP = location.hostname !== 'sccd-website.local'
-    && /^(localhost|127\.0\.0\.1|0\.0\.0\.0|)$/.test(location.hostname)
-    && sessionStorage.getItem('wpDev') !== '1';
-  const fetchNews = () => {
-    if (_SKIP_WP) return fetch('data/news.json').then(r => r.json());
-    return fetch(`${WP_API_BASE}/wp-json/sccd/v1/index-news`)
+  // news 來源改 Directus index_news（一般 collection，依後台 sort 排序）。
+  // 每筆：titleZh — titleEn 串成跑馬燈文字；poster(file UUID) 轉 Directus 資產 URL（format=auto 自動 WebP + 縮放）。
+  const POSTER_PARAMS = '?format=auto&width=800&quality=80';
+  const fetchNews = () =>
+    fetch(`${CMS_API_BASE}/index_news?sort=sort`)
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-      .then(arr => {
-        const items = Array.isArray(arr) ? arr : [];
-        // endpoint 200 但 0 items（local 沒灌資料）也算失敗 → fallback 看得到測試 marquee
-        if (items.length === 0) throw new Error('endpoint returned 0 items');
+      .then(j => {
+        const rows = Array.isArray(j.data) ? j.data : [];
+        const items = rows.map(row => ({
+          // ZH 與 EN 之間、以及無縫 loop 接縫處（EN 接下一份 ZH）都用全形空白 gap 分隔（不用破折號）
+          text: [row.titleZh, row.titleEn].filter(Boolean).join('　　') + '　　',
+          url: row.url || '#',
+          poster: row.poster ? `${CMS_ASSETS_BASE}/${row.poster}${POSTER_PARAMS}` : '',
+        }));
         return { items };
-      })
-      .catch(err => {
-        console.warn('[initMarquee] WP endpoint failed, fallback to data/news.json:', err.message);
-        return fetch('data/news.json').then(r => r.json());
       });
-  };
 
   fetchNews()
     .then(async data => {
@@ -247,7 +244,7 @@ function applySlotTransform(b, slotIndex, animate) {
   const props = { x: cfg.x, y: cfg.y, rotation: b.rotation };
   if (animate) {
     // 沿用 about resources accordion 的平移節奏：power2.inOut 0.6s
-    gsap.to(b.el, { ...props, duration: 0.6, ease: 'power2.inOut' });
+    gsap.to(b.el, { ...props, duration: DUR.slow, ease: EASE.move });
   } else {
     gsap.set(b.el, props);
   }
@@ -258,7 +255,7 @@ function enterBanner(b) {
   // delay ENTER_DELAY → 等前面的 exit + 平移先進行一陣子才開始 reveal
   gsap.fromTo(b.row,
     { clipPath: 'inset(0% 0% 100% 0%)' },
-    { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.9, ease: 'power3.out', delay: ENTER_DELAY }
+    { clipPath: 'inset(0% 0% 0% 0%)', duration: DUR.reveal, ease: EASE.enter, delay: ENTER_DELAY }
   );
 }
 
@@ -273,8 +270,8 @@ function exitBanner(b) {
   // 第一個 row 整列 yPercent 上滑出 clip-wrap；duration 短於 survivor 0.6s 平移 → 不 overlap
   gsap.to(b.row, {
     yPercent: -110,
-    duration: 0.35,
-    ease: 'power2.out',
+    duration: DUR.fast,
+    ease: EASE.enterSoft,
     onComplete: () => { b.el.remove(); },
   });
 }
@@ -339,6 +336,11 @@ function runMarqueeStack(stack, items) {
   let cursor = 0;
   let hoverCount = 0;
 
+  // 可見則數 + 貼底偏移：不足 SLOT_COUNT 則時靠底排，第 i 則 → slot (slotOffset + i)。
+  // 滿 3 則時 slotOffset=0（行為與舊版完全一致）。pushAbove/restoreAbove 也用 slotOffset 校正。
+  const visibleCount = Math.min(SLOT_COUNT, items.length);
+  const slotOffset = SLOT_COUNT - visibleCount;
+
   // setTimeout-based pause/resume：hover 期間真的「凍結倒數」，離開後用剩餘秒數重排
   // （舊版 setInterval + pending 在 hover 跨 tick 時離開瞬間立刻 advance，視覺上像「沒等夠」）
   let timeoutId = null;
@@ -397,7 +399,7 @@ function runMarqueeStack(stack, items) {
     const pushAmount = (hovered._posterH || 0) + 20;
     for (let i = 0; i < idx; i++) {
       const above = banners[i];
-      const cfg = slotConfigs()[i];
+      const cfg = slotConfigs()[slotOffset + i];
       gsap.to(above.el, {
         y: cfg.y - pushAmount,
         duration: PUSH_DUR,
@@ -411,7 +413,7 @@ function runMarqueeStack(stack, items) {
     if (idx <= 0) return;
     for (let i = 0; i < idx; i++) {
       const above = banners[i];
-      const cfg = slotConfigs()[i];
+      const cfg = slotConfigs()[slotOffset + i];
       gsap.to(above.el, {
         y: cfg.y,
         duration: PUSH_DUR,
@@ -421,12 +423,12 @@ function runMarqueeStack(stack, items) {
     }
   }
 
-  const visibleCount = Math.min(SLOT_COUNT, items.length);
+  // 初始排列：靠底（slotOffset 已在上方算好）→ 單則落最底 slot，不懸在 slot 0 留空白
   for (let i = 0; i < visibleCount; i++) {
-    // 初始 banner 0/1/2 對應 R/G/B（不足 3 個就只用前 N 個顏色）
+    // 顏色仍依 item 順序 R/G/B（不足 3 個用前 N 個顏色）
     const b = createBanner(items[i], RGB_COLORS[i % RGB_COLORS.length]);
     stack.appendChild(b.el);
-    applySlotTransform(b, i, false);
+    applySlotTransform(b, slotOffset + i, false);
     bindBannerInteraction(b, onEnter, onLeave, pushAbove, restoreAbove);
     banners.push(b);
   }

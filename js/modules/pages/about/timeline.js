@@ -107,7 +107,7 @@ export function initTimeline() {
   function randomDirLR() { return Math.random() < 0.5 ? 'left' : 'right'; }
 
   // --- Fetch & Build ---
-  fetch('/data/timeline.json')
+  fetch('/data/about-history.json')
     .then(r => { if (!r.ok) throw new Error('Failed'); return r.json(); })
     .then(data => {
       const items = [];
@@ -440,7 +440,7 @@ export function initTimeline() {
         // grid: auto 1fr — year 在第一張卡才顯示；後續卡片 year col 留空（保持對齊）
         // 沒有 year（後續卡）也要保留 left col 才能讓右 col 文字落在跟第一張一樣的位置
         const yearHtml = isFirstCard
-          ? `<h3 class="font-bold" style="line-height:1;">${item.year}</h3>`
+          ? `<h4 class="font-bold" style="line-height:1;">${item.year}</h4>`
           : '';
 
         mainCard.innerHTML = `

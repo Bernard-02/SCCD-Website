@@ -26,7 +26,6 @@
       { "startYear": "2012", "endYear": "", "organizationZh": "亞洲設計教育聯盟年會", "organizationEn": "", "roleZh": "主題演講", "roleEn": "" },
       { "startYear": "2010", "endYear": "", "organizationZh": "經濟部產業創新獎", "organizationEn": "", "roleZh": "評審委員", "roleEn": "" },
       { "startYear": "2008", "endYear": "", "organizationZh": "兩岸三地設計教育論壇", "organizationEn": "", "roleZh": "召集人", "roleEn": "" },
-      { "startYear": "2006", "endYear": "", "organizationZh": "實踐大學媒體傳達設計學系", "organizationEn": "", "roleZh": "創系系主任", "roleEn": "" },
       { "startYear": "2004", "endYear": "", "organizationZh": "國際工業設計社團協會 ICSID", "organizationEn": "", "roleZh": "會員代表", "roleEn": "" },
       { "startYear": "2002", "endYear": "", "organizationZh": "亞洲設計教育研討會", "organizationEn": "", "roleZh": "主席", "roleEn": "" },
       { "startYear": "2001", "endYear": "", "organizationZh": "台灣設計創意中心籌備處", "organizationEn": "", "roleZh": "顧問", "roleEn": "" },
@@ -36,10 +35,13 @@
       { "startYear": "1997", "endYear": "", "organizationZh": "中華民國設計教育學會", "organizationEn": "", "roleZh": "理事", "roleEn": "" },
       { "startYear": "1995", "endYear": "", "organizationZh": "中華民國工業設計學會", "organizationEn": "", "roleZh": "理事", "roleEn": "" },
       { "startYear": "1992", "endYear": "", "organizationZh": "亞太設計交流協會", "organizationEn": "", "roleZh": "創會理事", "roleEn": "" },
-      { "startYear": "1989", "endYear": "", "organizationZh": "實踐家政專科學校工業設計科", "organizationEn": "", "roleZh": "專任講師", "roleEn": "" },
-      { "startYear": "1985", "endYear": "", "organizationZh": "實踐設計管理學院室內空間設計學系", "organizationEn": "", "roleZh": "", "roleEn": "" },
       { "startYear": "1983", "endYear": "", "organizationZh": "美國工業設計師協會 IDSA", "organizationEn": "", "roleZh": "會員", "roleEn": "" },
       { "startYear": "1982", "endYear": "", "organizationZh": "外貿協會設計處", "organizationEn": "", "roleZh": "設計專員", "roleEn": "" }
+    ],
+    "journey": [
+      { "startYear": "2006", "endYear": "", "organizationZh": "實踐大學媒體傳達設計學系", "organizationEn": "", "roleZh": "創系系主任", "roleEn": "" },
+      { "startYear": "1989", "endYear": "", "organizationZh": "實踐家政專科學校工業設計科", "organizationEn": "", "roleZh": "專任講師", "roleEn": "" },
+      { "startYear": "1985", "endYear": "", "organizationZh": "實踐設計管理學院室內空間設計學系", "organizationEn": "", "roleZh": "", "roleEn": "" }
     ],
     "awards": [
       { "startYear": "2023", "endYear": "", "country": "de", "nameZh": "iF Design Award", "nameEn": "", "categoryZh": "金獎", "categoryEn": "" },

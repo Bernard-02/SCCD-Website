@@ -27,12 +27,15 @@ export function initBFADivisionToggle() {
   const divisionBtns = document.querySelectorAll('.class-division-btn');
   const groupLabels   = document.querySelectorAll('.class-group-label');
 
-  // Division list（手機版輪播用）
-  const divisions = [
-    { id: 'animation',      titleEn: 'Animation & Moving Image', titleZh: '動畫影像設計組' },
-    { id: 'creative-media', titleEn: 'Creative Media Design',    titleZh: '創意媒體設計組' },
-    { id: 'mdes',           titleEn: 'MDES Class',               titleZh: '碩士班' }
-  ];
+  // Division list（手機版輪播用）：優先讀 about-data-loader 注入的 window.SCCD_aboutClass
+  // （單一資料來源，跟桌面按鈕同步），抓不到才用內建 fallback。
+  const divisions = (Array.isArray(window.SCCD_aboutClass) && window.SCCD_aboutClass.length)
+    ? window.SCCD_aboutClass.map(d => ({ id: d.divisionKey, titleEn: d.nameEn, titleZh: d.nameZh }))
+    : [
+        { id: 'animation',      titleEn: 'Animation & Moving Image', titleZh: '動畫影像設計組' },
+        { id: 'creative-media', titleEn: 'Creative Media Design',    titleZh: '創意媒體設計組' },
+        { id: 'mdes',           titleEn: 'MDES',                     titleZh: '碩士班' }
+      ];
   let currentIndex = 0;
 
   // ─── Helpers ───────────────────────────────────────────────

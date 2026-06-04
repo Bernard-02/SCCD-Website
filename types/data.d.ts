@@ -139,7 +139,7 @@ export interface ActivityYearGroup {
   items: ActivityItem[];
 }
 
-// ===== Timeline（timeline.json）=====
+// ===== Timeline（about-history.json）=====
 export interface TimelineYear {
   year: number;
   image: string;
@@ -152,7 +152,7 @@ export interface TimelineEra {
   years: TimelineYear[];
 }
 
-// ===== Resources（resources.json）=====
+// ===== Resources（about-resources.json）=====
 export interface ResourceItem {
   title: string;
   image: string;

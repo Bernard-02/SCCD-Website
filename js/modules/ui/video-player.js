@@ -1,3 +1,4 @@
+import { DUR, EASE } from './motion.js';
 /**
  * Video Player
  * Netflix 風格全螢幕播放器
@@ -9,6 +10,56 @@
 // 舊 cached instance 指 detached 元素，openPlayer 對它 .style 無視覺效果。改用 _overlay
 // reference 比對，元素更新時自動 re-init。
 let _videoPlayerInstance = null;
+
+// ── HLS (.m3u8) 支援 ──────────────────────────────────────────
+// 首頁 watch 影片改用 CloudFront HLS 串流（.m3u8）。原生 <video> 只有 Safari 能直接吃 HLS，
+// Chrome/Firefox/Edge 要靠 hls.js（CDN lazy load，只在遇到 .m3u8 且瀏覽器不原生支援時才載）。
+// 非 HLS（mp4 等）維持原生 src 行為不變。
+function isHlsUrl(url) { return /\.m3u8(\?|#|$)/i.test(url || ''); }
+
+let _hlsLoading = null;
+function ensureHls() {
+  if (typeof window.Hls !== 'undefined') return Promise.resolve(window.Hls);
+  if (_hlsLoading) return _hlsLoading;
+  _hlsLoading = new Promise(resolve => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js';
+    s.onload = () => resolve(window.Hls);
+    s.onerror = () => resolve(null);
+    document.head.appendChild(s);
+  });
+  return _hlsLoading;
+}
+
+// 把來源掛到 video：HLS 在非 Safari 走 hls.js，其餘（Safari HLS / mp4）走原生 src。
+// 用 video._srcUrl 記號避免重複掛（hls.js attach 後 video.src 變 blob:，不能拿 video.src 比對）。
+async function attachVideoSource(video, url) {
+  if (!url || video._srcUrl === url) return;
+  detachVideoSource(video);
+  video._srcUrl = url;
+  if (isHlsUrl(url) && !video.canPlayType('application/vnd.apple.mpegurl')) {
+    const Hls = await ensureHls();
+    // 載入期間若已被換掉/清掉就放棄
+    if (video._srcUrl !== url) return;
+    if (Hls && Hls.isSupported()) {
+      const hls = new Hls();
+      hls.loadSource(url);
+      hls.attachMedia(video);
+      video._hls = hls;
+      return;
+    }
+  }
+  video.src = url;          // Safari HLS / mp4 / hls.js 不可用的退路
+  video.preload = 'auto';
+  video.load();
+}
+
+function detachVideoSource(video) {
+  if (video._hls) { try { video._hls.destroy(); } catch (_) {} video._hls = null; }
+  video.removeAttribute('src');
+  video._srcUrl = null;
+  try { video.load(); } catch (_) {}
+}
 
 /**
  * @param {string} videoUrl
@@ -69,18 +120,15 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete } =
   // 在 cover 動畫啟動時呼叫，讓 video 在 cover 期間 buffer 資料；
   // openPlayer 時 .play() 直接吃 buffered 資料，黑色過渡縮到 <100ms
   function preloadVideo() {
-    if (video.src !== videoUrl) {
-      video.src = videoUrl;
-      video.preload = 'auto';
-      video.load();
-    }
+    // HLS 走 hls.js、其餘原生；attachVideoSource 內有 _srcUrl 記號，重複呼叫不會重掛
+    attachVideoSource(video, videoUrl);
   }
 
   // ── 開啟播放器 ──────────────────────────────────────────
   function openPlayer({ accentColor = '#00FF80' } = {}) {
     // 全部三原色（綠/粉/藍）底色一律配黑色 icon
     const uiIconColor = '#000';
-    if (video.src !== videoUrl) video.src = videoUrl; // 萬一沒 preload 也 fallback
+    attachVideoSource(video, videoUrl); // 萬一沒 preload 也 fallback（_srcUrl 記號避免重掛）
     overlay.style.display = 'flex';
     document.body.style.overflow = 'hidden';
     // html { scrollbar-gutter: stable } 保留 10px gutter；overlay fixed inset:0 蓋不到，
@@ -130,7 +178,7 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete } =
 
     const rect = getCardRect?.();
     if (!rect || typeof gsap === 'undefined') {
-      video.src = '';
+      detachVideoSource(video);
       overlay.style.display = 'none';
       document.body.style.overflow = '';
       document.documentElement.style.backgroundColor = '';
@@ -155,10 +203,10 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete } =
     document.body.style.overflow = '';
 
     gsap.to(clone, {
-      scale: 1, duration: 0.5, ease: 'power3.out',
+      scale: 1, duration: DUR.medium, ease: EASE.enter,
       onComplete: () => {
         clone.remove();
-        video.src = '';
+        detachVideoSource(video);
         // 黑色 clone 完全縮回後才恢復 html bg，避免 gutter 條閃白
         document.documentElement.style.backgroundColor = '';
         onCloseAnimComplete?.();
@@ -206,7 +254,7 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete } =
         usedRots.push(rot);
         gsap.fromTo(block,
           { clipPath: clip.from, rotation: rot },
-          { clipPath: clip.to,   rotation: rot, duration: 0.4, ease: 'power3.out', overwrite: true }
+          { clipPath: clip.to,   rotation: rot, duration: DUR.base, ease: EASE.enter, overwrite: true }
         );
       });
     }
@@ -214,7 +262,7 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete } =
   }
 
   function hideControls() {
-    gsap.to(controls, { opacity: 0, duration: 0.25, ease: 'power2.in', overwrite: true });
+    gsap.to(controls, { opacity: 0, duration: DUR.fast, ease: EASE.exitSoft, overwrite: true });
     controls.style.pointerEvents = 'none';
     isVisible = false;
   }

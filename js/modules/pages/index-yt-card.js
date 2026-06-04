@@ -6,6 +6,8 @@
 import { applyNewsHover, removeNewsHover } from '../animations/floating-items.js';
 import { initVideoPlayer } from '../ui/video-player.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
+import { EASE } from '../ui/motion.js';
+import { CMS_API_BASE } from '../../config/api.js';
 
 // ── p5 字母排版 ────────────────────────────────────────────────
 
@@ -396,7 +398,7 @@ function initYTCardClick(ytCard, playerRef) {
         player?.preloadVideo?.();
 
         gsap.to(clone, {
-          scale: targetScale, duration: scaleDur, ease: 'power3.in', // 持續加速衝滿，後段更陡
+          scale: targetScale, duration: scaleDur, ease: EASE.exit, // 持續加速衝滿，後段更陡
           onComplete: () => {
             // 先 openPlayer（overlay 顯示 + .play()），video 已 buffered → 黑屏 <100ms
             // 然後再 remove clone，確保「黑圈滿版時」才看到 video
@@ -442,24 +444,11 @@ export function initYTCard() {
   const playerRef = { player: null };
   initYTCardClick(ytCard, playerRef);
 
-  // WP endpoint，配 JSON fallback（LocalWP 沒跑 / endpoint 失敗時 fall back data/news.json）
-  // hostname-based dev/prod 切換：production 走 same-origin 相對 URL
-  // _SKIP_WP：本機 dev 跳過 WP fetch（同 activities-data-loader），sessionStorage.wpDev='1' 可強制測 WP
-  const WP_API_BASE = location.hostname === 'sccd-website.local' ? '' : 'http://sccd-website.local';
-  const _SKIP_WP = location.hostname !== 'sccd-website.local'
-    && /^(localhost|127\.0\.0\.1|0\.0\.0\.0|)$/.test(location.hostname)
-    && sessionStorage.getItem('wpDev') !== '1';
-  const fetchTheater = () => {
-    if (_SKIP_WP) return fetch('data/news.json').then(r => r.json());
-    return fetch(`${WP_API_BASE}/wp-json/sccd/v1/index-theater`)
+  // 影片來源改 Directus index_video（singleton，回 { data: { videoUrl: HLS m3u8 串流網址 } }）
+  const fetchTheater = () =>
+    fetch(`${CMS_API_BASE}/index_video`)
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-      // endpoint 200 但 videoUrl 空（local 沒上傳影片）也算失敗 → fallback 到 data/news.json 看得到測試影片
-      .then(data => { if (!data?.videoUrl) throw new Error('endpoint returned empty videoUrl'); return data; })
-      .catch(err => {
-        console.warn('[initYTCard] WP endpoint failed, fallback to data/news.json:', err.message);
-        return fetch('data/news.json').then(r => r.json());
-      });
-  };
+      .then(j => j.data || {});
 
   fetchTheater()
     .then(data => {

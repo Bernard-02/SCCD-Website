@@ -10,9 +10,9 @@ export function initResourcesCycling() {
   if (!container) return;
 
   // Fetch data from JSON file
-  fetch('/data/resources.json')
+  fetch('/data/about-resources.json')
     .then(response => {
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status} - Check if data/resources.json exists`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status} - Check if data/about-resources.json exists`);
       return response.json();
     })
     .then(resourcesContent => {

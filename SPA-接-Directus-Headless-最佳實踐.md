@@ -287,8 +287,8 @@ mkdir -p /home/bitnami/backups
 | `index_news` | index-news.json | news.json |
 | `index_theater` | index-theater.json | (首頁 theater section) |
 | `about_class` | about-class.json | about-class-images.json |
-| `about_history` | about-history.json | timeline.json |
-| `about_resources` | about-resources.json | resources.json |
+| `about_history` | about-history.json | about-history.json（原 timeline.json） |
+| `about_resources` | about-resources.json | about-resources.json（原 resources.json） |
 | `about_vision` | about-vision.json | (about 頁 vision section) |
 | `about_works` | about-works.json | (about 頁 works section) |
 | `courses_hero` | courses-hero.json | courses.json (hero 區) |

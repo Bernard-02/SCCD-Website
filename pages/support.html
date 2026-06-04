@@ -20,7 +20,7 @@
        外層 shell 樣式見 css/components/legal.css，右欄內文排版見 css/components/support.css。 -->
   <main id="page-content">
 
-    <section class="legal-page-section">
+    <section class="legal-page-section legal-support">
       <div class="site-container">
         <div class="grid-12">
 
@@ -32,54 +32,10 @@
             </div>
           </div>
 
-          <!-- 右欄：捐款 / 支援方式內文 -->
+          <!-- 右欄：內文（async 由 legal-data-loader 填入 #legal-content；資料見 data/support.json）
+               support 無「最後更新」故不放 #legal-updated 區塊 -->
           <div class="legal-content-col col-span-12 md:col-span-7">
-
-            <!-- Funds 資金 -->
-            <div class="support-group">
-              <p class="support-group-title-en">Funds</p>
-              <p class="support-group-title-zh">資金</p>
-
-              <!-- Single 單次 -->
-              <p class="support-subheading">Single 單次</p>
-              <ol class="support-list">
-                <li>
-                  Please obtain the DONATION FORM from Career Development and Alumni Service<br>
-                  請至本校 <a class="support-link" href="https://uscfund.usc.edu.tw/" target="_blank" rel="noopener">職涯發展暨校友服務一組</a> 取得捐款單
-                </li>
-                <li>
-                  "指定用途 / 單位" field on the form can be selected as follows:<br>
-                  於「指定用途 / 單位」欄位可選：
-                  <ol class="support-list-sub">
-                    <li>
-                      Check "院系務發展基金" and fill in "Department of Communications Design"<br>
-                      勾選「院系務發展基金」並填寫「媒體傳達設計學系」
-                    </li>
-                    <li>
-                      Check "指定用途" and fill in "Degree Show, Department of Communications Design" or customize<br>
-                      勾選「指定用途」並填寫「媒體傳達設計學系畢業展」或自訂
-                    </li>
-                  </ol>
-                </li>
-                <li>
-                  After completing the form, proceed to Career Development and Alumni Service for processing according to their instructions<br>
-                  填寫完畢後依 <a class="support-link" href="https://uscfund.usc.edu.tw/" target="_blank" rel="noopener">職涯發展暨校友服務一組</a> 之說明於該單位辦理
-                </li>
-              </ol>
-
-              <!-- Regular 定期 -->
-              <p class="support-subheading">Regular 定期</p>
-              <p>e.g. Establish Scholarships<br>例如：設立獎學金</p>
-              <p>Please Contact SCCD Office<br>請洽學系辦公室</p>
-            </div>
-
-            <!-- Others 其他項目 -->
-            <div class="support-group">
-              <p class="support-group-title-en">Others</p>
-              <p class="support-group-title-zh">其他項目</p>
-              <p>Please Contact SCCD Office<br>請洽學系辦公室</p>
-            </div>
-
+            <div id="legal-content"></div>
           </div>
 
         </div>

@@ -27,6 +27,7 @@ import { initTimeline } from './modules/pages/about/timeline.js';
 import { initSectionBannerReveal } from './modules/pages/about/section-banner-reveal.js';
 import { initClassButtonsSticky } from './modules/pages/about/class-buttons-sticky.js';
 import { initClassImagesSlideshow } from './modules/pages/about/class-images-slideshow.js';
+import { loadAboutContent } from './modules/pages/about/about-data-loader.js';
 import { initAnchorNav } from './modules/navigation/anchor-nav.js';
 
 // Import Page Specific Modules
@@ -49,7 +50,7 @@ import { initAdmissionSectionSwitch } from './modules/pages/admission-section-sw
 
 // Import Library Modules
 import { initLibraryCard } from './modules/pages/library-card.js';
-import { initLibraryPanels, resolveInitialTabFromHash } from './modules/pages/library-panels.js';
+import { initLibraryPanels, resolveInitialTabFromHash, isItemDeepLinkHash } from './modules/pages/library-panels.js';
 import { initLibraryViewer, initPdfViewer } from './modules/pages/library-viewer.js';
 import { setActiveNavBtn } from './modules/ui/section-switch-helpers.js';
 
@@ -75,6 +76,7 @@ import { loadLegalData } from './modules/pages/legal-data-loader.js';
 import { initLegalTitleRandom } from './modules/pages/legal-title-random.js';
 import { loadDegreeShowDetail } from './modules/pages/degree-show-data-loader.js';
 import { init404, cleanup404 } from './modules/pages/error-404.js';
+import { DUR, EASE } from './modules/ui/motion.js';
 
 // ── Cleanup（換頁前執行）────────────────────────────────────────
 // destPage 可選：router 切到同頁時帶入。same-page reentry to /create 時跳過 restoreHeaderLogo，
@@ -206,39 +208,43 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
 
   // --- About Page ---
   if (page === 'about') {
-    initResourcesCycling();
-    initBrandTrail();
-    initTimeline();
-    initAnchorNav();
-    initHorizontalAccordion();
-    initBFADivisionToggle();
-    initTextReveal();
-    initSectionBannerReveal();
-    initClassButtonsSticky();
-    initClassImagesSlideshow();
+    // Vision/Class/Works 文字先從 /data/about-*.json 注入 DOM（含設 window.SCCD_aboutClass
+    // 供手機 division 輪播），再跑互動 init —— 內容全在 hero 下方，defer 一個本地 fetch 不影響觀感。
+    loadAboutContent().then(() => {
+      initResourcesCycling();
+      initBrandTrail();
+      initTimeline();
+      initAnchorNav();
+      initHorizontalAccordion();
+      initBFADivisionToggle();
+      initTextReveal();
+      initSectionBannerReveal();
+      initClassButtonsSticky();
+      initClassImagesSlideshow();
 
-    const classImages = document.querySelector('[data-class-images]');
-    if (classImages) {
-      const imgs = classImages.querySelectorAll('img');
-      ScrollTrigger.create({
-        trigger: classImages,
-        start: 'top 88%',
-        once: true,
-        onEnter: () => {
-          gsap.from(imgs, {
-            y: 40, opacity: 0, duration: 0.7, stagger: 0.1, ease: 'power3.out',
-            clearProps: 'all'
+      const classImages = document.querySelector('[data-class-images]');
+      if (classImages) {
+        const imgs = classImages.querySelectorAll('img');
+        ScrollTrigger.create({
+          trigger: classImages,
+          start: 'top 88%',
+          once: true,
+          onEnter: () => {
+            gsap.from(imgs, {
+              y: 40, opacity: 0, duration: DUR.slow, stagger: 0.1, ease: EASE.enter,
+              clearProps: 'all'
+            });
+          }
+        });
+
+        if (window.innerWidth >= 768) {
+          imgs.forEach(img => {
+            img.addEventListener('mouseenter', () => { img.style.zIndex = '10'; });
+            img.addEventListener('mouseleave', () => { img.style.zIndex = ''; });
           });
         }
-      });
-
-      if (window.innerWidth >= 768) {
-        imgs.forEach(img => {
-          img.addEventListener('mouseenter', () => { img.style.zIndex = '10'; });
-          img.addEventListener('mouseleave', () => { img.style.zIndex = ''; });
-        });
       }
-    }
+    });
   }
 
   // --- Degree Show Detail Page ---
@@ -267,7 +273,7 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
 
   // --- Activities Page ---
   if (page === 'activities') {
-    initActivitiesSectionSwitch('exhibitions');
+    initActivitiesSectionSwitch('exhibitions', fromUserNav);
     initActivitiesSearch();
     // ref 內 pdfUrl 觸發共用 PDF viewer（與 library / alumni 共用 sccd:open-pdf）
     initPdfViewer();
@@ -306,6 +312,14 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
   if (page === 'library') {
     initLibraryViewer();
     const panels = initLibraryPanels();
+
+    // refresh / 直接開 / 上一頁下一頁（fromUserNav=false）若帶 item 級 deep-link hash（award/album/document/press）
+    // → 清掉 hash 回 default panel（awards）、不導航到該項目（對齊 activities/curriculum：refresh = 直接點進來的 default 樣子，user 2026-06-04）。
+    // 清掉後 resolveInitialTabFromHash 回 awards、handleHash 讀到空 hash 自動 no-op。
+    // 純 tab hash（#press 等使用者瀏覽時持久化的分頁狀態）保留不清。
+    if (!fromUserNav && isItemDeepLinkHash()) {
+      history.replaceState(history.state, '', window.location.pathname);
+    }
 
     // deep-link 進場時直接以 hash 推測的目標 panel 為 gray 中心，
     // 不要先進 awards 再 switchPanel（會看到 awards 一閃即逝）。
@@ -405,6 +419,9 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
   }
   if (page === 'accessibility') {
     loadLegalData('accessibility');
+  }
+  if (page === 'support') {
+    loadLegalData('support');
   }
 
   // --- 404 Page ---

@@ -1,0 +1,26 @@
+[
+  {
+    "divisionKey": "animation",
+    "nameEn": "Animation & Moving Image",
+    "nameZh": "動畫影像設計組",
+    "groupLabel": "BFA 學士班",
+    "descriptionEn": "Explore the relationship between self and the environment through animation creation, and then extend the care and reflection on culture, ecology and humanities.\n\nThe curriculum integrates 2D, 3D, stop-motion and experimental techniques, equipping students with both technical fluency and a distinctive visual storytelling voice.",
+    "descriptionZh": "透過動畫創作探討自我與環境的關係，進而延伸對文化、生態與人文之關懷與省思。\n\n課程結合 2D、3D、停格與實驗性手法，培養學生紮實的技術能力與獨特的視覺敘事觀點。"
+  },
+  {
+    "divisionKey": "creative-media",
+    "nameEn": "Creative Media Design",
+    "nameZh": "創意媒體設計組",
+    "groupLabel": "BFA 學士班",
+    "descriptionEn": "Explore the essence of new media interaction from multiple perspectives, furthermore, showing care and reflection on humanities, society, and the environment by these perspectives.\n\nStudents engage with interactive installations, virtual reality and generative design, blending art, code and design thinking through cross-disciplinary experimentation.",
+    "descriptionZh": "多面向探討新媒體互動的本質，並藉此對人文、社會、環境作進一步之關懷與省思。\n\n學生接觸互動裝置、虛擬實境與生成式設計等新興技術，透過跨領域實驗結合藝術、程式與設計思維。"
+  },
+  {
+    "divisionKey": "mdes",
+    "nameEn": "MDES",
+    "nameZh": "碩士班",
+    "groupLabel": "",
+    "descriptionEn": "The MDES program offers advanced research and creative practice opportunities, fostering innovation in communications design. Graduate students engage in cutting-edge projects that push the boundaries of design thinking and media expression.\n\nThrough individual mentorship and collaborative studios, students develop original projects that contribute to contemporary discourse in visual communication and media arts.",
+    "descriptionZh": "碩士班提供進階研究與創作實踐機會，培養媒體傳達設計的創新能力。研究生參與前瞻性專案，推進設計思維與媒體表達的界限。\n\n透過個別指導與協作工作室，學生發展具原創性的專案，為當代視覺傳達與媒體藝術論述做出貢獻。"
+  }
+]
