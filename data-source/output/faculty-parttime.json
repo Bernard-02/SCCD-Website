@@ -1,50 +1,470 @@
 [
   {
-    "id": "5",
-    "image": "../images/S__6742028.jpg",
-    "nameZh": "教授名字 5",
-    "nameEn": "Professor Name 5",
+    "image": "",
+    "nameZh": "林佳禾",
+    "nameEn": "Chia-Ho Lin",
     "titles": [
       {
-        "titleZh": "講師",
-        "titleEn": "Lecturer"
+        "titleZh": "底醞敘事",
+        "titleEn": "Rhizome Operator"
       }
-    ]
+    ],
+    "_post_title": "林佳禾"
   },
   {
-    "id": "6",
-    "image": "../images/S__6742028.jpg",
-    "nameZh": "教授名字 6",
-    "nameEn": "Professor Name 6",
+    "image": "",
+    "nameZh": "顏瑞儀",
+    "nameEn": "Ruei Ruei-Yi Yen",
     "titles": [
       {
-        "titleZh": "講師",
-        "titleEn": "Lecturer"
+        "titleZh": "共時品牌整合設計",
+        "titleEn": "Royal Brand Integration"
       }
-    ]
+    ],
+    "_post_title": "顏瑞儀"
   },
   {
-    "id": "7",
-    "image": "../images/S__6742028.jpg",
-    "nameZh": "教授名字 7",
-    "nameEn": "Professor Name 7",
+    "image": "",
+    "nameZh": "楊世哲",
+    "nameEn": "Shi-Zhe Yung",
     "titles": [
       {
-        "titleZh": "講師",
-        "titleEn": "Lecturer"
+        "titleZh": "洋紅設計",
+        "titleEn": "Studio Magenta"
       }
-    ]
+    ],
+    "_post_title": "楊世哲"
   },
   {
-    "id": "11",
-    "image": "../images/S__6742028.jpg",
-    "nameZh": "教授名字 11",
-    "nameEn": "Professor Name 11",
+    "image": "",
+    "nameZh": "黃濬",
+    "nameEn": "Jiun Huang",
+    "titles": [
+      {
+        "titleZh": "動畫導演",
+        "titleEn": "Animation Director"
+      }
+    ],
+    "_post_title": "黃濬"
+  },
+  {
+    "image": "",
+    "nameZh": "吳仲倫",
+    "nameEn": "Chung-Lun Wu",
+    "titles": [
+      {
+        "titleZh": "尖蚪映畫",
+        "titleEn": "Foufa Studio"
+      }
+    ],
+    "_post_title": "吳仲倫"
+  },
+  {
+    "image": "",
+    "nameZh": "陳彥瑋",
+    "nameEn": "Yen-Wei Chen",
+    "titles": [
+      {
+        "titleZh": "專案經理",
+        "titleEn": "Project Manager"
+      }
+    ],
+    "_post_title": "陳彥瑋"
+  },
+  {
+    "image": "",
+    "nameZh": "何庭安",
+    "nameEn": "Ting-An Ho",
+    "titles": [
+      {
+        "titleZh": "",
+        "titleEn": "TINGANHO.INFO"
+      }
+    ],
+    "_post_title": "何庭安"
+  },
+  {
+    "image": "",
+    "nameZh": "朱祐辰",
+    "nameEn": "York Yo-Cehn Chu",
+    "titles": [
+      {
+        "titleZh": "設計師",
+        "titleEn": "Designer"
+      }
+    ],
+    "_post_title": "朱祐辰"
+  },
+  {
+    "image": "",
+    "nameZh": "陳普",
+    "nameEn": "Pu Chen",
+    "titles": [
+      {
+        "titleZh": "日目",
+        "titleEn": "247Visualart"
+      }
+    ],
+    "_post_title": "陳普"
+  },
+  {
+    "image": "",
+    "nameZh": "劉邦耀",
+    "nameEn": "Bang-Yao Liu",
+    "titles": [
+      {
+        "titleZh": "滾水影事",
+        "titleEn": "BOILFILM"
+      }
+    ],
+    "_post_title": "劉邦耀"
+  },
+  {
+    "image": "",
+    "nameZh": "杜偉",
+    "nameEn": "Wei Tu",
+    "titles": [
+      {
+        "titleZh": "視覺藝術工作者",
+        "titleEn": "Visual Artists"
+      }
+    ],
+    "_post_title": "杜偉"
+  },
+  {
+    "image": "",
+    "nameZh": "劉士齊",
+    "nameEn": "B. Shi-Chi Liu",
+    "titles": [
+      {
+        "titleZh": "底醞敘事",
+        "titleEn": "Rhizome Operator"
+      }
+    ],
+    "_post_title": "劉士齊"
+  },
+  {
+    "image": "",
+    "nameZh": "王薪誌",
+    "nameEn": "Hsin-Chih Wang",
+    "titles": [
+      {
+        "titleZh": "互動裝置設計師",
+        "titleEn": "Interactive Installation Designer"
+      }
+    ],
+    "_post_title": "王薪誌"
+  },
+  {
+    "image": "",
+    "nameZh": "李心寧",
+    "nameEn": "Shiny Hsin-Ning Lee",
+    "titles": [
+      {
+        "titleZh": "",
+        "titleEn": "Whatever Taipei"
+      }
+    ],
+    "_post_title": "李心寧"
+  },
+  {
+    "image": "",
+    "nameZh": "黃浩銘",
+    "nameEn": "Hao-Ming Huang",
+    "titles": [
+      {
+        "titleZh": "索爾視覺效果",
+        "titleEn": "Solvfx"
+      }
+    ],
+    "_post_title": "黃浩銘"
+  },
+  {
+    "image": "",
+    "nameZh": "徐明瀚",
+    "nameEn": "Austin Ming-Han Hsu",
+    "titles": [
+      {
+        "titleZh": "電影與藝術評論人",
+        "titleEn": "Film and Art Critic"
+      }
+    ],
+    "_post_title": "徐明瀚"
+  },
+  {
+    "image": "",
+    "nameZh": "張吾青",
+    "nameEn": "Wu-Ching Chang",
+    "titles": [
+      {
+        "titleZh": "艾可創意",
+        "titleEn": "Aco Creative"
+      }
+    ],
+    "_post_title": "張吾青"
+  },
+  {
+    "image": "",
+    "nameZh": "趙華軍",
+    "nameEn": "Joshua Hua-Chun Chao",
+    "titles": [
+      {
+        "titleZh": "茶茶",
+        "titleEn": "ChaCha"
+      }
+    ],
+    "_post_title": "趙華軍"
+  },
+  {
+    "image": "",
+    "nameZh": "方序中",
+    "nameEn": "Joe Hsu-Chung Fang",
+    "titles": [
+      {
+        "titleZh": "究方社",
+        "titleEn": "JOEFANGSTUDIO"
+      }
+    ],
+    "_post_title": "方序中"
+  },
+  {
+    "image": "",
+    "nameZh": "魏子菁",
+    "nameEn": "Zih-Jing Wei",
+    "titles": [
+      {
+        "titleZh": "何理互動",
+        "titleEn": "WHYIXD"
+      }
+    ],
+    "_post_title": "魏子菁"
+  },
+  {
+    "image": "",
+    "nameZh": "吳熒庭",
+    "nameEn": "Rufus Ying-Ting Wu",
+    "titles": [
+      {
+        "titleZh": "柒木設計",
+        "titleEn": "KIMU design studio"
+      }
+    ],
+    "_post_title": "吳熒庭"
+  },
+  {
+    "image": "",
+    "nameZh": "王欣翮",
+    "nameEn": "Elanor Hsin-Ho Wang",
+    "titles": [
+      {
+        "titleZh": "策展人",
+        "titleEn": "Curator"
+      }
+    ],
+    "_post_title": "王欣翮"
+  },
+  {
+    "image": "",
+    "nameZh": "李祥裕",
+    "nameEn": "Alvis Hsiang-Yu Lee",
+    "titles": [
+      {
+        "titleZh": "藝術家",
+        "titleEn": "Artist"
+      }
+    ],
+    "_post_title": "李祥裕"
+  },
+  {
+    "image": "",
+    "nameZh": "簡凌堃",
+    "nameEn": "Richard Ling-Kun Chien",
+    "titles": [
+      {
+        "titleZh": "茂銓創意",
+        "titleEn": "Mao Quan Creative"
+      }
+    ],
+    "_post_title": "簡凌堃"
+  },
+  {
+    "image": "",
+    "nameZh": "林韋達",
+    "nameEn": "Wei-Da Lin",
+    "titles": [
+      {
+        "titleZh": "",
+        "titleEn": "Darling Darling art studio"
+      }
+    ],
+    "_post_title": "林韋達"
+  },
+  {
+    "image": "",
+    "nameZh": "莊志維",
+    "nameEn": "Chih-Wei Chuang",
+    "titles": [
+      {
+        "titleZh": "藝術家",
+        "titleEn": "Artist"
+      }
+    ],
+    "_post_title": "莊志維"
+  },
+  {
+    "image": "",
+    "nameZh": "尹歆勻",
+    "nameEn": "Ben Wan Xin-Yun Yin",
+    "titles": [
+      {
+        "titleZh": "源本策略",
+        "titleEn": "MetaOrigin"
+      }
+    ],
+    "_post_title": "尹歆勻"
+  },
+  {
+    "image": "",
+    "nameZh": "高重黎",
+    "nameEn": "Chung-Li Kao",
+    "titles": [
+      {
+        "titleZh": "藝術家",
+        "titleEn": "Artist"
+      }
+    ],
+    "_post_title": "高重黎"
+  },
+  {
+    "image": "",
+    "nameZh": "邱廷翰",
+    "nameEn": "Owens Ting-Han Chiu",
+    "titles": [
+      {
+        "titleZh": "回轉設計",
+        "titleEn": "Return Design"
+      }
+    ],
+    "_post_title": "邱廷翰"
+  },
+  {
+    "image": "",
+    "nameZh": "林廷翰",
+    "nameEn": "Ting-Han Lin",
+    "titles": [
+      {
+        "titleZh": "回轉設計",
+        "titleEn": "Return Design"
+      }
+    ],
+    "_post_title": "林廷翰"
+  },
+  {
+    "image": "",
+    "nameZh": "黃信堯",
+    "nameEn": "Hsin-Yao Huang",
+    "titles": [
+      {
+        "titleZh": "電影導演",
+        "titleEn": "Film Director"
+      }
+    ],
+    "_post_title": "黃信堯"
+  },
+  {
+    "image": "",
+    "nameZh": "王伯宇",
+    "nameEn": "Po-Yu Wang",
+    "titles": [
+      {
+        "titleZh": "當若科技藝術",
+        "titleEn": "iF+"
+      }
+    ],
+    "_post_title": "王伯宇"
+  },
+  {
+    "image": "",
+    "nameZh": "林涵",
+    "nameEn": "Han Lin",
+    "titles": [
+      {
+        "titleZh": "繁盛映畫",
+        "titleEn": "Wild Green Films"
+      }
+    ],
+    "_post_title": "林涵"
+  },
+  {
+    "image": "",
+    "nameZh": "王柏偉",
+    "nameEn": "Po-Wei Wang",
+    "titles": [
+      {
+        "titleZh": "數位藝術基金會",
+        "titleEn": "Digital Art Foundation"
+      }
+    ],
+    "_post_title": "王柏偉"
+  },
+  {
+    "image": "",
+    "nameZh": "蘇俊夫",
+    "nameEn": "Jeff Chun-Fu Su",
+    "titles": [
+      {
+        "titleZh": "德明財經科技大學多媒體設計系",
+        "titleEn": "TMMD"
+      }
+    ],
+    "_post_title": "蘇俊夫"
+  },
+  {
+    "image": "",
+    "nameZh": "徐叡平",
+    "nameEn": "HSURAE Yu-Ping Hsu",
+    "titles": [
+      {
+        "titleZh": "徐徐工作室",
+        "titleEn": "HSU.STUDIO"
+      }
+    ],
+    "_post_title": "徐叡平"
+  },
+  {
+    "image": "",
+    "nameZh": "林立翔",
+    "nameEn": "Viktor Li-Hsiang Lin",
+    "titles": [
+      {
+        "titleZh": "後設多媒體設計",
+        "titleEn": "Multi-Discipline Studio"
+      }
+    ],
+    "_post_title": "林立翔"
+  },
+  {
+    "image": "",
+    "nameZh": "林仕杰",
+    "nameEn": "Sanmu Shih-Chieh Lin",
+    "titles": [
+      {
+        "titleZh": "土星環有限公司",
+        "titleEn": "The Rings of Saturn Collective"
+      }
+    ],
+    "_post_title": "林仕杰"
+  },
+  {
+    "image": "",
+    "nameZh": "黃宜品",
+    "nameEn": "Yi-Ping Huang",
     "titles": [
       {
         "titleZh": "講師",
-        "titleEn": "Lecturer"
+        "titleEn": "Instructor"
       }
-    ]
+    ],
+    "_post_title": "黃宜品"
   }
 ]

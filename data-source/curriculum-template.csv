@@ -1,7 +1,0 @@
-﻿程式組別 program,年級 grade,學期 semester,類型 type,課程名稱(英) titleEn,課程名稱(中) titleZh,課程說明(英) descriptionEn,課程說明(中) descriptionZh
-bfa-animation,freshman,upper,required,Introduction to Design,設計概論,,
-bfa-animation,freshman,lower,required,Introduction to Design (II),設計概論(二),,
-bfa-animation,freshman,upper,elective,Digital Prepress Design,數位編輯設計,Short English description here.,這裡填中文課程說明。
-bfa-cmd,sophomore,upper,elective,Typography,字體設計,,
-mdes,year1,upper,required,Creative Media & Design,數位媒體創作,,
-mdes,year2,upper,required,Thesis Project,碩士論文創作,,
