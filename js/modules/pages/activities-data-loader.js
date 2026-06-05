@@ -399,6 +399,78 @@ export function buildGalleryHtml(item) {
   `;
 }
 
+// 單一講者/來賓 block（name 粗體 + 右側國家；下排 org/affiliation + 右側國家）
+// item-level guests 與 conference sessions[].guests 共用同一份渲染。
+// 兩種 shape 都接：新(endpoint) nameEn/nameZh/orgEn/orgZh/country/isAlumni
+//                舊(data/X.json) name/name_zh/affiliation/affiliation_zh/country/country_zh/isAlumni
+export function buildGuestHtml(g, { showGuestCountry = true, showGuestAffiliation = true } = {}) {
+  const gNameEn = g.nameEn || g.name || '';
+  const gNameZh = g.nameZh || g.name_zh || '';
+  const gCountry = g.country || ''; // 新 shape 是 ISO code，舊是顯示字串
+  const gCountryZh = g.country_zh || '';
+  const gOrgEn = g.orgEn || g.affiliation || '';
+  const gOrgZh = g.orgZh || g.affiliation_zh || '';
+  const gIsAlumni = g.isAlumni === 'on' || g.isAlumni === true || g.isAlumni;
+  return `<div class="flex flex-col" style="gap: 0.25rem;">
+    <div class="flex gap-2xl justify-between">
+      <div class="flex-1">
+        ${gNameEn ? `<p class="text-p2 font-bold">${gNameEn}</p>` : ''}
+        ${gNameZh ? `<p class="text-p2 font-bold">${gNameZh}</p>` : ''}
+      </div>
+      ${showGuestCountry ? `<div class="flex-shrink-0 flex items-start gap-md">
+        ${gIsAlumni ? `<p class="text-p2">Alumni 系友</p>` : ''}
+        ${gCountry ? `<p class="text-p2">${gCountry}${gCountryZh ? ` ${gCountryZh}` : ''}</p>` : ''}
+      </div>` : ''}
+    </div>
+    ${showGuestAffiliation && gOrgEn ? `<div class="flex gap-2xl justify-between">
+      <p class="text-p3">${gOrgEn.length > 20 ? `${gOrgEn}<br>${gOrgZh || ''}` : `${gOrgEn}${gOrgZh ? ' ' + gOrgZh : ''}`}</p>
+      ${showGuestCountry && gCountry ? `<p class="text-p3 flex-shrink-0">${gCountry}${gCountryZh ? ` ${gCountryZh}` : ''}</p>` : ''}
+    </div>` : ''}
+  </div>`;
+}
+
+// Conference 每日場次（論壇）列表：each session = date + title + guests + 說明
+// 結構對齊摘要列：[date col（同 dateColMinWidth）| 內容]；講者沿用 buildGuestHtml。
+// 只在 item.sessions 有資料時渲染（目前僅 conferences 用）；其他 section 無此欄＝回傳空字串不影響。
+// session date 用同 item.dates 的 group 結構（[{startYear,startMonth,startDay,...}]）→ 沿用 formatDatesFromGroups；
+// 也容舊式 s.date 純字串 fallback。
+// 說明文字（user 2026-06-05）：改成「每場次各自一段」`descriptionEn`/`descriptionZh`，渲染在該場次最下方；
+// 沒 key（兩語皆空）就不渲染那段（取代原本 card 層級的單一說明，card 層級在 caller 處被 sessions 抑制）。
+function buildSessionsHtml(item, dateColMinWidth, { showGuestCountry = true, showGuestAffiliation = true } = {}) {
+  if (!Array.isArray(item.sessions) || item.sessions.length === 0) return '';
+  const rows = item.sessions.map(s => {
+    const sDate = Array.isArray(s.dates) && s.dates.length
+      ? formatDatesFromGroups(s.dates)
+      : (s.date || '');
+    const sTitleEn = s.titleEn || s.title_en || s.title || '';
+    const sTitleZh = s.titleZh || s.title_zh || '';
+    const sDescEn = s.descriptionEn || s.desEn || '';
+    const sDescZh = s.descriptionZh || s.desZh || '';
+    const guestsHtml = (Array.isArray(s.guests) ? s.guests : [])
+      .map(g => buildGuestHtml(g, { showGuestCountry, showGuestAffiliation }))
+      .join('');
+    // 說明文字（user 2026-06-05 #3）：移出內容欄，放在 date|內容 grid 之下、整段「從日期左緣」全寬對齊。
+    // date 欄（user #4）：包進 list-title-marquee，跨年過長時自動 marquee（同其他 date 欄）。
+    return `<div class="flex flex-col gap-sm">
+      <div class="grid items-start gap-x-xs" style="grid-template-columns: ${dateColMinWidth} 1fr;">
+        <div class="min-w-0">${sDate ? `<div class="list-title-marquee"><p class="text-p2 font-bold">${sDate}</p></div>` : ''}</div>
+        <div class="flex flex-col gap-sm min-w-0">
+          ${(sTitleEn || sTitleZh) ? `<div>
+            ${sTitleEn ? `<p class="text-p2 font-bold">${sTitleEn}</p>` : ''}
+            ${sTitleZh ? `<p class="text-p2 font-bold">${sTitleZh}</p>` : ''}
+          </div>` : ''}
+          ${guestsHtml ? `<div class="flex flex-col gap-sm">${guestsHtml}</div>` : ''}
+        </div>
+      </div>
+      ${(sDescEn || sDescZh) ? `<div>
+        ${sDescEn ? `<p class="text-p2 leading-base">${sDescEn}</p>` : ''}
+        ${sDescZh ? `<p class="text-p2 leading-base${sDescEn ? ' mt-xs' : ''}">${sDescZh}</p>` : ''}
+      </div>` : ''}
+    </div>`;
+  }).join('');
+  return `<div class="flex flex-col gap-lg">${rows}</div>`;
+}
+
 // ── Shared Post-Render Bindings ───────────────────────────────────────────────
 
 // Lightbox title 改成 list-item 名稱（user 指定：不是 section 分類名稱），accent 底色仍從 active section 取
@@ -751,6 +823,8 @@ export async function loadListInto(containerId, url, options = {}) {
     dateInHeader         = false,
     alwaysExpanded       = false,
     allowNoMedia         = false,
+    dateColWidth         = null,
+    dateFullWidth        = false,
     data: providedData   = null,
   } = options;
 
@@ -834,13 +908,12 @@ export async function loadListInto(containerId, url, options = {}) {
     };
   };
 
-  // Date col 固定寬：永遠按「跨年最寬版本」`MM / DD - YYYY / MM / DD`（24 字符）為基準
-  // user 契約 v6 (2026-05-25)：前端 layout 固定，後台只給資料，不論該 list 是否有跨年 item
-  //   單日 / 同年跨日 → 留白同欄寬，location 起始點永遠對齊
-  //   不再有 fullDate ? '22ch' : '11ch' 切換（v5 已廢棄）
-  // dateInHeader（admission）副標自由排版不受此 col 約束
-  // 21ch：實測值，剛好夠裝跨年最寬 24 字符（粗體含空格 `/` 平均 < 1ch）；24ch 會多留白
-  const dateColMinWidth = '21ch';
+  // Date col 固定寬（user 2026-06-05 升級全站 14ch + marquee，取代 v6 的 21ch 固定）：
+  //   - 預設 '14ch'＝裝得下「同年區間」MM / DD - MM / DD（~13 字符），最常見情況不留多餘白、location 起點靠左對齊。
+  //   - 跨年過長版 `MM / DD - YYYY / MM / DD`（~24 字符）超出 14ch → date <p> 包在 .list-title-marquee 內自動 marquee
+  //     （見 render 處），不撐寬欄位、各 list 對齊不破。
+  //   - dateColWidth option 仍保留供個別 list 覆寫；dateInHeader（admission）副標自由排版不受此 col 約束。
+  const dateColMinWidth = dateColWidth || '14ch';
 
   filteredData.forEach((yearGroup, index) => {
     const isLast  = index === filteredData.length - 1;
@@ -943,6 +1016,9 @@ export async function loadListInto(containerId, url, options = {}) {
       // locationEn/Zh：search + 「一行地點顯示」用（venue 單一 / 多城市 ' / ' join 成一行）
       const locationEn = locationRows.map(l => l.en).filter(Boolean).join(' / ');
       const locationZh = locationRows.map(l => l.zh).filter(Boolean).join(' / ');
+      // city（conference 摘要列第三欄）：venue(location) 之外的城市/地區，目前只有 conferences 填
+      const cityEn = item.city || item.cityEn || '';
+      const cityZh = item.city_zh || item.cityZh || '';
       // 標題國旗來源 = guests（人物/單位）的國家，去重 + 轉小寫給 flag-icons（fi-tw…）。
       // 「地點的國家」(item.flag / locations[].country) 暫不納入 — user 2026-06-03：等後台處理 location-country 機制再加進來。
       const countryCodes = [...new Set((item.guests || []).map(g => (g.country || '').toLowerCase().trim()).filter(Boolean))];
@@ -995,58 +1071,41 @@ export async function loadListInto(containerId, url, options = {}) {
             </div>` : `
             <div class="pt-sm pb-lg px-md grid gap-gutter items-start" style="grid-template-columns: 9.5fr 2.5fr;">
               <div class="flex flex-col gap-md pr-2xl">
-                ${(((showDate && dateDisplay && !dateInHeader)) || (showLocation && locationRows.length)) ? (() => {
-                  // 三欄 row-level grid：[date 連續時間寬 | location names stack | country stack]
-                  //   - date col 永遠寬到「連續時間」格式（單日 item 留白同欄寬），location 起始點對齊
-                  //   - location names / country 各自獨立 stack，行數靠 locationRows 對齊；
-                  //     name 過長走 list-title-marquee，country 一律右靠到第三欄
-                  // 國家行為與 guest 一致：ISO upper + 中文（per location row 各自顯示自己的 country）
-                  // showLocation=false 時 names / country 兩 stack 都不渲染
-                  const showDateCell = showDate && dateDisplay && !dateInHeader;
-                  // 地點一律「一行」：venue 單一 / 多城市都用 locationEn(Zh) 的 ' / ' join 串成一行（不再 per-row stack）。
-                  // 右邊不再有國家欄 — 國家改由標題國旗表示（來源 = guests）。user 2026-06-03 重設計。
-                  return `<div class="grid items-start gap-x-xs" style="grid-template-columns: ${dateColMinWidth} 1fr;">
-                    ${showDateCell ? `<div class="flex-shrink-0">
-                      <p class="text-p2 font-bold">${dateDisplay}</p>
-                      ${dateDisplayZh ? `<p class="text-p2 font-bold">${dateDisplayZh}</p>` : ''}
+                ${showDate && dateDisplay && !dateInHeader && dateFullWidth ? `<div>
+                  <p class="text-p2 font-bold">${dateDisplay}</p>
+                  ${dateDisplayZh ? `<p class="text-p2 font-bold">${dateDisplayZh}</p>` : ''}
+                </div>` : ''}
+                ${(((showDate && dateDisplay && !dateInHeader && !dateFullWidth)) || (showLocation && locationRows.length) || (showLocation && (cityEn || cityZh))) ? (() => {
+                  // 摘要列 grid：[date 連續時間寬 | venue(location) | city]
+                  //   - date col 永遠寬到「連續時間」格式（單日 item 留白同欄寬），venue 起始點對齊
+                  //   - venue 一行（多城市 ' / ' join），name 過長走 list-title-marquee
+                  //   - city（conference 才填）靠右第三欄；無 city 時維持兩欄不變（不影響其他 section）
+                  // 國家由標題國旗表示（來源 = guests）。user 2026-06-03 重設計；2026-06-05 加 city 欄。
+                  // dateFullWidth（permanent exhibitions）：date 其實是頻率說明（"Once per semester"）非真實日期，
+                  //   已在上方獨立 full-width 渲染（不進 14ch 欄、不 marquee），這裡不再當 date cell。
+                  const showDateCell = showDate && dateDisplay && !dateInHeader && !dateFullWidth;
+                  const hasCity = showLocation && !!(cityEn || cityZh);
+                  const cols = hasCity ? `${dateColMinWidth} 1fr auto` : `${dateColMinWidth} 1fr`;
+                  return `<div class="grid items-start gap-x-xs" style="grid-template-columns: ${cols};">
+                    ${showDateCell ? `<div class="min-w-0">
+                      <div class="list-title-marquee"><p class="text-p2 font-bold">${dateDisplay}</p></div>
+                      ${dateDisplayZh ? `<div class="list-title-marquee"><p class="text-p2 font-bold">${dateDisplayZh}</p></div>` : ''}
                     </div>` : '<div></div>'}
                     ${showLocation && (locationEn || locationZh) ? `<div class="min-w-0">
                       ${locationEn ? `<div class="list-title-marquee"><p class="text-p2 font-bold">${locationEn}</p></div>` : ''}
                       ${locationZh ? `<div class="list-title-marquee"><p class="text-p2 font-bold">${locationZh}</p></div>` : ''}
                     </div>` : '<div></div>'}
+                    ${hasCity ? `<div class="flex-shrink-0 text-right">
+                      ${cityEn ? `<p class="text-p2 font-bold">${cityEn}</p>` : ''}
+                      ${cityZh ? `<p class="text-p2 font-bold">${cityZh}</p>` : ''}
+                    </div>` : ''}
                   </div>`;
                 })() : ''}
+                ${buildSessionsHtml(item, dateColMinWidth, { showGuestCountry, showGuestAffiliation })}
                 ${item.guests?.length ? `<div class="flex flex-col gap-sm">
-                  ${item.guests.map(g => {
-                    // 兩種 shape 都接：
-                    //   新 (endpoint): nameZh / nameEn / country / orgZh / orgEn / orgCountry / isAlumni
-                    //   舊 (data/X.json): name / name_zh / country / country_zh / affiliation / affiliation_zh / isAlumni
-                    const gNameEn = g.nameEn || g.name || '';
-                    const gNameZh = g.nameZh || g.name_zh || '';
-                    const gCountry = g.country || ''; // 新 shape 是 ISO code，舊是顯示字串
-                    const gCountryZh = g.country_zh || '';
-                    const gOrgEn = g.orgEn || g.affiliation || '';
-                    const gOrgZh = g.orgZh || g.affiliation_zh || '';
-                    const gIsAlumni = g.isAlumni === 'on' || g.isAlumni === true || g.isAlumni;
-                    return `<div class="flex flex-col" style="gap: 0.25rem;">
-                      <div class="flex gap-2xl justify-between">
-                        <div class="flex-1">
-                          ${gNameEn ? `<p class="text-p2 font-bold">${gNameEn}</p>` : ''}
-                          ${gNameZh ? `<p class="text-p2 font-bold">${gNameZh}</p>` : ''}
-                        </div>
-                        ${showGuestCountry ? `<div class="flex-shrink-0 flex items-start gap-md">
-                          ${gIsAlumni ? `<p class="text-p2">Alumni 系友</p>` : ''}
-                          ${gCountry ? `<p class="text-p2">${gCountry}${gCountryZh ? ` ${gCountryZh}` : ''}</p>` : ''}
-                        </div>` : ''}
-                      </div>
-                      ${showGuestAffiliation && gOrgEn ? `<div class="flex gap-2xl justify-between">
-                        <p class="text-p3">${gOrgEn.length > 20 ? `${gOrgEn}<br>${gOrgZh || ''}` : `${gOrgEn}${gOrgZh ? ' ' + gOrgZh : ''}`}</p>
-                        ${showGuestCountry && gCountry ? `<p class="text-p3 flex-shrink-0">${gCountry}${gCountryZh ? ` ${gCountryZh}` : ''}</p>` : ''}
-                      </div>` : ''}
-                    </div>`;
-                  }).join('')}
+                  ${item.guests.map(g => buildGuestHtml(g, { showGuestCountry, showGuestAffiliation })).join('')}
                 </div>` : ''}
-                ${showDescription && (introEn || introZh) ? `<div class="overflow-y-auto pr-xl list-scroll" style="max-height: 250px;">
+                ${showDescription && (introEn || introZh) && !(Array.isArray(item.sessions) && item.sessions.length) ? `<div class="overflow-y-auto pr-xl list-scroll" style="max-height: 250px;">
                   ${introEn ? `<p class="text-p2 leading-base">${introEn}</p>` : ''}
                   ${introZh ? `<p class="text-p2 leading-base mt-md">${introZh}</p>` : ''}
                 </div>` : ''}
@@ -1231,29 +1290,7 @@ export async function loadSummerCampInto(containerId = null, options = {}) {
     return el?.id || null;
   })();
   if (!id) return;
-  // WP endpoint 回 flat array；summer-camp.json fallback 是 year-grouped → 包成 flat 對齊
-  // _SKIP_WP 時 dev 直接走 JSON 跳過 WP fetch（見 fetchActEndpointOrFallback 上方註解）
-  const WP_API_BASE = location.hostname === 'sccd-website.local' ? '' : 'http://sccd-website.local';
-  const data = _SKIP_WP
-    ? await fetch('/data/summer-camp.json').then(r => r.json())
-    : await fetch(`${WP_API_BASE}/wp-json/sccd/v1/admission-summer-camp`)
-    .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-    .then(arr => {
-      if (!Array.isArray(arr) || arr.length === 0) throw new Error('endpoint returned 0 items');
-      // endpoint 是 flat：包成 year-grouped 對齊 loadListInto 預設 shape
-      // 主年份 = dates[0].startYear（新 schema 沒 top-level year field）
-      const byYear = new Map();
-      for (const it of arr) {
-        const y = it.dates?.[0]?.startYear || it.year || '';
-        if (!byYear.has(y)) byYear.set(y, []);
-        byYear.get(y).push(it);
-      }
-      return Array.from(byYear, ([year, items]) => ({ year, items }));
-    })
-    .catch(err => {
-      console.warn('[summer-camp] WP endpoint failed, fallback to data/summer-camp.json:', err.message);
-      return fetch('/data/summer-camp.json').then(r => r.json());
-    });
+  const data = await fetch('/data/summer-camp.json').then(r => r.json());
   return loadListInto(id, '/data/summer-camp.json', {
     showYearToggle: false,
     data,
@@ -1294,26 +1331,11 @@ function deriveHostSection(url, categoryFilter, visitTypeFilter) {
   return null;
 }
 
-// 共用 fetch wrapper：WP endpoint 優先 + JSON fallback + endpoint 空也算 fail
-// 回 array of entries（無 categoryFilter / visitTypeFilter 套用，caller 自行 filter；本系列已拆 CPT 不需要）
-const _ACT_WP_BASE = location.hostname === 'sccd-website.local' ? '' : 'http://sccd-website.local';
-// 本機 dev（非 WP host）跳過 WP fetch 直接走 JSON：WP 沒跑時 DNS / 連線失敗要等數秒才 reject，
-// 體感每次切分頁卡 3s。dev 時設 sessionStorage.wpDev='1' 可強制嘗試 WP 對接測試
-const _SKIP_WP = location.hostname !== 'sccd-website.local'
-  && /^(localhost|127\.0\.0\.1|0\.0\.0\.0|)$/.test(location.hostname)
-  && sessionStorage.getItem('wpDev') !== '1';
+// 共用 fetch wrapper：讀本地 JSON（WP-headless 邏輯已移除 2026-06-05）。
+// 第一參數 endpoint 已不使用、保留只為不動各 call site；之後此頁 flip 接 Directus 時，
+// 改成 Directus 為主 + 本地 JSON fallback（同 legal-data-loader 的 try-CMS / catch-local pattern）。
 async function fetchActEndpointOrFallback(endpoint, fallbackUrl) {
-  if (_SKIP_WP) return fetch(fallbackUrl).then(r => r.json());
-  try {
-    const res = await fetch(`${_ACT_WP_BASE}/wp-json/sccd/v1/${endpoint}`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const arr = await res.json();
-    if (!Array.isArray(arr) || arr.length === 0) throw new Error('endpoint returned 0 items');
-    return arr;
-  } catch (err) {
-    console.warn(`[${endpoint}] WP endpoint failed, fallback to ${fallbackUrl}:`, err.message);
-    return fetch(fallbackUrl).then(r => r.json());
-  }
+  return fetch(fallbackUrl).then(r => r.json());
 }
 
 export async function loadGeneralActivitiesInto(containerId, categoryFilter = null, url = '/data/general-activities.json', options = {}) {
@@ -1370,8 +1392,10 @@ export async function loadExhibitionsInto(options = {}) {
       ...options,
     }),
     // 常設展演 endpoint user 還沒做（晚點再給），保留舊 JSON 路徑
+    // dateFullWidth：permanent 的 date 是頻率說明（"Once per semester / 每學期舉辦一次"）非真實日期，
+    //   要 full-width 顯示、不擠進 14ch date 欄、不 marquee（user 2026-06-05）。
     loadListInto('exhibitions-list-permanent', '/data/permanent-exhibitions.json', {
-      hideYearHeader: true,
+      hideYearHeader: true, dateFullWidth: true,
       panelSelector: '#panel-exhibitions', scrollTrigger: true,
       ...options,
     }),

@@ -165,6 +165,7 @@ export function initTimeline() {
     // 若還在 TDZ 會 ReferenceError 中斷整個 buildStrip → nav click handler 沒綁上）
     let currentIndex = 0;
     let isTransitioning = false;
+    let listMode = false; // list view（era 卡片）開啟時凍結 timeline 導航
 
     // 固定位置（每年同 pos，隨機旋轉）
     const CARD_BOTTOM_PAD = 60;       // 距 viewport 底部
@@ -172,8 +173,6 @@ export function initTimeline() {
     const CARD_GAP = 28;              // 同年多張主卡之間的「視覺」垂直間距（chip 高度會額外加上去防重疊）
     const BLOCK_GAP = 18;             // 同一張卡內，多筆 description 之間的垂直間距
     const GRID_GAP_PX = 24;           // 主卡 grid 左右 col 中間 gap（= md spacing token）
-    const CHIP_GAP = 4;               // BFA/MDES chip 緊貼卡頂上方的小 gap（同 courses-bfa-label）
-    const CHIP_OFFSET_LEFT = -12;     // chip 相對主卡 left 邊的水平偏移（同 courses-bfa-label）
     const ERA_OFFSET_TOP = 24;        // era 底部相對「最頂主卡頂部」的距離（隨主卡走）
     const ERA_RANDOM_LEFT_SHIFT = 60; // era 在主卡左上區域允許的隨機水平偏移範圍（0~N px）
 
@@ -184,7 +183,6 @@ export function initTimeline() {
     const safeRight = pageW - 6 * vw - 40;
     const MAIN_CARD_W = Math.min(680, safeRight - safeLeft);
     const MAIN_CARD_RIGHT = pageW - safeRight; // 主卡 right 偏移（從 viewport 右緣算）
-    const MAIN_CARD_LEFT = pageW - MAIN_CARD_RIGHT - MAIN_CARD_W; // 主卡 left 邊（用於 chip/era 對齊）
 
     items.forEach((item, index) => {
       const ox = index * pageW;
@@ -393,7 +391,7 @@ export function initTimeline() {
 
       // === Group descriptions by leading <h5>...</h5> token ===
       // h5 開頭 → 獨立一張卡（chip = h5 文字）；無 h5 → 接續上一張卡作為其 description
-      // 即同年「BFA + MDES」會拆成 2 張獨立主卡（user 指定 chip 在卡外左上角，每張卡有自己的 chip）
+      // 即同年「BFA + MDES」會拆成 2 張獨立主卡，每張卡的小標（BFA/MDES）放卡內 body 頂端（不再做卡外 chip）
       const rawDescs = item.descriptions || (item.description ? [item.description] : []);
       const cardsData = []; // [{ chip: string|null, items: string[] }]
       const H5_RE = /^\s*<h5[^>]*>([\s\S]*?)<\/h5>/i;
@@ -418,7 +416,6 @@ export function initTimeline() {
 
       // === Build N 張主卡（從下往上堆疊；year 只放第一張[最下]，其他張左 col 空白對齊）===
       const mainCards = [];
-      const chipEls = [];
       let cumBottom = CARD_BOTTOM_PAD;
 
       // 倒序建構（i=last 在底、i=0 在頂），但 cardsData[0] 視覺上仍是「主要那張」放底
@@ -437,6 +434,13 @@ export function initTimeline() {
           `<div${ii > 0 ? ` style="margin-top:${BLOCK_GAP}px;"` : ''}>${it}</div>`
         ).join('');
 
+        // BFA/MDES 小標：放進卡片內、body col 頂端（不再做卡外 chip）。
+        // h5 + line-height:1 → 跟左欄年份（也是 h5 lh:1）頂端對齊；margin-bottom 與下方說明拉開
+        // （比照 list view 的 .tl-list-block > h5 做法，兩視圖一致）
+        const chipHtml = card.chip
+          ? `<div class="text-h5" style="line-height:1;margin-bottom:${BLOCK_GAP}px;">${card.chip}</div>`
+          : '';
+
         // grid: auto 1fr — year 在第一張卡才顯示；後續卡片 year col 留空（保持對齊）
         // 沒有 year（後續卡）也要保留 left col 才能讓右 col 文字落在跟第一張一樣的位置
         const yearHtml = isFirstCard
@@ -446,7 +450,7 @@ export function initTimeline() {
         mainCard.innerHTML = `
           <div style="display:grid;grid-template-columns:auto 1fr;gap:${GRID_GAP_PX}px;align-items:start;">
             <div style="min-width:${isFirstCard ? 'auto' : '0'};">${yearHtml}</div>
-            <div class="text-p2 leading-base font-bold">${itemsHtml}</div>
+            <div class="text-p2 leading-base font-bold">${chipHtml}${itemsHtml}</div>
           </div>
         `;
         cardsOverlay.appendChild(mainCard);
@@ -485,31 +489,13 @@ export function initTimeline() {
         const snugW = padL + leftColW + GRID_GAP_PX + Math.ceil(maxRight) + padR + 1;
         mainCard.style.width = `${Math.min(snugW, MAIN_CARD_W)}px`;
 
-        // === Chip（卡外左上角，緊貼卡頂上方 — 走 courses-bfa-label pattern）===
-        // chip 放 cardsOverlay（不放 mainCard 內，因為 mainCard 之後會套 clip-path 會裁掉外凸子元素）
-        // 同色（cardColor）+ bottom = 此卡頂部 + 小 gap，視覺上像 stick label 黏在卡片上
-        // 加 .timeline-card-inner class 跟 era badge padding 規則一致（typography whitelist 也帶到）
-        let chipEl = null;
-        if (card.chip) {
-          const cardTopBottom = cumBottom + mainCard.offsetHeight + CHIP_GAP;
-          chipEl = document.createElement('div');
-          chipEl.className = 'timeline-card-inner pointer-events-none absolute';
-          chipEl.style.cssText = `left:${MAIN_CARD_LEFT + CHIP_OFFSET_LEFT}px;bottom:${cardTopBottom}px;padding:0.4em 0.7em;background:${cardColor};width:max-content;transform-origin:bottom left;transform:rotate(${pickUniqueRotations(1, -3, 3)[0] || 0}deg);z-index:3;`;
-          chipEl.innerHTML = `<div class="text-p2 leading-base font-bold">${card.chip}</div>`;
-          cardsOverlay.appendChild(chipEl);
-        }
-
         mainCards.push(mainCard);
-        chipEls.push(chipEl);
 
-        // 累加：下一張卡的 bottom = 此卡 top + chip 高度 + CHIP_GAP + CARD_GAP
-        // chip 在卡頂上方佔 chipH + CHIP_GAP 空間；下一張卡若也有 chip，需從這之上再加 CARD_GAP 留視覺呼吸
-        // chipEl 可能 null（無 chip 那卡）→ 退化為 0
-        const chipOccupy = chipEl ? chipEl.offsetHeight + CHIP_GAP : 0;
-        cumBottom += mainCard.offsetHeight + chipOccupy + CARD_GAP;
+        // 下一張卡的 bottom：此卡頂 + CARD_GAP（小標已在卡內、計入 mainCard.offsetHeight）
+        cumBottom += mainCard.offsetHeight + CARD_GAP;
       });
 
-      pageData.push({ mainCards, chipEls, eraKey: `${item.eraTitle}|${item.eraLabel}`, eraTitle: item.eraTitle, eraLabel: item.eraLabel });
+      pageData.push({ mainCards, eraKey: `${item.eraTitle}|${item.eraLabel}`, eraTitle: item.eraTitle, eraLabel: item.eraLabel });
     });
 
     // === Era badges：每個 era 只建 1 個（共用 instance）===
@@ -550,11 +536,9 @@ export function initTimeline() {
       pd.eraBadge = eraBadge;
     });
 
-    // 同年「所有主卡 + 對應 chip」當一組元素處理（chip 在 cardsOverlay 跟主卡分離，需個別套 clip-path）
+    // 同年所有主卡當一組元素處理（小標已在卡內、跟卡一起 clip-path，不再有卡外 chip）
     function getCardEls(pd) {
-      const out = [...pd.mainCards];
-      pd.chipEls.forEach(c => { if (c) out.push(c); });
-      return out;
+      return [...pd.mainCards];
     }
 
     // 初始：除第 0 年外其他年份的字卡全部 clip-path 隱藏
@@ -823,6 +807,8 @@ export function initTimeline() {
     // --- 導航 ---（currentIndex / isTransitioning 已在 buildStrip 開頭宣告）
 
     function updateNavZones() {
+      // list view 開啟時隱藏左右 nav zone（避免邊緣殘留箭頭 cursor）
+      if (listMode) { navLeft.style.display = 'none'; navRight.style.display = 'none'; return; }
       navLeft.style.display = currentIndex === 0 ? 'none' : '';
       // 右箭頭永遠顯示（最後一年點擊會重新開始）
       navRight.style.display = '';
@@ -857,7 +843,7 @@ export function initTimeline() {
     }
 
     function goTo(index) {
-      if (isTransitioning || index < 0 || index >= items.length) return;
+      if (listMode || isTransitioning || index < 0 || index >= items.length) return;
       isTransitioning = true;
       hoverEnabled = false;
 
@@ -933,7 +919,7 @@ export function initTimeline() {
 
     // 重置 timeline：清空最後一年 → 回到第一年
     function resetTimeline() {
-      if (isTransitioning) return;
+      if (listMode || isTransitioning) return;
       isTransitioning = true;
       hoverEnabled = false;
 
@@ -1036,6 +1022,227 @@ export function initTimeline() {
     });
 
     updateNavZones();
+
+    // ── List View（era 卡片切換；桌機 only）──────────────────────────
+    // 左下角 toggle 鈕切換 timeline ↔ list view：
+    //   進 list：clip-out 當前畫面照片 + 字卡 → clip-in 一個 accent 矩形（單一 era、內容可捲動）
+    //   矩形左上角 = era 名稱 chip、右下角 next 鈕在各 era 間 loop
+    // 沿用既有 clip helper / TIMING / ACCENT_COLORS；顏色每次進場隨機指派。
+    // 矩形 + chip 套 .timeline-card-inner 取得三 mode 配色（standard/inverse accent+黑字、color strict B/W）。
+
+    // era 分組（從 flatten 的 items 還原，保持原順序）
+    const eraGroups = [];
+    const eraIndexByKey = {};
+    items.forEach(it => {
+      const key = `${it.eraTitle}|${it.eraLabel}`;
+      if (eraIndexByKey[key] === undefined) {
+        eraIndexByKey[key] = eraGroups.length;
+        eraGroups.push({ title: it.eraTitle, label: it.eraLabel, years: [] });
+      }
+      eraGroups[eraIndexByKey[key]].years.push(it);
+    });
+
+    let listEraIndex = 0;
+    let listRectAnimating = false; // next 切換期間鎖
+    let listEraColors = [];
+    let hiddenRotates = [];        // 進 list 時 clip-out 的照片 rotateDiv，返回時還原
+    let hiddenCards = [];          // 同上：字卡 + era badge
+
+    // toggle 鈕（atlas layout-btn 同款 icon 鈕；absolute 在 timeline-area 左下角）
+    const listBtn = document.createElement('button');
+    listBtn.id = 'timeline-list-btn';
+    listBtn.setAttribute('aria-label', '切換清單視圖');
+    listBtn.innerHTML = '<span class="tl-icon-btn-inner"><span class="icon icon-atlas-list"></span></span>';
+    area.appendChild(listBtn);
+    const listIcon = listBtn.querySelector('.icon');
+
+    // toggle 鈕 icon 切換：比照 atlas layout-btn 的 icon swap（hideLayoutIcon → revealLayoutIcon）。
+    //   隨機四方向 clip-path（% 單位）；reveal 起點 = 上次 hide 的終點方向 → reveal 是 hide 的時間反向，連續不跳。
+    //   clip 套在 .icon glyph（不是整個色塊 box）→ 色塊留著、只有 icon 圖形 wipe/swap（與 atlas 一致）。
+    const TL_ICON_DIRS = [
+      'inset(0% 100% 0% 0%)', // 右
+      'inset(0% 0% 0% 100%)', // 左
+      'inset(100% 0% 0% 0%)', // 上
+      'inset(0% 0% 100% 0%)', // 下
+    ];
+    const TL_ICON_DUR = 0.4;
+    const TL_ICON_EASE = 'power2.out';
+    function wipeToggleIcon(newClass) {
+      if (typeof gsap === 'undefined') { listIcon.className = newClass; return; }
+      const dir = TL_ICON_DIRS[Math.floor(Math.random() * 4)];
+      gsap.killTweensOf(listIcon);
+      // hide：clip 到隨機方向 → 換 className → 從同方向 reveal 回全顯（= hide 的時間反向）
+      gsap.to(listIcon, {
+        clipPath: dir, duration: TL_ICON_DUR, ease: TL_ICON_EASE, overwrite: true,
+        onComplete: () => {
+          listIcon.className = newClass;
+          gsap.fromTo(listIcon,
+            { clipPath: dir },
+            { clipPath: 'inset(0% 0% 0% 0%)', duration: TL_ICON_DUR, ease: TL_ICON_EASE, clearProps: 'clipPath', overwrite: true }
+          );
+        },
+      });
+    }
+
+    // list view overlay：grid(對齊 col-5~20) > cell > rect(clip 目標) + chip + next 鈕（chip/next 為 sibling 凸出矩形邊）
+    const listView = document.createElement('div');
+    listView.id = 'timeline-list-view';
+    listView.style.display = 'none';
+    listView.innerHTML =
+      '<div class="tl-list-grid"><div class="tl-list-cell">' +
+        '<div class="tl-list-rect timeline-card-inner"><div class="tl-list-content list-scroll"></div></div>' +
+        '<div class="tl-list-chip timeline-card-inner bg-black text-white"><div class="text-p2 leading-base font-bold"></div></div>' +
+        '<button class="tl-list-next-btn" aria-label="下一個時期"><span class="tl-icon-btn-inner"><span class="icon icon-arrow-right"></span></span></button>' +
+      '</div></div>';
+    area.appendChild(listView);
+
+    const listChip = listView.querySelector('.tl-list-chip');
+    const listChipText = listChip.querySelector('div');
+    const listRect = listView.querySelector('.tl-list-rect');
+    const listContent = listView.querySelector('.tl-list-content');
+    const listNextBtn = listView.querySelector('.tl-list-next-btn');
+    const rectEls = [listRect, listChip]; // reveal/exit 一起（rect 先、chip 後 stagger）
+
+    // 把單筆說明（<h5>?<div>EN</div><div>ZH</div>）拆成 heading / EN / ZH 三段，供 EN 左 ZH 右排版
+    const descParser = document.createElement('div');
+    function splitDesc(d) {
+      descParser.innerHTML = d;
+      let heading = '';
+      const divs = [];
+      [...descParser.children].forEach(ch => {
+        if (ch.tagName === 'H5') heading += ch.outerHTML;
+        else divs.push(ch);
+      });
+      const en = divs[0] ? divs[0].innerHTML : '';
+      const zh = divs.length > 1 ? divs.slice(1).map(x => x.innerHTML).join('<br>') : '';
+      return { heading, en, zh };
+    }
+
+    function renderListEra(idx) {
+      const era = eraGroups[idx];
+      listChipText.textContent = `${era.title} ${era.label}`;
+      listRect.style.background = listEraColors[idx];
+      listContent.innerHTML = era.years.map(y => {
+        const descs = y.descriptions || (y.description ? [y.description] : []);
+        const blocks = descs.map(d => {
+          const { heading, en, zh } = splitDesc(d);
+          return '<div class="tl-list-block">' + heading +
+            '<div class="tl-list-cols">' +
+              `<div class="tl-list-en">${en}</div>` +
+              `<div class="tl-list-zh">${zh}</div>` +
+            '</div></div>';
+        }).join('');
+        return '<div class="tl-list-year-row">' +
+          `<div class="tl-list-year text-h5 font-bold">${y.year}</div>` +
+          `<div class="tl-list-year-body text-p2 leading-base font-bold">${blocks}</div>` +
+        '</div>';
+      }).join('');
+      listContent.scrollTop = 0;
+    }
+
+    // 清掉殘留 hover state（進 list view 前）
+    function clearListHover() {
+      if (!activeHover) return;
+      const rd = activeHover.querySelector('div');
+      gsap.killTweensOf(rd);
+      if (rd) gsap.set(rd, { clipPath: CLIP_END });
+      activeHover.style.zIndex = activeHover._tlOrigZ;
+      activeHover._raising = false;
+      activeHover._tlLowering = false;
+      activeHover = null;
+      clearTimeout(hoverLeaveTimer);
+      if (photoTooltip) gsap.set(photoTooltip, { opacity: 0, clipPath: CLIP_END });
+      undimEdgePhotos();
+    }
+
+    // 當前 viewport 內可見的照片 rotateDiv（含邊界 slot 的跨頁殘留）
+    function getVisibleRotates() {
+      const aR = area.getBoundingClientRect();
+      const out = [];
+      allPhotos.forEach(p => {
+        const r = p.getBoundingClientRect();
+        if (r.right > aR.left + 1 && r.left < aR.right - 1 &&
+            r.bottom > aR.top + 1 && r.top < aR.bottom - 1) {
+          const rd = p.querySelector('div');
+          if (rd) out.push(rd);
+        }
+      });
+      return out;
+    }
+
+    function showListView() {
+      if (isTransitioning || listRectAnimating) return;
+      isTransitioning = true;
+      hoverEnabled = false;
+      clearListHover();
+      listMode = true;
+      updateNavZones();
+      wipeToggleIcon('icon icon-atlas-view');
+
+      // 每次進場隨機指派三原色給各 era，從當前年份所屬 era 開始
+      const pool = shuffle(ACCENT_COLORS);
+      listEraColors = eraGroups.map((_, i) => pool[i % pool.length]);
+      listEraIndex = eraIndexByKey[pageData[currentIndex].eraKey] ?? 0;
+
+      // clip-out 當前可見照片 + 字卡
+      hiddenRotates = getVisibleRotates();
+      hiddenCards = [...getCardEls(pageData[currentIndex]), pageData[currentIndex].eraBadge];
+      [...hiddenRotates, ...hiddenCards].forEach(el => {
+        gsap.to(el, { clipPath: getClipStart(randomDir4()), duration: TIMING.exitDuration, ease: TIMING.exitEase });
+      });
+
+      // 照片/字卡收完才 clip-in 矩形
+      gsap.delayedCall(TIMING.exitDuration, () => {
+        renderListEra(listEraIndex);
+        listView.style.display = 'block';
+        gsap.set(rectEls, { clipPath: getClipStart(randomDirLR()) });
+        gsap.to(rectEls, {
+          clipPath: CLIP_END, duration: TIMING.cardRevealDuration, ease: TIMING.revealEase, stagger: TIMING.stagger,
+          onComplete: () => { isTransitioning = false; },
+        });
+      });
+    }
+
+    function hideListView() {
+      if (isTransitioning || listRectAnimating) return;
+      isTransitioning = true;
+      wipeToggleIcon('icon icon-atlas-list');
+
+      gsap.to(rectEls, {
+        clipPath: getClipStart(randomDirLR()), duration: TIMING.exitDuration, ease: TIMING.exitEase, stagger: TIMING.stagger,
+        onComplete: () => {
+          listView.style.display = 'none';
+          listMode = false;
+          updateNavZones();
+          const inEls = [...hiddenRotates, ...hiddenCards];
+          inEls.forEach((el, i) => {
+            gsap.to(el, { clipPath: CLIP_END, duration: TIMING.cardRevealDuration, ease: TIMING.revealEase, delay: i * TIMING.stagger });
+          });
+          const maxDelay = Math.max(0, inEls.length - 1) * TIMING.stagger + TIMING.cardRevealDuration;
+          gsap.delayedCall(maxDelay, () => { isTransitioning = false; hoverEnabled = true; });
+        },
+      });
+    }
+
+    function nextListEra() {
+      if (listRectAnimating || isTransitioning || eraGroups.length <= 1) return;
+      listRectAnimating = true;
+      gsap.to(rectEls, {
+        clipPath: getClipStart(randomDir4()), duration: TIMING.exitDuration, ease: TIMING.exitEase, stagger: TIMING.stagger,
+        onComplete: () => {
+          listEraIndex = (listEraIndex + 1) % eraGroups.length;
+          renderListEra(listEraIndex);
+          gsap.set(rectEls, { clipPath: getClipStart(randomDirLR()) });
+          gsap.to(rectEls, {
+            clipPath: CLIP_END, duration: TIMING.cardRevealDuration, ease: TIMING.revealEase, stagger: TIMING.stagger,
+            onComplete: () => { listRectAnimating = false; },
+          });
+        },
+      });
+    }
+
+    listBtn.addEventListener('click', () => { if (listMode) hideListView(); else showListView(); });
+    listNextBtn.addEventListener('click', nextListEra);
 
     // --- 第一年初始 clip-path reveal（邊界 slot 不做 clip，保持可見）---
     if (typeof ScrollTrigger !== 'undefined') {

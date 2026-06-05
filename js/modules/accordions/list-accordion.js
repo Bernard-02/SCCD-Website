@@ -288,6 +288,12 @@ function initListHeaderAccordion() {
         const scope = this.closest('.activities-panel') || document;
         const others = [...scope.querySelectorAll('.list-header.active')].filter(o => o !== this);
 
+        // navigateToItem (ref/deep-link) 在 click 此 header 前已自己 scroll 對齊好 item → 標記 skipOpenScroll，
+        // 不讓下面的 open-scroll 再捲一次把對齊弄跑掉（user 2026-06-05「打開 accordion 對齊跑掉」）。
+        // flag 讀完即清，之後使用者手動點開照常捲。
+        const skipOpenScroll = this.dataset.skipOpenScroll === '1';
+        delete this.dataset.skipOpenScroll;
+
         // Scroll 對齊：點開時把 header 帶到 sticky 位置（與 close/open height tween 0.5s 同步）
         // 為什麼：A 收起時 document 縮短但 scrollY 不變 → B 自然位置被往上拉，sticky 規則只在 active
         // 啟用，動畫期間若 B 自然位置仍在 stickyTop 之下、collapse 過程又把整段往上推，B 可能整段
@@ -300,6 +306,15 @@ function initListHeaderAccordion() {
               ? other.nextElementSibling
               : other.closest('.list-item')?.querySelector('.list-content')));
             if (c) collapseAbove += c.offsetHeight;
+            // 上方收合中的 accordion，其副標若「現在是收的」(lecture 的 .active 收 / 任何 .is-pinned 收)，
+            // 收合後會失去 active/pinned → 副標重新展開把下方 B 往下推。從 collapseAbove 扣掉這段展開高，
+            // 否則 B 落點偏低、A 的副標露在 B 上方（user 2026-06-05 #2）。scrollHeight=展開後自然高(含 padding)，+8=flex gap 復原。
+            const otherSub = /** @type {HTMLElement | null} */ (other.querySelector('.list-subtitles'));
+            const otherSubWillReexpand = otherSub
+              && (other.closest('#panel-lectures') || other.classList.contains('is-pinned'));
+            if (otherSubWillReexpand && window.innerWidth >= 768) {
+              collapseAbove -= (otherSub.scrollHeight + 8);
+            }
           }
         });
         const stickyTopVar = getComputedStyle(this).getPropertyValue('--list-header-sticky-top').trim();
@@ -325,7 +340,7 @@ function initListHeaderAccordion() {
           subtitleKeepOffset = /** @type {HTMLElement} */ (wrap).offsetHeight + 8;  // + flex gap-xs，落點落在 pin 線下確保未 pinned
         }
         const targetScrollY = Math.max(0, window.scrollY + headerRect.top - collapseAbove - stickyTop - subtitleKeepOffset);
-        if (Math.abs(targetScrollY - window.scrollY) > 1) {
+        if (!skipOpenScroll && Math.abs(targetScrollY - window.scrollY) > 1) {
           if (typeof window.ScrollToPlugin !== 'undefined') {
             gsap.to(window, {
               scrollTo: { y: targetScrollY, autoKill: false },

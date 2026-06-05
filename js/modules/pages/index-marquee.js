@@ -81,6 +81,13 @@ export function initMarquee() {
           poster: row.poster ? `${CMS_ASSETS_BASE}/${row.poster}${POSTER_PARAMS}` : '',
         }));
         return { items };
+      })
+      // CMS 掛掉（CORS / 斷網 / 5xx）→ fallback /data/news.json，items 已是 {text,url,poster} 最終格式。
+      .catch(err => {
+        console.warn('[marquee] CMS index_news 失敗，fallback /data/news.json:', err.message);
+        return fetch('/data/news.json')
+          .then(r => r.json())
+          .then(j => ({ items: Array.isArray(j.items) ? j.items : [] }));
       });
 
   fetchNews()

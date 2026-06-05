@@ -27,8 +27,18 @@ export async function loadLegalData(pageName) {
     const collection = CMS_COLLECTIONS[pageName];
     let data;
     if (collection) {
-      const response = await fetch(`${CMS_API_BASE}/${collection}`);
-      data = (await response.json()).data;   // singleton 回傳單一物件（非陣列），直接取 .data
+      // CMS 優先；fetch 失敗（CORS / 斷網 / 5xx / 空資料）→ fallback 本地 /data/<page>.json，
+      // 跟 degree-show-data-loader 同 pattern。CMS 掛掉時 legal 頁仍渲染（靜態 JSON 跟 CMS singleton 同 shape：
+      // titleEn/Zh + overview + points），不會像之前直接 throw 留白頁（user 2026-06-05 CORS 掛掉回報）。
+      try {
+        const response = await fetch(`${CMS_API_BASE}/${collection}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        data = (await response.json()).data;   // singleton 回傳單一物件（非陣列），直接取 .data
+        if (!data) throw new Error('empty data');
+      } catch (err) {
+        console.warn(`[legal] CMS fetch failed for ${pageName}, fallback to /data/${pageName}.json:`, err.message);
+        data = await fetch(`/data/${pageName}.json`).then(r => r.json());
+      }
     } else {
       const response = await fetch(`/data/${pageName}.json`);
       data = await response.json();
@@ -64,6 +74,18 @@ function renderStructured(data, numbered = true) {
   }
 
   (data.points || []).forEach((pt, i) => {
+    // sections：點內可再分「雙語次標題 + 各自 EN/ZH 富文本」子區塊（如 support Funds 的 Single 單次 / Regular 定期）。
+    // 次標題是結構化欄位（titleEn/Zh，前台組雙語），內文 desEn/desZh 仍是 WYSIWYG 富文本 → 老師可分別增減。
+    // 點若無 sections 就只渲染點層級 desEn/desZh（privacy-policy / Others 等完全不受影響）。
+    const sectionsHtml = (pt.sections || []).map(s =>
+      `<div class="legal-subsection">`
+      + `<h5 class="legal-subsection-title-en">${esc(s.titleEn)}</h5>`
+      + `<h5 class="legal-subsection-title-zh">${esc(s.titleZh)}</h5>`
+      + (s.desEn || '')   // 富文本，直接注入不 esc
+      + (s.desZh || '')
+      + `</div>`
+    ).join('');
+
     // 不編號時省略 num 欄並加 modifier，legal.css 改單欄（body 撐滿）
     html += `<div class="legal-section${numbered ? '' : ' legal-section--no-num'}">`
       + (numbered ? `<div class="legal-section-num">${i + 1}.</div>` : '')
@@ -72,6 +94,7 @@ function renderStructured(data, numbered = true) {
       + `<h4 class="legal-section-title-zh">${esc(pt.titleZh)}</h4>`
       + (pt.desEn || '')   // des 是富文本 HTML（WYSIWYG 產）→ 直接注入，不 esc
       + (pt.desZh || '')
+      + sectionsHtml
       + `</div></div>`;
   });
 

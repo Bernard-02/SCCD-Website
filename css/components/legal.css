@@ -138,6 +138,39 @@
   .legal-section-body .legal-section-title-zh + h5 {
     margin-top: 0;
   }
+
+  /* sections 子區塊（如 support Funds 的 Single 單次 / Regular 定期）：
+     雙語次標題（EN/ZH 各一行，比照群組標題 en→zh 收緊）+ 各自 EN/ZH 富文本內文。
+     用獨立 class 才能把 EN/ZH 次標題收成一組——裸 h5 各自帶 margin-top:lg 會把兩語次標題拆開。 */
+  .legal-subsection {
+    margin-top: var(--spacing-lg);
+  }
+  /* 第一個子區塊緊接 ZH 群組標題不另加上距（群組標題已有 margin-bottom） */
+  .legal-section-body > .legal-section-title-zh + .legal-subsection {
+    margin-top: 0;
+  }
+  /* (0,2,0) 蓋過上面 `.legal-section-body h5` (0,1,1) 的 margin，把兩語次標題收緊 */
+  .legal-section-body .legal-subsection-title-en,
+  .legal-section-body .legal-subsection-title-zh {
+    font-size: var(--font-size-h5);
+    font-weight: var(--font-weight-bold);
+    line-height: 1.2;
+    margin: 0;
+  }
+  .legal-section-body .legal-subsection-title-en {
+    margin-bottom: var(--spacing-xs);
+  }
+  .legal-section-body .legal-subsection-title-zh {
+    margin-bottom: var(--spacing-sm);
+  }
+  /* 子區塊內段落（Regular 的「Establish Scholarships / 設立獎學金」等）：補段距——
+     這些 p 不是 .legal-section-body 的直接子層，吃不到上面 `.legal-section-body > p` 的 child 規則 */
+  .legal-subsection > p {
+    margin-bottom: var(--spacing-sm);
+  }
+  .legal-subsection > p:last-child {
+    margin-bottom: 0;
+  }
   /* 內文 list / p：對齊到 col 2 左邊（與標題等距） */
   .legal-section-body ul,
   .legal-section-body ol {

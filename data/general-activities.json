@@ -85,6 +85,8 @@
         "title": "永續媒體設計研討會",
         "date": "2025.07.20",
         "location": "台灣設計館 3F 會議室",
+        "city": "Taipei, TW",
+        "city_zh": "台灣台北",
         "category": "conferences",
         "categoryLabel": "研討會",
         "description": "探討永續發展與媒體設計的交叉議題，邀請學界與業界專家共同討論設計師的社會責任，以及如何透過設計實踐推動永續。",
@@ -101,7 +103,56 @@
             "startDay": 20,
             "endYear": 2025,
             "endMonth": 7,
-            "endDay": 20
+            "endDay": 21
+          }
+        ],
+        "sessions": [
+          {
+            "dates": [
+              { "startYear": 2025, "startMonth": 7, "startDay": 20 }
+            ],
+            "titleEn": "Designing for a Circular Future",
+            "titleZh": "為循環未來而設計",
+            "descriptionEn": "An opening keynote on how circular design principles reshape the role of the communication designer.",
+            "descriptionZh": "開幕專題演講，探討循環設計原則如何重塑傳達設計師的角色與責任。",
+            "guests": [
+              {
+                "name": "Tim Cook",
+                "name_zh": "提姆庫",
+                "affiliation": "Apple",
+                "affiliation_zh": "蘋果",
+                "country": "US",
+                "country_zh": "美國",
+                "isAlumni": false
+              }
+            ]
+          },
+          {
+            "dates": [
+              { "startYear": 2025, "startMonth": 7, "startDay": 21 }
+            ],
+            "titleEn": "Material Honesty in Digital Media",
+            "titleZh": "數位媒體中的材料誠實",
+            "guests": [
+              {
+                "name": "Mei Lin",
+                "name_zh": "林美",
+                "affiliation": "Studio Songyan",
+                "affiliation_zh": "松鹽工作室",
+                "country": "TW",
+                "country_zh": "台灣",
+                "isAlumni": true
+              },
+              {
+                "name": "Lars Eriksson",
+                "name_zh": "拉爾斯·艾瑞克森",
+                "affiliation": "Nordic Design Lab",
+                "affiliation_zh": "北歐設計實驗室",
+                "country": "SE",
+                "country_zh": "瑞典",
+                "isAlumni": false
+              }
+            ]
           }
         ]
       },

@@ -390,6 +390,14 @@
     opacity: 0;
     margin-top: -0.5rem;  /* 抵消父 flex-col gap-xs (0.5rem)，collapsed 後 title 不留視覺 gap */
   }
+  /* Lecture 例外（user 2026-06-05）：講座 accordion 一「打開」(.active) 就收副標，不必等捲到 pin 線。
+   * 其他有副標 section（industry/students-present）維持「pinned 才收」(上面 is-pinned 規則) → 故 scope #panel-lectures。
+   * 原因：在頂部直接點開講座時 header 不一定壓到 sticky-top 線 → is-pinned 不 fire → 副標收不掉。 */
+  #panel-lectures .list-header.active > * > .clip-reveal-wrapper:has(.list-subtitles) {
+    grid-template-rows: 0fr;
+    opacity: 0;
+    margin-top: -0.5rem;
+  }
 
   /* album-thumb-item 內 year + date+title group 各自 sticky；scope 受父 .album-thumb-item 限制，
    * 滾到下一筆 divider 自動換手（CSS sticky 行為，不需 IntersectionObserver）。
@@ -486,6 +494,157 @@
     color: var(--color-pink) !important;
     cursor: var(--cursor-pointer);
   }
+}
+
+/* ===== History List View（era 卡片切換；桌機 only）=====
+ * 左下角 toggle 鈕切換 timeline ↔ list；list view 用一個 accent 矩形顯示單一 era：
+ * 左上角 era chip、內容可捲動（EN 左 / ZH 右）、右下角 next 鈕在各 era 間 loop。
+ * 矩形對齊內容 grid 的 col-5~20（避開左側 anchor nav）；矩形 + chip 套 .timeline-card-inner
+ * 取得三 mode 配色（standard/inverse accent+黑字、color strict B/W）。 */
+
+/* icon 鈕（toggle + next 共用 inner）：atlas layout-btn 同款，hover 旋轉 + clip wipe
+   （-12px buffer 讓 hover 旋轉角 / wipe 都不被裁）*/
+.tl-icon-btn-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: var(--theme-fg, #000);
+  color: var(--theme-bg, #fff);
+  font-size: 32px;
+  transform: rotate(-8deg);
+  clip-path: inset(-12px);
+  transition: transform var(--dur-fast, 0.3s) var(--ease-standard, ease);
+}
+
+@media (min-width: 768px) {
+  #timeline-list-btn:hover .tl-icon-btn-inner,
+  .tl-list-next-btn:hover .tl-icon-btn-inner {
+    transform: rotate(8deg);
+  }
+}
+
+/* 桌機 only：手機隱藏切換鈕（list view 整套不在手機提供） */
+#timeline-list-btn {
+  position: absolute;
+  left: var(--container-padding, 32px);
+  bottom: 32px;
+  z-index: 40;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: var(--cursor-pointer);
+}
+@media (max-width: 767px) {
+  #timeline-list-btn { display: none; }
+}
+
+#timeline-list-view {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+}
+
+/* grid 與內容 section 對齊：full-width + container-padding + 20 col，矩形佔 col-5~20。
+   矩形高度 = timeline-area 高 − top − bottom（top/bottom 直接控制矩形上下界）。
+   top：矩形「蓋過」History 封鎖綫 — #timeline-list-view z-index:25 > .section-title-strip z-index:0（同在
+     #history stacking context；timeline-area z:auto 不成 context），所以 top 縮小讓矩形上緣升進封鎖綫範圍時，
+     矩形/era chip 會疊在綠底標題之上。新上限＝era chip（top:-28 凸出矩形上緣）不要縮進 fixed header(~80px)後面，
+     不是封鎖綫。top=40：矩形蓋過標題下緣、era chip 仍落在 header 下方。
+   bottom：矩形在 col-5~20、toggle 鈕在最左 col（水平不重疊），值 = 矩形底邊到 timeline-area 底（≈視窗底）的留白。 */
+.tl-list-grid {
+  position: absolute;
+  top: 90px;             /* 矩形上緣約落在封鎖綫下緣附近（仍靠 z-index 可蓋過綠底；要更貼上去再縮小 top） */
+  bottom: 56px;          /* 矩形底與視窗底的留白（28 太貼底 → 加大；next 鈕隨之上移仍離底 ~80px） */
+  left: 0;
+  right: 0;
+  padding: 0 var(--container-padding, 32px);
+  display: grid;
+  grid-template-columns: repeat(20, minmax(0, 1fr));
+  grid-template-rows: 1fr;
+  gap: var(--spacing-gutter);
+}
+
+.tl-list-cell {
+  grid-column: 5 / 21;   /* col-5 ~ col-20，避開 anchor nav */
+  position: relative;
+}
+
+.tl-list-rect {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 24px;           /* 右緣收進 → next 鈕跨在矩形邊上而非包在內 */
+  overflow: hidden;
+}
+
+/* 捲動容器四周內縮 xl = 矩形 padding：
+   - 因為容器（含 scrollbar）整體被 inset 進來，scrollbar 自然「包在上下 padding 內」、不貼矩形上下緣，
+     也不貼右緣（在右 padding 裏面）→ 不是一整條貼在矩形上。
+   - 捲到底時最後一行貼齊容器底（= 矩形底往上 xl）→ 文字永遠落在下 padding 內、不貼矩形底。
+   - padding-right 額外留右欄文字與 scrollbar 的 gap。*/
+.tl-list-content {
+  position: absolute;
+  inset: var(--spacing-xl);
+  overflow-y: auto;
+  padding-right: var(--spacing-md);  /* 右欄文字 ↔ scrollbar 之間的 gap */
+  color: #000;           /* standard mode 黑字（inverse/color 由 .timeline-card-inner 規則覆蓋）*/
+}
+
+.tl-list-year-row {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr;
+  gap: var(--spacing-3xl);  /* 年份 ↔ 內文（EN）的水平 gap（年份回 h4 後填滿較多固定欄、故 gap 加大才看得出來）*/
+  align-items: start;
+}
+.tl-list-year-row + .tl-list-year-row { margin-top: var(--spacing-xl); }
+.tl-list-year { line-height: 1; }
+
+/* 每筆說明：EN 左 / ZH 右；BFA/MDES 小標跨欄置頂 */
+.tl-list-block + .tl-list-block { margin-top: var(--spacing-md); }
+/* BFA/MDES 小標（splitDesc 出來的 <h5>）：line-height 收到 1 去掉 leading-base 的上半 leading，
+   文字頂才會跟左欄年份（.tl-list-year 也是 lh:1）對齊；margin-bottom 補回與下方 EN/ZH 列的間距 */
+.tl-list-block > h5 {
+  line-height: 1;
+  margin: 0 0 var(--spacing-sm);
+}
+.tl-list-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-xl);
+  align-items: start;
+}
+
+/* era 名稱 chip：黏在矩形左上角、凸出上緣（仿 timeline era badge）；
+   left 比照 library 的 .lib-panel-title — 往左凸出矩形左緣 lg（chip 跨在矩形左上角外側）*/
+.tl-list-chip {
+  position: absolute;
+  left: calc(-1 * var(--spacing-lg));
+  top: -28px;
+  z-index: 2;
+  padding: 0.4em 0.7em;
+  width: max-content;
+  transform-origin: bottom left;
+  transform: rotate(-2deg);
+}
+
+/* next 鈕：跨在矩形右下角邊上（half on / half off）；對比矩形而非頁面 */
+.tl-list-next-btn {
+  position: absolute;
+  right: 0;
+  bottom: 24px;
+  z-index: 3;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: var(--cursor-pointer);
+}
+.tl-list-next-btn .tl-icon-btn-inner { background: #000; color: #fff; }
+body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
+  background: var(--theme-fg-inverse);
+  color: var(--theme-fg);
 }
 
 /* ===== Inline Scrollbar (.list-scroll + library year pickers) =====

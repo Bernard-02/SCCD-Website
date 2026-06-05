@@ -28,54 +28,6 @@ function normalizeImageList(val) {
   return [];
 }
 
-// ── New endpoint shape → legacy shape adapter ────────────────────────────────
-// WP endpoint 新 schema 跟前端歷史 shape 不對應，這 helper 把 endpoint entry 還原舊 shape
-// 給 list / detail page 都能消費；舊 fallback JSON 不過 adapter 直接 work
-function mapEndpointEntryToLegacyShape(entry) {
-  if (!entry) return entry;
-  // events: 新 shape startYear/Month/Day + endYear/Month/Day → 舊 shape time string "MM / DD - MM / DD"
-  // 同年同日 → "MM / DD"；同年跨日 → "MM / DD - MM / DD"；跨年 → "YYYY.MM.DD - YYYY.MM.DD"
-  const events = (entry.events || []).map(ev => {
-    const sM = ev.startMonth, sD = ev.startDay, eM = ev.endMonth || sM, eD = ev.endDay || sD;
-    const sY = ev.startYear, eY = ev.endYear || sY;
-    let time = '';
-    if (sM && sD) {
-      const sameDate = sY === eY && sM === eM && sD === eD;
-      if (sameDate) time = `${sM} / ${sD}`;
-      else if (sY === eY) time = `${sM} / ${sD} - ${eM} / ${eD}`;
-      else time = `${sY}.${sM}.${sD} - ${eY}.${eM}.${eD}`;
-    }
-    return {
-      // type: 'exhibition' 走 gallery；'forum' / 'workshop' / 'lecture' 等走 ref-based slideshow
-      type: ev.type || 'exhibition',
-      time,
-      name: ev.nameZh || '',
-      nameEn: ev.nameEn || '',
-      location: ev.locationZh || '',
-      locationEn: ev.locationEn || '',
-      city: ev.cityZh || '',
-      cityEn: ev.cityEn || '',
-      // per-event album（未來 WP schema 可加 albumImages per event；endpoint 沒帶就空陣列）
-      images: normalizeImageList(ev.albumImages),
-      // refs: 非 exhibition type 用 — [{source, id}]，指向 activities source 撈 sub-item 渲染 tab + slideshow
-      refs: Array.isArray(ev.refs) ? ev.refs : [],
-    };
-  });
-  return {
-    title: entry.titleZh || entry.title || '',
-    title_en: entry.titleEn || entry.title_en || '',
-    descCn: entry.descriptionZh || entry.descCn || '',
-    descEn: entry.descriptionEn || entry.descEn || '',
-    coverImage: entry.coverImage || '',
-    heroImage: entry.bannerImage || entry.heroImage || '',
-    poster: entry.poster || '',
-    images: normalizeImageList(entry.albumImages),
-    videoUrl: entry.mainVideoUrl || entry.videoUrl || '',
-    documentaryUrl: entry.documentaryUrl || '',
-    events,
-  };
-}
-
 export async function loadDegreeShowList() {
   await loadDegreeShowListInto('degree-show-list');
   // 獨立頁 /degree-show：cards 進 viewport 才 reveal（panel-switch 路徑由 activities-section-switch 接管，不用此分支）
@@ -86,27 +38,8 @@ export async function loadDegreeShowList() {
 
 export async function loadDegreeShowListInto(containerId) {
   try {
-    // WP endpoint 回 flat array，舊 JSON 是 dict by year — normalize 成 dict
-    // 非 sccd-website.local 環境（localhost / 127.0.0.1 / file:/// 等）直接跳 WP fetch 走 JSON fallback —
-    // 否則本機 fetch http://sccd-website.local DNS 失敗會卡 1-3 秒 hero 空白等到逾時才動畫
-    const isWpHost = location.hostname === 'sccd-website.local';
-    let data;
-    try {
-      if (!isWpHost) throw new Error('non-wp host, skip endpoint');
-      const res = await fetch('/wp-json/sccd/v1/activities-degree-show');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const arr = await res.json();
-      if (!Array.isArray(arr) || arr.length === 0) throw new Error('endpoint returned 0 items');
-      // flat array → dict by events[0].startYear（list 主年份規則）
-      data = {};
-      for (const entry of arr) {
-        const y = entry.events?.[0]?.startYear || '';
-        if (y) data[y] = mapEndpointEntryToLegacyShape(entry);
-      }
-    } catch (err) {
-      console.warn('[degree-show] WP endpoint failed, fallback to data/degree-show.json:', err.message);
-      data = await fetch('/data/degree-show.json').then(r => r.json());
-    }
+    // 讀本地 JSON（WP-headless 邏輯已移除 2026-06-05）；之後 flip 接 Directus 時改 Directus 為主 + 本地 fallback。
+    const data = await fetch('/data/degree-show.json').then(r => r.json());
 
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -170,26 +103,8 @@ export async function loadDegreeShowDetail() {
   }
 
   try {
-    // WP endpoint 優先；endpoint 0 items or fail → fallback /data/degree-show.json
-    // 非 sccd-website.local 環境直接跳 WP fetch — 否則本機 DNS 失敗會卡 1-3 秒讓 hero 進場 delay
-    // （loadDegreeShowDetail 是 hero animation 的前置 await，fetch 慢 = hero 視覺空白等同樣時間）
-    const isWpHost = location.hostname === 'sccd-website.local';
-    let degreeShowData;
-    try {
-      if (!isWpHost) throw new Error('non-wp host, skip endpoint');
-      const res = await fetch('/wp-json/sccd/v1/activities-degree-show');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const arr = await res.json();
-      if (!Array.isArray(arr) || arr.length === 0) throw new Error('endpoint returned 0 items');
-      degreeShowData = {};
-      for (const entry of arr) {
-        const y = entry.events?.[0]?.startYear || '';
-        if (y) degreeShowData[y] = mapEndpointEntryToLegacyShape(entry);
-      }
-    } catch (err) {
-      console.warn('[degree-show-detail] WP endpoint failed, fallback to data/degree-show.json:', err.message);
-      degreeShowData = await fetch('/data/degree-show.json').then(r => r.json());
-    }
+    // 讀本地 JSON（WP-headless 邏輯已移除 2026-06-05）；之後 flip 接 Directus 時改 Directus 為主 + 本地 fallback。
+    const degreeShowData = await fetch('/data/degree-show.json').then(r => r.json());
     const data = degreeShowData[year];
     const years = Object.keys(degreeShowData).sort((a, b) => Number(b) - Number(a));
 

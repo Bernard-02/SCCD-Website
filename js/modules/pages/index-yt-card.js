@@ -445,10 +445,15 @@ export function initYTCard() {
   initYTCardClick(ytCard, playerRef);
 
   // 影片來源改 Directus index_video（singleton，回 { data: { videoUrl: HLS m3u8 串流網址 } }）
+  // CMS 掛掉（CORS / 斷網 / 5xx）→ fallback /data/news.json 的 videoUrl（本地 mp4），WATCH 仍可播。
   const fetchTheater = () =>
     fetch(`${CMS_API_BASE}/index_video`)
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-      .then(j => j.data || {});
+      .then(j => j.data || {})
+      .catch(err => {
+        console.warn('[initYTCard] CMS index_video 失敗，fallback /data/news.json:', err.message);
+        return fetch('/data/news.json').then(r => r.json()).then(j => ({ videoUrl: j.videoUrl }));
+      });
 
   fetchTheater()
     .then(data => {

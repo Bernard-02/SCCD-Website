@@ -11,16 +11,18 @@ import {
 } from './admission-data-loader.js';
 import { resetListAccordionsInPanel } from '../accordions/list-accordion.js';
 
-// scrollIntoView wrapper：加 header 高度 offset，避免 active tab / list 緊貼 viewport top 被 header logo 遮住
-// 同 activities-section-switch.js 的 scrollSectionIntoView pattern
+// scrollIntoView wrapper：捲到 section 頂端對齊 viewport 頂端（section.top=0），**不扣 header 高度**。
+// 同 courses-section-switch.js 的 sectionScrollTop pattern。
+// Why 不扣 header：section 緊貼在 h-screen hero 正下方，扣掉 header 高度 = 少捲 ~80px →
+//   hero 底部會殘留在畫面上方（user 2026-06-05 回報「卡在看得到 hero 的地方」）。
+//   section 的 md:py-6xl(192px) 上 padding 已讓內容清開 fixed header(80px)，不需再扣。
 /**
  * @param {HTMLElement | null} el
  * @param {ScrollBehavior} [behavior]
  */
 function scrollSectionIntoView(el, behavior = 'smooth') {
   if (!el) return;
-  const headerH = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--header-height') || '80', 10);
-  const top = el.getBoundingClientRect().top + window.scrollY - headerH;
+  const top = el.getBoundingClientRect().top + window.scrollY;
   window.scrollTo({ top, behavior });
 }
 

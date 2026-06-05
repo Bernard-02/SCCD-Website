@@ -47,33 +47,13 @@ const TYPES = [
 
 // 維持 layout 密度的 placeholder 池（真實課表寫進 WP 後可逐步取代）
 
-// PoC：dev 從 LocalWP 拿、prod 從 same-origin theme 內拿；LocalWP 沒開 / CORS 擋 / 任一 leg 失敗
-// 都自動 fallback 到 same-origin 的 data/courses.json（schema 一致），避免整張表空白
-// _SKIP_WP：本機 dev 跳過 WP fetch（同 activities-data-loader），sessionStorage.wpDev='1' 可強制測 WP
-const WP_API_BASE = location.hostname === 'sccd-website.local' ? '' : 'http://sccd-website.local';
-const _SKIP_WP = location.hostname !== 'sccd-website.local'
-  && /^(localhost|127\.0\.0\.1|0\.0\.0\.0|)$/.test(location.hostname)
-  && sessionStorage.getItem('wpDev') !== '1';
+// 讀本地 JSON（WP-headless 邏輯已移除 2026-06-05）；之後 flip 接 Directus 時改 Directus 為主 + 本地 fallback。
 const COURSES_JSON_FALLBACK = '/data/courses.json';
 let _coursesData = null;
 async function loadData() {
   if (_coursesData) return _coursesData;
-  if (_SKIP_WP) {
-    const res = await fetch(COURSES_JSON_FALLBACK);
-    _coursesData = await res.json();
-    return _coursesData;
-  }
-  try {
-    const [animation, cmd, mdes] = await Promise.all([
-      fetch(`${WP_API_BASE}/wp-json/sccd/v1/bfa-animation`).then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json(); }),
-      fetch(`${WP_API_BASE}/wp-json/sccd/v1/bfa-cmd`).then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json(); }),
-      fetch(`${WP_API_BASE}/wp-json/sccd/v1/mdes`).then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json(); }),
-    ]);
-    _coursesData = { 'bfa-animation': animation, 'bfa-cmd': cmd, 'mdes': mdes };
-  } catch (_e) {
-    const res = await fetch(COURSES_JSON_FALLBACK);
-    _coursesData = await res.json();
-  }
+  const res = await fetch(COURSES_JSON_FALLBACK);
+  _coursesData = await res.json();
   return _coursesData;
 }
 

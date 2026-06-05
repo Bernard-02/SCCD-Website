@@ -22,18 +22,44 @@ const loaded = {};
 // 防連點：exit/reveal 動畫期間 swallow 重複觸發
 let switching = false;
 
-// scrollIntoView wrapper：對 activities-content-section 加 header 高度 offset，
-// 避免 active section btn / list-item 緊貼 viewport top 被 header logo 遮住
-// 桌面 header 100px / 手機 80px（由 --header-height CSS var 提供）
+// 捲到 section：落點讓 sticky filter bar 剛好停在它自己的 sticky-top（桌面 200），list 緊接其下不被蓋住。
+// ⚠️ 不能只把 section 頂對齊 viewport 0（user 2026-06-06「pt 頂到時第一個 list 被切掉 ~8px」）：
+//   section padding-top（md:py-6xl=192）< filter bar sticky-top（md:top-[200px]=200）。對齊 0 時 filter bar
+//   自然位置(192)在 sticky 線(200)之上 → 被釘在 200、相對自然位置往下位移 8px → 它的 bg-white z-10 蓋住第一筆
+//   list 頂 ~8px。改用「filter bar 落在 sticky-top」反推：scrollY = sectionTopDoc + padTop − stickyTop，
+//   filter bar 自然位置剛好落在 200（不位移、不蓋）→ section 頂落在 viewport +8（= 200−192，即「再下面一點」）。
+// ⚠️ 仍從「非 sticky 的 section 絕對位置」算（sectionTopDoc = rect.top+scrollY，捲到哪都同一值 → 每次點 nav
+//   對齊點一致）+ padTop / stickyTop 讀 computed 值（CSS 靜態，非 rect）。**絕不量 filter bar 自身
+//   getBoundingClientRect**：pinned 時 rect.top 被 clamp → target 退化成 no-op（捲進 list 後點別 nav 不動）。
+// section min-height:100vh 保證短 panel 也捲得到位。
+// instant + 下一幀 re-assert：分頁切換時 panel reveal 建 ScrollTrigger→refresh 可能在 instant 後把 scroll
+//   移走；用同基準重新 assert 一次蓋回去（idempotent，已就位則 no-op）。
 /**
  * @param {HTMLElement | null} el
- * @param {ScrollBehavior} [behavior]
+ * @param {'instant' | 'smooth'} [behavior]
  */
-function scrollSectionIntoView(el, behavior = 'smooth') {
+function scrollSectionIntoView(el, behavior = 'instant') {
   if (!el) return;
-  const headerH = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--header-height') || '80', 10);
-  const top = el.getBoundingClientRect().top + window.scrollY - headerH;
-  window.scrollTo({ top, behavior });
+  const filterBar = /** @type {HTMLElement | null} */ (el.querySelector('.activities-panel:not(.hidden) .activities-filter-bar'));
+  const y = () => {
+    const sectionTopDoc = el.getBoundingClientRect().top + window.scrollY;
+    // 桌面：sticky filter bar → 落點讓它停在自己的 sticky-top（不位移、不蓋 list）。
+    if (filterBar && getComputedStyle(filterBar).position === 'sticky') {
+      const stickyTop = parseFloat(getComputedStyle(filterBar).top) || 200;
+      const padTop = parseFloat(getComputedStyle(el).paddingTop) || 0;
+      return Math.max(0, sectionTopDoc + padTop - stickyTop);
+    }
+    // 手機 / 無 sticky filter bar（library）：對齊 section 頂（無 filter bar 蓋住問題，padding 自理間距）。
+    return Math.max(0, sectionTopDoc);
+  };
+  // smooth（deep-link 無 item 用，無併發 reveal 干擾）：GSAP scrollTo
+  if (behavior === 'smooth' && typeof gsap !== 'undefined' && typeof window.ScrollToPlugin !== 'undefined') {
+    gsap.to(window, { scrollTo: { y: y(), autoKill: false }, duration: DUR.medium, ease: EASE.move });
+    return;
+  }
+  // instant（分頁切換）
+  window.scrollTo({ top: y(), behavior: 'instant' });
+  requestAnimationFrame(() => window.scrollTo({ top: y(), behavior: 'instant' }));
 }
 
 let currentSectionColor = '';
@@ -83,11 +109,16 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
     }
   }
 
-  // 計算目標位置
+  // 計算目標位置：item 落在「sticky filter bar 底部 + 16px」→ 不被釘住的 filter bar 蓋住。
+  // sticky-top 跟 scrollSectionIntoView 一樣讀實際 computed 值（filter bar 的 md:top-[200px]）不寫死 200，
+  // 兩個 scroll path 對齊基準同步、日後改 sticky-top 也不 drift；手機 filter bar 非 sticky → fallback 200（user 2026-06-05）
   const panel      = document.getElementById(`panel-${section}`);
   const filterBar  = /** @type {HTMLElement | null} */ (panel?.querySelector('.activities-filter-bar'));
   const filterBarH = filterBar?.offsetHeight || 0;
-  const compensate = 200 + filterBarH + 16;
+  const stickyTop  = (filterBar && getComputedStyle(filterBar).position === 'sticky')
+    ? (parseFloat(getComputedStyle(filterBar).top) || 200)
+    : 200;
+  const compensate = stickyTop + filterBarH + 16;
 
   let targetTop = 0;
   let el = /** @type {HTMLElement | null} */ (target);
@@ -103,6 +134,8 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
       target.style.background = '';
       const header = /** @type {HTMLElement | null} */ (target.querySelector('.list-header'));
       if (header && !header.classList.contains('active')) {
+        // 上面已 scroll 對齊好 item → 標記讓 accordion open 時不要再自己 scroll（否則對齊跑掉，user 2026-06-05）
+        header.dataset.skipOpenScroll = '1';
         header.style.background = flashColor;
         header.click();
       }
@@ -169,7 +202,7 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
       // 沒指定 item → 只平滑捲到 list section，不做 highlight
       waitForHeroAnimDone().then(() => {
         const sectionEl = /** @type {HTMLElement | null} */ (document.getElementById('activities-content-section'));
-        scrollSectionIntoView(sectionEl);
+        scrollSectionIntoView(sectionEl, 'smooth');  // deep-link：hero 跑完平滑捲到 section（無併發 reveal）
       });
     }
   } else {
@@ -254,35 +287,21 @@ async function switchToSection(section, btns, shouldScroll, isInitial = false) {
     }
 
     // 7. Scroll to section（點擊時才 scroll，初始載入不 scroll）
-    //    量 scroll 距離給 step 8 動態 delay 用（已在 anchor 就 0ms）
-    var scrollDistance = 0;
+    //    分頁切換一律 instant scroll：同步一次到位，免疫捲動途中被 reveal 的 ScrollTrigger.refresh 凍結在半路
     if (shouldScroll) {
       const sectionEl = /** @type {HTMLElement | null} */ (document.getElementById('activities-content-section') || document.getElementById('library-content-section'));
-      if (sectionEl) {
-        scrollDistance = Math.abs(sectionEl.getBoundingClientRect().top);
-        scrollSectionIntoView(sectionEl);
-      }
+      if (sectionEl) scrollSectionIntoView(sectionEl, 'instant');
     }
   } catch (err) {
     console.error('[activities-section-switch] switchToSection error:', err);
     // loadPanel 失敗時把 loaded[] 旗標清掉，user 重切回此 panel 才會再試 fetch
     delete loaded[section];
   } finally {
-    // 8. 進場 reveal — 無論成不成功都跑，否則 rows 卡 yPercent:100
-    //    一律 useScrollTrigger=true：rows 進 viewport 才觸發
-    //    點擊切換：根據 scroll 距離動態 delay（在 anchor 立即播 / 越遠等越久，上限 600ms）
-    //    過去寫死 600ms 在頂部切換時 user 看到 panel 已換但 list 空白等 600ms，現按需給延遲
+    // 8. 進場 reveal — 無論成不成功都跑，否則 rows 卡 yPercent:100；一律 useScrollTrigger=true。
+    //    step 7 instant scroll 已同步到位 → 直接 reveal：此時 reveal 內 ScrollTrigger.create→refresh
+    //    記錄到的是最終 top（不再是 in-flight 捲動的中途值），不會把 scroll 凍結在半路。
     if (target) {
-      if (isInitial) {
-        playAdmissionPanelReveal(target, { useScrollTrigger: true });
-      } else if (shouldScroll) {
-        // 經驗值：smooth scroll 速度約 1~2 px/ms，600ms 對應約 600-1200px；距離小於 50px 視同已就位立即播
-        const delay = scrollDistance < 50 ? 0 : Math.min(600, scrollDistance * 0.6);
-        if (delay === 0) playAdmissionPanelReveal(target, { useScrollTrigger: true });
-        else setTimeout(() => playAdmissionPanelReveal(target, { useScrollTrigger: true }), delay);
-      } else {
-        playAdmissionPanelReveal(target, { useScrollTrigger: true });
-      }
+      playAdmissionPanelReveal(target, { useScrollTrigger: true });
     }
     switching = false;
   }

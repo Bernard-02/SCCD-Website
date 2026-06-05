@@ -34,6 +34,20 @@ function randomImgDir() {
   return IMG_ENTRY_DIRS[Math.floor(Math.random() * IMG_ENTRY_DIRS.length)];
 }
 
+// 卡片圖片依「實際上傳比例」自適應（不鎖死 4:5、不裁切）：
+// 圖載入後把 wrapper 的 aspect-ratio 設成圖片自然比例 → object-cover 等比填滿 = 完整不裁切。
+// HTML 預設的 aspect-[4/5] 只當「載入中 / 進場 clip 動畫」的佔位 fallback（避免 wrapper 0 高度、reveal 不可見）。
+// 後台改上傳比例（如 1:1 → 4:3）前台自動跟著變，不用改 code。
+function applyNaturalAspect(img) {
+  const apply = () => {
+    if (!img.naturalWidth || !img.naturalHeight) return;
+    const wrap = img.closest('.faculty-card-image-wrapper');
+    if (wrap) wrap.style.aspectRatio = `${img.naturalWidth} / ${img.naturalHeight}`;
+  };
+  if (img.complete) apply();
+  else img.addEventListener('load', apply, { once: true });
+}
+
 /**
  * 取得 card 顯示用的「第一個」 title（中英）
  * fulltime/parttime: titles[0]；admin: 用 titleEn/titleZh
@@ -79,4 +93,7 @@ function renderFacultyList(containerId, items) {
     </div>
   `;
   }).join('');
+
+  // 每張卡圖載入後依自然比例調整框形（覆蓋 aspect-[4/5] fallback）
+  container.querySelectorAll('.faculty-card-image').forEach(applyNaturalAspect);
 }

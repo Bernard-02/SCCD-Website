@@ -9,14 +9,26 @@
     {
       "titleEn": "Funds",
       "titleZh": "資金",
-      "desEn": "<h5>Single 單次</h5><ol><li>Please obtain the DONATION FORM from Career Development and Alumni Service<br>請至本校 <a href=\"https://uscfund.usc.edu.tw/\" target=\"_blank\" rel=\"noopener\">職涯發展暨校友服務一組</a> 取得捐款單</li><li>\"指定用途 / 單位\" field on the form can be selected as follows:<br>於「指定用途 / 單位」欄位可選：<ol><li>Check \"院系務發展基金\" and fill in \"Department of Communications Design\"<br>勾選「院系務發展基金」並填寫「媒體傳達設計學系」</li><li>Check \"指定用途\" and fill in \"Degree Show, Department of Communications Design\" or customize<br>勾選「指定用途」並填寫「媒體傳達設計學系畢業展」或自訂</li></ol></li><li>After completing the form, proceed to Career Development and Alumni Service for processing according to their instructions<br>填寫完畢後依 <a href=\"https://uscfund.usc.edu.tw/\" target=\"_blank\" rel=\"noopener\">職涯發展暨校友服務一組</a> 之說明於該單位辦理</li></ol><h5>Regular 定期</h5><p>e.g. Establish Scholarships<br>例如：設立獎學金</p><p>Please Contact SCCD Office<br>請洽學系辦公室</p>",
-      "desZh": ""
+      "sections": [
+        {
+          "titleEn": "Single",
+          "titleZh": "單次",
+          "desEn": "<ol><li>Please obtain the DONATION FORM from <a href=\"https://uscfund.usc.edu.tw/\" target=\"_blank\" rel=\"noopener\">Career Development and Alumni Service</a></li><li>The \"指定用途 / 單位\" field on the form can be selected as follows:<ol><li>Check \"院系務發展基金\" and fill in \"Department of Communications Design\"</li><li>Check \"指定用途\" and fill in \"Degree Show, Department of Communications Design\" or customize</li></ol></li><li>After completing the form, proceed to <a href=\"https://uscfund.usc.edu.tw/\" target=\"_blank\" rel=\"noopener\">Career Development and Alumni Service</a> for processing according to their instructions</li></ol>",
+          "desZh": "<ol><li>請至本校 <a href=\"https://uscfund.usc.edu.tw/\" target=\"_blank\" rel=\"noopener\">職涯發展暨校友服務一組</a> 取得捐款單</li><li>於「指定用途 / 單位」欄位可選：<ol><li>勾選「院系務發展基金」並填寫「媒體傳達設計學系」</li><li>勾選「指定用途」並填寫「媒體傳達設計學系畢業展」或自訂</li></ol></li><li>填寫完畢後依 <a href=\"https://uscfund.usc.edu.tw/\" target=\"_blank\" rel=\"noopener\">職涯發展暨校友服務一組</a> 之說明於該單位辦理</li></ol>"
+        },
+        {
+          "titleEn": "Regular",
+          "titleZh": "定期",
+          "desEn": "<p>e.g. Establish Scholarships</p><p>Please Contact SCCD Office</p>",
+          "desZh": "<p>例如：設立獎學金</p><p>請洽學系辦公室</p>"
+        }
+      ]
     },
     {
       "titleEn": "Others",
       "titleZh": "其他項目",
-      "desEn": "<p>Please Contact SCCD Office<br>請洽學系辦公室</p>",
-      "desZh": ""
+      "desEn": "<p>Please Contact SCCD Office</p>",
+      "desZh": "<p>請洽學系辦公室</p>"
     }
   ]
 }

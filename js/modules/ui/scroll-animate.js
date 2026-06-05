@@ -37,11 +37,19 @@ export function setupClipReveal(elements, { hide = true } = {}) {
     }
     const wrapper = document.createElement('div');
     wrapper.className = 'clip-reveal-wrapper';
-    // 只做縱向 clip（reveal 動畫 yPercent:100→0 只動 y 軸）；橫向 visible 讓子元素旋轉 chip 凸出邊界不被裁
-    // CSS spec：overflow-x:visible + overflow-y:clip 兩值都保留（hidden+visible 會強制 visible→auto，clip 沒這限制）
-    // 修：activities-filter 旋轉 chip 左邊被 wrapper 切掉的問題（負 margin 解不掉因為裁剪發生在 wrapper boundary 不是 element box）
-    wrapper.style.overflowY = 'clip';
-    wrapper.style.overflowX = 'visible';
+    // reveal 動畫 yPercent:100→0 只動 y 軸 → 縱向要 clip 才有 wipe。
+    // 一般 row：overflow-y:clip + overflow-x:visible，橫向放行讓旋轉 chip 左右凸出不被裁
+    //   （CSS spec：此組合兩值都保留，不像 hidden+visible 會強制 auto；修早期 activities-filter chip 左邊被切）。
+    // 含旋轉 filter chip（.courses-filter-btn，active 時 .anchor-nav-inner 會 rotate）的 row：改 overflow:clip
+    //   兩軸 + overflow-clip-margin，讓旋轉角「縱向也」凸出 clip 邊界不被切 —— 去掉 filter 的 pt-lg padding
+    //   buffer 後（user 2026-06-05）縱向沒緩衝，靠這個 margin 容納旋轉（橫向凸 ~3px / 縱向 ~10px，20px 都夠）。
+    if (el.querySelector(':scope > .courses-filter-btn')) {
+      wrapper.style.overflow = 'clip';
+      wrapper.style.overflowClipMargin = '1.25rem';
+    } else {
+      wrapper.style.overflowY = 'clip';
+      wrapper.style.overflowX = 'visible';
+    }
     el.parentNode.insertBefore(wrapper, el);
     wrapper.appendChild(el);
     el.dataset.clipWrapped = '1';

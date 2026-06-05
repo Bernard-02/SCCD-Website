@@ -54,7 +54,10 @@
     </section>
 
     <!-- Activities Content Section -->
-    <section class="bg-white pt-3xl pb-6xl md:py-6xl" id="activities-content-section">
+    <!-- min-height:100vh：scrollSectionIntoView 改成把 section 頂對齊 viewport 頂(top:0) 後，
+         section 要至少滿一個 viewport 才捲得到位（短 panel 如 Permanent 2 筆不會被頁底 clamp 露出 hero），
+         且對齊時剛好填滿 viewport 不讓 footer 從底部露出（user 2026-06-05）。 -->
+    <section class="bg-white pt-3xl pb-6xl md:py-6xl" id="activities-content-section" style="min-height: 100vh;">
       <div class="site-container">
         <!-- grid-20：桌面 nav bar 占 cols 1-4、內容 cols 5-20（對齊 faculty/curriculum col-5）；手機 flex-col 堆疊 -->
         <div class="flex flex-col gap-gutter md:grid md:grid-cols-20">
@@ -97,24 +100,10 @@
 
             <!-- Exhibitions Panel -->
             <div class="activities-panel" id="panel-exhibitions">
-              <div class="grid-12 mb-xl relative z-20">
-                <div class="col-span-12 md:col-span-7 md:col-start-6">
-                  <div class="panel-desc-group" data-default="special">
-                    <div class="list-reveal-row panel-desc active" data-desc-type="special">
-                      <p class="text-p1 font-bold mb-xs">SCCD hosts and participates in various exhibitions throughout the year, showcasing student works and creative research across animation, interactive media, and visual design.</p>
-                      <p class="text-p1 font-bold">學系定期舉辦與參與各類展演活動，展示學生在動畫、互動媒體與視覺設計等領域的創作成果與研究實踐。</p>
-                    </div>
-                    <div class="list-reveal-row panel-desc" data-desc-type="permanent">
-                      <p class="text-p1 font-bold mb-xs">SCCD's permanent exhibitions present long-running installations, archival displays, and curated collections on campus, offering year-round access to the department's design heritage and research outcomes.</p>
-                      <p class="text-p1 font-bold">常設展呈現校內長期展出的裝置、檔案展件與精選典藏，全年開放公眾參觀，傳遞學系的設計傳承與研究累積。</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
               <div class="activities-filter-bar md:sticky md:top-[200px] bg-white z-10">
                 <div class="grid-12 pb-lg">
                   <div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px]">
-                    <div id="exhibitions-type-filter" class="list-reveal-row flex flex-wrap gap-lg pt-lg pb-lg">
+                    <div id="exhibitions-type-filter" class="list-reveal-row flex flex-wrap gap-lg pb-lg">
                       <button class="exhibitions-type-btn courses-filter-btn active whitespace-nowrap" data-type="special"><span class="anchor-nav-inner">Temporary 特設</span></button>
                       <button class="exhibitions-type-btn courses-filter-btn whitespace-nowrap" data-type="permanent"><span class="anchor-nav-inner">Permanent 常設</span></button>
                     </div>
@@ -137,14 +126,6 @@
 
             <!-- Workshop Panel -->
             <div class="activities-panel hidden" id="panel-workshop">
-              <div class="grid-12 mb-xl relative z-20">
-                <div class="col-span-12 md:col-span-7 md:col-start-6">
-                  <div class="list-reveal-row">
-                    <p class="text-p1 font-bold mb-xs">Workshops at SCCD bring together students and industry professionals for intensive hands-on learning, exploring themes across design, technology, and creative practice.</p>
-                    <p class="text-p1 font-bold">工作營匯聚學生與業界專業人士，透過密集的實作課程，深入探索設計、科技與創意實踐等多元議題。</p>
-                  </div>
-                </div>
-              </div>
               <div class="activities-filter-bar md:sticky md:top-[200px] bg-white z-10">
                 <div class="grid-12 pb-lg">
                   <div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px]">
@@ -160,14 +141,6 @@
 
             <!-- Degree Show Panel -->
             <div class="activities-panel hidden" id="panel-degree-show">
-              <div class="grid-12 mb-xl relative z-20">
-                <div class="col-span-12 md:col-span-7 md:col-start-6">
-                  <div class="list-reveal-row">
-                    <p class="text-p1 font-bold mb-xs">The annual Degree Show is the culminating showcase of graduating students' final projects, presenting their creative vision and professional development to the public.</p>
-                    <p class="text-p1 font-bold">年度畢業展是應屆畢業生展示畢業製作的重要舞台，向社會大眾呈現學生的創作理念與專業成長歷程。</p>
-                  </div>
-                </div>
-              </div>
               <div class="activities-filter-bar md:sticky md:top-[200px] bg-white z-10">
                 <div class="grid-12 pb-lg">
                   <div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px]">
@@ -183,14 +156,6 @@
 
             <!-- Lectures Panel -->
             <div class="activities-panel hidden" id="panel-lectures">
-              <div class="grid-12 mb-xl relative z-20">
-                <div class="col-span-12 md:col-span-7 md:col-start-6">
-                  <div class="list-reveal-row">
-                    <p class="text-p1 font-bold mb-xs">SCCD regularly invites distinguished designers, artists, and industry leaders to share their insights and experiences through public lectures and talks.</p>
-                    <p class="text-p1 font-bold">學系定期邀請傑出設計師、藝術家及業界領袖，透過公開講座與演講分享其專業洞見與實踐經驗。</p>
-                  </div>
-                </div>
-              </div>
               <div class="activities-filter-bar md:sticky md:top-[200px] bg-white z-10">
                 <div class="grid-12 pb-lg">
                   <div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px]">
@@ -206,24 +171,10 @@
 
             <!-- Visits Panel -->
             <div class="activities-panel hidden" id="panel-visits">
-              <div class="grid-12 mb-xl relative z-20">
-                <div class="col-span-12 md:col-span-7 md:col-start-6">
-                  <div class="panel-desc-group" data-default="outbound">
-                    <div class="list-reveal-row panel-desc active" data-desc-type="outbound">
-                      <p class="text-p1 font-bold mb-xs">Study visits take students to design institutions, studios, and cultural venues both locally and internationally, broadening their perspectives beyond the classroom.</p>
-                      <p class="text-p1 font-bold">參訪活動帶領學生走訪國內外設計機構、工作室與文化場所，拓展課堂之外的視野與實務見識。</p>
-                    </div>
-                    <div class="list-reveal-row panel-desc" data-desc-type="inbound">
-                      <p class="text-p1 font-bold mb-xs">Inbound visits welcome design educators, studios, and cultural institutions from around the world to SCCD, fostering exchange through campus tours, workshops, and dialogue with faculty and students.</p>
-                      <p class="text-p1 font-bold">來訪活動接待國內外設計教育單位、工作室與文化機構蒞臨學系，透過導覽、工作坊及師生交流促進跨域對話與合作。</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
               <div class="activities-filter-bar md:sticky md:top-[200px] bg-white z-10">
                 <div class="grid-12 pb-lg">
                   <div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px]">
-                    <div id="visits-type-filter" class="list-reveal-row flex flex-wrap gap-lg pt-lg pb-lg">
+                    <div id="visits-type-filter" class="list-reveal-row flex flex-wrap gap-lg pb-lg">
                       <button class="visits-type-btn courses-filter-btn active whitespace-nowrap" data-type="outbound"><span class="anchor-nav-inner">Outbound 出訪</span></button>
                       <button class="visits-type-btn courses-filter-btn whitespace-nowrap" data-type="inbound"><span class="anchor-nav-inner">Inbound 來訪</span></button>
                     </div>
@@ -240,14 +191,6 @@
 
             <!-- Competitions Panel -->
             <div class="activities-panel hidden" id="panel-competitions">
-              <div class="grid-12 mb-xl relative z-20">
-                <div class="col-span-12 md:col-span-7 md:col-start-6">
-                  <div class="list-reveal-row">
-                    <p class="text-p1 font-bold mb-xs">SCCD students actively participate in national and international design competitions, demonstrating their creative capabilities and earning recognition on the global stage.</p>
-                    <p class="text-p1 font-bold">學系學生積極參與國內外設計競賽，展現創作實力，並在國際舞台上獲得廣泛肯定與殊榮。</p>
-                  </div>
-                </div>
-              </div>
               <div class="activities-filter-bar md:sticky md:top-[200px] bg-white z-10">
                 <div class="grid-12 pb-lg">
                   <div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px]">
@@ -263,14 +206,6 @@
 
             <!-- Conferences Panel -->
             <div class="activities-panel hidden" id="panel-conferences">
-              <div class="grid-12 mb-xl relative z-20">
-                <div class="col-span-12 md:col-span-7 md:col-start-6">
-                  <div class="list-reveal-row">
-                    <p class="text-p1 font-bold mb-xs">Academic conferences and symposiums organized or attended by SCCD foster dialogue between design research, education, and professional practice.</p>
-                    <p class="text-p1 font-bold">學系舉辦或參與的學術研討會，促進設計研究、教育與專業實踐之間的對話與交流。</p>
-                  </div>
-                </div>
-              </div>
               <div class="activities-filter-bar md:sticky md:top-[200px] bg-white z-10">
                 <div class="grid-12 pb-lg">
                   <div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px]">
@@ -286,14 +221,6 @@
 
             <!-- Students Present Panel -->
             <div class="activities-panel hidden" id="panel-students-present">
-              <div class="grid-12 mb-xl relative z-20">
-                <div class="col-span-12 md:col-span-7 md:col-start-6">
-                  <div class="list-reveal-row">
-                    <p class="text-p1 font-bold mb-xs">Student-initiated projects and presentations highlight the independent creative spirit of SCCD students, from self-organized events to original research and productions.</p>
-                    <p class="text-p1 font-bold">學生自主活動展現學系學生的獨立創作精神，從自辦活動到原創研究與製作，充分體現學習的主動性。</p>
-                  </div>
-                </div>
-              </div>
               <div class="activities-filter-bar md:sticky md:top-[200px] bg-white z-10">
                 <div class="grid-12 pb-lg">
                   <div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px]">
@@ -309,14 +236,6 @@
 
             <!-- Industry Panel -->
             <div class="activities-panel hidden" id="panel-industry">
-              <div class="grid-12 mb-xl relative z-20">
-                <div class="col-span-12 md:col-span-7 md:col-start-6">
-                  <div class="list-reveal-row">
-                    <p class="text-p1 font-bold mb-xs">Industry-academia cooperation projects connect students with real-world design challenges, fostering collaboration between SCCD and leading companies and organizations.</p>
-                    <p class="text-p1 font-bold">產學合作計畫連結學生與真實設計議題，促進學系與各大企業及機構的合作，將學術研究落地於實務應用。</p>
-                  </div>
-                </div>
-              </div>
               <div class="activities-filter-bar md:sticky md:top-[200px] bg-white z-10">
                 <div class="grid-12 pb-lg">
                   <div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px]">

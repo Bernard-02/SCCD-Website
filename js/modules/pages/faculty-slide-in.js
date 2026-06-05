@@ -39,11 +39,13 @@ export function initFacultySlideIn() {
     })
     .catch(error => console.error('Error loading faculty data:', error));
 
-  // year 區段顯示：endYear 空 → 單年；endYear 與 startYear 相同也顯示單年；否則 "start-end"
-  function formatYearRange(startYear, endYear) {
+  // year 區段顯示：endYear 空 → 單年；endYear 與 startYear 相同也顯示單年；
+  // isPresent=true（至今/進行中）→ "start-"（起始年 + dash，無結束年）；否則 "start-end"
+  function formatYearRange(startYear, endYear, isPresent) {
     const s = (startYear || '').toString().trim();
     const e = (endYear || '').toString().trim();
     if (!s && !e) return '';
+    if (isPresent && s) return `${s}-`;
     if (!e || e === s) return s;
     if (!s) return e;
     return `${s}-${e}`;
@@ -63,8 +65,9 @@ export function initFacultySlideIn() {
   }
 
   // 經歷 row：year | organization(跨2 col) | role
+  // isPresent（至今）→ year 顯示 "start-"；經歷/歷程共用此 row
   function renderExperienceRow(item) {
-    const year = formatYearRange(item.startYear, item.endYear);
+    const year = formatYearRange(item.startYear, item.endYear, item.isPresent);
     const orgZh = item.organizationZh || '';
     const orgEn = item.organizationEn || '';
     const roleZh = item.roleZh || '';

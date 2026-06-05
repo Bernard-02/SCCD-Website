@@ -62,32 +62,12 @@ const ADMISSION_LIST_OPTIONS = {
   autoReveal:      false,           // reveal 由 admission-section-switch 接管（playAdmissionPanelReveal）
 };
 
-// 本機 dev 跳過 WP fetch 避免 WP 沒跑時 hang 3s（同 activities-data-loader._SKIP_WP）
-// sessionStorage.wpDev='1' 可強制 dev 也測 WP
-const _SKIP_WP = location.hostname !== 'sccd-website.local'
-  && /^(localhost|127\.0\.0\.1|0\.0\.0\.0|)$/.test(location.hostname)
-  && sessionStorage.getItem('wpDev') !== '1';
-
 export async function loadAdmissionData() {
   const container = document.getElementById('admission-list');
   if (!container) return;
-  // WP endpoint + JSON fallback；空 list 也算 fail 走 fallback
-  const WP_API_BASE = location.hostname === 'sccd-website.local' ? '' : 'http://sccd-website.local';
+  // 讀本地 JSON（WP-headless 邏輯已移除 2026-06-05）；之後 flip 接 Directus 時改 Directus 為主 + 本地 fallback。
   try {
-    if (_SKIP_WP) {
-      _admissionAllData = await fetch('/data/admission.json').then(r => r.json());
-    } else {
-      _admissionAllData = await fetch(`${WP_API_BASE}/wp-json/sccd/v1/admission-announcement`)
-        .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-        .then(arr => {
-          if (!Array.isArray(arr) || arr.length === 0) throw new Error('endpoint returned 0 items');
-          return arr;
-        })
-        .catch(err => {
-          console.warn('[admission] WP endpoint failed, fallback to data/admission.json:', err.message);
-          return fetch('/data/admission.json').then(r => r.json());
-        });
-    }
+    _admissionAllData = await fetch('/data/admission.json').then(r => r.json());
   } catch (error) {
     console.error('Error loading admission data:', error);
     return;

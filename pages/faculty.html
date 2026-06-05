@@ -135,9 +135,9 @@
                桌面：image → name+titles 由上到下
                手機（2026-05-26 user 調整）：image 在上 → name+titles 在下，無 order 反轉（HTML 順序就是手機視覺順序） -->
           <div class="w-full md:w-[22%] md:self-start flex flex-col">
-            <!-- Image with rotation -->
-            <div class="mb-2xl md:mb-2xl w-[65%] ml-xl md:w-full md:ml-0" style="aspect-ratio: 4/5; transform: rotate(-4deg);">
-              <img id="faculty-detail-image" src="../images/S__6742028.jpg" alt="Faculty" class="w-full h-full object-cover object-center">
+            <!-- Image with rotation；不鎖死比例 → 圖片依後台實際上傳比例顯示（h-auto 自然高度、不裁切） -->
+            <div class="mb-2xl md:mb-2xl w-[65%] ml-xl md:w-full md:ml-0" style="transform: rotate(-4deg);">
+              <img id="faculty-detail-image" src="../images/S__6742028.jpg" alt="Faculty" class="w-full h-auto block">
             </div>
             <!-- Name + Titles -->
             <div class="mb-xl md:mb-0">
