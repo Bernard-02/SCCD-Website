@@ -27,8 +27,8 @@
         <!-- Office -->
         <div class="footer-office">
           <h6 class="mb-xs">Office 學系辦公室</h6>
-          <p class="max-w-sm mb-xs"><a href="https://www.google.com/maps/search/?api=1&query=No.70%2C+Dazhi+Street%2C+Zhongshan+District%2C+Taipei+City+104336%2C+Taiwan" target="_blank" rel="noopener noreferrer" class="footer-link">5F, Building A, No.70, Dazhi Street, Zhongshan District, Taipei City 104336, Taiwan</a></p>
-          <p class="footer-office-zh"><a href="https://www.google.com/maps/search/?api=1&query=No.70%2C+Dazhi+Street%2C+Zhongshan+District%2C+Taipei+City+104336%2C+Taiwan" target="_blank" rel="noopener noreferrer" class="footer-link">104336 <br class="footer-office-zh-br">台灣台北市中山區大直街 70 號 A 棟 5 樓</a></p>
+          <p class="max-w-sm mb-xs"><a href="https://maps.app.goo.gl/tj6auGPM9EwoBvBU7" target="_blank" rel="noopener noreferrer" class="footer-link">5F, Building A, No.70, Dazhi Street, Zhongshan District, Taipei City 104336, Taiwan</a></p>
+          <p class="footer-office-zh"><a href="https://maps.app.goo.gl/tj6auGPM9EwoBvBU7" target="_blank" rel="noopener noreferrer" class="footer-link">104336 <br class="footer-office-zh-br">台灣台北市中山區大直街 70 號 A 棟 5 樓</a></p>
         </div>
 
         <!-- E-Mail -->
@@ -37,29 +37,18 @@
           <p><a href="mailto:sccd@g2.usc.edu.tw" class="footer-link">sccd@g2.usc.edu.tw</a></p>
         </div>
 
-        <!-- Links -->
-        <div class="footer-links">
-          <h6 class="mb-xs">Links 相關連結</h6>
-          <div class="flex flex-col gap-xs">
-            <a href="https://www.usc.edu.tw/" target="_blank" rel="noopener noreferrer" class="text-p2 footer-link">
-              Shih Chien University 實踐大學
-            </a>
-            <a href="http://www.scdesign.usc.edu.tw/" target="_blank" rel="noopener noreferrer" class="text-p2 footer-link">
-              College of Design, USC 實踐大學設計學院
-            </a>
-          </div>
+        <!-- Links：拆成兩張獨立 link 卡（無 title，各一條連結，字重 bold）-->
+        <div class="footer-link-item">
+          <a href="https://www.usc.edu.tw/" target="_blank" rel="noopener noreferrer" class="footer-link">Shih Chien University 實踐大學</a>
+        </div>
+        <div class="footer-link-item">
+          <a href="http://www.scdesign.usc.edu.tw/" target="_blank" rel="noopener noreferrer" class="footer-link">College of Design, USC 實踐大學設計學院</a>
         </div>
 
-        <!-- Social Media Icons + Support
-             Support 放在 social 內部最左：手機 .footer-social flex-row 自然排列 (support → YT → IG → FB)；
-             桌面 .footer-social { display: contents } 把 4 個 icon wrapper 升級成 .footer-random 視覺子，
-             JS scatter (ITEM_SELECTORS 仍含 .footer-support) 各別散佈 -->
+        <!-- Social Media Icons（Support 已從 icon 移到 footer-privacy 文字連結）
+             桌面 .footer-social { display: contents } 把 icon wrapper 升級成 .footer-random 視覺子，
+             JS scatter 各別散佈；手機 .footer-social flex-row 自然排列 (YT → IG → FB) -->
         <div class="footer-social">
-          <div class="footer-support">
-            <a href="support.html" class="footer-link" aria-label="Support / Donation">
-              <span class="icon icon-donate text-h3"></span>
-            </a>
-          </div>
           <div class="footer-youtube">
             <a href="https://www.youtube.com/@communicationsdesign" target="_blank" rel="noopener noreferrer" class="footer-link">
               <span class="icon icon-youtube text-h3"></span>
@@ -79,14 +68,14 @@
 
       </div>
 
-      <!-- Privacy Policy Links（桌面左下、手機線性最後）— Support 已移到 scatter pool
-           英文/中文用 <br> 分兩行；T&C 已移除改為 Accessibility -->
+      <!-- Privacy Policy Links（桌面左下、手機線性最後）
+           英文/中文用 <br> 分兩行；Support 從原本 donate icon 改為此處文字連結（置頂） -->
       <div class="footer-privacy">
         <div class="flex flex-col gap-xs items-start">
+          <a href="support.html" class="footer-link">Support<br>支援</a>
           <a href="regulations.html" class="footer-link">Regulations<br>學系規章</a>
           <a href="privacy-policy.html" class="footer-link">Privacy and Security Policies<br>隱私權及資訊安全政策</a>
           <a href="accessibility.html" class="footer-link">Accessibility<br>無障礙聲明</a>
-          <p>SCCD©<span id="footer-year"></span></p>
         </div>
       </div>
 

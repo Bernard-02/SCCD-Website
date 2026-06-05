@@ -55,6 +55,18 @@
     white-space: normal;
   }
 
+  /* Office 英文地址在 <a> 內，被 `.footer-random a { nowrap }` 蓋掉 → 不換行 → 超出
+   * anchor overflow:clip 被裁成「…Zhongsh」讀不到完整地址。讓英文 <a> 跟著 <p> wrap。
+   * 排除中文行（.footer-office-zh：有 <br> + 桌面 nowrap 維持「104336 / 台灣…」兩行）。 */
+  .footer-random .footer-office p:not(.footer-office-zh) a {
+    white-space: normal;
+  }
+
+  /* 兩張 link 卡（拆自原 Links 卡、無 title、純連結）字重 bold（user 2026-06-06） */
+  .footer-random .footer-link-item a {
+    font-weight: 700;
+  }
+
   /* 所有 footer scatter icon（social + donation）：放大 1.5× （base 是 .text-h3） */
   .footer-random .icon {
     font-size: calc(var(--font-size-h3) * 1.5);
@@ -181,6 +193,20 @@
       flex: 1;
       display: block;
       min-height: 0;
+    }
+
+    /* 三原色底色塊：每個「會變化的文字內容」scatter block 套隨機 accent 底色（bg 由 JS
+     * applyAccentColors 每次 shuffle 重設 inline）；亮 accent 上一律黑字確保三 mode 都可讀。
+     * 桌面 only — 手機無 shuffle / 無 scatter，套黑字但 JS 不設 bg 會在黑底 footer 看不到。
+     * padding 對齊 about 頁 nav btn 的 accent-bg 慣例（.anchor-nav-inner: 6px 8px 5px）；
+     * 別放大 — 卡片變大會讓 scatter no-overlap 演算法找不到合法 layout 而每次 fallback 同一坨。
+     * item natural size 含 padding → collision 演算法自動納入。 */
+    .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-link-item) {
+      padding: 6px 8px 5px;
+    }
+    .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-link-item),
+    .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-link-item) :is(h6, p, a) {
+      color: #000;
     }
 
     /* footer-anchor (JS 動態包) = position: absolute + overflow: clip mask + opacity: 0 預設

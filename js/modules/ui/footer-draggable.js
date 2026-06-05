@@ -65,19 +65,31 @@ const ITEM_SELECTORS = [
   '.footer-tel',
   '.footer-office',
   '.footer-email',
-  '.footer-links',
+  '.footer-link-item', // 原 Links 卡拆成兩張獨立 link 卡（共用此 class）
   '.footer-youtube',
   '.footer-instagram',
   '.footer-facebook',
-  '.footer-support', // donation icon
 ];
+
+// 三原色 accent 底色塊：只套在「會變化的文字內容」(scatter text blocks)，每次 shuffle 重新隨機。
+// 桌面 only（initFooterScatter < 768 early return）；social icon items 不套（保留去背 icon）。
+const ACCENT_COLORS = ['#00FF80', '#FF448A', '#26BCFF'];
+const TEXT_ITEM_SELECTOR = '.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-link-item';
+
+function applyAccentColors(items) {
+  items.forEach((item) => {
+    if (item && item.matches && item.matches(TEXT_ITEM_SELECTOR)) {
+      item.style.background = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
+    }
+  });
+}
 
 const ROTATION_RANGE = 12;          // ±度數
 const CARD_GAP_PX = 24;             // 卡片間 + obstacle buffer（bbox 階段用）
 const VERIFY_PADDING_PX = 8;        // actual-rect verify 階段 padding
 const MAX_PLACE_ATTEMPTS = 200;     // 單張卡找位置最多試幾次
 
-// Links 限定在 area 底部 30% 區域
+// 兩張 link 卡都限定在 area 底部 30% 區域（其他卡排在 link 卡上方）
 const LINKS_BOTTOM_REGION_RATIO = 0.7;
 
 // 隱藏狀態的 yPercent over-shoot（防 sub-pixel 殘影）
@@ -96,7 +108,13 @@ const SHUFFLE_EXIT_STAGGER = 0.06;
 const TARGET_LAYOUTS = 1;
 const MAX_REGEN_PER_LAYOUT = 30;
 
+// Shuffle 排程改用 setTimeout 鏈（取代 setInterval）以支援 hover pause/resume：
+// hover 任一 scatter item 凍結倒數，離開後從剩餘時間續跑（user 2026-06-06）。
 let shuffleTimer = null;
+let shuffleCtx = null;          // { area, anchors, obstacles, items, fallbackLayout }
+let shuffleScheduledAt = 0;     // 本輪倒數起算時間（performance.now()）
+let shuffleRemainingMs = SHUFFLE_INTERVAL_MS;
+let shufflePaused = false;
 
 function rand(min, max) {
   return Math.random() * (max - min) + min;
@@ -159,19 +177,20 @@ function generatePlacement(area, anchors, obstacles) {
 
   const obstacleRects = obstacles.map((o) => obstacleRectLocal(o, areaRect));
 
-  // 順序：Links 先（限定底部），其他依面積降序
+  // 順序：兩張 link 卡先（都限定底部當「地板」），其他依面積降序排在 link 卡上方
   const indexed = anchors.map((a, i) => ({ idx: i, anchor: a }));
-  const linksEntry = indexed.find(({ anchor }) => {
+  const isLinkAnchor = (anchor) => {
     const inner = anchor.firstElementChild;
-    return inner && inner.classList.contains('footer-links');
-  });
-  const others = indexed.filter((e) => e !== linksEntry);
+    return !!(inner && inner.classList.contains('footer-link-item'));
+  };
+  const linkEntries = indexed.filter((e) => isLinkAnchor(e.anchor));
+  const others = indexed.filter((e) => !isLinkAnchor(e.anchor));
   others.sort((a, b) => {
     const aArea = a.anchor.offsetWidth * a.anchor.offsetHeight;
     const bArea = b.anchor.offsetWidth * b.anchor.offsetHeight;
     return bArea - aArea;
   });
-  const order = linksEntry ? [linksEntry.idx, ...others.map((e) => e.idx)] : others.map((e) => e.idx);
+  const order = [...linkEntries.map((e) => e.idx), ...others.map((e) => e.idx)];
 
   const placedRects = [];
   const placements = [];
@@ -180,7 +199,7 @@ function generatePlacement(area, anchors, obstacles) {
   for (const idx of order) {
     const anchor = anchors[idx];
     const inner = anchor.firstElementChild;
-    const isLinks = inner && inner.classList.contains('footer-links');
+    const isLinks = inner && inner.classList.contains('footer-link-item');
 
     const prevTransform = anchor.style.transform;
     anchor.style.transform = 'none';
@@ -232,7 +251,8 @@ function generatePlacement(area, anchors, obstacles) {
     if (!accepted) continue;
     placedRects.push(accepted.rect);
     placements.push({ anchor, cx: accepted.cx, cy: accepted.cy, rot: accepted.rot });
-    if (isLinks) linksTopY = accepted.rect.y;
+    // 兩張 link 卡都在底部 → linksTopY 取兩者較高的 top，其他卡才會全部排在它們上方
+    if (isLinks) linksTopY = (linksTopY === null) ? accepted.rect.y : Math.min(linksTopY, accepted.rect.y);
   }
 
   return placements;
@@ -343,6 +363,8 @@ function shuffleAll(area, anchors, obstacles, items, fallbackLayout) {
         }
       }
       if (!fresh) applyPlacement(fallbackLayout);
+      // 每次 shuffle 重新隨機三原色底色（此時 items 已 exit 移出視野，換色不被看到）
+      applyAccentColors(items);
       // Enter: reset items to new random direction (independent of exit dir)
       hideItemsRandomDirection(items);
       playRandomDirReveal(items);
@@ -350,19 +372,61 @@ function shuffleAll(area, anchors, obstacles, items, fallbackLayout) {
   });
 }
 
+function runShuffleTick() {
+  if (!shuffleCtx) return;
+  const { area, anchors, obstacles, items, fallbackLayout } = shuffleCtx;
+  shuffleAll(area, anchors, obstacles, items, fallbackLayout);
+  scheduleNextShuffle(SHUFFLE_INTERVAL_MS);
+}
+
+function scheduleNextShuffle(delay) {
+  if (shuffleTimer != null) clearTimeout(shuffleTimer);
+  shuffleRemainingMs = delay;
+  shuffleScheduledAt = performance.now();
+  shuffleTimer = window.setTimeout(runShuffleTick, delay);
+}
+
 function startShuffleLoop(area, anchors, obstacles, items, fallbackLayout) {
   stopShuffleLoop();
-  shuffleTimer = window.setInterval(
-    () => shuffleAll(area, anchors, obstacles, items, fallbackLayout),
-    SHUFFLE_INTERVAL_MS,
-  );
+  shuffleCtx = { area, anchors, obstacles, items, fallbackLayout };
+  shufflePaused = false;
+  scheduleNextShuffle(SHUFFLE_INTERVAL_MS);
 }
 
 function stopShuffleLoop() {
   if (shuffleTimer != null) {
-    clearInterval(shuffleTimer);
+    clearTimeout(shuffleTimer);
     shuffleTimer = null;
   }
+  shufflePaused = false;
+}
+
+// Hover freeze：凍結倒數（記下剩餘時間）；離開後從剩餘時間續排下一次 shuffle。
+// 倒數剛好 fire 中（timer null）或已暫停則 no-op。
+function pauseShuffleLoop() {
+  if (shufflePaused || shuffleTimer == null) return;
+  shufflePaused = true;
+  clearTimeout(shuffleTimer);
+  shuffleTimer = null;
+  const elapsed = performance.now() - shuffleScheduledAt;
+  shuffleRemainingMs = Math.max(0, shuffleRemainingMs - elapsed);
+}
+
+function resumeShuffleLoop() {
+  if (!shufflePaused) return;
+  shufflePaused = false;
+  scheduleNextShuffle(shuffleRemainingMs);
+}
+
+// 綁在各 anchor（持久存在，跨 SPA 不重建）→ dataset flag 防 router recovery 重 init 重複綁。
+// footer 不在 #page-content 內，listener 隨 footer 持久存在不累積，毋須 page-cleanup registry。
+function bindHoverPause(anchors) {
+  anchors.forEach((anchor) => {
+    if (!anchor || anchor.dataset.hoverPauseBound) return;
+    anchor.dataset.hoverPauseBound = '1';
+    anchor.addEventListener('mouseenter', pauseShuffleLoop);
+    anchor.addEventListener('mouseleave', resumeShuffleLoop);
+  });
 }
 
 export async function initFooterScatter(scope) {
@@ -392,6 +456,10 @@ export async function initFooterScatter(scope) {
   const anchors = wrapItemsInAnchors(rawItems);
   const items = anchors.map((a) => a.firstElementChild).filter(Boolean);
   if (anchors.length === 0 || items.length === 0) return;
+
+  // 文字 block 套初始三原色底色 + 綁 hover freeze（hover 凍結 shuffle 倒數、離開續跑）
+  applyAccentColors(items);
+  bindHoverPause(anchors);
 
   const privacy = footer.querySelector('.footer-privacy');
   const obstacles = privacy ? [privacy] : [];
