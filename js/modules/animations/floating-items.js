@@ -4,8 +4,13 @@
  */
 
 import { registerPageCleanup } from '../ui/page-cleanup.js';
+import { registerPageExit } from '../ui/page-exit.js';
 import { renderPdfCover } from '../ui/pdf-cover.js';
 import { DUR, EASE } from '../ui/motion.js';
+
+// 進/退場 clip-path 4 方向（卡片 el 不受 RAF 的 mover transform 影響，clip-path 安全）
+const FLOAT_HIDE_CLIPS = ['inset(0% 0% 100% 0%)', 'inset(100% 0% 0% 0%)', 'inset(0% 0% 0% 100%)', 'inset(0% 100% 0% 0%)'];
+function randFloatHideClip() { return FLOAT_HIDE_CLIPS[Math.floor(Math.random() * FLOAT_HIDE_CLIPS.length)]; }
 
 // 桌面 20、手機 12（< 768px）。手機減量是視覺優化，不影響桌面。
 function isMobileViewport() { return window.innerWidth < 768; }
@@ -602,7 +607,7 @@ function spawnItem(container, poolEntry, fromEdge = false) {
     resume: () => { gsapTweenY.resume(); gsapTweenX.resume(); },
   };
 
-  const item = { el: mover, x, y, vx, vy, w: realW, h: realH, rotation, hovered: false, gsapTween, rotator };
+  const item = { el: mover, x, y, vx, vy, w: realW, h: realH, rotation, hovered: false, gsapTween, rotator, card: el };
 
   el.addEventListener('mouseenter', () => {
     item.hovered = true;
@@ -664,6 +669,16 @@ export async function initFloatingItems() {
     items.push(spawnItem(container, nextPoolEntry(), false));
   }
 
+  // 進場：initial batch 的卡片 clip-path 由隱藏 stagger 揭露（el 在 mover 內、不被 RAF 的 translate 影響 → clip-path 安全）。
+  // 揭露完留 inline inset(0)（不 clearProps）→ 離頁退場可直接 to 隱藏不 snap。揭露時 RAF 已在跑＝邊漂邊揭露。
+  // base delay 0.1 讓 floating 排在 news(0.35)/iris(0.6) 之前（首頁協調進場順序）。
+  if (typeof gsap !== 'undefined') {
+    items.forEach(item => { if (item.card) gsap.set(item.card, { clipPath: randFloatHideClip() }); });
+    items.forEach((item, i) => {
+      if (item.card) gsap.to(item.card, { clipPath: 'inset(0% 0% 0% 0%)', duration: DUR.slow, ease: EASE.enter, delay: 0.1 + i * 0.03 });
+    });
+  }
+
   let running = true;
   let rafId = null;
 
@@ -721,6 +736,22 @@ export async function initFloatingItems() {
     }
   }
   document.addEventListener('visibilitychange', onVisibilityChange);
+
+  // 離頁退場：先凍住漂移 RAF（避免退場期間還在 translate），再把當前所有卡片 clip-path 收掉。
+  // 用 fromTo 顯式起點 inset(0)：edge-respawn 的卡片沒設過 clipPath（computed none）、to 會 snap → fromTo 避免。
+  registerPageExit(() => new Promise(resolve => {
+    running = false;
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+    if (typeof gsap === 'undefined' || !items.length) { resolve(); return; }
+    let done = 0;
+    const onOne = () => { if (++done >= items.length) resolve(); };
+    items.forEach((item, i) => {
+      if (!item.card) { onOne(); return; }
+      gsap.fromTo(item.card,
+        { clipPath: 'inset(0% 0% 0% 0%)' },
+        { clipPath: randFloatHideClip(), duration: DUR.medium, ease: EASE.exit, delay: i * 0.02, overwrite: true, onComplete: onOne });
+    });
+  }));
 
   // SPA 離開首頁時停 RAF + 解綁所有 listener，避免每次回首頁累積
   // （tick 對 detached DOM 空跑、visibilitychange 匿名 handler 複利、newsHoverListeners/themeListeners 無限增長）

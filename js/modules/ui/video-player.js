@@ -63,9 +63,9 @@ function detachVideoSource(video) {
 
 /**
  * @param {string} videoUrl
- * @param {{ getCardRect?: () => DOMRect, onCloseAnimComplete?: () => void }} [opts]
+ * @param {{ getCardRect?: () => DOMRect, onCloseAnimComplete?: () => void, freezeCard?: (frozen: boolean) => void, getCardBg?: () => string }} [opts]
  */
-export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete } = {}) {
+export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete, freezeCard, getCardBg } = {}) {
   const overlay       = document.getElementById('video-player-overlay');
   if (_videoPlayerInstance && _videoPlayerInstance._overlay === overlay) return _videoPlayerInstance;
   const video         = /** @type {HTMLVideoElement | null} */ (document.getElementById('video-player'));
@@ -176,12 +176,16 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete } =
     video.controls = false;
     if (mobileCloseBtn) mobileCloseBtn.style.display = 'none';
 
+    // 凍住卡片：收合期間卡片若繼續 float，黑圈會收到「收合開始那刻的舊位置」、卡片卻漂走 → 收完瞬移/重影
+    // （user 2026-06-08）。凍在當前位置 → getCardRect 擷取的就是黑圈收合終點＝卡片實際位置，對齊不跳。
+    freezeCard?.(true);
     const rect = getCardRect?.();
     if (!rect || typeof gsap === 'undefined') {
       detachVideoSource(video);
       overlay.style.display = 'none';
       document.body.style.overflow = '';
       document.documentElement.style.backgroundColor = '';
+      freezeCard?.(false);
       return;
     }
 
@@ -195,6 +199,10 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete } =
     const maxDist = Math.max(...[[0,0],[vW,0],[0,vH],[vW,vH]].map(([cx,cy]) => Math.hypot(cx - cardCx, cy - cardCy)));
     const fromScale = (maxDist / (rect.width / 2)) * 2.2;
 
+    // 收合 clone 起始黑（影片底色），縮回時 fade 成卡片當前底色（inverse=白 / standard=黑 / mode3=theme-fg）
+    // → user 要「回去時是卡片色」（mode2 白）。之前白收合會重影是因卡片收合期間仍 float、黑圈收到舊位置，
+    // 已用上方 freezeCard 凍住卡片對齊解掉，故可安全 fade 回卡片色。
+    const cardBg = getCardBg?.() || '#000';
     const clone = document.createElement('div');
     clone.style.cssText = `position:fixed; left:${cardCx}px; top:${cardCy}px; width:${rect.width}px; height:${rect.height}px; margin-left:${-rect.width/2}px; margin-top:${-rect.height/2}px; background:#000; border-radius:50%; z-index:10001; transform:scale(${fromScale}); transform-origin:center center;`;
     document.body.appendChild(clone);
@@ -203,12 +211,13 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete } =
     document.body.style.overflow = '';
 
     gsap.to(clone, {
-      scale: 1, duration: DUR.medium, ease: EASE.enter,
+      scale: 1, backgroundColor: cardBg, duration: DUR.medium, ease: EASE.enter,
       onComplete: () => {
         clone.remove();
         detachVideoSource(video);
         // 黑色 clone 完全縮回後才恢復 html bg，避免 gutter 條閃白
         document.documentElement.style.backgroundColor = '';
+        freezeCard?.(false); // 收合完還原 float
         onCloseAnimComplete?.();
       }
     });

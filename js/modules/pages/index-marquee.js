@@ -12,6 +12,7 @@
 
 import { applyNewsHover, removeNewsHover } from '../animations/floating-items.js';
 import { DUR, EASE } from '../ui/motion.js';
+import { registerPageExit } from '../ui/page-exit.js';
 import { CMS_API_BASE, CMS_ASSETS_BASE } from '../../config/api.js';
 
 const SLOT_COUNT = 3;
@@ -438,8 +439,29 @@ function runMarqueeStack(stack, items) {
     applySlotTransform(b, slotOffset + i, false);
     bindBannerInteraction(b, onEnter, onLeave, pushAbove, restoreAbove);
     banners.push(b);
+    // 進場前先 clip 隱藏（initial banner 原本是 instant 顯示、無進場）
+    if (typeof gsap !== 'undefined') gsap.set(b.row, { clipPath: 'inset(0% 0% 100% 0%)' });
   }
   cursor = visibleCount % items.length;
+
+  // 進場：initial banner clip-path 由上往下 stagger 揭露（沿用 enterBanner 同方向）。
+  // base delay 0.35 讓 news 排在 floating(0.1) 之後、iris(0.6) 之前（首頁協調進場順序）。
+  if (typeof gsap !== 'undefined') {
+    banners.forEach((b, i) => gsap.to(b.row, {
+      clipPath: 'inset(0% 0% 0% 0%)', duration: DUR.reveal, ease: EASE.enter, delay: 0.35 + i * 0.12,
+    }));
+  }
+
+  // 離頁退場：停 cycle + 當前 banner clip 收回（由下往上，reveal 的反向）。fromTo 顯式起點避免 to-from-none snap。
+  registerPageExit(() => new Promise(resolve => {
+    if (timeoutId) { clearTimeout(timeoutId); timeoutId = null; }
+    if (typeof gsap === 'undefined' || !banners.length) { resolve(); return; }
+    let done = 0;
+    const onOne = () => { if (++done >= banners.length) resolve(); };
+    banners.forEach((b, i) => gsap.fromTo(b.row,
+      { clipPath: 'inset(0% 0% 0% 0%)' },
+      { clipPath: 'inset(0% 0% 100% 0%)', duration: DUR.medium, ease: EASE.exit, delay: i * 0.06, overwrite: true, onComplete: onOne }));
+  }));
 
   if (items.length <= SLOT_COUNT) return;
 

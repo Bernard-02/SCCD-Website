@@ -6,7 +6,8 @@
 import { applyNewsHover, removeNewsHover } from '../animations/floating-items.js';
 import { initVideoPlayer } from '../ui/video-player.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
-import { EASE } from '../ui/motion.js';
+import { registerPageExit } from '../ui/page-exit.js';
+import { DUR, EASE } from '../ui/motion.js';
 import { CMS_API_BASE } from '../../config/api.js';
 
 // ── p5 字母排版 ────────────────────────────────────────────────
@@ -259,6 +260,17 @@ function initWatchChars(ytCharsEl) {
           const stagger = opts.stagger ?? 0.06;
           return (chars.length - 1) * stagger;
         };
+
+        // index 首頁進場：initYTCard 標記 __entrancePending → 文字起始藏起來（_scale 0），等 iris 光圈開完才 stagger 畫上。
+        // 同一 setup tick 內 drawLayout()(_scale 1)→這裡改 _scale 0 不會閃（paint 在 setup return 後才發生）。
+        // 時序握手：setup 早於 iris-complete → 設好 __charsReady 等 onComplete 來 call；晚於 → onComplete 標 __entranceRequested、這裡補播。
+        // reshuffle 首次 fire 在 setup+3s、晚於 iris(~1.2s)→不會把 _scale reset 成 1 干擾進場。
+        if (ytCharsEl.__entrancePending) {
+          lastPlaced.forEach(pos => { pos._scale = 0; });
+          drawLayout(true);
+          ytCharsEl.__charsReady = true;
+          if (ytCharsEl.__entranceRequested) { ytCharsEl.__entranceRequested = false; ytCharsEl.__fadeInWatch({ stagger: ytCharsEl.__entranceStagger ?? 0.06 }); }
+        }
       };
     });
   });
@@ -388,8 +400,11 @@ function initYTCardClick(ytCard, playerRef) {
     fadePromise.then(() => {
       // 等一拍（stagger），讓圓圈在「第 7 拍」啟動接續字母節奏
       setTimeout(() => {
+        // clone 起始底色 = 卡片當前底色（inverse=白 / standard=黑 / mode3=theme-fg），放大時 fade 成黑
+        // → 視覺像「白圈展開再 fade 成黑」（user 2026-06-08：inverse 點白圈卻看到黑色放大＝clone 原本寫死 #000）。
+        const cardBg = getComputedStyle(ytCard).backgroundColor || '#000';
         const clone = document.createElement('div');
-        clone.style.cssText = `position:fixed; left:${cardCx}px; top:${cardCy}px; width:${rect.width}px; height:${rect.height}px; margin-left:${-rect.width/2}px; margin-top:${-rect.height/2}px; background:#000; border-radius:50%; z-index:10001; transform:scale(1); transform-origin:center center;`;
+        clone.style.cssText = `position:fixed; left:${cardCx}px; top:${cardCy}px; width:${rect.width}px; height:${rect.height}px; margin-left:${-rect.width/2}px; margin-top:${-rect.height/2}px; background:${cardBg}; border-radius:50%; z-index:10001; transform:scale(1); transform-origin:center center;`;
         document.body.appendChild(clone);
 
         // clone start 時 preload video（buffer 資料但不顯示），cover 期間 buffer 完成。
@@ -398,7 +413,7 @@ function initYTCardClick(ytCard, playerRef) {
         player?.preloadVideo?.();
 
         gsap.to(clone, {
-          scale: targetScale, duration: scaleDur, ease: EASE.exit, // 持續加速衝滿，後段更陡
+          scale: targetScale, backgroundColor: '#000', duration: scaleDur, ease: EASE.exit, // 持續加速衝滿，後段更陡；底色同步 fade 成黑
           onComplete: () => {
             // 先 openPlayer（overlay 顯示 + .play()），video 已 buffered → 黑屏 <100ms
             // 然後再 remove clone，確保「黑圈滿版時」才看到 video
@@ -436,7 +451,34 @@ export function initYTCard() {
   delete ytCard.dataset.clickAnimating;
 
   initYTCardFloat(ytCard);
+  // 進場標記：文字起始藏起來，等 iris 光圈開到差不多才 stagger 畫上（必須在 initWatchChars 之前設）。
+  // __entranceStagger 0.03＝快 stagger（user 2026-06-08「iris 出來後 watch 繪製可以再快點」）。
+  if (ytCharsEl && typeof gsap !== 'undefined') { ytCharsEl.__entrancePending = true; ytCharsEl.__entranceStagger = 0.03; }
   initWatchChars(ytCharsEl);
+
+  // iris 進場（兩段）：先開「空的」黑色光圈 circle(0%→50%)，開到 ~85% 文字就開始 stagger 畫上（不等完全開滿）
+  // → 少一段「空黑圈」死時間 + 快 stagger 畫快點（見 initWatchChars 握手）。
+  // RAF-safe：float 寫 transform、clip-path 獨立。base delay 0.6 = 排在 floating(0.1)/news(0.35) 之後＝首頁最後浮現的焦點。
+  if (typeof gsap !== 'undefined') {
+    const IRIS_DELAY = 0.6;
+    gsap.set(ytCard, { clipPath: 'circle(0% at 50% 50%)' });
+    gsap.to(ytCard, { clipPath: 'circle(50% at 50% 50%)', duration: DUR.slow, ease: EASE.enter, delay: IRIS_DELAY });
+    gsap.delayedCall(IRIS_DELAY + DUR.slow * 0.85, () => {
+      if (!ytCharsEl) return;
+      if (ytCharsEl.__charsReady && ytCharsEl.__fadeInWatch) ytCharsEl.__fadeInWatch({ stagger: ytCharsEl.__entranceStagger });
+      else ytCharsEl.__entranceRequested = true; // chars 還沒 ready（p5/font 載入晚於 iris）→ setup 完成補播
+    });
+  }
+
+  // 離頁退場（對稱進場的反向）：文字先 stagger 收掉 → 光圈再 circle(50%→0%) 收回中心一點。
+  registerPageExit(() => new Promise(resolve => {
+    if (typeof gsap === 'undefined') { resolve(); return; }
+    const charsEl = document.getElementById('homepage-yt-chars');
+    charsEl?.__pauseLayoutInterval?.(); // 停 3s reshuffle，避免退場時把已 fade 掉的字重畫回來（被收合的光圈裁住、但保險）
+    const closeIris = () => gsap.to(ytCard, { clipPath: 'circle(0% at 50% 50%)', duration: DUR.medium, ease: EASE.exit, overwrite: true, onComplete: resolve });
+    if (charsEl?.__fadeOutWatch) charsEl.__fadeOutWatch({ stagger: 0.03 }).then(closeIris);
+    else closeIris();
+  }));
 
   // 立刻掛 click handler（不放在 fetch.then 內），player 用 mutable ref 後續 update
   // 避免「fetch 還沒回 / 失敗 / videoUrl 缺漏 / preloadVideo 寫錯 optional chain → handler 永遠不掛
@@ -466,6 +508,10 @@ export function initYTCard() {
         // 新傳 lambda 被丟。closure 內若直接 close-capture ytCard reference，SPA back-nav 後 ytCard
         // 已 detached → getBoundingClientRect 變 {0,0,0,0} → close 動畫破。改 lazy query 每次 fresh
         getCardRect: () => document.getElementById('homepage-yt-card')?.getBoundingClientRect(),
+        // 收合期間凍住卡片 float，避免黑圈收到舊位置、卡片漂走＝瞬移/重影（lazy query 同 getCardRect）
+        freezeCard: (frozen) => document.getElementById('homepage-yt-card')?.__setFrozen?.(frozen),
+        // 收合黑圈 fade 回卡片當前底色（mode2 白）；卡片已被 freezeCard 凍住對齊故不重影
+        getCardBg: () => { const c = document.getElementById('homepage-yt-card'); return c ? getComputedStyle(c).backgroundColor : '#000'; },
         onCloseAnimComplete: () => {
           document.getElementById('homepage-yt-chars')?.__fadeInWatch?.();
         },
