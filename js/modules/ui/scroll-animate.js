@@ -61,7 +61,8 @@ export function setupClipReveal(elements, { hide = true } = {}) {
 
 // 觸發 clip reveal 動畫（assumes setupClipReveal 已執行）
 // 用於 ScrollTrigger.create 的 onEnter，或非 ScrollTrigger 立即播放
-export function playClipReveal(elements, { onComplete = null } = {}) {
+// stagger 可覆寫：預設用 grid-auto-y（卡片牆用）；要嚴格 DOM 順序「依序進場」(title→副標→內文) 傳 { each: 0.12 } 線性
+export function playClipReveal(elements, { onComplete = null, stagger } = {}) {
   if (typeof gsap === 'undefined') return;
   const items = Array.from(elements);
   if (items.length === 0) return;
@@ -69,7 +70,7 @@ export function playClipReveal(elements, { onComplete = null } = {}) {
   gsap.to(items, {
     yPercent: 0,
     duration: DUR.reveal,
-    stagger: { each: 0.12, grid: 'auto', axis: 'y' },
+    stagger: stagger || { each: 0.12, grid: 'auto', axis: 'y' },
     ease: EASE.enter,
     overwrite: true,
     clearProps: 'transform',
@@ -151,4 +152,97 @@ export function animateCards(elements, useScrollTrigger = false, { fadeIn = fals
   });
 
   return [];
+}
+
+// ════════════════════════════════════════════════════════════════
+// 退場 helpers（進場的反向；給各頁 registerPageExit 用，回傳 Promise 讓 router 換頁前 await）
+//
+// 設計重點：
+//   - 預設只動「視窗內」的元素（viewportOnly）。離頁退場 router 會 await，全頁每個 row 都跑
+//     stagger 會拖慢換頁；使用者也只看得到視窗內的東西飄走，視窗外直接 swap 即可 → 又快又自然。
+//   - 回傳 Promise，無元素 / 無 gsap 時 resolve()，呼叫端可安全 Promise.all。
+// ════════════════════════════════════════════════════════════════
+
+// 元素 bounding rect 是否與視窗相交（含 margin 緩衝）
+function isInViewport(el, margin = 120) {
+  const r = el.getBoundingClientRect();
+  const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+  return r.bottom > -margin && r.top < vh + margin && r.width > 0 && r.height > 0;
+}
+
+// 過濾出「可見（非 display:none）且（預設）在視窗內」的元素
+function exitTargets(elements, viewportOnly) {
+  return Array.from(elements).filter(el => {
+    if (!el || el.offsetParent === null) return false;       // display:none / detached 跳過
+    return viewportOnly ? isInViewport(el) : true;
+  });
+}
+
+/**
+ * clip-reveal 的反向退場：元素 yPercent 0→100 沉出 clip-wrapper 邊界。
+ * 給「進場走 setupClipReveal/playClipReveal」的流式 block 內容用（list rows / 文字段落 / 描述塊 / 聯絡列）。
+ * 會自動補 clip wrapper（idempotent；無 wrapper 時 yPercent:100 會掉出 flow 而非乾淨剪裁）。
+ * ⚠️ 僅適用流式 block 元素；grid/flex 卡片請用 playClipPathExit（避免在 exit 當下 reparent 破壞排版）。
+ */
+export function playRevealExit(elements, { stagger = 0.06, fromEnd = false, duration = DUR.base, viewportOnly = true } = {}) {
+  if (typeof gsap === 'undefined') return Promise.resolve();
+  const items = exitTargets(elements, viewportOnly);
+  if (items.length === 0) return Promise.resolve();
+  setupClipReveal(items, { hide: false });
+  return new Promise(resolve => {
+    gsap.killTweensOf(items);
+    gsap.to(items, {
+      yPercent: 100,
+      duration,
+      ease: EASE.exit,
+      stagger: { each: stagger, from: fromEnd ? 'end' : 'start', grid: 'auto', axis: 'y' },
+      overwrite: true,
+      onComplete: resolve,
+    });
+  });
+}
+
+const _EXIT_CLIP_DIRS = [
+  'inset(100% 0% 0% 0%)', // 收向上
+  'inset(0% 0% 100% 0%)', // 收向下
+  'inset(0% 100% 0% 0%)', // 收向左
+  'inset(0% 0% 0% 100%)', // 收向右
+];
+
+/**
+ * clip-path inset wipe 退場（不重組 DOM，安全給 grid/flex 子元素如卡片）。
+ * 從 inset(0)（完全顯示）wipe 到隨機方向收掉。
+ * ⚠️ 用 fromTo 顯式起點 inset(0)：進場 reveal 收尾常 clearProps clipPath → computed=none，
+ *    gsap.to 從 none 補間不動會 snap（見 memory clippath-exit-after-clearprops-use-fromto）。
+ */
+export function playClipPathExit(elements, { stagger = 0.04, fromEnd = true, duration = DUR.base, viewportOnly = true } = {}) {
+  if (typeof gsap === 'undefined') return Promise.resolve();
+  const items = exitTargets(elements, viewportOnly);
+  if (items.length === 0) return Promise.resolve();
+  const n = items.length;
+  return new Promise(resolve => {
+    let remaining = n;
+    const done = () => { if (--remaining <= 0) resolve(); };
+    items.forEach((el, i) => {
+      gsap.killTweensOf(el);
+      const to = {
+        clipPath: _EXIT_CLIP_DIRS[Math.floor(Math.random() * _EXIT_CLIP_DIRS.length)],
+        duration,
+        ease: 'cubic-bezier(0.25, 0, 0, 1)',
+        delay: (fromEnd ? n - 1 - i : i) * stagger,
+        overwrite: true,
+        onComplete: done,
+      };
+      // 起點態分流（見 feedback_clippath_exit_after_clearprops_use_fromto 2026-06-06 細化）：
+      //   inline clipPath 空 = 已完整進場（reveal 收尾 clearProps → computed=none）→ fromTo 顯式 inset(0) 再收
+      //     （否則 gsap.to 從 none 補不動會 snap）
+      //   inline clipPath 仍有值 = 進場中／尚未進場（GSAP 寫的 partial / 起點 inset）→ 直接 to 從當下值收
+      //     （用 fromTo 會把卡片先 flash 成全開再收 = 視覺 bug）
+      if (el.style.clipPath) {
+        gsap.to(el, to);
+      } else {
+        gsap.fromTo(el, { clipPath: 'inset(0% 0% 0% 0%)' }, to);
+      }
+    });
+  });
 }

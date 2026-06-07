@@ -10,6 +10,8 @@ import {
   setupAdmissionReveal,
 } from './admission-data-loader.js';
 import { resetListAccordionsInPanel } from '../accordions/list-accordion.js';
+import { registerPageExit } from '../ui/page-exit.js';
+import { DUR } from '../ui/motion.js';
 
 // scrollIntoView wrapper：捲到 section 頂端對齊 viewport 頂端（section.top=0），**不扣 header 高度**。
 // 同 courses-section-switch.js 的 sectionScrollTop pattern。
@@ -26,9 +28,62 @@ function scrollSectionIntoView(el, behavior = 'smooth') {
   window.scrollTo({ top, behavior });
 }
 
+// ── 左側 section nav 進場/退場（比照 faculty/activities nav，user 2026-06-07）──
+// clip-path 套在 .anchor-nav-inner 自身（旋轉角不裁、原地揭露）、4 方向隨機、DUR.base + cubic-bezier + stagger；
+// 進場只在 content section 進視窗時跑一次（不重播切分頁）；退場離頁且 navRevealed 才跑、fromTo 顯式起點、from:'end'。
+// transition:'none' 解 .anchor-nav-inner 的 navigation.css `transition: all`（含 clip-path）對 GSAP 每幀寫的接管（卡頓），跑完還原。
+const NAV_CLIP_DIRS = ['inset(0% 0% 100% 0%)', 'inset(0% 0% 0% 100%)', 'inset(100% 0% 0% 0%)', 'inset(0% 100% 0% 0%)'];
+function pickNavClip() { return NAV_CLIP_DIRS[Math.floor(Math.random() * NAV_CLIP_DIRS.length)]; }
+const NAV_REVEALED_CLIP = 'inset(0% 0% 0% 0%)';
+const NAV_EASE = 'cubic-bezier(0.25, 0, 0, 1)';
+
+function setupSectionNavReveal() {
+  if (typeof gsap === 'undefined') return;
+  const inners = Array.from(document.querySelectorAll('.activities-section-btn .anchor-nav-inner'));
+  if (!inners.length) return;
+  let navRevealed = false;
+  inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = 'none'; gsap.set(inner, { clipPath: pickNavClip() }); });
+
+  const play = () => {
+    if (navRevealed) return;
+    navRevealed = true;
+    gsap.to(inners, {
+      clipPath: NAV_REVEALED_CLIP, duration: DUR.base, ease: NAV_EASE, stagger: 0.02, clearProps: 'clipPath',
+      onComplete: () => inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = ''; }),
+    });
+  };
+  const section = document.getElementById('admission-content-section');
+  const inView = section && section.getBoundingClientRect().top < window.innerHeight * 0.9;
+  if (!section || inView || typeof ScrollTrigger === 'undefined') {
+    play();
+  } else {
+    ScrollTrigger.create({ trigger: section, start: 'top 90%', once: true, onEnter: play });
+  }
+
+  registerPageExit(() => new Promise(resolve => {
+    if (typeof gsap === 'undefined' || !navRevealed) { resolve(); return; }
+    gsap.killTweensOf(inners);
+    inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = 'none'; });
+    gsap.fromTo(inners,
+      { clipPath: NAV_REVEALED_CLIP },
+      { clipPath: () => pickNavClip(), duration: DUR.base, ease: NAV_EASE, stagger: { each: 0.02, from: 'end' }, overwrite: true, onComplete: resolve });
+  }));
+}
+
 export function initAdmissionSectionSwitch() {
   const btns = /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.activities-section-btn'));
   if (!btns.length) return;
+
+  // 離頁退場：當前可見 panel 反向退場（先收起展開的 accordion，再 rows yPercent 沉出）。
+  // 用的是 playAdmissionPanelReveal 的反向同一支 playAdmissionPanelExit（in-page 切換 + 離頁共用），
+  // 與 activities 的 playActivitiesExit 同 pattern。router 換頁前 await；registerPageExit 跑完自動清空不洩漏。
+  registerPageExit(() => {
+    const panel = /** @type {HTMLElement | null} */ (document.querySelector('.activities-panel:not(.hidden)'));
+    return panel ? playAdmissionPanelExit(panel) : Promise.resolve();
+  });
+
+  // 左側 section nav clip-path 進場（section 進視窗 once）+ 離頁退場，比照 faculty/activities nav
+  setupSectionNavReveal();
 
   const loaded = {};
   let switching = false;  // 防連點

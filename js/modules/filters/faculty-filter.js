@@ -4,6 +4,7 @@
  */
 
 import { setupClipReveal } from '../ui/scroll-animate.js';
+import { registerPageExit } from '../ui/page-exit.js';
 import { DUR, EASE } from '../ui/motion.js';
 
 // 卡片進場動畫：
@@ -19,6 +20,18 @@ const CLIP_MAP = {
 };
 const CLIP_REVEALED = 'inset(0% 0% 0% 0%)';
 
+// 左側 filter nav 進場/退場：比照 curriculum 灰卡（courses-grid-card）的 clip-path 4 方向 reveal（user 2026-06-07）。
+// 🔑 關鍵：clip-path 套在 `.anchor-nav-inner`（色塊本身）**不是** btn —— 解掉前面所有「裁旋轉角 / 疊到鄰格 /
+//   像從父容器跑」的根因（那些都源自「btn 的旋轉內層溢出 btn box」，去裁 btn 才出事）。
+//   inner 的 clip-path 在「旋轉前的 local box」生效、再被 transform:rotate 顯示，所以：
+//   ① 旋轉角不被裁（clip 的是 inner 自己的 box，bg 色塊填滿該 box 無溢出）；
+//   ② 不外漏疊到鄰 btn（clip-path 只裁元素自身、絕不畫到 box 外，無 overflow-margin 漏出問題）；
+//   ③ 不需 wrapper、不需位移 → chip 定在原位、純粹「色塊被 clip 揭露」(= 灰卡那種 wipe)，不會在容器裏跑。
+// 參數比照灰卡：4 方向隨機 inset、DUR.base、cubic-bezier(0.25,0,0,1)、stagger 0.02、clearProps。
+const NAV_CLIP_KEYS = ['top', 'right', 'bottom', 'left'];
+function pickNavClip() { return CLIP_MAP[NAV_CLIP_KEYS[Math.floor(Math.random() * NAV_CLIP_KEYS.length)]]; }
+const NAV_EASE = 'cubic-bezier(0.25, 0, 0, 1)';  // 同灰卡 courses-grid-card
+
 function setupFacultyCardAnim(card) {
   if (typeof gsap === 'undefined') return;
   const imgWrapper = card.querySelector('.faculty-card-image-wrapper');
@@ -28,6 +41,9 @@ function setupFacultyCardAnim(card) {
 
   // 進場期間禁 pointer-events，避免使用者 hover 到還沒揭露的卡片造成空白色塊
   card.classList.add('pointer-events-none');
+  // 重置 reveal 標記：此卡尚未開始進場（reveal tween onStart 觸發才標 started）。
+  // exit 用它分辨「這張該不該收」——只收已經露出來的，沒輪到的不強拉出來再收（user 2026-06-06）。
+  delete card.dataset.revealStarted;
   if (imgWrapper) gsap.set(imgWrapper, { clipPath: CLIP_MAP[imgDir] || CLIP_MAP.bottom });
   // 文字用共用 clip-reveal helper：wrap 一層 overflow:clip + yPercent:100
   if (name) setupClipReveal([name]);
@@ -84,6 +100,9 @@ function playFacultyCard(card, startTime) {
       ease: EASE.enter,
       delay: startTime,
       clearProps: 'clipPath',
+      // image 是每張卡最先動的元素：它真的開跑（onStart，非排程當下）才算這張「已 reveal」。
+      // delay 期間被 kill（離頁/切 tab）→ onStart 不會 fire → 維持未標記 → exit 自動跳過這張。
+      onStart: () => { card.dataset.revealStarted = '1'; },
     });
   }
   if (name) {
@@ -173,15 +192,29 @@ const EXIT_CARD_STEP = 0.04;      // 卡與卡之間 stagger
 
 function exitFacultyCards(cards, onComplete) {
   if (typeof gsap === 'undefined') { if (onComplete) onComplete(); return; }
-  const items = Array.from(cards);
-  if (items.length === 0) { if (onComplete) onComplete(); return; }
+  const all = Array.from(cards);
 
-  let maxFinish = 0;
-  items.forEach((card, i) => {
-    // exit 期間也禁 hover，避免使用者 hover 到正在收合的卡片；clear 待解鎖的 unlock timer
+  // 只收「已經開始 reveal」的卡片（dataset.revealStarted 由進場 image tween 的 onStart 標記）。
+  // 沒輪到進場的卡片：kill 掉它排隊中的進場 tween（避免離頁/切 tab 瞬間又彈出來），維持隱藏、
+  // 不納入退場序列 → 切 tab / 離頁時「只收當下露出來的那幾張」，不會所有卡片先閃出來再一起收（user 2026-06-06）。
+  const started = [];
+  all.forEach(card => {
     if (card._hoverUnlockTimer) { clearTimeout(card._hoverUnlockTimer); card._hoverUnlockTimer = null; }
     card.classList.add('pointer-events-none');
-    const cardDelay = i * EXIT_CARD_STEP;
+    if (card.dataset.revealStarted) {
+      started.push(card);
+    } else {
+      [card.querySelector('.faculty-card-image-wrapper'),
+       card.querySelector('.faculty-card-name'),
+       card.querySelector('.faculty-card-title')].forEach(el => el && gsap.killTweensOf(el));
+    }
+  });
+
+  if (started.length === 0) { if (onComplete) onComplete(); return; }
+
+  let maxFinish = 0;
+  started.forEach((card, i) => {
+    const cardDelay = i * EXIT_CARD_STEP;  // stagger 只算「要收的那幾張」，序列緊湊不留空位
     const imgWrapper = card.querySelector('.faculty-card-image-wrapper');
     const name = card.querySelector('.faculty-card-name');
     const title = card.querySelector('.faculty-card-title');
@@ -197,17 +230,25 @@ function exitFacultyCards(cards, onComplete) {
     }
     if (imgWrapper) {
       gsap.killTweensOf(imgWrapper);
-      // clearProps 把 image 進場後的 inline clipPath 清掉，當前 computed 為 none；
-      // 直接 fromTo 顯式設起點再 tween 回 imgDir 對應的收合方向
-      gsap.fromTo(imgWrapper,
-        { clipPath: CLIP_REVEALED },
-        {
-          clipPath: CLIP_MAP[imgDir] || CLIP_MAP.bottom,
-          duration: EXIT_DUR,
-          ease: EASE.exit,
-          delay: cardDelay + EXIT_INTERNAL_STEP * 2,
-        }
-      );
+      // 退場起點 = 卡片「當下」的揭露狀態（已排除未開始的卡片，這裡只會是「完整」或「進場中」）：
+      //   收合方向永遠 = CLIP_MAP[imgDir]（= 進場起點）→ 沿進場路徑往回收。
+      //   ① 完整揭露：進場 clearProps 已清掉 inline clipPath、computed=none → GSAP 無法 interpolate，
+      //      必 fromTo 顯式給 inset(0%) 起點（見 feedback_clippath_exit_after_clearprops_use_fromto）；
+      //      此時卡片本就全開，fromTo 設 inset(0%) 無視覺跳動，再沿 imgDir 收回。
+      //   ② 進場中（半開）：inline 仍是 GSAP 寫的 partial inset → 直接 gsap.to 從半開往回收（順順倒帶）。
+      const collapseTo = CLIP_MAP[imgDir] || CLIP_MAP.bottom;
+      const exitOpts = {
+        clipPath: collapseTo,
+        duration: EXIT_DUR,
+        ease: EASE.exit,
+        delay: cardDelay + EXIT_INTERNAL_STEP * 2,
+      };
+      const inlineClip = imgWrapper.style.clipPath;
+      if (inlineClip && inlineClip !== 'none') {
+        gsap.to(imgWrapper, exitOpts);
+      } else {
+        gsap.fromTo(imgWrapper, { clipPath: CLIP_REVEALED }, exitOpts);
+      }
     }
     const finish = cardDelay + EXIT_INTERNAL_STEP * 2 + EXIT_DUR;
     if (finish > maxFinish) maxFinish = finish;
@@ -221,6 +262,67 @@ export function initFacultyFilter() {
   const facultyCards = document.querySelectorAll('.faculty-card');
 
   if (filterButtons.length === 0 || facultyCards.length === 0) return;
+
+  // 離頁退場：重用 filter 切換的 exitFacultyCards（已是正確 fromTo 寫法），對「當前可見」的老師卡片
+  // 做收場（text 收 → image 收）。router 換頁前 await 完才 swap DOM；registerPageExit 在 runPageExit 後自動清空。
+  registerPageExit(() => new Promise(resolve => {
+    const visible = Array.from(facultyCards).filter(card => /** @type {HTMLElement} */ (card).style.display !== 'none');
+    exitFacultyCards(visible, resolve);
+  }));
+
+  // ── 左側 filter nav 進場/退場（user 2026-06-07 定案：clip-path，比照 curriculum 灰卡）──
+  // clip-path 套在 .anchor-nav-inner（色塊本身）→ 旋轉角不裁、不疊鄰、定在原位（見上方 const 區註解；
+  //   為何不用 hero clip-reveal：nav 緊密堆疊+旋轉在內容+滿欄寬，三條件全反於 hero，slide 必裁/疊/橫跑）。
+  // 進場：各 inner 隨機 4 方向 inset → inset(0)，只在頁面初次載入（section 進視窗）跑一次；filter 切換不重播。
+  // 退場：只在離開 faculty 頁且「已進場」才跑（沒看過不閃），fromTo 顯式起點 inset(0)（clearProps 後 computed=none
+  //       無法補間，見 feedback_clippath_exit_after_clearprops_use_fromto）→ 隨機 4 方向收掉，from:'end' 反向 stagger。
+  // ⚠️ smooth 關鍵：`.anchor-nav-inner` 帶 navigation.css 的 `transition: all`（給 hover / filter 切換 bg·rotate 過場用）。
+  //   不處理的話 GSAP 每幀寫的 clipPath 會觸發那條 0.3s CSS transition → 渲染落後 GSAP、卡頓（user 報「不夠 smooth」）。
+  //   做法＝動畫期間 inner.style.transition='none'，進場跑完 onComplete 還原 ''（hover/filter 切換仍需要那條 transition）。
+  let navRevealed = false;
+  const navInners = Array.from(filterButtons)
+    .map(b => /** @type {HTMLElement|null} */ (b.querySelector('.anchor-nav-inner')))
+    .filter(Boolean);
+  if (typeof gsap !== 'undefined' && navInners.length) {
+    navInners.forEach(inner => { inner.style.transition = 'none'; gsap.set(inner, { clipPath: pickNavClip() }); });
+    const playNavReveal = () => {
+      if (navRevealed) return;
+      navRevealed = true;
+      gsap.to(navInners, {
+        clipPath: CLIP_REVEALED,
+        duration: DUR.base,
+        ease: NAV_EASE,
+        stagger: 0.02,
+        clearProps: 'clipPath',
+        onComplete: () => navInners.forEach(inner => { inner.style.transition = ''; }),
+      });
+    };
+    const section = document.getElementById('faculty-cards');
+    const inView = section && section.getBoundingClientRect().top < window.innerHeight * 0.9;
+    if (!section || inView || typeof ScrollTrigger === 'undefined') {
+      playNavReveal();
+    } else {
+      // trigger 在 #faculty-cards（在 #page-content 內）→ cleanupPageModules 換頁時會一併 kill，不洩漏
+      ScrollTrigger.create({ trigger: section, start: 'top 90%', once: true, onEnter: playNavReveal });
+    }
+  }
+
+  registerPageExit(() => new Promise(resolve => {
+    if (typeof gsap === 'undefined' || !navRevealed || !navInners.length) { resolve(); return; }
+    gsap.killTweensOf(navInners);
+    navInners.forEach(inner => { inner.style.transition = 'none'; });  // 同進場：停掉 transition:all 免追 GSAP clipPath 卡頓
+    gsap.fromTo(navInners,
+      { clipPath: CLIP_REVEALED },
+      {
+        clipPath: () => pickNavClip(),
+        duration: DUR.base,
+        ease: NAV_EASE,
+        stagger: { each: 0.02, from: 'end' },
+        overwrite: true,
+        onComplete: resolve,
+      }
+    );
+  }));
 
   function setActiveStyle(activeBtn, color) {
     const rot = SCCDHelpers.getRandomRotation();

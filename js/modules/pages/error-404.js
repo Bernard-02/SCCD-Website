@@ -16,7 +16,8 @@
  * SPA cleanup：clearInterval + killTweensOf 防 timer 與 tween 殘留
  */
 
-import { setupClipReveal, playClipReveal } from '../ui/scroll-animate.js';
+import { setupClipReveal, playClipReveal, playRevealExit } from '../ui/scroll-animate.js';
+import { registerPageExit } from '../ui/page-exit.js';
 import { EASE } from '../ui/motion.js';
 
 const PRIMARY_COLORS = ['#00FF80', '#FF448A', '#26BCFF'];
@@ -199,6 +200,12 @@ export function init404() {
   setupClipReveal(cards);
   playClipReveal(cards, {
     onComplete: () => startShuffleLoop(stage),
+  });
+
+  // 離頁退場：先停 5s shuffle 不跟退場搶 tween，再 yPercent 反向沉出（anchor overflow:clip 當 mask）
+  registerPageExit(() => {
+    stopShuffleLoop();
+    return playRevealExit(stage.querySelectorAll('.error-404-card'));
   });
 }
 

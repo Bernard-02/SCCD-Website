@@ -95,14 +95,27 @@ function applyLayoutSnapshot(grid, snapshot) {
     banner.style.top = snapshot.banner.top;
     banner.style.transform = snapshot.banner.transform;
   }
-  // 套完後做 wrap-width 收緊（依當下 DOM 量測，cache 無法存因為 wrap 結果在當前 DOM 才存在）
-  tightenParagraphWidths(grid);
+  // 直接套用該組 build 時量好的 tighten px 寬（不 live re-tighten）：re-tighten 會在別組殘留的 width/maxWidth
+  // 下量到不同值 → chip 寬度進場後跳（user 2026-06-07）。同 session 字型/viewport 不變 → 存的 px 寬有效。
+  if (snapshot.paragraphTightWidths) {
+    snapshot.paragraphTightWidths.forEach((w, i) => {
+      if (paragraphs[i] && w) paragraphs[i].style.width = w;
+    });
+  } else {
+    tightenParagraphWidths(grid);  // 舊格式 snapshot fallback（同次 build 的 pool 一定有新欄位，正常不會走到）
+  }
 }
 
 function tightenParagraphWidths(grid) {
   ['hero-text-en', 'hero-text-cn'].forEach(cls => {
-    const p = grid.querySelector(`.${cls}`);
+    const p = /** @type {HTMLElement|null} */ (grid.querySelector(`.${cls}`));
     if (!p) return;
+    // 先清掉上一輪 tighten 留下的 inline width，量測一律在「當前 maxWidth 的自然 wrap」下做（idempotent）。
+    // 否則 cache buildNext 用較小 random maxWidth 把 width 收到較窄值後，applyLayoutSnapshot 還原較寬 maxWidth 時，
+    // 殘留的窄 width 仍 cap 住 wrap（width < maxWidth → width 勝）→ tighten 在窄寬量、還原不回原組寬度
+    // → hero 說明文字 chip 寬度在進場後「跳一下」（user 2026-06-07 回報；實測 618px→482px）。
+    p.style.width = '';
+    void p.offsetWidth;  // 強制 reflow，下面 getClientRects 拿到 maxWidth 下的 wrap、不受殘留 width 影響
     const range = document.createRange();
     range.selectNodeContents(p);
     const rects = range.getClientRects();
@@ -139,7 +152,9 @@ function randomizeHeroLayout() {
 
   const TEXT_TOP_BOUND = 140;
   const BANNER_TOP_BOUND = 90;
-  const SIDE_MARGIN = 24;
+  // 文字 chip 距 viewport 左右邊界的最小留白：寬螢幕用比例(4%)、48px 下限（user 2026-06-07 反映 chip 太靠邊）。
+  // 下限 48 仍保證最寬段落(TEXT_MAX_W_PX 650)在 768px 放得下（650+48*2=746<768）；寬螢幕 4% 給更舒服的 gutter。
+  const SIDE_MARGIN = Math.max(48, Math.round(window.innerWidth * 0.04));
   const BOTTOM_MARGIN = 30;
   // BR/BL chip 額外往上抬的 buffer：wrapper rotate ±3° + 寬到 TEXT_MAX_W_PX=550 時
   // 旋轉後 visual 最低點比 getBoundingClientRect 量到的 bbox 底再低 ~sin(3°)×550 ≈ 29px。
@@ -405,6 +420,13 @@ function runPlacementAndBannerForCache(grid) {
     const p = grid.querySelector(`.${cls}`);
     return p ? p.style.maxWidth : '';
   });
+  // 也存 tighten 後的「實際 px 寬」（randomizeHeroLayout 結尾已 tighten 過）→ applyLayoutSnapshot 直接寫回、
+  // 不再 live re-tighten：re-tighten 在別組殘留的 width/maxWidth 下會量到不同值 → chip 寬度進場後「跳一下」
+  // （user 2026-06-07，實測 618↔482/632）。同 session 字型/viewport 不變（resize 會清 pool）→ 存 px 寬安全。
+  const paragraphTightWidths = ['hero-text-en', 'hero-text-cn'].map(cls => {
+    const p = grid.querySelector(`.${cls}`);
+    return p ? p.style.width : '';
+  });
   const banner = grid.querySelector('.hero-banner');
   const bannerSnap = banner ? {
     left: banner.style.left,
@@ -412,7 +434,7 @@ function runPlacementAndBannerForCache(grid) {
     transform: banner.style.transform,
   } : null;
 
-  return { textPositions, paragraphWidths, banner: bannerSnap };
+  return { textPositions, paragraphWidths, paragraphTightWidths, banner: bannerSnap };
 }
 
 // Pool 主入口：cache hit 直接套用，miss 則 build 1 組立即用 + 後台補滿剩餘
@@ -479,8 +501,10 @@ async function playHeroExit() {
     '.hero-title, .hero-title-cn, .hero-text-en, .hero-text-cn'
   )).filter(el => /** @type {HTMLElement} */ (el).offsetParent !== null);
   const banner = /** @type {HTMLElement | null} */ (document.querySelector('.hero-banner'));
+  // Logo-only hero（about 頁）：進場是 [data-hero-logo] 的 yPercent clip-reveal，退場在下方反向沉出
+  const heroLogo = /** @type {HTMLElement | null} */ (document.querySelector('[data-hero-logo]'));
 
-  if (texts.length === 0 && !banner) return;
+  if (texts.length === 0 && !banner && !heroLogo) return;
 
   const EXIT_DURATION = 0.5;
   const EXIT_STAGGER = 0.06;
@@ -512,6 +536,22 @@ async function playHeroExit() {
         { clipPath: 'inset(0% 0% 0% 0%)' },
         {
           clipPath: BANNER_INSET_MAP[dir],
+          duration: EXIT_DURATION,
+          ease: EASE.exit,
+          overwrite: true,
+        },
+        0);
+    }
+
+    // Logo-only hero（about）：進場時 onComplete 把 wrapper 設 overflow:visible（露完整 logo）；
+    // 退場重新裁切 wrapper 當遮罩，logo yPercent 沉回底邊 = 進場 clip-reveal 的反向
+    if (heroLogo) {
+      const logoWrapper = /** @type {HTMLElement | null} */ (heroLogo.closest('.hero-logo-wrapper'));
+      if (logoWrapper) logoWrapper.style.overflow = 'hidden';
+      tl.fromTo(heroLogo,
+        { yPercent: 0 },
+        {
+          yPercent: 100,
           duration: EXIT_DURATION,
           ease: EASE.exit,
           overwrite: true,
@@ -631,6 +671,10 @@ export function initHeroAnimation() {
     );
   }
 
+  // 註冊退場動畫（4 方向滑出 / banner clip 收合 / logo 沉出）—— 在此處註冊而非 buildHeroTimeline 內，
+  // 因 logo-only 頁（about）會在下方 early return、進不到 buildHeroTimeline，否則 logo 退場不會註冊
+  registerPageExit(playHeroExit);
+
   const title = document.querySelector('.hero-title');
   const titleCn = document.querySelector('.hero-title-cn');
   const textEn = document.querySelector('.hero-text-en');
@@ -650,7 +694,17 @@ export function initHeroAnimation() {
   // 下一幀再做 hero build → 視覺上「點連結 → 立刻換頁 → 16ms 後 hero 動畫進場」。
   requestAnimationFrame(() => {
     if (isStale()) return;  // 使用者已切到下一頁，放棄本次 build
-    buildHeroTimeline();
+    // 量測前等字體載入：FACULTY 等寬標題在 fallback 字型下被低估寬度，placement 用該值定位後字型載入撐大 →
+    //   chip 衝破 SIDE_MARGIN 邊界（user 2026-06-07 反映 hero chip 太靠/超出邊）。chip 在 build 前都 visibility:hidden，
+    //   故等字體不會 FOUC、也不會 reposition jump。fonts 已 ready 同步 build 不延遲；timeout 兜底避免極端情況卡住。
+    if (document.fonts && document.fonts.status !== 'loaded') {
+      let built = false;
+      const go = () => { if (built || isStale()) return; built = true; buildHeroTimeline(); };
+      document.fonts.ready.then(go);
+      setTimeout(go, 400);
+    } else {
+      buildHeroTimeline();
+    }
   });
 
   function buildHeroTimeline() {
@@ -791,8 +845,7 @@ export function initHeroAnimation() {
     registerPageCleanup(() => triggers.forEach(t => t && t.kill()));
   }
 
-  // 註冊退場動畫：4 方向隨機滑出（每元素獨立），與 banner clip-path 4 方向收合並行
-  registerPageExit(playHeroExit);
+  // （playHeroExit 已在上層 init 早段註冊，含 logo-only 頁；此處不再重複註冊）
 
   // Hero 之後的 main section 蓋在 hero 上方，避免 hero 動畫殘影在 scroll 期間透出來
   if (typeof ScrollTrigger !== 'undefined') {

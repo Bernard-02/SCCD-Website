@@ -212,26 +212,130 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
   ];
   function pickClipDir() { return CLIP_DIRS[Math.floor(Math.random() * CLIP_DIRS.length)]; }
 
-  // 頁面離場 = 卡片進場的反向：可見 inset(0) → 隨機方向 clip wipe out，反向 stagger（from:'end'）、
-  // 同 ease/duration（DUR.base + wipe 曲線）。比照 activities 的 registerPageExit；router 換頁前 await 完才 swap DOM。
-  // registerPageExit 在 runPageExit 後自動清空、不洩漏到別頁。
-  registerPageExit(async () => {
-    if (typeof gsap === 'undefined') return;
-    const panel = document.querySelector('.courses-panel:not(.hidden)');
-    const cards = panel ? panel.querySelectorAll('.courses-grid-card') : [];
-    if (!cards.length) return;
-    await new Promise(resolve => {
-      gsap.killTweensOf(cards);
-      gsap.to(cards, {
-        clipPath: () => pickClipDir(),
-        duration: DUR.base,
-        ease: 'cubic-bezier(0.25, 0, 0, 1)',
-        stagger: { each: 0.02, from: 'end' },
-        overwrite: true,
-        onComplete: resolve,
-      });
+  // 學期分隔 divider 的「文字」與「線段」拆成兩個動畫、但同 dur/ease、同起同收（user 2026-06-07）：
+  //   - label 文字（.courses-grid-sem-divider-label）→ clip-path wipe（隨機方向，套自身）
+  //   - line 線段（.courses-grid-sem-divider-line）→ scaleX 抽拉（transform-origin:left；進場 0→1 由左展開、退場 1→0 收回左）
+  //   mode 'out'=退場 / 'in'=進場。回傳 Promise（label+line 都完成才 resolve）。
+  function animateDivider(panel, mode, dur, ease) {
+    return new Promise(resolve => {
+      if (typeof gsap === 'undefined' || !panel) { resolve(); return; }
+      const labels = panel.querySelectorAll('.courses-grid-sem-divider-label');
+      const lines = panel.querySelectorAll('.courses-grid-sem-divider-line');
+      if (!labels.length && !lines.length) { resolve(); return; }
+      let pending = 0;
+      const done = () => { if (--pending <= 0) resolve(); };
+      if (labels.length) {
+        pending++;
+        gsap.killTweensOf(labels);
+        if (mode === 'out') {
+          gsap.fromTo(labels, { clipPath: 'inset(0% 0% 0% 0%)' },
+            { clipPath: () => pickClipDir(), duration: dur, ease, overwrite: true, onComplete: done });
+        } else {
+          labels.forEach(l => gsap.set(l, { clipPath: pickClipDir() }));
+          gsap.to(labels, { clipPath: 'inset(0% 0% 0% 0%)', duration: dur, ease, overwrite: true, clearProps: 'clipPath', onComplete: done });
+        }
+      }
+      if (lines.length) {
+        pending++;
+        gsap.killTweensOf(lines);
+        if (mode === 'out') {
+          gsap.to(lines, { scaleX: 0, transformOrigin: 'left center', duration: dur, ease, overwrite: true, onComplete: done });
+        } else {
+          gsap.fromTo(lines, { scaleX: 0, transformOrigin: 'left center' },
+            { scaleX: 1, duration: dur, ease, overwrite: true, clearProps: 'transform,transformOrigin', onComplete: done });
+        }
+      }
     });
-  });
+  }
+
+  // 離頁退場（卡片 + nav + 表頭）統一在 nav block 之後的單一 handler 一起跑（見下方），確保 timing 一致。
+
+  // ── 左側 program nav 進場/退場（user 2026-06-07，比照 faculty nav / 灰卡的 clip-path reveal）──
+  // 對象 = 每顆 program btn 的 .anchor-nav-inner（色塊）+ 每個 .courses-bfa-label（整條 nav 一起 reveal）。
+  // clip-path 套「元素自身」（旋轉角不裁、不疊、定在原位）；querySelectorAll = DOM 序 → label1,inner1,label2,inner2,inner3（上到下）。
+  // 進場：section 進視窗 once、不隨 program 切換重播；退場：離頁且已進場才跑（沒滑到不閃）。
+  // ⚠️ 動畫期間關 inner/label 的 CSS transition:all（hover/切 program 過場用的），否則追著 GSAP 每幀 clipPath 跑會卡頓，跑完還原。
+  const NAV_EASE = 'cubic-bezier(0.25, 0, 0, 1)';  // 同灰卡
+  const navTargets = Array.from(document.querySelectorAll(
+    '.courses-program-bar .courses-bfa-label, .courses-program-bar .courses-program-btn .anchor-nav-inner'
+  ));
+  let navRevealed = false;
+  if (typeof gsap !== 'undefined' && navTargets.length) {
+    navTargets.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = 'none'; gsap.set(el, { clipPath: pickClipDir() }); });
+    const playNavReveal = () => {
+      if (navRevealed) return;
+      navRevealed = true;
+      gsap.to(navTargets, {
+        clipPath: 'inset(0% 0% 0% 0%)',
+        duration: DUR.base,
+        ease: NAV_EASE,
+        stagger: 0.04,
+        clearProps: 'clipPath',
+        onComplete: () => navTargets.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = ''; }),
+      });
+    };
+    const inView = sectionEl && sectionEl.getBoundingClientRect().top < window.innerHeight * 0.9;
+    if (!sectionEl || inView || typeof ScrollTrigger === 'undefined') {
+      playNavReveal();
+    } else {
+      ScrollTrigger.create({ trigger: sectionEl, start: 'top 90%', once: true, onEnter: playNavReveal });
+    }
+  }
+
+  // ── 離頁退場：卡片 + nav + 表頭「一起」收（user 2026-06-07）──
+  // 單一 handler、同 duration（DUR.base）、同時起跑 → 全部一起離開。
+  //   ① clip 群（clip-path wipe）：卡片 + nav btn inner/label + 學期分隔 .courses-grid-sem-divider
+  //   ② slide 群（用「年級表頭那套」4 方向 transform slide，外層 overflow:clip + justify-self:start 當遮罩）：
+  //      年級 col-header-inner + 必修/選修 type-label-inner。
+  //   ③ 學期 divider：label 文字 clip + line 線段 scaleX，拆兩動畫同窗（animateDivider，user 2026-06-07）。
+  registerPageExit(() => new Promise(resolve => {
+    if (typeof gsap === 'undefined') { resolve(); return; }
+    const panel = document.querySelector('.courses-panel:not(.hidden)');
+    const clipTargets = [
+      ...(panel ? panel.querySelectorAll('.courses-grid-card') : []),
+      ...(navRevealed ? navTargets : []),  // nav 沒滑到沒看過就不收（不閃）
+    ];
+    const slideInners = panel ? [
+      ...panel.querySelectorAll('.courses-grid-col-header-inner'),   // 年級
+      ...panel.querySelectorAll('.courses-grid-type-label-inner'),   // 必修/選修
+    ] : [];
+    const hasDivider = !!(panel && panel.querySelector('.courses-grid-sem-divider-line, .courses-grid-sem-divider-label'));
+    if (!clipTargets.length && !slideInners.length && !hasDivider) { resolve(); return; }
+
+    let pending = 0;
+    const done = () => { if (--pending <= 0) resolve(); };
+
+    if (hasDivider) { pending++; animateDivider(panel, 'out', DUR.base, NAV_EASE).then(done); }
+
+    if (clipTargets.length) {
+      pending++;
+      clipTargets.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = 'none'; });  // nav inner 有 transition:all，關掉免追 GSAP 卡頓
+      gsap.killTweensOf(clipTargets);
+      // 進場 clearProps 後 computed=none → fromTo 顯式起點 inset(0)（見 feedback_clippath_exit_after_clearprops_use_fromto）
+      // stagger 用 amount（總時長固定 0.2s 攤給所有元素）不用 each：卡片多達 ~46 張，用 each:0.02 會拖到 ~0.9s
+      // 跟 nav/表頭（元素少、~0.5s 收完）不同步 → 三者「不一起」。amount 讓不論幾張都在同一視窗收完（user 2026-06-07）。
+      gsap.fromTo(clipTargets,
+        { clipPath: 'inset(0% 0% 0% 0%)' },
+        { clipPath: () => pickClipDir(), duration: DUR.base, ease: NAV_EASE, stagger: { amount: 0.2, from: 'end' }, overwrite: true, onComplete: done }
+      );
+    }
+    if (slideInners.length) {
+      pending++;
+      gsap.killTweensOf(slideInners);
+      const DIRS = [{ a: 'y', p: -100 }, { a: 'y', p: 100 }, { a: 'x', p: -100 }, { a: 'x', p: 100 }];
+      const dirs = slideInners.map(() => DIRS[Math.floor(Math.random() * DIRS.length)]);
+      gsap.to(slideInners, {
+        yPercent: (i) => dirs[i].a === 'y' ? dirs[i].p : 0,
+        xPercent: (i) => dirs[i].a === 'x' ? dirs[i].p : 0,
+        duration: DUR.base,
+        ease: EASE.exit,
+        stagger: { amount: 0.2, from: 'end' },  // 同 clip 群：固定總 stagger，跟卡片/nav 同一視窗收完
+        overwrite: true,
+        onComplete: done,
+      });
+    }
+    if (pending === 0) resolve();
+  }));
 
   async function switchToProgram(program, btns, shouldScroll) {
     const newPanelId = `panel-${program}`;
@@ -257,11 +361,17 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
     // 場景：BFA-A→MDES（BFA-A inner 退到 ±100 殘留）→ MDES→BFA-CMD（不動 BFA-A）→ BFA-CMD→BFA-A（involvesMdes=false 不 enter 動畫）
     //       → BFA-A inner 還停在 ±100 = off-screen 看不見
     if (typeof gsap !== 'undefined') {
-      const allHeadersInner = document.querySelectorAll('.courses-grid-col-header-inner');
+      // 年級 + 必修/選修 inner 都納入（user 2026-06-07：切 MDES 時表頭也一起動，type-label 已有遮罩可 slide）
+      const allHeadersInner = document.querySelectorAll('.courses-grid-col-header-inner, .courses-grid-type-label-inner');
       if (allHeadersInner.length) {
         gsap.killTweensOf(allHeadersInner);
         gsap.set(allHeadersInner, { clearProps: 'transform' });
       }
+      // 同理清掉 divider line 的 scaleX / label 的 clipPath 殘留（避免 MDES→BFA→BFA 後 line 卡在 scaleX:0 看不見）
+      const allDivLines = document.querySelectorAll('.courses-grid-sem-divider-line');
+      const allDivLabels = document.querySelectorAll('.courses-grid-sem-divider-label');
+      if (allDivLines.length) { gsap.killTweensOf(allDivLines); gsap.set(allDivLines, { clearProps: 'transform,transformOrigin' }); }
+      if (allDivLabels.length) { gsap.killTweensOf(allDivLabels); gsap.set(allDivLabels, { clearProps: 'clipPath' }); }
     }
     // 年級表頭只在涉及 MDES 切換時動畫（BFA Animation ↔ BFA CMD 共用同年級表頭 Freshman/Sophomore/Junior/Senior，無需動畫）
     const involvesMdes = isSwitch && prevPanel && (prevPanel.id === 'panel-mdes' || newPanelId === 'panel-mdes');
@@ -276,19 +386,24 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
     let headerExitDirs = /** @type {HeaderDir[] | null} */ (null);
     if (isSwitch && prevPanel && prevPanel.id !== newPanelId && typeof gsap !== 'undefined') {
       const prevCards = prevPanel.querySelectorAll('.courses-grid-card');
-      const prevHeadersInner = prevPanel.querySelectorAll('.courses-grid-col-header-inner');
+      // 年級 + 必修/選修 inner 一起 slide（user 2026-06-07：切 MDES 表頭也動才 smooth；type-label 已有遮罩）
+      const prevHeadersInner = prevPanel.querySelectorAll('.courses-grid-col-header-inner, .courses-grid-type-label-inner');
       // headers inner 殘留 transform 已在開頭統一 clear，此處不需重複 kill
       const exitPromises = [];
       if (prevCards.length) {
         exitPromises.push(new Promise(resolve => {
           gsap.killTweensOf(prevCards);
-          gsap.to(prevCards, {
-            clipPath: () => pickClipDir(),
-            duration: DUR.fast,
-            ease: 'cubic-bezier(0.25, 0, 0, 1)',
-            overwrite: true,
-            onComplete: resolve,
-          });
+          // 同 page-exit：reveal 後 clipPath 為 none，需 fromTo 顯式起點 inset(0) 才補間得起來（否則舊卡片 snap 不見）
+          gsap.fromTo(prevCards,
+            { clipPath: 'inset(0% 0% 0% 0%)' },
+            {
+              clipPath: () => pickClipDir(),
+              duration: DUR.fast,
+              ease: 'cubic-bezier(0.25, 0, 0, 1)',
+              overwrite: true,
+              onComplete: resolve,
+            }
+          );
         }));
       }
       if (involvesMdes && prevHeadersInner.length) {
@@ -312,6 +427,8 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
           });
         }));
       }
+      // 學期 divider 退場：label 文字 clip + line 線段 scaleX，拆兩動畫同窗（跟表頭一起收）
+      if (involvesMdes) exitPromises.push(animateDivider(prevPanel, 'out', DUR.medium, EASE.exit));
       await Promise.all(exitPromises);
     }
 
@@ -407,7 +524,7 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
       // - 切換（isSwitch + headerExitDirs）：mirror exit 同軸反向
       // - 初次 init（!isSwitch）：4 方向 random，ScrollTrigger 等使用者滑到才播（同卡片）
       // - BFA↔BFA 切換（isSwitch 但 headerExitDirs=null）：不動畫，headers 維持 rest（已在開頭 clearProps）
-      const newHeadersInner = activePanel.querySelectorAll('.courses-grid-col-header-inner');
+      const newHeadersInner = activePanel.querySelectorAll('.courses-grid-col-header-inner, .courses-grid-type-label-inner');
       if (newHeadersInner.length) {
         gsap.killTweensOf(newHeadersInner);
         if (isSwitch && headerExitDirs) {
@@ -465,6 +582,9 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
           }
         }
       }
+
+      // 學期 divider enter：切 MDES 時跟表頭一起進來（label clip + line scaleX 同窗；gate 同 headerExitDirs=involvesMdes）
+      if (isSwitch && headerExitDirs) animateDivider(activePanel, 'in', DUR.reveal, EASE.enter);
     }
 
     if (shouldScroll && sectionEl) {

@@ -14,7 +14,7 @@
 import { initAnchorNav } from '../navigation/anchor-nav.js';
 import { loadListInto } from './activities-data-loader.js';
 import { initListAccordion } from '../accordions/list-accordion.js';
-import { setupClipReveal, playClipReveal } from '../ui/scroll-animate.js';
+import { setupClipReveal, playClipReveal, animateCardsClipReveal, playRevealExit, playClipPathExit } from '../ui/scroll-animate.js';
 import { initPdfViewer } from './library-viewer.js';
 import { initSectionBannerReveal } from './about/section-banner-reveal.js';
 import { registerPageExit } from '../ui/page-exit.js';
@@ -79,6 +79,9 @@ function renderVision(data) {
   document.querySelectorAll('[data-overview-hl]').forEach(el => {
     /** @type {HTMLElement} */ (el).style.background = color;
   });
+
+  // 進場：兩行 vision 文字 clip-reveal（捲到才播；離頁由 playAlumniContentExit 反向退場）
+  animateCardsClipReveal(document.querySelectorAll('#alumni-vision-en, #alumni-vision-zh'), true);
 }
 
 // ── Members（.faculty-card 共用樣式 + clip-reveal 進場） ─────
@@ -406,6 +409,9 @@ function renderContact(data) {
       <a class="email" href="mailto:${escapeHtml(c.email)}">${escapeHtml(c.email)}</a>
     </div>
   `).join('');
+
+  // 進場：聯絡列 clip-reveal（捲到才播；離頁由 playAlumniContentExit 反向退場）
+  animateCardsClipReveal(container.querySelectorAll('.alumni-contact-row'), true);
 }
 
 // ── Exit Animation ════════════════════════════════════════════
@@ -426,9 +432,20 @@ function playAlumniExit() {
   });
 }
 
+// 內容離頁退場：list rows / vision / contact 走 reveal 反向（yPercent 沉出 clip-wrapper）；
+// members / sponsors 卡片走 clip-path wipe。helper 內建 viewportOnly → 只動視窗內、換頁不拖慢。
+function playAlumniContentExit() {
+  const rows = document.querySelectorAll(
+    '#alumni-activities-list .list-reveal-row, #alumni-org-list .list-reveal-row, #alumni-gatherings-list .list-reveal-row, #alumni-vision-en, #alumni-vision-zh, .alumni-contact-row'
+  );
+  const cards = document.querySelectorAll('#alumni-members-list .faculty-card, .alumni-sponsor-card');
+  return Promise.all([playRevealExit(rows), playClipPathExit(cards)]);
+}
+
 // ── Entry ─────────────────────────────────────────────────────
 export async function initAlumni() {
   registerPageExit(playAlumniExit);
+  registerPageExit(playAlumniContentExit);
   let data;
   try {
     const res = await fetch(DATA_URL);

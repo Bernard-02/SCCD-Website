@@ -80,15 +80,21 @@
     }
   }
 
+  /* clip-reveal 遮罩：包住單一可動行（num / title / 副標 / 說明），進場 yPercent 滑入有遮罩、退場反向沉出。
+     overflow-y:clip 當遮罩、overflow-x:visible 讓內容橫向不被裁（對齊 scroll-animate.js setupClipReveal 慣例）。
+     loader renderStructured 用 reveal() 把每行包進 .legal-reveal；setupClipReveal 偵測父層已 clip 就不 reparent。 */
+  .legal-reveal {
+    overflow-y: clip;
+    overflow-x: visible;
+  }
+
   /* 前言（overview，loader 組出 .legal-intro）：與第一個編號 section 拉開距離 */
   .legal-intro {
     margin-bottom: var(--spacing-4xl);
   }
-  .legal-intro > p {
+  /* p 已被 .legal-reveal 包 → 用 descendant；尾段留 sm（被 .legal-intro 的 4xl 吸收，視覺可忽略） */
+  .legal-intro p {
     margin-bottom: var(--spacing-sm);
-  }
-  .legal-intro > p:last-child {
-    margin-bottom: 0;
   }
 
   /* ── 編號 section：grid 兩欄（編號 / EN 標題+ZH 標題+內文）─── */
@@ -97,6 +103,12 @@
     grid-template-columns: auto minmax(0, 1fr);
     column-gap: var(--spacing-md);
     margin-bottom: var(--spacing-3xl);
+    /* 編號欄與內文欄都靠上對齊（編號對齊 title 第一行）。
+       關鍵：grid 預設 align-items:stretch 會把編號的 .legal-reveal clip-wrapper 撐到整列高（含內文），
+       單行編號 yPercent:100 只下移自身一行高 → 仍在高 wrapper 內＝藏不住，於是編號在 section 進場 trigger
+       前就先出現、title 卻還藏著（user 2026-06-07 regulations「數字先出現、title 沒出現」）。
+       start 讓編號 wrapper 收成單行高 → yPercent:100 確實裁掉，編號與 title 一起進場。內文欄本來就最高不受影響。 */
+    align-items: start;
   }
   /* 不編號變體（如 support：Funds / Others 是分類非條款）→ 無 num 欄，body 撐滿單欄 */
   .legal-section--no-num {
@@ -112,18 +124,19 @@
     font-weight: var(--font-weight-bold);
     line-height: var(--line-height-h4, 1.2);
   }
-  .legal-section-body > .legal-section-title-en,
-  .legal-section-body > .legal-section-title-zh {
+  /* title 已被 .legal-reveal 包 → 改 descendant（這兩 class 只出現在這裡，不會誤套子區塊次標題） */
+  .legal-section-body .legal-section-title-en,
+  .legal-section-body .legal-section-title-zh {
     font-size: var(--font-size-h4);
     font-weight: var(--font-weight-bold);
     line-height: var(--line-height-h4, 1.2);
     margin: 0;
   }
   /* EN→ZH gap：拉開兩語標題距離（user 反映太擠） */
-  .legal-section-body > .legal-section-title-en {
+  .legal-section-body .legal-section-title-en {
     margin-bottom: var(--spacing-sm);
   }
-  .legal-section-body > .legal-section-title-zh {
+  .legal-section-body .legal-section-title-zh {
     margin-bottom: var(--spacing-md);
   }
   /* 內文次標題（如 support 的 Single/Regular）：比群組標題（h4）小一級的 h5，與前文拉開層級才清楚 */
@@ -134,8 +147,8 @@
     margin-top: var(--spacing-lg);
     margin-bottom: var(--spacing-sm);
   }
-  /* 緊接群組標題的第一個次標題不另加上距（群組標題已有 margin-bottom） */
-  .legal-section-body .legal-section-title-zh + h5 {
+  /* 緊接群組標題的第一個次標題不另加上距；title 已被 reveal 包不再與 h5 相鄰 → 改 desc 首子 */
+  .legal-section-desc > h5:first-child {
     margin-top: 0;
   }
 
@@ -145,9 +158,15 @@
   .legal-subsection {
     margin-top: var(--spacing-lg);
   }
-  /* 第一個子區塊緊接 ZH 群組標題不另加上距（群組標題已有 margin-bottom） */
-  .legal-section-body > .legal-section-title-zh + .legal-subsection {
+  /* 第一個子區塊不另加上距（群組標題已有 margin-bottom）；title 已被 reveal 包 → 改 desc 首子 */
+  .legal-section-desc > .legal-subsection:first-child {
     margin-top: 0;
+  }
+  /* support：子區塊各自包進獨立 .legal-sub-reveal（可分開依序進場）後，每個 .legal-subsection 都成了
+     自己 desc 的首子 → 被上面規則歸零上距。相鄰子區塊（Regular 緊接 Single）的群組內上距改由
+     reveal wrapper 補回；第一個子區塊（Single）靠群組標題 margin-bottom 自然留距，不加上距。 */
+  .legal-sub-reveal + .legal-sub-reveal {
+    margin-top: var(--spacing-lg);
   }
   /* (0,2,0) 蓋過上面 `.legal-section-body h5` (0,1,1) 的 margin，把兩語次標題收緊 */
   .legal-section-body .legal-subsection-title-en,
@@ -186,10 +205,11 @@
   .legal-section-body ol:last-child {
     margin-bottom: 0;
   }
-  .legal-section-body > p {
+  /* 說明段落（desEn/desZh 富文本）現包在 .legal-section-desc 內 → 改 desc 直接子 */
+  .legal-section-desc > p {
     margin-bottom: var(--spacing-sm);
   }
-  .legal-section-body > p:last-child {
+  .legal-section-desc > p:last-child {
     margin-bottom: 0;
   }
   /* 內文連結（如聯絡 email、捐款連結）：粗體、不加底線、無 hover 效果（user 偏好） */

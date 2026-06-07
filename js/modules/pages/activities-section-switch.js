@@ -169,7 +169,122 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
  */
 async function playActivitiesExit() {
   const panel = /** @type {HTMLElement | null} */ (document.querySelector('.activities-panel:not(.hidden)'));
-  if (panel) await playAdmissionPanelExit(panel);
+  if (!panel) return;
+  // 三者並行退場（router runPageExit 會 await 整個 Promise.all 才換頁）：
+  //   ① playAdmissionPanelExit：list rows（含 sticky filter bar 內的 search-inner，是 .list-reveal-row）yPercent 滑出
+  //   ② playFilterChipsExit：sub-filter chip 各自 clip-path 收掉（**chip 自身**，不裁旋轉角）
+  // ⚠️ 不再 clip 整個 .activities-filter-bar（父容器）—— 那會把裡面旋轉 chip 的角一起裁掉
+  //    （user 2026-06-07 回報「出場動畫加在父容器、chip 被 crop」）。改成跟 curriculum 灰卡一樣每個 chip 自己做。
+  await Promise.all([
+    playAdmissionPanelExit(panel),
+    playFilterChipsExit(panel),
+  ]);
+}
+
+// ── Filter chip 進場：chip 自己做 clip-path inset reveal（揭露 .anchor-nav-inner 本體）──────────
+// 不靠父容器 overflow:clip wrapper（原本 #*-type-filter 是 .list-reveal-row + .courses-filter-btn
+// → setupClipReveal 把整列包進 overflow:clip wrapper，旋轉 chip 角被 wrapper 裁掉、reveal 完才 snap
+// 成完整 chip，user 2026-06-07 回報「1s 先被 crop 再跳完整」）。
+// clip-path 套在 .anchor-nav-inner（active chip 帶 rotate 的那層）：clip-path 先在元素 local box 裁、
+// rotate 後才套 → chip 揭露自身形狀、不被外層裁。timing 跟 panel reveal 一致（initial 等捲到 / 切換立即）。
+function filterChipInners(panel) {
+  return panel ? panel.querySelectorAll('.activities-filter-bar .courses-filter-btn .anchor-nav-inner') : [];
+}
+function hideFilterChips(panel) {
+  if (typeof gsap === 'undefined') return;
+  const inners = filterChipInners(panel);
+  // transition:'none'：.anchor-nav-inner 帶 navigation.css 的 `transition: all`（含 clip-path）→ 直接 set
+  // clip-path 會被 CSS transition 接管慢慢 hide，且後續 GSAP reveal 每幀寫 clip-path 也被 transition 追著跑
+  // （慢爬到一半再 snap，user 2026-06-07 看到的怪）。reveal 全程關 transition、結束 clearProps 還原。
+  if (inners.length) gsap.set(inners, { transition: 'none', clipPath: 'inset(100% 0% 0% 0%)' });  // 收到底邊 → 由下往上揭露
+}
+let _chipRevealSTs = [];
+function playFilterChipsReveal(panel, { useScrollTrigger = false } = {}) {
+  if (typeof gsap === 'undefined') return;
+  const inners = filterChipInners(panel);
+  if (!inners.length) return;
+  // 殺掉上一輪殘留的 chip ScrollTrigger + 進行中 tween：initial reveal 建的 once trigger 若 filter bar 還在
+  // fold 外沒 fire，之後切換 instant-scroll 把它捲進視窗才 fire → 跟切換自己的 immediate reveal 打架，
+  // 出現「慢慢爬到一半再 snap」。每次 reveal 前先清乾淨 → 單一 tween 乾淨跑完。
+  _chipRevealSTs.forEach(st => st && st.kill());
+  _chipRevealSTs = [];
+  gsap.killTweensOf(inners);
+  // transition:'none' 全程關掉（含 navigation.css 的 `transition: all` 對 clip-path 的接管），
+  // clearProps:'clipPath,transition' 在每個 chip tween 結束時還原 clip-path(→none 全顯) + CSS transition。
+  const play = () => {
+    gsap.set(inners, { transition: 'none' });
+    gsap.fromTo(inners,
+      { clipPath: 'inset(100% 0% 0% 0%)' },
+      { clipPath: 'inset(0% 0% 0% 0%)', duration: DUR.slow, ease: EASE.enter, stagger: 0.08, overwrite: true, clearProps: 'clipPath,transition' });
+  };
+  if (useScrollTrigger && typeof ScrollTrigger !== 'undefined') {
+    const bar = panel.querySelector('.activities-filter-bar');
+    _chipRevealSTs.push(ScrollTrigger.create({ trigger: bar || inners[0], start: 'top 90%', once: true, onEnter: play }));
+  } else {
+    play();
+  }
+}
+// 離頁退場：sub-filter chip 各自 clip-path 收掉（reveal 的反向，套在 .anchor-nav-inner 本身 → 不裁旋轉角）。
+// 回傳 Promise 給 playActivitiesExit 的 Promise.all await。transition:'none' 同 reveal 解 `transition:all` 衝突。
+function playFilterChipsExit(panel) {
+  if (typeof gsap === 'undefined') return Promise.resolve();
+  const inners = filterChipInners(panel);
+  if (!inners.length) return Promise.resolve();
+  _chipRevealSTs.forEach(st => st && st.kill());  // 殺殘留 reveal ST，免得退場時又 fire
+  _chipRevealSTs = [];
+  gsap.killTweensOf(inners);
+  return new Promise(resolve => {
+    gsap.set(inners, { transition: 'none' });
+    // inset(0)→inset(100% 0 0 0)：由下而上收合（reveal「由下往上揭露」的反向）；離頁後 element 隨 swap 銷毀不需還原
+    gsap.fromTo(inners,
+      { clipPath: 'inset(0% 0% 0% 0%)' },
+      { clipPath: 'inset(100% 0% 0% 0%)', duration: DUR.base, ease: EASE.exit, stagger: 0.06, overwrite: true, onComplete: resolve });
+  });
+}
+
+// ── 左側 section nav 進場/退場（user 2026-06-07「nav btn 比照 faculty」）──────────────────────
+// 完全比照 [faculty-filter.js] 的 nav 動畫：clip-path 套在 .anchor-nav-inner（色塊自身，旋轉角不裁、不疊鄰、原地揭露）、
+// 4 方向隨機、DUR.base + cubic-bezier(0.25,0,0,1) + stagger；進場只在頁面初次載入（content section 進視窗）跑一次、
+// 切左側分頁不重播；退場只在離頁且「已進場」才跑（沒滑到沒看過不閃）、fromTo 顯式起點 inset(0)（clearProps 後
+// computed=none 補不間）、from:'end' 反向 stagger。⚠️ .anchor-nav-inner 帶 navigation.css `transition: all`（含 clip-path）
+// → 動畫期間 inner.style.transition='none' 免 CSS transition 追 GSAP 卡頓，跑完還原（hover/切分頁仍要那條 transition）。
+const NAV_CLIP_DIRS = ['inset(0% 0% 100% 0%)', 'inset(0% 0% 0% 100%)', 'inset(100% 0% 0% 0%)', 'inset(0% 100% 0% 0%)'];
+function pickNavClip() { return NAV_CLIP_DIRS[Math.floor(Math.random() * NAV_CLIP_DIRS.length)]; }
+const NAV_REVEALED_CLIP = 'inset(0% 0% 0% 0%)';
+const NAV_EASE = 'cubic-bezier(0.25, 0, 0, 1)';
+
+function setupSectionNavReveal() {
+  if (typeof gsap === 'undefined') return;
+  const inners = Array.from(document.querySelectorAll('.activities-section-bar .activities-section-btn .anchor-nav-inner'));
+  if (!inners.length) return;
+  let navRevealed = false;
+  inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = 'none'; gsap.set(inner, { clipPath: pickNavClip() }); });
+
+  const play = () => {
+    if (navRevealed) return;
+    navRevealed = true;
+    gsap.to(inners, {
+      clipPath: NAV_REVEALED_CLIP, duration: DUR.base, ease: NAV_EASE, stagger: 0.02, clearProps: 'clipPath',
+      onComplete: () => inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = ''; }),
+    });
+  };
+  const section = document.getElementById('activities-content-section');
+  const inView = section && section.getBoundingClientRect().top < window.innerHeight * 0.9;
+  if (!section || inView || typeof ScrollTrigger === 'undefined') {
+    play();
+  } else {
+    // trigger 在 #activities-content-section（#page-content 內）→ cleanupPageModules 換頁時一併 kill，不洩漏
+    ScrollTrigger.create({ trigger: section, start: 'top 90%', once: true, onEnter: play });
+  }
+
+  registerPageExit(() => new Promise(resolve => {
+    if (typeof gsap === 'undefined' || !navRevealed) { resolve(); return; }
+    gsap.killTweensOf(inners);
+    inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = 'none'; });
+    gsap.fromTo(inners,
+      { clipPath: NAV_REVEALED_CLIP },
+      { clipPath: () => pickNavClip(), duration: DUR.base, ease: NAV_EASE, stagger: { each: 0.02, from: 'end' }, overwrite: true, onComplete: resolve });
+  }));
 }
 
 // fromUserNav：true=使用者點連結的 SPA 導航（首頁 floating 活動海報）；false=初始載入 / refresh / 上一頁下一頁。
@@ -179,6 +294,9 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
   if (btns.length === 0) return;
 
   registerPageExit(playActivitiesExit);
+
+  // 左側 section nav clip-path 進場（section 進視窗 once）+ 離頁退場，比照 faculty nav
+  setupSectionNavReveal();
 
   // SPA 換頁後 DOM 重建，需重置 loaded 狀態讓資料重新載入
   Object.keys(loaded).forEach(k => delete loaded[k]);
@@ -248,9 +366,14 @@ async function switchToSection(section, btns, shouldScroll, isInitial = false) {
     const loadPromise = loadPanel(section);
 
     // 1. 退場（首次 init 跳過；切到同 panel 也跳過）
-    //    degree-show cards 已加 .list-reveal-row，與其他 panel 統一走 playAdmissionPanelExit
+    //    degree-show cards 已加 .list-reveal-row，與其他 panel 統一走 playAdmissionPanelExit；
+    //    sub-filter chip 不是 .list-reveal-row → 另用 playFilterChipsExit 讓舊 panel 的 chip 也一起收掉
+    //    （chip 自身 clip-path，不裁旋轉角；user 2026-06-07「切分頁時 filter btn 也要出場」）。並行 await。
     if (!isInitial && currentPanel && currentPanel.id !== targetId) {
-      await playAdmissionPanelExit(currentPanel);
+      await Promise.all([
+        playAdmissionPanelExit(currentPanel),
+        playFilterChipsExit(currentPanel),
+      ]);
     }
 
     // 2. 切按鈕 active 狀態（隨機顏色 + 旋轉）
@@ -267,6 +390,8 @@ async function switchToSection(section, btns, shouldScroll, isInitial = false) {
     // 5. 進場 setup：在 showPanel 前完成 yPercent:100 推送，避免 panel 顯示後才 set 造成 1 frame 閃爍
     //    .hidden 上的 element 仍可 wrap clip-reveal-wrapper + gsap.set（GSAP 不在乎 visibility）
     if (target) setupAdmissionReveal(target, { hide: true });
+    // filter chip（exhibitions/visits sub-tab）改 chip 自身 clip-path reveal，先收起
+    if (target) hideFilterChips(target);
 
     // 6. 切 panel 顯示
     target = /** @type {HTMLElement | null} */ (showPanel('.activities-panel', targetId));
@@ -297,17 +422,21 @@ async function switchToSection(section, btns, shouldScroll, isInitial = false) {
     // loadPanel 失敗時把 loaded[] 旗標清掉，user 重切回此 panel 才會再試 fetch
     delete loaded[section];
   } finally {
-    // 8. 進場 reveal — 無論成不成功都跑，否則 rows 卡 yPercent:100；一律 useScrollTrigger=true。
-    //    step 7 instant scroll 已同步到位 → 直接 reveal：此時 reveal 內 ScrollTrigger.create→refresh
-    //    記錄到的是最終 top（不再是 in-flight 捲動的中途值），不會把 scroll 凍結在半路。
+    // 8. 進場 reveal — 無論成不成功都跑，否則 rows 卡 yPercent:100。
+    //    useScrollTrigger 跟 isInitial 綁（對齊 admission-section-switch 的正確做法）：
+    //    - 初次 init（isInitial=true）：list 在 hero 下方 fold 外 → 用 ScrollTrigger 等捲到才播（reveal on scroll）。
+    //    - 分頁切換（isInitial=false）：step 7 instant scroll 已把 list 推進 viewport 頂；此時若仍用 ScrollTrigger，
+    //      onEnter 對「建立當下就已在視窗內」的元素觸發不可靠（有時 fire 有時不）→ 卡 yPercent:100 不進場
+    //      （= user 回報「有時 activities list 沒進場動畫」）。改 false 走 master-timeline 立即播，必定 reveal。
     if (target) {
-      playAdmissionPanelReveal(target, { useScrollTrigger: true });
+      playAdmissionPanelReveal(target, { useScrollTrigger: isInitial });
+      playFilterChipsReveal(target, { useScrollTrigger: isInitial });  // chip 自身 clip reveal（timing 跟 panel 一致）
     }
     switching = false;
   }
 }
 
-// Filter 切 sub-list 共用流程：exit 舊 list → swap display → scroll 補償 → reveal 新 list
+// Filter 切 sub-list 共用流程：exit 舊 list → swap display → scroll 回 section 頂 → reveal 新 list
 // 跟 section-switch 用同 helpers（playAdmissionPanelExit/Reveal）保持動畫風格一致
 // switching guard 防 user 在動畫期間連點 → race 出現「兩個 list 同時可見」或 reveal 跑錯 target
 let subFilterSwitching = false;
@@ -333,21 +462,18 @@ async function animatedSubListSwitch(panelId, lists, targetType) {
       await playAdmissionPanelExit(outgoing);
     }
 
-    // 切前後量 filter bar 視窗 Y 位置，sticky 視覺位置維持
-    const filterBar = /** @type {HTMLElement | null} */ (document.querySelector(`#${panelId} .activities-filter-bar`));
-    const beforeTop = filterBar?.getBoundingClientRect().top ?? 0;
-
     for (const k of Object.keys(lists)) {
       const el = lists[k];
       if (el) el.style.display = k === targetType ? '' : 'none';
     }
     reapplySearch(panelId);
 
-    if (filterBar) {
-      const afterTop = filterBar.getBoundingClientRect().top;
-      const delta = afterTop - beforeTop;
-      if (delta !== 0) window.scrollBy(0, delta);
-    }
+    // 切 sub-filter 一律捲回 section 頂（對齊左側 section nav，user 2026-06-06「點 filter 也要回到 filter 頂部」）。
+    // 取代舊「量 filter bar 前後 Y、scrollBy 維持 sticky 視覺位置」：切到短 list（如 permanent 僅 1 筆）時
+    // 文件變太短、瀏覽器 clamp scroll → 維持邏輯失效卡在半空奇怪位置。scrollSectionIntoView 用非 sticky
+    // section 絕對位置算 target（見 project_sticky_pinned_scroll_target_use_offsettop），短 panel 也回得到頂。
+    const sectionEl = /** @type {HTMLElement | null} */ (document.getElementById('activities-content-section'));
+    scrollSectionIntoView(sectionEl, 'instant');
 
     // 進場 reveal：useScrollTrigger=false 立刻播（不等捲到 viewport）
     setupAdmissionReveal(incoming, { hide: true });
