@@ -187,8 +187,8 @@
     /* year cols 用 minmax(0, 1fr) 不用 1fr：grid 預設 track 至少撐到 cell min-content，
        而 marquee 雙份的 inner 會把 cell min-content 撐到 2 倍寬 → track 被擴張破版；
        minmax(0, 1fr) 解放 min-content 限制，track 永遠 fair share，cell 用 overflow 自己 clip */
+    /* sem-col 已移除（學期欄改成兩學期間的分隔線）→ 只剩 type-col + 年級欄，年級欄(卡片)吃回多出的寬 */
     grid-template-columns:
-      var(--courses-grid-sem-col)
       var(--courses-grid-type-col)
       repeat(var(--year-cols, 4), minmax(0, 1fr));
     column-gap: var(--courses-grid-col-gap);
@@ -213,7 +213,7 @@
   }
   .courses-required-row,
   .courses-elective-row {
-    grid-column: 2 / -1;
+    grid-column: 1 / -1;
     display: grid;
     grid-template-columns: subgrid;
     align-items: start;
@@ -248,7 +248,6 @@
     grid-column: 1 / -1;
     display: grid;
     grid-template-columns:
-      var(--courses-grid-sem-col)
       var(--courses-grid-type-col)
       repeat(var(--year-cols, 4), minmax(0, 1fr));
     column-gap: var(--courses-grid-col-gap);
@@ -312,26 +311,34 @@
     opacity: 0.85;
   }
 
-  /* 學期 label（Fall/Spring）— 在 col 1（sem-col）裡，grid-row: span 2 跨必修+選修
-     字體大小對齊 type-label（p2）。桌面 sticky containing block = .courses-semester，
-     學期到底時自然跟著上去 */
-  .courses-grid-sem-label {
-    font-weight: 700;
-    font-size: var(--font-size-p2);
-    line-height: 1.2;
+  /* ===== 學期分隔線（取代原 sem-col 學期欄，user 2026-06-07）=====
+     第一學期下方一條 4px 橫線跨年級欄（col 2/-1）；左側 col 1（type-col 同欄）寫「Semester 學期」label，
+     字體比必/選修 type-label（p2）小一級＝p3。align-items:center 讓 label 與線垂直置中。 */
+  .courses-grid-sem-divider {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: subgrid;
+    align-items: center;
+    margin: var(--spacing-lg) 0;
+  }
+  .courses-grid-sem-divider-label {
+    grid-column: 1;
     display: flex;
     flex-direction: column;
     gap: 2px;
-    align-self: start;
-    padding-top: 6px;
+    font-weight: 600;
+    font-size: var(--font-size-p3);  /* 比必/選修(p2)小一級 */
+    line-height: 1.2;
+    color: var(--theme-fg);
+    justify-self: start;
   }
-  @media (min-width: 768px) {
-    .courses-grid-sem-label {
-      position: sticky;
-      /* sticky top 對齊 row 2（第一行卡片）top：cover 200 + 自身 height(~48) + row-gap(16) + buffer(16) = 280 */
-      top: 280px;
-      z-index: 1;  /* 低於 cover (z:3)，release 時 leak 上來會被 cover 蓋住 */
-    }
+  .courses-grid-sem-divider-zh {
+    opacity: 0.85;
+  }
+  .courses-grid-sem-divider-line {
+    grid-column: 2 / -1;
+    height: 4px;
+    background: var(--theme-fg);
   }
 
   /* 類別 label（必修/選修）— 實心、無半透明、無底色（col 2 type-col 內無卡片，
@@ -343,12 +350,17 @@
     font-weight: 600;
     font-size: var(--font-size-p2);
     line-height: 1.2;
+    align-self: start;
+    color: var(--theme-fg);
+    /* 同 sem-label：label 當遮罩讓 inner 做年級式 slide 離場（見上方註解） */
+    overflow: clip;
+    justify-self: start;
+  }
+  .courses-grid-type-label-inner {
     display: flex;
     flex-direction: column;
     gap: 2px;
-    align-self: start;
     padding-top: 6px;
-    color: var(--theme-fg);
   }
   @media (min-width: 768px) {
     .courses-grid-type-label {

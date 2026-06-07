@@ -207,7 +207,7 @@ function buildHTML(program, courses) {
   // Cover 提供整列 bg + ::before 向上 200px 蓋住 cards/labels scroll 過 sticky 後的露出。
   // year-header 不再各自 sticky，純粹當 cover 內的文字佔位
   let coverInnerHtml = '';
-  coverInnerHtml += '<div class="courses-grid-corner courses-grid-corner--sem"></div>';
+  // 只剩一個 label 欄（type-col：必修/選修 + 學期分隔 label）；原 sem-col 已移除
   coverInnerHtml += '<div class="courses-grid-corner courses-grid-corner--type"></div>';
   for (let i = 0; i < TOTAL_YEAR_COLS; i++) {
     const g = grades[i];
@@ -233,22 +233,17 @@ function buildHTML(program, courses) {
   // row 到底時 label 自然跟著上去（vs. 原本一張 grid 共用 sticky 範圍黏到 grid 最後才釋放）
   // 第 2+ 個學期 wrapper 加 .courses-grid-sem-start 補學期間距（margin-top 2xl）
   SEMESTERS.forEach((sem, semIdx) => {
-    const semStartCls = semIdx > 0 ? ' courses-grid-sem-start' : '';
-
     let semInner = '';
 
-    // 學期 label（col 1 sem-col，跨 required + elective 2 sub-row）
-    semInner += `
-      <div class="courses-grid-sem-label" style="grid-row: span 2;">
-        <span class="courses-grid-sem-en">${sem.en}</span>
-        <span class="courses-grid-sem-zh">${sem.zh}</span>
-      </div>`;
+    // sem-label（學期欄）已移除 → 改用兩學期間的 .courses-grid-sem-divider 分隔線（見下方 forEach 尾端）
 
-    // Required row（subgrid 5 cols：type-col + 4 year cols）
+    // Required row（subgrid 4/5 cols：type-col + 4 year cols）
     let reqInner = `
       <div class="courses-grid-type-label">
-        <span class="courses-grid-type-en">${TYPES[0].en}</span>
-        <span class="courses-grid-type-zh">${TYPES[0].zh}</span>
+        <div class="courses-grid-type-label-inner">
+          <span class="courses-grid-type-en">${TYPES[0].en}</span>
+          <span class="courses-grid-type-zh">${TYPES[0].zh}</span>
+        </div>
       </div>`;
     for (let i = 0; i < TOTAL_YEAR_COLS; i++) {
       const g = grades[i];
@@ -266,8 +261,10 @@ function buildHTML(program, courses) {
     // Elective row（同 subgrid 結構）
     let elecInner = `
       <div class="courses-grid-type-label">
-        <span class="courses-grid-type-en">${TYPES[1].en}</span>
-        <span class="courses-grid-type-zh">${TYPES[1].zh}</span>
+        <div class="courses-grid-type-label-inner">
+          <span class="courses-grid-type-en">${TYPES[1].en}</span>
+          <span class="courses-grid-type-zh">${TYPES[1].zh}</span>
+        </div>
       </div>`;
     for (let i = 0; i < TOTAL_YEAR_COLS; i++) {
       const g = grades[i];
@@ -282,7 +279,20 @@ function buildHTML(program, courses) {
     }
     semInner += `<div class="courses-elective-row">${elecInner}</div>`;
 
-    html += `<div class="courses-semester${semStartCls}">${semInner}</div>`;
+    html += `<div class="courses-semester">${semInner}</div>`;
+
+    // 學期分隔：第一學期下方一條 4px 橫線跨年級欄，左側 label「Semester 學期」（取代原本的學期欄）。
+    // align-items:center 讓 label 與線垂直置中對齊；spacing 由 .courses-grid-sem-divider margin 控（courses.css）。
+    if (semIdx === 0) {
+      html += `
+        <div class="courses-grid-sem-divider">
+          <div class="courses-grid-sem-divider-label">
+            <span class="courses-grid-sem-divider-en">Semester</span>
+            <span class="courses-grid-sem-divider-zh">學期</span>
+          </div>
+          <div class="courses-grid-sem-divider-line"></div>
+        </div>`;
+    }
   });
 
   return html;
