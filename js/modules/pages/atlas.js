@@ -57,11 +57,12 @@ const ALUMNI_CAREERS = [
 // Faculty  = fc + ff（在職 + 離職教師）
 // Alumni   = co（系友任職企業 — 橢圓 ring chip，host subgroup）
 //          + em（系友就職企業 — 橢圓外 floating chip，employ subgroup；mock data 暫無真實 source）
-// Partners = wsg + ind + lec（工作營 / 產學合作 / 講座講者）
+// Partners = wsg + ind + ec（工作營 / 產學合作 / 體驗營）；講座(lec)已移除（2026-06-07 user 指定）
+//   ec（體驗營）佔位中：prefix 已列入 partners 但暫無節點，等「體驗營合作單位」資料檔到位再 seed
 const FILTER_PREFIXES = {
   faculty:  ['fc', 'ff'],
   alumni:   ['co', 'em'],
-  partners: ['wsg', 'ind', 'lec'],
+  partners: ['wsg', 'ind', 'ec'],
 };
 
 // 線端點不要直接插到字上，保留 px 間距
@@ -126,12 +127,30 @@ function pickBoxEdgeToCenter(box, srcX, srcY) {
   return { x: srcX + tHit * dx, y: srcY + tHit * dy };
 }
 
+// D 城市方塊有隨機旋轉 → 線端點要接「旋轉後」方塊的邊，不是 axis-aligned AABB。
+// 做法：把 src 點旋進方塊 local frame（繞中心 -deg）→ 在 axis-aligned box 上挑邊（pickBoxEdgeToCenter）
+//       → 再把該邊點旋回 world（+deg）。deg=0 時退化成原本的 pickBoxEdgeToCenter。
+// 旋轉方向與 CSS `rotate`（y 軸朝下、正值順時針）一致。
+function pickRotatedBoxEdgeToCenter(box, srcX, srcY, cx, cy, deg) {
+  if (!deg) return pickBoxEdgeToCenter(box, srcX, srcY);
+  const rad = deg * Math.PI / 180;
+  const cos = Math.cos(rad), sin = Math.sin(rad);
+  const dx = srcX - cx, dy = srcY - cy;
+  // world → local（繞中心轉 -deg）
+  const lx = cx + (dx * cos + dy * sin);
+  const ly = cy + (-dx * sin + dy * cos);
+  const e = pickBoxEdgeToCenter(box, lx, ly);
+  // local → world（繞中心轉 +deg）
+  const ex = e.x - cx, ey = e.y - cy;
+  return { x: cx + (ex * cos - ey * sin), y: cy + (ex * sin + ey * cos) };
+}
+
 // 從 item 當前位置回推 box 範圍（含 BOX_PADDING）
 function computeBoxAt(item, x, y) {
   const w = item._boxW || 60;
   const h = item._boxH || 20;
-  // B 企業環 chip 走 horizontal-centered（box 中心 = anchor）；其餘 item 依 side 靠邊
-  const isCentered = item.category === 'B';
+  // B 企業環 chip + D 城市圓點都 horizontal-centered（box 中心 = anchor 點）；其餘 item 依 side 靠邊
+  const isCentered = item.category === 'B' || item.category === 'D';
   const isSideLeft = item._isSideLeft;
   const labelLeft  = isCentered ? x - w / 2 : (isSideLeft ? x - w : x);
   const labelRight = isCentered ? x + w / 2 : (isSideLeft ? x : x + w);
@@ -154,9 +173,9 @@ const USE_TYPE_PLACEHOLDER = true;
 const TYPED_LABELS = {
   fc:  { en: 'Current Faculty',  zh: '在職教師' },
   ff:  { en: 'Former Faculty',   zh: '離職教師' },
-  lec: { en: 'Lecture Speaker',  zh: '講座講者' },
   wsg: { en: 'Workshop Partner', zh: '工作營合作單位' },
   ind: { en: 'Industry Partner', zh: '產學合作公司' },
+  ec:  { en: 'Experience Camp Partner', zh: '體驗營合作單位' },
   co:  { en: 'Alumni Co.',       zh: '系友任職企業' },
 };
 
@@ -232,11 +251,11 @@ const FAKE_COMPANIES = [
   { en: 'Wolff Olins',        zh: '沃爾夫奧林斯'   },
 ];
 
-// Partner 類型對應（wsg/ind/lec 各自映射）
+// Partner 類型對應（wsg/ind/ec 各自映射；lec 已移除 2026-06-07）
 const PARTNER_TYPES = {
   wsg: { en: 'Workshop',                       zh: '工作營'   },
   ind: { en: 'Industry Partnerships',          zh: '產學合作' },
-  lec: { en: 'Lectures',                       zh: '講座'     },
+  ec:  { en: 'Experience Camp',                zh: '體驗營'   },
 };
 
 // ── Layout 參數（px）─ Rugby ball (橢圓) 中央 + Saturn ring 外環 ───────────
@@ -292,13 +311,12 @@ export async function initAtlas(options = {}) {
   if (!stage || !zoomEl || !content || !detail) return;
 
   // ── 載入資料 ─────────────────────────────────────────
-  const [facultyCurrent, facultyFormer, workshops, industry, companies, lectures] = await Promise.all([
+  const [facultyCurrent, facultyFormer, workshops, industry, companies] = await Promise.all([
     fetchJson('data/faculty.json'),
     fetchJson('data/faculty-former.json'),
     fetchJson('data/workshops.json'),
     fetchJson('data/industry.json'),
     fetchJson('data/atlas-companies.json'),
-    fetchJson('data/lectures.json'),
   ]);
 
   // ── 建構 items ──────────────────────────────────────
@@ -370,30 +388,11 @@ export async function initAtlas(options = {}) {
     });
   });
 
-  // A: 講座講者
-  (lectures || []).forEach(yearGroup => {
-    (yearGroup.items || []).forEach(lec => {
-      const lecGroupId = lec.id;
-      if (!lecGroupId) return;
-      const dt = (lec.description_zh || lec.description || '').trim().slice(0, 140) ||
-                 '本系邀請業界與學界專家進行專題講座。';
-      const memberIds = [];
-      (lec.guests || []).forEach(g => {
-        const en = g.name || g.affiliation || '';
-        const zh = g.name_zh || g.affiliation_zh || '';
-        if (!en && !zh) return;
-        const it = {
-          id: uid('lec'), category: 'A',
-          textEn: en, textZh: zh,
-          labelEn: 'Lecture Speaker', labelZh: '講座講者',
-          detail: dt, groups: [lecGroupId], cityKey: null,
-        };
-        items.push(it);
-        memberIds.push(it.id);
-      });
-      if (memberIds.length > 0) groups.set(lecGroupId, { detail: dt, members: memberIds });
-    });
-  });
+  // 講座講者（原 A: lec）已從 atlas 移除（2026-06-07 user 指定 partners 只含 工作營 / 產學 / 體驗營）。
+  // 體驗營（experience camp, prefix 'ec'）佔位中：等「體驗營合作單位」資料檔（比照 workshops.json 的
+  // year → items → guests 結構）到位後，在此新增 seeding 區塊：uid('ec') / category 'C' /
+  // labelEn 'Experience Camp Partner'、_listTypeEn/Zh 取 PARTNER_TYPES.ec、cityKey 對 canonical 城市。
+  // 目前無 ec 節點，partners filter 實質顯示 工作營 + 產學。
 
   // C: 工作營合作單位（cityKey 對到 canonical 城市）
   (workshops || []).forEach(yearGroup => {
@@ -597,15 +596,15 @@ export async function initAtlas(options = {}) {
 
   // 顏色配置：
   //   D 國家 = 黑字 + 隨機三原色 chip 底
-  //   B 系友任職企業 = 白字 + 純黑 chip 底（30 個企業組成中環橢圓，固定黑底白字）
+  //   B 系友任職企業 = 黑字 + 隨機三原色 chip 底（30 個企業組成中環橢圓；2026-06-07 由黑底白字改隨機三原色）
   //   其他 A/C item 各自獨立隨機挑三原色（連線 stroke 沿用 item.color）
   items.forEach(item => {
     if (item.category === 'D') {
       item.color = COLOR_BLACK;
       item.bgColor = PRIMARY_COLORS[Math.floor(Math.random() * PRIMARY_COLORS.length)];
     } else if (item.category === 'B') {
-      item.color = '#FFFFFF';
-      item.bgColor = COLOR_BLACK;
+      item.color = COLOR_BLACK;
+      item.bgColor = PRIMARY_COLORS[Math.floor(Math.random() * PRIMARY_COLORS.length)];
     } else {
       item.color = PRIMARY_COLORS[Math.floor(Math.random() * PRIMARY_COLORS.length)];
     }
@@ -649,6 +648,12 @@ export async function initAtlas(options = {}) {
   // 幅度小（半長軸大時 ±°·rx 位移很顯著，±1.5° 在 rx≈1150 仍有 ±30px）
   const COMPANY_RING_SEESAW_AMP    = 4 * Math.PI / 180; // ±4°
   const COMPANY_RING_SEESAW_PERIOD = 18;                   // 18s 一輪（緩慢搖晃）
+  // Zigzag：相鄰 chip 在 local-y 交錯（奇偶決定方向）→ 整圈不是平滑橢圓而是鋸齒環
+  //   深度每 chip seeded random 落在 [MIN, MAX]（layout px，會跟 scale 0.78 縮）→ 有的離環遠有的近，鋸齒不規則
+  //   方向仍嚴格交替以保鋸齒感；要回平滑橢圓設 MIN=MAX=0；偶數 chip 數首尾接合無縫（目前 30 個）
+  //   (user 2026-06-07：規則鋸齒 → 改不規則深淺)
+  const COMPANY_RING_ZIGZAG_MIN    = 20;
+  const COMPANY_RING_ZIGZAG_MAX    = 85;
   const companyItems = items.filter(i => i.category === 'B');
 
   // Arc-length parametrization：cumU = ∫_0^θ ds/dθ dθ = 弧長函數（tipF 已拿掉，純 arc length）
@@ -735,6 +740,8 @@ export async function initAtlas(options = {}) {
   //   配 arc-equal flow → 永遠均勻 + 等速，沒有 cap 聚集問題
   const N_B = companyItems.length;
   const arcStep = totalU / N_B;
+  // 鋸齒深度專用 seeded RNG（獨立 seed → 不影響其他 layout random）
+  const zigzagRand = mulberry32(LAYOUT_SEED ^ 0x21927A6);
 
   companyItems.forEach((item, idx) => {
     // chip 初始位置 uniform 在 arc length 上分佈（視覺均勻）；flow 用 V-parameterization（inverse-speed k=2）
@@ -744,6 +751,9 @@ export async function initAtlas(options = {}) {
     item.x = cx + COMPANY_ELLIPSE_RX * Math.cos(baseAngle);
     item.y = cy + COMPANY_ELLIPSE_RY * Math.sin(baseAngle);
     item._companyRingIdx = idx;
+    // 鋸齒：方向依 idx 奇偶嚴格交替、幅度 seeded random → 不規則深淺（有的遠有的近）
+    item._zigzagY = (idx % 2 ? -1 : 1) *
+      (COMPANY_RING_ZIGZAG_MIN + zigzagRand() * (COMPANY_RING_ZIGZAG_MAX - COMPANY_RING_ZIGZAG_MIN));
     item._initX = item.x;
     item._initY = item.y;
     item._orbit = {
@@ -844,7 +854,7 @@ export async function initAtlas(options = {}) {
   //   hover 暫停 / hidden tab 跳過
   const D_RELOCATE_INTERVAL_MS = 10000;
   const D_RELOCATE_TWEEN_DUR   = DUR.reveal;
-  // city → 同 cityKey 的關聯 items（C 工作營/產學/講座；A faculty 故意排除 — user 指定老師不跟著走）
+  // city → 同 cityKey 的關聯 items（C 工作營/產學，之後 ec 體驗營；A faculty 故意排除 — user 指定老師不跟著走）
   // 排除 B：B 鎖在中央橢圓 ring，cityKey 是假填資料只給 list view 用；跟著城市移會破壞 ring layout
   // 注意：itemMap 建在這之後（行 860）+ C items 的 _orbit 行 866 才建；timer callback 在 +10s 第一次跑時兩者都已存在
   /** @param {string} cityKey */
@@ -986,7 +996,7 @@ export async function initAtlas(options = {}) {
   const itemMap = new Map(items.map(i => [i.id, i]));
 
   // ── 非城市非教師項目小型個人軌道 ─────────────────────────
-  // Faculty (fc/ff) 排除：只走 _float wobble；其他類別 (co/wsg/ind/lec) 都繞自己的小軌道
+  // Faculty (fc/ff) 排除：只走 _float wobble；其他類別 (co/wsg/ind，之後 ec) 都繞自己的小軌道
   // 軌道中心 = item 自己的 scatter 位置（不繞螢幕中心，否則會打散橄欖球分佈）
   // rx/ry 小（30-70px）讓 item 在原地附近畫橢圓；tilt 全隨機；period 短一點 (40-100s) 看得到旋轉
   items.forEach(item => {
@@ -1051,7 +1061,8 @@ export async function initAtlas(options = {}) {
     anchor.style.left = `${(item.x / W) * 100}%`;
     anchor.style.top  = `${(item.y / H) * 100}%`;
     // B 企業環 chip 要中心對齊 ellipse 邊（看起來像穿過 ring 線）— 不分左右側，靠 CSS translate(-50%,-50%) 置中
-    if (item.category !== 'A' && item.category !== 'B' && item.x < cx) anchor.classList.add('atlas-side-left');
+    // 只有 C 需要 side-left（line 接字的左/右側）；B 企業環 + D 城市圓點都置中故排除
+    if (item.category === 'C' && item.x < cx) anchor.classList.add('atlas-side-left');
 
     const span = document.createElement('span');
     span.className = 'atlas-name';
@@ -1093,6 +1104,12 @@ export async function initAtlas(options = {}) {
         phase:    srand() * dur * 2,
       };
       span.style.rotate = `${item._float.baseRot.toFixed(2)}deg`;
+    } else {
+      // D 城市方塊：靜態隨機旋轉（無 wobble）；±35° 讓方塊有的正有的歪
+      //   個別 rotate 屬性與 CSS transform: translate(-50%,-50%) 自動 compose（不打架）
+      //   存 _squareRotDeg 給 updateLineEndpoints 算「旋轉後方塊邊」用（線端才不會接到 AABB）
+      item._squareRotDeg = srand() * 70 - 35;
+      span.style.rotate = `${item._squareRotDeg.toFixed(2)}deg`;
     }
 
     // View 切換動畫用 cover 層：absolute inset:0 蓋住 span box，bg = item chip 主色
@@ -1195,7 +1212,8 @@ export async function initAtlas(options = {}) {
     const cityY = city.y + (city._relocateOffsetY || 0);
     const cityBox = computeBoxAt(city, cityX, cityY);
     // D 國家端：線指向 box 中心，視覺上停在 padding 邊（不再隨 src 移動跳到不同邊中點）
-    const cityEdge = pickBoxEdgeToCenter(cityBox, srcX, srcY);
+    //   方塊有隨機旋轉 → 用 rotated 版接到「旋轉後」方塊邊，否則線會接到 axis-aligned AABB 看起來穿進方塊
+    const cityEdge = pickRotatedBoxEdgeToCenter(cityBox, srcX, srcY, cityX, cityY, city._squareRotDeg || 0);
     const srcBox = computeBoxAt(src, srcX, srcY);
     const srcEdge = pickClosestBoxPoint(getBoxPoints(srcBox), cityEdge.x, cityEdge.y);
     le.line.setAttribute('d', `M ${srcEdge.x.toFixed(2)} ${srcEdge.y.toFixed(2)} L ${cityEdge.x.toFixed(2)} ${cityEdge.y.toFixed(2)}`);
@@ -1266,8 +1284,8 @@ export async function initAtlas(options = {}) {
     // 兩端 D 國家：線串接兩 box 中心，各端停在自身 padding 邊 → 視覺對齊中心點且 chip 周圍留 padding 空隙
     const aCenter = { x: (aBox.left + aBox.right) / 2, y: (aBox.top + aBox.bottom) / 2 };
     const bCenter = { x: (bBox.left + bBox.right) / 2, y: (bBox.top + bBox.bottom) / 2 };
-    let aEdge = pickBoxEdgeToCenter(aBox, bCenter.x, bCenter.y);
-    let bEdge = pickBoxEdgeToCenter(bBox, aCenter.x, aCenter.y);
+    let aEdge = pickRotatedBoxEdgeToCenter(aBox, bCenter.x, bCenter.y, aX, aY, a._squareRotDeg || 0);
+    let bEdge = pickRotatedBoxEdgeToCenter(bBox, aCenter.x, aCenter.y, bX, bY, b._squareRotDeg || 0);
     // hover 城市時：被 hover 端 lerp 向另一端「散開消失」（retractT 0→1）
     const t = cl.retractT;
     if (t > 0 && cl.hoveredEnd) {
@@ -1366,6 +1384,16 @@ export async function initAtlas(options = {}) {
   const ampStateBreath = makeAmpState(BREATH_AMP_BASE);
   const ampStateDeform = makeAmpState(DEFORM_AMP_BASE);
 
+  // ── 企業環呼吸夾邊（user 指定：呼吸/變形脹到最寬時 chip 不可超出 viewport 左右）──
+  //   tickFloat 每幀對 30 個 B chip 算「當下實際在最外側的那張」，夾住 seesawXScale 讓其外緣貼齊
+  //   （不超出）viewport。窄 chip 在邊緣時環可放到最寬，只有寬 chip（如 The Wall Street Journal）
+  //   轉到邊緣才收 → 不會永久把整環縮小，保留 RX_F=1.20「往兩側多擴」的設計。
+  //   fitLimitX = chip 外緣允許到達的 content 半寬上限；chip 與 ring 都被 zoomEl scale，靜止視圖 = SCALE_DEFAULT。
+  //   RING_FIT_BUFFER 吸收 B chip ±8° 靜態旋轉造成的外擴。
+  const RING_FIT_PAD    = 8;    // 螢幕 px 邊距
+  const RING_FIT_BUFFER = 6;    // layout px：chip 旋轉外擴緩衝
+  const fitLimitX = (halfW - RING_FIT_PAD) / SCALE_DEFAULT;
+
   // 整環 seesaw（breath/deform/z-tilt）的時間軸 — hover B chip 時 freeze 整個 ring 不動
   //   ringPaused 由 pauseRingFlow / resumeRingFlow 切換，tickFloat 內用 ringSeesawT 取代 raw t
   let ringSeesawPauseStart = null;
@@ -1393,8 +1421,24 @@ export async function initAtlas(options = {}) {
     const seesawSin = Math.sin(seesawZ);
     const breath = 1 - ampBreath + ampBreath * Math.cos((seesawT / 24) * Math.PI * 2);
     const deform = ampDeform * Math.cos((seesawT / 14) * Math.PI * 2 + Math.PI / 3);
-    const seesawXScale = breath * (1 + deform);
+    let   seesawXScale = breath * (1 + deform);
     const seesawYScale = breath * (1 - deform);
+    // 夾住企業環水平範圍：環脹到最寬時最外側 chip（含自身寬度）不可超出 viewport 左右
+    //   rawX = 未乘 seesawXScale 的旋轉後 x（與下方 Phase 1 B 分支同公式）；chip 外緣 = |rawX|·sx + 半寬
+    //   解 |rawX|·sx + 半寬 ≤ fitLimitX → sx ≤ (fitLimitX − 半寬)/|rawX|，取所有 chip 最緊者
+    for (let i = 0; i < companyItems.length; i++) {
+      const o = companyItems[i]._orbit;
+      const effT = o.pauseStart != null ? (o.pauseStart - o.tOffset) : (t - o.tOffset);
+      const vPos = o.v0 + (effT / o.period) * totalV * o.dir;
+      const vWrapped = ((vPos % totalV) + totalV) % totalV;
+      const angle = vToTheta(vWrapped) - Math.PI / 2;
+      const rawX = Math.cos(angle) * o.rx * seesawCos
+                 - (Math.sin(angle) * o.ry + companyItems[i]._zigzagY) * seesawSin;
+      const absRaw = Math.abs(rawX);
+      if (absRaw < 1) continue;
+      const maxScale = (fitLimitX - ((companyItems[i]._boxW || 60) / 2 + RING_FIT_BUFFER)) / absRaw;
+      if (maxScale < seesawXScale) seesawXScale = Math.max(0, maxScale);
+    }
     // 同步 SVG outline 的三軸 tilt — 否則 chip 飄離靜止的 outline
     if (companyRingEllipse) {
       const deg = (seesawZ * 180 / Math.PI).toFixed(3);
@@ -1417,7 +1461,8 @@ export async function initAtlas(options = {}) {
         const vWrapped = ((vPos % totalV) + totalV) % totalV;
         const angle = vToTheta(vWrapped) - Math.PI / 2;
         lx = Math.cos(angle) * o.rx;
-        ly = Math.sin(angle) * o.ry;
+        // zigzag：chip 各自的 _zigzagY（奇偶定方向 + random 深淺）→ 不規則鋸齒環（隨 seesaw tilt/scale 一起變形）
+        ly = Math.sin(angle) * o.ry + item._zigzagY;
         cosT = seesawCos; sinT = seesawSin;
         applySeesawScale = true;
       } else {
@@ -1565,6 +1610,17 @@ export async function initAtlas(options = {}) {
           row.textContent = en + zh;
           descEl.appendChild(row);
         });
+      } else if (String(item.id).split('-')[0] === 'co' || String(item.id).split('-')[0] === 'em') {
+        // 系友環：hover 說明一律統一（英中各一行），不用 item.detail（名稱保留企業名、說明統一即可）。
+        //   co-* 橢圓 ring 企業 = 系友主持 → Hosted by Alumni
+        //   em-* 橢圓外 floating chip = 系友就職 → Joined by Alumni
+        const isHost = String(item.id).split('-')[0] === 'co';
+        const en = document.createElement('div');
+        en.textContent = isHost ? 'Hosted by Alumni' : 'Joined by Alumni';
+        descEl.appendChild(en);
+        const zh = document.createElement('div');
+        zh.textContent = isHost ? '系友主持' : '系友就職';
+        descEl.appendChild(zh);
       } else {
         const prefix = String(item.id).split('-')[0];
         const isFaculty = FILTER_PREFIXES.faculty.includes(prefix);

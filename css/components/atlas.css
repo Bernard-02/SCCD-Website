@@ -160,12 +160,26 @@
   right: 0;
 }
 
-/* label 顏色由 atlas.js 設成 inline（依 group 配色 / 三原色 random / D 黑底字 / B 黑底白字），
-   CSS 給 D 國家 + B 系友任職企業 字重 + chip padding（兩者同為純色底 chip 結構） */
-.atlas-cat-d .atlas-name,
+/* label 顏色由 atlas.js 設成 inline（依 group 配色 / 三原色 random / B chip 底色），
+   B 系友任職企業 = 純色底 chip（字重 + padding） */
 .atlas-cat-b .atlas-name {
   font-weight: 700;
   padding: 3px 5px;
+}
+
+/* D 城市 = map view 只顯示一個 fill 方塊（隨機旋轉，rotate 由 atlas.js inline 設）；
+   名稱 + 相關項目只在 hover 時於右下 #atlas-detail 出現（user 2026-06-07）
+   text 子元素隱藏、span 改固定方塊；bg 由 atlas.js inline 設 item.bgColor（隨機三原色）
+   置中對齊錨點（同 B，computeBoxAt 也把 D 視為 centered）→ C→D 連線接到方塊邊 */
+.atlas-cat-d .atlas-name {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  transform: translate(-50%, -50%);
+}
+.atlas-cat-d .atlas-name-en,
+.atlas-cat-d .atlas-name-zh {
+  display: none;
 }
 
 /* B 企業環 chip：box 中心對齊 anchor（= ellipse 邊上的點），ellipse 看起來穿過 chip 中段
