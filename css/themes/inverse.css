@@ -537,13 +537,6 @@ body.mode-inverse .atlas-list-group-label-col .atlas-list-col-title {
   color: black !important;
 }
 
-/* B 企業環 chip：standard 黑底白字 → inverse 翻白底黑字（對齊 atlas-list-col-title pattern）
-   JS inline 設 backgroundColor=black + color=white，CSS 必須 !important 覆蓋；
-   cover 層動畫顏色也跟著翻（chip 揭露/收回視覺連續） */
-body.mode-inverse .atlas-cat-b .atlas-name {
-  background-color: white !important;
-  color: black !important;
-}
-body.mode-inverse .atlas-cat-b .atlas-name-cover {
-  background-color: white !important;
-}
+/* B 企業環 chip（系友任職企業 / hosting）：2026-06-08 起 JS inline 設隨機三原色底 + 黑字（同 D 城市方塊、
+   同 standard mode）→ inverse 沿用「保留三原色 accent、字色黑」慣例，不再 override 成白底黑字（舊邏輯，
+   當時 B 是黑底白字才需翻）。inline 三原色 bg + 黑字在 inverse 下直接顯示，無需任何規則。 */

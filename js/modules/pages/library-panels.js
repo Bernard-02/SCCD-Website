@@ -558,11 +558,10 @@ async function initPressPanel() {
           const subtitleEnHtml = item.subtitleEn ? `<span class="press-item-subtitle press-item-subtitle-en"><span class="press-subtitle-inner">${item.subtitleEn}</span></span>` : '';
           const subtitleZhHtml = item.subtitleZh ? `<span class="press-item-subtitle press-item-subtitle-zh"><span class="press-subtitle-inner">${item.subtitleZh}</span></span>` : '';
           const hasSubtitle = !!(item.subtitleEn || item.subtitleZh);
-          const metaHtml = (hasSubtitle || item.date) ? `
+          const metaHtml = (hasSubtitle || hasMedia) ? `
             <div class="press-item-meta">
               ${hasSubtitle ? `<span class="press-item-subtitle-wrap">${subtitleEnHtml}${subtitleZhHtml}</span>` : ''}
               <span class="press-item-meta-right">
-                ${item.date ? `<span class="press-item-date">${item.date}</span>` : ''}
                 ${hasMedia  ? `<span class="icon icon-album press-item-media-icon"></span>` : ''}
               </span>
             </div>` : '';

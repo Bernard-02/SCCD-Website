@@ -256,6 +256,15 @@ export function initActivitiesSearch() {
     const activeBar = document.querySelector('.activities-panel:not(.hidden) .activities-filter-bar');
     if (!activeBar) return;
 
+    // 有 item 展開時，搜尋列維持收起、不被 scroll-up 還原（user 2026-06-07：開 item 後對齊點不要有
+    // search bar 的 4px 底框分割線；副作用好處＝pin 線恆定，根治「點當下 bar 還展開→開啟捲動才收→pin 線
+    // 縮短→header 停舊線露出上一個」漂移）。list-accordion open 時會先 add bar-hidden，這裡負責維持。
+    // 全關（無 .list-header.active）後恢復正常 scroll 開合。
+    if (activeBar.closest('.activities-panel')?.querySelector('.list-header.active')) {
+      activeBar.classList.add('bar-hidden');
+      return;
+    }
+
     // hero 是 h-screen，滑過 hero 進入 content 區之前不觸發 hide
     // 否則使用者進入 exhibitions panel 時 search bar 已被向下滑收掉
     const contentSection = document.getElementById('activities-content-section');

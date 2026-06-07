@@ -7,6 +7,7 @@ import { initPageModules, cleanupPageModules } from './main-modular.js';
 import { updateNavActive } from './header.js';
 import { runPageExit } from './modules/ui/page-exit.js';
 import { initFooter } from './footer.js';
+import { playFooterExit, resetFooterAfterExit } from './modules/ui/footer-draggable.js';
 
 // ── 路由表 ────────────────────────────────────────────────────
 const routes = {
@@ -54,17 +55,52 @@ const PAGE_CSS = {
   alumni: 'css/components/alumni.css',
 };
 
-function loadPageCSS(page) {
-  // 移除舊的頁面專屬 CSS：要同時涵蓋兩種來源
-  //   1. 上次切頁時 loadPageCSS 動態插入的（有 data-page-css attr）
-  //   2. 直接 refresh 內頁時 pages/X.html `<head>` 內 inline 寫死的 `<link href="../css/components/X.css">`
-  //      → 沒 data-page-css attr，但 href 一定命中 PAGE_CSS values
-  //   若只 query `[data-page-css]` 會漏 case 2，導致 refresh /create 後切回 index 時
-  //   create.css 永久殘留（user 2026-05-31 反饋 index 看不到 mode-btn-mobile，因 create.css
-  //   `#mode-btn-mobile { display:none !important }` 全頁繼續 cascade）
+// 載入新頁專屬 CSS 並回傳「parse 完成」的 Promise（無專屬 CSS / 已載入則立即 resolve）。
+// ⚠️ 必須在 swap HTML **之前** await：create/library/alumni 的 CSS 沒編進 output.css（只有 atlas 有
+// input.css @import），純靠這裡動態載入。動態插入的 <link> 不會阻塞首次 paint → 若 swap 後才 append，
+// 瀏覽器會先用 output.css 畫一次「無版面」的頁面再等 CSS 到才 snap = 換頁閃爍（FOUC）。
+// 先 await CSS ready 再 swap，畫出來就是完整樣式，過場 smooth。
+function ensurePageCSS(page) {
+  const href = PAGE_CSS[page];
+  if (!href) return Promise.resolve();
+  // 使用 origin 為基底的絕對路徑，避免 pushState 影響
+  const absHref = new URL(href, window.location.origin).href;
+  const existing = /** @type {HTMLLinkElement | null} */ (document.querySelector(`link[href="${absHref}"]`));
+  if (existing) {
+    // 已在 DOM：sheet 可存取 = 已 parse 完成，直接 resolve；還在載入則等它 load
+    if (existing.sheet) return Promise.resolve();
+    return new Promise(resolve => {
+      existing.addEventListener('load', () => resolve(), { once: true });
+      existing.addEventListener('error', () => resolve(), { once: true });
+    });
+  }
+  return new Promise(resolve => {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = absHref;
+    link.dataset.pageCss = page;
+    // load / error 都 resolve：CSS 404 也不能讓換頁卡死等不到
+    link.addEventListener('load', () => resolve(), { once: true });
+    link.addEventListener('error', () => resolve(), { once: true });
+    document.head.appendChild(link);
+  });
+}
+
+// 移除「非當前頁」的頁面專屬 CSS（swap HTML 後跑，保留剛 await 完的新頁 CSS）。要同時涵蓋兩種來源：
+//   1. 上次切頁時 ensurePageCSS 動態插入的（有 data-page-css attr）
+//   2. 直接 refresh 內頁時 pages/X.html `<head>` 內 inline 寫死的 `<link href="../css/components/X.css">`
+//      → 沒 data-page-css attr，但 href 一定命中 PAGE_CSS values
+//   若只 query `[data-page-css]` 會漏 case 2，導致 refresh /create 後切回 index 時
+//   create.css 永久殘留（user 2026-05-31 反饋 index 看不到 mode-btn-mobile，因 create.css
+//   `#mode-btn-mobile { display:none !important }` 全頁繼續 cascade）
+function removeStalePageCSS(keepPage) {
+  const keepHref = PAGE_CSS[keepPage]
+    ? new URL(PAGE_CSS[keepPage], window.location.origin).href
+    : null;
   const pageCssBasenames = Object.values(PAGE_CSS).map(h => h.split('/').pop());
   document.querySelectorAll('link[rel="stylesheet"]').forEach(el => {
     const link = /** @type {HTMLLinkElement} */ (el);
+    if (keepHref && link.href === keepHref) return; // 保留剛 await 載入的新頁 CSS
     if (link.dataset.pageCss) {
       link.remove();
       return;
@@ -75,17 +111,6 @@ function loadPageCSS(page) {
       link.remove();
     }
   });
-  // 載入新的（如果有）
-  const href = PAGE_CSS[page];
-  if (!href) return;
-  // 使用 origin 為基底的絕對路徑，避免 pushState 影響
-  const absHref = new URL(href, window.location.origin).href;
-  if (document.querySelector(`link[href="${absHref}"]`)) return; // 已載入
-  const link = document.createElement('link');
-  link.rel = 'stylesheet';
-  link.href = absHref;
-  link.dataset.pageCss = page;
-  document.head.appendChild(link);
 }
 
 // ── 路徑解析 ──────────────────────────────────────────────────
@@ -124,10 +149,11 @@ async function loadPage(route, search = '', fromUserNav = false) {
     const fetchUrl = new URL(route.htmlFile, window.location.origin).href;
 
     // 退場動畫（當前頁有 register 才會跑）跟 fetch 並行：anim ~0.7s + fetch 通常更快，
-    // 兩者平行省 0.3-0.5s 過場時間；await 兩個都完成才繼續 cleanup + DOM 替換
-    const [_exit, res] = await Promise.all([runPageExit(route), fetch(fetchUrl)]);
+    // 兩者平行省 0.3-0.5s 過場時間；await 兩個都完成才繼續 cleanup + DOM 替換。
+    // playFooterExit：footer 在視窗內（點 footer 連結離頁）才跑，items 散出；不在畫面則 no-op（user 2026-06-07）。
+    const [_exit, _fexit, res] = await Promise.all([runPageExit(route), playFooterExit(), fetch(fetchUrl)]);
     if (isStale()) return; // 中途有新 nav，放棄這次（不 cleanup 不 swap，讓新 nav 接手）
-    void _exit;
+    void _exit; void _fexit;
     if (!res.ok) throw new Error(`Failed to load ${route.htmlFile}`);
     const html = await res.text();
     if (isStale()) return;
@@ -141,6 +167,12 @@ async function loadPage(route, search = '', fromUserNav = false) {
     // 同步分頁標題（沿用該頁靜態 <title>；degree-show-detail 等之後在 initPageModules 內可再覆蓋更精確標題）
     const newTitle = doc.querySelector('title')?.textContent;
     if (newTitle) document.title = newTitle;
+
+    // 先把新頁專屬 CSS 載好再 cleanup + swap，避免無樣式 paint 閃爍（FOUC）。
+    // create/library/alumni 的 CSS 只靠動態載入（沒編進 output.css），swap 後才 append 會先畫一次無版面版本。
+    // 此 await 期間舊頁仍帶自己的 CSS 正常顯示（removeStalePageCSS 在 swap 後才移除舊頁 CSS）。
+    await ensurePageCSS(route.page);
+    if (isStale()) return;
 
     // Cleanup 上一頁；帶 destPage 讓 cleanup 知道是否是 same-page reentry（決定要不要 restoreHeaderLogo）
     cleanupPageModules(route.page);
@@ -159,8 +191,8 @@ async function loadPage(route, search = '', fromUserNav = false) {
     // 替換後再捲一次，保險覆蓋 reflow / scroll anchor 造成的位移
     requestAnimationFrame(() => scrollToTop());
 
-    // 動態載入頁面專屬 CSS（library 有自己的 css）
-    loadPageCSS(route.page);
+    // 移除舊頁專屬 CSS（新頁 CSS 已在 swap 前 ensurePageCSS 載好並保留）
+    removeStalePageCSS(route.page);
 
     // 更新 nav active state
     updateNavActive(route.page);
@@ -178,6 +210,10 @@ async function loadPage(route, search = '', fromUserNav = false) {
         initFooter();
       }
     }
+
+    // footer 若在離頁時跑了退場（playFooterExit），此時已 scrollToTop、footer 捲離視窗 → 重新散佈進場復位
+    //（不被看到，純把 items 從隱藏狀態還原 + 重啟 shuffle）。沒退場 / footer 隱藏頁則 no-op。
+    resetFooterAfterExit();
 
     // 更新 body class（generate / atlas / library 鎖頁面 scroll，滿版單屏）
     // library 必須走 class 不能靠 HTML inline style="overflow:hidden"：
@@ -253,6 +289,15 @@ export function initRouter() {
 
     const href = link.getAttribute('href');
     if (!href) return;
+
+    // slide-in / lightbox 開著時，#site-header 內的連結（左上角 logo 浮在 modal 之上仍可點）一律不可點：
+    // 吞掉 click 不導航，user 要先關閉面板才能離開（user 2026-06-07）。body.lightbox-open 由 enterLightboxMode 設，
+    // courses / faculty slide-in 與所有 lightbox 共用 → 一條涵蓋全部。不 stopPropagation：overlay 關閉 handler 用
+    // e.target.id==='courses-overlay' 比對，target 是 logo ≠ overlay 本來就不會誤觸發關閉。
+    if (document.body.classList.contains('lightbox-open') && link.closest('#site-header')) {
+      e.preventDefault();
+      return;
+    }
 
     // 忽略：外部連結、錨點、target="_blank"、download
     if (

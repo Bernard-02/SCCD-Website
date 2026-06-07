@@ -363,9 +363,16 @@
    * sticky list-header 與相鄰 .list-content 即使 layout 上緊貼，paint 邊界在
    * device pixel 上 round 不一致仍會留 1-2px 縫；image 在縫底下直接露出。
    * 用 padding-top 4px 同色 buffer：list-item 父層 bg accent 色透過 list-content
-   * 透明 padding 區露出，把 image 往下推 4px，縫底下見到的是 accent bg 而非 image。 */
+   * 透明 padding 區露出，把 image 往下推 4px，縫底下見到的是 accent bg 而非 image。
+   *
+   * margin-top:-1px：padding-top 只把「內層 image」下推，沒關掉 header 底邊 ↔ content 頂邊
+   * 之間那條 1px 縫。sticky header（z-index:5）被 GPU 提成獨立 composite layer 並 snap 到整數
+   * device pixel，與 content layer 在 fractional 邊界對不齊時露出 hairline（user 2026-06-07
+   * 「title 到展開有一條細綫、有機率出現」＝隨捲動 sub-pixel offset 時有時無）。讓 content 往上
+   * 重疊 1px 蓋過 header 底邊：header 在上層覆蓋這段重疊、兩者同 accent 底色 → 縫消失。 */
   .list-header.active + .list-content {
     padding-top: 4px;
+    margin-top: -1px;
   }
 
   /* 副標 sticky-pinned collapse：list-header 開展 + 真正黏住 sticky-top 時收起副標，bar 只剩 title。
@@ -455,6 +462,9 @@
   opacity: 0;
   pointer-events: none;
   padding-bottom: 0;
+  /* 連 4px border-bottom 一起收：max-height:0 + overflow:hidden 只裁內容、不裁 border，
+     殘留的 4px 黑線會剛好落在 list-header 對齊線上方＝user 看到的「分割線」。收起時歸 0。 */
+  border-bottom-width: 0;
 }
 
 .activities-search-input::placeholder {

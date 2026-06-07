@@ -38,11 +38,9 @@
     font-size: var(--font-size-p1);
   }
 
-  /* Office 地址 min-width：避免某些 random 配置下 anchor 被擠太窄、address 多行截斷讀不順
-   * 配合 .max-w-sm（24rem max）→ 區間 = 22-24rem 寬，address 行寬剛好閱讀 */
-  .footer-random .footer-office {
-    min-width: 22rem;
-  }
+  /* Office 地址寬度由 footer-draggable.js applyOfficeSnugWidth() 量「實際最長一行文字」後鎖 inline width。
+   * 不靠 min/max-width：block child（英文 .max-w-sm <p>）的 max-content 被 cap 在 24rem，shrink-to-fit
+   * 會用這 24rem 當卡寬 → 比真正最長行寬、右側殘留空白。.max-w-sm 保留只為驅動英文 wrap、不決定卡寬。 */
 
   /* 預設所有 scatter items 內 p / a 強制單行（title h6 + 一行內容 = 2 行；Links 3 行）
    * Office 地址 exception：保留 wrap 才能讀完整地址 */
@@ -243,6 +241,13 @@
     .footer-privacy > div {
       align-items: flex-start !important;
       text-align: left;
+    }
+
+    /* 規章區 4 連結各自獨立 clip-reveal（離頁/換頁，見 footer-draggable.js）：setupClipReveal 把每個 <a> 包進
+     * .clip-reveal-wrapper（overflow:clip 遮罩，自身當每個連結的裁切框）。<a> 包進 div 後不再是 flex item →
+     * 預設 inline、transform 無效，故 display:block 才吃得到 yPercent 沉出/升入。wrapper 仍是 flex item 保留 gap-xs 間距。 */
+    .footer-privacy .clip-reveal-wrapper > .footer-link {
+      display: block;
     }
   }
 }

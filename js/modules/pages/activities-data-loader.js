@@ -723,15 +723,15 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
 // 規格（user 契約 2026-05-25 v6，所有 list expand 區 date row 一致）：
 //   - 起始日永不渲染年份（年份歸 list grouping / year header）
 //   - 結束日只在跨年時才渲染年份（新資訊不能省）
-//   - 單日 → `MM / DD`
-//   - 同年跨日 → `MM / DD - MM / DD`
-//   - 跨年 → `MM / DD - YYYY / MM / DD`（前端 col 寬度按此基準寫死）
+//   - 單日 → `MM/DD`
+//   - 同年跨日 → `MM/DD - MM/DD`
+//   - 跨年 → `MM/DD - YYYY/MM/DD`（前端 col 寬度按此基準寫死；斜線前後不空格，user 2026-06-08）
 // 多筆用 ", " 串接
 //
 // includeStartYear=true 例外：admission dateInHeader 用（沒 year column 副標需要完整日期）
-//   - 單日 → `YYYY / MM / DD`
-//   - 同年跨日 → `YYYY / MM / DD - MM / DD`
-//   - 跨年 → `YYYY / MM / DD - YYYY / MM / DD`
+//   - 單日 → `YYYY/MM/DD`
+//   - 同年跨日 → `YYYY/MM/DD - MM/DD`
+//   - 跨年 → `YYYY/MM/DD - YYYY/MM/DD`
 function formatDatesFromGroups(datesArr, { includeStartYear = false } = {}) {
   if (!Array.isArray(datesArr) || datesArr.length === 0) return '';
   return datesArr.map(d => formatSingleDateGroup(d, includeStartYear)).filter(Boolean).join(', ');
@@ -745,12 +745,12 @@ function formatSingleDateGroup(d, includeStartYear = false) {
   const sameDate = sameYear && sM === eM && sD === eD;
   const pad = (n) => String(n).padStart(2, '0');
   const startPart = includeStartYear
-    ? `${sY} / ${pad(sM)} / ${pad(sD)}`
-    : `${pad(sM)} / ${pad(sD)}`;
+    ? `${sY}/${pad(sM)}/${pad(sD)}`
+    : `${pad(sM)}/${pad(sD)}`;
   if (sameDate) return startPart;
   const endPart = sameYear
-    ? `${pad(eM)} / ${pad(eD)}`
-    : `${eY} / ${pad(eM)} / ${pad(eD)}`;
+    ? `${pad(eM)}/${pad(eD)}`
+    : `${eY}/${pad(eM)}/${pad(eD)}`;
   return `${startPart} - ${endPart}`;
 }
 
@@ -899,6 +899,8 @@ export async function loadListInto(containerId, url, options = {}) {
   //（permanent-exhibitions "每學期舉辦一次" 等）。完成 JSON 遷移後絕大多數走 dates path。
   // dateInHeader（admission）沒 year column，header 副標需要完整日期含年份。
   const computeDateDisplay = (item) => {
+    // 取消的場次（如暑期營某年停辦）：日期欄改顯示 Canceled / 取消（由 CMS isCancelled 布林標記）
+    if (item.isCancelled) return { en: 'Canceled', zh: '取消' };
     if (Array.isArray(item.dates) && item.dates.length > 0) {
       return { en: formatDatesFromGroups(item.dates, { includeStartYear: dateInHeader }), zh: '' };
     }

@@ -40,6 +40,19 @@ body.mode-color .footer-logo-inner {
   filter: var(--footer-invert-filter, invert(1));
 }
 
+/* Footer scatter 文字卡片：standard/inverse 用 JS inline 設的隨機三原色底（footer-draggable.js
+ * applyAccentColors）；mode-color 跟全站 accent 元件一致改 strict B/W（否則彩色卡片疊在 vivid
+ * 互補 hue footer bg 上對比不足、且只有 footer 沒翻黑白顯得不一致）。
+ * 底 = fg-contrast（對比 footer bg 的純黑白）、字 = fg-inverse-contrast（對比卡片底的純黑白）；
+ * !important 蓋過 JS inline background。手機無 scatter 不受影響。 */
+body.mode-color .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-link-item) {
+  background: var(--theme-fg-contrast) !important;
+}
+body.mode-color .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-link-item),
+body.mode-color .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-link-item) :is(h6, p, a) {
+  color: var(--theme-fg-inverse-contrast) !important;
+}
+
 /* ===== Layout ===== */
 body.mode-color header {
   background-color: transparent;

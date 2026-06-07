@@ -214,6 +214,21 @@
   transition: transform var(--dur-fast) ease, opacity var(--dur-fast) ease;
 }
 
+/* 進場 fade-in 初始態（opacity:0）─ 這些元素的 opacity 由 sketch.js draw() 的「頁面載入動畫」
+   逐幀驅動（inputBoxOpacity / logoOpacity / controlPanelOpacity 從 0 淡入 1，桌面 control-panel +
+   canvas 還要等打字機 1600ms 才開始）。CSS 預設若是 1，SPA 換頁 swap 進來後會先以 opacity:1 把整個
+   UI 畫出來，p5 第一幀 draw() 才 snap 到 0 再淡入 = 「先閃出完整畫面再從頭跑動畫」（user 2026-06-07 反饋）。
+   設 0 安全：p5 一定會跑 draw 把它們帶回 1，且 draw 用 inline style 特異性高於此規則、第一幀後完全接管。
+   六個元素各自只在自己斷點顯示（另一斷點 display:none），互不干擾。 */
+.input-container,
+#desktop-canvas-container,
+#canvas-container,
+.control-panel,
+.mobile-input-area,
+.mobile-bottom-bar {
+  opacity: 0;
+}
+
 /* --- Canvas & 輸入框 --- */
 /* 共用的背景顏色規則 */
 /* Canvas container 背景色（桌面版和手機版共用） */

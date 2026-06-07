@@ -469,128 +469,122 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
       }
     });
 
-    const contentEl = document.getElementById('library-card-content');
-    contentEl.classList.remove('content-visible');
+    // 出場：先讓當前 panel 的 chip + 內容 clip 擦出再切（對齊離頁 playExitAnimation 的 panel 退場）。
+    // 舊作法 toggle `.content-visible` class 想做淡出，但該 class 在 CSS 沒有任何對應規則 = 完全無效，
+    // 切分頁時舊內容沒退場、被 _doSwitchTab → onTabSwitchPre 直接 display:none → 視覺上「跳過出場、
+    // 直接播下一分頁的進場 wipe」（user 2026-06-07 反饋）。改用現成的 panel 退場 helper 補上出場。
+    const EXIT_DUR = DUR.fast;
+    const PANEL_IDS = ['lib-panel-awards', 'lib-panel-press', 'lib-panel-files', 'lib-panel-album'];
+    const outgoingPanel = /** @type {HTMLElement | null} */ (
+      PANEL_IDS.map(id => document.getElementById(id)).find(p => p && getComputedStyle(p).display !== 'none') || null
+    );
+    if (outgoingPanel) {
+      playPanelTitleExit(outgoingPanel, EXIT_DUR);
+      playPanelBodyExit(outgoingPanel, EXIT_DUR);
+    }
 
+    // 等出場 wipe 跑完才換卡（_doSwitchTab 內 onTabSwitchPre 會 display:none 舊 panel + 切到新 panel）
     setTimeout(() => {
       _doSwitchTab(clickedEl, () => {
-        const contentEl = document.getElementById('library-card-content');
         if (onTabSwitch) onTabSwitch(tabOf.get(activeEl));
-        if (contentEl) {
-          requestAnimationFrame(() => { contentEl.classList.add('content-visible'); });
-        }
         isSwitching = false;
       });
-    }, 300);
+    }, EXIT_DUR * 1000);
   }
 
+  // 切分頁的卡片動畫＝乾淨兩段（user 2026-06-07）：
+  //   Phase A 先把所有卡片「原地收起」（clip wipe out，幾何不動，不 morph 位置）
+  //   Phase B 收完才重排角色/幾何（隱藏態瞬間跳位，看不到位移）+ 一起「展開」（clip wipe in）
+  // 舊版是「同時 morph」：點到的色塊直接 clip 展開成灰卡、其他色塊收+展重疊 → 灰卡沒有「先收起」這步，
+  // user 觀察成「卡片展開跑兩次、收起跟展開黏在一起」。內容擦除/擦入由 switchTab + onTabSwitch 包在這之外，
+  // 整體序列＝擦內容 → 收卡片(A) → 展卡片(B) → 展內容。
   function _doSwitchTab(clickedEl, onDone) {
     const sec  = grayEl.closest('section');
     const sw   = sec.offsetWidth, sh = sec.offsetHeight;
     const gCx  = sw / 2, gCy = sh / 2;
 
-    const outgoingEl    = activeEl;
-    const outgoingColor = colorOf.get(clickedEl);
-    const outgoingTab   = tabOf.get(outgoingEl);
-    const incomingTab   = tabOf.get(clickedEl);
+    const COLLAPSE_DUR = DUR.fast;  // 收起
+    const EXPAND_DUR   = CLIP_DUR;  // 展開（沿用 0.5）
 
-    // 更新狀態
-    activeEl = clickedEl;
-    tabOf.set(clickedEl, incomingTab);
-    tabOf.set(outgoingEl, outgoingTab);
-    colorOf.set(outgoingEl, outgoingColor);
+    // ── Phase A：所有卡片原地 clip wipe out（維持當前幾何，不 morph 位置）──
+    allEls.forEach(el => exitOneCard(el, randomClipDir(), COLLAPSE_DUR));
 
-    // pre-swap：clip 揭露前先切 panel display + hide children，
-    // 否則 clickedEl 揭露成新灰卡時內部顯示的是舊 panel（chip 在左上角已 visible），
-    // 等揭露完才 reveal 新 panel → 視覺上是「先看到舊 chip，再切到新 chip」
-    if (onTabSwitchPre) onTabSwitchPre(incomingTab);
+    // ── Phase B：收完 → 重排角色/幾何（隱藏態瞬間跳位）→ 一起 clip wipe in ──
+    setTimeout(() => {
+      const outgoingEl    = activeEl;
+      const outgoingColor = colorOf.get(clickedEl);
+      const outgoingTab   = tabOf.get(outgoingEl);
+      const incomingTab   = tabOf.get(clickedEl);
 
-    // 立即把內容層移入新的主矩形（保持 opacity:0），避免 clip 動畫期間矩形呈現空白
-    const contentEl = document.getElementById('library-card-content');
-    if (contentEl) {
-      clickedEl.appendChild(contentEl);
-    }
+      // 更新狀態：clickedEl 變灰卡、舊灰卡 outgoingEl 變色塊
+      activeEl = clickedEl;
+      tabOf.set(clickedEl, incomingTab);
+      tabOf.set(outgoingEl, outgoingTab);
+      colorOf.set(outgoingEl, outgoingColor);
 
-    const gray = { cx: gCx, cy: gCy, w: MAIN_W, h: MAIN_H, rot: 0 };
-    cfgCache.set(clickedEl, gray); // clickedEl 變成灰色
+      // pre-swap：切 panel display + hide children（新灰卡展開時內部已是新 panel，避免看到舊 chip）
+      if (onTabSwitchPre) onTabSwitchPre(incomingTab);
 
-    const otherColorEls  = allEls.filter(el => el !== clickedEl && el !== outgoingEl);
-    const allColorNow    = [outgoingEl, ...otherColorEls];
-    const newZs          = shuffle([1, 2, 3]);
-    allColorNow.forEach((el, i) => { el.style.zIndex = String(newZs[i]); baseZOf.set(el, newZs[i]); });
+      // 內容層移入新的主矩形（panel children 已被 onTabSwitchPre hide，等展開後 onTabSwitch reveal）
+      const contentEl = document.getElementById('library-card-content');
+      if (contentEl) clickedEl.appendChild(contentEl);
 
-    const sortedColorNow = [...allColorNow].sort((a,b) => parseInt(b.style.zIndex) - parseInt(a.style.zIndex));
-    const corners        = shuffle([{dx:-1,dy:-1},{dx:1,dy:-1},{dx:-1,dy:1},{dx:1,dy:1}]).slice(0, 3);
-    const cfgMap         = new Map();
+      const gray = { cx: gCx, cy: gCy, w: MAIN_W, h: MAIN_H, rot: 0 };
+      cfgCache.set(clickedEl, gray); // clickedEl 變成灰色
 
-    sortedColorNow.forEach((el, i) => {
-      const elZ = parseInt(el.style.zIndex);
-      const occluders = [gray, ...sortedColorNow
-        .filter(o => o !== el && cfgMap.has(o) && parseInt(o.style.zIndex) > elZ)
-        .map(o => cfgMap.get(o))
-      ];
-      const cfg = genColorConfig(sw, sh, corners[i], occluders);
-      cfgMap.set(el, cfg);
-      cfgCache.set(el, cfg); // ← 立即更新 cache
+      const otherColorEls  = allEls.filter(el => el !== clickedEl && el !== outgoingEl);
+      const allColorNow    = [outgoingEl, ...otherColorEls];
+      const newZs          = shuffle([1, 2, 3]);
+      allColorNow.forEach((el, i) => { el.style.zIndex = String(newZs[i]); baseZOf.set(el, newZs[i]); });
 
-      if (otherColorEls.includes(el)) {
-        const hideDir = randomClipDir();
-        const showDir = randomClipDir();
-        el.style.transition = 'none';
-        el.style.clipPath   = hideDir.show;
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            el.style.transition = `clip-path ${CLIP_DUR}s ease-in`;
-            el.style.clipPath   = hideDir.hide;
-          });
-        });
-        setTimeout(() => {
-          el.style.transition = 'none';
-          if (cfg) setAsColor(el, colorOf.get(el), cfg);
-          el.style.clipPath = showDir.hide;
-          renderMarquee(el); // <-- 新增：立刻生成並顯示 marquee，確保動畫過程中標題可見
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              el.style.transition = `clip-path ${CLIP_DUR}s ease-out`;
-              el.style.clipPath   = showDir.show;
-              setTimeout(() => { el.style.transition = TRANSITION; el.style.clipPath = ''; }, CLIP_DUR * 1000);
-            });
-          });
-        }, CLIP_DUR * 1000);
-      } else {
-        el.style.transition = 'none';
+      const sortedColorNow = [...allColorNow].sort((a,b) => parseInt(b.style.zIndex) - parseInt(a.style.zIndex));
+      const corners        = shuffle([{dx:-1,dy:-1},{dx:1,dy:-1},{dx:-1,dy:1},{dx:1,dy:1}]).slice(0, 3);
+      const cfgMap         = new Map();
+
+      // 色塊：算新幾何 + 設到位（hidden clip + transition:none，瞬間跳位看不到位移）
+      const expandDirs = new Map();
+      sortedColorNow.forEach((el, i) => {
+        const elZ = parseInt(el.style.zIndex);
+        const occluders = [gray, ...sortedColorNow
+          .filter(o => o !== el && cfgMap.has(o) && parseInt(o.style.zIndex) > elZ)
+          .map(o => cfgMap.get(o))
+        ];
+        const cfg = genColorConfig(sw, sh, corners[i], occluders);
+        cfgMap.set(el, cfg);
+        cfgCache.set(el, cfg);
+
         const dir = randomClipDir();
-        if (cfg) setAsColor(el, colorOf.get(el), cfg);
+        expandDirs.set(el, dir);
+        el.style.transition = 'none';
+        setAsColor(el, colorOf.get(el), cfg);
         el.style.clipPath = dir.hide;
-        renderMarquee(el); // <-- 新增：立刻生成並顯示 marquee，確保動畫過程中標題可見
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            el.style.transition = `clip-path ${CLIP_DUR}s ease-out`;
-            el.style.clipPath   = dir.show;
-            setTimeout(() => { el.style.transition = TRANSITION; el.style.clipPath = ''; }, CLIP_DUR * 1000);
-          });
-        });
-      }
-    });
-
-    // clickedEl → 灰色主矩形
-    clickedEl.style.transition = 'none';
-    const grayDir = randomClipDir();
-    setAsGray(clickedEl, sw, sh);
-    clickedEl.style.clipPath = grayDir.hide;
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        clickedEl.style.transition = `clip-path ${CLIP_DUR}s ease-out`;
-        clickedEl.style.clipPath   = grayDir.show;
-        setTimeout(() => {
-          clickedEl.style.transition = TRANSITION;
-          clickedEl.style.clipPath   = '';
-          // cfgCache 已在 forEach 裡全部更新，直接刷新
-          refreshMarquees();
-          if (onDone) onDone();
-        }, CLIP_DUR * 1000);
+        renderMarquee(el);  // 先生成 marquee，展開過程中標題可見
       });
-    });
+
+      // clickedEl → 灰卡（隱藏態就位）
+      const grayDir = randomClipDir();
+      clickedEl.style.transition = 'none';
+      setAsGray(clickedEl, sw, sh);
+      clickedEl.style.clipPath = grayDir.hide;
+
+      // 下一個 rAF：所有卡片一起 clip wipe in（展開）
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          sortedColorNow.forEach(el => {
+            el.style.transition = `clip-path ${EXPAND_DUR}s ease-out`;
+            el.style.clipPath   = expandDirs.get(el).show;
+          });
+          clickedEl.style.transition = `clip-path ${EXPAND_DUR}s ease-out`;
+          clickedEl.style.clipPath   = grayDir.show;
+
+          setTimeout(() => {
+            allEls.forEach(el => { el.style.transition = TRANSITION; el.style.clipPath = ''; });
+            refreshMarquees();
+            if (onDone) onDone();  // → onTabSwitch → playPanelReveal（展內容）
+          }, EXPAND_DUR * 1000);
+        });
+      });
+    }, COLLAPSE_DUR * 1000);
   }
 
   // ── 進場動畫 ──────────────────────────────────────────────────

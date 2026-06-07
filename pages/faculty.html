@@ -71,8 +71,9 @@
       </div>
     </section>
 
-    <!-- Faculty Cards Section -->
-    <section id="faculty-cards" class="bg-white pt-3xl pb-6xl md:py-6xl">
+    <!-- Faculty Cards Section
+         min-h-screen：切到卡片數少的分類（如兼任/行政只一排）時 section 不會塌短、留白跳動（user 2026-06-07） -->
+    <section id="faculty-cards" class="bg-white min-h-screen pt-3xl pb-6xl md:py-6xl">
       <div class="site-container">
         <!-- grid-20：桌面 nav 占 col 1-2（英文折行，可溢到 col 3 buffer）、卡片區 col 4-20；手機 flex-col 堆疊 -->
         <div class="flex flex-col gap-gutter md:grid md:grid-cols-20">

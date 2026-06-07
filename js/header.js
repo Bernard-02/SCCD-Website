@@ -949,7 +949,10 @@ export function initHeader() {
     }
 
     // 5. Header Hide on Footer Reveal
-    // bars + logo 全走 lightbox-shell 共用的 clip-path 收/展（per-element random top/bottom 方向），跟 lightbox/slide-in 同款
+    // bars + logo 全走 lightbox-shell 共用的 clip-path 收/展（per-element random top/bottom 方向）。
+    // ⚠️ stagger 設 0（all-at-once）：logo 是 getFooterHideTargets 的最後一個 → 用預設 0.06 stagger 會比所有 bars
+    //    晚收（實測 logo 540ms vs 第一個 bar 123ms 差 ~417ms）＝logo 明顯拖在尾巴。user 2026-06-08：「他們不是一起
+    //    收起的嗎」→ 改 stagger 0 讓 bars+logo 同時收起。lightbox/slide-in 的 header 收起不含 logo、維持預設 0.06。
     // logo target 用 #header-logo 的 <a> 父層（純 link wrapper、無 gsap tween）：
     //   直接 clip-path #header-logo 會被 animateHeaderHide 內的 killTweensOf 殺掉 logo scroll-shrink ScrollTrigger tween
     //   <a> bbox == #header-logo bbox（唯一 child），視覺等效
@@ -970,10 +973,10 @@ export function initHeader() {
         if (typeof gsap === 'undefined') return;
         if (isNearFooter && !barsHidden) {
           barsHidden = true;
-          animateHeaderHide(getFooterHideTargets());
+          animateHeaderHide(getFooterHideTargets(), { stagger: 0 });
         } else if (!isNearFooter && barsHidden) {
           barsHidden = false;
-          animateHeaderShow(getFooterHideTargets());
+          animateHeaderShow(getFooterHideTargets(), { stagger: 0 });
         }
       }, { passive: true });
       return true;

@@ -195,6 +195,21 @@ export function initDegreeShowGallery(container, pool) {
   }
 
   return {
-    destroy() { if (timer) clearInterval(timer); }
+    destroy() { if (timer) clearInterval(timer); },
+    // 離頁退場：停輪播 + 每張 slot 同步 clip-path 收掉（= 進場 per-image clip-in 的反向，同方向/時長/ease）
+    hideAll() {
+      if (timer) { clearInterval(timer); timer = null; }
+      if (typeof gsap === 'undefined' || slots.length === 0) return Promise.resolve();
+      return new Promise(resolve => {
+        let n = slots.length;
+        slots.forEach(s => gsap.to(s, {
+          clipPath: HIDE_CLIP_LEAVE,
+          duration: ANIM_DUR,
+          ease: ANIM_EASE,
+          overwrite: 'auto',
+          onComplete: () => { if (--n <= 0) resolve(); },
+        }));
+      });
+    },
   };
 }

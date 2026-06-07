@@ -193,20 +193,17 @@
 }
 .press-item-meta-right {
   display: flex;
-  align-items: center;       /* date ↔ icon 彼此置中（同一行）*/
+  align-items: center;       /* media icon 垂直置中 */
   align-self: start;         /* 整塊靠上：對齊副標第一行（grid 預設 stretch 會浮到兩行中間，user 2026-06-05 要靠上）*/
   gap: var(--spacing-md);
-  white-space: nowrap;
-}
-.press-item-date {
-  font-size: var(--font-size-p3);
-  font-weight: 700;
-  color: rgba(var(--lib-fg-rgb), 0.5);
   white-space: nowrap;
 }
 .press-item-media-icon {
   font-size: var(--font-size-p3);
   color: rgba(var(--lib-fg-rgb), 0.5);
+  /* icon 高 1em、副標行高 1.5em 且兩者頂端對齊 → icon 視覺中心比文字行中心高 (1.5−1)/2=0.25em
+     補 margin-top 把 icon 中心壓到副標第一行中心（手機 meta 改 column、icon 獨立一行 → 下方歸零）*/
+  margin-top: 0.25em;
 }
 
 /* 分類 tag（只在 all 模式顯示，對齊右側第二欄頂部） */
@@ -1121,6 +1118,9 @@
   }
   .press-item-meta-right {
     justify-content: flex-start;
+  }
+  .press-item-media-icon {
+    margin-top: 0;   /* 手機 icon 獨立一行，不需桌面的對齊補償 */
   }
   .press-item-cat-tag {
     width: 100%;

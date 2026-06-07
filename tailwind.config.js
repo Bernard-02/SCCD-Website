@@ -6,6 +6,11 @@ module.exports = {
     "./js/**/*.js",
     "./data/**/*.json",
   ],
+  // js 裡的否定式 `!active`（如 `if (!active || ...)`）被 content scanner 當成 important 變體 candidate，
+  // 害 Tailwind 對所有引用 `.active` 的 @layer components 規則生成 `\!active` 孿生版（含 `:not(.\!active)!important`）。
+  // 那條 `[data-bar=about].has-active .nav-link:not(.\!active){color:50%!important}` 會誤匹配真 active link
+  // （class 是 `active` 非 `!active`）→ 蓋過 `.nav-link.active` 的黑色 → 高亮失效（2026-06-08 實測）。blocklist 擋掉。
+  blocklist: ['!active'],
   theme: {
     extend: {
       // 顏色系統

@@ -15,10 +15,13 @@
  * Pattern reference: js/modules/pages/error-404.js
  */
 
-// 注意：原本用 playClipReveal (僅 yPercent)；改成 4-direction 自己處理 x/y 兩軸
-// import { playClipReveal } from './scroll-animate.js';
+// scatter items 用 4-direction 雙軸自己處理（不用 playClipReveal 的單軸）；
+// 規章區 4 連結改用 setupClipReveal 各自包 overflow:clip 遮罩做獨立 clip-reveal（見 playFooterExit）
+import { setupClipReveal } from './scroll-animate.js';
 import { awaitLayoutReady } from './await-layout-ready.js';
 import { DUR, EASE } from './motion.js';
+// 沿用 header bars 的 clip-path 收/展（user 2026-06-07：footer logo 隱藏要跟 header logo 同法、不用 opacity）
+import { animateHeaderHide, animateHeaderShow } from '../lightbox/lightbox-shell.js';
 
 // 4 個 entry/exit 方向（random per item per shuffle）— 對齊 hero clip-reveal pattern 但擴成雙軸
 const ENTRY_DIRECTIONS = ['top', 'right', 'bottom', 'left'];
@@ -100,6 +103,17 @@ const SHUFFLE_INTERVAL_MS = 10000;
 const SHUFFLE_EXIT_S = 0.6;
 const SHUFFLE_EXIT_STAGGER = 0.06;
 
+// 離頁退場（playFooterExit）的 stagger：散佈 items 與 logo/privacy extras 共用。設 0 = 全部同時出場、
+// 出場時長完全一致（user 2026-06-08 要「都一樣」）。原本用 {amount:0.2, axis:'y'}：axis:'y' 是依 Y 座標的
+// spatial stagger，在「8 個散佈 items」vs「2 個 extras」元素數/位置不同下展成不同落差 → logo/legal 看起來比較快。
+// 共用 0 就保證每個元素 duration/ease/起跑全同、同時收完。
+const FOOTER_EXIT_STAGGER = 0;
+
+// 離頁退場時長＝DUR.medium(0.5s)，直接照 hero exit（hero-animation.js EXIT_DURATION=0.5 + EASE.exit/power3.in）。
+// 歷史：曾為「對齊頁面 cascade 總長」拉到 0.75s，但 power3.in 在 0.75s 前段空白被放大＝「delay 很久才走」
+// （user 2026-06-08；中途試 power2.in@0.75 仍怪）→ user 要直接照 hero clip-reveal 設定 → 縮回 0.5s 配 power3.in 就順。
+const FOOTER_EXIT_DUR = DUR.medium;
+
 // Init 階段 build 1 個 verified layout（第一眼正常）；後續每次 shuffle 在 exit 動畫期間
 // 即時重新 generate+verify 1 個新 layout（見 shuffleAll），不再從 cache 輪播。
 // 放棄 cache 是因為 user 反饋「每次 random 都是一樣 pos」— 10 個 layout 輪播 user 看得出來。
@@ -141,6 +155,35 @@ function domRectsOverlap(a, b, padding) {
 }
 
 // waitForLayoutReady 已抽出到 js/modules/ui/await-layout-ready.js（共用 helper）
+
+// 地址卡寬度貼齊「實際 textbox」：英文地址在 .max-w-sm(24rem) 內 wrap，但 block 的 max-content 被
+// cap 在 24rem → shrink-to-fit 用 24rem 當卡寬，比真正最長一行寬、右側殘留空白。
+// 用 TreeWalker 量所有 text node 的最右 pixel = 實際最長行寬，把 .footer-office width 鎖到「最長行 +
+// 左右 padding」→ 去掉空白、卡片貼齊文字（中文 nowrap 行通常最寬，自然成為卡寬基準）。
+// 先 clear width 再量 → re-init（router recovery）時不會疊用上一輪鎖死的寬度。box-sizing:border-box
+// → width 含 padding。一次性（fonts.ready 後文字寬不再變），不在每次 shuffle 重算。
+function applyOfficeSnugWidth(office) {
+  if (!office) return;
+  office.style.width = '';
+  void office.offsetWidth; // force reflow 讓 shrink-to-fit 還原自然寬
+  const cs = getComputedStyle(office);
+  const padL = parseFloat(cs.paddingLeft) || 0;
+  const padR = parseFloat(cs.paddingRight) || 0;
+  const contentLeft = office.getBoundingClientRect().left + padL;
+  let maxRight = 0;
+  const walker = document.createTreeWalker(office, NodeFilter.SHOW_TEXT);
+  let node;
+  while ((node = walker.nextNode())) {
+    if (!node.nodeValue || !node.nodeValue.trim()) continue;
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    for (const r of range.getClientRects()) {
+      const off = r.right - contentLeft;
+      if (off > maxRight) maxRight = off;
+    }
+  }
+  if (maxRight > 0) office.style.width = `${Math.ceil(maxRight) + padL + padR + 1}px`;
+}
 
 function wrapItemsInAnchors(items) {
   return items.map((item) => {
@@ -457,6 +500,9 @@ export async function initFooterScatter(scope) {
   const items = anchors.map((a) => a.firstElementChild).filter(Boolean);
   if (anchors.length === 0 || items.length === 0) return;
 
+  // 地址卡寬度貼齊實際文字（去掉 max-w-sm 撐出的右側空白）；在 GSAP transform 套上前量最準
+  applyOfficeSnugWidth(footer.querySelector('.footer-office'));
+
   // 文字 block 套初始三原色底色 + 綁 hover freeze（hover 凍結 shuffle 倒數、離開續跑）
   applyAccentColors(items);
   bindHoverPause(anchors);
@@ -485,5 +531,96 @@ export async function initFooterScatter(scope) {
     anchors.forEach((a) => { a.style.opacity = '1'; });
   }
 
+  startShuffleLoop(area, anchors, obstacles, items, fallbackLayout);
+}
+
+// ── 離頁退場 + 換頁後重置（user 2026-06-07：點 footer 連結離頁時 footer 元素也做出場，過場才不硬）──
+// footer 是持久元素（router 只 swap #page-content，不動 footer）→ 退場/重置由 router 在換頁流程驅動：
+//   runPageExit 階段呼叫 playFooterExit()（footer 在視窗內才跑、回 Promise 讓 router await）；
+//   swap + scrollToTop 後呼叫 resetFooterAfterExit()（此時 footer 已捲離視窗 → 重新散佈進場不被看到、純復位）。
+// _footerExited flag：只在「退場真的跑了」時才需要重置 → header 連結（footer 不在畫面）導航時兩者皆 no-op，
+//   shuffle loop 不被打斷。
+let _footerExited = false;
+let _footerExitResolve = null;
+
+// 散佈 items 以外的 footer 元素：它們不在 scatter 系統內，退場時若不動會「凍在畫面上」顯得只散了一半。
+//   - 左側 Lottie logo（.footer-logo-area）：用 header bars 同款 clip-path 收/展（animateHeaderHide/Show），
+//     跟 header logo 隱藏做法一致（user 2026-06-07：logo chrome 一律 clip-path、不用 opacity）。
+//   - 左下規章連結區（.footer-privacy）：改用 clip-reveal（yPercent 沉出/升入），.footer-privacy 自身 overflow:clip
+//     當遮罩、只動內層 `> div`（不動態 wrap，避免破壞 .footer-privacy > div 的 align/text-align 規則）。user 2026-06-08。
+function getFooterLogo(area) {
+  const footerRoot = area.closest('footer');
+  return footerRoot ? footerRoot.querySelector('.footer-logo-area') : null;
+}
+
+// 規章區 4 個連結各自獨立 clip-reveal：回傳 4 個 <a>。setupClipReveal 會各包一層 overflow:clip 遮罩，
+// <a> 靠 footer.css 的 display:block 才吃得到 yPercent transform（包進 div 後不再是 flex item、預設 inline）。
+function getFooterPrivacyLinks(area) {
+  const footerRoot = area.closest('footer');
+  if (!footerRoot) return [];
+  return Array.from(footerRoot.querySelectorAll('.footer-privacy a'));
+}
+
+export function playFooterExit() {
+  if (typeof gsap === 'undefined' || !shuffleCtx) return Promise.resolve();
+  const { area, items } = shuffleCtx;
+  if (!area || area.offsetParent === null || !items.length) return Promise.resolve();
+  // 只在 footer 真的在視窗內才退場（捲在上方點 header 連結 → footer 不在畫面 → 不跑、不打斷 shuffle）
+  const r = area.getBoundingClientRect();
+  const vh = window.innerHeight || 0;
+  if (r.bottom <= 0 || r.top >= vh) return Promise.resolve();
+
+  // 連點：上一次退場 Promise 還沒 resolve 又被呼叫 → 先 resolve 舊的，否則 killTweensOf 殺掉舊 onComplete = hang
+  if (_footerExitResolve) { _footerExitResolve(); _footerExitResolve = null; }
+
+  _footerExited = true;
+  stopShuffleLoop();
+  const logo = getFooterLogo(area);
+  const privacyLinks = getFooterPrivacyLinks(area);
+  if (privacyLinks.length) setupClipReveal(privacyLinks, { hide: false }); // 各包 overflow:clip 遮罩（idempotent）
+  gsap.killTweensOf(items);
+  const exitDirs = items.map(() => pickRandomDirection());
+  return new Promise(resolve => {
+    _footerExitResolve = resolve;
+    // 三組 footer 元素 timing **完全相同**（FOOTER_EXIT_DUR 0.5s + EASE.exit + 無 stagger）→ 同時、同速、時長一致出場。
+    // ease/時長直接照 hero clip-reveal exit（hero-animation.js EXIT_DURATION=0.5 + EASE.exit/power3.in）：
+    //   power3.in 在「短時長 0.5s」前段空白不明顯（hero 同設定手感 OK）；之前 footer 用 0.75s 才把 power3.in 前段
+    //   放大成「delay 很久才走」→ 縮回 0.5s 對齊 hero 就順（user 2026-06-08；曾試 power2.in@0.75 仍怪、改照 hero）。
+    //   - logo：header bars 同款 clip-path 收（隨機上/下 inset wipe）
+    //   - 規章區：4 個連結各自 clip-reveal 沉出（yPercent 0→100，每個 <a> 自己的 overflow:clip wrapper 當遮罩），
+    //     stagger 0 → 四個分開的 clip 但一起出場（user 2026-06-08）
+    // 三組同在 0.5s 結束，用 items 的 onComplete resolve。
+    if (logo) animateHeaderHide([logo], { duration: FOOTER_EXIT_DUR, ease: EASE.exit, stagger: FOOTER_EXIT_STAGGER });
+    if (privacyLinks.length) gsap.to(privacyLinks, { yPercent: 100, duration: FOOTER_EXIT_DUR, ease: EASE.exit, stagger: 0, overwrite: 'auto' });
+    gsap.to(items, {
+      xPercent: (i) => getHiddenTransform(exitDirs[i]).xPercent,
+      yPercent: (i) => getHiddenTransform(exitDirs[i]).yPercent,
+      duration: FOOTER_EXIT_DUR,
+      ease: EASE.exit,
+      stagger: FOOTER_EXIT_STAGGER,  // 與 extras 共用 → 全部同時、同時長
+      overwrite: 'auto',
+      onComplete: () => { _footerExitResolve = null; resolve(); },
+    });
+  });
+}
+
+export function resetFooterAfterExit() {
+  if (!_footerExited) return;
+  if (typeof gsap === 'undefined' || !shuffleCtx) { _footerExited = false; return; }
+  const { area, anchors, obstacles, items, fallbackLayout } = shuffleCtx;
+  // footer 在新頁是隱藏頁（generate/library/atlas）→ 留著 flag，下次顯示 footer 的頁再重置，避免 items 卡隱藏
+  if (!area || area.offsetParent === null) return;
+  _footerExited = false;
+  gsap.killTweensOf(items);
+  // 沿用現有 anchor 位置（exit 只動 item 的 xPercent/yPercent，anchor 位置沒變）→ 不重算 layout、直接重進場。
+  hideItemsRandomDirection(items);
+  playRandomDirReveal(items);
+  const logo = getFooterLogo(area);
+  const privacyLinks = getFooterPrivacyLinks(area);
+  if (privacyLinks.length) setupClipReveal(privacyLinks, { hide: false });
+  // timing 對齊 items 重進場（playRandomDirReveal：DUR.reveal + EASE.enter）→ 復位也一致
+  if (logo) animateHeaderShow([logo], { duration: DUR.reveal, ease: EASE.enter, stagger: 0.12 });
+  // 規章區 4 連結 clip-reveal 復位：從 yPercent:100（沉在遮罩下）一起升回 0（stagger 0）；fromTo 明確起點、clearProps 收乾淨
+  if (privacyLinks.length) gsap.fromTo(privacyLinks, { yPercent: 100 }, { yPercent: 0, duration: DUR.reveal, ease: EASE.enter, stagger: 0, overwrite: 'auto', clearProps: 'transform' });
   startShuffleLoop(area, anchors, obstacles, items, fallbackLayout);
 }

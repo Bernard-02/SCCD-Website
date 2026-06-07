@@ -59,15 +59,16 @@
     <!-- 文字説明 Section（min 100vh；移除 flex 居中改用自然流，pt-6xl 給頂部呼吸空間） -->
     <section class="bg-white relative" style="min-height: 100vh;">
       <div class="site-container w-full pt-6xl pb-3xl">
-        <div class="grid-12">
+        <!-- grid-20：內容對齊全站 col-5（nav/sticky chip 占 cols 1-4）；EN cols 5-12 / ZH cols 13-20 -->
+        <div class="grid-20">
           <!-- English (左) -->
-          <div class="col-span-12 md:col-start-3 md:col-span-5 mb-lg md:mb-0">
+          <div class="col-span-full md:col-start-5 md:col-span-8 mb-lg md:mb-0">
             <h5 class="text-black leading-snug">
               <span id="text-desc-en" style="display: block;"></span>
             </h5>
           </div>
           <!-- Chinese (右) -->
-          <div class="col-span-12 md:col-start-8 md:col-span-5">
+          <div class="col-span-full md:col-start-13 md:col-span-8">
             <h5 class="text-black leading-base">
               <span id="text-desc-cn" style="display: block;"></span>
             </h5>
@@ -76,8 +77,8 @@
 
         <!-- Events List：活動清單（時間 / 活動 / 地點 / 城市 四欄 1:2:2:1），由 JS 依 data.events 動態渲染；無 events 則整塊 hidden -->
         <!-- 文字一律 p1；活動/地點/城市顯示中英雙語（時間僅顯示一行） -->
-        <div id="events-section" class="grid-12 mt-4xl hidden">
-          <div class="col-span-12 md:col-start-3 md:col-span-10">
+        <div id="events-section" class="grid-20 mt-4xl hidden">
+          <div class="col-span-full md:col-start-5 md:col-span-16">
             <!-- Data rows（JS render） -->
             <div id="events-list"></div>
           </div>
@@ -112,8 +113,8 @@
              en/zh 各強制單行（whitespace-nowrap）— 視覺契約：分支名 = 一行 EN + 一行 ZH，不可 wrap -->
         <div id="sticky-branch-chip" class="sticky-chip absolute left-0" style="top: 100%; margin-top: 1rem;">
           <span class="sticky-chip-inner text-p1 font-semibold">
-            <span id="sticky-branch-en" class="block whitespace-nowrap"></span>
-            <span id="sticky-branch" class="block whitespace-nowrap"></span>
+            <span id="sticky-branch-en" class="block"></span>
+            <span id="sticky-branch" class="block"></span>
           </span>
         </div>
       </div>

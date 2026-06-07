@@ -43,36 +43,36 @@ export function getHeaderTargets() {
 // 'top' = bottom→top 收（從底往上消）；'bottom' = top→bottom 收（從頂往下消）
 const exitDirMap = new WeakMap();
 
-export function animateHeaderHide(targets) {
+// opts（duration/ease/stagger）可覆寫：header bars 用預設（power2.out fast 起手、立刻收）；
+// 其他 caller（如 footer 離頁，user 2026-06-08 要 footer 各元素出場時長一致）可傳自己的 timing 對齊別組動畫。
+export function animateHeaderHide(targets, { duration = DUR.slow, ease = EASE.enterSoft, stagger = 0.06 } = {}) {
   if (typeof gsap === 'undefined' || !targets.length) return;
   gsap.killTweensOf(targets);
   targets.forEach(el => exitDirMap.set(el, Math.random() < 0.5 ? 'top' : 'bottom'));
   // fromTo：強制 from-state 確保第一次開啟也有完整起點（current 可能是 'none'，GSAP 會跳終值）
   // inset 四值統一用 %（atlas memory：混用單位 GSAP 直接跳終值不動畫）
-  // ease 用 power2.out（fast 起手、smooth 收尾）讓 bars 在 lightbox 打開的瞬間立刻開始消失
-  // 若用 power2.in 前半段幾乎沒動 → 視覺上會感覺「等一下才收」
   gsap.fromTo(targets,
     { clipPath: 'inset(0% 0% 0% 0%)' },
     {
       clipPath: i => exitDirMap.get(targets[i]) === 'top'
         ? 'inset(0% 0% 100% 0%)'
         : 'inset(100% 0% 0% 0%)',
-      duration: DUR.slow,
-      ease: EASE.enterSoft,
-      stagger: 0.06,
+      duration,
+      ease,
+      stagger,
       overwrite: true,
     }
   );
 }
 
-export function animateHeaderShow(targets) {
+export function animateHeaderShow(targets, { duration = DUR.slow, ease = EASE.enterSoft, stagger = 0.06 } = {}) {
   if (typeof gsap === 'undefined' || !targets.length) return;
   gsap.killTweensOf(targets);
   gsap.to(targets, {
     clipPath: 'inset(0% 0% 0% 0%)',
-    duration: DUR.slow,
-    ease: EASE.enterSoft,
-    stagger: 0.06,
+    duration,
+    ease,
+    stagger,
     overwrite: true,
     onComplete: () => {
       targets.forEach(el => { el.style.clipPath = ''; });
@@ -107,6 +107,31 @@ function restoreHeaderZ() {
     header.style.removeProperty('z-index');
   }
   savedHeaderZ = null;
+}
+
+// modal 開著時，logo（raiseHeaderZ 後浮在 modal 之上）要「完全不是連結」，不只是擋 click：
+// 拔掉 href → ① 不導航 ② 無 pointer 游標（cursor.css 規則是 `body a[href]`，無 href 即回 default）
+// ③ 無瀏覽器連結預覽 tooltip。<a> 仍 pointer-events:auto 接住點擊 → 不會穿透到 overlay 誤關面板。
+// （user 2026-06-07：「不能點擊」要連 hover 游標 + 左下角連結預覽都沒有；router.js 另有 header 連結 guard 兜底）
+let savedLogoHrefs = null;
+function getLogoLinks() {
+  return [
+    document.querySelector('#header-logo')?.closest('a'),
+    document.querySelector('#header-logo-mobile')?.closest('a'),
+    document.getElementById('header-logo-mobile-sccd'),
+  ].filter(Boolean);
+}
+function disableLogoLinks() {
+  savedLogoHrefs = getLogoLinks().map(a => {
+    const href = a.getAttribute('href');
+    if (href !== null) a.removeAttribute('href');
+    return [a, href];
+  });
+}
+function restoreLogoLinks() {
+  if (!savedLogoHrefs) return;
+  savedLogoHrefs.forEach(([a, href]) => { if (href !== null) a.setAttribute('href', href); });
+  savedLogoHrefs = null;
 }
 
 // 找全螢幕 lightbox modal：選 `fixed inset-0 z-[9999]` 三件套（activities, library-viewer, pdf-viewer 等）
@@ -243,6 +268,7 @@ export function enterLightboxMode() {
     // caller 不應自己 call switchHeaderLogo，否則跟 Observer 撞 race（logoLoadGeneration +2 → 第一次 load stale）
     document.body.classList.add('lightbox-open');
     raiseHeaderZ();
+    disableLogoLinks();
     padLightboxTops();
     animateHeaderHide(getHeaderTargets());
   }
@@ -256,6 +282,7 @@ export function exitLightboxMode() {
     document.body.classList.remove('lightbox-open');
     animateHeaderShow(getHeaderTargets());
     restoreHeaderZ();
+    restoreLogoLinks();
     // 延後到 fade-out 結束（300ms 對齊 activities/library 的 opacity transition）：
     // 立即還原 padding 會讓內容在 fade-out 期間瞬間往上跳，視覺割裂
     setTimeout(() => {
@@ -269,6 +296,7 @@ export function resetLightboxMode() {
   openCount = 0;
   restoreLightboxTops();
   restoreHeaderZ();
+  restoreLogoLinks();  // SPA 換頁時 modal 還開著（如返回鍵）→ 把 logo href 還回去，否則下一頁 logo 變死連結
   // 解除底層 scroll freeze（若 lightbox 沒走正規 exit 流程退出時兜底）
   if (scrollLockCleanup) { scrollLockCleanup(); scrollLockCleanup = null; }
 }

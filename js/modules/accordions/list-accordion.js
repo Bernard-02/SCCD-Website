@@ -99,41 +99,60 @@ const ACCENT_TO_DEEP = {
  * 避免「打開 A → 切到 B → 切回 A 時 accordion 仍開」的殘留體驗
  * 重置範圍對齊 closeListHeader 的 onComplete cleanup（active class / inline bg / dataset / item color var / content height / chevron rotation）
  */
+// 瞬間收合單一展開的 list-header（無動畫 + 完整 cleanup，對齊 closeListHeader 的 onComplete cleanup）。
+// 用於：① section 切換清殘留 ② 開新 item 時瞬間關掉上方其他展開項（讓版面立即定局、量得到 header 真實落點）。
+export function instantCloseListHeader(header) {
+  const content = (header.nextElementSibling?.classList.contains('list-content')
+    ? header.nextElementSibling
+    : header.closest('.list-item')?.querySelector('.list-content')) || header.nextElementSibling;
+  const chevron = header.querySelector('.icon-chevron-list');
+  const workshopItem = header.closest('.list-item');
+
+  header.classList.remove('active');
+  detachStickyPinObserver(header);
+  header.style.background = '';
+  delete header.dataset.accentHex;
+  delete header.dataset.collapsing;
+
+  // 副標 wrapper：移 .active 會讓「收起的副標」重新展開（lectures 一 active 就收 / 其他頁 .is-pinned 才收）。
+  // instant close 要讓它「瞬間」展開（不走 0.3s grid-rows transition），否則開新 item 量上方位置時副標還在長、
+  // 落點會差一個副標高（lecture 實測差 ~53px）。transition:none 瞬間定高，rAF 後還原讓正常互動仍平滑。
+  // 用 .list-subtitles → closest 取 wrapper（不用 :has querySelector，避免舊瀏覽器丟 SyntaxError）
+  const subEl = header.querySelector('.list-subtitles');
+  const subWrap = /** @type {HTMLElement | null} */ (subEl ? subEl.closest('.clip-reveal-wrapper') : null);
+  if (subWrap) {
+    subWrap.style.transition = 'none';
+    requestAnimationFrame(() => { subWrap.style.transition = ''; });
+  }
+
+  if (workshopItem) {
+    workshopItem.style.background = '';
+    workshopItem.style.removeProperty('--item-color');
+    workshopItem.style.removeProperty('--item-color-deep');
+  }
+
+  if (content && typeof gsap !== 'undefined') {
+    gsap.killTweensOf(content);
+    gsap.set(content, { height: 0, overflow: 'hidden' });
+    content.style.background = '';
+  }
+
+  if (chevron && typeof gsap !== 'undefined') {
+    gsap.killTweensOf(chevron);
+    gsap.set(chevron, { rotation: 90 });  // reset → list-header close state 朝下
+  }
+}
+
+/**
+ * Instant 收合 panel 內所有打開的 list-header accordion（無動畫）
+ * 用於 activities/admission section 切換時把 target panel 內遺留的 open state 清空，
+ * 避免「打開 A → 切到 B → 切回 A 時 accordion 仍開」的殘留體驗
+ */
 export function resetListAccordionsInPanel(panel) {
   if (!panel) return;
   const openHeaders = panel.querySelectorAll('.list-header.active');
   if (!openHeaders.length) return;
-
-  openHeaders.forEach(header => {
-    const content = (header.nextElementSibling?.classList.contains('list-content')
-      ? header.nextElementSibling
-      : header.closest('.list-item')?.querySelector('.list-content')) || header.nextElementSibling;
-    const chevron = header.querySelector('.icon-chevron-list');
-    const workshopItem = header.closest('.list-item');
-
-    header.classList.remove('active');
-    detachStickyPinObserver(header);
-    header.style.background = '';
-    delete header.dataset.accentHex;
-    delete header.dataset.collapsing;
-
-    if (workshopItem) {
-      workshopItem.style.background = '';
-      workshopItem.style.removeProperty('--item-color');
-      workshopItem.style.removeProperty('--item-color-deep');
-    }
-
-    if (content && typeof gsap !== 'undefined') {
-      gsap.killTweensOf(content);
-      gsap.set(content, { height: 0, overflow: 'hidden' });
-      content.style.background = '';
-    }
-
-    if (chevron && typeof gsap !== 'undefined') {
-      gsap.killTweensOf(chevron);
-      gsap.set(chevron, { rotation: 90 });  // reset → list-header close state 朝下
-    }
-  });
+  openHeaders.forEach(header => instantCloseListHeader(header));
 }
 
 // Sticky-pinned 偵測：sentinel pattern — 在 list-header 上方塞 0 高度 sentinel div，IO 偵測 sentinel
@@ -289,70 +308,53 @@ function initListHeaderAccordion() {
         const others = [...scope.querySelectorAll('.list-header.active')].filter(o => o !== this);
 
         // navigateToItem (ref/deep-link) 在 click 此 header 前已自己 scroll 對齊好 item → 標記 skipOpenScroll，
-        // 不讓下面的 open-scroll 再捲一次把對齊弄跑掉（user 2026-06-05「打開 accordion 對齊跑掉」）。
-        // flag 讀完即清，之後使用者手動點開照常捲。
+        // 跳過下面 step(3) 的開啟捲動（deep-link 是全新 panel、上方無展開，已對齊好不要再動）。
         const skipOpenScroll = this.dataset.skipOpenScroll === '1';
         delete this.dataset.skipOpenScroll;
 
-        // Scroll 對齊：點開時把 header 帶到 sticky 位置（與 close/open height tween 0.5s 同步）
-        // 為什麼：A 收起時 document 縮短但 scrollY 不變 → B 自然位置被往上拉，sticky 規則只在 active
-        // 啟用，動畫期間若 B 自然位置仍在 stickyTop 之下、collapse 過程又把整段往上推，B 可能整段
-        // 飄出 viewport 上緣；點開前主動 tween scrollY 到「B 的最終 stickyTop 位置」確保收尾時對齊
-        const headerRect = this.getBoundingClientRect();
-        let collapseAbove = 0;
-        others.forEach(other => {
-          if (other.getBoundingClientRect().top < headerRect.top) {
-            const c = /** @type {HTMLElement | null | undefined} */ ((other.nextElementSibling?.classList.contains('list-content')
-              ? other.nextElementSibling
-              : other.closest('.list-item')?.querySelector('.list-content')));
-            if (c) collapseAbove += c.offsetHeight;
-            // 上方收合中的 accordion，其副標若「現在是收的」(lecture 的 .active 收 / 任何 .is-pinned 收)，
-            // 收合後會失去 active/pinned → 副標重新展開把下方 B 往下推。從 collapseAbove 扣掉這段展開高，
-            // 否則 B 落點偏低、A 的副標露在 B 上方（user 2026-06-05 #2）。scrollHeight=展開後自然高(含 padding)，+8=flex gap 復原。
-            const otherSub = /** @type {HTMLElement | null} */ (other.querySelector('.list-subtitles'));
-            const otherSubWillReexpand = otherSub
-              && (other.closest('#panel-lectures') || other.classList.contains('is-pinned'));
-            if (otherSubWillReexpand && window.innerWidth >= 768) {
-              collapseAbove -= (otherSub.scrollHeight + 8);
+        // === 開 item 對齊（2026-06-08 重寫，workflow 收斂 + user 拍板）===
+        // 原理：把版面先變成「展開後的定局」（收搜尋列凍結 pin 線 + 瞬間關掉上方其他 item），量到 header 真實
+        // 位置，再唯一一次捲到「該 header 落在固定 pin 線」。精準完全由 CSS position:sticky 接管（已 playwright
+        // 實測 pixel 級準）— JS 不再預測落點，根治舊版「有的準有的差幾 px」。
+        // 取代了舊的 collapseAbove 預測 + settle 二次校正兩段（都刪了，那是「差幾 px」的殘餘來源）。
+        // user 拍板：① 只收 search bar、type-filter 留著 ② 上方其他 item 瞬間收合（落點 100% 準）。
+        // admission 也用 .activities-panel class 但無 .activities-filter-bar → 下面 null skip，走 fallback 200，更單純。
+        const stickyContainer = this.closest('[style*="--list-header-sticky-top"]');
+        let stickyTop = stickyContainer
+          ? (parseFloat(getComputedStyle(stickyContainer).getPropertyValue('--list-header-sticky-top')) || 200)
+          : 200;
+
+        // (1) 收起搜尋列（保留 type-filter）+ 同步把 pin 線凍結成「收起後」固定值（不等 ResizeObserver 慢一拍）。
+        //     收起用「瞬間」(transition:none)：避免 ①bar 0.3s 收合期間 header 從仍展開的 bar 下緣冒出來
+        //     ②ResizeObserver 在收合中途用 intermediate 高回寫 var 造成 pin 線抖。rAF 後還原 transition，全關時平滑滑回。
+        const activeFilterBar = /** @type {HTMLElement | null} */ (this.closest('.activities-panel')?.querySelector('.activities-filter-bar'));
+        if (activeFilterBar && !activeFilterBar.classList.contains('bar-hidden')) {
+          const searchInner = /** @type {HTMLElement | null} */ (activeFilterBar.querySelector('.activities-search-inner'));
+          if (searchInner) {
+            stickyTop -= searchInner.offsetHeight;       // 收起搜尋列後 bar 變矮 → pin 線上移到收起後的值
+            searchInner.style.transition = 'none';        // 瞬間收（layout 立即定局，量得到真值）
+            requestAnimationFrame(() => { searchInner.style.transition = ''; });  // 還原 → 全關時平滑滑回
+          }
+          activeFilterBar.classList.add('bar-hidden');    // type-filter 不在 .activities-search-inner 內 → 保留
+          if (stickyContainer) stickyContainer.style.setProperty('--list-header-sticky-top', stickyTop + 'px');
+        }
+
+        // (2) 瞬間關掉上方其他已展開的 item（無動畫）→ 版面立刻定局，取代 collapseAbove 預測。
+        others.forEach(other => instantCloseListHeader(other));
+
+        // (3) 強制 reflow 後量 header 真實 doc 位置 → 唯一一次捲到「落在 pin 線」。GSAP 保全站手感。
+        //     getBoundingClientRect 讀取本身觸發 reflow，拿到 (1)(2) 都套用後的真值，落點精準、不需事後校正。
+        if (!skipOpenScroll) {
+          const headerDocTop = this.getBoundingClientRect().top + window.scrollY;
+          const targetScrollY = Math.max(0, Math.round(headerDocTop - stickyTop));
+          if (Math.abs(targetScrollY - window.scrollY) > 1) {
+            if (typeof window.ScrollToPlugin !== 'undefined') {
+              gsap.to(window, { scrollTo: { y: targetScrollY, autoKill: false }, duration: DUR.medium, ease: EASE.move });
+            } else {
+              window.scrollTo({ top: targetScrollY, behavior: 'smooth' });
             }
           }
-        });
-        const stickyTopVar = getComputedStyle(this).getPropertyValue('--list-header-sticky-top').trim();
-        // 桌面：activities-data-loader 動態 set --list-header-sticky-top = 200 + filter-bar 高度
-        // 手機：沒人 set 此 var → fallback 用 --header-height + spacing-xl (=48) 給 list-header 跟 header 之間
-        // 留充足呼吸空間，title scroll 後不被 logo 半遮（user 反饋 2026-05-27）
-        // 原 hard-code 100 太小 (header 80 + 20 = 100)，title 邊緣會貼到 logo 下緣
-        const headerH = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--header-height') || '80', 10);
-        const stickyTop = parseFloat(stickyTopVar) || (window.innerWidth >= 768 ? 200 : headerH + 48);
-
-        // 副標收合行為（user 2026-06-05）：
-        // - lecture：維持捲到 sticky 頂 → header 點開即 pinned → 副標立刻收（IO 在 sticky-top 線上 fire）。
-        // - 其他有副標 section（industry / workshop / students-present）：點開時「少捲一截」，
-        //   header 停在 sticky-top 線之下（副標仍可見、未 pinned）→ 副標 stay；之後 user 往下滑過
-        //   sticky-top 線 IO 才 fire is-pinned 收副標。差別純粹靠「落點是否壓到 pin 線」決定。
-        // 副標 is-pinned collapse 是桌面 only（lists.css @media min-width:768）→ offset 也只桌面套，
-        // 手機 open-scroll 維持原樣（手機副標本來就不收，少捲一截沒意義且違反「不動不需要的」）
-        const subtitleEl = /** @type {HTMLElement | null} */ (this.querySelector('.list-subtitles'));
-        const isLecturePanel = this.closest('.activities-panel')?.id === 'panel-lectures';
-        let subtitleKeepOffset = 0;
-        if (subtitleEl && !isLecturePanel && window.innerWidth >= 768) {
-          const wrap = subtitleEl.closest('.clip-reveal-wrapper') || subtitleEl;
-          subtitleKeepOffset = /** @type {HTMLElement} */ (wrap).offsetHeight + 8;  // + flex gap-xs，落點落在 pin 線下確保未 pinned
         }
-        const targetScrollY = Math.max(0, window.scrollY + headerRect.top - collapseAbove - stickyTop - subtitleKeepOffset);
-        if (!skipOpenScroll && Math.abs(targetScrollY - window.scrollY) > 1) {
-          if (typeof window.ScrollToPlugin !== 'undefined') {
-            gsap.to(window, {
-              scrollTo: { y: targetScrollY, autoKill: false },
-              duration: DUR.medium,
-              ease: EASE.move,
-            });
-          } else {
-            window.scrollTo({ top: targetScrollY, behavior: 'smooth' });
-          }
-        }
-
-        others.forEach(other => closeListHeader(other));
         // Open - header / content 都保留 100% accent；ref 用對應 deep 色
         // workshopItem 也染同色：sticky header 與 content 在 fractional pixel 位置會出現 1-2px paint 縫，
         // 父層 .list-item 連續底色蓋住該縫；header 自己仍須保留 bg 用於 sticky 飄到別 item 上方時的覆蓋

@@ -101,9 +101,12 @@ function applyColorVars() {
   const cLum = relativeLuminance(cr, cg, cb);
   const cIsLightBg = cLum > 0.5;
   const cFgHex = cIsLightBg ? '#000000' : '#ffffff';
+  const cFgInverseHex = cIsLightBg ? '#ffffff' : '#000000';
   root.style.setProperty('--theme-bg-contrast', `rgb(${cr}, ${cg}, ${cb})`);
   root.style.setProperty('--theme-bg-contrast-rgb', `${cr}, ${cg}, ${cb}`);
   root.style.setProperty('--theme-fg-contrast', cFgHex);
+  // fg-contrast 的對比色（strict B/W）：footer 上的 chip 用 fg-contrast 當底時，文字用此維持純黑白對比
+  root.style.setProperty('--theme-fg-inverse-contrast', cFgInverseHex);
   // Footer logo Lottie 是黑色版（SCCDLogoStandard.json）；亮 footer bg = 不翻、暗 footer bg = invert(1) 翻白
   root.style.setProperty('--footer-invert-filter', cIsLightBg ? 'none' : 'invert(1)');
   // .theme-invert（黑色靜態 SVG/PNG）對比翻色：page bg 亮時不 invert（保留黑），暗時 invert(1) 變白
@@ -189,6 +192,7 @@ function stopColorLoop() {
   root.style.removeProperty('--theme-bg-contrast');
   root.style.removeProperty('--theme-bg-contrast-rgb');
   root.style.removeProperty('--theme-fg-contrast');
+  root.style.removeProperty('--theme-fg-inverse-contrast');
   root.style.removeProperty('--footer-invert-filter');
   // 清 wireframe logo 的 invert filter
   const logo = document.getElementById('header-logo');

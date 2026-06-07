@@ -235,6 +235,9 @@
      避免 sticky-chip-inner 預設 1.15 過緊讓中英太貼 */
   #sticky-branch-chip .sticky-chip-inner {
     line-height: var(--line-height-base);
+    /* 分支名過長時 fixed 左側 chip 會往右覆蓋到 content 的 event tab → 設 max-width + 允許 wrap
+       多行（HTML 已移除 whitespace-nowrap）。值為手感可調，目的是長名換行不戳到右邊 tab。 */
+    max-width: 14rem;
   }
 
   /* Degree show detail 返回按鈕 — 沿用 .sticky-chip 結構（clip-path reveal 由上往下，與 sticky title chip 同節奏）
