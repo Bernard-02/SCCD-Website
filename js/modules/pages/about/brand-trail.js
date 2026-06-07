@@ -1,4 +1,5 @@
 import { DUR, EASE } from '../../ui/motion.js';
+import { registerPageExit } from '../../ui/page-exit.js';
 /**
  * Brand Trail Module (About Page)
  * 處理系友發展區塊的游標拖尾效果（桌面版）
@@ -101,11 +102,13 @@ function initOverviewHighlight() {
   });
 
   const first = hls[0].closest('h5') || hls[0];
+  let revealed = false;
   ScrollTrigger.create({
     trigger: first,
     start: 'top 88%',
     once: true,
     onEnter: () => {
+      revealed = true;
       hls.forEach((el, i) => {
         gsap.fromTo(el,
           { clipPath: fromClips[i] },
@@ -114,6 +117,16 @@ function initOverviewHighlight() {
       });
     },
   });
+
+  // 離頁退場：clip-path 反向 wipe（隨機四方向收合），只在已進場時跑
+  registerPageExit(() => new Promise(resolve => {
+    if (typeof gsap === 'undefined' || !revealed) { resolve(); return; }
+    gsap.killTweensOf(hls);
+    gsap.to(hls, {
+      clipPath: () => dirs[Math.floor(Math.random() * dirs.length)],
+      duration: DUR.medium, ease: EASE.exit, stagger: 0.06, overwrite: true, onComplete: resolve,
+    });
+  }));
 }
 
 /**

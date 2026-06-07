@@ -1,4 +1,5 @@
 import { DUR, EASE } from '../../ui/motion.js';
+import { registerPageExit } from '../../ui/page-exit.js';
 /**
  * Section Banner Reveal Animation
  * About 頁面各 section banner 的動畫（三張圖片 clip-path reveal 版）
@@ -183,6 +184,24 @@ export function initSectionBannerReveal() {
     // @ts-ignore
     titleEl._replayReveal = replay;
   });
+
+  // 離頁退場：可視範圍內的封鎖綫 strip clip-path 收合（= reveal 的反向，往左/右收掉）
+  // 只動視窗內的（離開時看不到的下方 section strip 不必跑）；strip 一律帶 inset clip-path（input.css）不會是 none
+  registerPageExit(() => new Promise(resolve => {
+    if (typeof gsap === 'undefined' || window.innerWidth < 768) { resolve(); return; }
+    const collapse = ['inset(0% 100% 0% 0%)', 'inset(0% 0% 0% 100%)'];
+    const visible = Array.from(sectionTitles).filter(el => {
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && r.bottom > 0 && r.top < window.innerHeight;
+    });
+    if (!visible.length) { resolve(); return; }
+    let done = 0;
+    const onOne = () => { if (++done >= visible.length) resolve(); };
+    visible.forEach((el, i) => {
+      gsap.killTweensOf(el);
+      gsap.to(el, { clipPath: collapse[i % 2], duration: DUR.medium, ease: EASE.exit, overwrite: true, onComplete: onOne });
+    });
+  }));
 
   // --- Section Banners（有圖片的完整版，如果還有的話）---
   const banners = /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('[data-section-banner]'));

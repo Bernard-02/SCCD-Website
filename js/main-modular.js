@@ -214,7 +214,7 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
       initResourcesCycling();
       initBrandTrail();
       initTimeline();
-      initAnchorNav();
+      initAnchorNav({ reveal: true });
       initHorizontalAccordion();
       initBFADivisionToggle();
       initTextReveal();

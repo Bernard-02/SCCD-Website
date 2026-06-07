@@ -6,6 +6,8 @@
  * 照片大小 15~40vw，clip-path 只做一次
  */
 
+import { registerPageExit } from '../../ui/page-exit.js';
+
 export function initTimeline() {
   const area = document.getElementById('timeline-area');
   const strip = document.getElementById('timeline-strip');
@@ -414,15 +416,15 @@ export function initTimeline() {
       });
       if (cardsData.length === 0) cardsData.push({ chip: null, items: [] });
 
-      // === Build N 張主卡（從下往上堆疊；year 只放第一張[最下]，其他張左 col 空白對齊）===
+      // === Build N 張主卡（cardsData[0]＝含年份的主卡放最「上」，後續卡往下堆；user 2026-06-07：先 BFA 再 MDES）===
+      // 反序 placement：先建 cardsData[last] 放最底、最後建 cardsData[0] 放最頂；year 仍掛 cardsData[0]（isFirstCard）
       const mainCards = [];
       let cumBottom = CARD_BOTTOM_PAD;
 
-      // 倒序建構（i=last 在底、i=0 在頂），但 cardsData[0] 視覺上仍是「主要那張」放底
-      // → 改順序：建構順序 = cardsData 順序，但 bottom 從下往上累加（cardsData[0] 在最下）
-      cardsData.forEach((card, ci) => {
+      for (let ci = cardsData.length - 1; ci >= 0; ci--) {
+        const card = cardsData[ci];
         const mainRot = pickUniqueRotations(1, -CARD_MAIN_ROT, CARD_MAIN_ROT)[0] || 0;
-        const isFirstCard = ci === 0; // 最底那張 = 顯示 year 的卡
+        const isFirstCard = ci === 0; // cardsData[0] = 顯示 year 的卡（反序後位於最上面）
 
         const mainCard = document.createElement('div');
         mainCard.className = 'timeline-card-inner absolute pointer-events-none';
@@ -441,40 +443,36 @@ export function initTimeline() {
           ? `<div class="text-h5" style="line-height:1;margin-bottom:${BLOCK_GAP}px;">${card.chip}</div>`
           : '';
 
-        // grid: auto 1fr — year 在第一張卡才顯示；後續卡片 year col 留空（保持對齊）
-        // 沒有 year（後續卡）也要保留 left col 才能讓右 col 文字落在跟第一張一樣的位置
-        const yearHtml = isFirstCard
-          ? `<h4 class="font-bold" style="line-height:1;">${item.year}</h4>`
-          : '';
-
-        mainCard.innerHTML = `
+        // 第一張卡（含年份）：grid `auto 1fr`，左欄年份、右欄文字。
+        // 後續卡（無年份）：不放左欄，文字直接佔整張卡 → 左右 padding 對稱（user 2026-06-07：沒渲染年份的卡左 padding 要跟右一樣）
+        mainCard.innerHTML = isFirstCard
+          ? `
           <div style="display:grid;grid-template-columns:auto 1fr;gap:${GRID_GAP_PX}px;align-items:start;">
-            <div style="min-width:${isFirstCard ? 'auto' : '0'};">${yearHtml}</div>
+            <div><h4 class="font-bold" style="line-height:1;">${item.year}</h4></div>
             <div class="text-p2 leading-base font-bold">${chipHtml}${itemsHtml}</div>
           </div>
-        `;
+        `
+          : `<div class="text-p2 leading-base font-bold">${chipHtml}${itemsHtml}</div>`;
         cardsOverlay.appendChild(mainCard);
 
-        // === Snug width：兩 pass 量測（先 wrap-限寬再 snug）===
-        // 問題：max-content + grid `auto 1fr` 下 1fr 把右 col 撐到 max-width，量出 naturalW ≈ MAIN_CARD_W
-        // → 內容已 wrap 但量不到「實際最右文字寬」
-        // Pass 1: 切 `auto max-content` 拿無 wrap 寬度 W1（內容若 wrap 必超過 max-width）
-        // Pass 2: 把右 col max-width 鎖在 MAIN_CARD_W 內，讓 grid wrap，再用 TreeWalker 量實際最右文字 pixel
-        const gridEl = mainCard.firstElementChild;
-        const rightCol = gridEl.children[1];
+        // === Snug width：限內容欄寬讓文字 wrap，再 TreeWalker 量實際最右文字 pixel ===
+        // 第一張卡內容在 grid 右欄（左欄=年份）；後續卡內容是整張卡的 text div（無左欄/gap）→ leftColW/gap=0、左右對稱
         const cs = getComputedStyle(mainCard);
         const padL = parseFloat(cs.paddingLeft);
         const padR = parseFloat(cs.paddingRight);
-        const leftColW = gridEl.children[0].getBoundingClientRect().width;
-        const rightColMaxW = MAIN_CARD_W - padL - padR - GRID_GAP_PX - leftColW;
+        const gridEl = mainCard.firstElementChild;
+        const contentEl = isFirstCard ? gridEl.children[1] : gridEl;
+        const leftColW = isFirstCard ? gridEl.children[0].getBoundingClientRect().width : 0;
+        const gapW = isFirstCard ? GRID_GAP_PX : 0;
+        const contentMaxW = MAIN_CARD_W - padL - padR - gapW - leftColW;
 
-        // 鎖右 col 寬度上限讓文字 wrap
-        rightCol.style.maxWidth = `${rightColMaxW}px`;
+        // 鎖內容欄寬度上限讓文字 wrap
+        contentEl.style.maxWidth = `${contentMaxW}px`;
 
-        // 量「實際最右文字 pixel」相對 rightCol 左緣的偏移 = TreeWalker 走 text node
-        const rootLeft = rightCol.getBoundingClientRect().left;
+        // 量「實際最右文字 pixel」相對內容欄左緣的偏移 = TreeWalker 走 text node
+        const rootLeft = contentEl.getBoundingClientRect().left;
         let maxRight = 0;
-        const walker = document.createTreeWalker(rightCol, NodeFilter.SHOW_TEXT);
+        const walker = document.createTreeWalker(contentEl, NodeFilter.SHOW_TEXT);
         let node;
         while ((node = walker.nextNode())) {
           if (!node.nodeValue || !node.nodeValue.trim()) continue;
@@ -485,15 +483,15 @@ export function initTimeline() {
             if (off > maxRight) maxRight = off;
           }
         }
-        // mainCard 總寬 = padL + leftColW + gap + 實際 rightCol 內容寬 + padR
-        const snugW = padL + leftColW + GRID_GAP_PX + Math.ceil(maxRight) + padR + 1;
+        // mainCard 總寬 = padL + leftColW + gap + 實際內容寬 + padR
+        const snugW = padL + leftColW + gapW + Math.ceil(maxRight) + padR + 1;
         mainCard.style.width = `${Math.min(snugW, MAIN_CARD_W)}px`;
 
         mainCards.push(mainCard);
 
         // 下一張卡的 bottom：此卡頂 + CARD_GAP（小標已在卡內、計入 mainCard.offsetHeight）
         cumBottom += mainCard.offsetHeight + CARD_GAP;
-      });
+      }
 
       pageData.push({ mainCards, eraKey: `${item.eraTitle}|${item.eraLabel}`, eraTitle: item.eraTitle, eraLabel: item.eraLabel });
     });
@@ -1171,7 +1169,11 @@ export function initTimeline() {
     }
 
     function showListView() {
-      if (isTransitioning || listRectAnimating) return;
+      // !hoverEnabled = 當前年份的照片/字卡還在 reveal（剛切年、stagger 進場中）→ 此時進 list view，
+      // showListView 的 clip-out 會跟「仍掛在 GSAP 上的 delayed reveal tween」打架：clip 完後那些 reveal
+      // 才 fire，把照片重新展開殘留在 list 矩形後面（user 2026-06-07 回報「切年圖片還沒 load 完就點切換鈕」）。
+      // hoverEnabled 正好在 reveal 完成才轉 true（goTo/初次/reset 皆是），等它 = 等頁面 settle 才允許進 list view。
+      if (isTransitioning || listRectAnimating || !hoverEnabled) return;
       isTransitioning = true;
       hoverEnabled = false;
       clearListHover();
@@ -1276,5 +1278,31 @@ export function initTimeline() {
         },
       });
     }
+
+    // 離頁退場：依當前模式 clip-path 收掉可見內容（沿用模組 showListView/hideListView 的 clip-out + TIMING.exitDuration）。
+    //   卷軸模式 = 當前可見照片(rotateDiv) + 當前頁字卡 + era badge；list 模式 = rect + chip。
+    //   全部一次過收（無 stagger）；只在 timeline 區在視窗內才跑（離頁時看不到就略過）。
+    registerPageExit(() => new Promise(resolve => {
+      if (typeof gsap === 'undefined') { resolve(); return; }
+      const ar = area.getBoundingClientRect();
+      if (!(ar.width > 0 && ar.bottom > 0 && ar.top < window.innerHeight)) { resolve(); return; }
+      let exitEls, dirFn;
+      if (listMode) {
+        exitEls = rectEls;
+        dirFn = randomDirLR;
+      } else {
+        const pd = pageData[currentIndex];
+        const cards = pd ? [...getCardEls(pd), pd.eraBadge] : [];
+        exitEls = [...getVisibleRotates(), ...cards].filter(Boolean);
+        dirFn = randomDir4;
+      }
+      if (!exitEls.length) { resolve(); return; }
+      gsap.killTweensOf(exitEls);
+      let done = 0;
+      const onOne = () => { if (++done >= exitEls.length) resolve(); };
+      exitEls.forEach(el => {
+        gsap.to(el, { clipPath: getClipStart(dirFn()), duration: TIMING.exitDuration, ease: TIMING.exitEase, overwrite: true, onComplete: onOne });
+      });
+    }));
   }
 }

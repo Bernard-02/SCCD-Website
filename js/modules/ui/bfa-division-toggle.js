@@ -12,6 +12,8 @@
  *   - .class-works-panel（playlist）
  */
 
+import { registerPageExit } from './page-exit.js';
+
 export function initBFADivisionToggle() {
   const classInfoPanels  = document.querySelectorAll('.class-info-panel');
   const classWorksPanels = document.querySelectorAll('.class-works-panel');
@@ -450,4 +452,24 @@ export function initBFADivisionToggle() {
   });
 
   updateMobileDisplay(0);
+
+  // 離頁退場：works 區 active panel 的說明文字（含 playlist）clip-path 右→左收 + 影片往左滑出。
+  // 沿用本模組 works 切換的同一組常數/方向（手感一致）。只在桌面、works layout 已 init、且區塊在視窗內才跑。
+  registerPageExit(() => new Promise(resolve => {
+    if (typeof gsap === 'undefined' || window.innerWidth < 768 || !worksLayoutInited) { resolve(); return; }
+    const container = document.getElementById('class-works-panels');
+    if (!container) { resolve(); return; }
+    const r = container.getBoundingClientRect();
+    if (!(r.width > 0 && r.bottom > 0 && r.top < window.innerHeight)) { resolve(); return; }
+    const activePanel = Array.from(classWorksPanels).find(p => p.style.zIndex === '1');
+    if (!activePanel) { resolve(); return; }
+    const text  = activePanel.querySelector('[data-works-hl]');
+    const video = activePanel.querySelector('iframe');
+    const tweens = [];
+    if (text)  tweens.push(gsap.to(text,  { clipPath: WORKS_HIDE_CLIP_LEAVE, duration: WORKS_ANIM_DUR, ease: WORKS_ANIM_EASE, overwrite: true }));
+    if (video) tweens.push(gsap.to(video, { xPercent: -100, duration: WORKS_ANIM_DUR, ease: WORKS_VIDEO_EASE, overwrite: true }));
+    if (!tweens.length) { resolve(); return; }
+    let done = 0;
+    tweens.forEach(t => t.eventCallback('onComplete', () => { if (++done >= tweens.length) resolve(); }));
+  }));
 }

@@ -13,6 +13,9 @@
  * 手機版：不執行（直接 return）
  */
 
+import { registerPageExit } from '../../ui/page-exit.js';
+import { DUR } from '../../ui/motion.js';
+
 export function initClassButtonsSticky() {
   if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') return;
   if (window.innerWidth < 768) return;
@@ -152,4 +155,26 @@ export function initClassButtonsSticky() {
       }
     });
   }
+
+  // 離頁退場：class tab 的色塊 chip + 「BFA 學士班」label 一起 clip-path 收掉。
+  // 注意：不要動 #class-buttons-sticky 本身（它的 clipPath 被上方 scroll-linked scrub 佔用）→ 改 clip 各 chip/label 自身。
+  // chip 平常無 clip-path（computed none）→ 用 fromTo 顯式起點 inset(0) 避免 none→inset snap。
+  registerPageExit(() => new Promise(resolve => {
+    const chips = Array.from(document.querySelectorAll(
+      '#class-buttons-sticky .class-division-btn, #class-buttons-sticky .class-group-label'
+    )).filter(el => /** @type {HTMLElement} */ (el).offsetParent !== null);
+    if (!chips.length || typeof gsap === 'undefined') { resolve(); return; }
+    let done = 0;
+    const onOne = () => { if (++done >= chips.length) resolve(); };
+    chips.forEach(el => {
+      gsap.killTweensOf(el);
+      // ⚠️ .class-division-btn 帶 Tailwind `transition-all duration-fast`（含 clip-path）→ CSS transition 會追著
+      // GSAP 每幀寫的 clipPath、渲染值落後 = 看起來比 works 文字慢一截。退場期間關掉 transition 才同步（頁面即將 swap 不必還原）。
+      el.style.transition = 'none';
+      // duration + ease 對齊 works 文字/playlist 退場（WORKS_ANIM_DUR 0.5 + cubic-bezier(0.25,0,0,1)）→ 三者同方向同時長同曲線
+      gsap.fromTo(el,
+        { clipPath: 'inset(0% 0% 0% 0%)' },
+        { clipPath: 'inset(0% 100% 0% 0%)', duration: DUR.medium, ease: 'cubic-bezier(0.25, 0, 0, 1)', overwrite: true, onComplete: onOne });
+    });
+  }));
 }

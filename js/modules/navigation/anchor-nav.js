@@ -5,9 +5,14 @@
  */
 
 import { registerPageCleanup } from '../ui/page-cleanup.js';
+import { registerPageExit } from '../ui/page-exit.js';
 import { DUR, EASE } from '../ui/motion.js';
 
-export function initAnchorNav() {
+/**
+ * @param {{ reveal?: boolean }} [opts] reveal:true 啟用左側 nav 的 clip-path 進場/退場（about 專用；
+ *   alumni 共用同一 nav 結構但暫不套，手感逐頁驗）
+ */
+export function initAnchorNav({ reveal = false } = {}) {
   const navButtons = document.querySelectorAll('.anchor-nav-btn');
 
   // Build sectionMap: observed element → button target id
@@ -132,6 +137,47 @@ export function initAnchorNav() {
       btn._pendingRot = null;
     });
   });
+
+  // 左側 nav clip-path 進場/退場（about 專用，比照 faculty/activities/admission nav）：
+  // clip-path 套 .anchor-nav-inner 自身（旋轉角不裁、原地揭露）、4 方向隨機、第一個內容區進視窗時 once、
+  // 離頁且已 reveal 才反向；transition:'none' 解 navigation.css .anchor-nav-inner 的 `transition: all`（含 clip-path）
+  // 對 GSAP 每幀寫的接管卡頓，跑完還原。只取桌面 #anchor-nav（mobile 選單另一容器、不套）。
+  if (reveal && typeof gsap !== 'undefined' && window.innerWidth >= 768) {
+    const NAV_CLIP_DIRS = ['inset(0% 0% 100% 0%)', 'inset(0% 0% 0% 100%)', 'inset(100% 0% 0% 0%)', 'inset(0% 100% 0% 0%)'];
+    const NAV_REVEALED = 'inset(0% 0% 0% 0%)';
+    const NAV_EASE = 'cubic-bezier(0.25, 0, 0, 1)';
+    const pickClip = () => NAV_CLIP_DIRS[Math.floor(Math.random() * NAV_CLIP_DIRS.length)];
+    const inners = Array.from(document.querySelectorAll('#anchor-nav .anchor-nav-inner'));
+    if (inners.length) {
+      let navRevealed = false;
+      inners.forEach(el => { el.style.transition = 'none'; gsap.set(el, { clipPath: pickClip() }); });
+
+      const play = () => {
+        if (navRevealed) return;
+        navRevealed = true;
+        gsap.to(inners, {
+          clipPath: NAV_REVEALED, duration: DUR.base, ease: NAV_EASE, stagger: 0.05, clearProps: 'clipPath',
+          onComplete: () => inners.forEach(el => { el.style.transition = ''; }),
+        });
+      };
+      const trigger = sections[0];
+      const inView = trigger && trigger.getBoundingClientRect().top < window.innerHeight * 0.9;
+      if (!trigger || inView || typeof ScrollTrigger === 'undefined') {
+        play();
+      } else {
+        ScrollTrigger.create({ trigger, start: 'top 90%', once: true, onEnter: play });
+      }
+
+      registerPageExit(() => new Promise(resolve => {
+        if (typeof gsap === 'undefined' || !navRevealed) { resolve(); return; }
+        gsap.killTweensOf(inners);
+        inners.forEach(el => { el.style.transition = 'none'; });
+        gsap.fromTo(inners,
+          { clipPath: NAV_REVEALED },
+          { clipPath: () => pickClip(), duration: DUR.base, ease: NAV_EASE, stagger: { each: 0.05, from: 'end' }, overwrite: true, onComplete: resolve });
+      }));
+    }
+  }
 
   let currentActiveId = null;
   let clickScrolling = false; // 點擊導航時暫停 scroll spy

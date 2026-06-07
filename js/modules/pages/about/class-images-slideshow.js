@@ -16,6 +16,7 @@
  */
 
 import { registerPageCleanup } from '../../ui/page-cleanup.js';
+import { registerPageExit } from '../../ui/page-exit.js';
 
 // slot 間距：slot 0 起始貼左、slot 1/2 各往右平移 ~28%（從 32% 縮小）
 // 避免 slot 2 + landscape 圖寬度溢出 .division-images 容器右緣（container ~720px 在 1920w，slot2 64% + 462 = ~923 溢出 200px）
@@ -343,6 +344,15 @@ export async function initClassImagesSlideshow() {
   currentDivision = null;
   switching = false;
   revealed = false;
+
+  // 離頁退場：active panel 的 imgs + text highlight 一起 clip-path 收掉（= 進場 reveal 的反向，沿用 hideAll）。
+  // 同步註冊（讀 module-level live state），即使 fetch 還沒回來也已掛上；未 reveal（沒捲到 class）則略過。
+  registerPageExit(() => {
+    const api = currentDivision ? slideshowsByDivision.get(currentDivision) : null;
+    if (!api || !revealed || typeof gsap === 'undefined') return Promise.resolve();
+    api.stop();
+    return api.hideAll();
+  });
 
   try {
     const res = await fetch('/data/about-class-images.json');
