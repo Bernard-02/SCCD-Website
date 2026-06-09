@@ -54,7 +54,7 @@
 
     <!-- 手機專用左上返回鍵（桌面用 video-controls 內的 close btn，預設隱藏） -->
     <!-- top:6rem 對齊手機 header logo 下方：header `py-md`(24px) + logo wrapper `-top-4`(-16px) + logo 80px = 88px 底邊 + ~8px 間距 ≈ 96px (6rem)；left 同 logo 邊距 -->
-    <button id="video-mobile-close-btn" aria-label="關閉影片 Close video" style="display:none; position:absolute; top:6rem; left:1rem; z-index:10003; background:#00FF80; color:#000; border:none; padding:0.5rem 0.75rem; line-height:1; align-items:center; justify-content:center;">
+    <button id="video-mobile-close-btn" aria-label="關閉影片 Close video" style="display:none; position:absolute; top:6rem; left:1rem; z-index:10003; background:#00FF80; color:#000; border:none; width:44px; height:44px; padding:0; line-height:1; align-items:center; justify-content:center;">
       <span class="icon icon-arrow-left icon-l"></span>
     </button>
 
@@ -181,10 +181,10 @@
         <!-- Privacy（桌面右下、手機線性最後）— Support 從 donate icon 改為此處文字連結（置頂） -->
         <div class="footer-privacy">
           <div class="flex flex-col gap-xs items-start">
-            <a href="pages/support.html" class="footer-link">Support<br>支援</a>
-            <a href="pages/regulations.html" class="footer-link">Regulations<br>學系規章</a>
-            <a href="pages/privacy-policy.html" class="footer-link">Privacy and Security Policies<br>隱私權及資訊安全政策</a>
-            <a href="pages/accessibility.html" class="footer-link">Accessibility<br>無障礙聲明</a>
+            <a href="pages/support.html" class="footer-link">Support <br class="footer-privacy-br">支援</a>
+            <a href="pages/regulations.html" class="footer-link">Regulations <br class="footer-privacy-br">學系規章</a>
+            <a href="pages/policy-and-statements.html" class="footer-link">Policy and Statements <br class="footer-privacy-br">政策及聲明</a>
+            <p class="footer-copyright">Copyright © SCCD</p>
           </div>
         </div>
 

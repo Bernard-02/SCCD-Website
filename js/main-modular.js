@@ -72,7 +72,7 @@ import { initAlumni } from './modules/pages/alumni.js';
 // Import Data Loaders
 import { loadFacultyData } from './modules/pages/faculty-data-loader.js';
 import { loadAdmissionData } from './modules/pages/admission-data-loader.js';
-import { loadLegalData } from './modules/pages/legal-data-loader.js';
+import { loadLegalData, loadPolicyAndStatements } from './modules/pages/legal-data-loader.js';
 import { initLegalTitleRandom } from './modules/pages/legal-title-random.js';
 import { loadDegreeShowDetail } from './modules/pages/degree-show-data-loader.js';
 import { init404, cleanup404 } from './modules/pages/error-404.js';
@@ -255,7 +255,8 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
 
   // --- Admission Page ---
   if (page === 'admission') {
-    loadAdmissionData().then(() => initAdmissionSectionSwitch());
+    // fromUserNav 傳入：首頁 floating camp 海報 deep-link（?section=summer-camp&item=）才跑導航動畫
+    loadAdmissionData().then(() => initAdmissionSectionSwitch(fromUserNav));
   }
 
   // --- Faculty Pages ---
@@ -414,11 +415,9 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
   if (page === 'regulations') {
     loadLegalData('regulations');
   }
-  if (page === 'privacy-policy') {
-    loadLegalData('privacy-policy');
-  }
-  if (page === 'accessibility') {
-    loadLegalData('accessibility');
+  // privacy-policy + accessibility 已合併為「政策及聲明」一頁（讀單一 collection policy_and_statements，每列一段）
+  if (page === 'policy-and-statements') {
+    loadPolicyAndStatements();
   }
   if (page === 'support') {
     loadLegalData('support');
@@ -440,6 +439,14 @@ document.addEventListener('DOMContentLoaded', function () {
   initIdleStandby();
   initCustomScrollbar();
   initShareModal();
+
+  // 全站禁右鍵下載 img / svg / video（嚇阻隨手「另存」；對齊 PDF viewer 的 contextmenu 防護）
+  // document 級單一 listener：涵蓋 SPA 換頁後動態載入的圖／影片，免每頁重綁。
+  // ⚠️ 只嚇阻隨手下載；拿到原始 /assets 網址仍可直接存原檔（要檔案級保護得後臺處理）。
+  document.addEventListener('contextmenu', (e) => {
+    const t = e.target;
+    if (t instanceof Element && t.closest('img, svg, video, picture')) e.preventDefault();
+  });
 
   // 啟動 Router（攔截連結、處理 popstate）
   initRouter();

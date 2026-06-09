@@ -375,6 +375,18 @@
     margin-top: -1px;
   }
 
+  /* summer-camp 年份欄 sticky（user 2026-06-08）：展開營隊後往下捲時，左欄年份跟 list-header.active(title)
+   * 黏在同一條 top 線一起 pin，方便對照「現在看的是哪一年」。containing block = 該 .list-year-group
+   * （單一年份），捲過該組自然釋放交給下一組；grid items-start 已不 stretch、年份欄矮於展開內容才有 stick 空間。
+   * 只 scope #panel-summer-camp（它走 showYearToggle:false、年份欄無 toggle）；其他 list 不動。
+   * z-index:4 < list-header.active 的 5；兩者水平不重疊（年份 col-1 / title col-2~11）純求保險。 */
+  #panel-summer-camp .list-year-group > div:first-child {
+    position: sticky;
+    top: var(--list-header-sticky-top, 200px);
+    align-self: start;
+    z-index: 4;
+  }
+
   /* 副標 sticky-pinned collapse：list-header 開展 + 真正黏住 sticky-top 時收起副標，bar 只剩 title。
    * is-pinned class 由 list-accordion.js 用 IntersectionObserver sentinel 偵測 sticky 真黏住的瞬間
    * （CSS :stuck 偽類未實作）。
@@ -468,7 +480,8 @@
 }
 
 .activities-search-input::placeholder {
-  color: rgba(0, 0, 0, 0.5);
+  /* 淡化文字：rgba(theme-fg) 50% 一條覆蓋三 mode（取代原 base 黑 + inverse/color 各一條 override）*/
+  color: rgba(var(--theme-fg-rgb), 0.5);
   font-weight: 700;
 }
 
@@ -533,6 +546,16 @@
   .tl-list-next-btn:hover .tl-icon-btn-inner {
     transform: rotate(8deg);
   }
+}
+
+/* mode-color：icon 鈕走 strict B/W chip（bg=fg 底 + icon=fg-inverse），同 atlas .atlas-layout-inner（color.css:758）。
+   否則沿用 base 的 color:var(--theme-bg)＝hue 色（2026-06-08 user 報 mode3 icon 變黃，要黑/白）。
+   ⚠️ 不可加 !important：下方 .tl-list-next-btn 那條（白底黑箭頭、跟黑色主卡反色）無 !important，
+   靠較高 specificity (0,3,1) 蓋過本條 (0,2,1)；本條若 !important 會反壓它害 next-btn 變黑底（2026-06-08 踩過）。
+   本條 (0,2,1) 靠 specificity 即可勝過 base .tl-icon-btn-inner (0,1,0)，不需 !important。 */
+body.mode-color .tl-icon-btn-inner {
+  background: var(--theme-fg);
+  color: var(--theme-fg-inverse);
 }
 
 /* 桌機 only：手機隱藏切換鈕（list view 整套不在手機提供） */
@@ -651,7 +674,9 @@
   background: none;
   cursor: var(--cursor-pointer);
 }
-.tl-list-next-btn .tl-icon-btn-inner { background: #000; color: #fff; }
+/* 底色/箭頭跟 mode 走＝沿用 base .tl-icon-btn-inner 的 var(--theme-fg)/var(--theme-bg)
+   （standard 黑底白箭頭、inverse 白底黑箭頭）。別再寫死 #000/#fff——inverse 會變黑底黑頁看不見（2026-06-08 user 報）。
+   mode-color 另走 strict B/W chip↓ */
 body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
   background: var(--theme-fg-inverse);
   color: var(--theme-fg);

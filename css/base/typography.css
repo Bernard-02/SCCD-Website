@@ -113,6 +113,18 @@ html.mode-switching.mode-switching .library-card-content {
   transition: background-color var(--dur-base) ease, color var(--dur-base) ease, border-color var(--dur-base) ease !important;
 }
 
+/* curriculum / activities / admission：sticky 遮罩 + pseudo-element 遮罩。
+ * 這些用 `background`/`background-color: var(--theme-bg|fg)` 上色，不在上方 whitelist → mode 切換時 snap，
+ * 但大背景 fade 0.4s ＝兩者不同步（user 2026-06-08 報「nav btn 底色、遮罩 timing 跟大背景不同步」）。
+ * 補進 whitelist；含 ::before/::after 與 shorthand `background`（遮罩多用 shorthand 寫）。 */
+html.mode-switching.mode-switching .courses-grid-row-cover,
+html.mode-switching.mode-switching .courses-grid-row-cover::before,
+html.mode-switching.mode-switching .courses-grid-row-cover::after,
+html.mode-switching.mode-switching .activities-filter-bar::before,
+html.mode-switching.mode-switching .admission-scroll-mask {
+  transition: background var(--dur-base) ease, background-color var(--dur-base) ease, color var(--dur-base) ease !important;
+}
+
 /* /create 頁：#create-app 的 background-color 不在上方 whitelist，mode 切換時 snap 而 header 有 0.4s fade，
  * 造成兩者不同時轉換。加入 whitelist 讓 #create-app 背景跟 header 同節奏（class 從 wireframe-mode ↔ standard/inverse-mode）。
  * canvas containers 也一起加入，避免容器內部 snap 而 #create-app 外框還在 fade 造成色差 */

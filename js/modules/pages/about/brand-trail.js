@@ -1,5 +1,6 @@
 import { DUR, EASE } from '../../ui/motion.js';
 import { registerPageExit } from '../../ui/page-exit.js';
+import { registerPageCleanup } from '../../ui/page-cleanup.js';
 /**
  * Brand Trail Module (About Page)
  * 處理系友發展區塊的游標拖尾效果（桌面版）
@@ -304,4 +305,7 @@ function initMobileSlideshow() {
     showNext();
     timer = setInterval(showNext, 1000);
   });
+
+  // 離開 about 頁要停掉輪播，否則 interval 持續對 detach 的 <img> 設 src，且每次重訪 about 累積一條
+  registerPageCleanup(() => clearInterval(timer));
 }

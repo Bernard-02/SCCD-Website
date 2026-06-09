@@ -11,7 +11,76 @@ import {
 } from './admission-data-loader.js';
 import { resetListAccordionsInPanel } from '../accordions/list-accordion.js';
 import { registerPageExit } from '../ui/page-exit.js';
-import { DUR } from '../ui/motion.js';
+import { waitForHeroAnimDone } from './hero-animation.js';
+import { DUR, EASE } from '../ui/motion.js';
+
+// 當前 active section 的色（setActiveNavBtn 回傳）；給 deep-link highlight 用（= 該 section 色，三原色之一）
+let currentSectionColor = '';
+
+// 等指定 list-item 進場 reveal 完成（reveal onEnter 移除 data-pre-reveal）才 highlight，不在 rows 還 clip-reveal
+// 中途就先亮（對齊 activities navigateToItem 的 waitForItemRevealed，user 2026-06-09）。已無 data-pre-reveal → 立即 resolve。
+function waitForItemRevealed(item, timeout = 8000) {
+  return new Promise(resolve => {
+    if (!item || !item.hasAttribute('data-pre-reveal')) { resolve(); return; }
+    let done = false, t = null;
+    const finish = () => { if (done) return; done = true; obs.disconnect(); if (t) clearTimeout(t); resolve(); };
+    const obs = new MutationObserver(() => { if (!item.hasAttribute('data-pre-reveal')) finish(); });
+    obs.observe(item, { attributes: true, attributeFilter: ['data-pre-reveal'] });
+    t = setTimeout(finish, timeout);
+  });
+}
+
+// 首頁 floating camp 海報 deep-link 用：捲到指定 item → 等 reveal → flash highlight → 展開 accordion
+// （比照 activities navigateToItem smooth 版，但 admission summer-camp 結構簡單：無 sub-tab / sticky filter bar）。
+// 呼叫前 section 已切到 summer-camp 且 list 已載入（switchSection await 完）。
+async function navigateToAdmissionItem(itemId) {
+  if (!itemId) return;
+  // 等 DOM render settle
+  await new Promise(r => setTimeout(r, 150));
+  await new Promise(r => requestAnimationFrame(r));
+
+  const target = /** @type {HTMLElement | null} */ (document.getElementById(`item-${itemId}`));
+  if (!target) return;
+
+  // year group 收合的先展開（summer-camp 若年份分組）
+  const yearItems = /** @type {HTMLElement | null} */ (target.closest('.list-year-items'));
+  if (yearItems && (yearItems.style.height === '0px' || yearItems.style.display === 'none')) {
+    const yearToggle = /** @type {HTMLElement | null} */ (yearItems.closest('.grid-12')?.querySelector('.list-year-toggle'));
+    if (yearToggle) { yearToggle.click(); await new Promise(r => setTimeout(r, 350)); }
+  }
+
+  // 落點：item 落在 sticky nav / scroll-mask（top:200）下方一點。用非 sticky 的 offsetTop 累加算絕對位置（每次一致）。
+  const COMPENSATE = 216; // sticky top 200 + 16 留白
+  let targetTop = 0;
+  let el = /** @type {HTMLElement | null} */ (target);
+  while (el) { targetTop += el.offsetTop; el = /** @type {HTMLElement | null} */ (el.offsetParent); }
+  const finalTop = Math.max(0, targetTop - COMPENSATE);
+
+  const flashColor = currentSectionColor || '#00FF80';
+  // 順序：list 文字 render → highlight → 600ms → 展開（同 activities）
+  const flashThenOpen = async () => {
+    await waitForItemRevealed(target);
+    target.style.transition = 'background 0.3s';
+    target.style.background = flashColor;
+    setTimeout(() => {
+      target.style.background = '';
+      const header = /** @type {HTMLElement | null} */ (target.querySelector('.list-header'));
+      if (header && !header.classList.contains('active')) {
+        header.dataset.skipOpenScroll = '1';     // 已捲齊 → accordion open 不要再自己捲
+        header.dataset.accentHex = flashColor;    // highlight 色繼承成 accordion active 色
+        header.style.background = flashColor;
+        header.click();
+      }
+    }, 600);
+  };
+
+  if (typeof window.ScrollToPlugin !== 'undefined') {
+    gsap.to(window, { scrollTo: { y: finalTop, autoKill: false }, duration: DUR.medium, ease: EASE.move, onComplete: flashThenOpen });
+  } else {
+    window.scrollTo({ top: finalTop, behavior: 'smooth' });
+    setTimeout(flashThenOpen, 500);
+  }
+}
 
 // scrollIntoView wrapper：捲到 section 頂端對齊 viewport 頂端（section.top=0），**不扣 header 高度**。
 // 同 courses-section-switch.js 的 sectionScrollTop pattern。
@@ -70,7 +139,9 @@ function setupSectionNavReveal() {
   }));
 }
 
-export function initAdmissionSectionSwitch() {
+// fromUserNav：true=使用者點連結的 SPA 導航（首頁 floating camp 海報）；false=初始載入 / refresh / 上一頁下一頁。
+// 只有 fromUserNav 才套 ?section=/?item= deep-link 並跑導航動畫；refresh 視為全新頁面（清 query、停 default news）。
+export function initAdmissionSectionSwitch(fromUserNav = false) {
   const btns = /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.activities-section-btn'));
   if (!btns.length) return;
 
@@ -111,8 +182,8 @@ export function initAdmissionSectionSwitch() {
         await playAdmissionPanelExit(currentPanel);
       }
 
-      // 2. 切 active btn + show 新 panel
-      setActiveNavBtn(btns, section, 'data-section');
+      // 2. 切 active btn + show 新 panel（capture 色給 deep-link highlight 用）
+      ({ color: currentSectionColor } = setActiveNavBtn(btns, section, 'data-section'));
       const newPanel = /** @type {HTMLElement | null} */ (showPanel('.activities-panel', targetId));
       // 收起 target panel 內遺留的 open accordion（avoid「切到別的 panel 再切回來時 accordion 仍打開」殘留體驗）
       if (newPanel) resetListAccordionsInPanel(newPanel);
@@ -150,5 +221,24 @@ export function initAdmissionSectionSwitch() {
   }
 
   btns.forEach(btn => btn.addEventListener('click', () => switchSection(btn.dataset.section, true)));
-  switchSection('news', false, true);
+
+  // ?section= / ?item= deep-link（首頁 floating camp 海報導航）：只有 fromUserNav 才套指定 section + 跑導航動畫。
+  const params = new URLSearchParams(window.location.search);
+  const hasDeepLink = params.has('section');
+  if (hasDeepLink && fromUserNav) {
+    const initialSection = params.get('section') || 'news';
+    const initialItem = params.get('item');
+    // switchSection 為 async（summer-camp lazy load）→ await 完 list 才在 DOM，再等 hero 跑完平滑導航/捲動。
+    switchSection(initialSection, false, true).then(() => {
+      if (initialItem) {
+        waitForHeroAnimDone().then(() => navigateToAdmissionItem(initialItem));
+      } else {
+        waitForHeroAnimDone().then(() => scrollSectionIntoView(document.getElementById('admission-content-section')));
+      }
+    });
+  } else {
+    // refresh / 直接開連結 / 上一頁下一頁：清掉 deep-link query（URL 變乾淨）+ 停在 default news（= 直接點 admission 的樣子）
+    if (hasDeepLink) history.replaceState(history.state, '', window.location.pathname);
+    switchSection('news', false, true);
+  }
 }

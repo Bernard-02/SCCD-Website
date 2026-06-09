@@ -248,7 +248,7 @@
 }
 
 /* 桌面版 desktop-canvas-container 規則 */
-@media (min-width: 769px) {
+@media (min-width: 768px) {
   #desktop-canvas-container {
     /* 桌面版固定尺寸 - 432x540 */
     width: 432px;
@@ -733,14 +733,17 @@
 }
 
 /* 增加 :not(:disabled) 伪类，确保非 active 按钮在 hover 时有反馈 */
-.custom-button:not(.active):not(:disabled):hover {
-  color: #888; /* 一個比灰色稍深的顏色 */
-}
-#create-app.inverse-mode .custom-button:not(.active):not(:disabled):hover {
-  color: #ccc;
-}
-#create-app.wireframe-mode .custom-button:not(.active):not(:disabled):hover {
-  color: #888; /* Wireframe 模式下的 hover 顏色 */
+/* 包 min-width:768px：hover 只在桌面，手機 tap 後不殘留 hover 變色 */
+@media (min-width: 768px) {
+  .custom-button:not(.active):not(:disabled):hover {
+    color: #888; /* 一個比灰色稍深的顏色 */
+  }
+  #create-app.inverse-mode .custom-button:not(.active):not(:disabled):hover {
+    color: #ccc;
+  }
+  #create-app.wireframe-mode .custom-button:not(.active):not(:disabled):hover {
+    color: #888; /* Wireframe 模式下的 hover 顏色 */
+  }
 }
 
 /* Rotate / Custom 按鈕未選中：border 透明，icon 透明度由上面 .control-box img 規則處理
@@ -749,9 +752,11 @@
 .custom-button-custom:not(.active):not(:disabled) {
   border-color: transparent;
 }
-.control-box .custom-button-rotate:not(.active):not(:disabled):hover img,
-.control-box .custom-button-custom:not(.active):not(:disabled):hover img {
-  opacity: 1;
+@media (min-width: 768px) {
+  .control-box .custom-button-rotate:not(.active):not(:disabled):hover img,
+  .control-box .custom-button-custom:not(.active):not(:disabled):hover img {
+    opacity: 1;
+  }
 }
 
 #create-app.inverse-mode .custom-button.active {
@@ -1003,8 +1008,10 @@
   transition: opacity var(--dur-micro) ease;
 }
 
-.colorwheel-play-button:hover {
-  opacity: 0.7;
+@media (min-width: 768px) {
+  .colorwheel-play-button:hover {
+    opacity: 0.7;
+  }
 }
 
 /* 移除點擊/鍵盤聚焦時 browser 預設的 outline border（mode3 active 狀態下白色 rounded square 從 :focus-visible 來） */
@@ -2059,64 +2066,11 @@
     object-fit: contain;
   }
 
-  /* Save 按鈕圖標：支援動畫 */
+  /* Save 按鈕圖標：clip-reveal 動畫（升起/沉入 + 自轉），由 sketch.js animateSaveButton 用 GSAP 驅動 */
   #save-img-mobile,
   #save-img {
     transform-origin: center center;
-    will-change: transform, clip-path;
-  }
-
-  /* 下載按鈕動畫：clip 揭露/收回（不再用 scale shrink/grow）
-     去程隨機抽 4 方向之一抹除/揭露，回程用相反方向（視覺上是反向回到原 icon）。
-     out = 朝該方向收合消失；in = 從相反邊長出（同方向連續抹除感） */
-  @keyframes save-icon-clip-out-up {
-    from { clip-path: inset(0 0 0 0); }
-    to   { clip-path: inset(0 0 100% 0); }
-  }
-
-  @keyframes save-icon-clip-in-up {
-    from { clip-path: inset(100% 0 0 0); }
-    to   { clip-path: inset(0 0 0 0); }
-  }
-
-  @keyframes save-icon-clip-out-down {
-    from { clip-path: inset(0 0 0 0); }
-    to   { clip-path: inset(100% 0 0 0); }
-  }
-
-  @keyframes save-icon-clip-in-down {
-    from { clip-path: inset(0 0 100% 0); }
-    to   { clip-path: inset(0 0 0 0); }
-  }
-
-  @keyframes save-icon-clip-out-left {
-    from { clip-path: inset(0 0 0 0); }
-    to   { clip-path: inset(0 100% 0 0); }
-  }
-
-  @keyframes save-icon-clip-in-left {
-    from { clip-path: inset(0 0 0 100%); }
-    to   { clip-path: inset(0 0 0 0); }
-  }
-
-  @keyframes save-icon-clip-out-right {
-    from { clip-path: inset(0 0 0 0); }
-    to   { clip-path: inset(0 0 0 100%); }
-  }
-
-  @keyframes save-icon-clip-in-right {
-    from { clip-path: inset(0 100% 0 0); }
-    to   { clip-path: inset(0 0 0 0); }
-  }
-
-  @keyframes save-icon-rotate {
-    from { transform: rotate(0deg); }
-    to   { transform: rotate(360deg); }
-  }
-
-  /* 桌面版和手機版共用的動畫 class */
-  .save-icon-animating {
-    animation-fill-mode: forwards;
+    will-change: transform;
   }
 
   /* 前三個按鈕：直角矩形（對齊桌面 .control-box border-radius: 0） */

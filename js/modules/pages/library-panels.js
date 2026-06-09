@@ -8,6 +8,7 @@
 import { applyMarqueeOverflow } from '../ui/marquee-overflow.js';
 import { ensureFlagIconsCss } from '../ui/ensure-flag-icons.js';
 import { DUR, EASE } from '../ui/motion.js';
+import { CMS_API_BASE, CMS_ASSETS_BASE } from '../../config/api.js';
 
 // ── 共用常數 ──────────────────────────────────────────────────────────────────
 
@@ -206,13 +207,33 @@ function buildMockRecords() {
   }));
 }
 
+// Awards ticker 的獎項 logo：Directus singleton library_award_logos 的 logos（Files-multiple M2M）。
+// 後台 junction（library_award_logos_files）有 sort 欄 → deep[logos][_sort]=sort 依後台拖曳順序回傳。
+// 沿用 press panel 的「CMS 優先、失敗/空 fallback 本地」pattern：CMS 掛掉時用 records.json 的 awardsImages。
+async function fetchAwardLogos(localFallback) {
+  try {
+    const url = `${CMS_API_BASE}/library_award_logos?fields=logos.directus_files_id&deep[logos][_sort]=sort`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('CMS ' + res.status);
+    const logos = (await res.json())?.data?.logos;
+    if (!Array.isArray(logos) || logos.length === 0) throw new Error('CMS empty');
+    return logos.map(j => j && j.directus_files_id).filter(Boolean)
+      .map(id => `${CMS_ASSETS_BASE}/${id}?key=web`);   // ?key=web：raster 自動優化、SVG pass-through
+  } catch (cmsErr) {
+    console.warn('[awards] Directus logos 抓取失敗/無資料，fallback 本地 awardsImages：', cmsErr.message);
+    return localFallback || [];
+  }
+}
+
 async function initAwardsPanel(onEntranceDoneCallback) {
   try {
     ensureFlagIconsCss();
     const res = await fetch('/data/records.json');
     const data = await res.json();
     const realRecords  = Array.isArray(data) ? data : data.records;
-    const awardsImages = Array.isArray(data) ? [] : (data.awardsImages || []);
+    // Awards ticker logo 改吃 Directus；records 表格本身仍用 records.json（user 只更新了 logo）
+    const localLogos   = Array.isArray(data) ? [] : (data.awardsImages || []);
+    const awardsImages = await fetchAwardLogos(localLogos);
 
     const realYears = new Set(realRecords.map(r => r.year));
     const records = [...realRecords, ...buildMockRecords().filter(r => !realYears.has(r.year))]
@@ -443,13 +464,19 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     // Awards Ticker
     const tickerWrapper = document.querySelector('#library-awards-ticker .awards-ticker-wrapper');
     if (tickerWrapper && awardsImages.length > 0) {
+      // 每次載入隨機洗牌（user 2026-06-09：ticker logo 順序隨機，不照後台 sort）。
+      // 在建 track 前 shuffle 一次 → t1/t2 兩條 seamless loop 半段同序、接合處不斷層。
+      for (let i = awardsImages.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [awardsImages[i], awardsImages[j]] = [awardsImages[j], awardsImages[i]];
+      }
       const createTrack = () => {
         const track = document.createElement('div');
         track.style.cssText = 'display:flex;gap:var(--spacing-2xl);padding-right:var(--spacing-2xl);flex-shrink:0;align-items:center;';
         awardsImages.forEach(src => {
           const img = document.createElement('img');
           img.src = src; img.alt = 'Award';
-          img.style.cssText = 'height:60px;width:auto;object-fit:contain;filter:grayscale(1);flex-shrink:0;transition:opacity 0.3s ease;';
+          img.style.cssText = 'height:60px;width:auto;object-fit:contain;filter:grayscale(1);flex-shrink:0;';
           img.onerror = () => { img.style.display = 'none'; };
           track.appendChild(img);
         });
@@ -474,33 +501,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
               duration: duration,
               repeat: -1
             });
-
-            // 滑鼠懸停 ticker 區域時，整體速度減半 (0.5)，離開時恢復 (1)
-            tickerWrapper.addEventListener('mouseenter', () => gsap.to(tween, { timeScale: 0.5, duration: DUR.fast }));
-            tickerWrapper.addEventListener('mouseleave', () => gsap.to(tween, { timeScale: 1, duration: DUR.fast }));
-
-            // Hover 圖片時，其他圖片降至 50% 不透明度（桌面版專用）
-            // 使用 mousemove + elementFromPoint 即時偵測，避免 ticker 移動時游標脫離元素造成閃爍
-            const isDesktop = window.SCCDHelpers ? window.SCCDHelpers.isDesktop() : window.innerWidth >= 768;
-            if (isDesktop) {
-              let rafId = null;
-              let lastMouseX = 0, lastMouseY = 0;
-              let isInsideContainer = false;
-              const allImgs = tickerWrapper.querySelectorAll('img');
-
-              const updateHighlight = () => {
-                const el = document.elementFromPoint(lastMouseX, lastMouseY);
-                const hovered = el ? el.closest('img') : null;
-                allImgs.forEach(img => {
-                  img.style.opacity = (!hovered || img === hovered) ? '1' : '0.5';
-                });
-                if (isInsideContainer) rafId = requestAnimationFrame(updateHighlight);
-              };
-
-              tickerWrapper.addEventListener('mouseenter', (e) => { isInsideContainer = true; lastMouseX = e.clientX; lastMouseY = e.clientY; rafId = requestAnimationFrame(updateHighlight); });
-              tickerWrapper.addEventListener('mousemove', (e) => { lastMouseX = e.clientX; lastMouseY = e.clientY; });
-              tickerWrapper.addEventListener('mouseleave', () => { isInsideContainer = false; cancelAnimationFrame(rafId); allImgs.forEach(img => { img.style.opacity = '1'; }); });
-            }
+            // ticker 單純等速跑、無 hover 互動（user 2026-06-09 移除：hover 減速 + hover 圖片 dim 兩效果）
           } else {
             // Fallback: 如果環境沒有讀取到 GSAP，使用原本的 CSS 動畫
             const style  = document.createElement('style');
@@ -521,9 +522,42 @@ async function initAwardsPanel(onEntranceDoneCallback) {
 
 // ── Press Panel ───────────────────────────────────────────────────────────────
 
+// Directus library_press row → 前台 press item shape（對應 field-key 差異 + 組 asset URL）。
+// 後台 field key 跟前台讀的不同：mediaEn/Zh=副標、pdf(uuid)=單 PDF、images(M2M)=多圖、videoLinks(json)=多 YouTube、
+// date(真日期)→推 year、id(uuid)→加 press- 前綴（deep-link hash 用）。撈時要帶 images.directus_files_id deep field。
+function mapDirectusPressRow(row) {
+  const images = Array.isArray(row.images)
+    ? row.images.map(j => j && j.directus_files_id).filter(Boolean)
+        .map(id => `${CMS_ASSETS_BASE}/${id}?key=web`)   // ?key=web = Directus 壓縮+webp preset
+    : [];
+  const videoUrls = Array.isArray(row.videoLinks) ? row.videoLinks.filter(Boolean) : [];
+  return {
+    id: row.id != null ? `press-${row.id}` : undefined,           // deep-link hash 需 press- 前綴
+    titleEn: row.titleEn || '', titleZh: row.titleZh || '',
+    subtitleEn: row.mediaEn || '', subtitleZh: row.mediaZh || '', // mediaEn/Zh = 刊登媒體名 = 副標
+    year: row.date ? String(row.date).slice(0, 4) : '',           // press 列表用 year 分組（從 date 推）
+    category: row.category || '',
+    images,        // 多圖 asset URL 陣列
+    videoUrls,     // 多 YouTube URL 陣列
+    pdfUrl: row.pdf ? `${CMS_ASSETS_BASE}/${row.pdf}` : '',        // 單 PDF（不轉檔）
+  };
+}
+
 async function initPressPanel() {
   try {
-    const pressData = await fetch('/data/press.json').then(r => r.json());
+    // Directus 為主、空/失敗 fallback 本地 press.json（同 legal pattern；press 接 Directus 2026-06-08）
+    let pressData;
+    try {
+      const url = `${CMS_API_BASE}/library_press?fields=*,images.directus_files_id&sort=sort&limit=-1`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('CMS ' + res.status);
+      const rows = (await res.json())?.data;
+      if (!Array.isArray(rows) || rows.length === 0) throw new Error('CMS empty');
+      pressData = rows.map(mapDirectusPressRow);
+    } catch (cmsErr) {
+      console.warn('[press] Directus 抓取失敗/無資料，fallback 本地 press.json：', cmsErr.message);
+      pressData = await fetch('/data/press.json').then(r => r.json());
+    }
 
     const listEl      = document.getElementById('library-press-list');
     const yearPickerEl = document.getElementById('library-press-year-picker');
@@ -553,7 +587,10 @@ async function initPressPanel() {
           div.dataset.year    = String(item.year);
           div.dataset.cat     = item.category || '';
           div.dataset.search  = [item.titleEn, item.titleZh, item.subtitleEn, item.subtitleZh].filter(Boolean).join(' ').toLowerCase();
-          const hasMedia  = !!(item.image || item.pdfUrl || item.videoUrl);
+          // 支援兩種 shape：Directus(images[]/videoUrls[] 多值) + 本地 fallback(image/videoUrl 單值)
+          const imgList = (item.images && item.images.length) ? item.images : (item.image ? [item.image] : []);
+          const vidList = (item.videoUrls && item.videoUrls.length) ? item.videoUrls : (item.videoUrl ? [item.videoUrl] : []);
+          const hasMedia  = !!(imgList.length || vidList.length || item.pdfUrl);
           // 副標 EN/ZH 拆成兩個獨立 span：桌面 CSS inline 視覺一行（中間 &ensp; 由 ::after 補），手機 block 拆兩行
           const subtitleEnHtml = item.subtitleEn ? `<span class="press-item-subtitle press-item-subtitle-en"><span class="press-subtitle-inner">${item.subtitleEn}</span></span>` : '';
           const subtitleZhHtml = item.subtitleZh ? `<span class="press-item-subtitle press-item-subtitle-zh"><span class="press-subtitle-inner">${item.subtitleZh}</span></span>` : '';
@@ -574,14 +611,15 @@ async function initPressPanel() {
               </div>
               <span class="press-item-cat-tag" data-show-in-all></span>
             </div>`;
-          if (item.image || item.videoUrl) {
+          // 後台放圖/影片 → 開 media viewer(lightbox)；只放 PDF → 開 PDF viewer（圖/影片同時有時優先 lightbox）
+          if (imgList.length || vidList.length) {
             div.style.cursor = "url('/custom-cursor/pointer.svg') 14 1, pointer";
             const media = [];
-            if (item.image)    media.push({ type: 'image', src: item.image, thumb: item.image });
-            if (item.videoUrl) {
-              const vid = item.videoUrl.match(/(?:v=|youtu\.be\/)([^&?/]+)/)?.[1];
+            imgList.forEach(src => media.push({ type: 'image', src, thumb: src }));
+            vidList.forEach(url => {
+              const vid = url.match(/(?:v=|youtu\.be\/)([^&?/]+)/)?.[1];
               if (vid) media.push({ type: 'video', src: `https://www.youtube.com/embed/${vid}`, thumb: `https://img.youtube.com/vi/${vid}/hqdefault.jpg` });
-            }
+            });
             if (media.length) {
               const lbTitle = { en: item.titleEn || '', zh: item.titleZh || '' };
               const lbColor = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
@@ -1427,11 +1465,23 @@ function handleLibraryHash() {
       //    只擋「使用者捲動」、擋不住「程式捲動」；scrollIntoView({block:'start'}) 會為了把元素對齊 viewport 頂端
       //    連 body 一起捲（獎項在置中卡片裡、離頂 ~300px）→ 整張卡片被頂到 header 後面（user 2026-06-04 回報「整體往上位移」）。
       //    改用內層 scroller 的 scrollBy（getBoundingClientRect 差值）只在容器內捲，body 完全不動。
-      const SCROLL_MARGIN = 32; // 2rem：awards year 標題 sticky，留空間不被遮
+      // 對齊點：把目標捲到 sticky 年份標題「底緣」之下，依 panel 決定要不要多塞 overlap（user 2026-06-09）：
+      //   - awards（.year-block，列間有 border-b 分隔綫）：多塞 4px，讓上一列的分隔綫被標題不透明背景蓋住、不外露。
+      //   - files（.files-year-block，卡片無分隔綫）：標題與第一排的留白已搬進 sticky 標題 padding-bottom（見 library.css），
+      //     故對齊標題底緣即可、不再 overlap → 第一排卡片自然不位移（之前固定 32px 比卡片自然位置高、害第一排被多捲）。
+      //   - 其他（press/album/找不到）：維持原本固定 32px。
+      // 年份標題高度一律動態量（font/padding 改了也準）。
       const scroller = /** @type {HTMLElement|null} */ (el.closest('[id$="-scroll"]'));
       if (scroller) {
+        const yb = /** @type {HTMLElement|null} */ (el.closest('.year-block, .files-year-block'));
+        let margin = 32;
+        if (yb) {
+          const isAwards = yb.classList.contains('year-block');
+          const label = /** @type {HTMLElement|null} */ (isAwards ? yb.firstElementChild : yb.querySelector(':scope > .press-year-label'));
+          if (label) margin = Math.max(0, label.offsetHeight - (isAwards ? 4 : 0));
+        }
         const delta = el.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
-        scroller.scrollBy({ top: delta - SCROLL_MARGIN, behavior: 'smooth' });
+        scroller.scrollBy({ top: delta - margin, behavior: 'smooth' });
       } else {
         // 理論上四個 panel 都有內層 scroller；萬一沒有，退回 nearest（不對齊頂端 → 不會大幅捲 body）
         el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });

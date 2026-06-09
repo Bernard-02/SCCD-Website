@@ -19,8 +19,8 @@ function applyRandomRotation(el) {
 export function initMobileMenu() {
   const btn = document.querySelector('.mobile-menu-btn');
   const nav = document.querySelector('.mobile-nav');
-  // icon swap 兩態：open（漢堡 mask）/ close（FA xmark）
-  // 用 inline style.display 切換，避 Tailwind .hidden 跟 FA .fa-solid display:inline-block 的 cascade 競爭
+  // icon swap 兩態：open（漢堡 mask）/ close（arrow-right mask）— 兩者都走 .icon mask 系統（mode-aware currentColor）
+  // 用 inline style.display 切換，避 Tailwind .hidden 跟 icon display:inline-block 的 cascade 競爭
   const iconOpen = btn?.querySelector('[data-mobile-menu-icon="open"]');
   const iconClose = btn?.querySelector('[data-mobile-menu-icon="close"]');
   const toggles = document.querySelectorAll('.mobile-submenu-toggle');

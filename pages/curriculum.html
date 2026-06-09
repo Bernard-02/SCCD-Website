@@ -53,7 +53,7 @@
          Layout（桌面）：左 program bar (vertical sticky) ｜ 中 grid panels ｜ 右 sticky desc panel
                 Mobile：垂直堆疊（bar → panels → desc 隱藏）
     -->
-    <section class="bg-white min-h-screen pt-3xl pb-6xl md:py-6xl" id="courses-content-section">
+    <section class="bg-white min-h-screen pt-6xl pb-6xl md:py-6xl" id="courses-content-section">
       <div class="site-container">
         <!-- grid-20：桌面 program bar 占 cols 1-4、課程內容 cols 5-20（對齊 faculty/about col-5）；手機 flex-col 堆疊 -->
         <div class="courses-content-row flex flex-col gap-gutter md:grid md:grid-cols-20">
@@ -103,13 +103,11 @@
       <!-- title 區 sticky 在頂端不動；desc 包進固定 wrapper，內部 overflow-y 自己 scroll（參考 activities list-scroll pattern） -->
       <div id="courses-detail-panel" class="absolute right-0 top-0 bottom-0 w-full md:w-[40%] overflow-hidden"
            style="background: white; transform: translateX(110%);">
-        <!-- padding 對齊 faculty slide-in（px-container-padding / pt-calc(header+5rem) / pb-6xl 手機；桌面 pt-4xl pb-2xl）
-             整個 inner = scroll container（overflow-y-auto），title 區 sticky top:0 → 內文長時 title 黏頂端 -->
-        <!-- pb = container-padding（手機 24 / 桌面 60）讓底部 padding 跟左右視覺同級；
-             桌面維持 md:pb-2xl(64) 保留原節奏 -->
-        <div class="courses-detail-inner w-full h-full px-container-padding pt-[calc(var(--header-height,80px)+5rem)] pb-[var(--container-padding)] md:pt-4xl md:pb-2xl flex flex-col overflow-y-auto no-scrollbar bg-inherit">
-          <!-- Sticky 群組：手機返回鍵 + title 一起黏在頂部（user 要求兩者都 sticky）
-               bg inherit → 自動繼承 panel 動態 accent 色，scroll 時遮住下方 desc -->
+        <!-- 桌面（仿 faculty slide-in 右欄）：inner md:overflow-hidden 不捲，title 固定在上、desc 在獨立 .list-scroll box 內捲動 → 右側細黑 scrollbar。
+             手機（RWD 之後再統一調整）：inner overflow-y-auto 整段捲、title sticky 黏頂（見 .courses-detail-title-sticky）。
+             pb = container-padding（手機 24 / 桌面 60）；桌面維持 md:pb-2xl 保留原節奏 -->
+        <div class="courses-detail-inner w-full h-full px-container-padding pb-[var(--container-padding)] md:pb-2xl flex flex-col overflow-y-auto md:overflow-hidden no-scrollbar bg-inherit">
+          <!-- title 區：桌面固定（flex-shrink:0，不捲）；手機 sticky 黏頂（返回鍵 + title 一起，user 要求） -->
           <div class="courses-detail-title-sticky">
             <button id="courses-back-btn-mobile" class="md:hidden block mb-xl cursor-pointer bg-transparent self-start" aria-label="返回">
               <span class="icon icon-arrow-left text-black icon-m"></span>
@@ -117,9 +115,10 @@
             <h5 id="courses-detail-title-en" class="courses-detail-title-en text-h5 font-bold mb-0"></h5>
             <h5 id="courses-detail-title-zh" class="courses-detail-title-zh text-h5 font-bold mb-0"></h5>
           </div>
-          <div class="courses-detail-desc-wrapper mt-xl">
-            <p id="courses-detail-desc-en" class="courses-detail-desc-en text-p1 mb-lg" style="line-height: 1.6;"></p>
-            <p id="courses-detail-desc-zh" class="courses-detail-desc-zh text-p1" style="line-height: 1.6;"></p>
+          <!-- desc：桌面成獨立 scroll box（md:flex-1 撐滿剩餘高 + md:overflow-y-auto + list-scroll 細黑 scrollbar + md:pr-md 留 scrollbar 間距），手機隨 inner 整段捲 -->
+          <div class="courses-detail-desc-wrapper md:mt-xl md:flex-1 md:min-h-0 md:overflow-y-auto list-scroll md:pr-md">
+            <p id="courses-detail-desc-en" class="courses-detail-desc-en text-p2 mb-lg" style="line-height: 1.6;"></p>
+            <p id="courses-detail-desc-zh" class="courses-detail-desc-zh text-p2" style="line-height: 1.6;"></p>
           </div>
         </div>
       </div>

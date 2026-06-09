@@ -18,6 +18,7 @@
 import { enterLightboxMode, exitLightboxMode } from '../lightbox/lightbox-shell.js';
 import { applyMarqueeOverflow } from '../ui/marquee-overflow.js';
 import { DUR, EASE } from '../ui/motion.js';
+import { loadCourses } from './courses-source.js';
 
 const PRIMARY_COLORS = ['#00FF80', '#FF448A', '#26BCFF'];
 
@@ -35,34 +36,14 @@ function gradesOf(program) {
   return program === 'mdes' ? MDES_GRADES : BFA_GRADES;
 }
 
-const SEMESTERS = [
-  { key: 'upper', en: '1st Semester', zh: '第一學期' },
-  { key: 'lower', en: '2nd Semester', zh: '第二學期' },
-];
-
 const TYPES = [
   { key: 'required', en: 'Required', zh: '必修' },
   { key: 'elective', en: 'Elective', zh: '選修' },
 ];
 
-// 維持 layout 密度的 placeholder 池（真實課表寫進 WP 後可逐步取代）
-
-// 讀本地 JSON（WP-headless 邏輯已移除 2026-06-05）；之後 flip 接 Directus 時改 Directus 為主 + 本地 fallback。
-const COURSES_JSON_FALLBACK = '/data/courses.json';
-let _coursesData = null;
+// 課程資料：Directus curriculum_courses（依 program 分組）為主 + 本地 fallback，見 courses-source.js
 async function loadData() {
-  if (_coursesData) return _coursesData;
-  const res = await fetch(COURSES_JSON_FALLBACK);
-  _coursesData = await res.json();
-  return _coursesData;
-}
-
-// 從課程名（中英）推測學期：II/二/下 → 下學期；I/一/上 → 上學期；不明默認上
-function detectSemester(titleEn, titleZh) {
-  const t = `${titleEn || ''} ${titleZh || ''}`;
-  if (/\bII\b|（二）|\(二\)|（下）|\(下\)/.test(t)) return 'lower';
-  if (/\bI\b(?!I)|（一）|\(一\)|（上）|\(上\)/.test(t)) return 'upper';
-  return 'upper';
+  return loadCourses();
 }
 
 // 與 floating-items.js 一致的 slug 規則；給 deep-link `?item=slug` 比對用
@@ -71,8 +52,8 @@ function slugify(str) {
 }
 
 // 把 courses.json 攤成 chips（每個 part 各自一張）
-// semester 優先順序：part.semester > course.semester > 從標題偵測
 // slug 由「母 course.titleEn」decide 並透傳到所有 parts，配合 floating-items.js 同算法
+// 2026-06-09 起不分學期，chip 不再帶 semester（只用 grade + type 分格）
 function flattenToChips(courses) {
   const chips = [];
   courses.forEach(course => {
@@ -86,7 +67,6 @@ function flattenToChips(courses) {
           descriptionZh: part.descriptionZh || course.descriptionZh || '',
           type: course.type,
           grade: course.grade,
-          semester: part.semester || course.semester || detectSemester(part.titleEn, part.titleZh),
           slug: parentSlug,
         });
       });
@@ -98,7 +78,6 @@ function flattenToChips(courses) {
         descriptionZh: course.descriptionZh || '',
         type: course.type,
         grade: course.grade,
-        semester: course.semester || detectSemester(course.titleEn, course.titleZh),
         slug: parentSlug,
       });
     }
@@ -145,11 +124,11 @@ function renderCard(chip) {
 }
 
 // 永遠保留 4 個年級欄位置（對齊 BFA layout）；MDES 只填前 N 個有 grades 的 cell，剩下 emit 空 div 佔位
-// 不能少 emit cell 否則 grid auto-flow 會把後續 sem-label/type-label 推到空欄位錯亂整張表
+// 不能少 emit cell 否則 grid auto-flow 會把後續 type-label 推到空欄位錯亂整張表
 const TOTAL_YEAR_COLS = 4;
 
 // 手機版改成年級為外層分組（一年級從上到下到四年級），每個年級內列出
-// 第一學期/第二學期 × 必修/選修 的 chips。桌面版維持 buildHTML 的橫排年級結構。
+// 必修/選修 兩列 chips（不分學期）。桌面版維持 buildHTML 的橫排年級結構。
 // 兩種 DOM 結構共存（CSS media query 切顯示），同 program 的卡片各自存在 → 點擊兩邊都能觸發
 // slide-in（bindCardClick 走 panel 級 grid，兩個 grid 都會綁）
 function buildMobileHTML(program, courses) {
@@ -164,27 +143,19 @@ function buildMobileHTML(program, courses) {
         <span class="courses-mobile-grade-zh">${g.zh}</span>
       </div>`;
 
-    SEMESTERS.forEach(sem => {
-      TYPES.forEach(t => {
-        const cellChips = realChips.filter(rc =>
-          rc.grade === g.key && rc.semester === sem.key && rc.type === t.key
-        );
-        if (cellChips.length === 0) return;
-        blockInner += `
-          <div class="courses-mobile-row">
-            <div class="courses-mobile-row-label">
-              <div class="courses-mobile-row-label-sem">
-                <span class="courses-mobile-sem-en">${sem.en}</span>
-                <span class="courses-mobile-sem-zh">${sem.zh}</span>
-              </div>
-              <div class="courses-mobile-row-label-type">
-                <span class="courses-mobile-type-en">${t.en}</span>
-                <span class="courses-mobile-type-zh">${t.zh}</span>
-              </div>
+    TYPES.forEach(t => {
+      const cellChips = realChips.filter(rc => rc.grade === g.key && rc.type === t.key);
+      if (cellChips.length === 0) return;
+      blockInner += `
+        <div class="courses-mobile-row">
+          <div class="courses-mobile-row-label">
+            <div class="courses-mobile-row-label-type">
+              <span class="courses-mobile-type-en">${t.en}</span>
+              <span class="courses-mobile-type-zh">${t.zh}</span>
             </div>
-            <div class="courses-mobile-cells">${cellChips.map(renderCard).join('')}</div>
-          </div>`;
-      });
+          </div>
+          <div class="courses-mobile-cells">${cellChips.map(renderCard).join('')}</div>
+        </div>`;
     });
 
     html += `<div class="courses-mobile-grade-block">${blockInner}</div>`;
@@ -226,74 +197,29 @@ function buildHTML(program, courses) {
   }
   html += `<div class="courses-grid-row-cover">${coverInnerHtml}</div>`;
 
-  // 每 semester 包成 .courses-semester（subgrid 6 cols），裡面：
-  //   - sem-label 在 col 1 跨 2 sub-row（required + elective）
-  //   - .courses-required-row / .courses-elective-row 各包 col 2/-1 的 type-label + 4 cells（subgrid 5 cols）
-  // 拆 nested subgrid 是為了讓 sem-label / type-label 的 sticky containing block 縮到自己學期/row，
-  // row 到底時 label 自然跟著上去（vs. 原本一張 grid 共用 sticky 範圍黏到 grid 最後才釋放）
-  // 第 2+ 個學期 wrapper 加 .courses-grid-sem-start 補學期間距（margin-top 2xl）
-  SEMESTERS.forEach((sem, semIdx) => {
-    let semInner = '';
-
-    // sem-label（學期欄）已移除 → 改用兩學期間的 .courses-grid-sem-divider 分隔線（見下方 forEach 尾端）
-
-    // Required row（subgrid 4/5 cols：type-col + 4 year cols）
-    let reqInner = `
+  // 2026-06-09 起不分學期 → 一個 program 只有一條必修列 + 一條選修列（直接當 .courses-grid 子項，
+  // subgrid 繼承外層欄）。type-label sticky containing block = 該 row，row 到底時 label 跟著上去。
+  // 每列：col 1 type-label（必修/選修）+ 4 個年級 cell（grade × type filter）。
+  const buildTypeRow = (typeMeta, rowClass) => {
+    let inner = `
       <div class="courses-grid-type-label">
         <div class="courses-grid-type-label-inner">
-          <span class="courses-grid-type-en">${TYPES[0].en}</span>
-          <span class="courses-grid-type-zh">${TYPES[0].zh}</span>
+          <span class="courses-grid-type-en">${typeMeta.en}</span>
+          <span class="courses-grid-type-zh">${typeMeta.zh}</span>
         </div>
       </div>`;
     for (let i = 0; i < TOTAL_YEAR_COLS; i++) {
       const g = grades[i];
-      if (g) {
-        const cellChips = realChips.filter(rc =>
-          rc.grade === g.key && rc.semester === sem.key && rc.type === 'required'
-        );
-        reqInner += `<div class="courses-grid-cell ${yearCls(i)}">${cellChips.map(renderCard).join('')}</div>`;
-      } else {
-        reqInner += `<div class="courses-grid-cell ${yearCls(i)}"></div>`;
-      }
+      const cellChips = g
+        ? realChips.filter(rc => rc.grade === g.key && rc.type === typeMeta.key)
+        : [];
+      inner += `<div class="courses-grid-cell ${yearCls(i)}">${cellChips.map(renderCard).join('')}</div>`;
     }
-    semInner += `<div class="courses-required-row">${reqInner}</div>`;
+    return `<div class="${rowClass}">${inner}</div>`;
+  };
 
-    // Elective row（同 subgrid 結構）
-    let elecInner = `
-      <div class="courses-grid-type-label">
-        <div class="courses-grid-type-label-inner">
-          <span class="courses-grid-type-en">${TYPES[1].en}</span>
-          <span class="courses-grid-type-zh">${TYPES[1].zh}</span>
-        </div>
-      </div>`;
-    for (let i = 0; i < TOTAL_YEAR_COLS; i++) {
-      const g = grades[i];
-      if (g) {
-        const cellChips = realChips.filter(rc =>
-          rc.grade === g.key && rc.semester === sem.key && rc.type === 'elective'
-        );
-        elecInner += `<div class="courses-grid-cell ${yearCls(i)}">${cellChips.map(renderCard).join('')}</div>`;
-      } else {
-        elecInner += `<div class="courses-grid-cell ${yearCls(i)}"></div>`;
-      }
-    }
-    semInner += `<div class="courses-elective-row">${elecInner}</div>`;
-
-    html += `<div class="courses-semester">${semInner}</div>`;
-
-    // 學期分隔：第一學期下方一條 4px 橫線跨年級欄，左側 label「Semester 學期」（取代原本的學期欄）。
-    // align-items:center 讓 label 與線垂直置中對齊；spacing 由 .courses-grid-sem-divider margin 控（courses.css）。
-    if (semIdx === 0) {
-      html += `
-        <div class="courses-grid-sem-divider">
-          <div class="courses-grid-sem-divider-label">
-            <span class="courses-grid-sem-divider-en">Semester</span>
-            <span class="courses-grid-sem-divider-zh">學期</span>
-          </div>
-          <div class="courses-grid-sem-divider-line"></div>
-        </div>`;
-    }
-  });
+  html += buildTypeRow(TYPES[0], 'courses-required-row');
+  html += buildTypeRow(TYPES[1], 'courses-elective-row');
 
   return html;
 }
@@ -517,6 +443,20 @@ export function selectCardBySlugInPanel(program, slug) {
   if (!card) return false;
   selectCard(card);
   return true;
+}
+
+// deep-link 用：只 highlight 卡片（套 accent 底色 + hover 角度），不開 slide-in。
+// 給「等卡片 reveal 完 → highlight → 隔一拍才開 slide-in」序列用（dataset.currentColor 會被隨後的
+// selectCardBySlugInPanel 沿用 → highlight 色 = slide-in panel 色，視覺連續）。回傳卡片或 null。
+export function highlightCardBySlugInPanel(program, slug) {
+  if (!slug) return null;
+  const panel = document.getElementById(`panel-${program}`);
+  if (!panel) return null;
+  const card = /** @type {HTMLElement|null} */ (panel.querySelector(`.courses-grid-card[data-slug="${CSS.escape(slug)}"]`));
+  if (!card) return null;
+  applyHoverColor(card);
+  applyHoverRot(card);
+  return card;
 }
 
 export function deselectActiveCard() {

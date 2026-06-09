@@ -75,6 +75,10 @@ function ensurePdfModal() {
         <div class="pdf-canvas-row flex items-center justify-center gap-0 w-full h-full" style="transform-origin:center;will-change:transform;">
           <canvas id="pdf-canvas-left" class="bg-white block" style="user-select:none;"></canvas>
         </div>
+        <!-- 螢幕浮水印：英中各一行「整句連續重複」的斜 30° 文字疊在 PDF 上（前臺視覺水印，後臺不用事先編輯 PDF）。
+             固定蓋住 stage、不隨 zoom/pan 移動；pointer-events:none 不擋互動。
+             inset / transform(rotate) / background(兩個水平 repeat layer) 全由 JS 設（見 initPdfViewer 浮水印段）。-->
+        <div class="pdf-watermark" aria-hidden="true" style="position:absolute;inset:0;pointer-events:none;z-index:20;"></div>
       </div>
       <button id="pdf-next-btn" class="absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 disabled:opacity-20" style="right: var(--container-padding, 1.5rem); z-index: 30;">
         <span class="icon icon-chevron-lightbox icon-m rotate-180"></span>
@@ -152,6 +156,45 @@ export function initPdfViewer() {
   const zoomPctEl  = document.getElementById('pdf-zoom-pct');
   const fitToggleBtn = document.getElementById('pdf-fit-toggle');
   if (!modal || !canvasL || !stageEl || !rowEl) return;
+
+  // ── 螢幕浮水印 + 禁右鍵下載（user 2026-06-08；2026-06-09 改連續重複斜向版）──────────
+  // 浮水印排版（user 指定）：英文一行「整句連續重複」+ 中文一行「整句連續重複」、英中交替數行，整片斜 30°。
+  //   作法＝兩個 background layer（EN / ZH 各一個水平 repeat 的 SVG tile）疊在同一 div、垂直交替，
+  //   再把整個 div 放大 inset:-50% 後 rotate(-30deg) → 斜向連續文字、邊緣由外層 .pdf-zoom-stage overflow:hidden 裁掉。
+  //   ⚠️ 不要回退成「一句一句獨立擺＋整片 rotate 每個 text」：那種長英文 rotate 後會在 tile 接縫被切成半句（踩過）。
+  //   ⚠️ 水平無縫關鍵＝每個 tile 寬必須＝「一句＋分隔」實際 advance 寬 → 即時量（字體已載入），寫死像素會在接縫跳位。
+  const wmEl = modal.querySelector('.pdf-watermark');
+  if (wmEl) {
+    const FS = 24, WEIGHT = 700, FAM = "Inter,'Noto Sans TC',sans-serif";
+    const LH = Math.round(FS * 5.6);                 // 行距（EN→ZH 垂直間隔）；tile 高 = 2*LH 容一組英中；越大越稀疏
+    // 系名英文＝Department of Communications Design, Shih Chien University（名稱內含逗號）；句尾留分隔＝重複實例間距
+    // 中英共用同一組全形空白分隔（3em）→ 重複實例間 gap 一致（英文用半形空白會比中文窄一半）
+    const SEP = '　　　';
+    const EN_UNIT = 'Department of Communications Design, Shih Chien University' + SEP;
+    const ZH_UNIT = '實踐大學媒體傳達設計學系' + SEP;
+    const measure = (s) => {                         // 用 DOM span 量 advance（含尾端分隔空白；white-space:pre 保留）
+      const sp = document.createElement('span');
+      sp.textContent = s;
+      sp.style.cssText = `position:absolute;visibility:hidden;white-space:pre;font:${WEIGHT} ${FS}px ${FAM}`;
+      document.body.appendChild(sp);
+      const w = Math.ceil(sp.getBoundingClientRect().width);
+      sp.remove();
+      return w;
+    };
+    const layer = (unit, baseY) => {                 // 寬=unit advance、高=2*LH；text x=0 → 下一 tile 接續成連續句
+      const w = measure(unit);
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${LH * 2}"><text x="0" y="${baseY}" xml:space="preserve" fill="rgba(0,0,0,0.08)" font-size="${FS}" font-weight="${WEIGHT}" font-family="${FAM}" text-anchor="start">${unit.replace(/&/g, '&amp;')}</text></svg>`;
+      return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+    };
+    const el = /** @type {HTMLElement} */ (wmEl);
+    el.style.backgroundImage = `${layer(EN_UNIT, Math.round(LH * 0.72))},${layer(ZH_UNIT, Math.round(LH * 1.72))}`;
+    el.style.backgroundRepeat = 'repeat, repeat';
+    el.style.inset = '-50%';                         // 放大 → rotate(-30) 後仍蓋滿 stage（外層 overflow:hidden 裁邊）
+    el.style.transform = 'rotate(-30deg)';
+  }
+  // 禁右鍵：PDF 渲染在 <canvas>，右鍵「另存圖片」會存下當頁 → viewer 開著時整個 modal 禁 contextmenu。
+  // ⚠️ 只嚇阻隨手下載／截圖；拿到原始 /assets PDF 網址仍是無浮水印原檔（要檔案級保護得後臺處理）。
+  modal.addEventListener('contextmenu', (e) => e.preventDefault());
 
   // ── Ref btn（plug-in helper）─────────────────────────────────────
   // 提供「跳轉到 activities 對應 item」的 chip popover；close lightbox 後 SPA 換頁

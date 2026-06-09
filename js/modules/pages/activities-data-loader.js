@@ -9,6 +9,7 @@ import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { ensureFlagIconsCss } from '../ui/ensure-flag-icons.js';
 import { countryName } from '../../data/country-names.js';
 import { DUR, EASE } from '../ui/motion.js';
+import { loadSummerCamp } from './summer-camp-source.js';
 
 // ── Reference 自動 lookup ─────────────────────────────────────────────────────
 // ref 只填 { section, itemId } 即可；title/label 渲染前自動從目標 JSON lookup。
@@ -1292,9 +1293,14 @@ export async function loadSummerCampInto(containerId = null, options = {}) {
     return el?.id || null;
   })();
   if (!id) return;
-  const data = await fetch('/data/summer-camp.json').then(r => r.json());
+  // Directus admission_summer_camp 為主 + 本地 fallback（轉成 year-grouped shape，見 summer-camp-source.js）
+  const data = await loadSummerCamp();
   return loadListInto(id, '/data/summer-camp.json', {
     showYearToggle: false,
+    // 後台海報/圖片暫未上傳（媒體導向 list 預設會把無 media 的項目濾掉）→ allowNoMedia 讓營隊
+    // 即使沒海報也顯示（title/副標/日期/地點）；之後在 Directus 上傳 poster/images 會自動帶出。
+    allowNoMedia: true,
+    showSubtitle: true,   // 營隊副標（subtitleEn/Zh，如「全國高中生設計體驗營」）顯示在標題下，有才顯示
     data,
     ...options,
   });

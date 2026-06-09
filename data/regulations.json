@@ -1,44 +1,38 @@
 {
   "titleEn": "Department Regulations",
   "titleZh": "學系規章",
-  "overviewEn": "These regulations govern the academic, studio, and administrative conduct of students, faculty, and staff within the Department of Communications Design, Shih Chien University (SCCD). They are established to maintain an orderly, fair, and creative learning environment. (Draft — content to be finalized.)",
-  "overviewZh": "本規章規範實踐大學媒體傳達設計學系（SCCD）師生於學術、工作室及行政事務上之行為準則，旨在維護有秩序、公平且具創造力之學習環境。（草稿，內容待修訂。）",
+  "overviewEn": "",
+  "overviewZh": "",
   "points": [
     {
-      "titleEn": "General Principles",
-      "titleZh": "總則",
-      "desEn": "<p>These regulations are formulated in accordance with the University Charter and relevant academic statutes of Shih Chien University. Matters not addressed herein shall follow the University's general regulations.</p>",
-      "desZh": "<p>本規章依實踐大學組織規程及相關學則訂定之；本規章未盡事宜，悉依本校相關規定辦理。</p>"
+      "titleEn": "Academic Regulations",
+      "titleZh": "學則",
+      "desEn": "<p>Shih Chien University Academic Regulations<br>實踐大學學則</p>",
+      "desZh": ""
     },
     {
-      "titleEn": "Curriculum and Credits",
-      "titleZh": "課程與學分",
-      "desEn": "<ul><li>Students shall complete the required and elective credits prescribed by the department curriculum for their year of enrollment.</li><li>Course selection, withdrawal, and credit transfer shall follow the schedule and procedures announced by the Office of Academic Affairs.</li></ul>",
-      "desZh": "<ul><li>學生應依入學年度之系訂課程，修畢規定之必修與選修學分。</li><li>選課、退選及學分抵免，應依教務處公告之時程與程序辦理。</li></ul>"
+      "titleEn": "Study",
+      "titleZh": "修業",
+      "desEn": "<p>Course Syllabus<br>課程計畫表</p><p>Regulation for Pursuing in Bachelor Courses<br>修習學士班課程辦法</p><p>Regulation for Semester Evaluation<br>學習評鑑施行辦法</p><p>Regulation for Qualifying Exam<br>資格考試施行辦法</p><p>Regulation for Degree Exam<br>學位考試施行辦法</p>",
+      "desZh": ""
     },
     {
-      "titleEn": "Studio and Equipment Use",
-      "titleZh": "工作室與設備使用",
-      "desEn": "<ul><li>Department studios, equipment, and facilities are provided for coursework and approved projects; users shall follow posted safety and booking rules.</li><li>Borrowed equipment shall be returned on time and in good condition; damage or loss shall be reported and compensated in accordance with department procedures.</li></ul>",
-      "desZh": "<ul><li>系上工作室、設備及場地僅供課程及經核准之專案使用，使用者應遵守張貼之安全與借用規範。</li><li>借用設備應於期限內完好歸還；如有損壞或遺失，應依系上程序通報並賠償。</li></ul>"
+      "titleEn": "Resources",
+      "titleZh": "資源",
+      "desEn": "<p>Regulation of Space &amp; Equipment<br>空間與設備管理規章</p>",
+      "desZh": ""
     },
     {
-      "titleEn": "Academic Integrity",
-      "titleZh": "學術倫理",
-      "desEn": "<p>All coursework, design projects, and theses must be the student's original work. Plagiarism, unauthorized collaboration, and misrepresentation of authorship are prohibited and subject to disciplinary action under University regulations.</p>",
-      "desZh": "<p>所有作業、設計專案及論文均須為學生本人之原創成果。抄襲、未經授權之協作及偽冒著作行為均予禁止，並依本校相關規定議處。</p>"
+      "titleEn": "Organizations",
+      "titleZh": "組織",
+      "desEn": "<p>Constitution of the Student Association<br>學生會組織章程</p>",
+      "desZh": ""
     },
     {
-      "titleEn": "Graduation Requirements",
-      "titleZh": "畢業要求",
-      "desEn": "<ul><li>Students shall complete all required credits, the graduation project or degree show, and any department-specific requirements before graduation.</li><li>Participation in the annual degree show is required unless otherwise approved by the department.</li></ul>",
-      "desZh": "<ul><li>學生畢業前應修畢全部規定學分、完成畢業製作或畢業展，並符合系訂各項要求。</li><li>除經系上核准者外，學生應參與年度畢業展。</li></ul>"
-    },
-    {
-      "titleEn": "Supplementary Provisions",
-      "titleZh": "附則",
-      "desEn": "<p>These regulations take effect upon approval by the department affairs meeting, and the same procedure applies to any amendments.</p>",
-      "desZh": "<p>本規章經系務會議通過後施行，修正時亦同。</p>"
+      "titleEn": "Legal",
+      "titleZh": "法規",
+      "desEn": "<p>Personal Information Collection Statement<br>個人資料蒐集聲明</p>",
+      "desZh": ""
     }
   ],
   "lastUpdatedEn": "Last Updated: June 2026",

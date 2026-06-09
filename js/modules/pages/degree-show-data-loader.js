@@ -537,7 +537,7 @@ async function renderEventGalleries(data) {
 
 function appendExhibitionSection(root, index, pool, branchEn, branchZh) {
   const section = document.createElement('section');
-  section.className = 'event-gallery-section py-4xl';
+  section.className = 'event-gallery-section py-6xl';
   section.dataset.eventIndex = String(index);
   section.dataset.branchEn = branchEn;
   section.dataset.branchZh = branchZh;
@@ -581,7 +581,7 @@ async function appendRefBasedSection(root, index, ev, branchEn, branchZh) {
   if (resolved.length === 0) return;
 
   const section = document.createElement('section');
-  section.className = 'event-gallery-section py-4xl';
+  section.className = 'event-gallery-section py-6xl';
   section.dataset.eventIndex = String(index);
   section.dataset.branchEn = branchEn;
   section.dataset.branchZh = branchZh;
@@ -752,6 +752,17 @@ async function appendRefBasedSection(root, index, ev, branchEn, branchZh) {
     btn.addEventListener('click', () => switchTab(i));
   });
   setActiveTabBtn();
+
+  // 離頁退場（user 2026-06-08「這兩個 tab 也要出場動畫」）：tab chip 各自 clip-path 收（playClipPathExit
+  // viewportOnly → 只收視窗內；tab 無 inline clipPath → fromTo inset(0) 收）。
+  // ⚠️ .class-division-btn 帶 Tailwind `transition-all duration-fast`（含 clip-path）會追著 GSAP 每幀寫值打架
+  //    → 退場前先 transition:'none'（頁面即將 swap 不必還原）。clip-path 套 chip 自身不裁旋轉角。
+  if (tabBtns.length) {
+    registerPageExit(() => {
+      tabBtns.forEach(b => { b.style.transition = 'none'; });
+      return playClipPathExit(tabBtns);
+    });
+  }
 
   section.appendChild(wrap);
   root.appendChild(section);
@@ -943,23 +954,29 @@ async function setupRefBtn(data) {
     popover.style.display = 'block';
     // 卡片旋轉跟隨 btn 當前角度（此時 setupStickyAndHeroChips 已套好 refBtn rotation）
     const rotMatch = btn.style.transform.match(/rotate\(\s*(-?[\d.]+)deg\s*\)/);
-    card.style.transform = `rotate(${rotMatch ? rotMatch[1] : 0}deg)`;
-    positionPopover();
+    const rot = rotMatch ? parseFloat(rotMatch[1]) : 0;
     if (typeof gsap !== 'undefined') {
       if (openAnim) openAnim.kill();
-      // clip-path 由下往上 reveal（content 留在最終位置原地揭露）— 不用 yPercent slide-up，
-      // 否則 stack 先被往下推 popH、再滑上來，視覺上「卡片在比較低的位置出現再上移、過程被切」（user 2026-06-02）
-      // clip-path 套在 popover（含 32px padding）而非 stack：旋轉 card 角落在 padding 內、reveal 期間不被裁
-      // onComplete 解除 clip-path 讓角完全自由
-      gsap.set(popover, { clipPath: 'inset(100% 0% 0% 0%)' });
-      openAnim = gsap.to(popover, {
-        clipPath: 'inset(0% 0% 0% 0%)',
-        duration: DUR.medium,
-        ease: EASE.enter,
-        onComplete: () => { popover.style.clipPath = 'none'; },
-      });
+      // 完全比照 album viewer 的 ref card（lightbox-ref-btn.js）= hero tight-wrapper yPercent reveal：
+      // setupClipReveal 給 card 包 tight 遮罩 + set yPercent:100 → card 從容器底邊滑入「原地」揭露（不是淡入）。
+      // 不用 playClipReveal（clearProps:transform 會清掉旋轉）；旋轉改用 gsap.set 才與 yPercent 同管不打架。
+      // user 2026-06-08：指定對齊 album viewer 的 ref 卡片進出場（取代先前 clip-path / opacity fade）。
+      setupClipReveal([card]);
+      const wrapper = card.parentElement;
+      if (wrapper && wrapper.classList.contains('clip-reveal-wrapper')) {
+        // 補回 max-width 約束（同 lightbox-ref-btn）防長 title 把 card 撐到 max-content 破壞 popover 寬度
+        wrapper.style.maxWidth = '100%';
+        // 🔑 旋轉套「wrapper」不套 card（degree-show ref btn 有 ±3° 旋轉、viewer 的 btn 是 0°）：
+        //   card 對 wrapper 仍 0° → reveal 滑入期間 card 完整貼合 wrapper、不會有旋轉角凸出 tight 遮罩被裁，
+        //   整個 wrapper(含 card)視覺一起 tilt → 跟 viewer ref 卡同款乾淨滑入。
+        //   原本套 card 會讓旋轉角凸出遮罩、滑入「先被切、onComplete 才 overflow:visible」(user 報「很怪」)。
+        //   wrapper overflow 維持 setupClipReveal 預設（overflow-y:clip 遮罩 / overflow-x:visible），不再 toggle。
+        gsap.set(wrapper, { rotation: rot });
+      }
+      positionPopover();
+      openAnim = gsap.to(card, { yPercent: 0, duration: DUR.reveal, ease: EASE.enter });
     } else {
-      popover.style.clipPath = 'none';
+      positionPopover();
     }
   }
 
@@ -971,17 +988,16 @@ async function setupRefBtn(data) {
     isOpen = false;
     if (typeof gsap !== 'undefined' && animated) {
       if (openAnim) openAnim.kill();
-      // 收起 = reveal 反向（由上往下收回底邊）；先補回 inset(0%) 起點（open onComplete 設成 none 無法 interpolate）
-      gsap.set(popover, { clipPath: 'inset(0% 0% 0% 0%)' });
-      openAnim = gsap.to(popover, {
-        clipPath: 'inset(100% 0% 0% 0%)',
+      // 收合 = open 反向：card 在 tight wrapper 內 yPercent 0→100 往下滑回遮罩（與 album viewer ref card 同）。
+      // wrapper overflow-y:clip 一直維持（旋轉套 wrapper、card 對 wrapper 0°）→ 下滑乾淨被遮、無需切 overflow。
+      openAnim = gsap.to(card, {
+        yPercent: 100,
         duration: DUR.fast,
         ease: EASE.exit,
-        onComplete: () => { popover.style.display = 'none'; popover.style.clipPath = 'none'; },
+        onComplete: () => { popover.style.display = 'none'; },
       });
     } else {
       popover.style.display = 'none';
-      popover.style.clipPath = 'none';
     }
   }
 
@@ -1082,6 +1098,37 @@ function setupChipMarquees(stack, popover) {
 // 動畫：clip-path inset(0 0 100% 0) → inset(0 0 0 0)（由上往下 reveal）；收起同方向
 // 進場時機：description section pt-6xl 結束點之後（chip 出現在描述段落上方視覺對齊處）
 // 退場時機：Next Project section 進場前
+// chip 寬度貼齊「實際最長一行」文字寬 → 左右 padding 對稱（沿用 footer applyOfficeSnugWidth 同法）。
+// 為何需要：max-content + max-width(col-span-4) cap 後，長名 wrap，但 box 仍停在 cap 寬 → 比最長 render 行寬、
+//   右側留白、左右 padding 不對稱。CSS 無法讓 box 縮到「最長 wrap 行」，故用 JS 量 Range 每行 rect 取最寬。
+// rotation 處理：.sticky-chip outer 帶隨機 rotate，getClientRects 會在旋轉座標 → 量測前暫關 outer transform 再還原。
+function snugChipWidth(inner) {
+  if (!inner || typeof inner.getBoundingClientRect !== 'function') return;
+  const outer = inner.closest('.sticky-chip');
+  const savedTransform = outer ? outer.style.transform : null;
+  if (outer) outer.style.transform = 'none';     // 量測時拿掉旋轉，避免 rect 在旋轉座標被放大
+  inner.style.width = 'max-content';             // 回 max-content（被 max-width cap → 在 cap 內 wrap）
+  void inner.offsetWidth;                        // force reflow
+  const cs = getComputedStyle(inner);
+  const padL = parseFloat(cs.paddingLeft) || 0;
+  const padR = parseFloat(cs.paddingRight) || 0;
+  const left = inner.getBoundingClientRect().left + padL;
+  let maxRight = 0;
+  const walker = document.createTreeWalker(inner, NodeFilter.SHOW_TEXT);
+  let node;
+  while ((node = walker.nextNode())) {
+    if (!node.nodeValue || !node.nodeValue.trim()) continue;
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    for (const r of range.getClientRects()) {
+      const off = r.right - left;
+      if (off > maxRight) maxRight = off;
+    }
+  }
+  if (maxRight > 0) inner.style.width = `${Math.ceil(maxRight) + padL + padR}px`;
+  if (outer) outer.style.transform = savedTransform;  // 還原旋轉
+}
+
 // Branch 切換：scroll 進入下一個 event → 先收 → 換字 → 展（不可直接切換文字）
 // 每張 chip 隨機旋轉 -3°~3°（避開 0），整卡隨機 accent 底色
 /** @param {{ title?: string, title_en?: string }} data */
@@ -1129,6 +1176,16 @@ function setupStickyAndHeroChips(data) {
   if (backBtn) backBtn.style.transform = `rotate(${randRot()}deg)`;
   if (refBtn) refBtn.style.transform = `rotate(${randRot()}deg)`;
 
+  // chip 寬度貼齊文字（左右 padding 對稱）：title 在 fonts.ready 後量（字型未載完量錯寬）；branch 在 setBranch 換字後量。
+  // resize 重量（max-width col-span-4 隨 viewport 變、JS 鎖的是定 px 會 stale）。
+  if (titleInner) (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => snugChipWidth(titleInner));
+  const resnugChips = () => {
+    if (titleInner) snugChipWidth(titleInner);
+    if (branchInner && branchChip.style.display !== 'none') snugChipWidth(branchInner);
+  };
+  window.addEventListener('resize', resnugChips);
+  registerPageCleanup(() => window.removeEventListener('resize', resnugChips));
+
   // clip-path 留 -12px buffer（仿 atlas .atlas-layout-inner）：ref btn hover 時 inner rotate(15deg) 角會超出 box，
   // buffer 確保旋轉角不被 clip 切掉；HIDDEN wiped 邊用 calc(100% + 12px) 同帶 buffer（CSS 預設同步見 hero.css .sticky-chip）
   const HIDDEN = 'inset(-12px -12px calc(100% + 12px) -12px)';
@@ -1155,31 +1212,13 @@ function setupStickyAndHeroChips(data) {
   const heroSection = document.querySelector('[data-hero-title-last]');
   // description section = hero 之後第一個 section（含 pt-6xl）
   const descSection = heroSection ? heroSection.nextElementSibling : null;
-  const heroYearEl = document.getElementById('text-year');
-  const heroTitleEnEl = document.getElementById('text-title-en');
-  const heroTitleZhEl = document.getElementById('text-title');
-  const heroChips = [heroYearEl, heroTitleEnEl, heroTitleZhEl].filter(Boolean);
   let cardShown = false;
 
-  // hero chip 收/展：yPercent 往下滑出 wrapper → wrapper overflow:hidden 裁成 clip-reveal
-  // 各 chip 用 stagger 延遲，跟 sticky 展開節奏對齊
-  const HERO_HIDE_DUR = 0.5;
-  const HERO_SHOW_DUR = 0.6;
-  function hideHeroChips() {
-    heroChips.forEach((el, i) => {
-      gsap.to(el, { yPercent: 100, duration: HERO_HIDE_DUR, ease: EASE.exit, delay: i * 0.04, overwrite: true });
-    });
-  }
-  function showHeroChips() {
-    heroChips.forEach((el, i) => {
-      gsap.to(el, { yPercent: 0, duration: HERO_SHOW_DUR, ease: EASE.enter, delay: i * 0.04, overwrite: true });
-    });
-  }
-
-  // sticky title reveal 延後到 hero chip 收完才開始 — 避免 hero 還在 / sticky 已出現的重疊期。
-  // HERO_HIDE_DUR(0.5) + 最後一張 chip stagger delay(0.04 × 2 = 0.08) ≈ 0.58s，給 0.5s 已足夠視覺收完
-  // （power3.in 後半段速度快，視覺到 ~95% 即可開始 reveal sticky）
-  const STICKY_REVEAL_DELAY_MS = 500;
+  // hero 文字「只進場一次（load 由 hero-animation 動一次）然後就 stay、跟著頁面自然捲走」（user 2026-06-08）。
+  // 不再收/展 hero（原本 instant visibility 切換會在 sticky 出現時讓 hero「跳一下消失」= user 不要的）。
+  // 為了讓 hero 自然捲走又不跟 sticky chip 重疊（兩者都在左上、scroll 中段會疊到），改成
+  // **延後 sticky 出現的 trigger 到 hero 已捲到 sticky 位置上方**（見下方 ScrollTrigger start），故無須再收 hero。
+  const STICKY_REVEAL_DELAY_MS = 0;
   let stickyRevealTimer = null;
 
   function showCard() {
@@ -1190,8 +1229,7 @@ function setupStickyAndHeroChips(data) {
     // backBtn / refBtn clip-path 收起時不該被點到 — show 時立即 visible 讓 hit-test 開啟
     if (backBtn) backBtn.style.visibility = 'visible';
     if (refBtn) refBtn.style.visibility = 'visible';
-    hideHeroChips();
-    // sticky chip reveal 延後 = hero 收完才開始（backBtn 在 titleChips 內一起 clip-path reveal）
+    // sticky chip reveal（hero 不再收/展，trigger 已延後到 hero 捲離 → 不會重疊）
     if (stickyRevealTimer) { clearTimeout(stickyRevealTimer); stickyRevealTimer = null; }
     stickyRevealTimer = setTimeout(() => {
       if (!cardShown) return;  // 期間被 hideCard 打斷 → 不 reveal
@@ -1230,8 +1268,18 @@ function setupStickyAndHeroChips(data) {
         if (!cardShown && refBtn) refBtn.style.visibility = 'hidden';
       }, 700);
     }
-    showHeroChips();
+    // hero 不再收/展（stay + 自然捲動），故 hideCard 不需 showHeroChips
   }
+
+  // 離頁退場（user 2026-06-08「左邊這些 btn 點別頁時也要一起出場」）：sticky 卡顯示中才收，
+  // title/back/ref chip + branch chip 一起 clip-path collapse（沿用 setChipsState 的 CSS clip 收合），
+  // 回 Promise 讓 router await（clip 0.6s + 末 chip stagger ≈ 0.66s → 700ms）；沒顯示則 no-op。
+  registerPageExit(() => {
+    if (!cardShown) return Promise.resolve();
+    setChipsState(titleChips, false);
+    if (currentBranchIdx !== -1) setChipsState([branchChip], false);
+    return new Promise(res => setTimeout(res, 700));
+  });
 
   // trigger 用 description section 自己：top + pt-6xl(96px) 經過 viewport center 為邊界。
   // chip 位於 sticky top:50%（viewport center），description content baseline 經過 chip 位置 → 出現；
@@ -1243,7 +1291,10 @@ function setupStickyAndHeroChips(data) {
   if (descSection && nextProjectSection) {
     ScrollTrigger.create({
       trigger: descSection,
-      start: 'top+=96 center',  // section top + pt-6xl(96px) 對齊 viewport center
+      // 延後到 descSection top 捲到 viewport top+200（= sticky chip 的 top:200 位置）才出 sticky：
+      // 此時 hero 文字（在 hero section 底、pb-2xl）已捲到 sticky 上方 → sticky 出現不跟 hero 重疊，
+      // hero 得以「stay + 自然捲走」不必收（user 2026-06-08）。原 'top+=96 center' 太早、hero 還在 sticky 位置會疊。
+      start: 'top top+=200',
       endTrigger: nextProjectSection,
       end: 'top center',        // next-project top 過 viewport center → sticky 全收
       onEnter: showCard,
@@ -1276,6 +1327,7 @@ function setupStickyAndHeroChips(data) {
         if (currentBranchIdx !== idx) return;
         branchEnEl.textContent = en;
         branchZhEl.textContent = zh;
+        snugChipWidth(branchInner);   // 換字後重量寬，貼齊新分支名（左右 padding 對稱）
         if (cardShown) setChipsState([branchChip], true);
       }, 400);
     } else {
@@ -1285,6 +1337,7 @@ function setupStickyAndHeroChips(data) {
       branchChip.style.display = '';
       // 強制 reflow 讓 CSS hidden 初始 state 生效，下一幀才 transition 到 shown
       void branchChip.offsetHeight;
+      snugChipWidth(branchInner);    // 量寬貼齊文字（display:'' 後才有 layout 可量）
       if (cardShown) setChipsState([branchChip], true);
     }
   }

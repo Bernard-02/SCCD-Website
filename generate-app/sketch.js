@@ -1541,160 +1541,84 @@ function animateModeIconRotation(iconElement) {
   imgEl.style.transform = `rotate(${randomAngle}deg)`;
 }
 
-// --- 新增：下載按鈕 icon 動畫（手機版用 CSS，桌面版用 JS）---
+// clip-reveal 用：把 save icon 包進 overflow:clip 容器，讓 icon 能由下緣升起 / 沉入而被乾淨剪裁。
+// idempotent；尺寸鎖成 icon 當前 rendered 像素（手機 icon 用 % 寬 → 不能讓容器 fit-content 否則循環依賴）。
+function ensureSaveIconWrapper(imgEl) {
+    const parent = imgEl.parentElement;
+    if (parent && parent.classList.contains('save-icon-clip')) return parent;
+    const r = imgEl.getBoundingClientRect();
+    const wrap = document.createElement('div');
+    wrap.className = 'save-icon-clip';
+    wrap.style.cssText = `overflow:clip;display:block;line-height:0;pointer-events:none;width:${r.width}px;height:${r.height}px;`;
+    imgEl.parentNode.insertBefore(wrap, imgEl);
+    wrap.appendChild(imgEl);
+    imgEl.style.width = '100%';
+    imgEl.style.height = '100%';
+    return wrap;
+}
+
+// --- 下載按鈕 icon 動畫：clip-reveal「推走」式（離開的往一側被推走、進入的從相反側補進來、同方向移動）---
+// 取代舊 clip-path 抹除（user 2026-06-09）。流程：原 icon 被推走 → 換 Generate icon「一出現就已在連續轉」
+// （滑入/停留/滑出全程旋轉）→ 換回原 icon 滑入。**整個週期共用一個隨機方向**（user 2026-06-09：回來時換方向很奇怪
+// → download 推走/generate 進/generate 推走/download 回 全都同一方向，像一條輸送帶）。隨機抽上/下/左/右。
+// 推走感＝離開 icon 往 -off 滑走、進入 icon 從 +off 滑入 → 同方向移動。連續轉＝獨立 repeat:-1 rotation tween，
+// 跟 x/y 滑動是不同 transform 屬性 → GSAP 各自合成。
 function animateSaveButton(button, iconElement) {
-    if (!button || !iconElement) {
-        return;
-    }
-
-    const rotateDuration = 800; // Generate icon 旋轉時長：800ms
-    const fadeInOutDuration = 200; // 淡入淡出時間：200ms
-    const scaleUpDuration = 100; // Generate icon 放大時間：100ms（快速出現）
-
-    // 動態獲取當前的 icon 後綴（避免在動畫期間模式變更導致 icon 不匹配）
-    const getCurrentSuffix = () => getIconSuffix();
-
-    // 動態獲取 Generate icon 路徑
-    const getGenerateIconSrc = () => panelIcon(`Generate${getCurrentSuffix()}`);
-
-    // 動態獲取原始 icon 路徑（根據當前狀態決定）
-    const getOriginalIconSrc = () => {
-        const suffix = getCurrentSuffix();
-        if (isEasterEggActive) {
-            return panelIcon(`Gift${suffix}`);
-        }
-        return panelIcon(`Download${suffix}`);
-    };
-
-    // 獲取原生DOM元素
+    if (!button || !iconElement) return 0;
     const imgEl = iconElement.elt;
+    if (typeof gsap === 'undefined' || !imgEl) return 1510; // 無 gsap：跳過動畫但仍讓下載照舊排程
 
-    // 檢查是否為手機版
-    const isMobile = imgEl.id === 'save-img-mobile';
+    const SPIN_PERIOD = 0.8; // Generate icon 每轉一圈秒數（連續、linear）
+    const REVEAL_IN = 0.22;  // 滑入揭露
+    const REVEAL_OUT = 0.18; // 滑出退場
+    const HOLD = 0.6;        // 滑入後停留持續旋轉的時間
 
-    // 去程隨機抽 4 方向之一，回程用相反方向（視覺上反向回到原 icon）
-    const DIRS = ['up', 'down', 'left', 'right'];
-    const OPP = { up: 'down', down: 'up', left: 'right', right: 'left' };
-    const dir = DIRS[Math.floor(Math.random() * DIRS.length)];
-    const rev = OPP[dir];
-    // 桌面版 inline clip-path 值（對齊 keyframes）：out = 朝該方向收合，inFrom = 從相反邊長出
-    const CLIP_OUT = { up: 'inset(0 0 100% 0)', down: 'inset(100% 0 0 0)', left: 'inset(0 100% 0 0)', right: 'inset(0 0 0 100%)' };
-    const CLIP_IN_FROM = { up: 'inset(100% 0 0 0)', down: 'inset(0 0 100% 0)', left: 'inset(0 0 0 100%)', right: 'inset(0 100% 0 0)' };
-    const CLIP_VISIBLE = 'inset(0 0 0 0)';
+    // 隨機 4 方向：p=要動的軸、off=「進入 icon 的起始側」位移（%）。離開 icon 被推往相反側 -off、進入 icon 從 +off 滑入。
+    // 整個週期（兩次 swap）共用同一個 d → 一條方向的輸送帶，回程不會突然反向。
+    const DIRS = [
+        { p: 'yPercent', off: 100 },   // 從下方進入（整體往上推）
+        { p: 'yPercent', off: -100 },  // 從上方進入（整體往下推）
+        { p: 'xPercent', off: 100 },   // 從右方進入（整體往左推）
+        { p: 'xPercent', off: -100 },  // 從左方進入（整體往右推）
+    ];
+    const d = DIRS[Math.floor(Math.random() * DIRS.length)];
 
-    if (isMobile) {
-        // === 手機版：使用 CSS Animation ===
-        // 確保 icon 是正確的 Download/Gift icon（防止重複點擊或狀態異常）
-        iconElement.attribute('src', getOriginalIconSrc());
+    // 動態取 icon 路徑（動畫期間 mode 可能變 → 每次重新算 suffix 避免拿錯色版）
+    const getCurrentSuffix = () => getIconSuffix();
+    const getGenerateIconSrc = () => panelIcon(`Generate${getCurrentSuffix()}`);
+    const getOriginalIconSrc = () => isEasterEggActive
+        ? panelIcon(`Gift${getCurrentSuffix()}`)
+        : panelIcon(`Download${getCurrentSuffix()}`);
+    const setSrc = (s) => iconElement.attribute('src', s);
 
-        // 清除所有可能存在的動畫和 inline 樣式
-        imgEl.removeAttribute('style');
-        imgEl.classList.remove('save-icon-animating');
-        void imgEl.offsetHeight; // 強制重繪
+    const wrap = ensureSaveIconWrapper(imgEl);
 
-        // 1. 原 icon clip 收回（去程隨機方向抹除）
-        imgEl.classList.add('save-icon-animating');
-        imgEl.style.animation = `save-icon-clip-out-${dir} ${fadeInOutDuration}ms ease forwards`;
+    // 重置：清掉前次殘留 clip-path / transform，回到原 icon 完整顯示
+    gsap.killTweensOf(imgEl);
+    imgEl.style.removeProperty('clip-path');
+    setSrc(getOriginalIconSrc());
+    gsap.set(imgEl, { xPercent: 0, yPercent: 0, rotation: 0 });
 
-        // 2. fadeInOutDuration 後切換到 Generate icon，clip 揭露（同方向）
-        setTimeout(() => {
-            iconElement.attribute('src', getGenerateIconSrc()); // 動態獲取正確的 Generate icon
-            imgEl.style.animation = `save-icon-clip-in-${dir} ${scaleUpDuration}ms ease forwards`;
+    // Generate 八芒星半徑 < icon 內接圓 → 自轉時不會頂到方形 clip 容器邊、不必開合 overflow
+    let spin = null;
+    const tl = gsap.timeline({ onComplete: () => { if (spin) spin.kill(); } });
+    tl.to(imgEl, { [d.p]: -d.off, duration: REVEAL_OUT, ease: 'power2.in' })        // 1. 原 icon 被推往「相反側」滑走
+      .call(() => {                                                                 // 2. 換 Generate icon：跳到進入側(+off、clip 外不可見) + 起連續旋轉
+          setSrc(getGenerateIconSrc());
+          gsap.set(imgEl, { [d.p]: d.off });
+          spin = gsap.to(imgEl, { rotation: '+=360', duration: SPIN_PERIOD, ease: 'none', repeat: -1 });
+      })
+      .to(imgEl, { [d.p]: 0, duration: REVEAL_IN, ease: 'power3.out' })             //    從進入側滑入（與被推走的 icon 同方向＝推走感）
+      .to({}, { duration: HOLD })                                                   // 3. 停留持續轉
+      .to(imgEl, { [d.p]: -d.off, duration: REVEAL_OUT, ease: 'power2.in' })        // 4. 仍轉著被推往相反側滑走（同一方向）
+      .call(() => {                                                                 //    停轉 + 跳到進入側 + 歸零旋轉（360≡0 無跳動）+ 換回原 icon
+          if (spin) { spin.kill(); spin = null; }
+          gsap.set(imgEl, { [d.p]: d.off, rotation: 0 });
+          setSrc(getOriginalIconSrc());
+      })
+      .to(imgEl, { [d.p]: 0, duration: REVEAL_IN, ease: 'power3.out', clearProps: 'transform' }); // 從進入側滑入回原 icon（同一方向）
 
-            // 揭露完成後立即開始旋轉（Generate icon 自身的動畫）
-            setTimeout(() => {
-                imgEl.style.animation = `save-icon-rotate ${rotateDuration}ms linear forwards`;
-            }, scaleUpDuration);
-        }, fadeInOutDuration);
-
-        // 3. 旋轉完成後 Generate icon clip 收回（相反方向抹除）
-        setTimeout(() => {
-            imgEl.style.animation = `save-icon-clip-out-${rev} ${fadeInOutDuration}ms ease forwards`;
-        }, fadeInOutDuration + scaleUpDuration + rotateDuration);
-
-        // 4. 切回原 icon，clip 揭露（相反方向，反向回到原本的 icon）
-        setTimeout(() => {
-            iconElement.attribute('src', getOriginalIconSrc()); // 使用函數動態獲取正確的 icon
-            setTimeout(() => {
-                imgEl.style.animation = `save-icon-clip-in-${rev} ${fadeInOutDuration}ms ease forwards`;
-                setTimeout(() => {
-                    imgEl.style.animation = '';
-                    imgEl.classList.remove('save-icon-animating');
-                }, fadeInOutDuration);
-            }, 10);
-        }, fadeInOutDuration + scaleUpDuration + rotateDuration + fadeInOutDuration);
-    } else {
-        // === 桌面版：使用 JavaScript + CSS Transition（clip-path 揭露/收回 + 旋轉） ===
-        // 確保 icon 是正確的 Download/Gift icon（防止重複點擊或狀態異常）
-        iconElement.attribute('src', getOriginalIconSrc());
-
-        // 清除任何可能存在的樣式
-        imgEl.style.removeProperty('transform');
-        imgEl.style.removeProperty('transition');
-        imgEl.style.removeProperty('opacity');
-        imgEl.style.removeProperty('clip-path');
-        imgEl.style.transform = 'rotate(0deg)';
-        imgEl.style.clipPath = CLIP_VISIBLE;
-        imgEl.style.transition = 'none';
-        imgEl.style.opacity = '1';
-        void imgEl.offsetHeight;
-
-        // 1. 原 icon clip 收回（去程隨機方向抹除）
-        imgEl.style.transition = `clip-path ${fadeInOutDuration}ms ease`;
-        requestAnimationFrame(() => {
-            imgEl.style.clipPath = CLIP_OUT[dir];
-        });
-
-        // 2. fadeInOutDuration 後切換到 Generate icon，clip 揭露（同方向）→ 旋轉
-        setTimeout(() => {
-            iconElement.attribute('src', getGenerateIconSrc()); // 動態獲取正確的 Generate icon
-            imgEl.style.transition = 'none';
-            imgEl.style.clipPath = CLIP_IN_FROM[dir]; // 從相反邊收合開始
-            void imgEl.offsetHeight;
-            imgEl.style.transition = `clip-path ${scaleUpDuration}ms ease`;
-            requestAnimationFrame(() => {
-                imgEl.style.clipPath = CLIP_VISIBLE;
-            });
-
-            // 揭露完成後立即開始旋轉（Generate icon 自身的動畫）
-            setTimeout(() => {
-                imgEl.style.transition = `transform ${rotateDuration}ms linear`;
-                imgEl.style.transform = 'rotate(360deg)';
-            }, scaleUpDuration);
-        }, fadeInOutDuration);
-
-        // 3. 旋轉完成後 Generate icon clip 收回（相反方向抹除）
-        setTimeout(() => {
-            imgEl.style.transition = `clip-path ${fadeInOutDuration}ms ease`;
-            imgEl.style.clipPath = CLIP_OUT[rev];
-        }, fadeInOutDuration + scaleUpDuration + rotateDuration);
-
-        // 4. 切回原 icon，clip 揭露（相反方向，反向回到原本的 icon）
-        setTimeout(() => {
-            imgEl.style.transition = 'none';
-            imgEl.style.transform = 'rotate(0deg)';        // 重置旋轉（360≡0，無視覺跳動）
-            imgEl.style.clipPath = CLIP_IN_FROM[rev];      // 從相反邊收合開始
-            iconElement.attribute('src', getOriginalIconSrc()); // 使用函數動態獲取正確的 icon
-            void imgEl.offsetHeight;
-
-            setTimeout(() => {
-                imgEl.style.transition = `clip-path ${fadeInOutDuration}ms ease`;
-                requestAnimationFrame(() => {
-                    imgEl.style.clipPath = CLIP_VISIBLE;
-                });
-
-                setTimeout(() => {
-                    imgEl.style.removeProperty('transition');
-                    imgEl.style.removeProperty('transform');
-                    imgEl.style.removeProperty('opacity');
-                    imgEl.style.removeProperty('clip-path');
-                }, fadeInOutDuration);
-            }, 10);
-        }, fadeInOutDuration + scaleUpDuration + rotateDuration + fadeInOutDuration);
-    }
-
-    // 總時長：clip-out(200) + clip-in(100) + 旋轉(800) + clip-out(200) + 重置(10) + clip-in(200) = 1510ms
-    return fadeInOutDuration * 3 + scaleUpDuration + rotateDuration + 10;
+    return Math.round(tl.duration() * 1000);
 }
 
 // UI 狀態機（updateUI / updateSliders / getRotationFor）已移至 js/ui-state.js

@@ -235,9 +235,17 @@
      避免 sticky-chip-inner 預設 1.15 過緊讓中英太貼 */
   #sticky-branch-chip .sticky-chip-inner {
     line-height: var(--line-height-base);
-    /* 分支名過長時 fixed 左側 chip 會往右覆蓋到 content 的 event tab → 設 max-width + 允許 wrap
-       多行（HTML 已移除 whitespace-nowrap）。值為手感可調，目的是長名換行不戳到右邊 tab。 */
-    max-width: 14rem;
+  }
+  /* sticky 標題 / 分支 chip 寬度 = nav 區寬（grid-20 的 cols 1-4 = col-span-4；內容在 col-5）。
+     chip 是 fixed 在 col-1 起，max-width 設成 col-span-4 寬 → 長名 wrap 不會越過去蓋 col-5 內容，
+     chip 右緣停在 col-4 末、與 col-5 間自然留一個 gutter。比照 nav btn 的 col-span-4 區域，不再用 hardcode 14rem。
+     col-span-4 寬 = 4×欄寬 + 3×gutter；欄寬 = (內容區 100vw−2padding − 19 gutter)/20 → 化簡 = (…)/5 + 3 gutter。桌面 only。 */
+  #sticky-title-chip .sticky-chip-inner,
+  #sticky-branch-chip .sticky-chip-inner {
+    /* width:max-content → chip 撐到「最長一行」自然寬（不會被 inline-flex column 縮成 min-content=逐字斷行）；
+       max-width 才把上限鎖在 col-span-4，超過才 wrap。少了 max-content 會逐字換行（Degree/Show/Forum…）。 */
+    width: max-content;
+    max-width: calc((100vw - 2 * var(--container-padding) - 19 * var(--spacing-gutter)) / 5 + 3 * var(--spacing-gutter));
   }
 
   /* Degree show detail 返回按鈕 — 沿用 .sticky-chip 結構（clip-path reveal 由上往下，與 sticky title chip 同節奏）

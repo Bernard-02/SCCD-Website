@@ -65,6 +65,21 @@ function scrollSectionIntoView(el, behavior = 'instant') {
 let currentSectionColor = '';
 export function getCurrentSectionColor() { return currentSectionColor; }
 
+// 等指定 list-item 的進場 reveal 完成（reveal 的 onComplete/onEnter 會移除 data-pre-reveal，見 admission-data-loader
+// unlockGroup / activities-data-loader 的 ScrollTrigger）。給 ref/deep-link 導航用：確保「list 文字 reveal 出現後」
+// 才 highlight，不在 rows 還 clip-reveal 中途就先亮（user 2026-06-09）。
+// 已無 data-pre-reveal（已 reveal / alwaysExpanded）→ 立即 resolve；timeout 為保險，reveal 萬一沒正常完成也不卡住。
+function waitForItemRevealed(item, timeout = 8000) {
+  return new Promise(resolve => {
+    if (!item || !item.hasAttribute('data-pre-reveal')) { resolve(); return; }
+    let done = false, t = null;
+    const finish = () => { if (done) return; done = true; obs.disconnect(); if (t) clearTimeout(t); resolve(); };
+    const obs = new MutationObserver(() => { if (!item.hasAttribute('data-pre-reveal')) finish(); });
+    obs.observe(item, { attributes: true, attributeFilter: ['data-pre-reveal'] });
+    t = setTimeout(finish, timeout);
+  });
+}
+
 // 從外部（如 industry reference 按鈕 / 首頁 floating 活動海報 deep-link）導航到指定 section 的指定 item
 // smooth=true（首頁 deep-link 用）：平滑捲到 item、捲到位後 delay 才展開 accordion（對齊 curriculum 節奏）；
 // smooth=false（預設，ref 按鈕等頁內跳轉）：instant 跳到位後立即 flash + 展開（維持原行為）
@@ -125,9 +140,13 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
   while (el) { targetTop += el.offsetTop; el = /** @type {HTMLElement | null} */ (el.offsetParent); }
   const finalTop = targetTop - compensate;
 
-  // flash highlight + 展開 item accordion 的共用收尾（flash 亮 → 600ms → 關 flash + 點開 list-header）
+  // flash highlight + 展開 item accordion 的共用收尾。
+  // ⚠️ 先 await 目標 list-item reveal 完成（data-pre-reveal 移除）才 highlight：ref/deep-link 切過去時 list rows
+  //    還在 clip-reveal（文字沒出現）就 flash＝highlight 比文字早出現（user 2026-06-09 報「不對」）。
+  //    順序固定為 list 文字 render → highlight → 600ms → 展開。
   const flashColor = currentSectionColor || '#00FF80';
-  const flashThenOpenAccordion = () => {
+  const flashThenOpenAccordion = async () => {
+    await waitForItemRevealed(target);
     target.style.transition = 'background 0.3s';
     target.style.background = flashColor;
     setTimeout(() => {
@@ -136,6 +155,10 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
       if (header && !header.classList.contains('active')) {
         // 上面已 scroll 對齊好 item → 標記讓 accordion open 時不要再自己 scroll（否則對齊跑掉，user 2026-06-05）
         header.dataset.skipOpenScroll = '1';
+        // highlight 色（= section 色，三原色之一）繼承成 accordion 打開後的 active 色（user 2026-06-09）：
+        // 設 dataset.accentHex → list-accordion proceedOpen 走 `self.dataset.accentHex || getRandomAccentColor()`
+        // 會用這個色而非挑隨機，ACCENT_TO_DEEP 也對得上拿到對應 deep ref 色。
+        header.dataset.accentHex = flashColor;
         header.style.background = flashColor;
         header.click();
       }

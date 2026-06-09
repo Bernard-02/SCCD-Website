@@ -312,8 +312,14 @@
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: var(--spacing-4xl) var(--spacing-2xl);
-  padding-top: var(--spacing-sm);
+  /* 標題與第一排卡片的留白搬到 sticky 年份標題的 padding-bottom（見下），不放這裡 →
+     ① deep-link 對齊第一排卡片時自然貼齊標題底緣、不需多捲位移
+     ② 該留白變成 sticky 標題不透明背景的一部分，捲動時遮住下方卡片（user 2026-06-09） */
   min-width: 0;
+}
+/* files 年份標題吃下原本 .files-grid 的 padding-top 當 padding-bottom（只 files，press/album 不動） */
+.files-year-block .press-year-label {
+  padding-bottom: var(--spacing-sm);
 }
 
 .files-item-card {

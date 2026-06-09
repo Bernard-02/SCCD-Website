@@ -14,22 +14,6 @@
   <link rel="stylesheet" href="../css/output.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
-  <style>
-    .no-scrollbar::-webkit-scrollbar {
-      display: none !important;
-    }
-    .no-scrollbar {
-      -ms-overflow-style: none;
-      scrollbar-width: none;
-    }
-    /* 桌面：延伸 10px 蓋過 scrollbar-gutter:stable 保留的 10px gutter，視覺上 panel 直接接到 viewport 右邊緣
-       手機：沒有 scrollbar gutter（custom scrollbar 已隱藏），right:-10px 會讓 panel 左邊溢出 viewport 10px → user 視覺解讀為「panel 沒鋪滿、左邊有空隙」（其實是 panel 偏左 10px） */
-    @media (min-width: 768px) {
-      #faculty-panel {
-        right: -10px;
-      }
-    }
-  </style>
 </head>
 <body style="overflow-x: clip;">
 
@@ -73,7 +57,9 @@
 
     <!-- Faculty Cards Section
          min-h-screen：切到卡片數少的分類（如兼任/行政只一排）時 section 不會塌短、留白跳動（user 2026-06-07） -->
-    <section id="faculty-cards" class="bg-white min-h-screen pt-3xl pb-6xl md:py-6xl">
+    <!-- 手機版 pt-6xl(128px)：點 nav btn 捲到此 section 時頂對齊 viewport 0（白底蓋住上方 hero），
+         pt 需 > fixed header(92px) pills 才不被蓋；6xl token 手機自動 128/桌面 192（md:py-6xl 仍覆蓋，不動桌面） -->
+    <section id="faculty-cards" class="bg-white min-h-screen pt-6xl pb-6xl md:py-6xl">
       <div class="site-container">
         <!-- grid-20：桌面 nav 占 col 1-2（英文折行，可溢到 col 3 buffer）、卡片區 col 4-20；手機 flex-col 堆疊 -->
         <div class="flex flex-col gap-gutter md:grid md:grid-cols-20">
@@ -122,7 +108,7 @@
       <!-- 桌面：h-full + flex-col 撐到 panel 高，右欄 min-h-0 overflow-y-auto 處理長文字
            手機：保留原本整個 panel 可捲（避免左右分欄擠在小 viewport） -->
       <!-- pb：手機 pb-6xl(128px)（2026-05-26 user 要求文字不貼底）、桌面 md:pb-2xl(48px) 維持不變 -->
-      <div class="w-full h-full px-container-padding pt-[calc(var(--header-height,80px)+5rem)] pb-6xl md:pt-4xl md:pb-2xl box-border relative flex flex-col overflow-y-auto md:overflow-hidden no-scrollbar">
+      <div class="w-full h-full px-container-padding pt-[calc(var(--header-height,80px)+4rem)] pb-6xl md:pt-4xl md:pb-2xl box-border relative flex flex-col overflow-y-auto md:overflow-hidden no-scrollbar">
 
         <!-- Mobile Back Button (Relative inside flow)
              self-start：父 flex-col 內靠左對齊（button 預設 text-align:center 會讓 icon 在 viewport 中間） -->
@@ -137,13 +123,15 @@
                手機（2026-05-26 user 調整）：image 在上 → name+titles 在下，無 order 反轉（HTML 順序就是手機視覺順序） -->
           <div class="w-full md:w-[22%] md:self-start flex flex-col">
             <!-- Image with rotation；不鎖死比例 → 圖片依後台實際上傳比例顯示（h-auto 自然高度、不裁切） -->
-            <div class="mb-2xl md:mb-2xl w-[65%] ml-xl md:w-full md:ml-0" style="transform: rotate(-4deg);">
+            <div class="mb-2xl md:mb-2xl w-[50%] ml-xl md:w-full md:ml-0" style="transform: rotate(-4deg);">
               <img id="faculty-detail-image" src="../images/S__6742028.jpg" alt="Faculty" class="w-full h-auto block">
             </div>
             <!-- Name + Titles -->
             <div class="mb-xl md:mb-0">
-              <h4 id="faculty-detail-name-en" class="mb-xs whitespace-nowrap">Ta-Lih Shieh</h4>
-              <h4 id="faculty-detail-name-zh" class="whitespace-nowrap">謝大立</h4>
+              <!-- 不可 whitespace-nowrap：長英文名（如 Howard Chao-Hao Yang）會撐爆左欄 22% 寬、溢出蓋到右欄 section 標題；
+                   拿掉後名字在欄寬內自動換行（短名仍一行），rotate(4deg) 由 JS 套、換行後繞 left center 旋轉不受影響 -->
+              <h4 id="faculty-detail-name-en" class="mb-xs">Ta-Lih Shieh</h4>
+              <h4 id="faculty-detail-name-zh">謝大立</h4>
               <!-- Titles (Founder 等)；多個 title 由 JS 動態 stack -->
               <div id="faculty-detail-titles" class="mt-lg"></div>
             </div>

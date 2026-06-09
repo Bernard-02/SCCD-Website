@@ -427,10 +427,6 @@ body.mode-inverse .activities-search-input {
   color: white;
 }
 
-body.mode-inverse .activities-search-input::placeholder {
-  color: rgba(255, 255, 255, 0.5);
-}
-
 /* ===== Homepage Marquee + YT Card：inverse 反轉成白底黑字 ===== */
 /* 標準模式：黑底白字（inline 寫死 background:#000 / color:#fff）
  * inverse 模式：白底黑字；canvas WATCH! 文字由 index-yt-card.js 動態讀 --theme-bg 重繪 */

@@ -11,7 +11,7 @@
  *   - 內容改 grid（學期×必修/選修×年級）+ 右下 sticky desc panel
  */
 
-import { renderCoursesGrid, deselectActiveCard, resetCoursesMapState, selectCardBySlugInPanel } from './courses-map.js';
+import { renderCoursesGrid, deselectActiveCard, resetCoursesMapState, selectCardBySlugInPanel, highlightCardBySlugInPanel } from './courses-map.js';
 import { setActiveNavBtn } from '../ui/section-switch-helpers.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { registerPageExit } from '../ui/page-exit.js';
@@ -20,6 +20,25 @@ import { DUR, EASE } from '../ui/motion.js';
 
 let currentProgramColor = '';
 export function getCurrentProgramColor() { return currentProgramColor; }
+
+// 等整個 panel 的卡片 clip-reveal 全跑完才 resolve：卡片進場時 gsap 每幀寫 inline clipPath，跑完 clearProps 清掉
+// → inline clipPath 變空。reveal 是「一支 gsap.to(allCards) staggered」，最後一張清空 = 整片 reveal 完成。
+// 給 deep-link 用：整片 grid ready 才 highlight + 開 slide-in，不在卡片 stagger 進場到一半就開、slide-in 蓋在半開 grid 上
+// （user 2026-06-09；只等目標卡不夠——目標常是第一張、它先 reveal 但後面整排還在進場）。只看可見那份 grid（offsetParent≠null）。
+// timeout 保險：reveal 萬一沒觸發（ScrollTrigger 沒 fire 等）也不卡死，到時直接 resolve 往下走。
+function waitForGridRevealed(panel, timeout = 5000) {
+  return new Promise(resolve => {
+    if (!panel) { resolve(); return; }
+    const pendingCount = () => [...panel.querySelectorAll('.courses-grid-card')]
+      .filter(c => /** @type {HTMLElement} */ (c).offsetParent !== null && /** @type {HTMLElement} */ (c).style.clipPath).length;
+    if (pendingCount() === 0) { resolve(); return; }
+    let done = false, t = null;
+    const finish = () => { if (done) return; done = true; obs.disconnect(); if (t) clearTimeout(t); resolve(); };
+    const obs = new MutationObserver(() => { if (pendingCount() === 0) finish(); });
+    obs.observe(panel, { attributes: true, attributeFilter: ['style'], subtree: true });
+    t = setTimeout(finish, timeout);
+  });
+}
 
 // courses content section 的 anchor 目標 = section 頂端對齊 viewport 頂端（section.top=0），**不扣 header 高度**。
 // Why：courses.css 特地把 #courses-content-section padding-top 設成 200px（= sticky bar top:200px），
@@ -187,7 +206,15 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
           top = sectionScrollTop(sectionEl) + (targetCard.getBoundingClientRect().top - firstRowTop);
         }
       }
-      const openCard = () => setTimeout(() => selectCardBySlugInPanel(initialProgram, itemSlug), OPEN_DELAY_MS);
+      // 等目標卡片「reveal 完成」(clip-path 動畫跑完、clearProps 清掉 inline clipPath) 才 highlight + 開 slide-in：
+      // 否則卡片進場 stagger 還沒輪到目標就開＝slide-in 蓋在半開的 grid 上（user 2026-06-09 報「沒等卡片 render 好就開」）。
+      // 順序：reveal 完 → highlight 卡片(套 accent 底色) → OPEN_DELAY 才開 slide-in（同 activities flash→delay→open 節奏）。
+      const openCard = () => {
+        waitForGridRevealed(panel).then(() => {
+          highlightCardBySlugInPanel(initialProgram, itemSlug);
+          setTimeout(() => selectCardBySlugInPanel(initialProgram, itemSlug), OPEN_DELAY_MS);
+        });
+      };
       if (typeof window.ScrollToPlugin !== 'undefined') {
         gsap.to(window, { scrollTo: { y: top, autoKill: false }, duration: DUR.medium, ease: EASE.move, onComplete: openCard });
       } else {
@@ -211,42 +238,6 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
     'inset(0% 0% 0% 100%)',  // 右 → 左
   ];
   function pickClipDir() { return CLIP_DIRS[Math.floor(Math.random() * CLIP_DIRS.length)]; }
-
-  // 學期分隔 divider 的「文字」與「線段」拆成兩個動畫、但同 dur/ease、同起同收（user 2026-06-07）：
-  //   - label 文字（.courses-grid-sem-divider-label）→ clip-path wipe（隨機方向，套自身）
-  //   - line 線段（.courses-grid-sem-divider-line）→ scaleX 抽拉（transform-origin:left；進場 0→1 由左展開、退場 1→0 收回左）
-  //   mode 'out'=退場 / 'in'=進場。回傳 Promise（label+line 都完成才 resolve）。
-  function animateDivider(panel, mode, dur, ease) {
-    return new Promise(resolve => {
-      if (typeof gsap === 'undefined' || !panel) { resolve(); return; }
-      const labels = panel.querySelectorAll('.courses-grid-sem-divider-label');
-      const lines = panel.querySelectorAll('.courses-grid-sem-divider-line');
-      if (!labels.length && !lines.length) { resolve(); return; }
-      let pending = 0;
-      const done = () => { if (--pending <= 0) resolve(); };
-      if (labels.length) {
-        pending++;
-        gsap.killTweensOf(labels);
-        if (mode === 'out') {
-          gsap.fromTo(labels, { clipPath: 'inset(0% 0% 0% 0%)' },
-            { clipPath: () => pickClipDir(), duration: dur, ease, overwrite: true, onComplete: done });
-        } else {
-          labels.forEach(l => gsap.set(l, { clipPath: pickClipDir() }));
-          gsap.to(labels, { clipPath: 'inset(0% 0% 0% 0%)', duration: dur, ease, overwrite: true, clearProps: 'clipPath', onComplete: done });
-        }
-      }
-      if (lines.length) {
-        pending++;
-        gsap.killTweensOf(lines);
-        if (mode === 'out') {
-          gsap.to(lines, { scaleX: 0, transformOrigin: 'left center', duration: dur, ease, overwrite: true, onComplete: done });
-        } else {
-          gsap.fromTo(lines, { scaleX: 0, transformOrigin: 'left center' },
-            { scaleX: 1, duration: dur, ease, overwrite: true, clearProps: 'transform,transformOrigin', onComplete: done });
-        }
-      }
-    });
-  }
 
   // 離頁退場（卡片 + nav + 表頭）統一在 nav block 之後的單一 handler 一起跑（見下方），確保 timing 一致。
 
@@ -284,10 +275,9 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
 
   // ── 離頁退場：卡片 + nav + 表頭「一起」收（user 2026-06-07）──
   // 單一 handler、同 duration（DUR.base）、同時起跑 → 全部一起離開。
-  //   ① clip 群（clip-path wipe）：卡片 + nav btn inner/label + 學期分隔 .courses-grid-sem-divider
+  //   ① clip 群（clip-path wipe）：卡片 + nav btn inner/label
   //   ② slide 群（用「年級表頭那套」4 方向 transform slide，外層 overflow:clip + justify-self:start 當遮罩）：
   //      年級 col-header-inner + 必修/選修 type-label-inner。
-  //   ③ 學期 divider：label 文字 clip + line 線段 scaleX，拆兩動畫同窗（animateDivider，user 2026-06-07）。
   registerPageExit(() => new Promise(resolve => {
     if (typeof gsap === 'undefined') { resolve(); return; }
     const panel = document.querySelector('.courses-panel:not(.hidden)');
@@ -299,13 +289,10 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
       ...panel.querySelectorAll('.courses-grid-col-header-inner'),   // 年級
       ...panel.querySelectorAll('.courses-grid-type-label-inner'),   // 必修/選修
     ] : [];
-    const hasDivider = !!(panel && panel.querySelector('.courses-grid-sem-divider-line, .courses-grid-sem-divider-label'));
-    if (!clipTargets.length && !slideInners.length && !hasDivider) { resolve(); return; }
+    if (!clipTargets.length && !slideInners.length) { resolve(); return; }
 
     let pending = 0;
     const done = () => { if (--pending <= 0) resolve(); };
-
-    if (hasDivider) { pending++; animateDivider(panel, 'out', DUR.base, NAV_EASE).then(done); }
 
     if (clipTargets.length) {
       pending++;
@@ -367,11 +354,6 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
         gsap.killTweensOf(allHeadersInner);
         gsap.set(allHeadersInner, { clearProps: 'transform' });
       }
-      // 同理清掉 divider line 的 scaleX / label 的 clipPath 殘留（避免 MDES→BFA→BFA 後 line 卡在 scaleX:0 看不見）
-      const allDivLines = document.querySelectorAll('.courses-grid-sem-divider-line');
-      const allDivLabels = document.querySelectorAll('.courses-grid-sem-divider-label');
-      if (allDivLines.length) { gsap.killTweensOf(allDivLines); gsap.set(allDivLines, { clearProps: 'transform,transformOrigin' }); }
-      if (allDivLabels.length) { gsap.killTweensOf(allDivLabels); gsap.set(allDivLabels, { clearProps: 'clipPath' }); }
     }
     // 年級表頭只在涉及 MDES 切換時動畫（BFA Animation ↔ BFA CMD 共用同年級表頭 Freshman/Sophomore/Junior/Senior，無需動畫）
     const involvesMdes = isSwitch && prevPanel && (prevPanel.id === 'panel-mdes' || newPanelId === 'panel-mdes');
@@ -385,7 +367,9 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
     /** @typedef {{ axis: 'x' | 'y', percent: number }} HeaderDir */
     let headerExitDirs = /** @type {HeaderDir[] | null} */ (null);
     if (isSwitch && prevPanel && prevPanel.id !== newPanelId && typeof gsap !== 'undefined') {
-      const prevCards = prevPanel.querySelectorAll('.courses-grid-card');
+      // 手機表頭（年級 + 必修/選修）沒有 desktop 的 slide-mask 結構，改跟卡片同走 clip-path wipe：
+      // 一起塞進 prevCards，切 program 時跟卡片同步收（桌面這兩 class 是 display:none，動畫不可見不影響桌面 slide）
+      const prevCards = prevPanel.querySelectorAll('.courses-grid-card, .courses-mobile-grade-header, .courses-mobile-row-label');
       // 年級 + 必修/選修 inner 一起 slide（user 2026-06-07：切 MDES 表頭也動才 smooth；type-label 已有遮罩）
       const prevHeadersInner = prevPanel.querySelectorAll('.courses-grid-col-header-inner, .courses-grid-type-label-inner');
       // headers inner 殘留 transform 已在開頭統一 clear，此處不需重複 kill
@@ -427,8 +411,6 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
           });
         }));
       }
-      // 學期 divider 退場：label 文字 clip + line 線段 scaleX，拆兩動畫同窗（跟表頭一起收）
-      if (involvesMdes) exitPromises.push(animateDivider(prevPanel, 'out', DUR.medium, EASE.exit));
       await Promise.all(exitPromises);
     }
 
@@ -488,7 +470,8 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
       // 避免「已在視圖內的卡片」靠 once-trigger 播時，與 line 340 + router 結尾的 ScrollTrigger.refresh()
       // 搶時序：refresh 在 layout 定位前跑完 → trigger 判定已通過 once → 卡片偶爾不進場。
       const panelInView = activePanel.getBoundingClientRect().top < window.innerHeight * 0.9;
-      const allCards = activePanel.querySelectorAll('.courses-grid-card');
+      // 含手機表頭（跟卡片同走 clip-path reveal；桌面這兩 class display:none 不可見不影響）
+      const allCards = activePanel.querySelectorAll('.courses-grid-card, .courses-mobile-grade-header, .courses-mobile-row-label');
       if (allCards.length) {
         gsap.killTweensOf(allCards);
         allCards.forEach(card => {
@@ -582,9 +565,6 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
           }
         }
       }
-
-      // 學期 divider enter：切 MDES 時跟表頭一起進來（label clip + line scaleX 同窗；gate 同 headerExitDirs=involvesMdes）
-      if (isSwitch && headerExitDirs) animateDivider(activePanel, 'in', DUR.reveal, EASE.enter);
     }
 
     if (shouldScroll && sectionEl) {

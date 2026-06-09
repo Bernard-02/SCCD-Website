@@ -1,10 +1,11 @@
 /**
  * Legal Data Loader
- * 讀取 legal 頁（privacy-policy / accessibility / regulations）的 JSON 並渲染。
+ * 讀取 legal 頁（policy-and-statements / regulations / support）的 JSON 並渲染。
  *
  * 資料只存「內容」不存樣式：overview（綜述）+ points[{ title, des }]，des 是富文本 HTML
  * （後台 WYSIWYG 產的乾淨 <p>/<ul>/<a>，無樣式 class）→ 老師可自由增減 bullet / 加連結粗體。
- * 編號與排版全由本檔 + legal.css 負責。尚未結構化的頁（accessibility / regulations）fallback 舊 content blob。
+ * 編號與排版全由本檔 + legal.css 負責。
+ * policy-and-statements 讀單一 collection policy_and_statements（每列一段）；regulations / support 各讀自己的 singleton。
  */
 
 import { CMS_API_BASE } from '../../config/api.js';
@@ -14,38 +15,40 @@ import { DUR, EASE } from '../ui/motion.js';
 
 // 已遷移到 Directus 的頁面 → collection 名；未列入的讀本地 /data/*.json。
 // 一頁一頁遷：遷一個就在這加一筆，其餘頁完全不受影響。
-// （2026-06-04：CORS 已在 Directus 開啟並驗證，privacy-policy 改走 Directus 即時 fetch。）
+// （2026-06-09：privacy_policy + accessibility 已合併成單一 collection policy_and_statements 並刪除，
+//   政策及聲明改由 loadPolicyAndStatements 直接讀新 collection，不再經這張表。）
 const CMS_COLLECTIONS = {
-  'privacy-policy': 'privacy_policy',
-  'accessibility': 'accessibility',
   'regulations': 'regulations',
   'support': 'support',
 };
 
-// 這些頁的 points 是「分類」不是「編號條款」→ 不顯示前面的 1. 2.（support：Funds / Others）
-const NO_NUMBER_PAGES = new Set(['support']);
+// 這些頁的 points 是「分類」不是「編號條款」→ 不顯示前面的 1. 2.
+//   support：Funds / Others；regulations：學則 / 修業 / 資源 / 組織 / 法規（5 大類，每類列規章名當內文）
+const NO_NUMBER_PAGES = new Set(['support', 'regulations']);
+
+// CMS 優先；fetch 失敗（CORS / 斷網 / 5xx / 空資料）→ fallback 本地 /data/<page>.json，
+// 跟 degree-show-data-loader 同 pattern。CMS 掛掉時 legal 頁仍渲染（靜態 JSON 跟 CMS singleton 同 shape：
+// titleEn/Zh + overview + points），不會像之前直接 throw 留白頁（user 2026-06-05 CORS 掛掉回報）。
+async function fetchLegalData(pageName) {
+  const collection = CMS_COLLECTIONS[pageName];
+  if (collection) {
+    try {
+      const response = await fetch(`${CMS_API_BASE}/${collection}`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = (await response.json()).data;   // singleton 回傳單一物件（非陣列），直接取 .data
+      if (!data) throw new Error('empty data');
+      return data;
+    } catch (err) {
+      console.warn(`[legal] CMS fetch failed for ${pageName}, fallback to /data/${pageName}.json:`, err.message);
+      return fetch(`/data/${pageName}.json`).then(r => r.json());
+    }
+  }
+  return fetch(`/data/${pageName}.json`).then(r => r.json());
+}
 
 export async function loadLegalData(pageName) {
   try {
-    const collection = CMS_COLLECTIONS[pageName];
-    let data;
-    if (collection) {
-      // CMS 優先；fetch 失敗（CORS / 斷網 / 5xx / 空資料）→ fallback 本地 /data/<page>.json，
-      // 跟 degree-show-data-loader 同 pattern。CMS 掛掉時 legal 頁仍渲染（靜態 JSON 跟 CMS singleton 同 shape：
-      // titleEn/Zh + overview + points），不會像之前直接 throw 留白頁（user 2026-06-05 CORS 掛掉回報）。
-      try {
-        const response = await fetch(`${CMS_API_BASE}/${collection}`);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        data = (await response.json()).data;   // singleton 回傳單一物件（非陣列），直接取 .data
-        if (!data) throw new Error('empty data');
-      } catch (err) {
-        console.warn(`[legal] CMS fetch failed for ${pageName}, fallback to /data/${pageName}.json:`, err.message);
-        data = await fetch(`/data/${pageName}.json`).then(r => r.json());
-      }
-    } else {
-      const response = await fetch(`/data/${pageName}.json`);
-      data = await response.json();
-    }
+    const data = await fetchLegalData(pageName);
 
     // title 元素可能由頁面直接 hardcode（如 privacy-policy 為了 chip 樣式 + <br> 斷行），此時 ID 不存在 → null guard
     const titleEn = document.getElementById('legal-title-en');
@@ -57,6 +60,7 @@ export async function loadLegalData(pageName) {
     const contentEl = document.getElementById('legal-content');
     if (contentEl) {
       contentEl.innerHTML = data.points ? renderStructured(data, !NO_NUMBER_PAGES.has(pageName)) : (data.content || '');
+      if (pageName === 'regulations') decorateRegulationItems(contentEl);  // 每筆規章右邊加 share icon
       setupLegalReveal(contentEl, pageName);  // 4 個 legal 頁共用；support 走專屬依序進場 + 一次過退場
     }
 
@@ -70,6 +74,74 @@ export async function loadLegalData(pageName) {
   }
 }
 
+// regulations 專屬：每筆規章（.legal-section-desc 內每個 <p>，內容是「EN<br>ZH」）右邊加 share icon。
+// icon 是站上既有 .icon-share（CSS mask、繼承 currentColor）＝真 DOM 元素，user 之後要掛 link 直接把 .reg-share
+// 包進 <a>（或加 click handler）即可，比 CSS ::after 偽元素好接。
+// ⚠️ 文字（EN<br>ZH）必須先包進 .reg-line-text 當「單一」flex item，否則 <p> 設 flex 後 <br> 不換行、EN/ZH 擠成一行。
+// 樣式（flex row + fit-content）在 legal.css `.legal-regulations .reg-line`。
+function decorateRegulationItems(scope) {
+  scope.querySelectorAll('.legal-section-desc > p').forEach(p => {
+    if (p.querySelector('.reg-share')) return;   // 防重入（保險）
+    const text = document.createElement('span');
+    text.className = 'reg-line-text';
+    while (p.firstChild) text.appendChild(p.firstChild);
+    const icon = document.createElement('span');
+    icon.className = 'icon icon-share icon-s reg-share';
+    icon.setAttribute('aria-hidden', 'true');
+    p.append(text, icon);
+    p.classList.add('reg-line');
+  });
+}
+
+// 政策及聲明（policy-and-statements）：讀單一 collection policy_and_statements（每列一段，sort 排序），
+// 渲染成多段一頁。2026-06-09 起取代原本分別抓 privacy_policy + accessibility 兩個 singleton（已合併刪除）。
+// 每段（隱私 / 無障礙）開頭放 .legal-group-title（＝原編號 section 標題大小），下接該段的 overview + 編號條款；
+// 編號條款標題在 .legal-combined 變體下縮到內文大小（樣式見 legal.css）。
+// CMS 優先、fail → fallback 本地 /data/policy-and-statements.json（同 shape：陣列，每段 titleEn/Zh + overview + points）。
+async function fetchPolicyGroups() {
+  try {
+    const res = await fetch(`${CMS_API_BASE}/policy_and_statements?sort=sort`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = (await res.json()).data;   // 非 singleton → .data 是陣列（每列一段）
+    if (!Array.isArray(data) || !data.length) throw new Error('empty data');
+    return data;
+  } catch (err) {
+    console.warn('[legal] CMS fetch failed for policy_and_statements, fallback to local:', err.message);
+    return fetch('/data/policy-and-statements.json').then(r => r.json());
+  }
+}
+
+export async function loadPolicyAndStatements() {
+  const contentEl = document.getElementById('legal-content');
+  if (!contentEl) return;
+  try {
+    const parts = (await fetchPolicyGroups()).filter(Boolean);
+
+    contentEl.innerHTML = parts.map(renderGroup).join('');
+    setupLegalReveal(contentEl, 'policy-and-statements');
+
+    // 兩段同更新日期 → 取第一段顯示一次（頁尾共用 #legal-updated）
+    const updated = parts[0] || {};
+    const updatedEn = document.getElementById('legal-updated-en');
+    const updatedZh = document.getElementById('legal-updated-zh');
+    if (updatedEn) updatedEn.textContent = updated.lastUpdatedEn || '';
+    if (updatedZh) updatedZh.textContent = updated.lastUpdatedZh || '';
+  } catch (error) {
+    console.error('Error loading policy-and-statements data:', error);
+  }
+}
+
+// 單段：大標題（EN/ZH 各自 reveal 遮罩，包在 .legal-group-head 供 setupLegalReveal 掛 ScrollTrigger）+ 該段內容。
+function renderGroup(data) {
+  const head =
+    `<div class="legal-group-head">`
+    + reveal(`<h3 class="legal-group-title-en">${esc(data.titleEn)}</h3>`)
+    + reveal(`<h3 class="legal-group-title-zh">${esc(data.titleZh)}</h3>`)
+    + `</div>`;
+  // 條款標題用 <p>（合併頁已是 p2 內文大小、非 heading），其餘 legal 頁仍 h4。
+  return `<div class="legal-group">${head}${renderStructured(data, true, 'p')}</div>`;
+}
+
 // clip-reveal mask wrapper：把單一可動行包進 overflow:clip 容器，讓進場 yPercent 滑入有遮罩、
 // 退場反向沉出（樣式在 legal.css .legal-reveal）。內部元素才是 GSAP yPercent 目標（setupClipReveal 偵測
 // 父層已是 overflow:clip 就不再 reparent → 不破壞 legal.css 的 class 選擇器）。
@@ -80,7 +152,21 @@ const revealSub = (inner) => `<div class="legal-reveal legal-sub-reveal">${inner
 
 // 結構化資料 → HTML（numbered=true 時編號依 index 自動產；class 都是語意標記，樣式在 legal.css）
 // 每行用 reveal() 包 → title / 副標 / 說明各自獨立遮罩，可依序 clip-reveal 進場（setupLegalReveal）
-function renderStructured(data, numbered = true) {
+// titleTag：條款標題的 tag。預設 h4（regulations/support 的標題是 32px 大標＝語意上是 heading）；
+//   合併頁（政策及聲明）的條款標題已縮到 p2 內文大小＝改用 <p> 較貼切（user 2026-06-09）。樣式全走 class 不受 tag 影響。
+// regulations 規章項目（結構化 {titleEn,titleZh,url}）→ 一條 .reg-line：文字（EN<br>ZH，缺一語不留空行）+ share icon。
+// 有 url 時「整列」是 <a target=_blank>（整列可點/hover，連結文字＝規章名故免 aria-label；router.js 忽略 http/外連/_blank 不攔截）；
+// 無 url 時是 <p>。icon 一律 <span>，用 currentColor → CSS `a.reg-line` 補 color:inherit 才黑。取代舊 decorateRegulationItems 拆 desEn。
+function renderRegLine(it) {
+  const text  = [esc(it.titleEn), esc(it.titleZh)].filter(Boolean).join('<br>');
+  const inner = `<span class="reg-line-text">${text}</span>`
+    + `<span class="icon icon-share icon-s reg-share" aria-hidden="true"></span>`;
+  return it.url
+    ? `<a class="reg-line" href="${esc(it.url)}" target="_blank" rel="noopener">${inner}</a>`
+    : `<p class="reg-line">${inner}</p>`;
+}
+
+function renderStructured(data, numbered = true, titleTag = 'h4') {
   let html = '';
 
   // overview 是純文字（後台 Textarea）→ esc 後包 <p>，每段各自 reveal 遮罩
@@ -96,6 +182,9 @@ function renderStructured(data, numbered = true) {
     // 點若無 sections 就只渲染點層級 desEn/desZh（privacy-policy / Others 等完全不受影響 = 單一 desc reveal）。
     const sections = pt.sections || [];
     const pointDesc = (pt.desEn || '') + (pt.desZh || '');
+    // regulations：點內 items（結構化規章清單 {titleEn,titleZh,url}）→ 組成 .reg-line（含連結 icon）；其他頁無 items → 用 pointDesc
+    const regItems = Array.isArray(pt.items) ? pt.items : null;
+    const descInner = regItems ? regItems.map(renderRegLine).join('') : pointDesc;
     const subRevealsHtml = sections.map(s =>
       revealSub(
         `<div class="legal-section-desc"><div class="legal-subsection">`
@@ -111,9 +200,9 @@ function renderStructured(data, numbered = true) {
     html += `<div class="legal-section${numbered ? '' : ' legal-section--no-num'}">`
       + (numbered ? reveal(`<div class="legal-section-num">${i + 1}.</div>`) : '')
       + `<div class="legal-section-body">`
-      + reveal(`<h4 class="legal-section-title-en">${esc(pt.titleEn)}</h4>`)
-      + reveal(`<h4 class="legal-section-title-zh">${esc(pt.titleZh)}</h4>`)
-      + (pointDesc ? reveal(`<div class="legal-section-desc">${pointDesc}</div>`) : '')
+      + reveal(`<${titleTag} class="legal-section-title-en">${esc(pt.titleEn)}</${titleTag}>`)
+      + reveal(`<${titleTag} class="legal-section-title-zh">${esc(pt.titleZh)}</${titleTag}>`)
+      + (descInner ? reveal(`<div class="legal-section-desc">${descInner}</div>`) : '')
       + subRevealsHtml
       + `</div></div>`;
   });
@@ -136,7 +225,8 @@ function setupLegalReveal(contentEl, pageName) {
   // support 走專屬編排（user 2026-06-07）：進場依序 cascade、退場説明文字一次過。
   if (pageName === 'support') { setupSupportSequence(contentEl); return; }
 
-  contentEl.querySelectorAll('.legal-intro, .legal-section').forEach(block => {
+  // .legal-group-head 只出現在合併頁（政策及聲明）的兩段大標題；其他頁 selector 不中、不受影響。
+  contentEl.querySelectorAll('.legal-group-head, .legal-intro, .legal-section').forEach(block => {
     const targets = legalSlideTargets(block);
     if (!targets.length) return;
     setupClipReveal(targets);  // 父層 .legal-reveal 已 overflow:clip → 只 set yPercent:100 不 reparent

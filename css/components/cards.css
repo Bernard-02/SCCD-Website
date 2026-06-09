@@ -55,6 +55,16 @@
     cursor: var(--cursor-pointer);
   }
 
+  /* slide-in panel 桌面右緣補償：延伸 10px 蓋過 scrollbar-gutter:stable 保留的 10px gutter，
+   * 視覺上 panel 直接接到 viewport 右邊緣。
+   * 手機不套：無 scrollbar gutter（custom scrollbar 已隱藏），right:-10px 會讓 panel 左邊溢出 10px。
+   * （原為 faculty.html inline <style>，2026-06-09 移進 source）*/
+  @media (min-width: 768px) {
+    #faculty-panel {
+      right: -10px;
+    }
+  }
+
   /* Faculty 卡片預設旋轉（JS 設 --init-deg），hover 恢復 0° 對齊下方文字
    * 旋轉套在 wrapper 而非 img：image 用 object-cover w-full h-full 完整貼合 wrapper，
    * wrapper overflow:hidden 維持矩形邊界跟著旋轉；0° 時 wrapper 自然與下方文字 flow 對齊 */
@@ -67,6 +77,43 @@
     .faculty-card:hover .faculty-card-image-wrapper {
       transform: rotate(0deg);
     }
+  }
+
+  /* ===== Faculty marquee：卡片職稱 + slide-in 詳情 row 共用（仿 courses pattern）=====
+   * 每段文字（職稱 en/zh、詳情 row 雙語格各語）包成一個 .faculty-marquee-line（block）+ 內層 .faculty-marquee-inner；
+   * 桌面單行超出寬度時，hover（卡片整張 / 詳情 row 的「單一欄 cell」）才水平 marquee。
+   * 詳情 row 用 `> span:hover` 而非 `.faculty-grid-row:hover`：只捲滑鼠所在那一欄，不是整 row 一起捲（user 2026-06-09）。
+   * applyMarqueeOverflow 偵測溢出 → line 加 .is-overflow + inner 換兩份 .marquee-copy + 設 --marquee-distance/duration。
+   * 🔑 手機（無 hover）不套 nowrap/overflow：inner 維持 inline 自然換行保留多行可讀；JS 端也只在桌面跑偵測。*/
+  .faculty-card-title-group + .faculty-card-title-group {
+    margin-top: var(--spacing-xs);
+  }
+  .faculty-marquee-line {
+    display: block;
+  }
+  .faculty-marquee-inner {
+    display: inline;
+  }
+  .faculty-marquee-inner > .marquee-copy {
+    display: inline-block;
+    padding-right: 3em;
+  }
+  @media (min-width: 768px) {
+    .faculty-marquee-line {
+      overflow: hidden;
+    }
+    .faculty-marquee-inner {
+      display: inline-block;
+      white-space: nowrap;
+    }
+    .faculty-card:hover .faculty-marquee-line.is-overflow .faculty-marquee-inner,
+    .faculty-grid-row > span:hover .faculty-marquee-line.is-overflow .faculty-marquee-inner {
+      animation: faculty-card-marquee var(--marquee-duration, 8s) linear infinite;
+    }
+  }
+  @keyframes faculty-card-marquee {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(var(--marquee-distance, -50%)); }
   }
 
   /* ===== Faculty / Alumni 卡片牆：首張貼左、末張貼右，水平 gap 自動均分 =====
@@ -112,18 +159,44 @@
    */
   .faculty-grid-row {
     display: grid;
-    grid-template-columns: 1fr 4fr 2fr 2fr;
+    /* minmax(0, *fr) 不用純 *fr：marquee 雙語格內層 nowrap 會把 cell min-content 撐爆 track 破版；
+       minmax(0,...) 解放 min-content 下限 → track 永遠 fair share，內容靠 .faculty-marquee-line overflow clip */
+    grid-template-columns: minmax(0, 1fr) minmax(0, 4fr) minmax(0, 2fr) minmax(0, 2fr);
     gap: 1.5rem;
     align-items: baseline;
-    padding-bottom: 0.5rem;
     padding-right: 2rem;
     font-size: var(--font-size-p2);
+  }
+  /* row 與 row 間距統一由父層 .faculty-rows 的 gap 控制（取代每 row 自身 padding-bottom）→ 最後一個 row
+     無 trailing 空白、section 底不會看起來過長（user 2026-06-09，桌機手機一致）。桌面 1rem、手機 2rem（mobile query 覆蓋）。
+     桌面移除 row padding-bottom 後，sticky title col 的 md:pb-4 也一併拿掉（兩者皆無 trailing → 標題與最後 row 在 content 底對齊）。*/
+  .faculty-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  /* cell（grid item）min-width:0 配合 minmax(0,*fr)：讓桌面 nowrap 內容不撐欄、交給 line overflow clip */
+  .faculty-grid-row > span {
+    min-width: 0;
+  }
+  /* 首欄（年份／學歷的國家）sticky（桌面）：scroll 詳情時當前最上 entry 的年份釘在頂端，
+     對齊左側 section title 的 md:sticky md:top-0（同一個 .list-scroll 容器）。手機不 sticky 維持上下堆疊滑動。
+     sticky 容器 = 該 grid row（短）→ scroll 時逐 entry 接力把當前年份釘住。
+     align-self:start：grid 預設 align-items:baseline 會把首欄擺到 baseline，sticky 要從 row 頂開始才接力順。
+     background：釘住時遮住同欄下方捲動經過的內容（值 = panel 卡片色，與 section title col 同 var）。 */
+  @media (min-width: 768px) {
+    .faculty-grid-row > span:first-child {
+      position: sticky;
+      top: 0;
+      align-self: start;
+      background: var(--faculty-panel-bg, transparent);
+    }
   }
   /* 獲獎 row：year(1fr) | country(1fr) | name(5fr) | category(2fr)；2026-06-04 user 移除獎別欄、改放國家
      刻意總和 = 9fr 與學歷/經歷的 `1fr 4fr 2fr 2fr` 一致 → fr 單位相同：
      col1 同寬故 country(col2) 左緣對齊上方 organization；col4 同起點(1+1+5 = 1+4+2 = 7fr)故 category 對齊上方 role */
   .faculty-grid-row-award {
-    grid-template-columns: 1fr 1fr 5fr 2fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 5fr) minmax(0, 2fr);
   }
   /* 手機：字級放大到 p1 易讀（窄 viewport 內 p2 太小） */
   @media (max-width: 767px) {

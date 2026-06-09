@@ -7,6 +7,8 @@ import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { renderPdfCover } from '../ui/pdf-cover.js';
 import { DUR, EASE } from '../ui/motion.js';
+import { loadCourses } from '../pages/courses-source.js';
+import { loadSummerCamp } from '../pages/summer-camp-source.js';
 
 // 進/退場 clip-path 4 方向（卡片 el 不受 RAF 的 mover transform 影響，clip-path 安全）
 const FLOAT_HIDE_CLIPS = ['inset(0% 0% 100% 0%)', 'inset(100% 0% 0% 0%)', 'inset(0% 0% 0% 100%)', 'inset(0% 100% 0% 0%)'];
@@ -36,11 +38,13 @@ async function fetchActivityPosters() {
   // ⚠️ general-activities.json 是「混合檔」（visits / exhibitions / competitions / conferences 四類混在同檔），
   //    不能整包標成單一 section，否則 visits/exhibitions 的海報全被導到 competitions section（而 competitions
   //    項目自己沒海報＝那頁本來就空的）。用 sectionFromCategory 旗標 → 每筆用自己的 item.category 當 section。
+  // ⚠️ summer-camp 不在此列：camp 已搬到 admission（user 2026-06-09），且 admission 由 Directus 渲染（UUID id），
+  //    直接讀 local summer-camp.json 的 id（SC-2025-01）對不上 → deep-link highlight 失效。改用同源 loadSummerCamp()
+  //    單獨處理（見下方），id/poster 跟 admission 渲染一致。
   const activitySources = [
     { file: 'data/permanent-exhibitions.json', section: 'exhibitions' },
     { file: 'data/lectures.json',              section: 'lectures' },
     { file: 'data/workshops.json',             section: 'workshop' },
-    { file: 'data/summer-camp.json',           section: 'summer-camp' },
     { file: 'data/students-present.json',      section: 'students-present' },
     { file: 'data/general-activities.json',    sectionFromCategory: true },
   ];
@@ -68,6 +72,24 @@ async function fetchActivityPosters() {
       });
     } catch (_) {}
   }));
+
+  // Summer camp → admission.html?section=summer-camp&item={id}（camp 已搬到 admission）。
+  // 用 loadSummerCamp()（Directus 同源 + 本地 fallback）而非直接讀 local json：id/poster 跟 admission 渲染一致，
+  // deep-link 的 item id 才對得上 admission 的 #item-{id}（直接讀 local json 的 SC-YYYY-NN 對不上 Directus UUID）。
+  try {
+    const campGroups = await loadSummerCamp();   // [{ year, items:[{ id, poster, ... }] }]
+    campGroups.forEach(group => {
+      (group.items || []).forEach(item => {
+        if (!item.poster) return;
+        const itemParam = item.id ? `&item=${item.id}` : '';
+        pool.push({
+          type: 'image',
+          src: normalizeImagePath(item.poster),
+          url: `pages/admission.html?section=summer-camp${itemParam}`,
+        });
+      });
+    });
+  } catch (_) {}
 
   // Library documents（PDF）→ library.html#f-{id}（floating 不一定都導 activities；也帶使用者去 library 文件）
   try {
@@ -107,13 +129,14 @@ async function fetchActivityPosters() {
   return Array.from({ length: TOTAL_ITEMS }, (_, i) => pool[i % pool.length]);
 }
 
-// 從 courses.json 撈課程 title（導航到對應 course item，並 highlight 該項目）
-// courses.json 有 3 個 program key（bfa-animation / bfa-cmd / mdes）；
+// 從課程資料撈 title（導航到對應 course item，並 highlight 該項目）
+// 用共用 loadCourses（Directus 為主 + 本地 fallback，見 courses-source.js）→ 跟課表同源、deep-link slug 一致。
+// 資料有 3 個 program key（bfa-animation / bfa-cmd / mdes）；
 // 早期版本誤用 data.bfa / data.mdes，結果 BFA 兩組課完全不會出現在首頁 pool 裡
 async function fetchCourseTexts() {
   const pool = [];
   try {
-    const data = await fetch('data/courses.json').then(r => r.json());
+    const data = await loadCourses();
     const slugify = str => str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
     ['bfa-animation', 'bfa-cmd', 'mdes'].forEach(program => {
       const courses = data[program] || [];
@@ -209,6 +232,15 @@ export function removeNewsHover() {
 
 const ACCENT_COLORS = ['#00FF80', '#FF448A', '#26BCFF'];
 
+// news hover wipe overlay 的 clip-path 收/展（隨機抽一方向）；圖片卡片與文字卡片共用
+const WIPE_DIRECTIONS = [
+  { hidden: 'inset(100% 0 0 0)', shown: 'inset(0% 0 0 0)' },   // 從上往下
+  { hidden: 'inset(0 0 100% 0)', shown: 'inset(0 0 0% 0)' },   // 從下往上
+  { hidden: 'inset(0 100% 0 0)', shown: 'inset(0 0% 0 0)' },   // 從右往左
+  { hidden: 'inset(0 0 0 100%)', shown: 'inset(0 0 0 0%)' },   // 從左往右
+];
+const randomWipe = () => WIPE_DIRECTIONS[Math.floor(Math.random() * WIPE_DIRECTIONS.length)];
+
 // 隨機旋轉 -4° ~ 6°，排除 -1° ~ 1°
 function randomRotation() {
   const sign = Math.random() < 0.5 ? -1 : 1;
@@ -270,13 +302,7 @@ function createImageEl(src, url, showPlayIcon = false, interactive = true) {
     wrapper.appendChild(newsOverlay);
 
     // 隨機選一個 wipe 方向（上/下/左/右）
-    const wipeDirections = [
-      { hidden: 'inset(100% 0 0 0)', shown: 'inset(0% 0 0 0)' },   // 從上往下
-      { hidden: 'inset(0 0 100% 0)', shown: 'inset(0 0 0% 0)' },   // 從下往上
-      { hidden: 'inset(0 100% 0 0)', shown: 'inset(0 0% 0 0)' },   // 從右往左
-      { hidden: 'inset(0 0 0 100%)', shown: 'inset(0 0 0 0%)' },   // 從左往右
-    ];
-    const wipe = wipeDirections[Math.floor(Math.random() * wipeDirections.length)];
+    const wipe = randomWipe();
     newsOverlay.style.clipPath = wipe.hidden;
 
     // 訂閱 news hover 事件：每次 enter 時隨機選色
@@ -331,6 +357,17 @@ function createTextEl(textEn, textZh, url) {
     el.appendChild(zhLine);
   }
 
+  // news hover 遮蓋：clip-path 從隨機方向 wipe 一塊純色蓋住文字（跟圖片卡片同款 newsOverlay，取代舊的文字色淡出）
+  const newsOverlay = document.createElement('div');
+  newsOverlay.style.cssText = `
+    position: absolute; inset: 0;
+    pointer-events: none;
+    transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);
+  `;
+  const wipe = randomWipe();
+  newsOverlay.style.clipPath = wipe.hidden;
+  el.appendChild(newsOverlay); // 放最後 → 蓋在文字上方
+
   // mode-color：對比色底 + 反色字（var(--theme-fg)/(--theme-fg-inverse) 隨 hue 翻黑白）
   // 其他模式：accent 底 + 黑字
   function setColors() {
@@ -349,21 +386,20 @@ function createTextEl(textEn, textZh, url) {
       window.removeEventListener('theme:changed', onThemeChange);
       return;
     }
-    if (el.dataset.hovering === '1') return; // 不蓋 hover state
+    if (el.dataset.hovering === '1') return; // card-hover state 不蓋（news 遮蓋走獨立 overlay 不動文字色）
     setColors();
   }
   window.addEventListener('theme:changed', onThemeChange);
   themeListeners.push(onThemeChange);
 
-  // 訂閱 news hover：文字色改成底色（變純色 block）；mode-color 不適用（保持黑白）
+  // 訂閱 news hover：純色 block 從 wipe 方向 clip-path 蓋住文字 → 整張變純色 block（圖片卡片同款）。
+  // 蓋色＝卡片底色（mode-color var(--theme-fg) 隨 hue 自動翻、不必監聽 theme:changed；其他模式 accent 底色）→ 文字被同色 wipe 抹掉。
   newsHoverListeners.enter.push(() => {
-    if (document.body.classList.contains('mode-color')) return;
-    el.style.color = defaultColor;
-    el.style.transition = 'color 0.4s ease, background 0.25s ease';
+    newsOverlay.style.background = document.body.classList.contains('mode-color') ? 'var(--theme-fg)' : defaultColor;
+    newsOverlay.style.clipPath = wipe.shown;
   });
   newsHoverListeners.leave.push(() => {
-    if (document.body.classList.contains('mode-color')) return;
-    el.style.color = defaultTextColor;
+    newsOverlay.style.clipPath = wipe.hidden;
   });
 
   if (url) {

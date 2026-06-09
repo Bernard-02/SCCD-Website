@@ -50,7 +50,8 @@
 
     <!-- Admission Content Section -->
     <!-- overflow:clip：擋住下方 sticky 遮罩超出 section 邊界，避免戳到 hero（同 courses 模式） -->
-    <section class="bg-white pt-3xl pb-6xl md:py-6xl" id="admission-content-section" style="overflow: clip;">
+    <!-- min-h-screen：list 還在 fetch 後台資料（panel 空）時撐住整段高度，避免下方 footer 露出 -->
+    <section class="bg-white pt-3xl pb-6xl md:py-6xl min-h-screen" id="admission-content-section" style="overflow: clip;">
       <div class="site-container">
         <!-- grid-20：桌面 nav 占 cols 1-4、內容 cols 5-20（對齊 faculty/about/curriculum col-5）；手機 flex-col 堆疊 -->
         <div class="flex flex-col gap-gutter md:grid md:grid-cols-20">
@@ -73,7 +74,8 @@
             <!-- Sticky 滾動遮罩：sticky 在 top:200px，內部絕對定位元素遮蓋上方 200px，避免 list 滾動時露出 header 區（仿 courses-filter-bar ::before 模式） -->
             <!-- background 用 var(--theme-bg) 跟著 mode 切換：standard=white, inverse=black，不會在 inverse 下露白 -->
             <div class="hidden md:block" style="position: sticky; top: 200px; height: 0; z-index: 10; pointer-events: none;" aria-hidden="true">
-              <div style="position: absolute; top: -200px; left: 0; right: 0; height: 200px; background: var(--theme-bg);"></div>
+              <!-- admission-scroll-mask：mode 切換時要進 whitelist 跟大背景同步 fade（不然 snap）→ typography.css -->
+              <div class="admission-scroll-mask" style="position: absolute; top: -200px; left: 0; right: 0; height: 200px; background: var(--theme-bg);"></div>
             </div>
 
             <!-- News Panel (原 Admission list) -->

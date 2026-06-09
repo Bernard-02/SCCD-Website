@@ -181,19 +181,17 @@ function updateUI() {
     updateIconsForMode();
 
     // 更新輸入框顏色
-    // Wireframe 模式下使用對比色，Standard/Inverse 模式使用固定顏色
-    let textColor = activeColor;
-    if (isWireframeMode && wireframeStrokeColor) {
-        // 使用與 logo 邊框相同的對比色
-        let r = _p5.red(wireframeStrokeColor);
-        let g = _p5.green(wireframeStrokeColor);
-        let b = _p5.blue(wireframeStrokeColor);
-        textColor = `rgb(${r}, ${g}, ${b})`;
-    }
-
-    inputBox.style("color", textColor);
-    if (inputBoxMobile) {
-        inputBoxMobile.style("color", textColor);
+    // Standard/Inverse：fg 不連續變，inline 設固定黑/白即可
+    // Wireframe：**不要 inline 設色**——交給 CSS #input-box{color:inherit} → body.mode-color
+    //   { color: var(--theme-fg) } 自動跟 hue（方向 C 2026-05-27）。inline 會卡住色環 drag：
+    //   drag 只更新 --theme-fg 不重跑 updateUI，殘留 inline 舊色蓋掉新 --theme-fg → 文字色不跟（user 2026-06-08 回報）
+    //   切進 Wireframe 必須 removeProperty 清掉前一模式殘留的 inline 黑/白，否則同樣卡住
+    if (isWireframeMode) {
+        inputBox.elt.style.removeProperty("color");
+        if (inputBoxMobile) inputBoxMobile.elt.style.removeProperty("color");
+    } else {
+        inputBox.style("color", activeColor);
+        if (inputBoxMobile) inputBoxMobile.style("color", activeColor);
     }
 
     if (isEasterEggActive) {

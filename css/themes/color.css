@@ -239,6 +239,17 @@ body.mode-color .timeline-sticky-container .bg-black {
   background-color: var(--theme-fg) !important;
 }
 
+/* era badge（.timeline-card-inner.bg-black）：mode-color 翻成 fg-inverse 底 + fg 字＝跟主卡(fg 底)相反，
+   才不會跟黑色主卡/深色照片糊在一起看不清（2026-06-08 user 報「要反過來才看得清楚」；只動此 badge，主卡不變）。
+   置於 .timeline-sticky-container .bg-black 規則之後＝同 specificity(0,3,1) 靠 source order 蓋過其 bg=fg。 */
+body.mode-color .timeline-card-inner.bg-black {
+  background-color: var(--theme-fg-inverse) !important;
+}
+body.mode-color .timeline-card-inner.bg-black,
+body.mode-color .timeline-card-inner.bg-black * {
+  color: var(--theme-fg) !important;
+}
+
 /* ===== Borders ===== */
 body.mode-color .border-black {
   border-color: var(--theme-fg) !important;
@@ -332,6 +343,23 @@ body.mode-color .atlas-filter-btn:not(.active) .anchor-nav-inner {
   transition: color var(--dur-fast) var(--ease-standard),
               opacity var(--dur-fast) var(--ease-standard),
               transform var(--dur-fast) var(--ease-standard) !important;
+}
+
+/* Mode 切換窗口（0.4s）：inactive nav-inner 底色要跟 body 一起 fade，不要 snap。
+ * 上面那條穩態規則刻意把 background 排除（避免 loop 每幀 var 更新被 300ms transition retarget lag），
+ * 但切換瞬間 .mode-switching 在 body 上、--theme-bg 是凍結值 → 此時應把 bg 加回 transition 跟大背景同步。
+ * 多一個 .mode-switching class 拉高 specificity（0,5,1）蓋過上面排除 bg 的 !important（0,4,1）。
+ * loop 開始前 .mode-switching 已移除 → 不影響穩態。 */
+body.mode-color.mode-switching .anchor-nav-btn:not(.active) .anchor-nav-inner,
+body.mode-color.mode-switching .faculty-filter-btn:not(.active) .anchor-nav-inner,
+body.mode-color.mode-switching .activities-section-btn:not(.active) .anchor-nav-inner,
+body.mode-color.mode-switching .courses-program-btn:not(.active) .anchor-nav-inner,
+body.mode-color.mode-switching .activities-filter-btn:not(.active) .anchor-nav-inner,
+body.mode-color.mode-switching .courses-filter-btn:not(.active) .anchor-nav-inner,
+body.mode-color.mode-switching .atlas-filter-btn:not(.active) .anchor-nav-inner {
+  transition: background-color var(--dur-base) ease,
+              color var(--dur-base) ease,
+              opacity var(--dur-base) ease !important;
 }
 
 /* Inactive Hover：文字 100% 對比 */
@@ -523,6 +551,19 @@ body.mode-color .admission-item.active {
     background-color: var(--theme-fg) !important;
     color: var(--theme-fg-inverse);
   }
+  /* 代用 logo hover：卡片 bg 翻成 var(--theme-fg)（黑/白）→ logo 線條要再反一次才對比可見。
+   * 疊在 base 的 var(--theme-invert-filter) 上再 invert(1)（淺底 hover：none invert(1)=反；深底 hover：invert(1)invert(1)=還原）。*/
+  body.mode-color .faculty-card-placeholder:hover .faculty-card-image {
+    filter: var(--theme-invert-filter, invert(0)) invert(1);
+  }
+}
+
+/* mode3 代用 logo 對比黑/白：用「黑線框圖 + var(--theme-invert-filter)」(theme-toggle 每幀設、含遲滯)，
+ * 而非 JS 換黑/白兩張圖。淺底 → none(黑線)、深底 → invert(1)(白線)。跟頁面文字吃「同一個 var、同一幀」翻色
+ * = 完美同步零延遲（解決 user 報「mode3 自轉時 logo 翻色比文字慢」）。.faculty-card-image 已有 filter transition。
+ * 非 :hover 限定、手機桌面都套（對比不分螢幕）；hover 疊加見上方 media query。 */
+body.mode-color .faculty-card-placeholder .faculty-card-image {
+  filter: var(--theme-invert-filter, invert(0));
 }
 
 /* ===== Faculty Slide-in：mode-color 跟 courses-detail-panel 一樣動態 hue 變色 + auto-contrast 文字 =====
@@ -655,10 +696,6 @@ body.mode-color .activities-search-icon {
 
 body.mode-color .activities-search-input {
   color: var(--theme-fg);
-}
-
-body.mode-color .activities-search-input::placeholder {
-  color: rgba(var(--theme-fg-rgb), 0.5);
 }
 
 /* ===== Atlas page：所有三原色 → strict B/W =====

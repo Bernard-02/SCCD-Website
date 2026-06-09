@@ -16,13 +16,11 @@
 @layer components {
 
   /* ===== Section-level CSS variables（grid 與 program-bar 共用） =====
-   * 6 cols：sem-col + type-col + 4 個年級欄（1fr）。
-   * Fall/Spring sem-label 在 col 1（sem-col）裡，跨 2 sub-row（required + elective）。
+   * 5 cols：type-col + 4 個年級欄（1fr）。不分學期 → 一個 program 只有必修列 + 選修列。
    * 點卡片改成 faculty-style slide-in 模態，不再縮 grid，所以 grid 寬度不會 toggle。
    * Section overflow-x: clip：擋住其他 absolute children 超出 section 的水平 scroll。
    */
   #courses-content-section {
-    --courses-grid-sem-col: 4rem;
     --courses-grid-type-col: 4rem;
     --courses-grid-col-gap: var(--spacing-xl);
     /* overflow:clip 雙軸：x 防 absolute children 溢位；y 裁掉 sticky bar (corner / year-header)
@@ -47,11 +45,11 @@
    * 手機：水平 scroll bar（force row + overflow-x:auto + 兩側負 margin 延伸到 viewport 邊）
    *       HTML 預設 flex-col 由 mobile rule 強制改 row；label absolute top 在 btn 上方仍 OK
    *
-   * Sticky stack（桌面，三組 top: 200px 對齊 faculty 篩選 btn 的 sticky 位置）：
+   * Sticky stack（桌面，對齊 faculty 篩選 btn 的 sticky 位置）：
    *   1) program-bar     top: 200px（vertical 側欄黏左邊頂端，bg=var(--theme-bg)）
-   *   2) year-header     top: 200px（grid 內 row 1）
-   *   3) sem-label       top: 200px（col 1，跟 year-header 同 top 不互相蓋因為不同 col）
-   * z 由 1/2/3 往上。bg 全用 var(--theme-bg) 跟 mode 走。
+   *   2) year-header     top: 200px（grid 內 row 1，在 row-cover 內）
+   *   3) type-label      top: 280px（必修/選修，col 1）
+   * z 由低往高。bg 全用 var(--theme-bg) 跟 mode 走。
    *
    * year-header 用 ::before 向上延伸 200px bg 蓋住 cards scroll 過 sticky 後在
    * viewport y=0..200 露出的破口（仿 .activities-filter-bar::before pattern）。
@@ -177,7 +175,7 @@
   }
 
   /* ===== Grid container =====
-   * 桌面：sem-col + type-col + N 個年級欄（N = --year-cols，由 JS 依 program 設）
+   * 桌面：type-col + N 個年級欄（N = --year-cols，由 JS 依 program 設）
    *   - BFA = 4 cols (freshman/sophomore/junior/senior)
    *   - MDES = 2 cols (year1/year2) → 兩欄平均吃掉 grid 寬度
    * repeat() 吃 var()（modern browsers 支援），fallback 4
@@ -187,30 +185,20 @@
     /* year cols 用 minmax(0, 1fr) 不用 1fr：grid 預設 track 至少撐到 cell min-content，
        而 marquee 雙份的 inner 會把 cell min-content 撐到 2 倍寬 → track 被擴張破版；
        minmax(0, 1fr) 解放 min-content 限制，track 永遠 fair share，cell 用 overflow 自己 clip */
-    /* sem-col 已移除（學期欄改成兩學期間的分隔線）→ 只剩 type-col + 年級欄，年級欄(卡片)吃回多出的寬 */
     grid-template-columns:
       var(--courses-grid-type-col)
       repeat(var(--year-cols, 4), minmax(0, 1fr));
     column-gap: var(--courses-grid-col-gap);
-    /* outer row-gap = sm：cover ↔ Fall semester / Fall ↔ Spring 之間 */
+    /* outer row-gap = sm：cover ↔ 必修列 / 必修列 ↔ 選修列 之間 */
     row-gap: var(--spacing-sm);
     align-items: start;
   }
 
-  /* ===== Nested subgrid 結構（限定 sticky scope）=====
-   * .courses-semester 包整個學期（required + elective），grid-column 1/-1，subgrid 繼承外層 6 cols
-   *   → sem-label sticky containing block = 學期 → 學期到底時 sem-label 跟著上去
-   * .courses-required-row / .courses-elective-row 包該 type 整列，grid-column 2/-1
-   *   → type-label sticky containing block = 該 row → 必修/選修到底時 type-label 跟著上去
-   * 原本一張大 grid 共用 sticky 範圍會讓 sem/type label 都黏到整張 grid 結束才釋放，
-   * 重構後 label 各自在自己的 row 範圍內 sticky，到底就跟著走 */
-  .courses-semester {
-    grid-column: 1 / -1;
-    display: grid;
-    grid-template-columns: subgrid;
-    row-gap: var(--spacing-lg);
-    align-items: start;
-  }
+  /* ===== 必修 / 選修兩列（限定 sticky scope）=====
+   * 2026-06-09 起不分學期 → 一個 program 只有 .courses-required-row + .courses-elective-row，
+   * 兩者直接當 .courses-grid 子項（grid-column 1/-1，subgrid 繼承外層欄）。
+   * type-label sticky containing block = 該 row → 必修/選修捲到底時 label 跟著上去。
+   * required ↔ elective 間距：outer grid row-gap(sm) + elective margin-top(sm) = lg。 */
   .courses-required-row,
   .courses-elective-row {
     grid-column: 1 / -1;
@@ -218,18 +206,14 @@
     grid-template-columns: subgrid;
     align-items: start;
   }
-  /* 第 2+ 個學期 wrapper 上方額外 sm，搭配 outer grid sm row-gap 合計兩學期間距 = 2 × sm */
-  .courses-grid-sem-start {
+  .courses-elective-row {
     margin-top: var(--spacing-sm);
   }
 
-  /* 第一個學期 wrapper 上方 16px buffer：±2° rotation × 寬 ~232px 卡片 corner protrusion ~4px，
-     sm(16) 已遠超需要。
-     sticky labels 新 top(280) = cover top 200 + cover height 48 + row-gap sm(16) + buffer sm(16)
-     selector 用 adjacent sibling 對 Fall semester（.courses-grid-row-cover 之後第一個 .courses-semester）：
-     `.courses-semester:first-of-type` 會看 tag (div) 而 row-cover 也是 div，匹配不到 Fall */
+  /* 必修列上方 16px buffer：±2° rotation × 寬 ~232px 卡片 corner protrusion ~4px，sm(16) 已遠超需要。
+     sticky labels top(280) = cover top 200 + cover height 48 + row-gap sm(16) + buffer sm(16) */
   @media (min-width: 768px) {
-    .courses-grid > .courses-grid-row-cover + .courses-semester {
+    .courses-grid > .courses-grid-row-cover + .courses-required-row {
       margin-top: var(--spacing-sm);
     }
   }
@@ -273,7 +257,7 @@
     }
     /* ::after 向下蓋整個 row-gap，確保 scroll 時 sticky-cover 正常遞進蓋掉卡片
        高度需 = .courses-grid 的 row-gap（sm=16）。第一行卡片的 rotation 凸出 buffer 在
-       .courses-grid > .courses-grid-row-cover + .courses-semester margin-top 處理 */
+       .courses-grid > .courses-grid-row-cover + .courses-required-row margin-top 處理 */
     .courses-grid-row-cover::after {
       content: '';
       position: absolute;
@@ -311,36 +295,6 @@
     opacity: 0.85;
   }
 
-  /* ===== 學期分隔線（取代原 sem-col 學期欄，user 2026-06-07）=====
-     第一學期下方一條 4px 橫線跨年級欄（col 2/-1）；左側 col 1（type-col 同欄）寫「Semester 學期」label，
-     字體比必/選修 type-label（p2）小一級＝p3。align-items:center 讓 label 與線垂直置中。 */
-  .courses-grid-sem-divider {
-    grid-column: 1 / -1;
-    display: grid;
-    grid-template-columns: subgrid;
-    align-items: center;
-    margin: var(--spacing-lg) 0;
-  }
-  .courses-grid-sem-divider-label {
-    grid-column: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    font-weight: 600;
-    font-size: var(--font-size-p3);  /* 比必/選修(p2)小一級 */
-    line-height: 1.2;
-    color: var(--theme-fg);
-    justify-self: start;
-  }
-  .courses-grid-sem-divider-zh {
-    opacity: 0.85;
-  }
-  .courses-grid-sem-divider-line {
-    grid-column: 2 / -1;
-    height: 4px;
-    background: var(--theme-fg);
-  }
-
   /* 類別 label（必修/選修）— 實心、無半透明、無底色（col 2 type-col 內無卡片，
      不需要 bg 蓋背景）。桌面 sticky containing block = .courses-required-row /
      .courses-elective-row，row 到底時 label 跟著上去
@@ -368,10 +322,6 @@
       top: 280px;
       z-index: 1;  /* 低於 cover (z:3)，release 時 leak 上來會被 cover 蓋住 */
     }
-  }
-
-  .courses-grid-sem-zh {
-    opacity: 0.85;
   }
 
   /* Cell：縱向堆疊卡片 */
@@ -460,17 +410,26 @@
     color: black;
   }
 
-  /* Title sticky wrapper：scroll container = .courses-detail-inner（panel inner）
-     - bg inherit 繼承 panel 動態 accent 色，scroll 時遮住下方 desc 不露出
-     - top: 0 黏在 inner 頂部；inner 自己已有 pt 把 title 推到 logo 下方
-     - z 高於 desc；padding-bottom 給 title ↔ desc 視覺呼吸
-     - 手機：mb-xl 的 back btn 在 sticky 上方流，sticky 啟動時 back btn 自然被捲掉 */
+  /* Title 區（仿 faculty slide-in 右欄：title 固定、desc 獨立 box 捲動）
+     - 桌面：inner md:overflow-hidden 不捲 → 本元素是固定 flex child（flex-shrink:0 不被 desc box 擠掉），
+       sticky/z/bg 遮罩在桌面失效（inner 不捲）但無害；padding-top 撐出 header 避讓（= faculty inner md:pt-4xl 128px）
+     - 手機：inner overflow-y-auto 整段捲，本元素 sticky top:0 黏頂；padding-top 收進自身當遮罩
+       （scroll container 有 pt 會讓 sticky 黏在 content-box 頂、上方留縫露 desc，故 pt 放這不放 inner），
+       bg inherit 繼承 panel accent 色遮住下方 desc；mb-xl back btn 在 pt 之後第一個位置不變
+     - padding-bottom 給 title ↔ desc 視覺呼吸；RWD 之後再統一調整手機行為 */
   .courses-detail-title-sticky {
     position: sticky;
     top: 0;
     z-index: 2;
+    flex-shrink: 0;
     background: inherit;
+    padding-top: calc(var(--header-height, 80px) + 4rem);
     padding-bottom: var(--spacing-md);
+  }
+  @media (min-width: 768px) {
+    .courses-detail-title-sticky {
+      padding-top: var(--spacing-4xl);
+    }
   }
 
   /* ===== Mobile / Desktop grid 切換 =====
@@ -541,10 +500,7 @@
     line-height: 1.2;
     color: var(--theme-fg);
   }
-  /* sem / type 各自一行（en + zh 同行 baseline 對齊）；
-     之前 row-label 是 flex-wrap row 把四 span 平鋪一列 → 現在拆兩個子 group 垂直堆疊，
-     user 要求 type label 在 semester label 下方 */
-  .courses-mobile-row-label-sem,
+  /* type label 一行（en + zh 同行 baseline 對齊）（不分學期後 sem label 已移除） */
   .courses-mobile-row-label-type {
     display: flex;
     flex-wrap: wrap;
@@ -552,11 +508,9 @@
     column-gap: 0.5em;
     row-gap: 2px;
   }
-  .courses-mobile-sem-en,
   .courses-mobile-type-en {
     font-weight: 700;
   }
-  .courses-mobile-sem-zh,
   .courses-mobile-type-zh {
     font-weight: 600;
     opacity: 0.85;

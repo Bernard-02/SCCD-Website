@@ -261,6 +261,9 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete, fr
         const clip = CLIP_DIRS[dir];
         const rot  = i === 1 ? randRot(usedRots, -2, 2) : randRot(usedRots);
         usedRots.push(rot);
+        // 記錄進場方向/旋轉 → hideControls 沿同方向反向收回（出場 = 進場反向動畫）
+        block._enterDir = dir;
+        block._enterRot = rot;
         gsap.fromTo(block,
           { clipPath: clip.from, rotation: rot },
           { clipPath: clip.to,   rotation: rot, duration: DUR.base, ease: EASE.enter, overwrite: true }
@@ -271,7 +274,19 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete, fr
   }
 
   function hideControls() {
-    gsap.to(controls, { opacity: 0, duration: DUR.fast, ease: EASE.exitSoft, overwrite: true });
+    // 無操作隱藏：做進場 clip-reveal 的反向動畫（每個 block 沿進場方向收回），取代原本的 opacity fade。
+    // 只在「目前是顯示中」才播收回動畫；初始 / reopen 時 isVisible 為 false → 不播（容器 opacity 已是 0）。
+    if (isVisible) {
+      uiBlocks.forEach(block => {
+        const dir = block._enterDir;
+        if (!dir) return;
+        gsap.to(block, {
+          clipPath: CLIP_DIRS[dir].from,
+          rotation: block._enterRot ?? 0,
+          duration: DUR.base, ease: EASE.exit, overwrite: true,
+        });
+      });
+    }
     controls.style.pointerEvents = 'none';
     isVisible = false;
   }

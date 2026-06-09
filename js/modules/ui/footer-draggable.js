@@ -79,12 +79,21 @@ const ITEM_SELECTORS = [
 const ACCENT_COLORS = ['#00FF80', '#FF448A', '#26BCFF'];
 const TEXT_ITEM_SELECTOR = '.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-link-item';
 
+// 每次配色「保證三原色各至少出現一次」(user 2026-06-09：之前各卡獨立隨機，整組可能缺某色)：
+// 先放三色各一張保底 → 其餘卡隨機補 → Fisher-Yates 洗牌打散，避免保底三色永遠落在固定卡。
+// 文字卡有 6 張(fax/tel/office/email + 2 link)恆 ≥3，故三色必到齊；若不足 3 張則有幾色放幾色(已是最佳)。
 function applyAccentColors(items) {
-  items.forEach((item) => {
-    if (item && item.matches && item.matches(TEXT_ITEM_SELECTOR)) {
-      item.style.background = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
-    }
-  });
+  const textItems = items.filter((it) => it && it.matches && it.matches(TEXT_ITEM_SELECTOR));
+  if (textItems.length === 0) return;
+  const palette = [...ACCENT_COLORS]; // 三色各一張保底
+  for (let i = palette.length; i < textItems.length; i++) {
+    palette.push(ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)]);
+  }
+  for (let i = palette.length - 1; i > 0; i--) { // Fisher-Yates
+    const j = Math.floor(Math.random() * (i + 1));
+    [palette[i], palette[j]] = [palette[j], palette[i]];
+  }
+  textItems.forEach((item, i) => { item.style.background = palette[i]; });
 }
 
 const ROTATION_RANGE = 12;          // ±度數
@@ -558,7 +567,8 @@ function getFooterLogo(area) {
 function getFooterPrivacyLinks(area) {
   const footerRoot = area.closest('footer');
   if (!footerRoot) return [];
-  return Array.from(footerRoot.querySelectorAll('.footer-privacy a'));
+  // 含 copyright <p>：跟 4 連結一起 clip-reveal，否則退場時它會凍住不動（其餘沉出）
+  return Array.from(footerRoot.querySelectorAll('.footer-privacy a, .footer-privacy .footer-copyright'));
 }
 
 export function playFooterExit() {

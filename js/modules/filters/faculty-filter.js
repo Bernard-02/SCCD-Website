@@ -56,12 +56,12 @@ function setupFacultyCardAnim(card) {
 //   重要約束：NAME_OFFSET 必須 ≥ CARD_ADVANCE，否則 title 會搶在「下一張 image 出現」之前 → 違反使用者要求
 //   row 與 row 之間：上一 row 最後一張卡片動畫完整結束 + ROW_GAP 才換 row
 //   卡片完整揭露（title 動畫結束）後才解除 pointer-events-none，重啟 hover
-const IMG_DUR = DUR.reveal;
-const TEXT_DUR = DUR.slow;
-const CARD_ADVANCE = IMG_DUR / 2;     // image 一半時下一張 image 起跑 → 0.3
-const NAME_OFFSET = CARD_ADVANCE + 0.1; // 下一張 image 起跑後 0.1s 才 name 開始（保證 title 不搶在下一張 image 之前）→ 0.4
-const TITLE_OFFSET = NAME_OFFSET + 0.1; // name 之後 0.1s 接 title（subtitle 內部小 stagger）→ 0.5
-const CARD_FULL_DURATION = TITLE_OFFSET + TEXT_DUR; // 0.5 + 0.5 = 1.0
+const IMG_DUR = 0.8;         // 圖片 clip 揭露（user 2026-06-09 拍板 0.8：1.0 太慢、0.6 又太快；非 palette token 故字面值）
+const TEXT_DUR = DUR.medium; // name/title clip-reveal = 0.5（user 拍板）
+const CARD_ADVANCE = IMG_DUR / 2;     // image 一半時下一張 image 起跑 → 0.4（user 要的卡間隔）
+const NAME_OFFSET = CARD_ADVANCE + 0.1; // 下一張 image 起跑後 0.1s 才 name 開始（保證 title 不搶在下一張 image 之前）→ 0.5
+const TITLE_OFFSET = NAME_OFFSET + 0.1; // name 之後 0.1s 接 title（subtitle 內部小 stagger）→ 0.6
+const CARD_FULL_DURATION = TITLE_OFFSET + TEXT_DUR; // 0.6 + 0.5 = 1.1
 const ROW_GAP = 0.1;                  // row 與 row 之間的空檔
 const HOVER_UNLOCK_BUFFER = 0.05;     // 動畫結束到解鎖 hover 之間的緩衝
 
@@ -128,9 +128,21 @@ function playFacultyCard(card, startTime) {
   if (card._hoverUnlockTimer) clearTimeout(card._hoverUnlockTimer);
   const finishAt = startTime + TITLE_OFFSET + TEXT_DUR + HOVER_UNLOCK_BUFFER;
   card._hoverUnlockTimer = setTimeout(() => {
-    card.classList.remove('pointer-events-none');
     card._hoverUnlockTimer = null;
+    unlockHoverWhenImageReady(card);
   }, Math.round(finishAt * 1000));
+}
+
+// 解鎖 hover 的條件 = reveal 動畫結束「且」卡片圖片已載入完成。
+// 後台真照片走網路（且 loading=lazy，fold 下捲到才下載）→ reveal 跑完圖可能還沒到，
+// 此時解鎖會讓使用者 hover 到空白/半載入的卡片（part-time 真照片多才明顯，full-time 圖載得快通常已 complete = 不受影響）。
+// 圖已 complete → 立即解鎖；未完成 → 等 load；load 失敗（error）也解鎖，避免單張圖 404 讓卡片永久卡在不可 hover。
+function unlockHoverWhenImageReady(card) {
+  const img = /** @type {HTMLImageElement|null} */ (card.querySelector('.faculty-card-image'));
+  const unlock = () => card.classList.remove('pointer-events-none');
+  if (!img || img.complete) { unlock(); return; }
+  img.addEventListener('load', unlock, { once: true });
+  img.addEventListener('error', unlock, { once: true });
 }
 
 function playFacultyCardsSerial(cards) {

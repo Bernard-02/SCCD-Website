@@ -42,6 +42,9 @@ let colorRAFStartTimer = null;
 let colorRAF = null;
 let colorHue = Math.random() * 360;
 let lastThemeDispatch = 0;
+// 對比黑/白遲滯狀態：亮度卡 0.5 門檻的色域(橘 hue~35 / 青 hue~195)會讓 isLightBg 每幀在兩側抖
+// → --theme-fg / --theme-invert-filter 等全站對比 var 狂翻黑白 = 文字 + placeholder logo 一起閃。
+let _lastIsLightBg = null;
 // 降速：gen wireframe Play 用 0.125，但 gen sketch 重實際 fps 跑不滿，視覺較慢；
 // mode-color 每幀只 set 幾個 CSS var 跑滿 frame rate，需手動降增量才能跟 gen 視覺等速
 const HUE_PER_FRAME = 0.04;
@@ -79,7 +82,11 @@ function relativeLuminance(r, g, b) {
 function applyColorVars() {
   const { r, g, b } = hsbToRgb(colorHue, 80, 100);
   const lum = relativeLuminance(r, g, b);
-  const isLightBg = lum > 0.5; // WCAG threshold（同 wireframe getContrastColor）
+  // 遲滯（dead zone 0.45~0.55）：lum>0.55 明確淺底、<0.45 明確深底、中間維持上次 → 門檻附近不抖、對比穩定
+  if (lum > 0.55) _lastIsLightBg = true;
+  else if (lum < 0.45) _lastIsLightBg = false;
+  else if (_lastIsLightBg === null) _lastIsLightBg = lum > 0.5;
+  const isLightBg = _lastIsLightBg; // WCAG threshold（同 wireframe getContrastColor）+ 遲滯
   const fgRgb = isLightBg ? '0, 0, 0' : '255, 255, 255';
   const fgInverseRgb = isLightBg ? '255, 255, 255' : '0, 0, 0';
   const fgHex = isLightBg ? '#000000' : '#ffffff';
@@ -110,7 +117,9 @@ function applyColorVars() {
   // Footer logo Lottie 是黑色版（SCCDLogoStandard.json）；亮 footer bg = 不翻、暗 footer bg = invert(1) 翻白
   root.style.setProperty('--footer-invert-filter', cIsLightBg ? 'none' : 'invert(1)');
   // .theme-invert（黑色靜態 SVG/PNG）對比翻色：page bg 亮時不 invert（保留黑），暗時 invert(1) 變白
-  root.style.setProperty('--theme-invert-filter', isLightBg ? 'none' : 'invert(1)');
+  // 用 invert(0) 不用 none：invert(0) 同樣「不反轉」但是合法 filter 函式，可被 faculty placeholder hover 規則
+  // 疊加成 `invert(0) invert(1)`（none 不能跟函式並列會讓整條 filter 無效）；視覺等同 none，既有 .theme-invert 不受影響。
+  root.style.setProperty('--theme-invert-filter', isLightBg ? 'invert(0)' : 'invert(1)');
   // 中性灰浮層（card/chip 想在 vivid hue 上顯純灰不帶 hue tint）：對齊 mode1 #F0F0F0 / mode2 var(--gray-2)
   // 亮 hue → gray-9 (#E6E6E6 最淺灰)、暗 hue → gray-2 (#333333，跟 inverse 卡片底一致)
   root.style.setProperty('--theme-neutral-gray', isLightBg ? 'var(--gray-9)' : 'var(--gray-2)');

@@ -13,6 +13,8 @@
 import { enterLightboxMode, exitLightboxMode } from '../lightbox/lightbox-shell.js';
 import { openSlideInBg, closeSlideInBg } from '../ui/slide-in-bg-sync.js';
 import { countryName } from '../../data/country-names.js';
+import { getFacultyData } from './faculty-source.js';
+import { applyMarqueeOverflow } from '../ui/marquee-overflow.js';
 
 export function initFacultySlideIn() {
   const slideIn = document.getElementById('faculty-slide-in');
@@ -24,11 +26,8 @@ export function initFacultySlideIn() {
 
   if (!slideIn || facultyCards.length === 0) return;
 
-  fetch('/data/faculty.json')
-    .then(response => {
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status} - Check if data/faculty.json exists`);
-      return response.json();
-    })
+  // 與 faculty-data-loader 共用 faculty-source（cache）→ 同一份 Directus 資料、同一組 id
+  getFacultyData()
     .then(data => {
       const facultyData = data.reduce((acc, item) => {
         acc[item.id] = item;
@@ -38,6 +37,18 @@ export function initFacultySlideIn() {
       initializeFacultyInteractions(facultyData);
     })
     .catch(error => console.error('Error loading faculty data:', error));
+
+  // 雙語儲存格：英文在上、中文在下（對齊 name/titles 也是 EN 上 ZH 下，user 2026-06-09），各包一個 .faculty-marquee-line（block）+ .faculty-marquee-inner。
+  // 桌面單行超出欄寬時 hover row 才水平 marquee（手機維持自然換行，見 cards.css）。
+  // 缺一語就不渲染該行（marqueeLine 空字串不輸出）— 只有一語就只顯示該語、不留空行；兩語皆空 → 空字串。
+  // 把單段文字包成一個 marquee line（block + 內層 nowrap inner）；空字串不渲染。
+  // 雙語格與 year 欄共用 → year 也能單行裁切 + hover 才 marquee（多年份列如「2019、2020、2023、2024」不再換行）。
+  const marqueeLine = (text) => text
+    ? `<span class="faculty-marquee-line"><span class="faculty-marquee-inner">${text}</span></span>`
+    : '';
+  function bilingualMarquee(zh, en) {
+    return marqueeLine(en) + marqueeLine(zh);
+  }
 
   // year 區段顯示：endYear 空 → 單年；endYear 與 startYear 相同也顯示單年；
   // isPresent=true（至今/進行中）→ "start-"（起始年 + dash，無結束年）；否則 "start-end"
@@ -56,10 +67,10 @@ export function initFacultySlideIn() {
   function renderEducationRow(item) {
     return `
       <div class="faculty-grid-row">
-        <span>${countryName(item.country, 'zh')}<br>${(item.country || '').toUpperCase()}</span>
-        <span>${item.schoolZh || ''}<br>${item.schoolEn || ''}</span>
-        <span>${item.majorZh || ''}<br>${item.majorEn || ''}</span>
-        <span>${item.degreeZh || ''}<br>${item.degreeEn || ''}</span>
+        <span>${bilingualMarquee(countryName(item.country, 'zh'), (item.country || '').toUpperCase())}</span>
+        <span>${bilingualMarquee(item.schoolZh, item.schoolEn)}</span>
+        <span>${bilingualMarquee(item.majorZh, item.majorEn)}</span>
+        <span>${bilingualMarquee(item.degreeZh, item.degreeEn)}</span>
       </div>
     `;
   }
@@ -68,15 +79,11 @@ export function initFacultySlideIn() {
   // isPresent（至今）→ year 顯示 "start-"；經歷/歷程共用此 row
   function renderExperienceRow(item) {
     const year = formatYearRange(item.startYear, item.endYear, item.isPresent);
-    const orgZh = item.organizationZh || '';
-    const orgEn = item.organizationEn || '';
-    const roleZh = item.roleZh || '';
-    const roleEn = item.roleEn || '';
     return `
       <div class="faculty-grid-row">
-        <span>${year}</span>
-        <span class="faculty-grid-span2">${orgZh}${orgEn ? '<br>' + orgEn : ''}</span>
-        <span>${roleZh}${roleEn ? '<br>' + roleEn : ''}</span>
+        <span>${marqueeLine(year)}</span>
+        <span class="faculty-grid-span2">${bilingualMarquee(item.organizationZh, item.organizationEn)}</span>
+        <span>${bilingualMarquee(item.roleZh, item.roleEn)}</span>
       </div>
     `;
   }
@@ -85,18 +92,12 @@ export function initFacultySlideIn() {
   // 國家比照學歷 row：中文全名 + ISO2 代碼（大寫）
   function renderAwardRow(item) {
     const year = formatYearRange(item.startYear, item.endYear);
-    const nameZh = item.nameZh || '';
-    const nameEn = item.nameEn || '';
-    const catZh = item.categoryZh || '';
-    const catEn = item.categoryEn || '';
-    const countryZh = countryName(item.country, 'zh');
-    const countryCode = (item.country || '').toUpperCase();
     return `
       <div class="faculty-grid-row faculty-grid-row-award">
-        <span>${year}</span>
-        <span>${countryZh}${countryCode ? '<br>' + countryCode : ''}</span>
-        <span>${nameZh}${nameEn ? '<br>' + nameEn : ''}</span>
-        <span>${catZh}${catEn ? '<br>' + catEn : ''}</span>
+        <span>${marqueeLine(year)}</span>
+        <span>${bilingualMarquee(countryName(item.country, 'zh'), (item.country || '').toUpperCase())}</span>
+        <span>${bilingualMarquee(item.nameZh, item.nameEn)}</span>
+        <span>${bilingualMarquee(item.categoryZh, item.categoryEn)}</span>
       </div>
     `;
   }
@@ -106,16 +107,17 @@ export function initFacultySlideIn() {
   // 加 bg-white 蓋住 scroll 經過時下方 row 的字（否則 sticky title 半透疊字）；
   // self-start 避免 flex stretch 讓 title col 等高失去 sticky；
   // h6 leading-none 把 line-height 壓成 font-size 讓字頂貼 col top，跟右側 row p2 文字頂部對齊
-  // md:pb-2 (= 0.5rem)：對齊 .faculty-grid-row 自身 padding-bottom: 0.5rem，sticky 失效臨界點對齊最後一個 row 底邊
+  // row 間距改由 .faculty-rows 父層 gap 控制（無 row 自身 padding-bottom）→ 標題 col 不需 md:pb-4 補償，
+  // sticky 失效時標題與最後一個 row 自然都在 content 底對齊（user 2026-06-09 桌機也改 gap）
   function buildSection(titleEn, titleZh, items, renderRow) {
     if (!Array.isArray(items) || items.length === 0) return '';
     const rows = items.map(renderRow).join('');
     return `
       <div class="flex flex-col md:flex-row gap-xs md:gap-sm">
-        <div class="faculty-section-title-col w-full md:w-[20%] mb-xs md:mb-0 md:pb-2 md:sticky md:top-0 md:self-start md:z-[1]">
+        <div class="faculty-section-title-col w-full md:w-[20%] mb-xs md:mb-0 md:sticky md:top-0 md:self-start md:z-[1]">
           <h6 class="text-black whitespace-nowrap leading-none">${titleEn} ${titleZh}</h6>
         </div>
-        <div class="flex-1">
+        <div class="flex-1 faculty-rows">
           ${rows}
         </div>
       </div>
@@ -146,24 +148,28 @@ export function initFacultySlideIn() {
       const imgElement = /** @type {HTMLImageElement | null} */ (document.getElementById('faculty-detail-image'));
       if (imgElement) imgElement.src = data.image;
 
-      // 姓名 + titles 旋轉：fulltime 桌面手機都套（2026-05-26 user 要求手機也旋轉，桌面行為不變）
-      // 桌面用 inline-block 讓 rotate 不撐父寬；手機用 block 各佔一行（EN 一行 → ZH 一行 → titles 在下方）
+      // 姓名 + titles 旋轉：fulltime 桌面手機都套（2026-05-26 user 要求手機也旋轉）
+      // EN / ZH 一律各佔一行（block）；fulltime 另加 width:fit-content → rotate(4deg) 繞 content 寬度不撐父寬
+      // （2026-06-08 user 要求桌面也分兩行；原桌面 inline-block 把 EN+ZH 擠成一行已取消）
       const rotateName = data.type === 'fulltime';
       const isMobile = window.innerWidth < 768;
       const nameEnElement = document.getElementById('faculty-detail-name-en');
       const nameZhElement = document.getElementById('faculty-detail-name-zh');
-      const nameDisplay = rotateName ? (isMobile ? 'block' : 'inline-block') : '';
+      const nameDisplay = rotateName ? 'block' : '';
+      const nameWidth = rotateName ? 'fit-content' : '';
       if (nameEnElement) {
         nameEnElement.textContent = data.nameEn;
         nameEnElement.style.transform = rotateName ? 'rotate(4deg)' : '';
         nameEnElement.style.transformOrigin = rotateName ? 'left center' : '';
         nameEnElement.style.display = nameDisplay;
+        nameEnElement.style.width = nameWidth;
       }
       if (nameZhElement) {
         nameZhElement.textContent = data.nameZh;
         nameZhElement.style.transform = rotateName ? 'rotate(4deg)' : '';
         nameZhElement.style.transformOrigin = rotateName ? 'left center' : '';
         nameZhElement.style.display = nameDisplay;
+        nameZhElement.style.width = nameWidth;
       }
 
       // Titles：fulltime/parttime 用 titles[] repeater；admin 用單 titleEn/titleZh
@@ -209,7 +215,21 @@ export function initFacultySlideIn() {
           html += buildSection('Awards', '榮譽', data.awards, renderAwardRow);
         }
         sectionsContainer.innerHTML = html;
+
+        // 詳情 row 雙語格各語單行超出欄寬 → hover row 才 marquee（桌面限定，仿卡片職稱）。
+        // panel 此時仍 invisible(visibility，非 display:none) → 仍可量 offsetWidth。
+        // 等字型載入避免 fallback 字寬誤判溢出（見 memory feedback_measure_text_layout_wait_fonts_ready）。
+        if (window.innerWidth >= 768) {
+          const runMarquee = () => applyMarqueeOverflow(sectionsContainer, '.faculty-marquee-line', '.faculty-marquee-inner');
+          if (document.fonts && document.fonts.status !== 'loaded') document.fonts.ready.then(runMarquee);
+          else runMarquee();
+        }
       }
+
+      // 每次開新老師都從頂部開始：歸零兩個可能的 scroll 容器 —
+      // 桌面 = 右欄 .list-scroll 獨立 scroll；手機 = 整個內容容器 .no-scrollbar。
+      // 否則上一位老師若在捲到下方時關閉，scrollTop 殘留 → 下一位老師會從中間打開。
+      slideInPanel?.querySelectorAll('.list-scroll, .no-scrollbar').forEach(el => { el.scrollTop = 0; });
     }
 
     facultyCards.forEach(card => {

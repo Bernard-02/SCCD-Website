@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Privacy Policy - SCCD</title>
+  <title>Policy and Statements - SCCD</title>
   <link rel="stylesheet" href="../css/variables.css">
   <link rel="stylesheet" href="../css/output.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -15,30 +15,34 @@
   <div id="site-header"></div>
 
   <!-- Main Content
-       id="page-content" 是 SPA router 的注入錨點，直接訪問必須有。樣式見 css/components/legal.css。 -->
+       id="page-content" 是 SPA router 的注入錨點，直接訪問必須有。
+       privacy-policy + accessibility 合併為一頁：左欄大標題「Policy and Statements」，
+       右欄兩大段（隱私權與資訊安全政策 / 無障礙聲明），各段保留自己的編號條款。
+       由 legal-data-loader 的 loadPolicyAndStatements() 抓兩個 legal singleton 渲染。
+       .legal-combined 變體把編號條款標題縮到內文大小（樣式見 css/components/legal.css）。 -->
   <main id="page-content">
 
-    <section class="legal-page-section">
+    <section class="legal-page-section legal-combined">
       <div class="site-container">
         <div class="grid-12">
 
-          <!-- 左欄：sticky title chip（左下角，比照 support） -->
+          <!-- 左欄：sticky title chip（左下角，比照 support / regulations） -->
           <div class="legal-title-col col-span-12 md:col-span-5">
             <div class="legal-title-block">
               <h2 class="hero-title text-black inline-block" data-hero-hl>
-                PRIVACY &amp;<br>SECURITY<br>POLICY
+                POLICIES &amp;<br>STATEMENTS
               </h2>
               <h2 class="hero-title-cn text-black inline-block" data-hero-hl>
-                隱私權與<br>資訊安全政策
+                政策及聲明
               </h2>
             </div>
           </div>
 
-          <!-- 右欄：內文（async 由 legal-data-loader 填入 #legal-content） -->
+          <!-- 右欄：內文（async 由 legal-data-loader 填入 #legal-content：兩大段 + 各自編號條款） -->
           <div class="legal-content-col col-span-12 md:col-span-7">
             <div id="legal-content"></div>
 
-            <!-- Last Updated -->
+            <!-- Last Updated（兩段同日期，顯示一次） -->
             <div class="mt-3xl">
               <p id="legal-updated-en" class="text-p2 text-black"></p>
               <p id="legal-updated-zh" class="text-p2 text-black"></p>

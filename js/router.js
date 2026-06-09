@@ -37,10 +37,8 @@ const routes = {
   '/create.html':             { page: 'generate',                htmlFile: 'pages/create.html' },
   '/regulations':             { page: 'regulations',             htmlFile: 'pages/regulations.html' },
   '/regulations.html':        { page: 'regulations',             htmlFile: 'pages/regulations.html' },
-  '/privacy-policy':          { page: 'privacy-policy',          htmlFile: 'pages/privacy-policy.html' },
-  '/privacy-policy.html':     { page: 'privacy-policy',          htmlFile: 'pages/privacy-policy.html' },
-  '/accessibility':           { page: 'accessibility',           htmlFile: 'pages/accessibility.html' },
-  '/accessibility.html':      { page: 'accessibility',           htmlFile: 'pages/accessibility.html' },
+  '/policy-and-statements':      { page: 'policy-and-statements', htmlFile: 'pages/policy-and-statements.html' },
+  '/policy-and-statements.html': { page: 'policy-and-statements', htmlFile: 'pages/policy-and-statements.html' },
   '/404':                     { page: '404',                     htmlFile: 'pages/404.html' },
   '/404.html':                { page: '404',                     htmlFile: 'pages/404.html' },
 };
