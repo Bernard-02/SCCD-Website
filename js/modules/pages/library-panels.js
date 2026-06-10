@@ -9,6 +9,7 @@ import { applyMarqueeOverflow } from '../ui/marquee-overflow.js';
 import { ensureFlagIconsCss } from '../ui/ensure-flag-icons.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { CMS_API_BASE, CMS_ASSETS_BASE } from '../../config/api.js';
+import { sitePath } from '../ui/site-base.js';
 
 // ── 共用常數 ──────────────────────────────────────────────────────────────────
 
@@ -228,7 +229,7 @@ async function fetchAwardLogos(localFallback) {
 async function initAwardsPanel(onEntranceDoneCallback) {
   try {
     ensureFlagIconsCss();
-    const res = await fetch('/data/records.json');
+    const res = await fetch(sitePath('data/records.json'));
     const data = await res.json();
     const realRecords  = Array.isArray(data) ? data : data.records;
     // Awards ticker logo 改吃 Directus；records 表格本身仍用 records.json（user 只更新了 logo）
@@ -264,10 +265,11 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     // 多 winner 時用「水平 marquee」自動跑：整列獲獎者橫向滾動，hover 不需要
     // 結構：.award-winners (overflow:hidden) > .award-winners-track (橫向 inline-flex) > N × .award-winner-pair (column EN+ZH)
     // pairs 之間用 padding-right 拉開 gap，避免兩位獲獎者文字黏在一起
+    // en/zh 文字包進 .award-marquee-inner span：手機固定欄寬下名字太長 → applyMarqueeOverflow 偵測溢出跑 marquee（#1）
     const buildWinnersHtml = (winners) => {
       const pairs = winners.map(w => {
-        const enHtml = w.en ? `<div class="award-winner-en" style="font-weight:700;">${w.en}</div>` : '';
-        const zhHtml = w.zh ? `<div class="award-winner-zh" style="font-weight:800;">${w.zh}</div>` : '';
+        const enHtml = w.en ? `<div class="award-winner-en" style="font-weight:700;"><span class="award-marquee-inner">${w.en}</span></div>` : '';
+        const zhHtml = w.zh ? `<div class="award-winner-zh" style="font-weight:800;"><span class="award-marquee-inner">${w.zh}</span></div>` : '';
         return `<div class="award-winner-pair">${enHtml}${zhHtml}</div>`;
       }).join('');
       return `<div class="award-winners-track">${pairs}</div>`;
@@ -304,12 +306,8 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         if (pairs.length <= 1) return;
 
         if (isMobile) {
-          // 手機：pair 自然寬度 + 複製一份 seamless（CSS keyframe translateX -50% 接合）
-          // pair 之間 gap 由 CSS .award-winners-track { gap: 2xl } 控
-          const origHtml = track.innerHTML;
-          track.innerHTML = origHtml + origHtml;
-          view.classList.add('is-hmarquee');
-          view.style.setProperty('--hmarquee-duration', `${pairs.length * SECONDS_PER_WINNER}s`);
+          // 手機 v5（2026-06-10）：award 改 3 欄版型，得獎人在第 3 欄垂直 stack（CSS .award-winners-track flex-column）。
+          // 不橫向 marquee、不複製 track（複製會讓多得獎人各顯示兩次）。
           return;
         }
 
@@ -351,9 +349,11 @@ async function initAwardsPanel(onEntranceDoneCallback) {
                  style="grid-template-columns: 1.5em 4.5fr 1.5fr 1fr 1fr; gap: 0 2rem; font-size: var(--font-size-p3); align-items: start;"
                  data-search="${searchText}"${item.id ? ` id="${item.id}"` : ''}>
               <div style="padding-top: 0.1em;">${item.flag ? `<span class="fi fi-${item.flag}" style="width:1.5em;height:1em;display:inline-block;"></span>` : ''}</div>
-              <div class="truncate flex flex-col">${bilingualBold(item.competition_en, item.competition)}</div>
-              <div class="truncate flex flex-col">${bilingual(item.award_en, item.award)}</div>
-              <div class="truncate flex flex-col">${bilingual(item.rank_en, item.rank)}</div>
+              <div class="award-mid">
+                <div class="truncate flex flex-col">${bilingualBold(item.competition_en, item.competition)}</div>
+                <div class="truncate flex flex-col">${bilingual(item.award_en, item.award)}</div>
+                <div class="truncate flex flex-col">${bilingual(item.rank_en, item.rank)}</div>
+              </div>
               <div class="award-winners flex flex-col" style="min-width:0;">${buildWinnersHtml(winners)}</div>
             </div>`;
         }).join('');
@@ -366,25 +366,34 @@ async function initAwardsPanel(onEntranceDoneCallback) {
       });
 
       // hover 變色：mode1/2 隨機三原色；mode3（mode-color）套 var(--theme-bg)=當前 hue，
-      // theme-toggle RAF 每幀更新該 var → hover 不動文字色也跟著 hue 流動（免自寫 RAF）
-      listEl.querySelectorAll('.award-record-item').forEach(item => {
-        item.addEventListener('mouseenter', () => {
-          item.style.color = document.body.classList.contains('mode-color')
-            ? 'var(--theme-bg)'
-            : ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
+      // theme-toggle RAF 每幀更新該 var → hover 不動文字色也跟著 hue 流動（免自寫 RAF）。
+      // ⚠️ 只在桌面綁：手機 tap 會觸發 emulated mouseenter → 文字變色殘留，但 award 無 detail 該「點擊無反應」
+      //    （user 2026-06-10 #2：手機點擊 award 不該變色）。手機完全不綁 → tap 無任何反應。
+      if (window.innerWidth >= 768) {
+        listEl.querySelectorAll('.award-record-item').forEach(item => {
+          item.addEventListener('mouseenter', () => {
+            item.style.color = document.body.classList.contains('mode-color')
+              ? 'var(--theme-bg)'
+              : ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
+          });
+          item.addEventListener('mouseleave', () => { item.style.color = ''; });
         });
-        item.addEventListener('mouseleave', () => { item.style.color = ''; });
-      });
+      }
 
-      // 多獲獎者自動水平 marquee（不需 hover）
+      // 多獲獎者自動水平 marquee（桌面，不需 hover）
       applyWinnersHMarquee(listEl);
+      // 手機：得獎人名字太長 → 個別 marquee（固定欄寬下溢出才跑；桌面是整位橫排 marquee 不需這個）
+      if (window.innerWidth < 768) runMarqueeOverflow(listEl, '.award-winner-en, .award-winner-zh', '.award-marquee-inner');
     }
 
     renderItems(getSorted());
 
     // showLibPanel('awards') 顯示 panel 後重量一次 winners marquee（首次 render 時卡片可能尚未 sized →
     // offsetWidth=0 → 多名得獎者擠成一團）。對齊 press/files/album 的 _XMarqueeInit 重觸發 pattern。
-    window._awardsMarqueeInit = () => applyWinnersHMarquee(listEl);
+    window._awardsMarqueeInit = () => {
+      applyWinnersHMarquee(listEl);
+      if (window.innerWidth < 768) runMarqueeOverflow(listEl, '.award-winner-en, .award-winner-zh', '.award-marquee-inner');
+    };
 
     // 年份 Picker
     const yearPickerEl = document.getElementById('library-year-picker');
@@ -488,27 +497,36 @@ async function initAwardsPanel(onEntranceDoneCallback) {
       tickerWrapper.appendChild(t1);
       tickerWrapper.appendChild(t2);
 
-      // 等進場動畫完成後再量寬度
+      // ticker 預設可見（跟其他內容一起 clip-reveal，桌面/手機一致，user 2026-06-10：不要 opacity 淡入，
+      // 渲染卡片就看到 logo、tween 一就緒就跑）。進場完成後啟動 marquee，但要等 ticker 圖片載入完才量寬度：
+      // 桌面靠進場動畫 ~1.5s 緩衝、圖多半已載；手機 timing 早很多（onEntranceDone fix 後 cb 在 render 後立刻跑），
+      // 圖未載時 offsetWidth=0 → 量錯/ticker 不動。改成等所有 ticker img load/error 後才量 t1 寬 + 跑 tween（兩 viewport 都穩）。
       onEntranceDoneCallback(() => {
-        requestAnimationFrame(() => {
+        const startTicker = () => {
           const trackW = t1.offsetWidth;
-          
+          if (!trackW) return;
           if (typeof gsap !== 'undefined') {
-            const duration = trackW / 80;
-            const tween = gsap.to([t1, t2], {
-              x: `-=${trackW}`,
-              ease: "none",
-              duration: duration,
-              repeat: -1
-            });
+            gsap.to([t1, t2], { x: `-=${trackW}`, ease: 'none', duration: trackW / 80, repeat: -1 });
             // ticker 單純等速跑、無 hover 互動（user 2026-06-09 移除：hover 減速 + hover 圖片 dim 兩效果）
           } else {
-            // Fallback: 如果環境沒有讀取到 GSAP，使用原本的 CSS 動畫
-            const style  = document.createElement('style');
+            // Fallback: 環境沒讀到 GSAP 用 CSS 動畫
+            const style = document.createElement('style');
             style.textContent = `@keyframes awards-ticker { from { transform: translateX(0); } to { transform: translateX(-${trackW}px); } }`;
             document.head.appendChild(style);
             tickerWrapper.style.animation = `awards-ticker ${Math.round(trackW / 80)}s linear infinite`;
           }
+        };
+        // 手機：logo 已用 CSS aspect-ratio 預留寬度 → layout 一好（1 rAF）就量得到 trackW，不必等圖載入
+        //   → ticker「一渲染就開始捲」（圖載好填進預留位）；不會「靜止 logo 卡一下才動」（user 2026-06-10）。
+        // 桌面：logo width:auto 沒預留、trackW 要 naturalWidth → 維持等所有圖 load/error 才量（進場 ~1.5s 已遮掉）。
+        if (window.innerWidth < 768) { requestAnimationFrame(startTicker); return; }
+        const imgs = Array.from(tickerWrapper.querySelectorAll('img'));
+        let pending = imgs.length;
+        const ready = () => { if (--pending <= 0) requestAnimationFrame(startTicker); };
+        if (!pending) { requestAnimationFrame(startTicker); return; }
+        imgs.forEach(im => {
+          if (im.complete) ready();
+          else { im.addEventListener('load', ready, { once: true }); im.addEventListener('error', ready, { once: true }); }
         });
       });
     } else if (tickerWrapper) {
@@ -556,7 +574,7 @@ async function initPressPanel() {
       pressData = rows.map(mapDirectusPressRow);
     } catch (cmsErr) {
       console.warn('[press] Directus 抓取失敗/無資料，fallback 本地 press.json：', cmsErr.message);
-      pressData = await fetch('/data/press.json').then(r => r.json());
+      pressData = await fetch(sitePath('data/press.json')).then(r => r.json());
     }
 
     const listEl      = document.getElementById('library-press-list');
@@ -613,7 +631,7 @@ async function initPressPanel() {
             </div>`;
           // 後台放圖/影片 → 開 media viewer(lightbox)；只放 PDF → 開 PDF viewer（圖/影片同時有時優先 lightbox）
           if (imgList.length || vidList.length) {
-            div.style.cursor = "url('/custom-cursor/pointer.svg') 14 1, pointer";
+            div.style.cursor = `url('${sitePath('custom-cursor/pointer.svg')}') 14 1, pointer`;
             const media = [];
             imgList.forEach(src => media.push({ type: 'image', src, thumb: src }));
             vidList.forEach(url => {
@@ -628,7 +646,7 @@ async function initPressPanel() {
               });
             }
           } else if (item.pdfUrl) {
-            div.style.cursor = "url('/custom-cursor/pointer.svg') 14 1, pointer";
+            div.style.cursor = `url('${sitePath('custom-cursor/pointer.svg')}') 14 1, pointer`;
             const pdfTitle = { en: item.titleEn || '', zh: item.titleZh || '' };
             const pdfColor = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
             // library 場景：references 反查所有 activity 中 ref 此 PDF 的來源（不 exclude，full list）
@@ -735,7 +753,7 @@ async function initPressPanel() {
 
 async function initFilesPanel() {
   try {
-    const filesData = await fetch('/data/library.json').then(r => r.json());
+    const filesData = await fetch(sitePath('data/library.json')).then(r => r.json());
 
     const listEl       = document.getElementById('library-files-list');
     const yearPickerEl = document.getElementById('library-files-year-picker');
@@ -796,7 +814,7 @@ async function initFilesPanel() {
             </div>`;
 
           if (item.pdfUrl) {
-            div.style.cursor = "url('/custom-cursor/pointer.svg') 14 1, pointer";
+            div.style.cursor = `url('${sitePath('custom-cursor/pointer.svg')}') 14 1, pointer`;
             const pdfTitle = { en: item.titleEn || '', zh: item.titleZh || '' };
             // 同 Press panel：library 場景反查 activity → 此 PDF；手填 references union 進去
             div.addEventListener('click', async () => {
@@ -946,7 +964,7 @@ function normalizeDegreeShow(data) {
 async function initAlbumPanel() {
   try {
     const results = await Promise.all(
-      ALBUM_SOURCES.map(s => fetch(s.url).then(r => r.json()).catch(() => null))
+      ALBUM_SOURCES.map(s => fetch(sitePath(s.url)).then(r => r.json()).catch(() => null))
     );
 
     const allItems = [];
@@ -1045,7 +1063,7 @@ async function initAlbumPanel() {
             </div>`;
 
           if (item.media && item.media.length > 0) {
-            div.style.cursor = "url('/custom-cursor/pointer.svg') 14 1, pointer";
+            div.style.cursor = `url('${sitePath('custom-cursor/pointer.svg')}') 14 1, pointer`;
             const lbTitle = { en: item.titleEn || '', zh: item.titleZh || '' };
             const lbColor = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
             div.addEventListener('click', () => {
@@ -1349,9 +1367,13 @@ function showLibPanel(tab, { reveal = true } = {}) {
  */
 export function initLibraryPanels() {
   let _entranceDoneCb = null;
+  let _entranceDoneFired = false;
 
-  // Awards 需要在進場動畫完成後啟動 ticker，透過 registerEntranceDone 注入回呼
-  initAwardsPanel(cb => { _entranceDoneCb = cb; });
+  // Awards 需要在進場動畫完成後啟動 ticker，透過 registerEntranceDone 注入回呼。
+  // ⚠️ initAwardsPanel 是 async：cb（ticker 動畫）在 await fetch+render 後才設。手機路徑（main-modular）
+  // 會「同步」呼叫 onEntranceDone()（此時 cb 還沒設）→ 舊版手機 ticker 永不啟動。
+  // 修：onEntranceDone 記 flag，cb 設好時若 flag 已亮就立刻補跑（桌面 cb 早已設好、行為不變）。
+  initAwardsPanel(cb => { _entranceDoneCb = cb; if (_entranceDoneFired) cb(); });
   initPressPanel();
   initFilesPanel();
   initAlbumPanel();
@@ -1370,8 +1392,12 @@ export function initLibraryPanels() {
 
   return {
     showPanel: showLibPanel,
-    // library-card.js 呼叫此函式以觸發 ticker 動畫
-    onEntranceDone: () => { if (typeof _entranceDoneCb === 'function') _entranceDoneCb(); },
+    // library-card.js（桌面進場完）或 main-modular（手機）呼叫以觸發 ticker 動畫；只跑一次
+    onEntranceDone: () => {
+      if (_entranceDoneFired) return;
+      _entranceDoneFired = true;
+      if (typeof _entranceDoneCb === 'function') _entranceDoneCb();
+    },
     handleHash: handleLibraryHash,
   };
 }

@@ -380,6 +380,13 @@
       animation: courses-marquee var(--marquee-duration, 8s) linear infinite;
     }
   }
+  /* 手機無 hover → overflow 卡片標題自動跑 marquee（桌面維持 hover 觸發，不受影響） */
+  @media (max-width: 767px) {
+    .courses-grid-card-en.is-overflow .courses-marquee-inner,
+    .courses-grid-card-zh.is-overflow .courses-marquee-inner {
+      animation: courses-marquee var(--marquee-duration, 8s) linear infinite;
+    }
+  }
   @keyframes courses-marquee {
     0%   { transform: translateX(0); }
     100% { transform: translateX(var(--marquee-distance, -50%)); }
@@ -486,12 +493,17 @@
     color: var(--theme-fg);
   }
   .courses-mobile-row {
+    /* 兩欄：左 = 必修/選修 label（固定寬、英中直排），右 = 課程卡片撐滿剩餘寬。
+       年級表頭仍在 grade-block 內全寬置頂（年級 layout 不變） */
     display: flex;
-    flex-direction: column;
-    /* label ↔ cells 間距：md(24px)，比預設 xs(8) 大三級，視覺呼吸 */
-    gap: var(--spacing-md);
+    flex-direction: row;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
   }
   .courses-mobile-row-label {
+    /* 左欄固定寬，cards 取剩餘 → 各 row 卡片左緣對齊 */
+    flex-shrink: 0;
+    width: 5.5rem;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
@@ -500,12 +512,10 @@
     line-height: 1.2;
     color: var(--theme-fg);
   }
-  /* type label 一行（en + zh 同行 baseline 對齊）（不分學期後 sem label 已移除） */
+  /* type label：英中上下排列（兩欄 layout，label 在左欄直排，en 上 zh 下） */
   .courses-mobile-row-label-type {
     display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    column-gap: 0.5em;
+    flex-direction: column;
     row-gap: 2px;
   }
   .courses-mobile-type-en {
@@ -516,8 +526,10 @@
     opacity: 0.85;
   }
   .courses-mobile-cells {
-    /* 手機版每張卡獨佔一行（user 要求）：column stack 取代 flex-wrap row
-       gap sm(16) 比舊 8px 大一倍；卡片 align-items:flex-start 才不會被 stretch 撐滿寬 */
+    /* 兩欄右欄：flex:1 撐滿剩餘寬，min-width:0 讓卡片 max-width:100% 收斂到本欄寬（防 nowrap 卡片撐爆破版）。
+       每張卡 column stack 各佔一行；align-items:flex-start 讓短卡維持 fit-content 不被 stretch */
+    flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
@@ -527,7 +539,6 @@
   /* ===== Mobile（< 768px）通用尺寸覆寫 ===== */
   @media (max-width: 767px) {
     #courses-content-section {
-      --courses-grid-sem-col: 4rem;
       --courses-grid-type-col: 3rem;
       --courses-grid-col-gap: var(--spacing-sm);
     }
@@ -537,7 +548,6 @@
     .courses-grid-col-header {
       font-size: var(--font-size-p3);
     }
-    .courses-grid-sem-label,
     .courses-grid-type-label {
       font-size: var(--font-size-p3);
     }

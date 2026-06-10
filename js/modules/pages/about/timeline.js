@@ -7,6 +7,7 @@
  */
 
 import { registerPageExit } from '../../ui/page-exit.js';
+import { sitePath } from '../../ui/site-base.js';
 
 export function initTimeline() {
   const area = document.getElementById('timeline-area');
@@ -109,7 +110,7 @@ export function initTimeline() {
   function randomDirLR() { return Math.random() < 0.5 ? 'left' : 'right'; }
 
   // --- Fetch & Build ---
-  fetch('/data/about-history.json')
+  fetch(sitePath('data/about-history.json'))
     .then(r => { if (!r.ok) throw new Error('Failed'); return r.json(); })
     .then(data => {
       const items = [];

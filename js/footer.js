@@ -13,6 +13,7 @@
 // footer-scatter：每次刷新 random 散佈 + collision resolution（v4，取代 v3 grid）
 // 詳見 ./modules/ui/footer-draggable.js（檔名沿用，drag 功能已移除）
 import { initFooterScatter } from './modules/ui/footer-draggable.js';
+import { sitePath } from './modules/ui/site-base.js';
 
 const STORAGE_KEY = 'sccd-theme-mode';
 let currentFooterAnim = null;
@@ -45,15 +46,12 @@ function loadFooterLogo(container) {
   }
   container.innerHTML = '';
 
-  const isInPages = window.location.pathname.includes('/pages/');
-  const basePath = isInPages ? '/data/' : 'data/';
-
   const anim = lottie.loadAnimation({
     container,
     renderer: 'svg',
     loop: true,
     autoplay: true,
-    path: basePath + pickLogoFile(mode),
+    path: sitePath('data/' + pickLogoFile(mode)),
     rendererSettings: { preserveAspectRatio: 'xMidYMid meet' },
   });
   currentFooterAnim = anim;
@@ -82,9 +80,9 @@ export function initFooter() {
 
   // SPA footer：fetch pages/footer.html 注入
   // cache: 'no-cache' 強制 revalidate — 開發時改 footer.html 後 SPA 內不會看到舊版（SPA 不會 hard reload）
-  // URL 用 origin-based 絕對路徑，避免相對路徑在 /pages/X.html 直訪時 baseURI 變 /pages/ → 解析成 /pages/pages/footer.html → 404
+  // URL 用站台根絕對路徑，避免相對路徑在 /pages/X.html 直訪時 baseURI 變 /pages/ → 解析成 /pages/pages/footer.html → 404
   if (footerContainer) {
-    const footerUrl = new URL('pages/footer.html', window.location.origin).href;
+    const footerUrl = sitePath('pages/footer.html');
     fetch(footerUrl, { cache: 'no-cache' })
       .then(res => {
         if (!res.ok) throw new Error('Network response was not ok');

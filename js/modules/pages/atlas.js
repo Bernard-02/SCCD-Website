@@ -4,6 +4,7 @@ import { registerPageExit } from '../ui/page-exit.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { loadAtlasData } from './atlas-source.js';
 import { countryName } from '../../data/country-names.js';
+import { sitePath } from '../ui/site-base.js';
 
 /**
  * Atlas Page — SCCD-Centered Living Textile
@@ -1946,7 +1947,7 @@ export async function initAtlas(options = {}) {
     dragging = true;
     dragStartX = e.clientX; dragStartY = e.clientY;
     dragStartTx = tx; dragStartTy = ty;
-    document.body.style.cursor = "url('/custom-cursor/drag_2.svg') 15 15, grabbing";
+    document.body.style.cursor = `url('${sitePath('custom-cursor/drag_2.svg')}') 15 15, grabbing`;
     e.preventDefault();
   }
   function onMouseMove(e) {

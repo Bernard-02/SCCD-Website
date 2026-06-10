@@ -9,6 +9,7 @@ import { setupClipReveal } from '../ui/scroll-animate.js';
 import { initListAccordion } from '../accordions/list-accordion.js';
 import { loadListInto } from './activities-data-loader.js';
 import { DUR, EASE } from '../ui/motion.js';
+import { sitePath } from '../ui/site-base.js';
 
 // admission news 走通用 loadListInto（canonical list template），靠 options 切變體：
 //   - flatList: true             — data 是 flat array（非 year-grouped）
@@ -38,7 +39,7 @@ export async function loadAdmissionData() {
   // 讀本地 JSON（WP-headless 邏輯已移除 2026-06-05）；之後 flip 接 Directus 時改 Directus 為主 + 本地 fallback。
   let data;
   try {
-    data = await fetch('/data/admission.json').then(r => r.json());
+    data = await fetch(sitePath('data/admission.json')).then(r => r.json());
   } catch (error) {
     console.error('Error loading admission data:', error);
     return;

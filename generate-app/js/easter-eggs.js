@@ -280,7 +280,9 @@ function updateSpecialEasterEggDisplay() {
 
     // 設定圖片來源
     if (specialEasterEggImgElement.src === '' || specialEasterEggImgElement.dataset.type !== specialEasterEggType) {
-      const imgSrc = (specialEasterEggType === "COOLGUY") ? '/generate-app/Easter Egg/Rex.png' : '/generate-app/Easter Egg/KC.png';
+      const imgSrc = window.SCCDHelpers.sitePath(
+        (specialEasterEggType === "COOLGUY") ? 'generate-app/Easter Egg/Rex.png' : 'generate-app/Easter Egg/KC.png'
+      );
       specialEasterEggImgElement.src = imgSrc;
       specialEasterEggImgElement.dataset.type = specialEasterEggType;
     }

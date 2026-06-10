@@ -597,11 +597,12 @@ body.mode-color #faculty-panel .list-scroll::-webkit-scrollbar-thumb {
   }
 }
 
-/* 右欄 sticky section title col（Education / Experience / Awards 標題）的遮罩底：
+/* 右欄 sticky section title col（Education / Experience / Awards 標題）+ 年份 sticky 首欄的遮罩底：
  * base（cards.css）= var(--faculty-panel-bg)＝JS 寫入的 cardColor accent，standard/inverse 下 = panel bg 故無縫；
- * 但 mode-color 下 panel bg 已被上面 !important 改成 theme-bg（cycling hue），遮罩仍是 accent → 露出三原色色塊。
- * 跟 panel 一起走 theme-bg，視覺無縫（user 期望透明＝跟 panel 同色）。 */
-body.mode-color #faculty-panel .faculty-section-title-col {
+ * 但 mode-color 下 panel bg 已被上面 !important 改成 theme-bg（cycling hue），遮罩仍是 accent → 露出三原色色塊
+ * （年份首欄漏改時會看到綠/粉/藍色塊浮在 panel 上）。跟 panel 一起走 theme-bg，視覺無縫（user 期望透明＝跟 panel 同色）。 */
+body.mode-color #faculty-panel .faculty-section-title-col,
+body.mode-color #faculty-panel .faculty-grid-row > span:first-child {
   background: var(--theme-bg) !important;
 }
 

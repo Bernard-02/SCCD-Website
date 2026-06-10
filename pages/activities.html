@@ -53,14 +53,18 @@
     <!-- min-height:100vh：scrollSectionIntoView 改成把 section 頂對齊 viewport 頂(top:0) 後，
          section 要至少滿一個 viewport 才捲得到位（短 panel 如 Permanent 2 筆不會被頁底 clamp 露出 hero），
          且對齊時剛好填滿 viewport 不讓 footer 從底部露出（user 2026-06-05）。 -->
-    <section class="bg-white pt-3xl pb-6xl md:py-6xl" id="activities-content-section" style="min-height: 100vh;">
+    <section class="bg-white pt-6xl pb-6xl md:py-6xl" id="activities-content-section" style="min-height: 100vh;">
+      <!-- 手機 header blocker（Josh Comeau pattern）：透明 fixed site-header 下、sticky title(top:6rem) 上方
+           0~96px 透明帶會露出捲動內容。一條 sticky 白帶(=section 底色)貼 top:0 把該帶補實 → 內容捲進去乾淨消失
+           ＝行為等同不透明 header。桌面有 filter bar 接住故 md:hidden。詳見 lists.css .list-mobile-header-blocker -->
+      <div class="list-mobile-header-blocker md:hidden" aria-hidden="true"></div>
       <div class="site-container">
         <!-- grid-20：桌面 nav bar 占 cols 1-4、內容 cols 5-20（對齊 faculty/curriculum col-5）；手機 flex-col 堆疊 -->
         <div class="flex flex-col gap-gutter md:grid md:grid-cols-20">
 
           <!-- Left Section Buttons（桌面 cols 1-4，nav btn 不動，內部 .activities-section-bar 仍 content-width sticky） -->
           <div class="w-full md:col-span-4">
-            <div class="activities-section-bar flex flex-row md:flex-col gap-xs md:gap-xs mb-xl md:mb-0 md:sticky md:top-[200px] no-scrollbar">
+            <div class="activities-section-bar flex flex-row md:flex-col gap-xs md:gap-xs md:mb-0 md:sticky md:top-[200px] no-scrollbar">
               <button class="activities-section-btn w-fit active text-left" data-section="exhibitions">
                 <span class="anchor-nav-inner"><span>Exhibitions</span><span>展演</span></span>
               </button>

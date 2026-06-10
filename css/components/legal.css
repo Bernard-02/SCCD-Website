@@ -233,7 +233,7 @@
   .legal-regulations a.reg-line {
     color: inherit;
     text-decoration: none;
-    cursor: url('/custom-cursor/pointer.svg') 14 1, pointer;
+    cursor: var(--cursor-pointer);
   }
   @media (min-width: 768px) {
     .legal-regulations a.reg-line:hover { color: #FF448A; }  /* hover 整列轉品牌粉（文字+icon 隨 currentColor） */
@@ -307,7 +307,8 @@
     }
     /* mobile stack 排列下 chip 不會壓內文，取消 desktop 的 pl 避位 */
     .legal-accessibility .legal-content-col,
-    .legal-regulations .legal-content-col {
+    .legal-regulations .legal-content-col,
+    .legal-combined .legal-content-col {
       padding-left: 0;
     }
   }

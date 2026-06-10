@@ -9,6 +9,7 @@
  */
 
 import { CMS_API_BASE, CMS_ASSETS_BASE } from '../../config/api.js';
+import { sitePath } from '../ui/site-base.js';
 
 // sort：三者都用後台 sort 欄（策展順序）。fulltime/admin 創辦人/主任在前；
 // parttime 的 sort 欄已在 Directus 排成姓氏 A-Z（nameEn 最後一字，user 2026-06-09 由 agent 一次性寫入），
@@ -53,7 +54,7 @@ export async function getFacultyData() {
     _cache = merged;
   } catch (err) {
     console.warn('[faculty] CMS fetch failed, fallback to /data/faculty.json:', err.message);
-    _cache = await fetch('/data/faculty.json').then(r => r.json());
+    _cache = await fetch(sitePath('data/faculty.json')).then(r => r.json());
   }
   return _cache;
 }

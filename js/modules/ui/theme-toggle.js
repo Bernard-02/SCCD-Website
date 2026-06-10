@@ -1,4 +1,5 @@
 import { DUR, EASE } from './motion.js';
+import { sitePath } from './site-base.js';
 /**
  * Theme Toggle Module
  * 切換 standard / inverse / color 模式（影響整個網站的 body class）
@@ -143,6 +144,15 @@ function applyColorVars() {
     }
   }
 
+  // 手機 logo 對比追蹤（mode3 slide-in：panel 底 = theme-bg 隨 hue → logo 黑線/白線翻面對比）。
+  // 只動 dataset.logoContrast==='auto'（header.js loadMobileLogo 在「slide-in + mode3」時標記）；
+  // full lightbox 'white' / slide-in mode1·2 'black' 等固定狀態由 loadMobileLogo 設好不在此翻。
+  const mlogo = document.getElementById('header-logo-mobile');
+  if (mlogo && mlogo.dataset.logoContrast === 'auto') {
+    const desiredM = isLightBg ? 'none' : 'invert(1)';
+    if (mlogo.style.filter !== desiredM) mlogo.style.filter = desiredM;
+  }
+
   const now = performance.now();
   if (now - lastThemeDispatch > 200) {
     lastThemeDispatch = now;
@@ -223,6 +233,13 @@ function getCurrentPage() {
 }
 
 let isSlideInOpen = false;
+// 手機 slide-in 開場 logo 延後切換 timer（見下方說明）
+let mobileSlideInLogoTimer = null;
+// 手機 slide-in 開場：panel 在 t=0.3 開始滑入、歷時 DUR.medium（power3.out）。延到 panel 蓋住「左上 logo
+// 左緣」才切手機 logo wireframe，否則 panel 還沒蓋到時 logo 在 dim 暗 overlay 上先變 wireframe 很怪（user 2026-06-10）。
+// 實測（faculty/courses 同 timeline）：power3.out 前段快，panel.left 在 ~570ms（≈ 0.3 + DUR.medium×0.55，slide 約 55%）
+// 就降到 logo 左緣(24px) 以下＝已蓋住。用此值不用 nominal 末端 0.8s（user 2026-06-10「再快點」），仍不露暗底線條 logo。
+const MOBILE_SLIDEIN_LOGO_DELAY_MS = Math.round((0.3 + DUR.medium * 0.55) * 1000);
 
 function checkSlideInState() {
   // slide-in (faculty/courses): html.has-slide-in
@@ -246,7 +263,23 @@ function checkSlideInState() {
     // /create 頁是 typewriter logo，slide-in 狀態變化不該切回 Lottie（同 applyMode 的 guard）
     const _page = getCurrentPage();
     if (_page !== 'create' && _page !== 'generate' && document.getElementById('header-logo')) {
-      switchHeaderLogo(logoType);
+      switchHeaderLogo(logoType);   // 桌面 logo：立即（白 wireframe 在 dim/黑 overlay 上本就可見）
+      // 手機 logo 不走 switchHeaderLogo（那支只動桌面 #header-logo）；用 header.js 暴露的 hook 同步重載
+      // （見 header.js loadMobileLogo：full lightbox 白 / slide-in 黑·mode3 對比）
+      if (typeof window.__sccdReloadMobileLogo === 'function') {
+        clearTimeout(mobileSlideInLogoTimer);
+        const isSlideInPanel = document.documentElement.classList.contains('has-slide-in'); // slide-in（非 full lightbox）
+        if (isSlideInOpen && isSlideInPanel && window.innerWidth < 768) {
+          // 手機 slide-in 開啟：延到 panel 蓋滿 logo 區才切（見 MOBILE_SLIDEIN_LOGO_DELAY_MS）；
+          // fire 時再確認仍是 slide-in（快速關閉時不殘留切換）
+          mobileSlideInLogoTimer = setTimeout(() => {
+            if (document.documentElement.classList.contains('has-slide-in')) window.__sccdReloadMobileLogo();
+          }, MOBILE_SLIDEIN_LOGO_DELAY_MS);
+        } else {
+          // full lightbox 開（黑底，白 logo 立即可見）／任何關閉（要立即還原）→ 不延遲
+          window.__sccdReloadMobileLogo();
+        }
+      }
     }
 
         // 舊版 .theme-toggle-circle 圓點+圓邊框已拆掉（改 .icon mode_1/2/3）；
@@ -553,8 +586,6 @@ export function switchHeaderLogo(type) {
   logo.innerHTML = '';
   logo.dataset.logoType = type;
 
-  const isInPages = window.location.pathname.includes('/pages/');
-  const basePath = isInPages ? '/data/' : 'data/';
   let file;
   if (type === 'wireframe') file = 'SCCDLogoWireframeStandard.json';
   else if (type === 'wireframe-inverse') file = 'SCCDLogoWireframeInverse.json';
@@ -567,7 +598,7 @@ export function switchHeaderLogo(type) {
     loop: true,
     autoplay: true,
     name: 'header-logo-anim',
-    path: basePath + file,
+    path: sitePath('data/' + file),
     rendererSettings: { preserveAspectRatio: 'xMidYMid meet' },
   });
 

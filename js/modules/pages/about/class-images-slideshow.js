@@ -17,6 +17,7 @@
 
 import { registerPageCleanup } from '../../ui/page-cleanup.js';
 import { registerPageExit } from '../../ui/page-exit.js';
+import { sitePath } from '../../ui/site-base.js';
 
 // slot 間距：slot 0 起始貼左、slot 1/2 各往右平移 ~28%（從 32% 縮小）
 // 避免 slot 2 + landscape 圖寬度溢出 .division-images 容器右緣（container ~720px 在 1920w，slot2 64% + 462 = ~923 溢出 200px）
@@ -119,8 +120,8 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
   function updateCursors() {
     slots.forEach((s, i) => {
       s.style.cursor = i === 0
-        ? "url('/custom-cursor/default.svg') 6 1, default"
-        : "url('/custom-cursor/pointer.svg') 9 1, pointer";
+        ? `url('${sitePath('custom-cursor/default.svg')}') 6 1, default`
+        : `url('${sitePath('custom-cursor/pointer.svg')}') 9 1, pointer`;
     });
   }
 
@@ -355,7 +356,7 @@ export async function initClassImagesSlideshow() {
   });
 
   try {
-    const res = await fetch('/data/about-class-images.json');
+    const res = await fetch(sitePath('data/about-class-images.json'));
     const pool = await res.json();
     if (!Array.isArray(pool) || pool.length === 0) return;
 

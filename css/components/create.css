@@ -19,7 +19,8 @@
 
 @font-face {
   font-family: "Inter-Medium";
-  src: url("/generate-app/Inter-Medium.ttf") format("truetype");
+  /* create.css 由 loadPageCSS 直接掛在 css/components/ 下（沒編進 output.css）→ 相對路徑上兩層到站台根 */
+  src: url("../../generate-app/Inter-Medium.ttf") format("truetype");
 }
 
 /* --- 全域與基礎設定 --- */
@@ -160,14 +161,20 @@
   color: inherit;
 }
 
-/* Panel icons 切換到 /website-icons/ 後沒有 _Inverse 變體（單色黑版），
-   inverse mode 黑底會看不見；wireframe 模式視 stroke 色亮度決定要不要白。
-   utils.js updatePanelIconColorClass() 切 .white-icons class，這裡用 filter invert(1) 把黑變白。
-   landscape-overlay-icon 不在 button 內，獨立列；它跟 button img 用同一條件白色化。 */
-#create-app.inverse-mode button img,
-#create-app.white-icons button img,
+/* landscape-overlay-icon（手機直立旋轉提示）覆蓋層底＝頁面底，跟「頁面」對比白色化，沿用舊 page-bg 條件
+   （inverse mode 一律白；wireframe 看 stroke 亮度的 .white-icons）。box icon 另走下方規則。 */
 #create-app.inverse-mode #landscape-overlay-icon,
 #create-app.white-icons #landscape-overlay-icon {
+  filter: invert(1);
+}
+
+/* 控制盒 button icon（website-icons 單色黑版）跟「盒底」反色 —— 盒底已從灰改高對比純黑/白
+   （見下方 .control-box --lib-bg override，user 2026-06-10）：
+     黑底（mode1 標準 / mode3 線框且頁亮 .dark-icons）→ icon 反白 invert(1)
+     白底（mode2 反相 / mode3 線框且頁暗）→ icon 維持黑版不反
+   （取代舊 .white-icons 條件；.white-icons class JS 仍 toggle 但已不驅動 box icon 反色） */
+#create-app.standard-mode button img,
+#create-app.wireframe-mode.dark-icons button img {
   filter: invert(1);
 }
 
@@ -358,6 +365,25 @@
 .control-box {
   background-color: var(--lib-bg);
   color: var(--lib-fg);
+}
+
+/* 控制盒底色從灰改高對比純黑/白（user 2026-06-10）：
+   mode1 標準＝黑底白 icon／mode2 反相＝白底黑 icon（與 mode1 顛倒）／
+   mode3 線框依 page bg 對比兩階切（.dark-icons＝頁亮→黑底；無→頁暗→白底）。
+   只覆寫 #create-app scope 的 --lib vars，不動 library/atlas 共用的全域 lib vars。
+   盒內 slider/label/文字/icon 對比皆對齊 --lib-fg → 跟著盒底自動反色（icon 由上方 invert 規則處理）。
+   特異度 #create-app.x(1,1,0) > body.mode-color(0,1,1) → 蓋過 color.css 的 --lib-fg:var(--theme-fg)。 */
+#create-app.standard-mode,
+#create-app.wireframe-mode.dark-icons {
+  --lib-bg: #000000;
+  --lib-fg: #ffffff;
+  --lib-fg-rgb: 255, 255, 255;
+}
+#create-app.inverse-mode,
+#create-app.wireframe-mode:not(.dark-icons) {
+  --lib-bg: #ffffff;
+  --lib-fg: #000000;
+  --lib-fg-rgb: 0, 0, 0;
 }
 
 /* 盒內 icon 預設 100%（active），inactive 狀態統一 50%（user 2026-05-20）
@@ -724,9 +750,10 @@
 /* custom-button:disabled / image-button:disabled img 的舊 per-mode 0.25/0.5/wireframe-opacity
    已被上面統一 .control-box ... img { opacity: 0.5 } 取代（user 2026-05-20） */
 
-/* active 狀態的按鈕（只改變文字顏色，邊框由指示器處理） */
+/* active 狀態的按鈕（只改變文字顏色，邊框由指示器處理）
+   盒底改高對比黑/白後文字吃 --lib-fg 與盒底對比（mode1 黑底→白字 / mode2 白底→黑字，wireframe 另走下方 stroke 色） */
 .custom-button.active {
-  color: var(--standard-text); /* 預設為黑色文字 */
+  color: var(--lib-fg);
 }
 #create-app.wireframe-mode .custom-button.active {
   color: var(--wireframe-border); /* Wireframe 模式下使用動態邊框顏色 */
@@ -759,9 +786,7 @@
   }
 }
 
-#create-app.inverse-mode .custom-button.active {
-  color: var(--inverse-text); /* 反色模式下為白色文字 */
-}
+/* mode2 反相：盒底白 → active 文字黑（var(--lib-fg)，由 .custom-button.active 統一處理已涵蓋，保留註解避免再回退寫死白字） */
 
 .image-button:disabled {
   cursor: var(--cursor-not-allowed);
@@ -833,19 +858,14 @@
 }
 
 /* Inactive slider track + thumb 用「box-internal fg」色 = var(--lib-fg)（與 box bg --lib-bg 對比）
-   mode1 淺灰底 → 黑 slider / mode2 深灰底 → 白 slider（user 2026-05-20 統一灰底規格） */
+   盒底改高對比黑/白後直接吃 --lib-fg：黑底→白 slider / 白底→黑 slider（mode1/2 同一條規則自動反） */
 #create-app.standard-mode .custom-slider:not(.enabled),
 #create-app.standard-mode .custom-slider:not(.enabled)::-webkit-slider-thumb,
-#create-app.standard-mode .custom-slider:not(.enabled)::-moz-range-thumb {
-  background: black;
-  box-shadow: none;
-  transition: background var(--dur-fast) ease, opacity var(--dur-fast) ease;
-}
-
+#create-app.standard-mode .custom-slider:not(.enabled)::-moz-range-thumb,
 #create-app.inverse-mode .custom-slider:not(.enabled),
 #create-app.inverse-mode .custom-slider:not(.enabled)::-webkit-slider-thumb,
 #create-app.inverse-mode .custom-slider:not(.enabled)::-moz-range-thumb {
-  background: white;
+  background: var(--lib-fg);
   box-shadow: none;
   transition: background var(--dur-fast) ease, opacity var(--dur-fast) ease;
 }
@@ -853,35 +873,21 @@
 /* Wireframe mode (mode3) inactive slider 統一交給下面 wireframe-mode 整段 (.enabled / :not(.enabled) 同色)
    差別只在 opacity，由 line ~862 .custom-slider:not(.enabled) { opacity: 0.5 } 處理 */
 
-/* Wireframe (= site mode3) slider/thumb 顏色 = box 內 --lib-fg（box bg 深灰→白 slider / 淺灰→黑 slider）
-   .dark-icons class 由 color-picker.js 在「page bg 亮」時 add（contrastColor 是黑）：
-     → isLightBg=true → --theme-neutral-gray=--gray-9 淺灰 → box bg 淺灰 → slider 黑
-   :not(.dark-icons) = page bg 暗 → --gray-2 深灰 → box bg 深灰 → slider 白
-   active/inactive 差別只在 opacity（user 2026-05-20 規格）
+/* Wireframe (= site mode3) slider/thumb 顏色 = box 內 --lib-fg（盒底改高對比黑/白後直接吃 --lib-fg：
+   .dark-icons＝頁亮→黑底→白 slider；無＝頁暗→白底→黑 slider，由 --lib-fg override 自動切，不需再分 .dark-icons）。
+   active/inactive 差別只在 opacity（user 2026-05-20 規格）。
    用 !important 蓋 .custom-slider.enabled 的 var(--track-color) — 該 var 在 wireframe mode 沒設值會 fallback 到 initial */
 #create-app.wireframe-mode .custom-slider,
 #create-app.wireframe-mode .custom-slider.enabled {
-  background-color: white !important;
+  background-color: var(--lib-fg) !important;
 }
 #create-app.wireframe-mode .custom-slider::-webkit-slider-thumb,
 #create-app.wireframe-mode .custom-slider.enabled::-webkit-slider-thumb {
-  background-color: white !important;
+  background-color: var(--lib-fg) !important;
 }
 #create-app.wireframe-mode .custom-slider::-moz-range-thumb,
 #create-app.wireframe-mode .custom-slider.enabled::-moz-range-thumb {
-  background-color: white !important;
-}
-#create-app.wireframe-mode.dark-icons .custom-slider,
-#create-app.wireframe-mode.dark-icons .custom-slider.enabled {
-  background-color: black !important;
-}
-#create-app.wireframe-mode.dark-icons .custom-slider::-webkit-slider-thumb,
-#create-app.wireframe-mode.dark-icons .custom-slider.enabled::-webkit-slider-thumb {
-  background-color: black !important;
-}
-#create-app.wireframe-mode.dark-icons .custom-slider::-moz-range-thumb,
-#create-app.wireframe-mode.dark-icons .custom-slider.enabled::-moz-range-thumb {
-  background-color: black !important;
+  background-color: var(--lib-fg) !important;
 }
 
 /* Slider hover 效果 */
@@ -938,24 +944,17 @@
 }
 
 /* Wireframe (= site mode3) angle label 對齊 slider 邏輯（= 對齊 --lib-fg）：
-   :not(.dark-icons) (page bg 暗 → box 深灰) → 白 label
-   .dark-icons (page bg 亮 → box 淺灰) → 黑 label */
+   盒底改高對比黑/白後直接吃 --lib-fg（頁亮黑底→白 label / 頁暗白底→黑 label），不需再分 .dark-icons */
 #create-app.wireframe-mode .angle-input {
-  color: white !important;
-}
-#create-app.wireframe-mode.dark-icons .angle-input {
-  color: black !important;
+  color: var(--lib-fg) !important;
 }
 
 /* Inactive label 用 box-internal fg 色（= --lib-fg）+ 0.5 opacity（user 2026-05-20）；
-   mode1 淺灰底 → 黑 label / mode2 深灰底 → 白 label；
+   盒底改高對比黑/白後直接吃 --lib-fg：黑底→白 label / 白底→黑 label（mode1/2 同條規則自動反）；
    enabled label 已在上面 R/G/B color rule 走三原色，wireframe 不另 override */
-#create-app.standard-mode .angle-input:not(.enabled) {
-  color: black !important;
-  opacity: 0.5;
-}
+#create-app.standard-mode .angle-input:not(.enabled),
 #create-app.inverse-mode .angle-input:not(.enabled) {
-  color: white !important;
+  color: var(--lib-fg) !important;
   opacity: 0.5;
 }
 /* Wireframe inactive angle-input：color 已在上面 .angle-input 整段統一處理（active/inactive 同色寫死黑/白）；

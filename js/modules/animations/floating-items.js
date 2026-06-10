@@ -9,6 +9,7 @@ import { renderPdfCover } from '../ui/pdf-cover.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { loadCourses } from '../pages/courses-source.js';
 import { loadSummerCamp } from '../pages/summer-camp-source.js';
+import { sitePath } from '../ui/site-base.js';
 
 // 進/退場 clip-path 4 方向（卡片 el 不受 RAF 的 mover transform 影響，clip-path 安全）
 const FLOAT_HIDE_CLIPS = ['inset(0% 0% 100% 0%)', 'inset(100% 0% 0% 0%)', 'inset(0% 0% 0% 100%)', 'inset(0% 100% 0% 0%)'];
@@ -25,10 +26,11 @@ const MAX_TEXT_WIDTH = 210; // 2026-05-28 從 300 減 30%
 // ── Pool 建立 ──────────────────────────────────────────────
 
 // 其他 JSON 內的圖片路徑用 "../images/..." 格式（相對於 pages/），
-// 但首頁在根目錄，需要去掉 "../" 才能正確載入
+// 首頁在站台根 → 去掉 "../" 再以站台根組絕對 URL（兼容子路徑部署）
 function normalizeImagePath(src) {
   if (!src) return src;
-  return src.replace(/^\.\.\//, '');
+  if (/^(https?:)?\/\//.test(src)) return src;  // Directus 等完整 URL 原樣
+  return sitePath(src.replace(/^\.\.\//, ''));
 }
 
 async function fetchActivityPosters() {
@@ -51,7 +53,7 @@ async function fetchActivityPosters() {
 
   await Promise.all(activitySources.map(async (src) => {
     try {
-      const data = await fetch(src.file).then(r => r.json());
+      const data = await fetch(sitePath(src.file)).then(r => r.json());
       const groups = Array.isArray(data) ? data : (data.items || data.records || []);
       groups.forEach(group => {
         const items = Array.isArray(group) ? group : (group.items || []);
@@ -93,7 +95,7 @@ async function fetchActivityPosters() {
 
   // Library documents（PDF）→ library.html#f-{id}（floating 不一定都導 activities；也帶使用者去 library 文件）
   try {
-    const files = await fetch('data/library.json').then(r => r.json());
+    const files = await fetch(sitePath('data/library.json')).then(r => r.json());
     files.forEach(item => {
       if (item.cover && item.id) {
         pool.push({
@@ -107,7 +109,7 @@ async function fetchActivityPosters() {
 
   // Album → library.html#album-{id}（無 id 則只到 album panel）
   try {
-    const albumGroups = await fetch('data/album-others.json').then(r => r.json());
+    const albumGroups = await fetch(sitePath('data/album-others.json')).then(r => r.json());
     albumGroups.forEach(group => {
       (group.items || []).forEach(item => {
         if (item.cover) {
@@ -159,7 +161,7 @@ async function fetchCourseTexts() {
 async function fetchAwardTexts() {
   const pool = [];
   try {
-    const data = await fetch('data/records.json').then(r => r.json());
+    const data = await fetch(sitePath('data/records.json')).then(r => r.json());
     (data.records || []).forEach(yearGroup => {
       (yearGroup.items || []).forEach(item => {
         if (!item.competition) return;
@@ -186,7 +188,7 @@ async function fetchAwardTexts() {
 async function populatePressCovers(pool, isCancelled) {
   let items;
   try {
-    items = await fetch('data/press.json').then(r => r.json());
+    items = await fetch(sitePath('data/press.json')).then(r => r.json());
   } catch (_) { return; }
 
   await Promise.all(items.map(async (item) => {
@@ -251,7 +253,7 @@ function createImageEl(src, url, showPlayIcon = false, interactive = true) {
   const wrapper = document.createElement(url ? 'a' : 'div');
   if (url) {
     /** @type {HTMLAnchorElement} */ (wrapper).href = url;
-    wrapper.style.cursor = "url('/custom-cursor/pointer.svg') 14 1, pointer";
+    wrapper.style.cursor = `url('${sitePath('custom-cursor/pointer.svg')}') 14 1, pointer`;
   }
   wrapper.style.cssText = `
     display: block;
@@ -327,7 +329,7 @@ function createTextEl(textEn, textZh, url) {
   const el = document.createElement(url ? 'a' : 'div');
   if (url) {
     /** @type {HTMLAnchorElement} */ (el).href = url;
-    el.style.cursor = "url('/custom-cursor/pointer.svg') 14 1, pointer";
+    el.style.cursor = `url('${sitePath('custom-cursor/pointer.svg')}') 14 1, pointer`;
   }
   const defaultColor = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
   const defaultTextColor = '#000';

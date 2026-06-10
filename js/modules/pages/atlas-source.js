@@ -17,6 +17,7 @@
 
 import { CMS_API_BASE } from '../../config/api.js';
 import { getFacultyData } from './faculty-source.js';
+import { sitePath } from '../ui/site-base.js';
 
 // 抓 collection 全部 rows（依後台 sort）；空陣列視為「沒資料」往 fallback 走
 async function cmsRows(collection) {
@@ -35,7 +36,7 @@ async function withFallback(label, collection, fallbackPath, mapFn) {
   } catch (err) {
     console.warn(`[atlas] ${label} CMS 取得失敗${fallbackPath ? '，fallback ' + fallbackPath : ''}:`, err.message);
     if (!fallbackPath) return null;
-    return fetch(fallbackPath).then(r => r.json()).catch(() => null);
+    return fetch(sitePath(fallbackPath)).then(r => r.json()).catch(() => null);
   }
 }
 
@@ -56,8 +57,8 @@ export async function loadAtlasData() {
       withFallback('alumni_careers', 'alumni_careers', null,
         r => ({ en: r.careerEn || '', zh: r.careerZh || '' })),
       // 工作營 / 產學：暫讀本地（見檔頭說明）
-      fetch('/data/workshops.json').then(r => r.json()).catch(() => null),
-      fetch('/data/industry.json').then(r => r.json()).catch(() => null),
+      fetch(sitePath('data/workshops.json')).then(r => r.json()).catch(() => null),
+      fetch(sitePath('data/industry.json')).then(r => r.json()).catch(() => null),
     ]);
 
   return { facultyCurrent, facultyFormer, companies, employment, careers, workshops, industry };

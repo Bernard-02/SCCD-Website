@@ -7,16 +7,16 @@
    * 任何 component CSS 用 cursor: var(--cursor-X) 就自動套自製圖；改 cursor 圖只動這裡。
    * JS inline style.cursor 無法用 var()，仍需寫完整 url() 字串。
    * Hotspot 對齊 SVG 30px 渲染尺寸的尖端座標（viewBox 32 × 0.9375）。 */
-  --cursor-default:  url('/custom-cursor/default.svg') 9 2, default;
-  --cursor-pointer:  url('/custom-cursor/pointer.svg') 14 1, pointer;
-  --cursor-text:     url('/custom-cursor/typing.svg') 15 15, text;
-  --cursor-grab:     url('/custom-cursor/drag_1.svg') 15 15, grab;
-  --cursor-grabbing: url('/custom-cursor/drag_2.svg') 15 15, grabbing;
-  --cursor-zoom-in:  url('/custom-cursor/zoom-in.svg') 9 9, zoom-in;
-  --cursor-zoom-out: url('/custom-cursor/zoom-out.svg') 9 9, zoom-out;
-  --cursor-w-resize: url('/custom-cursor/left.svg') 2 15, w-resize;
-  --cursor-e-resize: url('/custom-cursor/right.svg') 28 15, e-resize;
-  --cursor-not-allowed: url('/custom-cursor/ban.svg') 16 16, not-allowed;
+  --cursor-default:  url('../custom-cursor/default.svg') 9 2, default;
+  --cursor-pointer:  url('../custom-cursor/pointer.svg') 14 1, pointer;
+  --cursor-text:     url('../custom-cursor/typing.svg') 15 15, text;
+  --cursor-grab:     url('../custom-cursor/drag_1.svg') 15 15, grab;
+  --cursor-grabbing: url('../custom-cursor/drag_2.svg') 15 15, grabbing;
+  --cursor-zoom-in:  url('../custom-cursor/zoom-in.svg') 9 9, zoom-in;
+  --cursor-zoom-out: url('../custom-cursor/zoom-out.svg') 9 9, zoom-out;
+  --cursor-w-resize: url('../custom-cursor/left.svg') 2 15, w-resize;
+  --cursor-e-resize: url('../custom-cursor/right.svg') 28 15, e-resize;
+  --cursor-not-allowed: url('../custom-cursor/ban.svg') 16 16, not-allowed;
 
   /* ===== Colors ===== */
 

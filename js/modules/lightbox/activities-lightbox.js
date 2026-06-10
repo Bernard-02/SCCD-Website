@@ -6,6 +6,7 @@
 
 import { enterLightboxMode, exitLightboxMode } from './lightbox-shell.js';
 import { createRefBtn } from './lightbox-ref-btn.js';
+import { sitePath } from '../ui/site-base.js';
 
 let lightboxEl = null;
 let mainEl = null;
@@ -195,9 +196,30 @@ function ensureLightbox() {
     if (!isDragging) return;
     isDragging = false;
     if (zoomImg) zoomImg.style.cursor = zoom.scale > fitScale() + 0.001
-      ? "url('/custom-cursor/drag_1.svg') 10 10, grab"
-      : "url('/custom-cursor/zoom-in.svg') 6 6, zoom-in";
+      ? `url('${sitePath('custom-cursor/drag_1.svg')}') 10 10, grab`
+      : `url('${sitePath('custom-cursor/zoom-in.svg')}') 6 6, zoom-in`;
   });
+
+  // 手機左右 swipe 換上一張/下一張（取代 chevron，iPhone Photos 風格；桌面無 touch 不觸發）
+  // 只認「水平為主」且位移 > 40px；垂直為主忽略（保留未來下滑關閉的手勢空間）
+  let swipeX = 0, swipeY = 0, swipeActive = false;
+  mainContainerEl.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) { swipeActive = false; return; }
+    swipeActive = true;
+    swipeX = e.touches[0].clientX;
+    swipeY = e.touches[0].clientY;
+  }, { passive: true });
+  mainContainerEl.addEventListener('touchend', (e) => {
+    if (!swipeActive) return;
+    swipeActive = false;
+    const t = e.changedTouches[0];
+    if (!t) return;
+    const dx = t.clientX - swipeX;
+    const dy = t.clientY - swipeY;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+      navigate(dx < 0 ? 1 : -1);   // 左滑 → 下一張；右滑 → 上一張
+    }
+  }, { passive: true });
 }
 
 // ── Zoom helpers ────────────────────────────────────────────────
@@ -208,10 +230,10 @@ function applyZoom(animated = false) {
   // cursor 跟 canPan 一致（圖填滿 stage 才顯示 grab）；其餘狀態給 zoom-in（暗示「可放大」）
   const canPan = zoom.scale > fitScale() + 0.001;
   zoomImg.style.cursor = isDragging
-    ? "url('/custom-cursor/drag_2.svg') 10 10, grabbing"
+    ? `url('${sitePath('custom-cursor/drag_2.svg')}') 10 10, grabbing`
     : (canPan
-        ? "url('/custom-cursor/drag_1.svg') 10 10, grab"
-        : "url('/custom-cursor/zoom-in.svg') 6 6, zoom-in");
+        ? `url('${sitePath('custom-cursor/drag_1.svg')}') 10 10, grab`
+        : `url('${sitePath('custom-cursor/zoom-in.svg')}') 6 6, zoom-in`);
   updateZoomUI();
 }
 
@@ -368,7 +390,7 @@ function renderMain(index) {
     zoomImg.alt = '';
     // transform-origin:center 配合 zoomAt 的數學（以 img 自身中心為旋轉基準）
     // user-select / -webkit-user-drag 關閉避免拖曳時觸發瀏覽器原生 image drag
-    zoomImg.style.cssText = "max-width:100%;max-height:100%;object-fit:contain;display:block;transform-origin:center;cursor:url('/custom-cursor/zoom-in.svg') 9 9, zoom-in;user-select:none;-webkit-user-drag:none;will-change:transform;";
+    zoomImg.style.cssText = `max-width:100%;max-height:100%;object-fit:contain;display:block;transform-origin:center;cursor:url('${sitePath('custom-cursor/zoom-in.svg')}') 9 9, zoom-in;user-select:none;-webkit-user-drag:none;will-change:transform;`;
     zoomImg.draggable = false;
 
     zoomStage.appendChild(zoomImg);
@@ -405,7 +427,7 @@ function renderMain(index) {
       isDragging = true;
       dragMoved = false;
       dragStart = { x: e.clientX, y: e.clientY, tx: zoom.tx, ty: zoom.ty };
-      zoomImg.style.cursor = "url('/custom-cursor/drag_2.svg') 15 15, grabbing";
+      zoomImg.style.cursor = `url('${sitePath('custom-cursor/drag_2.svg')}') 15 15, grabbing`;
       e.preventDefault();
     });
 
@@ -414,6 +436,8 @@ function renderMain(index) {
     // 非 fit → 回 fit
     // 拖曳結束的 mouseup 也會 fire click，用 dragMoved gate 過濾
     zoomImg.addEventListener('click', e => {
+      // 手機（iPhone Photos 風格）拿掉縮放：tap 不放大，換圖交給左右 swipe；避免 tap 誤觸放大
+      if (window.innerWidth < 768) return;
       if (dragMoved) { dragMoved = false; return; }
       if (Math.abs(zoom.scale - fitScale()) < 0.001) {
         const factor = actualScale() / zoom.scale;
@@ -558,6 +582,18 @@ export async function openLightbox(media, startIndex = 0, opts = {}) {
 // shell padLightboxTops 給 lightbox root 加 1.5rem(=24px) → main container padding-top = max(0, logoBottom + GAP - 24)
 // （topbar 已搬到 bottom-left，不再依賴 logo 位置；保留只給 main container paddingTop 用）
 function positionUIRelativeToLogo() {
+  // 手機（iPhone Photos 風格）：topbar 固定在頂部、logo 之下。
+  // 量手機 logo（#header-logo-mobile）底邊寫入 --alb-topbar-top（CSS 用它定位 .alb-topbar）；
+  // 大圖區 padding-top 推到 topbar 之下，避免大圖被頂部控制列蓋住。
+  if (window.innerWidth < 768) {
+    const mlogo = document.querySelector('#header-logo-mobile');
+    const mrect = mlogo ? mlogo.getBoundingClientRect() : null;
+    const topbarTop = (mrect && mrect.height) ? mrect.bottom + 12 : 88; // fallback ≈ 手機 header 高
+    lightboxEl.style.setProperty('--alb-topbar-top', `${topbarTop}px`);
+    // topbar pill 高 ~44 + 上下間距 → 大圖再讓開約 56px
+    if (mainContainerEl) mainContainerEl.style.paddingTop = `${topbarTop + 56}px`;
+    return;
+  }
   const logo = document.querySelector('#header-logo');
   if (!logo) return;
   const rect = logo.getBoundingClientRect();

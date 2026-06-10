@@ -106,8 +106,10 @@
       display: inline-block;
       white-space: nowrap;
     }
-    .faculty-card:hover .faculty-marquee-line.is-overflow .faculty-marquee-inner,
-    .faculty-grid-row > span:hover .faculty-marquee-line.is-overflow .faculty-marquee-inner {
+    /* 卡片職稱：CSS :hover 無限 marquee（離開瞬間 snap 回原點）。
+       slide-in 詳情 row 的 marquee 改由 JS(WAAPI) 驅動（bindFacultyMarqueeReturn），支援「離開平滑捲回原點」，
+       故這裡 **不含** `.faculty-grid-row`——避免 CSS animation 與 JS 兩邊都驅動 transform 打架。 */
+    .faculty-card:hover .faculty-marquee-line.is-overflow .faculty-marquee-inner {
       animation: faculty-card-marquee var(--marquee-duration, 8s) linear infinite;
     }
   }
@@ -213,17 +215,26 @@
     line-height: var(--line-height-base);
   }
 
-  /* 手機（2026-05-26 user 要求）：4 欄 grid 改縱向 stack（每個 span 一行），易讀性優先
-     桌面 grid 規則完全不動；padding-bottom 加大讓 row 與 row 間距更清楚（user 要求 gap 再大一點） */
+  /* 手機 2 欄（2026-06-10 user，取代 2026-05-26 的縱向單欄 stack）：
+       左欄 col1 = 第一格（年份；學歷則是國家）；右欄 col2 = 其餘內容（機構/職位…）逐列堆疊。
+     做法：第一格 grid-column:1、其餘全 grid-column:2 → auto-flow 把右欄各格依序排到 col2 的 row1/2/3，
+       col1 只佔 row1 → 視覺上「年份左上、內容右側 stack」。align-items:baseline（base 規則）讓年份 baseline
+       對齊右欄第一格首行。
+     左欄**固定寬 4rem**（不用 auto）→ 所有 row 的右欄 col2 左緣一致（user 要對齊、含學歷）；年份較長（區間如
+       2000-2022）超過 4rem 時在欄內自然 wrap 往下排（手機 inner 是 display:inline + word-break:break-word、
+       桌面才 nowrap），不會把欄撐寬害內容跑掉。column-gap 1.5rem（user 要年份→內容間距大一點）。 */
   @media (max-width: 767px) {
     .faculty-grid-row {
-      grid-template-columns: 1fr;
-      gap: 0.25rem;
-      padding-bottom: 2rem;
+      grid-template-columns: 4rem 1fr;
+      column-gap: 1.5rem;
+      row-gap: 0.25rem;
       padding-right: 0;
     }
-    .faculty-grid-row > .faculty-grid-span2 {
-      grid-column: auto;
+    .faculty-grid-row > span:first-child { grid-column: 1; }
+    .faculty-grid-row > span:not(:first-child) { grid-column: 2; }
+    /* 手機 row 間距比桌面大一點（窄 viewport 易讀），覆蓋 .faculty-rows 基準 gap:1rem → 2rem */
+    .faculty-rows {
+      gap: 2rem;
     }
   }
 

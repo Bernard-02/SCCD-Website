@@ -5,6 +5,7 @@
 
 import { openLightbox } from '../lightbox/activities-lightbox.js';
 import { getCurrentSectionColor } from './activities-section-switch.js';
+import { sitePath } from '../ui/site-base.js';
 import {
   CARD_COLORS, CATEGORY_LABELS,
   renderYearGroups, updateYearBorders, applySortOrder,
@@ -62,7 +63,7 @@ function ensureArray(data, isDegreeShow = false) {
 
 async function fetchData(url) {
   try {
-    const res = await fetch(url);
+    const res = await fetch(sitePath(url));
     if (!res.ok) throw new Error(`Failed to load ${url}`);
     return await res.json();
   } catch (err) {

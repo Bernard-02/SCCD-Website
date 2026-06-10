@@ -18,6 +18,8 @@
  *  - workshops/industry/lectures/students-present/summer-camp → section = filename slug
  */
 
+import { sitePath } from '../ui/site-base.js';
+
 // 每個 source URL 唯一 fetch，section 從 item 推（general-activities 走 item.category；其他用 source 固定值）
 const SOURCE_URLS = [
   { url: '/data/workshops.json',             section: 'workshop' },
@@ -53,7 +55,7 @@ function buildIndex() {
     const index = new Map();
     const sources = await Promise.all(
       SOURCE_URLS.map(({ url, section }) =>
-        fetch(url)
+        fetch(sitePath(url))
           .then(r => r.json())
           .then(data => ({ url, section, data }))
           .catch(e => { console.warn('[pdf-cross-ref-index] failed to load', url, e); return { url, section, data: null }; })

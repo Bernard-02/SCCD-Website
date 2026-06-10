@@ -20,6 +20,7 @@ import { initSectionBannerReveal } from './about/section-banner-reveal.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { DUR, EASE } from '../ui/motion.js';
+import { sitePath } from '../ui/site-base.js';
 
 // 共用：courses-card 風 4 方向 clip-path 隨機選一個
 const CARD_CLIP_DIRS = [
@@ -51,7 +52,7 @@ const ACTIVITIES_URL = '/data/alumni-activities.json';
 const ORGANIZATION_URL = '/data/alumni-organization.json';
 const GATHERINGS_URL = '/data/alumni-gatherings.json';
 
-const SAMPLE_PDF_URL = '/assets/sample.pdf';
+const SAMPLE_PDF_URL = sitePath('assets/sample.pdf');
 
 const ACCENT_COLORS = ['#FF448A', '#00FF80', '#26BCFF'];
 function randAccent() { return ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)]; }
@@ -232,7 +233,7 @@ async function renderGatherings(data) {
 
   // 一次性 load gatherings JSON 並 cache（year-grouped 結構；loadListInto categoryFilter 處理城市篩選 + hideYearHeader 隱藏年份）
   try {
-    const res = await fetch(GATHERINGS_URL);
+    const res = await fetch(sitePath(GATHERINGS_URL));
     _gatheringsData.yearGroups = await res.json();
   } catch (e) {
     console.error('[Alumni] gatherings load failed', e);
@@ -448,7 +449,7 @@ export async function initAlumni() {
   registerPageExit(playAlumniContentExit);
   let data;
   try {
-    const res = await fetch(DATA_URL);
+    const res = await fetch(sitePath(DATA_URL));
     data = await res.json();
   } catch (e) {
     console.error('[Alumni] failed to load', e);
@@ -470,7 +471,7 @@ export async function initAlumni() {
 
   // Organization — admission-news pattern：無左年份欄、EN/ZH title 兩行、term 寫進展開內容
   try {
-    const orgRes = await fetch(ORGANIZATION_URL);
+    const orgRes = await fetch(sitePath(ORGANIZATION_URL));
     const orgData = await orgRes.json();
     renderOrganization(orgData);
     // 進場 clip-reveal：同 admission/activities list

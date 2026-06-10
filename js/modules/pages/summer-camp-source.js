@@ -7,6 +7,7 @@
  * admission 頁「營隊」tab 與 activities 頁共用 loadSummerCampInto → 都吃這個來源。
  */
 import { CMS_API_BASE, CMS_ASSETS_BASE } from '../../config/api.js';
+import { sitePath } from '../ui/site-base.js';
 
 const CMS_COLLECTION = 'admission_summer_camp';
 const FALLBACK_JSON = '/data/summer-camp.json';
@@ -20,7 +21,7 @@ export async function loadSummerCamp() {
     return groupByYear(rows.map(mapRow));
   } catch (err) {
     console.warn('[summer-camp] CMS fetch failed, fallback to /data/summer-camp.json:', err.message);
-    return fetch(FALLBACK_JSON).then(r => r.json());
+    return fetch(sitePath(FALLBACK_JSON)).then(r => r.json());
   }
 }
 

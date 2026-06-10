@@ -25,14 +25,16 @@ function _handleVisualViewportResize() {
 
 // --- p5.js 預載入 ---
 function preload() {
+  // 資源路徑經 SCCDHelpers.sitePath 換算站台根（兼容子路徑部署，如 GitHub Pages project site）
+  const asset = window.SCCDHelpers.sitePath;
   // 載入必要的字體
-  font = _p5.loadFont("/generate-app/Inter-Medium.ttf");
+  font = _p5.loadFont(asset("generate-app/Inter-Medium.ttf"));
 
   // 預載入彩蛋顯示圖片（_2 版本），確保彩蛋激活時能即時顯示
-  sccdBlackImg_2 = _p5.loadImage('/generate-app/Easter Egg/sccd_black_2.png');
-  sccdWhiteImg_2 = _p5.loadImage('/generate-app/Easter Egg/sccd_white_2.png');
-  sccdBlackWireframeImg_2 = _p5.loadImage('/generate-app/Easter Egg/SCCD_Black Wireframe_2.png');
-  sccdWhiteWireframeImg_2 = _p5.loadImage('/generate-app/Easter Egg/SCCD_White Wireframe_2.png');
+  sccdBlackImg_2 = _p5.loadImage(asset('generate-app/Easter Egg/sccd_black_2.png'));
+  sccdWhiteImg_2 = _p5.loadImage(asset('generate-app/Easter Egg/sccd_white_2.png'));
+  sccdBlackWireframeImg_2 = _p5.loadImage(asset('generate-app/Easter Egg/SCCD_Black Wireframe_2.png'));
+  sccdWhiteWireframeImg_2 = _p5.loadImage(asset('generate-app/Easter Egg/SCCD_White Wireframe_2.png'));
 
   // Placeholder SVG：必須在 preload 載入（不在 draw 延遲載），否則 SPA 重進 /create 時
   // 舊 image obj 綁在已銷毀 p5 instance，新 p5 不會自動重 load → drawPlaceholder 對 dead-instance obj 不渲染
@@ -44,10 +46,11 @@ function preload() {
 // --- 延遲載入彩蛋下載圖片（只在需要下載時載入）---
 function loadEasterEggDownloadImages() {
   if (!sccdBlackImg) {
-    sccdBlackImg = _p5.loadImage('/generate-app/Easter Egg/sccd_black.png');
-    sccdWhiteImg = _p5.loadImage('/generate-app/Easter Egg/sccd_white.png');
-    sccdBlackWireframeImg = _p5.loadImage('/generate-app/Easter Egg/SCCD_Black Wireframe.png');
-    sccdWhiteWireframeImg = _p5.loadImage('/generate-app/Easter Egg/SCCD_White Wireframe.png');
+    const asset = window.SCCDHelpers.sitePath;
+    sccdBlackImg = _p5.loadImage(asset('generate-app/Easter Egg/sccd_black.png'));
+    sccdWhiteImg = _p5.loadImage(asset('generate-app/Easter Egg/sccd_white.png'));
+    sccdBlackWireframeImg = _p5.loadImage(asset('generate-app/Easter Egg/SCCD_Black Wireframe.png'));
+    sccdWhiteWireframeImg = _p5.loadImage(asset('generate-app/Easter Egg/SCCD_White Wireframe.png'));
   }
 }
 
@@ -56,12 +59,13 @@ function loadEasterEggDownloadImages() {
 // 仍 truthy 故跳過 reload，draw 時 pg.image 對 dead-instance image obj 不渲染（user 看到「畫布空白」）
 // 移除守衛 + 直接覆寫；瀏覽器 cache 命中後 loadImage 開銷極低
 function loadPlaceholderImages() {
-  placeholderR = _p5.loadImage('/generate-app/Placeholder Logo/SCCD_R.svg');
-  placeholderG = _p5.loadImage('/generate-app/Placeholder Logo/SCCD_G.svg');
-  placeholderB = _p5.loadImage('/generate-app/Placeholder Logo/SCCD_B.svg');
-  placeholderR_white = _p5.loadImage('/generate-app/Placeholder Logo/SCCD_R_white.svg');
-  placeholderG_white = _p5.loadImage('/generate-app/Placeholder Logo/SCCD_G_white.svg');
-  placeholderB_white = _p5.loadImage('/generate-app/Placeholder Logo/SCCD_B_white.svg');
+  const asset = window.SCCDHelpers.sitePath;
+  placeholderR = _p5.loadImage(asset('generate-app/Placeholder Logo/SCCD_R.svg'));
+  placeholderG = _p5.loadImage(asset('generate-app/Placeholder Logo/SCCD_G.svg'));
+  placeholderB = _p5.loadImage(asset('generate-app/Placeholder Logo/SCCD_B.svg'));
+  placeholderR_white = _p5.loadImage(asset('generate-app/Placeholder Logo/SCCD_R_white.svg'));
+  placeholderG_white = _p5.loadImage(asset('generate-app/Placeholder Logo/SCCD_G_white.svg'));
+  placeholderB_white = _p5.loadImage(asset('generate-app/Placeholder Logo/SCCD_B_white.svg'));
 }
 
 // --- 計算去飽和顏色（將 Saturation 設為 0）---

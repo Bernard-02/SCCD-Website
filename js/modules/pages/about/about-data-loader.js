@@ -12,6 +12,8 @@
  * 此 loader 只填內容、不碰互動 → 必須在那些 init 之前 await 完成（main-modular 已 defer）。
  */
 
+import { sitePath } from '../../ui/site-base.js';
+
 const SRC = {
   vision: '/data/about-vision.json',
   classes: '/data/about-class.json',
@@ -129,9 +131,9 @@ function fillWorks(list) {
 
 export async function loadAboutContent() {
   const [vision, classes, works] = await Promise.all([
-    fetch(SRC.vision).then(r => (r.ok ? r.json() : null)).catch(() => null),
-    fetch(SRC.classes).then(r => (r.ok ? r.json() : null)).catch(() => null),
-    fetch(SRC.works).then(r => (r.ok ? r.json() : null)).catch(() => null),
+    fetch(sitePath(SRC.vision)).then(r => (r.ok ? r.json() : null)).catch(() => null),
+    fetch(sitePath(SRC.classes)).then(r => (r.ok ? r.json() : null)).catch(() => null),
+    fetch(sitePath(SRC.works)).then(r => (r.ok ? r.json() : null)).catch(() => null),
   ]);
   fillVision(vision);
   fillClasses(classes);

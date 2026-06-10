@@ -14,6 +14,7 @@ import { applyNewsHover, removeNewsHover } from '../animations/floating-items.js
 import { DUR, EASE } from '../ui/motion.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { CMS_API_BASE, CMS_ASSETS_BASE } from '../../config/api.js';
+import { sitePath } from '../ui/site-base.js';
 
 const SLOT_COUNT = 3;
 const CYCLE_INTERVAL = 5000;
@@ -86,7 +87,7 @@ export function initMarquee() {
       // CMS 掛掉（CORS / 斷網 / 5xx）→ fallback /data/news.json，items 已是 {text,url,poster} 最終格式。
       .catch(err => {
         console.warn('[marquee] CMS index_news 失敗，fallback /data/news.json:', err.message);
-        return fetch('/data/news.json')
+        return fetch(sitePath('data/news.json'))
           .then(r => r.json())
           .then(j => ({ items: Array.isArray(j.items) ? j.items : [] }));
       });

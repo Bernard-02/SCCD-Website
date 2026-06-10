@@ -6,6 +6,7 @@
 import { initMobileMenu } from './mobile-menu.js';
 import { animateHeaderHide, animateHeaderShow, getHeaderTargets } from './modules/lightbox/lightbox-shell.js';
 import { DUR, EASE } from './modules/ui/motion.js';
+import { sitePath } from './modules/ui/site-base.js';
 
 // Footer-near hide state（module-scope 讓 updateNavActive 能在 SPA 換頁時同步 reset）：
 // scroll listener 內 closure 變數會跨換頁存活，但 updateNavActive 拿不到 → 提升到 module scope
@@ -150,7 +151,7 @@ function restoreMobileGenerateLogo() {
     if (isColorM) logoFileM = 'SCCDLogoWireframeStandard.json';
     else if (isInverseM) logoFileM = 'SCCDLogoInverse.json';
     else logoFileM = 'SCCDLogoStandard.json';
-    const logoPathM = new URL(`data/${logoFileM}`, window.location.origin).href;
+    const logoPathM = sitePath(`data/${logoFileM}`);
     const anim = lottie.loadAnimation({
       container: mobileLogo,
       renderer: 'svg',
@@ -839,9 +840,9 @@ export function initHeader() {
       if (isColor) { logoFile = 'SCCDLogoWireframeStandard.json'; logoTypeTag = 'wireframe'; }
       else if (isInverse) { logoFile = 'SCCDLogoInverse.json'; logoTypeTag = 'inverse'; }
       else { logoFile = 'SCCDLogoStandard.json'; logoTypeTag = 'standard'; }
-      // 用 origin 作 base 算出絕對路徑：相對 'data/X.json' 在 /pages/X.html 直接訪問時
+      // 用站台根算絕對路徑：相對 'data/X.json' 在 /pages/X.html 直接訪問時
       // 會解析成 /pages/data/X.json → 404 → Lottie 載不到 logo 不出現（live-server / 直接訪問 sub-folder 頁時會踩到）
-      const logoPath = new URL(`data/${logoFile}`, window.location.origin).href;
+      const logoPath = sitePath(`data/${logoFile}`);
       // 標記目前 logo type，讓 theme-toggle 的 switchHeaderLogo guard 能識別已載入的 logo
       logo.dataset.logoType = logoTypeTag;
       const logoAnim = lottie.loadAnimation({
@@ -868,15 +869,30 @@ export function initHeader() {
     const mobileLogo = document.getElementById('header-logo-mobile');
     if (mobileLogo && typeof lottie !== 'undefined' && currentPage !== 'generate') {
       function loadMobileLogo() {
-        const isInverseM = document.body.classList.contains('mode-inverse');
-        const isColorM = document.body.classList.contains('mode-color');
+        // overlay 開啟時手機 logo 用 wireframe 線條版，顏色依 overlay 類型分（user 2026-06-10）：
+        //   - 全螢幕 lightbox（media/PDF，body.lightbox-open 但無 html.has-slide-in，黑底 overlay）→ 白線 invert(1)
+        //   - slide-in（faculty/courses，html.has-slide-in；手機 panel 蓋滿含 logo 區，底=accent/theme-bg）：
+        //       mode1/mode2 accent 實底 → 黑線（不 invert）；
+        //       mode3 panel 底=theme-bg 隨 hue → 對比追蹤（標記 dataset.logoContrast='auto'，theme-toggle applyColorVars 每幀翻黑/白）
+        //   「手機 slide-in logo 一律黑線，除非 mode3 看對比度」
+        const isSlideIn   = document.documentElement.classList.contains('has-slide-in');
+        const isLightbox  = document.body.classList.contains('lightbox-open');
+        const isFullLightbox = isLightbox && !isSlideIn;   // 黑底全螢幕 lightbox（非 slide-in）
+        const isInverseM  = document.body.classList.contains('mode-inverse');
+        const isColorM    = document.body.classList.contains('mode-color');
         let logoFileM;
-        if (isColorM) logoFileM = 'SCCDLogoWireframeStandard.json';
+        if (isFullLightbox || isSlideIn || isColorM) logoFileM = 'SCCDLogoWireframeStandard.json';
         else if (isInverseM) logoFileM = 'SCCDLogoInverse.json';
         else logoFileM = 'SCCDLogoStandard.json';
         try { lottie.destroy('header-logo-mobile-anim'); } catch (e) { /* 首次無 anim 可砸 */ }
         mobileLogo.innerHTML = '';
-        const logoPathM = new URL(`data/${logoFileM}`, window.location.origin).href;
+        // filter + 對比追蹤標記：full lightbox 白線；slide-in mode1/2 黑線、mode3 auto（applyColorVars 接手翻面）；其餘清空
+        let filterM = '', contrastM = '';
+        if (isFullLightbox)  { filterM = 'invert(1)'; contrastM = 'white'; }
+        else if (isSlideIn)  { filterM = 'none'; contrastM = isColorM ? 'auto' : 'black'; }
+        mobileLogo.style.filter = filterM;
+        mobileLogo.dataset.logoContrast = contrastM;
+        const logoPathM = sitePath(`data/${logoFileM}`);
         const mobileLogoAnim = lottie.loadAnimation({
           container: mobileLogo,
           renderer: 'svg',
@@ -895,6 +911,9 @@ export function initHeader() {
         });
       }
       loadMobileLogo();
+      // 暴露給 theme-toggle checkSlideInState 在 lightbox / slide-in 開關時重載手機 logo（白 wireframe ↔ 還原）；
+      // 開關 lightbox 不改 mode、不會 dispatch theme:changed，故需這條獨立 hook（沿用 window.__sccd* 模式）
+      window.__sccdReloadMobileLogo = loadMobileLogo;
       // mode 切換時重 load；mode-color 內每 ~200ms 也 dispatch 帶 hue 更新，用 lastMode short-circuit 避反覆載
       let lastMode = document.body.classList.contains('mode-color') ? 'color'
                    : document.body.classList.contains('mode-inverse') ? 'inverse' : 'standard';
@@ -994,9 +1013,9 @@ export function initHeader() {
 
   // Load Header HTML（SPA：永遠從根目錄載入）
   // 用絕對路徑：直接開 /pages/create.html 等子目錄頁面時，相對 'pages/header.html'
-  // 會解析成 /pages/pages/header.html 404；改 new URL(..., origin) 強制從 origin 根
+  // 會解析成 /pages/pages/header.html 404；以站台根為基底（兼容子路徑部署）
   if (headerContainer) {
-    const headerUrl = new URL('pages/header.html', window.location.origin).href;
+    const headerUrl = sitePath('pages/header.html');
     fetch(headerUrl)
       .then(res => {
         if (!res.ok) throw new Error('Network response was not ok');

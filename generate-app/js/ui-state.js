@@ -203,10 +203,10 @@ function updateUI() {
         saveButton.style('display', 'flex');
 
         // Colormode 按鈕在彩蛋模式下仍然可用
-        colormodeButton.style('cursor', "url('/custom-cursor/pointer.svg') 14 1, pointer");
+        colormodeButton.style('cursor', `url('${window.SCCDHelpers.sitePath('custom-cursor/pointer.svg')}') 14 1, pointer`);
 
         // 修復：設定正確的圖片元素
-        saveButton.style('cursor', "url('/custom-cursor/pointer.svg') 14 1, pointer");
+        saveButton.style('cursor', `url('${window.SCCDHelpers.sitePath('custom-cursor/pointer.svg')}') 14 1, pointer`);
         saveButton.elt.disabled = false;
 
     } else {
@@ -242,7 +242,7 @@ function updateUI() {
         if (rotateButton) {
             rotateButton.elt.disabled = !hasText;
             rotateButton.style("color", !hasText ? disabledColor : isAutoRotateMode ? activeColor : disabledColor);
-            rotateButton.style("cursor", !hasText ? "url('/custom-cursor/ban.svg') 16 16, not-allowed" : "url('/custom-cursor/pointer.svg') 14 1, pointer");
+            rotateButton.style("cursor", !hasText ? `url('${window.SCCDHelpers.sitePath('custom-cursor/ban.svg')}') 16 16, not-allowed` : `url('${window.SCCDHelpers.sitePath('custom-cursor/pointer.svg')}') 14 1, pointer`);
 
             // 使用 class 控制 active 狀態
             if (hasText && isAutoRotateMode) {
@@ -258,7 +258,7 @@ function updateUI() {
         if (customButton) {
             customButton.elt.disabled = !hasText;
             customButton.style("color", !hasText ? disabledColor : !isAutoRotateMode ? activeColor : disabledColor);
-            customButton.style("cursor", !hasText ? "url('/custom-cursor/ban.svg') 16 16, not-allowed" : "url('/custom-cursor/pointer.svg') 14 1, pointer");
+            customButton.style("cursor", !hasText ? `url('${window.SCCDHelpers.sitePath('custom-cursor/ban.svg')}') 16 16, not-allowed` : `url('${window.SCCDHelpers.sitePath('custom-cursor/pointer.svg')}') 14 1, pointer`);
 
             // 使用 class 控制 active 狀態
             if (hasText && !isAutoRotateMode) {
@@ -277,7 +277,7 @@ function updateUI() {
         // 更新 Colormode 按鈕（循環切換，總是可用）
         if (colormodeButton) {
             colormodeButton.style('display', 'flex');
-            colormodeButton.style('cursor', "url('/custom-cursor/pointer.svg') 14 1, pointer");
+            colormodeButton.style('cursor', `url('${window.SCCDHelpers.sitePath('custom-cursor/pointer.svg')}') 14 1, pointer`);
         }
 
         // 更新 Custom 控制面板
@@ -303,11 +303,11 @@ function updateUI() {
         // 更新 Random/Reset 圖示（添加存在性檢查）
         if (randomButton) {
             randomButton.elt.disabled = !customControlsEnabled;
-            randomButton.style('cursor', customControlsEnabled ? "url('/custom-cursor/pointer.svg') 14 1, pointer" : "url('/custom-cursor/ban.svg') 16 16, not-allowed");
+            randomButton.style('cursor', customControlsEnabled ? `url('${window.SCCDHelpers.sitePath('custom-cursor/pointer.svg')}') 14 1, pointer` : `url('${window.SCCDHelpers.sitePath('custom-cursor/ban.svg')}') 16 16, not-allowed`);
         }
         if (resetButton) {
             resetButton.elt.disabled = !customControlsEnabled;
-            resetButton.style('cursor', customControlsEnabled ? "url('/custom-cursor/pointer.svg') 14 1, pointer" : "url('/custom-cursor/ban.svg') 16 16, not-allowed");
+            resetButton.style('cursor', customControlsEnabled ? `url('${window.SCCDHelpers.sitePath('custom-cursor/pointer.svg')}') 14 1, pointer` : `url('${window.SCCDHelpers.sitePath('custom-cursor/ban.svg')}') 16 16, not-allowed`);
         }
 
         // 更新滑桿（根據字母數量決定可用的 slider）
@@ -420,7 +420,7 @@ function updateUI() {
             // 彩蛋模式下也要啟用下載按鈕
             const canSave = hasText || isEasterEggActive;
             saveButton.elt.disabled = !canSave;
-            saveButton.style('cursor', canSave ? "url('/custom-cursor/pointer.svg') 14 1, pointer" : "url('/custom-cursor/ban.svg') 16 16, not-allowed");
+            saveButton.style('cursor', canSave ? `url('${window.SCCDHelpers.sitePath('custom-cursor/pointer.svg')}') 14 1, pointer` : `url('${window.SCCDHelpers.sitePath('custom-cursor/ban.svg')}') 16 16, not-allowed`);
         }
     }
 
@@ -429,7 +429,7 @@ function updateUI() {
         // 彩蛋模式下也要啟用下載按鈕
         const canSave = hasText || isEasterEggActive;
         saveButtonMobile.elt.disabled = !canSave;
-        saveButtonMobile.style('cursor', canSave ? "url('/custom-cursor/pointer.svg') 14 1, pointer" : "url('/custom-cursor/ban.svg') 16 16, not-allowed");
+        saveButtonMobile.style('cursor', canSave ? `url('${window.SCCDHelpers.sitePath('custom-cursor/pointer.svg')}') 14 1, pointer` : `url('${window.SCCDHelpers.sitePath('custom-cursor/ban.svg')}') 16 16, not-allowed`);
     }
 
     // 手機版：更新UI（使用全域變數，不需要重新 select）
@@ -451,17 +451,17 @@ function updateUI() {
     if (mobileStandardButton && mobileInverseButton) {
         mobileStandardButton.elt.disabled = isStandardTarget;
         mobileStandardButton.style("color", isStandardTarget ? activeColor : disabledColor);
-        mobileStandardButton.style("cursor", isStandardTarget ? "url('/custom-cursor/default.svg') 9 2, default" : "url('/custom-cursor/pointer.svg') 14 1, pointer");
+        mobileStandardButton.style("cursor", isStandardTarget ? `url('${window.SCCDHelpers.sitePath('custom-cursor/default.svg')}') 9 2, default` : `url('${window.SCCDHelpers.sitePath('custom-cursor/pointer.svg')}') 14 1, pointer`);
 
         mobileInverseButton.elt.disabled = isInverseTarget;
         mobileInverseButton.style("color", isInverseTarget ? activeColor : disabledColor);
-        mobileInverseButton.style("cursor", isInverseTarget ? "url('/custom-cursor/default.svg') 9 2, default" : "url('/custom-cursor/pointer.svg') 14 1, pointer");
+        mobileInverseButton.style("cursor", isInverseTarget ? `url('${window.SCCDHelpers.sitePath('custom-cursor/default.svg')}') 9 2, default` : `url('${window.SCCDHelpers.sitePath('custom-cursor/pointer.svg')}') 14 1, pointer`);
     }
 
     if (mobileRotateButton && mobileCustomButton) {
         mobileRotateButton.elt.disabled = !hasText;
         mobileRotateButton.style("color", !hasText ? disabledColor : isAutoRotateMode ? activeColor : disabledColor);
-        mobileRotateButton.style("cursor", !hasText ? "url('/custom-cursor/ban.svg') 16 16, not-allowed" : "url('/custom-cursor/pointer.svg') 14 1, pointer");
+        mobileRotateButton.style("cursor", !hasText ? `url('${window.SCCDHelpers.sitePath('custom-cursor/ban.svg')}') 16 16, not-allowed` : `url('${window.SCCDHelpers.sitePath('custom-cursor/pointer.svg')}') 14 1, pointer`);
 
         // 更新手機版 Rotate 按鈕 icon（使用統一函數）
         updateRotateIcon();
@@ -474,7 +474,7 @@ function updateUI() {
 
         mobileCustomButton.elt.disabled = !hasText;
         mobileCustomButton.style("color", !hasText ? disabledColor : !isAutoRotateMode ? activeColor : disabledColor);
-        mobileCustomButton.style("cursor", !hasText ? "url('/custom-cursor/ban.svg') 16 16, not-allowed" : "url('/custom-cursor/pointer.svg') 14 1, pointer");
+        mobileCustomButton.style("cursor", !hasText ? `url('${window.SCCDHelpers.sitePath('custom-cursor/ban.svg')}') 16 16, not-allowed` : `url('${window.SCCDHelpers.sitePath('custom-cursor/pointer.svg')}') 14 1, pointer`);
         if (hasText && !isAutoRotateMode) {
             mobileCustomButton.addClass('active');
             // 為手機版 rotation-box 添加 custom-mode class，顯示整體邊框
@@ -507,8 +507,8 @@ function updateUI() {
     if (mobileRandomButton && mobileResetButton && mobileRandomImg && mobileResetImg) {
         mobileRandomButton.elt.disabled = !customControlsEnabled;
         mobileResetButton.elt.disabled = !customControlsEnabled;
-        mobileRandomButton.style('cursor', customControlsEnabled ? "url('/custom-cursor/pointer.svg') 14 1, pointer" : "url('/custom-cursor/ban.svg') 16 16, not-allowed");
-        mobileResetButton.style('cursor', customControlsEnabled ? "url('/custom-cursor/pointer.svg') 14 1, pointer" : "url('/custom-cursor/ban.svg') 16 16, not-allowed");
+        mobileRandomButton.style('cursor', customControlsEnabled ? `url('${window.SCCDHelpers.sitePath('custom-cursor/pointer.svg')}') 14 1, pointer` : `url('${window.SCCDHelpers.sitePath('custom-cursor/ban.svg')}') 16 16, not-allowed`);
+        mobileResetButton.style('cursor', customControlsEnabled ? `url('${window.SCCDHelpers.sitePath('custom-cursor/pointer.svg')}') 14 1, pointer` : `url('${window.SCCDHelpers.sitePath('custom-cursor/ban.svg')}') 16 16, not-allowed`);
     }
 
     // 更新手機版底部按鈕狀態

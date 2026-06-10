@@ -11,6 +11,8 @@
  * 每 INTERVAL 自動 tick；hover：旋轉歸 0°（slot 0 不啟用）；click slot 1~4：手動觸發 tick。
  */
 
+import { sitePath } from '../ui/site-base.js';
+
 // 6 個 slot：spacing 17vw + 統一 wrapper 寬 400px（≈20.8vw），同時達成邊界溢出 + 保證每對 overlap：
 // - 每對 overlap = 20.8 - 17 = 3.8vw（~19%）
 // - Total span = 5 × 17 + 20.8 = 105.8vw → slot 0 / 5 各保留 ~3vw 對稱邊界溢出
@@ -107,8 +109,8 @@ export function initDegreeShowGallery(container, pool) {
   function updateCursors() {
     slots.forEach((s, i) => {
       s.style.cursor = i === 0
-        ? "url('/custom-cursor/default.svg') 6 1, default"
-        : "url('/custom-cursor/pointer.svg') 9 1, pointer";
+        ? `url('${sitePath('custom-cursor/default.svg')}') 6 1, default`
+        : `url('${sitePath('custom-cursor/pointer.svg')}') 9 1, pointer`;
     });
   }
 

@@ -121,7 +121,8 @@ html.mode-switching.mode-switching .courses-grid-row-cover,
 html.mode-switching.mode-switching .courses-grid-row-cover::before,
 html.mode-switching.mode-switching .courses-grid-row-cover::after,
 html.mode-switching.mode-switching .activities-filter-bar::before,
-html.mode-switching.mode-switching .admission-scroll-mask {
+html.mode-switching.mode-switching .admission-scroll-mask,
+html.mode-switching.mode-switching .list-mobile-header-blocker {
   transition: background var(--dur-base) ease, background-color var(--dur-base) ease, color var(--dur-base) ease !important;
 }
 

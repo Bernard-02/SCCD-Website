@@ -10,6 +10,9 @@ import { ensureFlagIconsCss } from '../ui/ensure-flag-icons.js';
 import { countryName } from '../../data/country-names.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { loadSummerCamp } from './summer-camp-source.js';
+// '/data/x.json' 字串同時是 fetch URL 與 map key / 比對識別字（SECTION_DATA_URL 等），
+// 識別字保持原樣，只在真正 fetch 的點包 sitePath()（子路徑部署時換算成站台根絕對 URL）
+import { sitePath } from '../ui/site-base.js';
 
 // ── Reference 自動 lookup ─────────────────────────────────────────────────────
 // ref 只填 { section, itemId } 即可；title/label 渲染前自動從目標 JSON lookup。
@@ -47,8 +50,8 @@ export async function getSectionData(section) {
     const cacheKey = '__exhibitions_merged__';
     if (_refDataCache.has(cacheKey)) return _refDataCache.get(cacheKey);
     const promise = Promise.all([
-      fetch('/data/general-activities.json').then(r => r.json()),
-      fetch('/data/permanent-exhibitions.json').then(r => r.json()),
+      fetch(sitePath('data/general-activities.json')).then(r => r.json()),
+      fetch(sitePath('data/permanent-exhibitions.json')).then(r => r.json()),
     ]).then(([a, b]) => [
       ...(Array.isArray(a) ? a : []),
       ...(Array.isArray(b) ? b : []),
@@ -63,7 +66,7 @@ export async function getSectionData(section) {
   const url = SECTION_DATA_URL[section];
   if (!url) return null;
   if (_refDataCache.has(url)) return _refDataCache.get(url);
-  const promise = fetch(url).then(r => r.json()).catch(e => {
+  const promise = fetch(sitePath(url)).then(r => r.json()).catch(e => {
     console.warn('ref lookup: failed to load', url, e);
     return null;
   });
@@ -412,20 +415,23 @@ export function buildGuestHtml(g, { showGuestCountry = true, showGuestAffiliatio
   const gOrgEn = g.orgEn || g.affiliation || '';
   const gOrgZh = g.orgZh || g.affiliation_zh || '';
   const gIsAlumni = g.isAlumni === 'on' || g.isAlumni === true || g.isAlumni;
+  // user 2026-06-10 #2：title 與「國家」用 grid 2 欄分開對齊（國家欄固定寬 → 所有 row 的國家落在同一起始 x）；
+  //   國家包進 .list-title-marquee，太長超出欄寬就 marquee（不換行不擠壓 title 欄）。
+  const countryCell = (cls) => gCountry ? `<div class="list-title-marquee"><p class="${cls}">${gCountry}${gCountryZh ? ` ${gCountryZh}` : ''}</p></div>` : '';
   return `<div class="flex flex-col" style="gap: 0.25rem;">
-    <div class="flex gap-2xl justify-between">
-      <div class="flex-1">
+    <div class="grid gap-md items-start guest-row-grid">
+      <div class="min-w-0">
         ${gNameEn ? `<p class="text-p2 font-bold">${gNameEn}</p>` : ''}
         ${gNameZh ? `<p class="text-p2 font-bold">${gNameZh}</p>` : ''}
       </div>
-      ${showGuestCountry ? `<div class="flex-shrink-0 flex items-start gap-md">
+      ${showGuestCountry ? `<div class="min-w-0">
         ${gIsAlumni ? `<p class="text-p2">Alumni 系友</p>` : ''}
-        ${gCountry ? `<p class="text-p2">${gCountry}${gCountryZh ? ` ${gCountryZh}` : ''}</p>` : ''}
+        ${countryCell('text-p2')}
       </div>` : ''}
     </div>
-    ${showGuestAffiliation && gOrgEn ? `<div class="flex gap-2xl justify-between">
-      <p class="text-p3">${gOrgEn.length > 20 ? `${gOrgEn}<br>${gOrgZh || ''}` : `${gOrgEn}${gOrgZh ? ' ' + gOrgZh : ''}`}</p>
-      ${showGuestCountry && gCountry ? `<p class="text-p3 flex-shrink-0">${gCountry}${gCountryZh ? ` ${gCountryZh}` : ''}</p>` : ''}
+    ${showGuestAffiliation && gOrgEn ? `<div class="grid gap-md items-start guest-row-grid">
+      <p class="text-p3 min-w-0">${gOrgEn.length > 20 ? `${gOrgEn}<br>${gOrgZh || ''}` : `${gOrgEn}${gOrgZh ? ' ' + gOrgZh : ''}`}</p>
+      ${showGuestCountry ? countryCell('text-p3') : ''}
     </div>` : ''}
   </div>`;
 }
@@ -838,7 +844,7 @@ export async function loadListInto(containerId, url, options = {}) {
     data = providedData;
   } else {
     try {
-      const res = await fetch(url);
+      const res = await fetch(sitePath(url));
       data = await res.json();
     } catch (e) {
       console.error('loadListInto: failed to load', url, e);
@@ -974,9 +980,11 @@ export async function loadListInto(containerId, url, options = {}) {
         return (en || zh) ? [{ en, zh }] : [];
       })();
       // 副標 inner（無 wrapper）給 dateInHeader 模式直接拼進 list-reveal-row 用
+      // 每行副標包進 .list-title-marquee：手機單行 nowrap + 打開(.list-header.active)才 marquee（user 2026-06-10）；
+      // 桌面由 @media(min-width:768px) 覆寫回 wrap（見 lists.css），不影響桌面多行顯示
       const renderSubListInner = () => subList.map(s => `
-        ${s.en ? `<p class="text-p2">${s.en}</p>` : ''}
-        ${s.zh ? `<p class="text-p2">${s.zh}</p>` : ''}
+        ${s.en ? `<div class="list-title-marquee"><p class="text-p2">${s.en}</p></div>` : ''}
+        ${s.zh ? `<div class="list-title-marquee"><p class="text-p2">${s.zh}</p></div>` : ''}
       `).join('');
       // 副標 block（含 .list-subtitles wrapper）給 showSubtitle 模式用 — wrapper 是 sticky pinned 時
       // 收起副標的 CSS 接口（list-header.is-pinned .list-subtitles → grid-rows 0fr collapse）
@@ -1027,26 +1035,25 @@ export async function loadListInto(containerId, url, options = {}) {
       const countryCodes = [...new Set((item.guests || []).map(g => (g.country || '').toLowerCase().trim()).filter(Boolean))];
 
       const itemFlags = alwaysExpanded ? 'data-no-accordion' : 'data-pre-reveal';
+      // meta-icons inner（alumni + 全部國旗）共用內容：桌面 render 在右上 group、手機另 render 一份在副標下方 in-flow 區塊
+      // （user 2026-06-10 #1/#2/#4：手機把國旗移出右上絕對定位群組→ in-flow 才能「在 title+副標之後進場、不位移、share 無 gap、靠左」；
+      //  桌面維持原樣＝雙份 render，CSS 依 viewport 顯隱：桌面顯 .list-header-meta-icons、手機顯 .list-header-meta-mobile）
+      const _hasAlumni = showAlumniIcon && item.guests?.some(g => g.isAlumni === 'on' || g.isAlumni === true || g.isAlumni);
+      const _alumniIcon = _hasAlumni ? `<span class="icon icon-alumni icon-s"></span>` : '';
+      // 桌面：單一國旗 + 多國家每 5s 輪播（user 2026-06-10 第3輪：桌面保持 switch 原則，不要全 show）→ bindFlagCycles 吃 data-flag-cycle
+      const _flagsDesktop = countryCodes.length ? `<span class="fi fi-${countryCodes[0]}"${countryCodes.length > 1 ? ` data-flag-cycle="${countryCodes.join(',')}"` : ''} style="width:1.5em;height:1em;display:inline-block;"></span>` : '';
+      // 手機：全部國旗並排
+      const _flagsMobile = countryCodes.map(c => `<span class="fi fi-${c}" style="width:1.5em;height:1em;display:inline-block;"></span>`).join('');
+      const _hasMeta = _hasAlumni || countryCodes.length > 0;
+      const metaDesktopInner = `${_alumniIcon}${_flagsDesktop}`;
+      const metaMobileInner = `${_alumniIcon}${_flagsMobile}`;
       return `
         <div class="list-item" ${itemFlags} data-category="${item.category || ''}" data-media="${mediaJson}" data-search="${searchText}"${item.visitType ? ` data-visit-type="${item.visitType}"` : ''}${item.id ? ` id="item-${item.id}"` : ''}>
           <div class="list-header ${alwaysExpanded ? '' : 'cursor-pointer'} group transition-colors duration-fast flex items-stretch justify-between gap-sm px-[4px] py-md">
             ${titleHtml}
-            <div class="flex items-start gap-sm flex-shrink-0 pt-[0.55rem]">
-              ${(() => {
-                // isAlumni 是 per-person checkbox（新 schema guests group 內）：任一 guest 有 isAlumni → 渲染 icon
-                const hasAlumni = showAlumniIcon && item.guests?.some(g => g.isAlumni === 'on' || g.isAlumni === true || g.isAlumni);
-                const hasFlag = countryCodes.length > 0;
-                const initialCountry = countryCodes[0] || '';
-                // 多 country codes 用 data-flag-cycle="tw,jp,kr" 帶下來，bindFlagCycles() 每 5s 切換 fi-XX class
-                const cycleAttr = countryCodes.length > 1 ? ` data-flag-cycle="${countryCodes.join(',')}"` : '';
-                // alumni + flag 包成 .list-header-meta-icons：桌面跟 share btn / chevron 同列（flex inline），
-                // 手機 CSS 把這塊 absolute 浮到 title 下方副標位置（user 指定 layout 重設計）
-                // share btn 跟 chevron 跟 title 同列保持不動（functional control 兩 viewport 都靠右上）
-                return `<div class="list-header-meta-icons list-reveal-row flex items-center gap-sm">
-                  ${hasAlumni ? `<span class="icon icon-alumni icon-s"></span>` : ''}
-                  ${hasFlag ? `<span class="fi fi-${initialCountry}"${cycleAttr} style="width:1.5em;height:1em;display:inline-block;"></span>` : ''}
-                </div>`;
-              })()}
+            <div class="flex items-start gap-sm flex-shrink-0 pt-[0.25rem] md:pt-[0.55rem]">
+              <!-- 桌面用：alumni + 國旗在右上跟 share/chevron 同列（手機 CSS 隱藏這份的 reveal-wrapper，改顯示下方 .list-header-meta-mobile） -->
+              <div class="list-header-meta-icons list-reveal-row flex items-center gap-sm">${metaDesktopInner}</div>
               ${(() => {
                 // share btn 跟 chevron 合進同一個 .list-reveal-row wrapper 同步進場，
                 // 避免 share btn 沒 reveal class → 在 title yPercent reveal 動畫前就現身（user 反饋
@@ -1066,6 +1073,8 @@ export async function loadListInto(containerId, url, options = {}) {
                 </div>`;
               })()}
             </div>
+            ${_hasMeta ? `<!-- 手機用：國旗(+alumni) in-flow 區塊，CSS flex-wrap 後 flex-basis:100% 排到 title row 下一行（在 title+副標之後進場、不位移、靠左、share 無 gap）。桌面 CSS 隱藏 -->
+            <div class="list-header-meta-mobile list-reveal-row flex items-center gap-sm">${metaMobileInner}</div>` : ''}
           </div>
           <div class="list-content ${alwaysExpanded ? '' : 'h-0 overflow-hidden'}">
             ${bodyField && item[bodyField] ? `
@@ -1118,7 +1127,7 @@ export async function loadListInto(containerId, url, options = {}) {
             </div>`}
             ${buildGalleryHtml(item)}
             ${attachmentsField && Array.isArray(item[attachmentsField]) && item[attachmentsField].length ? `
-            <div class="list-ref-wrap flex flex-col mt-md">
+            <div class="list-ref-wrap flex flex-col">
               ${item[attachmentsField].map((a, i) => {
                 // 兼容兩種 schema：legacy JSON 用 { url, labelEn, labelZh }；WP schema group 用 { file, titleEn, titleZh }
                 const url = a.url || a.file || '#';
@@ -1139,7 +1148,7 @@ export async function loadListInto(containerId, url, options = {}) {
               `;}).join('')}
             </div>` : ''}
             ${showReference && references.length ? `
-            <div class="list-ref-wrap flex flex-col mt-md">
+            <div class="list-ref-wrap flex flex-col">
               ${references.map(ref => `
               ${ref.pdfUrl
                 ? `<button class="list-ref-btn cursor-pointer border-none w-full grid grid-cols-12 gap-x-md items-start py-sm px-md text-left"
@@ -1343,7 +1352,7 @@ function deriveHostSection(url, categoryFilter, visitTypeFilter) {
 // 第一參數 endpoint 已不使用、保留只為不動各 call site；之後此頁 flip 接 Directus 時，
 // 改成 Directus 為主 + 本地 JSON fallback（同 legal-data-loader 的 try-CMS / catch-local pattern）。
 async function fetchActEndpointOrFallback(endpoint, fallbackUrl) {
-  return fetch(fallbackUrl).then(r => r.json());
+  return fetch(sitePath(fallbackUrl)).then(r => r.json());
 }
 
 export async function loadGeneralActivitiesInto(containerId, categoryFilter = null, url = '/data/general-activities.json', options = {}) {

@@ -8,6 +8,7 @@
  */
 
 import { CMS_API_BASE } from '../../config/api.js';
+import { sitePath } from '../ui/site-base.js';
 
 const CMS_COLLECTION = 'curriculum_courses';
 const FALLBACK_JSON = '/data/courses.json';
@@ -25,7 +26,7 @@ export async function loadCourses() {
     _cache = groupByProgram(rows);
   } catch (err) {
     console.warn('[courses] CMS fetch failed, fallback to /data/courses.json:', err.message);
-    _cache = await fetch(FALLBACK_JSON).then(r => r.json());
+    _cache = await fetch(sitePath(FALLBACK_JSON)).then(r => r.json());
   }
   return _cache;
 }

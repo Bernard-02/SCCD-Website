@@ -80,7 +80,7 @@
   /* ===== Mobile (default)：線性堆疊 ===== */
   .footer-inner {
     padding: var(--container-padding);
-    gap: var(--spacing-xl);
+    gap: var(--spacing-2xl);
   }
 
   .footer-logo-area {
@@ -101,8 +101,6 @@
     display: flex;
     flex-direction: column;
     gap: var(--spacing-xl);
-    /* 手機：logo 留頂，文字內容整塊推到底（footer-shell h:100vh 提供空間） */
-    margin-top: auto;
   }
 
   .footer-random {
@@ -140,6 +138,15 @@
     /* 中文地址手機合為一段 p — 桌面為 scatter 視覺強制兩行（br + nowrap）
      * 手機 viewport 較窄、又無 scatter 限制，br 換行造成「104336」獨佔一行很尷尬 → 拔 br + 讓 viewport 自然 wrap */
     .footer-office-zh-br {
+      display: none;
+    }
+    /* 兩張學校 link 卡（實踐大學 / 設計學院）相鄰：.footer-random 統一 gap:xl，這對用負 margin 收窄成 xs 讓它們視覺成一組。
+       桌面是 absolute scatter，margin 不參與定位，故只在手機 flow 生效（不動桌面）。 */
+    .footer-link-item + .footer-link-item {
+      margin-top: calc(var(--spacing-xs) - var(--spacing-xl));
+    }
+    /* privacy 雙語連結（Support/Regulations/Policy）手機合一行：隱藏 <br>，保留 <br> 前空格當分隔（同 .footer-office-zh-br pattern）。桌面維持兩行。 */
+    .footer-privacy-br {
       display: none;
     }
   }

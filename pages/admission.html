@@ -51,7 +51,11 @@
     <!-- Admission Content Section -->
     <!-- overflow:clip：擋住下方 sticky 遮罩超出 section 邊界，避免戳到 hero（同 courses 模式） -->
     <!-- min-h-screen：list 還在 fetch 後台資料（panel 空）時撐住整段高度，避免下方 footer 露出 -->
-    <section class="bg-white pt-3xl pb-6xl md:py-6xl min-h-screen" id="admission-content-section" style="overflow: clip;">
+    <section class="bg-white pt-6xl pb-6xl md:py-6xl min-h-screen" id="admission-content-section" style="overflow: clip;">
+      <!-- 手機 header blocker（Josh Comeau pattern，同 activities）：透明 fixed header 下 sticky title 上方透明帶
+           用一條 sticky 白帶補實。桌面用上方 .admission-scroll-mask（hidden md:block）故此條 md:hidden。
+           詳見 lists.css .list-mobile-header-blocker -->
+      <div class="list-mobile-header-blocker md:hidden" aria-hidden="true"></div>
       <div class="site-container">
         <!-- grid-20：桌面 nav 占 cols 1-4、內容 cols 5-20（對齊 faculty/about/curriculum col-5）；手機 flex-col 堆疊 -->
         <div class="flex flex-col gap-gutter md:grid md:grid-cols-20">

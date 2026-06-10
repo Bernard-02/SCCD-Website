@@ -4,13 +4,14 @@
  */
 
 import { initSingleAccordion, initRotatedAccordion } from '../../accordions/horizontal-accordion.js';
+import { sitePath } from '../../ui/site-base.js';
 
 export function initResourcesCycling() {
   const container = document.getElementById('resources-accordion-container');
   if (!container) return;
 
   // Fetch data from JSON file
-  fetch('/data/about-resources.json')
+  fetch(sitePath('data/about-resources.json'))
     .then(response => {
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status} - Check if data/about-resources.json exists`);
       return response.json();

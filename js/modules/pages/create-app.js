@@ -30,8 +30,9 @@ import { registerPageExit } from '../ui/page-exit.js';
 import { setupClipReveal } from '../ui/scroll-animate.js';
 import { killGenerateLogoTimeline, GEN_LOGO_LAYOUT } from '../../header.js';
 import { DUR, EASE } from '../ui/motion.js';
+import { sitePath } from '../ui/site-base.js';
 
-const ASSET_BASE = '/generate-app';
+const ASSET_BASE = sitePath('generate-app');
 
 // 把 site theme-toggle 的 API 暴露到 window，給 generate-app classic scripts 用。
 // generate-app .js 不是 ES6 module，不能 `import` — 必須透過 window 全域才存取得到 site state。

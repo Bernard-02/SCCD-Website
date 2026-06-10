@@ -73,7 +73,7 @@ const _PANEL_ICON_MAP = {
 };
 function panelIcon(name) {
   const mapped = _PANEL_ICON_MAP[name];
-  return mapped ? `/website-icons/${mapped}.svg` : '';
+  return mapped ? window.SCCDHelpers.sitePath(`website-icons/${mapped}.svg`) : '';
 }
 
 // 切換 #create-app.white-icons class：inverse mode 一律白，wireframe 看 stroke 色亮度。

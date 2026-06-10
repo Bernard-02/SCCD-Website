@@ -7,6 +7,7 @@
 import { openLightbox } from '../lightbox/activities-lightbox.js';
 import { enterLightboxMode, exitLightboxMode } from '../lightbox/lightbox-shell.js';
 import { createRefBtn } from '../lightbox/lightbox-ref-btn.js';
+import { sitePath } from '../ui/site-base.js';
 
 // ── Lightbox ──────────────────────────────────────────────────────────────────
 
@@ -283,10 +284,10 @@ export function initPdfViewer() {
     rowEl.style.transform = `translate(${zoom.tx}px, ${zoom.ty}px) scale(${zoom.scale})`;
     const canPan = zoom.scale > fitScale() + 0.001;
     rowEl.style.cursor = isDragging
-      ? "url('/custom-cursor/drag_2.svg') 10 10, grabbing"
+      ? `url('${sitePath('custom-cursor/drag_2.svg')}') 10 10, grabbing`
       : (canPan
-          ? "url('/custom-cursor/drag_1.svg') 10 10, grab"
-          : "url('/custom-cursor/default.svg') 6 1, default");
+          ? `url('${sitePath('custom-cursor/drag_1.svg')}') 10 10, grab`
+          : `url('${sitePath('custom-cursor/default.svg')}') 6 1, default`);
     updateZoomUI();
   }
 
@@ -656,7 +657,7 @@ export function initPdfViewer() {
     if (!canPan || e.button !== 0) return;
     isDragging = true;
     dragStart = { x: e.clientX, y: e.clientY, tx: zoom.tx, ty: zoom.ty };
-    rowEl.style.cursor = "url('/custom-cursor/drag_2.svg') 15 15, grabbing";
+    rowEl.style.cursor = `url('${sitePath('custom-cursor/drag_2.svg')}') 15 15, grabbing`;
     e.preventDefault();
   });
   window.addEventListener('mousemove', (e) => {
@@ -671,8 +672,8 @@ export function initPdfViewer() {
     isDragging = false;
     const canPan = zoom.scale > fitScale() + 0.001;
     rowEl.style.cursor = canPan
-      ? "url('/custom-cursor/drag_1.svg') 10 10, grab"
-      : "url('/custom-cursor/default.svg') 6 1, default";
+      ? `url('${sitePath('custom-cursor/drag_1.svg')}') 10 10, grab`
+      : `url('${sitePath('custom-cursor/default.svg')}') 6 1, default`;
   });
 
   modal.addEventListener('click', (e) => {

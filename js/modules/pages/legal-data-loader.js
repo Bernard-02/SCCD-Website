@@ -12,6 +12,7 @@ import { CMS_API_BASE } from '../../config/api.js';
 import { setupClipReveal, playClipReveal, playRevealExit } from '../ui/scroll-animate.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { DUR, EASE } from '../ui/motion.js';
+import { sitePath } from '../ui/site-base.js';
 
 // 已遷移到 Directus 的頁面 → collection 名；未列入的讀本地 /data/*.json。
 // 一頁一頁遷：遷一個就在這加一筆，其餘頁完全不受影響。
@@ -40,10 +41,10 @@ async function fetchLegalData(pageName) {
       return data;
     } catch (err) {
       console.warn(`[legal] CMS fetch failed for ${pageName}, fallback to /data/${pageName}.json:`, err.message);
-      return fetch(`/data/${pageName}.json`).then(r => r.json());
+      return fetch(sitePath(`data/${pageName}.json`)).then(r => r.json());
     }
   }
-  return fetch(`/data/${pageName}.json`).then(r => r.json());
+  return fetch(sitePath(`data/${pageName}.json`)).then(r => r.json());
 }
 
 export async function loadLegalData(pageName) {
@@ -107,7 +108,7 @@ async function fetchPolicyGroups() {
     return data;
   } catch (err) {
     console.warn('[legal] CMS fetch failed for policy_and_statements, fallback to local:', err.message);
-    return fetch('/data/policy-and-statements.json').then(r => r.json());
+    return fetch(sitePath('data/policy-and-statements.json')).then(r => r.json());
   }
 }
 

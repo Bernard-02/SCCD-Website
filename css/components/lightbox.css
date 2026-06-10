@@ -133,3 +133,37 @@
   white-space: nowrap;
   vertical-align: top;
 }
+
+/* ===== 手機版媒體 Lightbox（iPhone Photos 風格，user 2026-06-10）=====
+ * 共用 #activities-lightbox（activities 海報 + library 報導圖片）手機改版：
+ *   - 拿掉左右 chevron + 縮放控制（改用左右 swipe 換圖，見 activities-lightbox.js）
+ *   - 黑底「蓋滿整個畫面（含 header 區、無頂部白帶）」＝靠 header 透明，**仍維持 bg-black/90 半透明（與桌面一致）**
+ *   - 返回/ref/標題 topbar 從底部左下移到頂部（header/logo 之下，top 由 JS 設 --alb-topbar-top）
+ * 桌面（≥768）完全不受影響。*/
+@media (max-width: 767px) {
+  /* 拿掉左右切換 chevron 與縮放控制（!important 蓋 JS 設的 inline display）*/
+  #activities-lightbox .alb-prev,
+  #activities-lightbox .alb-next,
+  #activities-lightbox .alb-zoom-controls {
+    display: none !important;
+  }
+
+  /* lightbox 開啟時 header 透明：library 手機給 header 加了 var(--theme-bg)（白）擋 sticky tab（library.css），
+     開 lightbox 要拿掉才不會在頂部露白帶 → 半透明黑就能均勻蓋滿整個畫面（含 header 區）。
+     ⚠️ 不改 lightbox 自身 bg：維持 class `bg-black/90` 半透明（user 要跟桌面一樣帶點透明，2026-06-10）。
+     desktop header 本就透明，此規則 no-op */
+  body.lightbox-open #site-header header {
+    background: transparent !important;
+  }
+
+  /* topbar（返回 + ref + 標題）移到頂部：position:fixed 相對 viewport，top 由 JS 量 logo 底邊寫入
+     --alb-topbar-top（fallback 5.5rem ≈ 手機 header 高）。!important 蓋 HTML inline 的 absolute/bottom/translateY 定位 */
+  #activities-lightbox .alb-topbar {
+    position: fixed !important;
+    left: var(--container-padding, 1.5rem) !important;
+    top: var(--alb-topbar-top, 5.5rem) !important;
+    bottom: auto !important;
+    transform: none !important;
+    align-items: center !important;
+  }
+}

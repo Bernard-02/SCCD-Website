@@ -8,6 +8,7 @@ import { updateNavActive } from './header.js';
 import { runPageExit } from './modules/ui/page-exit.js';
 import { initFooter } from './footer.js';
 import { playFooterExit, resetFooterAfterExit } from './modules/ui/footer-draggable.js';
+import { SITE_BASE, SITE_BASE_PATHNAME, sitePath } from './modules/ui/site-base.js';
 
 // ── 路由表 ────────────────────────────────────────────────────
 const routes = {
@@ -61,8 +62,8 @@ const PAGE_CSS = {
 function ensurePageCSS(page) {
   const href = PAGE_CSS[page];
   if (!href) return Promise.resolve();
-  // 使用 origin 為基底的絕對路徑，避免 pushState 影響
-  const absHref = new URL(href, window.location.origin).href;
+  // 使用站台根為基底的絕對路徑，避免 pushState 影響（子路徑部署時 origin 不等於站台根）
+  const absHref = new URL(href, SITE_BASE).href;
   const existing = /** @type {HTMLLinkElement | null} */ (document.querySelector(`link[href="${absHref}"]`));
   if (existing) {
     // 已在 DOM：sheet 可存取 = 已 parse 完成，直接 resolve；還在載入則等它 load
@@ -93,7 +94,7 @@ function ensurePageCSS(page) {
 //   `#mode-btn-mobile { display:none !important }` 全頁繼續 cascade）
 function removeStalePageCSS(keepPage) {
   const keepHref = PAGE_CSS[keepPage]
-    ? new URL(PAGE_CSS[keepPage], window.location.origin).href
+    ? new URL(PAGE_CSS[keepPage], SITE_BASE).href
     : null;
   const pageCssBasenames = Object.values(PAGE_CSS).map(h => h.split('/').pop());
   document.querySelectorAll('link[rel="stylesheet"]').forEach(el => {
@@ -112,9 +113,18 @@ function removeStalePageCSS(keepPage) {
 }
 
 // ── 路徑解析 ──────────────────────────────────────────────────
+// 路由表 key 是「站台根相對」的邏輯路徑（/about.html）；部署在子路徑時實際 pathname
+// 會帶前綴（/SCCD-Website/about.html），比對前先剝掉
+function stripBase(pathname) {
+  if (SITE_BASE_PATHNAME !== '/' && pathname.startsWith(SITE_BASE_PATHNAME)) {
+    return '/' + pathname.slice(SITE_BASE_PATHNAME.length);
+  }
+  return pathname;
+}
+
 function resolveRoute(pathname) {
   // 移除 /pages/ 前綴（如果從 pages/ 子目錄點擊連結）
-  const normalized = pathname.replace(/^\/pages\//, '/').replace(/\/$/, '') || '/';
+  const normalized = stripBase(pathname).replace(/^\/pages\//, '/').replace(/\/$/, '') || '/';
   return routes[normalized] || null;
 }
 
@@ -143,8 +153,8 @@ async function loadPage(route, search = '', fromUserNav = false) {
   const isStale = () => mySeq !== navSeq;
 
   try {
-    // 使用 origin 為基底解析絕對路徑，避免 pushState 改變 baseURI 後的相對路徑錯亂
-    const fetchUrl = new URL(route.htmlFile, window.location.origin).href;
+    // 使用站台根為基底解析絕對路徑，避免 pushState 改變 baseURI 後的相對路徑錯亂
+    const fetchUrl = sitePath(route.htmlFile);
 
     // 退場動畫（當前頁有 register 才會跑）跟 fetch 並行：anim ~0.7s + fetch 通常更快，
     // 兩者平行省 0.3-0.5s 過場時間；await 兩個都完成才繼續 cleanup + DOM 替換。
@@ -264,7 +274,10 @@ export function navigateTo(url) {
   // pushState 用「真實檔案路徑」(/pages/X.html or /index.html)，不用乾淨 URL：
   // 開發 server (Live Server) 沒 SPA fallback，乾淨 URL (/support) refresh 會 404；
   // push 真實檔案路徑 → 任何時候 refresh 都能找到實體 HTML，server 直接回檔案。
-  const realPath = route.htmlFile === 'index.html' ? '/' : '/' + route.htmlFile;
+  // 子路徑部署時要帶站台根前綴（/SCCD-Website/pages/X.html），否則 refresh 回網域根 404
+  const realPath = route.htmlFile === 'index.html'
+    ? SITE_BASE_PATHNAME
+    : SITE_BASE_PATHNAME + route.htmlFile;
 
   // 保留 hash 供 deep link 使用（如 library.html#a-2024-01）
   window.history.pushState({ page: route.page }, '', realPath + search + hash);
@@ -321,13 +334,14 @@ export function initRouter() {
     loadPage(route, search);
   });
 
-  // 初始路由（頁面首次載入）
+  // 初始路由（頁面首次載入）；首頁判斷用剝掉子路徑前綴後的邏輯路徑
   const { pathname, search } = window.location;
   const initRoute = resolveRoute(pathname);
+  const logicalPath = stripBase(pathname);
   if (initRoute && initRoute.page !== 'index') {
     // 從非首頁 URL 直接進入（例如書籤）
     loadPage(initRoute, search);
-  } else if (!initRoute && pathname !== '/' && pathname !== '/index.html') {
+  } else if (!initRoute && logicalPath !== '/' && logicalPath !== '/index.html') {
     // 找不到路由且非首頁 → 顯示 404
     loadPage(NOT_FOUND_ROUTE, search);
   }

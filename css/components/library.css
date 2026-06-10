@@ -285,6 +285,13 @@
   /* 寬度由 JS 動態設 = viewport 寬（grid col），讓每位獲獎者整位對齊 col */
 }
 
+/* award item 中間欄 wrapper（競賽+獎項+名次）：桌面 display:contents 透明 →
+   三 cell 直接落進 5 欄 grid（flag|競賽|獎項|名次|得獎人），桌面版型不變；
+   手機（max-width:767）改 flex column 讓中間三項獨立 stack、不被得獎人多列高撐開（見 mobile 區，2026-06-10 #2）*/
+#library-awards-list .award-mid {
+  display: contents;
+}
+
 @media (min-width: 768px) {
   .award-record-item:hover .award-winners.is-hmarquee .award-winners-track {
     animation: award-winners-hmarquee var(--hmarquee-duration, 10s) linear infinite;
@@ -640,14 +647,13 @@
 }
 
 @media (max-width: 767px) {
-  /* tab bar：沿用 activities-section-bar pattern（buttons.css 已提供 active 隨機色 + 手機 horizontal scroll）
-     位置往下推（pt-xl）跟 logo 拉開間距，section padding-top 已含 header-height 偏移 */
+  /* tab bar v5：移到 section 底部（order:2，灰卡 order:1 在上方）
+     沿用 activities-section-bar pattern（buttons.css 已提供 active 隨機色 + 手機 horizontal scroll）*/
   .library-mobile-tabs {
     display: flex;
-    padding-top: var(--spacing-xl);
-    padding-bottom: var(--spacing-md);
-    padding-left: var(--spacing-md);
-    padding-right: var(--spacing-md);
+    order: 2;
+    flex-shrink: 0;
+    padding: var(--spacing-md);
     margin: 0 !important; /* 蓋掉 activities-section-bar 預設 -mx-md（library 灰卡有自己的 margin） */
   }
 
@@ -656,57 +662,67 @@
     display: none !important;
   }
 
-  /* 手機 body 解鎖 y scroll（user 2026-05-27 v4 拍板：灰卡可往下延伸，整頁 scroll，
-     tab bar + search bar + cat-filter sticky 在頂部）
-     拆軸寫：x 軸由 router needsClipX inline overflowX:hidden 控；y 軸這裡 auto */
-  body.overflow-hidden {
-    overflow-y: auto !important;
-  }
+  /* 手機 body 維持鎖定（v5 2026-06-10：固定卡片 + 卡內 scroll，整頁不 scroll；不再 overflow-y:auto）*/
 
-  /* 灰卡：高度跟內容，整頁 scroll；不再 flex:1 撐固定高 */
+  /* 灰卡 v5：填滿 section 剩餘空間（tab bar 之上）+ 內部 scroll（不再整頁 scroll）*/
   #library-card-main {
     position: static !important;
+    order: 1;
+    flex: 1 1 0 !important;
+    min-height: 0 !important;
     width: auto !important;
     max-width: 100%;
     min-width: 0;
     height: auto !important;
-    margin: 0 var(--spacing-md) var(--spacing-xl);
+    /* top:md → 讓卡片落在 header（含溢出 header box 的手機 logo，logo 底 ~110 > header box 92）下方、不被遮住（#3）；
+       bottom:0 → 去掉底部 margin 緊貼 tab bar（#4，2026-06-10）*/
+    margin: var(--spacing-md) var(--spacing-md) 0 !important;
     transform: none !important;
     background: var(--lib-bg);
     opacity: 1 !important;
     clip-path: none !important;
-    overflow: visible !important; /* 不再 clip 自己，整頁 scroll */
+    overflow: hidden !important; /* 卡片自己 clip，內部由 *-scroll 容器 scroll */
     box-sizing: border-box;
-    display: block !important;
+    display: flex !important;
+    flex-direction: column !important;
   }
 
-  /* section 撐滿 viewport 拿掉，改 normal flow 讓內容可往下延伸
+  /* section v5：flex column 填滿 viewport（扣 header）→ 灰卡在上、tab bar 在下
      ⚠️ 必須 scope `body.overflow-hidden` 到 library 頁：router swap 順序是先換 main.innerHTML 再 loadPageCSS
      移除 library.css，若 selector 沒 scope 會在 swap 瞬間 match 到 index 的 <section class="h-screen">
      害 section collapse → floating-items spawn 時 container.clientHeight≈0（regression 2026-05-27） */
   body.overflow-hidden main#page-content > section {
-    display: block !important;
-    height: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    height: calc(100vh - var(--header-height)) !important;
     min-height: 0 !important;
-    overflow: visible !important;
+    overflow: hidden !important;
   }
 
-  /* content 層走 normal flow */
+  /* content 層填滿卡片（flex column）*/
   #library-card-content {
+    flex: 1 1 0 !important;
+    min-height: 0 !important;
     min-width: 0;
     width: 100%;
     height: auto !important;
     box-sizing: border-box;
-    display: block !important;
+    display: flex !important;
+    flex-direction: column !important;
   }
 
-  /* panel：高度由內容決定，不 scroll；整頁 scroll */
+  /* active panel：填滿卡片 + flex column（list scroll 容器在內部 flex:1）
+     ⚠️ 不可加 display:flex !important — 會蓋掉 showPanel 給非 active panel 設的 inline display:none
+        害四個 panel 同時顯示堆疊（each flex:1 均分高度，list 容器塌成一條）。
+        display 交給 showPanel 的 inline 控（active=flex / 其餘=none）；flex-direction 各 panel inline 已有 column。*/
   #library-card-content > [id^="lib-panel-"] {
-    overflow: visible !important;
+    flex: 1 1 0 !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
     height: auto !important;
-    min-height: 0;
     width: 100%;
     box-sizing: border-box;
+    flex-direction: column !important;
   }
 
   /* ── Sticky 區（v4 2026-05-27）──
@@ -722,44 +738,39 @@
     background: var(--theme-bg);
   }
 
-  /* press-year-label 桌面是 sticky 黏 panel 內 scroll container 頂端；手機整頁 scroll，
-     它會跟 tab bar / search wrapper sticky 撞在 viewport 頂端視覺重疊（截圖右側冒出年份）
-     手機改 static normal flow */
+  /* press-year-label v5：list 改在 *-scroll 容器內部 scroll → 年份標題 sticky 黏容器頂（同桌面）*/
   .press-year-label {
-    position: static !important;
-    z-index: auto !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 5 !important;
     margin-top: 0 !important;
   }
 
   .library-mobile-tabs {
-    position: sticky !important;
-    top: var(--header-height) !important;
     z-index: 30;
     background: var(--theme-bg);
   }
-  /* Awards panel：search row 是 right-col(nth-child 2) 的直接子，right-col display:contents 拆掉 → search row 升級到 grid 容器
-     自己 sticky 黏 tab bar 下方 */
+  /* Awards panel：right-col(nth-child 2) display:contents 拆掉 → search row + list-scroll 升級為 grid 容器直接子。
+     search row 固定在卡片頂（flex-shrink:0，不再 sticky） */
   #lib-panel-awards > div[style*="grid"] > div > div[style*="align-items: flex-end"][style*="display: flex"] {
-    position: sticky !important;
-    top: calc(var(--header-height) + 3rem) !important;
-    z-index: 20;
-    background: var(--lib-bg);
-    padding-top: var(--spacing-sm);
-    padding-bottom: var(--spacing-sm);
+    order: 1 !important;
+    flex-shrink: 0 !important;
+    padding-bottom: var(--spacing-xs);
   }
 
-  /* panel 內 inline grid (template-columns: max-content 1fr) 一律改 single col stack；
-     去掉桌面 padding 的左邊大留白 + 強制 align-items 預設
-     min-width:0 + box-sizing 避免 inline padding:var(--spacing-md) 加在 100% 寬上撐出 viewport */
+  /* panel 內 inline grid → flex column 填滿卡片（list scroll 容器在內部 flex:1）；
+     去掉桌面 padding 的左邊大留白；min-width:0 + box-sizing 避免 inline padding 撐出 viewport */
   #library-card-content > [id^="lib-panel-"] > div[style*="grid"] {
     display: flex !important;
     flex-direction: column !important;
-    gap: var(--spacing-md) !important;
-    padding: var(--spacing-md) var(--spacing-sm) !important;
+    flex: 1 1 0 !important;
+    min-height: 0 !important;
+    gap: var(--spacing-xs) !important;
+    padding: var(--spacing-sm) !important;
     min-width: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
-    overflow-x: clip !important; /* 雙保險阻斷祖先撐寬傳遞；clip 不 establish scroll container 不破 sticky */
+    overflow-x: clip !important;
     box-sizing: border-box !important;
   }
 
@@ -801,66 +812,91 @@
     margin-bottom: var(--spacing-2xl) !important;
   }
 
-  /* award-record-item 手機 5-row 重排：
-     library-panels.js 渲出的 inline grid 是 `grid-template-columns: 1.5em 4.5fr 1.5fr 1fr 1fr`（5 col）
-     桌面横排：[flag][competition][award][rank][winners]
-     手機改 single col 5 row，每 cell 內 bilingualBold/bilingual 渲 <p>EN</p><p>ZH</p> 自然 EN/ZH 兩行
-     gap 是 row 間距離 */
+  /* award item → 3 欄（user 2026-06-10 #2/#4）：[國旗] [競賽+獎項+名次 垂直 stack] [得獎人]
+     中間三 cell 已包進 .award-mid wrapper（render）→ 手機把 wrapper 設 flex column，讓「競賽名稱 / 獎項 / 名次」
+     獨立 stack 一欄；得獎人是另一欄。兩欄各自 top-align、互不撐高（解決得獎人多名時把獎項/名次推開的問題 #2）。
+     grid 三欄自動 place：flag→col1、.award-mid→col2、.award-winners→col3。*/
   #library-awards-list .award-record-item {
-    grid-template-columns: 1fr !important;
-    gap: var(--spacing-xs) 0 !important;
-    padding: var(--spacing-lg) 0 !important;
+    /* 得獎人欄改固定比例（非 auto）→ 每列得獎人欄左緣對齊同一點（#1 2026-06-10）；auto 會隨名字長短變寬害對齊點跑掉 */
+    grid-template-columns: 1.5em minmax(0, 1.8fr) minmax(0, 1fr) !important;
+    column-gap: var(--spacing-md) !important;
+    row-gap: 0 !important;
+    padding: var(--spacing-sm) 0 !important;
     min-width: 0 !important;
     align-items: start !important;
-    /* 主標 + 副標統一 p2 (14px) */
     font-size: var(--font-size-p2) !important;
   }
-  /* 年份標題（"2026" 等，year-block 內第一個 sticky div）改 p1 */
+  #library-awards-list .award-record-item > :first-child { padding-top: 0.15em !important; }  /* 國旗對齊第一行文字頂 */
+  #library-awards-list .award-mid {
+    display: flex !important;
+    flex-direction: column !important;
+    min-width: 0 !important;
+    gap: 2px !important;
+  }
+  /* 年份標題（"2026"）改 p1 */
   #library-awards-list .year-block > div:first-child {
     font-size: var(--font-size-p1) !important;
   }
-  /* Press / Files / Album 三個 panel list 內年份標題（.press-year-label，共用 class）改 p1 */
+  /* Press / Files / Album list 內年份標題（.press-year-label，共用 class）改 p1 */
   #library-press-list .press-year-label,
   #library-files-list .press-year-label,
   #library-album-list .press-year-label {
     font-size: var(--font-size-p1) !important;
   }
-  /* 5 個 col cell 直接走 source order 變 5 row（不需 grid-area，因 grid-template-columns 改 1fr 後自動 stack） */
-  /* 解開 truncate 讓 EN/ZH 自然換行 */
-  #library-awards-list .award-record-item > div {
+  /* 中間欄各 cell：解開 truncate 讓 EN/ZH 自然換行 */
+  #library-awards-list .award-mid > div {
     min-width: 0 !important;
     overflow: visible !important;
     text-overflow: clip !important;
     white-space: normal !important;
-    padding-top: 0 !important;
   }
-  /* winners marquee：手機多 winner 時的 gap 加大（library-panels.js applyWinnersHMarquee 強制 pair width = viewport 寬，
-     會把 pair padding-right reset 0；手機要更大字間 gap → 用 min-width + padding-right combo 替代）
-     但桌面的 marquee 邏輯是 viewport-wide pair，整位整位滾；手機不適合 viewport-wide（會慢到 ridiculous）
-     → 改成「不 viewport-wide」自然寬度 inline-flex 一字排開、gap 拉大、純 CSS marquee */
+  /* 得獎人（第 3 欄）：垂直 stack、靠左對齊（#1 2026-06-10）；名字太長 → 個別 marquee。
+     track/pair width:100% = 固定欄寬 → 每位得獎人左緣對齊同一點；en/zh 各自 overflow:hidden+nowrap 當 marquee row。
+     library-panels.js applyWinnersHMarquee 手機分支已 return（不複製 track、不橫排整位 marquee）*/
   #library-awards-list .award-winners {
     overflow: hidden !important;
-    width: 100% !important;
+    width: auto !important;
+    min-width: 0 !important;
   }
   #library-awards-list .award-winners-track {
-    display: inline-flex !important;
-    flex-direction: row !important;
+    display: flex !important;
+    flex-direction: column !important;
     align-items: flex-start !important;
-    gap: var(--spacing-2xl) !important; /* 名字之間 gap 加大（user 第 3 點）*/
-    flex-wrap: nowrap !important;
-    width: max-content !important;
+    gap: var(--spacing-xs) !important;
+    width: 100% !important;
+    animation: none !important;
+    transform: none !important;
   }
   #library-awards-list .award-winner-pair {
     flex-direction: column !important;
     flex-shrink: 0 !important;
-    width: auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
     padding-right: 0 !important;
+    align-items: flex-start !important;
+    text-align: left !important;
+  }
+  /* en/zh 各當 marquee row：固定欄寬內 overflow:hidden + nowrap；inner span inline-block 量溢出 */
+  #library-awards-list .award-winner-en,
+  #library-awards-list .award-winner-zh {
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    text-align: left !important;
+  }
+  #library-awards-list .award-marquee-inner {
+    display: inline-block !important;
     white-space: nowrap !important;
   }
-  /* 多 winner（is-hmarquee）走 CSS marquee；單 winner library-panels.js 不 apply class，靜態顯示 */
-  #library-awards-list .award-winners.is-hmarquee .award-winners-track {
-    animation: lib-mobile-winners-marquee var(--hmarquee-duration, 12s) linear infinite !important;
-    /* library-panels.js 設的 --hmarquee-distance 是基於 viewport-wide pair 計算的，手機自然寬下不適用 → 用 50% */
+  #library-awards-list .award-marquee-inner > .marquee-copy {
+    display: inline-block !important;
+    padding-right: 2em !important;
+  }
+  /* 名字溢出 → 自動 marquee（手機無 hover，直接跑；對齊 press item 手機自動 marquee pattern）*/
+  #library-awards-list .award-winner-en.is-overflow .award-marquee-inner,
+  #library-awards-list .award-winner-zh.is-overflow .award-marquee-inner {
+    animation: press-marquee var(--marquee-duration, 8s) linear infinite !important;
   }
 }
 
@@ -884,70 +920,60 @@
   #lib-panel-awards > div[style*="grid"] > div:nth-child(2) {
     display: contents !important;
   }
+  /* year-col（Year 標題 + picker）固定在 search 下方（flex-shrink:0，不再 sticky）；
+     padding-bottom:0 → 年份→list 間距減半（#5），間距只剩 grid gap(xs) */
   #lib-panel-awards > div[style*="grid"] > div:first-child {
     order: 2 !important;
-    /* year-col 黏在 search row 下方（awards search row sticky top: header+3rem，search row 自然高 ~4rem）*/
-    position: sticky !important;
-    top: calc(var(--header-height) + 7rem) !important;
-    z-index: 15;
-    background: var(--lib-bg);
-    padding-bottom: var(--spacing-sm) !important;
+    flex-shrink: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
     padding-top: 0 !important;
+    padding-bottom: 0 !important;
   }
   #lib-panel-awards > div[style*="grid"] > div > div[style*="align-items: flex-end"][style*="display: flex"] {
     order: 1 !important;
   }
+  /* award list 在卡片內部 scroll（flex:1）*/
   #library-awards-scroll {
     order: 3 !important;
+    flex: 1 1 0 !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
   }
 
   /* == PRESS / FILES / ALBUM panel ==
-     HTML 4 個 grandchildren，JS 搬完剩 3：[Year標題(含picker)][search+cat-filter wrapper][list-scroll]
-     v4 為了 sticky：**不要** display:contents 拆 wrapper（display:contents 元素沒 box，
-     內部 sticky 子失去 containing block → 在 iOS/Chrome 上 sticky 看似套了 position:sticky 但
-     視覺停在原位不黏，2026-05-27 踩過）；改成 wrapper 自己當 sticky block，內部 search row +
-     cat-filter 走 wrapper 自身 flex column 排版 */
+     HTML 4 grandchildren，JS 搬完剩 3：[Year標題(含picker)][search+cat-filter wrapper][list-scroll]
+     v5：固定卡片內部 scroll → search+cat wrapper 與 year-group 固定（flex-shrink:0），list 在 *-scroll 內部 scroll */
   #lib-panel-press > div[style*="grid"] > div:nth-child(2),
   #lib-panel-files > div[style*="grid"] > div:nth-child(2),
   #lib-panel-album > div[style*="grid"] > div:nth-child(2) {
-    /* display:contents 已拔，這條 selector 留著當 hook：order + sticky 在下方規則設 */
     order: 1 !important;
+    flex-shrink: 0 !important;
     display: flex !important;
     flex-direction: column !important;
     gap: var(--spacing-sm);
-    position: sticky !important;
-    top: calc(var(--header-height) + 3rem) !important; /* 黏在 tab bar 下方（tab bar 高 ~48px = 3rem） */
-    z-index: 20;
-    background: var(--lib-bg);
-    padding-top: var(--spacing-sm);
-    padding-bottom: var(--spacing-sm);
     width: 100% !important;
     max-width: 100% !important;
     min-width: 0 !important;
-    overflow-x: hidden !important; /* 內部 cat-filter overflow-x:auto 才不會撐爆 wrapper → 撐爆整頁推 fixed header btn 出 viewport */
+    overflow-x: hidden !important;
     box-sizing: border-box;
+    /* 手機 search+cat wrapper 不需 inline 的 padding-bottom（搜尋區→年份區間距交給下方 year-group；
+       cat-filter 自己仍有 pb 供橫向 scroll 留白）；蓋掉 HTML inline pb，桌面 grid 仍保留（user 2026-06-10）*/
+    padding-bottom: 0 !important;
   }
-  /* press/files/album panel：JS 把 year-picker-wrap 搬進 Year 標題 wrapper 內當第二個子
-     → Year 標題 wrapper 變成 group container，內含 <p>Year 年份</p> + year-picker-wrap
-     wrapper 自身走 column flex 讓 Year 在 picker 上方 */
+  /* year-group（Year 標題 + picker）固定在 search 下方（flex-shrink:0，不再 sticky）*/
   #lib-panel-press > div[style*="grid"] > div:first-child,
   #lib-panel-files > div[style*="grid"] > div:first-child,
   #lib-panel-album > div[style*="grid"] > div:first-child {
-    order: 3 !important;
+    order: 2 !important;
+    flex-shrink: 0 !important;
     display: flex !important;
     flex-direction: column !important;
-    align-self: flex-start !important;
+    align-self: stretch !important;
     align-items: stretch !important; /* picker chip row 需要 full width 才能橫向 scroll */
     width: 100% !important;
     padding: 0 !important;
-    gap: var(--spacing-xs) !important; /* Year 標題 ↔ picker 之間距離（單獨控） */
-    /* sticky 黏在 search+cat-filter wrapper 下方（wrapper sticky top: header+3rem，wrapper 自然高 ~7rem 含 search+cat-filter+padding）*/
-    position: sticky !important;
-    top: calc(var(--header-height) + 10rem) !important;
-    z-index: 15;
-    background: var(--lib-bg);
-    padding-top: var(--spacing-sm) !important;
-    padding-bottom: var(--spacing-sm) !important;
+    gap: 0 !important; /* Year 標題 ↔ picker 之間不留 gap（user 2026-06-10：年份到選項之間不需要 gap） */
   }
   /* Year 標題 <p> 重置桌面 padding */
   #lib-panel-press > div[style*="grid"] > div:first-child > p,
@@ -1010,20 +1036,23 @@
   [id^="library-"][id$="-year-picker-wrap"] {
     order: 4 !important;
   }
-  /* list scroll */
+  /* list scroll 容器 → flex:1 卡片內部 scroll */
   #library-press-scroll,
   #library-files-scroll,
   #library-album-scroll {
-    order: 5 !important;
+    order: 3 !important;
+    flex: 1 1 0 !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
   }
-  /* 年份 picker：橫向 chip + 可左右滑（左 padding 對齊灰卡邊；chip 為 row + 不換行） */
+  /* 年份 picker：橫向 chip + 可左右滑（padding-bottom:0 → 年份→list 間距減半 #5）*/
   [id^="library-"][id$="-year-picker-wrap"],
   #library-year-picker-wrap {
     overflow-x: auto !important;
     overflow-y: hidden !important;
     max-height: none !important;
     padding-top: 0 !important;
-    padding-bottom: var(--spacing-xs) !important;
+    padding-bottom: 0 !important;
     flex: 0 0 auto !important;
     scrollbar-width: none;
   }
@@ -1080,10 +1109,26 @@
     flex-shrink: 0;
   }
 
-  /* Awards ticker 在手機保留但縮小高度，依然在 panel 底端 */
+  /* Awards ticker：固定在卡片底端（list 在上方 scroll）；logo 縮小不要太高（user 2026-06-10 #2，桌面維持 JS 設的 60px）*/
   #library-awards-ticker {
+    flex-shrink: 0 !important;
     padding-top: var(--spacing-sm) !important;
     padding-bottom: var(--spacing-sm) !important;
+  }
+  #library-awards-ticker img {
+    height: 40px !important;
+    /* logo 全部是 Directus ?key=web 預設的 300×117（27 張實測同尺寸）→ 用 aspect-ratio 預留 box 寬度，
+       讓 layout 在圖片載入「之前」就穩定 → trackW 可立即量到、ticker 一渲染就開始捲（圖載好再填進預留位，
+       不會「靜止 logo 卡一下才動」）。配 width:auto，box = 40 × 300/117 ≈ 102px。user 2026-06-10 */
+    aspect-ratio: 300 / 117 !important;
+    width: auto !important;
+    object-fit: contain !important;
+  }
+  /* logo 之間 gap 縮小（user 2026-06-10 #3）；padding-right(兩 track 接縫處 gap) 同步縮 → seamless loop 維持等距。
+     trackW 由 JS 在 CSS 套用後才量 → 量到的是縮後寬度，接合正確 */
+  #library-awards-ticker .awards-ticker-wrapper > div {
+    gap: var(--spacing-lg) !important;
+    padding-right: var(--spacing-lg) !important;
   }
 
   /* Press / Files / Album 卡片 grid：5 欄太擠，改 2 欄 (Google Drive 手機 style) */
@@ -1092,12 +1137,26 @@
     gap: var(--spacing-xl) var(--spacing-sm) !important;
   }
 
+  /* 年份 block 之間（#library-files-list 各 .files-year-block）手機間距 2xl→xl（user 2026-06-10）；
+     蓋掉 HTML inline 的 gap: var(--spacing-2xl)，桌面維持 2xl 不動 */
+  #library-files-list {
+    gap: var(--spacing-xl) !important;
+  }
+
   /* press item 手機自動 marquee（無 hover），對齊 list-title-marquee 自動跑 pattern：
      overflow 偵測一樣由 applyMarqueeOverflow 套 .is-overflow + 設 --marquee-duration/distance；
      手機直接掛 animation 不 gate hover（桌面 hover 規則維持 line 240-248） */
   .press-item .press-item-title-en.is-overflow .press-marquee-inner,
   .press-item .press-item-title-zh.is-overflow .press-marquee-inner,
   .press-item .press-item-subtitle.is-overflow .press-subtitle-inner {
+    animation: press-marquee var(--marquee-duration, 8s) linear infinite;
+  }
+
+  /* files (documents) item 手機自動 marquee（無 hover），同 press pattern：標題 EN/ZH + cat-tag 過長就跑
+     （桌面 hover 規則維持 line 605-635；keyframe 共用 press-marquee）（user 2026-06-10）*/
+  .files-item .files-item-title-en.is-overflow .files-marquee-inner,
+  .files-item .files-item-title-zh.is-overflow .files-marquee-inner,
+  #library-files-list .files-item .files-item-subtitle-tag.is-overflow .files-marquee-inner {
     animation: press-marquee var(--marquee-duration, 8s) linear infinite;
   }
 
@@ -1117,16 +1176,23 @@
   }
   .press-item-meta {
     display: flex !important;
-    flex-direction: column !important;
+    flex-direction: row !important;       /* subtitle(媒體) 左 / album media icon 右，icon 不再獨立下一行（user 2026-06-10）*/
+    align-items: flex-start !important;    /* 對齊頂部：icon 貼 subtitle 第一行頂端 */
     grid-template-columns: none !important;
-    gap: 4px 0 !important;
+    gap: 0 var(--spacing-sm) !important;
     width: 100% !important;
   }
+  .press-item-subtitle-wrap {
+    flex: 1 1 auto;
+    min-width: 0;                          /* 撐開左側 + 容 marquee 裁切，把 icon 推到右緣 */
+  }
   .press-item-meta-right {
-    justify-content: flex-start;
+    justify-content: flex-end;
+    flex-shrink: 0;
+    align-self: flex-start;                /* 頂部對齊（不被 flex stretch 拉到 subtitle 兩行中間）*/
   }
   .press-item-media-icon {
-    margin-top: 0;   /* 手機 icon 獨立一行，不需桌面的對齊補償 */
+    margin-top: 0;   /* 頂部對齊 subtitle 第一行，不要桌面 0.25em 置中補償 */
   }
   .press-item-cat-tag {
     width: 100%;

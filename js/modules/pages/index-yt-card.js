@@ -9,6 +9,7 @@ import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { CMS_API_BASE } from '../../config/api.js';
+import { sitePath } from '../ui/site-base.js';
 
 // ── p5 字母排版 ────────────────────────────────────────────────
 
@@ -86,7 +87,7 @@ function ensureP5() {
       return;
     }
     const s = document.createElement('script');
-    s.src = '/generate-app/p5.min.js';
+    s.src = sitePath('generate-app/p5.min.js');
     s.dataset.p5Lazy = '1';
     s.onload = () => resolve();
     s.onerror = () => resolve();
@@ -494,7 +495,7 @@ export function initYTCard() {
       .then(j => j.data || {})
       .catch(err => {
         console.warn('[initYTCard] CMS index_video 失敗，fallback /data/news.json:', err.message);
-        return fetch('/data/news.json').then(r => r.json()).then(j => ({ videoUrl: j.videoUrl }));
+        return fetch(sitePath('data/news.json')).then(r => r.json()).then(j => ({ videoUrl: j.videoUrl }));
       });
 
   fetchTheater()

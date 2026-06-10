@@ -1,6 +1,7 @@
 import { DUR, EASE } from '../../ui/motion.js';
 import { registerPageExit } from '../../ui/page-exit.js';
 import { registerPageCleanup } from '../../ui/page-cleanup.js';
+import { sitePath } from '../../ui/site-base.js';
 /**
  * Brand Trail Module (About Page)
  * 處理系友發展區塊的游標拖尾效果（桌面版）
@@ -26,7 +27,7 @@ const CLIP_DIRS = [
 
 async function loadTrailImages() {
   try {
-    const res = await fetch('/data/degree-show.json');
+    const res = await fetch(sitePath('data/degree-show.json'));
     const data = await res.json();
     const imgs = [];
     Object.values(data).forEach(entry => {

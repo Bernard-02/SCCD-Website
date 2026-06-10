@@ -16,6 +16,52 @@ import { countryName } from '../../data/country-names.js';
 import { getFacultyData } from './faculty-source.js';
 import { applyMarqueeOverflow } from '../ui/marquee-overflow.js';
 
+// 桌面 slide-in 詳情 cell 的 marquee 改用 JS(WAAPI) 驅動，取代 CSS :hover animation——
+// 目的：hover 離開時讓正在跑的文字「平滑捲回原點」，而非 CSS animation 被移除時 transform 直接歸 0 的瞬間 snap。
+//   進場：每條溢出的 .faculty-marquee-line 內層 0 → --marquee-distance 無限 linear 捲動（與原 CSS keyframe 同）。
+//   離場：先讀目前位移當起點（cancel 後 transform 會歸 0），再補間回 translateX(0)（0.45s，hero exit 同曲線）。
+// cell = 每一欄 span：hover 該欄只捲它自己的行，比照原 `> span:hover` 行為。
+// 監聽掛在 cell 上，slide-in 每次開都重建 #faculty-detail-sections innerHTML → 舊 cell 連監聽一併丟棄、不洩漏。
+function bindFacultyMarqueeReturn(scope) {
+  scope.querySelectorAll('.faculty-grid-row > span').forEach((cell) => {
+    const lines = [...cell.querySelectorAll('.faculty-marquee-line.is-overflow')];
+    if (!lines.length) return;
+    const running = new Map(); // inner -> Animation（捲動 or 捲回）
+
+    cell.addEventListener('mouseenter', () => {
+      lines.forEach((line) => {
+        const inner = line.querySelector('.faculty-marquee-inner');
+        if (!inner) return;
+        running.get(inner)?.cancel();   // 取消上一個（可能是捲回中）
+        const cs = getComputedStyle(line);
+        const dist = cs.getPropertyValue('--marquee-distance').trim() || '0px';
+        const durMs = (parseFloat(cs.getPropertyValue('--marquee-duration')) || 8) * 1000;
+        running.set(inner, inner.animate(
+          [{ transform: 'translateX(0)' }, { transform: `translateX(${dist})` }],
+          { duration: durMs, iterations: Infinity, easing: 'linear' }
+        ));
+      });
+    });
+
+    cell.addEventListener('mouseleave', () => {
+      lines.forEach((line) => {
+        const inner = line.querySelector('.faculty-marquee-inner');
+        if (!inner) return;
+        const cur = running.get(inner);
+        if (!cur) return;
+        const from = getComputedStyle(inner).transform;  // 先讀目前位移（cancel 後歸 0）
+        cur.cancel();
+        const back = inner.animate(
+          [{ transform: from }, { transform: 'translateX(0)' }],
+          { duration: 450, easing: 'cubic-bezier(0.25, 0, 0, 1)' }
+        );
+        running.set(inner, back);
+        back.onfinish = () => { if (running.get(inner) === back) running.delete(inner); };
+      });
+    });
+  });
+}
+
 export function initFacultySlideIn() {
   const slideIn = document.getElementById('faculty-slide-in');
   const slideInPanel = document.getElementById('faculty-panel');
@@ -115,7 +161,7 @@ export function initFacultySlideIn() {
     return `
       <div class="flex flex-col md:flex-row gap-xs md:gap-sm">
         <div class="faculty-section-title-col w-full md:w-[20%] mb-xs md:mb-0 md:sticky md:top-0 md:self-start md:z-[1]">
-          <h6 class="text-black whitespace-nowrap leading-none">${titleEn} ${titleZh}</h6>
+          <h6 class="text-base text-black whitespace-nowrap leading-none md:pt-1">${titleEn} ${titleZh}</h6>
         </div>
         <div class="flex-1 faculty-rows">
           ${rows}
@@ -220,7 +266,10 @@ export function initFacultySlideIn() {
         // panel 此時仍 invisible(visibility，非 display:none) → 仍可量 offsetWidth。
         // 等字型載入避免 fallback 字寬誤判溢出（見 memory feedback_measure_text_layout_wait_fonts_ready）。
         if (window.innerWidth >= 768) {
-          const runMarquee = () => applyMarqueeOverflow(sectionsContainer, '.faculty-marquee-line', '.faculty-marquee-inner');
+          const runMarquee = () => {
+            applyMarqueeOverflow(sectionsContainer, '.faculty-marquee-line', '.faculty-marquee-inner');
+            bindFacultyMarqueeReturn(sectionsContainer);   // JS 驅動 row marquee + 離場平滑捲回
+          };
           if (document.fonts && document.fonts.status !== 'loaded') document.fonts.ready.then(runMarquee);
           else runMarquee();
         }

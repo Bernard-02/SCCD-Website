@@ -7,6 +7,7 @@ import { registerPageExit } from '../ui/page-exit.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { playPanelTitleExit, playPanelBodyExit } from './library-panels.js';
 import { DUR } from '../ui/motion.js';
+import { sitePath } from '../ui/site-base.js';
 
 export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: onEntranceDoneCb, initialTab = 'awards' }) {
 
@@ -204,7 +205,7 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
 
   function setAsGray(el, sw, sh) {
     el.style.background     = 'var(--lib-bg)';
-    el.style.cursor         = "url('/custom-cursor/default.svg') 9 2, default";
+    el.style.cursor         = `url('${sitePath('custom-cursor/default.svg')}') 9 2, default`;
     el.style.zIndex         = '10';
     el.style.width          = `${MAIN_W}px`;
     el.style.height         = `${MAIN_H}px`;
@@ -221,7 +222,7 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
 
   function setAsColor(el, color, config) {
     el.style.background = color;
-    el.style.cursor     = "url('/custom-cursor/pointer.svg') 14 1, pointer";
+    el.style.cursor     = `url('${sitePath('custom-cursor/pointer.svg')}') 14 1, pointer`;
     el.style.width      = `${Math.round(config.w)}px`;
     el.style.height     = `${Math.round(config.h)}px`;
     el.style.left       = `${Math.round(config.cx)}px`;

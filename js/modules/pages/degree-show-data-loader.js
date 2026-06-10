@@ -12,6 +12,7 @@ import { createClassImagesSlideshow } from './about/class-images-slideshow.js';
 import { getSectionData, findItemById, SECTION_LABELS } from './activities-data-loader.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { registerPageExit } from '../ui/page-exit.js';
+import { sitePath } from '../ui/site-base.js';
 import { DUR, EASE } from '../ui/motion.js';
 
 // CMB2 file_list type 存 meta 為 dict `{ attachment_id: url, ... }`；舊 JSON 是 string array
@@ -40,7 +41,7 @@ export async function loadDegreeShowList() {
 export async function loadDegreeShowListInto(containerId) {
   try {
     // 讀本地 JSON（WP-headless 邏輯已移除 2026-06-05）；之後 flip 接 Directus 時改 Directus 為主 + 本地 fallback。
-    const data = await fetch('/data/degree-show.json').then(r => r.json());
+    const data = await fetch(sitePath('data/degree-show.json')).then(r => r.json());
 
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -105,7 +106,7 @@ export async function loadDegreeShowDetail() {
 
   try {
     // 讀本地 JSON（WP-headless 邏輯已移除 2026-06-05）；之後 flip 接 Directus 時改 Directus 為主 + 本地 fallback。
-    const degreeShowData = await fetch('/data/degree-show.json').then(r => r.json());
+    const degreeShowData = await fetch(sitePath('data/degree-show.json')).then(r => r.json());
     const data = degreeShowData[year];
     const years = Object.keys(degreeShowData).sort((a, b) => Number(b) - Number(a));
 

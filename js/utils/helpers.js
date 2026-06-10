@@ -8,6 +8,42 @@ window.SCCDHelpers = window.SCCDHelpers || /** @type {SCCDHelpersAPI} */ ({});
 (function(Helpers) {
   'use strict';
 
+  // 站台根 URL：部署在子路徑（GitHub Pages project site / 學校子目錄）時，根目錄絕對路徑
+  // （/custom-cursor/x.svg）會指到網域根而 404。classic scripts（generate-app）不能 import
+  // ES module 的 site-base.js，從本檔 <script src> 位置推導（js/utils/ → 上兩層 = 站台根）。
+  Helpers.siteBase = new URL('../../', document.currentScript.src).href;
+
+  Helpers.sitePath = function(path) {
+    return new URL(String(path).replace(/^\//, ''), Helpers.siteBase).href;
+  };
+
+  // --cursor-* 變數內的相對 url() 由「使用 var() 的 stylesheet」基準解析（Chromium 行為）：
+  // variables.css 寫 '../custom-cursor/' 以 css/ 為基準正確，但被直接載入的頁面 CSS
+  // （css/components/create.css 等，loadPageCSS）引用時基準變 css/components/ → 差一層 404。
+  // 啟動時以絕對 URL 覆寫整批變數，消除基準歧義（值對齊 variables.css 的 hotspot / fallback）。
+  (function setCursorVars() {
+    var cursors = {
+      'default':     ['default.svg',  '9 2',   'default'],
+      'pointer':     ['pointer.svg',  '14 1',  'pointer'],
+      'text':        ['typing.svg',   '15 15', 'text'],
+      'grab':        ['drag_1.svg',   '15 15', 'grab'],
+      'grabbing':    ['drag_2.svg',   '15 15', 'grabbing'],
+      'zoom-in':     ['zoom-in.svg',  '9 9',   'zoom-in'],
+      'zoom-out':    ['zoom-out.svg', '9 9',   'zoom-out'],
+      'w-resize':    ['left.svg',     '2 15',  'w-resize'],
+      'e-resize':    ['right.svg',    '28 15', 'e-resize'],
+      'not-allowed': ['ban.svg',      '16 16', 'not-allowed'],
+    };
+    var root = document.documentElement;
+    Object.keys(cursors).forEach(function(key) {
+      var c = cursors[key];
+      root.style.setProperty(
+        '--cursor-' + key,
+        "url('" + Helpers.sitePath('custom-cursor/' + c[0]) + "') " + c[1] + ', ' + c[2]
+      );
+    });
+  })();
+
   Helpers.isMobile = function() {
     return window.innerWidth < 768;
   };

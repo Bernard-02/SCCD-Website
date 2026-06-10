@@ -23,6 +23,8 @@
  * @param {(data: T, container: HTMLElement) => void | Promise<void>} renderFn
  * @returns {Promise<boolean>} true = 成功 render，false = fetch 失敗 / container 不存在
  */
+import { sitePath } from './site-base.js';
+
 export async function loadAndRender(url, containerOrId, renderFn) {
   const container = typeof containerOrId === 'string'
     ? document.getElementById(containerOrId)
@@ -31,7 +33,8 @@ export async function loadAndRender(url, containerOrId, renderFn) {
 
   let data;
   try {
-    const res = await fetch(url);
+    // sitePath：站內路徑換算站台根（子路徑部署）；完整 http(s) URL（Directus）原樣通過
+    const res = await fetch(sitePath(url));
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     data = await res.json();
   } catch (e) {
