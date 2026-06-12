@@ -242,11 +242,11 @@ let mobileSlideInLogoTimer = null;
 const MOBILE_SLIDEIN_LOGO_DELAY_MS = Math.round((0.3 + DUR.medium * 0.55) * 1000);
 
 function checkSlideInState() {
-  // slide-in (faculty/courses): html.has-slide-in
-  // 全螢幕 lightbox (activities/library-viewer): body.lightbox-open（lightbox-shell 加）
-  // 兩者都讓 logo 翻 inverse 在暗底 overlay 上可見
-  const hasSlideIn = document.documentElement.classList.contains('has-slide-in')
-    || document.body.classList.contains('lightbox-open');
+  // 「overlay 正在覆蓋」訊號＝body.lightbox-open（slide-in faculty/courses 與 full lightbox activities/library-viewer
+  // 開啟時 enterLightboxMode 都設它、退場一開始 exitLightboxMode 立即移除）。
+  // ⚠️ 不再 OR html.has-slide-in：has-slide-in 會殘留到 slide-in close 動畫尾(~1s cleanup)，用它會讓退場時 logo
+  //    拖到最後才還原；改用 lightbox-open → slide-in 一退場就還原原本 logo（user 2026-06-10）。
+  const hasSlideIn = document.body.classList.contains('lightbox-open');
 
   if (isSlideInOpen !== hasSlideIn) {
     isSlideInOpen = hasSlideIn;

@@ -875,9 +875,13 @@ export function initHeader() {
         //       mode1/mode2 accent 實底 → 黑線（不 invert）；
         //       mode3 panel 底=theme-bg 隨 hue → 對比追蹤（標記 dataset.logoContrast='auto'，theme-toggle applyColorVars 每幀翻黑/白）
         //   「手機 slide-in logo 一律黑線，除非 mode3 看對比度」
-        const isSlideIn   = document.documentElement.classList.contains('has-slide-in');
-        const isLightbox  = document.body.classList.contains('lightbox-open');
-        const isFullLightbox = isLightbox && !isSlideIn;   // 黑底全螢幕 lightbox（非 slide-in）
+        // ⚠️ 用 body.lightbox-open gate（非只看 has-slide-in）：slide-in 退場時 has-slide-in 會殘留到 close 動畫尾，
+        //    但 lightbox-open 在退場一開始(exitLightboxMode)就移除 → lightboxOpen=false 時 isSlideIn/isFullLightbox 皆 false
+        //    → 走「還原原本 logo」分支，slide-in 一退場就換回（user 2026-06-10）。
+        const lightboxOpen = document.body.classList.contains('lightbox-open');
+        const slideInClass = document.documentElement.classList.contains('has-slide-in');
+        const isSlideIn      = lightboxOpen && slideInClass;    // slide-in 真正覆蓋中（退場時 false）
+        const isFullLightbox = lightboxOpen && !slideInClass;   // 黑底全螢幕 lightbox（非 slide-in）
         const isInverseM  = document.body.classList.contains('mode-inverse');
         const isColorM    = document.body.classList.contains('mode-color');
         let logoFileM;

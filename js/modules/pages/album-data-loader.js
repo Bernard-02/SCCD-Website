@@ -6,6 +6,7 @@
 import { openLightbox } from '../lightbox/activities-lightbox.js';
 import { getCurrentSectionColor } from './activities-section-switch.js';
 import { sitePath } from '../ui/site-base.js';
+import { loadSummerCamp } from './summer-camp-source.js';
 import {
   CARD_COLORS, CATEGORY_LABELS,
   renderYearGroups, updateYearBorders, applySortOrder,
@@ -30,6 +31,10 @@ function normalizeItem(item, albumCategory, year) {
   let videos = [];
   if (item.videoUrl) videos = [item.videoUrl];
   else if (Array.isArray(item.videos)) videos = item.videos;
+  // Directus 新 schema 的影片欄（[{url}]，camp 等遷移後的 collection 用）；與 legacy videos 合併
+  if (Array.isArray(item.videoLinks)) {
+    videos = [...videos, ...item.videoLinks.map(v => (v && typeof v === 'object') ? v.url : v).filter(Boolean)];
+  }
 
   const mediaPoster = cover ? [{ type: 'image', src: cover, thumb: cover }] : [];
   const mediaPhotos = images
@@ -75,10 +80,11 @@ async function fetchData(url) {
 // ── 聚合所有來源資料 ─────────────────────────────────────────────────────────
 
 async function aggregateAlbumData() {
+  // camp 改吃 Directus 真實資料（同 admission 營隊 tab 的 loadSummerCamp；CMS 失敗它自帶 fallback 本地 JSON）
   const sources = [
     { url: '/data/workshops.json',         albumCategory: 'workshop',         isDegreeShow: false },
     { url: '/data/degree-show.json',        albumCategory: 'degree-show',      isDegreeShow: true  },
-    { url: '/data/summer-camp.json',        albumCategory: 'summer-camp',      isDegreeShow: false },
+    { load: loadSummerCamp,                 albumCategory: 'summer-camp',      isDegreeShow: false },
     { url: '/data/students-present.json',   albumCategory: 'students-present', isDegreeShow: false },
     { url: '/data/general-activities.json', albumCategory: 'moment',           isDegreeShow: false },
     { url: '/data/lectures.json',           albumCategory: 'lectures',         isDegreeShow: false },
@@ -86,14 +92,20 @@ async function aggregateAlbumData() {
     { url: '/data/album-others.json',       albumCategory: 'others',           isDegreeShow: false },
   ];
 
-  const results = await Promise.all(sources.map(s => fetchData(s.url)));
+  const results = await Promise.all(sources.map(s => s.load ? s.load().catch(() => null) : fetchData(s.url)));
 
   const allItems = [];
   results.forEach((data, i) => {
     const { albumCategory, isDegreeShow } = sources[i];
     ensureArray(data, isDegreeShow).forEach(({ year, items }) => {
       if (!Array.isArray(items)) return;
-      items.forEach(item => allItems.push(normalizeItem(item, albumCategory, year)));
+      // camp 取消梯次無 startDate → 年份組 key 是 '—'（非數字）：album 依年份分組/排序，略過
+      if (!Number.isFinite(Number(year))) return;
+      items.forEach(item => {
+        const n = normalizeItem(item, albumCategory, year);
+        // 無任何媒體不進相簿（camp 真實資料照片未上傳前整類自然缺席，上傳後自動出現）
+        if (n.poster.length || n.images.length || n.videos.length) allItems.push(n);
+      });
     });
   });
 

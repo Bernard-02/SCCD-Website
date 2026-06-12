@@ -60,6 +60,12 @@ export function showPanel(panelSelector, targetId) {
   document.querySelectorAll(panelSelector).forEach(p => p.classList.add('hidden'));
   const target = document.getElementById(targetId);
   if (target) target.classList.remove('hidden');
+  // 清掉殘留的 pinned 旗標：被藏 panel 內「已釘住」的 list-header，IO 不會再 fire
+  // （isIntersecting 藏前藏後都 false 無狀態變化）→ .list-has-pinned-header 殘留會讓
+  // 手機 header blocker 一直蓋頂部、把 nav btn 裁掉。新 panel 若有自己的釘住 header，
+  // display 切換會觸發它的 IO 重新把旗標掛回（list-accordion.js attachStickyPinObserver）。
+  document.querySelectorAll('#activities-content-section.list-has-pinned-header, #admission-content-section.list-has-pinned-header')
+    .forEach(s => s.classList.remove('list-has-pinned-header'));
   return target;
 }
 

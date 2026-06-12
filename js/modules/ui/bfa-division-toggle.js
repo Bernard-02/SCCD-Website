@@ -20,13 +20,14 @@ export function initBFADivisionToggle() {
 
   if (classInfoPanels.length === 0) return;
 
-  // Mobile elements
-  const mobilePrevBtn = document.getElementById('mobile-division-prev');
-  const mobileNextBtn = document.getElementById('mobile-division-next');
-  const mobileTitle   = document.getElementById('mobile-division-title');
+  // Mobile elements：水平 scroll 分組導覽 pill（取代舊 prev/next chevron）
+  const mobileDivisionBtns = document.querySelectorAll('.mobile-division-btn');
 
-  // Desktop elements
-  const divisionBtns = document.querySelectorAll('.class-division-btn');
+  // Desktop + Mobile 分組按鈕共用同一套旋轉/上色/active/hover/click 邏輯（#1 跟桌面一致）。
+  // 差別只在「上色/旋轉的目標元素」：桌面 .class-division-btn 直接畫在 btn；手機 pill 畫在內層 .anchor-nav-inner。
+  // → setActive/initRotations/hover 一律取 paintTarget = btn.querySelector('.anchor-nav-inner') || btn。
+  const divisionBtns = document.querySelectorAll('.class-division-btn, .mobile-division-btn');
+  const paintTargetOf = (btn) => btn.querySelector('.anchor-nav-inner') || btn;
   const groupLabels   = document.querySelectorAll('.class-group-label');
 
   // Division list（手機版輪播用）：優先讀 about-data-loader 注入的 window.SCCD_aboutClass
@@ -271,10 +272,11 @@ export function initBFADivisionToggle() {
 
   function initRotations() {
     divisionBtns.forEach(btn => {
+      const target = paintTargetOf(btn);
       // BFA btn 在 class 模式預設 0°，旋轉只在 works 模式啟動後由 setActive 設定
       const rot = btn.getAttribute('data-division') === 'bfa' ? 0 : randomRotation();
-      btn._baseRot = rot;
-      btn.style.transform = `rotate(${rot}deg)`;
+      target._baseRot = rot;
+      target.style.transform = `rotate(${rot}deg)`;
       const label = btn.previousElementSibling?.classList.contains('class-group-label')
         ? btn.previousElementSibling : null;
       if (label) {
@@ -289,16 +291,17 @@ export function initBFADivisionToggle() {
 
   function setActive(divisionId, color, rot) {
     divisionBtns.forEach(btn => {
+      const target = paintTargetOf(btn);
       const label = btn.previousElementSibling?.classList.contains('class-group-label')
         ? btn.previousElementSibling : null;
 
       if (btn.getAttribute('data-division') === divisionId) {
-        btn._baseRot = rot;
+        target._baseRot = rot;
         btn.classList.add('active');
-        btn.style.background = color;
-        btn.dataset.accentHex = color;  // 原始 hex，給 anchor-nav exclude 比對（style.background 讀回是 rgb）
-        btn.style.color = '#000000';
-        btn.style.transform = `rotate(${rot}deg)`;
+        target.style.background = color;
+        target.dataset.accentHex = color;  // 原始 hex，給 anchor-nav exclude 比對（style.background 讀回是 rgb）
+        target.style.color = '#000000';
+        target.style.transform = `rotate(${rot}deg)`;
         if (label) {
           const labelRot = label._pendingRot || randomRotation();
           label._baseRot = labelRot;
@@ -310,10 +313,10 @@ export function initBFADivisionToggle() {
         btn._activeColor = color;
       } else {
         btn.classList.remove('active');
-        btn.style.background = BTN_DEFAULT_BG;
-        delete btn.dataset.accentHex;
-        btn.style.color = BTN_DEFAULT_TEXT;
-        btn.style.transform = `rotate(${btn._baseRot}deg)`;
+        target.style.background = BTN_DEFAULT_BG;
+        delete target.dataset.accentHex;
+        target.style.color = BTN_DEFAULT_TEXT;
+        target.style.transform = `rotate(${target._baseRot}deg)`;
         if (label) {
           label.style.background = BTN_DEFAULT_BG;
           label.style.color = BTN_DEFAULT_TEXT;
@@ -327,15 +330,16 @@ export function initBFADivisionToggle() {
   // ─── Desktop: hover events ─────────────────────────────────
 
   divisionBtns.forEach(btn => {
+    const target = paintTargetOf(btn);
     btn.addEventListener('mouseenter', () => {
       if (btn.classList.contains('active')) return;
       const color = randomColor(getCurrentStripColor());
       const rot   = randomRotation();
       const label = btn.previousElementSibling?.classList.contains('class-group-label')
         ? btn.previousElementSibling : null;
-      btn.style.background = color;
-      btn.style.color = '#000000';
-      btn.style.transform = `rotate(${rot}deg)`;
+      target.style.background = color;
+      target.style.color = '#000000';
+      target.style.transform = `rotate(${rot}deg)`;
       if (label) {
         const labelRot = randomRotation();
         label.style.background = color;
@@ -351,9 +355,9 @@ export function initBFADivisionToggle() {
       if (btn.classList.contains('active')) return;
       const label = btn.previousElementSibling?.classList.contains('class-group-label')
         ? btn.previousElementSibling : null;
-      btn.style.background = BTN_DEFAULT_BG;
-      btn.style.color = BTN_DEFAULT_TEXT;
-      btn.style.transform = `rotate(${btn._baseRot}deg)`;
+      target.style.background = BTN_DEFAULT_BG;
+      target.style.color = BTN_DEFAULT_TEXT;
+      target.style.transform = `rotate(${target._baseRot}deg)`;
       if (label) {
         label.style.background = BTN_DEFAULT_BG;
         label.style.color = BTN_DEFAULT_TEXT;
@@ -387,28 +391,65 @@ export function initBFADivisionToggle() {
     });
   });
 
-  // ─── Mobile: update title display ───────────────────────────
+  // 手機 pill 的點擊/hover/active/旋轉/上色已由上方 divisionBtns 共用迴圈處理（含 .mobile-division-btn），
+  // 不再需要獨立 handler——跟桌面同一套邏輯（#1）。
 
-  function updateMobileDisplay(index) {
-    const division = divisions[index];
-    if (mobileTitle) {
-      mobileTitle.innerHTML = `
-        <div class="text-h5 font-bold leading-tight">${division.titleEn}</div>
-        <div class="text-h5 font-bold mt-1">${division.titleZh}</div>
-      `;
+  // 手機 works context + sticky release（桌面靠 class-buttons-sticky.js，手機直接 return → 這裡補手機版，比照桌面）。
+  if (window.innerWidth < 768 && typeof ScrollTrigger !== 'undefined') {
+    const infoArea = document.getElementById('class-info-area');
+    const mobileNav = document.getElementById('mobile-division-nav');
+    const navWrap = mobileNav?.parentElement;
+    let hasEnteredWorksMobile = false;
+
+    // ① works context：捲到圖文底部 → ctx='works' + 展開 Design Fundamental pill；首次進 works 自動 active 它（#2，比照桌面）。
+    //    捲回 → ctx='info' + 收起；若 active 是 bfa（works-only 無圖文）切回 animation。
+    if (infoArea && mobileNav) {
+      ScrollTrigger.create({
+        trigger: infoArea,
+        start: 'bottom 60%',
+        onEnter: () => {
+          window.SCCD_classContext = 'works';
+          mobileNav.classList.add('is-works-context');
+          if (!hasEnteredWorksMobile) {
+            hasEnteredWorksMobile = true;
+            if (typeof window.SCCD_setDivisionActive === 'function') {
+              window.SCCD_setDivisionActive('bfa', false);  // 首次進 works → Design Fundamental
+            }
+          }
+        },
+        onLeaveBack: () => {
+          window.SCCD_classContext = 'info';
+          mobileNav.classList.remove('is-works-context');
+          const active = document.querySelector('.mobile-division-btn.active');
+          if (active?.getAttribute('data-division') === 'bfa') {
+            setActive('animation', randomColor(getCurrentStripColor()), randomRotation());
+            showContent('animation');
+          }
+        },
+      });
     }
-    showContent(division.id, false);
-  }
 
-  if (mobilePrevBtn && mobileNextBtn) {
-    mobilePrevBtn.addEventListener('click', () => {
-      currentIndex = (currentIndex - 1 + divisions.length) % divisions.length;
-      updateMobileDisplay(currentIndex);
-    });
-    mobileNextBtn.addEventListener('click', () => {
-      currentIndex = (currentIndex + 1) % divisions.length;
-      updateMobileDisplay(currentIndex);
-    });
+    // ② sticky release（#3）：works 說明文字頂（panels content top，扣掉 pt-3xl）到達 nav 底部「再加一個
+    //    nav padding-bottom」就開始放開 → 停住時 pill 與文字的視覺 gap = py-sm 內距 ×2（user 2026-06-11 要現有 gap 的 2 倍）。
+    //    tab 用 translateY 跟著內容 1:1 往上捲走，不會蓋住文字；捲動量 = stickyTop + nav 高度 → 一路移出 viewport 上緣。
+    const worksPanels = document.getElementById('class-works-panels');
+    if (worksPanels && navWrap && typeof gsap !== 'undefined') {
+      const stickyTop = parseFloat(getComputedStyle(navWrap).top) || 128;
+      gsap.timeline({
+        scrollTrigger: {
+          trigger: worksPanels,
+          start: () => {
+            const padTop = parseFloat(getComputedStyle(worksPanels).paddingTop) || 0;
+            const gapExtra = parseFloat(getComputedStyle(mobileNav).paddingBottom) || 16;
+            return `top+=${padTop} ${stickyTop + navWrap.offsetHeight + gapExtra}px`;
+          },
+          end: () => `+=${stickyTop + navWrap.offsetHeight}`,
+          scrub: true,
+          invalidateOnRefresh: true,
+        },
+      })
+        .to(navWrap, { y: () => -(stickyTop + navWrap.offsetHeight), ease: 'none' }, 0);
+    }
   }
 
   // ─── 暴露給其他模組的 helper ─────────────────────────────────
@@ -447,11 +488,10 @@ export function initBFADivisionToggle() {
 
   requestAnimationFrame(() => {
     initRotations();
+    // setActive 一次同步桌面 + 手機 pill（divisionBtns 已含 .mobile-division-btn）
     setActive('animation', randomColor(getCurrentStripColor()), randomRotation());
     showContent('animation', false);
   });
-
-  updateMobileDisplay(0);
 
   // 離頁退場：works 區 active panel 的說明文字（含 playlist）clip-path 右→左收 + 影片往左滑出。
   // 沿用本模組 works 切換的同一組常數/方向（手感一致）。只在桌面、works layout 已 init、且區塊在視窗內才跑。

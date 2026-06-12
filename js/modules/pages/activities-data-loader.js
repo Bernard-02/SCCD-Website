@@ -391,7 +391,9 @@ export function buildGalleryHtml(item) {
       <button class="gallery-prev invisible flex-shrink-0 w-[32px] h-[32px] flex items-center justify-center text-p2 hover:opacity-60 transition-opacity">
         <span class="icon icon-chevron-list icon-s"></span>
       </button>
-      <div class="gallery-track flex-1" style="height: 120px; overflow-x: clip; overflow-y: visible;">
+      <!-- min-w-0：flex item 的 min-width:auto 會被內容撐開（手機 327px 容器內 track 被撐到 ~357px），
+           把 gallery-next 推出 viewport 右側「右 chevron 消失」；album-track 已有同款 fix -->
+      <div class="gallery-track flex-1 min-w-0" style="height: 120px; overflow-x: clip; overflow-y: visible;">
         <div class="gallery-inner flex gap-md h-full" style="transition: transform 0.3s ease;">
           ${galleryItems.join('')}
         </div>

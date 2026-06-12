@@ -37,23 +37,40 @@ export function initMobileMenu() {
   // 進場 timing 比舊版縮 30%（user 2026-05-25），退場跟進場語義相反：items clip-out 倒序播完才 nav slide-out
   // 進場節奏：nav slide-in (0.28) → delay (0.105) → items clip-reveal (0.63 + stagger 0.084)
   // 退場節奏：items clip-out 倒序 (0.4 + stagger 0.05 from:end) → nav slide-out (0.28)
+  //
+  // ⚠️ Race 防護（user 2026-06-11 報「點太快下次打開 items 直接跳出來」）：
+  //   reveal 的 delayedCall 不殺的話，快速 close 後它照樣 fire，把收合中的 items 又翻回來（殭屍 reveal），
+  //   跑完 clearProps 留下「無 transform = 全顯」殘態。open/close 兩端都要 kill 它 + killTweensOf。
+  let revealCall = null;
+
+  // 捲動鎖：鎖 html 不鎖 body——body overflow:hidden 會讓 body 變 scroll container，
+  // 頁內 position:sticky（釘住的 list header 等）改對 body 計算 → 開 menu 瞬間解除釘選、
+  // list 視覺往上彈，關掉又彈回（user 2026-06-12 報）。html 本來就是頁面 scroll container，
+  // 鎖它 sticky 不受影響。只動 overflow-y：about/activities 的 inline overflow-x:clip 要保留
+  //（shorthand 設了再清會把 clip 一起洗掉）。
+  let prevHtmlOverflowY = '';
+  function lockScroll() {
+    prevHtmlOverflowY = document.documentElement.style.overflowY;
+    document.documentElement.style.overflowY = 'hidden';
+  }
+  function unlockScroll() {
+    document.documentElement.style.overflowY = prevHtmlOverflowY;
+  }
+
   function openMenu() {
     nav.classList.add('open');
     if (typeof gsap !== 'undefined') {
+      // 殺掉前一次 close 還掛著的「延遲滑出」tween（delay: itemsTotal）：
+      // 不殺的話在 items 收合期間重開 menu，舊 tween 之後才 fire 會把開著的 menu 整個拉走，
+      // state 卡在 open 但畫面上 menu 消失（user 2026-06-11 報「點箭頭後整個 menu 不見」）
+      gsap.killTweensOf(nav);
       gsap.to(nav, { x: '0%', duration: DUR.fast, ease: EASE.enterSoft });
-      // 進場：clip-reveal 下往上（hero title 同款）
-      // 縮 30% 後不能呼叫 playClipReveal helper（它寫死 0.9s + stagger 0.12），inline 寫
-      // 修「Faculty/Curriculum 沒進場」bug：
-      //   1) setupClipReveal 先跑（wrap + set yPercent:100），但因為 setupClipReveal 內部 gsap.set 跟接下來的
-      //      tween 之間若 GSAP 對「同 prop 連續 set + to」做優化會略過部分 item 的初始值
-      //   2) killTweensOf 先清掉所有 menuItems 上的舊 tween（前次 close 的 yPercent:100 tween 可能還沒完全 settle）
-      //   3) gsap.set 強制重設 yPercent:100（在 killTweensOf 之後執行才不會被舊 tween 蓋）
-      //   4) delayedCall 0.105s 後跑 reveal
+      if (revealCall) { revealCall.kill(); revealCall = null; }
       if (menuItems && menuItems.length) {
         setupClipReveal(menuItems);
         gsap.killTweensOf(menuItems);
-        gsap.set(menuItems, { yPercent: 100 });
-        gsap.delayedCall(0.105, () => {
+        const revealTween = () => {
+          revealCall = null;
           gsap.to(menuItems, {
             yPercent: 0,
             duration: DUR.slow,
@@ -62,7 +79,16 @@ export function initMobileMenu() {
             overwrite: true,
             clearProps: 'transform',
           });
-        });
+        };
+        // 完全關閉（nav 在畫面外）→ 重設 100 + 0.105 delay 的完整進場節奏；
+        // 關到一半被打斷重開 → 不重設、不等 delay，items 從當前位置直接續走 reveal
+        // （比照 faculty 卡片「動畫中途可反向」，user 2026-06-11）
+        if (nav.getBoundingClientRect().right <= 0) {
+          gsap.set(menuItems, { yPercent: 100 });
+          revealCall = gsap.delayedCall(0.105, revealTween);
+        } else {
+          revealTween();
+        }
       }
     } else {
       nav.style.transform = 'translateX(0%)';
@@ -71,7 +97,7 @@ export function initMobileMenu() {
     if (iconClose) iconClose.style.display = '';
     applyRandomRotation(menuBtnBox);
     applyRandomRotation(modeBtnBox);
-    document.body.style.overflow = 'hidden';
+    lockScroll();
   }
 
   // close: 回傳 Promise 在動畫完成後 resolve（nav link click 場景用來決定何時 navigate）
@@ -82,9 +108,11 @@ export function initMobileMenu() {
     if (iconClose) iconClose.style.display = 'none';
     applyRandomRotation(menuBtnBox);
     applyRandomRotation(modeBtnBox);
-    document.body.style.overflow = '';
+    unlockScroll();
     return new Promise(resolve => {
       if (typeof gsap !== 'undefined') {
+        gsap.killTweensOf(nav); // 對稱保險：殺掉殘留的 open 滑入 tween
+        if (revealCall) { revealCall.kill(); revealCall = null; } // 殺掉 pending 的殭屍 reveal（見上）
         const itemCount = menuItems?.length || 0;
         const itemDur = 0.4;
         const itemStagger = 0.05;

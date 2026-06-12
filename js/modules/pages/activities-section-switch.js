@@ -53,8 +53,12 @@ function scrollSectionIntoView(el, behavior = 'instant') {
     return Math.max(0, sectionTopDoc);
   };
   // smooth（deep-link 無 item 用，無併發 reveal 干擾）：GSAP scrollTo
+  // 手機時長依距離換算（同 navigateToItem smooth：固定 0.5s 捲過 >1 視窗高像「跳下去」）
   if (behavior === 'smooth' && typeof gsap !== 'undefined' && typeof window.ScrollToPlugin !== 'undefined') {
-    gsap.to(window, { scrollTo: { y: y(), autoKill: false }, duration: DUR.medium, ease: EASE.move });
+    const targetY = y();
+    const dist = Math.abs(targetY - window.scrollY);
+    const dur = window.innerWidth < 768 ? Math.min(1.1, Math.max(DUR.medium, dist / 1200)) : DUR.medium;
+    gsap.to(window, { scrollTo: { y: targetY, autoKill: false }, duration: dur, ease: EASE.move });
     return;
   }
   // instant（分頁切換）
@@ -126,14 +130,29 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
 
   // 計算目標位置：item 落在「sticky filter bar 底部 + 16px」→ 不被釘住的 filter bar 蓋住。
   // sticky-top 跟 scrollSectionIntoView 一樣讀實際 computed 值（filter bar 的 md:top-[200px]）不寫死 200，
-  // 兩個 scroll path 對齊基準同步、日後改 sticky-top 也不 drift；手機 filter bar 非 sticky → fallback 200（user 2026-06-05）
+  // 兩個 scroll path 對齊基準同步、日後改 sticky-top 也不 drift。
+  // 手機：filter bar 非 sticky（會捲走，不該算進落點），落點直接用釘點 8rem —— 跟 list-accordion
+  // getListStickyTop 的手機值同步，deep-link 落點＝手動開啟落點＝CSS 釘點（桌面舊 fallback 200 落點
+  // 比釘點低 ~200px，捲動時 title 還要滑一大段才釘住，user 2026-06-12）。
   const panel      = document.getElementById(`panel-${section}`);
   const filterBar  = /** @type {HTMLElement | null} */ (panel?.querySelector('.activities-filter-bar'));
+
+  // 手機：量位置「前」先把 search bar 收掉並等 transition 完。否則捲動下行途中 activities-search
+  // 才把 in-flow bar 收起（-40px）→ 出發前算的 finalTop 落地過頭、title 停在釘點上方，accordion
+  // 開啟 sticky 接管時再「跳下來」對齊＝二次位移（user 2026-06-12；逐幀 probe 證實）。
+  // 先收→量→捲 = 落地點就是開啟點，開啟零位移。桌面 bar 是 sticky、proceedOpen 的不變式已處理，不動。
+  if (window.innerWidth < 768 && filterBar && !filterBar.classList.contains('bar-hidden')) {
+    filterBar.classList.add('bar-hidden');
+    await new Promise(r => setTimeout(r, 350)); // CSS 0.3s transition 收完才量
+  }
+
   const filterBarH = filterBar?.offsetHeight || 0;
   const stickyTop  = (filterBar && getComputedStyle(filterBar).position === 'sticky')
     ? (parseFloat(getComputedStyle(filterBar).top) || 200)
     : 200;
-  const compensate = stickyTop + filterBarH + 16;
+  const compensate = window.innerWidth < 768
+    ? 8 * parseFloat(getComputedStyle(document.documentElement).fontSize)
+    : stickyTop + filterBarH + 16;
 
   let targetTop = 0;
   let el = /** @type {HTMLElement | null} */ (target);
@@ -168,11 +187,15 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
   if (smooth) {
     // 首頁 deep-link（已等 hero 跑完）：平滑捲到 item 讓 user 看到往下捲，捲動「結束」才 flash + 展開 accordion
     // （對齊 curriculum：hero done → 平滑 scroll → delay 才開）。GSAP ScrollToPlugin onComplete 確保到位才動；無 plugin 時估時 fallback。
+    // 手機時長依距離換算：固定 0.5s 在手機捲距 >1 個視窗高（hero 100vh+，實測 1140px/0.45s 峰值單幀 100px+）
+    // 看起來「跳下去」不像滑（user 2026-06-12）；clamp 0.5~1.1s，短距離維持原手感。桌面捲距 <1 視窗高、原 0.5s 不動。
+    const dist = Math.abs(finalTop - window.scrollY);
+    const scrollDur = window.innerWidth < 768 ? Math.min(1.1, Math.max(DUR.medium, dist / 1200)) : DUR.medium;
     if (typeof window.ScrollToPlugin !== 'undefined') {
-      gsap.to(window, { scrollTo: { y: finalTop, autoKill: false }, duration: DUR.medium, ease: EASE.move, onComplete: flashThenOpenAccordion });
+      gsap.to(window, { scrollTo: { y: finalTop, autoKill: false }, duration: scrollDur, ease: EASE.move, onComplete: flashThenOpenAccordion });
     } else {
       window.scrollTo({ top: finalTop, behavior: 'smooth' });
-      setTimeout(flashThenOpenAccordion, 500);
+      setTimeout(flashThenOpenAccordion, scrollDur * 1000);
     }
   } else {
     // ref 按鈕等頁內跳轉：用 instant 跳到位（smooth 會經過 hero 區造成「先回 hero 再展開」視覺），
@@ -335,7 +358,9 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
     const initialSection = params.get('section') || defaultSection;
     const initialItem = params.get('item');
     switchToSection(initialSection, btns, false, true);
-    // 等 hero 進場動畫「實際跑完」才往下捲（waitForHeroAnimDone，follow hero 動畫長度、不寫死 1s；對齊 curriculum）
+    // 等 hero 進場動畫「實際跑完」才往下捲（waitForHeroAnimDone，follow hero 動畫長度、不寫死 1s；對齊 curriculum）。
+    // 手機也適用：hero-animation playMobileHeroEntrance 跑「看得見的」.hero-mobile-* 進場後才 signal
+    // （2026-06-12 起；先前手機 hero 靜態、等的是隱藏桌面 timeline ＝ 白等，曾短暫改成跳過）。
     if (initialItem) {
       // 有 ?item= → navigateToItem smooth:true：平滑捲到該項目 → 捲到位 delay 才展開 accordion
       waitForHeroAnimDone().then(() => navigateToItem(initialSection, initialItem, { smooth: true }));

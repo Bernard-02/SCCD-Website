@@ -168,6 +168,13 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
     history.replaceState(history.state, '', window.location.pathname);
   }
 
+  // deep-link 自動導航時卡片/表頭進場「init 就直接播」不等 ScrollTrigger：
+  // 自動捲動會在 hero 後立刻把 grid 帶進視窗，靠 trigger 的話 reveal 在捲動落地後才開始
+  // → 使用者看到「捲過一片空白 → 卡片才突然出現」，慢機器上 trigger 沒 fire 更會讓
+  // waitForGridRevealed 撐到 5s timeout、highlight 套在還 clip 隱藏的卡上看不到（user 2026-06-12）。
+  // init 即播 = reveal 在 hero 動畫期間於畫面外完成，捲到時 grid 已就位 → highlight 立刻可見。
+  const deepLinkAutoNav = hasQueryDeepLink && fromUserNav;
+
   const initSwitchPromise = switchToProgram(initialProgram, programBtns, false);
 
   // deep-link 導航動畫（只在使用者從首頁 floating course card 點進來的 SPA 導航才播）：
@@ -489,7 +496,7 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
           });
         };
 
-        if (isSwitch || panelInView) {
+        if (isSwitch || panelInView || deepLinkAutoNav) {
           playReveal();
         } else if (typeof ScrollTrigger !== 'undefined') {
           ScrollTrigger.create({
@@ -551,7 +558,7 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
               clearProps: 'transform',
             });
           };
-          if (panelInView) {
+          if (panelInView || deepLinkAutoNav) {
             playHeaderReveal();
           } else if (typeof ScrollTrigger !== 'undefined') {
             ScrollTrigger.create({

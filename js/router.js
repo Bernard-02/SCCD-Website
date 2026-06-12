@@ -214,7 +214,11 @@ async function loadPage(route, search = '', fromUserNav = false) {
       // 才回，footer html 寫進隱藏容器 → Lottie 載 0×0 + footerScatter waitForLayoutReady 60 frames 全 0 abort →
       // items 卡 opacity:0、無 .footer-anchor。換頁要露 footer 時用 .footer-anchor 缺失當「broken init」proxy 重跑 initFooter。
       // 只限 SPA 容器（#site-footer）；index.html 的 #site-footer-static 不會撞 display:none race。
-      if (!shouldHide && footerEl.id === 'site-footer' && !footerEl.querySelector('.footer-anchor')) {
+      // 手機 footer 不建 .footer-anchor（改走 clip-reveal）→ 多檢查 [data-footer-mobile-init] 旗標，
+      // 否則手機每次換頁都把這個 proxy 當「broken init」重抓 footer.html 重建（打斷 clip-reveal ctx）。
+      if (!shouldHide && footerEl.id === 'site-footer'
+          && !footerEl.querySelector('.footer-anchor')
+          && !footerEl.querySelector('[data-footer-mobile-init]')) {
         initFooter();
       }
     }
@@ -240,7 +244,8 @@ async function loadPage(route, search = '', fromUserNav = false) {
     // - clip（CSS Overflow L3）只裁切橫向溢出，不建立 scroll container，sticky 仍對 viewport 釘
     // - iOS Safari position:fixed header 不 fix 的舊問題：clip 同樣防止 body 搶 scroll container 角色
     // 瀏覽器支援：Chrome 90+ / Safari 16+ / Firefox 81+
-    const needsClipX = route.page === 'about' || route.page === 'alumni' || route.page === 'faculty' || route.page === 'activities';
+    // degree-show-detail：子展覽 gallery 全寬 6-slot（~105vw）+ hero banner 兩側溢出 → 不 clip 整頁可橫向 pan
+    const needsClipX = route.page === 'about' || route.page === 'alumni' || route.page === 'faculty' || route.page === 'activities' || route.page === 'degree-show-detail';
     document.documentElement.style.overflowX = needsClipX ? 'clip' : '';
     document.body.style.overflowX = needsClipX ? 'clip' : '';
 

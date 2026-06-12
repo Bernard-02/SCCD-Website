@@ -172,6 +172,20 @@ export function resetListAccordionsInPanel(panel) {
   openHeaders.forEach(header => instantCloseListHeader(header));
 }
 
+// list-header sticky 釘點（給「開啟捲動落點」與「is-pinned IO」共用，必須跟 CSS 實際釘點一致）。
+//   手機（<768）：lists.css `@media(max-width:767px) .list-header.active { top: 6rem }` 寫死 6rem
+//                 → 直接算 6rem，不讀 --list-header-sticky-top（那個 var 只在桌面 JS 設、手機沒設會 fallback 200）。
+//   桌面：--list-header-sticky-top（filter bar 下方，activities 設在 container 上）或 200（admission 預設）。
+// ⚠️ 不一致的後果（2026-06-10 user 報）：手機開 item 用 200 fallback 把 title 捲到 200，但 CSS 釘 96
+//    → 往下捲 title 從 200「跳」到 96 才 sticky。統一走此 helper 後開啟落點＝釘點，無跳動。
+function getListStickyTop(header) {
+  if (window.innerWidth < 768) {
+    return 8 * parseFloat(getComputedStyle(document.documentElement).fontSize); // = CSS top:8rem（清 logo，與 lists.css 同步）
+  }
+  const c = header.closest('[style*="--list-header-sticky-top"]');
+  return c ? (parseFloat(getComputedStyle(c).getPropertyValue('--list-header-sticky-top')) || 200) : 200;
+}
+
 // Sticky-pinned 偵測：sentinel pattern — 在 list-header 上方塞 0 高度 sentinel div，IO 偵測 sentinel
 // 是否還在 sticky-top 線之下。sentinel 是純 scroll-driven flow 元素（非 sticky），IO 行為完全穩定，
 // 不會踩到「IO 對 sticky 元素 ratio 邊界 case 跨瀏覽器不穩」的坑。
@@ -182,11 +196,8 @@ export function resetListAccordionsInPanel(panel) {
 // CSS :stuck 偽類 spec proposed but not implemented (2026)，sentinel/IO 是 workaround 標準做法。
 function attachStickyPinObserver(header) {
   if (header._stickyPinIO) return;
-  // 計算 stickyTop：activities 頁是設在 container（不是 header）上，所以從 closest ancestor 找該 var
-  // closest 找不到走 header.computed → fallback 200 (admission 預設)
-  const container = header.closest('[style*="--list-header-sticky-top"]') || header;
-  const stickyTopVar = getComputedStyle(container).getPropertyValue('--list-header-sticky-top').trim();
-  const stickyTop = parseFloat(stickyTopVar) || 200;
+  // 手機/桌面釘點走共用 helper（手機 6rem、桌面 var/200），與開啟捲動落點一致
+  const stickyTop = getListStickyTop(header);
 
   // Inject sentinel into list-item as first child (before list-header)
   const listItem = header.closest('.list-item');
@@ -201,10 +212,19 @@ function attachStickyPinObserver(header) {
 
   const io = new IntersectionObserver(([entry]) => {
     // sentinel 滾過 sticky-top 線之上 = isIntersecting false → header pinned
-    header.classList.toggle('is-pinned', !entry.isIntersecting);
+    // ⚠️ panel 被 section-switch 藏起（display:none）時 IO 也 fire（rect 變空 → isIntersecting false），
+    // 不能誤判成 pinned：旗標殘留會讓手機 header blocker 一直蓋頂部、把捲回 band 的 nav btn 裁掉
+    const pinned = !entry.isIntersecting && header.offsetParent !== null;
+    header.classList.toggle('is-pinned', pinned);
+    // 手機 header blocker 只在「有 item 釘住」時顯示（見 lists.css .list-mobile-header-blocker 註解）：
+    // 給所屬 content section 加 class。單開 accordion → 一次只有一個 header 有 observer，不會互搶。
+    toggleSectionPinnedFlag(header, pinned);
   }, {
     root: null,
-    rootMargin: `-${stickyTop}px 0px 0px 0px`,
+    // +4px 容差：開啟捲動把 title 停在「正好釘線」（自然位置=釘點、尚未越過）→ 嚴格邊界下 IO 判未 pin →
+    // blocker 不顯示 → 上方內容（如 description）溢出蓋到 logo（user 2026-06-10）。邊界往下挪 4px 讓
+    // 「title 一抵釘線就算 pinned」→ blocker 開。4px 窗內 nav 不可能還在 band（item 釘住時 nav 已捲出畫面），不誤觸。
+    rootMargin: `-${stickyTop + 4}px 0px 0px 0px`,
     threshold: 0,
   });
   io.observe(sentinel);
@@ -221,6 +241,14 @@ function detachStickyPinObserver(header) {
     delete header._stickyPinSentinel;
   }
   header.classList.remove('is-pinned');
+  toggleSectionPinnedFlag(header, false);  // 關 item / 離開 pin 都收掉 blocker 顯示旗標
+}
+
+// 在 header 所屬的 content section 上開關 .list-has-pinned-header（驅動手機 header blocker 顯隱）。
+// 只認 activities / admission 兩個 content section（其他 list 場景無透明 header 上方露出問題、無 blocker）。
+function toggleSectionPinnedFlag(header, on) {
+  const section = header.closest('#activities-content-section, #admission-content-section');
+  if (section) section.classList.toggle('list-has-pinned-header', on);
 }
 
 // 收合單一 header（自關 + 「開新先關舊」共用）
@@ -365,10 +393,7 @@ function initListHeaderAccordion() {
 
           // 量 header doc 位置 → 捲到「落在當前 pin 線」。stickyTop 與 headerDocTop 同態量取（見上不變式）。
           if (!skipOpenScroll) {
-            const stickyContainer = self.closest('[style*="--list-header-sticky-top"]');
-            const stickyTop = stickyContainer
-              ? (parseFloat(getComputedStyle(stickyContainer).getPropertyValue('--list-header-sticky-top')) || 200)
-              : 200;
+            const stickyTop = getListStickyTop(self);
             const headerDocTop = self.getBoundingClientRect().top + window.scrollY;
             const targetScrollY = Math.max(0, Math.round(headerDocTop - stickyTop));
             if (Math.abs(targetScrollY - window.scrollY) > 1) {

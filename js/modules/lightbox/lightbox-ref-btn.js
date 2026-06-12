@@ -239,6 +239,10 @@ export function createRefBtn(initialColor, onCloseLightbox) {
         clipWrapper.style.maxWidth = '100%';
       }
       positionPopover();
+      // popover 定位後 left+right 才確定最終寬度（手機 CSS 鎖 right）→ 此刻重量 chip 標題決定要不要 marquee。
+      // renderChips 當下只量過「內容寬度」popover（最長標題剛好等寬不觸發），打開縮成固定寬才會溢出（user 2026-06-11）。
+      // 桌面 popover 無 right、仍 shrink-to-content → 重跑等同 no-op，不影響桌面。
+      setupAllMarquees();
       openCloseAnimation = gsap.to(card, {
         yPercent: 0,
         duration: DUR.reveal,
@@ -246,6 +250,7 @@ export function createRefBtn(initialColor, onCloseLightbox) {
       });
     } else {
       positionPopover();
+      setupAllMarquees();
     }
   }
 

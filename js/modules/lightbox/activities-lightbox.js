@@ -151,6 +151,41 @@ function ensureLightbox() {
     resetZoom(true);
   });
 
+  // 縮圖列拖曳捲動（user 2026-06-12：無 chevron，拖 strip 移動、點選照常）。
+  // 只接滑鼠（觸控走原生 overflow 捲動）；位移 >5px 才視為拖曳（pointer capture + 結束吞掉該次 click，
+  // 避免拖完誤觸 thumb 切圖）；.is-dragging 由 lightbox.css 換 grabbing cursor。
+  let thumbDrag = null;
+  let thumbDragEndAt = 0; // 拖曳結束時間戳：只吞「緊接著」的 click（時限自動失效，避免 flag 殘留吃掉之後的正常點選）
+  thumbsEl.addEventListener('dragstart', (e) => e.preventDefault()); // 雙保險（img 已 draggable=false）
+  thumbsEl.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'mouse') return;
+    thumbDrag = { id: e.pointerId, startX: e.clientX, startLeft: thumbsEl.scrollLeft, moved: false };
+  });
+  thumbsEl.addEventListener('pointermove', (e) => {
+    if (!thumbDrag || e.pointerId !== thumbDrag.id) return;
+    const dx = e.clientX - thumbDrag.startX;
+    if (!thumbDrag.moved && Math.abs(dx) > 5) {
+      thumbDrag.moved = true;
+      thumbsEl.setPointerCapture(e.pointerId);
+      thumbsEl.classList.add('is-dragging');
+    }
+    if (thumbDrag.moved) thumbsEl.scrollLeft = thumbDrag.startLeft - dx;
+  });
+  const endThumbDrag = () => {
+    if (!thumbDrag) return;
+    if (thumbDrag.moved) thumbDragEndAt = performance.now();
+    thumbsEl.classList.remove('is-dragging');
+    thumbDrag = null;
+  };
+  thumbsEl.addEventListener('pointerup', endThumbDrag);
+  thumbsEl.addEventListener('pointercancel', endThumbDrag);
+  thumbsEl.addEventListener('click', (e) => {
+    if (performance.now() - thumbDragEndAt < 350) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+  }, true);
+
   // 點擊背景關閉（拖曳後抑制一次以避免 pan 結束在背景時誤關）
   lightboxEl.addEventListener('click', e => {
     if (dragMoved) { dragMoved = false; return; }
@@ -356,6 +391,20 @@ function setActualSize(animated = false) {
   zoomToScale(actualScale(), animated);
 }
 
+// 把第 index 個縮圖捲到「縮圖列水平中央」（仿 iPhone Photos scrubber）。
+// 用 getBoundingClientRect delta 調 scrollLeft（不靠 offsetLeft：thumb 的 offsetParent 是 .alb-thumbs-wrap 非 thumbsEl）；
+// 不用 el.scrollIntoView()：它會連帶捲動所有可捲祖先（可能動到整頁），這裡只想動 thumbsEl 自己。
+function centerActiveThumb(index, smooth) {
+  if (!thumbsEl) return;
+  const active = thumbsEl.querySelectorAll('.alb-thumb')[index];
+  if (!active) return;
+  const cRect = thumbsEl.getBoundingClientRect();
+  if (cRect.width === 0) return;   // display:none（rect 為 0）→ 跳過
+  const tRect = active.getBoundingClientRect();
+  const delta = (tRect.left + tRect.width / 2) - (cRect.left + cRect.width / 2);
+  thumbsEl.scrollTo({ left: thumbsEl.scrollLeft + delta, behavior: smooth ? 'smooth' : 'auto' });
+}
+
 // ── 渲染指定 index ──────────────────────────────────────────────
 function renderMain(index) {
   const item = mediaList[index];
@@ -461,6 +510,13 @@ function renderMain(index) {
     }
   });
 
+  // 縮圖列自動置中 active（仿 iPhone Photos：換圖時縮圖捲動跟著移）。
+  // 初次 render 時 lightbox 還是 display:none（rect 量不到）→ 交給 openLightbox 顯示後 instant 定位；
+  // 已開啟（swipe / chevron / thumb click）才在此 rAF 平滑置中。
+  if (lightboxEl.style.display !== 'none') {
+    requestAnimationFrame(() => centerActiveThumb(index, true));
+  }
+
   // 更新 chevron 狀態：只 1 個 media 時整顆隱藏（disabled+opacity 視覺上仍可見會誤導點擊）
   const singleMedia = mediaList.length <= 1;
   prevBtn.style.display = singleMedia ? 'none' : '';
@@ -547,6 +603,7 @@ export async function openLightbox(media, startIndex = 0, opts = {}) {
     const img = document.createElement('img');
     img.src = item.thumb;
     img.alt = '';
+    img.draggable = false; // 原生 image drag 會中斷 pointer 流，毀掉縮圖列的拖曳捲動
     img.style.cssText = 'height:100%;width:auto;display:block;object-fit:contain;';
     btn.appendChild(img);
     btn.addEventListener('click', () => {
@@ -573,6 +630,8 @@ export async function openLightbox(media, startIndex = 0, opts = {}) {
   lightboxEl.style.display = 'flex';
   requestAnimationFrame(() => {
     lightboxEl.style.opacity = '1';
+    // 開啟即把起始縮圖定位到中央（instant，不動畫）；renderMain 當下 lightbox 還 display:none 量不到 rect
+    centerActiveThumb(startIndex, false);
   });
   enterLightboxMode();
 }
@@ -582,16 +641,13 @@ export async function openLightbox(media, startIndex = 0, opts = {}) {
 // shell padLightboxTops 給 lightbox root 加 1.5rem(=24px) → main container padding-top = max(0, logoBottom + GAP - 24)
 // （topbar 已搬到 bottom-left，不再依賴 logo 位置；保留只給 main container paddingTop 用）
 function positionUIRelativeToLogo() {
-  // 手機（iPhone Photos 風格）：topbar 固定在頂部、logo 之下。
-  // 量手機 logo（#header-logo-mobile）底邊寫入 --alb-topbar-top（CSS 用它定位 .alb-topbar）；
-  // 大圖區 padding-top 推到 topbar 之下，避免大圖被頂部控制列蓋住。
+  // 手機（iPhone Photos 風格）：topbar（返回+ref+標題）改放畫面最底（縮圖列下方，見 lightbox.css @media）。
+  // 大圖區只需讓開頂部 header logo（不再為頂部 topbar 預留空間）；量手機 logo 底邊當 padding-top。
   if (window.innerWidth < 768) {
     const mlogo = document.querySelector('#header-logo-mobile');
     const mrect = mlogo ? mlogo.getBoundingClientRect() : null;
-    const topbarTop = (mrect && mrect.height) ? mrect.bottom + 12 : 88; // fallback ≈ 手機 header 高
-    lightboxEl.style.setProperty('--alb-topbar-top', `${topbarTop}px`);
-    // topbar pill 高 ~44 + 上下間距 → 大圖再讓開約 56px
-    if (mainContainerEl) mainContainerEl.style.paddingTop = `${topbarTop + 56}px`;
+    const logoBottom = (mrect && mrect.height) ? mrect.bottom : 76; // fallback ≈ 手機 header 高
+    if (mainContainerEl) mainContainerEl.style.paddingTop = `${logoBottom + 16}px`;
     return;
   }
   const logo = document.querySelector('#header-logo');

@@ -593,6 +593,87 @@ export function waitForHeroAnimDone(timeoutMs = 2500) {
   });
 }
 
+// ── 手機共用 hero（.hero-mobile，faculty/courses/activities/admission/curriculum）進退場 ──
+// 比照桌面 buildHeroTimeline 的節奏做手機鏡像（user 2026-06-12「手機 hero 也要有動畫，跟桌面一樣」）：
+//   - bg 圖 clip-path 隨機 4 方向 reveal（= 桌面 .hero-banner，DUR.reveal）
+//   - 4 chip 各包 overflow:hidden mask wrapper、隨機 4 方向滑入；titles 先、texts 接續，
+//     stagger 0.15 / duration 0.9 / overlap 0.4 同桌面常數
+//   - onComplete 發 signalHeroDone → deep-link 等的是「看得見的動畫」而非隱藏的桌面 timeline
+//   - 退場：chip 隨機方向滑出 + bg clip 收合（同桌面 playHeroExit 0.5s / stagger 0.06）
+// 同構參考：degree-show-data-loader.js setupHeroMobileEntrance（該頁 hero 由 async data 填字、
+// 不走 initPageModules 共用 init，自帶一份；含 rotation var 轉移與 paused+double-rAF 的踩坑紀錄）。
+function playMobileHeroEntrance() {
+  const mobile = /** @type {HTMLElement} */ (document.querySelector('.hero-mobile'));
+  const bg = /** @type {HTMLElement | null} */ (mobile.querySelector('.hero-mobile-bg'));
+  const titles = ['.hero-mobile-title', '.hero-mobile-title-cn']
+    .map(s => /** @type {HTMLElement | null} */ (mobile.querySelector(s))).filter(Boolean);
+  const texts = ['.hero-mobile-text-en', '.hero-mobile-text-cn']
+    .map(s => /** @type {HTMLElement | null} */ (mobile.querySelector(s))).filter(Boolean);
+  const chips = [...titles, ...texts];
+  if (!bg && chips.length === 0) { signalHeroDone(); return; }
+
+  // CSS `.hero-mobile-text > *` 對「直接子元素」套 rotate(--hero-mobile-rot) + fit-content：
+  // chip 包進 mask wrapper 後不再是直接子 → 把旋轉 var 與 margin 轉移到 wrapper
+  // （旋轉跟著 mask 走、chip 在 rotated mask 內滑動，同桌面 wrapper rotate + child slide 結構）
+  chips.forEach(chip => {
+    const wrapper = document.createElement('div');
+    wrapper.style.overflow = 'hidden';
+    const rot = chip.style.getPropertyValue('--hero-mobile-rot');
+    if (rot) {
+      wrapper.style.setProperty('--hero-mobile-rot', rot);
+      chip.style.removeProperty('--hero-mobile-rot');
+    }
+    const mt = getComputedStyle(chip).marginTop;
+    if (mt && mt !== '0px') {
+      wrapper.style.marginTop = mt;
+      chip.style.marginTop = '0';
+    }
+    chip.parentNode.insertBefore(wrapper, chip);
+    wrapper.appendChild(chip);
+  });
+
+  // 初始藏起要在同一個 task 內同步 set（hero-mobile-sync 剛把 visibility 打開、瀏覽器還沒 paint → 不閃）
+  const tl = gsap.timeline({ paused: true, defaults: { ease: EASE.enter }, onComplete: signalHeroDone });
+  if (bg) {
+    gsap.set(bg, { clipPath: BANNER_INSET_MAP[pickHeroDir()] });
+    tl.to(bg, { clipPath: 'inset(0% 0% 0% 0%)', duration: DUR.reveal, clearProps: 'clipPath' }, 0);
+  }
+  const ENTER_STAGGER = 0.15;
+  const ENTER_DURATION = 0.9;
+  const ENTER_OVERLAP = 0.4;
+  let at = 0;
+  let prevLen = 0;
+  let scheduled = false;
+  [titles, texts].forEach(group => {
+    if (group.length === 0) return;
+    if (scheduled) at = Math.max(0, at + (prevLen - 1) * ENTER_STAGGER + ENTER_DURATION - ENTER_OVERLAP);
+    group.forEach((chip, i) => {
+      gsap.set(chip, offsetFor(pickHeroDir()));
+      tl.to(chip, { xPercent: 0, yPercent: 0, duration: ENTER_DURATION, clearProps: 'transform' }, at + i * ENTER_STAGGER);
+    });
+    prevLen = group.length;
+    scheduled = true;
+  });
+  // paused + double-rAF 才 play：init 後同 task 的其餘頁面 init / 重排可能把首 paint 拖到 tween 中段，
+  // GSAP 時間制 → paint 出來時已跑一半＝「閃一下出來」（degree-show 2026-06-11 實測踩過）
+  requestAnimationFrame(() => requestAnimationFrame(() => tl.play()));
+
+  registerPageExit(() => {
+    if (typeof gsap === 'undefined') return Promise.resolve();
+    return new Promise(resolve => {
+      const out = gsap.timeline({ onComplete: resolve });
+      chips.forEach((chip, i) => {
+        out.fromTo(chip, { xPercent: 0, yPercent: 0 },
+          { ...offsetFor(pickHeroDir()), duration: 0.5, ease: EASE.exit, overwrite: true }, i * 0.06);
+      });
+      if (bg) {
+        out.fromTo(bg, { clipPath: 'inset(0% 0% 0% 0%)' },
+          { clipPath: BANNER_INSET_MAP[pickHeroDir()], duration: 0.5, ease: EASE.exit, overwrite: true }, 0);
+      }
+    });
+  });
+}
+
 // 每次 initHeroAnimation bump 一次；rAF 內檢查是否仍是當前 init（避免使用者快速連點時
 // 上一頁的 rAF 在新頁 DOM 上跑出錯位 wrap）
 let _heroInitSeq = 0;
@@ -647,6 +728,13 @@ export function initHeroAnimation() {
     const gridNoGsap = document.querySelector('.hero-rand-grid');
     if (gridNoGsap) applyOrBuildLayout(gridNoGsap);
     signalHeroDone();
+    return;
+  }
+
+  // 手機共用 hero：桌面 timeline 動的是 .hero-rand-grid 內元素（手機 display:none，動了也看不見）
+  // → 改跑 .hero-mobile-* 鏡像進退場（見 playMobileHeroEntrance），桌面整段不建構
+  if (window.innerWidth < 768 && document.querySelector('.hero-mobile')) {
+    playMobileHeroEntrance();
     return;
   }
 

@@ -332,9 +332,37 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
     // tab bar 沿用 activities-section-bar pattern → 走 setActiveNavBtn 提供 active 隨機色 + 旋轉
     if (window.innerWidth < 768) {
       const tabsRoot = document.getElementById('library-mobile-tabs');
-      panels.showPanel(initialTab, { reveal: true });
-      panels.onEntranceDone();
-      panels.handleHash();
+
+      // 手機進場（user 2026-06-12：原本 showPanel+onEntranceDone 同步跑完＝完全沒進場動畫）：
+      // 整個 section 4 方向 clip wipe（對齊桌面灰卡 clip 語彙；#library-card-main 自身的
+      // clip/transform/opacity 被 v5 mobile CSS !important 鎖死 → 裁外層 section 等效）
+      // → tab 鈕 clip reveal（同 activities section nav）→ panel chip/內容 wipe（playPanelReveal）
+      // → 完成才 onEntranceDone + handleHash（deep-link 等進場完才捲，對齊桌面 onEntranceDone 時序）
+      const librarySection = /** @type {HTMLElement | null} */ (document.querySelector('main#page-content > section'));
+      const tabInners = /** @type {HTMLElement[]} */ (tabsRoot ? [...tabsRoot.querySelectorAll('.anchor-nav-inner')] : []);
+      const LIB_CLIPS = ['inset(0% 0% 100% 0%)', 'inset(0% 0% 0% 100%)', 'inset(100% 0% 0% 0%)', 'inset(0% 100% 0% 0%)'];
+      const pickLibClip = () => LIB_CLIPS[Math.floor(Math.random() * LIB_CLIPS.length)];
+      const finishLibEntrance = () => {
+        panels.showPanel(initialTab, { reveal: true });
+        panels.onEntranceDone();
+        panels.handleHash();
+      };
+      if (typeof gsap !== 'undefined' && librarySection) {
+        panels.showPanel(initialTab, { reveal: false }); // 先掛 display、children 藏著等 wipe
+        // .anchor-nav-inner 有 CSS transition:all（hover 用）會追著 GSAP 每幀 clipPath 卡頓 → 動畫期間關掉
+        tabInners.forEach(inner => { inner.style.transition = 'none'; gsap.set(inner, { clipPath: pickLibClip() }); });
+        const libTl = gsap.timeline({ onComplete: finishLibEntrance });
+        libTl.fromTo(librarySection, { clipPath: pickLibClip() },
+          { clipPath: 'inset(0% 0% 0% 0%)', duration: DUR.slow, ease: EASE.enter, clearProps: 'clipPath' }, 0);
+        if (tabInners.length) {
+          libTl.to(tabInners, {
+            clipPath: 'inset(0% 0% 0% 0%)', duration: DUR.base, ease: EASE.enter, stagger: 0.02, clearProps: 'clipPath',
+            onComplete: () => tabInners.forEach(inner => { inner.style.transition = ''; }),
+          }, 0.2);
+        }
+      } else {
+        finishLibEntrance();
+      }
 
       // press/files/album panel 桌面結構是 2×2 grid：Year 標題在 top-left、year-picker 在 bottom-left（兩個獨立 grandchildren）
       // 手機要求「Year 標題跟 year-picker 是同一個 group」對齊 awards panel 樣式

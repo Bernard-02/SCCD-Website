@@ -83,8 +83,19 @@ const collapsedBySearch = new Set();
 // 有 type filter 的 panel（exhibitions / visits）只搜目前顯示的 container
 // 沒有 type filter 的 panel 搜整個 panel
 
+// hideYearHeader 渲染（permanent exhibitions / alumni gatherings 等）沒有 .list-year-group wrapper，
+// .list-year-items 自己就是頂層群組 → 一併納入；漏掉的話 search 永遠跳過這些 items
+// （symptom：Permanent tab 打不匹配的字 → items 留著沒被濾掉、同時又顯示 No Result）
+function getItemsContainer(group) {
+  return group.matches('.list-year-items') ? group : group.querySelector('.list-year-items');
+}
+
 function getVisibleYearGroups(panel) {
-  return [...panel.querySelectorAll('.list-year-group')].filter(g => {
+  const groups = [...panel.querySelectorAll('.list-year-group')];
+  panel.querySelectorAll('.list-year-items').forEach(c => {
+    if (!c.closest('.list-year-group')) groups.push(c);
+  });
+  return groups.filter(g => {
     let el = g.parentElement;
     while (el && el !== panel) {
       // inline style.display === 'none'（type filter 用這個隱藏 container）
@@ -105,7 +116,7 @@ function applyGenericSearch(panelId, query) {
 
   // 儲存原始 DOM 順序（第一次呼叫時記住）
   yearGroups.forEach(group => {
-    const container = group.querySelector('.list-year-items');
+    const container = getItemsContainer(group);
     if (container && !originalOrders.has(container)) {
       originalOrders.set(container, [...container.querySelectorAll('.list-item')]);
     }
@@ -118,7 +129,7 @@ function applyGenericSearch(panelId, query) {
       setSeparatorVisibility(/** @type {HTMLElement} */ (sep), true);
     });
     yearGroups.forEach(group => {
-      const container = group.querySelector('.list-year-items');
+      const container = getItemsContainer(group);
       const original = container ? originalOrders.get(container) : null;
       if (original) original.forEach(item => container.appendChild(item));
       const allItems = [...group.querySelectorAll('.list-item')];
@@ -141,7 +152,7 @@ function applyGenericSearch(panelId, query) {
   }
 
   yearGroups.forEach(group => {
-    const container = group.querySelector('.list-year-items');
+    const container = getItemsContainer(group);
     const allItems = container && originalOrders.has(container)
       ? originalOrders.get(container)
       : [...group.querySelectorAll('.list-item')];

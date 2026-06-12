@@ -52,7 +52,7 @@ export function initHorizontalAccordion() {
 // Hover 時非展開的卡片換成循環 HOVER_COLORS
 export function initRotatedAccordion(wrapper, { height = 600, animateEntry = false } = {}) {
   if (window.innerWidth < 768) {
-    initSingleAccordion(wrapper);
+    initColoredCardAccordion(wrapper);
     return;
   }
 
@@ -245,6 +245,71 @@ export function initRotatedAccordion(wrapper, { height = 600, animateEntry = fal
 
   wrapper.updateLayout = () => applyLayout(false);
   accordionWrappers.push(wrapper);
+}
+
+// ── 手機卡片版（colored-accordion，about resources）──────────────
+// 一張張旋轉卡片（±1~2°），預設全收合；點標題向下展開，再點收合（單開互斥）。
+// user 2026-06-11：取代舊的「全寬色塊 + 永遠開一個」單列版。
+// animateEntry：卡片 clip-path 由第一到最後依序揭露，全部就位後自動展開第一張（簡化版桌面 entry）。
+export function initColoredCardAccordion(wrapper, { animateEntry = false } = {}) {
+  if (!wrapper || accordionWrappers.includes(wrapper)) return;
+  accordionWrappers.push(wrapper);
+
+  const items = Array.from(wrapper.querySelectorAll('.accordion-item'));
+  if (!items.length) return;
+
+  let openItem = null;
+
+  function closeCard(item) {
+    gsap.to(item.querySelector('.accordion-body'), { height: 0, duration: DUR.medium, ease: EASE.move, overwrite: true });
+    item.classList.remove('active');
+    if (openItem === item) openItem = null;
+  }
+
+  function openCard(item) {
+    if (openItem && openItem !== item) closeCard(openItem);
+    gsap.to(item.querySelector('.accordion-body'), { height: 'auto', duration: DUR.medium, ease: EASE.move, overwrite: true });
+    item.classList.add('active');
+    openItem = item;
+  }
+
+  items.forEach(item => {
+    const mag = 1 + Math.random(); // 1~2°
+    item.style.transform = `rotate(${(Math.random() < 0.5 ? -mag : mag).toFixed(2)}deg)`;
+
+    gsap.set(item.querySelector('.accordion-body'), { height: 0 });
+    item.classList.remove('active');
+
+    // 綁 label 不綁整張卡：展開後點內文/圖片不應誤觸收合
+    const label = item.querySelector('.accordion-label');
+    (label || item).addEventListener('click', () => {
+      if (openItem === item) closeCard(item);
+      else openCard(item);
+    });
+  });
+
+  // 進場：clip-path 擦除（設在卡片本體 = local space 跟著旋轉，角不被切）第一→最後 stagger，
+  // 完成後若使用者還沒自己點開任何一張，自動展開第一張（user 2026-06-11「至少會打開一個」）。
+  // 無進場路徑（或 ScrollTrigger 缺席）也直接開第一張兜底，保證任何情況都至少開一張。
+  if (animateEntry && typeof ScrollTrigger !== 'undefined') {
+    gsap.set(items, { clipPath: 'inset(0% 100% 0% 0%)' });
+    ScrollTrigger.create({
+      trigger: wrapper,
+      start: 'top 80%',
+      once: true,
+      onEnter: () => {
+        gsap.to(items, {
+          clipPath: 'inset(0% 0% 0% 0%)',
+          duration: DUR.slow,
+          ease: EASE.enter,
+          stagger: 0.1,
+          onComplete: () => { if (!openItem && items[0]) openCard(items[0]); },
+        });
+      },
+    });
+  } else if (items[0]) {
+    openCard(items[0]);
+  }
 }
 
 // ── 標準版（其他 accordion）──────────────────────────────────────

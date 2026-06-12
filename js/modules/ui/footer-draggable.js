@@ -17,7 +17,7 @@
 
 // scatter items 用 4-direction 雙軸自己處理（不用 playClipReveal 的單軸）；
 // 規章區 4 連結改用 setupClipReveal 各自包 overflow:clip 遮罩做獨立 clip-reveal（見 playFooterExit）
-import { setupClipReveal } from './scroll-animate.js';
+import { setupClipReveal, playClipReveal, playRevealExit } from './scroll-animate.js';
 import { awaitLayoutReady } from './await-layout-ready.js';
 import { DUR, EASE } from './motion.js';
 // 沿用 header bars 的 clip-path 收/展（user 2026-06-07：footer logo 隱藏要跟 header logo 同法、不用 opacity）
@@ -482,10 +482,11 @@ function bindHoverPause(anchors) {
 }
 
 export async function initFooterScatter(scope) {
-  if (window.innerWidth < 768) return;
-
   const footer = scope || document.querySelector('footer.footer-shell, footer#site-footer-static');
   if (!footer) return;
+
+  // 手機：footer 簡化成線性堆疊 → 不跑 scatter，改用招牌 clip-reveal 進場（退場/復位見下方手機分支）
+  if (window.innerWidth < 768) { initFooterMobileReveal(footer); return; }
 
   const area = footer.querySelector('.footer-random');
   if (!area) return;
@@ -552,6 +553,64 @@ export async function initFooterScatter(scope) {
 let _footerExited = false;
 let _footerExitResolve = null;
 
+// ════════════════════════════════════════════════════════════════
+// 手機 footer 進退場（user 2026-06-11）
+//
+// 桌面 footer 是 scatter（上方主體）；手機 footer 簡化成線性堆疊 → 不散佈，改用招牌 clip-reveal 統一
+// 處理進退場：各 block（logo / 4 聯絡卡 / 2 學校連結 / social row / 規章區）yPercent 沉出/升入，
+// 各自 overflow:clip 遮罩（沿用 scroll-animate.js 的 setupClipReveal/playClipReveal/playRevealExit）。
+// 退場接 router 的 playFooterExit、復位接 resetFooterAfterExit（與桌面共用 _footerExited flag）。
+// ════════════════════════════════════════════════════════════════
+
+// clip-reveal 的 block（querySelectorAll 回 DOM 順序：logo → fax → tel → office → email → 2 link → social → privacy）
+const MOBILE_BLOCK_SELECTOR =
+  '.footer-logo-area, .footer-fax, .footer-tel, .footer-office, .footer-email, .footer-link-item, .footer-social, .footer-privacy';
+
+let mobileBlocks = null;  // 手機 ctx：clip-reveal block 元素（footer 持久存在故跨換頁有效）
+
+function getMobileFooter() {
+  return (mobileBlocks && mobileBlocks.length) ? mobileBlocks[0].closest('footer') : null;
+}
+
+// footer 是否在視窗內：點 footer 連結離頁才退場；捲在上方點 header / 別處連結 → footer 不在畫面 → 不跑
+function footerInViewport(footer) {
+  const r = footer.getBoundingClientRect();
+  const vh = window.innerHeight || 0;
+  return r.bottom > 0 && r.top < vh;
+}
+
+function initFooterMobileReveal(footer) {
+  if (typeof gsap === 'undefined') return;
+  const blocks = Array.from(footer.querySelectorAll(MOBILE_BLOCK_SELECTOR));
+  if (!blocks.length) return;
+  mobileBlocks = blocks;
+  setupClipReveal(blocks);                          // 各包 overflow:clip 遮罩 + yPercent:100 藏好
+  playClipReveal(blocks, { stagger: { each: 0.08 } });
+  // 標記 init 完成 → router 換頁的「broken init」recovery（靠缺 .footer-anchor 偵測，手機不建 anchor）不誤重跑、
+  // footer 才能像桌面一樣持久（否則每次換頁重抓 footer.html 重建，clip-reveal ctx 被打斷）。
+  footer.dataset.footerMobileInit = '1';
+}
+
+function playFooterMobileExit() {
+  if (!mobileBlocks || !mobileBlocks.length) return Promise.resolve();
+  const footer = getMobileFooter();
+  if (!footer || footer.offsetParent === null || !footerInViewport(footer)) return Promise.resolve();
+  _footerExited = true;
+  // 全部 block 同時沉出（stagger 0）、0.5s，完全對齊桌面 footer exit（user 2026-06-11：要跟桌面一致）
+  return playRevealExit(mobileBlocks, { stagger: 0, duration: FOOTER_EXIT_DUR });
+}
+
+function resetFooterMobileAfterExit() {
+  if (!mobileBlocks || !mobileBlocks.length) { _footerExited = false; return; }
+  const footer = getMobileFooter();
+  // 隱藏頁（generate/library/atlas）footer display:none → 留著 flag，下次顯示 footer 的頁再復位（避免 block 卡在沉出態）
+  if (!footer || footer.offsetParent === null) return;
+  _footerExited = false;
+  // footer 已 scrollToTop 捲離視窗 → 復位不被看到，純把 block 從沉出態 yPercent:100 升回
+  gsap.fromTo(mobileBlocks, { yPercent: 100 },
+    { yPercent: 0, duration: DUR.reveal, ease: EASE.enter, stagger: 0.08, overwrite: 'auto', clearProps: 'transform' });
+}
+
 // 散佈 items 以外的 footer 元素：它們不在 scatter 系統內，退場時若不動會「凍在畫面上」顯得只散了一半。
 //   - 左側 Lottie logo（.footer-logo-area）：用 header bars 同款 clip-path 收/展（animateHeaderHide/Show），
 //     跟 header logo 隱藏做法一致（user 2026-06-07：logo chrome 一律 clip-path、不用 opacity）。
@@ -572,7 +631,9 @@ function getFooterPrivacyLinks(area) {
 }
 
 export function playFooterExit() {
-  if (typeof gsap === 'undefined' || !shuffleCtx) return Promise.resolve();
+  if (typeof gsap === 'undefined') return Promise.resolve();
+  if (window.innerWidth < 768) return playFooterMobileExit();
+  if (!shuffleCtx) return Promise.resolve();
   const { area, items } = shuffleCtx;
   if (!area || area.offsetParent === null || !items.length) return Promise.resolve();
   // 只在 footer 真的在視窗內才退場（捲在上方點 header 連結 → footer 不在畫面 → 不跑、不打斷 shuffle）
@@ -616,7 +677,9 @@ export function playFooterExit() {
 
 export function resetFooterAfterExit() {
   if (!_footerExited) return;
-  if (typeof gsap === 'undefined' || !shuffleCtx) { _footerExited = false; return; }
+  if (typeof gsap === 'undefined') { _footerExited = false; return; }
+  if (window.innerWidth < 768) { resetFooterMobileAfterExit(); return; }
+  if (!shuffleCtx) { _footerExited = false; return; }
   const { area, anchors, obstacles, items, fallbackLayout } = shuffleCtx;
   // footer 在新頁是隱藏頁（generate/library/atlas）→ 留著 flag，下次顯示 footer 的頁再重置，避免 items 卡隱藏
   if (!area || area.offsetParent === null) return;
