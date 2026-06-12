@@ -26,8 +26,11 @@
     transition: color var(--transition-fast);
   }
 
-  /* slide-in（faculty / courses）或 lightbox 開啟時，header overlay 變黑底 → icon 統一白色 */
-  html.has-slide-in .theme-toggle-btn,
+  /* slide-in（faculty / courses）或 lightbox 開啟時，header overlay 變黑底 → icon 統一白色。
+     只掛 body.lightbox-open（slide-in 也走 enterLightboxMode 必有此 class）：lightbox-open 在「關閉當下」
+     就移除、has-slide-in 要等收場 timeline 跑完（~0.8s）才移除——若也掛 has-slide-in，關閉時
+     animateHeaderShow 已開始 reveal mode btn，icon 仍白 + 圓底白 = 看到「空白鈕、icon 之後才浮現」
+     （user 2026-06-12 手機報；桌面同理）。 */
   body.lightbox-open .theme-toggle-btn {
     color: #fff;
   }

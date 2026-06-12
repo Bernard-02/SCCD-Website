@@ -242,6 +242,15 @@
  * mobile-menu.js 用 GSAP stagger fade-in 進場（y: 20 → 0、opacity 0 → 1）
  * 預設 color 繼承 body 文字色（mode-standard 黑 / mode-inverse 白 / mode-color theme-fg，後兩者在 themes/*.css 已覆寫）
  * EN/ZH 並列：EN 走 semibold + 主字級、ZH 較細較淺，視覺主副區分但兩語都看得清 */
+
+/* menu 開著時手指在面板上滑動不可「鏈」到背後頁面（iOS：body overflow:hidden 不鎖背景，
+ * 面板內容不滿一屏時 overscroll 會把背景捲走 → 關 menu 發現頁面被捲回 hero，user 2026-06-12 報）。
+ * contain 斷開 scroll chaining：面板自己捲到底就停，不外溢給 body */
+.mobile-nav,
+.mobile-nav nav {
+  overscroll-behavior: contain;
+}
+
 .mobile-nav-en,
 .mobile-nav-zh {
   /* EN/ZH 同色同 weight，僅 HTML 兩 span 間的 whitespace 區隔（user 2026-05-25 拍板「一個空格即可」） */

@@ -138,14 +138,42 @@
  * 共用 #activities-lightbox（activities 海報 + library 報導圖片）手機改版：
  *   - 拿掉左右 chevron + 縮放控制（改用左右 swipe 換圖，見 activities-lightbox.js）
  *   - 黑底「蓋滿整個畫面（含 header 區、無頂部白帶）」＝靠 header 透明，**仍維持 bg-black/90 半透明（與桌面一致）**
- *   - 返回/ref/標題 topbar 從底部左下移到頂部（header/logo 之下，top 由 JS 設 --alb-topbar-top）
+ *   - 返回/ref/標題 topbar 沉到畫面最底（縮圖列下方；user 2026-06-10 二改，原早版放頂部）
  * 桌面（≥768）完全不受影響。*/
+/* 縮圖列藏原生 scrollbar（user 2026-06-12「很醜」）：捲動靠拖曳（桌面）/ 觸控（手機），不需要視覺軌道 */
+#activities-lightbox .alb-thumbs {
+  scrollbar-width: none;
+}
+#activities-lightbox .alb-thumbs::-webkit-scrollbar {
+  display: none;
+}
+
+/* 桌面縮圖列：max-width 讓開兩側絕對定位區（左 topbar back+ref+title ≤ ~550px、右 zoom controls），
+   title 永不疊到縮圖（user 2026-06-12）；縮圖無 chevron，超出改用拖曳捲動（activities-lightbox.js 綁
+   pointer 拖曳 + 拖過吞 click，.is-dragging 換 grabbing cursor）。!important 蓋 JS template 的 inline max-width */
+@media (min-width: 768px) {
+  #activities-lightbox .alb-thumbs {
+    max-width: min(calc(100vw - 1120px), 960px) !important;
+    cursor: var(--cursor-grab);
+  }
+  #activities-lightbox .alb-thumbs.is-dragging {
+    cursor: var(--cursor-grabbing);
+  }
+}
+
 @media (max-width: 767px) {
   /* 拿掉左右切換 chevron 與縮放控制（!important 蓋 JS 設的 inline display）*/
   #activities-lightbox .alb-prev,
   #activities-lightbox .alb-next,
   #activities-lightbox .alb-zoom-controls {
     display: none !important;
+  }
+
+  /* 大圖區左右 padding 從 px-16(64px) 縮到 container-padding(24px)，box 往兩側擴大（user 2026-06-10）。
+     桌面 px-32 是為了讓 stage 邊停在 chevron 內側；手機無 chevron 不需要這留白 → 對齊全站邊距／返回鍵 left */
+  #activities-lightbox .alb-main-container {
+    padding-left: var(--container-padding, 1.5rem) !important;
+    padding-right: var(--container-padding, 1.5rem) !important;
   }
 
   /* lightbox 開啟時 header 透明：library 手機給 header 加了 var(--theme-bg)（白）擋 sticky tab（library.css），
@@ -156,14 +184,117 @@
     background: transparent !important;
   }
 
-  /* topbar（返回 + ref + 標題）移到頂部：position:fixed 相對 viewport，top 由 JS 量 logo 底邊寫入
-     --alb-topbar-top（fallback 5.5rem ≈ 手機 header 高）。!important 蓋 HTML inline 的 absolute/bottom/translateY 定位 */
+  /* 縮圖再縮小（user 2026-06-10）；仍是橫向可點縮圖列（btn 高由 JS inline 48px 設，故 !important 蓋）。桌面 48px 不變 */
+  #activities-lightbox .alb-thumb {
+    height: 36px !important;
+  }
+
+  /* topbar（返回 + ref + 標題）沉到畫面最底（user 2026-06-10 二改）：
+     thumbs-wrap 改直向、topbar order 排在縮圖列之後 → 整組落在底部。
+     topbar 回 flow（position:static）並左對齊 container-padding（同返回鍵慣例）。 */
+  #activities-lightbox .alb-thumbs-wrap {
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-md);
+  }
+  #activities-lightbox .alb-thumbs { order: 1; }
   #activities-lightbox .alb-topbar {
-    position: fixed !important;
-    left: var(--container-padding, 1.5rem) !important;
-    top: var(--alb-topbar-top, 5.5rem) !important;
+    position: static !important;
+    order: 2;
+    left: auto !important;
+    top: auto !important;
     bottom: auto !important;
     transform: none !important;
+    /* stretch + 左右各留 container-padding：topbar 橫跨整個可用寬度，title 才有空間長到右 padding */
+    align-self: stretch !important;
+    margin-left: var(--container-padding, 1.5rem);
+    margin-right: var(--container-padding, 1.5rem);
     align-items: center !important;
   }
+
+  /* title pill 延伸到畫面右 padding（user 2026-06-11）：title 吃掉 back/ref 之外的剩餘空間（flex:1），
+     pill 解除 40vw/360px 上限改 100% → 短標題仍 shrink-to-fit、長標題撐到右 padding 再 marquee。
+     用 flex 而非 hardcode calc：無 ref btn（該 media 無 references）時剩餘寬度自動補上。 */
+  #activities-lightbox .alb-title {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  #activities-lightbox .alb-title-pill {
+    max-width: 100% !important;
+  }
+
+  /* ref 展開卡片：手機撐滿「ref btn 左緣 → 畫面右 padding」寬度（user 2026-06-10）。
+     left 仍由 lightbox-ref-btn.js 對齊 ref btn 左緣；right = container-padding − popover padding(32px)
+     → 負值代表 popover 透明 padding 邊略超出 viewport（無視覺影響），card 右緣正好落在 viewport − container-padding。
+     配 stack stretch + card width:100% 讓卡片真的撐滿（桌面維持 shrink-to-fit）。只動圖片燈箱、不碰 PDF viewer 的 ref。 */
+  #activities-lightbox .lightbox-ref-popover {
+    right: calc(var(--container-padding, 1.5rem) - 32px) !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+  #activities-lightbox .lightbox-ref-stack { align-items: stretch; }
+  #activities-lightbox .lightbox-ref-card { width: 100%; }
+
+  /* ── PDF viewer 手機版（user 2026-06-10 二改：一次一頁 + 上下滑換頁 + 雙指 pinch，控制列維持底部）──
+     桌面維持「單頁 + chevron + transform 縮放 + 底部控制列」完全不動；以下只 <768px 生效。
+     翻頁/縮放/平移全在 library-viewer.js 的 touch handler（沿用桌面 zoomAt / clampPan / turnPage），CSS 不碰渲染。 */
+
+  /* 拿掉左右翻頁 chevron 與縮放控制（手機改用上下 swipe 換頁 + 雙指 pinch）。!important 蓋 JS 設的 inline */
+  #pdf-viewer-modal #pdf-prev-btn,
+  #pdf-viewer-modal #pdf-next-btn,
+  #pdf-viewer-modal .pdf-zoom-controls {
+    display: none !important;
+  }
+
+  /* 大圖區左右 padding 縮到 container-padding（無 chevron 不需留白，單頁更寬）；上 padding 由 JS 推到手機 logo 下 */
+  #pdf-viewer-modal .pdf-main-row {
+    padding-left: var(--container-padding, 1.5rem) !important;
+    padding-right: var(--container-padding, 1.5rem) !important;
+  }
+
+  /* 底部 bar 加高（桌面 108px）：頁碼錨 bar 頂、按鈕錨 bar 底 → bar 變高兩者 gap 變大，
+     頁碼不再貼按鈕（user 2026-06-11「數字太貼近 btn、再往上一點」） */
+  #pdf-viewer-modal .pdf-bottom-bar {
+    min-height: 140px !important;
+  }
+
+  /* 頁碼移到「按鈕上方、畫面置中」（user 2026-06-11）：桌面是 flow 置中、手機改 absolute 貼底部 bar 頂端置中 */
+  #pdf-viewer-modal #pdf-page-info {
+    position: absolute !important;
+    top: var(--spacing-sm) !important;
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) !important;
+  }
+
+  /* back / ref / title 沉到底部 bar 底端（桌面是 top:50% 垂直置中）：頁碼在它們「上方」置中。
+     transform:none 清外層 translateY，pill 旋轉在內層（.pdf-back-pill / .pdf-title-pill）不受影響。 */
+  #pdf-viewer-modal .pdf-back-btn,
+  #pdf-viewer-modal .pdf-ref-btn,
+  #pdf-viewer-modal .pdf-title {
+    top: auto !important;
+    bottom: var(--spacing-sm) !important;
+    transform: none !important;
+  }
+
+  /* 標題 pill 從現位置（ref 右側，left 由 JS 設）一路撐到右 padding（user 2026-06-11）；
+     pill 填滿 outer，超寬文字由既有 setupTitleMarquee 跑馬燈處理（不再被 min(40vw) 切短） */
+  #pdf-viewer-modal .pdf-title {
+    right: var(--container-padding, 1.5rem) !important;
+  }
+  #pdf-viewer-modal .pdf-title .pdf-title-pill {
+    max-width: none !important;
+    width: 100% !important;
+  }
+
+  /* ref「展開卡片」撐滿「ref btn 左緣 → 畫面右 padding」（鏡像圖片燈箱 user 2026-06-10；只動展開卡，btn 仍小 pill）。
+     left 由 lightbox-ref-btn.js 對齊 ref btn 左緣；right = container-padding − popover padding(32px)
+     → 負值代表透明 padding 邊略超出 viewport（無視覺影響），card 右緣正好落在 viewport − container-padding。 */
+  #pdf-viewer-modal .lightbox-ref-popover {
+    right: calc(var(--container-padding, 1.5rem) - 32px) !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+  #pdf-viewer-modal .lightbox-ref-stack { align-items: stretch; }
+  #pdf-viewer-modal .lightbox-ref-card { width: 100%; }
 }

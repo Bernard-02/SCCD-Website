@@ -268,6 +268,244 @@
   /* +5% from 440 */
 }
 
+/* ===== Degree Show Detail — sub-event tab 標題 marquee =====
+   結構由 degree-show-data-loader.js 產出：.dsd-tab-line（overflow window）> .dsd-tab-marquee-inner（跑動內容）。
+   applyMarqueeOverflow（共用模組）偵測溢出 → line 加 .is-overflow + inner 換兩份 .marquee-copy +
+   設 --marquee-distance/duration。只有手機 btn 有 max-width（下方 media block）會溢出 → 桌面永遠靜態。
+   溢出時自動跑不需 hover（手機無 hover；同 courses 手機規則）。 */
+
+.dsd-tab-line {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.dsd-tab-marquee-inner {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.dsd-tab-marquee-inner > .marquee-copy {
+  display: inline-block;
+  padding-right: 3em;
+}
+
+.dsd-tab-line.is-overflow .dsd-tab-marquee-inner {
+  animation: dsd-tab-marquee var(--marquee-duration, 8s) linear infinite;
+}
+
+@keyframes dsd-tab-marquee {
+  0%   {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(var(--marquee-distance, -50%));
+  }
+}
+
+/* 桌面：子展覽 tab 固定上限寬度；英文太長 → applyMarqueeOverflow 偵測 .dsd-tab-line 溢出自動跑 marquee
+   （手機另有 0.75vw 上限，在下方 max-width:767 media block）。user 2026-06-12 */
+
+@media (min-width: 768px) {
+  .event-gallery-section .class-division-btn {
+    max-width: 18rem;
+  }
+}
+
+/* ===== About Page — 手機版專屬調整（桌面不受影響） ===== */
+
+@media (max-width: 767px) {
+  /* grid-20 手機所有子元素 col-span-full 單欄堆疊；19 個 column-gap(20px=380px) 超過容器(~345px)
+     → col-span-full 區塊被撐成 380px 溢出右側（底色看起來偏右）。column-gap 歸零讓區塊 = 容器寬 → 底色置中。
+     只動 column-gap：row-gap(垂直堆疊間距) 不受影響。 */
+
+  #about-content-wrapper .grid-20 {
+    -moz-column-gap: 0;
+         column-gap: 0;
+  }
+
+  /* 理念 EN/ZH 兩塊、Class 文字↔圖片 的手機堆疊間距改用父層 row-gap（不再各自帶 mb-lg），
+     最後一塊不會殘留 trailing margin。值對齊原 mb-lg(32px)。 */
+
+  #overview .grid-20,
+  .class-info-panel .grid-20 {
+    row-gap: var(--spacing-lg);
+  }
+
+  /* 理念段落：手機由 h5(19.2px) 改成 p1(16px) */
+
+  #overview h5 {
+    font-size: var(--font-size-p1);
+  }
+
+  /* Works 文字卡片（手機 text-在上 video-在下）：各 panel 描述長短不一 → 影片起始位置不齊、cross-slide 切換時跳動（落差）。
+     桌面是 text-左 video-右（同 row 自然對齊），手機改給文字卡固定 min-height → 影片都從同一位置開始、切換不跳。 */
+
+  .class-works-panel .grid-20 > div:first-child {
+    min-height: 8.25rem;
+  }
+
+  /* Class 圖片（slideshow 3 張絕對定位）— 全部 scope 在 .class-info-panel，
+     避免影響共用 .division-images/.class-img 的 degree-show。
+     1. about 的 .division-images 跟 degree-show 共用 .works-container class，被 cards.css 手機
+        works-container 規則套上 display:flex + overflow:auto → 旋轉圖被裁切；這裡還原 block + overflow:visible。
+     2. 圖片垂直置中（原 JS 設 top:70% 偏下；!important 蓋過 gsap inline）。
+     3. 整體縮小 + 收緊容器高度。 */
+
+  .class-info-panel .division-images {
+    display: block !important;
+    overflow: visible !important;
+    min-height: 280px;
+  }
+
+  .class-info-panel .class-img {
+    top: 50% !important;
+    max-width: 200px;
+  }
+
+  .class-info-panel .class-img.class-img--landscape {
+    max-width: 280px;
+  }
+
+  /* ===== Degree Show Detail — 手機版專屬（桌面不受影響） ===== */
+
+  /* 描述段落：手機由 h5 縮成 p1，對齊 about #overview h5 的手機縮排 */
+
+  .dsd-desc {
+    font-size: var(--font-size-p1);
+  }
+
+  /* grid-20 手機 19 個 column-gap(20px=380px) 超過容器寬(~342px) → col-span-full 內容被撐爆
+     溢出右緣（描述文字 / 字卡直接貼到 viewport 右邊、沒有右 padding）。column-gap 歸零 = 區塊回容器寬。
+     同 about #about-content-wrapper 修法；涵蓋 desc / events / tab row / event-extra-panel 全部 grid-20。 */
+
+  #dsd-desc-section .grid-20,
+  .event-gallery-section .grid-20 {
+    -moz-column-gap: 0;
+         column-gap: 0;
+  }
+
+  /* Hero title 卡片靠底 + 圖不裁切：bg 維持共用 .hero-mobile-bg 的 4/5.5 natural aspect（不蓋 cover），
+     hero-mobile 高度收斂到圖片底緣 = 180px(圖 top) + 108vw×5.5/4(圖高 148.5vw) + 1.5rem(旋轉 -5° 下緣
+     突出 ~17px 的 buffer，免得圖角戳出去蓋到下一個白底 section)；flex justify-end 把字卡推到底=疊圖片下緣。
+     section 手機無固定高（HTML 只給 md:h-screen）→ 高度由這裡決定。scope [data-hero-title-last] 只本頁。 */
+
+  [data-hero-title-last] .hero-mobile {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-height: calc(180px + 148.5vw + 1.5rem);
+  }
+
+  /* 年份 chip 字級 h6（user 2026-06-11）：hero.css 對 .hero-mobile-text-en 設 p1（@layer components）、
+     typography 對 h6 tag 設 h6（@layer base），跨 layer cascade 不直觀 → 本頁 scope 用 unlayered 規則釘死 */
+
+  [data-hero-title-last] .hero-mobile-text-en {
+    font-size: var(--font-size-h6);
+  }
+
+  /* 子展覽 tab：上限 = 容器內容寬的 3/4（user 2026-06-11：讓右邊下一顆露出來，才知道可以往右滑），
+     超長 title 交給 marquee 跑（applyMarqueeOverflow + 上方全域規則） */
+
+  .event-gallery-section .class-division-btn {
+    max-width: calc((100vw - 2 * var(--container-padding)) * 0.75);
+  }
+
+  /* exhibition 全寬 gallery：手機縮小（degree-show-gallery.js 手機改 4-slot/34vw 幾何），容器高度跟著收 */
+
+  .event-gallery-section .division-images--degree-show {
+    min-height: 280px;
+  }
+
+  /* ref-based event（forum/workshop）slideshow：手機也全寬（負 margin 把容器延伸到 viewport 兩邊，
+     vw slot 定位才對齊 viewport）；圖片幾何跟 exhibition 同一套（4-slot/34vw，JS 傳 opts 給
+     createClassImagesSlideshow），不再套 about 200/280 cap。
+     不設 overflow:hidden（旋轉圖不被裁）— 橫向溢出由 html/body overflow-x:clip 兜住不讓整頁 pan。 */
+
+  .event-gallery-section .division-images:not(.division-images--degree-show) {
+    min-height: 280px;
+    margin-left: calc(-1 * var(--container-padding));
+    margin-right: calc(-1 * var(--container-padding));
+  }
+
+  /* top 50%：模組預設 top:70%（about 版面偏下），全寬 strip 要垂直置中（同 exhibition） */
+
+  .event-gallery-section .division-images:not(.division-images--degree-show) .class-img {
+    top: 50% !important;
+  }
+
+  /* 説明文字卡 [data-class-hl] padding：手機原本 !important 蓋成 0.8em/1em（偏大、跟 tab/nav btn 不一致）→
+     移除此 override，改由 JS inline 統一 6px 8px 5px（= 全站 nav btn / .class-division-btn 標準，桌機手機一致）。user 2026-06-11 */
+
+  /* 子展覽 section 橫向溢出就地裁切：slideshow 4-slot 第 4 格 ~103vw + 兩側 bleed 會溢出 viewport，
+     原本只靠 html/body overflow-x:clip 兜（SPA/某些情境可能沒套上 → 整頁可左右 pan）。
+     在 section 自身 clip（只裁 x、不建 scroll container、不破 sticky）＝就地兜住、不依賴全域 clip。user 2026-06-11 */
+
+  .event-gallery-section {
+    overflow-x: clip;
+  }
+
+  /* Mobile 分組導覽 pill 列：水平 scroll，兩側負 margin 延伸到 viewport 邊、隱藏捲軸；
+     overflow-y:clip 讓 active pill 旋轉投影不被裁（py 在 HTML 給 clearance） */
+
+  #mobile-division-nav {
+    margin-left: calc(-1 * var(--container-padding));
+    margin-right: calc(-1 * var(--container-padding));
+    padding-left: var(--container-padding);
+    padding-right: var(--container-padding);
+    overflow-y: clip;
+    scrollbar-width: none;
+  }
+
+  #mobile-division-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Pill 配色對齊桌面 .class-division-btn（不要 .section-nav-btn 預設的白底半透明字）：
+     inactive = theme-fg 底 / theme-bg 字（standard 黑底白字、inverse 白底黑字）。
+     active 維持 accent 底（setActiveNavBtn inline）+ 黑字（buttons.css .section-nav-btn.active）。
+     !important：蓋過 inverse.css 的 .section-nav-btn 一般 theme 規則（那條帶 !important）。
+     mode-color 的 strict B/W 對齊在 color.css。 */
+
+  #mobile-division-nav .section-nav-btn:not(.active) .anchor-nav-inner {
+    background: var(--theme-fg) !important;
+    color: var(--theme-bg) !important;
+  }
+
+  /* Design Fundamental pill（works-only 分組）：預設收起，捲到 works 區（#mobile-division-nav.is-works-context）才展開，
+     讓使用者在 works 區點得到（對齊桌面 .class-division-bfa-wrap 行為）。收起時負 margin 不佔 gap。
+     收合用 clip-path（不用 overflow:hidden）——inset 四邊留 -12px 給 active pill 旋轉 clearance，避免旋轉角被裁切。 */
+
+  #mobile-division-nav .mobile-division-btn--bfa {
+    max-width: 0;
+    pointer-events: none;
+    margin-right: calc(-1 * var(--spacing-md));
+    clip-path: inset(-12px calc(100% + 12px) -12px -12px);
+    transition: max-width var(--dur-medium) var(--ease-standard),
+                margin-right var(--dur-medium) var(--ease-standard),
+                clip-path var(--dur-medium) var(--ease-standard);
+  }
+
+  #mobile-division-nav.is-works-context .mobile-division-btn--bfa {
+    max-width: 320px;
+    pointer-events: auto;
+    margin-right: 0;
+    clip-path: inset(-12px -12px -12px -12px);
+  }
+
+  /* BFA 學士班 label（mobile）：桌面是 absolute 浮在 btn 上方，mobile 改 in-flow（flex-col group 內、pill 上方），
+     才不會被 nav 的 overflow-y 裁掉。底色/字色沿用 .class-group-label 基底（theme-fg/theme-bg；mode-color strict B/W 由 color.css 處理）。 */
+
+  #mobile-division-nav .class-group-label {
+    position: static;
+    left: auto;
+    bottom: auto;
+    margin-bottom: var(--spacing-xs);
+  }
+}
+
 /* 2. Layer Imports */
 
 /* Base */
@@ -504,6 +742,15 @@ body.overflow-hidden #custom-scrollbar-thumb {
  * mobile-menu.js 用 GSAP stagger fade-in 進場（y: 20 → 0、opacity 0 → 1）
  * 預設 color 繼承 body 文字色（mode-standard 黑 / mode-inverse 白 / mode-color theme-fg，後兩者在 themes/*.css 已覆寫）
  * EN/ZH 並列：EN 走 semibold + 主字級、ZH 較細較淺，視覺主副區分但兩語都看得清 */
+
+/* menu 開著時手指在面板上滑動不可「鏈」到背後頁面（iOS：body overflow:hidden 不鎖背景，
+ * 面板內容不滿一屏時 overscroll 會把背景捲走 → 關 menu 發現頁面被捲回 hero，user 2026-06-12 報）。
+ * contain 斷開 scroll chaining：面板自己捲到底就停，不外溢給 body */
+
+.mobile-nav,
+.mobile-nav nav {
+  overscroll-behavior: contain;
+}
 
 .mobile-nav-en,
 .mobile-nav-zh {
@@ -759,8 +1006,11 @@ body.overflow-hidden #custom-scrollbar-thumb {
 
   .list-header.active {
     position: sticky;
-    top: 6rem;
-    /* 手機固定 header 底邊 ~92px（playwright 量），6rem(96px) 清掉它留 ~4px 縫 */
+    /* 8rem(128px) 釘點：手機 logo SVG 底邊 ~110px（playwright 量，比 header box 92px 還低 ~18px），
+       6rem(96px) 只清 header box 不清 logo → 釘住的 title 上緣被 logo 蓋（user 2026-06-10）。
+       8rem 清掉 logo 留 ~18px 縫，且 128px == pt-6xl 手機 padding → blocker 高度同改 8rem 正好填滿不位移。
+       ⚠️ 此值必須與 .list-mobile-header-blocker 的 height/margin-top 及 list-accordion.js getListStickyTop 手機值同步 */
+    top: 8rem;
     z-index: 5;
   }
 
@@ -781,15 +1031,28 @@ body.overflow-hidden #custom-scrollbar-thumb {
        96px 不額外推開內容（下方 .site-container 起點不變），又不在未 pin 時與 filter bar 重疊。
      background:var(--theme-bg)：跟 section bg 同步 mode（standard 白 / inverse 黑），對齊 admission 桌面
        .admission-scroll-mask 做法；需進 typography.css mode-switch whitelist 才不會切 mode 時 snap 露色。
-     桌面零影響：HTML 上 md:hidden、此規則也只在手機 @media。 */
+     桌面零影響：HTML 上 md:hidden、此規則也只在手機 @media。
+
+     ⚠️ 只在「有 list-header 釘住」時顯示（list-accordion.js IO 給 section 加 .list-has-pinned-header）：
+     blocker 永遠開的話，往上捲經過 band 的 section nav / filter btn 上半會被白帶切掉（user 2026-06-10 報，
+     activities/admission 皆然）。但 nav 在 band 內時＝沒有 item 釘住（nav 跟第一個 item 之間有內容墊開，
+     item 釘住時 nav 已捲出畫面）→ 用「釘住才顯示」精準避開：nav 可見時 blocker 關、item 閱讀時 blocker 開。
+     margin-top:-6rem 讓它 display none↔block 切換 0 淨高（不位移）。 */
 
   .list-mobile-header-blocker {
+    display: none;
     position: sticky;
     top: 0;
-    height: 6rem;
-    margin-top: -6rem;
+    /* 高度 = 釘點 8rem（清 logo）；margin-top:-8rem 拉進 pt-6xl(128px) padding 正好填滿 [0,128]、內容不位移。
+       ⚠️ 與 .list-header.active top 及 getListStickyTop 手機值同步（見上方註解） */
+    height: 8rem;
+    margin-top: -8rem;
     background: var(--theme-bg);
     z-index: 40;
+  }
+
+  .list-has-pinned-header .list-mobile-header-blocker {
+    display: block;
   }
 
   /* 手機：年份→list 的 grid gap 移除（year-toggle py-md + items mt-md 已提供間距，year 緊貼 list）。
@@ -1497,6 +1760,150 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
   color: var(--theme-fg);
 }
 
+/* ===== Timeline 手機版（timeline.js buildMobile；桌面 strip 整套不建構）=====
+ * era chip + 年份卡（圖片上方）→ slideshow 圖片區 → 控制列（list 鈕 + 下一年箭頭）。
+ * list view 沿用桌面 .tl-list-* 結構，這裡覆蓋成單欄滿版。 */
+
+@media (max-width: 767px) {
+  #timeline-mobile {
+    padding: var(--spacing-lg) var(--container-padding) var(--spacing-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    align-items: flex-start;
+  }
+
+  .tl-m-era {
+    width: -moz-max-content;
+    width: max-content;
+    max-width: 100%;
+    padding: 0.4em 0.7em;
+    transform-origin: bottom left;
+  }
+
+  .tl-m-card {
+    width: -moz-max-content;
+    width: max-content;
+    max-width: 100%;
+    padding: var(--spacing-sm);
+    /* 年份字卡內距 sm（user 2026-06-12；原 0.6rem 0.8rem） */
+    transform-origin: top left;
+  }
+
+  .tl-m-card .tl-m-year {
+    font-size: var(--font-size-p2);
+    /* 年份跟內文同字級（user 2026-06-12；JS 給 h4 → 手機縮回 p2） */
+    line-height: 1;
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .tl-m-card .tl-m-desc + .tl-m-desc {
+    margin-top: var(--spacing-sm);
+  }
+
+  /* BFA/MDES 子標題（descriptions 內的 <h5>）手機跟所在視圖內文同字級（user 2026-06-12）：
+     主視圖內文 = text-p2、list view 內文 = p1（上方 user 統一的字級） */
+
+  .tl-m-card .tl-m-desc h5 {
+    font-size: var(--font-size-p2);
+  }
+
+  .tl-list-block > h5 {
+    font-size: var(--font-size-p1);
+  }
+
+  /* 圖片區：沿用 .class-img 絕對定位 slideshow（同 about class section 手機尺寸）；
+     top 50% !important 蓋過 placeInSlot 的 inline top:70%（同 .class-info-panel 手機做法） */
+
+  .tl-m-images {
+    position: relative;
+    align-self: stretch;
+    min-height: 280px;
+  }
+
+  .tl-m-images .class-img {
+    top: 50% !important;
+    max-width: 200px;
+  }
+
+  .tl-m-images .class-img.class-img--landscape {
+    max-width: 280px;
+  }
+
+  .tl-m-controls {
+    align-self: stretch;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    z-index: 30;
+    /* list view overlay (z-25) 之上：list 模式仍可點 toggle 鈕退出 */
+  }
+
+  .tl-m-controls button {
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: var(--cursor-pointer);
+  }
+
+  /* list view 覆蓋：單欄滿版、矩形底部讓出控制列 */
+
+  .tl-list-grid {
+    top: 36px;
+    /* chip 凸出 -28px 後仍留在 area 內 */
+    bottom: 72px;
+    /* 讓出底部控制列（48px 鈕 + gap） */
+    padding: 0 var(--container-padding);
+    display: block;
+  }
+
+  .tl-list-cell {
+    height: 100%;
+  }
+
+  .tl-list-rect {
+    right: 12px;
+  }
+
+  /* era chip：桌面往左凸出矩形 -lg 在手機會貼到螢幕左緣 → 收回對齊矩形左緣；
+     padding 對齊全站 nav btn 標準 */
+
+  .tl-list-chip {
+    left: 0;
+    padding: 6px 8px 5px;
+  }
+
+  /* 字卡內距 xs（user 2026-06-12 看過 nav btn 標準 6px 8px 5px 後改 xs；桌面維持 xl） */
+
+  .tl-list-content {
+    inset: var(--spacing-xs);
+    padding-right: var(--spacing-sm);
+  }
+
+  .tl-list-year-row {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-sm);
+  }
+
+  .tl-list-year-row + .tl-list-year-row {
+    margin-top: var(--spacing-lg);
+  }
+
+  /* 年份（JS 給 text-h5）與內文（text-p2）手機統一縮成 p1；
+     雙層 selector 才蓋過 @tailwind utilities（在 lists.css 之後）的同特異度 font-size */
+
+  .tl-list-year-row .tl-list-year,
+  .tl-list-year-row .tl-list-year-body {
+    font-size: var(--font-size-p1);
+  }
+
+  .tl-list-cols {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-xs);
+  }
+}
+
 /* ===== Inline Scrollbar (.list-scroll + library year pickers) =====
  * .list-scroll 是統一 hook — activities/admission list 描述、courses slide-in desc、
  * 未來任何 inline scroll 容器都套此 class 共用樣式（細黑 thumb / 無 track / 無箭頭）。
@@ -1892,8 +2299,33 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
  * 共用 #activities-lightbox（activities 海報 + library 報導圖片）手機改版：
  *   - 拿掉左右 chevron + 縮放控制（改用左右 swipe 換圖，見 activities-lightbox.js）
  *   - 黑底「蓋滿整個畫面（含 header 區、無頂部白帶）」＝靠 header 透明，**仍維持 bg-black/90 半透明（與桌面一致）**
- *   - 返回/ref/標題 topbar 從底部左下移到頂部（header/logo 之下，top 由 JS 設 --alb-topbar-top）
+ *   - 返回/ref/標題 topbar 沉到畫面最底（縮圖列下方；user 2026-06-10 二改，原早版放頂部）
  * 桌面（≥768）完全不受影響。*/
+
+/* 縮圖列藏原生 scrollbar（user 2026-06-12「很醜」）：捲動靠拖曳（桌面）/ 觸控（手機），不需要視覺軌道 */
+
+#activities-lightbox .alb-thumbs {
+  scrollbar-width: none;
+}
+
+#activities-lightbox .alb-thumbs::-webkit-scrollbar {
+  display: none;
+}
+
+/* 桌面縮圖列：max-width 讓開兩側絕對定位區（左 topbar back+ref+title ≤ ~550px、右 zoom controls），
+   title 永不疊到縮圖（user 2026-06-12）；縮圖無 chevron，超出改用拖曳捲動（activities-lightbox.js 綁
+   pointer 拖曳 + 拖過吞 click，.is-dragging 換 grabbing cursor）。!important 蓋 JS template 的 inline max-width */
+
+@media (min-width: 768px) {
+  #activities-lightbox .alb-thumbs {
+    max-width: min(calc(100vw - 1120px), 960px) !important;
+    cursor: var(--cursor-grab);
+  }
+
+  #activities-lightbox .alb-thumbs.is-dragging {
+    cursor: var(--cursor-grabbing);
+  }
+}
 
 @media (max-width: 767px) {
   /* 拿掉左右切換 chevron 與縮放控制（!important 蓋 JS 設的 inline display）*/
@@ -1902,6 +2334,14 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
   #activities-lightbox .alb-next,
   #activities-lightbox .alb-zoom-controls {
     display: none !important;
+  }
+
+  /* 大圖區左右 padding 從 px-16(64px) 縮到 container-padding(24px)，box 往兩側擴大（user 2026-06-10）。
+     桌面 px-32 是為了讓 stage 邊停在 chevron 內側；手機無 chevron 不需要這留白 → 對齊全站邊距／返回鍵 left */
+
+  #activities-lightbox .alb-main-container {
+    padding-left: var(--container-padding, 1.5rem) !important;
+    padding-right: var(--container-padding, 1.5rem) !important;
   }
 
   /* lightbox 開啟時 header 透明：library 手機給 header 加了 var(--theme-bg)（白）擋 sticky tab（library.css），
@@ -1913,16 +2353,147 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
     background: transparent !important;
   }
 
-  /* topbar（返回 + ref + 標題）移到頂部：position:fixed 相對 viewport，top 由 JS 量 logo 底邊寫入
-     --alb-topbar-top（fallback 5.5rem ≈ 手機 header 高）。!important 蓋 HTML inline 的 absolute/bottom/translateY 定位 */
+  /* 縮圖再縮小（user 2026-06-10）；仍是橫向可點縮圖列（btn 高由 JS inline 48px 設，故 !important 蓋）。桌面 48px 不變 */
+
+  #activities-lightbox .alb-thumb {
+    height: 36px !important;
+  }
+
+  /* topbar（返回 + ref + 標題）沉到畫面最底（user 2026-06-10 二改）：
+     thumbs-wrap 改直向、topbar order 排在縮圖列之後 → 整組落在底部。
+     topbar 回 flow（position:static）並左對齊 container-padding（同返回鍵慣例）。 */
+
+  #activities-lightbox .alb-thumbs-wrap {
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-md);
+  }
+
+  #activities-lightbox .alb-thumbs {
+    order: 1;
+  }
 
   #activities-lightbox .alb-topbar {
-    position: fixed !important;
-    left: var(--container-padding, 1.5rem) !important;
-    top: var(--alb-topbar-top, 5.5rem) !important;
+    position: static !important;
+    order: 2;
+    left: auto !important;
+    top: auto !important;
     bottom: auto !important;
     transform: none !important;
+    /* stretch + 左右各留 container-padding：topbar 橫跨整個可用寬度，title 才有空間長到右 padding */
+    align-self: stretch !important;
+    margin-left: var(--container-padding, 1.5rem);
+    margin-right: var(--container-padding, 1.5rem);
     align-items: center !important;
+  }
+
+  /* title pill 延伸到畫面右 padding（user 2026-06-11）：title 吃掉 back/ref 之外的剩餘空間（flex:1），
+     pill 解除 40vw/360px 上限改 100% → 短標題仍 shrink-to-fit、長標題撐到右 padding 再 marquee。
+     用 flex 而非 hardcode calc：無 ref btn（該 media 無 references）時剩餘寬度自動補上。 */
+
+  #activities-lightbox .alb-title {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  #activities-lightbox .alb-title-pill {
+    max-width: 100% !important;
+  }
+
+  /* ref 展開卡片：手機撐滿「ref btn 左緣 → 畫面右 padding」寬度（user 2026-06-10）。
+     left 仍由 lightbox-ref-btn.js 對齊 ref btn 左緣；right = container-padding − popover padding(32px)
+     → 負值代表 popover 透明 padding 邊略超出 viewport（無視覺影響），card 右緣正好落在 viewport − container-padding。
+     配 stack stretch + card width:100% 讓卡片真的撐滿（桌面維持 shrink-to-fit）。只動圖片燈箱、不碰 PDF viewer 的 ref。 */
+
+  #activities-lightbox .lightbox-ref-popover {
+    right: calc(var(--container-padding, 1.5rem) - 32px) !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+
+  #activities-lightbox .lightbox-ref-stack {
+    align-items: stretch;
+  }
+
+  #activities-lightbox .lightbox-ref-card {
+    width: 100%;
+  }
+
+  /* ── PDF viewer 手機版（user 2026-06-10 二改：一次一頁 + 上下滑換頁 + 雙指 pinch，控制列維持底部）──
+     桌面維持「單頁 + chevron + transform 縮放 + 底部控制列」完全不動；以下只 <768px 生效。
+     翻頁/縮放/平移全在 library-viewer.js 的 touch handler（沿用桌面 zoomAt / clampPan / turnPage），CSS 不碰渲染。 */
+
+  /* 拿掉左右翻頁 chevron 與縮放控制（手機改用上下 swipe 換頁 + 雙指 pinch）。!important 蓋 JS 設的 inline */
+
+  #pdf-viewer-modal #pdf-prev-btn,
+  #pdf-viewer-modal #pdf-next-btn,
+  #pdf-viewer-modal .pdf-zoom-controls {
+    display: none !important;
+  }
+
+  /* 大圖區左右 padding 縮到 container-padding（無 chevron 不需留白，單頁更寬）；上 padding 由 JS 推到手機 logo 下 */
+
+  #pdf-viewer-modal .pdf-main-row {
+    padding-left: var(--container-padding, 1.5rem) !important;
+    padding-right: var(--container-padding, 1.5rem) !important;
+  }
+
+  /* 底部 bar 加高（桌面 108px）：頁碼錨 bar 頂、按鈕錨 bar 底 → bar 變高兩者 gap 變大，
+     頁碼不再貼按鈕（user 2026-06-11「數字太貼近 btn、再往上一點」） */
+
+  #pdf-viewer-modal .pdf-bottom-bar {
+    min-height: 140px !important;
+  }
+
+  /* 頁碼移到「按鈕上方、畫面置中」（user 2026-06-11）：桌面是 flow 置中、手機改 absolute 貼底部 bar 頂端置中 */
+
+  #pdf-viewer-modal #pdf-page-info {
+    position: absolute !important;
+    top: var(--spacing-sm) !important;
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) !important;
+  }
+
+  /* back / ref / title 沉到底部 bar 底端（桌面是 top:50% 垂直置中）：頁碼在它們「上方」置中。
+     transform:none 清外層 translateY，pill 旋轉在內層（.pdf-back-pill / .pdf-title-pill）不受影響。 */
+
+  #pdf-viewer-modal .pdf-back-btn,
+  #pdf-viewer-modal .pdf-ref-btn,
+  #pdf-viewer-modal .pdf-title {
+    top: auto !important;
+    bottom: var(--spacing-sm) !important;
+    transform: none !important;
+  }
+
+  /* 標題 pill 從現位置（ref 右側，left 由 JS 設）一路撐到右 padding（user 2026-06-11）；
+     pill 填滿 outer，超寬文字由既有 setupTitleMarquee 跑馬燈處理（不再被 min(40vw) 切短） */
+
+  #pdf-viewer-modal .pdf-title {
+    right: var(--container-padding, 1.5rem) !important;
+  }
+
+  #pdf-viewer-modal .pdf-title .pdf-title-pill {
+    max-width: none !important;
+    width: 100% !important;
+  }
+
+  /* ref「展開卡片」撐滿「ref btn 左緣 → 畫面右 padding」（鏡像圖片燈箱 user 2026-06-10；只動展開卡，btn 仍小 pill）。
+     left 由 lightbox-ref-btn.js 對齊 ref btn 左緣；right = container-padding − popover padding(32px)
+     → 負值代表透明 padding 邊略超出 viewport（無視覺影響），card 右緣正好落在 viewport − container-padding。 */
+
+  #pdf-viewer-modal .lightbox-ref-popover {
+    right: calc(var(--container-padding, 1.5rem) - 32px) !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+
+  #pdf-viewer-modal .lightbox-ref-stack {
+    align-items: stretch;
+  }
+
+  #pdf-viewer-modal .lightbox-ref-card {
+    width: 100%;
   }
 }
 
@@ -3451,6 +4022,7 @@ body.mode-inverse .timeline-card-inner.bg-black * {
 
 /* inactive: 純黑底 + 半透明白字（對齊 about #anchor-nav）；active 彩色 background 由 JS inline 設定 */
 
+body.mode-inverse .section-nav-btn:not(.active) .anchor-nav-inner,
 body.mode-inverse .faculty-filter-btn:not(.active) .anchor-nav-inner,
 body.mode-inverse .activities-section-btn:not(.active) .anchor-nav-inner,
 body.mode-inverse .courses-program-btn:not(.active) .anchor-nav-inner {
@@ -3458,6 +4030,7 @@ body.mode-inverse .courses-program-btn:not(.active) .anchor-nav-inner {
   color: rgba(255, 255, 255, 0.5) !important;
 }
 
+body.mode-inverse .section-nav-btn.active .anchor-nav-inner,
 body.mode-inverse .faculty-filter-btn.active .anchor-nav-inner,
 body.mode-inverse .activities-section-btn.active .anchor-nav-inner,
 body.mode-inverse .courses-program-btn.active .anchor-nav-inner {
@@ -3916,15 +4489,19 @@ body.mode-color .footer-logo-inner {
  * applyAccentColors）；mode-color 跟全站 accent 元件一致改 strict B/W（否則彩色卡片疊在 vivid
  * 互補 hue footer bg 上對比不足、且只有 footer 沒翻黑白顯得不一致）。
  * 底 = fg-contrast（對比 footer bg 的純黑白）、字 = fg-inverse-contrast（對比卡片底的純黑白）；
- * !important 蓋過 JS inline background。手機無 scatter 不受影響。 */
+ * !important 蓋過 JS inline background。
+ * 桌面限定：手機無 scatter、JS 不設 accent 底（footer.css 黑字+padding 規則也在 min-width:768 內），
+ * 不 scope 的話手機 mode3 會多出黑/白底色塊 — 手機維持透明底 + var(--footer-fg) 文字（user 2026-06-11）。 */
 
-body.mode-color .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-link-item) {
-  background: var(--theme-fg-contrast) !important;
-}
+@media (min-width: 768px) {
+  body.mode-color .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-link-item) {
+    background: var(--theme-fg-contrast) !important;
+  }
 
-body.mode-color .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-link-item),
-body.mode-color .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-link-item) :is(h6, p, a) {
-  color: var(--theme-fg-inverse-contrast) !important;
+  body.mode-color .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-link-item),
+  body.mode-color .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-link-item) :is(h6, p, a) {
+    color: var(--theme-fg-inverse-contrast) !important;
+  }
 }
 
 /* ===== Layout ===== */
@@ -4000,6 +4577,19 @@ body.mode-color #next-labels h2[style*="background"] {
 body.mode-color #sticky-title-chip .sticky-chip-inner,
 body.mode-color #sticky-branch-chip .sticky-chip-inner {
   background: var(--theme-fg) !important;
+  color: var(--theme-fg-inverse) !important;
+}
+
+/* Degree Show detail 手機 event 標題 chip（buildMobileEventTitle）：JS inline 隨機 accent 底 + .text-black 黑字，
+ * mode-color 翻 strict B/W（同上 sticky chip pattern；chip 是 md:hidden 桌面不顯示，不需 media scope）。
+ * 字選擇器必須 p.text-p1.text-black 拉到 (0,3,1)：下方廣域 `.text-black:not(...):not(...)` 是 (0,3,0)+!important，
+ * 寫少一級會被拉回 theme-fg 跟同色 chip 底融在一起（同 [data-hero-hl] 的坑，loader 的 p 固定帶 text-p1+text-black） */
+
+body.mode-color .event-mobile-title-chip {
+  background: var(--theme-fg) !important;
+}
+
+body.mode-color .event-mobile-title-chip p.text-p1.text-black {
   color: var(--theme-fg-inverse) !important;
 }
 
@@ -4221,6 +4811,7 @@ body.mode-color .theme-invert {
 /* Active：strict B/W chip */
 
 body.mode-color .anchor-nav-btn.active .anchor-nav-inner,
+body.mode-color .section-nav-btn.active .anchor-nav-inner,
 body.mode-color .faculty-filter-btn.active .anchor-nav-inner,
 body.mode-color .activities-section-btn.active .anchor-nav-inner,
 body.mode-color .courses-program-btn.active .anchor-nav-inner,
@@ -4235,6 +4826,7 @@ body.mode-color .atlas-filter-btn.active .anchor-nav-inner {
 /* Inactive：跟 body bg 同色 + 半透明對比文字 + transition 排除 bg */
 
 body.mode-color .anchor-nav-btn:not(.active) .anchor-nav-inner,
+body.mode-color .section-nav-btn:not(.active) .anchor-nav-inner,
 body.mode-color .faculty-filter-btn:not(.active) .anchor-nav-inner,
 body.mode-color .activities-section-btn:not(.active) .anchor-nav-inner,
 body.mode-color .courses-program-btn:not(.active) .anchor-nav-inner,
@@ -4256,6 +4848,7 @@ body.mode-color .atlas-filter-btn:not(.active) .anchor-nav-inner {
  * loop 開始前 .mode-switching 已移除 → 不影響穩態。 */
 
 body.mode-color.mode-switching .anchor-nav-btn:not(.active) .anchor-nav-inner,
+body.mode-color.mode-switching .section-nav-btn:not(.active) .anchor-nav-inner,
 body.mode-color.mode-switching .faculty-filter-btn:not(.active) .anchor-nav-inner,
 body.mode-color.mode-switching .activities-section-btn:not(.active) .anchor-nav-inner,
 body.mode-color.mode-switching .courses-program-btn:not(.active) .anchor-nav-inner,
@@ -4271,6 +4864,7 @@ body.mode-color.mode-switching .atlas-filter-btn:not(.active) .anchor-nav-inner 
 
 @media (min-width: 768px) {
   body.mode-color .anchor-nav-btn:not(.active):hover .anchor-nav-inner,
+  body.mode-color .section-nav-btn:not(.active):hover .anchor-nav-inner,
   body.mode-color .faculty-filter-btn:not(.active):hover .anchor-nav-inner,
   body.mode-color .activities-section-btn:not(.active):hover .anchor-nav-inner,
   body.mode-color .courses-program-btn:not(.active):hover .anchor-nav-inner,
@@ -4566,11 +5160,15 @@ body.mode-color .lib-panel-title {
  *   1. #library-card-stack 內三個動態生成的 color rect
  *   2. #library-card-main：原本是 static 主卡，但 panel 切換時 library-card.js 把它 demote 成 color rect（DOM 仍在 stack 外面，是 sibling）
  * :not([style*="--lib-bg"]) 排除被 setAsGray() promote 成主卡的元素：JS 在點到的元素 inline 設 background:var(--lib-bg)，
- *   這時要走 lib-bg 翻 neutral-gray，不能被這條 strict B/W 規則蓋回 theme-fg */
+ *   這時要走 lib-bg 翻 neutral-gray，不能被這條 strict B/W 規則蓋回 theme-fg
+ * 桌面限定：手機跳過 initLibraryCard（main-modular.js < 768 分支），#library-card-main 沒有 inline --lib-bg
+ *   可排除 → 會被這條蓋成純黑/白底（疊同色 --lib-fg 文字看不見）；手機底色走 library.css 的 var(--lib-bg) 兩階灰 */
 
-body.mode-color #library-card-stack > div:not([style*="--lib-bg"]),
-body.mode-color #library-card-main:not([style*="--lib-bg"]) {
-  background: var(--theme-fg) !important;
+@media (min-width: 768px) {
+  body.mode-color #library-card-stack > div:not([style*="--lib-bg"]),
+  body.mode-color #library-card-main:not([style*="--lib-bg"]) {
+    background: var(--theme-fg) !important;
+  }
 }
 
 /* color-rect-title：JS inline 設 color='#000' inactive 或 '#000'/'#fff' hover；
@@ -4944,6 +5542,20 @@ body.mode-color .class-group-label:has(+ .class-division-btn.active) {
     background: var(--theme-fg-inverse) !important;
     color: var(--theme-fg) !important;
   }
+}
+
+/* about 手機分組 pill（#mobile-division-nav）：對齊上方桌面 .class-division-btn 的 strict B/W
+ * inactive = fg 底 / fg-inverse 字；active = 反向（fg-inverse 底 / fg 字）。
+ * id 特異度蓋過 setActiveNavBtn 設的 inline accent bg 與 .section-nav-btn 一般 theme 規則。 */
+
+body.mode-color #mobile-division-nav .section-nav-btn:not(.active) .anchor-nav-inner {
+  background: var(--theme-fg) !important;
+  color: var(--theme-fg-inverse) !important;
+}
+
+body.mode-color #mobile-division-nav .section-nav-btn.active .anchor-nav-inner {
+  background: var(--theme-fg-inverse) !important;
+  color: var(--theme-fg) !important;
 }
 
 /* ===== 封鎖綫 (.section-title-inner[data-section-title]) chip：strict B/W in mode-color =====
@@ -5551,6 +6163,10 @@ body.mode-color body:not([data-bar="about"]):not(#faculty-panel):not(.activities
   background-color: var(--theme-bg);
 }
 
+body.mode-color .event-mobile-title-chip pbody.text-p1 {
+  color: var(--theme-fg-inverse);
+}
+
 body.mode-color body:not(.timeline-year-item):not([data-hero-hl]) {
   color: var(--theme-fg);
 }
@@ -6036,6 +6652,13 @@ p{
     margin-top: calc(var(--spacing-xs) - var(--spacing-xl));
   }
 
+  /* 手機 clip-reveal 進退場（footer-draggable.js initFooterMobileReveal）把每個 block 包進 .clip-reveal-wrapper
+       → 兩張 link 卡不再直接相鄰，上面的收窄規則失效 → 改用 wrapper 相鄰補回（同等負 margin）。 */
+
+  .footer-random > .clip-reveal-wrapper:has(> .footer-link-item) + .clip-reveal-wrapper:has(> .footer-link-item) {
+    margin-top: calc(var(--spacing-xs) - var(--spacing-xl));
+  }
+
   /* privacy 雙語連結（Support/Regulations/Policy）手機合一行：隱藏 <br>，保留 <br> 前空格當分隔（同 .footer-office-zh-br pattern）。桌面維持兩行。 */
 
   .footer-privacy-br {
@@ -6054,6 +6677,9 @@ p{
 
   /* 兩張學校 link 卡（實踐大學 / 設計學院）相鄰：.footer-random 統一 gap:xl，這對用負 margin 收窄成 xs 讓它們視覺成一組。
        桌面是 absolute scatter，margin 不參與定位，故只在手機 flow 生效（不動桌面）。 */
+
+  /* 手機 clip-reveal 進退場（footer-draggable.js initFooterMobileReveal）把每個 block 包進 .clip-reveal-wrapper
+       → 兩張 link 卡不再直接相鄰，上面的收窄規則失效 → 改用 wrapper 相鄰補回（同等負 margin）。 */
 
   /* privacy 雙語連結（Support/Regulations/Policy）手機合一行：隱藏 <br>，保留 <br> 前空格當分隔（同 .footer-office-zh-br pattern）。桌面維持兩行。 */
 }
@@ -6453,10 +7079,13 @@ html.has-slide-in body.lightbox-open #site-header,
   transition: color var(--transition-fast);
 }
 
-/* slide-in（faculty / courses）或 lightbox 開啟時，header overlay 變黑底 → icon 統一白色 */
+/* slide-in（faculty / courses）或 lightbox 開啟時，header overlay 變黑底 → icon 統一白色。
+     只掛 body.lightbox-open（slide-in 也走 enterLightboxMode 必有此 class）：lightbox-open 在「關閉當下」
+     就移除、has-slide-in 要等收場 timeline 跑完（~0.8s）才移除——若也掛 has-slide-in，關閉時
+     animateHeaderShow 已開始 reveal mode btn，icon 仍白 + 圓底白 = 看到「空白鈕、icon 之後才浮現」
+     （user 2026-06-12 手機報；桌面同理）。 */
 
-html.has-slide-in .theme-toggle-btn,
-  body.lightbox-open .theme-toggle-btn {
+body.lightbox-open .theme-toggle-btn {
   color: #fff;
 }
 
@@ -7408,6 +8037,48 @@ html.has-slide-in .theme-toggle-btn,
 /* ===== Mobile: 垂直堆疊 ===== */
 
 @media (max-width: 767px) {
+  /* colored-accordion 卡片版（about resources，user 2026-06-11）：
+       - 卡片彼此輕疊（負 margin，配 ±1~2° 旋轉成 collage；後面的卡 DOM 順序自然蓋上面）
+       - transform-origin: top — 展開時高度往下長，旋轉中心若在 center 會下移使頂邊左右漂
+       - 標題 p1 + 左右 sm；內文 padding 全 sm */
+
+  .colored-accordion .accordion-item {
+    transform-origin: top center;
+  }
+
+  .colored-accordion .accordion-item + .accordion-item {
+    margin-top: calc(-1 * var(--spacing-xs));
+  }
+
+  /* title / 文字卡 padding 對齊全站 nav btn accent-bg 慣例（.anchor-nav-inner: 6px 8px 5px，user 2026-06-11） */
+
+  .colored-accordion .accordion-label {
+    padding: 6px 8px 5px;
+  }
+
+  .colored-accordion .accordion-label-inner {
+    font-size: var(--font-size-p1);
+  }
+
+  /* 標題英中同一行（蓋過下方通用的 en/zh display:block 兩行規則） */
+
+  .colored-accordion .accordion-label-en,
+    .colored-accordion .accordion-label-zh {
+    display: inline;
+  }
+
+  .colored-accordion .accordion-label-sep {
+    display: inline;
+  }
+
+  .colored-accordion .accordion-label-zh {
+    margin-top: 0;
+  }
+
+  .colored-accordion .accordion-text-wrap {
+    padding: 6px 8px 5px;
+  }
+
   .accordion-item {
     flex-direction: column;
     /* Remove max-height and transition, let JS control body height */
@@ -7419,7 +8090,8 @@ html.has-slide-in .theme-toggle-btn,
     align-items: center;
     justify-content: flex-start;
     padding: var(--spacing-md) var(--spacing-xl);
-    min-height: 60px;
+    min-height: 44px;
+    /* 觸控目標最佳實踐（44×44） */
   }
 
   .accordion-label-inner {
@@ -8770,7 +9442,11 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
   list-style: decimal;
 }
 
+/* li 是 class-less 富文本 → 預設只繼承 body 16px，不吃全域 `p { text-p2 }`；桌面 p2==16px 兩者巧合一致，
+     但手機 p2 縮成 14px 而 li 仍 16px → 條列點比段落大。顯式對齊 p2 讓 point 與段落同級（桌面仍 16px 無變）。 */
+
 .legal-section-body li {
+  font-size: var(--font-size-p2);
   margin-bottom: var(--spacing-xs);
 }
 
@@ -9022,6 +9698,10 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
   top:  calc(var(--header-height,80px) + 3rem);
 }
 
+.z-0{
+  z-index:  0;
+}
+
 .z-10{
   z-index:  10;
 }
@@ -9110,14 +9790,14 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
   grid-column-end:  4;
 }
 
+.-mx-container-padding{
+  margin-left:  calc(var(--container-padding) * -1);
+  margin-right:  calc(var(--container-padding) * -1);
+}
+
 .-mx-md{
   margin-left:  calc(var(--spacing-md) * -1);
   margin-right:  calc(var(--spacing-md) * -1);
-}
-
-.mx-\[calc\(var\(--container-padding\)\*-1\)\]{
-  margin-left:  calc(var(--container-padding) * -1);
-  margin-right:  calc(var(--container-padding) * -1);
 }
 
 .mb-0{
@@ -9126,10 +9806,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 
 .mb-2xl{
   margin-bottom:  var(--spacing-2xl);
-}
-
-.mb-3xl{
-  margin-bottom:  var(--spacing-3xl);
 }
 
 .mb-lg{
@@ -9166,10 +9842,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 
 .mr-xl{
   margin-right:  var(--spacing-xl);
-}
-
-.mt-1{
-  margin-top:  0.25rem;
 }
 
 .mt-3xl{
@@ -9264,10 +9936,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
   height:  0px;
 }
 
-.h-11{
-  height:  2.75rem;
-}
-
 .h-12{
   height:  3rem;
 }
@@ -9290,10 +9958,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 
 .h-\[56px\]{
   height:  56px;
-}
-
-.h-\[700px\]{
-  height:  700px;
 }
 
 .h-\[80px\]{
@@ -9322,10 +9986,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 
 .min-h-screen{
   min-height:  100vh;
-}
-
-.w-11{
-  width:  2.75rem;
 }
 
 .w-12{
@@ -9452,8 +10112,8 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
   grid-template-columns:  repeat(2, minmax(0, 1fr));
 }
 
-.grid-cols-\[1fr_2fr_2fr_1fr\]{
-  grid-template-columns:  1fr 2fr 2fr 1fr;
+.grid-cols-\[4rem_1fr\]{
+  grid-template-columns:  4rem 1fr;
 }
 
 .flex-row{
@@ -9466,6 +10126,10 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 
 .flex-wrap{
   flex-wrap:  wrap;
+}
+
+.flex-nowrap{
+  flex-wrap:  nowrap;
 }
 
 .items-start{
@@ -9741,6 +10405,11 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
   padding-right:  var(--spacing-xs);
 }
 
+.py-3xl{
+  padding-top:  var(--spacing-3xl);
+  padding-bottom:  var(--spacing-3xl);
+}
+
 .py-6xl{
   padding-top:  var(--spacing-6xl);
   padding-bottom:  var(--spacing-6xl);
@@ -9823,10 +10492,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
   padding-right:  var(--spacing-xl);
 }
 
-.pt-1{
-  padding-top:  0.25rem;
-}
-
 .pt-2xl{
   padding-top:  var(--spacing-2xl);
 }
@@ -9837,10 +10502,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 
 .pt-6xl{
   padding-top:  var(--spacing-6xl);
-}
-
-.pt-8xl{
-  padding-top:  var(--spacing-8xl);
 }
 
 .pt-\[0\.25rem\]{
@@ -9930,10 +10591,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 
 .leading-snug{
   line-height:  1.375;
-}
-
-.leading-tight{
-  line-height:  1.25;
 }
 
 .text-black{
@@ -10068,10 +10725,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 
 .text-p3 {
   font-size: var(--font-size-p3);
-}
-
-.pt-8xl {
-  padding-top: var(--spacing-8xl);
 }
 
 /* 4. Custom Base Styles */
@@ -10231,6 +10884,10 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
     margin-top:  0px;
   }
 
+  .md\:mt-md{
+    margin-top:  var(--spacing-md);
+  }
+
   .md\:mt-xl{
     margin-top:  var(--spacing-xl);
   }
@@ -10239,12 +10896,20 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
     display:  block;
   }
 
+  .md\:inline{
+    display:  inline;
+  }
+
   .md\:flex{
     display:  flex;
   }
 
   .md\:grid{
     display:  grid;
+  }
+
+  .md\:contents{
+    display:  contents;
   }
 
   .md\:hidden{
@@ -10303,12 +10968,20 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
     grid-template-columns:  repeat(4, minmax(0, 1fr));
   }
 
+  .md\:grid-cols-\[1fr_2fr_2fr_1fr\]{
+    grid-template-columns:  1fr 2fr 2fr 1fr;
+  }
+
   .md\:flex-row{
     flex-direction:  row;
   }
 
   .md\:flex-col{
     flex-direction:  column;
+  }
+
+  .md\:flex-wrap{
+    flex-wrap:  wrap;
   }
 
   .md\:items-start{
@@ -10321,6 +10994,10 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 
   .md\:gap-3xl{
     gap:  var(--spacing-3xl);
+  }
+
+  .md\:gap-md{
+    gap:  var(--spacing-md);
   }
 
   .md\:gap-sm{
@@ -10341,6 +11018,10 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 
   .md\:overflow-hidden{
     overflow:  hidden;
+  }
+
+  .md\:overflow-visible{
+    overflow:  visible;
   }
 
   .md\:overflow-y-auto{
@@ -10419,7 +11100,15 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
     padding-top:  var(--spacing-6xl);
   }
 
+  .md\:pt-8xl{
+    padding-top:  var(--spacing-8xl);
+  }
+
   .md\:pt-\[0\.55rem\]{
     padding-top:  0.55rem;
+  }
+
+  .md\:pt-8xl {
+    padding-top: var(--spacing-8xl);
   }
 }

@@ -176,6 +176,38 @@
 
   /* ===== Mobile: 垂直堆疊 ===== */
   @media (max-width: 767px) {
+    /* colored-accordion 卡片版（about resources，user 2026-06-11）：
+       - 卡片彼此輕疊（負 margin，配 ±1~2° 旋轉成 collage；後面的卡 DOM 順序自然蓋上面）
+       - transform-origin: top — 展開時高度往下長，旋轉中心若在 center 會下移使頂邊左右漂
+       - 標題 p1 + 左右 sm；內文 padding 全 sm */
+    .colored-accordion .accordion-item {
+      transform-origin: top center;
+    }
+    .colored-accordion .accordion-item + .accordion-item {
+      margin-top: calc(-1 * var(--spacing-xs));
+    }
+    /* title / 文字卡 padding 對齊全站 nav btn accent-bg 慣例（.anchor-nav-inner: 6px 8px 5px，user 2026-06-11） */
+    .colored-accordion .accordion-label {
+      padding: 6px 8px 5px;
+    }
+    .colored-accordion .accordion-label-inner {
+      font-size: var(--font-size-p1);
+    }
+    /* 標題英中同一行（蓋過下方通用的 en/zh display:block 兩行規則） */
+    .colored-accordion .accordion-label-en,
+    .colored-accordion .accordion-label-zh {
+      display: inline;
+    }
+    .colored-accordion .accordion-label-sep {
+      display: inline;
+    }
+    .colored-accordion .accordion-label-zh {
+      margin-top: 0;
+    }
+    .colored-accordion .accordion-text-wrap {
+      padding: 6px 8px 5px;
+    }
+
     .accordion-item {
       flex-direction: column;
       /* Remove max-height and transition, let JS control body height */
@@ -187,7 +219,7 @@
       align-items: center;
       justify-content: flex-start;
       padding: var(--spacing-md) var(--spacing-xl);
-      min-height: 60px;
+      min-height: 44px; /* 觸控目標最佳實踐（44×44） */
     }
 
     .accordion-label-inner {

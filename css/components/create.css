@@ -178,6 +178,20 @@
   filter: invert(1);
 }
 
+/* 桌面控制盒（user 2026-06-10）移除實心底改 bottom-line 後，盒變透明 → 盒內 icon 改與「頁面底」對比、
+   不再與盒底對比 → invert 條件相對上面全域規則整個翻轉：
+     頁亮（standard / wireframe.dark-icons）→ 黑 icon 不反；頁暗（inverse / wireframe 非 dark-icons）→ 反白。
+   只 scope .control-box（桌面）→ 手機 bottom bar 仍實心底、沿用上面全域 invert 不受影響。
+   特異度 (1,2,2) > 全域 (1,1,2) → 蓋過。 */
+#create-app.standard-mode .control-box button img,
+#create-app.wireframe-mode.dark-icons .control-box button img {
+  filter: none;
+}
+#create-app.inverse-mode .control-box button img,
+#create-app.wireframe-mode:not(.dark-icons) .control-box button img {
+  filter: invert(1);
+}
+
 /* --- 主佈局 (上下結構) --- */
 .main-container {
   display: flex;
@@ -363,8 +377,80 @@
    --lib-fg 與頁面 fg 同色（mode1 黑/mode2 白/mode3 同 --theme-fg），所以盒內 icon 直接沿用 page-level invert
    rule（行 160-165），不需 control-box 層再 override filter */
 .control-box {
-  background-color: var(--lib-bg);
+  /* user 2026-06-10：移除實心底，改用 bottom-line 指示器（見下方 ::after）；
+     盒內容色（icon/slider/label/文字）改吃 .control-panel scope 覆寫的 --lib-fg（頁面前景）*/
+  background-color: transparent;
   color: var(--lib-fg);
+}
+
+/* === Bottom-line 指示器（user 2026-06-10：取代實心底；6px 厚 user 2026-06-11 從 4px 加粗）===
+   ⚠️user 2026-06-11 第三輪定案：底線一律 solid（不再用灰線表 inactive）→ active/inactive **只靠 icon 變淡** 溝通，
+   線段本身永遠一致。各按鈕一段獨立 solid 線（custom active 時其線撐到含 slider+random/reset 整段）。
+   colormode / save：無 active 概念，永遠 solid。
+   mode3：colormode 與 colorwheel 之間 panel gap 去掉、共用一條貫穿兩盒的線（見下方）。
+   用 pseudo 直線（save-box 原圓形 border 會變弧線，故非 border-bottom）；
+   色 = var(--lib-fg) = 頁面前景；各線統一 baseline 對齊盒底。 */
+#colormode-box,
+#save-box,
+#rotation-box {
+  position: relative;
+}
+
+/* 統一線寬 = 按鈕寬（盒高 - 2×padding = 84px），各盒共用 */
+#create-app .control-panel {
+  --line-width: calc(var(--rotation-box-min-height) - 2 * var(--control-box-padding));
+}
+
+/* colormode / save：永遠顯示。inset 一個 padding → 線置中於按鈕、寬 = --line-width。
+   left/width 進 transition：mode3 colormode 線會「長」成貫穿 colorwheel 的一整條（見下方）。 */
+#colormode-box::after,
+#save-box::after {
+  content: "";
+  position: absolute;
+  left: var(--control-box-padding);
+  width: var(--line-width);
+  bottom: 0;
+  height: 6px;
+  background-color: var(--lib-fg);
+  transition: background-color var(--dur-fast) ease, width var(--dur-fast) ease, left var(--dur-fast) ease;
+}
+/* save 盒 disabled（無輸入文字時）→ 底線跟 icon 一起半透明 */
+#save-box.disabled::after {
+  opacity: 0.5;
+}
+
+/* mode3（wireframe / 彩色底）：colormode 與緊鄰 colorwheel 之間的 panel gap 去掉（user 2026-06-11 第三輪：
+   兩者已用共用線綁成一組，中間 gap 多餘）→ colorpicker 負 margin-left 拉回貼齊 colormode。 */
+#create-app.wireframe-mode #colorpicker-box {
+  margin-left: calc(-1 * var(--panel-gap));
+}
+/* mode3 共用線：去 gap 後兩盒貼齊 → 線 = 兩盒寬 = 240px，從 colormode 盒左緣（left:0）貫穿到 colorwheel 盒右緣
+   （colorwheel 自己不畫線）。兩盒等寬 → 線中心對齊整組中心。線屬 colormode-box（overflow visible）可溢出、
+   colorwheel-box bg 透明不擋。 */
+#create-app.wireframe-mode #colormode-box::after {
+  left: 0;
+  width: calc(2 * var(--rotation-box-min-height));
+}
+
+/* 旋轉組 custom/rotate 底線（畫在 #rotation-box，盒不被 scale、baseline 穩；不畫按鈕上避 scale/展開位移）：
+   ⚠️user 2026-06-11 定案規則：custom+rotate 底線**始終連成一整條**（單一 ::before，left inset、
+   width=100%-2inset 隨盒寬自動長：收合窄、custom 展開有文字輸入時整條變寬「合起來」蓋滿 custom+slider+random/reset+rotate）；
+   active/inactive **只影響 icon 變淡**，線不變；**唯獨「兩個都 inactive」連接線才改 inactive 灰**（opacity 0.5）。
+   （早版用 ::before+::after 雙段在 custom active 時拆開、user 要求合併→改回單一 ::before 貫穿） */
+#rotation-box::before {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: var(--control-box-padding);
+  width: calc(100% - 2 * var(--control-box-padding));
+  height: 6px;
+  background-color: var(--lib-fg);
+  pointer-events: none;
+  transition: width var(--dur-fast) ease, opacity var(--dur-fast) ease;
+}
+/* 唯獨「兩個都 inactive」＝連接線改 inactive 灰（其餘只要一個 active 線就 solid，inactive 只影響 icon） */
+#rotation-box:not(:has(.custom-button-custom.active)):not(:has(.custom-button-rotate.active))::before {
+  opacity: 0.5;
 }
 
 /* 控制盒底色從灰改高對比純黑/白（user 2026-06-10）：
@@ -384,6 +470,21 @@
   --lib-bg: #ffffff;
   --lib-fg: #000000;
   --lib-fg-rgb: 0, 0, 0;
+}
+
+/* 桌面控制盒移除實心底（改 bottom-line）後，盒內容（slider/label/.angle-input/底線）不再對比盒底、改對比頁面底。
+   在 .control-panel scope 把 --lib-fg 設成「頁面前景色」（相對上面盒底版的反相）→ 所有既有 var(--lib-fg)
+   消費者自動轉成對頁面底正確的色，免逐條改。--lib-bg 桌面已無消費者（.control-box bg 改 transparent）不必動。
+   只 scope .control-panel（桌面）→ 手機 .mobile-bottom-bar（sibling、仍實心底）不受影響。 */
+#create-app.standard-mode .control-panel,
+#create-app.wireframe-mode.dark-icons .control-panel {
+  --lib-fg: #000000;
+  --lib-fg-rgb: 0, 0, 0;
+}
+#create-app.inverse-mode .control-panel,
+#create-app.wireframe-mode:not(.dark-icons) .control-panel {
+  --lib-fg: #ffffff;
+  --lib-fg-rgb: 255, 255, 255;
 }
 
 /* 盒內 icon 預設 100%（active），inactive 狀態統一 50%（user 2026-05-20）
@@ -420,7 +521,8 @@
   aspect-ratio: 1 / 1; /* 正方形 */
   display: none; /* 由 JavaScript 控制顯示/隱藏 */
   position: relative;
-  padding: calc(16px * var(--scale)); /* user 2026-05-20 五次調整：padding 8→16，讓 ring 距 box 邊更多留白（ring 連同 canvas 一起被推離邊） */
+  padding: calc(24px * var(--scale)); /* user 2026-05-20 五次調整：padding 8→16；2026-06-11 16→24 讓色環整體再小一點
+     （wheel canvas = container = box120 - 2*padding，加 padding 縮容器→縮環；box 仍 120 故共用線 240px/版面不動）*/
   opacity: 0; /* 預設透明（包括 border 和背景） */
   overflow: hidden; /* 隱藏溢出內容，配合寬度動畫 */
   transition: max-width var(--dur-micro) ease, padding var(--dur-micro) ease, opacity var(--dur-micro) ease; /* 寬度、padding 和 opacity 過渡效果 */
@@ -857,17 +959,26 @@
   transition: background var(--dur-fast) ease, box-shadow var(--dur-fast) ease; /* 添加 transition */
 }
 
-/* Inactive slider track + thumb 用「box-internal fg」色 = var(--lib-fg)（與 box bg --lib-bg 對比）
-   盒底改高對比黑/白後直接吃 --lib-fg：黑底→白 slider / 白底→黑 slider（mode1/2 同一條規則自動反） */
+/* Inactive slider track + thumb 用「box-internal fg」色 = var(--lib-fg)（盒內 fg：mode1 黑 / mode2 白）。
+   ⚠️必須拆 3 條（track / ::-webkit-slider-thumb / ::-moz-range-thumb）各自一條 selector list：
+   早版把 6 個 selector（含 Chromium 不認的 ::-moz-range-thumb）grouped 成一條 → 整條 selector list 無效被丟棄
+   → inactive slider 沒吃到 var(--lib-fg)、fallback 回預設 #e6e6e6 淺灰（比 icon 0.5 黑淺很多，user 2026-06-11 報「slider 比 icon 淺」）。
+   拆開後各瀏覽器各留 track + 自家 thumb，inactive slider 才正確 = var(--lib-fg) @ opacity 0.5（跟 icon 同階）。 */
 #create-app.standard-mode .custom-slider:not(.enabled),
-#create-app.standard-mode .custom-slider:not(.enabled)::-webkit-slider-thumb,
-#create-app.standard-mode .custom-slider:not(.enabled)::-moz-range-thumb,
-#create-app.inverse-mode .custom-slider:not(.enabled),
-#create-app.inverse-mode .custom-slider:not(.enabled)::-webkit-slider-thumb,
-#create-app.inverse-mode .custom-slider:not(.enabled)::-moz-range-thumb {
+#create-app.inverse-mode .custom-slider:not(.enabled) {
   background: var(--lib-fg);
   box-shadow: none;
   transition: background var(--dur-fast) ease, opacity var(--dur-fast) ease;
+}
+#create-app.standard-mode .custom-slider:not(.enabled)::-webkit-slider-thumb,
+#create-app.inverse-mode .custom-slider:not(.enabled)::-webkit-slider-thumb {
+  background: var(--lib-fg);
+  box-shadow: none;
+}
+#create-app.standard-mode .custom-slider:not(.enabled)::-moz-range-thumb,
+#create-app.inverse-mode .custom-slider:not(.enabled)::-moz-range-thumb {
+  background: var(--lib-fg);
+  box-shadow: none;
 }
 
 /* Wireframe mode (mode3) inactive slider 統一交給下面 wireframe-mode 整段 (.enabled / :not(.enabled) 同色)
@@ -987,8 +1098,8 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 40px;
-  height: 40px;
+  width: 30px; /* 2026-06-11 40→30：色環內洞縮小（環帶變寬 inner 0.62→0.50），play 鈕跟著縮才放得進洞 */
+  height: 30px;
   border-radius: 50%;
   background-color: transparent;
   border: none;
@@ -1022,8 +1133,8 @@
 }
 
 .colorwheel-play-button img {
-  width: 24px;
-  height: 24px;
+  width: 16px; /* 2026-06-11 24→16：play/pause icon 縮小，配合環帶變寬、中央洞縮小 */
+  height: 16px;
   display: block;
 }
 
@@ -1371,20 +1482,32 @@
     opacity: 1;
   }
 
-  /* 內層容器：對齊桌面 .control-box — 灰底實心、無 border、直角 */
+  /* 內層容器（user 2026-06-11 手機改底綫：拿掉實心灰底→透明，sliders 浮在頁面上） */
   .mobile-custom-angle-controls .controls-inner {
     display: flex;
     flex-direction: row;
     align-items: stretch;
     width: 100%;
-    padding: 1.2rem;
+    padding: 1.2rem 0; /* user 2026-06-11：左右 padding 歸零，內容貼齊容器邊＝與輸入框對齊 */
     border: none;
-    background-color: var(--lib-bg);
+    background-color: transparent;
     border-radius: 0;
     box-sizing: border-box;
     gap: 0.8rem;
-    overflow: hidden; /* 內容物不能超出 */
-    transition: background-color var(--dur-base) ease;
+    overflow: hidden; /* 內容物不能超出（底綫 ::after 在 padding box 底邊內、不受影響）*/
+    position: relative; /* 為 ::after 底綫定位 */
+  }
+
+  /* Slider 面板底綫（user 2026-06-11：control slider 出現時這段也要底綫）— 貫穿內容寬、4px、永遠 solid */
+  .mobile-custom-angle-controls .controls-inner::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 4px;
+    background-color: var(--lib-fg);
+    pointer-events: none;
   }
 
   /* Sliders box - 左側區域 */
@@ -1508,19 +1631,31 @@
     opacity: 1;
   }
 
-  /* 內層容器：bar 形狀 — 對齊 .control-box / mobile-bottom-btn：灰底實心、無 border、直角 */
+  /* 內層容器：bar 形狀（user 2026-06-11 手機改底綫：拿掉實心灰底→透明，rainbow track 自己浮在頁面上） */
   .mobile-colorpicker-bar .colorpicker-bar-inner {
     display: flex;
     flex-direction: row;
     align-items: center; /* 垂直置中 */
     width: 100%;
     gap: 1rem; /* 與其他元素統一的 gap */
-    padding: 1rem; /* 上下左右 1rem padding */
+    padding: 1rem 0; /* user 2026-06-11：左右 padding 歸零，rainbow track 貼齊容器邊＝與輸入框對齊 */
     border: none;
-    background-color: var(--lib-bg);
+    background-color: transparent;
     border-radius: 0;
     box-sizing: border-box;
-    transition: background-color var(--dur-base) ease;
+    position: relative; /* 為 ::after 底綫定位 */
+  }
+
+  /* Color picker bar 底綫（user 2026-06-11：色環 bar 也要底綫）— 貫穿 track+play 內容寬、4px、永遠 solid */
+  .mobile-colorpicker-bar .colorpicker-bar-inner::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 4px;
+    background-color: var(--lib-fg);
+    pointer-events: none;
   }
 
   /* Color Picker 容器：bar 形狀，9:1 比例的 9 */
@@ -2006,7 +2141,7 @@
     display: flex;
     /* 高度：等於按鈕的高度 */
     height: var(--mobile-btn-size);
-    justify-content: space-between; /* 讓按鈕均分空間 */
+    justify-content: space-between; /* user 2026-06-11 還原：按鈕均分、首尾貼齊容器邊＝與輸入框同寬對齊 */
     align-items: center;
     gap: var(--mobile-btn-gap); /* 使用統一的 gap */
     padding: 0; /* 不需要內部 padding */
@@ -2020,7 +2155,7 @@
     justify-content: center; /* 靠攏到中間 */
   }
 
-  /* Custom + Rotate 按鈕組容器（共用外框 → 改為對齊桌面 .control-box：灰底實心、無 border、直角） */
+  /* Custom + Rotate 按鈕組容器（user 2026-06-11 手機改底綫：拿掉實心灰底→透明，底綫由 ::before 連接線提供） */
   .mobile-rotation-group {
     display: flex;
     flex-shrink: 0;
@@ -2028,11 +2163,11 @@
     gap: 0.5rem; /* 內部兩個按鈕之間的間距 */
     height: var(--mobile-btn-size);
     border: none;
-    background-color: var(--lib-bg);
+    background-color: transparent;
     border-radius: 0;
     box-sizing: border-box;
     padding: 0 0.25rem; /* 左右內邊距讓按鈕不貼邊 */
-    transition: background-color var(--dur-base) ease;
+    position: relative; /* 為 ::before 連接底綫定位 */
   }
 
   .mobile-bottom-btn {
@@ -2042,14 +2177,15 @@
     flex-shrink: 0; /* 不縮小 */
     flex-grow: 0; /* 不放大 */
     border: none;
-    background-color: var(--lib-bg);
+    background-color: transparent; /* user 2026-06-11 手機改底綫：拿掉實心灰底 */
     cursor: var(--cursor-pointer);
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 0;
-    transition: opacity var(--dur-micro) ease, background-color var(--dur-base) ease;
+    transition: opacity var(--dur-micro) ease;
     box-sizing: border-box;
+    position: relative; /* 為 mode/save ::after 底綫定位 */
   }
 
   /* rotation-group 內的按鈕：底色已由外層容器提供，內部透明避免雙層疊色 */
@@ -2151,5 +2287,77 @@
   #create-app.wireframe-mode .mobile-bento-container,
   #create-app.wireframe-mode .mobile-bento-button {
     border-color: var(--wireframe-border);
+  }
+
+  /* ===== 手機 control bar 底綫化（user 2026-06-11：拿掉實心盒，改桌面那套透明盒 + 底綫）=====
+     盒透明後，line / slider / angle-input 改吃「頁面前景」色 → 在 .mobile-bottom-bar / .mobile-content-section
+     scope 把 --lib-fg override 成頁面 fg（對齊桌面 .control-panel 做法）。 */
+  #create-app.standard-mode .mobile-bottom-bar,
+  #create-app.standard-mode .mobile-content-section,
+  #create-app.wireframe-mode.dark-icons .mobile-bottom-bar,
+  #create-app.wireframe-mode.dark-icons .mobile-content-section {
+    --lib-fg: #000000;
+    --lib-fg-rgb: 0, 0, 0;
+  }
+  #create-app.inverse-mode .mobile-bottom-bar,
+  #create-app.inverse-mode .mobile-content-section,
+  #create-app.wireframe-mode:not(.dark-icons) .mobile-bottom-bar,
+  #create-app.wireframe-mode:not(.dark-icons) .mobile-content-section {
+    --lib-fg: #ffffff;
+    --lib-fg-rgb: 255, 255, 255;
+  }
+
+  /* 盒透明後 icon 改與「頁面底」對比（對齊桌面 .control-box img filter flip）：
+     頁亮（standard / wireframe.dark-icons）→ 黑 icon 不反；頁暗（inverse / wireframe 非 dark-icons）→ 反白。 */
+  #create-app.standard-mode .mobile-bottom-btn img,
+  #create-app.standard-mode .mobile-colorwheel-play-btn img,
+  #create-app.standard-mode .mobile-custom-angle-controls .image-button img,
+  #create-app.wireframe-mode.dark-icons .mobile-bottom-btn img,
+  #create-app.wireframe-mode.dark-icons .mobile-colorwheel-play-btn img,
+  #create-app.wireframe-mode.dark-icons .mobile-custom-angle-controls .image-button img {
+    filter: none;
+  }
+  #create-app.inverse-mode .mobile-bottom-btn img,
+  #create-app.inverse-mode .mobile-colorwheel-play-btn img,
+  #create-app.inverse-mode .mobile-custom-angle-controls .image-button img,
+  #create-app.wireframe-mode:not(.dark-icons) .mobile-bottom-btn img,
+  #create-app.wireframe-mode:not(.dark-icons) .mobile-colorwheel-play-btn img,
+  #create-app.wireframe-mode:not(.dark-icons) .mobile-custom-angle-controls .image-button img {
+    filter: invert(1);
+  }
+
+  /* 底綫：mode / save 永遠 solid（save disabled 0.5），撐滿按鈕寬（space-between 下首尾按鈕貼容器邊
+     → 線外緣與輸入框左右緣對齊，user 2026-06-11）。
+     line 色 = var(--lib-fg) = 頁面前景。手機線 4px（user 2026-06-11，比桌面 6px 細）。 */
+  .mobile-mode-btn::after,
+  .mobile-save-btn::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 4px;
+    background-color: var(--lib-fg);
+    pointer-events: none;
+  }
+  .mobile-save-btn:disabled::after {
+    opacity: 0.5;
+  }
+
+  /* rotation group 底綫：始終一整條連接線貫穿 custom+rotate；唯獨「兩個都 inactive」才變灰（對齊桌面）。
+     active/inactive 只影響 icon（已由上方 .mobile-rotation-group .mobile-bottom-btn.active/.inactive opacity 處理）。 */
+  .mobile-rotation-group::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 4px;
+    background-color: var(--lib-fg);
+    pointer-events: none;
+    transition: opacity var(--dur-fast) ease;
+  }
+  .mobile-rotation-group:not(:has(.mobile-bottom-btn.active))::before {
+    opacity: 0.5;
   }
 }

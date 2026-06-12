@@ -145,6 +145,11 @@
     .footer-link-item + .footer-link-item {
       margin-top: calc(var(--spacing-xs) - var(--spacing-xl));
     }
+    /* 手機 clip-reveal 進退場（footer-draggable.js initFooterMobileReveal）把每個 block 包進 .clip-reveal-wrapper
+       → 兩張 link 卡不再直接相鄰，上面的收窄規則失效 → 改用 wrapper 相鄰補回（同等負 margin）。 */
+    .footer-random > .clip-reveal-wrapper:has(> .footer-link-item) + .clip-reveal-wrapper:has(> .footer-link-item) {
+      margin-top: calc(var(--spacing-xs) - var(--spacing-xl));
+    }
     /* privacy 雙語連結（Support/Regulations/Policy）手機合一行：隱藏 <br>，保留 <br> 前空格當分隔（同 .footer-office-zh-br pattern）。桌面維持兩行。 */
     .footer-privacy-br {
       display: none;

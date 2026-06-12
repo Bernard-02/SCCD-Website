@@ -178,7 +178,11 @@
      故 sticky top = 手機 header 高度（~88px）。user 2026-06-10 */
   .list-header.active {
     position: sticky;
-    top: 6rem;  /* 手機固定 header 底邊 ~92px（playwright 量），6rem(96px) 清掉它留 ~4px 縫 */
+    /* 8rem(128px) 釘點：手機 logo SVG 底邊 ~110px（playwright 量，比 header box 92px 還低 ~18px），
+       6rem(96px) 只清 header box 不清 logo → 釘住的 title 上緣被 logo 蓋（user 2026-06-10）。
+       8rem 清掉 logo 留 ~18px 縫，且 128px == pt-6xl 手機 padding → blocker 高度同改 8rem 正好填滿不位移。
+       ⚠️ 此值必須與 .list-mobile-header-blocker 的 height/margin-top 及 list-accordion.js getListStickyTop 手機值同步 */
+    top: 8rem;
     z-index: 5;
   }
   /* #3 手機 sticky title 上方露內容 — Josh Comeau「Header Blocker」解法（v4，取代 v1/v2 ::before 遮罩 + v3 JS clip）
@@ -198,14 +202,26 @@
        96px 不額外推開內容（下方 .site-container 起點不變），又不在未 pin 時與 filter bar 重疊。
      background:var(--theme-bg)：跟 section bg 同步 mode（standard 白 / inverse 黑），對齊 admission 桌面
        .admission-scroll-mask 做法；需進 typography.css mode-switch whitelist 才不會切 mode 時 snap 露色。
-     桌面零影響：HTML 上 md:hidden、此規則也只在手機 @media。 */
+     桌面零影響：HTML 上 md:hidden、此規則也只在手機 @media。
+
+     ⚠️ 只在「有 list-header 釘住」時顯示（list-accordion.js IO 給 section 加 .list-has-pinned-header）：
+     blocker 永遠開的話，往上捲經過 band 的 section nav / filter btn 上半會被白帶切掉（user 2026-06-10 報，
+     activities/admission 皆然）。但 nav 在 band 內時＝沒有 item 釘住（nav 跟第一個 item 之間有內容墊開，
+     item 釘住時 nav 已捲出畫面）→ 用「釘住才顯示」精準避開：nav 可見時 blocker 關、item 閱讀時 blocker 開。
+     margin-top:-6rem 讓它 display none↔block 切換 0 淨高（不位移）。 */
   .list-mobile-header-blocker {
+    display: none;
     position: sticky;
     top: 0;
-    height: 6rem;
-    margin-top: -6rem;
+    /* 高度 = 釘點 8rem（清 logo）；margin-top:-8rem 拉進 pt-6xl(128px) padding 正好填滿 [0,128]、內容不位移。
+       ⚠️ 與 .list-header.active top 及 getListStickyTop 手機值同步（見上方註解） */
+    height: 8rem;
+    margin-top: -8rem;
     background: var(--theme-bg);
     z-index: 40;
+  }
+  .list-has-pinned-header .list-mobile-header-blocker {
+    display: block;
   }
 
   /* 手機：年份→list 的 grid gap 移除（year-toggle py-md + items mt-md 已提供間距，year 緊貼 list）。
@@ -791,6 +807,117 @@ body.mode-color .tl-icon-btn-inner {
 body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
   background: var(--theme-fg-inverse);
   color: var(--theme-fg);
+}
+
+/* ===== Timeline 手機版（timeline.js buildMobile；桌面 strip 整套不建構）=====
+ * era chip + 年份卡（圖片上方）→ slideshow 圖片區 → 控制列（list 鈕 + 下一年箭頭）。
+ * list view 沿用桌面 .tl-list-* 結構，這裡覆蓋成單欄滿版。 */
+@media (max-width: 767px) {
+  #timeline-mobile {
+    padding: var(--spacing-lg) var(--container-padding) var(--spacing-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    align-items: flex-start;
+  }
+  .tl-m-era {
+    width: max-content;
+    max-width: 100%;
+    padding: 0.4em 0.7em;
+    transform-origin: bottom left;
+  }
+  .tl-m-card {
+    width: max-content;
+    max-width: 100%;
+    padding: var(--spacing-sm); /* 年份字卡內距 sm（user 2026-06-12；原 0.6rem 0.8rem） */
+    transform-origin: top left;
+  }
+  .tl-m-card .tl-m-year {
+    font-size: var(--font-size-p2); /* 年份跟內文同字級（user 2026-06-12；JS 給 h4 → 手機縮回 p2） */
+    line-height: 1;
+    margin-bottom: var(--spacing-sm);
+  }
+  .tl-m-card .tl-m-desc + .tl-m-desc {
+    margin-top: var(--spacing-sm);
+  }
+  /* BFA/MDES 子標題（descriptions 內的 <h5>）手機跟所在視圖內文同字級（user 2026-06-12）：
+     主視圖內文 = text-p2、list view 內文 = p1（上方 user 統一的字級） */
+  .tl-m-card .tl-m-desc h5 {
+    font-size: var(--font-size-p2);
+  }
+  .tl-list-block > h5 {
+    font-size: var(--font-size-p1);
+  }
+  /* 圖片區：沿用 .class-img 絕對定位 slideshow（同 about class section 手機尺寸）；
+     top 50% !important 蓋過 placeInSlot 的 inline top:70%（同 .class-info-panel 手機做法） */
+  .tl-m-images {
+    position: relative;
+    align-self: stretch;
+    min-height: 280px;
+  }
+  .tl-m-images .class-img {
+    top: 50% !important;
+    max-width: 200px;
+  }
+  .tl-m-images .class-img.class-img--landscape {
+    max-width: 280px;
+  }
+  .tl-m-controls {
+    align-self: stretch;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    z-index: 30; /* list view overlay (z-25) 之上：list 模式仍可點 toggle 鈕退出 */
+  }
+  .tl-m-controls button {
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: var(--cursor-pointer);
+  }
+
+  /* list view 覆蓋：單欄滿版、矩形底部讓出控制列 */
+  .tl-list-grid {
+    top: 36px;            /* chip 凸出 -28px 後仍留在 area 內 */
+    bottom: 72px;         /* 讓出底部控制列（48px 鈕 + gap） */
+    padding: 0 var(--container-padding);
+    display: block;
+  }
+  .tl-list-cell {
+    height: 100%;
+  }
+  .tl-list-rect {
+    right: 12px;
+  }
+  /* era chip：桌面往左凸出矩形 -lg 在手機會貼到螢幕左緣 → 收回對齊矩形左緣；
+     padding 對齊全站 nav btn 標準 */
+  .tl-list-chip {
+    left: 0;
+    padding: 6px 8px 5px;
+  }
+  /* 字卡內距 xs（user 2026-06-12 看過 nav btn 標準 6px 8px 5px 後改 xs；桌面維持 xl） */
+  .tl-list-content {
+    inset: var(--spacing-xs);
+    padding-right: var(--spacing-sm);
+  }
+  .tl-list-year-row {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-sm);
+  }
+  .tl-list-year-row + .tl-list-year-row {
+    margin-top: var(--spacing-lg);
+  }
+  /* 年份（JS 給 text-h5）與內文（text-p2）手機統一縮成 p1；
+     雙層 selector 才蓋過 @tailwind utilities（在 lists.css 之後）的同特異度 font-size */
+  .tl-list-year-row .tl-list-year,
+  .tl-list-year-row .tl-list-year-body {
+    font-size: var(--font-size-p1);
+  }
+  .tl-list-cols {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-xs);
+  }
 }
 
 /* ===== Inline Scrollbar (.list-scroll + library year pickers) =====

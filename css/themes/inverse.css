@@ -159,6 +159,7 @@ body.mode-inverse .timeline-card-inner.bg-black * {
 
 /* ===== Nav Buttons (左側 section/program btn) ===== */
 /* inactive: 純黑底 + 半透明白字（對齊 about #anchor-nav）；active 彩色 background 由 JS inline 設定 */
+body.mode-inverse .section-nav-btn:not(.active) .anchor-nav-inner,
 body.mode-inverse .faculty-filter-btn:not(.active) .anchor-nav-inner,
 body.mode-inverse .activities-section-btn:not(.active) .anchor-nav-inner,
 body.mode-inverse .courses-program-btn:not(.active) .anchor-nav-inner {
@@ -166,6 +167,7 @@ body.mode-inverse .courses-program-btn:not(.active) .anchor-nav-inner {
   color: rgba(255, 255, 255, 0.5) !important;
 }
 
+body.mode-inverse .section-nav-btn.active .anchor-nav-inner,
 body.mode-inverse .faculty-filter-btn.active .anchor-nav-inner,
 body.mode-inverse .activities-section-btn.active .anchor-nav-inner,
 body.mode-inverse .courses-program-btn.active .anchor-nav-inner {

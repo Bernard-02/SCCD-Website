@@ -44,13 +44,17 @@ body.mode-color .footer-logo-inner {
  * applyAccentColors）；mode-color 跟全站 accent 元件一致改 strict B/W（否則彩色卡片疊在 vivid
  * 互補 hue footer bg 上對比不足、且只有 footer 沒翻黑白顯得不一致）。
  * 底 = fg-contrast（對比 footer bg 的純黑白）、字 = fg-inverse-contrast（對比卡片底的純黑白）；
- * !important 蓋過 JS inline background。手機無 scatter 不受影響。 */
-body.mode-color .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-link-item) {
-  background: var(--theme-fg-contrast) !important;
-}
-body.mode-color .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-link-item),
-body.mode-color .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-link-item) :is(h6, p, a) {
-  color: var(--theme-fg-inverse-contrast) !important;
+ * !important 蓋過 JS inline background。
+ * 桌面限定：手機無 scatter、JS 不設 accent 底（footer.css 黑字+padding 規則也在 min-width:768 內），
+ * 不 scope 的話手機 mode3 會多出黑/白底色塊 — 手機維持透明底 + var(--footer-fg) 文字（user 2026-06-11）。 */
+@media (min-width: 768px) {
+  body.mode-color .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-link-item) {
+    background: var(--theme-fg-contrast) !important;
+  }
+  body.mode-color .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-link-item),
+  body.mode-color .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-link-item) :is(h6, p, a) {
+    color: var(--theme-fg-inverse-contrast) !important;
+  }
 }
 
 /* ===== Layout ===== */
@@ -119,6 +123,17 @@ body.mode-color #next-labels h2[style*="background"] {
 body.mode-color #sticky-title-chip .sticky-chip-inner,
 body.mode-color #sticky-branch-chip .sticky-chip-inner {
   background: var(--theme-fg) !important;
+  color: var(--theme-fg-inverse) !important;
+}
+
+/* Degree Show detail 手機 event 標題 chip（buildMobileEventTitle）：JS inline 隨機 accent 底 + .text-black 黑字，
+ * mode-color 翻 strict B/W（同上 sticky chip pattern；chip 是 md:hidden 桌面不顯示，不需 media scope）。
+ * 字選擇器必須 p.text-p1.text-black 拉到 (0,3,1)：下方廣域 `.text-black:not(...):not(...)` 是 (0,3,0)+!important，
+ * 寫少一級會被拉回 theme-fg 跟同色 chip 底融在一起（同 [data-hero-hl] 的坑，loader 的 p 固定帶 text-p1+text-black） */
+body.mode-color .event-mobile-title-chip {
+  background: var(--theme-fg) !important;
+}
+body.mode-color .event-mobile-title-chip p.text-p1.text-black {
   color: var(--theme-fg-inverse) !important;
 }
 
@@ -318,6 +333,7 @@ body.mode-color .theme-invert {
 
 /* Active：strict B/W chip */
 body.mode-color .anchor-nav-btn.active .anchor-nav-inner,
+body.mode-color .section-nav-btn.active .anchor-nav-inner,
 body.mode-color .faculty-filter-btn.active .anchor-nav-inner,
 body.mode-color .activities-section-btn.active .anchor-nav-inner,
 body.mode-color .courses-program-btn.active .anchor-nav-inner,
@@ -331,6 +347,7 @@ body.mode-color .atlas-filter-btn.active .anchor-nav-inner {
 
 /* Inactive：跟 body bg 同色 + 半透明對比文字 + transition 排除 bg */
 body.mode-color .anchor-nav-btn:not(.active) .anchor-nav-inner,
+body.mode-color .section-nav-btn:not(.active) .anchor-nav-inner,
 body.mode-color .faculty-filter-btn:not(.active) .anchor-nav-inner,
 body.mode-color .activities-section-btn:not(.active) .anchor-nav-inner,
 body.mode-color .courses-program-btn:not(.active) .anchor-nav-inner,
@@ -351,6 +368,7 @@ body.mode-color .atlas-filter-btn:not(.active) .anchor-nav-inner {
  * 多一個 .mode-switching class 拉高 specificity（0,5,1）蓋過上面排除 bg 的 !important（0,4,1）。
  * loop 開始前 .mode-switching 已移除 → 不影響穩態。 */
 body.mode-color.mode-switching .anchor-nav-btn:not(.active) .anchor-nav-inner,
+body.mode-color.mode-switching .section-nav-btn:not(.active) .anchor-nav-inner,
 body.mode-color.mode-switching .faculty-filter-btn:not(.active) .anchor-nav-inner,
 body.mode-color.mode-switching .activities-section-btn:not(.active) .anchor-nav-inner,
 body.mode-color.mode-switching .courses-program-btn:not(.active) .anchor-nav-inner,
@@ -365,6 +383,7 @@ body.mode-color.mode-switching .atlas-filter-btn:not(.active) .anchor-nav-inner 
 /* Inactive Hover：文字 100% 對比 */
 @media (min-width: 768px) {
   body.mode-color .anchor-nav-btn:not(.active):hover .anchor-nav-inner,
+  body.mode-color .section-nav-btn:not(.active):hover .anchor-nav-inner,
   body.mode-color .faculty-filter-btn:not(.active):hover .anchor-nav-inner,
   body.mode-color .activities-section-btn:not(.active):hover .anchor-nav-inner,
   body.mode-color .courses-program-btn:not(.active):hover .anchor-nav-inner,
@@ -630,10 +649,14 @@ body.mode-color .lib-panel-title {
  *   1. #library-card-stack 內三個動態生成的 color rect
  *   2. #library-card-main：原本是 static 主卡，但 panel 切換時 library-card.js 把它 demote 成 color rect（DOM 仍在 stack 外面，是 sibling）
  * :not([style*="--lib-bg"]) 排除被 setAsGray() promote 成主卡的元素：JS 在點到的元素 inline 設 background:var(--lib-bg)，
- *   這時要走 lib-bg 翻 neutral-gray，不能被這條 strict B/W 規則蓋回 theme-fg */
-body.mode-color #library-card-stack > div:not([style*="--lib-bg"]),
-body.mode-color #library-card-main:not([style*="--lib-bg"]) {
-  background: var(--theme-fg) !important;
+ *   這時要走 lib-bg 翻 neutral-gray，不能被這條 strict B/W 規則蓋回 theme-fg
+ * 桌面限定：手機跳過 initLibraryCard（main-modular.js < 768 分支），#library-card-main 沒有 inline --lib-bg
+ *   可排除 → 會被這條蓋成純黑/白底（疊同色 --lib-fg 文字看不見）；手機底色走 library.css 的 var(--lib-bg) 兩階灰 */
+@media (min-width: 768px) {
+  body.mode-color #library-card-stack > div:not([style*="--lib-bg"]),
+  body.mode-color #library-card-main:not([style*="--lib-bg"]) {
+    background: var(--theme-fg) !important;
+  }
 }
 
 /* color-rect-title：JS inline 設 color='#000' inactive 或 '#000'/'#fff' hover；
@@ -976,6 +999,18 @@ body.mode-color .class-group-label:has(+ .class-division-btn.active) {
     background: var(--theme-fg-inverse) !important;
     color: var(--theme-fg) !important;
   }
+}
+
+/* about 手機分組 pill（#mobile-division-nav）：對齊上方桌面 .class-division-btn 的 strict B/W
+ * inactive = fg 底 / fg-inverse 字；active = 反向（fg-inverse 底 / fg 字）。
+ * id 特異度蓋過 setActiveNavBtn 設的 inline accent bg 與 .section-nav-btn 一般 theme 規則。 */
+body.mode-color #mobile-division-nav .section-nav-btn:not(.active) .anchor-nav-inner {
+  background: var(--theme-fg) !important;
+  color: var(--theme-fg-inverse) !important;
+}
+body.mode-color #mobile-division-nav .section-nav-btn.active .anchor-nav-inner {
+  background: var(--theme-fg-inverse) !important;
+  color: var(--theme-fg) !important;
 }
 
 /* ===== 封鎖綫 (.section-title-inner[data-section-title]) chip：strict B/W in mode-color =====
