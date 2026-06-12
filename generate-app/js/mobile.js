@@ -221,6 +221,10 @@ function initMobileUI() {
   // 綁定事件
   bindMobileEvents();
 
+  // 進頁時同步 Color Picker Bar 顯隱：若是在別頁切成 mode3 再進 create，targetMode 已是 Wireframe
+  // → bar 要預設出現（對齊桌面色環邏輯）；cycleModeButton 只在點 mode 鈕時跑、進頁時不會跑（user 2026-06-11）
+  applyMobileColorpickerVisibility();
+
   // 初始化 placeholder 的垂直置中
   if (mobileElements.inputBox) {
     updateMobileInputBoxVerticalAlignment(mobileElements.inputBox, '');
@@ -470,39 +474,8 @@ function cycleModeButton() {
     window.sccdSetMode(_nextSiteMode);
   }
 
-  // 根據模式自動顯示/隱藏 Color Picker Bar
-  const logoContainer = document.querySelector('.mobile-logo-container');
-  const inputArea = document.querySelector('.mobile-input-area');
-
-  if (mobileElements.mobileColorpickerBar) {
-    if (targetMode === "Wireframe") {
-      // 切換到 Wireframe 模式：顯示 Color Picker Bar
-      mobileElements.mobileColorpickerBar.removeClass('hidden');
-
-      // 為 logo 和 input-area 添加 has-colorpicker 類
-      if (logoContainer) logoContainer.classList.add('has-colorpicker');
-      if (inputArea) inputArea.classList.add('has-colorpicker');
-
-      // 檢查是否需要調整輸入框（可能進入最滿狀態）
-      setTimeout(() => checkInputOverflow(), 50);
-
-      // 重新調整 canvas 尺寸（因為 logo-container 縮小了）
-      requestCanvasResize();
-    } else {
-      // 切換到 Standard/Inverse 模式：隱藏 Color Picker Bar
-      mobileElements.mobileColorpickerBar.addClass('hidden');
-
-      // 移除 has-colorpicker 類
-      if (logoContainer) logoContainer.classList.remove('has-colorpicker');
-      if (inputArea) inputArea.classList.remove('has-colorpicker');
-
-      // 離開最滿狀態，檢查輸入框
-      setTimeout(() => checkInputOverflow(), 50);
-
-      // 重新調整 canvas 尺寸（因為 logo-container 變大了）
-      requestCanvasResize();
-    }
-  }
+  // 根據模式自動顯示/隱藏 Color Picker Bar（抽成共用函式：進頁時若已是 mode3 也要同步 → 見 applyMobileColorpickerVisibility）
+  applyMobileColorpickerVisibility();
 
   // 處理 custom-open class（只在 Wireframe 模式且 Custom 打開時有效）
   if (targetMode !== 'Wireframe' && mobileElements.inputBox) {
@@ -524,6 +497,30 @@ function cycleModeButton() {
       updateMobileInputBoxVerticalAlignment(mobileElements.inputBox, currentText);
     }, 350); // 等待模式切換動畫完成（300ms）+ 50ms 緩衝
   }
+}
+
+// 依當前 targetMode 同步手機 Color Picker Bar 顯隱（Wireframe=mode3 才顯示）。
+// cycleModeButton（點 mode 鈕）與 initMobileUI（在別頁切 mode3 後進 create，targetMode 已是 Wireframe）共用 →
+// 否則 bar 只在點 mode 鈕時才出現，「進頁時已是 mode3」永遠藏著（user 2026-06-11 報的 bug）。
+// bar 顯示後 colorpicker canvas 由 updateUI/draw 在 container 有尺寸時自建，thumb 跟 site colorLoop 的 hue 動（draw 每幀讀）。
+function applyMobileColorpickerVisibility() {
+  if (!mobileElements.mobileColorpickerBar) return;
+  const logoContainer = document.querySelector('.mobile-logo-container');
+  const inputArea = document.querySelector('.mobile-input-area');
+  const isWireframe = targetMode === "Wireframe";
+
+  if (isWireframe) {
+    mobileElements.mobileColorpickerBar.removeClass('hidden');
+    if (logoContainer) logoContainer.classList.add('has-colorpicker');
+    if (inputArea) inputArea.classList.add('has-colorpicker');
+  } else {
+    mobileElements.mobileColorpickerBar.addClass('hidden');
+    if (logoContainer) logoContainer.classList.remove('has-colorpicker');
+    if (inputArea) inputArea.classList.remove('has-colorpicker');
+  }
+  // 顯隱後檢查輸入框最滿狀態 + 重算 canvas（logo-container 寬度變了）
+  setTimeout(() => checkInputOverflow(), 50);
+  requestCanvasResize();
 }
 
 // 檢查輸入框文字是否溢出（用於最滿狀態：Wireframe + Custom + Color Picker）

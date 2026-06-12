@@ -27,10 +27,11 @@ function drawColorRing() {
   let centerX = w / 2;
   let centerY = h / 2;
 
-  // 色環半徑基於 canvas 尺寸（user 2026-05-20 五次調整：thickness 0.55→0.62 變細）
-  // outerRadius 0.49 留 ~1% 給 stroke 不被 canvas edge clip；thickness = 38% of outerRadius
+  // 色環半徑基於 canvas 尺寸（thickness 0.55→0.62 變細；2026-06-11 0.62→0.50→0.54 微調環帶寬度）
+  // outerRadius 0.49 留 ~1% 給 stroke 不被 canvas edge clip；thickness = 46% of outerRadius
+  // ⚠️inner 比例同步 line ~260/~317 的 hit detection，改這要一起改
   let outerRadius = Math.min(w, h) * 0.49;
-  let innerRadius = outerRadius * 0.62;
+  let innerRadius = outerRadius * 0.54;
 
   // 清空並設置 30% 透明白色背景
   colorPickerCanvas.clear(); // 先清空
@@ -255,9 +256,9 @@ function handleColorPickerMouseDown(e) {
     let dy = y - centerY;
     let distance = Math.sqrt(dx * dx + dy * dy);
 
-    // 跟 drawColorRing 同步（outer 0.49 of canvas，inner = outer × 0.62）
+    // 跟 drawColorRing 同步（outer 0.49 of canvas，inner = outer × 0.54）
     let outerRadius = w * 0.49;
-    let innerRadius = w * 0.49 * 0.62;
+    let innerRadius = w * 0.49 * 0.54;
 
     // 只有在色環範圍內按下時才開始拖曳
     if (distance < innerRadius || distance > outerRadius) {
@@ -312,9 +313,9 @@ function handleColorPickerTouchStart(e) {
     let dy = y - centerY;
     let distance = Math.sqrt(dx * dx + dy * dy);
 
-    // 跟 drawColorRing 同步（outer 0.49 of canvas，inner = outer × 0.62）
+    // 跟 drawColorRing 同步（outer 0.49 of canvas，inner = outer × 0.54）
     let outerRadius = w * 0.49;
-    let innerRadius = w * 0.49 * 0.62;
+    let innerRadius = w * 0.49 * 0.54;
 
     // 只有在色環範圍內觸摸時才開始拖曳
     if (distance < innerRadius || distance > outerRadius) {
