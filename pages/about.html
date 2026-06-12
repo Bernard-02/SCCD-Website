@@ -96,14 +96,14 @@
         <div class="flex-1 min-w-0">
 
       <!-- Overview Section -->
-      <section id="overview" class="bg-white pb-6xl relative z-10 overflow-visible" style="scroll-margin-top: 200px;">
+      <section id="overview" class="bg-white pb-3xl md:pb-6xl relative z-10 overflow-visible" style="scroll-margin-top: 200px;">
 
         <div class="site-container relative z-10">
           <!-- Mouse trail container（文字上方，z-20 高於 grid 的 text） -->
           <div id="overview-trail-container" class="absolute inset-0 pointer-events-none z-20"></div>
           <div class="grid-20">
             <!-- English Text (左半，cols 4-12) -->
-            <div class="col-span-full md:col-start-5 md:col-span-8 mb-lg md:mb-0">
+            <div class="col-span-full md:col-start-5 md:col-span-8">
               <h5 class="text-black leading-snug">
                 <span data-overview-hl style="display: block; padding: 0.5em 0.6em;">Department of Communications Design, Shih Chien University / SCCD is the first academic institution to establish the "Communications Design" department in the country. The teaching of the department takes design thinking, humanities, and aesthetics as the cornerstones, uses multidimensional platforms as the foundation, diverse media as the carrier, and integrates teaching experiments and design training such as animation, narrative video, interaction, performance, game, product, space. and environment. Supplemented by intensive international workshop and industry-academy cooperation in various fields, as well as overseas exchange opportunities. It aims to cultivate director-type creative talents who can integrate "media" as the vehicle, "design" as the method, emphasize "communications" as the core of human civilization, and adapt to the rapid changes of the era.</span>
               </h5>
@@ -139,17 +139,35 @@
       <div id="class-works-area" class="relative z-10 md:pb-6xl">
 
 
-        <!-- Mobile Controls -->
-        <div class="md:hidden site-container pt-6xl relative z-10">
-          <div class="flex items-start justify-between gap-2xl mb-xl">
-            <div id="mobile-division-title" class="flex-1">
-               <div class="text-h5 font-bold leading-tight">Animation & Moving Image</div>
-               <div class="text-h5 font-bold mt-1">動畫影像設計組</div>
+        <!-- Mobile Division Nav：水平 scroll pill 列（沿用 .section-nav-btn / .anchor-nav-inner，與其他 section nav 一致）；
+             點擊切換下方圖文（wiring 在 bfa-division-toggle.js）。取代舊的 prev/next chevron 控制。
+             兩側負 margin 延伸到 viewport 邊 + py 給 active 旋轉 clearance（樣式在 variables.css mobile block） -->
+        <!-- sticky top = 6xl（手機 128px，清開固定 header 的 logo ~110px）；mt-3xl 給初始與 Programs 標題的間距；
+             sticky 容器是 class-works-area 的子層 → 從 class 區一路黏到 works 區結束。z-40 蓋過內容、低於 header(z-9999)。
+             items-end：pill 底部對齊，BFA 學士班 label 浮在 Animation/Creative Media pill 上方（比照桌面）。 -->
+        <div class="md:hidden site-container sticky z-40 mt-3xl" style="top: var(--spacing-6xl, 128px);">
+          <div id="mobile-division-nav" class="flex flex-row items-end gap-md overflow-x-auto py-sm">
+            <!-- Design Fundamental（works-only；CSS 預設收起，.is-works-context 才展開） -->
+            <button class="section-nav-btn mobile-division-btn mobile-division-btn--bfa shrink-0 text-left whitespace-nowrap" data-division="bfa">
+              <span class="anchor-nav-inner"><div>Design Fundamental</div><div>創作基礎</div></span>
+            </button>
+            <!-- Animation（BFA 學士班 label） -->
+            <div class="mobile-division-group shrink-0 flex flex-col items-start">
+              <span class="class-group-label text-p2 font-bold whitespace-nowrap">BFA 學士班</span>
+              <button class="section-nav-btn mobile-division-btn text-left whitespace-nowrap" data-division="animation">
+                <span class="anchor-nav-inner"><div>Animation & Moving Image</div><div>動畫影像設計組</div></span>
+              </button>
             </div>
-            <div class="flex gap-sm shrink-0 pt-1">
-               <button id="mobile-division-prev" class="w-11 h-11 flex items-center justify-center"><span class="icon icon-chevron-list icon-s"></span></button>
-               <button id="mobile-division-next" class="w-11 h-11 flex items-center justify-center"><span class="icon icon-chevron-list icon-s rotate-180"></span></button>
+            <!-- Creative Media（BFA 學士班 label） -->
+            <div class="mobile-division-group shrink-0 flex flex-col items-start">
+              <span class="class-group-label text-p2 font-bold whitespace-nowrap">BFA 學士班</span>
+              <button class="section-nav-btn mobile-division-btn text-left whitespace-nowrap" data-division="creative-media">
+                <span class="anchor-nav-inner"><div>Creative Media Design</div><div>創意媒體設計組</div></span>
+              </button>
             </div>
+            <button class="section-nav-btn mobile-division-btn shrink-0 text-left whitespace-nowrap" data-division="mdes">
+              <span class="anchor-nav-inner"><div>MDES</div><div>碩士班</div></span>
+            </button>
           </div>
         </div>
 
@@ -201,7 +219,7 @@
           <!-- Animation -->
           <div class="class-info-panel pb-3xl relative z-10" data-division="animation">
             <div class="grid-20 md:items-start">
-              <div class="col-span-full md:col-start-5 md:col-span-6 order-2 md:order-1 mt-xl md:mt-0">
+              <div class="col-span-full md:col-start-5 md:col-span-6 md:order-1">
                 <div data-class-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
                   <p class="mb-xs division-text font-bold">Explore the relationship between self and the environment through animation creation, and then extend the care and reflection on culture, ecology and humanities.</p>
                   <p class="mb-md division-text font-bold">透過動畫創作探討自我與環境的關係，進而延伸對文化、生態與人文之關懷與省思。</p>
@@ -209,7 +227,7 @@
                   <p class="division-text font-bold">課程結合 2D、3D、停格與實驗性手法，培養學生紮實的技術能力與獨特的視覺敘事觀點。</p>
                 </div>
               </div>
-              <div class="col-span-full md:col-start-13 md:col-span-8 relative order-1 md:order-2 mb-xl md:mb-0 works-container division-images" data-division="animation">
+              <div class="col-span-full md:col-start-13 md:col-span-8 relative md:order-2 works-container division-images" data-division="animation">
                 <!-- JS 動態 render 3 張 .class-img，5s 輪播（class-images-slideshow.js） -->
               </div>
             </div>
@@ -218,7 +236,7 @@
           <!-- Creative Media -->
           <div class="class-info-panel pb-3xl hidden relative z-10" data-division="creative-media">
             <div class="grid-20 md:items-start">
-              <div class="col-span-full md:col-start-5 md:col-span-6 order-2 md:order-1 mt-xl md:mt-0">
+              <div class="col-span-full md:col-start-5 md:col-span-6 md:order-1">
                 <div data-class-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
                   <p class="mb-xs division-text font-bold">Explore the essence of new media interaction from multiple perspectives, furthermore, showing care and reflection on humanities, society, and the environment by these perspectives.</p>
                   <p class="mb-md division-text font-bold">多面向探討新媒體互動的本質，並藉此對人文、社會、環境作進一步之關懷與省思。</p>
@@ -226,7 +244,7 @@
                   <p class="division-text font-bold">學生接觸互動裝置、虛擬實境與生成式設計等新興技術，透過跨領域實驗結合藝術、程式與設計思維。</p>
                 </div>
               </div>
-              <div class="col-span-full md:col-start-13 md:col-span-8 relative order-1 md:order-2 mb-xl md:mb-0 works-container division-images" data-division="creative-media">
+              <div class="col-span-full md:col-start-13 md:col-span-8 relative md:order-2 works-container division-images" data-division="creative-media">
                 <!-- JS 動態 render 3 張 .class-img，5s 輪播 -->
               </div>
             </div>
@@ -235,7 +253,7 @@
           <!-- MDES -->
           <div class="class-info-panel pb-3xl hidden relative z-10" data-division="mdes">
             <div class="grid-20 md:items-start">
-              <div class="col-span-full md:col-start-5 md:col-span-6 order-2 md:order-1 mt-xl md:mt-0">
+              <div class="col-span-full md:col-start-5 md:col-span-6 md:order-1">
                 <div data-class-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
                   <p class="mb-xs division-text font-bold">The MDES program offers advanced research and creative practice opportunities, fostering innovation in communications design. Graduate students engage in cutting-edge projects that push the boundaries of design thinking and media expression.</p>
                   <p class="mb-md division-text font-bold">碩士班提供進階研究與創作實踐機會，培養媒體傳達設計的創新能力。研究生參與前瞻性專案，推進設計思維與媒體表達的界限。</p>
@@ -243,7 +261,7 @@
                   <p class="division-text font-bold">透過個別指導與協作工作室，學生發展具原創性的專案，為當代視覺傳達與媒體藝術論述做出貢獻。</p>
                 </div>
               </div>
-              <div class="col-span-full md:col-start-13 md:col-span-8 relative order-1 md:order-2 mb-xl md:mb-0 works-container division-images" data-division="mdes">
+              <div class="col-span-full md:col-start-13 md:col-span-8 relative md:order-2 works-container division-images" data-division="mdes">
                 <!-- JS 動態 render 3 張 .class-img，5s 輪播 -->
               </div>
             </div>
@@ -264,7 +282,7 @@
         <!-- Works Panels (playlist) - JS controls desktop visibility -->
         <!-- 不加 bg-white：讓封鎖綫的旋轉 tail 能穿過（比照 Class 狀態 class-info-panel 也是透明）-->
         <!-- sticky-to-absolute 切換由 JS（class-buttons-sticky.js）在 #works anchor 到 100px 時觸發 -->
-        <div id="class-works-panels" class="site-container pt-8xl relative z-10">
+        <div id="class-works-panels" class="site-container pt-3xl md:pt-8xl relative z-10">
 
           <!-- BFA / Design Fundamental（學士班 btn 的預設內容） -->
           <div class="class-works-panel hidden" data-division="bfa">
@@ -347,7 +365,7 @@
 
       <!-- Resources Section -->
       <!-- z-20：封鎖綫旋轉後上角會凸出 section 頂邊（~150px），z-10 會被上面 class(z-20) 的 bg-white 蓋掉 -->
-      <section id="resources" class="bg-white relative z-20 overflow-visible" style="min-height: 100vh; padding-top: 100px;">
+      <section id="resources" class="bg-white relative z-20 overflow-visible pt-3xl" style="min-height: 100vh;">
 
         <!-- Section Title Strip（封鎖綫，h1 字體，位於 section 頂部）-->
         <div class="section-title-strip absolute left-0 right-0 flex items-center" style="top: 0; overflow: visible; z-index: 0; padding: var(--spacing-md) 0;" data-anchor="resources">
@@ -359,7 +377,7 @@
 
         <div class="site-container pt-3xl pb-lg md:pb-xl relative z-30">
           <div class="grid-20 relative z-10">
-            <div id="resources-accordion-container" class="col-span-full md:col-start-5 md:col-span-16 mx-[calc(var(--container-padding)*-1)] md:mx-0">
+            <div id="resources-accordion-container" class="col-span-full md:col-start-5 md:col-span-16">
               <!-- Accordion will be injected here by JS -->
             </div>
           </div>

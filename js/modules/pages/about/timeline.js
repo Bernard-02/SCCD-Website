@@ -8,6 +8,7 @@
 
 import { registerPageExit } from '../../ui/page-exit.js';
 import { sitePath } from '../../ui/site-base.js';
+import { createClassImagesSlideshow } from './class-images-slideshow.js';
 
 export function initTimeline() {
   const area = document.getElementById('timeline-area');
@@ -119,9 +120,264 @@ export function initTimeline() {
           items.push({ ...yearItem, eraTitle: eraGroup.era, eraLabel: eraGroup.label });
         });
       });
-      if (items.length > 0) buildStrip(items);
+      if (items.length > 0) {
+        // 手機走獨立的簡化視圖（卡片 + slideshow + 箭頭切年 + list 鈕），桌面 strip 整套不建構
+        if (window.innerWidth < 768) buildMobile(items);
+        else buildStrip(items);
+      }
     })
     .catch(err => console.error('Timeline error:', err));
+
+  // ── 手機版（user 2026-06-11）─────────────────────────────────────
+  // 排列參考 class slideshow：era chip + 年份說明卡在「圖片上方」、圖片用 3-slot slideshow 排列；
+  // 右箭頭（或點圖片區）切下一年 = 文字卡 clip 換內容 + slideshow tick 同步左移；
+  // list 鈕切換 era 清單視圖（沿用桌面 #timeline-list-view 結構/CSS，行為簡化版）。
+  function buildMobile(items) {
+    area.style.height = 'auto';
+    navLeft.style.display = 'none';
+    navRight.style.display = 'none';
+    if (photoTooltip) photoTooltip.style.display = 'none';
+
+    // era 分組（list view 用；同 buildStrip 的分組邏輯）
+    const eraGroups = [];
+    const eraIndexByKey = {};
+    items.forEach(it => {
+      const key = `${it.eraTitle}|${it.eraLabel}`;
+      if (eraIndexByKey[key] === undefined) {
+        eraIndexByKey[key] = eraGroups.length;
+        eraGroups.push({ title: it.eraTitle, label: it.eraLabel, years: [] });
+      }
+      eraGroups[eraIndexByKey[key]].years.push(it);
+    });
+
+    const wrap = document.createElement('div');
+    wrap.id = 'timeline-mobile';
+    wrap.innerHTML =
+      '<div class="tl-m-era timeline-card-inner bg-black text-white"><div class="text-p2 leading-base font-bold"></div></div>' +
+      '<div class="tl-m-card timeline-card-inner"><div class="tl-m-card-body text-p2 leading-base font-bold"></div></div>' +
+      '<div class="tl-m-images"></div>' +
+      '<div class="tl-m-controls">' +
+        '<button class="tl-m-list-btn" aria-label="切換清單視圖"><span class="tl-icon-btn-inner"><span class="icon icon-atlas-list"></span></span></button>' +
+        '<button class="tl-m-next-btn" aria-label="下一年"><span class="tl-icon-btn-inner"><span class="icon icon-arrow-right"></span></span></button>' +
+      '</div>';
+    area.appendChild(wrap);
+
+    const eraEl = wrap.querySelector('.tl-m-era');
+    const eraText = eraEl.querySelector('div');
+    const cardEl = wrap.querySelector('.tl-m-card');
+    const cardBody = cardEl.querySelector('.tl-m-card-body');
+    const imagesEl = wrap.querySelector('.tl-m-images');
+    const listBtn = wrap.querySelector('.tl-m-list-btn');
+    const nextBtn = wrap.querySelector('.tl-m-next-btn');
+    const listIcon = listBtn.querySelector('.icon');
+
+    let mIdx = 0;
+    let switching = false;
+    let listMode = false;
+    let listAnimating = false;
+
+    function renderYear(i) {
+      const it = items[i];
+      eraText.textContent = `${it.eraTitle} ${it.eraLabel}`;
+      const descs = it.descriptions || (it.description ? [it.description] : []);
+      cardBody.innerHTML =
+        `<h4 class="font-bold tl-m-year">${it.year}</h4>` +
+        descs.map(d => `<div class="tl-m-desc">${d}</div>`).join('');
+      cardEl.style.background = randomColor();
+      eraEl.style.transform = `rotate(${pickUniqueRotations(1, -4, 4)[0]}deg)`;
+      cardEl.style.transform = `rotate(${pickUniqueRotations(1, -2, 2)[0]}deg)`;
+    }
+    renderYear(0);
+
+    // slideshow：pool = 各年份圖片，manual 模式（tick 由箭頭驅動，不綁內建點擊/hover）
+    const slide = createClassImagesSlideshow(imagesEl, items.map(it => it.image), { textHlEl: null, manual: true });
+    if (slide) slide.renderFresh(true); // 先隱藏，等 ScrollTrigger reveal
+
+    const textEls = [eraEl, cardEl];
+
+    function nextYear() {
+      if (switching || listMode || listAnimating || !slide) return;
+      switching = true;
+      slide.tick(); // 圖片左移一格 + 下一年圖片進場，與文字卡換頁同時跑
+      gsap.to(textEls, {
+        clipPath: getClipStart(randomDirLR()), duration: TIMING.exitDuration, ease: TIMING.exitEase,
+        onComplete: () => {
+          mIdx = (mIdx + 1) % items.length;
+          renderYear(mIdx);
+          gsap.set(textEls, { clipPath: getClipStart(randomDirLR()) });
+          gsap.to(textEls, {
+            clipPath: CLIP_END, duration: TIMING.cardRevealDuration, ease: TIMING.revealEase, stagger: TIMING.stagger,
+            onComplete: () => { switching = false; },
+          });
+        },
+      });
+    }
+    nextBtn.addEventListener('click', nextYear);
+    imagesEl.addEventListener('click', nextYear); // 點圖片區也切年（對應桌面 slot 點擊往前）
+
+    // ── list view（結構/class 同桌面版，mobile CSS 覆蓋佈局）──
+    const listView = document.createElement('div');
+    listView.id = 'timeline-list-view';
+    listView.style.display = 'none';
+    listView.innerHTML =
+      '<div class="tl-list-grid"><div class="tl-list-cell">' +
+        '<div class="tl-list-rect timeline-card-inner"><div class="tl-list-content list-scroll"></div></div>' +
+        '<div class="tl-list-chip timeline-card-inner bg-black text-white"><div class="text-p2 leading-base font-bold"></div></div>' +
+        '<button class="tl-list-next-btn" aria-label="下一個時期"><span class="tl-icon-btn-inner"><span class="icon icon-arrow-right"></span></span></button>' +
+      '</div></div>';
+    area.appendChild(listView);
+
+    const listChipText = listView.querySelector('.tl-list-chip div');
+    const listRect = listView.querySelector('.tl-list-rect');
+    const listContent = listView.querySelector('.tl-list-content');
+    const listNextBtn = listView.querySelector('.tl-list-next-btn');
+    const rectEls = [listRect, listView.querySelector('.tl-list-chip')];
+
+    let listEraIndex = 0;
+    let listEraColors = [];
+
+    // 同 buildStrip 的 splitDesc / renderListEra（手機自帶一份；桌面那份在 buildStrip closure 內）
+    const descParser = document.createElement('div');
+    function splitDesc(d) {
+      descParser.innerHTML = d;
+      let heading = '';
+      const divs = [];
+      [...descParser.children].forEach(ch => {
+        if (ch.tagName === 'H5') heading += ch.outerHTML;
+        else divs.push(ch);
+      });
+      const en = divs[0] ? divs[0].innerHTML : '';
+      const zh = divs.length > 1 ? divs.slice(1).map(x => x.innerHTML).join('<br>') : '';
+      return { heading, en, zh };
+    }
+
+    function renderListEra(idx) {
+      const era = eraGroups[idx];
+      listChipText.textContent = `${era.title} ${era.label}`;
+      listRect.style.background = listEraColors[idx];
+      listContent.innerHTML = era.years.map(y => {
+        const descs = y.descriptions || (y.description ? [y.description] : []);
+        const blocks = descs.map(d => {
+          const { heading, en, zh } = splitDesc(d);
+          return '<div class="tl-list-block">' + heading +
+            '<div class="tl-list-cols">' +
+              `<div class="tl-list-en">${en}</div>` +
+              `<div class="tl-list-zh">${zh}</div>` +
+            '</div></div>';
+        }).join('');
+        return '<div class="tl-list-year-row">' +
+          `<div class="tl-list-year text-h5 font-bold">${y.year}</div>` +
+          `<div class="tl-list-year-body text-p2 leading-base font-bold">${blocks}</div>` +
+        '</div>';
+      }).join('');
+      listContent.scrollTop = 0;
+    }
+
+    // icon wipe swap（同桌面 wipeToggleIcon）
+    function wipeListIcon(newClass) {
+      if (typeof gsap === 'undefined') { listIcon.className = newClass; return; }
+      const dirs = ['inset(0% 100% 0% 0%)', 'inset(0% 0% 0% 100%)', 'inset(100% 0% 0% 0%)', 'inset(0% 0% 100% 0%)'];
+      const dir = dirs[Math.floor(Math.random() * 4)];
+      gsap.killTweensOf(listIcon);
+      gsap.to(listIcon, {
+        clipPath: dir, duration: 0.4, ease: 'power2.out', overwrite: true,
+        onComplete: () => {
+          listIcon.className = newClass;
+          gsap.fromTo(listIcon, { clipPath: dir },
+            { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.4, ease: 'power2.out', clearProps: 'clipPath', overwrite: true });
+        },
+      });
+    }
+
+    function showList() {
+      if (listAnimating || switching || listMode) return;
+      listAnimating = true;
+      listMode = true;
+      wipeListIcon('icon icon-atlas-view');
+      nextBtn.style.visibility = 'hidden'; // list 模式下年份箭頭無作用，先藏
+      const pool = shuffle(ACCENT_COLORS);
+      listEraColors = eraGroups.map((_, i) => pool[i % pool.length]);
+      listEraIndex = eraIndexByKey[`${items[mIdx].eraTitle}|${items[mIdx].eraLabel}`] ?? 0;
+      if (slide) slide.hideAll();
+      gsap.to(textEls, { clipPath: getClipStart(randomDir4()), duration: TIMING.exitDuration, ease: TIMING.exitEase });
+      gsap.delayedCall(TIMING.exitDuration, () => {
+        renderListEra(listEraIndex);
+        listView.style.display = 'block';
+        gsap.set(rectEls, { clipPath: getClipStart(randomDirLR()) });
+        gsap.to(rectEls, {
+          clipPath: CLIP_END, duration: TIMING.cardRevealDuration, ease: TIMING.revealEase, stagger: TIMING.stagger,
+          onComplete: () => { listAnimating = false; },
+        });
+      });
+    }
+
+    function hideList() {
+      if (listAnimating || !listMode) return;
+      listAnimating = true;
+      wipeListIcon('icon icon-atlas-list');
+      gsap.to(rectEls, {
+        clipPath: getClipStart(randomDirLR()), duration: TIMING.exitDuration, ease: TIMING.exitEase, stagger: TIMING.stagger,
+        onComplete: () => {
+          listView.style.display = 'none';
+          listMode = false;
+          nextBtn.style.visibility = '';
+          if (slide) slide.showAll();
+          gsap.to(textEls, {
+            clipPath: CLIP_END, duration: TIMING.cardRevealDuration, ease: TIMING.revealEase, stagger: TIMING.stagger,
+            onComplete: () => { listAnimating = false; },
+          });
+        },
+      });
+    }
+
+    function nextListEra() {
+      if (listAnimating || eraGroups.length <= 1) return;
+      listAnimating = true;
+      gsap.to(rectEls, {
+        clipPath: getClipStart(randomDir4()), duration: TIMING.exitDuration, ease: TIMING.exitEase, stagger: TIMING.stagger,
+        onComplete: () => {
+          listEraIndex = (listEraIndex + 1) % eraGroups.length;
+          renderListEra(listEraIndex);
+          gsap.set(rectEls, { clipPath: getClipStart(randomDirLR()) });
+          gsap.to(rectEls, {
+            clipPath: CLIP_END, duration: TIMING.cardRevealDuration, ease: TIMING.revealEase, stagger: TIMING.stagger,
+            onComplete: () => { listAnimating = false; },
+          });
+        },
+      });
+    }
+
+    listBtn.addEventListener('click', () => { if (listMode) hideList(); else showList(); });
+    listNextBtn.addEventListener('click', nextListEra);
+
+    // ── 初始 reveal（文字卡 + slideshow 一起 clip-in）──
+    gsap.set(textEls, { clipPath: getClipStart(randomDirLR()) });
+    const revealMobile = () => {
+      gsap.to(textEls, { clipPath: CLIP_END, duration: TIMING.revealDuration, ease: TIMING.revealEase, stagger: TIMING.stagger });
+      if (slide) slide.showAll();
+    };
+    if (typeof ScrollTrigger !== 'undefined') {
+      ScrollTrigger.create({ trigger: area, start: 'top 80%', once: true, onEnter: revealMobile });
+    } else {
+      revealMobile();
+    }
+
+    // 離頁退場：依模式收掉可見元素（同桌面語義的簡化版）
+    registerPageExit(() => new Promise(resolve => {
+      if (typeof gsap === 'undefined') { resolve(); return; }
+      const r = area.getBoundingClientRect();
+      if (!(r.width > 0 && r.bottom > 0 && r.top < window.innerHeight)) { resolve(); return; }
+      const slots = Array.from(imagesEl.querySelectorAll('.class-img'));
+      const exitEls = listMode ? rectEls : [...textEls, ...slots];
+      if (!exitEls.length) { resolve(); return; }
+      gsap.killTweensOf(exitEls);
+      let done = 0;
+      const onOne = () => { if (++done >= exitEls.length) resolve(); };
+      exitEls.forEach(el => {
+        gsap.to(el, { clipPath: getClipStart(randomDir4()), duration: TIMING.exitDuration, ease: TIMING.exitEase, overwrite: true, onComplete: onOne });
+      });
+    }));
+  }
 
   function buildStrip(items) {
     const pageW = area.offsetWidth;

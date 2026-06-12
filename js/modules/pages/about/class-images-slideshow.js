@@ -42,7 +42,8 @@ function randomRotation() { return parseFloat(((Math.random() * 2 - 1) * 4).toFi
 
 // wrapper 寬度在 img 載入後依 natural 尺寸（capped at max-width）明確設定，
 // 避免 wrapper width:auto + img max-width:100% 的循環依賴造成尺寸不對
-function buildImg(src) {
+// fixedWidth（可選）：統一 wrapper 寬（degree-show 全寬 slot 幾何用，pair overlap 要靠統一寬度保證）
+function buildImg(src, fixedWidth) {
   const wrapper = document.createElement('div');
   wrapper.className = 'class-img';
 
@@ -58,6 +59,7 @@ function buildImg(src) {
     if (!img.naturalWidth) return;
     const isLandscape = img.naturalWidth > img.naturalHeight;
     if (isLandscape) wrapper.classList.add('class-img--landscape');
+    if (fixedWidth) { wrapper.style.width = fixedWidth; return; }
     const maxW = isLandscape ? 462 : 336; // 直立 320→336、橫向 440→462（+5%）
     wrapper.style.width = Math.min(img.naturalWidth, maxW) + 'px';
   };
@@ -67,13 +69,13 @@ function buildImg(src) {
   return wrapper;
 }
 
-function placeInSlot(img, slotIdx, extra = {}) {
+function placeInSlot(img, slotIdx, slotLefts, extra = {}) {
   gsap.set(img, {
-    left: SLOT_LEFTS[slotIdx],
+    left: slotLefts[slotIdx],
     top: '70%',
     xPercent: 0,
     yPercent: -50,
-    zIndex: 3 - slotIdx,
+    zIndex: slotLefts.length - slotIdx,
     ...extra,
   });
   // 記錄原始旋轉，hover/leave 時用來還原
@@ -84,8 +86,16 @@ function placeInSlot(img, slotIdx, extra = {}) {
 
 // 也 export 給 degree-show-detail sub-event row 重用（同樣 slideshow 行為，但無 about 全域 state machine）
 // opts.textHlEl：要跟 imgs 同步 clip-path 的 text highlight 元素；不傳則自動從 closest('.class-info-panel') 找
+// opts.slotLefts / opts.imgWidth：自訂 slot 幾何 + 統一圖寬（degree-show 手機全寬 slideshow 用）；
+// 不傳則維持 about 預設（3 slot % 定位 + natural 尺寸 capped）
+// opts.manual：不綁內建 img 點擊/hover（呼叫端用回傳的 tick() 自行驅動；about history 手機箭頭切年用）
 export function createClassImagesSlideshow(container, pool, opts = {}) {
   if (!container || typeof gsap === 'undefined') return null;
+
+  const slotLefts = (Array.isArray(opts.slotLefts) && opts.slotLefts.length > 0) ? opts.slotLefts : SLOT_LEFTS;
+  const slotCount = slotLefts.length;
+  const imgWidth = opts.imgWidth || null;
+  const manual = !!opts.manual;
 
   // 同一個 panel 內的 text highlight 區塊（含底色），和 imgs 一起做 clip-path
   // about 場景自動從 .class-info-panel 找 [data-class-hl]；degree-show 場景可顯式傳入 textHlEl
@@ -155,19 +165,19 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
   function renderFresh(startHidden) {
     container.innerHTML = '';
     slots = [];
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < slotCount; i++) {
       const src = pool[nextIdx % pool.length];
       nextIdx++;
-      const img = buildImg(src);
+      const img = buildImg(src, imgWidth);
       container.appendChild(img);
-      placeInSlot(img, i, {
+      placeInSlot(img, i, slotLefts, {
         rotation: randomRotation(),
         clipPath: startHidden ? randomHideClip() : SHOW_CLIP,
       });
       slots.push(img);
-      attachInteractions(img);
+      if (!manual) attachInteractions(img);
     }
-    updateCursors();
+    if (!manual) updateCursors();
     // Text highlight 和 imgs 同步 clip-path 狀態
     if (textHlEl) {
       gsap.set(textHlEl, { clipPath: startHidden ? randomHideClip() : SHOW_CLIP });
@@ -175,7 +185,7 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
   }
 
   function tick() {
-    if (slots.length !== 3) return;
+    if (slots.length !== slotCount) return;
     if (isShifting) return;
     isShifting = true;
 
@@ -192,31 +202,32 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
       onComplete: () => leaving.remove(),
     });
 
-    // 2/3. slot 2 → slot 1；slot 3 → slot 2（保留各自旋轉）
-    gsap.to(slots[1], { left: SLOT_LEFTS[0], duration: ANIM_DUR, ease: ANIM_EASE });
-    gsap.to(slots[2], { left: SLOT_LEFTS[1], duration: ANIM_DUR, ease: ANIM_EASE });
+    // 2/3. 其餘 slot 各往左移一格（保留各自旋轉）
+    for (let i = 1; i < slotCount; i++) {
+      gsap.to(slots[i], { left: slotLefts[i - 1], duration: ANIM_DUR, ease: ANIM_EASE });
+    }
 
-    // 4. 新圖 reveal 在 slot 3（與上面同時進行）
+    // 4. 新圖 reveal 在最後一個 slot（與上面同時進行）
     const nextSrc = pool[nextIdx % pool.length];
     nextIdx++;
-    const newImg = buildImg(nextSrc);
+    const newImg = buildImg(nextSrc, imgWidth);
     container.appendChild(newImg);
-    placeInSlot(newImg, 2, { rotation: randomRotation() });
+    placeInSlot(newImg, slotCount - 1, slotLefts, { rotation: randomRotation() });
     gsap.fromTo(newImg,
       { clipPath: randomHideClip() },
       { clipPath: SHOW_CLIP, duration: ANIM_DUR, ease: ANIM_EASE,
         onComplete: () => {
           isShifting = false;
-          reapplyHoverIfPointerInside();
+          if (!manual) reapplyHoverIfPointerInside();
         }
       }
     );
-    attachInteractions(newImg);
+    if (!manual) attachInteractions(newImg);
 
     slots.shift();
     slots.push(newImg);
-    slots.forEach((img, i) => gsap.set(img, { zIndex: 3 - i }));
-    updateCursors();
+    slots.forEach((img, i) => gsap.set(img, { zIndex: slotCount - i }));
+    if (!manual) updateCursors();
   }
 
   function start() {
@@ -274,7 +285,7 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
     start();
   }
 
-  return { renderFresh, start, stop, hideAll, showAll, reset };
+  return { renderFresh, start, stop, hideAll, showAll, reset, tick };
 }
 
 // ── Module 全域：多個 division container 協調切換 ─────────────────────────────
@@ -383,6 +394,16 @@ export async function initClassImagesSlideshow() {
     }
     // 確保等待 reveal（避免中間 switchTo(animate=false) 意外修改 state）
     revealed = false;
+
+    // 手機版 reveal trigger：桌面的 reveal ScrollTrigger 在 class-buttons-sticky.js（手機直接 return），
+    // 手機沒人觸發 revealActive → 圖文永遠停在 HIDE。這裡自建同 start 點的 trigger。
+    if (window.innerWidth < 768 && activePanelEl && typeof ScrollTrigger !== 'undefined') {
+      ScrollTrigger.create({
+        trigger: activePanelEl,
+        start: 'top 88%',
+        onEnter: () => revealActive(),
+      });
+    }
 
     // 若 slideshow init 完成前，使用者已 scroll 進 class section，ScrollTrigger 可能已觸發過，
     // 這裡自補 reveal 避免永遠停在 HIDE 狀態

@@ -3,7 +3,7 @@
  * Resources 區塊：讀取 JSON 並渲染為 Horizontal Accordion
  */
 
-import { initSingleAccordion, initRotatedAccordion } from '../../accordions/horizontal-accordion.js';
+import { initColoredCardAccordion, initRotatedAccordion } from '../../accordions/horizontal-accordion.js';
 import { sitePath } from '../../ui/site-base.js';
 
 export function initResourcesCycling() {
@@ -62,10 +62,27 @@ function renderResourcesAccordion(data, container) {
   wrapper.innerHTML = html;
   container.appendChild(wrapper);
 
-  // 初始化旋轉卡片版手風琴（桌面旋轉堆疊，手機退回單列展開）
+  // 初始化旋轉卡片版手風琴（桌面旋轉堆疊，手機改卡片式向下 accordion）
   if (window.innerWidth >= 768) {
     initRotatedAccordion(wrapper, { height: 650, animateEntry: true });
   } else {
-    initSingleAccordion(wrapper);
+    initColoredCardAccordion(wrapper, { animateEntry: true });
+
+    // 封鎖綫不佔 flow、被卡片堆疊蓋住（user 2026-06-11：被 accordion 遮蓋、不跟卡片占空間）：
+    // 維持 absolute（section 層 z-0 < site-container z-30），top 釘到第 2~4 張卡的接縫置中，
+    // 旋轉的滿版色帶從卡片堆後左右探出。卡片展收時封鎖綫不動（與 works 區 strip 同為 collage 固定位）。
+    // 量測用「第一張展開」的 final 預設狀態（entry 完會自動開第一張）：暫時把 body0 設 auto 量完還原，
+    // 否則 strip 會釘在收合版位置、預設視圖整條藏在第一張展開的 body 後面。
+    const strip = /** @type {HTMLElement | null} */ (document.querySelector('.section-title-strip[data-anchor="resources"]'));
+    const items = wrapper.querySelectorAll('.accordion-item');
+    const section = document.getElementById('resources');
+    if (strip && section && items.length > 3) {
+      const body0 = items[0].querySelector('.accordion-body');
+      if (body0 && typeof gsap !== 'undefined') gsap.set(body0, { height: 'auto' });
+      const idx = 1 + Math.floor(Math.random() * 3); // 第 2~4 張卡
+      const top = items[idx].getBoundingClientRect().top - section.getBoundingClientRect().top;
+      if (body0 && typeof gsap !== 'undefined') gsap.set(body0, { height: 0 });
+      strip.style.top = `${Math.round(top - strip.offsetHeight / 2)}px`;
+    }
   }
 }

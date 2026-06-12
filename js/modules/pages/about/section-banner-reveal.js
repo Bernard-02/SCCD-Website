@@ -103,6 +103,24 @@ export function initSectionBannerReveal() {
   /** @param {HTMLElement} titleEl */
   function applyRandomLayout(titleEl) {
     const rot = randomTextRotation();
+
+    // 手機：封鎖綫一律橫跨整個 viewport（兩側 overshoot 蓋住旋轉缺角），文字從左側 container padding 起排，
+    // 過長被右緣切掉沒關係（user 2026-06-11）。桌面才跑下方隨機 fromRight/visibleEnd 佈局
+    // （fromRight 的 flex-end 會把文字右緣排到剛好 100vw，手機字寬幾乎滿版時看起來貼死右邊）。
+    if (window.innerWidth < 768) {
+      const mOvershoot = 25;
+      // strip 外層是 flex container：不鎖 shrink 的話 width 會被縮到貼齊 viewport 右緣，右側 overshoot 失效
+      titleEl.style.flexShrink = '0';
+      titleEl.style.width = `${100 + mOvershoot * 2}vw`;
+      titleEl.style.marginLeft = `-${mOvershoot}vw`;
+      titleEl.style.paddingLeft = `calc(${mOvershoot}vw + var(--container-padding))`;
+      titleEl.style.paddingRight = '0';
+      titleEl.style.direction = '';
+      titleEl.style.justifyContent = '';
+      titleEl.style.transform = `rotate(${rot}deg) translateZ(0)`;
+      return;
+    }
+
     const fromRight = Math.random() < 0.5;
     const overshoot = 50; // 超出畫面的 vw
 

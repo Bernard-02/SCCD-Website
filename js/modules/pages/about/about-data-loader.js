@@ -80,6 +80,14 @@ function fillClasses(list) {
       }
     }
 
+    // 手機分組 pill（.mobile-division-btn）：同步 EN/ZH 標籤（與桌面同一資料來源）
+    const mobileBtn = document.querySelector(`.mobile-division-btn[data-division="${key}"]`);
+    if (mobileBtn) {
+      const mdivs = mobileBtn.querySelectorAll('.anchor-nav-inner > div');
+      if (mdivs[0] && item.nameEn != null) mdivs[0].textContent = item.nameEn;
+      if (mdivs[1] && item.nameZh != null) mdivs[1].textContent = item.nameZh;
+    }
+
     // 圖文段落：EN1/ZH1/EN2/ZH2 交錯（沿用原 mb-xs / mb-md / 末段無 margin）
     const hl = document.querySelector(`.class-info-panel[data-division="${key}"] [data-class-hl]`);
     if (hl) {
