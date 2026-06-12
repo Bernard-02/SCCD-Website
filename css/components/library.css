@@ -95,6 +95,15 @@
 #library-awards-list .records-divider > [class*="col-start-3"] { grid-column-start: 1; }
 #library-awards-list .records-divider > [class*="col-span-10"] { grid-column: 1 / span 12; }
 
+/* 年份組之間留 2xl 間距；最後一組不留（否則 list 捲到底最後一筆下方有大片空白）。
+   間距規則放 CSS 不放 render template 的 inline style → :last-child 例外自然成立、免 !important */
+#library-awards-list .year-block { margin-bottom: var(--spacing-2xl); }
+#library-awards-list .year-block:last-child { margin-bottom: 0; }
+
+/* count（list 底部計數）桌面上下 xs；手機歸零（見下方 max-width:767 block）。
+   padding 放 CSS 不放 inline → 桌/手值分流免 !important */
+#library-awards-count { padding: var(--spacing-xs) 0; }
+
 /* ── Awards Ticker ──────────────────────────────────────────── */
 #library-awards-ticker {
   background: var(--lib-bg);
@@ -558,6 +567,12 @@
 .album-thumb img {
   display: block;
   transition: filter var(--dur-fast) ease;
+  /* 載入前就用 CSS 約束到 contain(8rem×4.5rem)，避免 JS applyRatio 跑之前 img 以原圖尺寸閃現再縮小
+     （user 2026-06-11「從大張跳成小張」）。applyRatio 之後 thumb 精算 px + img inline width/height:100% 覆蓋此處、最終一致 */
+  max-width: 8rem;
+  max-height: 4.5rem;
+  width: auto;
+  height: auto;
 }
 
 .album-thumb-overlay {
@@ -807,10 +822,8 @@
   #library-awards-list .activities-year-items {
     gap: var(--spacing-xl) !important;
   }
-  /* Year block 之間 gap 也加大 */
-  #library-awards-list > .year-block {
-    margin-bottom: var(--spacing-2xl) !important;
-  }
+  /* Year block 間距改由全域 #library-awards-list .year-block 規則統一（含 :last-child 歸零，
+     --spacing-2xl 本就 responsive 手機=48px）；原本這裡的 !important 會蓋掉 :last-child → 最後一組留空白，已移除 */
 
   /* award item → 3 欄（user 2026-06-10 #2/#4）：[國旗] [競賽+獎項+名次 垂直 stack] [得獎人]
      中間三 cell 已包進 .award-mid wrapper（render）→ 手機把 wrapper 設 flex column，讓「競賽名稱 / 獎項 / 名次」
@@ -1044,6 +1057,10 @@
     flex: 1 1 0 !important;
     min-height: 0 !important;
     overflow-y: auto !important;
+    /* ⚠️ 必須顯式鎖 overflow-x:hidden：只設 overflow-y:auto 時 overflow-x(預設 visible)會被 CSS 規範
+       coerce 成 auto → 旋轉縮圖溢出/sub-pixel 就讓「整個 list 可以左右 pan」(user 2026-06-11)。
+       縮圖照常排列/wrap，只是不再讓整片 list 橫移；溢出的旋轉角被裁(可接受) */
+    overflow-x: hidden !important;
   }
   /* 年份 picker：橫向 chip + 可左右滑（padding-bottom:0 → 年份→list 間距減半 #5）*/
   [id^="library-"][id$="-year-picker-wrap"],
@@ -1112,9 +1129,11 @@
   /* Awards ticker：固定在卡片底端（list 在上方 scroll）；logo 縮小不要太高（user 2026-06-10 #2，桌面維持 JS 設的 60px）*/
   #library-awards-ticker {
     flex-shrink: 0 !important;
-    padding-top: var(--spacing-sm) !important;
+    padding-top: 0 !important;          /* 手機 award logo 不留 pt（user 2026-06-12） */
     padding-bottom: var(--spacing-sm) !important;
   }
+  /* 手機 count 不留上下 padding（user 2026-06-12）；無 inline padding 故免 !important */
+  #library-awards-count { padding: 0; }
   #library-awards-ticker img {
     height: 40px !important;
     /* logo 全部是 Directus ?key=web 預設的 300×117（27 張實測同尺寸）→ 用 aspect-ratio 預留 box 寬度，
@@ -1215,20 +1234,39 @@
     padding-right: 0 !important;
     justify-content: flex-start !important;
     min-height: 0 !important;
+    min-width: 0 !important;   /* 讓 wrap 收斂到 row 寬，strip 才能「溢出捲動」而非把 row 撐寬 */
   }
+  /* 手機改成「單排可左右 drag 的橫向 scroll strip」（user 2026-06-11 要 drag 看被裁在右邊的縮圖）：
+     nowrap + overflow-x:auto；⚠️ overflow-y 必須顯式鎖 hidden，否則只設 x 會被 coerce 成 y:auto 冒出直向卷軸
+     （見 [[feedback-overflow-single-axis-auto-coerces-other]]）。觸控原生即可 drag、不需 JS。
+     padding 四邊 xs：旋轉縮圖 ~6° 角會超出 box → overflow-x:auto 在捲動起點(左)/終點(右)裁左右角、
+     overflow-y:hidden 裁上下角；四邊都補 xs 開緩衝（裁切框=padding box，padding 在框內側）。
+     （user 2026-06-11 試過只補左右想更緊湊，但方/直圖縱向角真的被裁→上下加回來，四邊都要）
+     width:100% + min-width:0：strip 收斂到 row 寬，內容(thumbs nowrap)才會溢出觸發捲動。 */
   #library-album-list .album-thumb-strip {
     position: static !important;
-    width: auto !important;
+    width: 100% !important;
     height: auto !important;
     display: flex !important;
-    flex-wrap: wrap !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;   /* 縮圖高度不一 → 垂直置中（不要對齊頂部，user 2026-06-11）*/
     gap: var(--spacing-sm) !important;
+    min-width: 0 !important;
+    min-height: 4.5rem !important;   /* 預留縮圖列高度，避免圖片 load 前 strip 塌成 0、load 後才撐高的縱向跳動 */
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    padding: var(--spacing-xs) !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
   }
+  #library-album-list .album-thumb-strip::-webkit-scrollbar { display: none; }
   #library-album-list .album-thumb {
     position: static !important;
     right: auto !important;
     top: auto !important;
     bottom: auto !important;
     margin: 0 !important;
+    flex-shrink: 0 !important;   /* nowrap 下不被壓縮，內容溢出→strip 橫向捲動 */
   }
 }

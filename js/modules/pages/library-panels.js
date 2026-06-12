@@ -10,6 +10,7 @@ import { ensureFlagIconsCss } from '../ui/ensure-flag-icons.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { CMS_API_BASE, CMS_ASSETS_BASE } from '../../config/api.js';
 import { sitePath } from '../ui/site-base.js';
+import { loadSummerCamp } from './summer-camp-source.js';
 
 // ── 共用常數 ──────────────────────────────────────────────────────────────────
 
@@ -244,6 +245,29 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     const listEl = document.getElementById('library-awards-list');
     if (!listEl) return;
 
+    const scrollEl = document.getElementById('library-awards-scroll');
+    const countEl  = document.getElementById('library-awards-count');
+
+    // list 下方計數：「目前 viewport 內第 first-last 個 / 總數」
+    // total = 目前可見（未被年份篩選 / 搜尋隱藏）的 award 項目數；隱藏項 offsetParent 為 null 自動排除
+    function updateAwardsCount() {
+      if (!countEl || !scrollEl) return;
+      const items = [...listEl.querySelectorAll('.award-record-item')].filter(el => el.offsetParent !== null);
+      const total = items.length;
+      if (!total) { countEl.textContent = ''; return; }
+      const vTop    = scrollEl.getBoundingClientRect().top;
+      const vBottom = vTop + scrollEl.clientHeight;
+      let first = 0, last = 0;
+      items.forEach((el, i) => {
+        const r = el.getBoundingClientRect();
+        if (r.bottom > vTop && r.top < vBottom) { if (!first) first = i + 1; last = i + 1; }
+      });
+      if (!first) { countEl.textContent = `${total} / ${total}`; return; }
+      countEl.textContent = first === last ? `${first} / ${total}` : `${first}-${last} / ${total}`;
+    }
+    // 元素級 listener：SPA 換頁時 scrollEl 隨 #page-content 一起銷毀，不會累積，免註冊 page-cleanup
+    if (scrollEl) scrollEl.addEventListener('scroll', updateAwardsCount, { passive: true });
+
     // ── 渲染 ──
     const bilingual     = (en, zh) => en ? `<span>${en}</span><span>${zh}</span>` : `<span>${zh}</span>`;
     const bilingualBold = (en, zh) => en
@@ -359,7 +383,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         }).join('');
 
         listEl.insertAdjacentHTML('beforeend', `
-          <div class="year-block" data-year="${yearGroup.year}" style="margin-bottom: var(--spacing-2xl);">
+          <div class="year-block" data-year="${yearGroup.year}">
             <div style="font-size: var(--font-size-p3); font-weight: 700; padding: 0.35rem 0 0.25rem; position: sticky; top: -1px; background: var(--lib-bg); z-index: 2; margin-top: -0.35rem;">${yearGroup.year}</div>
             <div class="flex flex-col">${itemsHtml}</div>
           </div>`);
@@ -384,6 +408,8 @@ async function initAwardsPanel(onEntranceDoneCallback) {
       applyWinnersHMarquee(listEl);
       // 手機：得獎人名字太長 → 個別 marquee（固定欄寬下溢出才跑；桌面是整位橫排 marquee 不需這個）
       if (window.innerWidth < 768) runMarqueeOverflow(listEl, '.award-winner-en, .award-winner-zh', '.award-marquee-inner');
+
+      updateAwardsCount();
     }
 
     renderItems(getSorted());
@@ -393,6 +419,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     window._awardsMarqueeInit = () => {
       applyWinnersHMarquee(listEl);
       if (window.innerWidth < 768) runMarqueeOverflow(listEl, '.award-winner-en, .award-winner-zh', '.award-marquee-inner');
+      updateAwardsCount();
     };
 
     // 年份 Picker
@@ -409,6 +436,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         listEl.querySelectorAll('.year-block').forEach(b => {
           b.style.display = selectedYears.size === 0 || selectedYears.has(b.dataset.year) ? '' : 'none';
         });
+        updateAwardsCount();
       };
       const updateBtns = () => {
         const hasSel = selectedYears.size > 0;
@@ -457,6 +485,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         // 顯示 / 隱藏 empty state
         const anyVisible = /** @type {HTMLElement[]} */ ([...listEl.querySelectorAll('.year-block')]).some(b => b.style.display !== 'none');
         emptyState.classList.toggle('hidden', !q || anyVisible);
+        updateAwardsCount();
       });
     }
 
@@ -944,7 +973,8 @@ async function initFilesPanel() {
 const ALBUM_SOURCES = [
   { url: '/data/workshops.json',         cat: 'workshop',         isDegreeShow: false },
   { url: '/data/degree-show.json',        cat: 'degree-show',      isDegreeShow: true  },
-  { url: '/data/summer-camp.json',        cat: 'summer-camp',      isDegreeShow: false },
+  // camp 吃 Directus 真實資料（同 admission 營隊 tab；CMS 失敗 loadSummerCamp 自帶 fallback 本地 JSON）
+  { load: loadSummerCamp,                 cat: 'summer-camp',      isDegreeShow: false },
   { url: '/data/students-present.json',   cat: 'students-present', isDegreeShow: false },
   { url: '/data/general-activities.json', cat: 'moment',           isDegreeShow: false },
   { url: '/data/lectures.json',           cat: 'lectures',         isDegreeShow: false },
@@ -964,7 +994,9 @@ function normalizeDegreeShow(data) {
 async function initAlbumPanel() {
   try {
     const results = await Promise.all(
-      ALBUM_SOURCES.map(s => fetch(sitePath(s.url)).then(r => r.json()).catch(() => null))
+      ALBUM_SOURCES.map(s => s.load
+        ? s.load().catch(() => null)
+        : fetch(sitePath(s.url)).then(r => r.json()).catch(() => null))
     );
 
     const allItems = [];
@@ -973,6 +1005,8 @@ async function initAlbumPanel() {
       const groups = isDegreeShow ? normalizeDegreeShow(data) : (Array.isArray(data) ? data : []);
       groups.forEach(({ year, items }) => {
         if (!Array.isArray(items)) return;
+        // camp 取消梯次無 startDate → 年份組 key '—'（非數字）：album 依年份排序/分組，略過
+        if (!Number.isFinite(Number(year))) return;
         items.forEach(item => {
           const cover   = getCover(item);
           const titleEn = item.title_en || item.titleEn || item.title || '';
@@ -981,6 +1015,10 @@ async function initAlbumPanel() {
           let videos = [];
           if (item.videoUrl) videos = [item.videoUrl];
           else if (Array.isArray(item.videos)) videos = item.videos;
+          // Directus 新 schema 影片欄 [{url}]（camp 等遷移後 collection）；與 legacy 合併
+          if (Array.isArray(item.videoLinks)) {
+            videos = [...videos, ...item.videoLinks.map(v => (v && typeof v === 'object') ? v.url : v).filter(Boolean)];
+          }
           const media = [
             ...(cover ? [{ type: 'image', src: cover, thumb: cover }] : []),
             ...videos.map(url => {
@@ -989,6 +1027,8 @@ async function initAlbumPanel() {
             }).filter(Boolean),
             ...images.map(src => ({ type: 'image', src, thumb: src })),
           ];
+          // 無任何媒體的項目不進相簿（camp 真實資料照片未上傳前整類自然缺席，上傳後自動出現）
+          if (!media.length) return;
           allItems.push({ id: item.id, year, cat, titleEn, titleZh, cover, media, references: item.references });
         });
       });
@@ -1513,15 +1553,40 @@ function handleLibraryHash() {
         el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
 
-      // 觸發一次該項目既有的 hover 效果（1s）
-      // - dispatch mouseenter/leave：觸發 JS hover listener（awards 的文字變色）
-      // - 加 .is-hovered class：觸發 CSS :hover 樣式（files/album 的灰階 + overlay）
+      // 觸發一次該項目的 highlight（1s，user 2026-06-12 比照 activities deep-link）：
+      // - awards：桌面 hover 同款「文字變色」（user 指定參考桌面版、不另加底色/ring）。但 hover listener
+      //   只在桌面綁（手機 tap 不該變色的設計）、dispatch mouseenter 在手機沒人接 → 不走 hover 機制，
+      //   直接 inline 套同一套色（mode-color 用 var(--theme-bg) 跟 hue 流動、否則隨機 accent），桌機手機同效
+      // - press/files/album：accent 底色 + 4px ring 一起閃——press 文字列吃底色；files/album 縮圖蓋滿
+      //   element、底色看不到，ring（box-shadow 不佔 layout）才看得見，兩者並用
+      // - is-hovered class + mouseenter/leave 照舊 dispatch：桌面的 CSS :hover 樣式與 JS listener
+      //   （files 封面轉正等）仍吃得到
       setTimeout(() => {
+        const prevTransition = el.style.transition;
+        if (tab === 'awards') {
+          el.style.transition = 'color 0.3s';
+          el.style.color = document.body.classList.contains('mode-color')
+            ? 'var(--theme-bg)'
+            : ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
+        } else {
+          const accent = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
+          el.style.transition = 'background 0.3s, box-shadow 0.3s';
+          el.style.background = accent;
+          el.style.boxShadow = `0 0 0 4px ${accent}`;
+        }
         el.classList.add('is-hovered');
         el.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
         setTimeout(() => {
+          if (tab === 'awards') {
+            el.style.color = '';
+          } else {
+            el.style.background = '';
+            el.style.boxShadow = '';
+          }
           el.classList.remove('is-hovered');
           el.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+          // transition 等淡出跑完才還原（0.3s），避免殘留 inline transition 干擾之後的 hover
+          setTimeout(() => { el.style.transition = prevTransition; }, 350);
         }, 1000);
       }, 600);
     });

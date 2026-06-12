@@ -57,7 +57,7 @@
             <p class="lib-panel-title" style="position: absolute; top: 0; left: calc(-1 * var(--spacing-lg)); font-size: var(--font-size-h5); font-weight: 700; display: inline-block; padding: 6px 8px 5px; z-index: 1;">Awards 榮譽</p>
 
             <!-- 內容區（flex: 1，不含 ticker） -->
-            <div style="flex: 1; min-height: 0; display: grid; grid-template-columns: max-content 1fr; grid-template-rows: 1fr; gap: 0 var(--spacing-2xl); padding: var(--spacing-md) var(--spacing-md) 0 var(--spacing-md);">
+            <div style="flex: 1; min-height: 0; display: grid; grid-template-columns: max-content 1fr; grid-template-rows: 1fr; gap: 0 var(--spacing-2xl); padding: calc(var(--spacing-md) / 2) var(--spacing-md) 0 var(--spacing-md);">
 
               <!-- 左：年份 Picker -->
               <div style="display: flex; flex-direction: column; min-height: 0; padding-top: var(--spacing-xl);">
@@ -81,12 +81,14 @@
                 <div id="library-awards-scroll" style="min-width: 0; overflow-y: auto; padding-bottom: var(--spacing-sm); flex: 1; min-height: 0;" class="no-scrollbar">
                   <div id="library-awards-list"></div>
                 </div>
+                <!-- Award 計數（塞在 list 欄底部、靠右對齊 list 右緣；order:4 確保手機 display:contents 後排在 scroll 之後） -->
+                <div id="library-awards-count" style="order: 4; flex-shrink: 0; text-align: right; font-size: var(--font-size-p3); font-weight: 700; color: var(--lib-fg);"></div>
               </div>
 
             </div>
 
             <!-- Logo Ticker -->
-            <div id="library-awards-ticker" style="flex-shrink: 0; padding-top: var(--spacing-md); padding-bottom: var(--spacing-md); overflow: hidden; width: 100%;">
+            <div id="library-awards-ticker" style="flex-shrink: 0; padding-top: calc(var(--spacing-md) / 2); padding-bottom: var(--spacing-md); overflow: hidden; width: 100%;">
               <div class="awards-ticker-wrapper" style="display: flex; width: 100%;"></div>
             </div>
 

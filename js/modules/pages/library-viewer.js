@@ -164,16 +164,21 @@ export function initPdfViewer() {
   //   再把整個 div 放大 inset:-50% 後 rotate(-30deg) → 斜向連續文字、邊緣由外層 .pdf-zoom-stage overflow:hidden 裁掉。
   //   ⚠️ 不要回退成「一句一句獨立擺＋整片 rotate 每個 text」：那種長英文 rotate 後會在 tile 接縫被切成半句（踩過）。
   //   ⚠️ 水平無縫關鍵＝每個 tile 寬必須＝「一句＋分隔」實際 advance 寬 → 即時量（字體已載入），寫死像素會在接縫跳位。
-  const wmEl = modal.querySelector('.pdf-watermark');
-  if (wmEl) {
-    const FS = 24, WEIGHT = 700, FAM = "Inter,'Noto Sans TC',sans-serif";
-    const LH = Math.round(FS * 5.6);                 // 行距（EN→ZH 垂直間隔）；tile 高 = 2*LH 容一組英中；越大越稀疏
+  // 抽成函式、在「開啟時」呼叫（見 sccd:open-pdf handler）：①開啟時字體必載好 → 水平 advance 量測準；
+  // ②能依當前 viewport 給手機較小較密的浮水印（user 2026-06-11「手機浮水印再小一點、再密集一點」）。桌面維持原尺寸。
+  function buildWatermark() {
+    const wmEl = modal.querySelector('.pdf-watermark');
+    if (!wmEl) return;
+    const mob = window.innerWidth < 768;
+    const FS = mob ? 14 : 24;                         // 手機字級縮小（24→14）
+    const WEIGHT = 700, FAM = "Inter,'Noto Sans TC',sans-serif";
+    const LH = Math.round(FS * (mob ? 4.4 : 5.6));    // 行距倍率：手機調小（5.6→4.4）→ 垂直更密；tile 高 = 2*LH
     // 系名英文＝Department of Communications Design, Shih Chien University（名稱內含逗號）；句尾留分隔＝重複實例間距
-    // 中英共用同一組全形空白分隔（3em）→ 重複實例間 gap 一致（英文用半形空白會比中文窄一半）
-    const SEP = '　　　';
+    // 中英共用同一組全形空白分隔 → 重複實例間 gap 一致；手機少一個全形空白（3→2）→ 水平更密
+    const SEP = mob ? '　　' : '　　　';
     const EN_UNIT = 'Department of Communications Design, Shih Chien University' + SEP;
     const ZH_UNIT = '實踐大學媒體傳達設計學系' + SEP;
-    const measure = (s) => {                         // 用 DOM span 量 advance（含尾端分隔空白；white-space:pre 保留）
+    const measure = (s) => {                          // 用 DOM span 量 advance（含尾端分隔空白；white-space:pre 保留）
       const sp = document.createElement('span');
       sp.textContent = s;
       sp.style.cssText = `position:absolute;visibility:hidden;white-space:pre;font:${WEIGHT} ${FS}px ${FAM}`;
@@ -182,16 +187,15 @@ export function initPdfViewer() {
       sp.remove();
       return w;
     };
-    const layer = (unit, baseY) => {                 // 寬=unit advance、高=2*LH；text x=0 → 下一 tile 接續成連續句
+    const layer = (unit, baseY) => {                  // 寬=unit advance、高=2*LH；text x=0 → 下一 tile 接續成連續句
       const w = measure(unit);
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${LH * 2}"><text x="0" y="${baseY}" xml:space="preserve" fill="rgba(0,0,0,0.08)" font-size="${FS}" font-weight="${WEIGHT}" font-family="${FAM}" text-anchor="start">${unit.replace(/&/g, '&amp;')}</text></svg>`;
       return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
     };
-    const el = /** @type {HTMLElement} */ (wmEl);
-    el.style.backgroundImage = `${layer(EN_UNIT, Math.round(LH * 0.72))},${layer(ZH_UNIT, Math.round(LH * 1.72))}`;
-    el.style.backgroundRepeat = 'repeat, repeat';
-    el.style.inset = '-50%';                         // 放大 → rotate(-30) 後仍蓋滿 stage（外層 overflow:hidden 裁邊）
-    el.style.transform = 'rotate(-30deg)';
+    wmEl.style.backgroundImage = `${layer(EN_UNIT, Math.round(LH * 0.72))},${layer(ZH_UNIT, Math.round(LH * 1.72))}`;
+    wmEl.style.backgroundRepeat = 'repeat, repeat';
+    wmEl.style.inset = '-50%';                        // 放大 → rotate(-30) 後仍蓋滿 stage（外層 overflow:hidden 裁邊）
+    wmEl.style.transform = 'rotate(-30deg)';
   }
   // 禁右鍵：PDF 渲染在 <canvas>，右鍵「另存圖片」會存下當頁 → viewer 開著時整個 modal 禁 contextmenu。
   // ⚠️ 只嚇阻隨手下載／截圖；拿到原始 /assets PDF 網址仍是無浮水印原檔（要檔案級保護得後臺處理）。
@@ -546,12 +550,79 @@ export function initPdfViewer() {
   // SHELL_PT=24：lightbox-shell padLightboxTops 已給 modal root 加 1.5rem(24px)，這裡扣回避免雙重下推
   // → 淨 gap = logoBottom + ZOOM_GAP(16)。無 logo 時 early return，main row 維持原 py-xl 上緣。
   function positionPdfStageRelativeToLogo() {
+    // 手機：單頁置中，padding-top 推到手機 logo 底邊下方（避免頁面上緣被 logo 蓋；控制列在底部 bar 不在此處理）
+    if (isMobile()) {
+      const mlogo = document.querySelector('#header-logo-mobile');
+      const r = mlogo ? mlogo.getBoundingClientRect() : null;
+      if (mainRowEl) mainRowEl.style.paddingTop = `${(r && r.height) ? r.bottom + 12 : 88}px`;
+      return;
+    }
     const logo = document.querySelector('#header-logo');
     if (!logo || !mainRowEl) return;
     const ZOOM_GAP = 16;
     const SHELL_PT = 24;
     mainRowEl.style.paddingTop = `${Math.max(0, logo.getBoundingClientRect().bottom + ZOOM_GAP - SHELL_PT)}px`;
   }
+
+  // ══ 手機版觸控手勢（沿用桌面單頁引擎 renderPage / zoomAt / clampPan / turnPage，不另建渲染路徑）═══════════
+  // user 2026-06-10：一次一頁、上下滑換頁、放大時單指拖曳平移、雙指 pinch 縮放（無縮放鈕）；控制列維持底部。
+  // 桌面/手機都跑 renderPage（單頁 + transform 縮放），手機只多這層 touch → 既有 zoom/pan/turn 全 reuse。
+  const isMobile = () => window.innerWidth < 768;
+  const SWIPE_THRESHOLD = 50;   // 換頁所需垂直位移 px（小於此視為點按、不換頁）
+
+  let touchMode = null;         // 'pinch' | 'pan' | 'swipe'（touchstart 依手指數 + 是否已放大決定）
+  let pinchStartDist = 0, pinchStartScale = 1;
+  let touchPanStart = { x: 0, y: 0, tx: 0, ty: 0 };
+  let swipeStartX = 0, swipeStartY = 0;
+  const touchDist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+  const touchMid  = (t) => ({ x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 });
+
+  stageEl.addEventListener('touchstart', (e) => {
+    if (!isMobile() || !pdfDoc) return;
+    if (e.touches.length === 2) {
+      touchMode = 'pinch';
+      pinchStartDist = touchDist(e.touches);
+      pinchStartScale = zoom.scale;
+    } else if (e.touches.length === 1) {
+      if (zoom.scale > fitScale() + 0.001) {           // 已放大 → 單指拖曳平移
+        touchMode = 'pan';
+        touchPanStart = { x: e.touches[0].clientX, y: e.touches[0].clientY, tx: zoom.tx, ty: zoom.ty };
+      } else {                                          // fit → 記錄起點，touchend 判斷上下滑換頁
+        touchMode = 'swipe';
+        swipeStartX = e.touches[0].clientX;
+        swipeStartY = e.touches[0].clientY;
+      }
+    }
+  }, { passive: false });
+
+  stageEl.addEventListener('touchmove', (e) => {
+    if (!touchMode) return;
+    if (touchMode === 'pinch' && e.touches.length === 2) {
+      e.preventDefault();
+      const target = Math.max(minScale(), Math.min(maxScale(), pinchStartScale * (touchDist(e.touches) / pinchStartDist)));
+      const mid = touchMid(e.touches);
+      zoomAt(mid.x, mid.y, target / zoom.scale, false);   // 以雙指中點為焦點縮放（沿用桌面 zoomAt 焦點數學）
+    } else if (touchMode === 'pan' && e.touches.length === 1) {
+      e.preventDefault();
+      zoom.tx = touchPanStart.tx + (e.touches[0].clientX - touchPanStart.x);
+      zoom.ty = touchPanStart.ty + (e.touches[0].clientY - touchPanStart.y);
+      clampPan();
+      applyZoom(false);
+    } else if (touchMode === 'swipe') {
+      e.preventDefault();   // 吞掉 iOS overscroll；換頁在 touchend 判定
+    }
+  }, { passive: false });
+
+  stageEl.addEventListener('touchend', (e) => {
+    if (touchMode === 'swipe' && e.changedTouches.length) {
+      const dy = e.changedTouches[0].clientY - swipeStartY;
+      const dx = e.changedTouches[0].clientX - swipeStartX;
+      // 垂直為主且超過門檻才換頁：上滑(dy<0)下一頁、下滑(dy>0)上一頁（同捲動方向，往下讀=往上滑）
+      if (Math.abs(dy) > SWIPE_THRESHOLD && Math.abs(dy) > Math.abs(dx)) turnPage(dy < 0 ? 1 : -1);
+    }
+    if (e.touches.length === 0) touchMode = null;
+    else if (touchMode === 'pinch' && e.touches.length === 1) touchMode = null;  // 雙指剩一指→結束 pinch（不接 pan 免跳動）
+  }, { passive: false });
 
   function openModal() {
     modal.style.display = 'flex';
@@ -573,6 +644,7 @@ export function initPdfViewer() {
     return new Promise(resolve => {
       setTimeout(() => {
         modal.style.display = 'none';
+        touchMode = null;        // 清手機觸控手勢狀態
         if (pdfDoc) { pdfDoc.destroy(); pdfDoc = null; }
         canvasL.getContext('2d').clearRect(0, 0, canvasL.width, canvasL.height);
         // reset 內部狀態（下次 open 重新計 fitDims/naturalDims）
@@ -603,6 +675,7 @@ export function initPdfViewer() {
     // 無 references 或空 array → ref btn 自動不渲染
     refUi.setReferences(references);
     openModal();
+    buildWatermark();   // 開啟時建（字體必載好 + 依當前 viewport 給手機較小較密版）
     // 等 modal 顯示 + back btn 量到 rect 才 position ref btn（與 title 用同一 rAF cadence 對齊）
     requestAnimationFrame(() => positionRefBtn());
     try {
@@ -610,7 +683,7 @@ export function initPdfViewer() {
       await ensurePdfjsLoaded();
       setupPdfjsWorker();
       pdfDoc = await pdfjsLib.getDocument(pdfUrl).promise;
-      renderPage(curPage);
+      renderPage(curPage);   // 桌面/手機同走單頁引擎（手機多 touch 手勢層：swipe 換頁 / pinch 縮放）
     } catch (err) {
       console.error('PDF load error:', err);
       closeModal();
@@ -704,6 +777,18 @@ export function initPdfViewer() {
     if (e.key === '+' || e.key === '=') zoomAtStageCenter(1.5, true);
     if (e.key === '-' || e.key === '_') zoomAtStageCenter(1 / 1.5, true);
     if (e.key === '0') resetToFit(true);
+  });
+
+  // 手機橫豎切換 / 視窗寬度變化：重新 render 當前頁以重算 fit 尺寸（單頁引擎，renderPage 內會重算 fitDims）。
+  // 只認「寬度」變化：手機捲動時 URL bar 顯隱會改高度但不該重渲。
+  let _lastViewportW = window.innerWidth;
+  window.addEventListener('resize', () => {
+    const w = window.innerWidth;
+    if (w === _lastViewportW) return;
+    _lastViewportW = w;
+    if (!pdfDoc || modal.style.display === 'none') return;
+    buildWatermark();   // 寬度跨過手機斷點時重建浮水印（手機↔桌面尺寸不同）
+    renderPage(curPage);
   });
 }
 
