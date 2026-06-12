@@ -14,6 +14,7 @@ import { enterLightboxMode, exitLightboxMode } from '../lightbox/lightbox-shell.
 import { openSlideInBg, closeSlideInBg } from '../ui/slide-in-bg-sync.js';
 import { countryName } from '../../data/country-names.js';
 import { getFacultyData } from './faculty-source.js';
+import { modePlaceholderUrl } from './faculty-data-loader.js';
 import { applyMarqueeOverflow } from '../ui/marquee-overflow.js';
 
 // 桌面 slide-in 詳情 cell 的 marquee 改用 JS(WAAPI) 驅動，取代 CSS :hover animation——
@@ -190,37 +191,51 @@ export function initFacultySlideIn() {
       const data = facultyData[facultyId];
       if (!data) return;
 
-      // 圖片
+      // 圖片：沒真實照片的 fulltime/parttime/admin → 用代用 logo。slide-in 底色一直是彩色 accent（panelBg），
+      // 故「固定用黑線框 wireframe 版」而非依 site mode 挑彩色 glitch（user 2026-06-11）。
+      // 加 .theme-invert → 線條隨底色亮度翻黑/白對比（CSS var(--theme-invert-filter)，mode-color 期間每幀更新）。
       const imgElement = /** @type {HTMLImageElement | null} */ (document.getElementById('faculty-detail-image'));
-      if (imgElement) imgElement.src = data.image;
+      if (imgElement) {
+        const phUrl = modePlaceholderUrl(data, 'wireframeBlack');
+        imgElement.src = phUrl || data.image;
+        imgElement.classList.toggle('theme-invert', !!phUrl);
+      }
 
-      // 姓名 + titles 旋轉：fulltime 桌面手機都套（2026-05-26 user 要求手機也旋轉）
-      // EN / ZH 一律各佔一行（block）；fulltime 另加 width:fit-content → rotate(4deg) 繞 content 寬度不撐父寬
+      // 姓名 + titles 旋轉：fulltime/admin 桌面手機都套（2026-05-26 user 要求手機也旋轉；
+      //   2026-06-11 admin（執行秘書等）比照 fulltime 旋轉，原本漏掉只有 fulltime 旋轉）
+      // EN / ZH 一律各佔一行（block）；rotate 對象另加 width:fit-content → rotate 繞 content 寬度不撐父寬
       // （2026-06-08 user 要求桌面也分兩行；原桌面 inline-block 把 EN+ZH 擠成一行已取消）
-      const rotateName = data.type === 'fulltime';
-      const isMobile = window.innerWidth < 768;
+      // 旋轉角度隨機（user 2026-06-11）：名字一個角、title 另一個角，兩者明顯不同（呼應全站隨機傾斜風格）。
+      //   ±2~5°（排除近 0 免像沒轉）；每次開 slide-in 重隨機；太接近(<2°)就把 title 反向確保看得出差異。
+      //   名字 EN/ZH 共用同一角（名字視為一體）；若要 EN/ZH 也各異，各自呼叫 randDeg() 即可。
+      const rotateName = data.type === 'fulltime' || data.type === 'admin';
+      const randDeg = () => (Math.random() < 0.5 ? -1 : 1) * (2 + Math.random() * 3);
+      const nameDeg = randDeg();
+      let titlesDeg = randDeg();
+      if (Math.abs(nameDeg - titlesDeg) < 2) titlesDeg = -titlesDeg;
       const nameEnElement = document.getElementById('faculty-detail-name-en');
       const nameZhElement = document.getElementById('faculty-detail-name-zh');
       const nameDisplay = rotateName ? 'block' : '';
       const nameWidth = rotateName ? 'fit-content' : '';
       if (nameEnElement) {
         nameEnElement.textContent = data.nameEn;
-        nameEnElement.style.transform = rotateName ? 'rotate(4deg)' : '';
+        nameEnElement.style.transform = rotateName ? `rotate(${nameDeg}deg)` : '';
         nameEnElement.style.transformOrigin = rotateName ? 'left center' : '';
         nameEnElement.style.display = nameDisplay;
         nameEnElement.style.width = nameWidth;
       }
       if (nameZhElement) {
         nameZhElement.textContent = data.nameZh;
-        nameZhElement.style.transform = rotateName ? 'rotate(4deg)' : '';
+        nameZhElement.style.transform = rotateName ? `rotate(${nameDeg}deg)` : '';
         nameZhElement.style.transformOrigin = rotateName ? 'left center' : '';
         nameZhElement.style.display = nameDisplay;
         nameZhElement.style.width = nameWidth;
       }
 
-      // Titles：fulltime/parttime 用 titles[] repeater；admin 用單 titleEn/titleZh
-      // 手機 fulltime titles 也 rotate(4deg)，但用 block display 不 inline-block，讓 titles 自然在 name 下方流（不會被擠到右邊）
-      const rotateTitles = rotateName && isMobile;
+      // Titles：admin 用單 titleEn/titleZh；fulltime 用 titles[] repeater
+      // titles rotate(4deg)：桌機+手機都套（2026-06-11 user 要桌面 title 也轉、跟名字一致；原本只手機）。
+      // 用 block display 讓 titles 自然在 name 下方流（不被 inline-block 擠到右邊）。
+      const rotateTitles = rotateName;
       const titlesContainer = document.getElementById('faculty-detail-titles');
       if (titlesContainer) {
         let pairs;
@@ -238,7 +253,7 @@ export function initFacultySlideIn() {
             `</div>`;
         });
         titlesContainer.innerHTML = html;
-        titlesContainer.style.transform = rotateTitles ? 'rotate(4deg)' : '';
+        titlesContainer.style.transform = rotateTitles ? `rotate(${titlesDeg}deg)` : '';
         titlesContainer.style.transformOrigin = rotateTitles ? 'left top' : '';
         // 手機改 block 讓 titles 自然在 name 下方換行；桌面保留預設不動
         titlesContainer.style.display = rotateTitles ? 'block' : '';

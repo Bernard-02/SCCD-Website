@@ -35,17 +35,16 @@ export async function getFacultyData() {
       const rows = (await res.json()).data || [];
       return rows.map(r => {
         const item = { ...r, type: c.type, image: resolveImage(r.image) };
-        // 兼任老師：沒真實照片時，前台依當前 site mode 從這 4 張 generator 代用 logo 挑一張
-        // （挑圖 + 卡片底色切換邏輯在 faculty-data-loader.js）。有真實照片 → image 直接用、忽略代用圖。
-        if (c.type === 'parttime') {
-          item.hasRealPhoto = !!r.image;
-          item.placeholders = {
-            standard: resolvePlaceholder(r.placeholderStandard),         // 白底(標準) ← generator Standard
-            inverse: resolvePlaceholder(r.placeholderInverse),           // 黑底(反白) ← generator Inverse
-            wireframeBlack: resolvePlaceholder(r.placeholderWireframeBlack), // 彩色淺底 ← Black Wireframe
-            wireframeWhite: resolvePlaceholder(r.placeholderWireframeWhite), // 彩色深底 ← White Wireframe
-          };
-        }
+        // fulltime / parttime / admin 三 collection 都有 placeholder 欄位（2026-06-11 起 fulltime/admin 也補上）：
+        // 沒真實照片時前台依當前 site mode 從 generator 代用 logo 挑一張（挑圖 + 卡片底色切換在 faculty-data-loader.js）。
+        // 有真實照片 → image 直接用、忽略代用圖。COLLECTIONS 只含這三者（former 不在此 loader）故全部都設。
+        item.hasRealPhoto = !!r.image;
+        item.placeholders = {
+          standard: resolvePlaceholder(r.placeholderStandard),         // 白底(標準) ← generator Standard
+          inverse: resolvePlaceholder(r.placeholderInverse),           // 黑底(反白) ← generator Inverse
+          wireframeBlack: resolvePlaceholder(r.placeholderWireframeBlack), // 彩色淺底 ← Black Wireframe
+          wireframeWhite: resolvePlaceholder(r.placeholderWireframeWhite), // 彩色深底 ← White Wireframe（欄位暫無→null，mode3 靠 CSS filter 不需要）
+        };
         return item;
       });
     }));

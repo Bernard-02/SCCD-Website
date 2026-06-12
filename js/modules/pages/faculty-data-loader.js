@@ -54,7 +54,8 @@ let _phThemeHandler = null;  // theme:changed listener（registerPageCleanup 解
 const PH_FADE_MS = 400; // 對齊 theme-toggle MODE_FADE_MS：圖片變體 cross-fade 時長
 
 function isModePlaceholder(item) {
-  if (item.type !== 'parttime' || item.hasRealPhoto || !item.placeholders) return false;
+  // fulltime / parttime / admin 皆可（2026-06-11 起不再限 parttime）；!item.placeholders 自動排除沒設代用圖的型別。
+  if (item.hasRealPhoto || !item.placeholders) return false;
   const p = item.placeholders;
   return !!(p.standard || p.inverse || p.wireframeBlack || p.wireframeWhite);
 }
@@ -74,6 +75,14 @@ function currentPlaceholderVariantKey() {
 function pickVariantUrl(ph, key) {
   for (const k of PH_FALLBACK[key]) { if (ph[k]) return ph[k]; }
   return null;
+}
+
+// 給 slide-in / hover 等外部用：回傳 item 該顯示的代用 logo URL。
+// forceKey 指定變體（如 'wireframeBlack'）；省略則依當前 site mode 挑。
+// 非代用圖 item（有真實照片 / 無 placeholders）回 null → caller 退回 item.image。
+export function modePlaceholderUrl(item, forceKey) {
+  if (!isModePlaceholder(item)) return null;
+  return pickVariantUrl(item.placeholders, forceKey || currentPlaceholderVariantKey());
 }
 
 // 只處理「圖片變體」：animate=true（theme:changed）變體真的換才 cross-fade；animate=false（首次）直接套。
@@ -239,6 +248,19 @@ function renderFacultyList(containerId, items) {
       // preload 4 個變體 → 切 mode 時 src 換成已快取圖、不再每次 network 重抓（消除換色延遲）
       Object.values(item.placeholders).forEach(u => { if (u) { const im = new Image(); im.src = u; } });
       _phCards.push({ img, fadeImg, wrapper, ph: item.placeholders, defaultUrl: item.image, _curUrl: null, _fadeTimer: null });
+
+      // hover → 露出線框 wireframe 版（user 2026-06-11；平常顯示 mode 對應變體，hover 切線框）。
+      // 桌面限定（手機無 hover）；變體已 preload→swap 即時不閃。離開還原當前 mode 變體。
+      // 黑線對比：hover 時卡片底翻成 accent 色（standard/inverse 都變亮綠底→黑線可見）、mode-color 另有 :hover filter，
+      // 故各 mode hover 下線框都對比可見，不需額外反色（user 說「黑白則反過來這個做好了」即此既有 hover 底色機制）。
+      if (window.matchMedia('(min-width: 768px)').matches) {
+        const wfUrl = pickVariantUrl(item.placeholders, 'wireframeBlack') || item.image;
+        cardEl.addEventListener('mouseenter', () => { img.setAttribute('src', wfUrl); applyNaturalAspect(img); });
+        cardEl.addEventListener('mouseleave', () => {
+          img.setAttribute('src', pickVariantUrl(item.placeholders, currentPlaceholderVariantKey()) || item.image);
+          applyNaturalAspect(img);
+        });
+      }
     } else {
       applyNaturalAspect(img); // 真實照片依自然比例調框
     }
