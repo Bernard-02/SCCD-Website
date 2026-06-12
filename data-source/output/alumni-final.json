@@ -1,0 +1,1072 @@
+{
+  "careers": [
+    {
+      "careerZh": "電影導演",
+      "careerEn": "Film Director",
+      "sort": 1
+    },
+    {
+      "careerZh": "廣告導演",
+      "careerEn": "Advertising Director",
+      "sort": 2
+    },
+    {
+      "careerZh": "MV 導演",
+      "careerEn": "MV Director",
+      "sort": 3
+    },
+    {
+      "careerZh": "動畫導演",
+      "careerEn": "Animation Director",
+      "sort": 4
+    },
+    {
+      "careerZh": "動畫公司負責人",
+      "careerEn": "Animation Studio Founder",
+      "sort": 5
+    },
+    {
+      "careerZh": "設計公司負責人",
+      "careerEn": "Design Studio Founder",
+      "sort": 6
+    },
+    {
+      "careerZh": "新媒體藝術家",
+      "careerEn": "New Media Artist",
+      "sort": 7
+    },
+    {
+      "careerZh": "創意總監",
+      "careerEn": "Creative Director",
+      "sort": 8
+    },
+    {
+      "careerZh": "藝術總監",
+      "careerEn": "Art Director",
+      "sort": 9
+    },
+    {
+      "careerZh": "設計總監",
+      "careerEn": "Design Director",
+      "sort": 10
+    },
+    {
+      "careerZh": "平面設計師",
+      "careerEn": "Graphic Designer",
+      "sort": 11
+    },
+    {
+      "careerZh": "遊戲設計師",
+      "careerEn": "Game Designer",
+      "sort": 12
+    },
+    {
+      "careerZh": "網站設計師",
+      "careerEn": "Web Designer",
+      "sort": 13
+    },
+    {
+      "careerZh": "藝術家",
+      "careerEn": "Artist",
+      "sort": 14
+    },
+    {
+      "careerZh": "攝影師",
+      "careerEn": "Photographer",
+      "sort": 15
+    },
+    {
+      "careerZh": "策展人",
+      "careerEn": "Curator",
+      "sort": 16
+    },
+    {
+      "careerZh": "畫家",
+      "careerEn": "Painter",
+      "sort": 17
+    },
+    {
+      "careerZh": "漫畫家",
+      "careerEn": "Cartoonist",
+      "sort": 18
+    },
+    {
+      "careerZh": "插畫家",
+      "careerEn": "Illustrator",
+      "sort": 19
+    },
+    {
+      "careerZh": "UI 設計師",
+      "careerEn": "UI Designer",
+      "sort": 20
+    },
+    {
+      "careerZh": "UX 設計師",
+      "careerEn": "UX Designer",
+      "sort": 21
+    },
+    {
+      "careerZh": "產品設計師",
+      "careerEn": "Product Designer",
+      "sort": 22
+    },
+    {
+      "careerZh": "服裝設計師",
+      "careerEn": "Fashion Designer",
+      "sort": 23
+    },
+    {
+      "careerZh": "室內設計師",
+      "careerEn": "Interior Designer",
+      "sort": 24
+    },
+    {
+      "careerZh": "字體設計師",
+      "careerEn": "Type Designer",
+      "sort": 25
+    },
+    {
+      "careerZh": "概念設計師",
+      "careerEn": "Concept Artist",
+      "sort": 26
+    },
+    {
+      "careerZh": "視覺設計師",
+      "careerEn": "Visual Designer",
+      "sort": 27
+    },
+    {
+      "careerZh": "活動策劃",
+      "careerEn": "Event Producer",
+      "sort": 28
+    },
+    {
+      "careerZh": "職能治療藝術家",
+      "careerEn": "Occupational Therapy Artist",
+      "sort": 29
+    },
+    {
+      "careerZh": "品牌設計師",
+      "careerEn": "Brand Designer",
+      "sort": 30
+    },
+    {
+      "careerZh": "經紀人",
+      "careerEn": "Artist Manager",
+      "sort": 31
+    },
+    {
+      "careerZh": "樂團主唱",
+      "careerEn": "Lead Vocalist",
+      "sort": 32
+    },
+    {
+      "careerZh": "極地探險家",
+      "careerEn": "Polar Explorer",
+      "sort": 33
+    },
+    {
+      "careerZh": "DJ",
+      "careerEn": "",
+      "sort": 34
+    },
+    {
+      "careerZh": "VJ",
+      "careerEn": "",
+      "sort": 35
+    },
+    {
+      "careerZh": "燈光設計師",
+      "careerEn": "Light Designer",
+      "sort": 36
+    },
+    {
+      "careerZh": "專案經理",
+      "careerEn": "Project Manager",
+      "sort": 37
+    },
+    {
+      "careerZh": "藝人",
+      "careerEn": "Entertainer",
+      "sort": 38
+    },
+    {
+      "careerZh": "教師",
+      "careerEn": "Teacher",
+      "sort": 39
+    },
+    {
+      "careerZh": "動畫師",
+      "careerEn": "Animator",
+      "sort": 40
+    }
+  ],
+  "hosting": [
+    {
+      "companyZh": "底醖敘事",
+      "companyEn": "Rhizome Operator",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 1
+    },
+    {
+      "companyZh": "五金行",
+      "companyEn": "Five Metal Shop",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 2
+    },
+    {
+      "companyZh": "何理互動",
+      "companyEn": "WHYIXD",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 3
+    },
+    {
+      "companyZh": "",
+      "companyEn": "moom bookshop",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 4
+    },
+    {
+      "companyZh": "本肆動態影像工作室",
+      "companyEn": "K4s Motion Studio",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 5
+    },
+    {
+      "companyZh": "回轉設計",
+      "companyEn": "Return Design",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 6
+    },
+    {
+      "companyZh": "木下曰本",
+      "companyEn": "MK ORIGIN STUDIO",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 7
+    },
+    {
+      "companyZh": "手指",
+      "companyEn": "Finger and Toe",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 8
+    },
+    {
+      "companyZh": "目子拾參",
+      "companyEn": "Muzixiii",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 9
+    },
+    {
+      "companyZh": "詹記麻辣火鍋",
+      "companyEn": "Chan Chi Hot Pot",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 10
+    },
+    {
+      "companyZh": "版塊設計",
+      "companyEn": "Block Studio",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 11
+    },
+    {
+      "companyZh": "源本策略",
+      "companyEn": "MetaOrigin",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 12
+    },
+    {
+      "companyZh": "",
+      "companyEn": "O.OO",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 13
+    },
+    {
+      "companyZh": "聚鑫開發",
+      "companyEn": "ASTAR HUB",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 14
+    },
+    {
+      "companyZh": "不毛",
+      "companyEn": "nomo®creative",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 15
+    },
+    {
+      "companyZh": "",
+      "companyEn": "N3L Studio",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 16
+    },
+    {
+      "companyZh": "提摩西影像",
+      "companyEn": "Timothy Motion",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 17
+    },
+    {
+      "companyZh": "茶茶",
+      "companyEn": "ChaCha",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 18
+    },
+    {
+      "companyZh": "沃野影像",
+      "companyEn": "Wild Motion",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 19
+    },
+    {
+      "companyZh": "",
+      "companyEn": "EQUALNEAR",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 20
+    },
+    {
+      "companyZh": "自由潛水",
+      "companyEn": "Psycho Dive",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 21
+    },
+    {
+      "companyZh": "做事設計",
+      "companyEn": "ACT Creative",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 22
+    },
+    {
+      "companyZh": "三頁文",
+      "companyEn": "Yen Design",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 23
+    },
+    {
+      "companyZh": "",
+      "companyEn": "CLASSICO",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 24
+    },
+    {
+      "companyZh": "當若科技藝術",
+      "companyEn": "iF+",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 25
+    },
+    {
+      "companyZh": "共時品牌整合設計",
+      "companyEn": "Royal Brand Integration",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 26
+    },
+    {
+      "companyZh": "日目",
+      "companyEn": "247Visualart",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 27
+    },
+    {
+      "companyZh": "HRC 舞蹈工作室",
+      "companyEn": "HRC Dance Studio",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 28
+    },
+    {
+      "companyZh": "",
+      "companyEn": "INTO FLOW®",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 29
+    },
+    {
+      "companyZh": "海島設計",
+      "companyEn": "Studio Behide",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 30
+    },
+    {
+      "companyZh": "尖蚪映畫",
+      "companyEn": "Foufa Studio",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 31
+    },
+    {
+      "companyZh": "千年虫無身知所",
+      "companyEn": "Y2K",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 32
+    },
+    {
+      "companyZh": "許智彥導演工作室",
+      "companyEn": "Kidding Hsu Studio",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 33
+    },
+    {
+      "companyZh": "劉明群導演工作室",
+      "companyEn": "Aikolove Liu Studio",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 34
+    },
+    {
+      "companyZh": "三毛映画",
+      "companyEn": "SAN MAO STUDIO",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 35
+    },
+    {
+      "companyZh": "滾水影事",
+      "companyEn": "BOILFILM",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 36
+    },
+    {
+      "companyZh": "昏鴉",
+      "companyEn": "The Murky Crows",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 37
+    },
+    {
+      "companyZh": "美秀集團",
+      "companyEn": "Amazing Show",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 38
+    },
+    {
+      "companyZh": "潑猴",
+      "companyEn": "Monkey Insane",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 39
+    },
+    {
+      "companyZh": "錯頻",
+      "companyEn": "Error Frequency",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 40
+    },
+    {
+      "companyZh": "馬克白",
+      "companyEn": "MACBETH",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 41
+    },
+    {
+      "companyZh": "爽爽貓",
+      "companyEn": "Song Song Meow",
+      "alumniNameEn": "",
+      "alumniNameZh": "",
+      "sort": 42
+    }
+  ],
+  "employment": [
+    {
+      "companyZh": "蘋果",
+      "companyEn": "Apple",
+      "country": "us",
+      "sort": 1
+    },
+    {
+      "companyZh": "網飛",
+      "companyEn": "Netflix",
+      "country": "us",
+      "sort": 2
+    },
+    {
+      "companyZh": "匡威",
+      "companyEn": "Converse",
+      "country": "us",
+      "sort": 3
+    },
+    {
+      "companyZh": "",
+      "companyEn": "Disney Tokyo",
+      "country": "jp",
+      "sort": 4
+    },
+    {
+      "companyZh": "卡普空",
+      "companyEn": "CAPCOM",
+      "country": "jp",
+      "sort": 5
+    },
+    {
+      "companyZh": "騰訊",
+      "companyEn": "Tencent",
+      "country": "cn",
+      "sort": 6
+    },
+    {
+      "companyZh": "梅賽德斯 - 賓士",
+      "companyEn": "Mercedes-Benz",
+      "country": "de",
+      "sort": 7
+    },
+    {
+      "companyZh": "競舞娛樂",
+      "companyEn": "Garena",
+      "country": "sg",
+      "sort": 8
+    },
+    {
+      "companyZh": "皮克斯工作室",
+      "companyEn": "PIXAR Studios",
+      "country": "us",
+      "sort": 9
+    },
+    {
+      "companyZh": "暴雪娛樂",
+      "companyEn": "Blizzard Entertainment",
+      "country": "us",
+      "sort": 10
+    },
+    {
+      "companyZh": "奧蘭多海洋生物水族館",
+      "companyEn": "SEA LIFE Orlando Aquarium",
+      "country": "us",
+      "sort": 11
+    },
+    {
+      "companyZh": "",
+      "companyEn": "teamLab",
+      "country": "jp",
+      "sort": 12
+    },
+    {
+      "companyZh": "東京舞台照明",
+      "companyEn": "Tokyo Butai Showmei",
+      "country": "jp",
+      "sort": 13
+    },
+    {
+      "companyZh": "字節跳動",
+      "companyEn": "ByteDance",
+      "country": "cn",
+      "sort": 14
+    },
+    {
+      "companyZh": "寶馬",
+      "companyEn": "BMW",
+      "country": "de",
+      "sort": 15
+    },
+    {
+      "companyZh": "漫威工作室",
+      "companyEn": "Marvel Studios",
+      "country": "us",
+      "sort": 16
+    },
+    {
+      "companyZh": "時尚",
+      "companyEn": "Vogue",
+      "country": "us",
+      "sort": 17
+    },
+    {
+      "companyZh": "耐吉",
+      "companyEn": "Nike",
+      "country": "us",
+      "sort": 18
+    },
+    {
+      "companyZh": "凌志",
+      "companyEn": "Lexus",
+      "country": "jp",
+      "sort": 19
+    },
+    {
+      "companyZh": "艾鳴",
+      "companyEn": "Aiming",
+      "country": "jp",
+      "sort": 20
+    },
+    {
+      "companyZh": "蔚來",
+      "companyEn": "NIO",
+      "country": "cn",
+      "sort": 21
+    },
+    {
+      "companyZh": "富胖達",
+      "companyEn": "Foodpanda",
+      "country": "de",
+      "sort": 22
+    },
+    {
+      "companyZh": "藍天工作室",
+      "companyEn": "BlueSky Studios",
+      "country": "us",
+      "sort": 23
+    },
+    {
+      "companyZh": "李奧貝納廣告",
+      "companyEn": "Leo Burnett Worldwide",
+      "country": "us",
+      "sort": 24
+    },
+    {
+      "companyZh": "紐巴倫",
+      "companyEn": "New Balance",
+      "country": "us",
+      "sort": 25
+    },
+    {
+      "companyZh": "索尼娛樂",
+      "companyEn": "Sony Entertainment",
+      "country": "jp",
+      "sort": 26
+    },
+    {
+      "companyZh": "歐珀",
+      "companyEn": "OPPO",
+      "country": "cn",
+      "sort": 27
+    },
+    {
+      "companyZh": "愛迪達",
+      "companyEn": "Adidas",
+      "country": "de",
+      "sort": 28
+    },
+    {
+      "companyZh": "臉書（Meta）",
+      "companyEn": "Facebook (Meta)",
+      "country": "us",
+      "sort": 29
+    },
+    {
+      "companyZh": "奧美",
+      "companyEn": "Ogilvy",
+      "country": "us",
+      "sort": 30
+    },
+    {
+      "companyZh": "紐約時報",
+      "companyEn": "New York Times",
+      "country": "us",
+      "sort": 31
+    },
+    {
+      "companyZh": "拳頭遊戲",
+      "companyEn": "Riot Games",
+      "country": "us",
+      "sort": 32
+    },
+    {
+      "companyZh": "華爾街日報",
+      "companyEn": "The Wall Street Journal",
+      "country": "us",
+      "sort": 33
+    },
+    {
+      "companyZh": "安邁科技",
+      "companyEn": "AMI",
+      "country": "us",
+      "sort": 34
+    },
+    {
+      "companyZh": "斯柯達",
+      "companyEn": "Škoda",
+      "country": "cz",
+      "sort": 35
+    },
+    {
+      "companyZh": "三星",
+      "companyEn": "Samsung",
+      "country": "kr",
+      "sort": 36
+    },
+    {
+      "companyZh": "沛納海",
+      "companyEn": "Panerai",
+      "country": "it",
+      "sort": 37
+    },
+    {
+      "companyZh": "愛馬仕",
+      "companyEn": "Hermès",
+      "country": "fr",
+      "sort": 38
+    },
+    {
+      "companyZh": "有線電視新聞網",
+      "companyEn": "CNN",
+      "country": "us",
+      "sort": 39
+    },
+    {
+      "companyZh": "POW! 娛樂",
+      "companyEn": "POW! Entertainment",
+      "country": "us",
+      "sort": 40
+    },
+    {
+      "companyZh": "優食",
+      "companyEn": "Uber Eats",
+      "country": "us",
+      "sort": 41
+    },
+    {
+      "companyZh": "加州藝術學院",
+      "companyEn": "California Institute of the Arts (CalArts)",
+      "country": "us",
+      "sort": 42
+    },
+    {
+      "companyZh": "台積電",
+      "companyEn": "TSMC",
+      "country": "tw",
+      "sort": 43
+    },
+    {
+      "companyZh": "台達",
+      "companyEn": "Delta",
+      "country": "tw",
+      "sort": 44
+    },
+    {
+      "companyZh": "大江生醫",
+      "companyEn": "TCI",
+      "country": "tw",
+      "sort": 45
+    },
+    {
+      "companyZh": "宏達",
+      "companyEn": "HTC",
+      "country": "tw",
+      "sort": 46
+    },
+    {
+      "companyZh": "華碩",
+      "companyEn": "ASUS",
+      "country": "tw",
+      "sort": 47
+    },
+    {
+      "companyZh": "廣達",
+      "companyEn": "Quanta",
+      "country": "tw",
+      "sort": 48
+    },
+    {
+      "companyZh": "宏碁",
+      "companyEn": "Acer",
+      "country": "tw",
+      "sort": 49
+    },
+    {
+      "companyZh": "固態記憶",
+      "companyEn": "Solid Memory",
+      "country": "tw",
+      "sort": 50
+    },
+    {
+      "companyZh": "鈊象電子",
+      "companyEn": "IGS",
+      "country": "tw",
+      "sort": 51
+    },
+    {
+      "companyZh": "睿能創意",
+      "companyEn": "Gogoro",
+      "country": "tw",
+      "sort": 52
+    },
+    {
+      "companyZh": "資訊工業策進會",
+      "companyEn": "Institute for Information Industry",
+      "country": "tw",
+      "sort": 53
+    },
+    {
+      "companyZh": "台灣智庫",
+      "companyEn": "Taiwan Thinktank",
+      "country": "tw",
+      "sort": 54
+    },
+    {
+      "companyZh": "捷安特",
+      "companyEn": "Giant",
+      "country": "tw",
+      "sort": 55
+    },
+    {
+      "companyZh": "長榮航空",
+      "companyEn": "EVA Air",
+      "country": "tw",
+      "sort": 56
+    },
+    {
+      "companyZh": "中華航空",
+      "companyEn": "China Airlines",
+      "country": "tw",
+      "sort": 57
+    },
+    {
+      "companyZh": "台茂通運",
+      "companyEn": "Airlife Freight",
+      "country": "tw",
+      "sort": 58
+    },
+    {
+      "companyZh": "遠雄",
+      "companyEn": "Farglory",
+      "country": "tw",
+      "sort": 59
+    },
+    {
+      "companyZh": "南山人壽",
+      "companyEn": "Nan Shan Life Insurance",
+      "country": "tw",
+      "sort": 60
+    },
+    {
+      "companyZh": "momo 親子台",
+      "companyEn": "momo kids",
+      "country": "tw",
+      "sort": 61
+    },
+    {
+      "companyZh": "滾石唱片",
+      "companyEn": "Rock Records",
+      "country": "tw",
+      "sort": 62
+    },
+    {
+      "companyZh": "科科科技",
+      "companyEn": "KKCompany",
+      "country": "tw",
+      "sort": 63
+    },
+    {
+      "companyZh": "我的檔期",
+      "companyEn": "MY SCHEDULE",
+      "country": "tw",
+      "sort": 64
+    },
+    {
+      "companyZh": "複數同位體",
+      "companyEn": "8ID Studio",
+      "country": "tw",
+      "sort": 65
+    },
+    {
+      "companyZh": "優視傳播",
+      "companyEn": "Win TV Broadcasting",
+      "country": "tw",
+      "sort": 66
+    },
+    {
+      "companyZh": "風潮音樂",
+      "companyEn": "WIND MUSIC",
+      "country": "tw",
+      "sort": 67
+    },
+    {
+      "companyZh": "街聲",
+      "companyEn": "StreetVoice",
+      "country": "tw",
+      "sort": 68
+    },
+    {
+      "companyZh": "車庫娛樂",
+      "companyEn": "GaragePlay",
+      "country": "tw",
+      "sort": 69
+    },
+    {
+      "companyZh": "緯來電視網",
+      "companyEn": "Videoland Television Network",
+      "country": "tw",
+      "sort": 70
+    },
+    {
+      "companyZh": "華研國際音樂",
+      "companyEn": "HIM",
+      "country": "tw",
+      "sort": 71
+    },
+    {
+      "companyZh": "儂儂",
+      "companyEn": "Bella",
+      "country": "tw",
+      "sort": 72
+    },
+    {
+      "companyZh": "必應創造",
+      "companyEn": "B'in Live",
+      "country": "tw",
+      "sort": 73
+    },
+    {
+      "companyZh": "十三行互動",
+      "companyEn": "13 Tech Art",
+      "country": "tw",
+      "sort": 74
+    },
+    {
+      "companyZh": "愛迪斯",
+      "companyEn": "Axis 3D",
+      "country": "tw",
+      "sort": 75
+    },
+    {
+      "companyZh": "穀米",
+      "companyEn": "Okome Studio",
+      "country": "tw",
+      "sort": 76
+    },
+    {
+      "companyZh": "天工開物",
+      "companyEn": "Techart Group",
+      "country": "tw",
+      "sort": 77
+    },
+    {
+      "companyZh": "黑川互動媒體藝術",
+      "companyEn": "Peppercorns",
+      "country": "tw",
+      "sort": 78
+    },
+    {
+      "companyZh": "叁式",
+      "companyEn": "ULTRACOMBOS",
+      "country": "tw",
+      "sort": 79
+    },
+    {
+      "companyZh": "學學",
+      "companyEn": "Xue Xue",
+      "country": "tw",
+      "sort": 80
+    },
+    {
+      "companyZh": "中華網龍",
+      "companyEn": "Chinese Gamer",
+      "country": "tw",
+      "sort": 81
+    },
+    {
+      "companyZh": "游戲橘子",
+      "companyEn": "Gamania",
+      "country": "tw",
+      "sort": 82
+    },
+    {
+      "companyZh": "混合編碼工作室",
+      "companyEn": "MixCode Studio",
+      "country": "tw",
+      "sort": 83
+    },
+    {
+      "companyZh": "冉色斯動畫",
+      "companyEn": "Xanthus Animation Studio",
+      "country": "tw",
+      "sort": 84
+    },
+    {
+      "companyZh": "首映創意",
+      "companyEn": "SOFA Studio",
+      "country": "tw",
+      "sort": 85
+    },
+    {
+      "companyZh": "原金國際",
+      "companyEn": "Engine Studios",
+      "country": "tw",
+      "sort": 86
+    },
+    {
+      "companyZh": "仙草影像",
+      "companyEn": "Grass Jelly",
+      "country": "tw",
+      "sort": 87
+    },
+    {
+      "companyZh": "夢想動畫",
+      "companyEn": "Moonshine Studio",
+      "country": "tw",
+      "sort": 88
+    },
+    {
+      "companyZh": "西基電腦動畫",
+      "companyEn": "CGCG",
+      "country": "tw",
+      "sort": 89
+    },
+    {
+      "companyZh": "谷汩文化",
+      "companyEn": "Group.G",
+      "country": "tw",
+      "sort": 90
+    },
+    {
+      "companyZh": "二值社",
+      "companyEn": "Nichi Studio",
+      "country": "tw",
+      "sort": 91
+    },
+    {
+      "companyZh": "感官文化印刷",
+      "companyEn": "SENSATIONS PRINT",
+      "country": "tw",
+      "sort": 92
+    },
+    {
+      "companyZh": "就是字",
+      "companyEn": "justfont",
+      "country": "tw",
+      "sort": 93
+    },
+    {
+      "companyZh": "",
+      "companyEn": "FabCafe",
+      "country": "tw",
+      "sort": 94
+    },
+    {
+      "companyZh": "草字頭",
+      "companyEn": "Double-Grass",
+      "country": "tw",
+      "sort": 95
+    }
+  ]
+}
