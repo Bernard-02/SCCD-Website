@@ -1,5 +1,7 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<!-- overflow-x:clip（html+body）：子展覽 gallery 全寬 6-slot + hero banner 兩側溢出，直接載入/refresh 時
+     router needsClipX 不一定跑到 → 內嵌 clip 兜底防整頁橫向 pan；clip 不建 scroll container（sticky 仍對 viewport） -->
+<html lang="zh-Hant" style="overflow-x: clip;">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,7 +11,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
 </head>
-<body>
+<body style="overflow-x: clip;">
 
   <!-- Header -->
   <div id="site-header"></div>
@@ -23,14 +25,18 @@
          進場順序由 chip 的 data-hero-enter 控：年份(1) 先進、英中標題(2) 一起進場 t=0.5（user 2026-06-03）
          data-hero-title-last 必須保留：setupStickyAndHeroChips（degree-show-data-loader.js）用它定位 hero section
          （descSection = 它的 nextElementSibling）來驅動 sticky 標題 chip + back/ref btn 的 scroll reveal — 移掉會整組消失 -->
-    <section class="h-[700px] md:h-screen relative overflow-x-clip md:overflow-hidden" data-hero-title-last>
+    <!-- 手機高度交給 .hero-mobile（variables.css 收斂到 bg 圖底緣，圖維持 4/5.5 natural aspect 不裁切）；
+         桌面維持 h-screen -->
+    <section class="md:h-screen relative overflow-x-clip md:overflow-hidden" data-hero-title-last>
       <!-- 手機版（< 768px）：圖+文字 stack -->
       <div class="hero-mobile">
         <div class="hero-mobile-bg">
           <img src="" alt="">
         </div>
         <div class="hero-mobile-text">
-          <h4 class="text-black hero-mobile-text-en" data-hero-hl></h4>
+          <!-- 年份 h6（user 2026-06-11）；font-size 由 variables.css [data-hero-title-last] 規則釘死
+               （hero.css .hero-mobile-text-en 的 p1 與 typography h6 跨 layer 打架，不靠 cascade 賭） -->
+          <h6 class="text-black hero-mobile-text-en" data-hero-hl></h6>
           <h2 class="text-black hero-mobile-title" data-hero-hl></h2>
           <h2 class="text-black hero-mobile-title-cn" data-hero-hl></h2>
         </div>
@@ -56,20 +62,22 @@
       </div>
     </section>
 
-    <!-- 文字説明 Section（min 100vh；移除 flex 居中改用自然流，pt-6xl 給頂部呼吸空間） -->
-    <section class="bg-white relative" style="min-height: 100vh;">
+    <!-- 文字説明 Section（min 100vh；移除 flex 居中改用自然流，pt-6xl 給頂部呼吸空間）
+         id 給 variables.css 手機 grid-20 column-gap:0 修正用（19 個 gap 撐爆容器 → 內容溢出右緣，同 about 修法） -->
+    <section id="dsd-desc-section" class="bg-white relative" style="min-height: 100vh;">
       <div class="site-container w-full pt-6xl pb-3xl">
         <!-- grid-20：內容對齊全站 col-5（nav/sticky chip 占 cols 1-4）；EN cols 5-12 / ZH cols 13-20 -->
         <div class="grid-20">
-          <!-- English (左) -->
-          <div class="col-span-full md:col-start-5 md:col-span-8 mb-lg md:mb-0">
-            <h5 class="text-black leading-snug">
+          <!-- English (左) — .dsd-desc：手機縮到 p1（桌面維持 h5）；EN/ZH 手機堆疊間距走 grid-20 row-gap，
+               不另加 mb（user 2026-06-11 去掉 mb-lg） -->
+          <div class="col-span-full md:col-start-5 md:col-span-8">
+            <h5 class="dsd-desc text-black leading-snug">
               <span id="text-desc-en" style="display: block;"></span>
             </h5>
           </div>
           <!-- Chinese (右) -->
           <div class="col-span-full md:col-start-13 md:col-span-8">
-            <h5 class="text-black leading-base">
+            <h5 class="dsd-desc text-black leading-base">
               <span id="text-desc-cn" style="display: block;"></span>
             </h5>
           </div>
@@ -162,7 +170,8 @@
     <!-- Per-event Gallery Sections：JS 依 data.events[].images 動態 render
          每個 event 一個 <section data-event-gallery data-event-index="i">，內含 .division-images gallery
          section 高度由 gallery 撐起 + py 呼吸空間；sticky chip 依 scroll position 判定當前 event -->
-    <div id="event-galleries-root" class="bg-white"></div>
+    <!-- 手機 py-3xl：跟上方主影片 / 下方紀錄影片留呼吸空間（section 自身手機無 py，間距走 flex gap）；桌面歸零（section 各自 md:py-6xl） -->
+    <div id="event-galleries-root" class="bg-white flex flex-col gap-3xl py-3xl md:py-0 md:block"></div>
 
     <!-- 紀錄影片 Section -->
     <section id="documentary-outer-section" class="bg-white pb-3xl hidden">
@@ -220,16 +229,18 @@
         </div>
       </div>
 
-      <!-- 手機版：簡單 stack -->
-      <div class="md:hidden site-container">
-        <a id="prev-link-m" href="#" class="block mb-3xl">
+      <!-- 手機版：簡單 stack（2026-06-11 試過左右 swipe，user 拍板改回上下排列）；卡片間距走 flex gap 不用 mb -->
+      <div class="md:hidden site-container flex flex-col gap-3xl">
+        <a id="prev-link-m" href="#" class="block">
           <img id="prev-img-m" src="../images/Degree Show.jpg" alt="" class="block w-full h-auto">
           <h5 id="prev-year-mobile" class="text-black whitespace-nowrap mt-sm"></h5>
+          <h5 id="prev-title-en-mobile" class="text-black whitespace-nowrap"></h5>
           <h5 id="prev-title-mobile" class="text-black whitespace-nowrap"></h5>
         </a>
         <a id="next-link-m" href="#" class="block">
           <img id="next-img-m" src="../images/Degree Show.jpg" alt="" class="block w-full h-auto">
           <h5 id="next-year-mobile" class="text-black whitespace-nowrap mt-sm"></h5>
+          <h5 id="next-title-en-mobile" class="text-black whitespace-nowrap"></h5>
           <h5 id="next-title-mobile" class="text-black whitespace-nowrap"></h5>
         </a>
       </div>

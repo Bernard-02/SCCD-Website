@@ -13,12 +13,17 @@
 
 import { sitePath } from '../ui/site-base.js';
 
-// 6 個 slot：spacing 17vw + 統一 wrapper 寬 400px（≈20.8vw），同時達成邊界溢出 + 保證每對 overlap：
+// 6 個 slot（桌面）：spacing 17vw + 統一 wrapper 寬 400px（≈20.8vw），同時達成邊界溢出 + 保證每對 overlap：
 // - 每對 overlap = 20.8 - 17 = 3.8vw（~19%）
 // - Total span = 5 × 17 + 20.8 = 105.8vw → slot 0 / 5 各保留 ~3vw 對稱邊界溢出
 // 5 slot 時數學塞不下（4 × spacing + image > 100 與 spacing < image 兩條件互斥），加到 6 slot 才同時成立。
-const SLOT_LEFTS_VW = ['-3vw', '14vw', '31vw', '48vw', '65vw', '82vw'];
-const SLOT_COUNT = SLOT_LEFTS_VW.length;
+const SLOT_LEFTS_DESKTOP = ['-3vw', '14vw', '31vw', '48vw', '65vw', '82vw'];
+// 手機（<768）：同構縮小版 — 4 slot spacing 24vw + 統一 34vw 圖寬（overlap 10vw ≈ 29%、span 103vw 左右各 ~3vw 溢出）。
+// 桌面 6-slot/400px 幾何在 390px viewport 會全部疊在同一處（單圖就超過 viewport 寬）根本看不到圖。
+// export 給 degree-show-data-loader：ref-based event 的 about slideshow 手機要套同一套幾何（user 2026-06-11）
+export const SLOT_LEFTS_MOBILE = ['-3vw', '21vw', '45vw', '69vw'];
+const IMG_WIDTH_DESKTOP = '400px';
+export const IMG_WIDTH_MOBILE = '34vw';
 const ANIM_DUR = 0.5;
 const ANIM_EASE = 'cubic-bezier(0.25, 0, 0, 1)';
 const HOVER_DUR = 0.3;
@@ -36,7 +41,7 @@ const SHOW_CLIP = 'inset(0% 0% 0% 0%)';
 function randomHideClip() { return HIDE_CLIPS[Math.floor(Math.random() * HIDE_CLIPS.length)]; }
 function randomRotation() { return parseFloat(((Math.random() * 2 - 1) * 4).toFixed(2)); }
 
-function buildImg(src) {
+function buildImg(src, imgWidth) {
   const wrapper = document.createElement('div');
   wrapper.className = 'class-img';
 
@@ -50,11 +55,11 @@ function buildImg(src) {
     if (!img.naturalWidth) return;
     const isLandscape = img.naturalWidth > img.naturalHeight;
     if (isLandscape) wrapper.classList.add('class-img--landscape');
-    // 統一所有 wrapper 寬度為 400px（≈20.8vw on 1920），不分 landscape/portrait：
+    // 統一所有 wrapper 寬度（桌面 400px ≈ 20.8vw on 1920 / 手機 34vw），不分 landscape/portrait：
     // class about 用 panel-% 自動跟著縮放沒問題；degree-show 用 viewport-vw fixed slot，
     // 必須統一寬度才能保證每對 pair 都 overlap（否則 portrait pair 會比 spacing 短出現空隙）。
     // img 內部 width:100% height:auto 維持原始比例，差別只是 wrapper 框統一寬度。
-    wrapper.style.width = '400px';
+    wrapper.style.width = imgWidth;
   };
   if (img.complete && img.naturalWidth) sizeWrapper();
   else img.addEventListener('load', sizeWrapper, { once: true });
@@ -62,14 +67,14 @@ function buildImg(src) {
   return wrapper;
 }
 
-function placeInSlot(img, slotIdx, extra = {}) {
+function placeInSlot(img, slotIdx, slotLefts, extra = {}) {
   if (typeof gsap === 'undefined') return;
   gsap.set(img, {
-    left: SLOT_LEFTS_VW[slotIdx],
+    left: slotLefts[slotIdx],
     top: '50%',
     xPercent: 0,
     yPercent: -50,
-    zIndex: SLOT_COUNT - slotIdx,
+    zIndex: slotLefts.length - slotIdx,
     ...extra,
   });
   if (extra.rotation !== undefined) img._rotation = extra.rotation;
@@ -79,10 +84,18 @@ export function initDegreeShowGallery(container, pool) {
   if (!container || !Array.isArray(pool) || pool.length === 0) return null;
   // about 用同 .division-images class min-height:440px 對窄欄夠用；
   // degree-show 跨全寬 + 統一 400px wrapper → portrait 高度可達 ~533px，旋轉後再 +30 → 需 ~650px
+  // （手機容器高由 variables.css mobile 規則收成 280px 配 34vw 圖）
   container.classList.add('division-images--degree-show');
+
+  // 幾何依 viewport 選（init 時定案，與全站 isMobile 慣例一致）
+  const isMobile = window.innerWidth < 768;
+  const SLOT_LEFTS_VW = isMobile ? SLOT_LEFTS_MOBILE : SLOT_LEFTS_DESKTOP;
+  const IMG_WIDTH = isMobile ? IMG_WIDTH_MOBILE : IMG_WIDTH_DESKTOP;
+  const SLOT_COUNT = SLOT_LEFTS_VW.length;
+
   if (typeof gsap === 'undefined') {
     container.innerHTML = '';
-    const img = buildImg(pool[0]);
+    const img = buildImg(pool[0], IMG_WIDTH);
     img.style.cssText += 'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);';
     container.appendChild(img);
     return null;
@@ -142,9 +155,9 @@ export function initDegreeShowGallery(container, pool) {
   for (let i = 0; i < SLOT_COUNT; i++) {
     const src = pool[nextIdx % pool.length];
     nextIdx++;
-    const img = buildImg(src);
+    const img = buildImg(src, IMG_WIDTH);
     container.appendChild(img);
-    placeInSlot(img, i, { rotation: randomRotation(), clipPath: SHOW_CLIP });
+    placeInSlot(img, i, SLOT_LEFTS_VW, { rotation: randomRotation(), clipPath: SHOW_CLIP });
     slots.push(img);
     attachInteractions(img);
   }
@@ -170,10 +183,10 @@ export function initDegreeShowGallery(container, pool) {
       gsap.to(slots[i], { left: SLOT_LEFTS_VW[i - 1], duration: ANIM_DUR, ease: ANIM_EASE });
     }
 
-    const newImg = buildImg(pool[nextIdx % pool.length]);
+    const newImg = buildImg(pool[nextIdx % pool.length], IMG_WIDTH);
     nextIdx++;
     container.appendChild(newImg);
-    placeInSlot(newImg, SLOT_COUNT - 1, { rotation: randomRotation() });
+    placeInSlot(newImg, SLOT_COUNT - 1, SLOT_LEFTS_VW, { rotation: randomRotation() });
     gsap.fromTo(newImg,
       { clipPath: randomHideClip() },
       { clipPath: SHOW_CLIP, duration: ANIM_DUR, ease: ANIM_EASE,

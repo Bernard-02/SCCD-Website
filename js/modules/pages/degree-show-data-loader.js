@@ -4,7 +4,7 @@
  * 負責讀取 Degree Show JSON 資料並渲染列表與詳情頁
  */
 
-import { initDegreeShowGallery } from './degree-show-gallery.js';
+import { initDegreeShowGallery, SLOT_LEFTS_MOBILE, IMG_WIDTH_MOBILE } from './degree-show-gallery.js';
 import { initHeroAnimation } from './hero-animation.js';
 import { initHeroMobileSync } from './hero-mobile-sync.js';
 import { animateCardsClipReveal, playRevealExit, playClipPathExit, setupClipReveal, playClipReveal } from '../ui/scroll-animate.js';
@@ -12,6 +12,7 @@ import { createClassImagesSlideshow } from './about/class-images-slideshow.js';
 import { getSectionData, findItemById, SECTION_LABELS } from './activities-data-loader.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { registerPageExit } from '../ui/page-exit.js';
+import { applyMarqueeOverflow } from '../ui/marquee-overflow.js';
 import { sitePath } from '../ui/site-base.js';
 import { DUR, EASE } from '../ui/motion.js';
 
@@ -126,6 +127,16 @@ export async function loadDegreeShowDetail() {
       if (descEnEl) descEnEl.textContent = data.descEn;
       if (descCnEl) descCnEl.textContent = data.descCn;
 
+      // 手機 hero chips 直接填：本頁桌面字卡（年份/英標/中標）放在 .hero-rand-grid 外，
+      // 共用 hero-mobile-sync 只 querySelector .hero-rand-grid 內 → 掃不到、3 個手機 chip 永遠空白。
+      // 這裡手動同步：text-en=年份、title=英文名、title-cn=中文名（對齊桌面字卡內容）。
+      const mYearEl = document.querySelector('.hero-mobile .hero-mobile-text-en');
+      const mTitleEnEl = document.querySelector('.hero-mobile .hero-mobile-title');
+      const mTitleZhEl = document.querySelector('.hero-mobile .hero-mobile-title-cn');
+      if (mYearEl) mYearEl.textContent = year;
+      if (mTitleEnEl) mTitleEnEl.textContent = data.title_en || '';
+      if (mTitleZhEl) mTitleZhEl.textContent = data.title || '';
+
       // 描述文字進場 + 離頁退場：clip-reveal 套在內層 <h5>（不套外層 col div，否則 reparent 會丟失
       // md:col-start-* grid placement）；兩段 h5 同節奏 reveal、離頁反向沉出（流式 block 用 playRevealExit）
       const descEnH5 = descEnEl ? descEnEl.closest('h5') : null;
@@ -155,29 +166,48 @@ export async function loadDegreeShowDetail() {
       // section 上的 [data-hero-title-last] 會讓 hero-animation 改用「subtitles 先 → title 後」的順序
       initHeroAnimation();
 
+      // 手機 hero 進退場：hero-animation 只動 .hero-title/.hero-text-*（本頁桌面字卡），手機那組
+      // .hero-mobile-* class 不同掃不到 → 手機 hero 之前完全靜態出現。比照桌面邏輯補手機版
+      // （chip mask 滑入 + bg clip reveal + 退場反向）。必須在 initHeroAnimation 之後：chip 的
+      // [data-hero-hl] accent 底色由它套，先套好才 reveal。
+      setupHeroMobileEntrance();
+
       // Events 列表（時間 / 活動 / 地點 / 城市 — 1:2:2:1）：data.events 不存在或空陣列 → 整塊不渲染
       // 活動 / 地點 / 城市顯示中英雙語（英文上、中文下）；時間僅一行；文字 semibold
       const eventsSection = document.getElementById('events-section');
       const eventsList = document.getElementById('events-list');
       if (eventsSection && eventsList) {
         if (Array.isArray(data.events) && data.events.length > 0) {
-          eventsList.innerHTML = data.events.map((ev, i) => `
-            <div class="grid grid-cols-[1fr_2fr_2fr_1fr] gap-md ${i > 0 ? 'mt-md' : ''}">
-              <p class="text-p1 text-black font-semibold">${ev.time || ''}</p>
-              <div>
-                ${ev.nameEn ? `<p class="text-p1 text-black font-semibold">${ev.nameEn}</p>` : ''}
-                <p class="text-p1 text-black font-semibold">${ev.name || ''}</p>
-              </div>
-              <div>
-                ${ev.locationEn ? `<p class="text-p1 text-black font-semibold">${ev.locationEn}</p>` : ''}
-                <p class="text-p1 text-black font-semibold">${ev.location || ''}</p>
-              </div>
-              <div>
-                ${ev.cityEn ? `<p class="text-p1 text-black font-semibold">${ev.cityEn}</p>` : ''}
-                <p class="text-p1 text-black font-semibold">${ev.city || ''}</p>
+          // 手機：2 欄（時間 | 其餘）— 右欄 flex-col 把 活動/地點/城市 疊成 3 row（md:contents 在桌面解開
+          // wrapper，讓 3 個 child 回到外層 grid → 維持桌面 時間/活動/地點/城市 4 欄 1:2:2:1 不變）
+          // 時間欄手機固定 5rem 寬（所有列對齊同一 col，不因日期長短忽寬忽窄）；連續日期(含 " - ")結束日換到
+          // 起始日下方（窄欄 → 右側內容空間更大）；桌面 md:inline 還原成單行 "起 - 迄"。
+          eventsList.innerHTML = data.events.map((ev, i) => {
+            const tp = (ev.time || '').split(/\s*-\s*/);
+            // 桌面：整串單行；手機：連續日期結束日換到起始日下方（<br>），whitespace-nowrap 讓各行不再內部 wrap
+            const timeInner = tp.length === 2
+              ? `<span class="hidden md:inline">${ev.time}</span><span class="md:hidden">${tp[0]} -<br>${tp[1]}</span>`
+              : (ev.time || '');
+            return `
+            <div class="grid grid-cols-[4rem_1fr] md:grid-cols-[1fr_2fr_2fr_1fr] gap-sm md:gap-md ${i > 0 ? 'mt-xl md:mt-md' : ''}">
+              <p class="text-p1 text-black font-semibold whitespace-nowrap">${timeInner}</p>
+              <div class="flex flex-col gap-sm md:contents">
+                <div>
+                  ${ev.nameEn ? `<p class="text-p1 text-black font-semibold">${ev.nameEn}</p>` : ''}
+                  <p class="text-p1 text-black font-semibold">${ev.name || ''}</p>
+                </div>
+                <div>
+                  ${ev.locationEn ? `<p class="text-p1 text-black font-semibold">${ev.locationEn}</p>` : ''}
+                  <p class="text-p1 text-black font-semibold">${ev.location || ''}</p>
+                </div>
+                <div>
+                  ${ev.cityEn ? `<p class="text-p1 text-black font-semibold">${ev.cityEn}</p>` : ''}
+                  <p class="text-p1 text-black font-semibold">${ev.city || ''}</p>
+                </div>
               </div>
             </div>
-          `).join('');
+          `;
+          }).join('');
           eventsSection.classList.remove('hidden');
           // 事件清單進場 + 離頁退場：每列各自 clip-reveal（rows 在 #events-list 內是一般 block flow，wrap 安全）
           const eventRows = Array.from(eventsList.children);
@@ -276,6 +306,89 @@ export async function loadDegreeShowDetail() {
   }
 }
 
+// ── 手機 hero 進退場 ────────────────────────────────────────────────────────
+// 比照桌面 hero-animation 的邏輯做手機版：
+//   - 3 張字卡各包一層 overflow:hidden mask wrapper，從隨機 4 方向滑入（= 桌面 hero-title-wrapper 同構）
+//   - 進場順序對齊桌面 data-hero-enter：年份(1) 先進、英中標題(2) 一起、+0.5s 接續
+//   - bg 圖 clip-path 隨機方向 reveal（= 桌面 .hero-banner 進場）
+//   - 退場反向：chip 隨機方向滑出 + bg clip 收合（同桌面 playHeroExit 0.5s / stagger 0.06）
+// 旋轉 var 細節：CSS `.hero-mobile-text > *` 對「直接子元素」套 rotate(--hero-mobile-rot)；
+// chip 包進 wrapper 後不再是直接子 → 把 chip 的 inline rotation var 轉移到 wrapper（旋轉跟著 wrapper，
+// chip 在 rotated mask 內滑動，同桌面 wrapper rotate + child slide 的結構）。margin 同理轉移。
+function setupHeroMobileEntrance() {
+  if (window.innerWidth >= 768 || typeof gsap === 'undefined') return;
+  const mobile = document.querySelector('.hero-mobile');
+  if (!mobile) return;
+  const bg = /** @type {HTMLElement | null} */ (mobile.querySelector('.hero-mobile-bg'));
+  const yearChip = /** @type {HTMLElement | null} */ (mobile.querySelector('.hero-mobile-text-en'));
+  const titleEnChip = /** @type {HTMLElement | null} */ (mobile.querySelector('.hero-mobile-title'));
+  const titleZhChip = /** @type {HTMLElement | null} */ (mobile.querySelector('.hero-mobile-title-cn'));
+  const chips = [yearChip, titleEnChip, titleZhChip].filter(Boolean);
+  if (!bg && chips.length === 0) return;
+
+  const DIRS = [
+    { xPercent: 0, yPercent: -100 },
+    { xPercent: 0, yPercent: 100 },
+    { xPercent: -100, yPercent: 0 },
+    { xPercent: 100, yPercent: 0 },
+  ];
+  const INSETS = ['inset(0% 0% 100% 0%)', 'inset(0% 0% 0% 100%)', 'inset(100% 0% 0% 0%)', 'inset(0% 100% 0% 0%)'];
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+
+  chips.forEach(chip => {
+    const wrapper = document.createElement('div');
+    wrapper.style.overflow = 'hidden';
+    const rot = chip.style.getPropertyValue('--hero-mobile-rot');
+    if (rot) {
+      wrapper.style.setProperty('--hero-mobile-rot', rot);
+      chip.style.removeProperty('--hero-mobile-rot');
+    }
+    const mt = getComputedStyle(chip).marginTop;
+    if (mt && mt !== '0px') {
+      wrapper.style.marginTop = mt;
+      chip.style.marginTop = '0';
+    }
+    chip.parentNode.insertBefore(wrapper, chip);
+    wrapper.appendChild(chip);
+  });
+
+  // 先同步 set 初始藏起狀態（同一個 task 內，sync 剛把 .hero-mobile visibility 打開、瀏覽器還沒 paint → 不閃）
+  chips.forEach(chip => gsap.set(chip, pick(DIRS)));
+  if (bg) gsap.set(bg, { clipPath: pick(INSETS) });
+
+  // paused + double-rAF 才 play：loadDegreeShowDetail 後段（events/galleries render）會把首次 paint
+  // 拖到 timeline 開跑後 ~900ms —— GSAP 時間制，paint 出來時年份 0.9s tween 已近跑完 = 視覺「閃一下出來」
+  // （user 2026-06-11；playwright 實測首個可見 frame 年份已在 90% 進度）。等 paint 後才起跑，整段進場可見。
+  const tl = gsap.timeline({ paused: true, defaults: { ease: EASE.enter } });
+  if (bg) {
+    tl.to(bg, { clipPath: 'inset(0% 0% 0% 0%)', duration: DUR.reveal, clearProps: 'clipPath' }, 0);
+  }
+  // 年份先、英中標題一起 +0.5s（= 桌面 ENTER_DURATION 0.9 - OVERLAP 0.4 的接續節奏）
+  const groups = [[yearChip].filter(Boolean), [titleEnChip, titleZhChip].filter(Boolean)];
+  let at = 0;
+  groups.forEach(group => {
+    if (group.length === 0) return;
+    group.forEach(chip => {
+      tl.to(chip, { xPercent: 0, yPercent: 0, duration: 0.9, clearProps: 'transform' }, at);
+    });
+    at += 0.5;
+  });
+  requestAnimationFrame(() => requestAnimationFrame(() => tl.play()));
+
+  registerPageExit(() => {
+    if (typeof gsap === 'undefined') return Promise.resolve();
+    return new Promise(resolve => {
+      const out = gsap.timeline({ onComplete: resolve });
+      chips.forEach((chip, i) => {
+        out.fromTo(chip, { xPercent: 0, yPercent: 0 }, { ...pick(DIRS), duration: 0.5, ease: EASE.exit, overwrite: true }, i * 0.06);
+      });
+      if (bg) {
+        out.fromTo(bg, { clipPath: 'inset(0% 0% 0% 0%)' }, { clipPath: pick(INSETS), duration: 0.5, ease: EASE.exit, overwrite: true }, 0);
+      }
+    });
+  });
+}
+
 // 影片 clip-reveal + scroll 觸發。
 // ⚠️ 不用 animateCardsClipReveal：它把 ScrollTrigger 掛在被 yPercent:100 推下「整個影片高」的 wrapper 上，
 //    aspect-video 桌面 full-width 很高（~700px+）→ 該 trigger 元素 top 被推下一個影片高
@@ -311,15 +424,17 @@ function setupNextProject(prevYear, prevData, nextYear, nextData) {
     { hidden: 'inset(0 0 0 100%)', shown: 'inset(0 0 0 0%)' },   // 左→右
   ];
 
-  // 手機 stack
+  // 手機 stack（年份 / 英文名 / 中文名 — user 2026-06-11 補英文名）
   const setMobile = (key, year, data) => {
     const link = /** @type {HTMLAnchorElement | null} */ (document.getElementById(`${key}-link-m`));
     const img = /** @type {HTMLImageElement | null} */ (document.getElementById(`${key}-img-m`));
     const yearEl = document.getElementById(`${key}-year-mobile`);
+    const titleEnEl = document.getElementById(`${key}-title-en-mobile`);
     const titleEl = document.getElementById(`${key}-title-mobile`);
     if (link) link.href = '/degree-show-detail?year=' + year;
     if (img) img.src = data.poster || data.coverImage;
     if (yearEl) yearEl.textContent = year;
+    if (titleEnEl) titleEnEl.textContent = data.title_en || '';
     if (titleEl) titleEl.textContent = data.title || '';
   };
   setMobile('prev', prevYear, prevData);
@@ -536,12 +651,35 @@ async function renderEventGalleries(data) {
   }
 }
 
+// 手機 event 標題（user 2026-06-11：任何子展覽都是先 title → 説明文字 → slideshow）：
+// 桌面標題由 sticky branch chip 顯示（#sticky-info-card hidden md:block 手機看不到）→
+// 手機簡化成每個子展覽區塊頂部直接放標題；md:hidden 桌面零影響。
+// 樣式：隨機 accent 底 chip + 黑字 + p1 bold（user 2026-06-11；accent 底一律黑字的全站對比規範）
+// withContainer：exhibition section 無 site-container 包裹，標題自帶；ref-based 的 wrap 已是 site-container
+const TITLE_ACCENTS = ['#00FF80', '#FF448A', '#26BCFF'];
+function buildMobileEventTitle(branchEn, branchZh, withContainer) {
+  if (!branchEn && !branchZh) return null;
+  const el = document.createElement('div');
+  el.className = withContainer ? 'md:hidden site-container mb-md' : 'md:hidden mb-md';
+  const accent = TITLE_ACCENTS[Math.floor(Math.random() * TITLE_ACCENTS.length)];
+  el.innerHTML = `<div class="event-mobile-title-chip" style="display:inline-block;width:fit-content;padding:0.4rem 0.6rem;background:${accent};">${branchEn ? `<p class="text-p1 text-black font-bold">${escapeHtml(branchEn)}</p>` : ''}${branchZh ? `<p class="text-p1 text-black font-bold">${escapeHtml(branchZh)}</p>` : ''}</div>`;
+  return el;
+}
+
 function appendExhibitionSection(root, index, pool, branchEn, branchZh) {
   const section = document.createElement('section');
-  section.className = 'event-gallery-section py-6xl';
+  // 手機子展覽間距改走 #event-galleries-root 的 flex gap（user 2026-06-11，去掉 section 自帶 mobile py）；桌面維持 py-6xl
+  section.className = 'event-gallery-section md:py-6xl';
   section.dataset.eventIndex = String(index);
   section.dataset.branchEn = branchEn;
   section.dataset.branchZh = branchZh;
+
+  const mobileTitle = buildMobileEventTitle(branchEn, branchZh, true);
+  if (mobileTitle) section.appendChild(mobileTitle);
+
+  // exhibition gallery 手機/桌面都用全寬 slideshow（user 要求「跟桌面一樣橫跨整個寬度」，
+  // 幾何由 degree-show-gallery.js 依 viewport 分流：桌面 6-slot/400px、手機 4-slot/34vw）；
+  // 橫向溢出由 html/body overflow-x:clip 兜住不讓整頁 pan。
   const gallery = document.createElement('div');
   gallery.className = 'division-images relative';
   section.appendChild(gallery);
@@ -582,13 +720,18 @@ async function appendRefBasedSection(root, index, ev, branchEn, branchZh) {
   if (resolved.length === 0) return;
 
   const section = document.createElement('section');
-  section.className = 'event-gallery-section py-6xl';
+  // 手機子展覽間距改走 #event-galleries-root 的 flex gap（user 2026-06-11，去掉 section 自帶 mobile py）；桌面維持 py-6xl
+  section.className = 'event-gallery-section md:py-6xl';
   section.dataset.eventIndex = String(index);
   section.dataset.branchEn = branchEn;
   section.dataset.branchZh = branchZh;
 
   const wrap = document.createElement('div');
   wrap.className = 'site-container';
+
+  // 手機 event 標題在最頂（title → tabs → 説明文字 → slideshow）；wrap 已是 site-container 不再包
+  const mobileTitle = buildMobileEventTitle(branchEn, branchZh, false);
+  if (mobileTitle) wrap.appendChild(mobileTitle);
 
   // Tab 列：直接套用 about .class-division-btn（不另寫、不加 group label）
   //   - default: var(--theme-fg) 底 + var(--theme-bg) 字（mode-aware）
@@ -609,14 +752,19 @@ async function appendRefBasedSection(root, index, ev, branchEn, branchZh) {
   if (resolved.length > 1) {
     const tabRowGrid = document.createElement('div');
     tabRowGrid.className = 'grid-20 mb-2xl';
+    // 手機：tab 列水平 scroll（跟 faculty filter / about 分組導覽同處理）— flex-nowrap + overflow-x-auto +
+    // no-scrollbar，負 margin 延伸到 viewport 邊、px 補回內距，py 給旋轉 chip 上下 clearance；桌面 md: 還原 flex-wrap。
     const tabRow = document.createElement('div');
-    tabRow.className = 'col-span-full md:col-start-5 md:col-span-16 flex flex-wrap gap-xl';
+    tabRow.className = 'col-span-full md:col-start-5 md:col-span-16 flex flex-nowrap md:flex-wrap gap-md md:gap-xl overflow-x-auto md:overflow-visible no-scrollbar -mx-container-padding md:mx-0 px-container-padding md:px-0 py-sm md:py-0';
     resolved.forEach((item, i) => {
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'class-division-btn font-bold transition-all duration-fast text-left';
+      btn.className = 'class-division-btn shrink-0 font-bold transition-all duration-fast text-left';
       btn.dataset.tabIndex = String(i);
-      btn.innerHTML = `<div class="text-h5 font-bold whitespace-nowrap">${item.nameEn || ''}</div><div class="text-h5 font-bold whitespace-nowrap">${item.nameZh || ''}</div>`;
+      // marquee 結構（.dsd-tab-line 是 overflow window、inner 是跑動內容）：手機 btn 有 max-width
+      // 截斷時 applyMarqueeOverflow 偵測加 .is-overflow 自動跑；桌面無上限永遠靜態
+      // tab 文字大小對齊全站 nav btn（.section-nav-btn 等用 --font-size-p1）；原 text-h5 偏大（user 2026-06-11）
+      btn.innerHTML = `<div class="dsd-tab-line text-p1 font-bold"><span class="dsd-tab-marquee-inner">${item.nameEn || ''}</span></div><div class="dsd-tab-line text-p1 font-bold"><span class="dsd-tab-marquee-inner">${item.nameZh || ''}</span></div>`;
       const btnRot = randRot();
       btn._baseRot = btnRot;
       btn.style.transform = `rotate(${btnRot}deg)`;
@@ -642,12 +790,16 @@ async function appendRefBasedSection(root, index, ev, branchEn, branchZh) {
     let descHlEl = null;
     if (hasDesc) {
       const descCol = document.createElement('div');
-      descCol.className = 'col-span-full md:col-start-5 md:col-span-6 order-2 md:order-1 mt-xl md:mt-0';
+      // 手機順序 = DOM 順序：説明文字在 slideshow 前（user 2026-06-11「先 title、説明文字、最後才是 slideshow」）；
+      // 桌面 grid placement 顯式（desc col 5-10 / slideshow col 13-20 同 row）不吃 order
+      // 手機 desc→slideshow 間距走 grid-20 row-gap（=gutter 20px），不用 mb（user 2026-06-11 去掉 mb-xl）
+      descCol.className = 'col-span-full md:col-start-5 md:col-span-6';
       // [data-class-hl] 彩色背景塊（封鎖綫風）：跟 about 一樣，desc 文字包進有 inline padding 的 hl wrapper
       // bg 由 JS 套（mode-standard 走隨機 accent；mode-inverse/color 由 themes CSS 提供 theme bg）
       descHlEl = document.createElement('div');
       descHlEl.setAttribute('data-class-hl', '');
-      descHlEl.style.cssText = 'display: inline-block; width: fit-content; padding: 0.5em 0.6em;';
+      // padding 對齊全站 nav btn / .class-division-btn 標準 6px 8px 5px（固定 px，桌機手機一致；user 2026-06-11）
+      descHlEl.style.cssText = 'display: inline-block; width: fit-content; padding: 6px 8px 5px;';
       descHlEl.innerHTML = `
         ${item.descEn ? `<p class="mb-xs division-text font-bold">${escapeHtml(item.descEn)}</p>` : ''}
         ${item.descZh ? `<p class="division-text font-bold">${escapeHtml(item.descZh)}</p>` : ''}`;
@@ -661,14 +813,18 @@ async function appendRefBasedSection(root, index, ev, branchEn, branchZh) {
     // 不加 --degree-show modifier（那是 full-width exhibition 用的 660px 高版）— sub-event 直接走 about 440px 預設
     const slideshow = document.createElement('div');
     slideshow.className = hasDesc
-      ? 'col-span-full md:col-start-13 md:col-span-8 relative order-1 md:order-2 mb-xl md:mb-0 division-images'
-      : 'col-span-full md:col-start-5 md:col-span-16 relative mb-xl md:mb-0 division-images';
+      ? 'col-span-full md:col-start-13 md:col-span-8 relative division-images'
+      : 'col-span-full md:col-start-5 md:col-span-16 relative division-images';
     panel.appendChild(slideshow);
     wrap.appendChild(panel);
 
     // 啟動 slideshow（panel hidden 時 GSAP set 仍會生效，切 tab 時直接可見）
     // 顯式傳 textHlEl 讓 hl 區跟 imgs 同步 clip-path（about 一樣行為）
-    const api = createClassImagesSlideshow(slideshow, item.images, { textHlEl: descHlEl });
+    // 手機：圖片處理對齊 exhibition 全寬 slideshow（同 4-slot/34vw 幾何；容器由 CSS 負 margin 撐全寬）
+    const api = createClassImagesSlideshow(slideshow, item.images, {
+      textHlEl: descHlEl,
+      ...(window.innerWidth < 768 ? { slotLefts: SLOT_LEFTS_MOBILE, imgWidth: IMG_WIDTH_MOBILE } : {}),
+    });
     if (api) {
       // 先藏（clip hidden）；等 section 捲到半屏由 revealRefActive showAll+start（about pattern，不然右欄整塊空白）
       api.renderFresh(true);
@@ -721,6 +877,10 @@ async function appendRefBasedSection(root, index, ev, branchEn, branchZh) {
       const panels = section.querySelectorAll('.event-extra-panel');
       const oldApi = apis[activeIdx];
       const newApi = apis[nextIdx];
+      // btn active 色「點擊當下」先換（user 2026-06-11：原本排在 hideAll/showAll 之後 → 變色慢 ~1s，
+      // 看起來像等下面資料渲染完才反應）；panel 收展動畫照舊在後面跑
+      activeIdx = nextIdx;
+      setActiveTabBtn();
       if (oldApi) { await oldApi.hideAll(); oldApi.stop(); }
       panels.forEach((p, i) => p.classList.toggle('hidden', i !== nextIdx));
       if (newApi) {
@@ -728,8 +888,6 @@ async function appendRefBasedSection(root, index, ev, branchEn, branchZh) {
         await newApi.showAll();
         newApi.start();
       }
-      activeIdx = nextIdx;
-      setActiveTabBtn();
     } finally {
       switching = false;
     }
@@ -767,6 +925,12 @@ async function appendRefBasedSection(root, index, ev, branchEn, branchZh) {
 
   section.appendChild(wrap);
   root.appendChild(section);
+
+  // Tab 標題 marquee 偵測：rAF 等 append 後 layout 可量（手機 btn max-width 截斷才會 overflow → 跑；
+  // 桌面 btn 無上限不觸發，applyMarqueeOverflow 自帶 no-op）
+  if (tabBtns.length) {
+    requestAnimationFrame(() => applyMarqueeOverflow(section, '.dsd-tab-line', '.dsd-tab-marquee-inner'));
+  }
 
   // 進場（about pattern）：section 捲到畫面中央（半屏）才 reveal active panel 的 imgs + text highlight，
   // 不然 renderFresh(true) 的隱藏狀態會讓右欄整塊空白（user 反映「一整塊是空的」）。once；已在半屏內則立即播。
