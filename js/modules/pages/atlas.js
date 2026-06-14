@@ -283,6 +283,9 @@ export async function initAtlas(options = {}) {
   // root 預設為 document（atlas 頁正常 init）；idle-standby 可傳入 overlay 內的 container
   // 讓同份 atlas 模組在多個 root 上同時運作
   const root = options.root || document;
+  // 手機（<768）無星雲（map）模式：直接以 list view 呈現，三顆 filter btn 變成底部單選分類 tab
+  // （init 時決定一次，沿站內慣例不跟 resize；跨斷點要 reload）
+  const isMobileAtlas = window.innerWidth < 768;
   /** @type {(sel: string) => HTMLElement | null} */
   const $  = (sel) => root.querySelector(sel);
   /** @type {(sel: string) => NodeListOf<HTMLElement>} */
@@ -1886,10 +1889,11 @@ export async function initAtlas(options = {}) {
 
   applyTransform();
 
-  if (typeof gsap !== 'undefined') {
+  if (typeof gsap !== 'undefined' && !isMobileAtlas) {
     // intro scale tween 期間整層 GPU promote，否則 50+ chip + ring + lines 一起 scale
     // 每 frame 都得 re-rasterize → SPA 換頁剛 swap DOM 那刻特別卡
     // tween 完才關，避免長期 promote 高 zoom 時文字糊
+    // 手機跳過：map 不顯示，introTween 留 null → revealFilters 立即跑（tab 直接 wipe in）
     zoomEl.style.willChange = 'transform';
     introTween = gsap.to({ v: SCALE_INTRO_START }, {
       v: SCALE_DEFAULT,
@@ -1979,8 +1983,11 @@ export async function initAtlas(options = {}) {
 
   // ── Filter + Layout Toggle ─────────────────────────────────────────
   const filterEl = $('#atlas-filter');
+  // 提前宣告：手機 introTween 為 null → revealFilters 同步跑，宣告留在 Layout toggle 段會踩 TDZ
+  const layoutBtn = $('#atlas-layout-btn');
   const btns = /** @type {HTMLElement[]} */ ([...$$('.atlas-filter-btn')]);
-  const selected = new Set(btns.map(b => b.dataset.filter));
+  // 桌面：多選 filter（預設全開）；手機：單選分類 tab（預設 faculty）
+  const selected = new Set(isMobileAtlas ? ['faculty'] : btns.map(b => b.dataset.filter));
 
   // ── Alumni career rotating chip：map view 一個（alumni filter btn 下方）、list view 一個（alumni 欄 title 下方）
   // 用 controller factory 包 state，map / list 各持一個 instance ──
@@ -2566,10 +2573,30 @@ export async function initAtlas(options = {}) {
   // chevron y 由 #atlas-layout-btn top 決定 → 三欄 chevrons 永遠在同 y（不因 list 高度漂移）
   //   per-col rowsPerCol + gap 自由變化（item 矮 cat → gap 大、item 高 cat → gap 小或 row 少）
   //   item 多的 col 可能塞滿（chevron 緊貼最後 item），item 少的 col gap 拉開
+  // 手機 list：item 自然高 + 固定 gap、由上往下排（slot 均分制已棄 — 4/5 行 item 的 slot
+  // 死空間讓視覺 gap 不一致 + 量測時序造成初載/回頁排版不一致，user 2026-06-13）
+  const LIST_GAP_MOBILE = 24;
+
   function calcListPageSize(cat) {
     const headerH = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--header-height').trim()) || 80;
     // 標題區佔用：titleblock chip (~31) + col gap (~16) + rotation 餘量 (~5) ≈ 52
     const TITLEBLOCK_H = 52;
+    if (isMobileAtlas) {
+      // 手機：底部 = 三分類 tab + 最底 layout btn 兩層 bar。
+      // 128 = #atlas-list-view 手機 bottom（CSS 同步：btn 16+48 + tab ~40 + 呼吸）；
+      // alumni tab = host/employ 上下兩列（grid-auto-rows 1fr 各半），先扣 row gap 24（--spacing-md，CSS 同步）再對半；
+      // faculty/partners 手機不顯示 col title（tab 已標示分類）→ 不扣 TITLEBLOCK_H。
+      // 額外 -12 底部呼吸：滿頁時最後一個 item 不貼死 chevron / tab 區（user 2026-06-13）
+      const avail = window.innerHeight - 128 - (headerH + 64) - 12;
+      const isAlumniCol = cat === 'host' || cat === 'employ';
+      const colH = isAlumniCol ? (avail - 24) / 2 : avail;
+      const containerH = colH - (isAlumniCol ? TITLEBLOCK_H : 0);
+      const itemH = ITEM_H_PER_CAT[cat] || 84;
+      // 行數以「全分類最高 item + 固定 gap」估最壞情況（rows*(h+g) ≤ C+g）→ 自然高排列永不溢出；
+      // gap 固定 = 視覺間距每頁、每 item 一致（不再依 leftover 均分）
+      const rowsPerCol = Math.max(2, Math.floor((containerH + LIST_GAP_MOBILE) / (itemH + LIST_GAP_MOBILE)));
+      return { rowsPerCol, gap: LIST_GAP_MOBILE, itemH, containerH };
+    }
     // chevron 底線 = layout 按鈕頂端再往上留 16px（給 chevron icon 本身高度 + 視覺呼吸）
     //   layoutBtn 不存在 fallback 用 viewport - 84
     const layoutBtn = document.getElementById('atlas-layout-btn');
@@ -2681,10 +2708,14 @@ export async function initAtlas(options = {}) {
 
     const sizeInfo = calcListPageSize(cat);
     const rowsPerCol = sizeInfo.rowsPerCol;
-    col.style.setProperty('--list-gap', `${sizeInfo.gap}px`);
-    // 每格高度透過 CSS var 同步給 .atlas-list-item 與 .atlas-list-nav-item 的 min-height
-    // → col2 nav 佔 1 個 slot，與 col1 最後一個 item 底部對齊
-    col.style.setProperty('--list-item-h', `${sizeInfo.itemH}px`);
+    // 手機不在這裡設：slot/gap 是「當頁實高」制（build 量完才設），在 exit 動畫前先設回
+    // 全分類統一值會把正在出場的舊 items 重新撐高 → 「先往下移再出場」（user 2026-06-13）
+    if (!isMobileAtlas) {
+      col.style.setProperty('--list-gap', `${sizeInfo.gap}px`);
+      // 每格高度透過 CSS var 同步給 .atlas-list-item 與 .atlas-list-nav-item 的 min-height
+      // → col2 nav 佔 1 個 slot，與 col1 最後一個 item 底部對齊
+      col.style.setProperty('--list-item-h', `${sizeInfo.itemH}px`);
+    }
 
     const allItems = listGrouped[cat];
     // col1 有 rowsPerCol 個 items；col2 有 rowsPerCol - 1 個 items + 1 個 nav slot
@@ -2740,6 +2771,13 @@ export async function initAtlas(options = {}) {
       // 主標 marquee：DOM 進入 layout 後（次幀）量寬決定是否需要 marquee
       requestAnimationFrame(() => applyListMarquee(itemsEl));
 
+      // 手機：item 自然高（wrapper min-height 由 CSS 手機 override 解除）+ 固定 gap，
+      // 不量測 → 初載/回頁排版恆定（量測制曾因時序量出不同值，user 2026-06-13）。
+      // 在 build 完才設（不在 renderListPage 開頭）：exit 期間舊排版不動。
+      if (isMobileAtlas) {
+        col.style.setProperty('--list-gap', `${sizeInfo.gap}px`);
+      }
+
       // Global pre-measure：第一次 render 時把 cat 全 items 渲染 off-screen 量 max actual height
       //   → ITEM_H_PER_CAT[cat] 永遠是該 cat 的「最高 item 真實高度」，不隨頁數變化
       //   → rowsPerCol / gap / chevron pos 跨頁穩定
@@ -2753,6 +2791,9 @@ export async function initAtlas(options = {}) {
           const realSubCol = /** @type {HTMLElement|null} */ (itemsEl.querySelector('.atlas-list-sub-col'));
           if (!realSubCol) return;
           const subColW = realSubCol.getBoundingClientRect().width;
+          // 手機 tab 未選的欄 display:none → 量到 0 寬，ghost 會每字換行把 ITEM_H 灌爆；
+          // 清掉 measured flag 讓該欄第一次顯示時（tab 切換重 render）再測
+          if (subColW < 1) { col.dataset.measured = ''; return; }
           const ghost = document.createElement('div');
           ghost.className = 'atlas-list-sub-col';
           ghost.style.position = 'absolute';
@@ -3018,7 +3059,15 @@ export async function initAtlas(options = {}) {
   }
 
   function applyListFilter() {
-    // List view 固定顯示三欄；filter 只作用於 map view
+    // 桌面 list view 固定顯示三欄、filter 只作用於 map view；
+    // 手機 list-only：三顆 tab 單選，一次顯示一個分類（alumni = host+employ 上下兩列）
+    if (!isMobileAtlas) return;
+    const cat = [...selected][0] || 'faculty';
+    const showCats = cat === 'alumni' ? ['host', 'employ'] : [cat];
+    listView.querySelectorAll('.atlas-list-col').forEach(col => {
+      const colEl = /** @type {HTMLElement} */ (col);
+      colEl.style.display = showCats.includes(colEl.dataset.category || '') ? '' : 'none';
+    });
   }
 
   function updateFilterBtnColors() {
@@ -3163,6 +3212,22 @@ export async function initAtlas(options = {}) {
   btns.forEach(b => {
     b.addEventListener('click', () => {
       const k = b.dataset.filter;
+      if (isMobileAtlas) {
+        // 手機：單選 tab 切換 list 分類（無 map view，點已選中的 tab 不動作）
+        if (!k || selected.has(k)) return;
+        selected.clear();
+        selected.add(k);
+        apply(true);
+        // 隱藏期間 pre-measure / marquee 都量不到寬 → 顯示後重 render 該分頁再播進場
+        listView.querySelectorAll('.atlas-list-col').forEach(col => {
+          const colEl = /** @type {HTMLElement} */ (col);
+          if (colEl.style.display === 'none') return;
+          const cat = /** @type {string} */ (colEl.dataset.category);
+          renderListPage(colEl, cat, listPageState[cat] || 0, true);
+          playColEnterAnim(colEl, cat, 0);
+        });
+        return;
+      }
       if (selected.has(k)) {
         if (selected.size <= 1) return;
         selected.delete(k);
@@ -3182,7 +3247,7 @@ export async function initAtlas(options = {}) {
   apply();
 
   // ── Layout toggle ──────────────────────────────────────────────────
-  const layoutBtn = $('#atlas-layout-btn');
+  // （layoutBtn 已在 Filter 段提前宣告）
 
   // icon 跟著星雲整段 intro tween 同步做（0.75s = Phase 1 cover reveal 0→0.35 + Phase 2 span hide 0.35→0.75）：
   // exit hide / entry reveal 都 0→0.75 + power2.out，**起跑點不延遲、duration 同 chip 整段**，forward/return 時間對稱即互為反向
@@ -3555,8 +3620,154 @@ export async function initAtlas(options = {}) {
 
   if (layoutBtn) {
     layoutBtn.addEventListener('click', () => {
+      if (isMobileAtlas) {
+        // 手機：list ↔ 星雲（星雲直式時顯示轉向提示、橫式才顯示內容）
+        if (currentView === 'map') switchToMobileList();
+        else switchToMobileMap();
+        return;
+      }
       if (currentView === 'map') switchToList();
       else switchToMap();
+    });
+  }
+
+  // ── 手機星雲模式（user 2026-06-12）──────────────────────────────
+  // 預設 list view；點 layout btn 進星雲，但直式只給「轉向提示」（仿 /create #landscape-overlay），
+  // 旋轉成橫式才顯示星雲內容。map 佈局是 init 時以直式尺寸算的（不隨 resize 重排，桌面同樣行為），
+  // 橫式下整片置中可平移視角，先以可瀏覽為準。
+  /** @type {HTMLElement|null} */
+  let rotateHintEl = null;
+  function ensureRotateHint() {
+    if (rotateHintEl) return rotateHintEl;
+    rotateHintEl = document.createElement('div');
+    rotateHintEl.id = 'atlas-rotate-hint';
+    const icon = document.createElement('span');
+    icon.className = 'icon icon-rotate-phone';
+    const text = document.createElement('div');
+    text.className = 'atlas-rotate-hint-text';
+    text.textContent = '旋轉設備以獲取最佳體驗\nROTATE FOR BEST EXPERIENCE';
+    rotateHintEl.appendChild(icon);
+    rotateHintEl.appendChild(text);
+    main.appendChild(rotateHintEl);
+    return rotateHintEl;
+  }
+
+  const isLandscape = () => window.innerWidth > window.innerHeight;
+
+  function syncMobileMapOrientation() {
+    if (!isMobileAtlas || currentView !== 'map') return;
+    const hint = ensureRotateHint();
+    if (isLandscape()) {
+      hint.style.display = 'none';
+      stage.style.display = '';
+    } else {
+      stage.style.display = 'none';
+      hint.style.display = 'flex';
+    }
+  }
+
+  function switchToMobileMap() {
+    if (currentView === 'map') return;
+    currentView = 'map';
+    clearDetail();
+
+    // list 出場（同 playListExit 視覺：lines yPercent 滑出 + chevron clip 收）跑完才換畫面
+    // — 直式（轉向提示）跟橫式（星雲）都要有出場，不能瞬切（user 2026-06-13）
+    const finalize = () => {
+      listView.classList.remove('visible');
+      if (filterEl) filterEl.style.display = 'none'; // 星雲模式收起分類 tab，只留 layout btn 可返回
+      // 手機星雲 = 純瀏覽：全部 chip 顯示（list 的單選分類不過濾星雲）
+      items.forEach(item => {
+        if (!item._anchor) return;
+        item._anchor.classList.remove('atlas-filtered-out');
+        (itemLines.get(item.id) || []).forEach(l => { l.style.display = ''; });
+      });
+      syncMobileMapOrientation();
+    };
+    revealLayoutIcon('icon icon-atlas-list');
+    // 分類 tab 同步反向收（clip wipe，CSS transition）
+    drainRevealTimers();
+    [...btns].reverse().forEach((btn, i) => {
+      const t = setTimeout(() => {
+        if (btn.isConnected) btn.classList.remove('atlas-filter-revealed');
+      }, i * STAGGER);
+      revealTimers.push(t);
+    });
+    if (typeof gsap === 'undefined') { finalize(); return; }
+    const exitLines = /** @type {HTMLElement[]} */ ([
+      ...listView.querySelectorAll('.atlas-list-line-clip > *'),
+      ...listView.querySelectorAll('.atlas-list-col-title'),
+    ]);
+    const exitNavs = /** @type {HTMLElement[]} */ ([...listView.querySelectorAll('.atlas-list-nav-item')]);
+    if (exitLines.length === 0 && exitNavs.length === 0) { finalize(); return; }
+    let done = 0;
+    const total = (exitLines.length > 0 ? 1 : 0) + (exitNavs.length > 0 ? 1 : 0);
+    const onOne = () => { if (++done >= total) gsap.delayedCall(0.1, finalize); };
+    if (exitLines.length > 0) {
+      gsap.to(exitLines, {
+        yPercent: () => Math.random() < 0.5 ? 100 : -100,
+        duration: DUR.slow, ease: EASE.exitSoft, overwrite: true, onComplete: onOne,
+      });
+    }
+    if (exitNavs.length > 0) {
+      gsap.fromTo(exitNavs,
+        { clipPath: 'inset(0% 0% 0% 0%)' },
+        { clipPath: 'inset(0% 0% 100% 0%)', duration: DUR.slow, ease: EASE.exitSoft, overwrite: true, onComplete: onOne },
+      );
+    }
+  }
+
+  function switchToMobileList() {
+    if (currentView === 'list') return;
+    currentView = 'list';
+    stage.style.display = 'none';
+    if (rotateHintEl) rotateHintEl.style.display = 'none';
+    if (filterEl) filterEl.style.display = '';
+    listView.classList.add('visible');
+    // 分類 tab 重新 wipe in（進星雲時被反向收掉）
+    drainRevealTimers();
+    btns.forEach((btn, i) => {
+      const t = setTimeout(() => {
+        if (btn.isConnected) btn.classList.add('atlas-filter-revealed');
+      }, i * STAGGER);
+      revealTimers.push(t);
+    });
+    revealLayoutIcon('icon icon-atlas-view');
+    // 星雲模式期間可能轉向過 → 以當前 viewport 重 render 顯示中的欄
+    listView.querySelectorAll('.atlas-list-col').forEach(col => {
+      const colEl = /** @type {HTMLElement} */ (col);
+      if (colEl.style.display === 'none') return;
+      const cat = /** @type {string} */ (colEl.dataset.category);
+      renderListPage(colEl, cat, listPageState[cat] || 0, true);
+      if (typeof gsap !== 'undefined') playColEnterAnim(colEl, cat, 0);
+    });
+  }
+
+  // ── 手機：init 直接進 list view ─────────────────────
+  // 不走 switchToList（那是「map 收場 → list 進場」的編排，手機 init 沒有 map 可收）；
+  // filter btn 留著當底部分類 tab（CSS 移位）
+  if (isMobileAtlas) {
+    currentView = 'list';
+    stage.style.display = 'none';
+    // layout btn icon：list view 顯示「星雲」icon（與桌面 list view 一致）
+    const layoutIcon = /** @type {HTMLElement|null} */ (layoutBtn?.querySelector('.icon'));
+    if (layoutIcon) layoutIcon.className = 'icon icon-atlas-view';
+    renderList();
+    apply();   // tab active 樣式 + applyListFilter（只顯示預設 faculty）
+    listView.classList.add('visible');
+    if (typeof gsap !== 'undefined') {
+      listView.querySelectorAll('.atlas-list-col').forEach(col => {
+        const colEl = /** @type {HTMLElement} */ (col);
+        if (colEl.style.display === 'none') return;
+        playColEnterAnim(colEl, /** @type {string} */ (colEl.dataset.category), 0);
+      });
+    }
+    const onOrient = () => syncMobileMapOrientation();
+    window.addEventListener('resize', onOrient);
+    window.addEventListener('orientationchange', onOrient);
+    cleanupFns.push(() => {
+      window.removeEventListener('resize', onOrient);
+      window.removeEventListener('orientationchange', onOrient);
     });
   }
 
@@ -3576,6 +3787,8 @@ export async function initAtlas(options = {}) {
   function playMapExit() {
     return new Promise(resolve => {
       drainRevealTimers();
+      // 手機星雲直式的轉向提示層：離頁即時收掉（覆蓋層無退場動畫需求）
+      if (rotateHintEl) rotateHintEl.style.display = 'none';
       if (listCareerCtrl) listCareerCtrl.hide();
       hideCareer({ stagger: SUBCHIP_STAGGER });
       if (layoutBtn) layoutBtn.classList.remove('atlas-layout-revealed');
@@ -3628,6 +3841,16 @@ export async function initAtlas(options = {}) {
       if (listCareerCtrl) listCareerCtrl.hide();
       if (layoutBtn) layoutBtn.classList.remove('atlas-layout-revealed');
       hideLayoutIcon();
+      // 手機：底部分類 tab（= filter btns）跟著收場（桌面 list view 時 filter 本就隱藏不用收）
+      if (isMobileAtlas) {
+        drainRevealTimers();
+        [...btns].reverse().forEach((btn, i) => {
+          const t = setTimeout(() => {
+            if (btn.isConnected) btn.classList.remove('atlas-filter-revealed');
+          }, i * STAGGER);
+          revealTimers.push(t);
+        });
+      }
       const yPercentExitTargets = /** @type {HTMLElement[]} */ ([
         ...listView.querySelectorAll('.atlas-list-line-clip > *'),
         ...listView.querySelectorAll('.atlas-list-col-title'),

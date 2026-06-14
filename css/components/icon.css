@@ -70,6 +70,7 @@
 .icon-menu       { --icon: url('../website-icons/menu.svg'); }
 .icon-atlas-list { --icon: url('../website-icons/atlas_list.svg'); }
 .icon-atlas-view { --icon: url('../website-icons/atlas_view.svg'); }
+.icon-rotate-phone { --icon: url('../website-icons/rotate_phone.svg'); }
 .icon-search     { --icon: url('../website-icons/search.svg'); }
 
 /* social */

@@ -3397,7 +3397,13 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   }
 }
 
-/* ── 手機版 ──────────────────────────────────────── */
+/* ── 手機版 ──────────────────────────────────────────
+ * 手機預設 list view（atlas.js init 直接進，stage display:none 由 JS 設）。
+ * 底部兩層 bar：上層 = 三顆 filter btn 當單選分類 tab（faculty / alumni / partners）、
+ * 最底 = 星雲/list 切換鈕；點星雲後直式顯示轉向提示（#atlas-rotate-hint，仿 /create
+ * #landscape-overlay），橫式才顯示星雲內容。
+ * alumni tab = host/employ 上下兩列（label col 不顯示）；faculty/partners 不顯示 col title
+ * （tab 已標示分類，calcListPageSize 手機分支同步不扣 TITLEBLOCK_H）。 */
 
 @media (max-width: 767px) {
   .atlas-name {
@@ -3425,23 +3431,128 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
     font-size: 13px;
   }
 
+  /* 星雲/list 切換鈕：bar 最底層。視覺 40px（貼近 tab chip 高度，user 嫌 48 偏大）+
+     padding 4px 補回 48px tap 區（≥44 最佳實踐）；left 扣 padding 讓 icon 對齊 list 左緣。
+     z-index 70 > 轉向提示層 60 → 直式提示蓋住頁面時返回鈕仍可點（user 2026-06-12「切換時要給我 btn」） */
+
+  #atlas-layout-btn {
+    bottom: 16px;
+    left: calc(var(--container-padding, 24px) - 4px);
+    padding: 4px;
+    z-index: 70;
+  }
+
+  .atlas-layout-inner {
+    width: 40px;
+    height: 40px;
+    font-size: 22px;
+  }
+
+  /* 三顆分類 btn → 底部 tab bar，疊在 layout btn 上方（16 + 48 btn + 12 呼吸） */
+
   #atlas-filter {
-    /* desktop 用 var(--container-padding) 對齊 logo；mobile 沿用此 var（自動 = 1.5rem / 24px） */
-    top: calc(var(--header-height, 80px) + 60px);
-    gap: 0.25rem;
+    top: auto;
+    bottom: 76px;
+    right: var(--container-padding, 24px);
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 0.5rem;
+  }
+
+  /* 桌面 column 排列的 margin-top 階梯在 row 排列會變成垂直錯位 → 歸零 */
+
+  #atlas-filter > * {
+    margin-top: 0 !important;
+  }
+
+  /* 三顆 tab 三等分 row 寬（alumni 包在 .atlas-alumni-row wrapper 內，兩種結構都接） */
+
+  #atlas-filter > .atlas-filter-btn,
+  #atlas-filter > .atlas-alumni-row {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .atlas-alumni-row .atlas-filter-btn {
+    width: 100%;
+  }
+
+  /* map view 專屬的 career 輪播 chip / Hosting/Employment subchip 手機不顯示 */
+
+  .atlas-alumni-career,
+  .atlas-alumni-subchip {
+    display: none !important;
   }
 
   .atlas-filter-btn {
     font-size: 12px;
   }
 
-  #atlas-layout-btn {
-    bottom: 16px;
-  }
+  /* list view 一次顯示一個分類（col display 由 atlas.js applyListFilter 切）：
+     faculty/partners = span 2 全寬一列；alumni = host + employ 各全寬、auto-rows 1fr 上下對半
+     bottom 128（= 16 + 48 btn + 12 + ~40 tab + 12 呼吸）/ row gap --spacing-md(24)
+     與 atlas.js calcListPageSize 手機分支同步 */
 
   #atlas-list-view {
-    bottom: 80px;
-    right: 16px;
+    bottom: 128px;
+    right: var(--container-padding, 24px);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: minmax(0, 1fr);
+    gap: var(--spacing-md, 1.5rem);
+  }
+
+  /* Alumni label col（Alumni 大標 + career chip）：tab 已標示分類，手機不佔位 */
+
+  .atlas-list-group-label-col {
+    display: none !important;
+  }
+
+  /* faculty / partners 的 col title 同理拿掉（host/employ 保留以區分上下兩列） */
+
+  #atlas-list-view .atlas-list-col[data-category="faculty"] > .atlas-list-col-titleblock,
+  #atlas-list-view .atlas-list-col[data-category="partners"] > .atlas-list-col-titleblock {
+    display: none;
+  }
+
+  /* item 自然高 + 固定 gap 由上往下排（解除桌面 slot 均分制的 min-height 撐高）：
+     4/5 行 item 視覺間距才會一致、不殘留 slot 死空間（atlas.js LIST_GAP_MOBILE 同步） */
+
+  .atlas-list-item-wrapper {
+    min-height: 0;
+  }
+
+  .atlas-list-item {
+    padding-bottom: 0;
+  }
+
+  /* 星雲直式轉向提示（仿 /create #landscape-overlay：icon 左 + 文字右、theme 色）
+     z-index 60：蓋過 atlas UI（50）但低於 layout btn（70，要留著返回 list）與 header/menu */
+
+  #atlas-rotate-hint {
+    display: none;
+    /* 由 atlas.js syncMobileMapOrientation 控制 */
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    padding: 0 var(--container-padding, 24px);
+    background: var(--theme-bg, #fff);
+    color: var(--theme-fg, #000);
+  }
+
+  #atlas-rotate-hint .icon-rotate-phone {
+    font-size: 48px;
+  }
+
+  #atlas-rotate-hint .atlas-rotate-hint-text {
+    font-size: 1rem;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    text-align: left;
+    font-weight: 600;
   }
 }
 
@@ -3638,6 +3749,10 @@ body.idle-standby .atlas-line {
 
 .icon-atlas-view {
   --icon: url('../website-icons/atlas_view.svg');
+}
+
+.icon-rotate-phone {
+  --icon: url('../website-icons/rotate_phone.svg');
 }
 
 .icon-search     {
