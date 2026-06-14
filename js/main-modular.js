@@ -59,6 +59,7 @@ import { resetLightboxMode, getHeaderTargets } from './modules/lightbox/lightbox
 
 // Import Page Cleanup Registry（各模組註冊離頁要解綁的 window/document listener，SPA 換頁統一 drain）
 import { runPageCleanups } from './modules/ui/page-cleanup.js';
+import { registerPageExit } from './modules/ui/page-exit.js';
 
 // Import Generate Page Modules
 import { initCreatePage, cleanupCreatePage } from './modules/pages/create-app.js';
@@ -363,6 +364,23 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
       } else {
         finishLibEntrance();
       }
+
+      // 手機離頁退場（進場 wipe 的鏡像；桌面退場在 initLibraryCard 的 playExitAnimation，手機不跑那段 →
+      // 沒有這裡的話手機點 logo 離開 library 整頁瞬間消失、無退場）：tab 鈕 clip 反向收 + 整個 section wipe 收。
+      // fromTo 顯式 inset(0) 起點：進場 clearProps 後 computed=none 無法補間（見 clippath-exit-after-clearprops memory）。
+      registerPageExit(() => new Promise(resolve => {
+        if (typeof gsap === 'undefined' || !librarySection) { resolve(); return; }
+        const exitTl = gsap.timeline({ onComplete: resolve });
+        if (tabInners.length) {
+          tabInners.forEach(inner => { inner.style.transition = 'none'; });
+          gsap.killTweensOf(tabInners);
+          exitTl.fromTo(tabInners, { clipPath: 'inset(0% 0% 0% 0%)' },
+            { clipPath: () => pickLibClip(), duration: DUR.base, ease: EASE.exit, stagger: { each: 0.02, from: 'end' }, overwrite: true }, 0);
+        }
+        gsap.killTweensOf(librarySection);
+        exitTl.fromTo(librarySection, { clipPath: 'inset(0% 0% 0% 0%)' },
+          { clipPath: pickLibClip(), duration: DUR.base, ease: EASE.exit, overwrite: true }, 0);
+      }));
 
       // press/files/album panel 桌面結構是 2×2 grid：Year 標題在 top-left、year-picker 在 bottom-left（兩個獨立 grandchildren）
       // 手機要求「Year 標題跟 year-picker 是同一個 group」對齊 awards panel 樣式

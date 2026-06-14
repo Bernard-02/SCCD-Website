@@ -288,8 +288,10 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
   registerPageExit(() => new Promise(resolve => {
     if (typeof gsap === 'undefined') { resolve(); return; }
     const panel = document.querySelector('.courses-panel:not(.hidden)');
+    // 手機表頭（grade-header / row-label）進場跟卡片同走 clip-path → 退場也要一起收，
+    // 否則手機離頁卡片收完表頭還站著；桌面這兩 class display:none，tween 不可見無影響
     const clipTargets = [
-      ...(panel ? panel.querySelectorAll('.courses-grid-card') : []),
+      ...(panel ? panel.querySelectorAll('.courses-grid-card, .courses-mobile-grade-header, .courses-mobile-row-label') : []),
       ...(navRevealed ? navTargets : []),  // nav 沒滑到沒看過就不收（不閃）
     ];
     const slideInners = panel ? [

@@ -8,6 +8,7 @@
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { DUR, EASE } from '../ui/motion.js';
+import { playClipPathExit } from '../ui/scroll-animate.js';
 
 let accordionWrappers = [];
 
@@ -307,6 +308,9 @@ export function initColoredCardAccordion(wrapper, { animateEntry = false } = {})
         });
       },
     });
+    // 離頁退場：clip-path wipe 收掉（桌面版 initRotatedAccordion 有飛回退場，手機版原本漏 → 卡片不退場）。
+    // playClipPathExit 內建 viewportOnly + 「inline clipPath 有值走 to / 空走 fromTo」分流（未進場不閃）。
+    registerPageExit(() => playClipPathExit(items));
   } else if (items[0]) {
     openCard(items[0]);
   }

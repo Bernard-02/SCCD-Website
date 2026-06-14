@@ -494,9 +494,10 @@ export function initBFADivisionToggle() {
   });
 
   // 離頁退場：works 區 active panel 的說明文字（含 playlist）clip-path 右→左收 + 影片往左滑出。
-  // 沿用本模組 works 切換的同一組常數/方向（手感一致）。只在桌面、works layout 已 init、且區塊在視窗內才跑。
+  // 沿用本模組 works 切換的同一組常數/方向（手感一致）。works layout 已 init、且區塊在視窗內才跑。
+  // 手機也跑：grid-stack + clip 切換機制兩寬度共用（initWorksLayoutOnce 不分寬度），退場同理（2026-06-12 解除桌面限定）。
   registerPageExit(() => new Promise(resolve => {
-    if (typeof gsap === 'undefined' || window.innerWidth < 768 || !worksLayoutInited) { resolve(); return; }
+    if (typeof gsap === 'undefined' || !worksLayoutInited) { resolve(); return; }
     const container = document.getElementById('class-works-panels');
     if (!container) { resolve(); return; }
     const r = container.getBoundingClientRect();
