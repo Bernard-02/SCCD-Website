@@ -9,8 +9,9 @@ import { applyMarqueeOverflow } from '../ui/marquee-overflow.js';
 import { ensureFlagIconsCss } from '../ui/ensure-flag-icons.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { CMS_API_BASE, CMS_ASSETS_BASE } from '../../config/api.js';
-import { sitePath } from '../ui/site-base.js';
+import { sitePath, SITE_BASE_PATHNAME } from '../ui/site-base.js';
 import { loadSummerCamp } from './summer-camp-source.js';
+import { SECTION_LABELS, getSectionData, findItemById, getAwardRecords, findAwardById } from './activities-data-loader.js';
 
 // ── 共用常數 ──────────────────────────────────────────────────────────────────
 
@@ -162,6 +163,175 @@ function runMarqueeOverflow(containerEl, rowSelector, innerSelector) {
   applyMarqueeOverflow(containerEl, rowSelector, innerSelector);
 }
 
+// ── Awards refs（award row 右端 ref 鈕展開的 ref 列）──────────────────────────
+// records.json item 可帶 references[]，三種型態：
+//   { section, itemId }        → activities deep-link（同 activities list ref，label 自動查 SECTION_LABELS、title 查目標 JSON）
+//   { type: 'document', id }   → library files 項目 → 點擊開 PDF viewer（同 files panel 點擊行為）
+//   { type: 'press', id }      → library press 項目 → 點擊開 media lightbox / PDF viewer（同 press panel 點擊行為）
+// press / files 資料獨立快取載入：awards 是預設 panel，點 ref 時 press/files panel 可能尚未 init 過
+
+const AWARD_REF_TYPE_LABELS = {
+  document: { en: 'Documents', zh: '文件' },
+  press:    { en: 'Press',     zh: '報導' },
+};
+
+let _pressDataPromise = null;
+function loadPressDataCached() {
+  if (!_pressDataPromise) {
+    _pressDataPromise = (async () => {
+      try {
+        const url = `${CMS_API_BASE}/library_press?fields=*,images.directus_files_id&sort=sort&limit=-1`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('CMS ' + res.status);
+        const rows = (await res.json())?.data;
+        if (!Array.isArray(rows) || rows.length === 0) throw new Error('CMS empty');
+        return rows.map(mapDirectusPressRow);
+      } catch (_) {
+        return fetch(sitePath('data/press.json')).then(r => r.json());
+      }
+    })();
+  }
+  return _pressDataPromise;
+}
+
+let _filesDataPromise = null;
+function loadFilesDataCached() {
+  if (!_filesDataPromise) _filesDataPromise = fetch(sitePath('data/library.json')).then(r => r.json());
+  return _filesDataPromise;
+}
+
+// press / files item 手填 references 解析（給 PDF viewer / media lightbox 的 ref popover）：
+//   { section, itemId }     → activities ref 原樣保留（popover chip 跳 activities）
+//   { type: 'award', id }   → 解析成 href chip（label Awards/榮譽 + title 查 records）→ 跳 library.html#a-...
+//     ＝awards ref 的「反向」：document/press 開啟時 ref 回得獎紀錄（2026-06-13 雙向 ref）
+async function resolveLibManualRefs(item) {
+  const manual = Array.isArray(item?.references) ? item.references : [];
+  if (!manual.length) return [];
+  return (await Promise.all(manual.map(async r => {
+    if (!r) return null;
+    if (r.type === 'award' && r.id) {
+      const award = findAwardById(await getAwardRecords(), r.id);
+      return {
+        href: `${SITE_BASE_PATHNAME}pages/library.html#${r.id}`,
+        labelEn: 'Awards', labelZh: '榮譽',
+        titleEn: award?.competition_en || '', titleZh: award?.competition || '',
+      };
+    }
+    return (r.section && r.itemId) ? r : null;
+  }))).filter(Boolean);
+}
+
+// 自動反查（getPdfRefSources）+ 手填 refs union 去重（href ref 以 href 當 key）
+function unionRefs(auto, manual) {
+  const seen = new Set();
+  return [...(auto || []), ...(manual || [])].filter(r => {
+    if (!r) return false;
+    const k = r.href ? `href::${r.href}` : (r.section && r.itemId) ? `${r.section}::${r.itemId}` : null;
+    if (!k || seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
+
+// resolve 成渲染用統一 shape { kind, labelEn/Zh, titleEn/Zh, ...跳轉 payload }；目標不存在回 null（該 ref 不渲染）
+async function resolveAwardRef(ref) {
+  if (!ref) return null;
+  if (ref.type === 'document') {
+    const files = await loadFilesDataCached().catch(() => []);
+    const t = (Array.isArray(files) ? files : []).find(f => String(f.id) === String(ref.id));
+    if (!t || !t.pdfUrl) return null;
+    return { kind: 'document', labelEn: AWARD_REF_TYPE_LABELS.document.en, labelZh: AWARD_REF_TYPE_LABELS.document.zh, titleEn: t.titleEn || '', titleZh: t.titleZh || '', pdfUrl: t.pdfUrl };
+  }
+  if (ref.type === 'press') {
+    const press = await loadPressDataCached().catch(() => []);
+    const t = (Array.isArray(press) ? press : []).find(p => String(p.id) === String(ref.id));
+    if (!t) return null;
+    return { kind: 'press', labelEn: AWARD_REF_TYPE_LABELS.press.en, labelZh: AWARD_REF_TYPE_LABELS.press.zh, titleEn: t.titleEn || '', titleZh: t.titleZh || '', pressId: t.id };
+  }
+  if (ref.section && ref.itemId) {
+    const label = SECTION_LABELS[ref.section] || {};
+    const out = {
+      kind: 'activities', section: ref.section, itemId: ref.itemId,
+      labelEn: ref.labelEn || label.en || '', labelZh: ref.labelZh || label.zh || '',
+      titleEn: ref.titleEn || '', titleZh: ref.titleZh || '',
+    };
+    if (!out.titleEn || !out.titleZh) {
+      const data = await getSectionData(ref.section);
+      const item = data ? findItemById(data, ref.itemId) : null;
+      if (item) {
+        // 同 activities resolveRef 的兩種命名模式（A: title=zh/title_en=en；B: title=en/title_zh=zh）
+        const isModeA = !!item.title_en;
+        if (!out.titleEn) out.titleEn = (isModeA ? item.title_en : item.title) || '';
+        if (!out.titleZh) out.titleZh = (isModeA ? item.title : item.title_zh) || '';
+      }
+    }
+    return out;
+  }
+  return null;
+}
+
+// ref row 點擊分派（同 activities ref 行為）：
+//   document → PDF viewer（sccd:open-pdf，cross-ref 自動反查來源 — 同 files panel 點擊）
+//   press    → media lightbox（sccd:open-lightbox）；只有 PDF 時退 PDF viewer — 同 press panel 點擊
+//   activities → <a> click 走 router SPA 換頁到 activities deep-link（library 頁無 __sccdNavigateToItem）
+function bindAwardRefRowClick(row) {
+  row.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const color = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
+
+    const pdfUrl = row.dataset.refPdfUrl;
+    if (pdfUrl) {
+      const title = { en: row.dataset.refTitleEn || '', zh: row.dataset.refTitleZh || '' };
+      const { getPdfRefSources } = await import('./pdf-cross-ref-index.js');
+      const auto = await getPdfRefSources(pdfUrl);
+      // 該 file 自己的手填 references（含 award 反向 ref → viewer 內可 ref 回得獎紀錄）也 union 進去
+      const files = await loadFilesDataCached().catch(() => []);
+      const fileItem = (Array.isArray(files) ? files : []).find(f => f.pdfUrl === pdfUrl);
+      const references = unionRefs(auto, await resolveLibManualRefs(fileItem));
+      document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl, title, color, references } }));
+      return;
+    }
+
+    const pressId = row.dataset.refPressId;
+    if (pressId) {
+      const press = await loadPressDataCached().catch(() => []);
+      const item = (Array.isArray(press) ? press : []).find(p => String(p.id) === String(pressId));
+      if (!item) return;
+      const title = { en: item.titleEn || '', zh: item.titleZh || '' };
+      // 同 press panel：支援 Directus 多值（images[]/videoUrls[]）與本地單值（image/videoUrl）兩種 shape
+      const imgList = (item.images && item.images.length) ? item.images : (item.image ? [item.image] : []);
+      const vidList = (item.videoUrls && item.videoUrls.length) ? item.videoUrls : (item.videoUrl ? [item.videoUrl] : []);
+      const media = [];
+      imgList.forEach(src => media.push({ type: 'image', src, thumb: src }));
+      vidList.forEach(url => {
+        const vid = url.match(/(?:v=|youtu\.be\/)([^&?/]+)/)?.[1];
+        if (vid) media.push({ type: 'video', src: `https://www.youtube.com/embed/${vid}`, thumb: `https://img.youtube.com/vi/${vid}/hqdefault.jpg` });
+      });
+      if (media.length) {
+        document.dispatchEvent(new CustomEvent('sccd:open-lightbox', { detail: { media, index: 0, title, color, references: await resolveLibManualRefs(item) } }));
+      } else if (item.pdfUrl) {
+        const { getPdfRefSources } = await import('./pdf-cross-ref-index.js');
+        const auto = await getPdfRefSources(item.pdfUrl);
+        const references = unionRefs(auto, await resolveLibManualRefs(item));
+        document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl, title, color, references } }));
+      }
+      return;
+    }
+
+    const section = row.dataset.refSection;
+    if (!section) return;
+    const itemId = row.dataset.refItem;
+    const a = document.createElement('a');
+    // ⚠️ href 要用 pathname 形式不能用 sitePath()（完整 http URL 會被 router 攔截器當外部連結放行 → 整頁重載、
+    //    fromUserNav=false 導航動畫不播）；SITE_BASE_PATHNAME 前綴讓子路徑部署也成立
+    a.href = `${SITE_BASE_PATHNAME}pages/activities.html?section=${encodeURIComponent(section)}${itemId ? `&item=${encodeURIComponent(itemId)}` : ''}`;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  });
+}
+
 // ── Awards Panel ──────────────────────────────────────────────────────────────
 
 function buildMockRecords() {
@@ -241,6 +411,12 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     const records = [...realRecords, ...buildMockRecords().filter(r => !realYears.has(r.year))]
       .sort((a, b) => b.year - a.year)
       .slice(0, 20);
+
+    // refs 先全部 resolve 完才 render（lookup 都有 module 快取，重複 section/檔案只 fetch 一次）
+    await Promise.all(records.flatMap(yg => (yg.items || []).map(async item => {
+      const refs = Array.isArray(item.references) ? item.references : [];
+      item._resolvedRefs = refs.length ? (await Promise.all(refs.map(resolveAwardRef))).filter(Boolean) : [];
+    })));
 
     const listEl = document.getElementById('library-awards-list');
     if (!listEl) return;
@@ -360,25 +536,76 @@ async function initAwardsPanel(onEntranceDoneCallback) {
       });
     }
 
+    // award row 與 ref 列共用同一組欄位模板，確保「ref label 對齊競賽名稱欄、ref title 對齊主辦單位欄」（user 2026-06-13 六輪）。
+    // 7 欄：flag(1.5em) 競賽名稱(2.5fr) 主辦單位(2fr) 獎項(1.5fr) 名次(1fr) 得獎人(1fr) ref鈕(1.5em)
+    // 主辦單位欄是把原 4.5fr 競賽欄拆成 2.5+2，其餘欄位比例不變。
+    const AWARD_GRID = 'grid-template-columns: 1.5em 2.5fr 2.5fr 1.3fr 1fr 1fr 1.5em; gap: 0 2rem;';
+    // ref 展開列：版型沿用 list-ref-btn（hover 黑底），但 grid 改用 AWARD_GRID 對齊主表 —
+    // label 落「競賽名稱」欄(col 2)、title 落「主辦單位」欄(col 3)起算往右展開；左側 col 1 不放 ref icon。
+    const escAttr = s => String(s || '').replace(/"/g, '&quot;');
+    const buildRefRowsHtml = (refs) => refs.map(r => {
+      const dataAttrs = r.kind === 'document'
+        ? `data-ref-pdf-url="${escAttr(r.pdfUrl)}" data-ref-title-en="${escAttr(r.titleEn)}" data-ref-title-zh="${escAttr(r.titleZh)}"`
+        : r.kind === 'press'
+        ? `data-ref-press-id="${escAttr(r.pressId)}"`
+        : `data-ref-section="${escAttr(r.section)}" data-ref-item="${escAttr(r.itemId)}"`;
+      return `
+        <button class="list-ref-btn award-ref-row cursor-pointer border-none w-full text-left" style="display:grid;${AWARD_GRID}align-items:start;padding:var(--spacing-sm) 0;" ${dataAttrs}>
+          <div class="flex flex-col" style="grid-column:2;">
+            ${r.labelEn ? `<p class="text-p2">${r.labelEn}</p>` : ''}
+            ${r.labelZh ? `<p class="text-p2">${r.labelZh}</p>` : ''}
+          </div>
+          <div class="flex flex-col min-w-0" style="grid-column:3 / -2;">
+            ${r.titleEn ? `<div class="list-title-marquee"><p class="text-p2 font-bold">${r.titleEn}</p></div>` : ''}
+            ${r.titleZh ? `<div class="list-title-marquee"><p class="text-p2 font-bold">${r.titleZh}</p></div>` : ''}
+          </div>
+        </button>`;
+    }).join('');
+
     function renderItems(data) {
       listEl.innerHTML = '';
       data.forEach(yearGroup => {
         const itemsHtml = (yearGroup.items || []).map((item) => {
           const winners = normalizeWinners(item);
+          const refs = item._resolvedRefs || [];
           const winnerSearch = winners.map(w => `${w.en} ${w.zh}`).join(' ');
           const searchText = [item.competition_en, item.competition, item.award_en, item.award, winnerSearch, item.rank_en, item.rank]
             .filter(Boolean).join(' ').toLowerCase();
+          // 主辦單位（records.json organizer/organizer_en）：主表常駐欄、在「競賽名稱」右側（col 3）；
+          // 無資料也渲染空 cell 保持欄位結構（auto-flow 不錯位、各列對齊點一致）。user 2026-06-13 六輪。
+          const organizerEn = item.organizer_en || '';
+          const organizerZh = item.organizer || '';
+          const organizerInner = (organizerEn || organizerZh) ? bilingual(organizerEn, organizerZh) : '';
+          const hasExpand = refs.length > 0;
+          // ref 鈕：icon-ref-list（箭頭朝右）scaleX(-1)+rotate(90deg)＝從左邊往下拐、箭頭朝下（user 2026-06-13 指定鏡像）；
+          // 開合不做旋轉變化（user 2026-06-13 第三輪）
+          const refBtnHtml = hasExpand ? `
+            <button class="award-ref-toggle" aria-label="Show references"
+                    style="background:none;border:none;padding:0.1em 0 0;color:inherit;cursor:url('${sitePath('custom-cursor/pointer.svg')}') 14 1, pointer;line-height:1;">
+              <span class="icon icon-ref-list icon-s" style="transform:scaleX(-1) rotate(90deg);"></span>
+            </button>` : '';
+          // ref 展開區：跨整列（grid-column 1/-1）、height 0 起始，由 toggle 做 accordion 開合；
+          // 開啟時 margin-bottom 收掉 item 的 0.5rem bottom padding → ref 列直接貼到分割綫（JS tween 同步）
+          const refWrapHtml = hasExpand ? `
+            <div class="award-ref-wrap" style="grid-column:1 / -1;height:0;overflow:hidden;margin-bottom:0;">
+              <div class="flex flex-col" style="padding-top:var(--spacing-xs);">${buildRefRowsHtml(refs)}</div>
+            </div>` : '';
+          // award-mid 桌面 display:contents → 內 4 cell 落 col 2-5（競賽名稱 / 主辦單位 / 獎項 / 名次）；
+          // 手機 flex-column 內部直排。主辦單位插在競賽名稱與獎項之間 = 主表第 3 欄、對齊 ref title 欄。
           return `
             <div class="award-record-item grid py-[0.5rem] border-b-2 border-black"
-                 style="grid-template-columns: 1.5em 4.5fr 1.5fr 1fr 1fr; gap: 0 2rem; font-size: var(--font-size-p3); align-items: start;"
+                 style="${AWARD_GRID} font-size: var(--font-size-p3); align-items: start;"
                  data-search="${searchText}"${item.id ? ` id="${item.id}"` : ''}>
               <div style="padding-top: 0.1em;">${item.flag ? `<span class="fi fi-${item.flag}" style="width:1.5em;height:1em;display:inline-block;"></span>` : ''}</div>
               <div class="award-mid">
                 <div class="truncate flex flex-col">${bilingualBold(item.competition_en, item.competition)}</div>
+                <div class="award-organizer truncate flex flex-col">${organizerInner}</div>
                 <div class="truncate flex flex-col">${bilingual(item.award_en, item.award)}</div>
                 <div class="truncate flex flex-col">${bilingual(item.rank_en, item.rank)}</div>
               </div>
               <div class="award-winners flex flex-col" style="min-width:0;">${buildWinnersHtml(winners)}</div>
+              <div class="award-ref-cell" style="display:flex;justify-content:flex-end;">${refBtnHtml}</div>
+              ${refWrapHtml}
             </div>`;
         }).join('');
 
@@ -395,14 +622,58 @@ async function initAwardsPanel(onEntranceDoneCallback) {
       //    （user 2026-06-10 #2：手機點擊 award 不該變色）。手機完全不綁 → tap 無任何反應。
       if (window.innerWidth >= 768) {
         listEl.querySelectorAll('.award-record-item').forEach(item => {
+          // ref 展開時（data-ref-open）鎖定當下 hover 色：不重 roll、離開也不清（user 2026-06-13）
           item.addEventListener('mouseenter', () => {
+            if (item.dataset.refOpen) return;
             item.style.color = document.body.classList.contains('mode-color')
               ? 'var(--theme-bg)'
               : ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
           });
-          item.addEventListener('mouseleave', () => { item.style.color = ''; });
+          item.addEventListener('mouseleave', () => {
+            if (item.dataset.refOpen) return;
+            item.style.color = '';
+          });
         });
       }
+
+      // ref 鈕開合（accordion height 0↔auto，同 colored-accordion 手感）+ ref row 點擊分派
+      listEl.querySelectorAll('.award-record-item').forEach(item => {
+        const toggleBtn = item.querySelector('.award-ref-toggle');
+        const wrap = /** @type {HTMLElement | null} */ (item.querySelector('.award-ref-wrap'));
+        if (!toggleBtn || !wrap) return;
+        toggleBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const isOpen = wrap.dataset.open === '1';
+          wrap.dataset.open = isOpen ? '' : '1';
+          // hover 色鎖定（user 2026-06-13）：開啟期間 row 保持「開啟當下」的 hover 色不再隨機，
+          // 關閉才解鎖 — 還在 hover 上就立刻重 roll 一個新色，否則清掉回預設
+          if (!isOpen) {
+            item.dataset.refOpen = '1';
+            if (window.innerWidth >= 768 && !item.style.color) {
+              item.style.color = document.body.classList.contains('mode-color')
+                ? 'var(--theme-bg)'
+                : ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
+            }
+          } else {
+            delete item.dataset.refOpen;
+            if (window.innerWidth >= 768 && item.matches(':hover')) {
+              item.style.color = document.body.classList.contains('mode-color')
+                ? 'var(--theme-bg)'
+                : ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
+            } else {
+              item.style.color = '';
+            }
+          }
+          // 開啟時 margin-bottom = -0.5rem 抵銷 item py-[0.5rem] 的 bottom padding → ref 列貼齊分割綫；收起還原
+          if (typeof gsap !== 'undefined') {
+            gsap.to(wrap, { height: isOpen ? 0 : 'auto', marginBottom: isOpen ? '0rem' : '-0.5rem', duration: DUR.medium, ease: EASE.move, overwrite: true });
+          } else {
+            wrap.style.height = isOpen ? '0' : 'auto';
+            wrap.style.marginBottom = isOpen ? '0' : '-0.5rem';
+          }
+        });
+        wrap.querySelectorAll('.award-ref-row').forEach(row => bindAwardRefRowClick(/** @type {HTMLElement} */ (row)));
+      });
 
       // 多獲獎者自動水平 marquee（桌面，不需 hover）
       applyWinnersHMarquee(listEl);
@@ -670,8 +941,10 @@ async function initPressPanel() {
             if (media.length) {
               const lbTitle = { en: item.titleEn || '', zh: item.titleZh || '' };
               const lbColor = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
-              div.addEventListener('click', () => {
-                document.dispatchEvent(new CustomEvent('sccd:open-lightbox', { detail: { media, index: 0, title: lbTitle, color: lbColor, references: item.references } }));
+              div.addEventListener('click', async () => {
+                // 手填 refs 解析（含 award 反向 ref → href chip）
+                const references = await resolveLibManualRefs(item);
+                document.dispatchEvent(new CustomEvent('sccd:open-lightbox', { detail: { media, index: 0, title: lbTitle, color: lbColor, references } }));
               });
             }
           } else if (item.pdfUrl) {
@@ -679,19 +952,11 @@ async function initPressPanel() {
             const pdfTitle = { en: item.titleEn || '', zh: item.titleZh || '' };
             const pdfColor = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
             // library 場景：references 反查所有 activity 中 ref 此 PDF 的來源（不 exclude，full list）
-            // 若 library item 內 user 手填 references，union 進去（自動反查 + 手填可並存）
+            // 手填 references（含 award 反向 ref）union 進去（自動反查 + 手填可並存）
             div.addEventListener('click', async () => {
               const { getPdfRefSources } = await import('./pdf-cross-ref-index.js');
               const auto = await getPdfRefSources(item.pdfUrl);
-              const manual = Array.isArray(item.references) ? item.references : [];
-              const seen = new Set();
-              const references = [...auto, ...manual].filter(r => {
-                if (!r || !r.section || !r.itemId) return false;
-                const k = `${r.section}::${r.itemId}`;
-                if (seen.has(k)) return false;
-                seen.add(k);
-                return true;
-              });
+              const references = unionRefs(auto, await resolveLibManualRefs(item));
               document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl, title: pdfTitle, color: pdfColor, references } }));
             });
           }
@@ -845,19 +1110,11 @@ async function initFilesPanel() {
           if (item.pdfUrl) {
             div.style.cursor = `url('${sitePath('custom-cursor/pointer.svg')}') 14 1, pointer`;
             const pdfTitle = { en: item.titleEn || '', zh: item.titleZh || '' };
-            // 同 Press panel：library 場景反查 activity → 此 PDF；手填 references union 進去
+            // 同 Press panel：library 場景反查 activity → 此 PDF；手填 references（含 award 反向 ref）union 進去
             div.addEventListener('click', async () => {
               const { getPdfRefSources } = await import('./pdf-cross-ref-index.js');
               const auto = await getPdfRefSources(item.pdfUrl);
-              const manual = Array.isArray(item.references) ? item.references : [];
-              const seen = new Set();
-              const references = [...auto, ...manual].filter(r => {
-                if (!r || !r.section || !r.itemId) return false;
-                const k = `${r.section}::${r.itemId}`;
-                if (seen.has(k)) return false;
-                seen.add(k);
-                return true;
-              });
+              const references = unionRefs(auto, await resolveLibManualRefs(item));
               document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl, title: pdfTitle, color: accentColor, references } }));
             });
           }
@@ -1535,60 +1792,105 @@ function handleLibraryHash() {
       //   - awards（.year-block，列間有 border-b 分隔綫）：多塞 4px，讓上一列的分隔綫被標題不透明背景蓋住、不外露。
       //   - files（.files-year-block，卡片無分隔綫）：標題與第一排的留白已搬進 sticky 標題 padding-bottom（見 library.css），
       //     故對齊標題底緣即可、不再 overlap → 第一排卡片自然不位移（之前固定 32px 比卡片自然位置高、害第一排被多捲）。
-      //   - 其他（press/album/找不到）：維持原本固定 32px。
+      //   - album（.album-year-block）：手機標題（p1）比桌面（p3）高、固定 32 會被蓋 ~2px → 取 max(32, 標題高)，
+      //     桌面標題 ~31px 仍是 32 不變。
+      //   - 其他（press/找不到）：維持原本固定 32px。
       // 年份標題高度一律動態量（font/padding 改了也準）。
       const scroller = /** @type {HTMLElement|null} */ (el.closest('[id$="-scroll"]'));
       if (scroller) {
-        const yb = /** @type {HTMLElement|null} */ (el.closest('.year-block, .files-year-block'));
-        let margin = 32;
-        if (yb) {
-          const isAwards = yb.classList.contains('year-block');
-          const label = /** @type {HTMLElement|null} */ (isAwards ? yb.firstElementChild : yb.querySelector(':scope > .press-year-label'));
-          if (label) margin = Math.max(0, label.offsetHeight - (isAwards ? 4 : 0));
-        }
+        const computeMargin = () => {
+          const yb = /** @type {HTMLElement|null} */ (el.closest('.year-block, .files-year-block, .album-year-block'));
+          let margin = 32;
+          if (yb) {
+            const isAwards = yb.classList.contains('year-block');
+            const isAlbum  = yb.classList.contains('album-year-block');
+            const label = /** @type {HTMLElement|null} */ (isAwards ? yb.firstElementChild : yb.querySelector(':scope > .press-year-label'));
+            if (label) {
+              margin = isAlbum
+                ? Math.max(32, label.offsetHeight)
+                : Math.max(0, label.offsetHeight - (isAwards ? 4 : 0));
+            }
+          }
+          return margin;
+        };
         const delta = el.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
-        scroller.scrollBy({ top: delta - margin, behavior: 'smooth' });
+        scroller.scrollBy({ top: delta - computeMargin(), behavior: 'smooth' });
+
+        // 捲動量是「捲動當下」一次算好的，但 album/files 縮圖 loading=lazy + load 後才 applyRatio 設尺寸；
+        // 手機縮圖 flex-wrap 自然排版佔 layout 高度（桌面 absolute stack 不佔 → 桌面一次就準），
+        // smooth scroll 途中上方圖片陸續載入撐高內容、目標被推走 ~870px = 「捲了但沒捲到」（user 2026-06-12 手機 album）。
+        // → 等 scrollTop 停穩後重量誤差、補捲（最多 3 次），對齊完成才閃 highlight（保證 item 在畫面內才看得到）。
+        let lastTop = /** @type {number|null} */ (null);
+        let corrections = 0;
+        let ticks = 0;
+        const settleTimer = setInterval(() => {
+          if (!el.isConnected || ++ticks > 40) { clearInterval(settleTimer); return; }
+          const cur = scroller.scrollTop;
+          const stable = lastTop !== null && Math.abs(cur - lastTop) < 1;
+          lastTop = cur;
+          if (!stable) return;
+          const err = el.getBoundingClientRect().top - scroller.getBoundingClientRect().top - computeMargin();
+          if (Math.abs(err) <= 2 || corrections >= 3) {
+            clearInterval(settleTimer);
+            runHighlight();
+            return;
+          }
+          corrections++;
+          lastTop = null; // 補捲後重新等停穩
+          scroller.scrollBy({ top: err, behavior: 'smooth' });
+        }, 150);
       } else {
         // 理論上四個 panel 都有內層 scroller；萬一沒有，退回 nearest（不對齊頂端 → 不會大幅捲 body）
         el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        setTimeout(runHighlight, 600);
       }
 
       // 觸發一次該項目的 highlight（1s，user 2026-06-12 比照 activities deep-link）：
-      // - awards：桌面 hover 同款「文字變色」（user 指定參考桌面版、不另加底色/ring）。但 hover listener
-      //   只在桌面綁（手機 tap 不該變色的設計）、dispatch mouseenter 在手機沒人接 → 不走 hover 機制，
-      //   直接 inline 套同一套色（mode-color 用 var(--theme-bg) 跟 hue 流動、否則隨機 accent），桌機手機同效
-      // - press/files/album：accent 底色 + 4px ring 一起閃——press 文字列吃底色；files/album 縮圖蓋滿
-      //   element、底色看不到，ring（box-shadow 不佔 layout）才看得見，兩者並用
-      // - is-hovered class + mouseenter/leave 照舊 dispatch：桌面的 CSS :hover 樣式與 JS listener
+      // - 桌面：只 dispatch mouseenter（原生 hover listener = 唯一顏色來源）。inline 不另套色——
+      //   listener 自己會隨機抽色，inline 再抽一套會雙色（ring A + 底色 B，user 2026-06-13）
+      // - 手機：hover listener 沒綁（tap 不該變色的設計）、dispatch 沒人接 → inline 套色替代：
+      //   awards 文字變色（mode-color 用 var(--theme-bg) 跟 hue 流動、否則隨機 accent）；
+      //   press/files/album 用 accent 底色 + 4px ring 一起閃（縮圖蓋滿 element 時底色看不到，
+      //   ring（box-shadow 不佔 layout）才看得見，兩者並用）
+      // - is-hovered class + mouseenter/leave 兩邊照舊 dispatch：桌面的 CSS :hover 樣式與 JS listener
       //   （files 封面轉正等）仍吃得到
-      setTimeout(() => {
+      function runHighlight() {
+        // 桌面：hover listener 已綁（awards 文字變色 / bindListItemHover 底色+overlay），只 dispatch
+        // mouseenter 讓原生 hover 當「唯一」顏色來源——inline 再疊一套會跟 listener 各自隨機抽色，
+        // 變成 ring 一色、底色一色的雙色（user 2026-06-13 桌面 deep-link 看到雙重顏色）。
+        // 手機：listener 都沒綁（<768 不綁），dispatch 沒人接 → 維持 inline 單色那套。
+        const desktopHover = window.innerWidth >= 768;
         const prevTransition = el.style.transition;
-        if (tab === 'awards') {
-          el.style.transition = 'color 0.3s';
-          el.style.color = document.body.classList.contains('mode-color')
-            ? 'var(--theme-bg)'
-            : ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
-        } else {
-          const accent = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
-          el.style.transition = 'background 0.3s, box-shadow 0.3s';
-          el.style.background = accent;
-          el.style.boxShadow = `0 0 0 4px ${accent}`;
+        if (!desktopHover) {
+          if (tab === 'awards') {
+            el.style.transition = 'color 0.3s';
+            el.style.color = document.body.classList.contains('mode-color')
+              ? 'var(--theme-bg)'
+              : ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
+          } else {
+            const accent = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
+            el.style.transition = 'background 0.3s, box-shadow 0.3s';
+            el.style.background = accent;
+            el.style.boxShadow = `0 0 0 4px ${accent}`;
+          }
         }
         el.classList.add('is-hovered');
         el.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
         setTimeout(() => {
-          if (tab === 'awards') {
-            el.style.color = '';
-          } else {
-            el.style.background = '';
-            el.style.boxShadow = '';
+          if (!desktopHover) {
+            if (tab === 'awards') {
+              el.style.color = '';
+            } else {
+              el.style.background = '';
+              el.style.boxShadow = '';
+            }
           }
           el.classList.remove('is-hovered');
           el.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
           // transition 等淡出跑完才還原（0.3s），避免殘留 inline transition 干擾之後的 hover
           setTimeout(() => { el.style.transition = prevTransition; }, 350);
         }, 1000);
-      }, 600);
+      }
     });
   }
 

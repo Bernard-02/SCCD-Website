@@ -294,9 +294,9 @@
   /* 寬度由 JS 動態設 = viewport 寬（grid col），讓每位獲獎者整位對齊 col */
 }
 
-/* award item 中間欄 wrapper（競賽+獎項+名次）：桌面 display:contents 透明 →
-   三 cell 直接落進 5 欄 grid（flag|競賽|獎項|名次|得獎人），桌面版型不變；
-   手機（max-width:767）改 flex column 讓中間三項獨立 stack、不被得獎人多列高撐開（見 mobile 區，2026-06-10 #2）*/
+/* award item 中間欄 wrapper（競賽+主辦單位+獎項+名次）：桌面 display:contents 透明 →
+   四 cell 直接落進 7 欄 grid（flag|競賽|主辦單位|獎項|名次|得獎人|ref鈕）；
+   手機（max-width:767）改 flex column 讓四項獨立 stack、不被得獎人多列高撐開（見 mobile 區，2026-06-10 #2）*/
 #library-awards-list .award-mid {
   display: contents;
 }
@@ -310,6 +310,34 @@
 @keyframes award-winners-hmarquee {
   0%   { transform: translateX(0); }
   100% { transform: translateX(var(--hmarquee-distance, -50%)); }
+}
+
+/* ── Awards ref 展開列（2026-06-13）──
+   版型用主表共用 AWARD_GRID（label 對齊競賽名稱欄、title 對齊主辦單位欄），只差沒有左側 icon；
+   黑體（award 表格本身是 serif，ref 列 user 指定黑體）+ resting 淺灰底（比 --lib-bg #f2f2f2 深一點
+   = --gray-9 #E6E6E6）；hover 黑底白字由全站 .list-ref-btn:hover 接手 */
+#library-awards-list .award-ref-row {
+  font-family: 'Inter', 'Noto Sans TC', sans-serif;
+  background: var(--gray-9);
+  /* row hover 色鎖定時 item inline color 會被 button 繼承 → 固定黑字（底色固定亮灰、黑字各 mode 都成立） */
+  color: #000;
+}
+/* mode2（inverse）：頁底 --lib-bg=#333333(gray-2)，ref 底改「再深一階」--gray-1(#1A1A1A) + 白字
+   （對稱 standard 的「比頁底深一點淺灰」；user 2026-06-14） */
+body.mode-inverse #library-awards-list .award-ref-row {
+  background: var(--gray-1);
+  color: #fff;
+}
+/* mode2 hover：resting 已深灰 → hover 反相成白底黑字（對稱 standard 的深色 hover；全站 .list-ref-btn:hover
+   是黑底白字，在深底上幾乎看不出 → 此處覆寫）。桌面限定避免手機 tap sticky hover 殘留（同全站做法）。 */
+@media (min-width: 768px) {
+  body.mode-inverse #library-awards-list .award-ref-row:hover {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  body.mode-inverse #library-awards-list .award-ref-row:hover * {
+    color: #000 !important;
+  }
 }
 
 /* ── Files list item ─────────────────────────────────────────── */
@@ -825,13 +853,14 @@
   /* Year block 間距改由全域 #library-awards-list .year-block 規則統一（含 :last-child 歸零，
      --spacing-2xl 本就 responsive 手機=48px）；原本這裡的 !important 會蓋掉 :last-child → 最後一組留空白，已移除 */
 
-  /* award item → 3 欄（user 2026-06-10 #2/#4）：[國旗] [競賽+獎項+名次 垂直 stack] [得獎人]
+  /* award item → 4 欄（user 2026-06-10 #2/#4 + 2026-06-13 ref 鈕）：[國旗] [競賽+獎項+名次 垂直 stack] [得獎人] [ref 鈕]
      中間三 cell 已包進 .award-mid wrapper（render）→ 手機把 wrapper 設 flex column，讓「競賽名稱 / 獎項 / 名次」
      獨立 stack 一欄；得獎人是另一欄。兩欄各自 top-align、互不撐高（解決得獎人多名時把獎項/名次推開的問題 #2）。
-     grid 三欄自動 place：flag→col1、.award-mid→col2、.award-winners→col3。*/
+     grid 四欄自動 place：flag→col1、.award-mid→col2、.award-winners→col3、.award-ref-cell→col4；
+     .award-ref-wrap 自帶 grid-column:1/-1 不受影響。*/
   #library-awards-list .award-record-item {
     /* 得獎人欄改固定比例（非 auto）→ 每列得獎人欄左緣對齊同一點（#1 2026-06-10）；auto 會隨名字長短變寬害對齊點跑掉 */
-    grid-template-columns: 1.5em minmax(0, 1.8fr) minmax(0, 1fr) !important;
+    grid-template-columns: 1.5em minmax(0, 1.8fr) minmax(0, 1fr) 1.5em !important;
     column-gap: var(--spacing-md) !important;
     row-gap: 0 !important;
     padding: var(--spacing-sm) 0 !important;
@@ -840,6 +869,15 @@
     font-size: var(--font-size-p2) !important;
   }
   #library-awards-list .award-record-item > :first-child { padding-top: 0.15em !important; }  /* 國旗對齊第一行文字頂 */
+  /* awards ref 列：手機收成單欄 stack（label 上 / title 下），蓋掉共用 AWARD_GRID 與 col 起點 */
+  #library-awards-list .award-ref-row {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 2px 0 !important;
+    padding: var(--spacing-sm) !important;
+  }
+  #library-awards-list .award-ref-row > div {
+    grid-column: 1 / -1 !important;
+  }
   #library-awards-list .award-mid {
     display: flex !important;
     flex-direction: column !important;
@@ -1253,7 +1291,10 @@
     align-items: center !important;   /* 縮圖高度不一 → 垂直置中（不要對齊頂部，user 2026-06-11）*/
     gap: var(--spacing-sm) !important;
     min-width: 0 !important;
-    min-height: 4.5rem !important;   /* 預留縮圖列高度，避免圖片 load 前 strip 塌成 0、load 後才撐高的縱向跳動 */
+    /* 預留縮圖列「完整」高度（縮圖 max 4.5rem + 上下 padding）：border-box 下 min-height 若只寫 4.5rem
+       蓋不住 padding，圖 load 後 strip 72→88px、deep-link 捲動中上方 item 累積推走目標近千 px
+       → 補捲第二段（user 2026-06-12「scroll 2 次才對齊」）。含 padding 後 load 前後高度恆定。 */
+    min-height: calc(4.5rem + 2 * var(--spacing-xs)) !important;
     overflow-x: auto !important;
     overflow-y: hidden !important;
     padding: var(--spacing-xs) !important;

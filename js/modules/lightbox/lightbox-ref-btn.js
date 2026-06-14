@@ -72,7 +72,8 @@ export function createRefBtn(initialColor, onCloseLightbox) {
   }
 
   function setReferences(refs) {
-    currentRefs = Array.isArray(refs) ? refs.filter(r => r && r.section && r.itemId) : [];
+    // 兩種 chip：activities ref（section+itemId → SPA 跳 activities）/ href ref（award 反向 ref 等 → 直接導航該 URL）
+    currentRefs = Array.isArray(refs) ? refs.filter(r => r && ((r.section && r.itemId) || r.href)) : [];
     if (currentRefs.length === 0) {
       btnEl.style.display = 'none';
       closePopover(false);
@@ -287,6 +288,16 @@ export function createRefBtn(initialColor, onCloseLightbox) {
     }
     // 2) 收起 popover 自己狀態
     closePopover(false);
+    // 2.5) href ref（award 反向 ref → library.html#a-... 等）：直接 <a> click 走 router SPA 換頁
+    if (ref.href) {
+      const a = document.createElement('a');
+      a.href = ref.href;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      return;
+    }
     // 3) 跳轉分流：
     //    a) 已在 activities 頁 + __sccdNavigateToItem 可用 → 直接 in-page 跳（同 list 內 ref btn 行為）
     //       避免「重 init 整頁 → 回 hero top → 再 scroll 到 item」的視覺鏈

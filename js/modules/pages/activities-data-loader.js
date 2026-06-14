@@ -12,7 +12,7 @@ import { DUR, EASE } from '../ui/motion.js';
 import { loadSummerCamp } from './summer-camp-source.js';
 // '/data/x.json' 字串同時是 fetch URL 與 map key / 比對識別字（SECTION_DATA_URL 等），
 // 識別字保持原樣，只在真正 fetch 的點包 sitePath()（子路徑部署時換算成站台根絕對 URL）
-import { sitePath } from '../ui/site-base.js';
+import { sitePath, SITE_BASE_PATHNAME } from '../ui/site-base.js';
 
 // ── Reference 自動 lookup ─────────────────────────────────────────────────────
 // ref 只填 { section, itemId } 即可；title/label 渲染前自動從目標 JSON lookup。
@@ -85,7 +85,41 @@ export function findItemById(data, itemId) {
 }
 
 // 補齊 ref 缺失欄位（title/cover/label）；已存在的欄位不覆蓋
+// award 反向 ref（type:'award', id:'a-YYYY-NN'）→ library awards hash deep-link（library.html#a-...，
+// handleLibraryHash 捲到該列 + flash）。title 從 records.json 查（competition_en/competition）。
+// 給 activities list 與 library press/files 的 references 雙向互指用（2026-06-13）。
+let _awardRecordsPromise = null;
+export function getAwardRecords() {
+  if (!_awardRecordsPromise) {
+    _awardRecordsPromise = fetch(sitePath('data/records.json'))
+      .then(r => r.json())
+      .then(d => Array.isArray(d) ? d : d.records)
+      .catch(() => null);
+  }
+  return _awardRecordsPromise;
+}
+export function findAwardById(records, id) {
+  for (const yg of records || []) {
+    for (const it of yg.items || []) {
+      if (it.id === id) return it;
+    }
+  }
+  return null;
+}
+
 async function resolveRef(ref) {
+  if (ref && ref.type === 'award' && ref.id) {
+    if (!ref.labelEn) ref.labelEn = 'Awards';
+    if (!ref.labelZh) ref.labelZh = '榮譽';
+    if (!ref.href) ref.href = `${SITE_BASE_PATHNAME}pages/library.html#${ref.id}`;
+    if (ref.titleEn && ref.titleZh) return;
+    const award = findAwardById(await getAwardRecords(), ref.id);
+    if (award) {
+      if (!ref.titleEn) ref.titleEn = award.competition_en || '';
+      if (!ref.titleZh) ref.titleZh = award.competition || '';
+    }
+    return;
+  }
   if (!ref.section || !ref.itemId) return;
 
   // label 用 section 對應表自動填（若 ref 沒寫）

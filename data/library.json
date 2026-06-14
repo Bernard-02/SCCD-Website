@@ -12,6 +12,10 @@
     ],
     "references": [
       {
+        "type": "award",
+        "id": "a-2025-01"
+      },
+      {
         "section": "degree-show",
         "itemId": "DS-2024-01",
         "labelEn": "Degree Show",
