@@ -16,7 +16,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.2.3/css/flag-icons.min.css">
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
-  <!-- p5 不放 head（移除 render-blocking）；首頁 WATCH 卡需要時才 lazy-load 本地 generate-app/p5.min.js（見 index-yt-card.js ensureP5），/create 也是載本地那份 -->
+  <!-- p5 不放 head（移除 render-blocking）；WATCH 卡已改純原生 canvas 不依賴 p5（index-yt-card.js initWatchChars），只剩 /create 進頁時載本地 generate-app/p5.min.js -->
 </head>
 <body style="overflow:hidden">
 

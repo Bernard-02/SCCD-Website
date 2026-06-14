@@ -1,6 +1,6 @@
 /**
  * Index Page - YT Card
- * 首頁 WATCH! 圓形卡片：隨機位置、漂浮動畫、p5 字母排版、點擊展開影片
+ * 首頁 WATCH! 圓形卡片：隨機位置、漂浮動畫、canvas 字母排版、點擊展開影片
  */
 
 import { applyNewsHover, removeNewsHover } from '../animations/floating-items.js';
@@ -11,7 +11,7 @@ import { DUR, EASE } from '../ui/motion.js';
 import { CMS_API_BASE } from '../../config/api.js';
 import { sitePath } from '../ui/site-base.js';
 
-// ── p5 字母排版 ────────────────────────────────────────────────
+// ── canvas 字母排版 ────────────────────────────────────────────
 
 function isChinese(ch) { return /[\u4e00-\u9fff]/.test(ch); }
 
@@ -74,50 +74,41 @@ function obbAABB(corners) {
   return { x1: minX, y1: minY, x2: maxX, y2: maxY };
 }
 
-// p5 已不放 index.html head（移除 render-blocking CDN）；WATCH 卡第一次繪製時才 lazy-load
-// 本地 generate-app/p5.min.js（與 /create 同一份、同源）；SPA 子頁切回 index 時 typeof p5 仍可能
-// === 'undefined'，一樣靠這個 lazy-load，否則 initWatchChars 早退、WATCH 字母不繪
-function ensureP5() {
-  return new Promise(resolve => {
-    if (typeof p5 !== 'undefined') { resolve(); return; }
-    const existing = /** @type {HTMLScriptElement | null} */ (document.querySelector('script[data-p5-lazy]'));
-    if (existing) {
-      existing.addEventListener('load', () => resolve(), { once: true });
-      existing.addEventListener('error', () => resolve(), { once: true });
-      return;
-    }
-    const s = document.createElement('script');
-    s.src = sitePath('generate-app/p5.min.js');
-    s.dataset.p5Lazy = '1';
-    s.onload = () => resolve();
-    s.onerror = () => resolve();
-    document.head.appendChild(s);
-  });
-}
-
+// WATCH 字繪製已拔掉 p5 依賴（2026-06-13）：原本只用 p5 做 createCanvas/random/noLoop/clear，
+// 繪字本來就直接走 drawingContext —— 改純原生 canvas 後 index 不再載 generate-app/p5.min.js
+// （gzip 240KB，手機冷快取時跟 12 張浮卡圖同源搶頻寬，WATCH 因此排到最後才出現）。/create 的 p5 由該頁自載。
 function initWatchChars(ytCharsEl) {
   if (!ytCharsEl) return;
 
-  ensureP5().then(() => {
-    if (typeof p5 === 'undefined') return;
-    return Promise.all([
-      document.fonts.load('600 16px Inter'),
-      document.fonts.load('700 16px "Noto Sans TC"'),
-    ]);
-  }).then(() => {
-    if (typeof p5 === 'undefined') return;
-    new p5(function(p) {
+  // 等字型載好才量字（getExactSize 掃 canvas 像素，fallback 字型量出來的 glyph 尺寸會錯）
+  Promise.all([
+    document.fonts.load('600 16px Inter'),
+    document.fonts.load('700 16px "Noto Sans TC"'),
+  ]).then(() => {
       const chars = [...'WATCH!'];
       // GAP / PADDING 也在 setup 內按卡片寬比例算（基準 W=160），避免縮卡時 padding 吃掉太多 inner 空間
       let GAP = 2, PADDING = 8;
 
-      p.setup = function() {
+      (function setup() {
         const W = ytCharsEl.offsetWidth, H = ytCharsEl.offsetHeight;
-        const cnv = p.createCanvas(W, H);
-        cnv.parent(ytCharsEl);
-        cnv.style('position', 'absolute');
-        cnv.style('top', '0'); cnv.style('left', '0');
-        p.noLoop(); p.clear();
+        // backing store 乘 devicePixelRatio + ctx 預縮放（= p5 pixelDensity 等效），漏掉 retina 上字會糊
+        const dpr = window.devicePixelRatio || 1;
+        const cnv = document.createElement('canvas');
+        cnv.width  = Math.round(W * dpr);
+        cnv.height = Math.round(H * dpr);
+        cnv.style.cssText = `width:${W}px; height:${H}px; position:absolute; top:0; left:0;`;
+        ytCharsEl.appendChild(cnv);
+        const ctx = cnv.getContext('2d');
+        ctx.scale(dpr, dpr);
+        // 清整張 canvas 但保留底層 dpr scale（drawLayout 的 save/restore 不會動到它）
+        const clearCanvas = () => {
+          ctx.save();
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          ctx.clearRect(0, 0, cnv.width, cnv.height);
+          ctx.restore();
+        };
+        const rnd = (min, max) => Math.random() * (max - min) + min;
+        clearCanvas();
 
         const rootPx    = parseFloat(getComputedStyle(document.documentElement).fontSize);
         // 字體跟卡片寬度等比例縮放：原設計基準卡片 W=160 時 enSize=2.8rem / zhSize=2.7rem
@@ -146,9 +137,9 @@ function initWatchChars(ytCharsEl) {
           for (let i = 0; i < chars.length; i++) {
             const { tw, th } = charData[i];
             for (let a = 0; a < 3000; a++) {
-              const angle = p.random(-Math.PI/2, Math.PI/2);
-              const cx = p.random(circleCX - circleR, circleCX + circleR);
-              const cy = p.random(circleCY - circleR, circleCY + circleR);
+              const angle = rnd(-Math.PI/2, Math.PI/2);
+              const cx = rnd(circleCX - circleR, circleCX + circleR);
+              const cy = rnd(circleCY - circleR, circleCY + circleR);
               const corners = obbCorners(cx, cy, tw, th, angle);
               const obb = { corners, cx, cy, angle };
               if (inBounds(obbAABB(corners)) && !placed.some(b => obbOverlaps(obb, b, GAP))) {
@@ -171,7 +162,6 @@ function initWatchChars(ytCharsEl) {
         }
         if (!layouts.length) return;
 
-        const ctx = p.drawingContext;
         let lastPlaced = null;
         function getCharColor() {
           // standard/inverse: 卡片底色 = var(--theme-fg)（黑/白）→ 文字用反向 var(--theme-bg)
@@ -185,7 +175,7 @@ function initWatchChars(ytCharsEl) {
           return c || (isColorMode ? '#fff' : '#fff');
         }
         function drawLayout(reuse = false) {
-          p.clear();
+          clearCanvas();
           if (!reuse || !lastPlaced) {
             // 重新洗牌：copy 一份並重置 _scale=1，避免 fadeOut 後 reshuffle 拿到 scale:0 的 stale ref
             lastPlaced = layouts[Math.floor(Math.random() * layouts.length)].map(pos => ({ ...pos, _scale: 1 }));
@@ -211,7 +201,7 @@ function initWatchChars(ytCharsEl) {
         // theme 切換時即時重繪（保持當前 layout 不洗牌）— named ref 給 cleanup remove 用
         const onThemeChanged = () => drawLayout(true);
         window.addEventListener('theme:changed', onThemeChanged);
-        // SPA 離開 index 時解綁 + 停 reshuffle interval，避免回 index 時新 p5 + 舊 listener 並存重繪 N 倍
+        // SPA 離開 index 時解綁 + 停 reshuffle interval，避免回 index 時新 canvas + 舊 listener 並存重繪 N 倍
         registerPageCleanup(() => {
           window.removeEventListener('theme:changed', onThemeChanged);
           clearInterval(layoutInterval);
@@ -272,8 +262,7 @@ function initWatchChars(ytCharsEl) {
           ytCharsEl.__charsReady = true;
           if (ytCharsEl.__entranceRequested) { ytCharsEl.__entranceRequested = false; ytCharsEl.__fadeInWatch({ stagger: ytCharsEl.__entranceStagger ?? 0.06 }); }
         }
-      };
-    });
+      })();
   });
 }
 
@@ -467,7 +456,7 @@ export function initYTCard() {
     gsap.delayedCall(IRIS_DELAY + DUR.slow * 0.85, () => {
       if (!ytCharsEl) return;
       if (ytCharsEl.__charsReady && ytCharsEl.__fadeInWatch) ytCharsEl.__fadeInWatch({ stagger: ytCharsEl.__entranceStagger });
-      else ytCharsEl.__entranceRequested = true; // chars 還沒 ready（p5/font 載入晚於 iris）→ setup 完成補播
+      else ytCharsEl.__entranceRequested = true; // chars 還沒 ready（font 載入/layout 計算晚於 iris）→ setup 完成補播
     });
   }
 
