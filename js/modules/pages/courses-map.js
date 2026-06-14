@@ -432,14 +432,27 @@ export function resetCoursesMapState() {
   activeCard = null;
 }
 
+// deep-link 找卡：同 slug 在桌面 .courses-grid 與手機 .courses-grid-mobile 各有一張（桌面在前），
+// querySelector 永遠拿桌面那張 → 手機上 highlight 套在 display:none 的卡上看不見（user 2026-06-12
+// 報「沒先 highlight 就出 slider」）。改挑「可見」那張（offsetParent≠null，同 section-switch 判法）。
+function visibleCardBySlug(panel, slug) {
+  let first = null;
+  for (const c of panel.querySelectorAll(`.courses-grid-card[data-slug="${CSS.escape(slug)}"]`)) {
+    const el = /** @type {HTMLElement} */ (c);
+    if (!first) first = el;
+    if (el.offsetParent !== null) return el;
+  }
+  return first;
+}
+
 // 給 `?item=slug` deep-link 用：在指定 program panel 內找 data-slug 相符的卡片並 selectCard
-// 有 parts 的課程兩張卡共用 slug → 取第一張（querySelector）即可
+// 有 parts 的課程兩張卡共用 slug → 取可見 grid 內的第一張即可
 // 找不到回傳 false 讓呼叫端可 fallback（例如該 slug 在別的 program）
 export function selectCardBySlugInPanel(program, slug) {
   if (!slug) return false;
   const panel = document.getElementById(`panel-${program}`);
   if (!panel) return false;
-  const card = /** @type {HTMLElement|null} */ (panel.querySelector(`.courses-grid-card[data-slug="${CSS.escape(slug)}"]`));
+  const card = visibleCardBySlug(panel, slug);
   if (!card) return false;
   selectCard(card);
   return true;
@@ -452,7 +465,7 @@ export function highlightCardBySlugInPanel(program, slug) {
   if (!slug) return null;
   const panel = document.getElementById(`panel-${program}`);
   if (!panel) return null;
-  const card = /** @type {HTMLElement|null} */ (panel.querySelector(`.courses-grid-card[data-slug="${CSS.escape(slug)}"]`));
+  const card = visibleCardBySlug(panel, slug);
   if (!card) return null;
   applyHoverColor(card);
   applyHoverRot(card);

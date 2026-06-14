@@ -111,8 +111,15 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
     const tabBtnSelector = subTabMap[subListContainer.id];
     if (tabBtnSelector) {
       const tabBtn = /** @type {HTMLElement | null} */ (document.querySelector(tabBtnSelector));
+      // 抑制 sub-filter 自帶的「instant 捲回 section 頂」（會跟下面的平滑捲動打架＝跳一下），
+      // 並等整段 exit→swap→reveal 啟動完成（subFilterSwitching 歸 false）才往下量位置——
+      // 原本只等 100ms，exit 0.5s 還沒換 display，finalTop 量到舊 layout（user 2026-06-12）
+      suppressSubFilterScroll = true;
       tabBtn?.click();
-      await new Promise(r => setTimeout(r, 100));
+      for (let i = 0; i < 60 && subFilterSwitching; i++) {
+        await new Promise(r => setTimeout(r, 50));
+      }
+      suppressSubFilterScroll = false;
     }
   }
 
@@ -357,11 +364,26 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
   if (hasDeepLink && fromUserNav) {
     const initialSection = params.get('section') || defaultSection;
     const initialItem = params.get('item');
-    switchToSection(initialSection, btns, false, true);
+    const initSwitchPromise = switchToSection(initialSection, btns, false, true);
     // 等 hero 進場動畫「實際跑完」才往下捲（waitForHeroAnimDone，follow hero 動畫長度、不寫死 1s；對齊 curriculum）。
     // 手機也適用：hero-animation playMobileHeroEntrance 跑「看得見的」.hero-mobile-* 進場後才 signal
     // （2026-06-12 起；先前手機 hero 靜態、等的是隱藏桌面 timeline ＝ 白等，曾短暫改成跳過）。
     if (initialItem) {
+      // deep-link 自動導航：rows 進場「init 即完成」不等 ScrollTrigger（比照 curriculum deepLinkAutoNav 通則）。
+      // 否則目標 row 的 reveal 捲到才觸發，落地後 highlight 還要乾等 reveal ~0.6-0.8s（實測手機 618ms / 桌面 800ms）。
+      // hero 期間於畫面外直接定位完成（清 inline transform 即 revealed 態）；之後 ScrollTrigger onEnter
+      // 對已 reveal rows 再 tween 0→0 無視覺影響。手機 filter bar 也先收掉，省 navigateToItem 內 350ms 收合等待。
+      initSwitchPromise.then(() => {
+        const panel = document.getElementById(`panel-${initialSection}`);
+        if (!panel) return;
+        if (typeof gsap !== 'undefined') {
+          const rows = panel.querySelectorAll('.list-reveal-row');
+          if (rows.length) { gsap.killTweensOf(rows); gsap.set(rows, { clearProps: 'transform' }); }
+        }
+        panel.querySelectorAll('.list-item[data-pre-reveal]').forEach(it => it.removeAttribute('data-pre-reveal'));
+        const filterBar = /** @type {HTMLElement | null} */ (panel.querySelector('.activities-filter-bar'));
+        if (window.innerWidth < 768 && filterBar) filterBar.classList.add('bar-hidden');
+      });
       // 有 ?item= → navigateToItem smooth:true：平滑捲到該項目 → 捲到位 delay 才展開 accordion
       waitForHeroAnimDone().then(() => navigateToItem(initialSection, initialItem, { smooth: true }));
     } else {
@@ -488,6 +510,9 @@ async function switchToSection(section, btns, shouldScroll, isInitial = false) {
 // 跟 section-switch 用同 helpers（playAdmissionPanelExit/Reveal）保持動畫風格一致
 // switching guard 防 user 在動畫期間連點 → race 出現「兩個 list 同時可見」或 reveal 跑錯 target
 let subFilterSwitching = false;
+// deep-link（navigateToItem）程式化切 sub-tab 時抑制「instant 捲回 section 頂」：
+// deep-link 自己有一段平滑捲到 item 的捲動，sub-filter 的瞬移會在途中打架＝「直接跳下去」（user 2026-06-12）
+let suppressSubFilterScroll = false;
 /**
  * @param {string} panelId
  * @param {Record<string, HTMLElement | null>} lists
@@ -520,8 +545,10 @@ async function animatedSubListSwitch(panelId, lists, targetType) {
     // 取代舊「量 filter bar 前後 Y、scrollBy 維持 sticky 視覺位置」：切到短 list（如 permanent 僅 1 筆）時
     // 文件變太短、瀏覽器 clamp scroll → 維持邏輯失效卡在半空奇怪位置。scrollSectionIntoView 用非 sticky
     // section 絕對位置算 target（見 project_sticky_pinned_scroll_target_use_offsettop），短 panel 也回得到頂。
-    const sectionEl = /** @type {HTMLElement | null} */ (document.getElementById('activities-content-section'));
-    scrollSectionIntoView(sectionEl, 'instant');
+    if (!suppressSubFilterScroll) {
+      const sectionEl = /** @type {HTMLElement | null} */ (document.getElementById('activities-content-section'));
+      scrollSectionIntoView(sectionEl, 'instant');
+    }
 
     // 進場 reveal：useScrollTrigger=false 立刻播（不等捲到 viewport）
     setupAdmissionReveal(incoming, { hide: true });

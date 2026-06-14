@@ -291,6 +291,8 @@ function restoreLogoFromBody() {
 
 async function enterStandby() {
   if (isStandby || isTransitioning) return;
+  // 手機不進待機畫面（user 2026-06-12）；guard 放進場時點而非 init，視窗大小變了也準
+  if (window.innerWidth < 768) return;
   isTransitioning = true;
   isStandby = true;
 
