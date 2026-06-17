@@ -27,6 +27,8 @@ let fitToggleBtn = null;
 let closePillEl = null;
 let mainContainerEl = null;
 let refUi = null;  // { btnEl, popoverEl, setReferences, setColor, reset }
+let shareBtnEl = null;   // album 分享按鈕（caller 帶 shareUrl 才顯示）
+let sharePillEl = null;
 
 // ── Zoom 狀態（仿 Windows Photos：滾輪游標中心縮放 + 拖曳平移）─────
 // 只對 image 啟用。每次 renderMain 重置；mousemove/mouseup 綁 window 一次永久存活
@@ -96,10 +98,18 @@ function ensureLightbox() {
         </button>
         <!-- 標題 pill：caller 帶入 list-item 名稱 + accent 底色 + 隨機旋轉 + max-width 超出 marquee -->
         <div class="alb-title" style="display: none;"></div>
+        <!-- Share btn：排在 title 與（置中的）縮圖列之間。只有 caller 帶 opts.shareUrl（library album）才顯示；
+             data-share-url 由 openLightbox 設、全站 share-modal.js 的 [data-share-btn] delegation 接管點擊（QR + 複製）。-->
+        <button class="alb-share" data-share-btn aria-label="分享 Share" style="display: none;">
+          <span class="alb-share-pill" style="display:inline-flex;align-items:center;justify-content:center;background:#00FF80;color:#000;width:44px;height:44px;transform-origin:left bottom;box-sizing:border-box;">
+            <!-- 用返回鍵那顆粗箭頭（icon-arrow-left ←），旋轉 135° 指向右上 ↗ 當分享（比 icon-share 細箭頭粗，user 2026-06-15）-->
+            <span class="icon icon-arrow-left icon-m" style="transform: rotate(135deg);"></span>
+          </span>
+        </button>
       </div>
-      <!-- padding-y: 6px 給 active outline (2px width + 2px offset = 4px) 預留空間 -->
-      <!-- overflow-x:auto 會讓 overflow-y 被瀏覽器隱式設成 auto，沒這 padding 上下 outline 會被 clip 掉 -->
-      <div class="alb-thumbs flex items-center gap-sm" style="max-width: min(80vw, 960px); overflow-x: auto; padding: 6px var(--spacing-md);"></div>
+      <!-- padding-y: 6px 給 active outline (2px width + 2px offset = 4px) 預留空間（規則移到 lightbox.css）-->
+      <!-- overflow-x:auto 會讓 overflow-y 被瀏覽器隱式設成 auto，沒 padding 上下 outline 會被 clip 掉 -->
+      <div class="alb-thumbs flex items-center gap-sm" style="max-width: min(80vw, 960px); overflow-x: auto;"></div>
       <div class="alb-zoom-controls absolute text-white" style="right: var(--container-padding, 1.5rem); top: 50%; transform: translateY(-50%); display: none; align-items: center; gap: 12px;">
         <button class="alb-zoom-out p-2 transition-opacity hover:opacity-60 disabled:opacity-30" aria-label="Zoom out">
           <span class="icon icon-zoom-out icon-m"></span>
@@ -130,6 +140,8 @@ function ensureLightbox() {
   fitToggleBtn   = lightboxEl.querySelector('.alb-fit-toggle');
   closePillEl    = lightboxEl.querySelector('.alb-close-pill');
   mainContainerEl = lightboxEl.querySelector('.alb-main-container');
+  shareBtnEl     = lightboxEl.querySelector('.alb-share');
+  sharePillEl    = lightboxEl.querySelector('.alb-share-pill');
 
   // Ref btn：插在 close btn 跟 title pill 之間（flex 順序）；popover append 到 lightbox root
   refUi = createRefBtn('#00FF80', () => closeLightboxAsync());
@@ -151,42 +163,10 @@ function ensureLightbox() {
     resetZoom(true);
   });
 
-  // 縮圖列拖曳捲動（user 2026-06-12：無 chevron，拖 strip 移動、點選照常）。
-  // 只接滑鼠（觸控走原生 overflow 捲動）；位移 >5px 才視為拖曳（pointer capture + 結束吞掉該次 click，
-  // 避免拖完誤觸 thumb 切圖）；.is-dragging 由 lightbox.css 換 grabbing cursor。
-  let thumbDrag = null;
-  let thumbDragEndAt = 0; // 拖曳結束時間戳：只吞「緊接著」的 click（時限自動失效，避免 flag 殘留吃掉之後的正常點選）
-  thumbsEl.addEventListener('dragstart', (e) => e.preventDefault()); // 雙保險（img 已 draggable=false）
-  thumbsEl.addEventListener('pointerdown', (e) => {
-    if (e.pointerType !== 'mouse') return;
-    thumbDrag = { id: e.pointerId, startX: e.clientX, startLeft: thumbsEl.scrollLeft, moved: false };
-  });
-  thumbsEl.addEventListener('pointermove', (e) => {
-    if (!thumbDrag || e.pointerId !== thumbDrag.id) return;
-    const dx = e.clientX - thumbDrag.startX;
-    if (!thumbDrag.moved && Math.abs(dx) > 5) {
-      thumbDrag.moved = true;
-      thumbsEl.setPointerCapture(e.pointerId);
-      thumbsEl.classList.add('is-dragging');
-    }
-    if (thumbDrag.moved) thumbsEl.scrollLeft = thumbDrag.startLeft - dx;
-  });
-  const endThumbDrag = () => {
-    if (!thumbDrag) return;
-    if (thumbDrag.moved) thumbDragEndAt = performance.now();
-    thumbsEl.classList.remove('is-dragging');
-    thumbDrag = null;
-  };
-  thumbsEl.addEventListener('pointerup', endThumbDrag);
-  thumbsEl.addEventListener('pointercancel', endThumbDrag);
-  thumbsEl.addEventListener('click', (e) => {
-    if (performance.now() - thumbDragEndAt < 350) {
-      e.stopPropagation();
-      e.preventDefault();
-    }
-  }, true);
+  // 縮圖列拖曳已移除（user 2026-06-15）：改為「active 永遠置中」自動捲動（centerActiveThumb）＋
+  // 桌面兩端 pseudo runway（lightbox.css ::before/::after）讓任一張都能捲到正中；觸控板/觸控仍可原生捲動。
 
-  // 點擊背景關閉（拖曳後抑制一次以避免 pan 結束在背景時誤關）
+  // 點擊背景關閉（圖片 pan 結束在背景時 dragMoved 抑制一次以免誤關）
   lightboxEl.addEventListener('click', e => {
     if (dragMoved) { dragMoved = false; return; }
     if (e.target === lightboxEl) closeLightbox();
@@ -200,6 +180,8 @@ function ensureLightbox() {
   //      跟 PDF viewer / scroll convention 一致；mouse drag 仍維持「圖跟手」方向
   document.addEventListener('keydown', e => {
     if (lightboxEl.style.display === 'none') return;
+    // share modal 疊在 lightbox 之上時（後 append、同 z-9999 在最上層），鍵盤交給它（避免 Esc 同時關兩層）
+    if (document.getElementById('share-lightbox')?.style.display === 'flex') return;
     if (e.key === 'Escape') { closeLightbox(); return; }
 
     const canPan = zoomImg && zoom.scale > fitScale() + 0.001;
@@ -603,8 +585,12 @@ export async function openLightbox(media, startIndex = 0, opts = {}) {
     const img = document.createElement('img');
     img.src = item.thumb;
     img.alt = '';
-    img.draggable = false; // 原生 image drag 會中斷 pointer 流，毀掉縮圖列的拖曳捲動
+    img.draggable = false; // 防原生 image drag 干擾（拖選圖片）
     img.style.cssText = 'height:100%;width:auto;display:block;object-fit:contain;';
+    // 縮圖 width:auto 依比例 → 載入後寬度才定；若這張是 active 需重新置中（active 永遠在正中）
+    img.addEventListener('load', () => {
+      if (lightboxEl.style.display !== 'none') centerActiveThumb(currentIndex, false);
+    });
     btn.appendChild(img);
     btn.addEventListener('click', () => {
       if (iframeEl) iframeEl.src = '';
@@ -613,10 +599,16 @@ export async function openLightbox(media, startIndex = 0, opts = {}) {
     thumbsEl.appendChild(btn);
   });
 
+  // album 版面（縮圖 1/3 寬置中 + title 縮窄）只在 caller 帶 shareUrl（library album）時套用；
+  // activities 海報/gallery 維持原寬版。必須在 renderTitle 前設好 class，marquee 才量到正確 title 寬。
+  lightboxEl.classList.toggle('alb-album', !!opts.shareUrl);
+
   // 標題 pill：仿 activities-section-btn active 樣式（vertical en+zh + 隨機旋轉 + accent bg）
   renderTitle(opts.title, opts.color);
   // 返回按鈕：底色用 caller 帶入 accent (與 title pill 同色)，隨機旋轉（每次開啟一個新角度）
   renderBackButton(opts.color);
+  // Share btn：caller 帶 shareUrl（library album）才顯示，套同 accent 底色
+  renderShareButton(opts.color, opts.shareUrl);
   // ref btn：跟 back btn 同 accent；無 references 時自動隱藏
   if (refUi) {
     refUi.setColor(resolvePillColor(opts.color));
@@ -676,6 +668,21 @@ function renderBackButton(color) {
   closePillEl.style.transform = `rotate(${rot}deg)`;
 }
 
+// Share btn（library album 專用）：caller 帶 shareUrl 才顯示，套全站 share modal（[data-share-btn] delegation）。
+// data-share-url 讓 share-modal.computeShareUrl 直接用此網址（QR + 複製），不靠 .list-item / panel 推算。
+// 底色同 close/ref accent（resolvePillColor 處理 mode3 白底）；不旋轉，跟 ref btn 一致保持端正。
+function renderShareButton(color, shareUrl) {
+  if (!shareBtnEl || !sharePillEl) return;
+  if (!shareUrl) {
+    shareBtnEl.style.display = 'none';
+    delete shareBtnEl.dataset.shareUrl;
+    return;
+  }
+  shareBtnEl.style.display = '';
+  shareBtnEl.dataset.shareUrl = shareUrl;
+  sharePillEl.style.background = resolvePillColor(color);
+}
+
 // close/ref pill 高度 follow title pill 自然撐高（同 PDF viewer syncBackBtnHeight 規格）
 // rotation 不影響 offsetHeight 所以量 unrotated 套到 rotated pill 仍對齊
 // width = min(44, h)：單行 title（h<44）→ 縮成正方形（以短邊 h 為主、砍左右 padding，user 2026-06-03）；
@@ -689,6 +696,7 @@ function syncCloseBtnHeight() {
   if (!pill || titleEl.style.display === 'none') {
     closePillEl.style.height = '44px'; closePillEl.style.width = '44px';
     if (refPill) { refPill.style.height = '44px'; refPill.style.width = '44px'; }
+    if (sharePillEl) { sharePillEl.style.height = '44px'; sharePillEl.style.width = '44px'; }
     return;
   }
   const h = /** @type {HTMLElement} */ (pill).offsetHeight;
@@ -696,6 +704,7 @@ function syncCloseBtnHeight() {
     const w = Math.min(44, h);   // 以短邊為主：單行縮成正方形、兩行維持 44 寬
     closePillEl.style.height = h + 'px'; closePillEl.style.width = w + 'px';
     if (refPill) { refPill.style.height = h + 'px'; refPill.style.width = w + 'px'; }
+    if (sharePillEl) { sharePillEl.style.height = h + 'px'; sharePillEl.style.width = w + 'px'; }
   }
 }
 

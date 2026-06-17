@@ -37,6 +37,8 @@ function getQrEndpoint(url, size = 200) {
 
 // 從 [data-share-btn] 推算 share URL — 跟 click handler 用同一份邏輯（必須產生同 URL 才能 cache hit）
 function computeShareUrl(btn) {
+  // 顯式 data-share-url（如 lightbox 內 album 分享按鈕）優先：caller 已算好完整網址，不靠 .list-item / panel 推算
+  if (btn.dataset && btn.dataset.shareUrl) return btn.dataset.shareUrl;
   const base = window.location.href.split('?')[0];
   const listItem = btn.closest('.list-item');
   const itemId   = listItem?.id?.replace(/^item-/, '');
@@ -105,6 +107,10 @@ function openShareLightbox(url) {
   const lightbox = document.getElementById('share-lightbox');
   const card = document.getElementById('share-lightbox-card');
   if (!lightbox || !card) return;
+
+  // share-lightbox 在 boot 時就 inject（DOM 早於 lazy 建立的 album lightbox）→ 同 z-9999 下會被後者蓋住；
+  // 開啟時 re-append 到 body 尾端，確保疊在已開的 lightbox 之上（從 lightbox 內 share btn 點開的情境）
+  document.body.appendChild(lightbox);
 
   // 填入 QR code 與 URL — crossOrigin 給 download 走 canvas 去背用
   // hover/touch 預先 prefetchQr 過時，這裡 src 設同 URL → HTTP cache hit → onload 同步 fire = 即時

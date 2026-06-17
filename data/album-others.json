@@ -2,7 +2,7 @@
   {
     "year": 2025,
     "items": [
-      { "id": "AO-2025-01", "title_en": "Spring Exhibition 2025", "title_zh": "2025 春季展覽", "cover": "../images/SCCD-1-4-0.jpg", "images": ["../images/SCCD-1-4-0.jpg"] }
+      { "id": "AO-2025-01", "references": [ { "type": "award", "id": "a-2025-01" } ], "title_en": "Spring Exhibition 2025", "title_zh": "2025 春季展覽", "cover": "../images/SCCD-1-4-0.jpg", "images": ["../images/SCCD-1-4-0.jpg"] }
     ]
   },
   {

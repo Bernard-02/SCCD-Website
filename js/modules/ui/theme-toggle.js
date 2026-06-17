@@ -131,6 +131,10 @@ function applyColorVars() {
   // --lib-bg 兩階切換（mode3）：對齊 mode1/2 的固定灰值，依 page bg luminance 翻
   // 亮 page → #f2f2f2（同 mode1 standard）/ 暗 page → #333333（同 mode2 inverse）
   root.style.setProperty('--lib-bg', isLightBg ? '#f2f2f2' : '#333333');
+  // --lib-ref-bg：awards ref 展開列底色「比 --lib-bg 灰卡再深一階」，依 hue 亮暗跟著切
+  // 亮 card(#f2f2f2) → gray-9(#E6E6E6)（同 standard）/ 暗 card(#333333) → gray-1(#1A1A1A)（同 inverse）；
+  // ref 文字直接吃 var(--lib-fg)（=theme-fg，亮黑暗白）→ 不需另設 ref-fg var
+  root.style.setProperty('--lib-ref-bg', isLightBg ? 'var(--gray-9)' : 'var(--gray-1)');
 
   // Header logo（wireframe）對比翻色：wireframe-standard base 黑色，暗底套 invert(1) 變白
   // 直接比對 style.filter（cheap read）避免維護 lastIsLightBg 狀態 + 處理 logo async load 的 race
@@ -208,6 +212,7 @@ function stopColorLoop() {
   root.style.removeProperty('--theme-neutral-gray');
   root.style.removeProperty('--theme-neutral-gray-inverse');
   root.style.removeProperty('--lib-bg');
+  root.style.removeProperty('--lib-ref-bg');
   root.style.removeProperty('--theme-bg-contrast');
   root.style.removeProperty('--theme-bg-contrast-rgb');
   root.style.removeProperty('--theme-fg-contrast');

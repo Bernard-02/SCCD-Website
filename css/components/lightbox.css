@@ -140,24 +140,50 @@
  *   - 黑底「蓋滿整個畫面（含 header 區、無頂部白帶）」＝靠 header 透明，**仍維持 bg-black/90 半透明（與桌面一致）**
  *   - 返回/ref/標題 topbar 沉到畫面最底（縮圖列下方；user 2026-06-10 二改，原早版放頂部）
  * 桌面（≥768）完全不受影響。*/
-/* 縮圖列藏原生 scrollbar（user 2026-06-12「很醜」）：捲動靠拖曳（桌面）/ 觸控（手機），不需要視覺軌道 */
+/* 縮圖列藏原生 scrollbar（user 2026-06-12「很醜」）：捲動靠觸控板 / 觸控 + active 自動置中，不需要視覺軌道 */
 #activities-lightbox .alb-thumbs {
+  /* 上下 6px 給 active outline (2px width + 2px offset) 預留空間（overflow-x:auto 隱式把 overflow-y 設 auto，
+     沒這 padding 上下 outline 會被裁）；左右 spacing-md（原本寫在 JS template inline，2026-06-15 移到此） */
+  padding: 6px var(--spacing-md);
   scrollbar-width: none;
 }
 #activities-lightbox .alb-thumbs::-webkit-scrollbar {
   display: none;
 }
 
-/* 桌面縮圖列：max-width 讓開兩側絕對定位區（左 topbar back+ref+title ≤ ~550px、右 zoom controls），
-   title 永不疊到縮圖（user 2026-06-12）；縮圖無 chevron，超出改用拖曳捲動（activities-lightbox.js 綁
-   pointer 拖曳 + 拖過吞 click，.is-dragging 換 grabbing cursor）。!important 蓋 JS template 的 inline max-width */
+/* 拖曳移除（user 2026-06-15）：原 .is-dragging / grab cursor 全站 lightbox 一併拿掉；觸控板/觸控仍可原生捲動，
+   導航靠 chevron / 點縮圖 / swipe + active 自動置中。 */
+
+/* 桌面 album 縮圖列（user 2026-06-15；只套 .alb-album＝library album，activities 海報/gallery 維持原寬版）：
+   ① max-width = 扣掉左右 container-padding 後的 1/3 → 縮圖列佔畫面中央約 1/3 寬（!important 蓋 inline max-width）。
+   ② 兩端 ::before/::after pseudo runway（各 flex 50%）＋ JS centerActiveThumb → active 永遠置中、從中間往兩側排，
+      頭尾任一張也能捲到正中（無 runway 時頭尾貼邊無法置中）。 */
 @media (min-width: 768px) {
-  #activities-lightbox .alb-thumbs {
-    max-width: min(calc(100vw - 1120px), 960px) !important;
-    cursor: var(--cursor-grab);
+  #activities-lightbox.alb-album .alb-thumbs {
+    max-width: calc((100vw - 2 * var(--container-padding)) / 3) !important;
   }
-  #activities-lightbox .alb-thumbs.is-dragging {
-    cursor: var(--cursor-grabbing);
+  #activities-lightbox.alb-album .alb-thumbs::before,
+  #activities-lightbox.alb-album .alb-thumbs::after {
+    content: "";
+    flex: 0 0 50%;   /* runway：約半個視窗，讓第一/最後一張也能捲到正中 */
+  }
+  /* topbar（close+ref+title+share）限寬到「置中縮圖列左緣 − gap」，不疊到縮圖；title flex-shrink 自動縮 + marquee。
+     stripLeftEdge = 100vw/3 + container-padding/3；扣掉左 container-padding 與 20px gap 得本 max-width。
+     share btn 加入後長標題會再縮一截 → 自動 marquee（user 2026-06-15 已知取捨）。 */
+  #activities-lightbox.alb-album .alb-topbar {
+    max-width: calc(100vw / 3 - var(--container-padding) * 2 / 3 - 20px);
+  }
+  #activities-lightbox.alb-album .alb-close,
+  #activities-lightbox.alb-album .alb-ref-btn,
+  #activities-lightbox.alb-album .alb-share {
+    flex-shrink: 0;   /* 固定大小，只讓 title 縮 */
+  }
+  #activities-lightbox.alb-album .alb-title {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+  #activities-lightbox.alb-album .alb-title-pill {
+    max-width: 100% !important;   /* 蓋掉 inline min(40vw,360px)，改吃 topbar 剩餘寬（縮到 0 也可 → marquee）*/
   }
 }
 
@@ -267,20 +293,34 @@
     transform: translateX(-50%) !important;
   }
 
-  /* back / ref / title 沉到底部 bar 底端（桌面是 top:50% 垂直置中）：頁碼在它們「上方」置中。
-     transform:none 清外層 translateY，pill 旋轉在內層（.pdf-back-pill / .pdf-title-pill）不受影響。 */
+  /* back / ref / title / share 沉到底部 bar 底端（桌面是 top:50% 垂直置中）：頁碼在它們「上方」置中。
+     transform:none 清外層 translateY，pill 旋轉在內層（.pdf-back-pill / .pdf-title-pill）不受影響。
+     ⚠️ share btn 原漏在此清單外（user 2026-06-15 報手機 PDF viewer 沒 share）→ 它留在桌面 top:50%、
+     且 positionSharePdf 依桌面把 left 推到畫面外（量到 left:386px@390 viewport）= 看不到。補進來一起沉底。 */
   #pdf-viewer-modal .pdf-back-btn,
   #pdf-viewer-modal .pdf-ref-btn,
-  #pdf-viewer-modal .pdf-title {
+  #pdf-viewer-modal .pdf-title,
+  #pdf-viewer-modal .pdf-share-btn {
     top: auto !important;
     bottom: var(--spacing-sm) !important;
     transform: none !important;
+  }
+
+  /* share btn 錨右下角（鏡像 album：title 填中段、share 在最右）。left:auto 清掉 positionSharePdf 設的 inline left。 */
+  #pdf-viewer-modal .pdf-share-btn {
+    left: auto !important;
+    right: var(--container-padding, 1.5rem) !important;
   }
 
   /* 標題 pill 從現位置（ref 右側，left 由 JS 設）一路撐到右 padding（user 2026-06-11）；
      pill 填滿 outer，超寬文字由既有 setupTitleMarquee 跑馬燈處理（不再被 min(40vw) 切短） */
   #pdf-viewer-modal .pdf-title {
     right: var(--container-padding, 1.5rem) !important;
+  }
+  /* 有 share（data-share-url 存在＝caller 帶 shareUrl）時，title 右緣讓出 share 寬度(44)+gap(20)＝不疊到 share；
+     無 share 時維持上面撐到右 padding。:has 偵測 share btn 是否帶 data-share-url（renderSharePdf 設/刪）。 */
+  #pdf-viewer-modal:has(.pdf-share-btn[data-share-url]) .pdf-title {
+    right: calc(var(--container-padding, 1.5rem) + 64px) !important;
   }
   #pdf-viewer-modal .pdf-title .pdf-title-pill {
     max-width: none !important;

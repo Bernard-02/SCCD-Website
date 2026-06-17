@@ -173,6 +173,7 @@ function runMarqueeOverflow(containerEl, rowSelector, innerSelector) {
 const AWARD_REF_TYPE_LABELS = {
   document: { en: 'Documents', zh: '文件' },
   press:    { en: 'Press',     zh: '報導' },
+  album:    { en: 'Albums',    zh: '相簿' },
 };
 
 let _pressDataPromise = null;
@@ -233,6 +234,21 @@ function unionRefs(auto, manual) {
   });
 }
 
+// 從某 host（award / activity item）點進 lightbox/PDF 時，popover 不該再 ref 回那個 host（避免循環）。
+// 同 activities 的 getPdfRefSources({excludeSection,excludeItemId})，但統一處理 href(award) 與 section/itemId(activity) 兩種 ref。
+// host = { awardId } 或 { section, itemId }；無 host（直接從 Files/Press panel 開）→ 不排除、ref 到所有來源。
+function excludeHostFromRefs(refs, host) {
+  if (!host || !Array.isArray(refs)) return refs || [];
+  return refs.filter(r => {
+    if (!r) return false;
+    // award host：排除指向該 award 的 href chip（library.html#a-YYYY-NN）
+    if (host.awardId && r.href && r.href.endsWith('#' + host.awardId)) return false;
+    // activity host：排除指向該 section+itemId 的 ref
+    if (host.section && host.itemId && r.section === host.section && r.itemId === host.itemId) return false;
+    return true;
+  });
+}
+
 // resolve 成渲染用統一 shape { kind, labelEn/Zh, titleEn/Zh, ...跳轉 payload }；目標不存在回 null（該 ref 不渲染）
 async function resolveAwardRef(ref) {
   if (!ref) return null;
@@ -247,6 +263,12 @@ async function resolveAwardRef(ref) {
     const t = (Array.isArray(press) ? press : []).find(p => String(p.id) === String(ref.id));
     if (!t) return null;
     return { kind: 'press', labelEn: AWARD_REF_TYPE_LABELS.press.en, labelZh: AWARD_REF_TYPE_LABELS.press.zh, titleEn: t.titleEn || '', titleZh: t.titleZh || '', pressId: t.id };
+  }
+  if (ref.type === 'album') {
+    const albums = await loadAlbumItemsCached().catch(() => []);
+    const t = (Array.isArray(albums) ? albums : []).find(a => String(a.id) === String(ref.id));
+    if (!t || !t.media || !t.media.length) return null;
+    return { kind: 'album', labelEn: AWARD_REF_TYPE_LABELS.album.en, labelZh: AWARD_REF_TYPE_LABELS.album.zh, titleEn: t.titleEn || '', titleZh: t.titleZh || '', albumId: t.id };
   }
   if (ref.section && ref.itemId) {
     const label = SECTION_LABELS[ref.section] || {};
@@ -278,6 +300,8 @@ function bindAwardRefRowClick(row) {
   row.addEventListener('click', async (e) => {
     e.stopPropagation();
     const color = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
+    // 從本 award 點進 lightbox → popover 排除「ref 回本 award」的循環項（同 activities 的 host 排除；user 2026-06-15）
+    const host = row.dataset.refHostAward ? { awardId: row.dataset.refHostAward } : null;
 
     const pdfUrl = row.dataset.refPdfUrl;
     if (pdfUrl) {
@@ -287,8 +311,9 @@ function bindAwardRefRowClick(row) {
       // 該 file 自己的手填 references（含 award 反向 ref → viewer 內可 ref 回得獎紀錄）也 union 進去
       const files = await loadFilesDataCached().catch(() => []);
       const fileItem = (Array.isArray(files) ? files : []).find(f => f.pdfUrl === pdfUrl);
-      const references = unionRefs(auto, await resolveLibManualRefs(fileItem));
-      document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl, title, color, references } }));
+      const references = excludeHostFromRefs(unionRefs(auto, await resolveLibManualRefs(fileItem)), host);
+      const shareUrl = libShareUrl(fileItem && fileItem.id && `f-${fileItem.id}`);
+      document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl, title, color, references, shareUrl } }));
       return;
     }
 
@@ -308,13 +333,25 @@ function bindAwardRefRowClick(row) {
         if (vid) media.push({ type: 'video', src: `https://www.youtube.com/embed/${vid}`, thumb: `https://img.youtube.com/vi/${vid}/hqdefault.jpg` });
       });
       if (media.length) {
-        document.dispatchEvent(new CustomEvent('sccd:open-lightbox', { detail: { media, index: 0, title, color, references: await resolveLibManualRefs(item) } }));
+        const references = excludeHostFromRefs(await resolveLibManualRefs(item), host);
+        document.dispatchEvent(new CustomEvent('sccd:open-lightbox', { detail: { media, index: 0, title, color, references } }));
       } else if (item.pdfUrl) {
         const { getPdfRefSources } = await import('./pdf-cross-ref-index.js');
         const auto = await getPdfRefSources(item.pdfUrl);
-        const references = unionRefs(auto, await resolveLibManualRefs(item));
-        document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl, title, color, references } }));
+        const references = excludeHostFromRefs(unionRefs(auto, await resolveLibManualRefs(item)), host);
+        document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl, title, color, references, shareUrl: libShareUrl(item.id) } }));
       }
+      return;
+    }
+
+    const albumId = row.dataset.refAlbumId;
+    if (albumId) {
+      const albums = await loadAlbumItemsCached().catch(() => []);
+      const item = (Array.isArray(albums) ? albums : []).find(a => String(a.id) === String(albumId));
+      if (!item || !item.media || !item.media.length) return;
+      const title = { en: item.titleEn || '', zh: item.titleZh || '' };
+      const references = excludeHostFromRefs(await resolveLibManualRefs(item), host);
+      document.dispatchEvent(new CustomEvent('sccd:open-lightbox', { detail: { media: item.media, index: 0, title, color, references, shareUrl: libShareUrl(item.id && `album-${item.id}`) } }));
       return;
     }
 
@@ -543,14 +580,17 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     // ref 展開列：版型沿用 list-ref-btn（hover 黑底），但 grid 改用 AWARD_GRID 對齊主表 —
     // label 落「競賽名稱」欄(col 2)、title 落「主辦單位」欄(col 3)起算往右展開；左側 col 1 不放 ref icon。
     const escAttr = s => String(s || '').replace(/"/g, '&quot;');
-    const buildRefRowsHtml = (refs) => refs.map(r => {
+    // hostAwardId = 此 ref row 所在的 award id → 點 document/press ref 開 lightbox 時當 host 排除（popover 不 ref 回本 award）
+    const buildRefRowsHtml = (refs, hostAwardId) => refs.map(r => {
       const dataAttrs = r.kind === 'document'
         ? `data-ref-pdf-url="${escAttr(r.pdfUrl)}" data-ref-title-en="${escAttr(r.titleEn)}" data-ref-title-zh="${escAttr(r.titleZh)}"`
         : r.kind === 'press'
         ? `data-ref-press-id="${escAttr(r.pressId)}"`
+        : r.kind === 'album'
+        ? `data-ref-album-id="${escAttr(r.albumId)}"`
         : `data-ref-section="${escAttr(r.section)}" data-ref-item="${escAttr(r.itemId)}"`;
       return `
-        <button class="list-ref-btn award-ref-row cursor-pointer border-none w-full text-left" style="display:grid;${AWARD_GRID}align-items:start;padding:var(--spacing-sm) 0;" ${dataAttrs}>
+        <button class="list-ref-btn award-ref-row cursor-pointer border-none w-full text-left" style="display:grid;${AWARD_GRID}align-items:start;padding:var(--spacing-sm) 0;" data-ref-host-award="${escAttr(hostAwardId)}" ${dataAttrs}>
           <div class="flex flex-col" style="grid-column:2;">
             ${r.labelEn ? `<p class="text-p2">${r.labelEn}</p>` : ''}
             ${r.labelZh ? `<p class="text-p2">${r.labelZh}</p>` : ''}
@@ -581,14 +621,14 @@ async function initAwardsPanel(onEntranceDoneCallback) {
           // 開合不做旋轉變化（user 2026-06-13 第三輪）
           const refBtnHtml = hasExpand ? `
             <button class="award-ref-toggle" aria-label="Show references"
-                    style="background:none;border:none;padding:0.1em 0 0;color:inherit;cursor:url('${sitePath('custom-cursor/pointer.svg')}') 14 1, pointer;line-height:1;">
+                    style="background:none;border:none;padding:0.23em 0 0;color:inherit;cursor:url('${sitePath('custom-cursor/pointer.svg')}') 14 1, pointer;line-height:1;">
               <span class="icon icon-ref-list icon-s" style="transform:scaleX(-1) rotate(90deg);"></span>
             </button>` : '';
           // ref 展開區：跨整列（grid-column 1/-1）、height 0 起始，由 toggle 做 accordion 開合；
           // 開啟時 margin-bottom 收掉 item 的 0.5rem bottom padding → ref 列直接貼到分割綫（JS tween 同步）
           const refWrapHtml = hasExpand ? `
             <div class="award-ref-wrap" style="grid-column:1 / -1;height:0;overflow:hidden;margin-bottom:0;">
-              <div class="flex flex-col" style="padding-top:var(--spacing-xs);">${buildRefRowsHtml(refs)}</div>
+              <div class="flex flex-col" style="padding-top:var(--spacing-xs);">${buildRefRowsHtml(refs, item.id)}</div>
             </div>` : '';
           // award-mid 桌面 display:contents → 內 4 cell 落 col 2-5（競賽名稱 / 主辦單位 / 獎項 / 名次）；
           // 手機 flex-column 內部直排。主辦單位插在競賽名稱與獎項之間 = 主表第 3 欄、對齊 ref title 欄。
@@ -957,7 +997,7 @@ async function initPressPanel() {
               const { getPdfRefSources } = await import('./pdf-cross-ref-index.js');
               const auto = await getPdfRefSources(item.pdfUrl);
               const references = unionRefs(auto, await resolveLibManualRefs(item));
-              document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl, title: pdfTitle, color: pdfColor, references } }));
+              document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl, title: pdfTitle, color: pdfColor, references, shareUrl: libShareUrl(item.id) } }));
             });
           }
           block.appendChild(div);
@@ -982,6 +1022,8 @@ async function initPressPanel() {
 
     const pressEmptyState = ensureEmptyState(listEl);
 
+    // 上次的分類選取簽章 — 分類切換才重量 marquee（搜尋/年份不改 title 容器寬，免每鍵重置）
+    let _prevCatSig = '';
     function applyFiltersWithRef() {
       const q     = searchInput ? searchInput.value.trim().toLowerCase() : '';
       const isAll = selectedCats.size === 0;
@@ -1016,6 +1058,16 @@ async function initPressPanel() {
       // Empty state：search 有輸入但沒任何 block 可見才顯示
       const anyVisible = /** @type {HTMLElement[]} */ ([...listEl.querySelectorAll('.press-year-block')]).some(b => b.style.display !== 'none');
       pressEmptyState.classList.toggle('hidden', !q || anyVisible);
+
+      // 分類切換 → cat tag 顯隱 + titles maxWidth 變（all=calc(100%-10rem) ↔ filtered=100%）→ title 容器寬度改變，
+      // 必須重量 marquee：否則「有 tag(窄容器)時量的 dual-copy clone」在無 tag(寬容器)裡變成靜態重複標題（user 2026-06-15）。
+      // 只在分類選取變動時跑（搜尋/年份不改容器寬）；rAF 等 maxWidth/display reflow 後再量。applyMarqueeOverflow
+      // 對 display:none 列（offsetWidth/scrollWidth 皆 0）自動跳過 → 只重量當前可見列、切類時各自重量正確。
+      const catSig = [...selectedCats].sort().join(',');
+      if (catSig !== _prevCatSig) {
+        _prevCatSig = catSig;
+        if (typeof window._pressMarqueeInit === 'function') requestAnimationFrame(window._pressMarqueeInit);
+      }
     }
 
     // 分類按鈕 + 年份 Picker
@@ -1115,7 +1167,7 @@ async function initFilesPanel() {
               const { getPdfRefSources } = await import('./pdf-cross-ref-index.js');
               const auto = await getPdfRefSources(item.pdfUrl);
               const references = unionRefs(auto, await resolveLibManualRefs(item));
-              document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl, title: pdfTitle, color: accentColor, references } }));
+              document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl, title: pdfTitle, color: accentColor, references, shareUrl: libShareUrl(item.id && `f-${item.id}`) } }));
             });
           }
 
@@ -1248,14 +1300,24 @@ function normalizeDegreeShow(data) {
   return Object.entries(data).map(([y, entry]) => ({ year: parseInt(y, 10), items: [entry] }));
 }
 
-async function initAlbumPanel() {
-  try {
+// library deep-link 分享網址（library.html#<domId>）：domId = 列表項目的 DOM id（press-* / f-* / album-*），
+// 跟 hash deep-link / highlight 用的 element id 一致。跑在 library 頁 → location.pathname 即正確路徑（含子路徑部署前綴）。
+// 給 lightbox（album）與 PDF viewer（press/files）內的 share btn 用。
+function libShareUrl(domId) {
+  return domId ? `${location.origin}${location.pathname}#${domId}` : undefined;
+}
+
+// 相簿 item 組裝（cover/影片/圖片 → media、references 原樣帶上）抽成快取 loader：
+// Album panel render 與「award ref 指向 album（{type:'album'}）開 lightbox」共用同一份 item 索引。
+let _albumItemsPromise = null;
+function loadAlbumItemsCached() {
+  if (_albumItemsPromise) return _albumItemsPromise;
+  _albumItemsPromise = (async () => {
     const results = await Promise.all(
       ALBUM_SOURCES.map(s => s.load
         ? s.load().catch(() => null)
         : fetch(sitePath(s.url)).then(r => r.json()).catch(() => null))
     );
-
     const allItems = [];
     results.forEach((data, i) => {
       const { cat, isDegreeShow } = ALBUM_SOURCES[i];
@@ -1290,9 +1352,15 @@ async function initAlbumPanel() {
         });
       });
     });
-
     allItems.sort((a, b) => b.year - a.year);
-    const sorted = allItems;
+    return allItems;
+  })();
+  return _albumItemsPromise;
+}
+
+async function initAlbumPanel() {
+  try {
+    const sorted = await loadAlbumItemsCached();
 
     const listEl       = document.getElementById('library-album-list');
     const yearPickerEl = document.getElementById('library-album-year-picker');
@@ -1363,8 +1431,12 @@ async function initAlbumPanel() {
             div.style.cursor = `url('${sitePath('custom-cursor/pointer.svg')}') 14 1, pointer`;
             const lbTitle = { en: item.titleEn || '', zh: item.titleZh || '' };
             const lbColor = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
-            div.addEventListener('click', () => {
-              document.dispatchEvent(new CustomEvent('sccd:open-lightbox', { detail: { media: item.media, index: 0, title: lbTitle, color: lbColor, references: item.references } }));
+            const shareUrl = libShareUrl(item.id && `album-${item.id}`);
+            // 直接從 Album panel 點 → 無 host，ref 顯示全部（含 award 反向 ref）；resolveLibManualRefs 解析 award→href chip
+            // （原本傳 raw item.references → award 反向 ref 因無 section/itemId/href 被 lightbox-ref-btn 過濾掉、不顯示）
+            div.addEventListener('click', async () => {
+              const references = await resolveLibManualRefs(item);
+              document.dispatchEvent(new CustomEvent('sccd:open-lightbox', { detail: { media: item.media, index: 0, title: lbTitle, color: lbColor, references, shareUrl } }));
             });
           }
 

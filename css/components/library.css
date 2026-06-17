@@ -225,7 +225,9 @@
 }
 
 /* ── Press category filter buttons ──────────────────────────── */
+/* 點選某類 → 其餘 .dimmed 淡出（color α 0.3）；transition 讓淡入淡出平滑不突兀（user 2026-06-15） */
 .lib-press-cat-btn {
+  transition: color 0.3s ease;
   background: none;
   border: none;
   padding: 0;
@@ -327,6 +329,22 @@
 body.mode-inverse #library-awards-list .award-ref-row {
   background: var(--gray-1);
   color: #fff;
+}
+/* mode3（color）：ref 底色跟著「灰卡」(--lib-bg 依 hue 亮暗兩階) 走 — 亮卡 → gray-9、暗卡 → gray-1
+   （--lib-ref-bg 由 theme-toggle 依 isLightBg 設）；文字吃 --lib-fg（=theme-fg 亮黑暗白）。user 2026-06-15。
+   ⚠️ 需 !important：color.css `body.mode-color .list-ref-btn` 用 --theme-neutral-gray(暗卡只到 gray-2=卡色)+!important，
+   特異度 (0,2,0) → 本規則 (1,2,1)+!important 才壓得過。hover 必須一併重申（否則本 resting 的 id 特異度會反壓
+   color.css 的 :hover），色值同既有 mode-color hover：theme-fg/theme-fg-inverse（亮卡黑底白字、暗卡白底黑字）。 */
+body.mode-color #library-awards-list .award-ref-row {
+  background: var(--lib-ref-bg) !important;
+  color: var(--lib-fg) !important;
+}
+body.mode-color #library-awards-list .award-ref-row:hover {
+  background: var(--theme-fg) !important;
+  color: var(--theme-fg-inverse) !important;
+}
+body.mode-color #library-awards-list .award-ref-row:hover * {
+  color: var(--theme-fg-inverse) !important;
 }
 /* mode2 hover：resting 已深灰 → hover 反相成白底黑字（對稱 standard 的深色 hover；全站 .list-ref-btn:hover
    是黑底白字，在深底上幾乎看不出 → 此處覆寫）。桌面限定避免手機 tap sticky hover 殘留（同全站做法）。 */
@@ -511,6 +529,7 @@ body.mode-inverse #library-awards-list .award-ref-row {
 
 /* ── Album category filter buttons ──────────────────────────── */
 .lib-album-cat-btn {
+  transition: color 0.3s ease;
   background: none;
   border: none;
   padding: 0;
@@ -526,6 +545,7 @@ body.mode-inverse #library-awards-list .award-ref-row {
 
 /* ── Files category filter buttons ──────────────────────────── */
 .lib-files-cat-btn {
+  transition: color 0.3s ease;
   background: none;
   border: none;
   padding: 0;

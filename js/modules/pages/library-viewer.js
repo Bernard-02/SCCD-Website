@@ -17,9 +17,9 @@ function ensureLightboxListener() {
   if (_lightboxListenerAdded) return;
   _lightboxListenerAdded = true;
   document.addEventListener('sccd:open-lightbox', e => {
-    const { media, index, title, color, references } = e.detail;
-    // title / color / references 由 caller (library-panels) 帶入；沒帶就 fallback 不顯示對應 UI
-    openLightbox(media, index, { title, color, references });
+    const { media, index, title, color, references, shareUrl } = e.detail;
+    // title / color / references / shareUrl 由 caller (library-panels) 帶入；沒帶就 fallback 不顯示對應 UI
+    openLightbox(media, index, { title, color, references, shareUrl });
   });
 }
 
@@ -104,6 +104,14 @@ function ensurePdfModal() {
         </span>
       </button>
       <div class="pdf-title absolute" style="top: 50%; transform: translateY(-50%); left: 4rem; z-index: 50; display: none;"></div>
+      <!-- Share btn：排在 title 之後（鏡像 album lightbox）。caller 帶 shareUrl（library press/files）才顯示；
+           data-share-url 由 open-pdf handler 設、全站 share-modal.js [data-share-btn] delegation 接管（QR + 複製）。
+           圖示＝返回鍵那顆粗箭頭旋轉 135° 指右上 ↗（與 album share btn 一致，user 2026-06-15）。-->
+      <button class="pdf-share-btn absolute" data-share-btn aria-label="分享 Share" style="top: 50%; transform: translateY(-50%); left: 4rem; z-index: 50; display: none;">
+        <span class="pdf-share-pill" style="display:inline-flex;align-items:center;justify-content:center;background:#00FF80;color:#000;width:44px;height:44px;transform-origin:left bottom;box-sizing:border-box;">
+          <span class="icon icon-arrow-left icon-m" style="transform: rotate(135deg);"></span>
+        </span>
+      </button>
       <span id="pdf-page-info" class="text-p2"></span>
       <!-- 頁碼 justify-center 置中；zoom controls 靠右 absolute，top:50%+translateY(-50%) 與頁碼同一水平線
            （user 2026-06-03 澄清：頁碼置中、controls 靠右、兩者對齊在同一水平線，不是整組置中）-->
@@ -152,6 +160,8 @@ export function initPdfViewer() {
   const mainRowEl = modal.querySelector('.pdf-main-row');
   const bottomBarEl = modal.querySelector('.pdf-bottom-bar');
   const titleEl   = modal.querySelector('.pdf-title');
+  const shareBtnEl = modal.querySelector('.pdf-share-btn');
+  const sharePillEl = modal.querySelector('.pdf-share-pill');
   const zoomInBtn  = document.getElementById('pdf-zoom-in');
   const zoomOutBtn = document.getElementById('pdf-zoom-out');
   const zoomPctEl  = document.getElementById('pdf-zoom-pct');
@@ -462,6 +472,7 @@ export function initPdfViewer() {
       syncBackBtnHeight();
       positionRefBtn();
       positionTitle();
+      positionSharePdf();
       setupTitleMarquee();
     });
   }
@@ -500,6 +511,20 @@ export function initPdfViewer() {
     refUi.setColor(bg);
   }
 
+  // Share btn（library press/files PDF 專用）：caller 帶 shareUrl 才顯示，套全站 share modal（[data-share-btn] delegation）。
+  // data-share-url 讓 share-modal.computeShareUrl 直接用此網址（QR + 複製）；底色同 back/ref accent，不旋轉保持端正。
+  function renderSharePdf(color, shareUrl) {
+    if (!shareBtnEl || !sharePillEl) return;
+    if (!shareUrl) {
+      shareBtnEl.style.display = 'none';
+      delete shareBtnEl.dataset.shareUrl;
+      return;
+    }
+    shareBtnEl.style.display = '';
+    shareBtnEl.dataset.shareUrl = shareUrl;
+    sharePillEl.style.background = resolvePillColor(color);
+  }
+
   // title pill 高度由 EN+ZH 兩行自然撐，back/ref pill follow title 高度（user 2026-06-01 拍板）
   // 之前曾嘗試 back/ref 鎖 44×44 但同 viewer 內 back 比 title 矮太多視覺不協調 → 改回 sync
   // width = min(44, h)：單行 title（h<44）→ 縮成正方形（以短邊 h 為主、砍左右 padding，user 2026-06-03）；
@@ -512,6 +537,7 @@ export function initPdfViewer() {
     if (!pill || titleEl.style.display === 'none') {
       backPill.style.height = '44px'; backPill.style.width = '44px';
       if (refPill) { refPill.style.height = '44px'; refPill.style.width = '44px'; }
+      if (sharePillEl) { sharePillEl.style.height = '44px'; sharePillEl.style.width = '44px'; }
       return;
     }
     // offsetHeight 含 padding，跟 visual bbox 一致（rotation 不影響 offsetHeight）
@@ -520,6 +546,7 @@ export function initPdfViewer() {
       const w = Math.min(44, h);   // 以短邊為主：單行縮成正方形、兩行維持 44 寬
       backPill.style.height = h + 'px'; backPill.style.width = w + 'px';
       if (refPill) { refPill.style.height = h + 'px'; refPill.style.width = w + 'px'; }
+      if (sharePillEl) { sharePillEl.style.height = h + 'px'; sharePillEl.style.width = w + 'px'; }
     }
   }
 
@@ -543,6 +570,17 @@ export function initPdfViewer() {
       ? refUi.btnEl.getBoundingClientRect()
       : backBtn.getBoundingClientRect();
     titleEl.style.left = (anchorRect.right + PILL_GAP) + 'px';
+  }
+
+  // share btn 緊接 title 右邊；title 隱藏時退而錨到 ref / back（保持與 back/ref/title 同 gap）
+  function positionSharePdf() {
+    if (!shareBtnEl || shareBtnEl.style.display === 'none') return;
+    let anchor = null;
+    if (titleEl && titleEl.style.display !== 'none') anchor = titleEl;
+    else if (refUi.btnEl.style.display !== 'none') anchor = refUi.btnEl;
+    else anchor = backBtn;
+    if (!anchor) return;
+    shareBtnEl.style.left = (anchor.getBoundingClientRect().right + PILL_GAP) + 'px';
   }
 
   // 把 stage 上緣推到 header logo 底邊以下，鏡像 activities-lightbox positionUIRelativeToLogo
@@ -662,7 +700,7 @@ export function initPdfViewer() {
   _pdfListenerAdded = true;
 
   document.addEventListener('sccd:open-pdf', async (e) => {
-    const { pdfUrl, title, color, references } = e.detail || {};
+    const { pdfUrl, title, color, references, shareUrl } = e.detail || {};
     if (!pdfUrl) return;
     curPage = 1;
     // 重置內部狀態：naturalDims=0 讓 renderPage 視為「初次 render」自動套 actual size
@@ -671,13 +709,15 @@ export function initPdfViewer() {
     naturalDims = { w: 0, h: 0 };
     renderTitle(title, color);
     renderBackPill(color);
+    // Share btn：caller 帶 shareUrl（library press/files）才顯示；同 accent 底色
+    renderSharePdf(color, shareUrl);
     // ref 接口：references 為 array of { section, itemId, labelEn, labelZh, titleEn, titleZh }
     // 無 references 或空 array → ref btn 自動不渲染
     refUi.setReferences(references);
     openModal();
     buildWatermark();   // 開啟時建（字體必載好 + 依當前 viewport 給手機較小較密版）
-    // 等 modal 顯示 + back btn 量到 rect 才 position ref btn（與 title 用同一 rAF cadence 對齊）
-    requestAnimationFrame(() => positionRefBtn());
+    // 等 modal 顯示 + back btn 量到 rect 才 position ref / share btn（與 title 用同一 rAF cadence 對齊）
+    requestAnimationFrame(() => { positionRefBtn(); positionSharePdf(); });
     try {
       // SPA navigated 進 library 時若 pdfjsLib 沒被頁面 head 載入，動態 inject
       await ensurePdfjsLoaded();
