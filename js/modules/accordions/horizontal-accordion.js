@@ -249,8 +249,8 @@ export function initRotatedAccordion(wrapper, { height = 600, animateEntry = fal
 }
 
 // ── 手機卡片版（colored-accordion，about resources）──────────────
-// 一張張旋轉卡片（±1~2°），預設全收合；點標題向下展開，再點收合（單開互斥）。
-// user 2026-06-11：取代舊的「全寬色塊 + 永遠開一個」單列版。
+// 一張張旋轉卡片（±1~2°），單開互斥；點標題切換到那張（永遠保持 ≥1 張展開，不能全收 — user 2026-06-15）。
+// user 2026-06-11：取代舊的「全寬色塊 + 永遠開一個」單列版（保留「永遠開一個」不變式）。
 // animateEntry：卡片 clip-path 由第一到最後依序揭露，全部就位後自動展開第一張（簡化版桌面 entry）。
 export function initColoredCardAccordion(wrapper, { animateEntry = false } = {}) {
   if (!wrapper || accordionWrappers.includes(wrapper)) return;
@@ -284,8 +284,10 @@ export function initColoredCardAccordion(wrapper, { animateEntry = false } = {})
     // 綁 label 不綁整張卡：展開後點內文/圖片不應誤觸收合
     const label = item.querySelector('.accordion-label');
     (label || item).addEventListener('click', () => {
-      if (openItem === item) closeCard(item);
-      else openCard(item);
+      // 手機至少保持一張展開（user 2026-06-15）：點已開的那張 = no-op（不收合），只能切換到別張
+      // （openCard 內會自動收掉前一張）→ 永遠 ≥1 張開。對齊桌面 initRotatedAccordion（點 active 不會回到全收）。
+      if (openItem === item) return;
+      openCard(item);
     });
   });
 

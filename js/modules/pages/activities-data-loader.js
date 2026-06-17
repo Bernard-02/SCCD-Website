@@ -725,8 +725,23 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
         if (grid) grid.style.gridTemplateColumns = '8.5fr 3.5fr';
       }
     };
-    if (img.complete && img.naturalWidth) apply();
-    else img.addEventListener('load', apply, { once: true });
+    if (img.complete && img.naturalWidth) { apply(); return; }
+    // poster 未載入：poster-img w-full 沒預留高度，手機慢載時「item 已展開後才載入」會瞬間把下方內容頂下去（user 2026-06-15「內容跳動」）。
+    // 修：load 時若 item 已展開且開啟動畫已收尾，用外框（本就 overflow-hidden）把海報高度 0→自然高 平滑揭露，下方內容隨之緩降，取代瞬跳。
+    img.addEventListener('load', () => {
+      apply();
+      const wrap    = /** @type {HTMLElement|null} */ (img.closest('[data-lightbox-open]'));
+      const content = /** @type {HTMLElement|null} */ (img.closest('.list-content'));
+      const header  = img.closest('.list-item')?.querySelector('.list-header');
+      // 只在「展開且 proceedOpen 已 onComplete（overflow:visible）」時介入；收合中 / 開啟動畫進行中不碰，避免跟 content height tween 打架
+      if (wrap && content && header?.classList.contains('active') && content.style.overflow === 'visible' && typeof gsap !== 'undefined') {
+        const fullH = wrap.offsetHeight;
+        if (fullH > 0) {
+          gsap.killTweensOf(wrap);
+          gsap.fromTo(wrap, { height: 0 }, { height: fullH, duration: DUR.base, ease: EASE.move, onComplete: () => { wrap.style.height = ''; } });
+        }
+      }
+    }, { once: true });
   });
 
   // Reference 按鈕（舊 workshop-ref-btn / industry-ref-btn 已統一為 list-ref-btn，此處保留相容）
@@ -1102,7 +1117,11 @@ export async function loadListInto(containerId, url, options = {}) {
                     </button>` : ''}
                     <div class="flex-shrink-0 self-start" style="overflow:clip; height:1.5em; width:1.5em;">
                       <div class="flex justify-center items-start w-full h-full">
-                        <span class="icon icon-chevron-list icon-s rotate-90 transition-transform duration-300"></span>
+                        <!-- rotation 全由 GSAP 驅動（list-accordion.js open/close）：不要再掛 CSS transition-transform，
+                             否則 CSS transition 會追著 GSAP 每幀寫的 transform 跑＝雙重緩動，chevron 旋轉變成
+                             「前段幾乎不動→中段暴衝→尾段又慢」的 S 型、總長 ~580ms（DUR.fast 應為 300ms），
+                             實測移除後乾淨 ~250ms（user 2026-06-15）。rotate-90 是初始態（GSAP 讀為起點）保留 -->
+                        <span class="icon icon-chevron-list icon-s rotate-90"></span>
                       </div>
                     </div>
                   </div>

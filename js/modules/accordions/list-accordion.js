@@ -264,6 +264,17 @@ function closeListHeader(header, { duration = DUR.medium } = {}) {
   const chevron = header.querySelector('.icon-chevron-list');
   const workshopItem = header.closest('.list-item');
 
+  // 標題（與手機國旗列）transform 在收合「開始」就反向滑回，與 content 收合並行 = 鏡像 open
+  // （open 時 .active 一加，title 就跟 content 同步滑出）。原本這兩個位移綁 .active，而 .active 延到
+  // onComplete 才移除 → 收起時 title 等 content 收完(~0.5s)才滑回(~0.3s 尾巴)＝開合不對稱（user 2026-06-15
+  // probe 證 close 多 ~230ms 尾）。在此 inline 反向觸發同一條 CSS transition(DUR.fast) 提前並行；
+  // .active 仍保留到 onComplete（背景 / sticky / 副標收合時序不變）。onComplete 清 inline，此時 .active
+  // 已移除、CSS 同為原位（title translateX0 / meta padding0）→ 清 inline 不跳動。
+  const titleEl = /** @type {HTMLElement|null} */ (header.querySelector(':scope > div:first-child'));
+  const metaMobileEl = /** @type {HTMLElement|null} */ (header.querySelector('.list-header-meta-mobile'));
+  if (titleEl) titleEl.style.transform = 'translateX(0)';
+  if (metaMobileEl) metaMobileEl.style.paddingLeft = '0';
+
   header.dataset.collapsing = 'true';
   // 收合動畫開始前先把 overflow 切回 hidden — 否則 open 階段設的 overflow:visible 還在，
   // tween height:0 時子元素（如 album 縮圖、gallery 圖）會因 visible 飄在自然位置不被裁切，
@@ -274,8 +285,11 @@ function closeListHeader(header, { duration = DUR.medium } = {}) {
     duration,
     ease: EASE.exitSoft,
     onComplete: () => {
-      // collapse 完成才移除 .active → title transform 0.3s 往左滑（CSS transition 觸發）
+      // collapse 完成才移除 .active（背景/sticky/副標收合的持久態都靠它）；title/meta 位移已在收合開始時
+      // inline 反向滑回（與 content 並行，見上）→ 移除 .active 後 CSS 同為原位，清 inline 不跳動
       header.classList.remove('active');
+      if (titleEl) titleEl.style.transform = '';
+      if (metaMobileEl) metaMobileEl.style.paddingLeft = '';
       // title translateX 復位後 0.3s 才到位，等 transition 結束再 dispatch 讓 marquee 重新測寬
       setTimeout(() => workshopItem?.dispatchEvent(new Event('gallery:check')), 320);
       // sticky-pin observer 跟著 active state 走：close 後不需偵測 pinned（header 已不 sticky）
@@ -359,6 +373,10 @@ function initListHeaderAccordion() {
 
       const workshopItem = /** @type {HTMLElement | null} */ (this.closest('.list-item'));
       if (isActive) {
+        // chevron 立刻轉（鏡像 closeListHeader 的同步轉法）：原本寫在 proceedOpen 內 →
+        // 開新 item 時 proceedOpen 要等「其他已展開 item 收回」(DUR.base) 才跑，chevron 因此延遲才轉，
+        // 但收起是 click 當下就轉＝兩邊不對稱（user 2026-06-15）。內容兩段式展開邏輯不動，只把 chevron 提前。
+        if (chevron) gsap.to(chevron, { rotation: -90, duration: DUR.fast });  // open → 朝上
         // 預設一次只開一個：開啟前先關掉同 panel 內其他展開中的 accordion
         // 非 activities 頁面（如 admission detail）無 .activities-panel，fallback 到 document
         const scope = this.closest('.activities-panel') || document;
@@ -429,7 +447,7 @@ function initListHeaderAccordion() {
               listAnimating = false;  // 序列完成解鎖
             }
           });
-          gsap.to(chevron, { rotation: -90, duration: DUR.fast });  // open → 朝上
+          // chevron 旋轉已提前到 click 當下（見 isActive 區塊頂），這裡不再重複
           // sticky-pin observer: 開展瞬間就 attach（user 還沒滾，header 在自然位置 ratio=1 → 不 pinned）
           // 之後 user 滾過 sticky-top 線時 IO 才 fire 加上 .is-pinned 收起副標
           attachStickyPinObserver(self);
