@@ -553,6 +553,17 @@ body.mode-color .courses-detail-desc-zh {
   color: var(--theme-fg) !important;
 }
 
+/* desc scrollbar：lists.css 寫死黑 thumb，mode-color 下 panel bg = theme-bg（cycling hue）→ 黑 thumb 撞色/不可見。
+ * 跟 var(--theme-fg) 翻黑白永遠對比 panel（同 #faculty-panel .list-scroll 處理）。 */
+body.mode-color #courses-detail-panel .list-scroll::-webkit-scrollbar-thumb {
+  background: var(--theme-fg) !important;
+}
+@supports (-moz-appearance: none) {
+  body.mode-color #courses-detail-panel .list-scroll {
+    scrollbar-color: var(--theme-fg) transparent;
+  }
+}
+
 /* ===== About Faculty / Admission hover ===== */
 /* admission-item.active（accordion 展開）同樣有亮底，需脫離 hover media query 一併處理 */
 body.mode-color .admission-item.active {
@@ -870,22 +881,23 @@ body.mode-color [data-bar="about"].has-active .nav-link:not(.active) {
 /* Hover：inactive link 升回 100% */
 @media (min-width: 768px) {
   body.mode-color [data-bar="about"].has-active .nav-link:not(.active):hover {
-    color: var(--theme-fg) !important;
+    color: var(--theme-fg-inverse) !important;
   }
 
-  /* hover 翻轉（對齊 Library/Atlas/Generate pattern）：bg = fg-inverse（strict B/W），text = fg
+  /* hover 翻轉：bg = fg（淺 hue→黑 / 深 hue→白），text = fg-inverse 對比
+   * user 2026-06-22：淺 hue hover 黑底白字、深 hue 白底黑字（bg 走 theme-fg、字走 fg-inverse）
    * header.js inline 設亮三原色 bg，用 !important 蓋過讓 mode-color 走 strict B/W 對比 */
   body.mode-color [data-bar="about"]:hover {
-    background: var(--theme-fg-inverse) !important;
+    background: var(--theme-fg) !important;
   }
 
   body.mode-color [data-bar="about"]:hover .nav-link.active,
   body.mode-color [data-bar="about"]:hover .nav-link:hover {
-    color: var(--theme-fg) !important;
+    color: var(--theme-fg-inverse) !important;
   }
 
   body.mode-color [data-bar="about"]:hover .nav-link:not(.active):not(:hover) {
-    color: color-mix(in srgb, var(--theme-fg), transparent 50%) !important;
+    color: color-mix(in srgb, var(--theme-fg-inverse), transparent 50%) !important;
   }
 }
 
@@ -936,22 +948,25 @@ body.mode-color [data-bar="alumni"].bar-inactive .nav-link {
   color: var(--theme-fg) !important;
 }
 
-/* Active：翻成 fg-inverse bg + fg text（user spec：黑底白字 / 白底黑字依 hue 對比自動翻） */
+/* Active：bg = fg / 字 = fg-inverse（跟 hover 同邏輯：淺 hue 黑底白字、深 hue 白底黑字。
+ * user 2026-06-22 對齊 hover——active 與 hover 現在同方向，inactive-resting（bg=body hue）才是區別） */
 body.mode-color [data-bar="library"].bar-active,
 body.mode-color [data-bar="atlas"].bar-active,
 body.mode-color [data-bar="generate"].bar-active,
 body.mode-color [data-bar="alumni"].bar-active {
-  background: var(--theme-fg-inverse) !important;
+  background: var(--theme-fg) !important;
 }
 
 body.mode-color [data-bar="library"].bar-active .nav-link,
 body.mode-color [data-bar="atlas"].bar-active .nav-link,
 body.mode-color [data-bar="generate"].bar-active .nav-link,
 body.mode-color [data-bar="alumni"].bar-active .nav-link {
-  color: var(--theme-fg) !important;
+  color: var(--theme-fg-inverse) !important;
 }
 
-/* Inactive bar hover (桌面) → 預覽 active 翻轉效果；蓋掉 JS 在 .is-bar-hover 時設的 inline 三原色 bg */
+/* Inactive bar hover (桌面)：bg = fg（淺 hue→黑 / 深 hue→白）+ text = fg-inverse
+ * user 2026-06-22：淺 hue hover 黑底白字、深 hue 白底黑字（與 about bar + .bar-active 同邏輯）。
+ * 蓋掉 JS 在 .is-bar-hover 時設的 inline 三原色 bg。*/
 @media (min-width: 768px) {
   body.mode-color [data-bar="library"].bar-inactive:hover,
   body.mode-color [data-bar="library"].bar-inactive.is-bar-hover,
@@ -961,7 +976,7 @@ body.mode-color [data-bar="alumni"].bar-active .nav-link {
   body.mode-color [data-bar="generate"].bar-inactive.is-bar-hover,
   body.mode-color [data-bar="alumni"].bar-inactive:hover,
   body.mode-color [data-bar="alumni"].bar-inactive.is-bar-hover {
-    background: var(--theme-fg-inverse) !important;
+    background: var(--theme-fg) !important;
   }
 
   body.mode-color [data-bar="library"].bar-inactive:hover .nav-link,
@@ -972,7 +987,7 @@ body.mode-color [data-bar="alumni"].bar-active .nav-link {
   body.mode-color [data-bar="generate"].bar-inactive.is-bar-hover .nav-link,
   body.mode-color [data-bar="alumni"].bar-inactive:hover .nav-link,
   body.mode-color [data-bar="alumni"].bar-inactive.is-bar-hover .nav-link {
-    color: var(--theme-fg) !important;
+    color: var(--theme-fg-inverse) !important;
   }
 }
 
