@@ -1,0 +1,57 @@
+/**
+ * Landscape Mobile（橫向手機）短高度防護層 — Phase 0
+ *
+ * 觸發條件：orientation: landscape 且視窗高 ≤ 500px。
+ *   → 只命中「手機橫向」（高 ~375–430px）。
+ *   → 桌面（高 > 500px）、直向手機（portrait）、平板橫向（iPad landscape 高 ≥ 744px）全都不匹配。
+ *   ∴ 本檔「不可能」影響桌面版 / 直向版（符合 desktop-first + RWD 互不影響鐵則）。
+ *
+ * 為什麼是這層而不是新版型：各大網站不做獨立橫向版，主流是「讓既有響應式版面在矮橫向也不壞」。
+ *   橫向手機真正的問題是「高度很矮」，把為高螢幕設計的滿版 hero 壓壞——這層就是把那個壓壞修掉。
+ *   詳見 repo root『橫向手機版最佳實踐.md』。
+ *
+ * cascade：本檔「不包 @layer」（unlayered）→ 優先級高於所有 @layer components / Tailwind utilities；
+ *   class override 一律抬高 specificity（main .X / body .X）確保贏同名 utility
+ *   （見 memory reference_tailwind_utilities_after_components_cascade）。
+ *
+ * Phase 0 範圍：共用 hero / footer 的尺寸壓制。鎖頁（atlas / library / create）body 鎖 h-screen，
+ *   結構與 panel 高度算法各異，留待 Phase 2 個別處理（本檔的 main > section 選擇器不會誤觸它們）。
+ */
+
+@media (orientation: landscape) and (max-height: 500px) {
+  /* 1) 巨型標題壓制：桌面 H1 8rem(128px) / H2 6rem(96px) 在 ~390px 高的窗會吃掉半屏。
+        覆寫設計系統變數＝寬橫向手機（≥768 誤吃桌面版、H1 仍 8rem）與小機橫向 stack 同時受惠；
+        hero grid 的 JS bbox 量測在 CSS 套用後才跑，字變小 → 絕對定位排版更容易塞進矮窗。
+        :root 覆寫須用 :root（pseudo-class 特異度高於 body），且本檔在 variables.css 之後 import → 後出勝。 */
+  :root {
+    --font-size-h1: 3.25rem;   /* 128px → 52px */
+    --font-size-h2: 2.75rem;   /* 96px  → 44px */
+  }
+
+  /* 2a) h-screen hero：本就該「剛好一屏」，改用 svh（工具列展開後的真實可視高）避免被高估而溢出。
+         維持「有固定高度」→ 不設 height:auto，否則絕對定位的桌面 hero grid 子元素會塌掉。 */
+  main > section.h-screen {
+    height: 100svh;
+  }
+
+  /* 2b) min-h-screen 內容區（faculty/activities 等卡片列表，內容可能超過一屏）：
+         只把「下限」改 svh，保持可長高 → 千萬不要設固定 height，否則超出內容會被裁掉。 */
+  main > section[class*="min-h-screen"] {
+    min-height: 100svh;
+  }
+
+  /* 3) 手機 stack hero（<768 的小機橫向才顯示，如 iPhone SE 667×375）：
+        180px 頂部留白在 390px 高的窗是致命的（半屏空白）→ 砍到 96px，min-height 改 svh，bg 圖跟著上移。 */
+  main .hero-mobile {
+    min-height: 100svh;
+    padding-top: 96px;
+  }
+  main .hero-mobile-bg {
+    top: 96px;
+  }
+
+  /* 4) footer 滿版高改 svh（同 2a：矮橫向避免被工具列高估）。 */
+  body .footer-shell {
+    height: 100svh;
+  }
+}

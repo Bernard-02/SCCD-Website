@@ -33,6 +33,10 @@
 @import './themes/inverse.css';
 @import './themes/color.css';
 
+/* Landscape mobile 短高度防護層（橫向手機，只在 orientation:landscape + max-height:500px 生效，不影響桌面/直向）
+   放最後 import：unlayered + 後出，cascade 上贏前面所有 component / theme 規則 */
+@import './layout/landscape.css';
+
 /* 3. Tailwind Directives */
 @tailwind base;
 @tailwind components;
