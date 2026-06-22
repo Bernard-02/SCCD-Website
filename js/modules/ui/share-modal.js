@@ -126,6 +126,13 @@ function openShareLightbox(url) {
   urlEl.dataset.fullUrl = url;
 
   lightbox.style.display = 'flex';
+  // 背景遮罩 fade in：display:none→flex 會讓 rgba(0,0,0,0.9) 黑幕瞬間疊上（user 反映「instant 疊加」）。
+  // 只 fade 遮罩底色（卡片另走 clip-path reveal，兩者獨立 → 卡片維持「不配 opacity fade」慣例）。
+  if (typeof gsap !== 'undefined') {
+    gsap.fromTo(lightbox,
+      { backgroundColor: 'rgba(0,0,0,0)' },
+      { backgroundColor: 'rgba(0,0,0,0.9)', duration: DUR.slow, ease: EASE.enter, overwrite: true });
+  }
   // 進場 clip-path：方向隨機，從一邊揭露整張卡片
   // fromTo 確保 from-state 強制套用（避 first-open 從 'none' 跳終值）
   if (typeof gsap !== 'undefined') {
@@ -158,6 +165,7 @@ function closeShareLightbox() {
   const finish = () => {
     closing = false;
     lightbox.style.display = 'none';
+    lightbox.style.backgroundColor = ''; // 還原 HTML inline 預設 0.9，下次開再 fromTo
     card.style.clipPath = '';
     if (shareOpen) {
       shareOpen = false;
@@ -168,6 +176,8 @@ function closeShareLightbox() {
   // 退場 clip-path：用同一輪 enter 的方向收回去（對稱感）
   if (typeof gsap !== 'undefined') {
     closing = true;
+    // 背景遮罩同步 fade out（對稱進場）
+    gsap.to(lightbox, { backgroundColor: 'rgba(0,0,0,0)', duration: DUR.medium, ease: EASE.exit, overwrite: true });
     const dir = card.dataset.enterDir && DIR_FROM[card.dataset.enterDir] ? card.dataset.enterDir : pickDir();
     gsap.fromTo(card,
       { clipPath: 'inset(0% 0% 0% 0%)' },
