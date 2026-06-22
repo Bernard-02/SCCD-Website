@@ -94,32 +94,6 @@ function createYearPicker(pickerEl, years, onFilter) {
   return selected;
 }
 
-/**
- * 綁定分類篩選按鈕（multi-toggle，全選自動 reset）
- * @param {string} btnSelector  - querySelectorAll 選擇器
- * @param {Function} onFilter
- * @returns {Set<string>} selected
- */
-function createCatFilter(btnSelector, onFilter) {
-  const selected = new Set();
-  const btns = [...document.querySelectorAll(btnSelector)];
-  const total = btns.length;
-
-  btns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const cat = btn.dataset.cat;
-      if (selected.has(cat)) { selected.delete(cat); } else { selected.add(cat); }
-      if (selected.size === total) selected.clear();
-      // dimmed 樣式
-      const hasSel = selected.size > 0;
-      btns.forEach(b => b.classList.toggle('dimmed', hasSel && !selected.has(b.dataset.cat)));
-      onFilter();
-    });
-  });
-
-  return selected;
-}
-
 /** list item hover 底色 + overlay 顏色 follow */
 function bindListItemHover(containerEl, itemSelector, overlaySelector = null) {
   if (window.innerWidth < 768) return;
@@ -651,7 +625,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
 
         listEl.insertAdjacentHTML('beforeend', `
           <div class="year-block" data-year="${yearGroup.year}">
-            <div style="font-size: var(--font-size-p3); font-weight: 700; padding: 0.35rem 0 0.25rem; position: sticky; top: -1px; background: var(--lib-bg); z-index: 2; margin-top: -0.35rem;">${yearGroup.year}</div>
+            <div style="font-size: var(--font-size-p3); font-weight: 700; padding: 0 0 0.25rem; position: sticky; top: -1px; background: var(--lib-bg); z-index: 2;">${yearGroup.year}</div>
             <div class="flex flex-col">${itemsHtml}</div>
           </div>`);
       });
@@ -894,7 +868,6 @@ function mapDirectusPressRow(row) {
     titleEn: row.titleEn || '', titleZh: row.titleZh || '',
     subtitleEn: row.mediaEn || '', subtitleZh: row.mediaZh || '', // mediaEn/Zh = 刊登媒體名 = 副標
     year: row.date ? String(row.date).slice(0, 4) : '',           // press 列表用 year 分組（從 date 推）
-    category: row.category || '',
     images,        // 多圖 asset URL 陣列
     videoUrls,     // 多 YouTube URL 陣列
     pdfUrl: row.pdf ? `${CMS_ASSETS_BASE}/${row.pdf}` : '',        // 單 PDF（不轉檔）
@@ -943,7 +916,6 @@ async function initPressPanel() {
           div.className       = 'press-item';
           if (item.id) div.id = item.id; // 供 hash deep link 使用
           div.dataset.year    = String(item.year);
-          div.dataset.cat     = item.category || '';
           div.dataset.search  = [item.titleEn, item.titleZh, item.subtitleEn, item.subtitleZh].filter(Boolean).join(' ').toLowerCase();
           // 支援兩種 shape：Directus(images[]/videoUrls[] 多值) + 本地 fallback(image/videoUrl 單值)
           const imgList = (item.images && item.images.length) ? item.images : (item.image ? [item.image] : []);
@@ -953,13 +925,12 @@ async function initPressPanel() {
           const subtitleEnHtml = item.subtitleEn ? `<span class="press-item-subtitle press-item-subtitle-en"><span class="press-subtitle-inner">${item.subtitleEn}</span></span>` : '';
           const subtitleZhHtml = item.subtitleZh ? `<span class="press-item-subtitle press-item-subtitle-zh"><span class="press-subtitle-inner">${item.subtitleZh}</span></span>` : '';
           const hasSubtitle = !!(item.subtitleEn || item.subtitleZh);
-          const metaHtml = (hasSubtitle || hasMedia) ? `
+          const metaHtml = hasSubtitle ? `
             <div class="press-item-meta">
-              ${hasSubtitle ? `<span class="press-item-subtitle-wrap">${subtitleEnHtml}${subtitleZhHtml}</span>` : ''}
-              <span class="press-item-meta-right">
-                ${hasMedia  ? `<span class="icon icon-album press-item-media-icon"></span>` : ''}
-              </span>
+              <span class="press-item-subtitle-wrap">${subtitleEnHtml}${subtitleZhHtml}</span>
             </div>` : '';
+          // 媒體 icon 移到 title 右側（press-item-row 右欄），大小比照 activities list icon（1rem/icon-s）；
+          // 右上角分類 tag 已移除（user 2026-06-21）
           div.innerHTML = `
             <div class="press-item-row">
               <div class="press-item-titles">
@@ -967,7 +938,7 @@ async function initPressPanel() {
                 <p class="press-item-title-zh"><span class="press-marquee-inner">${item.titleZh || ''}</span></p>
                 ${metaHtml}
               </div>
-              <span class="press-item-cat-tag" data-show-in-all></span>
+              ${hasMedia ? `<span class="icon icon-album press-item-media-icon"></span>` : ''}
             </div>`;
           // 後台放圖/影片 → 開 media viewer(lightbox)；只放 PDF → 開 PDF viewer（圖/影片同時有時優先 lightbox）
           if (imgList.length || vidList.length) {
@@ -1022,56 +993,25 @@ async function initPressPanel() {
 
     const pressEmptyState = ensureEmptyState(listEl);
 
-    // 上次的分類選取簽章 — 分類切換才重量 marquee（搜尋/年份不改 title 容器寬，免每鍵重置）
-    let _prevCatSig = '';
     function applyFiltersWithRef() {
-      const q     = searchInput ? searchInput.value.trim().toLowerCase() : '';
-      const isAll = selectedCats.size === 0;
+      const q = searchInput ? searchInput.value.trim().toLowerCase() : '';
       listEl.querySelectorAll('.press-year-block').forEach(block => {
         const yearMatch = selectedYears.size === 0 || selectedYears.has(block.dataset.year);
         let anyVisible  = false;
         block.querySelectorAll('.press-item').forEach(item => {
-          const catMatch    = isAll || selectedCats.has(item.dataset.cat);
           const searchMatch = !q || item.dataset.search.includes(q);
-          const visible = catMatch && yearMatch && searchMatch;
+          const visible = yearMatch && searchMatch;
           item.style.display = visible ? '' : 'none';
           if (visible) anyVisible = true;
-          const tag = item.querySelector('.press-item-cat-tag');
-          if (tag) {
-            tag.textContent   = (isAll && visible) ? (CAT_LABELS[item.dataset.cat] || '') : '';
-            tag.style.display = (isAll && visible) ? '' : 'none';
-          }
-          const titles = item.querySelector('.press-item-titles');
-          if (titles) titles.style.maxWidth = isAll ? 'calc(100% - 10rem)' : '100%';
         });
         block.style.display = anyVisible ? '' : 'none';
-      });
-      const hasSel = selectedCats.size > 0;
-      // 搜尋時：有 match 的 cat 黑色，沒有的灰色
-      const catsWithMatch = q
-        ? new Set([...listEl.querySelectorAll('.press-item')].filter(i => i.dataset.search.includes(q)).map(i => i.dataset.cat))
-        : null;
-      document.querySelectorAll('.lib-press-cat-btn').forEach(b => {
-        b.classList.toggle('dimmed', hasSel && !selectedCats.has(b.dataset.cat));
-        b.style.color = (catsWithMatch && !catsWithMatch.has(b.dataset.cat)) ? 'rgba(var(--lib-fg-rgb),0.3)' : '';
       });
       // Empty state：search 有輸入但沒任何 block 可見才顯示
       const anyVisible = /** @type {HTMLElement[]} */ ([...listEl.querySelectorAll('.press-year-block')]).some(b => b.style.display !== 'none');
       pressEmptyState.classList.toggle('hidden', !q || anyVisible);
-
-      // 分類切換 → cat tag 顯隱 + titles maxWidth 變（all=calc(100%-10rem) ↔ filtered=100%）→ title 容器寬度改變，
-      // 必須重量 marquee：否則「有 tag(窄容器)時量的 dual-copy clone」在無 tag(寬容器)裡變成靜態重複標題（user 2026-06-15）。
-      // 只在分類選取變動時跑（搜尋/年份不改容器寬）；rAF 等 maxWidth/display reflow 後再量。applyMarqueeOverflow
-      // 對 display:none 列（offsetWidth/scrollWidth 皆 0）自動跳過 → 只重量當前可見列、切類時各自重量正確。
-      const catSig = [...selectedCats].sort().join(',');
-      if (catSig !== _prevCatSig) {
-        _prevCatSig = catSig;
-        if (typeof window._pressMarqueeInit === 'function') requestAnimationFrame(window._pressMarqueeInit);
-      }
     }
 
-    // 分類按鈕 + 年份 Picker
-    const selectedCats  = createCatFilter('.lib-press-cat-btn', applyFiltersWithRef);
+    // 年份 Picker
     const years = [...new Set(sorted.map(p => String(p.year)))].sort((a, b) => Number(b) - Number(a));
     const selectedYears = createYearPicker(yearPickerEl, years, applyFiltersWithRef);
 
@@ -1129,12 +1069,8 @@ async function initFilesPanel() {
           const div  = document.createElement('div');
           div.className  = 'files-item files-item-card';
           if (item.id) div.id = `f-${item.id}`;
-          const cats = Array.isArray(item.categories) ? item.categories : (item.category ? [item.category] : []);
           div.dataset.year   = String(item.year);
-          div.dataset.cats   = JSON.stringify(cats);
           div.dataset.search = [item.titleEn, item.titleZh].filter(Boolean).join(' ').toLowerCase();
-          const catTagsHtml  = cats.map(c => CAT_LABELS[c]).filter(Boolean)
-            .map(l => `<span class="files-item-subtitle-tag"><span class="files-marquee-inner">${l}</span></span>`).join('');
 
           const accentColor = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
           // 旋轉：sign 隨機 × magnitude 1~3，範圍 [-3,-1] ∪ [1,3]，排除 0 和近 0 避免卡片看起來都一樣
@@ -1156,7 +1092,6 @@ async function initFilesPanel() {
             ${coverHtml}
             <div class="files-item-titles files-card-info">
               <div class="files-item-titles-text">${titleEnHtml}${titleZhHtml}</div>
-              ${catTagsHtml ? `<div class="files-item-subtitle-wrap">${catTagsHtml}</div>` : ''}
             </div>`;
 
           if (item.pdfUrl) {
@@ -1203,61 +1138,28 @@ async function initFilesPanel() {
 
     const filesEmptyState = ensureEmptyState(listEl);
 
-    const selectedCats  = new Set();
-    const selYears      = (() => {
+    const selYears = (() => {
       const years = [...new Set(sorted.map(p => String(p.year)))].sort((a, b) => Number(b) - Number(a));
       return createYearPicker(yearPickerEl, years, () => applyFilters());
     })();
 
     function applyFilters() {
-      const q     = searchInput ? searchInput.value.trim().toLowerCase() : '';
-      const isAll = selectedCats.size === 0;
+      const q = searchInput ? searchInput.value.trim().toLowerCase() : '';
       listEl.querySelectorAll('.files-year-block').forEach(block => {
         const yearMatch = selYears.size === 0 || selYears.has(block.dataset.year);
         let anyVisible  = false;
         block.querySelectorAll('.files-item').forEach(item => {
-          const itemCats    = JSON.parse(item.dataset.cats || '[]');
-          const catMatch    = isAll || itemCats.some(c => selectedCats.has(c));
           const searchMatch = !q || item.dataset.search.includes(q);
-          const visible = catMatch && yearMatch && searchMatch;
+          const visible = yearMatch && searchMatch;
           item.style.display = visible ? '' : 'none';
           if (visible) anyVisible = true;
-          const subtitleWrap = item.querySelector('.files-item-subtitle-wrap');
-          const singleCat = selectedCats.size === 1;
-          if (subtitleWrap) {
-            subtitleWrap.style.opacity = singleCat ? '0' : '';
-            subtitleWrap.style.pointerEvents = singleCat ? 'none' : '';
-          }
-          const titlesEl = item.querySelector('.files-item-titles');
-          if (titlesEl) titlesEl.style.transform = singleCat ? 'translateY(0.7rem)' : '';
         });
         block.style.display = anyVisible ? '' : 'none';
-      });
-      const hasSel = selectedCats.size > 0;
-      const catsWithMatch = q
-        ? new Set([...listEl.querySelectorAll('.files-item')].flatMap(i => JSON.parse(i.dataset.cats || '[]')).filter(c => {
-            return [...listEl.querySelectorAll('.files-item')].some(i => JSON.parse(i.dataset.cats || '[]').includes(c) && i.dataset.search.includes(q));
-          }))
-        : null;
-      document.querySelectorAll('.lib-files-cat-btn').forEach(b => {
-        b.classList.toggle('dimmed', hasSel && !selectedCats.has(b.dataset.cat));
-        b.style.color = (catsWithMatch && !catsWithMatch.has(b.dataset.cat)) ? 'rgba(var(--lib-fg-rgb),0.3)' : '';
       });
       // Empty state：search 有輸入但沒任何 block 可見才顯示
       const anyVisible = /** @type {HTMLElement[]} */ ([...listEl.querySelectorAll('.files-year-block')]).some(b => b.style.display !== 'none');
       filesEmptyState.classList.toggle('hidden', !q || anyVisible);
     }
-
-    // 分類按鈕（手動綁定以共用 selectedCats）
-    const filesCatBtns = [...document.querySelectorAll('.lib-files-cat-btn')];
-    filesCatBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const cat = btn.dataset.cat;
-        if (selectedCats.has(cat)) { selectedCats.delete(cat); } else { selectedCats.add(cat); }
-        if (selectedCats.size === filesCatBtns.length) selectedCats.clear();
-        applyFilters();
-      });
-    });
 
     const sortBtn = document.getElementById('library-files-sort-btn');
     if (sortBtn) {
@@ -1618,7 +1520,9 @@ function randomTitleTransform(el, isAwards = false) {
   const deg  = sign * (4 + Math.random() * 2);
   const yPct = isAwards
     ? -(10 + Math.random() * 20)  // -10% 到 -30%
-    : 60 - Math.random() * 90;   // 60% 到 -30%
+    : 10 - Math.random() * 40;   // +10% 到 -30%（偏上）：原 +60% 下限會讓最長的 Documents 文件 chip
+                                 // 下緣垂到年份 picker 第一個年份上（chipBottom 264>picker 252），
+                                 // 蓋住「2025」；封頂 +10% 後最長 chip 也距 picker 約 10px（user 2026-06-21）
   el.style.transform = `translateY(${yPct}%) rotate(${deg}deg)`;
 }
 
