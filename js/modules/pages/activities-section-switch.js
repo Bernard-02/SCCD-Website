@@ -353,6 +353,11 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
 
   // SPA 換頁後 DOM 重建，需重置 loaded 狀態讓資料重新載入
   Object.keys(loaded).forEach(k => delete loaded[k]);
+  // 模組級旗標跨 SPA 換頁不會自動清。若上次離頁時某 switch 被導航打斷（exit 動畫被 cleanup 殺、
+  // onComplete 沒跑→Promise 永不 resolve→finally 沒跑），switching 會卡 true 擋掉本頁所有 panel 載入。
+  // 重新進頁 DOM 全新、沒有進行中的 switch → 一律歸零。
+  switching = false;
+  subFilterSwitching = false;
 
   // 暴露給 industry reference 按鈕使用（避免循環 import）
   window.__sccdNavigateToItem = (section, itemId) => navigateToItem(section, itemId);

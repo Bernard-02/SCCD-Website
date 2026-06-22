@@ -33,11 +33,17 @@ export async function runPageExit(destinationRoute) {
   const queued = handlers.slice();
   handlers.length = 0;
   if (queued.length === 0) return;
-  await Promise.all(queued.map(async fn => {
+  const all = Promise.all(queued.map(async fn => {
     try {
       await fn(destinationRoute);
     } catch (e) {
       console.error('[page-exit] handler threw:', e);
     }
   }));
+  // 安全閥：退場動畫純視覺，絕不能永久卡住換頁。某 handler 的 Promise 靠 GSAP tween 的 onComplete resolve，
+  // 若該 tween 在動畫途中被另一處 overwrite/killTweensOf 殺掉，onComplete 永不 fire → Promise 永不 resolve →
+  // swap 卡死、新頁（含 hero）永遠不出現（user 2026-06-22「activities 動畫沒跑完就切換，admission hero 卡住不出現」；
+  // 同類 hang 見 reference_activities_switching_flag_stuck_across_spa）。2.5s 遠高於最長合法退場（hero/list ~0.5-0.9s、
+  // create 倒打字 ~1s），正常情況一定先 resolve；只有真 hang 才會被這條放行。
+  await Promise.race([all, new Promise(r => setTimeout(r, 2500))]);
 }
