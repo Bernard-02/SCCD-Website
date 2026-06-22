@@ -270,7 +270,7 @@
   }
 
   /* 年級表頭（EN 上 / ZH 下）— 字體大小對齊 .courses-grid-type-label（p2）
-     EN 保 700、ZH 保 600 + opacity 0.85，僅尺寸跟必修/選修統一
+     EN 保 700、ZH 保 600（無 opacity，中文要實色不要半透明），僅尺寸跟必修/選修統一
      桌面 sticky：top = header + bar 高度，bg 跟 mode；containment 是其 grid area
      （單行 row 1，但 sticky 範圍含整個 grid 因為 grid container 是 containing block） */
   .courses-grid-col-header {
@@ -292,7 +292,6 @@
      padding-bottom 留在 cover 上不需要這裡 */
   .courses-grid-col-zh {
     font-weight: 600;
-    opacity: 0.85;
   }
 
   /* 類別 label（必修/選修）— 實心、無半透明、無底色（col 2 type-col 內無卡片，
@@ -365,7 +364,9 @@
     max-width: 100%;
   }
   .courses-grid-card-en { font-weight: 700; }
-  .courses-grid-card-zh { font-weight: 600; opacity: 0.85; }
+  /* ZH 不加 opacity：半透明會讓中文看起來比英文淡/細（mode1 灰卡淡黑、mode-color 淡白），
+     user 要求中文 = 100% 實色（跟 EN 同實心，僅 weight 600 維持雙語慣例） */
+  .courses-grid-card-zh { font-weight: 600; }
   .courses-marquee-inner {
     display: inline-block;
     white-space: nowrap;
@@ -489,7 +490,6 @@
     font-weight: 600;
     font-size: var(--font-size-p1);
     line-height: 1.2;
-    opacity: 0.85;
     color: var(--theme-fg);
   }
   .courses-mobile-row {
@@ -523,7 +523,6 @@
   }
   .courses-mobile-type-zh {
     font-weight: 600;
-    opacity: 0.85;
   }
   .courses-mobile-cells {
     /* 兩欄右欄：flex:1 撐滿剩餘寬，min-width:0 讓卡片 max-width:100% 收斂到本欄寬（防 nowrap 卡片撐爆破版）。
