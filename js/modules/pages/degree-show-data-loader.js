@@ -761,8 +761,8 @@ async function appendRefBasedSection(root, index, ev, branchEn, branchZh) {
       btn.type = 'button';
       btn.className = 'class-division-btn shrink-0 font-bold transition-all duration-fast text-left';
       btn.dataset.tabIndex = String(i);
-      // marquee 結構（.dsd-tab-line 是 overflow window、inner 是跑動內容）：手機 btn 有 max-width
-      // 截斷時 applyMarqueeOverflow 偵測加 .is-overflow 自動跑；桌面無上限永遠靜態
+      // marquee 結構（.dsd-tab-line 是 overflow window、inner 是跑動內容）：桌面 max-width:18rem / 手機 0.75vw
+      // 截斷時 applyMarqueeOverflow 偵測加 .is-overflow；手機自動跑、桌面 hover tab 卡片才跑（CSS 控，variables.css）
       // tab 文字大小對齊全站 nav btn（.section-nav-btn 等用 --font-size-p1）；原 text-h5 偏大（user 2026-06-11）
       btn.innerHTML = `<div class="dsd-tab-line text-p1 font-bold"><span class="dsd-tab-marquee-inner">${item.nameEn || ''}</span></div><div class="dsd-tab-line text-p1 font-bold"><span class="dsd-tab-marquee-inner">${item.nameZh || ''}</span></div>`;
       const btnRot = randRot();
@@ -926,8 +926,8 @@ async function appendRefBasedSection(root, index, ev, branchEn, branchZh) {
   section.appendChild(wrap);
   root.appendChild(section);
 
-  // Tab 標題 marquee 偵測：rAF 等 append 後 layout 可量（手機 btn max-width 截斷才會 overflow → 跑；
-  // 桌面 btn 無上限不觸發，applyMarqueeOverflow 自帶 no-op）
+  // Tab 標題 marquee 偵測：rAF 等 append 後 layout 可量。桌面 max-width:18rem / 手機 0.75vw 截斷才 overflow → 加 .is-overflow
+  // （短名稱不 overflow，applyMarqueeOverflow 自帶 no-op）；跑不跑由 CSS 控（手機自動、桌面 hover，variables.css）
   if (tabBtns.length) {
     requestAnimationFrame(() => applyMarqueeOverflow(section, '.dsd-tab-line', '.dsd-tab-marquee-inner'));
   }
@@ -1218,7 +1218,37 @@ function alignLabelColumn(card, popover) {
   if (maxW > 0) card.style.setProperty('--ref-label-w', `${Math.ceil(maxW)}px`);
 }
 
+// chip title 溢出 → dual-copy 並跑 marquee（複用 lightbox-ref-btn 演算法）
+function playRefChipMarquee(chip) {
+  const win = /** @type {HTMLElement | null} */ (chip.querySelector('.lightbox-ref-chip-title-window'));
+  const track = /** @type {HTMLElement | null} */ (chip.querySelector('.lightbox-ref-chip-title-track'));
+  if (!win || !track) return;
+  if (typeof gsap !== 'undefined') gsap.killTweensOf(track);
+  track.style.transform = '';
+  while (track.children.length > 1) track.removeChild(track.lastElementChild);
+  const unit = /** @type {HTMLElement | null} */ (track.querySelector('.lightbox-ref-chip-title-unit'));
+  if (!unit) return;
+  const unitWidth = unit.getBoundingClientRect().width;
+  if (unitWidth <= win.clientWidth + 4) return;
+  const clone = /** @type {HTMLElement} */ (unit.cloneNode(true));
+  clone.style.marginLeft = '24px';
+  track.appendChild(clone);
+  const distance = unitWidth + 24;
+  if (typeof gsap !== 'undefined') {
+    gsap.fromTo(track, { x: 0 }, { x: -distance, duration: Math.max(3, distance / 80), ease: 'none', repeat: -1 });
+  }
+}
+// 還原成靜態截斷單份（桌面 resting / hover 離開 snap 回原點）
+function resetRefChipMarquee(chip) {
+  const track = /** @type {HTMLElement | null} */ (chip.querySelector('.lightbox-ref-chip-title-track'));
+  if (!track) return;
+  if (typeof gsap !== 'undefined') { gsap.killTweensOf(track); gsap.set(track, { x: 0 }); }
+  track.style.transform = '';
+  while (track.children.length > 1) track.removeChild(track.lastElementChild);
+}
+
 // Title overflow → marquee（dual-copy seamless loop，複用 lightbox-ref-btn 演算法）
+// 觸發分桌面/手機（user 2026-06-21，對齊圖片燈箱綠框 ref popover）：手機自動跑、桌面 hover chip 才跑、離開 snap 回原點。
 // 此函式在 render 時（rAF）跑，popover 仍 display:none → 量寬會全 0、永遠判定不 overflow（user 2026-06-02
 // 反映長 title 不 marquee 被切）。比照 alignLabelColumn / lightbox setupAllMarquees：量前暫時 display:block
 // + visibility:hidden 撐出 layout 才能量到真實寬度，量完還原。
@@ -1228,26 +1258,15 @@ function setupChipMarquees(stack, popover) {
     popover.style.visibility = 'hidden';
     popover.style.display = 'block';
   }
+  const mobile = window.innerWidth < 768;
   stack.querySelectorAll('.lightbox-ref-chip').forEach(chip => {
-    const win = /** @type {HTMLElement | null} */ (chip.querySelector('.lightbox-ref-chip-title-window'));
-    const track = /** @type {HTMLElement | null} */ (chip.querySelector('.lightbox-ref-chip-title-track'));
-    if (!win || !track) return;
-    if (typeof gsap !== 'undefined') gsap.killTweensOf(track);
-    track.style.transform = '';
-    while (track.children.length > 1) track.removeChild(track.lastElementChild);
-    const unit = /** @type {HTMLElement | null} */ (track.querySelector('.lightbox-ref-chip-title-unit'));
-    if (!unit) return;
-    const unitWidth = unit.getBoundingClientRect().width;
-    const winWidth = win.clientWidth;
-    if (unitWidth <= winWidth + 4) return;
-    const clone = /** @type {HTMLElement} */ (unit.cloneNode(true));
-    clone.style.marginLeft = '24px';
-    track.appendChild(clone);
-    const distance = unitWidth + 24;
-    if (typeof gsap !== 'undefined') {
-      gsap.fromTo(track, { x: 0 }, {
-        x: -distance, duration: Math.max(3, distance / 80), ease: 'none', repeat: -1,
-      });
+    if (mobile) { playRefChipMarquee(chip); return; } // 手機：自動跑
+    resetRefChipMarquee(chip);                        // 桌面：靜態截斷，等 hover
+    // hover 綁整個 chip；dataset guard 防一次 open 內 setupChipMarquees 多跑重複綁（chip 每次 renderChips 重建故跨 open 不累積）
+    if (!chip.dataset.marqueeHoverBound) {
+      chip.dataset.marqueeHoverBound = '1';
+      chip.addEventListener('mouseenter', () => playRefChipMarquee(chip));
+      chip.addEventListener('mouseleave', () => resetRefChipMarquee(chip));
     }
   });
   if (wasDisplay === 'none' || !wasDisplay) {

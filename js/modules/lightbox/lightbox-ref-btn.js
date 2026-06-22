@@ -153,7 +153,43 @@ export function createRefBtn(initialColor, onCloseLightbox) {
     });
   }
 
+  const isMobileViewport = () => window.innerWidth < 768;
+
+  // 量一行是否溢出；溢出就 clone 成 dual-copy 備好 loop，回傳 {track, distance, duration}，否則 null
+  function prepRowMarquee(rowEl) {
+    const win = /** @type {HTMLElement | null} */ (rowEl.querySelector('.lightbox-ref-chip-title-window'));
+    const track = /** @type {HTMLElement | null} */ (rowEl.querySelector('.lightbox-ref-chip-title-track'));
+    if (!win || !track) return null;
+    if (typeof gsap !== 'undefined') gsap.killTweensOf(track);
+    track.style.transform = '';
+    while (track.children.length > 1) track.removeChild(track.lastElementChild);
+    const unit = /** @type {HTMLElement | null} */ (track.querySelector('.lightbox-ref-chip-title-unit'));
+    if (!unit) return null;
+    const unitWidth = unit.getBoundingClientRect().width;
+    if (unitWidth <= win.clientWidth + 4) return null;
+    const clone = /** @type {HTMLElement} */ (unit.cloneNode(true));
+    clone.style.marginLeft = '24px';
+    track.appendChild(clone);
+    const distance = unitWidth + 24;
+    return { track, distance, duration: Math.max(3, distance / 80) };
+  }
+  function playRow(prep) {
+    if (!prep || typeof gsap === 'undefined') return;
+    gsap.fromTo(prep.track, { x: 0 }, { x: -prep.distance, duration: prep.duration, ease: 'none', repeat: -1 });
+  }
+  // 還原成靜態截斷單份（桌面 resting / hover 離開時 snap 回原點）
+  function resetRow(rowEl) {
+    const track = /** @type {HTMLElement | null} */ (rowEl.querySelector('.lightbox-ref-chip-title-track'));
+    if (!track) return;
+    if (typeof gsap !== 'undefined') { gsap.killTweensOf(track); gsap.set(track, { x: 0 }); }
+    track.style.transform = '';
+    while (track.children.length > 1) track.removeChild(track.lastElementChild);
+  }
+
   // 每個 title-row 獨立 marquee（EN/ZH 長度差異大，合在一起短的會空跑）
+  // 觸發分桌面/手機（user 2026-06-21，對齊 courses/atlas/faculty 卡片）：
+  //   - 手機無 hover → 溢出就自動跑（原行為）
+  //   - 桌面 → resting 靜態截斷，hover chip 才跑、離開 snap 回原點
   // 量時若 popover 還 display:none → 暫時 visibility:hidden + display:block 量完還原
   function setupAllMarquees() {
     const wasDisplay = popoverEl.style.display;
@@ -161,28 +197,25 @@ export function createRefBtn(initialColor, onCloseLightbox) {
       popoverEl.style.visibility = 'hidden';
       popoverEl.style.display = 'block';
     }
+    const mobile = isMobileViewport();
     stackEl.querySelectorAll('.lightbox-ref-chip-title-row').forEach(rowEl => {
-      const win = /** @type {HTMLElement | null} */ (rowEl.querySelector('.lightbox-ref-chip-title-window'));
-      const track = /** @type {HTMLElement | null} */ (rowEl.querySelector('.lightbox-ref-chip-title-track'));
-      if (!win || !track) return;
-      if (typeof gsap !== 'undefined') gsap.killTweensOf(track);
-      track.style.transform = '';
-      while (track.children.length > 1) track.removeChild(track.lastElementChild);
-      const unit = /** @type {HTMLElement | null} */ (track.querySelector('.lightbox-ref-chip-title-unit'));
-      if (!unit) return;
-      const unitWidth = unit.getBoundingClientRect().width;
-      const winWidth = win.clientWidth;
-      if (unitWidth <= winWidth + 4) return;
-      const clone = /** @type {HTMLElement} */ (unit.cloneNode(true));
-      clone.style.marginLeft = '24px';
-      track.appendChild(clone);
-      const distance = unitWidth + 24;
-      if (typeof gsap !== 'undefined') {
-        gsap.fromTo(track, { x: 0 }, {
-          x: -distance, duration: Math.max(3, distance / 80), ease: 'none', repeat: -1,
-        });
-      }
+      if (mobile) playRow(prepRowMarquee(rowEl)); // 手機：自動跑
+      else resetRow(rowEl);                       // 桌面：靜態截斷，等 hover
     });
+    // 桌面 hover：綁在整個 chip（hover 參考按鈕 → 其 EN/ZH 兩行一起 marquee）。
+    // setupAllMarquees 一次 open 會跑 ~2 次 → dataset guard 防同一 chip 重複綁；chip 每次 renderChips 重建故跨 open 不累積。
+    if (!mobile) {
+      stackEl.querySelectorAll('.lightbox-ref-chip').forEach(chip => {
+        if (chip.dataset.marqueeHoverBound) return;
+        chip.dataset.marqueeHoverBound = '1';
+        chip.addEventListener('mouseenter', () => {
+          chip.querySelectorAll('.lightbox-ref-chip-title-row').forEach(r => playRow(prepRowMarquee(r)));
+        });
+        chip.addEventListener('mouseleave', () => {
+          chip.querySelectorAll('.lightbox-ref-chip-title-row').forEach(r => resetRow(r));
+        });
+      });
+    }
     if (wasDisplay === 'none') {
       popoverEl.style.display = 'none';
       popoverEl.style.visibility = '';
