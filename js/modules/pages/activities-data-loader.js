@@ -10,6 +10,7 @@ import { ensureFlagIconsCss } from '../ui/ensure-flag-icons.js';
 import { countryName } from '../../data/country-names.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { loadSummerCamp } from './summer-camp-source.js';
+import { loadActivityCollection } from './activities-source.js';
 // '/data/x.json' 字串同時是 fetch URL 與 map key / 比對識別字（SECTION_DATA_URL 等），
 // 識別字保持原樣，只在真正 fetch 的點包 sitePath()（子路徑部署時換算成站台根絕對 URL）
 import { sitePath, SITE_BASE_PATHNAME } from '../ui/site-base.js';
@@ -176,7 +177,10 @@ function bindRefBtnClick(btn) {
     }
     const section = btn.dataset.refSection;
     const itemId  = btn.dataset.refItem;
-    if (typeof window.__sccdNavigateToItem === 'function') {
+    // 只有 section/itemId 跳轉 btn 才導航。award/press href 連結（→ library）走原生 <a>，沒 section；
+    // 沒 section 仍呼叫會 navigateToItem(undefined) → switchToSection(undefined)，其 exit 動畫被換頁
+    // cleanup 殺掉 onComplete 沒跑 → switching 永卡 true，回到本頁後所有 panel 載入被擋（內容/hero 空白）。
+    if (section && typeof window.__sccdNavigateToItem === 'function') {
       window.__sccdNavigateToItem(section, itemId || null);
     }
   });
@@ -479,7 +483,7 @@ export function buildGuestHtml(g, { showGuestCountry = true, showGuestAffiliatio
 // 也容舊式 s.date 純字串 fallback。
 // 說明文字（user 2026-06-05）：改成「每場次各自一段」`descriptionEn`/`descriptionZh`，渲染在該場次最下方；
 // 沒 key（兩語皆空）就不渲染那段（取代原本 card 層級的單一說明，card 層級在 caller 處被 sessions 抑制）。
-function buildSessionsHtml(item, dateColMinWidth, { showGuestCountry = true, showGuestAffiliation = true } = {}) {
+function buildSessionsHtml(item, dateColMinWidth, { showGuestCountry = true, showGuestAffiliation = true, showAlumniIcon = true } = {}) {
   if (!Array.isArray(item.sessions) || item.sessions.length === 0) return '';
   const rows = item.sessions.map(s => {
     const sDate = Array.isArray(s.dates) && s.dates.length
@@ -487,6 +491,8 @@ function buildSessionsHtml(item, dateColMinWidth, { showGuestCountry = true, sho
       : (s.date || '');
     const sTitleEn = s.titleEn || s.title_en || s.title || '';
     const sTitleZh = s.titleZh || s.title_zh || '';
+    // 場次講者含系友 → 場次 title 旁加畢業帽 icon（對齊 list-header 的 _alumniIcon；conference 的講者在 session.guests 不在 item.guests）
+    const sHasAlumni = showAlumniIcon && (Array.isArray(s.guests) ? s.guests : []).some(g => g.isAlumni === 'on' || g.isAlumni === true || g.isAlumni);
     const sDescEn = s.descriptionEn || s.desEn || '';
     const sDescZh = s.descriptionZh || s.desZh || '';
     const guestsHtml = (Array.isArray(s.guests) ? s.guests : [])
@@ -498,9 +504,12 @@ function buildSessionsHtml(item, dateColMinWidth, { showGuestCountry = true, sho
       <div class="grid items-start gap-x-xs" style="grid-template-columns: ${dateColMinWidth} 1fr;">
         <div class="min-w-0">${sDate ? `<div class="list-title-marquee"><p class="text-p2 font-bold">${sDate}</p></div>` : ''}</div>
         <div class="flex flex-col gap-sm min-w-0">
-          ${(sTitleEn || sTitleZh) ? `<div>
-            ${sTitleEn ? `<p class="text-p2 font-bold">${sTitleEn}</p>` : ''}
-            ${sTitleZh ? `<p class="text-p2 font-bold">${sTitleZh}</p>` : ''}
+          ${(sTitleEn || sTitleZh) ? `<div class="flex items-start gap-sm">
+            <div>
+              ${sTitleEn ? `<p class="text-p2 font-bold">${sTitleEn}</p>` : ''}
+              ${sTitleZh ? `<p class="text-p2 font-bold">${sTitleZh}</p>` : ''}
+            </div>
+            ${sHasAlumni ? `<span class="icon icon-alumni icon-s flex-shrink-0"></span>` : ''}
           </div>` : ''}
           ${guestsHtml ? `<div class="flex flex-col gap-sm">${guestsHtml}</div>` : ''}
         </div>
@@ -1051,8 +1060,10 @@ export async function loadListInto(containerId, url, options = {}) {
             ${titleLine2 ? `<div class="list-title-marquee"><p class="text-h5 font-bold">${titleLine2}</p></div>` : ''}
             ${dateInHeader ? (() => {
               // dateInHeader 模式（admission 用）：date 優先，沒 date 用 subtitle 當副標
-              if (dateDisplay) return `<p class="text-p2">${dateDisplay}</p>`;
-              return renderSubListInner();
+              // mt-xs：主標↔date 之間的 gap 比照 camp 的 gap-xs（user 2026-06-22）。camp 副標是獨立 flex 子、
+              // 吃外層 flex-col gap-xs；announcement 的 date 在同一個 reveal-row 內 → 需自己補 margin-top 才同間距。
+              if (dateDisplay) return `<p class="text-p2 mt-xs">${dateDisplay}</p>`;
+              return `<div class="mt-xs">${renderSubListInner()}</div>`;
             })() : ''}
           </div>
           ${showSubtitle ? renderSubListBlock() : ''}
@@ -1100,7 +1111,7 @@ export async function loadListInto(containerId, url, options = {}) {
       const metaMobileInner = `${_alumniIcon}${_flagsMobile}`;
       return `
         <div class="list-item" ${itemFlags} data-category="${item.category || ''}" data-media="${mediaJson}" data-search="${searchText}"${item.visitType ? ` data-visit-type="${item.visitType}"` : ''}${item.id ? ` id="item-${item.id}"` : ''}>
-          <div class="list-header ${alwaysExpanded ? '' : 'cursor-pointer'} group transition-colors duration-fast flex items-stretch justify-between gap-sm px-[4px] py-md">
+          <div class="list-header ${alwaysExpanded ? '' : 'cursor-pointer'} group transition-colors duration-fast flex items-stretch justify-between gap-sm px-sm py-sm">
             ${titleHtml}
             <div class="flex items-start gap-sm flex-shrink-0 pt-[0.25rem] md:pt-[0.55rem]">
               <!-- 桌面用：alumni + 國旗在右上跟 share/chevron 同列（手機 CSS 隱藏這份的 reveal-wrapper，改顯示下方 .list-header-meta-mobile） -->
@@ -1133,10 +1144,10 @@ export async function loadListInto(containerId, url, options = {}) {
           </div>
           <div class="list-content ${alwaysExpanded ? '' : 'h-0 overflow-hidden'}">
             ${bodyField && item[bodyField] ? `
-            <div class="pt-sm pb-lg px-md flex flex-col gap-md">
+            <div class="pt-sm pb-lg px-sm flex flex-col gap-md">
               <div class="admission-body flex flex-col gap-md">${normalizeBodyHtml(item[bodyField])}</div>
             </div>` : `
-            <div class="pt-sm pb-lg px-md grid gap-gutter items-start" style="grid-template-columns: 9.5fr 2.5fr;">
+            <div class="pt-sm pb-lg px-sm grid gap-gutter items-start" style="grid-template-columns: 9.5fr 2.5fr;">
               <div class="flex flex-col gap-md pr-2xl">
                 ${showDate && dateDisplay && !dateInHeader && dateFullWidth ? `<div>
                   <p class="text-p2 font-bold">${dateDisplay}</p>
@@ -1146,13 +1157,16 @@ export async function loadListInto(containerId, url, options = {}) {
                   // 摘要列 grid：[date 連續時間寬 | venue(location) | city]
                   //   - date col 永遠寬到「連續時間」格式（單日 item 留白同欄寬），venue 起始點對齊
                   //   - venue 一行（多城市 ' / ' join），name 過長走 list-title-marquee
-                  //   - city（conference 才填）靠右第三欄；無 city 時維持兩欄不變（不影響其他 section）
+                  //   - city（conference 才填）= 第三欄，桌面固定 6rem 寬靠左對齊，與下方 guest 國家欄
+                  //     （.guest-row-grid 桌面 6rem，同右緣 → 同左緣起始 x）對齊（user 2026-06-20）。
+                  //     過長走 list-title-marquee（同 venue/country）。手機由 CSS !important stack 單欄左靠，不受此寬度影響。
+                  //     無 city 時維持兩欄不變（不影響其他 section）。
                   // 國家由標題國旗表示（來源 = guests）。user 2026-06-03 重設計；2026-06-05 加 city 欄。
                   // dateFullWidth（permanent exhibitions）：date 其實是頻率說明（"Once per semester"）非真實日期，
                   //   已在上方獨立 full-width 渲染（不進 14ch 欄、不 marquee），這裡不再當 date cell。
                   const showDateCell = showDate && dateDisplay && !dateInHeader && !dateFullWidth;
                   const hasCity = showLocation && !!(cityEn || cityZh);
-                  const cols = hasCity ? `${dateColMinWidth} 1fr auto` : `${dateColMinWidth} 1fr`;
+                  const cols = hasCity ? `${dateColMinWidth} 1fr 6rem` : `${dateColMinWidth} 1fr`;
                   return `<div class="grid items-start gap-x-xs" style="grid-template-columns: ${cols};">
                     ${showDateCell ? `<div class="min-w-0">
                       <div class="list-title-marquee"><p class="text-p2 font-bold">${dateDisplay}</p></div>
@@ -1162,13 +1176,13 @@ export async function loadListInto(containerId, url, options = {}) {
                       ${locationEn ? `<div class="list-title-marquee"><p class="text-p2 font-bold">${locationEn}</p></div>` : ''}
                       ${locationZh ? `<div class="list-title-marquee"><p class="text-p2 font-bold">${locationZh}</p></div>` : ''}
                     </div>` : '<div></div>'}
-                    ${hasCity ? `<div class="flex-shrink-0 text-right">
-                      ${cityEn ? `<p class="text-p2 font-bold">${cityEn}</p>` : ''}
-                      ${cityZh ? `<p class="text-p2 font-bold">${cityZh}</p>` : ''}
+                    ${hasCity ? `<div class="min-w-0">
+                      ${cityEn ? `<div class="list-title-marquee"><p class="text-p2 font-bold">${cityEn}</p></div>` : ''}
+                      ${cityZh ? `<div class="list-title-marquee"><p class="text-p2 font-bold">${cityZh}</p></div>` : ''}
                     </div>` : ''}
                   </div>`;
                 })() : ''}
-                ${buildSessionsHtml(item, dateColMinWidth, { showGuestCountry, showGuestAffiliation })}
+                ${buildSessionsHtml(item, dateColMinWidth, { showGuestCountry, showGuestAffiliation, showAlumniIcon })}
                 ${item.guests?.length ? `<div class="flex flex-col gap-sm">
                   ${item.guests.map(g => buildGuestHtml(g, { showGuestCountry, showGuestAffiliation })).join('')}
                 </div>` : ''}
@@ -1191,7 +1205,7 @@ export async function loadListInto(containerId, url, options = {}) {
                 // download 屬性指定 filename：取 URL pathname 最後段（sample.pdf）；無 URL 不渲染 download attr
                 const filename = url !== '#' ? url.split('/').pop().split('?')[0] : '';
                 return `
-                <a class="list-ref-btn cursor-pointer w-full grid grid-cols-12 gap-x-md items-start py-sm px-md no-underline" href="${url}"${filename ? ` download="${filename}"` : ''}>
+                <a class="list-ref-btn cursor-pointer w-full grid grid-cols-12 gap-x-md items-start py-sm px-sm no-underline" href="${url}"${filename ? ` download="${filename}"` : ''}>
                   <div class="col-span-1 flex justify-start" style="padding-top: 0.25em;">
                     <span class="icon icon-attachment icon-m"></span>
                   </div>
@@ -1206,15 +1220,15 @@ export async function loadListInto(containerId, url, options = {}) {
             <div class="list-ref-wrap flex flex-col">
               ${references.map(ref => `
               ${ref.pdfUrl
-                ? `<button class="list-ref-btn cursor-pointer border-none w-full grid grid-cols-12 gap-x-md items-start py-sm px-md text-left"
+                ? `<button class="list-ref-btn cursor-pointer border-none w-full grid grid-cols-12 gap-x-md items-start py-sm px-sm text-left"
                     data-ref-pdf-url="${ref.pdfUrl}"
                     data-ref-title-en="${(ref.titleEn || '').replace(/"/g, '&quot;')}"
                     data-ref-title-zh="${(ref.titleZh || '').replace(/"/g, '&quot;')}"
                     data-ref-host-section="${hostSection || ''}"
                     data-ref-host-item="${item.id || ''}">`
                 : ref.href
-                ? `<a class="list-ref-btn cursor-pointer w-full grid grid-cols-12 gap-x-md items-start py-sm px-md no-underline" href="${ref.href}">`
-                : `<button class="list-ref-btn cursor-pointer border-none w-full grid grid-cols-12 gap-x-md items-start py-sm px-md text-left"
+                ? `<a class="list-ref-btn cursor-pointer w-full grid grid-cols-12 gap-x-md items-start py-sm px-sm no-underline" href="${ref.href}">`
+                : `<button class="list-ref-btn cursor-pointer border-none w-full grid grid-cols-12 gap-x-md items-start py-sm px-sm text-left"
                     data-ref-section="${ref.section || ''}"
                     data-ref-item="${ref.itemId || ''}">`
               }
@@ -1241,11 +1255,11 @@ export async function loadListInto(containerId, url, options = {}) {
     // 結構：year col 是「組件」，存在才包 grid-12 + 套 col-2/pl-41 gap；不存在則 list 純 flex flush-left
     // pl-[41px] 屬於「年份欄→title 間距」，跟 col-span-1 年份欄共構，不該存在於 standalone list 上
     const yearColHtml = showYearToggle
-      ? `<div class="col-span-12 md:col-span-1 md:col-start-1 list-year-toggle cursor-pointer flex items-center gap-sm order-1 py-md pl-xs md:sticky md:self-start md:pb-sm">
+      ? `<div class="col-span-12 md:col-span-1 md:col-start-1 list-year-toggle cursor-pointer flex items-center gap-sm order-1 pt-sm pb-md pl-xs md:sticky md:self-start md:pb-sm">
           <div class="list-reveal-row flex justify-center items-center w-[1.5em] h-[1.5em] flex-shrink-0"><span class="icon icon-chevron-list icon-s transition-all duration-fast rotate-90"></span></div>
           <h5 class="list-reveal-row">${yearGroup.year}</h5>
         </div>`
-      : `<div class="col-span-12 md:col-span-1 md:col-start-1 flex items-center order-1 py-md pl-xs">
+      : `<div class="col-span-12 md:col-span-1 md:col-start-1 flex items-center order-1 pt-sm pb-md pl-xs">
           <h5 class="list-reveal-row">${yearGroup.year}</h5>
         </div>`;
 
@@ -1289,6 +1303,14 @@ export async function loadListInto(containerId, url, options = {}) {
     }
   }
 
+  // 灰白交叉斑馬紋：全列「連續」計數（跨年份組）→ 偶數索引(第 1、3、5…筆)套淺灰、其餘白。
+  // 連續計數讓某年筆數為奇數時，下一年第一筆自動接續正確深淺（user 2026-06-21）。
+  // 純 CSS nth-child 在各 .list-year-items 容器內重新計數無法跨組，故在此 JS 全域標記。
+  // class 在非 activities 頁的 list 上是 no-op（套色 CSS scope 在 #activities-content-section）。
+  container.querySelectorAll('.list-item').forEach((el, i) => {
+    el.classList.toggle('list-item-zebra', i % 2 === 0);
+  });
+
   bindFlagCycles(container);
   return bindInteractions(container, { autoReveal });
 }
@@ -1297,6 +1319,26 @@ export async function loadListInto(containerId, url, options = {}) {
 // 對 `[data-flag-cycle="tw,jp,kr"]` 的 <span> 每 5s 切到下一個 country code
 // 同個 container 反覆 init 安全（重綁前先 clear 舊 interval id）
 const _FLAG_CYCLE_INTERVAL_MS = 5000;
+
+// 換國旗 fi-XX class（移除所有舊 fi-、加新）
+function setFlagClass(el, code) {
+  [...el.classList].filter(c => c.startsWith('fi-')).forEach(c => el.classList.remove(c));
+  el.classList.add('fi-' + code);
+}
+// 國旗切換用 clip-reveal（垂直 wipe）取代直接跳換 class（user 2026-06-22，仿 create download/load icon 的 clip-reveal）：
+// 舊旗往上 wipe 收掉(inset bottom→100%) → 換 class → 新旗從下 wipe 揭入(inset top 100%→0)。無 gsap fallback 直接換。
+function clipRevealFlag(el, code) {
+  if (typeof gsap === 'undefined') { setFlagClass(el, code); return; }
+  gsap.killTweensOf(el);
+  gsap.to(el, {
+    clipPath: 'inset(0 0 100% 0)', duration: 0.18, ease: 'power2.in',
+    onComplete: () => {
+      setFlagClass(el, code);
+      gsap.fromTo(el, { clipPath: 'inset(100% 0 0 0)' },
+        { clipPath: 'inset(0 0 0 0)', duration: 0.2, ease: 'power3.out', clearProps: 'clipPath' });
+    },
+  });
+}
 function bindFlagCycles(container) {
   if (!container) return;
   const flags = container.querySelectorAll('[data-flag-cycle]');
@@ -1310,9 +1352,7 @@ function bindFlagCycles(container) {
     let idx = 0;
     const intervalId = setInterval(() => {
       idx = (idx + 1) % codes.length;
-      // 移掉所有 fi-XX class，加當前
-      [...el.classList].filter(c => c.startsWith('fi-')).forEach(c => el.classList.remove(c));
-      el.classList.add('fi-' + codes[idx]);
+      clipRevealFlag(el, codes[idx]);
     }, _FLAG_CYCLE_INTERVAL_MS);
     el._sccdFlagCycleId = intervalId;
     registerPageCleanup(() => {
@@ -1403,10 +1443,17 @@ function deriveHostSection(url, categoryFilter, visitTypeFilter) {
   return null;
 }
 
-// 共用 fetch wrapper：讀本地 JSON（WP-headless 邏輯已移除 2026-06-05）。
-// 第一參數 endpoint 已不使用、保留只為不動各 call site；之後此頁 flip 接 Directus 時，
-// 改成 Directus 為主 + 本地 JSON fallback（同 legal-data-loader 的 try-CMS / catch-local pattern）。
+// 共用 fetch wrapper：支援的 endpoint → Directus（activities-source，含 M2A ref remap）+ 本地 fallback；
+// 其餘 endpoint 維持只讀本地 JSON。2026-06-17 起先接 competitions / industry / workshops（M2A ref trial）。
+// endpoint 名是各 loader 傳的舊式名（連字號單數），對應到實際 Directus collection（底線複數）見下表。
+const ACT_DIRECTUS_MAP = {
+  'activities-competition': { collection: 'activities_competitions', category: 'competitions' },
+  'activities-industry':    { collection: 'activities_industry' },
+  'activities-workshop':    { collection: 'activities_workshops' },
+};
 async function fetchActEndpointOrFallback(endpoint, fallbackUrl) {
+  const m = ACT_DIRECTUS_MAP[endpoint];
+  if (m) return loadActivityCollection(m.collection, fallbackUrl, { category: m.category });
   return fetch(sitePath(fallbackUrl)).then(r => r.json());
 }
 
