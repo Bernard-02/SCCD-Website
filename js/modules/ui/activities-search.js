@@ -189,7 +189,7 @@ function applyGenericSearch(panelId, query) {
       container.style.display = 'flex';
       container.style.height = 'auto';
       const chevron = group.querySelector('.list-year-toggle .icon-chevron-list');
-      if (chevron && typeof gsap !== 'undefined') gsap.set(chevron, { rotation: 90 });  // open → 朝下
+      if (chevron && typeof gsap !== 'undefined') gsap.set(chevron, { rotation: 270 });  // open → 朝下（270；base 朝左，90=上/180=右/270=下）
     }
   });
 

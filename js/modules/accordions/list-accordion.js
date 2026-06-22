@@ -30,6 +30,8 @@ function initListYearToggle() {
         if (isInitiallyOpen) {
           // Set initial height to auto for open state
           gsap.set(itemsContainer, { height: 'auto' });
+          // 初始即展開 → chevron 朝下（270）；rotate-90 class 只當「初始展開」sentinel，實際角度由 GSAP 蓋過。user 2026-06-21
+          if (chevron) gsap.set(chevron, { rotation: 270 });
         } else {
           // Set initial height to 0 and hide for closed state
           gsap.set(itemsContainer, { height: 0, display: 'none' });
@@ -74,7 +76,8 @@ function initListYearToggle() {
             duration: DUR.medium,
             ease: EASE.enterSoft
           });
-          if (chevron) gsap.to(chevron, { rotation: 90, duration: DUR.fast });
+          // open → chevron 朝下（270；base icon 朝左，90=上/180=右/270=下）。user 2026-06-21
+          if (chevron) gsap.to(chevron, { rotation: 270, duration: DUR.fast });
         }
       }
     });
