@@ -148,6 +148,8 @@
   --theme-fg-rgb: 0, 0, 0;
   --theme-bg-rgb: 255, 255, 255;
   --theme-fg-inverse-rgb: 255, 255, 255;
+  /* list 斑馬疊色 alpha：跟「疊色顏色」走——黑疊色(fg=黑) 5%。白疊色(fg=白)在 inverse=0.1 / mode3 暗 hue 由 JS 設 0.1 */
+  --list-zebra-alpha: 0.05;
 
   /* ===== Footer 主題色 token =====
    * 預設 standard：黑底白字
@@ -232,10 +234,10 @@
 }
 
 /* ===== Degree Show Detail — sub-event tab 標題 marquee =====
-   結構由 degree-show-data-loader.js 產出：.dsd-tab-line（overflow window）> .dsd-tab-marquee-inner（跑動內容）。
-   applyMarqueeOverflow（共用模組）偵測溢出 → line 加 .is-overflow + inner 換兩份 .marquee-copy +
-   設 --marquee-distance/duration。只有手機 btn 有 max-width（下方 media block）會溢出 → 桌面永遠靜態。
-   溢出時自動跑不需 hover（手機無 hover；同 courses 手機規則）。 */
+   結構由 degree-show-data-loader.js 產出：.class-division-btn（tab 卡片）> .dsd-tab-line（overflow window）×2(EN/ZH) > .dsd-tab-marquee-inner（跑動內容）。
+   applyMarqueeOverflow（共用模組）偵測溢出 → line 加 .is-overflow + inner 換兩份 .marquee-copy + 設 --marquee-distance/duration。
+   桌面 tab max-width:18rem（下方 min-width:768 block）、手機 0.75vw 上限 → 兩邊都可能溢出。
+   觸發分桌面/手機（user 2026-06-21，對齊 courses/atlas 卡片）：手機自動跑（無 hover）、桌面 hover tab 卡片才跑、離開 snap 回原點。 */
 .dsd-tab-line {
   display: block;
   overflow: hidden;
@@ -250,18 +252,24 @@
   display: inline-block;
   padding-right: 3em;
 }
-.dsd-tab-line.is-overflow .dsd-tab-marquee-inner {
-  animation: dsd-tab-marquee var(--marquee-duration, 8s) linear infinite;
+/* 手機：溢出自動跑（無 hover） */
+@media (max-width: 767px) {
+  .dsd-tab-line.is-overflow .dsd-tab-marquee-inner {
+    animation: dsd-tab-marquee var(--marquee-duration, 8s) linear infinite;
+  }
 }
 @keyframes dsd-tab-marquee {
   0%   { transform: translateX(0); }
   100% { transform: translateX(var(--marquee-distance, -50%)); }
 }
-/* 桌面：子展覽 tab 固定上限寬度；英文太長 → applyMarqueeOverflow 偵測 .dsd-tab-line 溢出自動跑 marquee
-   （手機另有 0.75vw 上限，在下方 max-width:767 media block）。user 2026-06-12 */
+/* 桌面：子展覽 tab 固定上限寬度（18rem）；英文太長 → applyMarqueeOverflow 偵測 .dsd-tab-line 溢出截斷靜止，
+   hover tab 卡片(.class-division-btn)才跑 marquee（user 2026-06-21 改 hover；原 2026-06-12 是桌面自動跑）。 */
 @media (min-width: 768px) {
   .event-gallery-section .class-division-btn {
     max-width: 18rem;
+  }
+  .class-division-btn:hover .dsd-tab-line.is-overflow .dsd-tab-marquee-inner {
+    animation: dsd-tab-marquee var(--marquee-duration, 8s) linear infinite;
   }
 }
 

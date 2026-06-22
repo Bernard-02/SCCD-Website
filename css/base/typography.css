@@ -84,6 +84,7 @@ html.mode-switching.mode-switching .courses-bfa-label,
 html.mode-switching.mode-switching .class-group-label,
 html.mode-switching.mode-switching .list-header,
 html.mode-switching.mode-switching .list-content,
+html.mode-switching.mode-switching .list-item-zebra,
 html.mode-switching.mode-switching #faculty-panel,
 html.mode-switching.mode-switching #courses-detail-panel,
 html.mode-switching.mode-switching .activities-filter-bar,
@@ -117,6 +118,7 @@ html.mode-switching.mode-switching .library-card-content {
  * 這些用 `background`/`background-color: var(--theme-bg|fg)` 上色，不在上方 whitelist → mode 切換時 snap，
  * 但大背景 fade 0.4s ＝兩者不同步（user 2026-06-08 報「nav btn 底色、遮罩 timing 跟大背景不同步」）。
  * 補進 whitelist；含 ::before/::after 與 shorthand `background`（遮罩多用 shorthand 寫）。 */
+html.mode-switching.mode-switching .courses-program-bar,
 html.mode-switching.mode-switching .courses-grid-row-cover,
 html.mode-switching.mode-switching .courses-grid-row-cover::before,
 html.mode-switching.mode-switching .courses-grid-row-cover::after,

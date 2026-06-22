@@ -101,6 +101,9 @@ function applyColorVars() {
   root.style.setProperty('--theme-fg-inverse', fgInverseHex);
   root.style.setProperty('--theme-fg-inverse-rgb', fgInverseRgb);
   root.style.setProperty('--theme-overlay-25', `rgba(${fgRgb}, 0.25)`);
+  // list 斑馬 strip（mode3）：顏色固定白、只 alpha 依 hue 亮暗——亮 hue 白較不顯需更濃(0.4)、暗 hue(0.15)。
+  // lists.css body.mode-color 用 var(--list-zebra-strip)。user 2026-06-22。
+  root.style.setProperty('--list-zebra-strip', `rgba(255, 255, 255, ${isLightBg ? 0.4 : 0.15})`);
 
   // 互補 hue（hue + 180°）：footer 用，跟 body bg 永遠互補
   // 對應的對比文字色獨立算（互補色亮度跟原色不同，可能在 luminance threshold 兩側）
@@ -218,6 +221,7 @@ function stopColorLoop() {
   root.style.removeProperty('--theme-fg-contrast');
   root.style.removeProperty('--theme-fg-inverse-contrast');
   root.style.removeProperty('--footer-invert-filter');
+  root.style.removeProperty('--list-zebra-strip');
   // 清 wireframe logo 的 invert filter
   const logo = document.getElementById('header-logo');
   if (logo) logo.style.filter = '';

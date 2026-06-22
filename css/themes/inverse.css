@@ -18,6 +18,7 @@ body.mode-inverse {
   --theme-fg-rgb: 255, 255, 255;
   --theme-bg-rgb: 0, 0, 0;
   --theme-fg-inverse-rgb: 0, 0, 0;
+  --list-zebra-alpha: 0.15;  /* 白疊色(fg=白) 15%（user 2026-06-22） */
 
   /* Library 主矩形：淺灰 → 深灰，文字黑 → 白；半透明文字同 alpha 但反成 rgba(255,...) */
   --lib-bg: #333333;

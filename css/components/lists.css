@@ -137,12 +137,6 @@
     gap: var(--spacing-sm);
   }
 
-  /* list-header HTML inline 是 `py-md`（桌面要保留），手機收緊到 py-sm 視覺更節制 */
-  .list-header.py-md {
-    padding-top: var(--spacing-sm) !important;
-    padding-bottom: var(--spacing-sm) !important;
-  }
-
   /* degree-show card content 容器手機去 padding + margin-left
      桌面 HTML inline `p-[6px] ml-lg` 提供 hover accent bg padding + 年份欄→content gap，
      手機沒 hover、年份 col 已 stack 在上方（col-span-12），不需要再加 ml-lg 推右 */
@@ -355,8 +349,8 @@
   #activities-content-section .list-content > .grid > :first-child > .grid > div:last-child p {
     font-size: var(--font-size-p2);
   }
-  /* 地點國家在手機靠左對齊（桌面 text-right + flex-shrink-0 對齊到 inner grid 右側 country col）
-     mobile inner grid 已 stack 單欄，三層加 !important 確保贏 Tailwind text-right utility：
+  /* 摘要列 city 欄在手機靠左對齊（桌面為固定 6rem 第三欄靠左、與 guest 國家欄對齊；2026-06-20 起 city 改 list-title-marquee）。
+     mobile inner grid 已 stack 單欄，三層加 !important 確保 city 欄左靠（保險，防任何 utility 干擾）：
      1. wrapper text-align:left  2. justify-self:start 把 wrapper 推到 grid cell 左緣
      3. 內部 <p> 也明示 text-align:left（防 utility specificity 高過 wrapper rule） */
   #activities-content-section .list-content > .grid > :first-child > .grid > div:last-child {
@@ -373,24 +367,7 @@
     grid-template-columns: minmax(0, 1fr) 5.25rem;
   }
 
-  /* 打開 list 時 title 往右移動：手機要視覺對齊 spacing-sm (16px)
-     list-header 自身已 px-[4px]，translateX 補 12px → title 視覺左緣 = 4 + 12 = 16px = spacing-sm
-     桌面在 lists.css :286 走 spacing-md - 4px = 20px 視覺，跟手機不同節奏 */
-  .list-header > div:first-child {
-    transition: transform var(--dur-fast) ease;
-  }
-  .list-header.active > div:first-child {
-    transform: translateX(calc(var(--spacing-sm) - 4px));
-    margin-right: calc(var(--spacing-sm) - 4px); /* 抵消 translateX，title 右緣不戳控制項（同桌面 .list-header.active 說明）*/
-  }
-  /* #1 (user 2026-06-10)：打開時國旗 row 也要跟 title 一起往右移（同上 translateX 12px）。
-     國旗 row 有 reveal transform(yPercent) → 改用 padding-left 不用 transform 避免衝突；transition 跟著平滑切換 */
-  .list-header-meta-mobile {
-    transition: padding-left var(--dur-fast) ease;
-  }
-  .list-header.active .list-header-meta-mobile {
-    padding-left: calc(var(--spacing-sm) - 4px);
-  }
+  /* user 2026-06-21：title／國旗 row 縮排改由 list-header 自身 px-sm 提供，開合不位移、無動畫。 */
 }
 
 /* admission 內 gallery 縮高 -30%：120px → 84px 桌面手機共用
@@ -535,6 +512,13 @@
     grid-template-rows: 0fr;
     opacity: 0;
     margin-top: -0.5rem;  /* 抵消父 flex-col gap-xs (0.5rem)，collapsed 後 title 不留視覺 gap */
+  }
+  /* summer-camp 例外（user 2026-06-22）：營隊副標（梯次名稱 High School Students Design Camp…）
+   * 打開後即使捲到 pin 線也保留顯示，不像其他 section pin 後收掉。ID specificity 蓋過上面 collapse。 */
+  #panel-summer-camp .list-header.active.is-pinned > * > .clip-reveal-wrapper:has(.list-subtitles) {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    margin-top: 0;
   }
   /* Lecture 例外（user 2026-06-05）：講座 accordion 一「打開」(.active) 就收副標，不必等捲到 pin 線。
    * 其他有副標 section（industry/students-present）維持「pinned 才收」(上面 is-pinned 規則) → 故 scope #panel-lectures。
@@ -1004,22 +988,8 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
     transform: scaleX(0);
   }
 
-  /* active 時 title 往右推一格 spacing-md - 4px。
-   * 用 transform translateX 不用 padding-left — padding-left 會收縮 content area
-   * 觸發換行→list-header 變高（=> 視覺上 title「往下偏移」bug）；transform 純視覺位移
-   * 不影響 layout flow，安全。
-   * 全站共用：admission / activities / summer camp 等所有用 .list-header 的場景一致。 */
-  .list-header > div:first-child {
-    padding-left: 0;
-    transition: transform var(--dur-fast) ease;
-  }
-  .list-header.active > div:first-child {
-    transform: translateX(calc(var(--spacing-md) - 4px));
-    /* 抵消上面的 translateX：title(flex-1) 寬度同步縮 20px → marquee 裁切邊界提前 20px，
-       位移後右緣剛好回到控制項左緣，不再戳進右側 flag/share/chevron。
-       （col-5 內容變窄後長 title 從「放得下」變「溢出貼右緣」才讓這個位移重疊現形）*/
-    margin-right: calc(var(--spacing-md) - 4px);
-  }
+  /* user 2026-06-21：title 縮排改由 list-header 自身 px-sm 提供（不再用 title translateX）；
+     開合不位移、無左右滑動動畫。 */
 }
 
 /* ===== Activities Reference Chip ===== */
@@ -1136,4 +1106,29 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
 @keyframes homepage-marquee-scroll {
   0%   { transform: translateX(0); }
   100% { transform: translateX(-50%); }
+}
+
+/* ponytail: activities list 無分割線 + 灰白交叉斑馬紋（user 2026-06-21）。
+   - 分割線整段移除：item divider / 年份 separator display:none（item 之間無縫）；search 底線去掉。
+   - 斑馬紋灰 = --list-zebra-gray（gray-9 再淺 50%）。
+   - 交叉「連續」跨年份組：靠 loadListInto 全域計數加 .list-item-zebra（純 CSS nth-child 在各
+     .list-year-items 容器內會重新計數，無法處理「奇數筆年份後下一年接續深淺」）。 */
+:is(#activities-content-section, #admission-content-section) .list-item-divider,
+:is(#activities-content-section, #admission-content-section) .activities-separator {
+  display: none;
+}
+.activities-search-inner {
+  border-bottom-width: 0;
+}
+/* standard / inverse 底色 = 前景色 × --list-zebra-alpha 透明疊色（:root 黑 0.05、inverse.css 白 0.1）。
+   直接 inline rgba(var(--theme-fg-rgb),var(--list-zebra-alpha)) 不走中介 :root 變數（中介變數會 inherit 死黑、失去 mode-aware，見 memory）。
+   mode3 改用 HSL 同色系 strip（見下方 body.mode-color override），不走 alpha：保留 hue+飽和、只調亮度，strip 不發灰仍是同一顏色。
+   文字本來就是 theme-fg 對比色 → 疊薄色仍對比清楚。進場逐 item clip-reveal 由 playAdmissionPanelReveal 驅動。 */
+:is(#activities-content-section, #admission-content-section) .list-item.list-item-zebra {
+  background-color: rgba(var(--theme-fg-rgb), var(--list-zebra-alpha, 0.05));
+}
+/* mode3：strip 用白色疊色（顏色固定白、不用 fg-rgb 翻黑/白、不用 HSL）。alpha 依 hue 亮暗由 theme-toggle.js
+   set 進 --list-zebra-strip：暗 hue 0.15、亮 hue 0.4（亮 hue 上白較不顯故加濃）。user 2026-06-22。 */
+body.mode-color :is(#activities-content-section, #admission-content-section) .list-item.list-item-zebra {
+  background-color: var(--list-zebra-strip, rgba(255, 255, 255, 0.15));
 }
