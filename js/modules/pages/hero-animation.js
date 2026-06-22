@@ -494,6 +494,29 @@ window.addEventListener('resize', () => {
  * Hero 退場動畫：text 4 方向隨機 slide-out + banner 4 方向 clip-path 收合。
  * 與 page-specific exit handler 並行（page-exit.js 用 Promise.all）。
  */
+// 從「當下狀態」把 hero chips（+ banner）收場：desktop playHeroExit 與 mobile 退場共用。
+// - chip 用 tl.to（非 fromTo {xPercent:0,yPercent:0}）：進場完成時 clearProps→computed 0,0＝等同舊行為；
+//   進場中時 overwrite 殺掉進場、從半開位置順順滑出，不會先跳回 0,0「整張閃一下」再走
+//   （user 2026-06-21；對齊 faculty exitFacultyCards 的「從當下倒帶」邏輯）。
+// - 未開始進場的 chip（快速切頁還沒輪到，dataset.heroRevealStarted 未設）：kill 排隊 tween + 維持隱藏、
+//   不納入退場序列，避免 tl.to 從畫面外起點掃過可見區再離開。
+// - banner 用 clip-path：進場中（inline clip 還在）從當下收；進場完成（clearProps 後 computed=none 無法
+//   interpolate）才 fromTo 顯式 inset(0%) 起點（見 feedback_clippath_exit_after_clearprops_use_fromto）。
+function exitHeroChips(tl, chips, banner) {
+  let i = 0;
+  chips.forEach(el => {
+    if (!(/** @type {HTMLElement} */ (el).dataset.heroRevealStarted)) { gsap.killTweensOf(el); return; }
+    const to = offsetFor(pickHeroDir());
+    tl.to(el, { xPercent: to.xPercent, yPercent: to.yPercent, duration: 0.5, ease: EASE.exit, overwrite: true }, (i++) * 0.06);
+  });
+  if (banner) {
+    const opts = { clipPath: BANNER_INSET_MAP[pickHeroDir()], duration: 0.5, ease: EASE.exit, overwrite: true };
+    const inlineClip = /** @type {HTMLElement} */ (banner).style.clipPath;
+    if (inlineClip && inlineClip !== 'none') tl.to(banner, opts, 0);
+    else tl.fromTo(banner, { clipPath: 'inset(0% 0% 0% 0%)' }, opts, 0);
+  }
+}
+
 async function playHeroExit() {
   if (typeof gsap === 'undefined') return;
 
@@ -507,41 +530,12 @@ async function playHeroExit() {
   if (texts.length === 0 && !banner && !heroLogo) return;
 
   const EXIT_DURATION = 0.5;
-  const EXIT_STAGGER = 0.06;
 
   return new Promise(resolve => {
     const tl = gsap.timeline({ onComplete: resolve });
 
-    // 用 fromTo 明確指定起點：進場 clearProps:'transform' 後元素無 inline transform，
-    // 直接 tl.to 仰賴 computed xPercent/yPercent=0 雖通常 OK，但同 reason 包進 fromTo 避免 GSAP 解析意外
-    texts.forEach((el, i) => {
-      const to = offsetFor(pickHeroDir());
-      tl.fromTo(el,
-        { xPercent: 0, yPercent: 0 },
-        {
-          xPercent: to.xPercent,
-          yPercent: to.yPercent,
-          duration: EXIT_DURATION,
-          ease: EASE.exit,
-          overwrite: true,
-        },
-        i * EXIT_STAGGER);
-    });
-
-    // Banner: 進場 clearProps:'clipPath' 後 computed clipPath = 'none'，無法 interpolate 到 inset(...)；
-    // 用 fromTo 指定 from = inset(0%) 是 explicit 起點
-    if (banner) {
-      const dir = pickHeroDir();
-      tl.fromTo(banner,
-        { clipPath: 'inset(0% 0% 0% 0%)' },
-        {
-          clipPath: BANNER_INSET_MAP[dir],
-          duration: EXIT_DURATION,
-          ease: EASE.exit,
-          overwrite: true,
-        },
-        0);
-    }
+    // chips（hero-title/-cn/-text-en/-cn）+ banner：從當下狀態收場，mid-entrance 不跳回全開（見 exitHeroChips）
+    exitHeroChips(tl, texts, banner);
 
     // Logo-only hero（about）：進場時 onComplete 把 wrapper 設 overflow:visible（露完整 logo）；
     // 退場重新裁切 wrapper 當遮罩，logo yPercent 沉回底邊 = 進場 clip-reveal 的反向
@@ -649,7 +643,8 @@ function playMobileHeroEntrance() {
     if (scheduled) at = Math.max(0, at + (prevLen - 1) * ENTER_STAGGER + ENTER_DURATION - ENTER_OVERLAP);
     group.forEach((chip, i) => {
       gsap.set(chip, offsetFor(pickHeroDir()));
-      tl.to(chip, { xPercent: 0, yPercent: 0, duration: ENTER_DURATION, clearProps: 'transform' }, at + i * ENTER_STAGGER);
+      tl.to(chip, { xPercent: 0, yPercent: 0, duration: ENTER_DURATION, clearProps: 'transform',
+        onStart: () => { /** @type {HTMLElement} */ (chip).dataset.heroRevealStarted = '1'; } }, at + i * ENTER_STAGGER);
     });
     prevLen = group.length;
     scheduled = true;
@@ -662,14 +657,7 @@ function playMobileHeroEntrance() {
     if (typeof gsap === 'undefined') return Promise.resolve();
     return new Promise(resolve => {
       const out = gsap.timeline({ onComplete: resolve });
-      chips.forEach((chip, i) => {
-        out.fromTo(chip, { xPercent: 0, yPercent: 0 },
-          { ...offsetFor(pickHeroDir()), duration: 0.5, ease: EASE.exit, overwrite: true }, i * 0.06);
-      });
-      if (bg) {
-        out.fromTo(bg, { clipPath: 'inset(0% 0% 0% 0%)' },
-          { clipPath: BANNER_INSET_MAP[pickHeroDir()], duration: 0.5, ease: EASE.exit, overwrite: true }, 0);
-      }
+      exitHeroChips(out, chips, bg);  // 從當下狀態收場，mid-entrance 不跳回全開（同 desktop playHeroExit）
     });
   });
 }
@@ -861,6 +849,8 @@ export function initHeroAnimation() {
         yPercent: 0,
         duration: ENTER_DURATION,
         clearProps: 'transform',
+        // 標記「已開始進場」：離頁退場 exitHeroChips 只收已開始的 chip，沒輪到的維持隱藏不掃過畫面
+        onStart: () => { /** @type {HTMLElement} */ (el).dataset.heroRevealStarted = '1'; },
       }, at);
     });
   }
