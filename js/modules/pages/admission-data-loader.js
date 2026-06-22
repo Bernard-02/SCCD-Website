@@ -33,6 +33,12 @@ const ADMISSION_LIST_OPTIONS = {
   autoReveal:      false,           // reveal 由 admission-section-switch 接管（playAdmissionPanelReveal）
 };
 
+// "2026.02.04" / "2026-02-04" / "2026/2/4" → Date；解析不出回 null
+function parseNewsDate(s) {
+  const m = String(s || '').match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
+  return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null;
+}
+
 export async function loadAdmissionData() {
   const container = document.getElementById('admission-list');
   if (!container) return;
@@ -44,6 +50,15 @@ export async function loadAdmissionData() {
     console.error('Error loading admission data:', error);
     return;
   }
+
+  // 只顯示近一年的 news（後台照常累積，前台依日期自動篩）。日期解析不出的保留不藏。
+  // ponytail: 以「今天」為錨點的滾動 12 個月；若淡季完全沒新貼文會整列空 → 改錨「最新一筆的日期」再回推一年即可
+  const cutoff = new Date();
+  cutoff.setFullYear(cutoff.getFullYear() - 1);
+  data = data.filter(item => {
+    const d = parseNewsDate(item.date);
+    return !d || d >= cutoff;
+  });
 
   // 一次 render 全部 items（不分頁）；逐一進場由 playAdmissionPanelReveal 的 ScrollTrigger 接管
   // （每個 item 捲入 viewport 才 reveal）。資料量小（~12 筆），全 render 成本可忽略。
@@ -63,12 +78,37 @@ export function setupAdmissionReveal(container, { hide = true } = {}) {
   if (typeof gsap === 'undefined' || !container) return;
   const rows = container.querySelectorAll('.list-reveal-row');
   setupClipReveal(rows, { hide });
+  // 斑馬底色（zebra item 才有可見底色）進場用 clip-path 揭露：先藏起，避免進場前底色閃出。
+  // 逐 item 揭由 playAdmissionPanelReveal 接（底色先、文字後，item 間接力）。inset(100%)=從下往上揭。
+  // ⚠️ 無條件藏（即使 hide:false 的初次載入）：list-item 的文字 row 一律被 bindInteractions 的
+  //    setupClipReveal(hide:true) 藏起，底色不跟著藏 → 初次進場「灰底已在、只有文字滑入」（user 2026-06-22）。
+  //    hide:false 只為了不藏「描述塊」（非 zebra item，不受這行影響）；揭露一律由 playAdmissionPanelReveal 接管。
+  container.querySelectorAll('.list-item.list-item-zebra').forEach(item => {
+    gsap.set(item, { clipPath: 'inset(100% 0% 0% 0%)' });
+  });
+}
+
+// 斑馬底色進場 clip-reveal helper（兩條 reveal 路徑共用）。
+// 只有 .list-item-zebra（有可見底色）才回傳 item；白底/admission item 回 null → 走純文字 reveal（原行為）。
+// ⚠️ 不能只看 groupRows[0]：每個「年份的第一個 item」的 group 開頭是年份 toggle row（在年份欄、不在任何 .list-item 內），
+//    closest('.list-item') 會是 null → 偵測不到該 item → 它 setup 時設的 clip-path:inset(100%) 永遠不揭 → 整個 item 被裁成空白。
+//    改成找「組內第一個真的在 .list-item 內的 row」。
+function zebraBgTarget(groupRows) {
+  let item = null;
+  for (const r of groupRows) { const it = r.closest('.list-item'); if (it) { item = it; break; } }
+  return item && item.classList.contains('list-item-zebra') ? item : null;
+}
+// clip-path inset(100%→0)：底色由下往上揭。reveal 完 clearProps 移除 clip-path（避免殘留 clip 影響 sticky header）。
+function revealZebraBg(item, tl, at) {
+  const to = { clipPath: 'inset(0% 0% 0% 0%)', duration: DUR.base, ease: EASE.enter, clearProps: 'clipPath' };
+  if (tl) tl.to(item, to, at); else gsap.to(item, to);
 }
 
 /**
  * 播放整個 panel 的進場動畫
  * - useScrollTrigger=true（初次載入）：intro + 每個 list-row group 各自一個 ScrollTrigger，捲入 viewport 才 reveal
  * - useScrollTrigger=false（panel 切換）：master timeline 立即 sequential 播放
+ * 逐 item：先 clip-reveal 底色（zebra item）再進文字（user 2026-06-21：底色→文字→底色→文字 交錯）。
  */
 export function playAdmissionPanelReveal(panel, { useScrollTrigger = false } = {}) {
   if (!panel || typeof gsap === 'undefined') return;
@@ -119,13 +159,18 @@ export function playAdmissionPanelReveal(panel, { useScrollTrigger = false } = {
     groups.forEach(groupRows => {
       if (groupRows.length === 0) return;
       const triggerEl = groupRows[0].closest('.list-item') || groupRows[0];
+      const bgItem = zebraBgTarget(groupRows);
       ScrollTrigger.create({
         trigger: triggerEl, start: 'top 90%', once: true,
-        onEnter: () => gsap.to(groupRows, {
-          yPercent: 0, duration: DUR.slow, stagger: { each: 0.06 },
-          ease: EASE.enter, clearProps: 'transform',
-          onComplete: () => unlockGroup(groupRows),
-        }),
+        onEnter: () => {
+          if (bgItem) revealZebraBg(bgItem);          // 底色先 clip-reveal
+          gsap.to(groupRows, {
+            yPercent: 0, duration: DUR.slow, stagger: { each: 0.06 },
+            ease: EASE.enter, clearProps: 'transform',
+            delay: bgItem ? 0.2 : 0,                   // 文字晚底色 0.2s 進
+            onComplete: () => unlockGroup(groupRows),
+          });
+        },
       });
     });
   } else {
@@ -137,14 +182,18 @@ export function playAdmissionPanelReveal(panel, { useScrollTrigger = false } = {
         ease: EASE.enter, clearProps: 'transform',
       }, 0);
     }
-    const groupStart = intro.length ? 0.3 : 0;
-    groups.forEach((groupRows, idx) => {
+    let cursor = intro.length ? 0.3 : 0;
+    groups.forEach((groupRows) => {
       if (groupRows.length === 0) return;
+      const bgItem = zebraBgTarget(groupRows);
+      if (bgItem) revealZebraBg(bgItem, tl, cursor);   // 底色先 clip-reveal
+      const textAt = cursor + (bgItem ? 0.2 : 0);       // 文字晚底色 0.2s
       tl.to(groupRows, {
         yPercent: 0, duration: DUR.slow, stagger: { each: 0.06 },
         ease: EASE.enter, clearProps: 'transform',
         onComplete: () => unlockGroup(groupRows),
-      }, groupStart + idx * 0.18);
+      }, textAt);
+      cursor = textAt + 0.18;  // 下一 item 起步：底色→文字→底色→文字 接力
     });
   }
 }
@@ -224,6 +273,15 @@ export async function playAdmissionPanelExit(panel) {
     panel.querySelectorAll('.list-item').forEach(it => it.setAttribute('data-pre-reveal', ''));
     const rows = panel.querySelectorAll('.list-reveal-row');
     if (rows.length === 0) { resolve(); return; }
+
+    // 灰底退場：clip-path inset(0)→inset(100%) 收回（鏡像進場揭露），與文字 yPercent 同步滑出。
+    // 進場收尾 clearProps 後 inline clip-path 為空 → fromTo 顯式從 inset(0) 收（否則從 none 補間會 snap，
+    // 見 [[feedback_clippath_exit_after_clearprops_use_fromto]]）；進場中(inline 仍有值)則直接 to 從當下收。
+    panel.querySelectorAll('.list-item.list-item-zebra').forEach(item => {
+      const to = { clipPath: 'inset(100% 0% 0% 0%)', duration: DUR.base, ease: EASE.exit, overwrite: true };
+      if (item.style.clipPath) gsap.to(item, to);
+      else gsap.fromTo(item, { clipPath: 'inset(0% 0% 0% 0%)' }, to);
+    });
 
     // rows 在 clip wrapper 內：用 yPercent:100 即可隱藏（不動 opacity）
     gsap.to(rows, {

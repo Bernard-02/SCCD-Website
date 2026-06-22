@@ -176,25 +176,17 @@ export function initAdmissionSectionSwitch(fromUserNav = false) {
 
     // try/finally：lazy import / loadSummerCampInto reject 時 switching flag 不能永久卡 true
     // （參考 activities-section-switch 已有的 race fix；同 pattern 套 admission）
+    // 順序對齊 activities switchToSection：先 load → setup（panel 仍 hidden）→ show → reveal。
+    // 關鍵＝setupAdmissionReveal 必須在 list 已在 DOM 後才跑，文字 row + zebra 灰底才會一次藏好；
+    //   panel 全程 hidden 到 show 那步，lazy load 期間描述塊也不會 flash（不需先藏再補藏那套）。
     try {
       // 1. 退場（首次 init 跳過）
       if (!isInitial && currentPanel) {
         await playAdmissionPanelExit(currentPanel);
       }
 
-      // 2. 切 active btn + show 新 panel（capture 色給 deep-link highlight 用）
-      ({ color: currentSectionColor } = setActiveNavBtn(btns, section, 'data-section'));
-      const newPanel = /** @type {HTMLElement | null} */ (showPanel('.activities-panel', targetId));
-      // 收起 target panel 內遺留的 open accordion（avoid「切到別的 panel 再切回來時 accordion 仍打開」殘留體驗）
-      if (newPanel) resetListAccordionsInPanel(newPanel);
-
-      // 3. 立即 setup 已存在的 rows（描述塊等 HTML 寫死的元素）— 避免 lazy load 期間描述塊 flash 顯示
-      //    （第一次切 summer-camp 時 list 還沒載入，但描述塊已在 panel HTML 內）
-      //    初次 init（hide:false）只 wrap 不隱藏：描述塊 HTML 已可見，但需 clip-wrapper 讓首次 exit 能乾淨剪裁
-      //    （無 wrapper 時 yPercent 0→100 會把描述塊推出自然 flow 看起來「掉出去」而非裁切）
-      if (newPanel) setupAdmissionReveal(newPanel, { hide: !isInitial });
-
-      // 4. Lazy load summer camp（首次切到時才載入；autoReveal:false 由本模組接管 reveal）
+      // 2. Lazy load summer camp（首次切到才載入）— 在 setup/show 之前，list 進 DOM 後 setup 才能正確藏 zebra。
+      //    autoReveal:false：reveal 由本模組 playAdmissionPanelReveal 接管。
       if (section === 'summer-camp' && !loaded['summer-camp']) {
         loaded['summer-camp'] = true;
         const [{ loadSummerCampInto }, { initListAccordion }] = await Promise.all([
@@ -205,8 +197,21 @@ export function initAdmissionSectionSwitch(fromUserNav = false) {
         initListAccordion();
       }
 
-      // 5. 進場：首次 init 用 ScrollTrigger（rows 在 viewport 外時等捲入再播），後續切換立即播放
-      //    （lazy load 完成後新渲染的 list-items 已由 loadListInto 內部 setupClipReveal 處理，不需再 setup）
+      // 3. 切 active btn（capture 色給 deep-link highlight 用）
+      ({ color: currentSectionColor } = setActiveNavBtn(btns, section, 'data-section'));
+
+      // 4. setup（panel 仍 hidden）：list 已載入 → 文字 row 藏起 + zebra 灰底 clip 藏起一次到位。
+      //    hide:!isInitial — 初次 init（hide:false）只 wrap 不隱藏描述塊（HTML 已可見免閃，但需 wrapper 讓首次 exit 乾淨剪裁）。
+      const newPanel = /** @type {HTMLElement | null} */ (document.getElementById(targetId));
+      if (newPanel) setupAdmissionReveal(newPanel, { hide: !isInitial });
+
+      // 5. show 新 panel + 收起遺留 open accordion（避免切走再切回 accordion 仍開的殘留）
+      if (newPanel) {
+        showPanel('.activities-panel', targetId);
+        resetListAccordionsInPanel(newPanel);
+      }
+
+      // 6. 進場：首次 init 用 ScrollTrigger（rows 在 viewport 外時等捲入再播），後續切換立即播放
       if (newPanel) {
         playAdmissionPanelReveal(newPanel, { useScrollTrigger: isInitial });
       }
