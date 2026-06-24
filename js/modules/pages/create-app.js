@@ -306,14 +306,21 @@ function playCreateExitAnimation(destinationRoute) {
     //    yPercent 0 → ±110 overshoot，相鄰 item 上下交替方向，parent overflow-y:clip 當 mask
     //    先退場：stagger 0.05s（接近同時）、dur 0.55s → 最後一個約 0.65s 結束
     if (controlBarItems.length > 0) {
-      const yDirs = alternatingYPercent(controlBarItems.length);
+      // mode3：colormode-box + 右側延伸的 colorpicker-box(wheel) 視覺上是一整塊 → 退場當「一個 unit」
+      //   同方向、同時間移動（user 2026-06-24）。否則 alternating 會給相鄰兩盒上下相反方向、看起來像分開兩盒。
+      //   pickerIdx===-1（非 mode3，colorpicker display:none 被 offsetParent filter 掉）時不分組＝原行為。
+      const pickerIdx = controlBarItems.findIndex(el => el.id === 'colorpicker-box');
+      const grouped = pickerIdx > 0; // colorpicker 顯示且前面有 colormode-box（DOM 緊鄰）
+      const unitIndex = (i) => (grouped && i >= pickerIdx ? i - 1 : i); // wheel 併進 mode-btn 那個 unit
+      const unitDirs = alternatingYPercent(grouped ? controlBarItems.length - 1 : controlBarItems.length);
+      const yDirs = controlBarItems.map((_, i) => unitDirs[unitIndex(i)]);
       tl.fromTo(controlBarItems,
         { yPercent: 0 },
         {
           yPercent: i => yDirs[i],
           duration: DUR.medium,
           ease: EASE.exit,
-          stagger: 0.05,
+          stagger: i => unitIndex(i) * 0.05, // 同 unit 同 delay → wheel 與 mode-btn 同時起步
           overwrite: 'auto',
         },
         0
