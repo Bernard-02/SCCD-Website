@@ -25,41 +25,10 @@ const PRIMARY_COLORS = ['#FF448A', '#00FF80', '#26BCFF'];
 const COLOR_BLACK = '#000000';
 
 // Alumni filter 下方輪播職業（雙語，每 3s 切換一個 + clip-path 動畫）
-const ALUMNI_CAREERS = [
-  { en: 'Animation Directors', zh: '動畫導演' },
-  { en: 'New Media Artists', zh: '新媒體藝術家' },
-  { en: 'Creative Directors', zh: '創意總監' },
-  { en: 'Art Directors', zh: '藝術總監' },
-  { en: 'Design Directors', zh: '設計總監' },
-  { en: 'Graphic Designers', zh: '平面設計師' },
-  { en: 'Game Designers', zh: '遊戲設計師' },
-  { en: 'Web Designers', zh: '網站設計師' },
-  { en: 'Artists', zh: '藝術家' },
-  { en: 'Photographers', zh: '攝影師' },
-  { en: 'Curators', zh: '策展人' },
-  { en: 'Painters', zh: '畫家' },
-  { en: 'Cartoonist', zh: '漫畫家' },
-  { en: 'Illustration Designer', zh: '插畫家' },
-  { en: 'Film, Advertising, MV Director', zh: '電影 / 廣告 / MV 導演' },
-  { en: 'UI, UX Designer', zh: 'UI / UX 設計師' },
-  { en: 'Product Designer', zh: '產品設計師' },
-  { en: 'Costume Designer', zh: '服裝設計師' },
-  { en: 'Interior Designer', zh: '室內設計師' },
-  { en: 'Type Designer', zh: '字體設計師' },
-  { en: 'Concept Design', zh: '概念設計' },
-  { en: 'Art Design', zh: '美術設計' },
-  { en: 'Event Planner', zh: '活動策劃' },
-  { en: 'Occupational Therapy Artist', zh: '職能治療藝術家' },
-  { en: 'Brand Design', zh: '品牌設計' },
-  { en: 'Manager', zh: '經紀人' },
-  { en: 'Lead Vocal of the Band', zh: '樂團主唱' },
-  { en: 'Polar Explorer', zh: '極地探險家' },
-];
-
 // ── Filter ─────────────────────────────────────────────
 // Faculty  = fc + ff（在職 + 離職教師）
 // Alumni   = co（系友任職企業 — 橢圓 ring chip，host subgroup）
-//          + em（系友就職企業 — 橢圓外 floating chip，employ subgroup；mock data 暫無真實 source）
+//          + em（系友就職企業 — 橢圓外 floating chip，employ subgroup；資料源 Directus alumni_employment）
 // Partners = wsg + ind + ec（工作營 / 產學合作 / 體驗營）；講座(lec)已移除（2026-06-07 user 指定）
 //   ec（體驗營）佔位中：prefix 已列入 partners 但暫無節點，等「體驗營合作單位」資料檔到位再 seed
 const FILTER_PREFIXES = {
@@ -184,55 +153,8 @@ const TYPED_LABELS = {
   co:  { en: 'Alumni Co.',       zh: '系友任職企業' },
 };
 
-// Canonical 國家（D 節點：取代原本 19 個城市，改用 9 個國家；資料源自 workshops 解析出來的城市
-// → 透過 CITY_TO_COUNTRY 對應到國家，避免冒出系統不認得的國家）
-const CANONICAL_COUNTRIES = [
-  { en: 'Japan',          zh: '日本',   iso: 'JP' },
-  { en: 'United States',  zh: '美國',   iso: 'US' },
-  { en: 'China',          zh: '中國',   iso: 'CN' },
-  { en: 'Thailand',       zh: '泰國',   iso: 'TH' },
-  { en: 'Singapore',      zh: '新加坡', iso: 'SG' },
-  { en: 'United Kingdom', zh: '英國',   iso: 'GB' },
-  { en: 'South Korea',    zh: '韓國',   iso: 'KR' },
-  { en: 'France',          zh: '法國',  iso: 'FR' },
-  { en: 'Taiwan',         zh: '臺灣',   iso: 'TW' },
-];
-
-// 城市（workshops.json 內出現的城市）→ 對應國家 EN 名稱（COUNTRY 表 key）
-const CITY_TO_COUNTRY = {
-  'Tokyo':      'Japan',
-  'Kyoto':      'Japan',
-  'Nagoya':     'Japan',
-  'Osaka':      'Japan',
-  'New York':   'United States',
-  'California': 'United States',
-  'Shanghai':   'China',
-  'Beijing':    'China',
-  'Chiang Mai': 'Thailand',
-  'Bangkok':    'Thailand',
-  'Singapore':  'Singapore',
-  'London':     'United Kingdom',
-  'Busan':      'South Korea',
-  'Seoul':      'South Korea',
-  'Paris':      'France',
-  'Taipei':     'Taiwan',
-  'Tainan':     'Taiwan',
-  'Yilan':      'Taiwan',
-  'Hualien':    'Taiwan',
-};
-
-// 中文城市 → 國家 EN（parseCities 抓 location_zh 時用）
-const CITY_ZH_TO_COUNTRY = {
-  '東京':   'Japan',  '京都':   'Japan',  '名古屋': 'Japan',  '大阪':   'Japan',
-  '紐約':   'United States', '加州': 'United States',
-  '上海':   'China',  '北京':   'China',
-  '清邁':   'Thailand', '曼谷': 'Thailand',
-  '新加坡': 'Singapore',
-  '倫敦':   'United Kingdom',
-  '釜山':   'South Korea', '首爾': 'South Korea',
-  '巴黎':   'France',
-  '臺北':   'Taiwan',  '臺南':   'Taiwan',  '宜蘭':   'Taiwan',  '花蓮':   'Taiwan',
-};
+// D 國家節點不再寫死清單：改由 buildAtlas 從真實資料（系友就職 + 工作營/產學夥伴的 country ISO）動態生成。
+// 顯示名稱走 country-names.js 的 countryName(iso)。
 
 // Partner 類型對應（wsg/ind/ec 各自映射；lec 已移除 2026-06-07）
 const PARTNER_TYPES = {
@@ -264,12 +186,6 @@ const MIN_SCALE         = 0.78;
 const MAX_SCALE         = 3.5;    // zoom in 上限拉到 3.5x
 const ZOOM_SPEED        = 0.0015;
 const INTRO_DURATION    = 1.5;
-
-// 假資料：B/C 沒有 cityKey 時隨機指派一個 canonical 國家（純為視覺 cluster + 連線）。
-// 2026-06-09 user 指定關閉：activities（工作營/產學）資料尚未上後台、目前本地 placeholder 無真實 country
-//   → 隨機假連會把本國夥伴（justfont 等）連到錯國家。改成「只連得出真實 country 的（em 真 ISO、workshop 真城市）」，
-//   認不出的就不連，等 activities 上 Directus 帶 location/country 後由既有 matchCanonical/cityKey 邏輯自動連。
-const USE_FAKE_CITY_FILL = false;
 
 let cleanupFns = [];
 
@@ -303,56 +219,43 @@ export async function initAtlas(options = {}) {
   // ── 載入資料（Directus，各自有本地 fallback；workshops/industry 暫讀本地，見 atlas-source.js）──
   const { facultyCurrent, facultyFormer, workshops, industry, companies, employment, careers } =
     await loadAtlasData();
-  // 職業輪播：後台 alumni_careers 有資料就用，否則退回內建 ALUMNI_CAREERS
-  const careersList = (careers && careers.length) ? careers : ALUMNI_CAREERS;
+  // 職業輪播：後台 alumni_careers（無假資料 fallback；CMS 取不到就空、輪播不顯示）
+  const careersList = careers || [];
 
   // ── 建構 items ──────────────────────────────────────
   const items = [];
   const groups = new Map();
-  const countryIndex = new Map();   // canonical country EN → D itemId
+  const countryIndex = new Map();   // 國家 ISO(大寫) → D itemId
   let idCounter = 0;
   const uid = (prefix) => `${prefix}-${++idCounter}`;
 
-  // 預先建好 D 國家（canonical 9 個）
-  CANONICAL_COUNTRIES.forEach(c => {
+  // ── D 國家節點：只為「真實出現在資料裡的國家」建節點（無固定清單）─────────────
+  // 來源 = 帶 country 的 item：系友就職 em + 工作營/產學夥伴 guest。ISO(大寫) 當 key、countryName 取顯示名。
+  // 好處：① 沒人在的國家不會變孤兒節點 ② 不限 9 國 ③ Directus 一更新 country 就自動長出/連上節點。
+  const collectIso = (set, code) => { if (code) set.add(String(code).toUpperCase()); };
+  const usedIsos = new Set();
+  (employment || []).forEach(em => collectIso(usedIsos, em.country));
+  (workshops || []).forEach(yg => (yg.items || []).forEach(ws => (ws.guests || []).forEach(g => collectIso(usedIsos, g.country))));
+  (industry  || []).forEach(yg => (yg.items || []).forEach(ind => (ind.guests || []).forEach(g => collectIso(usedIsos, g.country))));
+  usedIsos.forEach(iso => {
     const it = {
       id: uid('country'), category: 'D',
-      textEn: c.en, textZh: c.zh,
+      textEn: countryName(iso, 'en'), textZh: countryName(iso, 'zh'),
       labelEn: 'Country', labelZh: '國家',
       detail: '本系師生與合作對象足跡所及之國家。',
-      groups: [], cityKey: c.en, countryIso: c.iso,
+      groups: [], cityKey: iso, countryIso: iso,
     };
     items.push(it);
-    countryIndex.set(c.en, it.id);
+    countryIndex.set(iso, it.id);
   });
-
-  // city（workshops EN / ZH）→ 對應國家 EN 名稱（用於把工作營掛到對的國家）
-  const cityEnNorm = (s) => (s || '').toLowerCase().replace(/\s+/g, '');
-  const cityToCountryByEn = new Map(
-    Object.entries(CITY_TO_COUNTRY).map(([cityEn, countryEn]) => [cityEnNorm(cityEn), countryEn])
-  );
-  const cityToCountryByZh = new Map(Object.entries(CITY_ZH_TO_COUNTRY));
-  // 同時允許資料端直接寫國家名 / ISO，避免遺漏
-  const countryByEnNorm = new Map(CANONICAL_COUNTRIES.map(c => [cityEnNorm(c.en), c.en]));
-  const countryByZh = new Map(CANONICAL_COUNTRIES.map(c => [c.zh, c.en]));
-  const countryByIso = new Map(CANONICAL_COUNTRIES.map(c => [c.iso, c.en]));
-  function matchCanonical(en, zh) {
-    if (en) {
-      const norm = cityEnNorm(en);
-      const m = cityToCountryByEn.get(norm) || countryByEnNorm.get(norm) || countryByIso.get(en.toUpperCase());
-      if (m) return m;
-    }
-    if (zh) {
-      const m = cityToCountryByZh.get(zh) || countryByZh.get(zh);
-      if (m) return m;
-    }
-    return null;
-  }
 
   // A: 在職教師（titles 為陣列，取第一個職稱當 list view 副標）
   (facultyCurrent || []).forEach(f => {
     if (!f.nameEn && !f.nameZh) return;
-    const t = (Array.isArray(f.titles) && f.titles[0]) || {};
+    // admin 是單一 titleEn/titleZh、fulltime/parttime 是 titles[] → 取第一個（對齊 faculty-data-loader getTitles）
+    const t = f.type === 'admin'
+      ? { titleEn: f.titleEn || '', titleZh: f.titleZh || '' }
+      : ((Array.isArray(f.titles) && f.titles[0]) || {});
     items.push({
       id: uid('fc'), category: 'A',
       textEn: f.nameEn || '', textZh: f.nameZh || '',
@@ -384,7 +287,7 @@ export async function initAtlas(options = {}) {
   // labelEn 'Experience Camp Partner'、_listTypeEn/Zh 取 PARTNER_TYPES.ec、cityKey 對 canonical 城市。
   // 目前無 ec 節點，partners filter 實質顯示 工作營 + 產學。
 
-  // C: 工作營合作單位（cityKey 對到 canonical 城市）
+  // C: 工作營合作單位（國家 = 該單位自己的 country，不是工作營舉辦地點）
   (workshops || []).forEach(yearGroup => {
     (yearGroup.items || []).forEach(ws => {
       const wsGroupId = ws.id;
@@ -392,63 +295,68 @@ export async function initAtlas(options = {}) {
       const dt = (ws.intro_zh || ws.intro || '').trim().slice(0, 140) ||
                  '本系與外部單位合作之工作營。';
       const memberIds = [];
-
-      // 只在 location 解析得出 canonical 城市時才連國家（如北京→China）；認不出（多為「實踐大學設計學院」等
-      //   場地名而非城市）→ primaryCanon 留 null = 不連假國家。activities 上後台帶正確 location 後自動對應。
-      const wsCities = parseCities(ws);
-      let primaryCanon = null;
-      for (const c of wsCities) {
-        const m = matchCanonical(c.en, c.zh);
-        if (m) { primaryCanon = m; break; }
-      }
+      const wsCountries = new Set();  // 此工作營出現的 canonical 國家 → 掛 group 供 hover 國家 highlight
 
       (ws.guests || []).forEach(g => {
         const en = g.name || g.affiliation || '';
         const zh = g.name_zh || g.affiliation_zh || '';
         if (!en && !zh) return;
+        // cityKey = 該單位 country(ISO 大寫)，連到同 ISO 的 D 節點；_countryCode 留真實國碼給 list 副標
+        const canon = g.country ? String(g.country).toUpperCase() : null;
         const it = {
           id: uid('wsg'), category: 'C',
           textEn: en, textZh: zh,
           labelEn: 'Workshop Partner', labelZh: '工作營合作單位',
-          detail: dt, groups: [wsGroupId], cityKey: primaryCanon,
+          detail: dt, groups: [wsGroupId], cityKey: canon, _countryCode: g.country || '',
         };
         items.push(it);
         memberIds.push(it.id);
+        if (canon) wsCountries.add(canon);
       });
 
-      // 將工作營掛到對應國家的 group（hover 國家時會 highlight 該工作營全部成員）
-      if (primaryCanon && countryIndex.has(primaryCanon)) {
-        const countryId = countryIndex.get(primaryCanon);
+      // 此工作營有夥伴的每個國家節點掛到 group（hover 國家 → highlight 該工作營成員）
+      wsCountries.forEach(canon => {
+        if (!countryIndex.has(canon)) return;
+        const countryId = countryIndex.get(canon);
         const countryItem = items.find(i => i.id === countryId);
         if (countryItem && !countryItem.groups.includes(wsGroupId)) countryItem.groups.push(wsGroupId);
-        memberIds.push(countryId);
-      }
+        if (!memberIds.includes(countryId)) memberIds.push(countryId);
+      });
 
       groups.set(wsGroupId, { detail: dt, members: memberIds });
     });
   });
 
-  // C: 產學合作公司（industry.json 無 country 欄 → cityKey 留 null = 不連國家）。
-  //   activities 資料尚未上後台、目前是本地 placeholder → 不亂連假國家（USE_FAKE_CITY_FILL 已關，見下方）。
-  //   日後 activities 上 Directus 帶 country/location 後，由 matchCanonical / cityKey 既有邏輯自動連到正確國家。
+  // C: 產學合作公司（國家 = 該公司自己的 country；industry.json 目前無 country 欄 → 留 null 不連，
+  //   等 activities 上 Directus 帶 country 後自動連到正確國家）
   (industry || []).forEach(yearGroup => {
     (yearGroup.items || []).forEach(ind => {
       const indGroupId = ind.id;
       if (!indGroupId) return;
       const dt = '本系產學合作計畫，與業界共同推動實務研究與創新設計。';
       const memberIds = [];
+      const indCountries = new Set();
       (ind.guests || []).forEach(g => {
         const en = g.name || '';
         const zh = g.name_zh || '';
         if (!en && !zh) return;
+        const canon = g.country ? String(g.country).toUpperCase() : null;
         const it = {
           id: uid('ind'), category: 'C',
           textEn: en, textZh: zh,
           labelEn: 'Industry Partner', labelZh: '產學合作公司',
-          detail: dt, groups: [indGroupId], cityKey: null,
+          detail: dt, groups: [indGroupId], cityKey: canon, _countryCode: g.country || '',
         };
         items.push(it);
         memberIds.push(it.id);
+        if (canon) indCountries.add(canon);
+      });
+      indCountries.forEach(canon => {
+        if (!countryIndex.has(canon)) return;
+        const countryId = countryIndex.get(canon);
+        const countryItem = items.find(i => i.id === countryId);
+        if (countryItem && !countryItem.groups.includes(indGroupId)) countryItem.groups.push(indGroupId);
+        if (!memberIds.includes(countryId)) memberIds.push(countryId);
       });
       if (memberIds.length > 0) groups.set(indGroupId, { detail: dt, members: memberIds });
     });
@@ -469,51 +377,14 @@ export async function initAtlas(options = {}) {
   // C 風格 floating chip：系友就職企業（橢圓 ring 外、有 cityKey 跟著城市 relocate）
   // 用 category 'C' 視覺上跟 Partners 同（colored text、無 chip bg、小軌道、有連到城市的線）
   // prefix 'em' 註冊在 FILTER_PREFIXES.alumni → alumni btn / employ subchip 控制顯隱
-  // 資料源 alumni_employment（loadAtlasData.employment）含 country(ISO-2 小寫)，對到 canonical 國家 →
-  //   線連到該國 D chip，城市 10s relocate 一起平移；對不到 9 國的（如 de/cz/it）留 null 由
-  //   USE_FAKE_CITY_FILL 隨機補。後台取得失敗時退回下方 EMPLOY_FALLBACK（無 country → 全走 fake fill）。
-  const EMPLOY_FALLBACK = [
-    { textEn: 'Spotify',           textZh: 'Spotify 音樂'   },
-    { textEn: 'Netflix',           textZh: '網飛'           },
-    { textEn: 'Pinterest',         textZh: 'Pinterest'      },
-    { textEn: 'Twitch',            textZh: 'Twitch 直播'    },
-    { textEn: 'Discord',           textZh: 'Discord 社群'   },
-    { textEn: 'Reddit',            textZh: 'Reddit 論壇'    },
-    { textEn: 'YouTube',           textZh: 'YouTube'        },
-    { textEn: 'TikTok',            textZh: '抖音'           },
-    { textEn: 'X (Twitter)',       textZh: 'X 平台'         },
-    { textEn: 'LinkedIn',          textZh: '領英'           },
-    { textEn: 'Behance',           textZh: 'Behance 創意'   },
-    { textEn: 'Dribbble',          textZh: 'Dribbble 設計'  },
-    { textEn: 'Airbnb',            textZh: 'Airbnb'         },
-    { textEn: 'Uber',              textZh: 'Uber 優步'      },
-    { textEn: 'Lyft',              textZh: 'Lyft'           },
-    { textEn: 'Stripe',            textZh: 'Stripe 支付'    },
-    { textEn: 'Shopify',           textZh: 'Shopify 電商'   },
-    { textEn: 'Figma',             textZh: 'Figma 設計'     },
-    { textEn: 'Adobe',             textZh: 'Adobe 奧多比'   },
-    { textEn: 'IDEO',              textZh: 'IDEO 創新設計'  },
-    { textEn: 'Pentagram',         textZh: 'Pentagram 五角' },
-    { textEn: 'Wieden+Kennedy',    textZh: '威肯廣告'       },
-    { textEn: 'Ogilvy',            textZh: '奧美廣告'       },
-    { textEn: 'Dentsu',            textZh: '電通'           },
-    { textEn: 'BBDO',              textZh: 'BBDO 廣告'      },
-    { textEn: 'TBWA',              textZh: 'TBWA 媒體'      },
-    { textEn: 'R/GA',              textZh: 'R/GA 互動'      },
-    { textEn: 'Sagmeister & Walsh', textZh: 'Sagmeister 設計' },
-    { textEn: 'Bloomberg',         textZh: '彭博媒體'       },
-    { textEn: 'Condé Nast',        textZh: '康泰納仕'       },
-  ];
-  // 後台有資料就用真資料（含 country）；否則退回 mock（country 留空 → 走 fake fill）
-  const employSource = (employment && employment.length)
-    ? employment
-    : EMPLOY_FALLBACK.map(em => ({ ...em, country: '' }));
-  employSource.forEach(em => {
+  // 資料源 alumni_employment（loadAtlasData.employment）含 country(ISO-2 小寫)，連到同 ISO 的 D 節點 →
+  //   線連到該國 D chip，城市 10s relocate 一起平移。國家節點由真實 country 動態生成（含 de/cz/it 等）。
+  //   無假資料 fallback：CMS 取不到就空、不顯示 em chips。
+  (employment || []).forEach(em => {
     if (!em.textEn && !em.textZh) return;
-    // cityKey = 連到哪個 D 國家節點（只能是 atlas 9 國之一）；country ISO-2 小寫 → canonical EN，對不到留 null
-    //   （de/cz/it 等 9 國外 → 不連節點、也不 fake fill，見下方 USE_FAKE_CITY_FILL 排除 em）
-    // _countryCode = 後台真實國碼，list「就職」副標用它經 countryName 顯示真名（跟後台一致，不受 9 國限制）
-    const cityKey = em.country ? (countryByIso.get(String(em.country).toUpperCase()) || null) : null;
+    // cityKey = country ISO(大寫)，連到同 ISO 的 D 節點
+    // _countryCode = 後台真實國碼，list「就職」副標用它經 countryName 顯示真名
+    const cityKey = em.country ? String(em.country).toUpperCase() : null;
     items.push({
       id: uid('em'), category: 'C',
       textEn: em.textEn, textZh: em.textZh,
@@ -528,19 +399,8 @@ export async function initAtlas(options = {}) {
     return;
   }
 
-  // 假資料 fallback：B/C 缺 country 的隨機 assign canonical 國家（純為視覺 cluster + 連線）
-  // ⚠️ em（系友就職企業）排除：它有後台真實 country，對到 9 國就連該節點、對不到（de/cz/it）保持無連線，
-  //    不亂塞假國家 → 避免地圖把 Adidas/Panerai 連到錯國家（list 副標另用 _countryCode 顯示真名）
-  if (USE_FAKE_CITY_FILL) {
-    const fakeRand = mulberry32(LAYOUT_SEED ^ 0x9E3779B1);
-    items.forEach(it => {
-      if (it.category === 'C' && String(it.id).split('-')[0] === 'em') return;
-      if ((it.category === 'B' || it.category === 'C') && !it.cityKey) {
-        const idx = Math.floor(fakeRand() * CANONICAL_COUNTRIES.length);
-        it.cityKey = CANONICAL_COUNTRIES[idx].en;
-      }
-    });
-  }
+  // cityKey 只在能解析出真實國家時才有值（em 真 ISO / workshop 真城市）；對不到的留 null = 不連節點。
+  // 不再隨機補假國家（原 USE_FAKE_CITY_FILL，2026-06-23 移除）。
 
   // 套用 type-numbered placeholder（D 國家 + B 系友任職企業保留真名 — co 是 atlas-companies.json 真實 30 個企業）
   if (USE_TYPE_PLACEHOLDER) {
@@ -559,9 +419,7 @@ export async function initAtlas(options = {}) {
   }
 
   // ── List view 副標資料 ─────────
-  // faculty: 真實職稱 / alumni em: 真實國家(ISO→名) / partners: 類型 +（有解析出城市才顯示）國家
-  const countryZhByEn = new Map(CANONICAL_COUNTRIES.map(c => [c.en, c.zh]));
-  const countryIsoByEn = new Map(CANONICAL_COUNTRIES.map(c => [c.en, c.iso]));
+  // faculty: 真實職稱 / alumni em + partners: 該單位真實國家(ISO→名)
   items.forEach(item => {
     if (item.category === 'D') return;
     const prefix = String(item.id).split('-')[0];
@@ -587,12 +445,11 @@ export async function initAtlas(options = {}) {
         item._listTypeEn = type.en;
         item._listTypeZh = type.zh;
       }
-      // 只在有真實 cityKey（解析得出的城市/國家）時顯示國家副標；認不出就不顯示假國家
-      //   （原本 !cityKey 隨機挑一國當副標 = 假資料，已移除，與 map 不連假國家一致）
-      const countryEn = item.cityKey;
-      if (countryEn) {
-        item._listCountryEn = countryEn;
-        item._listCountryZh = countryZhByEn.get(countryEn) || countryEn;
+      // 國家副標 = 該單位自己的 country（後台真實國碼 → countryName，不受 9 國 cityKey 限制；同 em 作法）
+      //   沒有 country 就不顯示，不亂填假國家
+      if (item._countryCode) {
+        item._listCountryEn = countryName(item._countryCode, 'en');
+        item._listCountryZh = countryName(item._countryCode, 'zh');
       }
     }
   });
@@ -863,8 +720,22 @@ export async function initAtlas(options = {}) {
   //   = home + clamp(城市相對畫面中心的位移, ±FOLLOW_MAX)。同城市的 item 一起朝城市方向平移「同一個有界向量」→
   //   看得出在跟城市、又因有界不漂走、非累積（每次從 home 重算）不越積越歪 → 整體永遠均衡。
   const FOLLOW_MAX = 120;   // C item 最多偏離 home 的距離（越大跟得越明顯、越小越均勻）
+  // 跟隨目標夾進內容區：標籤 box 往單側展開（side-left 往左、否則往右）+ 自身小 orbit 半徑 + 邊距 →
+  //   寬 label 跟著城市往外移時不會切出畫面邊（content 座標夾 [margin, W-margin]；非累積，不會夾到邊堆一坨）。
+  const FOLLOW_EDGE_PAD = 12;
+  function clampFollowTarget(item, x, y) {
+    const orx = item._orbit.rx || 0, ory = item._orbit.ry || 0;
+    const bw = item._boxW || 60, bh = item._boxH || 30;
+    const leftPad  = (item._isSideLeft ? bw : 0) + orx + FOLLOW_EDGE_PAD;
+    const rightPad = (item._isSideLeft ? 0 : bw) + orx + FOLLOW_EDGE_PAD;
+    return {
+      x: Math.max(leftPad, Math.min(W - rightPad, x)),
+      y: Math.max(ory + FOLLOW_EDGE_PAD, Math.min(H - bh - ory - FOLLOW_EDGE_PAD, y)),
+    };
+  }
   function followItemOrbitTo(item, targetCx, targetCy) {
     if (!item._orbit || item._orbit.pauseStart != null) return;
+    ({ x: targetCx, y: targetCy } = clampFollowTarget(item, targetCx, targetCy));
     const ddx = targetCx - item._orbit.cx;
     const ddy = targetCy - item._orbit.cy;
     if (Math.abs(ddx) < 0.5 && Math.abs(ddy) < 0.5) return;   // 已就位 → 免重啟 tween
@@ -1134,6 +1005,10 @@ export async function initAtlas(options = {}) {
   //    舊架構共享 cityEndpoint 只在 init 算一次 → 城市軌道後 endpoint 卡在原本那一邊，
   //    被 city label 自己擋住。改成 tickFloat Phase 3 重新挑邊。
   const allLines = [];
+  // A2：只有 hover 高亮（opacity:1 可見）的 C→國家線才需要逐幀重算端點。
+  //   idle 時這 ~190 條全是 .atlas-line（CSS opacity:0 隱形）→ tickFloat Phase 3 只跑 activeLines（idle=0 條）。
+  //   showDetail 填入 + 立刻補算一次端點、clearDetail 清空。城市間連線 cityLines 常駐可見 → 不在此優化內。
+  const activeLines = new Set();
   connections.forEach((conn, idx) => {
     if (conn.fromId === 'center') return;
     const fromItem = itemMap.get(conn.fromId);
@@ -1330,14 +1205,16 @@ export async function initAtlas(options = {}) {
   });
 
   // ── Floating rAF loop（label 浮動，line 端點同步移動避免錯位）─
-  const floatStart = performance.now() / 1000;
-  let floatRunning = true;
+  let floatStart = performance.now() / 1000;
+  let floatRunning = false;          // 由 refreshFloatRunning 啟動：stage（星雲）顯示時才跑
   let floatRaf = null;
+  let floatPausedAt = null;          // 暫停起點 ms；恢復時補回 floatStart 讓 ambient 漂移接續不跳
 
-  // FPS 節流：環/軌道/wobble 全是慢速 ambient 漂移（最快的 B 環 ~54px/s），30fps 視覺上與 60fps 無差，
-  //   但每幀要寫 ~250 個 label transform + ~190 條 SVG 端點 → 限到 30fps 直接砍半主線程工作量（資料越多省越多）。
-  //   想更滑順可把 FLOAT_FPS_CAP 調回 60。位置由 performance.now() 絕對時間算 → 跳幀不會讓動畫變慢，只是取樣稀一點。
-  const FLOAT_FPS_CAP = 30;
+  // FPS 節流：原限 30fps 是因每幀要寫 ~190 條 SVG 線端點（attr 變更非 compositor-friendly、會 repaint）。
+  //   A 階段(2026-06-23)後線端點只剩少數 cityLines + hover 線 → 每幀主成本剩 ~250 個 compositor-friendly 的
+  //   label transform，桌面拉到 60fps 已可負擔且 ring 流動明顯更滑順（user 要求）。手機(nebula landscape)GPU
+  //   較弱仍保守 30。位置由 performance.now() 絕對時間算 → 跳幀不影響速度。
+  const FLOAT_FPS_CAP = isMobileAtlas ? 30 : 60;
   const FLOAT_MIN_DT  = 1000 / FLOAT_FPS_CAP;
   let   lastFloatTick = 0;
 
@@ -1517,30 +1394,35 @@ export async function initAtlas(options = {}) {
     }
 
     // Phase 3: 線端點動態挑 box 邊（兩端都當下最近，避免被 city label 擋）
-    for (let i = 0; i < allLines.length; i++) {
-      updateLineEndpoints(allLines[i]);
-    }
+    //   只更新 activeLines（當下高亮可見的）— idle 時 0 條，隱形線不白算（A2）
+    activeLines.forEach(updateLineEndpoints);
     // Phase 3b: 城市間預設連線端點同步（兩端都是城市，都在 Phase 1 orbit 後位置更新）
     for (let i = 0; i < cityLines.length; i++) {
       updateCityLineEndpoints(cityLines[i]);
     }
   }
-  floatRaf = requestAnimationFrame(tickFloat);
-
-  function onVisibilityChange() {
-    if (document.hidden) {
-      floatRunning = false;
-      if (floatRaf) { cancelAnimationFrame(floatRaf); floatRaf = null; }
-    } else if (!floatRunning) {
+  // rAF 只在 stage（星雲）實際顯示時跑。list view（手機預設 + 桌面切換）、背景分頁、
+  //   手機直向轉向提示都會把 stage display:none → 暫停整個 tickFloat，不必逐幀對隱藏的 map
+  //   寫 ~250 個 transform + ~190 條線端點。各 stage.style.display 變動點都會呼叫此函式重新評估。
+  //   暫停期間累積時間在恢復時補回 floatStart → ambient 漂移從停的地方接續、不跳。
+  function refreshFloatRunning() {
+    const want = !document.hidden && stage.style.display !== 'none';
+    if (want && !floatRunning) {
+      if (floatPausedAt != null) { floatStart += (performance.now() - floatPausedAt) / 1000; floatPausedAt = null; }
       floatRunning = true;
       floatRaf = requestAnimationFrame(tickFloat);
+    } else if (!want && floatRunning) {
+      floatRunning = false;
+      floatPausedAt = performance.now();
+      if (floatRaf) { cancelAnimationFrame(floatRaf); floatRaf = null; }
     }
   }
-  document.addEventListener('visibilitychange', onVisibilityChange);
+  refreshFloatRunning();   // 桌面預設 map view → 啟動；手機 init 稍後 display:none + refresh 會停
+  document.addEventListener('visibilitychange', refreshFloatRunning);
   cleanupFns.push(() => {
     floatRunning = false;
     if (floatRaf) cancelAnimationFrame(floatRaf);
-    document.removeEventListener('visibilitychange', onVisibilityChange);
+    document.removeEventListener('visibilitychange', refreshFloatRunning);
   });
 
   // ── Hover 連動 + 細節面板 ────────────────────────────
@@ -1592,6 +1474,85 @@ export async function initAtlas(options = {}) {
     detail.style.transform = savedTransform;  // 還原 → rotation 回到 CSS var 控制
   }
 
+  // ── 國家 detail 分批輪播（每 4s clip-path 換下一批；hover 期間持續，hover-out / 切換時停）──
+  let detailBatchTimer = null;
+  let detailBatches = [];
+  let detailBatchIdx = 0;
+  let descClipTween = null;
+  const DETAIL_BATCH_SIZE = 8;  // 每批筆數（2 行/筆 → 8 筆連標題仍在 max-height:70vh 內，不被裁）
+
+  // 一筆 = 左 title（英中各一行，過長 marquee）+ 右 類別（regular）
+  // 外層 .atlas-detail-row-clip（overflow:hidden）給切批時的 yPercent clip-reveal（同 list view 切換）
+  function buildDetailRow(rel) {
+    const clip = document.createElement('div');
+    clip.className = 'atlas-detail-row-clip';
+    const row = document.createElement('div');
+    row.className = 'atlas-detail-row';
+    const main = document.createElement('div');
+    main.className = 'atlas-detail-row-main';
+    const addLine = (cls, text) => {
+      const span = document.createElement('span');
+      span.className = cls;
+      const inner = document.createElement('span');
+      inner.className = 'atlas-marquee-inner';
+      inner.textContent = text;
+      span.appendChild(inner);
+      main.appendChild(span);
+    };
+    if (rel.textEn) addLine('atlas-detail-row-en', rel.textEn);
+    if (rel.textZh && rel.textZh !== rel.textEn) addLine('atlas-detail-row-zh', rel.textZh);
+    row.appendChild(main);
+    const cat = document.createElement('div');
+    cat.className = 'atlas-detail-row-cat';
+    if (rel.labelEn) { const e = document.createElement('span'); e.textContent = rel.labelEn; cat.appendChild(e); }
+    if (rel.labelZh) { const z = document.createElement('span'); z.className = 'cat-zh'; z.textContent = rel.labelZh; cat.appendChild(z); }
+    row.appendChild(cat);
+    clip.appendChild(row);
+    return clip;
+  }
+
+  function renderDetailBatch(idx) {
+    if (!descEl) return;
+    descEl.innerHTML = '';
+    (detailBatches[idx] || []).forEach(rel => descEl.appendChild(buildDetailRow(rel)));
+    // 卡片固定寬 → title 子欄受限，過長自動 marquee
+    applyMarqueeOverflow(descEl, '.atlas-detail-row-en, .atlas-detail-row-zh', '.atlas-marquee-inner');
+  }
+
+  function stopDetailBatchCycle() {
+    if (detailBatchTimer) { clearInterval(detailBatchTimer); detailBatchTimer = null; }
+    if (descClipTween) { descClipTween.kill(); descClipTween = null; }
+  }
+
+  function startDetailBatchCycle(related) {
+    stopDetailBatchCycle();
+    detailBatches = [];
+    for (let i = 0; i < related.length; i += DETAIL_BATCH_SIZE) detailBatches.push(related.slice(i, i + DETAIL_BATCH_SIZE));
+    detailBatchIdx = 0;
+    renderDetailBatch(0);
+    if (detailBatches.length <= 1) return;  // 只有一批 → 不輪播
+    detailBatchTimer = setInterval(() => {
+      const swap = () => { detailBatchIdx = (detailBatchIdx + 1) % detailBatches.length; renderDetailBatch(detailBatchIdx); };
+      if (typeof gsap === 'undefined') { swap(); return; }
+      if (descClipTween) descClipTween.kill();
+      // 切批 = clip-reveal（同 list view 切換）：當前批各列往上滑出 clip → 換批 → 新批從下方滑入
+      const oldRows = [...descEl.querySelectorAll('.atlas-detail-row')];
+      descClipTween = gsap.to(oldRows, {
+        yPercent: -100, duration: DUR.fast, ease: EASE.exitSoft, stagger: 0.04,
+        onComplete: () => {
+          swap();
+          const newRows = [...descEl.querySelectorAll('.atlas-detail-row')];
+          descClipTween = gsap.fromTo(newRows,
+            { yPercent: 100 },
+            { yPercent: 0, duration: DUR.reveal, ease: EASE.enter, stagger: 0.05, clearProps: 'transform' }
+          );
+        },
+      });
+    }, 4000);
+  }
+
+  cleanupFns.push(stopDetailBatchCycle);
+
   function fillDetailContent(item, ids) {
     // 每次出現都隨機三原色 bg + ±3° 旋轉，文字一律黑（亮三原色底→黑色內容原則）
     const bg = PRIMARY_COLORS[Math.floor(Math.random() * PRIMARY_COLORS.length)];
@@ -1599,6 +1560,7 @@ export async function initAtlas(options = {}) {
     detail.style.backgroundColor = bg;
     detail.style.color = '#000000';
     detail.style.setProperty('--atlas-detail-rot', `${rot}deg`);
+    stopDetailBatchCycle();  // 切換 item / 重填內容先停掉上一個國家的輪播
 
     if (nameEl) {
       nameEl.innerHTML = '';
@@ -1618,28 +1580,17 @@ export async function initAtlas(options = {}) {
     if (descEl) {
       descEl.innerHTML = '';
       if (item.category === 'D') {
-        // 城市：desc 列出相關 B/C 項目。卡片 max-height:70vh + overflow:hidden →
-        //   像臺灣這種 ~30 筆會超出被裁切、底部 padding 被吃掉（上下不對稱）。
-        //   故上限 MAX_DETAIL_ROWS 筆（保證連同標題 + 上下 padding 仍在 70vh 內），超出顯示「…還有 N 筆」。
-        const MAX_DETAIL_ROWS = 18;
+        // 國家：desc 列出相關合作單位/系友就職，每筆「左 title(英中各行) + 右 類別」。
+        //   不一次列完 → 每 4s clip-path 換下一批（startDetailBatchCycle），hover 期間持續輪播。
+        //   固定卡片寬 380 → title 子欄受限，過長自動 marquee。
+        detail.style.width = '380px';
+        detail.style.minWidth = '380px';
         const related = [...ids]
           .filter(id => id !== item.id)
           .map(id => itemMap.get(id))
-          .filter(Boolean);
-        related.slice(0, MAX_DETAIL_ROWS).forEach(rel => {
-          const row = document.createElement('div');
-          const en = rel.textEn || '';
-          const zh = rel.textZh && rel.textZh !== rel.textEn ? ' / ' + rel.textZh : '';
-          row.textContent = en + zh;
-          descEl.appendChild(row);
-        });
-        if (related.length > MAX_DETAIL_ROWS) {
-          const more = document.createElement('div');
-          more.textContent = `… 還有 ${related.length - MAX_DETAIL_ROWS} 筆`;
-          more.style.opacity = '0.6';
-          more.style.marginTop = '2px';
-          descEl.appendChild(more);
-        }
+          .filter(Boolean)
+          .filter(rel => rel.category !== 'D');  // 不列其他國家節點（多國工作營會把別國 D 節點也拉進同 group）
+        startDetailBatchCycle(related);
       } else if (String(item.id).split('-')[0] === 'co' || String(item.id).split('-')[0] === 'em') {
         // 系友環：hover 說明一律統一（英中各一行），不用 item.detail（名稱保留企業名、說明統一即可）。
         //   co-* 橢圓 ring 企業 = 系友主持 → Hosted by Alumni
@@ -1674,8 +1625,8 @@ export async function initAtlas(options = {}) {
       }
     }
 
-    // 內容填完 → 量「實際最長一行」把卡片寬度貼齊文字（去掉右側留白）
-    snugDetailWidth();
+    // 國家卡固定寬（上面已設，給兩欄 layout + marquee）；其餘卡片量最長一行貼齊文字
+    if (item.category !== 'D') snugDetailWidth();
   }
 
   // 進來新內容：先填文字 + bg + rotation。
@@ -1711,6 +1662,7 @@ export async function initAtlas(options = {}) {
   function detailHide() {
     if (panelTarget === 'hidden') return;
     panelTarget = 'hidden';
+    stopDetailBatchCycle();  // hover-out → 停止國家批次輪播
     if (typeof gsap === 'undefined') {
       detail.style.clipPath = randomHiddenInset();
       return;
@@ -1733,6 +1685,9 @@ export async function initAtlas(options = {}) {
     setCityLineRetract(item.category === 'D' ? item : null);
     items.forEach(i => i._span.classList.toggle('atlas-highlight', ids.has(i.id)));
     Array.from(svg.children).forEach(line => line.classList.toggle('atlas-line-highlight', lineSet.has(line)));
+    // A2：剛高亮的線加入逐幀更新集合 + 立刻補算一次端點（否則會從上次 hover 的舊端點 fade-in）
+    activeLines.clear();
+    allLines.forEach(le => { if (lineSet.has(le.line)) { activeLines.add(le); updateLineEndpoints(le); } });
     detailRevealNew(item, ids);
   }
 
@@ -1741,6 +1696,7 @@ export async function initAtlas(options = {}) {
     setCityLineRetract(null);
     items.forEach(i => i._span.classList.remove('atlas-highlight'));
     Array.from(svg.children).forEach(line => line.classList.remove('atlas-line-highlight'));
+    activeLines.clear();   // A2：無高亮線 → Phase 3 idle 不更新任何 allLines
     detailHide();
   }
 
@@ -1889,7 +1845,9 @@ export async function initAtlas(options = {}) {
 
   applyTransform();
 
-  if (typeof gsap !== 'undefined' && !isMobileAtlas) {
+  // options.instant（idle-standby 背景分頁掛載）：跳過 intro scale 直接定態 SCALE_DEFAULT。
+  // 背景分頁 rAF 暫停 → 否則 tween 卡在 0.55，使用者切回本 tab 才從 0.55 zoom 到 0.78（1.5s）＝「切回來才進場」。
+  if (typeof gsap !== 'undefined' && !isMobileAtlas && !options.instant) {
     // intro scale tween 期間整層 GPU promote，否則 50+ chip + ring + lines 一起 scale
     // 每 frame 都得 re-rasterize → SPA 換頁剛 swap DOM 那刻特別卡
     // tween 完才關，避免長期 promote 高 zoom 時文字糊
@@ -2048,6 +2006,7 @@ export async function initAtlas(options = {}) {
     // 切下一個職業：clip-out（下→上）→ 換內容 + 換色 + 重 fit 寬度 → clip-in（上→下）
     function rotateOnce() {
       if (typeof gsap === 'undefined') return;
+      if (document.hidden) return;   // 背景分頁不輪播（對齊 dRelocateTimer）
       idx = (idx + 1) % careersList.length;
       if (tween) tween.kill();
       tween = gsap.to(el, {
@@ -2071,6 +2030,7 @@ export async function initAtlas(options = {}) {
     /** @param {{ delay?: number }} [opts] */
     function show(opts) {
       if (visible) return;
+      if (!careersList.length) return;  // 無職業資料（CMS 取不到）→ 不啟動輪播
       visible = true;
       idx = Math.floor(Math.random() * careersList.length);
       fill(careersList[idx]);
@@ -2664,18 +2624,18 @@ export async function initAtlas(options = {}) {
       if (!en && !zh) return;
       const sub = document.createElement('div');
       sub.className = 'atlas-list-item-label';
-      if (en) {
-        const enLabel = document.createElement('span');
-        enLabel.className = 'atlas-list-item-label-en';
-        enLabel.textContent = en;
-        sub.appendChild(enLabel);
-      }
-      if (zh) {
-        const zhLabel = document.createElement('span');
-        zhLabel.className = 'atlas-list-item-label-zh';
-        zhLabel.textContent = zh;
-        sub.appendChild(zhLabel);
-      }
+      // 副標 en/zh 各一行，用 .atlas-marquee-inner 包文字 → 過長截斷、hover marquee（同主標）
+      const addLabel = (cls, text) => {
+        const label = document.createElement('span');
+        label.className = cls;
+        const inner = document.createElement('span');
+        inner.className = 'atlas-marquee-inner';
+        inner.textContent = text;
+        label.appendChild(inner);
+        sub.appendChild(label);
+      };
+      if (en) addLabel('atlas-list-item-label-en', en);
+      if (zh) addLabel('atlas-list-item-label-zh', zh);
       appendLine(sub);
     }
 
@@ -2683,9 +2643,9 @@ export async function initAtlas(options = {}) {
       // faculty: 隨機公司名；employ: 國家
       appendSub(item._listSubEn, item._listSubZh);
     } else if (cat === 'partners') {
-      // 先類型、後國家
-      appendSub(item._listTypeEn, item._listTypeZh);
+      // 先國家、後類型（user 2026-06-23 對調）
       appendSub(item._listCountryEn, item._listCountryZh);
+      appendSub(item._listTypeEn, item._listTypeZh);
     }
     // host (主持)：無副標
     wrapper.appendChild(el);
@@ -2924,7 +2884,7 @@ export async function initAtlas(options = {}) {
   // 主標 marquee 偵測：用共用 utility applyMarqueeOverflow（取代 atlas/courses-map/library-panels 三處重複）
   /** @param {HTMLElement} container */
   function applyListMarquee(container) {
-    applyMarqueeOverflow(container, '.atlas-list-name-en, .atlas-list-name-zh', '.atlas-marquee-inner');
+    applyMarqueeOverflow(container, '.atlas-list-name-en, .atlas-list-name-zh, .atlas-list-item-label-en, .atlas-list-item-label-zh', '.atlas-marquee-inner');
   }
 
   function renderList() {
@@ -3303,6 +3263,7 @@ export async function initAtlas(options = {}) {
     const startList = () => {
       stage.style.display = 'none';
       stage.style.opacity = '';
+      refreshFloatRunning();   // list view：暫停隱藏 map 的 rAF
       if (filterEl) filterEl.style.display = 'none';
       renderList();
       applyListFilter();
@@ -3453,6 +3414,7 @@ export async function initAtlas(options = {}) {
       currentView = 'map';
       stage.style.display = '';
       stage.style.opacity = '';
+      refreshFloatRunning();   // 回 map view：恢復 rAF
       listView.classList.remove('visible');
       if (filterEl) filterEl.style.display = '';
       btns.forEach(b => b.classList.remove('atlas-filter-revealed'));
@@ -3664,6 +3626,7 @@ export async function initAtlas(options = {}) {
       stage.style.display = 'none';
       hint.style.display = 'flex';
     }
+    refreshFloatRunning();   // 橫向顯示 stage→恢復；直向轉向提示→暫停
   }
 
   function switchToMobileMap() {
@@ -3721,6 +3684,7 @@ export async function initAtlas(options = {}) {
     if (currentView === 'list') return;
     currentView = 'list';
     stage.style.display = 'none';
+    refreshFloatRunning();   // 手機回 list：暫停 rAF
     if (rotateHintEl) rotateHintEl.style.display = 'none';
     if (filterEl) filterEl.style.display = '';
     listView.classList.add('visible');
@@ -3749,6 +3713,7 @@ export async function initAtlas(options = {}) {
   if (isMobileAtlas) {
     currentView = 'list';
     stage.style.display = 'none';
+    refreshFloatRunning();   // 手機預設 list：停掉 init 時誤啟的 rAF（手機只在橫向星雲才需要）
     // layout btn icon：list view 顯示「星雲」icon（與桌面 list view 一致）
     const layoutIcon = /** @type {HTMLElement|null} */ (layoutBtn?.querySelector('.icon'));
     if (layoutIcon) layoutIcon.className = 'icon icon-atlas-view';
@@ -3992,21 +3957,3 @@ function mulberry32(seed) {
   };
 }
 
-function parseCities(ws) {
-  const out = [];
-  if (ws.cityEn || ws.cityZh) {
-    const en = (ws.cityEn || '').trim();
-    const zh = (ws.cityZh || '').trim();
-    if (en || zh) out.push({ en, zh });
-    return out;
-  }
-  const partsEn = (ws.location    || '').split('/').map(s => s.trim().split(',')[0].trim());
-  const partsZh = (ws.location_zh || '').split('/').map(s => s.trim().split(',')[0].trim());
-  const n = Math.max(partsEn.length, partsZh.length);
-  for (let i = 0; i < n; i++) {
-    const en = partsEn[i] || '';
-    const zh = partsZh[i] || '';
-    if (en || zh) out.push({ en, zh });
-  }
-  return out;
-}

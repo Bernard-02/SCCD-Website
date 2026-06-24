@@ -190,7 +190,8 @@
 
 /* Hover 連動 */
 #atlas-content.atlas-dimmed .atlas-name {
-  opacity: 0.12;
+  /* hover 單一資料時非聚焦 chip 仍要看得見（user 2026-06-23：別太淡、否則只剩白底）；可再上下微調 */
+  opacity: 0.25;
 }
 #atlas-content.atlas-dimmed .atlas-name.atlas-highlight {
   opacity: 1;
@@ -204,8 +205,8 @@
   bottom: 32px;
   max-width: 380px;
   min-width: 240px;
-  /* padding 仿 about/overview 的 vision highlight：左右收窄到貼近字（約 0.6em） */
-  padding: 12px 14px;
+  /* padding 對齊全站 nav btn 標準（.anchor-nav-inner: 6px 8px 5px；user 2026-06-23） */
+  padding: 6px 8px 5px;
   max-height: 70vh;
   overflow: hidden;
   /* bg / color 由 atlas.js 在 showDetail 設成 inline 三原色 + 黑字（每次隨機） */
@@ -234,12 +235,46 @@
   font-size: 16px;
   font-weight: 600;
   margin-top: 2px;
-  opacity: 0.85;
 }
 
 .atlas-detail-desc {
   font-size: 14px;
   line-height: 1.55;
+}
+
+/* 國家 detail 每筆：左 title（英中各一行，過長 marquee）+ 右 類別（regular） */
+/* 外層 clip：切批時各列 yPercent reveal 用（overflow:hidden 遮住滑出/滑入的部分）；列距放這層 yPercent 才能完全藏住 */
+.atlas-detail-row-clip { overflow: hidden; }
+.atlas-detail-row-clip + .atlas-detail-row-clip { margin-top: 8px; }
+.atlas-detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.atlas-detail-row-main { flex: 1 1 auto; min-width: 0; }  /* min-width:0 才允許子欄 overflow→marquee */
+.atlas-detail-row-en,
+.atlas-detail-row-zh {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  /* 主標字級對齊 list view .atlas-list-item-name（同 var，改一處兩邊同步）；之前是繼承 .atlas-detail-desc 14px */
+  font-size: var(--font-size-p3, 0.9rem);
+  font-weight: 600;
+}
+.atlas-detail-row-cat {
+  flex: 0 0 auto;
+  text-align: left;       /* 類別靠左對齊（英中兩行左緣對齊） */
+  font-weight: 400;       /* 類別 regular */
+  font-size: 12px;
+  white-space: nowrap;
+  padding-top: 1px;
+}
+.atlas-detail-row-cat .cat-zh { display: block; }
+/* 過長 title 自動 marquee（卡片本就是 hover 產物 → 不再 gate hover） */
+.atlas-detail-row-en.is-overflow .atlas-marquee-inner,
+.atlas-detail-row-zh.is-overflow .atlas-marquee-inner {
+  animation: atlas-marquee var(--marquee-duration, 8s) linear infinite;
 }
 
 /* ── Alumni 旁邊的職業 chip（每 3s 輪播，random 三原色 bg + 黑字，EN 上 ZH 下）
@@ -652,13 +687,17 @@
    - 手機（≤767）：無 hover → 維持「偵測到即自動捲」，否則長名永久截斷看不到 */
 @media (min-width: 768px) {
   .atlas-list-item:hover .atlas-list-name-en.is-overflow .atlas-marquee-inner,
-  .atlas-list-item:hover .atlas-list-name-zh.is-overflow .atlas-marquee-inner {
+  .atlas-list-item:hover .atlas-list-name-zh.is-overflow .atlas-marquee-inner,
+  .atlas-list-item:hover .atlas-list-item-label-en.is-overflow .atlas-marquee-inner,
+  .atlas-list-item:hover .atlas-list-item-label-zh.is-overflow .atlas-marquee-inner {
     animation: atlas-marquee var(--marquee-duration, 8s) linear infinite;
   }
 }
 @media (max-width: 767px) {
   .atlas-list-name-en.is-overflow .atlas-marquee-inner,
-  .atlas-list-name-zh.is-overflow .atlas-marquee-inner {
+  .atlas-list-name-zh.is-overflow .atlas-marquee-inner,
+  .atlas-list-item-label-en.is-overflow .atlas-marquee-inner,
+  .atlas-list-item-label-zh.is-overflow .atlas-marquee-inner {
     animation: atlas-marquee var(--marquee-duration, 8s) linear infinite;
   }
 }
@@ -677,6 +716,14 @@
   opacity: 0.6;
   margin-top: 2px;
   font-family: var(--font-en, 'Inter'), var(--font-zh, 'Noto Sans TC'), system-ui, sans-serif;
+}
+
+/* 副標中英各自一行：過長直接切掉（不加 …）、hover 才 marquee（同主標；user 2026-06-23） */
+.atlas-list-item-label-en,
+.atlas-list-item-label-zh {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 /* 兩個副標相鄰時（partners：類型 + 國家）拉開一點視覺間距 */
