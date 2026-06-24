@@ -177,6 +177,9 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
     target.style.background = flashColor;
     setTimeout(() => {
       target.style.background = '';
+      // transition 也要清：留著 `transition: background` 會被 [style*="background"] 的 mode-color 翻譯規則
+      // 誤判此 item「仍有底色」→ 收合後永久翻成 theme-fg 白底（user 2026-06-24 報「hover 離開又變白」）。
+      target.style.transition = '';
       const header = /** @type {HTMLElement | null} */ (target.querySelector('.list-header'));
       if (header && !header.classList.contains('active')) {
         // 上面已 scroll 對齊好 item → 標記讓 accordion open 時不要再自己 scroll（否則對齊跑掉，user 2026-06-05）

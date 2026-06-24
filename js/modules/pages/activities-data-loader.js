@@ -13,7 +13,7 @@ import { loadSummerCamp } from './summer-camp-source.js';
 import { loadActivityCollection } from './activities-source.js';
 // '/data/x.json' 字串同時是 fetch URL 與 map key / 比對識別字（SECTION_DATA_URL 等），
 // 識別字保持原樣，只在真正 fetch 的點包 sitePath()（子路徑部署時換算成站台根絕對 URL）
-import { sitePath, SITE_BASE_PATHNAME } from '../ui/site-base.js';
+import { sitePath } from '../ui/site-base.js';
 
 // ── Reference 自動 lookup ─────────────────────────────────────────────────────
 // ref 只填 { section, itemId } 即可；title/label 渲染前自動從目標 JSON lookup。
@@ -85,10 +85,8 @@ export function findItemById(data, itemId) {
   return null;
 }
 
-// 補齊 ref 缺失欄位（title/cover/label）；已存在的欄位不覆蓋
-// award 反向 ref（type:'award', id:'a-YYYY-NN'）→ library awards hash deep-link（library.html#a-...，
-// handleLibraryHash 捲到該列 + flash）。title 從 records.json 查（competition_en/competition）。
-// 給 activities list 與 library press/files 的 references 雙向互指用（2026-06-13）。
+// getAwardRecords / findAwardById：library press/files 的 references 反查得獎紀錄用（library-panels.js）。
+// 2026-06-22 起 activities/admission 不再 ref award（改為 award → library 單向），故 resolveRef 已移除 award 分支。
 let _awardRecordsPromise = null;
 export function getAwardRecords() {
   if (!_awardRecordsPromise) {
@@ -109,19 +107,7 @@ export function findAwardById(records, id) {
 }
 
 async function resolveRef(ref) {
-  if (ref && ref.type === 'award' && ref.id) {
-    if (!ref.labelEn) ref.labelEn = 'Awards';
-    if (!ref.labelZh) ref.labelZh = '榮譽';
-    if (!ref.href) ref.href = `${SITE_BASE_PATHNAME}pages/library.html#${ref.id}`;
-    if (ref.titleEn && ref.titleZh) return;
-    const award = findAwardById(await getAwardRecords(), ref.id);
-    if (award) {
-      if (!ref.titleEn) ref.titleEn = award.competition_en || '';
-      if (!ref.titleZh) ref.titleZh = award.competition || '';
-    }
-    return;
-  }
-  if (!ref.section || !ref.itemId) return;
+  if (!ref || !ref.section || !ref.itemId) return;
 
   // label 用 section 對應表自動填（若 ref 沒寫）
   const labelMap = SECTION_LABELS[ref.section];
@@ -173,6 +159,18 @@ function bindRefBtnClick(btn) {
       document.dispatchEvent(new CustomEvent('sccd:open-pdf', {
         detail: { pdfUrl, title: { en: titleEn, zh: titleZh }, color, references },
       }));
+      return;
+    }
+    // press ref：有 media → 原地開 activities lightbox（同 library press 點擊，不跳 library）。
+    const pressMediaRaw = btn.dataset.refPressMedia;
+    if (pressMediaRaw) {
+      let media = [];
+      try { media = JSON.parse(pressMediaRaw); } catch (_) { /* 壞 JSON → 不開 */ }
+      if (media.length) {
+        const title = { en: btn.dataset.refTitleEn || '', zh: btn.dataset.refTitleZh || '' };
+        const color = _REF_ACCENT_COLORS[Math.floor(Math.random() * _REF_ACCENT_COLORS.length)];
+        openLightbox(media, 0, { title, color });
+      }
       return;
     }
     const section = btn.dataset.refSection;
@@ -483,7 +481,7 @@ export function buildGuestHtml(g, { showGuestCountry = true, showGuestAffiliatio
 // 也容舊式 s.date 純字串 fallback。
 // 說明文字（user 2026-06-05）：改成「每場次各自一段」`descriptionEn`/`descriptionZh`，渲染在該場次最下方；
 // 沒 key（兩語皆空）就不渲染那段（取代原本 card 層級的單一說明，card 層級在 caller 處被 sessions 抑制）。
-function buildSessionsHtml(item, dateColMinWidth, { showGuestCountry = true, showGuestAffiliation = true, showAlumniIcon = true } = {}) {
+function buildSessionsHtml(item, dateColMinWidth, { showGuestCountry = true, showGuestAffiliation = true } = {}) {
   if (!Array.isArray(item.sessions) || item.sessions.length === 0) return '';
   const rows = item.sessions.map(s => {
     const sDate = Array.isArray(s.dates) && s.dates.length
@@ -491,8 +489,7 @@ function buildSessionsHtml(item, dateColMinWidth, { showGuestCountry = true, sho
       : (s.date || '');
     const sTitleEn = s.titleEn || s.title_en || s.title || '';
     const sTitleZh = s.titleZh || s.title_zh || '';
-    // 場次講者含系友 → 場次 title 旁加畢業帽 icon（對齊 list-header 的 _alumniIcon；conference 的講者在 session.guests 不在 item.guests）
-    const sHasAlumni = showAlumniIcon && (Array.isArray(s.guests) ? s.guests : []).some(g => g.isAlumni === 'on' || g.isAlumni === true || g.isAlumni);
+    // alumni icon 不在場次 title 旁，統一在卡 header（對齊 workshop，見 loadListInto 的 _hasAlumni）
     const sDescEn = s.descriptionEn || s.desEn || '';
     const sDescZh = s.descriptionZh || s.desZh || '';
     const guestsHtml = (Array.isArray(s.guests) ? s.guests : [])
@@ -504,12 +501,9 @@ function buildSessionsHtml(item, dateColMinWidth, { showGuestCountry = true, sho
       <div class="grid items-start gap-x-xs" style="grid-template-columns: ${dateColMinWidth} 1fr;">
         <div class="min-w-0">${sDate ? `<div class="list-title-marquee"><p class="text-p2 font-bold">${sDate}</p></div>` : ''}</div>
         <div class="flex flex-col gap-sm min-w-0">
-          ${(sTitleEn || sTitleZh) ? `<div class="flex items-start gap-sm">
-            <div>
-              ${sTitleEn ? `<p class="text-p2 font-bold">${sTitleEn}</p>` : ''}
-              ${sTitleZh ? `<p class="text-p2 font-bold">${sTitleZh}</p>` : ''}
-            </div>
-            ${sHasAlumni ? `<span class="icon icon-alumni icon-s flex-shrink-0"></span>` : ''}
+          ${(sTitleEn || sTitleZh) ? `<div>
+            ${sTitleEn ? `<p class="text-p2 font-bold">${sTitleEn}</p>` : ''}
+            ${sTitleZh ? `<p class="text-p2 font-bold">${sTitleZh}</p>` : ''}
           </div>` : ''}
           ${guestsHtml ? `<div class="flex flex-col gap-sm">${guestsHtml}</div>` : ''}
         </div>
@@ -1100,7 +1094,13 @@ export async function loadListInto(containerId, url, options = {}) {
       // meta-icons inner（alumni + 全部國旗）共用內容：桌面 render 在右上 group、手機另 render 一份在副標下方 in-flow 區塊
       // （user 2026-06-10 #1/#2/#4：手機把國旗移出右上絕對定位群組→ in-flow 才能「在 title+副標之後進場、不位移、share 無 gap、靠左」；
       //  桌面維持原樣＝雙份 render，CSS 依 viewport 顯隱：桌面顯 .list-header-meta-icons、手機顯 .list-header-meta-mobile）
-      const _hasAlumni = showAlumniIcon && item.guests?.some(g => g.isAlumni === 'on' || g.isAlumni === true || g.isAlumni);
+      // conference 講者在 item.sessions[].guests（非 item.guests）→ 也要納入，否則 conference 卡 header 永遠無 icon。
+      // icon 統一放 header（對齊 workshop），不再每場次 title 旁各放一個。
+      const _isAlumniGuest = g => g.isAlumni === 'on' || g.isAlumni === true || g.isAlumni;
+      const _hasAlumni = showAlumniIcon && (
+        item.guests?.some(_isAlumniGuest) ||
+        (item.sessions || []).some(s => (s.guests || []).some(_isAlumniGuest))
+      );
       const _alumniIcon = _hasAlumni ? `<span class="icon icon-alumni icon-s"></span>` : '';
       // 桌面：單一國旗 + 多國家每 5s 輪播（user 2026-06-10 第3輪：桌面保持 switch 原則，不要全 show）→ bindFlagCycles 吃 data-flag-cycle
       const _flagsDesktop = countryCodes.length ? `<span class="fi fi-${countryCodes[0]}"${countryCodes.length > 1 ? ` data-flag-cycle="${countryCodes.join(',')}"` : ''} style="width:1.5em;height:1em;display:inline-block;"></span>` : '';
@@ -1182,7 +1182,7 @@ export async function loadListInto(containerId, url, options = {}) {
                     </div>` : ''}
                   </div>`;
                 })() : ''}
-                ${buildSessionsHtml(item, dateColMinWidth, { showGuestCountry, showGuestAffiliation, showAlumniIcon })}
+                ${buildSessionsHtml(item, dateColMinWidth, { showGuestCountry, showGuestAffiliation })}
                 ${item.guests?.length ? `<div class="flex flex-col gap-sm">
                   ${item.guests.map(g => buildGuestHtml(g, { showGuestCountry, showGuestAffiliation })).join('')}
                 </div>` : ''}
@@ -1226,6 +1226,11 @@ export async function loadListInto(containerId, url, options = {}) {
                     data-ref-title-zh="${(ref.titleZh || '').replace(/"/g, '&quot;')}"
                     data-ref-host-section="${hostSection || ''}"
                     data-ref-host-item="${item.id || ''}">`
+                : ref.pressMedia
+                ? `<button class="list-ref-btn cursor-pointer border-none w-full grid grid-cols-12 gap-x-md items-start py-sm px-sm text-left"
+                    data-ref-press-media="${JSON.stringify(ref.pressMedia).replace(/"/g, '&quot;')}"
+                    data-ref-title-en="${(ref.titleEn || '').replace(/"/g, '&quot;')}"
+                    data-ref-title-zh="${(ref.titleZh || '').replace(/"/g, '&quot;')}">`
                 : ref.href
                 ? `<a class="list-ref-btn cursor-pointer w-full grid grid-cols-12 gap-x-md items-start py-sm px-sm no-underline" href="${ref.href}">`
                 : `<button class="list-ref-btn cursor-pointer border-none w-full grid grid-cols-12 gap-x-md items-start py-sm px-sm text-left"

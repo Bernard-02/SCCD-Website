@@ -9,6 +9,11 @@ import { createRefBtn } from './lightbox-ref-btn.js';
 import { sitePath } from '../ui/site-base.js';
 
 let lightboxEl = null;
+// 防 double-open（user 2026-06-22 報「打開 press lightbox 有時 header 整個消失」）：openLightbox 是 async，
+// enterLightboxMode 在 await(probeImage) 之後才呼叫；press item 圖還沒載完就被快速點兩下 → openLightbox 跑兩次
+// → enterLightboxMode×2 但 close 只 exit×1 → lightbox-shell openCount 卡 1 → header bars 永久 clip 收起。
+// 用同步 latch（在第一個 await「之前」就設 true）讓重複 open 只 enter 一次、close 只 exit 一次。
+let lbOpen = false;
 let mainEl = null;
 let thumbsEl = null;
 let titleEl = null;
@@ -546,9 +551,13 @@ function probeImage(src) {
 //                   為空 array 或省略 → ref btn 不顯示；點 ref chip 會關 lightbox 並 SPA 跳 activities
 export async function openLightbox(media, startIndex = 0, opts = {}) {
   ensureLightbox();
+  // 同步 latch：必須在第一個 await 之前設好，重複 open（含 await 視窗內的快速二次點擊）才會被 wasOpen 擋掉
+  const wasOpen = lbOpen;
+  lbOpen = true;
   const initial = media.filter(item => item && item.src && typeof item.src === 'string' && item.src.trim() !== '');
   if (initial.length === 0) {
     console.warn('openLightbox: no valid media items after filter, aborting');
+    lbOpen = wasOpen;  // 中止 → 還原 latch（沒真的開）
     return;
   }
 
@@ -562,6 +571,7 @@ export async function openLightbox(media, startIndex = 0, opts = {}) {
   mediaList = probed.filter(Boolean);
   if (mediaList.length === 0) {
     console.warn('openLightbox: all media failed to load, aborting');
+    lbOpen = wasOpen;  // 中止 → 還原 latch
     return;
   }
   // startIndex 對應「過濾前」的原始 array。沒任何 item 被 probe 掉時 mediaList === initial → 直接用原 startIndex
@@ -625,7 +635,7 @@ export async function openLightbox(media, startIndex = 0, opts = {}) {
     // 開啟即把起始縮圖定位到中央（instant，不動畫）；renderMain 當下 lightbox 還 display:none 量不到 rect
     centerActiveThumb(startIndex, false);
   });
-  enterLightboxMode();
+  if (!wasOpen) enterLightboxMode();  // 只在「真的從關→開」時 enter，重複 open 不再多 enter（避免 openCount 卡死）
 }
 
 // 動態量 header logo bbox：main display 區 padding-top 推到 logo 底邊以下，
@@ -776,6 +786,8 @@ function setupTitleMarquee() {
 
 // ── 關閉 ────────────────────────────────────────────────────────
 function closeLightbox() {
+  if (!lbOpen) return;  // 已關閉/關閉中 → 不重複 exit（避免 openCount 過度遞減把 header 提早顯示）
+  lbOpen = false;
   if (iframeEl) iframeEl.src = '';
   lightboxEl.style.opacity = '0';
   exitLightboxMode();

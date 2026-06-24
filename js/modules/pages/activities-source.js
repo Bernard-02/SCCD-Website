@@ -9,13 +9,15 @@ import { CMS_API_BASE, CMS_ASSETS_BASE } from '../../config/api.js';
 import { sitePath, SITE_BASE_PATHNAME } from '../ui/site-base.js';
 
 // M2A references deep-fetch：每個目標 collection 都要列一條 item:<col>.refCode（沒列到的該 ref item 會是 raw uuid）。
-// library_documents/press 另取 titleEn/Zh（前台 ref 列要顯示標題；award/activity 的 title 由 resolveRef 從本地查）。
+// library_documents/press 另取 titleEn/Zh（前台 ref 列要顯示標題；activity 的 title 由 resolveRef 從本地查）。
 // document 另取 pdf（前台直接開 PDF viewer，不跳 library）。album 不再當 ref（活動相簿就在活動內），故不 deep-fetch。
+// 2026-06-22 起 activities 不再 ref award（改 award → library 單向），故不 deep-fetch library_awards。
 const REF_FIELDS = [
   'references.collection',
-  'references.item:library_awards.refCode',
   'references.item:library_documents.refCode', 'references.item:library_documents.titleEn', 'references.item:library_documents.titleZh', 'references.item:library_documents.pdf',
   'references.item:library_press.refCode', 'references.item:library_press.titleEn', 'references.item:library_press.titleZh',
+  // press 的圖/影片：前台原地開 media lightbox（同 library press 點擊）。M2A 巢狀深取實測可行（2026-06-24）。
+  'references.item:library_press.images.directus_files_id', 'references.item:library_press.videoLinks',
   'references.item:activities_competitions.refCode',
   'references.item:activities_industry.refCode',
   'references.item:activities_workshops.refCode',
@@ -30,21 +32,33 @@ const ACT_SECTION = {
 const libHref = (refCode) => refCode ? `${SITE_BASE_PATHNAME}pages/library.html#${refCode}` : undefined;
 
 // 一筆 M2A ref {collection, item:{refCode,titleEn?,titleZh?,pdf?}} → 前台 ref shape（resolveRef 認得的形狀）。
-// award/activity 回 {type:'award'} / {section,itemId} 讓 resolveRef 從本地補 href+title；
-// document 回 {pdfUrl} → 直接開共用 PDF viewer lightbox（不跳 library）；press 回 href → 跳 library deep-link。
-// album 不再當 ref：活動相簿就在這個活動裡，不交叉連到 library album（return null 略過）。
+// activity 回 {section,itemId} 讓 resolveRef 從本地補 href+title；
+// document 回 {pdfUrl} → 直接開共用 PDF viewer lightbox（不跳 library）；
+// press 有圖/影片 → 回 {pressMedia} 原地開 media lightbox（同 library press 點擊）；都沒有才回 href 跳 library deep-link。
+// album / award 不再當 ref：相簿就在活動內、award 改 award → library 單向（return null 略過）。
 function remapRef(r) {
   const it = (r && typeof r.item === 'object' && r.item) ? r.item : {};
   const code = it.refCode;
   if (!code) return null;  // 目標沒填 refCode → 無法當 ref id，略過（友善碼是 ref 的連結鍵）
   switch (r.collection) {
-    case 'library_awards':          return { type: 'award', id: code };
     case 'activities_competitions':
     case 'activities_industry':
     case 'activities_workshops':    return { section: ACT_SECTION[r.collection], itemId: code };
     // document：直接開 PDF viewer lightbox。沒上傳 pdf 就略過（沒檔可開、避免空按鈕）。
     case 'library_documents':       return it.pdf ? { labelEn: 'Documents', labelZh: '文件', titleEn: it.titleEn || '', titleZh: it.titleZh || '', pdfUrl: fileUrl(it.pdf) } : null;
-    case 'library_press':           return { labelEn: 'Press', labelZh: '報導', titleEn: it.titleEn || '', titleZh: it.titleZh || '', href: libHref(code) };
+    // press：組 media（圖 + YouTube 影片，shape 對齊 activities-lightbox / library press lightbox）。
+    // 有 media → pressMedia（前台原地開 lightbox）；都沒有 → href 退回 library deep-link（不壞舊行為）。
+    case 'library_press': {
+      const media = [
+        ...normalizeFiles(it.images).map(src => ({ type: 'image', src, thumb: src })),
+        ...ytUrls(it.videoLinks).map(u => {
+          const vid = u.match(/(?:v=|youtu\.be\/)([^&?/]+)/)?.[1];
+          return vid ? { type: 'video', src: `https://www.youtube.com/embed/${vid}`, thumb: `https://img.youtube.com/vi/${vid}/hqdefault.jpg` } : null;
+        }).filter(Boolean),
+      ];
+      const base = { labelEn: 'Press', labelZh: '報導', titleEn: it.titleEn || '', titleZh: it.titleZh || '' };
+      return media.length ? { ...base, pressMedia: media } : { ...base, href: libHref(code) };
+    }
     default: return null;  // library_album 等其餘 collection 不當 ref
   }
 }
