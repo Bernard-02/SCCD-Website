@@ -1,0 +1,164 @@
+================================================================
+SCCD Directus 後台 — 資料庫 collation 修正（給有資料庫權限的人）
+================================================================
+日期：2026-06-22
+對象：能 SSH 進 Directus 那台主機（54.116.86.165 / sccdtest.usc.edu.tw）、
+      並能用 mysql 連到 Directus 資料庫的人。
+預計時間：約 5–10 分鐘（含備份）。風險：低（只改字元定序，不動資料內容；仍請先備份）。
+
+
+================================================================
+⚠️ 第二輪修正（2026-06-24）— 上次的修正「沒生效」，請改用這段
+================================================================
+實測：所有 *_references 的「Add Existing」查詢仍回 HTTP 500，錯誤一字不差還是：
+    Illegal mix of collations (utf8mb4_general_ci, utf8mb4_unicode_ci) for operation '='
+連上次文件點名的那 3 張（competitions / industry / workshops）也照炸。
+
+★ 為什麼沒生效（關鍵）：
+  SQL 裡是把「junction.item 欄」跟「CAST(內容表.id AS CHAR)」比，
+  而 CAST 出來的 collation ＝「連線層」collation（@@collation_connection），不是欄位的。
+  所以真正要相等的是：**junction 的 item 欄 collation == @@collation_connection**。
+  上次很可能把表轉成了「utf8mb4_general_ci」（本文件下方範例的硬寫值），
+  但這台的 @@collation_connection 其實是「utf8mb4_unicode_ci」（或反過來）→ 轉了還是不相等。
+  範例的 general_ci 是「通常值」，不是這台的實際值，請務必改用「實際查到的值」。
+
+★ 還有：下面 5 張 junction 是 2026-06-24 才新建、上次文件還沒有，務必一起轉：
+    library_awards_references
+    activities_exhibitions_special_references
+    admission_summer_camp_references
+    activities_conferences_references
+    activities_degree_show_references
+
+★ 自我校正版步驟（不用猜哪一種 collation，照跑即可）：
+  1) 先確認連線層實際是哪種、以及 junction 欄現在是哪種：
+       SELECT @@collation_connection;
+       SELECT TABLE_NAME, COLUMN_NAME, COLLATION_NAME FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA=DATABASE()
+         AND TABLE_NAME='activities_workshops_references' AND COLUMN_NAME='item';
+     （若兩者不同，就是病灶。）
+
+  2) 用「@@collation_connection 的實際值」生成全表轉換指令（不要硬寫 general_ci）：
+       SELECT CONCAT('ALTER TABLE `', TABLE_NAME,
+                     '` CONVERT TO CHARACTER SET utf8mb4 COLLATE ', @@collation_connection, ';')
+       FROM information_schema.TABLES
+       WHERE TABLE_SCHEMA=DATABASE() AND TABLE_TYPE='BASE TABLE';
+     → 把輸出的整批 ALTER 全跑（會一併蓋到上面 5 張新 junction）。
+
+  3) 資料庫預設也設成同一種（CONN = 第 1 步查到的值）：
+       ALTER DATABASE <DBNAME> CHARACTER SET utf8mb4 COLLATE <CONN>;
+
+  4) 瀏覽器 Ctrl+Shift+R 後再測一次 Add Existing。
+
+  5) 若仍 500（少數）：代表連線層 collation 與表又不同步。
+     那就把 Directus 的 DB 連線 collation 也釘成同一種後重啟：pm2 restart directus。
+
+（原本下方的內容仍可參考，但「硬寫 utf8mb4_general_ci」那幾段請以本段為準。）
+================================================================
+
+
+■ 一句話問題
+後台「活動 → References（關聯）→ Add Existing（選取已存在）」點下去一片空白，
+背後是該查詢回 HTTP 500。原因＝資料庫裡的 collation（字元定序）混用了兩種
+（utf8mb4_general_ci 與 utf8mb4_unicode_ci）。
+
+
+■ 為什麼會 500（技術說明，可略）
+Directus 的「多型關聯（M2A）」在列出可選項時，會送一個「排除已連項目」的查詢，
+SQL 內會把「關聯表的 item 欄（varchar）」跟「內容表的 id 欄（char）」用 = 比對：
+
+    ... LEFT JOIN <關聯表> ON <關聯表>.item = CAST(<內容表>.id AS CHAR(255)) ...
+
+這兩個欄位若 collation 不同，MySQL/MariaDB 會直接拒絕並丟錯：
+
+    Illegal mix of collations (utf8mb4_general_ci,IMPLICIT)
+    and (utf8mb4_unicode_ci,IMPLICIT) for operation '='
+
+→ 整支查詢 500 → 前端只看到「空白抽屜」。
+這不是 Directus 的 bug、也不需要升級 Directus；是這台資料庫的定序設定不一致。
+（一般關聯 M2M 不做這種跨表字串比對，所以不受影響、能正常用。）
+
+
+■ 根治方向
+把整個 Directus 資料庫的字元集/定序統一成「連線層所用的那一種」，
+並把資料庫預設定序也設成同一種（這樣未來新建的關聯表也不會再出問題）。
+
+
+■ 操作步驟（請逐步執行）
+
+把下面的 <DBNAME>、<USER> 換成實際的資料庫名與帳號。
+
+0) 先備份（務必）：
+   mysqldump -u <USER> -p <DBNAME> > sccd_directus_backup_2026-06-22.sql
+
+1) 連進資料庫並確認現況：
+   mysql -u <USER> -p <DBNAME>
+
+   -- 1a. 連線層目前用哪種定序（這就是我們要統一成的目標值）
+   SELECT @@collation_connection, @@collation_database;
+
+   -- 1b. 看看不一致的證據（內容表 id 與關聯表 item 各是哪種）
+   SELECT TABLE_NAME, COLUMN_NAME, COLLATION_NAME
+   FROM information_schema.COLUMNS
+   WHERE TABLE_SCHEMA = DATABASE()
+     AND ( (TABLE_NAME = 'library_press' AND COLUMN_NAME = 'id')
+        OR (TABLE_NAME LIKE '%\_references' AND COLUMN_NAME = 'item') );
+
+   ★ 把第 1a 步 @@collation_connection 顯示的值記下來（通常是 utf8mb4_general_ci）。
+     下面所有指令一律用「這個值」。若它不是 utf8mb4_general_ci，
+     請把以下指令中的 utf8mb4_general_ci 全部換成你看到的值。
+
+2) 設資料庫預設定序（讓未來新表自動正確）：
+   ALTER DATABASE <DBNAME> CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+
+3) 把所有現有資料表統一成同一種定序。
+   先用這段「產生」出所有 ALTER 指令（不會改東西，只是列出指令）：
+
+   SELECT CONCAT('ALTER TABLE `', TABLE_NAME,
+                 '` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;')
+   FROM information_schema.TABLES
+   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE';
+
+   → 把上面查詢「輸出的那一整批 ALTER 指令」全選、複製、貼回 mysql 執行即可。
+     （這會把每一張表都轉成 utf8mb4_general_ci，含內容表與關聯表。）
+
+4) 驗證：
+   回 Directus 後台（瀏覽器 Ctrl+Shift+R 硬重整一次）→
+   進任一活動項目 → References → Add Existing → 選任一類別（如 Library Press）→
+   應該正常列出可選項，不再空白。
+
+   （也可在主機上用 curl 驗，看是否回 200 而非 500，附在最下方。）
+
+
+■ 只想做最小改動的替代版（不想動全部表時）
+若不想轉整個資料庫，至少要把這三張關聯表的 item 欄改成跟連線層同一種定序：
+
+   ALTER TABLE activities_competitions_references
+     MODIFY item VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+   ALTER TABLE activities_industry_references
+     MODIFY item VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+   ALTER TABLE activities_workshops_references
+     MODIFY item VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+
+   ⚠ 缺點：這只解目前這三個關聯欄；如果以後在後台再新增別的「多型關聯（M2A）」欄位，
+      可能又會踩到同樣的問題。建議還是做上面第 2、3 步「整個資料庫統一」較一勞永逸。
+
+
+■ 注意事項
+- 以上改動只改「字元定序」這個中介資料，不會改到任何文章/圖片等內容；但仍請先備份。
+- 不需要升級 Directus，也不是 Directus 軟體的問題。
+- 改完不需要重啟 Directus（純資料庫層）；若想保險可 `pm2 restart directus`。
+
+
+■ （選用）主機端 curl 自我驗證
+在主機上執行，看是否從 500 變成 200：
+
+   curl -s -o /dev/null -w "%{http_code}\n" \
+     -H "Authorization: Bearer <ADMIN_TOKEN>" \
+     "https://sccdtest.usc.edu.tw/items/library_press?filter=%7B%22_and%22%3A%5B%7B%22%24FOLLOW(activities_workshops_references%2Citem%2Ccollection)%22%3A%7B%22_none%22%3A%7B%22collection%22%3A%7B%22_eq%22%3A%22library_press%22%7D%7D%7D%7D%5D%7D"
+
+   修正前：500   修正後：200
+
+================================================================
+完成後請回覆「已執行第 2、3 步」或貼第 1 步的兩個查詢結果，
+我們就能在後台確認「Add Existing」恢復正常。
+================================================================
