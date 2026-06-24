@@ -234,7 +234,8 @@ function drawColorPickerIndicator(centerX, centerY, outerRadius, innerRadius) {
     }
   }
   colorPickerCanvas.stroke(indicatorShade);
-  colorPickerCanvas.strokeWeight(3);
+  // 粗度 = 色環「邊框」厚度（user 2026-06-22：跟 drawColorRing 兩圈 border 的 1.8 同步，非環帶厚度）
+  colorPickerCanvas.strokeWeight(1.8);
   colorPickerCanvas.strokeCap(_p5.SQUARE);
   colorPickerCanvas.line(x1, y1, x2, y2);
 }

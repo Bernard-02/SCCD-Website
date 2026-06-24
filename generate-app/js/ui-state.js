@@ -52,12 +52,18 @@ function updateUI() {
 
             // 步驟 2：強制 reflow，然後設置 max-width、padding 和 opacity（觸發容器展開動畫 + 淡入）
             void colorPickerBox.elt.offsetHeight; // 強制瀏覽器重繪
-            colorPickerBox.style('max-width', '500px'); // 設定足夠大的值
+            // max-width 設成「實際盒寬 108」而非 500：min(108, max-width) 若 max-width 遠大於 108，收合時會「先停在 108、
+            // 等 max-width 降到 108 才突然塌」＝非線性 → panel 抖。設 108 → 展開/收合都線性。
+            // （user 2026-06-23；108 = mode3 #colorpicker-box 顯式寬 = wheel72 + 右 padding36，見 create.css）
+            colorPickerBox.style('max-width', 'calc(108px * var(--scale))');
             colorPickerBox.style('padding', ''); // 恢復 CSS 中定義的 padding
             colorPickerBox.style('opacity', '1'); // 容器淡入（包括 border 和背景）
 
-            // 步驟 3：等待容器完全展開（300ms），再立即創建 canvas 並顯示內容
-            setTimeout(() => {
+            // 步驟 3：建 wheel canvas + 啟動進場。
+            // desktop（user 2026-06-23）：#colorpicker-container 已 absolute 固定 72（CSS）→ clientWidth 恆 72、canvas 可即建，
+            //   不必等 box 展開 → 把「wheel slide」跟上面「box 展開」放同一 tick → 兩者同時 run（非先後）。
+            // mobile：維持等 300ms（mobile bar 寬要等 layout 才量得到）。
+            const buildAndRevealColorWheel = () => {
                 // 立即創建 canvas（不等 draw() 執行）
                 if (!colorPickerCanvas) {
                     // 根據設備選擇正確的 container
@@ -74,8 +80,7 @@ function updateUI() {
                             canvasWidth = containerWidth;
                             canvasHeight = containerHeight;
                         } else {
-                            // 桌面版：canvas 撐滿 container（user 2026-05-20 三次調整：要 ring 外緣 ≈ box 邊緣不留 padding）
-                            // drawColorRing 配 outerRadius ≈ 0.5 of canvas 把 ring 推到 canvas 邊
+                            // 桌面版：canvas 撐滿 container（container 已固定 72×72，clientWidth 恆 72）
                             let containerSize = Math.min(containerWidth, containerHeight);
                             canvasWidth = containerSize;
                             canvasHeight = containerSize;
@@ -115,14 +120,18 @@ function updateUI() {
                 // 允許創建 canvas 的標記（防止 draw() 重複創建）
                 colorPickerReady = true;
 
-                // 顯示內容（canvas 已經創建好了，可以立即顯示）
+                // wheel container 從 mode-btn 後面 translateX(-100%) 滑出到 0 + fade（pos slide）。
+                // play 鈕在 container 內 → 跟著滑、被 container opacity 蓋，不需自己設。
                 if (colorPickerContainer) {
                     colorPickerContainer.style('opacity', '1');
+                    colorPickerContainer.style('transform', 'translateX(0)');
                 }
-                if (colorWheelPlayButton) {
-                    colorWheelPlayButton.style('opacity', '1');
-                }
-            }, 300); // 等待容器展開完成後立即顯示
+            };
+            if (isMobileMode) {
+                setTimeout(buildAndRevealColorWheel, 300);
+            } else {
+                buildAndRevealColorWheel(); // 同一 tick → wheel slide 與底色展開同時跑
+            }
         }
     } else {
         body.removeClass('wireframe-mode');
@@ -153,12 +162,10 @@ function updateUI() {
 
         // 平滑收起 color picker box（收起動畫）
         if (colorPickerBox) {
-            // 步驟 1：先淡出內容
+            // 步驟 1：先收內容（container 往左滑回 mode-btn 後面 translateX(-100%) + fade，與進場反向；play 鈕跟著）
             if (colorPickerContainer) {
                 colorPickerContainer.style('opacity', '0');
-            }
-            if (colorWheelPlayButton) {
-                colorWheelPlayButton.style('opacity', '0');
+                colorPickerContainer.style('transform', 'translateX(-100%)');
             }
 
             // 步驟 2：收起容器（縮小 max-width、padding、opacity）

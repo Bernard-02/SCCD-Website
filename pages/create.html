@@ -72,11 +72,13 @@ ROTATE FOR BEST EXPERIENCE</div>
 
                 <!-- 色彩選擇器 (用於 Wireframe 模式) -->
                 <div class="control-box" id="colorpicker-box">
-                    <div id="colorpicker-container"></div>
-                    <!-- Color Wheel Play/Pause 按鈕 -->
-                    <button id="colorwheel-play-button" class="colorwheel-play-button">
-                        <img id="colorwheel-play-icon" src="../website-icons/play_create.svg" alt="Play">
-                    </button>
+                    <!-- play 鈕移進 container：跟 wheel 一起被 container 的 translateX slide 帶動 + 置中對齊 wheel（非 box）。
+                         canvas 由 JS append 進 container；play 是 position:absolute 永遠疊在 canvas 之上（user 2026-06-23）。 -->
+                    <div id="colorpicker-container">
+                        <button id="colorwheel-play-button" class="colorwheel-play-button">
+                            <img id="colorwheel-play-icon" src="../website-icons/play_create.svg" alt="Play">
+                        </button>
+                    </div>
                 </div>
 
                 <!-- 第二組：旋轉模式（包含 Auto/Custom 和展開控制） -->
