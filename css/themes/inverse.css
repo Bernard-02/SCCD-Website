@@ -300,12 +300,18 @@ body.mode-inverse #library-awards-ticker .awards-ticker-wrapper img {
     color: black !important;
   }
 
-  /* list-ref-btn hover：黑底白字（base lists.css hover 已設 bg=black + color=white，但上方 .list-content * → color:black
-   * 規則 specificity 0,4,1 蓋過 base `.list-ref-btn:hover *` 0,2,1 → ref hover 變黑底黑字看不到）
-   * 用 .list-header[...] + .list-content .list-ref-btn:hover * 提升 specificity 至 0,6,1 蓋回 white */
-  body.mode-inverse .list-header[style*="background"] + .list-content .list-ref-btn:hover,
-  body.mode-inverse .list-header[style*="background"] + .list-content .list-ref-btn:hover * {
-    color: white !important;
+  /* list-ref-btn hover (mode2)：白底黑字（user 2026-06-24）。base lists.css hover 是黑底白字＝standard 慣例；
+   * inverse 模式要翻過來——黑頁/暗 panel 上「黑底 hover」會糊掉，且應對齊 mode3 對 .list-ref-btn 的全 ref override。
+   * 蓋過 base `background:black !important` + `color:white !important`（本選擇器 0,3,1 > base 0,2,0）。
+   * 涵蓋所有 .list-ref-btn：activities / admission（active-content）+ awards / press / files（非 active-content）。
+   * lightbox ref chip 不套 .list-ref-btn class（自管 hover）→ 不受影響。
+   * bg 只套 root；子元素只繼承文字色，避免巢狀色塊（鏡像 base / mode3 pattern）。 */
+  body.mode-inverse .list-ref-btn:hover {
+    background: white !important;
+    color: black !important;
+  }
+  body.mode-inverse .list-ref-btn:hover * {
+    color: black !important;
   }
 }
 

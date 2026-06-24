@@ -134,6 +134,10 @@ function applyColorVars() {
   // --lib-bg 兩階切換（mode3）：對齊 mode1/2 的固定灰值，依 page bg luminance 翻
   // 亮 page → #f2f2f2（同 mode1 standard）/ 暗 page → #333333（同 mode2 inverse）
   root.style.setProperty('--lib-bg', isLightBg ? '#f2f2f2' : '#333333');
+  // --lib-zebra-alpha：library 斑馬 mode3 alpha。library 卡片 mode3 是兩階固定灰（非 cycling hue，見上 --lib-bg）→
+  // 斑馬跟著灰底走、不套 activities 的 hue-aware 白 strip：亮 card(#f2f2f2) 黑疊 0.05（同 mode1）/ 暗 card(#333) 白疊 0.15（同 mode2）。
+  // 配 CSS 的 rgba(var(--theme-fg-rgb), var(--lib-zebra-alpha))，theme-fg 已亮黑暗白 → 方向自動對。user 2026-06-23
+  root.style.setProperty('--lib-zebra-alpha', isLightBg ? '0.05' : '0.15');
   // --lib-ref-bg：awards ref 展開列底色「比 --lib-bg 灰卡再深一階」，依 hue 亮暗跟著切
   // 亮 card(#f2f2f2) → gray-9(#E6E6E6)（同 standard）/ 暗 card(#333333) → gray-1(#1A1A1A)（同 inverse）；
   // ref 文字直接吃 var(--lib-fg)（=theme-fg，亮黑暗白）→ 不需另設 ref-fg var
@@ -215,6 +219,7 @@ function stopColorLoop() {
   root.style.removeProperty('--theme-neutral-gray');
   root.style.removeProperty('--theme-neutral-gray-inverse');
   root.style.removeProperty('--lib-bg');
+  root.style.removeProperty('--lib-zebra-alpha');
   root.style.removeProperty('--lib-ref-bg');
   root.style.removeProperty('--theme-bg-contrast');
   root.style.removeProperty('--theme-bg-contrast-rgb');
@@ -431,11 +436,12 @@ function applyMode(mode, opts) {
     document.documentElement.classList.add('mode-switching');
 
     // 動態注入防抖動 CSS，只在 mode-switching 期間對旋轉元素開啟硬體加速，避免永久 will-change 破壞 z-index
+    // ⚠️ 勿加入 .atlas-name：那是 ~223 個被 float 迴圈逐幀 transform 的 map chip，mode 切換時一次全推上 GPU layer
+    //    （will-change+preserve-3d+box-shadow）會造成切換卡頓（2026-06-23 移除）。atlas chip 不需防抖。
     if (!antiJitterStyle) {
       antiJitterStyle = document.createElement('style');
       antiJitterStyle.textContent = `
         html.mode-switching.mode-switching .courses-grid-card,
-        html.mode-switching.mode-switching .atlas-name,
         html.mode-switching.mode-switching .atlas-alumni-career,
         html.mode-switching.mode-switching .atlas-list-col-career,
         html.mode-switching.mode-switching .anchor-nav-inner,
