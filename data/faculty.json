@@ -242,20 +242,20 @@
     "id": "admin-1",
     "type": "admin",
     "image": "../images/S__6742028.jpg",
-    "nameEn": "Secretary Name 1",
-    "nameZh": "執行秘書 1",
+    "nameEn": "Henry Heng-Jui Jiang",
+    "nameZh": "江恆瑞",
     "titleEn": "Secretary",
     "titleZh": "執行秘書",
-    "contact": "Email: secretary1@sccd.edu.tw\nPhone: +886-2-1234-5678"
+    "contact": "henry@g2.usc.edu.tw"
   },
   {
     "id": "admin-2",
     "type": "admin",
     "image": "../images/S__6742028.jpg",
-    "nameEn": "Secretary Name 2",
-    "nameZh": "執行秘書 2",
+    "nameEn": "Shan-Ru Lin",
+    "nameZh": "林珊如",
     "titleEn": "Secretary",
     "titleZh": "執行秘書",
-    "contact": "Email: secretary2@sccd.edu.tw\nPhone: +886-2-1234-5679"
+    "contact": "shan5757@g2.usc.edu.tw"
   }
 ]

@@ -10,7 +10,7 @@
     position: fixed;
     inset: 0;
     background: #ffffff;
-    z-index: 9999;
+    z-index: 10000; /* 必須蓋過 header（z-index:9999 !important）→ 進場期間 overlay 擋掉所有點擊 */
     display: flex;
     align-items: center;
     justify-content: center;

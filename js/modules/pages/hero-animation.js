@@ -73,6 +73,28 @@ function getPoolKey(grid) {
   return `${window.innerWidth}x${window.innerHeight}|${heroTexts}`;
 }
 
+// Banner 安全夾制：量測 banner 旋轉後 bbox vs 它所在 section，若超出上/下緣就把 style.top 拉回界內。
+// 為什麼存在：placement 的數學在 scrollY=0 下保證 banner 落在 [90, 100vh-30]，穩態 headless 400+ render 全在界內、
+// 此函式 = no-op。但 user 2026-06-23 在大螢幕 SPA 換頁偶發「banner 偏下被切」，headless 各種角度都重現不出（reload/
+// SPA/捲動/打斷進場/Directus 頁全測過 0 次）→ 真實環境有個量測模型看不到的條件。留這個 calibration 夾制當保險：
+// 正常不動，只有在某環境/時序把 banner 算到界外時才把它拉回，症狀（被切）直接消失。量一次 rect，成本可忽略。
+function clampBannerIntoSection(grid) {
+  const banner = /** @type {HTMLElement|null} */ (grid.querySelector('.hero-banner'));
+  const section = /** @type {HTMLElement|null} */ (grid.closest('section'));
+  if (!banner || !section) return;
+  const b = banner.getBoundingClientRect();
+  const s = section.getBoundingClientRect();
+  if (b.height === 0) return;  // 還沒 layout（visibility:hidden 仍有 rect，0 高度才是真沒算到）
+  const BOTTOM_PAD = 30, TOP_PAD = 8;
+  let dy = 0;
+  if (b.bottom > s.bottom - BOTTOM_PAD) dy = (s.bottom - BOTTOM_PAD) - b.bottom;      // 太低 → 上移
+  else if (b.top < s.top + TOP_PAD) dy = (s.top + TOP_PAD) - b.top;                   // 太高 → 下移
+  if (dy !== 0) {
+    const cur = parseFloat(banner.style.top) || 0;
+    banner.style.top = `${(cur + dy).toFixed(1)}px`;
+  }
+}
+
 // 套用 cache 內 snapshot 到當前 DOM（不重新量測，不跑 placement）
 function applyLayoutSnapshot(grid, snapshot) {
   const paragraphs = ['hero-text-en', 'hero-text-cn']
@@ -104,6 +126,7 @@ function applyLayoutSnapshot(grid, snapshot) {
   } else {
     tightenParagraphWidths(grid);  // 舊格式 snapshot fallback（同次 build 的 pool 一定有新欄位，正常不會走到）
   }
+  clampBannerIntoSection(grid);  // 保險：cached 位置在某環境被算到界外時拉回（見函式註解）
 }
 
 function tightenParagraphWidths(grid) {
@@ -404,6 +427,7 @@ function randomizeHeroLayout() {
   // bg 跟著 <p> 寬度延伸 → 右側看起來比左 padding 大。用 Range API 量 wrapped lines 取最長一行寫回 width
   // 收緊。位置已派完（基於原 max-width bbox），縮 width 只會讓 bbox 變小，不會引入重疊。
   tightenParagraphWidths(grid);
+  clampBannerIntoSection(grid);  // 保險：first-visit live build 算到界外時拉回（見函式註解）
 }
 
 // Cache build 用：跑 placement + banner，回傳 snapshot（不收緊 wrap width — 那是套 cache 時當下 DOM 才算）
@@ -672,6 +696,28 @@ export function initHeroAnimation() {
   const mySeq = ++_heroInitSeq;
   const isStale = () => mySeq !== _heroInitSeq;
 
+  // 🔧 暫時診斷（hero 偶爾完全不出現查根因用，查完移除）：init 後 3s 檢查 chip 是否真的顯示出來。
+  // ⚠️ gate isStale：只檢查「3s 後仍是當前頁」的（= 你停下來的那頁）。快速連點時被切走的舊頁 stale 跳過，
+  //   不再誤報（那些頁是你主動離開的、不是 bug）。只有「停在某頁、它本身 hero 卻卡住」才是真 bug。
+  setTimeout(() => {
+    if (mySeq !== _heroInitSeq) return;  // 已切到別頁 → 這頁不是你停下來的、略過
+    const sel = '.hero-title, .hero-title-cn, .hero-text-en, .hero-text-cn, .hero-mobile-title, .hero-mobile-title-cn, .hero-mobile-text-en, .hero-mobile-text-cn';
+    const chips = [...document.querySelectorAll(sel)].filter(el => /** @type {HTMLElement} */ (el).offsetParent !== null);
+    // 真正「卡住」只有兩種：build 沒跑到 visibility:visible（stale-abort 等），或進場 tween 被 kill
+    // 沒 clearProps → 殘留 offset transform。原本還比對 viewport bbox，但 hero 在 h-screen section 內，
+    // 使用者 3s 內往下捲一點 chip 的 rect 就出界 → 對「已 _heroDone、transform 已清」的成功進場誤報
+    // （4/4 出界＝整段 hero 捲走，非進場失敗）。改成只認真實卡住訊號。
+    const broken = chips.filter(el => {
+      if (getComputedStyle(el).visibility === 'hidden') return true;
+      const t = /** @type {HTMLElement} */ (el).style.transform;
+      return !!t && t !== 'none' && /translate|matrix/.test(t);
+    });
+    if (chips.length && broken.length) {
+      console.warn(`[hero] ⚠️ 真‧進場失敗（停在這頁仍卡住）：${broken.length}/${chips.length} chip 仍隱藏/出界（seq=${mySeq} _heroDone=${_heroDone} mobile=${innerWidth < 768}）`,
+        broken.map(el => ({ cls: el.className, vis: getComputedStyle(el).visibility, transform: /** @type {HTMLElement} */ (el).style.transform })));
+    }
+  }, 3000);
+
   // Hero highlight：所有 [data-hero-hl] 套同一個隨機 accent 色 + 固定 padding
   // padding 用 rem 而非 em，避免 h1（font-size 大）的 padding 被等比例放大成過大色塊
   // 跑在 gsap 早返回之前，確保無 gsap 也會套色
@@ -769,7 +815,8 @@ export function initHeroAnimation() {
   // 用 requestAnimationFrame：先讓瀏覽器 paint 新頁靜態樣子（即使 hero 元素 visibility:hidden 也 OK），
   // 下一幀再做 hero build → 視覺上「點連結 → 立刻換頁 → 16ms 後 hero 動畫進場」。
   requestAnimationFrame(() => {
-    if (isStale()) return;  // 使用者已切到下一頁，放棄本次 build
+    // 🔧 暫時診斷：desktop build 被 stale 中止＝chip 永遠停在 visibility:hidden（要再切一次才有）
+    if (isStale()) { console.warn(`[hero] ⚠️ desktop build 被 stale 中止：seq=${mySeq} 目前=${_heroInitSeq}（會留下隱藏 chip）`); return; }
     // 量測前等字體載入：FACULTY 等寬標題在 fallback 字型下被低估寬度，placement 用該值定位後字型載入撐大 →
     //   chip 衝破 SIDE_MARGIN 邊界（user 2026-06-07 反映 hero chip 太靠/超出邊）。chip 在 build 前都 visibility:hidden，
     //   故等字體不會 FOUC、也不會 reposition jump。fonts 已 ready 同步 build 不延遲；timeout 兜底避免極端情況卡住。

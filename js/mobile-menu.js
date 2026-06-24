@@ -43,6 +43,12 @@ export function initMobileMenu() {
   //   跑完 clearProps 留下「無 transform = 全顯」殘態。open/close 兩端都要 kill 它 + killTweensOf。
   let revealCall = null;
 
+  // ⚠️ 一勞永逸防 race（user 2026-06-22）：toggle btn 在「開合動畫進行中」一律不可點。
+  //   過去 open/close 做成可中途反向（faculty 式），但每補一個中斷 edge 又冒新的殭屍殘態。
+  //   改成 open 起 → 選項全 reveal 完才解鎖；close 起 → nav 滑出完才解鎖。期間點 btn no-op。
+  //   只鎖 toggle btn，不鎖 nav link（點選單項目永遠即時可用，退場由換頁動畫蓋過）。
+  let busy = false;
+
   // 捲動鎖：鎖 html 不鎖 body——body overflow:hidden 會讓 body 變 scroll container，
   // 頁內 position:sticky（釘住的 list header 等）改對 body 計算 → 開 menu 瞬間解除釘選、
   // list 視覺往上彈，關掉又彈回（user 2026-06-12 報）。html 本來就是頁面 scroll container，
@@ -60,6 +66,7 @@ export function initMobileMenu() {
   function openMenu() {
     nav.classList.add('open');
     if (typeof gsap !== 'undefined') {
+      busy = true; // reveal 完成前鎖住 toggle（onComplete 解鎖）
       // 殺掉前一次 close 還掛著的「延遲滑出」tween（delay: itemsTotal）：
       // 不殺的話在 items 收合期間重開 menu，舊 tween 之後才 fire 會把開著的 menu 整個拉走，
       // state 卡在 open 但畫面上 menu 消失（user 2026-06-11 報「點箭頭後整個 menu 不見」）
@@ -78,6 +85,7 @@ export function initMobileMenu() {
             ease: EASE.enter,
             overwrite: true,
             clearProps: 'transform',
+            onComplete: () => { busy = false; }, // 選項全進場 → 解鎖 toggle
           });
         };
         // 完全關閉（nav 在畫面外）→ 重設 100 + 0.105 delay 的完整進場節奏；
@@ -111,6 +119,7 @@ export function initMobileMenu() {
     unlockScroll();
     return new Promise(resolve => {
       if (typeof gsap !== 'undefined') {
+        busy = true; // nav 滑出完成前鎖住 toggle（onComplete 解鎖）
         gsap.killTweensOf(nav); // 對稱保險：殺掉殘留的 open 滑入 tween
         if (revealCall) { revealCall.kill(); revealCall = null; } // 殺掉 pending 的殭屍 reveal（見上）
         const itemCount = menuItems?.length || 0;
@@ -134,7 +143,7 @@ export function initMobileMenu() {
           duration: DUR.fast,
           ease: EASE.exitSoft,
           delay: itemsTotal,
-          onComplete: resolve,
+          onComplete: () => { busy = false; resolve(); }, // 收完 → 解鎖 toggle
         });
       } else {
         nav.style.transform = 'translateX(-100%)';
@@ -143,8 +152,9 @@ export function initMobileMenu() {
     });
   }
 
-  // 1. 漢堡按鈕：toggle
+  // 1. 漢堡按鈕：toggle（動畫進行中 no-op，防 open/close 互相打斷的殭屍殘態）
   btn.addEventListener('click', () => {
+    if (busy) return;
     if (nav.classList.contains('open')) closeMenu();
     else openMenu();
   });

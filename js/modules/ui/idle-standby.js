@@ -160,7 +160,7 @@ function ensureOverlay() {
   return overlay;
 }
 
-async function mountStandbyAtlas() {
+async function mountStandbyAtlas(instant) {
   const overlay = ensureOverlay();
   overlay.innerHTML = ATLAS_MAIN_HTML;
   overlay.style.pointerEvents = 'auto';
@@ -170,7 +170,8 @@ async function mountStandbyAtlas() {
   if (main) main.style.opacity = '0';
   if (content) content.style.opacity = '0';
 
-  await initAtlas({ root: overlay });
+  // instant（背景分頁）：跳過 atlas intro zoom，掛上來就是定態
+  await initAtlas({ root: overlay, instant });
   atlasMounted = true;
 }
 
@@ -211,7 +212,15 @@ function fadeAtlasContent(to) {
   return fadeEl(content, to);
 }
 
-function tweenLogoShrink() {
+// 背景分頁瞬間定態：直接設 opacity:1（rAF 暫停時 gsap tween 不會跑、切回本 tab 才補播 = 不要的「切回才 fade」）
+function setStandbyAtlasVisible() {
+  const main = /** @type {HTMLElement|null} */ (document.querySelector('#idle-standby-overlay #atlas-main'));
+  const content = /** @type {HTMLElement|null} */ (document.querySelector('#idle-standby-overlay #atlas-content'));
+  if (main) main.style.opacity = '1';
+  if (content) content.style.opacity = '1';
+}
+
+function tweenLogoShrink(instant) {
   return new Promise(resolve => {
     const logo = getLogo();
     if (!logo || typeof gsap === 'undefined') return resolve();
@@ -221,6 +230,10 @@ function tweenLogoShrink() {
       return resolve();
     }
     savedLogoSize = w;
+    if (instant) { // 背景分頁：直接定大小，不 tween（rAF 暫停切回才補播）
+      gsap.set(logo, { width: LOGO_SHRUNK_SIZE, height: LOGO_SHRUNK_SIZE });
+      return resolve();
+    }
     gsap.to(logo, {
       width: LOGO_SHRUNK_SIZE,
       height: LOGO_SHRUNK_SIZE,
@@ -293,6 +306,9 @@ async function enterStandby() {
   if (isStandby || isTransitioning) return;
   // 手機不進待機畫面（user 2026-06-12）；guard 放進場時點而非 init，視窗大小變了也準
   if (window.innerWidth < 768) return;
+  // 背景分頁進待機：rAF 暫停＋沒人在看 → 直接定態（不 fade），使用者切回本 tab 時「已經是待機」，
+  // 不是「當著面才 fade 進待機」。fade 只在停在本 tab 不動才跑。user 2026-06-24。
+  const instant = document.hidden;
   isTransitioning = true;
   isStandby = true;
 
@@ -305,18 +321,20 @@ async function enterStandby() {
   liftLogoToBody();
 
   // 3. logo 縮小（若大）
-  await tweenLogoShrink();
+  await tweenLogoShrink(instant);
 
-  // 3. body class
+  // 4. body class
   document.body.classList.add('idle-standby');
 
   if (!isOnAtlas()) {
-    // 4. mount overlay atlas
-    await mountStandbyAtlas();
-    // 5. 背景 fade in
-    await fadeAtlasMain(1);
-    // 6. 星雲 fade in
-    await fadeAtlasContent(1);
+    // 5. mount overlay atlas（instant 時跳 intro zoom）
+    await mountStandbyAtlas(instant);
+    if (instant) {
+      setStandbyAtlasVisible();       // 直接顯示，不 fade
+    } else {
+      await fadeAtlasMain(1);         // 背景 fade in
+      await fadeAtlasContent(1);      // 星雲 fade in
+    }
   }
 
   isTransitioning = false;
