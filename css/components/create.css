@@ -143,12 +143,15 @@
 }
 
 /* 根據 body class 切換顏色 */
+/* bg 不自己畫（user 2026-06-24）：standard/inverse 原本各自畫 solid white/black bg，切到/離開 mode3 時這層 solid
+   要 cross-fade 成透明、疊在 site body 的 hue 之上 → 跟 header 的「直接 fade」走不同色路 + 慢一幀（class 在 draw loop 才換）
+   → header 與 canvas 區底色不同步（只 mode3 因兩層異色才看得出；mode1↔2 兩層同色故無感）。
+   解法＝三 mode 都不自畫 bg、全靠 site body 單一 paint 透過來（body：standard white / inverse black / color hue，
+   且跟 header 走同一條 .mode-switching fade）→ header 與 canvas 區同源同步，跟其他頁一致。值同 --standard/inverse-bg 故穩態不變色。 */
 #create-app.standard-mode {
-  background-color: var(--standard-bg);
   color: var(--standard-text);
 }
 #create-app.inverse-mode {
-  background-color: var(--inverse-bg);
   color: var(--inverse-text);
 }
 /* user 2026-05-27 拍板：mode-color 邏輯整套靠 site body.mode-color 處理
@@ -178,11 +181,10 @@
   filter: invert(1);
 }
 
-/* 桌面控制盒（user 2026-06-10）移除實心底改 bottom-line 後，盒變透明 → 盒內 icon 改與「頁面底」對比、
-   不再與盒底對比 → invert 條件相對上面全域規則整個翻轉：
+/* user 2026-06-22：桌面控制盒底色改成「頁面前景色淡疊」（不透明度 5%/10%，跟 list zebra 同邏輯，見下方 .control-box）
+   → 盒近乎透明、icon 改與「頁面底」對比（非盒底）→ invert 條件相對上面全域規則整個翻轉：
      頁亮（standard / wireframe.dark-icons）→ 黑 icon 不反；頁暗（inverse / wireframe 非 dark-icons）→ 反白。
-   只 scope .control-box（桌面）→ 手機 bottom bar 仍實心底、沿用上面全域 invert 不受影響。
-   特異度 (1,2,2) > 全域 (1,1,2) → 蓋過。 */
+   只 scope .control-box（桌面）→ 手機 bottom bar 不受影響。特異度 (1,2,2) > 全域 (1,1,2) → 蓋過。 */
 #create-app.standard-mode .control-box button img,
 #create-app.wireframe-mode.dark-icons .control-box button img {
   filter: none;
@@ -253,18 +255,11 @@
 /* --- Canvas & 輸入框 --- */
 /* 共用的背景顏色規則 */
 /* Canvas container 背景色（桌面版和手機版共用） */
-#create-app.standard-mode #canvas-container,
-#create-app.standard-mode #desktop-canvas-container {
-  background-color: var(--standard-bg);
-}
-#create-app.inverse-mode #canvas-container,
-#create-app.inverse-mode #desktop-canvas-container {
-  background-color: var(--inverse-bg);
-}
-#create-app.wireframe-mode #canvas-container,
-#create-app.wireframe-mode #desktop-canvas-container {
-  /* user 2026-05-27 拍板：透明讓 body.mode-color bg 透過來，跟 #create-app 同一條 paint
-     不要自己寫 var(--theme-bg) 否則跟 body 是 separate paint context、hue 高頻變化時看起來色差 */
+/* 三 mode 全透明（user 2026-05-27 wireframe + 2026-06-24 推及 standard/inverse）：canvas 區底色全交給 site body
+   單一 paint 透過來。理由同上方 #create-app bg 註解——避免自畫 solid bg 在 mode3 切換時 cross-fade 疊 body hue
+   造成跟 header 不同步；也避免 mode-color hue 高頻變化時 separate paint context 的色差。 */
+#create-app #canvas-container,
+#create-app #desktop-canvas-container {
   background-color: transparent;
 }
 
@@ -372,85 +367,32 @@
   cursor: var(--cursor-not-allowed) !important;
 }
 
-/* 底色 = 灰底（mode-aware --lib-bg/--lib-fg）：
-   mode1 淺灰底黑字 / mode2 深灰底白字 / mode3 依對比度自動切（見 themes/color.css）
-   --lib-fg 與頁面 fg 同色（mode1 黑/mode2 白/mode3 同 --theme-fg），所以盒內 icon 直接沿用 page-level invert
-   rule（行 160-165），不需 control-box 層再 override filter */
 .control-box {
-  /* user 2026-06-10：移除實心底，改用 bottom-line 指示器（見下方 ::after）；
-     盒內容色（icon/slider/label/文字）改吃 .control-panel scope 覆寫的 --lib-fg（頁面前景）*/
-  background-color: transparent;
+  /* user 2026-06-22：拿掉 bottom-line，改成「頁面前景色淡疊」整格填滿（跟 list zebra 同邏輯）。
+     白底→黑 5% / 黑底→白 10%（下方 inverse-mode 覆寫）/ mode3 用 list-strip（body.mode-color 覆寫）。
+     盒近乎透明、盒內容（icon/slider/label）＝頁面前景色（--lib-fg 由 .control-panel scope remap，見下方）。
+     active/inactive 只靠盒內 icon opacity（見上方 .control-box img 規則）溝通，盒底永遠同一淡疊。 */
+  background-color: rgba(var(--theme-fg-rgb), 0.05);
   color: var(--lib-fg);
 }
-
-/* === Bottom-line 指示器（user 2026-06-10：取代實心底；6px 厚 user 2026-06-11 從 4px 加粗）===
-   ⚠️user 2026-06-11 第三輪定案：底線一律 solid（不再用灰線表 inactive）→ active/inactive **只靠 icon 變淡** 溝通，
-   線段本身永遠一致。各按鈕一段獨立 solid 線（custom active 時其線撐到含 slider+random/reset 整段）。
-   colormode / save：無 active 概念，永遠 solid。
-   mode3：colormode 與 colorwheel 之間 panel gap 去掉、共用一條貫穿兩盒的線（見下方）。
-   用 pseudo 直線（save-box 原圓形 border 會變弧線，故非 border-bottom）；
-   色 = var(--lib-fg) = 頁面前景；各線統一 baseline 對齊盒底。 */
-#colormode-box,
-#save-box,
-#rotation-box {
-  position: relative;
+#create-app.inverse-mode .control-box {
+  background-color: rgba(var(--theme-fg-rgb), 0.1); /* 黑底→白 10%（theme-fg-rgb 已是白） */
 }
-
-/* 統一線寬 = 按鈕寬（盒高 - 2×padding = 84px），各盒共用 */
-#create-app .control-panel {
-  --line-width: calc(var(--rotation-box-min-height) - 2 * var(--control-box-padding));
+body.mode-color .control-box {
+  background-color: var(--list-zebra-strip, rgba(255, 255, 255, 0.15)); /* mode3 同 list strip（白疊色、alpha 依 hue 由 theme-toggle 設） */
 }
-
-/* colormode / save：永遠顯示。inset 一個 padding → 線置中於按鈕、寬 = --line-width。
-   left/width 進 transition：mode3 colormode 線會「長」成貫穿 colorwheel 的一整條（見下方）。 */
-#colormode-box::after,
-#save-box::after {
-  content: "";
-  position: absolute;
-  left: var(--control-box-padding);
-  width: var(--line-width);
-  bottom: 0;
-  height: 6px;
-  background-color: var(--lib-fg);
-  transition: background-color var(--dur-fast) ease, width var(--dur-fast) ease, left var(--dur-fast) ease;
-}
-/* save 盒 disabled（無輸入文字時）→ 底線跟 icon 一起半透明 */
-#save-box.disabled::after {
-  opacity: 0.5;
-}
-
-/* mode3（wireframe / 彩色底）：colormode 與緊鄰 colorwheel 之間的 panel gap 去掉（user 2026-06-11 第三輪：
-   兩者已用共用線綁成一組，中間 gap 多餘）→ colorpicker 負 margin-left 拉回貼齊 colormode。 */
+/* mode3（user 2026-06-23 定案）：mode-btn 保持「完整 120 方形」（同 mode1/2、icon 置中 36/36，不再縮成 84）；
+   wheel 是它「右邊延伸出的一塊」＝colorpicker 盒貼齊在 mode-btn 右側、wheel 靠左放（left padding 0）。
+   兩盒同色淡疊 + negative margin 抵銷 panel gap → 視覺一整塊連續底。
+   視覺間距：[36 mode-btn 左pad][icon48][36 mode-btn 右pad][wheel72][36 colorpicker 右pad] = 對稱 36。
+   ＊colormode 不再覆寫（沿用 base 120 方形）→ 也順帶消除 84↔120 寬度變化（無 width-transition 抖動）。
+   ＊wheel 靠左(padding-left 0) → play 鈕已移進 container 故跟著 wheel 置中（非 box 置中），不會偏。 */
 #create-app.wireframe-mode #colorpicker-box {
-  margin-left: calc(-1 * var(--panel-gap));
-}
-/* mode3 共用線：去 gap 後兩盒貼齊 → 線 = 兩盒寬 = 240px，從 colormode 盒左緣（left:0）貫穿到 colorwheel 盒右緣
-   （colorwheel 自己不畫線）。兩盒等寬 → 線中心對齊整組中心。線屬 colormode-box（overflow visible）可溢出、
-   colorwheel-box bg 透明不擋。 */
-#create-app.wireframe-mode #colormode-box::after {
-  left: 0;
-  width: calc(2 * var(--rotation-box-min-height));
-}
-
-/* 旋轉組 custom/rotate 底線（畫在 #rotation-box，盒不被 scale、baseline 穩；不畫按鈕上避 scale/展開位移）：
-   ⚠️user 2026-06-11 定案規則：custom+rotate 底線**始終連成一整條**（單一 ::before，left inset、
-   width=100%-2inset 隨盒寬自動長：收合窄、custom 展開有文字輸入時整條變寬「合起來」蓋滿 custom+slider+random/reset+rotate）；
-   active/inactive **只影響 icon 變淡**，線不變；**唯獨「兩個都 inactive」連接線才改 inactive 灰**（opacity 0.5）。
-   （早版用 ::before+::after 雙段在 custom active 時拆開、user 要求合併→改回單一 ::before 貫穿） */
-#rotation-box::before {
-  content: "";
-  position: absolute;
-  bottom: 0;
-  left: var(--control-box-padding);
-  width: calc(100% - 2 * var(--control-box-padding));
-  height: 6px;
-  background-color: var(--lib-fg);
-  pointer-events: none;
-  transition: width var(--dur-fast) ease, opacity var(--dur-fast) ease;
-}
-/* 唯獨「兩個都 inactive」＝連接線改 inactive 灰（其餘只要一個 active 線就 solid，inactive 只影響 icon） */
-#rotation-box:not(:has(.custom-button-custom.active)):not(:has(.custom-button-rotate.active))::before {
-  opacity: 0.5;
+  margin-left: calc(-1 * var(--panel-gap)); /* 貼齊到 mode-btn 右側 */
+  padding-left: 0;                           /* wheel 靠左、緊接 mode-btn 的右 padding */
+  padding-right: calc(36px * var(--scale));  /* block 右端 36（與左端對稱）*/
+  /* width 已移到 base #colorpicker-box（恆 108）→ 退場時不會因 .wireframe-mode 移除而 width:108→auto 瞬塌（見下）。
+     top/bottom 維持 base 24 → content 72×72，wheel/canvas 尺寸不變 */
 }
 
 /* 控制盒底色從灰改高對比純黑/白（user 2026-06-10）：
@@ -472,10 +414,9 @@
   --lib-fg-rgb: 0, 0, 0;
 }
 
-/* 桌面控制盒移除實心底（改 bottom-line）後，盒內容（slider/label/.angle-input/底線）不再對比盒底、改對比頁面底。
-   在 .control-panel scope 把 --lib-fg 設成「頁面前景色」（相對上面盒底版的反相）→ 所有既有 var(--lib-fg)
-   消費者自動轉成對頁面底正確的色，免逐條改。--lib-bg 桌面已無消費者（.control-box bg 改 transparent）不必動。
-   只 scope .control-panel（桌面）→ 手機 .mobile-bottom-bar（sibling、仍實心底）不受影響。 */
+/* user 2026-06-22：盒底改頁面前景色淡疊（近乎透明）後，盒內容（slider/label/.angle-input/active 文字）對比「頁面底」非盒底
+   → 在 .control-panel scope 把 --lib-fg remap 成頁面前景色（相對上面盒對比版反相），既有 var(--lib-fg) 消費者自動轉對。
+   只 scope .control-panel（桌面）→ 手機 .mobile-bottom-bar（sibling）不受影響。 */
 #create-app.standard-mode .control-panel,
 #create-app.wireframe-mode.dark-icons .control-panel {
   --lib-fg: #000000;
@@ -512,35 +453,65 @@
 #colormode-box {
   align-self: stretch; /* 延伸以填滿交叉軸（高度），與 rotation-box 對齊 */
   min-height: var(--rotation-box-min-height); /* 確保最小高度與 rotation-box 一致 */
+  /* 顯式寬度（取代 aspect-ratio:1/1）：mode1/2 = 120 方形。用「顯式長度」而非 auto/aspect，
+     才能讓 mode3↔mode1 的寬度變化(84↔120)走 transition（auto/aspect 寬度無法 interpolate → 之前是瞬間 snap、
+     造成 panel 抖動）。height 仍由 align-self:stretch + min-height 給 120。user 2026-06-23 */
+  width: var(--rotation-box-min-height);
+  /* mode-btn 疊在 wheel 盒之上（user 2026-06-24）：colorpicker-box 是 position:relative（預設疊在 static 的 colormode-box 上方），
+     wheel translateX 滑出時會「蓋過」mode-btn → 看起來像 mode-btn 從 wheel 上方移動。把 mode-btn 提到上層 → wheel 從它「下方」滑出。 */
+  position: relative;
+  z-index: 1;
+  transition: width var(--dur-micro) ease, background-color var(--dur-base) ease;
 }
 
-/* 色彩選擇器控制盒：正方形，與 colormode-box 一樣大，預設隱藏 */
+/* 色彩選擇器控制盒：預設隱藏。高度由 align-self:stretch + min-height(120) 給，不用 aspect-ratio。
+   ⚠️不可加 aspect-ratio:1/1：mode3 盒寬已是 144（顯式），離開 mode3 時 class 一掉、aspect-ratio 會用「當下 144 寬」反推
+   高度＝144 一個 frame（寬還沒被 max-width 收掉）→ control-panel 高度 120→144→120 跳一下 → main-container 垂直
+   重置 → 連帶 type-and-enter 輸入框上下抖（user 2026-06-23 實測 panel h 在 +16ms 變 144）。 */
 #colorpicker-box {
   align-self: stretch; /* 延伸以填滿交叉軸（高度） */
   min-height: var(--rotation-box-min-height); /* 確保最小高度與 rotation-box 一致 */
-  aspect-ratio: 1 / 1; /* 正方形 */
   display: none; /* 由 JavaScript 控制顯示/隱藏 */
   position: relative;
   padding: calc(24px * var(--scale)); /* user 2026-05-20 五次調整：padding 8→16；2026-06-11 16→24 讓色環整體再小一點
      （wheel canvas = container = box120 - 2*padding，加 padding 縮容器→縮環；box 仍 120 故共用線 240px/版面不動）*/
   opacity: 0; /* 預設透明（包括 border 和背景） */
   overflow: hidden; /* 隱藏溢出內容，配合寬度動畫 */
-  transition: max-width var(--dur-micro) ease, padding var(--dur-micro) ease, opacity var(--dur-micro) ease; /* 寬度、padding 和 opacity 過渡效果 */
-  max-width: 0; /* 預設寬度為 0 */
+  /* margin-left 進 transition（user 2026-06-23）：mode3 的 margin-left:-panel-gap 在離開 mode3 時若「瞬間」歸 0，
+     整條 panel 會先往右跳 ~30px 再隨 max-width 收合往左滑＝抖動。改成跟 max-width 同步漸變（0.2s）→ 收合單向、不跳。 */
+  /* background-color 必須跟著一起列（user 2026-06-24）：本盒重定義 transition 會「整條取代」.control-box 的
+     `background-color var(--dur-base)` → 漏掉後 mode3 hue cycle 時本盒白底淡疊瞬切、mode-btn 卻 dur-base 漸變 = 兩盒不同步像分開。
+     補回同 dur-base → 四個 control-box 白底一起漸變、視覺一整塊。 */
+  transition: max-width var(--dur-micro) ease, padding var(--dur-micro) ease, opacity var(--dur-micro) ease, margin-left var(--dur-micro) ease, background-color var(--dur-base) ease;
+  /* width 恆 108（user 2026-06-24，原本只在 .wireframe-mode）：盒實際寬靠 width 給、max-width 只當開合的 clamp。
+     若 width 只在 .wireframe-mode，退場移除 class 時 width:108→auto（container 是 absolute=脫流→auto≈0）會「瞬塌」一幀，
+     max-width 的 0.2s 收合根本沒驅動到 → wheel 被瞬間裁掉（看起來壓縮）+ 盒子跳兩次。放 base 後 width 恆定、由 max-width 單獨收合＝順。 */
+  width: calc(108px * var(--scale));
+  max-width: 0; /* 預設收合（mode1/2 隱藏；mode3 由 JS 設 max-width 展開） */
 }
 
-/* 色彩選擇器容器和 play 按鈕預設隱藏，等容器展開後再顯示 */
-#colorpicker-box #colorpicker-container,
-#colorpicker-box #colorwheel-play-button {
+/* 色彩選擇器 reveal（user 2026-06-23：改 pos 位移 slide，不用 clip-path）：底色盒 max-width 展開後，
+   wheel container 從「藏在 mode-btn 後面」(translateX -100% = 往左一個 container 寬) 滑出到 translateX(0)，
+   靠 #colorpicker-box 的 overflow:hidden 在盒左緣(=mode-btn 右側)裁出「從 mode-btn 右邊滑出」的效果。
+   play 鈕已在 container 內 → 被 container 的 opacity 蓋 + 跟著 translateX 一起滑（不需自己 reveal）。退場反向（見 ui-state.js）。 */
+#colorpicker-box #colorpicker-container {
   opacity: 0;
-  transition: opacity var(--dur-medium) ease; /* Color wheel 出現時間改為 0.1s */
+  transform: translateX(-100%);
+  /* dur-micro（= box max-width 展開的時長）→ wheel slide 與底色展開同時開始、同時結束（user 2026-06-23「同時 run」）。
+     退場時也與 box 收合(0.2s)＋hide 的 200ms display:none 對齊。 */
+  transition: opacity var(--dur-micro) ease, transform var(--dur-micro) ease;
 }
 
 /* 色彩選擇器容器 */
+/* user 2026-06-23：改 absolute + 固定 72×72（取代 width/height:100%）。原因：要讓 wheel slide 與底色盒 max-width 展開「同時」跑，
+   canvas 必須能在 box 還沒展開時就以正確尺寸預建；container 固定尺寸 + 位置（left:0 top:24=padding）→ clientWidth 恆 72、
+   且 box 展開/收合時 container 不被 flex 置中或 shrink 干擾，只靠下方 translateX 滑、由 #colorpicker-box overflow:hidden 在左緣裁。 */
 #colorpicker-container {
-  width: 100%;
-  height: 100%;
-  position: relative;
+  position: absolute;
+  left: 0;                          /* 貼盒內容左緣（colorpicker padding-left:0）*/
+  top: calc(24px * var(--scale));   /* = box padding-top → 垂直置中於 120 盒（24 上 + 72 + 24 下）*/
+  width: calc(72px * var(--scale));
+  height: calc(72px * var(--scale));
   border-radius: 50%; /* 圓形 */
   overflow: visible; /* 改為 visible 避免裁切甜甜圈 */
   cursor: crosshair;
@@ -636,9 +607,13 @@
 }
 
 /* 新增：單個 colormode 按鈕樣式 */
-.custom-button-colormode {
-  height: 100%;
-  aspect-ratio: 1 / 1; /* 正方形按鈕 */
+/* 比照 #save-button：colormode button = 固定 icon 大小、由盒置中（不撐滿盒、不靠 padding）。
+   盒固定 120 + icon 48 置中 → 每邊 (120−48)/2 = 36，跟 save 同機制（user 2026-06-23）。
+   #create-app scope 提特異度蓋過 .custom-button 的 padding:10（同特異度後者勝，否則殘留 10px ring）。 */
+#create-app .custom-button-colormode {
+  width: var(--button-icon-size);
+  height: var(--button-icon-size);
+  padding: 0;
   border: none !important; /* 移除邊框 */
   transition: none; /* 移除過渡效果 */
 }
@@ -649,10 +624,11 @@
   border-color: transparent !important;
 }
 
-/* colormode 按鈕的 icon 大小 */
-.custom-button-colormode img {
-  width: calc(32px * var(--scale));
-  height: calc(32px * var(--scale));
+/* colormode icon 填滿 button（icon 大小完全由 button 控制，比照 #save-button img）。
+   #create-app scope 蓋過 .custom-button img 的 --button-icon-size，否則 mode3 button 縮 32 時 img 還停在 48 會溢出。 */
+#create-app .custom-button-colormode img {
+  width: 100%;
+  height: 100%;
 }
 
 /* 滑動邊框指示器 — user 要求拿掉 border，indicator 改為純隱形定位元件（保留邏輯但無視覺） */
@@ -1138,9 +1114,12 @@
   display: block;
 }
 
-/* Wireframe 模式下才顯示 */
+/* 非 Wireframe 時隱藏，但用 opacity 不用 display:none（user 2026-06-24）：退場時 #create-app 在 updateUI 開頭就移除 .wireframe-mode，
+   display:none 會讓 play 鈕在 wheel 還在滑出時「瞬間自己不見」。改 opacity:0（本鈕已有 opacity transition）→ 跟著 container 一起 fade/slide 出。
+   穩態 mode1/2 整個盒 display:none、play 鈕不會殘留可見。pointer-events:none 防 fade 中誤點。 */
 #create-app:not(.wireframe-mode) .colorwheel-play-button {
-  display: none;
+  opacity: 0;
+  pointer-events: none;
 }
 /* ========================================
    手機版樣式（max-width: 768px）
