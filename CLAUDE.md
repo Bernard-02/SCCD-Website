@@ -278,7 +278,7 @@ xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96p
 |---|---|---|
 | `hero-animation.js randomizeHeroLayout` → 用 `awaitLayoutReady` | 小 | 動到 hero animation 時 |
 | `error-404.js randomizeAllPlacements` → 用 `awaitLayoutReady` | 小 | 動到 404 頁時 |
-| `faculty-data-loader.js` / `records-data-loader.js` / `legal-data-loader.js` / `degree-show-data-loader.js` → 用 `loadAndRender` helper | 小（每檔約 -10 行） | 動到該 loader 時 |
+| `faculty-data-loader.js` / `records-data-loader.js` / `legal-data-loader.js` / `degree-show-data-loader.js` 的 fetch + try/catch 樣板重複，如有需要可抽共用（先前的 `loadAndRender` 薄殼從未被採用、已刪） | 小（每檔約 -10 行） | 動到該 loader 時 |
 | `inverse.css` / `color.css` 同 selector 規則合併（用 `body:is(.mode-inverse, .mode-color)` + `var(--theme-fg)`）| 中（需 audit 每對語義 + 視覺回歸） | 動該頁 theme 規則時順手 |
 | `themes/inverse.css` 內 `/* 不再 / 不再列入 */` 等 dead 註解殘留清理 | 極小 | 動到該檔時 |
 
@@ -305,7 +305,7 @@ xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96p
 
 ### E. Component-first 長期方向（user 目標，分階段累積）
 
-1. **Utility helpers**（已大半完成）— scroll-animate / lightbox-shell / page-cleanup / awaitLayoutReady / loadAndRender / marquee-overflow / section-switch-helpers / theme-toggle / custom-scrollbar
+1. **Utility helpers**（已大半完成）— scroll-animate / lightbox-shell / page-cleanup / awaitLayoutReady / marquee-overflow / section-switch-helpers / theme-toggle / custom-scrollbar
 2. **Render templates**（進行中）— `loadListInto` 是 canonical list template，`card-panel-helpers` 是 card 共用 helpers。下一階段可考慮抽：
    - 統一 ref/attachment block builder（目前 list-ref-btn HTML 散在多處）
    - 統一 gallery + lightbox bind helpers（loadListInto 內部已有，可獨立 export 給非 list 場景）

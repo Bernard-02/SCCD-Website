@@ -62,7 +62,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "marker=\"$HOME/.claude/.mem-reminder-active\"; now=$(date +%s); if [ -f \"$marker\" ]; then last=$(stat -c %Y \"$marker\" 2>/dev/null || stat -f %m \"$marker\" 2>/dev/null || echo 0); age=$((now - last)); if [ \"$age\" -lt 180 ]; then rm -f \"$marker\"; exit 0; fi; fi; mkdir -p \"$HOME/.claude\"; touch \"$marker\"; printf '%s' '{\"decision\":\"block\",\"reason\":\"請依照 auto memory 規範檢查本次對話是否有值得保存的 user / feedback / project / reference 記憶，有則更新 ~/.claude/projects/c--Users-Bernard-Liew-Documents------SCCD-Website/memory/ 內對應檔案及 MEMORY.md 索引；若無新資訊，簡短回覆「無新記憶需更新」後即可結束。注意：勿重複 CLAUDE.md 已記錄的內容。\"}'",
+            "command": "R=\"/c/Users/Bernard Liew/Documents/實踐大學/SCCD Website\"; m=\"$HOME/.claude/.mem-state\"; s=$( { git -C \"$R\" status --porcelain -- . ':(exclude)css/output.css'; git -C \"$R\" diff HEAD -- . ':(exclude)css/output.css'; } 2>/dev/null | git -C \"$R\" hash-object --stdin 2>/dev/null ); if [ -n \"$s\" ] && [ \"$s\" = \"$(cat \"$m\" 2>/dev/null)\" ]; then exit 0; fi; mkdir -p \"$HOME/.claude\"; printf '%s' \"$s\" > \"$m\"; printf '%s' '{\"decision\":\"block\",\"reason\":\"本回合有檔案異動。請依 auto memory 規範檢查是否有值得保存的 user / feedback / project / reference 記憶，有則更新 ~/.claude/projects/c--Users-Bernard-Liew-Documents------SCCD-Website/memory/ 內對應檔案及 MEMORY.md 索引；若無新資訊，回覆「無新記憶需更新」即可。勿重複 CLAUDE.md 已記錄內容。\"}'",
             "timeout": 15
           }
         ]
