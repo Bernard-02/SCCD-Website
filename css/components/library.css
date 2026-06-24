@@ -135,15 +135,11 @@
 /* ── Press list item ─────────────────────────────────────────── */
 .press-item {
   padding: var(--spacing-sm) 0;
-  border-bottom: 2px solid var(--lib-fg);
   cursor: var(--cursor-default);
   overflow: hidden;
   transition: background var(--dur-fast) ease;
 }
-/* 每個 year block 第一個 item 加頂線 */
-.press-year-block:first-child .press-item:first-child {
-  border-top: 2px solid var(--lib-fg);
-}
+/* press 改斑馬列（user 2026-06-23）：拿掉 border-bottom + 原 year-block 第一列頂線，靠 .list-item-zebra 交替底色分隔 */
 
 /* item 內部：grid 兩欄，左欄標題區，右欄分類 tag（all 模式才有） */
 .press-item-row {
@@ -318,48 +314,97 @@
   100% { transform: translateX(var(--hmarquee-distance, -50%)); }
 }
 
-/* ── Awards ref 展開列（2026-06-13）──
-   版型用主表共用 AWARD_GRID（label 對齊競賽名稱欄、title 對齊主辦單位欄），只差沒有左側 icon；
-   黑體（award 表格本身是 serif，ref 列 user 指定黑體）+ resting 淺灰底（比 --lib-bg #f2f2f2 深一點
-   = --gray-9 #E6E6E6）；hover 黑底白字由全站 .list-ref-btn:hover 接手 */
+/* ── Awards row hover/open 整列底色 + ref 展開列（user 2026-06-22 改：對齊 activities list）──
+   hover / open 時整列鎖 accent inline bg（JS 設在 .award-record-item，同 activities .list-item）；
+   ref 展開列底色＝deep accent，由 JS 在 open 時 set --item-color-deep + 共用 .list-ref-btn 規則
+   （lists.css base / color.css mode3）接手，不再寫死灰底。
+   .award-ref-row 只保留黑體（award 主表是 serif、ref 列 user 指定黑體）。 */
+
+/* 斑馬列（user 2026-06-22 award；2026-06-23 press/album 也套，改用 activities/admission 同款公式）：拿掉每列
+   border 分割線改交替底色。深格 .list-item-zebra ＝前景色 × alpha 透明疊：rgba(--theme-fg-rgb) × --list-zebra-alpha，
+   與 lists.css 的 activities/admission **共用同一個 class 名與 alpha 變數**（改 alpha 四處同步）。standard 黑 5% / inverse 白 15%。
+   用 class（非 inline bg）才不會誤觸 mode-color 的 [style*=background] 翻譯；hover/open 的 inline accent 仍蓋過它。
+   ⚠️library panel 底是 --lib-bg 淺灰（非 activities 白底）→ 同 alpha 下視覺比 activities 略深，屬 panel 特性。
+   album 是 .files-item（跟 files 共用）→ 只在 #library-album-list 範圍移 border、不動 files panel。 */
+#library-awards-list .award-record-item.list-item-zebra,
+#library-press-list .press-item.list-item-zebra,
+#library-album-list .files-item.list-item-zebra {
+  background-color: rgba(var(--theme-fg-rgb), var(--list-zebra-alpha, 0.05));
+}
+/* mode-color：library 卡片 mode3 是「兩階固定灰」(theme-toggle.js --lib-bg：亮 hue #f2f2f2 / 暗 hue #333)，
+   不是 cycling hue → 斑馬不套 activities 的 hue-aware 白 strip（那是給彩色暗底提亮用，疊在 #f2f2f2 淺灰上方向會反）。
+   改用兩階 --lib-zebra-alpha（theme-toggle set：亮 0.05 / 暗 0.15）配 theme-fg-rgb（亮黑暗白）→ 亮 hue 黑疊=同 mode1、
+   暗 hue 白疊=同 mode2。user 2026-06-23（user 指出 library 有灰底、不需 activities 邏輯）。 */
+body.mode-color #library-awards-list .award-record-item.list-item-zebra,
+body.mode-color #library-press-list .press-item.list-item-zebra,
+body.mode-color #library-album-list .files-item.list-item-zebra {
+  background-color: rgba(var(--theme-fg-rgb), var(--lib-zebra-alpha, 0.05));
+}
+#library-album-list .files-item { border-bottom: none; }
+/* press/album item 左右加 sm padding（user 2026-06-23：內容不貼格邊、對齊 activities 內距感）。
+   斑馬底色含此 padding → 底色仍滿格、內容內縮 sm。只設左右、不動上下。 */
+#library-press-list .press-item,
+#library-album-list .files-item {
+  padding-left: var(--spacing-sm);
+  padding-right: var(--spacing-sm);
+}
+/* award：item 本身改 block（zebra / open accent bg 滿寬滿格不縮），主列水平內縮放在 .award-row（grid）。
+   這樣 .award-ref-wrap 能當「滿寬 block child」貼齊 item 邊、不靠負 margin 逃逸 padding（對齊 activities
+   .list-content）→ ref button w-full 完全貼齊、右緣無 sub-pixel 縫。ref button 自己 padding:sm 內縮、跟
+   .award-row 同 sm 起點 → 欄位對齊。 */
+#library-awards-list .award-row {
+  padding-left: var(--spacing-sm);
+  padding-right: var(--spacing-sm);
+}
+/* award ref 展開列：抵銷 item 左右 padding → ref 底色（deep accent）延伸到 item 邊，跟主表斑馬滿格 + activities
+   ref 底色延伸一致；ref row 自己 padding:sm（上面 buildRefRowsHtml）讓欄位仍對齊主表 grid（user 2026-06-23）*/
+#library-awards-list .award-ref-wrap {
+  /* item 改 block 後，wrap 是滿寬 block child（不再需要負 margin 逃逸 item padding）→ button w-full 完全貼齊容器，
+     右緣無 sub-pixel 縫（之前 wrap 是 grid-column 1/-1 的 fractional grid item + 負 margin → button 100% 對不齊整數
+     像素、hover 時右緣露一條主列色細線；對齊 activities .list-content 乾淨 block 後消失）。
+     塗「開啟列色」(list-accordion.js 也是 content.style.background = header 同 accent，非 deep)：padding-top:xs
+     的縫＝主列色（延續主列），ref row 自己 deep 色當內凹塊。--item-color 由 JS open 設、close onComplete 才清 →
+     收合不閃；mode3 由下面 override 成 theme-fg（= 開啟列色）。 */
+  background: var(--item-color, transparent);
+}
+/* mode3：award ref 結構不在 .list-header + .list-content 內 → 吃不到 activities 的「active-content」ref 規則，
+   會掉回 base .list-ref-btn（resting neutral-gray / hover theme-fg）→ hover 那列翻 theme-fg 跟 theme-fg 開啟列
+   「合體 merge」(user 2026-06-24 報 bug)。這裡 scope 到 award 補上跟 activities .list-content ref 一致的行為：
+   resting = neutral-gray-inverse（跟 theme-fg 開啟列形成同一深塊）、hover = 反色 theme-fg-inverse（留得住、不 merge）。
+   standard/inverse 不動：base .list-ref-btn 已跟 activities 一致。
+   wrap（容器/縫）塗 theme-fg = 開啟列色（對齊 activities content bg = header 色），ref row 才是內凹的 neutral-gray-inverse。 */
+body.mode-color #library-awards-list .award-ref-wrap {
+  background: var(--theme-fg) !important;
+}
+body.mode-color #library-awards-list .award-ref-wrap .list-ref-btn {
+  background: var(--theme-neutral-gray-inverse) !important;
+  color: var(--theme-fg-inverse) !important;
+}
+body.mode-color #library-awards-list .award-ref-wrap .list-ref-btn:hover {
+  background: var(--theme-fg-inverse) !important;
+  color: var(--theme-fg) !important;
+}
+body.mode-color #library-awards-list .award-ref-wrap .list-ref-btn:hover * {
+  color: var(--theme-fg) !important;
+}
 #library-awards-list .award-ref-row {
   font-family: 'Inter', 'Noto Sans TC', sans-serif;
-  background: var(--gray-9);
-  /* row hover 色鎖定時 item inline color 會被 button 繼承 → 固定黑字（底色固定亮灰、黑字各 mode 都成立） */
-  color: #000;
 }
-/* mode2（inverse）：頁底 --lib-bg=#333333(gray-2)，ref 底改「再深一階」--gray-1(#1A1A1A) + 白字
-   （對稱 standard 的「比頁底深一點淺灰」；user 2026-06-14） */
-body.mode-inverse #library-awards-list .award-ref-row {
-  background: var(--gray-1);
-  color: #fff;
+/* ref 文字大小跟 award 主表列一致（user 2026-06-22：ref 看起來比主表大）。主表列 font-size 桌面 p3 /
+   手機 p2（item inline + 手機 !important），ref <p> 用 inherit 自動跟著兩個斷點走，蓋過全域 p{font-size:p2}
+   與 .text-p2 utility（本 selector 特異度 1,1,1 勝）。 */
+#library-awards-list .award-ref-row p {
+  font-size: inherit;
 }
-/* mode3（color）：ref 底色跟著「灰卡」(--lib-bg 依 hue 亮暗兩階) 走 — 亮卡 → gray-9、暗卡 → gray-1
-   （--lib-ref-bg 由 theme-toggle 依 isLightBg 設）；文字吃 --lib-fg（=theme-fg 亮黑暗白）。user 2026-06-15。
-   ⚠️ 需 !important：color.css `body.mode-color .list-ref-btn` 用 --theme-neutral-gray(暗卡只到 gray-2=卡色)+!important，
-   特異度 (0,2,0) → 本規則 (1,2,1)+!important 才壓得過。hover 必須一併重申（否則本 resting 的 id 特異度會反壓
-   color.css 的 :hover），色值同既有 mode-color hover：theme-fg/theme-fg-inverse（亮卡黑底白字、暗卡白底黑字）。 */
-body.mode-color #library-awards-list .award-ref-row {
-  background: var(--lib-ref-bg) !important;
-  color: var(--lib-fg) !important;
-}
-body.mode-color #library-awards-list .award-ref-row:hover {
+/* mode-color：整列 inline accent 翻 strict B/W（對齊 color.css 的 .list-item[style*=background]）。
+   不加 *：ref 列文字色交給共用 .list-ref-btn mode-color 規則（直接 set 在 button 上、不被此層繼承蓋掉）。 */
+body.mode-color #library-awards-list .award-record-item[style*="background"] {
   background: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
 }
-body.mode-color #library-awards-list .award-ref-row:hover * {
-  color: var(--theme-fg-inverse) !important;
-}
-/* mode2 hover：resting 已深灰 → hover 反相成白底黑字（對稱 standard 的深色 hover；全站 .list-ref-btn:hover
-   是黑底白字，在深底上幾乎看不出 → 此處覆寫）。桌面限定避免手機 tap sticky hover 殘留（同全站做法）。 */
-@media (min-width: 768px) {
-  body.mode-inverse #library-awards-list .award-ref-row:hover {
-    background: #fff !important;
-    color: #000 !important;
-  }
-  body.mode-inverse #library-awards-list .award-ref-row:hover * {
-    color: #000 !important;
-  }
+/* mode-inverse：整列保留 accent 原色（同 activities），文字翻黑（accent 底配黑字）。 */
+body.mode-inverse #library-awards-list .award-record-item[style*="background"] {
+  color: #000 !important;
 }
 
 /* ── Files list item ─────────────────────────────────────────── */
@@ -377,7 +422,8 @@ body.mode-color #library-awards-list .award-ref-row:hover * {
 .files-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: var(--spacing-4xl) var(--spacing-2xl);
+  /* row-gap 2xl（user 2026-06-22 二次調：4xl→3xl→2xl）；column-gap 同為 2xl */
+  gap: var(--spacing-2xl);
   /* 標題與第一排卡片的留白搬到 sticky 年份標題的 padding-bottom（見下），不放這裡 →
      ① deep-link 對齊第一排卡片時自然貼齊標題底緣、不需多捲位移
      ② 該留白變成 sticky 標題不透明背景的一部分，捲動時遮住下方卡片（user 2026-06-09） */
@@ -582,7 +628,7 @@ body.mode-color #library-awards-list .award-ref-row:hover * {
 }
 
 .album-thumb-strip-wrap {
-  padding-right: var(--spacing-sm);
+  /* pr 移除（user 2026-06-23）：右間距改由 .files-item 統一的 padding-right sm 提供，不再自帶（避免疊成 2×sm）*/
   display: flex;
   align-items: center;
   /* 鎖死最小高度避免 grid auto-sizing 把 flex container 壓到比 strip 矮，
@@ -881,18 +927,24 @@ body.mode-color #library-awards-list .award-ref-row:hover * {
      中間三 cell 已包進 .award-mid wrapper（render）→ 手機把 wrapper 設 flex column，讓「競賽名稱 / 獎項 / 名次」
      獨立 stack 一欄；得獎人是另一欄。兩欄各自 top-align、互不撐高（解決得獎人多名時把獎項/名次推開的問題 #2）。
      grid 四欄自動 place：flag→col1、.award-mid→col2、.award-winners→col3、.award-ref-cell→col4；
-     .award-ref-wrap 自帶 grid-column:1/-1 不受影響。*/
+     item 改 block 後，4 欄 grid 在 .award-row（非 item）；ref-wrap 是 item 的 block child 滿寬不受影響。*/
   #library-awards-list .award-record-item {
+    /* item 是 block：垂直 padding + 字級留 item；水平 0（手機主列滿寬不縮）。zebra/open bg 滿寬。 */
+    padding: var(--spacing-sm) 0 !important;
+    min-width: 0 !important;
+    font-size: var(--font-size-p2) !important;
+  }
+  #library-awards-list .award-row {
     /* 得獎人欄改固定比例（非 auto）→ 每列得獎人欄左緣對齊同一點（#1 2026-06-10）；auto 會隨名字長短變寬害對齊點跑掉 */
     grid-template-columns: 1.5em minmax(0, 1.8fr) minmax(0, 1fr) 1.5em !important;
     column-gap: var(--spacing-md) !important;
     row-gap: 0 !important;
-    padding: var(--spacing-sm) 0 !important;
+    padding-left: 0 !important;   /* 蓋掉桌面 .award-row 的 sm（手機主列滿寬） */
+    padding-right: 0 !important;
     min-width: 0 !important;
     align-items: start !important;
-    font-size: var(--font-size-p2) !important;
   }
-  #library-awards-list .award-record-item > :first-child { padding-top: 0.15em !important; }  /* 國旗對齊第一行文字頂 */
+  #library-awards-list .award-row > :first-child { padding-top: 0.15em !important; }  /* 國旗對齊第一行文字頂 */
   /* awards ref 列：手機收成單欄 stack（label 上 / title 下），蓋掉共用 AWARD_GRID 與 col 起點 */
   #library-awards-list .award-ref-row {
     grid-template-columns: minmax(0, 1fr) !important;

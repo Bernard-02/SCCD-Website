@@ -60,14 +60,16 @@
             <!-- padding-top = md 對齊其他三個 panel（press/files/album 都是 var(--spacing-md)）；原本 md/2 害 award 灰卡內容比其他高 12px（user 2026-06-15） -->
             <div style="flex: 1; min-height: 0; display: grid; grid-template-columns: max-content 1fr; grid-template-rows: 1fr; gap: 0 var(--spacing-2xl); padding: var(--spacing-md) var(--spacing-md) 0 var(--spacing-md);">
 
-              <!-- 左：年份 Picker；padding-top:6px 讓 picker 第一個年份對齊右側 list 第一個年份標題
-                   （6px = 右側 search bar 的 border-bottom 2px + padding-bottom 4px，純 px 不隨字級變、穩定） -->
-              <div style="display: flex; flex-direction: column; min-height: 0; padding-top: 6px;">
+              <!-- 左：年份 Picker；padding-top:4px 讓 picker 第一個年份對齊右側 list 第一個年份標題
+                   （4px = 右側 search bar 的 padding-bottom 4px；border-bottom 已移除 user 2026-06-23，純 px 不隨字級變、穩定） -->
+              <!-- padding-bottom:xs 比照右側 count(total) 的 padding，讓 picker 末年份不貼 ticker（user 2026-06-22）。
+                   間距放外層容器而非 picker-wrap：scroll 容器的尾端 padding-bottom 在內容 overflow 時不可靠。手機 line 982 已 padding-bottom:0 不受影響 -->
+              <div style="display: flex; flex-direction: column; min-height: 0; padding-top: 4px; padding-bottom: var(--spacing-xs);">
                 <!-- 「Year 年份」標題已隱藏（同其他三 panel 去標題）；但 awards 是單列 grid，picker 與 list
                      疊在同 cell，靠此 p 的高度把 picker 推到對齊 list 第一年份。故用 visibility:hidden 留高度當 spacer
                      （非 display:none），p3 行高與右側 search 同字級→對齊隨字級自動成立。 -->
                 <p aria-hidden="true" style="font-weight: 700; font-size: var(--font-size-p3); padding: 0 0 var(--spacing-sm); flex-shrink: 0; visibility: hidden;">Year 年份</p>
-                <div id="library-year-picker-wrap" style="overflow-y: scroll; min-height: 0; padding-bottom: var(--spacing-sm);" class="no-scrollbar">
+                <div id="library-year-picker-wrap" style="overflow-y: scroll; min-height: 0;" class="no-scrollbar">
                   <div id="library-year-picker" style="display: flex; flex-direction: column; gap: var(--spacing-xs);"></div>
                 </div>
               </div>
@@ -75,7 +77,7 @@
               <!-- 右：Search + Award List -->
               <div style="min-width: 0; display: flex; flex-direction: column; min-height: 0;">
                 <div style="display: flex; align-items: flex-end; gap: var(--spacing-sm); flex-shrink: 0; margin-bottom: var(--spacing-sm);">
-                  <div style="flex: 1; display: flex; align-items: center; gap: var(--spacing-sm); border-bottom: 2px solid var(--lib-fg); padding-bottom: 4px;">
+                  <div style="flex: 1; display: flex; align-items: center; gap: var(--spacing-sm); padding-bottom: 4px;">
                     <span class="icon icon-search icon-xs"></span>
                     <input type="text" id="library-awards-search" placeholder="Search 搜尋" aria-label="搜尋 Search"
                       style="flex: 1; background: transparent; border: none; outline: none; font-family: 'Bitter', 'Noto Serif TC', serif; font-size: var(--font-size-p3); font-weight: 700; color: var(--lib-fg);"
@@ -114,7 +116,7 @@
               <!-- 右上：Search -->
               <div style="min-width: 0; padding-bottom: var(--spacing-sm);">
                 <div style="display: flex; align-items: flex-end; gap: var(--spacing-sm);">
-                  <div style="flex: 1; display: flex; align-items: center; gap: var(--spacing-sm); border-bottom: 2px solid var(--lib-fg); padding-bottom: 4px;">
+                  <div style="flex: 1; display: flex; align-items: center; gap: var(--spacing-sm); padding-bottom: 4px;">
                     <span class="icon icon-search icon-xs"></span>
                     <input type="text" id="library-press-search" placeholder="Search 搜尋" aria-label="搜尋 Search"
                       style="flex: 1; background: transparent; border: none; outline: none; font-family: 'Bitter', 'Noto Serif TC', serif; font-size: var(--font-size-p3); font-weight: 700; color: var(--lib-fg);"
@@ -154,7 +156,7 @@
               <!-- 右上：Search -->
               <div style="min-width: 0; padding-bottom: var(--spacing-sm);">
                 <div style="display: flex; align-items: flex-end; gap: var(--spacing-sm);">
-                  <div style="flex: 1; display: flex; align-items: center; gap: var(--spacing-sm); border-bottom: 2px solid var(--lib-fg); padding-bottom: 4px;">
+                  <div style="flex: 1; display: flex; align-items: center; gap: var(--spacing-sm); padding-bottom: 4px;">
                     <span class="icon icon-search icon-xs"></span>
                     <input type="text" id="library-files-search" placeholder="Search 搜尋" aria-label="搜尋 Search"
                       style="flex: 1; background: transparent; border: none; outline: none; font-family: 'Bitter', 'Noto Serif TC', serif; font-size: var(--font-size-p3); font-weight: 700; color: var(--lib-fg);"
@@ -194,7 +196,7 @@
               <!-- 右上：Search + 分類篩選 -->
               <div style="min-width: 0; padding-bottom: var(--spacing-sm);">
                 <div style="display: flex; align-items: flex-end; gap: var(--spacing-sm); margin-bottom: var(--spacing-sm);">
-                  <div style="flex: 1; display: flex; align-items: center; gap: var(--spacing-sm); border-bottom: 2px solid var(--lib-fg); padding-bottom: 4px;">
+                  <div style="flex: 1; display: flex; align-items: center; gap: var(--spacing-sm); padding-bottom: 4px;">
                     <span class="icon icon-search icon-xs"></span>
                     <input type="text" id="library-album-search" placeholder="Search 搜尋" aria-label="搜尋 Search"
                       style="flex: 1; background: transparent; border: none; outline: none; font-family: 'Bitter', 'Noto Serif TC', serif; font-size: var(--font-size-p3); font-weight: 700; color: var(--lib-fg);"

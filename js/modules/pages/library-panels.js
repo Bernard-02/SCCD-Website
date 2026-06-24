@@ -10,6 +10,7 @@ import { ensureFlagIconsCss } from '../ui/ensure-flag-icons.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { CMS_API_BASE, CMS_ASSETS_BASE } from '../../config/api.js';
 import { sitePath, SITE_BASE_PATHNAME } from '../ui/site-base.js';
+import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { loadSummerCamp } from './summer-camp-source.js';
 import { SECTION_LABELS, getSectionData, findItemById, getAwardRecords, findAwardById } from './activities-data-loader.js';
 
@@ -33,16 +34,25 @@ const CAT_LABELS = {
 
 const ACCENT_COLORS = ['#FF448A', '#00FF80', '#26BCFF'];
 
+// accent → deep accent（ref 列底色，比三原色暗一階）；對齊 list-accordion.js 同名 map（awards row open 用）
+const ACCENT_TO_DEEP = {
+  '#FF448A': '#f52d78', '#ff448a': '#f52d78',
+  '#00FF80': '#23eb7d', '#00ff80': '#23eb7d',
+  '#26BCFF': '#23a5ff', '#26bcff': '#23a5ff',
+};
+
 // ── 共用 helpers ──────────────────────────────────────────────────────────────
 
-/** 建立 / 取得 search-empty-state 元素，插在 listEl 之後，左對齊 search bar 左緣 */
+/** 建立 / 取得 search-empty-state 元素，插在 listEl 之後，絕對置中於 list 容器（user 2026-06-22：原左上角→畫面中間）*/
 function ensureEmptyState(listEl) {
   let el = /** @type {HTMLDivElement | null} */ (listEl.parentElement?.querySelector('.search-empty-state'));
   if (!el) {
     el = document.createElement('div');
     el.className = 'search-empty-state hidden';
-    el.style.cssText = 'padding: var(--spacing-xl) 0; text-align: left;';
+    // absolute 置中於 scroll 容器（left/right:0 + text-align:center 水平、top:50%+translateY 垂直），不佔流不受 list 高度影響
+    el.style.cssText = 'position:absolute; top:50%; left:0; right:0; transform:translateY(-50%); text-align:center;';
     el.innerHTML = '<p style="font-size: var(--font-size-p3); font-weight: 700;">No Result</p><p style="font-size: var(--font-size-p3); font-weight: 700;">無結果</p>';
+    if (listEl.parentElement) listEl.parentElement.style.position = 'relative'; // 作為 absolute 置中基準
     listEl.insertAdjacentElement('afterend', el);
   }
   return el;
@@ -86,7 +96,7 @@ function createYearPicker(pickerEl, years, onFilter) {
       if (selected.has(year)) { selected.delete(year); } else { selected.add(year); }
       if (selected.size === years.length) selected.clear();
       updateStyles();
-      onFilter();
+      onFilter(); // caller 自己 snapshot filter 前後可見年份、比對位置決定 wipe 哪些
     });
     pickerEl.appendChild(btn);
   });
@@ -244,25 +254,8 @@ async function resolveAwardRef(ref) {
     if (!t || !t.media || !t.media.length) return null;
     return { kind: 'album', labelEn: AWARD_REF_TYPE_LABELS.album.en, labelZh: AWARD_REF_TYPE_LABELS.album.zh, titleEn: t.titleEn || '', titleZh: t.titleZh || '', albumId: t.id };
   }
-  if (ref.section && ref.itemId) {
-    const label = SECTION_LABELS[ref.section] || {};
-    const out = {
-      kind: 'activities', section: ref.section, itemId: ref.itemId,
-      labelEn: ref.labelEn || label.en || '', labelZh: ref.labelZh || label.zh || '',
-      titleEn: ref.titleEn || '', titleZh: ref.titleZh || '',
-    };
-    if (!out.titleEn || !out.titleZh) {
-      const data = await getSectionData(ref.section);
-      const item = data ? findItemById(data, ref.itemId) : null;
-      if (item) {
-        // 同 activities resolveRef 的兩種命名模式（A: title=zh/title_en=en；B: title=en/title_zh=zh）
-        const isModeA = !!item.title_en;
-        if (!out.titleEn) out.titleEn = (isModeA ? item.title_en : item.title) || '';
-        if (!out.titleZh) out.titleZh = (isModeA ? item.title : item.title_zh) || '';
-      }
-    }
-    return out;
-  }
+  // award 不 ref 回 activities（user 2026-06-23）：activities 已單向不 ref award（見 reference_award_ref_direction_unidirectional），
+  // award 也不反向 ref activities。section/itemId 類型一律不渲染（資料層若有殘留就前台過濾）；只保留 award → library content（document/press/album）。
   return null;
 }
 
@@ -345,6 +338,40 @@ function bindAwardRefRowClick(row) {
 
 // ── Awards Panel ──────────────────────────────────────────────────────────────
 
+// 點 award row → 點擊處冒一個隨機 award icon，scale pop-in 再 pop-out 消失（user 2026-06-22：消失走 scale 不是 opacity）
+// position:fixed 貼點擊座標 + GSAP xPercent/yPercent 置中（與 scale 同 transform matrix，不另用 CSS translate）
+const AWARD_ICON_COUNT = 5; // website-icons/Award_Icons/award_cursor_1..5.svg
+let _lastAwardIconN = 0;     // 防連續同圖：下一個永遠不跟上一個一樣（user 2026-06-22）
+function spawnAwardIcon(x, y) {
+  if (typeof gsap === 'undefined') return;
+  let n;
+  do { n = Math.floor(Math.random() * AWARD_ICON_COUNT) + 1; } while (n === _lastAwardIconN);
+  _lastAwardIconN = n;
+  // CSS mask + background-color:var(--theme-fg)（同站內 .icon 系統）→ icon 色跟主題走：mode1 黑 / mode2 白 /
+  // mode3 theme-fg 對比。原本 <img> 載 SVG（path 預設黑 fill）在 mode2 黑底上看不見（user 2026-06-23）。
+  const url = sitePath(`website-icons/Award_Icons/award_cursor_${n}.svg`);
+  const el = document.createElement('span');
+  el.style.cssText = `position:fixed;left:${x}px;top:${y}px;width:28px;height:28px;display:block;pointer-events:none;z-index:10000;background-color:var(--theme-fg);-webkit-mask:url('${url}') center/contain no-repeat;mask:url('${url}') center/contain no-repeat;`;
+  document.body.appendChild(el);
+  // 拋物線飛出（user 2026-06-22 要「彈出+活潑」）：水平等速 dx + 垂直先上 -peak 後下 endY = 重力拋物；
+  // scale 0→1 pop-in（back 過衝）再→0 收掉（不碰 opacity）。每次隨機方向/高度 → 不重複、活潑
+  const dx   = (Math.random() < 0.5 ? -1 : 1) * (24 + Math.random() * 36); // 水平 ±(24~60)
+  const peak = 30 + Math.random() * 30;                                     // 上拋峰高 30~60
+  const endY = 16 + Math.random() * 16;                                     // 落點略低於起點 16~32
+  // 旋轉（user 2026-06-23）：起始角度隨機 ±0~30°，出現期間再轉 30°（隨機方向）→ end |角度| ≤ 60°，確保不會顛倒。
+  // 走 GSAP rotation（與 xPercent/yPercent 同 transform compose，置中不被轉掉）。
+  const startRot = (Math.random() < 0.5 ? -1 : 1) * (Math.random() * 30);
+  const endRot   = startRot + (Math.random() < 0.5 ? -1 : 1) * 30;
+  gsap.timeline({ onComplete: () => el.remove() })
+    .fromTo(el, { xPercent: -50, yPercent: -50, scale: 0, x: 0, y: 0, rotation: startRot },
+                { scale: 1, duration: 0.18, ease: 'back.out(1.8)' }, 0)
+    .to(el, { rotation: endRot, duration: 0.66, ease: 'none' }, 0)    // 出現期間轉 30°
+    .to(el, { x: dx,     duration: 0.66, ease: 'none' }, 0)            // 水平等速
+    .to(el, { y: -peak,  duration: 0.33, ease: 'power2.out' }, 0)     // 上升（減速到頂）
+    .to(el, { y: endY,   duration: 0.33, ease: 'power2.in' }, 0.33)   // 下降（加速落下）
+    .to(el, { scale: 0,  duration: 0.2,  ease: 'power2.in' }, 0.46);  // 收掉
+}
+
 function buildMockRecords() {
   const flags = ['tw', 'jp', 'kr', 'us', 'gb', 'de', 'fr'];
   const comps = [
@@ -408,29 +435,48 @@ async function fetchAwardLogos(localFallback) {
   }
 }
 
-async function initAwardsPanel(onEntranceDoneCallback) {
-  try {
-    ensureFlagIconsCss();
+// award 資料（records + Directus logos + 已 resolve 的 refs）module 快取，對齊 press/files/album：
+// fetch + resolve 一次，之後切 panel / 跨 SPA 換頁回 library 都重用（原本每次 initAwardsPanel 都重 fetch）。
+let _awardsDataPromise = null;
+function loadAwardsDataCached() {
+  if (_awardsDataPromise) return _awardsDataPromise;
+  _awardsDataPromise = (async () => {
     const res = await fetch(sitePath('data/records.json'));
     const data = await res.json();
     const realRecords  = Array.isArray(data) ? data : data.records;
     // Awards ticker logo 改吃 Directus；records 表格本身仍用 records.json（user 只更新了 logo）
     const localLogos   = Array.isArray(data) ? [] : (data.awardsImages || []);
     const awardsImages = await fetchAwardLogos(localLogos);
-
     const realYears = new Set(realRecords.map(r => r.year));
     const records = [...realRecords, ...buildMockRecords().filter(r => !realYears.has(r.year))]
       .sort((a, b) => b.year - a.year)
       .slice(0, 20);
-
     // refs 先全部 resolve 完才 render（lookup 都有 module 快取，重複 section/檔案只 fetch 一次）
     await Promise.all(records.flatMap(yg => (yg.items || []).map(async item => {
       const refs = Array.isArray(item.references) ? item.references : [];
       item._resolvedRefs = refs.length ? (await Promise.all(refs.map(resolveAwardRef))).filter(Boolean) : [];
     })));
+    return { records, awardsImages };
+  })();
+  return _awardsDataPromise;
+}
+
+async function initAwardsPanel(onEntranceDoneCallback) {
+  try {
+    ensureFlagIconsCss();
+    const { records, awardsImages } = await loadAwardsDataCached();
 
     const listEl = document.getElementById('library-awards-list');
     if (!listEl) return;
+
+    // 點列上任何位置 → 冒隨機 award icon。capture 階段：ref toggle 的 stopPropagation 擋不到
+    // listEl 在 #page-content 內，換頁 innerHTML swap 連 listener 一起換掉 → 不洩漏，免註冊 cleanup
+    // ⚠️ 點「展開的 ref 區」(.award-ref-wrap) 不冒 award icon（user 2026-06-23：點 ref bar 不該出現 award icon）。
+    //    capture 階段在 ref toggle stopPropagation 之前跑，故這裡要自己擋（同 toggle 的 .award-ref-wrap 排除）。
+    listEl.addEventListener('click', (e) => {
+      if (e.target.closest('.award-ref-wrap')) return;
+      if (e.target.closest('.award-record-item')) spawnAwardIcon(e.clientX, e.clientY);
+    }, true);
 
     const scrollEl = document.getElementById('library-awards-scroll');
     const countEl  = document.getElementById('library-awards-count');
@@ -564,22 +610,24 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         ? `data-ref-album-id="${escAttr(r.albumId)}"`
         : `data-ref-section="${escAttr(r.section)}" data-ref-item="${escAttr(r.itemId)}"`;
       return `
-        <button class="list-ref-btn award-ref-row cursor-pointer border-none w-full text-left" style="display:grid;${AWARD_GRID}align-items:start;padding:var(--spacing-sm) 0;" data-ref-host-award="${escAttr(hostAwardId)}" ${dataAttrs}>
+        <button class="list-ref-btn award-ref-row cursor-pointer border-none w-full text-left" style="display:grid;${AWARD_GRID}align-items:start;padding:var(--spacing-xs) var(--spacing-sm);" data-ref-host-award="${escAttr(hostAwardId)}" ${dataAttrs}>
           <div class="flex flex-col" style="grid-column:2;">
-            ${r.labelEn ? `<p class="text-p2">${r.labelEn}</p>` : ''}
-            ${r.labelZh ? `<p class="text-p2">${r.labelZh}</p>` : ''}
+            ${r.labelEn ? `<p>${r.labelEn}</p>` : ''}
+            ${r.labelZh ? `<p>${r.labelZh}</p>` : ''}
           </div>
           <div class="flex flex-col min-w-0" style="grid-column:3 / -2;">
-            ${r.titleEn ? `<div class="list-title-marquee"><p class="text-p2 font-bold">${r.titleEn}</p></div>` : ''}
-            ${r.titleZh ? `<div class="list-title-marquee"><p class="text-p2 font-bold">${r.titleZh}</p></div>` : ''}
+            ${r.titleEn ? `<div class="list-title-marquee"><p class="font-bold">${r.titleEn}</p></div>` : ''}
+            ${r.titleZh ? `<div class="list-title-marquee"><p class="font-bold">${r.titleZh}</p></div>` : ''}
           </div>
         </button>`;
     }).join('');
 
     function renderItems(data) {
       listEl.innerHTML = '';
+      let rowIdx = 0; // 跨 year-block 連續編號，給斑馬列交替（第一個=深格）
       data.forEach(yearGroup => {
         const itemsHtml = (yearGroup.items || []).map((item) => {
+          const zebra = (rowIdx++ % 2 === 0) ? ' list-item-zebra' : ''; // 偶數序(0,2,4…)=深格，第一列即深（class 對齊 activities）
           const winners = normalizeWinners(item);
           const refs = item._resolvedRefs || [];
           const winnerSearch = winners.map(w => `${w.en} ${w.zh}`).join(' ');
@@ -591,34 +639,44 @@ async function initAwardsPanel(onEntranceDoneCallback) {
           const organizerZh = item.organizer || '';
           const organizerInner = (organizerEn || organizerZh) ? bilingual(organizerEn, organizerZh) : '';
           const hasExpand = refs.length > 0;
-          // ref 鈕：icon-ref-list（箭頭朝右）scaleX(-1)+rotate(90deg)＝從左邊往下拐、箭頭朝下（user 2026-06-13 指定鏡像）；
-          // 開合不做旋轉變化（user 2026-06-13 第三輪）
+          // 有 ref → pointer cursor（暗示可展開）；無 ref → default。JS inline 不能用 var(--cursor-*)
+          // （variables.css 註明），且 library.css 動態載入會讓 var 內相對 url 404 → 用 sitePath 寫完整 url
+          const cursorStyle = hasExpand
+            ? `cursor:url('${sitePath('custom-cursor/pointer.svg')}') 14 1, pointer;`
+            : `cursor:url('${sitePath('custom-cursor/default.svg')}') 9 2, default;`;
+          // ref 鈕：下 chevron（user 2026-06-22；原 icon-ref-list 鏡像箭頭）。chevron-list base 朝左、rotate(90deg)=朝下。
+          // 整列可點開合（見下方 click handler），chevron 為視覺提示；點它 bubble 到 item 一樣觸發開合。
           const refBtnHtml = hasExpand ? `
             <button class="award-ref-toggle" aria-label="Show references"
                     style="background:none;border:none;padding:0.23em 0 0;color:inherit;cursor:url('${sitePath('custom-cursor/pointer.svg')}') 14 1, pointer;line-height:1;">
-              <span class="icon icon-ref-list icon-s" style="transform:scaleX(-1) rotate(90deg);"></span>
+              <span class="icon icon-chevron-list icon-s" style="transform:rotate(90deg);"></span>
             </button>` : '';
-          // ref 展開區：跨整列（grid-column 1/-1）、height 0 起始，由 toggle 做 accordion 開合；
-          // 開啟時 margin-bottom 收掉 item 的 0.5rem bottom padding → ref 列直接貼到分割綫（JS tween 同步）
+          // ref 展開區：item 改 block 後，ref-wrap 是 item 的「滿寬 block child」(對齊 activities .list-content：
+          // 乾淨 block、不是 grid-column 1/-1 的 fractional grid item)→ 不靠負 margin 逃逸 item padding，button w-full
+          // 完全貼齊容器寬、右緣不再有 sub-pixel 縫。height 0 起始由 toggle 做 accordion 開合。
           const refWrapHtml = hasExpand ? `
-            <div class="award-ref-wrap" style="grid-column:1 / -1;height:0;overflow:hidden;margin-bottom:0;">
+            <div class="award-ref-wrap" style="height:0;overflow:hidden;margin-bottom:0;">
               <div class="flex flex-col" style="padding-top:var(--spacing-xs);">${buildRefRowsHtml(refs, item.id)}</div>
             </div>` : '';
           // award-mid 桌面 display:contents → 內 4 cell 落 col 2-5（競賽名稱 / 主辦單位 / 獎項 / 名次）；
           // 手機 flex-column 內部直排。主辦單位插在競賽名稱與獎項之間 = 主表第 3 欄、對齊 ref title 欄。
+          // item 改 block（非 grid）：主列 cells 包進 .award-row（grid，吃 padding-left/right:sm 內縮），ref-wrap 是
+          // item 的 block child（滿寬、不靠負 margin）。zebra / open accent bg 仍掛 item → 滿格滿寬（item 無水平 padding）。
           return `
-            <div class="award-record-item grid py-[0.5rem] border-b-2 border-black"
-                 style="${AWARD_GRID} font-size: var(--font-size-p3); align-items: start;"
+            <div class="award-record-item py-[0.5rem]${zebra}"
+                 style="font-size: var(--font-size-p3);${cursorStyle}"
                  data-search="${searchText}"${item.id ? ` id="${item.id}"` : ''}>
-              <div style="padding-top: 0.1em;">${item.flag ? `<span class="fi fi-${item.flag}" style="width:1.5em;height:1em;display:inline-block;"></span>` : ''}</div>
-              <div class="award-mid">
-                <div class="truncate flex flex-col">${bilingualBold(item.competition_en, item.competition)}</div>
-                <div class="award-organizer truncate flex flex-col">${organizerInner}</div>
-                <div class="truncate flex flex-col">${bilingual(item.award_en, item.award)}</div>
-                <div class="truncate flex flex-col">${bilingual(item.rank_en, item.rank)}</div>
+              <div class="award-row" style="display:grid;${AWARD_GRID} align-items: start;">
+                <div style="padding-top: 0.1em;">${item.flag ? `<span class="fi fi-${item.flag}" style="width:1.5em;height:1em;display:inline-block;"></span>` : ''}</div>
+                <div class="award-mid">
+                  <div class="truncate flex flex-col">${bilingualBold(item.competition_en, item.competition)}</div>
+                  <div class="award-organizer truncate flex flex-col">${organizerInner}</div>
+                  <div class="truncate flex flex-col">${bilingual(item.award_en, item.award)}</div>
+                  <div class="truncate flex flex-col">${bilingual(item.rank_en, item.rank)}</div>
+                </div>
+                <div class="award-winners flex flex-col" style="min-width:0;">${buildWinnersHtml(winners)}</div>
+                <div class="award-ref-cell" style="display:flex;justify-content:flex-end;">${refBtnHtml}</div>
               </div>
-              <div class="award-winners flex flex-col" style="min-width:0;">${buildWinnersHtml(winners)}</div>
-              <div class="award-ref-cell" style="display:flex;justify-content:flex-end;">${refBtnHtml}</div>
               ${refWrapHtml}
             </div>`;
         }).join('');
@@ -630,60 +688,81 @@ async function initAwardsPanel(onEntranceDoneCallback) {
           </div>`);
       });
 
-      // hover 變色：mode1/2 隨機三原色；mode3（mode-color）套 var(--theme-bg)=當前 hue，
-      // theme-toggle RAF 每幀更新該 var → hover 不動文字色也跟著 hue 流動（免自寫 RAF）。
-      // ⚠️ 只在桌面綁：手機 tap 會觸發 emulated mouseenter → 文字變色殘留，但 award 無 detail 該「點擊無反應」
-      //    （user 2026-06-10 #2：手機點擊 award 不該變色）。手機完全不綁 → tap 無任何反應。
+      // hover：整列 accent 底色（user 2026-06-22 改：對齊 activities list-item；原本是文字變色 highlight）。
+      // standard/inverse 隨機三原色 inline bg、mode-color 由 library.css [style*=background] 規則翻 theme-fg。
+      // ⚠️ 只在桌面綁：手機 tap 會觸發 emulated mouseenter → 底色殘留（user 2026-06-10 #2：手機點 award 不變色）。
+      // ref 展開中（data-ref-open）鎖定當下色：不重 roll、離開不清。
       if (window.innerWidth >= 768) {
         listEl.querySelectorAll('.award-record-item').forEach(item => {
-          // ref 展開時（data-ref-open）鎖定當下 hover 色：不重 roll、離開也不清（user 2026-06-13）
           item.addEventListener('mouseenter', () => {
             if (item.dataset.refOpen) return;
-            item.style.color = document.body.classList.contains('mode-color')
-              ? 'var(--theme-bg)'
-              : ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
+            const color = SCCDHelpers.getRandomAccentColor();
+            item.style.background = color;
+            item.dataset.accentHex = color;
           });
           item.addEventListener('mouseleave', () => {
             if (item.dataset.refOpen) return;
-            item.style.color = '';
+            item.style.background = '';
+            delete item.dataset.accentHex;
           });
         });
       }
 
-      // ref 鈕開合（accordion height 0↔auto，同 colored-accordion 手感）+ ref row 點擊分派
+      // 整列可點開合（user 2026-06-22：不必點 chevron）+ ref row 點擊分派。
+      // 開合對齊 activities：開啟時整列鎖 accent 底 + set --item-color-deep → ref 列底色＝deep accent
+      // （共用 .list-ref-btn 規則接手，見 library.css 改後註解）。accordion height 0↔auto 手感不變。
       listEl.querySelectorAll('.award-record-item').forEach(item => {
-        const toggleBtn = item.querySelector('.award-ref-toggle');
         const wrap = /** @type {HTMLElement | null} */ (item.querySelector('.award-ref-wrap'));
-        if (!toggleBtn || !wrap) return;
-        toggleBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
+        if (!wrap) return;  // 無 ref → 不可展開、不綁點擊（hover 底色仍套，但無內容可開）
+        item.style.cursor = `url('${sitePath('custom-cursor/pointer.svg')}') 14 1, pointer`;
+        item.addEventListener('click', (e) => {
+          // 點在「展開的 ref 區」內一律不觸發開合（chevron 不跳、award 不收）——
+          // 不只 ref row 本身，連 row 之間的 gap / wrap padding 也算（user 2026-06-22：點 award ref 不要觸發 chevron 跳）。
+          // ref row 自身點擊照常開 PDF / lightbox / 跳頁（bindAwardRefRowClick）。
+          if (/** @type {HTMLElement} */ (e.target).closest('.award-ref-wrap')) return;
           const isOpen = wrap.dataset.open === '1';
           wrap.dataset.open = isOpen ? '' : '1';
-          // hover 色鎖定（user 2026-06-13）：開啟期間 row 保持「開啟當下」的 hover 色不再隨機，
-          // 關閉才解鎖 — 還在 hover 上就立刻重 roll 一個新色，否則清掉回預設
-          if (!isOpen) {
-            item.dataset.refOpen = '1';
-            if (window.innerWidth >= 768 && !item.style.color) {
-              item.style.color = document.body.classList.contains('mode-color')
-                ? 'var(--theme-bg)'
-                : ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
-            }
-          } else {
-            delete item.dataset.refOpen;
-            if (window.innerWidth >= 768 && item.matches(':hover')) {
-              item.style.color = document.body.classList.contains('mode-color')
-                ? 'var(--theme-bg)'
-                : ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
-            } else {
-              item.style.color = '';
-            }
+          // chevron 跟著開合轉（對齊 activities：開→朝上 -90 / 合→朝下 90；chevron-list base 0=左、90=下）
+          const chevron = item.querySelector('.award-ref-toggle .icon');
+          if (chevron && typeof gsap !== 'undefined') {
+            gsap.to(chevron, { rotation: isOpen ? 90 : -90, duration: DUR.fast, overwrite: true });
           }
+          if (!isOpen) {
+            // 開：立刻鎖 accent 底 + deep ref（同 activities proceedOpen）
+            item.dataset.refOpen = '1';
+            const color = item.dataset.accentHex || SCCDHelpers.getRandomAccentColor();
+            item.dataset.accentHex = color;
+            item.style.background = color;
+            item.style.setProperty('--item-color', color);
+            item.style.setProperty('--item-color-deep', ACCENT_TO_DEEP[color] || color);
+          }
+          // 收合的底色處理延到收合動畫「完成」才做（對齊 activities closeListHeader：收合期間維持當下色、
+          // 不立即吃下一色；收完才清，還在 hover 上就重 roll 一個新色）。refOpen 留到收完才解除，避免收合
+          // 期間 mouseleave 把底色清掉。
+          const onCloseDone = () => {
+            delete item.dataset.refOpen;
+            item.style.removeProperty('--item-color');
+            item.style.removeProperty('--item-color-deep');
+            if (window.innerWidth >= 768 && item.matches(':hover')) {
+              const color = SCCDHelpers.getRandomAccentColor();
+              item.style.background = color;
+              item.dataset.accentHex = color;
+            } else {
+              item.style.background = '';
+              delete item.dataset.accentHex;
+            }
+          };
           // 開啟時 margin-bottom = -0.5rem 抵銷 item py-[0.5rem] 的 bottom padding → ref 列貼齊分割綫；收起還原
           if (typeof gsap !== 'undefined') {
-            gsap.to(wrap, { height: isOpen ? 0 : 'auto', marginBottom: isOpen ? '0rem' : '-0.5rem', duration: DUR.medium, ease: EASE.move, overwrite: true });
+            gsap.to(wrap, {
+              height: isOpen ? 0 : 'auto', marginBottom: isOpen ? '0rem' : '-0.5rem',
+              duration: DUR.medium, ease: EASE.move, overwrite: true,
+              onComplete: isOpen ? onCloseDone : undefined,
+            });
           } else {
             wrap.style.height = isOpen ? '0' : 'auto';
             wrap.style.marginBottom = isOpen ? '0' : '-0.5rem';
+            if (isOpen) onCloseDone();
           }
         });
         wrap.querySelectorAll('.award-ref-row').forEach(row => bindAwardRefRowClick(/** @type {HTMLElement} */ (row)));
@@ -737,9 +816,11 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         btn.dataset.year = String(year);
         btn.style.cssText = 'text-align:left;background:none;border:none;padding:0;font-family:inherit;font-size:var(--font-size-p3);cursor:pointer;font-weight:700;color:var(--lib-fg);';
         btn.addEventListener('click', () => {
+          const before = snapshotVisibleYears(listEl); // 操作前可見年份順序
           if (selectedYears.has(String(year))) { selectedYears.delete(String(year)); } else { selectedYears.add(String(year)); }
           updateBtns();
           updateList();
+          clipWipeChangedBlocks(listEl, before); // 只 wipe 新出現/位置變的年份組
         });
         yearPickerEl.appendChild(btn);
       });
@@ -781,6 +862,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         latestFirst = !latestFirst;
         sortBtn.querySelector('.sort-arrow').className = `icon ${latestFirst ? 'icon-arrow-down' : 'icon-arrow-up'} sort-arrow text-p3`;
         renderItems(getSorted());
+        clipWipeItems(visibleListItems(listEl));
       });
     }
 
@@ -789,14 +871,16 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     if (tickerWrapper && awardsImages.length > 0) {
       // 每次載入隨機洗牌（user 2026-06-09：ticker logo 順序隨機，不照後台 sort）。
       // 在建 track 前 shuffle 一次 → t1/t2 兩條 seamless loop 半段同序、接合處不斷層。
-      for (let i = awardsImages.length - 1; i > 0; i--) {
+      // 複製再洗：awardsImages 現在是 module 快取共享 array，in-place 洗會跨換頁累積 mutate 快取。
+      const shuffled = [...awardsImages];
+      for (let i = shuffled.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-        [awardsImages[i], awardsImages[j]] = [awardsImages[j], awardsImages[i]];
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
       }
       const createTrack = () => {
         const track = document.createElement('div');
         track.style.cssText = 'display:flex;gap:var(--spacing-2xl);padding-right:var(--spacing-2xl);flex-shrink:0;align-items:center;';
-        awardsImages.forEach(src => {
+        shuffled.forEach(src => {
           const img = document.createElement('img');
           img.src = src; img.alt = 'Award';
           img.style.cssText = 'height:60px;width:auto;object-fit:contain;filter:grayscale(1);flex-shrink:0;';
@@ -901,6 +985,7 @@ async function initPressPanel() {
 
     function renderItems(items) {
       listEl.innerHTML = '';
+      let rowIdx = 0; // 跨 year-block 連續編號，斑馬交替（同 award/activities）
       groupByYear(items).forEach(group => {
         const block = document.createElement('div');
         block.className  = 'press-year-block';
@@ -913,7 +998,7 @@ async function initPressPanel() {
 
         group.items.forEach(item => {
           const div = document.createElement('div');
-          div.className       = 'press-item';
+          div.className       = 'press-item' + (rowIdx++ % 2 === 0 ? ' list-item-zebra' : '');
           if (item.id) div.id = item.id; // 供 hash deep link 使用
           div.dataset.year    = String(item.year);
           div.dataset.search  = [item.titleEn, item.titleZh, item.subtitleEn, item.subtitleZh].filter(Boolean).join(' ').toLowerCase();
@@ -1013,7 +1098,7 @@ async function initPressPanel() {
 
     // 年份 Picker
     const years = [...new Set(sorted.map(p => String(p.year)))].sort((a, b) => Number(b) - Number(a));
-    const selectedYears = createYearPicker(yearPickerEl, years, applyFiltersWithRef);
+    const selectedYears = createYearPicker(yearPickerEl, years, () => { const before = snapshotVisibleYears(listEl); applyFiltersWithRef(); clipWipeChangedBlocks(listEl, before); });
 
     // 排序
     const sortBtn = document.getElementById('library-press-sort-btn');
@@ -1023,6 +1108,7 @@ async function initPressPanel() {
         sortBtn.querySelector('.sort-arrow').className = `icon ${latestFirst ? 'icon-arrow-down' : 'icon-arrow-up'} sort-arrow text-p3`;
         renderItems(getSorted());
         applyFiltersWithRef();
+        clipWipeItems(visibleListItems(listEl));
       });
     }
 
@@ -1140,7 +1226,7 @@ async function initFilesPanel() {
 
     const selYears = (() => {
       const years = [...new Set(sorted.map(p => String(p.year)))].sort((a, b) => Number(b) - Number(a));
-      return createYearPicker(yearPickerEl, years, () => applyFilters());
+      return createYearPicker(yearPickerEl, years, () => { const before = snapshotVisibleYears(listEl); applyFilters(); clipWipeChangedBlocks(listEl, before); });
     })();
 
     function applyFilters() {
@@ -1168,6 +1254,7 @@ async function initFilesPanel() {
         sortBtn.querySelector('.sort-arrow').className = `icon ${latestFirst ? 'icon-arrow-down' : 'icon-arrow-up'} sort-arrow text-p3`;
         renderItems(getSorted());
         applyFilters();
+        clipWipeItems(visibleFilesCards(listEl));
       });
     }
 
@@ -1272,8 +1359,18 @@ async function initAlbumPanel() {
     let latestFirst = true;
     const getSorted = () => latestFirst ? sorted : [...sorted].reverse();
 
+    // 點開 lightbox 時 overlay 蓋上會觸發 item 的 mouseleave → 縮回 stack。
+    // user 要求：展開狀態點進 lightbox 維持展開，等 lightbox 關閉才做 stack 動畫。
+    // 記住該 item 的 stack 動作，延到 sccd:close-lightbox 才執行。
+    // 宣告在 initAlbumPanel 層、close listener 只註冊一次（renderItems 會因 sort 重跑，避免重複綁）。
+    let pendingStack = null;
+    const onLbClose = () => { if (pendingStack) { pendingStack(); pendingStack = null; } };
+    document.addEventListener('sccd:close-lightbox', onLbClose);
+    registerPageCleanup(() => document.removeEventListener('sccd:close-lightbox', onLbClose));
+
     function renderItems(data) {
       listEl.innerHTML = '';
+      let rowIdx = 0; // 跨 year-block 連續編號，斑馬交替（同 award/activities）
       groupByYear(data).forEach(group => {
         const block = document.createElement('div');
         block.className    = 'album-year-block';
@@ -1286,7 +1383,7 @@ async function initAlbumPanel() {
 
         group.items.forEach(item => {
           const div = document.createElement('div');
-          div.className      = 'files-item album-panel-item';
+          div.className      = 'files-item album-panel-item' + (rowIdx++ % 2 === 0 ? ' list-item-zebra' : '');
           if (item.id) div.id = `album-${item.id}`; // 供 hash deep link 使用
           div.dataset.year   = String(item.year);
           div.dataset.cat    = item.cat;
@@ -1385,12 +1482,19 @@ async function initAlbumPanel() {
 
       bindCoverRatio(listEl);
 
-      // GSAP hover：stack ↔ 展開
+      // GSAP hover：stack ↔ 展開（pendingStack / sccd:close-lightbox 在 initAlbumPanel 層處理）
       if (window.innerWidth >= 768) {
         listEl.querySelectorAll('.album-panel-item').forEach(item => {
           const strip  = item.querySelector('.album-thumb-strip');
           const thumbs = [...item.querySelectorAll('.album-thumb')];
           if (!strip || !thumbs.length) return;
+
+          const stackThumbs = () => {
+            thumbs.forEach(t => {
+              const deg = parseFloat(t.dataset.initDeg) || 0;
+              gsap.to(t, { x: 0, rotation: deg, duration: DUR.fast, ease: EASE.enterSoft });
+            });
+          };
 
           item.addEventListener('mouseenter', () => {
             // 計算展開位置：從右到左排列（用 x 偏移而非 right，避免 CSS layout + transform 混用導致垂直偏移）
@@ -1412,15 +1516,14 @@ async function initAlbumPanel() {
           });
 
           item.addEventListener('mouseleave', () => {
-            thumbs.forEach(t => {
-              const deg = parseFloat(t.dataset.initDeg) || 0;
-              gsap.to(t, {
-                x: 0,
-                rotation: deg,
-                duration: DUR.fast,
-                ease: EASE.enterSoft,
-              });
-            });
+            if (item._albumLbOpen) return;  // lightbox 開著（mouseleave 由 overlay 觸發）→ 維持展開
+            stackThumbs();
+          });
+
+          // 點擊開 lightbox：標記維持展開，並把 stack 排到關閉後
+          item.addEventListener('click', () => {
+            item._albumLbOpen = true;
+            pendingStack = () => { item._albumLbOpen = false; stackThumbs(); };
           });
         });
       }
@@ -1439,7 +1542,7 @@ async function initAlbumPanel() {
     const selectedCats = new Set();
     const selYears     = (() => {
       const years = [...new Set(sorted.map(p => String(p.year)))].sort((a, b) => Number(b) - Number(a));
-      return createYearPicker(yearPickerEl, years, () => applyFilters());
+      return createYearPicker(yearPickerEl, years, () => { const before = snapshotVisibleYears(listEl); applyFilters(); clipWipeChangedBlocks(listEl, before); });
     })();
 
     function applyFilters() {
@@ -1485,6 +1588,7 @@ async function initAlbumPanel() {
         if (selectedCats.has(cat)) { selectedCats.delete(cat); } else { selectedCats.add(cat); }
         if (selectedCats.size === albumCatBtns.length) selectedCats.clear();
         applyFilters();
+        clipWipeItems(visibleListItems(listEl));
       });
     });
 
@@ -1495,6 +1599,7 @@ async function initAlbumPanel() {
         sortBtn.querySelector('.sort-arrow').className = `icon ${latestFirst ? 'icon-arrow-down' : 'icon-arrow-up'} sort-arrow text-p3`;
         renderItems(getSorted());
         applyFilters();
+        clipWipeItems(visibleListItems(listEl));
       });
     }
 
@@ -1536,6 +1641,52 @@ const REVEAL_HIDE_DIRS = [
 ];
 function pickRevealHideDir() {
   return REVEAL_HIDE_DIRS[Math.floor(Math.random() * REVEAL_HIDE_DIRS.length)];
+}
+
+// 篩選（年份 / 分類 / 排序）後讓 list 內容重新 clip wipe（user 2026-06-22：取代 instant 顯隱）。
+// 逐 item 各自 clip wipe、同時起跑、每條隨機 4 向（user 2026-06-23：award/press/album 也改逐列、方向不一）。
+// 每列在自己高度內 wipe → 即使 list 已往下捲仍看得到（不像整列 wipe 垂直方向會從畫面外揭露）。wipe 完各自清 clip-path
+// （常駐 inset(0) 會裁掉 files 卡片旋轉封面溢出的 ~5px 邊角）。
+function clipWipeItems(items) {
+  if (!items || !items.length) return;
+  items.forEach(el => {
+    el.style.transition = 'none';
+    el.style.clipPath = pickRevealHideDir();
+  });
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    items.forEach(el => {
+      el.style.transition = `clip-path ${DUR.medium}s ease-out`;
+      el.style.clipPath = 'inset(0 0 0 0)';
+      const clear = (e) => {
+        if (e.propertyName !== 'clip-path') return;
+        el.style.transition = '';
+        el.style.clipPath = '';
+        el.removeEventListener('transitionend', clear);
+      };
+      el.addEventListener('transitionend', clear);
+    });
+  }));
+}
+// 只取目前可見的卡片（被年份/分類篩掉的 display:none 卡 offsetParent=null，套 clip-path 後沒 transitionend 不會自清 → 排除）
+function visibleFilesCards(listEl) {
+  return [...listEl.querySelectorAll('.files-item-card')].filter(el => el.offsetParent !== null);
+}
+// award/press/album 各自的 list item（三 selector 通用：每個 listEl 只 match 自己那種）；同上排除 display:none
+function visibleListItems(listEl) {
+  return [...listEl.querySelectorAll('.award-record-item, .press-item, .album-panel-item')].filter(el => el.offsetParent !== null);
+}
+// year filter（多選累加）：只 wipe「新出現 或 可見位置 index 改變」的 year-block，位置完全沒動的不重跑（user 2026-06-23）。
+// snapshotVisibleYears 在 filter「前」快照可見年份順序；clipWipeChangedBlocks 在 filter「後」比對：
+//   選新年份加在最下面 → 上面的 index 不變、不 wipe；加在上面 / 取消年份 → 下面的往上移、index 變 → wipe；
+//   取消到全顯示 → 重現的年份在 before 找不到（新出現）→ wipe。[class$=year-block] 通吃 4 panel 的 year-block class。
+function snapshotVisibleYears(listEl) {
+  return [...listEl.querySelectorAll('[class$="year-block"]')].filter(b => b.style.display !== 'none').map(b => b.dataset.year);
+}
+function clipWipeChangedBlocks(listEl, beforeYears) {
+  const after = [...listEl.querySelectorAll('[class$="year-block"]')].filter(b => b.style.display !== 'none');
+  const changed = after.filter((b, i) => { const k = beforeYears.indexOf(b.dataset.year); return k === -1 || k !== i; });
+  const items = changed.flatMap(b => [...b.querySelectorAll('.award-record-item, .press-item, .album-panel-item, .files-item-card')]);
+  clipWipeItems(items.filter(el => el.offsetParent !== null));
 }
 
 // 對 panel 內 chip 跟非 chip 子元素各自隨機挑方向 clip wipe 進場
