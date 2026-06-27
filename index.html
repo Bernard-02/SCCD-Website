@@ -32,7 +32,7 @@
   <main id="page-content">
     <!-- 視覺隱藏的頁面主標題（語意/SEO/報讀器地標；首頁全視覺、無文字標題）-->
     <h1 class="sr-only">實踐大學媒體傳達設計學系 Shih Chien University Department of Communications Design (SCCD)</h1>
-    <section class="h-screen" style="display:flex; align-items:flex-end; padding: var(--spacing-xl); position:relative; z-index:9998; overflow:hidden;">
+    <section class="snap-zone h-screen" style="display:flex; align-items:flex-end; padding: var(--spacing-xl); position:relative; z-index:9998; overflow:hidden;">
 
       <!-- Floating Items Layer -->
       <div id="floating-layer" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:0; overflow:hidden;"></div>
@@ -112,7 +112,7 @@
   </main>
 
   <!-- Footer -->
-  <footer id="site-footer-static" class="footer-shell relative overflow-hidden">
+  <footer id="site-footer-static" class="snap-zone footer-shell relative overflow-hidden">
     <div class="footer-inner h-full flex flex-col md:flex-row">
 
       <!-- Logo：桌面靠左貼齊 padding，正方形吃滿可用高度 -->
@@ -160,17 +160,17 @@
                JS scatter 各別散佈；手機 .footer-social flex-row 自然排列 (YT → IG → FB) -->
           <div class="footer-social">
             <div class="footer-youtube">
-              <a href="https://www.youtube.com/@communicationsdesign" target="_blank" rel="noopener noreferrer" class="footer-link">
+              <a href="https://www.youtube.com/@communicationsdesign" target="_blank" rel="noopener noreferrer" class="footer-link" aria-label="YouTube">
                 <span class="icon icon-youtube text-h3"></span>
               </a>
             </div>
             <div class="footer-instagram">
-              <a href="https://www.instagram.com/communications.design_sccd" target="_blank" rel="noopener noreferrer" class="footer-link">
+              <a href="https://www.instagram.com/communications.design_sccd" target="_blank" rel="noopener noreferrer" class="footer-link" aria-label="Instagram">
                 <span class="icon icon-instagram text-h3"></span>
               </a>
             </div>
             <div class="footer-facebook">
-              <a href="https://www.facebook.com/communications.design" target="_blank" rel="noopener noreferrer" class="footer-link">
+              <a href="https://www.facebook.com/communications.design" target="_blank" rel="noopener noreferrer" class="footer-link" aria-label="Facebook">
                 <span class="icon icon-facebook text-h3"></span>
               </a>
             </div>

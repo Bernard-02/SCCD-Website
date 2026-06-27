@@ -22,8 +22,8 @@
   <main id="page-content">
     <!-- Alumni Hero — 置中大字；用 .hero-title class 接 hero-animation 的 clip-reveal 進場（yPercent 100→0），
          wrapper 旋轉用 CSS 覆寫為 0（user 要求無旋轉），font-weight 用 medium -->
-    <section class="h-screen relative overflow-hidden flex items-center justify-center">
-      <div class="hero-title alumni-hero-text text-black">ALUMNI</div>
+    <section class="snap-zone h-screen relative overflow-hidden flex items-center justify-center">
+      <h1 class="hero-title alumni-hero-text text-black">ALUMNI</h1>
     </section>
 
     <!-- Content Section（activities-pattern flex：左 anchor nav + 右 flex-1 sections） -->
@@ -62,39 +62,39 @@
           <div class="flex-1 min-w-0">
 
             <!-- 1. Vision 精神 -->
-            <section id="vision" class="pb-6xl relative z-10 overflow-visible" style="scroll-margin-top: 200px;">
+            <section id="vision" class="snap-zone pb-6xl relative z-10 overflow-visible" style="scroll-margin-top: 200px;">
               <div class="grid-12">
                 <div class="col-span-12 md:col-span-6 mb-lg md:mb-0">
-                  <h5 class="text-black leading-snug">
+                  <p class="text-h5 font-bold text-black leading-snug">
                     <span data-overview-hl style="display: block; padding: 0.5em 0.6em;" id="alumni-vision-en"></span>
-                  </h5>
+                  </p>
                 </div>
                 <div class="col-span-12 md:col-span-6">
-                  <h5 class="text-black leading-base">
+                  <p class="text-h5 font-bold text-black leading-base">
                     <span data-overview-hl style="display: block; padding: 0.5em 0.6em;" id="alumni-vision-zh"></span>
-                  </h5>
+                  </p>
                 </div>
               </div>
             </section>
 
             <!-- 2. Activities 活動 -->
-            <section id="activities" class="bg-white relative z-10 overflow-visible pb-6xl" style="scroll-margin-top: 200px; padding-top: 100px;">
+            <section id="activities" class="snap-zone bg-white relative z-10 overflow-visible pb-6xl" style="scroll-margin-top: 200px; padding-top: 100px;">
               <!-- 封鎖綫（仿 about resources/history 樣式：top:0、由 anchor-nav active 觸發 reveal） -->
               <div class="section-title-strip absolute left-0 right-0 flex items-center" style="top: 0; overflow: visible; z-index: 0; padding: var(--spacing-md) 0;" data-anchor="activities">
                 <div class="section-title-inner flex gap-md" style="white-space: nowrap; padding: var(--spacing-md);" data-section-title>
-                  <h1>Activities</h1>
-                  <h1>活動</h1>
+                  <h2 class="text-h1">Activities</h2>
+                  <h2 class="text-h1">活動</h2>
                 </div>
               </div>
               <div id="alumni-activities-list" class="relative z-10 bg-white"></div>
             </section>
 
             <!-- 3. Members 系友 — 比照 faculty.html 用 md:pr-[2rem] 對齊右邊距 -->
-            <section id="members" class="bg-white relative z-10 overflow-visible pb-6xl" style="scroll-margin-top: 200px; padding-top: 100px;">
+            <section id="members" class="snap-zone bg-white relative z-10 overflow-visible pb-6xl" style="scroll-margin-top: 200px; padding-top: 100px;">
               <div class="section-title-strip absolute left-0 right-0 flex items-center" style="top: 0; overflow: visible; z-index: 0; padding: var(--spacing-md) 0;" data-anchor="members">
                 <div class="section-title-inner flex gap-md" style="white-space: nowrap; padding: var(--spacing-md);" data-section-title>
-                  <h1>Members</h1>
-                  <h1>系友</h1>
+                  <h2 class="text-h1">Members</h2>
+                  <h2 class="text-h1">系友</h2>
                 </div>
               </div>
               <div class="md:pr-[2rem] relative z-10">
@@ -103,33 +103,33 @@
             </section>
 
             <!-- 4. Sponsors 贊助 — 3x3 grid 可點擊（連官網） -->
-            <section id="sponsors" class="bg-white relative z-10 overflow-visible pb-6xl" style="scroll-margin-top: 200px; padding-top: 100px;">
+            <section id="sponsors" class="snap-zone bg-white relative z-10 overflow-visible pb-6xl" style="scroll-margin-top: 200px; padding-top: 100px;">
               <div class="section-title-strip absolute left-0 right-0 flex items-center" style="top: 0; overflow: visible; z-index: 0; padding: var(--spacing-md) 0;" data-anchor="sponsors">
                 <div class="section-title-inner flex gap-md" style="white-space: nowrap; padding: var(--spacing-md);" data-section-title>
-                  <h1>Sponsors</h1>
-                  <h1>贊助</h1>
+                  <h2 class="text-h1">Sponsors</h2>
+                  <h2 class="text-h1">贊助</h2>
                 </div>
               </div>
               <div id="alumni-sponsors-grid" class="grid grid-cols-2 md:grid-cols-3 gap-lg md:gap-xl relative z-10"></div>
             </section>
 
             <!-- 5. Organization 組織 — summer-camp list pattern，only title -->
-            <section id="organization" class="bg-white relative z-10 overflow-visible pb-6xl" style="scroll-margin-top: 200px; padding-top: 100px;">
+            <section id="organization" class="snap-zone bg-white relative z-10 overflow-visible pb-6xl" style="scroll-margin-top: 200px; padding-top: 100px;">
               <div class="section-title-strip absolute left-0 right-0 flex items-center" style="top: 0; overflow: visible; z-index: 0; padding: var(--spacing-md) 0;" data-anchor="organization">
                 <div class="section-title-inner flex gap-md" style="white-space: nowrap; padding: var(--spacing-md);" data-section-title>
-                  <h1>Organization</h1>
-                  <h1>組織</h1>
+                  <h2 class="text-h1">Organization</h2>
+                  <h2 class="text-h1">組織</h2>
                 </div>
               </div>
               <div id="alumni-org-list" class="relative z-10 bg-white"></div>
             </section>
 
             <!-- 6. Gatherings 召集 — 城市 tab + summer-camp list with 會議紀錄 ref → lightbox PDF -->
-            <section id="gatherings" class="bg-white relative z-10 overflow-visible pb-6xl" style="scroll-margin-top: 200px; padding-top: 100px;">
+            <section id="gatherings" class="snap-zone bg-white relative z-10 overflow-visible pb-6xl" style="scroll-margin-top: 200px; padding-top: 100px;">
               <div class="section-title-strip absolute left-0 right-0 flex items-center" style="top: 0; overflow: visible; z-index: 0; padding: var(--spacing-md) 0;" data-anchor="gatherings">
                 <div class="section-title-inner flex gap-md" style="white-space: nowrap; padding: var(--spacing-md);" data-section-title>
-                  <h1>Gatherings</h1>
-                  <h1>召集</h1>
+                  <h2 class="text-h1">Gatherings</h2>
+                  <h2 class="text-h1">召集</h2>
                 </div>
               </div>
               <div id="alumni-city-tags" class="flex flex-wrap items-end gap-xl mb-xl relative z-10"></div>
@@ -137,11 +137,11 @@
             </section>
 
             <!-- 7. Contact 聯絡 — 純文字單行（無描述） -->
-            <section id="contact" class="bg-white relative z-10 overflow-visible pb-6xl" style="scroll-margin-top: 200px; padding-top: 100px;">
+            <section id="contact" class="snap-zone bg-white relative z-10 overflow-visible pb-6xl" style="scroll-margin-top: 200px; padding-top: 100px;">
               <div class="section-title-strip absolute left-0 right-0 flex items-center" style="top: 0; overflow: visible; z-index: 0; padding: var(--spacing-md) 0;" data-anchor="contact">
                 <div class="section-title-inner flex gap-md" style="white-space: nowrap; padding: var(--spacing-md);" data-section-title>
-                  <h1>Contact</h1>
-                  <h1>聯絡</h1>
+                  <h2 class="text-h1">Contact</h2>
+                  <h2 class="text-h1">聯絡</h2>
                 </div>
               </div>
               <div id="alumni-contact-list" class="flex flex-col relative z-10"></div>
@@ -157,7 +157,7 @@
   </main>
 
   <!-- Footer -->
-  <div id="site-footer"></div>
+  <div id="site-footer" class="snap-zone"></div>
 
   <!-- JavaScript -->
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/gsap.min.js"></script>

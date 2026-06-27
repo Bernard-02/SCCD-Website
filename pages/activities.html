@@ -20,7 +20,7 @@
     <!-- Activities Hero Section
          桌面 .hero-rand-grid：4 元素隨機 corner 排版（hero-animation.js）
          手機 .hero-mobile：圖墊底 + 文字 stack 疊在圖上（hero-mobile-sync.js 從桌面 clone） -->
-    <section class="min-h-screen md:h-screen relative overflow-x-clip md:overflow-hidden">
+    <section class="snap-zone min-h-screen md:h-screen relative overflow-x-clip md:overflow-hidden">
       <!-- 手機版 -->
       <div class="hero-mobile">
         <div class="hero-mobile-bg">
@@ -53,17 +53,18 @@
     <!-- min-height:100vh：scrollSectionIntoView 改成把 section 頂對齊 viewport 頂(top:0) 後，
          section 要至少滿一個 viewport 才捲得到位（短 panel 如 Permanent 2 筆不會被頁底 clamp 露出 hero），
          且對齊時剛好填滿 viewport 不讓 footer 從底部露出（user 2026-06-05）。 -->
-    <section class="bg-white pt-6xl pb-6xl md:py-6xl" id="activities-content-section" style="min-height: 100vh;">
-      <!-- 手機 header blocker（Josh Comeau pattern）：透明 fixed site-header 下、sticky title(top:6rem) 上方
-           0~96px 透明帶會露出捲動內容。一條 sticky 白帶(=section 底色)貼 top:0 把該帶補實 → 內容捲進去乾淨消失
-           ＝行為等同不透明 header。桌面有 filter bar 接住故 md:hidden。詳見 lists.css .list-mobile-header-blocker -->
+    <section class="snap-zone bg-white pt-6xl pb-3xl" id="activities-content-section" style="min-height: 100vh;">
+      <!-- 手機 header blocker：透明 fixed site-header 下、sticky title 上方透明帶用一條 sticky theme-bg 帶補實。
+           桌面有 filter bar 接住故 md:hidden。詳見 lists.css .list-mobile-header-blocker -->
       <div class="list-mobile-header-blocker md:hidden" aria-hidden="true"></div>
       <div class="site-container">
         <!-- grid-20：桌面 nav bar 占 cols 1-4、內容 cols 5-20（對齊 faculty/curriculum col-5）；手機 flex-col 堆疊 -->
         <div class="flex flex-col gap-gutter md:grid md:grid-cols-20">
 
-          <!-- Left Section Buttons（桌面 cols 1-4，nav btn 不動，內部 .activities-section-bar 仍 content-width sticky） -->
-          <div class="w-full md:col-span-4">
+          <!-- Left Section Buttons（桌面 cols 1-4，nav btn 不動，內部 .activities-section-bar 仍 content-width sticky）
+               md:min-h：短分頁內容比 section(min-h:100vh) 矮時，左欄需填滿 section 內容區（100vh−pt6xl192−pb3xl96=288）
+               否則 sticky nav 在內容底就 unstick 捲走、下面留白＋footer 卻沒 nav＝「還沒到底 nav 就不見」(user 2026-06-27) -->
+          <div class="w-full md:col-span-4 md:min-h-[calc(100vh_-_288px)]">
             <div class="activities-section-bar flex flex-row md:flex-col gap-xs md:gap-xs md:mb-0 md:sticky md:top-[200px] no-scrollbar">
               <button class="activities-section-btn w-fit active text-left" data-section="exhibitions">
                 <span class="anchor-nav-inner"><span>Exhibitions</span><span>展演</span></span>
@@ -256,7 +257,7 @@
   </main>
 
   <!-- Footer -->
-  <div id="site-footer"></div>
+  <div id="site-footer" class="snap-zone"></div>
 
   <!-- JavaScript -->
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/gsap.min.js"></script>

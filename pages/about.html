@@ -16,8 +16,10 @@
 
   <!-- Main Content -->
   <main id="page-content">
+    <!-- 視覺隱藏的頁面主標題（hero 是 SCCD logo 圖、無文字標題；給報讀器/SEO 地標）-->
+    <h1 class="sr-only">關於學系 About — 實踐大學媒體傳達設計學系</h1>
     <!-- Hero Section -->
-    <section class="h-screen relative overflow-hidden flex items-center justify-center">
+    <section class="snap-zone h-screen relative overflow-hidden flex items-center justify-center">
       <div class="hero-logo-wrapper" style="width: 60%; max-height: 60vh;">
         <img data-hero-logo class="theme-invert" src="../images/SCCD - Black.svg" alt="SCCD" style="width: 100%; height: auto; max-height: 60vh; object-fit: contain; visibility: hidden;">
       </div>
@@ -96,7 +98,7 @@
         <div class="flex-1 min-w-0">
 
       <!-- Overview Section -->
-      <section id="overview" class="bg-white pb-3xl md:pb-6xl relative z-10 overflow-visible" style="scroll-margin-top: 200px;">
+      <section id="overview" class="snap-zone bg-white pb-3xl md:pb-6xl relative z-10 overflow-visible" style="scroll-margin-top: 200px;">
 
         <div class="site-container relative z-10">
           <!-- Mouse trail container（文字上方，z-20 高於 grid 的 text） -->
@@ -104,16 +106,16 @@
           <div class="grid-20">
             <!-- English Text (左半，cols 4-12) -->
             <div class="col-span-full md:col-start-5 md:col-span-8">
-              <h5 class="text-black leading-snug">
+              <p class="text-h5 font-bold text-black leading-snug">
                 <span data-overview-hl style="display: block; padding: 0.5em 0.6em;">Department of Communications Design, Shih Chien University / SCCD is the first academic institution to establish the "Communications Design" department in the country. The teaching of the department takes design thinking, humanities, and aesthetics as the cornerstones, uses multidimensional platforms as the foundation, diverse media as the carrier, and integrates teaching experiments and design training such as animation, narrative video, interaction, performance, game, product, space. and environment. Supplemented by intensive international workshop and industry-academy cooperation in various fields, as well as overseas exchange opportunities. It aims to cultivate director-type creative talents who can integrate "media" as the vehicle, "design" as the method, emphasize "communications" as the core of human civilization, and adapt to the rapid changes of the era.</span>
-              </h5>
+              </p>
             </div>
 
             <!-- Chinese Text (右半，cols 13-20) -->
             <div class="col-span-full md:col-start-13 md:col-span-8">
-              <h5 class="text-black leading-base">
+              <p class="text-h5 font-bold text-black leading-base">
                 <span data-overview-hl style="display: block; padding: 0.5em 0.6em;">實踐大學媒體傳達設計學系為全國首創成立「媒體傳達設計」之學系。學系教學以設計思考、人文、美學為核心基石，運用多維度平台為基礎與多樣性媒材為載體，整合動畫、敘事影像、互動、展演、遊戲、商品、空間、環境等教學實驗與設計訓練，輔以密集舉辦之跨國工作與各領域產學合作，同時提供海外交換留學機會，旨在培育能整合「媒體」為乘載，「設計」為方法，強調「傳達」為人類文明之核心，得以適應時代快速變遷之總監型創作人才。</span>
-              </h5>
+              </p>
             </div>
           </div>
         </div>
@@ -124,11 +126,11 @@
       <section class="bg-white relative z-20 overflow-visible">
 
       <!-- Class Anchor + 封鎖綫（零高度 positioned wrapper，與 works 一致結構；anchor 點 = btn 位置 100px；封鎖綫在 15vh）-->
-      <div id="class" class="relative w-full pointer-events-none" style="scroll-margin-top: 100px; height: 0;">
+      <div id="class" class="snap-zone relative w-full pointer-events-none" style="scroll-margin-top: 100px; height: 0;">
         <div class="section-title-strip absolute left-0 right-0 flex items-center pointer-events-auto" style="top: 15vh; overflow: visible; z-index: 0; padding: var(--spacing-md) 0;" data-anchor="class">
           <div class="section-title-inner flex gap-md" style="white-space: nowrap; padding: var(--spacing-md);" data-section-title>
-            <h1>Programs</h1>
-            <h1>學制</h1>
+            <h2 class="text-h1">Programs</h2>
+            <h2 class="text-h1">學制</h2>
           </div>
         </div>
       </div>
@@ -270,11 +272,11 @@
         </div>
 
         <!-- Works Anchor + 封鎖綫（零高度 positioned wrapper；anchor 點 = btn 位置 100px；封鎖綫在 15vh）-->
-        <div id="works" class="relative w-full pointer-events-none" style="scroll-margin-top: 100px; height: 0;">
+        <div id="works" class="snap-zone relative w-full pointer-events-none" style="scroll-margin-top: 100px; height: 0;">
           <div class="section-title-strip absolute left-0 right-0 flex items-center pointer-events-auto" style="top: 15vh; overflow: visible; z-index: 0; padding: var(--spacing-md) 0;" data-anchor="works">
             <div class="section-title-inner flex gap-md" style="white-space: nowrap; padding: var(--spacing-md);" data-section-title>
-              <h1>Works</h1>
-              <h1>作品</h1>
+              <h2 class="text-h1">Works</h2>
+              <h2 class="text-h1">作品</h2>
             </div>
           </div>
         </div>
@@ -365,13 +367,13 @@
 
       <!-- Resources Section -->
       <!-- z-20：封鎖綫旋轉後上角會凸出 section 頂邊（~150px），z-10 會被上面 class(z-20) 的 bg-white 蓋掉 -->
-      <section id="resources" class="bg-white relative z-20 overflow-visible pt-3xl" style="min-height: 100vh;">
+      <section id="resources" class="snap-zone bg-white relative z-20 overflow-visible pt-3xl" style="min-height: 100vh;">
 
         <!-- Section Title Strip（封鎖綫，h1 字體，位於 section 頂部）-->
         <div class="section-title-strip absolute left-0 right-0 flex items-center" style="top: 0; overflow: visible; z-index: 0; padding: var(--spacing-md) 0;" data-anchor="resources">
           <div class="section-title-inner flex gap-md" style="white-space: nowrap; padding: var(--spacing-md);" data-section-title>
-            <h1>Resources</h1>
-            <h1>環境資源</h1>
+            <h2 class="text-h1">Resources</h2>
+            <h2 class="text-h1">環境資源</h2>
           </div>
         </div>
 
@@ -385,13 +387,13 @@
       </section>
 
       <!-- History / Timeline Section -->
-      <section id="history" class="relative bg-white pb-6xl z-20" style="clip-path: inset(-100vh 0); padding-top: 100px;">
+      <section id="history" class="snap-zone relative bg-white pb-6xl z-20" style="clip-path: inset(-100vh 0); padding-top: 100px;">
 
         <!-- Section Title Strip（封鎖綫，h1 字體，位於 section 頂部）-->
         <div class="section-title-strip absolute left-0 right-0 flex items-center" style="top: 0; overflow: visible; z-index: 0; padding: var(--spacing-md) 0;" data-anchor="history">
           <div class="section-title-inner flex gap-md" style="white-space: nowrap; padding: var(--spacing-md);" data-section-title>
-            <h1>History</h1>
-            <h1>沿革</h1>
+            <h2 class="text-h1">History</h2>
+            <h2 class="text-h1">沿革</h2>
           </div>
         </div>
 
@@ -422,7 +424,7 @@
   </main>
 
   <!-- Footer -->
-  <div id="site-footer"></div>
+  <div id="site-footer" class="snap-zone"></div>
 
   <!-- JavaScript -->
   <!-- GSAP & ScrollTrigger -->

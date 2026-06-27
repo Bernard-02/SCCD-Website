@@ -27,7 +27,7 @@
          （descSection = 它的 nextElementSibling）來驅動 sticky 標題 chip + back/ref btn 的 scroll reveal — 移掉會整組消失 -->
     <!-- 手機高度交給 .hero-mobile（variables.css 收斂到 bg 圖底緣，圖維持 4/5.5 natural aspect 不裁切）；
          桌面維持 h-screen -->
-    <section class="md:h-screen relative overflow-x-clip md:overflow-hidden" data-hero-title-last>
+    <section class="snap-zone md:h-screen relative overflow-x-clip md:overflow-hidden" data-hero-title-last>
       <!-- 手機版（< 768px）：圖+文字 stack -->
       <div class="hero-mobile">
         <div class="hero-mobile-bg">
@@ -36,9 +36,9 @@
         <div class="hero-mobile-text">
           <!-- 年份 h6（user 2026-06-11）；font-size 由 variables.css [data-hero-title-last] 規則釘死
                （hero.css .hero-mobile-text-en 的 p1 與 typography h6 跨 layer 打架，不靠 cascade 賭） -->
-          <h6 class="text-black hero-mobile-text-en" data-hero-hl></h6>
-          <h2 class="text-black hero-mobile-title" data-hero-hl></h2>
-          <h2 class="text-black hero-mobile-title-cn" data-hero-hl></h2>
+          <p class="text-black hero-mobile-text-en font-bold" data-hero-hl></p>
+          <h1 class="text-black hero-mobile-title text-h2" data-hero-hl></h1>
+          <h1 class="text-black hero-mobile-title-cn text-h2" data-hero-hl></h1>
         </div>
       </div>
       <!-- 桌面版（≥ 768px）：
@@ -54,9 +54,9 @@
       <div class="hidden md:block absolute inset-0 z-10 pointer-events-none">
         <div class="site-container h-full">
           <div class="h-full flex flex-col items-start justify-end pb-3xl md:pb-2xl gap-md">
-            <h4 id="text-year" class="hero-text-en text-h4 text-black inline-block" data-hero-hl data-hero-enter="1"></h4>
-            <h2 id="text-title-en" class="hero-text-cn text-h2 text-black inline-block font-bold" data-hero-hl data-hero-enter="2"></h2>
-            <h2 id="text-title" class="hero-title text-black inline-block font-bold" data-hero-hl data-hero-enter="2"></h2>
+            <p id="text-year" class="hero-text-en text-h4 font-bold text-black inline-block" data-hero-hl data-hero-enter="1"></p>
+            <h1 id="text-title-en" class="hero-text-cn text-h2 text-black inline-block font-bold" data-hero-hl data-hero-enter="2"></h1>
+            <h1 id="text-title" class="hero-title text-h2 text-black inline-block font-bold" data-hero-hl data-hero-enter="2"></h1>
           </div>
         </div>
       </div>
@@ -64,22 +64,22 @@
 
     <!-- 文字説明 Section（min 100vh；移除 flex 居中改用自然流，pt-6xl 給頂部呼吸空間）
          id 給 variables.css 手機 grid-20 column-gap:0 修正用（19 個 gap 撐爆容器 → 內容溢出右緣，同 about 修法） -->
-    <section id="dsd-desc-section" class="bg-white relative" style="min-height: 100vh;">
+    <section id="dsd-desc-section" class="snap-zone bg-white relative" style="min-height: 100vh;">
       <div class="site-container w-full pt-6xl pb-3xl">
         <!-- grid-20：內容對齊全站 col-5（nav/sticky chip 占 cols 1-4）；EN cols 5-12 / ZH cols 13-20 -->
         <div class="grid-20">
           <!-- English (左) — .dsd-desc：手機縮到 p1（桌面維持 h5）；EN/ZH 手機堆疊間距走 grid-20 row-gap，
                不另加 mb（user 2026-06-11 去掉 mb-lg） -->
           <div class="col-span-full md:col-start-5 md:col-span-8">
-            <h5 class="dsd-desc text-black leading-snug">
+            <p class="dsd-desc text-black leading-snug font-bold">
               <span id="text-desc-en" style="display: block;"></span>
-            </h5>
+            </p>
           </div>
           <!-- Chinese (右) -->
           <div class="col-span-full md:col-start-13 md:col-span-8">
-            <h5 class="dsd-desc text-black leading-base">
+            <p class="dsd-desc text-black leading-base font-bold">
               <span id="text-desc-cn" style="display: block;"></span>
-            </h5>
+            </p>
           </div>
         </div>
 
@@ -192,11 +192,11 @@
               另一張同時 clip-path 掃入隨機色（仿首頁 newsOverlay）；
          手機：單純 stack。
          posters 隨機旋轉 -4°~6°（排除 0）。 -->
-    <section id="next-project-section" class="bg-white relative overflow-hidden pt-3xl pb-3xl md:pt-6xl md:pb-6xl">
+    <section id="next-project-section" class="snap-zone bg-white relative overflow-hidden pt-3xl pb-3xl md:pt-6xl md:pb-6xl">
       <!-- 桌面版：overlap stage -->
       <div id="next-project-stage" class="hidden md:block relative w-full">
         <!-- prev：older year，左上（66vw + 左移 -8vw，與 next 在中段重疊） -->
-        <a id="prev-link" href="#" class="block absolute" style="top: 0; left: -8vw; width: 66vw; z-index: 1;">
+        <a id="prev-link" href="#" class="block absolute" aria-label="上一屆畢業展 Previous degree show" style="top: 0; left: -8vw; width: 66vw; z-index: 1;">
           <div id="prev-card" class="relative">
             <img id="prev-img" src="../images/Degree Show.jpg" alt="" class="block w-full h-auto pointer-events-none">
             <div id="prev-dim" class="absolute inset-0 bg-black pointer-events-none" style="opacity: 0.5; transition: opacity 0.3s ease;"></div>
@@ -204,7 +204,7 @@
           </div>
         </a>
         <!-- next：newer year，右下（66vw + 右移 -8vw） -->
-        <a id="next-link" href="#" class="block absolute" style="right: -8vw; width: 66vw; z-index: 1;">
+        <a id="next-link" href="#" class="block absolute" aria-label="下一屆畢業展 Next degree show" style="right: -8vw; width: 66vw; z-index: 1;">
           <div id="next-card" class="relative">
             <img id="next-img" src="../images/Degree Show.jpg" alt="" class="block w-full h-auto pointer-events-none">
             <div id="next-dim" class="absolute inset-0 bg-black pointer-events-none" style="opacity: 0.5; transition: opacity 0.3s ease;"></div>
@@ -218,14 +218,14 @@
              - gap 對齊 hero `gap-md`（1.5rem）
              - chip 預設 clip-path 隱藏，hover 時 stagger reveal（prev 從左到右、next 從右到左） -->
         <div id="prev-labels" class="absolute flex flex-col items-start pointer-events-none" style="bottom: 20%; left: 5vw; gap: 1.5rem; z-index: 5;">
-          <h4 id="prev-year" class="font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: left center; clip-path: inset(0 100% 0 0); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></h4>
-          <h2 id="prev-title-en" class="font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: left center; clip-path: inset(0 100% 0 0); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></h2>
-          <h2 id="prev-title" class="font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: left center; clip-path: inset(0 100% 0 0); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></h2>
+          <p id="prev-year" class="text-h4 font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: left center; clip-path: inset(0 100% 0 0); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></p>
+          <p id="prev-title-en" class="text-h2 font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: left center; clip-path: inset(0 100% 0 0); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></p>
+          <p id="prev-title" class="text-h2 font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: left center; clip-path: inset(0 100% 0 0); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></p>
         </div>
         <div id="next-labels" class="absolute flex flex-col items-end pointer-events-none" style="top: 20%; right: 5vw; gap: 1.5rem; z-index: 5;">
-          <h4 id="next-year" class="font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: right center; clip-path: inset(0 0 0 100%); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></h4>
-          <h2 id="next-title-en" class="font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: right center; clip-path: inset(0 0 0 100%); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></h2>
-          <h2 id="next-title" class="font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: right center; clip-path: inset(0 0 0 100%); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></h2>
+          <p id="next-year" class="text-h4 font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: right center; clip-path: inset(0 0 0 100%); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></p>
+          <p id="next-title-en" class="text-h2 font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: right center; clip-path: inset(0 0 0 100%); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></p>
+          <p id="next-title" class="text-h2 font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: right center; clip-path: inset(0 0 0 100%); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></p>
         </div>
       </div>
 
@@ -233,22 +233,22 @@
       <div class="md:hidden site-container flex flex-col gap-3xl">
         <a id="prev-link-m" href="#" class="block">
           <img id="prev-img-m" src="../images/Degree Show.jpg" alt="" class="block w-full h-auto">
-          <h5 id="prev-year-mobile" class="text-black whitespace-nowrap mt-sm"></h5>
-          <h5 id="prev-title-en-mobile" class="text-black whitespace-nowrap"></h5>
-          <h5 id="prev-title-mobile" class="text-black whitespace-nowrap"></h5>
+          <p id="prev-year-mobile" class="text-h5 font-bold text-black whitespace-nowrap mt-sm"></p>
+          <p id="prev-title-en-mobile" class="text-h5 font-bold text-black whitespace-nowrap"></p>
+          <p id="prev-title-mobile" class="text-h5 font-bold text-black whitespace-nowrap"></p>
         </a>
         <a id="next-link-m" href="#" class="block">
           <img id="next-img-m" src="../images/Degree Show.jpg" alt="" class="block w-full h-auto">
-          <h5 id="next-year-mobile" class="text-black whitespace-nowrap mt-sm"></h5>
-          <h5 id="next-title-en-mobile" class="text-black whitespace-nowrap"></h5>
-          <h5 id="next-title-mobile" class="text-black whitespace-nowrap"></h5>
+          <p id="next-year-mobile" class="text-h5 font-bold text-black whitespace-nowrap mt-sm"></p>
+          <p id="next-title-en-mobile" class="text-h5 font-bold text-black whitespace-nowrap"></p>
+          <p id="next-title-mobile" class="text-h5 font-bold text-black whitespace-nowrap"></p>
         </a>
       </div>
     </section>
   </main>
 
   <!-- Footer -->
-  <div id="site-footer"></div>
+  <div id="site-footer" class="snap-zone"></div>
 
   <!-- JavaScript -->
   <!-- GSAP & ScrollTrigger -->

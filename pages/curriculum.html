@@ -20,7 +20,7 @@
     <!-- Courses Hero Section
          桌面 .hero-rand-grid：4 元素隨機 corner 排版（hero-animation.js）
          手機 .hero-mobile：圖墊底 + 文字 stack 疊在圖上（hero-mobile-sync.js 從桌面 clone） -->
-    <section class="min-h-screen md:h-screen relative overflow-x-clip md:overflow-hidden">
+    <section class="snap-zone min-h-screen md:h-screen relative overflow-x-clip md:overflow-hidden">
       <!-- 手機版 -->
       <div class="hero-mobile">
         <div class="hero-mobile-bg">
@@ -53,14 +53,14 @@
          Layout（桌面）：左 program bar (vertical sticky) ｜ 中 grid panels ｜ 右 sticky desc panel
                 Mobile：垂直堆疊（bar → panels → desc 隱藏）
     -->
-    <section class="bg-white min-h-screen pt-6xl pb-6xl md:py-6xl" id="courses-content-section">
+    <section class="snap-zone bg-white min-h-screen pt-6xl pb-6xl md:pt-6xl md:pb-3xl" id="courses-content-section">
       <div class="site-container">
         <!-- grid-20：桌面 program bar 占 cols 1-4、課程內容 cols 5-20（對齊 faculty/about col-5）；手機 flex-col 堆疊 -->
         <div class="courses-content-row flex flex-col gap-gutter md:grid md:grid-cols-20">
 
           <!-- Left column: program btn bar（桌面 cols 1-4，vertical sticky；mobile 直接 flex-col 自然流）
                注意：bar 容器佔 col-span-4，但 courses.css 的 width:14rem 仍保留 bar 寬度＝按鈕不動 -->
-          <div class="courses-program-bar flex flex-col items-start gap-lg md:gap-2xl mb-2xl md:mb-0 md:col-span-4">
+          <div class="courses-program-bar flex flex-col items-start gap-lg md:gap-2xl mb-md md:mb-0 md:col-span-4">
             <div class="courses-program-group flex flex-col items-start gap-xs">
               <span class="courses-bfa-label">BFA 學士班</span>
               <button class="courses-program-btn active" data-program="bfa-animation">
@@ -126,7 +126,7 @@
   </main>
 
   <!-- Footer -->
-  <div id="site-footer"></div>
+  <div id="site-footer" class="snap-zone"></div>
 
   <!-- JavaScript -->
   <!-- GSAP & ScrollTrigger -->

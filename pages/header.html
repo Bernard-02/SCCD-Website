@@ -1,11 +1,13 @@
 <header class="fixed top-0 left-0 right-0 z-50">
+  <!-- 無障礙 Phase 1：鍵盤 Tab 第一站，跳過導航直達主內容（#page-content 跨 SPA 換頁恆在） -->
+  <a href="#page-content" class="skip-link">跳到主要內容 Skip to content</a>
   <div class="site-container">
     <!-- 桌面版：整排 flex，1rem top padding -->
     <div class="hidden md:flex items-center pt-[2.5rem]">
 
       <!-- Logo -->
       <div class="relative flex-shrink-0 z-10">
-        <a href="../index.html" class="absolute -top-4 left-0 z-50">
+        <a href="../index.html" class="absolute -top-4 left-0 z-50" aria-label="SCCD 首頁 Home">
           <div id="header-logo" class="w-[180px] h-[180px]"></div>
         </a>
         <!-- 佔位撐開 logo 寬度 -->
@@ -96,10 +98,10 @@
         <!-- Lottie 圓圈 logo：absolute + -top-4 是因 80×80 圓圈視覺中心對齊 grid row 需要往上補 16px
              SCCD 文字 logo：normal flow 在 col-span-6 內，flex items-center 自動垂直對齊 mode/menu btn 那排
              兩個 sibling 互斥（Lottie 顯示時 SCCD .hidden；進 /create 反過來），由 header.js 切換 -->
-        <a href="../index.html" class="absolute -top-4 left-0 z-50" data-mobile-logo-lottie-anchor>
+        <a href="../index.html" class="absolute -top-4 left-0 z-50" data-mobile-logo-lottie-anchor aria-label="SCCD 首頁 Home">
           <div id="header-logo-mobile" class="w-[80px] h-[80px]"></div>
         </a>
-        <a href="../index.html" id="header-logo-mobile-sccd" class="hidden z-50" data-mobile-logo-sccd-anchor></a>
+        <a href="../index.html" id="header-logo-mobile-sccd" class="hidden z-50" data-mobile-logo-sccd-anchor aria-label="SCCD 首頁 Home"></a>
       </div>
       <div class="col-span-6 flex justify-end items-center gap-sm relative z-50">
         <!-- mobile mode-btn：跟桌面 #mode-btn 同 bg 邏輯（bg = page bg / mode-aware）— 用 #mode-btn-mobile id 對接 buttons.css 規則
@@ -112,7 +114,7 @@
         <!-- mobile menu-btn：方形（user 2026-05-25 拍板）；漢堡 icon 加旋轉動畫（mobile-menu.js 控）
              icon 開關用 inline style.display 切換（避 Tailwind .hidden vs FA display:inline-block cascade 競爭） -->
         <div class="mobile-header-btn flex items-center justify-center">
-          <button class="mobile-menu-btn w-full h-full flex items-center justify-center" aria-label="Toggle menu">
+          <button class="mobile-menu-btn w-full h-full flex items-center justify-center" aria-label="Toggle menu" aria-expanded="false" aria-controls="mobile-nav-panel">
             <span class="icon icon-menu icon-l mobile-menu-icon-rotate" data-mobile-menu-icon="open"></span>
             <span class="icon icon-arrow-right icon-l" data-mobile-menu-icon="close" style="display:none"></span>
           </button>
@@ -126,7 +128,7 @@
        上組（about-group）= 桌面 about-bar 內 5 個（About / Faculty / Curriculum / Activities / Admissions）
        下組（utility-group）= 桌面右側獨立 bar 們（Library / Atlas / A.A. / CREATE!）
        中間用 flex-1 空白撐開分組視覺 -->
-  <div class="mobile-nav fixed inset-0 bg-white z-40 md:hidden flex flex-col" style="transform: translateX(-100%);">
+  <div class="mobile-nav fixed inset-0 bg-white z-40 md:hidden flex flex-col" id="mobile-nav-panel" role="dialog" aria-modal="true" aria-label="主選單 Main menu" style="transform: translateX(-100%);">
     <div class="site-container flex-1 flex flex-col pt-6xl pb-4xl">
       <nav class="flex-1 flex flex-col overflow-y-auto overflow-x-hidden">
         <!-- 上組：about-bar 內 5 項，順序對齊桌面：About → Faculty → Curriculum → Activities → Admissions

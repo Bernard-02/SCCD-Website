@@ -26,7 +26,7 @@
          桌面 .hero-rand-grid：4 元素隨機 2×2 grid 排版（hero-animation.js randomizeHeroLayout）
          手機 .hero-mobile：圖墊底 + 文字 stack 疊在圖上（hero-mobile-sync.js init 時從桌面 clone 文案/圖）
          兩套 DOM 並存，CSS @media 切 display；內容單一來源（桌面是 source） -->
-    <section class="min-h-screen md:h-screen relative overflow-x-clip md:overflow-hidden">
+    <section class="snap-zone min-h-screen md:h-screen relative overflow-x-clip md:overflow-hidden">
       <!-- 手機版（< 768px）：圖+文字 stack -->
       <div class="hero-mobile">
         <div class="hero-mobile-bg">
@@ -58,8 +58,8 @@
     <!-- Faculty Cards Section
          min-h-screen：切到卡片數少的分類（如兼任/行政只一排）時 section 不會塌短、留白跳動（user 2026-06-07） -->
     <!-- 手機版 pt-6xl(128px)：點 nav btn 捲到此 section 時頂對齊 viewport 0（白底蓋住上方 hero），
-         pt 需 > fixed header(92px) pills 才不被蓋；6xl token 手機自動 128/桌面 192（md:py-6xl 仍覆蓋，不動桌面） -->
-    <section id="faculty-cards" class="bg-white min-h-screen pt-6xl pb-6xl md:py-6xl">
+         pt 需 > fixed header(92px) pills 才不被蓋；6xl token 手機自動 128/桌面 192（md:pt-6xl 仍覆蓋，不動桌面 pt；桌面 pb 改 md:pb-3xl=96） -->
+    <section id="faculty-cards" class="snap-zone bg-white min-h-screen pt-6xl pb-6xl md:pt-6xl md:pb-3xl">
       <div class="site-container">
         <!-- grid-20：桌面 nav 占 col 1-2（英文折行，可溢到 col 3 buffer）、卡片區 col 4-20；手機 flex-col 堆疊 -->
         <div class="flex flex-col gap-gutter md:grid md:grid-cols-20">
@@ -155,7 +155,7 @@
   </main>
 
   <!-- Footer -->
-  <div id="site-footer"></div>
+  <div id="site-footer" class="snap-zone"></div>
 
   <!-- JavaScript -->
   <!-- GSAP & ScrollTrigger -->
