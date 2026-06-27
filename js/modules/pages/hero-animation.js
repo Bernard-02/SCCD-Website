@@ -12,6 +12,7 @@
 import { registerPageExit } from '../ui/page-exit.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { DUR, EASE } from '../ui/motion.js';
+import { prefersReducedMotion } from '../ui/reduce-motion.js';
 
 // 4 方向隨機 slide-in：用 wrapper overflow:hidden 當遮罩，child 從 wrapper 外的某方向滑入
 const HERO_DIRS = ['top', 'bottom', 'left', 'right'];
@@ -630,6 +631,10 @@ function playMobileHeroEntrance() {
   const chips = [...titles, ...texts];
   if (!bg && chips.length === 0) { signalHeroDone(); return; }
 
+  // 減少動態：bg / chip 已由 hero-mobile-sync 設 visibility:visible 且在自然位置（無 offset）＝終態，
+  // 不 wrap、不跑滑入 tween，直接 signal 完成（CSS .hero-mobile-text > * 的 rotation 對 chip 直接生效）。
+  if (prefersReducedMotion()) { signalHeroDone(); return; }
+
   // CSS `.hero-mobile-text > *` 對「直接子元素」套 rotate(--hero-mobile-rot) + fit-content：
   // chip 包進 mask wrapper 後不再是直接子 → 把旋轉 var 與 margin 轉移到 wrapper
   // （旋轉跟著 mask 走、chip 在 rotated mask 內滑動，同桌面 wrapper rotate + child slide 結構）
@@ -777,20 +782,26 @@ export function initHeroAnimation() {
   const heroLogo = /** @type {HTMLElement | null} */ (document.querySelector('[data-hero-logo]'));
   if (heroLogo) {
     const logoWrapper = /** @type {HTMLElement | null} */ (heroLogo.closest('.hero-logo-wrapper'));
-    gsap.fromTo(heroLogo,
-      { yPercent: 100, visibility: 'visible' },
-      {
-        yPercent: 0,
-        duration: DUR.reveal,
-        delay: 0.3,
-        ease: EASE.enter,
-        clearProps: 'transform',
-        onComplete: () => {
-          // 解除 wrapper 裁切，讓後續 scroll parallax (scale+yPercent) 顯示完整 logo
-          if (logoWrapper) logoWrapper.style.overflow = 'visible';
-        },
-      }
-    );
+    if (prefersReducedMotion()) {
+      // 減少動態：logo 直接到位 + 解除 wrapper 裁切，不跑 clip-reveal
+      gsap.set(heroLogo, { yPercent: 0, visibility: 'visible', clearProps: 'transform' });
+      if (logoWrapper) logoWrapper.style.overflow = 'visible';
+    } else {
+      gsap.fromTo(heroLogo,
+        { yPercent: 100, visibility: 'visible' },
+        {
+          yPercent: 0,
+          duration: DUR.reveal,
+          delay: 0.3,
+          ease: EASE.enter,
+          clearProps: 'transform',
+          onComplete: () => {
+            // 解除 wrapper 裁切，讓後續 scroll parallax (scale+yPercent) 顯示完整 logo
+            if (logoWrapper) logoWrapper.style.overflow = 'visible';
+          },
+        }
+      );
+    }
   }
 
   // 註冊退場動畫（4 方向滑出 / banner clip 收合 / logo 沉出）—— 在此處註冊而非 buildHeroTimeline 內，
@@ -983,5 +994,10 @@ export function initHeroAnimation() {
       /** @type {HTMLElement} */ (mainSection).style.zIndex = '1';
     }
   }
+
+  // 減少動態：時間軸已建好（wrap / 版面 / z-index 都就緒），直接跳到終態而不播放滑入。
+  // tl.progress(1) 預設 suppressEvents=false → onComplete(signalHeroDone) 仍 fire；
+  // 各 tween 的 clearProps:'transform' 也照常清掉 entrance offset（無 flash，同步同一 tick）。
+  if (prefersReducedMotion()) tl.progress(1);
   }  // end buildHeroTimeline
 }

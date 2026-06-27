@@ -10,6 +10,7 @@ import { registerPageExit } from '../ui/page-exit.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { CMS_API_BASE } from '../../config/api.js';
 import { sitePath } from '../ui/site-base.js';
+import { makeActivatable } from '../ui/a11y.js';
 
 // ── canvas 字母排版 ────────────────────────────────────────────
 
@@ -322,6 +323,8 @@ function initYTCardClick(ytCard, playerRef) {
     if (ytCard.dataset.clickAnimating === '1') return;
     removeNewsHover();
   });
+
+  makeActivatable(ytCard, 'WATCH! 影片 Play video'); // 無障礙：圓形卡是 <div>，補可 Tab + Enter 開影片
 
   ytCard.addEventListener('click', () => {
     // player 還沒 ready（fetch 還沒 resolve / 失敗 / json 缺 videoUrl）→ silent no-op

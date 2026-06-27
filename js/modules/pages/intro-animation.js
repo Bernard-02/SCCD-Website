@@ -1,4 +1,5 @@
 import { DUR, EASE } from '../ui/motion.js';
+import { prefersReducedMotion } from '../ui/reduce-motion.js';
 /**
  * Intro Animation Module
  * 網站進場動畫 - 使用 Lottie 播放 AE 動畫
@@ -13,6 +14,16 @@ export function initIntroAnimation() {
   const container = document.getElementById('intro-lottie');
 
   if (!overlay || !container) return;
+
+  // 減少動態：跳過 Lottie loader + fade 過場，直接顯示內容與 header（header 進場時 opacity:0，要補回 1）。
+  if (prefersReducedMotion()) {
+    overlay.style.display = 'none';
+    document.body.style.overflow = '';
+    const showHeader = () => { const h = document.querySelector('header'); if (h) h.style.opacity = '1'; };
+    if (document.querySelector('header')) showHeader();
+    else document.addEventListener('header:ready', showHeader, { once: true });
+    return;
+  }
 
   // 鎖定 scroll（隱藏 scrollbar）
   document.body.style.overflow = 'hidden';

@@ -1,4 +1,5 @@
 import { DUR, EASE } from './motion.js';
+import { prefersReducedMotion } from './reduce-motion.js';
 /**
  * Scroll Animate Module
  * 通用卡片進場動畫，可搭配 ScrollTrigger 或直接執行
@@ -55,7 +56,8 @@ export function setupClipReveal(elements, { hide = true } = {}) {
     el.dataset.clipWrapped = '1';
   });
 
-  if (hide) gsap.set(items, { yPercent: 100 });
+  // 減少動態：不隱藏（元素留在終態可見），下方 playClipReveal 也會 early-return 不跑滑入。
+  if (hide && !prefersReducedMotion()) gsap.set(items, { yPercent: 100 });
   return items;
 }
 
@@ -67,6 +69,12 @@ export function playClipReveal(elements, { onComplete = null, stagger } = {}) {
   const items = Array.from(elements);
   if (items.length === 0) return;
   gsap.killTweensOf(items);
+  // 減少動態：直接到終態，不滑入（仍呼叫 onComplete，呼叫端可能依賴它接後續）。
+  if (prefersReducedMotion()) {
+    gsap.set(items, { yPercent: 0, clearProps: 'transform' });
+    if (onComplete) onComplete();
+    return;
+  }
   gsap.to(items, {
     yPercent: 0,
     duration: DUR.reveal,
@@ -84,7 +92,8 @@ export function animateCardsClipReveal(elements, useScrollTrigger = true, { onLa
   const items = setupClipReveal(elements);
   if (items.length === 0) return [];
 
-  if (useScrollTrigger && typeof ScrollTrigger !== 'undefined') {
+  // 減少動態：跳過 ScrollTrigger 分批，直接 playClipReveal（內部 gated 成即時到位 + onLastEnter）。
+  if (useScrollTrigger && typeof ScrollTrigger !== 'undefined' && !prefersReducedMotion()) {
     let enteredCount = 0;
     return ScrollTrigger.batch(items, {
       start: 'top 90%',
@@ -118,6 +127,13 @@ export function animateCards(elements, useScrollTrigger = false, { fadeIn = fals
   const fromProps = fadeIn ? { y: 100, opacity: 0 } : { y: 100 };
   const toProps   = fadeIn ? { y: 0, opacity: 1 }   : { y: 0 };
   const clearProps = fadeIn ? 'transform,opacity' : 'transform';
+
+  // 減少動態：直接到終態、不位移/淡入，仍呼叫 onLastEnter。
+  if (prefersReducedMotion()) {
+    gsap.set(items, { ...toProps, clearProps });
+    if (onLastEnter) onLastEnter();
+    return [];
+  }
 
   gsap.set(items, fromProps);
 
@@ -186,6 +202,7 @@ function exitTargets(elements, viewportOnly) {
  */
 export function playRevealExit(elements, { stagger = 0.06, fromEnd = false, duration = DUR.base, viewportOnly = true } = {}) {
   if (typeof gsap === 'undefined') return Promise.resolve();
+  if (prefersReducedMotion()) return Promise.resolve();  // 減少動態：不跑退場，直接換頁
   const items = exitTargets(elements, viewportOnly);
   if (items.length === 0) return Promise.resolve();
   setupClipReveal(items, { hide: false });
@@ -217,6 +234,7 @@ const _EXIT_CLIP_DIRS = [
  */
 export function playClipPathExit(elements, { stagger = 0.04, fromEnd = true, duration = DUR.base, viewportOnly = true } = {}) {
   if (typeof gsap === 'undefined') return Promise.resolve();
+  if (prefersReducedMotion()) return Promise.resolve();  // 減少動態：不跑退場，直接換頁
   const items = exitTargets(elements, viewportOnly);
   if (items.length === 0) return Promise.resolve();
   const n = items.length;

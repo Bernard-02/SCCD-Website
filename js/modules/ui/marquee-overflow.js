@@ -21,6 +21,8 @@
  * @param {string} innerSelector - row 內部包文字的 inner span selector
  * @param {{speed?: number, minDuration?: number}} [opts]
  */
+import { prefersReducedMotion } from './reduce-motion.js';
+
 export function applyMarqueeOverflow(scope, rowSelector, innerSelector, opts = {}) {
   const speed = opts.speed ?? 80;
   const minDuration = opts.minDuration ?? 3;
@@ -37,6 +39,14 @@ export function applyMarqueeOverflow(scope, rowSelector, innerSelector, opts = {
       inner.innerHTML = first.innerHTML;
     }
 
+    // row.offsetWidth === 0：容器尚未 sized（SPA / deep-link 進場時卡片還沒排版完）→ scrollWidth - 0 必 > 0，
+    // 會把每個沒真的溢出的標題誤判溢出 → 全部跑 marquee（library awards 多得獎人名字錯位 / 被切掉）。
+    // 0 寬無法可靠偵測溢出，直接 bail；caller 的 _XMarqueeInit（panel show 後 rAF 重觸）會在 sized 後重量。
+    // 對齊桌面 applyWinnersHMarquee 的 `if (!pairW) return` 護欄。
+    if (!row.offsetWidth) return;
+    // 減少動態：不啟動跑馬燈循環，靜態顯示（溢出文字回到無 marquee 的 CSS 裁切狀態）。
+    // reset 已在上面把 dual-copy 還原成單份，這裡只是不再加 is-overflow / 不建第二份。
+    if (prefersReducedMotion()) return;
     const overflow = inner.scrollWidth - row.offsetWidth;
     if (overflow <= 0) return;
 

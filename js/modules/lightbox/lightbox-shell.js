@@ -83,6 +83,8 @@ export function animateHeaderShow(targets, { duration = DUR.slow, ease = EASE.en
 // 多個 lightbox 同時/連續開關時保持 body state 一致
 let openCount = 0;
 let savedHeaderZ = null;
+// 無障礙：記住開啟 lightbox 前的焦點元素，關閉時還原（WCAG 2.4.3 焦點順序）
+let savedFocusEl = null;
 // 底層 scroll freeze 的解除函式（見 installScrollLock）
 let scrollLockCleanup = null;
 
@@ -256,6 +258,7 @@ function installScrollLock() {
 // 共用同一套行為：① freeze 底層捲動 ② 凍結在當下畫面、不跳頂部、頁內 sticky 不動 ③ 關閉還原。統一不分流。
 export function enterLightboxMode() {
   if (openCount === 0) {
+    savedFocusEl = document.activeElement; // 無障礙：存開啟 lightbox 的觸發元素，exit 時還焦
     callResetFooterHide();
     // freeze 底層捲動：純擋輸入，完全不碰 body/html overflow（保住頁內 sticky 不跳、也不跳頂部）。
     // ⚠️ 連 body.overflow:hidden 都不能設：clip 頁（faculty/activities，html inline overflow-x:clip）html overflow
@@ -283,6 +286,9 @@ export function exitLightboxMode() {
     animateHeaderShow(getHeaderTargets());
     restoreHeaderZ();
     restoreLogoLinks();
+    // 無障礙：把焦點還給開啟 lightbox 的元素（preventScroll：別把頁面捲走）
+    if (savedFocusEl && typeof savedFocusEl.focus === 'function') savedFocusEl.focus({ preventScroll: true });
+    savedFocusEl = null;
     // 延後到 fade-out 結束（300ms 對齊 activities/library 的 opacity transition）：
     // 立即還原 padding 會讓內容在 fade-out 期間瞬間往上跳，視覺割裂
     setTimeout(() => {
@@ -294,6 +300,7 @@ export function exitLightboxMode() {
 // SPA 換頁時呼叫（main-modular.js cleanupPageModules）：強制歸零，避免任何 modal 沒走 exit 流程時 state 殘留
 export function resetLightboxMode() {
   openCount = 0;
+  savedFocusEl = null; // SPA 換頁清掉，不把焦點還到舊頁元素
   restoreLightboxTops();
   restoreHeaderZ();
   restoreLogoLinks();  // SPA 換頁時 modal 還開著（如返回鍵）→ 把 logo href 還回去，否則下一頁 logo 變死連結

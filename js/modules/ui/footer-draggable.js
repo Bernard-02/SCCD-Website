@@ -20,6 +20,7 @@
 import { setupClipReveal, playClipReveal, playRevealExit } from './scroll-animate.js';
 import { awaitLayoutReady } from './await-layout-ready.js';
 import { DUR, EASE } from './motion.js';
+import { prefersReducedMotion } from './reduce-motion.js';
 // 沿用 header bars 的 clip-path 收/展（user 2026-06-07：footer logo 隱藏要跟 header logo 同法、不用 opacity）
 import { animateHeaderHide, animateHeaderShow } from '../lightbox/lightbox-shell.js';
 
@@ -534,14 +535,17 @@ export async function initFooterScatter(scope) {
   // 等 1 frame 讓 gsap.set 位置 settle 後再 reveal
   await new Promise((r) => requestAnimationFrame(r));
 
-  if (typeof gsap !== 'undefined') {
+  // 減少動態：不跑進場滑入、也不啟動 10s 洗牌循環（WCAG 2.2.2 自動更新內容）。
+  // 直接顯示 initial layout 的靜態散佈：anchor opacity:1 + 清掉 hideItemsRandomDirection 設的 entrance offset。
+  if (typeof gsap !== 'undefined' && !prefersReducedMotion()) {
     gsap.set(anchors, { opacity: 1 });
     playRandomDirReveal(items);
   } else {
     anchors.forEach((a) => { a.style.opacity = '1'; });
+    if (typeof gsap !== 'undefined') gsap.set(items, { clearProps: 'transform' });
   }
 
-  startShuffleLoop(area, anchors, obstacles, items, fallbackLayout);
+  if (!prefersReducedMotion()) startShuffleLoop(area, anchors, obstacles, items, fallbackLayout);
 }
 
 // ── 離頁退場 + 換頁後重置（user 2026-06-07：點 footer 連結離頁時 footer 元素也做出場，過場才不硬）──

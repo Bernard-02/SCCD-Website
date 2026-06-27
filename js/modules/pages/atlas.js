@@ -2,6 +2,7 @@
 import { applyMarqueeOverflow } from '../ui/marquee-overflow.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { DUR, EASE } from '../ui/motion.js';
+import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { loadAtlasData } from './atlas-source.js';
 import { countryName } from '../../data/country-names.js';
 import { sitePath } from '../ui/site-base.js';
@@ -1406,6 +1407,12 @@ export async function initAtlas(options = {}) {
   //   寫 ~250 個 transform + ~190 條線端點。各 stage.style.display 變動點都會呼叫此函式重新評估。
   //   暫停期間累積時間在恢復時補回 floatStart → ambient 漂移從停的地方接續、不跳。
   function refreshFloatRunning() {
+    // 減少動態：定位一次後凍結，不持續 rAF 漂浮（WCAG 2.3.3 / 2.2.2）。tickFloat 用絕對時間算位置、
+    // floatRunning 維持 false → 跑一幀即完整定位且不自排下一幀；display/visibility 變動時再補定位一次。
+    if (prefersReducedMotion()) {
+      if (!document.hidden && stage.style.display !== 'none') tickFloat(performance.now());
+      return;
+    }
     const want = !document.hidden && stage.style.display !== 'none';
     if (want && !floatRunning) {
       if (floatPausedAt != null) { floatStart += (performance.now() - floatPausedAt) / 1000; floatPausedAt = null; }
@@ -1847,7 +1854,7 @@ export async function initAtlas(options = {}) {
 
   // options.instant（idle-standby 背景分頁掛載）：跳過 intro scale 直接定態 SCALE_DEFAULT。
   // 背景分頁 rAF 暫停 → 否則 tween 卡在 0.55，使用者切回本 tab 才從 0.55 zoom 到 0.78（1.5s）＝「切回來才進場」。
-  if (typeof gsap !== 'undefined' && !isMobileAtlas && !options.instant) {
+  if (typeof gsap !== 'undefined' && !isMobileAtlas && !options.instant && !prefersReducedMotion()) {
     // intro scale tween 期間整層 GPU promote，否則 50+ chip + ring + lines 一起 scale
     // 每 frame 都得 re-rasterize → SPA 換頁剛 swap DOM 那刻特別卡
     // tween 完才關，避免長期 promote 高 zoom 時文字糊
@@ -2141,6 +2148,7 @@ export async function initAtlas(options = {}) {
     function show(opts) {
       if (visible) return;
       visible = true;
+      el.setAttribute('tabindex', '0'); // 無障礙：顯示時可聚焦
       if (typeof gsap === 'undefined') {
         el.style.height = ''; el.style.paddingTop = ''; el.style.paddingBottom = ''; el.style.marginTop = ''; el.style.clipPath = CHIP_VISIBLE_CLIP;
         return;
@@ -2179,6 +2187,7 @@ export async function initAtlas(options = {}) {
     function hide(opts) {
       if (!visible) return;
       visible = false;
+      el.setAttribute('tabindex', '-1'); // 無障礙：收合時移出 tab 順序
       if (typeof gsap === 'undefined') {
         el.style.height = '0'; el.style.paddingTop = '0'; el.style.paddingBottom = '0'; el.style.marginTop = COLLAPSED_MARGIN_TOP; el.style.clipPath = CHIP_HIDDEN_CLIP;
         return;
@@ -2268,6 +2277,15 @@ export async function initAtlas(options = {}) {
       zhEl.textContent = label.zh;
       chip.appendChild(enEl);
       chip.appendChild(zhEl);
+      // 無障礙：subchip 是可點 <div> toggle → 補 button 語義 + 鍵盤；預設收合 tabindex=-1（不可聚焦隱形元素），
+      // createStaticChipCtrl.show 顯示時改 0、hide 改回 -1（WCAG 2.1.1 / 4.1.2）。
+      chip.setAttribute('role', 'button');
+      chip.setAttribute('tabindex', '-1');
+      chip.setAttribute('aria-pressed', 'true');
+      chip.setAttribute('aria-label', `${label.en} ${label.zh}`);
+      chip.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); chip.click(); }
+      });
       lastInsertedEl.insertAdjacentElement('afterend', chip);
       lastInsertedEl = chip;
       mapSubchipCtrls.push(createStaticChipCtrl(chip));
@@ -2282,6 +2300,7 @@ export async function initAtlas(options = {}) {
       chip.addEventListener('click', () => {
         subchipActive[key] = !subchipActive[key];
         chip.classList.toggle('subchip-inactive', !subchipActive[key]);
+        chip.setAttribute('aria-pressed', String(subchipActive[key])); // 無障礙：報讀 toggle 狀態
         if (!subchipActive.host && !subchipActive.employ) {
           // 兩個都關 → alumni 整個 inactive；先 reset flag + class 讓下次重開 alumni 兩 subchip 都回 active
           // selected.size <= 1 的 guard 由 alumni btn 流程處理；這裡複製同邏輯（保留至少 1 個 filter active）
@@ -2568,7 +2587,10 @@ export async function initAtlas(options = {}) {
       chevronBottomY = window.innerHeight - 84;
     }
     // items 容器頂 = headerH + 64 (上方留白) + TITLEBLOCK_H；底 = chevronBottomY
-    const containerH = chevronBottomY - headerH - 64 - TITLEBLOCK_H;
+    // chevron 跨整欄、貼欄底 → 從 items 區再扣一條 CHEVRON_BAND，items 在其上整片均分、最後一個落在 chevron 上緣
+    // （user 2026-06-25；之前 chevron 佔 1 整列 slot 害 items 上面擠、底部空一大塊）。
+    const CHEVRON_BAND = 48;
+    const containerH = chevronBottomY - headerH - 64 - TITLEBLOCK_H - CHEVRON_BAND;
     const itemH = ITEM_H_PER_CAT[cat] || 84;
     const rowsPerCol = Math.max(3, Math.floor(containerH / itemH));
     const leftover = Math.max(0, containerH - (rowsPerCol * itemH));
@@ -2678,8 +2700,11 @@ export async function initAtlas(options = {}) {
     }
 
     const allItems = listGrouped[cat];
-    // col1 有 rowsPerCol 個 items；col2 有 rowsPerCol - 1 個 items + 1 個 nav slot
-    const itemsPerPage = rowsPerCol * 2 - 1;
+    // 桌面：chevron 跨整欄、貼在 col-items 底帶（calcListPageSize 已從 items 區扣 CHEVRON_BAND，items 不會碰到它）
+    //   → 兩 sub-col 都放滿 rowsPerCol 個、整片均分、最後一個 item 落在 chevron 上緣（user 2026-06-25）。
+    // 手機維持原樣（nav 在右 sub-col 佔 1 slot）。
+    const navSpansCol = !isMobileAtlas;
+    const itemsPerPage = navSpansCol ? rowsPerCol * 2 : rowsPerCol * 2 - 1;
     const maxPage = Math.max(0, Math.ceil(allItems.length / itemsPerPage) - 1);
     const safePage = Math.min(Math.max(0, page), maxPage);
     listPageState[cat] = safePage;
@@ -2699,8 +2724,7 @@ export async function initAtlas(options = {}) {
       subCol1.className = 'atlas-list-sub-col';
       pageItems.slice(0, rowsPerCol).forEach(item => subCol1.appendChild(buildListItemEl(item, cat)));
 
-      // Sub-col 2：後 (rowsPerCol - 1) 個 items；nav 走 absolute 定位、永遠貼 sub-col 底
-      // → 不再補 empty placeholder（chevron 不靠 flex flow 撐到底部，items 數量變化不會推到它）
+      // Sub-col 2：剩下的 items（桌面 rowsPerCol 個；手機 rowsPerCol-1 個 + nav）；nav 走 absolute 定位、永遠貼底
       const subCol2 = document.createElement('div');
       subCol2.className = 'atlas-list-sub-col';
       const col2Items = pageItems.slice(rowsPerCol);
@@ -2723,10 +2747,13 @@ export async function initAtlas(options = {}) {
 
       navItem.appendChild(prevBtn);
       navItem.appendChild(nextBtn);
-      subCol2.appendChild(navItem);
 
       itemsEl.appendChild(subCol1);
       itemsEl.appendChild(subCol2);
+      // 桌面：nav append 到 .atlas-list-col-items（position:relative）→ 跨整欄、< 頂左緣 / > 頂右緣（CSS space-between）；
+      // 手機：維持 append 到右 sub-col（nav 只在右半、不跨欄）
+      if (navSpansCol) itemsEl.appendChild(navItem);
+      else subCol2.appendChild(navItem);
 
       // 主標 marquee：DOM 進入 layout 後（次幀）量寬決定是否需要 marquee
       requestAnimationFrame(() => applyListMarquee(itemsEl));

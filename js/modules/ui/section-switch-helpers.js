@@ -27,6 +27,7 @@ export function setActiveNavBtn(btns, activeKey, attrName, opts = {}) {
 
   btns.forEach(b => {
     b.classList.remove('active');
+    b.setAttribute('aria-pressed', 'false'); // 無障礙：分頁切換狀態（非僅靠顏色，WCAG 1.4.1 / 4.1.2）
     // 支援單 pill 或多 pill 結構（如 courses-program-btn--stacked）
     b.querySelectorAll('.anchor-nav-inner').forEach(inner => {
       inner.style.background = '';
@@ -36,6 +37,7 @@ export function setActiveNavBtn(btns, activeKey, attrName, opts = {}) {
 
   [...btns].filter(b => b.getAttribute(attrName) === activeKey).forEach(b => {
     b.classList.add('active');
+    b.setAttribute('aria-pressed', 'true');
     const inners = b.querySelectorAll('.anchor-nav-inner');
     inners.forEach((inner, idx) => {
       inner.style.background = color;
@@ -60,10 +62,9 @@ export function showPanel(panelSelector, targetId) {
   document.querySelectorAll(panelSelector).forEach(p => p.classList.add('hidden'));
   const target = document.getElementById(targetId);
   if (target) target.classList.remove('hidden');
-  // 清掉殘留的 pinned 旗標：被藏 panel 內「已釘住」的 list-header，IO 不會再 fire
-  // （isIntersecting 藏前藏後都 false 無狀態變化）→ .list-has-pinned-header 殘留會讓
-  // 手機 header blocker 一直蓋頂部、把 nav btn 裁掉。新 panel 若有自己的釘住 header，
-  // display 切換會觸發它的 IO 重新把旗標掛回（list-accordion.js attachStickyPinObserver）。
+  // 清掉殘留的 pinned 旗標：被藏 panel 內「已釘住」的 list-header，IO 不會再 fire（isIntersecting 藏前藏後
+  // 都 false 無狀態變化）→ .list-has-pinned-header 殘留會讓手機 header blocker 一直蓋頂部、把 nav btn 裁掉。
+  // 新 panel 若有自己的釘住 header，display 切換會觸發它的 IO 重新把旗標掛回（list-accordion.js attachStickyPinObserver）。
   document.querySelectorAll('#activities-content-section.list-has-pinned-header, #admission-content-section.list-has-pinned-header')
     .forEach(s => s.classList.remove('list-has-pinned-header'));
   return target;

@@ -143,8 +143,22 @@ function applyColorVars() {
   // ref 文字直接吃 var(--lib-fg)（=theme-fg，亮黑暗白）→ 不需另設 ref-fg var
   root.style.setProperty('--lib-ref-bg', isLightBg ? 'var(--gray-9)' : 'var(--gray-1)');
 
-  // Header logo（wireframe）對比翻色：wireframe-standard base 黑色，暗底套 invert(1) 變白
+  // --lib-*-contrast：library 主卡 mode3 改「反色島」（卡片對比 page hue：亮 hue→深卡白字 / 暗 hue→淺卡黑字，
+  // user 2026-06-27「淺 hue 灰卡要用深灰底邏輯才對」）。⚠️ atlas 也借用上面的 --lib-bg/--lib-fg 當中性灰 chip
+  // （亮 hue 淺灰匹配 page）→ 不能全域翻，故另開 contrast 變數、只在 color.css 的 #library-card subtree remap。
+  // 值＝上面 --lib-bg/--lib-zebra-alpha/--lib-ref-bg 的左右對調；卡內文字色直接用既有 --theme-fg-inverse。
+  root.style.setProperty('--lib-bg-contrast', isLightBg ? '#333333' : '#f2f2f2');
+  root.style.setProperty('--lib-zebra-alpha-contrast', isLightBg ? '0.15' : '0.05');
+  root.style.setProperty('--lib-ref-bg-contrast', isLightBg ? 'var(--gray-1)' : 'var(--gray-9)');
+  // 反色島上的黑色 PNG（awards ticker 桂冠 logo）要跟「卡底」對比，不是跟 page：卡深(亮 hue)→翻白、卡淺(暗 hue)→不翻。
+  // = --theme-invert-filter 的相反（後者跟 page：暗 page 才翻）。
+  root.style.setProperty('--lib-invert-contrast', isLightBg ? 'invert(1)' : 'invert(0)');
+
+  // Header logo（wireframe）對比翻色：wireframe-standard base 黑色，亮 hue → filter:none(黑) / 暗 hue → invert(1)(白)。
   // 直接比對 style.filter（cheap read）避免維護 lastIsLightBg 狀態 + 處理 logo async load 的 race
+  // ⚠️ slide-in / lightbox 開啟時「也一樣」走 hue 對比、不強制白（user 2026-06-24）：mode3 slide-in panel bg = theme-bg
+  //    同 hue（手機 panel w-full 蓋住 logo、桌面 panel 在右），logo 要對比那個 hue。因 hue 不因 slide-in 改變 →
+  //    開 slide-in 當下對比結果不變 → logo 不翻＝零跳動；mode3 也不換 wireframe-inverse JSON（換 JSON 會 Lottie reload 跳一下）。
   const logo = document.getElementById('header-logo');
   if (logo) {
     if (logo.dataset.logoType === 'wireframe') {
@@ -155,9 +169,8 @@ function applyColorVars() {
     }
   }
 
-  // 手機 logo 對比追蹤（mode3 slide-in：panel 底 = theme-bg 隨 hue → logo 黑線/白線翻面對比）。
-  // 只動 dataset.logoContrast==='auto'（header.js loadMobileLogo 在「slide-in + mode3」時標記）；
-  // full lightbox 'white' / slide-in mode1·2 'black' 等固定狀態由 loadMobileLogo 設好不在此翻。
+  // 手機 logo 對比追蹤（mode3：logo 一律 wireframe-standard + contrast='auto'，依 hue 翻黑/白；slide-in 時手機
+  //   panel(w-full) bg=theme-bg 蓋住 logo → 同樣對比該 hue，不強制白）。
   const mlogo = document.getElementById('header-logo-mobile');
   if (mlogo && mlogo.dataset.logoContrast === 'auto') {
     const desiredM = isLightBg ? 'none' : 'invert(1)';
@@ -221,6 +234,10 @@ function stopColorLoop() {
   root.style.removeProperty('--lib-bg');
   root.style.removeProperty('--lib-zebra-alpha');
   root.style.removeProperty('--lib-ref-bg');
+  root.style.removeProperty('--lib-bg-contrast');
+  root.style.removeProperty('--lib-zebra-alpha-contrast');
+  root.style.removeProperty('--lib-ref-bg-contrast');
+  root.style.removeProperty('--lib-invert-contrast');
   root.style.removeProperty('--theme-bg-contrast');
   root.style.removeProperty('--theme-bg-contrast-rgb');
   root.style.removeProperty('--theme-fg-contrast');
@@ -266,21 +283,24 @@ function checkSlideInState() {
     isSlideInOpen = hasSlideIn;
     const mode = getStoredMode();
     
-    // overlay（slide-in / lightbox）開啟 → 一律用 wireframe 白色 logo（wireframe-inverse），統一三 mode 視覺；
+    // overlay（slide-in / lightbox）開啟：mode1/2 換白 wireframe-inverse（本就會變、user 接受）；
+    // mode3 維持 wireframe 不換 JSON——換 wireframe-inverse 會 Lottie reload 跳動一下（user 2026-06-24 報），
+    // logo 黑/白由 applyColorVars 依 hue 對比每幀決定（slide-in 不強制白；hue 不因 slide-in 改 → 開啟當下不翻＝零跳動）。
     // 關閉 → 依 mode 還原（color=wireframe / inverse=inverse / standard=standard）
     let logoType;
-    if (isSlideInOpen) logoType = 'wireframe-inverse';
-    else if (mode === 'color') logoType = 'wireframe';
+    if (mode === 'color') logoType = 'wireframe';            // mode3 恆 wireframe（switchHeaderLogo 同 type → skip reload）
+    else if (isSlideInOpen) logoType = 'wireframe-inverse';
     else if (mode === 'inverse') logoType = 'inverse';
     else logoType = 'standard';
 
     // /create 頁是 typewriter logo，slide-in 狀態變化不該切回 Lottie（同 applyMode 的 guard）
     const _page = getCurrentPage();
     if (_page !== 'create' && _page !== 'generate' && document.getElementById('header-logo')) {
-      switchHeaderLogo(logoType);   // 桌面 logo：立即（白 wireframe 在 dim/黑 overlay 上本就可見）
-      // 手機 logo 不走 switchHeaderLogo（那支只動桌面 #header-logo）；用 header.js 暴露的 hook 同步重載
-      // （見 header.js loadMobileLogo：full lightbox 白 / slide-in 黑·mode3 對比）
-      if (typeof window.__sccdReloadMobileLogo === 'function') {
+      switchHeaderLogo(logoType);   // mode3='wireframe' 已載入 → skip（無跳動）；mode1/2 換白 wireframe-inverse
+      // 手機 logo 不走 switchHeaderLogo（那支只動桌面 #header-logo）；用 header.js 暴露的 hook 同步重載。
+      // mode3 手機 logo 也已是 wireframe-standard + contrast='auto'，開關 overlay 不需 reload（白由 applyColorVars pin）→
+      // 只 mode1/2 才 reload（standard/inverse → 白 wireframe），避免 mode3 手機也跳一下。
+      if (mode !== 'color' && typeof window.__sccdReloadMobileLogo === 'function') {
         clearTimeout(mobileSlideInLogoTimer);
         const isSlideInPanel = document.documentElement.classList.contains('has-slide-in'); // slide-in（非 full lightbox）
         if (isSlideInOpen && isSlideInPanel && window.innerWidth < 768) {
@@ -528,11 +548,11 @@ function applyMode(mode, opts) {
   const _page = getCurrentPage();
   if (_page === 'create' || _page === 'generate') return;
 
-  // overlay（slide-in / lightbox）開啟 → 一律 wireframe 白 logo（wireframe-inverse），統一三 mode；
-  // 關閉 → 依 mode：color=wireframe（base 黑、暗底由 applyColorVars 套 filter:invert(1) 翻白）/ inverse / standard
+  // overlay（slide-in / lightbox）開啟：mode1/2 換白 wireframe-inverse；mode3 維持 wireframe（不換 JSON 避免 reload
+  //   跳動，黑/白由 applyColorVars 依 hue 對比決定，不強制白）。關閉 → 依 mode 還原。
   let logoType;
-  if (isSlideInOpen) logoType = 'wireframe-inverse';
-  else if (mode === 'color') logoType = 'wireframe';
+  if (mode === 'color') logoType = 'wireframe';
+  else if (isSlideInOpen) logoType = 'wireframe-inverse';
   else if (mode === 'inverse') logoType = 'inverse';
   else logoType = 'standard';
 

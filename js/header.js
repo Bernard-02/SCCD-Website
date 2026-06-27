@@ -455,9 +455,9 @@ export function updateNavActive(page) {
   // 轉換為 .html 格式以匹配 href 屬性
   const activeHref = activePage === 'index' ? '' : `${activePage}.html`;
 
-  function setNavLinkActive(link) { link.classList.add('active'); }
+  function setNavLinkActive(link) { link.classList.add('active'); link.setAttribute('aria-current', 'page'); } // 無障礙：標目前頁（粗體已是非色彩線索，aria-current 補語義 1.4.1 / 4.1.2）
   function clearNavActive() {
-    header.querySelectorAll('a.nav-link.active, .submenu-link.active').forEach(l => l.classList.remove('active'));
+    header.querySelectorAll('a.nav-link.active, .submenu-link.active').forEach(l => { l.classList.remove('active'); l.removeAttribute('aria-current'); });
     header.querySelectorAll('[data-bar].has-active').forEach(el => el.classList.remove('has-active'));
   }
 
@@ -894,6 +894,12 @@ export function initHeader() {
         let filterM = '', contrastM = '';
         if (isFullLightbox)  { filterM = 'invert(1)'; contrastM = 'white'; }
         else if (isSlideIn)  { filterM = 'none'; contrastM = isColorM ? 'auto' : 'black'; }
+        else if (isColorM)   {
+          // 純 mode3（無 overlay）：手機 logo 要跟著 hue 背景翻黑/白對比（對齊桌面 #header-logo wireframe）。
+          // 標 'auto' 讓 theme-toggle applyColorVars 每幀翻 filter；初值讀當前 --theme-fg 避免 RAF 啟動前(~0.4s) 黑線疊暗底看不見。
+          contrastM = 'auto';
+          filterM = getComputedStyle(document.documentElement).getPropertyValue('--theme-fg').trim() === '#ffffff' ? 'invert(1)' : 'none';
+        }
         mobileLogo.style.filter = filterM;
         mobileLogo.dataset.logoContrast = contrastM;
         const logoPathM = sitePath(`data/${logoFileM}`);

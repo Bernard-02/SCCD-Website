@@ -12,6 +12,8 @@
  * - handler 拋錯不擋換頁，catch + console.error 後繼續。
  */
 
+import { prefersReducedMotion } from './reduce-motion.js';
+
 const handlers = [];
 // 🔧 暫時診斷（hero 偶爾不出現查 hang 用，查完移除）：記每個 handler 的註冊位置
 const handlerSites = [];
@@ -39,6 +41,8 @@ export async function runPageExit(destinationRoute) {
   handlers.length = 0;
   handlerSites.length = 0;  // 🔧 暫時診斷
   if (queued.length === 0) return;
+  // 減少動態：退場動畫純視覺，直接跳過、立即換頁（handlers 已 drain，不洩漏）。
+  if (prefersReducedMotion()) return;
   const pending = new Set(queued.map((_, i) => i));  // 🔧 暫時診斷：哪些還沒 resolve
   const all = Promise.all(queued.map(async (fn, i) => {
     const t0 = (typeof performance !== 'undefined') ? performance.now() : 0;  // 🔧

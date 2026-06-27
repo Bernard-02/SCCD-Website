@@ -6,6 +6,7 @@
 import { setupClipReveal } from '../ui/scroll-animate.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { DUR, EASE } from '../ui/motion.js';
+import { prefersReducedMotion } from '../ui/reduce-motion.js';
 
 // 卡片進場動畫：
 //   圖片 → 4 方向 clip-path inset 揭露（每卡 data-img-dir 隨機）
@@ -173,6 +174,23 @@ function animateFacultyCards(cards) {
   // 清掉上次的 trigger（filter 切換時避免累積）
   if (lastFacultyTrigger) { lastFacultyTrigger.kill(); lastFacultyTrigger = null; }
 
+  // 減少動態：卡片直接全顯（圖不裁、文字到位），不排序列、不上 ScrollTrigger、不鎖 hover
+  if (prefersReducedMotion()) {
+    items.forEach(card => {
+      const imgWrapper = card.querySelector('.faculty-card-image-wrapper');
+      const name = card.querySelector('.faculty-card-name');
+      const title = card.querySelector('.faculty-card-title');
+      gsap.killTweensOf([imgWrapper, name, title].filter(Boolean));
+      if (imgWrapper) gsap.set(imgWrapper, { clearProps: 'clipPath' });
+      if (name) gsap.set(name, { clearProps: 'transform' });
+      if (title) gsap.set(title, { clearProps: 'transform' });
+      if (card._hoverUnlockTimer) { clearTimeout(card._hoverUnlockTimer); card._hoverUnlockTimer = null; }
+      card.classList.remove('pointer-events-none');
+      card.dataset.revealStarted = '1';
+    });
+    return;
+  }
+
   items.forEach(card => {
     gsap.killTweensOf([
       card.querySelector('.faculty-card-image-wrapper'),
@@ -204,6 +222,7 @@ const EXIT_CARD_STEP = 0.04;      // 卡與卡之間 stagger
 
 function exitFacultyCards(cards, onComplete) {
   if (typeof gsap === 'undefined') { if (onComplete) onComplete(); return; }
+  if (prefersReducedMotion()) { if (onComplete) onComplete(); return; }  // 減少動態：不退場，立即切換/換頁
   const all = Array.from(cards);
 
   // 只收「已經開始 reveal」的卡片（dataset.revealStarted 由進場 image tween 的 onStart 標記）。
@@ -295,7 +314,7 @@ export function initFacultyFilter() {
   const navInners = Array.from(filterButtons)
     .map(b => /** @type {HTMLElement|null} */ (b.querySelector('.anchor-nav-inner')))
     .filter(Boolean);
-  if (typeof gsap !== 'undefined' && navInners.length) {
+  if (typeof gsap !== 'undefined' && navInners.length && !prefersReducedMotion()) {  // 減少動態：nav 維持靜態可見
     navInners.forEach(inner => { inner.style.transition = 'none'; gsap.set(inner, { clipPath: pickNavClip() }); });
     const playNavReveal = () => {
       if (navRevealed) return;
@@ -356,6 +375,17 @@ export function initFacultyFilter() {
   filterButtons.forEach(button => {
     button.addEventListener('click', function(e) {
       e.preventDefault();
+
+      // 手機 filter bar 是水平 scroll strip：點到的 btn 捲回靠左對齊頁面內容左緣（同 curriculum program btn 做法）。
+      // 只動 bar 自己 scrollLeft（rect delta），不用 scrollIntoView 以免連帶動垂直；桌面是 md:flex-col 無水平 scroll。
+      if (window.innerWidth < 768) {
+        const bar = this.parentElement;
+        if (bar) {
+          const pad = parseFloat(getComputedStyle(bar).paddingLeft) || 0;
+          const delta = this.getBoundingClientRect().left - (bar.getBoundingClientRect().left + pad);
+          bar.scrollTo({ left: bar.scrollLeft + delta, behavior: 'smooth' });
+        }
+      }
 
       // 點同一個（已 active）→ 只 scroll 對齊 anchor，不跑 exit/enter 動畫
       if (this.classList.contains('active')) {

@@ -19,6 +19,7 @@ import { initBFADivisionToggle } from './modules/ui/bfa-division-toggle.js';
 import { initTextReveal } from './modules/ui/text-reveal.js';
 import { initIdleStandby } from './modules/ui/idle-standby.js';
 import { initCustomScrollbar } from './modules/ui/custom-scrollbar.js';
+import { installReducedMotionGsap } from './modules/ui/reduce-motion.js';
 
 // Import About Page Modules
 import { initResourcesCycling } from './modules/pages/about/resources-cycling.js';
@@ -344,23 +345,24 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
       const LIB_CLIPS = ['inset(0% 0% 100% 0%)', 'inset(0% 0% 0% 100%)', 'inset(100% 0% 0% 0%)', 'inset(0% 100% 0% 0%)'];
       const pickLibClip = () => LIB_CLIPS[Math.floor(Math.random() * LIB_CLIPS.length)];
       const finishLibEntrance = () => {
-        panels.showPanel(initialTab, { reveal: true });
+        panels.showPanel(initialTab, { reveal: true }); // playPanelReveal：panel 內容 clip-reveal 進場
         panels.onEntranceDone();
         panels.handleHash();
       };
       if (typeof gsap !== 'undefined' && librarySection) {
-        panels.showPanel(initialTab, { reveal: false }); // 先掛 display、children 藏著等 wipe
-        // .anchor-nav-inner 有 CSS transition:all（hover 用）會追著 GSAP 每幀 clipPath 卡頓 → 動畫期間關掉
+        // ⚠️ section / 灰卡「整體」一律不做進場動畫（clip-path 或 opacity 都會把 section 升 GPU 合成層）：
+        // 從 menu 點 library＝closeMenu()+navigateTo() 並行，.mobile-nav（fixed inset-0 全屏 overlay）滑出時
+        // 占住合成層、遮住 section → overlay 離場後 section 的舊合成圖層殘影露出＝灰卡 mt gap 一條灰帶；
+        // clip→opacity 都中、收尾強制重繪被「被遮區不重繪」跳過救不回；refresh 無 overlay 故沒事（user 2026-06-24 多輪）。
+        // 進場感全交給「卡片內的小元素」：tab inners + panel children clip-reveal（playPanelReveal）—— 不升 section 合成層。
         tabInners.forEach(inner => { inner.style.transition = 'none'; gsap.set(inner, { clipPath: pickLibClip() }); });
-        const libTl = gsap.timeline({ onComplete: finishLibEntrance });
-        libTl.fromTo(librarySection, { clipPath: pickLibClip() },
-          { clipPath: 'inset(0% 0% 0% 0%)', duration: DUR.slow, ease: EASE.enter, clearProps: 'clipPath' }, 0);
         if (tabInners.length) {
-          libTl.to(tabInners, {
+          gsap.to(tabInners, {
             clipPath: 'inset(0% 0% 0% 0%)', duration: DUR.base, ease: EASE.enter, stagger: 0.02, clearProps: 'clipPath',
             onComplete: () => tabInners.forEach(inner => { inner.style.transition = ''; }),
-          }, 0.2);
+          });
         }
+        finishLibEntrance();
       } else {
         finishLibEntrance();
       }
@@ -477,6 +479,9 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
 
 // ── 首次載入（DOMContentLoaded）────────────────────────────────
 document.addEventListener('DOMContentLoaded', function () {
+  // 無障礙：reduce 模式下先裝全域 GSAP 開關（所有有限 tween 瞬間完成），必須在任何動畫 init 之前。
+  installReducedMotionGsap();
+
   // Global Modules（只執行一次）
   initHeader();
   initThemeToggle();

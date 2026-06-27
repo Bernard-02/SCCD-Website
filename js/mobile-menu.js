@@ -64,7 +64,15 @@ export function initMobileMenu() {
   }
 
   function openMenu() {
+    // ⚠️ 先把選項藏好（clip wrapper + yPercent:100）再讓 nav 可見（user 2026-06-24 報「選項沒 stagger、閃一下出現」）：
+    // 上次 reveal onComplete 的 clearProps:'transform' 讓選項停在全顯態 → 若先 .open 再 set hidden，
+    // nav 一可見會閃一幀全顯選項才被壓回隱藏。把 hide 提到 .open 之前，這一幀不存在。
+    if (typeof gsap !== 'undefined' && menuItems && menuItems.length) {
+      setupClipReveal(menuItems);
+      gsap.set(menuItems, { yPercent: 100 });
+    }
     nav.classList.add('open');
+    btn.setAttribute('aria-expanded', 'true');
     if (typeof gsap !== 'undefined') {
       busy = true; // reveal 完成前鎖住 toggle（onComplete 解鎖）
       // 殺掉前一次 close 還掛著的「延遲滑出」tween（delay: itemsTotal）：
@@ -76,27 +84,26 @@ export function initMobileMenu() {
       if (menuItems && menuItems.length) {
         setupClipReveal(menuItems);
         gsap.killTweensOf(menuItems);
-        const revealTween = () => {
+        // 一律：延遲 0.105s 後從「隱藏(100)」staggered reveal。busy(line 76) 已鎖住開合動畫中再點 toggle，
+        // open 必從完全關閉開始 → 不再用 `nav.getBoundingClientRect().right<=0` 分支（舊「中途可反向」殘留、busy 後已不可達）。
+        // ⚠️ 該 BCR 判斷對 sub-pixel 脆弱：nav 是 fixed inset-0 + translateX(-100%)、關閉時 right 恰好 ≈0，
+        //    偶爾捨入成 >0 → 走 else 立即 revealTween(無 delay) → 選項在 nav 還在滑入時就 reveal、看起來「沒 stagger」
+        //    （user 2026-06-24 報）。改用 fromTo 自帶起點 100：不依賴外部 set 撐過 delay，stagger 每次都確定從隱藏播。
+        revealCall = gsap.delayedCall(0.105, () => {
           revealCall = null;
-          gsap.to(menuItems, {
-            yPercent: 0,
-            duration: DUR.slow,
-            stagger: { each: 0.084, from: 'start' },
-            ease: EASE.enter,
-            overwrite: true,
-            clearProps: 'transform',
-            onComplete: () => { busy = false; }, // 選項全進場 → 解鎖 toggle
-          });
-        };
-        // 完全關閉（nav 在畫面外）→ 重設 100 + 0.105 delay 的完整進場節奏；
-        // 關到一半被打斷重開 → 不重設、不等 delay，items 從當前位置直接續走 reveal
-        // （比照 faculty 卡片「動畫中途可反向」，user 2026-06-11）
-        if (nav.getBoundingClientRect().right <= 0) {
-          gsap.set(menuItems, { yPercent: 100 });
-          revealCall = gsap.delayedCall(0.105, revealTween);
-        } else {
-          revealTween();
-        }
+          gsap.fromTo(menuItems,
+            { yPercent: 100 },
+            {
+              yPercent: 0,
+              duration: DUR.slow,
+              stagger: { each: 0.084, from: 'start' },
+              ease: EASE.enter,
+              overwrite: true,
+              clearProps: 'transform',
+              onComplete: () => { busy = false; }, // 選項全進場 → 解鎖 toggle
+            }
+          );
+        });
       }
     } else {
       nav.style.transform = 'translateX(0%)';
@@ -106,12 +113,15 @@ export function initMobileMenu() {
     applyRandomRotation(menuBtnBox);
     applyRandomRotation(modeBtnBox);
     lockScroll();
+    // 無障礙：開啟時把鍵盤焦點移入選單第一項（關閉時 Escape / 點按鈕還給漢堡按鈕）
+    menuItems?.[0]?.focus?.();
   }
 
   // close: 回傳 Promise 在動畫完成後 resolve（nav link click 場景用來決定何時 navigate）
   // 退場語義 = 進場反向：items 倒序 yPercent 0→100 全部播完才 nav slide-out（不跟 nav 一起）
   function closeMenu() {
     nav.classList.remove('open');
+    btn.setAttribute('aria-expanded', 'false');
     if (iconOpen) iconOpen.style.display = '';
     if (iconClose) iconClose.style.display = 'none';
     applyRandomRotation(menuBtnBox);
@@ -157,6 +167,15 @@ export function initMobileMenu() {
     if (busy) return;
     if (nav.classList.contains('open')) closeMenu();
     else openMenu();
+  });
+
+  // 無障礙：Escape 關閉選單並把焦點還給漢堡按鈕（WCAG 2.1.1 鍵盤 / 2.4.3 焦點還原）。
+  // initMobileMenu 只跑一次（header 載入時），listener 不會跨 SPA 累積。
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && nav.classList.contains('open') && !busy) {
+      closeMenu();
+      btn.focus();
+    }
   });
 
   // 2. nav link 點擊：menu close 與 page exit 並行（不串行）

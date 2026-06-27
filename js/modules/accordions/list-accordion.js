@@ -43,6 +43,14 @@ function initListYearToggle() {
   workshopYearToggles.forEach(toggle => {
     if (toggle.dataset.accordionInit) return;
     toggle.dataset.accordionInit = '1';
+    // 無障礙：年份展開鈕是 <div>，補按鈕語義 + 鍵盤操作（WCAG 2.1.1 / 4.1.2）
+    toggle.setAttribute('role', 'button');
+    toggle.setAttribute('tabindex', '0');
+    const _yc = toggle.closest('.grid-12')?.querySelector('.list-year-items');
+    toggle.setAttribute('aria-expanded', String(!!(_yc && _yc.style.height && _yc.style.height !== '0px')));
+    toggle.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.click(); }
+    });
     toggle.addEventListener('click', function() {
       // Find the year group container (parent of the grid-12)
       const yearGrid = this.closest('.grid-12');
@@ -56,6 +64,7 @@ function initListYearToggle() {
       if (itemsContainer) {
         // Check if currently open (check if height is set and not 0)
         const isOpen = itemsContainer.style.height && itemsContainer.style.height !== '0px';
+        this.setAttribute('aria-expanded', String(!isOpen)); // 無障礙：報讀切換後狀態
 
         if (isOpen) {
           // Close with GSAP animation
@@ -153,11 +162,12 @@ export function instantCloseListHeader(header) {
     gsap.killTweensOf(content);
     gsap.set(content, { height: 0, overflow: 'hidden' });
     content.style.background = '';
+    content.setAttribute('inert', ''); // 無障礙：收合內容移出 tab 順序
   }
 
   if (chevron && typeof gsap !== 'undefined') {
     gsap.killTweensOf(chevron);
-    gsap.set(chevron, { rotation: 90 });  // reset → list-header close state 朝下
+    gsap.set(chevron, { rotation: -90 });  // reset → list-header 收合態朝下（base 朝左：90=上 / -90=下）
   }
 }
 
@@ -218,9 +228,8 @@ function attachStickyPinObserver(header) {
     // ⚠️ panel 被 section-switch 藏起（display:none）時 IO 也 fire（rect 變空 → isIntersecting false），
     // 不能誤判成 pinned：旗標殘留會讓手機 header blocker 一直蓋頂部、把捲回 band 的 nav btn 裁掉
     const pinned = !entry.isIntersecting && header.offsetParent !== null;
+    // is-pinned 驅動桌面副標 pinned-collapse；toggleSectionPinnedFlag 驅動手機 header blocker 顯隱（兩者同一 IO）
     header.classList.toggle('is-pinned', pinned);
-    // 手機 header blocker 只在「有 item 釘住」時顯示（見 lists.css .list-mobile-header-blocker 註解）：
-    // 給所屬 content section 加 class。單開 accordion → 一次只有一個 header 有 observer，不會互搶。
     toggleSectionPinnedFlag(header, pinned);
   }, {
     root: null,
@@ -291,6 +300,7 @@ function closeListHeader(header, { duration = DUR.medium } = {}) {
       // collapse 完成才移除 .active（背景/sticky/副標收合的持久態都靠它）；title/meta 位移已在收合開始時
       // inline 反向滑回（與 content 並行，見上）→ 移除 .active 後 CSS 同為原位，清 inline 不跳動
       header.classList.remove('active');
+      content.setAttribute('inert', ''); // 無障礙：收合完成 → 內容移出 tab 順序
       if (titleEl) titleEl.style.transform = '';
       if (metaMobileEl) metaMobileEl.style.paddingLeft = '';
       // title translateX 復位後 0.3s 才到位，等 transition 結束再 dispatch 讓 marquee 重新測寬
@@ -315,7 +325,7 @@ function closeListHeader(header, { duration = DUR.medium } = {}) {
       resolveDone();
     }
   });
-  if (chevron) gsap.to(chevron, { rotation: 90, duration: DUR.fast });  // close → 朝下
+  if (chevron) gsap.to(chevron, { rotation: -90, duration: DUR.fast });  // close → 朝下（-90=下；90=上）
   return done;
 }
 
@@ -331,12 +341,21 @@ function initListHeaderAccordion() {
     if (header.closest('.list-item')?.hasAttribute('data-no-accordion')) return;
     header.dataset.accordionInit = '1';
 
+    // 無障礙：鍵盤展開觸發改用 header 內的 <button class="list-header-toggle">（template 產生、原生可鍵盤聚焦 +
+    // 帶 aria-expanded/aria-label）。.list-header 本身維持普通 <div>（滑鼠點整列展開靠下方 click handler），
+    // 刻意不設 role=button——否則它內含 share <button> 會變「按鈕內嵌按鈕」(nested-interactive + button-name fail,
+    // axe 4.1.2)。toggle button 的 click 冒泡到此 header handler、共用同一條展開邏輯；aria-expanded 在 click
+    // handler 內同步到 toggle button。
+
     // Initialization: Ensure content is hidden properly for GSAP
     // nextElementSibling may be the flex wrapper; fall back to .list-content in parent
     const content = (header.nextElementSibling?.classList.contains('list-content')
       ? header.nextElementSibling
       : header.closest('.list-item')?.querySelector('.list-content')) || header.nextElementSibling;
     gsap.set(content, { height: 0, overflow: 'hidden' });
+    // 無障礙：收合的 list-content 是 height:0 overflow:hidden（非 display:none）→ 內部 ref/share/gallery
+    // 仍在 Tab 順序＝收合時 Tab 會落到看不見的元素。inert 把收合內容移出 tab 與 a11y 樹，open 時移除。
+    if (content) content.setAttribute('inert', '');
 
     // Hover: 未展開時顯示隨機色，展開後 hover 不改色
     // collapsing flag 防止收合動畫期間 cursor 離開時清掉 inline bg → 字色 flicker
@@ -368,6 +387,7 @@ function initListHeaderAccordion() {
       // close: 由 closeListHeader 在 onComplete 移除 .active
       const wasActive = this.classList.contains('active');
       const isActive = !wasActive;
+      this.querySelector('.list-header-toggle')?.setAttribute('aria-expanded', String(isActive)); // 無障礙：報讀展開狀態（在 toggle button 上）
       // open：.active 延到 proceedOpen（真正展開時）才加。兩段式「先收回舊的 ~0.4s」期間，若此刻就 add .active，
       // 副標會立刻收合（lectures：.active 即收）→ header 縮成矮的彩色短條、但內容還沒展開＝user 看到「click 當下
       // 彩色比 hover 矮一截」。改用 dataset.opening 標記，期間 header 維持 hover 樣子；proceedOpen 才 add .active
@@ -379,7 +399,7 @@ function initListHeaderAccordion() {
         // chevron 立刻轉（鏡像 closeListHeader 的同步轉法）：原本寫在 proceedOpen 內 →
         // 開新 item 時 proceedOpen 要等「其他已展開 item 收回」(DUR.base) 才跑，chevron 因此延遲才轉，
         // 但收起是 click 當下就轉＝兩邊不對稱（user 2026-06-15）。內容兩段式展開邏輯不動，只把 chevron 提前。
-        if (chevron) gsap.to(chevron, { rotation: -90, duration: DUR.fast });  // open → 朝上
+        if (chevron) gsap.to(chevron, { rotation: 90, duration: DUR.fast });  // open → 朝上（90=上）
         // 預設一次只開一個：開啟前先關掉同 panel 內其他展開中的 accordion
         // 非 activities 頁面（如 admission detail）無 .activities-panel，fallback 到 document
         const scope = this.closest('.activities-panel') || document;
@@ -408,6 +428,7 @@ function initListHeaderAccordion() {
           // 真正展開才轉 .active：副標收合（lectures .active 即收）與內容展開同時發生＝連貫，
           // 避免「先 active 收副標縮短 → 等收舊的 0.4s → 才展開」中間露出矮的彩色短條（見 click 處註解）。
           self.classList.add('active');
+          content.removeAttribute('inert'); // 無障礙：展開 → 內容回到 tab 順序（gallery/ref 可聚焦）
           delete self.dataset.opening;
           // point 3 修：已收回的 others 副標剛移除 .active 正走 0.3s 重新展開 → snap 定高，否則量測差一個副標高
           others.forEach(snapSubtitleHeight);
@@ -415,8 +436,18 @@ function initListHeaderAccordion() {
           // 量 header doc 位置 → 捲到「落在當前 pin 線」。stickyTop 與 headerDocTop 同態量取（見上不變式）。
           if (!skipOpenScroll) {
             const stickyTop = getListStickyTop(self);
+            // 手機修正（user 2026-06-24）：桌面 filter bar 是 md:sticky，收 bar 時 header doc 位置與 pin 線同步上移
+            // 一個 searchInner 高 → 相減抵消，不變式成立。但手機 bar 非 sticky、pin 線（8rem）綁 fixed header 不隨 bar 動
+            // → 此處量到的是「收 bar 前」的 headerDocTop，下方 add bar-hidden 收掉約一個 searchInner 高後 header 再上移該值，
+            //   而 scrollTo 仍停在舊 target ⇒ header 被 sticky 釘回 8rem 但內容上移、頂部約 80px 被 title/blocker 吃掉。
+            //   故手機預先扣掉「即將收起」的 searchInner 高（已收起則 0）。
+            let barCollapseDelta = 0;
+            if (window.innerWidth < 768 && activeFilterBar && !activeFilterBar.classList.contains('bar-hidden')) {
+              const inner = /** @type {HTMLElement | null} */ (activeFilterBar.querySelector('.activities-search-inner'));
+              barCollapseDelta = inner ? inner.offsetHeight : 0;
+            }
             const headerDocTop = self.getBoundingClientRect().top + window.scrollY;
-            const targetScrollY = Math.max(0, Math.round(headerDocTop - stickyTop));
+            const targetScrollY = Math.max(0, Math.round(headerDocTop - stickyTop - barCollapseDelta));
             if (Math.abs(targetScrollY - window.scrollY) > 1) {
               if (typeof window.ScrollToPlugin !== 'undefined') {
                 gsap.to(window, { scrollTo: { y: targetScrollY, autoKill: false }, duration: DUR.medium, ease: EASE.move });

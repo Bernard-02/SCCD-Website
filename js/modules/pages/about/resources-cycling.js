@@ -5,6 +5,7 @@
 
 import { initColoredCardAccordion, initRotatedAccordion } from '../../accordions/horizontal-accordion.js';
 import { sitePath } from '../../ui/site-base.js';
+import { prefersReducedMotion } from '../../ui/reduce-motion.js';
 
 export function initResourcesCycling() {
   const container = document.getElementById('resources-accordion-container');
@@ -63,10 +64,12 @@ function renderResourcesAccordion(data, container) {
   container.appendChild(wrapper);
 
   // 初始化旋轉卡片版手風琴（桌面旋轉堆疊，手機改卡片式向下 accordion）
+  // 減少動態：animateEntry:false → 7 張卡片直接全顯（第一張展開、其餘收合 label），不逐張跳出
+  const entry = !prefersReducedMotion();
   if (window.innerWidth >= 768) {
-    initRotatedAccordion(wrapper, { height: 650, animateEntry: true });
+    initRotatedAccordion(wrapper, { height: 650, animateEntry: entry });
   } else {
-    initColoredCardAccordion(wrapper, { animateEntry: true });
+    initColoredCardAccordion(wrapper, { animateEntry: entry });
 
     // 封鎖綫不佔 flow、被卡片堆疊蓋住（user 2026-06-11：被 accordion 遮蓋、不跟卡片占空間）：
     // 維持 absolute（section 層 z-0 < site-container z-30），top 釘到第 2~4 張卡的接縫置中，

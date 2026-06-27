@@ -10,6 +10,7 @@ import { DUR, EASE } from '../ui/motion.js';
 import { loadCourses } from '../pages/courses-source.js';
 import { loadSummerCamp } from '../pages/summer-camp-source.js';
 import { sitePath } from '../ui/site-base.js';
+import { CMS_API_BASE, CMS_ASSETS_BASE } from '../../config/api.js';
 
 // 進/退場 clip-path 4 方向（卡片 el 不受 RAF 的 mover transform 影響，clip-path 安全）
 const FLOAT_HIDE_CLIPS = ['inset(0% 0% 100% 0%)', 'inset(100% 0% 0% 0%)', 'inset(0% 0% 0% 100%)', 'inset(0% 100% 0% 0%)'];
@@ -180,22 +181,42 @@ async function fetchAwardTexts() {
   return pool;
 }
 
-// 從 press.json 撈報導，用「PDF 本身的封面」當浮動圖卡（非文字卡——文字卡只給 award / curriculum）。
-// PDF 第一頁 render 成 dataURL 較重 → 不阻塞首頁：傳入空 pool，render 好一筆 push 一筆，
-// nextPoolEntry live 讀 pool.length 自動遞補（render 期間 press 名額暫由圖片池補位）。
-// 只取有 pdfUrl 的項目；render 由 pdf-cover.js 依 URL 快取（sample 階段多筆共用 sample.pdf 只 render 一次）。
-// #press-N deep-link 由 library handleLibraryHash 處理。
+// 從 library press 撈報導當浮動圖卡（非文字卡——文字卡只給 award / curriculum）。
+// ⚠️ 必須跟 library press 面板「同源、同 id 規則」：Directus library_press → element id = press-<row.id>；
+//    Directus 失敗才 fallback 本地 press.json（id 本就是 press-N，跟面板 fallback 一致）。
+//    否則浮卡 deep-link 的 #press-<id> 跟 library 渲染的 element id 對不上 → 點進去不捲動、不 highlight
+//    （user 2026-06-25 報；press 面板 2026-06-08 搬 Directus 後浮卡仍讀本地 press.json/press-1 沒跟上 → id 脫節）。
+// 封面：有 PDF 用 PDF 第一頁（render 成 dataURL，pdf-cover.js 依 URL 快取）；沒 PDF 用第一張圖；都沒有就不放浮卡。
+// 不阻塞首頁：傳入空 pool，render 好一筆 push 一筆，nextPoolEntry live 讀 pool.length 自動遞補。
 async function populatePressCovers(pool, isCancelled) {
-  let items;
+  /** @type {{id:string, cover:string, isPdf:boolean}[]} */
+  let entries;
   try {
-    items = await fetch(sitePath('data/press.json')).then(r => r.json());
-  } catch (_) { return; }
+    const res = await fetch(`${CMS_API_BASE}/library_press?fields=id,pdf,images.directus_files_id&sort=sort&limit=-1`);
+    if (!res.ok) throw new Error('CMS ' + res.status);
+    const rows = (await res.json())?.data;
+    if (!Array.isArray(rows) || rows.length === 0) throw new Error('CMS empty');
+    entries = rows.map(r => {
+      if (r.pdf) return { id: `press-${r.id}`, cover: `${CMS_ASSETS_BASE}/${r.pdf}`, isPdf: true };
+      const firstImg = Array.isArray(r.images) ? r.images.map(j => j && j.directus_files_id).filter(Boolean)[0] : null;
+      if (firstImg) return { id: `press-${r.id}`, cover: `${CMS_ASSETS_BASE}/${firstImg}?key=web`, isPdf: false };
+      return null; // 無 PDF 也無圖 → 沒封面可顯示，不放浮卡
+    }).filter(Boolean);
+  } catch (cmsErr) {
+    // Directus 失敗 → fallback 本地 press.json（同 library press 面板 fallback：id 直接用 press-N、不重加前綴）
+    try {
+      const local = await fetch(sitePath('data/press.json')).then(r => r.json());
+      entries = (Array.isArray(local) ? local : [])
+        .filter(i => i.id && i.pdfUrl)
+        .map(i => ({ id: i.id, cover: i.pdfUrl, isPdf: true }));
+    } catch (_) { return; }
+  }
 
-  await Promise.all(items.map(async (item) => {
-    if (!item.id || !item.pdfUrl) return;
-    const src = await renderPdfCover(normalizeImagePath(item.pdfUrl));
+  await Promise.all(entries.map(async (e) => {
+    if (isCancelled()) return;
+    const src = e.isPdf ? await renderPdfCover(normalizeImagePath(e.cover)) : normalizeImagePath(e.cover);
     if (!src || isCancelled()) return;
-    pool.push({ type: 'image', src, url: `pages/library.html#${item.id}` });
+    pool.push({ type: 'image', src, url: `pages/library.html#${e.id}` });
   }));
 }
 
@@ -249,10 +270,20 @@ function randomRotation() {
   return sign * (1 + Math.random() * (sign < 0 ? 3 : 5)); // 負：-1~-4，正：1~6
 }
 
+// 無障礙：浮卡圖片連結是「功能圖」（連結內只有圖、無文字）→ 連結需可讀名稱。
+// 依目的地給通用名（link purpose in context，符合 2.4.4 AA）；圖本身設 alt="" 當裝飾避免重複報讀。
+function floatingLinkLabel(url) {
+  if (url.includes('activities')) return '查看動態項目 View activity';
+  if (url.includes('admission')) return '查看暑期營隊 View summer camp';
+  if (url.includes('library')) return '查看檔案室項目 View library item';
+  return '查看更多 View more';
+}
+
 function createImageEl(src, url, showPlayIcon = false, interactive = true) {
   const wrapper = document.createElement(url ? 'a' : 'div');
   if (url) {
     /** @type {HTMLAnchorElement} */ (wrapper).href = url;
+    wrapper.setAttribute('aria-label', floatingLinkLabel(url)); // 無障礙：功能圖連結名稱
     wrapper.style.cursor = `url('${sitePath('custom-cursor/pointer.svg')}') 14 1, pointer`;
   }
   wrapper.style.cssText = `
@@ -268,6 +299,7 @@ function createImageEl(src, url, showPlayIcon = false, interactive = true) {
 
   const img = document.createElement('img');
   img.src = src;
+  img.alt = ''; // 無障礙：裝飾圖（連結名稱已在 wrapper aria-label；無連結 circle 為純裝飾）
   img.style.cssText = `
     width: 100%;
     height: auto;
