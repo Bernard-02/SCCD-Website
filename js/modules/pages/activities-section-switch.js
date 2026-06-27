@@ -13,6 +13,7 @@ import { reapplySearch } from '../ui/activities-search.js';
 import { setActiveNavBtn, showPanel } from '../ui/section-switch-helpers.js';
 import { playAdmissionPanelExit, playAdmissionPanelReveal, setupAdmissionReveal } from './admission-data-loader.js';
 import { playClipReveal } from '../ui/scroll-animate.js';
+import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { waitForHeroAnimDone } from './hero-animation.js';
 import { DUR, EASE } from '../ui/motion.js';
@@ -58,7 +59,16 @@ function scrollSectionIntoView(el, behavior = 'instant') {
     const targetY = y();
     const dist = Math.abs(targetY - window.scrollY);
     const dur = window.innerWidth < 768 ? Math.min(1.1, Math.max(DUR.medium, dist / 1200)) : DUR.medium;
-    gsap.to(window, { scrollTo: { y: targetY, autoKill: false }, duration: dur, ease: EASE.move });
+    // CSS scroll-snap(mandatory) 會跟程式捲動互搶：從 footer snap 點起步時 onEnterBack→gsap 上→snap 拉回 footer→
+    // onLeave→onEnterBack… 無限抖動、卡在 footer。捲動全程把 html scroll-snap-type 設 none，完成/中斷再還原
+    // （''＝交回 .snap-mandatory class 規則；目標是 valid snap 點，還原後不跳）。
+    const html = document.documentElement;
+    const restoreSnap = () => { html.style.scrollSnapType = ''; };
+    gsap.to(window, {
+      scrollTo: { y: targetY, autoKill: false }, duration: dur, ease: EASE.move,
+      onStart: () => { html.style.scrollSnapType = 'none'; },
+      onComplete: restoreSnap, onInterrupt: restoreSnap,
+    });
     return;
   }
   // instant（分頁切換）
@@ -153,17 +163,19 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
     await new Promise(r => setTimeout(r, 350)); // CSS 0.3s transition 收完才量
   }
 
-  const filterBarH = filterBar?.offsetHeight || 0;
-  const stickyTop  = (filterBar && getComputedStyle(filterBar).position === 'sticky')
-    ? (parseFloat(getComputedStyle(filterBar).top) || 200)
-    : 200;
+  // 落點＝list-accordion 開啟時 header 釘的位置：桌面讀 `--list-header-sticky-top`（activities-data-loader
+  // updateStickyTop 設為 200+filterBarH-1，= getListStickyTop 桌面值），保證「deep-link 落點＝手動點開落點」零跳動。
+  // 之前用 `stickyTop+filterBarH+16` 比釘點低 17px → title「稍微往下」、開啟時 header 不貼釘線（user 2026-06-25）。
+  // 手機：8rem（= getListStickyTop 手機值 / lists.css `.list-header.active{top:6rem}`... 實為 8rem 清 logo）。
+  const stickyContainer = /** @type {HTMLElement | null} */ (target.closest('[style*="--list-header-sticky-top"]'));
   const compensate = window.innerWidth < 768
     ? 8 * parseFloat(getComputedStyle(document.documentElement).fontSize)
-    : stickyTop + filterBarH + 16;
+    : (stickyContainer ? (parseFloat(getComputedStyle(stickyContainer).getPropertyValue('--list-header-sticky-top')) || 200) : 200);
 
-  let targetTop = 0;
-  let el = /** @type {HTMLElement | null} */ (target);
-  while (el) { targetTop += el.offsetTop; el = /** @type {HTMLElement | null} */ (el.offsetParent); }
+  // 文件相對 top 直接量 getBoundingClientRect().top + scrollY（scroll 無關）：比 offsetTop 沿 offsetParent
+  // 鏈累加可靠——深層巢狀 item（年份組內）鏈長、每層 sub-pixel rounding 累積 → 落點「稍微往下」偏移
+  // （user 2026-06-25 報「有的正確有的稍微往下」）；target 是 list-item 非 sticky bar，rect.top 不被 pin clamp。
+  const targetTop = target.getBoundingClientRect().top + window.scrollY;
   const finalTop = targetTop - compensate;
 
   // flash highlight + 展開 item accordion 的共用收尾。
@@ -247,7 +259,7 @@ function filterChipInners(panel) {
   return panel ? panel.querySelectorAll('.activities-filter-bar .courses-filter-btn .anchor-nav-inner') : [];
 }
 function hideFilterChips(panel) {
-  if (typeof gsap === 'undefined') return;
+  if (typeof gsap === 'undefined' || prefersReducedMotion()) return;  // 減少動態：不隱藏 chip（維持靜態可見）
   const inners = filterChipInners(panel);
   // transition:'none'：.anchor-nav-inner 帶 navigation.css 的 `transition: all`（含 clip-path）→ 直接 set
   // clip-path 會被 CSS transition 接管慢慢 hide，且後續 GSAP reveal 每幀寫 clip-path 也被 transition 追著跑
@@ -259,6 +271,8 @@ function playFilterChipsReveal(panel, { useScrollTrigger = false } = {}) {
   if (typeof gsap === 'undefined') return;
   const inners = filterChipInners(panel);
   if (!inners.length) return;
+  // 減少動態：chip 直接全顯，不滑入
+  if (prefersReducedMotion()) { gsap.set(inners, { clearProps: 'clipPath,transition' }); return; }
   // 殺掉上一輪殘留的 chip ScrollTrigger + 進行中 tween：initial reveal 建的 once trigger 若 filter bar 還在
   // fold 外沒 fire，之後切換 instant-scroll 把它捲進視窗才 fire → 跟切換自己的 immediate reveal 打架，
   // 出現「慢慢爬到一半再 snap」。每次 reveal 前先清乾淨 → 單一 tween 乾淨跑完。
@@ -284,6 +298,7 @@ function playFilterChipsReveal(panel, { useScrollTrigger = false } = {}) {
 // 回傳 Promise 給 playActivitiesExit 的 Promise.all await。transition:'none' 同 reveal 解 `transition:all` 衝突。
 function playFilterChipsExit(panel) {
   if (typeof gsap === 'undefined') return Promise.resolve();
+  if (prefersReducedMotion()) return Promise.resolve();  // 減少動態：不跑退場
   const inners = filterChipInners(panel);
   if (!inners.length) return Promise.resolve();
   _chipRevealSTs.forEach(st => st && st.kill());  // 殺殘留 reveal ST，免得退場時又 fire
@@ -311,32 +326,60 @@ const NAV_EASE = 'cubic-bezier(0.25, 0, 0, 1)';
 
 function setupSectionNavReveal() {
   if (typeof gsap === 'undefined') return;
+  if (prefersReducedMotion()) return;  // 減少動態：nav chip 不隱藏/不進退場，維持靜態可見
   const inners = Array.from(document.querySelectorAll('.activities-section-bar .activities-section-btn .anchor-nav-inner'));
   if (!inners.length) return;
   let navRevealed = false;
-  inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = 'none'; gsap.set(inner, { clipPath: pickNavClip() }); });
+  const killTransition = () => inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = 'none'; });
+  killTransition();
+  inners.forEach(inner => gsap.set(inner, { clipPath: pickNavClip() }));
 
-  const play = () => {
+  // reveal/hide 可被 scroll 反覆觸發：捲離 main section→退場、捲回 main→重播進場（user 2026-06-27）。
+  // navRevealed 旗標擋同態重播；hide 用 fromTo 顯式起點 inset(0)（clearProps 後 computed=none，GSAP 補不間）。
+  const reveal = () => {
     if (navRevealed) return;
     navRevealed = true;
+    gsap.killTweensOf(inners);
+    killTransition();
     gsap.to(inners, {
-      clipPath: NAV_REVEALED_CLIP, duration: DUR.base, ease: NAV_EASE, stagger: 0.02, clearProps: 'clipPath',
+      clipPath: NAV_REVEALED_CLIP, duration: DUR.base, ease: NAV_EASE, stagger: 0.02, overwrite: true, clearProps: 'clipPath',
       onComplete: () => inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = ''; }),
     });
   };
+  const hide = () => {
+    if (!navRevealed) return;
+    navRevealed = false;
+    gsap.killTweensOf(inners);
+    killTransition();
+    gsap.fromTo(inners,
+      { clipPath: NAV_REVEALED_CLIP },
+      { clipPath: () => pickNavClip(), duration: DUR.base, ease: NAV_EASE, stagger: { each: 0.02, from: 'end' }, overwrite: true });
+  };
+
   const section = document.getElementById('activities-content-section');
-  const inView = section && section.getBoundingClientRect().top < window.innerHeight * 0.9;
-  if (!section || inView || typeof ScrollTrigger === 'undefined') {
-    play();
+  if (!section || typeof ScrollTrigger === 'undefined') {
+    reveal();
   } else {
     // trigger 在 #activities-content-section（#page-content 內）→ cleanupPageModules 換頁時一併 kill，不洩漏
-    ScrollTrigger.create({ trigger: section, start: 'top 90%', once: true, onEnter: play });
+    // enter/leave 兩向都接：捲到 footer 離開 main → hide；從 footer 回 main → reveal（hero 側同理）
+    ScrollTrigger.create({
+      trigger: section, start: 'top 90%', end: 'bottom 10%',
+      onEnter: reveal, onLeave: hide, onLeaveBack: hide,
+      // 從 footer 往上回到內容區：accordion 撐高>1 屏時 section 變 oversized snap area，
+      // mandatory 從下方只停在 section 底部（切掉上面 filter bar/年份/accordion 頂）。JS 補一刀捲回頂端對齊點
+      // （scrollSectionIntoView＝filter bar 停 sticky-top）。section 整段是 valid snap 區→native 不會跟 gsap 搶。
+      // 桌面 snap-only（手機無 snap）；reduced-motion 此函式已 early-return。
+      onEnterBack: () => { reveal(); if (window.innerWidth >= 768) scrollSectionIntoView(section, 'smooth'); },
+    });
+    // 初載已在視窗內：ScrollTrigger 不補 fire onEnter，手動播一次
+    if (section.getBoundingClientRect().top < window.innerHeight * 0.9) reveal();
   }
 
+  // SPA 離頁退場（與 scroll hide 同動畫，但 onComplete resolve 給 page-exit await）
   registerPageExit(() => new Promise(resolve => {
     if (typeof gsap === 'undefined' || !navRevealed) { resolve(); return; }
     gsap.killTweensOf(inners);
-    inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = 'none'; });
+    killTransition();
     gsap.fromTo(inners,
       { clipPath: NAV_REVEALED_CLIP },
       { clipPath: () => pickNavClip(), duration: DUR.base, ease: NAV_EASE, stagger: { each: 0.02, from: 'end' }, overwrite: true, onComplete: resolve });
@@ -580,6 +623,14 @@ async function setPanelDescActive(panelId, descType) {
   const current = /** @type {HTMLElement | null} */ (group.querySelector('.panel-desc.active'));
   const target  = /** @type {HTMLElement | null} */ (group.querySelector(`.panel-desc[data-desc-type="${descType}"]`));
   if (!target || current === target) return;
+
+  // 減少動態：直接切 active、不跑 desc exit/reveal 滑入
+  if (prefersReducedMotion()) {
+    if (current) current.classList.remove('active');
+    gsap.set(target, { clearProps: 'transform' });
+    target.classList.add('active');
+    return;
+  }
 
   if (current) {
     await new Promise(resolve => {

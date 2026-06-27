@@ -1,0 +1,43 @@
+/* 桌面 section 磁吸（原生 CSS scroll-snap）
+   - 只桌面（手機不套，desktop-first）；reduced-motion 整個關（靠 no-preference gate）
+   - 模式由 router 依頁面掛在 <html>：
+       .snap-mandatory（index / faculty）＝強吸、最像原生即時（捲動當下就磁化）
+       .snap-proximity（about）＝軟吸、不困住比視窗高的長 section（resources/history 可讀中段）
+   - 其餘頁 <html> 無 class → 無 snap-type → footer 的 .snap-zone 也不吸
+     （避免未設定頁只剩持久 footer 一個 snap 點被 mandatory 硬拉的 bug）
+   - 不設 scroll-padding-top：吸附落點交給各 .snap-zone 自己的 scroll-margin-top，
+     對齊 anchor-nav scrollIntoView({block:'start'}) 落點（about overview 200 / class·works 100）
+   - scroll-snap-type 設在 html 不會把 html 變成新 scroll container（與 overflow:hidden 不同），
+     不影響 about 左側 nav 的 position:sticky
+   snap 點 = 標了 .snap-zone 的元素（各頁 HTML）。目前掛在 index / about / faculty。
+   ⚠️ mandatory 對「比視窗高的 section」會難讀中段（about 因此用 proximity；faculty 卡片多時若卡，
+      把 router 那行的 faculty 從 mandatory 移到 proximity 即可）。 */
+@media (min-width: 768px) and (prefers-reduced-motion: no-preference) {
+  html.snap-mandatory { scroll-snap-type: y mandatory; }
+  html.snap-proximity { scroll-snap-type: y proximity; }
+
+  html.snap-mandatory .snap-zone,
+  html.snap-proximity .snap-zone {
+    scroll-snap-align: start;
+  }
+
+  /* activities content section 的 snap 落點要跟 scrollSectionIntoView（activities-section-switch.js）一致。
+     該函式把點 nav 的落點算成「filter bar 剛好停在自己的 sticky-top（200）」＝ section 頂落在 viewport
+     200−192=8px（section md:py-6xl padding-top=192）。snap-zone 預設 scroll-snap-align:start 會把 section 頂
+     吸到 viewport 0、比正確落點高 8px → filter bar 過釘、其 bg z-10 蓋住第一筆 list 頂 → 年份欄 sticky 釘在
+     filter bar 下、第一筆卻自由捲到 bar 後方 ~7px ＝「點 nav 後年份跟第一個 list 沒對齊」（user 2026-06-26）。
+     scroll-margin-top:8px 讓 snap 落點 == scrollSectionIntoView 落點 → 年份與第一筆對齊（同 about overview 200
+     / class·works 100 的 scroll-margin 對齊 anchor 落點慣例）。8px = filter bar sticky-top(200)−section pad-top(192)，
+     兩者皆桌面靜態常數、不隨 filter bar 高度變。 */
+  html.snap-mandatory #activities-content-section,
+  html.snap-proximity #activities-content-section {
+    scroll-margin-top: 8px;
+  }
+
+  /* footer 一定要被吸住：捲到底經過 footer 時必停在 footer，不准飛過去（user 2026-06-27）。
+     proximity 頁中段照樣軟吸/可停半屏，只有 footer 像「攔截閘」一定接住。
+     #site-footer = SPA 各頁 footer 容器；#site-footer-static = index 靜態 footer。 */
+  html:is(.snap-mandatory, .snap-proximity) :is(#site-footer, #site-footer-static).snap-zone {
+    scroll-snap-stop: always;
+  }
+}

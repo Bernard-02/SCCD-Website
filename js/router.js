@@ -128,11 +128,55 @@ function resolveRoute(pathname) {
   return routes[normalized] || null;
 }
 
+// ── Prefetch on intent（hover / touchstart）──────────────────────
+// 業界標準（Next.js <Link prefetch> / Remix loader / instant.page）：使用者一表現出導航意圖
+// （桌面 hover、手機 touchstart 先於 click ~100ms+）就先抓該頁的 async 資料，讓 Directus fetch 跟
+// 「hover→click / tap」手勢 + 換頁過場重疊，到頁面 init 呼叫同個 loader 時資料多半已 in-flight/cache。
+// 只列「卡片要等 async 資料」的頁面；資料源 single-flight 去重，prefetch 與 init 的並發呼叫只打一次。
+const ROUTE_PREFETCHERS = {
+  curriculum: () => import('./modules/pages/courses-source.js').then(m => m.loadCourses()).catch(() => {}),
+  // faculty：除了資料，資料一到也 warm 老師照片快取（進頁時 <img> 直接命中＝不再灰底再跳出照片）
+  faculty: () => import('./modules/pages/faculty-source.js').then(m => m.getFacultyData().then(d => m.preloadFacultyImages(d))).catch(() => {}),
+};
+const _prefetched = new Set();
+function prefetchFromLink(link) {
+  const href = link.getAttribute('href');
+  if (!href || href.startsWith('http') || href.startsWith('//') || href.startsWith('#') ||
+      href.startsWith('mailto:') || href.startsWith('tel:')) return;
+  const route = resolveRoute(new URL(href, window.location.origin).pathname);
+  if (!route || _prefetched.has(route.page) || !ROUTE_PREFETCHERS[route.page]) return;
+  _prefetched.add(route.page);
+  ROUTE_PREFETCHERS[route.page]();
+}
+
 // ── Scroll 重置工具 ──────────────────────────────────────────
 function scrollToTop() {
   window.scrollTo(0, 0);
   if (document.documentElement) document.documentElement.scrollTop = 0;
   if (document.body) document.body.scrollTop = 0;
+}
+
+// ── 無障礙：SPA 換頁焦點 + 報讀（WCAG 2.4.3 焦點順序 / 4.1.3 狀態訊息）──
+// JS swap 不像整頁載入會移動焦點、報讀新頁 → 螢幕閱讀器使用者不知換了頁、焦點還卡在剛點的連結。
+// 點連結換頁後把焦點移到主內容（main tabindex=-1），並用常駐 aria-live region 報讀新頁標題。
+// announcer 用 JS 建一次（各頁 HTML body 不一定有；只 swap #page-content，body 級元素跨換頁恆在）。
+// 在 initRouter 就預建 → SR 先觀察到 region，第一次換頁的文字更新才會被念出。
+function getRouteAnnouncer() {
+  let region = document.getElementById('sr-route-announcer');
+  if (!region) {
+    region = document.createElement('div');
+    region.id = 'sr-route-announcer';
+    region.className = 'sr-only';
+    region.setAttribute('aria-live', 'polite');
+    region.setAttribute('aria-atomic', 'true');
+    document.body.appendChild(region);
+  }
+  return region;
+}
+function announceAndFocusMain(main) {
+  getRouteAnnouncer().textContent = document.title || '';
+  if (!main.hasAttribute('tabindex')) main.setAttribute('tabindex', '-1');
+  main.focus({ preventScroll: true }); // preventScroll：交給 router 自己的捲動邏輯，不打架
 }
 
 // ── 內容替換 ──────────────────────────────────────────────────
@@ -233,6 +277,13 @@ async function loadPage(route, search = '', fromUserNav = false) {
     //   2) lightbox-shell exitLightboxMode 會 `body.style.overflow=''`，會把 inline 的 overflow 清掉
     // 用 class 兩個 case 都不受影響
     document.body.classList.toggle('overflow-hidden', route.page === 'generate' || route.page === 'atlas' || route.page === 'library');
+    // 桌面 section 磁吸模式（原生 CSS scroll-snap，掛在 <html>）：除鎖頁(generate/atlas/library)、404 外都掛
+    // snap-mandatory 強吸（user 2026-06-27 全站改 mandatory）；實際 snap 點由各頁 .snap-zone 決定（沒標的頁等於不吸）。
+    // 無 hero 的純文字頁 (support/regulations/policy) 只標 footer 一個 .snap-zone。
+    // ⚠️ mandatory 會困住「比視窗高的 section」（about resources/history、faculty 卡片多時讀不到中段）；
+    //    某頁要放鬆＝那頁改掛 snap-proximity。規則在 css/layout/scroll-snap.css。
+    const noSnap = ['generate', 'atlas', 'library', '404'].includes(route.page);
+    document.documentElement.classList.toggle('snap-mandatory', !noSnap);
     // about + alumni 用寬封鎖綫（section-title-strip width:calc(50vw+) 會 overflow viewport 右側）
     // faculty 手機 hero banner width:108vw + rotate(-5°) 兩側溢出 viewport
     // activities 手機 .activities-section-bar negative margin 延伸到 viewport 邊 + active list-item
@@ -250,11 +301,21 @@ async function loadPage(route, search = '', fromUserNav = false) {
     document.body.style.overflowX = needsClipX ? 'clip' : '';
 
     // 初始化新頁面模組（帶 query string 供 detail 頁用 + fromUserNav 供 deep-link 判斷）
-    initPageModules(route.page, new URLSearchParams(search), fromUserNav);
+    const sp = new URLSearchParams(search);
+    initPageModules(route.page, sp, fromUserNav);
 
-    // async 資料載入完成後頁面高度會變，再 scroll 一次保險
-    setTimeout(() => scrollToTop(), 0);
-    setTimeout(() => scrollToTop(), 100);
+    // async 資料載入完成後頁面高度會變，再 scroll 一次保險。
+    // 例外：deep-link 導航（fromUserNav + ?item/section/program）由目標頁模組自己捲到指定卡片/段落，
+    // 不能被這個保險 reset 拉回頂部。尤其 reduce 模式 hero 進場是瞬間 → deep-link 捲動在 ~tens ms 內跑完、
+    // 早於 100ms reset → 會被蓋掉「停在頂部」（正常模式靠 hero ~1s 延遲剛好錯開、不中招）。
+    const isDeepLinkNav = fromUserNav && (sp.has('item') || sp.has('section') || sp.has('program'));
+    if (!isDeepLinkNav) {
+      setTimeout(() => scrollToTop(), 0);
+      setTimeout(() => scrollToTop(), 100);
+    }
+
+    // 無障礙：使用者點連結換頁才移焦點 + 報讀（初始載入 / refresh / popstate 由瀏覽器處理，不搶焦點）
+    if (fromUserNav) announceAndFocusMain(main);
 
     // 刷新 ScrollTrigger，確保新內容載入、高度改變後，觸發位置能正確更新
     if (typeof ScrollTrigger !== 'undefined') {
@@ -297,6 +358,9 @@ export function initRouter() {
     history.scrollRestoration = 'manual';
   }
 
+  // 無障礙：startup 就建好換頁報讀 region（見 getRouteAnnouncer）
+  getRouteAnnouncer();
+
   // 攔截所有內部連結點擊
   document.addEventListener('click', (e) => {
     const target = /** @type {Element | null} */ (e.target);
@@ -332,6 +396,15 @@ export function initRouter() {
     if (handled) e.preventDefault();
   });
 
+  // Prefetch on intent：hover（桌面）/ touchstart（手機，先於 click ~100ms+）→ 先暖該頁資料 cache。
+  // document-level + 隨 app 生命週期常駐（initRouter 只跑一次），無需 page-cleanup。
+  ['pointerover', 'touchstart'].forEach(evt => {
+    document.addEventListener(evt, (e) => {
+      const link = /** @type {Element | null} */ (e.target)?.closest?.('a[href]');
+      if (link) prefetchFromLink(link);
+    }, { passive: true });
+  });
+
   // 瀏覽器上一頁/下一頁
   window.addEventListener('popstate', () => {
     const { pathname, search } = window.location;
@@ -349,6 +422,9 @@ export function initRouter() {
   } else if (!initRoute && logicalPath !== '/' && logicalPath !== '/index.html') {
     // 找不到路由且非首頁 → 顯示 404
     loadPage(NOT_FOUND_ROUTE, search);
+  } else {
+    // 首頁初載不跑 loadPage（內容已在 shell）→ 手動掛 snap 模式（mandatory）
+    document.documentElement.classList.add('snap-mandatory');
   }
   // index 的初始化由 main-modular.js DOMContentLoaded 處理
 }
