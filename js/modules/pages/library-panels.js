@@ -11,6 +11,7 @@ import { DUR, EASE } from '../ui/motion.js';
 import { CMS_API_BASE, CMS_ASSETS_BASE } from '../../config/api.js';
 import { sitePath, SITE_BASE_PATHNAME } from '../ui/site-base.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
+import { makeActivatable } from '../ui/a11y.js';
 import { loadSummerCamp } from './summer-camp-source.js';
 import { SECTION_LABELS, getSectionData, findItemById, getAwardRecords, findAwardById } from './activities-data-loader.js';
 
@@ -80,10 +81,17 @@ function groupByYear(items) {
 function createYearPicker(pickerEl, years, onFilter) {
   const selected = new Set();
 
+  // 無障礙：年份按鈕群組（WCAG 1.3.1 / 4.1.2）
+  pickerEl.setAttribute('role', 'group');
+  pickerEl.setAttribute('aria-label', '年份篩選 Filter by year');
+
   const updateStyles = () => {
     const hasSel = selected.size > 0;
     pickerEl.querySelectorAll('button').forEach(b => {
-      b.style.color = (!hasSel || selected.has(b.dataset.year)) ? 'var(--lib-fg)' : 'rgba(var(--lib-fg-rgb),0.3)';
+      const isSel = selected.has(b.dataset.year);
+      // 選取＝維持原色，未選＝dim 到 0.3（跟 album cat 選單同款，靠 cssText 的 transition 平滑淡入淡出）
+      b.style.color = (!hasSel || isSel) ? 'var(--lib-fg)' : 'rgba(var(--lib-fg-rgb),0.3)';
+      b.setAttribute('aria-pressed', String(isSel)); // 無障礙：選取狀態靠 aria-pressed 報讀（取代視覺底線，不依賴顏色）
     });
   };
 
@@ -91,7 +99,8 @@ function createYearPicker(pickerEl, years, onFilter) {
     const btn = document.createElement('button');
     btn.textContent = year;
     btn.dataset.year = year;
-    btn.style.cssText = 'text-align:left;background:none;border:none;padding:0;font-family:inherit;font-size:var(--font-size-p3);cursor:pointer;font-weight:700;color:var(--lib-fg);';
+    btn.setAttribute('aria-pressed', 'false');
+    btn.style.cssText = 'text-align:left;background:none;border:none;padding:0;font-family:inherit;font-size:var(--font-size-p3);cursor:pointer;font-weight:700;color:var(--lib-fg);transition:color 0.3s ease;';
     btn.addEventListener('click', () => {
       if (selected.has(year)) { selected.delete(year); } else { selected.add(year); }
       if (selected.size === years.length) selected.clear();
@@ -644,12 +653,12 @@ async function initAwardsPanel(onEntranceDoneCallback) {
           const cursorStyle = hasExpand
             ? `cursor:url('${sitePath('custom-cursor/pointer.svg')}') 14 1, pointer;`
             : `cursor:url('${sitePath('custom-cursor/default.svg')}') 9 2, default;`;
-          // ref 鈕：下 chevron（user 2026-06-22；原 icon-ref-list 鏡像箭頭）。chevron-list base 朝左、rotate(90deg)=朝下。
+          // ref 鈕：收合態下 chevron（user 2026-06-22）。chevron-list base 朝左：rotate(-90deg)=朝下、90=上（icon.css 註解上下標反了，以此為準）。
           // 整列可點開合（見下方 click handler），chevron 為視覺提示；點它 bubble 到 item 一樣觸發開合。
           const refBtnHtml = hasExpand ? `
             <button class="award-ref-toggle" aria-label="Show references"
                     style="background:none;border:none;padding:0.23em 0 0;color:inherit;cursor:url('${sitePath('custom-cursor/pointer.svg')}') 14 1, pointer;line-height:1;">
-              <span class="icon icon-chevron-list icon-s" style="transform:rotate(90deg);"></span>
+              <span class="icon icon-chevron-list icon-s" style="transform:rotate(-90deg);"></span>
             </button>` : '';
           // ref 展開區：item 改 block 後，ref-wrap 是 item 的「滿寬 block child」(對齊 activities .list-content：
           // 乾淨 block、不是 grid-column 1/-1 的 fractional grid item)→ 不靠負 margin 逃逸 item padding，button w-full
@@ -722,10 +731,11 @@ async function initAwardsPanel(onEntranceDoneCallback) {
           if (/** @type {HTMLElement} */ (e.target).closest('.award-ref-wrap')) return;
           const isOpen = wrap.dataset.open === '1';
           wrap.dataset.open = isOpen ? '' : '1';
-          // chevron 跟著開合轉（對齊 activities：開→朝上 -90 / 合→朝下 90；chevron-list base 0=左、90=下）
+          // chevron 跟著開合轉（對齊 activities：開→朝上 90 / 合→朝下 -90；chevron-list base 朝左：90=上、-90=下）。
+          // isOpen=展開前的狀態（true=本來開著、這次點是要收）→ 收回朝下 -90、展開朝上 90。
           const chevron = item.querySelector('.award-ref-toggle .icon');
           if (chevron && typeof gsap !== 'undefined') {
-            gsap.to(chevron, { rotation: isOpen ? 90 : -90, duration: DUR.fast, overwrite: true });
+            gsap.to(chevron, { rotation: isOpen ? -90 : 90, duration: DUR.fast, overwrite: true });
           }
           if (!isOpen) {
             // 開：立刻鎖 accent 底 + deep ref（同 activities proceedOpen）
@@ -899,21 +909,26 @@ async function initAwardsPanel(onEntranceDoneCallback) {
       // 渲染卡片就看到 logo、tween 一就緒就跑）。進場完成後啟動 marquee，但要等 ticker 圖片載入完才量寬度：
       // 桌面靠進場動畫 ~1.5s 緩衝、圖多半已載；手機 timing 早很多（onEntranceDone fix 後 cb 在 render 後立刻跑），
       // 圖未載時 offsetWidth=0 → 量錯/ticker 不動。改成等所有 ticker img load/error 後才量 t1 寬 + 跑 tween（兩 viewport 都穩）。
-      onEntranceDoneCallback(() => {
-        const startTicker = () => {
-          const trackW = t1.offsetWidth;
-          if (!trackW) return;
-          if (typeof gsap !== 'undefined') {
-            gsap.to([t1, t2], { x: `-=${trackW}`, ease: 'none', duration: trackW / 80, repeat: -1 });
-            // ticker 單純等速跑、無 hover 互動（user 2026-06-09 移除：hover 減速 + hover 圖片 dim 兩效果）
-          } else {
-            // Fallback: 環境沒讀到 GSAP 用 CSS 動畫
-            const style = document.createElement('style');
-            style.textContent = `@keyframes awards-ticker { from { transform: translateX(0); } to { transform: translateX(-${trackW}px); } }`;
-            document.head.appendChild(style);
-            tickerWrapper.style.animation = `awards-ticker ${Math.round(trackW / 80)}s linear infinite`;
-          }
-        };
+      let tickerStarted = false;
+      const startTicker = () => {
+        if (tickerStarted) return;
+        const trackW = t1.offsetWidth;
+        // 從非 awards panel 進 library 時 awards 仍 display:none → 寬 0 → bail；
+        // 切到 awards 顯示後由 window._awardsTickerStart 重試（armTicker 重量）。
+        if (!trackW) return;
+        tickerStarted = true;
+        if (typeof gsap !== 'undefined') {
+          gsap.to([t1, t2], { x: `-=${trackW}`, ease: 'none', duration: trackW / 80, repeat: -1 });
+          // ticker 單純等速跑、無 hover 互動（user 2026-06-09 移除：hover 減速 + hover 圖片 dim 兩效果）
+        } else {
+          // Fallback: 環境沒讀到 GSAP 用 CSS 動畫
+          const style = document.createElement('style');
+          style.textContent = `@keyframes awards-ticker { from { transform: translateX(0); } to { transform: translateX(-${trackW}px); } }`;
+          document.head.appendChild(style);
+          tickerWrapper.style.animation = `awards-ticker ${Math.round(trackW / 80)}s linear infinite`;
+        }
+      };
+      const armTicker = () => {
         // 手機：logo 已用 CSS aspect-ratio 預留寬度 → layout 一好（1 rAF）就量得到 trackW，不必等圖載入
         //   → ticker「一渲染就開始捲」（圖載好填進預留位）；不會「靜止 logo 卡一下才動」（user 2026-06-10）。
         // 桌面：logo width:auto 沒預留、trackW 要 naturalWidth → 維持等所有圖 load/error 才量（進場 ~1.5s 已遮掉）。
@@ -926,7 +941,11 @@ async function initAwardsPanel(onEntranceDoneCallback) {
           if (im.complete) ready();
           else { im.addEventListener('load', ready, { once: true }); im.addEventListener('error', ready, { once: true }); }
         });
-      });
+      };
+      onEntranceDoneCallback(armTicker);
+      // 從非 awards panel 進 library：進場時 awards 隱藏、startTicker 量寬=0 bail → ticker 不動。
+      // showLibPanel('awards') 顯示後呼叫此 hook 重試；tickerStarted 旗標保證只啟動一次（直接進 awards 時 no-op）。
+      window._awardsTickerStart = () => { if (!tickerStarted) armTicker(); };
     } else if (tickerWrapper) {
       document.getElementById('library-awards-ticker').style.display = 'none';
     }
@@ -1042,6 +1061,7 @@ async function initPressPanel() {
                 const references = await resolveLibManualRefs(item);
                 document.dispatchEvent(new CustomEvent('sccd:open-lightbox', { detail: { media, index: 0, title: lbTitle, color: lbColor, references } }));
               });
+              makeActivatable(div, [item.titleEn, item.titleZh].filter(Boolean).join(' ')); // 無障礙：報導項可 Tab + Enter 開
             }
           } else if (item.pdfUrl) {
             div.style.cursor = `url('${sitePath('custom-cursor/pointer.svg')}') 14 1, pointer`;
@@ -1055,6 +1075,7 @@ async function initPressPanel() {
               const references = unionRefs(auto, await resolveLibManualRefs(item));
               document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl, title: pdfTitle, color: pdfColor, references, shareUrl: libShareUrl(item.id) } }));
             });
+            makeActivatable(div, [item.titleEn, item.titleZh].filter(Boolean).join(' ')); // 無障礙：報導(PDF)項可 Tab + Enter 開
           }
           block.appendChild(div);
         });
@@ -1190,6 +1211,7 @@ async function initFilesPanel() {
               const references = unionRefs(auto, await resolveLibManualRefs(item));
               document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl, title: pdfTitle, color: accentColor, references, shareUrl: libShareUrl(item.id && `f-${item.id}`) } }));
             });
+            makeActivatable(div, [item.titleEn, item.titleZh].filter(Boolean).join(' ')); // 無障礙：文件項可 Tab + Enter 開
           }
 
           grid.appendChild(div);
@@ -1437,6 +1459,7 @@ async function initAlbumPanel() {
               const references = await resolveLibManualRefs(item);
               document.dispatchEvent(new CustomEvent('sccd:open-lightbox', { detail: { media: item.media, index: 0, title: lbTitle, color: lbColor, references, shareUrl } }));
             });
+            makeActivatable(div, [item.titleEn, item.titleZh].filter(Boolean).join(' ')); // 無障礙：相簿項可 Tab + Enter 開
           }
 
           // 圖片 load 後依比例設尺寸（default 和 hover 一致，不 crop）
@@ -1770,6 +1793,7 @@ function showLibPanel(tab, { reveal = true } = {}) {
         hidePanelChildren(el);
       }
       if (key === 'awards' && typeof window._awardsMarqueeInit === 'function') requestAnimationFrame(window._awardsMarqueeInit);
+      if (key === 'awards' && typeof window._awardsTickerStart === 'function') window._awardsTickerStart();
       if (key === 'press'  && typeof window._pressMarqueeInit === 'function') requestAnimationFrame(window._pressMarqueeInit);
       if (key === 'files'  && typeof window._filesMarqueeInit === 'function') requestAnimationFrame(window._filesMarqueeInit);
       if (key === 'album'  && typeof window._albumMarqueeInit === 'function') requestAnimationFrame(window._albumMarqueeInit);
@@ -1882,9 +1906,11 @@ function handleLibraryHash() {
   const startTime = Date.now();
   const MAX_WAIT = 3000;
   // 灰卡進場打開後（desktop 在 onEntranceDone 才呼叫 handleHash）留個緩衝再開始捲，
-  // 否則「一打開就直接捲」感覺太急（user 2026-06-04）；對齊 curriculum deep-link 的 OPEN_DELAY=600。
+  // 否則「一打開就直接捲」感覺太急（user 2026-06-04）。
+  // user 2026-06-27：no-scroll 只等這 0.5s buffer 就 highlight（不再空轉 settleTimer ~300ms）；
+  //   需捲時 = 0.5s buffer + 捲動時長（見下方 no-scroll 短路）。
   // 這個值同時當「首次嘗試找元素」的延遲，找不到會往後 retry（不影響 async panel render 慢的情況）。
-  const SCROLL_DELAY = 600;
+  const SCROLL_DELAY = 500;
 
   function tryFindAndHandle() {
     const el = document.getElementById(hash);
@@ -1926,22 +1952,25 @@ function handleLibraryHash() {
       const scroller = /** @type {HTMLElement|null} */ (el.closest('[id$="-scroll"]'));
       if (scroller) {
         const computeMargin = () => {
-          const yb = /** @type {HTMLElement|null} */ (el.closest('.year-block, .files-year-block, .album-year-block'));
+          const yb = /** @type {HTMLElement|null} */ (el.closest('.year-block, .press-year-block, .files-year-block, .album-year-block'));
           let margin = 32;
           if (yb) {
             const isAwards = yb.classList.contains('year-block');
-            const isAlbum  = yb.classList.contains('album-year-block');
             const label = /** @type {HTMLElement|null} */ (isAwards ? yb.firstElementChild : yb.querySelector(':scope > .press-year-label'));
             if (label) {
-              margin = isAlbum
-                ? Math.max(32, label.offsetHeight)
-                : Math.max(0, label.offsetHeight - (isAwards ? 4 : 0));
+              // 對齊年份標題底緣（label 自己的 padding-bottom 當 gap）；awards 多收 4px 讓上列分隔綫被標題 bg 蓋住。
+              // album 不再用 Math.max(32, labelHeight)：桌面 p3 label ~23px < 32 → 強制 32 → item 比標題底多掉 ~9px
+              //「太低」（user 2026-06-25 桌面 album）；手機 p1 label > 32 時 labelHeight 結果同舊 max → 統一 labelHeight 兩端都貼齊。
+              margin = Math.max(0, label.offsetHeight - (isAwards ? 4 : 0));
             }
           }
           return margin;
         };
-        const delta = el.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
-        scroller.scrollBy({ top: delta - computeMargin(), behavior: 'smooth' });
+        const target = el.getBoundingClientRect().top - scroller.getBoundingClientRect().top - computeMargin();
+        // 已對齊（不需捲）：SCROLL_DELAY 的 0.5s buffer 已過 → 直接 highlight，不走 settleTimer 的 ~300ms 空轉
+        // （user 2026-06-27：no-scroll 只等 0.5s；需捲時才 0.5s buffer + 捲動時長）。
+        if (Math.abs(target) <= 2) { runHighlight(); return; }
+        scroller.scrollBy({ top: target, behavior: 'smooth' });
 
         // 捲動量是「捲動當下」一次算好的，但 album/files 縮圖 loading=lazy + load 後才 applyRatio 設尺寸；
         // 手機縮圖 flex-wrap 自然排版佔 layout 高度（桌面 absolute stack 不佔 → 桌面一次就準），

@@ -8,6 +8,7 @@ import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { playPanelTitleExit, playPanelBodyExit } from './library-panels.js';
 import { DUR } from '../ui/motion.js';
 import { sitePath } from '../ui/site-base.js';
+import { prefersReducedMotion } from '../ui/reduce-motion.js';
 
 export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: onEntranceDoneCb, initialTab = 'awards' }) {
 
@@ -593,6 +594,19 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
   function playEntranceAnimation(sw, sh) {
     const ENTER_DUR = 0.5;
     const STAGGER   = 0.2;
+
+    // 減少動態：library 進場是 setTimeout 分階段 + clip wipe（btn→灰卡→內容），CSS blanket 只讓每段 wipe
+    // 瞬間、但 setTimeout 階段間隔仍在 → staged 跳出。這裡直接跳過分階段，所有卡片與內容立即到位。
+    if (prefersReducedMotion()) {
+      allEls.forEach(el => { el.style.opacity = '1'; el.style.clipPath = ''; el.style.transition = TRANSITION; });
+      const contentEl = document.getElementById('library-card-content');
+      if (onTabSwitch) onTabSwitch(tabOf.get(grayEl));
+      if (contentEl) contentEl.classList.add('content-visible');
+      if (onEntranceDoneCb) onEntranceDoneCb();
+      refreshMarquees();
+      return;
+    }
+
     grayEl.style.opacity  = '1';
     grayEl.style.clipPath = 'inset(100% 0 0 0)';
 

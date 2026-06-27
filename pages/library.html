@@ -22,6 +22,8 @@
 
   <!-- Main Content -->
   <main id="page-content">
+    <!-- 視覺隱藏的頁面主標題（語意/地標；視覺標題在各 panel 的 .lib-panel-title） -->
+    <h1 class="sr-only">檔案室 Library</h1>
     <!-- Card Stack Hero -->
     <section class="relative overflow-visible" style="height: calc(100vh - var(--header-height)); margin-top: var(--header-height);">
       <!-- Mobile-only tab bar（桌面 display:none，由 CSS 控；JS 在 < 768 不跑 card stack 改用此 tab bar）
@@ -54,7 +56,7 @@
           <div id="lib-panel-awards" style="display: flex; flex-direction: column; width: 100%; height: 100%; position: relative; overflow: visible;">
 
             <!-- 標題（貼在 panel 左上角） -->
-            <p class="lib-panel-title" style="position: absolute; top: 0; left: calc(-1 * var(--spacing-xl)); font-size: var(--font-size-h5); font-weight: 700; display: inline-block; padding: 6px 8px 5px; z-index: 1;">Awards 榮譽</p>
+            <h2 class="lib-panel-title" style="margin: 0; position: absolute; top: 0; left: calc(-1 * var(--spacing-xl)); font-size: var(--font-size-h5); font-weight: 700; display: inline-block; padding: 6px 8px 5px; z-index: 1;">Awards 榮譽</h2>
 
             <!-- 內容區（flex: 1，不含 ticker） -->
             <!-- padding-top = md 對齊其他三個 panel（press/files/album 都是 var(--spacing-md)）；原本 md/2 害 award 灰卡內容比其他高 12px（user 2026-06-15） -->
@@ -105,7 +107,7 @@
           <div id="lib-panel-press" style="display: none; flex-direction: column; width: 100%; height: 100%; position: relative; overflow: visible;">
 
             <!-- 標題（貼在 panel 頂邊） -->
-            <p class="lib-panel-title" style="position: absolute; top: 0; left: calc(-1 * var(--spacing-xl)); font-size: var(--font-size-h5); font-weight: 700; display: inline-block; padding: 6px 8px 5px; z-index: 1;">Press 報導</p>
+            <h2 class="lib-panel-title" style="margin: 0; position: absolute; top: 0; left: calc(-1 * var(--spacing-xl)); font-size: var(--font-size-h5); font-weight: 700; display: inline-block; padding: 6px 8px 5px; z-index: 1;">Press 報導</h2>
 
             <!-- 內容區：2 rows — 分類篩選/search、picker/list -->
             <div style="flex: 1; min-height: 0; display: grid; grid-template-columns: max-content 1fr; grid-template-rows: auto 1fr; gap: 0 var(--spacing-2xl); padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm) var(--spacing-md);">
@@ -146,7 +148,7 @@
           <div id="lib-panel-files" style="display: none; flex-direction: column; width: 100%; height: 100%; position: relative; overflow: visible;">
 
             <!-- 標題（貼在 panel 頂邊） -->
-            <p class="lib-panel-title" style="position: absolute; top: 0; left: calc(-1 * var(--spacing-2xl)); font-size: var(--font-size-h5); font-weight: 700; display: inline-block; padding: 6px 8px 5px; z-index: 1;">Documents 文件</p>
+            <h2 class="lib-panel-title" style="margin: 0; position: absolute; top: 0; left: calc(-1 * var(--spacing-2xl)); font-size: var(--font-size-h5); font-weight: 700; display: inline-block; padding: 6px 8px 5px; z-index: 1;">Documents 文件</h2>
 
             <div style="flex: 1; min-height: 0; display: grid; grid-template-columns: max-content 1fr; grid-template-rows: auto 1fr; gap: 0 var(--spacing-2xl); padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm) var(--spacing-md);">
 
@@ -186,7 +188,7 @@
           <div id="lib-panel-album" style="display: none; flex-direction: column; width: 100%; height: 100%; position: relative; overflow: visible;">
 
             <!-- 標題（貼在 panel 頂邊） -->
-            <p class="lib-panel-title" style="position: absolute; top: 0; left: calc(-1 * var(--spacing-xl)); font-size: var(--font-size-h5); font-weight: 700; display: inline-block; padding: 6px 8px 5px; z-index: 1;">Albums 相簿</p>
+            <h2 class="lib-panel-title" style="margin: 0; position: absolute; top: 0; left: calc(-1 * var(--spacing-xl)); font-size: var(--font-size-h5); font-weight: 700; display: inline-block; padding: 6px 8px 5px; z-index: 1;">Albums 相簿</h2>
 
             <div style="flex: 1; min-height: 0; display: grid; grid-template-columns: max-content 1fr; grid-template-rows: auto 1fr; gap: 0 var(--spacing-2xl); padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm) var(--spacing-md);">
 
