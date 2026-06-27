@@ -6,6 +6,7 @@
 import { openLightbox } from '../lightbox/activities-lightbox.js';
 import { setupClipReveal, playClipReveal } from '../ui/scroll-animate.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
+import { makeActivatable } from '../ui/a11y.js';
 import { ensureFlagIconsCss } from '../ui/ensure-flag-icons.js';
 import { countryName } from '../../data/country-names.js';
 import { DUR, EASE } from '../ui/motion.js';
@@ -655,6 +656,8 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
         const index = parseInt(el.dataset.lightboxIndex, 10) || 0;
         openLightbox(media, index, getLightboxMeta(el));
       });
+      // 無障礙：gallery/poster 是 <div>，補可 Tab + Enter 開 lightbox（圖 alt 當名稱、無則 fallback）
+      makeActivatable(el, el.querySelector('img')?.getAttribute('alt') || '開啟媒體 Open media');
     });
   });
 
@@ -1123,18 +1126,21 @@ export async function loadListInto(containerId, url, options = {}) {
                 if (alwaysExpanded) return '';
                 return `<div class="flex items-start gap-sm flex-shrink-0">
                   <div class="list-reveal-row flex items-center gap-sm">
-                    ${showShareBtn ? `<button data-share-btn class="inline-flex items-center self-start">
+                    ${showShareBtn ? `<button data-share-btn aria-label="分享 Share" class="inline-flex items-center self-start">
                       <span class="icon icon-share icon-s"></span>
                     </button>` : ''}
-                    <div class="flex-shrink-0 self-start" style="overflow:clip; height:1.5em; width:1.5em;">
+                    <!-- 無障礙：chevron 包成 <button class="list-header-toggle"> = accordion 的鍵盤展開觸發
+                         （與 share button 同為 .list-reveal-row 的兄弟、互不巢狀；.list-header 本身不再是 button）。
+                         aria-expanded 由 list-accordion.js 同步；CSS .list-header-toggle 清掉 button 預設樣式。 -->
+                    <button type="button" class="list-header-toggle flex-shrink-0 self-start" aria-expanded="false" aria-label="展開或收合詳情 Toggle details" style="overflow:clip; height:1.5em; width:1.5em;">
                       <div class="flex justify-center items-start w-full h-full">
                         <!-- rotation 全由 GSAP 驅動（list-accordion.js open/close）：不要再掛 CSS transition-transform，
                              否則 CSS transition 會追著 GSAP 每幀寫的 transform 跑＝雙重緩動，chevron 旋轉變成
                              「前段幾乎不動→中段暴衝→尾段又慢」的 S 型、總長 ~580ms（DUR.fast 應為 300ms），
-                             實測移除後乾淨 ~250ms（user 2026-06-15）。rotate-90 是初始態（GSAP 讀為起點）保留 -->
-                        <span class="icon icon-chevron-list icon-s rotate-90"></span>
+                             實測移除後乾淨 ~250ms（user 2026-06-15）。-rotate-90 是初始態＝收合朝下（base 朝左：-90=下/90=上）-->
+                        <span class="icon icon-chevron-list icon-s -rotate-90"></span>
                       </div>
-                    </div>
+                    </button>
                   </div>
                 </div>`;
               })()}

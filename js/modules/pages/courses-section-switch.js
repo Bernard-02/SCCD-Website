@@ -12,6 +12,7 @@
  */
 
 import { renderCoursesGrid, deselectActiveCard, resetCoursesMapState, selectCardBySlugInPanel, highlightCardBySlugInPanel } from './courses-map.js';
+import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { setActiveNavBtn } from '../ui/section-switch-helpers.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { registerPageExit } from '../ui/page-exit.js';
@@ -189,9 +190,15 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
   if (hasQueryDeepLink && fromUserNav) {
     const OPEN_DELAY_MS = 600;   // 捲到卡片後、開 slide-in 前的緩衝（同 activities navigateToItem 的 600）
     // 同時等 grid render（卡片存在才能 selectCardBySlugInPanel）+ hero 動畫播完才往下捲
-    Promise.all([initSwitchPromise, waitForHeroAnimDone()]).then(() => {
+    Promise.all([initSwitchPromise, waitForHeroAnimDone()]).then(async () => {
       if (!sectionEl) return;
       if (!itemSlug) { scrollSectionIntoView(sectionEl); return; }
+      // 比照 activities navigateToItem：捲動前先等 render/layout settle（setTimeout 150 + rAF）。
+      // reduce 模式 hero 是瞬間 → 不等的話捲動在 ~tens ms 內就跑、早於 router 的保險 scroll-reset → 被拉回頂部
+      // （activities 一直有這段 settle 所以 reduce 下正常；curriculum 原本沒有 = user 報「停在頂部」）。
+      // 與 router 對 deep-link 跳過 reset 的修法疊加＝雙保險。
+      await new Promise(r => setTimeout(r, 150));
+      await new Promise(r => requestAnimationFrame(r));
       // 導航的卡片一律「對齊到第一排卡片所在的位置」（= section.top=0 時第一排的視窗高度），比固定 viewport 比例
       // 更一致可預期（user 2026-06-04）。做法：在「可見」grid（桌面/手機只一份顯示，挑 offsetParent 非 null）內
       // 量目標卡片與「最上排卡片」的垂直距離 delta，加到 section.top=0 → 目標卡片剛好落在第一排位置。
@@ -234,6 +241,16 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
   programBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       switchToProgram(btn.getAttribute('data-program'), programBtns, true);
+      // 手機 program bar 是水平 scroll strip：點到的 btn 可能被捲到部分出界 → 捲回讓它靠左對齊頁面內容左緣。
+      // 只動 bar 自己的 scrollLeft（不用 scrollIntoView，避免它連帶動垂直/viewport）；桌面是 vertical sticky 不需要。
+      if (window.innerWidth < 768) {
+        const bar = /** @type {HTMLElement | null} */ (btn.closest('.courses-program-bar'));
+        if (bar) {
+          const pad = parseFloat(getComputedStyle(bar).paddingLeft) || 0;
+          const delta = btn.getBoundingClientRect().left - (bar.getBoundingClientRect().left + pad);
+          bar.scrollTo({ left: bar.scrollLeft + delta, behavior: 'smooth' });
+        }
+      }
     });
   });
 
@@ -258,7 +275,7 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
     '.courses-program-bar .courses-bfa-label, .courses-program-bar .courses-program-btn .anchor-nav-inner'
   ));
   let navRevealed = false;
-  if (typeof gsap !== 'undefined' && navTargets.length) {
+  if (typeof gsap !== 'undefined' && navTargets.length && !prefersReducedMotion()) {  // 減少動態：nav 維持靜態可見
     navTargets.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = 'none'; gsap.set(el, { clipPath: pickClipDir() }); });
     const playNavReveal = () => {
       if (navRevealed) return;
@@ -375,7 +392,7 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
     ];
     /** @typedef {{ axis: 'x' | 'y', percent: number }} HeaderDir */
     let headerExitDirs = /** @type {HeaderDir[] | null} */ (null);
-    if (isSwitch && prevPanel && prevPanel.id !== newPanelId && typeof gsap !== 'undefined') {
+    if (isSwitch && prevPanel && prevPanel.id !== newPanelId && typeof gsap !== 'undefined' && !prefersReducedMotion()) {  // 減少動態：不跑舊卡片退場
       // 手機表頭（年級 + 必修/選修）沒有 desktop 的 slide-mask 結構，改跟卡片同走 clip-path wipe：
       // 一起塞進 prevCards，切 program 時跟卡片同步收（桌面這兩 class 是 display:none，動畫不可見不影響桌面 slide）
       const prevCards = prevPanel.querySelectorAll('.courses-grid-card, .courses-mobile-grade-header, .courses-mobile-row-label');
@@ -488,17 +505,20 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
         });
 
         const playReveal = () => {
+          if (prefersReducedMotion()) { gsap.set(allCards, { clearProps: 'clipPath' }); return; }  // 減少動態：直接全顯
           gsap.to(allCards, {
             clipPath: 'inset(0% 0% 0% 0%)',
             duration: DUR.base,
             ease: 'cubic-bezier(0.25, 0, 0, 1)',
-            stagger: isSwitch ? 0 : 0.02,
+            // 固定總時長攤給所有卡（amount）不用 per-card（each）：~40+ 張時 each:0.02 會拖到 ~0.9s 一張張慢慢冒出
+            // ＝user 報的「灰卡慢出現」。對齊 exit 已用的 { amount: 0.2 }，整片在 ~0.25s 內 reveal 完。
+            stagger: isSwitch ? 0 : { amount: 0.25 },
             overwrite: true,
             clearProps: 'clipPath',
           });
         };
 
-        if (isSwitch || panelInView || deepLinkAutoNav) {
+        if (prefersReducedMotion() || isSwitch || panelInView || deepLinkAutoNav) {
           playReveal();
         } else if (typeof ScrollTrigger !== 'undefined') {
           ScrollTrigger.create({
@@ -519,7 +539,9 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
       const newHeadersInner = activePanel.querySelectorAll('.courses-grid-col-header-inner, .courses-grid-type-label-inner');
       if (newHeadersInner.length) {
         gsap.killTweensOf(newHeadersInner);
-        if (isSwitch && headerExitDirs) {
+        if (prefersReducedMotion()) {
+          gsap.set(newHeadersInner, { clearProps: 'transform' });  // 減少動態：表頭直接到位
+        } else if (isSwitch && headerExitDirs) {
           const exitDirs = headerExitDirs;
           gsap.fromTo(newHeadersInner,
             {

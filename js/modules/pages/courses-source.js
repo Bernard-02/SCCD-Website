@@ -14,21 +14,27 @@ const CMS_COLLECTION = 'curriculum_courses';
 const FALLBACK_JSON = '/data/courses.json';
 // 2026-06-09 起課表不再分上下學期 → semester 不再使用（後台該欄保留但前端忽略）
 
-let _cache = null;
+// single-flight：cache 的是 Promise 不是結果 → 「prefetch-on-intent」與頁面 init 的並發呼叫共用同一個
+// in-flight 請求（只打一次 Directus）；resolve 後 _promise 留著當 cache，同 session 再進 curriculum 即時。
+// 失敗才清掉 _promise，允許下次重試（避免 cache 住 rejected promise）。
+let _promise = null;
 
-export async function loadCourses() {
-  if (_cache) return _cache;
+export function loadCourses() {
+  if (!_promise) _promise = _fetchCourses().catch(err => { _promise = null; throw err; });
+  return _promise;
+}
+
+async function _fetchCourses() {
   try {
     const res = await fetch(`${CMS_API_BASE}/${CMS_COLLECTION}?limit=-1&sort=sort`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const rows = (await res.json()).data;
     if (!Array.isArray(rows) || !rows.length) throw new Error('empty');
-    _cache = groupByProgram(rows);
+    return groupByProgram(rows);
   } catch (err) {
     console.warn('[courses] CMS fetch failed, fallback to /data/courses.json:', err.message);
-    _cache = await fetch(sitePath(FALLBACK_JSON)).then(r => r.json());
+    return fetch(sitePath(FALLBACK_JSON)).then(r => r.json());
   }
-  return _cache;
 }
 
 function groupByProgram(rows) {

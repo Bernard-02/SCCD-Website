@@ -10,6 +10,7 @@ import { initListAccordion } from '../accordions/list-accordion.js';
 import { loadListInto } from './activities-data-loader.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { sitePath } from '../ui/site-base.js';
+import { prefersReducedMotion } from '../ui/reduce-motion.js';
 
 // admission news 走通用 loadListInto（canonical list template），靠 options 切變體：
 //   - flatList: true             — data 是 flat array（非 year-grouped）
@@ -112,6 +113,14 @@ function revealZebraBg(item, tl, at) {
  */
 export function playAdmissionPanelReveal(panel, { useScrollTrigger = false } = {}) {
   if (!panel || typeof gsap === 'undefined') return;
+
+  // 減少動態：所有 list rows + zebra 底色直接到位，不分組、不 ScrollTrigger、不滑入。
+  if (prefersReducedMotion()) {
+    gsap.set(panel.querySelectorAll('.list-reveal-row'), { clearProps: 'transform' });
+    panel.querySelectorAll('.list-item.list-item-zebra').forEach(item => gsap.set(item, { clearProps: 'clipPath' }));
+    panel.querySelectorAll('.list-item[data-pre-reveal]').forEach(it => it.removeAttribute('data-pre-reveal'));
+    return;
+  }
 
   // 分組策略：以 list-item-divider 為「list-row 群組」終止符，每組 = 年份(若有) + title + 副標/icons + chevron + divider
   // intro = list 結構之外的 rows（描述塊）；首個 list-item / yearGroup 之後皆視為 list phase
@@ -264,6 +273,7 @@ function collapseOpenAccordionsInPanel(panel) {
  */
 export async function playAdmissionPanelExit(panel) {
   if (!panel || typeof gsap === 'undefined') return;
+  if (prefersReducedMotion()) return;  // 減少動態：不跑退場，立即換頁/切換
 
   // 1. 先收起展開的 accordion（若有）
   await collapseOpenAccordionsInPanel(panel);

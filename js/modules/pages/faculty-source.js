@@ -24,10 +24,16 @@ const COLLECTIONS = [
 // 之後後台一上傳，image 會是 Directus 檔案 UUID，resolveImage 自動切到 assets URL（不用改 code）。
 const PLACEHOLDER_IMAGE = '../images/S__6742028.jpg';
 
-let _cache = null;
+// single-flight：cache 存 Promise（非結果）→ prefetch-on-intent 與進頁/slide-in/atlas 的並發呼叫共用同一個
+// in-flight 請求（只打一次後台）。resetFacultyCache（改在「離開 faculty」時跑，見 faculty-data-loader）清掉 → 下次重抓最新。
+let _promise = null;
 
-export async function getFacultyData() {
-  if (_cache) return _cache;
+export function getFacultyData() {
+  if (!_promise) _promise = _fetchFacultyData().catch(err => { _promise = null; throw err; });
+  return _promise;
+}
+
+async function _fetchFacultyData() {
   try {
     const groups = await Promise.all(COLLECTIONS.map(async (c) => {
       const res = await fetch(`${CMS_API_BASE}/${c.name}?limit=-1&sort=${c.sort}`);
@@ -50,12 +56,11 @@ export async function getFacultyData() {
     }));
     const merged = groups.flat();
     if (!merged.length) throw new Error('empty');
-    _cache = merged;
+    return merged;
   } catch (err) {
     console.warn('[faculty] CMS fetch failed, fallback to /data/faculty.json:', err.message);
-    _cache = await fetch(sitePath('data/faculty.json')).then(r => r.json());
+    return fetch(sitePath('data/faculty.json')).then(r => r.json());
   }
-  return _cache;
 }
 
 // null/空 → null；已是 URL / 本地路徑（fallback json）→ 原樣；其餘當 Directus 檔案 UUID → assets URL
@@ -78,6 +83,22 @@ function resolvePlaceholder(v) {
   return u.startsWith(CMS_ASSETS_BASE) ? `${u}?key=web` : u;
 }
 
-// 清掉快取 → 下次進 faculty 頁會重抓最新（老師在後台更新照片/資料後，SPA 站內導航回來即可看到新資料，
-// 不必整頁 hard reload）。loadFacultyData 進頁時呼叫一次。
-export function resetFacultyCache() { _cache = null; }
+// prefetch-on-intent 用：資料一到就 new Image() 預載真實照片 → 進頁時 <img loading="lazy"> 直接命中瀏覽器快取，
+// 卡片一出現照片就在（不再「灰底再跳出照片」）。圖已帶 ?key=web 壓縮；placeholder logo 各卡自己 preload；
+// fallback 本地圖路徑快、hasRealPhoto 未設 → 跳過不預載。new Image() 不留 ref（GC 掉但 HTTP response 已進快取，同 placeholder 既有手法）。
+export function preloadFacultyImages(data) {
+  if (!Array.isArray(data)) return;
+  // 只預暖「上半屏」前幾張：全部 ~50 張一起 new Image() 會在同一條 HTTP/2 連線多工搶頻寬、每張都變慢，
+  // 反而害你滑到的兼任前幾張載更慢（user 2026-06-24 報）。下半屏交給原生 loading="lazy"（依接近視窗距離自動排序載）
+  // + 瀏覽器 30 天快取（Directus 圖回 Cache-Control: public, max-age=2592000）→ 第二次造訪整頁即時、不再灰。
+  data.filter(f => f && f.hasRealPhoto && f.image).slice(0, 6).forEach((f, i) => {
+    const im = new Image();
+    if (i < 4) im.fetchPriority = 'high'; // 最前面 4 張再給高優先序
+    im.src = f.image;
+  });
+}
+
+// 清掉快取 → 下次（prefetch-on-intent 或進頁）會重抓最新（老師在後台更新照片/資料後，SPA 站內導航回來即可看到新資料，
+// 不必整頁 hard reload）。2026-06-24 起改由 faculty-data-loader 在「離開 faculty 時」registerPageCleanup 呼叫
+// （非進頁時），否則進頁先清會把 prefetch 抓好的 cache 清掉重抓＝prefetch 白做。
+export function resetFacultyCache() { _promise = null; }

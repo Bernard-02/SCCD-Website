@@ -244,7 +244,7 @@ export async function loadDegreeShowDetail() {
       // 共用渲染函式：依 url 形式塞 iframe / video tag
       const renderVideoInto = (wrapper, url) => {
         if (url.includes('youtube') || url.includes('vimeo') || url.includes('embed')) {
-          wrapper.innerHTML = `<iframe class="w-full h-full" src="${url}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+          wrapper.innerHTML = `<iframe class="w-full h-full" title="影片 Video" src="${url}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
         } else {
           wrapper.innerHTML = `<video class="w-full h-full" controls><source src="${url}" type="video/mp4">Your browser does not support the video tag.</video>`;
         }
@@ -1557,13 +1557,16 @@ function setupStickyAndHeroChips(data) {
     });
   });
 
-  // branch chip 顯示範圍 = event-galleries-root（第一 album top → 最後 album bottom）
-  // 往上滑出第一 album top / 往下滑過最後 album bottom → 收 branch；hideCard 也會兜底
+  // branch chip 顯示範圍 = event-galleries-root（第一 album top → 最後 album bottom）。
+  // 清除邊界用「galleries 完全離開視窗」（top bottom / bottom top）而非 center：
+  // 原本 bottom center 在「最後 album 底邊到畫面中央」就收 chip，但此時 album 上半還在畫面上、user 還在看
+  // → chip 提早消失（user 2026-06-27 報「還沒到底就消失」）。改成只要還有任何 album 在視窗內 chip 就留著，
+  // galleries 整段捲出視窗（往下底邊過頂 / 往上頂邊過底）才 clear；hideCard 也會兜底。
   if (galleriesRoot) {
     ScrollTrigger.create({
       trigger: galleriesRoot,
-      start: 'top center',
-      end: 'bottom center',
+      start: 'top bottom',
+      end: 'bottom top',
       onLeave: () => clearBranch(),
       onLeaveBack: () => clearBranch(),
     });

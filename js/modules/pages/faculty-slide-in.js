@@ -16,6 +16,8 @@ import { countryName } from '../../data/country-names.js';
 import { getFacultyData } from './faculty-source.js';
 import { modePlaceholderUrl } from './faculty-data-loader.js';
 import { applyMarqueeOverflow } from '../ui/marquee-overflow.js';
+import { makeActivatable } from '../ui/a11y.js';
+import { registerPageCleanup } from '../ui/page-cleanup.js';
 
 // 桌面 slide-in 詳情 cell 的 marquee 改用 JS(WAAPI) 驅動，取代 CSS :hover animation——
 // 目的：hover 離開時讓正在跑的文字「平滑捲回原點」，而非 CSS animation 被移除時 transform 直接歸 0 的瞬間 snap。
@@ -299,6 +301,7 @@ export function initFacultySlideIn() {
     facultyCards.forEach(card => {
       const category = card.getAttribute('data-category');
       if (category === 'fulltime' || category === 'admin') {
+        makeActivatable(card); // 無障礙：師資卡是 <div>，補可 Tab + Enter 開詳情（名字當可讀名）
         card.addEventListener('click', function(e) {
           e.preventDefault();
 
@@ -351,4 +354,12 @@ export function initFacultySlideIn() {
   if (closeBtn) closeBtn.addEventListener('click', closeSlideIn);
   if (backBtnMobile) backBtnMobile.addEventListener('click', closeSlideIn);
   if (slideInOverlay) slideInOverlay.addEventListener('click', closeSlideIn);
+
+  // 無障礙：Escape 關閉 slide-in（背板 overlay 不該變成可 Tab 元素，鍵盤關閉走 Escape；對齊 courses slide-in）。
+  // 每次進 faculty 頁 re-init → registerPageCleanup 解綁避免跨 SPA 累積。
+  const onEsc = (e) => {
+    if (e.key === 'Escape' && slideIn && !slideIn.classList.contains('invisible')) closeSlideIn();
+  };
+  document.addEventListener('keydown', onEsc);
+  registerPageCleanup(() => document.removeEventListener('keydown', onEsc));
 }

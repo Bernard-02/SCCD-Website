@@ -114,6 +114,8 @@ function renderCard(chip) {
   const slugAttr = chip.slug ? ` data-slug="${escapeAttr(chip.slug)}"` : '';
   return `
     <div class="courses-grid-card"
+         role="button" tabindex="0"
+         aria-label="${escapeAttr((titleEn + ' ' + titleZh).trim())}"
          data-base-rot="${rot}"
          data-desc-en="${descEn}"
          data-desc-zh="${descZh}"${slugAttr}
@@ -508,6 +510,16 @@ function bindCardClick(panelEl) {
     } else {
       selectCard(card);
     }
+  });
+
+  // 無障礙：卡片是 role=button tabindex=0 的 <div>（template），Enter/Space 觸發 → 走上面同一條 click delegation
+  panelEl.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const t = e.target;
+    const card = t instanceof Element ? t.closest('.courses-grid-card') : null;
+    if (!card) return;
+    e.preventDefault();
+    /** @type {HTMLElement} */ (card).click();
   });
 
   ensureSlideInClose();
