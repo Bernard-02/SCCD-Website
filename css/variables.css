@@ -271,6 +271,11 @@
   .class-division-btn:hover .dsd-tab-line.is-overflow .dsd-tab-marquee-inner {
     animation: dsd-tab-marquee var(--marquee-duration, 8s) linear infinite;
   }
+  /* 描述段落桌面字級：原本靠 <h5> tag 給 h5 大小，改成 <p>（內文非標題）後明寫在 .dsd-desc；
+     手機 @media（下方 max-width:767）仍覆蓋為 p1，行為與改前一致（WCAG 1.3.1） */
+  .dsd-desc {
+    font-size: var(--font-size-h5);
+  }
 }
 
 /* ===== About Page — 手機版專屬調整（桌面不受影響） ===== */

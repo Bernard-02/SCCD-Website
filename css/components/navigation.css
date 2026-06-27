@@ -192,7 +192,7 @@
   #anchor-nav .anchor-nav-btn:not(.active) .anchor-nav-inner,
   #mobile-anchor-menu .anchor-nav-btn:not(.active) .anchor-nav-inner {
     background: rgba(255, 255, 255, 1);
-    color: rgba(var(--theme-fg-rgb), 0.5);
+    color: rgba(var(--theme-fg-rgb), 0.55); /* 無障礙：0.5(3.5:1)→0.55(4.7:1) 剛過 WCAG AA 4.5:1 */
   }
 
   /* Hover 效果：僅桌面版 */

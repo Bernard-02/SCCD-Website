@@ -1100,12 +1100,16 @@ body.mode-color .control-box {
   }
 }
 
-/* 移除點擊/鍵盤聚焦時 browser 預設的 outline border（mode3 active 狀態下白色 rounded square 從 :focus-visible 來） */
+/* 滑鼠點擊/active 不顯 outline；鍵盤聚焦（:focus-visible）顯可見外框（無障礙 Phase 1，2026-06-24）。
+ * :focus-visible 規則排在 :focus 之後、同特異度由源順序勝出 → 鍵盤才顯、滑鼠不顯。 */
 .colorwheel-play-button:focus,
-.colorwheel-play-button:focus-visible,
 .colorwheel-play-button:active {
   outline: none;
   border: none;
+}
+.colorwheel-play-button:focus-visible {
+  outline: 2px solid var(--theme-fg);
+  outline-offset: 2px;
 }
 
 .colorwheel-play-button img {
@@ -1322,7 +1326,7 @@ body.mode-color .control-box {
   .mobile-colormode-controls .custom-button {
     flex: 1;
     height: 35px;
-    font-size: 12px;
+    font-size: 0.75rem; /* 12px — rem 可縮放（WCAG 1.4.4） */
     justify-content: center;
     border-radius: 15px;
   }
@@ -1399,7 +1403,7 @@ body.mode-color .control-box {
   .mobile-rotation-box .control-group-stack .custom-button {
     flex: 1;
     height: 35px;
-    font-size: 12px;
+    font-size: 0.75rem; /* 12px — rem 可縮放（WCAG 1.4.4） */
     justify-content: center;
     border: 2px solid transparent;
     border-radius: 15px;

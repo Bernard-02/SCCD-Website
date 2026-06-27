@@ -114,7 +114,7 @@
   align-items: flex-start;
   pointer-events: auto;
   font-family: var(--font-en, 'Inter'), var(--font-zh, 'Noto Sans TC'), system-ui, sans-serif;
-  font-size: 11px;
+  font-size: 0.6875rem; /* 11px — rem 隨使用者字級縮放（WCAG 1.4.4） */
   font-weight: 600;
   line-height: 1.25;
   letter-spacing: 0.01em;
@@ -266,7 +266,7 @@
   flex: 0 0 auto;
   text-align: left;       /* 類別靠左對齊（英中兩行左緣對齊） */
   font-weight: 400;       /* 類別 regular */
-  font-size: 12px;
+  font-size: 0.75rem; /* 12px — rem 可縮放 */
   white-space: nowrap;
   padding-top: 1px;
 }
@@ -601,6 +601,9 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  /* 桌面 chevron 跨整欄時的 containing block（nav append 到這層、left:0/right:0 = 整欄左右緣）。
+     手機 nav 仍在右 sub-col（subCol2 自己 position:relative），不受影響。 */
+  position: relative;
 }
 
 .atlas-list-sub-col {
@@ -710,7 +713,7 @@
 .atlas-list-item-label {
   display: flex;
   flex-direction: column;
-  font-size: 12px;
+  font-size: 0.75rem; /* 12px — rem 可縮放 */
   line-height: 1.3;
   font-weight: 400;
   opacity: 0.6;
@@ -731,7 +734,8 @@
   margin-top: 6px;
 }
 
-/* ── 分頁 nav item（absolute 定位在 sub-col 底部，box 自身 content-size 不吃 --list-item-h，跨 col 視覺 y 嚴格一致）
+/* ── 分頁 nav item（absolute 貼底；桌面 containing block = .atlas-list-col-items 橫跨整欄、< 頂左 > 頂右；
+   手機 = 右 sub-col。box 自身 content-size 不吃 --list-item-h，跨 col 視覺 y 嚴格一致）
    bottom: 10px 直接定 chevron 距 sub-col 底邊；不再用 bottom:0 + min-height:var(--list-item-h) + padding-bottom:10px
    舊作法的 min-height 因 col 各自寫 --list-item-h (host=50 / faculty/employ=84 / partners=120) 害 chevron box 高度不一致，
    雖然 align-items:flex-end 把 icon 推到 box 底邊，但部分瀏覽器 + 某些 reflow timing 下可能讓 absolute item 受 box 高度影響
@@ -768,6 +772,16 @@
 @media (min-width: 768px) {
   .atlas-list-nav-btn:not(:disabled):hover {
     opacity: 1;
+  }
+  /* 桌面 chevron 跨整個分類欄：< 頂欄左緣、> 頂欄右緣（containing block = .atlas-list-col-items）。
+     手機維持 base 的 flex-start（nav 在右 sub-col、不跨欄）。user 2026-06-25 */
+  .atlas-list-nav-item {
+    justify-content: space-between;
+  }
+  /* 去掉左右 padding → < / > icon 真正頂到欄左右緣（user 2026-06-25）；上下 padding 保留 */
+  .atlas-list-nav-btn {
+    padding-left: 0;
+    padding-right: 0;
   }
 }
 
@@ -862,7 +876,7 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
  * （tab 已標示分類，calcListPageSize 手機分支同步不扣 TITLEBLOCK_H）。 */
 @media (max-width: 767px) {
   .atlas-name {
-    font-size: 10px;
+    font-size: 0.625rem; /* 10px — rem 可縮放 */
     max-width: 150px;
   }
   #atlas-detail {
@@ -879,21 +893,24 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
     font-size: 14px;
   }
   .atlas-detail-desc {
-    font-size: 13px;
+    font-size: 0.8125rem; /* 13px — rem 可縮放 */
   }
   /* 星雲/list 切換鈕：bar 最底層。視覺 40px（貼近 tab chip 高度，user 嫌 48 偏大）+
      padding 4px 補回 48px tap 區（≥44 最佳實踐）；left 扣 padding 讓 icon 對齊 list 左緣。
      z-index 70 > 轉向提示層 60 → 直式提示蓋住頁面時返回鈕仍可點（user 2026-06-12「切換時要給我 btn」） */
   #atlas-layout-btn {
     bottom: 16px;
-    left: calc(var(--container-padding, 24px) - 4px);
-    padding: 4px;
+    /* 可見方塊放大到 44（對齊全站 44 觸控標準/手機 header btn）但「整體佔位維持 48」：padding 4→2、
+       讓 44+2*2=48 不變 → 不必動依賴 48 的 #atlas-filter bottom 與 atlas.js calcListPageSize。
+       left 補償 padding（-2 + padding2 = 方塊左緣落在 container-padding）。 */
+    left: calc(var(--container-padding, 24px) - 2px);
+    padding: 2px;
     z-index: 70;
   }
   .atlas-layout-inner {
-    width: 40px;
-    height: 40px;
-    font-size: 22px;
+    width: 44px;
+    height: 44px;
+    font-size: 24px;
   }
   /* 三顆分類 btn → 底部 tab bar，疊在 layout btn 上方（16 + 48 btn + 12 呼吸） */
   #atlas-filter {
@@ -922,8 +939,15 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   .atlas-alumni-subchip {
     display: none !important;
   }
+  /* 手機對齊全站 nav btn 文字大小（user 2026-06-24）：原寫死 12px、改用共用 var（手機 = 16px，同 faculty/curriculum nav）。
+     桌面維持 .atlas-filter-btn 自己的 var(--font-size-p3) 不動。 */
   .atlas-filter-btn {
-    font-size: 12px;
+    font-size: var(--font-size-p1);
+  }
+  /* 三顆 tab chip 在各自 1/3 欄置中 → 視覺均分（原 text-left 讓窄 chip 貼欄左緣：Professors 寬填滿 col1、
+     跟 Alumni 看起來特別近、分配不均，user 2026-06-24 報）。id-scoped 蓋過 Tailwind .text-left（同特異度但 utility 在後勝）。 */
+  #atlas-filter .atlas-filter-btn {
+    text-align: center;
   }
   /* list view 一次顯示一個分類（col display 由 atlas.js applyListFilter 切）：
      faculty/partners = span 2 全寬一列；alumni = host + employ 各全寬、auto-rows 1fr 上下對半

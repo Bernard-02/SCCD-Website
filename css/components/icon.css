@@ -48,8 +48,8 @@
 /* chevrons — 兩種粗度：lightbox(粗) / list(細)，方向用 Tailwind rotate class 達成：
  *   default = left (圖形朝左)
  *   rotate-180 = right
- *   rotate-90  = down
- *   -rotate-90 = up */
+ *   rotate-90  = up      (base 朝左 + CSS 順時針 90° → 朝上)
+ *   -rotate-90 = down    (= rotate-270) */
 .icon-chevron-lightbox { --icon: url('../website-icons/chevron_left_lightbox.svg'); }
 .icon-chevron-list     { --icon: url('../website-icons/chevron_left_list.svg'); }
 

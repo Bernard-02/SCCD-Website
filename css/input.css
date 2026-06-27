@@ -12,6 +12,7 @@
 /* Layout */
 @import './layout/grid.css';
 @import './layout/footer.css';
+@import './layout/scroll-snap.css';
 
 /* Components */
 @import './components/navigation.css';

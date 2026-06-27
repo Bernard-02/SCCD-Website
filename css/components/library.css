@@ -54,6 +54,9 @@
   font-family: 'Inter', 'Noto Sans TC', sans-serif;
   background: #000;
   color: #fff;
+  /* 標題 chip 高度＝行高決定：先前是 <p>(leading-base 1.5)，改 <h2> 後吃到 h2 的 leading-h1(1.1) 變扁
+     → 明寫回 1.5 還原原本高度（語意維持 h2、視覺不變） */
+  line-height: var(--line-height-base);
 }
 
 /* ── 灰色矩形內容字體 ────────────────────────────────────────── */
@@ -331,14 +334,15 @@
 #library-album-list .files-item.list-item-zebra {
   background-color: rgba(var(--theme-fg-rgb), var(--list-zebra-alpha, 0.05));
 }
-/* mode-color：library 卡片 mode3 是「兩階固定灰」(theme-toggle.js --lib-bg：亮 hue #f2f2f2 / 暗 hue #333)，
-   不是 cycling hue → 斑馬不套 activities 的 hue-aware 白 strip（那是給彩色暗底提亮用，疊在 #f2f2f2 淺灰上方向會反）。
-   改用兩階 --lib-zebra-alpha（theme-toggle set：亮 0.05 / 暗 0.15）配 theme-fg-rgb（亮黑暗白）→ 亮 hue 黑疊=同 mode1、
-   暗 hue 白疊=同 mode2。user 2026-06-23（user 指出 library 有灰底、不需 activities 邏輯）。 */
+/* mode-color：library 卡片 mode3 = 「反色島」兩階固定灰（2026-06-27 起卡片對比 page hue：亮 hue→深卡 #333 /
+   暗 hue→淺卡 #f2f2f2，由 color.css #library-card scope remap --lib-bg→--lib-bg-contrast）。斑馬疊色用
+   **--lib-fg-rgb**（= 卡內反色字 theme-fg-inverse）而非 --theme-fg-rgb：後者是 page 對比（亮 hue 黑），翻卡後
+   會疊在深卡上看不到、方向反掉。配 --lib-zebra-alpha(remap 成 contrast：亮 hue 白疊 0.15 / 暗 hue 黑疊 0.05)。
+   不套 activities hue-aware 白 strip（library 是固定灰卡、非 cycling hue）。 */
 body.mode-color #library-awards-list .award-record-item.list-item-zebra,
 body.mode-color #library-press-list .press-item.list-item-zebra,
 body.mode-color #library-album-list .files-item.list-item-zebra {
-  background-color: rgba(var(--theme-fg-rgb), var(--lib-zebra-alpha, 0.05));
+  background-color: rgba(var(--lib-fg-rgb), var(--lib-zebra-alpha, 0.05));
 }
 #library-album-list .files-item { border-bottom: none; }
 /* press/album item 左右加 sm padding（user 2026-06-23：內容不貼格邊、對齊 activities 內距感）。
@@ -868,7 +872,10 @@ body.mode-inverse #library-awards-list .award-record-item[style*="background"] {
   #lib-panel-awards > div[style*="grid"] > div > div[style*="align-items: flex-end"][style*="display: flex"] {
     order: 1 !important;
     flex-shrink: 0 !important;
-    padding-bottom: var(--spacing-xs);
+    /* search→picker 間距對齊 press/files/album（只留 panel flex gap xs）：蓋掉 search row 的 inline
+       margin-bottom:sm + 拿掉 padding-bottom:xs；press/album 的 search wrapper 也是 padding-bottom:0（user 2026-06-24）*/
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
   }
 
   /* panel 內 inline grid → flex column 填滿卡片（list scroll 容器在內部 flex:1）；
@@ -939,8 +946,9 @@ body.mode-inverse #library-awards-list .award-record-item[style*="background"] {
     grid-template-columns: 1.5em minmax(0, 1.8fr) minmax(0, 1fr) 1.5em !important;
     column-gap: var(--spacing-md) !important;
     row-gap: 0 !important;
-    padding-left: 0 !important;   /* 蓋掉桌面 .award-row 的 sm（手機主列滿寬） */
-    padding-right: 0 !important;
+    /* sm 內縮：list scroll 滿版後（下方 full-bleed 規則）主列文字與 ref-row（padding:sm）/ search 同 sm 起點對齊 */
+    padding-left: var(--spacing-sm) !important;
+    padding-right: var(--spacing-sm) !important;
     min-width: 0 !important;
     align-items: start !important;
   }
@@ -1057,6 +1065,11 @@ body.mode-inverse #library-awards-list .award-record-item[style*="background"] {
     padding-top: 0 !important;
     padding-bottom: 0 !important;
   }
+  /* awards 的「Year 年份」spacer：桌面用 visibility:hidden 撐高度對齊 vertical picker↔list 第一年份（保留）；
+     手機 picker 橫排、無此對齊需求 → display:none 拿掉，縮短 search↔picker 間距（user 2026-06-24）。 */
+  #lib-panel-awards > div[style*="grid"] > div:first-child > p[aria-hidden="true"] {
+    display: none !important;
+  }
   #lib-panel-awards > div[style*="grid"] > div > div[style*="align-items: flex-end"][style*="display: flex"] {
     order: 1 !important;
   }
@@ -1066,6 +1079,23 @@ body.mode-inverse #library-awards-list .award-record-item[style*="background"] {
     flex: 1 1 0 !important;
     min-height: 0 !important;
     overflow-y: auto !important;
+  }
+
+  /* user 2026-06-24：award/press/album 的 list 灰底（zebra / open accent / ref bg）延伸到灰卡左右邊。
+     作法＝list scroll 容器負 sm margin 抵銷 panel 的 sm 水平 padding（撐到卡片內緣）；列內容（award-row
+     已補 sm、press/album .list-header 本就 sm、各年份標題下方補 sm）維持與 search/picker/count 同 sm 起點。
+     search/picker/count 在 scroll 外、仍吃 panel sm padding 不受影響。files 是卡片 grid（無 zebra）不套。 */
+  #library-awards-scroll,
+  #library-press-scroll,
+  #library-album-scroll {
+    margin-left: calc(-1 * var(--spacing-sm)) !important;
+    margin-right: calc(-1 * var(--spacing-sm)) !important;
+  }
+  #library-awards-list .year-block > div:first-child,
+  #library-press-list .press-year-label,
+  #library-album-list .press-year-label {
+    padding-left: var(--spacing-sm) !important;
+    padding-right: var(--spacing-sm) !important;
   }
 
   /* == PRESS / FILES / ALBUM panel ==

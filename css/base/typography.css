@@ -64,6 +64,7 @@ html.mode-switching.mode-switching header,
 html.mode-switching.mode-switching .nav-link,
 html.mode-switching.mode-switching .mobile-nav-link,
 html.mode-switching.mode-switching [data-bar],
+html.mode-switching.mode-switching .mobile-header-btn,
 html.mode-switching.mode-switching .bg-white,
 html.mode-switching.mode-switching .bg-black,
 html.mode-switching.mode-switching .bg-gray-9,
@@ -135,4 +136,49 @@ html.mode-switching.mode-switching #create-app,
 html.mode-switching.mode-switching #desktop-canvas-container,
 html.mode-switching.mode-switching #canvas-container {
   transition: background-color var(--dur-base) ease !important;
+}
+
+/* ── 無障礙 Phase 1（2026-06-24）：鍵盤焦點指示器 ──
+ * :focus-visible 只在鍵盤聚焦時觸發（滑鼠點擊不顯示），全站 Tab 導航時看得到目前焦點。
+ * var(--theme-fg) 三 mode 都有對比（standard 黑 / inverse 白 / color 對比色）。 */
+:focus-visible {
+  outline: 2px solid var(--theme-fg);
+  outline-offset: 2px;
+}
+
+/* router 換頁後把焦點移到 #page-content(tabindex=-1) 報讀新頁；它非互動元素、使用者無法 Tab 到，
+ * 抑制其 outline 避免鍵盤換頁時整塊內容被大框框住（焦點移轉與 aria-live 報讀照常）。 */
+#page-content:focus {
+  outline: none;
+}
+
+/* Skip link：鍵盤 Tab 第一站「跳到主要內容」，平時藏起、:focus 時滑入左上。 */
+.skip-link {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 10001; /* 高於 header(9999) 與 intro-overlay(10000) */
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--theme-fg);
+  color: var(--theme-bg);
+  font-weight: 600;
+  transform: translateY(-120%);
+  transition: transform var(--dur-fast) ease;
+}
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+/* ── 無障礙 Phase 2（2026-06-24）：尊重「減少動態效果」系統偏好 ──
+ * 使用者在 OS 開啟後，把所有 CSS 動畫/過場壓到近 0（mode 切換 fade、hover、clip-path 等都即時）。
+ * GSAP / rAF 驅動的動畫（hero / 退場 / footer 洗牌 / atlas 漂浮 / marquee）另在各 JS 模組以
+ * prefersReducedMotion() gate（inline transform，CSS blanket 管不到）。
+ * WCAG 2.3.3 Animation from Interactions / 2.2.2 Pause, Stop, Hide。 */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

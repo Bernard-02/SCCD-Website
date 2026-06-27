@@ -9,6 +9,22 @@
 .panel-desc-group .panel-desc { display: none; }
 .panel-desc-group .panel-desc.active { display: block; }
 
+/* ===== Accordion 展開 toggle（chevron button）=====
+ * 無障礙：chevron 包成 <button class="list-header-toggle"> 當 accordion 鍵盤展開觸發
+ * （與 share button 同層兄弟、互不巢狀；.list-header 本身不再是 role=button）。
+ * 清掉 button 預設外觀 → 視覺與原本的 chevron <div> 一致（尺寸/overflow 由 inline style 維持）。 */
+.list-header-toggle {
+  appearance: none;
+  -webkit-appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  cursor: inherit;
+}
+
 /* ===== Activities Year Group（手機版節奏調整） =====
  * 桌面：year col 1 + list col 11 sticky 並排佈局走 HTML grid utility，無需介入
  * 手機：year header 在上、list 在下垂直堆疊（HTML order-1 / order-2）；
@@ -174,41 +190,29 @@
     position: sticky;
     /* 8rem(128px) 釘點：手機 logo SVG 底邊 ~110px（playwright 量，比 header box 92px 還低 ~18px），
        6rem(96px) 只清 header box 不清 logo → 釘住的 title 上緣被 logo 蓋（user 2026-06-10）。
-       8rem 清掉 logo 留 ~18px 縫，且 128px == pt-6xl 手機 padding → blocker 高度同改 8rem 正好填滿不位移。
-       ⚠️ 此值必須與 .list-mobile-header-blocker 的 height/margin-top 及 list-accordion.js getListStickyTop 手機值同步 */
+       8rem 清掉 logo 留 ~18px 縫，且 128px == pt-6xl 手機 padding。
+       ⚠️ 此值必須與 .list-header.active.is-pinned::before lid 的 height 及 list-accordion.js getListStickyTop 手機值同步 */
     top: 8rem;
     z-index: 5;
   }
-  /* #3 手機 sticky title 上方露內容 — Josh Comeau「Header Blocker」解法（v4，取代 v1/v2 ::before 遮罩 + v3 JS clip）
+  /* #3 手機 sticky title 上方露內容 — 全寬「var(--theme-bg) header blocker」（user 2026-06-24 拍板回到此原始解）。
      ────────────────────────────────────────────────────────────────────────
-     根因：手機固定 site-header 透明，sticky title 黏在 top:6rem(96px) → 0~96px 透明帶會露出
-     往上捲的 list 內容（疊在 logo/漢堡上）。桌面不會：title 上方有不透明 .activities-filter-bar 接住。
-
-     演進：v1 accent ::before（跟 title 同色沒遮蓋感）→ v2 白 ::before（per-item 浮動白塊、連上一筆內容
-     也蓋、像隨機方塊，user 否決）→ v3 JS scroll clip（裁 item、能用但 per-item + JS handler）→
-     v4 業界標準（Josh Comeau header-blocker）：區段級一條 sticky 白帶。
-
-     原理：blocker 貼 top:0、底色=section 底色(theme-bg)、z 夾在 fixed header(z-50) 之下、list 內容之上。
-     把透明帶補實 → 內容捲進去乾淨消失＝行為等同不透明 header（但 header 視覺仍透明）。
-     用 sticky 不用 fixed：到 section 末端脫鈎捲走、不會殘留到下一頁區塊。
-
-     margin-top:-6rem：把 blocker 往上拉進 section 既有的 pt-6xl(手機 128px) padding 內 → blocker 佔的
-       96px 不額外推開內容（下方 .site-container 起點不變），又不在未 pin 時與 filter bar 重疊。
-     background:var(--theme-bg)：跟 section bg 同步 mode（standard 白 / inverse 黑），對齊 admission 桌面
-       .admission-scroll-mask 做法；需進 typography.css mode-switch whitelist 才不會切 mode 時 snap 露色。
-     桌面零影響：HTML 上 md:hidden、此規則也只在手機 @media。
-
-     ⚠️ 只在「有 list-header 釘住」時顯示（list-accordion.js IO 給 section 加 .list-has-pinned-header）：
-     blocker 永遠開的話，往上捲經過 band 的 section nav / filter btn 上半會被白帶切掉（user 2026-06-10 報，
-     activities/admission 皆然）。但 nav 在 band 內時＝沒有 item 釘住（nav 跟第一個 item 之間有內容墊開，
-     item 釘住時 nav 已捲出畫面）→ 用「釘住才顯示」精準避開：nav 可見時 blocker 關、item 閱讀時 blocker 開。
-     margin-top:-6rem 讓它 display none↔block 切換 0 淨高（不位移）。 */
+     迭代史（勿走回頭）：曾試 ① ::before lid（只有 title 寬→左右露細線、到底有殘 bar）② JS clip-path 逐幀裁切
+       （手機捲動跑在合成執行緒、JS 追不上→抖動，user 報「list 抖動」）。兩者皆否決，user 認定**原始全寬遮罩最接近正解**。
+     根因：手機 fixed site-header 透明、logo 底邊 ~110px，sticky title 釘在 top:8rem(128px) → 0~128px 透明帶
+       會露出捲上來的 list 內容 + 展開項 .list-item accent 底色（疊在 logo/漢堡上）。桌面不發生：title 上方有不透明
+       filter bar / scroll-mask 接住；手機無天然不透明元素，故補一條 section 級 sticky theme-bg 帶。
+     - **滿版**（section 第一子、非 title 寬）→ 無 lid 版的左右細線。
+     - background:var(--theme-bg)＝頁面底色（standard 白/inverse 黑/mode3 hue，跟 section bg 同色，見 color.css .bg-white→theme-bg）
+       → 無縫、像頁面延伸到頂。需進 typography.css mode-switch whitelist 才不會切 mode 時 snap。
+     - 只在 .list-has-pinned-header（有 item 釘住、list-accordion.js IO 加）時 display:block：否則往上捲經過 band 的
+       section nav / filter btn 上半會被帶切掉；item 釘住時 nav 已捲出畫面、不誤觸。
+     - margin-top:-8rem 拉進 section pt-6xl(128px) padding 內 → display none↔block 切換 0 淨高、不位移。
+     ⚠️ height/margin-top 8rem 必須與 .list-header.active top(手機) 及 list-accordion.js getListStickyTop 手機值同步。 */
   .list-mobile-header-blocker {
     display: none;
     position: sticky;
     top: 0;
-    /* 高度 = 釘點 8rem（清 logo）；margin-top:-8rem 拉進 pt-6xl(128px) padding 正好填滿 [0,128]、內容不位移。
-       ⚠️ 與 .list-header.active top 及 getListStickyTop 手機值同步（見上方註解） */
     height: 8rem;
     margin-top: -8rem;
     background: var(--theme-bg);
