@@ -346,7 +346,10 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
 
   // ── Hover ────────────────────────────────────────────────────
 
-  let isSwitching = false;
+  // 進場動畫期間先鎖（=true）：進場由 ResizeObserver 觸發、跑 ~1s，期間 switchTab 會跟進場動畫並行操作
+  // 同批卡片的 clip/幾何 → 卡片被甩到畫面邊緣（user 2026-06-27：deep-link 進場未完就點 award / 快速切分頁）。
+  // 沿用 switchTab 既有 `if (isSwitching) return` guard 擋住；進場 playEntranceAnimation 收尾才解鎖。
+  let isSwitching = true;
 
   function attachHover(el) {
     const titleEl = document.createElement('div');
@@ -602,6 +605,7 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
       const contentEl = document.getElementById('library-card-content');
       if (onTabSwitch) onTabSwitch(tabOf.get(grayEl));
       if (contentEl) contentEl.classList.add('content-visible');
+      isSwitching = false;  // 進場完成 → 解鎖 switchTab
       if (onEntranceDoneCb) onEntranceDoneCb();
       refreshMarquees();
       return;
@@ -623,6 +627,7 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
         grayEl.style.clipPath = '';
         requestAnimationFrame(() => {
           allEls.forEach(el => { el.style.transition = TRANSITION; });
+          isSwitching = false;  // 進場完成 → 解鎖 switchTab（之前進場期間 switchTab 會跟進場並行弄亂卡片幾何）
           const contentEl = document.getElementById('library-card-content');
           if (onTabSwitch) onTabSwitch(tabOf.get(grayEl));
           contentEl.classList.add('content-visible');
@@ -747,12 +752,18 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
       requestAnimationFrame(() => { playEntranceAnimation(sw, sh); });
     } else {
       clearTimeout(roResizeTimer);
-      roResizeTimer = setTimeout(() => {
+      const attemptRelayout = () => {
+        // 進場/切換動畫進行中不重排：cold load（字型/CSS 晚到）或 deep-link 動態載 library.css 會在進場「途中」
+        // 觸發 RO → 若此時 initColorEls 重新隨機定位，會跟進場動畫並行把 colorEls 甩到畫面邊緣
+        // （user 2026-06-28：hard refresh / deep-link 卡片散開、warm refresh 正常）。動畫期間延後重排，
+        // 等 isSwitching 解鎖（進場/切換收尾）才用最後量到的 sw/sh 重排一次 → 不跟動畫搶、又能套到最終尺寸。
+        if (isSwitching) { roResizeTimer = setTimeout(attemptRelayout, 100); return; }
         MAIN_W = Math.round(sw * 0.85);
         MAIN_H = Math.round(sw * 0.87 * 10.5 / 21);
         setAsGray(activeEl, sw, sh);
         initColorEls(sw, sh);
-      }, 100);
+      };
+      roResizeTimer = setTimeout(attemptRelayout, 100);
     }
   });
   ro.observe(grayEl.closest('section'));

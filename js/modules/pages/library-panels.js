@@ -356,11 +356,14 @@ function spawnAwardIcon(x, y) {
   let n;
   do { n = Math.floor(Math.random() * AWARD_ICON_COUNT) + 1; } while (n === _lastAwardIconN);
   _lastAwardIconN = n;
-  // CSS mask + background-color:var(--theme-fg)（同站內 .icon 系統）→ icon 色跟主題走：mode1 黑 / mode2 白 /
-  // mode3 theme-fg 對比。原本 <img> 載 SVG（path 預設黑 fill）在 mode2 黑底上看不見（user 2026-06-23）。
+  // CSS mask + background-color 跟「library 卡」走（非 page）：色由 .award-spawn-icon class 控（library.css）：
+  // mode1/2 卡匹配 page → theme-fg（黑/白）；mode3 卡是反色島(深卡/淺卡與 page 相反) → theme-fg-inverse（亮 hue
+  // 白/暗 hue 黑）＝卡的對比字色。元素 fixed 在 body 上吃不到 #library-card 的 --lib-fg，故走 class override。
+  // 原本 inline bg-color:var(--theme-fg)＝跟 page，反色島深卡上冒黑圖看不見（user 2026-06-27）。
   const url = sitePath(`website-icons/Award_Icons/award_cursor_${n}.svg`);
   const el = document.createElement('span');
-  el.style.cssText = `position:fixed;left:${x}px;top:${y}px;width:28px;height:28px;display:block;pointer-events:none;z-index:10000;background-color:var(--theme-fg);-webkit-mask:url('${url}') center/contain no-repeat;mask:url('${url}') center/contain no-repeat;`;
+  el.className = 'award-spawn-icon';
+  el.style.cssText = `position:fixed;left:${x}px;top:${y}px;width:28px;height:28px;display:block;pointer-events:none;z-index:10000;-webkit-mask:url('${url}') center/contain no-repeat;mask:url('${url}') center/contain no-repeat;`;
   document.body.appendChild(el);
   // 拋物線飛出（user 2026-06-22 要「彈出+活潑」）：水平等速 dx + 垂直先上 -peak 後下 endY = 重力拋物；
   // scale 0→1 pop-in（back 過衝）再→0 收掉（不碰 opacity）。每次隨機方向/高度 → 不重複、活潑
@@ -1905,12 +1908,18 @@ function handleLibraryHash() {
   // Retry 找元素，最多等 3 秒（awards 需要 fetch + render，可能較慢）
   const startTime = Date.now();
   const MAX_WAIT = 3000;
-  // 灰卡進場打開後（desktop 在 onEntranceDone 才呼叫 handleHash）留個緩衝再開始捲，
-  // 否則「一打開就直接捲」感覺太急（user 2026-06-04）。
-  // user 2026-06-27：no-scroll 只等這 0.5s buffer 就 highlight（不再空轉 settleTimer ~300ms）；
-  //   需捲時 = 0.5s buffer + 捲動時長（見下方 no-scroll 短路）。
-  // 這個值同時當「首次嘗試找元素」的延遲，找不到會往後 retry（不影響 async panel render 慢的情況）。
-  const SCROLL_DELAY = 500;
+  // user 2026-06-28：deep-link highlight 計時＝「捲動完成 + HIGHLIGHT_DELAY」(post-scroll)：
+  //   - no-scroll（已對齊）：捲動完成＝立即 → HIGHLIGHT_DELAY 後 highlight = 0.4s。
+  //   - 需捲：捲動「第一次停穩」(≈視覺捲完) 後 HIGHLIGHT_DELAY 才 highlight；album/files 後續補捲對齊不再拖 highlight。
+  // SCROLL_DELAY＝等 panel 內容 clip-reveal 跑完才開始捲（user 2026-06-28 報「灰卡還沒揭露完就開始 item 對齊」）：
+  //   handleHash 在 onEntranceDone 觸發，而 panel 內容 reveal（playPanelReveal：`[id^=lib-panel-] > *` 的
+  //   CSS `transition: clip-path var(--dur-fast)`=0.3s）正好同一刻才起跑 → 不等的話捲動會疊在「內容還在 wipe 進場」時開始。
+  //   等掉這段 reveal（0.3s + 雙 rAF 起步 + margin）再捲＝視覺上「卡片內容出齊 → 才對齊到目標」。
+  //   ⚠️ clip-path 只遮罩不動 layout、awards 列高固定 → 不等也不會「對歪」，純粹是「太早開始捲」的觀感問題。
+  //   async panel 還沒 render 到目標 → tryFindAndHandle 找不到仍每 100ms retry（最多 3s），不受此值影響正確性。
+  // user 2026-06-28 拍板：兩個 delay 都統一 0.4s（highlight 原 0.6s 嫌久；scroll-wait 一併對齊同值）。
+  const SCROLL_DELAY = 400;
+  const HIGHLIGHT_DELAY = 400;
 
   function tryFindAndHandle() {
     const el = document.getElementById(hash);
@@ -1942,7 +1951,7 @@ function handleLibraryHash() {
       //    連 body 一起捲（獎項在置中卡片裡、離頂 ~300px）→ 整張卡片被頂到 header 後面（user 2026-06-04 回報「整體往上位移」）。
       //    改用內層 scroller 的 scrollBy（getBoundingClientRect 差值）只在容器內捲，body 完全不動。
       // 對齊點：把目標捲到 sticky 年份標題「底緣」之下，依 panel 決定要不要多塞 overlap（user 2026-06-09）：
-      //   - awards（.year-block，列間有 border-b 分隔綫）：多塞 4px，讓上一列的分隔綫被標題不透明背景蓋住、不外露。
+      //   - awards（.year-block）：-4px 是實測對齊補償（label 取 firstElementChild、offsetHeight 比 sticky 覆蓋高 ~4px）；列已斑馬無 border。
       //   - files（.files-year-block，卡片無分隔綫）：標題與第一排的留白已搬進 sticky 標題 padding-bottom（見 library.css），
       //     故對齊標題底緣即可、不再 overlap → 第一排卡片自然不位移（之前固定 32px 比卡片自然位置高、害第一排被多捲）。
       //   - album（.album-year-block）：手機標題（p1）比桌面（p3）高、固定 32 會被蓋 ~2px → 取 max(32, 標題高)，
@@ -1956,39 +1965,49 @@ function handleLibraryHash() {
           let margin = 32;
           if (yb) {
             const isAwards = yb.classList.contains('year-block');
+            const isAlbum = yb.classList.contains('album-year-block');
             const label = /** @type {HTMLElement|null} */ (isAwards ? yb.firstElementChild : yb.querySelector(':scope > .press-year-label'));
             if (label) {
-              // 對齊年份標題底緣（label 自己的 padding-bottom 當 gap）；awards 多收 4px 讓上列分隔綫被標題 bg 蓋住。
-              // album 不再用 Math.max(32, labelHeight)：桌面 p3 label ~23px < 32 → 強制 32 → item 比標題底多掉 ~9px
-              //「太低」（user 2026-06-25 桌面 album）；手機 p1 label > 32 時 labelHeight 結果同舊 max → 統一 labelHeight 兩端都貼齊。
-              margin = Math.max(0, label.offsetHeight - (isAwards ? 4 : 0));
+              // 對齊年份標題底緣（label 自己的 padding-bottom 當 gap）。awards 與 album 各多收 4px 往上塞：
+              //   - awards：-4 是「實測對齊補償」，不是為了蓋 border（border 2026-06-22 改斑馬時已移除）。awards 的
+              //     label 取 .year-block firstElementChild、量到的 offsetHeight 比 sticky 實際覆蓋高 ~4px → 不減 4 會
+              //     低 4px（user 2026-06-28 抓到「移除 -4 後 award deep-link 往下 4px」）。故 -4 必須保留。
+              //   - album：item overflow:visible + 縮圖旋轉「飄出 row」，上一筆縮圖下緣 + label top:-1px 的 1px 縫
+              //     會露出上面 item（user 2026-06-27 桌面 album deep-link）；4px 把它收進 label bg 後緣。
+              // album 不用 Math.max(32, labelHeight)：桌面 p3 label ~23px < 32 → 強制 32 → item 比標題底多掉 ~9px
+              //「太低」（user 2026-06-25 桌面 album）；改吃 labelHeight 後兩端貼齊。
+              margin = Math.max(0, label.offsetHeight - (isAwards || isAlbum ? 4 : 0));
             }
           }
           return margin;
         };
         const target = el.getBoundingClientRect().top - scroller.getBoundingClientRect().top - computeMargin();
-        // 已對齊（不需捲）：SCROLL_DELAY 的 0.5s buffer 已過 → 直接 highlight，不走 settleTimer 的 ~300ms 空轉
-        // （user 2026-06-27：no-scroll 只等 0.5s；需捲時才 0.5s buffer + 捲動時長）。
-        if (Math.abs(target) <= 2) { runHighlight(); return; }
+        // 已對齊（不需捲）：捲動完成＝立即 → 等 HIGHLIGHT_DELAY(0.4s) 才 highlight（user 2026-06-28：no-scroll 只等 0.4s）。
+        if (Math.abs(target) <= 2) { setTimeout(runHighlight, HIGHLIGHT_DELAY); return; }
         scroller.scrollBy({ top: target, behavior: 'smooth' });
 
         // 捲動量是「捲動當下」一次算好的，但 album/files 縮圖 loading=lazy + load 後才 applyRatio 設尺寸；
         // 手機縮圖 flex-wrap 自然排版佔 layout 高度（桌面 absolute stack 不佔 → 桌面一次就準），
         // smooth scroll 途中上方圖片陸續載入撐高內容、目標被推走 ~870px = 「捲了但沒捲到」（user 2026-06-12 手機 album）。
         // → 等 scrollTop 停穩後重量誤差、補捲（最多 3 次），對齊完成才閃 highlight（保證 item 在畫面內才看得到）。
+        // highlight 與「補捲對齊」解耦（user 2026-06-28）：捲動「第一次停穩」(≈ 視覺捲完) 就排程 highlight＝捲完
+        // + HIGHLIGHT_DELAY(0.4s)，不被 album/files 後續多次補捲拖到 ~3s。補捲仍照跑、只負責把 item 對齊到位
+        // （在 highlight flash 持續 1s 內完成；桌面 album absolute stack 不撐高、第一次就準，幾乎不補捲）。
         let lastTop = /** @type {number|null} */ (null);
         let corrections = 0;
         let ticks = 0;
+        let highlightScheduled = false;
+        const scheduleHighlight = () => { if (!highlightScheduled) { highlightScheduled = true; setTimeout(runHighlight, HIGHLIGHT_DELAY); } };
         const settleTimer = setInterval(() => {
-          if (!el.isConnected || ++ticks > 40) { clearInterval(settleTimer); return; }
+          if (!el.isConnected || ++ticks > 40) { clearInterval(settleTimer); scheduleHighlight(); return; }
           const cur = scroller.scrollTop;
           const stable = lastTop !== null && Math.abs(cur - lastTop) < 1;
           lastTop = cur;
           if (!stable) return;
+          scheduleHighlight(); // 第一次停穩即排程 highlight（捲完 + 0.4s）；後續補捲不再延後 highlight
           const err = el.getBoundingClientRect().top - scroller.getBoundingClientRect().top - computeMargin();
           if (Math.abs(err) <= 2 || corrections >= 3) {
             clearInterval(settleTimer);
-            runHighlight();
             return;
           }
           corrections++;
@@ -1998,7 +2017,7 @@ function handleLibraryHash() {
       } else {
         // 理論上四個 panel 都有內層 scroller；萬一沒有，退回 nearest（不對齊頂端 → 不會大幅捲 body）
         el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        setTimeout(runHighlight, 600);
+        setTimeout(runHighlight, HIGHLIGHT_DELAY);
       }
 
       // 觸發一次該項目的 highlight（1s，user 2026-06-12 比照 activities deep-link）：
