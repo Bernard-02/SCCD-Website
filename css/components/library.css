@@ -377,19 +377,22 @@ body.mode-color #library-album-list .files-item.list-item-zebra {
    resting = neutral-gray-inverse（跟 theme-fg 開啟列形成同一深塊）、hover = 反色 theme-fg-inverse（留得住、不 merge）。
    standard/inverse 不動：base .list-ref-btn 已跟 activities 一致。
    wrap（容器/縫）塗 theme-fg = 開啟列色（對齊 activities content bg = header 色），ref row 才是內凹的 neutral-gray-inverse。 */
+/* ★反色島（2026-06-28）：award ref 全改吃【卡相對】var（原 --theme-*=page 對比，反色島翻卡後會對比錯 page、
+   在深卡上配色看不見/合體）。wrap=開啟列色=var(--lib-fg)（白塊 on 深卡）；ref-btn resting=深內凹塊 var(--lib-ref-bg)
+   ＋白字 var(--lib-fg)；hover 反相＝var(--lib-fg) 底＋var(--lib-bg) 字。亮/暗 hue 自動跟卡翻。 */
 body.mode-color #library-awards-list .award-ref-wrap {
-  background: var(--theme-fg) !important;
+  background: var(--lib-fg) !important;
 }
 body.mode-color #library-awards-list .award-ref-wrap .list-ref-btn {
-  background: var(--theme-neutral-gray-inverse) !important;
-  color: var(--theme-fg-inverse) !important;
+  background: var(--lib-ref-bg) !important;
+  color: var(--lib-fg) !important;
 }
 body.mode-color #library-awards-list .award-ref-wrap .list-ref-btn:hover {
-  background: var(--theme-fg-inverse) !important;
-  color: var(--theme-fg) !important;
+  background: var(--lib-fg) !important;
+  color: var(--lib-bg) !important;
 }
 body.mode-color #library-awards-list .award-ref-wrap .list-ref-btn:hover * {
-  color: var(--theme-fg) !important;
+  color: var(--lib-bg) !important;
 }
 #library-awards-list .award-ref-row {
   font-family: 'Inter', 'Noto Sans TC', sans-serif;
@@ -403,13 +406,20 @@ body.mode-color #library-awards-list .award-ref-wrap .list-ref-btn:hover * {
 /* mode-color：整列 inline accent 翻 strict B/W（對齊 color.css 的 .list-item[style*=background]）。
    不加 *：ref 列文字色交給共用 .list-ref-btn mode-color 規則（直接 set 在 button 上、不被此層繼承蓋掉）。 */
 body.mode-color #library-awards-list .award-record-item[style*="background"] {
-  background: var(--theme-fg) !important;
-  color: var(--theme-fg-inverse) !important;
+  background: var(--lib-fg) !important;   /* ★反色島：開啟列＝卡反色高亮(白塊 on 深卡)，非 page 對比(2026-06-28) */
+  color: var(--lib-bg) !important;
 }
 /* mode-inverse：整列保留 accent 原色（同 activities），文字翻黑（accent 底配黑字）。 */
 body.mode-inverse #library-awards-list .award-record-item[style*="background"] {
   color: #000 !important;
 }
+
+/* 點 award row 冒出的 award cursor icon（spawnAwardIcon，fixed 在 body 上、CSS mask）：色要跟「library 卡」走，
+   不是 page。mode1/2 卡匹配 page → theme-fg；mode3 卡是反色島（深卡/淺卡與 page 相反）→ theme-fg-inverse
+   （= 卡的對比字色，亮 hue 白 / 暗 hue 黑），否則深卡上冒黑圖看不見（user 2026-06-27）。
+   元素 fixed 在 body、吃不到 #library-card scope 的 --lib-fg，故直接用 theme-fg-inverse。 */
+.award-spawn-icon { background-color: var(--theme-fg); }
+body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
 
 /* ── Files list item ─────────────────────────────────────────── */
 .files-item {

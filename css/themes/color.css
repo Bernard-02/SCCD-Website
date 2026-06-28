@@ -679,9 +679,15 @@ body.mode-color {
 /* mode3 「反色島」（user 2026-06-27）：library 主卡改成「對比 page hue」——亮 hue→深灰卡＋白字、
  * 暗 hue→淺灰卡＋黑字（淺 hue 上灰卡要明顯＝深灰底才對）。⚠️只在 card subtree remap lib vars：
  * atlas 也借用 :root 的 --lib-bg/--lib-fg 當中性灰 chip（匹配 page）→ 全域翻會連 atlas 一起翻，故 scope 在此。
- * 卡內所有內容（picker/search/list/count）都在 #library-card-content；卡底色在 #library-card-main（inline
- * background:var(--lib-bg)，remap 後自動吃 contrast）。斑馬列改吃 --lib-fg-rgb（library.css）。 */
-body.mode-color #library-card-main,
+ * 卡內所有內容（picker/search/list/count）都在 #library-card-content；斑馬列改吃 --lib-fg-rgb（library.css）。
+ * ⚠️ scope 必須跟著「當前 active 灰卡」走，不能只綁 #library-card-main：switchTab 把 #library-card-content
+ * 搬進被點的 colorEl、那個 div 變成新灰卡（setAsGray 設 inline `background:var(--lib-bg)`），但它不是
+ * #library-card-main → 只綁 id 會漏掉新卡 → 新卡 --lib-bg 退回 :root 非 contrast 值＝卡底跟 page 同色(沒翻)、
+ * 內文字卻仍 contrast → 切分頁後「卡底沒翻、字翻了」配錯看不清(user 2026-06-28)。用 [style*="--lib-bg"] 抓當前灰卡
+ * ＝setAsGray 的標記（color.css line 706/718 既有慣例同樣靠它辨識 active 灰卡；setAsColor 把 demote 的卡改實心色、
+ * 標記消失 → 不誤中）。#library-card-content 內的 year sticky header 等 inline var(--lib-bg) 靠繼承 content 的 contrast。 */
+body.mode-color #library-card-main[style*="--lib-bg"],
+body.mode-color #library-card-stack > div[style*="--lib-bg"],
 body.mode-color #library-card-content {
   --lib-bg: var(--lib-bg-contrast);
   --lib-fg: var(--theme-fg-inverse);
@@ -750,20 +756,21 @@ body.mode-color #library-card-main .color-rect-title {
 
 /* ===== Press / Files / Album list-item hover：strict B/W 取代三原色 =====
  * bindListItemHover (library-panels.js) mouseenter 設 inline bg=accent (粉/綠/藍)，mouseleave 清掉
- * mode-color 用 [style*="background"] 偵測 hover 狀態，強制 var(--theme-fg) 底 + var(--theme-fg-inverse) 字
- * 跟 page hue 對比自動翻黑/白（亮 hue → 黑底白字、暗 hue → 白底黑字）
+ * mode-color 用 [style*="background"] 偵測 hover 狀態，強制【卡反色】底＋字：bg=var(--lib-fg)、字=var(--lib-bg)。
+ * ★反色島：hover highlight 要對比「卡」不是 page（2026-06-28）。原本用 --theme-fg(page)→亮 hue 深卡上塗黑 hover
+ *   看不見（深 on 深）。改 --lib-fg/--lib-bg：亮 hue 深卡→白底深字 hover、暗 hue 淺卡→黑底白字。
  * 不含 Awards：awards record item 只改 text color 不改 bg，hover 仍走三原色（user 限定 awards 以外三個分頁）
  * scope 在 #library-card-content；.album-panel-item 同時也是 .files-item 一併涵蓋 */
 body.mode-color #library-card-content .press-item[style*="background"],
 body.mode-color #library-card-content .files-item[style*="background"] {
-  background: var(--theme-fg) !important;
+  background: var(--lib-fg) !important;
 }
 
 body.mode-color #library-card-content .press-item[style*="background"],
 body.mode-color #library-card-content .press-item[style*="background"] *,
 body.mode-color #library-card-content .files-item[style*="background"],
 body.mode-color #library-card-content .files-item[style*="background"] * {
-  color: var(--theme-fg-inverse) !important;
+  color: var(--lib-bg) !important;
 }
 
 /* Awards ticker logos：黑色 PNG，要跟「反色島卡底」對比（非 page）：亮 hue 卡深→翻白 / 暗 hue 卡淺→不翻。
@@ -1050,14 +1057,14 @@ body.mode-color [data-bar="alumni"].bar-active .nav-link {
   }
 }
 
-/* ===== Class Division Buttons + Group Labels：對齊 list/bar 的依-hue 邏輯（user 2026-06-22）=====
- * 改成跟 library/atlas bar 同套：inactive 靜止=融底（bg=theme-bg hue + 字=theme-fg），
- * hover/active=strict B/W（bg=theme-fg、字=theme-fg-inverse）→ 淺 hue 黑底白字、深 hue 白底黑字。
- * （原本是反過來：rest=theme-fg 填滿、active/hover=theme-fg-inverse 反相，跟新 bar 邏輯相反；JS 仍設 inline
- *  三原色/theme-fg，這裡 !important 一律蓋掉。）label 沒 .active class，用 :has(+) 跟 sibling btn 狀態聯動。 */
+/* ===== Class Division Buttons + Group Labels（about 學制分頁 tab）=====
+ * user 2026-06-28：inactive 不可融底（吃 hue 色看不清），要「反色 strict chip」＝跟 active 對調。
+ *   inactive 靜止 = theme-fg-inverse 底 / theme-fg 字（深 hue 黑底白字、淺 hue 白底黑字）
+ *   hover / active = strict B/W（bg=theme-fg、字=theme-fg-inverse）→ 跟 inactive 相反、hue 深淺自動翻黑白。
+ * JS 仍設 inline 三原色/theme-fg，這裡 !important 一律蓋掉。label 沒 .active class，用 :has(+) 跟 sibling btn 狀態聯動。 */
 body.mode-color .class-division-btn,
 body.mode-color .class-group-label {
-  background: var(--theme-bg) !important;
+  background: var(--theme-fg-inverse) !important;
   color: var(--theme-fg) !important;
 }
 
@@ -1075,11 +1082,11 @@ body.mode-color .class-group-label:has(+ .class-division-btn.active) {
   }
 }
 
-/* about 手機分組 pill（#mobile-division-nav）：對齊上方桌面 .class-division-btn 同套依-hue 邏輯。
- * inactive 靜止=融底（bg=theme-bg / 字=theme-fg）；hover/active=strict B/W（bg=theme-fg / 字=theme-fg-inverse）。
+/* about 手機分組 pill（#mobile-division-nav）：對齊上方桌面 .class-division-btn。
+ * inactive 靜止=反色 strict chip（bg=theme-fg-inverse / 字=theme-fg，不融底）；active=strict B/W（bg=theme-fg / 字=theme-fg-inverse）。
  * id 特異度蓋過 setActiveNavBtn 設的 inline accent bg 與 .section-nav-btn 一般 theme 規則。 */
 body.mode-color #mobile-division-nav .section-nav-btn:not(.active) .anchor-nav-inner {
-  background: var(--theme-bg) !important;
+  background: var(--theme-fg-inverse) !important;
   color: var(--theme-fg) !important;
 }
 body.mode-color #mobile-division-nav .section-nav-btn.active .anchor-nav-inner {
