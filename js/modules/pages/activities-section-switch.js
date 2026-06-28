@@ -17,6 +17,7 @@ import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { waitForHeroAnimDone } from './hero-animation.js';
 import { DUR, EASE } from '../ui/motion.js';
+import { scrollWindowNoSnap, clampBelowFooter } from '../ui/snap-scroll.js';
 
 // 追蹤哪些 panel 已載入過資料
 const loaded = {};
@@ -59,16 +60,8 @@ function scrollSectionIntoView(el, behavior = 'instant') {
     const targetY = y();
     const dist = Math.abs(targetY - window.scrollY);
     const dur = window.innerWidth < 768 ? Math.min(1.1, Math.max(DUR.medium, dist / 1200)) : DUR.medium;
-    // CSS scroll-snap(mandatory) 會跟程式捲動互搶：從 footer snap 點起步時 onEnterBack→gsap 上→snap 拉回 footer→
-    // onLeave→onEnterBack… 無限抖動、卡在 footer。捲動全程把 html scroll-snap-type 設 none，完成/中斷再還原
-    // （''＝交回 .snap-mandatory class 規則；目標是 valid snap 點，還原後不跳）。
-    const html = document.documentElement;
-    const restoreSnap = () => { html.style.scrollSnapType = ''; };
-    gsap.to(window, {
-      scrollTo: { y: targetY, autoKill: false }, duration: dur, ease: EASE.move,
-      onStart: () => { html.style.scrollSnapType = 'none'; },
-      onComplete: restoreSnap, onInterrupt: restoreSnap,
-    });
+    // 捲動全程關 mandatory snap（否則從 footer snap 點起步會 onEnterBack↔onLeave 無限抖動卡住）→ 共用 scrollWindowNoSnap。
+    scrollWindowNoSnap(targetY, { duration: dur, ease: EASE.move });
     return;
   }
   // instant（分頁切換）
@@ -102,12 +95,24 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
   await switchToSection(section, btns, false);
   if (!itemId) return;
 
-  // 等 fetch + DOM render 完成後再 scroll
+  // 等 fetch + DOM render 完成後再 scroll。
   await new Promise(r => setTimeout(r, 150));
   await new Promise(r => requestAnimationFrame(r));
 
-  const target = document.getElementById(`item-${itemId}`);
-  if (!target) return;
+  // Directus 慢時 panel 可能還沒 render 完：navigateToItem 開頭的 await switchToSection 會被 switching guard
+  // 短路（deep-link 時 init 那次 switch 還在跑、switching===true）→ 不真的等載入；加上 deep-link hero wait 封頂
+  // 0.9s 縮短緩衝 → 單次 getElementById 常撈不到 target → 舊版直接 return = 永遠卡在 hero（user 2026-06-28）。
+  // 改短輪詢等 target 出現（最多 ~3s）；撈不到（item 不存在 / 無 media 被濾掉 / id 對不上）就退而捲到 section、別卡 hero。
+  let target = document.getElementById(`item-${itemId}`);
+  for (let i = 0; i < 30 && !target; i++) {
+    await new Promise(r => setTimeout(r, 100));
+    target = document.getElementById(`item-${itemId}`);
+  }
+  if (!target) {
+    const sectionEl = document.getElementById('activities-content-section');
+    if (sectionEl) scrollSectionIntoView(sectionEl, smooth ? 'smooth' : 'instant');
+    return;
+  }
 
   // 若 target 在 sub-tab 隱藏的 list container（exhibitions 的 permanent / visits 的 inbound 等），先切到對應 sub-tab
   const subListContainer = target.closest('#exhibitions-list-special, #exhibitions-list-permanent, #visits-list-outbound, #visits-list-inbound');
@@ -154,13 +159,15 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
   const panel      = document.getElementById(`panel-${section}`);
   const filterBar  = /** @type {HTMLElement | null} */ (panel?.querySelector('.activities-filter-bar'));
 
-  // 手機：量位置「前」先把 search bar 收掉並等 transition 完。否則捲動下行途中 activities-search
-  // 才把 in-flow bar 收起（-40px）→ 出發前算的 finalTop 落地過頭、title 停在釘點上方，accordion
-  // 開啟 sticky 接管時再「跳下來」對齊＝二次位移（user 2026-06-12；逐幀 probe 證實）。
-  // 先收→量→捲 = 落地點就是開啟點，開啟零位移。桌面 bar 是 sticky、proceedOpen 的不變式已處理，不動。
-  if (window.innerWidth < 768 && filterBar && !filterBar.classList.contains('bar-hidden')) {
+  // 量位置「前」先把 search bar 收掉並等 transition + ResizeObserver 更新完（桌面+手機都要，user 2026-06-28）。
+  // 原因：compensate 讀 --list-header-sticky-top = 200+filterBar.offsetHeight-1（含 search bar 80px）；但
+  //   list-accordion proceedOpen 開啟時無條件 add bar-hidden（list-accordion.js:461）→ .activities-search-inner
+  //   max-height 80→0（lists.css:587，非手機限定）→ filterBar 縮 ~80px → ResizeObserver 把 --list-header-sticky-top
+  //   降 ~80 → 「開啟後的真實釘點」比量到的高 ~80px。先收→等 var 更新→量 compensate→捲 = 落地點＝開啟釘點、開啟零位移。
+  // （桌面原本誤以為「bar 是 sticky、proceedOpen 不變式已處理」而不收 → deep-link 落點與手動點開差 ~80px。）
+  if (filterBar && !filterBar.classList.contains('bar-hidden')) {
     filterBar.classList.add('bar-hidden');
-    await new Promise(r => setTimeout(r, 350)); // CSS 0.3s transition 收完才量
+    await new Promise(r => setTimeout(r, 350)); // CSS 0.3s transition 收完 + ResizeObserver 更新 var 才量
   }
 
   // 落點＝list-accordion 開啟時 header 釘的位置：桌面讀 `--list-header-sticky-top`（activities-data-loader
@@ -176,7 +183,9 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
   // 鏈累加可靠——深層巢狀 item（年份組內）鏈長、每層 sub-pixel rounding 累積 → 落點「稍微往下」偏移
   // （user 2026-06-25 報「有的正確有的稍微往下」）；target 是 list-item 非 sticky bar，rect.top 不被 pin clamp。
   const targetTop = target.getBoundingClientRect().top + window.scrollY;
-  const finalTop = targetTop - compensate;
+  // finalTop（收合態 clamp、不傳 growPx）只給「非 smooth」的 ref 按鈕用——它是 instant 跳 + 延遲 600ms 才展開，捲動當下
+  // content 還收合、footer 在收合位置，**不能**用展開後位置算否則先閃 footer。smooth deep-link 改「邊捲邊展開」、另算 smoothTop（見下）。
+  const finalTop = clampBelowFooter(targetTop - compensate);
 
   // flash highlight + 展開 item accordion 的共用收尾。
   // ⚠️ 先 await 目標 list-item reveal 完成（data-pre-reveal 移除）才 highlight：ref/deep-link 切過去時 list rows
@@ -207,17 +216,32 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
   };
 
   if (smooth) {
-    // 首頁 deep-link（已等 hero 跑完）：平滑捲到 item 讓 user 看到往下捲，捲動「結束」才 flash + 展開 accordion
-    // （對齊 curriculum：hero done → 平滑 scroll → delay 才開）。GSAP ScrollToPlugin onComplete 確保到位才動；無 plugin 時估時 fallback。
-    // 手機時長依距離換算：固定 0.5s 在手機捲距 >1 個視窗高（hero 100vh+，實測 1140px/0.45s 峰值單幀 100px+）
-    // 看起來「跳下去」不像滑（user 2026-06-12）；clamp 0.5~1.1s，短距離維持原手感。桌面捲距 <1 視窗高、原 0.5s 不動。
-    const dist = Math.abs(finalTop - window.scrollY);
+    // 首頁 deep-link（已等 hero 跑完）：捲動與展開「同時」跑——user 看到往下捲的同時 item 展開，footer 被展開內容往下推
+    // 的同時往下捲 → footer 全程不露、且有空間時 item 對齊頂部（user 2026-06-28「有空間就在打開同時對齊頂部」，取代舊
+    // 「捲到位→停0.6s→才展開」會先閃 footer 的節奏）。
+    // 落點「真實量測」：暫撐開 content 量「展開後」真 footer 位置再收回（涵蓋 section min-height:100vh 留白 → 短 list 展開
+    // 不一定推 footer、用 scrollHeight 預測會失準）。bar 已於上方 navigateToItem 收掉 → footerShift 0。同 tick set→量→set 不繪製不閃。
+    const _content = /** @type {HTMLElement|null} */ (target.querySelector('.list-content'));
+    let smoothTop = targetTop - compensate;
+    if (_content) {
+      gsap.set(_content, { height: 'auto' });
+      smoothTop = clampBelowFooter(targetTop - compensate);
+      gsap.set(_content, { height: 0 });
+    }
+    // 手機時長依距離換算（固定 0.5s 在手機捲距 >1 視窗高看起來「跳下去」不像滑，user 2026-06-12）；clamp 0.5~1.1s、桌面 0.5s。
+    const dist = Math.abs(smoothTop - window.scrollY);
     const scrollDur = window.innerWidth < 768 ? Math.min(1.1, Math.max(DUR.medium, dist / 1200)) : DUR.medium;
-    if (typeof window.ScrollToPlugin !== 'undefined') {
-      gsap.to(window, { scrollTo: { y: finalTop, autoKill: false }, duration: scrollDur, ease: EASE.move, onComplete: flashThenOpenAccordion });
-    } else {
-      window.scrollTo({ top: finalTop, behavior: 'smooth' });
-      setTimeout(flashThenOpenAccordion, scrollDur * 1000);
+    await waitForItemRevealed(target);  // 確保 list 文字已 reveal（deep-link init 已清 pre-reveal → 立即 resolve）
+    // 捲動全程關 mandatory snap；ease 對齊 accordion 展開的 EASE.enterSoft（同 DUR.medium）→ 捲動進度 ≤ 展開進度、footer 不露。
+    scrollWindowNoSnap(smoothTop, { duration: scrollDur, ease: EASE.enterSoft });
+    // 與捲動「同時」展開：skipOpenScroll 讓 proceedOpen 只展開不再自己捲（捲動由此處負責）；accentHex/bg 設成 section 色
+    // → 開啟即帶 highlight 色（取代舊的獨立 600ms flash；item 開啟後整塊染 section 色本身就是 highlight）。
+    const header = /** @type {HTMLElement | null} */ (target.querySelector('.list-header'));
+    if (header && !header.classList.contains('active')) {
+      header.dataset.skipOpenScroll = '1';
+      header.dataset.accentHex = flashColor;
+      header.style.background = flashColor;
+      header.click();
     }
   } else {
     // ref 按鈕等頁內跳轉：用 instant 跳到位（smooth 會經過 hero 區造成「先回 hero 再展開」視覺），
@@ -365,11 +389,14 @@ function setupSectionNavReveal() {
     ScrollTrigger.create({
       trigger: section, start: 'top 90%', end: 'bottom 10%',
       onEnter: reveal, onLeave: hide, onLeaveBack: hide,
-      // 從 footer 往上回到內容區：accordion 撐高>1 屏時 section 變 oversized snap area，
-      // mandatory 從下方只停在 section 底部（切掉上面 filter bar/年份/accordion 頂）。JS 補一刀捲回頂端對齊點
-      // （scrollSectionIntoView＝filter bar 停 sticky-top）。section 整段是 valid snap 區→native 不會跟 gsap 搶。
-      // 桌面 snap-only（手機無 snap）；reduced-motion 此函式已 early-return。
-      onEnterBack: () => { reveal(); if (window.innerWidth >= 768) scrollSectionIntoView(section, 'smooth'); },
+      // 從 footer 往上回到內容區：mandatory 下 accordion 撐高>1 屏時 section 變 oversized snap area，
+      // 從下方只停在 section 底部（切掉上面 filter bar/年份/accordion 頂）→ JS 補一刀捲回頂端對齊點。
+      // ⚠️ 只在 **mandatory** 下補（activities 2026-06-28 已改 snap-proximity）：proximity 不會把你困在底部、
+      //    也不該在「使用者從 footer 往上捲想讀 list 下半」時硬把人拉回 section 頂（那會變成新的擾民跳動）。
+      //    桌面 snap-only（手機無 snap）；reduced-motion 此函式已 early-return。
+      // ⚠️ 有 list item 開著時 **不補捲**：item 開著 snap 已 lockSnapOff、使用者在「自由捲讀模式」，從 footer 往上回來
+      //    想讀某個展開 item 的下半，硬把 section 拉回頂部 = 把人從正在讀的內容彈走（user 2026-06-28 的「又把 section 移回去」）。
+      onEnterBack: () => { reveal(); if (window.innerWidth >= 768 && document.documentElement.classList.contains('snap-mandatory') && !document.querySelector('.list-header.active')) scrollSectionIntoView(section, 'smooth'); },
     });
     // 初載已在視窗內：ScrollTrigger 不補 fire onEnter，手動播一次
     if (section.getBoundingClientRect().top < window.innerHeight * 0.9) reveal();
@@ -416,7 +443,7 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
     const initialSection = params.get('section') || defaultSection;
     const initialItem = params.get('item');
     const initSwitchPromise = switchToSection(initialSection, btns, false, true);
-    // 等 hero 進場動畫「實際跑完」才往下捲（waitForHeroAnimDone，follow hero 動畫長度、不寫死 1s；對齊 curriculum）。
+    // 等 hero 進場才往下捲（waitForHeroAnimDone；封頂 ~0.9s = hero 多組時不等全播完免「卡在 hero 太久」，user 2026-06-27；對齊 curriculum）。
     // 手機也適用：hero-animation playMobileHeroEntrance 跑「看得見的」.hero-mobile-* 進場後才 signal
     // （2026-06-12 起；先前手機 hero 靜態、等的是隱藏桌面 timeline ＝ 白等，曾短暫改成跳過）。
     if (initialItem) {

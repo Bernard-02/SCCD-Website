@@ -1,4 +1,5 @@
 import { DUR, EASE } from '../ui/motion.js';
+import { scrollWindowNoSnap, clampBelowFooter, lockSnapOff, unlockSnap } from '../ui/snap-scroll.js';
 /**
  * Workshop Accordion Module
  * 工作營手風琴功能（包含 Year Toggle 和 Workshop Header）
@@ -178,6 +179,7 @@ export function instantCloseListHeader(header) {
  */
 export function resetListAccordionsInPanel(panel) {
   listAnimating = false;  // section 切換會 instantClose 掉序列中的 item（kill tween）→ 解鎖避免殘留卡死
+  unlockSnap();  // 切 section → 前一 panel 開著的 item 被收掉 → 解鎖 snap 交回 mandatory
   clearStaleOpeningFlags();  // 若切 section 打斷兩段式 open 窗口，清掉殘留 dataset.opening（否則該 header hover 失效）
   if (!panel) return;
   const openHeaders = panel.querySelectorAll('.list-header.active');
@@ -267,7 +269,7 @@ function toggleSectionPinnedFlag(header, on) {
 // 收合順序：先 collapse content（保留 .active）→ onComplete 移除 .active 觸發 title 往左 transform transition
 // 回傳 Promise（content 收合 tween onComplete 時 resolve）：開新 item 時 await 收回動畫跑完才量落點+展開（兩段式）。
 // duration 可覆寫：自關用預設 DUR.medium；開新先關舊用較短 DUR.base 讓序列不拖。
-function closeListHeader(header, { duration = DUR.medium } = {}) {
+function closeListHeader(header, { duration = DUR.medium, scrollFollow = false } = {}) {
   let resolveDone;
   const done = new Promise((r) => { resolveDone = r; });
   const content = (header.nextElementSibling?.classList.contains('list-content')
@@ -292,6 +294,21 @@ function closeListHeader(header, { duration = DUR.medium } = {}) {
   // tween height:0 時子元素（如 album 縮圖、gallery 圖）會因 visible 飄在自然位置不被裁切，
   // 視覺上「容器縮起來但內容卡在原位」直到 onComplete 才瞬間消失
   content.style.overflow = 'hidden';
+
+  // 收合「靠底部的 item」會跳：footer-safe 開著的 item 必停在 ≈maxScroll，content 縮 → 文件變矮 → 新 maxScroll < 現 scrollY
+  //   → 瀏覽器把 scrollY clamp 到新 maxScroll → 整個 section「跳」上來（user 2026-06-28）。
+  // 對策（mirror open 的「邊捲邊展開」）：self-close 時與收合**同步、同 duration/ease** 往上捲到「收合後的 maxScroll」，
+  //   讓 footer 一路貼著視窗底、scrollY 全程 ≤ maxScroll → 不 clamp、section 不跳（視覺＝往下收、footer 不動）。
+  //   只在「確實接近底部(postMax < 現 scrollY)」才捲；中段 item 收合在底部以上、postMax ≥ scrollY → 不捲。
+  //   scrollFollow 只給 self-close（開新 item 的 close-others 不捲，落點由隨後的 proceedOpen 重算）。
+  if (scrollFollow) {
+    const collapseAmount = content.getBoundingClientRect().height;
+    const postMax = Math.max(0, document.documentElement.scrollHeight - collapseAmount - window.innerHeight);
+    if (postMax < window.scrollY - 1) {
+      scrollWindowNoSnap(postMax, { duration, ease: EASE.exitSoft });
+    }
+  }
+
   gsap.to(content, {
     height: 0,
     duration,
@@ -433,27 +450,33 @@ function initListHeaderAccordion() {
           // point 3 修：已收回的 others 副標剛移除 .active 正走 0.3s 重新展開 → snap 定高，否則量測差一個副標高
           others.forEach(snapSubtitleHeight);
 
+          // item 開著期間鎖 snap=none：mandatory 會把「停在 section 中段的對齊落點」吸走 → 兩步跳（user 2026-06-28）。
+          // 收合 item（下方 else 自關 / resetListAccordionsInPanel 切 section / 換頁）才 unlockSnap。skipOpenScroll
+          // 的 deep-link 也要鎖（捲動由 navigateToItem 負責、這裡只負責鎖），故放在 !skipOpenScroll 之外。
+          lockSnapOff();
+
           // 量 header doc 位置 → 捲到「落在當前 pin 線」。stickyTop 與 headerDocTop 同態量取（見上不變式）。
           if (!skipOpenScroll) {
             const stickyTop = getListStickyTop(self);
-            // 手機修正（user 2026-06-24）：桌面 filter bar 是 md:sticky，收 bar 時 header doc 位置與 pin 線同步上移
-            // 一個 searchInner 高 → 相減抵消，不變式成立。但手機 bar 非 sticky、pin 線（8rem）綁 fixed header 不隨 bar 動
-            // → 此處量到的是「收 bar 前」的 headerDocTop，下方 add bar-hidden 收掉約一個 searchInner 高後 header 再上移該值，
-            //   而 scrollTo 仍停在舊 target ⇒ header 被 sticky 釘回 8rem 但內容上移、頂部約 80px 被 title/blocker 吃掉。
-            //   故手機預先扣掉「即將收起」的 searchInner 高（已收起則 0）。
-            let barCollapseDelta = 0;
-            if (window.innerWidth < 768 && activeFilterBar && !activeFilterBar.classList.contains('bar-hidden')) {
-              const inner = /** @type {HTMLElement | null} */ (activeFilterBar.querySelector('.activities-search-inner'));
-              barCollapseDelta = inner ? inner.offsetHeight : 0;
-            }
+            // 手機修正（user 2026-06-24）：桌面 filter bar 是 md:sticky，收 bar 時 header 與 pin 線同步上移一個 searchInner
+            // 高 → 相減抵消；手機 bar 非 sticky、pin 線(8rem)不隨 bar 動 → 預先扣掉「即將收起」的 searchInner 高。
+            const barInner = activeFilterBar && !activeFilterBar.classList.contains('bar-hidden')
+              ? (/** @type {HTMLElement | null} */ (activeFilterBar.querySelector('.activities-search-inner'))?.offsetHeight || 0)
+              : 0;
+            const barCollapseDelta = window.innerWidth < 768 ? barInner : 0;
             const headerDocTop = self.getBoundingClientRect().top + window.scrollY;
-            const targetScrollY = Math.max(0, Math.round(headerDocTop - stickyTop - barCollapseDelta));
+            const alignTop = Math.max(0, Math.round(headerDocTop - stickyTop - barCollapseDelta));
+            // 落點「真實量測」（user 2026-06-28）：暫撐開 content 量「展開後」真 footer 位置再收回 → 落點一次到位（有空間
+            //   對齊頂部、沒空間停 footer 貼視窗底），不被 section min-height:100vh 留白騙（短 list 展開不推 footer，用
+            //   content.scrollHeight 預測會失準 → 對齊到頂 → footer 露 → snap 往下修＝兩步跳）。同 tick set→量→set 回不繪製不閃。
+            // footerShift −barInner：開啟同時 add bar-hidden 把 footer 往上拉一個 searchInner，補償否則展開後仍露 ~80px。
+            // 走 scrollWindowNoSnap（非 gsap.to(window)）：snap 已 lockSnapOff，且與下方 content 展開同 DUR.medium+EASE.enterSoft
+            //   並行 → 捲動進度 ≤ 展開進度、footer 被展開一路推著走不露。
+            gsap.set(content, { height: 'auto' });
+            const targetScrollY = clampBelowFooter(alignTop, -barInner);
+            gsap.set(content, { height: 0 });
             if (Math.abs(targetScrollY - window.scrollY) > 1) {
-              if (typeof window.ScrollToPlugin !== 'undefined') {
-                gsap.to(window, { scrollTo: { y: targetScrollY, autoKill: false }, duration: DUR.medium, ease: EASE.move });
-              } else {
-                window.scrollTo({ top: targetScrollY, behavior: 'smooth' });
-              }
+              scrollWindowNoSnap(targetScrollY, { duration: DUR.medium, ease: EASE.enterSoft });
             }
           }
 
@@ -495,7 +518,9 @@ function initListHeaderAccordion() {
         }
       } else {
         listAnimating = true;
-        closeListHeader(this).then(() => { listAnimating = false; });
+        // 自關 item → unlockSnap 交回 mandatory。開新 item 走的是上面「close others → proceedOpen」路徑、不經這裡
+        // （proceedOpen 會重新 lockSnapOff），故只有「使用者自己關掉」才在這裡解鎖。
+        closeListHeader(this, { scrollFollow: true }).then(() => { listAnimating = false; unlockSnap(); });
       }
     });
   });

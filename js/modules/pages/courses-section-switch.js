@@ -18,6 +18,7 @@ import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { waitForHeroAnimDone } from './hero-animation.js';
 import { DUR, EASE } from '../ui/motion.js';
+import { scrollWindowNoSnap, clampBelowFooter } from '../ui/snap-scroll.js';
 
 let currentProgramColor = '';
 export function getCurrentProgramColor() { return currentProgramColor; }
@@ -57,7 +58,10 @@ function sectionScrollTop(el) {
  */
 function scrollSectionIntoView(el, behavior = 'smooth') {
   if (!el) return;
-  window.scrollTo({ top: sectionScrollTop(el), behavior });
+  const top = sectionScrollTop(el);
+  // smooth 程式捲動關 mandatory snap（否則被 snap 搶、落點錯，同 deep-link item 路徑）；instant 不需 tween。
+  if (behavior === 'smooth') scrollWindowNoSnap(top);
+  else window.scrollTo({ top, behavior });
 }
 
 // courses 專用旋轉幅度 ±2°（排除 ±0.5）— 比 SCCDHelpers.getRandomRotation(-4~6) 小，
@@ -179,8 +183,8 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
   const initSwitchPromise = switchToProgram(initialProgram, programBtns, false);
 
   // deep-link 導航動畫（只在使用者從首頁 floating course card 點進來的 SPA 導航才播）：
-  //   ① 等 hero 進場動畫「實際播完」才往下捲 — 用 waitForHeroAnimDone()（在 hero timeline onComplete 時 resolve），
-  //      所以往下滑的觸發時機 follow hero 動畫長度，不是寫死時間（user 2026-06-04）
+  //   ① 等 hero 進場才往下捲 — waitForHeroAnimDone()（hero onComplete 時 resolve，但封頂 ~0.9s：hero 多組時
+  //      不等全播完免「卡在 hero 太久」，user 2026-06-27 收緊；原 2026-06-04 是等全播完 follow 動畫長度）
   //   ② 平滑捲到「該課程卡片」本身（不是只捲 section 頂端）— 課程卡片可能在 grid 下方，只捲 section
   //      頂端的話卡片仍在 viewport 外、slider 就開了看不到卡片（user 2026-06-04）。捲到卡片進 viewport 才開。
   //   ③ 捲到位後再 delay OPEN_DELAY_MS 才開 slide-in（一到就開會感覺過早，留個緩衝；同 activities 的 600）
@@ -220,6 +224,11 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
           top = sectionScrollTop(sectionEl) + (targetCard.getBoundingClientRect().top - firstRowTop);
         }
       }
+      // 落點上限 clamp 到「footer 仍在視窗外」（課程卡片開 slide-in、不 inline 展開 → growPx 0）。
+      // user 2026-06-28：點較下方課程（如「媒體美學與應用」）deep-link 原本一律算「對齊第一排＝頂部」→ 遠超 → 先閃 footer
+      //   再開 slide-in（再被 snap 移回）。clampBelowFooter 後：上面課程照常對齊頂、越下面停在「section 完整捲到底、不露 footer」
+      //   （＝以 section 完整度為主、最後 100vh 內的 chip 不一定對齊頂，user 原則）。
+      top = clampBelowFooter(top);
       // 等目標卡片「reveal 完成」(clip-path 動畫跑完、clearProps 清掉 inline clipPath) 才 highlight + 開 slide-in：
       // 否則卡片進場 stagger 還沒輪到目標就開＝slide-in 蓋在半開的 grid 上（user 2026-06-09 報「沒等卡片 render 好就開」）。
       // 順序：reveal 完 → highlight 卡片(套 accent 底色) → OPEN_DELAY 才開 slide-in（同 activities flash→delay→open 節奏）。
@@ -229,12 +238,8 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
           setTimeout(() => selectCardBySlugInPanel(initialProgram, itemSlug), OPEN_DELAY_MS);
         });
       };
-      if (typeof window.ScrollToPlugin !== 'undefined') {
-        gsap.to(window, { scrollTo: { y: top, autoKill: false }, duration: DUR.medium, ease: EASE.move, onComplete: openCard });
-      } else {
-        window.scrollTo({ top, behavior: 'smooth' });
-        setTimeout(openCard, 500);
-      }
+      // deep-link 捲動全程關 mandatory snap（否則 snap 搶捲動 → 速度被牽制 / 到不了第一排位置），捲完才開卡。
+      scrollWindowNoSnap(top, { onComplete: openCard });
     });
   }
 

@@ -13,6 +13,7 @@ import { resetListAccordionsInPanel } from '../accordions/list-accordion.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { waitForHeroAnimDone } from './hero-animation.js';
 import { DUR, EASE } from '../ui/motion.js';
+import { scrollWindowNoSnap } from '../ui/snap-scroll.js';
 
 // 當前 active section 的色（setActiveNavBtn 回傳）；給 deep-link highlight 用（= 該 section 色，三原色之一）
 let currentSectionColor = '';
@@ -74,12 +75,8 @@ async function navigateToAdmissionItem(itemId) {
     }, 600);
   };
 
-  if (typeof window.ScrollToPlugin !== 'undefined') {
-    gsap.to(window, { scrollTo: { y: finalTop, autoKill: false }, duration: DUR.medium, ease: EASE.move, onComplete: flashThenOpen });
-  } else {
-    window.scrollTo({ top: finalTop, behavior: 'smooth' });
-    setTimeout(flashThenOpen, 500);
-  }
+  // deep-link 捲動全程關 mandatory snap（否則 snap 搶捲動 → 速度被牽制 / 到不了目標），捲完才 flash+open。
+  scrollWindowNoSnap(finalTop, { onComplete: flashThenOpen });
 }
 
 // scrollIntoView wrapper：捲到 section 頂端對齊 viewport 頂端（section.top=0），**不扣 header 高度**。
@@ -94,7 +91,9 @@ async function navigateToAdmissionItem(itemId) {
 function scrollSectionIntoView(el, behavior = 'smooth') {
   if (!el) return;
   const top = el.getBoundingClientRect().top + window.scrollY;
-  window.scrollTo({ top, behavior });
+  // smooth 程式捲動關 mandatory snap（否則被 snap 搶、落點錯，同 deep-link item 路徑）；instant 不需 tween。
+  if (behavior === 'smooth') scrollWindowNoSnap(top);
+  else window.scrollTo({ top, behavior });
 }
 
 // ── 左側 section nav 進場/退場（比照 faculty/activities nav，user 2026-06-07）──
@@ -233,7 +232,7 @@ export function initAdmissionSectionSwitch(fromUserNav = false) {
   if (hasDeepLink && fromUserNav) {
     const initialSection = params.get('section') || 'news';
     const initialItem = params.get('item');
-    // switchSection 為 async（summer-camp lazy load）→ await 完 list 才在 DOM，再等 hero 跑完平滑導航/捲動。
+    // switchSection 為 async（summer-camp lazy load）→ await 完 list 才在 DOM，再等 hero 進場（waitForHeroAnimDone，封頂 ~0.9s）平滑導航/捲動。
     switchSection(initialSection, false, true).then(() => {
       if (initialItem) {
         waitForHeroAnimDone().then(() => navigateToAdmissionItem(initialItem));
