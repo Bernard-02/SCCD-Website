@@ -33,7 +33,7 @@ import { initAnchorNav } from './modules/navigation/anchor-nav.js';
 
 // Import Page Specific Modules
 import { initIntroAnimation } from './modules/pages/intro-animation.js';
-import { initHeroAnimation } from './modules/pages/hero-animation.js';
+import { initHeroAnimation, resetHeroDone } from './modules/pages/hero-animation.js';
 import { initHeroMobileSync } from './modules/pages/hero-mobile-sync.js';
 import { initFacultySlideIn } from './modules/pages/faculty-slide-in.js';
 import { initActivitiesSectionSwitch } from './modules/pages/activities-section-switch.js';
@@ -168,6 +168,11 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
   // 下方 guard（header 已在則立即跑、否則等 event once）已消除「event 早於 listener」race，故各頁共用即可。
   // support 頁 2026-06-03 改 legal-page layout（無 hero-rand-grid）後也回歸共用 initHeroAnimation（title chip 進場 + 派色）。
   if (page !== 'degree-show-detail') {
+    // 先同步清掉上一頁殘留的 _heroDone：下方 header 未就緒時 initHeroAnimation 被 defer 到 header:ready，
+    // 但本頁 deep-link 消費者（initCoursesSectionSwitch / initActivitiesSectionSwitch 的 waitForHeroAnimDone）
+    // 在本函式稍後同步跑 → 若不先清，會讀到上一頁的 _heroDone=true 立刻 resolve＝沒等 hero 就 scroll/slide
+    // （user 2026-06-28 bug 1/4）。在這同步清 → 消費者一定讀到 false、改等 hero:animation-done。
+    resetHeroDone();
     // hero-mobile-sync：4 頁共用 hero (faculty/courses/activities/admission) 手機 DOM 從桌面 clone 文案+banner src
     // 必須在 initHeroAnimation 之前跑：hero-animation.js 對 [data-hero-hl] 套色時手機 chip 要已注入內容
     // 其他頁無 .hero-mobile / .hero-rand-grid 結構 → sync 函式自身 early return 不影響

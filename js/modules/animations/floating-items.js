@@ -9,6 +9,7 @@ import { renderPdfCover } from '../ui/pdf-cover.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { loadCourses } from '../pages/courses-source.js';
 import { loadSummerCamp } from '../pages/summer-camp-source.js';
+import { loadActivityCollection } from '../pages/activities-source.js';
 import { sitePath } from '../ui/site-base.js';
 import { CMS_API_BASE, CMS_ASSETS_BASE } from '../../config/api.js';
 
@@ -34,20 +35,24 @@ function normalizeImagePath(src) {
   return sitePath(src.replace(/^\.\.\//, ''));
 }
 
+// 活動海報 + summer-camp + library 文件/相簿封面：分四個 category 各自回傳（floating 依 category 均分、不再混為一池）。
+// 不洗牌/不截斷/不重複填充——均分與去重交給 initFloatingItems 的 category 輪替邏輯。
 async function fetchActivityPosters() {
-  const pool = [];
+  const activities = [];
+  const summerCamp = [];
+  const files = [];
+  const album = [];
 
   // 活動類 JSON → 導航到 activities.html?section=X
   // ⚠️ general-activities.json 是「混合檔」（visits / exhibitions / competitions / conferences 四類混在同檔），
-  //    不能整包標成單一 section，否則 visits/exhibitions 的海報全被導到 competitions section（而 competitions
-  //    項目自己沒海報＝那頁本來就空的）。用 sectionFromCategory 旗標 → 每筆用自己的 item.category 當 section。
-  // ⚠️ summer-camp 不在此列：camp 已搬到 admission（user 2026-06-09），且 admission 由 Directus 渲染（UUID id），
-  //    直接讀 local summer-camp.json 的 id（SC-2025-01）對不上 → deep-link highlight 失效。改用同源 loadSummerCamp()
-  //    單獨處理（見下方），id/poster 跟 admission 渲染一致。
+  //    不能整包標成單一 section → 用 sectionFromCategory 每筆用自己的 item.category 當 section。
+  // ⚠️ workshop 不在這個本地清單：activities 頁的 workshop 已接 Directus（activities_workshops），
+  //    前台 element id = `item-${refCode||id}`（activities-source mapRow）。若這裡仍讀 local workshops.json 的 id，
+  //    deep-link 的 &item= 對不上 Directus refCode → navigateToItem 撈不到、退成捲到 section 不展開（user 2026-06-28）。
+  //    改用同源 loadActivityCollection 取 id/poster（見下方），跟頁面渲染一致；Directus 掛掉時兩端都 fallback local、仍一致。
   const activitySources = [
     { file: 'data/permanent-exhibitions.json', section: 'exhibitions' },
     { file: 'data/lectures.json',              section: 'lectures' },
-    { file: 'data/workshops.json',             section: 'workshop' },
     { file: 'data/students-present.json',      section: 'students-present' },
     { file: 'data/general-activities.json',    sectionFromCategory: true },
   ];
@@ -59,33 +64,48 @@ async function fetchActivityPosters() {
       groups.forEach(group => {
         const items = Array.isArray(group) ? group : (group.items || []);
         items.forEach(item => {
-          if (item.poster) {
-            // 混合檔（general-activities）每筆用自己的 category 當 section；其餘檔用固定 section
-            const section = src.sectionFromCategory ? item.category : src.section;
-            if (!section) return;
-            // 有 id 就加上 &item= 讓目標頁可以 highlight 該項目
-            const itemParam = item.id ? `&item=${item.id}` : '';
-            pool.push({
-              type: 'image',
-              src: normalizeImagePath(item.poster),
-              url: `pages/activities.html?section=${section}${itemParam}`,
-            });
-          }
+          if (!item.poster) return;
+          const section = src.sectionFromCategory ? item.category : src.section;
+          if (!section) return;
+          const itemParam = item.id ? `&item=${item.id}` : '';
+          activities.push({
+            type: 'image',
+            src: normalizeImagePath(item.poster),
+            url: `pages/activities.html?section=${section}${itemParam}`,
+          });
         });
       });
     } catch (_) {}
   }));
 
+  // Workshop → activities.html?section=workshop&item={refCode||id}（同源 loadActivityCollection，id 跟 activities 頁渲染一致）
+  try {
+    const wsData = await loadActivityCollection('activities_workshops', '/data/workshops.json');
+    const wsGroups = Array.isArray(wsData) ? wsData : (wsData.items || wsData.records || []);
+    wsGroups.forEach(group => {
+      const items = Array.isArray(group) ? group : (group.items || []);
+      items.forEach(item => {
+        if (!item.poster) return;
+        const itemParam = item.id ? `&item=${item.id}` : '';
+        activities.push({
+          type: 'image',
+          src: normalizeImagePath(item.poster),
+          url: `pages/activities.html?section=workshop${itemParam}`,
+        });
+      });
+    });
+  } catch (_) {}
+
   // Summer camp → admission.html?section=summer-camp&item={id}（camp 已搬到 admission）。
-  // 用 loadSummerCamp()（Directus 同源 + 本地 fallback）而非直接讀 local json：id/poster 跟 admission 渲染一致，
-  // deep-link 的 item id 才對得上 admission 的 #item-{id}（直接讀 local json 的 SC-YYYY-NN 對不上 Directus UUID）。
+  // 用 loadSummerCamp()（Directus 同源 + 本地 fallback）：id/poster 跟 admission 渲染一致，deep-link id 才對得上
+  // （直接讀 local json 的 SC-YYYY-NN 對不上 Directus UUID）。
   try {
     const campGroups = await loadSummerCamp();   // [{ year, items:[{ id, poster, ... }] }]
     campGroups.forEach(group => {
       (group.items || []).forEach(item => {
         if (!item.poster) return;
         const itemParam = item.id ? `&item=${item.id}` : '';
-        pool.push({
+        summerCamp.push({
           type: 'image',
           src: normalizeImagePath(item.poster),
           url: `pages/admission.html?section=summer-camp${itemParam}`,
@@ -94,16 +114,12 @@ async function fetchActivityPosters() {
     });
   } catch (_) {}
 
-  // Library documents（PDF）→ library.html#f-{id}（floating 不一定都導 activities；也帶使用者去 library 文件）
+  // Library documents（PDF）→ library.html#f-{id}
   try {
-    const files = await fetch(sitePath('data/library.json')).then(r => r.json());
-    files.forEach(item => {
+    const lib = await fetch(sitePath('data/library.json')).then(r => r.json());
+    lib.forEach(item => {
       if (item.cover && item.id) {
-        pool.push({
-          type: 'image',
-          src: normalizeImagePath(item.cover),
-          url: `pages/library.html#f-${item.id}`,
-        });
+        files.push({ type: 'image', src: normalizeImagePath(item.cover), url: `pages/library.html#f-${item.id}` });
       }
     });
   } catch (_) {}
@@ -114,7 +130,7 @@ async function fetchActivityPosters() {
     albumGroups.forEach(group => {
       (group.items || []).forEach(item => {
         if (item.cover) {
-          pool.push({
+          album.push({
             type: 'image',
             src: normalizeImagePath(item.cover),
             url: item.id ? `pages/library.html#album-${item.id}` : 'pages/library.html',
@@ -124,12 +140,7 @@ async function fetchActivityPosters() {
     });
   } catch (_) {}
 
-  // 洗牌 + 取出足夠數量（pool 不夠時會重複）
-  shuffle(pool);
-  if (pool.length === 0) return [];
-  if (pool.length >= TOTAL_ITEMS) return pool.slice(0, TOTAL_ITEMS);
-  // pool 不足 → 重複填充
-  return Array.from({ length: TOTAL_ITEMS }, (_, i) => pool[i % pool.length]);
+  return { activities, summerCamp, files, album };
 }
 
 // 從課程資料撈 title（導航到對應 course item，並 highlight 該項目）
@@ -187,7 +198,7 @@ async function fetchAwardTexts() {
 //    否則浮卡 deep-link 的 #press-<id> 跟 library 渲染的 element id 對不上 → 點進去不捲動、不 highlight
 //    （user 2026-06-25 報；press 面板 2026-06-08 搬 Directus 後浮卡仍讀本地 press.json/press-1 沒跟上 → id 脫節）。
 // 封面：有 PDF 用 PDF 第一頁（render 成 dataURL，pdf-cover.js 依 URL 快取）；沒 PDF 用第一張圖；都沒有就不放浮卡。
-// 不阻塞首頁：傳入空 pool，render 好一筆 push 一筆，nextPoolEntry live 讀 pool.length 自動遞補。
+// 不阻塞首頁：傳入空 press queue，render 好一筆 push 一筆，nextEntry 下次選位 live 讀 queue.length 自動加入輪替。
 async function populatePressCovers(pool, isCancelled) {
   /** @type {{id:string, cover:string, isPdf:boolean}[]} */
   let entries;
@@ -216,7 +227,7 @@ async function populatePressCovers(pool, isCancelled) {
     if (isCancelled()) return;
     const src = e.isPdf ? await renderPdfCover(normalizeImagePath(e.cover)) : normalizeImagePath(e.cover);
     if (!src || isCancelled()) return;
-    pool.push({ type: 'image', src, url: `pages/library.html#${e.id}` });
+    pool.push({ type: 'image', src, url: `pages/library.html#${e.id}`, _cat: 'press' });
   }));
 }
 
@@ -227,6 +238,12 @@ function shuffle(arr) {
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr;
+}
+
+// 把一組 entry 包成 category 池：標記 _cat（給去重/均分用）+ 洗牌後配一個 cursor 輪替
+function mkCat(entries, name) {
+  (entries || []).forEach(e => { e._cat = name; });
+  return { queue: shuffle(entries || []), cursor: 0 };
 }
 
 // ── Element 建立 ────────────────────────────────────────────
@@ -677,7 +694,7 @@ function spawnItem(container, poolEntry, fromEdge = false) {
     resume: () => { gsapTweenY.resume(); gsapTweenX.resume(); },
   };
 
-  const item = { el: mover, x, y, vx, vy, w: realW, h: realH, rotation, hovered: false, gsapTween, rotator, card: el };
+  const item = { el: mover, x, y, vx, vy, w: realW, h: realH, rotation, hovered: false, gsapTween, rotator, card: el, poolEntry };
 
   el.addEventListener('mouseenter', () => {
     item.hovered = true;
@@ -698,45 +715,69 @@ export async function initFloatingItems() {
   const container = document.getElementById('floating-layer');
   if (!container) return;
 
-  // 建立 pool：圖片（活動海報 + library 文件/相簿封面）+ 課程文字 + 獎項文字 + 報導 PDF 封面圖
-  const [imagePool, coursePool, awardPool] = await Promise.all([
+  // 七個 category 各自一池，畫面上「均分 + 不重複」（user 2026-06-28）：
+  //   activities / summer-camp / library-files / album / curriculum / awards / press 等權，
+  //   選位時挑「畫面上現有數量最少」的可用 category（等權 → 自動均分）；
+  //   press 走 PDF 封面背景 render → 先空池、render 好逐筆 push 進 queue，自然加入輪替。
+  const [actCats, coursePool, awardPool] = await Promise.all([
     fetchActivityPosters(),
     fetchCourseTexts(),
     fetchAwardTexts(),
   ]);
-  // press 走 PDF 封面圖（背景 render，不阻塞）；先給空 pool，render 好逐筆 push
-  const pressPool = [];
+  const categoryPools = {
+    activities: mkCat(actCats.activities, 'activities'),
+    summerCamp: mkCat(actCats.summerCamp, 'summerCamp'),
+    files:      mkCat(actCats.files,      'files'),
+    album:      mkCat(actCats.album,      'album'),
+    curriculum: mkCat(coursePool,         'curriculum'),
+    awards:     mkCat(awardPool,          'awards'),
+    press:      mkCat([],                 'press'),
+  };
+  const CATS = Object.keys(categoryPools);
+  const liveCount = {};               // 每個 category 目前在畫面上的數量
+  CATS.forEach(c => { liveCount[c] = 0; });
+  const onScreen = new Set();         // 目前畫面上的 poolEntry（去重：同一筆不同時出現兩次）
 
-  // 各 pool 獨立洗牌，依 2:1:1:1 比例隨機取出
-  shuffle(imagePool);
-  shuffle(coursePool);
-  shuffle(awardPool);
-  const poolCursors = [0, 0, 0, 0];
-  const pools = [imagePool, coursePool, awardPool, pressPool];
-  // 權重：圖片 2、課程 1、獎項 1、報導 1 → 累積 [2, 3, 4, 5]
-  const cumWeights = [2, 3, 4, 5];
+  // 從某 category 取「目前不在畫面上」的下一筆（cursor 走到底重洗）；整池都在畫面上則回 null
+  function takeFrom(cat) {
+    const pool = categoryPools[cat];
+    if (!pool || !pool.queue.length) return null;
+    for (let tries = 0; tries < pool.queue.length; tries++) {
+      if (pool.cursor >= pool.queue.length) { shuffle(pool.queue); pool.cursor = 0; }
+      const entry = pool.queue[pool.cursor++];
+      if (!onScreen.has(entry)) return entry;
+    }
+    return null;
+  }
 
-  function nextPoolEntry() {
-    const r = Math.random() * cumWeights[cumWeights.length - 1];
-    let pi = cumWeights.findIndex(w => r < w);
-    // 空池（press PDF 封面背景 render 中）→ 退回圖片池補位，render 好自然遞補
-    if (!pools[pi] || pools[pi].length === 0) pi = 0;
-    const pool = pools[pi];
-    if (!pool || pool.length === 0) return null;
-    if (poolCursors[pi] >= pool.length) { shuffle(pool); poolCursors[pi] = 0; }
-    return pool[poolCursors[pi]++];
+  // 挑「畫面上數量最少」且仍有可用項的 category（等權 → 均分）；都不可用回 null（退化成裝飾 circle）
+  function nextEntry() {
+    let bestCount = Infinity, ties = [];
+    for (const cat of CATS) {
+      const pool = categoryPools[cat];
+      if (!pool.queue.length || liveCount[cat] >= pool.queue.length) continue;  // 空池 / 整池都已在畫面上 → 跳過
+      if (liveCount[cat] < bestCount) { bestCount = liveCount[cat]; ties = [cat]; }
+      else if (liveCount[cat] === bestCount) ties.push(cat);
+    }
+    if (!ties.length) return null;
+    return takeFrom(ties[Math.floor(Math.random() * ties.length)]);
+  }
+
+  function trackSpawn(entry, fromEdge) {
+    if (entry) { onScreen.add(entry); liveCount[entry._cat]++; }
+    return spawnItem(container, entry, fromEdge);
   }
 
   const items = [];
 
-  // press PDF 封面背景 render（不 await，render 好逐筆 push 進 pressPool 自動遞補）；
+  // press PDF 封面背景 render（不 await，render 好逐筆 push 進 press queue 自動加入輪替）；
   // 離頁後 cancelled 為 true，in-flight render 完成時不再 push（避免動已棄置的 pool）
   let cancelled = false;
-  populatePressCovers(pressPool, () => cancelled);
+  populatePressCovers(categoryPools.press.queue, () => cancelled);
 
-  // 初始化 items：pure random 位置（每次刷新完全不同）
+  // 初始化 items：nextEntry 逐筆挑最少的 category → 開場即均分、無重複
   for (let i = 0; i < TOTAL_ITEMS; i++) {
-    items.push(spawnItem(container, nextPoolEntry(), false));
+    items.push(trackSpawn(nextEntry(), false));
   }
 
   // 進場：initial batch 的卡片 clip-path 由隱藏 stagger 揭露（el 在 mover 內、不被 RAF 的 translate 影響 → clip-path 安全）。
@@ -784,10 +825,11 @@ export async function initFloatingItems() {
         item.y > ch + buffer ||
         item.y < -buffer * 2
       ) {
+        // 釋放離場那筆（從畫面集合移除）→ 它的 category 數量 -1 → 下一筆均分時可再被選回（去重：離場才解禁）
+        if (item.poolEntry) { onScreen.delete(item.poolEntry); liveCount[item.poolEntry._cat]--; }
         container.removeChild(item.el);
         items.splice(i, 1);
-        const entry = nextPoolEntry();
-        items.push(spawnItem(container, entry, true));
+        items.push(trackSpawn(nextEntry(), true));
       }
     }
 

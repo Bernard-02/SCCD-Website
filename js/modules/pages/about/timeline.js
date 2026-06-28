@@ -411,10 +411,13 @@ export function initTimeline() {
     const PHOTO_MIN_VW = 30;
     const PHOTO_MAX_VW = 50;
 
-    // --- Y 軸：100vh 扣上下 padding 後分 5 個 bar ---
-    const yPadVH = 8; // 上下各 8vh 的 padding
-    const usableH_VH = 100 - yPadVH * 2; // 84vh
-    const BAR_H_VH = usableH_VH / 5;     // 每個 bar ≈ 16.8vh
+    // --- Y 軸：把 #timeline-area「實際高度」(pageH，桌面 = 100vh−164px) 扣上下 padding 後分 5 個 bar ---
+    // ⚠️ Y 座標全部相對 pageH（不是 viewport 100vh）：photoHsVH 已是「% of pageH」(乘 pageW/pageH 換算)，
+    //    輸出 top 也用 %（見下方 photo.style）→ 照片一定落在 area 內、底邊不溢出進 footer。
+    //    （history snap 後正好 100vh、footer 緊接在下；舊版 top 用 vh + pb-6xl 緩衝才沒露餡，現 pb 縮小會穿幫。）
+    const yPadVH = 8; // 上下各 8%（of pageH）的 padding
+    const usableH_VH = 100 - yPadVH * 2; // 84
+    const BAR_H_VH = usableH_VH / 5;     // 每個 bar ≈ 16.8
 
     const pageData = [];
     const pagePhotoRotates = [];
@@ -551,8 +554,8 @@ export function initTimeline() {
         // 圖片中心對齊 bar 中心，加上小幅隨機偏移（±bar高度的30%）
         const jitter = (Math.random() - 0.5) * BAR_H_VH * 0.6;
         let top = barCenterVH - h / 2 + jitter;
-        // 確保至少 30% 在 viewport 內
-        top = Math.max(-0.7 * h, Math.min(top, 100 - 0.3 * h));
+        // 頂邊仍可往上露出 0.7h（往上不是 footer）；底邊夾到 area 底（100% of pageH）→ 不溢出進 footer（user 2026-06-28）
+        top = Math.max(-0.7 * h, Math.min(top, 100 - h));
         photoTopsVH[p] = top;
       }
 
@@ -573,7 +576,7 @@ export function initTimeline() {
             photoTopsVH[p] = prevTop - photoHsVH[p] + touchOverlap;
           }
           const h = photoHsVH[p];
-          photoTopsVH[p] = Math.max(-0.7 * h, Math.min(photoTopsVH[p], 100 - 0.3 * h));
+          photoTopsVH[p] = Math.max(-0.7 * h, Math.min(photoTopsVH[p], 100 - h)); // 底邊夾到 area 底，不溢出 footer
         }
       }
 
@@ -612,7 +615,8 @@ export function initTimeline() {
 
         const photo = document.createElement('div');
         photo.className = 'timeline-photo';
-        photo.style.cssText = `position:absolute; width:${photoVW}vw; left:${photoLeft}px; top:${topVH}vh; z-index:${photoZs[p]};`;
+        // top 用 %（相對 strip = pageH，見上方 Y 軸註解）→ 照片落在 area 內、底邊不過 footer；width 仍 vw（X 軸相對 viewport 寬）
+        photo.style.cssText = `position:absolute; width:${photoVW}vw; left:${photoLeft}px; top:${topVH}%; z-index:${photoZs[p]};`;
 
         const rotateDiv = document.createElement('div');
         rotateDiv.style.cssText = `overflow:hidden; transform:rotate(${photoRots[p]}deg);`;

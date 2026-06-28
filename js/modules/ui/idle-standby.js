@@ -396,7 +396,18 @@ export function initIdleStandby() {
   if (initialized) return;
   initialized = true;
 
-  const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'wheel', 'scroll'];
+  // mousemove 特別處理：視窗重新取得焦點（alt-tab / 點回分頁）時，OS 會補送一個「座標沒變」的 mousemove，
+  // 原本任何 mousemove 都算活動 → 一回到頁面就自動退出待機（user 2026-06-28 報「不是回來就取消、要真的移動或點擊」）。
+  // 只在座標真的改變時才算活動 → 純粹切回視窗（沒動滑鼠）維持待機，真的移動滑鼠才取消。
+  let lastX = null, lastY = null;
+  window.addEventListener('mousemove', (e) => {
+    if (e.clientX === lastX && e.clientY === lastY) return; // 焦點補送的假 move（座標沒變）→ 忽略
+    lastX = e.clientX; lastY = e.clientY;
+    resetTimer();
+  }, { passive: true });
+
+  // 其餘都是明確操作（按下 / 鍵盤 / 觸控 / 滾輪 / 捲動）→ 直接算活動
+  const events = ['mousedown', 'keydown', 'touchstart', 'wheel', 'scroll'];
   events.forEach(evt => {
     window.addEventListener(evt, resetTimer, { passive: true });
   });

@@ -387,7 +387,7 @@
       </section>
 
       <!-- History / Timeline Section -->
-      <section id="history" class="snap-zone relative bg-white pb-6xl z-20" style="clip-path: inset(-100vh 0); padding-top: 100px;">
+      <section id="history" class="snap-zone relative bg-white pb-2xl z-20" style="clip-path: inset(-100vh 0); padding-top: 100px;">
 
         <!-- Section Title Strip（封鎖綫，h1 字體，位於 section 頂部）-->
         <div class="section-title-strip absolute left-0 right-0 flex items-center" style="top: 0; overflow: visible; z-index: 0; padding: var(--spacing-md) 0;" data-anchor="history">
@@ -397,7 +397,9 @@
           </div>
         </div>
 
-        <div id="timeline-area" class="relative w-full" style="height: calc(100vh - 100px);">
+        <!-- 桌面高度＝100vh − padding-top(100px) − pb-2xl(64px)＝section 連同 pb 正好一屏 → snap 往下直達 footer。
+             手機由 timeline.js buildMobile 設 height:auto 覆蓋（#timeline-mobile 自然高），故此值只作用桌面。 -->
+        <div id="timeline-area" class="relative w-full" style="height: calc(100vh - 164px);">
 
           <!-- 卷軸容器：照片 + 年份/說明字卡，JS 動態生成 -->
           <div id="timeline-strip" class="absolute top-0 left-0 h-full"></div>

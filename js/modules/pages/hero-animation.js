@@ -592,12 +592,29 @@ function signalHeroDone() {
   document.dispatchEvent(new Event('hero:animation-done'));
 }
 
+// SPA 換頁「最開始」由 router 同步呼叫，把上一頁殘留的 _heroDone 清掉。
+// Why：deep-link 消費者（courses/activities initXxxSectionSwitch 的 waitForHeroAnimDone()）在 initPageModules
+//   同步流程中跑。正常 header 已就緒時 initHeroAnimation() 先跑、已 reset；但 header 尚未注入時 initHeroAnimation
+//   被 defer 到 header:ready event → 消費者搶先讀到「上一頁殘留的 _heroDone=true」→ 立刻 resolve → 沒等 hero 就
+//   scroll/slide-in（user 2026-06-28 報 bug 1/4：hero 沒出文字就往下/slide）。在 nav 起始同步清＝消費者一定讀到 false、
+//   改去等 hero:animation-done。initHeroAnimation 內仍保留自己的 reset（雙保險）。
+export function resetHeroDone() { _heroDone = false; }
+
 /**
- * 等到 hero 進場動畫完成。已完成則 resolve 立刻；否則監聽事件，並帶 timeoutMs 兜底
- * （避免某些頁面 hero 結構不存在、event 永遠不會 fire 時 caller 卡死）。
- * @param {number} [timeoutMs=2500]
+ * 等到 hero 進場動畫完成。已完成則立刻 resolve；否則監聽 hero:animation-done event；maxWaitMs 純兜底
+ * （hero 結構不存在 / event 永不 fire 時 caller 不卡死）。
+ * user 2026-06-28：deep-link 要等 hero「跑完」才往下捲。之前封頂 0.9s 會在「內容半開」時就捲（bg reveal 1.0s /
+ *   主標題 ~1.05s / 副標 ~1.7s 都還沒收完）＝「hero 內容沒出來就 scroll」「hero 還沒跑完就往下」（issue 1/2）→ 改回
+ *   等真正 done（三頁 hero 2 群 ~1.7s）。⚠️別再降成固定 cap 當「太快」修——那是 cut 在內容出現前。
+ *   （「卡在 hero 太久」多半是 Directus 資料未就緒、navigateToItem 等資料，非 hero 動畫本身；資料在 hero 播放期間
+ *    並行載入、navigateToItem 內輪詢兜底。）
+ * fallback 2500→4000（user 2026-06-28 bug 1）：hero build 被 defer（rAF + fonts.ready/400ms）+ deep-link 並行
+ *   render 卡片（curriculum grid）會延後 GSAP tick → hero 實際播完的 wall-clock 偶爾逼近/超過 2500 → 兜底搶先 fire＝
+ *   「hero 還沒跑完就 scroll」（有機率）。signalHeroDone 正常 ~1.7s 就 fire、根本到不了兜底；拉高純粹給慢機/慢字型
+ *   留 margin，不影響正常路徑（非「等更久」而是「別誤判太早」）。⚠️真卡住才會等到 4000，那是 hero 結構壞掉的 last resort。
+ * @param {number} [maxWaitMs=4000]
  */
-export function waitForHeroAnimDone(timeoutMs = 2500) {
+export function waitForHeroAnimDone(maxWaitMs = 4000) {
   if (_heroDone) return Promise.resolve();
   return new Promise(resolve => {
     let done = false;
@@ -608,7 +625,7 @@ export function waitForHeroAnimDone(timeoutMs = 2500) {
       resolve();
     };
     document.addEventListener('hero:animation-done', fire);
-    setTimeout(fire, timeoutMs);
+    setTimeout(fire, maxWaitMs);
   });
 }
 
