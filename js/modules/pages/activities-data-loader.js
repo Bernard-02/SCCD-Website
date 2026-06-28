@@ -405,10 +405,10 @@ export function buildGalleryHtml(item) {
       const lbIndex = posterOffset + vi;
       return `<div class="h-full flex-shrink-0 aspect-video relative cursor-pointer" data-lightbox-open data-lightbox-index="${lbIndex}">
         <img src="https://img.youtube.com/vi/${videoId}/hqdefault.jpg" alt="" class="w-full h-full object-cover block">
-        <div class="absolute inset-0 bg-black" style="opacity:0.2;"></div>
         <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <svg width="20" height="24" viewBox="0 0 20 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <polygon points="0,0 20,12 0,24" fill="white" fill-opacity="0.5"/>
+          <!-- 不蓋整片半透明黑遮罩（user 2026-06-28：遮罩沒跟卡片旋轉、看起來分兩層）→ 改 play 鍵實心白 + drop-shadow，亮縮圖上仍可見 -->
+          <svg width="20" height="24" viewBox="0 0 20 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 1px 4px rgba(0,0,0,0.55));">
+            <polygon points="0,0 20,12 0,24" fill="white"/>
           </svg>
         </div>
       </div>`;

@@ -28,10 +28,14 @@ export async function loadFacultyData() {
     const admin = data.filter(item => item.type === 'admin');
 
     _phCards = []; // 重抓重渲染前清空，避免站內導航回來累積舊卡片 ref
-    // fulltime 是第一個 list（上半屏）→ 前 4 張 eager+high priority 先載；parttime/admin 在下方維持 lazy
-    renderFacultyList('faculty-fulltime-list', fulltime, 4);
-    renderFacultyList('faculty-parttime-list', parttime);
-    renderFacultyList('faculty-admin-list', admin);
+    // fulltime 是第一個 list（上半屏）→ 前 4 張 eager + high priority 先載。
+    // parttime/admin 在下方且初始被 filter 設 display:none → 原本全 lazy：lazy 圖在隱藏時永遠不下載，
+    //   切到該分頁那刻才開始抓 → 前幾張先露 bg-gray-2 灰底再閃出照片（user 2026-06-28 報）。
+    // 修：前 4 張改 eager（display:none 也會下載進快取）但「不」給 high priority → 不搶 fulltime 首屏頻寬，
+    //   fulltime 載完後背景補載；切分頁時已快取命中＝照片直接在、不再灰閃。
+    renderFacultyList('faculty-fulltime-list', fulltime, 4, true);
+    renderFacultyList('faculty-parttime-list', parttime, 4);
+    renderFacultyList('faculty-admin-list', admin, 4);
 
     // 代用 logo 卡片：依當前 mode 套對應圖 + 底色（首次不做 fade），並綁 theme:changed 之後切換時 cross-fade
     applyPlaceholderMode(false);
@@ -188,7 +192,7 @@ function renderCardTitles(item) {
   }).join('');
 }
 
-function renderFacultyList(containerId, items, eagerCount = 0) {
+function renderFacultyList(containerId, items, eagerCount = 0, highPriority = false) {
   const container = document.getElementById(containerId);
   if (!container) return;
 
@@ -200,7 +204,8 @@ function renderFacultyList(containerId, items, eagerCount = 0) {
   container.innerHTML = items.map((item, index) => {
     // 上半屏前幾張：eager + fetchpriority high → 第一屏照片優先載，不被 lazy 降權、也不跟其餘卡搶頻寬輸掉
     // （user 2026-06-24 報「前兩張一直先灰再變照片」＝它們 render 當下就要、但跟 ~50 張同優先序搶頻寬）
-    const eager = index < eagerCount;
+    const eager = index < eagerCount;       // 預載（display:none 也會下載進快取）
+    const eagerHigh = eager && highPriority; // 只有 fulltime 上半屏給 high priority，parttime/admin 背景補載不搶頻寬
     const color = CARD_COLORS[index % CARD_COLORS.length];
     const sign = Math.random() < 0.5 ? -1 : 1;
     const initDeg = (sign * (3 + Math.random() * 3)).toFixed(2);
@@ -208,7 +213,7 @@ function renderFacultyList(containerId, items, eagerCount = 0) {
     return `
     <div class="faculty-card group ${item.type === 'parttime' ? 'cursor-default' : 'cursor-pointer'} p-[6px]" data-category="${item.type}" data-faculty-id="${item.id}" data-img-dir="${imgDir}" style="--card-color: ${color}; --init-deg: ${initDeg}deg">
       <div class="faculty-card-image-wrapper overflow-hidden mb-md aspect-[4/5] bg-gray-2 relative">
-        <img src="${item.image}" alt="${item.nameEn}" loading="${eager ? 'eager' : 'lazy'}"${eager ? ' fetchpriority="high"' : ''} class="faculty-card-image w-full h-full object-cover">
+        <img src="${item.image}" alt="${item.nameEn}" loading="${eager ? 'eager' : 'lazy'}"${eagerHigh ? ' fetchpriority="high"' : ''} class="faculty-card-image w-full h-full object-cover">
       </div>
       <div class="text-left">
         <div class="faculty-card-name">

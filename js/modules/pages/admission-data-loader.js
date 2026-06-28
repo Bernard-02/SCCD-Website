@@ -52,14 +52,18 @@ export async function loadAdmissionData() {
     return;
   }
 
-  // 只顯示近一年的 news（後台照常累積，前台依日期自動篩）。日期解析不出的保留不藏。
-  // ponytail: 以「今天」為錨點的滾動 12 個月；若淡季完全沒新貼文會整列空 → 改錨「最新一筆的日期」再回推一年即可
-  const cutoff = new Date();
-  cutoff.setFullYear(cutoff.getFullYear() - 1);
-  data = data.filter(item => {
-    const d = parseNewsDate(item.date);
-    return !d || d >= cutoff;
-  });
+  // 只顯示「最新 5 則」announcement（user 2026-06-28；後台照常累積，前台只露最新 5）。
+  // 依日期 desc 排序後取前 5；日期解析不出的排最後（保留但優先序低）。取代原「近一年」篩選——那個淡季可能 <5。
+  data = data
+    .slice()
+    .sort((a, b) => {
+      const da = parseNewsDate(a.date), db = parseNewsDate(b.date);
+      if (da && db) return db - da;
+      if (da) return -1;
+      if (db) return 1;
+      return 0;
+    })
+    .slice(0, 5);
 
   // 一次 render 全部 items（不分頁）；逐一進場由 playAdmissionPanelReveal 的 ScrollTrigger 接管
   // （每個 item 捲入 viewport 才 reveal）。資料量小（~12 筆），全 render 成本可忽略。
