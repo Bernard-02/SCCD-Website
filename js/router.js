@@ -9,6 +9,7 @@ import { runPageExit } from './modules/ui/page-exit.js';
 import { initFooter } from './footer.js';
 import { playFooterExit, resetFooterAfterExit } from './modules/ui/footer-draggable.js';
 import { SITE_BASE, SITE_BASE_PATHNAME, sitePath } from './modules/ui/site-base.js';
+import { releaseSnapHold } from './modules/ui/snap-scroll.js';
 
 // ── 路由表 ────────────────────────────────────────────────────
 const routes = {
@@ -278,12 +279,16 @@ async function loadPage(route, search = '', fromUserNav = false) {
     // 用 class 兩個 case 都不受影響
     document.body.classList.toggle('overflow-hidden', route.page === 'generate' || route.page === 'atlas' || route.page === 'library');
     // 桌面 section 磁吸模式（原生 CSS scroll-snap，掛在 <html>）：除鎖頁(generate/atlas/library)、404 外都掛
-    // snap-mandatory 強吸（user 2026-06-27 全站改 mandatory）；實際 snap 點由各頁 .snap-zone 決定（沒標的頁等於不吸）。
-    // 無 hero 的純文字頁 (support/regulations/policy) 只標 footer 一個 .snap-zone。
-    // ⚠️ mandatory 會困住「比視窗高的 section」（about resources/history、faculty 卡片多時讀不到中段）；
-    //    某頁要放鬆＝那頁改掛 snap-proximity。規則在 css/layout/scroll-snap.css。
+    // snap-mandatory 強吸；實際 snap 點由各頁 .snap-zone 決定（沒標的頁等於不吸）。規則在 css/layout/scroll-snap.css。
+    // 2026-06-28 一度把 activities/curriculum/admission 改 proximity（軟吸，免 list 中間 item 對齊被 re-snap 吸偏），
+    // 但 user 覺得 proximity「看不出吸了什麼」(磁吸感太弱)→ 改回全 mandatory，接受取捨：往後的 list item 沒辦法完美對齊
+    // 頂部（捲到頂會超過 maxScroll、露出 footer）。.snap-proximity CSS 規則仍保留，未來某頁要放鬆可再 per-page 掛。
+    // 先釋放上一頁 deep-link 殘留的 snap hold（scrollWindowNoSnap 捲完會 hold inline scroll-snap-type:none 直到
+    // 使用者互動；若使用者沒互動就換頁，殘留的 inline none 會蓋過下面新頁的 .snap-* class → 新頁磁吸失效）。
+    releaseSnapHold();
     const noSnap = ['generate', 'atlas', 'library', '404'].includes(route.page);
     document.documentElement.classList.toggle('snap-mandatory', !noSnap);
+    document.documentElement.classList.remove('snap-proximity');
     // about + alumni 用寬封鎖綫（section-title-strip width:calc(50vw+) 會 overflow viewport 右側）
     // faculty 手機 hero banner width:108vw + rotate(-5°) 兩側溢出 viewport
     // activities 手機 .activities-section-bar negative margin 延伸到 viewport 邊 + active list-item
