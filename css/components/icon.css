@@ -94,8 +94,6 @@
 .icon-download   { --icon: url('../website-icons/download_share.svg'); }
 .icon-reset      { --icon: url('../website-icons/reset.svg'); }
 .icon-shuffle    { --icon: url('../website-icons/shuffle.svg'); }
-/* TODO: rotate_phone.svg 待補 SVG */
-.icon-rotate-phone { --icon: url('../website-icons/rotate_phone.svg'); }
 .icon-custom     { --icon: url('../website-icons/custom.svg'); }
 
 /* mode toggle */

@@ -21,20 +21,4 @@
     @apply grid grid-cols-20 gap-gutter;
   }
 
-  /* ===== Custom Spacing Utility ===== */
-  .py-4xl {
-    padding-top: var(--spacing-4xl);
-    padding-bottom: var(--spacing-4xl);
-  }
-
-  /* ===== Main Content Structure ===== */
-  .main-content {
-    min-height: 60vh;
-    padding: var(--spacing-3xl) 0;
-  }
-
-  /* ===== Flex Helpers ===== */
-  .flex-1 {
-    flex: 1;
-  }
 }

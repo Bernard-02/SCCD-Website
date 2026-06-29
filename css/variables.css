@@ -10,10 +10,6 @@
   --cursor-default:  url('../custom-cursor/default.svg') 9 2, default;
   --cursor-pointer:  url('../custom-cursor/pointer.svg') 14 1, pointer;
   --cursor-text:     url('../custom-cursor/typing.svg') 15 15, text;
-  --cursor-grab:     url('../custom-cursor/drag_1.svg') 15 15, grab;
-  --cursor-grabbing: url('../custom-cursor/drag_2.svg') 15 15, grabbing;
-  --cursor-zoom-in:  url('../custom-cursor/zoom-in.svg') 9 9, zoom-in;
-  --cursor-zoom-out: url('../custom-cursor/zoom-out.svg') 9 9, zoom-out;
   --cursor-w-resize: url('../custom-cursor/left.svg') 2 15, w-resize;
   --cursor-e-resize: url('../custom-cursor/right.svg') 28 15, e-resize;
   --cursor-not-allowed: url('../custom-cursor/ban.svg') 16 16, not-allowed;
@@ -48,7 +44,6 @@
   /* Font Families */
   --font-en: 'Inter', sans-serif;
   --font-zh: 'Noto Sans TC', sans-serif;
-  --font-default: var(--font-en), var(--font-zh), system-ui, -apple-system, sans-serif;
 
   /* Font Sizes (rem) - Base: 16px */
   --font-size-h1: 8rem;      /* 128px */
@@ -91,14 +86,11 @@
 
 
   /* ===== Layout ===== */
-  --container-max-width: 1200px;
   --container-padding: 3.75rem; /* 60px */
 
 
   /* ===== Transitions（legacy；buttons.css 等仍用，逐步遷移到下方 motion token） ===== */
   --transition-fast: 0.2s ease;
-  --transition-base: 0.3s ease;
-  --transition-slow: 0.5s ease;
 
   /* ===== Motion tokens（動畫時長 + ease，全站單一來源；2026-06-04 統一） =====
    * duration：GSAP 端由 js/modules/ui/motion.js 用 getComputedStyle 讀進來

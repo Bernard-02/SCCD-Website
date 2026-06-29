@@ -74,8 +74,4 @@
   .pt-7xl {
     padding-top: var(--spacing-7xl);
   }
-
-  .pt-8xl {
-    padding-top: var(--spacing-8xl);
-  }
 }

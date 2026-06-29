@@ -88,10 +88,6 @@
   --r-color: rgb(255, 68, 138);
   --g-color: rgb(0, 255, 128);
   --b-color: rgb(38, 188, 255);
-  /* 去飽和的 RGB 顏色（Saturation = 0），由 JS 動態計算 */
-  --r-color-desaturated: rgb(161, 161, 161);
-  --g-color-desaturated: rgb(127, 127, 127);
-  --b-color-desaturated: rgb(146, 146, 146);
 
   /* 縮放系統 */
   --scale: 1; /* 整體縮放比例 */
