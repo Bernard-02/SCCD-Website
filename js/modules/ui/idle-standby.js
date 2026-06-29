@@ -347,39 +347,40 @@ async function exitStandby() {
   // logo 還原 size + atlas fade out 並行
   const logoRestorePromise = tweenLogoRestore();
 
+  // 只 fade out，先不拆 atlas DOM。拆除（cleanupAtlas + overlay.innerHTML=''）跟 ScrollTrigger.refresh
+  // 改到下方 reveal 之後 defer，否則它們全壓在 index 重新露出的那一幀同步跑、卡住 index 的漂浮 rAF
+  // （frame-based tick 被主執行緒 block → 卡片「停一下才繼續跑」；user 2026-06-30）。
   const atlasFadeOutPromise = (async () => {
     if (isOnAtlas()) return;
     await fadeAtlasContent(0);  // 星雲先 fade out
     await fadeAtlasMain(0);     // 背景再 fade out
-    unmountStandbyAtlas();
   })();
 
   await Promise.all([logoRestorePromise, atlasFadeOutPromise]);
 
-  // body class
+  // ── 先「露出 index」：移除 body class + 還原 logo（同步：使用者碰 header 前 logo 要就位）──
   document.body.classList.remove('idle-standby');
-
-  // 若進場時改過 slide-in 反色 logo，這裡先還原（restoreLogoFromBody 不影響 logoType）
-  restoreInverseLogo();
-
-  // atlas 已消失，把 logo DOM 還回 header（lifted 期間 logo 浮在 body root z:10001）
-  restoreLogoFromBody();
+  restoreInverseLogo();   // 條件式：savedLogoType===null 時 no-op
+  restoreLogoFromBody();  // logo DOM 還回 header（lifted 期間浮在 body root z:10001）
+  // overlay 此時已 opacity:0；立刻設 pointer-events:none，讓殘留一兩幀的 atlas DOM 不吃點擊
+  const overlay = document.getElementById('idle-standby-overlay');
+  if (overlay) overlay.style.pointerEvents = 'none';
 
   isStandby = false;
   isTransitioning = false;
-
-  // ScrollTrigger.refresh：standby 期間 atlas overlay (fixed z:10000) 加進 body 可能改變了 layout 計算
-  // 沒 refresh 的話，sticky chip / branch chip 等 ScrollTrigger 控的元素會用過時的觸發位置算 visible 狀態
-  // → user 觀察到 degree-show-detail sticky title group 跟 branch chip 展開位置偏離（trigger 邊界算錯）
-  // 用 window.ScrollTrigger 寫法避免在沒載 GSAP 的頁面 ReferenceError
-  if (typeof window !== 'undefined' && /** @type {any} */ (window).ScrollTrigger) {
-    /** @type {any} */ (window).ScrollTrigger.refresh();
-  }
-
-  // 過場期間 activity event 被 isTransitioning 擋掉沒重置 timer
-  // 若使用者剛好停手不動，沒事件觸發 → 下一輪倒數不會啟動
-  // 主動 reset 一次保證新一輪 IDLE_TIMEOUT 從現在起算
+  // 過場期間 activity event 被 isTransitioning 擋掉沒重置 timer → 主動 reset 一次保證新一輪倒數從現在起算
   resetTimer();
+
+  // 重的收尾延到後一兩幀，避開 index reveal 幀：overlay 已 opacity:0 + pointer-events:none，
+  // 晚一拍拆 DOM / refresh 看不出，但 index 的 rAF 先拿到乾淨的幀、不掉格。
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    unmountStandbyAtlas();  // cleanupAtlas + overlay.innerHTML=''（拆掉整個待機 atlas）
+    // ScrollTrigger.refresh：standby overlay (fixed z:10000) 進過 body 可能改變 layout → 不 refresh 的話
+    // degree-show-detail sticky title group / branch chip 會用過時 trigger 位置（延後不可刪）。
+    if (typeof window !== 'undefined' && /** @type {any} */ (window).ScrollTrigger) {
+      /** @type {any} */ (window).ScrollTrigger.refresh();
+    }
+  }));
 }
 
 function resetTimer() {
