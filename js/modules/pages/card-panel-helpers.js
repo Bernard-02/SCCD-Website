@@ -22,20 +22,6 @@ export const CATEGORY_LABELS = {
   'others':           'Others 其他',
 };
 
-// ── 年份分組（降序）──────────────────────────────────────────────────────────
-
-export function groupByYear(data) {
-  const map = new Map();
-  data.forEach(item => {
-    const y = item.year || 0;
-    if (!map.has(y)) map.set(y, []);
-    map.get(y).push(item);
-  });
-  return [...map.entries()]
-    .sort((a, b) => b[0] - a[0])
-    .map(([year, items]) => ({ year, items }));
-}
-
 // ── 更新年份組分隔線（第一個不加 border-t）────────────────────────────────────
 
 export function updateYearBorders(container) {

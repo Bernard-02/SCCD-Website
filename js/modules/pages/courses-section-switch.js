@@ -20,8 +20,6 @@ import { waitForHeroAnimDone } from './hero-animation.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { scrollWindowNoSnap, clampBelowFooter } from '../ui/snap-scroll.js';
 
-let currentProgramColor = '';
-export function getCurrentProgramColor() { return currentProgramColor; }
 
 // 等整個 panel 的卡片 clip-reveal 全跑完才 resolve：卡片進場時 gsap 每幀寫 inline clipPath，跑完 clearProps 清掉
 // → inline clipPath 變空。reveal 是「一支 gsap.to(allCards) staggered」，最後一張清空 = 整片 reveal 完成。
@@ -446,7 +444,6 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
     }
 
     const { color } = setActiveNavBtn(btns, program, 'data-program', opts);
-    currentProgramColor = color;
     panels.forEach(p => p.classList.toggle('hidden', p.id !== `panel-${program}`));
 
     // 切 program 時 reset 卡片選取狀態（避免 active card / slide-in 殘留）

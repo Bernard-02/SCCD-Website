@@ -650,7 +650,6 @@ export function initTimeline() {
       // --- 字卡固定位置（不在 strip 內，疊在 cardsOverlay 上）---
 
       const cardColor = randomColor();
-      const eraRot = pickUniqueRotations(1, -4, 4)[0];
 
       // === Group descriptions by leading <h5>...</h5> token ===
       // h5 開頭 → 獨立一張卡（chip = h5 文字）；無 h5 → 接續上一張卡作為其 description
@@ -833,14 +832,12 @@ export function initTimeline() {
       // 確保可見（若之前有中斷的 lower 動畫殘留）
       gsap.set(rotateDiv, { clipPath: CLIP_END });
 
-      photo._raising = true;
       // 14 < cardsOverlay 的 z=15，確保 hover 圖片不會蓋過 era/year/desc 字卡
       photo.style.zIndex = '14';
       if (showTooltip) showTooltip();
     }
 
     function lowerPhoto(photo) {
-      photo._raising = false;
       const rotateDiv = photo.querySelector('div');
       if (!rotateDiv) {
         photo.style.zIndex = photo._tlOrigZ;
@@ -1112,7 +1109,6 @@ export function initTimeline() {
         gsap.killTweensOf(rd);
         if (rd) gsap.set(rd, { clipPath: CLIP_END });
         activeHover.style.zIndex = activeHover._tlOrigZ;
-        activeHover._raising = false;
         activeHover._tlLowering = false;
         activeHover = null;
         clearTimeout(hoverLeaveTimer);
@@ -1188,7 +1184,6 @@ export function initTimeline() {
         gsap.killTweensOf(rd);
         if (rd) gsap.set(rd, { clipPath: CLIP_END });
         activeHover.style.zIndex = activeHover._tlOrigZ;
-        activeHover._raising = false;
         activeHover._tlLowering = false;
         activeHover = null;
         clearTimeout(hoverLeaveTimer);
@@ -1406,7 +1401,6 @@ export function initTimeline() {
       gsap.killTweensOf(rd);
       if (rd) gsap.set(rd, { clipPath: CLIP_END });
       activeHover.style.zIndex = activeHover._tlOrigZ;
-      activeHover._raising = false;
       activeHover._tlLowering = false;
       activeHover = null;
       clearTimeout(hoverLeaveTimer);

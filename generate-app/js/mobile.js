@@ -1012,20 +1012,6 @@ function updateMobileBentoPlayIcon() {
 
 // 注意：getSuffixForMode 已移至 utils.js 的 getIconSuffix()
 
-// 更新手機版邊框顏色（Wireframe 模式）
-function updateMobileBorderColors() {
-  const borderColor = getWireframeBorderColor();
-  if (!borderColor) return;
-
-  const elements = [
-    ..._p5.selectAll('.mobile-bottom-btn'),
-    _p5.select('.mobile-bento-container'),
-    _p5.select('.mobile-bento-left'),
-    ..._p5.selectAll('.mobile-bento-button')
-  ];
-  updateElementsBorderColor(elements, borderColor);
-}
-
 // 同步桌面版 Sliders
 function syncDesktopSliders() {
   if (!sliders[0] || !sliders[1] || !sliders[2]) return;

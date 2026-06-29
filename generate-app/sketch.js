@@ -68,42 +68,8 @@ function loadPlaceholderImages() {
   placeholderB_white = _p5.loadImage(asset('generate-app/Placeholder Logo/SCCD_B_white.svg'));
 }
 
-// --- 計算去飽和顏色（將 Saturation 設為 0）---
-function calculateDesaturatedColor(r, g, b) {
-  // 將 RGB 轉換為 HSL
-  r = r / 255;
-  g = g / 255;
-  b = b / 255;
-
-  let max = Math.max(r, g, b);
-  let min = Math.min(r, g, b);
-  let l = (max + min) / 2;
-
-  // Saturation = 0 時，RGB 都等於 Lightness 值
-  let gray = Math.round(l * 255);
-  return { r: gray, g: gray, b: gray };
-}
-
-// --- 初始化去飽和的 RGB 顏色 CSS 變數 ---
-function initializeDesaturatedColors() {
-  // R color: rgb(255, 68, 138)
-  let rDesaturated = calculateDesaturatedColor(255, 68, 138);
-  document.documentElement.style.setProperty('--r-color-desaturated', `rgb(${rDesaturated.r}, ${rDesaturated.g}, ${rDesaturated.b})`);
-
-  // G color: rgb(0, 255, 128)
-  let gDesaturated = calculateDesaturatedColor(0, 255, 128);
-  document.documentElement.style.setProperty('--g-color-desaturated', `rgb(${gDesaturated.r}, ${gDesaturated.g}, ${gDesaturated.b})`);
-
-  // B color: rgb(38, 188, 255)
-  let bDesaturated = calculateDesaturatedColor(38, 188, 255);
-  document.documentElement.style.setProperty('--b-color-desaturated', `rgb(${bDesaturated.r}, ${bDesaturated.g}, ${bDesaturated.b})`);
-}
-
 // --- p5.js 初始化設定 ---
 function setup() {
-  // 初始化去飽和顏色
-  initializeDesaturatedColors();
-
   // 初始檢測手機模式
   checkMobileMode();
 
@@ -1625,7 +1591,7 @@ function animateSaveButton(button, iconElement) {
     return Math.round(tl.duration() * 1000);
 }
 
-// UI 狀態機（updateUI / updateSliders / getRotationFor）已移至 js/ui-state.js
+// UI 狀態機（updateUI / updateSliders）已移至 js/ui-state.js
 
 // --- 視窗大小調整處理 ---
 // --- 手機版鍵盤調整函數 ---

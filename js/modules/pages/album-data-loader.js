@@ -4,7 +4,6 @@
  */
 
 import { openLightbox } from '../lightbox/activities-lightbox.js';
-import { getCurrentSectionColor } from './activities-section-switch.js';
 import { sitePath } from '../ui/site-base.js';
 import { loadSummerCamp } from './summer-camp-source.js';
 import {

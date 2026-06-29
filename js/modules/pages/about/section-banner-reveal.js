@@ -11,8 +11,7 @@ import { registerPageExit } from '../../ui/page-exit.js';
  * - 三張圖片的旋轉角度各自不同，z-index 隨機
  */
 
-// clip-path reveal 四個方向（brand trail 同樣邏輯）
-const DIRS    = ['top', 'bottom', 'left', 'right'];
+// clip-path reveal 終態（brand trail 同樣邏輯）
 const CLIP_END = 'inset(0% 0% 0% 0%)';
 
 function getClipStart(dir) {
@@ -31,41 +30,6 @@ function randomTextRotation() {
   return values[Math.floor(Math.random() * values.length)];
 }
 
-// 圖片旋轉：-4 到 4°，確保三張角度不同
-function pickThreeRotations() {
-  const pool = [-4, -3, -2, -1, 1, 2, 3, 4];
-  const picked = [];
-  while (picked.length < 3) {
-    const r = pool[Math.floor(Math.random() * pool.length)];
-    if (!picked.includes(r)) picked.push(r);
-  }
-  return picked;
-}
-
-// 三張圖片的隨機垂直偏移：-halfRange ~ +halfRange（vw）
-// 確保有上有下
-function pickVerticalOffsets(halfRange = 5) {
-  const pool = [];
-  for (let i = -halfRange; i <= halfRange; i++) {
-    if (i !== 0) pool.push(i);
-  }
-  let picked;
-  do {
-    picked = shuffle(pool).slice(0, 3);
-  } while (!picked.some(v => v > 0) || !picked.some(v => v < 0));
-  return picked;
-}
-
-// shuffle 陣列（Fisher-Yates）
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
 // 從 CSS variables 讀取三原色
 function getAccentColors() {
   const style = getComputedStyle(document.documentElement);
@@ -74,24 +38,6 @@ function getAccentColors() {
     style.getPropertyValue('--color-pink').trim(),
     style.getPropertyValue('--color-blue').trim(),
   ];
-}
-
-// 分配欄位：col-start 2~6，col-end 固定 13（確保文字不超出右側邊界）
-function assignColumn(textBlock) {
-  const colStart = Math.floor(Math.random() * 5) + 2; // 2..6
-  textBlock.style.gridColumnStart = colStart;
-  textBlock.style.gridColumnEnd   = 13;
-}
-
-// 隨機垂直位置：header 高度以下 ~ 65vh
-function assignRandomTop(gridDiv) {
-  const headerH = parseFloat(
-    getComputedStyle(document.documentElement).getPropertyValue('--header-height')
-  ) || 80;
-  const maxTop   = window.innerHeight * 0.65;
-  const randomTop = headerH + Math.random() * (maxTop - headerH);
-  gridDiv.style.alignContent = 'start';
-  gridDiv.style.paddingTop   = `${randomTop}px`;
 }
 
 export function initSectionBannerReveal() {
@@ -197,10 +143,8 @@ export function initSectionBannerReveal() {
       gsap.set(titleEl, { clipPath: getClipStart(revealDir) });
       gsap.to(titleEl, { clipPath: CLIP_END, duration: DUR.reveal, ease: EASE.enter });
     };
-    // @ts-ignore - 掛在 DOM 元素上給 anchor-nav 取用
+    // @ts-ignore - 掛在 DOM 元素上給 anchor-nav 取用（anchor-nav 讀 strip._replayReveal）
     strip._replayReveal = replay;
-    // @ts-ignore
-    titleEl._replayReveal = replay;
   });
 
   // 離頁退場：可視範圍內的封鎖綫 strip clip-path 收合（= reveal 的反向，往左/右收掉）
@@ -220,91 +164,4 @@ export function initSectionBannerReveal() {
       gsap.to(el, { clipPath: collapse[i % 2], duration: DUR.medium, ease: EASE.exit, overwrite: true, onComplete: onOne });
     });
   }));
-
-  // --- Section Banners（有圖片的完整版，如果還有的話）---
-  const banners = /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('[data-section-banner]'));
-  if (!banners.length) return;
-
-  banners.forEach((banner) => {
-    const imgItems = /** @type {HTMLElement[]} */ (Array.from(banner.querySelectorAll('.section-banner-img-item')));
-
-    // title area 可能在 banner 外（section 的直接子元素）
-    const titleArea = banner.querySelector('.section-banner-title-area') ||
-                      banner.parentElement?.querySelector('.section-banner-title-area');
-    const textBlock = titleArea?.querySelector('.section-banner-text-block');
-    const textInner = /** @type {HTMLElement | null | undefined} */ (textBlock?.querySelector('.section-banner-text-inner'));
-    const gridDiv   = titleArea?.querySelector('.grid-12');
-
-    if (!imgItems.length || !textBlock) return;
-
-    // --- 隨機值 ---
-    const rotations  = pickThreeRotations();
-    const zIndexes   = shuffle([1, 2, 3]);
-    // 左右偏移 ±5vw，中間偏移 ±2vw（讓中間圖片更接近垂直中心）
-    const topOffsets = pickVerticalOffsets(5);
-    const centerPool = [-2, -1, 1, 2];
-    topOffsets[1] = centerPool[Math.floor(Math.random() * centerPool.length)];
-    const bgColor    = accentColors[Math.floor(Math.random() * accentColors.length)];
-    const textRot    = randomTextRotation();
-
-    // 四個方向 shuffle：前三給圖片，第四給文字
-    const dirOrder   = shuffle([...DIRS]);
-    const imgDirs    = dirOrder.slice(0, 3);
-    const textDir    = dirOrder[3];
-
-    // --- 套用靜態樣式（旋轉、位置、底色等）---
-    // imgRotate 同時擁有 rotation + overflow:hidden + clip-path（同 brand trail wrapper）
-    // 這樣 clip-path 在 local space 作用，旋轉後角落不會被裁切
-    imgItems.forEach((item, i) => {
-      const imgRotate = /** @type {HTMLElement | null} */ (item.querySelector('.section-banner-img-rotate'));
-      if (imgRotate) {
-        imgRotate.style.overflow = 'hidden';
-        gsap.set(imgRotate, { rotation: rotations[i] });
-      }
-      item.style.zIndex = zIndexes[i];
-      item.style.top    = `calc(50vh - 22.5vw + ${topOffsets[i]}vw)`;
-    });
-
-    assignColumn(textBlock);
-    if (gridDiv)   assignRandomTop(gridDiv);
-    if (textInner) textInner.style.background = bgColor;
-    gsap.set(textBlock, { rotation: textRot });
-
-    // --- 手機版：直接顯示（無動畫）---
-    if (window.innerWidth < 768) {
-      imgItems.forEach(item => {
-        const r = item.querySelector('.section-banner-img-rotate');
-        if (r) gsap.set(r, { clipPath: CLIP_END });
-      });
-      gsap.set(textBlock, { clipPath: CLIP_END, opacity: 1 });
-      return;
-    }
-
-    // --- 桌面版：clip-path 初始 —— 套在 img-rotate（旋轉元素本身）---
-    // clip-path 在 local space 作用，會跟著旋轉一起變換，角落不會被切
-    imgItems.forEach((item, i) => {
-      const imgRotate = item.querySelector('.section-banner-img-rotate');
-      if (imgRotate) gsap.set(imgRotate, { clipPath: getClipStart(imgDirs[i]) });
-    });
-    gsap.set(textBlock, { clipPath: getClipStart(textDir), opacity: 1 });
-
-    // --- ScrollTrigger：進場 ---
-    ScrollTrigger.create({
-      trigger: banner,
-      start: 'top 80%',
-      once: true,
-      onEnter: () => {
-        const tl = gsap.timeline({ defaults: { ease: EASE.enter } });
-
-        // 三張圖同時 reveal
-        imgItems.forEach((item) => {
-          const imgRotate = item.querySelector('.section-banner-img-rotate');
-          if (imgRotate) tl.to(imgRotate, { clipPath: CLIP_END, duration: DUR.reveal }, 0);
-        });
-
-        // 文字同時 reveal
-        tl.to(textBlock, { clipPath: CLIP_END, duration: DUR.reveal }, 0);
-      },
-    });
-  });
 }

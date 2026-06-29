@@ -449,7 +449,6 @@ export function updateNavActive(page) {
   // degree-show-detail 隸屬 activities.html 的 panel，需高亮 Activities
   const pageMappings = {
     'degree-show-detail':  'activities',
-    'faculty-detail':      'faculty',
   };
   const activePage = pageMappings[page] || page;
   // 轉換為 .html 格式以匹配 href 屬性

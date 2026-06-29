@@ -99,7 +99,6 @@ let mobileRandomButton, mobileResetButton;
 
 // --- 色彩選擇器相關變數 ---
 let colorPickerCanvas; // 主 canvas（桌面版色環 / 手機版 bar）
-let colorPickerIndicatorCanvas; // 手機版 indicator 專用 canvas（在 bar 下方）
 let colorPickerContainer;
 let colorPickerBox; // Color picker 的外層容器（用於控制顯示/隱藏）
 let colorPickerReady = false; // Color picker 容器是否已經展開完成，可以創建 canvas

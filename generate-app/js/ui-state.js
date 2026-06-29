@@ -1,6 +1,6 @@
 // ========================================
 // UI 狀態機模組
-// updateUI 主要狀態同步（模式切換、按鈕啟用、滑桿顏色、手機版 UI）/ updateSliders / getRotationFor
+// updateUI 主要狀態同步（模式切換、按鈕啟用、滑桿顏色、手機版 UI）/ updateSliders
 // 依賴：variables.js（所有狀態變數）、utils.js（getDisabledColor, updateIconsForMode, updateRotateIcon）、
 //       mobile.js（updateMobileUI, mobileElements）、color-picker.js 內的 drawColorWheel/updateBackgroundColor/event handlers
 // ========================================
@@ -625,9 +625,4 @@ function updateSliders() {
         targetSliderValues[i] = sliderValue;
       }
     }
-}
-
-function getRotationFor(layer, index) {
-    // 使用陣列直接取得對應 layer 的旋轉偏移（簡化條件判斷）
-    return rotationOffsets[layer] || 0;
 }

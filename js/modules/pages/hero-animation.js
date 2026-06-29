@@ -44,14 +44,6 @@ function wrapElement(el, wrapperClass) {
   return wrapper;
 }
 
-function shuffle(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
-
 // Layout cache：per-page、per-viewport pre-computed pool (POOL_SIZE 組)
 // Why：randomizeHeroLayout 全量計算昂貴（12 attempts × 4 items × 30 candidates + 強制 reflow），
 // 同步阻塞換頁 paint 200-500ms。Pool 預存好 N 組，每次 SPA 進入 random pick 一組直接套用 = O(1)。
@@ -104,7 +96,7 @@ function applyLayoutSnapshot(grid, snapshot) {
   snapshot.paragraphWidths.forEach((w, i) => {
     if (paragraphs[i]) paragraphs[i].style.maxWidth = w;
   });
-  // wrapper selector 順序對應 buildLayoutOnce 內 textItems 收集順序
+  // wrapper selector 順序對應 runPlacementAndBannerForCache 內 textItems 收集順序
   ['hero-title', 'hero-title-cn', 'hero-text-en', 'hero-text-cn'].forEach((cls, i) => {
     const wrapper = grid.querySelector(`.${cls}-wrapper`) || grid.querySelector(`.${cls}`);
     if (wrapper && snapshot.textPositions[i]) {
@@ -151,12 +143,6 @@ function tightenParagraphWidths(grid) {
     const padR = parseFloat(cs.paddingRight) || 0;
     p.style.width = `${Math.ceil(maxLineW + padL + padR)}px`;
   });
-}
-
-// Build single layout snapshot. 副作用：DOM 上會留下這次的 inline left/top/maxWidth/transform。
-// 回傳 snapshot 給 cache 存。Caller 負責在第一次 build 時直接用此 snapshot 進場，避免雙 apply。
-function buildLayoutOnce(grid) {
-  return runPlacementAndBannerForCache(grid);
 }
 
 // 隨機定位 5 元素（title-wrapper / title-cn-wrapper / banner / EN-wrapper / CN-wrapper）至 absolute 座標
@@ -479,7 +465,7 @@ function applyOrBuildLayout(grid) {
   pool.push(first);
   tightenParagraphWidths(grid);  // 第一組已 commit 到 DOM，補上 wrap-width 收緊（與 cached path 對齊）
 
-  // 後台補滿剩餘 POOL_SIZE-1 組：每組 build 都會動到 DOM inline style，但 buildLayoutOnce 自己會
+  // 後台補滿剩餘 POOL_SIZE-1 組：每組 build 都會動到 DOM inline style，但 runPlacementAndBannerForCache 自己會
   // reset textItems 回 (0,0) 再算，所以後續 build 不會被前一組殘留干擾；不過視覺上 DOM 已是第一組
   // 的 layout（user 看到的），這裡 build 完不要 commit 回 DOM 否則畫面跳。做法：build 完馬上 restore
   // 回第一組 snapshot（cheap，純寫 inline style）

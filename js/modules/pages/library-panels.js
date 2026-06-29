@@ -13,7 +13,7 @@ import { sitePath, SITE_BASE_PATHNAME } from '../ui/site-base.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { makeActivatable } from '../ui/a11y.js';
 import { loadSummerCamp } from './summer-camp-source.js';
-import { SECTION_LABELS, getSectionData, findItemById, getAwardRecords, findAwardById } from './activities-data-loader.js';
+import { getAwardRecords, findAwardById } from './activities-data-loader.js';
 
 // ── 共用常數 ──────────────────────────────────────────────────────────────────
 

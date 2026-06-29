@@ -221,29 +221,16 @@ function cancelColorLoopRAF() {
 function stopColorLoop() {
   cancelColorLoopRAF();
   const root = document.documentElement;
-  root.style.removeProperty('--theme-bg');
-  root.style.removeProperty('--theme-bg-rgb');
-  root.style.removeProperty('--theme-fg');
-  root.style.removeProperty('--theme-fg-rgb');
-  root.style.removeProperty('--theme-fg-inverse');
-  root.style.removeProperty('--theme-fg-inverse-rgb');
-  root.style.removeProperty('--theme-overlay-25');
-  root.style.removeProperty('--theme-invert-filter');
-  root.style.removeProperty('--theme-neutral-gray');
-  root.style.removeProperty('--theme-neutral-gray-inverse');
-  root.style.removeProperty('--lib-bg');
-  root.style.removeProperty('--lib-zebra-alpha');
-  root.style.removeProperty('--lib-ref-bg');
-  root.style.removeProperty('--lib-bg-contrast');
-  root.style.removeProperty('--lib-zebra-alpha-contrast');
-  root.style.removeProperty('--lib-ref-bg-contrast');
-  root.style.removeProperty('--lib-invert-contrast');
-  root.style.removeProperty('--theme-bg-contrast');
-  root.style.removeProperty('--theme-bg-contrast-rgb');
-  root.style.removeProperty('--theme-fg-contrast');
-  root.style.removeProperty('--theme-fg-inverse-contrast');
-  root.style.removeProperty('--footer-invert-filter');
-  root.style.removeProperty('--list-zebra-strip');
+  // applyColorVars 設過的所有 inline CSS vars 一次清掉，讓 :root / body.mode-* default 規則重新生效
+  [
+    '--theme-bg', '--theme-bg-rgb', '--theme-fg', '--theme-fg-rgb',
+    '--theme-fg-inverse', '--theme-fg-inverse-rgb', '--theme-overlay-25',
+    '--theme-invert-filter', '--theme-neutral-gray', '--theme-neutral-gray-inverse',
+    '--lib-bg', '--lib-zebra-alpha', '--lib-ref-bg',
+    '--lib-bg-contrast', '--lib-zebra-alpha-contrast', '--lib-ref-bg-contrast', '--lib-invert-contrast',
+    '--theme-bg-contrast', '--theme-bg-contrast-rgb', '--theme-fg-contrast', '--theme-fg-inverse-contrast',
+    '--footer-invert-filter', '--list-zebra-strip',
+  ].forEach(p => root.style.removeProperty(p));
   // 清 wireframe logo 的 invert filter
   const logo = document.getElementById('header-logo');
   if (logo) logo.style.filter = '';

@@ -296,7 +296,7 @@ function floatingLinkLabel(url) {
   return '查看更多 View more';
 }
 
-function createImageEl(src, url, showPlayIcon = false, interactive = true) {
+function createImageEl(src, url, interactive = true) {
   const wrapper = document.createElement(url ? 'a' : 'div');
   if (url) {
     /** @type {HTMLAnchorElement} */ (wrapper).href = url;
@@ -336,20 +336,9 @@ function createImageEl(src, url, showPlayIcon = false, interactive = true) {
 
   wrapper.appendChild(img);
 
-  if (showPlayIcon) {
-    const playIcon = document.createElement('div');
-    playIcon.style.cssText = `
-      position: absolute; inset: 0;
-      display: flex; align-items: center; justify-content: center;
-      pointer-events: none;
-    `;
-    playIcon.innerHTML = `<svg width="18" height="22" viewBox="0 0 18 22" fill="none"><polygon points="0,0 18,11 0,22" fill="white" fill-opacity="0.85"/></svg>`;
-    wrapper.appendChild(playIcon);
-  }
-
   // interactive=false：跳過 news hover wipe overlay（臨時 Coming Soon index 純展示用，不訂閱 listener）
   if (interactive) {
-    // newsOverlay 放最後，蓋住 img、hoverOverlay、playIcon
+    // newsOverlay 放最後，蓋住 img
     wrapper.appendChild(newsOverlay);
 
     // 隨機選一個 wipe 方向（上/下/左/右）
@@ -579,7 +568,7 @@ const FALLBACK_IMAGES = [
 function createCircleEl() {
   // 無連結：隨機從測試圖片取一張
   const src = FALLBACK_IMAGES[Math.floor(Math.random() * FALLBACK_IMAGES.length)];
-  return createImageEl(src, null, false);
+  return createImageEl(src, null);
 }
 
 // ── Spawn & Animate ─────────────────────────────────────────
@@ -593,9 +582,7 @@ function spawnItem(container, poolEntry, fromEdge = false) {
     elData = createCircleEl();
   } else if (poolEntry.type === 'image') {
     // interactive 預設 true；poolEntry.interactive === false 跳過 news hover wipe（臨時 Coming Soon index）
-    elData = createImageEl(poolEntry.src, poolEntry.url, false, poolEntry.interactive !== false);
-  } else if (poolEntry.type === 'video-thumb') {
-    elData = createImageEl(poolEntry.src, poolEntry.url, true, poolEntry.interactive !== false);
+    elData = createImageEl(poolEntry.src, poolEntry.url, poolEntry.interactive !== false);
   } else if (poolEntry.type === 'text') {
     elData = createTextEl(poolEntry.textEn, poolEntry.textZh, poolEntry.url);
   } else {

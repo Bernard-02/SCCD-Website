@@ -96,10 +96,7 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete, fr
     document.getElementById('video-block-fullscreen'),
   ].filter(Boolean);
 
-  let iconColor = '#000';
-
   function applyIconColor(color) {
-    iconColor = color;
     // 進度條/音量條 user 指定：track + fill + thumb 全部同色（單一連續黑線），
     // 位置由 thumb 上下伸出 5px 視覺呈現（thumb 14px 高，track 4px）
     if (progressFill)  progressFill.style.background  = color;

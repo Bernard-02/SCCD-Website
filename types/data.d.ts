@@ -169,7 +169,7 @@ export interface NewsData {
 
 // ===== Floating Pool Entry（首頁漂浮元素內部型別）=====
 export interface FloatingPoolEntry {
-  type: 'image' | 'text' | 'video-thumb' | 'circle';
+  type: 'image' | 'text' | 'circle';
   src?: string;
   url?: string | null;
   textEn?: string;

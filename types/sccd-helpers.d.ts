@@ -30,7 +30,6 @@ declare var SCCDHelpers: SCCDHelpersAPI;
 interface Window {
   SCCDHelpers: SCCDHelpersAPI;
   __sccdNavigateToItem?: (section: string, itemId: string) => void;
-  __sccdCurrentSectionColor?: string;
   __sccdResetFooterHide?: () => void;
   _pressMarqueeInit?: () => void;
   _filesMarqueeInit?: () => void;

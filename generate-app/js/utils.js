@@ -3,25 +3,6 @@
 // ====================================
 
 // ====================================
-// 輔助函數：狀態檢查
-// ====================================
-
-// 檢查是否有文字輸入
-function hasText() {
-  return letters && letters.length > 0;
-}
-
-// 檢查是否可以進行旋轉控制（有文字且非彩蛋模式）
-function canControlRotation() {
-  return hasText() && !isEasterEggActive;
-}
-
-// 檢查是否可以使用 Custom 模式（有文字、非彩蛋、非自動旋轉）
-function canUseCustomMode() {
-  return canControlRotation() && !isAutoRotateMode;
-}
-
-// ====================================
 // 輔助函數：顏色和圖標
 // ====================================
 
@@ -342,14 +323,6 @@ function updateElementsBorderColor(elements, borderColor) {
       }
     });
   }
-}
-
-// 更新手機版 Mode 按鈕圖標
-function updateMobileModeIcon() {
-  let mobileModeIcon = _p5.select("#mobile-mode-icon");
-  if (!mobileModeIcon) return;
-
-  mobileModeIcon.attribute('src', getModeIconSrc());
 }
 
 // 更新手機版輸入框的垂直置中

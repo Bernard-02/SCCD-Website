@@ -366,7 +366,6 @@ export function initPdfViewer() {
   }
 
   function resetToFit(animated = false)    { zoomToScale(fitScale(),    animated); }
-  function setActualSize(animated = false) { zoomToScale(actualScale(), animated); }
 
   // 渲染單頁（一頁一頁翻）；計算 fitDims/naturalDims，保留 wasFit/wasActual 狀態跨頁
   async function renderPage(pageNum) {

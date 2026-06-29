@@ -16,21 +16,6 @@ import { applyMarqueeOverflow } from '../ui/marquee-overflow.js';
 import { sitePath } from '../ui/site-base.js';
 import { DUR, EASE } from '../ui/motion.js';
 
-// CMB2 file_list type 存 meta 為 dict `{ attachment_id: url, ... }`；舊 JSON 是 string array
-// normalize 成 string array of URLs（順序不保證、但前端 gallery 不依賴順序）
-function normalizeImageList(val) {
-  if (!val) return [];
-  if (Array.isArray(val)) {
-    // 舊 JSON 直接是 string array / 或 group repeater [{image}]
-    return val.map(x => typeof x === 'string' ? x : (x?.image || x?.url || '')).filter(Boolean);
-  }
-  if (typeof val === 'object') {
-    // CMB2 file_list dict
-    return Object.values(val).filter(v => typeof v === 'string' && v);
-  }
-  return [];
-}
-
 export async function loadDegreeShowList() {
   await loadDegreeShowListInto('degree-show-list');
   // 獨立頁 /degree-show：cards 進 viewport 才 reveal（panel-switch 路徑由 activities-section-switch 接管，不用此分支）

@@ -79,63 +79,6 @@ function triggerSpecialEasterEgg() {
   }, 6000);
 }
 
-// 禁用所有 UI 元素
-function disableAllUI() {
-  // 禁用輸入框
-  if (inputBox) inputBox.attribute('disabled', '');
-  if (inputBoxMobile) inputBoxMobile.attribute('disabled', '');
-
-  // 禁用所有按鈕
-  if (rotateButton) rotateButton.attribute('disabled', '');
-  if (customButton) customButton.attribute('disabled', '');
-  if (colormodeButton) colormodeButton.attribute('disabled', '');
-  if (randomButton) randomButton.attribute('disabled', '');
-  if (resetButton) resetButton.attribute('disabled', '');
-  if (saveButton) saveButton.attribute('disabled', '');
-  if (saveButtonMobile) saveButtonMobile.attribute('disabled', '');
-  if (colorWheelPlayButton) colorWheelPlayButton.elt.setAttribute('disabled', '');
-
-  // 禁用滑桿（使用陣列迴圈）
-  sliders.forEach(slider => { if (slider) slider.attribute('disabled', ''); });
-  mobileSliders.forEach(slider => { if (slider) slider.attribute('disabled', ''); });
-
-  // 禁用手機版按鈕
-  if (mobileRotateButton) mobileRotateButton.attribute('disabled', '');
-  if (mobileCustomButton) mobileCustomButton.attribute('disabled', '');
-  if (mobileRandomButton) mobileRandomButton.attribute('disabled', '');
-  if (mobileResetButton) mobileResetButton.attribute('disabled', '');
-}
-
-// 恢復所有 UI 元素
-function enableAllUI() {
-  // 恢復輸入框
-  if (inputBox) inputBox.removeAttribute('disabled');
-  if (inputBoxMobile) inputBoxMobile.removeAttribute('disabled');
-
-  // 恢復按鈕（根據當前狀態）
-  if (letters.length > 0 && !isEasterEggActive) {
-    if (rotateButton) rotateButton.removeAttribute('disabled');
-    if (customButton) customButton.removeAttribute('disabled');
-    if (randomButton) randomButton.removeAttribute('disabled');
-    if (resetButton) resetButton.removeAttribute('disabled');
-    if (mobileRotateButton) mobileRotateButton.removeAttribute('disabled');
-    if (mobileCustomButton) mobileCustomButton.removeAttribute('disabled');
-    if (mobileRandomButton) mobileRandomButton.removeAttribute('disabled');
-    if (mobileResetButton) mobileResetButton.removeAttribute('disabled');
-  }
-
-  if (colormodeButton) colormodeButton.removeAttribute('disabled');
-  if (saveButton) saveButton.removeAttribute('disabled');
-  if (saveButtonMobile) saveButtonMobile.removeAttribute('disabled');
-  if (colorWheelPlayButton) colorWheelPlayButton.elt.removeAttribute('disabled');
-
-  // 恢復滑桿（使用陣列迴圈）
-  if (!isAutoRotateMode && !isEasterEggActive && letters.length > 0) {
-    sliders.forEach(slider => { if (slider) slider.removeAttribute('disabled'); });
-    mobileSliders.forEach(slider => { if (slider) slider.removeAttribute('disabled'); });
-  }
-}
-
 // 更新新彩蛋動畫狀態（在 draw() 中調用）
 function updateSpecialEasterEggAnimation() {
   if (!specialEasterEggAnimating) return;

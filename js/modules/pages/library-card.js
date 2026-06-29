@@ -147,18 +147,6 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
     return best;
   }
 
-  // ── DOM 幾何讀取 ─────────────────────────────────────────────
-
-  function elToRect(el) {
-    return {
-      cx:  parseFloat(el.style.left),
-      cy:  parseFloat(el.style.top),
-      w:   parseFloat(el.style.width),
-      h:   parseFloat(el.style.height),
-      rot: parseFloat((el.style.transform.match(/rotate\(([^)]+)deg\)/) || ['','0'])[1]),
-    };
-  }
-
   // ── 邊緣偵測 ──────────────────────────────────────────────────
 
   function rectWorldCorners(cfg) {

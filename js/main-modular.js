@@ -16,7 +16,6 @@ import { initFacultyFilter } from './modules/filters/faculty-filter.js';
 import { initFloatingItems, initWatchHover } from './modules/animations/floating-items.js';
 import { initSmoothScroll } from './modules/ui/smooth-scroll.js';
 import { initBFADivisionToggle } from './modules/ui/bfa-division-toggle.js';
-import { initTextReveal } from './modules/ui/text-reveal.js';
 import { initIdleStandby } from './modules/ui/idle-standby.js';
 import { initCustomScrollbar } from './modules/ui/custom-scrollbar.js';
 import { installReducedMotionGsap } from './modules/ui/reduce-motion.js';
@@ -152,6 +151,22 @@ export function cleanupPageModules(destPage) {
 // fromUserNav：true=使用者點連結的 SPA 導航；false=初始載入 / refresh / 上一頁下一頁。
 // 給 curriculum 的 deep-link（?item= 自動捲到 section + 開 slide-in）判斷：只有從首頁卡片
 // 點進來（fromUserNav）才播這段導航動畫，refresh 視為全新頁面不重播。
+// 隱藏 intro overlay、解鎖 body scroll、顯示 header（header 尚未載入則等 header:ready）
+function revealHeaderWhenReady() {
+  const overlay = document.getElementById('intro-overlay');
+  if (overlay) overlay.style.display = 'none';
+  document.body.style.overflow = '';
+  const showHeader = () => {
+    const header = /** @type {HTMLElement | null} */ (document.querySelector('#site-header header'));
+    if (header) header.style.opacity = '1';
+  };
+  if (document.querySelector('#site-header header')) {
+    showHeader();
+  } else {
+    document.addEventListener('header:ready', showHeader, { once: true });
+  }
+}
+
 export function initPageModules(page, searchParams = new URLSearchParams(), fromUserNav = false) {
 
   // Theme mode：每次切頁 re-evaluate
@@ -193,19 +208,7 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
       sessionStorage.setItem('sccd-intro-shown', '1');
       initIntroAnimation();
     } else {
-      const overlay = document.getElementById('intro-overlay');
-      if (overlay) overlay.style.display = 'none';
-      document.body.style.overflow = '';
-
-      const showHeader = () => {
-        const header = /** @type {HTMLElement | null} */ (document.querySelector('#site-header header'));
-        if (header) header.style.opacity = '1';
-      };
-      if (document.querySelector('#site-header header')) {
-        showHeader();
-      } else {
-        document.addEventListener('header:ready', showHeader, { once: true });
-      }
+      revealHeaderWhenReady();
     }
     initMarquee();
     initFloatingItems();
@@ -224,7 +227,6 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
       initAnchorNav({ reveal: true });
       initHorizontalAccordion();
       initBFADivisionToggle();
-      initTextReveal();
       initSectionBannerReveal();
       initClassButtonsSticky();
       initClassImagesSlideshow();
@@ -516,18 +518,7 @@ document.addEventListener('DOMContentLoaded', function () {
     initPageModules('index');
   } else {
     // 直接進入內頁時，隱藏首頁的 intro overlay 並顯示 header
-    const overlay = document.getElementById('intro-overlay');
-    if (overlay) overlay.style.display = 'none';
-    document.body.style.overflow = '';
-    const showHeader = () => {
-      const header = /** @type {HTMLElement | null} */ (document.querySelector('#site-header header'));
-      if (header) header.style.opacity = '1';
-    };
-    if (document.querySelector('#site-header header')) {
-      showHeader();
-    } else {
-      document.addEventListener('header:ready', showHeader, { once: true });
-    }
+    revealHeaderWhenReady();
   }
   // 非 index 的初始路由由 initRouter() 內部處理
 });
