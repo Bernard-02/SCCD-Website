@@ -843,10 +843,8 @@ function formatSingleDateGroup(d, includeStartYear = false) {
 //   showReference        {boolean}      ref link（預設 true）
 //   showGuestAffiliation {boolean}      guest affiliation（預設 true）
 //   showGuestCountry     {boolean}      guest alumni + country（預設 true）
-//   marqueeTitle         {boolean}      title 用 marquee 包裝（預設 false）
 //   introField           {string}       內文 field 名稱（預設 'description'）
 //   panelSelector        {string}       sticky top 參考的 panel selector
-//   scrollTrigger        {boolean}      載入後自動建立 ScrollTrigger 動畫（預設 false）
 //   autoReveal           {boolean}      載入後自動 setupClipReveal + ScrollTrigger.batch reveal（預設 true）；
 //                                       false 時只 render，由 caller 自行管理 reveal（admission lazy load summer-camp 用）
 //   flatList             {boolean}      data 是 flat array（admission / alumni Organization）而非 year-grouped
@@ -879,7 +877,6 @@ export async function loadListInto(containerId, url, options = {}) {
     showGuestCountry     = true,
     introField           = 'description',
     panelSelector        = null,
-    scrollTrigger        = false,
     autoReveal           = true,
     flatList             = false,
     bodyField            = null,
@@ -1301,8 +1298,11 @@ export async function loadListInto(containerId, url, options = {}) {
       ? document.querySelector(`${panelSelector} .activities-filter-bar`)
       : container.closest('.activities-panel')?.querySelector('.activities-filter-bar'));
     const updateStickyTop = () => {
-      // 扣除 1px 讓它與 filter bar 稍微重疊，避免因瀏覽器 Sub-pixel 渲染造成 1px 透視縫
-      const top = filterBar ? 200 + filterBar.offsetHeight - 1 : 200;
+      // 扣除 1px 讓它與 filter bar 稍微重疊，避免因瀏覽器 Sub-pixel 渲染造成 1px 透視縫。
+      // 2026-06-29 inner-scroll：filter bar 改 sticky 到 scroll col 的「header 下」(calc header+lg，原寫死 200)，基準改讀
+      //   filter bar 實際 computed top（自動跟著 clearance 走），list-header 釘在它正下方。
+      const base = filterBar ? (parseFloat(getComputedStyle(filterBar).top) || 0) : 0;
+      const top = filterBar ? base + filterBar.offsetHeight - 1 : base;
       container.style.setProperty('--list-header-sticky-top', top + 'px');
       if (showYearToggle) {
         container.querySelectorAll('.list-year-toggle').forEach((/** @type {any} */ el) => { el.style.top = top + 'px'; });
@@ -1393,7 +1393,6 @@ export async function loadWorkshopsInto(jsonFile, containerId = null, options = 
   const data = endpoint ? await fetchActEndpointOrFallback(endpoint, jsonFile) : undefined;
   return loadListInto(id, jsonFile, {
     showSubtitle: true,
-    marqueeTitle: true,
     introField: 'intro',
     showAlumniIcon: false,
     ...(data ? { data } : {}),
@@ -1494,7 +1493,6 @@ export async function loadGeneralActivitiesInto(containerId, categoryFilter = nu
     showGuestAffiliation: !isIndustry,
     showGuestCountry:     !isIndustry,
     panelSelector:        _panelSelectorMap[containerId] || '#panel-exhibitions',
-    scrollTrigger:        true,
     ...(data ? { data } : {}),
     ...options,
   });
@@ -1517,7 +1515,7 @@ export async function loadExhibitionsInto(options = {}) {
     loadListInto('exhibitions-list-special', '/data/general-activities.json', {
       categoryFilter: 'exhibitions',
       visitTypeFilter: 'special', visitTypeField: 'exhibitionType',
-      panelSelector: '#panel-exhibitions', scrollTrigger: true,
+      panelSelector: '#panel-exhibitions',
       data: specialData,
       ...options,
     }),
@@ -1526,7 +1524,7 @@ export async function loadExhibitionsInto(options = {}) {
     //   要 full-width 顯示、不擠進 14ch date 欄、不 marquee（user 2026-06-05）。
     loadListInto('exhibitions-list-permanent', '/data/permanent-exhibitions.json', {
       hideYearHeader: true, dateFullWidth: true,
-      panelSelector: '#panel-exhibitions', scrollTrigger: true,
+      panelSelector: '#panel-exhibitions',
       ...options,
     }),
   ]);
@@ -1544,13 +1542,13 @@ export async function loadVisitsInto(options = {}) {
   const fns = await Promise.all([
     loadListInto('visits-list-outbound', '/data/general-activities.json', {
       categoryFilter: 'visits', visitTypeFilter: 'outbound',
-      panelSelector: '#panel-visits', scrollTrigger: true,
+      panelSelector: '#panel-visits',
       data: outboundData,
       ...options,
     }),
     loadListInto('visits-list-inbound', '/data/general-activities.json', {
       categoryFilter: 'visits', visitTypeFilter: 'inbound',
-      panelSelector: '#panel-visits', scrollTrigger: true,
+      panelSelector: '#panel-visits',
       data: inboundData,
       ...options,
     }),

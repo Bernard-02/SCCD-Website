@@ -547,17 +547,6 @@ export async function initAtlas(options = {}) {
     const t = a1 === a0 ? 0 : (targetU - a0) / (a1 - a0);
     return (i - 1 + t) * dTheta;
   }
-  // θ → u：cumU 線性內插
-  function thetaToU(theta) {
-    const TWO_PI = Math.PI * 2;
-    const wrapped = ((theta % TWO_PI) + TWO_PI) % TWO_PI;
-    const iFloat = wrapped / dTheta;
-    const i = Math.floor(iFloat);
-    const iNext = Math.min(N_SAMPLES, i + 1);
-    const frac = iFloat - i;
-    return cumU[i] + frac * (cumU[iNext] - cumU[i]);
-  }
-
   // Speed profile：dθ/dt ∝ (ds/dθ)^P，cumV = ∫(ds/dθ)^(-P) dθ
   //   P=0    equal-θ（cap 慢 flat 快、cap 密度 = 3.5× flat，原本設定）
   //   P=-0.5 半補償（chip 進 cap 角速度自動拉高 √3.5 倍 → 快點離開 cap；cap 密度 1.87×；carousel rhythm 還在）
@@ -659,48 +648,68 @@ export async function initAtlas(options = {}) {
   // 城市初始位置最小距離（避免兩 city label 在 t=0 重疊）；超出 retry 上限就接受最後一次結果
   const CITY_MIN_INIT_DIST = 130;
   const CITY_INIT_MAX_RETRIES = 30;
-  cityList.forEach((city, idx) => {
-    const baseAngle = (idx / cityList.length) * Math.PI * 2;
-    let attempt = 0;
-    let chosen = null;
-    while (attempt < CITY_INIT_MAX_RETRIES) {
-      const angle0 = baseAngle + (orbitRand() - 0.5) * (Math.PI / 4.5);
-      let rx = halfW * (ORBIT_RX_MIN_F + orbitRand() * (ORBIT_RX_MAX_F - ORBIT_RX_MIN_F));
-      const aspect = ORBIT_ASPECT_MIN + orbitRand() * (ORBIT_ASPECT_MAX - ORBIT_ASPECT_MIN);
-      let ry = rx * aspect;
-      const tilt = (orbitRand() - 0.5) * 2 * ORBIT_TILT_MAX;
-      ({ rx, ry } = fitTiltedEllipse(rx, ry, tilt));
-      const cosT = Math.cos(tilt), sinT = Math.sin(tilt);
-      const lx0 = Math.cos(angle0) * rx;
-      const ly0 = Math.sin(angle0) * ry;
-      const x = cx + lx0 * cosT - ly0 * sinT;
-      const y = cy + lx0 * sinT + ly0 * cosT;
-      // 檢查與已 init 的 city 距離
-      let tooClose = false;
-      for (let j = 0; j < idx; j++) {
-        const other = cityList[j];
-        const dx = x - other.x, dy = y - other.y;
-        if (dx * dx + dy * dy < CITY_MIN_INIT_DIST * CITY_MIN_INIT_DIST) { tooClose = true; break; }
+
+  // 產生「一整組」城市排列：每顆圍繞自己的均分基準角抖動 + 隨機 ellipse，整組 t=0 兩兩不重疊。
+  // 同一套擺位演算法：init 用 1 次、下面的 relocate layout pool 用 N 次（只有一份邏輯，不重複）。
+  function genCityLayout() {
+    const placed = [];
+    cityList.forEach((city, idx) => {
+      const baseAngle = (idx / cityList.length) * Math.PI * 2;
+      let attempt = 0;
+      let chosen = null;
+      while (attempt < CITY_INIT_MAX_RETRIES) {
+        const angle0 = baseAngle + (orbitRand() - 0.5) * (Math.PI / 4.5);
+        let rx = halfW * (ORBIT_RX_MIN_F + orbitRand() * (ORBIT_RX_MAX_F - ORBIT_RX_MIN_F));
+        const aspect = ORBIT_ASPECT_MIN + orbitRand() * (ORBIT_ASPECT_MAX - ORBIT_ASPECT_MIN);
+        let ry = rx * aspect;
+        const tilt = (orbitRand() - 0.5) * 2 * ORBIT_TILT_MAX;
+        ({ rx, ry } = fitTiltedEllipse(rx, ry, tilt));
+        const cosT = Math.cos(tilt), sinT = Math.sin(tilt);
+        const lx0 = Math.cos(angle0) * rx;
+        const ly0 = Math.sin(angle0) * ry;
+        const x = cx + lx0 * cosT - ly0 * sinT;
+        const y = cy + lx0 * sinT + ly0 * cosT;
+        // 檢查與這組內已擺好的 city 距離
+        let tooClose = false;
+        for (let j = 0; j < idx; j++) {
+          const dx = x - placed[j].x, dy = y - placed[j].y;
+          if (dx * dx + dy * dy < CITY_MIN_INIT_DIST * CITY_MIN_INIT_DIST) { tooClose = true; break; }
+        }
+        chosen = { baseAngle, angle0, rx, ry, tilt, cosT, sinT, x, y };
+        if (!tooClose) break;
+        attempt++;
       }
-      chosen = { angle0, rx, ry, tilt, cosT, sinT, x, y };
-      if (!tooClose) break;
-      attempt++;
-    }
+      placed.push(chosen);
+    });
+    return placed;
+  }
+
+  // 預先算 N 組「整組已驗證不重疊」的排列；relocate 每次挑一組套用（取代舊版每顆獨立亂抽、零距離檢查
+  //   → 兩 chip 疊成一個看起來像少一個國家節點，待機越久越容易中，user 2026-06-29）。
+  // ponytail: 固定 N 組已足夠（user 要的是「別重疊」不是「每次位置都不同」）；retry 上限同 init，達上限接受最後一次。
+  const CITY_LAYOUT_POOL = 20;
+  const cityLayouts = Array.from({ length: CITY_LAYOUT_POOL }, genCityLayout);
+  let cityLayoutIdx = 0;
+
+  cityList.forEach((city, idx) => {
+    const L = cityLayouts[0][idx];
+    // 記住這顆城市的「均分基準角」：relocate 圍繞它抖動、不整圈隨機，否則城市漂成一團互相遮蔽（user 2026-06-29）。
+    city._baseAngle = L.baseAngle;
     city._orbit = {
       cx, cy,
-      rx: chosen.rx,
-      ry: chosen.ry,
-      tilt: chosen.tilt,
-      cosT: chosen.cosT,
-      sinT: chosen.sinT,
-      angle0: chosen.angle0,
+      rx: L.rx,
+      ry: L.ry,
+      tilt: L.tilt,
+      cosT: L.cosT,
+      sinT: L.sinT,
+      angle0: L.angle0,
       period:     240 + orbitRand() * 360,
       dir:        orbitRand() < 0.5 ? -1 : 1,
       tOffset:    0,
       pauseStart: null,
     };
-    city.x = chosen.x;
-    city.y = chosen.y;
+    city.x = L.x;
+    city.y = L.y;
     city._initX = city.x;
     city._initY = city.y;
   });
@@ -766,27 +775,18 @@ export async function initAtlas(options = {}) {
 
   const dRelocateTimer = setInterval(() => {
     if (document.hidden) return;
-    cityList.forEach(city => {
+    // 挑一組「整組已驗證不重疊」的排列（保證跟當前組不同）→ relocate 後不會有兩 city chip 疊成一個。
+    cityLayoutIdx = (cityLayoutIdx + 1 + Math.floor(orbitRand() * (CITY_LAYOUT_POOL - 1))) % CITY_LAYOUT_POOL;
+    const layout = cityLayouts[cityLayoutIdx];
+    cityList.forEach((city, idx) => {
       if (!city._orbit || city._orbit.pauseStart != null) return;
       // 1. snapshot 當下位置
       const oldX = city.x, oldY = city.y;
 
-      // 2. 重抽新 orbit 參數
-      let rx = halfW * (ORBIT_RX_MIN_F + orbitRand() * (ORBIT_RX_MAX_F - ORBIT_RX_MIN_F));
-      const aspect = ORBIT_ASPECT_MIN + orbitRand() * (ORBIT_ASPECT_MAX - ORBIT_ASPECT_MIN);
-      let ry = rx * aspect;
-      const tilt = (orbitRand() - 0.5) * 2 * ORBIT_TILT_MAX;
-      ({ rx, ry } = fitTiltedEllipse(rx, ry, tilt));
-      const cosT = Math.cos(tilt), sinT = Math.sin(tilt);
-      const angle0 = orbitRand() * Math.PI * 2;
+      // 2-3. 套用這組排列裡這顆城市的 orbit（位置已在 genCityLayout 算好、整組不重疊）；dir 仍每次隨機保留動態。
+      const { rx, ry, tilt, cosT, sinT, angle0, x: newX, y: newY } = layout[idx];
       const dir = orbitRand() < 0.5 ? -1 : 1;
       const tOffset = performance.now() / 1000 - floatStart;
-
-      // 3. compute 新 orbit 在 effT=0 的位置（tickFloat 下幀算出來會是這值）
-      const lx = Math.cos(angle0) * rx;
-      const ly = Math.sin(angle0) * ry;
-      const newX = cx + (lx * cosT - ly * sinT);
-      const newY = cy + (lx * sinT + ly * cosT);
 
       // 4. apply new orbit params
       Object.assign(city._orbit, { rx, ry, tilt, cosT, sinT, angle0, dir, tOffset });

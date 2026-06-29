@@ -15,6 +15,7 @@ import { playAdmissionPanelExit, playAdmissionPanelReveal, setupAdmissionReveal 
 import { playClipReveal } from '../ui/scroll-animate.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { registerPageExit } from '../ui/page-exit.js';
+import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { waitForHeroAnimDone } from './hero-animation.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { scrollWindowNoSnap, clampBelowFooter } from '../ui/snap-scroll.js';
@@ -42,6 +43,22 @@ let switching = false;
  */
 function scrollSectionIntoView(el, behavior = 'instant') {
   if (!el) return;
+  // 桌面 inner-scroll（2026-06-29）：捲動在右欄 .activities-scroll-col、section 是固定 frame。「回到 section 頂」＝
+  //   window 停在 section（frame 填滿視窗，給 deep-link 從 hero 下來用）+ scroll-col.scrollTop=0（顯示 panel 頂）。
+  //   手機/admission（無 scroll-col、或 <768）→ 走下面原 window 落點邏輯。
+  const scroller = /** @type {HTMLElement|null} */ ((window.innerWidth >= 768) ? el.querySelector('.activities-scroll-col') : null);
+  if (scroller) {
+    const sectionTopDoc = el.getBoundingClientRect().top + window.scrollY;
+    if (behavior === 'smooth') {
+      scrollWindowNoSnap(sectionTopDoc, { duration: DUR.medium, ease: EASE.move });
+      scroller.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      window.scrollTo({ top: sectionTopDoc, behavior: 'instant' });
+      scroller.scrollTop = 0;
+      requestAnimationFrame(() => { window.scrollTo({ top: sectionTopDoc, behavior: 'instant' }); scroller.scrollTop = 0; });
+    }
+    return;
+  }
   const filterBar = /** @type {HTMLElement | null} */ (el.querySelector('.activities-panel:not(.hidden) .activities-filter-bar'));
   const y = () => {
     const sectionTopDoc = el.getBoundingClientRect().top + window.scrollY;
@@ -394,9 +411,13 @@ function setupSectionNavReveal() {
       // ⚠️ 只在 **mandatory** 下補（activities 2026-06-28 已改 snap-proximity）：proximity 不會把你困在底部、
       //    也不該在「使用者從 footer 往上捲想讀 list 下半」時硬把人拉回 section 頂（那會變成新的擾民跳動）。
       //    桌面 snap-only（手機無 snap）；reduced-motion 此函式已 early-return。
-      // ⚠️ 有 list item 開著時 **不補捲**：item 開著 snap 已 lockSnapOff、使用者在「自由捲讀模式」，從 footer 往上回來
-      //    想讀某個展開 item 的下半，硬把 section 拉回頂部 = 把人從正在讀的內容彈走（user 2026-06-28 的「又把 section 移回去」）。
-      onEnterBack: () => { reveal(); if (window.innerWidth >= 768 && document.documentElement.classList.contains('snap-mandatory') && !document.querySelector('.list-header.active')) scrollSectionIntoView(section, 'smooth'); },
+      // onEnterBack（從 footer 往上回到內容區）只重播 nav chip，**不補捲回 section 頂**（user 2026-06-29 拍板拿掉）。
+      // 為何不補捲：#activities-content-section 是 oversized snap area（比視窗高），CSS Scroll Snap §5.2.2 本來就讓它整段
+      //   可自由捲——從 footer 往上會先停在「section 底對齊視窗底」再自由往上讀，不會困在底部切掉上面。原本這段
+      //   scrollSectionIntoView 補捲是為「舊的 mandatory 困頂假設」加的，§5.2.2 下多餘，且會在「從 footer 往上想讀 list
+      //   下半」時硬把人彈回頂＝user 報的「往上捲回來卡頓 / 又把 section 移回去」。拿掉後讓 §5.2.2 自由捲 + 邊界
+      //   （section 頂 / footer / hero）乾淨吸附。scrollSectionIntoView 仍用於 deep-link 無 item / sub-filter / tab 切換。
+      onEnterBack: reveal,
     });
     // 初載已在視窗內：ScrollTrigger 不補 fire onEnter，手動播一次
     if (section.getBoundingClientRect().top < window.innerHeight * 0.9) reveal();
@@ -413,6 +434,28 @@ function setupSectionNavReveal() {
   }));
 }
 
+// 右欄 = 「置中 box」與左欄 nav 同框（user 2026-06-29「內容 box 沒到 100vh、是扣 header 後置中的空間」）：
+// nav-col 是 flex 垂直置中、區塊高 navH、top = header + (100vh−header−navH)/2 隨視窗高變。量 .activities-section-bar 的
+// top（相對 section、無關捲動，clamp ≥ header）與 height，寫進 --activities-box-top / --activities-box-height；
+// .activities-scroll-col 用這兩個值 margin-top + height → 右 box 與左 nav 上下對稱、list 只在 box 內捲。
+// 只桌面（手機 @media 不吃該規則、且這裡清掉 var）。filter bar top:0 釘 box 頂、不隨此變動。
+function sizeContentBoxToNav() {
+  const section = document.getElementById('activities-content-section');
+  if (!section) return;
+  if (window.innerWidth < 768) {
+    section.style.removeProperty('--activities-box-top');
+    section.style.removeProperty('--activities-box-height');
+    return;
+  }
+  const navBar = /** @type {HTMLElement | null} */ (section.querySelector('.activities-section-bar'));
+  if (!navBar) return;
+  const header = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--header-height')) || 96;
+  const navRect = navBar.getBoundingClientRect();
+  const navTop = navRect.top - section.getBoundingClientRect().top;
+  section.style.setProperty('--activities-box-top', Math.max(header, Math.round(navTop)) + 'px');
+  section.style.setProperty('--activities-box-height', Math.round(navRect.height) + 'px');
+}
+
 // fromUserNav：true=使用者點連結的 SPA 導航（首頁 floating 活動海報）；false=初始載入 / refresh / 上一頁下一頁。
 // 只有 fromUserNav 才播 ?item= 的「捲到 item + flash + 展開 accordion」導航動畫，refresh 視為全新頁面（只套 ?section= 分頁，不重播）。
 export function initActivitiesSectionSwitch(defaultSection = 'general', fromUserNav = false) {
@@ -423,6 +466,13 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
 
   // 左側 section nav clip-path 進場（section 進視窗 once）+ 離頁退場，比照 faculty nav
   setupSectionNavReveal();
+
+  // 右欄置中 box 尺寸對齊左欄 nav（桌面 inner-scroll）：init + resize + 字型載完各量一次
+  sizeContentBoxToNav();
+  const _alignOnResize = () => sizeContentBoxToNav();
+  window.addEventListener('resize', _alignOnResize, { passive: true });
+  registerPageCleanup(() => window.removeEventListener('resize', _alignOnResize));
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(sizeContentBoxToNav);
 
   // SPA 換頁後 DOM 重建，需重置 loaded 狀態讓資料重新載入
   Object.keys(loaded).forEach(k => delete loaded[k]);
@@ -527,7 +577,6 @@ async function switchToSection(section, btns, shouldScroll, isInitial = false) {
     // 2. 切按鈕 active 狀態（隨機顏色 + 旋轉）
     const { color } = setActiveNavBtn(btns, section, 'data-section');
     currentSectionColor = color;
-    window.__sccdCurrentSectionColor = color;
 
     // 3. 等 load 完成（多數情況 exit 動畫已 cover 此時間；首次 fetch 大 JSON 仍可能略等）
     await loadPromise;

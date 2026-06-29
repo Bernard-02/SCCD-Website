@@ -4,14 +4,6 @@
  * 各 panel 各自的 search input，對應各自 panel 內容
  */
 
-// ── 搜尋工具 ───────────────────────────────────────────────────────────────
-
-function matchScore(item, query) {
-  const q = query.toLowerCase();
-  const text = item.dataset.search || '';
-  return text.includes(q) ? 1 : 0;
-}
-
 // ── Empty State ──────────────────────────────────────────────────────────
 
 function getOrCreateEmptyState(panel) {
@@ -154,6 +146,7 @@ function applyGenericSearch(panelId, query) {
     return;
   }
 
+  const q = query.toLowerCase();
   yearGroups.forEach(group => {
     const container = getItemsContainer(group);
     const allItems = container && originalOrders.has(container)
@@ -161,9 +154,8 @@ function applyGenericSearch(panelId, query) {
       : [...group.querySelectorAll('.list-item')];
     if (!allItems.length) return;
 
-    const matched = allItems
-      .map(item => ({ item, score: matchScore(item, query) }))
-      .filter(s => s.score > 0);
+    // matchScore 原本是 binary 1/0 + 永遠 no-op 的 sort：直接 filter（保留 allItems 順序＝原 DOM append 順序）
+    const matched = allItems.filter(item => (item.dataset.search || '').includes(q));
 
     if (!matched.length) {
       allItems.forEach(item => { item.style.display = 'none'; });
@@ -181,10 +173,9 @@ function applyGenericSearch(panelId, query) {
       if (divider) divider.style.display = 'none';
     });
 
-    matched.sort((a, b) => b.score - a.score);
-    if (container) matched.forEach(s => container.appendChild(s.item));
-    matched.forEach(s => { s.item.style.display = ''; });
-    rebuildBorders(matched.map(s => s.item));
+    if (container) matched.forEach(item => container.appendChild(item));
+    matched.forEach(item => { item.style.display = ''; });
+    rebuildBorders(matched);
 
     // 若 year-items 因 year toggle 被收合，展開讓結果可見，並記錄以便清空時還原
     if (container && (container.style.height === '0px' || container.style.display === 'none')) {
@@ -255,14 +246,23 @@ export function reapplySearch(panelId) {
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 
 let scrollHandler = null;
+let colScrollHandler = null;
+
+// 桌面 inner-scroll：右欄是「置中 box」(.activities-scroll-col)、window 不捲 → bar 收合改掛 box 自己的 scroll。
+function isDesktopInnerScroll() {
+  return window.innerWidth >= 768 && !!document.querySelector('.activities-scroll-col');
+}
 
 export function initActivitiesSearch() {
   // scroll hide/show filter bar
   let lastScrollY = window.scrollY;
+  let lastColY = 0;
   if (scrollHandler) {
     window.removeEventListener('scroll', scrollHandler);
   }
   scrollHandler = () => {
+    // 桌面 inner-scroll：bar 收合由下方 box scroll 接管；window 不捲（snap 在 section），此處不插手免互搶 bar-hidden
+    if (isDesktopInnerScroll()) return;
     const currentY = window.scrollY;
     const goingDown = currentY > lastScrollY;
     lastScrollY = currentY;
@@ -286,11 +286,35 @@ export function initActivitiesSearch() {
     }
   };
   window.addEventListener('scroll', scrollHandler, { passive: true });
+
+  // 桌面 inner-scroll：search bar 收合掛在置中 box (.activities-scroll-col) 的捲動（往下捲 → 收，往上 → 還原；
+  // bar 釘 box 頂、原地收合不頂到 header）。box 是 SPA 換頁時整段重建，故每次 init 重抓 + registerPageCleanup 解綁。
+  const scrollCol = /** @type {HTMLElement | null} */ (document.querySelector('.activities-scroll-col'));
+  if (scrollCol) {
+    colScrollHandler = () => {
+      const cur = scrollCol.scrollTop;
+      const activeBar = document.querySelector('.activities-panel:not(.hidden) .activities-filter-bar');
+      // 方向式（往下收、往上還原），比照改 100vh 前的 window 版（user 2026-06-30「往上要看得到 search bar」）。
+      // 可靠的前提＝scroll-col 已設 overflow-anchor:none：收合改高度不補償 scrollTop → 無自觸發 scroll →
+      // lastColY 純由使用者捲動驅動、方向不會被翻轉（先前方向式抖動、位置式不還原都是這個 anchoring 補償造成）。
+      if (activeBar) {
+        if (cur > lastColY && cur > 8) activeBar.classList.add('bar-hidden');
+        else if (cur < lastColY) activeBar.classList.remove('bar-hidden');
+      }
+      lastColY = cur;
+    };
+    scrollCol.addEventListener('scroll', colScrollHandler, { passive: true });
+  }
+
   // SPA 離開 activities 時解綁，避免下一頁 scroll 持續觸發 query activities DOM
   registerPageCleanup(() => {
     if (scrollHandler) {
       window.removeEventListener('scroll', scrollHandler);
       scrollHandler = null;
+    }
+    if (scrollCol && colScrollHandler) {
+      scrollCol.removeEventListener('scroll', colScrollHandler);
+      colScrollHandler = null;
     }
   });
 
@@ -301,6 +325,7 @@ export function initActivitiesSearch() {
         bar.classList.remove('bar-hidden');
       });
       lastScrollY = window.scrollY;
+      lastColY = scrollCol ? scrollCol.scrollTop : 0;
     });
   });
 

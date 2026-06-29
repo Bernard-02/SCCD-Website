@@ -21,23 +21,22 @@
     scroll-snap-align: start;
   }
 
-  /* activities content section 的 snap 落點要跟 scrollSectionIntoView（activities-section-switch.js）一致。
-     該函式把點 nav 的落點算成「filter bar 剛好停在自己的 sticky-top（200）」＝ section 頂落在 viewport
-     200−192=8px（section md:py-6xl padding-top=192）。snap-zone 預設 scroll-snap-align:start 會把 section 頂
-     吸到 viewport 0、比正確落點高 8px → filter bar 過釘、其 bg z-10 蓋住第一筆 list 頂 → 年份欄 sticky 釘在
-     filter bar 下、第一筆卻自由捲到 bar 後方 ~7px ＝「點 nav 後年份跟第一個 list 沒對齊」（user 2026-06-26）。
-     scroll-margin-top:8px 讓 snap 落點 == scrollSectionIntoView 落點 → 年份與第一筆對齊（同 about overview 200
-     / class·works 100 的 scroll-margin 對齊 anchor 落點慣例）。8px = filter bar sticky-top(200)−section pad-top(192)，
-     兩者皆桌面靜態常數、不隨 filter bar 高度變。 */
-  html.snap-mandatory #activities-content-section,
-  html.snap-proximity #activities-content-section {
-    scroll-margin-top: 8px;
-  }
+  /* （2026-06-29 移除 #activities-content-section 的 scroll-margin-top:8px）：activities 桌面改 inner-scroll 後，content
+     section 本身變成剛好 100vh 的 frame（md:h-screen），snap 落點＝「section 頂對齊 viewport 0、frame 填滿視窗」，不再需要
+     8px 補償（那 8px 原是為「pt-192 + filter-bar sticky-top 200」的舊 window-scroll 佈局對齊；frame 化後 filter bar 改在
+     #activities-scroller 內 pt-200，與 window snap 落點無關）。留著 8px 反而會讓 frame 往下偏 8px → 頂部露出 hero 8px。 */
 
   /* footer 一定要被吸住：捲到底經過 footer 時必停在 footer，不准飛過去（user 2026-06-27）。
      proximity 頁中段照樣軟吸/可停半屏，只有 footer 像「攔截閘」一定接住。
-     #site-footer = SPA 各頁 footer 容器；#site-footer-static = index 靜態 footer。 */
+     #site-footer = SPA 各頁 footer 容器；#site-footer-static = index 靜態 footer。
+     ★scroll-snap-align:end（不用 start，覆蓋上面 .snap-zone 的 start，靠 #id 特異度勝出）：
+     footer 是末段滿版 100vh section，align:start 的落點 == maxScroll（零容差）→ Win11 顯示縮放讓 1vh 非整數、
+     sub-pixel rounding 偶爾把落點 round 成 > maxScroll → 該 snap 點不可達 → mandatory 退回唯一穩定點 hero
+     ＝user 報的「往下捲不到 footer、被拉回 hero、抖動很卡」（activities 因展開長 list 變 oversized section 更明顯）。
+     end＝footer 底邊對齊 viewport 底＝文件最底端，瀏覽器夾在 maxScroll 永遠可達；落點數值與 start 相同、視覺零差異。
+     通則：「最後一個滿版 100vh section」當 snap 點要用 align:end 不用 start。 */
   html:is(.snap-mandatory, .snap-proximity) :is(#site-footer, #site-footer-static).snap-zone {
+    scroll-snap-align: end;
     scroll-snap-stop: always;
   }
 }

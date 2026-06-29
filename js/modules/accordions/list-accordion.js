@@ -234,7 +234,9 @@ function attachStickyPinObserver(header) {
     header.classList.toggle('is-pinned', pinned);
     toggleSectionPinnedFlag(header, pinned);
   }, {
-    root: null,
+    // 桌面 inner-scroll：sentinel 對「右欄 .activities-scroll-col」的頂邊判 pinned（list 在 scroller 內捲、非 window）；
+    //   手機/admission（無 scroll-col 或 <768）：root=null＝對 window viewport（原行為）。
+    root: (window.innerWidth >= 768) ? header.closest('.activities-scroll-col') : null,
     // +4px 容差：開啟捲動把 title 停在「正好釘線」（自然位置=釘點、尚未越過）→ 嚴格邊界下 IO 判未 pin →
     // blocker 不顯示 → 上方內容（如 description）溢出蓋到 logo（user 2026-06-10）。邊界往下挪 4px 讓
     // 「title 一抵釘線就算 pinned」→ blocker 開。4px 窗內 nav 不可能還在 band（item 釘住時 nav 已捲出畫面），不誤觸。
@@ -303,9 +305,15 @@ function closeListHeader(header, { duration = DUR.medium, scrollFollow = false }
   //   scrollFollow 只給 self-close（開新 item 的 close-others 不捲，落點由隨後的 proceedOpen 重算）。
   if (scrollFollow) {
     const collapseAmount = content.getBoundingClientRect().height;
-    const postMax = Math.max(0, document.documentElement.scrollHeight - collapseAmount - window.innerHeight);
-    if (postMax < window.scrollY - 1) {
-      scrollWindowNoSnap(postMax, { duration, ease: EASE.exitSoft });
+    // 桌面 inner-scroll：收合靠底 item → scroller 變矮 → scroller.scrollTop 被 clamp → 跳；同步往上捲 scroller（footer/snap 不在
+    //   scroller，直接 scrollTo 不用 scrollWindowNoSnap）。手機/admission：原 window scrollFollow（footer 在 window 文件底）。
+    const scroller = /** @type {HTMLElement|null} */ ((window.innerWidth >= 768) ? header.closest('.activities-scroll-col') : null);
+    if (scroller) {
+      const postMax = Math.max(0, scroller.scrollHeight - collapseAmount - scroller.clientHeight);
+      if (postMax < scroller.scrollTop - 1) scroller.scrollTo({ top: postMax, behavior: 'smooth' });
+    } else {
+      const postMax = Math.max(0, document.documentElement.scrollHeight - collapseAmount - window.innerHeight);
+      if (postMax < window.scrollY - 1) scrollWindowNoSnap(postMax, { duration, ease: EASE.exitSoft });
     }
   }
 
@@ -450,38 +458,42 @@ function initListHeaderAccordion() {
           // point 3 修：已收回的 others 副標剛移除 .active 正走 0.3s 重新展開 → snap 定高，否則量測差一個副標高
           others.forEach(snapSubtitleHeight);
 
-          // item 開著期間鎖 snap=none：mandatory 會把「停在 section 中段的對齊落點」吸走 → 兩步跳（user 2026-06-28）。
-          // 收合 item（下方 else 自關 / resetListAccordionsInPanel 切 section / 換頁）才 unlockSnap。skipOpenScroll
-          // 的 deep-link 也要鎖（捲動由 navigateToItem 負責、這裡只負責鎖），故放在 !skipOpenScroll 之外。
-          lockSnapOff();
+          // 桌面 inner-scroll（2026-06-29）：捲動在右欄 .activities-scroll-col（snap 在 window、不在 scroller）→ **不** lockSnapOff、
+          //   **不** clampBelowFooter（footer 在 frame 外、捲 scroller 不可能露）、**不** temp-expand 量 footer。
+          //   手機/admission（無 scroll-col）走原 window 邏輯：lockSnapOff + 真實量測 clampBelowFooter + scrollWindowNoSnap。
+          const innerScroller = /** @type {HTMLElement|null} */ ((window.innerWidth >= 768) ? self.closest('.activities-scroll-col') : null);
+          if (!innerScroller) lockSnapOff();  // 只有 window snap 頁(手機/admission)開 item 期間鎖 snap
 
-          // 量 header doc 位置 → 捲到「落在當前 pin 線」。stickyTop 與 headerDocTop 同態量取（見上不變式）。
           if (!skipOpenScroll) {
-            const stickyTop = getListStickyTop(self);
-            // 手機修正（user 2026-06-24）：桌面 filter bar 是 md:sticky，收 bar 時 header 與 pin 線同步上移一個 searchInner
-            // 高 → 相減抵消；手機 bar 非 sticky、pin 線(8rem)不隨 bar 動 → 預先扣掉「即將收起」的 searchInner 高。
-            const barInner = activeFilterBar && !activeFilterBar.classList.contains('bar-hidden')
-              ? (/** @type {HTMLElement | null} */ (activeFilterBar.querySelector('.activities-search-inner'))?.offsetHeight || 0)
-              : 0;
-            const barCollapseDelta = window.innerWidth < 768 ? barInner : 0;
-            const headerDocTop = self.getBoundingClientRect().top + window.scrollY;
-            const alignTop = Math.max(0, Math.round(headerDocTop - stickyTop - barCollapseDelta));
-            // 落點「真實量測」（user 2026-06-28）：暫撐開 content 量「展開後」真 footer 位置再收回 → 落點一次到位（有空間
-            //   對齊頂部、沒空間停 footer 貼視窗底），不被 section min-height:100vh 留白騙（短 list 展開不推 footer，用
-            //   content.scrollHeight 預測會失準 → 對齊到頂 → footer 露 → snap 往下修＝兩步跳）。同 tick set→量→set 回不繪製不閃。
-            // footerShift −barInner：開啟同時 add bar-hidden 把 footer 往上拉一個 searchInner，補償否則展開後仍露 ~80px。
-            // 走 scrollWindowNoSnap（非 gsap.to(window)）：snap 已 lockSnapOff，且與下方 content 展開同 DUR.medium+EASE.enterSoft
-            //   並行 → 捲動進度 ≤ 展開進度、footer 被展開一路推著走不露。
-            gsap.set(content, { height: 'auto' });
-            const targetScrollY = clampBelowFooter(alignTop, -barInner);
-            gsap.set(content, { height: 0 });
-            if (Math.abs(targetScrollY - window.scrollY) > 1) {
-              scrollWindowNoSnap(targetScrollY, { duration: DUR.medium, ease: EASE.enterSoft });
+            const stickyTop = getListStickyTop(self);  // = --list-header-sticky-top（桌面 = clearance+filterBarH，scroller 內偏移）
+            if (innerScroller) {
+              // 桌面：捲 scroller 讓 header 對齊 sticky 線（filter bar 正下方）。scroller-relative：rect 差 + scrollTop。
+              const headerInScroller = self.getBoundingClientRect().top - innerScroller.getBoundingClientRect().top + innerScroller.scrollTop;
+              const targetTop = Math.max(0, Math.round(headerInScroller - stickyTop));
+              if (Math.abs(targetTop - innerScroller.scrollTop) > 1) {
+                innerScroller.scrollTo({ top: targetTop, behavior: 'smooth' });
+              }
+            } else {
+              // 手機修正（user 2026-06-24）：手機 bar 非 sticky、pin 線(8rem)不隨 bar 動 → 預先扣掉「即將收起」的 searchInner 高。
+              const barInner = activeFilterBar && !activeFilterBar.classList.contains('bar-hidden')
+                ? (/** @type {HTMLElement | null} */ (activeFilterBar.querySelector('.activities-search-inner'))?.offsetHeight || 0)
+                : 0;
+              const barCollapseDelta = window.innerWidth < 768 ? barInner : 0;
+              const headerDocTop = self.getBoundingClientRect().top + window.scrollY;
+              const alignTop = Math.max(0, Math.round(headerDocTop - stickyTop - barCollapseDelta));
+              // 真實量測：暫撐開 content 量「展開後」真 footer 再收回（不被 min-height:100vh 留白騙）；footerShift −barInner 補 bar 收合。
+              gsap.set(content, { height: 'auto' });
+              const targetScrollY = clampBelowFooter(alignTop, -barInner);
+              gsap.set(content, { height: 0 });
+              if (Math.abs(targetScrollY - window.scrollY) > 1) {
+                scrollWindowNoSnap(targetScrollY, { duration: DUR.medium, ease: EASE.enterSoft });
+              }
             }
           }
 
           // 量測「之後」才平滑收 search bar（走 CSS 0.3s transition）。不鎖死 → scroll-up 由 activities-search.js 還原。
-          if (activeFilterBar) activeFilterBar.classList.add('bar-hidden');
+          // 桌面 inner-scroll 不收（innerScroller 存在）：filter bar 釘在 scroller 頂、留著無妨，捲動收合交給 scrollHandler。
+          if (activeFilterBar && !innerScroller) activeFilterBar.classList.add('bar-hidden');
 
           // Open - header / content 都保留 100% accent；ref 用對應 deep 色
           // workshopItem 也染同色：sticky header 與 content 在 fractional pixel 位置會出現 1-2px paint 縫，
