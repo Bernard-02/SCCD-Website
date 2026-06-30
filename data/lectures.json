@@ -91,6 +91,7 @@
     "items": [
       {
         "title": "交互設計國際講座",
+        "title_en": "International Interaction Design Lecture",
         "date": "2024.06.10",
         "location": "實踐大學設計學院 B1 演講廳",
         "category": "seminars",
@@ -127,6 +128,7 @@
       },
       {
         "title": "動畫技術工作營講座",
+        "title_en": "Animation Technology Workshop Lecture",
         "date": "2024.11.08",
         "location": "實踐大學設計學院 B1 演講廳",
         "category": "seminars",
@@ -178,6 +180,7 @@
     "items": [
       {
         "title": "平面設計趨勢講座",
+        "title_en": "Graphic Design Trends Lecture",
         "date": "2023.03.20",
         "location": "實踐大學設計學院 B1 演講廳",
         "category": "seminars",
@@ -213,6 +216,7 @@
       },
       {
         "title": "品牌設計國際論壇",
+        "title_en": "International Brand Design Forum",
         "date": "2023.08.30",
         "location": "台北萬豪酒店 國際會議廳",
         "category": "seminars",

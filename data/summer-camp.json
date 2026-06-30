@@ -36,6 +36,7 @@
     "items": [
       {
         "title": "我知道你想要對吧！",
+        "title_en": "I Know You Want It, Right!",
         "date": "07.15 - 07.19",
         "location": "實踐大學設計學院",
         "descriptionZh": "這個沉浸式的暑期營隊帶領高中生認識設計思考的基礎...",
@@ -62,6 +63,7 @@
     "items": [
       {
         "title": "我以為我有魔法！",
+        "title_en": "I Thought I Had Magic!",
         "date": "07.10 - 07.14",
         "location": "實踐大學設計學院",
         "descriptionZh": "在這個密集工作坊中探索藝術與科技的交會點...",

@@ -1,71 +1,114 @@
 [
   {
+    "year": 2026,
+    "items": [
+      {
+        "title": "好野人",
+        "title_en": "HOYA",
+        "location": "實踐大學設計學院",
+        "intro": "",
+        "poster": "../images/2021-動畫-Pitch-Bible-01.png",
+        "videos": [],
+        "images": [],
+        "id": "SP-2026-01",
+        "dates": [
+          { "startYear": 2026, "startMonth": 3, "startDay": 6, "endYear": 2026, "endMonth": 3, "endDay": 6 }
+        ]
+      }
+    ]
+  },
+  {
     "year": 2025,
     "items": [
       {
-        "title": "Student Project Title 1",
-        "title_zh": "學生專題計畫一",
-        "date": "03.15 - 03.20",
+        "title": "媒夜祭",
+        "title_en": "Night Festival",
         "location": "實踐大學設計學院",
-        "intro": "Description of the student-led project or initiative goes here.",
+        "intro": "",
         "poster": "../images/2021-動畫-Pitch-Bible-01.png",
-        "videos": [
-          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-        ],
-        "images": [
-          "../images/SCCD-1-4-0.jpg",
-          "../images/S__6742028.jpg"
-        ],
-        "id": "SP-2025-01",
+        "videos": [],
+        "images": [],
+        "id": "SP-2026-02",
         "dates": [
-          {
-            "startYear": 2025,
-            "startMonth": 3,
-            "startDay": 15,
-            "endYear": 2025,
-            "endMonth": 3,
-            "endDay": 20
-          }
+          { "startYear": 2025, "startMonth": 11, "startDay": 30, "endYear": 2025, "endMonth": 11, "endDay": 30 }
         ]
       },
       {
-        "title": "Student Project Title 2",
-        "date": "04.10 - 04.15",
+        "title": "女巫安息日",
+        "title_en": "The Witches' Sabbath",
         "location": "實踐大學設計學院",
-        "intro": "Description of the student-led project or initiative.",
+        "intro": "",
+        "poster": "../images/2021-動畫-Pitch-Bible-01.png",
+        "videos": [],
+        "images": [],
+        "id": "SP-2026-03",
+        "dates": [
+          { "startYear": 2025, "startMonth": 10, "startDay": 31, "endYear": 2025, "endMonth": 10, "endDay": 31 }
+        ]
+      },
+      {
+        "title": "第 26 屆系學會招募",
+        "title_en": "26th Student Association Election",
+        "location": "實踐大學設計學院",
+        "intro": "",
+        "poster": "../images/2021-動畫-Pitch-Bible-01.png",
+        "videos": [],
+        "images": [],
+        "id": "SP-2025-01",
+        "dates": [
+          { "startYear": 2025, "startMonth": 5, "startDay": 29, "endYear": 2025, "endMonth": 5, "endDay": 29 }
+        ]
+      },
+      {
+        "title": "空耳盃 - 全員大亂唱",
+        "title_en": "Soramimi Cup - Everyone Sings Chaotic",
+        "location": "實踐大學設計學院",
+        "intro": "",
         "poster": "../images/2021-動畫-Pitch-Bible-01.png",
         "videos": [],
         "images": [],
         "id": "SP-2025-02",
         "dates": [
-          {
-            "startYear": 2025,
-            "startMonth": 4,
-            "startDay": 10,
-            "endYear": 2025,
-            "endMonth": 4,
-            "endDay": 15
-          }
+          { "startYear": 2025, "startMonth": 5, "startDay": 27, "endYear": 2025, "endMonth": 5, "endDay": 27 }
         ]
       },
       {
-        "title": "Student Project Title 3",
-        "date": "05.20 - 05.25",
+        "title": "魔法高校・AFTER",
+        "title_en": "Magic High School・AFTER",
         "location": "實踐大學設計學院",
-        "intro": "Description of the student-led project or initiative.",
+        "intro": "",
         "poster": "../images/2021-動畫-Pitch-Bible-01.png",
         "videos": [],
         "images": [],
         "id": "SP-2025-03",
         "dates": [
-          {
-            "startYear": 2025,
-            "startMonth": 5,
-            "startDay": 20,
-            "endYear": 2025,
-            "endMonth": 5,
-            "endDay": 25
-          }
+          { "startYear": 2025, "startMonth": 5, "startDay": 9, "endYear": 2025, "endMonth": 5, "endDay": 9 }
+        ]
+      },
+      {
+        "title": "亂打馬⅓",
+        "title_en": "Fight Chaotic Horse ⅓",
+        "location": "實踐大學設計學院",
+        "intro": "",
+        "poster": "../images/2021-動畫-Pitch-Bible-01.png",
+        "videos": [],
+        "images": [],
+        "id": "SP-2025-04",
+        "dates": [
+          { "startYear": 2025, "startMonth": 5, "startDay": 14, "endYear": 2025, "endMonth": 5, "endDay": 14 }
+        ]
+      },
+      {
+        "title": "床上",
+        "title_en": "On Bed",
+        "location": "實踐大學設計學院",
+        "intro": "",
+        "poster": "../images/2021-動畫-Pitch-Bible-01.png",
+        "videos": [],
+        "images": [],
+        "id": "SP-2025-05",
+        "dates": [
+          { "startYear": 2025, "startMonth": 4, "startDay": 18, "endYear": 2025, "endMonth": 4, "endDay": 18 }
         ]
       }
     ]
@@ -74,68 +117,16 @@
     "year": 2024,
     "items": [
       {
-        "title": "2024 Project 1",
-        "date": "03.15 - 03.20",
+        "title": "媒吉柑仔店",
+        "title_en": "Magic Grocery Store",
         "location": "實踐大學設計學院",
-        "intro": "Description of the student-led project.",
+        "intro": "",
         "poster": "../images/2021-動畫-Pitch-Bible-01.png",
         "videos": [],
         "images": [],
-        "id": "SP-2024-01",
+        "id": "SP-2025-06",
         "dates": [
-          {
-            "startYear": 2024,
-            "startMonth": 3,
-            "startDay": 15,
-            "endYear": 2024,
-            "endMonth": 3,
-            "endDay": 20
-          }
-        ]
-      },
-      {
-        "title": "2024 Project 2",
-        "date": "04.10 - 04.15",
-        "location": "實踐大學設計學院",
-        "intro": "Description of the student-led project.",
-        "poster": "../images/2021-動畫-Pitch-Bible-01.png",
-        "videos": [],
-        "images": [],
-        "id": "SP-2024-02",
-        "dates": [
-          {
-            "startYear": 2024,
-            "startMonth": 4,
-            "startDay": 10,
-            "endYear": 2024,
-            "endMonth": 4,
-            "endDay": 15
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "year": 2023,
-    "items": [
-      {
-        "title": "2023 Project 1",
-        "date": "05.20 - 05.25",
-        "location": "實踐大學設計學院",
-        "intro": "Description of the student-led project.",
-        "poster": "../images/2021-動畫-Pitch-Bible-01.png",
-        "videos": [],
-        "images": [],
-        "id": "SP-2023-01",
-        "dates": [
-          {
-            "startYear": 2023,
-            "startMonth": 5,
-            "startDay": 20,
-            "endYear": 2023,
-            "endMonth": 5,
-            "endDay": 25
-          }
+          { "startYear": 2024, "startMonth": 12, "startDay": 13, "endYear": 2024, "endMonth": 12, "endDay": 13 }
         ]
       }
     ]
