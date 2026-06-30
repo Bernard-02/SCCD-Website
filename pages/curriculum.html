@@ -53,14 +53,16 @@
          Layout（桌面）：左 program bar (vertical sticky) ｜ 中 grid panels ｜ 右 sticky desc panel
                 Mobile：垂直堆疊（bar → panels → desc 隱藏）
     -->
-    <section class="snap-zone bg-white min-h-screen pt-6xl pb-6xl md:pt-6xl md:pb-3xl" id="courses-content-section">
+    <section class="snap-zone bg-white min-h-screen pt-6xl pb-6xl md:pt-0 md:pb-0 md:h-screen md:overflow-hidden" id="courses-content-section">
       <div class="site-container">
         <!-- grid-20：桌面 program bar 占 cols 1-4、課程內容 cols 5-20（對齊 faculty/about col-5）；手機 flex-col 堆疊 -->
-        <div class="courses-content-row flex flex-col gap-gutter md:grid md:grid-cols-20">
+        <div class="courses-content-row flex flex-col gap-gutter md:grid md:grid-cols-20 inner-scroll-frame-grid">
 
-          <!-- Left column: program btn bar（桌面 cols 1-4，vertical sticky；mobile 直接 flex-col 自然流）
-               注意：bar 容器佔 col-span-4，但 courses.css 的 width:14rem 仍保留 bar 寬度＝按鈕不動 -->
-          <div class="courses-program-bar flex flex-col items-start gap-lg md:gap-2xl mb-md md:mb-0 md:col-span-4">
+          <!-- Left column: program btn bar（桌面 cols 1-4；mobile 直接 flex-col 自然流）
+               桌面 inner-scroll frame：外層 nav-col wrapper（占 col-span-4）padding-top 把 bar 推到 content 區頂、頂部對齊；
+               bar 不再 col-span-4、courses.css frame 規則把 bar 的 position:sticky 改回 static（見 courses.css）。 -->
+          <div class="md:col-span-4 inner-scroll-nav-col">
+          <div class="courses-program-bar flex flex-col items-start gap-lg md:gap-2xl mb-md md:mb-0">
             <div class="courses-program-group flex flex-col items-start gap-xs">
               <span class="courses-bfa-label">BFA 學士班</span>
               <button class="courses-program-btn active" data-program="bfa-animation">
@@ -77,9 +79,10 @@
               <span class="anchor-nav-inner"><span>MDES</span><span>碩士班</span></span>
             </button>
           </div>
+          </div>
 
-          <!-- Middle column: 三個 program panel（grid 由 JS 渲染）；桌面占 cols 5-20 -->
-          <div class="min-w-0 md:col-start-5 md:col-span-16">
+          <!-- Middle column: 三個 program panel（grid 由 JS 渲染）；桌面占 cols 5-20、桌面 inner-scroll = 唯一捲動的 box -->
+          <div class="min-w-0 md:col-start-5 md:col-span-16 inner-scroll-scroll-col no-scrollbar">
             <div class="courses-panel" id="panel-bfa-animation">
               <div class="courses-grid"></div>
             </div>

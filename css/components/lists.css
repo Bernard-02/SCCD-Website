@@ -3,57 +3,65 @@
  * Activities List 等列表項目樣式
  */
 
-/* ===== activities 桌面 inner-scroll frame（2026-06-29 v2，user 回饋重設計）=====
- * #activities-content-section 桌面 = 剛好 100vh 的 frame（HTML md:h-screen + md:overflow-hidden）。
- *  - 左 nav (.activities-nav-col)：height:100vh + flex 垂直置中 → nav 在整個 frame 內「置中、不隨 list 捲動」（取代舊 sticky top:200）。
- *  - 右 list (.activities-scroll-col)：height:100vh + overflow-y:auto ＝ 唯一捲動的層；header clearance 改放 .activities-panel
- *    的 padding-top（★不放 scroll-col、見下方詳細註解）→ list 從 header 下「top-aligned」開始。overflow-x:hidden 防旋轉 chip 觸發橫向捲。
- *  - filter bar：sticky 釘到 scroll col 的「header 下」位置（取代 HTML 的 md:top-[200px]），bg-white 蓋過捲到下面的 list。
- * 為何 footer 不露：footer 在 frame(section)外、是另一個 window snap-zone；捲右欄不動 window → footer 永遠在 frame 外。
- * 手機完全不套（無此 @media）：三個 class 在手機都無 height/overflow → window 捲照舊、手機行為零變動。
- * clearance = fixed header 高(--header-height，header.js 設)；list-header sticky 基準由 activities-data-loader
- *   updateStickyTop 讀 filter bar 實際 computed top + offsetHeight 自動跟著走（含各分頁 search bar 高度差異）。 */
+/* ===== inner-scroll frame（桌面）共用 class（2026-06-30 通用化；原 activities-only v2）=====
+ * 套用頁：activities / faculty / curriculum / admission。桌面把 content section 變成剛好 100vh 的 frame
+ * （HTML 端：md:h-screen + md:overflow-hidden）。frame 內分左 nav col + 右 scroll col：
+ *  - 左 nav (.inner-scroll-nav-col)：padding-top 把 nav 推到 content 區頂（= header + 上 pad），**頂部對齊**（不置中）。
+ *  - 右內容 (.inner-scroll-scroll-col)：唯一捲動的層（overflow-y:auto），高度填滿 content 區 [header+pad, 100vh−pad]，
+ *    內容從頂部開始。★box 高度**不隨 nav 長短變**（固定填滿 content 區）→ nav btn 少的頁（faculty 3 / admission 2 /
+ *    curriculum 3）也有完整可用內容區；activities（9 顆 nav 幾乎滿高）看起來 ≈ 不變（user 2026-06-30 拍板「對齊頂部」）。
+ *  - 上下對稱 pad（--inner-pad），content 上緣 = header + pad（已扣除 fixed header）。**純 CSS、不需 JS 量測 nav**。
+ * 為何 footer 不露：footer 在 frame(section)外、是另一個 window snap-zone；捲右欄不動 window → footer 永在 frame 外。
+ * 手機完全不套（無此 @media）：三個 class 在手機都無 height/overflow → window 捲照舊、手機零變動。
+ * 頁面專屬細節在各自 scope：activities 旋轉 chip-clearance + filter bar；curriculum sticky 表頭 (courses.css)；
+ *   admission 無 filter bar（list-header sticky-top 由 loadListInto 設 0）。 */
 @media (min-width: 768px) {
-  #activities-content-section .activities-frame-grid { height: 100vh; }
-  #activities-content-section .activities-nav-col {
+  .inner-scroll-frame-grid {
     height: 100vh;
-    padding-top: var(--header-height, 96px);   /* 扣除 fixed header → 在 header 下方可視區 [header,100vh] 內垂直置中（user 2026-06-29）*/
-    display: flex;
-    align-items: center;
+    --inner-pad: var(--spacing-3xl, 96px);                            /* content 區上下對稱 pad */
+    --inner-box-top: calc(var(--header-height, 96px) + var(--inner-pad));  /* content 區上緣（扣 fixed header）*/
   }
-  /* ★右欄 = 「置中 box」，不是 100vh（user 2026-06-29「內容 box 沒到 100vh、是 100vh 內扣 header 後置中的空間」）：
-     高度 = 左欄 nav 區塊高（--activities-box-height）、上緣 = 置中後的 nav top（--activities-box-top），兩者由
-     activities-section-switch.js sizeContentBoxToNav() 量 .activities-section-bar 寫入、resize 重算 → box 與左欄 nav 同框
-     （上下對稱留白）。list 只在這個 box 內捲動，捲到底停在 box 底（= nav 底）、不會捲到 100vh 最底。
-     ★scroll-col 自己無 padding（box 上緣靠 margin-top 不靠 padding）→ filter bar 的 sticky content-box = box 頂，
-     top:0 純把 bar 釘在 box 頂（= 置中 nav 頂）；往下捲時 bar 留在 box 頂、search bar 原地收合、內容不頂到 header
-     （取代舊「bar 釘 header、內容捲到 header 下」）。fallback（JS 未跑/手機）= 整個可視區高、貼 header 下。 */
-  #activities-content-section .activities-scroll-col {
-    /* chip-clearance（user 2026-06-30「Temporary chip 上緣被切」）：active chip 旋轉（getRandomRotation −4~6°）頂角
-       會投影出 box 上緣 ~3–12px、被 scroll-col 的 overflow 裁掉（scroll-col 是捲動容器、不能設 overflow:visible）。
-       解＝box 上緣往上挪一個 clearance（margin-top −clearance、height +clearance、下緣 navBottom 不變），filter bar
-       top 改成 clearance 補回 → bar 仍釘在 navTop（content-box 上移 clearance、bar top +clearance 抵銷），但 box 在 bar
-       上方多留 clearance 容納旋轉頂角，不被裁。clearance 走 margin/height + bar top（**非 scroll-col padding**）→ 不踩
-       sticky content-box 疊加坑；updateStickyTop 讀 bar.top=clearance、--list-header-sticky-top 與 proceedOpen/IO 仍一致。 */
-    --chip-clearance: var(--spacing-md, 24px);
-    margin-top: calc(var(--activities-box-top, var(--header-height, 96px)) - var(--chip-clearance));
-    height: calc(var(--activities-box-height, calc(100vh - var(--header-height, 96px))) + var(--chip-clearance));
+  .inner-scroll-nav-col {
+    padding-top: var(--inner-box-top);   /* nav 頂部對齊 content 區頂、不置中（少量 nav btn 的頁也正確）*/
+  }
+  /* 右內容 box：唯一捲動層。margin-top 對齊 content 區頂、height 填到 100vh−pad（box 底 = 100vh − pad）。
+     --chip-clearance 預設 0（只 activities override，見下方）：box 上緣往上挪 clearance、height 補回 clearance，
+     讓旋轉 chip 頂角有空間不被 overflow 裁；filter-bar/panel 補回等量 clearance → bar 仍釘 content 區頂。 */
+  .inner-scroll-scroll-col {
+    --chip-clearance: 0px;
+    margin-top: calc(var(--inner-box-top) - var(--chip-clearance));
+    height: calc(100vh - var(--inner-box-top) - var(--inner-pad) + var(--chip-clearance));
     align-self: start;
     overflow-x: hidden;
     overflow-y: auto;
-    /* ★search bar 收合(max-height 0↔80)改變 box 內容高度時，瀏覽器 scroll anchoring 會補償 scrollTop →
-       跨回 hide/show 門檻 → 方向翻轉 → search bar 抖動「要出不出」（user 2026-06-30）。關掉 anchoring → 收合不動
-       scrollTop、不自觸發 scroll 事件 → 方向式 hide/show 穩定、收合走 CSS transition 平滑滑動。 */
+  }
+
+  /* ── activities 專屬：旋轉 chip clearance + filter bar/panel + 關 scroll anchoring ── */
+  /* chip-clearance（user 2026-06-30「Temporary chip 上緣被切」）：active chip 旋轉（getRandomRotation −4~6°）頂角投影
+     出 box 上緣 ~3–12px、被 scroll-col overflow 裁掉。clearance 走 margin/height + bar top + panel padding（**非
+     scroll-col padding**）→ 不踩 sticky content-box 疊加坑；updateStickyTop 讀 bar.top=clearance、--list-header-sticky-top
+     與 proceedOpen/IO 仍一致。 */
+  #activities-content-section .activities-scroll-col {
+    --chip-clearance: var(--spacing-md, 24px);
+    /* ★search bar 收合(max-height 0↔80)改 box 內容高 → 瀏覽器 scroll anchoring 補償 scrollTop → 跨回門檻 → 方向翻轉
+       → bar 抖動「要出不出」（user 2026-06-30）。關 anchoring → 收合不動 scrollTop、方向式 hide/show 穩定。 */
     overflow-anchor: none;
   }
-  /* panel padding-top = clearance：讓 filter bar 的「自然 flow 位置」落在 navTop（= box 上緣 + clearance），
-     與下方 bar 的 sticky top:clearance（sticky line 也在 navTop）相等 → bar 不被 sticky 往下推、不蓋第一筆 list。
-     （padding 放 panel 非 scroll-col：scroll-col content-box 不動 → 不踩 sticky 疊加坑。） */
+  /* panel padding-top = clearance：讓 filter bar 自然 flow 位置 = content 區頂（box 上緣 + clearance），與 sticky
+     top:clearance（sticky line 也在 content 區頂）相等 → bar 不被 sticky 往下推、不蓋第一筆 list。 */
   #activities-content-section .activities-panel {
     padding-top: var(--chip-clearance, 0);
   }
   #activities-content-section .activities-filter-bar {
-    top: var(--chip-clearance, 0);  /* sticky line = box 上緣 + clearance = navTop；chip 旋轉頂角投影進上方 clearance 不被裁 */
+    top: var(--chip-clearance, 0);  /* sticky line = box 上緣 + clearance = content 區頂；旋轉頂角投影進上方 clearance 不被裁 */
+  }
+
+  /* ── faculty 專屬：卡片旋轉 clearance ──
+     卡片 wrapper 旋轉 --init-deg(±3~6°)，貼齊 box 四邊的卡片頂/底/側角投影出 box 邊緣 ~14px、被 overflow 裁。
+     faculty box 內**無 sticky 元素** → 直接在 scroll-col 補四邊 padding 安全（不踩 activities 的 sticky content-box
+     疊加坑，故 activities 走 panel padding、faculty 走 box padding）；box-sizing:border-box → padding 吃進 height 不溢出。 */
+  #faculty-cards .inner-scroll-scroll-col {
+    padding: var(--spacing-md, 24px);
   }
 }
 

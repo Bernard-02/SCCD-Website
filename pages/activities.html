@@ -62,12 +62,12 @@
            開始。手機完全不套（@media min-768），window 捲照舊。樣式見 css/components/lists.css「activities 桌面 inner-scroll frame」。 -->
       <div class="site-container">
         <!-- grid-20：桌面 nav bar 占 cols 1-4、內容 cols 5-20（對齊 faculty/curriculum col-5）；手機 flex-col 堆疊 -->
-        <div class="flex flex-col gap-gutter md:grid md:grid-cols-20 activities-frame-grid">
+        <div class="flex flex-col gap-gutter md:grid md:grid-cols-20 activities-frame-grid inner-scroll-frame-grid">
 
           <!-- Left Section Buttons（桌面 cols 1-4，nav btn 不動，內部 .activities-section-bar 仍 content-width sticky）
                md:min-h：短分頁內容比 section(min-h:100vh) 矮時，左欄需填滿 section 內容區（100vh−pt6xl192−pb3xl96=288）
                否則 sticky nav 在內容底就 unstick 捲走、下面留白＋footer 卻沒 nav＝「還沒到底 nav 就不見」(user 2026-06-27) -->
-          <div class="w-full md:col-span-4 activities-nav-col">
+          <div class="w-full md:col-span-4 activities-nav-col inner-scroll-nav-col">
             <div class="activities-section-bar flex flex-row md:flex-col gap-xs md:gap-xs md:mb-0 no-scrollbar">
               <button class="activities-section-btn w-fit active text-left" data-section="exhibitions">
                 <span class="anchor-nav-inner"><span>Exhibitions</span><span>展演</span></span>
@@ -100,7 +100,7 @@
           </div>
 
           <!-- Right Content Panels（桌面 cols 5-20；桌面 = 唯一捲動的 inner scroller、list 從 header 下 top-aligned） -->
-          <div class="min-w-0 md:col-start-5 md:col-span-16 activities-scroll-col no-scrollbar">
+          <div class="min-w-0 md:col-start-5 md:col-span-16 activities-scroll-col inner-scroll-scroll-col no-scrollbar">
 
             <!-- Exhibitions Panel -->
             <div class="activities-panel" id="panel-exhibitions">

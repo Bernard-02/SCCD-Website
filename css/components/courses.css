@@ -29,13 +29,12 @@
     overflow-x: clip;
     overflow-y: clip;
   }
-  /* 桌面：把 section padding-top 加大到 200px（= cover sticky top）讓 panels.top 等於 sticky 線。
-     這樣 anchor scroll 到 section.top=0 時，cover 剛好開始 sticky 黏住、第一行卡片 (row 2) 自然
-     位置 = panels.top(200) + cover height(48) + row-gap(32) = 280 = sticky labels top，完美對齊。
-     原本 py-6xl(192) 會讓 anchor landing 時卡片往上偏 8px 被 cover 切掉 */
+  /* 桌面 inner-scroll frame（2026-06-30）：section 變 100vh frame、右欄 .inner-scroll-scroll-col 為唯一捲動層，
+     內容從 box 頂（= content 區頂、box margin-top 已對齊）開始 → section 不再需要 padding-top:200。改 0；
+     cover/type-label 的 sticky top 改成 box-relative（cover top:0、type-label top:80，見下方），維持原相對堆疊關係。 */
   @media (min-width: 768px) {
     #courses-content-section {
-      padding-top: 200px;
+      padding-top: 0;
     }
   }
 
@@ -45,10 +44,10 @@
    * 手機：水平 scroll bar（force row + overflow-x:auto + 兩側負 margin 延伸到 viewport 邊）
    *       HTML 預設 flex-col 由 mobile rule 強制改 row；label absolute top 在 btn 上方仍 OK
    *
-   * Sticky stack（桌面，對齊 faculty 篩選 btn 的 sticky 位置）：
-   *   1) program-bar     top: 200px（vertical 側欄黏左邊頂端，bg=var(--theme-bg)）
-   *   2) year-header     top: 200px（grid 內 row 1，在 row-cover 內）
-   *   3) type-label      top: 280px（必修/選修，col 1）
+   * Sticky stack（桌面 inner-scroll frame，box-relative；2026-06-30 由舊 window 值 200/200/280 改）：
+   *   1) program-bar     不再 sticky（在 .inner-scroll-nav-col wrapper 內、由 wrapper padding-top 定位、頂部對齊）
+   *   2) row-cover/year-header  top: 0（黏 box 頂 = content 區頂）
+   *   3) type-label      top: 80px（cover 高 48 + row-gap 32，黏在 cover 正下方）
    * z 由低往高。bg 全用 var(--theme-bg) 跟 mode 走。
    *
    * year-header 用 ::before 向上延伸 200px bg 蓋住 cards scroll 過 sticky 後在
@@ -100,8 +99,9 @@
       width: 14rem;
       margin-right: var(--spacing-2xl);
       align-self: flex-start;
-      position: sticky;
-      top: 200px;
+      /* inner-scroll frame：bar 在 .inner-scroll-nav-col wrapper 內、由 wrapper padding-top 定位到 content 區頂、
+         頂部對齊 → 不再 sticky（取代舊 position:sticky; top:200px）。 */
+      position: static;
       z-index: 3;
       background: var(--theme-bg);
       /* padding-top: 0 — 第 1 個 BFA btn 對齊 grid 年級表頭頂部（兩個都在 row 0）。
@@ -239,7 +239,7 @@
   @media (min-width: 768px) {
     .courses-grid-row-cover {
       position: sticky;
-      top: 200px;
+      top: 0;  /* inner-scroll frame：黏在 box 頂（content 區頂）；原 200px 是舊 window-scroll sticky 線 */
       /* z:3 高於 sem-label/type-label (z:1)，讓 sem-label/type-label 在 release（學期/列結束）
          時被往上推進 cover 區域時被 cover 蓋住，不會「露餡」上去重疊 cover 文字 */
       z-index: 3;
@@ -318,7 +318,7 @@
   @media (min-width: 768px) {
     .courses-grid-type-label {
       position: sticky;
-      top: 280px;
+      top: 80px;  /* inner-scroll frame：cover top:0 + cover 高(48) + row-gap(32)=80（box-relative，維持原相對堆疊）；原 280 */
       z-index: 1;  /* 低於 cover (z:3)，release 時 leak 上來會被 cover 蓋住 */
     }
   }

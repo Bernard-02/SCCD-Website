@@ -434,26 +434,41 @@ function setupSectionNavReveal() {
   }));
 }
 
-// 右欄 = 「置中 box」與左欄 nav 同框（user 2026-06-29「內容 box 沒到 100vh、是扣 header 後置中的空間」）：
-// nav-col 是 flex 垂直置中、區塊高 navH、top = header + (100vh−header−navH)/2 隨視窗高變。量 .activities-section-bar 的
-// top（相對 section、無關捲動，clamp ≥ header）與 height，寫進 --activities-box-top / --activities-box-height；
-// .activities-scroll-col 用這兩個值 margin-top + height → 右 box 與左 nav 上下對稱、list 只在 box 內捲。
-// 只桌面（手機 @media 不吃該規則、且這裡清掉 var）。filter bar top:0 釘 box 頂、不隨此變動。
-function sizeContentBoxToNav() {
+// 桌面 inner-scroll box 幾何改純 CSS（2026-06-30 通用化，見 css/components/lists.css .inner-scroll-* class）：
+// box 高度固定填滿 [header+pad, 100vh−pad]、頂部對齊 → 不再 JS 量 nav 寫 --activities-box-*（原 sizeContentBoxToNav 已移除）。
+
+// Issue 2 修（user 2026-06-30 選「mandatory + JS 邊界接手」）：桌面 inner-scroll box 捲到邊界後、繼續同向滾的小幅捲動
+// 會被 window mandatory snap 吃掉、彈回 section（box 吸走滾輪、剩下 chain 太弱過不了 snap）→ 感覺「卡住、上不去 footer」。
+// 解＝box 在邊界且同向續滾時攔截 wheel，用 scrollWindowNoSnap 平滑把 window 帶到相鄰 snap（往下→footer / 往上→hero），
+//   捲動全程關 snap 不被吃。**只在 box「可捲」時接手**：短 panel（content<box、不可捲）不攔 → 讓 window 自己 snap，
+//   且避免「從 hero 進到 section 當下、box 在底→被立刻帶去 footer 跳過內容」。手機（<768）window 捲照舊、不掛。
+function initBoxSnapHandoff() {
   const section = document.getElementById('activities-content-section');
-  if (!section) return;
-  if (window.innerWidth < 768) {
-    section.style.removeProperty('--activities-box-top');
-    section.style.removeProperty('--activities-box-height');
-    return;
-  }
-  const navBar = /** @type {HTMLElement | null} */ (section.querySelector('.activities-section-bar'));
-  if (!navBar) return;
-  const header = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--header-height')) || 96;
-  const navRect = navBar.getBoundingClientRect();
-  const navTop = navRect.top - section.getBoundingClientRect().top;
-  section.style.setProperty('--activities-box-top', Math.max(header, Math.round(navTop)) + 'px');
-  section.style.setProperty('--activities-box-height', Math.round(navRect.height) + 'px');
+  const box = /** @type {HTMLElement | null} */ (section && section.querySelector('.inner-scroll-scroll-col'));  // 通用 inner-scroll 類（與其他頁一致）
+  if (!box || !section) return;
+  let handing = false;
+  const onWheel = (/** @type {WheelEvent} */ e) => {
+    if (window.innerWidth < 768) return;                      // 只桌面 inner-scroll
+    if (handing) { e.preventDefault(); return; }              // 接手動畫中：吞滾輪免干擾
+    if (box.scrollHeight <= box.clientHeight + 1) return;     // box 不可捲 → 交回 window（短 panel / 進場剛到 section）
+    const atBottom = box.scrollTop >= box.scrollHeight - box.clientHeight - 1;
+    const atTop = box.scrollTop <= 0;
+    let targetY = null;
+    if (e.deltaY > 0 && atBottom) {
+      // 往下到底 → 末段 footer（footer align:end，捲到文件底即吸到它）
+      targetY = ((document.scrollingElement || document.documentElement).scrollHeight) - window.innerHeight;
+    } else if (e.deltaY < 0 && atTop) {
+      // 往上到頂 → 上一個 snap（section 上方一個視窗高 = hero）
+      targetY = Math.max(0, Math.round(section.getBoundingClientRect().top + window.scrollY - window.innerHeight));
+    }
+    if (targetY === null) return;                             // 還沒到邊界 → 讓 box 正常捲
+    e.preventDefault();
+    handing = true;
+    scrollWindowNoSnap(targetY, { duration: DUR.medium, ease: EASE.move });
+    setTimeout(() => { handing = false; }, 650);
+  };
+  box.addEventListener('wheel', onWheel, { passive: false });
+  registerPageCleanup(() => box.removeEventListener('wheel', onWheel));
 }
 
 // fromUserNav：true=使用者點連結的 SPA 導航（首頁 floating 活動海報）；false=初始載入 / refresh / 上一頁下一頁。
@@ -467,12 +482,8 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
   // 左側 section nav clip-path 進場（section 進視窗 once）+ 離頁退場，比照 faculty nav
   setupSectionNavReveal();
 
-  // 右欄置中 box 尺寸對齊左欄 nav（桌面 inner-scroll）：init + resize + 字型載完各量一次
-  sizeContentBoxToNav();
-  const _alignOnResize = () => sizeContentBoxToNav();
-  window.addEventListener('resize', _alignOnResize, { passive: true });
-  registerPageCleanup(() => window.removeEventListener('resize', _alignOnResize));
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(sizeContentBoxToNav);
+  // box 捲到邊界 → 接手帶 window 到相鄰 snap（解 mandatory snap 吃掉 chain、開著 item 捲不到 footer）
+  initBoxSnapHandoff();
 
   // SPA 換頁後 DOM 重建，需重置 loaded 狀態讓資料重新載入
   Object.keys(loaded).forEach(k => delete loaded[k]);

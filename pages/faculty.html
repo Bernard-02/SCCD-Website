@@ -59,17 +59,18 @@
          min-h-screen：切到卡片數少的分類（如兼任/行政只一排）時 section 不會塌短、留白跳動（user 2026-06-07） -->
     <!-- 手機版 pt-6xl(128px)：點 nav btn 捲到此 section 時頂對齊 viewport 0（白底蓋住上方 hero），
          pt 需 > fixed header(92px) pills 才不被蓋；6xl token 手機自動 128/桌面 192（md:pt-6xl 仍覆蓋，不動桌面 pt；桌面 pb 改 md:pb-3xl=96） -->
-    <section id="faculty-cards" class="snap-zone bg-white min-h-screen pt-6xl pb-6xl md:pt-6xl md:pb-3xl">
+    <section id="faculty-cards" class="snap-zone bg-white min-h-screen pt-6xl pb-6xl md:pt-0 md:pb-0 md:h-screen md:overflow-hidden">
       <div class="site-container">
         <!-- grid-20：桌面 nav 占 col 1-2（英文折行，可溢到 col 3 buffer）、卡片區 col 4-20；手機 flex-col 堆疊 -->
-        <div class="flex flex-col gap-gutter md:grid md:grid-cols-20">
+        <div class="flex flex-col gap-gutter md:grid md:grid-cols-20 inner-scroll-frame-grid">
           <!-- Filter Buttons (Left side - 桌面占 col 1-2)
                手機：水平 scroll（user 2026-05-25 不要 wrap 往下排）
                桌面：sticky vertical column；窄側欄讓長英文 label 折行（buttons.css faculty 規則） -->
-          <div class="w-full md:col-span-4">
+          <div class="w-full md:col-span-4 inner-scroll-nav-col">
             <!-- 手機：水平 scroll bar；scrollbar 隱藏走 no-scrollbar（faculty.html 已內嵌規則）
-                 padding-y 給 btn 旋轉 clearance（rotate 後突角不被 overflow 裁切），桌面 md:py-0 還原 -->
-            <div class="flex flex-row gap-md overflow-x-auto no-scrollbar md:overflow-x-visible md:flex-col md:gap-xs mb-xl md:mb-0 md:sticky md:top-[200px] -mx-md px-md md:mx-0 md:px-0 py-md md:py-0">
+                 padding-y 給 btn 旋轉 clearance（rotate 後突角不被 overflow 裁切），桌面 md:py-0 還原
+                 桌面 inner-scroll frame：nav-col padding-top 把 nav 推到 content 區頂、頂部對齊（取代舊 md:sticky md:top-[200px]） -->
+            <div class="flex flex-row gap-md overflow-x-auto no-scrollbar md:overflow-x-visible md:flex-col md:gap-xs mb-xl md:mb-0 -mx-md px-md md:mx-0 md:px-0 py-md md:py-0">
               <button class="faculty-filter-btn shrink-0 active text-left" data-filter="fulltime">
                 <span class="anchor-nav-inner"><span>Full-time Professors</span><span>專任教師</span></span>
               </button>
@@ -83,7 +84,7 @@
           </div>
 
           <!-- Faculty Cards (桌面占 col 5-20，第一張卡對齊 col-5、末張貼齊 col-20 右緣；nav 緩衝 cols 3-4；卡片牆內部 space-between 自動分配 gap) -->
-          <div class="w-full md:col-start-5 md:col-span-16">
+          <div class="w-full md:col-start-5 md:col-span-16 inner-scroll-scroll-col no-scrollbar">
             <!-- Containers for dynamic data -->
             <div id="faculty-fulltime-list" class="faculty-card-wall"></div>
             <div id="faculty-parttime-list" class="faculty-card-wall"></div>

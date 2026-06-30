@@ -75,7 +75,25 @@ async function navigateToAdmissionItem(itemId) {
     }, 600);
   };
 
-  // deep-link 捲動全程關 mandatory snap（否則 snap 搶捲動 → 速度被牽制 / 到不了目標），捲完才 flash+open。
+  // 桌面 inner-scroll：window 平滑捲到 section（hero→frame）後，再捲右欄 box 到 item（list-header sticky-top=0 →
+  //   item 對齊 box 頂；scroller-relative = rect 差 + scrollTop），捲完 flash+open。手機/窄走原 window 路徑。
+  const scroller = /** @type {HTMLElement | null} */ ((window.innerWidth >= 768) ? target.closest('.inner-scroll-scroll-col') : null);
+  if (scroller) {
+    const section = document.getElementById('admission-content-section');
+    const sectionTopDoc = section ? section.getBoundingClientRect().top + window.scrollY : 0;
+    scrollWindowNoSnap(sectionTopDoc, { onComplete: () => {
+      const itemInScroller = target.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+      const targetScroll = Math.max(0, Math.round(itemInScroller));
+      if (typeof gsap !== 'undefined' && Math.abs(targetScroll - scroller.scrollTop) > 1) {
+        gsap.to(scroller, { scrollTop: targetScroll, duration: DUR.medium, ease: EASE.move, overwrite: true, onComplete: flashThenOpen });
+      } else {
+        scroller.scrollTop = targetScroll;
+        flashThenOpen();
+      }
+    } });
+    return;
+  }
+  // 手機/窄：deep-link 捲動全程關 mandatory snap（否則 snap 搶捲動 → 速度被牽制 / 到不了目標），捲完才 flash+open。
   scrollWindowNoSnap(finalTop, { onComplete: flashThenOpen });
 }
 
@@ -90,6 +108,9 @@ async function navigateToAdmissionItem(itemId) {
  */
 function scrollSectionIntoView(el, behavior = 'smooth') {
   if (!el) return;
+  // 桌面 inner-scroll：右欄 box 回頂（切 section 讓新 panel 從頭顯示）；手機無 scroll-col（window 捲）。
+  const scroller = /** @type {HTMLElement | null} */ ((window.innerWidth >= 768) ? el.querySelector('.inner-scroll-scroll-col') : null);
+  if (scroller) scroller.scrollTop = 0;
   const top = el.getBoundingClientRect().top + window.scrollY;
   // smooth 程式捲動關 mandatory snap（否則被 snap 搶、落點錯，同 deep-link item 路徑）；instant 不需 tween。
   if (behavior === 'smooth') scrollWindowNoSnap(top);

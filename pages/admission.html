@@ -49,19 +49,22 @@
     </section>
 
     <!-- Admission Content Section -->
-    <!-- overflow:clip：擋住下方 sticky 遮罩超出 section 邊界，避免戳到 hero（同 courses 模式） -->
+    <!-- 桌面 inner-scroll frame（2026-06-30）：section = 100vh frame（md:h-screen + md:overflow-hidden）；左 nav 在 content
+         區頂部對齊、右 panels 在 .inner-scroll-scroll-col 內捲（取代原 sticky nav + scroll-mask）。手機完全不套
+         （pt-6xl pb-6xl + window 捲照舊；無 overflow:clip，比照 activities）。 -->
     <!-- min-h-screen：list 還在 fetch 後台資料（panel 空）時撐住整段高度，避免下方 footer 露出 -->
-    <section class="snap-zone bg-white pt-6xl pb-6xl md:pt-6xl md:pb-3xl min-h-screen" id="admission-content-section" style="overflow: clip;">
+    <section class="snap-zone bg-white pt-6xl pb-6xl md:pt-0 md:pb-0 md:h-screen md:overflow-hidden min-h-screen" id="admission-content-section">
       <!-- 手機 header blocker（同 activities）：透明 fixed header 下 sticky title 上方透明帶用一條 sticky theme-bg 帶補實。
            桌面用 .admission-scroll-mask（hidden md:block）故此條 md:hidden。詳見 lists.css .list-mobile-header-blocker -->
       <div class="list-mobile-header-blocker md:hidden" aria-hidden="true"></div>
       <div class="site-container">
         <!-- grid-20：桌面 nav 占 cols 1-4、內容 cols 5-20（對齊 faculty/about/curriculum col-5）；手機 flex-col 堆疊 -->
-        <div class="flex flex-col gap-gutter md:grid md:grid-cols-20">
+        <div class="flex flex-col gap-gutter md:grid md:grid-cols-20 inner-scroll-frame-grid">
 
-          <!-- Left Nav（桌面 cols 1-4，vertical sticky；mobile flex-col 自然流） -->
-          <div class="w-full md:col-span-4">
-            <div class="flex flex-row flex-wrap md:flex-col gap-xs mb-xl md:mb-0 md:sticky md:top-[200px]">
+          <!-- Left Nav（桌面 cols 1-4；mobile flex-col 自然流）
+               桌面 inner-scroll frame：nav-col padding-top 把 nav 推到 content 區頂、頂部對齊（取代舊 md:sticky md:top-[200px]） -->
+          <div class="w-full md:col-span-4 inner-scroll-nav-col">
+            <div class="flex flex-row flex-wrap md:flex-col gap-xs mb-xl md:mb-0">
               <button class="activities-section-btn w-fit active text-left" data-section="news">
                 <span class="anchor-nav-inner"><span>Announcements</span><span>公告</span></span>
               </button>
@@ -71,15 +74,11 @@
             </div>
           </div>
 
-          <!-- Right Content Panels（桌面占 cols 5-20） -->
-          <div class="min-w-0 md:col-start-5 md:col-span-16">
+          <!-- Right Content Panels（桌面占 cols 5-20；桌面 inner-scroll = 唯一捲動的 box） -->
+          <div class="min-w-0 md:col-start-5 md:col-span-16 inner-scroll-scroll-col no-scrollbar">
 
-            <!-- Sticky 滾動遮罩：sticky 在 top:200px，內部絕對定位元素遮蓋上方 200px，避免 list 滾動時露出 header 區（仿 courses-filter-bar ::before 模式） -->
-            <!-- background 用 var(--theme-bg) 跟著 mode 切換：standard=white, inverse=black，不會在 inverse 下露白 -->
-            <div class="hidden md:block" style="position: sticky; top: 200px; height: 0; z-index: 10; pointer-events: none;" aria-hidden="true">
-              <!-- admission-scroll-mask：mode 切換時要進 whitelist 跟大背景同步 fade（不然 snap）→ typography.css -->
-              <div class="admission-scroll-mask" style="position: absolute; top: -200px; left: 0; right: 0; height: 200px; background: var(--theme-bg);"></div>
-            </div>
+            <!-- （原桌面 .admission-scroll-mask sticky top:200 已移除：inner-scroll box 的 overflow 於 box 上緣自然裁切
+                 捲過的內容，不再需要遮罩；且 frame 下 top:200 會錯位。手機 header blocker 仍在 section 開頭。） -->
 
             <!-- News Panel (原 Admission list) -->
             <div class="activities-panel" id="panel-news">

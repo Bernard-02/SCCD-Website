@@ -56,6 +56,9 @@ function sectionScrollTop(el) {
  */
 function scrollSectionIntoView(el, behavior = 'smooth') {
   if (!el) return;
+  // 桌面 inner-scroll：右欄 box 回頂（切 program / 點同分頁都讓新內容從頭顯示）；手機無 scroll-col（window 捲）。
+  const scroller = /** @type {HTMLElement | null} */ ((window.innerWidth >= 768) ? el.querySelector('.inner-scroll-scroll-col') : null);
+  if (scroller) scroller.scrollTop = 0;
   const top = sectionScrollTop(el);
   // smooth 程式捲動關 mandatory snap（否則被 snap 搶、落點錯，同 deep-link item 路徑）；instant 不需 tween。
   if (behavior === 'smooth') scrollWindowNoSnap(top);

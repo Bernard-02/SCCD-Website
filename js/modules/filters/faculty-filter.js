@@ -389,6 +389,8 @@ export function initFacultyFilter() {
 
       // 點同一個（已 active）→ 只 scroll 對齊 anchor，不跑 exit/enter 動畫
       if (this.classList.contains('active')) {
+        const scrollCol = /** @type {HTMLElement | null} */ (document.querySelector('#faculty-cards .inner-scroll-scroll-col'));
+        if (scrollCol && window.innerWidth >= 768) scrollCol.scrollTop = 0;  // 桌面 inner-scroll：回頂
         SCCDHelpers.scrollToElement('#faculty-cards');
         this.blur();
         return;
@@ -408,6 +410,9 @@ export function initFacultyFilter() {
       const currentlyVisible = Array.from(facultyCards).filter(card => /** @type {HTMLElement} */ (card).style.display !== 'none');
       exitFacultyCards(currentlyVisible, () => {
         SCCDHelpers.filterElements(facultyCards, filterValue);
+        // 桌面 inner-scroll：切分類後右欄 box 回頂，新卡片從頭顯示（手機走 window 捲、無 scroll-col）
+        const scrollCol = /** @type {HTMLElement | null} */ (document.querySelector('#faculty-cards .inner-scroll-scroll-col'));
+        if (scrollCol && window.innerWidth >= 768) scrollCol.scrollTop = 0;
         const nextVisible = Array.from(facultyCards).filter(card => /** @type {HTMLElement} */ (card).style.display !== 'none');
         animateFacultyCards(nextVisible);
       });

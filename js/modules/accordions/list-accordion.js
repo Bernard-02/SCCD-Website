@@ -170,6 +170,8 @@ export function instantCloseListHeader(header) {
     gsap.killTweensOf(chevron);
     gsap.set(chevron, { rotation: -90 });  // reset → list-header 收合態朝下（base 朝左：90=上 / -90=下）
   }
+
+  resetBoxSpacer(header);  // 「一律對齊頂部」spacer：instant 收合（切 panel）也歸零（切換已 scrollTop=0，不跳）
 }
 
 /**
@@ -190,7 +192,8 @@ export function resetListAccordionsInPanel(panel) {
 // list-header sticky 釘點（給「開啟捲動落點」與「is-pinned IO」共用，必須跟 CSS 實際釘點一致）。
 //   手機（<768）：lists.css `@media(max-width:767px) .list-header.active { top: 6rem }` 寫死 6rem
 //                 → 直接算 6rem，不讀 --list-header-sticky-top（那個 var 只在桌面 JS 設、手機沒設會 fallback 200）。
-//   桌面：--list-header-sticky-top（filter bar 下方，activities 設在 container 上）或 200（admission 預設）。
+//   桌面 inner-scroll：--list-header-sticky-top（box 內偏移；activities=clearance+barH、admission 無 filter bar=0=box 頂，0 合法）；
+//        window-path（alumni 等）：var 未設/0 → 200 fallback（對齊 fixed header band）。
 // ⚠️ 不一致的後果（2026-06-10 user 報）：手機開 item 用 200 fallback 把 title 捲到 200，但 CSS 釘 96
 //    → 往下捲 title 從 200「跳」到 96 才 sticky。統一走此 helper 後開啟落點＝釘點，無跳動。
 function getListStickyTop(header) {
@@ -198,7 +201,32 @@ function getListStickyTop(header) {
     return 8 * parseFloat(getComputedStyle(document.documentElement).fontSize); // = CSS top:8rem（清 logo，與 lists.css 同步）
   }
   const c = header.closest('[style*="--list-header-sticky-top"]');
-  return c ? (parseFloat(getComputedStyle(c).getPropertyValue('--list-header-sticky-top')) || 200) : 200;
+  const v = c ? parseFloat(getComputedStyle(c).getPropertyValue('--list-header-sticky-top')) : NaN;
+  // inner-scroll（box-relative）：var 是 box 內偏移，0（admission 無 filter bar = box 頂）為**合法**釘點 → 不套 200 fallback；
+  //   否則 `0 || 200` 把合法的 0 誤當未設→回 200，害開 item 對齊到 box 頂下 200px（user 2026-06-30 報 admission 開 item 沒對齊頂）。
+  // window-path（alumni 等對齊 fixed header band）：var 未設或 0 都回退 200（沿用原行為，別動）。
+  if (header.closest('.inner-scroll-scroll-col')) return Number.isNaN(v) ? 0 : v;
+  return (Number.isNaN(v) || v === 0) ? 200 : v;
+}
+
+// 桌面 inner-scroll「開的 item 一律對齊頂部」(user 2026-06-30)：短 list 內容填不滿 box → 開的 item 光靠捲動到不了頂。
+// 在 box (.activities-scroll-col) 末尾放一個高度動態的 spacer，補足「讓這個 item 的 header 捲到 sticky 線」所需的捲動空間
+// （下方留白）；長 list 夠捲時 height=0（不多出尾端空白）。開時重算、關時歸零（見 proceedOpen / closeListHeader / instantClose）。
+function getBoxSpacer(scroller) {
+  let sp = /** @type {HTMLElement | null} */ (scroller.querySelector(':scope > .box-scroll-spacer'));
+  if (!sp) {
+    sp = document.createElement('div');
+    sp.className = 'box-scroll-spacer';
+    sp.setAttribute('aria-hidden', 'true');
+    sp.style.cssText = 'height:0;pointer-events:none;';
+    scroller.appendChild(sp);
+  }
+  return sp;
+}
+function resetBoxSpacer(header) {
+  const box = header.closest('.inner-scroll-scroll-col');  // 通用 inner-scroll 容器（activities/faculty/curriculum/admission/courses 共用）
+  const sp = box && box.querySelector(':scope > .box-scroll-spacer');
+  if (sp) /** @type {HTMLElement} */ (sp).style.height = '0px';
 }
 
 // Sticky-pinned 偵測：sentinel pattern — 在 list-header 上方塞 0 高度 sentinel div，IO 偵測 sentinel
@@ -234,9 +262,9 @@ function attachStickyPinObserver(header) {
     header.classList.toggle('is-pinned', pinned);
     toggleSectionPinnedFlag(header, pinned);
   }, {
-    // 桌面 inner-scroll：sentinel 對「右欄 .activities-scroll-col」的頂邊判 pinned（list 在 scroller 內捲、非 window）；
-    //   手機/admission（無 scroll-col 或 <768）：root=null＝對 window viewport（原行為）。
-    root: (window.innerWidth >= 768) ? header.closest('.activities-scroll-col') : null,
+    // 桌面 inner-scroll：sentinel 對「右欄 .inner-scroll-scroll-col」的頂邊判 pinned（list 在 scroller 內捲、非 window）；
+    //   手機（<768，無 frame）：root=null＝對 window viewport（原行為）。activities/admission 桌面皆有 scroll-col。
+    root: (window.innerWidth >= 768) ? header.closest('.inner-scroll-scroll-col') : null,
     // +4px 容差：開啟捲動把 title 停在「正好釘線」（自然位置=釘點、尚未越過）→ 嚴格邊界下 IO 判未 pin →
     // blocker 不顯示 → 上方內容（如 description）溢出蓋到 logo（user 2026-06-10）。邊界往下挪 4px 讓
     // 「title 一抵釘線就算 pinned」→ blocker 開。4px 窗內 nav 不可能還在 band（item 釘住時 nav 已捲出畫面），不誤觸。
@@ -306,11 +334,18 @@ function closeListHeader(header, { duration = DUR.medium, scrollFollow = false }
   if (scrollFollow) {
     const collapseAmount = content.getBoundingClientRect().height;
     // 桌面 inner-scroll：收合靠底 item → scroller 變矮 → scroller.scrollTop 被 clamp → 跳；同步往上捲 scroller（footer/snap 不在
-    //   scroller，直接 scrollTo 不用 scrollWindowNoSnap）。手機/admission：原 window scrollFollow（footer 在 window 文件底）。
-    const scroller = /** @type {HTMLElement|null} */ ((window.innerWidth >= 768) ? header.closest('.activities-scroll-col') : null);
+    //   scroller）。手機（<768，無 frame）：原 window scrollFollow（footer 在 window 文件底）。
+    const scroller = /** @type {HTMLElement|null} */ ((window.innerWidth >= 768) ? header.closest('.inner-scroll-scroll-col') : null);
     if (scroller) {
-      const postMax = Math.max(0, scroller.scrollHeight - collapseAmount - scroller.clientHeight);
-      if (postMax < scroller.scrollTop - 1) scroller.scrollTo({ top: postMax, behavior: 'smooth' });
+      // postMax 須一併扣掉「一律對齊頂部」的底部 spacer（收合後 onComplete 會把 spacer 歸零）→ 捲到的落點 = 清掉 spacer 後的真 maxScroll，
+      //   scrollTop 先到那 → onComplete 清 spacer 時 scrollTop ≤ 新 maxScroll、不 clamp 跳。
+      const sp = /** @type {HTMLElement | null} */ (scroller.querySelector(':scope > .box-scroll-spacer'));
+      const spacerH = sp ? sp.getBoundingClientRect().height : 0;
+      const postMax = Math.max(0, scroller.scrollHeight - collapseAmount - spacerH - scroller.clientHeight);
+      // 用 gsap（非 native scrollTo smooth）：native smooth 不受序列鎖（listAnimating）追蹤、會「活」過 onComplete →
+      //   緊接的 re-open gsap 捲動跟殘留的 native smooth 互搶 → 內容「往上縮一下又突然正常」（只有觸發 scrollFollow 的
+      //   靠底 item＝最後一筆中招，user 2026-06-30）。gsap 同 duration/ease + overwrite → 收進序列、re-open 前必被 overwrite。
+      if (postMax < scroller.scrollTop - 1) gsap.to(scroller, { scrollTop: postMax, duration, ease: EASE.exitSoft, overwrite: true });
     } else {
       const postMax = Math.max(0, document.documentElement.scrollHeight - collapseAmount - window.innerHeight);
       if (postMax < window.scrollY - 1) scrollWindowNoSnap(postMax, { duration, ease: EASE.exitSoft });
@@ -341,6 +376,9 @@ function closeListHeader(header, { duration = DUR.medium, scrollFollow = false }
       }
       delete header.dataset.accentHex;
       delete header.dataset.collapsing;
+      // 「一律對齊頂部」spacer：self-close 收完才清（scrollFollow 已把 scrollTop 帶到 postMax ≤ 清掉後 maxScroll → 不跳）。
+      //   close-others（scrollFollow=false）不清，交給隨後的 proceedOpen 重算（避免多一次 clamp）。
+      if (scrollFollow) resetBoxSpacer(header);
       // cursor 若仍在 header 上補回 hover bg（mouseenter 不會 re-fire）
       if (header.matches(':hover')) {
         const refill = SCCDHelpers.getRandomAccentColor();
@@ -458,20 +496,44 @@ function initListHeaderAccordion() {
           // point 3 修：已收回的 others 副標剛移除 .active 正走 0.3s 重新展開 → snap 定高，否則量測差一個副標高
           others.forEach(snapSubtitleHeight);
 
-          // 桌面 inner-scroll（2026-06-29）：捲動在右欄 .activities-scroll-col（snap 在 window、不在 scroller）→ **不** lockSnapOff、
+          // 桌面 inner-scroll（2026-06-29）：捲動在右欄 .inner-scroll-scroll-col（snap 在 window、不在 scroller）→ **不** lockSnapOff、
           //   **不** clampBelowFooter（footer 在 frame 外、捲 scroller 不可能露）、**不** temp-expand 量 footer。
-          //   手機/admission（無 scroll-col）走原 window 邏輯：lockSnapOff + 真實量測 clampBelowFooter + scrollWindowNoSnap。
-          const innerScroller = /** @type {HTMLElement|null} */ ((window.innerWidth >= 768) ? self.closest('.activities-scroll-col') : null);
-          if (!innerScroller) lockSnapOff();  // 只有 window snap 頁(手機/admission)開 item 期間鎖 snap
+          //   手機（<768，無 frame）走原 window 邏輯：lockSnapOff + 真實量測 clampBelowFooter + scrollWindowNoSnap。
+          const innerScroller = /** @type {HTMLElement|null} */ ((window.innerWidth >= 768) ? self.closest('.inner-scroll-scroll-col') : null);
+          if (!innerScroller) lockSnapOff();  // 只有 window snap 頁(手機；桌面 frame 有 scroller)開 item 期間鎖 snap
+          let openBoxTarget = null;  // 桌面：開合捲動目標，給 content 展開 onComplete 收齊對位（見下）用
 
+          // Open - header / content 都保留 100% accent；ref 用對應 deep 色。**先上色**（兩段式 staged 捲動期間 header 已是
+          // accent，不會「對齊捲動時還透明/hover、捲完才上色」閃一下）。content height:0 不可見，content/item 底色一起設無妨。
+          // workshopItem 也染同色：sticky header 與 content 在 fractional pixel 位置會出現 1-2px paint 縫，父層 .list-item 連續底色蓋縫。
+          const color = self.dataset.accentHex || SCCDHelpers.getRandomAccentColor();
+          self.dataset.accentHex = color;
+          self.style.background = color;
+          content.style.background = color;
+          const deep = ACCENT_TO_DEEP[color] || color;
+          if (workshopItem) {
+            workshopItem.style.background = color;
+            workshopItem.style.setProperty('--item-color', color);
+            workshopItem.style.setProperty('--item-color-deep', deep);
+          }
+
+          // === 對齊捲動 === alignDone：真的有捲時換成 tween 的 Promise，否則維持已 resolve（立即可展開）。
+          let alignDone = Promise.resolve();
           if (!skipOpenScroll) {
             const stickyTop = getListStickyTop(self);  // = --list-header-sticky-top（桌面 = clearance+filterBarH，scroller 內偏移）
             if (innerScroller) {
-              // 桌面：捲 scroller 讓 header 對齊 sticky 線（filter bar 正下方）。scroller-relative：rect 差 + scrollTop。
+              // ★「開的 item 一律對齊頂部」(user 2026-06-30)：捲 scroller 讓 header 對齊 sticky 線（filter bar 正下方）。短 list
+              //   內容填不滿 box → 光捲動到不了頂 → box 末尾放 spacer 補捲動空間（下方留白）。**寬鬆策略**：開時 spacer 給足夠大
+              //   (targetTop+clientHeight) → 保證展開動畫全程 maxScroll≥targetTop、GSAP 平滑捲到頂不被夾短；
+              //   content onComplete 再把 spacer 修剪成「剛好」(長 list=0、短 list 留剛好) 並收齊對位（見下）。
+              //   ⚠️ 不用「temp-expand 量精確 spacer」：開合當下其他 item 副標/圖還在 settle，量到的 maxScroll 不準 → spacer 偏小。
+              const spacer = getBoxSpacer(innerScroller);
               const headerInScroller = self.getBoundingClientRect().top - innerScroller.getBoundingClientRect().top + innerScroller.scrollTop;
               const targetTop = Math.max(0, Math.round(headerInScroller - stickyTop));
+              openBoxTarget = targetTop;                                       // 給 content onComplete 收齊 + 修剪 spacer 用
+              spacer.style.height = (targetTop + innerScroller.clientHeight) + 'px';  // 寬鬆上限（onComplete 修剪成剛好）
               if (Math.abs(targetTop - innerScroller.scrollTop) > 1) {
-                innerScroller.scrollTo({ top: targetTop, behavior: 'smooth' });
+                alignDone = new Promise(res => gsap.to(innerScroller, { scrollTop: targetTop, duration: DUR.medium, ease: EASE.enterSoft, overwrite: true, onComplete: res }));
               }
             } else {
               // 手機修正（user 2026-06-24）：手機 bar 非 sticky、pin 線(8rem)不隨 bar 動 → 預先扣掉「即將收起」的 searchInner 高。
@@ -486,40 +548,42 @@ function initListHeaderAccordion() {
               const targetScrollY = clampBelowFooter(alignTop, -barInner);
               gsap.set(content, { height: 0 });
               if (Math.abs(targetScrollY - window.scrollY) > 1) {
-                scrollWindowNoSnap(targetScrollY, { duration: DUR.medium, ease: EASE.enterSoft });
+                alignDone = new Promise(res => scrollWindowNoSnap(targetScrollY, { duration: DUR.medium, ease: EASE.enterSoft, onComplete: res }));
               }
             }
           }
 
           // 量測「之後」才平滑收 search bar（走 CSS 0.3s transition）。不鎖死 → scroll-up 由 activities-search.js 還原。
-          // 桌面 inner-scroll 不收（innerScroller 存在）：filter bar 釘在 scroller 頂、留著無妨，捲動收合交給 scrollHandler。
-          if (activeFilterBar && !innerScroller) activeFilterBar.classList.add('bar-hidden');
+          // 桌面 inner-scroll 也收（user 2026-06-30「開 item 就收起搜尋列、往上滑才叫回」）：bar 是 sticky，收合讓
+          //   header flow 位置與 pin 線同步上移一個 searchInner 高 → 量測在前(line 524)的 targetTop 不變式仍成立、開的
+          //   item 維持對齊（與手機 doc-flow 同理）。show 半邊由 colScrollHandler 只在 scroll-up 移除 bar-hidden 接管。
+          if (activeFilterBar) activeFilterBar.classList.add('bar-hidden');
 
-          // Open - header / content 都保留 100% accent；ref 用對應 deep 色
-          // workshopItem 也染同色：sticky header 與 content 在 fractional pixel 位置會出現 1-2px paint 縫，
-          // 父層 .list-item 連續底色蓋住該縫；header 自己仍須保留 bg 用於 sticky 飄到別 item 上方時的覆蓋
-          const color = self.dataset.accentHex || SCCDHelpers.getRandomAccentColor();
-          self.dataset.accentHex = color;
-          self.style.background = color;
-          content.style.background = color;
-          const deep = ACCENT_TO_DEEP[color] || color;
-          if (workshopItem) {
-            workshopItem.style.background = color;
-            workshopItem.style.setProperty('--item-color', color);
-            workshopItem.style.setProperty('--item-color-deep', deep);
-          }
-          gsap.to(content, {
-            height: 'auto', duration: DUR.medium, ease: EASE.enterSoft,
-            onComplete: () => {
-              content.style.overflow = 'visible';
-              workshopItem?.dispatchEvent(new Event('gallery:check'));
-              listAnimating = false;  // 序列完成解鎖
-            }
-          });
-          // chevron 旋轉已提前到 click 當下（見 isActive 區塊頂），這裡不再重複
-          // sticky-pin observer: 開展瞬間就 attach（user 還沒滾，header 在自然位置 ratio=1 → 不 pinned）
-          // 之後 user 滾過 sticky-top 線時 IO 才 fire 加上 .is-pinned 收起副標
-          attachStickyPinObserver(self);
+          // 展開內容（height 0→auto）。抽成函式以支援兩段式：開新 item 時等對齊捲完才跑。
+          const doExpand = () => {
+            gsap.to(content, {
+              height: 'auto', duration: DUR.medium, ease: EASE.enterSoft,
+              onComplete: () => {
+                content.style.overflow = 'visible';
+                // 桌面 inner-scroll：content 展開完 maxScroll 才定案 → 把寬鬆 spacer 修剪成「剛好」(長 list=0) 並收齊對位。
+                if (innerScroller && openBoxTarget !== null) {
+                  const sp = getBoxSpacer(innerScroller);
+                  const maxNoSpacer = innerScroller.scrollHeight - sp.getBoundingClientRect().height - innerScroller.clientHeight;
+                  sp.style.height = Math.max(0, Math.round(openBoxTarget - maxNoSpacer)) + 'px';
+                  innerScroller.scrollTop = openBoxTarget;
+                }
+                workshopItem?.dispatchEvent(new Event('gallery:check'));
+                listAnimating = false;  // 序列完成解鎖
+              }
+            });
+            // sticky-pin observer: 開展瞬間就 attach（header 在自然位置 ratio=1 → 不 pinned）；之後滾過 sticky 線 IO 才加 .is-pinned
+            attachStickyPinObserver(self);
+          };
+
+          // 兩段式（user 2026-06-30）：開新 item（剛動畫收回其他展開項）時「先捲對齊 → 捲完才展開」，不那麼 rush、較順；
+          //   無其他展開項（自開 / 同一筆 re-open）維持「對齊捲動與展開並行」（原行為、較即時）。
+          if (others.length) alignDone.then(doExpand);
+          else doExpand();
         };
 
         // 先「動畫收回」其他已展開 item（DUR.base，比自關 DUR.medium 短，序列不拖）→ 全部收完才 proceedOpen。
