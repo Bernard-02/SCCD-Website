@@ -648,6 +648,11 @@ export async function initAtlas(options = {}) {
   // 城市初始位置最小距離（避免兩 city label 在 t=0 重疊）；超出 retry 上限就接受最後一次結果
   const CITY_MIN_INIT_DIST = 130;
   const CITY_INIT_MAX_RETRIES = 30;
+  // 每幀防撞硬底線：tickFloat 保證任兩座城市中心永遠 ≥ 此距離（軌道各自漂移會把兩顆帶到一起甚至穿過 →
+  //   chip 糊成一個、連線塌成 0 長度看不見＝user 2026-06-30 報的「國家/連線變少」真相）。漂到一起那刻沿
+  //   連心軸把過近的對對推開，再夾回畫面內 → 城市永遠看得出 N 個、連線不消失，且不犧牲繞圈動態。
+  const CITY_MIN_SEP = 100;
+  const CITY_EDGE_PAD = 60;   // 推開後夾回畫面內，留 chip 半寬餘裕（user：不要移動到畫面以外）
 
   // 產生「一整組」城市排列：每顆圍繞自己的均分基準角抖動 + 隨機 ellipse，整組 t=0 兩兩不重疊。
   // 同一套擺位演算法：init 用 1 次、下面的 relocate layout pool 用 N 次（只有一份邏輯，不重複）。
@@ -684,11 +689,29 @@ export async function initAtlas(options = {}) {
     return placed;
   }
 
-  // 預先算 N 組「整組已驗證不重疊」的排列；relocate 每次挑一組套用（取代舊版每顆獨立亂抽、零距離檢查
-  //   → 兩 chip 疊成一個看起來像少一個國家節點，待機越久越容易中，user 2026-06-29）。
-  // ponytail: 固定 N 組已足夠（user 要的是「別重疊」不是「每次位置都不同」）；retry 上限同 init，達上限接受最後一次。
+  // 預先算 N 組排列，relocate 每次挑一組套用。每個 slot 取「12 組隨機排列裡最分散的一組」→ relocate
+  //   落點本來就盡量不擠，減少下面每幀防撞要修的量、避免落到差排列時 relocate 那刻被推開的視覺 pop。
+  //   ⚠️「絕不重疊」的硬保證在 tickFloat 的每幀防撞（CITY_MIN_SEP），這裡只負責「起手盡量分散」。
+  //   （舊版宣稱「20 組已驗證不重疊」其實名不副實：genCityLayout 達 retry 上限仍接受重疊組、整組也不重生。）
   const CITY_LAYOUT_POOL = 20;
-  const cityLayouts = Array.from({ length: CITY_LAYOUT_POOL }, genCityLayout);
+  function layoutMinPairSq(L) {
+    let m = Infinity;
+    for (let i = 0; i < L.length; i++)
+      for (let j = i + 1; j < L.length; j++) {
+        const dx = L[i].x - L[j].x, dy = L[i].y - L[j].y, d = dx * dx + dy * dy;
+        if (d < m) m = d;
+      }
+    return m;
+  }
+  function bestCityLayout() {
+    let best = null, bestMin = -1;
+    for (let k = 0; k < 12; k++) {
+      const L = genCityLayout(); const m = layoutMinPairSq(L);
+      if (m > bestMin) { bestMin = m; best = L; }
+    }
+    return best;
+  }
+  const cityLayouts = Array.from({ length: CITY_LAYOUT_POOL }, bestCityLayout);
   let cityLayoutIdx = 0;
 
   cityList.forEach((city, idx) => {
@@ -1354,6 +1377,37 @@ export async function initAtlas(options = {}) {
       const ddx = item.x - item._initX;
       const ddy = item.y - item._initY;
       item._anchor.style.transform = `translate(${ddx.toFixed(2)}px, ${ddy.toFixed(2)}px)`;
+    }
+
+    // Phase 1.4: D 城市每幀防撞 — 保證任兩座城市中心 ≥ CITY_MIN_SEP。各城市軌道半徑/方向獨立，漂移途中
+    //   兩顆會互相靠近甚至穿過（舊版＝chip 疊成一個、連線塌掉，user 2026-06-30）。幾趟鬆弛把過近的對沿
+    //   連心軸對推開、每趟夾回畫面內 → 城市永遠看得出 N 個、連線不消失。pool 已盡量分散故平時幾乎不動。
+    if (cityList.length > 1) {
+      for (let pass = 0; pass < 4; pass++) {
+        for (let i = 0; i < cityList.length; i++) {
+          for (let j = i + 1; j < cityList.length; j++) {
+            const a = cityList[i], b = cityList[j];
+            let dx = b.x - a.x, dy = b.y - a.y;
+            let dist = Math.hypot(dx, dy);
+            if (dist >= CITY_MIN_SEP) continue;
+            if (dist < 0.01) { dx = 1; dy = 0; dist = 1; }   // 完全重合 → 沿 x 軸拆開
+            const push = (CITY_MIN_SEP - dist) / 2;
+            const ux = dx / dist, uy = dy / dist;
+            a.x -= ux * push; a.y -= uy * push;
+            b.x += ux * push; b.y += uy * push;
+          }
+        }
+        for (let i = 0; i < cityList.length; i++) {
+          const c = cityList[i];
+          c.x = Math.max(CITY_EDGE_PAD, Math.min(W - CITY_EDGE_PAD, c.x));
+          c.y = Math.max(CITY_EDGE_PAD, Math.min(H - CITY_EDGE_PAD, c.y));
+        }
+      }
+      // 重寫 D transform（覆蓋 Phase 1 寫的軌道位置成防撞後位置）；line 端點 Phase 3b 讀 item.x 自動跟上
+      for (let i = 0; i < cityList.length; i++) {
+        const c = cityList[i];
+        c._anchor.style.transform = `translate(${(c.x - c._initX).toFixed(2)}px, ${(c.y - c._initY).toFixed(2)}px)`;
+      }
     }
 
 
