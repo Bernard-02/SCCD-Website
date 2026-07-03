@@ -255,6 +255,11 @@ async function loadPage(route, search = '', fromUserNav = false) {
     if (footerEl) {
       const shouldHide = route.page === 'generate' || route.page === 'library' || route.page === 'atlas';
       footerEl.style.display = shouldHide ? 'none' : '';
+      // footer 容器換頁不換（只 swap <main>）＝永遠是「硬載入那頁」的 DOM。library/atlas/create/404 的
+      // #site-footer 沒寫 .snap-zone → 從那些頁進站後全 session footer 都不是 snap 點 → mandatory 在
+      // content section 以下找不到落點、一律彈回上一個 snap 點（user 報「捲不到 footer」）。router 補掛
+      // 硬保證；noSnap 頁 html 無 .snap-* class、此 class 在該頁本來就 inert。
+      footerEl.classList.add('snap-zone');
       // first-load /create 時 initFooter fetch 跟 router.loadPage fetch race，若 router 先設 display:none
       // 才回，footer html 寫進隱藏容器 → Lottie 載 0×0 + footerScatter waitForLayoutReady 60 frames 全 0 abort →
       // items 卡 opacity:0、無 .footer-anchor。換頁要露 footer 時用 .footer-anchor 缺失當「broken init」proxy 重跑 initFooter。
