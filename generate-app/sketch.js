@@ -1888,3 +1888,11 @@ function handleSiteThemeChange(e) {
 // Phase 4b：iframe 已拆，不再 auto-init；由 main-modular.js page === 'generate' 時 call initCreatePage → window.initCreateApp
 window.initCreateApp = initCreateApp;
 window.cleanupCreateApp = cleanupCreateApp;
+
+// 手機 menu（全屏 overlay）開著時暫停 draw loop（mobile-menu.js 呼叫）：
+// p5 每幀重繪持續吃主執行緒 → menu 的時間制 GSAP reveal 掉幀跳尾「選項直接跳出來」（2026-07-03 CPU 節流實測定因）。
+// overlay 蓋住畫布期間畫了也看不到，暫停零損失；millis() 制的短效果（typewriter/fade）恢復時跳到終態，可接受。
+window.setCreateAppPaused = function (paused) {
+  if (!_p5) return;
+  if (paused) _p5.noLoop(); else _p5.loop();
+};
