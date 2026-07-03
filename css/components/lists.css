@@ -10,7 +10,7 @@
  *  - 右內容 (.inner-scroll-scroll-col)：唯一捲動的層（overflow-y:auto），高度填滿 content 區 [header+pad, 100vh−pad]，
  *    內容從頂部開始。★box 高度**不隨 nav 長短變**（固定填滿 content 區）→ nav btn 少的頁（faculty 3 / admission 2 /
  *    curriculum 3）也有完整可用內容區；activities（9 顆 nav 幾乎滿高）看起來 ≈ 不變（user 2026-06-30 拍板「對齊頂部」）。
- *  - 上下對稱 pad（--inner-pad），content 上緣 = header + pad（已扣除 fixed header）。**純 CSS、不需 JS 量測 nav**。
+ *  - 上 pad --inner-pad(3xl) / 下 pad --inner-pad-bottom(2xl)，content 上緣 = header + pad（已扣除 fixed header）。**純 CSS、不需 JS 量測 nav**。
  * 為何 footer 不露：footer 在 frame(section)外、是另一個 window snap-zone；捲右欄不動 window → footer 永在 frame 外。
  * 手機完全不套（無此 @media）：三個 class 在手機都無 height/overflow → window 捲照舊、手機零變動。
  * 頁面專屬細節在各自 scope：activities 旋轉 chip-clearance + filter bar；curriculum sticky 表頭 (courses.css)；
@@ -18,7 +18,8 @@
 @media (min-width: 768px) {
   .inner-scroll-frame-grid {
     height: 100vh;
-    --inner-pad: var(--spacing-3xl, 96px);                            /* content 區上下對稱 pad */
+    --inner-pad: var(--spacing-3xl, 96px);                            /* content 區上 pad（下 pad 見 --inner-pad-bottom） */
+    --inner-pad-bottom: var(--spacing-2xl, 64px);                     /* 下 pad 2xl（box 底往下 32px），上 pad 維持 3xl（user 2026-07-02，四頁統一） */
     --inner-box-top: calc(var(--header-height, 96px) + var(--inner-pad));  /* content 區上緣（扣 fixed header）*/
   }
   .inner-scroll-nav-col {
@@ -30,7 +31,7 @@
   .inner-scroll-scroll-col {
     --chip-clearance: 0px;
     margin-top: calc(var(--inner-box-top) - var(--chip-clearance));
-    height: calc(100vh - var(--inner-box-top) - var(--inner-pad) + var(--chip-clearance));
+    height: calc(100vh - var(--inner-box-top) - var(--inner-pad-bottom) + var(--chip-clearance));
     align-self: start;
     overflow-x: hidden;
     overflow-y: auto;
