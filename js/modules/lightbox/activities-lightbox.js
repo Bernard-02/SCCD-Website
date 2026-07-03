@@ -6,6 +6,8 @@
 
 import { enterLightboxMode, exitLightboxMode } from './lightbox-shell.js';
 import { createRefBtn } from './lightbox-ref-btn.js';
+import { createLightboxVideo } from './lightbox-video.js';
+import { grabHlsFrame } from '../ui/video-player.js';
 import { sitePath } from '../ui/site-base.js';
 
 let lightboxEl = null;
@@ -20,8 +22,10 @@ let titleEl = null;
 let prevBtn = null;
 let nextBtn = null;
 let iframeEl = null;
+let hlsPlayer = null;      // createLightboxVideo instance（m3u8 自架影片；換張/關閉必 destroy）
+let currentColor = null;   // openLightbox opts.color，renderMain 建 hls player 時取用
 
-let mediaList = [];   // [{ type: 'image'|'video', src: string, thumb: string }]
+let mediaList = [];   // [{ type: 'image'|'video', src, thumb, videoKind?: 'yt'|'hls' }]
 let currentIndex = 0;
 
 let zoomControlsEl = null;
@@ -188,6 +192,8 @@ function ensureLightbox() {
     // share modal 疊在 lightbox 之上時（後 append、同 z-9999 在最上層），鍵盤交給它（避免 Esc 同時關兩層）
     if (document.getElementById('share-lightbox')?.style.display === 'flex') return;
     if (e.key === 'Escape') { closeLightbox(); return; }
+    // 自架影片顯示中：space 播放/暫停（arrow 維持換張，跟 lightbox 導航一致）
+    if (e.key === ' ' && hlsPlayer) { e.preventDefault(); hlsPlayer.toggle(); return; }
 
     const canPan = zoomImg && zoom.scale > fitScale() + 0.001;
     const PAN_STEP = 80;
@@ -395,6 +401,8 @@ function centerActiveThumb(index, smooth) {
 // ── 渲染指定 index ──────────────────────────────────────────────
 function renderMain(index) {
   const item = mediaList[index];
+  // hls player 必須在 innerHTML 清掉前 destroy（解 document listeners + hls.js instance）
+  if (hlsPlayer) { hlsPlayer.destroy(); hlsPlayer = null; }
   mainEl.innerHTML = '';
   // 切換媒體時重置 zoom 狀態（圖→影、影→圖、圖→圖 都要清）
   zoomImg = null; zoomStage = null; isDragging = false; dragMoved = false;
@@ -406,7 +414,12 @@ function renderMain(index) {
   // zoom controls 只在 image 顯示（video iframe 無法 zoom）
   if (zoomControlsEl) zoomControlsEl.style.display = item.type === 'video' ? 'none' : 'flex';
 
-  if (item.type === 'video') {
+  if (item.type === 'video' && item.videoKind === 'hls') {
+    // 自架影片（m3u8）：自製 UI 播放器（全螢幕/手機交還原生 controls）
+    iframeEl = null;
+    hlsPlayer = createLightboxVideo(item.src, resolvePillColor(currentColor));
+    mainEl.appendChild(hlsPlayer.el);
+  } else if (item.type === 'video') {
     iframeEl = document.createElement('iframe');
     iframeEl.src = item.src + '?autoplay=1';
     iframeEl.setAttribute('frameborder', '0');
@@ -593,10 +606,26 @@ export async function openLightbox(media, startIndex = 0, opts = {}) {
     btn.className = 'alb-thumb flex-shrink-0 overflow-hidden transition-opacity';
     btn.style.height = '48px';
     const img = document.createElement('img');
-    img.src = item.thumb;
     img.alt = '';
     img.draggable = false; // 防原生 image drag 干擾（拖選圖片）
     img.style.cssText = 'height:100%;width:auto;display:block;object-fit:contain;';
+    if (item.thumb) img.src = item.thumb;
+    if (item.videoKind === 'hls') {
+      // 自架影片截幀當縮圖（cached）；還沒好前先給 16:9 黑 tile 佔位（無 src 時 width:auto 會塌 0）
+      if (!item.thumb) {
+        btn.style.width = '85px';
+        btn.style.background = '#222';
+        img.style.display = 'none';
+      }
+      grabHlsFrame(item.src).then(u => {
+        if (!u) return;
+        item.thumb = u;   // 回寫 mediaList，同 src 再開 lightbox 直接用
+        img.src = u;
+        img.style.display = '';
+        btn.style.width = '';
+        btn.style.background = '';
+      });
+    }
     // 縮圖 width:auto 依比例 → 載入後寬度才定；若這張是 active 需重新置中（active 永遠在正中）
     img.addEventListener('load', () => {
       if (lightboxEl.style.display !== 'none') centerActiveThumb(currentIndex, false);
@@ -613,6 +642,8 @@ export async function openLightbox(media, startIndex = 0, opts = {}) {
   // activities 海報/gallery 維持原寬版。必須在 renderTitle 前設好 class，marquee 才量到正確 title 寬。
   lightboxEl.classList.toggle('alb-album', !!opts.shareUrl);
 
+  // hls player 建立時要用同組 accent（renderMain 無 opts 可拿，存 module state）
+  currentColor = opts.color;
   // 標題 pill：仿 activities-section-btn active 樣式（vertical en+zh + 隨機旋轉 + accent bg）
   renderTitle(opts.title, opts.color);
   // 返回按鈕：底色用 caller 帶入 accent (與 title pill 同色)，隨機旋轉（每次開啟一個新角度）
@@ -789,6 +820,8 @@ function closeLightbox() {
   if (!lbOpen) return;  // 已關閉/關閉中 → 不重複 exit（避免 openCount 過度遞減把 header 提早顯示）
   lbOpen = false;
   if (iframeEl) iframeEl.src = '';
+  // 立即 destroy（不等 300ms fadeout）：影片聲音不能陪淡出
+  if (hlsPlayer) { hlsPlayer.destroy(); hlsPlayer = null; }
   lightboxEl.style.opacity = '0';
   exitLightboxMode();
   // 停 title marquee tween 避免關閉後仍在背景 rAF 跑

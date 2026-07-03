@@ -6,6 +6,7 @@
  */
 
 import { applyMarqueeOverflow } from '../ui/marquee-overflow.js';
+import { videoMediaFromUrl } from '../ui/video-player.js';
 import { ensureFlagIconsCss } from '../ui/ensure-flag-icons.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { CMS_API_BASE, CMS_ASSETS_BASE } from '../../config/api.js';
@@ -305,8 +306,8 @@ function bindAwardRefRowClick(row) {
       const media = [];
       imgList.forEach(src => media.push({ type: 'image', src, thumb: src }));
       vidList.forEach(url => {
-        const vid = url.match(/(?:v=|youtu\.be\/)([^&?/]+)/)?.[1];
-        if (vid) media.push({ type: 'video', src: `https://www.youtube.com/embed/${vid}`, thumb: `https://img.youtube.com/vi/${vid}/hqdefault.jpg` });
+        const m = videoMediaFromUrl(url, imgList[0] || '');
+        if (m) media.push(m);
       });
       if (media.length) {
         const references = excludeHostFromRefs(await resolveLibManualRefs(item), host);
@@ -1053,8 +1054,8 @@ async function initPressPanel() {
             const media = [];
             imgList.forEach(src => media.push({ type: 'image', src, thumb: src }));
             vidList.forEach(url => {
-              const vid = url.match(/(?:v=|youtu\.be\/)([^&?/]+)/)?.[1];
-              if (vid) media.push({ type: 'video', src: `https://www.youtube.com/embed/${vid}`, thumb: `https://img.youtube.com/vi/${vid}/hqdefault.jpg` });
+              const m = videoMediaFromUrl(url, imgList[0] || '');
+              if (m) media.push(m);
             });
             if (media.length) {
               const lbTitle = { en: item.titleEn || '', zh: item.titleZh || '' };
@@ -1096,6 +1097,9 @@ async function initPressPanel() {
           '.press-item-title-en, .press-item-title-zh, .press-item-subtitle',
           '.press-marquee-inner, .press-subtitle-inner');
       };
+      // sort 重渲染的新 DOM 沒 marquee（user 2026-07-03 手機報）→ 每次 render 尾端重跑；
+      // panel 隱藏時量寬 0 = 無害 no-op，showLibPanel 顯示時會再觸發補量
+      requestAnimationFrame(window._pressMarqueeInit);
     }
 
     renderItems(getSorted());
@@ -1243,6 +1247,8 @@ async function initFilesPanel() {
       window._filesMarqueeInit = () => {
         runMarqueeOverflow(listEl, '.files-item-title-en, .files-item-title-zh, .files-item-subtitle-tag', '.files-marquee-inner');
       };
+      // 同 press：sort 重渲染後重跑 marquee（隱藏時 no-op、顯示時 showLibPanel 補量）
+      requestAnimationFrame(window._filesMarqueeInit);
     }
 
     renderItems(getSorted());
@@ -1343,7 +1349,8 @@ function loadAlbumItemsCached() {
         items.forEach(item => {
           const cover   = getCover(item);
           const titleEn = item.title_en || item.titleEn || item.title || '';
-          const titleZh = item.title_zh || item.titleZh || item.title_cn || '';
+          // 兩種資料慣例並存：workshops 系 title=EN+title_zh=ZH；lectures/students-present 系 title=ZH+title_en=EN
+          const titleZh = item.title_zh || item.titleZh || item.title_cn || ((item.title_en || item.titleEn) ? item.title : '') || '';
           const images  = (item.images || []).filter(s => s && s !== cover);
           let videos = [];
           if (item.videoUrl) videos = [item.videoUrl];
@@ -1354,10 +1361,7 @@ function loadAlbumItemsCached() {
           }
           const media = [
             ...(cover ? [{ type: 'image', src: cover, thumb: cover }] : []),
-            ...videos.map(url => {
-              const vid = url.match(/(?:v=|youtu\.be\/)([^&?/]+)/)?.[1];
-              return vid ? { type: 'video', src: `https://www.youtube.com/embed/${vid}`, thumb: `https://img.youtube.com/vi/${vid}/hqdefault.jpg` } : null;
-            }).filter(Boolean),
+            ...videos.map(url => videoMediaFromUrl(url, cover)).filter(Boolean),
             ...images.map(src => ({ type: 'image', src, thumb: src })),
           ];
           // 無任何媒體的項目不進相簿（camp 真實資料照片未上傳前整類自然缺席，上傳後自動出現）
@@ -1559,6 +1563,8 @@ async function initAlbumPanel() {
       window._albumMarqueeInit = () => {
         runMarqueeOverflow(listEl, '.files-item-title-en, .files-item-title-zh', '.files-marquee-inner');
       };
+      // 同 press：sort 重渲染後重跑 marquee（隱藏時 no-op、顯示時 showLibPanel 補量）
+      requestAnimationFrame(window._albumMarqueeInit);
     }
 
     renderItems(getSorted());

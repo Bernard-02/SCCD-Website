@@ -4,6 +4,7 @@
  */
 
 import { openLightbox } from '../lightbox/activities-lightbox.js';
+import { videoMediaFromUrl, hydrateHlsThumbs } from '../ui/video-player.js';
 import { sitePath } from '../ui/site-base.js';
 import { loadSummerCamp } from './summer-camp-source.js';
 import {
@@ -23,7 +24,8 @@ function getCover(item) {
 
 function normalizeItem(item, albumCategory, year) {
   const title    = item.title_en || item.titleEn || item.title || '';
-  const title_zh = item.title_zh || item.titleZh || item.title_cn || '';
+  // 兩種資料慣例並存：workshops 系 title=EN+title_zh=ZH；lectures/students-present 系 title=ZH+title_en=EN
+  const title_zh = item.title_zh || item.titleZh || item.title_cn || ((item.title_en || item.titleEn) ? item.title : '') || '';
   const cover    = getCover(item);
   const images   = item.images || [];
 
@@ -39,14 +41,8 @@ function normalizeItem(item, albumCategory, year) {
   const mediaPhotos = images
     .filter(src => src && src !== cover)
     .map(src => ({ type: 'image', src, thumb: src }));
-  const mediaVideos = videos
-    .map(url => {
-      const vid      = url.match(/(?:v=|youtu\.be\/)([^&?/]+)/)?.[1];
-      const embedSrc = vid ? `https://www.youtube.com/embed/${vid}` : null;
-      const thumb    = vid ? `https://img.youtube.com/vi/${vid}/hqdefault.jpg` : cover;
-      return embedSrc ? { type: 'video', src: embedSrc, thumb } : null;
-    })
-    .filter(Boolean);
+  // m3u8 自架影片先用 cover 當縮圖佔位（截幀 hydrate 後覆蓋）；yt 用官方縮圖
+  const mediaVideos = videos.map(url => videoMediaFromUrl(url, cover)).filter(Boolean);
 
   return { title, title_zh, albumCategory, year, cover, poster: mediaPoster, images: mediaPhotos, videos: mediaVideos };
 }
@@ -144,9 +140,11 @@ function buildAlbumCardHtml(item, index = 0) {
 
   const stackHtml = stackSrcs.map((src, i) => {
     const isVideo = i === 0 && videos.length > 0;
+    // 自架影片（m3u8）：cover 佔位縮圖標 data-hls-thumb，loadAlbumData 尾端 hydrateHlsThumbs 截幀後換真影格
+    const hlsAttr = isVideo && videos[0].videoKind === 'hls' ? ` data-hls-thumb="${videos[0].src}"` : '';
     return `
       <div style="position: absolute; bottom: 0; left: 0; right: 0; z-index: ${stackSrcs.length - i};">
-        <img src="${src}" alt="" class="w-full block" style="height: 240px; object-fit: contain; object-position: bottom;">
+        <img src="${src}"${hlsAttr} alt="" class="w-full block" style="height: 240px; object-fit: contain; object-position: bottom;">
         ${isVideo ? `<div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none;">
           <svg width="20" height="24" viewBox="0 0 20 24" fill="none"><polygon points="0,0 20,12 0,24" fill="white" fill-opacity="0.7"/></svg>
         </div>` : ''}
@@ -277,4 +275,6 @@ export async function loadAlbumData(containerId) {
   bindCardHover(container);
   initMarquee(container);
   bindCardClicks(container);
+  // 自架影片（m3u8）卡片疊圖補截幀縮圖（cached，同 URL 只截一次）
+  hydrateHlsThumbs(container);
 }

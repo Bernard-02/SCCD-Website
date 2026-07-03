@@ -4,6 +4,7 @@
  */
 
 import { openLightbox } from '../lightbox/activities-lightbox.js';
+import { isHlsUrl, videoMediaFromUrl, hydrateHlsThumbs } from '../ui/video-player.js';
 import { setupClipReveal, playClipReveal } from '../ui/scroll-animate.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { makeActivatable } from '../ui/a11y.js';
@@ -278,10 +279,7 @@ export function buildItemMedia(item) {
   const images = normalizeMediaArr(item.images, 'image');
   const all = [
     ...(isValidUrl(item.poster) ? [{ type: 'image', src: item.poster.trim(), thumb: item.poster.trim() }] : []),
-    ...videos.filter(isValidUrl).map(url => {
-      const vid = url.match(/(?:v=|youtu\.be\/)([^&?/]+)/)?.[1];
-      return vid ? { type: 'video', src: `https://www.youtube.com/embed/${vid}`, thumb: `https://img.youtube.com/vi/${vid}/hqdefault.jpg` } : null;
-    }).filter(Boolean),
+    ...videos.filter(isValidUrl).map(url => videoMediaFromUrl(url)).filter(Boolean),
     ...images.filter(isValidUrl).map(src => ({ type: 'image', src: src.trim(), thumb: src.trim() })),
   ];
   return all.filter(m => m.src);
@@ -398,19 +396,27 @@ export function buildGalleryHtml(item) {
   const posterOffset = item.poster ? 1 : 0;
   const videos = getAllVideos(item);
   const images = normalizeMediaArr(item.images, 'image');
-  const galleryItems = [
-    ...videos.map((url, vi) => {
-      const videoId = url.match(/(?:v=|youtu\.be\/)([^&?/]+)/)?.[1];
-      if (!videoId) return '';
-      const lbIndex = posterOffset + vi;
-      return `<div class="h-full flex-shrink-0 aspect-video relative cursor-pointer" data-lightbox-open data-lightbox-index="${lbIndex}">
-        <img src="https://img.youtube.com/vi/${videoId}/hqdefault.jpg" alt="" class="w-full h-full object-cover block">
-        <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <!-- 不蓋整片半透明黑遮罩（user 2026-06-28：遮罩沒跟卡片旋轉、看起來分兩層）→ 改 play 鍵實心白 + drop-shadow，亮縮圖上仍可見 -->
+  // 不蓋整片半透明黑遮罩（user 2026-06-28：遮罩沒跟卡片旋轉、看起來分兩層）→ 改 play 鍵實心白 + drop-shadow，亮縮圖上仍可見
+  const playOverlay = `<div class="absolute inset-0 flex items-center justify-center pointer-events-none">
           <svg width="20" height="24" viewBox="0 0 20 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 1px 4px rgba(0,0,0,0.55));">
             <polygon points="0,0 20,12 0,24" fill="white"/>
           </svg>
-        </div>
+        </div>`;
+  const galleryItems = [
+    ...videos.map((url, vi) => {
+      const lbIndex = posterOffset + vi;
+      if (isHlsUrl(url)) {
+        // 自架影片（m3u8）無現成縮圖：先黑 tile 佔位，bindInteractions 的 hydrateHlsThumbs 截幀後補上
+        return `<div class="h-full flex-shrink-0 aspect-video relative cursor-pointer" data-lightbox-open data-lightbox-index="${lbIndex}" style="background: #111;">
+        <img data-hls-thumb="${url}" alt="" class="w-full h-full object-cover block" style="display:none;">
+        ${playOverlay}
+      </div>`;
+      }
+      const videoId = url.match(/(?:v=|youtu\.be\/)([^&?/]+)/)?.[1];
+      if (!videoId) return '';
+      return `<div class="h-full flex-shrink-0 aspect-video relative cursor-pointer" data-lightbox-open data-lightbox-index="${lbIndex}">
+        <img src="https://img.youtube.com/vi/${videoId}/hqdefault.jpg" alt="" class="w-full h-full object-cover block">
+        ${playOverlay}
       </div>`;
     }),
     // onerror 自摧毀 wrapper：URL 對但檔 404 / 跨域擋下時不會留 broken icon（對齊 buildPosterHtml）
@@ -663,6 +669,9 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
 
   // 海報 & gallery hover 效果
   bindMediaHover(container);
+
+  // 自架影片（m3u8）gallery tile 補截幀縮圖（cached，同 URL 只截一次）
+  hydrateHlsThumbs(container);
 
   // 標題跑馬燈：偵測是否溢出，是則加 is-overflow + 設定捲動距離
   // list-content 內的 location marquee 渲染當下 clientWidth=0（h-0 overflow-hidden），會錯判 overflow；

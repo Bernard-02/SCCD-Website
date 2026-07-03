@@ -6,6 +6,7 @@
  * 2026-06-17 起接 competitions / industry / workshops（M2A ref trial）。
  */
 import { CMS_API_BASE, CMS_ASSETS_BASE } from '../../config/api.js';
+import { videoMediaFromUrl } from '../ui/video-player.js';
 import { sitePath, SITE_BASE_PATHNAME } from '../ui/site-base.js';
 
 // M2A references deep-fetch：每個目標 collection 都要列一條 item:<col>.refCode（沒列到的該 ref item 會是 raw uuid）。
@@ -51,10 +52,8 @@ function remapRef(r) {
     case 'library_press': {
       const media = [
         ...normalizeFiles(it.images).map(src => ({ type: 'image', src, thumb: src })),
-        ...ytUrls(it.videoLinks).map(u => {
-          const vid = u.match(/(?:v=|youtu\.be\/)([^&?/]+)/)?.[1];
-          return vid ? { type: 'video', src: `https://www.youtube.com/embed/${vid}`, thumb: `https://img.youtube.com/vi/${vid}/hqdefault.jpg` } : null;
-        }).filter(Boolean),
+        // yt/m3u8 分流交給共用 helper（m3u8 → videoKind:'hls' 自製播放器）
+        ...ytUrls(it.videoLinks).map(u => videoMediaFromUrl(u)).filter(Boolean),
       ];
       const base = { labelEn: 'Press', labelZh: '報導', titleEn: it.titleEn || '', titleZh: it.titleZh || '' };
       return media.length ? { ...base, pressMedia: media } : { ...base, href: libHref(code) };

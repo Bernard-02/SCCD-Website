@@ -1,4 +1,5 @@
 import { DUR, EASE } from './motion.js';
+import { sitePath } from './site-base.js';
 /**
  * Video Player
  * Netflix 風格全螢幕播放器
@@ -13,9 +14,11 @@ let _videoPlayerInstance = null;
 
 // ── HLS (.m3u8) 支援 ──────────────────────────────────────────
 // 首頁 watch 影片改用 CloudFront HLS 串流（.m3u8）。原生 <video> 只有 Safari 能直接吃 HLS，
-// Chrome/Firefox/Edge 要靠 hls.js（CDN lazy load，只在遇到 .m3u8 且瀏覽器不原生支援時才載）。
+// Chrome/Firefox/Edge 要靠 hls.js（lazy load，只在遇到 .m3u8 且瀏覽器不原生支援時才載）。
+// hls.js 走 repo 本地 vendor（js/vendor/hls.min.js，同 p5.min.js 做法）：
+// 2026-07-03 user 遇過 CDN 載入失敗 → 退到「m3u8 直塞 <video>」備援 → Chrome 播不了 + 快取污染連鎖。
 // 非 HLS（mp4 等）維持原生 src 行為不變。
-function isHlsUrl(url) { return /\.m3u8(\?|#|$)/i.test(url || ''); }
+export function isHlsUrl(url) { return /\.m3u8(\?|#|$)/i.test(url || ''); }
 
 let _hlsLoading = null;
 function ensureHls() {
@@ -23,7 +26,7 @@ function ensureHls() {
   if (_hlsLoading) return _hlsLoading;
   _hlsLoading = new Promise(resolve => {
     const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js';
+    s.src = sitePath('js/vendor/hls.min.js');
     s.onload = () => resolve(window.Hls);
     s.onerror = () => resolve(null);
     document.head.appendChild(s);
@@ -33,16 +36,28 @@ function ensureHls() {
 
 // 把來源掛到 video：HLS 在非 Safari 走 hls.js，其餘（Safari HLS / mp4）走原生 src。
 // 用 video._srcUrl 記號避免重複掛（hls.js attach 後 video.src 變 blob:，不能拿 video.src 比對）。
-async function attachVideoSource(video, url) {
+//
+// ⚠️ 播放刻意「不」設 crossOrigin（維持 no-cors）：S3 對不帶 Origin 的請求不回 CORS header，
+// 該回應會進瀏覽器快取；若播放改 CORS 模式會讀到這種舊快取直接 blocked（user 2026-07-03 踩到，
+// 連 WATCH 都播不了）。no-cors 播放不檢查 ACAO，吃到哪種快取都能播。
+// 需要 canvas 讀 pixel 的截幀走 forceHls + bustQuery（見 grabHlsFrame），跟播放的 URL 空間完全分開。
+//
+// opts.forceHls：即使瀏覽器原生支援 HLS（新版桌面 Chrome / Safari）也強制走 hls.js/MSE
+//（MSE 餵的 video 畫 canvas 不會 taint，且 XHR 可改寫 URL）。
+// opts.bustQuery：附加到 hls.js 每個請求（manifest + segments）的 query，
+// 讓截幀請求的快取 key 與播放（no-cors、無 query）永不重疊 → 不受污染也不會污染。
+export async function attachVideoSource(video, url, { forceHls = false, bustQuery = '' } = {}) {
   if (!url || video._srcUrl === url) return;
   detachVideoSource(video);
   video._srcUrl = url;
-  if (isHlsUrl(url) && !video.canPlayType('application/vnd.apple.mpegurl')) {
+  if (isHlsUrl(url) && (forceHls || !video.canPlayType('application/vnd.apple.mpegurl'))) {
     const Hls = await ensureHls();
     // 載入期間若已被換掉/清掉就放棄
     if (video._srcUrl !== url) return;
     if (Hls && Hls.isSupported()) {
-      const hls = new Hls();
+      const hls = new Hls(bustQuery ? {
+        xhrSetup: (xhr, u) => xhr.open('GET', u + (u.includes('?') ? '&' : '?') + bustQuery, true),
+      } : undefined);
       hls.loadSource(url);
       hls.attachMedia(video);
       video._hls = hls;
@@ -54,11 +69,130 @@ async function attachVideoSource(video, url) {
   video.load();
 }
 
-function detachVideoSource(video) {
+export function detachVideoSource(video) {
   if (video._hls) { try { video._hls.destroy(); } catch (_) {} video._hls = null; }
   video.removeAttribute('src');
   video._srcUrl = null;
   try { video.load(); } catch (_) {}
+}
+
+// ── 後台影片連結 → lightbox media item ────────────────────────────
+// .m3u8 = 自架影片（videoKind:'hls'，lightbox 內自製 UI + canvas 截幀縮圖）；
+// 認得出 YouTube id → yt embed（iframe + yt 官方縮圖）；兩者皆非 → null（照舊丟掉）。
+// activities / album / library-panels 共 5 處 normalize 統一走這裡。
+export function videoMediaFromUrl(url, fallbackThumb = '') {
+  if (!url || typeof url !== 'string') return null;
+  url = url.trim();
+  if (isHlsUrl(url)) return { type: 'video', videoKind: 'hls', src: url, thumb: fallbackThumb };
+  const vid = url.match(/(?:v=|youtu\.be\/)([^&?/]+)/)?.[1];
+  return vid
+    ? { type: 'video', videoKind: 'yt', src: `https://www.youtube.com/embed/${vid}`, thumb: `https://img.youtube.com/vi/${vid}/hqdefault.jpg` }
+    : null;
+}
+
+// ── m3u8 截幀當縮圖 ──────────────────────────────────────────────
+// 自架影片沒有 YouTube 那種現成縮圖 → 隱藏 video 掛串流、seek 挑非黑幀、canvas 截 JPEG dataURL。
+// 一律 forceHls（MSE 餵的 video 畫 canvas 不 taint）+ bustQuery（請求 URL 加 query，
+// 與播放 no-cors 的快取 key 分離 → 免疫「無 header 舊快取」污染，見 attachVideoSource 註解）。
+// S3 已開 CORS（ACAO:*，2026-07-03 驗證），hls.js 的 CORS XHR 才拿得到資料。
+// ponytail: 每支影片要先抓 manifest + 一小段 segment（幾百 KB）才有縮圖；影片多到有感時後台補縮圖欄位覆蓋。
+const _frameCache = new Map();
+// localStorage 持久層：重新整理/換頁不用重抓 segment（每張 ~30KB dataURL，影片少沒量的問題）
+// v2：加入防黑幀重試後 bump，讓 v1 可能存到的黑幀失效重抓
+const FRAME_LS_PREFIX = 'sccd-hls-frame:v2:';
+function lsGetFrame(url) {
+  try { return localStorage.getItem(FRAME_LS_PREFIX + url); } catch (_) { return null; }
+}
+function lsSetFrame(url, dataUrl) {
+  try { localStorage.setItem(FRAME_LS_PREFIX + url, dataUrl); } catch (_) { /* 滿了就算了，退回 in-memory */ }
+}
+export function grabHlsFrame(url) {
+  if (_frameCache.has(url)) return _frameCache.get(url);
+  const stored = lsGetFrame(url);
+  if (stored) {
+    const p = Promise.resolve(stored);
+    _frameCache.set(url, p);
+    return p;
+  }
+  const promise = new Promise(resolve => {
+    const video = document.createElement('video');
+    video.muted = true;
+    video.playsInline = true;
+    video.crossOrigin = 'anonymous';
+    video.preload = 'auto';
+    let done = false;
+    const finish = result => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      detachVideoSource(video);
+      resolve(result);
+    };
+    // 網路慢/掛掉的保險絲；hls.js 的載入錯誤不會 fire video error event，靠這條收尾
+    const timer = setTimeout(() => finish(null), 15000);
+
+    // 防黑幀（仿影音平台「挑有內容的畫面」）：截到的畫面近全黑 → 換下一個時間點重截。
+    // 縮到 32×18 取像素平均亮度，< 18/255 視為黑（片頭黑幕/淡入都會中）
+    function isNearlyBlack(v) {
+      const c = document.createElement('canvas');
+      c.width = 32; c.height = 18;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(v, 0, 0, 32, 18);
+      const d = ctx.getImageData(0, 0, 32, 18).data;
+      let sum = 0;
+      for (let i = 0; i < d.length; i += 4) sum += (d[i] + d[i + 1] + d[i + 2]) / 3;
+      return sum / (d.length / 4) < 18;
+    }
+
+    let candidates = [1];      // 待嘗試時間點；loadedmetadata 後依片長展開
+    let seekPending = false;   // seek 進行中先不 draw（canplay/seeked 雙 listener 防重入）
+    const seekNext = () => {
+      seekPending = true;
+      try { video.currentTime = candidates.shift(); } catch (_) { seekPending = false; }
+    };
+    const tryDraw = () => {
+      if (done || seekPending || !video.videoWidth || video.readyState < 2) return;
+      try {
+        if (isNearlyBlack(video) && candidates.length) { seekNext(); return; }
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+        lsSetFrame(url, dataUrl);
+        finish(dataUrl);
+      } catch (_) { finish(null); }  // canvas taint 等 → 無縮圖，consumer 自留 fallback
+    };
+    video.addEventListener('error', () => finish(null));
+    // 首選 1s（避開全黑首幀常態），黑幀再退 10% / 25% / 50% 片長處
+    video.addEventListener('loadedmetadata', () => {
+      const dur = Number.isFinite(video.duration) ? video.duration : 0;
+      candidates = dur > 4 ? [Math.min(1, dur / 2), dur * 0.1, dur * 0.25, dur * 0.5] : [dur / 2 || 1];
+      seekNext();
+    });
+    video.addEventListener('seeked', () => { seekPending = false; tryDraw(); });
+    video.addEventListener('canplay', tryDraw);
+    // crossOrigin 只是 hls.js 載入失敗退到原生 src 時的最後保險（Safari 原生 HLS 可 CORS 截幀）
+    attachVideoSource(video, url, { forceHls: true, bustQuery: 'sccdthumb=1' });
+  });
+  _frameCache.set(url, promise);
+  return promise;
+}
+
+// render 完呼叫：把容器內 img[data-hls-thumb]（gallery tile / album 卡疊圖）補上截幀結果
+export function hydrateHlsThumbs(root) {
+  root.querySelectorAll('img[data-hls-thumb]').forEach(img => {
+    const url = img.getAttribute('data-hls-thumb');
+    img.removeAttribute('data-hls-thumb');  // 防重複處理
+    grabHlsFrame(url).then(dataUrl => {
+      if (!dataUrl) return;
+      img.src = dataUrl;
+      img.style.display = '';
+      // 佔位黑底一併清掉：gallery hover 是旋轉「img 本身」（wrapper 不轉），
+      // 佔位 bg 留著會在 img 微旋轉時從四角露出黑邊
+      if (img.parentElement) img.parentElement.style.background = '';
+    });
+  });
 }
 
 /**
