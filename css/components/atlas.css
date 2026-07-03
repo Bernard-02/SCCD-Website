@@ -734,9 +734,9 @@
   margin-top: 6px;
 }
 
-/* ── 分頁 nav item（absolute 貼底；桌面 containing block = .atlas-list-col-items 橫跨整欄、< 頂左 > 頂右；
-   手機 = 右 sub-col。box 自身 content-size 不吃 --list-item-h，跨 col 視覺 y 嚴格一致）
-   bottom: 10px 直接定 chevron 距 sub-col 底邊；不再用 bottom:0 + min-height:var(--list-item-h) + padding-bottom:10px
+/* ── 分頁 nav item（absolute 貼底；containing block = .atlas-list-col-items 橫跨整欄、< 頂左 > 頂右；
+   2026-07-03 起手機同桌面跨欄，不再塞右 sub-col。box 自身 content-size 不吃 --list-item-h，跨 col 視覺 y 嚴格一致）
+   bottom: 10px 直接定 chevron 距欄底邊；不再用 bottom:0 + min-height:var(--list-item-h) + padding-bottom:10px
    舊作法的 min-height 因 col 各自寫 --list-item-h (host=50 / faculty/employ=84 / partners=120) 害 chevron box 高度不一致，
    雖然 align-items:flex-end 把 icon 推到 box 底邊，但部分瀏覽器 + 某些 reflow timing 下可能讓 absolute item 受 box 高度影響
    → 改 content-sized box + 純 bottom 偏移，chevron y 完全脫離 items / col 內 var，絕對不動 ── */
@@ -747,15 +747,16 @@
   bottom: 10px;
   display: flex;
   flex-direction: row;
-  justify-content: flex-start;
-  gap: 12px; /* 設定按鈕之間的固定間距 */
+  justify-content: space-between; /* < 頂欄左緣、> 頂欄右緣（手機桌面一致） */
+  gap: 12px;
   align-items: flex-end;
 }
 
 .atlas-list-nav-btn {
   background: none;
   border: none;
-  padding: 4px 6px;
+  /* 左右 0 → < / > icon 真正頂到欄左右緣（user 2026-06-25；2026-07-03 起手機同套） */
+  padding: 4px 0;
   cursor: var(--cursor-pointer);
   color: black;
   opacity: 1;
@@ -772,16 +773,6 @@
 @media (min-width: 768px) {
   .atlas-list-nav-btn:not(:disabled):hover {
     opacity: 1;
-  }
-  /* 桌面 chevron 跨整個分類欄：< 頂欄左緣、> 頂欄右緣（containing block = .atlas-list-col-items）。
-     手機維持 base 的 flex-start（nav 在右 sub-col、不跨欄）。user 2026-06-25 */
-  .atlas-list-nav-item {
-    justify-content: space-between;
-  }
-  /* 去掉左右 padding → < / > icon 真正頂到欄左右緣（user 2026-06-25）；上下 padding 保留 */
-  .atlas-list-nav-btn {
-    padding-left: 0;
-    padding-right: 0;
   }
 }
 
@@ -976,6 +967,22 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   }
   .atlas-list-item {
     padding-bottom: 0;
+  }
+  /* chevron 帶改由 CSS padding 保留（atlas.js CHEVRON_BAND_MOBILE=64 同步）：
+     content box 底 = chevron 帶上緣，滿頁 space-between 才不會把最後一排推進 nav。
+     64 = nav bottom 18 + chevron ~28 + 上方呼吸 ~18（user 2026-07-03：內容別貼 chevron）。 */
+  .atlas-list-col-items {
+    padding-bottom: 64px;
+  }
+  /* chevron 往上抬離三顆分頁 tab（base 桌面 bottom:10 不動）：18 + list view 對 tab 的 12px 呼吸 = 視覺 ~30px */
+  .atlas-list-nav-item {
+    bottom: 18px;
+  }
+  /* 滿頁：剩餘高度均勻攤進間距（同桌面「整片均分、最後一 item 落在 chevron 上緣」；
+     行數用全分類最高 item 估、實際 item 較矮 → 固定 gap 會把省下的高度全堆在欄底 user 2026-07-03）。
+     .is-full 由 atlas.js build() 只在當頁滿頁時標；不足頁維持頂部排列，flex gap 是 space-between 的最小間距。 */
+  .atlas-list-sub-col.is-full {
+    justify-content: space-between;
   }
   /* 星雲直式轉向提示（仿 /create #landscape-overlay：icon 左 + 文字右、theme 色）
      z-index 60：蓋過 atlas UI（50）但低於 layout btn（70，要留著返回 list）與 header/menu */

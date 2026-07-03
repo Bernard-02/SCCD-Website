@@ -2610,7 +2610,37 @@ export async function initAtlas(options = {}) {
   // 死空間讓視覺 gap 不一致 + 量測時序造成初載/回頁排版不一致，user 2026-06-13）
   const LIST_GAP_MOBILE = 24;
 
-  function calcListPageSize(cat) {
+  // 手機逐 item 實高（ghost pre-measure 時填入，與 listGrouped[cat] 同序）→ 變高分頁用
+  const ITEM_HEIGHTS_PER_CAT = /** @type {Record<string, number[]>} */ ({});
+
+  // 手機變高分頁（user 2026-07-03「host 只兩行/partners 應四行」）：
+  // 均一 slot 制用全分類最高 item 估行數，一個折行的長名 item 就把整類行高灌高、短 item 頁浪費大量高度。
+  // 改用 ghost 實測高度，每頁「兩欄各自實際放得下 + 依 count 平分」塞到放不下為止。
+  // 未量測（首次渲染）回傳 null → fallback 均一 slot 制；ghost 量完會重渲染套用。
+  /** @param {string} cat @param {number} containerH @returns {{start:number,count:number,split:number}[]|null} */
+  function calcMobilePages(cat, containerH) {
+    const hs = ITEM_HEIGHTS_PER_CAT[cat];
+    const total = (listGrouped[cat] || []).length;
+    if (!hs || hs.length !== total) return null;
+    /** @param {number[]} arr */
+    const fits = arr => arr.reduce((s, h) => s + h, 0) + LIST_GAP_MOBILE * Math.max(0, arr.length - 1) <= containerH;
+    const pages = [];
+    let i = 0;
+    while (i < total) {
+      let best = 1; // 單一 item 比 container 高也硬放（否則卡死）
+      for (let n = 1; i + n <= total; n++) {
+        const c1 = Math.ceil(n / 2);
+        if (fits(hs.slice(i, i + c1)) && fits(hs.slice(i + c1, i + n))) best = n;
+        else break;
+      }
+      pages.push({ start: i, count: best, split: Math.ceil(best / 2) });
+      i += best;
+    }
+    return pages;
+  }
+
+  /** @param {string} cat @param {HTMLElement} [col] 手機用實際欄高當預算（可省略 → 公式 fallback） */
+  function calcListPageSize(cat, col) {
     const headerH = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--header-height').trim()) || 80;
     // 標題區佔用：titleblock chip (~31) + col gap (~16) + rotation 餘量 (~5) ≈ 52
     const TITLEBLOCK_H = 52;
@@ -2623,7 +2653,16 @@ export async function initAtlas(options = {}) {
       const avail = window.innerHeight - 128 - (headerH + 64) - 12;
       const isAlumniCol = cat === 'host' || cat === 'employ';
       const colH = isAlumniCol ? (avail - 24) / 2 : avail;
-      const containerH = colH - (isAlumniCol ? TITLEBLOCK_H : 0);
+      // chevron 改跨整欄貼底（同桌面，user 2026-07-03）→ items 區扣 chevron 帶，最後一排不壓到 nav
+      // 64 = nav bottom 18 + chevron ~28 + 上方呼吸 ~18（user 2026-07-03 要求內容/tab 兩側都多留）；CSS padding-bottom 同步
+      const CHEVRON_BAND_MOBILE = 64;
+      // 預算優先用實際 CSS 欄高（clientHeight 含 padding=band；上面手算公式與 CSS 實測有 12-15px 漂移，
+      // 會白白少排一行）；欄 display:none 量到 0 → fallback 公式（tab 首次切到該欄時會重 render 再量）
+      const itemsBox = col ? /** @type {HTMLElement|null} */ (col.querySelector('.atlas-list-col-items')) : null;
+      const realBoxH = itemsBox ? itemsBox.clientHeight : 0;
+      const containerH = realBoxH > 0
+        ? realBoxH - CHEVRON_BAND_MOBILE
+        : colH - (isAlumniCol ? TITLEBLOCK_H : 0) - CHEVRON_BAND_MOBILE;
       const itemH = ITEM_H_PER_CAT[cat] || 84;
       // 行數以「全分類最高 item + 固定 gap」估最壞情況（rows*(h+g) ≤ C+g）→ 自然高排列永不溢出；
       // gap 固定 = 視覺間距每頁、每 item 一致（不再依 leftover 均分）
@@ -2742,7 +2781,7 @@ export async function initAtlas(options = {}) {
       ? /** @type {HTMLElement[]} */ ([...itemsEl.querySelectorAll('.atlas-list-line-clip > *')])
       : [];
 
-    const sizeInfo = calcListPageSize(cat);
+    const sizeInfo = calcListPageSize(cat, col);
     const rowsPerCol = sizeInfo.rowsPerCol;
     // 手機不在這裡設：slot/gap 是「當頁實高」制（build 量完才設），在 exit 動畫前先設回
     // 全分類統一值會把正在出場的舊 items 重新撐高 → 「先往下移再出場」（user 2026-06-13）
@@ -2754,17 +2793,21 @@ export async function initAtlas(options = {}) {
     }
 
     const allItems = listGrouped[cat];
-    // 桌面：chevron 跨整欄、貼在 col-items 底帶（calcListPageSize 已從 items 區扣 CHEVRON_BAND，items 不會碰到它）
-    //   → 兩 sub-col 都放滿 rowsPerCol 個、整片均分、最後一個 item 落在 chevron 上緣（user 2026-06-25）。
-    // 手機維持原樣（nav 在右 sub-col 佔 1 slot）。
-    const navSpansCol = !isMobileAtlas;
-    const itemsPerPage = navSpansCol ? rowsPerCol * 2 : rowsPerCol * 2 - 1;
-    const maxPage = Math.max(0, Math.ceil(allItems.length / itemsPerPage) - 1);
+    // chevron 桌面手機一律跨整欄、貼 col-items 底帶（calcListPageSize 兩端都已扣 chevron 帶）。
+    // 2026-07-03 手機對齊桌面（原本 nav 佔右 sub-col 1 slot → 兩欄 5/4 不均 + chevron 擠在右半）。
+    const itemsPerPage = rowsPerCol * 2;
+    // 手機：ghost 量到實高後改變高分頁（每頁塞到兩欄實際放得下為止）；未量測 fallback 均一 slot 制
+    const mobilePages = isMobileAtlas ? calcMobilePages(cat, sizeInfo.containerH) : null;
+    const maxPage = mobilePages
+      ? mobilePages.length - 1
+      : Math.max(0, Math.ceil(allItems.length / itemsPerPage) - 1);
     const safePage = Math.min(Math.max(0, page), maxPage);
     listPageState[cat] = safePage;
 
-    const start = safePage * itemsPerPage;
-    const pageItems = /** @type {any[]} */ (allItems).slice(start, start + itemsPerPage);
+    const pageSpec = mobilePages
+      ? mobilePages[safePage]
+      : { start: safePage * itemsPerPage, count: itemsPerPage, split: rowsPerCol };
+    const pageItems = /** @type {any[]} */ (allItems).slice(pageSpec.start, pageSpec.start + pageSpec.count);
 
     // 抽出 build 邏輯：清空舊 DOM、塞新 sub-cols、跑 enter 動畫
     // enterDirsHint：exit 階段傳來的「反向」方向陣列，讓新 item 從舊 item 退場的反方向進場
@@ -2773,15 +2816,18 @@ export async function initAtlas(options = {}) {
     function build(enterDirsHint) {
       itemsEl.innerHTML = ''; // clears both sub-cols
 
-      // Sub-col 1：前 rowsPerCol 個 items
+      // 手機：兩 sub-col 平分當頁 items（user 2026-07-03；變高分頁時 split 由 calcMobilePages 算好）；桌面維持先填滿左欄
+      const splitAt = mobilePages
+        ? pageSpec.split
+        : (isMobileAtlas ? Math.min(rowsPerCol, Math.ceil(pageItems.length / 2)) : rowsPerCol);
       const subCol1 = document.createElement('div');
       subCol1.className = 'atlas-list-sub-col';
-      pageItems.slice(0, rowsPerCol).forEach(item => subCol1.appendChild(buildListItemEl(item, cat)));
+      pageItems.slice(0, splitAt).forEach(item => subCol1.appendChild(buildListItemEl(item, cat)));
 
-      // Sub-col 2：剩下的 items（桌面 rowsPerCol 個；手機 rowsPerCol-1 個 + nav）；nav 走 absolute 定位、永遠貼底
+      // Sub-col 2：剩下的 items；nav 走 absolute 定位、永遠貼底
       const subCol2 = document.createElement('div');
       subCol2.className = 'atlas-list-sub-col';
-      const col2Items = pageItems.slice(rowsPerCol);
+      const col2Items = pageItems.slice(splitAt);
       col2Items.forEach(item => subCol2.appendChild(buildListItemEl(item, cat)));
 
       const navItem = document.createElement('div');
@@ -2802,12 +2848,18 @@ export async function initAtlas(options = {}) {
       navItem.appendChild(prevBtn);
       navItem.appendChild(nextBtn);
 
+      // 手機滿頁：剩餘高度攤進間距（CSS .is-full → space-between；不足頁頂部排列不硬撐）
+      // 變高分頁：「滿」= 被容量截斷的頁（還有下一頁）；最後一頁頂部排列
+      if (isMobileAtlas) {
+        const pageFull = mobilePages ? safePage < maxPage : pageItems.length === itemsPerPage;
+        subCol1.classList.toggle('is-full', pageFull);
+        subCol2.classList.toggle('is-full', pageFull);
+      }
+
       itemsEl.appendChild(subCol1);
       itemsEl.appendChild(subCol2);
-      // 桌面：nav append 到 .atlas-list-col-items（position:relative）→ 跨整欄、< 頂左緣 / > 頂右緣（CSS space-between）；
-      // 手機：維持 append 到右 sub-col（nav 只在右半、不跨欄）
-      if (navSpansCol) itemsEl.appendChild(navItem);
-      else subCol2.appendChild(navItem);
+      // nav append 到 .atlas-list-col-items（position:relative）→ 跨整欄、< 頂左緣 / > 頂右緣（CSS space-between）
+      itemsEl.appendChild(navItem);
 
       // 主標 marquee：DOM 進入 layout 後（次幀）量寬決定是否需要 marquee
       requestAnimationFrame(() => applyListMarquee(itemsEl));
@@ -2854,16 +2906,20 @@ export async function initAtlas(options = {}) {
           listView.appendChild(ghost);
           allCatItems.forEach(item => ghost.appendChild(buildListItemEl(item, cat)));
           let maxH = 0;
+          const heights = /** @type {number[]} */ ([]);
           ghost.querySelectorAll('.atlas-list-item').forEach(el => {
             const h = el.getBoundingClientRect().height;
+            heights.push(Math.ceil(h));
             if (h > maxH) maxH = h;
           });
           listView.removeChild(ghost);
           const pre = ITEM_H_PER_CAT[cat] || 84;
-          if (maxH > pre + 2) {
-            ITEM_H_PER_CAT[cat] = Math.ceil(maxH);
+          if (maxH > pre + 2) ITEM_H_PER_CAT[cat] = Math.ceil(maxH);
+          // 手機：存逐 item 實高 → renderListPage 改走變高分頁（calcMobilePages）
+          if (isMobileAtlas) ITEM_HEIGHTS_PER_CAT[cat] = heights;
+          if (maxH > pre + 2 || isMobileAtlas) {
             renderListPage(col, cat, safePage, true);
-            // 此重渲染（首次切換 ITEM_H 預設不準才會發生）會洗掉 switchToList 剛起跑的進場動畫
+            // 此重渲染（桌面 ITEM_H 預設不準 / 手機首次量到實高）會洗掉 switchToList 剛起跑的進場動畫
             // → 對重建後的欄重播同樣的 staggered 進場，否則 faculty 等高 item 欄首次切換時看起來「沒進場」
             if (currentView === 'list') playColEnterAnim(col, cat, SECTION_DELAY[cat] ?? 0);
           }
