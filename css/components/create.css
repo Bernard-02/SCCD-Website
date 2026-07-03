@@ -1461,32 +1461,18 @@ body.mode-color .control-box {
     opacity: 1;
   }
 
-  /* 內層容器（user 2026-06-11 手機改底綫：拿掉實心灰底→透明，sliders 浮在頁面上） */
+  /* 內層容器（user 2026-07-03 拿掉底綫、改桌面淡疊盒：bg 統一在下方「手機盒底淡疊」區塊） */
   .mobile-custom-angle-controls .controls-inner {
     display: flex;
     flex-direction: row;
     align-items: stretch;
     width: 100%;
-    padding: 1.2rem 0; /* user 2026-06-11：左右 padding 歸零，內容貼齊容器邊＝與輸入框對齊 */
+    padding: 1.2rem; /* 盒有底色後內容不貼盒邊（原底綫時代左右歸零對齊輸入框） */
     border: none;
-    background-color: transparent;
     border-radius: 0;
     box-sizing: border-box;
     gap: 0.8rem;
-    overflow: hidden; /* 內容物不能超出（底綫 ::after 在 padding box 底邊內、不受影響）*/
-    position: relative; /* 為 ::after 底綫定位 */
-  }
-
-  /* Slider 面板底綫（user 2026-06-11：control slider 出現時這段也要底綫）— 貫穿內容寬、4px、永遠 solid */
-  .mobile-custom-angle-controls .controls-inner::after {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 4px;
-    background-color: var(--lib-fg);
-    pointer-events: none;
+    overflow: hidden; /* 內容物不能超出 */
   }
 
   /* Sliders box - 左側區域 */
@@ -1610,31 +1596,17 @@ body.mode-color .control-box {
     opacity: 1;
   }
 
-  /* 內層容器：bar 形狀（user 2026-06-11 手機改底綫：拿掉實心灰底→透明，rainbow track 自己浮在頁面上） */
+  /* 內層容器：bar 形狀（user 2026-07-03 拿掉底綫、改桌面淡疊盒：bg 統一在下方「手機盒底淡疊」區塊） */
   .mobile-colorpicker-bar .colorpicker-bar-inner {
     display: flex;
     flex-direction: row;
     align-items: center; /* 垂直置中 */
     width: 100%;
     gap: 1rem; /* 與其他元素統一的 gap */
-    padding: 1rem 0; /* user 2026-06-11：左右 padding 歸零，rainbow track 貼齊容器邊＝與輸入框對齊 */
+    padding: 1rem; /* 盒有底色後 track 不貼盒邊（原底綫時代左右歸零對齊輸入框） */
     border: none;
-    background-color: transparent;
     border-radius: 0;
     box-sizing: border-box;
-    position: relative; /* 為 ::after 底綫定位 */
-  }
-
-  /* Color picker bar 底綫（user 2026-06-11：色環 bar 也要底綫）— 貫穿 track+play 內容寬、4px、永遠 solid */
-  .mobile-colorpicker-bar .colorpicker-bar-inner::after {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 4px;
-    background-color: var(--lib-fg);
-    pointer-events: none;
   }
 
   /* Color Picker 容器：bar 形狀，9:1 比例的 9 */
@@ -2134,7 +2106,7 @@ body.mode-color .control-box {
     justify-content: center; /* 靠攏到中間 */
   }
 
-  /* Custom + Rotate 按鈕組容器（user 2026-06-11 手機改底綫：拿掉實心灰底→透明，底綫由 ::before 連接線提供） */
+  /* Custom + Rotate 按鈕組容器（user 2026-07-03 拿掉底綫、改桌面淡疊盒：兩鈕共用一塊底＝對齊桌面 rotation-box） */
   .mobile-rotation-group {
     display: flex;
     flex-shrink: 0;
@@ -2142,11 +2114,9 @@ body.mode-color .control-box {
     gap: 0.5rem; /* 內部兩個按鈕之間的間距 */
     height: var(--mobile-btn-size);
     border: none;
-    background-color: transparent;
     border-radius: 0;
     box-sizing: border-box;
     padding: 0 0.25rem; /* 左右內邊距讓按鈕不貼邊 */
-    position: relative; /* 為 ::before 連接底綫定位 */
   }
 
   .mobile-bottom-btn {
@@ -2164,7 +2134,7 @@ body.mode-color .control-box {
     padding: 0;
     transition: opacity var(--dur-micro) ease;
     box-sizing: border-box;
-    position: relative; /* 為 mode/save ::after 底綫定位 */
+    position: relative;
   }
 
   /* rotation-group 內的按鈕：底色已由外層容器提供，內部透明避免雙層疊色 */
@@ -2305,38 +2275,27 @@ body.mode-color .control-box {
     filter: invert(1);
   }
 
-  /* 底綫：mode / save 永遠 solid（save disabled 0.5），撐滿按鈕寬（space-between 下首尾按鈕貼容器邊
-     → 線外緣與輸入框左右緣對齊，user 2026-06-11）。
-     line 色 = var(--lib-fg) = 頁面前景。手機線 4px（user 2026-06-11，比桌面 6px 細）。 */
-  .mobile-mode-btn::after,
-  .mobile-save-btn::after {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 4px;
-    background-color: var(--lib-fg);
-    pointer-events: none;
+  /* 手機盒底淡疊（user 2026-07-03 拿掉底綫，改回桌面 .control-box 那套 2026-06-22 定案）：
+     白底→黑 5% / 黑底→白 10% / mode3 用 list-strip；active/inactive 只靠 icon opacity 溝通，盒底永遠同一淡疊。 */
+  .mobile-mode-btn,
+  .mobile-save-btn,
+  .mobile-rotation-group,
+  .mobile-custom-angle-controls .controls-inner,
+  .mobile-colorpicker-bar .colorpicker-bar-inner {
+    background-color: rgba(var(--theme-fg-rgb), 0.05);
   }
-  .mobile-save-btn:disabled::after {
-    opacity: 0.5;
+  #create-app.inverse-mode .mobile-mode-btn,
+  #create-app.inverse-mode .mobile-save-btn,
+  #create-app.inverse-mode .mobile-rotation-group,
+  #create-app.inverse-mode .mobile-custom-angle-controls .controls-inner,
+  #create-app.inverse-mode .mobile-colorpicker-bar .colorpicker-bar-inner {
+    background-color: rgba(var(--theme-fg-rgb), 0.1); /* 黑底→白 10%（theme-fg-rgb 已是白） */
   }
-
-  /* rotation group 底綫：始終一整條連接線貫穿 custom+rotate；唯獨「兩個都 inactive」才變灰（對齊桌面）。
-     active/inactive 只影響 icon（已由上方 .mobile-rotation-group .mobile-bottom-btn.active/.inactive opacity 處理）。 */
-  .mobile-rotation-group::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 4px;
-    background-color: var(--lib-fg);
-    pointer-events: none;
-    transition: opacity var(--dur-fast) ease;
-  }
-  .mobile-rotation-group:not(:has(.mobile-bottom-btn.active))::before {
-    opacity: 0.5;
+  body.mode-color .mobile-mode-btn,
+  body.mode-color .mobile-save-btn,
+  body.mode-color .mobile-rotation-group,
+  body.mode-color .mobile-custom-angle-controls .controls-inner,
+  body.mode-color .mobile-colorpicker-bar .colorpicker-bar-inner {
+    background-color: var(--list-zebra-strip, rgba(255, 255, 255, 0.15)); /* mode3 同 list strip */
   }
 }
