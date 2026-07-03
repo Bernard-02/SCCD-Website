@@ -98,7 +98,8 @@
         <div class="flex-1 min-w-0">
 
       <!-- Overview Section -->
-      <section id="overview" class="snap-zone bg-white pb-3xl md:pb-6xl relative z-10 overflow-visible" style="scroll-margin-top: 200px;">
+      <!-- scroll-margin / 桌面高視窗 100vh 規則統一在 scroll-snap.css「about 100vh sections」區塊 -->
+      <section id="overview" class="snap-zone bg-white pb-3xl md:pb-6xl relative z-10 overflow-visible">
 
         <div class="site-container relative z-10">
           <!-- Mouse trail container（文字上方，z-20 高於 grid 的 text） -->
@@ -125,8 +126,8 @@
       <!-- Class + Works Section（兩個 sub-anchor 各自有零高度 anchor wrapper + 封鎖綫，皆 absolute 不吃 flow，不 sticky） -->
       <section class="bg-white relative z-20 overflow-visible">
 
-      <!-- Class Anchor + 封鎖綫（零高度 positioned wrapper，與 works 一致結構；anchor 點 = btn 位置 100px；封鎖綫在 15vh）-->
-      <div id="class" class="snap-zone relative w-full pointer-events-none" style="scroll-margin-top: 100px; height: 0;">
+      <!-- Class Anchor + 封鎖綫（零高度 positioned wrapper；scroll-margin 在 scroll-snap.css：矮視窗 100px / 高視窗 0 頂對齊）-->
+      <div id="class" class="snap-zone relative w-full pointer-events-none" style="height: 0;">
         <div class="section-title-strip absolute left-0 right-0 flex items-center pointer-events-auto" style="top: 15vh; overflow: visible; z-index: 0; padding: var(--spacing-md) 0;" data-anchor="class">
           <div class="section-title-inner flex gap-md" style="white-space: nowrap; padding: var(--spacing-md);" data-section-title>
             <h2 class="text-h1">Programs</h2>
@@ -216,7 +217,7 @@
 
         <!-- Class Info Panels (image + text) -->
         <!-- min-height:100vh：撐滿視窗，把下方 works panels 自然擠到下一個 viewport -->
-        <div id="class-info-area" class="site-container pt-2xl" style="min-height: 100vh;">
+        <div id="class-info-area" class="site-container pt-2xl">
 
           <!-- Animation -->
           <div class="class-info-panel pb-3xl relative z-10" data-division="animation">
@@ -271,15 +272,18 @@
 
         </div>
 
-        <!-- Works Anchor + 封鎖綫（零高度 positioned wrapper；anchor 點 = btn 位置 100px；封鎖綫在 15vh）-->
-        <div id="works" class="snap-zone relative w-full pointer-events-none" style="scroll-margin-top: 100px; height: 0;">
-          <div class="section-title-strip absolute left-0 right-0 flex items-center pointer-events-auto" style="top: 15vh; overflow: visible; z-index: 0; padding: var(--spacing-md) 0;" data-anchor="works">
-            <div class="section-title-inner flex gap-md" style="white-space: nowrap; padding: var(--spacing-md);" data-section-title>
-              <h2 class="text-h1">Works</h2>
-              <h2 class="text-h1">作品</h2>
+        <!-- Works View：#works 本體 = snap zone（桌面高視窗 = 100vh、鏡像 class 佈局；矮視窗/手機 = 自然高度、
+             marker 行為同舊版）。100vh / scroll-margin / 封鎖綫 +100px 補償規則在 scroll-snap.css。 -->
+        <div id="works" class="snap-zone relative w-full">
+          <!-- Works 封鎖綫（零高度 overlay，不吃 flow）-->
+          <div class="relative w-full pointer-events-none" style="height: 0;">
+            <div class="section-title-strip absolute left-0 right-0 flex items-center pointer-events-auto" style="top: 15vh; overflow: visible; z-index: 0; padding: var(--spacing-md) 0;" data-anchor="works">
+              <div class="section-title-inner flex gap-md" style="white-space: nowrap; padding: var(--spacing-md);" data-section-title>
+                <h2 class="text-h1">Works</h2>
+                <h2 class="text-h1">作品</h2>
+              </div>
             </div>
           </div>
-        </div>
 
         <!-- Works Panels (playlist) - JS controls desktop visibility -->
         <!-- 不加 bg-white：讓封鎖綫的旋轉 tail 能穿過（比照 Class 狀態 class-info-panel 也是透明）-->
@@ -360,6 +364,8 @@
 
         </div>
 
+        </div><!-- end works view (#works) -->
+
         </div><!-- end class-info-sticky-wrapper -->
 
       </div><!-- end class-works-area -->
@@ -367,7 +373,7 @@
 
       <!-- Resources Section -->
       <!-- z-20：封鎖綫旋轉後上角會凸出 section 頂邊（~150px），z-10 會被上面 class(z-20) 的 bg-white 蓋掉 -->
-      <section id="resources" class="snap-zone bg-white relative z-20 overflow-visible pt-3xl" style="min-height: 100vh;">
+      <section id="resources" class="snap-zone bg-white relative z-20 overflow-visible pt-3xl">
 
         <!-- Section Title Strip（封鎖綫，h1 字體，位於 section 頂部）-->
         <div class="section-title-strip absolute left-0 right-0 flex items-center" style="top: 0; overflow: visible; z-index: 0; padding: var(--spacing-md) 0;" data-anchor="resources">

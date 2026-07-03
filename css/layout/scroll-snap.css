@@ -40,3 +40,48 @@
     scroll-snap-stop: always;
   }
 }
+
+/* ===== about 100vh sections（2026-07-03 user 拍板）=====
+   桌面高視窗（≥900px 高）：overview / class 視圖 / works 視圖 / resources 各硬 100vh、snap 頂對齊一步到位
+   （hero / history / footer 本來就是一屏）。矮視窗不套 → 退回自然高度 + 原 marker−100/−200 落點（user 選定）。
+   基準 scroll-margin（原 about.html inline style 移入；不分寬度 → 手機 deep-link 落點不變）： */
+#overview { scroll-margin-top: 200px; }
+#class, #works { scroll-margin-top: 100px; }
+#class-info-area { min-height: 100vh; }
+#resources { min-height: 100vh; }
+
+@media (min-width: 768px) and (min-height: 900px) {
+  /* 落點全部頂對齊；原本 −100/−200 offset 提供的框景改由各 section 內部 padding 補（見下） */
+  #overview, #class, #works { scroll-margin-top: 0; }
+
+  /* overview：一屏、理念文字在 fixed header 下方置中 */
+  #overview {
+    height: 100vh;
+    padding-top: var(--header-height, 96px);
+    padding-bottom: 0;
+    display: flex;
+    align-items: center;
+  }
+  #overview > .site-container { width: 100%; }
+
+  /* class 視圖 = btn 列(198px) + 圖文(100vh−198px)、works 視圖 = 100vh → 共用 section 精確 200vh。
+     btn 列固定 198px（pt-3xl + pills 內容 + pb-md 實測值）確保加總不飄；內容若換行溢出仍 overflow visible。 */
+  #class-buttons-sticky { height: 198px; }
+  #class-info-area {
+    height: calc(100vh - 198px);
+    min-height: 0;
+    /* 頂對齊落點少了 100px 緩衝 → 補進 padding，圖文內容起點與舊落點視覺一致、不被 sticky btn（底 298px）壓到 */
+    padding-top: calc(var(--spacing-2xl, 64px) + 100px);
+  }
+  #works {
+    height: 100vh;
+    padding-top: 100px; /* 同上：補回舊 marker−100 落點的內容框景（desc/影片起點維持 ~356px 不變） */
+  }
+  #class-works-area { padding-bottom: 0; }
+
+  /* 封鎖綫：落點從 −100 改 0 → strip 基準補 +100px，viewport 位置不變（!important 蓋 inline top:15vh） */
+  #class .section-title-strip,
+  #works .section-title-strip { top: calc(15vh + 100px) !important; }
+
+  #resources { height: 100vh; }
+}

@@ -53,27 +53,46 @@ export function initClassButtonsSticky() {
     }
   }
 
-  // ─── ScrollTrigger：works anchor 到達 100px → btn scroll-linked 往上 ──────
-  // 維持 sticky（flow 空間不變），translateY 讓 btn 隨捲動往上，
-  // 同時用 clip-path 從頂端裁切：裁切量 = |translateY|，
-  // 確保 btn 永遠不會超過 sticky line（100px）進入透明 header 區
-  // 視覺效果：btn 內容往上滑出，被 sticky line 切齊（類似滑進隱藏窗）
+  // ─── ScrollTrigger：btn 滑出（在 100px sticky 線被裁切、像滑進隱藏窗）──────
+  // 高視窗（100vh sections 模式，門檻同 scroll-snap.css 的 min-height:900px）：
+  //   btn 全程 sticky 到 works 視圖結尾；位移交給 CSS sticky 自然釋放（wrapper 底把 btn 推走），
+  //   這裡只補 clip 同步裁切（釋放起點 = wrapper 底到達 100px 線 + btn 高，與釋放 1:1 同速）→
+  //   落到 works 時 btn 完整停在 100px 線（鏡像 class 佈局），離開 works 才滑出（user 2026-07-03）。
+  // 矮視窗 fallback：維持舊邏輯（works anchor 過 100px 線 → y+clip 一起滑出）。
+  // 門檻以 init 當下為準，跨頁重 init 會重新判定；同頁 resize 跨門檻不重算（可接受）。
   gsap.set(classButtonsEl, { clipPath: 'inset(0px 0px 0px 0px)' });
 
-  gsap.timeline({
-    scrollTrigger: {
-      trigger: worksAnchor,
-      start: 'top 100px',
-      end: () => `+=${classButtonsEl.offsetHeight}`,
-      scrub: true,
-      invalidateOnRefresh: true
-    }
-  })
-  .to(classButtonsEl, { y: () => -classButtonsEl.offsetHeight, ease: 'none' }, 0)
-  .to(classButtonsEl, {
-    clipPath: () => `inset(${classButtonsEl.offsetHeight}px 0px 0px 0px)`,
-    ease: 'none'
-  }, 0);
+  const tallViewport = window.matchMedia('(min-height: 900px)').matches;
+  if (tallViewport) {
+    gsap.timeline({
+      scrollTrigger: {
+        trigger: stickyWrapper,
+        start: () => `bottom ${100 + classButtonsEl.offsetHeight}px`,
+        end: () => `+=${classButtonsEl.offsetHeight}`,
+        scrub: true,
+        invalidateOnRefresh: true
+      }
+    })
+    .to(classButtonsEl, {
+      clipPath: () => `inset(${classButtonsEl.offsetHeight}px 0px 0px 0px)`,
+      ease: 'none'
+    }, 0);
+  } else {
+    gsap.timeline({
+      scrollTrigger: {
+        trigger: worksAnchor,
+        start: 'top 100px',
+        end: () => `+=${classButtonsEl.offsetHeight}`,
+        scrub: true,
+        invalidateOnRefresh: true
+      }
+    })
+    .to(classButtonsEl, { y: () => -classButtonsEl.offsetHeight, ease: 'none' }, 0)
+    .to(classButtonsEl, {
+      clipPath: () => `inset(${classButtonsEl.offsetHeight}px 0px 0px 0px)`,
+      ease: 'none'
+    }, 0);
+  }
 
   // ─── ScrollTrigger：圖文 → works 過渡 ────────────────────────
   // 首次進入 works（本次 About 訪問）時自動 active BFA；之後保留使用者選擇
