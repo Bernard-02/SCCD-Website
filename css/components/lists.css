@@ -689,14 +689,6 @@
   }
 }
 
-/* ===== Timeline Year Item Hover (Desktop only) ===== */
-@media (min-width: 768px) {
-  .timeline-year-item:hover {
-    color: var(--color-pink) !important;
-    cursor: var(--cursor-pointer);
-  }
-}
-
 /* ===== History List View（era 卡片切換；桌機 only）=====
  * 左下角 toggle 鈕切換 timeline ↔ list；list view 用一個 accent 矩形顯示單一 era：
  * 左上角 era chip、內容可捲動（EN 左 / ZH 右）、右下角 next 鈕在各 era 間 loop。
@@ -1030,34 +1022,6 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
   }
 }
 
-
-/* ===== List Item Border with Hover Slide + Title Shift (Desktop only) ===== */
-.list-item-border {
-  position: relative;
-}
-
-.list-item-border::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: black;
-  transform-origin: right center;
-  transform: scaleX(1);
-  transition: transform var(--dur-fast) ease;
-}
-
-@media (min-width: 768px) {
-  .list-item-border:hover::after {
-    transform-origin: left center;
-    transform: scaleX(0);
-  }
-
-  /* user 2026-06-21：title 縮排改由 list-header 自身 px-sm 提供（不再用 title translateX）；
-     開合不位移、無左右滑動動畫。 */
-}
 
 /* ===== Activities Reference Chip ===== */
 /* list-ref-btn 為 list-content 內 ref 元素：

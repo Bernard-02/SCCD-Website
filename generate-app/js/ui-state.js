@@ -27,7 +27,7 @@ function updateUI() {
         body.addClass('wireframe-mode');
         // Lazy init wireframeColor：colormode-btn 從 Standard/Inverse 切到 Wireframe 時，若用戶此 session
         // 沒進過 Wireframe（setup _initMode 不是 Wireframe），wireframeColor 還是 undefined → 下面
-        // `if (wireframeColor)` 會 skip → --wireframe-bg 卡 CSS 預設白色，要等下一個 draw() frame 的 transition
+        // `if (wireframeColor)` 會 skip → 背景卡白色，要等下一個 draw() frame 的 transition
         // block (sketch.js:1083) 才補上。同步從 site colorHue 算一份避免 1+ paint frame 的白底閃爍
         if (!wireframeColor && typeof window.sccdGetColorHue === 'function' && typeof _p5 !== 'undefined' && _p5) {
             const _hue = window.sccdGetColorHue();
@@ -142,24 +142,6 @@ function updateUI() {
             body.removeClass('inverse-mode');
             body.addClass('standard-mode');
         }
-        // Standard/Inverse 模式下，清除 Wireframe 的 CSS 變數，讓背景色恢復為黑/白
-        // 這樣可以確保從 Wireframe 切換回來時，背景顏色會正確重置
-        body.elt.style.removeProperty('--wireframe-bg');
-        body.elt.style.removeProperty('--wireframe-border');
-        body.elt.style.removeProperty('--wireframe-icon-opacity');
-
-        // 同時清除 canvas container 的 CSS 變數
-        let canvasContainer = _p5.select('#canvas-container');
-        let desktopCanvasContainer = _p5.select('#desktop-canvas-container');
-        if (canvasContainer) {
-            canvasContainer.elt.style.removeProperty('--wireframe-bg');
-            canvasContainer.elt.style.removeProperty('--wireframe-border');
-        }
-        if (desktopCanvasContainer) {
-            desktopCanvasContainer.elt.style.removeProperty('--wireframe-bg');
-            desktopCanvasContainer.elt.style.removeProperty('--wireframe-border');
-        }
-
         // 平滑收起 color picker box（收起動畫）
         if (colorPickerBox) {
             // 步驟 1：先收內容（container 往左滑回 mode-btn 後面 translateX(-100%) + fade，與進場反向；play 鈕跟著）
@@ -441,19 +423,6 @@ function updateUI() {
 
     // 手機版：更新UI（使用全域變數，不需要重新 select）
     let mobileCustomAngleControls = _p5.select('.mobile-custom-angle-controls');
-
-    // 更新手機版 control-box 的 disabled 狀態
-    let mobileRotationBox = _p5.select('.mobile-rotation-box');
-    let mobileSaveContainer = _p5.select('.mobile-save-container');
-    if (mobileRotationBox && mobileSaveContainer) {
-        if (hasText) {
-            mobileRotationBox.removeClass('disabled');
-            mobileSaveContainer.removeClass('disabled');
-        } else {
-            mobileRotationBox.addClass('disabled');
-            mobileSaveContainer.addClass('disabled');
-        }
-    }
 
     if (mobileStandardButton && mobileInverseButton) {
         mobileStandardButton.elt.disabled = isStandardTarget;

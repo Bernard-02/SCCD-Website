@@ -704,28 +704,6 @@ export function initHeroAnimation() {
   const mySeq = ++_heroInitSeq;
   const isStale = () => mySeq !== _heroInitSeq;
 
-  // 🔧 暫時診斷（hero 偶爾完全不出現查根因用，查完移除）：init 後 3s 檢查 chip 是否真的顯示出來。
-  // ⚠️ gate isStale：只檢查「3s 後仍是當前頁」的（= 你停下來的那頁）。快速連點時被切走的舊頁 stale 跳過，
-  //   不再誤報（那些頁是你主動離開的、不是 bug）。只有「停在某頁、它本身 hero 卻卡住」才是真 bug。
-  setTimeout(() => {
-    if (mySeq !== _heroInitSeq) return;  // 已切到別頁 → 這頁不是你停下來的、略過
-    const sel = '.hero-title, .hero-title-cn, .hero-text-en, .hero-text-cn, .hero-mobile-title, .hero-mobile-title-cn, .hero-mobile-text-en, .hero-mobile-text-cn';
-    const chips = [...document.querySelectorAll(sel)].filter(el => /** @type {HTMLElement} */ (el).offsetParent !== null);
-    // 真正「卡住」只有兩種：build 沒跑到 visibility:visible（stale-abort 等），或進場 tween 被 kill
-    // 沒 clearProps → 殘留 offset transform。原本還比對 viewport bbox，但 hero 在 h-screen section 內，
-    // 使用者 3s 內往下捲一點 chip 的 rect 就出界 → 對「已 _heroDone、transform 已清」的成功進場誤報
-    // （4/4 出界＝整段 hero 捲走，非進場失敗）。改成只認真實卡住訊號。
-    const broken = chips.filter(el => {
-      if (getComputedStyle(el).visibility === 'hidden') return true;
-      const t = /** @type {HTMLElement} */ (el).style.transform;
-      return !!t && t !== 'none' && /translate|matrix/.test(t);
-    });
-    if (chips.length && broken.length) {
-      console.warn(`[hero] ⚠️ 真‧進場失敗（停在這頁仍卡住）：${broken.length}/${chips.length} chip 仍隱藏/出界（seq=${mySeq} _heroDone=${_heroDone} mobile=${innerWidth < 768}）`,
-        broken.map(el => ({ cls: el.className, vis: getComputedStyle(el).visibility, transform: /** @type {HTMLElement} */ (el).style.transform })));
-    }
-  }, 3000);
-
   // Hero highlight：所有 [data-hero-hl] 套同一個隨機 accent 色 + 固定 padding
   // padding 用 rem 而非 em，避免 h1（font-size 大）的 padding 被等比例放大成過大色塊
   // 跑在 gsap 早返回之前，確保無 gsap 也會套色
@@ -829,8 +807,7 @@ export function initHeroAnimation() {
   // 用 requestAnimationFrame：先讓瀏覽器 paint 新頁靜態樣子（即使 hero 元素 visibility:hidden 也 OK），
   // 下一幀再做 hero build → 視覺上「點連結 → 立刻換頁 → 16ms 後 hero 動畫進場」。
   requestAnimationFrame(() => {
-    // 🔧 暫時診斷：desktop build 被 stale 中止＝chip 永遠停在 visibility:hidden（要再切一次才有）
-    if (isStale()) { console.warn(`[hero] ⚠️ desktop build 被 stale 中止：seq=${mySeq} 目前=${_heroInitSeq}（會留下隱藏 chip）`); return; }
+    if (isStale()) return;
     // 量測前等字體載入：FACULTY 等寬標題在 fallback 字型下被低估寬度，placement 用該值定位後字型載入撐大 →
     //   chip 衝破 SIDE_MARGIN 邊界（user 2026-06-07 反映 hero chip 太靠/超出邊）。chip 在 build 前都 visibility:hidden，
     //   故等字體不會 FOUC、也不會 reposition jump。fonts 已 ready 同步 build 不延遲；timeout 兜底避免極端情況卡住。

@@ -69,22 +69,16 @@
 #create-app {
   --font-family: "Inter-Medium", -apple-system, BlinkMacSystemFont, "Segoe UI",
     Roboto, "Helvetica Neue", Arial, sans-serif;
-  --standard-bg: white;
   --standard-text: black;
-  --inverse-bg: black;
   --inverse-text: white;
-  /* Wireframe 模式變數接 site theme-toggle 同步寫的 --theme-bg / --theme-fg（:root 在 variables.css always defined）
-     之前寫死 white 會 shadow 掉 generate-app/js/color-picker.js 寫到 documentElement 的值（#create-app 比 html
-     更接近子孫，cascade 永遠贏）→ slider track / placeholder / angle label 永遠是 white，
-     mode3 light hue（綠/黃）下顯示反向不對比；改 chain 之後跟 site theme 一致 */
-  --wireframe-bg: var(--theme-bg);
+  /* Wireframe 模式變數接 site theme-toggle 同步寫的 --theme-bg / --theme-fg（:root 在 variables.css always defined），
+     跟 site theme 一致 */
   --wireframe-border: var(--theme-fg);
   --wireframe-opacity: 0.5; /* Wireframe 模式的透明度（原本 light hue 走 0.25 / dark hue 走 0.5，現在統一 0.5；
     user 抱怨「沒對比色」= 之前 placeholder/slider 走錯色 + 0.5 opacity 雙重壞，改色之後 0.5 = 更清楚） */
   --current-wireframe-bg: var(--theme-bg); /* Landscape overlay 的背景色（跟 site theme 同步） */
   --current-wireframe-text: var(--theme-fg); /* Landscape overlay 的文字色（跟 site theme 同步） */
   --disabled-color: rgba(0, 0, 0, 0.25); /* 統一使用黑色25%不透明度 */
-  --disabled-color-inverse: rgba(0, 0, 0, 0.25); /* 統一使用黑色25%不透明度 */
   --r-color: rgb(255, 68, 138);
   --g-color: rgb(0, 255, 128);
   --b-color: rgb(38, 188, 255);
@@ -92,14 +86,9 @@
   /* 縮放系統 */
   --scale: 1; /* 整體縮放比例 */
   --border-radius: calc(20px * var(--scale)); /* 按鈕的圓角 */
-  --panel-border-radius: calc(28px * var(--scale)); /* control-box 的圓角 */
 
   /* 按鈕尺寸基準值 */
   --button-font-size: calc(1rem * var(--scale));
-  --button-padding: calc(10px * var(--scale));
-  --button-standard-width: calc(70px * var(--scale));
-  --button-standard-height: calc(70px * var(--scale));
-  --button-rotate-width: calc(70px * var(--scale));
   --button-rotate-height: calc(70px * var(--scale));
 
   /* 控制面板間距 */
@@ -117,7 +106,6 @@
   /* 圖標尺寸 */
   --icon-size: calc(32px * var(--scale)); /* Random/Reset 等 icon 按鈕（容器 32px 補償 SVG 內容只佔 viewBox ~65%，視覺內容 ≈ L tier 24px） */
   --button-icon-size: calc(48px * var(--scale)); /* Custom/Auto/Standard/Inverse 按鈕內的 icon */
-  --icon-button-padding: calc(2px * var(--scale));
 
   /* 滑桿尺寸 */
   --slider-width: calc(315px * var(--scale)); /* 縮短 10% */
@@ -583,25 +571,6 @@ body.mode-color .control-box {
   border-radius: 50%;
 }
 
-.control-group-stack {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start; /* <<-- 改為靠左對齊 */
-  gap: var(--control-gap);
-  position: relative; /* 讓指示器可以絕對定位 */
-}
-
-/* 新增：左右排版的按鈕組 */
-.control-group-row {
-  display: flex;
-  flex-direction: row; /* 左右排版 */
-  align-items: stretch; /* 讓按鈕填滿高度 */
-  justify-content: center;
-  gap: var(--control-box-padding); /* 使用統一的 padding 值 */
-  position: relative; /* 讓指示器可以絕對定位 */
-  height: 100%; /* 填滿父容器高度 */
-}
-
 /* 新增：單個 colormode 按鈕樣式 */
 /* 比照 #save-button：colormode button = 固定 icon 大小、由盒置中（不撐滿盒、不靠 padding）。
    盒固定 120 + icon 48 置中 → 每邊 (120−48)/2 = 36，跟 save 同機制（user 2026-06-23）。
@@ -625,30 +594,6 @@ body.mode-color .control-box {
 #create-app .custom-button-colormode img {
   width: 100%;
   height: 100%;
-}
-
-/* 滑動邊框指示器 — user 要求拿掉 border，indicator 改為純隱形定位元件（保留邏輯但無視覺） */
-.button-indicator {
-  position: absolute;
-  left: 0;
-  height: 100%;
-  aspect-ratio: 1 / 1;
-  border: none;
-  border-radius: var(--border-radius);
-  pointer-events: none;
-  transition: transform var(--dur-fast) var(--ease-standard);
-  z-index: 0;
-}
-
-/* 指示器位置：Standard（初始位置，左側） */
-.button-indicator.at-standard {
-  transform: translateX(0);
-}
-
-/* 指示器位置：Inverse（向右移動） */
-.button-indicator.at-inverse {
-  /* 移動距離 = 按鈕寬度（100%，因為是正方形） + gap */
-  transform: translateX(calc(100% + var(--control-box-padding)));
 }
 
 .control-group {
@@ -776,15 +721,6 @@ body.mode-color .control-box {
 .custom-button-rotate img {
   position: relative;
   left: 3px;
-}
-
-/* 按鈕內的文字樣式 */
-.button-text-en,
-.button-text-zh {
-  display: block;
-  line-height: 1.2;
-  white-space: nowrap;
-  pointer-events: none; /* 確保文字不會阻擋點擊事件，cursor 從 button 繼承 */
 }
 
 /* --- 個別按鈕尺寸 --- */
@@ -1054,9 +990,6 @@ body.mode-color .control-box {
 }
 
 /* --- 桌面版隱藏手機版元素 --- */
-.mobile-controls-wrapper,
-.mobile-input-save-row,
-.mobile-panels-wrapper,
 .mobile-content-section,
 .mobile-bottom-bar {
   display: none !important;
@@ -1238,198 +1171,6 @@ body.mode-color .control-box {
     max-height: 100%;
     display: block;
     object-fit: contain; /* 確保 canvas 內容等比例縮放 */
-  }
-
-  /* === 第二大區塊：手機版操作區域包裝器 === */
-  .mobile-controls-wrapper {
-    display: flex;
-    flex-direction: column;
-    flex: 3; /* 初始狀態佔 3 份 */
-    width: 100%;
-    gap: 0.8rem; /* 三行之間的間距 */
-    box-sizing: border-box;
-    overflow: visible; /* 允許內容展開 */
-    justify-content: flex-end; /* 內容從底部開始排列，輸入框固定在底部 */
-    transition: flex var(--dur-fast) ease; /* 平滑過渡 flex 比例 */
-  }
-
-  /* Custom展開時，放大操作區域，容納 Slider */
-  .mobile-controls-wrapper.expanded {
-    flex: 6; /* 展開時變成 6 份（比例 4:6） */
-  }
-
-  /* === 手機版 control-box 樣式 === */
-  .mobile-colormode-box,
-  .mobile-rotation-box {
-    border: 2px solid;
-    border-radius: 18px;
-    padding: 0.8rem;
-    transition: border-color 0s ease;
-    flex: 0 0 auto; /* 不參與 flex 分配，保持內容高度 */
-  }
-
-  /* 根據模式切換邊框顏色 */
-  #create-app.standard-mode .mobile-colormode-box,
-  #create-app.standard-mode .mobile-rotation-box {
-    border-color: black;
-  }
-  #create-app.inverse-mode .mobile-colormode-box,
-  #create-app.inverse-mode .mobile-rotation-box {
-    border-color: white;
-  }
-
-  /* 手機版：當處於 disabled 狀態時，使用對應顏色 + 透明度 */
-  #create-app.standard-mode .mobile-rotation-box.disabled {
-    border-color: black !important;
-    opacity: 0.25;
-    cursor: var(--cursor-not-allowed);
-    transition: border-color var(--dur-micro) ease; /* 移除 opacity transition 避免延遲 */
-  }
-
-  #create-app.inverse-mode .mobile-rotation-box.disabled {
-    border-color: white !important;
-    opacity: 0.5;
-    cursor: var(--cursor-not-allowed);
-    transition: border-color var(--dur-micro) ease; /* 移除 opacity transition 避免延遲 */
-  }
-
-  /* 手機版 Wireframe 模式下 disabled 狀態的邊框使用對比色 + 透明度 */
-  #create-app.wireframe-mode .mobile-rotation-box.disabled {
-    border-color: var(--wireframe-border) !important;
-    opacity: 0.5; /* 白色邊框時的透明度 */
-    cursor: var(--cursor-not-allowed);
-    transition: border-color var(--dur-micro) ease; /* 移除 opacity transition 避免延遲 */
-  }
-
-  /* 手機版 Wireframe 模式下黑色邊框時的透明度 */
-  #create-app.wireframe-mode.dark-icons .mobile-rotation-box.disabled {
-    opacity: 0.4; /* 黑色邊框時的透明度 */
-  }
-
-  /* === 手機版 Standard/Inverse 按鈕排列 === */
-  .mobile-colormode-controls {
-    display: flex;
-    flex-direction: row;
-    justify-content: flex-start;
-    align-items: center;
-    width: 100%;
-    gap: 1rem;
-    padding: 0;
-    box-sizing: border-box;
-    position: relative;
-  }
-
-  .mobile-colormode-controls .custom-button {
-    flex: 1;
-    height: 35px;
-    font-size: 0.75rem; /* 12px — rem 可縮放（WCAG 1.4.4） */
-    justify-content: center;
-    border-radius: 15px;
-  }
-
-  /* 手機版：colormode indicator 左右移動 */
-  .mobile-colormode-indicator {
-    position: absolute;
-    width: calc(50% - 0.5rem);
-    height: 35px;
-    border: 2px solid;
-    border-radius: 15px;
-    pointer-events: none;
-    transition: transform var(--dur-fast) var(--ease-standard), border-color 0s ease;
-    z-index: 0;
-  }
-
-  #create-app.standard-mode .mobile-colormode-indicator {
-    border-color: black;
-  }
-  #create-app.inverse-mode .mobile-colormode-indicator {
-    border-color: white;
-  }
-
-  .mobile-colormode-indicator.at-standard {
-    transform: translateX(0);
-  }
-
-  .mobile-colormode-indicator.at-inverse {
-    transform: translateX(calc(100% + 1rem)); /* 移動整個外框寬度 + gap */
-  }
-
-  /* === 手機版 Auto/Custom 按鈕排列 === */
-  .mobile-rotation-box {
-    display: flex;
-    flex-direction: column; /* 按鈕在上方，slider 在下方 */
-    width: 100%;
-    position: relative; /* 為偽元素提供定位參考 */
-  }
-
-  /* 手機版：當 Custom 模式啟用時，顯示包圍整個 rotation-box 內容的邊框 */
-  .mobile-rotation-box.custom-mode::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 0;
-    bottom: 0;
-    border: 2px solid;
-    border-radius: 18px; /* 與 mobile-rotation-box 的外框一致 */
-    pointer-events: none; /* 不阻擋點擊事件 */
-    transition: border-color 0s ease;
-    z-index: -1; /* 在內容下方 */
-  }
-
-  /* 根據模式切換邊框顏色 */
-  #create-app.standard-mode .mobile-rotation-box.custom-mode::before {
-    border-color: var(--standard-text);
-  }
-  #create-app.inverse-mode .mobile-rotation-box.custom-mode::before {
-    border-color: var(--inverse-text);
-  }
-
-  .mobile-rotation-box .control-group-stack {
-    display: flex;
-    flex-direction: row;
-    justify-content: flex-start;
-    align-items: center;
-    width: 100%;
-    gap: 1rem;
-    padding: 0;
-    box-sizing: border-box;
-  }
-
-  .mobile-rotation-box .control-group-stack .custom-button {
-    flex: 1;
-    height: 35px;
-    font-size: 0.75rem; /* 12px — rem 可縮放（WCAG 1.4.4） */
-    justify-content: center;
-    border: 2px solid transparent;
-    border-radius: 15px;
-  }
-
-  /* 手機版 Rotate 按鈕有過渡效果 */
-  .mobile-rotation-box .custom-button-rotate {
-    transition: color var(--dur-micro), border-color var(--dur-fast);
-  }
-
-  /* 手機版 Custom 按鈕的邊框過渡效果較快（0.1s） */
-  .mobile-rotation-box .custom-button-custom {
-    transition: color var(--dur-micro), border-color 0.1s;
-    transform: scale(1.05);
-  }
-
-  /* 手機版 Rotate 按鈕的 icon 放大 1.05 倍 */
-  .mobile-rotation-box .custom-button-rotate img {
-    transform: scale(1.05);
-    position: relative;
-  }
-
-  /* 手機版：Rotate 按鈕 active 不再加 border（與桌面版同步，2026-05-20） */
-
-  /* 手機版：Custom 按鈕的 active 狀態，按鈕本身不要邊框，保持透明 */
-  #create-app.standard-mode .mobile-rotation-box .custom-button-custom.active {
-    border-color: transparent;
-  }
-  #create-app.inverse-mode .mobile-rotation-box .custom-button-custom.active {
-    border-color: transparent;
   }
 
   /* === 手機版 Custom 展開區域：在 section 內部 === */
@@ -1658,104 +1399,6 @@ body.mode-color .control-box {
     opacity: 0.6;
   }
 
-  /* === 手機版輸入框區域 === */
-  .mobile-input-save-row {
-    display: flex;
-    flex-direction: row;
-    align-items: stretch;
-    justify-content: space-between;
-    width: 100%;
-    flex: 0 0 auto; /* 不參與 flex 分配，保持內容高度 */
-    padding: 0;
-    box-sizing: border-box;
-    gap: 0.8rem;
-  }
-
-  .mobile-input-container {
-    flex: 1;
-    height: 100%; /* 填滿父容器高度 */
-    position: relative;
-  }
-
-
-  .mobile-save-container {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    height: 100%; /* 填滿父容器高度 */
-    /* 使用 aspect-ratio 確保寬度 = 高度，形成正方形 */
-    aspect-ratio: 1 / 1;
-    /* 添加邊框，與其他control-box一致 */
-    border: 2px solid;
-    /* border-radius 設為 50% 形成完美圓形 */
-    border-radius: 50%;
-    padding: 0.8rem; /* 與其他control-box一致的padding */
-    transition: border-color 0s ease;
-  }
-
-  /* 根據模式切換邊框顏色 */
-  #create-app.standard-mode .mobile-save-container {
-    border-color: black;
-  }
-  #create-app.inverse-mode .mobile-save-container {
-    border-color: white;
-  }
-
-  /* 手機版：當 Save 容器處於 disabled 狀態時，使用對應顏色 + 透明度 */
-  #create-app.standard-mode .mobile-save-container.disabled {
-    border-color: black !important;
-    opacity: 0.25;
-    cursor: var(--cursor-not-allowed);
-    transition: border-color var(--dur-micro) ease; /* 移除 opacity transition 避免延遲 */
-  }
-
-  #create-app.inverse-mode .mobile-save-container.disabled {
-    border-color: white !important;
-    opacity: 0.5;
-    cursor: var(--cursor-not-allowed);
-    transition: border-color var(--dur-micro) ease; /* 移除 opacity transition 避免延遲 */
-  }
-
-  /* 手機版 Wireframe 模式下 disabled 狀態的邊框使用對比色 + 透明度 */
-  #create-app.wireframe-mode .mobile-save-container.disabled {
-    border-color: var(--wireframe-border) !important;
-    opacity: 0.5; /* 白色邊框時的透明度 */
-    cursor: var(--cursor-not-allowed);
-    transition: border-color var(--dur-micro) ease; /* 移除 opacity transition 避免延遲 */
-  }
-
-  /* 手機版 Wireframe 模式下黑色邊框時的透明度 */
-  #create-app.wireframe-mode.dark-icons .mobile-save-container.disabled {
-    opacity: 0.4; /* 黑色邊框時的透明度 */
-  }
-
-  .mobile-save-container #save-button-mobile {
-    width: 30px;
-    height: 30px;
-    padding: 0;
-    border: none;
-    background: none;
-    cursor: var(--cursor-pointer);
-  }
-
-
-  /* === 新版手機介面：彈出面板區域 === */
-  .mobile-panels-wrapper {
-    display: block !important; /* 手機版時強制顯示 */
-    position: fixed;
-    /* 位於 display-area 下方和按鈕列上方 */
-    bottom: calc(1rem + var(--mobile-btn-size)); /* 1rem padding + 按鈕高度 */
-    left: 1.5rem; /* 遵循 main container 的 left padding */
-    right: 1.5rem; /* 遵循 main container 的 right padding */
-    /* 高度：自動根據內容決定 */
-    height: auto;
-    max-height: 200px; /* 設定最大高度限制 */
-    padding: 1rem 0; /* 上下 1rem padding，左右沒有 padding */
-    box-sizing: border-box;
-    z-index: 150; /* 提高 z-index，確保在按鈕列之上 */
-    pointer-events: none; /* 預設不阻擋互動 */
-  }
 
   /* 各個面板：直接顯示，不需要額外包裹 */
   .mobile-panel {
@@ -1831,13 +1474,6 @@ body.mode-color .control-box {
   .mobile-bento-left .icon-buttons-wrapper .image-button img {
     width: 100%;
     height: 100%;
-  }
-
-  .mobile-bento-right {
-    flex: 3; /* 7:3 比例的 3 */
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
   }
 
   .mobile-bento-button {

@@ -58,10 +58,6 @@ body.mode-inverse .text-black:not(.timeline-year-item) {
   color: white !important;
 }
 
-body.mode-inverse .timeline-year-item {
-  color: white;
-}
-
 body.mode-inverse .text-gray-6 {
   color: var(--gray-5) !important;
 }
@@ -249,9 +245,6 @@ body.mode-inverse .courses-filter-btn.active .anchor-nav-inner {
 body.mode-inverse .course-item {
   border-color: white !important;
 }
-
-/* list-item-border::after 是 4px 橫條 separator（lists.css 預設黑色）
- * inverse 模式下分割線出現在 active 亮三原色底上，黑色對比清楚，維持 standard 預設不反轉 */
 
 /* 淺底/亮三原色底容器內的 .border-black 維持黑色分隔線（依全站對比原則：淺底→黑內容）
  * - .list-content：active 亮三原色底（activities accordion 展開）

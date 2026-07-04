@@ -716,8 +716,6 @@ export async function initAtlas(options = {}) {
 
   cityList.forEach((city, idx) => {
     const L = cityLayouts[0][idx];
-    // 記住這顆城市的「均分基準角」：relocate 圍繞它抖動、不整圈隨機，否則城市漂成一團互相遮蔽（user 2026-06-29）。
-    city._baseAngle = L.baseAngle;
     city._orbit = {
       cx, cy,
       rx: L.rx,

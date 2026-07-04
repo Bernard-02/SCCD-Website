@@ -165,7 +165,6 @@ function setup() {
   mobileCustomButton = _p5.select(".mobile-custom");
   mobileRandomButton = _p5.select(".mobile-random-button");
   mobileResetButton = _p5.select(".mobile-reset-button");
-  let mobileColormodeIndicator = _p5.select(".mobile-colormode-indicator");
 
   // 使用陣列選取手機版滑桿和 labels
   mobileSliders[0] = _p5.select("#mobile-r-slider");
@@ -1076,7 +1075,7 @@ function draw() {
     if (previousMode === "Wireframe" && targetMode !== "Wireframe") {
       isColorWheelRotating = false;
       updateColorWheelIcon();
-      // 不重置 --wireframe-bg / body bg：讓 iframe body 從當下 wireframeColor 直接 1s transition
+      // 不重置 body bg：讓 iframe body 從當下 wireframeColor 直接 1s transition
       // 到目標 standard/inverse bg，跟 parent header trajectory 對齊
       // （之前 reset 到反色會在 transition='none' 殘留下 instant snap，使視覺像「沒 transition 直接切換」）
     }

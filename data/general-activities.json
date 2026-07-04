@@ -43,9 +43,7 @@
         "exhibitionType": "special",
         "description": "學系年度學生作品聯展，展出動畫、互動裝置、影像敘事等各組優秀作品，並設有開幕座談與導覽活動。",
         "poster": "../images/SCCD-1-4-0.jpg",
-        "videos": [
-          "https://sccd-video-output-2026.s3.ap-northeast-2.amazonaws.com/20260605/SCCDIntroduction20250321.m3u8"
-        ],
+        "videos": [],
         "images": [
           "../images/SCCD-1-4-0.jpg",
           "../images/S__6742028.jpg"

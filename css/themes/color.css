@@ -238,10 +238,6 @@ body.mode-color .text-black:not(.timeline-year-item):not([data-hero-hl]) {
   color: var(--theme-fg) !important;
 }
 
-body.mode-color .timeline-year-item {
-  color: var(--theme-fg);
-}
-
 body.mode-color .text-gray-6 {
   color: rgba(var(--theme-fg-rgb), 0.6) !important;
 }
