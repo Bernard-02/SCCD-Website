@@ -229,6 +229,22 @@ function resetBoxSpacer(header) {
   if (sp) /** @type {HTMLElement} */ (sp).style.height = '0px';
 }
 
+// clampBelowFooter 的「結構保證」版（user 2026-07-03，手機 window-path 用）：短清單（1-2 筆）footer 太近時 clamp 會把
+// 落點夾在 alignTop 之上 → item 停半空、上方露出 nav strip（長清單內容夠多才自然到頂）。夾短就在 .inner-scroll-scroll-col
+// 末尾補底部 spacer 撐出「剛好差值」的捲動空間（把 footer 推出視窗）→ 直達 alignTop——不靠 footer/content 高度預測，
+// 差多少補多少。開新 item（proceedOpen）與 ref/deep-link（navigateToItem，自己捲、skipOpenScroll）兩條路徑共用。
+// 無 scroll-col 容器（alumni 等）＝純 clamp 不補。spacer 由收合路徑歸零（closeListHeader scrollFollow / instantClose）。
+export function alignWithBottomSpacer(itemEl, alignTop, footerShiftPx = 0) {
+  const host = /** @type {HTMLElement | null} */ (itemEl.closest('.inner-scroll-scroll-col'));
+  if (host) resetBoxSpacer(itemEl);   // 先歸零舊 spacer 再量 footer，避免殘留灌水
+  const clamped = clampBelowFooter(alignTop, footerShiftPx);
+  if (host && clamped < alignTop) {
+    getBoxSpacer(host).style.height = (alignTop - clamped) + 'px';
+    return alignTop;  // footer 已被 spacer 推出視窗 → 直達 pin 線
+  }
+  return clamped;
+}
+
 // Sticky-pinned 偵測：sentinel pattern — 在 list-header 上方塞 0 高度 sentinel div，IO 偵測 sentinel
 // 是否還在 sticky-top 線之下。sentinel 是純 scroll-driven flow 元素（非 sticky），IO 行為完全穩定，
 // 不會踩到「IO 對 sticky 元素 ratio 邊界 case 跨瀏覽器不穩」的坑。
@@ -544,8 +560,10 @@ function initListHeaderAccordion() {
               const headerDocTop = self.getBoundingClientRect().top + window.scrollY;
               const alignTop = Math.max(0, Math.round(headerDocTop - stickyTop - barCollapseDelta));
               // 真實量測：暫撐開 content 量「展開後」真 footer 再收回（不被 min-height:100vh 留白騙）；footerShift −barInner 補 bar 收合。
+              // 短清單被 clamp 夾短時 alignWithBottomSpacer 補底部 spacer 直達 pin 線（見該 helper 註解；不能靠高度預測——
+              // 低估會把落點夾成「往上捲」、反觸發 activities-search 的 scroll-up 還原 search bar）。
               gsap.set(content, { height: 'auto' });
-              const targetScrollY = clampBelowFooter(alignTop, -barInner);
+              const targetScrollY = alignWithBottomSpacer(self, alignTop, -barInner);
               gsap.set(content, { height: 0 });
               if (Math.abs(targetScrollY - window.scrollY) > 1) {
                 alignDone = new Promise(res => scrollWindowNoSnap(targetScrollY, { duration: DUR.medium, ease: EASE.enterSoft, onComplete: res }));

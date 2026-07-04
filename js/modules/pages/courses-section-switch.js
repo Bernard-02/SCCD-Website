@@ -206,30 +206,23 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
       await new Promise(r => requestAnimationFrame(r));
       // 導航的卡片一律「對齊到第一排卡片所在的位置」（= section.top=0 時第一排的視窗高度），比固定 viewport 比例
       // 更一致可預期（user 2026-06-04）。做法：在「可見」grid（桌面/手機只一份顯示，挑 offsetParent 非 null）內
-      // 量目標卡片與「最上排卡片」的垂直距離 delta，加到 section.top=0 → 目標卡片剛好落在第一排位置。
+      // 量目標卡片與「最上排卡片」的垂直距離 delta（同容器同時量 → 與 scroll 位置無關）。找不到目標卡＝0（只到 section 頂）。
       // 捲動「結束」才排程開 slide-in：openCourseSlideIn 的 enterLightboxMode() 會凍結捲動，半途開會卡在中途。
       const panel = document.getElementById(`panel-${initialProgram}`);
-      let top = sectionScrollTop(sectionEl);
-      if (panel) {
+      const measureCardDelta = () => {
         /** @type {HTMLElement|null} */ let targetCard = null;
         let firstRowTop = Infinity;
-        panel.querySelectorAll('.courses-grid-card').forEach(c => {
+        if (panel) panel.querySelectorAll('.courses-grid-card').forEach(c => {
           const el = /** @type {HTMLElement} */ (c);
           if (el.offsetParent === null) return; // 跳過隱藏的另一份 grid（桌面/手機）
           const rectTop = el.getBoundingClientRect().top;
           if (rectTop < firstRowTop) firstRowTop = rectTop;
           if (!targetCard && el.getAttribute('data-slug') === itemSlug) targetCard = el;
         });
-        if (targetCard && firstRowTop !== Infinity) {
-          // delta = 目標與第一排的垂直距離（scroll 無關）；加到 section.top=0 即把目標移到第一排視窗位置
-          top = sectionScrollTop(sectionEl) + (targetCard.getBoundingClientRect().top - firstRowTop);
-        }
-      }
-      // 落點上限 clamp 到「footer 仍在視窗外」（課程卡片開 slide-in、不 inline 展開 → growPx 0）。
-      // user 2026-06-28：點較下方課程（如「媒體美學與應用」）deep-link 原本一律算「對齊第一排＝頂部」→ 遠超 → 先閃 footer
-      //   再開 slide-in（再被 snap 移回）。clampBelowFooter 後：上面課程照常對齊頂、越下面停在「section 完整捲到底、不露 footer」
-      //   （＝以 section 完整度為主、最後 100vh 內的 chip 不一定對齊頂，user 原則）。
-      top = clampBelowFooter(top);
+        return (targetCard && firstRowTop !== Infinity)
+          ? /** @type {HTMLElement} */ (targetCard).getBoundingClientRect().top - firstRowTop
+          : 0;
+      };
       // 等目標卡片「reveal 完成」(clip-path 動畫跑完、clearProps 清掉 inline clipPath) 才 highlight + 開 slide-in：
       // 否則卡片進場 stagger 還沒輪到目標就開＝slide-in 蓋在半開的 grid 上（user 2026-06-09 報「沒等卡片 render 好就開」）。
       // 順序：reveal 完 → highlight 卡片(套 accent 底色) → OPEN_DELAY 才開 slide-in（同 activities flash→delay→open 節奏）。
@@ -239,7 +232,28 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
           setTimeout(() => selectCardBySlugInPanel(initialProgram, itemSlug), OPEN_DELAY_MS);
         });
       };
+      // 桌面 inner-scroll（卡片在右欄 box 內捲）：兩段式（同 admission navigateToAdmissionItem）——
+      // window 捲到 section 頂（frame 填滿視窗）後，再捲 box 讓目標卡對齊第一排位置；box 自身 clamp maxScroll、
+      // 免 clampBelowFooter。舊單段 window 捲法在 inner-scroll 下 delta 加 window scroll 無意義 + clamp 永遠
+      // 夾回 section 頂 → 較下方課程「沒捲到卡片就開 slide-in」（user 2026-07-03）。
+      const scroller = /** @type {HTMLElement|null} */ ((window.innerWidth >= 768) ? sectionEl.querySelector('.inner-scroll-scroll-col') : null);
+      if (scroller) {
+        scrollWindowNoSnap(sectionScrollTop(sectionEl), { onComplete: () => {
+          const targetScroll = Math.max(0, Math.round(scroller.scrollTop + measureCardDelta()));
+          if (typeof gsap !== 'undefined' && Math.abs(targetScroll - scroller.scrollTop) > 1) {
+            gsap.to(scroller, { scrollTop: targetScroll, duration: DUR.medium, ease: EASE.move, overwrite: true, onComplete: openCard });
+          } else {
+            scroller.scrollTop = targetScroll;
+            openCard();
+          }
+        } });
+        return;
+      }
+      // 手機：原單段 window 捲動。落點上限 clamp 到「footer 仍在視窗外」（課程卡片開 slide-in、不 inline 展開 → growPx 0）。
+      // user 2026-06-28：點較下方課程 deep-link 原本一律算「對齊第一排＝頂部」→ 遠超 → 先閃 footer 再開 slide-in
+      //   （再被 snap 移回）。clampBelowFooter 後：上面課程照常對齊頂、越下面停在「section 完整捲到底、不露 footer」。
       // deep-link 捲動全程關 mandatory snap（否則 snap 搶捲動 → 速度被牽制 / 到不了第一排位置），捲完才開卡。
+      const top = clampBelowFooter(sectionScrollTop(sectionEl) + measureCardDelta());
       scrollWindowNoSnap(top, { onComplete: openCard });
     });
   }

@@ -8,7 +8,7 @@ import { loadExhibitionsInto, loadGeneralActivitiesInto, loadLecturesInto, loadI
 import { loadAlbumData } from './album-data-loader.js';
 import { loadDegreeShowListInto } from './degree-show-data-loader.js';
 import { initActivitiesYearToggle } from '../accordions/activities-year-toggle.js';
-import { initListAccordion, resetListAccordionsInPanel } from '../accordions/list-accordion.js';
+import { initListAccordion, resetListAccordionsInPanel, alignWithBottomSpacer } from '../accordions/list-accordion.js';
 import { reapplySearch } from '../ui/activities-search.js';
 import { setActiveNavBtn, showPanel } from '../ui/section-switch-helpers.js';
 import { playAdmissionPanelExit, playAdmissionPanelReveal, setupAdmissionReveal } from './admission-data-loader.js';
@@ -18,7 +18,7 @@ import { registerPageExit } from '../ui/page-exit.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { waitForHeroAnimDone } from './hero-animation.js';
 import { DUR, EASE } from '../ui/motion.js';
-import { scrollWindowNoSnap, clampBelowFooter } from '../ui/snap-scroll.js';
+import { scrollWindowNoSnap } from '../ui/snap-scroll.js';
 
 // 追蹤哪些 panel 已載入過資料
 const loaded = {};
@@ -104,12 +104,28 @@ function waitForItemRevealed(item, timeout = 8000) {
   });
 }
 
+// 手機 section nav 水平 strip：把指定 section 的 btn 捲到 strip 中間（click / ref / deep-link 三條路徑共用；
+// user 2026-07-03）。桌面 vertical sticky 不需要。btn 位置是靜態 layout，隨時可量；smooth 水平捲與垂直捲動互不干擾。
+function centerSectionNavBtn(section) {
+  if (window.innerWidth >= 768) return;
+  const btn = /** @type {HTMLElement | null} */ (document.querySelector(`.activities-section-btn[data-section="${section}"]`));
+  const bar = /** @type {HTMLElement | null} */ (btn && btn.closest('.activities-section-bar'));
+  if (!btn || !bar) return;
+  const barRect = bar.getBoundingClientRect();
+  const btnRect = btn.getBoundingClientRect();
+  const delta = (btnRect.left + btnRect.width / 2) - (barRect.left + barRect.width / 2);
+  bar.scrollTo({ left: bar.scrollLeft + delta, behavior: 'smooth' });
+}
+
 // 從外部（如 industry reference 按鈕 / 首頁 floating 活動海報 deep-link）導航到指定 section 的指定 item
 // smooth=true（首頁 deep-link 用）：平滑捲到 item、捲到位後 delay 才展開 accordion（對齊 curriculum 節奏）；
 // smooth=false（預設，ref 按鈕等頁內跳轉）：instant 跳到位後立即 flash + 展開（維持原行為）
 export async function navigateToItem(section, itemId, { smooth = false } = {}) {
   const btns = document.querySelectorAll('.activities-section-btn');
   await switchToSection(section, btns, false);
+  // ref/deep-link 不經 nav btn click handler → strip 置中在此補（否則切到別的 section 後往上捲回 strip，
+  // active btn 停在畫面外，user 2026-07-03 截圖）
+  centerSectionNavBtn(section);
   if (!itemId) return;
 
   // 等 fetch + DOM render 完成後再 scroll。
@@ -167,6 +183,48 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
     }
   }
 
+  // 桌面 inner-scroll（Phase 6，2026-07-03）：item 在右欄 box 內捲、window 只有 hero/section/footer 三個落點。
+  // 舊 window 單段在此 layout 下 targetTop 加 window scroll 無意義 + clampBelowFooter 永遠夾回 section 頂
+  // → 較下方 item「沒捲到就開」（同 curriculum deep-link 同日修的 bug）。
+  // 兩段式：window 到 section 頂後，item 對齊**交給 proceedOpen 的 box 機制**（不設 skipOpenScroll：
+  // gsap 捲 scroller 對齊 pin 線 + 短 list spacer 結構保證 + 自動收 search bar，全沿用、不在此重算）。
+  const boxScroller = /** @type {HTMLElement|null} */ ((window.innerWidth >= 768) ? target.closest('.inner-scroll-scroll-col') : null);
+  if (boxScroller) {
+    const sectionEl = document.getElementById('activities-content-section');
+    const sectionTopDoc = sectionEl ? sectionEl.getBoundingClientRect().top + window.scrollY : 0;
+    const boxFlashColor = currentSectionColor || '#00FF80';
+    const openViaAccordion = () => {
+      const header = /** @type {HTMLElement | null} */ (target.querySelector('.list-header'));
+      if (header && !header.classList.contains('active')) {
+        header.dataset.accentHex = boxFlashColor;  // 開啟即帶 section 色（= highlight，同 smooth 路徑慣例）
+        header.style.background = boxFlashColor;
+        header.click();  // 不設 skipOpenScroll → proceedOpen 捲 box 精準對齊
+      }
+    };
+    if (smooth) {
+      // 首頁 deep-link：window 平滑捲到 section（frame 填滿視窗）→ proceedOpen box 對齊 + 展開同時跑
+      await waitForItemRevealed(target);
+      scrollWindowNoSnap(sectionTopDoc, { onComplete: openViaAccordion });
+    } else {
+      // ref 按鈕：instant 跳（維持原「直接看到 target 就位」節奏）——window 直落 section、box 直跳 item
+      // 附近（flash 要看得到；瀏覽器自 clamp maxScroll，短 list 夾短沒關係、開啟時 proceedOpen 會補正）
+      window.scrollTo({ top: sectionTopDoc, behavior: 'instant' });
+      const stickyContainerEl = /** @type {HTMLElement | null} */ (target.closest('[style*="--list-header-sticky-top"]'));
+      const stickyTopVal = stickyContainerEl ? parseFloat(getComputedStyle(stickyContainerEl).getPropertyValue('--list-header-sticky-top')) : NaN;
+      const itemInBox = target.getBoundingClientRect().top - boxScroller.getBoundingClientRect().top + boxScroller.scrollTop;
+      boxScroller.scrollTop = Math.max(0, Math.round(itemInBox - (Number.isNaN(stickyTopVal) ? 0 : stickyTopVal)));
+      await waitForItemRevealed(target);
+      target.style.transition = 'background 0.3s';
+      target.style.background = boxFlashColor;
+      setTimeout(() => {
+        target.style.background = '';
+        target.style.transition = '';  // 清掉：殘留 transition 會被 mode-color [style*="background"] 規則誤判（同下方註解）
+        openViaAccordion();
+      }, 600);
+    }
+    return;
+  }
+
   // 計算目標位置：item 落在「sticky filter bar 底部 + 16px」→ 不被釘住的 filter bar 蓋住。
   // sticky-top 跟 scrollSectionIntoView 一樣讀實際 computed 值（filter bar 的 md:top-[200px]）不寫死 200，
   // 兩個 scroll path 對齊基準同步、日後改 sticky-top 也不 drift。
@@ -200,9 +258,11 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
   // 鏈累加可靠——深層巢狀 item（年份組內）鏈長、每層 sub-pixel rounding 累積 → 落點「稍微往下」偏移
   // （user 2026-06-25 報「有的正確有的稍微往下」）；target 是 list-item 非 sticky bar，rect.top 不被 pin clamp。
   const targetTop = target.getBoundingClientRect().top + window.scrollY;
-  // finalTop（收合態 clamp、不傳 growPx）只給「非 smooth」的 ref 按鈕用——它是 instant 跳 + 延遲 600ms 才展開，捲動當下
+  // finalTop（收合態量測、不傳 growPx）只給「非 smooth」的 ref 按鈕用——它是 instant 跳 + 延遲 600ms 才展開，捲動當下
   // content 還收合、footer 在收合位置，**不能**用展開後位置算否則先閃 footer。smooth deep-link 改「邊捲邊展開」、另算 smoothTop（見下）。
-  const finalTop = clampBelowFooter(targetTop - compensate);
+  // alignWithBottomSpacer：短清單被 footer clamp 夾短時補底部 spacer 直達 pin 線 → ref 落點＝手動打開落點、
+  // 上方不露 nav strip（user 2026-07-03；收合態量測 spacer 只會偏大＝更安全，600ms 後展開 footer 只會更遠）。
+  const finalTop = alignWithBottomSpacer(target, targetTop - compensate);
 
   // flash highlight + 展開 item accordion 的共用收尾。
   // ⚠️ 先 await 目標 list-item reveal 完成（data-pre-reveal 移除）才 highlight：ref/deep-link 切過去時 list rows
@@ -242,7 +302,7 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
     let smoothTop = targetTop - compensate;
     if (_content) {
       gsap.set(_content, { height: 'auto' });
-      smoothTop = clampBelowFooter(targetTop - compensate);
+      smoothTop = alignWithBottomSpacer(target, targetTop - compensate);  // 短清單夾短→spacer 補足直達 pin 線（同 ref/proceedOpen）
       gsap.set(_content, { height: 0 });
     }
     // 手機時長依距離換算（固定 0.5s 在手機捲距 >1 視窗高看起來「跳下去」不像滑，user 2026-06-12）；clamp 0.5~1.1s、桌面 0.5s。
@@ -447,12 +507,20 @@ function initBoxSnapHandoff() {
   const box = /** @type {HTMLElement | null} */ (section && section.querySelector('.inner-scroll-scroll-col'));  // 通用 inner-scroll 類（與其他頁一致）
   if (!box || !section) return;
   let handing = false;
+  let lastWheelTs = 0;
+  let armedDir = 0;   // 邊界武裝方向：1=底(→footer)、-1=頂(→hero)、0=未武裝
   const onWheel = (/** @type {WheelEvent} */ e) => {
     if (window.innerWidth < 768) return;                      // 只桌面 inner-scroll
     if (handing) { e.preventDefault(); return; }              // 接手動畫中：吞滾輪免干擾
     if (box.scrollHeight <= box.clientHeight + 1) return;     // box 不可捲 → 交回 window（短 panel / 進場剛到 section）
     const atBottom = box.scrollTop >= box.scrollHeight - box.clientHeight - 1;
     const atTop = box.scrollTop <= 0;
+    // 兩段手勢閘（user 2026-07-04「捲一捲直接滑到 footer」二修）：交棒必須①邊界已被同方向事件「武裝」過
+    // （到邊界後第一顆一律只吞不交棒）＋②真正停頓 >600ms 後再滾一次。任何連續滾動流（不論觸控板慣性
+    // ~16ms 或滑鼠逐格 ~300ms 間隔）結構上都到不了②，不可能一路滑進 footer。初版用 250ms 間隔判「新手勢」
+    // 對滑鼠失效：逐格滾輪連續滾時每格間隔就常 >250ms，格格都被當新手勢。
+    const gap = performance.now() - lastWheelTs;
+    lastWheelTs = performance.now();
     let targetY = null;
     if (e.deltaY > 0 && atBottom) {
       // 往下到底 → 末段 footer（footer align:end，捲到文件底即吸到它）
@@ -461,11 +529,17 @@ function initBoxSnapHandoff() {
       // 往上到頂 → 上一個 snap（section 上方一個視窗高 = hero）
       targetY = Math.max(0, Math.round(section.getBoundingClientRect().top + window.scrollY - window.innerHeight));
     }
-    if (targetY === null) return;                             // 還沒到邊界 → 讓 box 正常捲
-    e.preventDefault();
-    handing = true;
-    scrollWindowNoSnap(targetY, { duration: DUR.medium, ease: EASE.move });
-    setTimeout(() => { handing = false; }, 650);
+    if (targetY === null) { armedDir = 0; return; }           // 不在邊界：解除武裝、讓 box 正常捲
+    e.preventDefault();                                       // 邊界一律吞掉（否則 chain 給 window 被 mandatory snap 吃掉會抖）
+    const dir = e.deltaY > 0 ? 1 : -1;
+    if (armedDir === dir && gap > 600) {
+      armedDir = 0;
+      handing = true;
+      scrollWindowNoSnap(targetY, { duration: DUR.medium, ease: EASE.move });
+      setTimeout(() => { handing = false; }, 650);
+    } else {
+      armedDir = dir;                                         // 只武裝：停頓 >600ms 後的下一顆才交棒
+    }
   };
   box.addEventListener('wheel', onWheel, { passive: false });
   registerPageCleanup(() => box.removeEventListener('wheel', onWheel));
@@ -518,6 +592,9 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
         if (typeof gsap !== 'undefined') {
           const rows = panel.querySelectorAll('.list-reveal-row');
           if (rows.length) { gsap.killTweensOf(rows); gsap.set(rows, { clearProps: 'transform' }); }
+          // 斑馬底色 clip（setupAdmissionReveal 設的 inset(100%)）也直接到位：揭露它的 ScrollTrigger 綁 window，
+          // inner-scroll box 捲動不會驅動它 → onEnter 沒 fire 時整個 zebra item 被裁成空白且永不恢復
+          panel.querySelectorAll('.list-item.list-item-zebra').forEach(it => gsap.set(it, { clearProps: 'clipPath' }));
         }
         panel.querySelectorAll('.list-item[data-pre-reveal]').forEach(it => it.removeAttribute('data-pre-reveal'));
         const filterBar = /** @type {HTMLElement | null} */ (panel.querySelector('.activities-filter-bar'));
@@ -543,6 +620,9 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
     btn.addEventListener('click', () => {
       const section = btn.getAttribute('data-section');
       switchToSection(section, btns, true);
+      // 手機 section nav 是水平 scroll strip（9 顆，overflow-x:auto）：點到的 btn 可能被捲到部分出界
+      // → 捲 strip 讓它落在畫面中間（user 2026-07-03，比照 curriculum 但改置中）。
+      centerSectionNavBtn(section);
     });
   });
 }
