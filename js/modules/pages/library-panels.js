@@ -1063,7 +1063,8 @@ async function initPressPanel() {
               div.addEventListener('click', async () => {
                 // 手填 refs 解析（含 award 反向 ref → href chip）
                 const references = await resolveLibManualRefs(item);
-                document.dispatchEvent(new CustomEvent('sccd:open-lightbox', { detail: { media, index: 0, title: lbTitle, color: lbColor, references } }));
+                // shareUrl：press media lightbox 也要 share btn（user 2026-07-03；原本只有 press PDF / album 有帶）
+                document.dispatchEvent(new CustomEvent('sccd:open-lightbox', { detail: { media, index: 0, title: lbTitle, color: lbColor, references, shareUrl: libShareUrl(item.id) } }));
               });
               makeActivatable(div, [item.titleEn, item.titleZh].filter(Boolean).join(' ')); // 無障礙：報導項可 Tab + Enter 開
             }
@@ -2044,10 +2045,10 @@ function handleLibraryHash() {
         const prevTransition = el.style.transition;
         if (!desktopHover) {
           if (tab === 'awards') {
-            el.style.transition = 'color 0.3s';
-            el.style.color = document.body.classList.contains('mode-color')
-              ? 'var(--theme-bg)'
-              : ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
+            // 手機 awards 改 zebra 底後（2026-07-03），highlight 對齊桌面 hover＝整列 accent 底色
+            // （不再文字變色）；mode-color 由 library.css [style*=background] 規則翻色，不必分支。
+            el.style.transition = 'background 0.3s';
+            el.style.background = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
           } else {
             const accent = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
             el.style.transition = 'background 0.3s, box-shadow 0.3s';
@@ -2060,7 +2061,7 @@ function handleLibraryHash() {
         setTimeout(() => {
           if (!desktopHover) {
             if (tab === 'awards') {
-              el.style.color = '';
+              el.style.background = '';
             } else {
               el.style.background = '';
               el.style.boxShadow = '';

@@ -638,9 +638,10 @@ export async function openLightbox(media, startIndex = 0, opts = {}) {
     thumbsEl.appendChild(btn);
   });
 
-  // album 版面（縮圖 1/3 寬置中 + title 縮窄）只在 caller 帶 shareUrl（library album）時套用；
-  // activities 海報/gallery 維持原寬版。必須在 renderTitle 前設好 class，marquee 才量到正確 title 寬。
-  lightboxEl.classList.toggle('alb-album', !!opts.shareUrl);
+  // album 版面（縮圖 1/3 寬置中 + runway 讓 active 永遠正中 + title 縮窄）一律套用：
+  // 原本只給 library album（帶 shareUrl），activities 維持寬版 → 頭尾縮圖無 runway 置不了中，
+  // user 2026-07-04 要求對齊 album。必須在 renderTitle 前設好 class，marquee 才量到正確 title 寬。
+  lightboxEl.classList.add('alb-album');
 
   // hls player 建立時要用同組 accent（renderMain 無 opts 可拿，存 module state）
   currentColor = opts.color;
