@@ -18,8 +18,13 @@ const FLOAT_HIDE_CLIPS = ['inset(0% 0% 100% 0%)', 'inset(100% 0% 0% 0%)', 'inset
 function randFloatHideClip() { return FLOAT_HIDE_CLIPS[Math.floor(Math.random() * FLOAT_HIDE_CLIPS.length)]; }
 
 // 桌面 20、手機 12（< 768px）。手機減量是視覺優化，不影響桌面。
-function isMobileViewport() { return window.innerWidth < 768; }
-const TOTAL_ITEMS = isMobileViewport() ? 12 : 20;
+// 手機與矮橫向（橫向手機）都用手機參數（user 2026-07-04「首頁也比照手機版」；gate 同 landscape.css）
+function isMobileViewport() {
+  return window.innerWidth < 768
+    || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+}
+// 每次 init 時評估（原 module-load 時定案的 const：SPA 換頁不重載模組，直向載入後轉橫向會殘留桌面值）
+function totalItems() { return isMobileViewport() ? 12 : 20; }
 const SPEED_MIN = 0.05;
 const SPEED_MAX = 0.25;
 const IMG_WIDTH = 140; // 所有圖片統一寬度，高度 auto follow 原比例（2026-05-28 從 200 減 30%）
@@ -763,7 +768,7 @@ export async function initFloatingItems() {
   populatePressCovers(categoryPools.press.queue, () => cancelled);
 
   // 初始化 items：nextEntry 逐筆挑最少的 category → 開場即均分、無重複
-  for (let i = 0; i < TOTAL_ITEMS; i++) {
+  for (let i = 0, n = totalItems(); i < n; i++) {
     items.push(trackSpawn(nextEntry(), false));
   }
 

@@ -20,6 +20,13 @@ import { waitForHeroAnimDone } from './hero-animation.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { scrollWindowNoSnap, clampBelowFooter } from '../ui/snap-scroll.js';
 
+// 矮橫向（橫向手機）走手機 window-scroll 路徑：landscape.css 5d 已把 curriculum 的 inner-scroll
+// frame 拆掉（section 自然高、box 不捲），gate 同 footer-draggable usesMobileFooter()
+function usesWindowScroll() {
+  return window.innerWidth < 768
+    || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+}
+
 
 // 等整個 panel 的卡片 clip-reveal 全跑完才 resolve：卡片進場時 gsap 每幀寫 inline clipPath，跑完 clearProps 清掉
 // → inline clipPath 變空。reveal 是「一支 gsap.to(allCards) staggered」，最後一張清空 = 整片 reveal 完成。
@@ -57,7 +64,7 @@ function sectionScrollTop(el) {
 function scrollSectionIntoView(el, behavior = 'smooth') {
   if (!el) return;
   // 桌面 inner-scroll：右欄 box 回頂（切 program / 點同分頁都讓新內容從頭顯示）；手機無 scroll-col（window 捲）。
-  const scroller = /** @type {HTMLElement | null} */ ((window.innerWidth >= 768) ? el.querySelector('.inner-scroll-scroll-col') : null);
+  const scroller = /** @type {HTMLElement | null} */ (usesWindowScroll() ? null : el.querySelector('.inner-scroll-scroll-col'));
   if (scroller) scroller.scrollTop = 0;
   const top = sectionScrollTop(el);
   // smooth 程式捲動關 mandatory snap（否則被 snap 搶、落點錯，同 deep-link item 路徑）；instant 不需 tween。
@@ -236,7 +243,7 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
       // window 捲到 section 頂（frame 填滿視窗）後，再捲 box 讓目標卡對齊第一排位置；box 自身 clamp maxScroll、
       // 免 clampBelowFooter。舊單段 window 捲法在 inner-scroll 下 delta 加 window scroll 無意義 + clamp 永遠
       // 夾回 section 頂 → 較下方課程「沒捲到卡片就開 slide-in」（user 2026-07-03）。
-      const scroller = /** @type {HTMLElement|null} */ ((window.innerWidth >= 768) ? sectionEl.querySelector('.inner-scroll-scroll-col') : null);
+      const scroller = /** @type {HTMLElement|null} */ (usesWindowScroll() ? null : sectionEl.querySelector('.inner-scroll-scroll-col'));
       if (scroller) {
         scrollWindowNoSnap(sectionScrollTop(sectionEl), { onComplete: () => {
           const targetScroll = Math.max(0, Math.round(scroller.scrollTop + measureCardDelta()));
@@ -263,7 +270,8 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
       switchToProgram(btn.getAttribute('data-program'), programBtns, true);
       // 手機 program bar 是水平 scroll strip：點到的 btn 可能被捲到部分出界 → 捲回讓它靠左對齊頁面內容左緣。
       // 只動 bar 自己的 scrollLeft（不用 scrollIntoView，避免它連帶動垂直/viewport）；桌面是 vertical sticky 不需要。
-      if (window.innerWidth < 768) {
+      // 矮橫向 bar 也是水平 strip（landscape.css 5d）→ 同樣要捲。
+      if (usesWindowScroll()) {
         const bar = /** @type {HTMLElement | null} */ (btn.closest('.courses-program-bar'));
         if (bar) {
           const pad = parseFloat(getComputedStyle(bar).paddingLeft) || 0;

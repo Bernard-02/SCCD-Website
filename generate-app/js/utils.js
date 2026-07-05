@@ -69,9 +69,11 @@ function updatePanelIconColorClass() {
 
 // 檢測手機模式
 function checkMobileMode() {
-  // 使用 matchMedia API 與CSS媒體查詢保持同步
-  const mediaQuery = window.matchMedia('(max-width: 768px)');
-  isMobileMode = mediaQuery.matches;
+  // 使用 matchMedia API 與CSS媒體查詢保持同步。
+  // 矮橫向（橫向手機，寬 >768 會誤判桌面）也算手機 → 走 handleOrientationChange 的
+  // #landscape-overlay「旋轉設備」提示，而不是壞掉的桌面版；gate 同 landscape.css
+  isMobileMode = window.matchMedia('(max-width: 768px)').matches
+    || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
 }
 
 // 計算Canvas尺寸

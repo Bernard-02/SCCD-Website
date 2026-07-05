@@ -182,7 +182,8 @@ export function initFacultySlideIn() {
           <h6 class="text-black">Contact 聯絡</h6>
         </div>
         <div class="flex-1">
-          <p class="text-p2" style="white-space: pre-line;">${contact}</p>
+          <!-- faculty-contact-text：手機/矮橫向升 p1 對齊詳情 row（cards.css 手機 block + landscape.css）；桌面維持 p2=row 同級 -->
+          <p class="text-p2 faculty-contact-text" style="white-space: pre-line;">${contact}</p>
         </div>
       </div>
     `;
@@ -282,7 +283,8 @@ export function initFacultySlideIn() {
         // 詳情 row 雙語格各語單行超出欄寬 → hover row 才 marquee（桌面限定，仿卡片職稱）。
         // panel 此時仍 invisible(visibility，非 display:none) → 仍可量 offsetWidth。
         // 等字型載入避免 fallback 字寬誤判溢出（見 memory feedback_measure_text_layout_wait_fonts_ready）。
-        if (window.innerWidth >= 768) {
+        // 矮橫向不跑（landscape gate 詳情 row 走手機自然換行；marquee 會把溢出欄換成兩份 copy＝換行下文字重複）。
+        if (window.innerWidth >= 768 && !window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) {
           const runMarquee = () => {
             applyMarqueeOverflow(sectionsContainer, '.faculty-marquee-line', '.faculty-marquee-inner');
             bindFacultyMarqueeReturn(sectionsContainer);   // JS 驅動 row marquee + 離場平滑捲回

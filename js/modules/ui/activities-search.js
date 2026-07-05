@@ -249,8 +249,13 @@ let scrollHandler = null;
 let colScrollHandler = null;
 
 // 桌面 inner-scroll：右欄是「置中 box」(.activities-scroll-col)、window 不捲 → bar 收合改掛 box 自己的 scroll。
+// 矮橫向拆 frame（landscape gate 把 box overflow 改 visible、window 捲）→ 回 false，讓 window scroll handler
+// 接管收合（同手機）；看 computed overflow 不看寬度（同 list-accordion getScrollableBox）。
 function isDesktopInnerScroll() {
-  return window.innerWidth >= 768 && !!document.querySelector('.activities-scroll-col');
+  const col = /** @type {HTMLElement | null} */ (document.querySelector('.activities-scroll-col'));
+  if (!col || window.innerWidth < 768) return false;
+  const oy = getComputedStyle(col).overflowY;
+  return oy === 'auto' || oy === 'scroll';
 }
 
 export function initActivitiesSearch() {

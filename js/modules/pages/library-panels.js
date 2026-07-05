@@ -18,6 +18,10 @@ import { getAwardRecords, findAwardById } from './activities-data-loader.js';
 
 // ── 共用常數 ──────────────────────────────────────────────────────────────────
 
+// 矮橫向（橫向手機）：手機式行為的第二個入口，gate 同 landscape.css / main-modular library init
+const isShortLandscape = () =>
+  window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+
 const CAT_LABELS = {
   'degree-show':      'Degree Shows 畢業展',
   'exhibitions':      'Exhibitions 展演',
@@ -116,7 +120,8 @@ function createYearPicker(pickerEl, years, onFilter) {
 
 /** list item hover 底色 + overlay 顏色 follow */
 function bindListItemHover(containerEl, itemSelector, overlaySelector = null) {
-  if (window.innerWidth < 768) return;
+  // 矮橫向同手機：tap 會觸發 emulated mouseenter → 底色殘留，不綁
+  if (window.innerWidth < 768 || isShortLandscape()) return;
   containerEl.querySelectorAll(itemSelector).forEach(item => {
     item.addEventListener('mouseenter', () => {
       const color = SCCDHelpers.getRandomAccentColor();
@@ -515,10 +520,14 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     if (scrollEl) scrollEl.addEventListener('scroll', updateAwardsCount, { passive: true });
 
     // ── 渲染 ──
-    const bilingual     = (en, zh) => en ? `<span>${en}</span><span>${zh}</span>` : `<span>${zh}</span>`;
+    // 每行包 .award-cell-line > .award-cell-inner：矮橫向窄欄 crop 時逐行 marquee 用
+    //（applyMarqueeOverflow row/inner 結構；桌面/直向無對應 CSS＝純多一層 span 零視覺差）
+    const cellLine = (txt, weight) =>
+      `<span class="award-cell-line"${weight ? ` style="font-weight:${weight};"` : ''}><span class="award-cell-inner">${txt}</span></span>`;
+    const bilingual     = (en, zh) => en ? cellLine(en) + cellLine(zh) : cellLine(zh);
     const bilingualBold = (en, zh) => en
-      ? `<span style="font-weight:700;">${en}</span><span style="font-weight:800;">${zh}</span>`
-      : `<span style="font-weight:800;">${zh}</span>`;
+      ? cellLine(en, 700) + cellLine(zh, 800)
+      : cellLine(zh, 800);
 
     let latestFirst = true;
     const getSorted = () => latestFirst ? records : [...records].reverse();
@@ -551,7 +560,8 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     // 手機（< 768）：pair 不 viewport-wide（會異常慢），改自然寬度排列 + 純 CSS marquee
     //                CSS marquee keyframe = translateX(-50%) 配合複製一份 seamless；duration 依名字數線性放大
     function applyWinnersHMarquee(scope) {
-      const isMobile = window.innerWidth < 768;
+      // 矮橫向欄寬同手機一樣窄 → 走手機分支（直排 + 個別 marquee，不整位橫排）
+      const isMobile = window.innerWidth < 768 || isShortLandscape();
       const SECONDS_PER_WINNER = isMobile ? 3 : 2.5;
       scope.querySelectorAll('.award-winners').forEach(viewport => {
         const view = /** @type {HTMLElement} */ (viewport);
@@ -705,7 +715,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
       // standard/inverse 隨機三原色 inline bg、mode-color 由 library.css [style*=background] 規則翻 theme-fg。
       // ⚠️ 只在桌面綁：手機 tap 會觸發 emulated mouseenter → 底色殘留（user 2026-06-10 #2：手機點 award 不變色）。
       // ref 展開中（data-ref-open）鎖定當下色：不重 roll、離開不清。
-      if (window.innerWidth >= 768) {
+      if (window.innerWidth >= 768 && !isShortLandscape()) {
         listEl.querySelectorAll('.award-record-item').forEach(item => {
           item.addEventListener('mouseenter', () => {
             if (item.dataset.refOpen) return;
@@ -757,7 +767,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
             delete item.dataset.refOpen;
             item.style.removeProperty('--item-color');
             item.style.removeProperty('--item-color-deep');
-            if (window.innerWidth >= 768 && item.matches(':hover')) {
+            if (window.innerWidth >= 768 && !isShortLandscape() && item.matches(':hover')) {
               const color = SCCDHelpers.getRandomAccentColor();
               item.style.background = color;
               item.dataset.accentHex = color;
@@ -766,16 +776,19 @@ async function initAwardsPanel(onEntranceDoneCallback) {
               delete item.dataset.accentHex;
             }
           };
-          // 開啟時 margin-bottom = -0.5rem 抵銷 item py-[0.5rem] 的 bottom padding → ref 列貼齊分割綫；收起還原
+          // 開啟時負 margin-bottom 抵銷 item 的 bottom padding → ref 列貼齊分割綫；收起還原。
+          // 抵銷量取 item 實際 computed padding-bottom（桌面 py-[0.5rem]=8px、手機 media query 蓋成 sm=16px），
+          // 寫死 -0.5rem 在手機會剩 8px 縫（user 2026-07-04 報 bug）。
+          const openMargin = `-${getComputedStyle(item).paddingBottom}`;
           if (typeof gsap !== 'undefined') {
             gsap.to(wrap, {
-              height: isOpen ? 0 : 'auto', marginBottom: isOpen ? '0rem' : '-0.5rem',
+              height: isOpen ? 0 : 'auto', marginBottom: isOpen ? '0rem' : openMargin,
               duration: DUR.medium, ease: EASE.move, overwrite: true,
               onComplete: isOpen ? onCloseDone : undefined,
             });
           } else {
             wrap.style.height = isOpen ? '0' : 'auto';
-            wrap.style.marginBottom = isOpen ? '0' : '-0.5rem';
+            wrap.style.marginBottom = isOpen ? '0' : openMargin;
             if (isOpen) onCloseDone();
           }
         });
@@ -784,8 +797,12 @@ async function initAwardsPanel(onEntranceDoneCallback) {
 
       // 多獲獎者自動水平 marquee（桌面，不需 hover）
       applyWinnersHMarquee(listEl);
-      // 手機：得獎人名字太長 → 個別 marquee（固定欄寬下溢出才跑；桌面是整位橫排 marquee 不需這個）
-      if (window.innerWidth < 768) runMarqueeOverflow(listEl, '.award-winner-en, .award-winner-zh', '.award-marquee-inner');
+      // 手機／矮橫向：得獎人名字太長 → 個別 marquee（固定欄寬下溢出才跑；桌面是整位橫排 marquee 不需這個）
+      if (window.innerWidth < 768 || isShortLandscape()) runMarqueeOverflow(listEl, '.award-winner-en, .award-winner-zh', '.award-marquee-inner');
+      // 矮橫向：主表 cell（競賽/主辦/獎項/名次）被窄欄 crop → 逐行 marquee（.award-cell-line 由 render 包好；
+      // 動畫 CSS 只在 landscape gate）。直向也要跑：applyMarqueeOverflow 自帶 reset——轉向後把橫向留下的
+      // 兩份 .marquee-copy 還原單份（直向 cell 換行不溢出＝重判後維持單份），否則文字顯示兩次。
+      if (window.innerWidth < 768 || isShortLandscape()) runMarqueeOverflow(listEl, '.award-cell-line', '.award-cell-inner');
 
       updateAwardsCount();
     }
@@ -796,7 +813,8 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     // offsetWidth=0 → 多名得獎者擠成一團）。對齊 press/files/album 的 _XMarqueeInit 重觸發 pattern。
     window._awardsMarqueeInit = () => {
       applyWinnersHMarquee(listEl);
-      if (window.innerWidth < 768) runMarqueeOverflow(listEl, '.award-winner-en, .award-winner-zh', '.award-marquee-inner');
+      if (window.innerWidth < 768 || isShortLandscape()) runMarqueeOverflow(listEl, '.award-winner-en, .award-winner-zh', '.award-marquee-inner');
+      if (window.innerWidth < 768 || isShortLandscape()) runMarqueeOverflow(listEl, '.award-cell-line', '.award-cell-inner');
       updateAwardsCount();
     };
 
@@ -1847,6 +1865,17 @@ export function initLibraryPanels() {
   Object.values(PANEL_MAP).forEach(id => {
     hidePanelChildren(document.getElementById(id));
   });
+
+  // 轉向（跨矮橫向 gate）時重量所有 marquee：橫向 runMarqueeOverflow 把文字換成兩份 .marquee-copy，
+  // 轉直向後 cell 換行顯示 → 兩份全露出＝「文字出現兩次」；applyMarqueeOverflow 自帶 reset（重跑先還原
+  // 單份再依當前寬度重判），四個 _XMarqueeInit 都 idempotent → 直接全部重觸發即自癒。
+  const gateMq = window.matchMedia('(orientation: landscape) and (max-height: 500px)');
+  const onGateChange = () => requestAnimationFrame(() => {
+    ['_awardsMarqueeInit', '_pressMarqueeInit', '_filesMarqueeInit', '_albumMarqueeInit']
+      .forEach(k => { if (typeof window[k] === 'function') window[k](); });
+  });
+  gateMq.addEventListener('change', onGateChange);
+  registerPageCleanup(() => gateMq.removeEventListener('change', onGateChange));
 
   return {
     showPanel: showLibPanel,

@@ -15,7 +15,9 @@ function getFooterHideTargets() {
   // 桌面 logo id=header-logo / 手機 id=header-logo-mobile（header.html 結構差異）
   // 兩邊都 query，只會有一個命中（display:none 那邊 element 存在但 getElementById 仍回傳）
   // → 取 parentElement = logo 外面那層 <a>（純 link wrapper、無 gsap tween，clip-path 不會被 killTweensOf 殺到）
-  const isMobile = window.innerWidth < 768;
+  // 矮橫向也走手機 header（landscape.css 5b 切換顯隱），gate 同 footer-draggable usesMobileFooter()
+  const isMobile = window.innerWidth < 768
+    || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
   const logoId = isMobile ? 'header-logo-mobile' : 'header-logo';
   const logoAnchor = document.getElementById(logoId)?.parentElement;
   return [...getHeaderTargets(), logoAnchor].filter(Boolean);
@@ -198,8 +200,9 @@ export function triggerGenerateLogo() {
     if (allVisible) return;
   }
 
-  // 手機走簡化版：靜態 SCCD svg，不跑 typewriter
-  if (window.innerWidth < 768) {
+  // 手機走簡化版：靜態 SCCD svg，不跑 typewriter（矮橫向 header 也是手機版 → 同路徑）
+  if (window.innerWidth < 768
+    || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) {
     applyMobileGenerateLogo();
     return;
   }
@@ -891,7 +894,10 @@ export function initHeader() {
         mobileLogo.innerHTML = '';
         // filter + 對比追蹤標記：full lightbox 白線；slide-in mode1/2 黑線、mode3 auto（applyColorVars 接手翻面）；其餘清空
         let filterM = '', contrastM = '';
-        if (isFullLightbox)  { filterM = 'invert(1)'; contrastM = 'white'; }
+        // 矮橫向的 slide-in 只蓋右側 ~60%（landscape gate），logo 留在左側「黑色半透明 dim」上 →
+        // 黑線隱形，改走 full-lightbox 的白線邏輯（user 2026-07-04）。直向 slide-in 蓋滿含 logo 區（accent 底）→ 維持黑線。
+        const slideInLeavesLogoOnDim = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+        if (isFullLightbox || (isSlideIn && slideInLeavesLogoOnDim)) { filterM = 'invert(1)'; contrastM = 'white'; }
         else if (isSlideIn)  { filterM = 'none'; contrastM = isColorM ? 'auto' : 'black'; }
         else if (isColorM)   {
           // 純 mode3（無 overlay）：手機 logo 要跟著 hue 背景翻黑/白對比（對齊桌面 #header-logo wireframe）。

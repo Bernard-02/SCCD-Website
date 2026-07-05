@@ -17,6 +17,7 @@ import { initFloatingItems, initWatchHover } from './modules/animations/floating
 import { initSmoothScroll } from './modules/ui/smooth-scroll.js';
 import { initBFADivisionToggle } from './modules/ui/bfa-division-toggle.js';
 import { initIdleStandby } from './modules/ui/idle-standby.js';
+import { initOrientationReload } from './modules/ui/orientation-reload.js';
 import { initCustomScrollbar } from './modules/ui/custom-scrollbar.js';
 import { installReducedMotionGsap } from './modules/ui/reduce-motion.js';
 
@@ -339,7 +340,9 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
     // 手機版：跳過 card stack 幾何計算（randomize x/y 容易超出 viewport → 水平位移），
     // 改用頂端 tab bar 直接 panels.showPanel；layout 由 CSS 處理
     // tab bar 沿用 activities-section-bar pattern → 走 setActiveNavBtn 提供 active 隨機色 + 旋轉
-    if (window.innerWidth < 768) {
+    // 矮橫向（橫向手機）也走此路徑（user 2026-07-04）：landscape.css 5h 把 tabs 排左欄、灰卡佔右側
+    if (window.innerWidth < 768
+      || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) {
       const tabsRoot = document.getElementById('library-mobile-tabs');
 
       // 手機進場（user 2026-06-12：原本 showPanel+onEntranceDone 同步跑完＝完全沒進場動畫）：
@@ -394,6 +397,8 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
       // press/files/album panel 桌面結構是 2×2 grid：Year 標題在 top-left、year-picker 在 bottom-left（兩個獨立 grandchildren）
       // 手機要求「Year 標題跟 year-picker 是同一個 group」對齊 awards panel 樣式
       // → DOM 搬：把 year-picker-wrap 整個搬到 Year 標題 wrapper 內當子，這樣 Year 標題 wrapper 變 group container
+      // ⚠️ 只在真手機（<768）搬：矮橫向 panel 內部維持桌面 2×2 grid，搬了會讓 grid auto-place 錯位
+      if (window.innerWidth < 768)
       ['press', 'files', 'album'].forEach(name => {
         const panel = document.getElementById(`lib-panel-${name}`);
         if (!panel) return;
@@ -497,6 +502,7 @@ document.addEventListener('DOMContentLoaded', function () {
   initIdleStandby();
   initCustomScrollbar();
   initShareModal();
+  initOrientationReload();   // 手機轉向跨 landscape gate 自動 reload（/create 例外），免手動刷新
 
   // 全站禁右鍵下載 img / svg / video（嚇阻隨手「另存」；對齊 PDF viewer 的 contextmenu 防護）
   // document 級單一 listener：涵蓋 SPA 換頁後動態載入的圖／影片，免每頁重綁。

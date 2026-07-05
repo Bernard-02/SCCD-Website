@@ -141,8 +141,10 @@ function onPointerUp(e) {
 // (省略：保持單純 thumb 拖拉即可，需要 track-click 再加)
 
 export function initCustomScrollbar() {
-  // mobile 完全不啟動（CSS 已隱藏 thumb，JS 也省 ResizeObserver / scroll listener 開銷）
-  if (window.innerWidth < 768) return;
+  // mobile 完全不啟動（CSS 已隱藏 thumb，JS 也省 ResizeObserver / scroll listener 開銷）；
+  // 矮橫向同理（user 2026-07-04「橫向手機不需要 scrollbar」，gate 同 landscape.css）
+  if (window.innerWidth < 768
+    || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) return;
 
   ensureThumb();
   if (!thumbEl) return;

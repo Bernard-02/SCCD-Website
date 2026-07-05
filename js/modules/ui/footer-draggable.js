@@ -482,12 +482,18 @@ function bindHoverPause(anchors) {
   });
 }
 
+// 手機 + 矮橫向（橫向手機）都走手機版 footer（user 2026-07-04「橫向一切以手機版為主」；gate 同 landscape.css）。
+// init / exit / reset 三處都用這個判斷，路徑才一致（進場走手機 reveal、退場也要走手機 exit）。
+function usesMobileFooter() {
+  return window.innerWidth < 768 || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+}
+
 export async function initFooterScatter(scope) {
   const footer = scope || document.querySelector('footer.footer-shell, footer#site-footer-static');
   if (!footer) return;
 
   // 手機：footer 簡化成線性堆疊 → 不跑 scatter，改用招牌 clip-reveal 進場（退場/復位見下方手機分支）
-  if (window.innerWidth < 768) { initFooterMobileReveal(footer); return; }
+  if (usesMobileFooter()) { initFooterMobileReveal(footer); return; }
 
   const area = footer.querySelector('.footer-random');
   if (!area) return;
@@ -636,7 +642,7 @@ function getFooterPrivacyLinks(area) {
 
 export function playFooterExit() {
   if (typeof gsap === 'undefined') return Promise.resolve();
-  if (window.innerWidth < 768) return playFooterMobileExit();
+  if (usesMobileFooter()) return playFooterMobileExit();
   if (!shuffleCtx) return Promise.resolve();
   const { area, items } = shuffleCtx;
   if (!area || area.offsetParent === null || !items.length) return Promise.resolve();
@@ -682,7 +688,7 @@ export function playFooterExit() {
 export function resetFooterAfterExit() {
   if (!_footerExited) return;
   if (typeof gsap === 'undefined') { _footerExited = false; return; }
-  if (window.innerWidth < 768) { resetFooterMobileAfterExit(); return; }
+  if (usesMobileFooter()) { resetFooterMobileAfterExit(); return; }
   if (!shuffleCtx) { _footerExited = false; return; }
   const { area, anchors, obstacles, items, fallbackLayout } = shuffleCtx;
   // footer 在新頁是隱藏頁（generate/library/atlas）→ 留著 flag，下次顯示 footer 的頁再重置，避免 items 卡隱藏

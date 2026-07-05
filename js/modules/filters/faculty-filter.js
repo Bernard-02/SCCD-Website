@@ -378,7 +378,8 @@ export function initFacultyFilter() {
 
       // 手機 filter bar 是水平 scroll strip：點到的 btn 捲回靠左對齊頁面內容左緣（同 curriculum program btn 做法）。
       // 只動 bar 自己 scrollLeft（rect delta），不用 scrollIntoView 以免連帶動垂直；桌面是 md:flex-col 無水平 scroll。
-      if (window.innerWidth < 768) {
+      // 矮橫向（landscape gate 拆 frame、nav 回水平 strip）同樣要對齊。
+      if (window.innerWidth < 768 || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) {
         const bar = this.parentElement;
         if (bar) {
           const pad = parseFloat(getComputedStyle(bar).paddingLeft) || 0;

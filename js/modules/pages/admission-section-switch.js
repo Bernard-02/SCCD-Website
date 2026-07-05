@@ -18,6 +18,16 @@ import { scrollWindowNoSnap } from '../ui/snap-scroll.js';
 // 當前 active section 的色（setActiveNavBtn 回傳）；給 deep-link highlight 用（= 該 section 色，三原色之一）
 let currentSectionColor = '';
 
+// box 是否「真的是捲動容器」：矮橫向 landscape gate 把 admission 的 100vh frame 拆掉（overflow 改 visible、
+// window 捲），但 class 還在 → 看 computed overflow-y 不看寬度（同 list-accordion getScrollableBox）。
+// el 可以是 box 自身或其後代（closest 對自身也命中）。
+function getScrollableScrollCol(el) {
+  const box = /** @type {HTMLElement | null} */ (el && el.closest('.inner-scroll-scroll-col'));
+  if (!box) return null;
+  const oy = getComputedStyle(box).overflowY;
+  return (oy === 'auto' || oy === 'scroll') ? box : null;
+}
+
 // 等指定 list-item 進場 reveal 完成（reveal onEnter 移除 data-pre-reveal）才 highlight，不在 rows 還 clip-reveal
 // 中途就先亮（對齊 activities navigateToItem 的 waitForItemRevealed，user 2026-06-09）。已無 data-pre-reveal → 立即 resolve。
 function waitForItemRevealed(item, timeout = 8000) {
@@ -76,8 +86,10 @@ async function navigateToAdmissionItem(itemId) {
   };
 
   // 桌面 inner-scroll：window 平滑捲到 section（hero→frame）後，再捲右欄 box 到 item（list-header sticky-top=0 →
-  //   item 對齊 box 頂；scroller-relative = rect 差 + scrollTop），捲完 flash+open。手機/窄走原 window 路徑。
-  const scroller = /** @type {HTMLElement | null} */ ((window.innerWidth >= 768) ? target.closest('.inner-scroll-scroll-col') : null);
+  //   item 對齊 box 頂；scroller-relative = rect 差 + scrollTop），捲完 flash+open。
+  // 手機/窄與矮橫向拆 frame（box overflow 被 landscape gate 改 visible、不可捲）走原 window 路徑——
+  //   看 computed overflow 不看寬度（同 list-accordion getScrollableBox 邏輯）。
+  const scroller = getScrollableScrollCol(target);
   if (scroller) {
     const section = document.getElementById('admission-content-section');
     const sectionTopDoc = section ? section.getBoundingClientRect().top + window.scrollY : 0;
@@ -108,8 +120,8 @@ async function navigateToAdmissionItem(itemId) {
  */
 function scrollSectionIntoView(el, behavior = 'smooth') {
   if (!el) return;
-  // 桌面 inner-scroll：右欄 box 回頂（切 section 讓新 panel 從頭顯示）；手機無 scroll-col（window 捲）。
-  const scroller = /** @type {HTMLElement | null} */ ((window.innerWidth >= 768) ? el.querySelector('.inner-scroll-scroll-col') : null);
+  // 桌面 inner-scroll：右欄 box 回頂（切 section 讓新 panel 從頭顯示）；手機/矮橫向拆 frame（window 捲）box 不可捲＝no-op 也安全。
+  const scroller = getScrollableScrollCol(el.querySelector('.inner-scroll-scroll-col'));
   if (scroller) scroller.scrollTop = 0;
   const top = el.getBoundingClientRect().top + window.scrollY;
   // smooth 程式捲動關 mandatory snap（否則被 snap 搶、落點錯，同 deep-link item 路徑）；instant 不需 tween。

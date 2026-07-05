@@ -190,12 +190,23 @@ export function resetListAccordionsInPanel(panel) {
 }
 
 // list-header sticky 釘點（給「開啟捲動落點」與「is-pinned IO」共用，必須跟 CSS 實際釘點一致）。
-//   手機（<768）：lists.css `@media(max-width:767px) .list-header.active { top: 6rem }` 寫死 6rem
-//                 → 直接算 6rem，不讀 --list-header-sticky-top（那個 var 只在桌面 JS 設、手機沒設會 fallback 200）。
+//   手機（<768）：lists.css `@media(max-width:767px) .list-header.active { top: 8rem }` 寫死 8rem
+//                 → 直接算 8rem，不讀 --list-header-sticky-top（那個 var 只在桌面 JS 設、手機沒設會 fallback 200）。
 //   桌面 inner-scroll：--list-header-sticky-top（box 內偏移；activities=clearance+barH、admission 無 filter bar=0=box 頂，0 合法）；
 //        window-path（alumni 等）：var 未設/0 → 200 fallback（對齊 fixed header band）。
 // ⚠️ 不一致的後果（2026-06-10 user 報）：手機開 item 用 200 fallback 把 title 捲到 200，但 CSS 釘 96
 //    → 往下捲 title 從 200「跳」到 96 才 sticky。統一走此 helper 後開啟落點＝釘點，無跳動。
+// box 是否「真的是捲動容器」（矮橫向 landscape gate 會把 admission/curriculum 的 frame 拆掉：
+// overflow 改 visible、window 捲，但 .inner-scroll-scroll-col class 還在元素上）→ 不能只看 class/寬度，
+// 看 computed overflow-y。activities 矮橫向仍保留 frame（box 可捲）→ 此偵測讓共用碼自動各走各路，免 per-page 旗標；
+// 手機（<768）lists.css 不給這些 class 任何 overflow → visible → 自然回 null（= 原 window 路徑）。
+function getScrollableBox(el) {
+  const box = /** @type {HTMLElement | null} */ (el.closest('.inner-scroll-scroll-col'));
+  if (!box) return null;
+  const oy = getComputedStyle(box).overflowY;
+  return (oy === 'auto' || oy === 'scroll') ? box : null;
+}
+
 function getListStickyTop(header) {
   if (window.innerWidth < 768) {
     return 8 * parseFloat(getComputedStyle(document.documentElement).fontSize); // = CSS top:8rem（清 logo，與 lists.css 同步）
@@ -205,7 +216,11 @@ function getListStickyTop(header) {
   // inner-scroll（box-relative）：var 是 box 內偏移，0（admission 無 filter bar = box 頂）為**合法**釘點 → 不套 200 fallback；
   //   否則 `0 || 200` 把合法的 0 誤當未設→回 200，害開 item 對齊到 box 頂下 200px（user 2026-06-30 報 admission 開 item 沒對齊頂）。
   // window-path（alumni 等對齊 fixed header band）：var 未設或 0 都回退 200（沿用原行為，別動）。
-  if (header.closest('.inner-scroll-scroll-col')) return Number.isNaN(v) ? 0 : v;
+  if (header.closest('.inner-scroll-scroll-col')) {
+    if (getScrollableBox(header)) return Number.isNaN(v) ? 0 : v;
+    // 矮橫向拆 frame（box 不可捲、window 捲）：釘點 = landscape.css `.list-header.active { top: 96px }`（logo 下緣），兩處同步
+    return 96;
+  }
   return (Number.isNaN(v) || v === 0) ? 200 : v;
 }
 
@@ -280,7 +295,7 @@ function attachStickyPinObserver(header) {
   }, {
     // 桌面 inner-scroll：sentinel 對「右欄 .inner-scroll-scroll-col」的頂邊判 pinned（list 在 scroller 內捲、非 window）；
     //   手機（<768，無 frame）：root=null＝對 window viewport（原行為）。activities/admission 桌面皆有 scroll-col。
-    root: (window.innerWidth >= 768) ? header.closest('.inner-scroll-scroll-col') : null,
+    root: getScrollableBox(header),  // box 可捲＝對 box 頂邊判；不可捲（手機 / 矮橫向拆 frame）＝null 對 viewport
     // +4px 容差：開啟捲動把 title 停在「正好釘線」（自然位置=釘點、尚未越過）→ 嚴格邊界下 IO 判未 pin →
     // blocker 不顯示 → 上方內容（如 description）溢出蓋到 logo（user 2026-06-10）。邊界往下挪 4px 讓
     // 「title 一抵釘線就算 pinned」→ blocker 開。4px 窗內 nav 不可能還在 band（item 釘住時 nav 已捲出畫面），不誤觸。
@@ -350,8 +365,8 @@ function closeListHeader(header, { duration = DUR.medium, scrollFollow = false }
   if (scrollFollow) {
     const collapseAmount = content.getBoundingClientRect().height;
     // 桌面 inner-scroll：收合靠底 item → scroller 變矮 → scroller.scrollTop 被 clamp → 跳；同步往上捲 scroller（footer/snap 不在
-    //   scroller）。手機（<768，無 frame）：原 window scrollFollow（footer 在 window 文件底）。
-    const scroller = /** @type {HTMLElement|null} */ ((window.innerWidth >= 768) ? header.closest('.inner-scroll-scroll-col') : null);
+    //   scroller）。手機（<768）與矮橫向拆 frame：原 window scrollFollow（footer 在 window 文件底）。
+    const scroller = getScrollableBox(header);
     if (scroller) {
       // postMax 須一併扣掉「一律對齊頂部」的底部 spacer（收合後 onComplete 會把 spacer 歸零）→ 捲到的落點 = 清掉 spacer 後的真 maxScroll，
       //   scrollTop 先到那 → onComplete 清 spacer 時 scrollTop ≤ 新 maxScroll、不 clamp 跳。
@@ -514,8 +529,8 @@ function initListHeaderAccordion() {
 
           // 桌面 inner-scroll（2026-06-29）：捲動在右欄 .inner-scroll-scroll-col（snap 在 window、不在 scroller）→ **不** lockSnapOff、
           //   **不** clampBelowFooter（footer 在 frame 外、捲 scroller 不可能露）、**不** temp-expand 量 footer。
-          //   手機（<768，無 frame）走原 window 邏輯：lockSnapOff + 真實量測 clampBelowFooter + scrollWindowNoSnap。
-          const innerScroller = /** @type {HTMLElement|null} */ ((window.innerWidth >= 768) ? self.closest('.inner-scroll-scroll-col') : null);
+          //   手機（<768）與矮橫向拆 frame（box 不可捲）走原 window 邏輯：lockSnapOff + 真實量測 clampBelowFooter + scrollWindowNoSnap。
+          const innerScroller = getScrollableBox(self);
           if (!innerScroller) lockSnapOff();  // 只有 window snap 頁(手機；桌面 frame 有 scroller)開 item 期間鎖 snap
           let openBoxTarget = null;  // 桌面：開合捲動目標，給 content 展開 onComplete 收齊對位（見下）用
 
@@ -556,7 +571,11 @@ function initListHeaderAccordion() {
               const barInner = activeFilterBar && !activeFilterBar.classList.contains('bar-hidden')
                 ? (/** @type {HTMLElement | null} */ (activeFilterBar.querySelector('.activities-search-inner'))?.offsetHeight || 0)
                 : 0;
-              const barCollapseDelta = window.innerWidth < 768 ? barInner : 0;
+              // 補償條件看 bar 是否 sticky 而非寬度：sticky（桌面）收合時 pin 線與 header 同步上移＝不變式成立、免補；
+              // 非 sticky（手機 portrait ＋ 矮橫向拆 frame 的 static bar）收合只動 header → 要預扣，
+              // 否則量完才收 bar 內容整段上滑鑽進 pinned title 底下（user 2026-07-04 矮橫向報此症）。
+              const barSticky = activeFilterBar && getComputedStyle(activeFilterBar).position === 'sticky';
+              const barCollapseDelta = barSticky ? 0 : barInner;
               const headerDocTop = self.getBoundingClientRect().top + window.scrollY;
               const alignTop = Math.max(0, Math.round(headerDocTop - stickyTop - barCollapseDelta));
               // 真實量測：暫撐開 content 量「展開後」真 footer 再收回（不被 min-height:100vh 留白騙）；footerShift −barInner 補 bar 收合。

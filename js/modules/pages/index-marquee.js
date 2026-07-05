@@ -30,6 +30,8 @@ const MOBILE_PADDING_X = 16;
 const WIDTH_MOBILE = () => window.innerWidth - MOBILE_PADDING_X * 2;
 const BAR_HEIGHT = 40;        // 數字方塊邊長 ≈ bar 高度（h5 font 1.4rem + 預設 line-height + padding 0.35rem*2 ≈ 40）
 function isMobile() {
+  // 矮橫向也走手機參數（slot 座標 / banner 寬；user 2026-07-04「首頁比照手機版」，gate 同 landscape.css）
+  if (window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) return true;
   return window.SCCDHelpers ? window.SCCDHelpers.isMobile() : window.innerWidth < 768;
 }
 // 數字方塊配色：專案三原色固定一輪（綠 / 粉 / 藍）；

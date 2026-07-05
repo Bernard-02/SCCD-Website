@@ -343,6 +343,14 @@ async function loadPage(route, search = '', fromUserNav = false) {
 
 // ── 導航 ──────────────────────────────────────────────────────
 // 回傳 loadPage promise，方便 caller（如 idle-standby fade transition）等待頁面替換完成
+// 同頁重新走一次 loadPage（cleanup + swap + init），等同 popstate 的同頁重載：
+// 無白屏、header 不動、不動 history。給 orientation-reload（手機轉向重排）用。
+export function reloadCurrentRoute() {
+  const { pathname, search } = window.location;
+  const route = resolveRoute(pathname) || NOT_FOUND_ROUTE;
+  loadPage(route, search);
+}
+
 export function navigateTo(url) {
   const { pathname, search, hash } = new URL(url, window.location.origin);
   const route = resolveRoute(pathname) || NOT_FOUND_ROUTE;

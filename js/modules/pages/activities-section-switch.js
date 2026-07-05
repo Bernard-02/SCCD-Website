@@ -25,6 +25,17 @@ const loaded = {};
 // 防連點：exit/reveal 動畫期間 swallow 重複觸發
 let switching = false;
 
+// box 是否「真的是捲動容器」：矮橫向 landscape gate 把 activities 的 100vh frame 拆掉（overflow 改 visible、
+// window 捲），但 class 還在 → 看 computed overflow-y 不看寬度（同 list-accordion getScrollableBox / admission）。
+// el 可以是 box 自身或其後代（closest 對自身也命中）；null-safe。
+/** @param {Element | null} el */
+function getScrollableScrollCol(el) {
+  const box = /** @type {HTMLElement | null} */ (el && el.closest('.inner-scroll-scroll-col'));
+  if (!box) return null;
+  const oy = getComputedStyle(box).overflowY;
+  return (oy === 'auto' || oy === 'scroll') ? box : null;
+}
+
 // 捲到 section：落點讓 sticky filter bar 剛好停在它自己的 sticky-top（桌面 200），list 緊接其下不被蓋住。
 // ⚠️ 不能只把 section 頂對齊 viewport 0（user 2026-06-06「pt 頂到時第一個 list 被切掉 ~8px」）：
 //   section padding-top（md:py-6xl=192）< filter bar sticky-top（md:top-[200px]=200）。對齊 0 時 filter bar
@@ -45,8 +56,8 @@ function scrollSectionIntoView(el, behavior = 'instant') {
   if (!el) return;
   // 桌面 inner-scroll（2026-06-29）：捲動在右欄 .activities-scroll-col、section 是固定 frame。「回到 section 頂」＝
   //   window 停在 section（frame 填滿視窗，給 deep-link 從 hero 下來用）+ scroll-col.scrollTop=0（顯示 panel 頂）。
-  //   手機/admission（無 scroll-col、或 <768）→ 走下面原 window 落點邏輯。
-  const scroller = /** @type {HTMLElement|null} */ ((window.innerWidth >= 768) ? el.querySelector('.activities-scroll-col') : null);
+  //   手機（<768）與矮橫向拆 frame（box overflow 被 gate 改 visible）→ 走下面原 window 落點邏輯。
+  const scroller = getScrollableScrollCol(el.querySelector('.activities-scroll-col'));
   if (scroller) {
     const sectionTopDoc = el.getBoundingClientRect().top + window.scrollY;
     if (behavior === 'smooth') {
@@ -107,7 +118,9 @@ function waitForItemRevealed(item, timeout = 8000) {
 // 手機 section nav 水平 strip：把指定 section 的 btn 捲到 strip 中間（click / ref / deep-link 三條路徑共用；
 // user 2026-07-03）。桌面 vertical sticky 不需要。btn 位置是靜態 layout，隨時可量；smooth 水平捲與垂直捲動互不干擾。
 function centerSectionNavBtn(section) {
-  if (window.innerWidth >= 768) return;
+  // 矮橫向 bar 也是水平 strip（landscape.css 5f 單行 scroll）→ 同樣要置中；真桌面 vertical sticky 不需要
+  if (window.innerWidth >= 768
+    && !window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) return;
   const btn = /** @type {HTMLElement | null} */ (document.querySelector(`.activities-section-btn[data-section="${section}"]`));
   const bar = /** @type {HTMLElement | null} */ (btn && btn.closest('.activities-section-bar'));
   if (!btn || !bar) return;
@@ -188,7 +201,7 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
   // → 較下方 item「沒捲到就開」（同 curriculum deep-link 同日修的 bug）。
   // 兩段式：window 到 section 頂後，item 對齊**交給 proceedOpen 的 box 機制**（不設 skipOpenScroll：
   // gsap 捲 scroller 對齊 pin 線 + 短 list spacer 結構保證 + 自動收 search bar，全沿用、不在此重算）。
-  const boxScroller = /** @type {HTMLElement|null} */ ((window.innerWidth >= 768) ? target.closest('.inner-scroll-scroll-col') : null);
+  const boxScroller = getScrollableScrollCol(target);
   if (boxScroller) {
     const sectionEl = document.getElementById('activities-content-section');
     const sectionTopDoc = sectionEl ? sectionEl.getBoundingClientRect().top + window.scrollY : 0;
@@ -250,16 +263,20 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
   // 之前用 `stickyTop+filterBarH+16` 比釘點低 17px → title「稍微往下」、開啟時 header 不貼釘線（user 2026-06-25）。
   // 手機：8rem（= getListStickyTop 手機值 / lists.css `.list-header.active{top:6rem}`... 實為 8rem 清 logo）。
   const stickyContainer = /** @type {HTMLElement | null} */ (target.closest('[style*="--list-header-sticky-top"]'));
+  // ≥768 走到這裡＝矮橫向拆 frame（box 不可捲；有 frame 時上面 boxScroller 路徑已 return）→ 釘點 96
+  //   （= landscape.css `.list-header.active top:96` = list-accordion getListStickyTop 拆-frame 分支，三處同步）。
   const compensate = window.innerWidth < 768
     ? 8 * parseFloat(getComputedStyle(document.documentElement).fontSize)
-    : (stickyContainer ? (parseFloat(getComputedStyle(stickyContainer).getPropertyValue('--list-header-sticky-top')) || 200) : 200);
+    : (target.closest('.inner-scroll-scroll-col')
+      ? 96
+      : (stickyContainer ? (parseFloat(getComputedStyle(stickyContainer).getPropertyValue('--list-header-sticky-top')) || 200) : 200));
 
   // 文件相對 top 直接量 getBoundingClientRect().top + scrollY（scroll 無關）：比 offsetTop 沿 offsetParent
   // 鏈累加可靠——深層巢狀 item（年份組內）鏈長、每層 sub-pixel rounding 累積 → 落點「稍微往下」偏移
   // （user 2026-06-25 報「有的正確有的稍微往下」）；target 是 list-item 非 sticky bar，rect.top 不被 pin clamp。
   const targetTop = target.getBoundingClientRect().top + window.scrollY;
-  // finalTop（收合態量測、不傳 growPx）只給「非 smooth」的 ref 按鈕用——它是 instant 跳 + 延遲 600ms 才展開，捲動當下
-  // content 還收合、footer 在收合位置，**不能**用展開後位置算否則先閃 footer。smooth deep-link 改「邊捲邊展開」、另算 smoothTop（見下）。
+  // finalTop（收合態量測、不傳 growPx）：ref instant 跳與 smooth deep-link 共用（2026-07-04 起 smooth 也改
+  // 兩段式「捲到位才展開」）——捲動當下 content 還收合、footer 在收合位置，**不能**用展開後位置算否則先閃 footer。
   // alignWithBottomSpacer：短清單被 footer clamp 夾短時補底部 spacer 直達 pin 線 → ref 落點＝手動打開落點、
   // 上方不露 nav strip（user 2026-07-03；收合態量測 spacer 只會偏大＝更安全，600ms 後展開 footer 只會更遠）。
   const finalTop = alignWithBottomSpacer(target, targetTop - compensate);
@@ -293,33 +310,26 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
   };
 
   if (smooth) {
-    // 首頁 deep-link（已等 hero 跑完）：捲動與展開「同時」跑——user 看到往下捲的同時 item 展開，footer 被展開內容往下推
-    // 的同時往下捲 → footer 全程不露、且有空間時 item 對齊頂部（user 2026-06-28「有空間就在打開同時對齊頂部」，取代舊
-    // 「捲到位→停0.6s→才展開」會先閃 footer 的節奏）。
-    // 落點「真實量測」：暫撐開 content 量「展開後」真 footer 位置再收回（涵蓋 section min-height:100vh 留白 → 短 list 展開
-    // 不一定推 footer、用 scrollHeight 預測會失準）。bar 已於上方 navigateToItem 收掉 → footerShift 0。同 tick set→量→set 不繪製不閃。
-    const _content = /** @type {HTMLElement|null} */ (target.querySelector('.list-content'));
-    let smoothTop = targetTop - compensate;
-    if (_content) {
-      gsap.set(_content, { height: 'auto' });
-      smoothTop = alignWithBottomSpacer(target, targetTop - compensate);  // 短清單夾短→spacer 補足直達 pin 線（同 ref/proceedOpen）
-      gsap.set(_content, { height: 0 });
-    }
+    // 首頁 deep-link（已等 hero 跑完）：兩段式對齊桌面 inner-scroll（user 2026-07-04）——先以「關閉的清單」
+    // 平滑捲到落點、到位才展開。取代 2026-06-28「捲動與展開同時跑」：當時同時跑是為了避免「捲到位才展開」
+    // 先閃 footer，但 alignWithBottomSpacer（2026-07-03）已用底部 spacer 結構保證收合態落點存在、不被
+    // maxScroll clamp 到 footer → 兩段式安全。落點沿用上方 finalTop（收合態量測 + spacer，同 ref instant 路徑；
+    // 展開向下推、header 留在 pin 線，落點不因展開位移）。
     // 手機時長依距離換算（固定 0.5s 在手機捲距 >1 視窗高看起來「跳下去」不像滑，user 2026-06-12）；clamp 0.5~1.1s、桌面 0.5s。
-    const dist = Math.abs(smoothTop - window.scrollY);
+    const dist = Math.abs(finalTop - window.scrollY);
     const scrollDur = window.innerWidth < 768 ? Math.min(1.1, Math.max(DUR.medium, dist / 1200)) : DUR.medium;
     await waitForItemRevealed(target);  // 確保 list 文字已 reveal（deep-link init 已清 pre-reveal → 立即 resolve）
-    // 捲動全程關 mandatory snap；ease 對齊 accordion 展開的 EASE.enterSoft（同 DUR.medium）→ 捲動進度 ≤ 展開進度、footer 不露。
-    scrollWindowNoSnap(smoothTop, { duration: scrollDur, ease: EASE.enterSoft });
-    // 與捲動「同時」展開：skipOpenScroll 讓 proceedOpen 只展開不再自己捲（捲動由此處負責）；accentHex/bg 設成 section 色
-    // → 開啟即帶 highlight 色（取代舊的獨立 600ms flash；item 開啟後整塊染 section 色本身就是 highlight）。
-    const header = /** @type {HTMLElement | null} */ (target.querySelector('.list-header'));
-    if (header && !header.classList.contains('active')) {
-      header.dataset.skipOpenScroll = '1';
-      header.dataset.accentHex = flashColor;
-      header.style.background = flashColor;
-      header.click();
-    }
+    // 捲動全程關 mandatory snap。到位才展開：skipOpenScroll 讓 proceedOpen 只展開不再自己捲（已在落點）；
+    // accentHex/bg 設成 section 色 → 開啟即帶 highlight 色（同桌面 openViaAccordion，無獨立 600ms flash）。
+    scrollWindowNoSnap(finalTop, { duration: scrollDur, ease: EASE.enterSoft, onComplete: () => {
+      const header = /** @type {HTMLElement | null} */ (target.querySelector('.list-header'));
+      if (header && !header.classList.contains('active')) {
+        header.dataset.skipOpenScroll = '1';
+        header.dataset.accentHex = flashColor;
+        header.style.background = flashColor;
+        header.click();
+      }
+    } });
   } else {
     // ref 按鈕等頁內跳轉：用 instant 跳到位（smooth 會經過 hero 區造成「先回 hero 再展開」視覺），
     // 切 panel 後 user 期待直接看到 target list 就位 → 立即 flash + 展開
