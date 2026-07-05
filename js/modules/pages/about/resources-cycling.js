@@ -72,19 +72,15 @@ function renderResourcesAccordion(data, container) {
     initColoredCardAccordion(wrapper, { animateEntry: entry });
 
     // 封鎖綫不佔 flow、被卡片堆疊蓋住（user 2026-06-11：被 accordion 遮蓋、不跟卡片占空間）：
-    // 維持 absolute（section 層 z-0 < site-container z-30），top 釘到第 2~4 張卡的接縫置中，
-    // 旋轉的滿版色帶從卡片堆後左右探出。卡片展收時封鎖綫不動（與 works 區 strip 同為 collage 固定位）。
-    // 量測用「第一張展開」的 final 預設狀態（entry 完會自動開第一張）：暫時把 body0 設 auto 量完還原，
-    // 否則 strip 會釘在收合版位置、預設視圖整條藏在第一張展開的 body 後面。
+    // 維持 absolute（section 層 z-0 < site-container z-30），旋轉的滿版色帶從卡片堆後左右探出。
+    // top 釘「第 1、2 張卡的接縫」（收合狀態量，此刻 bodies 全 0 不需模擬）：label 1 上方沒有會動的東西，
+    // 不論之後開哪張卡這個錨點都不動 → 封鎖綫永遠固定在堆疊上方（user 2026-07-04；
+    // 原版隨機釘第 2~4 張＋用「第一張展開」量 → 開第一張時在中間、開最後一張時掉到底部）。
     const strip = /** @type {HTMLElement | null} */ (document.querySelector('.section-title-strip[data-anchor="resources"]'));
     const items = wrapper.querySelectorAll('.accordion-item');
     const section = document.getElementById('resources');
-    if (strip && section && items.length > 3) {
-      const body0 = items[0].querySelector('.accordion-body');
-      if (body0 && typeof gsap !== 'undefined') gsap.set(body0, { height: 'auto' });
-      const idx = 1 + Math.floor(Math.random() * 3); // 第 2~4 張卡
-      const top = items[idx].getBoundingClientRect().top - section.getBoundingClientRect().top;
-      if (body0 && typeof gsap !== 'undefined') gsap.set(body0, { height: 0 });
+    if (strip && section && items.length > 1) {
+      const top = items[1].getBoundingClientRect().top - section.getBoundingClientRect().top;
       strip.style.top = `${Math.round(top - strip.offsetHeight / 2)}px`;
     }
   }

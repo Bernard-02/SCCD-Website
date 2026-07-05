@@ -18,12 +18,13 @@ import { sitePath } from '../ui/site-base.js';
 // - Total span = 5 × 17 + 20.8 = 105.8vw → slot 0 / 5 各保留 ~3vw 對稱邊界溢出
 // 5 slot 時數學塞不下（4 × spacing + image > 100 與 spacing < image 兩條件互斥），加到 6 slot 才同時成立。
 const SLOT_LEFTS_DESKTOP = ['-3vw', '14vw', '31vw', '48vw', '65vw', '82vw'];
-// 手機（<768）：同構縮小版 — 4 slot spacing 24vw + 統一 34vw 圖寬（overlap 10vw ≈ 29%、span 103vw 左右各 ~3vw 溢出）。
+// 手機（<768）：同構縮小版 — 3 slot spacing 32vw + 統一 42vw 圖寬（overlap 10vw ≈ 24%、span 103vw 左右各 ~3vw 溢出）。
 // 桌面 6-slot/400px 幾何在 390px viewport 會全部疊在同一處（單圖就超過 viewport 寬）根本看不到圖。
+// 2026-07-04 由 4-slot/34vw 放大（user「圖有點小，一 row 差不多三張」）；容器高 variables.css 350px 同步。
 // export 給 degree-show-data-loader：ref-based event 的 about slideshow 手機要套同一套幾何（user 2026-06-11）
-export const SLOT_LEFTS_MOBILE = ['-3vw', '21vw', '45vw', '69vw'];
+export const SLOT_LEFTS_MOBILE = ['-3vw', '29vw', '61vw'];
 const IMG_WIDTH_DESKTOP = '400px';
-export const IMG_WIDTH_MOBILE = '34vw';
+export const IMG_WIDTH_MOBILE = '42vw';
 const ANIM_DUR = 0.5;
 const ANIM_EASE = 'cubic-bezier(0.25, 0, 0, 1)';
 const HOVER_DUR = 0.3;

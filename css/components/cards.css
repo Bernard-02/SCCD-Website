@@ -205,6 +205,12 @@
     .faculty-grid-row {
       font-size: var(--font-size-p1);
     }
+    /* Contact 內文跟詳情 row 同步升 p1（user 2026-07-04「admin 的比較小」——row 手機升 p1 時漏了它；
+       桌面不動：row/contact 本就同 p2 對齊）。矮橫向同款規則在 landscape.css。
+       雙 class 抬特異度：.text-p2 utility 在 components 之後、同特異度會後出勝（repo 慣例雷）。 */
+    .faculty-contact-text.text-p2 {
+      font-size: var(--font-size-p1);
+    }
   }
   .faculty-grid-row > .faculty-grid-span2 {
     grid-column: span 2;

@@ -668,7 +668,7 @@ export function initPdfViewer() {
     enterLightboxMode();
   }
 
-  // closeModal 回 Promise：ref btn 跳轉時要等 fadeout 完才 SPA 換頁，避免 0.3s 黑→新頁的視覺斷層
+  // （2026-07-04 起 ref btn 跳轉不再 await 此函式：關閉 fadeout 與 SPA 換頁並行，統一 ref timing）
   function closeModal() {
     modal.style.opacity = '0';
     // exitLightboxMode：show bars + 移除 body.lightbox-open → theme-toggle MutationObserver

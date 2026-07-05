@@ -285,6 +285,29 @@
     display: block;
   }
 
+  /* 手機副標 sticky-pinned collapse（user 2026-07-04「往下滑動時收起副標省空間」）：
+     與桌面同機制（is-pinned 由 list-accordion.js sentinel-IO 加、grid-rows 0fr 收合，詳見桌面 block 註解）。
+     手機**只做捲過 pin 線才收**（user 指明「滑動時收」）——不複製桌面 #panel-lectures「一開就收」例外。 */
+  .list-header > * > .clip-reveal-wrapper:has(.list-subtitles) {
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows var(--dur-fast) ease, opacity var(--dur-fast) ease, margin-top var(--dur-fast) ease;
+  }
+  .list-header > * > .clip-reveal-wrapper:has(.list-subtitles) > * {
+    min-height: 0;
+  }
+  .list-header.active.is-pinned > * > .clip-reveal-wrapper:has(.list-subtitles) {
+    grid-template-rows: 0fr;
+    opacity: 0;
+    margin-top: -0.5rem;  /* 抵消父 flex-col gap-xs，collapsed 後 title 不留視覺 gap */
+  }
+  /* summer-camp 例外與桌面一致（user 2026-06-22：營隊副標 pin 後也不收） */
+  #panel-summer-camp .list-header.active.is-pinned > * > .clip-reveal-wrapper:has(.list-subtitles) {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    margin-top: 0;
+  }
+
   /* 手機：年份→list 的 grid gap 移除（year-toggle py-md + items mt-md 已提供間距，year 緊貼 list）。
      桌面維持 gutter（year col ↔ list col 橫向間距）。.list-year-group.grid-12 (0,2,0) 蓋過 .grid-12 gap-gutter（同 @layer components，specificity 勝）（user 2026-06-10） */
   .list-year-group.grid-12 {
@@ -872,7 +895,7 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
   .tl-m-card {
     width: max-content;
     max-width: 100%;
-    padding: var(--spacing-sm); /* 年份字卡內距 sm（user 2026-06-12；原 0.6rem 0.8rem） */
+    padding: 0.4em 0.7em; /* 對齊上方 era chip .tl-m-era（user 2026-07-04；原 sm 偏肥）；寬度另由 timeline.js 量實際文字寬 */
     transform-origin: top left;
   }
   .tl-m-card .tl-m-year {
@@ -884,12 +907,12 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
     margin-top: var(--spacing-sm);
   }
   /* BFA/MDES 子標題（descriptions 內的 <h5>）手機跟所在視圖內文同字級（user 2026-06-12）：
-     主視圖內文 = text-p2、list view 內文 = p1（上方 user 統一的字級） */
+     主視圖與 list view 內文都 = p2（list view 原 p1，user 2026-07-04 縮成 p2） */
   .tl-m-card .tl-m-desc h5 {
     font-size: var(--font-size-p2);
   }
   .tl-list-block > h5 {
-    font-size: var(--font-size-p1);
+    font-size: var(--font-size-p2);
   }
   /* 圖片區：沿用 .class-img 絕對定位 slideshow（同 about class section 手機尺寸）；
      top 50% !important 蓋過 placeInSlot 的 inline top:70%（同 .class-info-panel 手機做法） */
@@ -939,9 +962,9 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
     left: 0;
     padding: 6px 8px 5px;
   }
-  /* 字卡內距 xs（user 2026-06-12 看過 nav btn 標準 6px 8px 5px 後改 xs；桌面維持 xl） */
+  /* 字卡內距 md（user 2026-07-04 由 xs 加大「多一些 padding」；桌面維持 xl） */
   .tl-list-content {
-    inset: var(--spacing-xs);
+    inset: var(--spacing-md);
     padding-right: var(--spacing-sm);
   }
   .tl-list-year-row {
@@ -951,11 +974,11 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
   .tl-list-year-row + .tl-list-year-row {
     margin-top: var(--spacing-lg);
   }
-  /* 年份（JS 給 text-h5）與內文（text-p2）手機統一縮成 p1；
+  /* 年份（JS 給 text-h5）與內文手機統一縮成 p2（原 p1，user 2026-07-04）；
      雙層 selector 才蓋過 @tailwind utilities（在 lists.css 之後）的同特異度 font-size */
   .tl-list-year-row .tl-list-year,
   .tl-list-year-row .tl-list-year-body {
-    font-size: var(--font-size-p1);
+    font-size: var(--font-size-p2);
   }
   .tl-list-cols {
     grid-template-columns: 1fr;

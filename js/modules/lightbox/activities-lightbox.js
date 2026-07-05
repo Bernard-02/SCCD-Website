@@ -839,7 +839,7 @@ function closeLightbox() {
   document.dispatchEvent(new CustomEvent('sccd:close-lightbox'));
 }
 
-// 給 ref btn 跳轉用：等 fadeout 完才 SPA 換頁，避免黑→新頁視覺斷層
+// 給 ref btn 跳轉用（2026-07-04 起不再被 await：關閉 fadeout 與 SPA 換頁並行，統一 ref timing）
 function closeLightboxAsync() {
   return new Promise(resolve => {
     closeLightbox();

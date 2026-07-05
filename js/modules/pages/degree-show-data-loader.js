@@ -805,7 +805,7 @@ async function appendRefBasedSection(root, index, ev, branchEn, branchZh) {
 
     // 啟動 slideshow（panel hidden 時 GSAP set 仍會生效，切 tab 時直接可見）
     // 顯式傳 textHlEl 讓 hl 區跟 imgs 同步 clip-path（about 一樣行為）
-    // 手機：圖片處理對齊 exhibition 全寬 slideshow（同 4-slot/34vw 幾何；容器由 CSS 負 margin 撐全寬）
+    // 手機：圖片處理對齊 exhibition 全寬 slideshow（同 3-slot/42vw 幾何；容器由 CSS 負 margin 撐全寬）
     const api = createClassImagesSlideshow(slideshow, item.images, {
       textHlEl: descHlEl,
       ...(window.innerWidth < 768 ? { slotLefts: SLOT_LEFTS_MOBILE, imgWidth: IMG_WIDTH_MOBILE } : {}),

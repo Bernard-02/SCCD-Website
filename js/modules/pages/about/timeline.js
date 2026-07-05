@@ -184,6 +184,25 @@ export function initTimeline() {
         `<h4 class="font-bold tl-m-year">${it.year}</h4>` +
         descs.map(d => `<div class="tl-m-desc">${d}</div>`).join('');
       cardEl.style.background = randomColor();
+      // 字卡寬 = 文字實際寬（user 2026-07-04）：長文在 max-width 內換行後，max-content 會把卡撐滿容器寬、
+      // 右側留大片空底色 → 逐「文字節點」用 Range 量每一行 rect 的右緣，卡寬收到 最寬行 + 左右 padding。
+      // ⚠️ 不能對整個 cardBody selectNodeContents 一次量：Range 對完整包含的區塊元素（.tl-m-desc div）
+      //   回傳元素 border box（= 撐滿容器的寬），量到的永遠是容器寬。只有 text node 的 rects 才是真的逐行字寬。
+      // 先清 inline width/transform 讓文字自然換行再量（旋轉會虛增 rect 寬，量完才設新角度）；+1px 防 sub-pixel 再折行。
+      cardEl.style.width = '';
+      cardEl.style.transform = 'none';
+      const baseL = cardBody.getBoundingClientRect().left;
+      const walker = document.createTreeWalker(cardBody, NodeFilter.SHOW_TEXT);
+      let maxLine = 0;
+      for (let n; (n = walker.nextNode()); ) {
+        const rg = document.createRange();
+        rg.selectNodeContents(n);
+        for (const r of rg.getClientRects()) maxLine = Math.max(maxLine, r.right - baseL);
+      }
+      if (maxLine) {
+        const cs = getComputedStyle(cardEl);
+        cardEl.style.width = `${Math.ceil(maxLine + parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight)) + 1}px`;
+      }
       eraEl.style.transform = `rotate(${pickUniqueRotations(1, -4, 4)[0]}deg)`;
       cardEl.style.transform = `rotate(${pickUniqueRotations(1, -2, 2)[0]}deg)`;
     }

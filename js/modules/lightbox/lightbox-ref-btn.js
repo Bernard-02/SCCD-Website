@@ -21,8 +21,11 @@
 
 import { setupClipReveal } from '../ui/scroll-animate.js';
 import { DUR, EASE } from '../ui/motion.js';
+import { SITE_BASE_PATHNAME } from '../ui/site-base.js';
 
-const ACTIVITIES_PATH = '/pages/activities.html';
+// ⚠️ pathname 形式 + SITE_BASE_PATHNAME 前綴（同 library-panels ref row）：完整 http URL 會被 router
+// 當外部連結整頁重載；無前綴的根路徑在子路徑部署（GitHub Pages）會 404
+const ACTIVITIES_PATH = `${SITE_BASE_PATHNAME}pages/activities.html`;
 
 let _gsapWarned = false;
 function gsapAvailable() {
@@ -315,9 +318,11 @@ export function createRefBtn(initialColor, onCloseLightbox) {
   }
 
   async function navigateToRef(ref) {
-    // 1) 關閉 host lightbox（caller 提供的 onClose 含 enter/exitLightboxMode + fadeout）
+    // 1) 關 host lightbox 與導航「並行」不 await（2026-07-04 統一 ref timing）：list ref row 是點了立即換頁，
+    //    這裡原本 await fadeout(~300ms) 完才導航 → lightbox ref 慢一拍。lightbox DOM 掛 body、不被
+    //    #page-content swap 殺掉 → fadeout 蓋在換頁動畫上同時跑，無黑→新頁斷層。
     if (typeof onCloseLightbox === 'function') {
-      try { await onCloseLightbox(); } catch (_) { /* swallow */ }
+      try { onCloseLightbox(); } catch (_) { /* swallow */ }
     }
     // 2) 收起 popover 自己狀態
     closePopover(false);

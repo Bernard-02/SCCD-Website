@@ -1097,7 +1097,8 @@ export async function loadListInto(containerId, url, options = {}) {
       const cityZh = item.city_zh || item.cityZh || '';
       // 標題國旗來源 = guests（人物/單位）的國家，去重 + 轉小寫給 flag-icons（fi-tw…）。
       // 「地點的國家」(item.flag / locations[].country) 暫不納入 — user 2026-06-03：等後台處理 location-country 機制再加進來。
-      const countryCodes = [...new Set((item.guests || []).map(g => (g.country || '').toLowerCase().trim()).filter(Boolean))];
+      // uk→gb：flag-icons 只認 ISO 3166 的 gb，編輯常填 UK（2026-07-04 實例）→ fi-uk 不存在渲染成空盒
+      const countryCodes = [...new Set((item.guests || []).map(g => (g.country || '').toLowerCase().trim().replace(/^uk$/, 'gb')).filter(Boolean))];
 
       const itemFlags = alwaysExpanded ? 'data-no-accordion' : 'data-pre-reveal';
       // meta-icons inner（alumni + 全部國旗）共用內容：桌面 render 在右上 group、手機另 render 一份在副標下方 in-flow 區塊

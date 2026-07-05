@@ -352,17 +352,18 @@
     max-width: calc((100vw - 2 * var(--container-padding)) * 0.75);
   }
 
-  /* exhibition 全寬 gallery：手機縮小（degree-show-gallery.js 手機改 4-slot/34vw 幾何），容器高度跟著收 */
+  /* exhibition 全寬 gallery：手機縮小（degree-show-gallery.js 手機改 3-slot/42vw 幾何），容器高度跟著收
+     （2026-07-04 由 4-slot/34vw/280px 放大；350 ≈ 280 × 42/34） */
   .event-gallery-section .division-images--degree-show {
-    min-height: 280px;
+    min-height: 350px;
   }
 
   /* ref-based event（forum/workshop）slideshow：手機也全寬（負 margin 把容器延伸到 viewport 兩邊，
-     vw slot 定位才對齊 viewport）；圖片幾何跟 exhibition 同一套（4-slot/34vw，JS 傳 opts 給
+     vw slot 定位才對齊 viewport）；圖片幾何跟 exhibition 同一套（3-slot/42vw，JS 傳 opts 給
      createClassImagesSlideshow），不再套 about 200/280 cap。
      不設 overflow:hidden（旋轉圖不被裁）— 橫向溢出由 html/body overflow-x:clip 兜住不讓整頁 pan。 */
   .event-gallery-section .division-images:not(.division-images--degree-show) {
-    min-height: 280px;
+    min-height: 350px;
     margin-left: calc(-1 * var(--container-padding));
     margin-right: calc(-1 * var(--container-padding));
   }

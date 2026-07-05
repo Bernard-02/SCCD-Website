@@ -186,9 +186,10 @@
     .colored-accordion .accordion-item + .accordion-item {
       margin-top: calc(-1 * var(--spacing-xs));
     }
-    /* title / 文字卡 padding 對齊全站 nav btn accent-bg 慣例（.anchor-nav-inner: 6px 8px 5px，user 2026-06-11） */
+    /* title / 文字卡 padding：左右 8px 沿用全站 nav btn 慣例；上下加大（原 6px/5px）——
+       卡片負 margin 8px 互疊 + ±1~2° 旋轉，鄰卡邊角最多切進 ~15-20px，上下要留 buffer 字才不被蓋（user 2026-07-04） */
     .colored-accordion .accordion-label {
-      padding: 6px 8px 5px;
+      padding: 14px 8px 13px;
     }
     .colored-accordion .accordion-label-inner {
       font-size: var(--font-size-p1);
@@ -205,7 +206,7 @@
       margin-top: 0;
     }
     .colored-accordion .accordion-text-wrap {
-      padding: 6px 8px 5px;
+      padding: 14px 8px 13px;
     }
 
     .accordion-item {
