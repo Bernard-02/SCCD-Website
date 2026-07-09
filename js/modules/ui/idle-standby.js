@@ -416,5 +416,28 @@ export function initIdleStandby() {
     window.addEventListener(evt, resetTimer, { passive: true });
   });
 
+  // 待機中視窗尺寸變了（換螢幕 / 拉視窗 / 投影）：overlay atlas 佈局是 mount 時尺寸算死的
+  // （atlas 慣例不隨 resize 重排）→ debounce 後整份重掛（instant 定態），永遠 fit 當下視窗。
+  // 縮到手機 / 矮橫向（enterStandby 本來就不進的尺寸）直接退出待機。
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    if (!isStandby) return;
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(async () => {
+      if (!isStandby || isTransitioning) return;
+      if (window.innerWidth < 768
+        || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) {
+        exitStandby();
+        return;
+      }
+      if (isOnAtlas() || !atlasMounted) return;
+      isTransitioning = true;   // 重掛期間擋 exitStandby，避免拆一半被 fade-out 撞上
+      unmountStandbyAtlas();
+      await mountStandbyAtlas(true);
+      setStandbyAtlasVisible();
+      isTransitioning = false;
+    }, 300);
+  });
+
   resetTimer();
 }
