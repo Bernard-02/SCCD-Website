@@ -68,6 +68,15 @@ export function initAnchorNav({ reveal = false } = {}) {
         clearTimeout(clickScrollTimer);
         clickScrollTimer = setTimeout(() => { clickScrolling = false; }, 1200);
 
+        // 手機水平 strip：點到的 btn 捲到 strip 置中（同 activities centerSectionNavBtn pattern）
+        const strip = btn.closest('#mobile-anchor-strip');
+        if (strip) {
+          const b = btn.getBoundingClientRect();
+          const s = strip.getBoundingClientRect();
+          const delta = (b.left + b.width / 2) - (s.left + s.width / 2);
+          strip.scrollTo({ left: strip.scrollLeft + delta, behavior: 'smooth' });
+        }
+
         // 使用 scrollIntoView，由各 section 的 scroll-margin-top 決定對齊位置
         targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
@@ -234,130 +243,23 @@ export function initAnchorNav({ reveal = false } = {}) {
   // SPA 離開 about 時 disconnect，否則 observer 持續 hold 已被 router.innerHTML swap 掉的 section refs
   registerPageCleanup(() => observer.disconnect());
 
-  // 3. Mobile Menu Toggle Logic
-  const mobileToggle = document.getElementById('mobile-anchor-toggle');
-  const mobileWrapper = document.getElementById('mobile-anchor-wrapper');
-  const mobileMenu = document.getElementById('mobile-anchor-menu');
-  const mobileOverlay = document.getElementById('mobile-anchor-overlay');
-  const mobileContainer = document.getElementById('mobile-anchor-container');
-  const footer = document.getElementById('site-footer');
-
-  if (mobileToggle && mobileWrapper && mobileMenu && mobileContainer) {
-    let isOpen = false;
-    const icon = mobileToggle.querySelector('i');
-
-    const toggleMenu = () => {
-      isOpen = !isOpen;
-      
-      // 使用 GSAP 處理動畫
-      if (typeof gsap === 'undefined') return;
-
-      if (isOpen) {
-        // Open State
-        // 1. Show Overlay
-        if (mobileOverlay) {
-          mobileOverlay.classList.remove('pointer-events-none');
-          gsap.to(mobileOverlay, { opacity: 1, duration: DUR.fast });
-        }
-
-        // 2. Prepare Menu (Show but invisible so height can be calculated)
-        mobileMenu.classList.remove('hidden');
-
-        // 3. Expand Wrapper (Circle -> Rounded Rect)
-        gsap.to(mobileWrapper, {
-          width: 160, // w-40
-          height: 'auto',
-          borderRadius: 24,
-          duration: DUR.medium,
-          ease: EASE.enterSoft
-        });
-        
-        // 4. Show Menu Items
-        gsap.to(mobileMenu, { opacity: 1, duration: DUR.fast });
-        
-        const menuItems = mobileMenu.querySelectorAll('.anchor-nav-btn');
-        gsap.fromTo(menuItems, 
-          { y: 10, opacity: 0 },
-          { y: 0, opacity: 1, duration: DUR.base, stagger: 0.05, ease: EASE.enterSoft }
-        );
-
-        // 5. Icon Change (Rotate & Swap)
-        if (icon) icon.classList.replace('fa-list', 'fa-xmark');
-      } else {
-        // Closed State
-        // 1. Hide Overlay
-        if (mobileOverlay) {
-          mobileOverlay.classList.add('pointer-events-none');
-          gsap.to(mobileOverlay, { opacity: 0, duration: DUR.fast });
-        }
-        
-        // 2. Collapse Wrapper
-        gsap.to(mobileWrapper, {
-          width: 48, // w-12
-          height: 48, // h-12
-          borderRadius: 24, // 使用 24px (48px的一半) 保持圓形，避免使用 % 造成動畫變形
-          duration: DUR.fast,
-          ease: EASE.move
-        });
-
-        // 3. Hide Menu Items
-        gsap.to(mobileMenu, { opacity: 0, duration: DUR.micro, onComplete: () => mobileMenu.classList.add('hidden') });
-
-        // 4. Icon Change
-        if (icon) icon.classList.replace('fa-xmark', 'fa-list');
-      }
-    };
-
-    mobileToggle.addEventListener('click', (e) => {
-      e.stopPropagation();
-      toggleMenu();
-    });
-
-    // Close when clicking outside
-    document.addEventListener('click', (e) => {
-      if (isOpen && !mobileWrapper.contains(/** @type {Node} */ (e.target))) {
-        toggleMenu();
-      }
-    });
-    
-    // Close when clicking overlay
-    if (mobileOverlay) {
-      mobileOverlay.addEventListener('click', () => {
-        if (isOpen) toggleMenu();
-      });
+  // 矮橫向（landscape gate）：nav 是 fixed 在 header 帶（landscape.css 5i）→ footer 進視窗前收起
+  // （user 2026-07-07「nav btn 不要出現在 footer 上」；CSS .anchor-nav-footer-hide 往上滑出）。
+  // rootMargin 底部 -25%：footer 頂過視窗 75% 線才算「到底部」——history 是末段一屏，
+  // footer 剛在底緣露頭就收會讓 nav 在 history 視圖就消失（過早）。
+  if (window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) {
+    const navEl = document.getElementById('anchor-nav');
+    const footerEl = document.getElementById('site-footer');
+    if (navEl && footerEl) {
+      const footerIO = new IntersectionObserver(([e]) => {
+        navEl.classList.toggle('anchor-nav-footer-hide', e.isIntersecting);
+      }, { rootMargin: '0px 0px -25% 0px' });
+      footerIO.observe(footerEl);
+      registerPageCleanup(() => footerIO.disconnect());
     }
-
-    // Close when clicking a link inside the mobile menu
-    const mobileLinks = mobileMenu.querySelectorAll('.anchor-nav-btn');
-    mobileLinks.forEach(link => {
-      link.addEventListener('click', () => {
-        if (isOpen) toggleMenu();
-      });
-    });
-
-    // 4. Scroll Visibility Logic (Mobile)
-    const handleScroll = () => {
-      const footerRect = footer ? footer.getBoundingClientRect() : null;
-      const isFooterVisible = footerRect ? (footerRect.top < window.innerHeight) : false;
-      const isPastHero = window.scrollY > window.innerHeight * 0.8;
-
-      // Mobile: Visibility of the button container
-      if (isPastHero && !isFooterVisible) {
-        mobileContainer.classList.remove('opacity-0', 'pointer-events-none');
-        mobileContainer.classList.add('pointer-events-auto');
-      } else {
-        mobileContainer.classList.add('opacity-0', 'pointer-events-none');
-        mobileContainer.classList.remove('pointer-events-auto');
-      }
-
-      // Auto-close if open and footer is visible
-      if (isFooterVisible && isOpen) {
-        toggleMenu();
-      }
-    };
-    window.addEventListener('scroll', handleScroll);
-    handleScroll(); // Initial check
-    // SPA 離開 about 時解綁，避免下一頁 scroll 持續觸發 query about 專屬 DOM
-    registerPageCleanup(() => window.removeEventListener('scroll', handleScroll));
   }
+
+  // 3.（2026-07-07 移除）舊手機 floating 圓鈕選單（mobile-anchor-toggle/wrapper/menu/overlay/container）——
+  //    about.html 已改為 hero 下方水平 strip（#mobile-anchor-strip，行為走上面共用 click/scroll-spy），
+  //    floating DOM 已刪、此段邏輯純 delete（alumni 無此結構、無其他消費者）。
 }

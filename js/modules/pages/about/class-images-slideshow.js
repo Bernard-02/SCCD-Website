@@ -96,6 +96,8 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
   const slotCount = slotLefts.length;
   const imgWidth = opts.imgWidth || null;
   const manual = !!opts.manual;
+  // 單格置中用（timeline 手機單圖輪播：slotLefts ['50%'] + xPercent -50）；預設 0 = 原行為
+  const slotXPercent = opts.slotXPercent ?? 0;
 
   // 同一個 panel 內的 text highlight 區塊（含底色），和 imgs 一起做 clip-path
   // about 場景自動從 .class-info-panel 找 [data-class-hl]；degree-show 場景可顯式傳入 textHlEl
@@ -173,6 +175,7 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
       placeInSlot(img, i, slotLefts, {
         rotation: randomRotation(),
         clipPath: startHidden ? randomHideClip() : SHOW_CLIP,
+        xPercent: slotXPercent,
       });
       slots.push(img);
       if (!manual) attachInteractions(img);
@@ -212,7 +215,7 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
     nextIdx++;
     const newImg = buildImg(nextSrc, imgWidth);
     container.appendChild(newImg);
-    placeInSlot(newImg, slotCount - 1, slotLefts, { rotation: randomRotation() });
+    placeInSlot(newImg, slotCount - 1, slotLefts, { rotation: randomRotation(), xPercent: slotXPercent });
     gsap.fromTo(newImg,
       { clipPath: randomHideClip() },
       { clipPath: SHOW_CLIP, duration: ANIM_DUR, ease: ANIM_EASE,
@@ -371,10 +374,16 @@ export async function initClassImagesSlideshow() {
     const pool = await res.json();
     if (!Array.isArray(pool) || pool.length === 0) return;
 
+    // 手機＝單圖置中自動輪播（user 2026-07-07；同 timeline 手機單格 pattern）：單 slot 下 tick =
+    // 舊圖 clip-out + 新圖隨機 4 向 clip-in 同格交疊，內建 INTERVAL timer 直接驅動反覆切換。
+    // 桌面維持 3-slot 左移輪播。矮橫向（landscape gate）同走單圖（user 2026-07-07 wireframe：圖左文右單圖輪播）。
+    const isMobileSlots = window.innerWidth < 768
+      || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+    const slotOpts = isMobileSlots ? { slotLefts: ['50%'], slotXPercent: -50 } : {};
     /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.division-images')).forEach(container => {
       const division = container.dataset.division;
       if (!division) return;
-      const api = createClassImagesSlideshow(container, pool);
+      const api = createClassImagesSlideshow(container, pool, slotOpts);
       if (api) slideshowsByDivision.set(division, api);
     });
 

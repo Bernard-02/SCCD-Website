@@ -297,23 +297,34 @@
     min-height: 8.25rem;
   }
 
-  /* Class 圖片（slideshow 3 張絕對定位）— 全部 scope 在 .class-info-panel，
-     避免影響共用 .division-images/.class-img 的 degree-show。
+  /* Class 圖片（手機＝單圖置中自動輪播，user 2026-07-07；slot opts 在 class-images-slideshow.js）——
+     全部 scope 在 .class-info-panel，避免影響共用 .division-images/.class-img 的 degree-show。
      1. about 的 .division-images 跟 degree-show 共用 .works-container class，被 cards.css 手機
         works-container 規則套上 display:flex + overflow:auto → 旋轉圖被裁切；這裡還原 block + overflow:visible。
      2. 圖片垂直置中（原 JS 設 top:70% 偏下；!important 蓋過 gsap inline）。
-     3. 整體縮小 + 收緊容器高度。 */
+     3. 尺寸對齊 timeline 手機單圖（直式 220 / 橫式 320、容器 320 收納 ±4° 旋轉投影）。 */
   .class-info-panel .division-images {
     display: block !important;
     overflow: visible !important;
-    min-height: 280px;
+    min-height: 320px;
   }
   .class-info-panel .class-img {
     top: 50% !important;
-    max-width: 200px;
+    max-width: 220px;
   }
   .class-info-panel .class-img.class-img--landscape {
-    max-width: 280px;
+    max-width: 320px;
+  }
+
+  /* Class 説明文字盒（user 2026-07-07）：手機 max-height 內部捲、捲軸藏——同 #overview [data-overview-hl] pattern。
+     [data-class-hl] 是 highlight 底色盒（inline display:inline-block），盒內捲底色跟著滿盒。 */
+  .class-info-panel [data-class-hl] {
+    max-height: 45vh;
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+  .class-info-panel [data-class-hl]::-webkit-scrollbar {
+    display: none;
   }
 
   /* ===== Degree Show Detail — 手機版專屬（桌面不受影響） ===== */
@@ -382,6 +393,43 @@
     overflow-x: clip;
   }
 
+  /* About anchor strip（hero 下方水平 nav，2026-07-07 取代 floating 圓鈕選單）：
+     同 division nav pattern——負 margin 全出血、隱藏捲軸、overflow-y:clip 容 active pill 旋轉投影。 */
+  #mobile-anchor-strip {
+    margin-left: calc(-1 * var(--container-padding));
+    margin-right: calc(-1 * var(--container-padding));
+    padding-left: var(--container-padding);
+    padding-right: var(--container-padding);
+    overflow-y: clip;
+    scrollbar-width: none;
+  }
+  #mobile-anchor-strip::-webkit-scrollbar {
+    display: none;
+  }
+  /* strip 上方 0~96px 帶（header logo 列）遮擋：sticky 釘 96 後上方是透明帶、捲過的內容會從
+     logo 後面露出 → ::before 向上補 96px 底色（同 activities .list-mobile-header-blocker pattern）。
+     未釘住（自然位置在 hero 底）時 ::before 蓋到 hero 尾端 96px——hero bg 同為 theme-bg、視覺無感。 */
+  .mobile-anchor-strip-wrap::before {
+    content: '';
+    position: absolute;
+    top: -96px;
+    left: 0;
+    right: 0;
+    height: 96px;
+    background: var(--theme-bg);
+  }
+
+  /* Vision 文字盒（user 2026-07-07）：手機 max-height 內部捲、捲軸藏（touch 捲動照常）。
+     [data-overview-hl] 是 highlight 底色 span（inline display:block），盒內捲底色跟著滿盒。 */
+  #overview [data-overview-hl] {
+    max-height: 45vh;
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+  #overview [data-overview-hl]::-webkit-scrollbar {
+    display: none;
+  }
+
   /* Mobile 分組導覽 pill 列：水平 scroll，兩側負 margin 延伸到 viewport 邊、隱藏捲軸；
      overflow-y:clip 讓 active pill 旋轉投影不被裁（py 在 HTML 給 clearance） */
   #mobile-division-nav {
@@ -425,13 +473,14 @@
     clip-path: inset(-12px -12px -12px -12px);
   }
 
-  /* BFA 學士班 label（mobile）：桌面是 absolute 浮在 btn 上方，mobile 改 in-flow（flex-col group 內、pill 上方），
-     才不會被 nav 的 overflow-y 裁掉。底色/字色沿用 .class-group-label 基底（theme-fg/theme-bg；mode-color strict B/W 由 color.css 處理）。 */
+  /* BFA 學士班 label（mobile）：桌面是 absolute 浮在 btn 上方，mobile 改 in-flow（group 內），
+     才不會被 nav 的 overflow-y 裁掉。user 2026-07-07 改「pill 左側、EN/ZH 兩行」（原 pill 上方單行）——
+     排版由 HTML flex-row + label 內兩個 div 處理，這裡只中和桌面 absolute。
+     底色/字色沿用 .class-group-label 基底（theme-fg/theme-bg；mode-color strict B/W 由 color.css 處理）。 */
   #mobile-division-nav .class-group-label {
     position: static;
     left: auto;
     bottom: auto;
-    margin-bottom: var(--spacing-xs);
   }
 }
 

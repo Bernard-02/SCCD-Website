@@ -876,15 +876,27 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
 }
 
 /* ===== Timeline 手機版（timeline.js buildMobile；桌面 strip 整套不建構）=====
- * era chip + 年份卡（圖片上方）→ slideshow 圖片區 → 控制列（list 鈕 + 下一年箭頭）。
- * list view 沿用桌面 .tl-list-* 結構，這裡覆蓋成單欄滿版。 */
-@media (max-width: 767px) {
+ * 圖片區（單圖置中、自動輪播 clip 切換）→ era chip + 年份卡 → 控制列（list 鈕 + 下一年箭頭）
+ *（user 2026-07-07 改版：圖上文下、一次一張）。list view 沿用桌面 .tl-list-* 結構，這裡覆蓋成單欄滿版。
+ * 矮橫向（landscape gate）同樣走 buildMobile → media query 併入 gate；四欄橫排另由 landscape.css 5i++ 覆蓋。 */
+@media (max-width: 767px), (orientation: landscape) and (max-height: 500px) {
+  /* 整塊要塞進「anchor strip 落點(186) 以下的一屏」（user 2026-07-07：點 History 時底部兩顆
+     控制鈕不能超出畫面）→ 三處收斂：section pt 100→48（圖片上探蓋封鎖線，見下）、
+     gap md→sm、圖片容器 320→272；文字卡改 max-height 內捲吸收長文（見 .tl-m-card）。 */
+  #history {
+    /* 蓋 section inline padding-top:100px。0：strip 帶本體（.section-title-inner 綠底）外圈還有 24px
+       透明 padding，pt 24 時圖片只咬進綠帶 ~6px 視覺無感 → 歸零讓圖片明確疊上綠帶（~30px）。 */
+    padding-top: 0 !important;
+  }
   #timeline-mobile {
     padding: var(--spacing-lg) var(--container-padding) var(--spacing-md);
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-md);
+    gap: var(--spacing-sm);
     align-items: flex-start;
+    /* 抬 z 蓋過封鎖線（.section-title-strip 是 positioned z-0；user 2026-07-07「圖片要遮擋封鎖線」） */
+    position: relative;
+    z-index: 1;
   }
   .tl-m-era {
     width: max-content;
@@ -897,6 +909,13 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
     max-width: 100%;
     padding: 0.4em 0.7em; /* 對齊上方 era chip .tl-m-era（user 2026-07-04；原 sm 偏肥）；寬度另由 timeline.js 量實際文字寬 */
     transform-origin: top left;
+    /* 長文年份卡收 max-height 盒內捲（user 2026-07-07；同 about 45vh 內捲慣例、此處配「整塊塞一屏」預算取定值） */
+    max-height: 156px;
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+  .tl-m-card::-webkit-scrollbar {
+    display: none;
   }
   .tl-m-card .tl-m-year {
     font-size: var(--font-size-p2); /* 年份跟內文同字級（user 2026-06-12；JS 給 h4 → 手機縮回 p2） */
@@ -914,19 +933,23 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
   .tl-list-block > h5 {
     font-size: var(--font-size-p2);
   }
-  /* 圖片區：沿用 .class-img 絕對定位 slideshow（同 about class section 手機尺寸）；
+  /* 圖片區：單圖置中（slotLefts ['50%'] + slotXPercent -50），一次一張放大展示；
      top 50% !important 蓋過 placeInSlot 的 inline top:70%（同 .class-info-panel 手機做法） */
   .tl-m-images {
     position: relative;
     align-self: stretch;
-    min-height: 280px;
+    min-height: 272px;
   }
+  /* 直式上限 190：常見海報比例 ~1.4，190 寬 ≈ 268 高，含在 272 容器內不外溢蓋到下方 era chip
+    （容器 320→272 是「整塊塞一屏」預算的一環，圖寬同步 220→190）。
+     top 40%（非置中）：偏上錨定讓「橫式矮圖」也確實探進封鎖線（置中時橫圖上緣只碰到 strip 底 ~7px）；
+     !important 蓋 placeInSlot inline top:70%。 */
   .tl-m-images .class-img {
-    top: 50% !important;
-    max-width: 200px;
+    top: 40% !important;
+    max-width: 190px;
   }
   .tl-m-images .class-img.class-img--landscape {
-    max-width: 280px;
+    max-width: 320px;
   }
   .tl-m-controls {
     align-self: stretch;
@@ -1094,6 +1117,13 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
 .list-title-marquee.is-overflow p {
   transition: none;
   animation: list-marquee var(--marquee-duration, 4s) linear infinite;
+}
+
+/* 非溢出狀態藏 clone（clone 是 initMarquees 加的 aria-hidden 第二份，seamless loop 用）：
+   轉向後 wrap 變寬、is-overflow 被 RO 摘掉，但 clone 位置(原文+3rem)落在變寬的 wrap 可視區內
+   → 沒這條會「標題顯示兩次」（直向 marquee 殘留到橫向，user 2026-07-04）。溢出時恢復參與 loop。 */
+.list-title-marquee:not(.is-overflow) > p[aria-hidden="true"] {
+  display: none;
 }
 
 @keyframes list-marquee {

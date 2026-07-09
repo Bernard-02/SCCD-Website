@@ -7,6 +7,7 @@
  */
 
 import { registerPageExit } from '../../ui/page-exit.js';
+import { registerPageCleanup } from '../../ui/page-cleanup.js';
 import { sitePath } from '../../ui/site-base.js';
 import { createClassImagesSlideshow } from './class-images-slideshow.js';
 
@@ -15,8 +16,6 @@ export function initTimeline() {
   const strip = document.getElementById('timeline-strip');
   const navLeft = document.getElementById('timeline-nav-left');
   const navRight = document.getElementById('timeline-nav-right');
-  const photoTooltip = document.getElementById('timeline-photo-tooltip');
-  const photoTooltipText = document.getElementById('timeline-photo-tooltip-text');
 
   if (!area || !strip || !navLeft || !navRight) return;
 
@@ -34,9 +33,6 @@ export function initTimeline() {
     // 卷軸橫移
     stripSlideDuration: 0.8,
     stripSlideEase: 'power2.inOut',
-    // Tooltip 退場
-    tooltipHideDuration: 0.2,
-    tooltipHideFastDuration: 0.15,
     // Photo raise/lower clip 週期
     photoClipDuration: 0.5,
     photoClipEase: 'power2.inOut',
@@ -89,12 +85,6 @@ export function initTimeline() {
     return a;
   }
 
-  function randRot() {
-    let r;
-    do { r = Math.floor(Math.random() * 11) - 4; } while (r === 0);
-    return r;
-  }
-
   // --- clip-path ---
   const CLIP_END = 'inset(0% 0% 0% 0%)';
   const ALL_DIRS = ['top', 'bottom', 'left', 'right'];
@@ -121,8 +111,9 @@ export function initTimeline() {
         });
       });
       if (items.length > 0) {
-        // 手機走獨立的簡化視圖（卡片 + slideshow + 箭頭切年 + list 鈕），桌面 strip 整套不建構
-        if (window.innerWidth < 768) buildMobile(items);
+        // 手機與矮橫向（landscape gate，同 landscape.css）走簡化視圖（卡片 + slideshow + 箭頭切年 + list 鈕），
+        // 桌面 strip 整套不建構；矮橫向的四欄 grid 佈局由 landscape.css 5i++ 覆蓋（user 2026-07-07）
+        if (window.innerWidth < 768 || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) buildMobile(items);
         else buildStrip(items);
       }
     })
@@ -136,7 +127,6 @@ export function initTimeline() {
     area.style.height = 'auto';
     navLeft.style.display = 'none';
     navRight.style.display = 'none';
-    if (photoTooltip) photoTooltip.style.display = 'none';
 
     // era 分組（list view 用；同 buildStrip 的分組邏輯）
     const eraGroups = [];
@@ -152,10 +142,11 @@ export function initTimeline() {
 
     const wrap = document.createElement('div');
     wrap.id = 'timeline-mobile';
+    // 順序：圖片在上、文字（era chip + 年份卡）在下（user 2026-07-07 改版；原文字上圖下）
     wrap.innerHTML =
+      '<div class="tl-m-images"></div>' +
       '<div class="tl-m-era timeline-card-inner bg-black text-white"><div class="text-p2 leading-base font-bold"></div></div>' +
       '<div class="tl-m-card timeline-card-inner"><div class="tl-m-card-body text-p2 leading-base font-bold"></div></div>' +
-      '<div class="tl-m-images"></div>' +
       '<div class="tl-m-controls">' +
         '<button class="tl-m-list-btn" aria-label="切換清單視圖"><span class="tl-icon-btn-inner"><span class="icon icon-atlas-list"></span></span></button>' +
         '<button class="tl-m-next-btn" aria-label="下一年"><span class="tl-icon-btn-inner"><span class="icon icon-arrow-right"></span></span></button>' +
@@ -208,9 +199,22 @@ export function initTimeline() {
     }
     renderYear(0);
 
-    // slideshow：pool = 各年份圖片，manual 模式（tick 由箭頭驅動，不綁內建點擊/hover）
-    const slide = createClassImagesSlideshow(imagesEl, items.map(it => it.image), { textHlEl: null, manual: true });
+    // slideshow：單格置中一次一張（user 2026-07-07 改版，原 3-slot collage）；manual 模式
+    //（內建點擊/hover 不綁），tick 由「自動輪播計時」與「箭頭切年」共同驅動——同一 tick、
+    // isShifting 自帶互斥。舊圖 clip-out + 新圖隨機 4 向 clip-in 同格交疊＝clip-path 切換。
+    const slide = createClassImagesSlideshow(imagesEl, items.map(it => it.image), {
+      textHlEl: null, manual: true, slotLefts: ['50%'], slotXPercent: -50,
+    });
     if (slide) slide.renderFresh(true); // 先隱藏，等 ScrollTrigger reveal
+
+    // 自動輪播：3.5s 一張；list view 開著時跳過（tick 會把新圖 reveal 進被 hideAll 的區域）。
+    // SPA 換頁 interval 要清（page-cleanup registry）。
+    let autoTimer = null;
+    function startAuto() {
+      if (autoTimer || !slide) return;
+      autoTimer = setInterval(() => { if (!listMode && !document.hidden) slide.tick(); }, 3500);
+    }
+    registerPageCleanup(() => { if (autoTimer) { clearInterval(autoTimer); autoTimer = null; } });
 
     const textEls = [eraEl, cardEl];
 
@@ -374,6 +378,7 @@ export function initTimeline() {
     const revealMobile = () => {
       gsap.to(textEls, { clipPath: CLIP_END, duration: TIMING.revealDuration, ease: TIMING.revealEase, stagger: TIMING.stagger });
       if (slide) slide.showAll();
+      startAuto(); // 進場後才起自動輪播（藏著空轉沒意義）
     };
     if (typeof ScrollTrigger !== 'undefined') {
       ScrollTrigger.create({ trigger: area, start: 'top 80%', once: true, onEnter: revealMobile });
@@ -658,8 +663,6 @@ export function initTimeline() {
         photo._tlYear = index;
         photo._tlOrigZ = photoZs[p];
         photo._tlNeedsLowerAnim = needsLowerAnim[p];
-        // 簡短假文：年份 + era（不含 desc，避免 tooltip 過長；之後可換成圖片本身的 caption）
-        photo._tlTooltip = `<strong>${item.year}</strong> ${item.eraTitle} ${item.eraLabel}`;
 
         thisPageRotates.push({ rotateDiv, slotIndex: p });
       }
@@ -837,13 +840,22 @@ export function initTimeline() {
     let hoverLeaveTimer = null;  // 延遲 leave，讓跨照片 hover 順暢
     let hoverEnabled = false;    // 等頁面 reveal 完成後才允許 hover，避免 clip-path 打架
 
-    // 收集當前頁面的邊界照片（slot 0,4）供 dim 用
-    function getEdgePhotos() {
-      return allPhotos.filter(p => p._tlSlot === 0 || p._tlSlot === 4);
+    // slot 4 = 「下一年預覽」照片：停在該年時 grayscale、切到下一年變彩色（user 2026-07-06，取代舊 hover dim）。
+    // 同一張 DOM 也是下一年的左邊界——只要 currentIndex 前進它就自動變彩，往回退則變回灰（規則對稱免特判）。
+    function updateEdgeGray(instant) {
+      allPhotos.forEach(p => {
+        if (p._tlSlot !== 4) return;
+        const img = p.querySelector('img');
+        if (!img) return;
+        const filter = p._tlYear === currentIndex ? 'grayscale(100%)' : 'grayscale(0%)';
+        if (instant) gsap.set(img, { filter });
+        else gsap.to(img, { filter, duration: TIMING.dimDuration });
+      });
     }
+    updateEdgeGray(true);
     // hover 照片：直接提升 z-index（不做 clip-path）
     // 反向離開時由 lowerPhoto 做 clip-path 回到原本 z-index
-    function raisePhoto(photo, showTooltip) {
+    function raisePhoto(photo) {
       const rotateDiv = photo.querySelector('div');
       if (!rotateDiv) return;
 
@@ -853,7 +865,6 @@ export function initTimeline() {
 
       // 14 < cardsOverlay 的 z=15，確保 hover 圖片不會蓋過 era/year/desc 字卡
       photo.style.zIndex = '14';
-      if (showTooltip) showTooltip();
     }
 
     function lowerPhoto(photo) {
@@ -893,64 +904,17 @@ export function initTimeline() {
       });
     }
 
-    // Dim / undim 邊界照片（只用 grayscale）
-    function dimEdgePhotos() {
-      getEdgePhotos().forEach(p => {
-        const img = p.querySelector('img');
-        if (img) gsap.to(img, { filter: 'grayscale(100%)', duration: TIMING.dimDuration });
-      });
-    }
-    function undimEdgePhotos() {
-      getEdgePhotos().forEach(p => {
-        const img = p.querySelector('img');
-        if (img) gsap.to(img, { filter: 'grayscale(0%)', duration: TIMING.dimDuration });
-      });
-    }
-
-    // Tooltip follow cursor 偏移（右下方，避免擋住游標）
-    const TOOLTIP_OFFSET_X = 20;
-    const TOOLTIP_OFFSET_Y = 20;
-
-    // 進入 hover 狀態（中間照片 slot 1~3）
-    function enterMiddleHover(photo, e) {
+    // 進入 hover 狀態（中間照片 slot 1~3）：只提升 z-index（tooltip 已移除，user 2026-07-06）
+    function enterMiddleHover(photo) {
       const fromOtherPhoto = activeHover && activeHover !== photo;
-      // 只有前一張是中間照片才跑 reverse clip；邊界照片靠 dim 處理，不跑 clip
+      // 只有前一張是中間照片才跑 reverse clip；邊界照片沒有 raise 效果、無需 lower
       const fromMiddle = fromOtherPhoto && activeHover._tlSlot >= 1 && activeHover._tlSlot <= 3;
-      const tooltipVisible = photoTooltip && gsap.getProperty(photoTooltip, 'opacity') > 0;
 
       if (fromMiddle) {
         lowerPhoto(activeHover);
       }
       activeHover = photo;
-
-      // 立即設文字（首次 / 跨照片切換都同步換）
-      if (photoTooltipText) photoTooltipText.innerHTML = photo._tlTooltip;
-
-      // 無論首次或跨照片：新照片都提升 z-index
-      raisePhoto(photo, () => {
-        if (activeHover !== photo) return;
-        if (!photoTooltip) return;
-
-        gsap.killTweensOf(photoTooltip);
-
-        if (tooltipVisible) {
-          // 跨照片切換：位置由 mousemove handler 持續 follow，這裡只保持可見
-          gsap.set(photoTooltip, { clipPath: CLIP_END, opacity: 1 });
-          return;
-        }
-
-        // Tooltip 首次出現：instant 顯示（無 clip-path 動畫）
-        gsap.set(photoTooltip, {
-          right: 'auto', bottom: 'auto',
-          xPercent: 0, yPercent: 0,
-          left: e.clientX + TOOLTIP_OFFSET_X, top: e.clientY + TOOLTIP_OFFSET_Y,
-          rotation: randRot(),
-          clipPath: CLIP_END, opacity: 1,
-        });
-      });
-
-      // 每次進入 middle 都確保邊界照片是 dim 狀態（idempotent）
-      dimEdgePhotos();
+      raisePhoto(photo);
     }
 
     // 離開所有 hover
@@ -959,21 +923,8 @@ export function initTimeline() {
         if (activeHover._tlSlot >= 1 && activeHover._tlSlot <= 3) {
           lowerPhoto(activeHover);
         }
-        // 邊界照片不做任何處理（沒有單色效果需要恢復）
         activeHover = null;
       }
-      if (photoTooltip) {
-        gsap.killTweensOf(photoTooltip);
-        // clip-path 消失，完成後 reset 供下次 instant 出現
-        gsap.to(photoTooltip, {
-          clipPath: getClipStart(randomDirLR()),
-          duration: TIMING.tooltipHideDuration,
-          ease: TIMING.exitEase,
-          onComplete: () => gsap.set(photoTooltip, { opacity: 0, clipPath: CLIP_END }),
-        });
-      }
-      // 字卡自然恢復（照片 z-index 降回去後）
-      undimEdgePhotos();
     }
 
     // 進入邊界照片 hover（slot 0 或 4）→ 不做任何效果，cursor default
@@ -981,17 +932,6 @@ export function initTimeline() {
       // 如果從中間照片過來，先清理
       if (activeHover && activeHover._tlSlot >= 1 && activeHover._tlSlot <= 3) {
         lowerPhoto(activeHover);
-        if (photoTooltip) {
-          gsap.killTweensOf(photoTooltip);
-          // clip-path 消失（快版）
-          gsap.to(photoTooltip, {
-            clipPath: getClipStart(randomDirLR()),
-            duration: TIMING.tooltipHideFastDuration,
-            ease: TIMING.exitEase,
-            onComplete: () => gsap.set(photoTooltip, { opacity: 0, clipPath: CLIP_END }),
-          });
-        }
-        undimEdgePhotos();
       }
 
       activeHover = photo;
@@ -1023,27 +963,15 @@ export function initTimeline() {
         photo.dataset.tlEdge = getEdgeRole(photo); // 'left' or 'right'
       }
 
-      photo.addEventListener('mouseenter', (e) => {
+      photo.addEventListener('mouseenter', () => {
         if (!hoverEnabled) return; // 等 reveal 完成才允許 hover
         // 該照片自己的 lower clip-path 動畫進行中：先讓它跑完才允許再次 hover
         if (photo._tlLowering) return;
         clearTimeout(hoverLeaveTimer);
         if (isMiddle) {
-          enterMiddleHover(photo, e);
+          enterMiddleHover(photo);
         } else if (isEdge) {
           enterEdgeHover(photo);
-        }
-      });
-
-      photo.addEventListener('mousemove', (e) => {
-        if (!hoverEnabled) return;
-        // middle photo：tooltip 跟 cursor 偏移右下走
-        if (isMiddle && photoTooltip && typeof gsap !== 'undefined') {
-          gsap.set(photoTooltip, {
-            left: e.clientX + TOOLTIP_OFFSET_X,
-            top: e.clientY + TOOLTIP_OFFSET_Y,
-            overwrite: 'auto',
-          });
         }
       });
 
@@ -1131,13 +1059,12 @@ export function initTimeline() {
         activeHover._tlLowering = false;
         activeHover = null;
         clearTimeout(hoverLeaveTimer);
-        if (photoTooltip) gsap.set(photoTooltip, { opacity: 0, clipPath: CLIP_END });
-        undimEdgePhotos();
       }
 
       const prevIndex = currentIndex;
       currentIndex = index;
       updateNavZones();
+      updateEdgeGray(); // 前進：舊「下一年預覽」變彩色；後退：對稱變回灰
 
       const current = pageData[prevIndex];
       const target = pageData[index];
@@ -1206,8 +1133,6 @@ export function initTimeline() {
         activeHover._tlLowering = false;
         activeHover = null;
         clearTimeout(hoverLeaveTimer);
-        if (photoTooltip) gsap.set(photoTooltip, { opacity: 0, clipPath: CLIP_END });
-        undimEdgePhotos();
       }
 
       const lastIdx = items.length - 1;
@@ -1244,6 +1169,7 @@ export function initTimeline() {
           revealedPages.clear();
           currentIndex = 0;
           updateNavZones();
+          updateEdgeGray(true); // 跳回第一年是瞬移，灰階也瞬切
 
           // Step 4: 移回第一年
           gsap.set(strip, { left: 0 });
@@ -1423,8 +1349,6 @@ export function initTimeline() {
       activeHover._tlLowering = false;
       activeHover = null;
       clearTimeout(hoverLeaveTimer);
-      if (photoTooltip) gsap.set(photoTooltip, { opacity: 0, clipPath: CLIP_END });
-      undimEdgePhotos();
     }
 
     // 當前 viewport 內可見的照片 rotateDiv（含邊界 slot 的跨頁殘留）

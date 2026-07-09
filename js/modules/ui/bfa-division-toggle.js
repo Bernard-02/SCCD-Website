@@ -325,6 +325,18 @@ export function initBFADivisionToggle() {
         btn._activeColor = null;
       }
     });
+
+    // 手機 pill：active 時捲到 strip 置中（user 2026-07-07，同 anchor strip / activities pattern）。
+    // 放 setActive 單一入口＝點擊與程式切換（works-context 自動切 bfa 等）都涵蓋；
+    // 桌面 nav 在 md:hidden wrapper 內 clientWidth=0 → scrollWidth 條件不成立、自動 no-op。
+    const mNav = document.getElementById('mobile-division-nav');
+    const mBtn = mNav && mNav.querySelector(`.mobile-division-btn[data-division="${divisionId}"]`);
+    if (mBtn && mNav.scrollWidth > mNav.clientWidth) {
+      const b = mBtn.getBoundingClientRect();
+      const s = mNav.getBoundingClientRect();
+      const delta = (b.left + b.width / 2) - (s.left + s.width / 2);
+      mNav.scrollTo({ left: mNav.scrollLeft + delta, behavior: 'smooth' });
+    }
   }
 
   // ─── Desktop: hover events ─────────────────────────────────
@@ -410,6 +422,9 @@ export function initBFADivisionToggle() {
         onEnter: () => {
           window.SCCD_classContext = 'works';
           mobileNav.classList.add('is-works-context');
+          // 矮橫向 <768：顯示的是桌面左欄 tabs（landscape.css 5i+ 強制顯示），BFA wrap 展開
+          // 靠同名 class 掛在桌面容器上（≥768 由 class-buttons-sticky.js 掛；portrait 下容器 hidden、無副作用）
+          document.getElementById('class-buttons-sticky')?.classList.add('is-works-context');
           if (!hasEnteredWorksMobile) {
             hasEnteredWorksMobile = true;
             if (typeof window.SCCD_setDivisionActive === 'function') {
@@ -420,6 +435,7 @@ export function initBFADivisionToggle() {
         onLeaveBack: () => {
           window.SCCD_classContext = 'info';
           mobileNav.classList.remove('is-works-context');
+          document.getElementById('class-buttons-sticky')?.classList.remove('is-works-context');
           const active = document.querySelector('.mobile-division-btn.active');
           if (active?.getAttribute('data-division') === 'bfa') {
             setActive('animation', randomColor(getCurrentStripColor()), randomRotation());

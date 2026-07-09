@@ -3,9 +3,11 @@
  * Resources 區塊：讀取 JSON 並渲染為 Horizontal Accordion
  */
 
-import { initColoredCardAccordion, initRotatedAccordion } from '../../accordions/horizontal-accordion.js';
+import { initRotatedAccordion } from '../../accordions/horizontal-accordion.js';
 import { sitePath } from '../../ui/site-base.js';
 import { prefersReducedMotion } from '../../ui/reduce-motion.js';
+import { registerPageExit } from '../../ui/page-exit.js';
+import { playClipPathExit } from '../../ui/scroll-animate.js';
 
 export function initResourcesCycling() {
   const container = document.getElementById('resources-accordion-container');
@@ -63,24 +65,33 @@ function renderResourcesAccordion(data, container) {
   wrapper.innerHTML = html;
   container.appendChild(wrapper);
 
-  // 初始化旋轉卡片版手風琴（桌面旋轉堆疊，手機改卡片式向下 accordion）
-  // 減少動態：animateEntry:false → 7 張卡片直接全顯（第一張展開、其餘收合 label），不逐張跳出
+  // 桌面＝旋轉堆疊手風琴；手機與矮橫向＝水平 carousel（user 2026-07-06：取消堆疊 accordion 與旋轉，
+  // 卡片恆展開、原生 scroll-snap 左右滑；2026-07-07 矮橫向同款、卡片並排 2 張）。
+  // carousel 佈局在 accordion.css（手機 block + landscape gate block），
+  // JS 只做 clip-reveal 進退場（卡片不開合、不設旋轉 → 舊 initColoredCardAccordion 不再用）。
   const entry = !prefersReducedMotion();
-  if (window.innerWidth >= 768) {
+  const shortLandscape = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+  if (window.innerWidth >= 768 && !shortLandscape) {
     initRotatedAccordion(wrapper, { height: 650, animateEntry: entry });
   } else {
-    initColoredCardAccordion(wrapper, { animateEntry: entry });
+    const items = Array.from(wrapper.querySelectorAll('.accordion-item'));
+    if (entry && typeof ScrollTrigger !== 'undefined') {
+      gsap.set(items, { clipPath: 'inset(0% 100% 0% 0%)' });
+      ScrollTrigger.create({
+        trigger: wrapper,
+        start: 'top 80%',
+        once: true,
+        onEnter: () => gsap.to(items, { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.9, ease: 'power3.out', stagger: 0.1 }),
+      });
+      registerPageExit(() => playClipPathExit(items));
+    }
 
-    // 封鎖綫不佔 flow、被卡片堆疊蓋住（user 2026-06-11：被 accordion 遮蓋、不跟卡片占空間）：
-    // 維持 absolute（section 層 z-0 < site-container z-30），旋轉的滿版色帶從卡片堆後左右探出。
-    // top 釘「第 1、2 張卡的接縫」（收合狀態量，此刻 bodies 全 0 不需模擬）：label 1 上方沒有會動的東西，
-    // 不論之後開哪張卡這個錨點都不動 → 封鎖綫永遠固定在堆疊上方（user 2026-07-04；
-    // 原版隨機釘第 2~4 張＋用「第一張展開」量 → 開第一張時在中間、開最後一張時掉到底部）。
+    // 封鎖綫不佔 flow（section 層 z-0 < site-container z-30，色帶從卡片後左右探出）：
+    // 堆疊時代釘「第 1、2 張卡接縫」，carousel 無接縫 → 改釘卡片列上緣、色帶半疊在卡片頂後方
     const strip = /** @type {HTMLElement | null} */ (document.querySelector('.section-title-strip[data-anchor="resources"]'));
-    const items = wrapper.querySelectorAll('.accordion-item');
     const section = document.getElementById('resources');
-    if (strip && section && items.length > 1) {
-      const top = items[1].getBoundingClientRect().top - section.getBoundingClientRect().top;
+    if (strip && section) {
+      const top = wrapper.getBoundingClientRect().top - section.getBoundingClientRect().top;
       strip.style.top = `${Math.round(top - strip.offsetHeight / 2)}px`;
     }
   }

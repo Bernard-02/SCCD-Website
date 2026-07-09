@@ -50,6 +50,20 @@
 #class-info-area { min-height: 100vh; }
 #resources { min-height: 100vh; }
 
+/* 手機（2026-07-07）：anchor strip 改全程 sticky（釘 96、高 91 → 底 187）後，落點要讓出 strip 高度，
+   否則點 nav 對齊的內容鑽進 strip/blocker 底下。188 = strip 底 +1；overview 原 200 > 187 本就安全、不動。
+   ⚠️ 與 about.html strip top:96 / division nav top:188 為配對值，改 strip 高度三處同步。 */
+@media (max-width: 767px) {
+  #class { scroll-margin-top: 188px; }
+  /* resources/history 收 186（188−2）：188 剛好貼 strip 底(187)，前一區（works playlist）的底緣/分隔線
+     會在接縫露出 1-2px → 多捲 2px 把縫藏進 strip 底下（user 2026-07-07） */
+  #resources, #history { scroll-margin-top: 186px; }
+  /* works 要再讓出「釘住的 division nav」（top 188 高 91 → 底 279）：188 落點會少捲到讓 nav 被
+     containment 推上去（實測 145）疊住 strip、內容又鑽進 nav 下面 → 292 = 279 + 13 呼吸，
+     nav 保持釘 188、works 內容（desc/標題/playlist）完整落在其下。class 落點的 nav 是自然 flow 位置、188 即可。 */
+  #works { scroll-margin-top: 292px; }
+}
+
 @media (min-width: 768px) and (min-height: 900px) {
   /* 落點全部頂對齊；原本 −100/−200 offset 提供的框景改由各 section 內部 padding 補（見下） */
   #overview, #class, #works { scroll-margin-top: 0; }

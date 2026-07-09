@@ -353,7 +353,7 @@ body.mode-inverse .anchor-nav-btn:not(.active) .anchor-nav-inner {
 
 /* About 頁專用 override：底色不透明、文字半透明 theme-fg（對齊 standard mode 的 about 處理） */
 body.mode-inverse #anchor-nav .anchor-nav-btn:not(.active) .anchor-nav-inner,
-body.mode-inverse #mobile-anchor-menu .anchor-nav-btn:not(.active) .anchor-nav-inner {
+body.mode-inverse #mobile-anchor-strip .anchor-nav-btn:not(.active) .anchor-nav-inner {
   background-color: rgba(0, 0, 0, 1) !important;
   color: rgba(255, 255, 255, 0.5) !important;
 }

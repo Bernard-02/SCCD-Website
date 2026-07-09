@@ -176,18 +176,29 @@
 
   /* ===== Mobile: 垂直堆疊 ===== */
   @media (max-width: 767px) {
-    /* colored-accordion 卡片版（about resources，user 2026-06-11）：
-       - 卡片彼此輕疊（負 margin，配 ±1~2° 旋轉成 collage；後面的卡 DOM 順序自然蓋上面）
-       - transform-origin: top — 展開時高度往下長，旋轉中心若在 center 會下移使頂邊左右漂
-       - 標題 p1 + 左右 sm；內文 padding 全 sm */
+    /* colored-accordion 手機改水平 carousel（user 2026-07-06：取消堆疊 accordion 與旋轉，卡片恆展開、左右滑）：
+       原生 scroll-snap 免 JS drag；負 margin 讓軌道 bleed 到 viewport 邊、scroll-padding 補回容器縮排對齊；
+       overflow-x 蓋掉上方 visible !important（同 layer 同特異度後出勝）、y 軸 clip 防被軸連動算成 auto。 */
+    .colored-accordion {
+      flex-direction: row;
+      align-items: flex-start;      /* 卡片各自自然高，不拉齊最高卡 */
+      gap: var(--spacing-md) !important;
+      overflow-x: auto !important;
+      overflow-y: clip !important;
+      margin-inline: calc(-1 * var(--container-padding));
+      padding-inline: var(--container-padding);
+      scroll-snap-type: x mandatory;
+      scroll-padding-inline: var(--container-padding);
+      scrollbar-width: none;
+    }
+    .colored-accordion::-webkit-scrollbar {
+      display: none;
+    }
     .colored-accordion .accordion-item {
-      transform-origin: top center;
+      flex: 0 0 90%; /* 82→90（user 2026-07-07 加寬）：下一張留窄邊提示可滑即可 */
+      scroll-snap-align: start;
     }
-    .colored-accordion .accordion-item + .accordion-item {
-      margin-top: calc(-1 * var(--spacing-xs));
-    }
-    /* title / 文字卡 padding：左右 8px 沿用全站 nav btn 慣例；上下加大（原 6px/5px）——
-       卡片負 margin 8px 互疊 + ±1~2° 旋轉，鄰卡邊角最多切進 ~15-20px，上下要留 buffer 字才不被蓋（user 2026-07-04） */
+    /* title / 文字卡 padding：左右 8px 沿用全站 nav btn 慣例（14px/13px 為堆疊時代的 buffer，保留視覺不變） */
     .colored-accordion .accordion-label {
       padding: 14px 8px 13px;
     }
@@ -262,6 +273,86 @@
     .accordion-text-wrap {
       width: 100%;
       flex: none;
+    }
+  }
+
+  /* ===== 矮橫向手機：resources 同款水平 carousel（user 2026-07-07 mockup：卡片並排 2 張、往右滑）=====
+     寬 ≥768 吃到桌面規則 → 把上方 portrait carousel 整組複刻進 landscape gate；
+     JS 端 resources-cycling.js 同 gate 走手機分支（不跑 initRotatedAccordion）。
+     ⚠️ 本區塊必須留在本檔（@layer components 內）不能搬 landscape.css：
+     unlayered 的 !important 反而輸給 layer 內 !important（cascade important 反轉），
+     上方 .colored-accordion { overflow: visible !important } 只能在同 layer 內後出覆蓋。 */
+  @media (orientation: landscape) and (max-height: 500px) {
+    .colored-accordion {
+      align-items: flex-start;
+      gap: var(--spacing-md) !important;
+      overflow-x: auto !important;
+      overflow-y: clip !important;
+      margin-inline: calc(-1 * var(--container-padding));
+      padding-inline: var(--container-padding);
+      scroll-snap-type: x mandatory;
+      scroll-padding-inline: var(--container-padding);
+      scrollbar-width: none;
+    }
+    .colored-accordion::-webkit-scrollbar {
+      display: none;
+    }
+    .colored-accordion .accordion-item {
+      flex: 0 0 45%; /* 844 寬並排 2 張＋第三張窄邊 peek（portrait 90% 一屏 1 張） */
+      scroll-snap-align: start;
+      flex-direction: column;
+      height: auto; /* 蓋桌面 min-width:768 的 height:100% */
+    }
+    .colored-accordion .accordion-label {
+      width: 100%;
+      flex-direction: row;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 14px 8px 13px;
+      min-height: 44px;
+    }
+    .colored-accordion .accordion-label-inner {
+      transform: none;
+      writing-mode: horizontal-tb;
+      white-space: normal;
+      font-size: var(--font-size-p1);
+    }
+    .colored-accordion .accordion-label-en,
+    .colored-accordion .accordion-label-zh,
+    .colored-accordion .accordion-label-sep {
+      display: inline;
+    }
+    .colored-accordion .accordion-label-zh {
+      margin-top: 0;
+    }
+    .colored-accordion .accordion-body {
+      flex-direction: column;
+      width: 100%;
+      height: auto;
+    }
+    .colored-accordion .accordion-body-inner {
+      flex-direction: column;
+      width: 100% !important;
+    }
+    .colored-accordion .accordion-img-wrap {
+      width: 100%;
+      height: 160px;
+      flex: none;
+    }
+    /* 長文 45vh 內捲（about 手機慣例；不捲頁面兩屏才看完一張卡）。
+       ⚠️ justify-content 必須翻回 flex-start：base 的 flex-end（桌面文字靠底）配 max-height 內捲
+       會讓溢出往上長、捲不回去＝段落開頭被永久裁掉（user 報「英文被切到」）。 */
+    .colored-accordion .accordion-text-wrap {
+      width: 100%;
+      flex: none;
+      padding: 14px 8px 13px;
+      max-height: 45vh;
+      overflow-y: auto;
+      scrollbar-width: none;
+      justify-content: flex-start;
+    }
+    .colored-accordion .accordion-text-wrap::-webkit-scrollbar {
+      display: none;
     }
   }
 }

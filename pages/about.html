@@ -31,41 +31,30 @@
          要改內容請改那些 JSON（或之後接的 Directus），不要改這裡。Resources/History 同理走各自 loader。 -->
     <div id="about-content-wrapper" class="relative">
 
-      <!-- Mobile Anchor Navigation (Floating Top Left) -->
-      <!-- Overlay -->
-      <div id="mobile-anchor-overlay" class="md:hidden fixed inset-0 bg-black/30 z-30 opacity-0 pointer-events-none transition-opacity duration-300"></div>
-      
-      <div id="mobile-anchor-container" class="md:hidden fixed top-[calc(var(--header-height,80px)+3rem)] left-4 z-40 pointer-events-none opacity-0 transition-opacity duration-300">
-        <!-- Wrapper for animation (Button becomes Menu) -->
-        <div id="mobile-anchor-wrapper" class="bg-black text-white w-12 h-12 rounded-[24px] overflow-hidden shadow-none border-none pointer-events-auto origin-top-left">
-          <!-- Toggle Button (Header) -->
-          <button id="mobile-anchor-toggle" class="w-12 h-12 flex-shrink-0 flex items-center justify-center">
-            <i class="fa-solid fa-list text-white text-h5 transition-transform duration-300"></i>
+      <!-- Mobile Anchor Strip（hero 下方水平 nav，2026-07-07 取代舊 floating 圓鈕選單）：
+           比照其他頁 section nav——水平 scroll pill、點擊置中 strip（anchor-nav.js）、
+           active accent 色/旋轉由 setActiveBtn 統一管（.anchor-nav-inner 結構同桌面 #anchor-nav）。
+           sticky 全程釘畫面（user 2026-07-07 二改）：top 96 清開 56px logo 列、bg=theme-bg 遮捲過的內容；
+           sticky scope = #about-content-wrapper（直接子層）→ 一路釘到頁尾；
+           Programs 區 #mobile-division-nav 的 sticky top 已對應下移錯開（見該處註解）。
+           負 margin 全出血 + 捲軸隱藏在 variables.css mobile block。 -->
+      <div class="mobile-anchor-strip-wrap md:hidden site-container sticky z-40" style="top: 96px; background: var(--theme-bg);">
+        <div id="mobile-anchor-strip" class="flex flex-row items-center gap-md overflow-x-auto py-sm">
+          <button class="anchor-nav-btn shrink-0 text-left whitespace-nowrap" data-target="overview">
+            <span class="anchor-nav-inner"><div>Vision</div><div>理念</div></span>
           </button>
-          
-          <!-- Dropdown Menu (Content) -->
-          <div id="mobile-anchor-menu" class="flex flex-col gap-sm px-md pb-md opacity-0 transition-opacity duration-300 delay-75 hidden">
-            <button class="anchor-nav-btn text-left transition-all duration-fast whitespace-nowrap text-white hover:text-gray-5" data-target="overview">
-              <div class="!bg-transparent">Vision</div>
-              <div class="!bg-transparent">理念</div>
-            </button>
-            <button class="anchor-nav-btn text-left transition-all duration-fast whitespace-nowrap text-white hover:text-gray-5" data-target="class">
-              <div class="!bg-transparent">Programs</div>
-              <div class="!bg-transparent">學制</div>
-            </button>
-            <button class="anchor-nav-btn text-left transition-all duration-fast whitespace-nowrap text-white hover:text-gray-5" data-target="works">
-              <div class="!bg-transparent">Works</div>
-              <div class="!bg-transparent">作品</div>
-            </button>
-            <button class="anchor-nav-btn text-left transition-all duration-fast whitespace-nowrap text-white hover:text-gray-5" data-target="resources">
-              <div class="!bg-transparent">Resources</div>
-              <div class="!bg-transparent">環境資源</div>
-            </button>
-            <button class="anchor-nav-btn text-left transition-all duration-fast whitespace-nowrap text-white hover:text-gray-5" data-target="history">
-              <div class="!bg-transparent">History</div>
-              <div class="!bg-transparent">沿革</div>
-            </button>
-          </div>
+          <button class="anchor-nav-btn shrink-0 text-left whitespace-nowrap" data-target="class">
+            <span class="anchor-nav-inner"><div>Programs</div><div>學制</div></span>
+          </button>
+          <button class="anchor-nav-btn shrink-0 text-left whitespace-nowrap" data-target="works">
+            <span class="anchor-nav-inner"><div>Works</div><div>作品</div></span>
+          </button>
+          <button class="anchor-nav-btn shrink-0 text-left whitespace-nowrap" data-target="resources">
+            <span class="anchor-nav-inner"><div>Resources</div><div>環境資源</div></span>
+          </button>
+          <button class="anchor-nav-btn shrink-0 text-left whitespace-nowrap" data-target="history">
+            <span class="anchor-nav-inner"><div>History</div><div>沿革</div></span>
+          </button>
         </div>
       </div>
 
@@ -145,25 +134,26 @@
         <!-- Mobile Division Nav：水平 scroll pill 列（沿用 .section-nav-btn / .anchor-nav-inner，與其他 section nav 一致）；
              點擊切換下方圖文（wiring 在 bfa-division-toggle.js）。取代舊的 prev/next chevron 控制。
              兩側負 margin 延伸到 viewport 邊 + py 給 active 旋轉 clearance（樣式在 variables.css mobile block） -->
-        <!-- sticky top = 6xl（手機 128px，清開固定 header 的 logo ~110px）；mt-3xl 給初始與 Programs 標題的間距；
+        <!-- sticky top = 188（2026-07-07 隨 anchor strip 全程 sticky 下移錯開：strip 釘 96 高 91 → 底 187；
+             原 6xl/128 會跟 strip 疊在一起）；mt-3xl 給初始與 Programs 標題的間距；
              sticky 容器是 class-works-area 的子層 → 從 class 區一路黏到 works 區結束。z-40 蓋過內容、低於 header(z-9999)。
              items-end：pill 底部對齊，BFA 學士班 label 浮在 Animation/Creative Media pill 上方（比照桌面）。 -->
-        <div class="md:hidden site-container sticky z-40 mt-3xl" style="top: var(--spacing-6xl, 128px);">
+        <div class="md:hidden site-container sticky z-40 mt-3xl" style="top: 188px; background: var(--theme-bg);">
           <div id="mobile-division-nav" class="flex flex-row items-end gap-md overflow-x-auto py-sm">
             <!-- Design Fundamental（works-only；CSS 預設收起，.is-works-context 才展開） -->
             <button class="section-nav-btn mobile-division-btn mobile-division-btn--bfa shrink-0 text-left whitespace-nowrap" data-division="bfa">
               <span class="anchor-nav-inner"><div>Design Fundamental</div><div>創作基礎</div></span>
             </button>
-            <!-- Animation（BFA 學士班 label） -->
-            <div class="mobile-division-group shrink-0 flex flex-col items-start">
-              <span class="class-group-label text-p2 font-bold whitespace-nowrap">BFA 學士班</span>
+            <!-- Animation（BFA label 在 pill 左側、EN/ZH 兩行，user 2026-07-07；原 label 在 pill 上方單行） -->
+            <div class="mobile-division-group shrink-0 flex flex-row items-start gap-xs">
+              <span class="class-group-label text-p2 font-bold whitespace-nowrap"><div>BFA</div><div>學士班</div></span>
               <button class="section-nav-btn mobile-division-btn text-left whitespace-nowrap" data-division="animation">
                 <span class="anchor-nav-inner"><div>Animation & Moving Image</div><div>動畫影像設計組</div></span>
               </button>
             </div>
-            <!-- Creative Media（BFA 學士班 label） -->
-            <div class="mobile-division-group shrink-0 flex flex-col items-start">
-              <span class="class-group-label text-p2 font-bold whitespace-nowrap">BFA 學士班</span>
+            <!-- Creative Media（BFA label 同上） -->
+            <div class="mobile-division-group shrink-0 flex flex-row items-start gap-xs">
+              <span class="class-group-label text-p2 font-bold whitespace-nowrap"><div>BFA</div><div>學士班</div></span>
               <button class="section-nav-btn mobile-division-btn text-left whitespace-nowrap" data-division="creative-media">
                 <span class="anchor-nav-inner"><div>Creative Media Design</div><div>創意媒體設計組</div></span>
               </button>
@@ -222,7 +212,7 @@
           <!-- Animation -->
           <div class="class-info-panel pb-3xl relative z-10" data-division="animation">
             <div class="grid-20 md:items-start">
-              <div class="col-span-full md:col-start-5 md:col-span-6 md:order-1">
+              <div class="col-span-full order-2 md:col-start-5 md:col-span-6 md:order-1">
                 <div data-class-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
                   <p class="mb-xs division-text font-bold">Explore the relationship between self and the environment through animation creation, and then extend the care and reflection on culture, ecology and humanities.</p>
                   <p class="mb-md division-text font-bold">透過動畫創作探討自我與環境的關係，進而延伸對文化、生態與人文之關懷與省思。</p>
@@ -230,7 +220,7 @@
                   <p class="division-text font-bold">課程結合 2D、3D、停格與實驗性手法，培養學生紮實的技術能力與獨特的視覺敘事觀點。</p>
                 </div>
               </div>
-              <div class="col-span-full md:col-start-13 md:col-span-8 relative md:order-2 works-container division-images" data-division="animation">
+              <div class="col-span-full order-1 md:col-start-13 md:col-span-8 relative md:order-2 works-container division-images" data-division="animation">
                 <!-- JS 動態 render 3 張 .class-img，5s 輪播（class-images-slideshow.js） -->
               </div>
             </div>
@@ -239,7 +229,7 @@
           <!-- Creative Media -->
           <div class="class-info-panel pb-3xl hidden relative z-10" data-division="creative-media">
             <div class="grid-20 md:items-start">
-              <div class="col-span-full md:col-start-5 md:col-span-6 md:order-1">
+              <div class="col-span-full order-2 md:col-start-5 md:col-span-6 md:order-1">
                 <div data-class-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
                   <p class="mb-xs division-text font-bold">Explore the essence of new media interaction from multiple perspectives, furthermore, showing care and reflection on humanities, society, and the environment by these perspectives.</p>
                   <p class="mb-md division-text font-bold">多面向探討新媒體互動的本質，並藉此對人文、社會、環境作進一步之關懷與省思。</p>
@@ -247,7 +237,7 @@
                   <p class="division-text font-bold">學生接觸互動裝置、虛擬實境與生成式設計等新興技術，透過跨領域實驗結合藝術、程式與設計思維。</p>
                 </div>
               </div>
-              <div class="col-span-full md:col-start-13 md:col-span-8 relative md:order-2 works-container division-images" data-division="creative-media">
+              <div class="col-span-full order-1 md:col-start-13 md:col-span-8 relative md:order-2 works-container division-images" data-division="creative-media">
                 <!-- JS 動態 render 3 張 .class-img，5s 輪播 -->
               </div>
             </div>
@@ -256,7 +246,7 @@
           <!-- MDES -->
           <div class="class-info-panel pb-3xl hidden relative z-10" data-division="mdes">
             <div class="grid-20 md:items-start">
-              <div class="col-span-full md:col-start-5 md:col-span-6 md:order-1">
+              <div class="col-span-full order-2 md:col-start-5 md:col-span-6 md:order-1">
                 <div data-class-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
                   <p class="mb-xs division-text font-bold">The MDES program offers advanced research and creative practice opportunities, fostering innovation in communications design. Graduate students engage in cutting-edge projects that push the boundaries of design thinking and media expression.</p>
                   <p class="mb-md division-text font-bold">碩士班提供進階研究與創作實踐機會，培養媒體傳達設計的創新能力。研究生參與前瞻性專案，推進設計思維與媒體表達的界限。</p>
@@ -264,7 +254,7 @@
                   <p class="division-text font-bold">透過個別指導與協作工作室，學生發展具原創性的專案，為當代視覺傳達與媒體藝術論述做出貢獻。</p>
                 </div>
               </div>
-              <div class="col-span-full md:col-start-13 md:col-span-8 relative md:order-2 works-container division-images" data-division="mdes">
+              <div class="col-span-full order-1 md:col-start-13 md:col-span-8 relative md:order-2 works-container division-images" data-division="mdes">
                 <!-- JS 動態 render 3 張 .class-img，5s 輪播 -->
               </div>
             </div>
@@ -413,13 +403,6 @@
           <!-- Nav Zones（cursor 由 cursor.css 統一管，data-tl-nav-edge 對應 left/right.svg） -->
           <div id="timeline-nav-left" data-tl-nav-edge="left" class="absolute left-0 top-0 w-[12vw] h-full z-20"></div>
           <div id="timeline-nav-right" data-tl-nav-edge="right" class="absolute right-0 top-0 w-[12vw] h-full z-20"></div>
-
-          <!-- Photo Hover Tooltip -->
-          <div id="timeline-photo-tooltip" class="fixed pointer-events-none z-30" style="opacity:0; top:0; left:0;">
-            <div class="timeline-card-inner bg-black text-white" style="max-width:260px; padding:0.5em 0.6em;">
-              <div id="timeline-photo-tooltip-text" class="text-p2 leading-base font-bold"></div>
-            </div>
-          </div>
 
         </div>
       </section>
