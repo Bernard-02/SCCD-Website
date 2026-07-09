@@ -13,6 +13,7 @@
 import { applyNewsHover, removeNewsHover } from '../animations/floating-items.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { registerPageExit } from '../ui/page-exit.js';
+import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { CMS_API_BASE, CMS_ASSETS_BASE } from '../../config/api.js';
 import { sitePath } from '../ui/site-base.js';
 
@@ -101,7 +102,18 @@ export function initMarquee() {
       // 後臺順序 → item._num（1-based）；item-bound，cycle 時跟著走
       items.forEach((item, i) => { item._num = i + 1; });
       await preloadOrientations(items);
-      runMarqueeStack(stack, items);
+      let disposeStack = runMarqueeStack(stack, items);
+      // 轉向（跨矮橫向 gate）重建 banner stack（user 2026-07-04「轉向重 run」）：
+      // banner 寬 / slot 座標是 create 時以當時 viewport 算的（isMobile()/WIDTH_MOBILE()），
+      // 轉向後不重建會殘留舊寬度與座標 → dispose（清 timer + 殺 tween + 拔 DOM）再以新參數重跑
+      const rotateGateMq = window.matchMedia('(orientation: landscape) and (max-height: 500px)');
+      const onRotateGate = () => requestAnimationFrame(() => {
+        if (!stack.isConnected) return;
+        disposeStack?.();
+        disposeStack = runMarqueeStack(stack, items);
+      });
+      rotateGateMq.addEventListener('change', onRotateGate);
+      registerPageCleanup(() => rotateGateMq.removeEventListener('change', onRotateGate));
     })
     .catch(() => {});
 }
@@ -466,7 +478,18 @@ function runMarqueeStack(stack, items) {
       { clipPath: 'inset(0% 0% 100% 0%)', duration: DUR.medium, ease: EASE.exit, delay: i * 0.06, overwrite: true, onComplete: onOne }));
   }));
 
-  if (items.length <= SLOT_COUNT) return;
+  // 轉向重建用：清 timer、殺 tween、拔 banner DOM、還原 hover 態；呼叫後本 closure 全部退役
+  //（舊 registerPageExit handler 留著無害：banners 已空 → 立即 resolve）
+  function dispose() {
+    if (timeoutId) { clearTimeout(timeoutId); timeoutId = null; }
+    if (typeof gsap !== 'undefined') banners.forEach(b => gsap.killTweensOf([b.el, b.row]));
+    banners.forEach(b => b.el.remove());
+    banners.length = 0;
+    hoverCount = 0;
+    removeNewsHover();
+  }
+
+  if (items.length <= SLOT_COUNT) return dispose;
 
   function advance() {
     if (!stack.isConnected) return;
@@ -490,4 +513,5 @@ function runMarqueeStack(stack, items) {
   }
 
   scheduleAdvance(CYCLE_INTERVAL);
+  return dispose;
 }

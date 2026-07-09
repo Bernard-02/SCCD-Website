@@ -66,26 +66,38 @@ function getPoolKey(grid) {
   return `${window.innerWidth}x${window.innerHeight}|${heroTexts}`;
 }
 
-// Banner 安全夾制：量測 banner 旋轉後 bbox vs 它所在 section，若超出上/下緣就把 style.top 拉回界內。
-// 為什麼存在：placement 的數學在 scrollY=0 下保證 banner 落在 [90, 100vh-30]，穩態 headless 400+ render 全在界內、
-// 此函式 = no-op。但 user 2026-06-23 在大螢幕 SPA 換頁偶發「banner 偏下被切」，headless 各種角度都重現不出（reload/
-// SPA/捲動/打斷進場/Directus 頁全測過 0 次）→ 真實環境有個量測模型看不到的條件。留這個 calibration 夾制當保險：
-// 正常不動，只有在某環境/時序把 banner 算到界外時才把它拉回，症狀（被切）直接消失。量一次 rect，成本可忽略。
-function clampBannerIntoSection(grid) {
-  const banner = /** @type {HTMLElement|null} */ (grid.querySelector('.hero-banner'));
+// Hero 元素安全夾制（結構保證）：量測每個 hero 元素旋轉後 bbox vs 所在 section，超出邊界就把
+// style.top/left 拉回界內。placement 數學在穩態下保證界內、headless 400+ render 全 no-op；但真實環境
+// 存在把座標算到界外的未知條件（2026-06-23 banner 偏下被切、2026-07-07 user 連續 SPA 換頁 hero 文字
+// 整批不見而 banner 有夾制所以看得到——refresh 才好＝壞座標被 layoutPool 快取到 session 結束的簽章），
+// headless 兩次都重現不出。與其追不可重現的根因，把 2026-06-23 的 banner 夾制推廣成 invariant：
+// 每次套用 layout（cache hit 的 applyLayoutSnapshot / live build 的 randomizeHeroLayout 結尾、含 pool
+// build 期＝壞 snapshot 在入池前就被矯正）都強制夾回 section 內＝「文字在界外看不見」結構上不可能持續。
+// 文字 TOP_PAD 100：正常 placement 下限 140，被夾到 100 頂多貼近 header 但看得見（rescue 優先於美觀）。
+function clampHeroItemsIntoSection(grid) {
   const section = /** @type {HTMLElement|null} */ (grid.closest('section'));
-  if (!banner || !section) return;
-  const b = banner.getBoundingClientRect();
+  if (!section) return;
   const s = section.getBoundingClientRect();
-  if (b.height === 0) return;  // 還沒 layout（visibility:hidden 仍有 rect，0 高度才是真沒算到）
-  const BOTTOM_PAD = 30, TOP_PAD = 8;
-  let dy = 0;
-  if (b.bottom > s.bottom - BOTTOM_PAD) dy = (s.bottom - BOTTOM_PAD) - b.bottom;      // 太低 → 上移
-  else if (b.top < s.top + TOP_PAD) dy = (s.top + TOP_PAD) - b.top;                   // 太高 → 下移
-  if (dy !== 0) {
-    const cur = parseFloat(banner.style.top) || 0;
-    banner.style.top = `${(cur + dy).toFixed(1)}px`;
-  }
+  if (s.height === 0) return;
+  const items = [];
+  const banner = /** @type {HTMLElement|null} */ (grid.querySelector('.hero-banner'));
+  if (banner) items.push({ el: banner, topPad: 8, bottomPad: 30 });
+  ['hero-title', 'hero-title-cn', 'hero-text-en', 'hero-text-cn'].forEach(cls => {
+    const el = /** @type {HTMLElement|null} */ (grid.querySelector(`.${cls}-wrapper`) || grid.querySelector(`.${cls}`));
+    if (el) items.push({ el, topPad: 100, bottomPad: 30 });
+  });
+  const SIDE_PAD = 8;
+  items.forEach(({ el, topPad, bottomPad }) => {
+    const r = el.getBoundingClientRect();
+    if (r.height === 0) return;  // 還沒 layout（visibility:hidden 仍有 rect，0 高度才是真沒算到）
+    let dy = 0, dx = 0;
+    if (r.bottom > s.bottom - bottomPad) dy = (s.bottom - bottomPad) - r.bottom;   // 太低 → 上移
+    else if (r.top < s.top + topPad) dy = (s.top + topPad) - r.top;                // 太高 → 下移
+    if (r.right > s.right - SIDE_PAD) dx = (s.right - SIDE_PAD) - r.right;
+    else if (r.left < s.left + SIDE_PAD) dx = (s.left + SIDE_PAD) - r.left;
+    if (dy !== 0) el.style.top = `${((parseFloat(el.style.top) || 0) + dy).toFixed(1)}px`;
+    if (dx !== 0) el.style.left = `${((parseFloat(el.style.left) || 0) + dx).toFixed(1)}px`;
+  });
 }
 
 // 套用 cache 內 snapshot 到當前 DOM（不重新量測，不跑 placement）
@@ -119,7 +131,7 @@ function applyLayoutSnapshot(grid, snapshot) {
   } else {
     tightenParagraphWidths(grid);  // 舊格式 snapshot fallback（同次 build 的 pool 一定有新欄位，正常不會走到）
   }
-  clampBannerIntoSection(grid);  // 保險：cached 位置在某環境被算到界外時拉回（見函式註解）
+  clampHeroItemsIntoSection(grid);  // 結構保證：cached 位置在某環境被算到界外時拉回（見函式註解）
 }
 
 function tightenParagraphWidths(grid) {
@@ -414,7 +426,7 @@ function randomizeHeroLayout() {
   // bg 跟著 <p> 寬度延伸 → 右側看起來比左 padding 大。用 Range API 量 wrapped lines 取最長一行寫回 width
   // 收緊。位置已派完（基於原 max-width bbox），縮 width 只會讓 bbox 變小，不會引入重疊。
   tightenParagraphWidths(grid);
-  clampBannerIntoSection(grid);  // 保險：first-visit live build 算到界外時拉回（見函式註解）
+  clampHeroItemsIntoSection(grid);  // 結構保證：live build（含 pool build）算到界外時入池前矯正（見函式註解）
 }
 
 // Cache build 用：跑 placement + banner，回傳 snapshot（不收緊 wrap width — 那是套 cache 時當下 DOM 才算）
@@ -751,9 +763,61 @@ export function initHeroAnimation() {
     return;
   }
 
+  // 結構保證 watchdog：不管進場動畫哪個環節被 race/kill（timeline 沒 play、tween 被殺、build 被 abort），
+  // 4s（> 最長正常進場 ~1.7s + 慢機 margin；= waitForHeroAnimDone 兜底）後任何 hero 元素都不准停留在
+  // 「隱藏 / 進場偏移 / clip 收合」狀態——強制落定可見。正常流程下所有元素早已 clearProps 落定＝no-op。
+  // gsap.isTweening 的元素跳過（進場延遲中或退場中，不干預）；display:none（桌面/手機互斥 DOM）跳過。
+  setTimeout(() => {
+    if (isStale()) return;
+    const els = document.querySelectorAll(
+      '.hero-title, .hero-title-cn, .hero-text-en, .hero-text-cn, .hero-banner,' +
+      '.hero-mobile-title, .hero-mobile-title-cn, .hero-mobile-text-en, .hero-mobile-text-cn, .hero-mobile-bg, [data-hero-logo]'
+    );
+    const rescuedSigs = [];
+    let rescued = 0;
+    els.forEach(el => {
+      const h = /** @type {HTMLElement} */ (el);
+      if (gsap.isTweening(h)) return;
+      // offsetParent null＝自身或祖先 display:none（桌面/手機互斥 DOM 的另一份）——getComputedStyle
+      // 對祖先 display:none 的子孫回傳的 display 不是 none，必須用 offsetParent 判「實際沒被 render」
+      if (h.offsetParent === null) return;
+      const cs = getComputedStyle(h);
+      const stuckHidden = cs.visibility === 'hidden';
+      // [data-hero-logo]（about）進場後有 scroll parallax 留 inline transform＝合法狀態，只認 hidden 為卡住
+      const isParallaxLogo = h.hasAttribute('data-hero-logo');
+      const t = h.style.transform;
+      const stuckOffset = !isParallaxLogo && !!t && t !== 'none' && /matrix|translate/.test(t);
+      const clip = h.style.clipPath;
+      const stuckClip = !isParallaxLogo && !!clip && clip !== 'none' && clip !== 'inset(0% 0% 0% 0%)';
+      if (!stuckHidden && !stuckOffset && !stuckClip) return;
+      if (isParallaxLogo) gsap.set(h, { visibility: 'visible', yPercent: 0 });
+      else gsap.set(h, { visibility: 'visible', clearProps: 'transform,clipPath' });
+      h.dataset.heroRevealStarted = '1';  // 之後退場把它當一般 chip 收
+      rescued++;
+      // 簽章給日後 root-cause 用：hidden=visibility 卡住 / offset=進場位移殘留 / clip=clip-path 沒收完
+      rescuedSigs.push(`${h.className.split(' ')[0] || h.tagName}[${[stuckHidden && 'hidden', stuckOffset && 'offset', stuckClip && 'clip'].filter(Boolean).join('+')}]`);
+    });
+    if (rescued > 0) {
+      console.warn(`[hero] watchdog 落定 ${rescued} 個卡住的 hero 元素（進場動畫未正常完成）: ${rescuedSigs.join(', ')}`);
+      if (!_heroDone) signalHeroDone();
+    }
+  }, 4000);
+
+  // hero 文字元素：提前到手機分支之前宣告——轉向補 build（下方 gate 監聽）會呼叫 buildHeroTimeline
+  //（function declaration 有 hoisting），它引用這四個 const；若留在手機 early-return 之後宣告，
+  // 手機路徑從未執行到宣告 → 之後呼叫時 TDZ ReferenceError
+  const title = document.querySelector('.hero-title');
+  const titleCn = document.querySelector('.hero-title-cn');
+  const textEn = document.querySelector('.hero-text-en');
+  const textCn = document.querySelector('.hero-text-cn');
+
   // 手機共用 hero：桌面 timeline 動的是 .hero-rand-grid 內元素（手機 display:none，動了也看不見）
-  // → 改跑 .hero-mobile-* 鏡像進退場（見 playMobileHeroEntrance），桌面整段不建構
-  if (window.innerWidth < 768 && document.querySelector('.hero-mobile')) {
+  // → 改跑 .hero-mobile-* 鏡像進退場（見 playMobileHeroEntrance），桌面整段不建構。
+  // 矮橫向也走手機 hero（user 2026-07-06 待辦 (b) 落地：桌面隨機排版為 800px+ 高設計、橫向互疊救不了；
+  // landscape.css 3 區切顯示）。轉向兩向都顯示手機 hero → 原「轉向補 build 桌面 hero」過渡方案退役。
+  if ((window.innerWidth < 768
+      || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches)
+    && document.querySelector('.hero-mobile')) {
     playMobileHeroEntrance();
     return;
   }
@@ -789,10 +853,7 @@ export function initHeroAnimation() {
   // 因 logo-only 頁（about）會在下方 early return、進不到 buildHeroTimeline，否則 logo 退場不會註冊
   registerPageExit(playHeroExit);
 
-  const title = document.querySelector('.hero-title');
-  const titleCn = document.querySelector('.hero-title-cn');
-  const textEn = document.querySelector('.hero-text-en');
-  const textCn = document.querySelector('.hero-text-cn');
+  // （title/titleCn/textEn/textCn 已提前到手機分支前宣告，見上）
 
   if (!title && !titleCn && !textEn && !textCn) {
     // 沒任何 hero 文字（如僅 logo 頁），不會經過 timeline → 直接 signal 避免 caller 等到 timeout

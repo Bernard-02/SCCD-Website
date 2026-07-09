@@ -95,11 +95,12 @@
     <!-- 手機版：logo + 漢堡按鈕 -->
     <div class="grid-12 items-center py-md md:hidden">
       <div class="col-span-6 relative flex items-center">
-        <!-- Lottie 圓圈 logo：absolute + -top-4 是因 80×80 圓圈視覺中心對齊 grid row 需要往上補 16px
+        <!-- Lottie 圓圈 logo：absolute + -top-7（-28px）＝playwright 實測校準，56×56 圓圈視覺中心
+             對齊 mode/menu 鈕列中心（cy 46）；公式推導（-4）會偏低 24px——Lottie svg 內距不透明，以量測為準
              SCCD 文字 logo：normal flow 在 col-span-6 內，flex items-center 自動垂直對齊 mode/menu btn 那排
              兩個 sibling 互斥（Lottie 顯示時 SCCD .hidden；進 /create 反過來），由 header.js 切換 -->
-        <a href="../index.html" class="absolute -top-4 left-0 z-50" data-mobile-logo-lottie-anchor aria-label="SCCD 首頁 Home">
-          <div id="header-logo-mobile" class="w-[80px] h-[80px]"></div>
+        <a href="../index.html" class="absolute -top-7 left-0 z-50" data-mobile-logo-lottie-anchor aria-label="SCCD 首頁 Home">
+          <div id="header-logo-mobile" class="w-[56px] h-[56px]"></div>
         </a>
         <a href="../index.html" id="header-logo-mobile-sccd" class="hidden z-50" data-mobile-logo-sccd-anchor aria-label="SCCD 首頁 Home"></a>
       </div>

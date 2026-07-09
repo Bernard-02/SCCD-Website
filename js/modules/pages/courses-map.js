@@ -17,6 +17,7 @@
 
 import { enterLightboxMode, exitLightboxMode } from '../lightbox/lightbox-shell.js';
 import { applyMarqueeOverflow } from '../ui/marquee-overflow.js';
+import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { loadCourses } from './courses-source.js';
 
@@ -592,4 +593,24 @@ export async function renderCoursesGrid(program) {
   bindCardHover(panel);
   // 偵測 marquee：render 後 panel 已 visible 才能量到正確 offsetWidth
   runMarqueeOverflow(panel);
+
+  // 轉向重量（user 2026-07-04 轉向自癒）：桌面/手機兩套 grid 並存、只有 render 當下「可見」那套被量過
+  // （隱藏套 row offsetWidth=0 → applyMarqueeOverflow bail）。轉向後換另一套顯示 → 沒 marquee 或帶舊 dual-copy
+  // → 跨矮橫向 gate 時重跑（自帶 reset + 0 寬 bail，兩套各自收斂到正確態）。cleanup 由 page-cleanup 統一解綁。
+  const rotateGateMq = window.matchMedia('(orientation: landscape) and (max-height: 500px)');
+  const onRotateGate = () => requestAnimationFrame(() => {
+    if (!panel.isConnected) return;
+    // 表頭 slide 殘留：直向時 program 切換動畫照樣對「隱藏的桌面表頭」跑，inner 停在 ±100%
+    // → 轉向後年級/必修選修標籤偏移或被遮罩切掉（實測 Elective 左移 -100% 被切）→ 清掉
+    if (typeof gsap !== 'undefined') {
+      const headersInner = panel.querySelectorAll('.courses-grid-col-header-inner, .courses-grid-type-label-inner');
+      if (headersInner.length) {
+        gsap.killTweensOf(headersInner);
+        gsap.set(headersInner, { clearProps: 'transform' });
+      }
+    }
+    runMarqueeOverflow(panel);
+  });
+  rotateGateMq.addEventListener('change', onRotateGate);
+  registerPageCleanup(() => rotateGateMq.removeEventListener('change', onRotateGate));
 }

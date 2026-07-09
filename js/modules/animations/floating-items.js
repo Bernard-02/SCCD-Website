@@ -782,6 +782,27 @@ export async function initFloatingItems() {
     });
   }
 
+  // 轉向（跨矮橫向 gate）重散佈（user 2026-07-04「轉向重 run 一次內容、用手機版本調整」）：
+  // 舊 items 的座標是舊視窗算的（轉向後擠一邊/溢出）→ 全部清掉、以新視窗尺寸+新 totalItems()
+  // （矮橫向/手機 12、桌面 20）重生，並重播 clip 揭露。onScreen/liveCount 同步歸零＝均分邏輯從頭來。
+  function respawnAll() {
+    if (cancelled) return;  // 已離頁不動殘骸
+    items.forEach(item => { if (item.el.parentNode) container.removeChild(item.el); });
+    items.length = 0;
+    onScreen.clear();
+    CATS.forEach(c => { liveCount[c] = 0; });
+    for (let i = 0, n = totalItems(); i < n; i++) items.push(trackSpawn(nextEntry(), false));
+    if (typeof gsap !== 'undefined') {
+      items.forEach(item => { if (item.card) gsap.set(item.card, { clipPath: randFloatHideClip() }); });
+      items.forEach((item, i) => {
+        if (item.card) gsap.to(item.card, { clipPath: 'inset(0% 0% 0% 0%)', duration: DUR.slow, ease: EASE.enter, delay: i * 0.03 });
+      });
+    }
+  }
+  const rotateGateMq = window.matchMedia('(orientation: landscape) and (max-height: 500px)');
+  const onRotateGateChange = () => requestAnimationFrame(respawnAll);
+  rotateGateMq.addEventListener('change', onRotateGateChange);
+
   let running = true;
   let rafId = null;
 
@@ -863,6 +884,7 @@ export async function initFloatingItems() {
     cancelled = true;
     running = false;
     if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+    rotateGateMq.removeEventListener('change', onRotateGateChange);
     document.removeEventListener('visibilitychange', onVisibilityChange);
     themeListeners.forEach(fn => window.removeEventListener('theme:changed', fn));
     themeListeners.length = 0;
