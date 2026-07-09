@@ -294,6 +294,22 @@ export function initFacultySlideIn() {
         }
       }
 
+      // 手機 sticky 疊層：profile block（圖+名+職稱）實高寫入 --faculty-profile-h，
+      // section title 的 sticky top = header + profile 高（cards.css）。圖片 h-auto
+      // 載入後高度才定 → rAF 先量一次、img load 再補量一次。
+      if (window.innerWidth < 768) {
+        const measureProfile = () => {
+          const profile = document.getElementById('faculty-profile-block');
+          if (profile && slideInPanel) {
+            slideInPanel.style.setProperty('--faculty-profile-h', `${profile.offsetHeight}px`);
+          }
+        };
+        requestAnimationFrame(measureProfile);
+        if (imgElement && !imgElement.complete) {
+          imgElement.addEventListener('load', measureProfile, { once: true });
+        }
+      }
+
       // 每次開新老師都從頂部開始：歸零兩個可能的 scroll 容器 —
       // 桌面 = 右欄 .list-scroll 獨立 scroll；手機 = 整個內容容器 .no-scrollbar。
       // 否則上一位老師若在捲到下方時關閉，scrollTop 殘留 → 下一位老師會從中間打開。

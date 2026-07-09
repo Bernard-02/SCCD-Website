@@ -242,6 +242,59 @@
     .faculty-rows {
       gap: 2rem;
     }
+
+    /* 獲獎 row：國家移到年份下方（左欄 year→country 直排；右欄 name→category）。
+       explicit grid-row 取代 auto-flow：country 若走 auto 會把 name 擠到 row2、跟 year 對不齊 */
+    .faculty-grid-row-award > span:nth-child(1) { grid-row: 1; }
+    .faculty-grid-row-award > span:nth-child(2) { grid-column: 1; grid-row: 2; }
+    .faculty-grid-row-award > span:nth-child(3) { grid-column: 2; grid-row: 1; }
+    .faculty-grid-row-award > span:nth-child(4) { grid-column: 2; grid-row: 2; }
+
+    /* sticky 參考容器要有真實內容高：flex-1 + min-h-0 會把它夾成一屏高（內容 overflow 出去），
+       sticky 範圍剩一屏、捲一屏後 profile 被容器底拖走（Playwright 實測）→ 手機改自然高度。
+       桌面（右欄獨立 scroll）不動。#faculty-panel 抬特異度蓋 .flex-1 utility（utilities 後出同特異度會贏） */
+    #faculty-panel .faculty-detail-layout {
+      flex: none;
+      min-height: auto;
+    }
+
+    /* Profile（圖＋姓名＋職稱）：橫排（小圖左、字右）＋ sticky 釘 header 遮擋帶下緣；
+       bg = panel 卡片色 → 蓋住捲動經過的詳情內容；高度由 JS 量測寫入 --faculty-profile-h
+       供 section title 的 sticky top 接力（faculty-slide-in.js）。
+       top -4rem：sticky top 會跟 scroll 容器 padding-top 疊加（content-box relative，
+       見 memory sticky_top_double_counts）——容器 pt = header+4rem，要釘在 header 下緣 = -4rem */
+    #faculty-profile-block {
+      position: sticky;
+      top: -4rem;
+      z-index: 5;
+      background: var(--faculty-panel-bg, transparent);
+      flex-direction: row;
+      align-items: center;
+      gap: 1.5rem;
+      padding-bottom: 1rem;
+    }
+    #faculty-profile-block > div:first-child {
+      /* 圖片縮小（原 50%）；flex:none 固定寬、名字欄吃剩餘 */
+      width: 32%;
+      flex: none;
+      margin: 0;
+    }
+    #faculty-profile-block > div:last-child {
+      margin: 0;
+      flex: 1;
+      min-width: 0;
+    }
+
+    /* Section 標題（Education 學歷…）sticky 接在 profile 下緣；section 結束時被下一個
+       section 自然推走（sticky 容器 = 各 section wrapper）。mb 改 pb → bg 蓋住標題下方間隙。
+       -4rem 同 profile：抵銷 scroll 容器 padding-top 疊加 */
+    #faculty-panel .faculty-section-title-col {
+      position: sticky;
+      top: calc(var(--faculty-profile-h, 0px) - 4rem);
+      z-index: 2;
+      margin-bottom: 0;
+      padding-bottom: 0.5rem;
+    }
   }
 
   /* Sticky section title col — 蓋住右欄 scroll 經過時下方 row 文字
@@ -249,6 +302,21 @@
      inherit 在 CSS bg 拿不到 painted color 所以走 CSS var pattern */
   .faculty-section-title-col {
     background: var(--faculty-panel-bg, transparent);
+  }
+
+  /* 手機返回鍵：釘在 header 右側 menu 鈕位置（panel 本身不捲、absolute 即視覺固定）；
+     高度 = header 高 + 置中 → 垂直對齊 menu 鈕，右緣對齊 site-container padding。
+     不包 max-width media：矮橫向（landscape gate）用 #id 規則 display:block 重新顯示這顆鈕，
+     定位要一起生效；desktop 由 md:hidden 收掉。align-content 給 landscape 蓋成 block 時仍垂直置中 */
+  .faculty-back-header {
+    position: absolute;
+    top: 0;
+    right: var(--container-padding);
+    height: var(--header-height, 80px);
+    display: flex;
+    align-items: center;
+    align-content: center;
+    z-index: 20;
   }
 
   /* ===== Degree Show Image ===== */
