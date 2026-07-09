@@ -291,7 +291,9 @@ async function loadPage(route, search = '', fromUserNav = false) {
     // 先釋放上一頁 deep-link 殘留的 snap hold（scrollWindowNoSnap 捲完會 hold inline scroll-snap-type:none 直到
     // 使用者互動；若使用者沒互動就換頁，殘留的 inline none 會蓋過下面新頁的 .snap-* class → 新頁磁吸失效）。
     releaseSnapHold();
-    const noSnap = ['generate', 'atlas', 'library', '404'].includes(route.page);
+    // main 內沒有任何 .snap-zone 的頁（support/regulations/policy 等）也不掛：footer 有補 .snap-zone
+    // 硬保證，若整頁只剩 footer 一個 snap 點，mandatory 會把全頁硬吸到底且滾不上去（scroll-snap.css 註解警告的 bug）。
+    const noSnap = ['generate', 'atlas', 'library', '404'].includes(route.page) || !main.querySelector('.snap-zone');
     document.documentElement.classList.toggle('snap-mandatory', !noSnap);
     document.documentElement.classList.remove('snap-proximity');
     // about + alumni 用寬封鎖綫（section-title-strip width:calc(50vw+) 會 overflow viewport 右側）
