@@ -48,6 +48,8 @@
        → bar 抖動「要出不出」（user 2026-06-30）。關 anchoring → 收合不動 scrollTop、方向式 hide/show 穩定。 */
     overflow-anchor: none;
   }
+  /* window 捲動路徑的 anchoring 於 scroll-snap.css 全站關閉（html overflow-anchor:none，
+     2026-07-09 list 開合抖動＋落點過頭案）；上方 box 規則管的是「box scroller 自己」的 anchoring，保留。 */
   /* panel padding-top = clearance：讓 filter bar 自然 flow 位置 = content 區頂（box 上緣 + clearance），與 sticky
      top:clearance（sticky line 也在 content 區頂）相等 → bar 不被 sticky 往下推、不蓋第一筆 list。 */
   #activities-content-section .activities-panel {
@@ -985,6 +987,17 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
     left: 0;
     padding: 6px 8px 5px;
   }
+  /* list 模式左下 toggle 鈕可點（user 2026-07-09 回報被遮）：#timeline-list-view 是 inset:0 z-25
+     全幅 overlay，而 .tl-m-controls 的 z-30 被困在 #timeline-mobile 的 z-1 stacking context 內
+     （上方 z-30 註解的「蓋過 overlay」前提其實不成立）→ overlay 本體放行 pointer、
+     互動子元素（捲動內容、下一時期鈕）收回。 */
+  #timeline-list-view {
+    pointer-events: none;
+  }
+  .tl-list-content,
+  .tl-list-next-btn {
+    pointer-events: auto;
+  }
   /* 字卡內距 md（user 2026-07-04 由 xs 加大「多一些 padding」；桌面維持 xl） */
   .tl-list-content {
     inset: var(--spacing-md);
@@ -1006,6 +1019,118 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
   .tl-list-cols {
     grid-template-columns: 1fr;
     gap: var(--spacing-xs);
+  }
+}
+
+/* ===== Timeline 直式手機 2026-07-09 改版（只直式；矮橫向由 landscape.css 5i++ display:contents 拆回 grid）：
+ * ① 整塊 min-height 撐到畫面底 → 點 History 對齊時 footer 擠出一屏外（186 = #history 落點，
+ *    加 section pb-2xl 再多 64 buffer）；② 圖放大 190→230、容器 272→320，錨點回置中
+ *    （共用 block 的 40% 是「探進封鎖線」舊設計，圖放大後會鑽到 sticky nav bar 底下被切）；
+ * ③ 文字區：era chip（EN/ZH 兩行）在年份卡上方、卡吃滿容器寬（renderYear 的 Range 量寬已 gate
+ *    只跑矮橫向）；卡固定高一屏預算內捲——694 = 186 落點 + 24 pad-top + 320 圖 + 8×3 gap
+ *    （圖↕row、era↕卡、row↕controls）+ 60 era 兩行 + 48 controls + 32 pad-bottom；
+ *    130 = 小屏最低可讀高。era 實高有 ± 幾 px 變異，由 pad-bottom 32 吸收。 */
+@media (max-width: 767px) and (orientation: portrait) {
+  /* section 自帶 pb-2xl(64) 在「controls 已被 min-height 收在屏底」後只剩死空白（user 2026-07-09
+     「btn 下面那麼多空間」）→ 歸零，section 底 = 容器 pad-bottom 32。 */
+  #history {
+    padding-bottom: 0;
+  }
+  /* 硬高（非 min-height）＝結構保證：不管卡片多長，section 底永遠貼畫面底、btn 永不被推下、
+     下捲即 footer。卡片上限不再用預算常數，改 flex 收縮吃「實際剩餘空間」（見 .tl-m-card）。 */
+  #timeline-mobile {
+    height: calc(100svh - 186px);
+    padding-top: var(--spacing-md);
+    padding-bottom: var(--spacing-lg);
+  }
+  .tl-m-images {
+    min-height: 320px;
+  }
+  /* 240（1.4~1.5 比例圖高 336~360）＞容器 320：置中上下溢 ±8~20、往上蓋進封鎖線（user 准）、
+     上緣仍在 sticky strip 底(187)之下不被切。 */
+  .tl-m-images .class-img {
+    max-width: 240px;
+    top: 50% !important;
+  }
+  .tl-m-text-row {
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--spacing-sm);
+    /* 可被壓縮（min-height:0 解除 flex 內容下限），配 wrap 硬高＝卡片上限自動等於剩餘空間 */
+    min-height: 0;
+    /* 卡片撐到上限時與 controls 的最小間距：flex gap 8 會被卡片 ±2° 旋轉下角吃掉 ~6px 視覺貼死
+       → 加 16 保底（gap+margin=24；flex 收縮會自動把這 16 算進預算、卡片上限相應減少） */
+    margin-bottom: var(--spacing-sm);
+  }
+  /* era chip 英中同一行（user 2026-07-09 定稿：era 左右排時代曾拆兩行、移回卡上方後改回一行省高度，
+     省下的空間由 flex 自算讓給下方卡片）；span 維持 inline 即一行，毋需另設規則。 */
+  .tl-m-era {
+    align-self: flex-start;
+    max-width: 100%;
+  }
+  .tl-m-card {
+    width: 100%;
+    /* 上限＝實際剩餘空間（user 2026-07-09 定稿）：短文貼內容高；長文被 wrap 硬高透過 flex 收縮
+       壓到「圖/era/btn 放好之後剩下的高度」、盒內捲——到頂也推不動 btn、擠不出 footer 前空隙。
+       flex 要縮到內容高以下必須解除 min-height:auto 下限；110 = 小屏最低可讀高
+       （極矮屏寧可讓 btn 溢出屏底可捲及）；max-height:none 蓋掉共用 block 的 156 定值。 */
+    flex: 0 1 auto;
+    /* min-height:0（user 2026-07-09）：短文卡就貼文字高（原 110 下限會把 1971 這種 ~90px 短文撐到
+       110、看起來沒貼文字）；長文空間不足時 flex-shrink 壓到剩餘、盒內捲。 */
+    min-height: 0;
+    max-height: none;
+    /* 上下補到與左右同值（共用 block 是 0.4em 0.7em、文字貼頂——那是 era chip 的緊湊比例，
+       大盒不適用） */
+    padding: 0.7em;
+  }
+  /* 釘 wrap 底（pad-bottom 32 之上）：卡片變矮時剩餘空間跑到卡與 btn 之間，btn 不動；
+     wrap 硬高貼滿一屏 → btn 下方恆 32、往下一捲直接是 footer。 */
+  .tl-m-controls {
+    margin-top: auto;
+  }
+
+  /* list view 直式改版（user 2026-07-09 二修）：cell 改 flex 排——era chip 左（文字自然寬、
+     EN/ZH 兩行）、內容矩形貼著 chip 吃剩餘寬（gap xs）；next-era 鈕移出矩形、下移到與左下
+     toggle 同列；內距對齊主視圖卡片 0.7em；捲軸藏（矮橫向 5c+ 已全域藏、桌面保留）。 */
+  .tl-list-grid {
+    /* 矩形底讓出 controls 列（btn 48 + pad 32）+ 24 gap；next 鈕再用負 bottom 落回 controls 列 */
+    bottom: 104px;
+  }
+  .tl-list-cell {
+    display: flex;
+    align-items: stretch;
+    gap: var(--spacing-xs);
+  }
+  .tl-list-chip {
+    position: static;     /* 中和 base absolute（top:-28 疊矩形時代）；入 flex flow */
+    order: -1;            /* DOM 序是 rect 在前，chip 拉到左邊 */
+    flex: none;
+    align-self: flex-start;
+    max-width: 45%;       /* 保險上限，超長 era 才折行 */
+  }
+  .tl-list-era-en,
+  .tl-list-era-zh {
+    display: block;
+  }
+  .tl-list-rect {
+    position: relative;   /* 保持 positioned：.tl-list-content 是 absolute inset */
+    inset: auto;          /* 中和 base 的 top/bottom/left/right 偏移 */
+    flex: 1;
+    min-width: 0;
+  }
+  .tl-list-next-btn {
+    right: 0;
+    bottom: -72px;       /* grid 底 = 畫面底−104 → 鈕底 = 畫面底−32，與 toggle 同列同緣 */
+  }
+  .tl-list-content {
+    inset: 0.7em;         /* 內距跟主視圖 .tl-m-card 的 0.7em 一致（原 md/24 偏肥） */
+    padding-right: 0;
+    scrollbar-width: none;
+  }
+  .tl-list-content::-webkit-scrollbar {
+    display: none;
   }
 }
 

@@ -443,7 +443,59 @@ function setupSectionNavReveal() {
   let navRevealed = false;
   const killTransition = () => inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = 'none'; });
   killTransition();
-  inners.forEach(inner => gsap.set(inner, { clipPath: pickNavClip() }));
+  // 每顆 inner 固定一個隨機 clip 方向：reveal(→inset0) 與 hide(→該方向) 同方向來回一致（矮橫向雙向用）
+  const navDir = new Map(inners.map(inner => [inner, pickNavClip()]));
+  inners.forEach(inner => gsap.set(inner, { clipPath: navDir.get(inner) }));
+
+  // 矮橫向：nav 進 header fixed（landscape.css 5f，2026-07-10 比照 admission 5e）、hero 也浮著 →
+  // 「hero 之後才 reveal、回 hero 出場隱藏」＝嚴格 hero gate（觀察 hero 本體底緣離開視窗頂 −8px；
+  // 同 admission setNav，clip-path 非 opacity）。fixed nav 被 clip 掉時 btn 外框仍在 → pointer-events 一併切。
+  const sectionEl = document.getElementById('activities-content-section');
+  const isLandscapeGate = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+  if (isLandscapeGate && 'IntersectionObserver' in window && sectionEl) {
+    const navCol = /** @type {HTMLElement|null} */ (sectionEl.querySelector('.inner-scroll-nav-col'));
+    if (navCol) navCol.style.pointerEvents = 'none';
+    const setNav = (reveal) => {
+      if (navRevealed === reveal) return;
+      navRevealed = reveal;
+      gsap.killTweensOf(inners);
+      killTransition();
+      if (navCol) navCol.style.pointerEvents = reveal ? '' : 'none';
+      gsap.to(inners, {
+        clipPath: reveal ? NAV_REVEALED_CLIP : (i) => navDir.get(inners[i]),
+        duration: DUR.base, ease: NAV_EASE, stagger: 0, overwrite: true,
+        onComplete: () => { if (reveal) inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = ''; }); },
+      });
+    };
+    // 兩顆 IO 各記 flag 統一 apply（各自 toggle 會被初始 delivery 順序互蓋，同 admission/about 的坑）
+    const heroEl = document.querySelector('#page-content > section');
+    const footerEl = document.getElementById('site-footer');
+    let heroVis = !!heroEl;
+    let footerVis = false;
+    const applyNav = () => setNav(!heroVis && !footerVis);
+    if (heroEl) {
+      const heroIO = new IntersectionObserver(([e]) => { heroVis = e.isIntersecting; applyNav(); },
+        { rootMargin: '-8px 0px 0px 0px' });
+      heroIO.observe(heroEl);
+      registerPageCleanup(() => heroIO.disconnect());
+    }
+    if (footerEl) {
+      const footerIO = new IntersectionObserver(([e]) => { footerVis = e.isIntersecting; applyNav(); },
+        { rootMargin: '0px 0px -25% 0px' });
+      footerIO.observe(footerEl);
+      registerPageCleanup(() => footerIO.disconnect());
+    }
+    // SPA 離頁退場（同下方非 gate 版）
+    registerPageExit(() => new Promise(resolve => {
+      if (typeof gsap === 'undefined' || !navRevealed) { resolve(); return; }
+      gsap.killTweensOf(inners);
+      killTransition();
+      gsap.fromTo(inners,
+        { clipPath: NAV_REVEALED_CLIP },
+        { clipPath: (i) => navDir.get(inners[i]), duration: DUR.base, ease: NAV_EASE, stagger: 0, overwrite: true, onComplete: resolve });
+    }));
+    return;
+  }
 
   // reveal/hide 可被 scroll 反覆觸發：捲離 main section→退場、捲回 main→重播進場（user 2026-06-27）。
   // navRevealed 旗標擋同態重播；hide 用 fromTo 顯式起點 inset(0)（clearProps 後 computed=none，GSAP 補不間）。

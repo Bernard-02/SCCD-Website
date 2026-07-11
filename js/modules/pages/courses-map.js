@@ -18,6 +18,8 @@
 import { enterLightboxMode, exitLightboxMode } from '../lightbox/lightbox-shell.js';
 import { applyMarqueeOverflow } from '../ui/marquee-overflow.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
+import { setActiveNavBtn } from '../ui/section-switch-helpers.js';
+import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { loadCourses } from './courses-source.js';
 
@@ -130,22 +132,25 @@ function renderCard(chip) {
 // 不能少 emit cell 否則 grid auto-flow 會把後續 type-label 推到空欄位錯亂整張表
 const TOTAL_YEAR_COLS = 4;
 
-// 手機版改成年級為外層分組（一年級從上到下到四年級），每個年級內列出
-// 必修/選修 兩列 chips（不分學期）。桌面版維持 buildHTML 的橫排年級結構。
+// 手機版（2026-07-09 改版）：頂部「年級 btn bar」直接切換（排在 program nav 下方），
+// 每個年級一個 block、同時只顯示一個；block 內必修/選修 label 在卡片上方、卡片滿寬直排。
+// 年級 btn 沿用 .courses-filter-btn（activities 子濾鏡同款 pill，buttons.css + 三 mode themes 現成）。
 // 兩種 DOM 結構共存（CSS media query 切顯示），同 program 的卡片各自存在 → 點擊兩邊都能觸發
 // slide-in（bindCardClick 走 panel 級 grid，兩個 grid 都會綁）
 function buildMobileHTML(program, courses) {
   const grades = gradesOf(program);
   const realChips = flattenToChips(courses);
 
-  let html = '';
-  grades.forEach(g => {
-    let blockInner = `
-      <div class="courses-mobile-grade-header">
-        <span class="courses-mobile-grade-en">${g.en}</span>
-        <span class="courses-mobile-grade-zh">${g.zh}</span>
-      </div>`;
+  const bar = `
+    <div class="courses-mobile-grade-bar">
+      ${grades.map((g, i) => `
+        <button class="courses-mobile-grade-btn courses-filter-btn whitespace-nowrap${i === 0 ? ' active' : ''}" data-grade="${g.key}">
+          <span class="anchor-nav-inner">${g.en} ${g.zh}</span>
+        </button>`).join('')}
+    </div>`;
 
+  const blocks = grades.map((g, i) => {
+    let blockInner = '';
     TYPES.forEach(t => {
       const cellChips = realChips.filter(rc => rc.grade === g.key && rc.type === t.key);
       if (cellChips.length === 0) return;
@@ -160,11 +165,80 @@ function buildMobileHTML(program, courses) {
           <div class="courses-mobile-cells">${cellChips.map(renderCard).join('')}</div>
         </div>`;
     });
+    return `<div class="courses-mobile-grade-block${i === 0 ? '' : ' hidden'}" data-grade="${g.key}">${blockInner}</div>`;
+  }).join('');
 
-    html += `<div class="courses-mobile-grade-block">${blockInner}</div>`;
+  return bar + blocks;
+}
+
+// ── 手機年級切換 ──
+// setActiveNavBtn 共用 helper（accent 底 + 隨機旋轉，與 program btn / activities 濾鏡一致）；
+// 灰卡 + 必修/選修 label 比照「桌面切 program」的過場：舊卡 clip wipe 收場 → 新卡 wipe 進場
+// （user 2026-07-09：卡片要保留切換動畫；pill 本身不動）。卡片 CSS transition 不含 clip-path，無 race。
+// 隱藏 block 的卡片 render 時量不到寬（offsetWidth=0 → marquee bail）→ 每次露出重跑量測
+const GRADE_CLIP_DIRS = [
+  'inset(100% 0% 0% 0%)',
+  'inset(0% 0% 100% 0%)',
+  'inset(0% 100% 0% 0%)',
+  'inset(0% 0% 0% 100%)',
+];
+const pickGradeClipDir = () => GRADE_CLIP_DIRS[Math.floor(Math.random() * GRADE_CLIP_DIRS.length)];
+/** @param {HTMLElement} mobileGrid @param {string} gradeKey */
+async function activateGrade(mobileGrid, gradeKey, { animate = true } = {}) {
+  const doAnim = animate && typeof gsap !== 'undefined' && !prefersReducedMotion();
+  // 動畫進行中忽略連點（exit await 期間再切會兩條序列交錯亂 toggle）
+  if (doAnim && mobileGrid.dataset.gradeSwitching) return;
+
+  const prev = /** @type {HTMLElement|null} */ (mobileGrid.querySelector('.courses-mobile-grade-block:not(.hidden)'));
+  if (doAnim && prev && prev.getAttribute('data-grade') !== gradeKey) {
+    const prevItems = prev.querySelectorAll('.courses-grid-card, .courses-mobile-row-label');
+    if (prevItems.length) {
+      mobileGrid.dataset.gradeSwitching = '1';
+      await new Promise(resolve => {
+        gsap.killTweensOf(prevItems);
+        // fromTo 顯式起點 inset(0)：進場 clearProps 後 computed=none，直接 to 會 snap（repo 既有 pattern）
+        gsap.fromTo(prevItems,
+          { clipPath: 'inset(0% 0% 0% 0%)' },
+          { clipPath: () => pickGradeClipDir(), duration: DUR.fast, ease: 'cubic-bezier(0.25, 0, 0, 1)', overwrite: true, onComplete: resolve }
+        );
+      });
+      delete mobileGrid.dataset.gradeSwitching;
+    }
+  }
+
+  setActiveNavBtn(mobileGrid.querySelectorAll('.courses-mobile-grade-btn'), gradeKey, 'data-grade');
+  /** @type {HTMLElement|null} */ let shown = null;
+  mobileGrid.querySelectorAll('.courses-mobile-grade-block').forEach(b => {
+    const on = b.getAttribute('data-grade') === gradeKey;
+    b.classList.toggle('hidden', !on);
+    if (on) shown = /** @type {HTMLElement} */ (b);
   });
+  if (doAnim && shown) {
+    const items = shown.querySelectorAll('.courses-grid-card, .courses-mobile-row-label');
+    if (items.length) {
+      gsap.killTweensOf(items);
+      // 同 program 切換 reveal：無 stagger 同時進場
+      gsap.fromTo(items,
+        { clipPath: () => pickGradeClipDir() },
+        { clipPath: 'inset(0% 0% 0% 0%)', duration: DUR.base, ease: 'cubic-bezier(0.25, 0, 0, 1)', overwrite: true, clearProps: 'clipPath' }
+      );
+    }
+  }
+  const panel = mobileGrid.closest('.courses-panel');
+  if (panel) requestAnimationFrame(() => runMarqueeOverflow(/** @type {HTMLElement} */ (panel)));
+}
 
-  return html;
+// deep-link（?item=slug）目標卡片可能在非 active 年級 block 內（隱藏 → 量測/highlight 找不到可見卡）
+// → 先把該年級切成 active。桌面 mobile grid display:none，切了無視覺影響、無害。
+export function ensureMobileGradeForSlug(program, slug) {
+  if (!slug) return;
+  const panel = document.getElementById(`panel-${program}`);
+  const mobileGrid = /** @type {HTMLElement|null} */ (panel ? panel.querySelector('.courses-grid-mobile') : null);
+  if (!mobileGrid) return;
+  const card = mobileGrid.querySelector(`.courses-grid-card[data-slug="${CSS.escape(slug)}"]`);
+  const block = card ? card.closest('.courses-mobile-grade-block') : null;
+  if (!block || !block.classList.contains('hidden')) return;
+  activateGrade(mobileGrid, block.getAttribute('data-grade') || '', { animate: false });
 }
 
 function buildHTML(program, courses) {
@@ -316,8 +390,9 @@ export function closeCourseSlideIn() {
   // 如果面板已經是隱藏狀態，直接 return，避免切換 program 分頁時觸發多餘的 CSS 變化
   if (slideIn.classList.contains('invisible')) return;
 
-  // header bars clip-path 進場（logo 不動）+ 解除 body.lightbox-open
-  exitLightboxMode();
+  // header bars clip-path 進場（logo 不動）+ 解除 body.lightbox-open。
+  // deferHeaderShow：slide-in 是往右滑出，header bars 立即揭露會白 bar 冒在頂部蓋住離場中的 panel → 延後到 panel 走完
+  exitLightboxMode({ deferHeaderShow: true });
 
   const htmlEl = document.documentElement;
   
@@ -588,6 +663,30 @@ export async function renderCoursesGrid(program) {
     grid.parentElement?.insertBefore(mobileGrid, grid.nextSibling);
   }
   mobileGrid.innerHTML = buildMobileHTML(program, courses);
+
+  // 年級 bar：初始 active 套 accent 樣式 + 點擊切換（delegation，一次性）
+  const firstGradeBtn = mobileGrid.querySelector('.courses-mobile-grade-btn');
+  if (firstGradeBtn) {
+    const mg = mobileGrid;
+    // 初始不動畫（進場 reveal 由 section-switch 統一跑）
+    activateGrade(mg, firstGradeBtn.getAttribute('data-grade') || '', { animate: false });
+    if (!mg.dataset.gradeBound) {
+      mg.dataset.gradeBound = '1';
+      mg.addEventListener('click', (e) => {
+        const btn = /** @type {HTMLElement|null} */ (e.target instanceof Element ? e.target.closest('.courses-mobile-grade-btn') : null);
+        if (!btn || btn.classList.contains('active')) return;
+        // 年級 bar 是水平 scroll strip：點到的 btn 可能被捲到部分出界 → 捲回讓它靠左對齊頁面內容左緣
+        // （同 program bar 的對齊，courses-section-switch.js）。只動 bar 自己 scrollLeft，不連帶垂直捲動。
+        const bar = /** @type {HTMLElement|null} */ (btn.closest('.courses-mobile-grade-bar'));
+        if (bar) {
+          const pad = parseFloat(getComputedStyle(bar).paddingLeft) || 0;
+          const delta = btn.getBoundingClientRect().left - (bar.getBoundingClientRect().left + pad);
+          bar.scrollTo({ left: bar.scrollLeft + delta, behavior: 'smooth' });
+        }
+        activateGrade(mg, btn.getAttribute('data-grade') || '');
+      });
+    }
+  }
 
   bindCardClick(panel);
   bindCardHover(panel);

@@ -11,7 +11,7 @@
  *   - 內容改 grid（學期×必修/選修×年級）+ 右下 sticky desc panel
  */
 
-import { renderCoursesGrid, deselectActiveCard, resetCoursesMapState, selectCardBySlugInPanel, highlightCardBySlugInPanel } from './courses-map.js';
+import { renderCoursesGrid, deselectActiveCard, resetCoursesMapState, selectCardBySlugInPanel, highlightCardBySlugInPanel, ensureMobileGradeForSlug } from './courses-map.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { setActiveNavBtn } from '../ui/section-switch-helpers.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
@@ -205,6 +205,9 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
     Promise.all([initSwitchPromise, waitForHeroAnimDone()]).then(async () => {
       if (!sectionEl) return;
       if (!itemSlug) { scrollSectionIntoView(sectionEl); return; }
+      // 手機年級分頁：目標卡片可能在非 active 年級 block（隱藏）→ 先切到該年級，
+      // 後面的 measureCardDelta / highlight / select 才找得到「可見」的卡
+      ensureMobileGradeForSlug(initialProgram, itemSlug);
       // 比照 activities navigateToItem：捲動前先等 render/layout settle（setTimeout 150 + rAF）。
       // reduce 模式 hero 是瞬間 → 不等的話捲動在 ~tens ms 內就跑、早於 router 的保險 scroll-reset → 被拉回頂部
       // （activities 一直有這段 settle 所以 reduce 下正常；curriculum 原本沒有 = user 報「停在頂部」）。
@@ -296,7 +299,6 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
   // ── 左側 program nav 進場/退場（user 2026-06-07，比照 faculty nav / 灰卡的 clip-path reveal）──
   // 對象 = 每顆 program btn 的 .anchor-nav-inner（色塊）+ 每個 .courses-bfa-label（整條 nav 一起 reveal）。
   // clip-path 套「元素自身」（旋轉角不裁、不疊、定在原位）；querySelectorAll = DOM 序 → label1,inner1,label2,inner2,inner3（上到下）。
-  // 進場：section 進視窗 once、不隨 program 切換重播；退場：離頁且已進場才跑（沒滑到不閃）。
   // ⚠️ 動畫期間關 inner/label 的 CSS transition:all（hover/切 program 過場用的），否則追著 GSAP 每幀 clipPath 跑會卡頓，跑完還原。
   const NAV_EASE = 'cubic-bezier(0.25, 0, 0, 1)';  // 同灰卡
   const navTargets = Array.from(document.querySelectorAll(
@@ -304,24 +306,68 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
   ));
   let navRevealed = false;
   if (typeof gsap !== 'undefined' && navTargets.length && !prefersReducedMotion()) {  // 減少動態：nav 維持靜態可見
-    navTargets.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = 'none'; gsap.set(el, { clipPath: pickClipDir() }); });
-    const playNavReveal = () => {
-      if (navRevealed) return;
-      navRevealed = true;
-      gsap.to(navTargets, {
-        clipPath: 'inset(0% 0% 0% 0%)',
-        duration: DUR.base,
-        ease: NAV_EASE,
-        stagger: 0.04,
-        clearProps: 'clipPath',
-        onComplete: () => navTargets.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = ''; }),
-      });
-    };
-    const inView = sectionEl && sectionEl.getBoundingClientRect().top < window.innerHeight * 0.9;
-    if (!sectionEl || inView || typeof ScrollTrigger === 'undefined') {
-      playNavReveal();
+    // 每個 target 固定一個隨機 clip 方向：reveal(→inset0) 與 hide(→該方向) 同方向，來回一致
+    const navDir = new Map(navTargets.map(el => [el, pickClipDir()]));
+    navTargets.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = 'none'; gsap.set(el, { clipPath: navDir.get(el) }); });
+
+    if (usesWindowScroll() && 'IntersectionObserver' in window && sectionEl) {
+      // 矮橫向：nav 進 header fixed、hero 也浮著 →「hero 之後才 run、hero 時出場隱藏」（user 2026-07-09）：
+      // IO 偵測 content section 佔到視窗中段（捲過 hero）→ 每顆 btn 個別方向、同時（stagger:0）clip-reveal；
+      // 離開（回 hero / 進 footer）→ clip-hide。不用 opacity、不加白底（純 clip）。
+      // fixed nav 被 clip 掉時 btn 外框仍在 → pointer-events 一併切，免隱形 btn 蓋 hero 誤觸。
+      const navCol = /** @type {HTMLElement|null} */ (sectionEl.querySelector('.inner-scroll-nav-col'));
+      if (navCol) navCol.style.pointerEvents = 'none';
+      const setNav = (reveal) => {
+        if (navRevealed === reveal) return;
+        navRevealed = reveal;
+        // grade cover 的 ::before 上方白補丁跟 nav 同一顆 gate（landscape.css 消費此 class）：
+        // 未 pinned 時補丁會浮在 hero 圖上＝奇怪白 bar（user 2026-07-10）
+        sectionEl.classList.toggle('courses-nav-revealed', reveal);
+        gsap.killTweensOf(navTargets);
+        navTargets.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = 'none'; });
+        if (navCol) navCol.style.pointerEvents = reveal ? '' : 'none';
+        gsap.to(navTargets, {
+          clipPath: reveal ? 'inset(0% 0% 0% 0%)' : (i) => navDir.get(navTargets[i]),
+          duration: DUR.base, ease: NAV_EASE, stagger: 0, overwrite: true,
+          onComplete: () => { if (reveal) navTargets.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = ''; }); },
+        });
+      };
+      // 嚴格 hero gate（user 2026-07-10「卡一半 nav 就出現」，同 admission/faculty）：觀察 hero 本體，
+      // 底緣離開視窗頂（8px buffer）才 reveal；footer 進 75% 線收起。flag 合併防初始 delivery 互蓋。
+      const heroEl = document.querySelector('#page-content > section');
+      const footerEl = document.getElementById('site-footer');
+      let heroVis = !!heroEl;
+      let footerVis = false;
+      const applyNav = () => setNav(!heroVis && !footerVis);
+      if (heroEl) {
+        const heroIO = new IntersectionObserver(([e]) => { heroVis = e.isIntersecting; applyNav(); },
+          { rootMargin: '-8px 0px 0px 0px' });
+        heroIO.observe(heroEl);
+        registerPageCleanup(() => heroIO.disconnect());
+      }
+      if (footerEl) {
+        const footerIO = new IntersectionObserver(([e]) => { footerVis = e.isIntersecting; applyNav(); },
+          { rootMargin: '0px 0px -25% 0px' });
+        footerIO.observe(footerEl);
+        registerPageCleanup(() => footerIO.disconnect());
+      }
     } else {
-      ScrollTrigger.create({ trigger: sectionEl, start: 'top 90%', once: true, onEnter: playNavReveal });
+      // 桌面：nav 在左側 sticky flow，進場 once（stagger 0.04）、不 re-hide（維持原行為，桌面不變）
+      const playNavReveal = () => {
+        if (navRevealed) return;
+        navRevealed = true;
+        gsap.to(navTargets, {
+          clipPath: 'inset(0% 0% 0% 0%)',
+          duration: DUR.base, ease: NAV_EASE, stagger: 0.04, clearProps: 'clipPath',
+          onComplete: () => navTargets.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = ''; }),
+        });
+      };
+      const inView = sectionEl && sectionEl.getBoundingClientRect().top < window.innerHeight * 0.9;
+      if (!sectionEl || inView || typeof ScrollTrigger === 'undefined') {
+        playNavReveal();
+      } else {
+        ScrollTrigger.create({ trigger: sectionEl, start: 'top 90%', once: true, onEnter: playNavReveal });
+      }
     }
   }
 
@@ -333,10 +379,10 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
   registerPageExit(() => new Promise(resolve => {
     if (typeof gsap === 'undefined') { resolve(); return; }
     const panel = document.querySelector('.courses-panel:not(.hidden)');
-    // 手機表頭（grade-header / row-label）進場跟卡片同走 clip-path → 退場也要一起收，
+    // 手機表頭（年級 bar pill / row-label）進場跟卡片同走 clip-path → 退場也要一起收，
     // 否則手機離頁卡片收完表頭還站著；桌面這兩 class display:none，tween 不可見無影響
     const clipTargets = [
-      ...(panel ? panel.querySelectorAll('.courses-grid-card, .courses-mobile-grade-header, .courses-mobile-row-label') : []),
+      ...(panel ? panel.querySelectorAll('.courses-grid-card, .courses-mobile-grade-bar .anchor-nav-inner, .courses-mobile-row-label') : []),
       ...(navRevealed ? navTargets : []),  // nav 沒滑到沒看過就不收（不閃）
     ];
     const slideInners = panel ? [
@@ -421,9 +467,10 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
     /** @typedef {{ axis: 'x' | 'y', percent: number }} HeaderDir */
     let headerExitDirs = /** @type {HeaderDir[] | null} */ (null);
     if (isSwitch && prevPanel && prevPanel.id !== newPanelId && typeof gsap !== 'undefined' && !prefersReducedMotion()) {  // 減少動態：不跑舊卡片退場
-      // 手機表頭（年級 + 必修/選修）沒有 desktop 的 slide-mask 結構，改跟卡片同走 clip-path wipe：
-      // 一起塞進 prevCards，切 program 時跟卡片同步收（桌面這兩 class 是 display:none，動畫不可見不影響桌面 slide）
-      const prevCards = prevPanel.querySelectorAll('.courses-grid-card, .courses-mobile-grade-header, .courses-mobile-row-label');
+      // 手機必修/選修 label 沒有 desktop 的 slide-mask 結構，改跟卡片同走 clip-path wipe。
+      // 年級 bar pill 不在此列：program 切換時年級 bar 不跑進出場動畫（user 2026-07-09，
+      // 只保留初次進場 reveal 與離頁 exit）
+      const prevCards = prevPanel.querySelectorAll('.courses-grid-card, .courses-mobile-row-label');
       // 年級 + 必修/選修 inner 一起 slide（user 2026-06-07：切 MDES 表頭也動才 smooth；type-label 已有遮罩）
       const prevHeadersInner = prevPanel.querySelectorAll('.courses-grid-col-header-inner, .courses-grid-type-label-inner');
       // headers inner 殘留 transform 已在開頭統一 clear，此處不需重複 kill
@@ -523,8 +570,17 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
       // 避免「已在視圖內的卡片」靠 once-trigger 播時，與 line 340 + router 結尾的 ScrollTrigger.refresh()
       // 搶時序：refresh 在 layout 定位前跑完 → trigger 判定已通過 once → 卡片偶爾不進場。
       const panelInView = activePanel.getBoundingClientRect().top < window.innerHeight * 0.9;
-      // 含手機表頭（跟卡片同走 clip-path reveal；桌面這兩 class display:none 不可見不影響）
-      const allCards = activePanel.querySelectorAll('.courses-grid-card, .courses-mobile-grade-header, .courses-mobile-row-label');
+      // 手機 row-label 跟卡片同走 clip-path reveal（桌面 display:none 不可見不影響）。
+      // 年級 bar pill 只在「初次進場」納入（program 切換不重跑，user 2026-07-09）；
+      // pill 的 .anchor-nav-inner 有 CSS transition:all → 追著 GSAP clipPath 跑出雙緩動卡頓
+      // （同桌面 navTargets 的處理）→ 動畫期間 transition:none、跑完還原
+      const gradeInners = isSwitch ? [] : [...activePanel.querySelectorAll('.courses-mobile-grade-bar .anchor-nav-inner')];
+      gradeInners.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = 'none'; });
+      const restoreGradeTransitions = () => gradeInners.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = ''; });
+      const allCards = [
+        ...activePanel.querySelectorAll('.courses-grid-card, .courses-mobile-row-label'),
+        ...gradeInners,
+      ];
       if (allCards.length) {
         gsap.killTweensOf(allCards);
         allCards.forEach(card => {
@@ -532,7 +588,7 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
         });
 
         const playReveal = () => {
-          if (prefersReducedMotion()) { gsap.set(allCards, { clearProps: 'clipPath' }); return; }  // 減少動態：直接全顯
+          if (prefersReducedMotion()) { gsap.set(allCards, { clearProps: 'clipPath' }); restoreGradeTransitions(); return; }  // 減少動態：直接全顯
           gsap.to(allCards, {
             clipPath: 'inset(0% 0% 0% 0%)',
             duration: DUR.base,
@@ -542,6 +598,7 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
             stagger: isSwitch ? 0 : { amount: 0.25 },
             overwrite: true,
             clearProps: 'clipPath',
+            onComplete: restoreGradeTransitions,
           });
         };
 

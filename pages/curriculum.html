@@ -53,7 +53,8 @@
          Layout（桌面）：左 program bar (vertical sticky) ｜ 中 grid panels ｜ 右 sticky desc panel
                 Mobile：垂直堆疊（bar → panels → desc 隱藏）
     -->
-    <section class="snap-zone bg-white min-h-screen pt-6xl pb-6xl md:pt-0 md:pb-0 md:h-screen md:overflow-hidden" id="courses-content-section">
+    <!-- 手機 pt-4xl(80)：四頁 nav btn section 統一（faculty/activities/admission/curriculum，user 2026-07-10 從 6xl 收上來） -->
+    <section class="snap-zone bg-white min-h-screen pt-4xl pb-6xl md:pt-0 md:pb-0 md:h-screen md:overflow-hidden" id="courses-content-section">
       <div class="site-container">
         <!-- grid-20：桌面 program bar 占 cols 1-4、課程內容 cols 5-20（對齊 faculty/about col-5）；手機 flex-col 堆疊 -->
         <div class="courses-content-row flex flex-col gap-gutter md:grid md:grid-cols-20 inner-scroll-frame-grid">
@@ -107,15 +108,17 @@
       <!-- title 區 sticky 在頂端不動；desc 包進固定 wrapper，內部 overflow-y 自己 scroll（參考 activities list-scroll pattern） -->
       <div id="courses-detail-panel" class="absolute right-0 top-0 bottom-0 w-full md:w-[40%] overflow-hidden"
            style="background: white; transform: translateX(110%);">
+        <!-- 手機返回鍵：釘在 header 右側 menu 鈕位（同 faculty slide-in，.faculty-back-header 佈局在 cards.css）；
+             關閉走 courses-map.js 的 document 級 delegation（比對 #courses-back-btn-mobile） -->
+        <button id="courses-back-btn-mobile" class="md:hidden faculty-back-header cursor-pointer bg-transparent" aria-label="返回">
+          <span class="icon icon-arrow-right text-black icon-m"></span>
+        </button>
         <!-- 桌面（仿 faculty slide-in 右欄）：inner md:overflow-hidden 不捲，title 固定在上、desc 在獨立 .list-scroll box 內捲動 → 右側細黑 scrollbar。
-             手機（RWD 之後再統一調整）：inner overflow-y-auto 整段捲、title sticky 黏頂（見 .courses-detail-title-sticky）。
+             手機：inner overflow-y-auto 整段捲、title sticky 黏頂（見 .courses-detail-title-sticky）。
              pb = container-padding（手機 24 / 桌面 60）；桌面維持 md:pb-2xl 保留原節奏 -->
         <div class="courses-detail-inner w-full h-full px-container-padding pb-[var(--container-padding)] md:pb-2xl flex flex-col overflow-y-auto md:overflow-hidden no-scrollbar bg-inherit">
-          <!-- title 區：桌面固定（flex-shrink:0，不捲）；手機 sticky 黏頂（返回鍵 + title 一起，user 要求） -->
+          <!-- title 區：桌面固定（flex-shrink:0，不捲）；手機 sticky 黏頂 -->
           <div class="courses-detail-title-sticky">
-            <button id="courses-back-btn-mobile" class="md:hidden block mb-xl cursor-pointer bg-transparent self-start" aria-label="返回">
-              <span class="icon icon-arrow-left text-black icon-m"></span>
-            </button>
             <h5 id="courses-detail-title-en" class="courses-detail-title-en text-h5 font-bold mb-0"></h5>
             <h5 id="courses-detail-title-zh" class="courses-detail-title-zh text-h5 font-bold mb-0"></h5>
           </div>

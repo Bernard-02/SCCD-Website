@@ -5,6 +5,7 @@
 
 import { setupClipReveal } from '../ui/scroll-animate.js';
 import { registerPageExit } from '../ui/page-exit.js';
+import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 
@@ -315,26 +316,72 @@ export function initFacultyFilter() {
     .map(b => /** @type {HTMLElement|null} */ (b.querySelector('.anchor-nav-inner')))
     .filter(Boolean);
   if (typeof gsap !== 'undefined' && navInners.length && !prefersReducedMotion()) {  // 減少動態：nav 維持靜態可見
-    navInners.forEach(inner => { inner.style.transition = 'none'; gsap.set(inner, { clipPath: pickNavClip() }); });
-    const playNavReveal = () => {
-      if (navRevealed) return;
-      navRevealed = true;
-      gsap.to(navInners, {
-        clipPath: CLIP_REVEALED,
-        duration: DUR.base,
-        ease: NAV_EASE,
-        stagger: 0.02,
-        clearProps: 'clipPath',
-        onComplete: () => navInners.forEach(inner => { inner.style.transition = ''; }),
-      });
-    };
+    // 每顆 inner 固定一個隨機 clip 方向：reveal(→inset0) 與 hide(→該方向) 同方向，來回一致（同 curriculum）
+    const navDir = new Map(navInners.map(inner => [inner, pickNavClip()]));
+    navInners.forEach(inner => { inner.style.transition = 'none'; gsap.set(inner, { clipPath: navDir.get(inner) }); });
     const section = document.getElementById('faculty-cards');
-    const inView = section && section.getBoundingClientRect().top < window.innerHeight * 0.9;
-    if (!section || inView || typeof ScrollTrigger === 'undefined') {
-      playNavReveal();
+    const isLandscapeGate = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+    if (isLandscapeGate && 'IntersectionObserver' in window && section) {
+      // 矮橫向：nav 進 header fixed、hero 也浮著 →「hero 之後才 reveal、回 hero 出場隱藏」（user 2026-07-10
+      // 指定 clip-path 非 opacity，同 curriculum）：IO 偵測 cards section 佔視窗中段 → 各 inner 個別方向、
+      // 同時（stagger:0）clip-reveal / clip-hide。fixed nav 被 clip 掉時 btn 外框仍在 → pointer-events 一併切。
+      const navCol = /** @type {HTMLElement|null} */ (section.querySelector('.inner-scroll-nav-col'));
+      if (navCol) navCol.style.pointerEvents = 'none';
+      const setNav = (reveal) => {
+        if (navRevealed === reveal) return;
+        navRevealed = reveal;
+        // header 帶遮擋跟 nav 同 gate（landscape.css 消費此 class）：卡片捲過透明 header 會疊在
+        // nav btn 後（user 2026-07-10 統一各頁 nav 遮擋）；hero 時不掛、不蓋 hero 圖
+        section.classList.toggle('faculty-nav-revealed', reveal);
+        gsap.killTweensOf(navInners);
+        navInners.forEach(inner => { inner.style.transition = 'none'; });
+        if (navCol) navCol.style.pointerEvents = reveal ? '' : 'none';
+        gsap.to(navInners, {
+          clipPath: reveal ? CLIP_REVEALED : (i) => navDir.get(navInners[i]),
+          duration: DUR.base, ease: NAV_EASE, stagger: 0, overwrite: true,
+          onComplete: () => { if (reveal) navInners.forEach(inner => { inner.style.transition = ''; }); },
+        });
+      };
+      // 嚴格 hero gate（user 2026-07-10「卡一半 nav 就出現」，同 admission/curriculum）：觀察 hero 本體，
+      // 底緣離開視窗頂（8px buffer）才 reveal；footer 進 75% 線收起。flag 合併防初始 delivery 互蓋。
+      const heroEl = document.querySelector('#page-content > section');
+      const footerEl = document.getElementById('site-footer');
+      let heroVis = !!heroEl;
+      let footerVis = false;
+      const applyNav = () => setNav(!heroVis && !footerVis);
+      if (heroEl) {
+        const heroIO = new IntersectionObserver(([e]) => { heroVis = e.isIntersecting; applyNav(); },
+          { rootMargin: '-8px 0px 0px 0px' });
+        heroIO.observe(heroEl);
+        registerPageCleanup(() => heroIO.disconnect());
+      }
+      if (footerEl) {
+        const footerIO = new IntersectionObserver(([e]) => { footerVis = e.isIntersecting; applyNav(); },
+          { rootMargin: '0px 0px -25% 0px' });
+        footerIO.observe(footerEl);
+        registerPageCleanup(() => footerIO.disconnect());
+      }
     } else {
-      // trigger 在 #faculty-cards（在 #page-content 內）→ cleanupPageModules 換頁時會一併 kill，不洩漏
-      ScrollTrigger.create({ trigger: section, start: 'top 90%', once: true, onEnter: playNavReveal });
+      // 桌面/直向：進場 once、不 re-hide（維持原行為）
+      const playNavReveal = () => {
+        if (navRevealed) return;
+        navRevealed = true;
+        gsap.to(navInners, {
+          clipPath: CLIP_REVEALED,
+          duration: DUR.base,
+          ease: NAV_EASE,
+          stagger: 0.02,
+          clearProps: 'clipPath',
+          onComplete: () => navInners.forEach(inner => { inner.style.transition = ''; }),
+        });
+      };
+      const inView = section && section.getBoundingClientRect().top < window.innerHeight * 0.9;
+      if (!section || inView || typeof ScrollTrigger === 'undefined') {
+        playNavReveal();
+      } else {
+        // trigger 在 #faculty-cards（在 #page-content 內）→ cleanupPageModules 換頁時會一併 kill，不洩漏
+        ScrollTrigger.create({ trigger: section, start: 'top 90%', once: true, onEnter: playNavReveal });
+      }
     }
   }
 

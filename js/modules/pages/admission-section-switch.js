@@ -11,6 +11,7 @@ import {
 } from './admission-data-loader.js';
 import { resetListAccordionsInPanel } from '../accordions/list-accordion.js';
 import { registerPageExit } from '../ui/page-exit.js';
+import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { waitForHeroAnimDone } from './hero-animation.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { scrollWindowNoSnap } from '../ui/snap-scroll.js';
@@ -143,22 +144,68 @@ function setupSectionNavReveal() {
   const inners = Array.from(document.querySelectorAll('.activities-section-btn .anchor-nav-inner'));
   if (!inners.length) return;
   let navRevealed = false;
-  inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = 'none'; gsap.set(inner, { clipPath: pickNavClip() }); });
+  // 每顆 inner 固定一個隨機 clip 方向：reveal(→inset0) 與 hide(→該方向) 同方向來回一致（矮橫向雙向用）
+  const navDir = new Map(inners.map(inner => [inner, pickNavClip()]));
+  inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = 'none'; gsap.set(inner, { clipPath: navDir.get(inner) }); });
 
-  const play = () => {
-    if (navRevealed) return;
-    navRevealed = true;
-    gsap.to(inners, {
-      clipPath: NAV_REVEALED_CLIP, duration: DUR.base, ease: NAV_EASE, stagger: 0.02, clearProps: 'clipPath',
-      onComplete: () => inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = ''; }),
-    });
-  };
   const section = document.getElementById('admission-content-section');
-  const inView = section && section.getBoundingClientRect().top < window.innerHeight * 0.9;
-  if (!section || inView || typeof ScrollTrigger === 'undefined') {
-    play();
+  const isLandscapeGate = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+  if (isLandscapeGate && 'IntersectionObserver' in window && section) {
+    // 矮橫向：nav 進 header fixed、hero 也浮著 →「hero 之後才 reveal、回 hero 出場隱藏」，clip-path 非
+    // opacity（user 2026-07-10 三反饋定為全站 nav btn 原則，同 curriculum/faculty setNav）：IO 偵測
+    // content section 佔視窗中段 → 各 inner 個別方向、同時（stagger:0）clip-reveal / clip-hide。
+    // fixed nav 被 clip 掉時 btn 外框仍在 → pointer-events 一併切，免隱形 btn 蓋 hero 誤觸。
+    const navCol = /** @type {HTMLElement|null} */ (section.querySelector('.inner-scroll-nav-col'));
+    if (navCol) navCol.style.pointerEvents = 'none';
+    const setNav = (reveal) => {
+      if (navRevealed === reveal) return;
+      navRevealed = reveal;
+      gsap.killTweensOf(inners);
+      inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = 'none'; });
+      if (navCol) navCol.style.pointerEvents = reveal ? '' : 'none';
+      gsap.to(inners, {
+        clipPath: reveal ? NAV_REVEALED_CLIP : (i) => navDir.get(inners[i]),
+        duration: DUR.base, ease: NAV_EASE, stagger: 0, overwrite: true,
+        onComplete: () => { if (reveal) inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = ''; }); },
+      });
+    };
+    // 嚴格 hero gate（user 2026-07-10「卡一半 nav 就出現」）：改觀察 hero 本體——底緣離開視窗頂
+    // （8px buffer 防 knife-edge）才算「捲到 hero 之下」reveal；原「content 佔中段(-45%)」在頁面停在
+    // 半路（hero 還佔上半屏）時就會誤 reveal。footer 進視窗 75% 線另收起（原 content IO 的隱含行為補回）。
+    // 兩顆 IO 各記 flag 統一 apply——各自 toggle 會被初始 delivery 順序互蓋（同 about anchor-nav 的坑）。
+    const heroEl = document.querySelector('#page-content > section');
+    const footerEl = document.getElementById('site-footer');
+    let heroVis = !!heroEl;
+    let footerVis = false;
+    const applyNav = () => setNav(!heroVis && !footerVis);
+    if (heroEl) {
+      const heroIO = new IntersectionObserver(([e]) => { heroVis = e.isIntersecting; applyNav(); },
+        { rootMargin: '-8px 0px 0px 0px' });
+      heroIO.observe(heroEl);
+      registerPageCleanup(() => heroIO.disconnect());
+    }
+    if (footerEl) {
+      const footerIO = new IntersectionObserver(([e]) => { footerVis = e.isIntersecting; applyNav(); },
+        { rootMargin: '0px 0px -25% 0px' });
+      footerIO.observe(footerEl);
+      registerPageCleanup(() => footerIO.disconnect());
+    }
   } else {
-    ScrollTrigger.create({ trigger: section, start: 'top 90%', once: true, onEnter: play });
+    // 桌面/直向：進場 once、不 re-hide（維持原行為）
+    const play = () => {
+      if (navRevealed) return;
+      navRevealed = true;
+      gsap.to(inners, {
+        clipPath: NAV_REVEALED_CLIP, duration: DUR.base, ease: NAV_EASE, stagger: 0.02, clearProps: 'clipPath',
+        onComplete: () => inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = ''; }),
+      });
+    };
+    const inView = section && section.getBoundingClientRect().top < window.innerHeight * 0.9;
+    if (!section || inView || typeof ScrollTrigger === 'undefined') {
+      play();
+    } else {
+      ScrollTrigger.create({ trigger: section, start: 'top 90%', once: true, onEnter: play });
+    }
   }
 
   registerPageExit(() => new Promise(resolve => {
@@ -176,6 +223,9 @@ function setupSectionNavReveal() {
 export function initAdmissionSectionSwitch(fromUserNav = false) {
   const btns = /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.activities-section-btn'));
   if (!btns.length) return;
+
+  // 矮橫向「hero 藏 nav」已併入 setupSectionNavReveal 的 clip-path 雙向分支（user 2026-07-10
+  // 定為原則：nav btn 進出場用 clip-path 不用 opacity；舊 .admission-nav-shown opacity 版退役）。
 
   // 離頁退場：當前可見 panel 反向退場（先收起展開的 accordion，再 rows yPercent 沉出）。
   // 用的是 playAdmissionPanelReveal 的反向同一支 playAdmissionPanelExit（in-page 切換 + 離頁共用），

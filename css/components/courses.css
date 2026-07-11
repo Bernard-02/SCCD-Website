@@ -92,6 +92,11 @@
     .courses-program-bar > .courses-program-btn {
       margin-top: 0;
     }
+    /* Animation & Moving Image 手機保持一行（user 2026-07-09；同 landscape.css 5d 處理）：
+       HTML 顯式 <br> 藏掉，br 後的空格成為字間空格（span 已 nowrap 不會 rewrap） */
+    .courses-program-btn .anchor-nav-inner > span:first-child br {
+      display: none;
+    }
   }
   @media (min-width: 768px) {
     .courses-program-bar {
@@ -431,7 +436,9 @@
     z-index: 2;
     flex-shrink: 0;
     background: inherit;
-    padding-top: calc(var(--header-height, 80px) + 4rem);
+    /* +2.5rem 對齊 faculty slide-in profile 圖片區塊的頂部位置（容器 pt=header + profile pt 2.5rem，
+       user 2026-07-09「title 移上去、pt 跟 faculty 圖片區塊一樣」）；原 +4rem */
+    padding-top: calc(var(--header-height, 80px) + 2.5rem);
     padding-bottom: var(--spacing-md);
   }
   @media (min-width: 768px) {
@@ -454,56 +461,51 @@
     .courses-grid-mobile {
       display: flex;
       flex-direction: column;
-      /* 年級間距比學期間距大一級：年級 3xl(mobile 64px) > 學期 2xl(mobile 48px) */
-      gap: var(--spacing-3xl);
+      /* bar ↔ 當前年級 block 的間距（block 同時只顯示一個，hidden 不吃 gap） */
+      gap: var(--spacing-xl);
     }
   }
 
-  /* ===== Mobile grid 結構 =====
-   * .courses-mobile-grade-block
-   *   .courses-mobile-grade-header   ← 年級標題（H 級樣式）
-   *   .courses-mobile-row × N        ← 學期+類型一行
-   *     .courses-mobile-row-label    ← 左上角小標：1st Sem 必修 / 2nd Sem 選修 …
-   *     .courses-mobile-cells        ← 卡片橫排（wrap）
+  /* ===== Mobile grid 結構（2026-07-09 改版：年級 btn bar 直接切換）=====
+   * .courses-mobile-grade-bar        ← 年級 pill btn（.courses-filter-btn 同款），排在 program nav 下方
+   * .courses-mobile-grade-block × N  ← 每年級一塊，同時只顯示 active 年級（其餘 .hidden）
+   *   .courses-mobile-row × 2        ← 必修 / 選修
+   *     .courses-mobile-row-label    ← 類型小標（en 上 zh 下），在卡片「上方」
+   *     .courses-mobile-cells        ← 課程卡片滿寬直排
    */
+  .courses-mobile-grade-bar {
+    /* 單行水平 scroll（user 2026-07-09：年級排成一排）；同 program bar pattern——
+       負 margin + 同值 padding 讓 scroll 區延伸到 viewport 邊；
+       overflow 裁切線在 padding-box 邊 → 上下 0.5rem padding 容納 active pill 旋轉突出 */
+    display: flex;
+    flex-wrap: nowrap;
+    gap: var(--spacing-md);
+    overflow-x: auto;
+    overflow-y: clip;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    margin-left: calc(var(--container-padding) * -1);
+    margin-right: calc(var(--container-padding) * -1);
+    padding: 0.5rem var(--container-padding);
+  }
+  .courses-mobile-grade-bar::-webkit-scrollbar { display: none; }
+  .courses-mobile-grade-btn {
+    flex-shrink: 0;
+  }
   .courses-mobile-grade-block {
     display: flex;
     flex-direction: column;
-    /* 學期/類型 row 之間：2xl(64px)；年級標題→第一個 row 的更大距離由 grade-header margin-bottom 補
-       年級之間走外層 .courses-grid-mobile gap */
+    /* 必修 row ↔ 選修 row 間距 */
     gap: var(--spacing-2xl);
   }
-  /* 年級表頭：不要分割綫；en/zh 都 p1（取代原 h5/h6）
-     年級→第一個學期 row 的距離由 grade-block gap 統一控制（不額外加 margin-bottom） */
-  .courses-mobile-grade-header {
+  .courses-mobile-row {
+    /* 直排：類型 label 在上、卡片在下（user 2026-07-09 wireframe） */
     display: flex;
     flex-direction: column;
-    gap: 2px;
-  }
-  .courses-mobile-grade-en {
-    font-weight: 700;
-    font-size: var(--font-size-p1);
-    line-height: 1.2;
-    color: var(--theme-fg);
-  }
-  .courses-mobile-grade-zh {
-    font-weight: 600;
-    font-size: var(--font-size-p1);
-    line-height: 1.2;
-    color: var(--theme-fg);
-  }
-  .courses-mobile-row {
-    /* 兩欄：左 = 必修/選修 label（固定寬、英中直排），右 = 課程卡片撐滿剩餘寬。
-       年級表頭仍在 grade-block 內全寬置頂（年級 layout 不變） */
-    display: flex;
-    flex-direction: row;
     align-items: flex-start;
     gap: var(--spacing-sm);
   }
   .courses-mobile-row-label {
-    /* 左欄固定寬，cards 取剩餘 → 各 row 卡片左緣對齊 */
-    flex-shrink: 0;
-    width: 5.5rem;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
@@ -512,7 +514,7 @@
     line-height: 1.2;
     color: var(--theme-fg);
   }
-  /* type label：英中上下排列（兩欄 layout，label 在左欄直排，en 上 zh 下） */
+  /* type label：英中上下排列（en 上 zh 下） */
   .courses-mobile-row-label-type {
     display: flex;
     flex-direction: column;
@@ -525,9 +527,9 @@
     font-weight: 600;
   }
   .courses-mobile-cells {
-    /* 兩欄右欄：flex:1 撐滿剩餘寬，min-width:0 讓卡片 max-width:100% 收斂到本欄寬（防 nowrap 卡片撐爆破版）。
-       每張卡 column stack 各佔一行；align-items:flex-start 讓短卡維持 fit-content 不被 stretch */
-    flex: 1;
+    /* 卡片直排、各卡寬度貼實際文字寬（fit-content，user 2026-07-09）；
+       align-self:stretch 給 max-width:100% 一個滿寬基準防 nowrap 撐爆 */
+    align-self: stretch;
     min-width: 0;
     display: flex;
     flex-direction: column;

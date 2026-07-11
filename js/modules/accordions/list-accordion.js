@@ -490,6 +490,10 @@ function initListHeaderAccordion() {
 
       const workshopItem = /** @type {HTMLElement | null} */ (this.closest('.list-item'));
       if (isActive) {
+        // 磁吸提早在「收舊項之前」就鎖掉（原本在 proceedOpen＝舊項收完才鎖）：收合期間文件高度
+        // 逐幀變化，mandatory snap 會邊收邊微調 scrollY＝畫面顫動才展開（user 2026-07-09，
+        // headless A/B 實證：早鎖後收合期振盪歸零）。桌面 inner-scroll（box 捲、snap 在 window）不需鎖。
+        if (!getScrollableBox(this)) lockSnapOff();
         // chevron 立刻轉（鏡像 closeListHeader 的同步轉法）：原本寫在 proceedOpen 內 →
         // 開新 item 時 proceedOpen 要等「其他已展開 item 收回」(DUR.base) 才跑，chevron 因此延遲才轉，
         // 但收起是 click 當下就轉＝兩邊不對稱（user 2026-06-15）。內容兩段式展開邏輯不動，只把 chevron 提前。
@@ -527,11 +531,11 @@ function initListHeaderAccordion() {
           // point 3 修：已收回的 others 副標剛移除 .active 正走 0.3s 重新展開 → snap 定高，否則量測差一個副標高
           others.forEach(snapSubtitleHeight);
 
-          // 桌面 inner-scroll（2026-06-29）：捲動在右欄 .inner-scroll-scroll-col（snap 在 window、不在 scroller）→ **不** lockSnapOff、
+          // 桌面 inner-scroll（2026-06-29）：捲動在右欄 .inner-scroll-scroll-col（snap 在 window、不在 scroller）→
           //   **不** clampBelowFooter（footer 在 frame 外、捲 scroller 不可能露）、**不** temp-expand 量 footer。
-          //   手機（<768）與矮橫向拆 frame（box 不可捲）走原 window 邏輯：lockSnapOff + 真實量測 clampBelowFooter + scrollWindowNoSnap。
+          //   手機（<768）與矮橫向拆 frame（box 不可捲）走原 window 邏輯：真實量測 clampBelowFooter + scrollWindowNoSnap。
+          //   lockSnapOff 已提前到 click 當下（收舊項之前）鎖，這裡不重複。
           const innerScroller = getScrollableBox(self);
-          if (!innerScroller) lockSnapOff();  // 只有 window snap 頁(手機；桌面 frame 有 scroller)開 item 期間鎖 snap
           let openBoxTarget = null;  // 桌面：開合捲動目標，給 content 展開 onComplete 收齊對位（見下）用
 
           // Open - header / content 都保留 100% accent；ref 用對應 deep 色。**先上色**（兩段式 staged 捲動期間 header 已是
