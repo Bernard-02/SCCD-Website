@@ -33,7 +33,9 @@
  * 過場期間 isTransitioning flag 擋掉 activity reset 避免 race，結束後主動 reset 一次
  */
 
-import { initAtlas, cleanupAtlas } from '../pages/atlas.js';
+// atlas 改動態載入（223KB）：待機觸發（idle 3 分鐘）才 import——待機期間下載對使用者零感。
+// module cache 與 atlas 頁共用同一份；atlasApi 存 namespace 供 unmount 的 cleanupAtlas 用。
+let atlasApi = null;
 import { switchHeaderLogo, getStoredMode } from './theme-toggle.js';
 import { DUR, EASE } from './motion.js';
 
@@ -171,13 +173,14 @@ async function mountStandbyAtlas(instant) {
   if (content) content.style.opacity = '0';
 
   // instant（背景分頁）：跳過 atlas intro zoom，掛上來就是定態
-  await initAtlas({ root: overlay, instant });
+  atlasApi = await import('../pages/atlas.js');
+  await atlasApi.initAtlas({ root: overlay, instant });
   atlasMounted = true;
 }
 
 function unmountStandbyAtlas() {
   if (!atlasMounted) return;
-  cleanupAtlas();
+  atlasApi.cleanupAtlas();   // atlasMounted=true 必經 mount 的 await import → atlasApi 必已就緒
   const overlay = document.getElementById('idle-standby-overlay');
   if (overlay) {
     overlay.innerHTML = '';

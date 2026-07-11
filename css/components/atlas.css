@@ -182,6 +182,24 @@
   display: none;
 }
 
+/* D 方塊展開＝國名 chip（桌面 hover / 直向手機 tap，atlas.js .atlas-square-open；橫向 gate JS 不加 class）：
+   上英下中兩行、樣式同 B chip（方塊 bg 沿用、黑字 inline）；尺寸/rotate 補間由 JS FLIP 驅動，
+   overflow:hidden 讓補間中途文字不外漏。z-index 抬起蓋過鄰近 label。 */
+.atlas-cat-d .atlas-name.atlas-square-open {
+  width: max-content;
+  height: auto;
+  max-width: none;
+  padding: 3px 5px;
+  overflow: hidden;
+  font-weight: 700;
+  z-index: 5;
+}
+.atlas-cat-d .atlas-name.atlas-square-open .atlas-name-en,
+.atlas-cat-d .atlas-name.atlas-square-open .atlas-name-zh {
+  display: block;
+  white-space: nowrap;
+}
+
 /* B 企業環 chip：box 中心對齊 anchor（= ellipse 邊上的點），ellipse 看起來穿過 chip 中段
    覆蓋 .atlas-name baseline 的 translateY(-50%) → 改為雙軸置中（文字仍靠左對齊 = 沿用 .atlas-name align-items:flex-start） */
 .atlas-cat-b .atlas-name {
@@ -873,9 +891,30 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   #atlas-detail {
     right: 16px;
     bottom: 16px;
-    left: 16px;
-    max-width: none;
+    left: auto;              /* 右下角、不全寬（user 2026-07-09 星雲說明卡放右下，同桌面）；原 left:16 全寬底部退役 */
+    max-width: 70vw;         /* 手機右下角限寬，不佔滿整列 */
     padding: 10px 12px;
+  }
+  /* 直向手機（橫向 gate 維持現行）：
+     ① 卡片左緣讓開左下 layout btn（24 + 48 btn + 8 呼吸 + ~15 卡片 ±3° 旋轉 bbox 外擴；
+        JS inline width 亦同步 min() cap——inline min-width 會蓋 CSS max-width）
+     ② 國家 detail 每筆「企業上、類別下」上下兩行（user 2026-07-10；桌面/橫向維持左右分欄） */
+  @media (orientation: portrait) {
+    #atlas-detail {
+      max-width: calc(100vw - 112px);
+      /* 點擊 item 會置中 → 卡片不得越過半屏遮住焦點（user 2026-07-10）；bottom:16 → 頂緣最低 50vh */
+      max-height: calc(50vh - 16px);
+    }
+    .atlas-detail-row {
+      flex-direction: column;
+      gap: 2px;
+      /* ⚠️ base 的 align-items:flex-start 在 column 方向＝水平收縮 → row 寬貼文字寬、
+         marquee 永遠量不到溢出（rowW==scrollW）→ 直排必須 stretch 撐滿卡片寬 */
+      align-items: stretch;
+    }
+    .atlas-detail-row-cat {
+      padding-top: 0;
+    }
   }
   .atlas-detail-name {
     font-size: 14px;
@@ -903,10 +942,10 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
     height: 44px;
     font-size: 24px;
   }
-  /* 三顆分類 btn → 底部 tab bar，疊在 layout btn 上方（16 + 48 btn + 12 呼吸） */
+  /* 三顆分類 btn → 底部 tab bar，疊在 layout btn 上方（16 + 48 btn + 32 呼吸；user 2026-07-09 拉開 tab↔btn）*/
   #atlas-filter {
     top: auto;
-    bottom: 76px;
+    bottom: 96px;
     right: var(--container-padding, 24px);
     flex-direction: row;
     align-items: flex-end;
@@ -946,7 +985,11 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
      bottom 128（= 16 + 48 btn + 12 + ~40 tab + 12 呼吸）/ gap --spacing-md(24)
      與 atlas.js calcListPageSize 手機分支同步 */
   #atlas-list-view {
-    bottom: 128px;
+    /* 起始往上（user 2026-07-09「再高一點」）：base top = header+64 太低，手機收到 header+24；
+       騰出的底部空間分給 chevron↔tab、tab↔layout btn 兩段間距。 */
+    top: calc(var(--header-height, 80px) + 24px);
+    /* bottom 168 = layout btn 16 + 48 + tab↔btn 呼吸 32(→filter bottom 96) + tab ~40 + chevron↔tab 呼吸 32 */
+    bottom: 168px;
     right: var(--container-padding, 24px);
     grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-auto-rows: minmax(0, 1fr);
@@ -1016,12 +1059,95 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   }
 }
 
+/* ── 手機圓點星雲（直向 + 橫向 gate 共用，user 2026-07-09「atlas 做成跟橫向手機一樣」）──────────
+   JS 於 isMobileAtlas 進 map view 時給 #atlas-stage 加 .atlas-dot-mode；圓點/方塊/zoom 反向縮放規則
+   以 stage class scope（不靠 orientation media），直向橫向共用一套。原橫向 gate media 內的這些規則已
+   全數搬到這裡；下方 landscape gate media 只剩 list 3-col 重排（橫向專屬，直向 list 用 2-col）。 */
+#atlas-stage.atlas-dot-mode {
+  touch-action: none;   /* 擋瀏覽器手勢（頁面 pinch/滑動），交給 atlas.js touch handlers */
+}
+/* 系友主持企業環（co-*）豁免圓點化：完整 chip，字級兩態（overview 0.5rem / zoom 0.75rem），padding 同反向係數 */
+#atlas-stage.atlas-dot-mode .atlas-anchor-co .atlas-name {
+  font-size: calc(0.5rem / var(--atlas-zoom-scale, 1));
+  padding: calc(2px / var(--atlas-zoom-scale, 1)) calc(3px / var(--atlas-zoom-scale, 1));
+  transition: font-size 0.25s ease;
+}
+#atlas-stage.atlas-dot-mode.atlas-text-zoom .atlas-anchor-co .atlas-name {
+  font-size: calc(0.75rem / var(--atlas-zoom-scale, 1));
+}
+/* D 國家方塊反向縮放＝視覺封頂 20px */
+#atlas-stage.atlas-dot-mode .atlas-cat-d .atlas-name {
+  width: calc(20px / var(--atlas-zoom-scale, 1));
+  height: calc(20px / var(--atlas-zoom-scale, 1));
+}
+/* 展開國名 chip：字級/padding 反向縮放（同 A/C chip 規則），寬高交還 max-content */
+#atlas-stage.atlas-dot-mode .atlas-cat-d .atlas-name.atlas-square-open {
+  width: max-content;
+  height: auto;
+  font-size: calc(0.75rem / var(--atlas-zoom-scale, 1));
+  padding: calc(3px / var(--atlas-zoom-scale, 1)) calc(5px / var(--atlas-zoom-scale, 1));
+}
+/* 連線 stroke 反向縮放＝視覺粗細恆定（城市常駐線 + 點擊/hover item→國家線兩態） */
+#atlas-stage.atlas-dot-mode .atlas-city-line {
+  stroke-width: calc(1px / var(--atlas-zoom-scale, 1));
+}
+#atlas-stage.atlas-dot-mode .atlas-line {
+  stroke-width: calc(0.7px / var(--atlas-zoom-scale, 1));
+}
+#atlas-stage.atlas-dot-mode .atlas-line.atlas-line-highlight {
+  stroke-width: calc(1.4px / var(--atlas-zoom-scale, 1));
+}
+/* A/C/em chip text 模式反向縮放：視覺恆 ~12px，zoom 只拉開間距 */
+#atlas-stage.atlas-dot-mode.atlas-text-zoom .atlas-anchor:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name {
+  font-size: calc(0.75rem / var(--atlas-zoom-scale, 1));
+}
+#atlas-stage.atlas-dot-mode .atlas-anchor:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name {
+  transition: background-color 0.25s ease;
+}
+#atlas-stage.atlas-dot-mode .atlas-anchor:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name-en,
+#atlas-stage.atlas-dot-mode .atlas-anchor:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name-zh {
+  transition: opacity 0.25s ease;
+}
+/* 圓點模式（未過 zoom 門檻）：文字隱藏、B chip 底透明（inline 要 !important 蓋） */
+#atlas-stage.atlas-dot-mode:not(.atlas-text-zoom) .atlas-anchor:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name {
+  background-color: transparent !important;
+}
+#atlas-stage.atlas-dot-mode:not(.atlas-text-zoom) .atlas-anchor:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name-en,
+#atlas-stage.atlas-dot-mode:not(.atlas-text-zoom) .atlas-anchor:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name-zh {
+  opacity: 0;
+}
+/* view/page 切換的 cover 層在圓點模式會閃整片文字 box 色塊 → 收掉 */
+#atlas-stage.atlas-dot-mode:not(.atlas-text-zoom) .atlas-anchor:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name-cover {
+  display: none;
+}
+/* 圓點本體：畫在 anchor 端（box 起點）而非 box 中心 —— layout clamp 只保證 anchor 在畫面內 */
+#atlas-stage.atlas-dot-mode .atlas-anchor:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  background-color: var(--atlas-chip-c, currentColor);
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+#atlas-stage.atlas-dot-mode .atlas-anchor.atlas-side-left:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name::after {
+  left: auto;
+  right: 0;
+  margin: -5px -5px 0 0;
+}
+#atlas-stage.atlas-dot-mode.atlas-text-zoom .atlas-anchor:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name::after {
+  opacity: 0;
+}
+
 /* ── 橫向手機（landscape gate，同 landscape.css）＝星雲-only 純瀏覽（user 2026-07-06）──
    ① 左側 filter chips（含 career/subchip）+ layout btn 全收，只留 header mode btn
-   ② A/B/C 文字 chip → 圓點（D 國家方塊照舊）；span box 尺寸不變（佈局/量測照舊），
-      只做視覺隱藏 + ::after 畫圓點（色 = --atlas-chip-c，atlas.js 於 span 建立時 inline 設）
-   ③ zoom 過 TEXT_ZOOM_SCALE → atlas.js 給 #atlas-stage 加 .atlas-text-zoom：圓點淡出、文字淡入
-   觸控手勢（pan / pinch / tap zoom-in）在 atlas.js isLandscapeGateAtlas 分支 */
+   ② A/B/C 文字 chip → 圓點（圓點/zoom 規則已上移到 .atlas-dot-mode class block，直向橫向共用）
+   ③ 以下 media 只保留 list view 3-col 重排 + stage top（橫向專屬）
+   觸控手勢（pan / pinch / tap zoom-in）在 atlas.js isMobileAtlas 分支 */
 @media (orientation: landscape) and (max-height: 500px) {
   /* ── list view 重排（user 2026-07-07）：三顆分頁 tab 進 header 列（logo 右側）、
      單分類內容 3 sub-col、chevron 跨全寬貼底、alumni 左欄 Hosting/Employment 子分頁鈕。
@@ -1122,87 +1248,10 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
     background: #000000;
     color: #FFFFFF;
   }
-  /* 擋掉瀏覽器手勢（頁面 pinch-zoom / 滑動），交給 atlas.js touch handlers；
-     top 64＝手機 logo 下緣（base 80 是桌面 header 高）——星雲用滿 header 以外的空間
-     （搭配 atlas.js gate defaultScale 1.0 鋪滿，user 2026-07-07） */
+  /* stage top：橫向 gate 64（矮橫向 logo 小，星雲用滿 header 以外空間）；touch-action + 圓點/zoom
+     反向縮放規則已上移到本檔上方 .atlas-dot-mode class block（直向橫向共用一套，2026-07-09） */
   #atlas-stage {
-    touch-action: none;
     top: 64px;
-  }
-  /* 系友主持企業環（co-*）豁免圓點化：完整 chip 呈現，字級兩態（user 2026-07-06 五改）：
-     overview（圓點模式）0.5rem 小巧、過 zoom 門檻升 0.75rem＝跟其他 floating 文字同視覺大小；
-     padding 跟字級同一個反向係數 → 方塊與文字等比、zoom 後 chip 視覺尺寸恆定（三改）*/
-  .atlas-anchor-co .atlas-name {
-    font-size: calc(0.5rem / var(--atlas-zoom-scale, 1));
-    padding: calc(2px / var(--atlas-zoom-scale, 1)) calc(3px / var(--atlas-zoom-scale, 1));
-    transition: font-size 0.25s ease;
-  }
-  #atlas-stage.atlas-text-zoom .atlas-anchor-co .atlas-name {
-    font-size: calc(0.75rem / var(--atlas-zoom-scale, 1));
-  }
-  /* D 國家方塊：反向縮放＝視覺尺寸封頂 20px、放大不再跟著變大（user 2026-07-06 三改）*/
-  .atlas-cat-d .atlas-name {
-    width: calc(20px / var(--atlas-zoom-scale, 1));
-    height: calc(20px / var(--atlas-zoom-scale, 1));
-  }
-  /* 連線 stroke 反向縮放＝視覺粗細恆定（user 2026-07-06）。
-     vector-effect: non-scaling-stroke 只補償 SVG 內部 CTM、不管外層 zoomEl 的 CSS transform，
-     沒這條 zoom 時線會等比變粗。城市間常駐線 + 點擊/hover 亮起的 item→國家線（兩態）都要 */
-  .atlas-city-line {
-    stroke-width: calc(1px / var(--atlas-zoom-scale, 1));
-  }
-  .atlas-line {
-    stroke-width: calc(0.7px / var(--atlas-zoom-scale, 1));
-  }
-  .atlas-line.atlas-line-highlight {
-    stroke-width: calc(1.4px / var(--atlas-zoom-scale, 1));
-  }
-  /* 其他文字（A/C/em chip）text 模式反向縮放：視覺恆 ~12px，zoom 只拉開間距（可讀性）*/
-  #atlas-stage.atlas-text-zoom .atlas-anchor:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name {
-    font-size: calc(0.75rem / var(--atlas-zoom-scale, 1));
-  }
-  .atlas-anchor:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name {
-    transition: background-color 0.25s ease;
-  }
-  .atlas-anchor:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name-en,
-  .atlas-anchor:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name-zh {
-    transition: opacity 0.25s ease;
-  }
-  /* 圓點模式（未過 zoom 門檻）：文字隱藏、B chip 底色透明（inline style 要 !important 蓋）*/
-  #atlas-stage:not(.atlas-text-zoom) .atlas-anchor:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name {
-    background-color: transparent !important;
-  }
-  #atlas-stage:not(.atlas-text-zoom) .atlas-anchor:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name-en,
-  #atlas-stage:not(.atlas-text-zoom) .atlas-anchor:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name-zh {
-    opacity: 0;
-  }
-  /* view/page 切換的 cover 層在圓點模式會閃整片文字 box 色塊 → 收掉 */
-  #atlas-stage:not(.atlas-text-zoom) .atlas-anchor:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name-cover {
-    display: none;
-  }
-  /* 圓點本體：畫在 anchor 端（box 起點）而非 box 中心 —— layout clamp 只保證 anchor 在畫面內，
-     box 中心會偏移半個文字寬、scale 1.0 下右緣圓點出界（2026-07-07）。
-     side-left（文字往左長）畫在右端＝anchor；JS handleTap 的圓點座標計算同步 */
-  .atlas-anchor:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 50%;
-    width: 10px;
-    height: 10px;
-    margin: -5px 0 0 -5px;
-    border-radius: 50%;
-    background-color: var(--atlas-chip-c, currentColor);
-    pointer-events: none;
-    transition: opacity 0.25s ease;
-  }
-  .atlas-anchor.atlas-side-left:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name::after {
-    left: auto;
-    right: 0;
-    margin: -5px -5px 0 0;
-  }
-  #atlas-stage.atlas-text-zoom .atlas-anchor:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name::after {
-    opacity: 0;
   }
   /* detail 面板矮橫向不捲動也不裁字：改由 JS 縮小每批筆數（DETAIL_BATCH_SIZE gate 分支＝3），
      靠既有 4s 分批輪播消化長清單（user 2026-07-06 推翻前一版 scroll 方案） */
