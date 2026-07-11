@@ -109,13 +109,14 @@
     pointer-events: none;
   }
 
-  /* slide-in 場景例外（faculty / courses）：header bars 不被 clip-path 收，logo + mode + menu 視覺都還在
-   * → 允許 user 點 logo 回首頁 / 切 mode / 開選單；slide-in 本身用 backBtn / overlay 關閉
-   * has-slide-in class 由 slide-in-bg-sync.openSlideInBg / courses-map openSlideIn 加在 html，close 時移除
-   * 兩條規則：
-   *   1. 父層 #site-header pointer-events:auto（蓋過上面 body.lightbox-open 的 :none）
-   *   2. 手機 logo / mode-btn / menu-btn 直接 pointer-events:auto（雙保險，避免某 cascade order 翻車） */
-  html.has-slide-in body.lightbox-open #site-header,
+  /* slide-in 場景例外（faculty / courses）：可互動的 header 元素（logo / nav 連結 / mode / menu）
+   * pointer-events:auto 可點；has-slide-in class 由 slide-in-bg-sync.openSlideInBg / courses-map
+   * openSlideIn 加在 html，close 時移除。
+   * ⚠️ 只開「互動元素」不開 #site-header 父層：父層開 auto 會讓整個 header 條的透明容器
+   * （z 已被 raiseHeaderZ 拉到 10000）攔截 hit-test——faculty 手機返回鍵正好釘在 header 右側
+   * menu 鈕位（panel z-150 在 header 下層），父層 auto 時點擊被透明 div 吃掉、關不了 slide-in
+   * （user 2026-07-09）。父層維持 body.lightbox-open 的 none，點擊穿透到底下 panel/overlay；
+   * 被 clip-path 收掉的鈕（手機 mode/menu）clip 也移除 hit area，不會誤攔。 */
   html.has-slide-in body.lightbox-open #site-header a,
   html.has-slide-in body.lightbox-open #site-header button,
   html.has-slide-in body.lightbox-open #site-header #mode-btn-mobile,

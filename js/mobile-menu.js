@@ -63,10 +63,16 @@ export function initMobileMenu() {
     document.documentElement.style.overflowY = prevHtmlOverflowY;
   }
 
+  // menu 開著時暫停會逐幀重繪的頁面 loop（各頁暴露的 hook，不在該頁 = undefined no-op）：
+  // 持續 jank 會把 menu 時間制 GSAP reveal 吃掉「選項直接跳出來」甚至卡死；overlay 全屏蓋住內容，暫停零損失。
+  // /create = p5 draw loop、/atlas = 星雲 float loop。
+  function setPageLoopsPaused(paused) {
+    window.setCreateAppPaused?.(paused);
+    window.setAtlasFloatPaused?.(paused);
+  }
+
   function openMenu() {
-    // /create 頁：menu 開著時暫停 p5 draw loop（sketch.js 暴露的 hook，其他頁 undefined = no-op）。
-    // p5 每幀重繪的持續 jank 會把時間制 reveal 吃掉「選項直接跳出來」；overlay 全屏蓋住畫布，暫停零損失。
-    window.setCreateAppPaused?.(true);
+    setPageLoopsPaused(true);
     // ⚠️ 先把選項藏好（clip wrapper + yPercent:100）再讓 nav 可見（user 2026-06-24 報「選項沒 stagger、閃一下出現」）：
     // 上次 reveal onComplete 的 clearProps:'transform' 讓選項停在全顯態 → 若先 .open 再 set hidden，
     // nav 一可見會閃一幀全顯選項才被壓回隱藏。把 hide 提到 .open 之前，這一幀不存在。
@@ -152,7 +158,7 @@ export function initMobileMenu() {
             // 選項收完、nav 還全屏蓋著（0.05s buffer 才開始滑出）→ 此刻先恢復 p5：canvas 在被揭開前
             // 用「當前」hue 重繪好，mode3 wheel 跑著時 slide 露出的才不是暫停當下的舊色字（user 2026-07-03 報）。
             // 最脆弱的 items 收合仍全程無 p5 競爭；剩下的 nav 滑出是單一 transform，與 p5 並行可承受。
-            onComplete: () => { window.setCreateAppPaused?.(false); },
+            onComplete: () => { setPageLoopsPaused(false); },
           });
         }
         gsap.to(nav, {
@@ -161,11 +167,11 @@ export function initMobileMenu() {
           ease: EASE.exitSoft,
           delay: itemsTotal,
           // resume 保險（itemCount 0 / items tween 被 kill 的殘局；重複 loop() 無害）；離頁場景 _p5 已移除 = no-op
-          onComplete: () => { busy = false; window.setCreateAppPaused?.(false); resolve(); },
+          onComplete: () => { busy = false; setPageLoopsPaused(false); resolve(); },
         });
       } else {
         nav.style.transform = 'translateX(-100%)';
-        window.setCreateAppPaused?.(false);
+        setPageLoopsPaused(false);
         resolve();
       }
     });

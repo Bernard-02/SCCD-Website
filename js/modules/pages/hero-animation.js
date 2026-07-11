@@ -172,26 +172,31 @@ function randomizeHeroLayout() {
   if (!grid) return;
   if (window.innerWidth < 768) return;  // 手機 flex stack，不 random
 
-  const TEXT_TOP_BOUND = 140;
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+  // 矮橫向（≥768 寬、<500 高；2026-07-10 起也走桌面隨機排版）縮小常數組：段落收窄（兩寬 chip 在 844
+  // 寬才擺得開）、上下 bound / buffer 等比收緊；段落「高」不靠 placement 控——landscape.css 對
+  // .hero-text-en/cn 設 max-height 內捲，bbox 量到的就是 cap 後的高。
+  const isShort = H < 500;
+  const TEXT_TOP_BOUND = isShort ? 110 : 140;
   const BANNER_TOP_BOUND = 90;
   // 文字 chip 距 viewport 左右邊界的最小留白：寬螢幕用比例(4%)、48px 下限（user 2026-06-07 反映 chip 太靠邊）。
   // 下限 48 仍保證最寬段落(TEXT_MAX_W_PX 650)在 768px 放得下（650+48*2=746<768）；寬螢幕 4% 給更舒服的 gutter。
-  const SIDE_MARGIN = Math.max(48, Math.round(window.innerWidth * 0.04));
-  const BOTTOM_MARGIN = 30;
+  // 矮橫向下限 24：380×2+34×2=828 ≤ 844，兩段落才有機會同帶並排不互撞。
+  const SIDE_MARGIN = Math.max(isShort ? 24 : 48, Math.round(W * 0.04));
+  const BOTTOM_MARGIN = isShort ? 20 : 30;
   // BR/BL chip 額外往上抬的 buffer：wrapper rotate ±3° + 寬到 TEXT_MAX_W_PX=550 時
   // 旋轉後 visual 最低點比 getBoundingClientRect 量到的 bbox 底再低 ~sin(3°)×550 ≈ 29px。
   // 不補 buffer，scroll 時長段落 chip 底部會穿出 `<section h-screen overflow-hidden>` 被切。
   // 只影響下方 corner（上方 corner 撞 header / logo 另有 TEXT_TOP_BOUND 處理）。
-  const BOTTOM_ROTATION_BUFFER = 60;
+  const BOTTOM_ROTATION_BUFFER = isShort ? 24 : 60;
   // wrapper rotate ±3° + 長段落 chip 寬可達 TEXT_MAX_W_PX=650：bbox 雖以 visual rect 量但兩 chip 視覺
   // 邊緣仍可能因 rotation 投影貼很近；pad 32 ≈ sin(3°)×650 給足旋轉互不咬的視覺間距。
   // 之前 12 在 user 截圖出現英文 chip 底部「vision.」被中文 chip 頂部蓋住的情況。
-  const TEXT_COLLISION_PAD = 32;
+  const TEXT_COLLISION_PAD = isShort ? 20 : 32;
   const CORNER_JITTER_FRAC = 0.18;  // 文字距 corner anchor 最多 18% 可用空間（保留邊緣感）
-  const TEXT_MIN_W_PX = 500;        // EN / CN 段落最小 max-width（過窄會換太多行、bbox 變高觸發避碰失敗）
-  const TEXT_MAX_W_PX = 650;        // EN / CN 段落最大 max-width（每次 refresh 兩段各自隨機）
-  const W = window.innerWidth;
-  const H = window.innerHeight;
+  const TEXT_MIN_W_PX = isShort ? 280 : 500;  // EN / CN 段落最小 max-width（過窄會換太多行、bbox 變高觸發避碰失敗）
+  const TEXT_MAX_W_PX = isShort ? 380 : 650;  // EN / CN 段落最大 max-width（每次 refresh 兩段各自隨機）
 
   function randomizeParagraphWidths() {
     ['hero-text-en', 'hero-text-cn'].forEach(cls => {
@@ -630,8 +635,8 @@ export function waitForHeroAnimDone(maxWaitMs = 4000) {
 // ── 手機共用 hero（.hero-mobile，faculty/courses/activities/admission/curriculum）進退場 ──
 // 比照桌面 buildHeroTimeline 的節奏做手機鏡像（user 2026-06-12「手機 hero 也要有動畫，跟桌面一樣」）：
 //   - bg 圖 clip-path 隨機 4 方向 reveal（= 桌面 .hero-banner，DUR.reveal）
-//   - 4 chip 各包 overflow:hidden mask wrapper、隨機 4 方向滑入；titles 先、texts 接續，
-//     stagger 0.15 / duration 0.9 / overlap 0.4 同桌面常數
+//   - 4 chip 各包 overflow:hidden mask wrapper、隨機 4 方向滑入；照 DOM（=shuffle 後版面）順序
+//     stagger 0.15 / duration 0.9（2026-07-10 起不再 titles 先 texts 後）
 //   - onComplete 發 signalHeroDone → deep-link 等的是「看得見的動畫」而非隱藏的桌面 timeline
 //   - 退場：chip 隨機方向滑出 + bg clip 收合（同桌面 playHeroExit 0.5s / stagger 0.06）
 // 同構參考：degree-show-data-loader.js setupHeroMobileEntrance（該頁 hero 由 async data 填字、
@@ -639,11 +644,11 @@ export function waitForHeroAnimDone(maxWaitMs = 4000) {
 function playMobileHeroEntrance() {
   const mobile = /** @type {HTMLElement} */ (document.querySelector('.hero-mobile'));
   const bg = /** @type {HTMLElement | null} */ (mobile.querySelector('.hero-mobile-bg'));
-  const titles = ['.hero-mobile-title', '.hero-mobile-title-cn']
-    .map(s => /** @type {HTMLElement | null} */ (mobile.querySelector(s))).filter(Boolean);
-  const texts = ['.hero-mobile-text-en', '.hero-mobile-text-cn']
-    .map(s => /** @type {HTMLElement | null} */ (mobile.querySelector(s))).filter(Boolean);
-  const chips = [...titles, ...texts];
+  // DOM 順序收 chip（hero-mobile-sync 可能已 shuffle 疊放順序）：進場照版面順序跑，
+  // 不再 titles 先 texts 後（user 2026-07-10：title 不一定先出現）
+  const chips = /** @type {HTMLElement[]} */ (Array.from(mobile.querySelectorAll(
+    '.hero-mobile-title, .hero-mobile-title-cn, .hero-mobile-text-en, .hero-mobile-text-cn'
+  )));
   if (!bg && chips.length === 0) { signalHeroDone(); return; }
 
   // 減少動態：bg / chip 已由 hero-mobile-sync 設 visibility:visible 且在自然位置（無 offset）＝終態，
@@ -666,6 +671,11 @@ function playMobileHeroEntrance() {
       wrapper.style.marginTop = mt;
       chip.style.marginTop = '0';
     }
+    // 隨機水平落點（hero-mobile-sync 設 inline align-self）：wrap 後 wrapper 才是 flex child，跟著轉移
+    if (chip.style.alignSelf) {
+      wrapper.style.alignSelf = chip.style.alignSelf;
+      chip.style.removeProperty('align-self');
+    }
     chip.parentNode.insertBefore(wrapper, chip);
     wrapper.appendChild(chip);
   });
@@ -678,20 +688,10 @@ function playMobileHeroEntrance() {
   }
   const ENTER_STAGGER = 0.15;
   const ENTER_DURATION = 0.9;
-  const ENTER_OVERLAP = 0.4;
-  let at = 0;
-  let prevLen = 0;
-  let scheduled = false;
-  [titles, texts].forEach(group => {
-    if (group.length === 0) return;
-    if (scheduled) at = Math.max(0, at + (prevLen - 1) * ENTER_STAGGER + ENTER_DURATION - ENTER_OVERLAP);
-    group.forEach((chip, i) => {
-      gsap.set(chip, offsetFor(pickHeroDir()));
-      tl.to(chip, { xPercent: 0, yPercent: 0, duration: ENTER_DURATION, clearProps: 'transform',
-        onStart: () => { /** @type {HTMLElement} */ (chip).dataset.heroRevealStarted = '1'; } }, at + i * ENTER_STAGGER);
-    });
-    prevLen = group.length;
-    scheduled = true;
+  chips.forEach((chip, i) => {
+    gsap.set(chip, offsetFor(pickHeroDir()));
+    tl.to(chip, { xPercent: 0, yPercent: 0, duration: ENTER_DURATION, clearProps: 'transform',
+      onStart: () => { /** @type {HTMLElement} */ (chip).dataset.heroRevealStarted = '1'; } }, i * ENTER_STAGGER);
   });
   // paused + double-rAF 才 play：init 後同 task 的其餘頁面 init / 重排可能把首 paint 拖到 tween 中段，
   // GSAP 時間制 → paint 出來時已跑一半＝「閃一下出來」（degree-show 2026-06-11 實測踩過）
@@ -813,11 +813,10 @@ export function initHeroAnimation() {
 
   // 手機共用 hero：桌面 timeline 動的是 .hero-rand-grid 內元素（手機 display:none，動了也看不見）
   // → 改跑 .hero-mobile-* 鏡像進退場（見 playMobileHeroEntrance），桌面整段不建構。
-  // 矮橫向也走手機 hero（user 2026-07-06 待辦 (b) 落地：桌面隨機排版為 800px+ 高設計、橫向互疊救不了；
-  // landscape.css 3 區切顯示）。轉向兩向都顯示手機 hero → 原「轉向補 build 桌面 hero」過渡方案退役。
-  if ((window.innerWidth < 768
-      || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches)
-    && document.querySelector('.hero-mobile')) {
+  // 2026-07-10 起 ≥768 寬矮橫向改回桌面隨機排版（randomizeHeroLayout 矮視窗常數組 + landscape.css desc
+  // 限高內捲拆掉「390px 高必互疊」前提；user：圖同桌面等比縮、分佈同桌面）→ gate 只剩寬度；
+  // <768 窄橫向（SE 等）base CSS 本就顯 .hero-mobile，跟直向同路徑。跨 gate 轉向由 orientation-reload 重載。
+  if (window.innerWidth < 768 && document.querySelector('.hero-mobile')) {
     playMobileHeroEntrance();
     return;
   }

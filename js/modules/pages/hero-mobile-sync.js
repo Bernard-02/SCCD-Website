@@ -54,6 +54,28 @@ export function initHeroMobileSync() {
     }
   });
 
+  // 隨機版面（4 頁共用 hero 才有中文段落 chip；degree-show-detail 自有排版、無 .hero-mobile-text-cn 不參與）：
+  // chip 疊放順序 shuffle + 各 chip 隨機水平落點，配 hero.css .hero-mobile-rand
+  // （portrait 下 stack 撐滿一屏 space-between 散開、desc 限高內捲）＝title 不一定在最上、整組保證一屏內
+  const stack = mobile.querySelector('.hero-mobile-text');
+  if (stack && stack.querySelector('.hero-mobile-text-cn')) {
+    const chips = Array.from(stack.children);
+    for (let i = chips.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [chips[i], chips[j]] = [chips[j], chips[i]];
+    }
+    const aligns = ['flex-start', 'center', 'flex-end'];
+    chips.forEach(el => {
+      /** @type {HTMLElement} */ (el).style.alignSelf = aligns[Math.floor(Math.random() * aligns.length)];
+      stack.appendChild(el);
+    });
+    ['.hero-mobile-text-en', '.hero-mobile-text-cn'].forEach(s => {
+      const el = stack.querySelector(s);
+      if (el) el.classList.add('no-scrollbar');  // 內捲盒沿用全站隱藏 scrollbar utility
+    });
+    mobile.classList.add('hero-mobile-rand');
+  }
+
   // Sync 完才 reveal，避免首屏空殼閃白（CSS 預設 visibility:hidden）
   mobile.style.visibility = 'visible';
 }

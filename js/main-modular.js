@@ -49,10 +49,9 @@ import { initMarquee } from './modules/pages/index-marquee.js';
 import { initYTCard } from './modules/pages/index-yt-card.js';
 import { initAdmissionSectionSwitch } from './modules/pages/admission-section-switch.js';
 
-// Import Library Modules
-import { initLibraryCard } from './modules/pages/library-card.js';
-import { initLibraryPanels, resolveInitialTabFromHash, isItemDeepLinkHash } from './modules/pages/library-panels.js';
-import { initLibraryViewer, initPdfViewer } from './modules/pages/library-viewer.js';
+// Library 三模組（panels 118KB + viewer 45KB + card 34KB）改動態載入：進 library 頁才 import。
+// viewer 例外：activities / alumni 的共用 PDF viewer 也用它 → 各自呼叫點同樣 dynamic import
+// （module cache 共用一份；viewer 的 modal 是單例 guard，多次 initPdfViewer 安全）。
 import { setActiveNavBtn } from './modules/ui/section-switch-helpers.js';
 
 // Import Lightbox Shell（共用 enter/exit 行為；SPA cleanup 需 reset openCount）
@@ -62,11 +61,13 @@ import { resetLightboxMode, getHeaderTargets } from './modules/lightbox/lightbox
 import { runPageCleanups } from './modules/ui/page-cleanup.js';
 import { registerPageExit } from './modules/ui/page-exit.js';
 
-// Import Generate Page Modules
-import { initCreatePage, cleanupCreatePage } from './modules/pages/create-app.js';
-
-// Import Atlas Page Modules
-import { initAtlas, cleanupAtlas } from './modules/pages/atlas.js';
+// 大型頁面模組（atlas 223KB / library 三檔 197KB / create-app 30KB）改動態載入：進該頁才
+// import，其他頁省下載＋解析。xxxModule 存已載入的 namespace 供 cleanup 用；lazySeq 在換頁
+// cleanup 時 ++，各分支 init 前比對 seq → 結構保證「下載中快速連點換頁」不會 stale/double-init。
+// （idle-standby 的待機星雲另走自己的 dynamic import，module cache 共用同一份。）
+let atlasModule = null;
+let createAppModule = null;
+let lazySeq = 0;
 
 // Import Alumni Page Module
 import { initAlumni } from './modules/pages/alumni.js';
@@ -115,11 +116,12 @@ export function cleanupPageModules(destPage) {
     }
   }
 
+  // 動態載入頁的 cleanup：沒載過＝沒 init 過可跳過；seq++ 使還在下載中的 pending init 失效
+  lazySeq++;
   // 拆 iframe 後 generate-app 在主 window 跑 p5 instance，離開頁面要 _p5.remove() 釋放 RAF / canvas
-  cleanupCreatePage();
-
+  if (createAppModule) createAppModule.cleanupCreatePage();
   // Atlas 頁：移除 wheel listener / RAF
-  cleanupAtlas();
+  if (atlasModule) atlasModule.cleanupAtlas();
 
   // 404 頁：移除 body.page-404 class（CSS rule 隨 main innerHTML 替換已消失，class 殘留不致影響其他頁但仍清掉保乾淨）
   cleanup404();
@@ -287,13 +289,20 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
     initActivitiesSectionSwitch('exhibitions', fromUserNav);
     initActivitiesSearch();
     // ref 內 pdfUrl 觸發共用 PDF viewer（與 library / alumni 共用 sccd:open-pdf）
-    initPdfViewer();
+    // viewer 動態載入：modal 單例 guard、重複 init 安全 → 不需 seq guard
+    import('./modules/pages/library-viewer.js').then((m) => m.initPdfViewer());
   }
 
 
   // --- Atlas Page ---
   if (page === 'atlas') {
-    initAtlas();
+    const seq = ++lazySeq;
+    import('./modules/pages/atlas.js').then((m) => {
+      atlasModule = m;
+      // 下載期間使用者已換頁（cleanup 又 ++ 過）→ 放棄這次 init；initAtlas 內部
+      // 還有 #atlas-main 缺席 early-return 雙保險
+      if (seq === lazySeq) m.initAtlas();
+    });
   }
 
   // --- Alumni Page ---
@@ -304,7 +313,12 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
   // --- Generate Page ---
   if (page === 'generate') {
     // generate-app 在主 window 跑 p5 instance（attach 到 #create-app），mode 由 sessionStorage 讀
-    initCreatePage();
+    // initCreatePage 自身另有 stale-init guard（loadAllScripts await 期間切走）→ seq 是外層第一道
+    const seq = ++lazySeq;
+    import('./modules/pages/create-app.js').then((m) => {
+      createAppModule = m;
+      if (seq === lazySeq) m.initCreatePage();
+    });
 
     // 觸發 header logo typewriter 動畫；冷載入時 header async fetch 還沒到，等 header:ready
     const fireGenLogo = () => {
@@ -321,21 +335,28 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
 
   // --- Library Page ---
   if (page === 'library') {
-    initLibraryViewer();
-    const panels = initLibraryPanels();
+    const seq = ++lazySeq;
+    Promise.all([
+      import('./modules/pages/library-viewer.js'),
+      import('./modules/pages/library-panels.js'),
+      import('./modules/pages/library-card.js'),
+    ]).then(([viewerMod, panelsMod, cardMod]) => {
+    if (seq !== lazySeq) return;   // 下載期間已換頁（cleanup ++ 過）→ 頁面 DOM 已 swap，放棄 init
+    viewerMod.initLibraryViewer();
+    const panels = panelsMod.initLibraryPanels();
 
     // refresh / 直接開 / 上一頁下一頁（fromUserNav=false）若帶 item 級 deep-link hash（award/album/document/press）
     // → 清掉 hash 回 default panel（awards）、不導航到該項目（對齊 activities/curriculum：refresh = 直接點進來的 default 樣子，user 2026-06-04）。
     // 清掉後 resolveInitialTabFromHash 回 awards、handleHash 讀到空 hash 自動 no-op。
     // 純 tab hash（#press 等使用者瀏覽時持久化的分頁狀態）保留不清。
-    if (!fromUserNav && isItemDeepLinkHash()) {
+    if (!fromUserNav && panelsMod.isItemDeepLinkHash()) {
       history.replaceState(history.state, '', window.location.pathname);
     }
 
     // deep-link 進場時直接以 hash 推測的目標 panel 為 gray 中心，
     // 不要先進 awards 再 switchPanel（會看到 awards 一閃即逝）。
     // resolveInitialTabFromHash 看 hash 前綴（如 #f-* → files），無 hash 則 awards。
-    const initialTab = resolveInitialTabFromHash();
+    const initialTab = panelsMod.resolveInitialTabFromHash();
 
     // 手機版：跳過 card stack 幾何計算（randomize x/y 容易超出 viewport → 水平位移），
     // 改用頂端 tab bar 直接 panels.showPanel；layout 由 CSS 處理
@@ -443,7 +464,7 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
     // 進場動畫期間的第一次 onTabSwitch 是自動觸發的（預設 tab），不能覆蓋 deep-link hash
     // 只有 onEntranceDone 後的 tab 切換才是使用者手動點擊
     let entranceDone = false;
-    initLibraryCard({
+    cardMod.initLibraryCard({
       initialTab,
       // tab swap 揭露前 pre-swap panel display + hide children，
       // 避免 clip 揭露中看到舊 panel 的 chip 在左上角 visible
@@ -469,6 +490,7 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
         entranceDone = true;
       },
     });
+    });  // end library 三模組動態載入 .then
   }
 
   // --- Legal Pages ---

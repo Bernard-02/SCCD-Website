@@ -204,6 +204,28 @@
     font-size: var(--font-size-p1);
   }
 
+  /* 隨機版面（hero-mobile-sync.js 對 4 頁共用 hero 加 .hero-mobile-rand；degree-show-detail 不參與）：
+     - stack 撐滿一屏 + space-between：shuffle 後的 chip 直向散開（title 不一定在最上）
+     - 中英 desc 限高 + 內捲（50svh-220px = 一屏扣 padding 228/雙 title ~126/gaps 後均分兩盒；6rem floor 保底可讀）
+     - bg 高度收斂到一屏內（原 4/5.5 aspect 在窄高機身底緣會戳進下一 section）
+     portrait 限定：橫向手機走 landscape.css「自然增高、window 往下捲」路線，不套一屏預算 */
+  @media (max-width: 767px) and (orientation: portrait) {
+    .hero-mobile-rand .hero-mobile-text {
+      min-height: calc(100svh - 180px - 3rem);
+      justify-content: space-between;
+    }
+    .hero-mobile-rand .hero-mobile-text-en,
+    .hero-mobile-rand .hero-mobile-text-cn {
+      margin-top: 0;
+      max-height: max(6rem, calc(50svh - 220px));
+      overflow-y: auto;
+    }
+    .hero-mobile-rand .hero-mobile-bg {
+      height: calc(100svh - 240px);
+      aspect-ratio: auto;
+    }
+  }
+
   /* chip padding：跟桌面 [data-hero-hl] 一致；手機段落較長收窄 padding 視覺節制 */
   @media (max-width: 767px) {
     [data-hero-hl] {
@@ -211,6 +233,13 @@
     }
   }
 
+
+  /* DSD hero 年份 chip padding 收窄（user 2026-07-10「年份 box padding 再小一點」）：
+     hero-animation.js 給全站 [data-hero-hl] 統一 inline 0.5rem 0.6rem → 只縮這頁的年份、
+     !important 蓋 inline；值沿用手機段落收窄慣例 0.3/0.45。 */
+  #text-year {
+    padding: 0.3rem 0.45rem !important;
+  }
 
   /* Degree show detail sticky info card chip — 沿用 anchor-nav-inner pattern
      外 .sticky-chip：transparent wrapper，吃 clip-path reveal + rotation；中性 transform-origin: left center
