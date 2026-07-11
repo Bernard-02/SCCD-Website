@@ -301,7 +301,9 @@ export function initFacultySlideIn() {
         const measureProfile = () => {
           const profile = document.getElementById('faculty-profile-block');
           if (profile && slideInPanel) {
-            slideInPanel.style.setProperty('--faculty-profile-h', `${profile.offsetHeight}px`);
+            // getBoundingClientRect 取精確浮點高（offsetHeight 取整會差 <1px，title 釘住位置
+            // 跟 profile 底之間露出 sub-pixel 縫）
+            slideInPanel.style.setProperty('--faculty-profile-h', `${profile.getBoundingClientRect().height}px`);
           }
         };
         requestAnimationFrame(measureProfile);
@@ -354,7 +356,8 @@ export function initFacultySlideIn() {
     if (!slideIn) return;
     if (slideIn.classList.contains('invisible')) return;
 
-    exitLightboxMode();
+    // deferHeaderShow：slide-in 往右滑出，header bars 立即揭露會白 bar 冒在頂部蓋住離場中的 panel → 延後到 panel 走完
+    exitLightboxMode({ deferHeaderShow: true });
 
     closeSlideInBg({
       overlay: slideInOverlay,
