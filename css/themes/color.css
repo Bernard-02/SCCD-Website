@@ -150,14 +150,11 @@ body.mode-color #sticky-branch-chip .sticky-chip-inner {
   color: var(--theme-fg-inverse) !important;
 }
 
-/* Degree Show detail 手機 event 標題 chip（buildMobileEventTitle）：JS inline 隨機 accent 底 + .text-black 黑字，
- * mode-color 翻 strict B/W（同上 sticky chip pattern；chip 是 md:hidden 桌面不顯示，不需 media scope）。
- * 字選擇器必須 p.text-p1.text-black 拉到 (0,3,1)：下方廣域 `.text-black:not(...):not(...)` 是 (0,3,0)+!important，
- * 寫少一級會被拉回 theme-fg 跟同色 chip 底融在一起（同 [data-hero-hl] 的坑，loader 的 p 固定帶 text-p1+text-black） */
-body.mode-color .event-mobile-title-chip {
+/* Degree Show detail 手機 Next Project 色塊卡（2026-07-09 取代原 event 標題 chip）：JS inline 隨機
+ * accent 底、黑字由 .dsd-next-card-m 的 color 給（不掛 .text-black），mode-color 翻 strict B/W
+ * （同上 sticky chip pattern；卡是 md:hidden 桌面不顯示，不需 media scope）。字繼承卡 color，一條規則即可。 */
+body.mode-color .dsd-next-card-m {
   background: var(--theme-fg) !important;
-}
-body.mode-color .event-mobile-title-chip p.text-p1.text-black {
   color: var(--theme-fg-inverse) !important;
 }
 

@@ -12,6 +12,17 @@
    snap 點 = 標了 .snap-zone 的元素（各頁 HTML）。目前掛在 index / about / faculty。
    ⚠️ mandatory 對「比視窗高的 section」會難讀中段（about 因此用 proximity；faculty 卡片多時若卡，
       把 router 那行的 faculty 從 mandatory 移到 proximity 即可）。 */
+/* window scroll anchoring 全站關閉（2026-07-09）：本站的捲動落點全由自己的動畫/對齊邏輯管理，
+   anchoring 的「補償」只會打架——已三度中招：①activities search bar 收合抖動（box 級已關）
+   ②list 開合期間 anchoring 逐幀微調 scrollY＝畫面顫動 ③展開把 footer 往下推時 anchor 選在
+   footer → scrollY 被跟著補 ~30px＝內容鑽進 pinned title 底下。逐一排除 anchor 候選是打地鼠
+   （headless 實測排掉 section+footer 後 anchor 換位、振盪仍在；html 級關閉 → 振盪 0、落點 −0.4px）。
+   Safari 未實作 anchoring → 全關＝跨瀏覽器行為一致。設在 html（window 的 scroller）＝整個
+   window 捲動不做 anchoring；box scroller 各自的 anchoring 不受此影響（如 .activities-scroll-col 另關）。 */
+html {
+  overflow-anchor: none;
+}
+
 @media (min-width: 768px) and (prefers-reduced-motion: no-preference) {
   html.snap-mandatory { scroll-snap-type: y mandatory; }
   html.snap-proximity { scroll-snap-type: y proximity; }

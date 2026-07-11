@@ -291,10 +291,21 @@
     font-size: var(--font-size-p1);
   }
 
-  /* Works 文字卡片（手機 text-在上 video-在下）：各 panel 描述長短不一 → 影片起始位置不齊、cross-slide 切換時跳動（落差）。
-     桌面是 text-左 video-右（同 row 自然對齊），手機改給文字卡固定 min-height → 影片都從同一位置開始、切換不跳。 */
-  .class-works-panel .grid-20 > div:first-child {
-    min-height: 8.25rem;
+  /* Works panel（user 2026-07-09 對調）：手機影片在上、文字盒在下（HTML order-1/order-2），
+     pt-3xl(96)→md，文字盒固定高吃滿剩餘一屏、盒內捲（同 vision/[data-class-hl] pattern）。
+     360 = 292 works 落點 + 24 pt + 20 row-gap + 24 底部呼吸，再扣 16:9 影片高
+     （=(100vw − 2×container-padding)×9/16）；落點/nav 高度配對組見 scroll-snap.css，改要同步。
+     影片置頂＋文字盒定高 → 各 panel 高度天然一致，原 first-child min-height 8.25rem 對齊墊高退役。 */
+  #class-works-panels {
+    padding-top: var(--spacing-md);
+  }
+  .class-works-panel [data-works-hl] {
+    height: max(calc(100svh - 360px - (100vw - 2 * var(--container-padding)) * 9 / 16), 150px);
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+  .class-works-panel [data-works-hl]::-webkit-scrollbar {
+    display: none;
   }
 
   /* Class 圖片（手機＝單圖置中自動輪播，user 2026-07-07；slot opts 在 class-images-slideshow.js）——
@@ -306,20 +317,27 @@
   .class-info-panel .division-images {
     display: block !important;
     overflow: visible !important;
-    min-height: 320px;
+    min-height: 240px;
   }
   .class-info-panel .class-img {
     top: 50% !important;
-    max-width: 220px;
+    max-width: 170px;
   }
   .class-info-panel .class-img.class-img--landscape {
-    max-width: 320px;
+    max-width: 250px;
   }
 
-  /* Class 説明文字盒（user 2026-07-07）：手機 max-height 內部捲、捲軸藏——同 #overview [data-overview-hl] pattern。
+  /* 圖上方留白收斂（user 2026-07-09）：HTML pt-2xl(64) → md，配合圖縮小讓整個 panel 進一屏 */
+  #class-info-area {
+    padding-top: var(--spacing-md);
+  }
+
+  /* Class 説明文字盒（user 2026-07-09 二改）：固定高度盒內捲（原 45vh max-height 會超出畫面底）。
+     587 = 188 class 落點 + 91 division nav + 24 pt + 240 圖 + 20 grid row-gap + 24 底部呼吸，
+     與 anchor strip / division nav 高度配對組同步（見 scroll-snap.css）；max() 150 保小屏最低可讀高。
      [data-class-hl] 是 highlight 底色盒（inline display:inline-block），盒內捲底色跟著滿盒。 */
   .class-info-panel [data-class-hl] {
-    max-height: 45vh;
+    height: max(calc(100svh - 587px), 150px);
     overflow-y: auto;
     scrollbar-width: none;
   }
@@ -358,29 +376,121 @@
   }
 
   /* 子展覽 tab：上限 = 容器內容寬的 3/4（user 2026-06-11：讓右邊下一顆露出來，才知道可以往右滑），
-     超長 title 交給 marquee 跑（applyMarqueeOverflow + 上方全域規則） */
-  .event-gallery-section .class-division-btn {
+     超長 title 交給 marquee 跑（applyMarqueeOverflow + 上方全域規則）；
+     .dsd-event-strip = 手機子展覽 sticky tab 列（2026-07-09，取代 per-section 標題 chip）同 cap */
+  .event-gallery-section .class-division-btn,
+  .dsd-event-strip .class-division-btn {
     max-width: calc((100vw - 2 * var(--container-padding)) * 0.75);
   }
 
-  /* exhibition 全寬 gallery：手機縮小（degree-show-gallery.js 手機改 3-slot/42vw 幾何），容器高度跟著收
-     （2026-07-04 由 4-slot/34vw/280px 放大；350 ≈ 280 × 42/34） */
+  /* strip 上方留白 clearance（2026-07-09 修「影片底被吃」）：strip-wrap 的 ::before 往上補 96px
+     theme-bg 遮 header 透明帶，但 strip 自然位置只距上方影片 64px（galleries-root pt-3xl）→ ::before
+     吃進影片底 32px。about 頁 strip 接 hero（bg 同 theme-bg 無感），本頁 strip 接影片故要主動讓開：
+     margin-top 48 → 影片↔strip 間距 64+48=112px > 96，::before 全落在空白 theme-bg 上、不碰影片。 */
+  .dsd-event-strip-wrap {
+    margin-top: var(--spacing-2xl);
+  }
+
+  /* 手機子展覽 tab strip（buildMobileEventStrip，2026-07-09）：仿 about #mobile-anchor-strip——
+     負 margin 全出血、隱藏捲軸、overflow-y:clip 容 active pill 旋轉投影；position:relative 讓
+     JS 讀 btn.offsetLeft 以 strip 為基準（active tab 自動捲入可視範圍）。 */
+  .dsd-event-strip {
+    position: relative;
+    margin-left: calc(-1 * var(--container-padding));
+    margin-right: calc(-1 * var(--container-padding));
+    padding-left: var(--container-padding);
+    padding-right: var(--container-padding);
+    overflow-y: clip;
+    scrollbar-width: none;
+  }
+  .dsd-event-strip::-webkit-scrollbar {
+    display: none;
+  }
+  /* strip 上方 0~96px 帶（header logo 列）遮擋：sticky 釘 96（inline top，JS 設）後上方是透明帶，
+     捲過的內容會從 logo 後面露出 → ::before 向上補 96px 底色（同 about .mobile-anchor-strip-wrap）。
+     height 98（多蓋 2px 進 strip）：::before 底緣(y=96) 原本正好在 strip 背景交界，DPR≥2 sub-pixel
+     接縫會露出後面 1px 內容（user 2026-07-09「nav btn 上面 1px 空隙」）→ 多蓋 2px 讓接縫落在
+     strip 自身 theme-bg 背景上（後面無內容）＝乾淨對齊頂部。 */
+  .dsd-event-strip-wrap::before {
+    content: '';
+    position: absolute;
+    top: -96px;
+    left: 0;
+    right: 0;
+    height: 98px;
+    background: var(--theme-bg);
+  }
+  /* tab 點擊捲動落點：讓出 header(96) + strip(釘住後底緣實測 187) + 13 呼吸，內容不鑽進 strip 底下 */
+  .event-gallery-section {
+    scroll-margin-top: 200px;
+  }
+
+  /* 子展覽 slideshow 容器：手機單圖置中輪播（2026-07-09，exhibition / ref-based 都走
+     createClassImagesSlideshow 單 slot；原 3-slot/42vw 幾何退役），容器高維持 350 */
   .event-gallery-section .division-images--degree-show {
     min-height: 350px;
   }
 
   /* ref-based event（forum/workshop）slideshow：手機也全寬（負 margin 把容器延伸到 viewport 兩邊，
-     vw slot 定位才對齊 viewport）；圖片幾何跟 exhibition 同一套（3-slot/42vw，JS 傳 opts 給
-     createClassImagesSlideshow），不再套 about 200/280 cap。
+     slot 50% 置中 = viewport 中心）。
      不設 overflow:hidden（旋轉圖不被裁）— 橫向溢出由 html/body overflow-x:clip 兜住不讓整頁 pan。 */
   .event-gallery-section .division-images:not(.division-images--degree-show) {
     min-height: 350px;
     margin-left: calc(-1 * var(--container-padding));
     margin-right: calc(-1 * var(--container-padding));
   }
-  /* top 50%：模組預設 top:70%（about 版面偏下），全寬 strip 要垂直置中（同 exhibition） */
-  .event-gallery-section .division-images:not(.division-images--degree-show) .class-img {
+  /* 單圖輪播圖片：垂直置中（模組預設 top:70% about 版面用，!important 蓋 gsap inline）+
+     單張放大（直式 60vw / 橫式 86vw；350 容器裝得下 ±4° 旋轉投影） */
+  .event-gallery-section .class-img {
     top: 50% !important;
+    max-width: 60vw;
+  }
+  .event-gallery-section .class-img.class-img--landscape {
+    max-width: 86vw;
+  }
+
+  /* ref-based 説明文字（user 2026-07-09）：手機圖上文下（DOM desc 先、order 翻轉 —— 桌面 grid
+     placement 顯式 col-start 不吃 DOM 順序，改 DOM 反而掉 row 對位，用 order 最安全）… */
+  .event-extra-panel > .division-images {
+    order: -1;
+  }
+  /* …文字盒 max-height 內捲，保證 deep-link 落點時整盒在畫面內（各螢幕高都收得住）：
+     desc 頂 y=570 固定（scroll-margin-top 200 + 圖 min-height 350 + grid row-gap 20，與 svh 無關）
+     → 可用高 = svh − 570；取 590（留 20px 呼吸）。box-sizing:border-box，maxH 含 padding。
+     下限 80（非 150）：矮螢幕（如 SE 667）svh−590=77，150 下限會強制 descBottom=720 溢出 53px
+     （user 2026-07-09 報「hard refresh 仍超出畫面」的第二現場）。80 讓 667 也 descBottom≈650<667；
+     844 走 calc=254、descBottom=824。80px≈4 行後內捲，僅矮螢幕觸發、可接受。 */
+  .event-extra-panel [data-class-hl] {
+    max-height: max(calc(100svh - 590px), 80px);
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+  .event-extra-panel [data-class-hl]::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Next Project 手機色塊卡（2026-07-09 取消 poster thumbnail）：左右並排 + 後卡 -6% overlap
+     （配 JS 隨機旋轉 = 截圖那種 collage 感）；文字靠左（align-items/text-align:left）、年份與標題
+     同字級（HTML 統一 text-p1）。#next-link-m margin-top 造高低落差（row items-start，故 margin 直接下推）。
+     黑字統一在這給（不掛 .text-black，inverse 會翻白）。內容多時自然長高。mode-color strict B/W 在 themes/color.css。 */
+  .dsd-next-card-m {
+    width: 53%;
+    aspect-ratio: 4 / 3;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0.25rem;
+    text-align: left;
+    padding: var(--spacing-sm);
+    color: #000;
+  }
+  .dsd-next-card-m + .dsd-next-card-m {
+    margin-left: -6%;
+  }
+  /* 右卡下推造高低落差（user 2026-07-09：兩卡不必水平對齊） */
+  #next-link-m.dsd-next-card-m {
+    margin-top: 2rem;
   }
 
   /* 説明文字卡 [data-class-hl] padding：手機原本 !important 蓋成 0.8em/1em（偏大、跟 tab/nav btn 不一致）→
@@ -415,14 +525,18 @@
     top: -96px;
     left: 0;
     right: 0;
-    height: 96px;
+    /* 98（96+2）：多疊 2px 進 wrap 頂（strip 上有 py-sm 空白、無害）消 sub-pixel 接縫——
+       否則 ::before 底邊與 wrap 頂邊之間會露出後方捲過內容 1px 灰線（user 2026-07-09 回報） */
+    height: 98px;
     background: var(--theme-bg);
   }
 
-  /* Vision 文字盒（user 2026-07-07）：手機 max-height 內部捲、捲軸藏（touch 捲動照常）。
+  /* Vision 文字盒（user 2026-07-09 二改）：兩盒固定等高、加總不超屏，溢出文字盒內捲、捲軸藏。
+     50svh−122 = (100svh − 200 落點 − 20 row gap − 24 底部呼吸) / 2；
+     落點 200 / strip 底 187 見 scroll-snap.css 配對註解，改 strip 高度要同步。
      [data-overview-hl] 是 highlight 底色 span（inline display:block），盒內捲底色跟著滿盒。 */
   #overview [data-overview-hl] {
-    max-height: 45vh;
+    height: calc(50svh - 122px);
     overflow-y: auto;
     scrollbar-width: none;
   }
