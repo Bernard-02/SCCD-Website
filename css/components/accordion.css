@@ -220,6 +220,29 @@
       padding: 14px 8px 13px;
     }
 
+    /* Resources 卡片一屏預算（user 2026-07-09）：卡片上移到 anchor strip 正下方（section/容器 pt 96+96 → 0+24，
+       蓋到封鎖線 OK——封鎖線由 resources-cycling.js 依卡片列上緣重釘、半疊卡片後）；文字盒固定高、
+       最長文字盒內捲——同 about vision/programs/works 一屏 pattern。
+       505 = 186 resources 落點 + 24 容器 pt + 51 title 列（14+13 padding + p1 一行）+ 220 圖 + 24 底部呼吸；
+       落點/anchor strip 配對組見 scroll-snap.css，改要同步。 */
+    #resources {
+      padding-top: 0;
+    }
+    #resources > .site-container {
+      padding-top: var(--spacing-md);
+    }
+    .colored-accordion .accordion-text-wrap {
+      height: max(calc(100svh - 505px), 150px);
+      overflow-y: auto;
+      scrollbar-width: none;
+      /* base 是 flex + justify-content:flex-end（桌面文字靠底）：配內捲會讓溢出往上長、
+         開頭被裁掉且捲不回去 → 必須翻回 flex-start（同下方矮橫向 block 的既知坑）。 */
+      justify-content: flex-start;
+    }
+    .colored-accordion .accordion-text-wrap::-webkit-scrollbar {
+      display: none;
+    }
+
     .accordion-item {
       flex-direction: column;
       /* Remove max-height and transition, let JS control body height */
@@ -298,7 +321,7 @@
       display: none;
     }
     .colored-accordion .accordion-item {
-      flex: 0 0 45%; /* 844 寬並排 2 張＋第三張窄邊 peek（portrait 90% 一屏 1 張） */
+      flex: 0 0 58%; /* 45→58（user 2026-07-09「調寬放更多文字」）：一屏 1 張＋下一張 peek */
       scroll-snap-align: start;
       flex-direction: column;
       height: auto; /* 蓋桌面 min-width:768 的 height:100% */
@@ -336,17 +359,18 @@
     }
     .colored-accordion .accordion-img-wrap {
       width: 100%;
-      height: 160px;
+      height: 120px; /* 160→120（user 2026-07-09 卡片一屏預算）：讓文字盒分到高度 */
       flex: none;
     }
-    /* 長文 45vh 內捲（about 手機慣例；不捲頁面兩屏才看完一張卡）。
+    /* 文字盒一屏預算內捲（user 2026-07-09「整個文字框不要超過畫面高度」，原 45vh 卡底溢出 fold ~86px）：
+       291 = 卡頂落點 96（landing −32 + section pt-3xl 96 + 容器 pt-lg 32）+ title 列 51 + 圖 120 + 底部呼吸 24。
        ⚠️ justify-content 必須翻回 flex-start：base 的 flex-end（桌面文字靠底）配 max-height 內捲
        會讓溢出往上長、捲不回去＝段落開頭被永久裁掉（user 報「英文被切到」）。 */
     .colored-accordion .accordion-text-wrap {
       width: 100%;
       flex: none;
       padding: 14px 8px 13px;
-      max-height: 45vh;
+      max-height: max(calc(100svh - 291px), 80px);
       overflow-y: auto;
       scrollbar-width: none;
       justify-content: flex-start;

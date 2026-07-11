@@ -62,8 +62,15 @@ export function initClassButtonsSticky() {
   // 門檻以 init 當下為準，跨頁重 init 會重新判定；同頁 resize 跨門檻不重算（可接受）。
   gsap.set(classButtonsEl, { clipPath: 'inset(0px 0px 0px 0px)' });
 
+  // 矮橫向手機：不掛滑出 scrub——works 落點 92 在 start(top 100px) 之後，一到 works tabs 就被
+  // scrub 藏掉，但 works 視圖必須留著 tabs 切 playlist（landscape.css 用 grid-row 1/3 +
+  // #works min-height 讓 CSS sticky 全程涵蓋 works）。works context 切換的 ST 照常掛。
+  const isLandscapeMobile = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+
   const tallViewport = window.matchMedia('(min-height: 900px)').matches;
-  if (tallViewport) {
+  if (isLandscapeMobile) {
+    /* CSS sticky 全權處理，這裡不做事 */
+  } else if (tallViewport) {
     gsap.timeline({
       scrollTrigger: {
         trigger: stickyWrapper,

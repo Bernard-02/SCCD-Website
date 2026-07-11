@@ -151,11 +151,13 @@ export function initAnchorNav({ reveal = false } = {}) {
   // clip-path 套 .anchor-nav-inner 自身（旋轉角不裁、原地揭露）、4 方向隨機、第一個內容區進視窗時 once、
   // 離頁且已 reveal 才反向；transition:'none' 解 navigation.css .anchor-nav-inner 的 `transition: all`（含 clip-path）
   // 對 GSAP 每幀寫的接管卡頓，跑完還原。只取桌面 #anchor-nav（mobile 選單另一容器、不套）。
-  if (reveal && typeof gsap !== 'undefined' && window.innerWidth >= 768) {
-    const NAV_CLIP_DIRS = ['inset(0% 0% 100% 0%)', 'inset(0% 0% 0% 100%)', 'inset(100% 0% 0% 0%)', 'inset(0% 100% 0% 0%)'];
-    const NAV_REVEALED = 'inset(0% 0% 0% 0%)';
-    const NAV_EASE = 'cubic-bezier(0.25, 0, 0, 1)';
-    const pickClip = () => NAV_CLIP_DIRS[Math.floor(Math.random() * NAV_CLIP_DIRS.length)];
+  // 矮橫向 gate 交給下方 clip-path 雙向分支接管（同一組 inner 不能雙驅動）。
+  const NAV_CLIP_DIRS = ['inset(0% 0% 100% 0%)', 'inset(0% 0% 0% 100%)', 'inset(100% 0% 0% 0%)', 'inset(0% 100% 0% 0%)'];
+  const NAV_REVEALED = 'inset(0% 0% 0% 0%)';
+  const NAV_EASE = 'cubic-bezier(0.25, 0, 0, 1)';
+  const pickClip = () => NAV_CLIP_DIRS[Math.floor(Math.random() * NAV_CLIP_DIRS.length)];
+  const isLandscapeGate = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+  if (reveal && typeof gsap !== 'undefined' && window.innerWidth >= 768 && !isLandscapeGate) {
     const inners = Array.from(document.querySelectorAll('#anchor-nav .anchor-nav-inner'));
     if (inners.length) {
       let navRevealed = false;
@@ -243,19 +245,62 @@ export function initAnchorNav({ reveal = false } = {}) {
   // SPA 離開 about 時 disconnect，否則 observer 持續 hold 已被 router.innerHTML swap 掉的 section refs
   registerPageCleanup(() => observer.disconnect());
 
-  // 矮橫向（landscape gate）：nav 是 fixed 在 header 帶（landscape.css 5i）→ footer 進視窗前收起
-  // （user 2026-07-07「nav btn 不要出現在 footer 上」；CSS .anchor-nav-footer-hide 往上滑出）。
+  // 矮橫向（landscape gate）：nav 是 fixed 在 header 帶（landscape.css 5i）→ hero 區間藏（about）、
+  // footer 進視窗前收起（user 2026-07-07「nav btn 不要出現在 footer 上」）。進出場＝clip-path 雙向
+  // setNav（user 2026-07-10 定為全站 nav btn 原則、不用 opacity/translateY，同 curriculum/faculty/admission）：
+  // 每顆 inner 固定隨機方向來回一致、stagger:0 同時、隱藏時 nav pointer-events 一併關。
   // rootMargin 底部 -25%：footer 頂過視窗 75% 線才算「到底部」——history 是末段一屏，
   // footer 剛在底緣露頭就收會讓 nav 在 history 視圖就消失（過早）。
-  if (window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) {
+  // 兩顆 IO 各記各的 flag、統一 applyHide：直接在 callback 各自 setNav 的話，初始 delivery 順序
+  // 決定最終狀態（footer 的 false 蓋掉 hero 的 true），載入在 hero 上 nav 會露出。
+  // reveal 是 about 專屬旗標（alumni 不傳）→ hero 收起只掛 about；alumni 只掛 footer 收起（初始可見）。
+  if (isLandscapeGate && typeof gsap !== 'undefined') {
     const navEl = document.getElementById('anchor-nav');
+    const inners = navEl ? Array.from(navEl.querySelectorAll('.anchor-nav-inner')) : [];
     const footerEl = document.getElementById('site-footer');
-    if (navEl && footerEl) {
-      const footerIO = new IntersectionObserver(([e]) => {
-        navEl.classList.toggle('anchor-nav-footer-hide', e.isIntersecting);
-      }, { rootMargin: '0px 0px -25% 0px' });
-      footerIO.observe(footerEl);
-      registerPageCleanup(() => footerIO.disconnect());
+    const heroEl = reveal ? document.querySelector('#page-content > section') : null;
+    if (navEl && inners.length && (footerEl || heroEl)) {
+      const navDir = new Map(inners.map(el => [el, pickClip()]));
+      // about 載入在 hero 上 → 初始就藏（不等 IO 首發，免閃現）；alumni 無 hero 收起 → 初始可見。
+      // 可見側也寫顯式 inset(0%)：computed 'none' GSAP 無法補間（同 clearProps 後 exit 的陷阱），
+      // 否則 alumni 第一次 footer 收起會直接跳掉沒動畫。
+      let hidden = !!heroEl;
+      inners.forEach(el => { el.style.transition = 'none'; gsap.set(el, { clipPath: hidden ? navDir.get(el) : NAV_REVEALED }); });
+      if (hidden) navEl.style.pointerEvents = 'none';
+      else inners.forEach(el => { el.style.transition = ''; });  // 可見側單次寫入無視覺變化，還原 hover transition
+      const setNav = (hide) => {
+        if (hidden === hide) return;
+        hidden = hide;
+        gsap.killTweensOf(inners);
+        inners.forEach(el => { el.style.transition = 'none'; });
+        navEl.style.pointerEvents = hide ? 'none' : '';
+        gsap.to(inners, {
+          clipPath: hide ? (i) => navDir.get(inners[i]) : NAV_REVEALED,
+          duration: DUR.base, ease: NAV_EASE, stagger: 0, overwrite: true,
+          onComplete: () => { if (!hide) inners.forEach(el => { el.style.transition = ''; }); },
+        });
+      };
+      let footerVis = false;
+      let heroVis = !!heroEl;
+      const applyHide = () => setNav(footerVis || heroVis);
+      if (footerEl) {
+        const footerIO = new IntersectionObserver(([e]) => {
+          footerVis = e.isIntersecting;
+          applyHide();
+        }, { rootMargin: '0px 0px -25% 0px' });
+        footerIO.observe(footerEl);
+        registerPageCleanup(() => footerIO.disconnect());
+      }
+      if (heroEl) {
+        // rootMargin 頂部 -120：overview 落點時 hero 底邊在 104（scroll-margin），留 16px buffer
+        // 讓落點處 nav 一定是「已現身」狀態、不會在 snap 邊緣抖動。
+        const heroIO = new IntersectionObserver(([e]) => {
+          heroVis = e.isIntersecting;
+          applyHide();
+        }, { rootMargin: '-120px 0px 0px 0px' });
+        heroIO.observe(heroEl);
+        registerPageCleanup(() => heroIO.disconnect());
+      }
     }
   }
 

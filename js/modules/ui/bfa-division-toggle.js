@@ -406,6 +406,14 @@ export function initBFADivisionToggle() {
   // 手機 pill 的點擊/hover/active/旋轉/上色已由上方 divisionBtns 共用迴圈處理（含 .mobile-division-btn），
   // 不再需要獨立 handler——跟桌面同一套邏輯（#1）。
 
+  // BFA 學士班 label 也可點（user 2026-07-09）：轉發給隔壁 division btn，效果同點大 pill。
+  // 桌面/手機結構皆為 label 緊接 btn（nextElementSibling）。
+  groupLabels.forEach(label => {
+    const btn = label.nextElementSibling;
+    if (!btn || !btn.matches('.class-division-btn, .mobile-division-btn')) return;
+    label.addEventListener('click', () => btn.click());
+  });
+
   // 手機 works context + sticky release（桌面靠 class-buttons-sticky.js，手機直接 return → 這裡補手機版，比照桌面）。
   if (window.innerWidth < 768 && typeof ScrollTrigger !== 'undefined') {
     const infoArea = document.getElementById('class-info-area');

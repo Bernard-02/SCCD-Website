@@ -235,6 +235,7 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
 
   function start() {
     if (timer) return;
+    if (pool.length <= 1) return; // 單張圖免輪播（單 slot 下 tick 會原地 clip 閃同一張）
     timer = setInterval(tick, INTERVAL);
   }
   function stop() {

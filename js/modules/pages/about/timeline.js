@@ -145,8 +145,11 @@ export function initTimeline() {
     // 順序：圖片在上、文字（era chip + 年份卡）在下（user 2026-07-07 改版；原文字上圖下）
     wrap.innerHTML =
       '<div class="tl-m-images"></div>' +
-      '<div class="tl-m-era timeline-card-inner bg-black text-white"><div class="text-p2 leading-base font-bold"></div></div>' +
-      '<div class="tl-m-card timeline-card-inner"><div class="tl-m-card-body text-p2 leading-base font-bold"></div></div>' +
+      // 直式：era 左（EN/ZH 兩行）、年份卡右（user 2026-07-09）；矮橫向 wrapper display:contents 拆回 grid items
+      '<div class="tl-m-text-row">' +
+        '<div class="tl-m-era timeline-card-inner bg-black text-white"><div class="text-p2 leading-base font-bold"></div></div>' +
+        '<div class="tl-m-card timeline-card-inner"><div class="tl-m-card-body text-p2 leading-base font-bold"></div></div>' +
+      '</div>' +
       '<div class="tl-m-controls">' +
         '<button class="tl-m-list-btn" aria-label="切換清單視圖"><span class="tl-icon-btn-inner"><span class="icon icon-atlas-list"></span></span></button>' +
         '<button class="tl-m-next-btn" aria-label="下一年"><span class="tl-icon-btn-inner"><span class="icon icon-arrow-right"></span></span></button>' +
@@ -169,7 +172,8 @@ export function initTimeline() {
 
     function renderYear(i) {
       const it = items[i];
-      eraText.textContent = `${it.eraTitle} ${it.eraLabel}`;
+      // 兩個 span＋空白：直式 CSS 轉 block 成 EN/ZH 兩行，矮橫向維持 inline 單行（空白節點在 block 間不渲染）
+      eraText.innerHTML = `<span class="tl-m-era-en">${it.eraTitle}</span> <span class="tl-m-era-zh">${it.eraLabel}</span>`;
       const descs = it.descriptions || (it.description ? [it.description] : []);
       cardBody.innerHTML =
         `<h4 class="font-bold tl-m-year">${it.year}</h4>` +
@@ -182,20 +186,25 @@ export function initTimeline() {
       // 先清 inline width/transform 讓文字自然換行再量（旋轉會虛增 rect 寬，量完才設新角度）；+1px 防 sub-pixel 再折行。
       cardEl.style.width = '';
       cardEl.style.transform = 'none';
-      const baseL = cardBody.getBoundingClientRect().left;
-      const walker = document.createTreeWalker(cardBody, NodeFilter.SHOW_TEXT);
-      let maxLine = 0;
-      for (let n; (n = walker.nextNode()); ) {
-        const rg = document.createRange();
-        rg.selectNodeContents(n);
-        for (const r of rg.getClientRects()) maxLine = Math.max(maxLine, r.right - baseL);
-      }
-      if (maxLine) {
-        const cs = getComputedStyle(cardEl);
-        cardEl.style.width = `${Math.ceil(maxLine + parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight)) + 1}px`;
+      // 量寬只給矮橫向（grid 第 3 欄卡片貼文字寬）；直式 2026-07-09 改 era 上/卡下、卡片吃滿容器寬，
+      // inline 定寬會擋住 CSS width:100% → 直式跳過量測。
+      if (window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) {
+        const baseL = cardBody.getBoundingClientRect().left;
+        const walker = document.createTreeWalker(cardBody, NodeFilter.SHOW_TEXT);
+        let maxLine = 0;
+        for (let n; (n = walker.nextNode()); ) {
+          const rg = document.createRange();
+          rg.selectNodeContents(n);
+          for (const r of rg.getClientRects()) maxLine = Math.max(maxLine, r.right - baseL);
+        }
+        if (maxLine) {
+          const cs = getComputedStyle(cardEl);
+          cardEl.style.width = `${Math.ceil(maxLine + parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight)) + 1}px`;
+        }
       }
       eraEl.style.transform = `rotate(${pickUniqueRotations(1, -4, 4)[0]}deg)`;
       cardEl.style.transform = `rotate(${pickUniqueRotations(1, -2, 2)[0]}deg)`;
+      cardEl.scrollTop = 0; // 切年份時捲回頂部（上一年捲到中段，新年份要頂對齊；同 list view renderListEra）
     }
     renderYear(0);
 
@@ -276,7 +285,8 @@ export function initTimeline() {
 
     function renderListEra(idx) {
       const era = eraGroups[idx];
-      listChipText.textContent = `${era.title} ${era.label}`;
+      // 兩 span＋空白：直式手機 CSS 轉 block 成 EN/ZH 兩行（左欄），桌面/矮橫向維持 inline 單行
+      listChipText.innerHTML = `<span class="tl-list-era-en">${era.title}</span> <span class="tl-list-era-zh">${era.label}</span>`;
       listRect.style.background = listEraColors[idx];
       listContent.innerHTML = era.years.map(y => {
         const descs = y.descriptions || (y.description ? [y.description] : []);
@@ -1319,7 +1329,8 @@ export function initTimeline() {
 
     function renderListEra(idx) {
       const era = eraGroups[idx];
-      listChipText.textContent = `${era.title} ${era.label}`;
+      // 兩 span＋空白：直式手機 CSS 轉 block 成 EN/ZH 兩行（左欄），桌面/矮橫向維持 inline 單行
+      listChipText.innerHTML = `<span class="tl-list-era-en">${era.title}</span> <span class="tl-list-era-zh">${era.label}</span>`;
       listRect.style.background = listEraColors[idx];
       listContent.innerHTML = era.years.map(y => {
         const descs = y.descriptions || (y.description ? [y.description] : []);

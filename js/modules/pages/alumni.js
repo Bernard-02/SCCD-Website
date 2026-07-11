@@ -15,7 +15,7 @@ import { initAnchorNav } from '../navigation/anchor-nav.js';
 import { loadListInto } from './activities-data-loader.js';
 import { initListAccordion } from '../accordions/list-accordion.js';
 import { setupClipReveal, playClipReveal, animateCardsClipReveal, playRevealExit, playClipPathExit } from '../ui/scroll-animate.js';
-import { initPdfViewer } from './library-viewer.js';
+// library-viewer（45KB）改動態載入（見 initAlumni 內）：靜態 import 會讓全站每頁都揹它
 import { initSectionBannerReveal } from './about/section-banner-reveal.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
@@ -482,7 +482,7 @@ export async function initAlumni() {
 
   initListAccordion();
   // PDF viewer 共用 library 那套（DOM auto-create + sccd:open-pdf 事件 listener）— idempotent，多次呼叫安全
-  initPdfViewer();
+  import('./library-viewer.js').then((m) => m.initPdfViewer());
   // 封鎖綫 reveal：每 section .section-title-strip 由 anchor-nav active 切換觸發 clip-reveal
   initSectionBannerReveal();
   initAnchorNav();

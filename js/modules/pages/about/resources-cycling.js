@@ -92,7 +92,11 @@ function renderResourcesAccordion(data, container) {
     const section = document.getElementById('resources');
     if (strip && section) {
       const top = wrapper.getBoundingClientRect().top - section.getBoundingClientRect().top;
-      strip.style.top = `${Math.round(top - strip.offsetHeight / 2)}px`;
+      // 直式手機卡片上移貼 anchor strip 後（2026-07-09），原「半疊卡片頂」定位會凸出 section 頂、
+      // 人還在 works 區就先露出 → 下移整條藏到卡片頂下方（+16 留 rotated 上角餘裕仍在 section 內），
+      // 只從卡片左右 bleed 與滑動間隙探出；矮橫向卡片位置沒動、維持半疊。
+      const offset = shortLandscape ? -strip.offsetHeight / 2 : 16;
+      strip.style.top = `${Math.round(top + offset)}px`;
     }
   }
 }
