@@ -243,39 +243,69 @@
       gap: 2rem;
     }
 
-    /* 獲獎 row：國家移到年份下方（左欄 year→country 直排；右欄 name→category）。
-       explicit grid-row 取代 auto-flow：country 若走 auto 會把 name 擠到 row2、跟 year 對不齊 */
-    .faculty-grid-row-award > span:nth-child(1) { grid-row: 1; }
-    .faculty-grid-row-award > span:nth-child(2) { grid-column: 1; grid-row: 2; }
-    .faculty-grid-row-award > span:nth-child(3) { grid-column: 2; grid-row: 1; }
-    .faculty-grid-row-award > span:nth-child(4) { grid-column: 2; grid-row: 2; }
+    /* 獲獎 row：左右兩欄「各自獨立 flow」（user 2026-07-09：country 緊貼 year 下、
+       category 也要緊貼 name 下——grid 共用 row 高度必耦合其一，改 float 版兩欄互不影響）：
+       year/country 浮動進左欄軌（clear 直排、寬 4rem），name/category 一般 block 用
+       margin-left 讓位右欄；flow-root 讓 row 高度包含 float（下一 row 不上疊） */
+    .faculty-grid-row-award {
+      display: flow-root;
+    }
+    .faculty-grid-row-award > span:nth-child(-n+2) {
+      float: left;
+      clear: left;
+      width: 4rem;
+    }
+    .faculty-grid-row-award > span:nth-child(n+3) {
+      display: block;
+      margin-left: 5.5rem; /* 左欄 4rem + 原 column-gap 1.5rem */
+    }
+    .faculty-grid-row-award > span:nth-child(2),
+    .faculty-grid-row-award > span:nth-child(4) {
+      margin-top: 0.25rem; /* 原 row-gap */
+    }
 
     /* sticky 參考容器要有真實內容高：flex-1 + min-h-0 會把它夾成一屏高（內容 overflow 出去），
        sticky 範圍剩一屏、捲一屏後 profile 被容器底拖走（Playwright 實測）→ 手機改自然高度。
-       桌面（右欄獨立 scroll）不動。#faculty-panel 抬特異度蓋 .flex-1 utility（utilities 後出同特異度會贏） */
+       桌面（右欄獨立 scroll）不動。#faculty-panel 抬特異度蓋 .flex-1 utility（utilities 後出同特異度會贏）。
+       gap 歸零：profile↔sections 的間距移進 profile pb（見下）——間距要被 profile bg 蓋住，
+       否則 title 釘在 profile 底時，中間縫隙會露出捲過的內容 */
     #faculty-panel .faculty-detail-layout {
       flex: none;
       min-height: auto;
+      gap: 0;
     }
 
     /* Profile（圖＋姓名＋職稱）：橫排（小圖左、字右）＋ sticky 釘 header 遮擋帶下緣；
        bg = panel 卡片色 → 蓋住捲動經過的詳情內容；高度由 JS 量測寫入 --faculty-profile-h
        供 section title 的 sticky top 接力（faculty-slide-in.js）。
-       top -4rem：sticky top 會跟 scroll 容器 padding-top 疊加（content-box relative，
-       見 memory sticky_top_double_counts）——容器 pt = header+4rem，要釘在 header 下緣 = -4rem */
+       top 0（2026-07-09）：容器 pt = header 高（原 +4rem 已拆）→ 開場 scrollTop=0 時
+       profile 自然位置＝釘住位置，直接貼 header 下緣、不用捲動後才貼上去 */
     #faculty-profile-block {
       position: sticky;
-      top: -4rem;
+      top: 0;
       z-index: 5;
       background: var(--faculty-panel-bg, transparent);
       flex-direction: row;
       align-items: center;
-      gap: 1.5rem;
-      padding-bottom: 1rem;
+      gap: 2rem;
+      /* pt 2.5rem = 旋轉角預留 0.5rem（rotate(-4deg) 凸出 layout box 頂 ~5px，太小會被
+         header 遮擋帶蓋到像被切）+ 2rem（user 2026-07-09：原下方 4rem 間距對半分、一半移到上方） */
+      padding-top: 2.5rem;
+      /* pb：Education 在開場時距 profile 的空間，也是之後每個 title 釘住時距 profile 的空間
+         （同一個值＝結構上保證一致，user 2026-07-09）；放 pb 而非 gap → 這段空間有 profile bg，
+         捲過的內容不會從縫隙露出。4rem 對半分後剩 2rem（另一半在 pt） */
+      padding-bottom: 2rem;
+      /* 自身一層 compositing layer：pinned sticky 沒有 layer 時每幀重繪，
+         捲動一卡就看得出抖（user 2026-07-09 回報 title 抖動，title col 同款） */
+      transform: translateZ(0);
+      /* 底邊往下多畫 1px 同色：profile 高度帶小數（如 212.8px），與 title layer 各自光柵化
+         對齊實體像素會差半像素，捲動中交界處閃 1px 縫露出底下內容（user 2026-07-09）；
+         shadow 屬於自己這層、蓋住交界，不動 sticky 定位數學 */
+      box-shadow: 0 1px 0 var(--faculty-panel-bg, transparent);
     }
     #faculty-profile-block > div:first-child {
-      /* 圖片縮小（原 50%）；flex:none 固定寬、名字欄吃剩餘 */
-      width: 32%;
+      /* 圖 40%（user 2026-07-09 加大，原 32%）；flex:none 固定寬、名字欄吃剩餘 */
+      width: 40%;
       flex: none;
       margin: 0;
     }
@@ -285,15 +315,20 @@
       min-width: 0;
     }
 
-    /* Section 標題（Education 學歷…）sticky 接在 profile 下緣；section 結束時被下一個
-       section 自然推走（sticky 容器 = 各 section wrapper）。mb 改 pb → bg 蓋住標題下方間隙。
-       -4rem 同 profile：抵銷 scroll 容器 padding-top 疊加 */
+    /* Section 標題（Education 學歷…）sticky 接在 profile 下緣（box 底含 pb 4rem 間距帶）；
+       section 結束時被下一個 section 自然推走（sticky 容器 = 各 section wrapper）。
+       mb 改 pb → bg 蓋住標題下方間隙。top = profile 實高（offsetHeight 含 padding，JS 量測）：
+       layout gap 已歸零，開場時 Education 自然位置＝釘住位置＝之後每個 title 的釘住位置 */
     #faculty-panel .faculty-section-title-col {
       position: sticky;
-      top: calc(var(--faculty-profile-h, 0px) - 4rem);
+      top: var(--faculty-profile-h, 0px);
       z-index: 2;
       margin-bottom: 0;
-      padding-bottom: 0.5rem;
+      /* 上下 padding 加大（user 2026-07-09）：釘住時下方捲過的內容不貼標題字；
+         pt 讓標題字跟 profile 底也留口氣（bg 蓋住 padding 區、無縫） */
+      padding-top: 0.75rem;
+      padding-bottom: 1rem;
+      transform: translateZ(0); /* 同 profile block：釘住時走 compositor 不逐幀重繪 */
     }
   }
 

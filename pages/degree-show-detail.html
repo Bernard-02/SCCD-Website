@@ -229,19 +229,20 @@
         </div>
       </div>
 
-      <!-- 手機版：簡單 stack（2026-06-11 試過左右 swipe，user 拍板改回上下排列）；卡片間距走 flex gap 不用 mb -->
-      <div class="md:hidden site-container flex flex-col gap-3xl">
-        <a id="prev-link-m" href="#" class="block">
-          <img id="prev-img-m" src="../images/Degree Show.jpg" alt="" class="block w-full h-auto">
-          <p id="prev-year-mobile" class="text-h5 font-bold text-black whitespace-nowrap mt-sm"></p>
-          <p id="prev-title-en-mobile" class="text-h5 font-bold text-black whitespace-nowrap"></p>
-          <p id="prev-title-mobile" class="text-h5 font-bold text-black whitespace-nowrap"></p>
+      <!-- 手機版：左右並排色塊卡（user 2026-07-09 取消 poster thumbnail）——隨機互異 accent 底 +
+           隨機旋轉（JS inline 填）+ 年份 / 英中標題；卡片版面在 variables.css .dsd-next-card-m。
+           文字靠左、年份與標題同字級（text-p1）；items-start + #next-link-m margin-top 造高低落差。
+           文字不掛 .text-black（inverse 的 .text-black→white 會蓋掉），黑字由 .dsd-next-card-m color 統一給 -->
+      <div class="md:hidden site-container flex flex-row items-start justify-center">
+        <a id="prev-link-m" href="#" class="dsd-next-card-m block">
+          <p id="prev-year-mobile" class="text-p1 font-bold"></p>
+          <p id="prev-title-en-mobile" class="text-p1 font-bold"></p>
+          <p id="prev-title-mobile" class="text-p1 font-bold"></p>
         </a>
-        <a id="next-link-m" href="#" class="block">
-          <img id="next-img-m" src="../images/Degree Show.jpg" alt="" class="block w-full h-auto">
-          <p id="next-year-mobile" class="text-h5 font-bold text-black whitespace-nowrap mt-sm"></p>
-          <p id="next-title-en-mobile" class="text-h5 font-bold text-black whitespace-nowrap"></p>
-          <p id="next-title-mobile" class="text-h5 font-bold text-black whitespace-nowrap"></p>
+        <a id="next-link-m" href="#" class="dsd-next-card-m block">
+          <p id="next-year-mobile" class="text-p1 font-bold"></p>
+          <p id="next-title-en-mobile" class="text-p1 font-bold"></p>
+          <p id="next-title-mobile" class="text-p1 font-bold"></p>
         </a>
       </div>
     </section>
