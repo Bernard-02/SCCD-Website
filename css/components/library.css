@@ -1045,6 +1045,22 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   }
 }
 
+/* 直向手機：得獎人名字完整呈現（換行），不跑 marquee（user 2026-07-10）。
+   只限 portrait：矮橫向（寬也可能 <768）窄欄仍要 marquee，且本檔動態 <link> 後於 output.css
+   → cascade 贏 landscape.css，不能直接改上面的 nowrap 規則。
+   inner 改 inline 換行後 scrollWidth=0 → applyMarqueeOverflow 判定不溢出＝自動不跑、轉向自癒照舊 */
+@media (max-width: 767px) and (orientation: portrait) {
+  #library-awards-list .award-winner-en,
+  #library-awards-list .award-winner-zh {
+    overflow: visible !important;
+    white-space: normal !important;
+  }
+  #library-awards-list .award-marquee-inner {
+    display: inline !important;
+    white-space: normal !important;
+  }
+}
+
 /* mobile marquee keyframe 放 media query 外（@keyframes 不能放 @media 內某些 browser）*/
 @keyframes lib-mobile-winners-marquee {
   0%   { transform: translateX(0); }

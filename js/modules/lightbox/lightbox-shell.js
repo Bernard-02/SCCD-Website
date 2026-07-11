@@ -222,7 +222,13 @@ function hasScrollableAncestor(target, axis, dir) {
 const SCROLL_KEYS = new Set([' ', 'Spacebar', 'PageUp', 'PageDown', 'Home', 'End', 'ArrowUp', 'ArrowDown']);
 
 function installScrollLock() {
+  // ⚠️ 這兩個 handler 是 non-passive：compositor 每個 cancelable 事件都要等 main thread 跑完才能捲。
+  // hasScrollableAncestor 逐層 getComputedStyle + scrollTop 讀取會強制同步 style/layout，捲動中每事件都跑
+  // = 捲動 janky、panel 內 pinned sticky（faculty profile / section title）視覺抖動（user 2026-07-09）。
+  // 修：!cancelable 直接 return——捲動一旦開始，瀏覽器送的後續 wheel/touchmove 都是 non-cancelable
+  // （preventDefault 本來就是 no-op），跳過 = 行為完全相同、捲動期間 main thread 零工作。
   const onWheel = (e) => {
+    if (!e.cancelable) return;
     // 以主要捲動軸判斷（橫向 thumb 列也算可捲 → 不誤擋 lightbox 內捲動）；找不到可捲祖先才擋底層
     const axis = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? 'x' : 'y';
     const dir = axis === 'x' ? Math.sign(e.deltaX) : Math.sign(e.deltaY);
@@ -231,6 +237,7 @@ function installScrollLock() {
   let touchStartY = 0;
   const onTouchStart = (e) => { if (e.touches && e.touches[0]) touchStartY = e.touches[0].clientY; };
   const onTouchMove = (e) => {
+    if (!e.cancelable) return;
     const y = e.touches && e.touches[0] ? e.touches[0].clientY : touchStartY;
     // 手指上滑（startY > y）= 內容往下捲 dir>0；下滑反之。用真實方向判斷 → panel 捲到邊界時不會 chain 到底層
     const dir = touchStartY - y >= 0 ? 1 : -1;
@@ -280,17 +287,26 @@ export function enterLightboxMode() {
   openCount++;
 }
 
-export function exitLightboxMode() {
+export function exitLightboxMode({ deferHeaderShow = false } = {}) {
   openCount = Math.max(0, openCount - 1);
   if (openCount === 0) {
     if (scrollLockCleanup) { scrollLockCleanup(); scrollLockCleanup = null; }
     document.body.classList.remove('lightbox-open');
-    animateHeaderShow(getHeaderTargets());
-    restoreHeaderZ();
     restoreLogoLinks();
     // 無障礙：把焦點還給開啟 lightbox 的元素（preventScroll：別把頁面捲走）
     if (savedFocusEl && typeof savedFocusEl.focus === 'function') savedFocusEl.focus({ preventScroll: true });
     savedFocusEl = null;
+    // header bars 揭露 + z 還原。slide-in（deferHeaderShow=true）延後到 panel 離場（DUR.medium）跑完才做：
+    //   否則 about-bar 等 header bars 在 panel 還往右滑出時就 clip 揭露、白 bar 冒在頂部蓋住離場中的 panel
+    //   （user 2026-07-09「header 先變白，slide-in 在 header 下方離開」；桌面 about-bar 最明顯，clip 隨機方向＝「有時候不會」）。
+    //   全螢幕 lightbox（fade out）傳 false＝立即，維持「header 與 lightbox 同步淡回」的原設計。
+    const revealHeader = () => {
+      if (openCount !== 0) return;  // 延後窗口內又開了新 lightbox（enter 已 raiseHeaderZ + hide）→ 放棄還原
+      animateHeaderShow(getHeaderTargets());
+      restoreHeaderZ();
+    };
+    if (deferHeaderShow) setTimeout(revealHeader, DUR.medium * 1000);
+    else revealHeader();
     // 延後到 fade-out 結束（300ms 對齊 activities/library 的 opacity transition）：
     // 立即還原 padding 會讓內容在 fade-out 期間瞬間往上跳，視覺割裂
     setTimeout(() => {
