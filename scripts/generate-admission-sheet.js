@@ -18,7 +18,7 @@ const fs = require('fs');
 const OUT_DIR = path.join(__dirname, '..', 'data-source');
 const OUT_FILE = path.join(OUT_DIR, 'admission-input.xlsx');
 
-// Country options 對齊 cmb2-register sccd_country_options（39 國）
+// Country options（39 國）
 const COUNTRIES = [
   'tw', 'jp', 'kr', 'cn', 'hk', 'sg', 'my', 'th', 'vn', 'ph', 'id', 'in',
   'au', 'nz', 'us', 'ca', 'mx', 'br', 'gb', 'fr', 'de', 'it', 'es', 'nl',
