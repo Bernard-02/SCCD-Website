@@ -76,6 +76,34 @@ function groupByYear(items) {
   return byYear;
 }
 
+// Reset 按鈕：absolute 釘在「grid 容器」左下＝年份 scroll 最下方、左緣對齊年份。
+// 為何 absolute：picker 左欄是 grid `max-content` track，按鈕「Reset 重設」比 4 位年份寬，若進 flow
+//   會撐寬左欄、把右側內容整體推右（user 2026-07-14）。absolute 不進 intrinsic sizing＝零推移。
+// 為何掛 grid 而非 picker 直欄：containing block 若是那條窄的 max-content 欄，absolute 的 shrink-to-fit
+//   會把按鈕寬度夾回年份寬 → 「重設」換行/被切。改以整個 grid 為 containing block＝有 year 欄 + gap(2xl)
+//   的空白可用，nowrap 單行不切、剛好吃掉 user 說的「gap 空間」。
+// left/bottom 用 grid 的 computed padding 對位：left=paddingLeft 對齊年份左緣、bottom=paddingBottom
+//   坐落 grid 內容底＝picker/list 底。scroll wrap 補 padding-bottom 讓末年份捲上時停在按鈕上方不被蓋。
+// 掛在 <main> 內的 DOM 上，SPA 換頁隨 innerHTML swap 一併移除，不需另註冊 cleanup。
+function attachYearReset(pickerEl, onReset) {
+  const wrap = pickerEl.parentElement;         // scroll 容器
+  const grid = wrap.parentElement.parentElement; // grid 容器（跨 year 欄 + gap + 1fr 內容）
+  grid.style.position = 'relative';
+  wrap.style.paddingBottom = 'var(--spacing-xl)';
+  grid.querySelector('.year-reset-btn')?.remove();
+  const btn = document.createElement('button');
+  btn.className = 'year-reset-btn';
+  btn.textContent = 'Reset 重設';
+  btn.setAttribute('aria-label', '重設年份篩選 Reset year filter');
+  btn.style.cssText = 'position:absolute;white-space:nowrap;background:var(--lib-bg);text-align:left;border:none;padding:var(--spacing-xs) 0;font-family:inherit;font-size:var(--font-size-p3);cursor:pointer;font-weight:700;color:var(--lib-fg);display:none;';
+  const gcs = getComputedStyle(grid);
+  btn.style.left = gcs.paddingLeft;
+  btn.style.bottom = gcs.paddingBottom;
+  btn.addEventListener('click', onReset);
+  grid.appendChild(btn);
+  return btn;
+}
+
 /**
  * 建立年份 Picker 按鈕列
  * @param {HTMLElement} pickerEl  - 容器
@@ -92,6 +120,7 @@ function createYearPicker(pickerEl, years, onFilter) {
 
   const updateStyles = () => {
     const hasSel = selected.size > 0;
+    resetBtn.style.display = hasSel ? '' : 'none';
     pickerEl.querySelectorAll('button').forEach(b => {
       const isSel = selected.has(b.dataset.year);
       // 選取＝維持原色，未選＝dim 到 0.3（跟 album cat 選單同款，靠 cssText 的 transition 平滑淡入淡出）
@@ -99,6 +128,8 @@ function createYearPicker(pickerEl, years, onFilter) {
       b.setAttribute('aria-pressed', String(isSel)); // 無障礙：選取狀態靠 aria-pressed 報讀（取代視覺底線，不依賴顏色）
     });
   };
+
+  const resetBtn = attachYearReset(pickerEl, () => { selected.clear(); updateStyles(); onFilter(); });
 
   years.forEach(year => {
     const btn = document.createElement('button');
@@ -369,7 +400,7 @@ function spawnAwardIcon(x, y) {
   const url = sitePath(`website-icons/Award_Icons/award_cursor_${n}.svg`);
   const el = document.createElement('span');
   el.className = 'award-spawn-icon';
-  el.style.cssText = `position:fixed;left:${x}px;top:${y}px;width:28px;height:28px;display:block;pointer-events:none;z-index:10000;-webkit-mask:url('${url}') center/contain no-repeat;mask:url('${url}') center/contain no-repeat;`;
+  el.style.cssText = `position:fixed;left:${x}px;top:${y}px;width:30px;height:30px;display:block;pointer-events:none;z-index:10000;-webkit-mask:url('${url}') center/contain no-repeat;mask:url('${url}') center/contain no-repeat;`;
   document.body.appendChild(el);
   // 拋物線飛出（user 2026-06-22 要「彈出+活潑」）：水平等速 dx + 垂直先上 -peak 後下 endY = 重力拋物；
   // scale 0→1 pop-in（back 過衝）再→0 收掉（不碰 opacity）。每次隨機方向/高度 → 不重複、活潑
@@ -619,7 +650,8 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     // award row 與 ref 列共用同一組欄位模板，確保「ref label 對齊競賽名稱欄、ref title 對齊主辦單位欄」（user 2026-06-13 六輪）。
     // 7 欄：flag(1.5em) 競賽名稱(2.5fr) 主辦單位(2fr) 獎項(1.5fr) 名次(1fr) 得獎人(1fr) ref鈕(1.5em)
     // 主辦單位欄是把原 4.5fr 競賽欄拆成 2.5+2，其餘欄位比例不變。
-    const AWARD_GRID = 'grid-template-columns: 1.5em 2.5fr 2.5fr 1.3fr 1fr 1fr 1.5em; gap: 0 2rem;';
+    // cell gap 矮橫向縮 1rem（窄卡 2rem×6 吃掉太多欄寬）；gate 每次 init 判一次、跨 gate 轉向靠 orientation-reload
+    const AWARD_GRID = `grid-template-columns: 1.5em 2.5fr 2.5fr 1.3fr 1fr 1fr 1.5em; gap: 0 ${isShortLandscape() ? '1rem' : '2rem'};`;
     // ref 展開列：版型沿用 list-ref-btn（hover 黑底），但 grid 改用 AWARD_GRID 對齊主表 —
     // label 落「競賽名稱」欄(col 2)、title 落「主辦單位」欄(col 3)起算往右展開；左側 col 1 不放 ref icon。
     const escAttr = s => String(s || '').replace(/"/g, '&quot;');
@@ -836,10 +868,19 @@ async function initAwardsPanel(onEntranceDoneCallback) {
       };
       const updateBtns = () => {
         const hasSel = selectedYears.size > 0;
+        resetBtn.style.display = hasSel ? '' : 'none';
         yearPickerEl.querySelectorAll('button').forEach(b => {
           b.style.color = (!hasSel || selectedYears.has(b.dataset.year)) ? 'var(--lib-fg)' : 'rgba(var(--lib-fg-rgb),0.3)';
         });
       };
+
+      const resetBtn = attachYearReset(yearPickerEl, () => {
+        const before = snapshotVisibleYears(listEl);
+        selectedYears.clear();
+        updateBtns();
+        updateList();
+        clipWipeChangedBlocks(listEl, before);
+      });
 
       allYears.forEach(year => {
         if (!dataYears.has(String(year))) return;
@@ -1740,20 +1781,58 @@ function clipWipeChangedBlocks(listEl, beforeYears) {
   clipWipeItems(items.filter(el => el.offsetParent !== null));
 }
 
-// 對 panel 內 chip 跟非 chip 子元素各自隨機挑方向 clip wipe 進場
-// chip 跟內容區可以不同方向（兩者視覺獨立，多樣性更好）
+// ── Panel 標題 chip：hero clip-reveal（取代原隨機方向 clip-path wipe，user 2026-07-15）──────
+// chip 是 position:absolute + randomTitleTransform 的隨機 rotate/Y；用「本體 translate 沿旋轉軸滑入
+// ＋ 同向 clip-path inset 同步收」的免-wrapper hero 技法（reparent 對 absolute+rotate 風險高）。
+// clip 與進入方向同側＝從該側滑入、該側 inset 同步開 → 視覺上「遮罩窗釘死版位、chip 滑進來」。
+// 見 reference_gsap_translate_string_needs_matching_units / reference_rotated_element_in_clip_mask_slide。
+const TITLE_ENTER_CLIP = {
+  top:    'inset(100% 0% 0% 0%)',
+  bottom: 'inset(0% 0% 100% 0%)',
+  left:   'inset(0% 0% 0% 100%)',
+  right:  'inset(0% 100% 0% 0%)',
+};
+// 沿「較短邊」隨機（chip 通常寬>高 → top/bottom，滑距=矮邊高 ~30px、小而穩）：避免抽到長邊(寬)那次
+// 滑一整個寬度「從很遠飛進來」(user 2026-07-16)。位移=clip 全距鎖定→貼邊不浮中間（同三色卡 revealDir）。
+const pickTitleDir = (el) => {
+  const w = el.offsetWidth || 0, h = el.offsetHeight || 0;
+  const pair = w >= h ? ['top', 'bottom'] : ['left', 'right'];
+  return pair[Math.random() < 0.5 ? 0 : 1];
+};
+
+// 沿「旋轉後自身軸」把 chip 推出版位的位移向量（雙值全 px，translate 字串插值才穩定）
+function titleHiddenTranslate(el, dir) {
+  const m = /rotate\((-?[\d.]+)deg\)/.exec(el.style.transform || '');
+  const th = m ? parseFloat(m[1]) * Math.PI / 180 : 0;
+  const c = Math.cos(th), s = Math.sin(th);
+  const w = el.offsetWidth || 0, h = el.offsetHeight || 0;
+  const v = { top: [h*s, -h*c], bottom: [-h*s, h*c], left: [-w*c, -w*s], right: [w*c, w*s] }[dir];
+  return `${v[0].toFixed(2)}px ${v[1].toFixed(2)}px`;
+}
+
+function playPanelTitleReveal(title) {
+  if (!title) return;
+  const dir = pickTitleDir(title);
+  if (typeof gsap === 'undefined') { title.style.clipPath = ''; title.style.translate = ''; return; }
+  gsap.fromTo(title,
+    { clipPath: TITLE_ENTER_CLIP[dir], translate: titleHiddenTranslate(title, dir) },
+    { clipPath: 'inset(0% 0% 0% 0%)', translate: '0px 0px', duration: DUR.reveal, ease: EASE.enter,
+      onComplete: () => { title.style.clipPath = ''; title.style.translate = ''; } });
+}
+
+// title = hero clip-reveal（slide-in）；內容區維持原隨機方向 clip-path wipe（兩者視覺獨立）
 export function playPanelReveal(panelEl) {
   if (!panelEl) return;
   const title = panelEl.querySelector(':scope > .lib-panel-title');
   const others = [...panelEl.querySelectorAll(':scope > :not(.lib-panel-title)')];
-  const all = title ? [title, ...others] : others;
-  if (!all.length) return;
+  if (title) playPanelTitleReveal(title);
+  if (!others.length) return;
 
   // 各自挑方向
-  const dirs = all.map(() => pickRevealHideDir());
+  const dirs = others.map(() => pickRevealHideDir());
 
   // 設起點（transition:none 避免從上次 inset(0) 反向走全程）
-  all.forEach((el, i) => {
+  others.forEach((el, i) => {
     /** @type {HTMLElement} */ (el).style.transition = 'none';
     /** @type {HTMLElement} */ (el).style.clipPath   = dirs[i];
   });
@@ -1761,7 +1840,7 @@ export function playPanelReveal(panelEl) {
   // 雙 rAF 確保起點 paint → 重設 transition → 設終點觸發 wipe
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      all.forEach(el => {
+      others.forEach(el => {
         /** @type {HTMLElement} */ (el).style.transition = '';
         /** @type {HTMLElement} */ (el).style.clipPath   = 'inset(0 0 0 0)';
       });
@@ -1773,13 +1852,18 @@ export function playPanelReveal(panelEl) {
 // 由 library-card.js playExitAnimation 編排時序：playPanelTitleExit → grayEl + playPanelBodyExit 同步
 // Why: 視覺要先把「灰色卡片左上角」標籤 chip 抹掉再讓灰卡消失，否則 chip 殘留破壞收場節奏
 // chip position:absolute 突出 grayEl clip 邊界外，必須獨立 wipe
-export function playPanelTitleExit(panelEl, dur = 0.25) {
+export function playPanelTitleExit(panelEl, dur = DUR.medium) {
   if (!panelEl) return;
   const title = /** @type {HTMLElement|null} */ (panelEl.querySelector(':scope > .lib-panel-title'));
   if (!title) return;
-  const hideDir = pickRevealHideDir();
-  title.style.transition = `clip-path ${dur}s ease-in`;
-  title.style.clipPath = hideDir;
+  const dir = pickTitleDir(title);
+  if (typeof gsap === 'undefined') { title.style.clipPath = TITLE_ENTER_CLIP[dir]; return; }
+  // 對稱 hero slide-out：translate 沿旋轉軸滑出 + 同向 clip 同步收。fromTo 顯式起點 inset(0)：
+  // 進場 onComplete 已 clearProps → computed clipPath=none，gsap.to 從 none 補間不動會 snap
+  // （見 feedback_clippath_exit_after_clearprops_use_fromto）
+  gsap.fromTo(title,
+    { clipPath: 'inset(0% 0% 0% 0%)', translate: '0px 0px' },
+    { clipPath: TITLE_ENTER_CLIP[dir], translate: titleHiddenTranslate(title, dir), duration: dur, ease: EASE.exit });
 }
 
 export function playPanelBodyExit(panelEl, dur = 0.35) {
@@ -2070,7 +2154,9 @@ function handleLibraryHash() {
         // mouseenter 讓原生 hover 當「唯一」顏色來源——inline 再疊一套會跟 listener 各自隨機抽色，
         // 變成 ring 一色、底色一色的雙色（user 2026-06-13 桌面 deep-link 看到雙重顏色）。
         // 手機：listener 都沒綁（<768 不綁），dispatch 沒人接 → 維持 inline 單色那套。
-        const desktopHover = window.innerWidth >= 768;
+        // ⚠️ 判準必須跟 hover 綁定 gate（bindListItemHover 等處的 >=768 && !isShortLandscape）一致：
+        // 橫向手機寬 ≥768 但 listener 沒綁，只看寬度會 dispatch 給沒人接＝無 highlight（user 2026-07-10）。
+        const desktopHover = window.innerWidth >= 768 && !isShortLandscape();
         const prevTransition = el.style.transition;
         if (!desktopHover) {
           if (tab === 'awards') {

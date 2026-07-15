@@ -6,7 +6,7 @@
 import { registerPageExit } from '../ui/page-exit.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { playPanelTitleExit, playPanelBodyExit } from './library-panels.js';
-import { DUR } from '../ui/motion.js';
+import { DUR, EASE } from '../ui/motion.js';
 import { sitePath } from '../ui/site-base.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 
@@ -201,6 +201,7 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
     el.style.left           = `${Math.round(sw / 2)}px`;
     el.style.top            = `${Math.round(sh / 2)}px`;
     el.style.transform      = 'translate(-50%, -50%) rotate(0deg)';
+    el.style.translate      = '';  // 清掉「色塊→灰卡」時 heroExitCard 殘留的 translate（否則灰卡被位移甩出版位）
     el.style.display        = 'flex';
     el.style.flexDirection  = 'column';
     el.style.overflow       = 'visible';
@@ -217,6 +218,7 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
     el.style.left       = `${Math.round(config.cx)}px`;
     el.style.top        = `${Math.round(config.cy)}px`;
     el.style.transform  = `translate(-50%, -50%) rotate(${config.rot}deg)`;
+    el.style.translate  = '';  // 清殘留位移；hero reveal/exit 的 translate 由 heroRevealCard/heroExitCard 自行管理
     el.style.overflow   = 'hidden';
     const content = el.querySelector('#library-card-content');
     if (content) {
@@ -416,7 +418,9 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
     // 灰色矩形的 cfg 固定
     cfgCache.set(activeEl, { cx: sw/2, cy: sh/2, w: MAIN_W, h: MAIN_H, rot: 0 });
 
-    refreshMarquees();
+    // marquee 量測（probe offsetWidth）必須等字型載入完才準：字型未載入時用 fallback 寬 → 之後重量會
+    // 「對位後再抖動一次」（user 2026-07-15）。gate 在 fonts.ready → 只 render 一次（字型已載入時即刻 resolve）。
+    document.fonts.ready.then(() => refreshMarquees());
   }
 
   // ── Clip reveal ───────────────────────────────────────────────
@@ -443,6 +447,55 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
         if (onDone) setTimeout(onDone, dur * 1000);
       });
     });
+  }
+
+  // ── Hero clip-reveal（位移+揭露）：本體 translate 沿旋轉軸滑入 + 同向 clip-path inset 同步收 ──
+  // 方向隨機（同標題 chip）——clip 窗釘死「停駐版位」、卡片被遮部分靠 z 堆疊永遠在灰卡(z:10)後，
+  // 任何方向都不會滑出版位或蓋錯層。rot 從 el.style.transform 讀（setAsColor 寫的 rotate）。
+  // 見 reference_gsap_translate_string_needs_matching_units / reference_rotated_element_in_clip_mask_slide。
+  const ENTER_CLIP = {
+    top:    'inset(100% 0% 0% 0%)',
+    bottom: 'inset(0% 0% 100% 0%)',
+    left:   'inset(0% 0% 0% 100%)',
+    right:  'inset(0% 100% 0% 0%)',
+  };
+  // 方向沿「較短邊」隨機（該軸兩向擇一）：位移＝短邊尺寸＝clip 揭露距離（鎖定→乾淨貼邊、不浮中間），
+  // 又比長邊短（大卡不會飛掠一整個長邊）。⚠️不可用封頂 translate < clip 全距：位移與 clip 一解鎖，
+  // 揭露內容會浮在 footprint 中央而非貼邊＝user 2026-07-15「中間收起」。兩端點(全鎖定 / 零位移純 wipe)才貼邊。
+  function revealDir(el) {
+    const w = el.offsetWidth || 0, h = el.offsetHeight || 0;
+    const pair = w >= h ? ['top', 'bottom'] : ['left', 'right'];
+    return pair[Math.random() < 0.5 ? 0 : 1];
+  }
+
+  // 沿旋轉後自身軸把卡推出版位的位移向量（= 該軸全尺寸，與 clip 100% 鎖定；雙值全 px 插值才穩）
+  // d 沿軸全尺寸故 ty/tx = tanθ（沿旋轉軸不偏）
+  function hiddenTranslate(el, dir) {
+    const m = /rotate\((-?[\d.]+)deg\)/.exec(el.style.transform || '');
+    const th = m ? parseFloat(m[1]) * Math.PI / 180 : 0;
+    const c = Math.cos(th), s = Math.sin(th);
+    const w = el.offsetWidth || 0, h = el.offsetHeight || 0;
+    const v = { top: [h*s, -h*c], bottom: [-h*s, h*c], left: [-w*c, -w*s], right: [w*c, w*s] }[dir];
+    return `${v[0].toFixed(2)}px ${v[1].toFixed(2)}px`;
+  }
+
+  // 位移+揭露 進/退場：GSAP 同 tick 寫 translate+clipPath。⚠️不用 CSS transition：translate 走 compositor、
+  // clip-path 走主執行緒，兩管線逐幀微差＝clip 窗緣抖動（見 reference_gsap_translate_string_needs_matching_units
+  // v3 註）。translate 與 transform:translate(-50%,-50%)rotate() 疊加共存；rot 由 hiddenTranslate 從 transform 讀。
+  function heroRevealCard(el, dir, dur, onDone) {
+    if (typeof gsap === 'undefined') { el.style.clipPath = 'inset(0% 0% 0% 0%)'; el.style.translate = ''; if (onDone) onDone(); return; }
+    gsap.fromTo(el,
+      { clipPath: ENTER_CLIP[dir], translate: hiddenTranslate(el, dir) },
+      { clipPath: 'inset(0% 0% 0% 0%)', translate: '0px 0px', duration: dur, ease: EASE.enter, overwrite: true,
+        onComplete: () => { el.style.translate = ''; if (onDone) onDone(); } });
+  }
+  function heroExitCard(el, dir, dur, onDone) {
+    if (typeof gsap === 'undefined') { el.style.clipPath = ENTER_CLIP[dir]; el.style.translate = hiddenTranslate(el, dir); if (onDone) onDone(); return; }
+    // fromTo 顯式起點 inset(0)/0px：clipPath 曾被 clearProps→computed none 時，gsap.to 從 none 補間會 snap
+    gsap.fromTo(el,
+      { clipPath: 'inset(0% 0% 0% 0%)', translate: '0px 0px' },
+      { clipPath: ENTER_CLIP[dir], translate: hiddenTranslate(el, dir), duration: dur, ease: EASE.exit, overwrite: true,
+        onComplete: onDone || undefined });
   }
 
   // ── 分頁切換 ──────────────────────────────────────────────────
@@ -499,8 +552,12 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
     const COLLAPSE_DUR = DUR.fast;  // 收起
     const EXPAND_DUR   = CLIP_DUR;  // 展開（沿用 0.5）
 
-    // ── Phase A：所有卡片原地 clip wipe out（維持當前幾何，不 morph 位置）──
-    allEls.forEach(el => exitOneCard(el, randomClipDir(), COLLAPSE_DUR));
+    // ── Phase A：所有卡片原地收起（維持當前幾何，不 morph 位置）──
+    // 色塊＝位移+揭露收（heroExitCard）；灰卡（activeEl）維持 clip-path wipe（對稱其 clipReveal 進場）
+    allEls.forEach(el => {
+      if (el === activeEl) exitOneCard(el, randomClipDir(), COLLAPSE_DUR);
+      else heroExitCard(el, revealDir(el), COLLAPSE_DUR);
+    });
 
     // ── Phase B：收完 → 重排角色/幾何（隱藏態瞬間跳位）→ 一起 clip wipe in ──
     setTimeout(() => {
@@ -546,11 +603,9 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
         cfgMap.set(el, cfg);
         cfgCache.set(el, cfg);
 
-        const dir = randomClipDir();
-        expandDirs.set(el, dir);
+        expandDirs.set(el, revealDir(el));
         el.style.transition = 'none';
-        setAsColor(el, colorOf.get(el), cfg);
-        el.style.clipPath = dir.hide;
+        setAsColor(el, colorOf.get(el), cfg);   // 就位（transform+幾何）；hidden clip/translate 交給 heroRevealCard fromTo
         renderMarquee(el);  // 先生成 marquee，展開過程中標題可見
       });
 
@@ -560,19 +615,17 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
       setAsGray(clickedEl, sw, sh);
       clickedEl.style.clipPath = grayDir.hide;
 
-      // 下一個 rAF：所有卡片一起 clip wipe in（展開）
+      // 下一個 rAF：所有卡片一起展開（色塊＝位移+揭露 heroRevealCard、灰卡＝clip-path，對稱進場）
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          sortedColorNow.forEach(el => {
-            el.style.transition = `clip-path ${EXPAND_DUR}s ease-out`;
-            el.style.clipPath   = expandDirs.get(el).show;
-          });
+          sortedColorNow.forEach(el => heroRevealCard(el, expandDirs.get(el), EXPAND_DUR));
           clickedEl.style.transition = `clip-path ${EXPAND_DUR}s ease-out`;
           clickedEl.style.clipPath   = grayDir.show;
 
           setTimeout(() => {
             allEls.forEach(el => { el.style.transition = TRANSITION; el.style.clipPath = ''; });
-            refreshMarquees();
+            // 不再 refreshMarquees()：色塊 marquee 已在上方 forEach 用最終幾何 render 一次（新灰卡 marquee
+            // 由 setAsGray 隱藏），這裡重跑會重建 innerHTML→CSS marquee 動畫從頭跳一次（user 2026-07-15 抖動）
             if (onDone) onDone();  // → onTabSwitch → playPanelReveal（展內容）
           }, EXPAND_DUR * 1000);
         });
@@ -595,7 +648,7 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
       if (contentEl) contentEl.classList.add('content-visible');
       isSwitching = false;  // 進場完成 → 解鎖 switchTab
       if (onEntranceDoneCb) onEntranceDoneCb();
-      refreshMarquees();
+      document.fonts.ready.then(() => refreshMarquees());
       return;
     }
 
@@ -605,8 +658,9 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
     const sortedByZ = [...colorEls].sort((a,b) => parseInt(a.style.zIndex) - parseInt(b.style.zIndex));
     let delay = 0;
     sortedByZ.forEach(el => {
-      const dir = randomClipDir();
-      setTimeout(() => { el.style.opacity = '1'; clipReveal(el, dir, ENTER_DUR, null); }, delay * 1000);
+      // 三色底卡：位移+揭露（隨機 4 向）取代原地 clip-path wipe；灰卡仍走 clipReveal（見下）
+      const dir = revealDir(el);
+      setTimeout(() => { el.style.opacity = '1'; heroRevealCard(el, dir, ENTER_DUR); }, delay * 1000);
       delay += STAGGER;
     });
 
@@ -620,8 +674,7 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
           if (onTabSwitch) onTabSwitch(tabOf.get(grayEl));
           contentEl.classList.add('content-visible');
           if (onEntranceDoneCb) onEntranceDoneCb();
-          // 進場完成後重新量測 marquee（字型已載入，offsetWidth 可正確取得）
-          requestAnimationFrame(() => refreshMarquees());
+          // marquee 已在 initColorEls 內 gate document.fonts.ready render 一次（字型準確），這裡不再重量避免抖動
         });
       });
     }, delay * 1000);
@@ -669,11 +722,11 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
 
         // 進場是 colorEls 由低 z → 高 z stagger，最後 grayEl
         // 退場反過來：grayEl 收 → colorEls 由高 z → 低 z 倒序 stagger
+        // 色塊＝位移+揭露收（heroExitCard，對稱進場）；灰卡上面 exitOneCard 維持 clip-path（對稱其 clipReveal 進場）
         const sortedByZDesc = [...colorEls].sort((a,b) => parseInt(b.style.zIndex) - parseInt(a.style.zIndex));
         let delay = STAGGER;
         sortedByZDesc.forEach(el => {
-          const dir = randomClipDir();
-          setTimeout(() => exitOneCard(el, dir, EXIT_DUR), delay * 1000);
+          setTimeout(() => heroExitCard(el, revealDir(el), EXIT_DUR), delay * 1000);
           delay += STAGGER;
         });
 
@@ -734,7 +787,9 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
       roInitialized = true;
       MAIN_W = Math.round(sw * 0.85);
       MAIN_H = Math.round(sw * 0.87 * 10.5 / 21);
-      grayEl.style.cssText = `position:absolute;background:var(--lib-bg);z-index:10;cursor:default;display:flex;flex-direction:column;overflow:visible;width:${MAIN_W}px;height:${MAIN_H}px;left:${Math.round(sw/2)}px;top:${Math.round(sh/2)}px;transform:translate(-50%,-50%) rotate(0deg);opacity:0;`;
+      // ⚠️ 不設 cursor：inline `cursor:default` 是 keyword（系統箭頭），spec=1000 蓋掉全站自製 cursor 系統，
+      //    害灰卡空白處變回系統游標（只有可點元素自套 pointer）。移除 → 繼承 html 的 var(--cursor-default) 自製圖。
+      grayEl.style.cssText = `position:absolute;background:var(--lib-bg);z-index:10;display:flex;flex-direction:column;overflow:visible;width:${MAIN_W}px;height:${MAIN_H}px;left:${Math.round(sw/2)}px;top:${Math.round(sh/2)}px;transform:translate(-50%,-50%) rotate(0deg);opacity:0;`;
       initColorEls(sw, sh);
       colorEls.forEach(el => { el.style.opacity = '0'; });
       requestAnimationFrame(() => { playEntranceAnimation(sw, sh); });
