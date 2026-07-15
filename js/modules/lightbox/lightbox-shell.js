@@ -35,9 +35,13 @@ export function getHeaderTargets() {
       Array.from(header.querySelectorAll(':scope > .site-container > .grid-12 .mobile-header-btn'))
     );
   }
+  // 後代（非直接子）選擇器：容忍 footer-near 收起把每個 bar 包一層 .header-bar-clip 遮罩（header.js）；
+  // .md:flex 內只有這幾個 [data-bar] / #mode-btn，後代匹配不會多抓
+  const row = header.querySelector(':scope > .site-container > .md\\:flex');
+  if (!row) return [];
   return /** @type {HTMLElement[]} */ ([
-    ...header.querySelectorAll(':scope > .site-container > .md\\:flex > [data-bar]'),
-    header.querySelector(':scope > .site-container > .md\\:flex > #mode-btn'),
+    ...row.querySelectorAll('[data-bar]'),
+    row.querySelector('#mode-btn'),
   ].filter(Boolean));
 }
 

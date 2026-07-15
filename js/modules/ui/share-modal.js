@@ -31,6 +31,14 @@ const DIR_FROM = {
 const DIR_KEYS = Object.keys(DIR_FROM);
 let lastDir = null;
 
+// mode1/2 卡片底色隨機三原色，跟 list hover 共用同一 source（SCCDHelpers.getRandomAccentColor：
+// 同三原色 + 不重複上次邏輯）確保永不 drift；mode3(color) 維持白底。fallback 防 helper 未載入。
+const ACCENT_COLORS = ['#00FF80', '#FF448A', '#26BCFF'];
+function randomAccent() {
+  return window.SCCDHelpers?.getRandomAccentColor?.()
+    ?? ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
+}
+
 function getQrEndpoint(url, size = 200) {
   return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(url)}`;
 }
@@ -66,7 +74,7 @@ function prefetchQr(url) {
 // 卡片背景寫死白色，跟著 mode 變白字 = 白底白字消失
 const LIGHTBOX_HTML = `
   <div id="share-lightbox" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.9); align-items:center; justify-content:center;">
-    <div id="share-lightbox-card" style="background:#fff; color:#000; width:320px; padding: var(--spacing-md); display:flex; flex-direction:column; gap: var(--spacing-lg);">
+    <div id="share-lightbox-card" style="background:#fff; color:#000; width:320px; padding: var(--spacing-md); display:flex; flex-direction:column; gap: var(--spacing-md);">
       <!-- gap-sm + icon-m (20px) → title 起點 = 20+16 = 36px，對齊 QR (200px) 在內容寬 (320-48=272) 居中時的左 offset (272-200)/2=36px -->
       <div style="display:flex; align-items:center; gap: var(--spacing-sm);">
         <button id="share-lightbox-close" style="line-height:1; color:#000;" aria-label="關閉 Close">
@@ -74,10 +82,11 @@ const LIGHTBOX_HTML = `
         </button>
         <p class="font-bold" style="font-size: 1rem; color:#000;">Share 分享</p>
       </div>
-      <div class="flex justify-center" style="margin-top: var(--spacing-md);">
-        <img id="share-qr-img" src="" alt="QR Code" style="width:200px;height:200px;display:block;opacity:0;transition:opacity 0.25s ease;">
+      <div class="flex justify-center">
+        <!-- mix-blend-mode:multiply → 白底像素乘上卡片色 = 視覺透明；黑模組維持黑（白卡 mode3 也無害）。下載走 canvas 另存白底原圖，不受此影響 -->
+        <img id="share-qr-img" src="" alt="QR Code" style="width:200px;height:200px;display:block;opacity:0;transition:opacity 0.25s ease;mix-blend-mode:multiply;">
       </div>
-      <div style="display:flex; justify-content:center; gap: var(--spacing-xl); margin-top: var(--spacing-md);">
+      <div style="display:flex; justify-content:center; gap: var(--spacing-xl);">
         <button id="share-copy-btn" aria-label="複製連結 Copy Link" style="line-height:1; color:#000;">
           <span class="icon icon-copy icon-xl"></span>
         </button>
@@ -103,23 +112,44 @@ function pickDir() {
   return dir;
 }
 
-function openShareLightbox(url) {
+function openShareLightbox(url, bg) {
   const lightbox = document.getElementById('share-lightbox');
   const card = document.getElementById('share-lightbox-card');
   if (!lightbox || !card) return;
+
+  // 卡片底色（文字始終黑）：
+  //   bg 明確帶入（library share btn 帶 title 渲染色）→ 直接用，讓卡片跟 title 同色
+  //   否則 mode3(color) 維持白；mode1/2 隨機三原色（同 list hover source）
+  card.style.background = bg
+    || (document.body.classList.contains('mode-color') ? '#fff' : randomAccent());
 
   // share-lightbox 在 boot 時就 inject（DOM 早於 lazy 建立的 album lightbox）→ 同 z-9999 下會被後者蓋住；
   // 開啟時 re-append 到 body 尾端，確保疊在已開的 lightbox 之上（從 lightbox 內 share btn 點開的情境）
   document.body.appendChild(lightbox);
 
   // 填入 QR code 與 URL — crossOrigin 給 download 走 canvas 去背用
-  // hover/touch 預先 prefetchQr 過時，這裡 src 設同 URL → HTTP cache hit → onload 同步 fire = 即時
-  // 沒 prefetch 命中時 opacity:0 → onload 後 fade-in 蓋掉等待空窗
+  // hover/touch 預先 prefetchQr 過時，這裡 src 設同 URL → HTTP cache hit → 即時（complete=true）直接顯示
+  // 沒命中（有 delay）→ clip-path 由下往上揭露蓋掉等待空窗（取代舊 opacity fade，統一站上 clip-reveal 慣例）
   const qrImg = /** @type {HTMLImageElement} */ (document.getElementById('share-qr-img'));
   qrImg.crossOrigin = 'anonymous';
-  qrImg.style.opacity = '0';
-  qrImg.onload = () => { qrImg.style.opacity = '1'; };
+  qrImg.style.opacity = '1';
+  qrImg.onload = null;
+  qrImg.style.clipPath = '';
   qrImg.src = getQrEndpoint(url);
+  if (!(qrImg.complete && qrImg.naturalWidth)) {
+    // 有 delay：先全裁，onload 後 clip-path reveal（gsap 缺席時退化成直接顯示）
+    qrImg.style.clipPath = 'inset(100% 0% 0% 0%)';
+    qrImg.onload = () => {
+      if (typeof gsap !== 'undefined') {
+        gsap.fromTo(qrImg,
+          { clipPath: 'inset(100% 0% 0% 0%)' },
+          { clipPath: 'inset(0% 0% 0% 0%)', duration: DUR.slow, ease: EASE.enter,
+            onComplete: () => { qrImg.style.clipPath = ''; } });
+      } else {
+        qrImg.style.clipPath = '';
+      }
+    };
+  }
   const MAX_URL_LEN = 50;
   const urlEl = /** @type {HTMLElement} */ (document.getElementById('share-url-text'));
   urlEl.textContent = url.length > MAX_URL_LEN ? url.slice(0, MAX_URL_LEN) : url;
@@ -194,8 +224,8 @@ function closeShareLightbox() {
   }
 }
 
-// 把 QR PNG 的白底像素改透明 → 下載成去背 PNG
-// qrserver.com 不支援 transparent bgcolor 參數，必須 client-side canvas 處理
+// 下載原始白底黑碼 QR PNG（顯示用 multiply 去背只影響畫面，存檔一律白底原設計）
+// 跨網域直接 <a download> 不會強制存檔 → 走 canvas → blob 保留檔名與下載行為
 async function downloadTransparentQr() {
   const img = /** @type {HTMLImageElement | null} */ (document.getElementById('share-qr-img'));
   if (!img?.src) return;
@@ -214,15 +244,6 @@ async function downloadTransparentQr() {
   canvas.height = imgEl.naturalHeight;
   const ctx = canvas.getContext('2d');
   ctx.drawImage(imgEl, 0, 0);
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const data = imageData.data;
-  // RGBA 4-byte 一組；白色（亮度高）→ alpha=0
-  for (let i = 0; i < data.length; i += 4) {
-    if (data[i] > 200 && data[i + 1] > 200 && data[i + 2] > 200) {
-      data[i + 3] = 0;
-    }
-  }
-  ctx.putImageData(imageData, 0, 0);
   canvas.toBlob((blob) => {
     if (!blob) return;
     const objUrl = URL.createObjectURL(blob);
@@ -270,7 +291,8 @@ export function initShareModal() {
   document.addEventListener('click', (e) => {
     const btn = /** @type {HTMLElement} */ (e.target).closest('[data-share-btn]');
     if (!btn) return;
-    openShareLightbox(computeShareUrl(btn));
+    // data-share-bg（library viewer 帶 title 渲染色）→ 卡片同色；沒帶走 mode 隨機規則
+    openShareLightbox(computeShareUrl(btn), btn.dataset.shareBg);
   });
 
   // Hover prefetch — 桌面 user hover 過後 QR 已在 HTTP cache，點擊瞬間 onload 即觸發

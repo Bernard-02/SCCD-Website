@@ -4,7 +4,7 @@
  */
 
 import { initPageModules, cleanupPageModules } from './main-modular.js';
-import { updateNavActive } from './header.js';
+import { updateNavActive, clearNavActive } from './header.js';
 import { runPageExit } from './modules/ui/page-exit.js';
 import { initFooter } from './footer.js';
 import { playFooterExit, resetFooterAfterExit } from './modules/ui/footer-draggable.js';
@@ -356,6 +356,11 @@ export function reloadCurrentRoute() {
 export function navigateTo(url) {
   const { pathname, search, hash } = new URL(url, window.location.origin);
   const route = resolveRoute(pathname) || NOT_FOUND_ROUTE;
+
+  // 點下連結的當下就先收起目前 active 的中文（.nav-link-cn）：不等退場動畫。
+  // 帶 route.page → 若點的就是目前已 active 的頁（re-click 同頁），skip 不收合，免中文閃一下。
+  // 完整 active state（含新頁高亮 / logo / side bar）換頁 swap 後由 updateNavActive 設。
+  clearNavActive(route.page);
 
   // pushState 用「真實檔案路徑」(/pages/X.html or /index.html)，不用乾淨 URL：
   // 開發 server (Live Server) 沒 SPA fallback，乾淨 URL (/support) refresh 會 404；

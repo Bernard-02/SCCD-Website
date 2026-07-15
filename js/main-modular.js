@@ -19,6 +19,7 @@ import { initBFADivisionToggle } from './modules/ui/bfa-division-toggle.js';
 import { initIdleStandby } from './modules/ui/idle-standby.js';
 import { initOrientationReload } from './modules/ui/orientation-reload.js';
 import { initCustomScrollbar } from './modules/ui/custom-scrollbar.js';
+import { initModeColorPanel } from './modules/ui/mode-color-panel.js';
 import { installReducedMotionGsap } from './modules/ui/reduce-motion.js';
 
 // Import About Page Modules
@@ -524,6 +525,7 @@ document.addEventListener('DOMContentLoaded', function () {
   initIdleStandby();
   initCustomScrollbar();
   initShareModal();
+  initModeColorPanel();      // mode3 背景色編輯浮動面板（右下鉛筆 → 展開色環）
   initOrientationReload();   // 手機轉向跨 landscape gate 自動 reload（/create 例外），免手動刷新
 
   // 全站禁右鍵下載 img / svg / video（嚇阻隨手「另存」；對齊 PDF viewer 的 contextmenu 防護）

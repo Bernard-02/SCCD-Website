@@ -521,7 +521,10 @@ export function initPdfViewer() {
     }
     shareBtnEl.style.display = '';
     shareBtnEl.dataset.shareUrl = shareUrl;
-    sharePillEl.style.background = resolvePillColor(color);
+    const pillBg = resolvePillColor(color);
+    sharePillEl.style.background = pillBg;
+    // 分享卡片底色跟 title 渲染色一致（mode-color 下 = 白，同 title）
+    shareBtnEl.dataset.shareBg = pillBg;
   }
 
   // title pill 高度由 EN+ZH 兩行自然撐，back/ref pill follow title 高度（user 2026-06-01 拍板）

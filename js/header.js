@@ -4,7 +4,7 @@
  */
 
 import { initMobileMenu } from './mobile-menu.js';
-import { animateHeaderHide, animateHeaderShow, getHeaderTargets } from './modules/lightbox/lightbox-shell.js';
+import { getHeaderTargets } from './modules/lightbox/lightbox-shell.js';
 import { DUR, EASE } from './modules/ui/motion.js';
 import { sitePath } from './modules/ui/site-base.js';
 
@@ -12,15 +12,173 @@ import { sitePath } from './modules/ui/site-base.js';
 // scroll listener 內 closure 變數會跨換頁存活，但 updateNavActive 拿不到 → 提升到 module scope
 let barsHidden = false;
 function getFooterHideTargets() {
-  // 桌面 logo id=header-logo / 手機 id=header-logo-mobile（header.html 結構差異）
-  // 兩邊都 query，只會有一個命中（display:none 那邊 element 存在但 getElementById 仍回傳）
-  // → 取 parentElement = logo 外面那層 <a>（純 link wrapper、無 gsap tween，clip-path 不會被 killTweensOf 殺到）
-  // 矮橫向也走手機 header（landscape.css 5b 切換顯隱），gate 同 footer-draggable usesMobileFooter()
+  // bars only：logo 改走 hero clip-reveal 滑動（見 footerHideLogo/footerShowLogo），不再跟 bars 一起 clip-path wipe
+  return [...getHeaderTargets()].filter(Boolean);
+}
+
+// footer-near hide 的 logo：桌面 id=header-logo / 手機 id=header-logo-mobile（矮橫向走手機 header，
+// gate 同 footer-draggable usesMobileFooter()）。回傳 { logo, mask }：mask = 外層 <a>（hero 慣例遮罩）。
+function getFooterHideLogo() {
   const isMobile = window.innerWidth < 768
     || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
-  const logoId = isMobile ? 'header-logo-mobile' : 'header-logo';
-  const logoAnchor = document.getElementById(logoId)?.parentElement;
-  return [...getHeaderTargets(), logoAnchor].filter(Boolean);
+  const logo = document.getElementById(isMobile ? 'header-logo-mobile' : 'header-logo');
+  if (!logo) return null;
+  return { logo, mask: /** @type {HTMLElement|null} */ (logo.parentElement) };
+}
+
+// logo 的 footer-near 收/展（2026-07-15 由 clip-path wipe 改 hero clip-reveal：<a> 遮罩 + 本體 yPercent 滑動）。
+// killTweensOf 限定 yPercent：logo 身上還有 scroll-shrink ScrollTrigger（width/height），全殺會卡 180。
+// 遮罩 overflow 只在動畫期間掛（Lottie 齒輪 paint 超出 box，常駐 hidden 會裁外圈）。
+// 視覺位移減半（user 2026-07-15「往下的位移再少一點」）：logo +100% 同時遮罩反向 -50%——
+// 相對位移仍 100%（完整裁切藏好），但 logo 在畫面上只走 (1-0.5)×高。遮罩是 <a>（transform 不影響 layout）。
+const LOGO_HIDE_COUNTER = 0.5;
+function footerHideLogo(opts = {}) {
+  const t = getFooterHideLogo();
+  if (!t) return;
+  gsap.killTweensOf(t.logo, 'yPercent');
+  const vars = { duration: opts.duration || DUR.slow, ease: opts.ease || EASE.enterSoft, overwrite: 'auto' };
+  if (t.mask) {
+    gsap.killTweensOf(t.mask, 'yPercent');
+    t.mask.style.overflow = 'hidden';
+    gsap.to(t.mask, { yPercent: -100 * LOGO_HIDE_COUNTER, ...vars });
+  }
+  gsap.to(t.logo, { yPercent: 100, ...vars });
+}
+function footerShowLogo(opts = {}) {
+  const t = getFooterHideLogo();
+  if (!t) return;
+  gsap.killTweensOf(t.logo, 'yPercent');
+  const vars = { duration: opts.duration || DUR.slow, ease: opts.ease || EASE.enterSoft, overwrite: 'auto' };
+  if (t.mask) {
+    gsap.killTweensOf(t.mask, 'yPercent');
+    t.mask.style.overflow = 'hidden';
+    gsap.to(t.mask, { yPercent: 0, ...vars });
+  }
+  gsap.to(t.logo, {
+    yPercent: 0, ...vars,
+    onComplete: () => {
+      if (t.mask) { t.mask.style.overflow = ''; gsap.set(t.mask, { clearProps: 'transform' }); }
+      gsap.set(t.logo, { clearProps: 'transform' });
+    },
+  });
+}
+// 即時復位（reset 路徑用，不跑動畫）
+function resetFooterLogoState() {
+  const t = getFooterHideLogo();
+  if (!t) return;
+  gsap.killTweensOf(t.logo, 'yPercent');
+  gsap.set(t.logo, { clearProps: 'transform' });
+  if (t.mask) {
+    gsap.killTweensOf(t.mask, 'yPercent');
+    gsap.set(t.mask, { clearProps: 'transform' });
+    t.mask.style.overflow = '';
+  }
+}
+
+// bars 的 footer-near 收/展：2026-07-15 改成完全比照 hero 字卡 clip-reveal（hero-animation.js offsetFor）：
+// **遮罩(wrapper)負責 rotate + overflow，child 平移剛好 ±100% 自身尺寸滑出遮罩**。
+// 關鍵＝rotate 搬到 wrapper（不留在 child）：child 相對遮罩無旋轉 → 剪裁邊界貼齊 child 邊、收起不切旋轉凸角
+// （免 overflow-clip-margin），位移又剛好 ±100% child＝最短、不飄（先前 rotate 留 child + 像素超量位移 →
+//  切角 pop＋位移過多＋偏移，user 2026-07-15 回報）。lightbox 仍用 lightbox-shell 的 clip-path 那套。
+const BAR_HIDE_DIRS = ['top', 'right', 'bottom', 'left'];
+// 位移在「剛好貼齊遮罩邊」外再多滑的餘量：實色 bar 在剛好 ±自身尺寸（貼邊）會留 sub-pixel 縫（user 回報
+// 「左右收會剩一個縫隙」；hero 字卡是透明字看不出、實色 bar 才顯）。加 buffer 一定滑過邊、無縫。
+const BAR_HIDE_BUFFER = 12;
+// 靜態 marginLeft 的 bar 才把 margin 搬到遮罩：遮罩貼齊 bar → 相鄰 bar 的間距落在遮罩「外」，收合時
+// bar 滑不進間距、相鄰 bar 不會撞在一起（user 回報 library↔atlas 相撞）。about/alumni-full（scroll-collapse
+// 動 marginLeft）、mode（/create 動 marginLeft）的 margin 動畫佔用中、留在 bar 不能搬。
+const BAR_MARGIN_TRANSFER = new Set(['library', 'atlas', 'generate']);
+// child 藏起位移（px，wrapper 的 local/旋轉座標系內）：貼齊該方向遮罩邊 + buffer。left 用遮罩寬（含未搬走
+// 的 marginLeft，搬走的＝barW）；其餘用 bar 自身尺寸。
+function barHideOffset(dir, bar, mask) {
+  const B = BAR_HIDE_BUFFER;
+  switch (dir) {
+    case 'top':    return { x: 0, y: -(bar.offsetHeight + B) };
+    case 'bottom': return { x: 0, y: bar.offsetHeight + B };
+    case 'right':  return { x: bar.offsetWidth + B, y: 0 };
+    case 'left':   return { x: -(mask.offsetWidth + B), y: 0 };
+    default:       return { x: 0, y: bar.offsetHeight + B };
+  }
+}
+// mode-btn（marginLeft 留在 bar、左鄰是已搬 margin 的 generate）往左滑會吃掉 generate↔mode 間距而相撞
+// → 排除 left（mode 是小圓鈕、少一個方向無感）。其餘 bar 四方向。
+function pickBarDir(bar) {
+  const dirs = bar.getAttribute('data-bar') === 'mode' ? ['top', 'right', 'bottom'] : BAR_HIDE_DIRS;
+  return dirs[Math.floor(Math.random() * dirs.length)];
+}
+// 每個 bar 包一層遮罩(wrapper)：rotate 從 bar 搬到 wrapper（bar init 的一次性微傾，見 §3；rotate 只在 init
+// 設一次、無其他動畫碰它，搬走安全），wrapper 當遮罩 rotate + overflow → child 在無旋轉座標系內平移剪裁乾淨。
+// 靜態 margin 的 bar 另把 marginLeft 也搬到遮罩（見 BAR_MARGIN_TRANSFER）。overflow 只在動畫期間掛
+// （常駐會裁 nav-link focus outline，a11y）。
+function ensureBarMask(bar) {
+  const parent = bar.parentElement;
+  if (parent && parent.classList.contains('header-bar-clip')) return parent;
+  if (!parent) return null;
+  const mask = document.createElement('div');
+  mask.className = 'header-bar-clip';
+  mask.style.flexShrink = '0';
+  // marginLeft 搬到遮罩（僅靜態 margin 的 bar）：讓遮罩貼齊 bar、間距落遮罩外 → 收合不撞鄰居
+  const originalML = parseFloat(getComputedStyle(bar).marginLeft) || 0;
+  const transfer = BAR_MARGIN_TRANSFER.has(bar.getAttribute('data-bar'));
+  if (transfer) {
+    mask.style.marginLeft = `${originalML}px`;
+    /** @type {HTMLElement} */ (bar).style.marginLeft = '0';
+  }
+  // rotate 轉移：bar init 的 transform 是純 rotate() → 搬到 wrapper，清掉 bar 自身 transform。
+  // ⚠️ transform-origin 要對準「bar 中心」而非 wrapper 中心：遮罩若含未搬走的 marginLeft 會比 bar 寬，用
+  //    遮罩中心旋轉會讓傾斜 bar 相對原位偏 ~(marginLeft/2)·sinθ ≈ 1px（user 對偏移敏感）。搬走 margin 的
+  //    遮罩已貼齊 bar（effectiveML=0）→ origin 50%；沒搬的用 bar 現有 marginLeft 算 % 對準中心。
+  const t = /** @type {HTMLElement} */ (bar).style.transform;
+  if (t) {
+    const effectiveML = transfer ? 0 : originalML;
+    const bw = bar.offsetWidth || 1;
+    const originPct = ((effectiveML + bw / 2) / (effectiveML + bw)) * 100;
+    mask.style.transform = t;
+    mask.style.transformOrigin = `${originPct}% center`;
+    /** @type {HTMLElement} */ (bar).style.transform = '';
+  }
+  parent.insertBefore(mask, bar);
+  mask.appendChild(bar);
+  return mask;
+}
+function footerHideBars() {
+  if (typeof gsap === 'undefined') return;
+  const bars = getFooterHideTargets();
+  if (!bars.length) return;
+  gsap.killTweensOf(bars);
+  const offsets = bars.map(bar => {
+    const mask = ensureBarMask(bar);
+    if (mask) mask.style.overflow = 'clip';
+    return barHideOffset(pickBarDir(bar), bar, mask || bar);
+  });
+  gsap.to(bars, {
+    x: i => offsets[i].x,
+    y: i => offsets[i].y,
+    duration: DUR.slow, ease: EASE.enterSoft, overwrite: 'auto',
+  });
+}
+function footerShowBars() {
+  if (typeof gsap === 'undefined') return;
+  const bars = getFooterHideTargets();
+  if (!bars.length) return;
+  gsap.killTweensOf(bars);
+  gsap.to(bars, {
+    x: 0, y: 0, duration: DUR.slow, ease: EASE.enterSoft, overwrite: 'auto',
+    onComplete: () => bars.forEach(clearBarMask),
+  });
+}
+// 歸零 translate（rotate 已在 wrapper，child transform 純平移 → clearProps 安全）＋卸遮罩 overflow。
+function clearBarMask(bar) {
+  gsap.set(bar, { clearProps: 'transform' });
+  const mask = bar.parentElement;
+  if (mask && mask.classList.contains('header-bar-clip')) mask.style.overflow = '';
+}
+// 即時復位（reset 路徑用，不跑動畫）
+function resetFooterBarsState() {
+  if (typeof gsap === 'undefined') return;
+  const bars = getFooterHideTargets();
+  gsap.killTweensOf(bars);
+  bars.forEach(clearBarMask);
 }
 
 // lightbox / PDF viewer 開啟時要把 footer-near hide state 清零，否則 bars 仍卡 clip-path
@@ -30,9 +188,8 @@ function getFooterHideTargets() {
 export function resetFooterHide() {
   if (!barsHidden) return;
   if (typeof gsap !== 'undefined') {
-    const targets = getFooterHideTargets();
-    gsap.killTweensOf(targets);
-    targets.forEach(el => { el.style.clipPath = ''; });
+    resetFooterBarsState();
+    resetFooterLogoState();
   }
   barsHidden = false;
 }
@@ -225,13 +382,15 @@ export function triggerGenerateLogo() {
   // Lottie 在 2s typewriter delay 內 invisible
   logo.style.opacity = '';
   logo.style.clipPath = '';
-  // 殺掉 switchHeaderLogo runHeaderLogoReveal 留下的 clipPath tween（前一頁 reveal 還沒跑完就進 /create）
-  // 限定 'clipPath' property 避免誤殺 header.js scroll-shrink ScrollTrigger（綁 width/height）
+  // 殺掉 switchHeaderLogo runHeaderLogoReveal 留下的 yPercent tween（前一頁 reveal 還沒跑完就進 /create；
+  // reveal 2026-07-15 起是 hero 滑動）。限定 property 避免誤殺 scroll-shrink ScrollTrigger（綁 width/height）
   if (typeof gsap !== 'undefined') {
-    gsap.killTweensOf(logo, 'clipPath');
+    gsap.killTweensOf(logo, 'yPercent');
+    gsap.set(logo, { clearProps: 'transform' });
   }
   if (logoContainer && /** @type {HTMLElement} */ (logoContainer).style) {
     /** @type {HTMLElement} */ (logoContainer).style.clipPath = '';
+    /** @type {HTMLElement} */ (logoContainer).style.overflow = '';   // reveal 遮罩殘留（動畫中斷時）
     // 上一輪 typewriter 完成時撐過 click target（見 timeline 尾段 set），重進 /create 要先清，
     // 否則 shrink 階段視覺只見 100x100 Lottie 但 <a> 還是 220x80 → user 在 Lottie 右側空白處點也會 nav
     /** @type {HTMLElement} */ (logoContainer).style.width = '';
@@ -241,17 +400,16 @@ export function triggerGenerateLogo() {
   // currentColor 讓 fill / background 跟著 body.mode-* 設的 color 動態走（mode 切換時自動更新）
   const fillColor = 'currentColor';
 
-  // 進場敘事：Lottie ring 先 shrink 到 100x100（如果還是 180）→ indicator cursor 出現在
-  // shrunk Lottie 右邊 → 短閃 → 摧毀 Lottie → cursor 跳左、type 出 SCCD
-  // 所以右側 cursor 的 left/height 對齊 100-size Lottie 而非原本 180-size
-  const SHRUNK_SIZE = 100;
+  // 進場敘事（2026-07-15 改：logo 保持「當下大小」不先縮）：indicator cursor 出現在大 Lottie
+  // 右邊 → 短閃 → 摧毀 Lottie（cursor 切過把它刪掉）→ cursor 跳左、type 出 SCCD。
+  // 之前會先 shrink 180→100 再刪，user：「點進去應該是大 logo 直接做刪除」→ shrink 退役；
+  // cursor 的 left/height 對齊當下 logo 尺寸（從 library/atlas 進來時本來就是 100，通用）。
   const currentLogoSize = logo.offsetWidth || 180;
-  const needsShrink = currentLogoSize > SHRUNK_SIZE + 10;
 
   const cursor = document.createElement('div');
   cursor.dataset.genCursor = '1';
   cursor.dataset.genCursorRole = 'indicator';
-  cursor.style.cssText = `position:absolute;top:8px;left:${SHRUNK_SIZE}px;width:1px;height:${SHRUNK_SIZE + 16}px;background:${fillColor};z-index:10;visibility:hidden;`;
+  cursor.style.cssText = `position:absolute;top:8px;left:${currentLogoSize}px;width:1px;height:${currentLogoSize + 16}px;background:${fillColor};z-index:10;visibility:hidden;`;
   logoContainer.appendChild(cursor);
 
   // blink interval ref 上提到 module-scope（genBlinkInterval），讓 killGenerateLogoTimeline
@@ -297,16 +455,10 @@ export function triggerGenerateLogo() {
   logoContainer.appendChild(cursorNew);
   cursor.style.zIndex = '3';
 
-  // Shrink Lottie 到 SHRUNK_SIZE：跟下面 timeline 的 delay:2 並行跑，0.6s 內完成，
-  // 不影響原本「delay 2s → cursor 3 cycles blink → destroy」的 indicator 出現節奏。
-  // SPA 從 library/atlas 進來 logo 已是 100 → 跳過 shrink；
-  // 從一般頁進來 updateNavActive 已 skip 不動 logo，這裡負責收。
-  if (needsShrink) {
-    gsap.to(logo, { width: SHRUNK_SIZE, height: SHRUNK_SIZE, duration: DUR.slow, ease: EASE.move });
-  }
+  // （shrink 180→100 已退役：logo 保持大尺寸直到被 cursor 刪掉；空 box 尺寸不影響後面
+  //   absolute 定位的 SCCD svg，timeline 尾段會把 <a> click target 設成 SCCD bbox）
 
   // delay:2 保留原本節奏 — user 要求 indicator 「慢一點再出現」，跟改造前一致
-  // shrink 在這 2s 內悄悄完成，cursor 出現時 Lottie 已是 100 size + cursor 對齊在它右邊緣
   const tl = gsap.timeline({ delay: 2, onComplete: () => { genLogoTimeline = null; } });
   genLogoTimeline = tl;
 
@@ -433,35 +585,53 @@ export function restoreHeaderLogo() {
 }
 
 // ── Active Nav State（Router 換頁時呼叫）──────────────────────
+// detail 頁對應到父層高亮（degree-show-detail 隸屬 activities.html 的 panel → 高亮 Activities）
+const NAV_PAGE_MAPPINGS = { 'degree-show-detail': 'activities' };
+// page → nav-link href（比對 href 屬性；index 沒 nav-link 故給 ''）
+function navActiveHref(page) {
+  const activePage = NAV_PAGE_MAPPINGS[page] || page;
+  return activePage === 'index' ? '' : `${activePage}.html`;
+}
+
+// 清除所有 nav active 標記（.active + aria-current + about-bar has-active）。
+// router 在導航「一開始」就 call 這個 → active 的中文（.nav-link-cn）立刻走 CSS 收合，
+// 不用等退場動畫跑完（updateNavActive 在 swap 後才跑，中文會延遲到動畫結束才收）。
+// updateNavActive 內部也沿用此函式設 clean 起點（不帶 exceptPage）。
+//
+// exceptPage：導航目的頁。若該頁的 nav-link「已經是 active」（re-click 同頁 / detail→已在父層頁），
+// 中文本來就展開著、且 updateNavActive 會再設回同狀態 → 直接 skip，否則會先收合再展開閃一下。
+export function clearNavActive(exceptPage) {
+  const header = document.querySelector('#site-header header');
+  if (!header) return;
+  if (exceptPage != null) {
+    const keepHref = navActiveHref(exceptPage);
+    const alreadyActive = [...header.querySelectorAll('a.nav-link.active')]
+      .some(l => (l.getAttribute('href') || '').split('/').pop() === keepHref);
+    if (alreadyActive) return;
+  }
+  header.querySelectorAll('a.nav-link.active, .submenu-link.active').forEach(l => { l.classList.remove('active'); l.removeAttribute('aria-current'); });
+  header.querySelectorAll('[data-bar].has-active').forEach(el => el.classList.remove('has-active'));
+}
+
 export function updateNavActive(page) {
   const header = document.querySelector('#site-header header');
   if (!header) return;
 
-  // Footer-near hide 同步 reset：前頁 scroll 到 footer 時 bars/logo 已被 animateHeaderHide
-  // clip-path 收起；SPA 切到新頁後 scroll listener 是 async，等它偵測「離開 footer」再 show
+  // Footer-near hide 同步 reset：前頁 scroll 到 footer 時 bars/logo 已被 footerHideBars/footerHideLogo
+  // 平移收起；SPA 切到新頁後 scroll listener 是 async，等它偵測「離開 footer」再 show
   // 期間 updateNavActive 的 logo/bar tween 已跑完 → user 看到「小 logo + ML=0」的中間態。
-  // 這裡同步清 clip-path + reset state，讓 tween 在 header 已 visible 的乾淨狀態下跑。
+  // 這裡同步清 transform/遮罩 + reset state，讓 tween 在 header 已 visible 的乾淨狀態下跑。
   if (barsHidden && typeof gsap !== 'undefined') {
-    const targets = getFooterHideTargets();
-    gsap.killTweensOf(targets);
-    targets.forEach(el => { el.style.clipPath = ''; });
+    resetFooterBarsState();
+    resetFooterLogoState();
     barsHidden = false;
   }
 
-  // page mappings（detail 頁對應到父層）
-  // degree-show-detail 隸屬 activities.html 的 panel，需高亮 Activities
-  const pageMappings = {
-    'degree-show-detail':  'activities',
-  };
-  const activePage = pageMappings[page] || page;
-  // 轉換為 .html 格式以匹配 href 屬性
-  const activeHref = activePage === 'index' ? '' : `${activePage}.html`;
+  // detail 頁對應到父層高亮（見 NAV_PAGE_MAPPINGS）
+  const activePage = NAV_PAGE_MAPPINGS[page] || page;
+  const activeHref = navActiveHref(page);
 
   function setNavLinkActive(link) { link.classList.add('active'); link.setAttribute('aria-current', 'page'); } // 無障礙：標目前頁（粗體已是非色彩線索，aria-current 補語義 1.4.1 / 4.1.2）
-  function clearNavActive() {
-    header.querySelectorAll('a.nav-link.active, .submenu-link.active').forEach(l => { l.classList.remove('active'); l.removeAttribute('aria-current'); });
-    header.querySelectorAll('[data-bar].has-active').forEach(el => el.classList.remove('has-active'));
-  }
 
   clearNavActive();
 
@@ -983,13 +1153,9 @@ export function initHeader() {
     }
 
     // 5. Header Hide on Footer Reveal
-    // bars + logo 全走 lightbox-shell 共用的 clip-path 收/展（per-element random top/bottom 方向）。
-    // ⚠️ stagger 設 0（all-at-once）：logo 是 getFooterHideTargets 的最後一個 → 用預設 0.06 stagger 會比所有 bars
-    //    晚收（實測 logo 540ms vs 第一個 bar 123ms 差 ~417ms）＝logo 明顯拖在尾巴。user 2026-06-08：「他們不是一起
-    //    收起的嗎」→ 改 stagger 0 讓 bars+logo 同時收起。lightbox/slide-in 的 header 收起不含 logo、維持預設 0.06。
-    // logo target 用 #header-logo 的 <a> 父層（純 link wrapper、無 gsap tween）：
-    //   直接 clip-path #header-logo 會被 animateHeaderHide 內的 killTweensOf 殺掉 logo scroll-shrink ScrollTrigger tween
-    //   <a> bbox == #header-logo bbox（唯一 child），視覺等效
+    // bars + logo 都走 hero 平移滑動（footerHideBars/footerHideLogo）：bars 每個隨機四方向、各自 overflow:clip
+    // 遮罩；logo <a> 遮罩 + 本體 yPercent。兩者同 duration/ease、無 stagger → 一起收起（user 2026-06-08「他們
+    // 不是一起收起的嗎」）。lightbox/slide-in 的 header 收起仍走 lightbox-shell 的 clip-path 那套、維持不變。
     function bindFooterScroll() {
       // 確認首次能抓到 footer（任一）；listener 內每次 live query 避免 SPA 換頁後 stale ref
       if (!document.querySelector('footer')) return false;
@@ -1007,10 +1173,12 @@ export function initHeader() {
         if (typeof gsap === 'undefined') return;
         if (isNearFooter && !barsHidden) {
           barsHidden = true;
-          animateHeaderHide(getFooterHideTargets(), { stagger: 0 });
+          footerHideBars();   // bars 平移滑出（每個隨機四方向）
+          footerHideLogo();   // logo 走 hero 滑動（同步、同節奏）
         } else if (!isNearFooter && barsHidden) {
           barsHidden = false;
-          animateHeaderShow(getFooterHideTargets(), { stagger: 0 });
+          footerShowBars();
+          footerShowLogo();
         }
       }, { passive: true });
       return true;

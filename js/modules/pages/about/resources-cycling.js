@@ -53,8 +53,11 @@ function renderResourcesAccordion(data, container) {
             <img src="${item.image}" alt="${item.title}" class="w-full h-full object-cover">
           </div>
           <div class="accordion-text-wrap">
-            <p class="text-white mb-sm">${item.textEn || item.descriptionEn}</p>
-            <p class="text-white">${item.textZh || item.descriptionZh}</p>
+            <!-- data-resources-text：手機內捲層（padding 留在 text-wrap 上不隨捲動，同 vision/class/works pattern） -->
+            <div data-resources-text>
+              <p class="text-white mb-sm">${item.textEn || item.descriptionEn}</p>
+              <p class="text-white">${item.textZh || item.descriptionZh}</p>
+            </div>
           </div>
         </div>
       </div>

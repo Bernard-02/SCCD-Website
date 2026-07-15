@@ -50,11 +50,13 @@ function buildInterleavedParas(en, zh, { enClass, zhClass, lastZhClass }) {
 }
 
 // ── Vision（理念）：兩個 [data-overview-hl] span，DOM 順序 = EN、ZH ──
+// 文字寫進內層 [data-overview-text]（手機內捲層，padding 留在外盒）；無內層時退回外盒
 function fillVision(vision) {
   if (!vision) return;
   const spans = document.querySelectorAll('#overview [data-overview-hl]');
-  if (spans[0] && vision.descriptionEn != null) spans[0].textContent = vision.descriptionEn;
-  if (spans[1] && vision.descriptionZh != null) spans[1].textContent = vision.descriptionZh;
+  const target = i => spans[i] && (spans[i].querySelector('[data-overview-text]') || spans[i]);
+  if (spans[0] && vision.descriptionEn != null) target(0).textContent = vision.descriptionEn;
+  if (spans[1] && vision.descriptionZh != null) target(1).textContent = vision.descriptionZh;
 }
 
 // ── Class（學制）：依 divisionKey 填按鈕標籤 + 學制標籤 + 圖文段落 ──
@@ -91,8 +93,10 @@ function fillClasses(list) {
     // 圖文段落：EN1/ZH1/EN2/ZH2 交錯（沿用原 mb-xs / mb-md / 末段無 margin）
     const hl = document.querySelector(`.class-info-panel[data-division="${key}"] [data-class-hl]`);
     if (hl) {
-      hl.innerHTML = '';
-      hl.appendChild(buildInterleavedParas(item.descriptionEn, item.descriptionZh, {
+      // 寫進內層 [data-class-text]（手機內捲層，padding 留在外盒）；無內層退回外盒
+      const box = hl.querySelector('[data-class-text]') || hl;
+      box.innerHTML = '';
+      box.appendChild(buildInterleavedParas(item.descriptionEn, item.descriptionZh, {
         enClass: 'mb-xs division-text font-bold',
         zhClass: 'mb-md division-text font-bold',
         lastZhClass: 'division-text font-bold',
@@ -120,15 +124,17 @@ function fillWorks(list) {
 
     const hl = panel.querySelector('[data-works-hl]');
     if (hl) {
-      hl.querySelectorAll(':scope > p').forEach(p => p.remove());
+      // 段落與 playlist 都在內層 [data-works-text]（手機內捲層）；無內層退回外盒
+      const box = hl.querySelector('[data-works-text]') || hl;
+      box.querySelectorAll(':scope > p').forEach(p => p.remove());
       const frag = buildInterleavedParas(item.descriptionEn, item.descriptionZh, {
         enClass: 'text-p2 mb-xs font-bold',
         zhClass: 'text-p2 mb-xs font-bold',
         lastZhClass: 'text-p2 font-bold',
       });
-      const playlistList = hl.querySelector('.works-playlist-list');
-      if (playlistList) hl.insertBefore(frag, playlistList);
-      else hl.appendChild(frag);
+      const playlistList = box.querySelector('.works-playlist-list');
+      if (playlistList) box.insertBefore(frag, playlistList);
+      else box.appendChild(frag);
     }
 
     // iframe：youtubePlaylist 空（如 MDES）→ src 留空

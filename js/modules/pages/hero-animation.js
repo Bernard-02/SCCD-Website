@@ -465,13 +465,41 @@ function runPlacementAndBannerForCache(grid) {
   return { textPositions, paragraphWidths, paragraphTightWidths, banner: bannerSnap };
 }
 
+// 4 個 text wrapper 兩兩是否互疊（超過容忍量）——只查 text-vs-text（text 疊 banner 是刻意設計）。
+// 結構保證的另一半：clampHeroItemsIntoSection 保「界內」、這裡保「不互疊壓字」。同源 bug＝壞 snapshot 被
+// layoutPool 快取到 session 結束（見 project_hero_entrance_watchdog_and_clamp）；clamp 只夾邊界不解重疊，
+// 故 overlap 版本會每次 SPA 進場重播（user 2026-07-14：index→課程 hero 文字堆疊，refresh 才好）。
+// PAD 負值＝容忍 rotation 投影造成的微量 bbox 重疊，只抓真正壓到字的。
+function heroChipsOverlap(grid) {
+  const rects = ['hero-title', 'hero-title-cn', 'hero-text-en', 'hero-text-cn']
+    .map(cls => grid.querySelector(`.${cls}-wrapper`) || grid.querySelector(`.${cls}`))
+    .filter(Boolean)
+    .map(el => el.getBoundingClientRect())
+    .filter(r => r.width > 0 && r.height > 0);
+  const PAD = -8;
+  for (let i = 0; i < rects.length; i++) {
+    for (let j = i + 1; j < rects.length; j++) {
+      const a = rects[i], b = rects[j];
+      if (!(a.right + PAD < b.left || b.right + PAD < a.left ||
+            a.bottom + PAD < b.top || b.bottom + PAD < a.top)) return true;
+    }
+  }
+  return false;
+}
+
 // Pool 主入口：cache hit 直接套用，miss 則 build 1 組立即用 + 後台補滿剩餘
 function applyOrBuildLayout(grid) {
   const key = getPoolKey(grid);
   let pool = layoutPool.get(key);
   if (pool && pool.length > 0) {
-    const snap = pool[Math.floor(Math.random() * pool.length)];
-    applyLayoutSnapshot(grid, snap);
+    const idx = Math.floor(Math.random() * pool.length);
+    applyLayoutSnapshot(grid, pool[idx]);
+    // 結構保證：cached snapshot 若在當前環境算成互疊（同源 bug），丟棄該組並改跑一次 live 排版
+    //（randomizeHeroLayout 是 best-of-6 無重疊引擎）。寧付一次 live 成本也不顯示壓字版面。
+    if (heroChipsOverlap(grid)) {
+      pool.splice(idx, 1);
+      randomizeHeroLayout();
+    }
     return;
   }
 
@@ -481,6 +509,11 @@ function applyOrBuildLayout(grid) {
   const first = runPlacementAndBannerForCache(grid);
   pool.push(first);
   tightenParagraphWidths(grid);  // 第一組已 commit 到 DOM，補上 wrap-width 收緊（與 cached path 對齊）
+  // 首次 live 建構就壓字（RNG 少數落點）：再擲一次覆蓋 pool[0]，不讓壞的第一組被後台當基準 restore
+  if (heroChipsOverlap(grid)) {
+    pool[0] = runPlacementAndBannerForCache(grid);
+    tightenParagraphWidths(grid);
+  }
 
   // 後台補滿剩餘 POOL_SIZE-1 組：每組 build 都會動到 DOM inline style，但 runPlacementAndBannerForCache 自己會
   // reset textItems 回 (0,0) 再算，所以後續 build 不會被前一組殘留干擾；不過視覺上 DOM 已是第一組
@@ -635,8 +668,8 @@ export function waitForHeroAnimDone(maxWaitMs = 4000) {
 // ── 手機共用 hero（.hero-mobile，faculty/courses/activities/admission/curriculum）進退場 ──
 // 比照桌面 buildHeroTimeline 的節奏做手機鏡像（user 2026-06-12「手機 hero 也要有動畫，跟桌面一樣」）：
 //   - bg 圖 clip-path 隨機 4 方向 reveal（= 桌面 .hero-banner，DUR.reveal）
-//   - 4 chip 各包 overflow:hidden mask wrapper、隨機 4 方向滑入；照 DOM（=shuffle 後版面）順序
-//     stagger 0.15 / duration 0.9（2026-07-10 起不再 titles 先 texts 後）
+//   - 4 chip 各包 overflow:hidden mask wrapper、隨機 4 方向滑入；照 DOM 順序（固定 TTDD）
+//     stagger 0.15 / duration 0.9
 //   - onComplete 發 signalHeroDone → deep-link 等的是「看得見的動畫」而非隱藏的桌面 timeline
 //   - 退場：chip 隨機方向滑出 + bg clip 收合（同桌面 playHeroExit 0.5s / stagger 0.06）
 // 同構參考：degree-show-data-loader.js setupHeroMobileEntrance（該頁 hero 由 async data 填字、
@@ -644,8 +677,7 @@ export function waitForHeroAnimDone(maxWaitMs = 4000) {
 function playMobileHeroEntrance() {
   const mobile = /** @type {HTMLElement} */ (document.querySelector('.hero-mobile'));
   const bg = /** @type {HTMLElement | null} */ (mobile.querySelector('.hero-mobile-bg'));
-  // DOM 順序收 chip（hero-mobile-sync 可能已 shuffle 疊放順序）：進場照版面順序跑，
-  // 不再 titles 先 texts 後（user 2026-07-10：title 不一定先出現）
+  // DOM 順序收 chip（固定 TTDD，title 在頂）：進場照版面順序跑
   const chips = /** @type {HTMLElement[]} */ (Array.from(mobile.querySelectorAll(
     '.hero-mobile-title, .hero-mobile-title-cn, .hero-mobile-text-en, .hero-mobile-text-cn'
   )));

@@ -18,7 +18,7 @@ import { sitePath } from '../ui/site-base.js';
  * 顏色：A 粉(R) / B 綠(G) / C 藍(B) / D 黑。
  * Floating 只給 label（dot 已移除，線端點直接接到 label 起點/終點，視 label 在 line 哪一側）。
  * Layout 用 seeded random，同一 viewport 重新整理會得到相同佈局。
- * 進場：scale 0.8 → 1.0 緩動 ~3.5s；之後 user 可 zoom 到 1.8。
+ * 進場：分批「點燈」fade in（教師 → 就職＋合作 → 國家 → 主持），約 3s；之後 user 可滾輪 zoom。
  */
 
 // 三原色（A/B/C label 與線色從這裡選；D 永遠黑）
@@ -183,12 +183,10 @@ const ITEM_MIN_SPACING  = 80;             // （保留給城市等其他用途�
 const RELAX_ITERATIONS  = 12;             // jittered grid 已均勻 → box-aware 鬆弛只需少量迭代修寬字重疊
 
 // ── Zoom ────────────────────────────────────────────────
-const SCALE_INTRO_START = 0.55;   // 進場更遠的鏡頭
 const SCALE_DEFAULT     = 0.78;   // 預設留 ~20% 邊距，不貼邊
 const MIN_SCALE         = 0.78;
 const MAX_SCALE         = 3.5;    // zoom in 上限拉到 3.5x
 const ZOOM_SPEED        = 0.0015;
-const INTRO_DURATION    = 1.5;
 // 橫向手機（landscape gate）圓點模式：zoom 過此門檻才顯示文字（CSS .atlas-text-zoom 切換）
 // 文字採反向縮放（視覺字級恆定，見 --atlas-zoom-scale）→ 門檻越高間距越開、可讀性越好
 const TEXT_ZOOM_SCALE   = 2.0;
@@ -204,6 +202,14 @@ export function cleanupAtlas() {
   cleanupFns.forEach(fn => { try { fn(); } catch (_) { /* ignore */ } });
   cleanupFns = [];
   document.body.style.cursor = '';
+}
+
+// idle-standby overlay 的退場出口：overlay 不是 routed page、不走 registerPageExit，
+// 由 initAtlas（root=overlay 時）把同一套 playMapExit/playListExit 掛在這，idle-standby 離場時呼叫
+// （user 2026-07-15：待機離場沿用 atlas 退場動畫、不另外製作）。cleanup 時歸零。
+let _overlayExit = null;
+export function playOverlayAtlasExit() {
+  return _overlayExit ? _overlayExit() : Promise.resolve();
 }
 
 export async function initAtlas(options = {}) {
@@ -2002,7 +2008,7 @@ export async function initAtlas(options = {}) {
 
 
   // ── Zoom + Drag pan + Intro tween ────────────────────
-  let scale = SCALE_INTRO_START;
+  let scale = defaultScaleAtlas;   // 進場拿掉 zoom（2026-07-14）→ 直接定態，改分批 fade in
   let tx = 0, ty = 0;
   let introTween = null;
 
@@ -2088,29 +2094,39 @@ export async function initAtlas(options = {}) {
 
   applyTransform();
 
-  // options.instant（idle-standby 背景分頁掛載）：跳過 intro scale 直接定態 SCALE_DEFAULT。
-  // 背景分頁 rAF 暫停 → 否則 tween 卡在 0.55，使用者切回本 tab 才從 0.55 zoom 到 0.78（1.5s）＝「切回來才進場」。
+  // 進場「點燈」（2026-07-14 user）：拿掉由小到大的 zoom，改分批 fade in，一批一批亮起。
+  // 四批依 legend 分組登場：① 教師 → ② 就職＋合作單位 → ③ 國家 → ④ 主持（系友企業）；連線（cityLines/co 環）隨最後一批亮起。
+  // 批內用 from:'random' stagger（amount 有界＝不隨節點數暴增）＝ 一盞盞點亮感。
+  // 手機／instant／reduced-motion 跳過：introTween 留 null → revealFilters 立即跑、節點維持定態可見。
+  const anchorPrefix = (it) => String(it.id).split('-')[0];
+  const finishIntroVisuals = () => {
+    gsap.set(content.querySelectorAll('.atlas-anchor'), { clearProps: 'opacity' });
+    gsap.set(svg, { clearProps: 'opacity' });
+  };
   if (typeof gsap !== 'undefined' && !isMobileAtlas && !options.instant && !prefersReducedMotion()) {
-    // intro scale tween 期間整層 GPU promote，否則 50+ chip + ring + lines 一起 scale
-    // 每 frame 都得 re-rasterize → SPA 換頁剛 swap DOM 那刻特別卡
-    // tween 完才關，避免長期 promote 高 zoom 時文字糊
-    // 手機跳過：map 不顯示，introTween 留 null → revealFilters 立即跑（tab 直接 wipe in）
-    zoomEl.style.willChange = 'transform';
-    introTween = gsap.to({ v: SCALE_INTRO_START }, {
-      v: SCALE_DEFAULT,
-      duration: INTRO_DURATION,
-      ease: EASE.sway,
-      onUpdate: function() {
-        scale = this.targets()[0].v;
-        applyTransform();
-      },
-      onComplete: () => {
-        zoomEl.style.willChange = 'auto';
-      },
+    const WAVES = [
+      ['fc', 'ff'],                 // 教師
+      ['em', 'wsg', 'ind', 'ec'],   // 就職 ＋ 合作單位
+      ['country'],                  // 國家
+      ['co'],                       // 主持（系友主持企業）
+    ];
+    const FADE = 0.6, WAVE_GAP = 0.55, STAG = 0.6;  // 末批止於 3·0.55+0.6+0.6=2.85s（≤ 3s）
+    gsap.set(content.querySelectorAll('.atlas-anchor'), { opacity: 0 });
+    gsap.set(svg, { opacity: 0 });
+
+    introTween = gsap.timeline({ onComplete: finishIntroVisuals });
+    WAVES.forEach((prefixes, i) => {
+      const anchors = items.filter(it => prefixes.includes(anchorPrefix(it))).map(it => it._anchor).filter(Boolean);
+      if (anchors.length) {
+        introTween.to(anchors, {
+          opacity: 1, duration: FADE, ease: EASE.enterSoft,
+          stagger: { amount: STAG, from: 'random' },
+        }, i * WAVE_GAP);
+      }
     });
+    introTween.to(svg, { opacity: 1, duration: FADE, ease: EASE.enterSoft }, (WAVES.length - 1) * WAVE_GAP);
     cleanupFns.push(() => introTween && introTween.kill());
   } else {
-    scale = defaultScaleAtlas;
     applyTransform();
   }
 
@@ -2146,6 +2162,7 @@ export async function initAtlas(options = {}) {
     if (e.button !== 0) return;
     if (isIntroActive()) {
       introTween.kill();
+      finishIntroVisuals();   // 中斷分批 fade → 全部節點/連線立即現形，不卡在半透明
       scale = Math.max(minScaleAtlas, scale);
       applyTransform();
     }
@@ -2396,9 +2413,32 @@ export async function initAtlas(options = {}) {
   // ── Alumni career rotating chip：map view 一個（alumni filter btn 下方）、list view 一個（alumni 欄 title 下方）
   // 用 controller factory 包 state，map / list 各持一個 instance ──
   const alumniBtn = btns.find(b => b.dataset.filter === 'alumni') || null;
-  // 收/展 clip：進場左→右展開、退場右→左收起（hidden 狀態 = 可見區壓在左邊 0 寬）
-  const CAREER_HIDDEN_CLIP = 'inset(0% 100% 0% 0%)';
+  // Career chip 收/展 2026-07-15 改 hero clip-reveal（user）：本體滑動＋反向 clip 同步——
+  // el xPercent/yPercent 滑入的同時 inset 同步收，兩 prop 同 ease 等於「遮罩窗固定在版位、本體滑進來」，
+  // 免包 mask wrapper（chip 在 map row / 橫向 gate header row / list label-col 三種佈局，reparent 風險高）。
+  // 方向依 view：星雲（map）＝左→右滑入（dir 'left'）、list view＝上→下滑入（dir 'top'）。
+  // hidden 態 = 完全滑出＋clip 全收；2-phase layout 結構保留（先撐/收 layout 再滑，防 diagonal pull 重演，
+  // 見 feedback_clip_path_reveal_needs_preallocated_layout_slot）。
   const CAREER_VISIBLE_CLIP = 'inset(0% 0% 0% 0%)';
+  // 滑動用 CSS `translate` 獨立屬性而非 gsap xPercent：map view chip 有 inline transform:rotate(...)
+  // （showCareer 同步 alumni btn 角度），translate 與 transform 疊加共存不打架（同 atlas D 方塊 FLIP pattern）。
+  const CAREER_DIRS = {
+    left: { hiddenClip: 'inset(0% 0% 0% 100%)' },
+    top:  { hiddenClip: 'inset(100% 0% 0% 0%)' },
+  };
+  const CAREER_SHOWN_TRANSLATE = '0px 0px';   // 與 hidden 同 token 結構（雙值全 px），字串插值才穩定
+  // 共用：帶 rotate 元素的「藏起」位移向量＝沿旋轉後自身軸（見 createCareerController 內註解；subchip 也旋轉、共用）
+  function rotatedHiddenTranslate(el, dirKey) {
+    const m = /rotate\((-?[\d.]+)deg\)/.exec(el.style.transform || '');
+    const th = m ? parseFloat(m[1]) * Math.PI / 180 : 0;
+    const cos = Math.cos(th), sin = Math.sin(th);
+    if (dirKey === 'left') {
+      const w = el.offsetWidth || 0;
+      return `${(-w * cos).toFixed(2)}px ${(-w * sin).toFixed(2)}px`;
+    }
+    const h = el.offsetHeight || 0;
+    return `${(h * sin).toFixed(2)}px ${(-h * cos).toFixed(2)}px`;
+  }
   // padding 自然值（與 CSS 一致）— 2-phase reveal 的 Phase 1 layout-push tween target
   const CAREER_PAD_TOP = 6;
   const CAREER_PAD_BOTTOM = 5;
@@ -2408,10 +2448,46 @@ export async function initAtlas(options = {}) {
    * @param {HTMLElement} el
    * @param {HTMLElement} enEl
    * @param {HTMLElement} zhEl
-   * @param {{ noFit?: boolean }} [opts] noFit=true → 跳過 fitWidth（讓 chip 用 CSS max-width 自由 wrap；給 list view label-col 用，避免每次 rotate 寬度跳動）
+   * @param {{ noFit?: boolean, dir?: 'left'|'top' }} [opts] noFit=true → 跳過 fitWidth（讓 chip 用 CSS max-width 自由 wrap；
+   *   給 list view label-col 用，避免每次 rotate 寬度跳動）；dir＝滑入方向（map 'left'、list 'top'）
    */
   function createCareerController(el, enEl, zhEl, opts) {
     const noFit = !!(opts && opts.noFit);
+    const dirKey = (opts && opts.dir) || 'left';
+    const dirCfg = CAREER_DIRS[dirKey];
+
+    // 滑動向量沿「旋轉後的自身軸」（參考 about resources：位移疊在 rotate 上、沿卡片自身軸走）。
+    // 純水平/垂直 translate 在旋轉 chip 上會讓 clip 窗口垂直漂移（clip 在 local space 隨 rotate 傾斜，
+    // sinθ×位移量 顯示為上下偏移，user 2026-07-15「往左移時位置往上偏」）；把位移向量本身旋轉 θ
+    // ＝hero「旋轉遮罩內滑動」的數學等效，窗口錨點釘死。動態算（寬度隨 fitWidth 每輪變、θ 隨 alumni 同步變）。
+    function hiddenTranslatePx() { return rotatedHiddenTranslate(el, dirKey); }
+
+    // dir='top'（list career chip）：user 2026-07-16「職業 chip 收起要 clip-reveal、向上收起向下展開」→ 改成
+    //   純 hero clip-reveal（同 .atlas-list-col-title-wrapper 做法）：el 包一層 overflow:hidden mask，el 只做
+    //   yPercent 平移（-100 藏在上方 ↔ 0 露出＝向下展開），layout 收合改動 mask 的 height；el 不再吃 clip-path。
+    // dir='left'（map career chip）：維持 translate + 同步 clip-path（wrapper-free，chip 有 rotate 同步 alumni 角度）。
+    let mask = null;
+    if (dirKey === 'top' && el.parentNode) {
+      mask = document.createElement('div');
+      mask.className = 'atlas-list-col-career-mask';
+      mask.style.overflow = 'hidden';
+      // 不設 align-self:flex-start → mask 撐滿 col 寬（labelCol 預設 stretch），el 的 max-width:100% 才會相對
+      //   col 寬約束 → 長字 chip 在欄內 wrap，不會穿到右欄（el 有 bg 仍靠 width:max-content 貼字寬）。
+      // margin-top 直接寫 -0.5rem（= CSS .atlas-list-col-career）：controller 建時 labelCol 尚未進 DOM，
+      //   getComputedStyle 讀不到 CSS 值會回 0 → 少了抵消 labelCol gap 的負 margin → chip 跟 Alumni title 間多一段 gap。
+      mask.style.marginTop = '-0.5rem';
+      // 初始收合＝mask height 0（show 再撐開）：el 有 CSS min-height（短職業不縮 box），會把建立時的
+      //   height:0 floor 成 min-height → mask auto 會漏出一塊高；明確設 mask height:0 讓初始/未 show 時真的收合。
+      mask.style.height = '0';
+      el.parentNode.insertBefore(mask, el);
+      mask.appendChild(el);
+      el.style.marginTop = '0';
+      el.style.overflow = 'visible';   // 改由 mask 裁
+      el.style.clipPath = 'none';      // 清掉 CSS 的 clip-path（改用 mask + yPercent）
+    }
+    // 滑動「藏 / 露」狀態：top 用 yPercent（mask 裁）、left 用 clip-path + translate（wrapper-free）
+    const slideHidden = () => (dirKey === 'top' ? { yPercent: -100 } : { clipPath: dirCfg.hiddenClip, translate: hiddenTranslatePx() });
+    const slideVisible = () => (dirKey === 'top' ? { yPercent: 0 } : { clipPath: CAREER_VISIBLE_CLIP, translate: CAREER_SHOWN_TRANSLATE });
     let idx = 0;
     /** @type {number | null} */
     let interval = null;
@@ -2449,23 +2525,23 @@ export async function initAtlas(options = {}) {
       }
     }
 
-    // 切下一個職業：clip-out（下→上）→ 換內容 + 換色 + 重 fit 寬度 → clip-in（上→下）
+    // 切下一個職業：滑出（沿 dir 反向）→ 換內容 + 換色 + 重 fit 寬度 → 滑入（hero clip-reveal：translate＋clip 同步）
     function rotateOnce() {
       if (typeof gsap === 'undefined') return;
       if (document.hidden) return;   // 背景分頁不輪播（對齊 dRelocateTimer）
       idx = (idx + 1) % careersList.length;
       if (tween) tween.kill();
       tween = gsap.to(el, {
-        clipPath: CAREER_HIDDEN_CLIP,
+        ...slideHidden(),
         duration: DUR.fast,
         ease: EASE.exitSoft,
         onComplete: () => {
           fill(careersList[idx]);
-          // chip clip-hidden 期間調整寬度，視覺上看不到 box 變動
+          // chip 滑出隱藏期間調整寬度，視覺上看不到 box 變動
           fitWidth();
-          gsap.set(el, { clipPath: CAREER_HIDDEN_CLIP });
+          gsap.set(el, slideHidden());
           tween = gsap.to(el, {
-            clipPath: CAREER_VISIBLE_CLIP,
+            ...slideVisible(),
             duration: DUR.base,
             ease: EASE.enterSoft,
           });
@@ -2481,11 +2557,18 @@ export async function initAtlas(options = {}) {
       idx = Math.floor(Math.random() * careersList.length);
       fill(careersList[idx]);
       if (typeof gsap === 'undefined') {
+        if (dirKey === 'top') {
+          if (mask) mask.style.height = '';
+          el.style.transform = ''; el.style.height = ''; el.style.paddingTop = ''; el.style.paddingBottom = '';
+          fitWidth();
+          return;
+        }
         el.style.height = '';
         el.style.paddingTop = '';
         el.style.paddingBottom = '';
         fitWidth();
         el.style.clipPath = CAREER_VISIBLE_CLIP;
+        el.style.translate = CAREER_SHOWN_TRANSLATE;
         return;
       }
       if (tween) tween.kill();
@@ -2493,6 +2576,22 @@ export async function initAtlas(options = {}) {
       // 左右 inline padding 先清（橫向 gate 收合態會寫 0）讓 CSS 值接手、fitWidth 量得準
       el.style.paddingLeft = '';
       el.style.paddingRight = '';
+      // dir='top'：mask 收 height（layout push）、el yPercent -100→0 滑入（向下展開）；el 自然尺寸不再收 height/clip
+      if (dirKey === 'top') {
+        gsap.set(el, { height: 'auto', paddingTop: CAREER_PAD_TOP, paddingBottom: CAREER_PAD_BOTTOM });
+        fitWidth();
+        const naturalH = el.offsetHeight;
+        gsap.set(el, { yPercent: -100 });
+        gsap.set(mask, { height: 0, overflow: 'hidden' });
+        const tlTop = gsap.timeline({ delay: (opts && opts.delay) || 0 });
+        tlTop.to(mask, { height: naturalH, duration: DUR.fast, ease: EASE.enterSoft }, 0);
+        tlTop.to(el, { yPercent: 0, duration: DUR.base, ease: EASE.enterSoft }, 0.3);
+        tlTop.eventCallback('onComplete', () => { gsap.set(mask, { height: 'auto' }); });
+        tween = tlTop;
+        if (interval) clearInterval(interval);
+        interval = /** @type {any} */ (setInterval(rotateOnce, 3000));
+        return;
+      }
       gsap.set(el, { paddingTop: CAREER_PAD_TOP, paddingBottom: CAREER_PAD_BOTTOM });
       fitWidth();
       gsap.set(el, { height: 'auto' });
@@ -2504,10 +2603,10 @@ export async function initAtlas(options = {}) {
         const cs = getComputedStyle(el);
         gateW = { w: el.style.width || `${el.offsetWidth}px`, padL: cs.paddingLeft, padR: cs.paddingRight };
       }
-      gsap.set(el, { height: 0, paddingTop: 0, paddingBottom: 0, clipPath: CAREER_HIDDEN_CLIP });
+      gsap.set(el, { height: 0, paddingTop: 0, paddingBottom: 0, clipPath: dirCfg.hiddenClip, translate: hiddenTranslatePx() });
       if (gateW) gsap.set(el, { width: 0, paddingLeft: 0, paddingRight: 0 });
-      // 2-phase reveal：先靜默撐 layout（alumniRow 變高 → Partners 被推下），再純 clip-path L→R wipe
-      // 拆兩 phase 避免 height + clip-path 同時 anim 造成「從左上角拉出」的 diagonal pull
+      // 2-phase reveal：先靜默撐 layout（alumniRow 變高 → Partners 被推下），再 hero clip-reveal 滑入
+      //（translate＋clip 同步＝遮罩窗固定在版位、本體滑進來）。拆兩 phase 避免 height 同時動造成 diagonal pull。
       const tl = gsap.timeline({ delay: (opts && opts.delay) || 0 });
       tl.to(el, {
         height: naturalH,
@@ -2519,6 +2618,7 @@ export async function initAtlas(options = {}) {
       }, 0);
       tl.to(el, {
         clipPath: CAREER_VISIBLE_CLIP,
+        translate: CAREER_SHOWN_TRANSLATE,
         duration: DUR.base,
         ease: EASE.enterSoft,
       }, 0.3);
@@ -2534,22 +2634,39 @@ export async function initAtlas(options = {}) {
       visible = false;
       if (interval) { clearInterval(interval); interval = null; }
       if (typeof gsap === 'undefined') {
+        if (dirKey === 'top') {
+          el.style.transform = 'translateY(-100%)';
+          if (mask) mask.style.height = '0';
+          return;
+        }
         el.style.height = '0';
         el.style.paddingTop = '0';
         el.style.paddingBottom = '0';
         if (isLandscapeGateAtlas) { el.style.width = '0'; el.style.paddingLeft = '0'; el.style.paddingRight = '0'; }
-        el.style.clipPath = CAREER_HIDDEN_CLIP;
+        el.style.clipPath = dirCfg.hiddenClip;
+        el.style.translate = hiddenTranslatePx();
         return;
       }
       if (tween) tween.kill();
+      // dir='top'：el yPercent 0→-100 滑上去（向上收起）→ 再收 mask height（layout collapse）
+      if (dirKey === 'top') {
+        const curH = el.offsetHeight;
+        gsap.set(mask, { height: curH });
+        const tlTop = gsap.timeline({ delay: (opts && opts.delay) || 0 });
+        tlTop.to(el, { yPercent: -100, duration: DUR.base, ease: EASE.exitSoft }, 0);
+        tlTop.to(mask, { height: 0, duration: DUR.fast, ease: EASE.exitSoft }, 0.4);
+        tween = tlTop;
+        return;
+      }
       // height:auto 對 GSAP tween 不友善 → 鎖當下 px 為起點
       const currentH = el.offsetHeight;
       gsap.set(el, { height: currentH });
-      // 2-phase hide：先純 clip-path R→L wipe（chip 消失），再靜默 collapse layout（Partners 上推）
+      // 2-phase hide：先滑出（translate＋clip 同步、沿進來的方向退回），再靜默 collapse layout（Partners 上推）
       // 橫向 gate 收合連 width 一起歸零（header 水平 row，空 box 會把 Partners 推遠）
       const tl = gsap.timeline({ delay: (opts && opts.delay) || 0 });
       tl.to(el, {
-        clipPath: CAREER_HIDDEN_CLIP,
+        clipPath: dirCfg.hiddenClip,
+        translate: hiddenTranslatePx(),
         duration: DUR.base,
         ease: EASE.exitSoft,
       }, 0);
@@ -2591,7 +2708,7 @@ export async function initAtlas(options = {}) {
   //   COLLAPSED_MARGIN_TOP = -0.5rem 抵消 #atlas-filter { gap: 0.5rem } 讓 collapsed chip 真的零空間
   //   ⚠️ -0.5rem 是 magic number，必須跟 #atlas-filter { gap: 0.5rem } 同步
   const COLLAPSED_MARGIN_TOP = '-0.5rem';
-  const CHIP_HIDDEN_CLIP = 'inset(0% 100% 0% 0%)';
+  const CHIP_HIDDEN_CLIP = 'inset(0% 0% 0% 100%)';   // 2026-07-15 clip reveal：左 inset＝配 translate 從左滑入
   const CHIP_VISIBLE_CLIP = 'inset(0% 0% 0% 0%)';
   /** @param {HTMLElement} el */
   function createStaticChipCtrl(el) {
@@ -2604,7 +2721,7 @@ export async function initAtlas(options = {}) {
       visible = true;
       el.setAttribute('tabindex', '0'); // 無障礙：顯示時可聚焦
       if (typeof gsap === 'undefined') {
-        el.style.height = ''; el.style.paddingTop = ''; el.style.paddingBottom = ''; el.style.marginTop = ''; el.style.clipPath = CHIP_VISIBLE_CLIP;
+        el.style.height = ''; el.style.paddingTop = ''; el.style.paddingBottom = ''; el.style.marginTop = ''; el.style.clipPath = CHIP_VISIBLE_CLIP; el.style.translate = '0px 0px';
         return;
       }
       if (tween) tween.kill();
@@ -2615,7 +2732,7 @@ export async function initAtlas(options = {}) {
       const naturalMarginTop = cs.marginTop;
       const naturalPaddingTop = cs.paddingTop;
       const naturalPaddingBottom = cs.paddingBottom;
-      gsap.set(el, { height: 0, paddingTop: 0, paddingBottom: 0, marginTop: COLLAPSED_MARGIN_TOP, clipPath: CHIP_HIDDEN_CLIP });
+      gsap.set(el, { height: 0, paddingTop: 0, paddingBottom: 0, marginTop: COLLAPSED_MARGIN_TOP, clipPath: CHIP_HIDDEN_CLIP, translate: rotatedHiddenTranslate(el, 'left') });
       // 2-phase：先撐 layout (Partners 被推下)，再純 clip-path L→R wipe
       const tl = gsap.timeline({ delay: (opts && opts.delay) || 0 });
       tl.to(el, {
@@ -2628,6 +2745,7 @@ export async function initAtlas(options = {}) {
       }, 0);
       tl.to(el, {
         clipPath: CHIP_VISIBLE_CLIP,
+        translate: '0px 0px',
         duration: DUR.base,
         ease: EASE.enterSoft,
       }, 0.3);
@@ -2643,7 +2761,7 @@ export async function initAtlas(options = {}) {
       visible = false;
       el.setAttribute('tabindex', '-1'); // 無障礙：收合時移出 tab 順序
       if (typeof gsap === 'undefined') {
-        el.style.height = '0'; el.style.paddingTop = '0'; el.style.paddingBottom = '0'; el.style.marginTop = COLLAPSED_MARGIN_TOP; el.style.clipPath = CHIP_HIDDEN_CLIP;
+        el.style.height = '0'; el.style.paddingTop = '0'; el.style.paddingBottom = '0'; el.style.marginTop = COLLAPSED_MARGIN_TOP; el.style.clipPath = CHIP_HIDDEN_CLIP; el.style.translate = rotatedHiddenTranslate(el, 'left');
         return;
       }
       if (tween) tween.kill();
@@ -2653,6 +2771,7 @@ export async function initAtlas(options = {}) {
       const tl = gsap.timeline({ delay: (opts && opts.delay) || 0 });
       tl.to(el, {
         clipPath: CHIP_HIDDEN_CLIP,
+        translate: rotatedHiddenTranslate(el, 'left'),
         duration: DUR.base,
         ease: EASE.exitSoft,
       }, 0);
@@ -2707,7 +2826,7 @@ export async function initAtlas(options = {}) {
       careerEl.style.paddingLeft = '0';
       careerEl.style.paddingRight = '0';
     }
-    mapCareerCtrl = createCareerController(careerEl, careerEnEl, careerZhEl);
+    mapCareerCtrl = createCareerController(careerEl, careerEnEl, careerZhEl, { dir: 'left' });   // 星雲：左→右滑入
 
     // ── Hosting / Employment 靜態 label chip（alumniRow 下方 column 內，alumni active 才出現）
     //     灰底黑字 + 每張自帶 random tilt + cursor:pointer（map view 下可點擊）
@@ -3402,9 +3521,11 @@ export async function initAtlas(options = {}) {
     const STAGGER_WINDOW = 1.0;
     const titleEl = /** @type {HTMLElement|null} */ (col.querySelector('.atlas-list-col-title'));
     if (titleEl) {
+      // 標題 chip 進場用 DUR.slow(0.6) 而非 DUR.reveal(1.0)：user 2026-07-16 覺得左上角欄標題 chip 進場偏慢；
+      // item lines / chevron 維持 DUR.reveal（chip 先落定、內容隨後）
       gsap.fromTo(titleEl,
         { yPercent: 100 },
-        { yPercent: 0, duration: DUR.reveal, delay, ease: EASE.enter, clearProps: 'transform', overwrite: true }
+        { yPercent: 0, duration: DUR.slow, delay, ease: EASE.enter, clearProps: 'transform', overwrite: true }
       );
     }
     // host 1 行 / partners 3 行 / 其餘 2 行
@@ -3563,7 +3684,7 @@ export async function initAtlas(options = {}) {
     careerListEl.style.paddingBottom = '0';
     labelCol.appendChild(careerListEl);
     // grid 鎖死 label-col 寬度為 1/9 viewport（grid-column:span 1），chip inline width 變動不會推右側 cols
-    listCareerCtrl = createCareerController(careerListEl, careerEnSpan, careerZhSpan);
+    listCareerCtrl = createCareerController(careerListEl, careerEnSpan, careerZhSpan, { dir: 'top' });   // list view：上→下滑入
 
     listView.appendChild(labelCol);
 
@@ -3906,7 +4027,7 @@ export async function initAtlas(options = {}) {
       if (masterTitleEl) {
         gsap.fromTo(masterTitleEl,
           { yPercent: 100 },
-          { yPercent: 0, duration: DUR.reveal, delay: ALUMNI_DELAY, ease: EASE.enter, clearProps: 'transform', overwrite: true }
+          { yPercent: 0, duration: DUR.slow, delay: ALUMNI_DELAY, ease: EASE.enter, clearProps: 'transform', overwrite: true }  // DUR.slow：跟欄標題 chip 同速（見 playColEnterAnim）
         );
       }
       if (listCareerCtrl) listCareerCtrl.show({ delay: ALUMNI_DELAY });
@@ -4146,14 +4267,14 @@ export async function initAtlas(options = {}) {
     // 同時退場：
     // - lines + col titles 跑 yPercent → ±100（per-element random、無 stagger）
     // - chevron 用 clip-path inset 原地收起（不平移、位置固定）
-    // - career chip 跑 hide() 收 clip-path + height/padding → entrance 的反向操作（不混進 yPercent 群）
+    // - career chip 跑 hide() 反向收（2026-07-16 起：el yPercent 0→-100 向上滑出 + mask height→0；不混進下方 yPercent 群）
     // duration 0.6 + ease power2.in 統一；0.2 buffer 後再 finalize
     if (typeof gsap === 'undefined') {
       if (listCareerCtrl) { listCareerCtrl.destroy(); listCareerCtrl = null; }
       finalize();
       return;
     }
-    // career 用 hide() 反向收（clip-path bottom→top collapse + height/padding → 0）
+    // career 用 hide() 反向收（yPercent 向上滑出 + mask height→0，見 createCareerController dir='top' 分支）
     // hide() 內已停 interval / kill 舊 tween；destroy 留給 renderList 或 cleanupFns 處理
     if (listCareerCtrl) listCareerCtrl.hide();
     const yPercentExitTargets = /** @type {HTMLElement[]} */ ([
@@ -4399,13 +4520,20 @@ export async function initAtlas(options = {}) {
   // map view 用 switchToList 開頭的「東西消失」階段（subchip + btn collapse + cover/span hide + cityLines retract），
   // list view 用 switchToMap 退場階段（yPercent col-title + line-clip + clip-path nav-item）；
   // 兩者都不跑下游 startList / finalize，純做退場讓 router cleanup 接手
-  // idle-standby root 不是 document，不註冊（idle-standby 是 overlay 非 routed page）
+  // idle-standby root 不是 document，不走 registerPageExit（overlay 非 routed page）——
+  // 改掛到 module-level _overlayExit，由 idle-standby exitStandby 呼叫 playOverlayAtlasExit()
   if (options.root === undefined || options.root === document) {
     registerPageExit(() => {
       if (typeof gsap === 'undefined') return Promise.resolve();
       if (currentView === 'list') return playListExit();
       return playMapExit();
     });
+  } else {
+    _overlayExit = () => {
+      if (typeof gsap === 'undefined') return Promise.resolve();
+      return currentView === 'list' ? playListExit() : playMapExit();
+    };
+    cleanupFns.push(() => { _overlayExit = null; });
   }
 
   function playMapExit() {

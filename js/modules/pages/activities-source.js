@@ -98,6 +98,7 @@ function mapRow(r, category) {
     poster: fileUrl(r.poster),
     images: normalizeFiles(r.images),
     videos: ytUrls(r.videoLinks),
+    videoLinks: undefined,                       // videoLinks 已折進 videos；清掉原欄，否則 getAllVideos 同一支影片會從兩個來源各算一次＝雙 tile（不是去重內容，是移除重複來源欄；後台真填兩支不同影片仍照數）
     references: remapRefs(r.references),
   };
 }

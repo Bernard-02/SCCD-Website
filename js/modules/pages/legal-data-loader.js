@@ -51,6 +51,13 @@ export async function loadLegalData(pageName) {
   try {
     const data = await fetchLegalData(pageName);
 
+    // regulations 頂部說明文字 placeholder（user 2026-07-15，比照 admission 頁的說明文字）：CMS overview 欄已存在但還沒填
+    //   → 給預設佔位文字，後台填 overviewEn/Zh 後自動覆蓋（同 unit placeholder 機制）。scope regulations、不影響 policy。
+    if (pageName === 'regulations' && !data.overviewEn && !data.overviewZh) {
+      data.overviewEn = "Below are the department's regulations and guidelines. The unit shown beside each entry is where you can obtain or enquire about the document.";
+      data.overviewZh = '以下為本系各項規章與辦法。每筆右側所示為其承辦單位，可前往索取或洽詢相關文件。';
+    }
+
     // title 元素可能由頁面直接 hardcode（如 privacy-policy 為了 chip 樣式 + <br> 斷行），此時 ID 不存在 → null guard
     const titleEn = document.getElementById('legal-title-en');
     const titleZh = document.getElementById('legal-title-zh');
@@ -75,23 +82,10 @@ export async function loadLegalData(pageName) {
   }
 }
 
-// regulations 專屬：每筆規章（.legal-section-desc 內每個 <p>，內容是「EN<br>ZH」）右邊加 share icon。
-// icon 是站上既有 .icon-share（CSS mask、繼承 currentColor）＝真 DOM 元素，user 之後要掛 link 直接把 .reg-share
-// 包進 <a>（或加 click handler）即可，比 CSS ::after 偽元素好接。
-// ⚠️ 文字（EN<br>ZH）必須先包進 .reg-line-text 當「單一」flex item，否則 <p> 設 flex 後 <br> 不換行、EN/ZH 擠成一行。
-// 樣式（flex row + fit-content）在 legal.css `.legal-regulations .reg-line`。
+// regulations 專屬：每筆規章（.legal-section-desc 內每個 <p>，內容是「EN<br>ZH」）加粗（樣式在 legal.css `.reg-line`）。
+// （原本右側掛 share icon 當外部連結 hook，user 2026-07-14 要求全部移除。）
 function decorateRegulationItems(scope) {
-  scope.querySelectorAll('.legal-section-desc > p').forEach(p => {
-    if (p.querySelector('.reg-share')) return;   // 防重入（保險）
-    const text = document.createElement('span');
-    text.className = 'reg-line-text';
-    while (p.firstChild) text.appendChild(p.firstChild);
-    const icon = document.createElement('span');
-    icon.className = 'icon icon-share icon-s reg-share';
-    icon.setAttribute('aria-hidden', 'true');
-    p.append(text, icon);
-    p.classList.add('reg-line');
-  });
+  scope.querySelectorAll('.legal-section-desc > p').forEach(p => p.classList.add('reg-line'));
 }
 
 // 政策及聲明（policy-and-statements）：讀單一 collection policy_and_statements（每列一段，sort 排序），
@@ -120,27 +114,28 @@ export async function loadPolicyAndStatements() {
 
     contentEl.innerHTML = parts.map(renderGroup).join('');
     setupLegalReveal(contentEl, 'policy-and-statements');
-
-    // 兩段同更新日期 → 取第一段顯示一次（頁尾共用 #legal-updated）
-    const updated = parts[0] || {};
-    const updatedEn = document.getElementById('legal-updated-en');
-    const updatedZh = document.getElementById('legal-updated-zh');
-    if (updatedEn) updatedEn.textContent = updated.lastUpdatedEn || '';
-    if (updatedZh) updatedZh.textContent = updated.lastUpdatedZh || '';
+    // 更新日期已改「每段各一份」渲染在各 accordion panel 底（renderGroup），不再用頁尾單一 #legal-updated。
   } catch (error) {
     console.error('Error loading policy-and-statements data:', error);
   }
 }
 
-// 單段：大標題（EN/ZH 各自 reveal 遮罩，包在 .legal-group-head 供 setupLegalReveal 掛 ScrollTrigger）+ 該段內容。
+// 單段：大標題（EN/ZH 各自 reveal 遮罩，包在 .legal-group-head 當 accordion header）+ 該段內容 + 該段自己的更新日期。
+// 更新日期改「每段各一份」（user 2026-07-14，取代原頁尾單一份）：收在該段 accordion panel 底、展開才見。
 function renderGroup(data) {
   const head =
     `<div class="legal-group-head">`
     + reveal(`<h3 class="legal-group-title-en">${esc(data.titleEn)}</h3>`)
     + reveal(`<h3 class="legal-group-title-zh">${esc(data.titleZh)}</h3>`)
     + `</div>`;
+  const updated = (data.lastUpdatedEn || data.lastUpdatedZh)
+    ? `<div class="legal-group-updated">`
+      + `<p class="text-p2">${esc(data.lastUpdatedEn || '')}</p>`
+      + `<p class="text-p2">${esc(data.lastUpdatedZh || '')}</p>`
+      + `</div>`
+    : '';
   // 條款標題用 <p>（合併頁已是 p2 內文大小、非 heading），其餘 legal 頁仍 h4。
-  return `<div class="legal-group">${head}${renderStructured(data, true, 'p')}</div>`;
+  return `<div class="legal-group">${head}${renderStructured(data, true, 'p')}${updated}</div>`;
 }
 
 // clip-reveal mask wrapper：把單一可動行包進 overflow:clip 容器，讓進場 yPercent 滑入有遮罩、
@@ -155,16 +150,19 @@ const revealSub = (inner) => `<div class="legal-reveal legal-sub-reveal">${inner
 // 每行用 reveal() 包 → title / 副標 / 說明各自獨立遮罩，可依序 clip-reveal 進場（setupLegalReveal）
 // titleTag：條款標題的 tag。預設 h4（regulations/support 的標題是 32px 大標＝語意上是 heading）；
 //   合併頁（政策及聲明）的條款標題已縮到 p2 內文大小＝改用 <p> 較貼切（user 2026-06-09）。樣式全走 class 不受 tag 影響。
-// regulations 規章項目（結構化 {titleEn,titleZh,url}）→ 一條 .reg-line：文字（EN<br>ZH，缺一語不留空行）+ share icon。
-// 有 url 時「整列」是 <a target=_blank>（整列可點/hover，連結文字＝規章名故免 aria-label；router.js 忽略 http/外連/_blank 不攔截）；
-// 無 url 時是 <p>。icon 一律 <span>，用 currentColor → CSS `a.reg-line` 補 color:inherit 才黑。取代舊 decorateRegulationItems 拆 desEn。
+// regulations 規章項目（結構化 {titleEn, titleZh, unitEn, unitZh}）→ 一條 .reg-line：
+//   左＝規章名（EN<br>ZH，缺一語不留空行、粗體）；右＝承辦單位（去哪裡找該規章，EN<br>ZH，如 SCCD Office / 系辦）。
+// 單位目前是 placeholder（本地 JSON 示意值），之後接後台 unit 欄位再由編輯者填真值（見 memory
+//   project_regulations_page_and_legal_page_recipe）。缺 unit 就只渲染左側規章名（graceful）。
+// （原 url 連結欄位與 <a>／share icon 已移除，user 2026-07-14/15：規章列不再是連結。）
 function renderRegLine(it) {
-  const text  = [esc(it.titleEn), esc(it.titleZh)].filter(Boolean).join('<br>');
-  const inner = `<span class="reg-line-text">${text}</span>`
-    + `<span class="icon icon-share icon-s reg-share" aria-hidden="true"></span>`;
-  return it.url
-    ? `<a class="reg-line" href="${esc(it.url)}" target="_blank" rel="noopener">${inner}</a>`
-    : `<p class="reg-line">${inner}</p>`;
+  const name = `<span class="reg-line-text">${[esc(it.titleEn), esc(it.titleZh)].filter(Boolean).join('<br>')}</span>`;
+  // 承辦單位（去哪裡找）：有值就用；後台 unit 欄尚未建（CMS 無此欄）時用預設 placeholder 文字佔位
+  //   （user 2026-07-15：直接寫文字、不用 box），後台補 unitEn/unitZh 後自動改真值。EN<br>ZH，缺一語不留空行。
+  let uEn = it.unitEn, uZh = it.unitZh;
+  if (!uEn && !uZh) { uEn = 'SCCD Office'; uZh = '系辦'; }
+  const unit = `<span class="reg-line-unit">${[esc(uEn), esc(uZh)].filter(Boolean).join('<br>')}</span>`;
+  return `<div class="reg-line">${name}${unit}</div>`;
 }
 
 function renderStructured(data, numbered = true, titleTag = 'h4') {
@@ -183,7 +181,7 @@ function renderStructured(data, numbered = true, titleTag = 'h4') {
     // 點若無 sections 就只渲染點層級 desEn/desZh（privacy-policy / Others 等完全不受影響 = 單一 desc reveal）。
     const sections = pt.sections || [];
     const pointDesc = (pt.desEn || '') + (pt.desZh || '');
-    // regulations：點內 items（結構化規章清單 {titleEn,titleZh,url}）→ 組成 .reg-line（含連結 icon）；其他頁無 items → 用 pointDesc
+    // regulations：點內 items（結構化規章清單 {titleEn,titleZh,unitEn,unitZh}）→ 組成 .reg-line（左規章名／右承辦單位）；其他頁無 items → 用 pointDesc
     const regItems = Array.isArray(pt.items) ? pt.items : null;
     const descInner = regItems ? regItems.map(renderRegLine).join('') : pointDesc;
     const subRevealsHtml = sections.map(s =>
@@ -223,77 +221,121 @@ function legalSlideTargets(scope) {
 function setupLegalReveal(contentEl, pageName) {
   if (typeof gsap === 'undefined') return;
 
-  // support 走專屬編排（user 2026-06-07）：進場依序 cascade、退場説明文字一次過。
-  if (pageName === 'support') { setupSupportSequence(contentEl); return; }
+  // support / regulations：手風琴**預設展開**→ 內文可見 → 用通用 per-section reveal（每個 .legal-section 依 DOM 順序
+  //   reveal 內部所有 .legal-reveal：標題在 DOM 前→先進場，內文後進；退場整段一起沉出）＝user 2026-07-15「標題先出、內文後、切頁要退場」。
+  //   （只需先 buildSupportAccordions 把 DOM 組成 header+panel、內文才排在標題後。）
+  //   （只需先 build*Accordions 把 DOM 組成 header+panel、內文才排在標題後。）
+  // 三頁都預設展開（policy 2026-07-15 起也是）＝內文可見 → 都走 revealLegalBlocks；差別只在 build*Accordions（support/regulations 是
+  //   `.legal-section` 結構、policy 是 `.legal-group` 結構、標題兩行不併行）。
+  // scrollGated:false＝載入即全部 reveal（不等捲到）。原因＝**收合上面的 list 會把下面 section 往上帶進視窗，但 ScrollTrigger 只認捲動、
+  //   不認 layout 變動 → 下方標題卡在藏著（yPercent:100）不 render**（user 2026-07-15 bug）。全部先 reveal 就沒有「藏著等 trigger」狀態。
+  //   非手風琴 legal 頁維持 scroll-gate（scrollGated 預設 true）。
+  if (pageName === 'support' || pageName === 'regulations') { buildSupportAccordions(contentEl); revealLegalBlocks(contentEl, { scrollGated: false }); return; }
+  if (pageName === 'policy-and-statements') { buildPolicyAccordions(contentEl); revealLegalBlocks(contentEl, { scrollGated: false }); return; }
 
-  // .legal-group-head 只出現在合併頁（政策及聲明）的兩段大標題；其他頁 selector 不中、不受影響。
-  contentEl.querySelectorAll('.legal-group-head, .legal-intro, .legal-section').forEach(block => {
+  revealLegalBlocks(contentEl);
+}
+
+// 通用 legal 進退場：每個 block（.legal-group-head / .legal-intro / .legal-section）把內部所有 .legal-reveal 依 DOM 順序
+// stagger clip-reveal（標題在 DOM 前→先進、內文後進）；退場整頁 .legal-reveal 一起沉出。
+//   scrollGated=true（預設，非手風琴頁）：各 block 捲到 top 85% 才 reveal（as-you-scroll）。
+//   scrollGated=false（展開態手風琴）：載入即全部 reveal，加 blockIndex 小延遲維持由上而下 cascade 感（見上方 bug 說明）。
+function revealLegalBlocks(contentEl, { scrollGated = true } = {}) {
+  const blocks = [...contentEl.querySelectorAll('.legal-group-head, .legal-intro, .legal-section')];
+  blocks.forEach((block, i) => {
     const targets = legalSlideTargets(block);
     if (!targets.length) return;
     setupClipReveal(targets);  // 父層 .legal-reveal 已 overflow:clip → 只 set yPercent:100 不 reparent
     const play = () => playClipReveal(targets, { stagger: { each: 0.12 } });
-    if (typeof ScrollTrigger !== 'undefined') {
+    if (scrollGated && typeof ScrollTrigger !== 'undefined') {
       ScrollTrigger.create({ trigger: block, start: 'top 85%', once: true, onEnter: play });
     } else {
-      play();
+      gsap.delayedCall(i * 0.12, play);
     }
   });
-
   registerPageExit(() => playRevealExit(legalSlideTargets(contentEl)));
 }
 
-// support 專屬進退場（user 2026-06-07）：
-//   進場＝依序 4 拍 cascade「Funds 標題 → 單次 Single → 定期 Regular → 其他項目 Others」，
-//         group 之間錯開 GROUP_STEP 起跑，組內維持 0.12 stagger（標題 EN→ZH）。
-//   退場＝右欄説明文字全部「一次過」同時 clip-out（stagger 0）；左欄 SUPPORT 標題卡片由 hero
-//         playHeroExit 另外註冊各自跑（兩者分開，不混在同一個 stagger）。
-function setupSupportSequence(contentEl) {
-  // 依 DOM 順序組「進場 group」：含子區塊的 section → 標題拍 + 每個子區塊各一拍；其餘 section 整塊一拍。
-  const groups = [];
-  contentEl.querySelectorAll('.legal-intro, .legal-section').forEach(section => {
-    const subReveals = [...section.querySelectorAll('.legal-sub-reveal')];
-    if (subReveals.length) {
-      // 標題拍：section 內「非子區塊」的 reveal（群組標題 EN/ZH +（若有）點層級說明）
-      const titleTargets = [...section.querySelectorAll('.legal-reveal')]
-        .filter(r => !r.classList.contains('legal-sub-reveal'))
-        .map(r => /** @type {HTMLElement|null} */ (r.firstElementChild))
-        .filter(Boolean);
-      if (titleTargets.length) groups.push(titleTargets);
-      subReveals.forEach(sr => { if (sr.firstElementChild) groups.push([sr.firstElementChild]); });
+// 手風琴共用線路（support / regulations / policy 共用）：把 header（可點列，需已含標題內容）與 panel（收合內容）接起來——
+// append chevron（flex space-between 排右）、補 a11y 屬性、GSAP height 0↔auto toggle。
+// opts.open：預設展開態（donate/regulations 要，user 2026-07-15）；policy 省略＝預設收合。
+function wireAccordion(header, panel, { open = false } = {}) {
+  header.classList.add('support-acc-header');
+  header.setAttribute('role', 'button');
+  header.setAttribute('tabindex', '0');
+  header.setAttribute('aria-expanded', String(open));
+
+  const chevron = document.createElement('span');
+  chevron.className = 'icon icon-chevron-list icon-m support-acc-chevron';
+  chevron.setAttribute('aria-hidden', 'true');
+  header.appendChild(chevron);
+
+  panel.classList.add('support-acc-panel');
+  if (!open) panel.setAttribute('inert', '');   // 無障礙：收合內容移出 tab 順序
+  gsap.set(panel, { height: open ? 'auto' : 0, overflow: 'hidden' });
+  gsap.set(chevron, { rotation: open ? 90 : 270 });   // 展開態朝上 90 / 收合態朝下 270（base 朝左）
+
+  const toggle = () => {
+    const open = header.getAttribute('aria-expanded') === 'true';
+    header.setAttribute('aria-expanded', String(!open));
+    if (open) {
+      panel.setAttribute('inert', '');
+      gsap.to(panel, { height: 0, duration: DUR.base, ease: EASE.exitSoft });
+      gsap.to(chevron, { rotation: 270, duration: DUR.fast });
     } else {
-      const targets = legalSlideTargets(section);
-      if (targets.length) groups.push(targets);
+      panel.removeAttribute('inert');
+      gsap.to(panel, { height: 'auto', duration: DUR.medium, ease: EASE.enterSoft });
+      gsap.to(chevron, { rotation: 90, duration: DUR.fast });
     }
-  });
-
-  const allTargets = groups.flat();
-  if (!allTargets.length) return;
-  setupClipReveal(allTargets);  // 全部 yPercent:100 藏好（父層 .legal-reveal 已 clip）
-
-  const GROUP_STEP = 0.42;  // group 之間起跑間隔（秒）→ 4 拍清楚分開但仍連貫
-  const play = () => {
-    const tl = gsap.timeline();
-    groups.forEach((targets, gi) => {
-      tl.to(targets, {
-        yPercent: 0,
-        duration: DUR.reveal,
-        ease: EASE.enter,
-        stagger: { each: 0.12 },
-        clearProps: 'transform',
-      }, gi * GROUP_STEP);
-    });
   };
-  if (typeof ScrollTrigger !== 'undefined') {
-    ScrollTrigger.create({ trigger: contentEl, start: 'top 85%', once: true, onEnter: play });
-  } else {
-    play();
-  }
+  header.addEventListener('click', toggle);
+  header.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+  });
+}
 
-  // 退場：説明文字全部一次過（stagger 0）；title 卡片走 hero playHeroExit 分開跑。
-  // duration 對齊 hero title 退場（playHeroExit EXIT_DURATION 0.5s = DUR.medium）+ 兩者同 EASE.exit(power3.in)
-  // → 文字與 title 卡片用同一條 ease 曲線、同時長，鎖步離開（之前文字用 playRevealExit 預設 DUR.base 0.4s
-  //   比 title 短 → 兩條曲線進度對不上，看起來文字離開節奏跟 title 不一致）。
-  registerPageExit(() => playRevealExit(legalSlideTargets(contentEl), { stagger: 0, duration: DUR.medium }));
+// support（Funds/Others）+ regulations（5 大類）做成手風琴：標題列一行 EN+ZH + chevron，**預設展開**（user 2026-07-15）。
+// 內文搬進 panel（不參與 clip-reveal cascade——避免內文卡在 yPercent:100）。
+function buildSupportAccordions(contentEl) {
+  contentEl.querySelectorAll('.legal-section').forEach(section => {
+    const body = section.querySelector('.legal-section-body');
+    if (!body || body.querySelector('.support-acc-panel')) return;   // 防重入
+    const reveals = [...body.children].filter(c => c.classList.contains('legal-reveal'));
+    const titleReveals = reveals.filter(r => r.querySelector('.legal-section-title-en, .legal-section-title-zh'));
+    const panelReveals = reveals.filter(r => !titleReveals.includes(r));
+    if (!titleReveals.length || !panelReveals.length) return;
+
+    const header = document.createElement('div');
+    const titles = document.createElement('div');
+    titles.className = 'support-acc-titles';   // support 標題 EN+ZH 併一行（見 support.css）
+    titleReveals.forEach(t => titles.appendChild(t));
+    header.appendChild(titles);
+
+    const panel = document.createElement('div');
+    panelReveals.forEach(p => panel.appendChild(p));
+
+    body.append(header, panel);
+    wireAccordion(header, panel, { open: true });   // donate/regulations 預設展開
+  });
+}
+
+// policy-and-statements 兩大段（隱私 / 無障礙）做成手風琴（user 2026-07-14）：header = .legal-group-head（EN/ZH 兩行標題，
+// 保留堆疊、不併行）+ chevron；panel = 該段其餘內容（overview + 編號條款 + 該段自己的更新日期）。
+function buildPolicyAccordions(contentEl) {
+  contentEl.querySelectorAll('.legal-group').forEach(group => {
+    const head = group.querySelector('.legal-group-head');
+    if (!head || group.querySelector('.support-acc-panel')) return;   // 防重入
+
+    const header = document.createElement('div');
+    group.insertBefore(header, head);
+    header.appendChild(head);   // 標題區塊移進 header（兩行保留）
+
+    const panel = document.createElement('div');
+    while (header.nextSibling) panel.appendChild(header.nextSibling);   // header 之後全部 = 段內容
+    group.appendChild(panel);
+
+    wireAccordion(header, panel, { open: true });   // policy 也預設展開（user 2026-07-15）
+  });
 }
 
 // 純文字 → 包成段落（標題用同樣 esc 邏輯避免 < > & 破版）

@@ -83,6 +83,19 @@ export function setupAdmissionReveal(container, { hide = true } = {}) {
   if (typeof gsap === 'undefined' || !container) return;
   const rows = container.querySelectorAll('.list-reveal-row');
   setupClipReveal(rows, { hide });
+  // 標題文字列進場方向 per-item 隨機：一半改從上滑入（yPercent:-100），一半維持從下（setupClipReveal 預設 100）。
+  // 只翻「文字」列（主標 .text-h5 + 同筆副標 .list-subtitles，同筆同方向不交錯）；斑馬底色「box」維持
+  // 由下往上（下方 clipPath inset(100%)）、結構列（meta/分享/chevron/分隔線）也維持從下。（user 2026-07-15）
+  if (hide && !prefersReducedMotion()) {
+    container.querySelectorAll('.list-item').forEach(item => {
+      if (Math.random() < 0.5) return;  // 一半維持從下
+      item.querySelectorAll('.list-reveal-row').forEach(row => {
+        if (row.querySelector('.text-h5') || row.classList.contains('list-subtitles')) {
+          gsap.set(row, { yPercent: -100 });
+        }
+      });
+    });
+  }
   // 斑馬底色（zebra item 才有可見底色）進場用 clip-path 揭露：先藏起，避免進場前底色閃出。
   // 逐 item 揭由 playAdmissionPanelReveal 接（底色先、文字後，item 間接力）。inset(100%)=從下往上揭。
   // ⚠️ 無條件藏（即使 hide:false 的初次載入）：list-item 的文字 row 一律被 bindInteractions 的

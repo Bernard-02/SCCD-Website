@@ -277,11 +277,21 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
       if (usesWindowScroll()) {
         const bar = /** @type {HTMLElement | null} */ (btn.closest('.courses-program-bar'));
         if (bar) {
+          // 對齊以「group 整體」為單位（矮橫向 BFA label 在 btn 左側，對齊 btn 會把 label 捲出左緣）；MDES 無 group 用 btn
+          const alignEl = /** @type {HTMLElement} */ (btn.closest('.courses-program-group') || btn);
           const pad = parseFloat(getComputedStyle(bar).paddingLeft) || 0;
-          const delta = btn.getBoundingClientRect().left - (bar.getBoundingClientRect().left + pad);
+          const delta = alignEl.getBoundingClientRect().left - (bar.getBoundingClientRect().left + pad);
           bar.scrollTo({ left: bar.scrollLeft + delta, behavior: 'smooth' });
         }
       }
+    });
+  });
+
+  // BFA 學士班 label 也可點（user 2026-07-12）＝點同 group 的 program btn（含 bar 對齊等副作用）
+  document.querySelectorAll('.courses-program-bar .courses-bfa-label').forEach(label => {
+    label.addEventListener('click', () => {
+      const btn = /** @type {HTMLElement | null} */ (label.closest('.courses-program-group')?.querySelector('.courses-program-btn') || null);
+      if (btn) btn.click();
     });
   });
 
@@ -310,7 +320,11 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
     const navDir = new Map(navTargets.map(el => [el, pickClipDir()]));
     navTargets.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = 'none'; gsap.set(el, { clipPath: navDir.get(el) }); });
 
-    if (usesWindowScroll() && 'IntersectionObserver' in window && sectionEl) {
+    // 嚴格 hero gate 只給矮橫向（nav fixed 進 header 帶、hero 屏要藏）。直向手機 nav 在 flow、
+    // 緊接 hero 之下 → 走下面 once-reveal（section 進 90% 線就現），不能等 hero 完全捲出才出現
+    // （user 2026-07-12「手機版 nav btn 應該在 hero 之下就出現、不是等 main section 到視窗」）。
+    const isLandscapeGate = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+    if (isLandscapeGate && 'IntersectionObserver' in window && sectionEl) {
       // 矮橫向：nav 進 header fixed、hero 也浮著 →「hero 之後才 run、hero 時出場隱藏」（user 2026-07-09）：
       // IO 偵測 content section 佔到視窗中段（捲過 hero）→ 每顆 btn 個別方向、同時（stagger:0）clip-reveal；
       // 離開（回 hero / 進 footer）→ clip-hide。不用 opacity、不加白底（純 clip）。
@@ -352,7 +366,7 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
         registerPageCleanup(() => footerIO.disconnect());
       }
     } else {
-      // 桌面：nav 在左側 sticky flow，進場 once（stagger 0.04）、不 re-hide（維持原行為，桌面不變）
+      // 桌面＋直向手機：nav 在 flow（桌面左側 sticky／手機頂部 strip），進場 once（stagger 0.04）、不 re-hide
       const playNavReveal = () => {
         if (navRevealed) return;
         navRevealed = true;
@@ -454,6 +468,14 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
         gsap.killTweensOf(allHeadersInner);
         gsap.set(allHeadersInner, { clearProps: 'transform' });
       }
+      // 年級 pill 同 headers 的殘留問題：pill 只在涉及 MDES 的切換動畫（見下），BFA-A→MDES 退場後
+      // BFA-A pill 留在 exit clipPath；之後 MDES→BFA-CMD→BFA-A（BFA↔BFA 不動畫）會露出「pill 被 clip 不見」
+      // → 開頭無條件清殘留 clipPath
+      const allGradeInners = document.querySelectorAll('.courses-mobile-grade-bar .anchor-nav-inner');
+      if (allGradeInners.length) {
+        gsap.killTweensOf(allGradeInners);
+        gsap.set(allGradeInners, { clearProps: 'clipPath' });
+      }
     }
     // 年級表頭只在涉及 MDES 切換時動畫（BFA Animation ↔ BFA CMD 共用同年級表頭 Freshman/Sophomore/Junior/Senior，無需動畫）
     const involvesMdes = isSwitch && prevPanel && (prevPanel.id === 'panel-mdes' || newPanelId === 'panel-mdes');
@@ -468,9 +490,11 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
     let headerExitDirs = /** @type {HeaderDir[] | null} */ (null);
     if (isSwitch && prevPanel && prevPanel.id !== newPanelId && typeof gsap !== 'undefined' && !prefersReducedMotion()) {  // 減少動態：不跑舊卡片退場
       // 手機必修/選修 label 沒有 desktop 的 slide-mask 結構，改跟卡片同走 clip-path wipe。
-      // 年級 bar pill 不在此列：program 切換時年級 bar 不跑進出場動畫（user 2026-07-09，
-      // 只保留初次進場 reveal 與離頁 exit）
-      const prevCards = prevPanel.querySelectorAll('.courses-grid-card, .courses-mobile-row-label');
+      // 年級 bar pill 只在涉及 MDES 的切換一起收（user 2026-07-13 三修：BFA↔BFA 年級組相同、直接切换；
+      // 同桌面年級表頭 involvesMdes 規則）；pill inner 有 CSS transition:all → 動畫期間關掉免追 GSAP 卡頓
+      const prevGradeInners = involvesMdes ? [...prevPanel.querySelectorAll('.courses-mobile-grade-bar .anchor-nav-inner')] : [];
+      prevGradeInners.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = 'none'; });
+      const prevCards = [...prevPanel.querySelectorAll('.courses-grid-card, .courses-mobile-row-label'), ...prevGradeInners];
       // 年級 + 必修/選修 inner 一起 slide（user 2026-06-07：切 MDES 表頭也動才 smooth；type-label 已有遮罩）
       const prevHeadersInner = prevPanel.querySelectorAll('.courses-grid-col-header-inner, .courses-grid-type-label-inner');
       // headers inner 殘留 transform 已在開頭統一 clear，此處不需重複 kill
@@ -486,7 +510,10 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
               duration: DUR.fast,
               ease: 'cubic-bezier(0.25, 0, 0, 1)',
               overwrite: true,
-              onComplete: resolve,
+              onComplete: () => {
+                prevGradeInners.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = ''; });
+                resolve();
+              },
             }
           );
         }));
@@ -571,10 +598,12 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
       // 搶時序：refresh 在 layout 定位前跑完 → trigger 判定已通過 once → 卡片偶爾不進場。
       const panelInView = activePanel.getBoundingClientRect().top < window.innerHeight * 0.9;
       // 手機 row-label 跟卡片同走 clip-path reveal（桌面 display:none 不可見不影響）。
-      // 年級 bar pill 只在「初次進場」納入（program 切換不重跑，user 2026-07-09）；
+      // 年級 bar pill：初次進場＋涉及 MDES 的切換納入（user 2026-07-13 三修：BFA↔BFA 直接切換不動畫）；
       // pill 的 .anchor-nav-inner 有 CSS transition:all → 追著 GSAP clipPath 跑出雙緩動卡頓
       // （同桌面 navTargets 的處理）→ 動畫期間 transition:none、跑完還原
-      const gradeInners = isSwitch ? [] : [...activePanel.querySelectorAll('.courses-mobile-grade-bar .anchor-nav-inner')];
+      const gradeInners = (!isSwitch || involvesMdes)
+        ? [...activePanel.querySelectorAll('.courses-mobile-grade-bar .anchor-nav-inner')]
+        : [];
       gradeInners.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = 'none'; });
       const restoreGradeTransitions = () => gradeInners.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = ''; });
       const allCards = [

@@ -403,8 +403,9 @@ export function setSiteMode(mode, opts) {
 export function startSiteColorLoop() { startColorLoop(); }
 /** generate-app Pause btn 停 site colorTick RAF（hue 凍結在當前值；保留 CSS vars 不切回 default） */
 export function stopSiteColorLoop() { pauseColorLoop(); }
-/** generate-app 判斷 Play 是否正在跑（更新 Play/Pause icon） */
-export function isColorLoopRunning() { return colorRAF !== null; }
+/** generate-app / mode-color-panel 判斷 Play 是否正在跑（更新 Play/Pause icon）。
+ *  含「排程中」：startColorLoop 會先掛 400ms timer 才起 RAF，點 Play 當下只看 colorRAF 會誤報 false → icon 卡在 play。 */
+export function isColorLoopRunning() { return colorRAF !== null || colorRAFStartTimer !== null; }
 
 /**
  * user 拖 color wheel 時把選中的 hue 寫回 site
@@ -550,22 +551,27 @@ function applyMode(mode, opts) {
   }
 }
 
-/** Header logo 進場 reveal：左→右 clip-path inset 揭露 + 清 opacity
+/** Header logo 進場 reveal：hero clip-reveal（<a> 當遮罩 overflow:hidden、logo 本體 yPercent 100→0 滑入）+ 清 opacity。
  *  /create exit anim 把 logo.style.opacity:0；下一頁需要顯示時跑這個。
- *  抽出 helper 因為「需要 reveal」的判斷點有兩處（doSwap 後 + skip path 後）。 */
+ *  抽出 helper 因為「需要 reveal」的判斷點有兩處（doSwap 後 + skip path 後）。
+ *  2026-07-15 由 clip-path 左→右 wipe 改 hero 式滑入（user：logo 進退場統一 clip reveal）；
+ *  遮罩只在動畫期間裁切（Lottie 齒輪 paint 超出 180 box，常駐 hidden 會裁掉外圈）。 */
 function runHeaderLogoReveal(logo) {
   if (typeof gsap === 'undefined') {
     logo.style.opacity = '1';
     return;
   }
   logo.style.opacity = '1';
+  const mask = /** @type {HTMLElement|null} */ (logo.closest('a'));
+  if (mask) mask.style.overflow = 'hidden';
   gsap.fromTo(logo,
-    { clipPath: 'inset(0% 100% 0% 0%)' },
+    { yPercent: 100 },
     {
-      clipPath: 'inset(0% 0% 0% 0%)',
+      yPercent: 0,
       duration: DUR.reveal,
       ease: EASE.enter,
-      clearProps: 'clipPath',
+      clearProps: 'transform',
+      onComplete: () => { if (mask) mask.style.overflow = ''; },
     }
   );
 }

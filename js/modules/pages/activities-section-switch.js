@@ -71,8 +71,17 @@ function scrollSectionIntoView(el, behavior = 'instant') {
     return;
   }
   const filterBar = /** @type {HTMLElement | null} */ (el.querySelector('.activities-panel:not(.hidden) .activities-filter-bar'));
+  const navCol = /** @type {HTMLElement | null} */ (el.querySelector('.activities-nav-col'));
   const y = () => {
     const sectionTopDoc = el.getBoundingClientRect().top + window.scrollY;
+    // 手機直向 sticky 疊層（2026-07-13）：filter bar 也 sticky 了，不能落入下面桌面公式
+    // （stickyTop 202 → 落點高出 section 122px = hero 露出，user 07-13 截圖）。落點改錨 nav strip：
+    // nav 自然位置剛好停在自己釘點（88）＝ section 頂在 viewport +8，殘餘 8px hero 由 nav ::before 遮。
+    if (window.innerWidth < 768 && navCol && getComputedStyle(navCol).position === 'sticky') {
+      const navTop = parseFloat(getComputedStyle(navCol).top) || 88;
+      const padTop = parseFloat(getComputedStyle(el).paddingTop) || 0;
+      return Math.max(0, sectionTopDoc + padTop - navTop);
+    }
     // 桌面：sticky filter bar → 落點讓它停在自己的 sticky-top（不位移、不蓋 list）。
     if (filterBar && getComputedStyle(filterBar).position === 'sticky') {
       const stickyTop = parseFloat(getComputedStyle(filterBar).top) || 200;
@@ -265,8 +274,11 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
   const stickyContainer = /** @type {HTMLElement | null} */ (target.closest('[style*="--list-header-sticky-top"]'));
   // ≥768 走到這裡＝矮橫向拆 frame（box 不可捲；有 frame 時上面 boxScroller 路徑已 return）→ 釘點 96
   //   （= landscape.css `.list-header.active top:96` = list-accordion getListStickyTop 拆-frame 分支，三處同步）。
+  // 手機直向（2026-07-13 sticky 疊層）：釘點改讀 --list-header-sticky-top（= filter bar 正下方，
+  // updateStickyTop 設；量測前已收 bar + 等 RO 更新 → 值是收合態）；未設（矮橫向 <768）fallback 8rem。
   const compensate = window.innerWidth < 768
-    ? 8 * parseFloat(getComputedStyle(document.documentElement).fontSize)
+    ? ((stickyContainer ? parseFloat(getComputedStyle(stickyContainer).getPropertyValue('--list-header-sticky-top')) : NaN)
+      || 8 * parseFloat(getComputedStyle(document.documentElement).fontSize))
     : (target.closest('.inner-scroll-scroll-col')
       ? 96
       : (stickyContainer ? (parseFloat(getComputedStyle(stickyContainer).getPropertyValue('--list-header-sticky-top')) || 200) : 200));
@@ -378,8 +390,12 @@ function hideFilterChips(panel) {
   if (inners.length) gsap.set(inners, { transition: 'none', clipPath: 'inset(100% 0% 0% 0%)' });  // 收到底邊 → 由下往上揭露
 }
 let _chipRevealSTs = [];
+// 子 tab chip 是否被「捲離 section」clip 收起（2026-07-13，比照 nav btn 的 scroll hide/reveal）：
+// true 時離頁 playFilterChipsExit 不再重播（fromTo(0→100) 會先閃現一幀）；任何 reveal 路徑歸 false。
+let chipsScrollHidden = false;
 function playFilterChipsReveal(panel, { useScrollTrigger = false } = {}) {
   if (typeof gsap === 'undefined') return;
+  chipsScrollHidden = false;
   const inners = filterChipInners(panel);
   if (!inners.length) return;
   // 減少動態：chip 直接全顯，不滑入
@@ -410,6 +426,7 @@ function playFilterChipsReveal(panel, { useScrollTrigger = false } = {}) {
 function playFilterChipsExit(panel) {
   if (typeof gsap === 'undefined') return Promise.resolve();
   if (prefersReducedMotion()) return Promise.resolve();  // 減少動態：不跑退場
+  if (chipsScrollHidden) return Promise.resolve();  // 已被捲離 section 收起 → 重播 fromTo(0→100) 會先閃現一幀
   const inners = filterChipInners(panel);
   if (!inners.length) return Promise.resolve();
   _chipRevealSTs.forEach(st => st && st.kill());  // 殺殘留 reveal ST，免得退場時又 fire
@@ -499,6 +516,10 @@ function setupSectionNavReveal() {
 
   // reveal/hide 可被 scroll 反覆觸發：捲離 main section→退場、捲回 main→重播進場（user 2026-06-27）。
   // navRevealed 旗標擋同態重播；hide 用 fromTo 顯式起點 inset(0)（clearProps 後 computed=none，GSAP 補不間）。
+  // 子 tab chip 一併進出（user 2026-07-13「離開 main section 時也 clip 收起」）：hide 走 playFilterChipsExit
+  // （chip 自身 clip、不裁旋轉角）後標 chipsScrollHidden；reveal 只在被 scroll 收過才補播
+  // （初載/切分頁的 chip reveal 由 switchToSection 路徑負責，不雙播）。
+  const visiblePanel = () => /** @type {HTMLElement | null} */ (document.querySelector('.activities-panel:not(.hidden)'));
   const reveal = () => {
     if (navRevealed) return;
     navRevealed = true;
@@ -508,6 +529,8 @@ function setupSectionNavReveal() {
       clipPath: NAV_REVEALED_CLIP, duration: DUR.base, ease: NAV_EASE, stagger: 0.02, overwrite: true, clearProps: 'clipPath',
       onComplete: () => inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = ''; }),
     });
+    const panel = visiblePanel();
+    if (panel && chipsScrollHidden) playFilterChipsReveal(panel);  // reveal 內部清 chipsScrollHidden
   };
   const hide = () => {
     if (!navRevealed) return;
@@ -517,6 +540,11 @@ function setupSectionNavReveal() {
     gsap.fromTo(inners,
       { clipPath: NAV_REVEALED_CLIP },
       { clipPath: () => pickNavClip(), duration: DUR.base, ease: NAV_EASE, stagger: { each: 0.02, from: 'end' }, overwrite: true });
+    const panel = visiblePanel();
+    if (panel) {
+      playFilterChipsExit(panel);   // chipsScrollHidden 此刻仍 false → 會跑；跑完標旗
+      chipsScrollHidden = true;
+    }
   };
 
   const section = document.getElementById('activities-content-section');
@@ -558,6 +586,26 @@ function setupSectionNavReveal() {
 
 // 桌面 inner-scroll box 幾何改純 CSS（2026-06-30 通用化，見 css/components/lists.css .inner-scroll-* class）：
 // box 高度固定填滿 [header+pad, 100vh−pad]、頂部對齊 → 不再 JS 量 nav 寫 --activities-box-*（原 sizeContentBoxToNav 已移除）。
+
+// 手機直向 sticky 疊層（2026-07-13，lists.css portrait 區塊配套）：nav strip 釘 88、filter bar 釘 nav 正下方。
+// nav 實高（單行 strip，內容穩定）在此量一次設 --act-filter-top = navTop + navH − 1（1px 疊縫防 sub-pixel 透縫）；
+// navTop 讀 computed（CSS 88 為單一來源）。ResizeObserver 跟著（字體 swap 後高度微變自癒）。
+function initMobileStickyBars() {
+  if (window.innerWidth >= 768 || !window.matchMedia('(orientation: portrait)').matches) return;
+  const section = document.getElementById('activities-content-section');
+  const navCol = /** @type {HTMLElement | null} */ (section && section.querySelector('.activities-nav-col'));
+  if (!section || !navCol) return;
+  const setTop = () => {
+    const navTop = parseFloat(getComputedStyle(navCol).top) || 88;
+    section.style.setProperty('--act-filter-top', Math.round(navTop + navCol.offsetHeight - 1) + 'px');
+  };
+  setTop();
+  if (typeof ResizeObserver !== 'undefined') {
+    const ro = new ResizeObserver(setTop);
+    ro.observe(navCol);
+    registerPageCleanup(() => ro.disconnect());
+  }
+}
 
 // Issue 2 修（user 2026-06-30 選「mandatory + JS 邊界接手」）：桌面 inner-scroll box 捲到邊界後、繼續同向滾的小幅捲動
 // 會被 window mandatory snap 吃掉、彈回 section（box 吸走滾輪、剩下 chain 太弱過不了 snap）→ 感覺「卡住、上不去 footer」。
@@ -621,6 +669,9 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
   // box 捲到邊界 → 接手帶 window 到相鄰 snap（解 mandatory snap 吃掉 chain、開著 item 捲不到 footer）
   initBoxSnapHandoff();
 
+  // 手機直向：量 nav 高設 --act-filter-top（filter bar sticky 釘點，lists.css portrait 區塊配套）
+  initMobileStickyBars();
+
   // SPA 換頁後 DOM 重建，需重置 loaded 狀態讓資料重新載入
   Object.keys(loaded).forEach(k => delete loaded[k]);
   // 模組級旗標跨 SPA 換頁不會自動清。若上次離頁時某 switch 被導航打斷（exit 動畫被 cleanup 殺、
@@ -628,6 +679,7 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
   // 重新進頁 DOM 全新、沒有進行中的 switch → 一律歸零。
   switching = false;
   subFilterSwitching = false;
+  chipsScrollHidden = false;  // 上次離頁時若正被 scroll 收起，旗標殘留會擋掉新頁第一次 chip exit
 
   // 暴露給 industry reference 按鈕使用（避免循環 import）
   window.__sccdNavigateToItem = (section, itemId) => navigateToItem(section, itemId);

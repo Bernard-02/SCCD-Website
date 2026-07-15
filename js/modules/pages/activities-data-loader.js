@@ -11,6 +11,7 @@ import { makeActivatable } from '../ui/a11y.js';
 import { ensureFlagIconsCss } from '../ui/ensure-flag-icons.js';
 import { countryName } from '../../data/country-names.js';
 import { DUR, EASE } from '../ui/motion.js';
+import { refreshStickyPinObservers } from '../accordions/list-accordion.js';
 import { loadSummerCamp } from './summer-camp-source.js';
 import { loadActivityCollection } from './activities-source.js';
 // '/data/x.json' 字串同時是 fetch URL 與 map key / 比對識別字（SECTION_DATA_URL 等），
@@ -346,20 +347,21 @@ export function buildAlbumsHtml(item, { unbounded = false } = {}) {
             </div>
           </div>` : '<div></div>'}
         </div>
-        <!-- album-gallery row：grid 對齊 sticky row 同 template，col1=year spacer 留空，col2-3 跨 chevron+track+chevron
-             結果：album-prev chevron 對齊 date 左緣，第一張 thumb = chevron 之後（內縮 32px from date） -->
-        <div class="grid items-center gap-x-xl" style="${gridTemplate}">
-          <div></div>
-          <div class="album-gallery col-start-2 col-end-4 flex items-center">
-            <button type="button" class="album-prev invisible flex-shrink-0 w-[32px] h-[32px] flex items-center justify-center text-p2 hover:opacity-60 transition-opacity">
+        <!-- album-gallery row：2-col grid [隱藏 year spacer（撐同 sticky row 的 year 欄寬） | album-gallery]，
+             兩 row 各自獨立 grid，靠「同內容 year」讓 col1 等寬 → col2 左緣＝sticky row 的 date 左緣，thumbnail 對齊日期左緣。
+             chevron 改 absolute 疊在 track 左右（不佔位、不把 thumbnail 往右推），thumbs 恆貼 date 左緣（user 2026-07-14）。 -->
+        <div class="grid items-center gap-x-xl" style="grid-template-columns: auto 1fr;">
+          <div class="flex-shrink-0" aria-hidden="true" style="visibility:hidden">${album.year ? `<p class="text-p2 font-bold">${album.year}</p>` : ''}</div>
+          <div class="album-gallery relative flex items-center min-w-0">
+            <button type="button" class="album-prev invisible absolute left-0 top-1/2 -translate-y-1/2 z-10 w-[32px] h-[32px] flex items-center justify-start text-p2 hover:opacity-60 transition-opacity">
               <span class="icon icon-chevron-list icon-s"></span>
             </button>
-            <div class="album-track flex-1 min-w-0" style="overflow-x: clip; overflow-y: visible; padding: 8px 0;">
+            <div class="album-track flex-1 min-w-0" style="overflow-x: clip; overflow-clip-margin: 0.5rem; overflow-y: visible; padding: 8px 0;">
               <div class="album-track-inner flex items-center gap-sm" style="transition: transform 0.3s ease;">
                 ${thumbsHtml}
               </div>
             </div>
-            <button type="button" class="album-next invisible flex-shrink-0 w-[32px] h-[32px] flex items-center justify-center text-p2 hover:opacity-60 transition-opacity">
+            <button type="button" class="album-next invisible absolute right-0 top-1/2 -translate-y-1/2 z-10 w-[32px] h-[32px] flex items-center justify-end text-p2 hover:opacity-60 transition-opacity">
               <span class="icon icon-chevron-list icon-s rotate-180"></span>
             </button>
           </div>
@@ -370,7 +372,7 @@ export function buildAlbumsHtml(item, { unbounded = false } = {}) {
 
   return unbounded
     ? `<div class="item-albums">${itemsHtml}</div>`
-    : `<div class="item-albums overflow-y-auto list-scroll" style="max-height: 252px;">${itemsHtml}</div>`;
+    : `<div class="item-albums overflow-y-auto list-scroll pb-sm" style="max-height: 252px;">${itemsHtml}</div>`;
 }
 
 // 海報區塊 HTML
@@ -430,18 +432,18 @@ export function buildGalleryHtml(item) {
 
   if (galleryItems.length === 0) return '';
   return `
-    <div class="gallery-section pb-lg flex items-center">
-      <button class="gallery-prev invisible flex-shrink-0 w-[32px] h-[32px] flex items-center justify-center text-p2 hover:opacity-60 transition-opacity">
+    <div class="gallery-section px-sm pb-lg flex items-center">
+      <button class="gallery-prev flex-shrink-0 w-[32px] h-[32px] flex items-center justify-start text-p2 hover:opacity-60 transition-opacity" style="display:none">
         <span class="icon icon-chevron-list icon-s"></span>
       </button>
       <!-- min-w-0：flex item 的 min-width:auto 會被內容撐開（手機 327px 容器內 track 被撐到 ~357px），
            把 gallery-next 推出 viewport 右側「右 chevron 消失」；album-track 已有同款 fix -->
-      <div class="gallery-track flex-1 min-w-0" style="height: 120px; overflow-x: clip; overflow-y: visible;">
+      <div class="gallery-track flex-1 min-w-0" style="height: 120px; overflow-x: clip; overflow-clip-margin: 0.5rem; overflow-y: visible;">
         <div class="gallery-inner flex gap-md h-full" style="transition: transform 0.3s ease;">
           ${galleryItems.join('')}
         </div>
       </div>
-      <button class="gallery-next invisible flex-shrink-0 w-[32px] h-[32px] flex items-center justify-center text-p2 hover:opacity-60 transition-opacity">
+      <button class="gallery-next flex-shrink-0 w-[32px] h-[32px] flex items-center justify-end text-p2 hover:opacity-60 transition-opacity" style="display:none">
         <span class="icon icon-chevron-list icon-s rotate-180"></span>
       </button>
     </div>
@@ -624,8 +626,9 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
     const updateChevrons = () => {
       const max = getMaxOffset();
       const noScroll = max === 0;
-      prevBtn?.classList.toggle('invisible', noScroll);
-      nextBtn?.classList.toggle('invisible', noScroll);
+      // 不需捲動時 chevron 收掉寬度（display:none 非 invisible）→ 圖左緣直接對齊 padding/文字，不留 32px 空位
+      if (prevBtn) prevBtn.style.display = noScroll ? 'none' : 'flex';
+      if (nextBtn) nextBtn.style.display = noScroll ? 'none' : 'flex';
       // 到端點 opacity 0.5 + not-allowed 游標（同 album-gallery，非原生 disabled inline cursor 直接生效）
       const atStart = !noScroll && offset <= 0;
       const atEnd   = !noScroll && offset >= max;
@@ -778,10 +781,13 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
     ScrollTrigger.batch(items, {
       start: 'top 90%',
       onEnter: /** @param {HTMLElement[]} batch */ batch => {
-        playClipReveal(batch);
-        batch.forEach(/** @param {HTMLElement} row */ row => {
-          const listItem = row.closest('.list-item');
-          if (listItem) listItem.removeAttribute('data-pre-reveal');
+        // data-pre-reveal（pointer-events:none 禁 hover/click）延到 reveal 動畫「完成」才解鎖：
+        // 若在 onEnter 就解，reveal 進行中 header 已可 hover → 文字還在滑入時 hover 出現「有色塊沒文字」（user 2026-07-14）。
+        playClipReveal(batch, {
+          onComplete: () => batch.forEach(/** @param {HTMLElement} row */ row => {
+            const listItem = row.closest('.list-item');
+            if (listItem) listItem.removeAttribute('data-pre-reveal');
+          }),
         });
       },
     });
@@ -1203,10 +1209,17 @@ export async function loadListInto(containerId, url, options = {}) {
                   ${introEn ? `<p class="text-p2 leading-base">${introEn}</p>` : ''}
                   ${introZh ? `<p class="text-p2 leading-base mt-md">${introZh}</p>` : ''}
                 </div>` : ''}
-                ${buildAlbumsHtml(item, { unbounded: alwaysExpanded })}
               </div>
               ${showPoster ? buildPosterHtml(item) : ''}
-            </div>`}
+            </div>
+            <!-- albums（年份/日期/地點 + 相簿）移出 9.5fr 文字欄、以 px-sm 對齊左緣的全寬 block：
+                 常設展文字保持窄欄、下方相簿列滿版到容器右緣（user 2026-07-14）。只有 permanent-exhibitions 有 albums。
+                 pb-sm：底部留白讓 album 區塊（含內部 scroll list）不貼到 divider。
+                 有 albums 才渲染 wrapper：否則空 div 的 pb-sm 會在其他 list 的 grid↔gallery 間多塞空間。 -->
+            ${(() => {
+              const albumsHtml = buildAlbumsHtml(item, { unbounded: alwaysExpanded });
+              return albumsHtml ? `<div class="px-sm pb-sm">${albumsHtml}</div>` : '';
+            })()}`}
             ${buildGalleryHtml(item)}
             ${attachmentsField && Array.isArray(item[attachmentsField]) && item[attachmentsField].length ? `
             <div class="list-ref-wrap flex flex-col">
@@ -1303,10 +1316,13 @@ export async function loadListInto(containerId, url, options = {}) {
   // --list-header-sticky-top 由 lists.css `.list-header` sticky 規則讀取，預設 200（admission 用）
   // 用 ResizeObserver 跟著 filter-bar 高度變化即時同步：bar-hidden 收起 search-inner 時 filter-bar 縮 ~80px，
   // 不同步會讓 sticky title 跟 filter-bar 底部之間出現透視縫，捲動內容穿過
-  if (window.innerWidth >= 768) {
-    const filterBar = /** @type {HTMLElement | null} */ (panelSelector
-      ? document.querySelector(`${panelSelector} .activities-filter-bar`)
-      : container.closest('.activities-panel')?.querySelector('.activities-filter-bar'));
+  // 手機直向 activities 的 filter bar 也 sticky（lists.css 2026-07-13）→ 同一公式設 var（title 釘 bar 正下方）；
+  // 非 sticky bar（admission 手機 / 矮橫向 static bar）不設 → getListStickyTop / CSS fallback 8rem 沿用。
+  const filterBar = /** @type {HTMLElement | null} */ (panelSelector
+    ? document.querySelector(`${panelSelector} .activities-filter-bar`)
+    : container.closest('.activities-panel')?.querySelector('.activities-filter-bar'));
+  const filterBarSticky = !!filterBar && getComputedStyle(filterBar).position === 'sticky';
+  if (window.innerWidth >= 768 || filterBarSticky) {
     const updateStickyTop = () => {
       // 扣除 1px 讓它與 filter bar 稍微重疊，避免因瀏覽器 Sub-pixel 渲染造成 1px 透視縫。
       // 2026-06-29 inner-scroll：filter bar 改 sticky 到 scroll col 的「header 下」(calc header+lg，原寫死 200)，基準改讀
@@ -1317,6 +1333,9 @@ export async function loadListInto(containerId, url, options = {}) {
       if (showYearToggle) {
         container.querySelectorAll('.list-year-toggle').forEach((/** @type {any} */ el) => { el.style.top = top + 'px'; });
       }
+      // 釘點變了 → 開著的 header 的 pin-IO rootMargin（attach 時凍結）要跟上，否則 is-pinned
+      // 偵測線與真釘線錯開一個 search 高 → 手機 title ::before 補縫蓋錯位置（見 list-accordion 註解）
+      refreshStickyPinObservers(container);
     };
     updateStickyTop();
     if (filterBar && typeof ResizeObserver !== 'undefined') {
@@ -1533,7 +1552,7 @@ export async function loadExhibitionsInto(options = {}) {
     // dateFullWidth：permanent 的 date 是頻率說明（"Once per semester / 每學期舉辦一次"）非真實日期，
     //   要 full-width 顯示、不擠進 14ch date 欄、不 marquee（user 2026-06-05）。
     loadListInto('exhibitions-list-permanent', '/data/permanent-exhibitions.json', {
-      hideYearHeader: true, dateFullWidth: true,
+      hideYearHeader: true, dateFullWidth: true, showPoster: false,
       panelSelector: '#panel-exhibitions',
       ...options,
     }),

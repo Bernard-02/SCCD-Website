@@ -63,19 +63,11 @@ export function initAnchorNav({ reveal = false } = {}) {
       if (targetSection) {
         // 點擊時立即 active，並暫停 scroll spy 避免滾動過程中被覆蓋
         // force: true 讓即使已是 active 也會重新選色 + 重跑封鎖線動畫
+        // 手機水平 strip 置中由 setActiveBtn 統一處理（點擊/scroll-spy 同一路徑）
         setActiveBtn(targetId, { force: true });
         clickScrolling = true;
         clearTimeout(clickScrollTimer);
         clickScrollTimer = setTimeout(() => { clickScrolling = false; }, 1200);
-
-        // 手機水平 strip：點到的 btn 捲到 strip 置中（同 activities centerSectionNavBtn pattern）
-        const strip = btn.closest('#mobile-anchor-strip');
-        if (strip) {
-          const b = btn.getBoundingClientRect();
-          const s = strip.getBoundingClientRect();
-          const delta = (b.left + b.width / 2) - (s.left + s.width / 2);
-          strip.scrollTo({ left: strip.scrollLeft + delta, behavior: 'smooth' });
-        }
 
         // 使用 scrollIntoView，由各 section 的 scroll-margin-top 決定對齊位置
         targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -210,6 +202,13 @@ export function initAnchorNav({ reveal = false } = {}) {
         btn._pendingRot = null;
         inner.style.background = color;
         inner.style.transform = `rotate(${rot}deg)`;
+        // 手機水平 strip：active btn 捲到 strip 置中（點擊與 scroll-spy 共用；桌面 nav 無 strip → no-op）
+        const strip = btn.closest('#mobile-anchor-strip');
+        if (strip) {
+          const b = btn.getBoundingClientRect();
+          const s = strip.getBoundingClientRect();
+          strip.scrollTo({ left: strip.scrollLeft + (b.left + b.width / 2) - (s.left + s.width / 2), behavior: 'smooth' });
+        }
       } else {
         inner.style.background = '';
         // 保持各自 base rot，不歸零
@@ -229,12 +228,62 @@ export function initAnchorNav({ reveal = false } = {}) {
     }
   }
 
+  // 手機直向：捲動讓某 anchor 變 active（scroll spy）時，停手後把該 section 拉到落點——
+  // 與點擊 nav btn 同一 scrollIntoView + scroll-margin-top 落點（user 2026-07-13「不只點擊時對齊」）。
+  // 桌面不套（CSS proximity snap 已對齊）；只在 active「切換」那一次對齊，之後區內自由捲不再拉回。
+  // 手勢閘：touch 按住/滑動中不動作（scrollIntoView 會跟手勢打架），放手 + 捲動靜止 220ms 才對齊；
+  // 已在落點 ±6px 內不動（避免微跳）。init 後 600ms 內不對齊：refresh 恢復捲動位置時 IO 初始 delivery
+  // 也會 setActiveBtn，那不是使用者捲動、載入當下不能自己捲頁。
+  // reveal（= about 專用旗標）gate：alumni 共用本模組但未指定此行為、其 section 多為長列表不適合拉回。
+  const spyAlign = reveal && window.innerWidth < 768 && window.matchMedia('(orientation: portrait)').matches;
+  const spyInitTs = performance.now();
+  let pendingAlignId = null;
+  let alignIdleTimer = null;
+  let touching = false;
+  const alignPending = () => {
+    const id = pendingAlignId;
+    pendingAlignId = null;
+    if (!id || clickScrolling) return;
+    const target = document.getElementById(id);
+    if (!target) return;
+    const margin = parseFloat(getComputedStyle(target).scrollMarginTop) || 0;
+    if (Math.abs(target.getBoundingClientRect().top - margin) < 6) return;
+    // 對齊捲動期間關 spy（同 click 路徑），免中途又觸發別的 activation
+    clickScrolling = true;
+    clearTimeout(clickScrollTimer);
+    clickScrollTimer = setTimeout(() => { clickScrolling = false; }, 1200);
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  const kickAlign = () => {
+    clearTimeout(alignIdleTimer);
+    alignIdleTimer = setTimeout(() => { if (!touching) alignPending(); }, 220);
+  };
+  if (spyAlign) {
+    const onScroll = () => { if (pendingAlignId !== null) kickAlign(); };
+    const onTouchStart = () => { touching = true; clearTimeout(alignIdleTimer); };
+    const onTouchEnd = () => { touching = false; if (pendingAlignId !== null) kickAlign(); };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('touchstart', onTouchStart, { passive: true });
+    window.addEventListener('touchend', onTouchEnd, { passive: true });
+    registerPageCleanup(() => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('touchstart', onTouchStart);
+      window.removeEventListener('touchend', onTouchEnd);
+      clearTimeout(alignIdleTimer);
+    });
+  }
+
   const observer = new IntersectionObserver((entries) => {
     if (clickScrolling) return; // 點擊滾動中，暫停 scroll spy
     entries.forEach(entry => {
       if (entry.isIntersecting) {
         const id = sectionMap.get(entry.target) || entry.target.id;
+        const changed = id !== currentActiveId;
         setActiveBtn(id);
+        if (spyAlign && changed && performance.now() - spyInitTs > 600) {
+          pendingAlignId = id;
+          kickAlign();
+        }
       }
     });
   }, observerOptions);

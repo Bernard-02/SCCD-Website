@@ -209,7 +209,13 @@ function getScrollableBox(el) {
 
 function getListStickyTop(header) {
   if (window.innerWidth < 768) {
-    return 8 * parseFloat(getComputedStyle(document.documentElement).fontSize); // = CSS top:8rem（清 logo，與 lists.css 同步）
+    // activities 手機直向（2026-07-13）nav strip + filter bar sticky → 釘點 = --list-header-sticky-top
+    // （updateStickyTop 只在 bar 是 sticky 時設）。未設（admission 手機 / 矮橫向 <768）fallback 8rem
+    // = CSS top fallback（清 logo，與 lists.css 同步）。
+    const mc = header.closest('[style*="--list-header-sticky-top"]');
+    const mv = mc ? parseFloat(getComputedStyle(mc).getPropertyValue('--list-header-sticky-top')) : NaN;
+    if (!Number.isNaN(mv)) return mv;
+    return 8 * parseFloat(getComputedStyle(document.documentElement).fontSize);
   }
   const c = header.closest('[style*="--list-header-sticky-top"]');
   const v = c ? parseFloat(getComputedStyle(c).getPropertyValue('--list-header-sticky-top')) : NaN;
@@ -305,6 +311,7 @@ function attachStickyPinObserver(header) {
   io.observe(sentinel);
   header._stickyPinIO = io;
   header._stickyPinSentinel = sentinel;
+  header._stickyPinTop = stickyTop;
 }
 function detachStickyPinObserver(header) {
   if (header._stickyPinIO) {
@@ -315,8 +322,29 @@ function detachStickyPinObserver(header) {
     header._stickyPinSentinel.remove();
     delete header._stickyPinSentinel;
   }
+  delete header._stickyPinTop;
   header.classList.remove('is-pinned');
   toggleSectionPinnedFlag(header, false);  // 關 item / 離開 pin 都收掉 blocker 顯示旗標
+}
+
+// 釘點 var（--list-header-sticky-top）跟著 filter bar 開合變動，但 pin-IO 的 rootMargin 是 attach
+// 當下凍結的舊值 → 偵測線與真釘線最多錯開一個 search bar 高（~80px）：is-pinned 錯 → 手機直向
+// title 的 ::before 補縫「該蓋沒蓋」（露 item 底色縫）或「不該蓋先蓋」（白蓋到上方內容）。
+// updateStickyTop（activities-data-loader）每次改 var 後呼叫此函式，值有感變動（>2px）才重建 IO。
+// detach 會順手清 is-pinned → 重建期間先保留原狀（IO 初始 delivery 會立刻校正成真值），免 ::before 閃一幀。
+export function refreshStickyPinObservers(container) {
+  (container || document).querySelectorAll('.list-header.active').forEach(h => {
+    const header = /** @type {any} */ (h);
+    if (!header._stickyPinIO) return;
+    if (Math.abs(getListStickyTop(header) - header._stickyPinTop) < 2) return;
+    const wasPinned = header.classList.contains('is-pinned');
+    detachStickyPinObserver(header);
+    attachStickyPinObserver(header);
+    if (wasPinned) {
+      header.classList.add('is-pinned');
+      toggleSectionPinnedFlag(header, true);
+    }
+  });
 }
 
 // 在 header 所屬的 content section 上開關 .list-has-pinned-header（驅動手機 header blocker 顯隱）。

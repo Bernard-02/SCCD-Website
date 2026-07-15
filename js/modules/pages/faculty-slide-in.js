@@ -304,6 +304,11 @@ export function initFacultySlideIn() {
             // getBoundingClientRect 取精確浮點高（offsetHeight 取整會差 <1px，title 釘住位置
             // 跟 profile 底之間露出 sub-pixel 縫）
             slideInPanel.style.setProperty('--faculty-profile-h', `${profile.getBoundingClientRect().height}px`);
+            // 左欄（年份/國家）sticky top = profile 高 + title 高（cards.css）；title 單行、各 section 等高，量第一個即可
+            const titleCol = slideInPanel.querySelector('.faculty-section-title-col');
+            if (titleCol) {
+              slideInPanel.style.setProperty('--faculty-title-h', `${titleCol.getBoundingClientRect().height}px`);
+            }
           }
         };
         requestAnimationFrame(measureProfile);

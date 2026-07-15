@@ -287,7 +287,23 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete, fr
       // 不能寫 '' 清 inline style — HTML 原本就是 inline `display: flex`，
       // 清空會 fallback 成 block 讓三個 block 垂直堆疊
       controls.style.display = 'flex';
-      if (mobileCloseBtn) mobileCloseBtn.style.display = 'none';
+      // 矮橫向（user 2026-07-10）：保留 control bar + 全螢幕，但返回鍵改用常駐 mobileCloseBtn
+      // （landscape.css 釘右上、箭頭轉 →，對齊全站 slide-in 返回鍵）、controls 內返回塊藏掉——
+      // controls 3s 自動隱藏，返回鍵常駐才不用先喚出 bar 才能關。
+      const isShortLandscape = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+      const closeBlock = document.getElementById('video-block-close');
+      if (isShortLandscape) {
+        if (closeBlock) closeBlock.style.display = 'none';
+        if (mobileCloseBtn) {
+          mobileCloseBtn.style.background = accentColor;
+          const rot = window.SCCDHelpers?.getRandomRotation?.() ?? 0;
+          mobileCloseBtn.style.transform = `rotate(${rot}deg)`;
+          mobileCloseBtn.style.display = 'flex';
+        }
+      } else {
+        if (closeBlock) closeBlock.style.display = 'flex';
+        if (mobileCloseBtn) mobileCloseBtn.style.display = 'none';
+      }
       // 三個矩形區塊各自設背景色
       uiBlocks.forEach(block => { if (block) block.style.background = accentColor; });
       applyIconColor(uiIconColor);

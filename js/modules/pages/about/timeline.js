@@ -170,14 +170,33 @@ export function initTimeline() {
     let listMode = false;
     let listAnimating = false;
 
-    function renderYear(i) {
+    // skipEra（user 2026-07-13）：下一年同 era 時 chip 內容/旋轉不動（nextYear 也不 clip 它）
+    function renderYear(i, skipEra = false) {
       const it = items[i];
       // 兩個 span＋空白：直式 CSS 轉 block 成 EN/ZH 兩行，矮橫向維持 inline 單行（空白節點在 block 間不渲染）
-      eraText.innerHTML = `<span class="tl-m-era-en">${it.eraTitle}</span> <span class="tl-m-era-zh">${it.eraLabel}</span>`;
+      if (!skipEra) {
+        eraText.innerHTML = `<span class="tl-m-era-en">${it.eraTitle}</span> <span class="tl-m-era-zh">${it.eraLabel}</span>`;
+      }
       const descs = it.descriptions || (it.description ? [it.description] : []);
+      // .tl-m-descs wrapper：直式卡內兩欄 grid 用（年份左欄 / 文字右欄，user 2026-07-13）；
+      // 矮橫向不吃 grid、wrapper 是透明 block 無影響。
+      // section 分組（user 2026-07-13 二改）：h5 小標 hoist 成 .tl-m-desc-group 直接子層——
+      // sticky 的 containing block 從單一 .tl-m-desc 擴大到整組（含後續無標題段落），
+      // BFA/MDES 標題釘到下一個 h5 接棒或整卡結束，不再在自己段落結尾被收走一半。
+      const parser = document.createElement('div');
+      const groups = [];
+      descs.forEach(d => {
+        parser.innerHTML = d;
+        const h5 = parser.querySelector('h5');
+        if (h5 || !groups.length) groups.push({ head: h5 ? h5.outerHTML : '', body: [] });
+        if (h5) h5.remove();
+        groups[groups.length - 1].body.push(`<div class="tl-m-desc">${parser.innerHTML}</div>`);
+      });
       cardBody.innerHTML =
         `<h4 class="font-bold tl-m-year">${it.year}</h4>` +
-        descs.map(d => `<div class="tl-m-desc">${d}</div>`).join('');
+        `<div class="tl-m-descs">` +
+        groups.map(g => `<div class="tl-m-desc-group">${g.head}${g.body.join('')}</div>`).join('') +
+        `</div>`;
       cardEl.style.background = randomColor();
       // 字卡寬 = 文字實際寬（user 2026-07-04）：長文在 max-width 內換行後，max-content 會把卡撐滿容器寬、
       // 右側留大片空底色 → 逐「文字節點」用 Range 量每一行 rect 的右緣，卡寬收到 最寬行 + 左右 padding。
@@ -202,9 +221,24 @@ export function initTimeline() {
           cardEl.style.width = `${Math.ceil(maxLine + parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight)) + 1}px`;
         }
       }
-      eraEl.style.transform = `rotate(${pickUniqueRotations(1, -4, 4)[0]}deg)`;
+      if (!skipEra) eraEl.style.transform = `rotate(${pickUniqueRotations(1, -4, 4)[0]}deg)`;
       cardEl.style.transform = `rotate(${pickUniqueRotations(1, -2, 2)[0]}deg)`;
       cardEl.scrollTop = 0; // 切年份時捲回頂部（上一年捲到中段，新年份要頂對齊；同 list view renderListEra）
+      cardBody.scrollTop = 0; // 直式內捲層（padding 留外盒）也歸零
+      // 直式：末段 h5 區塊（如 2004 MDES）不足一屏時，捲到底 h5 會卡在半途頂不到年份列（user 2026-07-13）
+      // → .tl-m-descs 補 padding-bottom = 盒高 − 末段高，捲到底恰好末段頂 = 盒頂、h5 與年份同列釘住。
+      // 只在「內容本來就超框」時補（內容整卡放得下就不製造多餘捲動）；矮橫向無 grid/sticky 不適用。
+      if (!window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) {
+        const descsWrap = cardBody.querySelector('.tl-m-descs');
+        if (descsWrap) {
+          descsWrap.style.paddingBottom = '';
+          const lastDesc = descsWrap.lastElementChild;
+          if (lastDesc && lastDesc.querySelector('h5') && cardBody.scrollHeight > cardBody.clientHeight) {
+            const pad = cardBody.clientHeight - lastDesc.offsetHeight;
+            if (pad > 0) descsWrap.style.paddingBottom = `${pad}px`;
+          }
+        }
+      }
     }
     renderYear(0);
 
@@ -231,13 +265,18 @@ export function initTimeline() {
       if (switching || listMode || listAnimating || !slide) return;
       switching = true;
       slide.tick(); // 圖片左移一格 + 下一年圖片進場，與文字卡換頁同時跑
-      gsap.to(textEls, {
+      // 同 era 的下一年：era chip 不參與 clip 進退場、內容/旋轉不動（user 2026-07-13）
+      const nextIdx = (mIdx + 1) % items.length;
+      const sameEra = items[nextIdx].eraTitle === items[mIdx].eraTitle
+        && items[nextIdx].eraLabel === items[mIdx].eraLabel;
+      const els = sameEra ? [cardEl] : textEls;
+      gsap.to(els, {
         clipPath: getClipStart(randomDirLR()), duration: TIMING.exitDuration, ease: TIMING.exitEase,
         onComplete: () => {
-          mIdx = (mIdx + 1) % items.length;
-          renderYear(mIdx);
-          gsap.set(textEls, { clipPath: getClipStart(randomDirLR()) });
-          gsap.to(textEls, {
+          mIdx = nextIdx;
+          renderYear(mIdx, sameEra);
+          gsap.set(els, { clipPath: getClipStart(randomDirLR()) });
+          gsap.to(els, {
             clipPath: CLIP_END, duration: TIMING.cardRevealDuration, ease: TIMING.revealEase, stagger: TIMING.stagger,
             onComplete: () => { switching = false; },
           });
@@ -300,7 +339,7 @@ export function initTimeline() {
         }).join('');
         return '<div class="tl-list-year-row">' +
           `<div class="tl-list-year text-h5 font-bold">${y.year}</div>` +
-          `<div class="tl-list-year-body text-p2 leading-base font-bold">${blocks}</div>` +
+          `<div class="tl-list-year-body text-p2 leading-base font-regular">${blocks}</div>` +
         '</div>';
       }).join('');
       listContent.scrollTop = 0;
@@ -731,20 +770,22 @@ export function initTimeline() {
         // BFA/MDES 小標：放進卡片內、body col 頂端（不再做卡外 chip）。
         // h5 + line-height:1 → 跟左欄年份（也是 h5 lh:1）頂端對齊；margin-bottom 與下方說明拉開
         // （比照 list view 的 .tl-list-block > h5 做法，兩視圖一致）
+        // chip 是 div（吃不到 h5 base bold）→ 明掛 font-bold；內文 regular 後才不跟著變細
         const chipHtml = card.chip
-          ? `<div class="text-h5" style="line-height:1;margin-bottom:${BLOCK_GAP}px;">${card.chip}</div>`
+          ? `<div class="text-h5 font-bold" style="line-height:1;margin-bottom:${BLOCK_GAP}px;">${card.chip}</div>`
           : '';
 
         // 第一張卡（含年份）：grid `auto 1fr`，左欄年份、右欄文字。
         // 後續卡（無年份）：不放左欄，文字直接佔整張卡 → 左右 padding 對稱（user 2026-06-07：沒渲染年份的卡左 padding 要跟右一樣）
+        // 內文 regular（user 2026-07-13 桌面版：年份 / era badge / BFA·MDES 小標以外全 regular）
         mainCard.innerHTML = isFirstCard
           ? `
           <div style="display:grid;grid-template-columns:auto 1fr;gap:${GRID_GAP_PX}px;align-items:start;">
             <div><h4 class="font-bold" style="line-height:1;">${item.year}</h4></div>
-            <div class="text-p2 leading-base font-bold">${chipHtml}${itemsHtml}</div>
+            <div class="text-p2 leading-base font-regular">${chipHtml}${itemsHtml}</div>
           </div>
         `
-          : `<div class="text-p2 leading-base font-bold">${chipHtml}${itemsHtml}</div>`;
+          : `<div class="text-p2 leading-base font-regular">${chipHtml}${itemsHtml}</div>`;
         cardsOverlay.appendChild(mainCard);
 
         // === Snug width：限內容欄寬讓文字 wrap，再 TreeWalker 量實際最右文字 pixel ===
@@ -1342,9 +1383,10 @@ export function initTimeline() {
               `<div class="tl-list-zh">${zh}</div>` +
             '</div></div>';
         }).join('');
+        // 內文 regular（user 2026-07-13 桌面版）；heading 是 <h5> 吃 base typography 的 bold 不受影響
         return '<div class="tl-list-year-row">' +
           `<div class="tl-list-year text-h5 font-bold">${y.year}</div>` +
-          `<div class="tl-list-year-body text-p2 leading-base font-bold">${blocks}</div>` +
+          `<div class="tl-list-year-body text-p2 leading-base font-regular">${blocks}</div>` +
         '</div>';
       }).join('');
       listContent.scrollTop = 0;

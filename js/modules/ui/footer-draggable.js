@@ -21,8 +21,8 @@ import { setupClipReveal, playClipReveal, playRevealExit } from './scroll-animat
 import { awaitLayoutReady } from './await-layout-ready.js';
 import { DUR, EASE } from './motion.js';
 import { prefersReducedMotion } from './reduce-motion.js';
-// 沿用 header bars 的 clip-path 收/展（user 2026-06-07：footer logo 隱藏要跟 header logo 同法、不用 opacity）
-import { animateHeaderHide, animateHeaderShow } from '../lightbox/lightbox-shell.js';
+// footer logo 退場 2026-07-15 改 hero clip-reveal（area 遮罩＋inner yPercent），不再用 header bars 的
+// clip-path wipe（原 user 2026-06-07「同 header logo 法」；header logo 同日也改滑動，兩邊仍一致）
 
 // 4 個 entry/exit 方向（random per item per shuffle）— 對齊 hero clip-reveal pattern 但擴成雙軸
 const ENTRY_DIRECTIONS = ['top', 'right', 'bottom', 'left'];
@@ -622,13 +622,19 @@ function resetFooterMobileAfterExit() {
 }
 
 // 散佈 items 以外的 footer 元素：它們不在 scatter 系統內，退場時若不動會「凍在畫面上」顯得只散了一半。
-//   - 左側 Lottie logo（.footer-logo-area）：用 header bars 同款 clip-path 收/展（animateHeaderHide/Show），
-//     跟 header logo 隱藏做法一致（user 2026-06-07：logo chrome 一律 clip-path、不用 opacity）。
-//   - 左下規章連結區（.footer-privacy）：改用 clip-reveal（yPercent 沉出/升入），.footer-privacy 自身 overflow:clip
+//   - 左側 Lottie logo：hero clip-reveal（.footer-logo-area 當遮罩 overflow:clip、內層 .footer-logo-inner
+//     yPercent 沉出/升入）——2026-07-15 由 header bars 同款 clip-path wipe 改制，對齊 header logo 的滑動退場。
+//   - 左下規章連結區（.footer-privacy）：clip-reveal（yPercent 沉出/升入），.footer-privacy 自身 overflow:clip
 //     當遮罩、只動內層 `> div`（不動態 wrap，避免破壞 .footer-privacy > div 的 align/text-align 規則）。user 2026-06-08。
+// 回傳 { mask, inner }：mask=.footer-logo-area（掛 overflow:clip，不 reparent 免破壞 footer-inner flex 佈局）
 function getFooterLogo(area) {
   const footerRoot = area.closest('footer');
-  return footerRoot ? footerRoot.querySelector('.footer-logo-area') : null;
+  const mask = footerRoot ? footerRoot.querySelector('.footer-logo-area') : null;
+  if (!mask) return null;
+  const inner = mask.querySelector('.footer-logo-inner');
+  if (!inner) return null;
+  mask.style.overflow = 'clip';   // 常駐無害（logo 本就含在 area 內），設一次免 race
+  return { mask, inner };
 }
 
 // 規章區 4 個連結各自獨立 clip-reveal：回傳 4 個 <a>。setupClipReveal 會各包一層 overflow:clip 遮罩，
@@ -636,8 +642,8 @@ function getFooterLogo(area) {
 function getFooterPrivacyLinks(area) {
   const footerRoot = area.closest('footer');
   if (!footerRoot) return [];
-  // 含 copyright <p>：跟 4 連結一起 clip-reveal，否則退場時它會凍住不動（其餘沉出）
-  return Array.from(footerRoot.querySelectorAll('.footer-privacy a, .footer-privacy .footer-copyright'));
+  // 含 a11y 標章 placeholder 與 copyright <p>：跟連結一起 clip-reveal，否則退場時它們會凍住不動（其餘沉出）
+  return Array.from(footerRoot.querySelectorAll('.footer-privacy a, .footer-a11y-badge, .footer-privacy .footer-copyright'));
 }
 
 export function playFooterExit() {
@@ -671,7 +677,7 @@ export function playFooterExit() {
     //   - 規章區：4 個連結各自 clip-reveal 沉出（yPercent 0→100，每個 <a> 自己的 overflow:clip wrapper 當遮罩），
     //     stagger 0 → 四個分開的 clip 但一起出場（user 2026-06-08）
     // 三組同在 0.5s 結束，用 items 的 onComplete resolve。
-    if (logo) animateHeaderHide([logo], { duration: FOOTER_EXIT_DUR, ease: EASE.exit, stagger: FOOTER_EXIT_STAGGER });
+    if (logo) gsap.to(logo.inner, { yPercent: 100, duration: FOOTER_EXIT_DUR, ease: EASE.exit, overwrite: 'auto' });
     if (privacyLinks.length) gsap.to(privacyLinks, { yPercent: 100, duration: FOOTER_EXIT_DUR, ease: EASE.exit, stagger: 0, overwrite: 'auto' });
     gsap.to(items, {
       xPercent: (i) => getHiddenTransform(exitDirs[i]).xPercent,
@@ -702,7 +708,7 @@ export function resetFooterAfterExit() {
   const privacyLinks = getFooterPrivacyLinks(area);
   if (privacyLinks.length) setupClipReveal(privacyLinks, { hide: false });
   // timing 對齊 items 重進場（playRandomDirReveal：DUR.reveal + EASE.enter）→ 復位也一致
-  if (logo) animateHeaderShow([logo], { duration: DUR.reveal, ease: EASE.enter, stagger: 0.12 });
+  if (logo) gsap.fromTo(logo.inner, { yPercent: 100 }, { yPercent: 0, duration: DUR.reveal, ease: EASE.enter, overwrite: 'auto', clearProps: 'transform' });
   // 規章區 4 連結 clip-reveal 復位：從 yPercent:100（沉在遮罩下）一起升回 0（stagger 0）；fromTo 明確起點、clearProps 收乾淨
   if (privacyLinks.length) gsap.fromTo(privacyLinks, { yPercent: 100 }, { yPercent: 0, duration: DUR.reveal, ease: EASE.enter, stagger: 0, overwrite: 'auto', clearProps: 'transform' });
   startShuffleLoop(area, anchors, obstacles, items, fallbackLayout);

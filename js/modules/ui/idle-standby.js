@@ -22,10 +22,10 @@
  *   1. liftLogoToBody（logo 抽到 body z:10001 浮上來）
  *   2. logo 大→小（若大）
  *   3. add body.idle-standby
- *   4. (非 atlas 頁) mount overlay atlas → bg fade in → 星雲 fade in
+ *   4. (非 atlas 頁) 空白底 fade in → initAtlas 分批點燈 intro（同 atlas 頁進場；user 2026-07-15）
  *
  * 離開順序：
- *   1. (非 atlas 頁) 星雲 fade out → bg fade out → unmount atlas
+ *   1. (非 atlas 頁) playOverlayAtlasExit（atlas 自己的退場動畫）→ 空白底 fade out → unmount atlas
  *   2. remove body.idle-standby
  *   3. logo 還原
  *   4. restoreLogoFromBody（logo 還回 header）
@@ -168,11 +168,14 @@ async function mountStandbyAtlas(instant) {
   overlay.style.pointerEvents = 'auto';
 
   const main = /** @type {HTMLElement|null} */ (overlay.querySelector('#atlas-main'));
-  const content = /** @type {HTMLElement|null} */ (overlay.querySelector('#atlas-content'));
   if (main) main.style.opacity = '0';
-  if (content) content.style.opacity = '0';
 
-  // instant（背景分頁）：跳過 atlas intro zoom，掛上來就是定態
+  // 非 instant：先把空白底 fade in（骨架 #atlas-main 只有 bg、還沒內容＝「先 fade 成空白」），
+  // 內容進場交給 initAtlas 自己的「分批點燈」intro（同 atlas 頁，user 2026-07-15：不另外製作動畫）。
+  // 之前把 #atlas-content 壓 opacity:0、intro 在看不見時播完、再普通 fade 蓋上去＝浪費現成動畫。
+  if (!instant) await fadeAtlasMain(1);
+
+  // instant（背景分頁）：跳過 atlas intro，掛上來就是定態
   atlasApi = await import('../pages/atlas.js');
   await atlasApi.initAtlas({ root: overlay, instant });
   atlasMounted = true;
@@ -210,17 +213,10 @@ function fadeAtlasMain(to) {
   return fadeEl(main, to);
 }
 
-function fadeAtlasContent(to) {
-  const content = document.querySelector('#idle-standby-overlay #atlas-content');
-  return fadeEl(content, to);
-}
-
 // 背景分頁瞬間定態：直接設 opacity:1（rAF 暫停時 gsap tween 不會跑、切回本 tab 才補播 = 不要的「切回才 fade」）
 function setStandbyAtlasVisible() {
   const main = /** @type {HTMLElement|null} */ (document.querySelector('#idle-standby-overlay #atlas-main'));
-  const content = /** @type {HTMLElement|null} */ (document.querySelector('#idle-standby-overlay #atlas-content'));
   if (main) main.style.opacity = '1';
-  if (content) content.style.opacity = '1';
 }
 
 function tweenLogoShrink(instant) {
@@ -333,14 +329,9 @@ async function enterStandby() {
   document.body.classList.add('idle-standby');
 
   if (!isOnAtlas()) {
-    // 5. mount overlay atlas（instant 時跳 intro zoom）
+    // 5. mount overlay atlas：非 instant＝先空白底 fade in、內容走 atlas 分批點燈 intro（mount 內處理）
     await mountStandbyAtlas(instant);
-    if (instant) {
-      setStandbyAtlasVisible();       // 直接顯示，不 fade
-    } else {
-      await fadeAtlasMain(1);         // 背景 fade in
-      await fadeAtlasContent(1);      // 星雲 fade in
-    }
+    if (instant) setStandbyAtlasVisible();   // 背景分頁：直接定態，不動畫
   }
 
   isTransitioning = false;
@@ -358,8 +349,11 @@ async function exitStandby() {
   // （frame-based tick 被主執行緒 block → 卡片「停一下才繼續跑」；user 2026-06-30）。
   const atlasFadeOutPromise = (async () => {
     if (isOnAtlas()) return;
-    await fadeAtlasContent(0);  // 星雲先 fade out
-    await fadeAtlasMain(0);     // 背景再 fade out
+    // atlas 自己的退場（cover wipe + span 四方向 clip 收，同 atlas 頁離頁動畫；user 2026-07-15）
+    if (atlasMounted && atlasApi && typeof atlasApi.playOverlayAtlasExit === 'function') {
+      await atlasApi.playOverlayAtlasExit();
+    }
+    await fadeAtlasMain(0);     // 空白底再 fade out 露回原頁
   })();
 
   await Promise.all([logoRestorePromise, atlasFadeOutPromise]);

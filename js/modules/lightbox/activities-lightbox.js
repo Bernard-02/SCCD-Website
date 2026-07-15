@@ -722,7 +722,10 @@ function renderShareButton(color, shareUrl) {
   }
   shareBtnEl.style.display = '';
   shareBtnEl.dataset.shareUrl = shareUrl;
-  sharePillEl.style.background = resolvePillColor(color);
+  const pillBg = resolvePillColor(color);
+  sharePillEl.style.background = pillBg;
+  // 分享卡片底色跟 title 渲染色一致（mode-color 下 = 白，同 title）
+  shareBtnEl.dataset.shareBg = pillBg;
 }
 
 // close/ref pill 高度 follow title pill 自然撐高（同 PDF viewer syncBackBtnHeight 規格）

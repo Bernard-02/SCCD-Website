@@ -240,6 +240,50 @@ function drawColorPickerIndicator(centerX, centerY, outerRadius, innerRadius) {
   colorPickerCanvas.line(x1, y1, x2, y2);
 }
 
+// ── 點擊（非拖）→ hue tween 過去（2026-07-15，對齊 mode-color-panel 的點擊行為）──
+// 桌面色環走「最短弧線」；手機色條走線性（bar 是直線，hue wrap 會讓 indicator 左右端跳）。
+// tween 每幀寫 window.sccdSetColorHue → draw() 每幀讀回 → indicator / wireframeColor / --theme-bg 全自動沿途掃過中間色。
+// 常數 0.4 / power3.out ＝ site 的 DUR.base / EASE.enter（classic script 無法 import motion.js，值對齊）。
+let hueClickTween = null;
+let pickerDownX = 0, pickerDownY = 0;
+const PICKER_DRAG_THRESHOLD = 3;   // px：超過才視為拖曳（觸控微抖不取消 tween）
+
+function killHueClickTween() {
+  if (hueClickTween) { hueClickTween.kill(); hueClickTween = null; }
+}
+
+// 從座標算目標 hue（不 apply）——數學同 updateColorFromMouse 兩分支
+function hueFromPickerPoint(clientX, clientY) {
+  const rect = colorPickerCanvas.elt.getBoundingClientRect();
+  const x = clientX - rect.left;
+  const y = clientY - rect.top;
+  const w = colorPickerCanvas.width;
+  const h = colorPickerCanvas.height;
+  if (isMobileMode) {
+    const circleRadius = h * 0.4;
+    const cx = Math.min(Math.max(x, circleRadius), w - circleRadius);
+    return ((cx - circleRadius) / (w - 2 * circleRadius)) * 360;
+  }
+  const angle = Math.atan2(y - h / 2, x - w / 2);
+  return (angle * 180 / Math.PI + 90 + 360) % 360;
+}
+
+function tweenPickerHue(target) {
+  if (typeof gsap === 'undefined' || typeof window.sccdSetColorHue !== 'function'
+    || typeof window.sccdGetColorHue !== 'function') return false;
+  const cur = ((window.sccdGetColorHue() % 360) + 360) % 360;
+  // 桌面環最短路徑 (-180,180]；手機 bar 線性直達（不跨 wrap）
+  const delta = isMobileMode ? (target - cur) : (((target - cur + 540) % 360) - 180);
+  const proxy = { h: cur };
+  killHueClickTween();
+  hueClickTween = gsap.to(proxy, {
+    h: cur + delta, duration: 0.4, ease: 'power3.out',
+    onUpdate: () => { window.sccdSetColorHue(proxy.h); },
+    onComplete: () => { hueClickTween = null; },
+  });
+  return true;
+}
+
 // 處理鼠標事件
 function handleColorPickerMouseDown(e) {
   if (!colorPickerCanvas) return;
@@ -268,11 +312,16 @@ function handleColorPickerMouseDown(e) {
   }
 
   colorPickerDragging = true;
-  updateColorFromMouse(e);
+  pickerDownX = e.clientX; pickerDownY = e.clientY;
+  // 點擊先走 tween（最短路徑掃過去）；gsap 不在（極端）才退回即時 set
+  if (!tweenPickerHue(hueFromPickerPoint(e.clientX, e.clientY))) updateColorFromMouse(e);
 }
 
 function handleColorPickerMouseMove(e) {
   if (!colorPickerCanvas || !colorPickerDragging) return;
+  // tween 中且位移未超閾值＝點擊微抖，不打斷；真拖曳 → kill tween 回 1:1 跟手
+  if (hueClickTween && Math.hypot(e.clientX - pickerDownX, e.clientY - pickerDownY) < PICKER_DRAG_THRESHOLD) return;
+  killHueClickTween();
   updateColorFromMouse(e);
 }
 
@@ -326,7 +375,10 @@ function handleColorPickerTouchStart(e) {
 
   colorPickerDragging = true;
   if (e.touches.length > 0) {
-    updateColorFromTouch(e.touches[0]);
+    const t = e.touches[0];
+    pickerDownX = t.clientX; pickerDownY = t.clientY;
+    // 同 mouse down：tap 先走 tween（最短路徑掃過去）
+    if (!tweenPickerHue(hueFromPickerPoint(t.clientX, t.clientY))) updateColorFromTouch(t);
   }
 }
 
@@ -334,7 +386,11 @@ function handleColorPickerTouchMove(e) {
   if (!colorPickerCanvas || !colorPickerDragging) return;
   e.preventDefault(); // 防止滾動
   if (e.touches.length > 0) {
-    updateColorFromTouch(e.touches[0]);
+    const t = e.touches[0];
+    // 同 mouse move：tween 中的微抖不打斷；真拖曳 kill tween 回 1:1
+    if (hueClickTween && Math.hypot(t.clientX - pickerDownX, t.clientY - pickerDownY) < PICKER_DRAG_THRESHOLD) return;
+    killHueClickTween();
+    updateColorFromTouch(t);
   }
 }
 

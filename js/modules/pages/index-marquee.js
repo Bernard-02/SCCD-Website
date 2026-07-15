@@ -28,7 +28,10 @@ const WIDTH_PORTRAIT  = 300;
 // padding 同時給 rotation 邊角微凸視覺 buffer（rotation 樞紐在 left center，實際右側水平凸 ≈ 0、
 // y 凸 ~6px 在 slot gap 50px 內，但 padding 提供整體視覺呼吸感讓 banner 不貼齊 viewport 邊）
 const MOBILE_PADDING_X = 16;
-const WIDTH_MOBILE = () => window.innerWidth - MOBILE_PADDING_X * 2;
+// 手機寬上限（user 2026-07-10「不需要整個畫面那麼寬」）：矮橫向視窗寬 ~670-930 吃滿太長 → cap 480；
+// 直向手機 375-430 扣 padding 後本來就 < cap、不受影響。
+const WIDTH_MOBILE_MAX = 480;
+const WIDTH_MOBILE = () => Math.min(window.innerWidth - MOBILE_PADDING_X * 2, WIDTH_MOBILE_MAX);
 const BAR_HEIGHT = 40;        // 數字方塊邊長 ≈ bar 高度（h5 font 1.4rem + 預設 line-height + padding 0.35rem*2 ≈ 40）
 function isMobile() {
   // 矮橫向也走手機參數（slot 座標 / banner 寬；user 2026-07-04「首頁比照手機版」，gate 同 landscape.css）

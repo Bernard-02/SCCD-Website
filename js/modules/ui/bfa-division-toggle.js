@@ -318,8 +318,11 @@ export function initBFADivisionToggle() {
         target.style.color = BTN_DEFAULT_TEXT;
         target.style.transform = `rotate(${target._baseRot}deg)`;
         if (label) {
-          label.style.background = BTN_DEFAULT_BG;
-          label.style.color = BTN_DEFAULT_TEXT;
+          // mobile pill 列的 label 清 inline → 回 CSS 黑 chip（比照桌面；mode-color 靠
+          // [style*="background"] 偵測 active，inactive 不能留 inline bg）
+          const isMobileLabel = !!label.closest('#mobile-division-nav');
+          label.style.background = isMobileLabel ? '' : BTN_DEFAULT_BG;
+          label.style.color = isMobileLabel ? '' : BTN_DEFAULT_TEXT;
           label.style.transform = `rotate(${label._baseRot}deg)`;
         }
         btn._activeColor = null;
@@ -371,8 +374,9 @@ export function initBFADivisionToggle() {
       target.style.color = BTN_DEFAULT_TEXT;
       target.style.transform = `rotate(${target._baseRot}deg)`;
       if (label) {
-        label.style.background = BTN_DEFAULT_BG;
-        label.style.color = BTN_DEFAULT_TEXT;
+        const isMobileLabel = !!label.closest('#mobile-division-nav');
+        label.style.background = isMobileLabel ? '' : BTN_DEFAULT_BG;
+        label.style.color = isMobileLabel ? '' : BTN_DEFAULT_TEXT;
         label.style.transform = `rotate(${label._baseRot}deg)`;
         label._pendingRot = null;
       }
