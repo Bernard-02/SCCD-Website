@@ -62,30 +62,13 @@
       </div>
     </section>
 
-    <!-- 文字説明 Section（min 100vh；移除 flex 居中改用自然流，pt-6xl 給頂部呼吸空間）
+    <!-- Events Section（min 100vh 一屏；描述文字 2026-07-13 移除，內容頂對齊＝snap 落點後緊接 header 下方）
          id 給 variables.css 手機 grid-20 column-gap:0 修正用（19 個 gap 撐爆容器 → 內容溢出右緣，同 about 修法） -->
     <section id="dsd-desc-section" class="snap-zone bg-white relative" style="min-height: 100vh;">
       <div class="site-container w-full pt-6xl pb-3xl">
-        <!-- grid-20：內容對齊全站 col-5（nav/sticky chip 占 cols 1-4）；EN cols 5-12 / ZH cols 13-20 -->
-        <div class="grid-20">
-          <!-- English (左) — .dsd-desc：手機縮到 p1（桌面維持 h5）；EN/ZH 手機堆疊間距走 grid-20 row-gap，
-               不另加 mb（user 2026-06-11 去掉 mb-lg） -->
-          <div class="col-span-full md:col-start-5 md:col-span-8">
-            <p class="dsd-desc text-black leading-snug font-bold">
-              <span id="text-desc-en" style="display: block;"></span>
-            </p>
-          </div>
-          <!-- Chinese (右) -->
-          <div class="col-span-full md:col-start-13 md:col-span-8">
-            <p class="dsd-desc text-black leading-base font-bold">
-              <span id="text-desc-cn" style="display: block;"></span>
-            </p>
-          </div>
-        </div>
-
         <!-- Events List：活動清單（時間 / 活動 / 地點 / 城市 四欄 1:2:2:1），由 JS 依 data.events 動態渲染；無 events 則整塊 hidden -->
         <!-- 文字一律 p1；活動/地點/城市顯示中英雙語（時間僅顯示一行） -->
-        <div id="events-section" class="grid-20 mt-4xl hidden">
+        <div id="events-section" class="grid-20 mt-4xl md:mt-0 hidden">
           <div class="col-span-full md:col-start-5 md:col-span-16">
             <!-- Data rows（JS render） -->
             <div id="events-list"></div>
@@ -154,11 +137,14 @@
       <div id="degree-show-ref-stack" class="lightbox-ref-stack"></div>
     </div>
 
-    <!-- 主影片 Section -->
-    <section id="video-outer-section" class="bg-white pt-3xl hidden">
-      <div class="site-container">
-        <div id="video-section" class="grid-12">
-          <div class="col-span-12">
+    <!-- 主影片 Section：桌面一屏 snap（2026-07-13 全頁 100vh 分屏）——影片左緣對齊 grid col-5
+         （同子展覽 desc 起點，避開左側 sticky chip），col-span-16 等比縮小、垂直置中。
+         ⚠️ md:flex 放內層不放 section：section 的 .hidden 會被 media query 內的 md:flex（source order 較後）蓋掉。
+         md:pt-[92px]＝header 帶高：置中改在「header 下緣～屏底」間算，不然影片頂會貼 header（user 2026-07-13） -->
+    <section id="video-outer-section" class="snap-zone bg-white pt-3xl md:pt-[92px] md:h-screen hidden">
+      <div class="site-container w-full md:h-full md:flex md:items-center">
+        <div id="video-section" class="grid-20 w-full">
+          <div class="col-span-full md:col-start-5 md:col-span-16">
             <div id="video-wrapper" class="w-full aspect-video bg-black">
               <!-- Video content injected by JS -->
             </div>
@@ -173,11 +159,11 @@
     <!-- 手機 py-3xl：跟上方主影片 / 下方紀錄影片留呼吸空間（section 自身手機無 py，間距走 flex gap）；桌面歸零（section 各自 md:py-6xl） -->
     <div id="event-galleries-root" class="bg-white flex flex-col gap-3xl py-3xl md:py-0 md:block"></div>
 
-    <!-- 紀錄影片 Section -->
-    <section id="documentary-outer-section" class="bg-white pb-3xl hidden">
-      <div class="site-container">
-        <div id="documentary-video-section" class="grid-12">
-          <div class="col-span-12">
+    <!-- 紀錄影片 Section：同主影片——桌面一屏 snap、col-5 起點、header 下緣以下垂直置中 -->
+    <section id="documentary-outer-section" class="snap-zone bg-white pb-3xl md:pb-0 md:pt-[92px] md:h-screen hidden">
+      <div class="site-container w-full md:h-full md:flex md:items-center">
+        <div id="documentary-video-section" class="grid-20 w-full">
+          <div class="col-span-full md:col-start-5 md:col-span-16">
             <div id="documentary-video-wrapper" class="w-full aspect-video bg-black">
               <!-- Documentary video content injected by JS -->
             </div>
@@ -192,7 +178,8 @@
               另一張同時 clip-path 掃入隨機色（仿首頁 newsOverlay）；
          手機：單純 stack。
          posters 隨機旋轉 -4°~6°（排除 0）。 -->
-    <section id="next-project-section" class="snap-zone bg-white relative overflow-hidden pt-3xl pb-3xl md:pt-6xl md:pb-6xl">
+    <!-- 桌面一屏 snap（2026-07-13）：海報縮放進 100vh 由 recompute() 算（fit 超出時等比縮 posterW + 構圖置中） -->
+    <section id="next-project-section" class="snap-zone bg-white relative overflow-hidden pt-3xl pb-3xl md:py-0 md:h-screen md:flex md:items-center">
       <!-- 桌面版：overlap stage -->
       <div id="next-project-stage" class="hidden md:block relative w-full">
         <!-- prev：older year，左上（66vw + 左移 -8vw，與 next 在中段重疊） -->

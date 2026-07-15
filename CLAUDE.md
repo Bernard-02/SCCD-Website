@@ -1,10 +1,11 @@
 # SCCD 網站專案指南
 
 ## 專案概述
-實踐大學媒體傳達設計系（SCCD - Shih Chien University Communications Design）官方網站。原生 JS SPA，無框架。
+實踐大學媒體傳達設計系（SCCD - Shih Chien University Communications Design）官方網站。原生 JS SPA，無框架；內容走 **Directus headless CMS**（前台只吃 JSON，渲染與動畫全在 SPA）。
 
 ## 技術棧
 - **前端**：原生 HTML/CSS/JavaScript（ES6 modules）
+- **後台 CMS**：Directus（headless，REST API；WP/CMB2 路線 2026-06 已退場）
 - **架構**：自製 SPA router（`js/router.js`）+ 模組化頁面初始化
 - **CSS 工具**：Tailwind CSS（`css/output.css` 為編譯產物）
 - **設計系統**：CSS Variables（`css/variables.css`）
@@ -53,9 +54,15 @@
 │   ├── js/                     # classic scripts（variables / utils / mobile / color-picker / ...）
 │   ├── p5.min.js               # local p5 build
 │   └── Panel Icon/ Easter Egg/ # 資源
-├── data/                       # 所有 JSON 資料（news / faculty / admission / records / alumni-* / ...）
+├── data/                       # 本地 JSON（Directus 掛掉時的 fallback 快照 + 少數尚未上 CMS 的資料）
+├── scripts/                    # 內容批量匯入管線（generate-*-sheet → parse-* → import-*.cjs 進 Directus）
 ├── images/  assets/            # 圖片與其他資源
-└── package.json                # tailwind build script
+├── js/config/api.js            # Directus API base 唯一注入點（CMS_API_BASE / CMS_ASSETS_BASE）
+├── docs/                       # 深度參考文件（CLAUDE.md 只當索引、細節看這裡）
+│   ├── SPA-接-Directus-Headless-最佳實踐.md   # 後台/部署架構權威文件（Lightsail + Apache + Directus）
+│   ├── 橫向手機版最佳實踐.md    # 矮橫向 RWD 的原理與業界慣例
+│   └── 動畫盤點表.md ＋ 無障礙稽核與改進清單.md
+└── package.json                # scripts：build:css / watch:css / check:ts
 ```
 
 ## SPA 架構
@@ -108,6 +115,28 @@ registerPageExit(async (destinationRoute) => { /* animate; await; */ });
 ```
 router 換頁時 `runPageExit(route)` await 完成才繼續 cleanup + swap。
 
+## 資料流與後台（Directus）
+
+> 架構細節、schema 建法、permission 設定的權威文件＝`docs/SPA-接-Directus-Headless-最佳實踐.md`。
+
+### 架構
+- **主機**：學校 IT 提供的 Lightsail（Bitnami）。Apache 同時服務：靜態 SPA（前台）＋ reverse proxy `/cms/*` → Directus（Node :8055）＋ PostgreSQL
+- **API base**：`js/config/api.js` 是唯一注入點——`CMS_API_BASE = https://sccdtest.usc.edu.tw/items`、`CMS_ASSETS_BASE = .../assets`。⚠️ 網域帶 test，正式上線換子網域只改這一檔
+- **鐵則**：SPA 100% 保留（Directus 只給 JSON）；schema 在後台 GUI 建（不寫 code）；Public role 必須開 Read（沒開 = 前台 fetch 全 401）；collection 名 = endpoint 名
+
+### 前端資料載入 pattern（`*-source.js` / `*-data-loader.js`）
+1. fetch Directus（`?limit=-1&sort=sort`，排序吃後台 sort 欄、前台不重排）
+2. 失敗（CORS / 斷網 / 5xx / 空資料——**200 但空也要 throw**）→ fallback 讀本地 `/data/*.json`，CMS 掛掉頁面照常渲染
+3. single-flight cache：cache 存 Promise，同頁多個消費者共用一次請求；離頁 reset
+4. 圖片欄位 = Directus 檔案 UUID → `resolveImage` 轉 assets URL；null 用 placeholder
+- 已上 Directus：faculty（fulltime/parttime/admin）、curriculum、activities、admission/summer-camp、degree-show、library（awards/press）、alumni、legal、heroes、about-resources、index_video 等；**尚未上**的（如 atlas workshops/industry）暫讀本地 JSON，各 `*-source.js` 檔頭有註明
+- **影片**：自架（user 明確排除 YouTube）——S3 + CloudFront HLS，原生 `<video>` 播放。⚠️ 播放必須 no-cors（加 crossOrigin 會炸，見 memory）
+
+### 內容更新方式（給後台編輯者）
+- **日常編輯**：Directus 後台 GUI（老師登入改文案／傳圖／拖 sort 欄排序），前台重新整理即生效；後台 label 全繁中、雙語欄位英上中下
+- **批量匯入**：`scripts/` 管線——`generate-*-sheet.js` 產 Excel 給編輯者填 → `parse-*-sheet.js` 解析 → `import-*.cjs` 寫入 Directus
+- `data/*.json` 是 fallback 快照：內容以後台為準；大改後台內容時建議同步更新對應 fallback
+
 ## 設計系統
 
 ### 顏色
@@ -141,9 +170,11 @@ router 換頁時 `runPageExit(route)` await 完成才繼續 cleanup + swap。
 ### 間距
 xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96px) / 4xl (128px) / 7xl / 8xl
 
-## RWD（Desktop-First）
+## RWD（Desktop-First，三 viewport）
 
 **絕對原則：手機版的修改不能影響桌面版。**
+
+全站有**三個 viewport**：桌面（≥768）、直向手機（<768）、**矮橫向**（橫向手機 gate，見下）。
 
 ### 規範
 1. **CSS Variables**：預設值 = 桌面版（不可改），手機版用 `@media (max-width: 767px)` 覆蓋
@@ -155,6 +186,24 @@ xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96p
    function isDesktop() { return window.innerWidth >= 768; }
    ```
 5. **Breakpoint**：md (768) / lg (1024) / xl (1280) — **不用 sm**
+6. **一屏高度用 `svh` 不用 `vh`**（手機工具列會讓 vh 高估溢出）
+
+### 矮橫向（landscape gate）
+- **Gate**：`@media (orientation: landscape) and (max-height: 500px)`（CSS）／`matchMedia` 同式（JS）——橫向手機寬 ≥768 會誤吃桌面 `md:` 樣式，必須用「高度」判，這是本專案最大的斷點陷阱（原理見《docs/橫向手機版最佳實踐.md》）
+- **原則**：「一切以手機版為主」——字級/spacing 變數、header、footer、menu 全套手機值；規則集中在 `css/layout/landscape.css`（分頁編號 5a~5j 區塊）；JS 端各模組的 isMobile 判斷要併入 gate
+- **跨 gate 轉向**：靠 orientation-reload 整頁重載自癒（init 時決定一次、不跟 resize）
+- ⚠️ landscape.css 是 unlayered：同特異度的純 class 蓋不掉 output.css 的 `md:` utility（source order 輸）→ 要用 `#id` 或多層 selector 提特異度；`!important` 也輸給 @layer 內的 `!important`
+- ⚠️ 動態載入的頁面 CSS（library/atlas/create/alumni）link 在 output.css 之後 = cascade 贏 landscape.css，改 <768 規則要 portrait 限定
+
+### 尺寸適配四類分桶（定值 vs 相對值，2026-07-11 定案）
+| 類別 | 用法 |
+|---|---|
+| 版面骨架（欄、區塊佔比） | 相對：`fr` / `%` / `svh` calc |
+| 內容尺寸（圖、卡、字級 token、觸控 44） | 固定 px 或 max- cap（縮放會不可讀；44 是硬標準） |
+| 留白 | 微留白（gap、16/24 padding）固定 token；宏觀留白（佔畫面幾成）`clamp(下限px, Nvw, 上限px)` |
+| 錨定值（貼固定 chrome 的偏移：header 帶 92/104、logo 右 128、mode 鈕區 140） | 必然固定，改相對反而跑位 |
+
+判斷風險看斷點寬度跨度：直向 ±7% 固定值安全、矮橫向 ±17% 宏觀值才需要比例制。
 
 ## 共用動畫模式
 
@@ -234,9 +283,14 @@ xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96p
 
 ### 開發
 1. 改設計系統變數 → 同步 `variables.css`
-2. 改 Tailwind → 重新 build（看 package.json）
-3. 跨頁一致性檢查
+2. **改任何被 input.css @import 的 CSS（含 landscape.css / components）→ 立即 `npm run build:css`**（output.css 才是頁面實際載的）
+3. 跨頁一致性檢查；TS 檢查 `npm run check:ts`（現有錯誤是歷史遺留，只看新增）
 4. 加 page-level listener 時用 `registerPageCleanup`，加 page exit 動畫用 `registerPageExit`
+5. **自驗**：repo 有 playwright + 系統 Chrome 可 headless e2e（`channel:'chrome'` 免下載；先起 `npx http-server`）——RWD/互動改動先 headless 量測+截圖再交付；但 logo invert 等視覺細節 headless 不準、要實機確認
+
+### 部署
+- 前台＝靜態檔上傳到 Lightsail Apache docroot；後台 Directus 在同主機 `/cms`（reverse proxy → Node :8055）
+- 細節與環境設定見《docs/SPA-接-Directus-Headless-最佳實踐.md》；user 不熟 devops，部署話題先建心智模型再給步驟
 
 ### Git
 - 繁體中文 commit message
@@ -246,8 +300,10 @@ xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96p
 ### 測試 checklist
 - **桌面**：所有頁樣式一致 / nav 高亮 / mega menu / hover / GSAP 動畫流暢 / 資源載入
 - **手機**：響應式（375/414/768）/ 無 hover 殘留 / 觸控流暢 / 漢堡選單 / 字體 ≥14px / 點擊區 ≥44×44
-- **RWD 互不影響**：手機改不影響桌面 / 媒體查詢正確包裹 / JS 條件式執行
+- **矮橫向**（844×390、667×375）：nav 進 header 帶 / hero 前藏 nav / 不吃桌面 md: 樣式 / 轉向 reload 自癒
+- **RWD 互不影響**：手機改不影響桌面 / 媒體查詢正確包裹 / JS 條件式執行（gate 判準跟 CSS 同式）
 - **SPA 換頁**：footer 顯隱正確 / body overflow 復原 / listener 不累積（DevTools Memory 看 listener count）
+- **資料層**：Directus 斷線時 fallback JSON 正常渲染 / 後台改內容前台 refresh 生效
 
 ## 偏好設定
 - 繁體中文溝通

@@ -9,41 +9,10 @@
     <!-- 右側欄：桌面分上（隨機旋轉）下（privacy），手機線性堆疊 -->
     <div class="footer-right">
 
-      <!-- 隨機分佈的旋轉項目（手機線性，桌面 absolute）-->
+      <!-- 隨機分佈的旋轉項目（手機線性，桌面 absolute）
+           DOM 順序＝手機直向視覺順序（social 貼 logo 下 → 電話 → 傳真 → email → 地址 → 學校卡）；
+           桌面 scatter / 矮橫向 grid 都是顯式定位，不吃 DOM 順序 -->
       <div class="footer-random">
-
-        <!-- FAX -->
-        <div class="footer-fax">
-          <h6 class="mb-xs">FAX 傳真</h6>
-          <p>+886 2 2538 1111 #7050</p>
-        </div>
-
-        <!-- TEL -->
-        <div class="footer-tel">
-          <h6 class="mb-xs">TEL 電話</h6>
-          <p>+886 2 2538 1111 #7211</p>
-        </div>
-
-        <!-- Office -->
-        <div class="footer-office">
-          <h6 class="mb-xs">Office 學系辦公室</h6>
-          <p class="max-w-sm mb-xs"><a href="https://maps.app.goo.gl/tj6auGPM9EwoBvBU7" target="_blank" rel="noopener noreferrer" class="footer-link">5F, Building A, No.70, Dazhi Street, Zhongshan District, Taipei City 104336, Taiwan</a></p>
-          <p class="footer-office-zh"><a href="https://maps.app.goo.gl/tj6auGPM9EwoBvBU7" target="_blank" rel="noopener noreferrer" class="footer-link">104336 <br class="footer-office-zh-br">台灣台北市中山區大直街 70 號 A 棟 5 樓</a></p>
-        </div>
-
-        <!-- E-Mail -->
-        <div class="footer-email">
-          <h6 class="mb-xs">E-Mail 電子郵件</h6>
-          <p><a href="mailto:sccd@g2.usc.edu.tw" class="footer-link">sccd@g2.usc.edu.tw</a></p>
-        </div>
-
-        <!-- Links：拆成兩張獨立 link 卡（無 title，各一條連結，字重 bold）-->
-        <div class="footer-link-item">
-          <a href="https://www.usc.edu.tw/" target="_blank" rel="noopener noreferrer" class="footer-link">Shih Chien University 實踐大學</a>
-        </div>
-        <div class="footer-link-item">
-          <a href="http://www.scdesign.usc.edu.tw/" target="_blank" rel="noopener noreferrer" class="footer-link">College of Design, USC 實踐大學設計學院</a>
-        </div>
 
         <!-- Social Media Icons（Support 已從 icon 移到 footer-privacy 文字連結）
              桌面 .footer-social { display: contents } 把 icon wrapper 升級成 .footer-random 視覺子，
@@ -66,15 +35,50 @@
           </div>
         </div>
 
+        <!-- TEL -->
+        <div class="footer-tel">
+          <h6 class="mb-xs">TEL 電話</h6>
+          <p>+886 2 2538 1111 #7211</p>
+        </div>
+
+        <!-- FAX -->
+        <div class="footer-fax">
+          <h6 class="mb-xs">FAX 傳真</h6>
+          <p>+886 2 2538 1111 #7050</p>
+        </div>
+
+        <!-- E-Mail -->
+        <div class="footer-email">
+          <h6 class="mb-xs">E-Mail 電子郵件</h6>
+          <p><a href="mailto:sccd@g2.usc.edu.tw" class="footer-link">sccd@g2.usc.edu.tw</a></p>
+        </div>
+
+        <!-- Office -->
+        <div class="footer-office">
+          <h6 class="mb-xs">Office 學系辦公室</h6>
+          <p class="max-w-sm mb-xs"><a href="https://maps.app.goo.gl/tj6auGPM9EwoBvBU7" target="_blank" rel="noopener noreferrer" class="footer-link">5F, Building A, No.70, Dazhi Street, Zhongshan District, Taipei City 104336, Taiwan</a></p>
+          <p class="footer-office-zh"><a href="https://maps.app.goo.gl/tj6auGPM9EwoBvBU7" target="_blank" rel="noopener noreferrer" class="footer-link">104336 <br class="footer-office-zh-br">台灣台北市中山區大直街 70 號 A 棟 5 樓</a></p>
+        </div>
+
+        <!-- Links：拆成兩張獨立 link 卡（無 title，各一條連結，字重 bold）-->
+        <div class="footer-link-item">
+          <a href="https://www.usc.edu.tw/" target="_blank" rel="noopener noreferrer" class="footer-link">Shih Chien University 實踐大學</a>
+        </div>
+        <div class="footer-link-item">
+          <a href="http://www.scdesign.usc.edu.tw/" target="_blank" rel="noopener noreferrer" class="footer-link">College of Design, USC 實踐大學設計學院</a>
+        </div>
+
       </div>
 
       <!-- Privacy Policy Links（桌面左下、手機線性最後）
            英文/中文用 <br> 分兩行；Support 從原本 donate icon 改為此處文字連結（置頂） -->
       <div class="footer-privacy">
         <div class="flex flex-col gap-xs items-start">
-          <a href="support.html" class="footer-link">Support <br class="footer-privacy-br">支援</a>
+          <a href="support.html" class="footer-link">Donate <br class="footer-privacy-br">捐贈</a>
           <a href="regulations.html" class="footer-link">Regulations <br class="footer-privacy-br">學系規章</a>
-          <a href="policy-and-statements.html" class="footer-link">Policy and Statements <br class="footer-privacy-br">政策及聲明</a>
+          <a href="policy-and-statements.html" class="footer-link">Policies &amp; Statements <br class="footer-privacy-br">政策及聲明</a>
+          <!-- 無障礙標章 placeholder（88×31，手機先行；正式標章拿到後換成 <a><img></a> 並開桌面） -->
+          <div class="footer-a11y-badge" aria-hidden="true"></div>
           <p class="footer-copyright">Copyright © SCCD</p>
         </div>
       </div>

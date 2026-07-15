@@ -94,8 +94,10 @@
               <button class="activities-section-btn w-fit text-left" data-section="students-present">
                 <span class="anchor-nav-inner"><span>Students Present</span><span>學生自主</span></span>
               </button>
+              <!-- EN 不再 hardcode <br>（br 的斷行是 UA 行為、CSS display 蓋不掉，手機單行 strip 會被它撐成兩行）：
+                   改真空格，桌面兩行由 buttons.css width:min-content 達成 -->
               <button class="activities-section-btn w-fit text-left" data-section="industry">
-                <span class="anchor-nav-inner"><span>Industry<br>Partnerships</span><span>產學合作</span></span>
+                <span class="anchor-nav-inner"><span>Industry Partnerships</span><span>產學合作</span></span>
               </button>
             </div>
           </div>

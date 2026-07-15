@@ -7,32 +7,41 @@
     {
       "titleEn": "Academic Regulations",
       "titleZh": "學則",
-      "desEn": "<p>Shih Chien University Academic Regulations<br>實踐大學學則</p>",
-      "desZh": ""
+      "items": [
+        { "titleEn": "Shih Chien University Academic Regulations", "titleZh": "實踐大學學則", "unitEn": "Office of Academic Affairs", "unitZh": "教務處" }
+      ]
     },
     {
       "titleEn": "Study",
       "titleZh": "修業",
-      "desEn": "<p>Course Syllabus<br>課程計畫表</p><p>Regulation for Pursuing in Bachelor Courses<br>修習學士班課程辦法</p><p>Regulation for Semester Evaluation<br>學習評鑑施行辦法</p><p>Regulation for Qualifying Exam<br>資格考試施行辦法</p><p>Regulation for Degree Exam<br>學位考試施行辦法</p>",
-      "desZh": ""
+      "items": [
+        { "titleEn": "Course Syllabus", "titleZh": "課程計畫表", "unitEn": "SCCD Office", "unitZh": "系辦" },
+        { "titleEn": "Regulation for Pursuing in Bachelor Courses", "titleZh": "修習學士班課程辦法", "unitEn": "Office of Academic Affairs", "unitZh": "教務處" },
+        { "titleEn": "Regulation for Semester Evaluation", "titleZh": "學習評鑑施行辦法", "unitEn": "Office of Academic Affairs", "unitZh": "教務處" },
+        { "titleEn": "Regulation for Qualifying Exam", "titleZh": "資格考試施行辦法", "unitEn": "Office of Academic Affairs", "unitZh": "教務處" },
+        { "titleEn": "Regulation for Degree Exam", "titleZh": "學位考試施行辦法", "unitEn": "Office of Academic Affairs", "unitZh": "教務處" }
+      ]
     },
     {
       "titleEn": "Resources",
       "titleZh": "資源",
-      "desEn": "<p>Regulation of Space &amp; Equipment<br>空間與設備管理規章</p>",
-      "desZh": ""
+      "items": [
+        { "titleEn": "Regulation of Space & Equipment", "titleZh": "空間與設備管理規章", "unitEn": "SCCD Office", "unitZh": "系辦" }
+      ]
     },
     {
       "titleEn": "Organizations",
       "titleZh": "組織",
-      "desEn": "<p>Constitution of the Student Association<br>學生會組織章程</p>",
-      "desZh": ""
+      "items": [
+        { "titleEn": "Constitution of the Student Association", "titleZh": "學生會組織章程", "unitEn": "Office of Student Affairs", "unitZh": "學務處" }
+      ]
     },
     {
       "titleEn": "Legal",
       "titleZh": "法規",
-      "desEn": "<p>Personal Information Collection Statement<br>個人資料蒐集聲明</p>",
-      "desZh": ""
+      "items": [
+        { "titleEn": "Personal Information Collection Statement", "titleZh": "個人資料蒐集聲明", "unitEn": "SCCD Office", "unitZh": "系辦" }
+      ]
     }
   ],
   "lastUpdatedEn": "Last Updated: June 2026",

@@ -1,7 +1,7 @@
 # SPA → Directus Headless CMS 最佳實踐
 
 > **這份是走 Directus 路線的權威文件**。任何上 Directus 的工作都以此為主。
-> 對照路線：[SPA-轉-WP-Headless-最佳實踐.md](SPA-轉-WP-Headless-最佳實踐.md)（WP 路線）
+> （原對照文件《SPA-轉-WP-Headless-最佳實踐.md》已隨 WP 路線退場刪除，2026-07）
 > 最後更新：2026-06-02
 
 ---
@@ -64,7 +64,7 @@
 - 老師熟悉度輸 WP（要更多教學）
 - 託管 9 步 vs WP 一鍵
 
-**選 Directus 的前提**：你願意「自己維護一陣子、後台美感優先、不急著交給老師」。如果短期就要交老師接手，去看 [SPA-轉-WP-Headless-最佳實踐.md](SPA-轉-WP-Headless-最佳實踐.md)。
+**選 Directus 的前提**：你願意「自己維護一陣子、後台美感優先、不急著交給老師」。（WP 對照路線已退場、文件已刪。）
 
 ---
 
@@ -797,7 +797,6 @@ pm2 logs directus --lines 100  # 看有沒有 migration error
 
 ## 11. 相關文件 / Memory
 
-- [SPA-轉-WP-Headless-最佳實踐.md](SPA-轉-WP-Headless-最佳實踐.md) — 對照路線（WP）
 - `reference_lightsail_blueprint_comparison_for_sccd.md` — 為什麼是 Directus vs 其他 headless
 - `project_lightsail_ssh_deployment_decision.md` — Lightsail SSH 環境細節
 - `feedback_no_headless_term_ambiguous_clarify_first.md` — headless / WP 等字眼歧義 disambiguation pattern
