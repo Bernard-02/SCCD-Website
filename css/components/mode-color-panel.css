@@ -1,0 +1,92 @@
+/* Mode-3 背景色編輯浮動面板（js/modules/ui/mode-color-panel.js）
+   顯隱由 JS updateVisibility 主控（display:block/none）；overlay 覆蓋時這裡再用 CSS 硬藏一層保險。 */
+
+#mode-color-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;            /* 低於 lightbox 9999（overlay 蓋住/gate 也藏）；= index hero snap-zone(9998)，
+                               本 layer append 在 body 最後、同 z 靠 source order 贏過 hero 浮卡 */
+  pointer-events: none;     /* layer 不擋頁面，只有子元件可點 */
+  display: none;            /* 預設藏；JS gate 打開 */
+}
+
+/* overlay 覆蓋時強制藏（house style：能 CSS 判的 overlay 就 CSS 判） */
+body.lightbox-open #mode-color-panel,
+html.has-slide-in #mode-color-panel { display: none !important; }
+
+/* ── hero clip-reveal 結構（user 2026-07-15 v3）：mask wrapper overflow:hidden 當固定遮罩、
+   鉛筆/面板「本體」在遮罩內滑進滑出（xPercent/yPercent，同 hero 文字 box）；非 inset 擦除。
+   微傾照 hero 慣例掛 wrapper（旋轉跟遮罩走、本體在旋轉遮罩的 local 軸滑動）。 ── */
+.mcp-pencil-mask,
+.mcp-panel-mask {
+  position: absolute;
+  bottom: var(--spacing-lg, 32px);
+  overflow: hidden;
+  pointer-events: none;   /* 滑出遮罩外的本體不吃 pointer；本體自己 auto */
+}
+.mcp-pencil-mask { right: 0; }   /* 鉛筆收起時貼右緣 docked，佔右緣 0-48px */
+/* 與鉛筆區(0-48)有 16px 重疊帶——wheel 滑動固定走 left 軸（js WHEEL_HIDDEN）收場殘影往左消失、
+   不進帶內＝結構上不與鉛筆相交（right/bottom 方向會，已退役，見 js 註解） */
+.mcp-panel-mask { right: var(--spacing-lg, 32px); }
+
+/* 鉛筆方鈕：48px 同 history 左下 btn；icon 不旋轉 */
+.mcp-pencil {
+  position: relative;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: var(--theme-fg, #000);
+  color: var(--theme-fg-inverse, #fff);
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+}
+
+/* 展開面板：compact 方形（16 padding + 72 wheel = 104） */
+.mcp-panel {
+  position: relative;
+  pointer-events: auto;
+  box-sizing: border-box;
+  width: 104px;
+  height: 104px;
+  padding: var(--spacing-sm, 16px);
+  background: var(--theme-fg, #000);        /* 純黑/白對比底（依 hue 亮暗翻，非中性灰） */
+  color: var(--theme-fg-inverse, #fff);
+  /* 預設收起態由 JS build() 用 gsap xPercent 設（CSS 若放 translateX(100%)，gsap 會解析成 px 的 x 分量、
+     與 tween 的 xPercent 各自獨立 → 開場後殘留 x=104 面板永遠偏移） */
+}
+
+.mcp-wheel-wrap {
+  position: relative;
+  width: 72px;
+  height: 72px;
+}
+.mcp-wheel {
+  display: block;
+  width: 72px;
+  height: 72px;
+  cursor: pointer;
+  touch-action: none;   /* 讓 pointer drag 不被捲動搶走 */
+}
+
+/* play/pause：置中在色環中央洞裡（同 create） */
+.mcp-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--theme-fg-inverse, #fff);   /* 對比 panel 底 */
+}
+.mcp-play .icon { font-size: 16px; }

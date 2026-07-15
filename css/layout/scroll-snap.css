@@ -61,18 +61,34 @@ html {
 #class-info-area { min-height: 100vh; }
 #resources { min-height: 100vh; }
 
-/* 手機（2026-07-07）：anchor strip 改全程 sticky（釘 96、高 91 → 底 187）後，落點要讓出 strip 高度，
-   否則點 nav 對齊的內容鑽進 strip/blocker 底下。188 = strip 底 +1；overview 原 200 > 187 本就安全、不動。
-   ⚠️ 與 about.html strip top:96 / division nav top:188 為配對值，改 strip 高度三處同步。 */
+/* 手機（2026-07-07）：anchor strip 改全程 sticky（釘 88、高 91 → 底 179，2026-07-13 從 96 收上來）後，
+   落點要讓出 strip 高度，否則點 nav 對齊的內容鑽進 strip/blocker 底下。180 = strip 底 +1；
+   overview 也收 180（原 200 落點時 strip 停自然位置未釘、btn 頂 125 ≠ 四頁的 104，user 2026-07-13）。
+   ⚠️ 與 about.html strip top:88 / division nav top:168 為配對值，改 strip 高度三處同步。 */
 @media (max-width: 767px) {
-  #class { scroll-margin-top: 188px; }
-  /* resources/history 收 186（188−2）：188 剛好貼 strip 底(187)，前一區（works playlist）的底緣/分隔線
+  #overview { scroll-margin-top: 180px; }
+  #class { scroll-margin-top: 180px; }
+  /* resources/history 收 178（180−2）：180 剛好貼 strip 底(179)，前一區（works playlist）的底緣/分隔線
      會在接縫露出 1-2px → 多捲 2px 把縫藏進 strip 底下（user 2026-07-07） */
-  #resources, #history { scroll-margin-top: 186px; }
-  /* works 要再讓出「釘住的 division nav」（top 188 高 91 → 底 279）：188 落點會少捲到讓 nav 被
-     containment 推上去（實測 145）疊住 strip、內容又鑽進 nav 下面 → 292 = 279 + 13 呼吸，
-     nav 保持釘 188、works 內容（desc/標題/playlist）完整落在其下。class 落點的 nav 是自然 flow 位置、188 即可。 */
-  #works { scroll-margin-top: 292px; }
+  #resources, #history { scroll-margin-top: 178px; }
+  /* works 要再讓出「釘住的 division nav」（top 168 高 126——BFA label 上移後增高 → 底 294）：
+     180 落點會少捲到讓 nav 被 containment 推上去疊住 strip、內容又鑽進 nav 下面 → 307 = 294 + 13 呼吸，
+     nav 保持釘 168（2026-07-13 從 180 收上來、疊進 strip 下 padding 帶，見 about.html 註解）、
+     works 內容（desc/標題/playlist）完整落在其下。class 落點的 nav 是自然 flow 位置、180 即可。 */
+  #works { scroll-margin-top: 307px; }
+}
+
+/* about 封鎖綫（.section-title-strip 大字斜帶）直向手機整支不渲染（user 2026-07-13）。
+   data-anchor 列舉限定 about 四條（alumni 的 strip 用不同 anchor 名、不受影響）；
+   矮橫向不動：landscape.css 已各自處理（class/works 藏、resources/history 重釘當視覺元素）。 */
+@media (max-width: 767px) and (orientation: portrait) {
+  .section-title-strip:is([data-anchor="class"], [data-anchor="works"], [data-anchor="resources"], [data-anchor="history"]) {
+    display: none;
+  }
+
+  /* works 視圖保底一屏（user 2026-07-13）：文字盒改 max-height fit 後，短文 panel 撐不滿畫面
+     → resources 內容在 works 視圖底部提早露出；min-height 保證 resources 至少一屏後才開始。 */
+  #works { min-height: 100svh; }
 }
 
 @media (min-width: 768px) and (min-height: 900px) {

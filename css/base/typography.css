@@ -120,12 +120,22 @@ html.mode-switching.mode-switching .library-card-content {
  * 但大背景 fade 0.4s ＝兩者不同步（user 2026-06-08 報「nav btn 底色、遮罩 timing 跟大背景不同步」）。
  * 補進 whitelist；含 ::before/::after 與 shorthand `background`（遮罩多用 shorthand 寫）。 */
 html.mode-switching.mode-switching .courses-program-bar,
+html.mode-switching.mode-switching .inner-scroll-nav-col,
+html.mode-switching.mode-switching .inner-scroll-nav-col::before,
+html.mode-switching.mode-switching .courses-mobile-grade-bar,
+html.mode-switching.mode-switching .courses-mobile-row-label,
+html.mode-switching.mode-switching .courses-mobile-row-label::before,
 html.mode-switching.mode-switching .courses-grid-row-cover,
 html.mode-switching.mode-switching .courses-grid-row-cover::before,
 html.mode-switching.mode-switching .courses-grid-row-cover::after,
 html.mode-switching.mode-switching .activities-filter-bar::before,
 html.mode-switching.mode-switching .admission-scroll-mask,
-html.mode-switching.mode-switching .list-mobile-header-blocker {
+html.mode-switching.mode-switching .list-header.is-pinned::before,
+html.mode-switching.mode-switching .list-mobile-header-blocker,
+html.mode-switching.mode-switching .support-acc-header,
+html.mode-switching.mode-switching .legal-support::before,
+html.mode-switching.mode-switching .legal-combined::before,
+html.mode-switching.mode-switching .legal-regulations::before {
   transition: background var(--dur-base) ease, background-color var(--dur-base) ease, color var(--dur-base) ease !important;
 }
 

@@ -85,16 +85,22 @@
 
   .footer-logo-area {
     flex-shrink: 0;
-    /* 對齊 header 手機 logo 視覺位置：header 內 logo 透過 `<a absolute -top-4>` 從 grid cell top
-     * 上偏 16px 視覺定位，但 cell 本身受 grid items-center + py-md 影響不貼容器頂；footer 是 flex
-     * column 第一子，自然貼 padding 起點 → 視覺比 header 還高。加 padding-top 把 logo 視覺下移 */
-    padding-top: 1rem;
+    padding-top: 0;
+  }
+
+  /* footer logo 距頂＝lg（32，同 header 手機列 pt-lg，user 2026-07-13）：container-padding 24 補差額。
+   * ⚠️ 手機 reveal 會把 logo-area 包進 overflow:clip 的 .clip-reveal-wrapper——偏移下在內層若為負
+   * 會被 wrapper 裁頂，一律下在「可能是 wrapper」那層（:is 涵蓋已包/未包兩態） */
+  @media (max-width: 767px) {
+    .footer-inner > :is(.footer-logo-area, :has(> .footer-logo-area)) {
+      margin-top: calc(var(--spacing-lg) - var(--container-padding));
+    }
   }
 
   .footer-logo-inner {
-    /* 手機對齊 header mobile logo 尺寸（pages/header.html #header-logo-mobile w-[80px] h-[80px]） */
-    width: 80px;
-    height: 80px;
+    /* 手機對齊 header mobile logo 尺寸（pages/header.html #header-logo-mobile w-[56px] h-[56px]） */
+    width: 56px;
+    height: 56px;
   }
 
   .footer-right {
@@ -116,6 +122,23 @@
 
   .footer-privacy {
     /* 手機線性最後 */
+  }
+
+  /* 無障礙標章 placeholder（88×31 硬尺寸＝標章規格）：桌面/手機/矮橫向皆顯示（user 2026-07-15 桌面也要，跟手機一樣）。
+     正式標章拿到後把此 div 換成 <a><img></a>。已進 footer-draggable.js getFooterPrivacyLinks 的桌面 clip-reveal selector。 */
+  .footer-a11y-badge {
+    display: block;
+    width: 88px;
+    height: 31px;
+    border: 1px dashed var(--footer-fg, #fff);
+    /* 標章是無 line-height 的裸框，跟上方雙行文字連結只隔 flex gap-xs 時視覺上比「連結↔連結」窄（後者多了各自的
+       行高 leading）→ 補 margin-top 讓視覺間距對齊連結彼此的間距（user 2026-07-15「感覺比較小」）。 */
+    margin-top: var(--spacing-xs);
+  }
+  /* copyright 與上方標章再拉開（flex gap-xs 8 + lg 32 = 40；user 2026-07-15「再遠一點」）。桌面手機一致。
+     矮橫向 landscape.css 覆寫成 margin-top:auto（推到欄底），不受此影響。 */
+  .footer-copyright {
+    margin-top: var(--spacing-lg);
   }
 
   /* Mobile：icon 整體縮 50%（覆蓋 .footer-random .icon 的 1.5× 放大）。
@@ -175,8 +198,6 @@
       aspect-ratio: 1 / 1;
       height: 100%;
       align-self: stretch;
-      /* reset 手機 padding-top（header 對齊用），桌面 logo stretch 滿不需偏移 */
-      padding-top: 0;
     }
 
     .footer-logo-inner {

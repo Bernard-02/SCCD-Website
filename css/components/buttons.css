@@ -169,17 +169,19 @@
     .activities-section-bar::-webkit-scrollbar { display: none; }
     .activities-section-bar > .activities-section-btn {
       flex-shrink: 0;
+      /* 單行不折（本 block 既定意圖的補完）：br 換成空格後 EN 仍會在空格處 wrap——
+         Industry Partnerships 實測折兩行，把整條 bar stretch 高 24px（2026-07-13 查間距時發現）*/
+      white-space: nowrap;
     }
-    /* Industry Partnerships btn 桌面 EN 強制換行（HTML hardcoded <br>），手機 single-line scroll bar
-       不需要換行；<br> 不能用 display:none（會讓 EN 黏成 IndustryPartnerships），
-       改成把 br 變 inline content 空格：content 替換 <br> 視覺內容為 ' '（display:none 後 ::after 不 render，
-       直接給 br 自身 display:inline + ::after content） */
-    .activities-section-bar .activities-section-btn br {
-      display: inline;
-    }
-    .activities-section-bar .activities-section-btn br::after {
-      content: ' ';
-      white-space: pre;
+  }
+
+  /* Industry Partnerships：桌面直欄 EN 兩行（Industry / Partnerships）。原本 HTML hardcode <br> +
+     手機 br→空格 hack——但 br 的斷行是 UA 行為、display:inline 蓋不掉，手機實際仍兩行把整條
+     strip 撐高 24px（2026-07-13 發現）。改法：HTML 用真空格，桌面（含矮橫向，維持原兩行現況）
+     以 min-content 讓 EN 在空格處折行；手機 <768 不套＝單行。 */
+  @media (min-width: 768px) {
+    .activities-section-btn[data-section="industry"] .anchor-nav-inner > span:first-child {
+      width: min-content;
     }
   }
 

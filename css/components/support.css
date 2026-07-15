@@ -8,44 +8,107 @@
  */
 
 @layer components {
-  /* 群組（Funds / Others）間距 */
-  .support-group { margin-bottom: var(--spacing-3xl); }
-  .support-group:last-child { margin-bottom: 0; }
-
-  /* 群組大標 EN / ZH（比照 legal-section 標題級：h4 bold） */
-  .support-group-title-en,
-  .support-group-title-zh {
-    font-size: var(--font-size-h4);
-    font-weight: var(--font-weight-bold);
-    line-height: var(--line-height-h4, 1.2);
+  /* 兩大類（Funds / Others）手風琴：標題列（EN/ZH 兩行 + 右側 chevron）可點展開/收合，內文預設收合。
+     結構由 legal-data-loader.js buildSupportAccordions 於渲染後組出。 */
+  .support-acc-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+    cursor: var(--cursor-pointer);
+  }
+  /* 展開後往下捲：標題列 sticky 釘在 fixed site-header 下緣（96px），內文捲到標題底下。
+     背景 = 頁面底色（theme-bg）遮住捲上來的內文；containing block = 該 .legal-section，
+     捲過整段自然釋放交給下一段。padding-bottom 讓內文不貼 zh 標題。sticky 只桌面（手機透明 header
+     上緣會露內容、需另補 blocker，暫不做）。已進 typography.css mode-switch whitelist。 */
+  @media (min-width: 768px) {
+    /* 釘點 = 全站 main section sticky/nav 對齊線 200px（lists.css `.list-header.active { top:200px }`、
+       courses/alumni/buttons 遮罩同一線；user 2026-07-15 要對齊其他頁 nav btn 位置）。
+       此值同時驅動 sticky top、遮罩高度、右欄內文起點三者（必須一致：否則露「遮罩底↔標題頂」縫或首標題先 rise）。
+       support（Funds/Others）、policy（.legal-combined 隱私/無障礙）、regulations（.legal-regulations 5 大類，2026-07-15 加入）
+       共用整套 accordion + sticky + 遮罩。 */
+    .legal-support,
+    .legal-combined,
+    .legal-regulations {
+      --support-sticky-top: 200px;
+    }
+    /* list 標題 sticky 釘 200（三頁同線，user 2026-07-15「regulations sticky 對齊 donate」）。
+       regulations 因頂部有說明文字、首個 accordion 落點比 200 低（intro 之下），捲到才 rise 上來 pin＝正常。 */
+    .legal-support .support-acc-header,
+    .legal-combined .support-acc-header,
+    .legal-regulations .support-acc-header {
+      position: sticky;
+      top: var(--support-sticky-top);
+      z-index: 2;
+      background: var(--theme-bg);
+      padding-bottom: var(--spacing-sm);
+    }
+    /* 展開往下捲時內文會捲進透明 site-header 帶、蓋到 nav（全站既有現象，見 memory）。
+       補一條 theme-bg 遮罩擋住「釘點以上、nav 上」→ 內文捲到帶內被擋住、sticky 標題底下乾淨。
+       ⚠️ 用 sticky（非 fixed）：遮罩是 section 的 ::before、只在該 section 捲動範圍內釘住頂帶；
+          捲到 footer（section 捲過）時隨之離開視窗，才不會用頁面 theme-bg 蓋到深色 footer（user 2026-07-14「露餡」）。
+       ⚠️ 遮罩高度用「內容容器 margin-top 負值」抵銷，**不能**用遮罩自己 margin-bottom 負值：
+          後者把 sticky 的 margin-box 壓成 0 高 → stick 範圍延伸到 section 底之外 128px、捲到 footer 帶(0~128)時
+          仍蓋在深色 footer 上（user 2026-07-15 報「footer 白 bar」，section 底停在 viewport 0~128 時洩漏）。
+          維持完整 margin-box → 遮罩在 section 底就準時 unstick、絕不越界。
+       z-40 在 header(z-50) 下、內文上；pointer-events:none 不擋 nav。已進 typography.css mode-switch whitelist。 */
+    .legal-support::before,
+    .legal-combined::before,
+    .legal-regulations::before {
+      content: '';
+      display: block;
+      position: sticky;
+      top: 0;
+      height: var(--support-sticky-top);
+      background: var(--theme-bg);
+      z-index: 40;
+      pointer-events: none;
+    }
+    /* 抵銷遮罩 ::before 佔的高度（見上）：內容容器往上拉一個釘點高，內文位置維持不變。 */
+    .legal-support > .site-container,
+    .legal-combined > .site-container,
+    .legal-regulations > .site-container {
+      margin-top: calc(-1 * var(--support-sticky-top));
+    }
+    /* 右欄內文起點下移到釘點高：donate/policy 首個元素＝accordion 標題→落地即 pin、不先 rise（user 2026-07-15）；
+       regulations 首個元素＝說明文字→說明起於釘點、accordion 在其下（rise 上來 pin 正常）。（蓋掉 legal.css 的 6xl 起始留白。） */
+    .legal-support .legal-content-col,
+    .legal-combined .legal-content-col,
+    .legal-regulations .legal-content-col {
+      padding-top: var(--support-sticky-top);
+    }
+  }
+  /* 群組標題 EN + ZH 同一行（user 2026-07-14）：兩個 .legal-reveal 併排、baseline 對齊、gap 分隔 */
+  .support-acc-titles {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    column-gap: var(--spacing-sm);
+  }
+  .support-acc-titles .legal-section-title-en,
+  .support-acc-titles .legal-section-title-zh {
     margin: 0;
   }
-  .support-group-title-en { margin-bottom: var(--spacing-sm); }
-  .support-group-title-zh { margin-bottom: var(--spacing-md); }
-
-  /* 子標 Single / Regular（群組內小標） */
-  .support-subheading {
-    font-weight: var(--font-weight-bold);
-    font-size: var(--font-size-p1);
-    margin-top: var(--spacing-lg);
-    margin-bottom: var(--spacing-xs);
+  /* chevron 對齊標題第一行 */
+  .support-acc-chevron {
+    flex-shrink: 0;
+    margin-top: 0.15em;
   }
-
-  /* 內文段落 */
-  .support-group > p { margin-bottom: var(--spacing-sm); }
-  .support-group > p:last-child { margin-bottom: 0; }
-
-  /* 編號清單：主層 decimal、子層 lower-alpha，outside marker + 縮排（比照 legal list 風格） */
-  .support-list,
-  .support-list-sub { padding-left: 1.25rem; }
-  .support-list { list-style: decimal outside; margin-bottom: var(--spacing-md); }
-  .support-list:last-child { margin-bottom: 0; }
-  .support-list-sub { list-style: lower-alpha outside; margin-top: var(--spacing-xs); }
-  .support-list > li { margin-top: var(--spacing-xs); }
-  .support-list > li:first-child { margin-top: 0; }
-  .support-list-sub > li { margin-top: 0.2rem; }
-  .support-list-sub > li:first-child { margin-top: 0; }
-
-  /* 連結：繼承內文色、粗體、無底線（同 legal / 舊 support 風格） */
-  .support-link { color: inherit; text-decoration: none; font-weight: 700; }
+  /* 子區塊次標題 Single/單次、Regular/定期 也同一行 */
+  .support-acc-panel .legal-subsection-title-en,
+  .support-acc-panel .legal-subsection-title-zh {
+    display: inline-block;
+    margin: 0;
+  }
+  .support-acc-panel .legal-subsection-title-en {
+    margin-right: var(--spacing-xs);   /* Single↔單次 間距 sm→xs（user 2026-07-15「空格太多」） */
+  }
+  /* 次標題行與下方步驟清單留距（inline-block 的 margin-bottom 撐不出，改給緊接的內容塊） */
+  .support-acc-panel .legal-subsection-title-zh + * {
+    margin-top: var(--spacing-sm);
+  }
+  /* 內文面板：高度由 GSAP 控（預設 0）。展開後內文與標題列拉開距離 */
+  .support-acc-panel > :first-child {
+    margin-top: var(--spacing-md);
+  }
 }

@@ -560,6 +560,13 @@
   overflow: hidden;
   margin-top: -0.5rem;
   box-sizing: border-box;
+  /* 短職業(VJ/DJ，英文 1 行)不縮 box：保底高度＝一般 2 行英文 chip，內容垂直置中；
+     文字水平置中（短英文在較寬 chip 裡才不會偏左）。user 2026-07-16 */
+  min-height: 4.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
 }
 
 .atlas-list-col-career-en,
@@ -692,6 +699,16 @@
   font-weight: 600;
 }
 
+/* host（主持）無副標：只單語（EN 或 ZH 其一）的名稱撐成兩行高並垂直置中，
+   對齊雙語鄰項「兩行 box」的中線（雙語名本就 2 行、置中不變）。
+   桌面 slot 制才有此 box；手機/矮橫向自然高，於各自 gate 內 reset。 */
+@media (min-width: 768px) {
+  .atlas-list-item[data-category="host"] .atlas-list-item-name {
+    min-height: 2.6em; /* 2 行 × line-height 1.3 */
+    justify-content: center;
+  }
+}
+
 /* Marquee inner：雙 .marquee-copy seamless loop（仿 library.css runMarqueeOverflow pattern） */
 .atlas-marquee-inner {
   display: inline-block;
@@ -803,16 +820,14 @@
   font-weight: 700;
   font-size: var(--font-size-p3);
   text-align: left;
-  /* 初始 clip 起點：左→右 wipe reveal；JS 加 .atlas-filter-revealed 才揭露
-     （等 header logo 縮小 0.6s 完成後）— 直接寫 CSS 避免 atlas.js await JSON 期間閃現
-     inset 四值全用負 12px 把 clip 區域擴大覆蓋 .anchor-nav-inner 的 ±3° 旋轉外溢；
-     起點 right 用 calc(100% + 12px) 把右側往左 cover 整個 box 才會 0 寬完全隱藏 */
-  clip-path: inset(-12px calc(100% + 12px) -12px -12px);
-  transition: opacity var(--dur-micro) ease, clip-path var(--dur-medium) var(--ease-wipe);
-}
-
-.atlas-filter-btn.atlas-filter-revealed {
-  clip-path: inset(-12px -12px -12px -12px);
+  /* 進場 2026-07-15 v3＝hero 字卡結構：按鈕本體＝「鎖死的遮罩窗」（完全不動、不參與動畫），
+     .anchor-nav-inner 從窗內滑出/滑回（純 translate 單管線 → 無抖動——先前「本體 translate＋clip
+     同步 transition」因兩屬性走不同渲染管線逐幀微差、窗緣抖動，user 回報）。
+     overflow:clip + clip-margin 12px＝舊 -12px inset buffer（active inner ±3° 旋轉外溢不被裁；
+     clip 不建立 scroll container）。JS 加 .atlas-filter-revealed 才揭露（CSS 預設藏、await JSON 期間不閃現）。 */
+  overflow: clip;
+  overflow-clip-margin: 12px;
+  transition: opacity var(--dur-micro) ease;
 }
 
 .atlas-filter-btn .anchor-nav-inner {
@@ -822,7 +837,18 @@
   background: transparent;
   color: rgba(0, 0, 0, 0.5);
   padding: 6px 8px 5px;
-  transition: all var(--dur-fast) var(--ease-standard);
+  /* 藏起＝滑出遮罩左緣外：-24px = 12（clip-margin 窗界）+ 12（active inner ±3° 旋轉角落外溢——
+     只推到 -12px 時右緣貼在窗界上、旋轉角探回窗內露一小條，user 2026-07-15）。
+     時序照 hero 字卡、transition 宣告在「目標態」＝本條（無 revealed）掌管退場 0.5s power3.in、
+     下條掌管進場 0.9s power3.out；`all` 保留 hover 變色等原 transition，translate 列後覆蓋 all 的 timing */
+  translate: calc(-100% - 24px) 0;
+  transition: all var(--dur-fast) var(--ease-standard),
+              translate 0.5s cubic-bezier(0.55, 0.055, 0.675, 0.19);
+}
+.atlas-filter-btn.atlas-filter-revealed .anchor-nav-inner {
+  translate: 0 0;
+  transition: all var(--dur-fast) var(--ease-standard),
+              translate 0.9s cubic-bezier(0.215, 0.61, 0.355, 1);
 }
 .atlas-filter-btn .atlas-filter-en,
 .atlas-filter-btn .atlas-filter-zh {
@@ -1206,6 +1232,10 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   }
   .atlas-list-item {
     padding-bottom: 0;
+  }
+  /* 矮橫向寬 ≥768 會吃到桌面 host 名稱 min-height：自然高不套 box 置中 */
+  .atlas-list-item[data-category="host"] .atlas-list-item-name {
+    min-height: 0;
   }
   .atlas-list-col-items {
     padding-bottom: 64px;       /* chevron 帶（atlas.js CHEVRON_BAND_MOBILE=64 同步） */

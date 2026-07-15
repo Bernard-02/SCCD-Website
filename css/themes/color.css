@@ -657,7 +657,8 @@ body.mode-color #faculty-panel .list-scroll::-webkit-scrollbar-thumb {
  * 但 mode-color 下 panel bg 已被上面 !important 改成 theme-bg（cycling hue），遮罩仍是 accent → 露出三原色色塊
  * （年份首欄漏改時會看到綠/粉/藍色塊浮在 panel 上）。跟 panel 一起走 theme-bg，視覺無縫（user 期望透明＝跟 panel 同色）。 */
 body.mode-color #faculty-panel .faculty-section-title-col,
-body.mode-color #faculty-panel .faculty-grid-row > span:first-child {
+body.mode-color #faculty-panel .faculty-grid-row > span:first-child,
+body.mode-color #faculty-panel .faculty-grid-row-award > span:nth-child(2) {
   background: var(--theme-bg) !important;
 }
 
@@ -1063,6 +1064,15 @@ body.mode-color .class-group-label {
 
 body.mode-color .class-division-btn.active,
 body.mode-color .class-group-label:has(+ .class-division-btn.active) {
+  background: var(--theme-fg) !important;
+  color: var(--theme-fg-inverse) !important;
+}
+
+/* about 手機 pill 列的 BFA label：inactive 走上方 class-group-label 反色 chip 通用規則（比照桌面，
+ * user 2026-07-13 四改；同日稍早的透明底 50% 字 curriculum 化退役）。
+ * active（JS 設 inline accent bg，[style*="background"] 偵測）= strict B/W——桌面 active 聯動的
+ * :has(+ .class-division-btn.active) 對不到手機 .mobile-division-btn，仍需這條。 */
+body.mode-color #mobile-division-nav .class-group-label[style*="background"] {
   background: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
 }

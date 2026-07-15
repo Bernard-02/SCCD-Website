@@ -29,6 +29,7 @@
 @import './components/cursor.css';
 @import './components/legal.css';
 @import './components/support.css';
+@import './components/mode-color-panel.css';
 
 /* Themes */
 @import './themes/inverse.css';

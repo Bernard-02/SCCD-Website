@@ -80,14 +80,21 @@
     background-color: var(--color-blue);
   }
   
-  /* Accordion Body Colors (Matching Label) */
-  .colored-accordion .accordion-item:nth-child(3n+1) .accordion-text-wrap {
+  /* Accordion Body Colors (Matching Label)
+   * img-wrap 也上底色：圖區有 padding（桌面上下/手機左右）時露出的邊要是卡片 accent 色。
+   * item 母層同色當 backstop：卡片整張旋轉時，label/img/text 三盒交界的 sub-pixel AA 縫
+   * 會露出後面的透明層（=頁面白底）→ 母層同色讓縫隱形（同 sticky ::before 疊 2px 的思路，
+   * 但這裡蓋不到縫、只能讓露出來的顏色＝卡色） */
+  .colored-accordion .accordion-item:nth-child(3n+1),
+  .colored-accordion .accordion-item:nth-child(3n+1) :is(.accordion-text-wrap, .accordion-img-wrap) {
     background-color: var(--color-pink);
   }
-  .colored-accordion .accordion-item:nth-child(3n+2) .accordion-text-wrap {
+  .colored-accordion .accordion-item:nth-child(3n+2),
+  .colored-accordion .accordion-item:nth-child(3n+2) :is(.accordion-text-wrap, .accordion-img-wrap) {
     background-color: var(--color-green);
   }
-  .colored-accordion .accordion-item:nth-child(3n) .accordion-text-wrap {
+  .colored-accordion .accordion-item:nth-child(3n),
+  .colored-accordion .accordion-item:nth-child(3n) :is(.accordion-text-wrap, .accordion-img-wrap) {
     background-color: var(--color-blue);
   }
 
@@ -154,6 +161,8 @@
     flex: 1;
     min-width: 0;
     overflow: hidden;
+    /* 桌面圖上下露卡片底色（user 2026-07-13）：值＝text-wrap 上下 padding（md）；手機/矮橫向各自蓋成左右版 */
+    padding: var(--spacing-md) 0;
   }
 
   .accordion-img-wrap img {
@@ -233,13 +242,20 @@
     }
     .colored-accordion .accordion-text-wrap {
       height: max(calc(100svh - 505px), 150px);
-      overflow-y: auto;
-      scrollbar-width: none;
       /* base 是 flex + justify-content:flex-end（桌面文字靠底）：配內捲會讓溢出往上長、
          開頭被裁掉且捲不回去 → 必須翻回 flex-start（同下方矮橫向 block 的既知坑）。 */
       justify-content: flex-start;
     }
-    .colored-accordion .accordion-text-wrap::-webkit-scrollbar {
+    /* 內捲改掛內層 [data-resources-text]（user 2026-07-13）：text-wrap 的 padding 固定不隨捲動、
+       文字在 padding 內側捲（同 vision/class/works pattern）。flex:1 + min-height:0 讓內層
+       吃滿 wrap 固定高並可縮出捲軸；wrap 本身內容不再溢出（base overflow-y:auto 留著無害、當無內層時的 fallback）。 */
+    .colored-accordion .accordion-text-wrap > [data-resources-text] {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+    .colored-accordion .accordion-text-wrap > [data-resources-text]::-webkit-scrollbar {
       display: none;
     }
 
@@ -291,6 +307,8 @@
       width: 100%;
       height: 220px;
       flex: none;
+      /* 手機圖左右露卡片底色（user 2026-07-13）：值＝text-wrap 左右 padding 8px */
+      padding: 0 8px;
     }
 
     .accordion-text-wrap {
@@ -361,6 +379,7 @@
       width: 100%;
       height: 120px; /* 160→120（user 2026-07-09 卡片一屏預算）：讓文字盒分到高度 */
       flex: none;
+      padding: 0 8px; /* 同手機直向：圖左右露卡片底色（text 左右 padding 8px） */
     }
     /* 文字盒一屏預算內捲（user 2026-07-09「整個文字框不要超過畫面高度」，原 45vh 卡底溢出 fold ~86px）：
        291 = 卡頂落點 96（landing −32 + section pt-3xl 96 + 容器 pt-lg 32）+ title 列 51 + 圖 120 + 底部呼吸 24。

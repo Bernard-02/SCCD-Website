@@ -230,14 +230,30 @@
        2000-2022）超過 4rem 時在欄內自然 wrap 往下排（手機 inner 是 display:inline + word-break:break-word、
        桌面才 nowrap），不會把欄撐寬害內容跑掉。column-gap 1.5rem（user 要年份→內容間距大一點）。 */
   @media (max-width: 767px) {
+    /* 左欄（年份/國家）sticky（user 2026-07-13）：grid cell 的 sticky containing block 只有
+       自己那一格（首欄格高＝第一列高、無捲程）→ 整 row 改 float 版（同 award row pattern），
+       首欄 containing block = 整個 row，長 row 捲過時左欄釘在 section title 下緣、逐 row 接力。
+       top = profile 高 + title 高（皆 JS 量測寫入 var，faculty-slide-in.js measureProfile）。 */
     .faculty-grid-row {
-      grid-template-columns: 4rem 1fr;
-      column-gap: 1.5rem;
-      row-gap: 0.25rem;
+      display: flow-root;
       padding-right: 0;
     }
-    .faculty-grid-row > span:first-child { grid-column: 1; }
-    .faculty-grid-row > span:not(:first-child) { grid-column: 2; }
+    .faculty-grid-row > span:first-child {
+      float: left;
+      clear: left;
+      width: 4rem;
+      position: sticky;
+      top: calc(var(--faculty-profile-h, 0px) + var(--faculty-title-h, 0px));
+      background: var(--faculty-panel-bg, transparent);
+      z-index: 1;
+    }
+    .faculty-grid-row:not(.faculty-grid-row-award) > span:not(:first-child) {
+      display: block;
+      margin-left: 5.5rem; /* 左欄 4rem + 原 column-gap 1.5rem */
+    }
+    .faculty-grid-row:not(.faculty-grid-row-award) > span:not(:first-child) + span {
+      margin-top: 0.25rem; /* 原 row-gap */
+    }
     /* 手機 row 間距比桌面大一點（窄 viewport 易讀），覆蓋 .faculty-rows 基準 gap:1rem → 2rem */
     .faculty-rows {
       gap: 2rem;
@@ -254,6 +270,14 @@
       float: left;
       clear: left;
       width: 4rem;
+      position: sticky;
+      background: var(--faculty-panel-bg, transparent);
+      z-index: 1;
+    }
+    /* country 釘在 pinned 年份下方：+1.75rem = 年份一行高 24 + 間距 4。
+       ponytail: 年份折兩行時 country 會疊到年份第二行，award 年份幾乎都是單年、遇到再改 JS 量 */
+    .faculty-grid-row-award > span:nth-child(2) {
+      top: calc(var(--faculty-profile-h, 0px) + var(--faculty-title-h, 0px) + 1.75rem);
     }
     .faculty-grid-row-award > span:nth-child(n+3) {
       display: block;
@@ -286,7 +310,7 @@
       z-index: 5;
       background: var(--faculty-panel-bg, transparent);
       flex-direction: row;
-      align-items: center;
+      align-items: flex-start;   /* 圖頂對齊名字頂（user 2026-07-13；原 center 圖偏中） */
       gap: 2rem;
       /* pt 2.5rem = 旋轉角預留 0.5rem（rotate(-4deg) 凸出 layout box 頂 ~5px，太小會被
          header 遮擋帶蓋到像被切）+ 2rem（user 2026-07-09：原下方 4rem 間距對半分、一半移到上方） */

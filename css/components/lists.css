@@ -249,15 +249,14 @@
   }
 
   /* 打開的 list-item title 手機也 sticky（桌面版已有，見下方 @media min-width:768px）。
-     手機 filter bar / section nav 是 md:sticky（手機不黏）→ 捲動時只剩固定 site-header 在頂，
-     故 sticky top = 手機 header 高度（~88px）。user 2026-06-10 */
+     activities 手機直向（2026-07-13 起）nav strip + filter bar 也 sticky（見下方 portrait 區塊）→
+     釘點 = filter bar 正下方，由 activities-data-loader updateStickyTop 設 --list-header-sticky-top。
+     fallback 8rem = 原「只剩固定 site-header 在頂」的釘點（admission 手機 / 矮橫向 / var 未設頁沿用）：
+     手機 logo SVG 底邊 ~110px，6rem(96px) 只清 header box 不清 logo → 8rem 清掉 logo（user 2026-06-10）。
+     ⚠️ fallback 值必須與 list-accordion.js getListStickyTop 手機 fallback 同步 */
   .list-header.active {
     position: sticky;
-    /* 8rem(128px) 釘點：手機 logo SVG 底邊 ~110px（playwright 量，比 header box 92px 還低 ~18px），
-       6rem(96px) 只清 header box 不清 logo → 釘住的 title 上緣被 logo 蓋（user 2026-06-10）。
-       8rem 清掉 logo 留 ~18px 縫，且 128px == pt-6xl 手機 padding。
-       ⚠️ 此值必須與 .list-header.active.is-pinned::before lid 的 height 及 list-accordion.js getListStickyTop 手機值同步 */
-    top: 8rem;
+    top: var(--list-header-sticky-top, 8rem);
     z-index: 5;
   }
   /* #3 手機 sticky title 上方露內容 — 全寬「var(--theme-bg) header blocker」（user 2026-06-24 拍板回到此原始解）。
@@ -651,6 +650,83 @@
   }
 }
 
+/* ===== activities 手機直向：nav strip + sub-tab/filter bar 全程 sticky（user 2026-07-13）=====
+ * 仿 about .mobile-anchor-strip-wrap pattern：nav strip 釘 88（chips 頂 = 88 + bar 旋轉 buffer 16 = 104，
+ * 對齊四頁 nav btn 頂標準）、nav col theme-bg + ::before 向上補 0~88 logo 帶底色（.inner-scroll-nav-col
+ * 與其 ::before 已在 typography.css mode-switch whitelist）。filter bar 釘在 nav 正下方
+ * （--act-filter-top 由 activities-section-switch.js initMobileStickyBars 量 nav 實高設定、−1px 疊縫），
+ * 開啟的 list title 釘在 filter bar 正下方（--list-header-sticky-top 走 updateStickyTop sticky-bar 分支）。
+ * 矮橫向不套（nav 進 header fixed + blocker 常駐，landscape.css 5f）。 */
+@media (max-width: 767px) and (orientation: portrait) {
+  #activities-content-section .activities-nav-col {
+    position: sticky;
+    top: 88px;
+    z-index: 40;
+    /* 內容捲過 nav 底下要被遮：bar 雖負 margin 全出血，但捲動內容都在 container padding 內、
+       兩側 24px 帶只有頁面底色 → nav col content-box 寬的 theme-bg 就足夠無縫 */
+    background: var(--theme-bg);
+  }
+  /* 0~88 logo 帶遮擋（同 about .mobile-anchor-strip-wrap::before）：釘住後上方透明帶會露出捲過的內容。
+     高 90 = 88 + 2px 疊進 nav col 頂（bar 有 16px 旋轉 buffer、無害）消 sub-pixel 接縫。
+     未釘住（自然位置在 section pt-4xl(80) 內）時只凸出 section 頂 8+2px 蓋到 hero 尾端，視覺無感。 */
+  #activities-content-section .activities-nav-col::before {
+    content: '';
+    position: absolute;
+    top: -88px;
+    left: 0;
+    right: 0;
+    height: 90px;
+    background: var(--theme-bg);
+  }
+  #activities-content-section .activities-filter-bar {
+    position: sticky;
+    /* fallback 198 = 88 + nav 實高 111（pb 收 12 後）− 1（375 寬實測）；JS 量實高蓋過 */
+    top: var(--act-filter-top, 198px);
+    /* z 41 > nav col 40（user 07-13 二修「間距再減半」）：active 子 tab chip 旋轉頂角外溢 ~8-10px
+       伸進上方 nav 帶時直接「畫在 nav 底色之上」＝不用 padding-top 留 clearance、不被裁。
+       視覺間距＝nav bar pb 12（36→24→12，達成減半）。bar 永不高過釘點（198）→ 不會蓋到
+       nav ::before 的 0~88 logo 帶。捲動內容 z-auto 仍在 bar 之下。 */
+    z-index: 41;
+  }
+  /* 間距整段收進 nav bar pb（不用 frame gap：sticky 釘住時 flow gap 會塌掉、兩態不一致）。
+     20 = 視覺間距（active chip 旋轉 bbox 各吃 ~4-5px → 旋轉邊到邊 ~11-15，原 36+slack 的一半）；
+     兼旋轉 clip 緩衝（nav chip 底角外溢 ~9.4px < 20，不被 bar overflow-y:clip 裁）。 */
+  #activities-content-section .activities-section-bar {
+    padding-bottom: 20px;
+  }
+  /* nav btn 是 inline-block 基線排版：色塊（.anchor-nav-inner）下方被 line-box leading 多墊 ~21px、
+     視覺間距虛胖（實測 btn 83 vs 色塊 64）→ flex 收攏讓色塊貼齊按鈕框。觸控高 64 仍 > 44 標準。
+     只直向（桌面直欄 nav 不受間距問題影響、不動）。 */
+  #activities-content-section .activities-section-bar .activities-section-btn {
+    display: flex;
+  }
+  /* 開著往下滑時 filter bar 收合（search 開合 transition + ResizeObserver 更新釘點）有短暫落差，
+     title 釘點與 bar 底之間閃出縫隙露出後方內容（user 07-13）→ 釘住的 title 自帶 ::before 向上
+     120px theme-bg 補口（同 curriculum row-label ::before 補破口 pattern；120 > search 收合差 ~100）。
+     貼齊時藏在 bar（z-10 > title z-5）後面不可見、有縫時剛好補住。只在 is-pinned：自然位置時
+     title 上方是其他 list 內容、不能蓋。.list-header 手機已 position:relative/sticky（可錨 absolute）。 */
+  #activities-content-section .list-header.active.is-pinned::before {
+    content: '';
+    position: absolute;
+    top: -120px;
+    left: 0;
+    right: 0;
+    height: 120px;
+    background: var(--theme-bg);
+  }
+  /* nav + filter bar sticky 疊層已接手「pin 線以上」的遮蓋：blocker（0~8rem、z-40）反而會蓋掉
+     釘在 88 的 nav strip 上半 → 直向停用（ID specificity 蓋過 .list-has-pinned-header 開關；
+     矮橫向仍靠 blocker，不在此 query 內）。 */
+  #activities-content-section .list-mobile-header-blocker {
+    display: none;
+  }
+  /* nav→sub-tab 間距減半（user 2026-07-13）：flex-col gap 20 歸 0，視覺間距剩 bar 旋轉 buffer 16px
+     （原 20 + 16 = 36）。只影響直向手機（桌面 grid gap 在 md: 不受影響）。 */
+  #activities-content-section .inner-scroll-frame-grid {
+    gap: 0;
+  }
+}
+
 /* ===== Activities Type Filter Row - clip-reveal rotation clearance =====
  * #exhibitions-type-filter / #visits-type-filter 掛 .list-reveal-row → scroll-animate.js setupClipReveal
  * 動態包一層 overflow:clip wrapper。active btn 的 .anchor-nav-inner 由 activities-section-switch.js JS 設
@@ -924,12 +1000,19 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
     line-height: 1;
     margin-bottom: var(--spacing-sm);
   }
-  .tl-m-card .tl-m-desc + .tl-m-desc {
+  .tl-m-card .tl-m-desc + .tl-m-desc,
+  .tl-m-card .tl-m-desc-group + .tl-m-desc-group {
     margin-top: var(--spacing-sm);
   }
-  /* BFA/MDES 子標題（descriptions 內的 <h5>）手機跟所在視圖內文同字級（user 2026-06-12）：
-     主視圖與 list view 內文都 = p2（list view 原 p1，user 2026-07-04 縮成 p2） */
-  .tl-m-card .tl-m-desc h5 {
+  /* 敘述文字 regular（user 2026-07-13）；h5 小標與年份不在 .tl-m-desc 內、維持 cardBody 的
+     font-bold；JSON 內 <strong> 強調照常變粗 */
+  .tl-m-card .tl-m-desc {
+    font-weight: var(--font-weight-regular);
+  }
+  /* BFA/MDES 子標題手機跟所在視圖內文同字級（user 2026-06-12）：
+     主視圖與 list view 內文都 = p2（list view 原 p1，user 2026-07-04 縮成 p2）。
+     h5 已 hoist 為 .tl-m-desc-group 直接子層（timeline.js renderYear section 分組，2026-07-13） */
+  .tl-m-card .tl-m-desc-group > h5 {
     font-size: var(--font-size-p2);
   }
   .tl-list-block > h5 {
@@ -1023,7 +1106,8 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
 }
 
 /* ===== Timeline 直式手機 2026-07-09 改版（只直式；矮橫向由 landscape.css 5i++ display:contents 拆回 grid）：
- * ① 整塊 min-height 撐到畫面底 → 點 History 對齊時 footer 擠出一屏外（186 = #history 落點，
+ * ① 整塊 min-height 撐到畫面底 → 點 History 對齊時 footer 擠出一屏外（178 = #history 落點，
+ *    2026-07-13 隨 anchor strip 釘點 96→88 從 186 同步；見 scroll-snap.css 配對註解。
  *    加 section pb-2xl 再多 64 buffer）；② 圖放大 190→230、容器 272→320，錨點回置中
  *    （共用 block 的 40% 是「探進封鎖線」舊設計，圖放大後會鑽到 sticky nav bar 底下被切）；
  * ③ 文字區：era chip（EN/ZH 兩行）在年份卡上方、卡吃滿容器寬（renderYear 的 Range 量寬已 gate
@@ -1039,7 +1123,7 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
   /* 硬高（非 min-height）＝結構保證：不管卡片多長，section 底永遠貼畫面底、btn 永不被推下、
      下捲即 footer。卡片上限不再用預算常數，改 flex 收縮吃「實際剩餘空間」（見 .tl-m-card）。 */
   #timeline-mobile {
-    height: calc(100svh - 186px);
+    height: calc(100svh - 178px);
     padding-top: var(--spacing-md);
     padding-bottom: var(--spacing-lg);
   }
@@ -1057,7 +1141,8 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    gap: var(--spacing-sm);
+    /* era chip ↔ 年份卡間距比照 BFA label ↔ btn 的 gap-xs（user 2026-07-13；原 sm） */
+    gap: var(--spacing-xs);
     /* 可被壓縮（min-height:0 解除 flex 內容下限），配 wrap 硬高＝卡片上限自動等於剩餘空間 */
     min-height: 0;
     /* 卡片撐到上限時與 controls 的最小間距：flex gap 8 會被卡片 ±2° 旋轉下角吃掉 ~6px 視覺貼死
@@ -1069,6 +1154,9 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
   .tl-m-era {
     align-self: flex-start;
     max-width: 100%;
+    /* era chip 疊在年份卡之上（user 2026-07-13）：兩者都有 rotate（各自成 stacking context），
+       DOM 序卡在後預設蓋 chip → flex item z-index 抬 chip */
+    z-index: 1;
   }
   .tl-m-card {
     width: 100%;
@@ -1084,6 +1172,71 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
     /* 上下補到與左右同值（共用 block 是 0.4em 0.7em、文字貼頂——那是 era chip 的緊湊比例，
        大盒不適用） */
     padding: 0.7em;
+    /* 內捲改掛內層 .tl-m-card-body（user 2026-07-13）：卡的 padding 固定不隨捲動、
+       文字在 padding 內側捲（同 vision/class/works/resources pattern）。 */
+    display: flex;
+    flex-direction: column;
+  }
+  /* 卡內兩欄（user 2026-07-13）：年份左欄、說明文字（.tl-m-descs wrapper）右欄。
+     單 row grid：年份 grid area = 整列高（= descs 高）→ align-items:start 讓年份縮回內容高、
+     sticky 才有活動範圍；捲動時年份與 descs 內的 h5 小標（BFA 學士班等）都釘在內捲層頂。 */
+  .tl-m-card .tl-m-card-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: none;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: var(--spacing-sm);
+    align-items: start;
+  }
+  .tl-m-card .tl-m-card-body::-webkit-scrollbar {
+    display: none;
+  }
+  .tl-m-card .tl-m-year {
+    position: sticky;
+    top: 0;
+    margin-bottom: 0;
+    /* 對齊右欄第一行（user 2026-07-13）：共用 block 的 line-height:1 沒有右欄 leading-base(1.5)
+       的半行距 → 年份字比右欄高 ~3.5px；同 line-height 讓首行頂/基線一致 */
+    line-height: var(--line-height-base);
+  }
+  .tl-m-descs {
+    min-width: 0;
+  }
+  /* h5 小標 sticky 蓋過捲過的內文要有實底：background:inherit 鏈（card inline 色 → body → descs
+     → desc → h5），mode-color 的 !important 蓋色也會被 computed 值一路繼承、免另寫 mode 規則 */
+  .tl-m-card .tl-m-card-body,
+  .tl-m-descs,
+  .tl-m-desc-group,
+  .tl-m-desc {
+    background: inherit;
+  }
+  /* h5 sticky scope = .tl-m-desc-group（h5 是 group 直接子層，timeline.js section 分組）：
+     釘到下一個 h5 group 接棒或整卡捲完；原 scope=單一 .tl-m-desc 會在自己段落結尾被推走半截、
+     後面接無標題段落時凍在半路（user 2026-07-13 二改，1997 案例） */
+  .tl-m-card .tl-m-desc-group > h5 {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: inherit;
+    /* title→內文間距減半（user 2026-07-13）：JSON 內 h5 帶 mb-sm(16) → 歸零（unlayered 蓋
+       layered utility）改 padding-bottom 8——padding 帶實底，捲入的內容在 title 下 8px 就被遮住，
+       不會貼到 title 字 */
+    margin-bottom: 0;
+    padding-bottom: var(--spacing-xs);
+  }
+  /* 消釘住遮擋邊緣的 sub-pixel 縫（user 2026-07-13；同 sticky ::before 疊 1~2px 慣例）：
+     h5 釘在 scrollport 頂時，rounding 會在 h5 上緣與裁切邊之間露出 ~1px 捲過的內文
+     → ::before 向上多鋪 2px 底色、疊 1px 進本體。background:inherit 取 h5 自己的實底。 */
+  .tl-m-card .tl-m-desc-group > h5::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: inherit;
   }
   /* 釘 wrap 底（pad-bottom 32 之上）：卡片變矮時剩餘空間跑到卡與 btn 之間，btn 不動；
      wrap 硬高貼滿一屏 → btn 下方恆 32、往下一捲直接是 footer。 */
@@ -1091,42 +1244,68 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
     margin-top: auto;
   }
 
-  /* list view 直式改版（user 2026-07-09 二修）：cell 改 flex 排——era chip 左（文字自然寬、
-     EN/ZH 兩行）、內容矩形貼著 chip 吃剩餘寬（gap xs）；next-era 鈕移出矩形、下移到與左下
-     toggle 同列；內距對齊主視圖卡片 0.7em；捲軸藏（矮橫向 5c+ 已全域藏、桌面保留）。 */
+  /* list view 直式三修（user 2026-07-13）：era chip 上、內容矩形下直排（07-09 的左右 flex 退役），
+     era 英中回同一行（比照主視圖 era chip）；年份改回左欄與文字左右排＋sticky
+     （同主視圖 .tl-m-year pattern，見上方 .tl-m-card-body 註解）；next-era 鈕位置不變。 */
   .tl-list-grid {
     /* 矩形底讓出 controls 列（btn 48 + pad 32）+ 24 gap；next 鈕再用負 bottom 落回 controls 列 */
     bottom: 104px;
   }
   .tl-list-cell {
     display: flex;
+    flex-direction: column;
     align-items: stretch;
     gap: var(--spacing-xs);
   }
   .tl-list-chip {
     position: static;     /* 中和 base absolute（top:-28 疊矩形時代）；入 flex flow */
-    order: -1;            /* DOM 序是 rect 在前，chip 拉到左邊 */
+    order: -1;            /* DOM 序是 rect 在前，chip 拉到上面 */
     flex: none;
     align-self: flex-start;
-    max-width: 45%;       /* 保險上限，超長 era 才折行 */
+    max-width: 100%;
+    /* chip 疊在矩形之上（同主視圖 .tl-m-era：兩者各自 rotate 成 stacking context，DOM 序矩形在後） */
+    z-index: 1;
   }
-  .tl-list-era-en,
-  .tl-list-era-zh {
-    display: block;
-  }
+  /* 矩形貼內容高（user 2026-07-13 四修：可用空間只當上限，短文 era 不再 flex:1 拉滿整格留大片空底）：
+     content 由 base 的 absolute inset 改回 in-flow 撐高 → rect flex-basis=內容高；
+     文字太長時 cell 固定高（height:100%）逼 rect flex-shrink、content min-height:0 盒內捲。 */
   .tl-list-rect {
-    position: relative;   /* 保持 positioned：.tl-list-content 是 absolute inset */
+    position: relative;
     inset: auto;          /* 中和 base 的 top/bottom/left/right 偏移 */
-    flex: 1;
+    flex: 0 1 auto;
+    min-height: 0;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    /* padding 掛外框、捲動在內層（同 vision/works/主視圖卡 pattern）：上下 padding 恆定不隨捲動消失 */
+    padding: 0.7em;
+  }
+  /* 年份左欄 + 說明右欄；年份 sticky 釘內捲層頂（containing block = 該 row 的 grid area、
+     align-items:start 讓年份縮回內容高才有活動範圍）；line-height 對齊右欄首行（同 .tl-m-year） */
+  .tl-list-year-row {
+    grid-template-columns: auto 1fr;
+    column-gap: var(--spacing-sm);
+    align-items: start;
+  }
+  .tl-list-year-row .tl-list-year {
+    position: sticky;
+    top: 0;
+    line-height: var(--line-height-base);
+  }
+  /* h5 小標（BFA 學士班等）首行與左欄年份對齊：base 的 line-height:1 少了年份 leading-base(1.5)
+     的半行距 → 同 line-height 首行頂才一致（同 .tl-m-year 對齊修法、方向相反） */
+  .tl-list-block > h5 {
+    line-height: var(--line-height-base);
   }
   .tl-list-next-btn {
     right: 0;
     bottom: -72px;       /* grid 底 = 畫面底−104 → 鈕底 = 畫面底−32，與 toggle 同列同緣 */
   }
   .tl-list-content {
-    inset: 0.7em;         /* 內距跟主視圖 .tl-m-card 的 0.7em 一致（原 md/24 偏肥） */
-    padding-right: 0;
+    position: static;     /* 回 in-flow：rect 才量得到內容高（base absolute inset 撐不起 rect） */
+    inset: auto;
+    min-height: 0;        /* rect 被 cell 固定高壓縮時跟著縮、盒內捲 */
+    padding: 0;           /* 內距改由 rect 的 0.7em 提供（跟主視圖 .tl-m-card 一致） */
     scrollbar-width: none;
   }
   .tl-list-content::-webkit-scrollbar {
@@ -1179,6 +1358,13 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
   display: none !important;
   height: 0 !important;
   width: 0 !important;
+}
+
+/* item-albums 捲到底時 scrollbar thumb 不貼 box 底：track margin-bottom 讓軌道底部內縮，
+ * 對齊內容的 pb-sm（padding-bottom 只推內容、推不動 webkit scrollbar 軌道，故另設 track margin；webkit only）。
+ * 頂部 sticky title 貼頂（無 padding-top，避免露出捲動內容），故 scrollbar 頂也不內縮。 */
+.item-albums.list-scroll::-webkit-scrollbar-track {
+  margin-bottom: var(--spacing-sm);
 }
 
 /* Firefox 專屬 fallback — 用 @supports + -moz- 隔離，避免 Chromium 121+/Safari 18+
@@ -1261,6 +1447,11 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
   /* (1) 主標統一 p1（桌面維持 h5）。只動 .list-title-marquee 內的 .text-h5(=主標)，
      date/location/ref（text-p2）不受影響 */
   .list-title-marquee p.text-h5 {
+    font-size: var(--font-size-p1);
+  }
+  /* search input 手機跟 list 主標同級（h5 19.2 → p1 16，user 2026-07-13）。
+     多層 selector 提特異度：input 帶 .text-h5 utility、同特異度會輸 source order（同 (1) 的做法） */
+  .activities-search-inner .activities-search-input {
     font-size: var(--font-size-p1);
   }
   /* (2) 收合(預設)不 marquee＝靜止截斷；點開(.list-header.active)才捲。
