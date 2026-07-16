@@ -409,7 +409,8 @@ export function triggerGenerateLogo() {
   const cursor = document.createElement('div');
   cursor.dataset.genCursor = '1';
   cursor.dataset.genCursorRole = 'indicator';
-  cursor.style.cssText = `position:absolute;top:8px;left:${currentLogoSize}px;width:1px;height:${currentLogoSize + 16}px;background:${fillColor};z-index:10;visibility:hidden;`;
+  // 貼齊 logo box（top:0 / height=logo）：舊值 top:8+height+16 底部凸出 24px，小 logo 時比 logo 明顯長
+  cursor.style.cssText = `position:absolute;top:0;left:${currentLogoSize}px;width:1px;height:${currentLogoSize}px;background:${fillColor};z-index:10;visibility:hidden;`;
   logoContainer.appendChild(cursor);
 
   // blink interval ref 上提到 module-scope（genBlinkInterval），讓 killGenerateLogoTimeline
