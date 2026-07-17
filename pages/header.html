@@ -159,3 +159,9 @@
     </div>
   </div>
 </header>
+
+<!-- 全站手機 header 底色帶：header 三 mode 皆透明，手機時 logo/漢堡/mode 鈕後方會透出頁面內容。
+     此 fixed 帶用 mode-aware var(--theme-bg) 補實頂部 92px。sibling of <header>（#site-header 是 static → root
+     stacking context，z-40 在 header 內容之下、slide-in/overlay 之下）；捲到 footer 由 header.js 收起。
+     規則在 navigation.css .mobile-header-bg；桌面 data-bar 自帶底色 → md:hidden。app 頁(generate/atlas/library) CSS gate 掉。 -->
+<div class="mobile-header-bg md:hidden" aria-hidden="true"></div>

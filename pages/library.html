@@ -56,7 +56,7 @@
           <div id="lib-panel-awards" style="display: flex; flex-direction: column; width: 100%; height: 100%; position: relative; overflow: visible;">
 
             <!-- 標題（貼在 panel 左上角） -->
-            <h2 class="lib-panel-title" style="margin: 0; position: absolute; top: 0; left: calc(-1 * var(--spacing-xl)); font-size: var(--font-size-h5); font-weight: 700; display: inline-block; padding: 6px 8px 5px; z-index: 1;">Awards 榮譽</h2>
+            <h2 class="lib-panel-title" style="margin: 0; position: absolute; top: 0; left: calc(-1 * var(--spacing-xl)); font-size: var(--font-size-h5); font-weight: 700; display: inline-block; padding: 6px 8px 5px; z-index: 1; clip-path: inset(0 0 100% 0);">Awards 榮譽</h2>
 
             <!-- 內容區（flex: 1，不含 ticker） -->
             <!-- padding-top = md 對齊其他三個 panel（press/files/album 都是 var(--spacing-md)）；原本 md/2 害 award 灰卡內容比其他高 12px（user 2026-06-15） -->
@@ -107,7 +107,7 @@
           <div id="lib-panel-press" style="display: none; flex-direction: column; width: 100%; height: 100%; position: relative; overflow: visible;">
 
             <!-- 標題（貼在 panel 頂邊） -->
-            <h2 class="lib-panel-title" style="margin: 0; position: absolute; top: 0; left: calc(-1 * var(--spacing-xl)); font-size: var(--font-size-h5); font-weight: 700; display: inline-block; padding: 6px 8px 5px; z-index: 1;">Press 報導</h2>
+            <h2 class="lib-panel-title" style="margin: 0; position: absolute; top: 0; left: calc(-1 * var(--spacing-xl)); font-size: var(--font-size-h5); font-weight: 700; display: inline-block; padding: 6px 8px 5px; z-index: 1; clip-path: inset(0 0 100% 0);">Press 報導</h2>
 
             <!-- 內容區：2 rows — 分類篩選/search、picker/list -->
             <div style="flex: 1; min-height: 0; display: grid; grid-template-columns: max-content 1fr; grid-template-rows: auto 1fr; gap: 0 var(--spacing-2xl); padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm) var(--spacing-md);">
@@ -148,7 +148,8 @@
           <div id="lib-panel-files" style="display: none; flex-direction: column; width: 100%; height: 100%; position: relative; overflow: visible;">
 
             <!-- 標題（貼在 panel 頂邊） -->
-            <h2 class="lib-panel-title" style="margin: 0; position: absolute; top: 0; left: calc(-1 * var(--spacing-2xl)); font-size: var(--font-size-h5); font-weight: 700; display: inline-block; padding: 6px 8px 5px; z-index: 1;">Documents 文件</h2>
+            <!-- left -2xl-sm＝-80（其他 panel 是 -xl/-2xl）：Documents 標籤最長，多往左 16px 才不遮到右側 search icon（user 2026-07-16 定 16、-3xl 的 32 太多） -->
+            <h2 class="lib-panel-title" style="margin: 0; position: absolute; top: 0; left: calc(-1 * var(--spacing-2xl) - var(--spacing-sm)); font-size: var(--font-size-h5); font-weight: 700; display: inline-block; padding: 6px 8px 5px; z-index: 1; clip-path: inset(0 0 100% 0);">Documents 文件</h2>
 
             <div style="flex: 1; min-height: 0; display: grid; grid-template-columns: max-content 1fr; grid-template-rows: auto 1fr; gap: 0 var(--spacing-2xl); padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm) var(--spacing-md);">
 
@@ -188,7 +189,7 @@
           <div id="lib-panel-album" style="display: none; flex-direction: column; width: 100%; height: 100%; position: relative; overflow: visible;">
 
             <!-- 標題（貼在 panel 頂邊） -->
-            <h2 class="lib-panel-title" style="margin: 0; position: absolute; top: 0; left: calc(-1 * var(--spacing-xl)); font-size: var(--font-size-h5); font-weight: 700; display: inline-block; padding: 6px 8px 5px; z-index: 1;">Albums 相簿</h2>
+            <h2 class="lib-panel-title" style="margin: 0; position: absolute; top: 0; left: calc(-1 * var(--spacing-xl)); font-size: var(--font-size-h5); font-weight: 700; display: inline-block; padding: 6px 8px 5px; z-index: 1; clip-path: inset(0 0 100% 0);">Albums 相簿</h2>
 
             <div style="flex: 1; min-height: 0; display: grid; grid-template-columns: max-content 1fr; grid-template-rows: auto 1fr; gap: 0 var(--spacing-2xl); padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm) var(--spacing-md);">
 

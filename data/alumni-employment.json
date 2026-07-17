@@ -1,0 +1,477 @@
+[
+  {
+    "textEn": "Apple",
+    "textZh": "蘋果",
+    "country": "us"
+  },
+  {
+    "textEn": "Netflix",
+    "textZh": "網飛",
+    "country": "us"
+  },
+  {
+    "textEn": "Converse",
+    "textZh": "匡威",
+    "country": "us"
+  },
+  {
+    "textEn": "Disney Tokyo",
+    "textZh": "",
+    "country": "jp"
+  },
+  {
+    "textEn": "CAPCOM",
+    "textZh": "卡普空",
+    "country": "jp"
+  },
+  {
+    "textEn": "Tencent",
+    "textZh": "騰訊",
+    "country": "cn"
+  },
+  {
+    "textEn": "Mercedes-Benz",
+    "textZh": "梅賽德斯 - 賓士",
+    "country": "de"
+  },
+  {
+    "textEn": "Garena",
+    "textZh": "競舞娛樂",
+    "country": "sg"
+  },
+  {
+    "textEn": "PIXAR Studios",
+    "textZh": "皮克斯工作室",
+    "country": "us"
+  },
+  {
+    "textEn": "Blizzard Entertainment",
+    "textZh": "暴雪娛樂",
+    "country": "us"
+  },
+  {
+    "textEn": "SEA LIFE Orlando Aquarium",
+    "textZh": "奧蘭多海洋生物水族館",
+    "country": "us"
+  },
+  {
+    "textEn": "teamLab",
+    "textZh": "",
+    "country": "jp"
+  },
+  {
+    "textEn": "Tokyo Butai Showmei",
+    "textZh": "東京舞台照明",
+    "country": "jp"
+  },
+  {
+    "textEn": "ByteDance",
+    "textZh": "字節跳動",
+    "country": "cn"
+  },
+  {
+    "textEn": "BMW",
+    "textZh": "寶馬",
+    "country": "de"
+  },
+  {
+    "textEn": "Marvel Studios",
+    "textZh": "漫威工作室",
+    "country": "us"
+  },
+  {
+    "textEn": "Vogue",
+    "textZh": "時尚",
+    "country": "us"
+  },
+  {
+    "textEn": "Nike",
+    "textZh": "耐吉",
+    "country": "us"
+  },
+  {
+    "textEn": "Lexus",
+    "textZh": "凌志",
+    "country": "jp"
+  },
+  {
+    "textEn": "Aiming",
+    "textZh": "艾鳴",
+    "country": "jp"
+  },
+  {
+    "textEn": "NIO",
+    "textZh": "蔚來",
+    "country": "cn"
+  },
+  {
+    "textEn": "Foodpanda",
+    "textZh": "富胖達",
+    "country": "de"
+  },
+  {
+    "textEn": "BlueSky Studios",
+    "textZh": "藍天工作室",
+    "country": "us"
+  },
+  {
+    "textEn": "Leo Burnett Worldwide",
+    "textZh": "李奧貝納廣告",
+    "country": "us"
+  },
+  {
+    "textEn": "New Balance",
+    "textZh": "紐巴倫",
+    "country": "us"
+  },
+  {
+    "textEn": "Sony Entertainment",
+    "textZh": "索尼娛樂",
+    "country": "jp"
+  },
+  {
+    "textEn": "OPPO",
+    "textZh": "歐珀",
+    "country": "cn"
+  },
+  {
+    "textEn": "Adidas",
+    "textZh": "愛迪達",
+    "country": "de"
+  },
+  {
+    "textEn": "Facebook (Meta)",
+    "textZh": "臉書（Meta）",
+    "country": "us"
+  },
+  {
+    "textEn": "Ogilvy",
+    "textZh": "奧美",
+    "country": "us"
+  },
+  {
+    "textEn": "New York Times",
+    "textZh": "紐約時報",
+    "country": "us"
+  },
+  {
+    "textEn": "Riot Games",
+    "textZh": "拳頭遊戲",
+    "country": "us"
+  },
+  {
+    "textEn": "The Wall Street Journal",
+    "textZh": "華爾街日報",
+    "country": "us"
+  },
+  {
+    "textEn": "AMI",
+    "textZh": "安邁科技",
+    "country": "us"
+  },
+  {
+    "textEn": "Škoda",
+    "textZh": "斯柯達",
+    "country": "cz"
+  },
+  {
+    "textEn": "Samsung",
+    "textZh": "三星",
+    "country": "kr"
+  },
+  {
+    "textEn": "Panerai",
+    "textZh": "沛納海",
+    "country": "it"
+  },
+  {
+    "textEn": "Hermès",
+    "textZh": "愛馬仕",
+    "country": "fr"
+  },
+  {
+    "textEn": "CNN",
+    "textZh": "有線電視新聞網",
+    "country": "us"
+  },
+  {
+    "textEn": "POW! Entertainment",
+    "textZh": "POW! 娛樂",
+    "country": "us"
+  },
+  {
+    "textEn": "Uber Eats",
+    "textZh": "優食",
+    "country": "us"
+  },
+  {
+    "textEn": "California Institute of the Arts (CalArts)",
+    "textZh": "加州藝術學院",
+    "country": "us"
+  },
+  {
+    "textEn": "TSMC",
+    "textZh": "台積電",
+    "country": "tw"
+  },
+  {
+    "textEn": "Delta",
+    "textZh": "台達",
+    "country": "tw"
+  },
+  {
+    "textEn": "TCI",
+    "textZh": "大江生醫",
+    "country": "tw"
+  },
+  {
+    "textEn": "HTC",
+    "textZh": "宏達",
+    "country": "tw"
+  },
+  {
+    "textEn": "ASUS",
+    "textZh": "華碩",
+    "country": "tw"
+  },
+  {
+    "textEn": "Quanta",
+    "textZh": "廣達",
+    "country": "tw"
+  },
+  {
+    "textEn": "Acer",
+    "textZh": "宏碁",
+    "country": "tw"
+  },
+  {
+    "textEn": "Solid Memory",
+    "textZh": "固態記憶",
+    "country": "tw"
+  },
+  {
+    "textEn": "IGS",
+    "textZh": "鈊象電子",
+    "country": "tw"
+  },
+  {
+    "textEn": "Gogoro",
+    "textZh": "睿能創意",
+    "country": "tw"
+  },
+  {
+    "textEn": "Institute for Information Industry",
+    "textZh": "資訊工業策進會",
+    "country": "tw"
+  },
+  {
+    "textEn": "Taiwan Thinktank",
+    "textZh": "台灣智庫",
+    "country": "tw"
+  },
+  {
+    "textEn": "Giant",
+    "textZh": "捷安特",
+    "country": "tw"
+  },
+  {
+    "textEn": "EVA Air",
+    "textZh": "長榮航空",
+    "country": "tw"
+  },
+  {
+    "textEn": "China Airlines",
+    "textZh": "中華航空",
+    "country": "tw"
+  },
+  {
+    "textEn": "Airlife Freight",
+    "textZh": "台茂通運",
+    "country": "tw"
+  },
+  {
+    "textEn": "Farglory",
+    "textZh": "遠雄",
+    "country": "tw"
+  },
+  {
+    "textEn": "Nan Shan Life Insurance",
+    "textZh": "南山人壽",
+    "country": "tw"
+  },
+  {
+    "textEn": "momo kids",
+    "textZh": "momo 親子台",
+    "country": "tw"
+  },
+  {
+    "textEn": "Rock Records",
+    "textZh": "滾石唱片",
+    "country": "tw"
+  },
+  {
+    "textEn": "KKCompany",
+    "textZh": "科科科技",
+    "country": "tw"
+  },
+  {
+    "textEn": "MY SCHEDULE",
+    "textZh": "我的檔期",
+    "country": "tw"
+  },
+  {
+    "textEn": "8ID Studio",
+    "textZh": "複數同位體",
+    "country": "tw"
+  },
+  {
+    "textEn": "Win TV Broadcasting",
+    "textZh": "優視傳播",
+    "country": "tw"
+  },
+  {
+    "textEn": "WIND MUSIC",
+    "textZh": "風潮音樂",
+    "country": "tw"
+  },
+  {
+    "textEn": "StreetVoice",
+    "textZh": "街聲",
+    "country": "tw"
+  },
+  {
+    "textEn": "GaragePlay",
+    "textZh": "車庫娛樂",
+    "country": "tw"
+  },
+  {
+    "textEn": "Videoland Television Network",
+    "textZh": "緯來電視網",
+    "country": "tw"
+  },
+  {
+    "textEn": "HIM",
+    "textZh": "華研國際音樂",
+    "country": "tw"
+  },
+  {
+    "textEn": "Bella",
+    "textZh": "儂儂",
+    "country": "tw"
+  },
+  {
+    "textEn": "B'in Live",
+    "textZh": "必應創造",
+    "country": "tw"
+  },
+  {
+    "textEn": "13 Tech Art",
+    "textZh": "十三行互動",
+    "country": "tw"
+  },
+  {
+    "textEn": "Axis 3D",
+    "textZh": "愛迪斯",
+    "country": "tw"
+  },
+  {
+    "textEn": "Okome Studio",
+    "textZh": "穀米",
+    "country": "tw"
+  },
+  {
+    "textEn": "Techart Group",
+    "textZh": "天工開物",
+    "country": "tw"
+  },
+  {
+    "textEn": "Peppercorns",
+    "textZh": "黑川互動媒體藝術",
+    "country": "tw"
+  },
+  {
+    "textEn": "ULTRACOMBOS",
+    "textZh": "叁式",
+    "country": "tw"
+  },
+  {
+    "textEn": "Xue Xue",
+    "textZh": "學學",
+    "country": "tw"
+  },
+  {
+    "textEn": "Chinese Gamer",
+    "textZh": "中華網龍",
+    "country": "tw"
+  },
+  {
+    "textEn": "Gamania",
+    "textZh": "游戲橘子",
+    "country": "tw"
+  },
+  {
+    "textEn": "MixCode Studio",
+    "textZh": "混合編碼工作室",
+    "country": "tw"
+  },
+  {
+    "textEn": "Xanthus Animation Studio",
+    "textZh": "冉色斯動畫",
+    "country": "tw"
+  },
+  {
+    "textEn": "SOFA Studio",
+    "textZh": "首映創意",
+    "country": "tw"
+  },
+  {
+    "textEn": "Engine Studios",
+    "textZh": "原金國際",
+    "country": "tw"
+  },
+  {
+    "textEn": "Grass Jelly",
+    "textZh": "仙草影像",
+    "country": "tw"
+  },
+  {
+    "textEn": "Moonshine Studio",
+    "textZh": "夢想動畫",
+    "country": "tw"
+  },
+  {
+    "textEn": "CGCG",
+    "textZh": "西基電腦動畫",
+    "country": "tw"
+  },
+  {
+    "textEn": "Group.G",
+    "textZh": "谷汩文化",
+    "country": "tw"
+  },
+  {
+    "textEn": "Nichi Studio",
+    "textZh": "二值社",
+    "country": "tw"
+  },
+  {
+    "textEn": "SENSATIONS PRINT",
+    "textZh": "感官文化印刷",
+    "country": "tw"
+  },
+  {
+    "textEn": "justfont",
+    "textZh": "就是字",
+    "country": "tw"
+  },
+  {
+    "textEn": "FabCafe",
+    "textZh": "",
+    "country": "tw"
+  },
+  {
+    "textEn": "Double-Grass",
+    "textZh": "草字頭",
+    "country": "tw"
+  }
+]
