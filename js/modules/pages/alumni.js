@@ -485,7 +485,7 @@ export async function initAlumni() {
   import('./library-viewer.js').then((m) => m.initPdfViewer());
   // 封鎖綫 reveal：每 section .section-title-strip 由 anchor-nav active 切換觸發 clip-reveal
   initSectionBannerReveal();
-  initAnchorNav();
+  initAnchorNav({ reveal: true });
 
   if (typeof ScrollTrigger !== 'undefined') {
     requestAnimationFrame(() => ScrollTrigger.refresh());

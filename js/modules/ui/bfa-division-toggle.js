@@ -287,6 +287,42 @@ export function initBFADivisionToggle() {
     });
   }
 
+  // ─── 手機 pill 置中 ────────────────────────────────────────
+  // active pill 捲到 strip 水平置中（user 2026-07-07，同 anchor strip / activities pattern）。
+  // 桌面 nav 在 md:hidden wrapper 內 clientWidth=0 → scrollWidth 條件不成立、自動 no-op。
+  // bfa pill 展開/收合 transition 進行中：setActive 的即時置中量到的是中途佈局（會先捲到錯位再被
+  // recenter 拉回＝左右抖），故 transition 未結束前 centerMobilePill no-op，交給 recenterAfterBfaToggle。
+  let bfaTogglePending = false;
+  function centerMobilePill(divisionId) {
+    if (bfaTogglePending) return;
+    const mNav = document.getElementById('mobile-division-nav');
+    const mBtn = mNav && mNav.querySelector(`.mobile-division-btn[data-division="${divisionId}"]`);
+    if (!mBtn || mNav.scrollWidth <= mNav.clientWidth) return;
+    const b = mBtn.getBoundingClientRect();
+    const s = mNav.getBoundingClientRect();
+    mNav.scrollTo({ left: mNav.scrollLeft + (b.left + b.width / 2) - (s.left + s.width / 2), behavior: 'smooth' });
+  }
+
+  // works context 切換時 Design Fundamental pill 會 max-width 0.5s 展開/收合（variables.css），
+  // 佈局橫向位移把 active pill 推離置中——setActive 的即時置中量到的是 transition 中途的舊佈局
+  // （bfa-active 時偏 ~pill 寬、非 bfa-active 時根本沒重置）。等 transition 結束後依最終佈局重新置中。
+  function recenterAfterBfaToggle() {
+    const bfaPill = document.querySelector('#mobile-division-nav .mobile-division-btn--bfa');
+    if (!bfaPill) return;
+    bfaTogglePending = true; // 期間壓住 setActive 的即時置中，避免抖動
+    let fallback;
+    const done = (e) => {
+      if (e && e.propertyName !== 'max-width') return; // 同 transition 有多個 property，只認 max-width
+      bfaPill.removeEventListener('transitionend', done);
+      clearTimeout(fallback);
+      bfaTogglePending = false;
+      const active = document.querySelector('.mobile-division-btn.active');
+      if (active) centerMobilePill(active.getAttribute('data-division'));
+    };
+    bfaPill.addEventListener('transitionend', done);
+    fallback = setTimeout(done, 600); // transition 被打斷/無實際變化時的保底
+  }
+
   // ─── Set active btn ────────────────────────────────────────
 
   function setActive(divisionId, color, rot) {
@@ -329,17 +365,8 @@ export function initBFADivisionToggle() {
       }
     });
 
-    // 手機 pill：active 時捲到 strip 置中（user 2026-07-07，同 anchor strip / activities pattern）。
-    // 放 setActive 單一入口＝點擊與程式切換（works-context 自動切 bfa 等）都涵蓋；
-    // 桌面 nav 在 md:hidden wrapper 內 clientWidth=0 → scrollWidth 條件不成立、自動 no-op。
-    const mNav = document.getElementById('mobile-division-nav');
-    const mBtn = mNav && mNav.querySelector(`.mobile-division-btn[data-division="${divisionId}"]`);
-    if (mBtn && mNav.scrollWidth > mNav.clientWidth) {
-      const b = mBtn.getBoundingClientRect();
-      const s = mNav.getBoundingClientRect();
-      const delta = (b.left + b.width / 2) - (s.left + s.width / 2);
-      mNav.scrollTo({ left: mNav.scrollLeft + delta, behavior: 'smooth' });
-    }
+    // 手機 pill：active 時捲到 strip 置中（點擊與程式切換 works-context 自動切 bfa 等 皆涵蓋）。
+    centerMobilePill(divisionId);
   }
 
   // ─── Desktop: hover events ─────────────────────────────────
@@ -434,6 +461,7 @@ export function initBFADivisionToggle() {
         onEnter: () => {
           window.SCCD_classContext = 'works';
           mobileNav.classList.add('is-works-context');
+          recenterAfterBfaToggle(); // bfa pill 展開後依最終佈局重新置中 active
           // 矮橫向 <768：顯示的是桌面左欄 tabs（landscape.css 5i+ 強制顯示），BFA wrap 展開
           // 靠同名 class 掛在桌面容器上（≥768 由 class-buttons-sticky.js 掛；portrait 下容器 hidden、無副作用）
           document.getElementById('class-buttons-sticky')?.classList.add('is-works-context');
@@ -448,6 +476,7 @@ export function initBFADivisionToggle() {
           window.SCCD_classContext = 'info';
           mobileNav.classList.remove('is-works-context');
           document.getElementById('class-buttons-sticky')?.classList.remove('is-works-context');
+          recenterAfterBfaToggle(); // 先設 pending 壓住即時置中，收合後依最終佈局重新置中（bfa/非 bfa active 皆修）
           const active = document.querySelector('.mobile-division-btn.active');
           if (active?.getAttribute('data-division') === 'bfa') {
             setActive('animation', randomColor(getCurrentStripColor()), randomRotation());

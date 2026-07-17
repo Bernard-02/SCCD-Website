@@ -291,8 +291,14 @@ export function initShareModal() {
   document.addEventListener('click', (e) => {
     const btn = /** @type {HTMLElement} */ (e.target).closest('[data-share-btn]');
     if (!btn) return;
-    // data-share-bg（library viewer 帶 title 渲染色）→ 卡片同色；沒帶走 mode 隨機規則
-    openShareLightbox(computeShareUrl(btn), btn.dataset.shareBg);
+    // 卡片底色優先序：① data-share-bg（library viewer / album 帶 title 渲染色）
+    // ② list-item 當前 hover/open 色（存在 .list-header.dataset.accentHex）→ 卡片跟 list 同色
+    // ③ 都沒有走 openShareLightbox 內 mode 隨機規則。mode-color 下 list 視覺是 strict B/W（非 accentHex），
+    //    不讀 accentHex，交回既有白卡邏輯。
+    const listBg = document.body.classList.contains('mode-color')
+      ? undefined
+      : /** @type {HTMLElement | null} */ (btn.closest('.list-header'))?.dataset.accentHex;
+    openShareLightbox(computeShareUrl(btn), btn.dataset.shareBg || listBg);
   });
 
   // Hover prefetch — 桌面 user hover 過後 QR 已在 HTTP cache，點擊瞬間 onload 即觸發

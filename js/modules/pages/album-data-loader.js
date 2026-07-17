@@ -4,9 +4,10 @@
  */
 
 import { openLightbox } from '../lightbox/activities-lightbox.js';
-import { videoMediaFromUrl, hydrateHlsThumbs } from '../ui/video-player.js';
+import { videoMediaFromUrl, hydrateHlsThumbs, isSelfHostedVideo } from '../ui/video-player.js';
 import { sitePath } from '../ui/site-base.js';
 import { loadSummerCamp } from './summer-camp-source.js';
+import { loadActivityCollection } from './activities-source.js';
 import {
   CARD_COLORS, CATEGORY_LABELS,
   renderYearGroups, updateYearBorders, applySortOrder,
@@ -82,7 +83,8 @@ async function aggregateAlbumData() {
     { load: loadSummerCamp,                 albumCategory: 'summer-camp',      isDegreeShow: false },
     { url: '/data/students-present.json',   albumCategory: 'students-present', isDegreeShow: false },
     { url: '/data/general-activities.json', albumCategory: 'moment',           isDegreeShow: false },
-    { url: '/data/lectures.json',           albumCategory: 'lectures',         isDegreeShow: false },
+    // lectures 已接 Directus（activities_lectures）→ album 同步吃線上資料，CMS 掛掉時 loadActivityCollection 自帶本地 fallback。
+    { load: () => loadActivityCollection('activities_lectures', '/data/lectures.json'), albumCategory: 'lectures', isDegreeShow: false },
     { url: '/data/industry.json',           albumCategory: 'industry',         isDegreeShow: false },
     { url: '/data/album-others.json',       albumCategory: 'others',           isDegreeShow: false },
   ];
@@ -141,7 +143,7 @@ function buildAlbumCardHtml(item, index = 0) {
   const stackHtml = stackSrcs.map((src, i) => {
     const isVideo = i === 0 && videos.length > 0;
     // 自架影片（m3u8）：cover 佔位縮圖標 data-hls-thumb，loadAlbumData 尾端 hydrateHlsThumbs 截幀後換真影格
-    const hlsAttr = isVideo && videos[0].videoKind === 'hls' ? ` data-hls-thumb="${videos[0].src}"` : '';
+    const hlsAttr = isVideo && isSelfHostedVideo(videos[0].videoKind) ? ` data-hls-thumb="${videos[0].src}"` : '';
     return `
       <div style="position: absolute; bottom: 0; left: 0; right: 0; z-index: ${stackSrcs.length - i};">
         <img src="${src}"${hlsAttr} alt="" class="w-full block" style="height: 240px; object-fit: contain; object-position: bottom;">

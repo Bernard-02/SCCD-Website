@@ -13,7 +13,13 @@
 import { DUR, EASE } from './motion.js';
 import { setColorHue, getColorHue, startSiteColorLoop, stopSiteColorLoop, isColorLoopRunning } from './theme-toggle.js';
 
-const WHEEL = 72;   // 色環尺寸，同 create
+// 手機直向：整個面板白框以 faculty 卡片牆縮圖寬為基準再乘 PANEL_SCALE（每欄 = 50vw − 36，
+// container-padding 24 + gap 24；上限 200＝卡片上限）。白框 = 色環 + 2×16 padding，故色環 = 白框 − 32。
+// 桌面/橫向 ≥768 維持 72（見 CLAUDE.md landscape gate）。canvas 是點陣，改大要連 WHEEL 一起改讓 buffer 跟著長，純 CSS 放大會糊
+const PANEL_SCALE = 0.95;   // 面板整體大小微調鈕：要再大/小改這個數
+const WHEEL = window.innerWidth < 768
+  ? Math.round(Math.min(200, window.innerWidth * 0.5 - 36) * PANEL_SCALE) - 32
+  : 72;   // 色環尺寸，桌面同 create
 const DPR = Math.min(window.devicePixelRatio || 1, 3);
 
 let root, pencilBtn, panel, panelMask, canvas, ctx, playBtn, playIcon;
@@ -152,13 +158,14 @@ function onPlayClick(e) {
   syncPlayIcon();
 }
 
-/* ── open / close：hero clip-reveal（user 2026-07-15 v5）──
-   mask wrapper overflow:hidden 固定遮罩、本體 xPercent/yPercent 滑進滑出（同 hero 文字 box 的 offsetFor pattern）。
-   開＝鉛筆本體往右滑出遮罩＋ wheel 本體從左滑入（左→右，跟鉛筆同軸同向）；關＝反向。
-   wheel 固定 left（原四方向隨機退役）：兩遮罩有 16px 重疊帶（右緣 32-48px），right/bottom 收場殘影
-   賴在帶內到 tween 結束、跟延遲歸位的鉛筆打架（實測 19/60、17/60）；left 的殘影往左消失最先離開帶＝結構上安全（0/60）。
+/* ── open / close：wheel 整顆從畫面右緣外滑入（user 2026-07-17：不再走遮罩內 clip-reveal）──
+   panel mask 不再裁切（overflow:visible）；唯一裁切線＝整層 #mode-color-panel(inset:0) 的 overflow:hidden＝視窗右緣。
+   wheel 藏起態＝整顆移到視窗外右方 translateX(100%+48px)，開場滑到定位（xPercent/x 皆 0）落在鉛筆左側；關＝反向滑回視窗外。
+   開＝鉛筆本體往右滑出視窗＋ wheel 從畫面外右方滑入（鉛筆先讓位、wheel 跟著從右進場）。
    微傾掛 panel mask（hero 慣例：rotation 在 wrapper、slide 在本體，兩者不搶 transform）。 */
-const WHEEL_HIDDEN = { xPercent: -100, yPercent: 0 };   // wheel 藏起態：滑出遮罩左側
+// xPercent:100 走 CSS 百分比（免 JS 量測——build 時整層 display:none，panel.offsetWidth=0 會讓 px 算法失效、半藏在邊緣）；
+// 疊固定 x:48（= dock 32 + margin）補滿「自身寬 + dock」讓整顆真的出視窗。兩者都由 GSAP 管、各自獨立分量不打架。
+const WHEEL_HIDDEN = { xPercent: 100, x: 48, yPercent: 0 };   // wheel 藏起態：整顆移出視窗右緣
 const HANDOFF_DELAY = 0.15;   // 接力延遲：先走者讓位、後手才進場（觀感上的先後呼應）
 
 function open() {
@@ -173,7 +180,7 @@ function open() {
   if (typeof gsap !== 'undefined') {
     gsap.set(panelMask, { rotation: wheelRot });   // 微傾在 mask（drag 用 wheelRot 補償）
     gsap.fromTo(pencilBtn, { xPercent: 0 }, { xPercent: 100, duration: DUR.medium, ease: EASE.enter, overwrite: true });
-    gsap.fromTo(panel, WHEEL_HIDDEN, { xPercent: 0, yPercent: 0, duration: DUR.medium, ease: EASE.enter, overwrite: true, delay: HANDOFF_DELAY });
+    gsap.fromTo(panel, WHEEL_HIDDEN, { xPercent: 0, x: 0, yPercent: 0, duration: DUR.medium, ease: EASE.enter, overwrite: true, delay: HANDOFF_DELAY });
   } else {
     pencilBtn.style.transform = 'translateX(100%)';
     panel.style.transform = 'none';
@@ -198,7 +205,7 @@ function close(instant, opts = {}) {
     } else {
       panelMask.style.transform = '';
       pencilBtn.style.transform = pencilReturn ? '' : 'translateX(100%)';
-      panel.style.transform = 'translateX(-100%)';
+      panel.style.transform = 'translateX(calc(100% + 48px))';
     }
     if (opts.onDone) opts.onDone();
   };
@@ -313,13 +320,26 @@ function build() {
   playIcon = playBtn.querySelector('.icon');
   ctx = canvas.getContext('2d');
   ctx.scale(DPR, DPR);
+
+  // 手機放大：CSS 顯示尺寸跟 WHEEL 走（panel = wheel + 2×16 padding）；桌面 72 由 CSS 顧，不覆蓋。
+  // play/pause 鈕與 icon 依 WHEEL 等比放大（桌面 72→30/16），維持與色環同比例
+  if (WHEEL !== 72) {
+    const wrap = root.querySelector('.mcp-wheel-wrap');
+    const px = WHEEL + 'px';
+    panel.style.width = panel.style.height = (WHEEL + 32) + 'px';
+    wrap.style.width = wrap.style.height = px;
+    canvas.style.width = canvas.style.height = px;
+    playBtn.style.width = playBtn.style.height = Math.round(WHEEL * 24 / 72) + 'px';   // 比桌面(30)再收小
+    playIcon.style.fontSize = Math.round(WHEEL * 13 / 72) + 'px';
+  }
+
   buildRing();
   drawWheel();
 
   // 面板初始藏起（滑出遮罩左側外）：必須用 gsap xPercent（同 tween 的分量）；CSS translate% 會被
   // gsap 解析成 px 的 x 分量、跟 xPercent 疊加 → 開場後殘留偏移（實測 x=104 卡死）
   if (typeof gsap !== 'undefined') gsap.set(panel, WHEEL_HIDDEN);
-  else panel.style.transform = 'translateX(-100%)';
+  else panel.style.transform = 'translateX(calc(100% + 48px))';
 
   pencilBtn.addEventListener('click', open);
   playBtn.addEventListener('click', onPlayClick);

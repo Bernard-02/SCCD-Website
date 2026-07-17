@@ -76,14 +76,23 @@ export function detachVideoSource(video) {
   try { video.load(); } catch (_) {}
 }
 
+// 直連影片檔（S3/CloudFront 上傳的 mp4 等）：免轉 HLS，原生 <video> 直接播。
+// 短片用不到 HLS 的自動切畫質（我們的 m3u8 也是單畫質），mp4 體感相同又免轉檔（user 2026-07-17）。
+export function isDirectVideoUrl(url) { return /\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(url || ''); }
+
+// videoKind 需走「自製 <video> 播放器 + 截幀縮圖」的種類（相對 yt 的 iframe）。
+// 'hls'=m3u8 串流、'file'=直連 mp4 等；兩者播放/截幀共用同一套（attachVideoSource / grabHlsFrame 內部再依 isHlsUrl 分流）。
+export const isSelfHostedVideo = (kind) => kind === 'hls' || kind === 'file';
+
 // ── 後台影片連結 → lightbox media item ────────────────────────────
-// .m3u8 = 自架影片（videoKind:'hls'，lightbox 內自製 UI + canvas 截幀縮圖）；
-// 認得出 YouTube id → yt embed（iframe + yt 官方縮圖）；兩者皆非 → null（照舊丟掉）。
+// .m3u8 → videoKind:'hls'、直連 mp4 等 → videoKind:'file'（皆自製 UI + canvas 截幀縮圖）；
+// 認得出 YouTube id → yt embed（iframe + yt 官方縮圖）；皆非 → null（照舊丟掉）。
 // activities / album / library-panels 共 5 處 normalize 統一走這裡。
 export function videoMediaFromUrl(url, fallbackThumb = '') {
   if (!url || typeof url !== 'string') return null;
   url = url.trim();
   if (isHlsUrl(url)) return { type: 'video', videoKind: 'hls', src: url, thumb: fallbackThumb };
+  if (isDirectVideoUrl(url)) return { type: 'video', videoKind: 'file', src: url, thumb: fallbackThumb };
   const vid = url.match(/(?:v=|youtu\.be\/)([^&?/]+)/)?.[1];
   return vid
     ? { type: 'video', videoKind: 'yt', src: `https://www.youtube.com/embed/${vid}`, thumb: `https://img.youtube.com/vi/${vid}/hqdefault.jpg` }
@@ -172,8 +181,11 @@ export function grabHlsFrame(url) {
     });
     video.addEventListener('seeked', () => { seekPending = false; tryDraw(); });
     video.addEventListener('canplay', tryDraw);
-    // crossOrigin 只是 hls.js 載入失敗退到原生 src 時的最後保險（Safari 原生 HLS 可 CORS 截幀）
-    attachVideoSource(video, url, { forceHls: true, bustQuery: 'sccdthumb=1' });
+    // crossOrigin 只是 hls.js 載入失敗退到原生 src 時的最後保險（Safari 原生 HLS 可 CORS 截幀）。
+    // 直連 mp4 走原生 src（isHlsUrl=false，bustQuery 不生效）→ 手動附加 query，讓截幀（CORS）的
+    // 快取 key 與播放（no-cors）分離，免疫「無 CORS header 舊快取」污染（同 hls 的 bustQuery 思路）。
+    const grabUrl = isHlsUrl(url) ? url : `${url}${url.includes('?') ? '&' : '?'}sccdthumb=1`;
+    attachVideoSource(video, grabUrl, { forceHls: true, bustQuery: 'sccdthumb=1' });
   });
   _frameCache.set(url, promise);
   return promise;

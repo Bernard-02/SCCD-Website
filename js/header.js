@@ -614,27 +614,11 @@ export function clearNavActive(exceptPage) {
   header.querySelectorAll('[data-bar].has-active').forEach(el => el.classList.remove('has-active'));
 }
 
-export function updateNavActive(page) {
-  const header = document.querySelector('#site-header header');
-  if (!header) return;
-
-  // Footer-near hide 同步 reset：前頁 scroll 到 footer 時 bars/logo 已被 footerHideBars/footerHideLogo
-  // 平移收起；SPA 切到新頁後 scroll listener 是 async，等它偵測「離開 footer」再 show
-  // 期間 updateNavActive 的 logo/bar tween 已跑完 → user 看到「小 logo + ML=0」的中間態。
-  // 這裡同步清 transform/遮罩 + reset state，讓 tween 在 header 已 visible 的乾淨狀態下跑。
-  if (barsHidden && typeof gsap !== 'undefined') {
-    resetFooterBarsState();
-    resetFooterLogoState();
-    barsHidden = false;
-  }
-
-  // detail 頁對應到父層高亮（見 NAV_PAGE_MAPPINGS）
-  const activePage = NAV_PAGE_MAPPINGS[page] || page;
-  const activeHref = navActiveHref(page);
-
-  function setNavLinkActive(link) { link.classList.add('active'); link.setAttribute('aria-current', 'page'); } // 無障礙：標目前頁（粗體已是非色彩線索，aria-current 補語義 1.4.1 / 4.1.2）
-
-  clearNavActive();
+// 標記 nav-link active（.active + aria-current + about-bar has-active）。
+// 抽成共用：updateNavActive（swap 後全套）與 setNavActive（點擊當下只標 active，讓中文立刻 stay）都用。
+// aria-current 無障礙：標目前頁（粗體已是非色彩線索，補語義 1.4.1 / 4.1.2）。
+function applyNavLinkMarks(header, activeHref) {
+  const setNavLinkActive = (link) => { link.classList.add('active'); link.setAttribute('aria-current', 'page'); };
 
   // About bar nav links
   header.querySelectorAll('nav > ul > li').forEach(li => {
@@ -667,8 +651,67 @@ export function updateNavActive(page) {
   if (aboutBarEl && aboutBarEl.querySelector('a.nav-link.active')) {
     aboutBarEl.classList.add('has-active');
   }
+}
+
+// 側 bar（library/atlas/generate/alumni 小 bar）的完整 active 樣式：黑底 box + bar-active(白字) class +
+// nav-link .active（驅動 .nav-link-cn 中文展開）。抽 module-level 讓 setNavActive（點擊當下）與
+// updateNavActive（post-swap）共用；用 class 不用 inline 是為了避免瀏覽器擴充功能干擾文字色（見 navigation.css）。
+function setSideBar(el, isActive) {
+  if (!el) return;
+  el.style.background = isActive ? '#000' : '#fff';
+  el.classList.toggle('bar-active',   isActive);
+  el.classList.toggle('bar-inactive', !isActive);
+  // SPA 切頁時（cursor 可能還停在 btn 上）清除 hover class，避免黑底黑字殘影
+  el.classList.remove('is-bar-hover');
+  el.querySelectorAll('a.nav-link').forEach(l => l.classList.toggle('active', isActive));
+}
+
+// 點擊連結當下（navigateTo 起點）就標記目標頁的 nav-link active → 中文（.nav-link-cn）＋側 bar 的黑底 box
+// 立刻出現並 stay，不用等 swap 後 updateNavActive。否則點完把游標移開選項，靠 hover 撐著的中文會先收合、
+// 載入完才又展開（user 2026-07-17「中文會出現兩次」；後續「box 也要先存在」）。logo size / footer reset /
+// alumni-full reveal 等「動畫」仍留給 post-swap updateNavActive（在退場動畫進行中提前跑會打架）。
+export function setNavActive(page) {
+  const header = document.querySelector('#site-header header');
+  if (!header) return;
+  applyNavLinkMarks(header, navActiveHref(page));
+
+  // 側 bar 的 box（黑底 active 樣式）也在點擊當下套上，跟中文一起立即出現。library/atlas/generate 直接 setSideBar
+  //（target 那顆 active、其餘轉 inactive → 離開側 bar 頁時舊 box 也即時收白）。alumni 例外：它的 box 是
+  // alumni-full bar、有自己的 clip-reveal 進場（post-swap updateNavActive 播），且小 A.A. bar 在 alumni 頁會被
+  // display:none → 這裡碰它會打架；alumni-full 的中文已由 applyNavLinkMarks 標到（其 link 不在 exclude 內）。
+  const sbPage = NAV_PAGE_MAPPINGS[page] || page;
+  ['library', 'atlas', 'generate'].forEach(bar => {
+    setSideBar(header.querySelector(`[data-bar="${bar}"]`), sbPage === bar);
+  });
+}
+
+export function updateNavActive(page) {
+  const header = document.querySelector('#site-header header');
+  if (!header) return;
+
+  // Footer-near hide 同步 reset：前頁 scroll 到 footer 時 bars/logo 已被 footerHideBars/footerHideLogo
+  // 平移收起；SPA 切到新頁後 scroll listener 是 async，等它偵測「離開 footer」再 show
+  // 期間 updateNavActive 的 logo/bar tween 已跑完 → user 看到「小 logo + ML=0」的中間態。
+  // 這裡同步清 transform/遮罩 + reset state，讓 tween 在 header 已 visible 的乾淨狀態下跑。
+  if (barsHidden && typeof gsap !== 'undefined') {
+    resetFooterBarsState();
+    resetFooterLogoState();
+    barsHidden = false;
+  }
+
+  // 手機 header 底色帶跨 SPA 換頁復位：元素持久（在 #site-header），前頁捲到 footer 加的 .is-hidden 會殘留 →
+  // 換頁後先清掉，新頁 landing 時帶顯示（bindFooterScroll 之後依新頁 footer 位置再決定）。
+  document.querySelector('.mobile-header-bg')?.classList.remove('is-hidden');
+
+  // detail 頁對應到父層高亮（見 NAV_PAGE_MAPPINGS）
+  const activePage = NAV_PAGE_MAPPINGS[page] || page;
+  const activeHref = navActiveHref(page);
+
+  clearNavActive();
+  applyNavLinkMarks(header, activeHref);
 
   // library / atlas / generate / alumni side bar 狀態
+  const aboutBarEl      = header.querySelector('[data-bar="about"]');  // alumni 頁隱藏其他 bars 時要含它（applyNavLinkMarks 內另有本地變數，此處給下方 otherBarEls 用）
   const libraryBarEl    = header.querySelector('[data-bar="library"]');
   const atlasBarEl      = header.querySelector('[data-bar="atlas"]');
   const generateBarEl   = header.querySelector('[data-bar="generate"]');
@@ -793,15 +836,7 @@ export function updateNavActive(page) {
     }
   }
 
-  function setSideBar(el, isActive) {
-    if (!el) return;
-    el.style.background = isActive ? '#000' : '#fff';
-    el.classList.toggle('bar-active',   isActive);
-    el.classList.toggle('bar-inactive', !isActive);
-    // SPA 切頁時（cursor 可能還停在 btn 上）清除 hover class，避免黑底黑字殘影
-    el.classList.remove('is-bar-hover');
-    el.querySelectorAll('a.nav-link').forEach(l => l.classList.toggle('active', isActive));
-  }
+  // setSideBar 已抽 module-level（setNavActive 也用）
   setSideBar(libraryBarEl,  isLibraryActive);
   setSideBar(atlasBarEl,    isAtlasActive);
   setSideBar(generateBarEl, isGenerateActive);
@@ -1170,7 +1205,13 @@ export function initHeader() {
           if (f.offsetHeight > 0) { footerEl = f; break; }
         }
         if (!footerEl) return;
-        const isNearFooter = footerEl.getBoundingClientRect().top < window.innerHeight * 0.5;
+        const footerTop = footerEl.getBoundingClientRect().top;
+        // 全站手機 header 底色帶（.mobile-header-bg，navigation.css）：捲到「帶底 92」才收（遮罩不能像
+        // logo/nav 用 footerTop<視窗50% 提早離開，那樣會露出 header 區還沒捲完的內容；user 2026-07-17）。
+        // 純 CSS transition transform、不需 gsap；app 頁 gate 成 display:none 時 toggle 也無害。
+        const mobileBar = document.querySelector('.mobile-header-bg');
+        if (mobileBar) mobileBar.classList.toggle('is-hidden', footerTop <= 92);
+        const isNearFooter = footerTop < window.innerHeight * 0.5;
         if (typeof gsap === 'undefined') return;
         if (isNearFooter && !barsHidden) {
           barsHidden = true;

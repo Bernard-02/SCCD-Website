@@ -14,6 +14,7 @@
 import { renderCoursesGrid, deselectActiveCard, resetCoursesMapState, selectCardBySlugInPanel, highlightCardBySlugInPanel, ensureMobileGradeForSlug } from './courses-map.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { setActiveNavBtn } from '../ui/section-switch-helpers.js';
+import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { waitForHeroAnimDone } from './hero-animation.js';
@@ -295,30 +296,23 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
     });
   });
 
-  // inset 四值用 % 單位（GSAP tween inset() 四值單位需一致，否則直接跳終值不動畫）
-  const CLIP_DIRS = [
-    'inset(100% 0% 0% 0%)',  // 上 → 下
-    'inset(0% 0% 100% 0%)',  // 下 → 上
-    'inset(0% 100% 0% 0%)',  // 左 → 右
-    'inset(0% 0% 0% 100%)',  // 右 → 左
-  ];
-  function pickClipDir() { return CLIP_DIRS[Math.floor(Math.random() * CLIP_DIRS.length)]; }
-
   // 離頁退場（卡片 + nav + 表頭）統一在 nav block 之後的單一 handler 一起跑（見下方），確保 timing 一致。
 
-  // ── 左側 program nav 進場/退場（user 2026-06-07，比照 faculty nav / 灰卡的 clip-path reveal）──
+  // ── 左側 program nav 進場/退場（user 2026-06-07，比照 faculty nav）──
+  // 2026-07-16 改 hero 式 clip-reveal＝translate（獨立屬性，與 inner/label 的 inline rotate 共存）＋同步
+  // clip-path 滑動揭露（navChipHidden，見 scroll-animate.js；旋轉角不裁、不疊鄰）。
   // 對象 = 每顆 program btn 的 .anchor-nav-inner（色塊）+ 每個 .courses-bfa-label（整條 nav 一起 reveal）。
-  // clip-path 套「元素自身」（旋轉角不裁、不疊、定在原位）；querySelectorAll = DOM 序 → label1,inner1,label2,inner2,inner3（上到下）。
-  // ⚠️ 動畫期間關 inner/label 的 CSS transition:all（hover/切 program 過場用的），否則追著 GSAP 每幀 clipPath 跑會卡頓，跑完還原。
+  // querySelectorAll = DOM 序 → label1,inner1,label2,inner2,inner3（上到下）。
+  // ⚠️ 動畫期間關 inner/label 的 CSS transition:all（hover/切 program 過場用的），否則追著 GSAP 每幀寫入跑會卡頓，跑完還原。
   const NAV_EASE = 'cubic-bezier(0.25, 0, 0, 1)';  // 同灰卡
   const navTargets = Array.from(document.querySelectorAll(
     '.courses-program-bar .courses-bfa-label, .courses-program-bar .courses-program-btn .anchor-nav-inner'
   ));
   let navRevealed = false;
+  // 每顆固定一個隨機方向（2026-07-17 全站四方向隨機、reveal/hide 來回一致）；離頁退場的 navExit 也吃這份
+  const navDir = new Map(navTargets.map(el => [el, pickNavDir(el)]));
   if (typeof gsap !== 'undefined' && navTargets.length && !prefersReducedMotion()) {  // 減少動態：nav 維持靜態可見
-    // 每個 target 固定一個隨機 clip 方向：reveal(→inset0) 與 hide(→該方向) 同方向，來回一致
-    const navDir = new Map(navTargets.map(el => [el, pickClipDir()]));
-    navTargets.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = 'none'; gsap.set(el, { clipPath: navDir.get(el) }); });
+    navTargets.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = 'none'; gsap.set(el, navChipHidden(el, navDir.get(el))); });
 
     // 嚴格 hero gate 只給矮橫向（nav fixed 進 header 帶、hero 屏要藏）。直向手機 nav 在 flow、
     // 緊接 hero 之下 → 走下面 once-reveal（section 進 90% 線就現），不能等 hero 完全捲出才出現
@@ -340,8 +334,10 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
         gsap.killTweensOf(navTargets);
         navTargets.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = 'none'; });
         if (navCol) navCol.style.pointerEvents = reveal ? '' : 'none';
+        const hid = reveal ? null : navTargets.map(el => navChipHidden(el, navDir.get(el)));
         gsap.to(navTargets, {
-          clipPath: reveal ? 'inset(0% 0% 0% 0%)' : (i) => navDir.get(navTargets[i]),
+          clipPath: reveal ? NAV_CHIP_SHOWN.clipPath : (i) => hid[i].clipPath,
+          translate: reveal ? NAV_CHIP_SHOWN.translate : (i) => hid[i].translate,
           duration: DUR.base, ease: NAV_EASE, stagger: 0, overwrite: true,
           onComplete: () => { if (reveal) navTargets.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = ''; }); },
         });
@@ -371,8 +367,8 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
         if (navRevealed) return;
         navRevealed = true;
         gsap.to(navTargets, {
-          clipPath: 'inset(0% 0% 0% 0%)',
-          duration: DUR.base, ease: NAV_EASE, stagger: 0.04, clearProps: 'clipPath',
+          ...NAV_CHIP_SHOWN,
+          duration: DUR.base, ease: NAV_EASE, stagger: 0.04, clearProps: 'clipPath,translate',
           onComplete: () => navTargets.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = ''; }),
         });
       };
@@ -397,27 +393,39 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
     // 否則手機離頁卡片收完表頭還站著；桌面這兩 class display:none，tween 不可見無影響
     const clipTargets = [
       ...(panel ? panel.querySelectorAll('.courses-grid-card, .courses-mobile-grade-bar .anchor-nav-inner, .courses-mobile-row-label') : []),
-      ...(navRevealed ? navTargets : []),  // nav 沒滑到沒看過就不收（不閃）
     ];
+    const navExit = navRevealed ? navTargets : [];  // nav 沒滑到沒看過就不收（不閃）
     const slideInners = panel ? [
       ...panel.querySelectorAll('.courses-grid-col-header-inner'),   // 年級
       ...panel.querySelectorAll('.courses-grid-type-label-inner'),   // 必修/選修
     ] : [];
-    if (!clipTargets.length && !slideInners.length) { resolve(); return; }
+    if (!clipTargets.length && !navExit.length && !slideInners.length) { resolve(); return; }
 
     let pending = 0;
     const done = () => { if (--pending <= 0) resolve(); };
 
     if (clipTargets.length) {
       pending++;
-      clipTargets.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = 'none'; });  // nav inner 有 transition:all，關掉免追 GSAP 卡頓
+      clipTargets.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = 'none'; });  // mobile grade bar inner 有 transition:all，關掉免追 GSAP 卡頓
       gsap.killTweensOf(clipTargets);
-      // 進場 clearProps 後 computed=none → fromTo 顯式起點 inset(0)（見 feedback_clippath_exit_after_clearprops_use_fromto）
+      // hero 式 clip-reveal 反向（同下方 navExit）：fromTo 顯式起點 NAV_CHIP_SHOWN → 各自四方向隨機（pickNavDir() 無 el）滑出＋同步 clip。
       // stagger 用 amount（總時長固定 0.2s 攤給所有元素）不用 each：卡片多達 ~46 張，用 each:0.02 會拖到 ~0.9s
       // 跟 nav/表頭（元素少、~0.5s 收完）不同步 → 三者「不一起」。amount 讓不論幾張都在同一視窗收完（user 2026-06-07）。
+      const hid = clipTargets.map(el => navChipHidden(el, pickNavDir()));
       gsap.fromTo(clipTargets,
-        { clipPath: 'inset(0% 0% 0% 0%)' },
-        { clipPath: () => pickClipDir(), duration: DUR.base, ease: NAV_EASE, stagger: { amount: 0.2, from: 'end' }, overwrite: true, onComplete: done }
+        { ...NAV_CHIP_SHOWN },
+        { clipPath: (/** @type {number} */ i) => hid[i].clipPath, translate: (/** @type {number} */ i) => hid[i].translate, duration: DUR.base, ease: NAV_EASE, stagger: { amount: 0.2, from: 'end' }, overwrite: true, onComplete: done }
+      );
+    }
+    if (navExit.length) {
+      // nav btn/label 走 hero 式滑出（translate＋同步 clip），同一 stagger 視窗跟卡片/表頭一起收
+      pending++;
+      navExit.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = 'none'; });
+      gsap.killTweensOf(navExit);
+      const hid = navExit.map(el => navChipHidden(el, navDir.get(el)));
+      gsap.fromTo(navExit,
+        { ...NAV_CHIP_SHOWN },
+        { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate, duration: DUR.base, ease: NAV_EASE, stagger: { amount: 0.2, from: 'end' }, overwrite: true, onComplete: done }
       );
     }
     if (slideInners.length) {
@@ -502,11 +510,14 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
       if (prevCards.length) {
         exitPromises.push(new Promise(resolve => {
           gsap.killTweensOf(prevCards);
-          // 同 page-exit：reveal 後 clipPath 為 none，需 fromTo 顯式起點 inset(0) 才補間得起來（否則舊卡片 snap 不見）
+          // hero 式 clip-reveal 反向：fromTo 顯式起點 NAV_CHIP_SHOWN（reveal 後 translate/clip 已 clearProps＝none，
+          // 直接 to 會 snap）→ 各自四方向隨機（pickNavDir() 無 el）滑出＋同步 clip
+          const hid = prevCards.map(el => navChipHidden(el, pickNavDir()));
           gsap.fromTo(prevCards,
-            { clipPath: 'inset(0% 0% 0% 0%)' },
+            { ...NAV_CHIP_SHOWN },
             {
-              clipPath: () => pickClipDir(),
+              clipPath: (/** @type {number} */ i) => hid[i].clipPath,
+              translate: (/** @type {number} */ i) => hid[i].translate,
               duration: DUR.fast,
               ease: 'cubic-bezier(0.25, 0, 0, 1)',
               overwrite: true,
@@ -612,21 +623,24 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
       ];
       if (allCards.length) {
         gsap.killTweensOf(allCards);
+        // hero 式 clip-reveal（translate 獨立屬性＋同步 clip，與卡片 inline rotate 共存；同 nav chip）：
+        // 每張四方向隨機（pickNavDir() 無 el＝不挑短邊，卡片要方向多樣性；nav chip 才挑短邊）的 hidden 態，
+        // reveal tween 全部收到 NAV_CHIP_SHOWN
         allCards.forEach(card => {
-          gsap.set(card, { clipPath: pickClipDir() });
+          gsap.set(card, navChipHidden(card, pickNavDir()));
         });
 
         const playReveal = () => {
-          if (prefersReducedMotion()) { gsap.set(allCards, { clearProps: 'clipPath' }); restoreGradeTransitions(); return; }  // 減少動態：直接全顯
+          if (prefersReducedMotion()) { gsap.set(allCards, { clearProps: 'clipPath,translate' }); restoreGradeTransitions(); return; }  // 減少動態：直接全顯
           gsap.to(allCards, {
-            clipPath: 'inset(0% 0% 0% 0%)',
+            ...NAV_CHIP_SHOWN,
             duration: DUR.base,
             ease: 'cubic-bezier(0.25, 0, 0, 1)',
             // 固定總時長攤給所有卡（amount）不用 per-card（each）：~40+ 張時 each:0.02 會拖到 ~0.9s 一張張慢慢冒出
             // ＝user 報的「灰卡慢出現」。對齊 exit 已用的 { amount: 0.2 }，整片在 ~0.25s 內 reveal 完。
             stagger: isSwitch ? 0 : { amount: 0.25 },
             overwrite: true,
-            clearProps: 'clipPath',
+            clearProps: 'clipPath,translate',
             onComplete: restoreGradeTransitions,
           });
         };

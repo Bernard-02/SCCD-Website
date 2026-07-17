@@ -7,7 +7,7 @@
 import { initDegreeShowGallery } from './degree-show-gallery.js';
 import { initHeroAnimation } from './hero-animation.js';
 import { initHeroMobileSync } from './hero-mobile-sync.js';
-import { animateCardsClipReveal, playRevealExit, playClipPathExit, setupClipReveal, playClipReveal } from '../ui/scroll-animate.js';
+import { animateCardsClipReveal, playRevealExit, playClipPathExit, setupClipReveal, playClipReveal, navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
 import { createClassImagesSlideshow } from './about/class-images-slideshow.js';
 import { getSectionData, findItemById, SECTION_LABELS } from './activities-data-loader.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
@@ -764,21 +764,19 @@ function setupStripHeaderGate(wrap, strip, blocker) {
   if (typeof gsap === 'undefined' || !('IntersectionObserver' in window)) return;
   const heroEl = document.querySelector('#page-content > section');
   if (!heroEl) return;
-  // 進出場全用 clip-path（全站原則 clip-path 非 opacity），且比照其他頁 nav btn（user 2026-07-12
-  // 「跟其他頁一樣＝個別 btn 的 clip path」）：每顆 tab 固定一個隨機方向、同時（stagger:0）reveal/hide，
-  // 同 activities/courses setNav；原「整條 strip 單方向 wipe」退役。blocker 維持底邊 wipe。
-  // clip-path 套 btn 自身＝跟著旋轉座標系，旋轉角不會被 inset(0%) 裁。
+  // 進出場比照其他頁 nav btn（user 2026-07-12「跟其他頁一樣」）：2026-07-16 改 hero 式 clip-reveal＝
+  // translate（獨立屬性，與 btn 的 inline rotate 共存）＋同步 clip-path 滑動（navChipHidden，見 scroll-animate.js）；
+  // 每顆固定一個隨機方向（2026-07-17 全站四方向隨機）、同時（stagger:0）reveal/hide，同 activities/courses setNav。blocker 維持底邊 wipe。
   const btns = /** @type {HTMLElement[]} */ (Array.from(strip.children));
-  const CLIP_DIRS = ['inset(100% 0% 0% 0%)', 'inset(0% 0% 100% 0%)', 'inset(0% 100% 0% 0%)', 'inset(0% 0% 0% 100%)'];
-  const dirOf = new Map(btns.map(b => [b, CLIP_DIRS[Math.floor(Math.random() * CLIP_DIRS.length)]]));
-  // btn 帶 transition-all（含 clip-path）：GSAP 動畫期間關掉，免 CSS transition 追每幀 clipPath 卡頓
+  const navDir = new Map(btns.map(b => [b, pickNavDir(b)]));
+  // btn 帶 transition-all（含 clip/translate）：GSAP 動畫期間關掉，免 CSS transition 追每幀寫入卡頓
   const killTransition = () => btns.forEach(b => { b.style.transition = 'none'; });
   const BLK_HIDDEN = 'inset(0% 0% 100% 0%)';
   const BLK_SHOWN = 'inset(0% 0% 0% 0%)';
   const NAV_EASE = 'cubic-bezier(0.25, 0, 0, 1)';   // 同 activities NAV_EASE，統一進出場曲線
   let revealed = null;
   killTransition();
-  btns.forEach(b => gsap.set(b, { clipPath: dirOf.get(b) }));
+  btns.forEach(b => gsap.set(b, navChipHidden(b, navDir.get(b))));
   gsap.set(blocker, { clipPath: BLK_HIDDEN });
   wrap.style.pointerEvents = 'none';
   const setState = (reveal) => {
@@ -787,8 +785,10 @@ function setupStripHeaderGate(wrap, strip, blocker) {
     gsap.killTweensOf([...btns, blocker]);
     killTransition();
     wrap.style.pointerEvents = reveal ? '' : 'none';
+    const hid = reveal ? null : btns.map(b => navChipHidden(b, navDir.get(b)));
     gsap.to(btns, {
-      clipPath: reveal ? 'inset(0% 0% 0% 0%)' : (i) => dirOf.get(btns[i]),
+      clipPath: reveal ? NAV_CHIP_SHOWN.clipPath : (i) => hid[i].clipPath,
+      translate: reveal ? NAV_CHIP_SHOWN.translate : (i) => hid[i].translate,
       duration: DUR.base, ease: NAV_EASE, stagger: 0, overwrite: true,
       onComplete: () => { if (reveal) btns.forEach(b => { b.style.transition = ''; }); },
     });

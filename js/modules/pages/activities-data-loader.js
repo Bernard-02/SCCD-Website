@@ -4,7 +4,7 @@
  */
 
 import { openLightbox } from '../lightbox/activities-lightbox.js';
-import { isHlsUrl, videoMediaFromUrl, hydrateHlsThumbs } from '../ui/video-player.js';
+import { isHlsUrl, isDirectVideoUrl, videoMediaFromUrl, hydrateHlsThumbs } from '../ui/video-player.js';
 import { setupClipReveal, playClipReveal } from '../ui/scroll-animate.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { makeActivatable } from '../ui/a11y.js';
@@ -407,8 +407,8 @@ export function buildGalleryHtml(item) {
   const galleryItems = [
     ...videos.map((url, vi) => {
       const lbIndex = posterOffset + vi;
-      if (isHlsUrl(url)) {
-        // 自架影片（m3u8）無現成縮圖：先黑 tile 佔位，bindInteractions 的 hydrateHlsThumbs 截幀後補上
+      if (isHlsUrl(url) || isDirectVideoUrl(url)) {
+        // 自架影片（m3u8 / 直連 mp4）無現成縮圖：先黑 tile 佔位，bindInteractions 的 hydrateHlsThumbs 截幀後補上
         return `<div class="h-full flex-shrink-0 aspect-video relative cursor-pointer" data-lightbox-open data-lightbox-index="${lbIndex}" style="background: #111;">
         <img data-hls-thumb="${url}" alt="" class="w-full h-full object-cover block" style="display:none;">
         ${playOverlay}
@@ -450,26 +450,39 @@ export function buildGalleryHtml(item) {
   `;
 }
 
+// 人名 + AKA 別名顯示：AAA（XX）。ZH 全形括號、EN 半形括號帶前導空格；
+// 別名該語為空就用另一語（單語別名兩行都顯示，如 LeHo），兩語皆空則無括號。
+function formatNameWithAka(name, akaSame, akaOther, zh) {
+  if (!name) return '';
+  const aka = akaSame || akaOther;
+  if (!aka) return name;
+  return zh ? `${name}（${aka}）` : `${name} (${aka})`;
+}
+
 // 單一講者/來賓 block（name 粗體 + 右側國家；下排 org/affiliation + 右側國家）
 // item-level guests 與 conference sessions[].guests 共用同一份渲染。
-// 兩種 shape 都接：新(endpoint) nameEn/nameZh/orgEn/orgZh/country/isAlumni
+// 兩種 shape 都接：新(endpoint) nameEn/nameZh/akaEn/akaZh/orgEn/orgZh/country/isAlumni
 //                舊(data/X.json) name/name_zh/affiliation/affiliation_zh/country/country_zh/isAlumni
 export function buildGuestHtml(g, { showGuestCountry = true, showGuestAffiliation = true } = {}) {
   const gNameEn = g.nameEn || g.name || '';
   const gNameZh = g.nameZh || g.name_zh || '';
-  const gCountry = g.country || ''; // 新 shape 是 ISO code，舊是顯示字串
-  const gCountryZh = g.country_zh || '';
+  const gAkaEn = g.akaEn || '';
+  const gAkaZh = g.akaZh || '';
+  const gCountry = g.country || ''; // ISO code（fallback JSON 大寫 / Directus 小寫）；舊 shape 才是顯示字串
+  const gCountryCode = gCountry.toUpperCase();             // 顯示大寫碼 TW（同 faculty-slide-in 慣例）
+  const gCountryZhName = countryName(gCountry, 'zh');       // 中文名 台灣；對照不到 countryName 回 code 大寫
+  const gCountryZh = gCountryZhName !== gCountryCode ? gCountryZhName : (g.country_zh || '');
   const gOrgEn = g.orgEn || g.affiliation || '';
   const gOrgZh = g.orgZh || g.affiliation_zh || '';
   const gIsAlumni = g.isAlumni === 'on' || g.isAlumni === true || g.isAlumni;
   // user 2026-06-10 #2：title 與「國家」用 grid 2 欄分開對齊（國家欄固定寬 → 所有 row 的國家落在同一起始 x）；
   //   國家包進 .list-title-marquee，太長超出欄寬就 marquee（不換行不擠壓 title 欄）。
-  const countryCell = (cls) => gCountry ? `<div class="list-title-marquee"><p class="${cls}">${gCountry}${gCountryZh ? ` ${gCountryZh}` : ''}</p></div>` : '';
+  const countryCell = (cls) => gCountryCode ? `<div class="list-title-marquee"><p class="${cls}">${gCountryCode}${gCountryZh ? ` ${gCountryZh}` : ''}</p></div>` : '';
   return `<div class="flex flex-col" style="gap: 0.25rem;">
     <div class="grid gap-md items-start guest-row-grid">
       <div class="min-w-0">
-        ${gNameEn ? `<p class="text-p2 font-bold">${gNameEn}</p>` : ''}
-        ${gNameZh ? `<p class="text-p2 font-bold">${gNameZh}</p>` : ''}
+        ${gNameEn ? `<p class="text-p2 font-bold">${formatNameWithAka(gNameEn, gAkaEn, gAkaZh, false)}</p>` : ''}
+        ${gNameZh ? `<p class="text-p2 font-bold">${formatNameWithAka(gNameZh, gAkaZh, gAkaEn, true)}</p>` : ''}
       </div>
       ${showGuestCountry ? `<div class="min-w-0">
         ${gIsAlumni ? `<p class="text-p2">Alumni 系友</p>` : ''}
@@ -1032,8 +1045,8 @@ export async function loadListInto(containerId, url, options = {}) {
         if (subtitleFromGuests && Array.isArray(item.guests) && item.guests.length) {
           return item.guests
             .map(g => ({
-              en: g.nameEn || g.name || '',
-              zh: g.nameZh || g.name_zh || '',
+              en: formatNameWithAka(g.nameEn || g.name || '', g.akaEn, g.akaZh, false),
+              zh: formatNameWithAka(g.nameZh || g.name_zh || '', g.akaZh, g.akaEn, true),
             }))
             .filter(s => s.en || s.zh)
             .slice(0, 3);
@@ -1085,7 +1098,7 @@ export async function loadListInto(containerId, url, options = {}) {
         item[introField], item[introField + '_zh'],
         item.description, item.descriptionZh,
         item.location, item.location_zh,
-        ...(item.guests || []).flatMap(g => [g.name, g.name_zh, g.affiliation, g.affiliation_zh]),
+        ...(item.guests || []).flatMap(g => [g.name, g.name_zh, g.affiliation, g.affiliation_zh, g.akaEn, g.akaZh]),
       ].filter(Boolean).join(' ').toLowerCase().replace(/"/g, '&quot;');
 
       // Locations 結構：每筆 {en, zh, country} 一個 row，渲染時 vertical stack（user 契約：往下增加）
@@ -1482,17 +1495,26 @@ function deriveHostSection(url, categoryFilter, visitTypeFilter) {
   return null;
 }
 
-// 共用 fetch wrapper：支援的 endpoint → Directus（activities-source，含 M2A ref remap）+ 本地 fallback；
-// 其餘 endpoint 維持只讀本地 JSON。2026-06-17 起先接 competitions / industry / workshops（M2A ref trial）。
+// 共用 fetch wrapper：endpoint → Directus（activities-source，含 M2A ref remap）+ 本地 fallback。
+// 2026-07-17 起全部 activities list 類別接 Directus（後台空/掛掉自動 fallback 本地）。
 // endpoint 名是各 loader 傳的舊式名（連字號單數），對應到實際 Directus collection（底線複數）見下表。
+// stamp：dedicated collection 沒有 category/visitType/exhibitionType 欄，補上讓 loadListInto 的子類型 filter 過得了。
+// permanent 展演（activities_exhibitions_permanent + _permanent_events）是 parent/child 巢狀 shape，
+//   跟扁平 list 不同，尚未接（loadExhibitionsInto permanent 分支仍走本地）；degree-show 同理走自己的 loader。
 const ACT_DIRECTUS_MAP = {
-  'activities-competition': { collection: 'activities_competitions', category: 'competitions' },
-  'activities-industry':    { collection: 'activities_industry' },
-  'activities-workshop':    { collection: 'activities_workshops' },
+  'activities-competition':      { collection: 'activities_competitions', category: 'competitions' },
+  'activities-industry':         { collection: 'activities_industry' },
+  'activities-workshop':         { collection: 'activities_workshops' },
+  'activities-lecture':          { collection: 'activities_lectures' },
+  'activities-students-present': { collection: 'activities_students_present' },
+  'activities-conference':       { collection: 'activities_conferences', category: 'conferences' },
+  'activities-exhibition-special': { collection: 'activities_exhibitions_special', category: 'exhibitions', stamp: { exhibitionType: 'special' } },
+  'activities-visit-outbound':   { collection: 'activities_visits_outbound', category: 'visits', stamp: { visitType: 'outbound' } },
+  'activities-visit-inbound':    { collection: 'activities_visits_inbound', category: 'visits', stamp: { visitType: 'inbound' } },
 };
 async function fetchActEndpointOrFallback(endpoint, fallbackUrl) {
   const m = ACT_DIRECTUS_MAP[endpoint];
-  if (m) return loadActivityCollection(m.collection, fallbackUrl, { category: m.category });
+  if (m) return loadActivityCollection(m.collection, fallbackUrl, { category: m.category, stamp: m.stamp });
   return fetch(sitePath(fallbackUrl)).then(r => r.json());
 }
 

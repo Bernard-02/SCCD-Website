@@ -12,7 +12,7 @@ import { initListAccordion, resetListAccordionsInPanel, alignWithBottomSpacer } 
 import { reapplySearch } from '../ui/activities-search.js';
 import { setActiveNavBtn, showPanel } from '../ui/section-switch-helpers.js';
 import { playAdmissionPanelExit, playAdmissionPanelReveal, setupAdmissionReveal } from './admission-data-loader.js';
-import { playClipReveal } from '../ui/scroll-animate.js';
+import { playClipReveal, navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
@@ -372,22 +372,29 @@ async function playActivitiesExit() {
   ]);
 }
 
-// ── Filter chip 進場：chip 自己做 clip-path inset reveal（揭露 .anchor-nav-inner 本體）──────────
+// ── Filter chip 進場：chip 自己做 hero 式 clip-reveal（translate＋同步 clip 滑動揭露 .anchor-nav-inner 本體）──
 // 不靠父容器 overflow:clip wrapper（原本 #*-type-filter 是 .list-reveal-row + .courses-filter-btn
 // → setupClipReveal 把整列包進 overflow:clip wrapper，旋轉 chip 角被 wrapper 裁掉、reveal 完才 snap
 // 成完整 chip，user 2026-06-07 回報「1s 先被 crop 再跳完整」）。
-// clip-path 套在 .anchor-nav-inner（active chip 帶 rotate 的那層）：clip-path 先在元素 local box 裁、
-// rotate 後才套 → chip 揭露自身形狀、不被外層裁。timing 跟 panel reveal 一致（initial 等捲到 / 切換立即）。
+// translate＋clip 套在 .anchor-nav-inner（active chip 帶 rotate 的那層）：clip 先在元素 local box 裁、
+// rotate 後才套 → chip 沿自身軸滑入、不被外層裁。方向固定「從下滑入」（hero 標準）。
+// timing 跟 panel reveal 一致（initial 等捲到 / 切換立即）。
 function filterChipInners(panel) {
   return panel ? panel.querySelectorAll('.activities-filter-bar .courses-filter-btn .anchor-nav-inner') : [];
+}
+// sub-tab chip 一律「純垂直」由下滑入：不用 navChipHidden 把位移向量轉到 chip 自身軸——active chip 帶隨機
+// rotate(-4~6°) 時那個轉向會讓 reveal 變成斜的、從「左下角」進場（user 2026-07-17 只要單純從底部上來）。
+// clip 仍走 bottom（底 inset 100%），translate 固定純 y。
+function filterChipHidden(el) {
+  return { clipPath: 'inset(0% 0% 100% 0%)', translate: `0px ${el.offsetHeight || 0}px` };
 }
 function hideFilterChips(panel) {
   if (typeof gsap === 'undefined' || prefersReducedMotion()) return;  // 減少動態：不隱藏 chip（維持靜態可見）
   const inners = filterChipInners(panel);
-  // transition:'none'：.anchor-nav-inner 帶 navigation.css 的 `transition: all`（含 clip-path）→ 直接 set
-  // clip-path 會被 CSS transition 接管慢慢 hide，且後續 GSAP reveal 每幀寫 clip-path 也被 transition 追著跑
+  // transition:'none'：.anchor-nav-inner 帶 navigation.css 的 `transition: all`（含 clip/translate）→ 直接 set
+  // 會被 CSS transition 接管慢慢 hide，且後續 GSAP reveal 每幀寫入也被 transition 追著跑
   // （慢爬到一半再 snap，user 2026-06-07 看到的怪）。reveal 全程關 transition、結束 clearProps 還原。
-  if (inners.length) gsap.set(inners, { transition: 'none', clipPath: 'inset(100% 0% 0% 0%)' });  // 收到底邊 → 由下往上揭露
+  inners.forEach(el => gsap.set(el, { transition: 'none', ...filterChipHidden(el) }));  // 藏在下 → 純垂直從下滑入
 }
 let _chipRevealSTs = [];
 // 子 tab chip 是否被「捲離 section」clip 收起（2026-07-13，比照 nav btn 的 scroll hide/reveal）：
@@ -406,13 +413,15 @@ function playFilterChipsReveal(panel, { useScrollTrigger = false } = {}) {
   _chipRevealSTs.forEach(st => st && st.kill());
   _chipRevealSTs = [];
   gsap.killTweensOf(inners);
-  // transition:'none' 全程關掉（含 navigation.css 的 `transition: all` 對 clip-path 的接管），
-  // clearProps:'clipPath,transition' 在每個 chip tween 結束時還原 clip-path(→none 全顯) + CSS transition。
+  // transition:'none' 全程關掉（含 navigation.css 的 `transition: all` 對 clip/translate 的接管），
+  // clearProps 在每個 chip tween 結束時還原 clip-path/translate(→全顯) + CSS transition。
   const play = () => {
-    gsap.set(inners, { transition: 'none' });
-    gsap.fromTo(inners,
-      { clipPath: 'inset(100% 0% 0% 0%)' },
-      { clipPath: 'inset(0% 0% 0% 0%)', duration: DUR.slow, ease: EASE.enter, stagger: 0.08, overwrite: true, clearProps: 'clipPath,transition' });
+    const els = Array.from(inners);
+    const hid = els.map(el => filterChipHidden(el));
+    gsap.set(els, { transition: 'none' });
+    gsap.fromTo(els,
+      { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate },
+      { ...NAV_CHIP_SHOWN, duration: DUR.slow, ease: EASE.enter, stagger: 0.08, overwrite: true, clearProps: 'clipPath,transition,translate' });
   };
   if (useScrollTrigger && typeof ScrollTrigger !== 'undefined') {
     const bar = panel.querySelector('.activities-filter-bar');
@@ -433,23 +442,25 @@ function playFilterChipsExit(panel) {
   _chipRevealSTs = [];
   gsap.killTweensOf(inners);
   return new Promise(resolve => {
-    gsap.set(inners, { transition: 'none' });
-    // inset(0)→inset(100% 0 0 0)：由下而上收合（reveal「由下往上揭露」的反向）；離頁後 element 隨 swap 銷毀不需還原
-    gsap.fromTo(inners,
-      { clipPath: 'inset(0% 0% 0% 0%)' },
-      { clipPath: 'inset(100% 0% 0% 0%)', duration: DUR.base, ease: EASE.exit, stagger: 0.06, overwrite: true, onComplete: resolve });
+    const els = Array.from(inners);
+    const hid = els.map(el => filterChipHidden(el));
+    gsap.set(els, { transition: 'none' });
+    // SHOWN→藏在下：向下滑出（reveal「從下滑入」的反向）；離頁後 element 隨 swap 銷毀不需還原
+    gsap.fromTo(els,
+      { ...NAV_CHIP_SHOWN },
+      { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate, duration: DUR.base, ease: EASE.exit, stagger: 0.06, overwrite: true, onComplete: resolve });
   });
 }
 
-// ── 左側 section nav 進場/退場（user 2026-06-07「nav btn 比照 faculty」）──────────────────────
-// 完全比照 [faculty-filter.js] 的 nav 動畫：clip-path 套在 .anchor-nav-inner（色塊自身，旋轉角不裁、不疊鄰、原地揭露）、
-// 4 方向隨機、DUR.base + cubic-bezier(0.25,0,0,1) + stagger；進場只在頁面初次載入（content section 進視窗）跑一次、
-// 切左側分頁不重播；退場只在離頁且「已進場」才跑（沒滑到沒看過不閃）、fromTo 顯式起點 inset(0)（clearProps 後
-// computed=none 補不間）、from:'end' 反向 stagger。⚠️ .anchor-nav-inner 帶 navigation.css `transition: all`（含 clip-path）
+// ── 左側 section nav 進場/退場──────────────────────
+// hero 式 clip-reveal＝translate（獨立屬性，與 inner 的 inline rotate 共存）＋同步 clip-path 滑動揭露
+// （navChipHidden，見 scroll-animate.js；旋轉角不裁、不疊鄰）、DUR.base + cubic-bezier(0.25,0,0,1) + stagger。
+// ⚠️ activities 專屬用「4 方向隨機」（user 2026-07-17，每顆固定一方向 navDir）；其他頁（faculty/admission/
+//    courses 等）2026-07-17 統一 'bottom' 由下而上 → 本頁與它們刻意分歧，勿一起改回。
+// 進場只在頁面初次載入（content section 進視窗）跑一次、
+// 切左側分頁不重播；退場只在離頁且「已進場」才跑（沒滑到沒看過不閃）、fromTo 顯式起點 SHOWN（clearProps 後
+// computed=none 補不間）、from:'end' 反向 stagger。⚠️ .anchor-nav-inner 帶 navigation.css `transition: all`（含 clip/translate）
 // → 動畫期間 inner.style.transition='none' 免 CSS transition 追 GSAP 卡頓，跑完還原（hover/切分頁仍要那條 transition）。
-const NAV_CLIP_DIRS = ['inset(0% 0% 100% 0%)', 'inset(0% 0% 0% 100%)', 'inset(100% 0% 0% 0%)', 'inset(0% 100% 0% 0%)'];
-function pickNavClip() { return NAV_CLIP_DIRS[Math.floor(Math.random() * NAV_CLIP_DIRS.length)]; }
-const NAV_REVEALED_CLIP = 'inset(0% 0% 0% 0%)';
 const NAV_EASE = 'cubic-bezier(0.25, 0, 0, 1)';
 
 function setupSectionNavReveal() {
@@ -460,9 +471,10 @@ function setupSectionNavReveal() {
   let navRevealed = false;
   const killTransition = () => inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = 'none'; });
   killTransition();
-  // 每顆 inner 固定一個隨機 clip 方向：reveal(→inset0) 與 hide(→該方向) 同方向來回一致（矮橫向雙向用）
-  const navDir = new Map(inners.map(inner => [inner, pickNavClip()]));
-  inners.forEach(inner => gsap.set(inner, { clipPath: navDir.get(inner) }));
+  // activities 專屬：每顆固定一個隨機方向（reveal/hide 來回一致），其他頁統一 'bottom'（user 2026-07-17
+  // 「activities 弄成 4 方向隨機」）。px 向量依當下寬高/角度、每次要藏重算（勿 cache）。
+  const navDir = new Map(inners.map(inner => [inner, pickNavDir(inner)]));
+  inners.forEach(inner => gsap.set(inner, navChipHidden(inner, navDir.get(inner))));
 
   // 矮橫向：nav 進 header fixed（landscape.css 5f，2026-07-10 比照 admission 5e）、hero 也浮著 →
   // 「hero 之後才 reveal、回 hero 出場隱藏」＝嚴格 hero gate（觀察 hero 本體底緣離開視窗頂 −8px；
@@ -478,8 +490,10 @@ function setupSectionNavReveal() {
       gsap.killTweensOf(inners);
       killTransition();
       if (navCol) navCol.style.pointerEvents = reveal ? '' : 'none';
+      const hid = reveal ? null : inners.map(inner => navChipHidden(inner, navDir.get(inner)));
       gsap.to(inners, {
-        clipPath: reveal ? NAV_REVEALED_CLIP : (i) => navDir.get(inners[i]),
+        clipPath: reveal ? NAV_CHIP_SHOWN.clipPath : (i) => hid[i].clipPath,
+        translate: reveal ? NAV_CHIP_SHOWN.translate : (i) => hid[i].translate,
         duration: DUR.base, ease: NAV_EASE, stagger: 0, overwrite: true,
         onComplete: () => { if (reveal) inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = ''; }); },
       });
@@ -507,15 +521,16 @@ function setupSectionNavReveal() {
       if (typeof gsap === 'undefined' || !navRevealed) { resolve(); return; }
       gsap.killTweensOf(inners);
       killTransition();
+      const hid = inners.map(inner => navChipHidden(inner, navDir.get(inner)));
       gsap.fromTo(inners,
-        { clipPath: NAV_REVEALED_CLIP },
-        { clipPath: (i) => navDir.get(inners[i]), duration: DUR.base, ease: NAV_EASE, stagger: 0, overwrite: true, onComplete: resolve });
+        { ...NAV_CHIP_SHOWN },
+        { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate, duration: DUR.base, ease: NAV_EASE, stagger: 0, overwrite: true, onComplete: resolve });
     }));
     return;
   }
 
   // reveal/hide 可被 scroll 反覆觸發：捲離 main section→退場、捲回 main→重播進場（user 2026-06-27）。
-  // navRevealed 旗標擋同態重播；hide 用 fromTo 顯式起點 inset(0)（clearProps 後 computed=none，GSAP 補不間）。
+  // navRevealed 旗標擋同態重播；hide 用 fromTo 顯式起點 SHOWN（clearProps 後 computed=none，GSAP 補不間）。
   // 子 tab chip 一併進出（user 2026-07-13「離開 main section 時也 clip 收起」）：hide 走 playFilterChipsExit
   // （chip 自身 clip、不裁旋轉角）後標 chipsScrollHidden；reveal 只在被 scroll 收過才補播
   // （初載/切分頁的 chip reveal 由 switchToSection 路徑負責，不雙播）。
@@ -526,7 +541,7 @@ function setupSectionNavReveal() {
     gsap.killTweensOf(inners);
     killTransition();
     gsap.to(inners, {
-      clipPath: NAV_REVEALED_CLIP, duration: DUR.base, ease: NAV_EASE, stagger: 0.02, overwrite: true, clearProps: 'clipPath',
+      ...NAV_CHIP_SHOWN, duration: DUR.base, ease: NAV_EASE, stagger: 0.02, overwrite: true, clearProps: 'clipPath,translate',
       onComplete: () => inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = ''; }),
     });
     const panel = visiblePanel();
@@ -537,9 +552,10 @@ function setupSectionNavReveal() {
     navRevealed = false;
     gsap.killTweensOf(inners);
     killTransition();
+    const hid = inners.map(inner => navChipHidden(inner, navDir.get(inner)));
     gsap.fromTo(inners,
-      { clipPath: NAV_REVEALED_CLIP },
-      { clipPath: () => pickNavClip(), duration: DUR.base, ease: NAV_EASE, stagger: { each: 0.02, from: 'end' }, overwrite: true });
+      { ...NAV_CHIP_SHOWN },
+      { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate, duration: DUR.base, ease: NAV_EASE, stagger: { each: 0.02, from: 'end' }, overwrite: true });
     const panel = visiblePanel();
     if (panel) {
       playFilterChipsExit(panel);   // chipsScrollHidden 此刻仍 false → 會跑；跑完標旗
@@ -578,9 +594,10 @@ function setupSectionNavReveal() {
     if (typeof gsap === 'undefined' || !navRevealed) { resolve(); return; }
     gsap.killTweensOf(inners);
     killTransition();
+    const hid = inners.map(inner => navChipHidden(inner, navDir.get(inner)));
     gsap.fromTo(inners,
-      { clipPath: NAV_REVEALED_CLIP },
-      { clipPath: () => pickNavClip(), duration: DUR.base, ease: NAV_EASE, stagger: { each: 0.02, from: 'end' }, overwrite: true, onComplete: resolve });
+      { ...NAV_CHIP_SHOWN },
+      { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate, duration: DUR.base, ease: NAV_EASE, stagger: { each: 0.02, from: 'end' }, overwrite: true, onComplete: resolve });
   }));
 }
 

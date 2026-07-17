@@ -31,6 +31,7 @@ import { initClassButtonsSticky } from './modules/pages/about/class-buttons-stic
 import { initClassImagesSlideshow } from './modules/pages/about/class-images-slideshow.js';
 import { loadAboutContent } from './modules/pages/about/about-data-loader.js';
 import { initAnchorNav } from './modules/navigation/anchor-nav.js';
+import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from './modules/ui/scroll-animate.js';
 
 // Import Page Specific Modules
 import { initIntroAnimation } from './modules/pages/intro-animation.js';
@@ -39,6 +40,7 @@ import { initHeroMobileSync } from './modules/pages/hero-mobile-sync.js';
 import { initFacultySlideIn } from './modules/pages/faculty-slide-in.js';
 import { initActivitiesSectionSwitch } from './modules/pages/activities-section-switch.js';
 import { initActivitiesSearch } from './modules/ui/activities-search.js';
+import { loadHero } from './modules/pages/hero-source.js';
 import { initShareModal } from './modules/ui/share-modal.js';
 import { initCoursesSectionSwitch } from './modules/pages/courses-section-switch.js';
 
@@ -266,6 +268,12 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
     loadDegreeShowDetail();
   }
 
+  // hero 標題/副標/banner：Directus <page>_hero 為主、本地 json fallback（見 hero-source.js）。
+  // 只改 textContent/img.src，不干擾 hero clip-reveal；後台 singleton 未填時 = 現狀。
+  if (['faculty', 'curriculum', 'activities', 'admission'].includes(page)) {
+    loadHero(page);
+  }
+
   // --- Admission Page ---
   if (page === 'admission') {
     // fromUserNav 傳入：首頁 floating camp 海報 deep-link（?section=summer-camp&item=）才跑導航動畫
@@ -370,12 +378,14 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
       // 手機進場（user 2026-06-12：原本 showPanel+onEntranceDone 同步跑完＝完全沒進場動畫）：
       // 整個 section 4 方向 clip wipe（對齊桌面灰卡 clip 語彙；#library-card-main 自身的
       // clip/transform/opacity 被 v5 mobile CSS !important 鎖死 → 裁外層 section 等效）
-      // → tab 鈕 clip reveal（同 activities section nav）→ panel chip/內容 wipe（playPanelReveal）
+      // → tab 鈕 hero 式 clip-reveal（同 activities section nav，translate＋同步 clip 滑動）→ panel chip/內容 wipe（playPanelReveal）
       // → 完成才 onEntranceDone + handleHash（deep-link 等進場完才捲，對齊桌面 onEntranceDone 時序）
       const librarySection = /** @type {HTMLElement | null} */ (document.querySelector('main#page-content > section'));
       const tabInners = /** @type {HTMLElement[]} */ (tabsRoot ? [...tabsRoot.querySelectorAll('.anchor-nav-inner')] : []);
       const LIB_CLIPS = ['inset(0% 0% 100% 0%)', 'inset(0% 0% 0% 100%)', 'inset(100% 0% 0% 0%)', 'inset(0% 100% 0% 0%)'];
       const pickLibClip = () => LIB_CLIPS[Math.floor(Math.random() * LIB_CLIPS.length)];
+      // tab 鈕：每顆固定一個隨機方向（2026-07-17 全站四方向隨機），進場 set 與離頁 exit 共用同一份
+      const tabDir = new Map(tabInners.map(inner => [inner, pickNavDir(inner)]));
       const finishLibEntrance = () => {
         panels.showPanel(initialTab, { reveal: true }); // playPanelReveal：panel 內容 clip-reveal 進場
         panels.onEntranceDone();
@@ -387,10 +397,10 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
         // 占住合成層、遮住 section → overlay 離場後 section 的舊合成圖層殘影露出＝灰卡 mt gap 一條灰帶；
         // clip→opacity 都中、收尾強制重繪被「被遮區不重繪」跳過救不回；refresh 無 overlay 故沒事（user 2026-06-24 多輪）。
         // 進場感全交給「卡片內的小元素」：tab inners + panel children clip-reveal（playPanelReveal）—— 不升 section 合成層。
-        tabInners.forEach(inner => { inner.style.transition = 'none'; gsap.set(inner, { clipPath: pickLibClip() }); });
+        tabInners.forEach(inner => { inner.style.transition = 'none'; gsap.set(inner, navChipHidden(inner, tabDir.get(inner))); });
         if (tabInners.length) {
           gsap.to(tabInners, {
-            clipPath: 'inset(0% 0% 0% 0%)', duration: DUR.base, ease: EASE.enter, stagger: 0.02, clearProps: 'clipPath',
+            ...NAV_CHIP_SHOWN, duration: DUR.base, ease: EASE.enter, stagger: 0.02, clearProps: 'clipPath,translate',
             onComplete: () => tabInners.forEach(inner => { inner.style.transition = ''; }),
           });
         }
@@ -408,8 +418,9 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
         if (tabInners.length) {
           tabInners.forEach(inner => { inner.style.transition = 'none'; });
           gsap.killTweensOf(tabInners);
-          exitTl.fromTo(tabInners, { clipPath: 'inset(0% 0% 0% 0%)' },
-            { clipPath: () => pickLibClip(), duration: DUR.base, ease: EASE.exit, stagger: { each: 0.02, from: 'end' }, overwrite: true }, 0);
+          const hid = tabInners.map(inner => navChipHidden(inner, tabDir.get(inner)));
+          exitTl.fromTo(tabInners, { ...NAV_CHIP_SHOWN },
+            { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate, duration: DUR.base, ease: EASE.exit, stagger: { each: 0.02, from: 'end' }, overwrite: true }, 0);
         }
         gsap.killTweensOf(librarySection);
         exitTl.fromTo(librarySection, { clipPath: 'inset(0% 0% 0% 0%)' },

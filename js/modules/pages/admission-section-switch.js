@@ -4,12 +4,13 @@
  */
 
 import { setActiveNavBtn, showPanel } from '../ui/section-switch-helpers.js';
+import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
 import {
   playAdmissionPanelExit,
   playAdmissionPanelReveal,
   setupAdmissionReveal,
 } from './admission-data-loader.js';
-import { resetListAccordionsInPanel } from '../accordions/list-accordion.js';
+import { resetListAccordionsInPanel, refreshStickyPinObservers } from '../accordions/list-accordion.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { waitForHeroAnimDone } from './hero-animation.js';
@@ -131,12 +132,10 @@ function scrollSectionIntoView(el, behavior = 'smooth') {
 }
 
 // ── 左側 section nav 進場/退場（比照 faculty/activities nav，user 2026-06-07）──
-// clip-path 套在 .anchor-nav-inner 自身（旋轉角不裁、原地揭露）、4 方向隨機、DUR.base + cubic-bezier + stagger；
+// 2026-07-16 改 hero 式 clip-reveal＝translate（獨立屬性，與 inner 的 inline rotate 共存）＋同步 clip-path
+// 滑動揭露（navChipHidden，見 scroll-animate.js；旋轉角不裁、不疊鄰）、4 方向隨機、DUR.base + cubic-bezier + stagger；
 // 進場只在 content section 進視窗時跑一次（不重播切分頁）；退場離頁且 navRevealed 才跑、fromTo 顯式起點、from:'end'。
-// transition:'none' 解 .anchor-nav-inner 的 navigation.css `transition: all`（含 clip-path）對 GSAP 每幀寫的接管（卡頓），跑完還原。
-const NAV_CLIP_DIRS = ['inset(0% 0% 100% 0%)', 'inset(0% 0% 0% 100%)', 'inset(100% 0% 0% 0%)', 'inset(0% 100% 0% 0%)'];
-function pickNavClip() { return NAV_CLIP_DIRS[Math.floor(Math.random() * NAV_CLIP_DIRS.length)]; }
-const NAV_REVEALED_CLIP = 'inset(0% 0% 0% 0%)';
+// transition:'none' 解 .anchor-nav-inner 的 navigation.css `transition: all`（含 clip/translate）對 GSAP 每幀寫的接管（卡頓），跑完還原。
 const NAV_EASE = 'cubic-bezier(0.25, 0, 0, 1)';
 
 function setupSectionNavReveal() {
@@ -144,9 +143,9 @@ function setupSectionNavReveal() {
   const inners = Array.from(document.querySelectorAll('.activities-section-btn .anchor-nav-inner'));
   if (!inners.length) return;
   let navRevealed = false;
-  // 每顆 inner 固定一個隨機 clip 方向：reveal(→inset0) 與 hide(→該方向) 同方向來回一致（矮橫向雙向用）
-  const navDir = new Map(inners.map(inner => [inner, pickNavClip()]));
-  inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = 'none'; gsap.set(inner, { clipPath: navDir.get(inner) }); });
+  // 每顆固定一個隨機方向（2026-07-17 全站四方向隨機、reveal/hide 來回一致）；px 向量每次要藏重算
+  const navDir = new Map(inners.map(inner => [inner, pickNavDir(inner)]));
+  inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = 'none'; gsap.set(inner, navChipHidden(inner, navDir.get(inner))); });
 
   const section = document.getElementById('admission-content-section');
   const isLandscapeGate = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
@@ -163,8 +162,10 @@ function setupSectionNavReveal() {
       gsap.killTweensOf(inners);
       inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = 'none'; });
       if (navCol) navCol.style.pointerEvents = reveal ? '' : 'none';
+      const hid = reveal ? null : inners.map(inner => navChipHidden(inner, navDir.get(inner)));
       gsap.to(inners, {
-        clipPath: reveal ? NAV_REVEALED_CLIP : (i) => navDir.get(inners[i]),
+        clipPath: reveal ? NAV_CHIP_SHOWN.clipPath : (i) => hid[i].clipPath,
+        translate: reveal ? NAV_CHIP_SHOWN.translate : (i) => hid[i].translate,
         duration: DUR.base, ease: NAV_EASE, stagger: 0, overwrite: true,
         onComplete: () => { if (reveal) inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = ''; }); },
       });
@@ -196,7 +197,7 @@ function setupSectionNavReveal() {
       if (navRevealed) return;
       navRevealed = true;
       gsap.to(inners, {
-        clipPath: NAV_REVEALED_CLIP, duration: DUR.base, ease: NAV_EASE, stagger: 0.02, clearProps: 'clipPath',
+        ...NAV_CHIP_SHOWN, duration: DUR.base, ease: NAV_EASE, stagger: 0.02, clearProps: 'clipPath,translate',
         onComplete: () => inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = ''; }),
       });
     };
@@ -212,10 +213,48 @@ function setupSectionNavReveal() {
     if (typeof gsap === 'undefined' || !navRevealed) { resolve(); return; }
     gsap.killTweensOf(inners);
     inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = 'none'; });
+    const hid = inners.map(inner => navChipHidden(inner, navDir.get(inner)));
     gsap.fromTo(inners,
-      { clipPath: NAV_REVEALED_CLIP },
-      { clipPath: () => pickNavClip(), duration: DUR.base, ease: NAV_EASE, stagger: { each: 0.02, from: 'end' }, overwrite: true, onComplete: resolve });
+      { ...NAV_CHIP_SHOWN },
+      { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate, duration: DUR.base, ease: NAV_EASE, stagger: { each: 0.02, from: 'end' }, overwrite: true, onComplete: resolve });
   }));
+}
+
+// 手機直向：nav strip 全程 sticky（lists.css portrait 區塊釘 88）→ 量 nav 實高，把展開的 list title
+// 釘在 nav 正下方。admission 無 filter bar（activities 是釘 bar 下方，updateStickyTop 那條走不到）→
+// 直接設 --list-header-sticky-top = 88 + navH 到 list 容器（getListStickyTop / CSS sticky top / pin-IO 三者共用它）。
+// 桌面/矮橫向不設（桌面 loadListInto updateStickyTop 已設 0＝box 頂；矮橫向拆 frame → getListStickyTop fallback）。
+function initAdmissionMobileSticky() {
+  const section = document.getElementById('admission-content-section');
+  const navCol = /** @type {HTMLElement | null} */ (section?.querySelector('.inner-scroll-nav-col'));
+  const containers = /** @type {HTMLElement[]} */ ([
+    document.getElementById('admission-list'),
+    document.getElementById('summer-camp-list'),  // lazy load，先設 var（inherited），list 進 DOM 後沿用
+  ].filter(Boolean));
+  if (!navCol || !containers.length) return;
+
+  const portrait = window.matchMedia('(max-width: 767px) and (orientation: portrait)');
+  const navInner = /** @type {HTMLElement | null} */ (navCol.firstElementChild);
+  const update = () => {
+    // 桌面/矮橫向不碰：--list-header-sticky-top 由 loadListInto updateStickyTop 設 0（box 頂）—— 別 remove 掉害它 fallback 200
+    if (!portrait.matches) return;
+    // 釘在 navInner（buttons）底、不含其 mb-xl（2026-07-18 縫隙修，反轉 07-17「量 navCol」）：
+    //   nav 底色同步收到 buttons 底（lists.css bg 掛 navCol > div）→ title 貼 buttons 底不被蓋、
+    //   捲過的 list box 也到 buttons 下才被吃，消掉 buttons 與 box/title 間 ~32px 隱形空帶。
+    //   （07-17「量 navInner 會讓 title 頂被 nav 底色切掉」的前提是 bg 蓋滿 navCol，已隨 CSS 一起反轉。）
+    // 88 = nav sticky top（lists.css）；−1 疊縫防 sub-pixel 透縫。
+    const top = Math.round(88 + (navInner ? navInner.offsetHeight : navCol.offsetHeight) - 1);
+    containers.forEach(c => {
+      c.style.setProperty('--list-header-sticky-top', top + 'px');
+      refreshStickyPinObservers(c);  // 釘點變了 → 開著的 header pin-IO 跟上（無 active header 時 no-op）
+    });
+  };
+  update();
+  if (typeof ResizeObserver !== 'undefined') {
+    const ro = new ResizeObserver(update);
+    ro.observe(navInner || navCol);  // 釘點量 navInner → 觀察它（buttons 換行時跟上）
+    registerPageCleanup(() => ro.disconnect());
+  }
 }
 
 // fromUserNav：true=使用者點連結的 SPA 導航（首頁 floating camp 海報）；false=初始載入 / refresh / 上一頁下一頁。
@@ -237,6 +276,9 @@ export function initAdmissionSectionSwitch(fromUserNav = false) {
 
   // 左側 section nav clip-path 進場（section 進視窗 once）+ 離頁退場，比照 faculty/activities nav
   setupSectionNavReveal();
+
+  // 手機直向 nav sticky 疊層：量 nav 高把展開 list title 釘在 nav 下方（比照 activities，見函式註解）
+  initAdmissionMobileSticky();
 
   const loaded = {};
   let switching = false;  // 防連點

@@ -50,8 +50,11 @@ export async function loadAtlasData() {
       // co 環：系友任職企業（companyEn/Zh → nameEn/Zh，對齊 atlas-companies.json 形狀）
       withFallback('alumni_hosting', 'alumni_hosting', '/data/atlas-companies.json',
         r => ({ nameEn: r.companyEn || '', nameZh: r.companyZh || '' })),
-      // em 浮動：系友就職企業（保留 country，atlas 內對到 canonical 國家）；無 fallback → 失敗時用內建 mock
-      withFallback('alumni_employment', 'alumni_employment', null,
+      // em 浮動：系友就職企業（保留 country，atlas 內對到 canonical 國家）
+      // fallback 必要：D 國家節點從 em/guest 的 country 動態生成，em 沒 fallback 時 CMS 一掛
+      // （待機 overlay 每次 mount 重抓，長時間掛機斷網最常見）國家就只剩 workshops.json 的 TW/SG 兩顆
+      //（user 2026-07-16 報「放很久國家 chip 剩兩個」真相；fallback 檔已是 mapped shape，見 withFallback）
+      withFallback('alumni_employment', 'alumni_employment', '/data/alumni-employment.json',
         r => ({ textEn: r.companyEn || '', textZh: r.companyZh || '', country: r.country || '' })),
       // 職業輪播；無 fallback → 失敗時用內建 ALUMNI_CAREERS
       withFallback('alumni_careers', 'alumni_careers', null,

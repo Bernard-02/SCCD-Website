@@ -19,6 +19,7 @@ import { enterLightboxMode, exitLightboxMode } from '../lightbox/lightbox-shell.
 import { applyMarqueeOverflow } from '../ui/marquee-overflow.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { setActiveNavBtn } from '../ui/section-switch-helpers.js';
+import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { loadCourses } from './courses-source.js';
@@ -173,16 +174,9 @@ function buildMobileHTML(program, courses) {
 
 // ── 手機年級切換 ──
 // setActiveNavBtn 共用 helper（accent 底 + 隨機旋轉，與 program btn / activities 濾鏡一致）；
-// 灰卡 + 必修/選修 label 比照「桌面切 program」的過場：舊卡 clip wipe 收場 → 新卡 wipe 進場
-// （user 2026-07-09：卡片要保留切換動畫；pill 本身不動）。卡片 CSS transition 不含 clip-path，無 race。
+// 灰卡 + 必修/選修 label 比照「桌面切 program」的過場：舊卡 hero clip-reveal 反向收場 → 新卡 clip-reveal 進場
+// （translate 獨立屬性＋同步 clip，與全站卡片統一；user 2026-07-09：卡片要保留切換動畫；pill 本身不動）。
 // 隱藏 block 的卡片 render 時量不到寬（offsetWidth=0 → marquee bail）→ 每次露出重跑量測
-const GRADE_CLIP_DIRS = [
-  'inset(100% 0% 0% 0%)',
-  'inset(0% 0% 100% 0%)',
-  'inset(0% 100% 0% 0%)',
-  'inset(0% 0% 0% 100%)',
-];
-const pickGradeClipDir = () => GRADE_CLIP_DIRS[Math.floor(Math.random() * GRADE_CLIP_DIRS.length)];
 /** @param {HTMLElement} mobileGrid @param {string} gradeKey */
 async function activateGrade(mobileGrid, gradeKey, { animate = true } = {}) {
   const doAnim = animate && typeof gsap !== 'undefined' && !prefersReducedMotion();
@@ -191,15 +185,17 @@ async function activateGrade(mobileGrid, gradeKey, { animate = true } = {}) {
 
   const prev = /** @type {HTMLElement|null} */ (mobileGrid.querySelector('.courses-mobile-grade-block:not(.hidden)'));
   if (doAnim && prev && prev.getAttribute('data-grade') !== gradeKey) {
-    const prevItems = prev.querySelectorAll('.courses-grid-card, .courses-mobile-row-label');
+    const prevItems = [...prev.querySelectorAll('.courses-grid-card, .courses-mobile-row-label')];
     if (prevItems.length) {
       mobileGrid.dataset.gradeSwitching = '1';
       await new Promise(resolve => {
         gsap.killTweensOf(prevItems);
-        // fromTo 顯式起點 inset(0)：進場 clearProps 後 computed=none，直接 to 會 snap（repo 既有 pattern）
+        // hero 式 clip-reveal 反向：fromTo 顯式起點 NAV_CHIP_SHOWN（reveal 後 translate/clip 已 none，直接 to 會 snap）
+        // → 各自四方向隨機（pickNavDir() 無 el）滑出＋同步 clip
+        const hid = prevItems.map(el => navChipHidden(el, pickNavDir()));
         gsap.fromTo(prevItems,
-          { clipPath: 'inset(0% 0% 0% 0%)' },
-          { clipPath: () => pickGradeClipDir(), duration: DUR.fast, ease: 'cubic-bezier(0.25, 0, 0, 1)', overwrite: true, onComplete: resolve }
+          { ...NAV_CHIP_SHOWN },
+          { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate, duration: DUR.fast, ease: 'cubic-bezier(0.25, 0, 0, 1)', overwrite: true, onComplete: resolve }
         );
       });
       delete mobileGrid.dataset.gradeSwitching;
@@ -214,13 +210,14 @@ async function activateGrade(mobileGrid, gradeKey, { animate = true } = {}) {
     if (on) shown = /** @type {HTMLElement} */ (b);
   });
   if (doAnim && shown) {
-    const items = shown.querySelectorAll('.courses-grid-card, .courses-mobile-row-label');
+    const items = [...shown.querySelectorAll('.courses-grid-card, .courses-mobile-row-label')];
     if (items.length) {
       gsap.killTweensOf(items);
-      // 同 program 切換 reveal：無 stagger 同時進場
+      // 同 program 切換 reveal：每張四方向隨機（pickNavDir() 無 el）的 hidden 態 → 無 stagger 同時收到 NAV_CHIP_SHOWN
+      const hid = items.map(el => navChipHidden(el, pickNavDir()));
       gsap.fromTo(items,
-        { clipPath: () => pickGradeClipDir() },
-        { clipPath: 'inset(0% 0% 0% 0%)', duration: DUR.base, ease: 'cubic-bezier(0.25, 0, 0, 1)', overwrite: true, clearProps: 'clipPath' }
+        { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate },
+        { ...NAV_CHIP_SHOWN, duration: DUR.base, ease: 'cubic-bezier(0.25, 0, 0, 1)', overwrite: true, clearProps: 'clipPath,translate' }
       );
     }
   }

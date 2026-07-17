@@ -7,10 +7,11 @@
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { DUR, EASE } from '../ui/motion.js';
+import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
 
 /**
- * @param {{ reveal?: boolean }} [opts] reveal:true 啟用左側 nav 的 clip-path 進場/退場（about 專用；
- *   alumni 共用同一 nav 結構但暫不套，手感逐頁驗）
+ * @param {{ reveal?: boolean }} [opts] reveal:true 啟用左側 nav 的 hero clip-reveal 進場/退場
+ *   （about + alumni 皆套，2026-07-17 起 alumni 一併開啟）
  */
 export function initAnchorNav({ reveal = false } = {}) {
   const navButtons = document.querySelectorAll('.anchor-nav-btn');
@@ -139,27 +140,26 @@ export function initAnchorNav({ reveal = false } = {}) {
     });
   });
 
-  // 左側 nav clip-path 進場/退場（about 專用，比照 faculty/activities/admission nav）：
-  // clip-path 套 .anchor-nav-inner 自身（旋轉角不裁、原地揭露）、4 方向隨機、第一個內容區進視窗時 once、
-  // 離頁且已 reveal 才反向；transition:'none' 解 navigation.css .anchor-nav-inner 的 `transition: all`（含 clip-path）
-  // 對 GSAP 每幀寫的接管卡頓，跑完還原。只取桌面 #anchor-nav（mobile 選單另一容器、不套）。
-  // 矮橫向 gate 交給下方 clip-path 雙向分支接管（同一組 inner 不能雙驅動）。
-  const NAV_CLIP_DIRS = ['inset(0% 0% 100% 0%)', 'inset(0% 0% 0% 100%)', 'inset(100% 0% 0% 0%)', 'inset(0% 100% 0% 0%)'];
-  const NAV_REVEALED = 'inset(0% 0% 0% 0%)';
+  // 左側 nav 進場/退場（about + alumni；比照 faculty/activities/admission nav）：
+  // hero 式 clip-reveal＝translate（獨立屬性，與 inner 的 inline rotate 共存）＋同步 clip-path 滑動揭露
+  // （navChipHidden，見 scroll-animate.js）、每顆固定一個隨機方向（2026-07-17 user 定全站 nav btn 四方向隨機）、
+  // 第一個內容區進視窗時 once、離頁且已 reveal 才反向；transition:'none' 解 navigation.css .anchor-nav-inner 的
+  // `transition: all`（含 clip/translate）對 GSAP 每幀寫的接管卡頓，跑完還原。只取桌面 #anchor-nav（mobile 選單另一容器、不套）。
+  // 矮橫向 gate 交給下方雙向分支接管（同一組 inner 不能雙驅動）。
   const NAV_EASE = 'cubic-bezier(0.25, 0, 0, 1)';
-  const pickClip = () => NAV_CLIP_DIRS[Math.floor(Math.random() * NAV_CLIP_DIRS.length)];
   const isLandscapeGate = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
   if (reveal && typeof gsap !== 'undefined' && window.innerWidth >= 768 && !isLandscapeGate) {
     const inners = Array.from(document.querySelectorAll('#anchor-nav .anchor-nav-inner'));
     if (inners.length) {
       let navRevealed = false;
-      inners.forEach(el => { el.style.transition = 'none'; gsap.set(el, { clipPath: pickClip() }); });
+      const navDir = new Map(inners.map(el => [el, pickNavDir(el)]));
+      inners.forEach(el => { el.style.transition = 'none'; gsap.set(el, navChipHidden(el, navDir.get(el))); });
 
       const play = () => {
         if (navRevealed) return;
         navRevealed = true;
         gsap.to(inners, {
-          clipPath: NAV_REVEALED, duration: DUR.base, ease: NAV_EASE, stagger: 0.05, clearProps: 'clipPath',
+          ...NAV_CHIP_SHOWN, duration: DUR.base, ease: NAV_EASE, stagger: 0.05, clearProps: 'clipPath,translate',
           onComplete: () => inners.forEach(el => { el.style.transition = ''; }),
         });
       };
@@ -175,9 +175,10 @@ export function initAnchorNav({ reveal = false } = {}) {
         if (typeof gsap === 'undefined' || !navRevealed) { resolve(); return; }
         gsap.killTweensOf(inners);
         inners.forEach(el => { el.style.transition = 'none'; });
+        const hid = inners.map(el => navChipHidden(el, navDir.get(el)));
         gsap.fromTo(inners,
-          { clipPath: NAV_REVEALED },
-          { clipPath: () => pickClip(), duration: DUR.base, ease: NAV_EASE, stagger: { each: 0.05, from: 'end' }, overwrite: true, onComplete: resolve });
+          { ...NAV_CHIP_SHOWN },
+          { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate, duration: DUR.base, ease: NAV_EASE, stagger: { each: 0.05, from: 'end' }, overwrite: true, onComplete: resolve });
       }));
     }
   }
@@ -309,12 +310,12 @@ export function initAnchorNav({ reveal = false } = {}) {
     const footerEl = document.getElementById('site-footer');
     const heroEl = reveal ? document.querySelector('#page-content > section') : null;
     if (navEl && inners.length && (footerEl || heroEl)) {
-      const navDir = new Map(inners.map(el => [el, pickClip()]));
       // about 載入在 hero 上 → 初始就藏（不等 IO 首發，免閃現）；alumni 無 hero 收起 → 初始可見。
-      // 可見側也寫顯式 inset(0%)：computed 'none' GSAP 無法補間（同 clearProps 後 exit 的陷阱），
+      // 可見側也寫顯式 inset(0%)/translate 0：computed 'none' GSAP 無法補間（同 clearProps 後 exit 的陷阱），
       // 否則 alumni 第一次 footer 收起會直接跳掉沒動畫。
       let hidden = !!heroEl;
-      inners.forEach(el => { el.style.transition = 'none'; gsap.set(el, { clipPath: hidden ? navDir.get(el) : NAV_REVEALED }); });
+      const navDir = new Map(inners.map(el => [el, pickNavDir(el)]));  // 每顆固定隨機方向、reveal/hide 來回一致
+      inners.forEach(el => { el.style.transition = 'none'; gsap.set(el, hidden ? navChipHidden(el, navDir.get(el)) : { ...NAV_CHIP_SHOWN }); });
       if (hidden) navEl.style.pointerEvents = 'none';
       else inners.forEach(el => { el.style.transition = ''; });  // 可見側單次寫入無視覺變化，還原 hover transition
       const setNav = (hide) => {
@@ -323,8 +324,10 @@ export function initAnchorNav({ reveal = false } = {}) {
         gsap.killTweensOf(inners);
         inners.forEach(el => { el.style.transition = 'none'; });
         navEl.style.pointerEvents = hide ? 'none' : '';
+        const hid = hide ? inners.map(el => navChipHidden(el, navDir.get(el))) : null;
         gsap.to(inners, {
-          clipPath: hide ? (i) => navDir.get(inners[i]) : NAV_REVEALED,
+          clipPath: hide ? (i) => hid[i].clipPath : NAV_CHIP_SHOWN.clipPath,
+          translate: hide ? (i) => hid[i].translate : NAV_CHIP_SHOWN.translate,
           duration: DUR.base, ease: NAV_EASE, stagger: 0, overwrite: true,
           onComplete: () => { if (!hide) inners.forEach(el => { el.style.transition = ''; }); },
         });

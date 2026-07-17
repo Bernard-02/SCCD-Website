@@ -44,12 +44,13 @@ export function initHeroMobileSync() {
     if (altAttr) dstImg.setAttribute('alt', altAttr);
   }
 
-  // 4 chip 各自隨機旋轉 ±5°：CSS 讀 --hero-mobile-rot var
-  // 範圍比桌面（±4°）略大：手機段落 chip 寬，小角度視覺上太微弱
+  // 4 chip 各自隨機旋轉 ±3°：CSS 讀 --hero-mobile-rot var
+  // 原 ±5° 讓寬段落 chip（~330px）每側視覺 overhang ~14px，兩盒反向旋轉時吃光 1rem gap → 中英段落 chip 重疊。
+  // overhang ≈ w·sin(θ)：±3° 收到 ~17px 合計（配 rand 模式 desc gap 補到 1.5rem 兜住）
   SYNC_MAP.forEach(({ to }) => {
     const el = mobile.querySelector(to);
     if (el) {
-      const deg = (Math.random() * 10 - 5).toFixed(2);
+      const deg = (Math.random() * 6 - 3).toFixed(2);
       el.style.setProperty('--hero-mobile-rot', `${deg}deg`);
     }
   });

@@ -7,7 +7,7 @@
 import { enterLightboxMode, exitLightboxMode } from './lightbox-shell.js';
 import { createRefBtn } from './lightbox-ref-btn.js';
 import { createLightboxVideo } from './lightbox-video.js';
-import { grabHlsFrame } from '../ui/video-player.js';
+import { grabHlsFrame, isSelfHostedVideo } from '../ui/video-player.js';
 import { sitePath } from '../ui/site-base.js';
 
 let lightboxEl = null;
@@ -25,7 +25,7 @@ let iframeEl = null;
 let hlsPlayer = null;      // createLightboxVideo instance（m3u8 自架影片；換張/關閉必 destroy）
 let currentColor = null;   // openLightbox opts.color，renderMain 建 hls player 時取用
 
-let mediaList = [];   // [{ type: 'image'|'video', src, thumb, videoKind?: 'yt'|'hls' }]
+let mediaList = [];   // [{ type: 'image'|'video', src, thumb, videoKind?: 'yt'|'hls'|'file' }]
 let currentIndex = 0;
 
 let zoomControlsEl = null;
@@ -414,8 +414,8 @@ function renderMain(index) {
   // zoom controls 只在 image 顯示（video iframe 無法 zoom）
   if (zoomControlsEl) zoomControlsEl.style.display = item.type === 'video' ? 'none' : 'flex';
 
-  if (item.type === 'video' && item.videoKind === 'hls') {
-    // 自架影片（m3u8）：自製 UI 播放器（全螢幕/手機交還原生 controls）
+  if (item.type === 'video' && isSelfHostedVideo(item.videoKind)) {
+    // 自架影片（m3u8 / 直連 mp4）：自製 UI 播放器（全螢幕/手機交還原生 controls）
     iframeEl = null;
     hlsPlayer = createLightboxVideo(item.src, resolvePillColor(currentColor));
     mainEl.appendChild(hlsPlayer.el);
@@ -610,7 +610,7 @@ export async function openLightbox(media, startIndex = 0, opts = {}) {
     img.draggable = false; // 防原生 image drag 干擾（拖選圖片）
     img.style.cssText = 'height:100%;width:auto;display:block;object-fit:contain;';
     if (item.thumb) img.src = item.thumb;
-    if (item.videoKind === 'hls') {
+    if (isSelfHostedVideo(item.videoKind)) {
       // 自架影片截幀當縮圖（cached）；還沒好前先給 16:9 黑 tile 佔位（無 src 時 width:auto 會塌 0）
       if (!item.thumb) {
         btn.style.width = '85px';

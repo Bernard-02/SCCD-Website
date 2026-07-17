@@ -3,7 +3,7 @@
  * 師資篩選功能（Fulltime / Parttime / Admin）
  */
 
-import { setupClipReveal } from '../ui/scroll-animate.js';
+import { setupClipReveal, navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { DUR, EASE } from '../ui/motion.js';
@@ -22,16 +22,11 @@ const CLIP_MAP = {
 };
 const CLIP_REVEALED = 'inset(0% 0% 0% 0%)';
 
-// 左側 filter nav 進場/退場：比照 curriculum 灰卡（courses-grid-card）的 clip-path 4 方向 reveal（user 2026-06-07）。
-// 🔑 關鍵：clip-path 套在 `.anchor-nav-inner`（色塊本身）**不是** btn —— 解掉前面所有「裁旋轉角 / 疊到鄰格 /
-//   像從父容器跑」的根因（那些都源自「btn 的旋轉內層溢出 btn box」，去裁 btn 才出事）。
-//   inner 的 clip-path 在「旋轉前的 local box」生效、再被 transform:rotate 顯示，所以：
-//   ① 旋轉角不被裁（clip 的是 inner 自己的 box，bg 色塊填滿該 box 無溢出）；
-//   ② 不外漏疊到鄰 btn（clip-path 只裁元素自身、絕不畫到 box 外，無 overflow-margin 漏出問題）；
-//   ③ 不需 wrapper、不需位移 → chip 定在原位、純粹「色塊被 clip 揭露」(= 灰卡那種 wipe)，不會在容器裏跑。
-// 參數比照灰卡：4 方向隨機 inset、DUR.base、cubic-bezier(0.25,0,0,1)、stagger 0.02、clearProps。
-const NAV_CLIP_KEYS = ['top', 'right', 'bottom', 'left'];
-function pickNavClip() { return CLIP_MAP[NAV_CLIP_KEYS[Math.floor(Math.random() * NAV_CLIP_KEYS.length)]]; }
+// 左側 filter nav 進場/退場：2026-07-16 改 hero 式 clip-reveal＝translate（獨立屬性，與 inner 的 inline
+// rotate 共存）＋同步 clip-path 滑動揭露（navChipHidden，見 scroll-animate.js）。
+// 🔑 仍套在 `.anchor-nav-inner`（色塊本身）**不是** btn——clip 在旋轉前的 local box 生效、跟著 chip 旋轉：
+//   旋轉角不裁、不疊鄰、免 wrapper（原 wipe 版的三個優點全保留），位移向量旋轉 θ 讓窗口錨點釘死。
+// 方向統一由下而上（hero 語彙；2026-07-17 隨機四方向退役）；DUR.base、cubic-bezier(0.25,0,0,1)、stagger 0.02、clearProps。
 const NAV_EASE = 'cubic-bezier(0.25, 0, 0, 1)';  // 同灰卡 courses-grid-card
 
 function setupFacultyCardAnim(card) {
@@ -295,6 +290,9 @@ export function initFacultyFilter() {
 
   if (filterButtons.length === 0 || facultyCards.length === 0) return;
 
+  // （手機 header 底色帶 .mobile-header-bg 已提升為全站元素：放 header.html、footer-near hide 在 header.js
+  //   bindFooterScroll，2026-07-17。原 faculty 專屬 .faculty-header-bg + 此處 scroll listener 已移除。）
+
   // 離頁退場：重用 filter 切換的 exitFacultyCards（已是正確 fromTo 寫法），對「當前可見」的老師卡片
   // 做收場（text 收 → image 收）。router 換頁前 await 完才 swap DOM；registerPageExit 在 runPageExit 後自動清空。
   registerPageExit(() => new Promise(resolve => {
@@ -302,23 +300,22 @@ export function initFacultyFilter() {
     exitFacultyCards(visible, resolve);
   }));
 
-  // ── 左側 filter nav 進場/退場（user 2026-06-07 定案：clip-path，比照 curriculum 灰卡）──
-  // clip-path 套在 .anchor-nav-inner（色塊本身）→ 旋轉角不裁、不疊鄰、定在原位（見上方 const 區註解；
-  //   為何不用 hero clip-reveal：nav 緊密堆疊+旋轉在內容+滿欄寬，三條件全反於 hero，slide 必裁/疊/橫跑）。
-  // 進場：各 inner 隨機 4 方向 inset → inset(0)，只在頁面初次載入（section 進視窗）跑一次；filter 切換不重播。
-  // 退場：只在離開 faculty 頁且「已進場」才跑（沒看過不閃），fromTo 顯式起點 inset(0)（clearProps 後 computed=none
-  //       無法補間，見 feedback_clippath_exit_after_clearprops_use_fromto）→ 隨機 4 方向收掉，from:'end' 反向 stagger。
+  // ── 左側 filter nav 進場/退場（2026-07-16 改 hero 式 clip-reveal：translate＋同步 clip 滑動揭露）──
+  // 套在 .anchor-nav-inner（色塊本身）→ 旋轉角不裁、不疊鄰（見上方 const 區註解）。
+  // 進場：各 inner 從自己那顆固定的隨機方向滑入（2026-07-17 全站四方向隨機），只在頁面初次載入（section 進視窗）跑一次；filter 切換不重播。
+  // 退場：只在離開 faculty 頁且「已進場」才跑（沒看過不閃），fromTo 顯式起點 SHOWN（clearProps 後 computed=none
+  //       無法補間，見 feedback_clippath_exit_after_clearprops_use_fromto）→ 沿原方向滑出，from:'end' 反向 stagger。
   // ⚠️ smooth 關鍵：`.anchor-nav-inner` 帶 navigation.css 的 `transition: all`（給 hover / filter 切換 bg·rotate 過場用）。
-  //   不處理的話 GSAP 每幀寫的 clipPath 會觸發那條 0.3s CSS transition → 渲染落後 GSAP、卡頓（user 報「不夠 smooth」）。
+  //   不處理的話 GSAP 每幀寫的 clipPath/translate 會觸發那條 0.3s CSS transition → 渲染落後 GSAP、卡頓（user 報「不夠 smooth」）。
   //   做法＝動畫期間 inner.style.transition='none'，進場跑完 onComplete 還原 ''（hover/filter 切換仍需要那條 transition）。
   let navRevealed = false;
   const navInners = Array.from(filterButtons)
     .map(b => /** @type {HTMLElement|null} */ (b.querySelector('.anchor-nav-inner')))
     .filter(Boolean);
+  // 每顆固定一個隨機方向（reveal/hide 來回一致）；px 向量依當下寬高/角度、每次要藏重算
+  const navDir = new Map(navInners.map(inner => [inner, pickNavDir(inner)]));
   if (typeof gsap !== 'undefined' && navInners.length && !prefersReducedMotion()) {  // 減少動態：nav 維持靜態可見
-    // 每顆 inner 固定一個隨機 clip 方向：reveal(→inset0) 與 hide(→該方向) 同方向，來回一致（同 curriculum）
-    const navDir = new Map(navInners.map(inner => [inner, pickNavClip()]));
-    navInners.forEach(inner => { inner.style.transition = 'none'; gsap.set(inner, { clipPath: navDir.get(inner) }); });
+    navInners.forEach(inner => { inner.style.transition = 'none'; gsap.set(inner, navChipHidden(inner, navDir.get(inner))); });
     const section = document.getElementById('faculty-cards');
     const isLandscapeGate = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
     if (isLandscapeGate && 'IntersectionObserver' in window && section) {
@@ -336,8 +333,10 @@ export function initFacultyFilter() {
         gsap.killTweensOf(navInners);
         navInners.forEach(inner => { inner.style.transition = 'none'; });
         if (navCol) navCol.style.pointerEvents = reveal ? '' : 'none';
+        const hid = reveal ? null : navInners.map(inner => navChipHidden(inner, navDir.get(inner)));
         gsap.to(navInners, {
-          clipPath: reveal ? CLIP_REVEALED : (i) => navDir.get(navInners[i]),
+          clipPath: reveal ? NAV_CHIP_SHOWN.clipPath : (i) => hid[i].clipPath,
+          translate: reveal ? NAV_CHIP_SHOWN.translate : (i) => hid[i].translate,
           duration: DUR.base, ease: NAV_EASE, stagger: 0, overwrite: true,
           onComplete: () => { if (reveal) navInners.forEach(inner => { inner.style.transition = ''; }); },
         });
@@ -367,11 +366,11 @@ export function initFacultyFilter() {
         if (navRevealed) return;
         navRevealed = true;
         gsap.to(navInners, {
-          clipPath: CLIP_REVEALED,
+          ...NAV_CHIP_SHOWN,
           duration: DUR.base,
           ease: NAV_EASE,
           stagger: 0.02,
-          clearProps: 'clipPath',
+          clearProps: 'clipPath,translate',
           onComplete: () => navInners.forEach(inner => { inner.style.transition = ''; }),
         });
       };
@@ -388,11 +387,13 @@ export function initFacultyFilter() {
   registerPageExit(() => new Promise(resolve => {
     if (typeof gsap === 'undefined' || !navRevealed || !navInners.length) { resolve(); return; }
     gsap.killTweensOf(navInners);
-    navInners.forEach(inner => { inner.style.transition = 'none'; });  // 同進場：停掉 transition:all 免追 GSAP clipPath 卡頓
+    navInners.forEach(inner => { inner.style.transition = 'none'; });  // 同進場：停掉 transition:all 免追 GSAP 每幀寫入卡頓
+    const hid = navInners.map(inner => navChipHidden(inner, navDir.get(inner)));
     gsap.fromTo(navInners,
-      { clipPath: CLIP_REVEALED },
+      { ...NAV_CHIP_SHOWN },
       {
-        clipPath: () => pickNavClip(),
+        clipPath: (i) => hid[i].clipPath,
+        translate: (i) => hid[i].translate,
         duration: DUR.base,
         ease: NAV_EASE,
         stagger: { each: 0.02, from: 'end' },

@@ -561,6 +561,11 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
 
     // ── Phase B：收完 → 重排角色/幾何（隱藏態瞬間跳位）→ 一起 clip wipe in ──
     setTimeout(() => {
+      // 先殺 Phase A 尚在飛的 heroExitCard tween：setTimeout(300ms) 是 macrotask、GSAP 最後一 tick 是 rAF
+      // （~312ms）→ 可能在 setAsGray 清 translate「之後」才寫入最終 translate。色塊有 heroRevealCard
+      // overwrite:true 保護；新灰卡走 CSS clip transition 無新 tween → 殘留 translate 沒人清，灰卡被
+      // 甩出版位（user 2026-07-16「灰卡 pos 跑掉到畫面下方」，間歇）。這裡統一 kill 掉才 re-config。
+      if (typeof gsap !== 'undefined') gsap.killTweensOf(allEls);
       const outgoingEl    = activeEl;
       const outgoingColor = colorOf.get(clickedEl);
       const outgoingTab   = tabOf.get(outgoingEl);

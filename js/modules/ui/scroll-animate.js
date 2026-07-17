@@ -157,6 +157,50 @@ export function playRevealExit(elements, { stagger = 0.06, fromEnd = false, dura
   });
 }
 
+// ════════════════════════════════════════════════════════════════
+// nav chip hero clip-reveal（2026-07-16：全站 nav btn 從「原地 inset wipe」改為 hero 式「滑動＋遮罩」）
+//
+// 免 wrapper 做法＝CSS `translate` 獨立屬性＋同步 clip-path（同 atlas career chip）：
+//   - rotation 是各頁 JS 動態寫在 .anchor-nav-inner 的 inline transform（hover/active 隨時重寫），
+//     包真遮罩得把旋轉搬到 wrapper、動到所有寫點；translate 獨立屬性與 transform:rotate 疊加共存，不打架。
+//   - clip-path 在旋轉前的 local box 生效 → 跟著 chip 旋轉，角不裁、不疊鄰（原 wipe 版的優點全保留）。
+//   - 位移向量沿「旋轉後自身軸」：純垂直/水平位移在旋轉 chip 上會讓 clip 窗口漂移
+//     （sinθ×位移量顯示為側向偏移），向量旋轉 θ＝「旋轉遮罩內滑動」的數學等效，窗口錨點釘死。
+// ⚠️ translate 兩端 token 結構必須一致（雙值全 px），否則 GSAP 靜默不動（見 memory）。
+// ⚠️ hidden 的 px 向量依當下寬高/角度計算 → 每次要藏都重新呼叫 navChipHidden，別 cache 回傳值。
+const _NAV_SLIDE = {
+  top:    { v: (w, h) => [0, -h], clip: 'inset(100% 0% 0% 0%)' }, // 藏在上（reveal＝向下滑入）
+  bottom: { v: (w, h) => [0, h],  clip: 'inset(0% 0% 100% 0%)' }, // 藏在下（reveal＝向上滑入）
+  left:   { v: (w, h) => [-w, 0], clip: 'inset(0% 0% 0% 100%)' }, // 藏在左
+  right:  { v: (w, h) => [w, 0],  clip: 'inset(0% 100% 0% 0%)' }, // 藏在右
+};
+const _NAV_DIR_KEYS = Object.keys(_NAV_SLIDE);
+// 顯示態（進場終點／退場 fromTo 顯式起點）
+export const NAV_CHIP_SHOWN = { clipPath: 'inset(0% 0% 0% 0%)', translate: '0px 0px' };
+
+// 挑一個滑動方向；caller 用 Map 存每顆 chip 的固定方向，讓 reveal/hide 來回一致。
+// 沿「較短邊」隨機（chip 寬>高 → top/bottom 滑矮邊、小而穩）：純 4 向 random 會抽到長軸(寬)那次
+// 滑一整個寬度「從很遠飛進來」(user 2026-07-17)、不像 hero 字卡在自己 box 內揭露。同 library pickTitleDir/revealDir。
+// 無 el（保底）退回純 4 向隨機。
+export function pickNavDir(el) {
+  if (!el) return _NAV_DIR_KEYS[Math.floor(Math.random() * _NAV_DIR_KEYS.length)];
+  const w = el.offsetWidth || 0, h = el.offsetHeight || 0;
+  const pair = w >= h ? ['top', 'bottom'] : ['left', 'right'];
+  return pair[Math.random() < 0.5 ? 0 : 1];
+}
+
+// 隱藏態 { clipPath, translate }：dir 由 caller 傳（各頁用 pickNavDir + Map）；預設 'bottom' 只是保底。
+export function navChipHidden(el, dir = 'bottom') {
+  const d = _NAV_SLIDE[dir];
+  const m = /rotate\((-?[\d.]+)deg\)/.exec(el.style.transform || '');
+  const th = m ? parseFloat(m[1]) * Math.PI / 180 : 0;
+  const [dx, dy] = d.v(el.offsetWidth || 0, el.offsetHeight || 0);
+  return {
+    clipPath: d.clip,
+    translate: `${(dx * Math.cos(th) - dy * Math.sin(th)).toFixed(2)}px ${(dx * Math.sin(th) + dy * Math.cos(th)).toFixed(2)}px`,
+  };
+}
+
 const _EXIT_CLIP_DIRS = [
   'inset(100% 0% 0% 0%)', // 收向上
   'inset(0% 0% 100% 0%)', // 收向下

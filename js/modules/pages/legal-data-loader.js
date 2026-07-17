@@ -253,7 +253,13 @@ function revealLegalBlocks(contentEl, { scrollGated = true } = {}) {
       gsap.delayedCall(i * 0.12, play);
     }
   });
-  registerPageExit(() => playRevealExit(legalSlideTargets(contentEl)));
+  // 退場排除「收合手風琴 panel（[inert]）內」的 reveal：收合後 panel height:0 clip 掉，但內部 reveal 仍佔自然高
+  // （getBoundingClientRect≠0）→ 會被 playRevealExit 的 viewportOnly 收進來，且撐開 y-axis stagger 範圍、
+  // 把可見標題彼此拉出時間間隔＝user 報「收合後切 header 分頁，accordion 那排延遲才消失、非一次過離開」。
+  // 只收可見的（標題在 header 不在 panel、展開內容照收）→ 可見元素一起沉出。
+  registerPageExit(() => playRevealExit(
+    legalSlideTargets(contentEl).filter(el => !el.closest('.support-acc-panel[inert]'))
+  ));
 }
 
 // 手風琴共用線路（support / regulations / policy 共用）：把 header（可點列，需已含標題內容）與 panel（收合內容）接起來——
@@ -275,11 +281,21 @@ function wireAccordion(header, panel, { open = false } = {}) {
   gsap.set(panel, { height: open ? 'auto' : 0, overflow: 'hidden' });
   gsap.set(chevron, { rotation: open ? 90 : 270 });   // 展開態朝上 90 / 收合態朝下 270（base 朝左）
 
+  // 由下往上 clip 收起（內容不動、panel 底邊上移貼到 sticky 標題）＝純 height:0（overflow:hidden、內容釘頂）。
+  // 但面板比可視區高很多時，height 從全高→0 整段時長都在縮「螢幕外空高度」、可視內容只在最後幾 frame 啪一下；
+  // 修法：收合前把起始高 cap 到可視裁切高（多的都在螢幕外看不到）→ wipe 全發生在可視範圍內、看得到收起感。
+  // 可視裁切高：桌面＝inner-scroll box 的 clientHeight、手機＝viewport。
+  const clipH = () => {
+    const box = panel.closest('.legal-content-col');
+    return box && getComputedStyle(box).overflowY === 'auto' ? box.clientHeight : window.innerHeight;
+  };
+
   const toggle = () => {
     const open = header.getAttribute('aria-expanded') === 'true';
     header.setAttribute('aria-expanded', String(!open));
     if (open) {
       panel.setAttribute('inert', '');
+      gsap.set(panel, { height: Math.min(panel.scrollHeight, clipH()) });
       gsap.to(panel, { height: 0, duration: DUR.base, ease: EASE.exitSoft });
       gsap.to(chevron, { rotation: 270, duration: DUR.fast });
     } else {

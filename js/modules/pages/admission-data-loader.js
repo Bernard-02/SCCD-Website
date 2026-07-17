@@ -83,26 +83,28 @@ export function setupAdmissionReveal(container, { hide = true } = {}) {
   if (typeof gsap === 'undefined' || !container) return;
   const rows = container.querySelectorAll('.list-reveal-row');
   setupClipReveal(rows, { hide });
-  // 標題文字列進場方向 per-item 隨機：一半改從上滑入（yPercent:-100），一半維持從下（setupClipReveal 預設 100）。
-  // 只翻「文字」列（主標 .text-h5 + 同筆副標 .list-subtitles，同筆同方向不交錯）；斑馬底色「box」維持
-  // 由下往上（下方 clipPath inset(100%)）、結構列（meta/分享/chevron/分隔線）也維持從下。（user 2026-07-15）
-  if (hide && !prefersReducedMotion()) {
-    container.querySelectorAll('.list-item').forEach(item => {
-      if (Math.random() < 0.5) return;  // 一半維持從下
+  // 進場方向 per-item 隨機，但**整筆一致**：一半從上滑入（文字 yPercent:-100 ＋ 斑馬底色 box 由上往下揭），
+  // 一半維持從下（setupClipReveal 預設 100 ＋ box 由下往上揭）。
+  // ⚠️ 之前只翻「文字」列、box 恆由下 → 翻上的那筆變成「文字往下、底色 box 往上」一筆內兩個方向打架；
+  //    副標貼近 box 下緣，讀起來像「副標跟 title 反方向」（user 2026-07-17 report，工作營 item 最明顯）。
+  //    現在 box 跟文字同方向、整筆一起進場。結構列（meta/分享/chevron/分隔線）仍維持從下（非顯眼、保留原樣）。
+  // ⚠️ box clip 無條件藏（即使 hide:false 的初次載入）：文字 row 一律被 bindInteractions 的 setupClipReveal
+  //    藏起，底色不跟著藏 → 初次進場「灰底已在、只有文字滑入」（user 2026-06-22）；揭露一律由
+  //    playAdmissionPanelReveal 的 revealZebraBg 接（→inset(0)，兩方向都適用）。
+  const canFlip = hide && !prefersReducedMotion();
+  container.querySelectorAll('.list-item').forEach(item => {
+    const fromTop = canFlip && Math.random() < 0.5;
+    if (fromTop) {
       item.querySelectorAll('.list-reveal-row').forEach(row => {
         if (row.querySelector('.text-h5') || row.classList.contains('list-subtitles')) {
           gsap.set(row, { yPercent: -100 });
         }
       });
-    });
-  }
-  // 斑馬底色（zebra item 才有可見底色）進場用 clip-path 揭露：先藏起，避免進場前底色閃出。
-  // 逐 item 揭由 playAdmissionPanelReveal 接（底色先、文字後，item 間接力）。inset(100%)=從下往上揭。
-  // ⚠️ 無條件藏（即使 hide:false 的初次載入）：list-item 的文字 row 一律被 bindInteractions 的
-  //    setupClipReveal(hide:true) 藏起，底色不跟著藏 → 初次進場「灰底已在、只有文字滑入」（user 2026-06-22）。
-  //    hide:false 只為了不藏「描述塊」（非 zebra item，不受這行影響）；揭露一律由 playAdmissionPanelReveal 接管。
-  container.querySelectorAll('.list-item.list-item-zebra').forEach(item => {
-    gsap.set(item, { clipPath: 'inset(100% 0% 0% 0%)' });
+    }
+    if (item.classList.contains('list-item-zebra')) {
+      // fromTop → inset 底 100%（由上往下揭）；否則 inset 頂 100%（由下往上），跟文字同方向
+      gsap.set(item, { clipPath: fromTop ? 'inset(0% 0% 100% 0%)' : 'inset(100% 0% 0% 0%)' });
+    }
   });
 }
 

@@ -88,11 +88,14 @@ function buildDates(s, e) {
 const ytUrls = (arr) => Array.isArray(arr) ? arr.map(v => typeof v === 'string' ? v : (v?.url || '')).filter(Boolean) : [];
 
 // Directus row → loadListInto-friendly item
-function mapRow(r, category) {
+// stamp：dedicated collection 沒有 category/visitType/exhibitionType 欄，但前台 loadListInto 仍用這些 filter
+//   （visits 拆 in/out、exhibitions 拆 special/permanent）→ 由 caller 依 collection 補判別值，資料進來才不被濾掉。
+function mapRow(r, category, stamp) {
   return {
     ...r,
     id: r.refCode || r.id,                       // 前台用 refCode 當 element id + ref 解析鍵（對齊 ref 指向的友善碼）
     ...(category ? { category } : {}),           // dedicated collection 無 category 欄 → 補上給 categoryFilter 比對
+    ...(stamp || {}),                            // visitType / exhibitionType 等子類型判別欄（同上）
     description: r.descriptionEn || '',          // introField 預設 'description' 讀 item.description（EN）；descriptionZh 前台自動讀
     dates: r.startDate ? buildDates(r.startDate, r.endDate) : [],
     poster: fileUrl(r.poster),
@@ -120,15 +123,17 @@ function groupByYear(items) {
 /**
  * @param {string} collection  Directus collection（如 'activities_competitions'）
  * @param {string} fallbackUrl 本地 JSON 路徑（Directus 失敗/空時用）
- * @param {{category?: string}} [opts]
+ * @param {{category?: string, stamp?: object}} [opts]  stamp = 補到每筆的子類型判別欄（visitType/exhibitionType）
  */
 export async function loadActivityCollection(collection, fallbackUrl, opts = {}) {
   try {
-    const res = await fetch(`${CMS_API_BASE}/${collection}?limit=-1&sort=sort&fields=*,${REF_FIELDS}`);
+    // images 是 files M2M：fields=* 只回 junction row id（非檔案 UUID）→ normalizeFiles 組出 404 asset。
+    // 必須深取 images.directus_files_id 才拿到真正檔案 UUID（同 REF_FIELDS 對 library_press.images 的做法）。
+    const res = await fetch(`${CMS_API_BASE}/${collection}?limit=-1&sort=sort&fields=*,images.directus_files_id,${REF_FIELDS}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const rows = (await res.json()).data;
     if (!Array.isArray(rows) || !rows.length) throw new Error('empty');
-    return groupByYear(rows.map(r => mapRow(r, opts.category)));
+    return groupByYear(rows.map(r => mapRow(r, opts.category, opts.stamp)));
   } catch (err) {
     console.warn(`[activities-source] ${collection} CMS fetch failed → 本地 ${fallbackUrl}:`, err.message);
     return fetch(sitePath(fallbackUrl)).then(r => r.json());

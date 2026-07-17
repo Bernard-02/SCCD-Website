@@ -2102,6 +2102,13 @@ export async function initAtlas(options = {}) {
   const finishIntroVisuals = () => {
     gsap.set(content.querySelectorAll('.atlas-anchor'), { clearProps: 'opacity' });
     gsap.set(svg, { clearProps: 'opacity' });
+    // co 進場走 clip-reveal（非 opacity）：中斷 kill 時 span 可能卡在 hidden clip/translate → 清回定態
+    items.forEach(it => {
+      if (String(it.id).split('-')[0] === 'co' && it._span) {
+        it._span.style.clipPath = '';
+        it._span.style.translate = '';
+      }
+    });
   };
   if (typeof gsap !== 'undefined' && !isMobileAtlas && !options.instant && !prefersReducedMotion()) {
     const WAVES = [
@@ -2116,12 +2123,27 @@ export async function initAtlas(options = {}) {
 
     introTween = gsap.timeline({ onComplete: finishIntroVisuals });
     WAVES.forEach((prefixes, i) => {
-      const anchors = items.filter(it => prefixes.includes(anchorPrefix(it))).map(it => it._anchor).filter(Boolean);
-      if (anchors.length) {
+      const waveItems = items.filter(it => prefixes.includes(anchorPrefix(it)));
+      const anchors = waveItems.map(it => it._anchor).filter(Boolean);
+      if (!anchors.length) return;
+      const pos = i * WAVE_GAP;
+      // co（hosting 橢圓 chip）進場改 hero clip-reveal random-4-dir（user 2026-07-17）：anchor 即刻可見、
+      // span 從隨機四方向 clip+translate 滑入（同 subchip toggle 的 reveal）。span 的 hidden 態在
+      // bChipRevealTween 呼叫當下（＝setup t=0）同步 set 好，故 waves 1-3 期間 co 已藏（anchor opacity 0
+      // 也藏）；pos 才把 anchor 設可見、各自隨機 delay 起跑 reveal。
+      if (prefixes[0] === 'co') {
+        introTween.set(anchors, { opacity: 1 }, pos);
+        waveItems.forEach(it => {
+          if (!it._span) return;
+          bChipRevealTween(it._span, randomBDir(), 'show', {
+            duration: FADE, tl: introTween, position: pos + Math.random() * STAG,
+          });
+        });
+      } else {
         introTween.to(anchors, {
           opacity: 1, duration: FADE, ease: EASE.enterSoft,
           stagger: { amount: STAG, from: 'random' },
-        }, i * WAVE_GAP);
+        }, pos);
       }
     });
     introTween.to(svg, { opacity: 1, duration: FADE, ease: EASE.enterSoft }, (WAVES.length - 1) * WAVE_GAP);
@@ -2628,7 +2650,7 @@ export async function initAtlas(options = {}) {
       interval = /** @type {any} */ (setInterval(rotateOnce, 3000));
     }
 
-    /** @param {{ delay?: number }} [opts] */
+    /** @param {{ delay?: number, ride?: number }} [opts] ride＝額外水平位移 px（跟著 alumni inner 一起往左走） */
     function hide(opts) {
       if (!visible) return;
       visible = false;
@@ -2661,24 +2683,90 @@ export async function initAtlas(options = {}) {
       // height:auto 對 GSAP tween 不友善 → 鎖當下 px 為起點
       const currentH = el.offsetHeight;
       gsap.set(el, { height: currentH });
-      // 2-phase hide：先滑出（translate＋clip 同步、沿進來的方向退回），再靜默 collapse layout（Partners 上推）
-      // 橫向 gate 收合連 width 一起歸零（header 水平 row，空 box 會把 Partners 推遠）
-      const tl = gsap.timeline({ delay: (opts && opts.delay) || 0 });
-      tl.to(el, {
-        clipPath: dirCfg.hiddenClip,
-        translate: hiddenTranslatePx(),
-        duration: DUR.base,
-        ease: EASE.exitSoft,
-      }, 0);
-      tl.to(el, {
-        height: 0,
-        paddingTop: 0,
-        paddingBottom: 0,
-        ...(isLandscapeGateAtlas ? { width: 0, paddingLeft: 0, paddingRight: 0 } : {}),
-        duration: DUR.fast,
-        ease: EASE.exitSoft,
-      }, 0.4);
-      tween = tl;
+      // 滑出 0.5s + EASE.exit＝完全對齊 .atlas-filter-btn 的 CSS 退場曲線（0.5s power3.in）——
+      // career 跟 alumni btn 同刻起跑（見 hideCareer）＋同曲線＝兩顆一起離開。
+      // ride（user 2026-07-16 定案）＝在自身收起之上疊「跟隨 alumni inner 的水平位移」：
+      // alumni btn 退場是 inner translate -(自寬+24px) 滑出鎖死的窗（atlas.css .anchor-nav-inner），
+      // career 疊同量純水平分量後，可見部分的窗剛好黏著 inner 右緣一起往左走（自收分量沿旋轉軸、
+      // 被 clip 同步抵銷；ride 分量不抵銷＝窗本身的位移）。同曲線同時長 → 全程貼合。
+      // ⚠️ 不是「行進滑出 row」（飛過整排 btn 的版本被打回）；deselect（btn 不退場）ride=0＝原地收起。
+      const ride = (opts && opts.ride) || 0;
+      let hiddenT = hiddenTranslatePx();
+      if (ride) {
+        const [tx, ty] = hiddenT.split(' ').map(parseFloat);
+        hiddenT = `${(tx - ride).toFixed(2)}px ${ty}px`;
+      }
+      const buildTl = () => {
+        const tl = gsap.timeline();
+        // 2-phase hide：滑出（translate＋clip 同步、沿進來的方向退回）＋ ride 水平跟隨
+        tl.to(el, {
+          clipPath: dirCfg.hiddenClip,
+          translate: hiddenT,
+          duration: DUR.medium,
+          ease: EASE.exit,
+        }, 0);
+        // 再靜默 collapse layout（Partners 上推）；橫向 gate 收合連 width 一起歸零（header 水平 row）
+        tl.to(el, {
+          height: 0,
+          paddingTop: 0,
+          paddingBottom: 0,
+          ...(isLandscapeGateAtlas ? { width: 0, paddingLeft: 0, paddingRight: 0 } : {}),
+          duration: DUR.fast,
+          ease: EASE.exitSoft,
+        }, 0.5);
+        tween = tl;
+      };
+      // ride 流程（delay>0）＝「火車模型」（user 2026-07-16 定案：career 收起速度不能比系友快，
+      // 否則疊到系友 chip 上）：career 跟系友 inner 等速黏行（Phase A，CSS transition＝inner 同款
+      // bezier/時長/位移量、同一 timer flush 觸發＝同一次 recalc 起跑同時鐘）、Phase B 以 Phase A 終端
+      // 速度等速續行穿過「門」到全滅（車尾比車頭晚出門）。
+      // 「門」＝真實 overflow 遮罩（左緣對齊系友窗左緣、同款 clip-margin 12px）：被吃的時刻/速度純由
+      // 幾何決定，零時鐘同步問題——GSAP（真實時鐘跳進度、錯拍 ~140ms）與 WAAPI（起跑幀仍有殘差
+      // ~18px）都試過會鑽到系友 chip 底下，唯 CSS transition＋幾何門全程貼合。
+      const delayMs = ((opts && opts.delay) || 0) * 1000;
+      if (delayMs > 0) {
+        const BEZIER = 'cubic-bezier(0.55, 0.055, 0.675, 0.19)';   // ＝.atlas-filter-btn inner 退場曲線
+        const innerW = ride - 24;   // ride＝inner 位移 calc(-100% - 24px) 的 px 值
+        // 門遮罩：負 margin + 等量 padding 淨零版位，遮罩 border-box 左緣＝系友 btn 左緣；建一次重用
+        let mask = el.parentElement;
+        if (!mask.dataset.careerDoor) {
+          mask = document.createElement('div');
+          mask.dataset.careerDoor = '1';
+          el.parentNode.insertBefore(mask, el);
+          mask.appendChild(el);
+        }
+        mask.style.cssText = `overflow: clip; overflow-clip-margin: 12px; margin-left: ${-innerW}px; padding-left: ${innerW}px; flex: none;`;
+        const w = el.offsetWidth || 1;
+        const vEnd = (ride / DUR.medium) * ((1 - 0.19) / (1 - 0.675));  // bezier 終端斜率＝Phase A 結束瞬時速度
+        const distB = w;   // Phase A 末 body 左緣已在門內 12px，再走 w 保證右緣過門＋buffer
+        const TB = distB / vEnd;
+        const timers = [
+          setTimeout(() => {
+            gsap.set(el, { clipPath: CAREER_VISIBLE_CLIP });   // 行進期間全開，由門遮罩裁
+            el.style.transition = `translate ${DUR.medium}s ${BEZIER}`;
+            el.style.translate = `${-ride}px 0px`;
+          }, delayMs),
+          setTimeout(() => {
+            el.style.transition = `translate ${TB}s linear`;
+            el.style.translate = `${-(ride + distB)}px 0px`;
+          }, delayMs + DUR.medium * 1000),
+          setTimeout(() => {
+            el.style.transition = '';
+            gsap.set(el, { clipPath: dirCfg.hiddenClip, translate: hiddenTranslatePx() });
+            tween = gsap.to(el, {
+              height: 0,
+              paddingTop: 0,
+              paddingBottom: 0,
+              ...(isLandscapeGateAtlas ? { width: 0, paddingLeft: 0, paddingRight: 0 } : {}),
+              duration: DUR.fast,
+              ease: EASE.exitSoft,
+            });
+          }, delayMs + DUR.medium * 1000 + TB * 1000 + 60),
+        ];
+        tween = { kill: () => { timers.forEach(clearTimeout); el.style.transition = ''; } };
+      } else {
+        buildTl();
+      }
     }
 
     function destroy() {
@@ -2898,8 +2986,51 @@ export async function initAtlas(options = {}) {
         }
         // 一個還開著 → 只 clip-path show/hide 該 subgroup 的 B chip，留 ring direction / orbit / career 不動
         setSubchipVisibility(key, subchipActive[key]);
+        // employment 開關會影響國家節點 gate（employment/partners 皆 inactive → D 藏起）——
+        // 此路徑不跑 applyMapFilter，gate 要在這裡補（user 2026-07-16）
+        if (key === 'employ') applyCountriesGate(true);
       });
     });
+  }
+
+  // ── B(host)橢圓 chip hero clip-reveal helper（隨機四方向）───────────────────
+  // B 環 chip 的 _span.style.translate 通道空著（tickFloat Phase 2 跳過 B 的 wobble、軌道在 _anchor、
+  // 傾斜是靜態 style.rotate）→ 可疊 translate；translate 個別屬性在 rotate 之前套用＝與 clip-path 同在
+  // 本地座標系，直接沿方向位移即沿各自旋轉軸乾淨滑出、免旋轉位移向量。四方向：hidden clip inset 同側
+  // ＋translate 沿該側（left 藏左邊/right 藏右邊/top 藏上/bottom 藏下）。function 宣告 → hoist 到進場用。
+  /** @param {HTMLElement} span @param {'left'|'right'|'top'|'bottom'} dir */
+  function bChipHidden(span, dir) {
+    const w = span.offsetWidth || 0, h = span.offsetHeight || 0;
+    if (dir === 'right')  return { clip: 'inset(0% 100% 0% 0%)', tx: w,  ty: 0 };
+    if (dir === 'top')    return { clip: 'inset(100% 0% 0% 0%)', tx: 0,  ty: -h };
+    if (dir === 'bottom') return { clip: 'inset(0% 0% 100% 0%)', tx: 0,  ty: h };
+    return { clip: 'inset(0% 0% 0% 100%)', tx: -w, ty: 0 };   // left
+  }
+  function randomBDir() { return (['left', 'right', 'top', 'bottom'])[Math.floor(Math.random() * 4)]; }
+  // 建 B chip 的 clip-reveal tween（show: hidden→visible / hide: visible→hidden）。
+  // ⚠️ translate 用 onUpdate + this.ratio（已含 ease）每幀直寫 style：GSAP 對 individual `translate`
+  //    屬性在這類 tween 只跑 clip 不跑 translate（實測、查不出根因）→ 直寫繞開、且跟 clip 完美同步。
+  //    起點的 clip+translate 同步 set（timeline 場景＝呼叫當下即 t=0 藏好）。overwrite 給快速連點。
+  // opts.tl 有給就 add 進 timeline 的 position；否則獨立 gsap.to（吃 opts.delay）。
+  /** @param {HTMLElement} span @param {'left'|'right'|'top'|'bottom'} dir @param {'show'|'hide'} mode */
+  function bChipRevealTween(span, dir, mode, opts) {
+    const { clip, tx, ty } = bChipHidden(span, dir);
+    const VIS = 'inset(0% 0% 0% 0%)';
+    const showing = mode === 'show';
+    gsap.set(span, { clipPath: showing ? clip : VIS });
+    span.style.translate = showing ? `${tx.toFixed(2)}px ${ty.toFixed(2)}px` : '0px 0px';
+    const vars = {
+      clipPath: showing ? VIS : clip,
+      duration: opts.duration, ease: opts.ease || EASE.enterSoft, overwrite: true,
+      onUpdate: function () {
+        const k = showing ? (1 - this.ratio) : this.ratio;
+        span.style.translate = `${(tx * k).toFixed(2)}px ${(ty * k).toFixed(2)}px`;
+      },
+      onComplete: () => { span.style.clipPath = ''; span.style.translate = ''; if (opts.onComplete) opts.onComplete(); },
+    };
+    if (opts.tl) return opts.tl.to(span, vars, opts.position);
+    vars.delay = opts.delay || 0;
+    return gsap.to(span, vars);
   }
 
   // 純 clip-path show/hide 該 subgroup 的 alumni chip，不動 ring 方向（避免 user 看到方向反轉）
@@ -2931,37 +3062,41 @@ export async function initAtlas(options = {}) {
     const randomHiddenInset = () => HIDDEN_INSETS[Math.floor(Math.random() * HIDDEN_INSETS.length)];
     const TOTAL = 0.4;
     const RANGE = 0.25;
-
+    // host 組 = B 環企業 chip：走 bChipRevealTween 的 hero clip-reveal，每顆隨機四方向（translate + 同步
+    // clip；user 2026-07-17）。employ 組 = C floating chip：_span.translate 被浮動 wobble 佔用 → 維持
+    // random 四方向純 clip 擦除。
     if (!visible) {
       targets.forEach(item => {
+        const isB = item.category === 'B';
         const d = Math.random() * RANGE;
-        gsap.to(item._span, {
-          clipPath: randomHiddenInset(),
-          duration: TOTAL - d,
-          delay: d,
-          ease: EASE.enterSoft,
-          overwrite: true,
-          onComplete: () => {
-            item._anchor.classList.add('atlas-filtered-out');
-            item._span.style.clipPath = '';
-            (itemLines.get(item.id) || []).forEach(lineEl => { lineEl.style.display = 'none'; });
-          },
-        });
+        const onDone = () => {
+          item._anchor.classList.add('atlas-filtered-out');
+          item._span.style.clipPath = '';
+          if (isB) item._span.style.translate = '';
+          (itemLines.get(item.id) || []).forEach(lineEl => { lineEl.style.display = 'none'; });
+        };
+        if (isB) {
+          bChipRevealTween(item._span, randomBDir(), 'hide', { duration: TOTAL - d, delay: d, onComplete: onDone });
+        } else {
+          gsap.to(item._span, { clipPath: randomHiddenInset(), duration: TOTAL - d, delay: d, ease: EASE.enterSoft, overwrite: true, onComplete: onDone });
+        }
       });
     } else {
       targets.forEach(item => {
         item._anchor.classList.remove('atlas-filtered-out');
         (itemLines.get(item.id) || []).forEach(lineEl => { lineEl.style.display = ''; });
-        gsap.set(item._span, { clipPath: randomHiddenInset() });
+        const isB = item.category === 'B';
         const d = Math.random() * RANGE;
-        gsap.to(item._span, {
-          clipPath: 'inset(0% 0% 0% 0%)',
-          duration: TOTAL - d,
-          delay: d,
-          ease: EASE.enterSoft,
-          overwrite: true,
-          onComplete: () => { item._span.style.clipPath = ''; },
-        });
+        const onDone = () => {
+          item._span.style.clipPath = '';
+          if (isB) item._span.style.translate = '';
+        };
+        if (isB) {
+          bChipRevealTween(item._span, randomBDir(), 'show', { duration: TOTAL - d, delay: d, onComplete: onDone });
+        } else {
+          gsap.set(item._span, { clipPath: randomHiddenInset() });
+          gsap.to(item._span, { clipPath: 'inset(0% 0% 0% 0%)', duration: TOTAL - d, delay: d, ease: EASE.enterSoft, overwrite: true, onComplete: onDone });
+        }
       });
     }
   }
@@ -2990,10 +3125,23 @@ export async function initAtlas(options = {}) {
   /** @param {{ stagger?: number }} [opts] */
   function hideCareer(opts) {
     const stagger = (opts && opts.stagger) || 0;
-    // 退場反向：employ → host → career（reverse mapSubchipCtrls 順序），career 最後收
+    // 退場反向：employ → host（reverse mapSubchipCtrls 順序）
     const reversed = mapSubchipCtrls.slice().reverse();
     reversed.forEach((c, i) => c.hide({ delay: i * stagger }));
-    if (mapCareerCtrl) mapCareerCtrl.hide({ delay: reversed.length * stagger });
+    // career 跟 alumni btn 是一體、一起往左收（user 2026-07-16）：stagger>0＝btns 也在退場的流程
+    // （switchToList / playMapExit，btns reverse loop 以 i*STAGGER ms 摘 class）→ career 對齊 alumni btn
+    // 的起跑時刻（reversed index × STAGGER）；曲線已在 hide() 對齊 btn CSS（0.5s power3.in）。
+    // stagger=0（alumni deselect，btn 不退場）→ 維持立即收。
+    let careerDelay = reversed.length * stagger;
+    let ride = 0;
+    if (stagger > 0 && alumniBtn) {
+      const idx = [...btns].reverse().indexOf(alumniBtn);
+      if (idx >= 0) careerDelay = (idx * STAGGER) / 1000;
+      // ride＝alumni inner 的退場位移量（CSS translate: calc(-100% - 24px)）→ career 黏著一起往左
+      const inner = /** @type {HTMLElement | null} */ (alumniBtn.querySelector('.anchor-nav-inner'));
+      if (inner) ride = inner.offsetWidth + 24;
+    }
+    if (mapCareerCtrl) mapCareerCtrl.hide({ delay: careerDelay, ride });
     animateRingEllipse(false);
   }
 
@@ -3024,8 +3172,17 @@ export async function initAtlas(options = {}) {
     });
   }
   function syncCareer() {
-    if (selected.has('alumni')) showCareer();
-    else hideCareer();
+    if (selected.has('alumni')) {
+      // show 延一幀：showCareer/subchip show 的同步量測（fitWidth Range 量測、offsetHeight/getComputedStyle
+      // 多次強制 reflow）跟 applyMapFilter 幾十顆 chip 的 tween 建立擠同一幀會拉出一根長幀（實測 87ms＝
+      // user 2026-07-16「subchip 出來時稍微卡頓」）→ 拆成兩幀削尖峰。isConnected 防 rAF 落在離頁 cleanup 後
+      // （否則 show 會重建 3s 輪播 interval 漏到下一頁）。
+      requestAnimationFrame(() => {
+        if (careerEl && careerEl.isConnected && selected.has('alumni')) showCareer();
+      });
+    } else {
+      hideCareer();
+    }
   }
 
   cleanupFns.push(() => {
@@ -3593,6 +3750,14 @@ export async function initAtlas(options = {}) {
       }
     });
 
+    // faculty 欄（在職 fc + 離職 ff 併排）list view 依姓氏 A-Z（= nameEn 最後一字，對齊兼任老師後台排法）；
+    // 桌機/手機共用 listGrouped[cat]，在此排完兩端一致。map（星雲）走 items 陣列不受影響。
+    const surnameKey = (it) => {
+      const en = (it.textEn || '').trim();
+      return en ? en.split(/\s+/).pop().toLowerCase() : (it.textZh || '').trim();
+    };
+    listGrouped.faculty.sort((a, b) => surnameKey(a).localeCompare(surnameKey(b), 'en'));
+
     // em-* items（系友就職企業 mock）已在 items 陣列、走 alumni cat → _listSubGroup='employ' → 自動進 listGrouped.employ
     // 不再需要這裡額外 push placeholder（之前繞 items 陣列直接餵 listGrouped 的 pattern 已 deprecate）
 
@@ -3789,6 +3954,84 @@ export async function initAtlas(options = {}) {
     });
   }
 
+  // 國家節點 gate（user 2026-07-16）：employment（alumni 選取＋employ subchip 開）或 partners
+  // 任一 active 才顯示 D 城市節點＋城市環線（兩者都關＝沒有任何連到城市的內容，節點沒意義）。
+  // 手機星雲＝純瀏覽全部顯示（switchToMobileMap finalize 不過濾），gate 只作用桌面。
+  function countriesGateOn() {
+    return isMobileAtlas
+      || selected.has('partners')
+      || (selected.has('alumni') && subchipActive.employ !== false);
+  }
+
+  // D 國家節點＋城市環線的 gate 套用。獨立函式因為有兩個入口：applyMapFilter（filter 點擊/init/view 切換）
+  // 與 employ subchip 單獨 toggle（走 setSubchipVisibility 不跑 applyMapFilter，gate 要在 handler 補呼叫）。
+  // 節點收/展沿用 map filter 的 span clip-path 4 向隨機；ring 線用 retractT（同 hover/view-switch 機制）。
+  function applyCountriesGate(animate) {
+    const on = countriesGateOn();
+    const dShow = [];
+    const dHide = [];
+    items.forEach(item => {
+      if (item.category !== 'D' || !item._anchor) return;
+      const wasFiltered = item._anchor.classList.contains('atlas-filtered-out');
+      if (on && wasFiltered) dShow.push(item);
+      else if (!on && !wasFiltered) dHide.push(item);
+      else (itemLines.get(item.id) || []).forEach(l => { l.style.display = on ? '' : 'none'; });
+    });
+    const lineTarget = on ? 0 : 1;
+    if (!animate || typeof gsap === 'undefined') {
+      dShow.forEach(item => {
+        item._anchor.classList.remove('atlas-filtered-out');
+        (itemLines.get(item.id) || []).forEach(l => { l.style.display = ''; });
+      });
+      dHide.forEach(item => {
+        item._anchor.classList.add('atlas-filtered-out');
+        (itemLines.get(item.id) || []).forEach(l => { l.style.display = 'none'; });
+      });
+      cityLines.forEach(cl => {
+        if (cl.retractT === lineTarget) return;
+        if (typeof gsap !== 'undefined') gsap.killTweensOf(cl);
+        if (!on) cl.hoveredEnd = Math.random() < 0.5 ? 'a' : 'b';
+        cl.retractT = lineTarget;
+        updateCityLineEndpoints(cl);
+      });
+      return;
+    }
+    const INSETS = [
+      'inset(0% 0% 0% 100%)', 'inset(0% 100% 0% 0%)',
+      'inset(100% 0% 0% 0%)', 'inset(0% 0% 100% 0%)',
+    ];
+    const TOTAL = 0.4;
+    const RANGE = 0.25;
+    dHide.forEach(item => {
+      const d = Math.random() * RANGE;
+      gsap.to(item._span, {
+        clipPath: INSETS[Math.floor(Math.random() * 4)],
+        duration: TOTAL - d, delay: d, ease: EASE.enterSoft, overwrite: true,
+        onComplete: () => {
+          item._anchor.classList.add('atlas-filtered-out');
+          item._span.style.clipPath = '';
+          (itemLines.get(item.id) || []).forEach(l => { l.style.display = 'none'; });
+        },
+      });
+    });
+    dShow.forEach(item => {
+      item._anchor.classList.remove('atlas-filtered-out');
+      (itemLines.get(item.id) || []).forEach(l => { l.style.display = ''; });
+      gsap.set(item._span, { clipPath: INSETS[Math.floor(Math.random() * 4)] });
+      const d = Math.random() * RANGE;
+      gsap.to(item._span, {
+        clipPath: 'inset(0% 0% 0% 0%)',
+        duration: TOTAL - d, delay: d, ease: EASE.enterSoft, overwrite: true,
+        onComplete: () => { item._span.style.clipPath = ''; },
+      });
+    });
+    cityLines.forEach(cl => {
+      if (cl.retractT === lineTarget) return;
+      if (!on) cl.hoveredEnd = Math.random() < 0.5 ? 'a' : 'b';
+      gsap.to(cl, { retractT: lineTarget, duration: 0.5, ease: on ? EASE.enterSoft : EASE.exitSoft, overwrite: true });
+    });
+  }
+
   function applyMapFilter(animate = false) {
     const allowed = new Set();
     selected.forEach(k => (FILTER_PREFIXES[k] || []).forEach(p => allowed.add(p)));
@@ -3797,10 +4040,7 @@ export async function initAtlas(options = {}) {
     const toHide = [];
     items.forEach(item => {
       if (!item._anchor) return;
-      if (item.category === 'D') {
-        item._anchor.classList.remove('atlas-filtered-out');
-        return;
-      }
+      if (item.category === 'D') return;   // D 由 applyCountriesGate 統一處理（本函式尾端呼叫）
       const prefix = String(item.id).split('-')[0];
       let visible = allowed.has(prefix);
       // alumni chip (co-* ring + em-* floating) 再依 host/employ subchip 狀態二次過濾 — 該 subgroup 關掉就連帶藏 chip
@@ -3827,6 +4067,7 @@ export async function initAtlas(options = {}) {
         item._anchor.classList.add('atlas-filtered-out');
         (itemLines.get(item.id) || []).forEach(lineEl => { lineEl.style.display = 'none'; });
       });
+      applyCountriesGate(false);
       return;
     }
 
@@ -3892,6 +4133,7 @@ export async function initAtlas(options = {}) {
         onComplete: () => { item._span.style.clipPath = ''; },
       });
     });
+    applyCountriesGate(true);
   }
 
   function apply(animate = false) {
@@ -4167,7 +4409,7 @@ export async function initAtlas(options = {}) {
       if (typeof gsap === 'undefined') {
         allSpans.forEach(s => { s.style.clipPath = ''; });
         allCovers.forEach(c => { c.style.clipPath = ''; });
-        cityLines.forEach(cl => { cl.retractT = 0; });
+        cityLines.forEach(cl => { cl.retractT = countriesGateOn() ? 0 : 1; });
         scale = defaultScaleAtlas;
         applyTransform();
         btns.forEach(b => b.classList.add('atlas-filter-revealed'));
@@ -4240,14 +4482,17 @@ export async function initAtlas(options = {}) {
       // cityLines 物理 draw：retractT 1→0，updateCityLineEndpoints 每幀 lerp endpoint
       // 從 t=0 起跑跨整段（與 Phase B1 spans reveal 同步起點），ease='power2.out' 與 spans reveal 同節奏
       // 避免 linear 跨整段時前半段視覺幾乎沒變化，被 spans 大幅 reveal 蓋過顯得「沒動」
-      cityLines.forEach(cl => {
-        introTween.to(cl, {
-          retractT: 0,
-          duration: REVEAL_TOTAL + HIDE_TOTAL,
-          ease: EASE.enterSoft,
-          overwrite: true,
-        }, 0);
-      });
+      // 國家節點 gate 關（employment/partners 都 inactive）→ 不 draw，維持 init 的 retractT=1 隱形
+      if (countriesGateOn()) {
+        cityLines.forEach(cl => {
+          introTween.to(cl, {
+            retractT: 0,
+            duration: REVEAL_TOTAL + HIDE_TOTAL,
+            ease: EASE.enterSoft,
+            overwrite: true,
+          }, 0);
+        });
+      }
       // companyRingEllipse 的 draw 由 onComplete → revealFilters → syncCareer → showCareer 呼叫 animateRingEllipse(true) 處理
       //   此處不再另跑 tween，統一走 animateRingEllipse 的 dasharray progress（path-style point-to-point reveal）
 
