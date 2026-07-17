@@ -124,6 +124,35 @@
     pointer-events: auto;
   }
 
+  /* ===== 全站手機 header 底色帶（.mobile-header-bg）2026-07-17 =====
+   * header 三 mode 皆透明（inverse.css/color.css 明訂），手機時 logo/漢堡/mode 鈕後方會透出頁面內容。
+   * 這條 fixed 帶用 mode-aware var(--theme-bg) 填滿頂部 92px（＝手機 header 列高：pt-lg 32 + 鈕 44 + pb-md 24）。
+   * 放 header.html 內（sibling of <header>，#site-header 是 static → root stacking context）＝全站持久、SPA 換頁不重建。
+   * z-40 < header 內容(navigation.css header z-9999) → logo/鈕浮在上；> hero/內容(z-auto)；< slide-in(150)/lightbox/overlay(10000+) → 不蓋 modal。
+   * 捲到 footer 由 header.js bindFooterScroll 收起（footerTop<=92 才收，遮罩不能像 logo/nav 提早離開），避免帶的 theme-bg 撞 footer 補色。
+   * ⚠️transition 只 transform：mode3 每幀改 --theme-bg，含 background transition 會 lag；mode-switch 0.4s fade 靠 typography.css whitelist。
+   * 全螢幕 app 頁（generate/atlas/library＝body.overflow-hidden，router.js:285）不要頂部遮罩 → display:none。
+   * 矮橫向不套（orientation:portrait gate；landscape 走 nav 進 header 那套）。 */
+  @media (max-width: 767px) and (orientation: portrait) {
+    .mobile-header-bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 92px;
+      background: var(--theme-bg);
+      z-index: 40;
+      pointer-events: none;
+      transition: transform 0.4s ease;
+    }
+    .mobile-header-bg.is-hidden {
+      transform: translateY(-100%);
+    }
+    body.overflow-hidden .mobile-header-bg {
+      display: none;
+    }
+  }
+
   /* ===== Mega Menu ===== */
   .mega-menu {
     position: fixed;

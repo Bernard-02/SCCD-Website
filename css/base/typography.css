@@ -121,7 +121,9 @@ html.mode-switching.mode-switching .library-card-content {
  * 補進 whitelist；含 ::before/::after 與 shorthand `background`（遮罩多用 shorthand 寫）。 */
 html.mode-switching.mode-switching .courses-program-bar,
 html.mode-switching.mode-switching .inner-scroll-nav-col,
+html.mode-switching.mode-switching .inner-scroll-nav-col > div,
 html.mode-switching.mode-switching .inner-scroll-nav-col::before,
+html.mode-switching.mode-switching .mobile-header-bg,
 html.mode-switching.mode-switching .courses-mobile-grade-bar,
 html.mode-switching.mode-switching .courses-mobile-row-label,
 html.mode-switching.mode-switching .courses-mobile-row-label::before,
@@ -132,11 +134,10 @@ html.mode-switching.mode-switching .activities-filter-bar::before,
 html.mode-switching.mode-switching .admission-scroll-mask,
 html.mode-switching.mode-switching .list-header.is-pinned::before,
 html.mode-switching.mode-switching .list-mobile-header-blocker,
-html.mode-switching.mode-switching .support-acc-header,
-html.mode-switching.mode-switching .legal-support::before,
-html.mode-switching.mode-switching .legal-combined::before,
-html.mode-switching.mode-switching .legal-regulations::before {
-  transition: background var(--dur-base) ease, background-color var(--dur-base) ease, color var(--dur-base) ease !important;
+html.mode-switching.mode-switching .support-acc-header {
+  /* box-shadow 也列入：activities/admission sticky 遮罩用平移 shadow 左右外擴（消真機合成器邊緣漏色），
+     shadow 色 = var(--theme-bg)，不 transition 會在 mode 切換時 gutter 外擴帶 snap、與大背景脫節 */
+  transition: background var(--dur-base) ease, background-color var(--dur-base) ease, color var(--dur-base) ease, box-shadow var(--dur-base) ease !important;
 }
 
 /* /create 頁：#create-app 的 background-color 不在上方 whitelist，mode 切換時 snap 而 header 有 0.4s fade，

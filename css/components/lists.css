@@ -296,6 +296,10 @@
   }
   .list-header > * > .clip-reveal-wrapper:has(.list-subtitles) > * {
     min-height: 0;
+    /* grid item 預設 min-width:auto=min-content → 長副標（手機 nowrap，如 summer-camp 機構名）撐爆 grid 欄寬、
+       溢出 viewport → 手機瀏覽器把 ICB 撐寬整頁重縮放（user 2026-07-17 報「點 Camp 畫面 scale 放大」）。
+       min-width:0 讓副標回到欄寬、溢出交給 .list-title-marquee(overflow:hidden) 截斷＋開啟 marquee（同 title；min-height:0 的水平對應）。 */
+    min-width: 0;
   }
   .list-header.active.is-pinned > * > .clip-reveal-wrapper:has(.list-subtitles) {
     grid-template-rows: 0fr;
@@ -598,6 +602,10 @@
   }
   .list-header > * > .clip-reveal-wrapper:has(.list-subtitles) > * {
     min-height: 0;
+    /* grid item 預設 min-width:auto=min-content → 長副標（手機 nowrap，如 summer-camp 機構名）撐爆 grid 欄寬、
+       溢出 viewport → 手機瀏覽器把 ICB 撐寬整頁重縮放（user 2026-07-17 報「點 Camp 畫面 scale 放大」）。
+       min-width:0 讓副標回到欄寬、溢出交給 .list-title-marquee(overflow:hidden) 截斷＋開啟 marquee（同 title；min-height:0 的水平對應）。 */
+    min-width: 0;
   }
   .list-header.active.is-pinned > * > .clip-reveal-wrapper:has(.list-subtitles) {
     grid-template-rows: 0fr;
@@ -661,7 +669,9 @@
   #activities-content-section .activities-nav-col {
     position: sticky;
     top: 88px;
-    z-index: 40;
+    /* z 42 > filter bar 41（user 2026-07-17 反轉 07-13 的 41>40）：子 tab chip（Temporary/Permanent）
+       捲到 nav 帶時要「收進 nav 後面」＝被 nav opaque theme-bg 蓋掉，不再畫在 nav 之上。 */
+    z-index: 42;
     /* 內容捲過 nav 底下要被遮：bar 雖負 margin 全出血，但捲動內容都在 container padding 內、
        兩側 24px 帶只有頁面底色 → nav col content-box 寬的 theme-bg 就足夠無縫 */
     background: var(--theme-bg);
@@ -682,17 +692,16 @@
     position: sticky;
     /* fallback 198 = 88 + nav 實高 111（pb 收 12 後）− 1（375 寬實測）；JS 量實高蓋過 */
     top: var(--act-filter-top, 198px);
-    /* z 41 > nav col 40（user 07-13 二修「間距再減半」）：active 子 tab chip 旋轉頂角外溢 ~8-10px
-       伸進上方 nav 帶時直接「畫在 nav 底色之上」＝不用 padding-top 留 clearance、不被裁。
-       視覺間距＝nav bar pb 12（36→24→12，達成減半）。bar 永不高過釘點（198）→ 不會蓋到
-       nav ::before 的 0~88 logo 帶。捲動內容 z-auto 仍在 bar 之下。 */
+    /* z 41 < nav col 42（user 2026-07-17 反轉）：active 子 tab chip 旋轉頂角外溢伸進上方 nav 帶時
+       被 nav opaque theme-bg 蓋掉＝「收進 nav 後面」，不再畫在 nav 之上。仍 > 捲動內容（z-auto）→
+       filter bar 蓋住捲過它底下的 list。bar 永不高過釘點（198）→ 不會蓋到 nav ::before 的 0~88 logo 帶。 */
     z-index: 41;
   }
   /* 間距整段收進 nav bar pb（不用 frame gap：sticky 釘住時 flow gap 會塌掉、兩態不一致）。
-     20 = 視覺間距（active chip 旋轉 bbox 各吃 ~4-5px → 旋轉邊到邊 ~11-15，原 36+slack 的一半）；
-     兼旋轉 clip 緩衝（nav chip 底角外溢 ~9.4px < 20，不被 bar overflow-y:clip 裁）。 */
+     24（md，user 2026-07-18 從 20 調大、admission 同值統一）；兼旋轉 clip 緩衝
+     （nav chip 底角外溢 ~9.4px < 24，不被 bar overflow-y:clip 裁）。 */
   #activities-content-section .activities-section-bar {
-    padding-bottom: 20px;
+    padding-bottom: var(--spacing-md);
   }
   /* nav btn 是 inline-block 基線排版：色塊（.anchor-nav-inner）下方被 line-box leading 多墊 ~21px、
      視覺間距虛胖（實測 btn 83 vs 色塊 64）→ flex 收攏讓色塊貼齊按鈕框。觸控高 64 仍 > 44 標準。
@@ -725,6 +734,85 @@
   #activities-content-section .inner-scroll-frame-grid {
     gap: 0;
   }
+  /* 縫隙修（user 2026-07-18「list 捲到 sticky 元素出現 box 縫隙」）：bar bg 與頁底同色＝隱形，
+     遮罩底線（=釘點）在哪、list box 就在哪被「看不見的線」切掉。原本 type-filter pb-lg(32) +
+     grid-12 pb-lg(32) 讓底線落在 chips 視覺底下方 ~63px → chips 與被切的 box／釘住的 title 之間
+     常駐一段空帶（縫隙）。收到 24（md；16 user 嫌太貼、32 原值又是縫隙本體，chip 旋轉底角外溢
+     ~12px 的 clearance 也涵蓋），底線貼近 chips 底，box/title tuck 進 chips 下。
+     釘點由 updateStickyTop 量 bar offsetHeight + RO 自動跟。
+     桌面不動（sticky top 200 那套走 @media min-width:768）。 */
+  #activities-content-section .activities-filter-bar .grid-12 {
+    padding-bottom: 0;
+  }
+  #activities-content-section .activities-filter-bar #exhibitions-type-filter,
+  #activities-content-section .activities-filter-bar #visits-type-filter {
+    padding-bottom: var(--spacing-md);
+  }
+  /* 真機捲動中 sticky 白層左右邊緣漏出後面 box 色 1px 細直線（user 2026-07-18 報「Exhibitions 左邊
+     細藍線」；合成器把 sticky 層與捲動層各自 raster、DPR 2.75/3 邊緣不同格，headless 整數 DPR 測不到，
+     同 faculty iOS AA 接縫一族）→ 遮罩左右各外擴一個 container padding：兩份平移 box-shadow 拷貝
+     （不佔 layout、不觸發捲軸），遮罩邊緣移到 viewport 邊＝後面沒有 box 可漏。gutter 本來就 theme-bg，
+     視覺零改變；strip 全出血的 chip（section-bar 負 margin）是遮罩的子層、照樣畫在 shadow 之上。 */
+  #activities-content-section .activities-nav-col,
+  #activities-content-section .activities-nav-col::before,
+  #activities-content-section .activities-filter-bar,
+  #activities-content-section .list-header.active.is-pinned::before {
+    box-shadow: calc(var(--container-padding) * -1) 0 var(--theme-bg), var(--container-padding) 0 var(--theme-bg);
+  }
+}
+
+/* ===== faculty 手機直向：nav strip 全程 sticky（比照 activities，user 2026-07-17）=====
+ * faculty 無 filter bar / list-header（純卡片牆）→ 只需 nav strip 釘 88：nav col theme-bg 遮住捲到底下的
+ * 卡片（.inner-scroll-nav-col 已在 typography.css mode-switch whitelist）。單一 sticky（無第二根 filter bar）
+ * → 不需 activities 的 gap:0 / padding 補位，mb-xl 間距不會露破口。
+ * 0~92 header 遮擋由**全站** .mobile-header-bg 負責（見 navigation.css + header.html；2026-07-17 由 faculty 專屬提升為全站）。
+ * 矮橫向不套（nav 進 header fixed，走 faculty-filter.js IO reveal 那套）。 */
+@media (max-width: 767px) and (orientation: portrait) {
+  #faculty-cards .inner-scroll-nav-col {
+    position: sticky;
+    top: 88px;
+    z-index: 40;
+    background: var(--theme-bg);
+  }
+}
+
+/* ===== admission 手機直向：nav strip sticky（比照 faculty，user 2026-07-17）=====
+ * admission 有 list accordion 但無 filter bar → nav strip 釘 88 + ::before 0~88 遮擋帶（同 faculty），
+ * 展開的 list title 釘在 nav 正下方：activities 釘 filter bar 下方，admission 無 bar 直接釘 nav 下方
+ * （--list-header-sticky-top 由 admission-section-switch.js initAdmissionMobileSticky 量 nav 實高 = 88+navH 設）。
+ * blocker 直向停用（nav sticky 疊層已接手「pin 線以上」遮蓋，同 activities）。矮橫向不套（nav 進 header fixed）。 */
+@media (max-width: 767px) and (orientation: portrait) {
+  #admission-content-section .inner-scroll-nav-col {
+    position: sticky;
+    top: 88px;
+    z-index: 40;
+    /* bg 掛 child（buttons wrapper）不掛 navCol（2026-07-18 縫隙修，反轉 07-17「量 navCol」決策）：
+       navCol 高含 navInner 的 mb-xl → bg 蓋到 buttons 底下 ~32px，list box 被隱形線提前切掉、
+       buttons 與 box／釘住 title 之間常駐空帶。bg 收到 buttons 底＋釘點同步量 navInner
+       （admission-section-switch.js），title 貼 buttons 底、box 捲到 buttons 下才被吃＝無縫。
+       07-17「釘 navInner 底會被 nav 底色蓋掉 title 頂」的前提是 bg 蓋滿 navCol——bg 收窄後不成立。 */
+  }
+  #admission-content-section .inner-scroll-nav-col > div {
+    background: var(--theme-bg);
+    /* 左右外擴消真機合成器邊緣漏色（同 activities 區塊註解） */
+    box-shadow: calc(var(--container-padding) * -1) 0 var(--theme-bg), var(--container-padding) 0 var(--theme-bg);
+    /* nav btn 下緣 clearance＝跟 activities .activities-section-bar pb 統一 24（user 2026-07-18，20→24 同日調大）：
+       0 間距時內容切線貼死 chip 底；24 兼 chip 旋轉底角緩衝。釘點量 navInner.offsetHeight 含 padding 自動跟。 */
+    padding-bottom: var(--spacing-md);
+  }
+  #admission-content-section .inner-scroll-nav-col::before {
+    content: '';
+    position: absolute;
+    top: -88px;
+    left: 0;
+    right: 0;
+    height: 90px;
+    background: var(--theme-bg);
+    box-shadow: calc(var(--container-padding) * -1) 0 var(--theme-bg), var(--container-padding) 0 var(--theme-bg);
+  }
+  #admission-content-section .list-mobile-header-blocker {
+    display: none;
+  }
 }
 
 /* ===== Activities Type Filter Row - clip-reveal rotation clearance =====
@@ -739,6 +827,17 @@
   padding-right: 16px;
   margin-left: -16px;
   margin-right: -16px;
+}
+
+/* 手機直向：section-bar（橫排 nav）緊貼在 sub-tab 上方，兩者間 gap 為負（實測 chip 旋轉頂角
+   凸進 section-bar box 3~8px）→ 依 paint order 有些裝置會被 section-bar 蓋成「被切」（user 2026-07-18）。
+   補 padding-top 把 chip 往下推出 section-bar box、留正向 clearance；桌面 section-bar 是左直欄不重疊、
+   由 inner-scroll chip-clearance 處理，故只限直向手機。 */
+@media (max-width: 767px) and (orientation: portrait) {
+  #exhibitions-type-filter,
+  #visits-type-filter {
+    padding-top: var(--spacing-sm);
+  }
 }
 
 /* ===== Activities Search Bar ===== */

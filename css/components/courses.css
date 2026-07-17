@@ -596,6 +596,11 @@
       z-index: 4;
       background: var(--theme-bg);
       transform: translateZ(0);
+      /* nav 帶（z-5、opaque theme-bg、bottom ~220.6）比 grade bar（top:216）低 → tuck 4.6px 蓋進來，
+         把 active pill（rotate ~5°，旋轉頂角實測到 217.7）覆掉 ~3px＝pinned 時「被切」。tuck 要留住
+         （grade bar 有 overflow 不能靠 ::before 補口，靠 tuck 蓋 nav↔grade 的縫）→ 改把 pill 內容往下推：
+         top padding 8→16，pill 旋轉頂角落在 ~225.7、清開 nav bottom 220.6 約 5px（吸收 nav 高度變動）。 */
+      padding-top: 16px;
     }
     #courses-content-section .courses-grid-mobile {
       gap: var(--spacing-sm);

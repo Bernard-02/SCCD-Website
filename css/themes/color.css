@@ -204,8 +204,10 @@ body.mode-color .courses-program-group:has(.courses-program-btn:not(.active):hov
  *   - bg = var(--theme-fg)（亮頁=黑、暗頁=白）
  *   - text = var(--theme-fg-inverse)（對比 bg）
  * Hover：JS inline 設 HOVER_COLORS（黃/紫/橘）→ 用 [style*="background"] 偵測，翻成相反 B/W 給視覺 feedback */
+body.mode-color .colored-accordion .accordion-item,
 body.mode-color .colored-accordion .accordion-label,
-body.mode-color .colored-accordion .accordion-text-wrap {
+body.mode-color .colored-accordion .accordion-text-wrap,
+body.mode-color .colored-accordion .accordion-img-wrap {
   background-color: var(--theme-fg) !important;
 }
 
@@ -628,6 +630,11 @@ body.mode-color .faculty-card-placeholder .faculty-card-image {
  * transition 排除 background：避免 panel bg 跟 body var 同步但被 transition lag（同 anchor-nav-inner / courses-detail-panel pitfall）
  * 文字 = var(--theme-fg)（依 page bg luminance 自動翻黑/白對比） */
 body.mode-color #faculty-panel {
+  /* --faculty-panel-bg 也跟著翻 theme-bg（user 2026-07-17）：JS 把它 inline 設成 cardColor accent（無 !important），
+   * 這裡 !important 蓋過 → 所有遮罩 consumer（#faculty-profile-block、手機 header 遮擋帶 faculty.html:113、
+   * .faculty-section-title-col、年份/獲獎 sticky 首欄、profile box-shadow）全一次跟 panel body 同色（cycling hue），
+   * 不用逐一 patch（原本漏 profile-block + 遮擋帶＝mode3 露粉色）。standard/inverse 不套 → 維持 accent（見 inverse.css:46 刻意）。 */
+  --faculty-panel-bg: var(--theme-bg) !important;
   background-color: var(--theme-bg) !important;
   transition: none !important;
 }
@@ -652,15 +659,8 @@ body.mode-color #faculty-panel .list-scroll::-webkit-scrollbar-thumb {
   }
 }
 
-/* 右欄 sticky section title col（Education / Experience / Awards 標題）+ 年份 sticky 首欄的遮罩底：
- * base（cards.css）= var(--faculty-panel-bg)＝JS 寫入的 cardColor accent，standard/inverse 下 = panel bg 故無縫；
- * 但 mode-color 下 panel bg 已被上面 !important 改成 theme-bg（cycling hue），遮罩仍是 accent → 露出三原色色塊
- * （年份首欄漏改時會看到綠/粉/藍色塊浮在 panel 上）。跟 panel 一起走 theme-bg，視覺無縫（user 期望透明＝跟 panel 同色）。 */
-body.mode-color #faculty-panel .faculty-section-title-col,
-body.mode-color #faculty-panel .faculty-grid-row > span:first-child,
-body.mode-color #faculty-panel .faculty-grid-row-award > span:nth-child(2) {
-  background: var(--theme-bg) !important;
-}
+/* （sticky section title col + 年份/獲獎 sticky 首欄遮罩底原本各自 background:var(--theme-bg)!important，
+ * 2026-07-17 已被上方 `--faculty-panel-bg: var(--theme-bg)!important` 統一涵蓋 → 移除重複規則。） */
 
 /* ===== Library 主卡片：mode-color 下依 page bg 對比度兩階切換固定灰 =====
  * 對比邏輯：亮 page → 淺灰底黑字 / 暗 page → 深灰底白字（同 mode1/2 對比方向）
@@ -694,6 +694,17 @@ body.mode-color #library-card-content {
  * lib-panel-title 自己有 theme-fg-inverse !important（strict B/W chip）不受此影響。 */
 body.mode-color #library-card-content {
   color: var(--lib-fg);
+}
+
+/* 手機灰卡：initLibraryCard 桌面才跑（main-modular.js <768 分支跳過）→ #library-card-main 沒有 setAsGray
+ * 寫入的 inline --lib-bg 標記 → 命中不了上方 [style*="--lib-bg"] 反色島 remap，卡底停在 :root 的 --lib-bg
+ * （亮 hue 淺灰）；但卡內文字（#library-card-content）已 remap 成 contrast（亮 hue 白字）→ 淺卡白字看不見
+ * （user 2026-07-17「灰卡跑掉」）。手機直接把 main 也 remap 成反色島，卡底與內文同島（亮 hue 深卡白字 /
+ * 暗 hue 淺卡黑字，同桌面 active 灰卡）。桌面不套（≥768 走 [style] 標記路徑，此值會蓋掉 demote 成 color rect 的情境）。*/
+@media (max-width: 767px) {
+  body.mode-color #library-card-main {
+    --lib-bg: var(--lib-bg-contrast);
+  }
 }
 
 /* lib-panel-title chip：mode-color 走 strict B/W 對比（依 page hue luminance 自動翻黑白）
@@ -830,6 +841,14 @@ body.mode-color .atlas-company-ring-shape {
   stroke: none !important;
 }
 
+/* 手機圓點星雲的圓點（.atlas-name::after，atlas.css:1160）：讀 inline --atlas-chip-c＝item bgColor/color
+ * （三原色）。mode3 上方把 label 文字 / chip / cover / 連線都翻成 var(--theme-fg) strict B/W，唯這顆
+ * 圓點漏了 → 手機 mode3 圓點仍是粉/綠/藍（user 2026-07-17）。跟 A/C label 文字同走 theme-fg（依 page hue
+ * 對比翻黑白）。selector 與 atlas.css 圓點規則對齊（D 方塊/co host 已由上方 chip 規則涵蓋，不重複）。*/
+body.mode-color #atlas-stage.atlas-dot-mode .atlas-anchor:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name::after {
+  background-color: var(--theme-fg) !important;
+}
+
 /* 右下 detail panel：bg primary + 黑字 → strict B/W；子層無顯式 color 自然 inherit */
 body.mode-color #atlas-detail {
   background-color: var(--theme-fg) !important;
@@ -923,10 +942,12 @@ body.mode-color .hm-banner-num[style*="background"] {
 /* (A) About bar — bg follows body hue
  * transition 排除 background：header.js inline 設 transition:background 0.4s ease，
  * 配 RAF 每幀 set --theme-bg → bg lag 400ms 跟 body 不同步偏色；用 explicit list 排除 bg 讓 var() 更新即時生效
- * （同 anchor-nav-btn pattern）。color 還留 transition 給 link hover feedback */
+ * （同 anchor-nav-btn pattern）。color 還留 transition 給 link hover feedback。
+ * ⚠️ 不可列 transform：footer-near 收展是 GSAP 每幀寫 transform，常駐 transform transition
+ * 會低通每幀寫入（bar 整段 tween 幾乎不動、tween 完才被 transition 快速補完＝mode3 專屬怪 ease） */
 body.mode-color [data-bar="about"] {
   background: var(--theme-bg) !important;
-  transition: color var(--dur-fast) ease, transform var(--dur-fast) ease !important;
+  transition: color var(--dur-fast) ease !important;
 }
 
 body.mode-color [data-bar="about"] .nav-link {
@@ -969,7 +990,8 @@ body.mode-color [data-bar="library"],
 body.mode-color [data-bar="atlas"],
 body.mode-color [data-bar="generate"],
 body.mode-color [data-bar="alumni"] {
-  transition: color var(--dur-fast) ease, transform var(--dur-fast) ease !important;
+  /* 同 about bar：不可列 transform（會拖垮 GSAP footer-near 收展） */
+  transition: color var(--dur-fast) ease !important;
 }
 
 /* Inactive：bg 跟 body 動態 + text 100% theme-fg

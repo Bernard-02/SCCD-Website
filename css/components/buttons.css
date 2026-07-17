@@ -50,6 +50,12 @@
     height: 40px;
     background: #fff;
   }
+  /* 進退場動畫中（GSAP 寫 inline clip-path）或 /create 隱藏態（clip-path 殘留）＝「還沒渲染完」：
+     不吃 hover/click（游標不變 pointer、點不到看不見的鈕）。各動畫 onComplete 都會清 inline
+     clip-path → 自動恢復可互動（user 2026-07-16） */
+  #mode-btn[style*="clip-path"] {
+    pointer-events: none;
+  }
   #mode-btn .theme-toggle-btn {
     color: #000;
   }

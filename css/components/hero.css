@@ -218,9 +218,14 @@
       min-height: calc(75svh - 180px);
       justify-content: space-between;
     }
-    .hero-mobile-rand .hero-mobile-text-en,
-    .hero-mobile-rand .hero-mobile-text-cn {
+    .hero-mobile-rand .hero-mobile-text-en {
       margin-top: 0;
+    }
+    /* 中文段落 chip 補 gap floor：兩寬盒（~330px）繞 left-center ±3° 旋轉，遠端各擺 ~w·sin3°≈17px，
+       反向時合計吃 ~30px；base gap 1rem 不夠 → 多加 1rem（合計 2rem spacing）兜住中英段落 chip 不重疊
+       （rotation 已從 ±5° 收窄到 ±3°，見 hero-mobile-sync.js） */
+    .hero-mobile-rand .hero-mobile-text-cn {
+      margin-top: 1rem;
     }
     .hero-mobile-rand .hero-mobile-text-scroll {
       display: block;

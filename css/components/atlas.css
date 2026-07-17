@@ -238,7 +238,9 @@
   clip-path: inset(100% 0% 0% 0%);
   /* 不 transition bg-color：bg 切換發生在 clip-out 完成的 onComplete（panel 完全隱藏的瞬間），
      若加 transition 會在 clip-in 期間看到 bg 還在過渡（藍→紅 中間色 = 紫色殘留） */
-  z-index: 100;
+  /* 9999 > mode3 鉛筆面板 9998（user 2026-07-16：hover detail 被鉛筆遮住）；元素必須在 #atlas-main
+     （z-index:0 stacking context）外面此值才生效（見 pages/atlas.html） */
+  z-index: 9999;
 }
 
 .atlas-detail-name {
@@ -330,6 +332,12 @@
   flex-direction: row;
   align-items: flex-start;
   gap: 0;
+}
+/* 系友 chip 疊在職業 chip 之上：退場「火車模型」時 career 滑到系友底下被遮（DOM 上 career 在後、
+   預設反而蓋住系友；flex item 認 z-index，加 position 提階即可，門遮罩 wrapper 同繼承此序） */
+.atlas-alumni-row .atlas-filter-btn {
+  position: relative;
+  z-index: 1;
 }
 
 /* Map view host/employ 靜態 label chip — 灰底黑字（用 --lib-bg/--lib-fg 跟著 mode 切深淺灰）
@@ -560,13 +568,9 @@
   overflow: hidden;
   margin-top: -0.5rem;
   box-sizing: border-box;
-  /* 短職業(VJ/DJ，英文 1 行)不縮 box：保底高度＝一般 2 行英文 chip，內容垂直置中；
-     文字水平置中（短英文在較寬 chip 裡才不會偏左）。user 2026-07-16 */
-  min-height: 4.5rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  text-align: center;
+  /* 後台 alumni_careers 兩欄位皆必填（EN＋ZH 各一行起跳）＝chip 恆 ≥ 兩行高。
+     曾有 VJ/DJ careerEn 空的單行矮 chip → 2026-07-16 直接補後台中文名（唱片騎師/影像騎師）解決，
+     勿再為單行資料加 CSS 特例；新增職業請兩欄都填。 */
 }
 
 .atlas-list-col-career-en,
@@ -828,6 +832,12 @@
   overflow: clip;
   overflow-clip-margin: 12px;
   transition: opacity var(--dur-micro) ease;
+}
+/* 未 reveal（進場前 / switchToMap 揭露窗口，clip 藏在窗外）時不吃 hover/click：
+   否則滑過看不見的 btn 仍觸發 inner 變色（user 2026-07-17）。reveal 後 :not 失配＝恢復互動；
+   list view filterEl display:none 本就不顯示、不受影響 */
+.atlas-filter-btn:not(.atlas-filter-revealed) {
+  pointer-events: none;
 }
 
 .atlas-filter-btn .anchor-nav-inner {
