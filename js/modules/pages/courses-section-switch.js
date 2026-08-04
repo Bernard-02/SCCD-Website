@@ -15,6 +15,11 @@ import { renderCoursesGrid, deselectActiveCard, resetCoursesMapState, selectCard
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { setActiveNavBtn } from '../ui/section-switch-helpers.js';
 import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
+
+// 卡片維持四方向隨機（要多樣性）；滿寬 row-label 抽到 left/right 會滑整個 box 寬
+// 「從螢幕邊飛進來」（user 2026-07-21）→ label 帶 el 走 pickNavDir 短邊邏輯（只剩 top/bottom）
+const pickCardDir = (/** @type {Element} */ el) =>
+  pickNavDir(el.classList.contains('courses-mobile-row-label') ? /** @type {HTMLElement} */ (el) : undefined);
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { waitForHeroAnimDone } from './hero-animation.js';
@@ -408,10 +413,10 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
       pending++;
       clipTargets.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = 'none'; });  // mobile grade bar inner 有 transition:all，關掉免追 GSAP 卡頓
       gsap.killTweensOf(clipTargets);
-      // hero 式 clip-reveal 反向（同下方 navExit）：fromTo 顯式起點 NAV_CHIP_SHOWN → 各自四方向隨機（pickNavDir() 無 el）滑出＋同步 clip。
+      // hero 式 clip-reveal 反向（同下方 navExit）：fromTo 顯式起點 NAV_CHIP_SHOWN → 各自四方向隨機（label 挑短邊）滑出＋同步 clip。
       // stagger 用 amount（總時長固定 0.2s 攤給所有元素）不用 each：卡片多達 ~46 張，用 each:0.02 會拖到 ~0.9s
       // 跟 nav/表頭（元素少、~0.5s 收完）不同步 → 三者「不一起」。amount 讓不論幾張都在同一視窗收完（user 2026-06-07）。
-      const hid = clipTargets.map(el => navChipHidden(el, pickNavDir()));
+      const hid = clipTargets.map(el => navChipHidden(el, pickCardDir(el)));
       gsap.fromTo(clipTargets,
         { ...NAV_CHIP_SHOWN },
         { clipPath: (/** @type {number} */ i) => hid[i].clipPath, translate: (/** @type {number} */ i) => hid[i].translate, duration: DUR.base, ease: NAV_EASE, stagger: { amount: 0.2, from: 'end' }, overwrite: true, onComplete: done }
@@ -511,8 +516,8 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
         exitPromises.push(new Promise(resolve => {
           gsap.killTweensOf(prevCards);
           // hero 式 clip-reveal 反向：fromTo 顯式起點 NAV_CHIP_SHOWN（reveal 後 translate/clip 已 clearProps＝none，
-          // 直接 to 會 snap）→ 各自四方向隨機（pickNavDir() 無 el）滑出＋同步 clip
-          const hid = prevCards.map(el => navChipHidden(el, pickNavDir()));
+          // 直接 to 會 snap）→ 各自四方向隨機（label 挑短邊）滑出＋同步 clip
+          const hid = prevCards.map(el => navChipHidden(el, pickCardDir(el)));
           gsap.fromTo(prevCards,
             { ...NAV_CHIP_SHOWN },
             {
@@ -624,10 +629,10 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
       if (allCards.length) {
         gsap.killTweensOf(allCards);
         // hero 式 clip-reveal（translate 獨立屬性＋同步 clip，與卡片 inline rotate 共存；同 nav chip）：
-        // 每張四方向隨機（pickNavDir() 無 el＝不挑短邊，卡片要方向多樣性；nav chip 才挑短邊）的 hidden 態，
+        // 每張四方向隨機（卡片要方向多樣性；label/nav chip 挑短邊）的 hidden 態，
         // reveal tween 全部收到 NAV_CHIP_SHOWN
         allCards.forEach(card => {
-          gsap.set(card, navChipHidden(card, pickNavDir()));
+          gsap.set(card, navChipHidden(card, pickCardDir(card)));
         });
 
         const playReveal = () => {

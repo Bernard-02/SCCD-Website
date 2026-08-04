@@ -48,42 +48,81 @@ async function fetchActivityPosters() {
   const files = [];
   const album = [];
 
-  // 活動類 JSON → 導航到 activities.html?section=X
-  // ⚠️ general-activities.json 是「混合檔」（visits / exhibitions / competitions / conferences 四類混在同檔），
-  //    不能整包標成單一 section → 用 sectionFromCategory 每筆用自己的 item.category 當 section。
-  // ⚠️ workshop 不在這個本地清單：activities 頁的 workshop 已接 Directus（activities_workshops），
-  //    前台 element id = `item-${refCode||id}`（activities-source mapRow）。若這裡仍讀 local workshops.json 的 id，
-  //    deep-link 的 &item= 對不上 Directus refCode → navigateToItem 撈不到、退成捲到 section 不展開（user 2026-06-28）。
-  //    改用同源 loadActivityCollection 取 id/poster（見下方），跟頁面渲染一致；Directus 掛掉時兩端都 fallback local、仍一致。
-  const activitySources = [
-    { file: 'data/permanent-exhibitions.json', section: 'exhibitions' },
-    { file: 'data/lectures.json',              section: 'lectures' },
-    { file: 'data/students-present.json',      section: 'students-present' },
-    { file: 'data/general-activities.json',    sectionFromCategory: true },
-  ];
+  // permanent-exhibitions：巢狀 parent/child shape，尚未接 Directus（見 activities-data-loader.js loadExhibitionsInto 註解），維持純本地讀取。
+  try {
+    const data = await fetch(sitePath('data/permanent-exhibitions.json')).then(r => r.json());
+    const groups = Array.isArray(data) ? data : (data.items || data.records || []);
+    groups.forEach(group => {
+      const items = Array.isArray(group) ? group : (group.items || []);
+      items.forEach(item => {
+        if (!item.poster) return;
+        const itemParam = item.id ? `&item=${item.id}` : '';
+        activities.push({
+          type: 'image',
+          src: normalizeImagePath(item.poster),
+          url: `pages/activities.html?section=exhibitions${itemParam}`,
+        });
+      });
+    });
+  } catch (_) {}
 
-  await Promise.all(activitySources.map(async (src) => {
+  // 已接 Directus 的扁平單一分類 collection：跟 workshop 同源用 loadActivityCollection 取 id/poster，
+  // 避免像舊版直接讀 local JSON 的舊編號，跟頁面實際渲染的 id 對不上（deep-link 撈不到、退成只捲到 section）。
+  const flatSources = [
+    { collection: 'activities_lectures',         fallback: '/data/lectures.json',         section: 'lectures' },
+    { collection: 'activities_students_present', fallback: '/data/students-present.json', section: 'students-present' },
+  ];
+  await Promise.all(flatSources.map(async (src) => {
     try {
-      const data = await fetch(sitePath(src.file)).then(r => r.json());
+      const data = await loadActivityCollection(src.collection, src.fallback);
       const groups = Array.isArray(data) ? data : (data.items || data.records || []);
       groups.forEach(group => {
         const items = Array.isArray(group) ? group : (group.items || []);
         items.forEach(item => {
           if (!item.poster) return;
-          const section = src.sectionFromCategory ? item.category : src.section;
-          if (!section) return;
           const itemParam = item.id ? `&item=${item.id}` : '';
           activities.push({
             type: 'image',
             src: normalizeImagePath(item.poster),
-            url: `pages/activities.html?section=${section}${itemParam}`,
+            url: `pages/activities.html?section=${src.section}${itemParam}`,
           });
         });
       });
     } catch (_) {}
   }));
 
-  // Workshop → activities.html?section=workshop&item={refCode||id}（同源 loadActivityCollection，id 跟 activities 頁渲染一致）
+  // general-activities.json 混合檔（visits / exhibitions / competitions / conferences 四類混在同檔）背後各自對應獨立 Directus collection。
+  // 各自呼叫 loadActivityCollection 拿同源 id；Directus 該 collection 若還空的會 fallback 整包混合檔，
+  // 用 item.category 過濾回自己這類，避免每個空 collection 各自把整包混合資料都塞進 pool（重複）。
+  // ponytail: outbound/inbound 兩個 collection 都空時，兩邊 fallback 會各自撈到同一批 visits item 造成輕微重複，
+  //   只是首頁裝飾用的漂浮圖池、無功能性影響，等後台任一邊填了資料就會自然收斂，不特地加 dedupe。
+  const generalCats = [
+    { collection: 'activities_exhibitions_special', category: 'exhibitions' },
+    { collection: 'activities_competitions',        category: 'competitions' },
+    { collection: 'activities_conferences',         category: 'conferences' },
+    { collection: 'activities_visits_outbound',     category: 'visits' },
+    { collection: 'activities_visits_inbound',      category: 'visits' },
+  ];
+  await Promise.all(generalCats.map(async ({ collection, category }) => {
+    try {
+      const data = await loadActivityCollection(collection, '/data/general-activities.json', { category });
+      const groups = Array.isArray(data) ? data : (data.items || data.records || []);
+      groups.forEach(group => {
+        const items = Array.isArray(group) ? group : (group.items || []);
+        items.forEach(item => {
+          if (!item.poster || item.category !== category) return;
+          const itemParam = item.id ? `&item=${item.id}` : '';
+          activities.push({
+            type: 'image',
+            src: normalizeImagePath(item.poster),
+            url: `pages/activities.html?section=${category}${itemParam}`,
+          });
+        });
+      });
+    } catch (_) {}
+  }));
+
+  // Workshop → activities.html?section=workshop&item={id}（同源 loadActivityCollection，id 跟 activities 頁渲染一致）
   try {
     const wsData = await loadActivityCollection('activities_workshops', '/data/workshops.json');
     const wsGroups = Array.isArray(wsData) ? wsData : (wsData.items || wsData.records || []);

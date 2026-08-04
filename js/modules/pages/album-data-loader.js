@@ -8,6 +8,7 @@ import { videoMediaFromUrl, hydrateHlsThumbs, isSelfHostedVideo } from '../ui/vi
 import { sitePath } from '../ui/site-base.js';
 import { loadSummerCamp } from './summer-camp-source.js';
 import { loadActivityCollection } from './activities-source.js';
+import { loadOthersAlbum } from './library-album-source.js';
 import {
   CARD_COLORS, CATEGORY_LABELS,
   renderYearGroups, updateYearBorders, applySortOrder,
@@ -86,7 +87,8 @@ async function aggregateAlbumData() {
     // lectures 已接 Directus（activities_lectures）→ album 同步吃線上資料，CMS 掛掉時 loadActivityCollection 自帶本地 fallback。
     { load: () => loadActivityCollection('activities_lectures', '/data/lectures.json'), albumCategory: 'lectures', isDegreeShow: false },
     { url: '/data/industry.json',           albumCategory: 'industry',         isDegreeShow: false },
-    { url: '/data/album-others.json',       albumCategory: 'others',           isDegreeShow: false },
+    // others 2026-08-03 起吃 Directus library_album（同 library-panels.js ALBUM_SOURCES，兩消費者共用 loadOthersAlbum）
+    { load: loadOthersAlbum,                albumCategory: 'others',           isDegreeShow: false },
   ];
 
   const results = await Promise.all(sources.map(s => s.load ? s.load().catch(() => null) : fetchData(s.url)));

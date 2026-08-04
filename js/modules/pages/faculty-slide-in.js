@@ -15,51 +15,53 @@ import { openSlideInBg, closeSlideInBg } from '../ui/slide-in-bg-sync.js';
 import { countryName } from '../../data/country-names.js';
 import { getFacultyData } from './faculty-source.js';
 import { modePlaceholderUrl } from './faculty-data-loader.js';
-import { applyMarqueeOverflow } from '../ui/marquee-overflow.js';
+import { applyMarqueeOverflow, buildSyncedMarqueeTimeline } from '../ui/marquee-overflow.js';
 import { makeActivatable } from '../ui/a11y.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 
-// 桌面 slide-in 詳情 cell 的 marquee 改用 JS(WAAPI) 驅動，取代 CSS :hover animation——
+// 桌面 slide-in 詳情 cell 的 marquee 改用 JS 驅動，取代 CSS :hover animation——
 // 目的：hover 離開時讓正在跑的文字「平滑捲回原點」，而非 CSS animation 被移除時 transform 直接歸 0 的瞬間 snap。
-//   進場：每條溢出的 .faculty-marquee-line 內層 0 → --marquee-distance 無限 linear 捲動（與原 CSS keyframe 同）。
-//   離場：先讀目前位移當起點（cancel 後 transform 會歸 0），再補間回 translateX(0)（0.45s，hero exit 同曲線）。
+//   進場：cell 內每條溢出的 .faculty-marquee-line 共用一個 GSAP timeline（buildSyncedMarqueeTimeline）：
+//   全部用「最長那條的自然速度」當共同 duration，短的移動比較慢但跟長的同時抵達終點，一輪跑完停 0.6s
+//   （repeatDelay）才一起歸零重播——不是各自用自己的速度各跑各的（那樣會脫拍）。
+//   離場：讀目前位移當起點，補間回 translateX(0)（0.45s，hero exit 同曲線）。
 // cell = 每一欄 span：hover 該欄只捲它自己的行，比照原 `> span:hover` 行為。
 // 監聽掛在 cell 上，slide-in 每次開都重建 #faculty-detail-sections innerHTML → 舊 cell 連監聽一併丟棄、不洩漏。
+//
+// 2026-08-04 改用 GSAP timeline（原本兩行各自 WAAPI iterations:Infinity 各跑各的 duration，EN/ZH 長度不同
+// 久了會脫拍，跟 list-title-marquee 同一種問題，見 reference_gsap_timeline_desync_marquee_pair_sync）。
+// faculty 每個 cell 恆為 EN/ZH 兩行（bilingualMarquee 每次 call 只放一組進一個 cell，不會像 activities
+// 副標那樣同一 cell 塞多組），不需要另外處理落單/多筆配對。
 function bindFacultyMarqueeReturn(scope) {
   scope.querySelectorAll('.faculty-grid-row > span').forEach((cell) => {
     const lines = [...cell.querySelectorAll('.faculty-marquee-line.is-overflow')];
-    if (!lines.length) return;
-    const running = new Map(); // inner -> Animation（捲動 or 捲回）
+    if (!lines.length || typeof gsap === 'undefined') return;
+    const inners = lines.map(line => line.querySelector('.faculty-marquee-inner')).filter(Boolean);
+    if (!inners.length) return;
 
+    // --marquee-distance 是 applyMarqueeOverflow 算好的 dual-copy seamless 距離（字串如 "-120px"），
+    // buildSyncedMarqueeTimeline 吃正數距離，取絕對值。
+    const items = lines.map((line) => {
+      const inner = line.querySelector('.faculty-marquee-inner');
+      const dist = Math.abs(parseFloat(getComputedStyle(line).getPropertyValue('--marquee-distance'))) || 0;
+      return inner && dist ? { el: inner, distance: dist } : null;
+    }).filter(Boolean);
+    if (!items.length) return;
+    const tl = buildSyncedMarqueeTimeline(items);
+
+    // ⚠️ 不能用 gsap.killTweensOf(inners) 清場——inners 同時也是 tl 自己 child tween 的 target，
+    // 連自己都殺掉會讓 tl.play() 後沒有任何 tween 在跑（實測踩到：hover 完全不動）。
+    // 只殺「捲回」那個獨立 tween（若還在跑），不動 tl 本身。
+    let returnTween = null;
     cell.addEventListener('mouseenter', () => {
-      lines.forEach((line) => {
-        const inner = line.querySelector('.faculty-marquee-inner');
-        if (!inner) return;
-        running.get(inner)?.cancel();   // 取消上一個（可能是捲回中）
-        const cs = getComputedStyle(line);
-        const dist = cs.getPropertyValue('--marquee-distance').trim() || '0px';
-        const durMs = (parseFloat(cs.getPropertyValue('--marquee-duration')) || 8) * 1000;
-        running.set(inner, inner.animate(
-          [{ transform: 'translateX(0)' }, { transform: `translateX(${dist})` }],
-          { duration: durMs, iterations: Infinity, easing: 'linear' }
-        ));
-      });
+      if (returnTween) { returnTween.kill(); returnTween = null; }
+      tl.play();
     });
-
     cell.addEventListener('mouseleave', () => {
-      lines.forEach((line) => {
-        const inner = line.querySelector('.faculty-marquee-inner');
-        if (!inner) return;
-        const cur = running.get(inner);
-        if (!cur) return;
-        const from = getComputedStyle(inner).transform;  // 先讀目前位移（cancel 後歸 0）
-        cur.cancel();
-        const back = inner.animate(
-          [{ transform: from }, { transform: 'translateX(0)' }],
-          { duration: 450, easing: 'cubic-bezier(0.25, 0, 0, 1)' }
-        );
-        running.set(inner, back);
-        back.onfinish = () => { if (running.get(inner) === back) running.delete(inner); };
+      tl.pause();
+      returnTween = gsap.to(inners, {
+        x: 0, duration: 0.45, ease: 'cubic-bezier(0.25, 0, 0, 1)',
+        onComplete: () => { tl.progress(0); returnTween = null; },
       });
     });
   });
@@ -111,13 +113,17 @@ export function initFacultySlideIn() {
     return `${s}-${e}`;
   }
 
-  // 學歷 row：country | school | major | degree（4 col 各 1）
-  // 國家英文用 ISO2 代碼（大寫，如 US / GB）而非全名（user 2026-06-03）；中文仍用全名
+  // 學歷 row：school(含國家) | major | degree（3 col；country 不再獨立佔欄，併進學校名稱字串，2026-08-03 user）
+  // 國家英文用 ISO2 代碼（大寫，如 US / GB）接在英文校名後、中文全名接在中文校名後——
+  // 格式同 activities guest aka（ZH 全形括號無空格、EN 半形帶前導空格）
   function renderEducationRow(item) {
+    const countryZh = countryName(item.country, 'zh');
+    const countryEn = (item.country || '').toUpperCase();
+    const schoolEn = countryEn ? `${item.schoolEn || ''} (${countryEn})` : (item.schoolEn || '');
+    const schoolZh = countryZh ? `${item.schoolZh || ''}（${countryZh}）` : (item.schoolZh || '');
     return `
-      <div class="faculty-grid-row">
-        <span>${bilingualMarquee(countryName(item.country, 'zh'), (item.country || '').toUpperCase())}</span>
-        <span>${bilingualMarquee(item.schoolZh, item.schoolEn)}</span>
+      <div class="faculty-grid-row faculty-grid-row-education">
+        <span class="faculty-grid-span2">${bilingualMarquee(schoolZh, schoolEn)}</span>
         <span>${bilingualMarquee(item.majorZh, item.majorEn)}</span>
         <span>${bilingualMarquee(item.degreeZh, item.degreeEn)}</span>
       </div>
@@ -235,18 +241,15 @@ export function initFacultySlideIn() {
         nameZhElement.style.width = nameWidth;
       }
 
-      // Titles：admin 用單 titleEn/titleZh；fulltime 用 titles[] repeater
+      // Titles：三種 type 共用 titles[] repeater（2026-08-04 起 admin 也改用 titles[]，不再是單一 titleEn/titleZh）；
+      // 兼任的公司/身份 + 校內職稱（如「兼任講師」）都存在同一個 titles[] repeater 裡（多筆），
+      // 順序由後台編輯者在 GUI 拖排，前台不寫死順序邏輯。
       // titles rotate(4deg)：桌機+手機都套（2026-06-11 user 要桌面 title 也轉、跟名字一致；原本只手機）。
       // 用 block display 讓 titles 自然在 name 下方流（不被 inline-block 擠到右邊）。
       const rotateTitles = rotateName;
       const titlesContainer = document.getElementById('faculty-detail-titles');
       if (titlesContainer) {
-        let pairs;
-        if (data.type === 'admin') {
-          pairs = [{ en: data.titleEn || '', zh: data.titleZh || '' }];
-        } else {
-          pairs = (data.titles || []).map(t => ({ en: t.titleEn || '', zh: t.titleZh || '' }));
-        }
+        const pairs = (data.titles || []).map(t => ({ en: t.titleEn || '', zh: t.titleZh || '' }));
         let html = '';
         pairs.forEach((p, i) => {
           const isLast = i === pairs.length - 1;
@@ -269,7 +272,8 @@ export function initFacultySlideIn() {
         if (data.type === 'admin') {
           html = buildContactSection(data.contact);
         } else {
-          // fulltime（parttime 不走 slide-in，但保留結構容錯）
+          // fulltime / parttime 共用（兼任的 educations/journey/experiences/awards 通常是空陣列，
+          // buildSection 空陣列回空字串不渲染 → 兼任 panel 自然只剩圖 + 名字 + titles，不用另開分支）
           html += buildSection('Education', '學歷', data.educations, renderEducationRow);
           // Journey 歷程：欄位與 Experience 相同（year | organization | role），收錄該老師與系上相關的經歷，
           // 故直接複用 renderExperienceRow；data.journey 空/未填時 buildSection 回空字串不渲染。
@@ -325,7 +329,7 @@ export function initFacultySlideIn() {
 
     facultyCards.forEach(card => {
       const category = card.getAttribute('data-category');
-      if (category === 'fulltime' || category === 'admin') {
+      if (category === 'fulltime' || category === 'admin' || category === 'parttime') {
         makeActivatable(card); // 無障礙：師資卡是 <div>，補可 Tab + Enter 開詳情（名字當可讀名）
         card.addEventListener('click', function(e) {
           e.preventDefault();

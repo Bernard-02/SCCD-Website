@@ -1,18 +1,44 @@
 /**
  * Faculty Data Loader
- * 讀取師資資料（Directus 三 collection 合併，見 faculty-source.js）並依
- * type (fulltime/parttime/admin) 分類渲染。
+ * 讀取師資資料（Directus 單一 faculty collection，見 faculty-source.js）並依
+ * type (facultyType: fulltime/parttime/admin) 分類渲染。
  *
- * 資料結構（對齊 Directus faculty_fulltime / faculty_parttime / faculty_admin）：
- *   - fulltime/parttime: titles[]（repeater，至少 1 筆）
- *   - admin: titleEn/titleZh 單字段
- * Card 顯示「所有」職稱（fulltime/parttime 跑完 titles[]；admin 用 titleEn/titleZh）；
- * 單行職稱超出卡片寬時 hover marquee（見 cards.css）。
+ * 資料結構（對齊 Directus faculty collection）：titles[]（repeater，至少 1 筆），
+ * 三種 type 共用同一個 titles 形狀（2026-08-04 起 admin 也改用 titles[]，不再是單一 titleEn/titleZh）。
+ * Card 顯示「所有」職稱（跑完 titles[]）；單行職稱超出卡片寬時 hover marquee（見 cards.css）。
  */
 
 import { getFacultyData, resetFacultyCache } from './faculty-source.js';
-import { applyMarqueeOverflow } from '../ui/marquee-overflow.js';
+import { applyMarqueeOverflow, buildSyncedMarqueeTimeline } from '../ui/marquee-overflow.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
+
+// 卡片職稱 marquee：hover 整張卡才跑（cards.css 的 hover 目標是 .faculty-card，不是個別 title-group）。
+// 2026-08-04 起改 GSAP 共用 timeline（原本純 CSS `:hover` 各自 animation:infinite，多職稱時 EN/ZH 各自
+// duration 久了會脫拍，同 reference_gsap_timeline_desync_marquee_pair_sync）：每個 .faculty-card-title-group
+// （一組職稱的 EN+ZH，多職稱=多組）各自建一條同步 timeline，hover 整張卡時全部一起播放/暫停。
+// 離開沿用原本「瞬間 snap 回原點」（cards.css 舊行為就是這樣，沒有 slide-in 那種平滑捲回，維持原樣）。
+// card._marqueeBound 防同一張卡重複綁（runMarquee 可能因字型載入/resize 等原因被呼叫多次）。
+function bindFacultyCardMarquee(container) {
+  if (typeof gsap === 'undefined') return;
+  container.querySelectorAll('.faculty-card').forEach((card) => {
+    if (card._marqueeBound) return;
+    const timelines = [...card.querySelectorAll('.faculty-card-title-group')].map((group) => {
+      const items = [...group.querySelectorAll('.faculty-marquee-line.is-overflow')].map((line) => {
+        const inner = line.querySelector('.faculty-marquee-inner');
+        const dist = Math.abs(parseFloat(getComputedStyle(line).getPropertyValue('--marquee-distance'))) || 0;
+        return inner && dist ? { el: inner, distance: dist } : null;
+      }).filter(Boolean);
+      return items.length ? buildSyncedMarqueeTimeline(items) : null;
+    }).filter(Boolean);
+    if (!timelines.length) return;
+    card._marqueeBound = true;
+    const playAll  = () => timelines.forEach(tl => tl.play());
+    const pauseAll = () => timelines.forEach(tl => tl.pause(0)); // pause(0) 立即歸零＝原本 CSS 移除瞬間 snap 的手感
+    card.addEventListener('mouseenter', playAll);
+    card.addEventListener('mouseleave', pauseAll);
+    registerPageCleanup(() => { card.removeEventListener('mouseenter', playAll); card.removeEventListener('mouseleave', pauseAll); });
+  });
+}
 
 export async function loadFacultyData() {
   try {
@@ -170,13 +196,11 @@ function applyNaturalAspect(img) {
 }
 
 /**
- * 取得 card 顯示用的「所有」 title pair（中英）
- * fulltime/parttime: titles[] 全部；admin: 單筆 titleEn/titleZh
+ * 取得 card 顯示用的「所有」 title pair（中英）— 三種 type 共用 titles[] 形狀。
+ * 兼任的公司/身份 + 校內職稱（如「兼任講師」）都存在同一個 titles[] repeater 裡（多筆），
+ * 順序由後台編輯者在 GUI 拖排（不在前台寫死順序）。
  */
 function pickCardTitles(item) {
-  if (item.type === 'admin') {
-    return [{ en: item.titleEn || '', zh: item.titleZh || '' }];
-  }
   return (item.titles || []).map(t => ({ en: t.titleEn || '', zh: t.titleZh || '' }));
 }
 
@@ -211,7 +235,7 @@ function renderFacultyList(containerId, items, eagerCount = 0, highPriority = fa
     const initDeg = (sign * (3 + Math.random() * 3)).toFixed(2);
     const imgDir = randomImgDir();
     return `
-    <div class="faculty-card group ${item.type === 'parttime' ? 'cursor-default' : 'cursor-pointer'} p-[6px]" data-category="${item.type}" data-faculty-id="${item.id}" data-img-dir="${imgDir}" style="--card-color: ${color}; --init-deg: ${initDeg}deg">
+    <div class="faculty-card group cursor-pointer p-[6px]" data-category="${item.type}" data-faculty-id="${item.id}" data-img-dir="${imgDir}" style="--card-color: ${color}; --init-deg: ${initDeg}deg">
       <div class="faculty-card-image-wrapper overflow-hidden mb-md aspect-[4/5] bg-gray-2 relative">
         <img src="${item.image}" alt="${item.nameEn}" loading="${eager ? 'eager' : 'lazy'}"${eagerHigh ? ' fetchpriority="high"' : ''} class="faculty-card-image w-full h-full object-cover">
       </div>
@@ -280,7 +304,10 @@ function renderFacultyList(containerId, items, eagerCount = 0, highPriority = fa
   // 職稱單行超出卡片寬 → hover marquee（桌面限定；手機無 hover、保留自然換行）。
   // 量測前等字型載入：fallback 字寬偏窄會誤判溢出（見 memory feedback_measure_text_layout_wait_fonts_ready）。
   if (window.innerWidth >= 768) {
-    const runMarquee = () => applyMarqueeOverflow(container, '.faculty-marquee-line', '.faculty-marquee-inner');
+    const runMarquee = () => {
+      applyMarqueeOverflow(container, '.faculty-marquee-line', '.faculty-marquee-inner');
+      bindFacultyCardMarquee(container); // EN/ZH 配對同步播放（見上方 bindFacultyCardMarquee 說明）
+    };
     if (document.fonts && document.fonts.status !== 'loaded') {
       document.fonts.ready.then(runMarquee);
     } else {

@@ -1,27 +1,30 @@
 /**
  * Activities 資料源：Directus activities_<x>（扁平）→ loadListInto 吃的 shape，含 M2A references remap。
  * 對接範本＝summer-camp-source.js（loadListInto 已直接讀 titleEn/Zh、subtitleEn/Zh、locations[]、guests[nameEn/Zh]、
- * descriptionZh；這裡只補它沒自動讀的：descriptionEn→description、startDate→dates[]、媒體 UUID→URL、id=refCode、
+ * descriptionZh；這裡只補它沒自動讀的：descriptionEn→description、startDate→dates[]、媒體 UUID→URL、
  * M2A references→前台 ref shape）。Directus 失敗/空 → fallback 本地 JSON（維持原行為）。
  * 2026-06-17 起接 competitions / industry / workshops（M2A ref trial）。
+ * 2026-08-03 起 deep-link/ref 解析鍵一律用 Directus 自帶 `id`（不再靠人工填的 refCode 友善碼——
+ * M2A 關聯本身存的就是 target 的 uuid，後台選單也是靠 display_template 顯示標題挑選，refCode 從來
+ * 不影響「選誰」，只影響對外網址好不好看；改用 id 後零填寫負擔、target 一定有 id 不會漏。）
  */
 import { CMS_API_BASE, CMS_ASSETS_BASE } from '../../config/api.js';
 import { videoMediaFromUrl } from '../ui/video-player.js';
 import { sitePath, SITE_BASE_PATHNAME } from '../ui/site-base.js';
 
-// M2A references deep-fetch：每個目標 collection 都要列一條 item:<col>.refCode（沒列到的該 ref item 會是 raw uuid）。
+// M2A references deep-fetch：每個目標 collection 都要列一條 item:<col>.id（沒列到的該 ref item 會是 raw uuid）。
 // library_documents/press 另取 titleEn/Zh（前台 ref 列要顯示標題；activity 的 title 由 resolveRef 從本地查）。
 // document 另取 pdf（前台直接開 PDF viewer，不跳 library）。album 不再當 ref（活動相簿就在活動內），故不 deep-fetch。
 // 2026-06-22 起 activities 不再 ref award（改 award → library 單向），故不 deep-fetch library_awards。
 const REF_FIELDS = [
   'references.collection',
-  'references.item:library_documents.refCode', 'references.item:library_documents.titleEn', 'references.item:library_documents.titleZh', 'references.item:library_documents.pdf',
-  'references.item:library_press.refCode', 'references.item:library_press.titleEn', 'references.item:library_press.titleZh',
+  'references.item:library_documents.id', 'references.item:library_documents.titleEn', 'references.item:library_documents.titleZh', 'references.item:library_documents.pdf',
+  'references.item:library_press.id', 'references.item:library_press.titleEn', 'references.item:library_press.titleZh',
   // press 的圖/影片：前台原地開 media lightbox（同 library press 點擊）。M2A 巢狀深取實測可行（2026-06-24）。
   'references.item:library_press.images.directus_files_id', 'references.item:library_press.videoLinks',
-  'references.item:activities_competitions.refCode',
-  'references.item:activities_industry.refCode',
-  'references.item:activities_workshops.refCode',
+  'references.item:activities_competitions.id',
+  'references.item:activities_industry.id',
+  'references.item:activities_workshops.id',
 ].join(',');
 
 // activities collection → loadListInto SECTION_DATA_URL 的 section key（workshops 是單數 'workshop'）
@@ -30,21 +33,23 @@ const ACT_SECTION = {
   activities_industry: 'industry',
   activities_workshops: 'workshop',
 };
-const libHref = (refCode) => refCode ? `${SITE_BASE_PATHNAME}pages/library.html#${refCode}` : undefined;
+// library_press 面板自己的 DOM id 是 `press-${row.id}`（library-panels.js）→ href 要加同樣前綴才對得上，
+// 否則 deep-link 落地後 getElementById 找不到目標（2026-08-03 前是用 refCode 裸值，本來就對不上，見上）。
+const libHref = (id) => id ? `${SITE_BASE_PATHNAME}pages/library.html#press-${id}` : undefined;
 
-// 一筆 M2A ref {collection, item:{refCode,titleEn?,titleZh?,pdf?}} → 前台 ref shape（resolveRef 認得的形狀）。
+// 一筆 M2A ref {collection, item:{id,titleEn?,titleZh?,pdf?}} → 前台 ref shape（resolveRef 認得的形狀）。
 // activity 回 {section,itemId} 讓 resolveRef 從本地補 href+title；
 // document 回 {pdfUrl} → 直接開共用 PDF viewer lightbox（不跳 library）；
 // press 有圖/影片 → 回 {pressMedia} 原地開 media lightbox（同 library press 點擊）；都沒有才回 href 跳 library deep-link。
 // album / award 不再當 ref：相簿就在活動內、award 改 award → library 單向（return null 略過）。
 function remapRef(r) {
   const it = (r && typeof r.item === 'object' && r.item) ? r.item : {};
-  const code = it.refCode;
-  if (!code) return null;  // 目標沒填 refCode → 無法當 ref id，略過（友善碼是 ref 的連結鍵）
+  const id = it.id;
+  if (!id) return null;  // 深取失敗/target 已被刪 → 略過（正常情況 Directus row 一定有 id，不會漏）
   switch (r.collection) {
     case 'activities_competitions':
     case 'activities_industry':
-    case 'activities_workshops':    return { section: ACT_SECTION[r.collection], itemId: code };
+    case 'activities_workshops':    return { section: ACT_SECTION[r.collection], itemId: id };
     // document：直接開 PDF viewer lightbox。沒上傳 pdf 就略過（沒檔可開、避免空按鈕）。
     case 'library_documents':       return it.pdf ? { labelEn: 'Documents', labelZh: '文件', titleEn: it.titleEn || '', titleZh: it.titleZh || '', pdfUrl: fileUrl(it.pdf) } : null;
     // press：組 media（圖 + YouTube 影片，shape 對齊 activities-lightbox / library press lightbox）。
@@ -56,7 +61,7 @@ function remapRef(r) {
         ...ytUrls(it.videoLinks).map(u => videoMediaFromUrl(u)).filter(Boolean),
       ];
       const base = { labelEn: 'Press', labelZh: '報導', titleEn: it.titleEn || '', titleZh: it.titleZh || '' };
-      return media.length ? { ...base, pressMedia: media } : { ...base, href: libHref(code) };
+      return media.length ? { ...base, pressMedia: media } : { ...base, href: libHref(id) };
     }
     default: return null;  // library_album 等其餘 collection 不當 ref
   }
@@ -93,7 +98,7 @@ const ytUrls = (arr) => Array.isArray(arr) ? arr.map(v => typeof v === 'string' 
 function mapRow(r, category, stamp) {
   return {
     ...r,
-    id: r.refCode || r.id,                       // 前台用 refCode 當 element id + ref 解析鍵（對齊 ref 指向的友善碼）
+    id: r.id,                                    // 前台用 Directus 自帶 id 當 element id + ref 解析鍵
     ...(category ? { category } : {}),           // dedicated collection 無 category 欄 → 補上給 categoryFilter 比對
     ...(stamp || {}),                            // visitType / exhibitionType 等子類型判別欄（同上）
     description: r.descriptionEn || '',          // introField 預設 'description' 讀 item.description（EN）；descriptionZh 前台自動讀

@@ -48,4 +48,36 @@ export function initLegalTitleRandom() {
   block.style.setProperty('--legal-shift-en', `${shiftFor(en)}px`);
   block.style.setProperty('--legal-shift-cn', `${shiftFor(cn)}px`);
   block.style.setProperty('--legal-gap', `${gap}px`);
+
+  // 窄桌面（<~1600）：chip 字級固定、左欄變窄 → 長字 chip（REGULATIONS 等）凸出左欄蓋到右欄文字。
+  // 依實際 chip 寬算「最壞右緣」（+48 = 實測旋轉/wrapper 投影餘裕），把右欄 padding-left 推到其外 + 24 呼吸。
+  // 只放大不縮小（不動 CSS 既有的 4xl 避位）；chip 塞得進左欄時 needPad 為負＝no-op，寬螢幕零影響。
+  // ⚠️ 量測必須（a）等 fonts.ready——fallback 字型寬不準；（b）暫時解除 .hero-title 的 max-width:100%
+  //    clamp——否則長字 chip 被夾到欄寬換行、offsetWidth 讀到欄寬而非真實字寬（實測 697 被讀成 365）。
+  // ponytail: 極窄桌面(768~820)長字頁頂到「文字最少 240px」下限，接受殘餘重疊——再窄該縮的是 chip 字級。
+  const content = document.querySelector('.legal-content-col');
+  if (content) {
+    const fullWidth = (el) => {
+      if (!el) return 0;
+      const prev = el.style.cssText;
+      el.style.maxWidth = 'none';
+      el.style.whiteSpace = 'nowrap';
+      const w = el.offsetWidth;
+      el.style.cssText = prev;
+      return w;
+    };
+    const apply = () => {
+      if (!content.isConnected) return; // SPA 已換頁
+      const chipW = Math.max(fullWidth(en), fullWidth(cn));
+      const rect = content.getBoundingClientRect();
+      const needPad = Math.round(col.getBoundingClientRect().left + chipW + 48 + 24 - rect.left);
+      const pad = Math.min(needPad, Math.round(rect.width) - 240);
+      const cur = parseFloat(getComputedStyle(content).paddingLeft) || 0;
+      if (pad > cur) content.style.paddingLeft = `${pad}px`;
+    };
+    // 立即先算（fallback 字型寬差 ~±5%、48px 餘裕吃得下）；fonts.ready 後再校正一次——
+    // 不能只等 fonts.ready：CDN 字型卡住時它可能數十秒才 resolve，其間文字被 chip 蓋著。apply 只放大，重跑無害。
+    apply();
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(apply);
+  }
 }

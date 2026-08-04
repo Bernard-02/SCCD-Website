@@ -4,8 +4,9 @@
  * 對齊 faculty-source / courses-source 的 pattern：Directus 優先，失敗/空 → 本地 JSON fallback。
  *
  * ── 已上後台、直接接 Directus（皆有 fallback，CMS 掛掉仍渲染）──
- *   facultyCurrent ← faculty_fulltime + faculty_parttime + faculty_admin（共用 faculty-source.getFacultyData）
- *   facultyFormer  ← faculty_former
+ *   facultyCurrent ← faculty（status=active，共用 faculty-source.getFacultyData）
+ *   facultyFormer  ← faculty（status=former，faculty-source.getFormerFacultyData；
+ *                    2026-08-04 起 former 併進同一個 faculty collection，不再是獨立的 faculty_former）
  *   companies (co) ← alumni_hosting      （系友任職企業 → 中央橢圓 ring，保留真名）
  *   employment(em) ← alumni_employment   （系友就職企業 → 浮動 chip，帶 country 對到國家 D 節點）
  *   careers        ← alumni_careers      （filter 下方職業輪播）
@@ -16,7 +17,7 @@
  */
 
 import { CMS_API_BASE } from '../../config/api.js';
-import { getFacultyData } from './faculty-source.js';
+import { getFacultyData, getFormerFacultyData } from './faculty-source.js';
 import { sitePath } from '../ui/site-base.js';
 
 // 抓 collection 全部 rows（依後台 sort）；空陣列視為「沒資料」往 fallback 走
@@ -43,13 +44,16 @@ async function withFallback(label, collection, fallbackPath, mapFn) {
 export async function loadAtlasData() {
   const [facultyCurrent, facultyFormer, companies, employment, careers, workshops, industry] =
     await Promise.all([
-      // 在職教師（合併三 collection，與 faculty 卡片頁同源 + 同 cache）；getFacultyData 內含本地 fallback
+      // 在職教師（與 faculty 卡片頁同源 + 同 cache）；getFacultyData 內含本地 fallback
       getFacultyData().catch(() => null),
-      // 離職教師
-      withFallback('faculty_former', 'faculty_former', '/data/faculty-former.json'),
-      // co 環：系友任職企業（companyEn/Zh → nameEn/Zh，對齊 atlas-companies.json 形狀）
+      // 離職教師（同一個 faculty collection，status=former；失敗 → 本地 fallback）
+      getFormerFacultyData().catch(async () => {
+        console.warn('[atlas] faculty(former) CMS 取得失敗，fallback /data/faculty-former.json');
+        return fetch(sitePath('/data/faculty-former.json')).then(r => r.json()).catch(() => null);
+      }),
+      // co 環：系友任職企業（companyEn/Zh → nameEn/Zh，對齊 atlas-companies.json 形狀；country 2026-08-03 加）
       withFallback('alumni_hosting', 'alumni_hosting', '/data/atlas-companies.json',
-        r => ({ nameEn: r.companyEn || '', nameZh: r.companyZh || '' })),
+        r => ({ nameEn: r.companyEn || '', nameZh: r.companyZh || '', country: r.country || '' })),
       // em 浮動：系友就職企業（保留 country，atlas 內對到 canonical 國家）
       // fallback 必要：D 國家節點從 em/guest 的 country 動態生成，em 沒 fallback 時 CMS 一掛
       // （待機 overlay 每次 mount 重抓，長時間掛機斷網最常見）國家就只剩 workshops.json 的 TW/SG 兩顆

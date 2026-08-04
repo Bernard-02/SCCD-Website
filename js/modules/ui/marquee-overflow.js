@@ -104,3 +104,25 @@ export function applyMarqueeOverflow(scope, rowSelector, innerSelector, opts = {
     row.style.setProperty('--marquee-duration', `${Math.max(minDuration, copyWidth / speed)}s`);
   });
 }
+
+/**
+ * 建一個「配對同步」的 GSAP marquee timeline（2026-08-04，user 規格 v3 定案）：EN/ZH 等多條文字放在同一個
+ * group 時，全部用**同一個速度**（px/s）各自跑自己的距離——距離長的自然跑比較久，距離短的先跑完；
+ * 不是套同一個 duration（那樣短的會被拖慢，v2 誤解，已推翻）。
+ * 短的跑完後 GSAP 預設停在終值不動（不用手寫 hold），等最長那條也跑完，整個 timeline 才進入 `gap` 秒的
+ * 停頓（GSAP repeatDelay），停頓結束後**全部同時**歸零重播——下一輪一定是所有行對齊左邊（起點）一起出發，
+ * 不會有人先偷跑。timeline 預設 paused，由呼叫端自己接 hover/其他觸發時機播放/暫停。
+ * @param {{el: Element, distance: number}[]} items 這一組要同步的元素 + 各自要捲動的距離（正數 px）
+ * @param {{speed?: number, minDuration?: number, gap?: number}} [opts]
+ */
+export function buildSyncedMarqueeTimeline(items, opts = {}) {
+  const speed = opts.speed ?? 80;
+  const minDuration = opts.minDuration ?? 3;
+  const gap = opts.gap ?? 0.6;
+  const tl = gsap.timeline({ repeat: -1, paused: true, repeatDelay: gap });
+  items.forEach(({ el, distance }) => {
+    const duration = Math.max(minDuration, distance / speed); // 各自的距離 ÷ 同一個速度 = 各自的時長
+    tl.fromTo(el, { x: 0 }, { x: -distance, duration, ease: 'none' }, 0);
+  });
+  return tl;
+}

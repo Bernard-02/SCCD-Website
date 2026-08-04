@@ -185,7 +185,9 @@ async function activateGrade(mobileGrid, gradeKey, { animate = true } = {}) {
 
   const prev = /** @type {HTMLElement|null} */ (mobileGrid.querySelector('.courses-mobile-grade-block:not(.hidden)'));
   if (doAnim && prev && prev.getAttribute('data-grade') !== gradeKey) {
-    const prevItems = [...prev.querySelectorAll('.courses-grid-card, .courses-mobile-row-label')];
+    // label 各年級文字相同（Required/Elective）且 sticky 釘同位置：跟著收再進會看成「同一個 tag 渲染兩次」
+    // → 切年級只動卡片，label 原地不動（user 2026-07-21）
+    const prevItems = [...prev.querySelectorAll('.courses-grid-card')];
     if (prevItems.length) {
       mobileGrid.dataset.gradeSwitching = '1';
       await new Promise(resolve => {
@@ -210,7 +212,9 @@ async function activateGrade(mobileGrid, gradeKey, { animate = true } = {}) {
     if (on) shown = /** @type {HTMLElement} */ (b);
   });
   if (doAnim && shown) {
-    const items = [...shown.querySelectorAll('.courses-grid-card, .courses-mobile-row-label')];
+    // 保險：entrance 的 gsap.set 可能把這個 block 的 label 留在 hidden 態（reveal 未播就切年級）→ 直接清成可見
+    gsap.set(shown.querySelectorAll('.courses-mobile-row-label'), { clearProps: 'clipPath,translate' });
+    const items = [...shown.querySelectorAll('.courses-grid-card')];
     if (items.length) {
       gsap.killTweensOf(items);
       // 同 program 切換 reveal：每張四方向隨機（pickNavDir() 無 el）的 hidden 態 → 無 stagger 同時收到 NAV_CHIP_SHOWN

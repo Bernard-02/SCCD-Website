@@ -166,7 +166,7 @@ function onPlayClick(e) {
 // xPercent:100 走 CSS 百分比（免 JS 量測——build 時整層 display:none，panel.offsetWidth=0 會讓 px 算法失效、半藏在邊緣）；
 // 疊固定 x:48（= dock 32 + margin）補滿「自身寬 + dock」讓整顆真的出視窗。兩者都由 GSAP 管、各自獨立分量不打架。
 const WHEEL_HIDDEN = { xPercent: 100, x: 48, yPercent: 0 };   // wheel 藏起態：整顆移出視窗右緣
-const HANDOFF_DELAY = 0.15;   // 接力延遲：先走者讓位、後手才進場（觀感上的先後呼應）
+const HANDOFF_DELAY = DUR.medium;   // 接力延遲＝先走者的完整 duration：後手要等先走者完全滑出視窗才入場，兩者不重疊
 
 function open() {
   if (isOpen) return;
@@ -200,7 +200,10 @@ function close(instant, opts = {}) {
     root.classList.remove('mcp-open');
     if (typeof gsap !== 'undefined') {
       gsap.set(panelMask, { clearProps: 'transform' });
-      gsap.set(pencilBtn, { xPercent: pencilReturn ? 0 : 100 });
+      // pencilReturn=true 時鉛筆由下面的 delay fromTo 自己收尾，這裡別碰——finish() 在 wheel
+      // 完成(t=DUR.medium)先於鉛筆 tween 完成(t=HANDOFF_DELAY+DUR.medium)觸發，硬 set 會搶在
+      // 鉛筆動畫跑完前把它瞬移到位、delay 一到 fromTo 又把它彈回 from 值重新滑入 → 閃兩次
+      if (!pencilReturn) gsap.set(pencilBtn, { xPercent: 100 });
       gsap.set(panel, WHEEL_HIDDEN);   // wheel 回藏起態（遮罩左側外）
     } else {
       panelMask.style.transform = '';

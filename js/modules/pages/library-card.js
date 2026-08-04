@@ -235,7 +235,8 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
     album:  'Albums 相簿',
   };
 
-  const PAD = '12px';
+  const PAD = 12;                          // px：文字垂直於捲動方向的偏移（到卡片長邊）
+  const AXIS_PAD = Math.round(PAD * 2);  // px：捲動軸兩端進出場 inset，比 PAD 大 2 倍（user 2026-08-03，只放大進出場那個）
   const PROBE_CSS = 'position:absolute;visibility:hidden;white-space:nowrap;' +
     'font-family:Inter,"Noto Sans TC",sans-serif;font-size:var(--font-size-h4);font-weight:700;';
 
@@ -290,30 +291,38 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
     const unitPx = probe.offsetWidth || 1;
     document.body.removeChild(probe);
 
-    const rectPx  = Math.round(isVertical ? cfg.h : cfg.w);
+    const rectPx  = Math.round(isVertical ? cfg.h : cfg.w);  // 捲動軸方向的可用長度
+    const perpPx  = Math.round(isVertical ? cfg.w : cfg.h);  // 垂直於捲動軸方向的可用長度
+    // 捲動軸兩端各留 axisPad，marquee 進出場點縮進 box 邊緣以內，不然文字剛好貼著色塊角落進出
+    // （user 2026-08-03）；縮小色塊時 axisPad 跟著讓步，避免 viewport 被夾成 0（marquee 整個消失）
+    const axisPad = Math.min(AXIS_PAD, Math.floor(rectPx / 4));
+    const viewportPx = Math.max(1, rectPx - axisPad * 2);
     const copies  = Math.max(2, Math.ceil(rectPx * 2 / unitPx) + 1);
     const repeated = unit.repeat(copies);
 
     // 重設 titleEl
     Object.assign(titleEl.style, {
       top: '', bottom: '', left: '', right: '',
-      width: `${rectPx}px`, height: '', overflow: 'hidden',
+      width: `${viewportPx}px`, height: '', overflow: 'hidden',
       transform: '', transformOrigin: '',
       visibility: 'visible', color: '#000', alignItems: 'center'
     });
 
+    // 旋轉 case 一律用 cfg 直接算絕對 px（perpPx/rectPx），不用 CSS calc(100%-Xpx)：
+    // 那個 100% 是父層色塊「渲染當下實際尺寸」，動畫/resize 時序上可能還沒 = cfg.w/cfg.h，
+    // 導致沿捲動軸的頂/底留白跑掉（user 2026-08-03：「Documents 距離頂部 padding」比「距離左邊 padding」大）
     if (edge === 'top') {
-      titleEl.style.left = '0';
-      titleEl.style.top = PAD;
+      titleEl.style.left = `${axisPad}px`;
+      titleEl.style.top = `${PAD}px`;
     } else if (edge === 'bottom') {
-      titleEl.style.left = '0';
-      titleEl.style.bottom = PAD;
+      titleEl.style.left = `${axisPad}px`;
+      titleEl.style.bottom = `${PAD}px`;
     } else if (edge === 'left') {
-      titleEl.style.left = PAD; titleEl.style.top = '100%';
+      titleEl.style.left = `${PAD}px`; titleEl.style.top = `${rectPx - axisPad}px`;
       titleEl.style.transformOrigin = 'left top';
       titleEl.style.transform = 'rotate(-90deg)';
     } else {
-      titleEl.style.left = `calc(100% - ${PAD})`; titleEl.style.top = '0';
+      titleEl.style.left = `${perpPx - PAD}px`; titleEl.style.top = `${axisPad}px`;
       titleEl.style.transformOrigin = 'left top';
       titleEl.style.transform = 'rotate(90deg)';
     }

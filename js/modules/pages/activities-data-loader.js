@@ -12,6 +12,7 @@ import { ensureFlagIconsCss } from '../ui/ensure-flag-icons.js';
 import { countryName } from '../../data/country-names.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { refreshStickyPinObservers } from '../accordions/list-accordion.js';
+import { buildSyncedMarqueeTimeline } from '../ui/marquee-overflow.js';
 import { loadSummerCamp } from './summer-camp-source.js';
 import { loadActivityCollection } from './activities-source.js';
 // '/data/x.json' 字串同時是 fetch URL 與 map key / 比對識別字（SECTION_DATA_URL 等），
@@ -469,29 +470,34 @@ export function buildGuestHtml(g, { showGuestCountry = true, showGuestAffiliatio
   const gAkaEn = g.akaEn || '';
   const gAkaZh = g.akaZh || '';
   const gCountry = g.country || ''; // ISO code（fallback JSON 大寫 / Directus 小寫）；舊 shape 才是顯示字串
-  const gCountryCode = gCountry.toUpperCase();             // 顯示大寫碼 TW（同 faculty-slide-in 慣例）
-  const gCountryZhName = countryName(gCountry, 'zh');       // 中文名 台灣；對照不到 countryName 回 code 大寫
-  const gCountryZh = gCountryZhName !== gCountryCode ? gCountryZhName : (g.country_zh || '');
+  const gOrgCountry = g.orgCountry || ''; // 單位自己的國家（Directus 獨立欄，跟 guest 個人國家分開填）
   const gOrgEn = g.orgEn || g.affiliation || '';
   const gOrgZh = g.orgZh || g.affiliation_zh || '';
   const gIsAlumni = g.isAlumni === 'on' || g.isAlumni === true || g.isAlumni;
   // user 2026-06-10 #2：title 與「國家」用 grid 2 欄分開對齊（國家欄固定寬 → 所有 row 的國家落在同一起始 x）；
   //   國家包進 .list-title-marquee，太長超出欄寬就 marquee（不換行不擠壓 title 欄）。
-  const countryCell = (cls) => gCountryCode ? `<div class="list-title-marquee"><p class="${cls}">${gCountryCode}${gCountryZh ? ` ${gCountryZh}` : ''}</p></div>` : '';
+  // code 各自轉大寫碼（同 faculty-slide-in 慣例）；沒填就不渲染（user 2026-08-03：單位沒填國家不該自動顯示）。
+  const countryCell = (cls, code, zhFallback) => {
+    if (!code) return '';
+    const upper = code.toUpperCase();
+    const zhName = countryName(code, 'zh');
+    const zh = zhName !== upper ? zhName : (zhFallback || '');
+    return `<div class="list-title-marquee"><p class="${cls}">${upper}${zh ? ` ${zh}` : ''}</p></div>`;
+  };
   return `<div class="flex flex-col" style="gap: 0.25rem;">
     <div class="grid gap-md items-start guest-row-grid">
-      <div class="min-w-0">
-        ${gNameEn ? `<p class="text-p2 font-bold">${formatNameWithAka(gNameEn, gAkaEn, gAkaZh, false)}</p>` : ''}
-        ${gNameZh ? `<p class="text-p2 font-bold">${formatNameWithAka(gNameZh, gAkaZh, gAkaEn, true)}</p>` : ''}
+      <div class="min-w-0 flex items-start justify-between gap-sm">
+        <div class="min-w-0">
+          ${gNameEn ? `<p class="text-p2 font-bold">${formatNameWithAka(gNameEn, gAkaEn, gAkaZh, false)}</p>` : ''}
+          ${gNameZh ? `<p class="text-p2 font-bold">${formatNameWithAka(gNameZh, gAkaZh, gAkaEn, true)}</p>` : ''}
+        </div>
+        ${gIsAlumni ? `<p class="text-p2 flex-shrink-0">Alumni 系友</p>` : ''}
       </div>
-      ${showGuestCountry ? `<div class="min-w-0">
-        ${gIsAlumni ? `<p class="text-p2">Alumni 系友</p>` : ''}
-        ${countryCell('text-p2')}
-      </div>` : ''}
+      ${showGuestCountry ? `<div class="min-w-0">${countryCell('text-p2', gCountry, g.country_zh)}</div>` : ''}
     </div>
     ${showGuestAffiliation && gOrgEn ? `<div class="grid gap-md items-start guest-row-grid">
       <p class="text-p3 min-w-0">${gOrgEn.length > 20 ? `${gOrgEn}<br>${gOrgZh || ''}` : `${gOrgEn}${gOrgZh ? ' ' + gOrgZh : ''}`}</p>
-      ${showGuestCountry ? countryCell('text-p3') : ''}
+      ${showGuestCountry ? countryCell('text-p3', gOrgCountry) : ''}
     </div>` : ''}
   </div>`;
 }
@@ -693,12 +699,81 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
   // list-content 內的 location marquee 渲染當下 clientWidth=0（h-0 overflow-hidden），會錯判 overflow；
   // 對 list-content 內的 wrap 額外綁 'gallery:check' event，accordion 展開時 list-accordion.js
   // 在 onComplete dispatch 該 event → 此時量 clientWidth 才是真值
+  //
+  // 配對同步（2026-08-04，user 要求）：EN/ZH 長度常不同，各自獨立 CSS seamless-loop 跑久了會脫拍
+  // （短的先繞回去、跟長的不同步）。同一個標題單位的 EN/ZH 兩條 .list-title-marquee 改用 GSAP 共用 timeline
+  // （buildSyncedMarqueeTimeline，見 marquee-overflow.js）：兩條共用「最長那條的自然速度」當 duration，
+  // 短的移動比較慢但跟長的同時抵達終點；一輪跑完停 0.6s（repeatDelay）才一起歸零重播。
+  //
+  // ⚠️2026-08-04 修正：一開始誤以為「同一父層下的 .list-title-marquee 一定剛好兩條」，但 subtitle/ref 這類
+  // 可能有多個段落各自一組 EN+ZH（renderSubListInner 對每個 guest/ref map+join 攤平成同一個父層下一串
+  // en,zh,en,zh...），父層底下會有 4、6 條而不是 2 條——舊版「!==2 就整組退回原本邏輯」導致這些多段落的
+  // marquee 完全沒配對、退化成各自獨立 CSS 迴圈（就是 user 回報「中文比較快進下一輪」的成因）。
+  // 改法＝依 DOM 順序兩兩配對（每個 wrap 用自己在同層 .list-title-marquee 清單中的 index 找 partner：
+  // 偶數 index 配下一個、奇數 index 配上一個），落單尾巴（該段只有 en 沒有 zh）維持原本單條 CSS 邏輯。
+  function reconcilePair(wrap) {
+    const parent = wrap.parentElement;
+    const siblings = [...parent.querySelectorAll(':scope > .list-title-marquee')];
+    const idx = siblings.indexOf(wrap);
+    if (idx === -1 || siblings.length < 2) return false;
+    const isEven = idx % 2 === 0;
+    const partnerIdx = isEven ? idx + 1 : idx - 1;
+    if (partnerIdx < 0 || partnerIdx >= siblings.length) return false; // 落單，交回原本單條 CSS 邏輯
+    return reconcileChunk(isEven ? wrap : siblings[partnerIdx], isEven ? siblings[partnerIdx] : wrap);
+  }
+
+  function reconcileChunk(wrapEn, wrapZh) {
+    if (wrapEn._pairGroup) wrapEn._pairGroup.tl.kill();
+
+    const measured = [wrapEn, wrapZh].map(wrap => {
+      const p = wrap.querySelector('p');
+      wrap.dataset.marqueePaired = '1'; // lists.css 用這個 class 蓋掉 CSS animation，避免跟 GSAP 打架
+      return { wrap, p, distance: p ? p.scrollWidth - wrap.clientWidth : 0 };
+    });
+    const overflowing = measured.filter(m => m.p && m.distance > 1);
+    measured.forEach(({ wrap, p }) => { wrap.classList.toggle('is-overflow', overflowing.some(o => o.wrap === wrap)); if (p) gsap.set(p, { x: 0 }); });
+
+    if (!overflowing.length) { wrapEn._pairGroup = wrapZh._pairGroup = null; return true; }
+
+    const tl = buildSyncedMarqueeTimeline(overflowing.map(({ p, distance }) => ({ el: p, distance })));
+    const group = { tl, els: overflowing.map(o => o.p) };
+    wrapEn._pairGroup = wrapZh._pairGroup = group;
+
+    // list-content 內的（已隱含「展開才量得到」＝已滿足 open 條件）量到即播；
+    // list-header 內的要 hover（桌面）/ active（手機，MutationObserver 追 class）才播，對齊 lists.css 規則。
+    const header = wrapEn.closest('.list-header');
+    if (!header) { tl.play(); return true; }
+    // playAll/pauseAll 即時掃 DOM 讀 wrap._pairGroup（不維護額外陣列），reconcileChunk 可能因 resize/
+    // gallery:check/fonts.ready 重跑多次——若改存陣列每次 push 會累積失效的舊 timeline 參考（真的踩過這個 bug）。
+    if (!header._pairMarqueeBound) {
+      header._pairMarqueeBound = true;
+      const eachGroup = (fn) => {
+        const seen = new Set();
+        header.querySelectorAll('[data-marquee-paired="1"]').forEach(w => {
+          if (!w._pairGroup || seen.has(w._pairGroup)) return;
+          seen.add(w._pairGroup);
+          fn(w._pairGroup);
+        });
+      };
+      const playAll  = () => eachGroup(g => g.tl.play());
+      const pauseAll = () => eachGroup(g => { g.tl.pause(0); gsap.set(g.els, { x: 0 }); });
+      header.addEventListener('mouseenter', playAll);
+      header.addEventListener('mouseleave', pauseAll);
+      const mo = new MutationObserver(() => (header.classList.contains('active') ? playAll() : pauseAll()));
+      mo.observe(header, { attributes: true, attributeFilter: ['class'] });
+      registerPageCleanup(() => { header.removeEventListener('mouseenter', playAll); header.removeEventListener('mouseleave', pauseAll); mo.disconnect(); });
+    }
+    if (header.matches(':hover') || header.classList.contains('active')) tl.play();
+    return true;
+  }
+
   const initMarquees = () => {
     // 桌面手機都跑 — 手機 title 區窄更容易 overflow，user 要求收起時就要 marquee
     container.querySelectorAll('.list-title-marquee').forEach(wrap => {
       const p = wrap.querySelector('p');
       if (!p) return;
       const checkOverflow = () => {
+        if (typeof gsap !== 'undefined' && reconcilePair(wrap)) return; // 配對交給上面處理
         if (p.scrollWidth > wrap.clientWidth + 1) {
           wrap.classList.add('is-overflow');
           if (!wrap.dataset.marqueeInit) {
@@ -1208,7 +1283,7 @@ export async function loadListInto(containerId, url, options = {}) {
                       ${locationEn ? `<div class="list-title-marquee"><p class="text-p2 font-bold">${locationEn}</p></div>` : ''}
                       ${locationZh ? `<div class="list-title-marquee"><p class="text-p2 font-bold">${locationZh}</p></div>` : ''}
                     </div>` : '<div></div>'}
-                    ${hasCity ? `<div class="min-w-0">
+                    ${hasCity ? `<div class="min-w-0 list-city-cell">
                       ${cityEn ? `<div class="list-title-marquee"><p class="text-p2 font-bold">${cityEn}</p></div>` : ''}
                       ${cityZh ? `<div class="list-title-marquee"><p class="text-p2 font-bold">${cityZh}</p></div>` : ''}
                     </div>` : ''}
@@ -1298,12 +1373,14 @@ export async function loadListInto(containerId, url, options = {}) {
 
     // 結構：year col 是「組件」，存在才包 grid-12 + 套 col-2/pl-41 gap；不存在則 list 純 flex flush-left
     // pl-[41px] 屬於「年份欄→title 間距」，跟 col-span-1 年份欄共構，不該存在於 standalone list 上
+    // list-year-label：toggle / 非 toggle 兩變體共用的 hook class（非 toggle 版原本沒有專屬 class，
+    // hover-dim 等跨變體效果抓不到它）；list-year-toggle 保留給 toggle 專屬行為（click 收合/sticky/chevron）。
     const yearColHtml = showYearToggle
-      ? `<div class="col-span-12 md:col-span-1 md:col-start-1 list-year-toggle cursor-pointer flex items-center gap-sm order-1 pt-sm pb-md pl-xs md:sticky md:self-start md:pb-sm">
+      ? `<div class="col-span-12 md:col-span-1 md:col-start-1 list-year-toggle list-year-label cursor-pointer flex items-center gap-sm order-1 pt-sm pb-md pl-xs md:sticky md:self-start md:pb-sm">
           <div class="list-reveal-row flex justify-center items-center w-[1.5em] h-[1.5em] flex-shrink-0"><span class="icon icon-chevron-list icon-s transition-all duration-fast rotate-90"></span></div>
           <h5 class="list-reveal-row">${yearGroup.year}</h5>
         </div>`
-      : `<div class="col-span-12 md:col-span-1 md:col-start-1 flex items-center order-1 pt-sm pb-md pl-xs">
+      : `<div class="col-span-12 md:col-span-1 md:col-start-1 list-year-label flex items-center order-1 pt-sm pb-md pl-xs">
           <h5 class="list-reveal-row">${yearGroup.year}</h5>
         </div>`;
 

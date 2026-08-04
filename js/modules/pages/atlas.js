@@ -280,20 +280,17 @@ export async function initAtlas(options = {}) {
     countryIndex.set(iso, it.id);
   });
 
-  // A: 在職教師（titles 為陣列，取第一個職稱當 list view 副標）
+  // A: 在職教師（titles 為陣列，取第一個職稱當 list view 副標；三種 type 共用同一形狀）
   (facultyCurrent || []).forEach(f => {
     if (!f.nameEn && !f.nameZh) return;
-    // admin 是單一 titleEn/titleZh、fulltime/parttime 是 titles[] → 取第一個（對齊 faculty-data-loader getTitles）
-    const t = f.type === 'admin'
-      ? { titleEn: f.titleEn || '', titleZh: f.titleZh || '' }
-      : ((Array.isArray(f.titles) && f.titles[0]) || {});
+    const t = (Array.isArray(f.titles) && f.titles[0]) || {};
     items.push({
       id: uid('fc'), category: 'A',
       textEn: f.nameEn || '', textZh: f.nameZh || '',
       labelEn: 'Current Faculty', labelZh: '在職教師',
       detail: '目前任職於本系，從事教學、研究與創作實務。',
       groups: [], cityKey: null,
-      _titleEn: t.titleEn || '', _titleZh: t.titleZh || '',
+      _titleEn: t.titleEn || '', _titleZh: t.titleZh || '', _countryCode: t.country || '',
     });
   });
 
@@ -308,7 +305,7 @@ export async function initAtlas(options = {}) {
       labelEn: 'Former Faculty', labelZh: '離職教師',
       detail: `曾任職於本系${years}${field ? '，' + field + '領域' : ''}。`,
       groups: [], cityKey: null,
-      _titleEn: f.titleEn || '', _titleZh: f.titleZh || '',
+      _titleEn: f.titleEn || '', _titleZh: f.titleZh || '', _countryCode: f.country || '',
     });
   });
 
@@ -401,7 +398,7 @@ export async function initAtlas(options = {}) {
       textEn: c.nameEn || c.name || '', textZh: c.nameZh || '',
       labelEn: 'Alumni Employer', labelZh: '系友任職企業',
       detail: '本系畢業生曾任職、實習或合作之企業。',
-      groups: [], cityKey: null,
+      groups: [], cityKey: null, _countryCode: c.country || '',
     });
   });
 
@@ -457,17 +454,21 @@ export async function initAtlas(options = {}) {
     const cat = Object.keys(FILTER_PREFIXES).find(k => FILTER_PREFIXES[k].includes(prefix));
     if (cat === 'faculty') {
       // 真實職稱當副標（在職取 titles[0]、離職取 titleEn/Zh；無職稱則副標留空）
+      // 職稱是「單位/機構名稱」且後台有填 country 時，名稱後面用（國家）標註（純職稱如「藝術家」country 留空不標）
       item._listSubEn = item._titleEn || '';
       item._listSubZh = item._titleZh || '';
+      if (item._countryCode) {
+        if (item._listSubEn) item._listSubEn += ` (${item._countryCode.toUpperCase()})`;
+        if (item._listSubZh) item._listSubZh += `（${countryName(item._countryCode, 'zh')}）`;
+      }
     } else if (cat === 'alumni') {
       // co-* (橢圓 ring 企業) → host（Hosting subchip 點掉 = 整圈消失）
       // em-* (橢圓外 floating chip) → employ（Employment subchip 點掉 = floating chip 全收）
       item._listSubGroup = prefix === 'em' ? 'employ' : 'host';
-      // em（就職，list 顯示國家）用後台真實 country code → countryName，跟後台一致（含 atlas 9 國外的 de/cz/it）
-      //   不再用 cityKey（cityKey 受 9 國限制 + 對不到時無值），避免顯示成被 fake fill 的錯國家
-      // co（任職 host）list 只顯示名字、無副標 → 不設 country
-      if (prefix === 'em' && item._countryCode) {
-        item._listSubEn = countryName(item._countryCode, 'en');
+      // co/em 都用後台真實 country code 當副標；不再用 cityKey（受 9 國限制 + 對不到時無值）
+      //   EN 顯示 ISO 兩碼（跟 faculty/activities 慣例一致，見 reference_guest_country_field_iso_display）、ZH 顯示中文全名
+      if (item._countryCode) {
+        item._listSubEn = item._countryCode.toUpperCase();
         item._listSubZh = countryName(item._countryCode, 'zh');
       }
     } else if (cat === 'partners') {
@@ -476,10 +477,10 @@ export async function initAtlas(options = {}) {
         item._listTypeEn = type.en;
         item._listTypeZh = type.zh;
       }
-      // 國家副標 = 該單位自己的 country（後台真實國碼 → countryName，不受 9 國 cityKey 限制；同 em 作法）
-      //   沒有 country 就不顯示，不亂填假國家
+      // 國家副標 = 該單位自己的 country（後台真實國碼；不受 9 國 cityKey 限制；同 em 作法）
+      //   沒有 country 就不顯示，不亂填假國家；EN 顯示 ISO 兩碼、ZH 顯示中文全名（同上）
       if (item._countryCode) {
-        item._listCountryEn = countryName(item._countryCode, 'en');
+        item._listCountryEn = item._countryCode.toUpperCase();
         item._listCountryZh = countryName(item._countryCode, 'zh');
       }
     }
@@ -1557,8 +1558,8 @@ export async function initAtlas(options = {}) {
   });
 
   // ── Hover 連動 + 細節面板 ────────────────────────────
-  const nameEl = detail.querySelector('[data-atlas-detail-name]');
-  const descEl = detail.querySelector('[data-atlas-detail-desc]');
+  const nameEl = /** @type {HTMLElement} */ (detail.querySelector('[data-atlas-detail-name]'));
+  const descEl = /** @type {HTMLElement} */ (detail.querySelector('[data-atlas-detail-desc]'));
 
   // 4 個方向的隱藏 inset（visible 區壓向各邊到 0）
   const DETAIL_HIDDEN_INSETS = [
@@ -1698,6 +1699,7 @@ export async function initAtlas(options = {}) {
 
     if (nameEl) {
       nameEl.innerHTML = '';
+      nameEl.style.marginBottom = ''; // 重置回 CSS 預設 10px；co/em 有國家時下面覆寫成貼齊國家的窄距
       if (item.textEn) {
         const en = document.createElement('div');
         en.textContent = item.textEn;
@@ -1733,9 +1735,22 @@ export async function initAtlas(options = {}) {
         // 系友環：hover 說明一律統一（英中各一行），不用 item.detail（名稱保留企業名、說明統一即可）。
         //   co-* 橢圓 ring 企業 = 系友主持 → Hosted by Alumni
         //   em-* 橢圓外 floating chip = 系友就職 → Joined by Alumni
+        // 國家（有填才顯示，EN 顯示 ISO 碼、ZH 顯示中文全名，同 list 副標慣例）→ title 下方、Hosted/Joined 上方
+        //   gap 配置：title 緊貼國家（2px，同 title EN/ZH 行距）；原本 title→desc 的 10px 大距挪到「國家→說明文字」之間
+        //   （user 2026-08-03：兩行國家視覺上要跟 title 同一組，跟 Hosted/Joined 那組隔開）
         const isHost = String(item.id).split('-')[0] === 'co';
+        if (item._countryCode) {
+          nameEl.style.marginBottom = '2px';
+          const countryEn = document.createElement('div');
+          countryEn.textContent = item._countryCode.toUpperCase();
+          descEl.appendChild(countryEn);
+          const countryZh = document.createElement('div');
+          countryZh.textContent = countryName(item._countryCode, 'zh');
+          descEl.appendChild(countryZh);
+        }
         const en = document.createElement('div');
         en.textContent = isHost ? 'Hosted by Alumni' : 'Joined by Alumni';
+        if (item._countryCode) en.style.marginTop = '10px';
         descEl.appendChild(en);
         const zh = document.createElement('div');
         zh.textContent = isHost ? '系友主持' : '系友就職';
@@ -3267,11 +3282,11 @@ export async function initAtlas(options = {}) {
   const listPageState = /** @type {Record<string, number>} */ ({ faculty: 0, host: 0, employ: 0, partners: 0 });
 
   // 副標 12px line-height 1.3 → 每行 ~15.6px；name 14.4px × 1.3 → 每行 ~18.7px
-  // host: name only (無副標) ≈ 50；faculty/employ: name + 1 sub ≈ 84；partners: name + 2 subs ≈ 120
+  // faculty/employ/host: name + 1 sub ≈ 84；partners: name + 2 subs ≈ 120
   // ITEM_H_PER_CAT 為「預估值」初始 layout 用；renderListPage 跑完會 post-measure 實測 + 更新此表
   const ITEM_H_PER_CAT = /** @type {Record<string, number>} */ ({
     faculty: 84,
-    host: 50,
+    host: 84,
     employ: 84,
     partners: 120,
   });
@@ -3456,15 +3471,14 @@ export async function initAtlas(options = {}) {
       appendLine(sub);
     }
 
-    if (cat === 'faculty' || cat === 'employ') {
-      // faculty: 隨機公司名；employ: 國家
+    if (cat === 'faculty' || cat === 'employ' || cat === 'host') {
+      // faculty: 職稱(＋國家)；employ/host: 國家
       appendSub(item._listSubEn, item._listSubZh);
     } else if (cat === 'partners') {
       // 先國家、後類型（user 2026-06-23 對調）
       appendSub(item._listCountryEn, item._listCountryZh);
       appendSub(item._listTypeEn, item._listTypeZh);
     }
-    // host (主持)：無副標
     wrapper.appendChild(el);
     return wrapper;
   }
@@ -3475,8 +3489,8 @@ export async function initAtlas(options = {}) {
     if (col.dataset.transitioning === '1') return;
 
     const itemsEl = /** @type {HTMLElement} */ (col.querySelector('.atlas-list-col-items'));
-    // partners: name + type + country = 3；host: name only = 1；其餘 (faculty/employ): name + 1 sub = 2
-    const linesPerItem = cat === 'partners' ? 3 : (cat === 'host' ? 1 : 2);
+    // partners: name + type + country = 3；其餘 (faculty/employ/host): name + 1 sub = 2
+    const linesPerItem = cat === 'partners' ? 3 : 2;
     const useAnim = !skipAnim && typeof gsap !== 'undefined';
     // 先抓舊 lines（exit 動畫對象）。skipAnim 時不需要 → 跳過量測
     const existingLines = useAnim
@@ -3685,8 +3699,8 @@ export async function initAtlas(options = {}) {
         { yPercent: 0, duration: DUR.slow, delay, ease: EASE.enter, clearProps: 'transform', overwrite: true }
       );
     }
-    // host 1 行 / partners 3 行 / 其餘 2 行
-    const linesPerItem = cat === 'partners' ? 3 : (cat === 'host' ? 1 : 2);
+    // partners 3 行 / 其餘 (faculty/employ/host) 2 行
+    const linesPerItem = cat === 'partners' ? 3 : 2;
     const lines = /** @type {HTMLElement[]} */ ([...col.querySelectorAll('.atlas-list-line-clip > *')]);
     const navItem = /** @type {HTMLElement|null} */ (col.querySelector('.atlas-list-nav-item'));
     const numItems = lines.length ? Math.ceil(lines.length / linesPerItem) : 0;

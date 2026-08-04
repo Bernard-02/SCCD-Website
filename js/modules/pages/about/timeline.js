@@ -100,6 +100,54 @@ export function initTimeline() {
   function randomDir4() { return ALL_DIRS[Math.floor(Math.random() * 4)]; }
   function randomDirLR() { return Math.random() < 0.5 ? 'left' : 'right'; }
 
+  // ── List view「黑卡」(.tl-list-chip) hero clip-reveal — 對齊 library 左上角 .lib-panel-title
+  // 的 playPanelTitleReveal/Exit（library-panels.js），user 2026-08-04 指定改成同款。
+  // chip 本體 translate 沿旋轉軸滑入 + 同向 clip-path inset 同步收，取代舊的「跟 rect 一起純 clip stagger」。
+  // 見 reference_hero_clipreveal_translate_ok_with_transform_rotate / reference_gsap_translate_string_needs_matching_units。
+  const CHIP_ENTER_CLIP = {
+    top:    'inset(100% 0% 0% 0%)',
+    bottom: 'inset(0% 0% 100% 0%)',
+    left:   'inset(0% 0% 0% 100%)',
+    right:  'inset(0% 100% 0% 0%)',
+  };
+  // 沿「較短邊」隨機（chip 寬>高 → top/bottom，滑距=矮邊高，小而穩，不會「從很遠飛進來」）
+  function pickChipDir(el) {
+    const w = el.offsetWidth || 0, h = el.offsetHeight || 0;
+    const pair = w >= h ? ['top', 'bottom'] : ['left', 'right'];
+    return pair[Math.random() < 0.5 ? 0 : 1];
+  }
+  // 讀 computed transform matrix 取旋轉角（.tl-list-chip 的 rotate 寫死在 CSS，不是 inline style，
+  // 用 getComputedStyle 才抓得到；跟 library titleHiddenTranslate 讀 el.style.transform 不同）。
+  function chipHiddenTranslate(el, dir) {
+    const cs = getComputedStyle(el).transform;
+    let th = 0;
+    if (cs && cs !== 'none') {
+      const m = cs.match(/matrix\(([^,]+),([^,]+),/);
+      if (m) th = Math.atan2(parseFloat(m[2]), parseFloat(m[1]));
+    }
+    const c = Math.cos(th), s = Math.sin(th);
+    const w = el.offsetWidth || 0, h = el.offsetHeight || 0;
+    const v = { top: [h * s, -h * c], bottom: [-h * s, h * c], left: [-w * c, -w * s], right: [w * c, w * s] }[dir];
+    return `${v[0].toFixed(2)}px ${v[1].toFixed(2)}px`;
+  }
+  function revealChip(el, dur, ease) {
+    if (typeof gsap === 'undefined') { el.style.clipPath = ''; el.style.translate = ''; return; }
+    const dir = pickChipDir(el);
+    gsap.fromTo(el,
+      { clipPath: CHIP_ENTER_CLIP[dir], translate: chipHiddenTranslate(el, dir) },
+      { clipPath: CLIP_END, translate: '0px 0px', duration: dur, ease, overwrite: true,
+        onComplete: () => { el.style.clipPath = ''; el.style.translate = ''; } });
+  }
+  function exitChip(el, dur, ease, onDone) {
+    if (typeof gsap === 'undefined') { if (onDone) onDone(); return; }
+    const dir = pickChipDir(el);
+    // fromTo 顯式起點：reveal onComplete 已 clearProps，computed clipPath=none 時 gsap.to 從 none 補間會 snap
+    gsap.fromTo(el,
+      { clipPath: CLIP_END, translate: '0px 0px' },
+      { clipPath: CHIP_ENTER_CLIP[dir], translate: chipHiddenTranslate(el, dir), duration: dur, ease, overwrite: true,
+        onComplete: onDone });
+  }
+
   // --- Fetch & Build ---
   fetch(sitePath('data/about-history.json'))
     .then(r => { if (!r.ok) throw new Error('Failed'); return r.json(); })
@@ -298,11 +346,12 @@ export function initTimeline() {
       '</div></div>';
     area.appendChild(listView);
 
-    const listChipText = listView.querySelector('.tl-list-chip div');
+    const listChip = listView.querySelector('.tl-list-chip');
+    const listChipText = listChip.querySelector('div');
     const listRect = listView.querySelector('.tl-list-rect');
     const listContent = listView.querySelector('.tl-list-content');
     const listNextBtn = listView.querySelector('.tl-list-next-btn');
-    const rectEls = [listRect, listView.querySelector('.tl-list-chip')];
+    const rectEls = [listRect]; // chip 獨立走 revealChip/exitChip（hero clip-reveal，同 library 左上角黑卡）
 
     let listEraIndex = 0;
     let listEraColors = [];
@@ -380,6 +429,7 @@ export function initTimeline() {
           clipPath: CLIP_END, duration: TIMING.cardRevealDuration, ease: TIMING.revealEase, stagger: TIMING.stagger,
           onComplete: () => { listAnimating = false; },
         });
+        revealChip(listChip, TIMING.cardRevealDuration, TIMING.revealEase);
       });
     }
 
@@ -400,6 +450,7 @@ export function initTimeline() {
           });
         },
       });
+      exitChip(listChip, TIMING.exitDuration, TIMING.exitEase);
     }
 
     function nextListEra() {
@@ -415,8 +466,10 @@ export function initTimeline() {
             clipPath: CLIP_END, duration: TIMING.cardRevealDuration, ease: TIMING.revealEase, stagger: TIMING.stagger,
             onComplete: () => { listAnimating = false; },
           });
+          revealChip(listChip, TIMING.cardRevealDuration, TIMING.revealEase);
         },
       });
+      exitChip(listChip, TIMING.exitDuration, TIMING.exitEase);
     }
 
     listBtn.addEventListener('click', () => { if (listMode) hideList(); else showList(); });
@@ -442,13 +495,15 @@ export function initTimeline() {
       if (!(r.width > 0 && r.bottom > 0 && r.top < window.innerHeight)) { resolve(); return; }
       const slots = Array.from(imagesEl.querySelectorAll('.class-img'));
       const exitEls = listMode ? rectEls : [...textEls, ...slots];
-      if (!exitEls.length) { resolve(); return; }
+      const total = exitEls.length + (listMode ? 1 : 0); // list 模式下黑卡另外走 exitChip，算一份
+      if (!total) { resolve(); return; }
       gsap.killTweensOf(exitEls);
       let done = 0;
-      const onOne = () => { if (++done >= exitEls.length) resolve(); };
+      const onOne = () => { if (++done >= total) resolve(); };
       exitEls.forEach(el => {
         gsap.to(el, { clipPath: getClipStart(randomDir4()), duration: TIMING.exitDuration, ease: TIMING.exitEase, overwrite: true, onComplete: onOne });
       });
+      if (listMode) { gsap.killTweensOf(listChip); exitChip(listChip, TIMING.exitDuration, TIMING.exitEase, onOne); }
     }));
   }
 
@@ -891,16 +946,17 @@ export function initTimeline() {
     let hoverLeaveTimer = null;  // 延遲 leave，讓跨照片 hover 順暢
     let hoverEnabled = false;    // 等頁面 reveal 完成後才允許 hover，避免 clip-path 打架
 
-    // slot 4 = 「下一年預覽」照片：停在該年時 grayscale、切到下一年變彩色（user 2026-07-06，取代舊 hover dim）。
-    // 同一張 DOM 也是下一年的左邊界——只要 currentIndex 前進它就自動變彩，往回退則變回灰（規則對稱免特判）。
+    // slot 4 = 「下一年預覽」照片：停在該年時半透明、切到下一年變不透明（user 2026-08-04，原 grayscale 版見
+    // git history／原本更早的 hover dim；grayscale 版 comment：user 2026-07-06，取代舊 hover dim）。
+    // 同一張 DOM 也是下一年的左邊界——只要 currentIndex 前進它就自動變實色，往回退則變回半透明（規則對稱免特判）。
     function updateEdgeGray(instant) {
       allPhotos.forEach(p => {
         if (p._tlSlot !== 4) return;
         const img = p.querySelector('img');
         if (!img) return;
-        const filter = p._tlYear === currentIndex ? 'grayscale(100%)' : 'grayscale(0%)';
-        if (instant) gsap.set(img, { filter });
-        else gsap.to(img, { filter, duration: TIMING.dimDuration });
+        const opacity = p._tlYear === currentIndex ? 0.25 : 1;
+        if (instant) gsap.set(img, { opacity });
+        else gsap.to(img, { opacity, duration: TIMING.dimDuration });
       });
     }
     updateEdgeGray(true);
@@ -1115,7 +1171,7 @@ export function initTimeline() {
       const prevIndex = currentIndex;
       currentIndex = index;
       updateNavZones();
-      updateEdgeGray(); // 前進：舊「下一年預覽」變彩色；後退：對稱變回灰
+      updateEdgeGray(); // 前進：舊「下一年預覽」變不透明；後退：對稱變回半透明
 
       const current = pageData[prevIndex];
       const target = pageData[index];
@@ -1220,7 +1276,7 @@ export function initTimeline() {
           revealedPages.clear();
           currentIndex = 0;
           updateNavZones();
-          updateEdgeGray(true); // 跳回第一年是瞬移，灰階也瞬切
+          updateEdgeGray(true); // 跳回第一年是瞬移，透明度也瞬切
 
           // Step 4: 移回第一年
           gsap.set(strip, { left: 0 });
@@ -1351,7 +1407,7 @@ export function initTimeline() {
     const listRect = listView.querySelector('.tl-list-rect');
     const listContent = listView.querySelector('.tl-list-content');
     const listNextBtn = listView.querySelector('.tl-list-next-btn');
-    const rectEls = [listRect, listChip]; // reveal/exit 一起（rect 先、chip 後 stagger）
+    const rectEls = [listRect]; // chip 獨立走 revealChip/exitChip（hero clip-reveal，同 library 左上角黑卡）
 
     // 把單筆說明（<h5>?<div>EN</div><div>ZH</div>）拆成 heading / EN / ZH 三段，供 EN 左 ZH 右排版
     const descParser = document.createElement('div');
@@ -1453,6 +1509,7 @@ export function initTimeline() {
           clipPath: CLIP_END, duration: TIMING.cardRevealDuration, ease: TIMING.revealEase, stagger: TIMING.stagger,
           onComplete: () => { isTransitioning = false; },
         });
+        revealChip(listChip, TIMING.cardRevealDuration, TIMING.revealEase);
       });
     }
 
@@ -1475,6 +1532,7 @@ export function initTimeline() {
           gsap.delayedCall(maxDelay, () => { isTransitioning = false; hoverEnabled = true; });
         },
       });
+      exitChip(listChip, TIMING.exitDuration, TIMING.exitEase);
     }
 
     function nextListEra() {
@@ -1490,8 +1548,10 @@ export function initTimeline() {
             clipPath: CLIP_END, duration: TIMING.cardRevealDuration, ease: TIMING.revealEase, stagger: TIMING.stagger,
             onComplete: () => { listRectAnimating = false; },
           });
+          revealChip(listChip, TIMING.cardRevealDuration, TIMING.revealEase);
         },
       });
+      exitChip(listChip, TIMING.exitDuration, TIMING.exitEase);
     }
 
     listBtn.addEventListener('click', () => { if (listMode) hideListView(); else showListView(); });
@@ -1547,13 +1607,15 @@ export function initTimeline() {
         exitEls = [...getVisibleRotates(), ...cards].filter(Boolean);
         dirFn = randomDir4;
       }
-      if (!exitEls.length) { resolve(); return; }
+      const total = exitEls.length + (listMode ? 1 : 0); // list 模式下黑卡另外走 exitChip，算一份
+      if (!total) { resolve(); return; }
       gsap.killTweensOf(exitEls);
       let done = 0;
-      const onOne = () => { if (++done >= exitEls.length) resolve(); };
+      const onOne = () => { if (++done >= total) resolve(); };
       exitEls.forEach(el => {
         gsap.to(el, { clipPath: getClipStart(dirFn()), duration: TIMING.exitDuration, ease: TIMING.exitEase, overwrite: true, onComplete: onOne });
       });
+      if (listMode) { gsap.killTweensOf(listChip); exitChip(listChip, TIMING.exitDuration, TIMING.exitEase, onOne); }
     }));
   }
 }

@@ -16,10 +16,12 @@ function getFooterHideTargets() {
   return [...getHeaderTargets()].filter(Boolean);
 }
 
-// footer-near hide 的 logo：桌面 id=header-logo / 手機 id=header-logo-mobile（矮橫向走手機 header，
-// gate 同 footer-draggable usesMobileFooter()）。回傳 { logo, mask }：mask = 外層 <a>（hero 慣例遮罩）。
+// footer-near hide 的 logo：桌面 id=header-logo / 手機 id=header-logo-mobile。
+// gate 跟「哪排 header 在場上」走（<1200 平板/手機/矮橫向都換手機排，同 lightbox-shell getHeaderTargets），
+// 不同於 footer 版型的 usesMobileFooter()（仍 768——平板 footer 照桌面 scatter）。
+// 回傳 { logo, mask }：mask = 外層 <a>（hero 慣例遮罩）。
 function getFooterHideLogo() {
-  const isMobile = window.innerWidth < 768
+  const isMobile = window.innerWidth < 1200
     || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
   const logo = document.getElementById(isMobile ? 'header-logo-mobile' : 'header-logo');
   if (!logo) return null;
@@ -357,8 +359,8 @@ export function triggerGenerateLogo() {
     if (allVisible) return;
   }
 
-  // 手機走簡化版：靜態 SCCD svg，不跑 typewriter（矮橫向 header 也是手機版 → 同路徑）
-  if (window.innerWidth < 768
+  // 手機走簡化版：靜態 SCCD svg，不跑 typewriter（平板 768–1199 與矮橫向 header 也是手機版 → 同路徑）
+  if (window.innerWidth < 1200
     || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) {
     applyMobileGenerateLogo();
     return;
