@@ -588,6 +588,17 @@
   #faculty-panel .faculty-grid-row-award > span:nth-child(4) {
     margin-top: 0.25rem;
   }
+  /* 學歷 row 矮橫向同步拿掉左欄 4rem 固定寬（2026-08-03，同 cards.css 手機版理由：country 併入
+     學校名稱後首欄變長字）：3 個 span 全落 col1、grid-template 單欄，靠 row-gap 排開 */
+  #faculty-panel .faculty-grid-row-education {
+    grid-template-columns: 1fr;
+  }
+  #faculty-panel .faculty-grid-row-education > span:first-child,
+  #faculty-panel .faculty-grid-row-education > span:not(:first-child) {
+    grid-column: 1;
+    margin-left: 0;
+    margin-top: 0;
+  }
   /* Contact 內文同步升 p1 對齊詳情 row（同 cards.css 手機 block；admin tab 的 Contact 是唯一內容區塊，
      不升會比 fulltime 的 row 小一階，user 2026-07-04） */
   #faculty-panel .faculty-contact-text {

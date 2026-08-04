@@ -292,6 +292,7 @@
        — 否則 mask 是整個 column 寬，inner 只移動文字寬度的距離還在可見區內 */
     overflow: hidden;
     justify-self: start;
+    transition: opacity var(--dur-fast) ease;  /* hover dim 分組高亮用（見下方 block） */
   }
   .courses-grid-col-header-inner {
     display: flex;
@@ -318,6 +319,7 @@
     /* 同 sem-label：label 當遮罩讓 inner 做年級式 slide 離場（見上方註解） */
     overflow: clip;
     justify-self: start;
+    transition: opacity var(--dur-fast) ease;  /* hover dim 分組高亮用（見下方 block） */
   }
   .courses-grid-type-label-inner {
     display: flex;
@@ -362,7 +364,7 @@
     line-height: 1.2;
     cursor: var(--cursor-pointer);
     user-select: none;
-    transition: background var(--dur-micro) ease, color var(--dur-micro) ease, transform var(--dur-micro) ease;
+    transition: background var(--dur-micro) ease, color var(--dur-micro) ease, transform var(--dur-micro) ease, opacity var(--dur-fast) ease;
     box-sizing: border-box;
   }
   .courses-grid-card-en,
@@ -401,6 +403,32 @@
   @keyframes courses-marquee {
     0%   { transform: translateX(0); }
     100% { transform: translateX(var(--marquee-distance, -50%)); }
+  }
+
+  /* hover dim（同 admission/activities list 的 hover 聯動，見 lists.css）— hover 某課程卡片時
+     其餘卡片＋不相關的必修/選修 row label／年級 col header 半透明；卡片所在的那個 row（必修或選修）
+     與那個 col（年級）維持不透明＝分組高亮，判準是「hover 卡片的矩陣座標」（user 2026-08-04 指定）。
+     :has() 純 CSS 免 JS；只桌面（手機無 hover；手機一次只顯示一個年級 block，無「其他年級」可淡）。 */
+  @media (min-width: 768px) {
+    #courses-content-section:has(.courses-grid-card:hover)
+      :is(.courses-grid-card, .courses-grid-type-label, .courses-grid-col-header):not(:hover) {
+      opacity: 0.25;
+    }
+    /* row 分組高亮：hover 卡片所在的必修/選修 row，該 row 的 type-label 蓋回不透明。
+       跟上一條 dim 規則 specificity 打平（1 id+4 class/pseudo），靠 source order（寫後面）勝出，
+       同 lists.css 年份分組高亮的已知模式，見 memory feedback_specificity_tie_use_not_exclusion。 */
+    #courses-content-section :is(.courses-required-row, .courses-elective-row):has(.courses-grid-card:hover) .courses-grid-type-label {
+      opacity: 1;
+    }
+    /* col 分組高亮：TOTAL_YEAR_COLS 固定 4（courses-map.js），逐一枚舉 year-1~4——
+       col header 跟 cell 共用同一個 yearCls() class，用它當「同一欄」的配對依據，不用另加 data 屬性。
+       每條 :has() 引數含 .courses-grid-card:hover，specificity 天然高於 dim 規則，不靠 source order。 */
+    #courses-content-section:has(.courses-grid-col-year-1 .courses-grid-card:hover) .courses-grid-col-header.courses-grid-col-year-1,
+    #courses-content-section:has(.courses-grid-col-year-2 .courses-grid-card:hover) .courses-grid-col-header.courses-grid-col-year-2,
+    #courses-content-section:has(.courses-grid-col-year-3 .courses-grid-card:hover) .courses-grid-col-header.courses-grid-col-year-3,
+    #courses-content-section:has(.courses-grid-col-year-4 .courses-grid-card:hover) .courses-grid-col-header.courses-grid-col-year-4 {
+      opacity: 1;
+    }
   }
 
   /* ===== Slide-in modal（v9 取代 desc-column）=====
@@ -631,8 +659,11 @@
       background: var(--theme-bg);
     }
     /* 卡片 ±2° 旋轉 corner 外溢 ~4-6px：cells 尾端墊 12px，row 收場時 label（sticky 到 row 內容底）
-       的 bg 蓋得住最後一張卡的旋轉角，完全收進去不露（user 2026-07-13） */
+       的 bg 蓋得住最後一張卡的旋轉角，完全收進去不露（user 2026-07-13）；
+       頂端墊 12px 把第一張卡的旋轉角推出 label 的 opaque padding-bottom 區（±2° 全寬卡 corner 凸最多 ~6px），
+       否則頂角被 sticky bg 蓋掉「切平一條」（user 2026-07-21，桌面版對應 buffer 在 required-row margin-top） */
     #courses-content-section .courses-mobile-cells {
+      padding-top: 12px;
       padding-bottom: 12px;
     }
   }

@@ -19,22 +19,27 @@
   .inner-scroll-frame-grid {
     height: 100vh;
     --inner-pad: var(--spacing-3xl, 96px);                            /* content 區上 pad（下 pad 見 --inner-pad-bottom） */
-    --inner-pad-bottom: var(--spacing-2xl, 64px);                     /* 下 pad 2xl（box 底往下 32px），上 pad 維持 3xl（user 2026-07-02，四頁統一） */
+    --inner-pad-bottom: 0px;                                          /* box 底貼齊 viewport 底，切到的卡片直接被螢幕邊緣切齊、不留白 bar（user 2026-08-03）*/
     --inner-box-top: calc(var(--header-height, 96px) + var(--inner-pad));  /* content 區上緣（扣 fixed header）*/
   }
   .inner-scroll-nav-col {
     padding-top: var(--inner-box-top);   /* nav 頂部對齊 content 區頂、不置中（少量 nav btn 的頁也正確）*/
   }
-  /* 右內容 box：唯一捲動層。margin-top 對齊 content 區頂、height 填到 100vh−pad（box 底 = 100vh − pad）。
-     --chip-clearance 預設 0（只 activities override，見下方）：box 上緣往上挪 clearance、height 補回 clearance，
-     讓旋轉 chip 頂角有空間不被 overflow 裁；filter-bar/panel 補回等量 clearance → bar 仍釘 content 區頂。 */
+  /* 右內容 box：唯一捲動層。margin-top 對齊 content 區頂、height 填滿到 viewport 底（box 底 = 100vh，貼齊螢幕，
+     中途捲動時卡片直接被螢幕邊緣切齊、不留白 bar）。--chip-clearance 預設 0（只 activities override，見下方）：
+     box 上緣往上挪 clearance、height 補回 clearance，讓旋轉 chip 頂角有空間不被 overflow 裁；filter-bar/panel
+     補回等量 clearance → bar 仍釘 content 區頂。
+     padding-bottom：捲到「真正的底」（最後一筆內容）時的緩衝，讓內容不貼死螢幕底；不是 box 高度扣減，只在捲到底
+     才看得到、不會在半途變成固定白 bar（user 2026-08-03，取代原本用 --inner-pad-bottom 扣 box 高度的做法）。 */
   .inner-scroll-scroll-col {
     --chip-clearance: 0px;
     margin-top: calc(var(--inner-box-top) - var(--chip-clearance));
     height: calc(100vh - var(--inner-box-top) - var(--inner-pad-bottom) + var(--chip-clearance));
+    padding-bottom: var(--spacing-2xl, 64px);
     align-self: start;
     overflow-x: hidden;
     overflow-y: auto;
+    box-sizing: border-box;
   }
 
   /* ── activities 專屬：旋轉 chip clearance + filter bar/panel + 關 scroll anchoring ── */
@@ -65,6 +70,7 @@
      疊加坑，故 activities 走 panel padding、faculty 走 box padding）；box-sizing:border-box → padding 吃進 height 不溢出。 */
   #faculty-cards .inner-scroll-scroll-col {
     padding: var(--spacing-md, 24px);
+    padding-bottom: var(--spacing-2xl, 64px);  /* shorthand 上面已把四邊設 24px，這裡補回捲到底的緩衝（同其他三頁） */
   }
 }
 
@@ -440,19 +446,22 @@
   #activities-content-section .list-content > .grid > :first-child > .grid p {
     font-size: var(--font-size-p1);
   }
-  /* country cell（inner grid 第三 col）字級保留桌面 p2 — user 反饋 country 比 location 名稱小一階比較好讀 */
-  #activities-content-section .list-content > .grid > :first-child > .grid > div:last-child p {
+  /* country cell（city 欄）字級保留桌面 p2 — user 反饋 country 比 location 名稱小一階比較好讀。
+     用 .list-city-cell 明確選取（不用 div:last-child）：city 欄多數 item 不存在，沒 city 時
+     location 欄會變成該 grid 最後一個 div，:last-child 誤命中把 location 也套上 city 樣式（含下方
+     justify-self:start，還會撐爆手機版寬度、location 卡住不換行不 marquee，user 2026-08-03 回報）。 */
+  #activities-content-section .list-content > .grid > :first-child > .grid > .list-city-cell p {
     font-size: var(--font-size-p2);
   }
   /* 摘要列 city 欄在手機靠左對齊（桌面為固定 6rem 第三欄靠左、與 guest 國家欄對齊；2026-06-20 起 city 改 list-title-marquee）。
      mobile inner grid 已 stack 單欄，三層加 !important 確保 city 欄左靠（保險，防任何 utility 干擾）：
      1. wrapper text-align:left  2. justify-self:start 把 wrapper 推到 grid cell 左緣
      3. 內部 <p> 也明示 text-align:left（防 utility specificity 高過 wrapper rule） */
-  #activities-content-section .list-content > .grid > :first-child > .grid > div:last-child {
+  #activities-content-section .list-content > .grid > :first-child > .grid > .list-city-cell {
     text-align: left !important;
     justify-self: start !important;
   }
-  #activities-content-section .list-content > .grid > :first-child > .grid > div:last-child p {
+  #activities-content-section .list-content > .grid > :first-child > .grid > .list-city-cell p {
     text-align: left !important;
   }
   /* 人物/機構 detail row：buildGuestHtml 內 .guest-row-grid（國家固定欄→各 row 同起始 x 對齊、太長 .list-title-marquee marquee）。
@@ -1521,12 +1530,20 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
   vertical-align: top;
 }
 
-/* 自動 marquee：偵測到 overflow 就跑（不再依賴 :hover 也不再 desktop-only），
- * collapse 與 active 狀態皆然；手機 title 區更窄更需要 marquee
- * active 時 title 向右 translateX → 可用寬度變窄可能新觸發 overflow，需 JS 於展開後 re-check */
+/* base rule＝預設自動跑；.list-content 內的（date/location/city/session/guest 國家/ref 標題）維持這條不覆寫——
+ * 它們本來就要 accordion 展開才量得到寬度（收合時 clientWidth=0），等於已經滿足「open 才 marquee」，
+ * 不需要再疊一層 hover 閘。.list-header 內的主標/副標（展開前就看得到）桌面另有覆寫，見下方 min-width:768 block
+ * 與手機 max-width:767 block（2026-08-03 全站 marquee 規格拍板，見 project_award_directus_migration_and_refcode_deletion）。 */
 .list-title-marquee.is-overflow p {
   transition: none;
   animation: list-marquee var(--marquee-duration, 4s) linear infinite;
+}
+
+/* 配對同步的 EN/ZH（同一父層剛好兩條 .list-title-marquee）改由 GSAP 直接控 transform（見
+   activities-data-loader.js reconcilePair）——這條蓋掉上面 CSS animation，避免兩邊搶同一個 transform。
+   !important 保證無論桌面 hover / 手機 active 哪條規則命中都蓋得掉，不用賭誰特異度高。 */
+[data-marquee-paired="1"] p {
+  animation: none !important;
 }
 
 /* 非溢出狀態藏 clone（clone 是 initMarquees 加的 aria-hidden 第二份，seamless loop 用）：
@@ -1561,6 +1578,21 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
     animation: none;
   }
   .list-header.active .list-title-marquee.is-overflow p {
+    animation: list-marquee var(--marquee-duration, 4s) linear infinite;
+  }
+}
+
+/* ===== 桌面 list 標題 hover 才 marquee（2026-08-03/04，user 全站規格拍板：只有 hover 才需要 marquee，
+   推翻先前「list-content 內無明確 hover 目標」的理由——.list-header 整列本身就是可點的 hover 目標）。
+   ⚠️2026-08-04 再拍板：桌面拿掉 .active(打開) 觸發，只留 hover——跟 curriculum/atlas list view 對齊，
+   全站一致「桌面 hover-only」；.active 觸發只留給手機（沒有 hover，見下方 max-width:767 block）。
+   只影響 .list-header 內的主標/副標（收合前就看得到）；.list-content 內的內容列本來就要展開才量得到寬度，
+   等於已滿足「open」條件，維持 base rule 自動跑不受影響。 */
+@media (min-width: 768px) {
+  .list-header .list-title-marquee.is-overflow p {
+    animation: none;
+  }
+  .list-header:hover .list-title-marquee.is-overflow p {
     animation: list-marquee var(--marquee-duration, 4s) linear infinite;
   }
 }
@@ -1630,4 +1662,24 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
    set 進 --list-zebra-strip：暗 hue 0.15、亮 hue 0.4（亮 hue 上白較不顯故加濃）。user 2026-06-22。 */
 body.mode-color :is(#activities-content-section, #admission-content-section) .list-item.list-item-zebra {
   background-color: var(--list-zebra-strip, rgba(255, 255, 255, 0.15));
+}
+
+/* hover dim（同 atlas hover 聯動）— hover 某 list-item 時其餘（含年份標籤）半透明凸顯當前項；
+   同年份 group 的標籤視為「active」不淡出。:has() 純 CSS 免 JS；只桌面（手機無 hover）。
+   admission 測試 OK 後 2026-08-04 擴到 activities；兩 section 共用同一份 loadListInto 結構。
+   .list-year-label＝toggle/非 toggle 兩變體共用 hook（hideYearHeader 的 list 無此元素）。 */
+@media (min-width: 768px) {
+  :is(#activities-content-section, #admission-content-section) .list-item,
+  :is(#activities-content-section, #admission-content-section) .list-year-label {
+    transition: opacity 0.25s ease;
+  }
+  :is(#activities-content-section, #admission-content-section):has(.list-item:hover, .list-year-label:hover)
+    :is(.list-item, .list-year-label):not(:hover) {
+    opacity: 0.25;
+  }
+  /* hover 的 item 所屬年份 group＝「active」，該年份標籤不用跟著淡出（其他年份才淡）。
+     跟上一條 specificity 打平（id+4 classes）靠 source order 蓋過，故必須排在後面。 */
+  :is(#activities-content-section, #admission-content-section) .list-year-group:has(.list-item:hover) .list-year-label {
+    opacity: 1;
+  }
 }

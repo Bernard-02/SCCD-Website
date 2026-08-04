@@ -133,7 +133,8 @@
    * ⚠️transition 只 transform：mode3 每幀改 --theme-bg，含 background transition 會 lag；mode-switch 0.4s fade 靠 typography.css whitelist。
    * 全螢幕 app 頁（generate/atlas/library＝body.overflow-hidden，router.js:285）不要頂部遮罩 → display:none。
    * 矮橫向不套（orientation:portrait gate；landscape 走 nav 進 header 那套）。 */
-  @media (max-width: 767px) and (orientation: portrait) {
+  /* 平板 gate（768–1199）也用手機 header 排 → 底色帶一起套（第二段 query；display 覆蓋見檔尾平板 gate） */
+  @media (max-width: 767px) and (orientation: portrait), (min-width: 768px) and (max-width: 1199px) {
     .mobile-header-bg {
       position: fixed;
       top: 0;
@@ -286,5 +287,59 @@
 .mobile-nav-zh {
   /* EN/ZH 同色同 weight，僅 HTML 兩 span 間的 whitespace 區隔（user 2026-05-25 拍板「一個空格即可」） */
   color: inherit;
+}
+
+/* ===== 窄桌面 header 壓縮（768–1520）2026-07-20 =====
+ * 桌面 header 整排 bar 全 flex-shrink-0，最小總寬實測 ~1525px（active 中文展開時）：
+ * 1500 以下 flex-1 spacer 歸零後右側 bar 依序被推出畫面右緣（1280 時 Atlas 切半、CREATE!/mode 鈕消失）。
+ * 這層把間距與字級壓縮 ~300px 讓 1200 寬收得進來；1520 以上不動、原版面零影響。
+ * #site-header 提特異度蓋 Tailwind utility（ml-2xl / gap-xl / text-h6），同 landscape.css 教訓。 */
+@media (min-width: 768px) and (max-width: 1520px) {
+  #site-header [data-bar="about"],
+  #site-header [data-bar="alumni-full"] {
+    margin-left: var(--spacing-lg);
+  }
+  #site-header [data-bar="about"] ul,
+  #site-header [data-bar="alumni-full"] ul {
+    gap: var(--spacing-md);
+  }
+  #site-header [data-bar="library"],
+  #site-header [data-bar="atlas"],
+  #site-header [data-bar="generate"],
+  #site-header #mode-btn {
+    margin-left: var(--spacing-sm);
+  }
+  #site-header .nav-link {
+    /* 隨視窗連續縮放：1200→16px、1520→約19px（貼回原 h6 20px），避免整個 tier 都吃最小字級 */
+    font-size: clamp(1rem, 0.9vw + 0.33rem, 1.25rem);
+  }
+}
+
+/* ===== 平板 gate（768–1199）：header 換手機排 2026-07-21 =====
+ * 內容照吃桌面 md: 版面（iPad 螢幕放得下；user 拍板「拿桌面去改」），只有 header 塞不下
+ * （桌面整排最小 ~1525、上面壓縮 tier 地板 ~1200）→ 沿用矮橫向 landscape.css 5b 同招：
+ * 純 CSS 藏桌面排、顯示手機排（56px Lottie logo + mode 鈕 + 漢堡）＋手機全螢幕選單面板。
+ * mobile-menu.js 與手機 logo 初始化不看寬度（header 載入即綁好）→ 純 CSS 顯隱即可用。
+ * JS 端手機 header gate 同步加 <1200：lightbox-shell getHeaderTargets / header.js
+ * getFooterHideLogo / triggerGenerateLogo；footer 版型不跟（usesMobileFooter 仍 768，
+ * 平板 footer 照桌面 scatter）。#site-header 提特異度蓋 .hidden/md:flex/md:hidden utility。 */
+@media (min-width: 768px) and (max-width: 1199px) {
+  #site-header header .site-container > .md\:flex {
+    display: none;
+  }
+  #site-header header .site-container > .md\:hidden {
+    display: grid;
+  }
+  #site-header .mobile-nav {
+    display: flex;
+  }
+  /* 底色帶：md:hidden utility 在 ≥768 收掉它 → 開回來；app 頁（body.overflow-hidden）
+   * 的 display:none gate 特異度 (0,2,0) 輸 #id → 這裡用同 #id 權重補一條 */
+  #site-header .mobile-header-bg {
+    display: block;
+  }
+  body.overflow-hidden #site-header .mobile-header-bg {
+    display: none;
+  }
 }
 

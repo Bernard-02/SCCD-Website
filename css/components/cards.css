@@ -12,7 +12,7 @@
    */
   .faculty-card {
     background-color: transparent;
-    transition: background-color var(--dur-fast) var(--ease-standard);
+    transition: background-color var(--dur-fast) var(--ease-standard), opacity var(--dur-fast) var(--ease-standard);
   }
 
   .faculty-card-image-wrapper {
@@ -48,12 +48,19 @@
     }
   }
 
-  /* Faculty 特定：只有 fulltime/admin 可點擊 */
-  .faculty-card-image-wrapper { cursor: var(--cursor-default); }
-  .faculty-card[data-category="fulltime"] .faculty-card-image-wrapper,
-  .faculty-card[data-category="admin"] .faculty-card-image-wrapper {
-    cursor: var(--cursor-pointer);
+  /* hover dim（同 admission/activities/curriculum 的 hover 聯動）— hover 某張卡片時其餘卡片
+     半透明凸顯當前項。:has() 純 CSS 免 JS；只桌面（手機無 hover）。
+     沒做分組高亮：fulltime/parttime/admin 各自是獨立 panel（同時只顯示一個，見 faculty.html
+     #faculty-fulltime-list 等三個容器），同一時間可 hover 到的卡片本來就只會是同一類別，
+     沒有 admission 年份 / curriculum 必選修×年級那種「同 panel 內還要再分組」的維度。 */
+  @media (min-width: 768px) {
+    #faculty-cards:has(.faculty-card:hover) .faculty-card:not(:hover) {
+      opacity: 0.25;
+    }
   }
+
+  /* Faculty 特定：fulltime/parttime/admin 皆可點擊開 slide-in（2026-08-04 起 parttime 加入） */
+  .faculty-card-image-wrapper { cursor: var(--cursor-pointer); }
 
   /* slide-in panel 桌面右緣補償：延伸 10px 蓋過 scrollbar-gutter:stable 保留的 10px gutter，
    * 視覺上 panel 直接接到 viewport 右邊緣。
@@ -106,16 +113,10 @@
       display: inline-block;
       white-space: nowrap;
     }
-    /* 卡片職稱：CSS :hover 無限 marquee（離開瞬間 snap 回原點）。
-       slide-in 詳情 row 的 marquee 改由 JS(WAAPI) 驅動（bindFacultyMarqueeReturn），支援「離開平滑捲回原點」，
-       故這裡 **不含** `.faculty-grid-row`——避免 CSS animation 與 JS 兩邊都驅動 transform 打架。 */
-    .faculty-card:hover .faculty-marquee-line.is-overflow .faculty-marquee-inner {
-      animation: faculty-card-marquee var(--marquee-duration, 8s) linear infinite;
-    }
-  }
-  @keyframes faculty-card-marquee {
-    0%   { transform: translateX(0); }
-    100% { transform: translateX(var(--marquee-distance, -50%)); }
+    /* 卡片職稱 + slide-in 詳情 row 的 marquee 都改由 JS(GSAP) 驅動（2026-08-04 起，見
+       faculty-data-loader.js bindFacultyCardMarquee / faculty-slide-in.js bindFacultyMarqueeReturn）：
+       EN/ZH 多職稱/多行時各自獨立 CSS animation 久了會脫拍，改用共用 timeline 同步。
+       這裡刻意不寫 CSS animation 規則——避免 CSS 跟 GSAP 兩邊搶同一個 transform 打架。 */
   }
 
   /* ===== Faculty / Alumni 卡片牆：首張貼左、末張貼右，水平 gap 自動均分 =====
@@ -200,6 +201,10 @@
   .faculty-grid-row-award {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 5fr) minmax(0, 2fr);
   }
+  /* 學歷 row（2026-08-03 user：country 併入學校名稱字串，不再獨立佔欄，視覺剩 3 格）：
+     不開自訂 grid-template——沿用預設 `1fr 4fr 2fr 2fr`，學校欄用既有 `.faculty-grid-span2` 跨 col1+col2，
+     major 落 col3、degree 落 col4。目的＝與 Journey/Experience row（year|org(span2)|role）track 數/gap 數完全相同，
+     degree 才會跟 role 像 award 的 category 對 role 一樣 pixel 對齊；若改回自訂 3 欄 fr（少 1 個 gap）會跟 4 欄 row 差幾 px（曾踩雷）。 */
   /* 手機：字級放大到 p1 易讀（窄 viewport 內 p2 太小） */
   @media (max-width: 767px) {
     .faculty-grid-row {
@@ -286,6 +291,20 @@
     .faculty-grid-row-award > span:nth-child(2),
     .faculty-grid-row-award > span:nth-child(4) {
       margin-top: 0.25rem; /* 原 row-gap */
+    }
+
+    /* 學歷 row 手機版拿掉左欄窄浮動 pin（2026-08-03）：country 併進學校名稱字串後首欄變長字，
+       塞進原本給短年份/國碼用的 4rem 浮動欄會擠成多行——改回單欄直向堆疊（不 float 不 sticky）。
+       selector 疊兩個 class 抬 specificity 蓋過上面泛用的 :first-child / :not(:first-child) 規則。 */
+    .faculty-grid-row.faculty-grid-row-education > span:first-child {
+      float: none;
+      clear: none;
+      width: auto;
+      position: static;
+    }
+    .faculty-grid-row.faculty-grid-row-education > span:not(:first-child) {
+      margin-left: 0;
+      margin-top: 0.25rem;
     }
 
     /* sticky 參考容器要有真實內容高：flex-1 + min-h-0 會把它夾成一屏高（內容 overflow 出去），

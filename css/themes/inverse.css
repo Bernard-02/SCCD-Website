@@ -321,12 +321,14 @@ body.mode-inverse #library-awards-ticker .awards-ticker-wrapper img {
   }
 
   body.mode-inverse .files-item[style*="background"] .files-item-subtitle-tag,
-  body.mode-inverse .press-item[style*="background"] .press-item-subtitle,
   body.mode-inverse .press-item[style*="background"] .press-item-date,
   body.mode-inverse .press-item[style*="background"] .press-item-media-icon,
   body.mode-inverse .press-item[style*="background"] .press-item-cat-tag {
     color: rgba(0, 0, 0, 0.5) !important;
   }
+
+  /* press-item-subtitle（報導單位）2026-08-03 改 100% 黑白，不跟 date/icon/cat-tag 一起降到 0.5——
+   * 上面 .press-item[style*="background"] * 已經是 color:black !important 全解析度，這裡不用再蓋 */
 }
 
 /* ===== Courses Grid Cards：inverse 反轉成深灰底白字 =====

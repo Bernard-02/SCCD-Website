@@ -51,16 +51,20 @@
       height: 100vh;
       overflow: hidden;
     }
-    /* box 上緣對齊 content 區頂（fixed header + 上 pad）、高度填到 100vh − 下 pad；box 內從頂開始捲。
-       margin-top 取代原 padding-top:6xl 定位（內容不再捲到 header 底下）。 */
+    /* box 上緣對齊 content 區頂（fixed header + 上 pad）、高度填到 100vh（box 底貼齊 viewport 底，
+       跟 activities/faculty 等 inner-scroll 頁同款 2026-08-03 改法）；box 內從頂開始捲。
+       margin-top 取代原 padding-top:6xl 定位（內容不再捲到 header 底下）。
+       padding-bottom：捲到「真正的底」時的緩衝，不是 box 高度扣減（同 lists.css .inner-scroll-scroll-col）。 */
     .legal-content-col {
       --inner-pad: var(--spacing-3xl, 96px);
-      --inner-pad-bottom: var(--spacing-2xl, 64px);
+      --inner-pad-bottom: 0px;
       --inner-box-top: calc(var(--header-height, 96px) + var(--inner-pad));
       margin-top: var(--inner-box-top);
       height: calc(100vh - var(--inner-box-top) - var(--inner-pad-bottom));
       padding-top: 0;
+      padding-bottom: var(--spacing-2xl, 64px);
       overflow-y: auto;
+      box-sizing: border-box;
       /* 隱藏原生捲軸（比照 inner-scroll 頁的 .no-scrollbar；全站自製 scrollbar 只畫 window 捲軸） */
       scrollbar-width: none;
     }

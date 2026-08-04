@@ -140,7 +140,7 @@
   padding: var(--spacing-sm) 0;
   cursor: var(--cursor-default);
   overflow: hidden;
-  transition: background var(--dur-fast) ease;
+  transition: background var(--dur-fast) ease, opacity var(--dur-fast) ease;
 }
 /* press 改斑馬列（user 2026-06-23）：拿掉 border-bottom + 原 year-block 第一列頂線，靠 .list-item-zebra 交替底色分隔 */
 
@@ -192,8 +192,8 @@
 }
 .press-item-subtitle {
   font-size: var(--font-size-p3);
-  font-weight: 700;
-  color: rgba(var(--lib-fg-rgb), 0.5);
+  font-weight: 400;
+  color: var(--lib-fg);
   white-space: nowrap;
   overflow: hidden;
   display: block;
@@ -403,6 +403,18 @@ body.mode-color #library-awards-list .award-ref-wrap .list-ref-btn:hover * {
 #library-awards-list .award-ref-row p {
   font-size: inherit;
 }
+/* ref row 標題 marquee：桌面 hover 才跑（不同於 .list-title-marquee 全站慣例的「桌面自動跑」——
+   那條慣例是因為一般 list-content 內沒有明確 hover 目標，這裡整列本身就是可點的 ref 按鈕，hover 目標明確，
+   user 2026-08-03 指定要 hover 才捲。手機無 hover，沿用 .list-title-marquee 的 base rule 自動跑。
+   量測/加 is-overflow 由 JS initAwardRefTitleMarquees 負責，見 library-panels.js。） */
+@media (min-width: 768px) {
+  #library-awards-list .award-ref-row .list-title-marquee.is-overflow p {
+    animation: none;
+  }
+  #library-awards-list .award-ref-row:hover .list-title-marquee.is-overflow p {
+    animation: list-marquee var(--marquee-duration, 4s) linear infinite;
+  }
+}
 /* mode-color：整列 inline accent 翻 strict B/W（對齊 color.css 的 .list-item[style*=background]）。
    不加 *：ref 列文字色交給共用 .list-ref-btn mode-color 規則（直接 set 在 button 上、不被此層繼承蓋掉）。 */
 body.mode-color #library-awards-list .award-record-item[style*="background"] {
@@ -426,10 +438,45 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   padding: var(--spacing-sm) 0;
   border-bottom: 2px solid var(--lib-fg);
   cursor: var(--cursor-pointer);
-  transition: background var(--dur-fast) ease;
+  transition: background var(--dur-fast) ease, opacity var(--dur-fast) ease;
 }
 .files-year-block .files-item:first-child {
   border-top: 2px solid var(--lib-fg);
+}
+
+/* hover dim（同 admission/activities/curriculum/faculty 的 hover 聯動）— hover 某一列時同 panel
+   其餘列＋不相關年份的年份標籤半透明凸顯當前項；hover 項目所屬的年份標籤維持不透明＝分組高亮
+   （同 admission 年份分組高亮，user 2026-08-04 指定 award/press/album 等全部套用）。
+   :has() 純 CSS 免 JS；只桌面（手機無 hover）。
+   scope 用 #library-card-content（4 panel 共同外層，同時只顯示一個 panel，跟 faculty 三分類同理不需分組）；
+   三個 row class 一次涵蓋四個 panel：.award-record-item(Awards)／.press-item(Press)／
+   .files-item(Files 與 Album 共用底層 class，見 [[project_admission_list_hover_dim]] 的擴充慣例)。
+   .award-record-item 無既有 transition（JS inline bg 是 snap 不淡入淡出），這裡新增；
+   .press-item/.files-item 已有 background transition，併入 opacity（見上方兩條規則）不新開一條。
+   年份標籤：Press/Files/Album 本來就共用 `.press-year-label` class（命名歷史殘留，實際四 panel 通用）；
+   Awards 原本是無 class 的 inline-style div，已在 library-panels.js 補上同一個 class（純加 class 不影響
+   既有 inline 樣式，inline 仍贏 class 的同名屬性）。 */
+@media (min-width: 768px) {
+  .award-record-item {
+    transition: opacity var(--dur-fast) ease;
+  }
+  .press-year-label {
+    transition: opacity var(--dur-fast) ease;
+  }
+  #library-card-content:has(:is(.award-record-item, .press-item, .files-item):hover)
+    :is(.award-record-item, .press-item, .files-item, .press-year-label):not(:hover) {
+    opacity: 0.25;
+  }
+  /* 年份分組高亮：hover 項目所屬 year-block 的年份標籤蓋回不透明，其他年份仍淡出。
+     [class$="year-block"] 沿用本檔既有「四 panel 年份容器 class 皆以 year-block 結尾」慣例
+     （見 groupByYear 呼叫點與 line ~1978 的 [class$="year-block"] 全域查詢，award=.year-block／
+     press=.press-year-block／files=.files-year-block／album=.album-year-block）。
+     #library-card-content 前綴是刻意讓 specificity 跟上一條 dim 規則打平（都 1id+4class），
+     靠 source order（寫在後面）勝出——同 admission/curriculum row 版分組高亮已知模式，
+     見 memory feedback_specificity_tie_use_not_exclusion，真機若回報偶爾失效照那篇改 :not() 排除法。 */
+  #library-card-content [class$="year-block"]:has(:is(.award-record-item, .press-item, .files-item):hover) .press-year-label {
+    opacity: 1;
+  }
 }
 
 /* ── Files Grid（card layout）────────────────────────────────── */
@@ -1260,6 +1307,12 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
     font-size: var(--font-size-p1) !important;
     padding: var(--spacing-sm) 0 !important;
     min-height: 44px;
+  }
+  /* Reset 鈕縮回 sort 鈕字級（p3），左 padding 拉開與年份距離（sticky opaque bg 會蓋住這段，視覺=留白） */
+  [id$="-year-picker"] button.year-reset-btn,
+  #library-year-picker button.year-reset-btn {
+    font-size: var(--font-size-p3) !important;
+    padding-left: var(--spacing-sm) !important;
   }
   /* "Year 年份" 標籤改成在 picker 上方標題
      ⚠️ Selector 必須限定 grid 容器**直接子 div** 內的 p（> div > p），不能用 descendant
