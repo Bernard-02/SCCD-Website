@@ -1,0 +1,41 @@
+========================================
+SCCD 網站 — 申請 Cyberduck 自助上傳影片用的 AWS 存取金鑰
+最後更新：2026-08-03
+========================================
+
+背景／原因：
+  - 網站影片一律放在 AWS S3（不是塞進 Directus 後台），前台透過 CloudFront 播放。
+  - 目前每次要上傳新影片都要麻煩 IT 代傳，想改成用 Cyberduck 自己拖檔上傳，
+    不用每支影片都找 IT。
+  - 需要 IT 開一組 AWS 存取金鑰（Access Key），限定權限只能動這個影片用的 S3 bucket。
+
+
+── 請求：建立一個 IAM 使用者，僅限影片 bucket 讀寫 ──────────────
+
+請 IT 協助：
+  1. 建立一個 IAM 使用者（programmatic access 即可，不需要 Console 登入密碼）。
+  2. 權限只給以下這個 bucket 的：PutObject / GetObject / ListBucket
+     （不需要 delete、不需要其他 bucket 的權限）。
+  3. 提供 Access Key ID 和 Secret Access Key 給我（用 Cyberduck 連線用）。
+
+
+── 麻煩 IT 順便確認／提供以下資訊 ──────────────────────────
+
+  1. S3 Bucket 名稱：目前已知是 sccd-video-output-2026，請確認是否正確。
+  2. Bucket 所在 Region（區域）：例如 ap-northeast-1（東京），Cyberduck 連線要用。
+  3. 影片要上傳到哪個資料夾：例如 videos/，避免檔案全丟 bucket 根目錄。
+  4. CloudFront 網域：例如 https://d123abc.cloudfront.net
+     （前台播放用這個網址，不是 S3 原始網址，麻煩確認目前對應這個 bucket 的 CloudFront 網域是哪一個）
+  5. 確認該 bucket／資料夾已設定「公開讀取」(public read)：
+     前台要能直接讀取影片檔案，若沒開公開讀取，前台會播放失敗（403）。
+  6. 確認該 bucket 已開啟 CORS，且回應帶 Access-Control-Allow-Origin：
+     前台會抓影片畫面自動截圖當縮圖，需要 CORS 才截得到；沒開的話影片仍可播放，
+     只是縮圖會退成黑底佔位圖。
+
+
+========================================
+收到金鑰後我這邊會做的事（不需要 IT 處理）：
+  - 用 Cyberduck 連線、把 mp4 拖進 bucket
+  - 把 CloudFront 網址貼進 Directus 的影片欄位
+  - 前台重新整理即可播放
+========================================
