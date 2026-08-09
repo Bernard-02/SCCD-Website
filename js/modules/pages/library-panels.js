@@ -18,6 +18,8 @@ import { loadSummerCamp } from './summer-camp-source.js';
 import { loadActivityCollection } from './activities-source.js';
 import { loadOthersAlbum } from './library-album-source.js';
 import { getAwardRecords, findAwardById } from './activities-data-loader.js';
+import { renderPdfCover } from '../ui/pdf-cover.js';
+import { awaitLayoutReady } from '../ui/await-layout-ready.js';
 
 // ── 共用常數 ──────────────────────────────────────────────────────────────────
 
@@ -60,7 +62,7 @@ function ensureEmptyState(listEl) {
     el.className = 'search-empty-state hidden';
     // absolute 置中於 scroll 容器（left/right:0 + text-align:center 水平、top:50%+translateY 垂直），不佔流不受 list 高度影響
     el.style.cssText = 'position:absolute; top:50%; left:0; right:0; transform:translateY(-50%); text-align:center;';
-    el.innerHTML = '<p style="font-size: var(--font-size-p3); font-weight: 700;">No Result</p><p style="font-size: var(--font-size-p3); font-weight: 700;">無結果</p>';
+    el.innerHTML = '<p style="font-size: var(--font-size-xs); font-weight: 700;">No Result</p><p style="font-size: var(--font-size-xs); font-weight: 700;">無結果</p>';
     if (listEl.parentElement) listEl.parentElement.style.position = 'relative'; // 作為 absolute 置中基準
     listEl.insertAdjacentElement('afterend', el);
   }
@@ -130,7 +132,7 @@ function attachYearReset(pickerEl, onReset) {
 
   grid.style.position = 'relative';
   wrap.style.paddingBottom = 'var(--spacing-xl)';
-  btn.style.cssText = 'position:absolute;white-space:nowrap;background:var(--lib-bg);text-align:left;border:none;padding:var(--spacing-xs) 0;font-family:inherit;font-size:var(--font-size-p3);cursor:pointer;font-weight:700;color:var(--lib-fg);display:none;';
+  btn.style.cssText = 'position:absolute;white-space:nowrap;background:var(--lib-bg);text-align:left;border:none;padding:var(--spacing-xs) 0;font-family:inherit;font-size:var(--font-size-xs);cursor:pointer;font-weight:700;color:var(--lib-fg);display:none;';
   const gcs = getComputedStyle(grid);
   btn.style.left = gcs.paddingLeft;
   btn.style.bottom = gcs.paddingBottom;
@@ -170,7 +172,7 @@ function createYearPicker(pickerEl, years, onFilter) {
     btn.textContent = year;
     btn.dataset.year = year;
     btn.setAttribute('aria-pressed', 'false');
-    btn.style.cssText = 'text-align:left;background:none;border:none;padding:0;font-family:inherit;font-size:var(--font-size-p3);cursor:pointer;font-weight:700;color:var(--lib-fg);transition:color 0.3s ease;';
+    btn.style.cssText = 'text-align:left;background:none;border:none;padding:0;font-family:inherit;font-size:var(--font-size-xs);cursor:pointer;font-weight:700;color:var(--lib-fg);transition:color 0.3s ease;';
     btn.addEventListener('click', () => {
       const adding = !selected.has(year);
       if (selected.has(year)) { selected.delete(year); } else { selected.add(year); }
@@ -330,6 +332,29 @@ function unionRefs(auto, manual) {
   });
 }
 
+// The CMS `pdf` field is a general document-file field: it may contain a PDF
+// or a single image. Strip Directus query parameters before checking its type.
+function isImageDocumentUrl(url, mimeType = '') {
+  if (String(mimeType).toLowerCase().startsWith('image/')) return true;
+  const path = String(url || '').split(/[?#]/, 1)[0].toLowerCase();
+  return /\.(?:avif|gif|jpe?g|png|webp)$/.test(path);
+}
+
+function openLibraryDocument({ url, item, title, color, references, shareUrl, watermark = true }) {
+  if (isImageDocumentUrl(url, item?.documentMimeType)) {
+    document.dispatchEvent(new CustomEvent('sccd:open-lightbox', {
+      detail: {
+        media: [{ type: 'image', src: url, thumb: item?.cover || url }],
+        index: 0, title, color, references, shareUrl, watermark,
+      },
+    }));
+    return;
+  }
+  document.dispatchEvent(new CustomEvent('sccd:open-pdf', {
+    detail: { pdfUrl: url, title, color, references, shareUrl, watermark },
+  }));
+}
+
 // 從某 host（award / activity item）點進 lightbox/PDF 時，popover 不該再 ref 回那個 host（避免循環）。
 // 同 activities 的 getPdfRefSources({excludeSection,excludeItemId})，但統一處理 href(award) 與 section/itemId(activity) 兩種 ref。
 // host = { awardId } 或 { section, itemId }；無 host（直接從 Files/Press panel 開）→ 不排除、ref 到所有來源。
@@ -385,14 +410,15 @@ function bindAwardRefRowClick(row) {
     const pdfUrl = row.dataset.refPdfUrl;
     if (pdfUrl) {
       const title = { en: row.dataset.refTitleEn || '', zh: row.dataset.refTitleZh || '' };
-      const { getPdfRefSources } = await import('./pdf-cross-ref-index.js');
-      const auto = await getPdfRefSources(pdfUrl);
       // 該 file 自己的手填 references（含 award 反向 ref → viewer 內可 ref 回得獎紀錄）也 union 進去
       const files = await loadFilesDataCached().catch(() => []);
       const fileItem = (Array.isArray(files) ? files : []).find(f => f.pdfUrl === pdfUrl);
+      const auto = isImageDocumentUrl(pdfUrl)
+        ? []
+        : await (await import('./pdf-cross-ref-index.js')).getPdfRefSources(pdfUrl);
       const references = excludeHostFromRefs(unionRefs(auto, await resolveLibManualRefs(fileItem)), host);
       const shareUrl = libShareUrl(fileItem && fileItem.id && `f-${fileItem.id}`);
-      document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl, title, color, references, shareUrl } }));
+      openLibraryDocument({ url: pdfUrl, item: fileItem, title, color, references, shareUrl });
       return;
     }
 
@@ -815,12 +841,12 @@ async function initAwardsPanel(onEntranceDoneCallback) {
           // item 的 block child（滿寬、不靠負 margin）。zebra / open accent bg 仍掛 item → 滿格滿寬（item 無水平 padding）。
           return `
             <div class="award-record-item py-[0.5rem]${zebra}"
-                 style="font-size: var(--font-size-p3);${cursorStyle}"
+                 style="font-size: var(--font-size-xs);${cursorStyle}"
                  data-search="${searchText}"${item.id ? ` id="${item.id}"` : ''}>
               <div class="award-row" style="display:grid;${AWARD_GRID} align-items: start;">
                 <div style="padding-top: 0.1em;">${item.flag ? `<span class="fi fi-${item.flag}" style="width:1.5em;height:1em;display:inline-block;"></span>` : ''}</div>
                 <div class="award-mid">
-                  <div class="truncate flex flex-col">${bilingualBold(item.competition_en, item.competition)}</div>
+                  <div class="truncate flex flex-col" role="heading" aria-level="3">${bilingualBold(item.competition_en, item.competition)}</div>
                   <div class="award-organizer truncate flex flex-col">${organizerInner}</div>
                   <div class="truncate flex flex-col">${bilingual(item.award_en, item.award)}</div>
                   <div class="truncate flex flex-col">${bilingual(item.rank_en, item.rank)}</div>
@@ -834,7 +860,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
 
         listEl.insertAdjacentHTML('beforeend', `
           <div class="year-block" data-year="${yearGroup.year}">
-            <div class="press-year-label" style="font-size: var(--font-size-p3); font-weight: 700; padding: 0 0 0.25rem; position: sticky; top: -1px; background: var(--lib-bg); z-index: 2;">${yearGroup.year}</div>
+            <div class="press-year-label" style="font-size: var(--font-size-xs); font-weight: 700; padding: 0 0 0.25rem; position: sticky; top: -1px; background: var(--lib-bg); z-index: 2;">${yearGroup.year}</div>
             <div class="flex flex-col">${itemsHtml}</div>
           </div>`);
       });
@@ -986,7 +1012,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         const btn = document.createElement('button');
         btn.textContent  = String(year);
         btn.dataset.year = String(year);
-        btn.style.cssText = 'text-align:left;background:none;border:none;padding:0;font-family:inherit;font-size:var(--font-size-p3);cursor:pointer;font-weight:700;color:var(--lib-fg);';
+        btn.style.cssText = 'text-align:left;background:none;border:none;padding:0;font-family:inherit;font-size:var(--font-size-xs);cursor:pointer;font-weight:700;color:var(--lib-fg);';
         btn.addEventListener('click', () => {
           const before = snapshotVisibleYears(listEl); // 操作前可見年份順序
           const adding = !selectedYears.has(String(year));
@@ -1036,7 +1062,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     if (sortBtn) {
       sortBtn.addEventListener('click', () => {
         latestFirst = !latestFirst;
-        sortBtn.querySelector('.sort-arrow').className = `icon ${latestFirst ? 'icon-arrow-down' : 'icon-arrow-up'} sort-arrow text-p3`;
+        sortBtn.querySelector('.sort-arrow').className = `icon ${latestFirst ? 'icon-arrow-down' : 'icon-arrow-up'} sort-arrow text-xs`;
         renderItems(getSorted());
         clipWipeItems(visibleListItems(listEl));
       });
@@ -1132,7 +1158,7 @@ function formatMediaWithCountry(media, countryCode, zh) {
   if (!countryCode) return media;
   const name = zh ? countryName(countryCode, 'zh') : String(countryCode).toUpperCase();
   if (!name) return media;
-  return zh ? `${media}（${name}）` : `${media}\u2002(${name})`;
+  return zh ? `${media}（${name}）` : `${media}&ensp;(${name})`;
 }
 
 // Directus library_press row → 前台 press item shape（對應 field-key 差異 + 組 asset URL）。
@@ -1180,8 +1206,12 @@ async function initPressPanel() {
     if (!listEl) return;
 
     let latestFirst = true;
-    const sorted = [...pressData].sort((a, b) => Number(b.year) - Number(a.year));
-    const getSorted = () => latestFirst ? sorted : [...sorted].reverse();
+    // 年份 → 英文標題 A-Z（user 2026-08-08 指定；sort 箭頭只翻年份方向，年內恆 A-Z，不能用 reverse——會連年內順序一起反轉）
+    const byYearThenTitle = yearDir => (a, b) =>
+      yearDir * (Number(b.year) - Number(a.year)) ||
+      String(a.titleEn || '').localeCompare(String(b.titleEn || ''), 'en', { sensitivity: 'base' });
+    const sorted = [...pressData].sort(byYearThenTitle(1));
+    const getSorted = () => [...pressData].sort(byYearThenTitle(latestFirst ? 1 : -1));
 
     function renderItems(items) {
       listEl.innerHTML = '';
@@ -1218,7 +1248,7 @@ async function initPressPanel() {
           // 右上角分類 tag 已移除（user 2026-06-21）
           div.innerHTML = `
             <div class="press-item-row">
-              <div class="press-item-titles">
+              <div class="press-item-titles" role="heading" aria-level="3">
                 <p class="press-item-title-en"><span class="press-marquee-inner">${item.titleEn || ''}</span></p>
                 <p class="press-item-title-zh"><span class="press-marquee-inner">${item.titleZh || ''}</span></p>
                 ${metaHtml}
@@ -1311,7 +1341,7 @@ async function initPressPanel() {
     if (sortBtn) {
       sortBtn.addEventListener('click', () => {
         latestFirst = !latestFirst;
-        sortBtn.querySelector('.sort-arrow').className = `icon ${latestFirst ? 'icon-arrow-down' : 'icon-arrow-up'} sort-arrow text-p3`;
+        sortBtn.querySelector('.sort-arrow').className = `icon ${latestFirst ? 'icon-arrow-down' : 'icon-arrow-up'} sort-arrow text-xs`;
         renderItems(getSorted());
         applyFiltersWithRef();
         clipWipeItems(visibleListItems(listEl));
@@ -1329,9 +1359,45 @@ async function initPressPanel() {
 
 // ── Files Panel ───────────────────────────────────────────────────────────────
 
+// Directus library_documents row → 前台 files item shape
+function mapDirectusFilesRow(row) {
+  const images = Array.isArray(row.images)
+    ? row.images.map(j => j && j.directus_files_id).filter(Boolean)
+        .map(id => `${CMS_ASSETS_BASE}/${id}?key=web`)
+    : [];
+  const videoUrls = Array.isArray(row.videoUrls) ? row.videoUrls.filter(Boolean) : [];
+  const documentFile = row.pdf;
+  const documentId = typeof documentFile === 'object' ? documentFile?.id : documentFile;
+  return {
+    id: row.id,
+    titleEn: row.titleEn || '',
+    titleZh: row.titleZh || '',
+    year: row.year || '',
+    cover: row.cover ? `${CMS_ASSETS_BASE}/${row.cover}` : '',
+    pdfUrl: documentId ? `${CMS_ASSETS_BASE}/${documentId}` : '',
+    documentMimeType: typeof documentFile === 'object' ? documentFile?.type || '' : '',
+    categories: row.categories || [],
+    references: row.references || [],
+    images,
+    videoUrls,
+  };
+}
+
 async function initFilesPanel() {
   try {
-    const filesData = await fetch(sitePath('data/library.json')).then(r => r.json());
+    let filesData;
+    try {
+      // library_documents 只有 cover/pdf（無 images M2M / references M2A）；請求不存在的欄位 Directus 會 403 整包失敗
+      const url = `${CMS_API_BASE}/library_documents?fields=*,pdf.id,pdf.type&sort=-year,sort&limit=-1`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('CMS ' + res.status);
+      const rows = (await res.json())?.data;
+      if (!Array.isArray(rows) || rows.length === 0) throw new Error('CMS empty');
+      filesData = rows.map(mapDirectusFilesRow);
+    } catch (cmsErr) {
+      console.warn('[files] Directus 抓取失敗/無資料，fallback 本地 library.json：', cmsErr.message);
+      filesData = await fetch(sitePath('data/library.json')).then(r => r.json());
+    }
 
     const listEl       = document.getElementById('library-files-list');
     const yearPickerEl = document.getElementById('library-files-year-picker');
@@ -1339,10 +1405,17 @@ async function initFilesPanel() {
     if (!listEl) return;
 
     let latestFirst = true;
-    const sorted = [...filesData].sort((a, b) => Number(b.year) - Number(a.year));
-    const getSorted = () => latestFirst ? sorted : [...sorted].reverse();
+    // 年份 → 英文標題 A-Z（同 press，user 2026-08-08 指定；箭頭只翻年份方向、年內恆 A-Z）
+    const byYearThenTitle = yearDir => (a, b) =>
+      yearDir * (Number(b.year) - Number(a.year)) ||
+      String(a.titleEn || '').localeCompare(String(b.titleEn || ''), 'en', { sensitivity: 'base' });
+    const sorted = [...filesData].sort(byYearThenTitle(1));
+    const getSorted = () => [...filesData].sort(byYearThenTitle(latestFirst ? 1 : -1));
+
+    let coverPromises = [];   // 本次 render 的 PDF 封面工作（首載 reveal gate 用）
 
     function renderItems(data) {
+      coverPromises = [];
       listEl.innerHTML = '';
       groupByYear(data).forEach(group => {
         const block = document.createElement('div');
@@ -1351,7 +1424,10 @@ async function initFilesPanel() {
 
         const label = document.createElement('div');
         label.className   = 'press-year-label';
-        label.textContent = group.year;
+        const labelText = document.createElement('span');
+        labelText.className = 'files-year-label-text';
+        labelText.textContent = group.year;
+        label.appendChild(labelText);
         block.appendChild(label);
 
         const grid = document.createElement('div');
@@ -1368,8 +1444,10 @@ async function initFilesPanel() {
           // 旋轉：sign 隨機 × magnitude 1~3，範圍 [-3,-1] ∪ [1,3]，排除 0 和近 0 避免卡片看起來都一樣
           const finalDeg = (Math.random() < 0.5 ? -1 : 1) * (1 + Math.random() * 2);
           // rotation 直接套在 image / empty placeholder 上（不是 inner），transform-origin = image 中心
-          const coverContent = item.cover
-            ? `<img class="files-item-cover" data-init-deg="${finalDeg}" style="transform: rotate(${finalDeg}deg);" src="${item.cover}" alt="">`
+          // 圖片型 document 沒有另外指定 cover 時，直接以檔案本身作為封面。
+          const coverUrl = item.cover || (isImageDocumentUrl(item.pdfUrl, item.documentMimeType) ? item.pdfUrl : '');
+          const coverContent = coverUrl
+            ? `<img class="files-item-cover" data-init-deg="${finalDeg}" style="transform: rotate(${finalDeg}deg);" src="${coverUrl}" alt="">`
             : `<div class="files-item-cover files-item-cover--empty" data-init-deg="${finalDeg}" style="transform: rotate(${finalDeg}deg);"></div>`;
           const coverHtml = `
             <div class="files-card-cover-wrap">
@@ -1383,18 +1461,62 @@ async function initFilesPanel() {
           div.innerHTML = `
             ${coverHtml}
             <div class="files-item-titles files-card-info">
-              <div class="files-item-titles-text">${titleEnHtml}${titleZhHtml}</div>
+              <div class="files-item-titles-text" role="heading" aria-level="3">${titleEnHtml}${titleZhHtml}</div>
             </div>`;
 
-          if (item.pdfUrl) {
+          // 後台沒設 cover 時抓 PDF 第一頁當封面（cover 欄位＝選填覆蓋；同首頁 floating press 卡）。
+          // 原地轉背景圖而非 replaceWith <img>：hover 旋轉 handler bind 時已抓住此節點。
+          if (!coverUrl && item.pdfUrl) {
+            coverPromises.push(renderPdfCover(item.pdfUrl).then(dataUrl => {
+              const ph = div.querySelector('.files-item-cover--empty');
+              if (!dataUrl || !ph) return;
+              const probe = new Image();
+              probe.onload = () => {
+                // 照 PDF 頁面實際比例撐框，仿真 cover <img> 的 contain 行為
+                // （直式吃滿高、橫式吃滿寬、flex 貼底置中），bg-cover 比例吻合＝不裁切
+                const r = probe.naturalWidth / probe.naturalHeight;
+                ph.style.aspectRatio = String(r);
+                if (r > 4 / 5) { ph.style.width = '100%'; ph.style.height = 'auto'; }
+                else { ph.style.width = 'auto'; ph.style.height = '100%'; }
+                ph.style.backgroundImage = `url(${dataUrl})`;
+                ph.style.backgroundSize = 'cover';
+              };
+              probe.src = dataUrl;
+            }));
+          }
+
+          // 同 Press panel：後台放圖/影片 → media lightbox；只放 PDF → PDF viewer（圖/影片優先）。
+          // document 一律帶 watermark:true（PDF 與 media 都要浮水印）。
+          const imgList = (item.images && item.images.length) ? item.images : (item.image ? [item.image] : []);
+          const vidList = (item.videoUrls && item.videoUrls.length) ? item.videoUrls : (item.videoUrl ? [item.videoUrl] : []);
+          if (imgList.length || vidList.length) {
             div.style.cursor = `url('${sitePath('custom-cursor/pointer.svg')}') 14 1, pointer`;
-            const pdfTitle = { en: item.titleEn || '', zh: item.titleZh || '' };
-            // 同 Press panel：library 場景反查 activity → 此 PDF；手填 references（含 award 反向 ref）union 進去
+            const media = [];
+            imgList.forEach(src => media.push({ type: 'image', src, thumb: src }));
+            vidList.forEach(url => {
+              const m = videoMediaFromUrl(url, imgList[0] || '');
+              if (m) media.push(m);
+            });
+            if (media.length) {
+              const lbTitle = { en: item.titleEn || '', zh: item.titleZh || '' };
+              div.addEventListener('click', async () => {
+                const references = await resolveLibManualRefs(item);
+                document.dispatchEvent(new CustomEvent('sccd:open-lightbox', { detail: { media, index: 0, title: lbTitle, color: accentColor, references, shareUrl: libShareUrl(item.id && `f-${item.id}`), watermark: true } }));
+              });
+              makeActivatable(div, [item.titleEn, item.titleZh].filter(Boolean).join(' ')); // 無障礙：文件項可 Tab + Enter 開
+            }
+          } else if (item.pdfUrl) {
+            div.style.cursor = `url('${sitePath('custom-cursor/pointer.svg')}') 14 1, pointer`;
+            const title = { en: item.titleEn || '', zh: item.titleZh || '' };
             div.addEventListener('click', async () => {
-              const { getPdfRefSources } = await import('./pdf-cross-ref-index.js');
-              const auto = await getPdfRefSources(item.pdfUrl);
+              const auto = isImageDocumentUrl(item.pdfUrl, item.documentMimeType)
+                ? []
+                : await (await import('./pdf-cross-ref-index.js')).getPdfRefSources(item.pdfUrl);
               const references = unionRefs(auto, await resolveLibManualRefs(item));
-              document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl, title: pdfTitle, color: accentColor, references, shareUrl: libShareUrl(item.id && `f-${item.id}`) } }));
+              openLibraryDocument({
+                url: item.pdfUrl, item, title, color: accentColor, references,
+                shareUrl: libShareUrl(item.id && `f-${item.id}`),
+              });
             });
             makeActivatable(div, [item.titleEn, item.titleZh].filter(Boolean).join(' ')); // 無障礙：文件項可 Tab + Enter 開
           }
@@ -1431,6 +1553,19 @@ async function initFilesPanel() {
 
     renderItems(getSorted());
 
+    // 首載 reveal gate：等首屏封面（前 8 張）就緒或 2.5s 到，再一次 clip-wipe 揭卡——
+    // 取代「灰卡先出、封面逐張跳上」的半成品畫面（user 2026-08-08）。之後 sort/filter 重渲染不 gate。
+    if (coverPromises.length) {
+      listEl.style.opacity = '0';
+      Promise.race([
+        Promise.allSettled(coverPromises.slice(0, 8)),
+        new Promise(r => setTimeout(r, 2500)),
+      ]).then(() => {
+        listEl.style.opacity = '';
+        clipWipeItems(visibleFilesCards(listEl));
+      });
+    }
+
     const filesEmptyState = ensureEmptyState(listEl);
 
     const selYears = (() => {
@@ -1460,7 +1595,7 @@ async function initFilesPanel() {
     if (sortBtn) {
       sortBtn.addEventListener('click', () => {
         latestFirst = !latestFirst;
-        sortBtn.querySelector('.sort-arrow').className = `icon ${latestFirst ? 'icon-arrow-down' : 'icon-arrow-up'} sort-arrow text-p3`;
+        sortBtn.querySelector('.sort-arrow').className = `icon ${latestFirst ? 'icon-arrow-down' : 'icon-arrow-up'} sort-arrow text-xs`;
         renderItems(getSorted());
         applyFilters();
         clipWipeItems(visibleFilesCards(listEl));
@@ -1809,7 +1944,7 @@ async function initAlbumPanel() {
     if (sortBtn) {
       sortBtn.addEventListener('click', () => {
         latestFirst = !latestFirst;
-        sortBtn.querySelector('.sort-arrow').className = `icon ${latestFirst ? 'icon-arrow-down' : 'icon-arrow-up'} sort-arrow text-p3`;
+        sortBtn.querySelector('.sort-arrow').className = `icon ${latestFirst ? 'icon-arrow-down' : 'icon-arrow-up'} sort-arrow text-xs`;
         renderItems(getSorted());
         applyFilters();
         clipWipeItems(visibleListItems(listEl));
@@ -2010,13 +2145,28 @@ function titleHiddenTranslate(el, dir) {
   const c = Math.cos(th), s = Math.sin(th);
   const w = el.offsetWidth || 0, h = el.offsetHeight || 0;
   const v = { top: [h*s, -h*c], bottom: [-h*s, h*c], left: [-w*c, -w*s], right: [w*c, w*s] }[dir];
+  // 保險絲（正解＝caller 量測前 awaitLayoutReady stableFrames 濾過渡幀；此處僅擋漏網）：
+  // 正常滑距 ~45px 不受影響；就算量測仍異常也不可能「從遠處飛入」
+  const MAX_SLIDE = 80;
+  const mag = Math.hypot(v[0], v[1]);
+  if (mag > MAX_SLIDE) { v[0] *= MAX_SLIDE / mag; v[1] *= MAX_SLIDE / mag; }
   return `${v[0].toFixed(2)}px ${v[1].toFixed(2)}px`;
 }
 
-function playPanelTitleReveal(title) {
+async function playPanelTitleReveal(title) {
   if (!title) return;
-  const dir = pickTitleDir(title);
   if (typeof gsap === 'undefined') { title.style.clipPath = ''; title.style.translate = ''; return; }
+  // 量測前先等佈局穩定（fonts＋連續兩幀尺寸不變）：resize 殘留的過渡幀（文字換行變高）
+  // 會讓 pickTitleDir / titleHiddenTranslate 拿到錯誤幾何 →「從遠處飛入」（user 2026-08-08）。
+  // 等待期間維持全遮（hidePanelChildren 已設；此處再設一次防未 hide 的呼叫路徑閃現）。
+  // ⚠️transition 設完不還原（沿 hidePanelChildren 慣例）——還原會讓下次 randomTitleTransform
+  // 的 transform 變更吃到 CSS transition、以可見動畫滑去新隨機位（實測 439px 飛遠，比原 bug 更糟）
+  title.style.transition = 'none';
+  title.style.clipPath = 'inset(0 0 100% 0)';
+  // stableFrames 連 x/y 也要穩：resize 後回 library 的 relayout 途中揭露會讓 chip 跟著卡片飛
+  // （430px 實測重現）；等卡片停穩才揭。maxAttempts 90≈1.5s 蓋過 grayEl 0.6s 展開＋relayout debounce
+  await awaitLayoutReady(title, { minWidth: 10, minHeight: 10, stableFrames: 2, maxAttempts: 90 });
+  const dir = pickTitleDir(title);
   gsap.fromTo(title,
     { clipPath: TITLE_ENTER_CLIP[dir], translate: titleHiddenTranslate(title, dir) },
     { clipPath: 'inset(0% 0% 0% 0%)', translate: '0px 0px', duration: DUR.reveal, ease: EASE.enter,

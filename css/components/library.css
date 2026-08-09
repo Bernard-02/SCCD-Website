@@ -11,7 +11,7 @@
   border: none;
   padding: 0 0 4px;
   font-family: inherit;
-  font-size: var(--font-size-p3);
+  font-size: var(--font-size-xs);
   font-weight: 700;
   cursor: var(--cursor-pointer);
   white-space: nowrap;
@@ -36,7 +36,7 @@
   white-space: nowrap;
   animation: color-rect-marquee 5s linear infinite;
   font-family: 'Inter', 'Noto Sans TC', sans-serif;
-  font-size: var(--font-size-h4);
+  font-size: var(--font-size-xl);
   font-weight: 700;
   color: inherit;
   line-height: 1.2;
@@ -110,6 +110,13 @@
 /* ── Awards Ticker ──────────────────────────────────────────── */
 #library-awards-ticker {
   background: var(--lib-bg);
+  padding-left: var(--spacing-md);
+  padding-right: var(--spacing-md);
+}
+/* 左右 padding 內做 mask：wrapper（padding 內緣）overflow:hidden，logo 捲到 padding 內緣就切掉，
+   不露進左右留白。overflow 放 CSS 不放 inline：JS 建 track 時會 cssText 重設 wrapper inline 樣式。 */
+#library-awards-ticker .awards-ticker-wrapper {
+  overflow: hidden;
 }
 
 /* ── Press list container ─────────────────────────────────────── */
@@ -121,7 +128,7 @@
 
 /* ── Press year group ────────────────────────────────────────── */
 .press-year-label {
-  font-size: var(--font-size-p3);
+  font-size: var(--font-size-xs);
   font-weight: 700;
   /* 不設 padding-top：年份文字要落在 grid row 頂、與左側 picker 第一個年份對齊（對齊來自 grid 父容器）。
      原本 padding-top:0.35rem + margin-top:-0.35rem 想自我抵銷只給 sticky 上緣留白，但第一個 block 的負 margin
@@ -165,7 +172,7 @@
 }
 .press-item-title-en,
 .press-item-title-zh {
-  font-size: var(--font-size-p1);
+  font-size: var(--font-size-s);
   font-weight: 700;
   line-height: 1.3;
   overflow: hidden;
@@ -191,7 +198,7 @@
   min-width: 0;
 }
 .press-item-subtitle {
-  font-size: var(--font-size-p3);
+  font-size: var(--font-size-xs);
   font-weight: 400;
   color: var(--lib-fg);
   white-space: nowrap;
@@ -210,7 +217,7 @@
   white-space: nowrap;
 }
 .press-item-media-icon {
-  font-size: var(--font-size-p1);   /* 跟 title-en/zh 同字級（user 2026-06-21；原 1rem 比照 activities icon-s 嫌太小）*/
+  font-size: var(--font-size-s);   /* 跟 title-en/zh 同字級（user 2026-06-21；原 1rem 比照 activities icon-s 嫌太小）*/
   color: rgba(var(--lib-fg-rgb), 0.5);
   align-self: start;
   /* icon 移到 row 右欄、與 title-en 頂端對齊；title line-height 1.3 vs icon 1em →
@@ -220,7 +227,7 @@
 
 /* 分類 tag（只在 all 模式顯示，對齊右側第二欄頂部） */
 .press-item-cat-tag {
-  font-size: var(--font-size-p3);
+  font-size: var(--font-size-xs);
   font-weight: 700;
   color: rgba(var(--lib-fg-rgb), 0.5);
   white-space: nowrap;
@@ -235,7 +242,7 @@
   border: none;
   padding: 0;
   font-family: inherit;
-  font-size: var(--font-size-p3);
+  font-size: var(--font-size-xs);
   cursor: var(--cursor-pointer);
   font-weight: 700;
   color: var(--lib-fg);
@@ -275,7 +282,7 @@
 .press-subtitle-inner > .marquee-copy,
 .files-marquee-inner > .marquee-copy {
   display: inline-block;
-  padding-right: 3em;
+  padding-right: var(--marquee-copy-gap);
 }
 
 /* ── Award winners 水平 marquee（單格多獲獎者，自動跑）────── */
@@ -399,7 +406,7 @@ body.mode-color #library-awards-list .award-ref-wrap .list-ref-btn:hover * {
 }
 /* ref 文字大小跟 award 主表列一致（user 2026-06-22：ref 看起來比主表大）。主表列 font-size 桌面 p3 /
    手機 p2（item inline + 手機 !important），ref <p> 用 inherit 自動跟著兩個斷點走，蓋過全域 p{font-size:p2}
-   與 .text-p2 utility（本 selector 特異度 1,1,1 勝）。 */
+   與 .text-s utility（本 selector 特異度 1,1,1 勝）。 */
 #library-awards-list .award-ref-row p {
   font-size: inherit;
 }
@@ -475,6 +482,21 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
      靠 source order（寫在後面）勝出——同 admission/curriculum row 版分組高亮已知模式，
      見 memory feedback_specificity_tie_use_not_exclusion，真機若回報偶爾失效照那篇改 :not() 排除法。 */
   #library-card-content [class$="year-block"]:has(:is(.award-record-item, .press-item, .files-item):hover) .press-year-label {
+    opacity: 1;
+  }
+
+  /* Documents 的年份標籤是 sticky bar：hover 時保留所有年份 bar 的不透明底色，
+     只淡化非作用中年份的文字，避免下方卡片透進標籤背景。 */
+  #library-card-content:has(#library-files-list .files-item:hover) #library-files-list .press-year-label {
+    opacity: 1;
+  }
+  #library-files-list .files-year-label-text {
+    transition: opacity var(--dur-fast) ease;
+  }
+  #library-card-content:has(#library-files-list .files-item:hover) #library-files-list .files-year-label-text {
+    opacity: 0.25;
+  }
+  #library-card-content #library-files-list .files-year-block:has(.files-item:hover) .files-year-label-text {
     opacity: 1;
   }
 }
@@ -561,7 +583,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   transition: opacity var(--dur-fast) ease;
 }
 .files-item-subtitle-tag {
-  font-size: var(--font-size-p3);
+  font-size: var(--font-size-xs);
   font-weight: 700;
   color: rgba(var(--lib-fg-rgb), 0.5);
   white-space: nowrap;
@@ -626,7 +648,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
 
 .files-item-title-en,
 .files-item-title-zh {
-  font-size: var(--font-size-p1);
+  font-size: var(--font-size-s);
   font-weight: 700;
   line-height: 1.3;
   overflow: hidden;
@@ -645,7 +667,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   border: none;
   padding: 0;
   font-family: inherit;
-  font-size: var(--font-size-p3);
+  font-size: var(--font-size-xs);
   cursor: var(--cursor-pointer);
   font-weight: 700;
   color: var(--lib-fg);
@@ -661,7 +683,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   border: none;
   padding: 0;
   font-family: inherit;
-  font-size: var(--font-size-p3);
+  font-size: var(--font-size-xs);
   cursor: var(--cursor-pointer);
   font-weight: 700;
   color: var(--lib-fg);
@@ -996,7 +1018,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
     /* item 是 block：垂直 padding + 字級留 item；水平 0（手機主列滿寬不縮）。zebra/open bg 滿寬。 */
     padding: var(--spacing-sm) 0 !important;
     min-width: 0 !important;
-    font-size: var(--font-size-p2) !important;
+    font-size: var(--font-size-s) !important;
   }
   #library-awards-list .award-row {
     /* 得獎人欄改固定比例（非 auto）→ 每列得獎人欄左緣對齊同一點（#1 2026-06-10）；auto 會隨名字長短變寬害對齊點跑掉 */
@@ -1027,13 +1049,13 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   }
   /* 年份標題（"2026"）改 p1 */
   #library-awards-list .year-block > div:first-child {
-    font-size: var(--font-size-p1) !important;
+    font-size: var(--font-size-s) !important;
   }
   /* Press / Files / Album list 內年份標題（.press-year-label，共用 class）改 p1 */
   #library-press-list .press-year-label,
   #library-files-list .press-year-label,
   #library-album-list .press-year-label {
-    font-size: var(--font-size-p1) !important;
+    font-size: var(--font-size-s) !important;
   }
   /* 中間欄各 cell：解開 truncate 讓 EN/ZH 自然換行 */
   #library-awards-list .award-mid > div {
@@ -1083,7 +1105,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   }
   #library-awards-list .award-marquee-inner > .marquee-copy {
     display: inline-block !important;
-    padding-right: 2em !important;
+    padding-right: var(--marquee-copy-gap) !important;
   }
   /* 名字溢出 → 自動 marquee（手機無 hover，直接跑；對齊 press item 手機自動 marquee pattern）*/
   #library-awards-list .award-winner-en.is-overflow .award-marquee-inner,
@@ -1250,7 +1272,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
     gap: 2px;
     text-align: left;
     line-height: 1.2;
-    font-size: var(--font-size-p3) !important;
+    font-size: var(--font-size-xs) !important;
   }
   /* EN/ZH 兩個 span stack；inverse mode 第 2 span 走稍微淡的色 */
   .cat-btn-en,
@@ -1304,14 +1326,14 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   #library-year-picker button {
     flex-shrink: 0;
     white-space: nowrap;
-    font-size: var(--font-size-p1) !important;
+    font-size: var(--font-size-s) !important;
     padding: var(--spacing-sm) 0 !important;
     min-height: 44px;
   }
   /* Reset 鈕縮回 sort 鈕字級（p3），左 padding 拉開與年份距離（sticky opaque bg 會蓋住這段，視覺=留白） */
   [id$="-year-picker"] button.year-reset-btn,
   #library-year-picker button.year-reset-btn {
-    font-size: var(--font-size-p3) !important;
+    font-size: var(--font-size-xs) !important;
     padding-left: var(--spacing-sm) !important;
   }
   /* "Year 年份" 標籤改成在 picker 上方標題
@@ -1320,7 +1342,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
      (inline padding-bottom:var(--spacing-sm)) 子樹內的 .press-item-title-en (<p>)，
      把 press item 英文標題也誤套 p3 size */
   [id^="lib-panel-"] > div[style*="grid"] > div > p:first-child {
-    font-size: var(--font-size-p3) !important;
+    font-size: var(--font-size-xs) !important;
     padding-top: 0 !important;
   }
   /* year-col 整個 wrapper 拔掉桌面 padding-top:xl（讓 chip 緊貼 search 底） */

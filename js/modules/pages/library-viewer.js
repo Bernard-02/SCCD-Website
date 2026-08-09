@@ -7,7 +7,10 @@
 import { openLightbox } from '../lightbox/activities-lightbox.js';
 import { enterLightboxMode, exitLightboxMode } from '../lightbox/lightbox-shell.js';
 import { createRefBtn } from '../lightbox/lightbox-ref-btn.js';
+import { applyScreenWatermark, repositionScreenWatermark } from '../lightbox/screen-watermark.js';
 import { sitePath } from '../ui/site-base.js';
+import { peekPdfCover } from '../ui/pdf-cover.js';
+import { awaitLayoutReady } from '../ui/await-layout-ready.js';
 
 // ── Lightbox ──────────────────────────────────────────────────────────────────
 
@@ -55,6 +58,9 @@ function ensurePdfModal() {
 
   const modal = document.createElement('div');
   modal.id        = 'pdf-viewer-modal';
+  modal.setAttribute('role', 'dialog');
+  modal.setAttribute('aria-modal', 'true');
+  modal.setAttribute('aria-label', 'PDF 文件檢視器 PDF viewer');
   // 結構對齊 activities-lightbox：X 右上 + prev/next 主區域左右 absolute + 底部資訊條
   // scrollbar gutter 由 lightbox-shell 染 html bg 處理
   // 新增：左下角 title pill（鏡像 album）/ 底部右側 zoom controls / 中央 .pdf-zoom-stage 包 canvases
@@ -74,12 +80,11 @@ function ensurePdfModal() {
       <!-- zoom stage：overflow:hidden 容器，transform 套在 .pdf-canvas-row 上做 zoom + pan -->
       <div class="pdf-zoom-stage" style="position:relative;width:100%;height:100%;overflow:hidden;display:flex;align-items:center;justify-content:center;">
         <div class="pdf-canvas-row flex items-center justify-center gap-0 w-full h-full" style="transform-origin:center;will-change:transform;">
-          <canvas id="pdf-canvas-left" class="bg-white block" style="user-select:none;"></canvas>
+          <div class="pdf-rendered-content" style="position:relative;overflow:hidden;flex-shrink:0;">
+            <canvas id="pdf-canvas-left" class="bg-white block" style="user-select:none;"></canvas>
+            <div class="pdf-watermark" aria-hidden="true" style="position:absolute;inset:0;pointer-events:none;z-index:20;"></div>
+          </div>
         </div>
-        <!-- 螢幕浮水印：英中各一行「整句連續重複」的斜 30° 文字疊在 PDF 上（前臺視覺水印，後臺不用事先編輯 PDF）。
-             固定蓋住 stage、不隨 zoom/pan 移動；pointer-events:none 不擋互動。
-             inset / transform(rotate) / background(兩個水平 repeat layer) 全由 JS 設（見 initPdfViewer 浮水印段）。-->
-        <div class="pdf-watermark" aria-hidden="true" style="position:absolute;inset:0;pointer-events:none;z-index:20;"></div>
       </div>
       <button id="pdf-next-btn" class="absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 disabled:opacity-20" style="right: var(--container-padding, 1.5rem); z-index: 30;">
         <span class="icon icon-chevron-lightbox icon-m rotate-180"></span>
@@ -99,7 +104,7 @@ function ensurePdfModal() {
            rotate 的 transform-origin = left bottom（與 album .alb-close-pill / .alb-title-pill 一致，user 2026-06-03 要求對齊 album）；
            繞左下角轉會讓寬 title pill 右端下沉，跟 album 同樣的視覺（接受） -->
       <button class="pdf-back-btn absolute" style="top: 50%; transform: translateY(-50%); left: var(--container-padding, 1.5rem); z-index: 50;">
-        <span class="pdf-back-pill" style="display:inline-flex;align-items:center;justify-content:center;background:#00FF80;color:#000;width:44px;height:44px;font-size:var(--font-size-p1);line-height:1;transform:rotate(0deg);transform-origin:left bottom;box-sizing:border-box;">
+        <span class="pdf-back-pill" style="display:inline-flex;align-items:center;justify-content:center;background:#00FF80;color:#000;width:44px;height:44px;font-size:var(--font-size-s);line-height:1;transform:rotate(0deg);transform-origin:left bottom;box-sizing:border-box;">
           <span class="icon icon-arrow-left icon-m"></span>
         </span>
       </button>
@@ -112,14 +117,14 @@ function ensurePdfModal() {
           <span class="icon icon-arrow-left icon-m" style="transform: rotate(135deg);"></span>
         </span>
       </button>
-      <span id="pdf-page-info" class="text-p2"></span>
+      <span id="pdf-page-info" class="text-s"></span>
       <!-- 頁碼 justify-center 置中；zoom controls 靠右 absolute，top:50%+translateY(-50%) 與頁碼同一水平線
            （user 2026-06-03 澄清：頁碼置中、controls 靠右、兩者對齊在同一水平線，不是整組置中）-->
       <div class="pdf-zoom-controls absolute text-white" style="right: var(--container-padding, 1.5rem); top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 12px;">
         <button id="pdf-zoom-out" class="p-2 transition-opacity hover:opacity-60 disabled:opacity-30 disabled:[cursor:var(--cursor-not-allowed)]" aria-label="Zoom out">
           <span class="icon icon-zoom-out icon-m"></span>
         </button>
-        <span id="pdf-zoom-pct" class="text-p2" style="font-variant-numeric: tabular-nums; min-width: 3.5rem; text-align: center;">100%</span>
+        <span id="pdf-zoom-pct" class="text-s" style="font-variant-numeric: tabular-nums; min-width: 3.5rem; text-align: center;">100%</span>
         <button id="pdf-zoom-in" class="p-2 transition-opacity hover:opacity-60 disabled:opacity-30 disabled:[cursor:var(--cursor-not-allowed)]" aria-label="Zoom in">
           <span class="icon icon-zoom-in icon-m"></span>
         </button>
@@ -157,6 +162,7 @@ export function initPdfViewer() {
   const backPill  = modal.querySelector('.pdf-back-pill');
   const stageEl   = modal.querySelector('.pdf-zoom-stage');
   const rowEl     = modal.querySelector('.pdf-canvas-row');
+  const renderedContentEl = modal.querySelector('.pdf-rendered-content');
   const mainRowEl = modal.querySelector('.pdf-main-row');
   const bottomBarEl = modal.querySelector('.pdf-bottom-bar');
   const titleEl   = modal.querySelector('.pdf-title');
@@ -174,38 +180,10 @@ export function initPdfViewer() {
   //   再把整個 div 放大 inset:-50% 後 rotate(-30deg) → 斜向連續文字、邊緣由外層 .pdf-zoom-stage overflow:hidden 裁掉。
   //   ⚠️ 不要回退成「一句一句獨立擺＋整片 rotate 每個 text」：那種長英文 rotate 後會在 tile 接縫被切成半句（踩過）。
   //   ⚠️ 水平無縫關鍵＝每個 tile 寬必須＝「一句＋分隔」實際 advance 寬 → 即時量（字體已載入），寫死像素會在接縫跳位。
-  // 抽成函式、在「開啟時」呼叫（見 sccd:open-pdf handler）：①開啟時字體必載好 → 水平 advance 量測準；
-  // ②能依當前 viewport 給手機較小較密的浮水印（user 2026-06-11「手機浮水印再小一點、再密集一點」）。桌面維持原尺寸。
+  // 在「開啟時」呼叫（見 sccd:open-pdf handler）：字體必載好 → 量測準；依 viewport 給手機較小較密版。
+  // 共用 helper（media lightbox 也用同一份）。
   function buildWatermark() {
-    const wmEl = modal.querySelector('.pdf-watermark');
-    if (!wmEl) return;
-    const mob = window.innerWidth < 768;
-    const FS = mob ? 14 : 24;                         // 手機字級縮小（24→14）
-    const WEIGHT = 700, FAM = "Inter,'Noto Sans TC',sans-serif";
-    const LH = Math.round(FS * (mob ? 4.4 : 5.6));    // 行距倍率：手機調小（5.6→4.4）→ 垂直更密；tile 高 = 2*LH
-    // 系名英文＝Department of Communications Design, Shih Chien University（名稱內含逗號）；句尾留分隔＝重複實例間距
-    // 中英共用同一組全形空白分隔 → 重複實例間 gap 一致；手機少一個全形空白（3→2）→ 水平更密
-    const SEP = mob ? '　　' : '　　　';
-    const EN_UNIT = 'Department of Communications Design, Shih Chien University' + SEP;
-    const ZH_UNIT = '實踐大學媒體傳達設計學系' + SEP;
-    const measure = (s) => {                          // 用 DOM span 量 advance（含尾端分隔空白；white-space:pre 保留）
-      const sp = document.createElement('span');
-      sp.textContent = s;
-      sp.style.cssText = `position:absolute;visibility:hidden;white-space:pre;font:${WEIGHT} ${FS}px ${FAM}`;
-      document.body.appendChild(sp);
-      const w = Math.ceil(sp.getBoundingClientRect().width);
-      sp.remove();
-      return w;
-    };
-    const layer = (unit, baseY) => {                  // 寬=unit advance、高=2*LH；text x=0 → 下一 tile 接續成連續句
-      const w = measure(unit);
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${LH * 2}"><text x="0" y="${baseY}" xml:space="preserve" fill="rgba(0,0,0,0.08)" font-size="${FS}" font-weight="${WEIGHT}" font-family="${FAM}" text-anchor="start">${unit.replace(/&/g, '&amp;')}</text></svg>`;
-      return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
-    };
-    wmEl.style.backgroundImage = `${layer(EN_UNIT, Math.round(LH * 0.72))},${layer(ZH_UNIT, Math.round(LH * 1.72))}`;
-    wmEl.style.backgroundRepeat = 'repeat, repeat';
-    wmEl.style.inset = '-50%';                        // 放大 → rotate(-30) 後仍蓋滿 stage（外層 overflow:hidden 裁邊）
-    wmEl.style.transform = 'rotate(-30deg)';
+    applyScreenWatermark(modal.querySelector('.pdf-watermark'));
   }
   // 禁右鍵：PDF 渲染在 <canvas>，右鍵「另存圖片」會存下當頁 → viewer 開著時整個 modal 禁 contextmenu。
   // ⚠️ 只嚇阻隨手下載／截圖；拿到原始 /assets PDF 網址仍是無浮水印原檔（要檔案級保護得後臺處理）。
@@ -227,6 +205,10 @@ export function initPdfViewer() {
   let pdfDoc   = null;
   let curPage  = 1;
   let rendering = false;
+  let wantWatermark = false;   // 只有 document/files 來源的 PDF 要浮水印（press / 會議紀錄 / charter 不用）
+  let openToken = 0;             // 每次 open ++、close 也 ++：作廢慢到的開場墊圖（見 sccd:open-pdf handler）
+  let firstPageRendered = false; // 高解析第一頁已上 canvas → 墊圖不得再蓋
+  let placeholderBlurred = false; // LQIP 墊圖模糊中 → 第一頁 render 完要做 blur-up 退模糊
 
   // ── Zoom 狀態（對齊 activities-lightbox album viewer 邏輯）────────────────
   // 內部 zoom.scale 恆以「fit-to-stage」為 1（同 album）。
@@ -394,11 +376,21 @@ export function initPdfViewer() {
 
     // 內部 buffer 多渲 RENDER_QUALITY 倍給 zoom 用；CSS 鎖在 fit 顯示尺寸
     const vp = page.getViewport({ scale: fitFactor * RENDER_QUALITY });
+    // 雙緩衝：先渲到暫存 canvas、完成才換上。設 canvas 寬高會立刻清空畫面，
+    // 大掃描 PDF 抓頁＋解碼要等，直接渲在可見 canvas 上會讓翻頁白一段（user 2026-08-08）
+    const buf = document.createElement('canvas');
+    buf.width  = vp.width;
+    buf.height = vp.height;
+    await page.render({ canvasContext: buf.getContext('2d'), viewport: vp }).promise;
     canvasL.width  = vp.width;
     canvasL.height = vp.height;
     canvasL.style.width  = fitDims.w + 'px';
     canvasL.style.height = fitDims.h + 'px';
-    await page.render({ canvasContext: canvasL.getContext('2d'), viewport: vp }).promise;
+    if (renderedContentEl) {
+      renderedContentEl.style.width = fitDims.w + 'px';
+      renderedContentEl.style.height = fitDims.h + 'px';
+    }
+    canvasL.getContext('2d').drawImage(buf, 0, 0);
 
     // 跨頁 state：first render 預設 Fit Page（仿 Acrobat：一打開看到整頁、撐滿視窗）。
     // 之前是 actual-size（同 album）→ A4 太小，user 2026-06-02 改採 Acrobat 邏輯。
@@ -423,6 +415,14 @@ export function initPdfViewer() {
     prevBtn.disabled = pageNum <= 1;
     nextBtn.disabled = pageNum >= totalPages;
     rendering = false;
+    // 等新 canvas 已繪製後才換水印位置，避免翻頁時先動一次水印、再出新頁面。
+    if (wantWatermark) {
+      requestAnimationFrame(() => {
+        if (curPage === pageNum) repositionScreenWatermark(modal.querySelector('.pdf-watermark'));
+      });
+    }
+    // 渲染期間又翻了頁（該次 renderPage 被 rendering guard 擋掉、curPage 已前進）→ 補渲染最新目標頁
+    if (curPage !== pageNum) renderPage(curPage);
   }
 
   // 上一/下一頁（一頁一頁翻，邊界自動 clamp）
@@ -456,7 +456,7 @@ export function initPdfViewer() {
     // 結構：pill > window(overflow:hidden) > track > unit(EN+ZH column-stacked)
     // EN+ZH 為單一 marquee unit 同步捲動（不是兩行各自 marquee 失同步）；max-width 防 Press 長標題撐爆 layout
     titleEl.innerHTML = `
-      <span class="pdf-title-pill" style="display:inline-block;background:${bg};color:#000;padding:6px 8px 5px;font-weight:700;font-size:var(--font-size-p1);line-height:1.2;transform:rotate(${smallRot()}deg);transform-origin:left bottom;max-width:min(40vw, 360px);box-sizing:border-box;">
+      <span class="pdf-title-pill" style="display:inline-block;background:${bg};color:#000;padding:6px 8px 5px;font-weight:700;font-size:var(--font-size-s);line-height:1.2;transform:rotate(${smallRot()}deg);transform-origin:left bottom;max-width:min(40vw, 360px);box-sizing:border-box;">
         <span class="pdf-title-window" style="display:block;overflow:hidden;">
           <span class="pdf-title-track" style="display:inline-block;white-space:nowrap;will-change:transform;">
             <span class="pdf-title-unit" style="display:inline-flex;flex-direction:column;align-items:flex-start;white-space:nowrap;vertical-align:top;">
@@ -673,6 +673,7 @@ export function initPdfViewer() {
 
   // （2026-07-04 起 ref btn 跳轉不再 await 此函式：關閉 fadeout 與 SPA 換頁並行，統一 ref timing）
   function closeModal() {
+    openToken++;   // 作廢還在路上的開場墊圖（close 後才 load 完的 cover 不得畫上）
     modal.style.opacity = '0';
     // exitLightboxMode：show bars + 移除 body.lightbox-open → theme-toggle MutationObserver
     // 自動把 logo 切回 standard/inverse/wireframe（依當前 mode）
@@ -686,6 +687,10 @@ export function initPdfViewer() {
         modal.style.display = 'none';
         touchMode = null;        // 清手機觸控手勢狀態
         if (pdfDoc) { pdfDoc.destroy(); pdfDoc = null; }
+        if (typeof gsap !== 'undefined') gsap.killTweensOf(canvasL);   // 停 blur-up tween
+        canvasL.style.filter = '';
+        placeholderBlurred = false;
+        pageInfo.textContent = '';   // 下次 open 等新總頁數，不殘留舊值
         canvasL.getContext('2d').clearRect(0, 0, canvasL.width, canvasL.height);
         // reset 內部狀態（下次 open 重新計 fitDims/naturalDims）
         zoom = { scale: 1, tx: 0, ty: 0 };
@@ -702,8 +707,9 @@ export function initPdfViewer() {
   _pdfListenerAdded = true;
 
   document.addEventListener('sccd:open-pdf', async (e) => {
-    const { pdfUrl, title, color, references, shareUrl } = e.detail || {};
+    const { pdfUrl, title, color, references, shareUrl, watermark } = e.detail || {};
     if (!pdfUrl) return;
+    wantWatermark = !!watermark;
     curPage = 1;
     // 重置內部狀態：naturalDims=0 讓 renderPage 視為「初次 render」自動套 actual size
     zoom = { scale: 1, tx: 0, ty: 0 };
@@ -717,15 +723,78 @@ export function initPdfViewer() {
     // 無 references 或空 array → ref btn 自動不渲染
     refUi.setReferences(references);
     openModal();
-    buildWatermark();   // 開啟時建（字體必載好 + 依當前 viewport 給手機較小較密版）
+    if (wantWatermark) buildWatermark();   // 只有 document/files PDF 建浮水印（字體必載好 + 依當前 viewport 給手機較小較密版）
     // 等 modal 顯示 + back btn 量到 rect 才 position ref / share btn（與 title 用同一 rAF cadence 對齊）
     requestAnimationFrame(() => { positionRefBtn(); positionSharePdf(); });
+
+    // 頁碼等 getDocument 拿到總頁數才顯示（先清空，避免「舊值→新值」跳兩次，user 2026-08-08）
+    pageInfo.textContent = '';
+    prevBtn.disabled = true;
+    nextBtn.disabled = true;
+
+    // 開場墊圖（LQIP blur-up）：files panel 已渲好的封面（快取秒取、絕不額外下載）
+    // 先以模糊態鋪上 canvas，高解析第一頁 render 完退模糊（user 2026-08-08 參考 LQIP 文章）
+    const myToken = ++openToken;
+    firstPageRendered = false;
+    placeholderBlurred = false;
+    const cachedCover = peekPdfCover(pdfUrl);
+    if (cachedCover) cachedCover.then(dataUrl => {
+      if (!dataUrl || firstPageRendered || myToken !== openToken) return;
+      const img = new Image();
+      img.onload = async () => {
+        // 等 stage 佈局停穩再量：modal 剛 display:flex 那幾個 tick stage 尺寸/定位未定，
+        // 直接量會把墊圖擺到奇怪位置（user 2026-08-08「多數時候不在畫面中間」）
+        await awaitLayoutReady(stageEl, { minWidth: 50, minHeight: 50, stableFrames: 2, maxAttempts: 30, awaitFonts: false });
+        if (firstPageRendered || myToken !== openToken) return;
+        positionPdfStageRelativeToLogo();
+        // 跟 renderPage 同一套 fit 簿記（naturalDims/fitDims + row transform 歸位）→ 同一條置中管線
+        const availH = stageEl.clientHeight || window.innerHeight * 0.8;
+        const availW = stageEl.clientWidth || window.innerWidth;
+        const f = Math.min(availH / img.naturalHeight, availW / img.naturalWidth);
+        naturalDims = { w: img.naturalWidth, h: img.naturalHeight };
+        fitDims = { w: img.naturalWidth * f, h: img.naturalHeight * f };
+        canvasL.width  = img.naturalWidth;
+        canvasL.height = img.naturalHeight;
+        canvasL.style.width  = fitDims.w + 'px';
+        canvasL.style.height = fitDims.h + 'px';
+        // wrapper 尺寸必須跟著寫（同 renderPage）：它殘留「上一本」的 fitDims，canvas 貼其左上角
+        // → 墊圖偏左上（user 實機 diag 抓到 content 522×746 vs canvas 468×660；首開重現不了的原因）
+        if (renderedContentEl) {
+          renderedContentEl.style.width  = fitDims.w + 'px';
+          renderedContentEl.style.height = fitDims.h + 'px';
+        }
+        canvasL.getContext('2d').drawImage(img, 0, 0);
+        canvasL.style.filter = 'blur(14px)';
+        placeholderBlurred = true;
+        zoom = { scale: 1, tx: 0, ty: 0 };
+        // 不走 applyZoom：它會 updateZoomUI，墊圖的 % 是封面像素比出來的假值（renderPage 才是真值）
+        rowEl.style.transition = 'none';
+        rowEl.style.transform = 'translate(0px, 0px) scale(1)';
+      };
+      img.src = dataUrl;
+    });
+
     try {
       // SPA navigated 進 library 時若 pdfjsLib 沒被頁面 head 載入，動態 inject
       await ensurePdfjsLoaded();
       setupPdfjsWorker();
       pdfDoc = await pdfjsLib.getDocument(pdfUrl).promise;
-      renderPage(curPage);   // 桌面/手機同走單頁引擎（手機多 touch 手勢層：swipe 換頁 / pinch 縮放）
+      if (myToken === openToken) pageInfo.textContent = `${curPage} / ${pdfDoc.numPages}`;   // 總頁數已確定，一次到位
+      // 桌面/手機同走單頁引擎（手機多 touch 手勢層：swipe 換頁 / pinch 縮放）
+      renderPage(curPage).then(() => {
+        if (myToken !== openToken) return;
+        firstPageRendered = true;
+        if (placeholderBlurred) {
+          // LQIP blur-up 收尾：高解析內容已在 canvas 上（雙緩衝 swap），退模糊即「變清晰」
+          placeholderBlurred = false;
+          if (typeof gsap !== 'undefined') {
+            gsap.to(canvasL, { filter: 'blur(0px)', duration: 0.4, ease: 'power2.out',
+              onComplete: () => { canvasL.style.filter = ''; } });
+          } else {
+            canvasL.style.filter = '';
+          }
+        }
+      });
     } catch (err) {
       console.error('PDF load error:', err);
       closeModal();
@@ -829,7 +898,7 @@ export function initPdfViewer() {
     if (w === _lastViewportW) return;
     _lastViewportW = w;
     if (!pdfDoc || modal.style.display === 'none') return;
-    buildWatermark();   // 寬度跨過手機斷點時重建浮水印（手機↔桌面尺寸不同）
+    if (wantWatermark) buildWatermark();   // 寬度跨過手機斷點時重建浮水印（手機↔桌面尺寸不同）
     renderPage(curPage);
   });
 }

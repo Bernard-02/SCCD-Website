@@ -238,7 +238,7 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
   const PAD = 12;                          // px：文字垂直於捲動方向的偏移（到卡片長邊）
   const AXIS_PAD = Math.round(PAD * 2);  // px：捲動軸兩端進出場 inset，比 PAD 大 2 倍（user 2026-08-03，只放大進出場那個）
   const PROBE_CSS = 'position:absolute;visibility:hidden;white-space:nowrap;' +
-    'font-family:Inter,"Noto Sans TC",sans-serif;font-size:var(--font-size-h4);font-weight:700;';
+    'font-family:Inter,"Noto Sans TC",sans-serif;font-size:var(--font-size-xl);font-weight:700;';
 
   // cfgCache: el → config，每次 setAsColor 後更新，供 renderMarquee 使用
   const cfgCache = new Map();
