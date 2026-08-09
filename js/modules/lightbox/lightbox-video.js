@@ -75,7 +75,7 @@ export function createLightboxVideo(url, accent = '#00FF80') {
   centerBlock.appendChild(progTrack);
 
   const timeEl = document.createElement('span');
-  timeEl.className = 'text-p2';
+  timeEl.className = 'text-s';
   timeEl.style.cssText = 'color:#000;white-space:nowrap;flex-shrink:0;';
   timeEl.textContent = '0:00';
   centerBlock.appendChild(timeEl);

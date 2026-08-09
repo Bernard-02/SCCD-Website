@@ -7,6 +7,7 @@
 import { enterLightboxMode, exitLightboxMode } from './lightbox-shell.js';
 import { createRefBtn } from './lightbox-ref-btn.js';
 import { createLightboxVideo } from './lightbox-video.js';
+import { applyScreenWatermark, clearScreenWatermark, repositionScreenWatermark } from './screen-watermark.js';
 import { grabHlsFrame, isSelfHostedVideo } from '../ui/video-player.js';
 import { sitePath } from '../ui/site-base.js';
 
@@ -38,6 +39,8 @@ let mainContainerEl = null;
 let refUi = null;  // { btnEl, popoverEl, setReferences, setColor, reset }
 let shareBtnEl = null;   // album 分享按鈕（caller 帶 shareUrl 才顯示）
 let sharePillEl = null;
+let watermarkClipEl = null;   // 螢幕浮水印容器（只有 document 來源媒體才顯示）
+let wantWatermark = false;    // openLightbox opts.watermark
 
 // ── Zoom 狀態（仿 Windows Photos：滾輪游標中心縮放 + 拖曳平移）─────
 // 只對 image 啟用。每次 renderMain 重置；mousemove/mouseup 綁 window 一次永久存活
@@ -65,6 +68,9 @@ function ensureLightbox() {
 
   lightboxEl = document.createElement('div');
   lightboxEl.id = 'activities-lightbox';
+  lightboxEl.setAttribute('role', 'dialog');
+  lightboxEl.setAttribute('aria-modal', 'true');
+  lightboxEl.setAttribute('aria-label', '媒體檢視器 Media viewer');
   // bg-black/90 半透明黑（user 偏好；不全黑，讓底下 page 微微透出但 chips 不會搶眼）
   // z-[9999] 與 header 同層，但 lightbox 後 append 到 body → 蓋在 header 之上
   // header 由 lightbox-shell 拉到 z=10000，logo 浮在 lightbox 黑底上、bars 用 clip-path 收掉
@@ -86,6 +92,12 @@ function ensureLightbox() {
         <span class="icon icon-chevron-lightbox icon-m"></span>
       </button>
       <div class="alb-main flex items-center justify-center w-full h-full"></div>
+      <!-- 螢幕浮水印（只有 document 來源媒體才顯示）：蓋住整個 main 顯示區、不隨 zoom/pan 移動；
+           overflow:hidden 裁掉 inset:-50% rotate 後溢出的邊；pointer-events:none 不擋互動；
+           z-index 20 在影像(0)之上、chevron(30)之下。內容由 screen-watermark helper 填。-->
+      <div class="alb-watermark-clip" aria-hidden="true" style="position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:20;display:none;">
+        <div class="alb-watermark" style="position:absolute;"></div>
+      </div>
       <button class="alb-next absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 aria-disabled:opacity-50 aria-disabled:[cursor:var(--cursor-not-allowed)] aria-disabled:hover:opacity-50" style="right: var(--container-padding, 1.5rem); z-index: 30;">
         <span class="icon icon-chevron-lightbox icon-m rotate-180"></span>
       </button>
@@ -99,9 +111,9 @@ function ensureLightbox() {
     <div class="alb-thumbs-wrap relative flex justify-center w-full pt-md pb-md flex-shrink-0">
       <!-- 左側：返回按鈕（arrow icon-only pill）+ title pill 並排，與 thumbs row 同高（vertically centered）
            transform-origin:left bottom 讓兩 pill 從 bottom-left 樞紐，避免旋轉時 bbox 溢出視窗左邊 -->
-      <div class="alb-topbar absolute" style="left: var(--container-padding, 1.5rem); top: 50%; transform: translateY(-50%); z-index: 5; display: flex; align-items: flex-end; gap: 20px;">
+      <div class="alb-topbar absolute" style="left: var(--container-padding, 1.5rem); top: 50%; transform: translateY(-50%); z-index: 5; display: flex; align-items: center; gap: 20px;">
         <button class="alb-close">
-          <span class="alb-close-pill" style="display:inline-flex;align-items:center;justify-content:center;background:#00FF80;color:#000;width:44px;height:44px;font-size:var(--font-size-p1);line-height:1;transform:rotate(0deg);transform-origin:left bottom;">
+          <span class="alb-close-pill" style="display:inline-flex;align-items:center;justify-content:center;background:#00FF80;color:#000;width:44px;height:44px;font-size:var(--font-size-s);line-height:1;transform:rotate(0deg);transform-origin:left bottom;">
             <span class="icon icon-arrow-left icon-m"></span>
           </span>
         </button>
@@ -123,7 +135,7 @@ function ensureLightbox() {
         <button class="alb-zoom-out p-2 transition-opacity hover:opacity-60 disabled:opacity-30" aria-label="Zoom out">
           <span class="icon icon-zoom-out icon-m"></span>
         </button>
-        <span class="alb-zoom-pct text-p2" style="font-variant-numeric: tabular-nums; min-width: 3.5rem; text-align: center;">100%</span>
+        <span class="alb-zoom-pct text-s" style="font-variant-numeric: tabular-nums; min-width: 3.5rem; text-align: center;">100%</span>
         <button class="alb-zoom-in p-2 transition-opacity hover:opacity-60 disabled:opacity-30" aria-label="Zoom in">
           <span class="icon icon-zoom-in icon-m"></span>
         </button>
@@ -151,6 +163,7 @@ function ensureLightbox() {
   mainContainerEl = lightboxEl.querySelector('.alb-main-container');
   shareBtnEl     = lightboxEl.querySelector('.alb-share');
   sharePillEl    = lightboxEl.querySelector('.alb-share-pill');
+  watermarkClipEl = lightboxEl.querySelector('.alb-watermark-clip');
 
   // Ref btn：插在 close btn 跟 title pill 之間（flex 順序）；popover append 到 lightbox root
   refUi = createRefBtn('#00FF80', () => closeLightboxAsync());
@@ -263,6 +276,30 @@ function applyZoom(animated = false) {
         ? `url('${sitePath('custom-cursor/drag_1.svg')}') 10 10, grab`
         : `url('${sitePath('custom-cursor/zoom-in.svg')}') 6 6, zoom-in`);
   updateZoomUI();
+  syncWatermarkToRenderedContent();
+}
+
+// Keep the watermark clipped to the rendered image, including while it is
+// zoomed or panned. It must never cover the empty viewer background.
+function syncWatermarkToRenderedContent() {
+  if (!watermarkClipEl) return;
+  if (!wantWatermark || !zoomImg || !mainContainerEl) {
+    watermarkClipEl.style.display = 'none';
+    return;
+  }
+  const imageRect = zoomImg.getBoundingClientRect();
+  const containerRect = mainContainerEl.getBoundingClientRect();
+  if (!imageRect.width || !imageRect.height) {
+    watermarkClipEl.style.display = 'none';
+    return;
+  }
+  watermarkClipEl.style.display = '';
+  watermarkClipEl.style.left = `${imageRect.left - containerRect.left}px`;
+  watermarkClipEl.style.top = `${imageRect.top - containerRect.top}px`;
+  watermarkClipEl.style.width = `${imageRect.width}px`;
+  watermarkClipEl.style.height = `${imageRect.height}px`;
+  watermarkClipEl.style.right = 'auto';
+  watermarkClipEl.style.bottom = 'auto';
 }
 
 // 同步 zoom % 顯示 + +/- 按鈕到極值時的 disabled 狀態 + fit-toggle 圖示
@@ -407,6 +444,7 @@ function renderMain(index) {
   // 切換媒體時重置 zoom 狀態（圖→影、影→圖、圖→圖 都要清）
   zoomImg = null; zoomStage = null; isDragging = false; dragMoved = false;
   zoom = { scale: 1, tx: 0, ty: 0 };
+  syncWatermarkToRenderedContent();
   // 切圖時 reset fitDims/naturalDims 避免新圖 load 前 UI 沿用上一張的 fitRatio 顯示錯誤 %
   fitDims = { w: 0, h: 0 };
   naturalDims = { w: 0, h: 0 };
@@ -458,6 +496,10 @@ function renderMain(index) {
       zoom.scale = Math.max(minScale(), Math.min(maxScale(), target));
       zoom.tx = 0; zoom.ty = 0;
       applyZoom(false);
+      // 新圖片已可見、且水印裁切框已對齊內容後才換位置。
+      if (wantWatermark) requestAnimationFrame(() => {
+        if (mediaList[index] === item) repositionScreenWatermark(watermarkClipEl?.querySelector('.alb-watermark'));
+      });
     });
 
     // 切換到 image 時同步 zoom UI 到 100%（不靠 applyZoom；首次未動 transform）
@@ -645,6 +687,13 @@ export async function openLightbox(media, startIndex = 0, opts = {}) {
 
   // hls player 建立時要用同組 accent（renderMain 無 opts 可拿，存 module state）
   currentColor = opts.color;
+  // 螢幕浮水印：只有 document 來源媒體帶 opts.watermark 才顯示（press / album 不用）
+  wantWatermark = !!opts.watermark;
+  if (watermarkClipEl) {
+    watermarkClipEl.style.display = wantWatermark ? '' : 'none';
+    if (wantWatermark) applyScreenWatermark(watermarkClipEl.querySelector('.alb-watermark'));
+    else clearScreenWatermark(watermarkClipEl.querySelector('.alb-watermark'));
+  }
   // 標題 pill：仿 activities-section-btn active 樣式（vertical en+zh + 隨機旋轉 + accent bg）
   renderTitle(opts.title, opts.color);
   // 返回按鈕：底色用 caller 帶入 accent (與 title pill 同色)，隨機旋轉（每次開啟一個新角度）
@@ -774,7 +823,7 @@ function renderTitle(title, color) {
   // marquee 動畫 track translateX，dual-copy 時 unit 整組（EN+ZH）一起捲動 = 中英字 textbox 為一個單位
   // 不是兩行各自 marquee 害 EN/ZH 互不同步
   titleEl.innerHTML = `
-    <span class="alb-title-pill" style="display:inline-block;background:${bg};color:#000;padding:6px 8px 5px;font-weight:700;font-size:var(--font-size-p1);line-height:1.2;transform:rotate(${rot}deg);transform-origin:left bottom;max-width:min(40vw, 360px);box-sizing:border-box;">
+    <span class="alb-title-pill" style="display:inline-block;background:${bg};color:#000;padding:6px 8px 5px;font-weight:700;font-size:var(--font-size-s);line-height:1.2;transform:rotate(${rot}deg);transform-origin:left bottom;max-width:min(40vw, 360px);box-sizing:border-box;">
       <span class="alb-title-window" style="display:block;overflow:hidden;">
         <span class="alb-title-track" style="display:inline-block;white-space:nowrap;will-change:transform;">
           <span class="alb-title-unit" style="display:inline-flex;flex-direction:column;align-items:flex-start;white-space:nowrap;vertical-align:top;">

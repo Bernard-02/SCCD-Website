@@ -45,7 +45,7 @@ export function createRefBtn(initialColor, onCloseLightbox) {
   btnEl.style.display = 'none';
   btnEl.setAttribute('aria-label', 'Show references');
   btnEl.innerHTML = `
-    <span class="lightbox-ref-btn-pill" style="display:inline-flex;align-items:center;justify-content:center;background:${initialColor || '#00FF80'};color:#000;width:44px;height:44px;font-size:var(--font-size-p1);line-height:1;transform:rotate(0deg);transform-origin:left bottom;box-sizing:border-box;">
+    <span class="lightbox-ref-btn-pill" style="display:inline-flex;align-items:center;justify-content:center;background:${initialColor || '#00FF80'};color:#000;width:44px;height:44px;font-size:var(--font-size-s);line-height:1;transform:rotate(0deg);transform-origin:left bottom;box-sizing:border-box;">
       <span class="icon icon-ref-lightbox icon-m"></span>
     </span>
   `;
@@ -117,8 +117,8 @@ export function createRefBtn(initialColor, onCloseLightbox) {
       // 兩個 title row 各自獨立 marquee 因為 EN/ZH 長度差異很大、合在一起 marquee 短的會空跑
       row.innerHTML = `
         <div class="lightbox-ref-chip-label">
-          ${ref.labelEn ? `<p class="text-p3">${escape(ref.labelEn)}</p>` : ''}
-          ${ref.labelZh ? `<p class="text-p3">${escape(ref.labelZh)}</p>` : ''}
+          ${ref.labelEn ? `<p class="text-xs">${escape(ref.labelEn)}</p>` : ''}
+          ${ref.labelZh ? `<p class="text-xs">${escape(ref.labelZh)}</p>` : ''}
         </div>
         <div class="lightbox-ref-chip-title">
           ${ref.titleEn ? `
@@ -126,7 +126,7 @@ export function createRefBtn(initialColor, onCloseLightbox) {
               <div class="lightbox-ref-chip-title-window">
                 <div class="lightbox-ref-chip-title-track">
                   <div class="lightbox-ref-chip-title-unit">
-                    <p class="text-p3 font-bold">${escape(ref.titleEn)}</p>
+                    <p class="text-xs font-bold">${escape(ref.titleEn)}</p>
                   </div>
                 </div>
               </div>
@@ -136,7 +136,7 @@ export function createRefBtn(initialColor, onCloseLightbox) {
               <div class="lightbox-ref-chip-title-window">
                 <div class="lightbox-ref-chip-title-track">
                   <div class="lightbox-ref-chip-title-unit">
-                    <p class="text-p3 font-bold">${escape(ref.titleZh)}</p>
+                    <p class="text-xs font-bold">${escape(ref.titleZh)}</p>
                   </div>
                 </div>
               </div>
