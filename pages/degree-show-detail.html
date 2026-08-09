@@ -37,8 +37,8 @@
           <!-- 年份 h6（user 2026-06-11）；font-size 由 variables.css [data-hero-title-last] 規則釘死
                （hero.css .hero-mobile-text-en 的 p1 與 typography h6 跨 layer 打架，不靠 cascade 賭） -->
           <p class="text-black hero-mobile-text-en font-bold" data-hero-hl></p>
-          <h1 class="text-black hero-mobile-title text-h2" data-hero-hl></h1>
-          <h1 class="text-black hero-mobile-title-cn text-h2" data-hero-hl></h1>
+          <h1 class="text-black hero-mobile-title text-2xl" data-hero-hl></h1>
+          <h1 class="text-black hero-mobile-title-cn text-2xl" data-hero-hl></h1>
         </div>
       </div>
       <!-- 桌面版（≥ 768px）：
@@ -54,9 +54,9 @@
       <div class="hidden md:block absolute inset-0 z-10 pointer-events-none">
         <div class="site-container h-full">
           <div class="h-full flex flex-col items-start justify-end pb-3xl md:pb-2xl gap-md">
-            <p id="text-year" class="hero-text-en text-h4 font-bold text-black inline-block" data-hero-hl data-hero-enter="1"></p>
-            <h1 id="text-title-en" class="hero-text-cn text-h2 text-black inline-block font-bold" data-hero-hl data-hero-enter="2"></h1>
-            <h1 id="text-title" class="hero-title text-h2 text-black inline-block font-bold" data-hero-hl data-hero-enter="2"></h1>
+            <p id="text-year" class="hero-text-en text-xl font-bold text-black inline-block" data-hero-hl data-hero-enter="1"></p>
+            <h1 id="text-title-en" class="hero-text-cn text-2xl text-black inline-block font-bold" data-hero-hl data-hero-enter="2"></h1>
+            <h1 id="text-title" class="hero-title text-2xl text-black inline-block font-bold" data-hero-hl data-hero-enter="2"></h1>
           </div>
         </div>
       </div>
@@ -79,9 +79,9 @@
 
     <!-- Sticky Info Card：scroll 進入 description section pt 之後出現、釘左側
          結構沿用 anchor-nav-inner pattern：外 .sticky-chip 透明 wrapper，內 .sticky-chip-inner span 撐底色與 padding
-         - year chip（text-h5）
-         - title chip（text-h5，英上中下同一張）
-         - branch chip（text-p1，英上中下同一張，依當前 event 切換內容）
+         - year chip（text-lg）
+         - title chip（text-lg，英上中下同一張）
+         - branch chip（text-s，英上中下同一張，依當前 event 切換內容）
          動畫：clip-path 由上往下 reveal、branch 切換收→換字→展
          範圍：description section pt-6xl 後 → event-galleries-root bottom 前
 
@@ -95,7 +95,7 @@
          style="top: 200px; left: var(--container-padding, 60px); z-index: 20; opacity: 0; visibility: hidden;">
       <div class="sticky-title-group relative flex flex-col items-start" style="gap: 0.6rem; width: max-content;">
         <div id="sticky-title-chip" class="sticky-chip">
-          <span class="sticky-chip-inner text-h5 font-bold">
+          <span class="sticky-chip-inner text-lg font-bold">
             <span id="sticky-title-en" class="block"></span>
             <span id="sticky-title" class="block"></span>
           </span>
@@ -103,7 +103,7 @@
         <!-- branch chip absolute 釘 title group 底下，不影響 group 高度 → title 位置穩定
              en/zh 各強制單行（whitespace-nowrap）— 視覺契約：分支名 = 一行 EN + 一行 ZH，不可 wrap -->
         <div id="sticky-branch-chip" class="sticky-chip absolute left-0" style="top: 100%; margin-top: 1rem;">
-          <span class="sticky-chip-inner text-p1 font-semibold">
+          <span class="sticky-chip-inner text-s font-semibold">
             <span id="sticky-branch-en" class="block"></span>
             <span id="sticky-branch" class="block"></span>
           </span>
@@ -205,31 +205,31 @@
              - gap 對齊 hero `gap-md`（1.5rem）
              - chip 預設 clip-path 隱藏，hover 時 stagger reveal（prev 從左到右、next 從右到左） -->
         <div id="prev-labels" class="absolute flex flex-col items-start pointer-events-none" style="bottom: 20%; left: 5vw; gap: 1.5rem; z-index: 5;">
-          <p id="prev-year" class="text-h4 font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: left center; clip-path: inset(0 100% 0 0); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></p>
-          <p id="prev-title-en" class="text-h2 font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: left center; clip-path: inset(0 100% 0 0); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></p>
-          <p id="prev-title" class="text-h2 font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: left center; clip-path: inset(0 100% 0 0); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></p>
+          <p id="prev-year" class="text-xl font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: left center; clip-path: inset(0 100% 0 0); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></p>
+          <p id="prev-title-en" class="text-2xl font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: left center; clip-path: inset(0 100% 0 0); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></p>
+          <p id="prev-title" class="text-2xl font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: left center; clip-path: inset(0 100% 0 0); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></p>
         </div>
         <div id="next-labels" class="absolute flex flex-col items-end pointer-events-none" style="top: 20%; right: 5vw; gap: 1.5rem; z-index: 5;">
-          <p id="next-year" class="text-h4 font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: right center; clip-path: inset(0 0 0 100%); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></p>
-          <p id="next-title-en" class="text-h2 font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: right center; clip-path: inset(0 0 0 100%); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></p>
-          <p id="next-title" class="text-h2 font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: right center; clip-path: inset(0 0 0 100%); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></p>
+          <p id="next-year" class="text-xl font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: right center; clip-path: inset(0 0 0 100%); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></p>
+          <p id="next-title-en" class="text-2xl font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: right center; clip-path: inset(0 0 0 100%); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></p>
+          <p id="next-title" class="text-2xl font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: right center; clip-path: inset(0 0 0 100%); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></p>
         </div>
       </div>
 
       <!-- 手機版：左右並排色塊卡（user 2026-07-09 取消 poster thumbnail）——隨機互異 accent 底 +
            隨機旋轉（JS inline 填）+ 年份 / 英中標題；卡片版面在 variables.css .dsd-next-card-m。
-           文字靠左、年份與標題同字級（text-p1）；items-start + #next-link-m margin-top 造高低落差。
+           文字靠左、年份與標題同字級（text-s）；items-start + #next-link-m margin-top 造高低落差。
            文字不掛 .text-black（inverse 的 .text-black→white 會蓋掉），黑字由 .dsd-next-card-m color 統一給 -->
       <div class="md:hidden site-container flex flex-row items-start justify-center">
         <a id="prev-link-m" href="#" class="dsd-next-card-m block">
-          <p id="prev-year-mobile" class="text-p1 font-bold"></p>
-          <p id="prev-title-en-mobile" class="text-p1 font-bold"></p>
-          <p id="prev-title-mobile" class="text-p1 font-bold"></p>
+          <p id="prev-year-mobile" class="text-s font-bold"></p>
+          <p id="prev-title-en-mobile" class="text-s font-bold"></p>
+          <p id="prev-title-mobile" class="text-s font-bold"></p>
         </a>
         <a id="next-link-m" href="#" class="dsd-next-card-m block">
-          <p id="next-year-mobile" class="text-p1 font-bold"></p>
-          <p id="next-title-en-mobile" class="text-p1 font-bold"></p>
-          <p id="next-title-mobile" class="text-p1 font-bold"></p>
+          <p id="next-year-mobile" class="text-s font-bold"></p>
+          <p id="next-title-en-mobile" class="text-s font-bold"></p>
+          <p id="next-title-mobile" class="text-s font-bold"></p>
         </a>
       </div>
     </section>

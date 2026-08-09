@@ -106,7 +106,7 @@
     <div id="courses-slide-in" class="invisible pointer-events-none fixed inset-0 z-[150]">
       <div id="courses-overlay" class="absolute inset-0 bg-black opacity-0 cursor-pointer"></div>
       <!-- title 區 sticky 在頂端不動；desc 包進固定 wrapper，內部 overflow-y 自己 scroll（參考 activities list-scroll pattern） -->
-      <div id="courses-detail-panel" class="absolute right-0 top-0 bottom-0 w-full md:w-[40%] overflow-hidden"
+      <div id="courses-detail-panel" role="dialog" aria-modal="true" aria-labelledby="courses-detail-title-en courses-detail-title-zh" tabindex="-1" class="absolute right-0 top-0 bottom-0 w-full md:w-[40%] overflow-hidden"
            style="background: white; transform: translateX(110%);">
         <!-- 手機返回鍵：釘在 header 右側 menu 鈕位（同 faculty slide-in，.faculty-back-header 佈局在 cards.css）；
              關閉走 courses-map.js 的 document 級 delegation（比對 #courses-back-btn-mobile） -->
@@ -115,20 +115,27 @@
         </button>
         <!-- 桌面（仿 faculty slide-in 右欄）：inner md:overflow-hidden 不捲，title 固定在上、desc 在獨立 .list-scroll box 內捲動 → 右側細黑 scrollbar。
              手機：inner overflow-y-auto 整段捲、title sticky 黏頂（見 .courses-detail-title-sticky）。
-             pb = container-padding（手機 24 / 桌面 60）；桌面維持 md:pb-2xl 保留原節奏 -->
-        <div class="courses-detail-inner w-full h-full px-container-padding pb-[var(--container-padding)] md:pb-2xl flex flex-col overflow-y-auto md:overflow-hidden no-scrollbar bg-inherit">
+             pb 改放捲動內容內部（desc-wrapper）：容器不留 pb、捲到底最後一行才不貼底邊（user 2026-08-07） -->
+        <div class="courses-detail-inner w-full h-full px-container-padding flex flex-col overflow-y-auto md:overflow-hidden no-scrollbar bg-inherit">
           <!-- title 區：桌面固定（flex-shrink:0，不捲）；手機 sticky 黏頂 -->
           <div class="courses-detail-title-sticky">
-            <h5 id="courses-detail-title-en" class="courses-detail-title-en text-h5 font-bold mb-0"></h5>
-            <h5 id="courses-detail-title-zh" class="courses-detail-title-zh text-h5 font-bold mb-0"></h5>
+            <h2 id="courses-detail-title-en" class="courses-detail-title-en text-xl font-bold mb-xs"></h2>
+            <h2 id="courses-detail-title-zh" class="courses-detail-title-zh text-xl font-bold mb-0"></h2>
           </div>
           <!-- desc：桌面成獨立 scroll box（md:flex-1 撐滿剩餘高 + md:overflow-y-auto + list-scroll 細黑 scrollbar + md:pr-md 留 scrollbar 間距），手機隨 inner 整段捲 -->
-          <div class="courses-detail-desc-wrapper md:mt-xl md:flex-1 md:min-h-0 md:overflow-y-auto list-scroll md:pr-md">
-            <p id="courses-detail-desc-en" class="courses-detail-desc-en text-p2 mb-lg" style="line-height: 1.6;"></p>
-            <p id="courses-detail-desc-zh" class="courses-detail-desc-zh text-p2" style="line-height: 1.6;"></p>
+          <div class="courses-detail-desc-wrapper md:mt-xl md:flex-1 md:min-h-0 md:overflow-y-auto list-scroll md:pr-md pb-[var(--container-padding)] md:pb-2xl">
+            <p id="courses-detail-desc-en" class="courses-detail-desc-en text-s mb-lg" style="line-height: 1.6;"></p>
+            <p id="courses-detail-desc-zh" class="courses-detail-desc-zh text-s" style="line-height: 1.6;"></p>
           </div>
         </div>
       </div>
+      <!-- 桌面返回鍵：黑方塊立在 panel 左側空白區正中、貼底、隨機旋轉（JS 套 transform）；關閉走 courses-map.js delegation。
+           手機/矮橫向用 panel 內右上 #courses-back-btn-mobile；--slide-panel-w = panel 寬（md:w-[40%]）供置中計算 -->
+      <button id="courses-back-btn-desktop" aria-label="返回 Back" class="slide-in-back-square cursor-pointer" style="--slide-panel-w: 40%;">
+        <span class="slide-in-back-square-inner">
+          <span class="icon icon-arrow-left text-white icon-l"></span>
+        </span>
+      </button>
     </div>
   </main>
 
