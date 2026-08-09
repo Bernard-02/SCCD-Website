@@ -103,7 +103,7 @@
   }
   .faculty-marquee-inner > .marquee-copy {
     display: inline-block;
-    padding-right: 3em;
+    padding-right: var(--marquee-copy-gap);
   }
   @media (min-width: 768px) {
     .faculty-marquee-line {
@@ -168,7 +168,7 @@
     gap: 1.5rem;
     align-items: baseline;
     padding-right: 2rem;
-    font-size: var(--font-size-p2);
+    font-size: var(--font-size-s);
   }
   /* row 與 row 間距統一由父層 .faculty-rows 的 gap 控制（取代每 row 自身 padding-bottom）→ 最後一個 row
      無 trailing 空白、section 底不會看起來過長（user 2026-06-09，桌機手機一致）。桌面 1rem、手機 2rem（mobile query 覆蓋）。
@@ -208,13 +208,13 @@
   /* 手機：字級放大到 p1 易讀（窄 viewport 內 p2 太小） */
   @media (max-width: 767px) {
     .faculty-grid-row {
-      font-size: var(--font-size-p1);
+      font-size: var(--font-size-s);
     }
     /* Contact 內文跟詳情 row 同步升 p1（user 2026-07-04「admin 的比較小」——row 手機升 p1 時漏了它；
        桌面不動：row/contact 本就同 p2 對齊）。矮橫向同款規則在 landscape.css。
-       雙 class 抬特異度：.text-p2 utility 在 components 之後、同特異度會後出勝（repo 慣例雷）。 */
-    .faculty-contact-text.text-p2 {
-      font-size: var(--font-size-p1);
+       雙 class 抬特異度：.text-s utility 在 components 之後、同特異度會後出勝（repo 慣例雷）。 */
+    .faculty-contact-text.text-s {
+      font-size: var(--font-size-s);
     }
   }
   .faculty-grid-row > .faculty-grid-span2 {
@@ -395,6 +395,53 @@
     align-items: center;
     align-content: center;
     z-index: 20;
+  }
+
+  /* 桌面 slide-in 返回鍵：釘 panel 左上角 header 列、左緣對齊 container padding。
+     顯隱純由 HTML 的 hidden/md:flex 控制（此處不設 display，免跟 utility 打架）；
+     矮橫向 gate 走手機右側返回鍵、此顆隱藏 → 規則在 landscape.css（unlayered #id 才蓋得掉 md:flex）。 */
+  .faculty-close-header {
+    position: absolute;
+    top: 0;
+    left: var(--container-padding);
+    height: var(--header-height, 80px);
+    align-items: center;
+    z-index: 20;
+  }
+
+  /* 桌面 slide-in 黑方塊返回鍵（faculty / curriculum 共用）：騎在 panel 左邊緣上（方塊中線＝panel 左緣 → 半凸出到左側剩餘空白），
+     貼畫面底部，隨機旋轉（角度由 JS 套 transform）。尺寸 3rem＝全站黑方塊 icon 鈕標準（見 lists.css .tl-icon-btn-inner 48px）。
+     panel 左緣距 viewport 左 = 100% - panel 寬（各頁用 --slide-panel-w 設）；margin-left 拉回半個方塊寬讓中線落在該緣。
+     ⚠️外層＝遮罩（overflow:clip + rotate），內層 -inner 平移做 hero clip-reveal（比照 header bars ensureBarMask：
+        rotate 放外層、child 相對無旋轉 → 剪裁邊貼齊 inner，滑動剪裁乾淨；見 header.js §footerHideBars）。
+     手機/矮橫向用各自右上返回鍵，此顆桌面限定（display 全由本 class 控、不掛 Tailwind hidden/md:flex，免跟 utility layer 打架）。 */
+  .slide-in-back-square {
+    position: absolute;
+    bottom: var(--container-padding, 2rem);
+    left: calc(100% - var(--slide-panel-w, 40%));
+    margin-left: calc(var(--slide-back-square-size, 3rem) / -2);
+    width: var(--slide-back-square-size, 3rem);
+    height: var(--slide-back-square-size, 3rem);
+    padding: 0;
+    border: 0;
+    display: none;
+    overflow: clip;   /* 遮罩：inner 滑出邊界被剪裁 */
+    z-index: 30;
+  }
+  .slide-in-back-square-inner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    background: #000;
+  }
+  @media (min-width: 768px) {
+    .slide-in-back-square { display: block; }
+  }
+  /* 矮橫向（landscape gate）走手機返回鍵 → 藏方塊；同 layer 後置規則、特異度相同 → gate 命中時勝 */
+  @media (orientation: landscape) and (max-height: 500px) {
+    .slide-in-back-square { display: none; }
   }
 
   /* ===== Degree Show Image ===== */

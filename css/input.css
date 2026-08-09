@@ -64,14 +64,7 @@
 
 /* 5. Custom Utilities */
 @layer utilities {
-  .text-p2 {
-    font-size: var(--font-size-p2);
-  }
-
-  .text-p3 {
-    font-size: var(--font-size-p3);
-  }
-
+  /* 字級 utility（text-xs ~ text-3xl）全部在 tailwind.config.js 的 extend.fontSize 定義,此處不再自訂 */
   .pt-7xl {
     padding-top: var(--spacing-7xl);
   }

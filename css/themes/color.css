@@ -310,10 +310,6 @@ body.mode-color .nav-link {
   color: var(--theme-fg);
 }
 
-body.mode-color .submenu-link {
-  color: var(--theme-fg);
-}
-
 body.mode-color .mobile-nav-link,
 body.mode-color .mobile-nav-link span {
   color: var(--theme-fg) !important;
@@ -325,8 +321,7 @@ body.mode-color .mega-menu {
 }
 
 @media (min-width: 768px) {
-  body.mode-color .nav-link:hover,
-  body.mode-color .submenu-link:hover span {
+  body.mode-color .nav-link:hover {
     color: var(--theme-fg);
   }
 }

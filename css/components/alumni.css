@@ -31,7 +31,7 @@
 
 /* ===== Header alumni-full bar — 文字一級大（h6 → h5） ===== */
 [data-bar="alumni-full"] .nav-link {
-  font-size: var(--font-size-h5);
+  font-size: var(--font-size-lg);
 }
 
 /* ===== 關 list-header sticky（alumni 頁） ===== */
@@ -73,7 +73,7 @@ body.page-alumni .list-header.active {
 /* charter EN + ZH 同字級、同色（都白色、無 opacity） */
 .alumni-charter-sticky .charter-en,
 .alumni-charter-sticky .charter-zh {
-  font-size: var(--font-size-h5);
+  font-size: var(--font-size-lg);
   color: #fff;
 }
 
@@ -111,7 +111,7 @@ body.page-alumni .list-header.active {
 /* en / zh 同字級加粗（不縮小、不透明） */
 .alumni-sponsor-card .sponsor-en,
 .alumni-sponsor-card .sponsor-zh {
-  font-size: var(--font-size-h5);
+  font-size: var(--font-size-lg);
   font-weight: 700;
   line-height: 1.2;
 }
@@ -147,7 +147,7 @@ body.page-alumni .list-header.active {
 .alumni-contact-row .role,
 .alumni-contact-row .name,
 .alumni-contact-row .email {
-  font-size: var(--font-size-p1);
+  font-size: var(--font-size-s);
   font-weight: 700;
   color: #000;
   text-decoration: none;

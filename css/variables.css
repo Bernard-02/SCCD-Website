@@ -46,15 +46,17 @@
   --font-zh: 'Noto Sans TC', sans-serif;
 
   /* Font Sizes (rem) - Base: 16px */
-  --font-size-h1: 8rem;      /* 128px */
-  --font-size-h2: 6rem;    /* 80px */
-  --font-size-h3: 3.125rem;  /* 50px */
-  --font-size-h4: 2rem;    /* 40px */
-  --font-size-h5: 1.4rem;    /* 24px */
-  --font-size-h6: 1.25rem;   /* 20px */
-  --font-size-p1: 1.15rem;   /* 18.4px */
-  --font-size-p2: 1rem;      /* 16px */
-  --font-size-p3: 0.9rem;    /* 14.4px */
+  /* 字級刻度：xs → 3xl（2026-08-05 由 h1-h6/p1-p2 統一改名；原 h3 3.125rem 已移出文字階） */
+  --font-size-3xl: 8rem;     /* 128px */
+  --font-size-2xl: 6rem;     /* 96px */
+  --font-size-xl: 2rem;      /* 32px */
+  --font-size-lg: 1.4rem;    /* 22.4px */
+  --font-size-md: 1.25rem;   /* 20px */
+  --font-size-s: 1rem;       /* 16px */
+  --font-size-xs: 0.85rem;   /* 13.6px */
+
+  /* 非文字階：footer 社群 icon / 404 返回鈕的裝飾尺寸（原 h3，抽出文字刻度獨立管理） */
+  --icon-hero: 3.125rem;     /* 50px */
 
   /* Font Weights */
   --font-weight-regular: 400;
@@ -83,6 +85,9 @@
 
   /* grid gutter（.grid-12 / .grid-20 的 gap，single source）；tailwind gap-gutter / *-gutter 都讀這個 */
   --spacing-gutter: 1.25rem; /* 20px */
+
+  /* 全站 marquee 兩份 copy 之間的 gap（.marquee-copy padding-right）；Category B 的 em-space 分隔手動對齊此值 */
+  --marquee-copy-gap: 2em;
 
 
   /* ===== Layout ===== */
@@ -166,15 +171,13 @@
 @media (max-width: 767px) {
   :root {
     /* 字體大小調整 */
-    --font-size-h1: 3rem;      /* 48px (桌面版 128px) */
-    --font-size-h2: 2.5rem;    /* 40px (桌面版 96px) */
-    --font-size-h3: 2rem;      /* 32px (桌面版 50px) */
-    --font-size-h4: 1.5rem;    /* 24px (桌面版 32px) */
-    --font-size-h5: 1.2rem;  /* 18px (桌面版 21.6px) */
-    --font-size-h6: 1rem;      /* 16px (桌面版 20px) */
-    --font-size-p1: 1rem;      /* 16px (桌面版 18.4px) */
-    --font-size-p2: 0.875rem;  /* 14px (桌面版 16px) */
-    --font-size-p3: 0.8rem;    /* 12.8px (桌面版 14.4px) */
+    --font-size-3xl: 3rem;      /* 48px (桌面 128px) */
+    --font-size-2xl: 2.5rem;    /* 40px (桌面 96px) */
+    --font-size-xl: 1.5rem;     /* 24px (桌面 32px) */
+    --font-size-lg: 1.2rem;     /* 18px (桌面 22.4px) */
+    --font-size-md: 1rem;       /* 16px (桌面 20px) */
+    --font-size-xs: 0.8rem;     /* 12.8px（s 手機同桌面 1rem 不覆寫） */
+    --icon-hero: 2rem;          /* 32px (桌面 50px) */
 
     /* 間距調整 */
     --spacing-xl: 2rem;        /* 32px (桌面版 48px) */
@@ -242,7 +245,7 @@
 }
 .dsd-tab-marquee-inner > .marquee-copy {
   display: inline-block;
-  padding-right: 3em;
+  padding-right: var(--marquee-copy-gap);
 }
 /* 手機：溢出自動跑（無 hover） */
 @media (max-width: 767px) {
@@ -272,7 +275,7 @@
 
   /* 理念段落：手機由 h5(19.2px) 改成 p1(16px) */
   #overview h5 {
-    font-size: var(--font-size-p1);
+    font-size: var(--font-size-s);
   }
 
   /* Works panel（user 2026-07-09 對調）：手機影片在上、文字盒在下（HTML order-1/order-2），
@@ -356,7 +359,7 @@
   /* 年份 chip 字級 h6（user 2026-06-11）：hero.css 對 .hero-mobile-text-en 設 p1（@layer components）、
      typography 對 h6 tag 設 h6（@layer base），跨 layer cascade 不直觀 → 本頁 scope 用 unlayered 規則釘死 */
   [data-hero-title-last] .hero-mobile-text-en {
-    font-size: var(--font-size-h6);
+    font-size: var(--font-size-md);
   }
 
   /* 子展覽 tab（.dsd-event-strip 手機 sticky tab 列）：上限 = 容器內容寬的 3/4（user 2026-06-11：
@@ -425,7 +428,7 @@
 
   /* Next Project 手機色塊卡（2026-07-09 取消 poster thumbnail）：左右並排 + 後卡 -6% overlap
      （配 JS 隨機旋轉 = 截圖那種 collage 感）；文字靠左（align-items/text-align:left）、年份與標題
-     同字級（HTML 統一 text-p1）。#next-link-m margin-top 造高低落差（row items-start，故 margin 直接下推）。
+     同字級（HTML 統一 text-s）。#next-link-m margin-top 造高低落差（row items-start，故 margin 直接下推）。
      黑字統一在這給（不掛 .text-black，inverse 會翻白）。內容多時自然長高。mode-color strict B/W 在 themes/color.css。 */
   .dsd-next-card-m {
     width: 53%;

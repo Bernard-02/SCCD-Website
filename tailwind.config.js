@@ -11,6 +11,9 @@ module.exports = {
   // 那條 `[data-bar=about].has-active .nav-link:not(.\!active){color:50%!important}` 會誤匹配真 active link
   // （class 是 `active` 非 `!active`）→ 蓋過 `.nav-link.active` 的黑色 → 高亮失效（2026-06-08 實測）。blocklist 擋掉。
   blocklist: ['!active'],
+  // 字級 utility 全自定義（值見 variables.css）。封鎖綫等改用裸標籤後，text-3xl / text-md 不再以 class 出現在
+  // content，JIT 掃不到就不生成 → safelist 強制產出全套 7 階，保證任何地方用 class 套用都有效。
+  safelist: ['text-xs', 'text-s', 'text-md', 'text-lg', 'text-xl', 'text-2xl', 'text-3xl'],
   theme: {
     extend: {
       // 顏色系統
@@ -49,13 +52,13 @@ module.exports = {
 
       // 字體大小 (使用 rem)
       fontSize: {
-        'h1': 'var(--font-size-h1)',
-        'h2': 'var(--font-size-h2)',
-        'h3': 'var(--font-size-h3)',
-        'h4': 'var(--font-size-h4)',
-        'h5': 'var(--font-size-h5)',
-        'h6': 'var(--font-size-h6)',
-        'p1': 'var(--font-size-p1)',
+        '3xl': 'var(--font-size-3xl)',
+        '2xl': 'var(--font-size-2xl)',
+        'xl': 'var(--font-size-xl)',
+        'lg': 'var(--font-size-lg)',
+        'md': 'var(--font-size-md)',
+        's': 'var(--font-size-s)',
+        'xs': 'var(--font-size-xs)',
       },
 
       // 字體粗細

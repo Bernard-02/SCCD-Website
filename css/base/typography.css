@@ -17,33 +17,33 @@
   }
 
   h1 {
-    @apply text-h1 font-semibold leading-h1;
+    @apply text-3xl font-semibold leading-h1;
   }
 
   h2 {
-    @apply text-h2 font-semibold leading-h1;
+    @apply text-2xl font-semibold leading-h1;
   }
 
   h3 {
-    @apply text-h3 font-bold leading-base;
+    @apply text-xl font-bold leading-base;
   }
 
   h4 {
-    font-size: var(--font-size-h4);
+    font-size: var(--font-size-xl);
     line-height: var(--line-height-h4);
     @apply font-bold;
   }
 
   h5 {
-    @apply text-h5 font-bold leading-base;
+    @apply text-lg font-bold leading-base;
   }
 
   h6 {
-    @apply text-h6 font-bold leading-base;
+    @apply text-md font-bold leading-base;
   }
 
   p {
-    @apply text-p2 font-regular leading-base;
+    @apply text-s font-regular leading-base;
   }
 }
 

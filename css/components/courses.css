@@ -161,7 +161,7 @@
     bottom: calc(100% + 4px);
     left: -12px;
     z-index: 2;
-    font-size: var(--font-size-p2);
+    font-size: var(--font-size-s);
     font-weight: 700;
     line-height: 1;
     color: rgba(0, 0, 0, 0.5);
@@ -285,7 +285,7 @@
      （單行 row 1，但 sticky 範圍含整個 grid 因為 grid container 是 containing block） */
   .courses-grid-col-header {
     font-weight: 700;
-    font-size: var(--font-size-p2);
+    font-size: var(--font-size-s);
     line-height: 1.2;
     /* MDES 切換時 inner 做 slide 進出，外層當遮罩（仿 hero-title-wrapper pattern）
        justify-self:start 讓 header 也縮成 content 寬度（grid cell 仍 1fr，header 只佔左側 content）
@@ -312,7 +312,7 @@
      不可硬寫 black，否則 inverse 變黑底黑字看不見 */
   .courses-grid-type-label {
     font-weight: 600;
-    font-size: var(--font-size-p2);
+    font-size: var(--font-size-s);
     line-height: 1.2;
     align-self: start;
     color: var(--theme-fg);
@@ -360,7 +360,7 @@
     padding: 6px 10px 5px;
     background: rgba(0, 0, 0, 0.06);
     color: black;
-    font-size: var(--font-size-p2);
+    font-size: var(--font-size-s);
     line-height: 1.2;
     cursor: var(--cursor-pointer);
     user-select: none;
@@ -385,7 +385,7 @@
   }
   .courses-marquee-inner > .marquee-copy {
     display: inline-block;
-    padding-right: 3em;
+    padding-right: var(--marquee-copy-gap);
   }
   @media (min-width: 768px) {
     .courses-grid-card:hover .courses-grid-card-en.is-overflow .courses-marquee-inner,
@@ -543,7 +543,7 @@
     flex-direction: column;
     align-items: flex-start;
     row-gap: 4px;
-    font-size: var(--font-size-p1);
+    font-size: var(--font-size-s);
     line-height: 1.2;
     color: var(--theme-fg);
   }
@@ -678,14 +678,14 @@
       row-gap: var(--spacing-md);
     }
     .courses-grid-col-header {
-      font-size: var(--font-size-p3);
+      font-size: var(--font-size-xs);
     }
     .courses-grid-type-label {
-      font-size: var(--font-size-p3);
+      font-size: var(--font-size-xs);
     }
     /* 灰色卡片：mobile 字級 p1（學期/必修/選修 label 同步 p1，視覺統一） */
     .courses-grid-card {
-      font-size: var(--font-size-p1);
+      font-size: var(--font-size-s);
       padding: 5px 8px 4px;
     }
   }

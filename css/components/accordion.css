@@ -126,7 +126,7 @@
   .accordion-label-inner {
     white-space: nowrap;
     color: #fff;
-    font-size: var(--font-size-h5);
+    font-size: var(--font-size-lg);
     font-weight: 700;
     line-height: 1;
     writing-mode: vertical-rl;
@@ -183,6 +183,21 @@
     overflow-y: auto;
   }
 
+  /* about resources（colored-accordion）桌面：title 與說明文字改頂端對齊（user）。
+     base 是 label 靠底(align-items:flex-end)、text 靠底(justify-content:flex-end)。 */
+  @media (min-width: 768px) {
+    .colored-accordion .accordion-label {
+      align-items: flex-start;
+    }
+    .colored-accordion .accordion-text-wrap {
+      justify-content: flex-start;
+    }
+    /* 中英間距只交給 -sep 空格管；拿掉 base 137 的 0.4em（否則 sep + margin 疊加、EN/ZH 看起來太遠） */
+    .colored-accordion .accordion-label-zh {
+      margin-top: 0;
+    }
+  }
+
   /* ===== Mobile: 垂直堆疊 ===== */
   @media (max-width: 767px) {
     /* colored-accordion 手機改水平 carousel（user 2026-07-06：取消堆疊 accordion 與旋轉，卡片恆展開、左右滑）：
@@ -212,7 +227,7 @@
       padding: 14px 8px 13px;
     }
     .colored-accordion .accordion-label-inner {
-      font-size: var(--font-size-p1);
+      font-size: var(--font-size-s);
     }
     /* 標題英中同一行（蓋過下方通用的 en/zh display:block 兩行規則） */
     .colored-accordion .accordion-label-en,
@@ -356,7 +371,7 @@
       transform: none;
       writing-mode: horizontal-tb;
       white-space: normal;
-      font-size: var(--font-size-p1);
+      font-size: var(--font-size-s);
     }
     .colored-accordion .accordion-label-en,
     .colored-accordion .accordion-label-zh,

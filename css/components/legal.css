@@ -125,7 +125,7 @@
   .legal-intro p {
     margin-bottom: var(--spacing-sm);
   }
-  /* regulations 頂部說明文字：比照 admission 頁的說明文字（text-p1 bold），比一般 legal 前言更醒目（user 2026-07-15）。 */
+  /* regulations 頂部說明文字：比照 admission 頁的說明文字（text-s bold），比一般 legal 前言更醒目（user 2026-07-15）。 */
   .legal-regulations .legal-intro p {
     font-weight: var(--font-weight-bold);
   }
@@ -153,14 +153,14 @@
     margin-bottom: 0;
   }
   .legal-section-num {
-    font-size: var(--font-size-h4);
+    font-size: var(--font-size-xl);
     font-weight: var(--font-weight-bold);
     line-height: var(--line-height-h4, 1.2);
   }
   /* title 已被 .legal-reveal 包 → 改 descendant（這兩 class 只出現在這裡，不會誤套子區塊次標題） */
   .legal-section-body .legal-section-title-en,
   .legal-section-body .legal-section-title-zh {
-    font-size: var(--font-size-h4);
+    font-size: var(--font-size-xl);
     font-weight: var(--font-weight-bold);
     line-height: var(--line-height-h4, 1.2);
     margin: 0;
@@ -174,7 +174,7 @@
   }
   /* 內文次標題（如 support 的 Single/Regular）：比群組標題（h4）小一級的 h5，與前文拉開層級才清楚 */
   .legal-section-body h5 {
-    font-size: var(--font-size-h5);
+    font-size: var(--font-size-lg);
     font-weight: var(--font-weight-bold);
     line-height: 1.2;
     margin-top: var(--spacing-lg);
@@ -205,7 +205,7 @@
      字級用 p2＝對齊 policy（.legal-combined）編號條款小標大小（user 2026-07-15「donate 的 Single/Regular 用 policy 小 title 大小」）。 */
   .legal-section-body .legal-subsection-title-en,
   .legal-section-body .legal-subsection-title-zh {
-    font-size: var(--font-size-p2);
+    font-size: var(--font-size-s);
     font-weight: var(--font-weight-bold);
     line-height: 1.35;
     margin: 0;
@@ -233,9 +233,9 @@
   /* Tailwind preflight 把 ul/ol 預設清成 list-style:none，loader 組出的清單要在此補回語意項目符號 */
   .legal-section-body ul { list-style: disc; }
   .legal-section-body ol { list-style: decimal; }
-  /* li 是 class-less 富文本 → 預設只繼承 body 16px，不吃全域 `p { text-p2 }`；桌面 p2==16px 兩者巧合一致，
+  /* li 是 class-less 富文本 → 預設只繼承 body 16px，不吃全域 `p { text-s }`；桌面 p2==16px 兩者巧合一致，
      但手機 p2 縮成 14px 而 li 仍 16px → 條列點比段落大。顯式對齊 p2 讓 point 與段落同級（桌面仍 16px 無變）。 */
-  .legal-section-body li { font-size: var(--font-size-p2); margin-bottom: var(--spacing-xs); }
+  .legal-section-body li { font-size: var(--font-size-s); margin-bottom: var(--spacing-xs); }
   .legal-section-body li:last-child { margin-bottom: 0; }
   .legal-section-body ul:last-child,
   .legal-section-body ol:last-child {
@@ -289,7 +289,7 @@
   }
   .legal-group-title-en,
   .legal-group-title-zh {
-    font-size: var(--font-size-h4);
+    font-size: var(--font-size-xl);
     font-weight: var(--font-weight-bold);
     line-height: var(--line-height-h4, 1.2);
     margin: 0;
@@ -306,7 +306,7 @@
   .legal-combined .legal-section-num,
   .legal-combined .legal-section-body .legal-section-title-en,
   .legal-combined .legal-section-body .legal-section-title-zh {
-    font-size: var(--font-size-p2);
+    font-size: var(--font-size-s);
     line-height: 1.35;
   }
   .legal-combined .legal-section-body .legal-section-title-en {

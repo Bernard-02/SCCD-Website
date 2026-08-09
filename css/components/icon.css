@@ -1,7 +1,7 @@
 /* SCCD custom icons — CSS mask 系統
  * 用 mask + background-color: currentColor，icon 顏色繼承 text color（text-white / text-black / theme-fg 全套適用）
  * 替換 FA：<i class="fa-solid fa-X"> → <span class="icon icon-X">
- * size 沿用 FA 的 font-size 機制（width/height: 1em；text-h3 / text-p2 等仍生效）
+ * size 沿用 FA 的 font-size 機制（width/height: 1em；text-xl / text-s 等仍生效）
  */
 
 .icon {
@@ -21,7 +21,7 @@
   flex-shrink: 0;
 }
 
-/* size tier — 5 階；外加 hero 級 (text-h3 social / atlas-layout-btn 仍 32px hardcoded 個案) */
+/* size tier — 5 階；外加 hero 級 (footer social 走 --icon-hero / atlas-layout-btn 仍 32px hardcoded 個案) */
 /* XL 32px = share modal 等需要強調的主操作 icon（2026-05-20 新增） */
 /* L  24px = 主控按鈕 (video player / header toggle 24px via .theme-toggle-btn) */
 /* M  20px = lightbox / page-level arrow / chevron / zoom */

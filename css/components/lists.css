@@ -97,12 +97,22 @@
 }
 
 /* ===== Activities Year Group（手機版節奏調整） =====
- * 桌面：year col 1 + list col 11 sticky 並排佈局走 HTML grid utility，無需介入
+ * 桌面：year col + list col sticky 並排佈局（見下方 min-width:768 年份欄固定寬規則）
  * 手機：year header 在上、list 在下垂直堆疊（HTML order-1 / order-2）；
  *   1. 年份標題 chevron 從左換到右（對齊 list-item .list-header 的 chevron 在右側 pattern）
  *   2. 收緊 filter→年份距離：第一個 year-group 的 year-toggle py 改 pt-xs
  *   3. 年份→list 間距 halve：mt-md(24px) → 12px
  *   4. 年份組之間 gap 加大：activities-separator 加 my 把上下 group 撐開 */
+/* 桌面（≥768）：年份欄固定寬、list 欄吸收縮放。原本 .grid-12＝12 等分 1fr，窗寬縮小時年份欄(1/12)跟著縮
+ * → 年份↔list gap 一起變小、list 左緣位移（user 不要這行為）。改成第一軌固定 80px（＝寬桌面 1/12 的原值，
+ * 凍結當時外觀）＋其餘 11 軌 1fr，list 用既有 col-start-2/span-11 吃滿 11 軌 → 縮窄時只有 list 變窄、gap 恆定。
+ * (0,2,0) 蓋過 .grid-12 的 grid-cols-12（同 gap:0 override 慣例，見下）。年份文字(toggle 版含 chevron ~105px)
+ * 溢出 80px 軌進 gutter 是既有無害行為（到 list 文字仍有 ~52px 淨空）。 */
+@media (min-width: 768px) {
+  .list-year-group.grid-12 {
+    grid-template-columns: 80px repeat(11, 1fr);
+  }
+}
 @media (max-width: 767px) {
   .list-year-toggle {
     flex-direction: row-reverse;
@@ -204,7 +214,7 @@
     height: auto;
   }
   /* Q4：summer-camp expand 區 metadata + description 維持桌面 p2（user 2026-05-27 反饋
-     説明文字改 p2 跟 activities .list-scroll p 同節奏）— 移除 p1 override，走 HTML 預設 text-p2 */
+     説明文字改 p2 跟 activities .list-scroll p 同節奏）— 移除 p1 override，走 HTML 預設 text-s */
   /* Q2：年份組之間視覺距離拉大（separator 已 display:none，改用 group margin） */
   #panel-summer-camp .list-year-group + .list-year-group {
     margin-top: var(--spacing-xl);
@@ -390,7 +400,7 @@
     overflow-y: visible !important;
   }
   #activities-content-section .list-content .list-scroll p {
-    font-size: var(--font-size-p2);
+    font-size: var(--font-size-s);
   }
   /* 主 list-content > .gallery-section 在手機：
      - 跟前一塊（grid 內 desc/poster stack 後）拉開 mt-md，避免視覺貼住
@@ -432,9 +442,9 @@
     max-height: none !important;
     overflow-y: visible !important;
   }
-  /* album sticky cell 字級從桌面 text-p2 升 p1，跟其他文字節奏一致 */
+  /* album sticky cell 字級從桌面 text-s 升 p1，跟其他文字節奏一致 */
   #activities-content-section .album-sticky-cell p {
-    font-size: var(--font-size-p1);
+    font-size: var(--font-size-s);
   }
   /* date / location 內部 grid（桌面 [date | names | country] 三欄並排）
      手機 stack 單欄：date 在上、location 在下；country auto 收進 location 同行右側自然處理 */
@@ -442,16 +452,16 @@
     grid-template-columns: 1fr !important;
     gap: var(--spacing-xs);
   }
-  /* date / location 字級從桌面 text-p2 升到 p1，跟 description 同節奏 */
+  /* date / location 字級從桌面 text-s 升到 p1，跟 description 同節奏 */
   #activities-content-section .list-content > .grid > :first-child > .grid p {
-    font-size: var(--font-size-p1);
+    font-size: var(--font-size-s);
   }
   /* country cell（city 欄）字級保留桌面 p2 — user 反饋 country 比 location 名稱小一階比較好讀。
      用 .list-city-cell 明確選取（不用 div:last-child）：city 欄多數 item 不存在，沒 city 時
      location 欄會變成該 grid 最後一個 div，:last-child 誤命中把 location 也套上 city 樣式（含下方
      justify-self:start，還會撐爆手機版寬度、location 卡住不換行不 marquee，user 2026-08-03 回報）。 */
   #activities-content-section .list-content > .grid > :first-child > .grid > .list-city-cell p {
-    font-size: var(--font-size-p2);
+    font-size: var(--font-size-s);
   }
   /* 摘要列 city 欄在手機靠左對齊（桌面為固定 6rem 第三欄靠左、與 guest 國家欄對齊；2026-06-20 起 city 改 list-title-marquee）。
      mobile inner grid 已 stack 單欄，三層加 !important 確保 city 欄左靠（保險，防任何 utility 干擾）：
@@ -491,7 +501,7 @@
  *    避免影響 activities 同 class 的 list-header */
 .admission-body p {
   margin: 0;
-  font-size: var(--font-size-p2);
+  font-size: var(--font-size-s);
   line-height: var(--line-height-base);
 }
 
@@ -561,7 +571,7 @@
     z-index: 5;
   }
 
-  /* guest detail 國家欄桌面寬：字級較大(text-p2 16px)，MY 馬來西亞 ~94px → 6rem(96px) fit（手機 5.25rem 見 max-width block） */
+  /* guest detail 國家欄桌面寬：字級較大(text-s 16px)，MY 馬來西亞 ~94px → 6rem(96px) fit（手機 5.25rem 見 max-width block） */
   .guest-row-grid {
     grid-template-columns: minmax(0, 1fr) 6rem;
   }
@@ -938,11 +948,23 @@ body.mode-color .tl-icon-btn-inner {
 }
 
 /* 桌機 only：手機隱藏切換鈕（list view 整套不在手機提供） */
-#timeline-list-btn {
+/* toggle 鈕放進與 list 卡同款 20-col grid → 對齊 col-5 左緣（list 卡從 col-6，見 .tl-list-cell）*/
+.tl-list-btn-grid {
   position: absolute;
-  left: var(--container-padding, 32px);
+  left: 0;
+  right: 0;
   bottom: 32px;
   z-index: 40;
+  padding: 0 var(--container-padding, 32px);
+  display: grid;
+  grid-template-columns: repeat(20, minmax(0, 1fr));
+  gap: var(--spacing-gutter);
+  pointer-events: none;      /* grid 只作定位、不吃點擊（鈕自己開 pointer-events）*/
+}
+#timeline-list-btn {
+  grid-column: 5;
+  justify-self: start;       /* 貼 col-5 左緣，icon 比一欄寬時往右溢出 */
+  pointer-events: auto;
   padding: 0;
   border: none;
   background: none;
@@ -979,7 +1001,7 @@ body.mode-color .tl-icon-btn-inner {
 }
 
 .tl-list-cell {
-  grid-column: 5 / 21;   /* col-5 ~ col-20，避開 anchor nav */
+  grid-column: 6 / 21;   /* col-6 ~ col-20；col-5 留給 toggle 鈕（user 2026-08-06）*/
   position: relative;
 }
 
@@ -1021,6 +1043,8 @@ body.mode-color .tl-icon-btn-inner {
 .tl-list-block > h5 {
   line-height: 1;
   margin: 0 0 var(--spacing-sm);
+  font-size: var(--font-size-s); /* BFA/MDES 小標 = 內文大小、保留 bold（user 2026-08-06） */
+  font-weight: 700;
 }
 .tl-list-cols {
   display: grid;
@@ -1104,7 +1128,7 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
     display: none;
   }
   .tl-m-card .tl-m-year {
-    font-size: var(--font-size-p2); /* 年份跟內文同字級（user 2026-06-12；JS 給 h4 → 手機縮回 p2） */
+    font-size: var(--font-size-s); /* 年份跟內文同字級（user 2026-06-12；JS 給 h4 → 手機縮回 p2） */
     line-height: 1;
     margin-bottom: var(--spacing-sm);
   }
@@ -1121,10 +1145,10 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
      主視圖與 list view 內文都 = p2（list view 原 p1，user 2026-07-04 縮成 p2）。
      h5 已 hoist 為 .tl-m-desc-group 直接子層（timeline.js renderYear section 分組，2026-07-13） */
   .tl-m-card .tl-m-desc-group > h5 {
-    font-size: var(--font-size-p2);
+    font-size: var(--font-size-s);
   }
   .tl-list-block > h5 {
-    font-size: var(--font-size-p2);
+    font-size: var(--font-size-s);
   }
   /* 圖片區：單圖置中（slotLefts ['50%'] + slotXPercent -50），一次一張放大展示；
      top 50% !important 蓋過 placeInSlot 的 inline top:70%（同 .class-info-panel 手機做法） */
@@ -1201,11 +1225,11 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
   .tl-list-year-row + .tl-list-year-row {
     margin-top: var(--spacing-lg);
   }
-  /* 年份（JS 給 text-h5）與內文手機統一縮成 p2（原 p1，user 2026-07-04）；
+  /* 年份（JS 給 text-lg）與內文手機統一縮成 p2（原 p1，user 2026-07-04）；
      雙層 selector 才蓋過 @tailwind utilities（在 lists.css 之後）的同特異度 font-size */
   .tl-list-year-row .tl-list-year,
   .tl-list-year-row .tl-list-year-body {
-    font-size: var(--font-size-p2);
+    font-size: var(--font-size-s);
   }
   .tl-list-cols {
     grid-template-columns: 1fr;
@@ -1475,6 +1499,14 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
   margin-bottom: var(--spacing-sm);
 }
 
+/* faculty / curriculum slide-in 詳情捲動容器：捲到底時 scrollbar thumb 不貼底、對齊內容 pb-2xl
+ * （padding-bottom 只推內容、推不動 webkit scrollbar 軌道，故另設 track margin-bottom；webkit only，
+ *  Firefox thin scrollbar 無法內縮＝可接受降級）。頂部不內縮（faculty profile / courses title sticky 貼頂）。 */
+#faculty-panel .list-scroll::-webkit-scrollbar-track,
+.courses-detail-desc-wrapper::-webkit-scrollbar-track {
+  margin-bottom: var(--spacing-2xl);
+}
+
 /* Firefox 專屬 fallback — 用 @supports + -moz- 隔離，避免 Chromium 121+/Safari 18+
  * 也實作 standard scrollbar-width 後切到系統 thin scrollbar（會帶 OS 風格小箭頭）覆蓋 webkit 自繪樣式 */
 @supports (-moz-appearance: none) {
@@ -1560,15 +1592,15 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
 
 /* ===== 手機 list 標題覆寫（2026-06-09，全 list 頁共用：activities / admission / alumni）===== */
 @media (max-width: 767px) {
-  /* (1) 主標統一 p1（桌面維持 h5）。只動 .list-title-marquee 內的 .text-h5(=主標)，
-     date/location/ref（text-p2）不受影響 */
-  .list-title-marquee p.text-h5 {
-    font-size: var(--font-size-p1);
+  /* (1) 主標統一 p1（桌面維持 h5）。只動 .list-title-marquee 內的 .text-lg(=主標)，
+     date/location/ref（text-s）不受影響 */
+  .list-title-marquee p.text-lg {
+    font-size: var(--font-size-s);
   }
   /* search input 手機跟 list 主標同級（h5 19.2 → p1 16，user 2026-07-13）。
-     多層 selector 提特異度：input 帶 .text-h5 utility、同特異度會輸 source order（同 (1) 的做法） */
+     多層 selector 提特異度：input 帶 .text-lg utility、同特異度會輸 source order（同 (1) 的做法） */
   .activities-search-inner .activities-search-input {
-    font-size: var(--font-size-p1);
+    font-size: var(--font-size-s);
   }
   /* (2) 收合(預設)不 marquee＝靜止截斷；點開(.list-header.active)才捲。
      ⚠️ 反轉先前「手機收合也自動 marquee」(見 [[project_list_title_marquee_auto_runs_no_hover]])，user 2026-06-09 改要「點開才 marquee」。
@@ -1680,6 +1712,10 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
   /* hover 的 item 所屬年份 group＝「active」，該年份標籤不用跟著淡出（其他年份才淡）。
      跟上一條 specificity 打平（id+4 classes）靠 source order 蓋過，故必須排在後面。 */
   :is(#activities-content-section, #admission-content-section) .list-year-group:has(.list-item:hover) .list-year-label {
+    opacity: 1;
+  }
+  /* 反向：hover 年份標籤時，該年份 group 內所有 list-item 都算 active（不淡）。 */
+  :is(#activities-content-section, #admission-content-section) .list-year-group:has(.list-year-label:hover) .list-item {
     opacity: 1;
   }
 }

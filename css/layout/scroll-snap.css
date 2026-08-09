@@ -95,13 +95,14 @@ html {
   /* 落點全部頂對齊；原本 −100/−200 offset 提供的框景改由各 section 內部 padding 補（見下） */
   #overview, #class, #works { scroll-margin-top: 0; }
 
-  /* overview：一屏、理念文字在 fixed header 下方置中 */
+  /* overview：一屏、理念文字頂端對齊左側 #anchor-nav 的 sticky 位置（top:200px，見 about.html）。
+     user 2026-08-05：原 align-items:center 改 flex-start，padding-top 由 header-height 改 200px 對齊 nav btn。 */
   #overview {
     height: 100vh;
-    padding-top: var(--header-height, 96px);
+    padding-top: 200px;
     padding-bottom: 0;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
   }
   #overview > .site-container { width: 100%; }
 

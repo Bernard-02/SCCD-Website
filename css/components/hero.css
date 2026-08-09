@@ -38,7 +38,7 @@
   /* 副標 font-size（rotation 已移到 wrapper） */
   .hero-text-en,
   .hero-text-cn {
-    font-size: var(--font-size-p1);
+    font-size: var(--font-size-s);
   }
 
   /* 桌面版較大角度 */
@@ -201,7 +201,7 @@
   /* 段落字體 p1（跟桌面 .hero-text-en/cn 一致） */
   .hero-mobile-text-en,
   .hero-mobile-text-cn {
-    font-size: var(--font-size-p1);
+    font-size: var(--font-size-s);
   }
 
   /* 隨機版面（hero-mobile-sync.js 對 4 頁共用 hero 加 .hero-mobile-rand；degree-show-detail 不參與）：

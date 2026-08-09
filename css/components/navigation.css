@@ -7,7 +7,7 @@
   /* ===== Navigation Links ===== */
   /* 用 var(--theme-fg) 跟著 mode 切換（standard=黑 / inverse=白）；library/generate bar 走 bar-active/inactive 不受影響 */
   .nav-link {
-    @apply text-h6 font-bold transition-all duration-fast;
+    @apply text-md font-bold transition-all duration-fast;
     color: var(--theme-fg);
   }
 
@@ -169,22 +169,6 @@
     z-index: 40;
   }
 
-  /* ===== Submenu Links ===== */
-  .submenu-link {
-    @apply block py-xs text-h6 text-left transition-all duration-fast;
-  }
-
-  /* Hover 效果：僅桌面版 */
-  @media (min-width: 768px) {
-    .submenu-link:hover span {
-      font-weight: 700;
-    }
-  }
-
-  .submenu-link.active span {
-    font-weight: 700;
-  }
-
   /* ===== Anchor Navigation (About Page) ===== */
   .anchor-nav-btn {
     transition: all var(--dur-fast) var(--ease-standard);
@@ -195,7 +179,7 @@
     flex-direction: column;
     align-items: flex-start;
     font-weight: 700;
-    font-size: var(--font-size-p1);
+    font-size: var(--font-size-s);
   }
 
   .anchor-nav-inner {
@@ -293,7 +277,7 @@
  * 桌面 header 整排 bar 全 flex-shrink-0，最小總寬實測 ~1525px（active 中文展開時）：
  * 1500 以下 flex-1 spacer 歸零後右側 bar 依序被推出畫面右緣（1280 時 Atlas 切半、CREATE!/mode 鈕消失）。
  * 這層把間距與字級壓縮 ~300px 讓 1200 寬收得進來；1520 以上不動、原版面零影響。
- * #site-header 提特異度蓋 Tailwind utility（ml-2xl / gap-xl / text-h6），同 landscape.css 教訓。 */
+ * #site-header 提特異度蓋 Tailwind utility（ml-2xl / gap-xl / text-md），同 landscape.css 教訓。 */
 @media (min-width: 768px) and (max-width: 1520px) {
   #site-header [data-bar="about"],
   #site-header [data-bar="alumni-full"] {

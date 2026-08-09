@@ -89,7 +89,7 @@
     border: none;
     padding: 0;
     font-weight: 700;
-    font-size: var(--font-size-p1);
+    font-size: var(--font-size-s);
   }
 
   /* 直式堆疊（sticky 垂直導覽）*/
@@ -214,7 +214,7 @@
     background: none;
     border: none;
     padding: var(--spacing-xs) var(--spacing-sm);
-    font-size: var(--font-size-p2);
+    font-size: var(--font-size-s);
     font-weight: 700;
     color: black;
     line-height: 1.6;
@@ -250,7 +250,7 @@
 
   /* Sort col 選項：撐滿 list 寬，tick 頂右邊 */
   .album-sort-col .album-filter-option {
-    font-size: var(--font-size-p1);
+    font-size: var(--font-size-s);
     padding: 1px 4px;
     color: rgba(0, 0, 0, 0.5);
     gap: var(--spacing-md);
@@ -286,7 +286,7 @@
     background: none;
     border: none;
     padding: 1px 4px;
-    font-size: var(--font-size-p1);
+    font-size: var(--font-size-s);
     font-weight: 700;
     color: rgba(0, 0, 0, 0.5);
     line-height: 1.6;

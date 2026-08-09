@@ -97,16 +97,8 @@ body.mode-inverse .mega-menu {
   background-color: black;
 }
 
-body.mode-inverse .submenu-link {
-  color: white;
-}
-
 @media (min-width: 768px) {
   body.mode-inverse .nav-link:hover {
-    color: white;
-  }
-
-  body.mode-inverse .submenu-link:hover span {
     color: white;
   }
 }
