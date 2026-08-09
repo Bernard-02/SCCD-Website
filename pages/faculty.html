@@ -104,7 +104,7 @@
     <div id="faculty-overlay" class="absolute inset-0 bg-black opacity-0"></div>
 
     <!-- Panel (White, Slide from right) -->
-    <div id="faculty-panel" class="absolute top-0 right-0 bottom-0 bg-white transform translate-x-[110%] overflow-hidden w-full md:w-[79.1666%]">
+    <div id="faculty-panel" role="dialog" aria-modal="true" aria-labelledby="faculty-detail-name-en faculty-detail-name-zh" tabindex="-1" class="absolute top-0 right-0 bottom-0 bg-white transform translate-x-[110%] overflow-hidden w-full md:w-[79.1666%]">
 
       <!-- 手機 header 遮擋帶：內容容器整段捲、上方 pt 是透明帶 → 捲動時內容會露在浮著的 logo 底下（user 2026-07-06）。
            高度＝header 高就好（曾用容器 pt 整段 calc(+4rem)=156，user 嫌大）；底色吃 --faculty-panel-bg（開 panel 時 JS 設 accent）＝無縫；
@@ -121,10 +121,10 @@
       <!-- Content Container（panel overflow-hidden + 內 flex-col；右欄獨立 scroll wrapper 自己裁切） -->
       <!-- 桌面：h-full + flex-col 撐到 panel 高，右欄 min-h-0 overflow-y-auto 處理長文字
            手機：保留原本整個 panel 可捲（避免左右分欄擠在小 viewport） -->
-      <!-- pb：手機桌面統一 pb-2xl（2026-07-09 user：最後一個 item 不需額外 pb，原手機 pb-6xl 過大）
+      <!-- pb 改放捲動內容內部（#faculty-detail-sections pb-2xl）：容器本身不留 pb，捲到底時最後一列才不貼底邊（user 2026-08-07）
            pt：手機 = header 高（2026-07-09 user：開場 profile 直接釘在 header 下緣，不要捲動後才貼上去；
            原 +4rem 偏移已拆，profile/title sticky top 同步歸零） -->
-      <div class="w-full h-full px-container-padding pt-[var(--header-height,80px)] pb-2xl md:pt-4xl box-border relative flex flex-col overflow-y-auto md:overflow-hidden no-scrollbar">
+      <div class="w-full h-full px-container-padding pt-[var(--header-height,80px)] md:pt-4xl box-border relative flex flex-col overflow-y-auto md:overflow-hidden no-scrollbar">
 
         <div class="faculty-detail-layout flex flex-col md:flex-row gap-xl md:gap-3xl flex-1 min-h-0 relative">
 
@@ -140,8 +140,8 @@
             <div class="mb-xl md:mb-0">
               <!-- 不可 whitespace-nowrap：長英文名（如 Howard Chao-Hao Yang）會撐爆左欄 22% 寬、溢出蓋到右欄 section 標題；
                    拿掉後名字在欄寬內自動換行（短名仍一行），rotate(4deg) 由 JS 套、換行後繞 left center 旋轉不受影響 -->
-              <h4 id="faculty-detail-name-en" class="mb-xs">Ta-Lih Shieh</h4>
-              <h4 id="faculty-detail-name-zh">謝大立</h4>
+              <h2 id="faculty-detail-name-en" class="text-xl mb-xs">Ta-Lih Shieh</h2>
+              <h2 id="faculty-detail-name-zh" class="text-xl">謝大立</h2>
               <!-- Titles (Founder 等)；多個 title 由 JS 動態 stack -->
               <div id="faculty-detail-titles" class="mt-lg"></div>
             </div>
@@ -150,7 +150,7 @@
           <!-- Right: Details — 獨立 scroll wrapper（桌面才生效，手機隨外層 panel scroll） -->
           <!-- min-h-0 解開 flex 子元素 implicit min-content；list-scroll 套全站 inline scrollbar 樣式 -->
           <div class="flex-1 flex flex-col md:min-h-0 md:overflow-y-auto list-scroll">
-            <div id="faculty-detail-sections" class="flex flex-col gap-2xl">
+            <div id="faculty-detail-sections" class="flex flex-col gap-2xl pb-2xl">
               <!-- Sections will be dynamically generated -->
             </div>
           </div>
@@ -158,6 +158,14 @@
         </div>
       </div>
     </div>
+
+    <!-- 桌面返回鍵：黑方塊立在 panel 左側空白區正中、貼底、隨機旋轉（JS 套 transform）；panel 外的 slide-in 子層、蓋在 overlay 上。
+         手機/矮橫向改用 panel 內右上 #faculty-back-btn-mobile；--slide-panel-w = panel 寬（md:w-[79.1666%]）供置中計算 -->
+    <button id="faculty-close-btn" aria-label="返回 Back" class="slide-in-back-square cursor-pointer" style="--slide-panel-w: 79.1666%;">
+      <span class="slide-in-back-square-inner">
+        <span class="icon icon-arrow-left text-white icon-l"></span>
+      </span>
+    </button>
     </div>
 
   </main>

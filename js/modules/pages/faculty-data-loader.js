@@ -5,7 +5,7 @@
  *
  * 資料結構（對齊 Directus faculty collection）：titles[]（repeater，至少 1 筆），
  * 三種 type 共用同一個 titles 形狀（2026-08-04 起 admin 也改用 titles[]，不再是單一 titleEn/titleZh）。
- * Card 顯示「所有」職稱（跑完 titles[]）；單行職稱超出卡片寬時 hover marquee（見 cards.css）。
+ * Card 顯示職稱跑 titles[]（兼任最多前 2 組，其餘全顯示）；單行職稱超出卡片寬時 hover marquee（見 cards.css）。
  */
 
 import { getFacultyData, resetFacultyCache } from './faculty-source.js';
@@ -49,8 +49,16 @@ export async function loadFacultyData() {
     registerPageCleanup(resetFacultyCache);
     const data = await getFacultyData();
 
+    // 兼任不看後台 sort：前台一律照姓氏 A-Z（= nameEn 末字，對齊 atlas 歷屆教師 list view 的 surnameKey），
+    // 新增老師自動歸位、後台免手排（user 2026-08-08）。專任/行政維持後台 sort（人工拖曳序）。
+    const surnameKey = (it) => {
+      const en = (it.nameEn || '').trim();
+      return en ? en.split(/\s+/).pop().toLowerCase() : (it.nameZh || '').trim();
+    };
+    const bySurname = (a, b) => surnameKey(a).localeCompare(surnameKey(b), 'en');
+
     const fulltime = data.filter(item => item.type === 'fulltime');
-    const parttime = data.filter(item => item.type === 'parttime');
+    const parttime = data.filter(item => item.type === 'parttime').sort(bySurname);
     const admin = data.filter(item => item.type === 'admin');
 
     _phCards = []; // 重抓重渲染前清空，避免站內導航回來累積舊卡片 ref
@@ -196,19 +204,21 @@ function applyNaturalAspect(img) {
 }
 
 /**
- * 取得 card 顯示用的「所有」 title pair（中英）— 三種 type 共用 titles[] 形狀。
+ * 取得 card 顯示用的 title pair（中英）— 三種 type 共用 titles[] 形狀。
  * 兼任的公司/身份 + 校內職稱（如「兼任講師」）都存在同一個 titles[] repeater 裡（多筆），
  * 順序由後台編輯者在 GUI 拖排（不在前台寫死順序）。
+ * 兼任卡片外部最多顯示前 2 組（完整清單在 slide-in，讀 data.titles 不經此函式）。
  */
 function pickCardTitles(item) {
-  return (item.titles || []).map(t => ({ en: t.titleEn || '', zh: t.titleZh || '' }));
+  const pairs = (item.titles || []).map(t => ({ en: t.titleEn || '', zh: t.titleZh || '' }));
+  return item.type === 'parttime' ? pairs.slice(0, 2) : pairs;
 }
 
 // 多職稱 → 每 pair 一組（組間留 xs 間距）；en/zh 各一行，包 marquee inner 供溢出時 hover 跑動。
 // 缺一語不渲染該空行（避免空白行，比照 bilingual cell 規範）。
 function renderCardTitles(item) {
   const line = (text) => text
-    ? `<p class="faculty-marquee-line text-p2"><span class="faculty-marquee-inner">${text}</span></p>`
+    ? `<p class="faculty-marquee-line text-s"><span class="faculty-marquee-inner">${text}</span></p>`
     : '';
   return pickCardTitles(item).map((p) => {
     const lines = line(p.en) + line(p.zh);
@@ -240,9 +250,9 @@ function renderFacultyList(containerId, items, eagerCount = 0, highPriority = fa
         <img src="${item.image}" alt="${item.nameEn}" loading="${eager ? 'eager' : 'lazy'}"${eagerHigh ? ' fetchpriority="high"' : ''} class="faculty-card-image w-full h-full object-cover">
       </div>
       <div class="text-left">
-        <div class="faculty-card-name">
-          <h5>${item.nameEn}</h5>
-          <h5>${item.nameZh}</h5>
+        <div class="faculty-card-name" role="heading" aria-level="2">
+          <h5 role="presentation">${item.nameEn}</h5>
+          <h5 role="presentation">${item.nameZh}</h5>
         </div>
         <div class="faculty-card-title mt-xs">
           ${renderCardTitles(item)}

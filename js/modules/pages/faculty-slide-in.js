@@ -10,8 +10,13 @@
  * 把 header bars 用 clip-path 收掉（logo 不動），確保 overlay 上只剩 logo 浮在最上
  */
 
+// 無障礙 modal：記住開啟 slide-in 的觸發卡片，關閉時把焦點還回去
+let facultyReturnFocus = /** @type {HTMLElement|null} */ (null);
+
 import { enterLightboxMode, exitLightboxMode } from '../lightbox/lightbox-shell.js';
 import { openSlideInBg, closeSlideInBg } from '../ui/slide-in-bg-sync.js';
+import { prefersReducedMotion } from '../ui/reduce-motion.js';
+import { DUR, EASE } from '../ui/motion.js';
 import { countryName } from '../../data/country-names.js';
 import { getFacultyData } from './faculty-source.js';
 import { modePlaceholderUrl } from './faculty-data-loader.js';
@@ -170,7 +175,7 @@ export function initFacultySlideIn() {
     return `
       <div class="flex flex-col md:flex-row gap-xs md:gap-sm">
         <div class="faculty-section-title-col w-full md:w-[20%] mb-xs md:mb-0 md:sticky md:top-0 md:self-start md:z-[1]">
-          <h6 class="text-base text-black whitespace-nowrap leading-none md:pt-1">${titleEn} ${titleZh}</h6>
+          <h3 class="text-base text-black whitespace-nowrap leading-none md:pt-1">${titleEn} ${titleZh}</h3>
         </div>
         <div class="flex-1 faculty-rows">
           ${rows}
@@ -185,11 +190,11 @@ export function initFacultySlideIn() {
     return `
       <div class="flex flex-col md:flex-row gap-xs md:gap-sm">
         <div class="w-full md:w-[25%] mb-xs md:mb-0">
-          <h6 class="text-black">Contact 聯絡</h6>
+          <h3 class="text-s text-black">Contact 聯絡</h3>
         </div>
         <div class="flex-1">
           <!-- faculty-contact-text：手機/矮橫向升 p1 對齊詳情 row（cards.css 手機 block + landscape.css）；桌面維持 p2=row 同級 -->
-          <p class="text-p2 faculty-contact-text" style="white-space: pre-line;">${contact}</p>
+          <p class="text-s faculty-contact-text" style="white-space: pre-line;">${contact}</p>
         </div>
       </div>
     `;
@@ -254,8 +259,8 @@ export function initFacultySlideIn() {
         pairs.forEach((p, i) => {
           const isLast = i === pairs.length - 1;
           html += `<div${isLast ? '' : ' class="mb-sm"'}>` +
-            `<h6 class="font-regular text-black">${p.en}</h6>` +
-            `<h6 class="font-regular text-black">${p.zh}</h6>` +
+            `<p class="text-md font-regular text-black">${p.en}</p>` +
+            `<p class="text-md font-regular text-black">${p.zh}</p>` +
             `</div>`;
         });
         titlesContainer.innerHTML = html;
@@ -345,16 +350,33 @@ export function initFacultySlideIn() {
 
             slideIn.classList.remove('invisible', 'pointer-events-none');
             slideIn.classList.add('pointer-events-auto');
+            // 黑方塊返回鍵：每次開重隨機旋轉（角度套外層遮罩）+ inner 平移做 hero clip-reveal（比照 header bars：外層 overflow:clip 當遮罩、inner 從下方滑入被剪裁）
+            let backInner = null;
+            if (closeBtn) {
+              closeBtn.style.transform = `rotate(${Math.random() * 30 - 15}deg)`;
+              if (typeof gsap !== 'undefined' && !prefersReducedMotion() && window.innerWidth >= 768) {
+                backInner = closeBtn.querySelector('.slide-in-back-square-inner');
+                if (backInner) gsap.set(backInner, { yPercent: 100 });
+              }
+            }
+            // 無障礙 modal：記住觸發卡片、把焦點移進 dialog（關閉時歸還）；preventScroll 避免 fixed panel focus 造成跳動
+            facultyReturnFocus = /** @type {HTMLElement} */ (card);
+            requestAnimationFrame(() => slideInPanel.focus({ preventScroll: true }));
 
             // freeze 底層捲動 + 凍結在原位（不跳頂部）+ header bars clip-path 收掉，全由 lightbox-shell 統一處理
             // （內含 save/restore scrollTop，對付本頁 html overflow-x:clip 被 overflow-y:hidden 重算成 hidden
             //   導致的 scroll reset；slide-in 與全螢幕 lightbox 共用同一套，不分流）
             enterLightboxMode();
-            openSlideInBg({
+            const openTl = openSlideInBg({
               overlay: slideInOverlay,
               panel: slideInPanel,
               panelBg: cardColor,
             });
+            // 返回鍵跟 panel 同步 clip-reveal（openSlideInBg panel 進場 offset 0.3 / DUR.medium）
+            if (openTl && backInner) {
+              openTl.fromTo(backInner, { yPercent: 100 },
+                { yPercent: 0, duration: DUR.medium, ease: EASE.enter, clearProps: 'transform' }, 0.3);
+            }
           }
         });
       }
@@ -368,15 +390,21 @@ export function initFacultySlideIn() {
     // deferHeaderShow：slide-in 往右滑出，header bars 立即揭露會白 bar 冒在頂部蓋住離場中的 panel → 延後到 panel 走完
     exitLightboxMode({ deferHeaderShow: true });
 
-    closeSlideInBg({
+    const closeTl = closeSlideInBg({
       overlay: slideInOverlay,
       panel: slideInPanel,
       onComplete: () => {
         slideIn.classList.add('invisible', 'pointer-events-none');
         slideIn.classList.remove('pointer-events-auto');
         slideInPanel.style.backgroundColor = '';
+        if (facultyReturnFocus) { facultyReturnFocus.focus({ preventScroll: true }); facultyReturnFocus = null; }
       },
     });
+    // 返回鍵跟 panel 同步 clip-reveal 退場（inner 滑回下方被遮罩剪掉；panel 退場 offset 0）
+    const backInner = closeBtn && closeBtn.querySelector('.slide-in-back-square-inner');
+    if (closeTl && backInner && typeof gsap !== 'undefined' && !prefersReducedMotion() && window.innerWidth >= 768) {
+      closeTl.to(backInner, { yPercent: 100, duration: DUR.medium, ease: EASE.exit }, 0);
+    }
   }
 
   // Overlay click + close button click 都關閉 slide-in
