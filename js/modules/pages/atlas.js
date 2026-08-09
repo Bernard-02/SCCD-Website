@@ -840,6 +840,7 @@ export async function initAtlas(options = {}) {
         onUpdate: () => {
           if (item._anchor) item._anchor.style.translate = `${off.x.toFixed(2)}px ${off.y.toFixed(2)}px`;
           item._relocateOffsetX = off.x; item._relocateOffsetY = off.y;
+          lastFloatTick = 0;   // 同城市 relocate：滑行期間解除節流，線端逐幀貼 chip（見城市版註解）
         },
         onComplete: () => {
           if (item._anchor) item._anchor.style.translate = '';
@@ -887,6 +888,9 @@ export async function initAtlas(options = {}) {
             if (city._anchor) city._anchor.style.translate = `${off.x.toFixed(2)}px ${off.y.toFixed(2)}px`;
             city._relocateOffsetX = off.x;
             city._relocateOffsetY = off.y;
+            // 滑行期間解除 30fps 節流：GSAP 60fps 動 translate、tickFloat 30fps 更新線端 →
+            // 隔幀線端落後 chip 30~50px（relocate 高速段），肉眼看得到「線脫離方塊」（2026-08-08 逐幀抓包）
+            lastFloatTick = 0;
           },
           onComplete: () => {
             if (city._anchor) city._anchor.style.translate = '';
@@ -909,6 +913,10 @@ export async function initAtlas(options = {}) {
         followItemOrbitTo(it, it._homeX + dispX, it._homeY + dispY);
       });
     });
+    // 歸零 30fps 節流：本 callback 已寫入補償 translate 但 city.x / 線端要 tickFloat 才重算，
+    // 下一幀若被節流跳過，瀏覽器會把「補償已上、位置未更」的半套狀態畫出來
+    // （chip 瞬移 ~250px 一幀，逐幀監測抓包 2026-08-08）；歸零保證 paint 前跑完整重算
+    lastFloatTick = 0;
   }, D_RELOCATE_INTERVAL_MS);
   cleanupFns.push(() => {
     clearInterval(dRelocateTimer);
@@ -1292,6 +1300,25 @@ export async function initAtlas(options = {}) {
   // ── Floating rAF loop（label 浮動，line 端點同步移動避免錯位）─
   let floatStart = performance.now() / 1000;
   let floatRunning = false;          // 由 refreshFloatRunning 啟動：stage（星雲）顯示時才跑
+  // hover 中的 chip 釘 z=4（> D 恆定的 3 > B 下半 2 > A/C 1）：防止鄰居 chip 每幀 z 翻面/
+  //   防撞位移後浮到靜止游標上搶走 hover（假 mouseout → 連線 clear+重畫閃兩次）；showDetail pin、clearDetail unpin
+  let hoverPinnedItem = null;
+  function pinHoverZ(item) {
+    if (hoverPinnedItem === item) return;
+    unpinHoverZ();
+    if (!item._anchor) return;
+    hoverPinnedItem = item;
+    item._anchor.style.zIndex = '4';
+    item._lastZ = 4;
+  }
+  function unpinHoverZ() {
+    const it = hoverPinnedItem;
+    if (!it) return;
+    hoverPinnedItem = null;
+    if (!it._anchor) return;
+    if (it.category === 'B' || it.category === 'D') { it._lastZ = null; }  // Phase 2.5 下一幀重算
+    else { it._anchor.style.zIndex = ''; it._lastZ = null; }               // A/C 交還 CSS z:1
+  }
   let floatRaf = null;
   let floatPausedAt = null;          // 暫停起點 ms；恢復時補回 floatStart 讓 ambient 漂移接續不跳
   let menuPausedAtlas = false;       // 手機 menu 全屏 overlay 開著 → 暫停（window.setAtlasFloatPaused 切換）
@@ -1456,8 +1483,17 @@ export async function initAtlas(options = {}) {
             if (dist < 0.01) { dx = 1; dy = 0; dist = 1; }   // 完全重合 → 沿 x 軸拆開
             const push = (CITY_MIN_SEP - dist) / 2;
             const ux = dx / dist, uy = dy / dist;
-            a.x -= ux * push; a.y -= uy * push;
-            b.x += ux * push; b.y += uy * push;
+            // hover 凍結中的城市（orbit paused）不推：推走會把 chip 從靜止游標下抽走 → 假 mouseout
+            //   → 連線 clear + 重畫閃兩次；改由對向城市吃全量位移，min-sep 保證不變
+            const aPinned = a._orbit && a._orbit.pauseStart != null;
+            const bPinned = b._orbit && b._orbit.pauseStart != null;
+            if (aPinned && bPinned) continue;
+            if (aPinned)      { b.x += ux * push * 2; b.y += uy * push * 2; }
+            else if (bPinned) { a.x -= ux * push * 2; a.y -= uy * push * 2; }
+            else {
+              a.x -= ux * push; a.y -= uy * push;
+              b.x += ux * push; b.y += uy * push;
+            }
           }
         }
         for (let i = 0; i < cityList.length; i++) {
@@ -1499,15 +1535,18 @@ export async function initAtlas(options = {}) {
       item._floatDy = dy;
     }
 
-    // Phase 2.5: B（黑底 chip 企業）+ D（彩色 chip 國家）都動態調 z-index — 兩者皆為不透明 chip，需在分割綫切換時被/蓋過 A/C
-    //   A/C 統一 z:1（CSS atlas.css 預設）；B/D 在分割綫（y=cy）以上 → z=0 鑽到下面，以下 → z=2 浮到上面
-    //   visualY = item.y + _floatDy（A/C wobble 用，B/D 無 _float → 兜底 0 → visualY=item.y）
+    // Phase 2.5: B（黑底 chip 企業）動態調 z-index — 分割綫（y=cy）以上 → z=0 鑽到 A/C(z:1) 下面，以下 → z=2 浮上來
+    //   D 國家恆 z=2：原本跟 B 一起翻，但上半部 z=0 會讓 20px 方塊被幾百個 label 埋住 →
+    //   idle 城市連線看起來連到空氣、hover 中被防撞推過線時 z 翻掉 → label 搶走 hover 假 mouseout（user 2026-08-08）
+    //   深度錯覺只留給中央 B 企業環（ellipse 才有「繞到後面」的視覺語意）
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       if (!item._anchor) continue;
       if (item.category !== 'B' && item.category !== 'D') continue;
+      if (item === hoverPinnedItem) continue;   // hover 中的 chip 釘 z=4（pinHoverZ），不參與翻面
+      // D=3 不是 2：B 環下半部也是 z=2，同 z 靠 DOM 順序、B chip 蓋住國家小方塊照樣「連線連到空氣」
       const visualY = item.y + (item._floatDy || 0);
-      const z = visualY < cy ? 0 : 2;
+      const z = item.category === 'D' ? 3 : (visualY < cy ? 0 : 2);
       if (item._lastZ !== z) {
         item._anchor.style.zIndex = String(z);
         item._lastZ = z;
@@ -1837,22 +1876,37 @@ export async function initAtlas(options = {}) {
   // 展開＝方塊長成「上英下中」chip（同 B chip 樣式，bg 沿用方塊色、黑字）；FLIP-lite：加 class 量目標
   // 尺寸 → GSAP 從方塊尺寸補間過去，rotate 同步轉正（±35° 斜字難讀）。
   // _boxW/_boxH/_squareRotDeg 同步換成展開後的值 → 逐幀連線端點自動貼展開 chip 邊；收合還原。
-  let openCountryItem = null;
+  let openCountryItem = null;   // hover 意圖：目前「該」展開的國家（hover-out 時歸 null）
+  let openSquareItem = null;    // 物理狀態：目前 span 實際掛著 .atlas-square-open 的國家（close 動畫期間 ≠ openCountryItem）
   let countryTween = null;
   function setSquareFrame(span, w, h, r) {
     span.style.width = `${w}px`;
     span.style.height = `${h}px`;
     span.style.transform = `translate(-50%, -50%) rotate(${r}deg)`;
   }
+  // 立刻（無動畫）把某顆國家方塊還原成小方塊：切換國家 / close 動畫被 kill 時用，
+  //   避免「animated close 的 onComplete restore 被下一次 kill 吃掉→方塊卡在展開態、連線卻已用還原後小 box 座標」
+  function hardRestoreSquare(item) {
+    if (!item) return;
+    const span = item._span, rot0 = item._sqRot0 || 0;
+    span.classList.remove('atlas-square-open');
+    span.style.width = ''; span.style.height = '';
+    span.style.transform = `translate(-50%, -50%) rotate(${rot0.toFixed(2)}deg)`;
+    item._boxW = item._sqW0; item._boxH = item._sqH0;
+    item._squareRotDeg = rot0;
+    if (openSquareItem === item) openSquareItem = null;
+  }
   function openCountrySquare(item) {
     if (openCountryItem === item) return;
-    closeCountrySquare();
-    openCountryItem = item;
     const span = item._span;
     if (countryTween) { countryTween.kill(); countryTween = null; }
+    // 上一顆國家（可能正在 open 或 close 動畫中）立刻還原；同一顆 re-hover 則保留、繼續往下重新展開
+    if (openSquareItem && openSquareItem !== item) hardRestoreSquare(openSquareItem);
+    openCountryItem = item;
     const w0 = span.offsetWidth, h0 = span.offsetHeight;
     span.classList.add('atlas-square-open');
     const w1 = span.offsetWidth, h1 = span.offsetHeight;
+    openSquareItem = item;
     item._sqW0 = item._boxW; item._sqH0 = item._boxH; item._sqRot0 = item._squareRotDeg || 0;
     item._boxW = w1; item._boxH = h1;
     item._squareRotDeg = 0;
@@ -1881,6 +1935,7 @@ export async function initAtlas(options = {}) {
       span.classList.remove('atlas-square-open');
       span.style.width = ''; span.style.height = '';
       span.style.transform = `translate(-50%, -50%) rotate(${rot0.toFixed(2)}deg)`;
+      if (openSquareItem === item) openSquareItem = null;
     };
     if (typeof gsap === 'undefined') { restore(); return; }
     const w1 = span.offsetWidth, h1 = span.offsetHeight;
@@ -1900,6 +1955,7 @@ export async function initAtlas(options = {}) {
 
   function showDetail(item, ids, lineSet) {
     content.classList.add('atlas-dimmed');
+    pinHoverZ(item);
     setCityLineRetract(item.category === 'D' ? item : null);
     items.forEach(i => i._span.classList.toggle('atlas-highlight', ids.has(i.id)));
     Array.from(svg.children).forEach(line => line.classList.toggle('atlas-line-highlight', lineSet.has(line)));
@@ -1916,6 +1972,7 @@ export async function initAtlas(options = {}) {
 
   function clearDetail() {
     content.classList.remove('atlas-dimmed');
+    unpinHoverZ();
     setCityLineRetract(null);
     items.forEach(i => i._span.classList.remove('atlas-highlight'));
     Array.from(svg.children).forEach(line => line.classList.remove('atlas-line-highlight'));
@@ -2053,8 +2110,11 @@ export async function initAtlas(options = {}) {
     });
   }
   cleanupFns.push(() => { if (fontSyncTimer) clearTimeout(fontSyncTimer); });
+  let lastDesktopPadV = 0;
   function applyTransform() {
     zoomEl.style.transform = `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px)) scale(${scale})`;
+    // 線粗細反向補償（取代 vector-effect: non-scaling-stroke，見 atlas.css .atlas-line 註解）
+    stage.style.setProperty('--atlas-line-scale', scale.toFixed(4));
     if (isMobileAtlas) {   // 圓點星雲（直向+橫向手機）：zoom 過門檻 → 圓點淡出、文字淡入 + 反向縮放同步
       const on = scale >= TEXT_ZOOM_SCALE;
       if (on !== textZoomOn) {
@@ -2064,6 +2124,17 @@ export async function initAtlas(options = {}) {
       }
       if (!fontSyncTimer) {
         fontSyncTimer = setTimeout(() => { fontSyncTimer = null; syncZoomFontVar(); }, 150);
+      }
+    } else {
+      // 桌面 zoom：BOX_PADDING 是 content px、跟內容一起被 zoom 放大 → 高倍時線端離 chip 一大截
+      //   螢幕空隙（4x 時 ~50-70px，user 2026-08-08 抓包；同 2026-07-07 手機案，當時只修了 mobile 分支）。
+      //   pad ÷ max(1, scale) → 視覺 standoff 恆 ≈BOX_PADDING px；預設 0.78 時 v=1 = 原值不變。
+      //   端點逐幀重算（tickFloat）→ 改值下一幀生效；純屬性寫入無 DOM，不需節流門檻以外的最佳化。
+      const v = Math.max(1, scale);
+      if (v !== lastDesktopPadV) {
+        lastDesktopPadV = v;
+        const pad = BOX_PADDING / v;
+        items.forEach(it => { it._boxPad = pad; });
       }
     }
   }
