@@ -431,13 +431,13 @@ function createTextEl(textEn, textZh, url) {
   if (textEn) {
     const enLine = document.createElement('div');
     enLine.textContent = textEn;
-    enLine.style.cssText = 'font-size: var(--font-size-p1); margin-bottom: 0.15rem;';
+    enLine.style.cssText = 'font-size: var(--font-size-s); margin-bottom: 0.15rem;';
     el.appendChild(enLine);
   }
   if (textZh) {
     const zhLine = document.createElement('div');
     zhLine.textContent = preventOrphan(textZh);
-    zhLine.style.cssText = 'font-size: var(--font-size-p1);';
+    zhLine.style.cssText = 'font-size: var(--font-size-s);';
     el.appendChild(zhLine);
   }
 

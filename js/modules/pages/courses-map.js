@@ -306,6 +306,8 @@ function buildHTML(program, courses) {
 // 點卡片 → 從右滑入 panel + dim overlay；overlay/close-btn/Esc 關閉。
 // body.overflow:hidden 鎖捲動，close 還原。GSAP timeline 控動畫。
 
+// 無障礙 modal：記住開啟課程詳情的觸發元素，關閉時把焦點還回去
+let coursesReturnFocus = /** @type {HTMLElement|null} */ (null);
 function getSlideIn()      { return document.getElementById('courses-slide-in'); }
 function getSlidePanel()   { return document.getElementById('courses-detail-panel'); }
 function getSlideOverlay() { return document.getElementById('courses-overlay'); }
@@ -341,8 +343,20 @@ function openCourseSlideIn(card) {
   panel.style.backgroundColor = panelBg;
 
   // Show
+  coursesReturnFocus = /** @type {HTMLElement|null} */ (document.activeElement);
   slideIn.classList.remove('invisible', 'pointer-events-none');
   slideIn.classList.add('pointer-events-auto');
+  // 桌面黑方塊返回鍵：每次開重隨機旋轉（角度套外層遮罩）+ inner 平移做 hero clip-reveal（比照 header bars：外層 overflow:clip 當遮罩、inner 從下方滑入被剪裁）
+  const backBtn = document.getElementById('courses-back-btn-desktop');
+  let backInner = null;
+  if (backBtn) {
+    backBtn.style.transform = `rotate(${Math.random() * 30 - 15}deg)`;
+    if (typeof gsap !== 'undefined' && !prefersReducedMotion() && window.innerWidth >= 768) {
+      backInner = backBtn.querySelector('.slide-in-back-square-inner');
+      if (backInner) gsap.set(backInner, { yPercent: 100 });
+    }
+  }
+  requestAnimationFrame(() => panel.focus({ preventScroll: true }));
 
   // freeze 底層捲動 + 凍結在原位（不跳頂部）+ header bars clip-path 收掉，全由 lightbox-shell 統一處理
   // （內含 save/restore scrollTop，對付本頁 html overflow-x:clip 被 overflow-y:hidden 重算成 hidden
@@ -361,11 +375,16 @@ function openCourseSlideIn(card) {
   htmlEl.classList.add('has-slide-in');
 
   if (typeof gsap !== 'undefined') {
-    gsap.timeline()
+    const tl = gsap.timeline()
       .to(overlay, { opacity: 0.8, duration: DUR.fast }, 0)
       .to(htmlEl, { '--slide-bg-color': dimBg, duration: DUR.fast }, 0)
       .to(panel, { x: '0%', duration: DUR.medium, ease: EASE.enter }, 0.3)
       .to(htmlEl, { '--slide-bg-color': panelBg, duration: DUR.medium, ease: EASE.enter }, 0.3);
+    // 返回鍵跟 panel 同步 clip-reveal
+    if (backInner) {
+      tl.fromTo(backInner, { yPercent: 100 },
+        { yPercent: 0, duration: DUR.medium, ease: EASE.enter, clearProps: 'transform' }, 0.3);
+    }
   } else {
     overlay.style.opacity = '0.8';
     htmlEl.style.setProperty('--slide-bg-color', panelBg);
@@ -406,18 +425,24 @@ export function closeCourseSlideIn() {
   const dimBg = htmlEl.classList.contains('mode-inverse') ? '#000000' : '#333333';
   htmlEl.classList.add('has-slide-in');
 
+  const backInner = document.querySelector('#courses-back-btn-desktop .slide-in-back-square-inner');
   if (typeof gsap !== 'undefined') {
-    gsap.timeline()
+    const tl = gsap.timeline()
       .to(panel, { x: '110%', duration: DUR.medium, ease: EASE.exit }, 0)
       .to(htmlEl, { '--slide-bg-color': dimBg, duration: DUR.medium, ease: EASE.exit }, 0)
       .to(overlay, { opacity: 0, duration: DUR.fast }, 0.5)
-      .to(htmlEl, { '--slide-bg-color': targetBg, duration: DUR.fast }, 0.5)
-      .call(() => {
+      .to(htmlEl, { '--slide-bg-color': targetBg, duration: DUR.fast }, 0.5);
+    // 返回鍵跟 panel 同步 clip-reveal 退場（inner 滑回下方被遮罩剪掉；panel 退場 offset 0）
+    if (backInner && !prefersReducedMotion() && window.innerWidth >= 768) {
+      tl.to(backInner, { yPercent: 100, duration: DUR.medium, ease: EASE.exit }, 0);
+    }
+    tl.call(() => {
         slideIn.classList.add('invisible', 'pointer-events-none');
         slideIn.classList.remove('pointer-events-auto');
         panel.style.backgroundColor = '';
         htmlEl.classList.remove('has-slide-in');
         htmlEl.style.removeProperty('--slide-bg-color');
+        if (coursesReturnFocus) { coursesReturnFocus.focus({ preventScroll: true }); coursesReturnFocus = null; }
       });
   } else {
     overlay.style.opacity = '0';
@@ -444,7 +469,7 @@ function ensureSlideInClose() {
     const t = e.target;
     if (!(t instanceof Element)) return;
     const isOverlay = t.id === 'courses-overlay';
-    const isBackBtn = !!t.closest('#courses-back-btn-mobile');
+    const isBackBtn = !!t.closest('#courses-back-btn-mobile') || !!t.closest('#courses-back-btn-desktop');
     if (!isOverlay && !isBackBtn) return;
     const slideIn = getSlideIn();
     if (!slideIn || slideIn.classList.contains('invisible')) return;

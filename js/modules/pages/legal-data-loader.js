@@ -125,17 +125,17 @@ export async function loadPolicyAndStatements() {
 function renderGroup(data) {
   const head =
     `<div class="legal-group-head">`
-    + reveal(`<h3 class="legal-group-title-en">${esc(data.titleEn)}</h3>`)
-    + reveal(`<h3 class="legal-group-title-zh">${esc(data.titleZh)}</h3>`)
+    + reveal(`<h2 class="legal-group-title-en">${esc(data.titleEn)}</h2>`)
+    + reveal(`<h2 class="legal-group-title-zh">${esc(data.titleZh)}</h2>`)
     + `</div>`;
   const updated = (data.lastUpdatedEn || data.lastUpdatedZh)
     ? `<div class="legal-group-updated">`
-      + `<p class="text-p2">${esc(data.lastUpdatedEn || '')}</p>`
-      + `<p class="text-p2">${esc(data.lastUpdatedZh || '')}</p>`
+      + `<p class="text-s">${esc(data.lastUpdatedEn || '')}</p>`
+      + `<p class="text-s">${esc(data.lastUpdatedZh || '')}</p>`
       + `</div>`
     : '';
-  // 條款標題用 <p>（合併頁已是 p2 內文大小、非 heading），其餘 legal 頁仍 h4。
-  return `<div class="legal-group">${head}${renderStructured(data, true, 'p')}${updated}</div>`;
+  // 條款標題＝群組(h2)底下一層 → h3（尺寸仍由 .legal-combined class 縮到內文大小,不受 tag 影響）。
+  return `<div class="legal-group">${head}${renderStructured(data, true, 'h3')}${updated}</div>`;
 }
 
 // clip-reveal mask wrapper：把單一可動行包進 overflow:clip 容器，讓進場 yPercent 滑入有遮罩、
@@ -165,7 +165,7 @@ function renderRegLine(it) {
   return `<div class="reg-line">${name}${unit}</div>`;
 }
 
-function renderStructured(data, numbered = true, titleTag = 'h4') {
+function renderStructured(data, numbered = true, titleTag = 'h2') {
   let html = '';
 
   // overview 是純文字（後台 Textarea）→ esc 後包 <p>，每段各自 reveal 遮罩
@@ -187,8 +187,8 @@ function renderStructured(data, numbered = true, titleTag = 'h4') {
     const subRevealsHtml = sections.map(s =>
       revealSub(
         `<div class="legal-section-desc"><div class="legal-subsection">`
-        + `<h5 class="legal-subsection-title-en">${esc(s.titleEn)}</h5>`
-        + `<h5 class="legal-subsection-title-zh">${esc(s.titleZh)}</h5>`
+        + `<h3 class="legal-subsection-title-en">${esc(s.titleEn)}</h3>`
+        + `<h3 class="legal-subsection-title-zh">${esc(s.titleZh)}</h3>`
         + (s.desEn || '')   // 富文本，直接注入不 esc
         + (s.desZh || '')
         + `</div></div>`

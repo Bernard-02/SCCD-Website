@@ -38,7 +38,8 @@ function footerHideLogo(opts = {}) {
   const t = getFooterHideLogo();
   if (!t) return;
   gsap.killTweensOf(t.logo, 'yPercent');
-  const vars = { duration: opts.duration || DUR.slow, ease: opts.ease || EASE.enterSoft, overwrite: 'auto' };
+  // ?? 不用 ||：初次載入同步允許 duration:0 瞬間收起（|| 會把 0 當 falsy 打回 DUR.slow）
+  const vars = { duration: opts.duration ?? DUR.slow, ease: opts.ease || EASE.enterSoft, overwrite: 'auto' };
   if (t.mask) {
     gsap.killTweensOf(t.mask, 'yPercent');
     t.mask.style.overflow = 'hidden';
@@ -143,7 +144,7 @@ function ensureBarMask(bar) {
   mask.appendChild(bar);
   return mask;
 }
-function footerHideBars() {
+function footerHideBars(opts = {}) {
   if (typeof gsap === 'undefined') return;
   const bars = getFooterHideTargets();
   if (!bars.length) return;
@@ -156,7 +157,7 @@ function footerHideBars() {
   gsap.to(bars, {
     x: i => offsets[i].x,
     y: i => offsets[i].y,
-    duration: DUR.slow, ease: EASE.enterSoft, overwrite: 'auto',
+    duration: opts.duration ?? DUR.slow, ease: opts.ease || EASE.enterSoft, overwrite: 'auto',
   });
 }
 function footerShowBars() {
@@ -612,7 +613,7 @@ export function clearNavActive(exceptPage) {
       .some(l => (l.getAttribute('href') || '').split('/').pop() === keepHref);
     if (alreadyActive) return;
   }
-  header.querySelectorAll('a.nav-link.active, .submenu-link.active').forEach(l => { l.classList.remove('active'); l.removeAttribute('aria-current'); });
+  header.querySelectorAll('a.nav-link.active').forEach(l => { l.classList.remove('active'); l.removeAttribute('aria-current'); });
   header.querySelectorAll('[data-bar].has-active').forEach(el => el.classList.remove('has-active'));
 }
 
@@ -625,17 +626,10 @@ function applyNavLinkMarks(header, activeHref) {
   // About bar nav links
   header.querySelectorAll('nav > ul > li').forEach(li => {
     const parentLink = li.querySelector(':scope > a.nav-link');
-    const subLinks = li.querySelectorAll('.submenu-link');
 
     if (parentLink && parentLink.getAttribute('href') === activeHref) {
       setNavLinkActive(parentLink);
     }
-    subLinks.forEach(link => {
-      if (link.getAttribute('href') === activeHref) {
-        setNavLinkActive(parentLink);
-        link.classList.add('active');
-      }
-    });
   });
 
   // Standalone links（非 nav 內）
@@ -1194,37 +1188,44 @@ export function initHeader() {
     // bars + logo 都走 hero 平移滑動（footerHideBars/footerHideLogo）：bars 每個隨機四方向、各自 overflow:clip
     // 遮罩；logo <a> 遮罩 + 本體 yPercent。兩者同 duration/ease、無 stagger → 一起收起（user 2026-06-08「他們
     // 不是一起收起的嗎」）。lightbox/slide-in 的 header 收起仍走 lightbox-shell 的 clip-path 那套、維持不變。
+    // instant=true：初次載入同步時瞬間收起（duration:0），不要 refresh 後看到 bars 閃現再滑走
+    function syncFooterHide(instant = false) {
+      // SPA 換頁後 footer DOM 會替換（static index footer / SPA 注入 footer 切換），closure 捕捉到的舊 ref
+      // offsetHeight 可能變 0 或 detached → 每次重抓最新的；多 footer 場景（index 同時有 #site-footer-static
+      // 跟空的 #site-footer container）取第一個可見的（offsetHeight>0）
+      const footers = document.querySelectorAll('footer');
+      let footerEl = null;
+      for (const f of footers) {
+        if (f.offsetHeight > 0) { footerEl = f; break; }
+      }
+      if (!footerEl) return;
+      const footerTop = footerEl.getBoundingClientRect().top;
+      // 全站手機 header 底色帶（.mobile-header-bg，navigation.css）：捲到「帶底 92」才收（遮罩不能像
+      // logo/nav 用 footerTop<視窗50% 提早離開，那樣會露出 header 區還沒捲完的內容；user 2026-07-17）。
+      // 純 CSS transition transform、不需 gsap；app 頁 gate 成 display:none 時 toggle 也無害。
+      const mobileBar = document.querySelector('.mobile-header-bg');
+      if (mobileBar) mobileBar.classList.toggle('is-hidden', footerTop <= 92);
+      const isNearFooter = footerTop < window.innerHeight * 0.5;
+      if (typeof gsap === 'undefined') return;
+      if (isNearFooter && !barsHidden) {
+        barsHidden = true;
+        const opts = instant ? { duration: 0 } : {};
+        footerHideBars(opts);   // bars 平移滑出（每個隨機四方向）
+        footerHideLogo(opts);   // logo 走 hero 滑動（同步、同節奏）
+      } else if (!isNearFooter && barsHidden) {
+        barsHidden = false;
+        footerShowBars();
+        footerShowLogo();
+      }
+    }
+
     function bindFooterScroll() {
       // 確認首次能抓到 footer（任一）；listener 內每次 live query 避免 SPA 換頁後 stale ref
       if (!document.querySelector('footer')) return false;
-      window.addEventListener('scroll', () => {
-        // SPA 換頁後 footer DOM 會替換（static index footer / SPA 注入 footer 切換），closure 捕捉到的舊 ref
-        // offsetHeight 可能變 0 或 detached → 每次重抓最新的；多 footer 場景（index 同時有 #site-footer-static
-        // 跟空的 #site-footer container）取第一個可見的（offsetHeight>0）
-        const footers = document.querySelectorAll('footer');
-        let footerEl = null;
-        for (const f of footers) {
-          if (f.offsetHeight > 0) { footerEl = f; break; }
-        }
-        if (!footerEl) return;
-        const footerTop = footerEl.getBoundingClientRect().top;
-        // 全站手機 header 底色帶（.mobile-header-bg，navigation.css）：捲到「帶底 92」才收（遮罩不能像
-        // logo/nav 用 footerTop<視窗50% 提早離開，那樣會露出 header 區還沒捲完的內容；user 2026-07-17）。
-        // 純 CSS transition transform、不需 gsap；app 頁 gate 成 display:none 時 toggle 也無害。
-        const mobileBar = document.querySelector('.mobile-header-bg');
-        if (mobileBar) mobileBar.classList.toggle('is-hidden', footerTop <= 92);
-        const isNearFooter = footerTop < window.innerHeight * 0.5;
-        if (typeof gsap === 'undefined') return;
-        if (isNearFooter && !barsHidden) {
-          barsHidden = true;
-          footerHideBars();   // bars 平移滑出（每個隨機四方向）
-          footerHideLogo();   // logo 走 hero 滑動（同步、同節奏）
-        } else if (!isNearFooter && barsHidden) {
-          barsHidden = false;
-          footerShowBars();
-          footerShowLogo();
-        }
-      }, { passive: true });
+      window.addEventListener('scroll', () => syncFooterHide(), { passive: true });
+      // 初次同步：refresh 後瀏覽器還原捲動位置是在 header async fetch 完成前發生，scroll 事件早於 listener
+      // 綁定 → 若停在 footer 不主動評估一次，barsHidden 會保持 false、header bar 蓋在 footer 上不消失。
+      syncFooterHide(true);
       return true;
     }
 

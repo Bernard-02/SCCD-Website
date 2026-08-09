@@ -37,15 +37,15 @@ function renderResourcesAccordion(data, container) {
     const titleEn = match ? match[1] : item.title;
     const titleZh = match ? match[2] : '';
     const labelInner = titleZh
-      ? `<span class="accordion-label-en">${titleEn}</span><span class="accordion-label-sep">&ensp;</span><span class="accordion-label-zh">${titleZh}</span>`
+      ? `<span class="accordion-label-en">${titleEn}</span><span class="accordion-label-sep"> </span><span class="accordion-label-zh">${titleZh}</span>`
       : item.title;
 
     return `
     <div class="accordion-item" data-index="${index}">
       <!-- A: Label -->
-      <div class="accordion-label">
+      <h3 class="accordion-label" style="margin:0;">
         <div class="accordion-label-inner">${labelInner}</div>
-      </div>
+      </h3>
       <!-- B: Body -->
       <div class="accordion-body">
         <div class="accordion-body-inner">

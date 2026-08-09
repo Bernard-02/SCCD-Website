@@ -112,8 +112,8 @@ function setup() {
   _p5.textFont(font);
   // 根據 canvas 尺寸動態調整文字大小
   // 桌面版基準：432x540 canvas，textSize = 367.5
-  // 手機版：按相同比例縮放，再縮小 4% 作為安全邊距確保不被裁切
-  // 計算方式：(canvas寬度 / 432) × 367.5 × 0.96
+  // 手機版：按相同比例縮放，再放大 10% 作為安全邊距
+  // 計算方式：(canvas寬度 / 432) × 367.5 × 1.1
   let baseTextSize = isMobileMode ? (canvasSize.width / 432) * 367.5 * 1.1 : 367.5;
   _p5.textSize(baseTextSize);
   _p5.textAlign(_p5.CENTER, _p5.CENTER);
@@ -1334,7 +1334,7 @@ function adjustInputFontSize() {
     } else if (charCount <= 30) {
         targetFontSize = mediumFontSize; // 16-30 字：90px
     } else {
-        targetFontSize = smallFontSize; // 31-40 字：60px
+        targetFontSize = smallFontSize; // 31-40 字：68px
     }
 
     // 更新字體大小

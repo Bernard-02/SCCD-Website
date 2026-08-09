@@ -14,7 +14,7 @@ function getOrCreateEmptyState(panel) {
     // 比照 library：No Result 置中於畫面中間。activities 是整頁捲動（無固定高 scroll box），
     // 故用 min-height 視窗高的 flex 區塊垂直/水平置中文字。display 用 inline 切換（display:flex 會贏過 .hidden）
     el.style.cssText = 'display:none; min-height:60vh; flex-direction:column; align-items:center; justify-content:center; text-align:center;';
-    el.innerHTML = '<p class="text-p1">No Result</p><p class="text-p1">無結果</p>';
+    el.innerHTML = '<p class="text-s">No Result</p><p class="text-s">無結果</p>';
     panel.appendChild(el);
   }
   return el;

@@ -339,12 +339,12 @@ export function buildAlbumsHtml(item, { unbounded = false } = {}) {
            data-album-media="${mediaJson}"
            data-album-title="${albumTitleJson}">
         <div class="album-sticky-cell grid items-start gap-x-xl pb-xs" style="${gridTemplate}">
-          ${album.year ? `<div class="flex-shrink-0"><p class="text-p2 font-bold">${album.year}</p></div>` : '<div></div>'}
-          ${album.date ? `<div class="flex-shrink-0"><p class="text-p2 font-bold">${album.date}</p></div>` : '<div></div>'}
+          ${album.year ? `<div class="flex-shrink-0"><p class="text-s font-bold">${album.year}</p></div>` : '<div></div>'}
+          ${album.date ? `<div class="flex-shrink-0"><p class="text-s font-bold">${album.date}</p></div>` : '<div></div>'}
           ${album.location || album.location_zh ? `<div class="flex items-start justify-between gap-xl">
             <div>
-              ${album.location ? `<p class="text-p2 font-bold">${album.location}</p>` : ''}
-              ${album.location_zh ? `<p class="text-p2 font-bold">${album.location_zh}</p>` : ''}
+              ${album.location ? `<p class="text-s font-bold">${album.location}</p>` : ''}
+              ${album.location_zh ? `<p class="text-s font-bold">${album.location_zh}</p>` : ''}
             </div>
           </div>` : '<div></div>'}
         </div>
@@ -352,9 +352,9 @@ export function buildAlbumsHtml(item, { unbounded = false } = {}) {
              兩 row 各自獨立 grid，靠「同內容 year」讓 col1 等寬 → col2 左緣＝sticky row 的 date 左緣，thumbnail 對齊日期左緣。
              chevron 改 absolute 疊在 track 左右（不佔位、不把 thumbnail 往右推），thumbs 恆貼 date 左緣（user 2026-07-14）。 -->
         <div class="grid items-center gap-x-xl" style="grid-template-columns: auto 1fr;">
-          <div class="flex-shrink-0" aria-hidden="true" style="visibility:hidden">${album.year ? `<p class="text-p2 font-bold">${album.year}</p>` : ''}</div>
+          <div class="flex-shrink-0" aria-hidden="true" style="visibility:hidden">${album.year ? `<p class="text-s font-bold">${album.year}</p>` : ''}</div>
           <div class="album-gallery relative flex items-center min-w-0">
-            <button type="button" class="album-prev invisible absolute left-0 top-1/2 -translate-y-1/2 z-10 w-[32px] h-[32px] flex items-center justify-start text-p2 hover:opacity-60 transition-opacity">
+            <button type="button" class="album-prev invisible absolute left-0 top-1/2 -translate-y-1/2 z-10 w-[32px] h-[32px] flex items-center justify-start text-s hover:opacity-60 transition-opacity">
               <span class="icon icon-chevron-list icon-s"></span>
             </button>
             <div class="album-track flex-1 min-w-0" style="overflow-x: clip; overflow-clip-margin: 0.5rem; overflow-y: visible; padding: 8px 0;">
@@ -362,7 +362,7 @@ export function buildAlbumsHtml(item, { unbounded = false } = {}) {
                 ${thumbsHtml}
               </div>
             </div>
-            <button type="button" class="album-next invisible absolute right-0 top-1/2 -translate-y-1/2 z-10 w-[32px] h-[32px] flex items-center justify-end text-p2 hover:opacity-60 transition-opacity">
+            <button type="button" class="album-next invisible absolute right-0 top-1/2 -translate-y-1/2 z-10 w-[32px] h-[32px] flex items-center justify-end text-s hover:opacity-60 transition-opacity">
               <span class="icon icon-chevron-list icon-s rotate-180"></span>
             </button>
           </div>
@@ -434,7 +434,7 @@ export function buildGalleryHtml(item) {
   if (galleryItems.length === 0) return '';
   return `
     <div class="gallery-section px-sm pb-lg flex items-center">
-      <button class="gallery-prev flex-shrink-0 w-[32px] h-[32px] flex items-center justify-start text-p2 hover:opacity-60 transition-opacity" style="display:none">
+      <button class="gallery-prev flex-shrink-0 w-[32px] h-[32px] flex items-center justify-start text-s hover:opacity-60 transition-opacity" style="display:none">
         <span class="icon icon-chevron-list icon-s"></span>
       </button>
       <!-- min-w-0：flex item 的 min-width:auto 會被內容撐開（手機 327px 容器內 track 被撐到 ~357px），
@@ -444,7 +444,7 @@ export function buildGalleryHtml(item) {
           ${galleryItems.join('')}
         </div>
       </div>
-      <button class="gallery-next flex-shrink-0 w-[32px] h-[32px] flex items-center justify-end text-p2 hover:opacity-60 transition-opacity" style="display:none">
+      <button class="gallery-next flex-shrink-0 w-[32px] h-[32px] flex items-center justify-end text-s hover:opacity-60 transition-opacity" style="display:none">
         <span class="icon icon-chevron-list icon-s rotate-180"></span>
       </button>
     </div>
@@ -488,16 +488,16 @@ export function buildGuestHtml(g, { showGuestCountry = true, showGuestAffiliatio
     <div class="grid gap-md items-start guest-row-grid">
       <div class="min-w-0 flex items-start justify-between gap-sm">
         <div class="min-w-0">
-          ${gNameEn ? `<p class="text-p2 font-bold">${formatNameWithAka(gNameEn, gAkaEn, gAkaZh, false)}</p>` : ''}
-          ${gNameZh ? `<p class="text-p2 font-bold">${formatNameWithAka(gNameZh, gAkaZh, gAkaEn, true)}</p>` : ''}
+          ${gNameEn ? `<p class="text-s font-bold">${formatNameWithAka(gNameEn, gAkaEn, gAkaZh, false)}</p>` : ''}
+          ${gNameZh ? `<p class="text-s font-bold">${formatNameWithAka(gNameZh, gAkaZh, gAkaEn, true)}</p>` : ''}
         </div>
-        ${gIsAlumni ? `<p class="text-p2 flex-shrink-0">Alumni 系友</p>` : ''}
+        ${gIsAlumni ? `<p class="text-s flex-shrink-0">Alumni 系友</p>` : ''}
       </div>
-      ${showGuestCountry ? `<div class="min-w-0">${countryCell('text-p2', gCountry, g.country_zh)}</div>` : ''}
+      ${showGuestCountry ? `<div class="min-w-0">${countryCell('text-s', gCountry, g.country_zh)}</div>` : ''}
     </div>
     ${showGuestAffiliation && gOrgEn ? `<div class="grid gap-md items-start guest-row-grid">
-      <p class="text-p3 min-w-0">${gOrgEn.length > 20 ? `${gOrgEn}<br>${gOrgZh || ''}` : `${gOrgEn}${gOrgZh ? ' ' + gOrgZh : ''}`}</p>
-      ${showGuestCountry ? countryCell('text-p3', gOrgCountry) : ''}
+      <p class="text-xs min-w-0">${gOrgEn.length > 20 ? `${gOrgEn}<br>${gOrgZh || ''}` : `${gOrgEn}${gOrgZh ? ' ' + gOrgZh : ''}`}</p>
+      ${showGuestCountry ? countryCell('text-xs', gOrgCountry) : ''}
     </div>` : ''}
   </div>`;
 }
@@ -527,18 +527,18 @@ function buildSessionsHtml(item, dateColMinWidth, { showGuestCountry = true, sho
     // date 欄（user #4）：包進 list-title-marquee，跨年過長時自動 marquee（同其他 date 欄）。
     return `<div class="flex flex-col gap-sm">
       <div class="grid items-start gap-x-xs" style="grid-template-columns: ${dateColMinWidth} 1fr;">
-        <div class="min-w-0">${sDate ? `<div class="list-title-marquee"><p class="text-p2 font-bold">${sDate}</p></div>` : ''}</div>
+        <div class="min-w-0">${sDate ? `<div class="list-title-marquee"><p class="text-s font-bold">${sDate}</p></div>` : ''}</div>
         <div class="flex flex-col gap-sm min-w-0">
           ${(sTitleEn || sTitleZh) ? `<div>
-            ${sTitleEn ? `<p class="text-p2 font-bold">${sTitleEn}</p>` : ''}
-            ${sTitleZh ? `<p class="text-p2 font-bold">${sTitleZh}</p>` : ''}
+            ${sTitleEn ? `<p class="text-s font-bold">${sTitleEn}</p>` : ''}
+            ${sTitleZh ? `<p class="text-s font-bold">${sTitleZh}</p>` : ''}
           </div>` : ''}
           ${guestsHtml ? `<div class="flex flex-col gap-sm">${guestsHtml}</div>` : ''}
         </div>
       </div>
       ${(sDescEn || sDescZh) ? `<div>
-        ${sDescEn ? `<p class="text-p2 leading-base">${sDescEn}</p>` : ''}
-        ${sDescZh ? `<p class="text-p2 leading-base${sDescEn ? ' mt-xs' : ''}">${sDescZh}</p>` : ''}
+        ${sDescEn ? `<p class="text-s leading-base">${sDescEn}</p>` : ''}
+        ${sDescZh ? `<p class="text-s leading-base${sDescEn ? ' mt-xs' : ''}">${sDescZh}</p>` : ''}
       </div>` : ''}
     </div>`;
   }).join('');
@@ -962,6 +962,7 @@ function formatSingleDateGroup(d, includeStartYear = false) {
 export async function loadListInto(containerId, url, options = {}) {
   ensureFlagIconsCss();
   const {
+    titleLevel           = 2,   // 清單主標的 heading 階層：activities/admission 直接在 h1 下 = 2；alumni 在 section h2 下 = 3
     categoryFilter       = null,
     visitTypeFilter      = null,
     visitTypeField       = 'visitType',
@@ -1140,8 +1141,8 @@ export async function loadListInto(containerId, url, options = {}) {
       // 每行副標包進 .list-title-marquee：手機單行 nowrap + 打開(.list-header.active)才 marquee（user 2026-06-10）；
       // 桌面由 @media(min-width:768px) 覆寫回 wrap（見 lists.css），不影響桌面多行顯示
       const renderSubListInner = () => subList.map(s => `
-        ${s.en ? `<div class="list-title-marquee"><p class="text-p2">${s.en}</p></div>` : ''}
-        ${s.zh ? `<div class="list-title-marquee"><p class="text-p2">${s.zh}</p></div>` : ''}
+        ${s.en ? `<div class="list-title-marquee"><p class="text-s">${s.en}</p></div>` : ''}
+        ${s.zh ? `<div class="list-title-marquee"><p class="text-s">${s.zh}</p></div>` : ''}
       `).join('');
       // 副標 block（含 .list-subtitles wrapper）給 showSubtitle 模式用 — wrapper 是 sticky pinned 時
       // 收起副標的 CSS 接口（list-header.is-pinned .list-subtitles → grid-rows 0fr collapse）
@@ -1153,13 +1154,13 @@ export async function loadListInto(containerId, url, options = {}) {
       // dateInHeader 時 date 顯示在 title 下方（admission news 用），不在 expand 區再渲染一次
       const titleHtml = `<div class="flex flex-col gap-xs flex-1 min-w-0">
           <div class="list-reveal-row">
-            <div class="list-title-marquee"><p class="text-h5 font-bold">${titleLine1}</p></div>
-            ${titleLine2 ? `<div class="list-title-marquee"><p class="text-h5 font-bold">${titleLine2}</p></div>` : ''}
+            <div class="list-title-marquee"><p class="text-lg font-bold" role="heading" aria-level="${titleLevel}">${titleLine1}</p></div>
+            ${titleLine2 ? `<div class="list-title-marquee"><p class="text-lg font-bold" role="heading" aria-level="${titleLevel}">${titleLine2}</p></div>` : ''}
             ${dateInHeader ? (() => {
               // dateInHeader 模式（admission 用）：date 優先，沒 date 用 subtitle 當副標
               // mt-xs：主標↔date 之間的 gap 比照 camp 的 gap-xs（user 2026-06-22）。camp 副標是獨立 flex 子、
               // 吃外層 flex-col gap-xs；announcement 的 date 在同一個 reveal-row 內 → 需自己補 margin-top 才同間距。
-              if (dateDisplay) return `<p class="text-p2 mt-xs">${dateDisplay}</p>`;
+              if (dateDisplay) return `<p class="text-s mt-xs">${dateDisplay}</p>`;
               return `<div class="mt-xs">${renderSubListInner()}</div>`;
             })() : ''}
           </div>
@@ -1257,8 +1258,8 @@ export async function loadListInto(containerId, url, options = {}) {
             <div class="pt-sm pb-lg px-sm grid gap-gutter items-start" style="grid-template-columns: 9.5fr 2.5fr;">
               <div class="flex flex-col gap-md pr-2xl">
                 ${showDate && dateDisplay && !dateInHeader && dateFullWidth ? `<div>
-                  <p class="text-p2 font-bold">${dateDisplay}</p>
-                  ${dateDisplayZh ? `<p class="text-p2 font-bold">${dateDisplayZh}</p>` : ''}
+                  <p class="text-s font-bold">${dateDisplay}</p>
+                  ${dateDisplayZh ? `<p class="text-s font-bold">${dateDisplayZh}</p>` : ''}
                 </div>` : ''}
                 ${(((showDate && dateDisplay && !dateInHeader && !dateFullWidth)) || (showLocation && locationRows.length) || (showLocation && (cityEn || cityZh))) ? (() => {
                   // 摘要列 grid：[date 連續時間寬 | venue(location) | city]
@@ -1276,16 +1277,16 @@ export async function loadListInto(containerId, url, options = {}) {
                   const cols = hasCity ? `${dateColMinWidth} 1fr 6rem` : `${dateColMinWidth} 1fr`;
                   return `<div class="grid items-start gap-x-xs" style="grid-template-columns: ${cols};">
                     ${showDateCell ? `<div class="min-w-0">
-                      <div class="list-title-marquee"><p class="text-p2 font-bold">${dateDisplay}</p></div>
-                      ${dateDisplayZh ? `<div class="list-title-marquee"><p class="text-p2 font-bold">${dateDisplayZh}</p></div>` : ''}
+                      <div class="list-title-marquee"><p class="text-s font-bold">${dateDisplay}</p></div>
+                      ${dateDisplayZh ? `<div class="list-title-marquee"><p class="text-s font-bold">${dateDisplayZh}</p></div>` : ''}
                     </div>` : '<div></div>'}
                     ${showLocation && (locationEn || locationZh) ? `<div class="min-w-0">
-                      ${locationEn ? `<div class="list-title-marquee"><p class="text-p2 font-bold">${locationEn}</p></div>` : ''}
-                      ${locationZh ? `<div class="list-title-marquee"><p class="text-p2 font-bold">${locationZh}</p></div>` : ''}
+                      ${locationEn ? `<div class="list-title-marquee"><p class="text-s font-bold">${locationEn}</p></div>` : ''}
+                      ${locationZh ? `<div class="list-title-marquee"><p class="text-s font-bold">${locationZh}</p></div>` : ''}
                     </div>` : '<div></div>'}
                     ${hasCity ? `<div class="min-w-0 list-city-cell">
-                      ${cityEn ? `<div class="list-title-marquee"><p class="text-p2 font-bold">${cityEn}</p></div>` : ''}
-                      ${cityZh ? `<div class="list-title-marquee"><p class="text-p2 font-bold">${cityZh}</p></div>` : ''}
+                      ${cityEn ? `<div class="list-title-marquee"><p class="text-s font-bold">${cityEn}</p></div>` : ''}
+                      ${cityZh ? `<div class="list-title-marquee"><p class="text-s font-bold">${cityZh}</p></div>` : ''}
                     </div>` : ''}
                   </div>`;
                 })() : ''}
@@ -1294,8 +1295,8 @@ export async function loadListInto(containerId, url, options = {}) {
                   ${item.guests.map(g => buildGuestHtml(g, { showGuestCountry, showGuestAffiliation })).join('')}
                 </div>` : ''}
                 ${showDescription && (introEn || introZh) && !(Array.isArray(item.sessions) && item.sessions.length) ? `<div class="overflow-y-auto pr-xl list-scroll" style="max-height: 250px;">
-                  ${introEn ? `<p class="text-p2 leading-base">${introEn}</p>` : ''}
-                  ${introZh ? `<p class="text-p2 leading-base mt-md">${introZh}</p>` : ''}
+                  ${introEn ? `<p class="text-s leading-base">${introEn}</p>` : ''}
+                  ${introZh ? `<p class="text-s leading-base mt-md">${introZh}</p>` : ''}
                 </div>` : ''}
               </div>
               ${showPoster ? buildPosterHtml(item) : ''}
@@ -1324,8 +1325,8 @@ export async function loadListInto(containerId, url, options = {}) {
                     <span class="icon icon-attachment icon-m"></span>
                   </div>
                   <div class="col-span-11 flex flex-col">
-                    <p class="text-p2 font-bold">${labelEn}</p>
-                    <p class="text-p2 font-bold">${labelZh}</p>
+                    <p class="text-s font-bold">${labelEn}</p>
+                    <p class="text-s font-bold">${labelZh}</p>
                   </div>
                 </a>
               `;}).join('')}
@@ -1355,12 +1356,12 @@ export async function loadListInto(containerId, url, options = {}) {
                   <span class="icon icon-ref-list icon-s"></span>
                 </div>
                 <div class="col-span-3 flex flex-col">
-                  ${ref.labelEn ? `<p class="text-p2">${ref.labelEn}</p>` : ''}
-                  ${ref.labelZh ? `<p class="text-p2">${ref.labelZh}</p>` : ''}
+                  ${ref.labelEn ? `<p class="text-s">${ref.labelEn}</p>` : ''}
+                  ${ref.labelZh ? `<p class="text-s">${ref.labelZh}</p>` : ''}
                 </div>
                 <div class="col-start-5 col-span-8 flex flex-col min-w-0">
-                  ${ref.titleEn ? `<div class="list-title-marquee"><p class="text-p2 font-bold">${ref.titleEn}</p></div>` : ''}
-                  ${ref.titleZh ? `<div class="list-title-marquee"><p class="text-p2 font-bold">${ref.titleZh}</p></div>` : ''}
+                  ${ref.titleEn ? `<div class="list-title-marquee"><p class="text-s font-bold">${ref.titleEn}</p></div>` : ''}
+                  ${ref.titleZh ? `<div class="list-title-marquee"><p class="text-s font-bold">${ref.titleZh}</p></div>` : ''}
                 </div>
               ${ref.href && !ref.pdfUrl ? `</a>` : `</button>`}
               `).join('')}
@@ -1378,10 +1379,10 @@ export async function loadListInto(containerId, url, options = {}) {
     const yearColHtml = showYearToggle
       ? `<div class="col-span-12 md:col-span-1 md:col-start-1 list-year-toggle list-year-label cursor-pointer flex items-center gap-sm order-1 pt-sm pb-md pl-xs md:sticky md:self-start md:pb-sm">
           <div class="list-reveal-row flex justify-center items-center w-[1.5em] h-[1.5em] flex-shrink-0"><span class="icon icon-chevron-list icon-s transition-all duration-fast rotate-90"></span></div>
-          <h5 class="list-reveal-row">${yearGroup.year}</h5>
+          <span class="list-reveal-row inline-block text-lg font-bold">${yearGroup.year}</span>
         </div>`
       : `<div class="col-span-12 md:col-span-1 md:col-start-1 list-year-label flex items-center order-1 pt-sm pb-md pl-xs">
-          <h5 class="list-reveal-row">${yearGroup.year}</h5>
+          <span class="list-reveal-row inline-block text-lg font-bold">${yearGroup.year}</span>
         </div>`;
 
     const groupHtml = hideYearHeader

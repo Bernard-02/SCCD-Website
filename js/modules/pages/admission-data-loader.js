@@ -96,7 +96,7 @@ export function setupAdmissionReveal(container, { hide = true } = {}) {
     const fromTop = canFlip && Math.random() < 0.5;
     if (fromTop) {
       item.querySelectorAll('.list-reveal-row').forEach(row => {
-        if (row.querySelector('.text-h5') || row.classList.contains('list-subtitles')) {
+        if (row.querySelector('.text-lg') || row.classList.contains('list-subtitles')) {
           gsap.set(row, { yPercent: -100 });
         }
       });

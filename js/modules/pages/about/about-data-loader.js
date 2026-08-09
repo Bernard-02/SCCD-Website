@@ -128,9 +128,9 @@ function fillWorks(list) {
       const box = hl.querySelector('[data-works-text]') || hl;
       box.querySelectorAll(':scope > p').forEach(p => p.remove());
       const frag = buildInterleavedParas(item.descriptionEn, item.descriptionZh, {
-        enClass: 'text-p2 mb-xs font-bold',
-        zhClass: 'text-p2 mb-xs font-bold',
-        lastZhClass: 'text-p2 font-bold',
+        enClass: 'text-s mb-xs font-bold',
+        zhClass: 'text-s mb-xs font-bold',
+        lastZhClass: 'text-s font-bold',
       });
       const playlistList = box.querySelector('.works-playlist-list');
       if (playlistList) box.insertBefore(frag, playlistList);

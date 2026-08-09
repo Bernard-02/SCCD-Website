@@ -108,13 +108,13 @@ function renderMembers(data) {
           <img src="${escapeHtml(m.image)}" alt="${escapeHtml(m.nameEn)}" loading="lazy" class="faculty-card-image w-full h-full object-cover">
         </div>
         <div class="text-left">
-          <div class="faculty-card-name">
-            <h5>${escapeHtml(m.nameEn)}</h5>
-            <h5>${escapeHtml(m.nameZh)}</h5>
+          <div class="faculty-card-name" role="heading" aria-level="3">
+            <h5 role="presentation">${escapeHtml(m.nameEn)}</h5>
+            <h5 role="presentation">${escapeHtml(m.nameZh)}</h5>
           </div>
           <div class="faculty-card-title mt-xs">
-            <p class="text-p2">${escapeHtml(m.titleEn)}</p>
-            <p class="text-p2">${escapeHtml(m.titleZh)}</p>
+            <p class="text-s">${escapeHtml(m.titleEn)}</p>
+            <p class="text-s">${escapeHtml(m.titleZh)}</p>
           </div>
         </div>
       </div>
@@ -240,13 +240,13 @@ async function renderGatherings(data) {
     _gatheringsData.yearGroups = [];
   }
 
-  // 城市 tab：class-division-btn 樣式 + 隨機旋轉 + 一級小（text-p1）
+  // 城市 tab：class-division-btn 樣式 + 隨機旋轉 + 一級小（text-s）
   tagRow.innerHTML = data.gatheringCities.map((c, i) => {
     const deg = randDeg(2, 4);
     return `
       <button class="class-division-btn alumni-city-btn font-bold text-left ${i === 0 ? 'active' : ''}" data-city="${escapeHtml(c.id)}" style="transform: rotate(${deg}deg); transform-origin: center center;">
-        <div class="text-p1 font-bold whitespace-nowrap">${escapeHtml(c.cityEn)}</div>
-        <div class="text-p1 font-bold whitespace-nowrap">${escapeHtml(c.cityZh)}</div>
+        <div class="text-s font-bold whitespace-nowrap">${escapeHtml(c.cityEn)}</div>
+        <div class="text-s font-bold whitespace-nowrap">${escapeHtml(c.cityZh)}</div>
       </button>
     `;
   }).join('');
@@ -296,11 +296,12 @@ async function showGatheringCity(cityId) {
   const cityItems = (_gatheringsData.yearGroups || []).flatMap(yg => yg.items || [])
     .filter(it => it.category === cityId);
   if (!cityItems.length) {
-    container.innerHTML = '<p class="text-p2 opacity-60 py-md">No gatherings yet 尚無聚會紀錄</p>';
+    container.innerHTML = '<p class="text-s opacity-60 py-md">No gatherings yet 尚無聚會紀錄</p>';
     return;
   }
 
   await loadListInto('alumni-gatherings-list', '', {
+    titleLevel:       3,   // 在「Gatherings 召集」section h2 之下 → 清單主標 h3
     data:             _gatheringsData.yearGroups,
     categoryFilter:   cityId,
     hideYearHeader:   true,
@@ -338,7 +339,7 @@ function bindMeetingMinutesPdf() {
 }
 
 // ── Organization（loadListInto + flatList + bodyField='term' + hideYearHeader） ──
-// term 是純文字「Term 2024 - 2026」，bodyField 渲染需 pre-wrap 成 <p class="text-p2 font-bold"> 保持原視覺
+// term 是純文字「Term 2024 - 2026」，bodyField 渲染需 pre-wrap 成 <p class="text-s font-bold"> 保持原視覺
 async function renderOrganization(terms) {
   const container = document.getElementById('alumni-org-list');
   if (!container) return;
@@ -348,10 +349,11 @@ async function renderOrganization(terms) {
     ...t,
     title_en: t.titleEn,
     title:    t.titleZh,
-    term:     t.term ? `<p class="text-p2 font-bold">${escapeHtml(t.term)}</p>` : '',
+    term:     t.term ? `<p class="text-s font-bold">${escapeHtml(t.term)}</p>` : '',
   }));
 
   await loadListInto('alumni-org-list', '', {
+    titleLevel:      3,   // 在「Organization 組織」section h2 之下 → h3
     data,
     flatList:        true,
     bodyField:       'term',
@@ -464,6 +466,7 @@ export async function initAlumni() {
 
   // Activities — 無 share btn
   await loadListInto('alumni-activities-list', ACTIVITIES_URL, {
+    titleLevel: 3,   // 在「Activities 活動」section h2 之下 → h3
     showYearToggle: false,
     showAlumniIcon: false,
     showShareBtn: false,

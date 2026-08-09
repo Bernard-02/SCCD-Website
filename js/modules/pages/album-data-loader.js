@@ -172,7 +172,7 @@ function buildAlbumCardHtml(item, index = 0) {
       <div>
         <div class="album-title-marquee"><h6>${title}</h6></div>
         ${title_zh ? `<div class="album-title-marquee"><h6>${title_zh}</h6></div>` : ''}
-        <p class="text-p2 mt-xs">${categoryLabel}</p>
+        <p class="text-s mt-xs">${categoryLabel}</p>
       </div>
     </div>
   `;
@@ -264,7 +264,7 @@ export async function loadAlbumData(containerId) {
   const yearGroups = await aggregateAlbumData();
 
   if (!yearGroups.length) {
-    container.innerHTML = '<p class="text-p2 py-xl">No albums found.</p>';
+    container.innerHTML = '<p class="text-s py-xl">No albums found.</p>';
     return;
   }
 

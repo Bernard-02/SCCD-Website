@@ -83,8 +83,9 @@ export function initMarquee() {
       .then(j => {
         const rows = Array.isArray(j.data) ? j.data : [];
         const items = rows.map(row => ({
-          // ZH 與 EN 之間、以及無縫 loop 接縫處（EN 接下一份 ZH）都用全形空白 gap 分隔（不用破折號）
-          text: [row.titleZh, row.titleEn].filter(Boolean).join('　　') + '　　',
+          // EN 與 ZH 之間、以及無縫 loop 接縫處（ZH 接下一份 EN）都用 em space 分隔（textContent 渲染，
+          // 只能用 U+2003 字元，不能用 &emsp; 實體；不用破折號）
+          text: [row.titleEn, row.titleZh].filter(Boolean).join('  ') + '  ',
           url: row.url || '#',
           poster: row.poster ? `${CMS_ASSETS_BASE}/${row.poster}${POSTER_PARAMS}` : '',
         }));
@@ -217,13 +218,13 @@ function createBanner(item, squareColor) {
   inner.className = 'homepage-marquee-inner';
 
   const text = document.createElement('span');
-  text.className = 'homepage-marquee-text text-h4';
-  text.style.cssText = 'color: #fff; font-weight: 700; font-size: var(--font-size-h5);';
+  text.className = 'homepage-marquee-text text-lg';
+  text.style.cssText = 'color: #fff; font-weight: 700; font-size: var(--font-size-lg);';
   text.textContent = item.text;
 
   const clone = document.createElement('span');
-  clone.className = 'homepage-marquee-clone text-h4';
-  clone.style.cssText = 'color: #fff; font-weight: 700; font-size: var(--font-size-h5);';
+  clone.className = 'homepage-marquee-clone text-lg';
+  clone.style.cssText = 'color: #fff; font-weight: 700; font-size: var(--font-size-lg);';
   clone.textContent = item.text;
 
   const duration = Math.max(16, item.text.length * 0.36);
@@ -261,7 +262,16 @@ function createBanner(item, squareColor) {
     posterEl.addEventListener('click', () => window.open(item.url || '#', '_blank'));
   }
 
-  return { el: wrap, row, link, posterEl, item, rotation, width: totalWidth, color: squareColor, _posterH: 0 };
+  return { el: wrap, row, link, inner, textEl: text, cloneEl: clone, posterEl, item, rotation, width: totalWidth, color: squareColor, _posterH: 0 };
+}
+
+// 文字放得下 banner 時停掉橫向捲動（否則單則短 news 也一直滑，看起來像一直刷新）；
+// 需 banner 已進 DOM 才能量寬。clone 是為無縫 loop 準備的第二份，靜態時藏起來避免看到兩份。
+function gateMarqueeScroll(b) {
+  if (!b.textEl || !b.link || !b.inner) return;
+  const fits = b.textEl.getBoundingClientRect().width <= b.link.clientWidth;
+  b.inner.style.animationName = fits ? 'none' : '';
+  if (b.cloneEl) b.cloneEl.style.display = fits ? 'none' : '';
 }
 
 function applySlotTransform(b, slotIndex, animate) {
@@ -454,6 +464,7 @@ function runMarqueeStack(stack, items) {
     // 顏色仍依 item 順序 R/G/B（不足 3 個用前 N 個顏色）
     const b = createBanner(items[i], RGB_COLORS[i % RGB_COLORS.length]);
     stack.appendChild(b.el);
+    gateMarqueeScroll(b);
     applySlotTransform(b, slotOffset + i, false);
     bindBannerInteraction(b, onEnter, onLeave, pushAbove, restoreAbove);
     banners.push(b);
@@ -509,6 +520,7 @@ function runMarqueeStack(stack, items) {
     cursor = (cursor + 1) % items.length;
     const nb = createBanner(newItem, inheritedColor);
     stack.appendChild(nb.el);
+    gateMarqueeScroll(nb);
     applySlotTransform(nb, SLOT_COUNT - 1, false);
     bindBannerInteraction(nb, onEnter, onLeave, pushAbove, restoreAbove);
     enterBanner(nb);

@@ -157,19 +157,19 @@ export async function loadDegreeShowDetail() {
               : (ev.time || '');
             return `
             <div class="dsd-event-row grid grid-cols-[4rem_1fr] md:grid-cols-[1fr_2fr_2fr_1fr] gap-sm md:gap-md ${i > 0 ? 'mt-xl md:mt-md' : ''}">
-              <p class="text-p1 text-black font-semibold whitespace-nowrap">${timeInner}</p>
+              <p class="text-s text-black font-semibold whitespace-nowrap">${timeInner}</p>
               <div class="flex flex-col gap-sm md:contents">
                 <div>
-                  ${ev.nameEn ? `<p class="text-p1 text-black font-semibold">${ev.nameEn}</p>` : ''}
-                  <p class="text-p1 text-black font-semibold">${ev.name || ''}</p>
+                  ${ev.nameEn ? `<p class="text-s text-black font-semibold">${ev.nameEn}</p>` : ''}
+                  <p class="text-s text-black font-semibold">${ev.name || ''}</p>
                 </div>
                 <div>
-                  ${ev.locationEn ? `<p class="text-p1 text-black font-semibold">${ev.locationEn}</p>` : ''}
-                  <p class="text-p1 text-black font-semibold">${ev.location || ''}</p>
+                  ${ev.locationEn ? `<p class="text-s text-black font-semibold">${ev.locationEn}</p>` : ''}
+                  <p class="text-s text-black font-semibold">${ev.location || ''}</p>
                 </div>
                 <div>
-                  ${ev.cityEn ? `<p class="text-p1 text-black font-regular">${ev.cityEn}</p>` : ''}
-                  <p class="text-p1 text-black font-regular">${ev.city || ''}</p>
+                  ${ev.cityEn ? `<p class="text-s text-black font-regular">${ev.cityEn}</p>` : ''}
+                  <p class="text-s text-black font-regular">${ev.city || ''}</p>
                 </div>
               </div>
             </div>
@@ -684,7 +684,7 @@ function buildMobileEventStrip(root) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'class-division-btn shrink-0 font-bold transition-all duration-fast text-left';
-    btn.innerHTML = `<div class="dsd-tab-line text-p1 font-bold"><span class="dsd-tab-marquee-inner">${escapeHtml(sec.dataset.branchEn || '')}</span></div><div class="dsd-tab-line text-p1 font-bold"><span class="dsd-tab-marquee-inner">${escapeHtml(sec.dataset.branchZh || '')}</span></div>`;
+    btn.innerHTML = `<div class="dsd-tab-line text-s font-bold"><span class="dsd-tab-marquee-inner">${escapeHtml(sec.dataset.branchEn || '')}</span></div><div class="dsd-tab-line text-s font-bold"><span class="dsd-tab-marquee-inner">${escapeHtml(sec.dataset.branchZh || '')}</span></div>`;
     const rot = randRot();
     baseRots.push(rot);
     btn.style.transform = `rotate(${rot}deg)`;
@@ -967,15 +967,15 @@ async function setupRefBtn(data) {
     row.dataset.refItem = ref.itemId;
     row.innerHTML = `
       <div class="lightbox-ref-chip-label">
-        ${ref.labelEn ? `<p class="text-p3">${escapeHtml(ref.labelEn)}</p>` : ''}
-        ${ref.labelZh ? `<p class="text-p3">${escapeHtml(ref.labelZh)}</p>` : ''}
+        ${ref.labelEn ? `<p class="text-xs">${escapeHtml(ref.labelEn)}</p>` : ''}
+        ${ref.labelZh ? `<p class="text-xs">${escapeHtml(ref.labelZh)}</p>` : ''}
       </div>
       <div class="lightbox-ref-chip-title">
         <div class="lightbox-ref-chip-title-window">
           <div class="lightbox-ref-chip-title-track">
             <div class="lightbox-ref-chip-title-unit">
-              ${ref.titleEn ? `<p class="text-p3 font-bold">${escapeHtml(ref.titleEn)}</p>` : ''}
-              ${ref.titleZh ? `<p class="text-p3 font-bold">${escapeHtml(ref.titleZh)}</p>` : ''}
+              ${ref.titleEn ? `<p class="text-xs font-bold">${escapeHtml(ref.titleEn)}</p>` : ''}
+              ${ref.titleZh ? `<p class="text-xs font-bold">${escapeHtml(ref.titleZh)}</p>` : ''}
             </div>
           </div>
         </div>
@@ -1499,4 +1499,4 @@ function setupStickyAndHeroChips(data) {
       onLeaveBack: () => clearBranch(),
     });
   }
-}
+}

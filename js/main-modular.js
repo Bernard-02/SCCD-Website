@@ -277,7 +277,10 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
   // --- Admission Page ---
   if (page === 'admission') {
     // fromUserNav 傳入：首頁 floating camp 海報 deep-link（?section=summer-camp&item=）才跑導航動畫
-    loadAdmissionData().then(() => initAdmissionSectionSwitch(fromUserNav));
+    loadAdmissionData().then(() => {
+      initAdmissionSectionSwitch(fromUserNav);
+      initActivitiesSearch();  // camp panel 共用 activities 的 search（input[data-panel="panel-summer-camp"]）
+    });
   }
 
   // --- Faculty Pages ---
