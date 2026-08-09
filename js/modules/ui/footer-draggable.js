@@ -2,11 +2,11 @@
  * Footer Scatter Module (檔名沿用 footer-draggable.js；drag 功能已移除)
  *
  * 桌面 .footer-random 內 items 每次刷新 + 每 10s random 散佈：
- *   1. wrapItemsInAnchors：動態包每個 item 在 .footer-anchor (position:absolute + overflow:clip + opacity:0)
+ *   1. wrapItemsInAnchors：動態包每個 item 在 .footer-anchor (position:absolute + opacity:0；純位移 reveal，不裁遮罩)
  *   2. awaitLayoutReady：等 fonts.ready + container 尺寸
  *   3. Init：build 1 個 verified layout 當 initial display + 後續 shuffle fallback
  *   4. 初始 reveal：套 initial layout → anchor opacity:1 → playRandomDirReveal items
- *   5. startShuffleLoop：每 10s 跑 shuffleAll = exit → 即時 generate+verify 新 layout → playRandomDirReveal
+ *   5. startShuffleLoop：每 10s 跑 shuffleAll = 即時 generate+verify 新 layout → anchor 直接 glide 到新位置（in-place 位移，不 exit 出界）
  *
  * 2026-05-29 從 pre-cache 10 個 layout 改成每次 shuffle 即時 generate — user 反饋
  * 「每次 random 都是一樣 pos」(10 個 cache 輪播看得出來)；verified 機制保留（每次 generate 最多重試
@@ -45,7 +45,7 @@ function hideItemsRandomDirection(items) {
   if (typeof gsap === 'undefined') return;
   items.forEach((item) => {
     const t = getHiddenTransform(pickRandomDirection());
-    gsap.set(item, t);
+    gsap.set(item, { ...t, x: 0, y: 0 });   // x/y 歸零：清掉 playFooterExit 用的整屏 px 位移殘留，reset 重進場才從乾淨態起跑
   });
 }
 
@@ -99,6 +99,11 @@ function applyAccentColors(items) {
 
 const ROTATION_RANGE = 12;          // ±度數
 const CARD_GAP_PX = 24;             // 卡片間 + obstacle buffer（bbox 階段用）
+// scatter 右欄「不重疊最小寬」的餘裕：最寬卡塞得下之外再留一段，讓 collision 有位置排 9 張（非只塞得下最寬那張）。
+const MIN_SCATTER_BUFFER_PX = 96;
+// 面積項 packing 係數：隨機散佈 + 30 次 verify 的實際填充效率遠低於 1（旋轉卡 + gap + 避 privacy）。
+// = 需要的最小面積相對「卡 bbox 面積總和」的倍率；經 headless 校準（矮視窗 h900 不重疊、寬鬆視窗 logo 不過縮）。
+const SCATTER_PACK = 1.9;
 const VERIFY_PADDING_PX = 8;        // actual-rect verify 階段 padding
 const MAX_PLACE_ATTEMPTS = 200;     // 單張卡找位置最多試幾次
 
@@ -110,8 +115,6 @@ const HIDDEN_YPERCENT = 110;
 
 // 10s shuffle loop（從原本 5s 放慢，user 覺得 5s 太頻繁眼花）
 const SHUFFLE_INTERVAL_MS = 10000;
-const SHUFFLE_EXIT_S = 0.6;
-const SHUFFLE_EXIT_STAGGER = 0.06;
 
 // 離頁退場（playFooterExit）的 stagger：散佈 items 與 logo/privacy extras 共用。設 0 = 全部同時出場、
 // 出場時長完全一致（user 2026-06-08 要「都一樣」）。原本用 {amount:0.2, axis:'y'}：axis:'y' 是依 Y 座標的
@@ -193,6 +196,27 @@ function applyOfficeSnugWidth(office) {
     }
   }
   if (maxRight > 0) office.style.width = `${Math.ceil(maxRight) + padL + padR + 1}px`;
+}
+
+// scatter 右欄不重疊需要的最小寬＝下列兩項取大者：
+//   ① 最寬卡（含最大旋轉 bbox）+ 兩側 gap + 餘裕——保證最寬那張橫向放得下。
+//   ② 面積項 = SCATTER_PACK × Σ卡bbox面積 ÷ 可用高——矮視窗（可用高小）時 9 張無法單欄堆疊、要靠寬度補，
+//      故最小寬隨可用高反比升高；高視窗則 ① 主導、logo 不會被無謂縮小。
+// 寫進 --footer-min-scatter 給 footer.css（.footer-right min-width/basis + .footer-logo-area 縮）。
+function computeMinScatterWidth(anchors, area) {
+  let maxBBoxW = 0, totalArea = 0;
+  anchors.forEach((a) => {
+    const prev = /** @type {HTMLElement} */ (a).style.transform;
+    /** @type {HTMLElement} */ (a).style.transform = 'none';
+    const bb = rotatedBBox(a.offsetWidth, a.offsetHeight, ROTATION_RANGE);
+    /** @type {HTMLElement} */ (a).style.transform = prev;
+    if (bb.w > maxBBoxW) maxBBoxW = bb.w;
+    totalArea += (bb.w + CARD_GAP_PX) * (bb.h + CARD_GAP_PX);
+  });
+  const availH = Math.max(1, area.getBoundingClientRect().height);
+  const widestTerm = maxBBoxW + 2 * CARD_GAP_PX + MIN_SCATTER_BUFFER_PX;
+  const areaTerm = SCATTER_PACK * totalArea / availH;
+  return Math.ceil(Math.max(widestTerm, areaTerm));
 }
 
 function wrapItemsInAnchors(items) {
@@ -383,8 +407,10 @@ async function buildLayoutCache(area, anchors, obstacles) {
 }
 
 /**
- * 三段式 shuffle: exit yPercent → onComplete 即時 generate+verify 新 layout → playClipReveal
- * fallbackLayout：init 階段 build 好的 layout，當即時 generate 30 次都失敗時 fallback 用它
+ * shuffle: 每個 anchor 從「目前位置」直接 glide 到「新位置」（atlas 國家 relocate 那套）。
+ * 不再 exit 出界→回來——那會讓卡片(現在無 overflow:clip、全程可見)先滑出散佈區、又滑回來＝user 回報的
+ * 「超出空間、出現兩次、閃一下」。改成單一連續位移、全程留在散佈區內。
+ * fallbackLayout：init 階段 build 好的 layout，當即時 generate 30 次都失敗時 fallback 用它。
  */
 function shuffleAll(area, anchors, obstacles, items, fallbackLayout) {
   if (typeof gsap === 'undefined') return;
@@ -392,36 +418,47 @@ function shuffleAll(area, anchors, obstacles, items, fallbackLayout) {
   // anchors 做 GSAP tween + apply layout（讀 area.getBoundingClientRect 為 0×0 → 數學運算閒置成本 + reflow）
   // offsetParent === null 是 display:none 最便宜的偵測（含任何 ancestor display:none）
   if (!area || area.offsetParent === null) return;
-  gsap.killTweensOf(items);
+  gsap.killTweensOf(anchors);
 
-  // Exit: random direction per item
-  const exitDirs = items.map(() => pickRandomDirection());
-  gsap.to(items, {
-    xPercent: (i) => getHiddenTransform(exitDirs[i]).xPercent,
-    yPercent: (i) => getHiddenTransform(exitDirs[i]).yPercent,
-    duration: SHUFFLE_EXIT_S,
-    ease: EASE.enter,
-    stagger: { each: SHUFFLE_EXIT_STAGGER, axis: 'y' },
-    overwrite: 'auto',
-    onComplete: () => {
-      // 即時 generate + verify 新 layout（不再從 cache 挑）
-      let fresh = null;
-      for (let attempt = 0; attempt < MAX_REGEN_PER_LAYOUT; attempt++) {
-        const placement = generatePlacement(area, anchors, obstacles);
-        if (placement.length !== anchors.length) continue;
-        applyPlacement(placement);
-        if (verifyPlacement(area, anchors, obstacles)) {
-          fresh = placement;
-          break;
-        }
-      }
-      if (!fresh) applyPlacement(fallbackLayout);
-      // 每次 shuffle 重新隨機三原色底色（此時 items 已 exit 移出視野，換色不被看到）
-      applyAccentColors(items);
-      // Enter: reset items to new random direction (independent of exit dir)
-      hideItemsRandomDirection(items);
-      playRandomDirReveal(items);
-    },
+  // 起點快照：目前 anchor 的 left/top/rotation（＝畫面上正在顯示的位置）
+  const from = anchors.map((a) => ({
+    left: gsap.getProperty(a, 'left'),
+    top: gsap.getProperty(a, 'top'),
+    rotation: gsap.getProperty(a, 'rotation'),
+  }));
+
+  // 即時 generate + verify 新 layout。applyPlacement 用 gsap.set 把 anchor 移到新位置（同步、迴圈內不 paint）→
+  // 迴圈結束 anchors 已在 target；下面讀 target 後 fromTo 先跳回 from(＝畫面現況、無視覺跳動) 再滑到 target。
+  let fresh = null;
+  for (let attempt = 0; attempt < MAX_REGEN_PER_LAYOUT; attempt++) {
+    const placement = generatePlacement(area, anchors, obstacles);
+    if (placement.length !== anchors.length) continue;
+    applyPlacement(placement);
+    if (verifyPlacement(area, anchors, obstacles)) {
+      fresh = placement;
+      break;
+    }
+  }
+  if (!fresh) applyPlacement(fallbackLayout);
+
+  const to = anchors.map((a) => ({
+    left: gsap.getProperty(a, 'left'),
+    top: gsap.getProperty(a, 'top'),
+    rotation: gsap.getProperty(a, 'rotation'),
+  }));
+
+  // 每次 shuffle 重新隨機三原色底色。卡片現在全程可見（無 off-screen 空檔可藏換色），故換色在 glide 起點瞬間發生；
+  // 移動中換色比靜止時換色不明顯，可接受（user 若在意再改成不換或淡入）。
+  applyAccentColors(items);
+
+  // 直接位移：left/top/rotation 從 from → to，全程在散佈區內（兩端點都由 generatePlacement 限制在區內、直線內插不出界）
+  anchors.forEach((a, i) => {
+    gsap.fromTo(a,
+      { left: from[i].left, top: from[i].top, rotation: from[i].rotation, xPercent: -50, yPercent: -50 },
+      {
+        left: to[i].left, top: to[i].top, rotation: to[i].rotation, xPercent: -50, yPercent: -50,
+        duration: DUR.reveal, ease: EASE.enter, overwrite: 'auto',
+      });
   });
 }
 
@@ -482,17 +519,22 @@ function bindHoverPause(anchors) {
   });
 }
 
-// 手機 + 矮橫向（橫向手機）都走手機版 footer（user 2026-07-04「橫向一切以手機版為主」；gate 同 landscape.css）。
-// init / exit / reset 三處都用這個判斷，路徑才一致（進場走手機 reveal、退場也要走手機 exit）。
+// 「不跑隨機散佈、改走線性 clip-reveal」的 gate。2026-08-08 由 <768 提到 <1200（對齊 header 漢堡切點、user）：
+//   - 768–1199 = 窄桌面 hybrid（logo 靠左縮小 + 右欄由上往下線性列表，CSS 在 footer.css hybrid 段）
+//   - <768     = 完整手機版（logo 疊最上）
+//   兩者右側都是線性堆疊、都走 initFooterMobileReveal（無 shuffle/無隨機方向）；只有 ≥1200 才跑 scatter。
+// 矮橫向（橫向手機）不論寬度一律線性（user 2026-07-04「橫向一切以手機版為主」）。init/exit/reset 三處共用此判斷。
 function usesMobileFooter() {
-  return window.innerWidth < 768 || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+  return window.innerWidth < 1200 || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
 }
 
 export async function initFooterScatter(scope) {
   const footer = scope || document.querySelector('footer.footer-shell, footer#site-footer-static');
   if (!footer) return;
 
-  // 手機：footer 簡化成線性堆疊 → 不跑 scatter，改用招牌 clip-reveal 進場（退場/復位見下方手機分支）
+  bindFooterBreakpointReinit();   // 綁一次：跨 1200 寬度邊界時重建 footer（scatter↔線性）重播進場、免空白
+
+  // <1200（窄桌面 hybrid + 手機）：footer 走線性 clip-reveal（無散佈）；≥1200 才 scatter。見 usesMobileFooter()
   if (usesMobileFooter()) { initFooterMobileReveal(footer); return; }
 
   const area = footer.querySelector('.footer-random');
@@ -519,6 +561,10 @@ export async function initFooterScatter(scope) {
 
   // 地址卡寬度貼齊實際文字（去掉 max-w-sm 撐出的右側空白）；在 GSAP transform 套上前量最準
   applyOfficeSnugWidth(footer.querySelector('.footer-office'));
+
+  // 量「右欄不重疊最小寬」寫進 CSS var → footer.css 據此縮 logo、守住 scatter 寬（見 .footer-logo-area / .footer-right）。
+  // 必須在 buildLayoutCache 之前設：讓首個 layout 就在「已加寬到 min」的區內排，避免窄視窗塞不下走 partial fallback 疊卡。
+  footer.style.setProperty('--footer-min-scatter', `${computeMinScatterWidth(anchors, area)}px`);
 
   // 文字 block 套初始三原色底色 + 綁 hover freeze（hover 凍結 shuffle 倒數、離開續跑）
   applyAccentColors(items);
@@ -650,7 +696,7 @@ export function playFooterExit() {
   if (typeof gsap === 'undefined') return Promise.resolve();
   if (usesMobileFooter()) return playFooterMobileExit();
   if (!shuffleCtx) return Promise.resolve();
-  const { area, items } = shuffleCtx;
+  const { area, anchors, items } = shuffleCtx;
   if (!area || area.offsetParent === null || !items.length) return Promise.resolve();
   // 只在 footer 真的在視窗內才退場（捲在上方點 header 連結 → footer 不在畫面 → 不跑、不打斷 shuffle）
   const r = area.getBoundingClientRect();
@@ -665,8 +711,21 @@ export function playFooterExit() {
   const logo = getFooterLogo(area);
   const privacyLinks = getFooterPrivacyLinks(area);
   if (privacyLinks.length) setupClipReveal(privacyLinks, { hide: false }); // 各包 overflow:clip 遮罩（idempotent）
+  gsap.killTweensOf(anchors);  // 殺掉可能還在跑的 shuffle glide（現在 shuffle 動的是 anchor），否則 anchor 邊移邊被 items exit 疊加
   gsap.killTweensOf(items);
-  const exitDirs = items.map(() => pickRandomDirection());
+  // 退場位移＝整張卡滑出 footer（footer overflow:hidden 會裁掉）→ 換頁前完全消失。
+  // 舊值 getHiddenTransform ±110%(一張卡)在「anchor 移除 clip」後只是挪一下、沒出界 → user 回報「移到一半就切、沒消失」。
+  // 改用 viewport 尺度 px（footer 佔滿一屏，vh/vw 足以把任何位置的卡推出界）。
+  const vw = window.innerWidth || 0;
+  const offForDir = (dir) => {
+    switch (dir) {
+      case 'top':    return { x: 0, y: -vh };
+      case 'bottom': return { x: 0, y: vh };
+      case 'left':   return { x: -vw, y: 0 };
+      default:       return { x: vw, y: 0 };   // right
+    }
+  };
+  const exitOff = items.map(() => offForDir(pickRandomDirection()));
   return new Promise(resolve => {
     _footerExitResolve = resolve;
     // 三組 footer 元素 timing **完全相同**（FOOTER_EXIT_DUR 0.5s + EASE.exit + 無 stagger）→ 同時、同速、時長一致出場。
@@ -680,8 +739,8 @@ export function playFooterExit() {
     if (logo) gsap.to(logo.inner, { yPercent: 100, duration: FOOTER_EXIT_DUR, ease: EASE.exit, overwrite: 'auto' });
     if (privacyLinks.length) gsap.to(privacyLinks, { yPercent: 100, duration: FOOTER_EXIT_DUR, ease: EASE.exit, stagger: 0, overwrite: 'auto' });
     gsap.to(items, {
-      xPercent: (i) => getHiddenTransform(exitDirs[i]).xPercent,
-      yPercent: (i) => getHiddenTransform(exitDirs[i]).yPercent,
+      x: (i) => exitOff[i].x,
+      y: (i) => exitOff[i].y,
       duration: FOOTER_EXIT_DUR,
       ease: EASE.exit,
       stagger: FOOTER_EXIT_STAGGER,  // 與 extras 共用 → 全部同時、同時長
@@ -712,4 +771,59 @@ export function resetFooterAfterExit() {
   // 規章區 4 連結 clip-reveal 復位：從 yPercent:100（沉在遮罩下）一起升回 0（stagger 0）；fromTo 明確起點、clearProps 收乾淨
   if (privacyLinks.length) gsap.fromTo(privacyLinks, { yPercent: 100 }, { yPercent: 0, duration: DUR.reveal, ease: EASE.enter, stagger: 0, overwrite: 'auto', clearProps: 'transform' });
   startShuffleLoop(area, anchors, obstacles, items, fallbackLayout);
+}
+
+// ── 跨 1200 邊界即時重建（scatter ↔ 線性）─────────────────────────
+// user 2026-08-08：擴大過 1200 時，散佈 items 若沒被 scatter JS 接管會停在 CSS 的 opacity:0 → 一片空白。
+// 靠 resize 偵測跨越 1200，剝掉舊包層 + 依新 mode 重跑 initFooterScatter，重播進場動畫（不整頁 reload）。
+// ⚠️只偵測「寬度」跨 1200；矮橫向 gate 的線性化由 orientation-reload 處理（避免雙重重建）。
+function unwrapFooterAnim(footer) {
+  // 反覆剝掉 scatter(.footer-anchor) 與 mobile/線性(.clip-reveal-wrapper) 包層，把 item 還原成原本直接子
+  // （兩者可能巢狀：clip-reveal-wrapper > footer-anchor > item），guard 防意外無限迴圈。
+  let guard = 0;
+  let wrappers = footer.querySelectorAll('.footer-anchor, .clip-reveal-wrapper');
+  while (wrappers.length && guard++ < 20) {
+    wrappers.forEach((w) => {
+      const child = w.firstElementChild;
+      if (child && w.parentElement) w.parentElement.insertBefore(child, w);
+      w.remove();
+    });
+    wrappers = footer.querySelectorAll('.footer-anchor, .clip-reveal-wrapper');
+  }
+  // 清 item/logo/privacy 上的 inline 動畫殘留（scatter 的 transform/left/top/opacity、office snug width、reveal transform）
+  const RESET = '.footer-social, .footer-fax, .footer-tel, .footer-office, .footer-email, .footer-link-item, .footer-logo-area, .footer-logo-inner, .footer-privacy, .footer-privacy a, .footer-a11y-badge, .footer-copyright';
+  footer.querySelectorAll(RESET).forEach((el) => {
+    const s = /** @type {HTMLElement} */ (el).style;
+    s.transform = ''; s.opacity = ''; s.left = ''; s.top = '';
+    s.width = ''; s.height = ''; s.marginLeft = ''; s.marginTop = ''; s.overflow = '';
+    s.background = '';   // scatter 的三原色 accent 底色（applyAccentColors inline）→ 清掉，<1200 線性版跟手機一樣無底色
+  });
+  delete footer.dataset.footerMobileInit;
+}
+
+function reinitVisibleFooters() {
+  document.querySelectorAll('footer.footer-shell, footer#site-footer-static').forEach((f) => {
+    if (!(f instanceof HTMLElement) || f.offsetParent === null) return;  // 隱藏 footer（generate/library/atlas）不重建
+    stopShuffleLoop();
+    mobileBlocks = null;
+    _footerExited = false;
+    unwrapFooterAnim(f);
+    initFooterScatter(f);   // 依新 usesMobileFooter() 走 scatter 或線性 reveal + 重播進場 → 解決跨 1200 空白
+  });
+}
+
+let _footerLastNarrow = null;
+let _footerReinitTimer = null;
+let _footerReinitBound = false;
+function bindFooterBreakpointReinit() {
+  if (_footerReinitBound) return;
+  _footerReinitBound = true;
+  _footerLastNarrow = window.innerWidth < 1200;
+  window.addEventListener('resize', () => {
+    const nowNarrow = window.innerWidth < 1200;
+    if (nowNarrow === _footerLastNarrow) return;   // 沒跨 1200 → 純寬度變化交給 CSS（logo 縮/欄寬）
+    _footerLastNarrow = nowNarrow;
+    clearTimeout(_footerReinitTimer);
+    _footerReinitTimer = window.setTimeout(reinitVisibleFooters, 220);  // debounce 等拖曳停
+  }, { passive: true });
 }

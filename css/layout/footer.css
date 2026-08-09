@@ -30,12 +30,12 @@
   }
 
   /* Scatter items 內所有文字（標題 h6 + 內文 p + 連結 a）統一 p1 字級
-   * 涵蓋 a 是因為 Links 區的 anchor 有 .text-p2 class（=1rem 比 p1=1.15rem 小）需要被蓋掉
-   * .footer-random a 的 specificity (0,1,1) > .text-p2 (0,1,0) 直接 win */
+   * 涵蓋 a 是因為 Links 區的 anchor 有 .text-s class（=1rem 比 p1=1.15rem 小）需要被蓋掉
+   * .footer-random a 的 specificity (0,1,1) > .text-s (0,1,0) 直接 win */
   .footer-random h6,
   .footer-random p,
   .footer-random a {
-    font-size: var(--font-size-p1);
+    font-size: var(--font-size-s);
   }
 
   /* Office 地址寬度由 footer-draggable.js applyOfficeSnugWidth() 量「實際最長一行文字」後鎖 inline width。
@@ -65,9 +65,9 @@
     font-weight: 700;
   }
 
-  /* 所有 footer scatter icon（social + donation）：放大 1.5× （base 是 .text-h3） */
+  /* 所有 footer scatter icon（social + donation）：放大 1.5× （base 是 --icon-hero 3.125rem） */
   .footer-random .icon {
-    font-size: calc(var(--font-size-h3) * 1.5);
+    font-size: calc(var(--icon-hero) * 1.5);
   }
 
   /* Logo Lottie 檔案依 mode 由 footer.js 直接挑檔（不靠 CSS filter 翻色）：
@@ -145,18 +145,20 @@
    * support 在 .footer-social 內當第一個子（HTML 結構），手機自然排成 support → YT → IG → FB 一橫排；
    * 桌面 .footer-social { display: contents } 把 4 個 icon wrapper 升級成 .footer-random 視覺子，
    * JS scatter 各別散佈，display:contents 對 selector `.footer-social > div` 仍生效（DOM tree 未變） */
-  @media (max-width: 767px) {
+  /* 手機 + 窄桌面 hybrid（<1200）共用：兩者右側都是線性堆疊（散佈只在 ≥1200），故這些「非散佈」樣式套到 1199。
+     ⚠️ logo 貼頂 margin（上方 max-width:767 那條）不在此列——那是「logo 疊最上」的全手機專屬，hybrid logo 在左不適用。 */
+  @media (max-width: 1199px) {
     .footer-random .icon {
       /* 0.75 → 0.975（+30%）：4 個 icon 視覺份量加大跟 footer 文字呼應，user 2026-05-27 反饋 */
-      font-size: calc(var(--font-size-h3) * 0.975);
+      font-size: calc(var(--icon-hero) * 0.975);
     }
-    /* 手機字級統一 p2（14px）— 蓋掉桌面 .footer-random h6/p/a → --font-size-p1 規則 */
+    /* 手機字級統一 p2（14px）— 蓋掉桌面 .footer-random h6/p/a → --font-size-s 規則 */
     .footer-random h6,
     .footer-random p,
     .footer-random a,
     .footer-privacy p,
     .footer-privacy a {
-      font-size: var(--font-size-p2);
+      font-size: var(--font-size-s);
     }
     /* 中文地址手機合為一段 p — 桌面為 scatter 視覺強制兩行（br + nowrap）
      * 手機 viewport 較窄、又無 scatter 限制，br 換行造成「104336」獨佔一行很尷尬 → 拔 br + 讓 viewport 自然 wrap */
@@ -178,26 +180,96 @@
       display: none;
     }
   }
-  /* 桌面預設：維持原本兩行 + nowrap（取代原 inline style，現由 class 接管） */
-  @media (min-width: 768px) {
+  /* 散佈版（≥1200）才維持中文地址兩行 + nowrap（scatter 卡視覺要兩行）；<1200 線性列表讓它自然 wrap */
+  @media (min-width: 1200px) {
     .footer-office-zh {
       white-space: nowrap;
     }
   }
 
-  /* ===== Desktop (≥ 768px)：logo 左、右欄分上下 ===== */
-  @media (min-width: 768px) {
+  /* ===== 窄桌面 hybrid（768–1199）：logo 靠左縮小 + 右欄由上往下線性列表（無隨機散佈；user 2026-08-08）=====
+   * footer-inner 由 HTML 的 md:flex-row 維持左右分欄；右欄(footer-right/random)沿用手機 base 的 flex-col 線性堆疊
+   * （散佈規則已移到 ≥1200）。JS 端 usesMobileFooter() 改 <1200 → 走 initFooterMobileReveal（由上往下 clip-reveal、
+   * 無 shuffle/無隨機方向）。這裡只補：logo 縮成適中正方形貼左上（手機 base 的 logo-inner 56px 太小、且全手機是 logo
+   * 疊最上、不適用左右分欄）。:is 涵蓋「已被 clip-reveal 包進 wrapper / 未包」兩態（同手機 logo 慣例）。 */
+  @media (min-width: 768px) and (max-width: 1199px) {
+    /* 為 header 留空間：<1200 header 是漢堡列、捲到 footer 不隱藏 → 內容(含 logo)整體下移到 header 帶之下
+     * （參考橫向手機式「header 讓位」104px 慣例；user 2026-08-08）。取代 base 的 container-padding 上緣。 */
+    .footer-inner {
+      padding-top: 104px;
+    }
+    .footer-inner > :is(.footer-logo-area, :has(> .footer-logo-area)) {
+      flex-shrink: 0;
+      align-self: flex-start;   /* 貼頂 → 往左上 */
+    }
+    .footer-logo-area {
+      width: clamp(140px, 20vw, 280px);
+      aspect-ratio: 1 / 1;
+      height: auto;
+      align-self: flex-start;
+    }
+    .footer-logo-inner {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* 右欄＝col-2 + col-3（logo 是 col-1，共 3 欄）：明確 grid 指定各塊位置（比照 landscape.css footer 手法）。
+     * col-2＝資訊+地址(tel/fax/email/office)、col-3＝social+學校連結(貼頂)；legal(規章 privacy) 絕對定位右下角。
+     * :is(.footer-X, :has(> .footer-X)) 涵蓋「已被 clip-reveal 包 wrapper / 未包」兩態（同 landscape/手機 logo 慣例）。 */
+    .footer-right {
+      position: relative;   /* legal 絕對定位錨點 */
+      flex: 1;
+      min-width: 0;
+    }
+    .footer-random {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      column-gap: var(--spacing-xl);
+      row-gap: var(--spacing-lg);
+      align-content: start;
+    }
+    /* col-2：資訊 + 地址，由上往下 */
+    .footer-random > :is(.footer-tel, :has(> .footer-tel))      { grid-column: 1; grid-row: 1; }
+    .footer-random > :is(.footer-fax, :has(> .footer-fax))      { grid-column: 1; grid-row: 2; }
+    .footer-random > :is(.footer-email, :has(> .footer-email))  { grid-column: 1; grid-row: 3; }
+    .footer-random > :is(.footer-office, :has(> .footer-office)){ grid-column: 1; grid-row: 4; }
+    /* col-3：social + 兩張學校連結，貼頂 */
+    .footer-random > :is(.footer-social, :has(> .footer-social))     { grid-column: 2; grid-row: 1; }
+    .footer-random > :is(.footer-link-item, :has(> .footer-link-item)){ grid-column: 2; grid-row: 2; }
+    .footer-random > :is(.footer-link-item, :has(> .footer-link-item)) ~ :is(.footer-link-item, :has(> .footer-link-item)) { grid-column: 2; grid-row: 3; }
+    /* 窄欄要能 wrap（office 中英 <a> 與學校連結 <a> 預設 nowrap 會爆欄溢出） */
+    .footer-random .footer-office :is(p, a),
+    .footer-random .footer-link-item a {
+      white-space: normal;
+    }
+    /* legal（規章連結 + a11y 章 + copyright）＝絕對定位右下角（依舊，比照散佈版 ≥1200） */
+    .footer-privacy {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      text-align: left;
+    }
+  }
+
+  /* ===== Desktop scatter (≥ 1200px)：logo 左、右欄隨機散佈 ===== */
+  @media (min-width: 1200px) {
     .footer-inner {
       gap: var(--container-padding);
     }
 
-    /* logo 區：正方形吃滿 footer 可用高度（總高 - 上下 padding）
-     * 用 aspect-ratio:1 + height:100% 保持正方形
-     * inline 容器高度由 flex parent 提供（footer-inner h-full + flex-row → 子元素 stretch 滿高） */
+    /* logo 區＝正方形，尺寸取「滿高」與「右欄留足 min 後的剩餘寬」較小者，讓右欄 scatter 永遠有足夠寬不重疊：
+     * flex-basis = 滿高正方形（footer 可用高 = 100vh - 上下 padding）當偏好寬；flex-shrink:1 → 空間不足時「只縮 logo」
+     *   （footer-right flex-shrink:0 不縮、min-width 守住 scatter 需要的最小寬）。
+     * aspect-ratio:1 + height:auto → 寬被 shrink 縮時高同步跟縮、維持正方形（不像 height:100% 會變長方形讓 Lottie letterbox）。
+     * align-self:flex-start + 左側 flex item → 縮小時上邊/左邊固定＝往左上角縮（user 2026-08-08）。max-height 防 basis rounding 溢出。
+     * 寬螢幕（右欄本就寬鬆）logo 自然 = 滿高正方形，與舊 align-self:stretch 同視覺、連續不跳。整段隨視窗即時重排、不需 JS/reload。 */
     .footer-logo-area {
       aspect-ratio: 1 / 1;
-      height: 100%;
-      align-self: stretch;
+      height: auto;
+      max-height: 100%;
+      align-self: flex-start;
+      flex: 0 1 calc(100vh - 2 * var(--container-padding));
+      min-width: 0;
     }
 
     .footer-logo-inner {
@@ -205,10 +277,12 @@
       height: 100%;
     }
 
-    /* 右側欄：fill 剩餘寬度，flex-col 把 random（flex:1）跟 privacy（auto）分上下 */
+    /* 右側欄：fill 剩餘寬度，flex-col 把 random（flex:1）跟 privacy（auto）分上下。
+     * grow:1 撐滿剩餘、**shrink:0 不縮**（空間不足時縮的是 logo、不是這裡）、basis+min-width = scatter 不重疊的最小寬。
+     * --footer-min-scatter 由 footer-draggable.js 依「最寬卡的旋轉 bbox + gap + 餘裕」量測後設；未設時 fallback 480。 */
     .footer-right {
-      flex: 1;
-      min-width: 0;
+      flex: 1 0 var(--footer-min-scatter, 480px);
+      min-width: var(--footer-min-scatter, 480px);
       display: flex;
       flex-direction: column;
       gap: 0;
@@ -240,14 +314,15 @@
       color: #000;
     }
 
-    /* footer-anchor (JS 動態包) = position: absolute + overflow: clip mask + opacity: 0 預設
-     * 包 inner item 做 yPercent reveal（404 pattern）；GSAP 接管所有動畫不留 CSS transition
-     * 這條 rule selector 用 `> div` 因為 JS wrap 後 .footer-anchor 變成 .footer-random / .footer-social 的直接 div 子元素 */
+    /* footer-anchor (JS 動態包) = position: absolute + opacity: 0 預設
+     * 內層 item 做 xPercent/yPercent 位移 reveal（A→B 滑入、全程可見、不裁遮罩；user 2026-08-08 要求由
+     * clip-reveal 改純位移，像 atlas 國家節點平移）。刻意不設 overflow:clip——設了卡片會從遮罩邊緣「揭露」而非位移。
+     * logo(.footer-logo-area) 與右下規章區(.footer-privacy) 仍各自 overflow:clip 做 clip-reveal，不受此影響。
+     * selector 用 `> div` 因為 JS wrap 後 .footer-anchor 是 .footer-random / .footer-social 的直接 div 子元素 */
     .footer-random > div,
     .footer-social > div {
       position: absolute;
       opacity: 0;
-      overflow: clip;
     }
 
     /* 桌面：.footer-social wrapper 自己不生成 box，3 個 icon wrapper 直接當 .footer-random 子元素散佈
