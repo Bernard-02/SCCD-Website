@@ -129,7 +129,7 @@ router 換頁時 `runPageExit(route)` await 完成才繼續 cleanup + swap。
 2. 失敗（CORS / 斷網 / 5xx / 空資料——**200 但空也要 throw**）→ fallback 讀本地 `/data/*.json`，CMS 掛掉頁面照常渲染
 3. single-flight cache：cache 存 Promise，同頁多個消費者共用一次請求；離頁 reset
 4. 圖片欄位 = Directus 檔案 UUID → `resolveImage` 轉 assets URL；null 用 placeholder
-- 已上 Directus：faculty（fulltime/parttime/admin）、curriculum、activities、admission/summer-camp、degree-show、library（awards/press）、alumni、legal、heroes、about-resources、index_video 等；**尚未上**的（如 atlas workshops/industry）暫讀本地 JSON，各 `*-source.js` 檔頭有註明
+- 已上 Directus：faculty（fulltime/parttime/admin）、curriculum、activities、admission/summer-camp、degree-show、library（awards/press）、alumni、legal、heroes、about-resources、about-history（年表＋照片兩 collection）、index_video 等；**尚未上**的（如 atlas workshops/industry）暫讀本地 JSON，各 `*-source.js` 檔頭有註明
 - **影片**：自架（user 明確排除 YouTube）——S3 + CloudFront HLS，原生 `<video>` 播放。⚠️ 播放必須 no-cors（加 crossOrigin 會炸，見 memory）
 
 ### 內容更新方式（給後台編輯者）
@@ -270,8 +270,8 @@ xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96p
 - /create 頁有 typewriter entry + reverse backspace exit
 - 退場時根據 logo state（State A/B/C）決定 backspace / skip / fade
 
-### Footer scatter（`js/modules/ui/footer-draggable.js`）
-**注意：檔名含 "draggable" 是歷史殘留，drag 功能已移除。** 現在是 JS random scatter + collision resolution 8 items + 10 個 pre-computed verified layouts cache + 每 10s shuffle 動畫（hidden 頁自動 pause）。
+### Footer scatter（`js/modules/ui/footer-scatter.js`）
+JS random scatter + collision resolution 8 items + 每次 shuffle 即時 generate verified layout + 每 10s shuffle 動畫（hidden 頁自動 pause）。2026-08-10 由 footer-draggable.js 改名（drag 功能早已移除）；舊 commit / memory 提到 footer-draggable 即此檔。
 
 ### 主要互動頁
 - **/create**：inline p5 generator（拆 iframe 後），三 mode（Standard / Inverse / Wireframe）對應 site mode（standard / inverse / color），rotation slider + color picker + save PNG + 彩蛋
