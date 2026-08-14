@@ -54,6 +54,14 @@ const exitDirMap = new WeakMap();
 export function animateHeaderHide(targets, { duration = DUR.slow, ease = EASE.enterSoft, stagger = 0.06 } = {}) {
   if (typeof gsap === 'undefined' || !targets.length) return;
   gsap.killTweensOf(targets);
+  // 手機 header 兩顆鈕（.mobile-header-btn）：改走 header.js footerHideBars 的 clip-reveal 收合（靜止遮罩＋本體上滑、
+  // 含 rotate 轉移），不用 clip-path wipe（user 2026-08-10）。桌面 [data-bar]/#mode-btn 與 footer 左 logo
+  // （footer-scatter 傳 .footer-logo-area）不含此 class → 走下方 clip-path。經 window hook 避免與 header.js 循環 import。
+  if (targets.every(t => t?.classList?.contains('mobile-header-btn')) && typeof window.__sccdHideHeaderBars === 'function') {
+    // DUR.fast：slide 比 clip-path wipe 感覺慢（元素要走完整段位移），用短時長才snappy（user 2026-08-10 反映太慢）
+    window.__sccdHideHeaderBars({ duration: DUR.fast, ease });
+    return;
+  }
   targets.forEach(el => exitDirMap.set(el, Math.random() < 0.5 ? 'top' : 'bottom'));
   // fromTo：強制 from-state 確保第一次開啟也有完整起點（current 可能是 'none'，GSAP 會跳終值）
   // inset 四值統一用 %（atlas memory：混用單位 GSAP 直接跳終值不動畫）
@@ -74,6 +82,11 @@ export function animateHeaderHide(targets, { duration = DUR.slow, ease = EASE.en
 export function animateHeaderShow(targets, { duration = DUR.slow, ease = EASE.enterSoft, stagger = 0.06 } = {}) {
   if (typeof gsap === 'undefined' || !targets.length) return;
   gsap.killTweensOf(targets);
+  // 對稱：手機兩顆鈕走 header.js footerShowBars 的 clip-reveal 揭露（本體下滑回 y:0 + 清遮罩），見 animateHeaderHide。
+  if (targets.every(t => t?.classList?.contains('mobile-header-btn')) && typeof window.__sccdShowHeaderBars === 'function') {
+    window.__sccdShowHeaderBars({ duration: DUR.fast, ease });
+    return;
+  }
   gsap.to(targets, {
     clipPath: 'inset(0% 0% 0% 0%)',
     duration,

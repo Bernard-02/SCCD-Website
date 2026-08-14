@@ -26,7 +26,7 @@ import { installReducedMotionGsap } from './modules/ui/reduce-motion.js';
 import { initResourcesCycling } from './modules/pages/about/resources-cycling.js';
 import { initBrandTrail } from './modules/pages/about/brand-trail.js';
 import { initTimeline } from './modules/pages/about/timeline.js';
-import { initSectionBannerReveal } from './modules/pages/about/section-banner-reveal.js';
+import { initAboutPolygons } from './modules/pages/about/floating-polygons.js';
 import { initClassButtonsSticky } from './modules/pages/about/class-buttons-sticky.js';
 import { initClassImagesSlideshow } from './modules/pages/about/class-images-slideshow.js';
 import { loadAboutContent } from './modules/pages/about/about-data-loader.js';
@@ -104,6 +104,8 @@ export function cleanupPageModules(destPage) {
   // lightbox 殘留：class 殘留會持續 pointer-events:none 在 header；lightbox-shell 已不碰 html bg / gutter
   // 保留 documentElement.style.backgroundColor reset 以清除其他模組（如 faculty-slide-in、video-player）的殘留
   document.body.classList.remove('lightbox-open');
+  // atlas mode-btn gate 殘留：atlas chunk import 期間就離頁的話 initAtlas 沒跑、沒人解鎖 → 全站 mode btn 卡死
+  document.body.classList.remove('atlas-mode-gate');
   document.documentElement.style.backgroundColor = '';
   // lightbox-shell openCount 歸零，避免某個 modal 沒走 exit 流程時 state 殘留導致下次開不觸發 enter
   resetLightboxMode();
@@ -233,7 +235,7 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
       initAnchorNav({ reveal: true });
       initHorizontalAccordion();
       initBFADivisionToggle();
-      initSectionBannerReveal();
+      initAboutPolygons();
       initClassButtonsSticky();
       initClassImagesSlideshow();
 
@@ -308,6 +310,10 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
 
   // --- Atlas Page ---
   if (page === 'atlas') {
+    // 渲染完成前擋 header mode btn（user 2026-08-10）：這裡「同步」上鎖才蓋得住
+    // 「header async 到位 → atlas chunk 還在 lazy import」的空窗；解鎖在 atlas.js
+    // revealFilters（intro 點燈完成）/ cleanup，離頁保險清除在 cleanupPageModules。
+    document.body.classList.add('atlas-mode-gate');
     const seq = ++lazySeq;
     import('./modules/pages/atlas.js').then((m) => {
       atlasModule = m;

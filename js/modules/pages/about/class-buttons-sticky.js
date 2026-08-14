@@ -15,6 +15,7 @@
 
 import { registerPageExit } from '../../ui/page-exit.js';
 import { DUR } from '../../ui/motion.js';
+import { navChipHidden, NAV_CHIP_SHOWN, pickNavDir } from '../../ui/scroll-animate.js';
 
 export function initClassButtonsSticky() {
   if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') return;
@@ -182,25 +183,58 @@ export function initClassButtonsSticky() {
     });
   }
 
-  // 離頁退場：class tab 的色塊 chip + 「BFA 學士班」label 一起 clip-path 收掉。
-  // 注意：不要動 #class-buttons-sticky 本身（它的 clipPath 被上方 scroll-linked scrub 佔用）→ 改 clip 各 chip/label 自身。
-  // chip 平常無 clip-path（computed none）→ 用 fromTo 顯式起點 inset(0) 避免 none→inset snap。
+  // ─── class tab / label：hero clip-reveal 進退場（user 2026-08-10 一致化：文字字卡/tab 一律 clip-reveal）──
+  // 改用與 courses nav chip 同套「translate + clip-path 同步滑動」(navChipHidden / NAV_CHIP_SHOWN)：
+  // 原本進場瞬間出現、退場 clip-path 擦除 → 現在進退場都滑動+遮罩。旋轉在 btn/label 自身 inline transform
+  //（desktop tab 無 .anchor-nav-inner，paintTargetOf 就是 btn 本體），navChipHidden 讀 inline rotate 算出沿
+  // 自身軸的位移向量；translate 是獨立屬性、與 bfa-division-toggle 每幀重寫的 transform:rotate 疊加共存不打架。
+  const CHIP_SEL = '#class-buttons-sticky .class-division-btn, #class-buttons-sticky .class-group-label';
+  const NAV_EASE = 'cubic-bezier(0.25, 0, 0, 1)';
+  const chipDir = new Map();  // 每 chip 固定方向 → 進退場同向一致
+  const dirFor = (el) => { let d = chipDir.get(el); if (!d) { d = pickNavDir(el); chipDir.set(el, d); } return d; };
+  const classChips = () => Array.from(document.querySelectorAll(CHIP_SEL))
+    .filter(el => /** @type {HTMLElement} */ (el).offsetParent !== null);
+
+  // 進場：先藏（navChipHidden）再滑入。双 rAF 等 bfa-division-toggle initRotations 先套好旋轉，
+  // navChipHidden 的位移向量才吃到正確角度；section 已在視窗內就直接播，否則 ScrollTrigger once 觸發。
+  // 藏起在 rAF（#class 在 hero 下方、初載不在視窗 → 使用者捲到前早已藏好，無閃現）。
+  let chipsRevealed = false;
+  function revealChips() {
+    if (chipsRevealed) return;
+    chipsRevealed = true;
+    const chips = classChips();
+    if (!chips.length) return;
+    gsap.to(chips, {
+      ...NAV_CHIP_SHOWN, duration: DUR.base, ease: NAV_EASE, stagger: 0.04,
+      clearProps: 'clipPath,translate',
+      onComplete: () => chips.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = ''; }),
+    });
+  }
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    classChips().forEach(el => {
+      /** @type {HTMLElement} */ (el).style.transition = 'none';
+      gsap.set(el, navChipHidden(el, dirFor(el)));
+    });
+    const inView = infoArea.getBoundingClientRect().top < window.innerHeight * 0.9;
+    if (inView || typeof ScrollTrigger === 'undefined') revealChips();
+    else ScrollTrigger.create({ trigger: infoArea, start: 'top 90%', once: true, onEnter: revealChips });
+  }));
+
+  // 離頁退場：與進場對稱，chip/label 從顯示態滑回 navChipHidden 藏起（同向）。沒進場過（沒捲到）就不收、免閃。
+  // 不要動 #class-buttons-sticky 本身（它的 clipPath 被上方 scroll-linked scrub 佔用）→ 只動各 chip/label。
   registerPageExit(() => new Promise(resolve => {
-    const chips = Array.from(document.querySelectorAll(
-      '#class-buttons-sticky .class-division-btn, #class-buttons-sticky .class-group-label'
-    )).filter(el => /** @type {HTMLElement} */ (el).offsetParent !== null);
-    if (!chips.length || typeof gsap === 'undefined') { resolve(); return; }
+    if (typeof gsap === 'undefined' || !chipsRevealed) { resolve(); return; }
+    const chips = classChips();
+    if (!chips.length) { resolve(); return; }
     let done = 0;
     const onOne = () => { if (++done >= chips.length) resolve(); };
     chips.forEach(el => {
       gsap.killTweensOf(el);
-      // ⚠️ .class-division-btn 帶 Tailwind `transition-all duration-fast`（含 clip-path）→ CSS transition 會追著
-      // GSAP 每幀寫的 clipPath、渲染值落後 = 看起來比 works 文字慢一截。退場期間關掉 transition 才同步（頁面即將 swap 不必還原）。
-      el.style.transition = 'none';
-      // duration + ease 對齊 works 文字/playlist 退場（WORKS_ANIM_DUR 0.5 + cubic-bezier(0.25,0,0,1)）→ 三者同方向同時長同曲線
+      // Tailwind transition-all duration-fast 會追著 GSAP 每幀值 → 退場期間關掉才同步（頁面即將 swap 不必還原）
+      /** @type {HTMLElement} */ (el).style.transition = 'none';
       gsap.fromTo(el,
-        { clipPath: 'inset(0% 0% 0% 0%)' },
-        { clipPath: 'inset(0% 100% 0% 0%)', duration: DUR.medium, ease: 'cubic-bezier(0.25, 0, 0, 1)', overwrite: true, onComplete: onOne });
+        { ...NAV_CHIP_SHOWN },
+        { ...navChipHidden(el, dirFor(el)), duration: DUR.base, ease: NAV_EASE, overwrite: true, onComplete: onOne });
     });
   }));
 }

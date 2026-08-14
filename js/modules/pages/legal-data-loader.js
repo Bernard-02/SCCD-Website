@@ -9,6 +9,7 @@
  */
 
 import { CMS_API_BASE } from '../../config/api.js';
+import { normalizeBodyHtml } from './activities-data-loader.js';  // 富文本比照 admission-body：自動補 lang="zh-Hant" → ZH 區塊吃 ZH 行距
 import { setupClipReveal, playClipReveal, playRevealExit } from '../ui/scroll-animate.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { DUR, EASE } from '../ui/motion.js';
@@ -156,12 +157,12 @@ const revealSub = (inner) => `<div class="legal-reveal legal-sub-reveal">${inner
 //   project_regulations_page_and_legal_page_recipe）。缺 unit 就只渲染左側規章名（graceful）。
 // （原 url 連結欄位與 <a>／share icon 已移除，user 2026-07-14/15：規章列不再是連結。）
 function renderRegLine(it) {
-  const name = `<span class="reg-line-text">${[esc(it.titleEn), esc(it.titleZh)].filter(Boolean).join('<br>')}</span>`;
+  const name = `<span class="reg-line-text">${[it.titleEn, it.titleZh].filter(Boolean).map(t => `<span>${esc(t)}</span>`).join('')}</span>`;
   // 承辦單位（去哪裡找）：有值就用；後台 unit 欄尚未建（CMS 無此欄）時用預設 placeholder 文字佔位
   //   （user 2026-07-15：直接寫文字、不用 box），後台補 unitEn/unitZh 後自動改真值。EN<br>ZH，缺一語不留空行。
   let uEn = it.unitEn, uZh = it.unitZh;
   if (!uEn && !uZh) { uEn = 'SCCD Office'; uZh = '系辦'; }
-  const unit = `<span class="reg-line-unit">${[esc(uEn), esc(uZh)].filter(Boolean).join('<br>')}</span>`;
+  const unit = `<span class="reg-line-unit">${[uEn, uZh].filter(Boolean).map(t => `<span>${esc(t)}</span>`).join('')}</span>`;
   return `<div class="reg-line">${name}${unit}</div>`;
 }
 
@@ -180,7 +181,7 @@ function renderStructured(data, numbered = true, titleTag = 'h2') {
     // 每個子區塊各自包成一個 .legal-sub-reveal（獨立進場拍）；點層級 desEn/desZh 另成一個 reveal。
     // 點若無 sections 就只渲染點層級 desEn/desZh（privacy-policy / Others 等完全不受影響 = 單一 desc reveal）。
     const sections = pt.sections || [];
-    const pointDesc = (pt.desEn || '') + (pt.desZh || '');
+    const pointDesc = normalizeBodyHtml(pt.desEn) + normalizeBodyHtml(pt.desZh);
     // regulations：點內 items（結構化規章清單 {titleEn,titleZh,unitEn,unitZh}）→ 組成 .reg-line（左規章名／右承辦單位）；其他頁無 items → 用 pointDesc
     const regItems = Array.isArray(pt.items) ? pt.items : null;
     const descInner = regItems ? regItems.map(renderRegLine).join('') : pointDesc;
@@ -189,8 +190,8 @@ function renderStructured(data, numbered = true, titleTag = 'h2') {
         `<div class="legal-section-desc"><div class="legal-subsection">`
         + `<h3 class="legal-subsection-title-en">${esc(s.titleEn)}</h3>`
         + `<h3 class="legal-subsection-title-zh">${esc(s.titleZh)}</h3>`
-        + (s.desEn || '')   // 富文本，直接注入不 esc
-        + (s.desZh || '')
+        + normalizeBodyHtml(s.desEn)   // 富文本，直接注入不 esc；normalize 自動補 lang（比照 admission-body）
+        + normalizeBodyHtml(s.desZh)
         + `</div></div>`
       )
     ).join('');

@@ -8,8 +8,8 @@
 
 import { registerPageExit } from '../../ui/page-exit.js';
 import { registerPageCleanup } from '../../ui/page-cleanup.js';
-import { sitePath } from '../../ui/site-base.js';
 import { createClassImagesSlideshow } from './class-images-slideshow.js';
+import { loadHistory } from './history-source.js';
 
 export function initTimeline() {
   const area = document.getElementById('timeline-area');
@@ -148,21 +148,47 @@ export function initTimeline() {
         onComplete: onDone });
   }
 
+  // list 矩形 clip-reveal＝外層遮罩內純位移（隨機 4 向），非 clip-path 擦除、非整塊飛入（user 定義的 clip-reveal）
+  const RSLIDE_DIRS = ['top', 'bottom', 'left', 'right'];
+  const rslideShown = { xPercent: 0, yPercent: 0 };
+  const rslideHidden = (dir) => dir === 'top' ? { xPercent: 0, yPercent: -110 }
+    : dir === 'bottom' ? { xPercent: 0, yPercent: 110 }
+    : dir === 'left' ? { xPercent: -110, yPercent: 0 }
+    : { xPercent: 110, yPercent: 0 }; // right
+  const randRslideDir = () => RSLIDE_DIRS[Math.floor(Math.random() * RSLIDE_DIRS.length)];
+
   // --- Fetch & Build ---
-  fetch(sitePath('data/about-history.json'))
-    .then(r => { if (!r.ok) throw new Error('Failed'); return r.json(); })
-    .then(data => {
-      const items = [];
-      data.forEach(eraGroup => {
-        eraGroup.years.forEach(yearItem => {
-          items.push({ ...yearItem, eraTitle: eraGroup.era, eraLabel: eraGroup.label });
-        });
+  // 結構化資料（era → entries）→ 舊 per-year shape（descriptions HTML 陣列）：timeline 內部渲染沿用。
+  // division 存的就是顯示字串（如「BFA 學士班」，2026-08-11 二改）→ h5 照字面渲染，
+  // 之後後台學制下拉加新選項前台零改碼；中英說明一律 regular（h5 小標/年份維持粗體）
+  function buildYearItems(eras) {
+    const items = [];
+    eras.forEach(era => {
+      let cur = null;
+      let curDivision = null;
+      (era.entries || []).forEach(en => {
+        if (!cur || cur.year !== en.year) {
+          cur = { year: en.year, eraTitle: era.eraEn, eraLabel: era.eraZh, descriptions: [] };
+          curDivision = null;
+          items.push(cur);
+        }
+        const head = en.division && en.division !== curDivision
+          ? `<h5 class="mb-sm">${en.division}</h5>` : '';
+        if (en.division) curDivision = en.division;
+        cur.descriptions.push(`${head}<div class="font-regular mb-en-zh-body">${en.en}</div><div class="font-regular" lang="zh-Hant">${en.zh}</div>`);
       });
-      if (items.length > 0) {
+    });
+    return items;
+  }
+
+  loadHistory()
+    .then(({ eras, images }) => {
+      const items = buildYearItems(eras);
+      if (items.length > 0 && images.length > 0) {
         // 手機與矮橫向（landscape gate，同 landscape.css）走簡化視圖（卡片 + slideshow + 箭頭切年 + list 鈕），
         // 桌面 strip 整套不建構；矮橫向的四欄 grid 佈局由 landscape.css 5i++ 覆蓋（user 2026-07-07）
-        if (window.innerWidth < 768 || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) buildMobile(items);
-        else buildStrip(items);
+        if (window.innerWidth < 768 || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) buildMobile(items, images);
+        else buildStrip(items, images);
       }
     })
     .catch(err => console.error('Timeline error:', err));
@@ -171,7 +197,7 @@ export function initTimeline() {
   // 排列參考 class slideshow：era chip + 年份說明卡在「圖片上方」、圖片用 3-slot slideshow 排列；
   // 右箭頭（或點圖片區）切下一年 = 文字卡 clip 換內容 + slideshow tick 同步左移；
   // list 鈕切換 era 清單視圖（沿用桌面 #timeline-list-view 結構/CSS，行為簡化版）。
-  function buildMobile(items) {
+  function buildMobile(items, images) {
     area.style.height = 'auto';
     navLeft.style.display = 'none';
     navRight.style.display = 'none';
@@ -195,8 +221,8 @@ export function initTimeline() {
       '<div class="tl-m-images"></div>' +
       // 直式：era 左（EN/ZH 兩行）、年份卡右（user 2026-07-09）；矮橫向 wrapper display:contents 拆回 grid items
       '<div class="tl-m-text-row">' +
-        '<div class="tl-m-era timeline-card-inner bg-black text-white"><div class="text-s leading-base font-bold"></div></div>' +
-        '<div class="tl-m-card timeline-card-inner"><div class="tl-m-card-body text-s leading-base font-bold"></div></div>' +
+        '<div class="tl-m-era timeline-card-inner bg-black text-white"><div class="text-s font-bold"></div></div>' +
+        '<div class="tl-m-card timeline-card-inner"><div class="tl-m-card-body text-s font-bold"></div></div>' +
       '</div>' +
       '<div class="tl-m-controls">' +
         '<button class="tl-m-list-btn" aria-label="切換清單視圖"><span class="tl-icon-btn-inner"><span class="icon icon-atlas-list"></span></span></button>' +
@@ -293,7 +319,8 @@ export function initTimeline() {
     // slideshow：單格置中一次一張（user 2026-07-07 改版，原 3-slot collage）；manual 模式
     //（內建點擊/hover 不綁），tick 由「自動輪播計時」與「箭頭切年」共同驅動——同一 tick、
     // isShifting 自帶互斥。舊圖 clip-out + 新圖隨機 4 向 clip-in 同格交疊＝clip-path 切換。
-    const slide = createClassImagesSlideshow(imagesEl, items.map(it => it.image), {
+    // 照片與年份脫鉤（2026-08-11 後台重構）：輪播吃 about_history_images 的 sort 順序
+    const slide = createClassImagesSlideshow(imagesEl, images, {
       textHlEl: null, manual: true, slotLefts: ['50%'], slotXPercent: -50,
     });
     if (slide) slide.renderFresh(true); // 先隱藏，等 ScrollTrigger reveal
@@ -341,7 +368,7 @@ export function initTimeline() {
     listView.innerHTML =
       '<div class="tl-list-grid"><div class="tl-list-cell">' +
         '<div class="tl-list-rect timeline-card-inner"><div class="tl-list-content list-scroll"></div></div>' +
-        '<div class="tl-list-chip timeline-card-inner bg-black text-white"><div class="text-s leading-base font-bold"></div></div>' +
+        '<div class="tl-list-chip timeline-card-inner bg-black text-white"><div class="text-s font-bold"></div></div>' +
         '<button class="tl-list-next-btn" aria-label="下一個時期"><span class="tl-icon-btn-inner"><span class="icon icon-arrow-right"></span></span></button>' +
       '</div></div>';
     area.appendChild(listView);
@@ -383,12 +410,12 @@ export function initTimeline() {
           return '<div class="tl-list-block">' + heading +
             '<div class="tl-list-cols">' +
               `<div class="tl-list-en">${en}</div>` +
-              `<div class="tl-list-zh">${zh}</div>` +
+              `<div class="tl-list-zh" lang="zh-Hant">${zh}</div>` +
             '</div></div>';
         }).join('');
         return '<div class="tl-list-year-row">' +
-          `<div class="tl-list-year text-lg font-bold">${y.year}</div>` +
-          `<div class="tl-list-year-body text-s leading-base font-regular">${blocks}</div>` +
+          `<div class="tl-list-year text-s font-bold">${y.year}</div>` +
+          `<div class="tl-list-year-body text-s font-regular">${blocks}</div>` +
         '</div>';
       }).join('');
       listContent.scrollTop = 0;
@@ -430,6 +457,7 @@ export function initTimeline() {
           onComplete: () => { listAnimating = false; },
         });
         revealChip(listChip, TIMING.cardRevealDuration, TIMING.revealEase);
+        revealChip(listNextBtn.querySelector('.tl-icon-btn-inner'), TIMING.cardRevealDuration, TIMING.revealEase);
       });
     }
 
@@ -451,6 +479,8 @@ export function initTimeline() {
         },
       });
       exitChip(listChip, TIMING.exitDuration, TIMING.exitEase);
+      // 右箭頭鈕跟著 clip 收起（user 2026-08-11）
+      exitChip(listNextBtn.querySelector('.tl-icon-btn-inner'), TIMING.exitDuration, TIMING.exitEase);
     }
 
     function nextListEra() {
@@ -505,12 +535,25 @@ export function initTimeline() {
       });
       if (listMode) { gsap.killTweensOf(listChip); exitChip(listChip, TIMING.exitDuration, TIMING.exitEase, onOne); }
     }));
+
+    // 離頁退場：手機 list 鈕（把說明叫出來的 btn）+ 下一年鈕 + list view 下一時期鈕的黑方塊 inner 也做出場
+    //（hero clip-reveal，同 .tl-list-chip；exitChip 讀 CSS rotate 算沿自身軸位移）。
+    registerPageExit(() => new Promise(resolve => {
+      if (typeof gsap === 'undefined') { resolve(); return; }
+      const inners = [listBtn, nextBtn, listNextBtn]
+        .map(b => b && b.querySelector('.tl-icon-btn-inner'))
+        .filter(el => el && el.offsetParent !== null);
+      if (!inners.length) { resolve(); return; }
+      let done = 0;
+      const onOne = () => { if (++done >= inners.length) resolve(); };
+      inners.forEach(el => { gsap.killTweensOf(el); exitChip(el, TIMING.exitDuration, TIMING.exitEase, onOne); });
+    }));
   }
 
   // 桌面版：照片自動捲動 marquee（user 2026-08-06 改版）
   // 舊版是「左右分頁導航 + 疊加 era/年份字卡 + slot4 半透明預覽 + hover 抬升」，全部移除；
   // 現在照片無縫由右往左自動捲（速度對齊 awards ticker 80px/s），字卡改成左下角鈕開關的 list view popup。
-  function buildStrip(items) {
+  function buildStrip(items, images) {
     const pageW = area.offsetWidth;
     const pageH = area.offsetHeight;
     const totalW = items.length * pageW;
@@ -532,6 +575,7 @@ export function initTimeline() {
     const BAR_H_VH = usableH_VH / 5;
 
     const allRotates = []; // 所有照片 rotateDiv，供進場 clip-reveal
+    let imgIdx = 0; // 照片與年份脫鉤（2026-08-11）：每個 slot 依序取 about_history_images，不足循環
 
     items.forEach((item, index) => {
       const ox = index * pageW;
@@ -659,8 +703,8 @@ export function initTimeline() {
         aspectDiv.style.cssText = 'aspect-ratio:16/9; overflow:hidden;';
 
         const img = document.createElement('img');
-        img.src = item.image;
-        img.alt = `${item.year}`;
+        img.src = images[imgIdx++ % images.length];
+        img.alt = '';
         img.style.cssText = 'width:100%; height:100%; object-fit:cover; display:block;';
 
         aspectDiv.appendChild(img);
@@ -687,11 +731,12 @@ export function initTimeline() {
     }
 
     let marqueeStarted = false;
+    let marqueeTween = null;
     function startMarquee() {
       if (typeof gsap === 'undefined' || marqueeStarted) return;
       marqueeStarted = true;
       const wrapX = gsap.utils.wrap(-totalW, 0);
-      gsap.to([strip, clone], {
+      marqueeTween = gsap.to([strip, clone], {
         x: `-=${totalW}`, ease: 'none', duration: totalW / 80, repeat: -1,
         modifiers: { x: (x) => `${wrapX(parseFloat(x))}px` },
       });
@@ -710,6 +755,25 @@ export function initTimeline() {
     } else {
       revealAll();
     }
+
+    // 離頁退場：freeze 當前 marquee 畫面（暫停無限捲動 tween）→ 可見照片各自 clip-path 收場
+    //（user 2026-08-10：圖片離場走 clip-path、非滑動）。照片以 inline clipPath inset(0) 顯示 → gsap.to 直接收、無 fromTo snap。
+    registerPageExit(() => new Promise(resolve => {
+      if (typeof gsap === 'undefined' || !marqueeStarted) { resolve(); return; }
+      if (marqueeTween) marqueeTween.pause();  // 凍結當前畫面
+      const vh = window.innerHeight || 0;
+      const visible = revealTargets.filter(el => {
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && r.bottom > 0 && r.top < vh;
+      });
+      if (!visible.length) { resolve(); return; }
+      let done = 0;
+      const onOne = () => { if (++done >= visible.length) resolve(); };
+      visible.forEach(el => {
+        gsap.killTweensOf(el);
+        gsap.to(el, { clipPath: getClipStart(randomDir4()), duration: TIMING.exitDuration, ease: TIMING.exitEase, overwrite: true, onComplete: onOne });
+      });
+    }));
 
     // ── List View（era 卡片；桌機）── 背景照片持續捲動，list view 疊在上面可開關 ──
     const eraGroups = [];
@@ -767,7 +831,7 @@ export function initTimeline() {
     listView.innerHTML =
       '<div class="tl-list-grid"><div class="tl-list-cell">' +
         '<div class="tl-list-rect timeline-card-inner"><div class="tl-list-content list-scroll"></div></div>' +
-        '<div class="tl-list-chip timeline-card-inner bg-black text-white"><div class="text-s leading-base font-bold"></div></div>' +
+        '<div class="tl-list-chip timeline-card-inner bg-black text-white"><div class="text-s font-bold"></div></div>' +
         '<button class="tl-list-next-btn" aria-label="下一個時期"><span class="tl-icon-btn-inner"><span class="icon icon-arrow-right"></span></span></button>' +
       '</div></div>';
     area.appendChild(listView);
@@ -778,6 +842,14 @@ export function initTimeline() {
     const listContent = listView.querySelector('.tl-list-content');
     const listNextBtn = listView.querySelector('.tl-list-next-btn');
     const rectEls = [listRect];
+
+    // 矩形 clip-reveal 用外層遮罩：吃 rect 桌面定位（right:24 給 next 鈕留位）+ overflow:clip；
+    // rect 填滿遮罩內部、退進場純位移滑動（chip/next 鈕是遮罩外 sibling，不被裁）。桌面 buildStrip only。
+    const rectMask = document.createElement('div');
+    rectMask.style.cssText = 'position:absolute; top:0; bottom:0; left:0; right:24px; overflow:clip;';
+    listRect.parentNode.insertBefore(rectMask, listRect);
+    rectMask.appendChild(listRect);
+    listRect.style.cssText += ';top:0; bottom:0; left:0; right:0;'; // 填滿遮罩（蓋掉 CSS right:24px）
 
     const descParser = document.createElement('div');
     function splitDesc(d) {
@@ -804,12 +876,12 @@ export function initTimeline() {
           return '<div class="tl-list-block">' + heading +
             '<div class="tl-list-cols">' +
               `<div class="tl-list-en">${en}</div>` +
-              `<div class="tl-list-zh">${zh}</div>` +
+              `<div class="tl-list-zh" lang="zh-Hant">${zh}</div>` +
             '</div></div>';
         }).join('');
         return '<div class="tl-list-year-row">' +
-          `<div class="tl-list-year text-lg font-bold">${y.year}</div>` +
-          `<div class="tl-list-year-body text-s leading-base font-regular">${blocks}</div>` +
+          `<div class="tl-list-year text-s font-bold">${y.year}</div>` +
+          `<div class="tl-list-year-body text-s font-regular">${blocks}</div>` +
         '</div>';
       }).join('');
       listContent.scrollTop = 0;
@@ -824,12 +896,13 @@ export function initTimeline() {
       listEraColors = eraGroups.map((_, i) => pool[i % pool.length]);
       renderListEra(listEraIndex);
       listView.style.display = 'block';
-      gsap.set(rectEls, { clipPath: getClipStart(randomDirLR()) });
+      gsap.set(rectEls, rslideHidden(randRslideDir()));
       gsap.to(rectEls, {
-        clipPath: CLIP_END, duration: TIMING.cardRevealDuration, ease: TIMING.revealEase,
+        ...rslideShown, duration: TIMING.cardRevealDuration, ease: TIMING.revealEase,
         onComplete: () => { listAnimating = false; },
       });
       revealChip(listChip, TIMING.cardRevealDuration, TIMING.revealEase);
+      revealChip(listNextBtn.querySelector('.tl-icon-btn-inner'), TIMING.cardRevealDuration, TIMING.revealEase);
     }
 
     function hideListView() {
@@ -837,24 +910,26 @@ export function initTimeline() {
       listAnimating = true;
       wipeToggleIcon('icon icon-atlas-list');
       gsap.to(rectEls, {
-        clipPath: getClipStart(randomDirLR()), duration: TIMING.exitDuration, ease: TIMING.exitEase,
+        ...rslideHidden(randRslideDir()), duration: TIMING.exitDuration, ease: TIMING.exitEase,
         onComplete: () => { listView.style.display = 'none'; listMode = false; listAnimating = false; },
       });
       exitChip(listChip, TIMING.exitDuration, TIMING.exitEase);
+      // 右箭頭鈕跟著 clip 收起（user 2026-08-11：關閉說明時箭頭不能原地消失）
+      exitChip(listNextBtn.querySelector('.tl-icon-btn-inner'), TIMING.exitDuration, TIMING.exitEase);
     }
 
     function nextListEra() {
       if (listAnimating || !listMode || eraGroups.length <= 1) return;
       listAnimating = true;
-      wipeIconGlyph(listNextBtn.querySelector('.icon')); // 箭頭同步 clip 進出場，不再直接閃爍
+      // 箭頭 icon 不做 glyph wipe（user 2026-08-11：點擊時箭頭不要 clip 動畫），鈕本身不動
       gsap.to(rectEls, {
-        clipPath: getClipStart(randomDir4()), duration: TIMING.exitDuration, ease: TIMING.exitEase,
+        ...rslideHidden(randRslideDir()), duration: TIMING.exitDuration, ease: TIMING.exitEase,
         onComplete: () => {
           listEraIndex = (listEraIndex + 1) % eraGroups.length;
           renderListEra(listEraIndex);
-          gsap.set(rectEls, { clipPath: getClipStart(randomDirLR()) });
+          gsap.set(rectEls, rslideHidden(randRslideDir()));
           gsap.to(rectEls, {
-            clipPath: CLIP_END, duration: TIMING.cardRevealDuration, ease: TIMING.revealEase,
+            ...rslideShown, duration: TIMING.cardRevealDuration, ease: TIMING.revealEase,
             onComplete: () => { listAnimating = false; },
           });
           revealChip(listChip, TIMING.cardRevealDuration, TIMING.revealEase);
@@ -872,8 +947,21 @@ export function initTimeline() {
       gsap.killTweensOf(rectEls);
       let done = 0;
       const onOne = () => { if (++done >= 2) resolve(); };
-      gsap.to(listRect, { clipPath: getClipStart(randomDirLR()), duration: TIMING.exitDuration, ease: TIMING.exitEase, overwrite: true, onComplete: onOne });
+      gsap.to(listRect, { ...rslideHidden(randRslideDir()), duration: TIMING.exitDuration, ease: TIMING.exitEase, overwrite: true, onComplete: onOne });
       exitChip(listChip, TIMING.exitDuration, TIMING.exitEase, onOne);
+    }));
+
+    // 離頁退場：桌面 list 切換鈕（把說明叫出來的 btn）+ list view 內「下一時期」鈕的黑方塊 inner 也做出場
+    //（hero clip-reveal，同 .tl-list-chip / library 黑卡；exitChip 讀 CSS rotate(-8deg) 算沿自身軸位移）。
+    registerPageExit(() => new Promise(resolve => {
+      if (typeof gsap === 'undefined') { resolve(); return; }
+      const inners = [listBtn, listNextBtn]
+        .map(b => b && b.querySelector('.tl-icon-btn-inner'))
+        .filter(el => el && el.offsetParent !== null);
+      if (!inners.length) { resolve(); return; }
+      let done = 0;
+      const onOne = () => { if (++done >= inners.length) resolve(); };
+      inners.forEach(el => { gsap.killTweensOf(el); exitChip(el, TIMING.exitDuration, TIMING.exitEase, onOne); });
     }));
   }
 }

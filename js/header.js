@@ -11,6 +11,13 @@ import { sitePath } from './modules/ui/site-base.js';
 // Footer-near hide state（module-scope 讓 updateNavActive 能在 SPA 換頁時同步 reset）：
 // scroll listener 內 closure 變數會跨換頁存活，但 updateNavActive 拿不到 → 提升到 module scope
 let barsHidden = false;
+// 捲到 footer 時 header 整排 bars/logo 已滑走＝畫面上空的，但透明容器（fixed z-9999）仍在會攔截點擊、
+// 蓋住 footer 頂部 tab 的 SVG mark（文字在 header 下緣之下才點得到）。掛 body 旗標讓 CSS（footer.css ≥1200）
+// 此期間放行 header 點擊 → 整塊 tab（含 SVG）可點；其他捲動位置/頁面 header 照常互動。user 2026-08-10。
+function setBarsHidden(v) {
+  barsHidden = v;
+  if (typeof document !== 'undefined') document.body.classList.toggle('footer-bars-hidden', v);
+}
 function getFooterHideTargets() {
   // bars only：logo 改走 hero clip-reveal 滑動（見 footerHideLogo/footerShowLogo），不再跟 bars 一起 clip-path wipe
   return [...getHeaderTargets()].filter(Boolean);
@@ -149,10 +156,17 @@ function footerHideBars(opts = {}) {
   const bars = getFooterHideTargets();
   if (!bars.length) return;
   gsap.killTweensOf(bars);
+  // <1200＝手機 header 排（mode + 漢堡兩顆鈕）：一致往上滑收，配 .mobile-header-bg 底色帶的上滑（乾淨的手機式收起）。
+  // 桌面散佈版(≥1200) header bars 才用隨機四方向 scatter。user 2026-08-10：兩顆鈕隨機四方向收看起來很奇怪。
+  const mobileHeader = window.innerWidth < 1200
+    || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
   const offsets = bars.map(bar => {
     const mask = ensureBarMask(bar);
     if (mask) mask.style.overflow = 'clip';
-    return barHideOffset(pickBarDir(bar), bar, mask || bar);
+    // 停用 .mobile-header-btn 的 CSS `transition: transform`（buttons.css）：否則會跟 GSAP 的 x/y tween 互搶——
+    // 每幀被 0.4s ease 重新平滑一次 → 拖影、又慢又「怪」（clip-path 版無此問題：它動 clip-path 不動 transform）。
+    /** @type {HTMLElement} */ (bar).style.transition = 'none';
+    return barHideOffset(mobileHeader ? 'top' : pickBarDir(bar), bar, mask || bar);
   });
   gsap.to(bars, {
     x: i => offsets[i].x,
@@ -160,19 +174,21 @@ function footerHideBars(opts = {}) {
     duration: opts.duration ?? DUR.slow, ease: opts.ease || EASE.enterSoft, overwrite: 'auto',
   });
 }
-function footerShowBars() {
+function footerShowBars(opts = {}) {
   if (typeof gsap === 'undefined') return;
   const bars = getFooterHideTargets();
   if (!bars.length) return;
   gsap.killTweensOf(bars);
   gsap.to(bars, {
-    x: 0, y: 0, duration: DUR.slow, ease: EASE.enterSoft, overwrite: 'auto',
+    x: 0, y: 0,
+    duration: opts.duration ?? DUR.slow, ease: opts.ease || EASE.enterSoft, overwrite: 'auto',
     onComplete: () => bars.forEach(clearBarMask),
   });
 }
-// 歸零 translate（rotate 已在 wrapper，child transform 純平移 → clearProps 安全）＋卸遮罩 overflow。
+// 歸零 translate（rotate 已在 wrapper，child transform 純平移 → clearProps 安全）＋還原 transition ＋卸遮罩 overflow。
 function clearBarMask(bar) {
   gsap.set(bar, { clearProps: 'transform' });
+  /** @type {HTMLElement} */ (bar).style.transition = '';  // 還原（hide 時暫設 none；menu 旋轉平滑切換要用回）
   const mask = bar.parentElement;
   if (mask && mask.classList.contains('header-bar-clip')) mask.style.overflow = '';
 }
@@ -194,10 +210,14 @@ export function resetFooterHide() {
     resetFooterBarsState();
     resetFooterLogoState();
   }
-  barsHidden = false;
+  setBarsHidden(false);
 }
 if (typeof window !== 'undefined') {
   window.__sccdResetFooterHide = resetFooterHide;
+  // 手機 slide-in/lightbox 開關時，兩顆 header 鈕（.mobile-header-btn）改用 clip-reveal 收/展（比照 footer-near hide）——
+  // lightbox-shell.animateHeaderHide/Show 偵測到 .mobile-header-btn 後經此 hook 委派（避免與 lightbox-shell 循環 import）。
+  window.__sccdHideHeaderBars = footerHideBars;   // 皆接受 { duration, ease }
+  window.__sccdShowHeaderBars = footerShowBars;
 }
 
 /**
@@ -692,7 +712,7 @@ export function updateNavActive(page) {
   if (barsHidden && typeof gsap !== 'undefined') {
     resetFooterBarsState();
     resetFooterLogoState();
-    barsHidden = false;
+    setBarsHidden(false);
   }
 
   // 手機 header 底色帶跨 SPA 換頁復位：元素持久（在 #site-header），前頁捲到 footer 加的 .is-hidden 會殘留 →
@@ -1208,12 +1228,12 @@ export function initHeader() {
       const isNearFooter = footerTop < window.innerHeight * 0.5;
       if (typeof gsap === 'undefined') return;
       if (isNearFooter && !barsHidden) {
-        barsHidden = true;
+        setBarsHidden(true);
         const opts = instant ? { duration: 0 } : {};
         footerHideBars(opts);   // bars 平移滑出（每個隨機四方向）
         footerHideLogo(opts);   // logo 走 hero 滑動（同步、同節奏）
       } else if (!isNearFooter && barsHidden) {
-        barsHidden = false;
+        setBarsHidden(false);
         footerShowBars();
         footerShowLogo();
       }

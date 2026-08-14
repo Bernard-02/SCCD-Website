@@ -335,6 +335,9 @@ function bindToggleBtns() {
     if (btn.dataset.themeBound) return; // 防重複綁定
     btn.dataset.themeBound = '1';
     btn.addEventListener('click', () => {
+      // atlas 渲染/intro 完成前 gate（main-modular 掛、atlas.js 解）：pointer-events CSS 擋滑鼠，
+      // 這裡再擋鍵盤 Enter / 程式 click() 等繞過 pointer-events 的觸發
+      if (document.body.classList.contains('atlas-mode-gate')) return;
       const current = sessionStorage.getItem(STORAGE_KEY) || 'standard';
       const next = MODES[(MODES.indexOf(current) + 1) % MODES.length];
       setSiteMode(next);

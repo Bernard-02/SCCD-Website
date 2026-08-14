@@ -109,12 +109,12 @@ function renderMembers(data) {
         </div>
         <div class="text-left">
           <div class="faculty-card-name" role="heading" aria-level="3">
-            <h5 role="presentation">${escapeHtml(m.nameEn)}</h5>
+            <h5 class="mb-en-zh" role="presentation">${escapeHtml(m.nameEn)}</h5>
             <h5 role="presentation">${escapeHtml(m.nameZh)}</h5>
           </div>
           <div class="faculty-card-title mt-xs">
-            <p class="text-s">${escapeHtml(m.titleEn)}</p>
-            <p class="text-s">${escapeHtml(m.titleZh)}</p>
+            <p class="text-s mb-en-zh">${escapeHtml(m.titleEn)}</p>
+            <p class="text-s" lang="zh-Hant">${escapeHtml(m.titleZh)}</p>
           </div>
         </div>
       </div>
@@ -168,7 +168,7 @@ function renderSponsors(data) {
       <a class="alumni-sponsor-card" href="${escapeHtml(url)}" target="_blank" rel="noopener" style="--init-deg: ${deg}deg">
         <div class="sponsor-inner">
           <div class="sponsor-en">${escapeHtml(s.en)}</div>
-          <div class="sponsor-zh">${escapeHtml(s.zh)}</div>
+          <div class="sponsor-zh" lang="zh-Hant">${escapeHtml(s.zh)}</div>
         </div>
       </a>
     `;

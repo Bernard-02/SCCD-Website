@@ -54,14 +54,16 @@ export async function loadDegreeShowListInto(containerId) {
       //   eager 保證 layout 立刻可量
       const html = `
         <a href="/degree-show-detail?year=${year}" class="grid-12 items-start degree-show-card list-reveal-row" style="--card-color: ${color}">
-          <div class="col-span-12 md:col-start-1 md:col-span-1 mb-sm md:mb-0">
+          <!-- 手機年份→縮圖 gap 對齊其他分頁(12px)：card 是 grid 已有 20px row-gap(gutter)，mb-sm 會疊成 36px →
+               改 -8px 淨得 12px（20 row-gap − 8）。桌面 md:mb-0（年份與縮圖同排、不受 row-gap 影響）。 -->
+          <div class="col-span-12 md:col-start-1 md:col-span-1 mb-[-8px] md:mb-0">
             <h5>${year}</h5>
           </div>
           <div class="degree-show-card-content col-span-12 md:col-start-2 md:col-span-11 p-[6px] ml-lg transition-colors duration-fast">
             <div class="degree-show-img-wrapper overflow-hidden mb-md">
               <img src="${item.coverImage}" alt="Degree Show ${year}" loading="eager" class="degree-show-img w-full object-cover">
             </div>
-            <h5 class="mt-md">${titleEn || titleZh}${titleEn && titleZh ? `<br><span>${titleZh}</span>` : ''}</h5>
+            <h5 class="mt-md"><span class="dshow-title-line${titleEn && titleZh ? ' mb-en-zh' : ''}"><span class="dshow-title-inner">${titleEn || titleZh}</span></span>${titleEn && titleZh ? `<span class="dshow-title-line"><span class="dshow-title-inner">${titleZh}</span></span>` : ''}</h5>
           </div>
         </a>
       `;
@@ -111,8 +113,16 @@ export async function loadDegreeShowDetail() {
       const titleEnEl = document.getElementById('text-title-en');
       const yearEl = document.getElementById('text-year');
 
-      if (titleEl) titleEl.textContent = data.title;
-      if (titleEnEl) titleEnEl.textContent = data.title_en || '';
+      // hero 標題包進 .dshow-title-inner 供過長時 marquee（結構同 list marquee；短標題不觸發、維持單行）
+      const setHeroTitle = (el, text) => {
+        if (!el) return;
+        const span = document.createElement('span');
+        span.className = 'dshow-title-inner';
+        span.textContent = text || '';
+        el.replaceChildren(span);
+      };
+      setHeroTitle(titleEl, data.title);
+      setHeroTitle(titleEnEl, data.title_en);
       if (yearEl) yearEl.textContent = year;
 
       // 手機 hero chips 直接填：本頁桌面字卡（年份/英標/中標）放在 .hero-rand-grid 外，
@@ -122,8 +132,8 @@ export async function loadDegreeShowDetail() {
       const mTitleEnEl = document.querySelector('.hero-mobile .hero-mobile-title');
       const mTitleZhEl = document.querySelector('.hero-mobile .hero-mobile-title-cn');
       if (mYearEl) mYearEl.textContent = year;
-      if (mTitleEnEl) mTitleEnEl.textContent = data.title_en || '';
-      if (mTitleZhEl) mTitleZhEl.textContent = data.title || '';
+      setHeroTitle(mTitleEnEl, data.title_en);
+      setHeroTitle(mTitleZhEl, data.title);
 
       // 桌面 → 手機 hero DOM clone：必須在 initHeroAnimation 之前
       // （hero-animation 對 [data-hero-hl] 套色時手機 chip 內容已要在）
@@ -138,6 +148,15 @@ export async function loadDegreeShowDetail() {
       // （chip mask 滑入 + bg clip reveal + 退場反向）。必須在 initHeroAnimation 之後：chip 的
       // [data-hero-hl] accent 底色由它套，先套好才 reveal。
       setupHeroMobileEntrance();
+
+      // hero 標題過長 → marquee（桌面 #text-title-en/#text-title、手機 .hero-mobile-title(-cn)＝.dshow-hero-title）。
+      // 等字型 + hero 進場 wrap 完成後量；display:none 那側 offsetWidth=0 helper 自動略過。
+      const runHeroMarquee = () => {
+        const heroSec = document.querySelector('#page-content > section');
+        if (heroSec) applyMarqueeOverflow(heroSec, '.dshow-hero-title', '.dshow-title-inner');
+      };
+      if (document.fonts && document.fonts.status !== 'loaded') document.fonts.ready.then(() => requestAnimationFrame(runHeroMarquee));
+      else requestAnimationFrame(runHeroMarquee);
 
       // Events 列表（時間 / 活動 / 地點 / 城市 — 1:2:2:1）：data.events 不存在或空陣列 → 整塊不渲染
       // 活動 / 地點 / 城市顯示中英雙語（英文上、中文下）；時間僅一行；文字 semibold（城市 regular，user 2026-07-13）
@@ -157,18 +176,18 @@ export async function loadDegreeShowDetail() {
               : (ev.time || '');
             return `
             <div class="dsd-event-row grid grid-cols-[4rem_1fr] md:grid-cols-[1fr_2fr_2fr_1fr] gap-sm md:gap-md ${i > 0 ? 'mt-xl md:mt-md' : ''}">
-              <p class="text-s text-black font-semibold whitespace-nowrap">${timeInner}</p>
+              <p class="text-s text-black font-bold whitespace-nowrap">${timeInner}</p>
               <div class="flex flex-col gap-sm md:contents">
                 <div>
-                  ${ev.nameEn ? `<p class="text-s text-black font-semibold">${ev.nameEn}</p>` : ''}
-                  <p class="text-s text-black font-semibold">${ev.name || ''}</p>
+                  ${ev.nameEn ? `<p class="text-s text-black font-bold mb-en-zh-s">${ev.nameEn}</p>` : ''}
+                  <p class="text-s text-black font-bold" lang="zh-Hant">${ev.name || ''}</p>
                 </div>
                 <div>
-                  ${ev.locationEn ? `<p class="text-s text-black font-semibold">${ev.locationEn}</p>` : ''}
-                  <p class="text-s text-black font-semibold">${ev.location || ''}</p>
+                  ${ev.locationEn ? `<p class="text-s text-black font-bold mb-en-zh-s">${ev.locationEn}</p>` : ''}
+                  <p class="text-s text-black font-bold" lang="zh-Hant">${ev.location || ''}</p>
                 </div>
                 <div>
-                  ${ev.cityEn ? `<p class="text-s text-black font-regular">${ev.cityEn}</p>` : ''}
+                  ${ev.cityEn ? `<p class="text-s text-black font-regular mb-en-zh-s">${ev.cityEn}</p>` : ''}
                   <p class="text-s text-black font-regular">${ev.city || ''}</p>
                 </div>
               </div>
@@ -399,6 +418,15 @@ function setupNextProject(prevYear, prevData, nextYear, nextData) {
     return deg;
   };
 
+  // 標題文字包進 .dshow-title-inner（marquee row>inner 結構；過長時 applyMarqueeOverflow 換兩份 copy）
+  const setTitle = (el, text) => {
+    if (!el) return;
+    const span = document.createElement('span');
+    span.className = 'dshow-title-inner';
+    span.textContent = text || '';
+    el.replaceChildren(span);
+  };
+
   // 手機左右並排色塊卡（user 2026-07-09 取消 poster thumbnail）：隨機 accent 底 + 隨機旋轉 +
   // 年份 / 英文名 / 中文名；兩張互異色。版面（並排 / 高低落差 / 黑字）在 variables.css .dsd-next-card-m
   const mobPrevColor = ACCENT[Math.floor(Math.random() * ACCENT.length)];
@@ -415,11 +443,21 @@ function setupNextProject(prevYear, prevData, nextYear, nextData) {
       link.style.transform = `rotate(${localRot()}deg)`;
     }
     if (yearEl) yearEl.textContent = year;
-    if (titleEnEl) titleEnEl.textContent = data.title_en || '';
-    if (titleEl) titleEl.textContent = data.title || '';
+    setTitle(titleEnEl, data.title_en);
+    setTitle(titleEl, data.title);
   };
   setMobile('prev', prevYear, prevData, mobPrevColor);
   setMobile('next', nextYear, nextData, mobNextColor);
+
+  // 標題過長 → marquee（桌面 labels + 手機色塊卡；display:none 那側 offsetWidth=0 helper 自動略過）。
+  // rAF：延到 setDesktop（在 isMobileView return 之後同步跑完）也量得到；等字型避免 fallback 字寬誤判溢出。
+  const runNextMarquee = () => {
+    const sec = document.getElementById('next-project-section');
+    if (sec) applyMarqueeOverflow(sec, '.dshow-next-title', '.dshow-title-inner');
+  };
+  const scheduleNextMarquee = () => requestAnimationFrame(runNextMarquee);
+  if (document.fonts && document.fonts.status !== 'loaded') document.fonts.ready.then(scheduleNextMarquee);
+  else scheduleNextMarquee();
 
   if (isMobileView()) return;
 
@@ -433,8 +471,8 @@ function setupNextProject(prevYear, prevData, nextYear, nextData) {
     if (link) link.href = '/degree-show-detail?year=' + year;
     if (img) img.src = data.poster || data.coverImage;
     if (yearEl) yearEl.textContent = year;
-    if (titleEnEl) titleEnEl.textContent = data.title_en || '';
-    if (titleEl) titleEl.textContent = data.title || '';
+    setTitle(titleEnEl, data.title_en);
+    setTitle(titleEl, data.title);
   };
   setDesktop('prev', prevYear, prevData);
   setDesktop('next', nextYear, nextData);

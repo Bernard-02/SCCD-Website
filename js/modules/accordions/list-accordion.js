@@ -122,12 +122,14 @@ function clearStaleOpeningFlags() {
 // .is-pinned 才收），量測搶在它長完前會差一個副標高（lecture 實測差 ~53px）。snap 後正常互動仍平滑。
 // 用 .list-subtitles → closest 取 wrapper（不用 :has querySelector，避免舊瀏覽器丟 SyntaxError）
 function snapSubtitleHeight(header) {
-  const subEl = header.querySelector('.list-subtitles');
-  const subWrap = /** @type {HTMLElement | null} */ (subEl ? subEl.closest('.clip-reveal-wrapper') : null);
-  if (subWrap) {
-    subWrap.style.transition = 'none';
-    requestAnimationFrame(() => { subWrap.style.transition = ''; });
-  }
+  // 多段副標 = 多個 .list-subtitles wrapper（各自一個），全部都要 snap
+  header.querySelectorAll('.list-subtitles').forEach(subEl => {
+    const subWrap = /** @type {HTMLElement | null} */ (subEl.closest('.clip-reveal-wrapper'));
+    if (subWrap) {
+      subWrap.style.transition = 'none';
+      requestAnimationFrame(() => { subWrap.style.transition = ''; });
+    }
+  });
 }
 
 /**

@@ -124,6 +124,18 @@ function revealZebraBg(item, tl, at) {
   if (tl) tl.to(item, to, at); else gsap.to(item, to);
 }
 
+// 追蹤 useScrollTrigger 分支建的 once ScrollTrigger，每次 reveal 前殺掉上一輪殘留。
+// root：news 初載(useScrollTrigger:true)建的 once trigger 若沒 fire 就殘留；之後 camp→news 時
+// 被 smooth-scroll 的 ScrollTrigger.refresh 喚醒 → 跟 master-timeline reveal 對同一批 rows 打架
+// （= camp→news clip-reveal bug；camp 從不 isInitial 故無殘留、news→camp 才正常）。
+// 對齊 activities-section-switch playFilterChipsReveal 的 _chipRevealSTs 清理。此 fn 為 activities/admission 共用，
+// 一起受益。頁級殘留由 cleanupPageModules（kill #page-content 內 trigger）兜底。
+let _panelRevealSTs = [];
+function killPanelRevealSTs() {
+  _panelRevealSTs.forEach(t => { try { t.kill(); } catch (_) {} });
+  _panelRevealSTs = [];
+}
+
 /**
  * 播放整個 panel 的進場動畫
  * - useScrollTrigger=true（初次載入）：intro + 每個 list-row group 各自一個 ScrollTrigger，捲入 viewport 才 reveal
@@ -132,6 +144,7 @@ function revealZebraBg(item, tl, at) {
  */
 export function playAdmissionPanelReveal(panel, { useScrollTrigger = false } = {}) {
   if (!panel || typeof gsap === 'undefined') return;
+  killPanelRevealSTs();  // 殺掉上一輪殘留 trigger，免它被 refresh 喚醒跟本次 reveal 打架
 
   // 減少動態：所有 list rows + zebra 底色直接到位，不分組、不 ScrollTrigger、不滑入。
   if (prefersReducedMotion()) {
@@ -176,19 +189,19 @@ export function playAdmissionPanelReveal(panel, { useScrollTrigger = false } = {
   if (useScrollTrigger && typeof ScrollTrigger !== 'undefined') {
     // 初次載入：intro 一個 trigger，每個 list-row group 各自一個 trigger（per-item 捲入 viewport 才 reveal）
     if (intro.length) {
-      ScrollTrigger.create({
+      _panelRevealSTs.push(ScrollTrigger.create({
         trigger: intro[0], start: 'top 90%', once: true,
         onEnter: () => gsap.to(intro, {
           yPercent: 0, duration: DUR.slow, stagger: { each: 0.06 },
           ease: EASE.enter, clearProps: 'transform',
         }),
-      });
+      }));
     }
     groups.forEach(groupRows => {
       if (groupRows.length === 0) return;
       const triggerEl = groupRows[0].closest('.list-item') || groupRows[0];
       const bgItem = zebraBgTarget(groupRows);
-      ScrollTrigger.create({
+      _panelRevealSTs.push(ScrollTrigger.create({
         trigger: triggerEl, start: 'top 90%', once: true,
         onEnter: () => {
           if (bgItem) revealZebraBg(bgItem);          // 底色先 clip-reveal
@@ -199,7 +212,7 @@ export function playAdmissionPanelReveal(panel, { useScrollTrigger = false } = {
             onComplete: () => unlockGroup(groupRows),
           });
         },
-      });
+      }));
     });
   } else {
     // 切換時：master timeline 嚴格 sequential — intro 0s → list-row groups 從 0.3s 起每 0.18s 接力
@@ -292,6 +305,10 @@ function collapseOpenAccordionsInPanel(panel) {
  */
 export async function playAdmissionPanelExit(panel) {
   if (!panel || typeof gsap === 'undefined') return;
+  // 離場一開頭就殺殘留 once trigger：比 reveal-start 殺更早，趕在 camp lazy-load 的 ScrollTrigger.refresh
+  // 之前——否則那次 refresh 會喚醒 news 初載未 fire 的 once trigger → onEnter clearProps 把 news rows 還原成
+  // yPercent:0（藏在 display:none 下），下次切回 news 時 show 那幀 rows 還在 0 → title 閃現。
+  killPanelRevealSTs();
   if (prefersReducedMotion()) return;  // 減少動態：不跑退場，立即換頁/切換
 
   // 1. 先收起展開的 accordion（若有）

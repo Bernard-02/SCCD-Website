@@ -266,15 +266,41 @@ function getAllVideos(item) {
 //   - 單一換行 → <br>
 //   - 整段 wrap <p>
 // 已有 HTML tag 的（import source / TinyMCE Visual mode）直接 return 原樣
-function normalizeBodyHtml(raw) {
+// CMS 富文本編輯者不會逐段標 lang → 自動幫「以中文為主」的區塊補 lang="zh-Hant"，
+// 讓中文段落吃 ZH 獨立行距（--line-height-zh-*；p 的規則在 lists.css .admission-body p[lang]，
+// 標題/li 走 typography.css 的 hN[lang]／[lang] fallback）。
+// ⚠️「含一個中文字」不夠：donate 英文清單嵌中文專有名詞（"院系務發展基金"/"指定用途"）會被誤標成 ZH、
+//    整行英文吃到 1.4 ZH 行距而比兄弟英文行鬆。改判「中文字數 > 英文字母數」才算中文區塊。
+const CJK_RE = /[㐀-鿿]/;
+function isMostlyCjk(text) {
+  const cjk = (text.match(/[㐀-鿿]/g) || []).length;
+  const latin = (text.match(/[A-Za-z]/g) || []).length;
+  return cjk > latin;
+}
+function tagCjkBlocks(html) {
+  if (typeof document === 'undefined' || !CJK_RE.test(html)) return html;
+  const tpl = document.createElement('template');
+  tpl.innerHTML = html;
+  tpl.content.querySelectorAll('p, li, h1, h2, h3, h4, h5, h6, blockquote').forEach(el => {
+    if (!el.hasAttribute('lang') && isMostlyCjk(el.textContent)) el.setAttribute('lang', 'zh-Hant');
+  });
+  return tpl.innerHTML;
+}
+
+export function normalizeBodyHtml(raw) {
   if (!raw || typeof raw !== 'string') return raw || '';
-  if (/<(p|br|div|li|h[1-6]|ul|ol)\b/i.test(raw)) return raw; // 已有 block tag → 原樣
-  const escaped = raw
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-  const paragraphs = escaped.split(/\r?\n\s*\r?\n/).map(p => p.trim()).filter(Boolean);
-  return paragraphs.map(p => `<p>${p.replace(/\r?\n/g, '<br>')}</p>`).join('');
+  let html;
+  if (/<(p|br|div|li|h[1-6]|ul|ol)\b/i.test(raw)) {
+    html = raw; // 已有 block tag → 原樣
+  } else {
+    const escaped = raw
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    const paragraphs = escaped.split(/\r?\n\s*\r?\n/).map(p => p.trim()).filter(Boolean);
+    html = paragraphs.map(p => `<p>${p.replace(/\r?\n/g, '<br>')}</p>`).join('');
+  }
+  return tagCjkBlocks(html);
 }
 export function buildItemMedia(item) {
   const videos = getAllVideos(item);
@@ -486,17 +512,17 @@ export function buildGuestHtml(g, { showGuestCountry = true, showGuestAffiliatio
   };
   return `<div class="flex flex-col" style="gap: 0.25rem;">
     <div class="grid gap-md items-start guest-row-grid">
-      <div class="min-w-0 flex items-start justify-between gap-sm">
+      <div class="guest-name-cell min-w-0 flex items-start justify-between gap-sm">
         <div class="min-w-0">
-          ${gNameEn ? `<p class="text-s font-bold">${formatNameWithAka(gNameEn, gAkaEn, gAkaZh, false)}</p>` : ''}
-          ${gNameZh ? `<p class="text-s font-bold">${formatNameWithAka(gNameZh, gAkaZh, gAkaEn, true)}</p>` : ''}
+          ${gNameEn ? `<p class="text-s font-bold${gNameZh ? ' mb-en-zh-s' : ''}">${formatNameWithAka(gNameEn, gAkaEn, gAkaZh, false)}</p>` : ''}
+          ${gNameZh ? `<p class="text-s font-bold" lang="zh-Hant">${formatNameWithAka(gNameZh, gAkaZh, gAkaEn, true)}</p>` : ''}
         </div>
         ${gIsAlumni ? `<p class="text-s flex-shrink-0">Alumni 系友</p>` : ''}
       </div>
       ${showGuestCountry ? `<div class="min-w-0">${countryCell('text-s', gCountry, g.country_zh)}</div>` : ''}
     </div>
     ${showGuestAffiliation && gOrgEn ? `<div class="grid gap-md items-start guest-row-grid">
-      <p class="text-xs min-w-0">${gOrgEn.length > 20 ? `${gOrgEn}<br>${gOrgZh || ''}` : `${gOrgEn}${gOrgZh ? ' ' + gOrgZh : ''}`}</p>
+      <div class="text-xs min-w-0">${gOrgEn.length > 20 ? `${gOrgEn}${gOrgZh ? `<div class="text-xs" lang="zh-Hant" style="margin-top: var(--space-en-zh-xs)">${gOrgZh}</div>` : ''}` : `${gOrgEn}${gOrgZh ? ' ' + gOrgZh : ''}`}</div>
       ${showGuestCountry ? countryCell('text-xs', gOrgCountry) : ''}
     </div>` : ''}
   </div>`;
@@ -530,15 +556,15 @@ function buildSessionsHtml(item, dateColMinWidth, { showGuestCountry = true, sho
         <div class="min-w-0">${sDate ? `<div class="list-title-marquee"><p class="text-s font-bold">${sDate}</p></div>` : ''}</div>
         <div class="flex flex-col gap-sm min-w-0">
           ${(sTitleEn || sTitleZh) ? `<div>
-            ${sTitleEn ? `<p class="text-s font-bold">${sTitleEn}</p>` : ''}
-            ${sTitleZh ? `<p class="text-s font-bold">${sTitleZh}</p>` : ''}
+            ${sTitleEn ? `<p class="text-s font-bold mb-en-zh-s">${sTitleEn}</p>` : ''}
+            ${sTitleZh ? `<p class="text-s font-bold" lang="zh-Hant">${sTitleZh}</p>` : ''}
           </div>` : ''}
           ${guestsHtml ? `<div class="flex flex-col gap-sm">${guestsHtml}</div>` : ''}
         </div>
       </div>
       ${(sDescEn || sDescZh) ? `<div>
-        ${sDescEn ? `<p class="text-s leading-base">${sDescEn}</p>` : ''}
-        ${sDescZh ? `<p class="text-s leading-base${sDescEn ? ' mt-xs' : ''}">${sDescZh}</p>` : ''}
+        ${sDescEn ? `<p class="text-s leading-base${sDescZh ? ' mb-en-zh-body' : ''}">${sDescEn}</p>` : ''}
+        ${sDescZh ? `<p class="text-s leading-base" lang="zh-Hant">${sDescZh}</p>` : ''}
       </div>` : ''}
     </div>`;
   }).join('');
@@ -1140,30 +1166,32 @@ export async function loadListInto(containerId, url, options = {}) {
       // 副標 inner（無 wrapper）給 dateInHeader 模式直接拼進 list-reveal-row 用
       // 每行副標包進 .list-title-marquee：手機單行 nowrap + 打開(.list-header.active)才 marquee（user 2026-06-10）；
       // 桌面由 @media(min-width:768px) 覆寫回 wrap（見 lists.css），不影響桌面多行顯示
-      const renderSubListInner = () => subList.map(s => `
-        ${s.en ? `<div class="list-title-marquee"><p class="text-s">${s.en}</p></div>` : ''}
-        ${s.zh ? `<div class="list-title-marquee"><p class="text-s">${s.zh}</p></div>` : ''}
-      `).join('');
-      // 副標 block（含 .list-subtitles wrapper）給 showSubtitle 模式用 — wrapper 是 sticky pinned 時
-      // 收起副標的 CSS 接口（list-header.is-pinned .list-subtitles → grid-rows 0fr collapse）
-      const renderSubListBlock = () => subList.length
-        ? `<div class="list-reveal-row list-subtitles">${renderSubListInner()}</div>`
-        : '';
+      // 單段副標的 EN+ZH 兩行 marquee（EN 上 ZH 下）
+      const subSegLines = (s) =>
+        (s.en ? `<div class="list-title-marquee${s.zh ? ' mb-en-zh-s' : ''}"><p class="text-s">${s.en}</p></div>` : '') +
+        (s.zh ? `<div class="list-title-marquee"><p class="text-s">${s.zh}</p></div>` : '');
+      const renderSubListInner = () => subList.map(subSegLines).join('');
+      // 副標 block 給 showSubtitle 模式用：**每段各自一個 .list-reveal-row** → 多段時逐段 stagger 進場
+      // （user 2026-08-12「有一個以上分次出來」），非一次全揭。每段仍帶 .list-subtitles → 各自套 pin 收合
+      // CSS 接口（clip-reveal-wrapper:has(.list-subtitles) → grid-rows 0fr collapse）；每段 parent 剛好 EN+ZH
+      // 兩條 marquee → 配對邏輯天然成立。
+      const renderSubListBlock = () => subList
+        .map(s => `<div class="list-reveal-row list-subtitles">${subSegLines(s)}</div>`)
+        .join('');
 
-      // 標題（EN+ZH）同一個 list-reveal-row → 同步進場；副標亦同
-      // dateInHeader 時 date 顯示在 title 下方（admission news 用），不在 expand 區再渲染一次
+      // 標題（EN+ZH）同一個 list-reveal-row → 同步進場
+      // dateInHeader 時 date 獨立一個 list-reveal-row 顯示在 title 下方（admission news 用），不在 expand 區再渲染一次
       const titleHtml = `<div class="flex flex-col gap-xs flex-1 min-w-0">
           <div class="list-reveal-row">
-            <div class="list-title-marquee"><p class="text-lg font-bold" role="heading" aria-level="${titleLevel}">${titleLine1}</p></div>
-            ${titleLine2 ? `<div class="list-title-marquee"><p class="text-lg font-bold" role="heading" aria-level="${titleLevel}">${titleLine2}</p></div>` : ''}
-            ${dateInHeader ? (() => {
-              // dateInHeader 模式（admission 用）：date 優先，沒 date 用 subtitle 當副標
-              // mt-xs：主標↔date 之間的 gap 比照 camp 的 gap-xs（user 2026-06-22）。camp 副標是獨立 flex 子、
-              // 吃外層 flex-col gap-xs；announcement 的 date 在同一個 reveal-row 內 → 需自己補 margin-top 才同間距。
-              if (dateDisplay) return `<p class="text-s mt-xs">${dateDisplay}</p>`;
-              return `<div class="mt-xs">${renderSubListInner()}</div>`;
-            })() : ''}
+            <div class="list-title-marquee${titleLine2 ? ' mb-en-zh-lg' : ''}"><p class="text-lg font-bold" role="heading" aria-level="${titleLevel}">${titleLine1}</p></div>
+            ${titleLine2 ? `<div class="list-title-marquee"><p class="text-lg font-bold" role="heading" aria-level="${titleLevel}" lang="zh-Hant">${titleLine2}</p></div>` : ''}
           </div>
+          ${dateInHeader ? (() => {
+            // date/副標獨立一個 list-reveal-row → 晚標題進場（user 2026-08-12「副標跟標題分開時間出場」，對齊 press/album）。
+            // 獨立 flex 子吃外層 gap-xs（同 camp）不需 mt-xs。date 優先，沒 date 用 subtitle 當副標。
+            if (dateDisplay) return `<div class="list-reveal-row"><p class="text-s">${dateDisplay}</p></div>`;
+            return `<div class="list-reveal-row">${renderSubListInner()}</div>`;
+          })() : ''}
           ${showSubtitle ? renderSubListBlock() : ''}
         </div>`;
 
@@ -1258,7 +1286,7 @@ export async function loadListInto(containerId, url, options = {}) {
             <div class="pt-sm pb-lg px-sm grid gap-gutter items-start" style="grid-template-columns: 9.5fr 2.5fr;">
               <div class="flex flex-col gap-md pr-2xl">
                 ${showDate && dateDisplay && !dateInHeader && dateFullWidth ? `<div>
-                  <p class="text-s font-bold">${dateDisplay}</p>
+                  <p class="text-s font-bold${dateDisplayZh ? ' mb-en-zh-s' : ''}">${dateDisplay}</p>
                   ${dateDisplayZh ? `<p class="text-s font-bold">${dateDisplayZh}</p>` : ''}
                 </div>` : ''}
                 ${(((showDate && dateDisplay && !dateInHeader && !dateFullWidth)) || (showLocation && locationRows.length) || (showLocation && (cityEn || cityZh))) ? (() => {
@@ -1277,15 +1305,15 @@ export async function loadListInto(containerId, url, options = {}) {
                   const cols = hasCity ? `${dateColMinWidth} 1fr 6rem` : `${dateColMinWidth} 1fr`;
                   return `<div class="grid items-start gap-x-xs" style="grid-template-columns: ${cols};">
                     ${showDateCell ? `<div class="min-w-0">
-                      <div class="list-title-marquee"><p class="text-s font-bold">${dateDisplay}</p></div>
+                      <div class="list-title-marquee${dateDisplayZh ? ' mb-en-zh-s' : ''}"><p class="text-s font-bold">${dateDisplay}</p></div>
                       ${dateDisplayZh ? `<div class="list-title-marquee"><p class="text-s font-bold">${dateDisplayZh}</p></div>` : ''}
                     </div>` : '<div></div>'}
                     ${showLocation && (locationEn || locationZh) ? `<div class="min-w-0">
-                      ${locationEn ? `<div class="list-title-marquee"><p class="text-s font-bold">${locationEn}</p></div>` : ''}
+                      ${locationEn ? `<div class="list-title-marquee mb-en-zh-s"><p class="text-s font-bold">${locationEn}</p></div>` : ''}
                       ${locationZh ? `<div class="list-title-marquee"><p class="text-s font-bold">${locationZh}</p></div>` : ''}
                     </div>` : '<div></div>'}
                     ${hasCity ? `<div class="min-w-0 list-city-cell">
-                      ${cityEn ? `<div class="list-title-marquee"><p class="text-s font-bold">${cityEn}</p></div>` : ''}
+                      ${cityEn ? `<div class="list-title-marquee mb-en-zh-s"><p class="text-s font-bold">${cityEn}</p></div>` : ''}
                       ${cityZh ? `<div class="list-title-marquee"><p class="text-s font-bold">${cityZh}</p></div>` : ''}
                     </div>` : ''}
                   </div>`;
@@ -1295,8 +1323,8 @@ export async function loadListInto(containerId, url, options = {}) {
                   ${item.guests.map(g => buildGuestHtml(g, { showGuestCountry, showGuestAffiliation })).join('')}
                 </div>` : ''}
                 ${showDescription && (introEn || introZh) && !(Array.isArray(item.sessions) && item.sessions.length) ? `<div class="overflow-y-auto pr-xl list-scroll" style="max-height: 250px;">
-                  ${introEn ? `<p class="text-s leading-base">${introEn}</p>` : ''}
-                  ${introZh ? `<p class="text-s leading-base mt-md">${introZh}</p>` : ''}
+                  ${introEn ? `<p class="text-s leading-base${introZh ? ' mb-en-zh-body' : ''}">${introEn}</p>` : ''}
+                  ${introZh ? `<p class="text-s leading-base" lang="zh-Hant">${introZh}</p>` : ''}
                 </div>` : ''}
               </div>
               ${showPoster ? buildPosterHtml(item) : ''}
@@ -1325,7 +1353,7 @@ export async function loadListInto(containerId, url, options = {}) {
                     <span class="icon icon-attachment icon-m"></span>
                   </div>
                   <div class="col-span-11 flex flex-col">
-                    <p class="text-s font-bold">${labelEn}</p>
+                    <p class="text-s font-bold mb-en-zh-s">${labelEn}</p>
                     <p class="text-s font-bold">${labelZh}</p>
                   </div>
                 </a>
@@ -1356,12 +1384,12 @@ export async function loadListInto(containerId, url, options = {}) {
                   <span class="icon icon-ref-list icon-s"></span>
                 </div>
                 <div class="col-span-3 flex flex-col">
-                  ${ref.labelEn ? `<p class="text-s">${ref.labelEn}</p>` : ''}
+                  ${ref.labelEn ? `<p class="text-s mb-en-zh-s">${ref.labelEn}</p>` : ''}
                   ${ref.labelZh ? `<p class="text-s">${ref.labelZh}</p>` : ''}
                 </div>
                 <div class="col-start-5 col-span-8 flex flex-col min-w-0">
-                  ${ref.titleEn ? `<div class="list-title-marquee"><p class="text-s font-bold">${ref.titleEn}</p></div>` : ''}
-                  ${ref.titleZh ? `<div class="list-title-marquee"><p class="text-s font-bold">${ref.titleZh}</p></div>` : ''}
+                  ${ref.titleEn ? `<div class="list-title-marquee mb-en-zh-s"><p class="text-s font-bold">${ref.titleEn}</p></div>` : ''}
+                  ${ref.titleZh ? `<div class="list-title-marquee"><p class="text-s font-bold" lang="zh-Hant">${ref.titleZh}</p></div>` : ''}
                 </div>
               ${ref.href && !ref.pdfUrl ? `</a>` : `</button>`}
               `).join('')}

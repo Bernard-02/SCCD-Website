@@ -61,6 +61,40 @@ export function setupClipReveal(elements, { hide = true } = {}) {
   return items;
 }
 
+// 4 向 clip-reveal 用的貼身靜止遮罩：包一層 fit-content overflow:clip wrapper（idempotent）。
+// 給「整塊色卡（含底色）xPercent/yPercent ±110 平移」場景——遮罩必須貼卡片尺寸，
+// 借外層寬容器當遮罩的話，左右向平移 110% 自身寬仍留在遮罩內＝藏不掉。
+export function ensureCardMask(el) {
+  if (!el || el.dataset.cardMasked) return;
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = 'display:inline-block;width:fit-content;overflow:clip;';
+  el.parentNode.insertBefore(wrapper, el);
+  wrapper.appendChild(el);
+  el.dataset.cardMasked = '1';
+}
+
+// 色卡寬度貼合「最寬一行換行文字 + padding」（桌面）；手機/矮橫向還原 fit-content。
+// 為何要 JS：CSS width:fit-content 只夾到「可用寬度(grid cell)」，長文 max-content 遠超 cell → 卡片右緣
+// 落在欄邊而非最寬文字行；要縮到「換行後最寬行」必須用 Range 逐行量（同 timeline 手機年份卡）。
+// ⚠️ 必須在 reveal 動畫「之前」呼叫：揭露後才縮會看到寬度跳一下（box 隨 translate 量寬不受影響、可在隱藏態量）。
+export function fitCardToText(box) {
+  if (!box) return;
+  const desktop = window.innerWidth >= 768
+    && !window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+  if (!desktop) { box.style.width = 'fit-content'; return; } // 手機色卡走內捲盒，維持原生 fit-content
+  box.style.width = 'fit-content';   // 先回 fit-content 讓文字在 cell 寬內重新換行後再量
+  const cs = getComputedStyle(box);
+  const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+  const walker = document.createTreeWalker(box, NodeFilter.SHOW_TEXT);
+  let widest = 0;
+  for (let n; (n = walker.nextNode()); ) {
+    const rg = document.createRange();
+    rg.selectNodeContents(n);
+    for (const r of rg.getClientRects()) widest = Math.max(widest, r.width);
+  }
+  if (widest > 0) box.style.width = `${Math.ceil(widest + padX) + 1}px`; // +1 防 sub-pixel 再折行
+}
+
 // 觸發 clip reveal 動畫（assumes setupClipReveal 已執行）
 // 用於 ScrollTrigger.create 的 onEnter，或非 ScrollTrigger 立即播放
 // stagger 可覆寫：預設用 grid-auto-y（卡片牆用）；要嚴格 DOM 順序「依序進場」(title→副標→內文) 傳 { each: 0.12 } 線性

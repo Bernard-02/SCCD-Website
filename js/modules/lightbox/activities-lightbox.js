@@ -17,6 +17,14 @@ let lightboxEl = null;
 // → enterLightboxMode×2 但 close 只 exit×1 → lightbox-shell openCount 卡 1 → header bars 永久 clip 收起。
 // 用同步 latch（在第一個 await「之前」就設 true）讓重複 open 只 enter 一次、close 只 exit 一次。
 let lbOpen = false;
+// open/close 世代序號（同 router navSeq pattern）：close 或更新的 open 都 ++，舊 open 在 await(probe)
+// 後發現過期就整段放棄。沒這個：probe 進行中先按返回關閉、舊 open 再 resume 顯示 → lightbox 可見
+// 但 lbOpen=false → closeLightbox 開頭 guard 擋掉「返回鍵關不了」（user 2026-08-10）
+let openSeq = 0;
+// enterLightboxMode/exit 配對 latch，與 lbOpen 分離：abort/race 情境 wasOpen 判不準，
+// 用實際 enter 過與否配對，openCount 永遠平衡
+let lbEntered = false;
+let closeHideTimer = null;  // close 的 300ms 隱藏 timer；fadeout 中重開要取消，否則新內容被舊 timer 藏掉
 let mainEl = null;
 let thumbsEl = null;
 let titleEl = null;
@@ -607,6 +615,7 @@ function probeImage(src) {
 export async function openLightbox(media, startIndex = 0, opts = {}) {
   ensureLightbox();
   // 同步 latch：必須在第一個 await 之前設好，重複 open（含 await 視窗內的快速二次點擊）才會被 wasOpen 擋掉
+  const mySeq = ++openSeq;
   const wasOpen = lbOpen;
   lbOpen = true;
   const initial = media.filter(item => item && item.src && typeof item.src === 'string' && item.src.trim() !== '');
@@ -623,6 +632,8 @@ export async function openLightbox(media, startIndex = 0, opts = {}) {
     const ok = await probeImage(item.src);
     return ok ? item : null;
   }));
+  // await 期間被 close / 更新的 open 接手 → 整段放棄（lbOpen 現值由接手者管理，不還原）
+  if (mySeq !== openSeq) return;
   mediaList = probed.filter(Boolean);
   if (mediaList.length === 0) {
     console.warn('openLightbox: all media failed to load, aborting');
@@ -710,13 +721,15 @@ export async function openLightbox(media, startIndex = 0, opts = {}) {
 
   renderMain(startIndex);
 
+  clearTimeout(closeHideTimer);  // fadeout 中重開：取消舊 close 的隱藏 timer，否則 300ms 後把新內容藏掉
   lightboxEl.style.display = 'flex';
   requestAnimationFrame(() => {
     lightboxEl.style.opacity = '1';
     // 開啟即把起始縮圖定位到中央（instant，不動畫）；renderMain 當下 lightbox 還 display:none 量不到 rect
     centerActiveThumb(startIndex, false);
   });
-  if (!wasOpen) enterLightboxMode();  // 只在「真的從關→開」時 enter，重複 open 不再多 enter（避免 openCount 卡死）
+  // enter/exit 配對走 lbEntered latch（不用 wasOpen：abort/race 情境判不準），openCount 不會卡死
+  if (!lbEntered) { enterLightboxMode(); lbEntered = true; }
 }
 
 // 動態量 header logo bbox：main display 區 padding-top 推到 logo 底邊以下，
@@ -871,17 +884,18 @@ function setupTitleMarquee() {
 // ── 關閉 ────────────────────────────────────────────────────────
 function closeLightbox() {
   if (!lbOpen) return;  // 已關閉/關閉中 → 不重複 exit（避免 openCount 過度遞減把 header 提早顯示）
+  openSeq++;  // 讓 probe 中的 in-flight open 過期：否則它 resume 後把剛關掉的 lightbox 又顯示出來（且 lbOpen 已 false → 卡死關不了）
   lbOpen = false;
   if (iframeEl) iframeEl.src = '';
   // 立即 destroy（不等 300ms fadeout）：影片聲音不能陪淡出
   if (hlsPlayer) { hlsPlayer.destroy(); hlsPlayer = null; }
   lightboxEl.style.opacity = '0';
-  exitLightboxMode();
+  if (lbEntered) { exitLightboxMode(); lbEntered = false; }
   // 停 title marquee tween 避免關閉後仍在背景 rAF 跑
   if (typeof gsap !== 'undefined' && titleEl) {
     titleEl.querySelectorAll('.alb-title-track').forEach(el => gsap.killTweensOf(el));
   }
-  setTimeout(() => {
+  closeHideTimer = setTimeout(() => {
     lightboxEl.style.display = 'none';
     mainEl.innerHTML = '';
     // 清 zoom refs（fit/drag flags 等下次 renderMain 會重置）

@@ -18,6 +18,7 @@
 import { registerPageCleanup } from '../../ui/page-cleanup.js';
 import { registerPageExit } from '../../ui/page-exit.js';
 import { sitePath } from '../../ui/site-base.js';
+import { ensureCardMask, fitCardToText } from '../../ui/scroll-animate.js';
 
 // slot 間距：slot 0 起始貼左、slot 1/2 各往右平移 ~28%（從 32% 縮小）
 // 避免 slot 2 + landscape 圖寬度溢出 .division-images 容器右緣（container ~720px 在 1920w，slot2 64% + 462 = ~923 溢出 200px）
@@ -38,6 +39,20 @@ const HIDE_CLIPS = [
 const SHOW_CLIP = 'inset(0% 0% 0% 0%)';
 
 function randomHideClip() { return HIDE_CLIPS[Math.floor(Math.random() * HIDE_CLIPS.length)]; }
+
+// text 卡 clip-reveal＝貼身靜止遮罩（ensureCardMask wrapper）內、整塊色卡 [data-class-hl]（含底色）純位移隨機 4 向
+//（user 定義的 clip-reveal＝遮罩內平移升起，不帶 clip-path 擦除、不整塊飛入；色矩形必須跟文字一起動，不能留在原地）
+const REVEAL_DIRS4 = ['top', 'bottom', 'left', 'right'];
+const REVEAL_SHOWN = { xPercent: 0, yPercent: 0 };
+function revealHiddenT(dir) {
+  switch (dir) {
+    case 'top':    return { xPercent: 0, yPercent: -110 };
+    case 'bottom': return { xPercent: 0, yPercent: 110 };
+    case 'left':   return { xPercent: -110, yPercent: 0 };
+    default:       return { xPercent: 110, yPercent: 0 }; // right
+  }
+}
+function randRevealDir() { return REVEAL_DIRS4[Math.floor(Math.random() * REVEAL_DIRS4.length)]; }
 function randomRotation() { return parseFloat(((Math.random() * 2 - 1) * 4).toFixed(2)); }
 
 // wrapper 寬度在 img 載入後依 natural 尺寸（capped at max-width）明確設定，
@@ -96,6 +111,9 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
   const slotCount = slotLefts.length;
   const imgWidth = opts.imgWidth || null;
   const manual = !!opts.manual;
+  // textHlReveal：text highlight 卡走 hero clip-reveal（yPercent 遮罩滑動），圖片仍 clip-path
+  //（about program 文字說明用）；false=text 跟圖片一起 clip-path（degree-show-detail 維持原樣）。
+  const textHlReveal = !!opts.textHlReveal;
   // 單格置中用（timeline 手機單圖輪播：slotLefts ['50%'] + xPercent -50）；預設 0 = 原行為
   const slotXPercent = opts.slotXPercent ?? 0;
 
@@ -104,6 +122,10 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
   const textHlEl = opts.textHlEl !== undefined
     ? opts.textHlEl
     : (container.closest('.class-info-panel')?.querySelector('[data-class-hl]') || null);
+
+  // textHlReveal：包貼身遮罩 wrapper（fit-content overflow:clip），整塊色卡 [data-class-hl]（含底色）
+  // 在遮罩內純位移滑動（隨機 4 向）＝乾淨 clip-reveal（無 clip-path 擦除、色矩形跟著動）
+  if (textHlReveal && textHlEl) ensureCardMask(textHlEl);
 
   let slots = [];
   let nextIdx = 0;
@@ -181,8 +203,10 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
       if (!manual) attachInteractions(img);
     }
     if (!manual) updateCursors();
-    // Text highlight 和 imgs 同步 clip-path 狀態
-    if (textHlEl) {
+    // Text highlight 初始態：textHlReveal 走 clip-reveal（整塊色卡純位移，藏於貼身遮罩外/現），否則跟 imgs 一起 clip-path
+    if (textHlReveal && textHlEl) {
+      gsap.set(textHlEl, startHidden ? revealHiddenT(randRevealDir()) : REVEAL_SHOWN);
+    } else if (textHlEl && !textHlReveal) {
       gsap.set(textHlEl, { clipPath: startHidden ? randomHideClip() : SHOW_CLIP });
     }
   }
@@ -242,45 +266,35 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
     if (timer) { clearInterval(timer); timer = null; }
   }
 
-  function collectTargets() {
-    const targets = [...slots];
-    if (textHlEl) targets.push(textHlEl);
-    return targets;
+  // reveal 前把 text 卡寬度貼合最寬一行文字（見 fitCardToText）。必須在顯示動畫「之前」叫，
+  // 否則揭露後才縮會看到寬度跳一下；textHlReveal 場景（about program 說明卡）才有此卡。
+  function fitTextCard() {
+    if (textHlReveal && textHlEl) fitCardToText(textHlEl);
   }
 
-  function hideAll() {
+  // mode 'hide'：圖片各自「隨機 4 向」clip-path 收 + text 卡「隨機 4 向」hero clip-reveal 滑出；'show'：都回顯示態。
+  //（user 2026-08-10：切 tab 時圖片收合方向 random 4 向、文字也 random 4 向 clip-reveal）
+  function animateGroup(mode) {
     return new Promise(resolve => {
-      const targets = collectTargets();
-      if (targets.length === 0) { resolve(); return; }
+      const clipTargets = [...slots];
+      if (textHlEl && !textHlReveal) clipTargets.push(textHlEl);  // 非 reveal（degree-show）：text 跟 imgs 一起 clip-path
+      const revealText = textHlReveal && !!textHlEl;
+      const total = clipTargets.length + (revealText ? 1 : 0);
+      if (total === 0) { resolve(); return; }
       let done = 0;
-      const onOne = () => { done++; if (done >= targets.length) resolve(); };
-      targets.forEach(el => {
-        gsap.to(el, {
-          clipPath: HIDE_CLIP_LEAVE,
-          duration: ANIM_DUR,
-          ease: ANIM_EASE,
-          onComplete: onOne,
-        });
-      });
+      const onOne = () => { if (++done >= total) resolve(); };
+      // 圖片（+非 reveal text）：clip-path。hide=每張獨立隨機 4 向、show=inset(0)
+      clipTargets.forEach(el => gsap.to(el, { clipPath: mode === 'hide' ? randomHideClip() : SHOW_CLIP, duration: ANIM_DUR, ease: ANIM_EASE, onComplete: onOne }));
+      // reveal text 卡：clip-reveal 隨機 4 向（整塊色卡在貼身遮罩內純位移，無 clip-path）
+      if (revealText) {
+        if (mode === 'show') fitTextCard(); // 揭露前貼合寬度（隱藏態量寬 OK，translate 不影響寬）
+        const to = mode === 'hide' ? revealHiddenT(randRevealDir()) : REVEAL_SHOWN;
+        gsap.to(textHlEl, { ...to, duration: ANIM_DUR, ease: ANIM_EASE, overwrite: 'auto', onComplete: onOne });
+      }
     });
   }
-
-  function showAll() {
-    return new Promise(resolve => {
-      const targets = collectTargets();
-      if (targets.length === 0) { resolve(); return; }
-      let done = 0;
-      const onOne = () => { done++; if (done >= targets.length) resolve(); };
-      targets.forEach(el => {
-        gsap.to(el, {
-          clipPath: SHOW_CLIP,
-          duration: ANIM_DUR,
-          ease: ANIM_EASE,
-          onComplete: onOne,
-        });
-      });
-    });
-  }
+  function hideAll() { return animateGroup('hide'); }
+  function showAll() { return animateGroup('show'); }
 
   async function reset() {
     stop();
@@ -289,7 +303,7 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
     start();
   }
 
-  return { renderFresh, start, stop, hideAll, showAll, reset, tick };
+  return { renderFresh, start, stop, hideAll, showAll, reset, tick, fitText: fitTextCard };
 }
 
 // ── Module 全域：多個 division container 協調切換 ─────────────────────────────
@@ -304,7 +318,7 @@ async function revealActive() {
   const api = currentDivision ? slideshowsByDivision.get(currentDivision) : null;
   if (!api) return; // 尚未 ready 時不 mark revealed，讓後續觸發可以重試
   revealed = true;
-  await api.showAll();
+  await api.showAll();  // showAll → animateGroup('show') 內部已 fitText（初次揭露也貼合寬度）
   api.start();
 }
 
@@ -338,7 +352,9 @@ async function switchTo(newDivision, animate = true) {
     // 4. 新 panel 的 imgs + text 一起 clip-path reveal，然後啟動 loop
     if (newApi) {
       if (animate) {
-        await newApi.showAll();
+        await newApi.showAll();          // showAll → animateGroup('show') 內部已 fitText
+      } else {
+        newApi.fitText();                // instant 切換無 showAll → 顯示前自己貼合寬度
       }
       newApi.start();
     }
@@ -380,7 +396,10 @@ export async function initClassImagesSlideshow() {
     // 桌面維持 3-slot 左移輪播。矮橫向（landscape gate）同走單圖（user 2026-07-07 wireframe：圖左文右單圖輪播）。
     const isMobileSlots = window.innerWidth < 768
       || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
-    const slotOpts = isMobileSlots ? { slotLefts: ['50%'], slotXPercent: -50 } : {};
+    // about program 文字說明卡（[data-class-hl]）走 clip-reveal、圖片維持 clip-path（user 2026-08-10）
+    const slotOpts = isMobileSlots
+      ? { slotLefts: ['50%'], slotXPercent: -50, textHlReveal: true }
+      : { textHlReveal: true };
     /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.division-images')).forEach(container => {
       const division = container.dataset.division;
       if (!division) return;

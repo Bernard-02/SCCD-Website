@@ -55,8 +55,8 @@ function renderResourcesAccordion(data, container) {
           <div class="accordion-text-wrap">
             <!-- data-resources-text：手機內捲層（padding 留在 text-wrap 上不隨捲動，同 vision/class/works pattern） -->
             <div data-resources-text>
-              <p class="text-white mb-sm">${item.textEn || item.descriptionEn}</p>
-              <p class="text-white">${item.textZh || item.descriptionZh}</p>
+              <p class="text-white mb-en-zh-body">${item.textEn || item.descriptionEn}</p>
+              <p class="text-white" lang="zh-Hant">${item.textZh || item.descriptionZh}</p>
             </div>
           </div>
         </div>

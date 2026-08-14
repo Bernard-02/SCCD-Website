@@ -7,6 +7,7 @@
 import { loadExhibitionsInto, loadGeneralActivitiesInto, loadLecturesInto, loadIndustryInto, loadWorkshopsInto, loadSummerCampInto, loadVisitsInto } from './activities-data-loader.js';
 import { loadAlbumData } from './album-data-loader.js';
 import { loadDegreeShowListInto } from './degree-show-data-loader.js';
+import { applyMarqueeOverflow } from '../ui/marquee-overflow.js';
 import { initActivitiesYearToggle } from '../accordions/activities-year-toggle.js';
 import { initListAccordion, resetListAccordionsInPanel, alignWithBottomSpacer } from '../accordions/list-accordion.js';
 import { reapplySearch } from '../ui/activities-search.js';
@@ -828,6 +829,13 @@ async function switchToSection(section, btns, shouldScroll, isInitial = false) {
           btn.style.background = currentSectionColor;
         }
       });
+    }
+
+    // 6.5 degree-show 卡片標題過長 → marquee：panel 在 hidden 態 render（offsetWidth=0 量不到），
+    //     showPanel 後 rAF 重量（比照 dsd-tab strip）；非 degree-show panel 無 .dshow-title-line = no-op
+    if (section === 'degree-show' && target) {
+      const dsPanel = target;
+      requestAnimationFrame(() => applyMarqueeOverflow(dsPanel, '.dshow-title-line', '.dshow-title-inner'));
     }
 
     // 7. Scroll to section（點擊時才 scroll，初始載入不 scroll）

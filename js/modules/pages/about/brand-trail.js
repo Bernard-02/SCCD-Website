@@ -2,6 +2,7 @@ import { DUR, EASE } from '../../ui/motion.js';
 import { registerPageExit } from '../../ui/page-exit.js';
 import { registerPageCleanup } from '../../ui/page-cleanup.js';
 import { sitePath } from '../../ui/site-base.js';
+import { setupClipReveal, playClipReveal, playRevealExit } from '../../ui/scroll-animate.js';
 /**
  * Brand Trail Module (About Page)
  * 處理系友發展區塊的游標拖尾效果（桌面版）
@@ -77,58 +78,37 @@ function initWorksHighlight() {
 }
 
 // Overview 文字底色（套在 span 上，只有文字部份有色）
-// 進場動畫：隨機四個方向 clip-path，中英文同時
+// 進退場：Vision 字卡 hero clip-reveal（整塊色卡在父 <p> 遮罩內 yPercent 升起/沉出）。
+// user 2026-08-10 一致化：文字字卡走 clip-reveal（滑動+遮罩）不再用 clip-path 擦除。
+// 色卡＝含色底的 [data-overview-hl]（span），父 <p> 當靜止遮罩：span 在 p 內不可插 div wrapper，
+// 故直接把父 <p> 設 overflow:clip（setupClipReveal 偵測父層已 clip 就不另包 wrapper），整塊色卡在 p 內滑動。
 function initOverviewHighlight() {
-  const hls = /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('[data-overview-hl]'));
+  const hls = /** @type {HTMLElement[]} */ (Array.from(document.querySelectorAll('[data-overview-hl]')));
   if (!hls.length) return;
   const colors = getAccentColors();
   const color = colors[Math.floor(Math.random() * colors.length)];
   hls.forEach(el => { el.style.background = color; });
 
-  if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') return;
+  if (typeof gsap === 'undefined') return;
 
-  // 進場 clip-path：隨機四方向（百分比單位）
-  const dirs = [
-    'inset(0% 0% 100% 0%)', // 下方遮住（從上展開）
-    'inset(100% 0% 0% 0%)', // 上方遮住（從下展開）
-    'inset(0% 100% 0% 0%)', // 右方遮住（從左展開）
-    'inset(0% 0% 0% 100%)', // 左方遮住（從右展開）
-  ];
-  // 直接用 inline style 設初始 clipPath，確保立即生效
-  const fromClips = [];
+  // 父 <p> 當遮罩（overflow-y:clip；x 放行不裁行內裝飾）→ setupClipReveal 沿用不另包 div、色卡 yPercent:100 藏起
   hls.forEach(el => {
-    const fromClip = dirs[Math.floor(Math.random() * dirs.length)];
-    el.style.clipPath = fromClip;
-    /** @type {any} */ (el.style).webkitClipPath = fromClip;
-    fromClips.push(fromClip);
+    const p = el.parentElement;
+    if (p) { p.style.overflowY = 'clip'; p.style.overflowX = 'visible'; }
   });
+  setupClipReveal(hls);
 
-  const first = hls[0].closest('h5') || hls[0];
   let revealed = false;
-  ScrollTrigger.create({
-    trigger: first,
-    start: 'top 88%',
-    once: true,
-    onEnter: () => {
-      revealed = true;
-      hls.forEach((el, i) => {
-        gsap.fromTo(el,
-          { clipPath: fromClips[i] },
-          { clipPath: 'inset(0% 0% 0% 0%)', duration: DUR.reveal, ease: EASE.enter }
-        );
-      });
-    },
-  });
+  const reveal = () => { revealed = true; playClipReveal(hls, { stagger: { each: 0.08 } }); };
+  if (typeof ScrollTrigger === 'undefined') { reveal(); }
+  // trigger 用父 <p>（靜止遮罩、在自然 flow）而非 hls[0]（已被 gsap.set yPercent:100 = translateY 整個高度）：
+  // ScrollTrigger 依 trigger 的「變形後」位置算 start，用被下推整段高度的 span 當 trigger → start 被推到頁面
+  // 捲不到的地方（文字越窄越高、下推越多）→ onEnter 永不觸發、Vision 永久藏起（<1200px 症狀根因）。
+  // 父 <p> 高度=文字自然高、位置不受 child transform 影響 → 'top 88%' 在各寬度都可靠觸發。
+  else ScrollTrigger.create({ trigger: hls[0].parentElement || hls[0], start: 'top 88%', once: true, onEnter: reveal });
 
-  // 離頁退場：clip-path 反向 wipe（隨機四方向收合），只在已進場時跑
-  registerPageExit(() => new Promise(resolve => {
-    if (typeof gsap === 'undefined' || !revealed) { resolve(); return; }
-    gsap.killTweensOf(hls);
-    gsap.to(hls, {
-      clipPath: () => dirs[Math.floor(Math.random() * dirs.length)],
-      duration: DUR.medium, ease: EASE.exit, stagger: 0.06, overwrite: true, onComplete: resolve,
-    });
-  }));
+  // 離頁退場：整塊色卡 yPercent 沉出遮罩（clip-reveal 反向）；只在已進場 + 視窗內才跑（playRevealExit 內建 viewportOnly）
+  registerPageExit(() => revealed ? playRevealExit(hls, { stagger: 0.08 }) : Promise.resolve());
 }
 
 /**

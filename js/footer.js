@@ -11,8 +11,9 @@
  */
 
 // footer-scatter：每次刷新 random 散佈 + collision resolution（v4，取代 v3 grid）
-// 詳見 ./modules/ui/footer-draggable.js（檔名沿用，drag 功能已移除）
-import { initFooterScatter } from './modules/ui/footer-draggable.js';
+import { initFooterScatter } from './modules/ui/footer-scatter.js';
+// footer 內容（tab + 散佈項目）走 Directus footer_tabs/footer_items（2026-08-11）；渲染完才 init 散佈
+import { renderFooterContent } from './modules/ui/footer-content.js';
 import { sitePath } from './modules/ui/site-base.js';
 
 const STORAGE_KEY = 'sccd-theme-mode';
@@ -70,12 +71,14 @@ function setYear(el) {
 export function initFooter() {
   const footerContainer = document.getElementById('site-footer');
 
-  // index.html 靜態 footer
+  // index.html 靜態 footer：先渲染 CMS 內容（tab+項目）再 init 散佈；渲染失敗（連 fallback 都掛）仍 init（logo/privacy 照常）
   const staticFooter = document.getElementById('site-footer-static');
   if (staticFooter) {
     loadFooterLogo(staticFooter.querySelector('#footer-logo'));
     setYear(document.getElementById('footer-year-static'));
-    initFooterScatter(staticFooter);
+    renderFooterContent(staticFooter)
+      .catch((e) => console.warn('[footer] render failed', e))
+      .then(() => initFooterScatter(staticFooter));
   }
 
   // SPA footer：fetch pages/footer.html 注入
@@ -93,7 +96,11 @@ export function initFooter() {
         loadFooterLogo(footerContainer.querySelector('#footer-logo'));
         setYear(footerContainer.querySelector('#footer-year'));
         const spaFooter = footerContainer.querySelector('footer.footer-shell');
-        if (spaFooter) initFooterScatter(spaFooter);
+        if (spaFooter) {
+          renderFooterContent(spaFooter)
+            .catch((e) => console.warn('[footer] render failed', e))
+            .then(() => initFooterScatter(spaFooter));
+        }
       })
       .catch(e => console.log('Footer load failed', e));
   }

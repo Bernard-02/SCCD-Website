@@ -13,6 +13,8 @@
  */
 
 import { registerPageExit } from './page-exit.js';
+import { registerPageCleanup } from './page-cleanup.js';
+import { ensureCardMask, fitCardToText } from './scroll-animate.js';
 
 export function initBFADivisionToggle() {
   const classInfoPanels  = document.querySelectorAll('.class-info-panel');
@@ -69,6 +71,14 @@ export function initBFADivisionToggle() {
     instantToggleWorks(divisionId);
   }
 
+  // 說明色卡寬度貼合文字（fitCardToText 在 scroll-animate.js）：切 tab 揭露前的貼合由
+  // slideshow（Programs，reveal 前叫 fitText）/ setWorksPanelState+startPhase2（Works）負責；
+  // 這裡只補「字體載入後 / resize」的重量，class-info + works 兩種色卡都涵蓋。
+  function fitVisibleClassText() {
+    document.querySelectorAll('.class-info-panel [data-class-hl], .class-works-panel [data-works-hl]')
+      .forEach(box => { if (box.offsetParent !== null) fitCardToText(box); }); // 只量可見 panel
+  }
+
   // ─── Works 切換動畫（clip-path 文字 + slide-up 影片） ──────
   // 概念：所有 panels 用 display:grid 堆疊在同一格（垂直排列概念），
   //        active 的 iframe yPercent:0 顯示，其他 yPercent:100 在下方等待。
@@ -87,6 +97,16 @@ export function initBFADivisionToggle() {
   ];
   const WORKS_SHOW_CLIP = 'inset(0% 0% 0% 0%)';
   function worksRandomHideClip() { return WORKS_HIDE_CLIPS[Math.floor(Math.random() * WORKS_HIDE_CLIPS.length)]; }
+  // works 文字 clip-reveal＝貼身靜止遮罩（ensureCardMask wrapper）內、整塊色卡 [data-works-hl]（含底色+playlist）純位移隨機 4 向
+  //（user 定義 clip-reveal＝遮罩內平移、非 clip-path 擦除；色矩形跟文字一起動——只推內層文字會讓
+  //   grid-stack 下所有 panel 的色卡疊著顯示）
+  const REVEAL_DIRS4 = ['top', 'bottom', 'left', 'right'];
+  const REVEAL_SHOWN = { xPercent: 0, yPercent: 0 };
+  const revealHiddenT = (dir) => dir === 'top' ? { xPercent: 0, yPercent: -110 }
+    : dir === 'bottom' ? { xPercent: 0, yPercent: 110 }
+    : dir === 'left' ? { xPercent: -110, yPercent: 0 }
+    : { xPercent: 110, yPercent: 0 }; // right
+  const randRevealDir = () => REVEAL_DIRS4[Math.floor(Math.random() * REVEAL_DIRS4.length)];
 
   // 路由：MDES 預設顯示 animation 組的 works playlist
   function resolveWorksPanelId(divisionId) {
@@ -128,15 +148,17 @@ export function initBFADivisionToggle() {
   function setWorksPanelState(panel, active) {
     const text = panel.querySelector('[data-works-hl]');
     const video = panel.querySelector('iframe');
+    if (text) ensureCardMask(text); // 貼身靜止遮罩（idempotent）
     if (active) {
       panel.style.pointerEvents = '';
       panel.style.zIndex = '1';
-      if (text && typeof gsap !== 'undefined') gsap.set(text, { clipPath: WORKS_SHOW_CLIP });
+      if (text) fitCardToText(text);   // 顯示前貼合寬度（同 Programs 說明卡，避免揭露後才縮的跳動）
+      if (text && typeof gsap !== 'undefined') gsap.set(text, REVEAL_SHOWN);
       if (video && typeof gsap !== 'undefined') gsap.set(video, { yPercent: 0 });
     } else {
       panel.style.pointerEvents = 'none';
       panel.style.zIndex = '0';
-      if (text && typeof gsap !== 'undefined') gsap.set(text, { clipPath: WORKS_HIDE_CLIP_LEAVE });
+      if (text && typeof gsap !== 'undefined') gsap.set(text, revealHiddenT(randRevealDir()));
       if (video && typeof gsap !== 'undefined') gsap.set(video, { yPercent: 100 });
     }
   }
@@ -193,12 +215,13 @@ export function initBFADivisionToggle() {
     oldPanel.style.zIndex = '1';
     oldPanel.style.pointerEvents = 'none';
 
-    // 影片橫跨 Phase 1+2 全程（clip-path 開始時影片開始走，clip-path 結束時影片到位）
+    // 影片自己跑全程 cross slide（文字時序與影片脫鉤，見下）
     const VIDEO_DUR = WORKS_ANIM_DUR * 2;
 
-    // ── Phase 1（同時觸發）：舊文字 clip-path 退場 + 影片 cross slide 起跑 ──
+    // ── Phase 1（同時觸發）：舊字卡滑出遮罩 + 影片 cross slide 起跑 ──
+    if (oldText) ensureCardMask(oldText);
     const phase1 = oldText
-      ? gsap.to(oldText, { clipPath: WORKS_HIDE_CLIP_LEAVE, duration: WORKS_ANIM_DUR, ease: WORKS_ANIM_EASE })
+      ? gsap.to(oldText, { ...revealHiddenT(randRevealDir()), duration: WORKS_ANIM_DUR, ease: WORKS_ANIM_EASE })
       : null;
 
     if (oldVideo) gsap.to(oldVideo, {
@@ -221,15 +244,19 @@ export function initBFADivisionToggle() {
     });
     else gsap.delayedCall(VIDEO_DUR, finalize);
 
-    // ── Phase 2（Phase 1 結束後）：新文字 clip-path reveal ──
+    // ── Phase 2（Phase 1 結束後）：新字卡滑入遮罩 ──
     function startPhase2() {
       if (newText) {
-        gsap.set(newText, { clipPath: worksRandomHideClip() });
-        gsap.to(newText, { clipPath: WORKS_SHOW_CLIP, duration: WORKS_ANIM_DUR, ease: WORKS_ANIM_EASE });
+        ensureCardMask(newText);
+        fitCardToText(newText);   // 揭露前貼合寬度（隱藏態量寬 OK）
+        gsap.set(newText, revealHiddenT(randRevealDir()));
+        gsap.to(newText, { ...REVEAL_SHOWN, duration: WORKS_ANIM_DUR, ease: WORKS_ANIM_EASE });
       }
     }
 
-    if (phase1) phase1.eventCallback('onComplete', startPhase2);
+    // 文字時序同 Programs（class-images-slideshow switchTo）：舊字卡收完才進新字卡，
+    // 不配合影片（user 2026-08-10 二改，推翻同日「新舊同時跑」版——那是舊 clip-path 設計要跟影片對時序）
+    if (phase1) phase1.then(startPhase2);
     else startPhase2();
   }
 
@@ -367,6 +394,10 @@ export function initBFADivisionToggle() {
 
     // 手機 pill：active 時捲到 strip 置中（點擊與程式切換 works-context 自動切 bfa 等 皆涵蓋）。
     centerMobilePill(divisionId);
+
+    // about 浮動多邊形層也吃 division tab 切換 morph（同 anchor-nav 事件；載入初始 setActive
+    // 被該模組的 600ms init 時間閘擋掉，不會 morph）。click:true＝tab 切換視同點擊、每次都 morph
+    document.dispatchEvent(new CustomEvent('anchornav:active', { detail: { id: `division:${divisionId}`, click: true } }));
   }
 
   // ─── Desktop: hover events ─────────────────────────────────
@@ -550,6 +581,13 @@ export function initBFADivisionToggle() {
     showContent('animation', false);
   });
 
+  // 說明色卡貼合文字寬：字體載入後字寬會變 → fonts.ready 重量；resize（跨欄寬/gate）也重量。SPA 換頁解綁。
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitVisibleClassText);
+  let fitRaf = 0;
+  const onFitResize = () => { cancelAnimationFrame(fitRaf); fitRaf = requestAnimationFrame(fitVisibleClassText); };
+  window.addEventListener('resize', onFitResize);
+  registerPageCleanup(() => { window.removeEventListener('resize', onFitResize); cancelAnimationFrame(fitRaf); });
+
   // 離頁退場：works 區 active panel 的說明文字（含 playlist）clip-path 右→左收 + 影片往左滑出。
   // 沿用本模組 works 切換的同一組常數/方向（手感一致）。works layout 已 init、且區塊在視窗內才跑。
   // 手機也跑：grid-stack + clip 切換機制兩寬度共用（initWorksLayoutOnce 不分寬度），退場同理（2026-06-12 解除桌面限定）。
@@ -564,7 +602,7 @@ export function initBFADivisionToggle() {
     const text  = activePanel.querySelector('[data-works-hl]');
     const video = activePanel.querySelector('iframe');
     const tweens = [];
-    if (text)  tweens.push(gsap.to(text,  { clipPath: WORKS_HIDE_CLIP_LEAVE, duration: WORKS_ANIM_DUR, ease: WORKS_ANIM_EASE, overwrite: true }));
+    if (text)  { ensureCardMask(text); tweens.push(gsap.to(text, { ...revealHiddenT(randRevealDir()), duration: WORKS_ANIM_DUR, ease: WORKS_ANIM_EASE, overwrite: true })); }
     if (video) tweens.push(gsap.to(video, { xPercent: -100, duration: WORKS_ANIM_DUR, ease: WORKS_VIDEO_EASE, overwrite: true }));
     if (!tweens.length) { resolve(); return; }
     let done = 0;

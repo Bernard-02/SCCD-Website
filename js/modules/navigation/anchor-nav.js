@@ -227,6 +227,10 @@ export function initAnchorNav({ reveal = false } = {}) {
         strip._replayReveal(color);
       }
     }
+
+    // about 浮動多邊形層掛 section 切換 morph（無 strip 的頁面走事件；alumni 等無人監聽時 no-op）
+    // click=force：點擊導航（含同顆重點）每次都 morph；scroll-spy 連環 activation 由監聽端 coalesce
+    document.dispatchEvent(new CustomEvent('anchornav:active', { detail: { id, click: force } }));
   }
 
   // 手機直向：捲動讓某 anchor 變 active（scroll spy）時，停手後把該 section 拉到落點——

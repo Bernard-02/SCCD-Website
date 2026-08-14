@@ -208,7 +208,10 @@ export function initPdfViewer() {
   let wantWatermark = false;   // 只有 document/files 來源的 PDF 要浮水印（press / 會議紀錄 / charter 不用）
   let openToken = 0;             // 每次 open ++、close 也 ++：作廢慢到的開場墊圖（見 sccd:open-pdf handler）
   let firstPageRendered = false; // 高解析第一頁已上 canvas → 墊圖不得再蓋
-  let placeholderBlurred = false; // LQIP 墊圖模糊中 → 第一頁 render 完要做 blur-up 退模糊
+  let placeholderShowing = false; // LQIP 墊圖（馬賽克）顯示中 → 第一頁 render 完做 de-pixelate 揭示
+  let mosaicTween = null;         // de-pixelate 揭示 tween（close / 重開要 kill）
+  const mosaicScratch  = document.createElement('canvas');  // 馬賽克降採樣暫存（reused）
+  const mosaicPristine = document.createElement('canvas');  // 揭示前的清晰頁快照（reused）
 
   // ── Zoom 狀態（對齊 activities-lightbox album viewer 邏輯）────────────────
   // 內部 zoom.scale 恆以「fit-to-stage」為 1（同 album）。
@@ -350,6 +353,47 @@ export function initPdfViewer() {
   function resetToFit(animated = false)    { zoomToScale(fitScale(),    animated); }
 
   // 渲染單頁（一頁一頁翻）；計算 fitDims/naturalDims，保留 wasFit/wasActual 狀態跨頁
+  // ── LQIP 馬賽克墊圖（取代 gaussian blur-up；user 2026-08-10）───────────────
+  // 業界 pixelation = 最近鄰放大縮圖：把來源降採到 N 格、再 nearest-neighbor 放大回滿版。
+  // blocksAcross = 水平格數（越小越糊）。canvasL 尺寸即時讀（墊圖=封面原寸、揭示=高解析頁）。
+  function drawMosaic(source, blocksAcross) {
+    const w = canvasL.width, h = canvasL.height;
+    if (!w || !h) return;
+    const n  = Math.max(1, Math.round(blocksAcross));
+    const sw = n, sh = Math.max(1, Math.round(n * h / w));
+    mosaicScratch.width = sw; mosaicScratch.height = sh;
+    const sctx = mosaicScratch.getContext('2d');
+    sctx.imageSmoothingEnabled = false;
+    sctx.drawImage(source, 0, 0, sw, sh);                     // 降採 → N 格縮圖
+    const ctx = canvasL.getContext('2d');
+    ctx.imageSmoothingEnabled = false;                        // 關平滑 = 硬邊馬賽克（非模糊）
+    ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(mosaicScratch, 0, 0, sw, sh, 0, 0, w, h);   // 最近鄰放大回滿版
+  }
+
+  // 揭示：把「已在 canvasL 上的高解析頁」快照成 pristine，再從粗格→細格 de-pixelate 到清晰。
+  // 幾何插值（log 空間等速）＝格子大小視覺上等速縮小，收尾「對焦入場」感。
+  function revealMosaic() {
+    const w = canvasL.width, h = canvasL.height;
+    placeholderShowing = false;
+    if (!w || !h || typeof gsap === 'undefined') return;
+    mosaicPristine.width = w; mosaicPristine.height = h;
+    mosaicPristine.getContext('2d').drawImage(canvasL, 0, 0); // 快照清晰頁（此刻 canvasL 尚未被馬賽克覆蓋）
+    const START = 22, END = w, s = { p: 0 };
+    drawMosaic(mosaicPristine, START);                        // 同 tick 先蓋粗格，避免先閃一幀清晰
+    if (mosaicTween) mosaicTween.kill();
+    mosaicTween = gsap.to(s, {
+      p: 1, duration: 0.5, ease: 'none',
+      onUpdate: () => drawMosaic(mosaicPristine, START * Math.pow(END / START, s.p)),
+      onComplete: () => {
+        const ctx = canvasL.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(mosaicPristine, 0, 0);                 // 收尾補一張 1:1 清晰
+        mosaicTween = null;
+      },
+    });
+  }
+
   async function renderPage(pageNum) {
     if (!pdfDoc || rendering) return;
     rendering = true;
@@ -687,9 +731,8 @@ export function initPdfViewer() {
         modal.style.display = 'none';
         touchMode = null;        // 清手機觸控手勢狀態
         if (pdfDoc) { pdfDoc.destroy(); pdfDoc = null; }
-        if (typeof gsap !== 'undefined') gsap.killTweensOf(canvasL);   // 停 blur-up tween
-        canvasL.style.filter = '';
-        placeholderBlurred = false;
+        if (mosaicTween) { mosaicTween.kill(); mosaicTween = null; }   // 停 de-pixelate 揭示 tween
+        placeholderShowing = false;
         pageInfo.textContent = '';   // 下次 open 等新總頁數，不殘留舊值
         canvasL.getContext('2d').clearRect(0, 0, canvasL.width, canvasL.height);
         // reset 內部狀態（下次 open 重新計 fitDims/naturalDims）
@@ -736,7 +779,8 @@ export function initPdfViewer() {
     // 先以模糊態鋪上 canvas，高解析第一頁 render 完退模糊（user 2026-08-08 參考 LQIP 文章）
     const myToken = ++openToken;
     firstPageRendered = false;
-    placeholderBlurred = false;
+    placeholderShowing = false;
+    if (mosaicTween) { mosaicTween.kill(); mosaicTween = null; }   // 停上一本殘留的揭示 tween
     const cachedCover = peekPdfCover(pdfUrl);
     if (cachedCover) cachedCover.then(dataUrl => {
       if (!dataUrl || firstPageRendered || myToken !== openToken) return;
@@ -763,9 +807,8 @@ export function initPdfViewer() {
           renderedContentEl.style.width  = fitDims.w + 'px';
           renderedContentEl.style.height = fitDims.h + 'px';
         }
-        canvasL.getContext('2d').drawImage(img, 0, 0);
-        canvasL.style.filter = 'blur(14px)';
-        placeholderBlurred = true;
+        drawMosaic(img, 22);          // 馬賽克墊圖（取代 gaussian blur(14px)；最近鄰放大縮圖）
+        placeholderShowing = true;
         zoom = { scale: 1, tx: 0, ty: 0 };
         // 不走 applyZoom：它會 updateZoomUI，墊圖的 % 是封面像素比出來的假值（renderPage 才是真值）
         rowEl.style.transition = 'none';
@@ -778,21 +821,22 @@ export function initPdfViewer() {
       // SPA navigated 進 library 時若 pdfjsLib 沒被頁面 head 載入，動態 inject
       await ensurePdfjsLoaded();
       setupPdfjsWorker();
-      pdfDoc = await pdfjsLib.getDocument(pdfUrl).promise;
-      if (myToken === openToken) pageInfo.textContent = `${curPage} / ${pdfDoc.numPages}`;   // 總頁數已確定，一次到位
+      // disableAutoFetch + disableStream：走 HTTP Range 只抓「當前頁需要的 chunk」，不整本下載——
+      // 大掃描本「點開卡在封面（墊圖）很久」的主因（getDocument 預設會 auto-fetch 整本）。同 pdf-cover.js 封面渲染。
+      // 之後翻頁各自 Range 取該頁；正式站同源 Range 生效（跨域 dev 退回整本，與封面同一已知限制）。
+      const doc = await pdfjsLib.getDocument({ url: pdfUrl, disableAutoFetch: true, disableStream: true }).promise;
+      // 慢載大本時 user 可能已改開別本：這次開場過期就整段放棄——別讓晚到的 doc 覆寫共用 pdfDoc、
+      // 也別 render 進共用 canvas，否則畫面變成「開到別的書」（user 2026-08-11）。
+      if (myToken !== openToken) { doc.destroy?.(); return; }
+      pdfDoc = doc;
+      pageInfo.textContent = `${curPage} / ${pdfDoc.numPages}`;   // 總頁數已確定，一次到位
       // 桌面/手機同走單頁引擎（手機多 touch 手勢層：swipe 換頁 / pinch 縮放）
       renderPage(curPage).then(() => {
         if (myToken !== openToken) return;
         firstPageRendered = true;
-        if (placeholderBlurred) {
-          // LQIP blur-up 收尾：高解析內容已在 canvas 上（雙緩衝 swap），退模糊即「變清晰」
-          placeholderBlurred = false;
-          if (typeof gsap !== 'undefined') {
-            gsap.to(canvasL, { filter: 'blur(0px)', duration: 0.4, ease: 'power2.out',
-              onComplete: () => { canvasL.style.filter = ''; } });
-          } else {
-            canvasL.style.filter = '';
-          }
+        if (placeholderShowing) {
+          // 馬賽克墊圖收尾：高解析頁已在 canvas 上（雙緩衝 swap），de-pixelate 揭示即「對焦入場」
+          revealMosaic();
         }
       });
     } catch (err) {

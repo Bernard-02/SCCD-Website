@@ -27,7 +27,7 @@ import { DUR, EASE } from '../ui/motion.js';
 import { scrollWindowNoSnap, clampBelowFooter } from '../ui/snap-scroll.js';
 
 // 矮橫向（橫向手機）走手機 window-scroll 路徑：landscape.css 5d 已把 curriculum 的 inner-scroll
-// frame 拆掉（section 自然高、box 不捲），gate 同 footer-draggable usesMobileFooter()
+// frame 拆掉（section 自然高、box 不捲），gate 同 footer-scatter usesMobileFooter()
 function usesWindowScroll() {
   return window.innerWidth < 768
     || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;

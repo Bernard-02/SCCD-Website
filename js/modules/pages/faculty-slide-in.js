@@ -184,6 +184,21 @@ export function initFacultySlideIn() {
     `;
   }
 
+  // 右欄雙語純文字 stack（EN 上 ZH 下）：三型的職級/職稱（titles）＋兼任職稱（occupations）共用。
+  // 桌面各項間距由外層 .faculty-rows 的 gap 統一控制（＝右側 list 內容 gap 16px），故此處不加 item margin。
+  function buildLabelStack(pairs) {
+    const list = pairs.filter(p => (p.en || '').trim() || (p.zh || '').trim());
+    if (!list.length) return '';
+    return list.map((p) =>
+      `<div>` +
+        (p.en ? `<p class="text-s font-regular text-black mb-en-zh-s">${p.en}</p>` : '') +
+        (p.zh ? `<p class="text-s font-regular text-black" lang="zh-Hant">${p.zh}</p>` : '') +
+      `</div>`
+    ).join('');
+  }
+  const buildRank = (items) => buildLabelStack((items || []).map(t => ({ en: t.titleEn, zh: t.titleZh })));
+  const buildOccupation = (items) => buildLabelStack((items || []).map(o => ({ en: o.occupationEn, zh: o.occupationZh })));
+
   // admin 的純文字 contact section
   function buildContactSection(contact) {
     if (!contact) return '';
@@ -205,6 +220,11 @@ export function initFacultySlideIn() {
       const data = facultyData[facultyId];
       if (!data) return;
 
+      // 桌面才把名字下方的職級/職稱移到右欄最上；手機/矮橫向維持在 sticky profile 左欄（手機無「右欄」）。
+      // 每次開卡即時判斷（跨斷點靠 orientation-reload 自癒，比照本頁其他 isMobile 判斷）。
+      const useMobileLayout = window.innerWidth < 768 ||
+        window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+
       // 圖片：沒真實照片的 fulltime/parttime/admin → 用代用 logo。slide-in 底色一直是彩色 accent（panelBg），
       // 故「固定用黑線框 wireframe 版」而非依 site mode 挑彩色 glitch（user 2026-06-11）。
       // 加 .theme-invert → 線條隨底色亮度翻黑/白對比（CSS var(--theme-invert-filter)，mode-color 期間每幀更新）。
@@ -222,8 +242,10 @@ export function initFacultySlideIn() {
       // 旋轉角度隨機（user 2026-06-11）：名字一個角、title 另一個角，兩者明顯不同（呼應全站隨機傾斜風格）。
       //   ±2~5°（排除近 0 免像沒轉）；每次開 slide-in 重隨機；太接近(<2°)就把 title 反向確保看得出差異。
       //   名字 EN/ZH 共用同一角（名字視為一體）；若要 EN/ZH 也各異，各自呼叫 randDeg() 即可。
-      const rotateName = data.type === 'fulltime' || data.type === 'admin';
-      const randDeg = () => (Math.random() < 0.5 ? -1 : 1) * (2 + Math.random() * 3);
+      // 三型（fulltime/admin/parttime）都旋轉（user 2026-08-12：兼任 slide-in 也要旋轉標題）
+      const rotateName = true;
+      // ±2~4°（user 2026-08-12 由 ±2~5° 收斂：標題/職稱長時旋轉太多不好看）；排除近 0 免像沒轉
+      const randDeg = () => (Math.random() < 0.5 ? -1 : 1) * (2 + Math.random() * 2);
       const nameDeg = randDeg();
       let titlesDeg = randDeg();
       if (Math.abs(nameDeg - titlesDeg) < 2) titlesDeg = -titlesDeg;
@@ -246,27 +268,25 @@ export function initFacultySlideIn() {
         nameZhElement.style.width = nameWidth;
       }
 
-      // Titles：三種 type 共用 titles[] repeater（2026-08-04 起 admin 也改用 titles[]，不再是單一 titleEn/titleZh）；
-      // 兼任的公司/身份 + 校內職稱（如「兼任講師」）都存在同一個 titles[] repeater 裡（多筆），
-      // 順序由後台編輯者在 GUI 拖排，前台不寫死順序邏輯。
-      // titles rotate(4deg)：桌機+手機都套（2026-06-11 user 要桌面 title 也轉、跟名字一致；原本只手機）。
-      // 用 block display 讓 titles 自然在 name 下方流（不被 inline-block 擠到右邊）。
+      // Titles（subtitle）：三種 type 共用 titles[] repeater，EN 上 ZH 下、多筆各自 stack、隨機旋轉一個角（跟名字不同角）。
+      // 2026-08-12：兼任的 titles[] 語意＝「職級」（兼任講師等）→ 左欄 subtitle；公司/身份（職業/單位）改存
+      // occupation 欄、顯示在右側（見下方 sections）。fulltime/admin 的 titles[] 維持學術職稱。
       const rotateTitles = rotateName;
       const titlesContainer = document.getElementById('faculty-detail-titles');
       if (titlesContainer) {
-        const pairs = (data.titles || []).map(t => ({ en: t.titleEn || '', zh: t.titleZh || '' }));
+        // 桌面：職級/職稱移到右欄（見下方 sections）→ 左欄名字下方留空；手機/矮橫向：維持在名字下方（三型皆是，user 2026-08-13）
+        const pairs = useMobileLayout ? (data.titles || []).map(t => ({ en: t.titleEn || '', zh: t.titleZh || '' })) : [];
         let html = '';
         pairs.forEach((p, i) => {
           const isLast = i === pairs.length - 1;
           html += `<div${isLast ? '' : ' class="mb-sm"'}>` +
-            `<p class="text-md font-regular text-black">${p.en}</p>` +
-            `<p class="text-md font-regular text-black">${p.zh}</p>` +
+            `<p class="text-s font-regular text-black mb-en-zh-s">${p.en}</p>` +
+            `<p class="text-s font-regular text-black">${p.zh}</p>` +
             `</div>`;
         });
         titlesContainer.innerHTML = html;
         titlesContainer.style.transform = rotateTitles ? `rotate(${titlesDeg}deg)` : '';
         titlesContainer.style.transformOrigin = rotateTitles ? 'left top' : '';
-        // 手機改 block 讓 titles 自然在 name 下方換行；桌面保留預設不動
         titlesContainer.style.display = rotateTitles ? 'block' : '';
       }
 
@@ -274,11 +294,22 @@ export function initFacultySlideIn() {
       const sectionsContainer = document.getElementById('faculty-detail-sections');
       if (sectionsContainer) {
         let html = '';
-        if (data.type === 'admin') {
-          html = buildContactSection(data.contact);
+        if (useMobileLayout) {
+          // 手機/矮橫向：職級/職稱留在名字下方（sticky profile 左欄，見上）；parttime 的 occupation 照舊排在 sections 最上
+          if (data.type === 'parttime') html += buildOccupation(data.occupations);
         } else {
-          // fulltime / parttime 共用（兼任的 educations/journey/experiences/awards 通常是空陣列，
-          // buildSection 空陣列回空字串不渲染 → 兼任 panel 自然只剩圖 + 名字 + titles，不用另開分支）
+          // 桌面：名字下方的職級/職稱移到右欄最上（三型皆是，user 2026-08-13）；parttime 再疊 occupation。
+          // 包一層 .faculty-rows 讓 rank↔occupation／多筆的間距＝右側 list 內容 gap（16px），而非 section 間 gap-2xl。
+          const lead = data.type === 'parttime'
+            ? buildRank(data.titles) + buildOccupation(data.occupations)
+            : buildRank(data.titles);
+          if (lead) html += `<div class="faculty-rows">${lead}</div>`;
+        }
+
+        if (data.type === 'admin') {
+          html += buildContactSection(data.contact);
+        } else {
+          // fulltime / parttime 共用 sections（空陣列不渲染；兼任通常全空 → 右欄只剩上方 lead）
           html += buildSection('Education', '學歷', data.educations, renderEducationRow);
           // Journey 歷程：欄位與 Experience 相同（year | organization | role），收錄該老師與系上相關的經歷，
           // 故直接複用 renderExperienceRow；data.journey 空/未填時 buildSection 回空字串不渲染。

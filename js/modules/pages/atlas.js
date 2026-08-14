@@ -247,6 +247,24 @@ export async function initAtlas(options = {}) {
   const detail  = $('#atlas-detail');
   if (!stage || !zoomEl || !content || !detail) return;
 
+  // 渲染完成前擋 header mode btn（user 2026-08-10）：資料載入＋build＋intro 點燈期間切 mode
+  // 會對半成品節點跑主題重繪。intro 完成（revealFilters）解鎖；提早離頁由 cleanup 解鎖。
+  // 只 gate routed atlas 頁（root===document）；idle-standby overlay 的 init 不動別頁的按鈕。
+  // pointer-events 走 body class + CSS（buttons.css）：header 是 async fetch，initAtlas 跑到這裡時
+  // .theme-toggle-btn 可能還沒進 DOM，直接對按鈕設 inline 會 no-op → body class 讓晚到的按鈕也被擋。
+  // disabled 屬性照設（a11y／鍵盤），按鈕已存在時同步。
+  const gateModeBtn = root === document;
+  const setModeBtnEnabled = (on) => {
+    document.body.classList.toggle('atlas-mode-gate', !on);
+    document.querySelectorAll('.theme-toggle-btn').forEach((btn) => {
+      /** @type {HTMLButtonElement} */ (btn).disabled = !on;
+    });
+  };
+  if (gateModeBtn) {
+    setModeBtnEnabled(false);
+    cleanupFns.push(() => setModeBtnEnabled(true));
+  }
+
   // ── 載入資料（Directus，各自有本地 fallback；workshops/industry 暫讀本地，見 atlas-source.js）──
   const { facultyCurrent, facultyFormer, workshops, industry, companies, employment, careers } =
     await loadAtlasData();
@@ -290,7 +308,9 @@ export async function initAtlas(options = {}) {
       labelEn: 'Current Faculty', labelZh: '在職教師',
       detail: '目前任職於本系，從事教學、研究與創作實務。',
       groups: [], cityKey: null,
-      _titleEn: t.titleEn || '', _titleZh: t.titleZh || '', _countryCode: t.country || '',
+      // country 2026-08-13 起掛 occupations（職稱/公司才有國家，職級沒有）；t.country 留舊資料 fallback
+      _titleEn: t.titleEn || '', _titleZh: t.titleZh || '',
+      _countryCode: (Array.isArray(f.occupations) && f.occupations[0]?.country) || t.country || '',
     });
   });
 
@@ -323,7 +343,6 @@ export async function initAtlas(options = {}) {
       const dt = (ws.intro_zh || ws.intro || '').trim().slice(0, 140) ||
                  '本系與外部單位合作之工作營。';
       const memberIds = [];
-      const wsCountries = new Set();  // 此工作營出現的 canonical 國家 → 掛 group 供 hover 國家 highlight
 
       (ws.guests || []).forEach(g => {
         const en = g.name || g.affiliation || '';
@@ -339,18 +358,11 @@ export async function initAtlas(options = {}) {
         };
         items.push(it);
         memberIds.push(it.id);
-        if (canon) wsCountries.add(canon);
       });
 
-      // 此工作營有夥伴的每個國家節點掛到 group（hover 國家 → highlight 該工作營成員）
-      wsCountries.forEach(canon => {
-        if (!countryIndex.has(canon)) return;
-        const countryId = countryIndex.get(canon);
-        const countryItem = items.find(i => i.id === countryId);
-        if (countryItem && !countryItem.groups.includes(wsGroupId)) countryItem.groups.push(wsGroupId);
-        if (!memberIds.includes(countryId)) memberIds.push(countryId);
-      });
-
+      // 國家節點「不」掛進工作營 group（2026-08-10 拆除舊跨國連結）：多國工作營會讓 hover 台灣
+      // 列出/高亮新加坡的 guest（「item 有兩個國家」，user 打回）。國家與 item 的關聯只走
+      // itemNeighbors（cityKey 連線），hover 國家＝只顯示自己國家的 item。
       groups.set(wsGroupId, { detail: dt, members: memberIds });
     });
   });
@@ -363,7 +375,6 @@ export async function initAtlas(options = {}) {
       if (!indGroupId) return;
       const dt = '本系產學合作計畫，與業界共同推動實務研究與創新設計。';
       const memberIds = [];
-      const indCountries = new Set();
       (ind.guests || []).forEach(g => {
         const en = g.name || '';
         const zh = g.name_zh || '';
@@ -377,15 +388,8 @@ export async function initAtlas(options = {}) {
         };
         items.push(it);
         memberIds.push(it.id);
-        if (canon) indCountries.add(canon);
       });
-      indCountries.forEach(canon => {
-        if (!countryIndex.has(canon)) return;
-        const countryId = countryIndex.get(canon);
-        const countryItem = items.find(i => i.id === countryId);
-        if (countryItem && !countryItem.groups.includes(indGroupId)) countryItem.groups.push(indGroupId);
-        if (!memberIds.includes(countryId)) memberIds.push(countryId);
-      });
+      // 同 workshops：國家節點不掛進 group（見上方 2026-08-10 註解）
       if (memberIds.length > 0) groups.set(indGroupId, { detail: dt, members: memberIds });
     });
   });
@@ -416,7 +420,8 @@ export async function initAtlas(options = {}) {
     items.push({
       id: uid('em'), category: 'C',
       textEn: em.textEn, textZh: em.textZh,
-      labelEn: 'Alumni Employer', labelZh: '系友就職企業',
+      // 與 hover 卡片說明（Joined by Alumni／系友就職）同用語（user 2026-08-11）
+      labelEn: 'Joined by Alumni', labelZh: '系友就職',
       detail: '本系畢業生就職之企業。',
       groups: [], cityKey, _countryCode: em.country || '',
     });
@@ -1146,6 +1151,27 @@ export async function initAtlas(options = {}) {
     allLines.push({ line: lineEl, src: fromItem, city: toItem, gradient: gradientEl });
   });
 
+  // 線的顯示規則＝「兩端 item 都沒被 filter 藏掉」。filter/gate 的 show-path 一律走 syncLineDisplay，
+  // 不可無條件 display:''——那會復活「另一端已被 filter 篩掉」的線（關 filter 後 hover 國家看到
+  // 連向空白處的完整線扇，user 2026-08-10；同 memory reference_atlas_gate_reshows_filtered_chip_lines）。
+  const lineMeta = new Map(allLines.map(le => [le.line, le]));
+  // 動畫版 hide 0.4s 後 onComplete 才掛 atlas-filtered-out class → 只讀 DOM class 在動畫窗口內
+  // 會誤判「正在消失」的 chip 為可見（hover 國家亮出整片殘線扇，user 2026-08-11）。
+  // 補讀 filter「狀態」：非 D 走 filterAllowsItem（selected/subchipActive）、D 走 _gateVisible（applyCountriesGate 寫）。
+  const isFilteredOutItem = (it) => {
+    if (!it || !it._anchor) return false;
+    if (it._anchor.classList.contains('atlas-filtered-out')) return true;
+    return it.category === 'D' ? it._gateVisible === false : !filterAllowsItem(it);
+  };
+  const syncLineDisplay = (lineEl) => {
+    const m = lineMeta.get(lineEl);
+    if (!m) return;
+    lineEl.style.display = (isFilteredOutItem(m.src) || isFilteredOutItem(m.city)) ? 'none' : '';
+    // filter 改變顯隱的線一律撤 hover 高亮：hover 中節點被藏（display:none 不觸發 mouseout）會讓
+    // highlight class 卡住，之後 filter 再開、display 還原 → 沒 hover 也亮一整片殘線（user 2026-08-10）
+    lineEl.classList.remove('atlas-line-highlight');
+  };
+
   // 動態挑端點：city 找離 source 最近的邊中點，再讓 source 找離該點最近的邊中點
   // 兩端 item.x/y 都已在 Phase 1 軌道更新過；source 再加上 label 浮動 offset
   function updateLineEndpoints(le) {
@@ -1184,40 +1210,63 @@ export async function initAtlas(options = {}) {
     const j = Math.floor(ringRand() * (i + 1));
     [cityRing[i], cityRing[j]] = [cityRing[j], cityRing[i]];
   }
+  // 08-11 改「全 pair 池」：per-country gate 藏掉部分國家後，剩下的可見國家要沿 cityRing
+  // 原 shuffle 順序「跳過隱藏者重新成環」（user：filter 後剩兩國也要連上）→ 任兩國都可能
+  // 成為環上鄰居，先建好全部 C(n,2) 條線，syncCityCycle 算出當前環寫 cl._on（其餘 retractT=1 隱形）。
+  // 全部可見時的環＝原本的 Hamilton cycle，預設視覺不變。
   const cityLines = [];
   for (let i = 0; i < cityRing.length; i++) {
-    const a = cityRing[i];
-    const b = cityRing[(i + 1) % cityRing.length];
-    if (a === b) continue; // 只有 1 座城市 → 跳過
-    const aColor = a.bgColor || PRIMARY_COLORS[0];
-    const bColor = b.bgColor || PRIMARY_COLORS[0];
-    const lineEl = document.createElementNS(SVG_NS, 'path');
-    lineEl.setAttribute('fill', 'none');
-    lineEl.setAttribute('class', 'atlas-city-line');
-    // pathLength="1" 把實際長度標準化，搭配 CSS stroke-dasharray:1 → view 切換時動 dashoffset 1↔0 做「從一端 draw / 從一端 erase」效果
-    lineEl.setAttribute('pathLength', '1');
-    let gradientEl = null;
-    if (aColor === bColor) {
-      lineEl.setAttribute('stroke', aColor);
-    } else {
-      const gid = `atlas-city-grad-${i}`;
-      gradientEl = document.createElementNS(SVG_NS, 'linearGradient');
-      gradientEl.setAttribute('id', gid);
-      gradientEl.setAttribute('gradientUnits', 'userSpaceOnUse');
-      const stop1 = document.createElementNS(SVG_NS, 'stop');
-      stop1.setAttribute('offset', '0%');
-      stop1.setAttribute('stop-color', aColor);
-      const stop2 = document.createElementNS(SVG_NS, 'stop');
-      stop2.setAttribute('offset', '100%');
-      stop2.setAttribute('stop-color', bColor);
-      gradientEl.appendChild(stop1);
-      gradientEl.appendChild(stop2);
-      defs.appendChild(gradientEl);
-      lineEl.setAttribute('stroke', `url(#${gid})`);
+    for (let j = i + 1; j < cityRing.length; j++) {
+      const a = cityRing[i];
+      const b = cityRing[j];
+      const aColor = a.bgColor || PRIMARY_COLORS[0];
+      const bColor = b.bgColor || PRIMARY_COLORS[0];
+      const lineEl = document.createElementNS(SVG_NS, 'path');
+      lineEl.setAttribute('fill', 'none');
+      lineEl.setAttribute('class', 'atlas-city-line');
+      // pathLength="1" 把實際長度標準化，搭配 CSS stroke-dasharray:1 → view 切換時動 dashoffset 1↔0 做「從一端 draw / 從一端 erase」效果
+      lineEl.setAttribute('pathLength', '1');
+      let gradientEl = null;
+      if (aColor === bColor) {
+        lineEl.setAttribute('stroke', aColor);
+      } else {
+        const gid = `atlas-city-grad-${i}-${j}`;
+        gradientEl = document.createElementNS(SVG_NS, 'linearGradient');
+        gradientEl.setAttribute('id', gid);
+        gradientEl.setAttribute('gradientUnits', 'userSpaceOnUse');
+        const stop1 = document.createElementNS(SVG_NS, 'stop');
+        stop1.setAttribute('offset', '0%');
+        stop1.setAttribute('stop-color', aColor);
+        const stop2 = document.createElementNS(SVG_NS, 'stop');
+        stop2.setAttribute('offset', '100%');
+        stop2.setAttribute('stop-color', bColor);
+        gradientEl.appendChild(stop1);
+        gradientEl.appendChild(stop2);
+        defs.appendChild(gradientEl);
+        lineEl.setAttribute('stroke', `url(#${gid})`);
+      }
+      svg.appendChild(lineEl);
+      // hoveredEnd 一開始就給值：retractT=1 的 lerp 需要它才會收成一點（null＝畫全長線）
+      cityLines.push({ line: lineEl, a, b, ai: i, bi: j, _on: false, retractT: 1, hoveredEnd: Math.random() < 0.5 ? 'a' : 'b', gradient: gradientEl });
     }
-    svg.appendChild(lineEl);
-    cityLines.push({ line: lineEl, a, b, retractT: 0, hoveredEnd: null, gradient: gradientEl });
   }
+  // 依「可見國家」（_gateVisible 狀態，undefined＝可見）沿 cityRing 順序成環 → 寫 cl._on。
+  // applyCountriesGate 每次 filter 變動後重呼叫；兩顆時只連一條（環會 a↔b 重複）。
+  function syncCityCycle() {
+    const vis = [];
+    cityRing.forEach((c, idx) => { if (c._gateVisible !== false) vis.push(idx); });
+    const on = new Set();
+    if (vis.length >= 2) {
+      const edges = vis.length === 2 ? 1 : vis.length;
+      for (let k = 0; k < edges; k++) {
+        const p = vis[k], q = vis[(k + 1) % vis.length];
+        on.add(p < q ? p * 1000 + q : q * 1000 + p);
+      }
+    }
+    cityLines.forEach(cl => { cl._on = on.has(cl.ai * 1000 + cl.bi); });
+  }
+  syncCityCycle();
+  cityLines.forEach(cl => { cl.retractT = cl._on ? 0 : 1; });
   function updateCityLineEndpoints(cl) {
     const a = cl.a, b = cl.b;
     // 兩端 D 城市 chip 都可能在 15s 重定位 tween 中 → 取視覺位置（含 relocate offset）
@@ -1271,9 +1320,12 @@ export async function initAtlas(options = {}) {
   svg.appendChild(companyRingEllipse);
 
   // hover 城市時觸發全部城市綫段「散開消失」：連到 hover 城市的從該端散，其他綫段隨機挑一端散
+  // filter gate 後 cityLine 的靜止目標：在當前可見國家環上（syncCityCycle 寫的 _on）才畫。
+  // hover/clearDetail 還原時不可無條件回 0——那會把 gate 縮掉的線重新畫進空氣（user 2026-08-11）。
+  const cityLineRestT = (cl) => cl._on ? 0 : 1;
   function setCityLineRetract(hoveredCity) {
     cityLines.forEach(cl => {
-      let targetT = 0;
+      let targetT = cityLineRestT(cl);
       let isActive = false;
       if (hoveredCity) {
         isActive = true;
@@ -1557,8 +1609,16 @@ export async function initAtlas(options = {}) {
     //   只更新 activeLines（當下高亮可見的）— idle 時 0 條，隱形線不白算（A2）
     activeLines.forEach(updateLineEndpoints);
     // Phase 3b: 城市間預設連線端點同步（兩端都是城市，都在 Phase 1 orbit 後位置更新）
+    //   全 pair 池後多數線恆 retractT=1 隱形 → 收縮到位後補算最後一幀（消掉殘 stub）就跳過，
+    //   每幀實際更新量維持「可見環 + 動畫中」≈ 原本 10 條
     for (let i = 0; i < cityLines.length; i++) {
-      updateCityLineEndpoints(cityLines[i]);
+      const cl = cityLines[i];
+      if (cl.retractT >= 1) {
+        if (!cl._collapsedSynced) { updateCityLineEndpoints(cl); cl._collapsedSynced = true; }
+        continue;
+      }
+      cl._collapsedSynced = false;
+      updateCityLineEndpoints(cl);
     }
   }
   // rAF 只在 stage（星雲）實際顯示時跑。list view（手機預設 + 桌面切換）、背景分頁、
@@ -1757,34 +1817,66 @@ export async function initAtlas(options = {}) {
       if (item.category === 'D') {
         // 國家：desc 列出相關合作單位/系友就職，每筆「左 title(英中各行) + 右 類別」。
         //   不一次列完 → 每 4s clip-path 換下一批（startDetailBatchCycle），hover 期間持續輪播。
-        //   固定卡片寬 380 → title 子欄受限，過長自動 marquee。
+        //   卡片寬以內容為主、380 為上限 → title 子欄受限時自動 marquee。
         //   min(…, 100vw-112px)：直向手機卡片左緣讓開左下 layout btn（24 + 48 btn + 8 呼吸 +
         //   ~15 卡片 ±3° 旋轉 bbox 外擴；inline min-width 會蓋 CSS max-width，必須在這裡一起 cap）；
         //   桌面/橫向 100vw 大 → 維持 380。
-        const dw = 'min(380px, 100vw - 112px)';
-        detail.style.width = dw;
-        detail.style.minWidth = dw;
         const related = [...ids]
           .filter(id => id !== item.id)
           .map(id => itemMap.get(id))
           .filter(Boolean)
           .filter(rel => rel.category !== 'D');  // 不列其他國家節點（多國工作營會把別國 D 節點也拉進同 group）
+        // 卡寬以內容為主（user 2026-08-11，取代固定 380）：量「全部 related」最寬 title/label
+        // （不只當前批 → 4s 批次輪播間卡寬穩定不跳）；cat 欄同步縮成最寬 label（--atlas-cat-col，
+        // 各列左緣仍對齊一直欄）。380 仍是上限（超長 title 走 marquee）、240 下限、直向另有 100vw-112 cap。
+        const meas = document.createElement('div');
+        meas.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;white-space:nowrap;';
+        const probeTitle = document.createElement('span');
+        probeTitle.className = 'atlas-detail-row-en';
+        probeTitle.style.display = 'inline-block';
+        const probeCat = document.createElement('span');
+        probeCat.className = 'atlas-detail-row-cat';
+        probeCat.style.display = 'inline-block';
+        meas.appendChild(probeTitle);
+        meas.appendChild(probeCat);
+        detail.appendChild(meas);
+        let titleW = 0;
+        let catW = 0;
+        related.forEach(rel => {
+          probeTitle.textContent = rel.textEn || '';
+          titleW = Math.max(titleW, probeTitle.offsetWidth);
+          probeTitle.textContent = (rel.textZh && rel.textZh !== rel.textEn) ? rel.textZh : '';
+          titleW = Math.max(titleW, probeTitle.offsetWidth);
+          probeCat.textContent = rel.labelEn || '';
+          catW = Math.max(catW, probeCat.offsetWidth);
+          probeCat.textContent = rel.labelZh || '';
+          catW = Math.max(catW, probeCat.offsetWidth);
+        });
+        meas.remove();
+        // 16=左右 padding(8+8)、12=row gap；+2 防 marquee 臨界誤判
+        const contentW = Math.max(240, Math.ceil(titleW + catW + 12 + 16 + 2));
+        const dw = `min(${contentW}px, 380px, 100vw - 112px)`;
+        detail.style.width = dw;
+        detail.style.minWidth = dw;
+        detail.style.setProperty('--atlas-cat-col', `${Math.ceil(catW)}px`);
         startDetailBatchCycle(related);
       } else if (String(item.id).split('-')[0] === 'co' || String(item.id).split('-')[0] === 'em') {
         // 系友環：hover 說明一律統一（英中各一行），不用 item.detail（名稱保留企業名、說明統一即可）。
         //   co-* 橢圓 ring 企業 = 系友主持 → Hosted by Alumni
         //   em-* 橢圓外 floating chip = 系友就職 → Joined by Alumni
         // 國家（有填才顯示，EN 顯示 ISO 碼、ZH 顯示中文全名，同 list 副標慣例）→ title 下方、Hosted/Joined 上方
-        //   gap 配置：title 緊貼國家（2px，同 title EN/ZH 行距）；原本 title→desc 的 10px 大距挪到「國家→說明文字」之間
+        //   gap 配置：title 緊貼國家（走 --space-en-zh-s，同 title 是 s 級、跟標題自己的 EN/ZH 行距連動）；
+        //   原本 title→desc 的 10px 大距挪到「國家→說明文字」之間
         //   （user 2026-08-03：兩行國家視覺上要跟 title 同一組，跟 Hosted/Joined 那組隔開）
         const isHost = String(item.id).split('-')[0] === 'co';
         if (item._countryCode) {
-          nameEl.style.marginBottom = '2px';
+          nameEl.style.marginBottom = 'var(--space-en-zh-s)';   // title 是 s 級 → 跟 s token 連動（原寫死 2px）
           const countryEn = document.createElement('div');
           countryEn.textContent = item._countryCode.toUpperCase();
           descEl.appendChild(countryEn);
           const countryZh = document.createElement('div');
           countryZh.textContent = countryName(item._countryCode, 'zh');
+          countryZh.style.marginTop = 'var(--space-en-zh-xs)';   // 英中距 1px token
           descEl.appendChild(countryZh);
         }
         const en = document.createElement('div');
@@ -1793,6 +1885,7 @@ export async function initAtlas(options = {}) {
         descEl.appendChild(en);
         const zh = document.createElement('div');
         zh.textContent = isHost ? '系友主持' : '系友就職';
+        zh.style.marginTop = 'var(--space-en-zh-xs)';   // 英中距 1px token
         descEl.appendChild(zh);
       } else {
         const prefix = String(item.id).split('-')[0];
@@ -1809,6 +1902,7 @@ export async function initAtlas(options = {}) {
           if (subZh) {
             const zh = document.createElement('div');
             zh.textContent = subZh;
+            if (subEn) zh.style.marginTop = 'var(--space-en-zh-xs)';   // 英中距 1px token（EN 有才補）
             descEl.appendChild(zh);
           }
         } else {
@@ -2028,7 +2122,17 @@ export async function initAtlas(options = {}) {
       if (g) g.members.forEach(m => ids.add(m));
     });
     itemNeighbors.get(item.id).forEach(n => ids.add(n));
-    return { ids, lineSet: new Set(itemLines.get(item.id) || []) };
+    // 被 filter 藏掉的成員剔除（user 2026-08-10：關 filter 後 hover 國家只連/只列「畫面上存在」的 item）
+    // ids 進 fillDetailContent（右下卡片清單）與 highlight → 兩處自動同步縮減
+    ids.forEach(id => {
+      if (id === item.id) return;
+      if (isFilteredOutItem(itemMap.get(id))) ids.delete(id);
+    });
+    const lineSet = new Set((itemLines.get(item.id) || []).filter(l => {
+      const m = lineMeta.get(l);
+      return m && !isFilteredOutItem(m.src) && !isFilteredOutItem(m.city);
+    }));
+    return { ids, lineSet };
   }
 
   function onMouseOver(e) {
@@ -2050,6 +2154,10 @@ export async function initAtlas(options = {}) {
     const id = span.dataset.itemId;
     const item = itemMap.get(id);
     if (!item) return;
+    // 被 filter 藏起（或收合動畫中已標記）的節點不觸發 hover：clip-path 動畫期間 span 仍收事件，
+    // 對「正在消失」的節點開 detail 會留下永遠清不掉的 hover 態；isFilteredOutItem 補讀 state
+    // 涵蓋「class 還沒掛上」的 0.4s 動畫窗口
+    if (span.closest('.atlas-filtered-out') || isFilteredOutItem(item)) return;
 
     const { ids, lineSet } = hoverSetsFor(item);
     showDetail(item, ids, lineSet);
@@ -3134,9 +3242,7 @@ export async function initAtlas(options = {}) {
     if (typeof gsap === 'undefined') {
       targets.forEach(item => {
         item._anchor.classList.toggle('atlas-filtered-out', !visible);
-        (itemLines.get(item.id) || []).forEach(lineEl => {
-          lineEl.style.display = visible ? '' : 'none';
-        });
+        (itemLines.get(item.id) || []).forEach(syncLineDisplay);
       });
       return;
     }
@@ -3170,7 +3276,7 @@ export async function initAtlas(options = {}) {
     } else {
       targets.forEach(item => {
         item._anchor.classList.remove('atlas-filtered-out');
-        (itemLines.get(item.id) || []).forEach(lineEl => { lineEl.style.display = ''; });
+        (itemLines.get(item.id) || []).forEach(syncLineDisplay);
         const isB = item.category === 'B';
         const d = Math.random() * RANGE;
         const onDone = () => {
@@ -3293,6 +3399,7 @@ export async function initAtlas(options = {}) {
   }
   const revealFilters = () => {
     drainRevealTimers();
+    if (gateModeBtn) setModeBtnEnabled(true); // 渲染＋intro 完成 → 解鎖 header mode btn
     // layoutBtn 跟第一個 filter btn (faculty) 同時 reveal（無 stagger delay）
     if (layoutBtn) layoutBtn.classList.add('atlas-layout-revealed');
     btns.forEach((btn, i) => {
@@ -4051,32 +4158,67 @@ export async function initAtlas(options = {}) {
   // D 國家節點＋城市環線的 gate 套用。獨立函式因為有兩個入口：applyMapFilter（filter 點擊/init/view 切換）
   // 與 employ subchip 單獨 toggle（走 setSubchipVisibility 不跑 applyMapFilter，gate 要在 handler 補呼叫）。
   // 節點收/展沿用 map filter 的 span clip-path 4 向隨機；ring 線用 retractT（同 hover/view-switch 機制）。
+  // 依「當前 filter 狀態」判斷非 D item 是否應可見（與 applyMapFilter 同一套規則；讀 state 不讀 DOM class，
+  // 避免動畫版 0.4s 後才掛 class 的時間差誤判）
+  function filterAllowsItem(item) {
+    const prefix = String(item.id).split('-')[0];
+    let visible = false;
+    selected.forEach(k => { if ((FILTER_PREFIXES[k] || []).includes(prefix)) visible = true; });
+    if (visible && (prefix === 'co' || prefix === 'em') && item._listSubGroup) {
+      visible = subchipActive[item._listSubGroup] !== false;
+    }
+    return visible;
+  }
+  // 國家底下（線真正連到它的 item）是否還有 filter 後可見的成員
+  function countryHasVisibleItems(dItem) {
+    const neigh = itemNeighbors.get(dItem.id);
+    if (!neigh) return false;
+    for (const nid of neigh) {
+      const it = itemMap.get(nid);
+      if (it && it.category !== 'D' && filterAllowsItem(it)) return true;
+    }
+    return false;
+  }
+
   function applyCountriesGate(animate) {
-    const on = countriesGateOn();
+    // filter/gate 一動先清 hover 態（dim/highlight/activeLines/展開方塊/detail panel）：
+    // hover 中的節點被藏成 display:none 時 mouseout 不可靠，不清會留下高亮殘線與 dim 卡死（user 2026-08-10）。
+    // applyMapFilter 尾端與 employ subchip toggle 都會進到這裡 → 單點涵蓋所有 filter 入口。
+    clearDetail();
+    // per-country gate（user 2026-08-10）：全域開關之外，filter 後該國底下沒有任何可見 item → 國家節點也藏。
+    // 手機星雲＝純瀏覽全顯示、跳過 per-country 判斷。
+    const gateOn = countriesGateOn();
     const dShow = [];
     const dHide = [];
     items.forEach(item => {
       if (item.category !== 'D' || !item._anchor) return;
+      const want = gateOn && (isMobileAtlas || countryHasVisibleItems(item));
+      item._gateVisible = want;   // 狀態記在 item：syncCityCycle / isFilteredOutItem 讀這個，不等 0.4s 後的 DOM class
       const wasFiltered = item._anchor.classList.contains('atlas-filtered-out');
-      if (on && wasFiltered) dShow.push(item);
-      else if (!on && !wasFiltered) dHide.push(item);
-      else (itemLines.get(item.id) || []).forEach(l => { l.style.display = on ? '' : 'none'; });
+      if (want && wasFiltered) dShow.push(item);
+      else if (!want && !wasFiltered) dHide.push(item);
+      else if (want) (itemLines.get(item.id) || []).forEach(syncLineDisplay);
+      else (itemLines.get(item.id) || []).forEach(l => { l.style.display = 'none'; });
     });
-    const lineTarget = on ? 0 : 1;
+    // 城市環線：可見國家重新成環（隱藏者的線 retract、新相鄰的線 draw in）
+    syncCityCycle();
     if (!animate || typeof gsap === 'undefined') {
       dShow.forEach(item => {
         item._anchor.classList.remove('atlas-filtered-out');
-        (itemLines.get(item.id) || []).forEach(l => { l.style.display = ''; });
+        (itemLines.get(item.id) || []).forEach(syncLineDisplay);
       });
       dHide.forEach(item => {
         item._anchor.classList.add('atlas-filtered-out');
         (itemLines.get(item.id) || []).forEach(l => { l.style.display = 'none'; });
       });
       cityLines.forEach(cl => {
-        if (cl.retractT === lineTarget) return;
+        const t = cityLineRestT(cl);
+        // 不能只看 retractT===t 早退：本函式開頭 clearDetail 可能剛排了「全線回 0」的 tween
+        // （值還沒動）→ 一律先 kill，否則 gate 縮掉的線會被那條 tween 復活畫進空氣
         if (typeof gsap !== 'undefined') gsap.killTweensOf(cl);
-        if (!on) cl.hoveredEnd = Math.random() < 0.5 ? 'a' : 'b';
-        cl.retractT = lineTarget;
+        if (cl.retractT === t) return;
+        if (t === 1) cl.hoveredEnd = Math.random() < 0.5 ? 'a' : 'b';
+        cl.retractT = t;
         updateCityLineEndpoints(cl);
       });
       return;
@@ -4101,7 +4243,7 @@ export async function initAtlas(options = {}) {
     });
     dShow.forEach(item => {
       item._anchor.classList.remove('atlas-filtered-out');
-      (itemLines.get(item.id) || []).forEach(l => { l.style.display = ''; });
+      (itemLines.get(item.id) || []).forEach(syncLineDisplay);
       gsap.set(item._span, { clipPath: INSETS[Math.floor(Math.random() * 4)] });
       const d = Math.random() * RANGE;
       gsap.to(item._span, {
@@ -4111,9 +4253,10 @@ export async function initAtlas(options = {}) {
       });
     });
     cityLines.forEach(cl => {
-      if (cl.retractT === lineTarget) return;
-      if (!on) cl.hoveredEnd = Math.random() < 0.5 ? 'a' : 'b';
-      gsap.to(cl, { retractT: lineTarget, duration: 0.5, ease: on ? EASE.enterSoft : EASE.exitSoft, overwrite: true });
+      const t = cityLineRestT(cl);
+      if (t === 1 && cl.retractT !== t) cl.hoveredEnd = Math.random() < 0.5 ? 'a' : 'b';
+      // 不早退：即使 retractT 已在目標值，也要用 overwrite 蓋掉 clearDetail 剛排的「回 0」tween
+      gsap.to(cl, { retractT: t, duration: 0.5, ease: t === 0 ? EASE.enterSoft : EASE.exitSoft, overwrite: true });
     });
   }
 
@@ -4138,7 +4281,7 @@ export async function initAtlas(options = {}) {
       else if (!visible) {
         (itemLines.get(item.id) || []).forEach(lineEl => { lineEl.style.display = 'none'; });
       } else if (visible) {
-        (itemLines.get(item.id) || []).forEach(lineEl => { lineEl.style.display = ''; });
+        (itemLines.get(item.id) || []).forEach(syncLineDisplay);
       }
     });
 
@@ -4146,7 +4289,7 @@ export async function initAtlas(options = {}) {
       // Init / 無 gsap：instant toggle
       toShow.forEach(item => {
         item._anchor.classList.remove('atlas-filtered-out');
-        (itemLines.get(item.id) || []).forEach(lineEl => { lineEl.style.display = ''; });
+        (itemLines.get(item.id) || []).forEach(syncLineDisplay);
       });
       toHide.forEach(item => {
         item._anchor.classList.add('atlas-filtered-out');
@@ -4206,7 +4349,7 @@ export async function initAtlas(options = {}) {
     });
     toShow.forEach(item => {
       item._anchor.classList.remove('atlas-filtered-out');
-      (itemLines.get(item.id) || []).forEach(lineEl => { lineEl.style.display = ''; });
+      (itemLines.get(item.id) || []).forEach(syncLineDisplay);
       gsap.set(item._span, { clipPath: randomHiddenInset() });
       const d = Math.random() * RANGE;
       gsap.to(item._span, {
@@ -4494,7 +4637,7 @@ export async function initAtlas(options = {}) {
       if (typeof gsap === 'undefined') {
         allSpans.forEach(s => { s.style.clipPath = ''; });
         allCovers.forEach(c => { c.style.clipPath = ''; });
-        cityLines.forEach(cl => { cl.retractT = countriesGateOn() ? 0 : 1; });
+        cityLines.forEach(cl => { cl.retractT = countriesGateOn() ? cityLineRestT(cl) : 1; });
         scale = defaultScaleAtlas;
         applyTransform();
         btns.forEach(b => b.classList.add('atlas-filter-revealed'));
@@ -4571,7 +4714,7 @@ export async function initAtlas(options = {}) {
       if (countriesGateOn()) {
         cityLines.forEach(cl => {
           introTween.to(cl, {
-            retractT: 0,
+            retractT: cityLineRestT(cl),   // gate 藏掉的國家線維持 1（不 draw 進空氣）
             duration: REVEAL_TOTAL + HIDE_TOTAL,
             ease: EASE.enterSoft,
             overwrite: true,
@@ -4729,7 +4872,7 @@ export async function initAtlas(options = {}) {
             onComplete: () => { item._span.style.clipPath = ''; },
           });
         });
-        cityLines.forEach(cl => gsap.to(cl, { retractT: 0, duration: 0.55, ease: EASE.enterSoft, overwrite: true }));
+        cityLines.forEach(cl => gsap.to(cl, { retractT: cityLineRestT(cl), duration: 0.55, ease: EASE.enterSoft, overwrite: true }));
       }
     };
     revealLayoutIcon('icon icon-atlas-list');

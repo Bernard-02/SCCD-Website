@@ -5,7 +5,7 @@
 
 import { registerPageExit } from '../ui/page-exit.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
-import { playPanelTitleExit, playPanelBodyExit } from './library-panels.js';
+import { playPanelTitleExit, playPanelBodyExit, isPanelRevealing } from './library-panels.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { sitePath } from '../ui/site-base.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
@@ -509,7 +509,15 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
 
   // ── 分頁切換 ──────────────────────────────────────────────────
 
+  // 幾何 glide（resize relayout 用）＝所有卡；background-color 0.4s **只給當前灰卡**：mode3 hue loop 過亮度
+  // 閾值時 --lib-bg 在 #f2f2f2/#333333 兩階翻，灰卡要跟背景一起 fade 而非 snap。三色 RGB 卡不帶 bg transition
+  // （user 2026-08-11：mode3 三原色↔B/W 與 hover 黑白都要 snap，同 .mode-switching 窗的 transition:none 意圖；
+  // 舊版把 background-color 塞進共用 TRANSITION 害色卡也 fade＝副作用，已拆開）。
+  // panel 切換時色塊/灰卡的 bg 全在 transition:none 下設好（見 switchTab），套回時 bg 已定型 → 只影響穩態翻色。
   const TRANSITION = 'transform 0.6s cubic-bezier(0.4,0,0.2,1), width 0.6s cubic-bezier(0.4,0,0.2,1), height 0.6s cubic-bezier(0.4,0,0.2,1), left 0.6s cubic-bezier(0.4,0,0.2,1), top 0.6s cubic-bezier(0.4,0,0.2,1)';
+  const TRANSITION_GRAY = TRANSITION + ', background-color 0.4s ease';
+  // 穩態 transition 依角色套用；三個套用點（進場×2＋切 tab 收尾）呼叫時 activeEl 都已是正確角色
+  const applyIdleTransition = (el) => { el.style.transition = (el === activeEl) ? TRANSITION_GRAY : TRANSITION; };
 
   function switchTab(clickedEl) {
     if (isSwitching) return;
@@ -562,6 +570,9 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
     const EXPAND_DUR   = CLIP_DUR;  // 展開（沿用 0.5）
 
     // ── Phase A：所有卡片原地收起（維持當前幾何，不 morph 位置）──
+    // 先凍結可能仍在跑的 relayout glide（TRANSITION 0.6s）：transition 中途量 offsetWidth 會拿到
+    // 過渡尺寸 → heroExitCard 的 translate 定格 px 與 clip 活尺寸解鎖（卡片飛）。snap 到目標幾何再量。
+    allEls.forEach(el => { el.style.transition = 'none'; });
     // 色塊＝位移+揭露收（heroExitCard）；灰卡（activeEl）維持 clip-path wipe（對稱其 clipReveal 進場）
     allEls.forEach(el => {
       if (el === activeEl) exitOneCard(el, randomClipDir(), COLLAPSE_DUR);
@@ -637,7 +648,7 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
           clickedEl.style.clipPath   = grayDir.show;
 
           setTimeout(() => {
-            allEls.forEach(el => { el.style.transition = TRANSITION; el.style.clipPath = ''; });
+            allEls.forEach(el => { applyIdleTransition(el); el.style.clipPath = ''; });
             // 不再 refreshMarquees()：色塊 marquee 已在上方 forEach 用最終幾何 render 一次（新灰卡 marquee
             // 由 setAsGray 隱藏），這裡重跑會重建 innerHTML→CSS marquee 動畫從頭跳一次（user 2026-07-15 抖動）
             if (onDone) onDone();  // → onTabSwitch → playPanelReveal（展內容）
@@ -656,7 +667,7 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
     // 減少動態：library 進場是 setTimeout 分階段 + clip wipe（btn→灰卡→內容），CSS blanket 只讓每段 wipe
     // 瞬間、但 setTimeout 階段間隔仍在 → staged 跳出。這裡直接跳過分階段，所有卡片與內容立即到位。
     if (prefersReducedMotion()) {
-      allEls.forEach(el => { el.style.opacity = '1'; el.style.clipPath = ''; el.style.transition = TRANSITION; });
+      allEls.forEach(el => { el.style.opacity = '1'; el.style.clipPath = ''; applyIdleTransition(el); });
       const contentEl = document.getElementById('library-card-content');
       if (onTabSwitch) onTabSwitch(tabOf.get(grayEl));
       if (contentEl) contentEl.classList.add('content-visible');
@@ -682,7 +693,7 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
       clipReveal(grayEl, randomClipDir(), ENTER_DUR, () => {
         grayEl.style.clipPath = '';
         requestAnimationFrame(() => {
-          allEls.forEach(el => { el.style.transition = TRANSITION; });
+          allEls.forEach(el => { applyIdleTransition(el); });
           isSwitching = false;  // 進場完成 → 解鎖 switchTab（之前進場期間 switchTab 會跟進場並行弄亂卡片幾何）
           const contentEl = document.getElementById('library-card-content');
           if (onTabSwitch) onTabSwitch(tabOf.get(grayEl));
@@ -730,6 +741,8 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
 
       // Phase 2：chip wipe 完才開始 grayEl + panel 內容 + colorEls 退場
       setTimeout(() => {
+        // 同 _doSwitchTab Phase A：凍結可能仍在跑的 relayout glide 再量（否則退場位移量到過渡尺寸）
+        allEls.forEach(el => { el.style.transition = 'none'; });
         const grayDir = randomClipDir();
         exitOneCard(grayEl, grayDir, EXIT_DUR);
         if (activePanel) playPanelBodyExit(activePanel, EXIT_DUR);
@@ -785,7 +798,12 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
     // （即使現在 size 等於 lastAcceptedSize，因為 layout 是按 viewer-open 前的 size 算的，已過時）
     if (pendingResize) {
       pendingResize = null;
-      lastAcceptedSize = null; // 強制下方比對不會 short-circuit
+      // 只有目前尺寸真的 ≠ viewer 開啟前（lastAcceptedSize）才強制重排：viewer 開啟時 gutter ±10px
+      // 的暫時變動也會被記進 pendingResize，關閉後尺寸已復原卻無條件清掉 lastAcceptedSize
+      // ＝每次開關 viewer 都免費觸發一次隨機重排 glide（user 2026-08-10 診斷）
+      if (!lastAcceptedSize || lastAcceptedSize.sw !== sw || lastAcceptedSize.sh !== sh) {
+        lastAcceptedSize = null; // 強制下方比對不會 short-circuit
+      }
     }
 
     // Short-circuit：size 跟上次接受的相同就跳過
@@ -814,7 +832,9 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
         // 觸發 RO → 若此時 initColorEls 重新隨機定位，會跟進場動畫並行把 colorEls 甩到畫面邊緣
         // （user 2026-06-28：hard refresh / deep-link 卡片散開、warm refresh 正常）。動畫期間延後重排，
         // 等 isSwitching 解鎖（進場/切換收尾）才用最後量到的 sw/sh 重排一次 → 不跟動畫搶、又能套到最終尺寸。
-        if (isSwitching) { roResizeTimer = setTimeout(attemptRelayout, 100); return; }
+        // panel reveal（chip 1.0s tween＋內容 wipe）也要等：isSwitching 解鎖那刻 reveal 才剛起跑，
+        // 重排 glide（隨機重佈局＋0.6s TRANSITION）落在揭露途中＝chip/內容騎著卡片飛（user 2026-08-10）。
+        if (isSwitching || isPanelRevealing()) { roResizeTimer = setTimeout(attemptRelayout, 100); return; }
         MAIN_W = Math.round(sw * 0.85);
         MAIN_H = Math.round(sw * 0.87 * 10.5 / 21);
         setAsGray(activeEl, sw, sh);

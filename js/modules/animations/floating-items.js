@@ -420,8 +420,8 @@ function createTextEl(textEn, textZh, url) {
     position: absolute;
     top: 0; left: 0;
     padding: 0.5rem 0.75rem;
-    font-weight: 600;
-    line-height: 1.4;
+    font-weight: 700;
+    line-height: var(--line-height-s);
     will-change: transform;
     pointer-events: ${url ? 'auto' : 'none'};
     transition: background 0.25s ease, color 0.25s ease;
@@ -437,7 +437,7 @@ function createTextEl(textEn, textZh, url) {
   if (textZh) {
     const zhLine = document.createElement('div');
     zhLine.textContent = preventOrphan(textZh);
-    zhLine.style.cssText = 'font-size: var(--font-size-s);';
+    zhLine.style.cssText = 'font-size: var(--font-size-s); line-height: var(--line-height-zh-s);';
     el.appendChild(zhLine);
   }
 

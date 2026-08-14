@@ -7,7 +7,7 @@ import { initPageModules, cleanupPageModules } from './main-modular.js';
 import { updateNavActive, clearNavActive, setNavActive } from './header.js';
 import { runPageExit } from './modules/ui/page-exit.js';
 import { initFooter } from './footer.js';
-import { playFooterExit, resetFooterAfterExit } from './modules/ui/footer-draggable.js';
+import { playFooterExit, resetFooterAfterExit } from './modules/ui/footer-scatter.js';
 import { SITE_BASE, SITE_BASE_PATHNAME, sitePath } from './modules/ui/site-base.js';
 import { releaseSnapHold } from './modules/ui/snap-scroll.js';
 
@@ -331,7 +331,15 @@ async function loadPage(route, search = '', fromUserNav = false) {
 
     // 刷新 ScrollTrigger，確保新內容載入、高度改變後，觸發位置能正確更新
     if (typeof ScrollTrigger !== 'undefined') {
-      requestAnimationFrame(() => ScrollTrigger.refresh());
+      requestAnimationFrame(() => {
+        ScrollTrigger.refresh();
+        // ⚠️ refresh() 內部會把 ScrollTrigger 快取的「上一頁捲動位置」還原到新頁（避免 refresh 造成跳動）。
+        // SPA 換頁時這個快取是上一頁的舊值（如 about 捲到 2700），在較矮的新頁（index 只有 hero+footer）
+        // 會被 clamp 成貼近底部 → 一閃 footer 再被下面的保險 reset 拉回頂（user 2026-08-10：從 about 非 hero
+        // section 回首頁會閃一下 footer）。refresh() 是同步的，在同一個 rAF frame 內立刻再 pin 回頂端 → 中間
+        // 不 paint、消除閃現。deep-link 導航不 reset（由目標頁模組稍後自行捲到定點）。
+        if (!isDeepLinkNav) scrollToTop();
+      });
     }
 
   } catch (err) {

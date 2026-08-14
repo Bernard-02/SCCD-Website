@@ -9,7 +9,7 @@
  * 算在錯的尺寸上，items 全堆原點 / 卡 opacity:0。
  *
  * 已有 caller：
- *   - js/modules/ui/footer-draggable.js waitForLayoutReady — 早期實作，可遷移
+ *   - js/modules/ui/footer-scatter.js waitForLayoutReady — 早期實作，可遷移
  *   - js/modules/pages/error-404.js randomizeAllPlacements — 沒 gate
  *   - js/modules/pages/hero-animation.js randomizeHeroLayout — 沒 gate
  *

@@ -252,7 +252,7 @@ function renderFacultyList(containerId, items, eagerCount = 0, highPriority = fa
       <div class="text-left">
         <div class="faculty-card-name" role="heading" aria-level="2">
           <h5 role="presentation">${item.nameEn}</h5>
-          <h5 role="presentation">${item.nameZh}</h5>
+          <h5 role="presentation" lang="zh-Hant">${item.nameZh}</h5>
         </div>
         <div class="faculty-card-title mt-xs">
           ${renderCardTitles(item)}

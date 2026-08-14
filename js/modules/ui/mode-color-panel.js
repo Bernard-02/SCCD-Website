@@ -148,6 +148,14 @@ function onWinMove(e) {
 }
 function onWinUp() { dragging = false; }
 
+// #atlas-detail（星雲 hover 說明卡）避讓：發佈鉛筆/色輪佔用的視窗底高度，atlas.css 讀 --mcp-footprint 上移卡片。
+// footprint = mask 底距(32) + 元件高（收起鉛筆 48 / 展開色輪 = WHEEL + 2×16 padding）。
+const PANEL_BOTTOM = 32;   // .mcp-*-mask bottom（--spacing-lg）
+function publishFootprint() {
+  const h = isOpen ? (WHEEL + 32) : 48;
+  document.body.style.setProperty('--mcp-footprint', (PANEL_BOTTOM + h) + 'px');
+}
+
 function syncPlayIcon() {
   // running → 顯示 pause（點了會停）；paused → 顯示 play
   playIcon.className = `icon ${isColorLoopRunning() ? 'icon-pause' : 'icon-play'}`;
@@ -172,6 +180,7 @@ function open() {
   if (isOpen) return;
   if (!shouldShow()) return;   // 滑出收起的 0.5s 窗口內鉛筆仍可點——gate 中不開
   isOpen = true;
+  publishFootprint();   // 展開色輪 → 說明卡讓位到色輪之上
   // 每次開啟隨機微傾「整個 box」：|角| ∈ [1,4]°、隨機正負（排除 0，保證看得出傾斜）
   wheelRot = (Math.random() < 0.5 ? -1 : 1) * (1 + Math.random() * 3);
   root.classList.add('mcp-open');
@@ -194,6 +203,7 @@ function close(instant, opts = {}) {
   if (!isOpen) return;
   const pencilReturn = opts.pencilReturn !== false;
   isOpen = false;
+  publishFootprint();   // 收回鉛筆 → 說明卡下移回鉛筆之上
   document.removeEventListener('pointerdown', onOutside, true);
   if (redrawRAF) { cancelAnimationFrame(redrawRAF); redrawRAF = null; }
   const finish = () => {
@@ -343,6 +353,8 @@ function build() {
   // gsap 解析成 px 的 x 分量、跟 xPercent 疊加 → 開場後殘留偏移（實測 x=104 卡死）
   if (typeof gsap !== 'undefined') gsap.set(panel, WHEEL_HIDDEN);
   else panel.style.transform = 'translateX(calc(100% + 48px))';
+
+  publishFootprint();   // 初始＝收起鉛筆的 footprint（供 atlas 說明卡讓位）
 
   pencilBtn.addEventListener('click', open);
   playBtn.addEventListener('click', onPlayClick);

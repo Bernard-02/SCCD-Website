@@ -339,6 +339,17 @@ function openCourseSlideIn(card) {
   if (enD) enD.textContent = descEn;
   if (zhD) zhD.textContent = descZh;
 
+  // 標題旋轉：比照 faculty slide-in 名字（faculty-slide-in.js）——±2~4° 隨機（課程名長、旋轉太多不好看，
+  // user 2026-08-12 收斂）、每次開重隨機、EN/ZH 共用同一角當一體；left center + fit-content 讓 rotate 繞 content 寬度不撐父寬
+  const titleDeg = (Math.random() < 0.5 ? -1 : 1) * (2 + Math.random() * 2);
+  [enT, zhT].forEach(el => {
+    if (!el) return;
+    el.style.transform = `rotate(${titleDeg}deg)`;
+    el.style.transformOrigin = 'left center';
+    el.style.display = 'block';
+    el.style.width = 'fit-content';
+  });
+
   const panelBg = accent || 'white';
   panel.style.backgroundColor = panelBg;
 

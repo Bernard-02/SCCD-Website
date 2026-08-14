@@ -47,6 +47,40 @@ function _release() {
   else _active--;
 }
 
+// 持久封面快取：IndexedDB（跨 session 存活，關分頁不清）。dataURL 每本 ~30-80KB、
+// 122 本共幾 MB → localStorage 5MB 塞不下，IDB 無實際上限才夠。私密模式/被封鎖 →
+// db() resolve null，get/set 全 no-op，降級成「每 session 現渲、只吃記憶體快取」。
+// ponytail: 裸 IndexedDB，不引 idb 套件——一個 store 兩個 op 不值得多一個依賴。
+const _IDB = { name: 'sccd-pdfcover', store: 'covers' };
+let _dbPromise = null;
+function _db() {
+  if (_dbPromise) return _dbPromise;
+  _dbPromise = new Promise((resolve, reject) => {
+    if (typeof indexedDB === 'undefined') return reject();
+    const req = indexedDB.open(_IDB.name, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(_IDB.store);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  }).catch(() => null);
+  return _dbPromise;
+}
+async function idbGet(key) {
+  const db = await _db();
+  if (!db) return null;
+  return new Promise(res => {
+    try {
+      const r = db.transaction(_IDB.store, 'readonly').objectStore(_IDB.store).get(key);
+      r.onsuccess = () => res(r.result || null);
+      r.onerror = () => res(null);
+    } catch (_) { res(null); }
+  });
+}
+async function idbSet(key, val) {
+  const db = await _db();
+  if (!db) return;
+  try { db.transaction(_IDB.store, 'readwrite').objectStore(_IDB.store).put(val, key); } catch (_) {}
+}
+
 /**
  * render PDF 第一頁成 JPEG dataURL；失敗回 null（caller 自行 skip）。
  * @param {string} pdfUrl
@@ -54,40 +88,30 @@ function _release() {
  * @returns {Promise<string|null>}
  */
 /**
- * 只查快取（記憶體 / sessionStorage），不觸發任何下載——PDF viewer 開場墊圖用。
+ * 只查快取（記憶體 / IndexedDB），不觸發任何下載——PDF viewer 開場墊圖用。
  * @param {string} pdfUrl
  * @returns {Promise<string|null>|null} 有快取回 Promise，沒有回 null
  */
 export function peekPdfCover(pdfUrl) {
   if (!pdfUrl) return null;
   if (_coverCache.has(pdfUrl)) return _coverCache.get(pdfUrl);
-  try {
-    const hit = sessionStorage.getItem('pdfcover:' + pdfUrl);
-    if (hit) {
-      const p = Promise.resolve(hit);
-      _coverCache.set(pdfUrl, p);
-      return p;
-    }
-  } catch (_) {}
-  return null;
+  // L2：IndexedDB（跨 session 持久）。未命中 resolve null，caller 已容忍（只 read 不下載）。
+  return idbGet(pdfUrl).then(v => {
+    if (!v) return null;
+    _coverCache.set(pdfUrl, Promise.resolve(v));
+    return v;
+  });
 }
 
 export function renderPdfCover(pdfUrl, targetWidth = 280) {
   if (!pdfUrl) return Promise.resolve(null);
   if (_coverCache.has(pdfUrl)) return _coverCache.get(pdfUrl);
 
-  // refresh 免重抓重渲：dataURL 進 sessionStorage（30 本 × ~60KB ≈ 2MB，quota 內；
-  // 爆 quota / 隱私模式炸掉就略過，照常現渲。key 不含 targetWidth——目前兩個 caller 同寬）
-  try {
-    const hit = sessionStorage.getItem('pdfcover:' + pdfUrl);
-    if (hit) {
-      const p = Promise.resolve(hit);
-      _coverCache.set(pdfUrl, p);
-      return p;
-    }
-  } catch (_) {}
-
   const promise = (async () => {
+    // 持久快取命中就直接回（跨 session、關分頁不清；每本一生渲一次，之後瞬取）。
+    // key 不含 targetWidth——目前兩個 caller 同寬。
+    const cached = await idbGet(pdfUrl);
+    if (cached) return cached;
     await _acquire();
     try {
       await ensurePdfjsLoaded();
@@ -113,7 +137,7 @@ export function renderPdfCover(pdfUrl, targetWidth = 280) {
 
       const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
       doc.destroy?.();
-      try { sessionStorage.setItem('pdfcover:' + pdfUrl, dataUrl); } catch (_) {}
+      idbSet(pdfUrl, dataUrl);
       return dataUrl;
     } catch (_) {
       return null;
