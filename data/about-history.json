@@ -1,74 +1,159 @@
-[
-  {
-    "era": "(Junior) College",
-    "label": "專科學校",
-    "years": [
-      { "year": 1958, "image": "../images/SCCD-1-4-0.jpg", "descriptions": [
-        "<div>Shih Chien College of Home Economics established</div><div class=\"mt-[4px]\">實踐家政專科學校成立</div>"
-      ]},
-      { "year": 1971, "image": "../images/2021-動畫-Pitch-Bible-01.png", "descriptions": [
-        "<div>Department of Arts and Crafts established</div><div class=\"mt-[4px]\">設立 美術工藝科</div>"
-      ]},
-      { "year": 1975, "image": "../images/SCCD-1-4-0.jpg", "descriptions": [
-        "<div>Night School, Department of Arts and Crafts established</div><div class=\"mt-[4px]\">設立 美術工藝科夜間部</div>"
-      ]},
-      { "year": 1979, "image": "../images/Degree Show.jpg", "descriptions": [
-        "<div>Shih Chien College of Home Economics renamed as Shih Chien College of Home Economics and Economics</div><div class=\"mt-[4px]\">實踐家政經濟專科學校 更名為 實踐家政經濟專科學校</div>"
-      ]},
-      { "year": 1984, "image": "../images/SCCD-1-4-0.jpg", "descriptions": [
-        "<div>Department of Arts and Crafts renamed as Department of Applied Arts</div><div class=\"mt-[4px]\">美術工藝科 更名為 應用美術科</div>",
-        "<div>Division of Visual Communication Design established</div><div class=\"mt-[4px]\">設立 視覺傳達設計組</div>"
-      ]},
-      { "year": 1986, "image": "../images/2021-動畫-Pitch-Bible-01.png", "descriptions": [
-        "<div>Department of Communication Design (5-year Junior College) established</div><div class=\"mt-[4px]\">設立 商業設計科（五年制專科）</div>",
-        "<div>Division of Advertising Design, Division of Packaging Design &amp; Division of Space Design established</div><div class=\"mt-[4px]\">設立 廣告設計組、包裝設計組、空間設計組</div>"
-      ]}
-    ]
-  },
-  {
-    "era": "College",
-    "label": "學院",
-    "years": [
-      { "year": 1991, "image": "../images/SCCD-1-4-0.jpg", "descriptions": [
-        "<div>Shih Chien College of Home Economics and Economics upgraded to &amp; renamed as Shih Chien College of Design and Management</div><div class=\"mt-[4px]\">實踐家政經濟專科學校 改制並更名為 實踐設計管理學院</div>"
-      ]}
-    ]
-  },
-  {
-    "era": "University",
-    "label": "大學",
-    "years": [
-      { "year": 1997, "image": "../images/2021-動畫-Pitch-Bible-01.png", "descriptions": [
-        "<h5 class=\"mb-sm\">BFA 學士班</h5><div>Shih Chien College of Design and Management renamed as <strong>Shih Chien University</strong></div><div class=\"mt-[4px]\">實踐設計管理學院 更名為 <strong>實踐大學</strong></div>",
-        "<div>College of Design established</div><div class=\"mt-[4px]\">設立 設計學院</div>",
-        "<div>Department of Visual Communication Design established</div><div class=\"mt-[4px]\">設立 視覺傳達設計學系</div>"
-      ]},
-      { "year": 2000, "image": "../images/Degree Show.jpg", "descriptions": [
-        "<h5 class=\"mb-sm\">BFA 學士班</h5><div>Department of Visual Communication Design renamed as <strong>Department of Communications Design</strong></div><div class=\"mt-[4px]\">視覺傳達設計學系 更名為 <strong>媒體傳達設計學系</strong></div>"
-      ]},
-      { "year": 2004, "image": "../images/SCCD-1-4-0.jpg", "descriptions": [
-        "<h5 class=\"mb-sm\">BFA 學士班</h5><div>Division of Digital 3D Animation Design established</div><div class=\"mt-[4px]\">設立 數位 3D 動畫設計組</div>",
-        "<div>Division of Digital Creative Game Design established</div><div class=\"mt-[4px]\">設立 數位遊戲創意設計組</div>",
-        "<h5 class=\"mb-sm\">MDES 碩士班</h5><div>Institute of Fashion and Communications Design established (with Institute of Fashion Design)</div><div class=\"mt-[4px]\">設立 時尚與媒體設計研究所（與服裝設計研究所）</div>"
-      ]},
-      { "year": 2009, "image": "../images/2021-動畫-Pitch-Bible-01.png", "descriptions": [
-        "<h5 class=\"mb-sm\">MDES 碩士班</h5><div>Division of Digital Media Design established</div><div class=\"mt-[4px]\">設立 數位媒體設計組</div>"
-      ]},
-      { "year": 2011, "image": "../images/Degree Show.jpg", "descriptions": [
-        "<h5 class=\"mb-sm\">MDES 碩士班</h5><div>Division of Digital Media Design, IFCD merged into (Merge Department and Institute Into One) Master Class &amp; <strong>Master Class for Working Professionals, SCCD</strong></div><div class=\"mt-[4px]\">時尚與媒體設計研究所數位媒體設計組 整併（系所合一）為 <strong>媒體傳達設計學系碩士班與碩士在職專班</strong></div>"
-      ]},
-      { "year": 2012, "image": "../images/SCCD-1-4-0.jpg", "descriptions": [
-        "<h5 class=\"mb-sm\">BFA 學士班</h5><div>Division of Digital Creative Game Design renamed as Division of Innovative Media Design</div><div class=\"mt-[4px]\">數位遊戲創意設計組 更名為 創新媒體設計組</div>"
-      ]},
-      { "year": 2013, "image": "../images/2021-動畫-Pitch-Bible-01.png", "descriptions": [
-        "<h5 class=\"mb-sm\">MDES 碩士班</h5><div>Master Class for Working Professionals stop enrollment</div><div class=\"mt-[4px]\">碩士在職專班 停招</div>"
-      ]},
-      { "year": 2017, "image": "../images/Degree Show.jpg", "descriptions": [
-        "<h5 class=\"mb-sm\">BFA 學士班</h5><div>Division of Innovative Media Design renamed as Division of Creative Media Design</div><div class=\"mt-[4px]\">創新媒體設計組 更名為 創意媒體設計組</div>"
-      ]},
-      { "year": 2023, "image": "../images/SCCD-1-4-0.jpg", "descriptions": [
-        "<h5 class=\"mb-sm\">BFA 學士班</h5><div>Division of Digital 3D Animation Design renamed as Division of Animation &amp; Moving Image</div><div class=\"mt-[4px]\">數位 3D 動畫設計組 更名為 動畫影像設計組</div>"
-      ]}
-    ]
-  }
-]
+{
+  "images": [
+    "../images/SCCD-1-4-0.jpg",
+    "../images/2021-動畫-Pitch-Bible-01.png",
+    "../images/Degree Show.jpg"
+  ],
+  "eras": [
+    {
+      "eraEn": "(Junior) College",
+      "eraZh": "專科學校",
+      "entries": [
+        {
+          "year": 1958,
+          "division": null,
+          "en": "Shih Chien College of Home Economics established",
+          "zh": "實踐家政專科學校成立"
+        },
+        {
+          "year": 1971,
+          "division": null,
+          "en": "Department of Arts and Crafts established",
+          "zh": "設立 美術工藝科"
+        },
+        {
+          "year": 1975,
+          "division": null,
+          "en": "Night School, Department of Arts and Crafts established",
+          "zh": "設立 美術工藝科夜間部"
+        },
+        {
+          "year": 1979,
+          "division": null,
+          "en": "Shih Chien College of Home Economics renamed as Shih Chien College of Home Economics and Economics",
+          "zh": "實踐家政經濟專科學校 更名為 實踐家政經濟專科學校"
+        },
+        {
+          "year": 1984,
+          "division": null,
+          "en": "Department of Arts and Crafts renamed as Department of Applied Arts",
+          "zh": "美術工藝科 更名為 應用美術科"
+        },
+        {
+          "year": 1984,
+          "division": null,
+          "en": "Division of Visual Communication Design established",
+          "zh": "設立 視覺傳達設計組"
+        },
+        {
+          "year": 1986,
+          "division": null,
+          "en": "Department of Communication Design (5-year Junior College) established",
+          "zh": "設立 商業設計科（五年制專科）"
+        },
+        {
+          "year": 1986,
+          "division": null,
+          "en": "Division of Advertising Design, Division of Packaging Design &amp; Division of Space Design established",
+          "zh": "設立 廣告設計組、包裝設計組、空間設計組"
+        }
+      ]
+    },
+    {
+      "eraEn": "College",
+      "eraZh": "學院",
+      "entries": [
+        {
+          "year": 1991,
+          "division": null,
+          "en": "Shih Chien College of Home Economics and Economics upgraded to &amp; renamed as Shih Chien College of Design and Management",
+          "zh": "實踐家政經濟專科學校 改制並更名為 實踐設計管理學院"
+        }
+      ]
+    },
+    {
+      "eraEn": "University",
+      "eraZh": "大學",
+      "entries": [
+        {
+          "year": 1997,
+          "division": "BFA 學士班",
+          "en": "Shih Chien College of Design and Management renamed as Shih Chien University",
+          "zh": "實踐設計管理學院 更名為 實踐大學"
+        },
+        {
+          "year": 1997,
+          "division": "BFA 學士班",
+          "en": "College of Design established",
+          "zh": "設立 設計學院"
+        },
+        {
+          "year": 1997,
+          "division": "BFA 學士班",
+          "en": "Department of Visual Communication Design established",
+          "zh": "設立 視覺傳達設計學系"
+        },
+        {
+          "year": 2000,
+          "division": "BFA 學士班",
+          "en": "Department of Visual Communication Design renamed as Department of Communications Design",
+          "zh": "視覺傳達設計學系 更名為 媒體傳達設計學系"
+        },
+        {
+          "year": 2004,
+          "division": "BFA 學士班",
+          "en": "Division of Digital 3D Animation Design established",
+          "zh": "設立 數位 3D 動畫設計組"
+        },
+        {
+          "year": 2004,
+          "division": "BFA 學士班",
+          "en": "Division of Digital Creative Game Design established",
+          "zh": "設立 數位遊戲創意設計組"
+        },
+        {
+          "year": 2004,
+          "division": "MDES 碩士班",
+          "en": "Institute of Fashion and Communications Design established (with Institute of Fashion Design)",
+          "zh": "設立 時尚與媒體設計研究所（與服裝設計研究所）"
+        },
+        {
+          "year": 2009,
+          "division": "MDES 碩士班",
+          "en": "Division of Digital Media Design established",
+          "zh": "設立 數位媒體設計組"
+        },
+        {
+          "year": 2011,
+          "division": "MDES 碩士班",
+          "en": "Division of Digital Media Design, IFCD merged into (Merge Department and Institute Into One) Master Class &amp; Master Class for Working Professionals, SCCD",
+          "zh": "時尚與媒體設計研究所數位媒體設計組 整併（系所合一）為 媒體傳達設計學系碩士班與碩士在職專班"
+        },
+        {
+          "year": 2012,
+          "division": "BFA 學士班",
+          "en": "Division of Digital Creative Game Design renamed as Division of Innovative Media Design",
+          "zh": "數位遊戲創意設計組 更名為 創新媒體設計組"
+        },
+        {
+          "year": 2013,
+          "division": "MDES 碩士班",
+          "en": "Master Class for Working Professionals stop enrollment",
+          "zh": "碩士在職專班 停招"
+        },
+        {
+          "year": 2017,
+          "division": "BFA 學士班",
+          "en": "Division of Innovative Media Design renamed as Division of Creative Media Design",
+          "zh": "創新媒體設計組 更名為 創意媒體設計組"
+        },
+        {
+          "year": 2023,
+          "division": "BFA 學士班",
+          "en": "Division of Digital 3D Animation Design renamed as Division of Animation &amp; Moving Image",
+          "zh": "數位 3D 動畫設計組 更名為 動畫影像設計組"
+        }
+      ]
+    }
+  ]
+}
