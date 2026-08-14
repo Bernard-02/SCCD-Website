@@ -40,46 +40,26 @@ body.mode-color .footer-logo-inner {
   filter: var(--footer-invert-filter, invert(1));
 }
 
-/* Footer scatter 文字卡片：standard/inverse 用 JS inline 設的隨機三原色底（footer-draggable.js
+/* Footer scatter 文字卡片：standard/inverse 用 JS inline 設的隨機三原色底（footer-scatter.js
  * applyAccentColors）；mode-color 跟全站 accent 元件一致改 strict B/W（否則彩色卡片疊在 vivid
  * 互補 hue footer bg 上對比不足、且只有 footer 沒翻黑白顯得不一致）。
  * 底 = fg-contrast（對比 footer bg 的純黑白）、字 = fg-inverse-contrast（對比卡片底的純黑白）；
  * !important 蓋過 JS inline background。
- * 桌面限定：手機無 scatter、JS 不設 accent 底（footer.css 黑字+padding 規則也在 min-width:768 內），
- * 不 scope 的話手機 mode3 會多出黑/白底色塊 — 手機維持透明底 + var(--footer-fg) 文字（user 2026-06-11）。 */
-@media (min-width: 768px) {
-  body.mode-color .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-link-item) {
+ * ≥1200 scatter 限定：<1200（手機＋平板 tab 版型）無 scatter、JS 不設 accent 底，維持透明底 +
+ * var(--footer-fg) 文字（手機 user 2026-06-11；平板 2026-08-11 user「mode3 文字資訊去掉底色」——
+ * 原 scope min-width:768 讓平板誤吃白底卡）。 */
+@media (min-width: 1200px) {
+  body.mode-color .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-info, .footer-unit) {
     background: var(--theme-fg-contrast) !important;
   }
-  body.mode-color .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-link-item),
-  body.mode-color .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-link-item) :is(h6, p, a) {
+  body.mode-color .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-info, .footer-unit),
+  body.mode-color .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-info, .footer-unit) :is(h6, p, a, span) {
     color: var(--theme-fg-inverse-contrast) !important;
   }
 }
 
-/* Footer 社群 icon（YT/IG/FB）：icon 走單色 mask，方塊=currentColor(--footer-fg)、鏤空 logo 透出
- * footer bg。standard/inverse 的 footer bg 本來就是黑/白＝鏤空已是對比色；但 mode-color footer bg 是
- * vivid 互補 hue，鏤空會透出彩色、對比差又跟全站 accent「mode3 一律翻純黑白」不一致。
- * 解法：mode-color 疊一層 ::after，用各 icon 的「鏤空形狀」glyph 當 mask、填 --theme-fg-inverse-contrast
- * （strict B/W，對比方塊色 footer-fg；同 scatter 卡片字色），把透空的 logo 補成純黑/白對比。
- * ⚠️ ::after 掛在 <a.footer-link> 而非 .icon：CSS mask 會連 ::after 一起裁掉，holes 處也被遮 → 補不上。
- *    <a> 沒被 mask，且 inline-flex 緊貼 icon（拿掉 line-height 撐高），inset:0 + glyph 同 viewBox 對齊。
- * 純 CSS + glyph SVG，兩份 footer（index 靜態 / pages SPA）靠 class 一起生效，不動 HTML。 */
-body.mode-color .footer-social :is(.footer-youtube, .footer-instagram, .footer-facebook) .footer-link {
-  position: relative;
-  display: inline-flex;
-}
-body.mode-color .footer-social :is(.footer-youtube, .footer-instagram, .footer-facebook) .footer-link::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-color: var(--theme-fg-inverse-contrast);
-  -webkit-mask: var(--glyph) center / contain no-repeat;
-          mask: var(--glyph) center / contain no-repeat;
-}
-body.mode-color .footer-social .footer-youtube .footer-link::after   { --glyph: url('../website-icons/youtube_glyph.svg'); }
-body.mode-color .footer-social .footer-instagram .footer-link::after { --glyph: url('../website-icons/instagram_glyph.svg'); }
-body.mode-color .footer-social .footer-facebook .footer-link::after  { --glyph: url('../website-icons/facebook_glyph.svg'); }
+/* Footer 社群 icon：實心方塊 badge（黑塊白 f）原色 background-image + filter:invert 反色，
+ * mode3 亮暗底輪轉走 --footer-invert-filter——規則在 components/icon.css .icon.footer-social-glyph。 */
 
 /* ===== Layout ===== */
 body.mode-color header {

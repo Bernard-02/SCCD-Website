@@ -273,9 +273,15 @@
     line-height: 1.15;
   }
   /* branch chip（p1 雙語）行距對齊 anchor-nav-inner / nav-link 的 base 行距，
-     避免 sticky-chip-inner 預設 1.15 過緊讓中英太貼 */
+     避免 sticky-chip-inner 預設 1.15 過緊讓中英太貼；
+     英中距同 nav chip 走 flex gap 的 s 字級 token（text-s → 2px，user 2026-08-13） */
   #sticky-branch-chip .sticky-chip-inner {
     line-height: var(--line-height-base);
+    gap: var(--space-en-zh-s);
+  }
+  /* title chip 是 text-lg → 英中距吃 lg 字級 token（4px，user 2026-08-13） */
+  #sticky-title-chip .sticky-chip-inner {
+    gap: var(--space-en-zh-lg);
   }
   /* sticky 標題 / 分支 chip 寬度 = nav 區寬（grid-20 的 cols 1-4 = col-span-4；內容在 col-5）。
      chip 是 fixed 在 col-1 起，max-width 設成 col-span-4 寬 → 長名 wrap 不會越過去蓋 col-5 內容，

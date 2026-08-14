@@ -264,6 +264,7 @@
     flex-basis: 100%;
   }
 
+
   /* 打開的 list-item title 手機也 sticky（桌面版已有，見下方 @media min-width:768px）。
      activities 手機直向（2026-07-13 起）nav strip + filter bar 也 sticky（見下方 portrait 區塊）→
      釘點 = filter bar 正下方，由 activities-data-loader updateStickyTop 設 --list-header-sticky-top。
@@ -480,6 +481,11 @@
   .guest-row-grid {
     grid-template-columns: minmax(0, 1fr) 5.25rem;
   }
+  /* 手機：alumni tag（Alumni 系友）改疊在人名下方，不再與名字同排 justify-between 擠壓 → 名字吃滿整欄寬。
+     國家欄（col2）維持右側、對齊名字首行。gap 沿用元素上的 gap-sm(16px)。桌面仍同排（min-width:768 無此覆蓋）。（user 2026-08-10） */
+  .guest-name-cell {
+    flex-direction: column;
+  }
 
   /* user 2026-06-21：title／國旗 row 縮排改由 list-header 自身 px-sm 提供，開合不位移、無動畫。 */
 }
@@ -503,6 +509,11 @@
   margin: 0;
   font-size: var(--font-size-s);
   line-height: var(--line-height-base);
+}
+/* CMS 富文本的中文段落吃 ZH 獨立行距（normalizeBodyHtml 自動補 lang="zh-Hant"）。
+   p[lang] specificity 0,2,1 蓋過上面 .admission-body p 的 0,1,1；只針對 <p> 不動標題（標題走 typography.css hN[lang]） */
+.admission-body p[lang="zh-Hant"] {
+  line-height: var(--line-height-zh-s);
 }
 
 /* list-item-divider.is-last 桌面隱藏（年份組末端走 .activities-separator，避免 4+4=8px 疊線）
@@ -962,8 +973,8 @@ body.mode-color .tl-icon-btn-inner {
   pointer-events: none;      /* grid 只作定位、不吃點擊（鈕自己開 pointer-events）*/
 }
 #timeline-list-btn {
-  grid-column: 5;
-  justify-self: start;       /* 貼 col-5 左緣，icon 比一欄寬時往右溢出 */
+  grid-column: 4;
+  justify-self: start;       /* 貼 col-4 左緣，icon 比一欄寬時往右溢出 */
   pointer-events: auto;
   padding: 0;
   border: none;
@@ -980,17 +991,12 @@ body.mode-color .tl-icon-btn-inner {
   z-index: 25;
 }
 
-/* grid 與內容 section 對齊：full-width + container-padding + 20 col，矩形佔 col-5~20。
-   矩形高度 = timeline-area 高 − top − bottom（top/bottom 直接控制矩形上下界）。
-   top：矩形「蓋過」History 封鎖綫 — #timeline-list-view z-index:25 > .section-title-strip z-index:0（同在
-     #history stacking context；timeline-area z:auto 不成 context），所以 top 縮小讓矩形上緣升進封鎖綫範圍時，
-     矩形/era chip 會疊在綠底標題之上。新上限＝era chip（top:-28 凸出矩形上緣）不要縮進 fixed header(~80px)後面，
-     不是封鎖綫。top=40：矩形蓋過標題下緣、era chip 仍落在 header 下方。
-   bottom：矩形在 col-5~20、toggle 鈕在最左 col（水平不重疊），值 = 矩形底邊到 timeline-area 底（≈視窗底）的留白。 */
+/* grid 與內容 section 對齊：full-width + container-padding + 20 col。
+   高度不再由 top/bottom 撐——改由 .tl-list-cell 的正方形 height 決定，grid 只貼底
+   （bottom 對齊左下切換鈕 .tl-list-btn-grid bottom:32px）；手機/矮橫向覆寫 top/bottom 自帶定高，不受影響。 */
 .tl-list-grid {
   position: absolute;
-  top: 90px;             /* 矩形上緣約落在封鎖綫下緣附近（仍靠 z-index 可蓋過綠底；要更貼上去再縮小 top） */
-  bottom: 56px;          /* 矩形底與視窗底的留白（28 太貼底 → 加大；next 鈕隨之上移仍離底 ~80px） */
+  bottom: 32px;
   left: 0;
   right: 0;
   padding: 0 var(--container-padding, 32px);
@@ -1001,8 +1007,16 @@ body.mode-color .tl-icon-btn-inner {
 }
 
 .tl-list-cell {
-  grid-column: 6 / 21;   /* col-6 ~ col-20；col-5 留給 toggle 鈕（user 2026-08-06）*/
+  grid-column: 5 / 12;   /* col-5 ~ col-11＝7 欄總寬（user 2026-08-13 由 6 欄改回）；toggle 鈕在 col-4 */
   position: relative;
+  /* 正方形：高 = 可見矩形寬（7 欄寬 − 24px 讓鈕位，同 .tl-list-rect right:24）。
+     calc 重算 20-col 欄寬（欄數改動要同步 grid-column 與這裡的 7/6）。
+     min() 保險：極寬矮螢幕方形高過 timeline-area(100vh−164) − bottom(32) − 上緣留 40 時 clamp 進畫面（犧牲正方形）。
+     手機/矮橫向由下方共用 block 的 height:100% 覆寫，不吃這條。 */
+  height: min(
+    calc((100vw - 2 * var(--container-padding) - 19 * var(--spacing-gutter)) / 20 * 7 + 6 * var(--spacing-gutter) - 24px),
+    calc(100vh - 236px)
+  );
 }
 
 .tl-list-rect {
@@ -1021,16 +1035,16 @@ body.mode-color .tl-icon-btn-inner {
    - padding-right 額外留右欄文字與 scrollbar 的 gap。*/
 .tl-list-content {
   position: absolute;
-  inset: var(--spacing-xl);
+  inset: var(--spacing-lg);          /* 四邊 padding 32px（比照 slide-in 左右 container-padding，user 2026-08-13）*/
   overflow-y: auto;
-  padding-right: var(--spacing-md);  /* 右欄文字 ↔ scrollbar 之間的 gap */
+  padding-right: var(--spacing-md);  /* 右欄文字 ↔ scrollbar 之間的 gap（24px）*/
   color: #000;           /* standard mode 黑字（inverse/color 由 .timeline-card-inner 規則覆蓋）*/
 }
 
 .tl-list-year-row {
   display: grid;
-  grid-template-columns: 5.5rem 1fr;
-  gap: var(--spacing-3xl);  /* 年份 ↔ 內文（EN）的水平 gap（年份回 h4 後填滿較多固定欄、故 gap 加大才看得出來）*/
+  grid-template-columns: 2.75rem 1fr;   /* 年份欄「固定寬」→ 右側 EN/ZH 內文左緣逐列對齊、不受年份字寬(1 比 2/0 窄)影響（user 2026-08-13）；每個 year-row 是獨立 grid，用 max-content 會逐列跳位 */
+  gap: var(--spacing-md);   /* 年份 ↔ 右欄文字（user 2026-08-13 由 xl 收成 md）*/
   align-items: start;
 }
 .tl-list-year-row + .tl-list-year-row { margin-top: var(--spacing-xl); }
@@ -1048,8 +1062,8 @@ body.mode-color .tl-icon-btn-inner {
 }
 .tl-list-cols {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--spacing-xl);
+  grid-template-columns: 1fr;
+  gap: var(--space-en-zh-s);   /* 英中上下排列 EN→ZH 間距，內文為 text-s → 吃 s 字級 token（user 2026-08-13 由 body 改 s）*/
   align-items: start;
 }
 
@@ -1592,15 +1606,13 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
 
 /* ===== 手機 list 標題覆寫（2026-06-09，全 list 頁共用：activities / admission / alumni）===== */
 @media (max-width: 767px) {
-  /* (1) 主標統一 p1（桌面維持 h5）。只動 .list-title-marquee 內的 .text-lg(=主標)，
-     date/location/ref（text-s）不受影響 */
-  .list-title-marquee p.text-lg {
-    font-size: var(--font-size-s);
-  }
-  /* search input 手機跟 list 主標同級（h5 19.2 → p1 16，user 2026-07-13）。
-     多層 selector 提特異度：input 帶 .text-lg utility、同特異度會輸 source order（同 (1) 的做法） */
+  /* (1) 主標維持 lg（手機 19.2px）＝跟副標 s(16px) 拉開層級，比照桌面 title>subtitle 關係。
+     （2026-08-10 反轉 06-09「手機主標統一 p1」：那條讓主標=副標同 16px、副標看起來跟標題一樣大。）
+     date/location/ref（text-s）本就不受影響。 */
+  /* search input 手機固定 16px：≥16px 免 iOS focus 整頁縮放；與主標(lg)、內文(s 手機=14) 都脫鉤。
+     多層 selector 提特異度蓋過 .text-s utility 與 variables.css 的 input.text-s 通用護欄。 */
   .activities-search-inner .activities-search-input {
-    font-size: var(--font-size-s);
+    font-size: 16px;
   }
   /* (2) 收合(預設)不 marquee＝靜止截斷；點開(.list-header.active)才捲。
      ⚠️ 反轉先前「手機收合也自動 marquee」(見 [[project_list_title_marquee_auto_runs_no_hover]])，user 2026-06-09 改要「點開才 marquee」。
@@ -1718,4 +1730,81 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
   :is(#activities-content-section, #admission-content-section) .list-year-group:has(.list-year-label:hover) .list-item {
     opacity: 1;
   }
+}
+
+/* ===== Degree Show 清單卡片標題 marquee（過長不換行，溢出時捲動）=====
+   結構由 degree-show-data-loader.js 產出：h5 > .dshow-title-line(overflow window)×1-2(EN/ZH)
+   > .dshow-title-inner。applyMarqueeOverflow（activities-section-switch showPanel 後 rAF 觸發）偵測
+   溢出 → line 加 .is-overflow + inner 換兩份 .marquee-copy + 設 --marquee-distance/duration。
+   桌面：hover 卡片才捲（同 atlas/courses）；手機：溢出自動捲（無 hover）。 */
+.dshow-title-line {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.dshow-title-inner {
+  display: inline-block;
+  white-space: nowrap;
+}
+.dshow-title-inner > .marquee-copy {
+  display: inline-block;
+  padding-right: var(--marquee-copy-gap);
+}
+@keyframes dshow-title-marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(var(--marquee-distance, -50%)); }
+}
+@media (min-width: 768px) {
+  .degree-show-card:hover .dshow-title-line.is-overflow .dshow-title-inner {
+    animation: dshow-title-marquee var(--marquee-duration, 8s) linear infinite;
+  }
+}
+@media (max-width: 767px) {
+  .dshow-title-line.is-overflow .dshow-title-inner {
+    animation: dshow-title-marquee var(--marquee-duration, 8s) linear infinite;
+  }
+}
+
+/* ===== Degree Show Detail 上下屆（prev/next）標題 marquee =====
+   結構：<p class="dshow-next-title">（row）> .dshow-title-inner（setupNextProject setTitle 注入）。
+   共用上方 .dshow-title-inner / .marquee-copy / @keyframes dshow-title-marquee 基建。
+   桌面 labels 為 free-float 無自然寬界 → 給 max-width 讓過長才觸發 marquee（labels 平時 clip-path 藏、hover 才現）；
+   手機色塊卡以卡寬為界。applyMarqueeOverflow 偵測溢出加 .is-overflow + 兩份 copy。 */
+.dshow-next-title {
+  overflow: hidden;
+  white-space: nowrap; /* 手機色塊卡標題也單行（桌面 <p> 已有 whitespace-nowrap） */
+}
+@media (min-width: 768px) {
+  #prev-labels .dshow-next-title,
+  #next-labels .dshow-next-title {
+    max-width: 42vw;
+  }
+  .dshow-next-title.is-overflow .dshow-title-inner {
+    animation: dshow-title-marquee var(--marquee-duration, 8s) linear infinite;
+  }
+}
+@media (max-width: 767px) {
+  .dsd-next-card-m .dshow-next-title {
+    max-width: 100%;
+  }
+  .dsd-next-card-m .dshow-next-title.is-overflow .dshow-title-inner {
+    animation: dshow-title-marquee var(--marquee-duration, 8s) linear infinite;
+  }
+}
+
+/* ===== Degree Show Detail hero 標題 marquee（過長不換行，溢出捲動）=====
+   桌面 #text-title-en/#text-title、手機 .hero-mobile-title(-cn) 掛 .dshow-hero-title(row) > .dshow-title-inner
+   （degree-show-data-loader.js setHeroTitle 注入）。hero 進場 wrapper(.hero-title-wrapper 等)在外層、
+   marquee inner 在內層＝不同元素不衝突。hero 標題恆顯 → 溢出即自動捲（非 hover）。 */
+.dshow-hero-title {
+  overflow: hidden;
+  white-space: nowrap;
+  max-width: 70vw;
+}
+@media (max-width: 767px) {
+  .dshow-hero-title { max-width: 86vw; }
+}
+.dshow-hero-title.is-overflow .dshow-title-inner {
+  animation: dshow-title-marquee var(--marquee-duration, 8s) linear infinite;
 }

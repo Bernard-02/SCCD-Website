@@ -1515,7 +1515,7 @@
   }
 
   /* 7) footer 改用手機版線性堆疊（user 2026-07-04「橫向一切以手機版為主」）：
-        JS 端 footer-draggable usesMobileFooter() 矮橫向已走手機 reveal 路徑（不 scatter、不設 accent bg），
+        JS 端 footer-scatter usesMobileFooter() 矮橫向已走手機 reveal 路徑（不 scatter、不設 accent bg），
         這裡把 footer.css @media(min-width:768) 的桌面 scatter 規則全數還原成手機 base 值（footer.css 1-157 行）。
         兩檔要同步：footer.css 手機值改了這裡要跟著改。 */
   body .footer-shell {
@@ -1581,13 +1581,11 @@
   body .footer-random > :is(.footer-tel, :has(> .footer-tel)) { grid-column: 1; grid-row: 3; align-self: end; }
   body .footer-random > :is(.footer-fax, :has(> .footer-fax)) { grid-column: 1; grid-row: 4; align-self: end; }
   body .footer-random > :is(.footer-email, :has(> .footer-email)) { grid-column: 1; grid-row: 5; align-self: end; }
-  /* 欄2：地址貼頂（pt 對齊 logo-area 的 1rem，二反饋 #1）；學校卡＋social 一組貼底（#3） */
+  /* 欄2：地址貼頂（pt 對齊 logo-area 的 1rem，二反饋 #1）；其下堆疊關聯單位卡（units）＋social（auto-flow）。
+     ⚠️矮橫向高度有限、6 張 units 可能偏擠，屬 niche 版待日後再細調（user 焦點在桌面散佈）。 */
   body .footer-random > :is(.footer-office, :has(> .footer-office)) { grid-column: 2; grid-row: 1; }
-  body .footer-random > :is(.footer-link-item, :has(> .footer-link-item)) { grid-column: 2; grid-row: 3; align-self: end; }
-  /* 卡2 貼列頂（卡1 貼列底）→ 兩張學校卡間距收斂成 row-gap 12（user 2026-07-11「兩個外部 link 再靠近一點」；
-     代價＝卡2 底不再對齊 TEL 底，中段列的跨欄對齊讓位給成組感） */
-  body .footer-random > :is(.footer-link-item, :has(> .footer-link-item)) ~ :is(.footer-link-item, :has(> .footer-link-item)) { grid-row: 4; align-self: start; }
-  body .footer-random > :is(.footer-social, :has(> .footer-social)) { grid-column: 2; grid-row: 5; align-self: end; }
+  body .footer-random > :is(.footer-unit, :has(> .footer-unit)) { grid-column: 2; }
+  body .footer-random > :is(.footer-social, :has(> .footer-social)) { grid-column: 2; }
   /* 桌面 scatter 預設 absolute + opacity:0（等 JS 定位）→ 手機 flow 還原；手機 reveal 的顯隱由 GSAP inline 接管 */
   body .footer-random > div,
   body .footer-social > div {
@@ -1627,7 +1625,7 @@
     display: block;
   }
   /* 桌面 accent 卡黑字是配 JS 設的亮底色；手機路徑 JS 不設 bg → 黑底上黑字看不到 → 還原白字、拔 padding */
-  body .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-link-item) {
+  body .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-unit) {
     padding: 0;
   }
   /* office pt 對齊 logo-area 1rem（要在上面 padding:0 還原之後、下在本體層——釘位層下在 wrapper 時
@@ -1639,8 +1637,8 @@
   body .footer-random h6 {
     margin-bottom: 4px;
   }
-  body .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-link-item),
-  body .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-link-item) :is(h6, p, a) {
+  body .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-unit),
+  body .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-unit) :is(h6, p, a, span) {
     color: var(--footer-fg, #fff);
   }
   /* 手機 block（footer.css max-width:767）細節同步 */
@@ -1660,14 +1658,18 @@
   body .footer-office-zh {
     white-space: normal;
   }
-  body .footer-office-zh-br,
-  body .footer-privacy-br {
+  body .footer-office-zh-br {
     display: none;
   }
-  /* 一欄 flow 用的「兩張學校卡負 margin 收攏」在 grid 各佔一格不適用 → 歸零
+  /* legal 連結矮橫向合一行：block span 改 inline（同手機；EN<br>ZH 已拆成 span） */
+  body .footer-legal-en,
+  body .footer-legal-zh {
+    display: inline;
+  }
+  /* 一欄 flow 用的「相鄰 unit 卡負 margin 收攏」在 grid 各佔一格不適用 → 歸零
      （667 寬的小機橫向同時命中 footer.css 手機 block 的負 margin 規則，這裡 unlayered 蓋回） */
-  body .footer-link-item + .footer-link-item,
-  body .footer-random > .clip-reveal-wrapper:has(> .footer-link-item) + .clip-reveal-wrapper:has(> .footer-link-item) {
+  body .footer-unit + .footer-unit,
+  body .footer-random > .clip-reveal-wrapper:has(> .footer-unit) + .clip-reveal-wrapper:has(> .footer-unit) {
     margin-top: 0;
   }
 

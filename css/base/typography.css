@@ -16,36 +16,58 @@
     word-break: normal;
   }
 
+  /* 行距不再寫 leading-*：字級行距綁在 fontSize tuple 上，@apply text-* 就帶對應 line-height（size-based）*/
   h1 {
-    @apply text-3xl font-semibold leading-h1;
+    @apply text-3xl font-bold;
   }
 
   h2 {
-    @apply text-2xl font-semibold leading-h1;
+    @apply text-2xl font-bold;
   }
 
   h3 {
-    @apply text-xl font-bold leading-base;
+    @apply text-xl font-bold;
   }
 
   h4 {
-    font-size: var(--font-size-xl);
-    line-height: var(--line-height-h4);
-    @apply font-bold;
+    @apply text-xl font-bold;
   }
 
   h5 {
-    @apply text-lg font-bold leading-base;
+    @apply text-lg font-bold;
   }
 
   h6 {
-    @apply text-md font-bold leading-base;
+    @apply text-md font-bold;
   }
 
   p {
-    @apply text-s font-regular leading-base;
+    @apply text-s font-regular;
   }
 }
+
+/* ===== 中文獨立行距系統（2026-08-12，size-based）=====
+ * 只命中「明確標了 lang="zh-Hant"」的元素——用屬性選擇器 [lang="zh-Hant"] 而非 :lang()，
+ * 因為 <html lang="zh-Hant"> 會讓 :lang(zh-Hant) 命中全站（含未標的英文）。
+ * 按「字級」對齊英文（英文 line-height 綁在 fontSize tuple 的 .text-*）：這裡用 .text-*[lang] 選字級，
+ * 再加標籤 fallback（h1..h6[lang]）給「靠 tag @apply 決定字級、沒寫 .text-* class」的元素。
+ * 起始值＝英文各階值＝零視覺差；要單獨調中文只改 variables.css 的 --line-height-zh-*。
+ * unlayered（在 @layer 外）→ 蓋得過 Tailwind utility layer 的 text-* tuple 行距。
+ * 標記方式：雙語元素中「中文那一個」element 加 lang="zh-Hant"（JS builder 的中文模板同理）。 */
+[lang="zh-Hant"] { line-height: var(--line-height-zh-s); }
+.text-3xl[lang="zh-Hant"], h1[lang="zh-Hant"] { line-height: var(--line-height-zh-3xl); }
+.text-2xl[lang="zh-Hant"], h2[lang="zh-Hant"] { line-height: var(--line-height-zh-2xl); }
+.text-xl[lang="zh-Hant"], h3[lang="zh-Hant"], h4[lang="zh-Hant"] { line-height: var(--line-height-zh-xl); }
+.text-lg[lang="zh-Hant"], h5[lang="zh-Hant"] { line-height: var(--line-height-zh-lg); }
+.text-md[lang="zh-Hant"], h6[lang="zh-Hant"] { line-height: var(--line-height-zh-md); }
+.text-s[lang="zh-Hant"] { line-height: var(--line-height-zh-s); }
+.text-xs[lang="zh-Hant"] { line-height: var(--line-height-zh-xs); }
+
+/* hero 中文用舊的 -cn class 命名、且沒標 lang 屬性（hero text 靜態＋mobile clone），
+ * 在這補進 zh 行距系統：.hero-text-cn 是副標 s 段落（會換行、之前吃英文 --line-height-s），
+ * .hero-title-cn 是大標 3xl。桌面 + 手機 class 都列（class 選擇器 0,1,0 蓋得過 <p>/<h1> tag 的 tuple 行距）。 */
+.hero-title-cn, .hero-mobile-title-cn { line-height: var(--line-height-zh-3xl); }
+.hero-text-cn, .hero-mobile-text-cn { line-height: var(--line-height-zh-s); }
 
 /* Mode 切換 fade window：theme-toggle.js applyMode() 加 .mode-switching 0.4s 後移除
  * - 速度 0.4s ease：對齊 theme-toggle.js MODE_FADE_MS
@@ -93,6 +115,8 @@ html.mode-switching.mode-switching .degree-show-card-content,
 html.mode-switching.mode-switching .error-404-card,
 html.mode-switching.mode-switching .footer-shell,
 html.mode-switching.mode-switching .footer-link,
+html.mode-switching.mode-switching .footer-tab,
+html.mode-switching.mode-switching .footer-tab-mark,
 html.mode-switching.mode-switching #custom-scrollbar-thumb,
 /* alumni 頁 */
 html.mode-switching.mode-switching .alumni-sponsor-card,
@@ -111,8 +135,20 @@ html.mode-switching.mode-switching .color-rect-title,
 html.mode-switching.mode-switching .lib-panel-title,
 html.mode-switching.mode-switching .press-item,
 html.mode-switching.mode-switching .files-item,
+/* 卡內 --lib-bg 底色的 bar（四 panel 年份標＋awards ticker）：不加就 snap，跟灰卡 0.4s fade 不同步
+ * （user 2026-08-11：年份 bar 速度跟灰卡不一致）。灰卡自己走 library-card.js inline TRANSITION 的 background-color 0.4s。 */
+html.mode-switching.mode-switching .press-year-label,
+html.mode-switching.mode-switching #library-awards-ticker,
 html.mode-switching.mode-switching .library-card-content {
   transition: background-color var(--dur-base) ease, color var(--dur-base) ease, border-color var(--dur-base) ease !important;
+}
+
+/* library 三原色卡：mode 切換不要 fade（user 2026-08-11）——mode3 三原色↔B/W（color.css 蓋 var(--theme-fg)）直接 snap。
+ * 卡的 background-color transition 由 library-card.js inline TRANSITION 設；.mode-switching 期間 !important 壓成 none。
+ * [style*="--lib-bg"] = 當前灰卡（setAsGray 標記），排除以保留其 0.4s 底色 fade（跟大背景同步）。 */
+html.mode-switching.mode-switching #library-card-stack > div:not([style*="--lib-bg"]),
+html.mode-switching.mode-switching #library-card-main:not([style*="--lib-bg"]) {
+  transition: none !important;
 }
 
 /* curriculum / activities / admission：sticky 遮罩 + pseudo-element 遮罩。
@@ -172,7 +208,7 @@ html.mode-switching.mode-switching #canvas-container {
   padding: var(--spacing-sm) var(--spacing-md);
   background: var(--theme-fg);
   color: var(--theme-bg);
-  font-weight: 600;
+  font-weight: 700;
   transform: translateY(-120%);
   transition: transform var(--dur-fast) ease;
 }

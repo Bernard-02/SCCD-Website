@@ -6,11 +6,18 @@
 #atlas-main {
   position: fixed;
   inset: 0;
-  background: var(--theme-bg, #ffffff);
+  /* 背景逐 mode 用「字面色」而非只換 var(--theme-bg)：unregistered custom property 只變值不會
+     觸發 background-color transition（原本 mode1↔mode2 背景瞬跳）。改字面宣告，切 mode 才 fade。
+     mode3 仍讀 var(--theme-bg)（RAF 每幀更新該 var、字面宣告不變 → 循環色即時、且不逐幀觸發 transition）。
+     0.4s = MODE_FADE_MS，與 body/html 的 .mode-switching fade 同節奏。 */
+  background-color: #ffffff;
   color: var(--theme-fg, #000000);
   overflow: hidden;
   z-index: 0;
+  transition: background-color var(--dur-base) ease;
 }
+body.mode-inverse #atlas-main { background-color: #000000; }
+body.mode-color #atlas-main { background-color: var(--theme-bg); }
 
 #atlas-stage {
   position: absolute;
@@ -117,7 +124,7 @@
   pointer-events: auto;
   font-family: var(--font-en, 'Inter'), var(--font-zh, 'Noto Sans TC'), system-ui, sans-serif;
   font-size: 0.6875rem; /* 11px — rem 隨使用者字級縮放（WCAG 1.4.4） */
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.25;
   letter-spacing: 0.01em;
   /* 高 zoom 下文字銳利化 hint */
@@ -245,23 +252,30 @@
   z-index: 9999;
 }
 
+/* mode3：右下角有 mode-color-panel 浮鈕（收起=鉛筆 48 / 展開=色輪 104），hover 說明卡上移至其上方避讓。
+   --mcp-footprint 由 mode-color-panel.js 依收起/展開發佈（已含底部 32 間距）；+16 呼吸。桌面/手機通用（色輪尺寸不同、footprint 亦不同）。 */
+body.mode-color #atlas-detail {
+  bottom: calc(var(--mcp-footprint, 80px) + 16px);
+  transition: bottom var(--dur-base) ease;
+}
+
 .atlas-detail-name {
   font-size: var(--font-size-s); /* 桌面 16px＝s；手機保留下方 @media 的 14px 局部 override（不動全域 s）*/
   font-weight: 700;
-  line-height: 1.35;
+  line-height: var(--line-height-s);   /* s 標準行距 1.3（雙語疊放三件套：s + gap 2px + line-height-s） */
   margin-bottom: 10px;
   word-break: break-word;
 }
 
 .atlas-detail-name .atlas-detail-name-zh {
   font-size: var(--font-size-s);
-  font-weight: 600;
-  margin-top: 2px;
+  font-weight: 700;
+  margin-top: var(--space-en-zh-s);   /* 英中距用統一 2px token（同 nav btn / 職業 chip） */
 }
 
 .atlas-detail-desc {
   font-size: var(--font-size-xs); /* 桌面 13.6px（原 14px）；手機保留下方 @media 的 13px 局部 override */
-  line-height: 1.55;
+  line-height: var(--line-height-xs);   /* xs 標準行距 1.3（rows/cat/co-em desc 全繼承此值統一） */
 }
 
 /* 國家 detail 每筆：左 title（英中各一行，過長 marquee）+ 右 類別（regular） */
@@ -282,10 +296,13 @@
   overflow: hidden;
   /* 主標字級對齊 list view .atlas-list-item-name（同 var，改一處兩邊同步）；之前是繼承 .atlas-detail-desc 14px */
   font-size: var(--font-size-xs, 0.85rem);
-  font-weight: 600;
+  font-weight: 700;
 }
 .atlas-detail-row-cat {
-  flex: 0 0 auto;
+  /* 統一欄寬：各列類別左緣對齊成一直欄（auto 會依字寬讓左緣參差、視覺像靠右，user 2026-08-11）
+     --atlas-cat-col 由 atlas.js fillDetailContent 量該國最寬 label 後設在 #atlas-detail（內容為主）；
+     fallback 148px ≳ 最長 label「Experience Camp Partner」@xs */
+  flex: 0 0 var(--atlas-cat-col, 148px);
   text-align: left;       /* 類別靠左對齊（英中兩行左緣對齊） */
   font-weight: 400;       /* 類別 regular */
   font-size: var(--font-size-xs); /* 詳情類別對齊 xs（原 0.75rem/12px） */
@@ -293,6 +310,11 @@
   padding-top: 1px;
 }
 .atlas-detail-row-cat .cat-zh { display: block; }
+/* 説明卡 xs 英中距 1px token：block 疊放，ZH 補 margin-top（ZH 只在有中文時才 render → 無尾距問題） */
+.atlas-detail-row-zh,
+.atlas-detail-row-cat .cat-zh {
+  margin-top: var(--space-en-zh-xs);
+}
 /* 過長 title 自動 marquee（卡片本就是 hover 產物 → 不再 gate hover） */
 .atlas-detail-row-en.is-overflow .atlas-marquee-inner,
 .atlas-detail-row-zh.is-overflow .atlas-marquee-inner {
@@ -309,7 +331,7 @@
   font-family: var(--font-en, 'Inter'), var(--font-zh, 'Noto Sans TC'), system-ui, sans-serif;
   font-size: var(--font-size-s);
   font-weight: 700;
-  line-height: 1.2;  /* 對齊 filter btn .atlas-filter-en/-zh 的 line-height 1.2，避免 career 比 alumni 高 ~1.4px */
+  line-height: var(--line-height-s);  /* s 標準行距 1.3；career 與 filter btn 同值（同下方 .atlas-filter-en/-zh）→ 並排時等高不錯位 */
   color: #000;
   /* bg 由 atlas.js inline 設 random 三原色；clip-path：左→右 reveal、右→左 collapse（hidden = left 0 寬） */
   clip-path: inset(0% 100% 0% 0%);
@@ -324,6 +346,14 @@
 .atlas-alumni-career-en,
 .atlas-alumni-career-zh {
   display: block;
+}
+
+/* 職業 chip 英中距對齊 nav/filter chip 的 2px（--space-en-zh-s）：主 career chip 是 block 兩行堆疊、
+   沒有 .anchor-nav-inner 的 flex gap → 給 EN 補 margin-bottom（EN 恆有 ZH 隨後，後台兩欄必填）。
+   subchip 是 flex-row EN/ZH 同行 → :not(.atlas-alumni-subchip) 排除。list view career chip 同理。 */
+.atlas-alumni-career:not(.atlas-alumni-subchip) .atlas-alumni-career-en,
+.atlas-list-col-career-en {
+  margin-bottom: var(--space-en-zh-s);
 }
 
 /* alumni btn + career chip 並排 row（map view 才有 career chip insert；list view 無此 wrapper）
@@ -560,7 +590,7 @@
   font-family: var(--font-en, 'Inter'), var(--font-zh, 'Noto Sans TC'), system-ui, sans-serif;
   font-size: var(--font-size-s);
   font-weight: 700;
-  line-height: 1.25;
+  line-height: var(--line-height-s);   /* s 標準行距 1.3（同 map view career chip） */
   color: #000;
   /* bg 由 JS inline 設 random 三原色；clip-path 統一上→下 reveal、下→上 collapse */
   clip-path: inset(0% 0% 100% 0%);
@@ -619,7 +649,7 @@
   white-space: nowrap;
   font-family: var(--font-zh, 'Noto Sans TC'), system-ui, sans-serif;
   font-size: var(--font-size-s, 1rem);  /* list view 欄標題 → p1（task 8） */
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.2;
 }
 
@@ -688,10 +718,11 @@
 .atlas-list-item-name {
   display: flex;
   flex-direction: column;
+  gap: var(--space-en-zh-xs);           /* 英中距 1px token（單語 host 項目單子 → no-op） */
   font-family: var(--font-en, 'Inter'), var(--font-zh, 'Noto Sans TC'), system-ui, sans-serif;
   font-size: var(--font-size-xs, 0.85rem);
-  font-weight: 600;
-  line-height: 1.3;
+  font-weight: 700;
+  line-height: var(--line-height-xs);   /* xs 標準行距 1.3 */
 }
 
 /* 主標每行單行顯示 + overflow:hidden；過長時 JS 偵測加 .is-overflow → marquee（桌面 hover 才捲 / 手機自動，見下） */
@@ -703,7 +734,7 @@
 }
 
 .atlas-list-name-zh {
-  font-weight: 600;
+  font-weight: 700;
 }
 
 /* host（主持）無副標：只單語（EN 或 ZH 其一）的名稱撐成兩行高並垂直置中，
@@ -755,8 +786,9 @@
 .atlas-list-item-label {
   display: flex;
   flex-direction: column;
+  gap: var(--space-en-zh-xs);           /* 英中距 1px token（單語副標單子 → no-op） */
   font-size: var(--font-size-xs); /* 對齊 xs（原 0.75rem/12px）；實色黑、不再 opacity 0.6（user 2026-08-07）*/
-  line-height: 1.3;
+  line-height: var(--line-height-xs);   /* xs 標準行距 1.3 */
   font-weight: 400;
   margin-top: 2px;
   font-family: var(--font-en, 'Inter'), var(--font-zh, 'Noto Sans TC'), system-ui, sans-serif;
@@ -866,7 +898,7 @@
 .atlas-filter-btn .atlas-filter-zh {
   display: block;
   white-space: nowrap;
-  line-height: 1.2;
+  line-height: var(--line-height-s);   /* s 標準行距 1.3（EN/ZH 同值；gap 2px 由 .anchor-nav-inner 提供） */
 }
 
 /* career chip 貼 alumni 右側（flex 流內 gap:0）→ 共用「右上接縫 pivot」：
@@ -952,6 +984,7 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
     }
     .atlas-detail-row-cat {
       padding-top: 0;
+      flex-basis: auto;   /* column 方向 basis=高度，148px 固定欄寬只給桌面左右分欄 */
     }
   }
   .atlas-detail-name {
@@ -1089,7 +1122,7 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
     line-height: 1.4;
     white-space: pre-wrap;
     text-align: left;
-    font-weight: 600;
+    font-weight: 700;
   }
 }
 
@@ -1280,7 +1313,8 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    line-height: 1.2;
+    gap: var(--space-en-zh-xs);           /* 英中距 1px token */
+    line-height: var(--line-height-xs);   /* xs 標準行距 1.3（原 1.2） */
     white-space: nowrap;
   }
   .atlas-gate-sub-btn.active {

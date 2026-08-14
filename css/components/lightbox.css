@@ -133,6 +133,10 @@
   white-space: nowrap;
   vertical-align: top;
 }
+/* 標題 EN→ZH 英中距＝xs 字級 token（1px）；p + p 只在雙語兩行都有時生效（單語 no-op） */
+.lightbox-ref-chip-title-unit p + p {
+  margin-top: var(--space-en-zh-xs);
+}
 
 /* ===== 手機版媒體 Lightbox（iPhone Photos 風格，user 2026-06-10）=====
  * 共用 #activities-lightbox（activities 海報 + library 報導圖片）手機改版：

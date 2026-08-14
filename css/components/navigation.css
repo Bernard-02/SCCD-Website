@@ -186,6 +186,10 @@
     display: inline-flex;
     flex-direction: column;
     align-items: flex-start;
+    /* chip 英中距：chip 是 flex，用 gap 一次搞定——雙語 chip（EN/ZH 兩子）吃 gap、單節點 chip
+       （Temporary 特設 / 年份）no-op；chip 被排除在 mb-en-zh utility 外（緊湊元件），改用 gap 補回間距免逐檔改 HTML/JS。
+       用「text-s 字級」的英中距 token --space-en-zh-s（2px，獨立於 mb-en-zh 的 --space-en-zh 8px；調整點在 variables.css） */
+    gap: var(--space-en-zh-s);
     background: rgba(255, 255, 255, 0.5);
     padding: 6px 8px 5px;
     color: rgba(0, 0, 0, 0.5);

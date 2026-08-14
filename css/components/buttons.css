@@ -35,10 +35,16 @@
     color: #fff;
   }
 
+  /* atlas 渲染/intro 完成前擋 mode 切換（atlas.js 掛/移 body class）：header 是 async fetch，
+     JS 只設按鈕 disabled 會漏掉「initAtlas 跑完 disable 後按鈕才進 DOM」的 race → body class 讓晚到的按鈕也吃到 */
+  body.atlas-mode-gate .theme-toggle-btn {
+    pointer-events: none;
+  }
+
   /* slide-in / lightbox 開啟時手機只保留 logo，mode-btn + menu-btn 收起 — 動畫由 lightbox-shell.js
-     `animateHeaderHide(getHeaderTargets())` 統一管（跟桌面 #mode-btn / [data-bar] 走同一個 GSAP clip-path
-     per-element 隨機 top/bottom 收）。getHeaderTargets() 在手機 viewport 會 include .mobile-header-btn。
-     這裡不額外寫 CSS clip-path 動畫，避免跟 GSAP 撞 transition */
+     `animateHeaderHide(getHeaderTargets())` 統一管：手機兩顆 .mobile-header-btn 走 clip-reveal（遮罩＋本體上滑，
+     委派 header.js footerHideBars，比照 footer-near hide）；桌面 #mode-btn / [data-bar] 才走 GSAP clip-path。
+     這裡不額外寫 CSS clip-path / transform 動畫，避免跟 GSAP 撞 transition */
 
   /* ===== Mode btn 圓底（桌面版 header）=====
    * 底色 = page bg（融入頁面，不反色）：standard 白底黑 icon、
@@ -379,6 +385,16 @@
     padding: 6px 8px 5px;
     text-align: left;
     transition: background var(--dur-micro) ease, color var(--dur-micro) ease, transform var(--dur-fast) var(--ease-standard);
+  }
+  /* 疊放雙語 EN/ZH（兩個 <div>，非 anchor-nav-inner）的英中距：以字級為主。
+     用 EN div 的 margin-bottom 補，不改 button display——該 btn 有旋轉/sticky/clip 一堆動畫，不碰 layout model 最安全。
+     alumni 城市 tab／degree-show 分支 tab 首行是 text-s → -s(2px)（下面 base 規則） */
+  .class-division-btn > div:first-child {
+    margin-bottom: var(--space-en-zh-s);
+  }
+  /* about BFA/MDES 切換首行 div 帶 .text-lg → 吃 lg 字級 gap（--space-en-zh-lg，現 4px；specificity 0,3,0 贏過上面 div:first-child 的 0,2,1） */
+  .class-division-btn > .text-lg:first-child {
+    margin-bottom: var(--space-en-zh-lg);
   }
 
   /* ===== Class Buttons Sticky Container =====

@@ -21,6 +21,24 @@
   flex-shrink: 0;
 }
 
+/* footer 社群 icon 變體：雙色實心 SVG（黑塊白 f）用「原色 background-image」渲染，非 mask（mask 單色、會把實心雙色填成整塊）。
+ * 依 mode 用 filter:invert 反色：base 檔=黑塊白 f → standard 深底 invert=白塊黑 f、inverse 反色白底 as-is=黑塊白 f、
+ * mode3 互補 hue 底亮暗會輪轉 → 吃 --footer-invert-filter 每幀跟 luminance 翻（極性同 footer logo）。
+ * f 是實心填色（非透明鏤空）故 mode3 彩底也不透 hue。渲染見 footer-content.js buildSocialGroup。
+ * 用 .icon.footer-social-glyph 複合選擇器提特異度蓋掉 unlayered base .icon 的 mask/background-color。 */
+.icon.footer-social-glyph {
+  background-color: transparent;
+  -webkit-mask-image: none;
+          mask-image: none;
+  background-image: var(--icon);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  filter: invert(1);
+}
+body.mode-inverse .icon.footer-social-glyph { filter: invert(0); }
+body.mode-color .icon.footer-social-glyph { filter: var(--footer-invert-filter, invert(1)); }
+
 /* size tier — 5 階；外加 hero 級 (footer social 走 --icon-hero / atlas-layout-btn 仍 32px hardcoded 個案) */
 /* XL 32px = share modal 等需要強調的主操作 icon（2026-05-20 新增） */
 /* L  24px = 主控按鈕 (video player / header toggle 24px via .theme-toggle-btn) */

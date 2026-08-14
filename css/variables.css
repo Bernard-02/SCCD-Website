@@ -63,10 +63,37 @@
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
 
-  /* Line Heights */
-  --line-height-base: 1.5;
-  --line-height-h1: 1.1;
-  --line-height-h4: 1.1;
+  /* Line Heights — 綁在「字級」上（2026-08-12 user 改 size-based，取代原 tag-based）：
+     Tailwind fontSize 用 [size, line-height] tuple → 設 .text-* 就自帶該階行距；標籤靠 @apply text-* 吃同一套。
+     單一來源＝此處。 */
+  --line-height-3xl: 1.1;
+  --line-height-2xl: 1;
+  --line-height-xl: 1.1;
+  --line-height-lg: 1.2;
+  --line-height-md: 1.3;
+  --line-height-s: 1.3;
+  --line-height-xs: 1.3;
+  --line-height-base: 1.3;   /* <body> 預設 + leading-base 消費者（hero chip/lists 年份對齊；cards 學經歷 2026-08-13 改吃 --line-height-s）*/
+
+  /* 中文獨立行距（size-based，對齊英文）：套在明確標了 lang="zh-Hant" 的元素（規則在 typography.css，
+     用 [lang="zh-Hant"] 屬性選擇器 + .text-*／標籤選字級——不能用 :lang()，因 <html lang="zh-Hant"> 命中全站）。
+     起始值＝英文各階值＝零視覺差；要單獨調中文改這裡（字面值，不引用英文 var）。 */
+  --line-height-zh-3xl: 1.1;
+  --line-height-zh-2xl: 1;
+  --line-height-zh-xl: 1.2;
+  --line-height-zh-lg: 1.3;
+  --line-height-zh-md: 1.4;
+  --line-height-zh-s: 1.4;
+  --line-height-zh-xs: 1.3;
+
+  /* 英中間距 tokens——2026-08-13 user 定調「以字級為主」：一個字級一個值、任何用途共用（chip/卡/名字只要同字級就吃同值）。
+     疊放雙語 EN 元素的 margin-bottom／flex gap；單一調整點在此。段落 prose 是獨立軸（見 -body）。 */
+  --space-en-zh:      0.5rem;    /* 泛用 mb-en-zh 預設 8px：尚未逐字級細分的 utility 消費者（清單標題／JS builder 名字等） */
+  --space-en-zh-xs:   0.0625rem; /* text-xs 1px：atlas 説明卡列/類別/co-em、list 項目名/副標、橫向 sub-btn 的英中距 */
+  --space-en-zh-s:    0.125rem;  /* text-s 2px：nav chip／curriculum s-卡（含 Freshman/必選修）／faculty 副標／atlas 職業 chip 等 */
+  --space-en-zh-lg:   0.25rem;   /* text-lg 4px：faculty/alumni 卡片人名 h5／about BFA/MDES 切換 */
+  --space-en-zh-xl:   0.5rem;    /* text-xl 8px：faculty/curriculum slide-in 名字/標題＋legal xl 標題（policy group/regulations/donate 條款標題）；user 08-13 調 2→4→8px */
+  --space-en-zh-body: 1.5rem;    /* 雙語「段落」prose 間距（獨立軸、非緊湊標籤）：about/admission，Tailwind mb-en-zh-body */
 
 
   /* ===== Spacing ===== */
@@ -176,7 +203,8 @@
     --font-size-xl: 1.5rem;     /* 24px (桌面 32px) */
     --font-size-lg: 1.2rem;     /* 18px (桌面 22.4px) */
     --font-size-md: 1rem;       /* 16px (桌面 20px) */
-    --font-size-xs: 0.8rem;     /* 12.8px（s 手機同桌面 1rem 不覆寫） */
+    --font-size-s: 0.875rem;    /* 14px (桌面 16px)（user 2026-08-10：手機內文 s 縮小；list 主標已改吃 lg 不受此影響；⚠️text-s 的 <input> 另保 16px 免 iOS focus 整頁縮放）*/
+    --font-size-xs: 0.8rem;     /* 12.8px */
     --icon-hero: 2rem;          /* 32px (桌面 50px) */
 
     /* 間距調整 */
@@ -276,6 +304,13 @@
   /* 理念段落：手機由 h5(19.2px) 改成 p1(16px) */
   #overview h5 {
     font-size: var(--font-size-s);
+  }
+
+  /* text-s 的 <input>/<textarea> 手機保 16px：s 手機縮成 14px 後 <16px 表單 focus 會被 iOS Safari 整頁放大。
+     unlayered + input.text-s(高一級) 蓋掉 .text-s utility；搜尋框另有更高特異度規則在 lists.css 直接寫 16px。（user 2026-08-10）*/
+  input.text-s,
+  textarea.text-s {
+    font-size: 16px;
   }
 
   /* Works panel（user 2026-07-09 對調）：手機影片在上、文字盒在下（HTML order-1/order-2），

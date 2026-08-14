@@ -86,6 +86,13 @@
     }
   }
 
+  /* 卡片姓名 EN→ZH 疊放間距：名字＝h5=text-lg → 用「lg 字級」token --space-en-zh-lg（6px，以字體大小為主；
+     跟副標 text-s 的 --space-en-zh-s 2px 分開）。EN(首個 h5)加、ZH(末個 h5)不加。
+     faculty 三型 + alumni 會員卡（共用 .faculty-card-name）一起套。 */
+  .faculty-card-name h5:not(:last-child) {
+    margin-bottom: var(--space-en-zh-lg);
+  }
+
   /* ===== Faculty marquee：卡片職稱 + slide-in 詳情 row 共用（仿 courses pattern）=====
    * 每段文字（職稱 en/zh、詳情 row 雙語格各語）包成一個 .faculty-marquee-line（block）+ 內層 .faculty-marquee-inner；
    * 桌面單行超出寬度時，hover（卡片整張 / 詳情 row 的「單一欄 cell」）才水平 marquee。
@@ -94,6 +101,12 @@
    * 🔑 手機（無 hover）不套 nowrap/overflow：inner 維持 inline 自然換行保留多行可讀；JS 端也只在桌面跑偵測。*/
   .faculty-card-title-group + .faculty-card-title-group {
     margin-top: var(--spacing-xs);
+  }
+  /* 雙語疊放 .faculty-marquee-line（EN 上 ZH 下）的 EN→ZH 間距＝text-s 2px（--space-en-zh-s）。
+     一條通用規則涵蓋兩處：卡片職稱副標（.faculty-card-title-group）＋ slide-in 詳情 row 雙語格（.faculty-grid-row > span）。
+     :not(:last-child)＝缺一語的單行不加尾距；line-height 已由 .text-s(卡副標)／.faculty-grid-row 的 --line-height-s(詳情 row) 帶。 */
+  .faculty-marquee-line:not(:last-child) {
+    margin-bottom: var(--space-en-zh-s);
   }
   .faculty-marquee-line {
     display: block;
@@ -223,7 +236,7 @@
 
   .faculty-grid-row span {
     word-break: break-word;
-    line-height: var(--line-height-base);
+    line-height: var(--line-height-s);   /* 詳情 row 是 text-s → 吃 s 字級行距（1.3），不用 base（user 08-13：照字級） */
   }
 
   /* 手機 2 欄（2026-06-10 user，取代 2026-05-26 的縱向單欄 stack）：

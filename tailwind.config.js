@@ -50,15 +50,15 @@ module.exports = {
         'sans': ['Inter', 'Noto Sans TC', 'system-ui', '-apple-system', 'sans-serif'],
       },
 
-      // 字體大小 (使用 rem)
+      // 字體大小 (使用 rem)：[字級, 行距] tuple → .text-* 自帶該階 line-height（size-based，2026-08-12）
       fontSize: {
-        '3xl': 'var(--font-size-3xl)',
-        '2xl': 'var(--font-size-2xl)',
-        'xl': 'var(--font-size-xl)',
-        'lg': 'var(--font-size-lg)',
-        'md': 'var(--font-size-md)',
-        's': 'var(--font-size-s)',
-        'xs': 'var(--font-size-xs)',
+        '3xl': ['var(--font-size-3xl)', 'var(--line-height-3xl)'],
+        '2xl': ['var(--font-size-2xl)', 'var(--line-height-2xl)'],
+        'xl': ['var(--font-size-xl)', 'var(--line-height-xl)'],
+        'lg': ['var(--font-size-lg)', 'var(--line-height-lg)'],
+        'md': ['var(--font-size-md)', 'var(--line-height-md)'],
+        's': ['var(--font-size-s)', 'var(--line-height-s)'],
+        'xs': ['var(--font-size-xs)', 'var(--line-height-xs)'],
       },
 
       // 字體粗細
@@ -68,14 +68,18 @@ module.exports = {
         'bold': 700,
       },
 
-      // 行高
+      // 行高：字級行距已綁在 fontSize tuple 上；這裡只留 leading-base 給 <body> 預設與少數對齊消費者
       lineHeight: {
-        'base': '1.5',
-        'h1': '1.1',
+        'base': 'var(--line-height-base)',
       },
 
       // 間距
       spacing: {
+        'en-zh': 'var(--space-en-zh)',  /* 疊放雙語 EN 元素的 margin-bottom（英中距），mb-en-zh */
+        'en-zh-body': 'var(--space-en-zh-body)',  /* 段落內文英中距，mb-en-zh-body */
+        'en-zh-s': 'var(--space-en-zh-s)',  /* text-s 疊放雙語 EN margin-bottom（2px），mb-en-zh-s */
+        'en-zh-xl': 'var(--space-en-zh-xl)',  /* text-xl 疊放雙語 EN margin-bottom（2px），mb-en-zh-xl */
+        'en-zh-lg': 'var(--space-en-zh-lg)',  /* text-lg 疊放雙語 EN margin-bottom（4px），mb-en-zh-lg */
         'xs': 'var(--spacing-xs)',
         'sm': 'var(--spacing-sm)',
         'md': 'var(--spacing-md)',

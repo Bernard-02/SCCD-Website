@@ -123,7 +123,7 @@
   }
   /* p 已被 .legal-reveal 包 → 用 descendant；尾段留 sm（被 .legal-intro 的 4xl 吸收，視覺可忽略） */
   .legal-intro p {
-    margin-bottom: var(--spacing-sm);
+    margin-bottom: var(--space-en-zh-body);   /* 前言是 prose → 英中距走 body 軸（24px，user 08-13） */
   }
   /* regulations 頂部說明文字：比照 admission 頁的說明文字（text-s bold），比一般 legal 前言更醒目（user 2026-07-15）。 */
   .legal-regulations .legal-intro p {
@@ -155,19 +155,19 @@
   .legal-section-num {
     font-size: var(--font-size-xl);
     font-weight: var(--font-weight-bold);
-    line-height: var(--line-height-h4, 1.2);
+    line-height: var(--line-height-xl);
   }
   /* title 已被 .legal-reveal 包 → 改 descendant（這兩 class 只出現在這裡，不會誤套子區塊次標題） */
   .legal-section-body .legal-section-title-en,
   .legal-section-body .legal-section-title-zh {
     font-size: var(--font-size-xl);
     font-weight: var(--font-weight-bold);
-    line-height: var(--line-height-h4, 1.2);
+    line-height: var(--line-height-xl);
     margin: 0;
   }
   /* EN→ZH gap：拉開兩語標題距離（user 反映太擠） */
   .legal-section-body .legal-section-title-en {
-    margin-bottom: var(--spacing-sm);
+    margin-bottom: var(--space-en-zh-xl);   /* text-xl → xl 字級英中距（2px） */
   }
   .legal-section-body .legal-section-title-zh {
     margin-bottom: var(--spacing-md);
@@ -207,21 +207,17 @@
   .legal-section-body .legal-subsection-title-zh {
     font-size: var(--font-size-s);
     font-weight: var(--font-weight-bold);
-    line-height: 1.35;
+    line-height: var(--line-height-s);
     margin: 0;
   }
   .legal-section-body .legal-subsection-title-en {
-    margin-bottom: var(--spacing-xs);
+    margin-bottom: var(--space-en-zh-s);   /* text-s → s 字級英中距（2px） */
   }
   .legal-section-body .legal-subsection-title-zh {
     margin-bottom: var(--spacing-sm);
   }
-  /* 子區塊內段落（Regular 的「Establish Scholarships / 設立獎學金」等）：補段距——
-     這些 p 不是 .legal-section-body 的直接子層，吃不到上面 `.legal-section-body > p` 的 child 規則 */
+  /* 富文本段落純靠 line-height 排、不加 mb 干涉（比照 li；user 08-13：rich text 邏輯不該有 margin 介入）。 */
   .legal-subsection > p {
-    margin-bottom: var(--spacing-sm);
-  }
-  .legal-subsection > p:last-child {
     margin-bottom: 0;
   }
   /* 內文 list / p：對齊到 col 2 左邊（與標題等距） */
@@ -235,18 +231,28 @@
   .legal-section-body ol { list-style: decimal; }
   /* li 是 class-less 富文本 → 預設只繼承 body 16px，不吃全域 `p { text-s }`；桌面 p2==16px 兩者巧合一致，
      但手機 p2 縮成 14px 而 li 仍 16px → 條列點比段落大。顯式對齊 p2 讓 point 與段落同級（桌面仍 16px 無變）。 */
-  .legal-section-body li { font-size: var(--font-size-s); margin-bottom: var(--spacing-xs); }
-  .legal-section-body li:last-child { margin-bottom: 0; }
+  /* 富文本 li 純靠 line-height 排（比照 admission-body：li 不加 mb 干涉、間距即行高）；font-size 仍顯式對齊 p2（手機分歧修正，見 memory）。 */
+  .legal-section-body li { font-size: var(--font-size-s); }
   .legal-section-body ul:last-child,
   .legal-section-body ol:last-child {
     margin-bottom: 0;
   }
-  /* 說明段落（desEn/desZh 富文本）現包在 .legal-section-desc 內 → 改 desc 直接子 */
+  /* 說明段落（desEn/desZh 富文本）：純靠 line-height 排、不加 mb 干涉（比照 li）。 */
   .legal-section-desc > p {
-    margin-bottom: var(--spacing-sm);
-  }
-  .legal-section-desc > p:last-child {
     margin-bottom: 0;
+  }
+  /* 英中段落對：EN 區塊與 ZH 區塊之間套英中距 body 軸（24px）；區塊內各行仍純 line-height。
+     邊界＝最後一個英文 p（無 lang、後面緊接中文 p）加 mb（統一全站 gap 一律 mb，用 :has 選前者）。 */
+  .legal-subsection > p:not([lang]):has(+ p[lang="zh-Hant"]),
+  .legal-section-desc > p:not([lang]):has(+ p[lang="zh-Hant"]) {
+    margin-bottom: var(--space-en-zh-body);
+  }
+  /* 富文本 ZH 區塊吃 ZH 獨立行距（比照 lists.css .admission-body p[lang]；normalizeBodyHtml 自動補 lang="zh-Hant"）。
+     desEn/desZh 是 text-s 級 → 用 zh-s（1.4）；只針對 p/li，標題走各自 title 規則。 */
+  .legal-section-desc p[lang="zh-Hant"],
+  .legal-subsection p[lang="zh-Hant"],
+  .legal-section-body li[lang="zh-Hant"] {
+    line-height: var(--line-height-zh-s);
   }
 
   /* regulations：每筆規章列（renderRegLine 組，<div>）＝左 規章名（EN<br>ZH 粗體）＋右 承辦單位（EN<br>ZH，去哪裡找）。
@@ -270,6 +276,17 @@
     text-align: left;
     font-weight: var(--font-weight-regular);
   }
+  /* 規章名/承辦單位 EN/ZH：2026-08-13 由「EN<br>ZH 同 node」拆成 block span，EN→ZH 距收進 s tier（2px）；
+     :not(:last-child)＝缺一語的單語不加尾距；line-height 照 text-s tier（reg-line 是 text-s）。 */
+  .legal-regulations .reg-line-text > span,
+  .legal-regulations .reg-line-unit > span {
+    display: block;
+    line-height: var(--line-height-s);
+  }
+  .legal-regulations .reg-line-text > span:not(:last-child),
+  .legal-regulations .reg-line-unit > span:not(:last-child) {
+    margin-bottom: var(--space-en-zh-s);
+  }
   /* 內文連結（如聯絡 email、捐款連結）：粗體、不加底線、無 hover 效果（user 偏好） */
   .legal-section-body a {
     font-weight: var(--font-weight-bold);
@@ -285,17 +302,21 @@
   }
   /* 每段自己的更新日期（收在該段 accordion panel 底；user 2026-07-14 每段各一份、取代原頁尾單一份） */
   .legal-group-updated {
-    margin-top: var(--spacing-3xl);
+    margin-top: var(--spacing-xl);   /* 最後條款→更新日期 3xl(96)→xl(48)，與條款間距一致（user 08-13） */
+  }
+  /* 更新日期 EN/ZH（兩 text-s <p> 疊放）→ s 字級英中距 2px（原 0 gap；user 08-13） */
+  .legal-group-updated > p:not(:last-child) {
+    margin-bottom: var(--space-en-zh-s);
   }
   .legal-group-title-en,
   .legal-group-title-zh {
     font-size: var(--font-size-xl);
     font-weight: var(--font-weight-bold);
-    line-height: var(--line-height-h4, 1.2);
+    line-height: var(--line-height-xl);
     margin: 0;
   }
   .legal-group-title-en {
-    margin-bottom: var(--spacing-sm);
+    margin-bottom: var(--space-en-zh-xl);   /* text-xl → xl 字級英中距（2px） */
   }
   /* 兩大段之間間距＝與 donate/regulations 的 list 間距一致（3xl 96px；user 2026-07-15 統一，原 6xl 拉大取消） */
   .legal-group + .legal-group {
@@ -307,10 +328,10 @@
   .legal-combined .legal-section-body .legal-section-title-en,
   .legal-combined .legal-section-body .legal-section-title-zh {
     font-size: var(--font-size-s);
-    line-height: 1.35;
+    line-height: var(--line-height-s);
   }
   .legal-combined .legal-section-body .legal-section-title-en {
-    margin-bottom: var(--spacing-xs);
+    margin-bottom: var(--space-en-zh-s);   /* text-s → s 字級英中距（2px） */
   }
   .legal-combined .legal-section-body .legal-section-title-zh {
     margin-bottom: var(--spacing-sm);
@@ -318,6 +339,13 @@
   /* 合併頁：編號→文字的 grid 欄距縮一級（md→sm），配合縮小的 p2 編號（user 2026-06-09） */
   .legal-combined .legal-section {
     column-gap: var(--spacing-sm);
+    /* 條款間距 3xl(96px)→xl(48px)，policy 條款較密（user 08-13）；前言/更新日期邊界也收 xl → 整段 panel 間距統一 48px。
+       仍走 mb（非 container gap）：panel 是 accordion、flex 化會動到 height 動畫；三邊界各自 margin＋collapse 即可。 */
+    margin-bottom: var(--spacing-xl);
+  }
+  /* 合併頁前言→第一條款：4xl(128)→xl(48)，與條款間距一致（user 08-13）。scope 合併頁，donate/regulations 前言不動。 */
+  .legal-combined .legal-intro {
+    margin-bottom: var(--spacing-xl);
   }
 
   /* ── 學系規章（regulations）：單一群組 singleton，points = 5 大類（學則 / 修業 / 資源 / 組織 / 法規），

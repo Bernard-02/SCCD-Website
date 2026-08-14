@@ -120,14 +120,15 @@
     text-align: left;
   }
 
-  /* program btn 的 EN span：
-     - white-space:nowrap 確保「Creative Media Design」「MDES Class」維持單行不 auto-wrap。
-     - 「Animation & Moving Image」用 HTML 顯式 <br> 強制斷行（line 1: "Animation & Moving"，line 2: "Image"），
-       避免靠 max-width 鎖寬度造成 chip 寬度 = max-width 而非「最長一行寬度」（會讓右 padding 大於左）。
-     - line-height 1.2 + margin-bottom 0.15em 補回收緊後的半 leading，給多行情境用。 */
+  /* program btn line-height 綁 --line-height-s（=text-s 的 1.3，跟 curriculum 卡 .courses-grid-card 同步）：EN+ZH 一致，
+     EN/ZH 間距單靠 .anchor-nav-inner 的 flex gap（--space-en-zh-s 2px）——不再另加 margin-bottom
+     （舊機制，會疊在 gap 上讓 nav btn 比卡片鬆，2026-08-13 移除）。 */
+  .courses-program-btn .anchor-nav-inner {
+    line-height: var(--line-height-s);
+  }
+  /* EN span：white-space:nowrap 確保「Creative Media Design」「MDES Class」維持單行不 auto-wrap；
+     「Animation & Moving Image」用 HTML 顯式 <br> 強制斷行（避免靠 max-width 鎖寬造成右 padding 大於左）。 */
   .courses-program-btn .anchor-nav-inner > span:first-child {
-    line-height: 1.2;
-    margin-bottom: 0.15em;
     white-space: nowrap;
   }
 
@@ -163,7 +164,7 @@
     z-index: 2;
     font-size: var(--font-size-s);
     font-weight: 700;
-    line-height: 1;
+    line-height: var(--line-height-s);   /* 照字級：text-s → 1.3（單行 pill 也跟 tier，對齊 about .class-group-label；user 08-13） */
     color: rgba(0, 0, 0, 0.5);
     background: transparent;
     white-space: nowrap;
@@ -286,7 +287,7 @@
   .courses-grid-col-header {
     font-weight: 700;
     font-size: var(--font-size-s);
-    line-height: 1.2;
+    line-height: var(--line-height-s);   /* 對齊 text-s 1.3（跟 nav btn / 卡片一致） */
     /* MDES 切換時 inner 做 slide 進出，外層當遮罩（仿 hero-title-wrapper pattern）
        justify-self:start 讓 header 也縮成 content 寬度（grid cell 仍 1fr，header 只佔左側 content）
        — 否則 mask 是整個 column 寬，inner 只移動文字寬度的距離還在可見區內 */
@@ -297,12 +298,12 @@
   .courses-grid-col-header-inner {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: var(--space-en-zh-s);
   }
   /* year-header 是 cover bar 的內部 grid item，不再 sticky（cover 自己 sticky）；
      padding-bottom 留在 cover 上不需要這裡 */
   .courses-grid-col-zh {
-    font-weight: 600;
+    font-weight: 700;
   }
 
   /* 類別 label（必修/選修）— 實心、無半透明、無底色（col 2 type-col 內無卡片，
@@ -311,9 +312,9 @@
      color 用 var(--theme-fg) 自動跟 mode 走：standard=black / inverse=white / mode-color=動態對比色
      不可硬寫 black，否則 inverse 變黑底黑字看不見 */
   .courses-grid-type-label {
-    font-weight: 600;
+    font-weight: 700;
     font-size: var(--font-size-s);
-    line-height: 1.2;
+    line-height: var(--line-height-s);   /* 對齊 text-s 1.3（跟 nav btn / 卡片一致） */
     align-self: start;
     color: var(--theme-fg);
     /* 同 sem-label：label 當遮罩讓 inner 做年級式 slide 離場（見上方註解） */
@@ -324,7 +325,7 @@
   .courses-grid-type-label-inner {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: var(--space-en-zh-s);
     padding-top: 6px;
   }
   @media (min-width: 768px) {
@@ -354,14 +355,15 @@
   .courses-grid-card {
     display: inline-flex;
     flex-direction: column;
-    gap: 2px;
+    /* 英中距：卡片 text-s、疊放雙語，沿用 nav chip token（值同為 2px；原硬寫 2px 收進 token） */
+    gap: var(--space-en-zh-s);
     width: fit-content;
     max-width: 100%;
     padding: 6px 10px 5px;
     background: rgba(0, 0, 0, 0.06);
     color: black;
     font-size: var(--font-size-s);
-    line-height: 1.2;
+    line-height: var(--line-height-s);   /* text-s 行距 1.3，跟 courses-program-btn nav 同步 */
     cursor: var(--cursor-pointer);
     user-select: none;
     transition: background var(--dur-micro) ease, color var(--dur-micro) ease, transform var(--dur-micro) ease, opacity var(--dur-fast) ease;
@@ -378,7 +380,7 @@
   .courses-grid-card-en { font-weight: 700; }
   /* ZH 不加 opacity：半透明會讓中文看起來比英文淡/細（mode1 灰卡淡黑、mode-color 淡白），
      user 要求中文 = 100% 實色（跟 EN 同實心，僅 weight 600 維持雙語慣例） */
-  .courses-grid-card-zh { font-weight: 600; }
+  .courses-grid-card-zh { font-weight: 700; }
   .courses-marquee-inner {
     display: inline-block;
     white-space: nowrap;
@@ -542,22 +544,22 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    row-gap: 4px;
+    row-gap: 4px;   /* 目前單一子（type block），此 gap no-op；EN/ZH 距在下方 -type row-gap */
     font-size: var(--font-size-s);
-    line-height: 1.2;
+    line-height: var(--line-height-s);   /* 對齊 text-s 1.3 */
     color: var(--theme-fg);
   }
   /* type label：英中上下排列（en 上 zh 下） */
   .courses-mobile-row-label-type {
     display: flex;
     flex-direction: column;
-    row-gap: 2px;
+    row-gap: var(--space-en-zh-s);
   }
   .courses-mobile-type-en {
     font-weight: 700;
   }
   .courses-mobile-type-zh {
-    font-weight: 600;
+    font-weight: 700;
   }
   .courses-mobile-cells {
     /* 卡片直排、各卡寬度貼實際文字寬（fit-content，user 2026-07-09）；

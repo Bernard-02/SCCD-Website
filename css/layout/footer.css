@@ -29,6 +29,39 @@
     color: var(--footer-fg, #fff);
   }
 
+  /* 學系/關聯單位 tabs：只在桌面散佈（≥1200）顯示（見下方 media query），其餘 viewport 隱藏。
+   * radio 切換只存在於桌面散佈；<1200 無 tabs、兩群組全部線性顯示。
+   * .footer-tab-reserve＝JS 建的隱形滿寬「頂部保留條」obstacle，同樣只 ≥1200 生效。 */
+  .footer-tabs,
+  .footer-tab-reserve {
+    display: none;
+  }
+  /* tab 列可左右拖動（未來 tab 多、超出寬度時）：overflow-x scroll + 隱藏 scrollbar（無 chevron/scrollbar）。
+   * 觸控原生 pan、滑鼠走 JS 拖曳（footer-scatter.js makeTabsDraggable）。display 由各 viewport 規則開。 */
+  .footer-tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    overscroll-behavior-x: contain;
+  }
+  .footer-tabs::-webkit-scrollbar { display: none; }
+  /* 群組顯隱（CMS 化後 tab key 任意、CSS 無法窮舉配對）：JS applyGroupVisibility 對非 active 群組
+   * item＋其 clip-reveal wrapper 掛此 class（手機 <768 與矮橫向全顯＝JS 清光 class，這裡不用 media gate）。 */
+  .footer-random .fgroup-off {
+    display: none !important;
+  }
+  /* unit 連結卡＝<a>（預設 inline，會塌成細條）→ block 才吃兩行 block 子並 shrink-to-fit 出卡寬（同其他 div 卡）。 */
+  .footer-unit {
+    display: block;
+  }
+  /* unit 兩行標題（EN 上 / ZH 下）；桌面散佈用 nowrap，窄版另放行（見 hybrid/mobile）。 */
+  .footer-unit-en,
+  .footer-unit-zh {
+    display: block;
+    white-space: nowrap;
+    line-height: var(--line-height-s);   /* text-s（無 .text-s class、靠 .footer-random a 給字級）→ 明設 tier 行距 */
+  }
+
   /* Scatter items 內所有文字（標題 h6 + 內文 p + 連結 a）統一 p1 字級
    * 涵蓋 a 是因為 Links 區的 anchor 有 .text-s class（=1rem 比 p1=1.15rem 小）需要被蓋掉
    * .footer-random a 的 specificity (0,1,1) > .text-s (0,1,0) 直接 win */
@@ -38,7 +71,7 @@
     font-size: var(--font-size-s);
   }
 
-  /* Office 地址寬度由 footer-draggable.js applyOfficeSnugWidth() 量「實際最長一行文字」後鎖 inline width。
+  /* Office 地址寬度由 footer-scatter.js applyOfficeSnugWidth() 量「實際最長一行文字」後鎖 inline width。
    * 不靠 min/max-width：block child（英文 .max-w-sm <p>）的 max-content 被 cap 在 24rem，shrink-to-fit
    * 會用這 24rem 當卡寬 → 比真正最長行寬、右側殘留空白。.max-w-sm 保留只為驅動英文 wrap、不決定卡寬。 */
 
@@ -49,19 +82,21 @@
     white-space: nowrap;
   }
 
-  .footer-random .footer-office p {
+  /* .footer-info＝CMS 泛用資訊卡（office 為代表；長內文要能 wrap，EN 段由 renderer 掛 .max-w-sm cap 24rem） */
+  .footer-random :is(.footer-office, .footer-info) p {
     white-space: normal;
   }
 
   /* Office 英文地址在 <a> 內，被 `.footer-random a { nowrap }` 蓋掉 → 不換行 → 超出
    * anchor overflow:clip 被裁成「…Zhongsh」讀不到完整地址。讓英文 <a> 跟著 <p> wrap。
    * 排除中文行（.footer-office-zh：有 <br> + 桌面 nowrap 維持「104336 / 台灣…」兩行）。 */
-  .footer-random .footer-office p:not(.footer-office-zh) a {
+  .footer-random :is(.footer-office, .footer-info) p:not(.footer-office-zh) a {
     white-space: normal;
   }
 
-  /* 兩張 link 卡（拆自原 Links 卡、無 title、純連結）字重 bold（user 2026-06-06） */
-  .footer-random .footer-link-item a {
+  /* 關聯單位卡兩行（EN + ZH）字重 bold（user：這些 link 的中文不要 regular）。 */
+  .footer-random .footer-unit-en,
+  .footer-random .footer-unit-zh {
     font-weight: 700;
   }
 
@@ -124,8 +159,17 @@
     /* 手機線性最後 */
   }
 
+  /* legal 連結（Donate/Regulations/Policy）EN/ZH：桌面 block 疊放、EN 掛 mb-en-zh-s 給 2px 英中距（對齊 footer-unit）；
+     手機/矮橫向改 inline 合一行（見各自 block）。line-height 照 text-s tier。
+     2026-08-13 由「EN<br>ZH 同 node」拆成 block span 以統一 2px gap（同 node 塞不進 margin）。 */
+  .footer-legal-en,
+  .footer-legal-zh {
+    display: block;
+    line-height: var(--line-height-s);
+  }
+
   /* 無障礙標章 placeholder（88×31 硬尺寸＝標章規格）：桌面/手機/矮橫向皆顯示（user 2026-07-15 桌面也要，跟手機一樣）。
-     正式標章拿到後把此 div 換成 <a><img></a>。已進 footer-draggable.js getFooterPrivacyLinks 的桌面 clip-reveal selector。 */
+     正式標章拿到後把此 div 換成 <a><img></a>。已進 footer-scatter.js getFooterPrivacyLinks 的桌面 clip-reveal selector。 */
   .footer-a11y-badge {
     display: block;
     width: 88px;
@@ -165,24 +209,16 @@
     .footer-office-zh-br {
       display: none;
     }
-    /* 兩張學校 link 卡（實踐大學 / 設計學院）相鄰：.footer-random 統一 gap:xl，這對用負 margin 收窄成 xs 讓它們視覺成一組。
-       桌面是 absolute scatter，margin 不參與定位，故只在手機 flow 生效（不動桌面）。 */
-    .footer-link-item + .footer-link-item {
-      margin-top: calc(var(--spacing-xs) - var(--spacing-xl));
-    }
-    /* 手機 clip-reveal 進退場（footer-draggable.js initFooterMobileReveal）把每個 block 包進 .clip-reveal-wrapper
-       → 兩張 link 卡不再直接相鄰，上面的收窄規則失效 → 改用 wrapper 相鄰補回（同等負 margin）。 */
-    .footer-random > .clip-reveal-wrapper:has(> .footer-link-item) + .clip-reveal-wrapper:has(> .footer-link-item) {
-      margin-top: calc(var(--spacing-xs) - var(--spacing-xl));
-    }
-    /* privacy 雙語連結（Support/Regulations/Policy）手機合一行：隱藏 <br>，保留 <br> 前空格當分隔（同 .footer-office-zh-br pattern）。桌面維持兩行。 */
-    .footer-privacy-br {
-      display: none;
+    /* legal 連結手機合一行：block span 改回 inline（EN 尾空格當分隔；mb-en-zh-s 的 margin-bottom 對 inline 自動失效）。桌面維持兩行 block。 */
+    .footer-legal-en,
+    .footer-legal-zh {
+      display: inline;
     }
   }
-  /* 散佈版（≥1200）才維持中文地址兩行 + nowrap（scatter 卡視覺要兩行）；<1200 線性列表讓它自然 wrap */
+  /* 散佈版（≥1200）才維持中文地址兩行 + nowrap（scatter 卡視覺要兩行）；<1200 線性列表讓它自然 wrap。
+   * 特異度 (0,3,1) > 上面 .footer-info p normal 的 (0,2,1)——CMS 化後 office 卡同掛 .footer-info，要贏它 */
   @media (min-width: 1200px) {
-    .footer-office-zh {
+    .footer-random .footer-office p.footer-office-zh {
       white-space: nowrap;
     }
   }
@@ -213,41 +249,132 @@
       height: 100%;
     }
 
-    /* 右欄＝col-2 + col-3（logo 是 col-1，共 3 欄）：明確 grid 指定各塊位置（比照 landscape.css footer 手法）。
-     * col-2＝資訊+地址(tel/fax/email/office)、col-3＝social+學校連結(貼頂)；legal(規章 privacy) 絕對定位右下角。
-     * :is(.footer-X, :has(> .footer-X)) 涵蓋「已被 clip-reveal 包 wrapper / 未包」兩態（同 landscape/手機 logo 慣例）。 */
+    /* footer 固定一屏高（user 2026-08-11：資訊區固定高度、legal 位置不隨 tab 內容多寡變動）。
+     * 用 svh 不用 vh：iPad 工具列下 100vh 高估、legal 被推出畫面（user「有的 ipad 比較長」）。
+     * ⚠️ 生效前提＝檔尾 unlayered 長高規則已改成只涵蓋 <768 與矮橫向（平板落回固定高）。 */
+    .footer-shell { height: 100svh; }
+    /* 右欄＝flex-col：資訊區(flex:1 固定高) → legal(auto 貼底、位置恆定) */
     .footer-right {
-      position: relative;   /* legal 絕對定位錨點 */
       flex: 1;
       min-width: 0;
+      min-height: 0;
     }
+    /* 資訊區：flex column wrap ＝ col1 依 DOM 順序由上往下排滿、放不下才折到 col2（user 2026-08-11「以學系為主」）。
+     * 高度固定（flex:1 於固定高右欄內）→ wrap 折點恆定、legal 不動。tabs absolute 疊區頂、padding-top 預留其高
+     * （--footer-tabs-h 由 initFooterMobileReveal 量 tabs.offsetHeight 寫入，fallback 88px）。 */
     .footer-random {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-      column-gap: var(--spacing-xl);
-      row-gap: var(--spacing-lg);
-      align-content: start;
+      position: relative;
+      flex: 1 1 0;
+      min-height: 0;
+      padding-top: calc(var(--footer-tabs-h, 88px) + var(--spacing-lg));
+      display: flex;
+      flex-direction: column;
+      flex-wrap: wrap;
+      align-content: flex-start;
+      gap: var(--spacing-lg) var(--spacing-xl);   /* 直向卡距 lg／兩欄間 xl */
+      /* ⚠️ 不可設 overflow:hidden：setupClipReveal 看到父層已 clip 就不逐項包遮罩 → 切 tab 的 clip-reveal
+       * 變成「整塊在大容器內位移、全程可見」＝user 08-11 報「只有 pos y 位移」。維持 visible 讓每個區塊
+       * 拿到自己的貼身 .clip-reveal-wrapper（同 menu 選項做法），沉出/升起才會被自己的遮罩邊緣裁出來。 */
     }
-    /* col-2：資訊 + 地址，由上往下 */
-    .footer-random > :is(.footer-tel, :has(> .footer-tel))      { grid-column: 1; grid-row: 1; }
-    .footer-random > :is(.footer-fax, :has(> .footer-fax))      { grid-column: 1; grid-row: 2; }
-    .footer-random > :is(.footer-email, :has(> .footer-email))  { grid-column: 1; grid-row: 3; }
-    .footer-random > :is(.footer-office, :has(> .footer-office)){ grid-column: 1; grid-row: 4; }
-    /* col-3：social + 兩張學校連結，貼頂 */
-    .footer-random > :is(.footer-social, :has(> .footer-social))     { grid-column: 2; grid-row: 1; }
-    .footer-random > :is(.footer-link-item, :has(> .footer-link-item)){ grid-column: 2; grid-row: 2; }
-    .footer-random > :is(.footer-link-item, :has(> .footer-link-item)) ~ :is(.footer-link-item, :has(> .footer-link-item)) { grid-column: 2; grid-row: 3; }
-    /* 窄欄要能 wrap（office 中英 <a> 與學校連結 <a> 預設 nowrap 會爆欄溢出） */
+    /* tab 列：absolute 疊在資訊區頂（同 ≥1200 手法）、不旋轉、可左右拖動。 */
+    .footer-random > .footer-tabs {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: var(--spacing-xl);
+      position: absolute;
+      top: 0;
+      left: 0;
+      max-width: 100%;
+      z-index: 1;
+      --tab-mark-w: 110px;
+      --tab-mark-h: calc(var(--tab-mark-w) * 320 / 1135);
+    }
+    .footer-random > .footer-tabs .footer-tab { transform: none !important; }   /* 平板不旋轉 */
+
+    /* 每張資訊卡＝半欄寬（兩欄 + 中間 xl gap）；排除 absolute tabs 與 desktop-only reserve。 */
+    .footer-random > :not(.footer-tabs, .footer-tab-reserve) {
+      width: calc(50% - var(--spacing-xl) / 2);
+    }
+    /* social 排在文字之後（文字優先）：order 最後、跟隨 flow 不推底。
+     * ⚠️ 別用 margin-top:auto 推到欄底：aa 群組只有一顆 FB icon，推底=懸在空欄最下面「看起來不見了」
+     * （user 2026-08-11 iPad 回報）；且 WebKit 對 column-wrap + auto margin 有推出 overflow:hidden 的風險。 */
+    .footer-random > :is(.footer-social, :has(> .footer-social)) {
+      order: 99;
+    }
+    /* 窄欄要能 wrap（office 中英 <a> 與 unit 兩行標題預設 nowrap 會爆欄溢出） */
     .footer-random .footer-office :is(p, a),
-    .footer-random .footer-link-item a {
+    .footer-random .footer-unit-en,
+    .footer-random .footer-unit-zh {
       white-space: normal;
     }
-    /* legal（規章連結 + a11y 章 + copyright）＝絕對定位右下角（依舊，比照散佈版 ≥1200） */
+
+    /* 群組收合：CMS 化後（tab key 任意）改由 JS applyGroupVisibility 掛 .fgroup-off（見 base 段），
+     * 舊的 dept/aa/units 三向互斥 CSS 已移除。 */
+
+    /* legal（規章 + a11y 章 + copyright）：貼 footer 底（上方資訊區 flex:1 撐開、位置恆定不隨 tab 變）、
+     * 整塊靠右（user 2026-08-11：不需對齊資訊 col2）；塊內文字維持靠左（同桌面 bottom-right 慣例）。 */
     .footer-privacy {
-      position: absolute;
-      bottom: 0;
-      right: 0;
+      position: static;
+      margin-top: var(--spacing-lg);
+      display: flex;
+      justify-content: flex-end;
+    }
+    .footer-privacy > div {
+      align-items: flex-start !important;
       text-align: left;
+    }
+  }
+
+  /* ===== tab 按鈕外觀（≥768 共用：平板 768-1199 in-flow + 桌面 ≥1200 absolute 都用同一套 button 樣式）=====
+   * 容器定位/顯示各 viewport 自訂（tablet grid item / desktop absolute），這裡只管單顆 tab 外觀。
+   * --tab-mark-w / --tab-mark-h 由各自的 .footer-tabs 容器規則定義（tablet / ≥1200 段各設一份）。 */
+  @media (min-width: 768px) {
+    /* 單顆 tab（radio）：無底色；active = --footer-fg 全亮、非 active dim。SCCD/SCCDAA 有 wordmark mark，units 只 EN/ZH 兩行。 */
+    .footer-tab {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0;
+      padding: 0;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-family: inherit;
+      line-height: var(--line-height-s);   /* text-s → 照字級 tier（原硬寫 1.2，user 08-13 統一） */
+      text-align: left;
+      color: var(--footer-fg, #fff);
+      transition: opacity var(--dur-fast) ease;
+    }
+    .footer-tab:not(.is-active) { opacity: 0.4; }
+    /* hover 提亮到 active 樣（radio 未選態的 hover 回饋）：opacity → 1 回 --footer-fg 全亮（standard=白 / inverse=黑）。 */
+    .footer-tab:hover { opacity: 1; }
+    /* mark＝wordmark 純黑 SVG，mask + background-color 上 --footer-fg 色（三 mode 自動反相）。1135×320 比例。 */
+    /* mark＝CMS「Site Icons」資料夾的 wordmark SVG（2026-08-11）：mask 圖 + aspect-ratio 由 renderer 依 SVG viewBox
+     * 量出後 inline 設（`--tab-mark-src` / `style.aspectRatio`）；統一用 height=--tab-mark-h、width:auto
+     * → 不同比例的 wordmark 都同高、說明文字同基線。上色走 background-color:--footer-fg（三 mode 自動反相）。 */
+    .footer-tab-mark {
+      display: block;
+      height: var(--tab-mark-h);
+      width: auto;
+      margin-bottom: var(--spacing-sm);
+      background-color: var(--footer-fg, #fff);
+      -webkit-mask: var(--tab-mark-src) no-repeat center / contain;
+              mask: var(--tab-mark-src) no-repeat center / contain;
+    }
+    /* 無圖 mark 的 units tab：首行往下墊 = mark 高 + margin-bottom → 對齊有 mark tab 的說明文字。 */
+    .footer-tab:not(:has(.footer-tab-mark)) {
+      padding-top: calc(var(--tab-mark-h) + var(--spacing-sm));
+    }
+    .footer-tab .footer-tab-en,
+    .footer-tab .footer-tab-zh {
+      font-size: var(--font-size-s);
+      font-weight: 700;   /* tab 中英都 bold */
+      white-space: nowrap;
+      color: var(--footer-fg, #fff);
+    }
+    .footer-tab .footer-tab-zh {
+      margin-top: var(--space-en-zh-s);   /* text-s EN→ZH gap 收進 tier token（值同 2px） */
     }
   }
 
@@ -279,7 +406,7 @@
 
     /* 右側欄：fill 剩餘寬度，flex-col 把 random（flex:1）跟 privacy（auto）分上下。
      * grow:1 撐滿剩餘、**shrink:0 不縮**（空間不足時縮的是 logo、不是這裡）、basis+min-width = scatter 不重疊的最小寬。
-     * --footer-min-scatter 由 footer-draggable.js 依「最寬卡的旋轉 bbox + gap + 餘裕」量測後設；未設時 fallback 480。 */
+     * --footer-min-scatter 由 footer-scatter.js 依「最寬卡的旋轉 bbox + gap + 餘裕」量測後設；未設時 fallback 480。 */
     .footer-right {
       flex: 1 0 var(--footer-min-scatter, 480px);
       min-width: var(--footer-min-scatter, 480px);
@@ -300,24 +427,61 @@
       min-height: 0;
     }
 
+    /* tabs 容器：固定在散佈區頂部左上（logo 右側散佈區左上角），absolute、兩顆 tab flex-row 並排。
+     * 是 flex 容器不吃下方 `.footer-random > div` 的 absolute/opacity:0 規則，單獨宣告 position:absolute。
+     * JS 把整條 tabs 加進 scatter obstacle（reserveTabRow 用其 offsetHeight）→ 卡片繞到 tab 那條之下。
+     * padding-top 讓 tab 往下、視覺對齊左邊 logo（Lottie burst 在方框內上緣有留白，box 對齊會顯偏高）。 */
+    .footer-random > .footer-tabs {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: var(--spacing-xl);   /* 兩顆 tab 間距 */
+      position: absolute;
+      top: 0;
+      left: 0;
+      max-width: 100%;   /* tab 多到超出散佈區寬時 overflow-x 內捲（可拖動），不外溢 */
+      z-index: 1;
+      opacity: 1;   /* ⚠️ 蓋掉下方 `.footer-random > div { opacity:0 }`（scatter anchor 預設）——tabs 是 div 會誤中 */
+      padding-top: var(--spacing-sm);
+      /* mark 尺寸集中：改寬只動 --tab-mark-w，mark 高 + 無 mark 的 tab2 對齊墊高都跟著算（免逐處硬寫）。 */
+      --tab-mark-w: 110px;
+      --tab-mark-h: calc(var(--tab-mark-w) * 320 / 1135);   /* SVG 1135×320 比例 */
+    }
+    /* tab 按鈕外觀（.footer-tab*）已抽到下方 @media(min-width:768px) 共用區塊（平板 768-1199 + 桌面 ≥1200 同一套）；
+     * 這裡 ≥1200 只留容器定位（上方 .footer-random > .footer-tabs absolute）＋下方 group-hide / scatter。 */
+    /* 群組切換（radio）收合：CMS 化後（tab key 任意）改由 JS applyGroupVisibility 掛 .fgroup-off（見 base 段）。 */
+
+    /* 捲到 footer 時（header bars/logo 已 footerHideBars 滑走、header 畫面上是空的）放行 header 點擊：
+     * header（fixed、z-9999）透明容器不再攔截蓋在下方的 footer 頂部 tab → 整塊 tab（含 SVG mark）可點。
+     * 旗標 body.footer-bars-hidden 由 header.js setBarsHidden 隨 footer-near 狀態掛/卸；只此期間 + ≥1200 生效，
+     * 其他捲動位置/頁面 header 照常互動（atlas footer display:none 不觸發此狀態，不撞 mode gate）。user 2026-08-10。 */
+    body.footer-bars-hidden header.fixed {
+      pointer-events: none;
+    }
+    /* 頂部整條保留區（隱形 obstacle，滿寬）：把 scatter 卡片全擋到 tab 那條之下 → tab 右邊整條淨空（req2）。
+     * 沿用上方 `.footer-random > div` 的 position:absolute + opacity:0，JS reserveTabRow 設 top/width/height。 */
+    .footer-random > .footer-tab-reserve {
+      display: block;
+    }
+
     /* 三原色底色塊：每個「會變化的文字內容」scatter block 套隨機 accent 底色（bg 由 JS
      * applyAccentColors 每次 shuffle 重設 inline）；亮 accent 上一律黑字確保三 mode 都可讀。
      * 桌面 only — 手機無 shuffle / 無 scatter，套黑字但 JS 不設 bg 會在黑底 footer 看不到。
      * padding 對齊 about 頁 nav btn 的 accent-bg 慣例（.anchor-nav-inner: 6px 8px 5px）；
      * 別放大 — 卡片變大會讓 scatter no-overlap 演算法找不到合法 layout 而每次 fallback 同一坨。
      * item natural size 含 padding → collision 演算法自動納入。 */
-    .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-link-item) {
+    .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-info, .footer-unit) {
       padding: 6px 8px 5px;
     }
-    .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-link-item),
-    .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-link-item) :is(h6, p, a) {
+    .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-info, .footer-unit),
+    .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-info, .footer-unit) :is(h6, p, a, span) {
       color: #000;
     }
 
-    /* footer-anchor (JS 動態包) = position: absolute + opacity: 0 預設
-     * 內層 item 做 xPercent/yPercent 位移 reveal（A→B 滑入、全程可見、不裁遮罩；user 2026-08-08 要求由
-     * clip-reveal 改純位移，像 atlas 國家節點平移）。刻意不設 overflow:clip——設了卡片會從遮罩邊緣「揭露」而非位移。
-     * logo(.footer-logo-area) 與右下規章區(.footer-privacy) 仍各自 overflow:clip 做 clip-reveal，不受此影響。
+    /* footer-anchor (JS 動態包) = position: absolute + opacity: 0 預設；overflow:clip 由 JS 設（clip-reveal 遮罩）。
+     * 內層 item 進出場做 yPercent clip-reveal（由遮罩底緣升起/沉入；user 2026-08-10 由 08-08「純位移不裁」改回 clip-reveal）；
+     * 只有 10s shuffle 是 anchor left/top 位移（item 留 yPercent:0 貼滿遮罩、不受裁切）。
+     * logo(.footer-logo-area) 與右下規章區(.footer-privacy) 亦各自 overflow:clip 做 clip-reveal。
      * selector 用 `> div` 因為 JS wrap 後 .footer-anchor 是 .footer-random / .footer-social 的直接 div 子元素 */
     .footer-random > div,
     .footer-social > div {
@@ -351,11 +515,38 @@
       text-align: left;
     }
 
-    /* 規章區 4 連結各自獨立 clip-reveal（離頁/換頁，見 footer-draggable.js）：setupClipReveal 把每個 <a> 包進
+    /* 規章區 4 連結各自獨立 clip-reveal（離頁/換頁，見 footer-scatter.js）：setupClipReveal 把每個 <a> 包進
      * .clip-reveal-wrapper（overflow:clip 遮罩，自身當每個連結的裁切框）。<a> 包進 div 後不再是 flex item →
      * 預設 inline、transform 無效，故 display:block 才吃得到 yPercent 沉出/升入。wrapper 仍是 flex item 保留 gap-xs 間距。 */
     .footer-privacy .clip-reveal-wrapper > .footer-link {
       display: block;
     }
+  }
+
+  /* 矮橫向（寬可能 ≥768/1200 但走手機路徑、不散佈）：tab 沒 obstacle 定位 → 一律隱藏（走手機 footer）。
+   * 特異度 (0,2,0) 對齊上方 `.footer-random > .footer-tabs`、且排在其後 → 同時 match 時本規則勝。
+   * padding-top 歸零：橫向手機寬落在 768-1199 會誤吃平板段「tabs 預留高」的 padding-top（tabs 已藏、預留變空洞）。 */
+  @media (orientation: landscape) and (max-height: 500px) {
+    .footer-random > .footer-tabs,
+    .footer-random > .footer-tab-reserve {
+      display: none;
+    }
+    .footer-random {
+      padding-top: 0;
+    }
+  }
+}
+
+/* 手機 <768 與矮橫向：footer 線性堆疊內容超過一屏 → 讓 footer 長高、內容不被 100vh + overflow:hidden 裁掉
+ * （否則規章/copyright 被切）。必須 unlayered 才蓋得過 HTML 的 `overflow-hidden` utility（@layer utilities）
+ * 與 @layer components 的 height:100vh。
+ * ⚠️ 平板 768-1199 已排除（2026-08-11 改 tab 切換版型）：固定一屏高 100svh（tablet 段設）＋ overflow-hidden，
+ *    資訊區 flex:1 固定高、legal 貼底不隨 tab 內容變動。≥1200 scatter 亦不受影響（base height:100vh）。 */
+@media (max-width: 767px), (orientation: landscape) and (max-height: 500px) {
+  footer.footer-shell,
+  footer#site-footer-static {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
   }
 }
