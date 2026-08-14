@@ -12,71 +12,19 @@
       <!-- 隨機分佈的旋轉項目（手機線性，桌面 absolute）
            DOM 順序＝手機直向視覺順序（social 貼 logo 下 → 電話 → 傳真 → email → 地址 → 學校卡）；
            桌面 scatter / 矮橫向 grid 都是顯式定位，不吃 DOM 順序 -->
-      <div class="footer-random">
+      <div class="footer-random" data-fgroup="dept">
 
-        <!-- Social Media Icons（Support 已從 icon 移到 footer-privacy 文字連結）
-             桌面 .footer-social { display: contents } 把 icon wrapper 升級成 .footer-random 視覺子，
-             JS scatter 各別散佈；手機 .footer-social flex-row 自然排列 (YT → IG → FB) -->
-        <div class="footer-social">
-          <div class="footer-youtube">
-            <a href="https://www.youtube.com/@communicationsdesign" target="_blank" rel="noopener noreferrer" class="footer-link" aria-label="YouTube">
-              <span class="icon icon-youtube"></span>
-            </a>
-          </div>
-          <div class="footer-instagram">
-            <a href="https://www.instagram.com/communications.design_sccd" target="_blank" rel="noopener noreferrer" class="footer-link" aria-label="Instagram">
-              <span class="icon icon-instagram"></span>
-            </a>
-          </div>
-          <div class="footer-facebook">
-            <a href="https://www.facebook.com/communications.design" target="_blank" rel="noopener noreferrer" class="footer-link" aria-label="Facebook">
-              <span class="icon icon-facebook"></span>
-            </a>
-          </div>
-        </div>
-
-        <!-- TEL -->
-        <div class="footer-tel">
-          <p class="mb-xs font-bold">TEL 電話</p>
-          <p>+886 2 2538 1111 #7211</p>
-        </div>
-
-        <!-- FAX -->
-        <div class="footer-fax">
-          <p class="mb-xs font-bold">FAX 傳真</p>
-          <p>+886 2 2538 1111 #7050</p>
-        </div>
-
-        <!-- E-Mail -->
-        <div class="footer-email">
-          <p class="mb-xs font-bold">E-Mail 電子郵件</p>
-          <p><a href="mailto:sccd@g2.usc.edu.tw" class="footer-link">sccd@g2.usc.edu.tw</a></p>
-        </div>
-
-        <!-- Office -->
-        <div class="footer-office">
-          <p class="mb-xs font-bold">Office 學系辦公室</p>
-          <p class="max-w-sm mb-xs"><a href="https://maps.app.goo.gl/tj6auGPM9EwoBvBU7" target="_blank" rel="noopener noreferrer" class="footer-link">5F, Building A, No.70, Dazhi Street, Zhongshan District, Taipei City 104336, Taiwan</a></p>
-          <p class="footer-office-zh"><a href="https://maps.app.goo.gl/tj6auGPM9EwoBvBU7" target="_blank" rel="noopener noreferrer" class="footer-link">104336 <br class="footer-office-zh-br">台灣台北市中山區大直街 70 號 A 棟 5 樓</a></p>
-        </div>
-
-        <!-- Links：拆成兩張獨立 link 卡（無 title，各一條連結，字重 bold）-->
-        <div class="footer-link-item">
-          <a href="https://www.usc.edu.tw/" target="_blank" rel="noopener noreferrer" class="footer-link">Shih Chien University 實踐大學</a>
-        </div>
-        <div class="footer-link-item">
-          <a href="http://www.scdesign.usc.edu.tw/" target="_blank" rel="noopener noreferrer" class="footer-link">College of Design, USC 實踐大學設計學院</a>
-        </div>
+        <!-- Tab 與散佈項目 2026-08-11 起由 Directus 管理（footer_tabs / footer_items；CMS 掛掉 fallback
+             /data/footer.json），js/modules/ui/footer-content.js 渲染進來：tab 按鈕進 .footer-tabs、
+             項目（資訊卡/連結卡/社群 icon）接在後面。後台拖曳＝順序；第一個 tab＝預設顯示群組。 -->
+        <div class="footer-tabs"></div>
 
       </div>
 
-      <!-- Privacy Policy Links（桌面左下、手機線性最後）
-           英文/中文用 <br> 分兩行；Support 從原本 donate icon 改為此處文字連結（置頂） -->
+      <!-- Privacy / 法務連結（桌面右下、手機線性最後）：連結由 Directus footer_legal 渲染（footer-content.js
+           renderLegal，插在 a11y 標章之前）；a11y 標章與 copyright 維持靜態。英中用 <br> 分兩行。 -->
       <div class="footer-privacy">
         <div class="flex flex-col gap-xs items-start">
-          <a href="donate.html" class="footer-link">Donate <br class="footer-privacy-br">捐贈</a>
-          <a href="regulations.html" class="footer-link">Regulations <br class="footer-privacy-br">學系規章</a>
-          <a href="policy-and-statements.html" class="footer-link">Policies &amp; Statements <br class="footer-privacy-br">政策及聲明</a>
           <!-- 無障礙標章 placeholder（88×31，手機先行；正式標章拿到後換成 <a><img></a> 並開桌面） -->
           <div class="footer-a11y-badge" aria-hidden="true"></div>
           <p class="footer-copyright">Copyright © SCCD</p>

@@ -54,7 +54,7 @@
                 Mobile：垂直堆疊（bar → panels → desc 隱藏）
     -->
     <!-- 手機 pt-4xl(80)：四頁 nav btn section 統一（faculty/activities/admission/curriculum，user 2026-07-10 從 6xl 收上來） -->
-    <section class="snap-zone bg-white min-h-screen pt-4xl md:pt-0 md:h-screen md:overflow-hidden" id="courses-content-section">
+    <section class="snap-zone bg-white min-h-screen pt-4xl pb-2xl md:pt-0 md:pb-0 md:h-screen md:overflow-hidden" id="courses-content-section">
       <div class="site-container">
         <!-- grid-20：桌面 program bar 占 cols 1-4、課程內容 cols 5-20（對齊 faculty/about col-5）；手機 flex-col 堆疊 -->
         <div class="courses-content-row flex flex-col gap-gutter md:grid md:grid-cols-20 inner-scroll-frame-grid">
@@ -116,16 +116,17 @@
         <!-- 桌面（仿 faculty slide-in 右欄）：inner md:overflow-hidden 不捲，title 固定在上、desc 在獨立 .list-scroll box 內捲動 → 右側細黑 scrollbar。
              手機：inner overflow-y-auto 整段捲、title sticky 黏頂（見 .courses-detail-title-sticky）。
              pb 改放捲動內容內部（desc-wrapper）：容器不留 pb、捲到底最後一行才不貼底邊（user 2026-08-07） -->
-        <div class="courses-detail-inner w-full h-full px-container-padding flex flex-col overflow-y-auto md:overflow-hidden no-scrollbar bg-inherit">
+        <!-- overscroll-y-contain：手機捲到頂/底時不 chain 到背後 body（同 faculty slide-in；iOS momentum non-cancelable、JS lock 擋不到，靠原生 overscroll-behavior 阻斷） -->
+        <div class="courses-detail-inner w-full h-full px-container-padding flex flex-col overflow-y-auto md:overflow-hidden overscroll-y-contain no-scrollbar bg-inherit">
           <!-- title 區：桌面固定（flex-shrink:0，不捲）；手機 sticky 黏頂 -->
           <div class="courses-detail-title-sticky">
-            <h2 id="courses-detail-title-en" class="courses-detail-title-en text-xl font-bold mb-xs"></h2>
-            <h2 id="courses-detail-title-zh" class="courses-detail-title-zh text-xl font-bold mb-0"></h2>
+            <h2 id="courses-detail-title-en" class="courses-detail-title-en text-xl font-bold mb-en-zh-xl"></h2>
+            <h2 id="courses-detail-title-zh" class="courses-detail-title-zh text-xl font-bold mb-0" lang="zh-Hant"></h2>
           </div>
           <!-- desc：桌面成獨立 scroll box（md:flex-1 撐滿剩餘高 + md:overflow-y-auto + list-scroll 細黑 scrollbar + md:pr-md 留 scrollbar 間距），手機隨 inner 整段捲 -->
-          <div class="courses-detail-desc-wrapper md:mt-xl md:flex-1 md:min-h-0 md:overflow-y-auto list-scroll md:pr-md pb-[var(--container-padding)] md:pb-2xl">
-            <p id="courses-detail-desc-en" class="courses-detail-desc-en text-s mb-lg" style="line-height: 1.6;"></p>
-            <p id="courses-detail-desc-zh" class="courses-detail-desc-zh text-s" style="line-height: 1.6;"></p>
+          <div class="courses-detail-desc-wrapper md:mt-md md:flex-1 md:min-h-0 md:overflow-y-auto list-scroll md:pr-md pb-[var(--container-padding)] md:pb-2xl">
+            <p id="courses-detail-desc-en" class="courses-detail-desc-en text-s mb-en-zh-body"></p>
+            <p id="courses-detail-desc-zh" class="courses-detail-desc-zh text-s" lang="zh-Hant"></p>
           </div>
         </div>
       </div>

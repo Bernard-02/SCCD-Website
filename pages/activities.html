@@ -54,7 +54,7 @@
          section 要至少滿一個 viewport 才捲得到位（短 panel 如 Permanent 2 筆不會被頁底 clamp 露出 hero），
          且對齊時剛好填滿 viewport 不讓 footer 從底部露出（user 2026-06-05）。 -->
     <!-- 手機 pt-4xl(80)：四頁 nav btn section 統一（faculty/activities/admission/curriculum，user 2026-07-10 從 6xl 收上來） -->
-    <section class="snap-zone bg-white pt-4xl md:pt-0 md:h-screen md:overflow-hidden" id="activities-content-section" style="min-height: 100vh;">
+    <section class="snap-zone bg-white pt-4xl pb-2xl md:pt-0 md:pb-0 md:h-screen md:overflow-hidden" id="activities-content-section" style="min-height: 100vh;">
       <!-- 手機 header blocker：透明 fixed site-header 下、sticky title 上方透明帶用一條 sticky theme-bg 帶補實。
            桌面有 filter bar 接住故 md:hidden。詳見 lists.css .list-mobile-header-blocker -->
       <div class="list-mobile-header-blocker md:hidden" aria-hidden="true"></div>
@@ -158,7 +158,8 @@
                   </div>
                 </div>
               </div>
-              <div id="degree-show-list" class="flex flex-col gap-3xl"></div>
+              <!-- 畢業展年份對齊其他分頁：loadListInto 的年份 label（flex items-center + pt-sm）令年份文字落在 filter bar 下 手機12px/桌面16px，本 loader 的年份 h5 沒 top pad → 補回（實測對齊，pt-[12px] md:pt-sm） -->
+              <div id="degree-show-list" class="flex flex-col gap-3xl pt-[12px] md:pt-sm"></div>
             </div>
 
             <!-- Lectures Panel -->

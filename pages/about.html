@@ -18,6 +18,8 @@
   <main id="page-content">
     <!-- 視覺隱藏的頁面主標題（hero 是 SCCD logo 圖、無文字標題；給報讀器/SEO 地標）-->
     <h1 class="sr-only">關於學系 About — 實踐大學媒體傳達設計學系</h1>
+    <!-- 浮動 RGB 多邊形層（取代舊封鎖綫；SVG 由 floating-polygons.js 動態建）-->
+    <div id="about-polys" class="about-polys" aria-hidden="true"></div>
     <!-- Hero Section -->
     <section class="snap-zone h-screen relative overflow-hidden flex items-center justify-center">
       <div class="hero-logo-wrapper" style="width: 60%; max-height: 60vh;">
@@ -90,7 +92,7 @@
       <!-- Overview Section -->
       <!-- scroll-margin / 桌面高視窗 100vh 規則統一在 scroll-snap.css「about 100vh sections」區塊 -->
       <!-- pt-md：手機直向 strip 底與 Vision 文字盒間距（user 2026-07-13）；桌面/矮橫向各自歸零（預算不含 pt） -->
-      <section id="overview" class="snap-zone bg-white pt-md md:pt-0 pb-3xl md:pb-6xl relative z-10 overflow-visible">
+      <section id="overview" class="snap-zone pt-md md:pt-0 pb-3xl md:pb-6xl relative z-10 overflow-visible">
         <!-- Vision 節無可見封鎖綫標題（視覺是大段理念文字）→ 補視覺隱藏 h2 給報讀器大綱，與其他四節 h2 對齊 -->
         <h2 class="sr-only">Vision 理念</h2>
 
@@ -100,14 +102,14 @@
           <div class="grid-20">
             <!-- English Text (左半，cols 4-12) -->
             <div class="col-span-full md:col-start-5 md:col-span-8">
-              <p class="text-md font-bold text-black leading-snug">
+              <p class="text-md font-bold text-black">
                 <span data-overview-hl style="display: block; padding: 0.5em 0.6em;"><span data-overview-text style="display: block;">Department of Communications Design, Shih Chien University / SCCD is the first academic institution to establish the "Communications Design" department in the country. The teaching of the department takes design thinking, humanities, and aesthetics as the cornerstones, uses multidimensional platforms as the foundation, diverse media as the carrier, and integrates teaching experiments and design training such as animation, narrative video, interaction, performance, game, product, space. and environment. Supplemented by intensive international workshop and industry-academy cooperation in various fields, as well as overseas exchange opportunities. It aims to cultivate director-type creative talents who can integrate "media" as the vehicle, "design" as the method, emphasize "communications" as the core of human civilization, and adapt to the rapid changes of the era.</span></span>
               </p>
             </div>
 
             <!-- Chinese Text (右半，cols 13-20) -->
             <div class="col-span-full md:col-start-13 md:col-span-8">
-              <p class="text-md font-bold text-black leading-base">
+              <p class="text-md font-bold text-black" lang="zh-Hant">
                 <span data-overview-hl style="display: block; padding: 0.5em 0.6em;"><span data-overview-text style="display: block;">實踐大學媒體傳達設計學系為全國首創成立「媒體傳達設計」之學系。學系教學以設計思考、人文、美學為核心基石，運用多維度平台為基礎與多樣性媒材為載體，整合動畫、敘事影像、互動、展演、遊戲、商品、空間、環境等教學實驗與設計訓練，輔以密集舉辦之跨國工作與各領域產學合作，同時提供海外交換留學機會，旨在培育能整合「媒體」為乘載，「設計」為方法，強調「傳達」為人類文明之核心，得以適應時代快速變遷之總監型創作人才。</span></span>
               </p>
             </div>
@@ -117,16 +119,12 @@
       </section>
 
       <!-- Class + Works Section（兩個 sub-anchor 各自有零高度 anchor wrapper + 封鎖綫，皆 absolute 不吃 flow，不 sticky） -->
-      <section class="bg-white relative z-20 overflow-visible">
+      <section class="relative z-20 overflow-visible">
 
-      <!-- Class Anchor + 封鎖綫（零高度 positioned wrapper；scroll-margin 在 scroll-snap.css：矮視窗 100px / 高視窗 0 頂對齊）-->
+      <!-- Class Anchor（零高度；scroll-margin 在 scroll-snap.css：矮視窗 100px / 高視窗 0 頂對齊。
+           封鎖綫已移除（改浮動多邊形層），標題留 sr-only 保 heading 語意）-->
       <div id="class" class="snap-zone relative w-full pointer-events-none" style="height: 0;">
-        <div class="section-title-strip absolute left-0 right-0 flex items-center pointer-events-auto" style="top: 15vh; overflow: visible; z-index: 0; padding: var(--spacing-md) 0;" data-anchor="class">
-          <div class="section-title-inner flex gap-md" style="white-space: nowrap; padding: var(--spacing-md);" data-section-title>
-            <h2 class="text-3xl">Programs</h2>
-            <h2 class="text-3xl">學制</h2>
-          </div>
-        </div>
+        <h2 class="sr-only">Programs 學制</h2>
       </div>
 
       <!-- Class + Works Shared Area -->
@@ -223,10 +221,10 @@
               <div class="col-span-full order-2 md:col-start-5 md:col-span-6 md:order-1">
                 <div data-class-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
                   <div data-class-text>
-                  <p class="mb-xs division-text font-bold">Explore the relationship between self and the environment through animation creation, and then extend the care and reflection on culture, ecology and humanities.</p>
-                  <p class="mb-md division-text font-bold">透過動畫創作探討自我與環境的關係，進而延伸對文化、生態與人文之關懷與省思。</p>
-                  <p class="mb-xs division-text font-bold">The curriculum integrates 2D, 3D, stop-motion and experimental techniques, equipping students with both technical fluency and a distinctive visual storytelling voice.</p>
-                  <p class="division-text font-bold">課程結合 2D、3D、停格與實驗性手法，培養學生紮實的技術能力與獨特的視覺敘事觀點。</p>
+                  <p class="mb-en-zh-body division-text font-regular">Explore the relationship between self and the environment through animation creation, and then extend the care and reflection on culture, ecology and humanities.</p>
+                  <p class="mb-md division-text font-regular" lang="zh-Hant">透過動畫創作探討自我與環境的關係，進而延伸對文化、生態與人文之關懷與省思。</p>
+                  <p class="mb-en-zh-body division-text font-regular">The curriculum integrates 2D, 3D, stop-motion and experimental techniques, equipping students with both technical fluency and a distinctive visual storytelling voice.</p>
+                  <p class="division-text font-regular" lang="zh-Hant">課程結合 2D、3D、停格與實驗性手法，培養學生紮實的技術能力與獨特的視覺敘事觀點。</p>
                   </div>
                 </div>
               </div>
@@ -242,10 +240,10 @@
               <div class="col-span-full order-2 md:col-start-5 md:col-span-6 md:order-1">
                 <div data-class-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
                   <div data-class-text>
-                  <p class="mb-xs division-text font-bold">Explore the essence of new media interaction from multiple perspectives, furthermore, showing care and reflection on humanities, society, and the environment by these perspectives.</p>
-                  <p class="mb-md division-text font-bold">多面向探討新媒體互動的本質，並藉此對人文、社會、環境作進一步之關懷與省思。</p>
-                  <p class="mb-xs division-text font-bold">Students engage with interactive installations, virtual reality and generative design, blending art, code and design thinking through cross-disciplinary experimentation.</p>
-                  <p class="division-text font-bold">學生接觸互動裝置、虛擬實境與生成式設計等新興技術，透過跨領域實驗結合藝術、程式與設計思維。</p>
+                  <p class="mb-en-zh-body division-text font-regular">Explore the essence of new media interaction from multiple perspectives, furthermore, showing care and reflection on humanities, society, and the environment by these perspectives.</p>
+                  <p class="mb-md division-text font-regular" lang="zh-Hant">多面向探討新媒體互動的本質，並藉此對人文、社會、環境作進一步之關懷與省思。</p>
+                  <p class="mb-en-zh-body division-text font-regular">Students engage with interactive installations, virtual reality and generative design, blending art, code and design thinking through cross-disciplinary experimentation.</p>
+                  <p class="division-text font-regular" lang="zh-Hant">學生接觸互動裝置、虛擬實境與生成式設計等新興技術，透過跨領域實驗結合藝術、程式與設計思維。</p>
                   </div>
                 </div>
               </div>
@@ -261,10 +259,10 @@
               <div class="col-span-full order-2 md:col-start-5 md:col-span-6 md:order-1">
                 <div data-class-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
                   <div data-class-text>
-                  <p class="mb-xs division-text font-bold">The MDES program offers advanced research and creative practice opportunities, fostering innovation in communications design. Graduate students engage in cutting-edge projects that push the boundaries of design thinking and media expression.</p>
-                  <p class="mb-md division-text font-bold">碩士班提供進階研究與創作實踐機會，培養媒體傳達設計的創新能力。研究生參與前瞻性專案，推進設計思維與媒體表達的界限。</p>
-                  <p class="mb-xs division-text font-bold">Through individual mentorship and collaborative studios, students develop original projects that contribute to contemporary discourse in visual communication and media arts.</p>
-                  <p class="division-text font-bold">透過個別指導與協作工作室，學生發展具原創性的專案，為當代視覺傳達與媒體藝術論述做出貢獻。</p>
+                  <p class="mb-en-zh-body division-text font-regular">The MDES program offers advanced research and creative practice opportunities, fostering innovation in communications design. Graduate students engage in cutting-edge projects that push the boundaries of design thinking and media expression.</p>
+                  <p class="mb-md division-text font-regular" lang="zh-Hant">碩士班提供進階研究與創作實踐機會，培養媒體傳達設計的創新能力。研究生參與前瞻性專案，推進設計思維與媒體表達的界限。</p>
+                  <p class="mb-en-zh-body division-text font-regular">Through individual mentorship and collaborative studios, students develop original projects that contribute to contemporary discourse in visual communication and media arts.</p>
+                  <p class="division-text font-regular" lang="zh-Hant">透過個別指導與協作工作室，學生發展具原創性的專案，為當代視覺傳達與媒體藝術論述做出貢獻。</p>
                   </div>
                 </div>
               </div>
@@ -279,15 +277,8 @@
         <!-- Works View：#works 本體 = snap zone（桌面高視窗 = 100vh、鏡像 class 佈局；矮視窗/手機 = 自然高度、
              marker 行為同舊版）。100vh / scroll-margin / 封鎖綫 +100px 補償規則在 scroll-snap.css。 -->
         <div id="works" class="snap-zone relative w-full">
-          <!-- Works 封鎖綫（零高度 overlay，不吃 flow）-->
-          <div class="relative w-full pointer-events-none" style="height: 0;">
-            <div class="section-title-strip absolute left-0 right-0 flex items-center pointer-events-auto" style="top: 15vh; overflow: visible; z-index: 0; padding: var(--spacing-md) 0;" data-anchor="works">
-              <div class="section-title-inner flex gap-md" style="white-space: nowrap; padding: var(--spacing-md);" data-section-title>
-                <h2 class="text-3xl">Works</h2>
-                <h2 class="text-3xl">作品</h2>
-              </div>
-            </div>
-          </div>
+          <!-- Works 標題（封鎖綫已移除，留 sr-only 保 heading 語意）-->
+          <h2 class="sr-only">Works 作品</h2>
 
         <!-- Works Panels (playlist) - JS controls desktop visibility -->
         <!-- 不加 bg-white：讓封鎖綫的旋轉 tail 能穿過（比照 Class 狀態 class-info-panel 也是透明）-->
@@ -300,8 +291,8 @@
               <div class="col-span-full order-2 md:order-1 md:col-start-5 md:col-span-4">
                 <div data-works-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
                   <div data-works-text>
-                  <p class="text-s mb-xs font-bold">Foundation courses that develop core design principles, visual literacy, and technical skills essential for creative media practice.</p>
-                  <p class="text-s font-bold">培養核心設計原則、視覺素養與技術能力的基礎課程，為創意媒體實踐奠定根基。</p>
+                  <p class="text-s mb-en-zh-body font-regular">Foundation courses that develop core design principles, visual literacy, and technical skills essential for creative media practice.</p>
+                  <p class="text-s font-regular" lang="zh-Hant">培養核心設計原則、視覺素養與技術能力的基礎課程，為創意媒體實踐奠定根基。</p>
                   <div class="works-playlist-list" data-division="bfa"></div>
                   </div>
                 </div>
@@ -320,8 +311,8 @@
               <div class="col-span-full order-2 md:order-1 md:col-start-5 md:col-span-4">
                 <div data-works-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
                   <div data-works-text>
-                  <p class="text-s mb-xs font-bold">Animated works that explore storytelling, motion design, and experimental animation techniques.</p>
-                  <p class="text-s font-bold">探索敘事、動態設計與實驗動畫技術的動畫作品。</p>
+                  <p class="text-s mb-en-zh-body font-regular">Animated works that explore storytelling, motion design, and experimental animation techniques.</p>
+                  <p class="text-s font-regular" lang="zh-Hant">探索敘事、動態設計與實驗動畫技術的動畫作品。</p>
                   <div class="works-playlist-list" data-division="animation"></div>
                   </div>
                 </div>
@@ -340,8 +331,8 @@
               <div class="col-span-full order-2 md:order-1 md:col-start-5 md:col-span-4">
                 <div data-works-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
                   <div data-works-text>
-                  <p class="text-s mb-xs font-bold">Innovative media projects that integrate technology, interactivity, and creative storytelling.</p>
-                  <p class="text-s font-bold">融合技術、互動與創意敘事的創新媒體專案。</p>
+                  <p class="text-s mb-en-zh-body font-regular">Innovative media projects that integrate technology, interactivity, and creative storytelling.</p>
+                  <p class="text-s font-regular" lang="zh-Hant">融合技術、互動與創意敘事的創新媒體專案。</p>
                   <div class="works-playlist-list" data-division="creative-media"></div>
                   </div>
                 </div>
@@ -360,8 +351,8 @@
               <div class="col-span-full order-2 md:order-1 md:col-start-5 md:col-span-4">
                 <div data-works-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
                   <div data-works-text>
-                  <p class="text-s mb-xs font-bold">Advanced research and creative practice fostering innovation in communications design.</p>
-                  <p class="text-s font-bold">碩士班提供進階研究與創作實踐機會，培養媒體傳達設計的創新能力。</p>
+                  <p class="text-s mb-en-zh-body font-regular">Advanced research and creative practice fostering innovation in communications design.</p>
+                  <p class="text-s font-regular" lang="zh-Hant">碩士班提供進階研究與創作實踐機會，培養媒體傳達設計的創新能力。</p>
                   <div class="works-playlist-list" data-division="mdes"></div>
                   </div>
                 </div>
@@ -385,15 +376,10 @@
 
       <!-- Resources Section -->
       <!-- z-20：封鎖綫旋轉後上角會凸出 section 頂邊（~150px），z-10 會被上面 class(z-20) 的 bg-white 蓋掉 -->
-      <section id="resources" class="snap-zone bg-white relative z-20 overflow-visible pt-3xl">
+      <section id="resources" class="snap-zone relative z-20 overflow-visible pt-3xl">
 
-        <!-- Section Title Strip（封鎖綫，h1 字體，位於 section 頂部）-->
-        <div class="section-title-strip absolute left-0 right-0 flex items-center" style="top: 0; overflow: visible; z-index: 0; padding: var(--spacing-md) 0;" data-anchor="resources">
-          <div class="section-title-inner flex gap-md" style="white-space: nowrap; padding: var(--spacing-md);" data-section-title>
-            <h2 class="text-3xl">Resources</h2>
-            <h2 class="text-3xl">環境資源</h2>
-          </div>
-        </div>
+        <!-- Resources 標題（封鎖綫已移除，留 sr-only 保 heading 語意）-->
+        <h2 class="sr-only">Resources 環境資源</h2>
 
         <div class="site-container pt-3xl pb-lg md:pb-xl relative z-30">
           <div class="grid-20 relative z-10">
@@ -405,15 +391,10 @@
       </section>
 
       <!-- History / Timeline Section -->
-      <section id="history" class="snap-zone relative bg-white pb-2xl z-20" style="clip-path: inset(-100vh 0); padding-top: 100px;">
+      <section id="history" class="snap-zone relative pb-2xl z-20" style="clip-path: inset(-100vh 0); padding-top: 100px;">
 
-        <!-- Section Title Strip（封鎖綫，h1 字體，位於 section 頂部）-->
-        <div class="section-title-strip absolute left-0 right-0 flex items-center" style="top: 0; overflow: visible; z-index: 0; padding: var(--spacing-md) 0;" data-anchor="history">
-          <div class="section-title-inner flex gap-md" style="white-space: nowrap; padding: var(--spacing-md);" data-section-title>
-            <h2 class="text-3xl">History</h2>
-            <h2 class="text-3xl">沿革</h2>
-          </div>
-        </div>
+        <!-- History 標題（封鎖綫已移除，留 sr-only 保 heading 語意）-->
+        <h2 class="sr-only">History 沿革</h2>
 
         <!-- 桌面高度＝100vh − padding-top(100px) − pb-2xl(64px)＝section 連同 pb 正好一屏 → snap 往下直達 footer。
              手機由 timeline.js buildMobile 設 height:auto 覆蓋（#timeline-mobile 自然高），故此值只作用桌面。 -->

@@ -60,7 +60,7 @@
     <!-- 手機版 pt-4xl(80px)：點 nav btn 捲到此 section 時頂對齊 viewport 0（白底蓋住上方 hero）。
          pill 視覺頂 = pt + btn row py-md(24) = 104 > fixed header(92) 不被蓋（user 2026-07-10 從 6xl=128 收上來；
          四頁 nav btn section 統一此值：faculty/activities/admission/curriculum） -->
-    <section id="faculty-cards" class="snap-zone bg-white min-h-screen pt-4xl md:pt-0 md:h-screen md:overflow-hidden">
+    <section id="faculty-cards" class="snap-zone bg-white min-h-screen pt-4xl pb-2xl md:pt-0 md:pb-0 md:h-screen md:overflow-hidden">
       <div class="site-container">
         <!-- grid-20：桌面 nav 占 col 1-2（英文折行，可溢到 col 3 buffer）、卡片區 col 4-20；手機 flex-col 堆疊 -->
         <div class="flex flex-col gap-gutter md:grid md:grid-cols-20 inner-scroll-frame-grid">
@@ -124,7 +124,10 @@
       <!-- pb 改放捲動內容內部（#faculty-detail-sections pb-2xl）：容器本身不留 pb，捲到底時最後一列才不貼底邊（user 2026-08-07）
            pt：手機 = header 高（2026-07-09 user：開場 profile 直接釘在 header 下緣，不要捲動後才貼上去；
            原 +4rem 偏移已拆，profile/title sticky top 同步歸零） -->
-      <div class="w-full h-full px-container-padding pt-[var(--header-height,80px)] md:pt-4xl box-border relative flex flex-col overflow-y-auto md:overflow-hidden no-scrollbar">
+      <!-- overscroll-y-contain：手機在此容器內捲到頂/底時，不把捲動 chain 到背後 body（slide-in 開啟時背景 freeze）。
+           lightbox-shell 的 JS input-lock 擋 cancelable wheel/touch，但 iOS 慣性(momentum)事件 non-cancelable、
+           JS 擋不到 → 靠 overscroll-behavior 原生阻斷 chain（不動 body overflow，維持頁內 sticky 不跳）。 -->
+      <div class="w-full h-full px-container-padding pt-[var(--header-height,80px)] md:pt-4xl box-border relative flex flex-col overflow-y-auto md:overflow-hidden overscroll-y-contain no-scrollbar">
 
         <div class="faculty-detail-layout flex flex-col md:flex-row gap-xl md:gap-3xl flex-1 min-h-0 relative">
 
@@ -140,8 +143,8 @@
             <div class="mb-xl md:mb-0">
               <!-- 不可 whitespace-nowrap：長英文名（如 Howard Chao-Hao Yang）會撐爆左欄 22% 寬、溢出蓋到右欄 section 標題；
                    拿掉後名字在欄寬內自動換行（短名仍一行），rotate(4deg) 由 JS 套、換行後繞 left center 旋轉不受影響 -->
-              <h2 id="faculty-detail-name-en" class="text-xl mb-xs">Ta-Lih Shieh</h2>
-              <h2 id="faculty-detail-name-zh" class="text-xl">謝大立</h2>
+              <h2 id="faculty-detail-name-en" class="text-xl font-bold mb-en-zh-xl">Ta-Lih Shieh</h2>
+              <h2 id="faculty-detail-name-zh" class="text-xl font-bold" lang="zh-Hant">謝大立</h2>
               <!-- Titles (Founder 等)；多個 title 由 JS 動態 stack -->
               <div id="faculty-detail-titles" class="mt-lg"></div>
             </div>
