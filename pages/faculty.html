@@ -135,9 +135,12 @@
                桌面：image → name+titles 由上到下
                手機（2026-07-07 改版）：改橫排（小圖左、name+titles 右）＋ sticky 釘 header 下；佈局在 cards.css #faculty-profile-block -->
           <div id="faculty-profile-block" class="w-full md:w-[22%] md:self-start flex flex-col">
-            <!-- Image with rotation；不鎖死比例 → 圖片依後台實際上傳比例顯示（h-auto 自然高度、不裁切） -->
-            <div class="mb-2xl md:mb-2xl w-[50%] ml-xl md:w-full md:ml-0" style="transform: rotate(-4deg);">
-              <img id="faculty-detail-image" src="../images/S__6742028.jpg" alt="Faculty" class="w-full h-auto block">
+            <!-- Image with rotation；不鎖死比例 → 圖片依後台實際上傳比例顯示（h-auto 自然高度、不裁切）
+                 relative overflow-clip = 照片↔線框輪替的 clip-reveal 遮罩（旋轉在此層 → clip 跟著旋轉角、角不裁）：
+                 線框墊底恆顯不動、照片上層滑出/滑入「蓋上去」（2026-08-16 由 clip-path wipe 改；容器高恆=照片高，不再隨換圖跳動） -->
+            <div class="mb-2xl md:mb-2xl w-[50%] ml-xl md:w-full md:ml-0 relative overflow-clip" style="transform: rotate(-4deg);">
+              <img id="faculty-detail-wireframe" src="" alt="" aria-hidden="true" class="absolute inset-0 w-full h-full object-contain theme-invert hidden">
+              <img id="faculty-detail-image" src="../images/S__6742028.jpg" alt="Faculty" class="w-full h-auto block relative z-[1]">
             </div>
             <!-- Name + Titles -->
             <div class="mb-xl md:mb-0">
@@ -150,11 +153,16 @@
             </div>
           </div>
 
-          <!-- Right: Details — 獨立 scroll wrapper（桌面才生效，手機隨外層 panel scroll） -->
-          <!-- min-h-0 解開 flex 子元素 implicit min-content；list-scroll 套全站 inline scrollbar 樣式 -->
-          <div class="flex-1 flex flex-col md:min-h-0 md:overflow-y-auto list-scroll">
-            <div id="faculty-detail-sections" class="flex flex-col gap-2xl pb-2xl">
-              <!-- Sections will be dynamically generated -->
+          <!-- Right: Details — 桌面/矮橫向：lead(職級/職稱)當非捲動 header 釘頂、下方 sections 才是獨立 scroll 區
+               （右側 scrollbar 從 lead 下方才起、不含 sticky lead；user 2026-08-16）；手機隨外層 panel scroll -->
+          <div id="faculty-detail-right" class="flex-1 flex flex-col md:min-h-0">
+            <!-- lead header：桌面 lead 渲染於此當非捲動釘頂；手機/矮橫向空（lead 在 profile 左欄）→ empty:hidden 不佔位不留 gap。md:mb-sm = lead↔Education 1rem -->
+            <div id="faculty-detail-lead" class="empty:hidden md:mb-sm"></div>
+            <!-- min-h-0 解開 flex 子元素 implicit min-content；list-scroll 套全站 inline scrollbar 樣式 -->
+            <div class="flex-1 md:min-h-0 md:overflow-y-auto list-scroll">
+              <div id="faculty-detail-sections" class="flex flex-col gap-2xl pb-2xl">
+                <!-- Sections will be dynamically generated -->
+              </div>
             </div>
           </div>
 

@@ -42,7 +42,7 @@
         </div>
       </div>
       <!-- 桌面版（≥ 768px）：
-           1) .hero-rand-grid 只包 banner（單一元素 → randomizeHeroLayout 仍會給它隨機 corner+rotation，clip-path reveal 不變）
+           1) .hero-rand-grid 只包 banner（單一元素 → randomizeHeroLayout 仍會給它隨機 corner+rotation；進場＝img 在 banner 遮罩內滑入 reveal，見 hero-animation.js）
            2) 字卡是 grid 同層 sibling 用 absolute 左下定位（不在 grid 內 → 不吃 random placement，固定左下） -->
       <div class="hero-rand-grid">
         <div class="hero-banner">
@@ -66,12 +66,19 @@
          id 給 variables.css 手機 grid-20 column-gap:0 修正用（19 個 gap 撐爆容器 → 內容溢出右緣，同 about 修法） -->
     <section id="dsd-desc-section" class="snap-zone bg-white relative" style="min-height: 100vh;">
       <div class="site-container w-full pt-6xl pb-3xl">
-        <!-- Events List：活動清單（時間 / 活動 / 地點 / 城市 四欄 1:2:2:1），由 JS 依 data.events 動態渲染；無 events 則整塊 hidden -->
+        <!-- Events 區塊：桌面左半＝畢展 KV（直式 poster），右半＝活動清單（標題一 row → 日期:地點 1:1 → detail row，城市在地點下方）。
+             無 events → 整塊 hidden；無 data.poster → KV 不渲染但 list 仍靠右（user 2026-08-17）。 -->
         <!-- 文字一律 p1；活動/地點/城市顯示中英雙語（時間僅顯示一行） -->
         <div id="events-section" class="grid-20 mt-4xl md:mt-0 hidden">
-          <div class="col-span-full md:col-start-5 md:col-span-16">
+          <!-- 清單：桌面左半（col 5-13，避開 col 1-4 sticky 資訊卡）；直式海報改靠右上角後清單再擴一欄（user 2026-08-18「poster 對齊右上角、讓 events 區更寬」）；桌面內捲＋右側 scrollbar -->
+          <div class="col-span-full md:col-start-5 md:col-span-9">
             <!-- Data rows（JS render） -->
-            <div id="events-list"></div>
+            <div id="events-list" class="dsd-events-scroll list-scroll"></div>
+          </div>
+          <!-- KV：桌面 only（.dsd-events-kv 預設 display:none，JS 有 poster 時加 .has-kv）；
+               poster 容器（col 14-20，約等於直式海報自然寬），直式圖靠右上角（margin-left:auto）＝右緣貼齊全站內容右緣（user 2026-08-18） -->
+          <div id="events-kv" class="dsd-events-kv md:col-start-14 md:col-span-7">
+            <img id="events-kv-img" src="" alt="" class="dsd-events-kv-img">
           </div>
         </div>
       </div>
@@ -79,34 +86,40 @@
 
     <!-- Sticky Info Card：scroll 進入 description section pt 之後出現、釘左側
          結構沿用 anchor-nav-inner pattern：外 .sticky-chip 透明 wrapper，內 .sticky-chip-inner span 撐底色與 padding
-         - year chip（text-lg）
+         - year chip（text-s，accent 底跟 title 同色 cardColor，absolute 疊在 title chip 上方＝courses program bar 類別 label 定位）
          - title chip（text-lg，英上中下同一張）
-         - branch chip（text-s，英上中下同一張，依當前 event 切換內容）
+         - events nav（text-s 一 chip/event，全部恆顯：current accent 高亮釘頂、看過的往上收起裁掉＝以 about nav btn 為主，2026-08-18）
          動畫：clip-path 由上往下 reveal、branch 切換收→換字→展
          範圍：description section pt-6xl 後 → event-galleries-root bottom 前
 
          版面錨點：
          - 外層 #sticky-info-card position:fixed top:50%（不 translateY） — 直接是 title group 上緣對齊 viewport center
          - .sticky-title-group flex-col 包 title chip，translateY(-50%) 自己置中
-         - #sticky-branch-chip 改 position:absolute top:100%（相對 title-group），脫離 flex flow
-           → 加入 / 移除 branch chip 不會影響 title group 的視覺位置（之前用 flex stack 改變 group 高度，
+         - #sticky-year-chip / #sticky-events-nav 皆 position:absolute（year bottom:100% 疊 title 上、events nav top:100% 疊 title 下），脫離 flex flow
+           → 加入 / 移除 副 chip 不會影響 title group 的視覺位置（之前用 flex stack 改變 group 高度，
               translateY(-50%) 套整塊讓 title 上下跳） -->
     <div id="sticky-info-card" class="hidden md:block fixed pointer-events-none"
          style="top: 200px; left: var(--container-padding, 60px); z-index: 20; opacity: 0; visibility: hidden;">
       <div class="sticky-title-group relative flex flex-col items-start" style="gap: 0.6rem; width: max-content;">
+        <!-- year chip：釘 title chip 上方（absolute bottom:100%，脫離 flex flow → 不影響 title group 高度，同 branch chip 手法）；
+             accent 底跟 title 同 cardColor（JS 設）＝ courses program bar「類別 label 疊在名稱上方」的定位 pattern（user 2026-08-18） -->
+        <div id="sticky-year-chip" class="sticky-chip absolute left-0" style="bottom: 100%; margin-bottom: 0.6rem;">
+          <span id="sticky-year" class="sticky-chip-inner text-s font-bold"></span>
+        </div>
         <div id="sticky-title-chip" class="sticky-chip">
           <span class="sticky-chip-inner text-lg font-bold">
             <span id="sticky-title-en" class="block"></span>
             <span id="sticky-title" class="block"></span>
           </span>
         </div>
-        <!-- branch chip absolute 釘 title group 底下，不影響 group 高度 → title 位置穩定
-             en/zh 各強制單行（whitespace-nowrap）— 視覺契約：分支名 = 一行 EN + 一行 ZH，不可 wrap -->
-        <div id="sticky-branch-chip" class="sticky-chip absolute left-0" style="top: 100%; margin-top: 1rem;">
-          <span class="sticky-chip-inner text-s font-bold">
-            <span id="sticky-branch-en" class="block"></span>
-            <span id="sticky-branch" class="block"></span>
-          </span>
+        <!-- events nav：釘 title chip 下方（absolute top:100% → 脫離 flex flow、不影響 title group 高度、title 位置穩定）。
+             以 about nav btn 為主（user 2026-08-18）：全部 event chip 恆顯、current accent 高亮並「對齊頂部」、看過的舊 chip「往上收起」被裁掉。
+             機構：window clip（overflow:clip + clip-path 12px buffer，見 hero.css）只露 title 下方那條窗；內層 track
+             translateY(-current 的 offsetTop) 把 current 推到窗頂，它上面的（已看過）滑出窗頂被 12px buffer 裁、下面的留在窗內。
+             ⚠️ 不用 overflow:hidden（0 buffer 會把旋轉的 current chip 角切掉）；旋轉容忍靠 12px buffer + track gap 1.5rem。
+             JS 依 .event-gallery-section 動態填 chip、無 events 隱藏。pointer-events:none 讓空白窗不擋點擊，chip 自身 auto。 -->
+        <div id="sticky-events-nav" class="absolute left-0" style="top: 100%; margin-top: 1rem; display: none; pointer-events: none;">
+          <div id="sticky-events-track" class="flex flex-col items-start"></div>
         </div>
       </div>
     </div>
@@ -206,13 +219,13 @@
              - chip 預設 clip-path 隱藏，hover 時 stagger reveal（prev 從左到右、next 從右到左） -->
         <div id="prev-labels" class="absolute flex flex-col items-start pointer-events-none" style="bottom: 20%; left: 5vw; gap: 1.5rem; z-index: 5;">
           <p id="prev-year" class="text-xl font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: left center; clip-path: inset(0 100% 0 0); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></p>
-          <p id="prev-title-en" class="dshow-next-title text-2xl font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: left center; clip-path: inset(0 100% 0 0); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></p>
-          <p id="prev-title" class="dshow-next-title text-2xl font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: left center; clip-path: inset(0 100% 0 0); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></p>
+          <p id="prev-title-en" class="dshow-next-title text-2xl font-bold" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: left center; clip-path: inset(0 100% 0 0); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></p>
+          <p id="prev-title" class="dshow-next-title text-2xl font-bold" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: left center; clip-path: inset(0 100% 0 0); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></p>
         </div>
         <div id="next-labels" class="absolute flex flex-col items-end pointer-events-none" style="top: 20%; right: 5vw; gap: 1.5rem; z-index: 5;">
           <p id="next-year" class="text-xl font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: right center; clip-path: inset(0 0 0 100%); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></p>
-          <p id="next-title-en" class="dshow-next-title text-2xl font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: right center; clip-path: inset(0 0 0 100%); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></p>
-          <p id="next-title" class="dshow-next-title text-2xl font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: right center; clip-path: inset(0 0 0 100%); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></p>
+          <p id="next-title-en" class="dshow-next-title text-2xl font-bold" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: right center; clip-path: inset(0 0 0 100%); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></p>
+          <p id="next-title" class="dshow-next-title text-2xl font-bold" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: right center; clip-path: inset(0 0 0 100%); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></p>
         </div>
       </div>
 

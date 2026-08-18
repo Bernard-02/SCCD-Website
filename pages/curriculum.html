@@ -117,14 +117,16 @@
              手機：inner overflow-y-auto 整段捲、title sticky 黏頂（見 .courses-detail-title-sticky）。
              pb 改放捲動內容內部（desc-wrapper）：容器不留 pb、捲到底最後一行才不貼底邊（user 2026-08-07） -->
         <!-- overscroll-y-contain：手機捲到頂/底時不 chain 到背後 body（同 faculty slide-in；iOS momentum non-cancelable、JS lock 擋不到，靠原生 overscroll-behavior 阻斷） -->
-        <div class="courses-detail-inner w-full h-full px-container-padding flex flex-col overflow-y-auto md:overflow-hidden overscroll-y-contain no-scrollbar bg-inherit">
+        <!-- 桌面：pt/間距收在 wrapper（md:pt-4xl 同 faculty container、md:gap-lg=2rem title↔desc 距），title 不自帶 padding；
+             手機/矮橫向不動（title 自帶 pt/pb 是 sticky 遮罩的一部分，見 courses.css / landscape.css counter-override） -->
+        <div class="courses-detail-inner w-full h-full px-container-padding md:pt-4xl flex flex-col md:gap-lg overflow-y-auto md:overflow-hidden overscroll-y-contain no-scrollbar bg-inherit">
           <!-- title 區：桌面固定（flex-shrink:0，不捲）；手機 sticky 黏頂 -->
           <div class="courses-detail-title-sticky">
             <h2 id="courses-detail-title-en" class="courses-detail-title-en text-xl font-bold mb-en-zh-xl"></h2>
             <h2 id="courses-detail-title-zh" class="courses-detail-title-zh text-xl font-bold mb-0" lang="zh-Hant"></h2>
           </div>
           <!-- desc：桌面成獨立 scroll box（md:flex-1 撐滿剩餘高 + md:overflow-y-auto + list-scroll 細黑 scrollbar + md:pr-md 留 scrollbar 間距），手機隨 inner 整段捲 -->
-          <div class="courses-detail-desc-wrapper md:mt-md md:flex-1 md:min-h-0 md:overflow-y-auto list-scroll md:pr-md pb-[var(--container-padding)] md:pb-2xl">
+          <div class="courses-detail-desc-wrapper md:flex-1 md:min-h-0 md:overflow-y-auto list-scroll md:pr-md pb-[var(--container-padding)] md:pb-2xl">
             <p id="courses-detail-desc-en" class="courses-detail-desc-en text-s mb-en-zh-body"></p>
             <p id="courses-detail-desc-zh" class="courses-detail-desc-zh text-s" lang="zh-Hant"></p>
           </div>

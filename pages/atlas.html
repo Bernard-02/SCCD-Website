@@ -59,11 +59,14 @@
 
     <!-- 右下角細節面板（僅標題 + 説明，無 tag；城市不顯示卡片）
          放 #atlas-main 外面：#atlas-main z-index:0 是 stacking context，放裡面整個子樹被壓在 z=0 層、
-         detail 自身 z-index 再高都蓋不過 mode3 鉛筆面板（9998）→ 搬出來 + z-index 9999 才蓋得過 -->
-    <aside id="atlas-detail" aria-live="polite">
-      <div class="atlas-detail-name" data-atlas-detail-name></div>
-      <div class="atlas-detail-desc" data-atlas-detail-desc></div>
-    </aside>
+         detail 自身 z-index 再高都蓋不過 mode3 鉛筆面板（9998）→ 搬出來 + z-index 9999 才蓋得過
+         mask（2026-08-16 進場由 clip-path 改 clip-reveal）：定位/旋轉/遮罩在 mask、卡片本體在內滑動 -->
+    <div id="atlas-detail-mask">
+      <aside id="atlas-detail" aria-live="polite">
+        <div class="atlas-detail-name" data-atlas-detail-name></div>
+        <div class="atlas-detail-desc" data-atlas-detail-desc></div>
+      </aside>
+    </div>
   </main>
 
   <!-- Footer：atlas 不顯示 footer，但容器必須存在 —— first-load 為 atlas 時 initFooter() 才找得到，

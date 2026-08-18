@@ -158,8 +158,10 @@
                   </div>
                 </div>
               </div>
-              <!-- 畢業展年份對齊其他分頁：loadListInto 的年份 label（flex items-center + pt-sm）令年份文字落在 filter bar 下 手機12px/桌面16px，本 loader 的年份 h5 沒 top pad → 補回（實測對齊，pt-[12px] md:pt-sm） -->
-              <div id="degree-show-list" class="flex flex-col gap-3xl pt-[12px] md:pt-sm"></div>
+              <!-- 畢業展 list 統一為斑馬紋（user 2026-08-17）：卡片相連無間距（移除 gap-3xl/pt）、box 貼齊 filter 下緣
+                   ＝第一列與其他分頁齊；年份 md:pt-sm、內容 .list-item px-sm py-sm 在 loader 內對齊 loadListInto。
+                   斑馬灰白交替由 loader 全域標記 .list-item-zebra（CSS 已 scope 在 #activities-content-section）。 -->
+              <div id="degree-show-list" class="flex flex-col"></div>
             </div>
 
             <!-- Lectures Panel -->
