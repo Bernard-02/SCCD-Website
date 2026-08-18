@@ -459,12 +459,12 @@
   }
 
   /* Title 區（仿 faculty slide-in 右欄：title 固定、desc 獨立 box 捲動）
-     - 桌面：inner md:overflow-hidden 不捲 → 本元素是固定 flex child（flex-shrink:0 不被 desc box 擠掉），
-       sticky/z/bg 遮罩在桌面失效（inner 不捲）但無害；padding-top 撐出 header 避讓（= faculty inner md:pt-4xl 128px）
+     - 桌面（2026-08-16 改）：pt 移到 wrapper（inner md:pt-4xl，同 faculty container）、title↔desc 間距改
+       inner md:gap-lg（2rem），title 本身不留 padding；sticky/z/bg 遮罩在桌面失效（inner 不捲）但無害
      - 手機：inner overflow-y-auto 整段捲，本元素 sticky top:0 黏頂；padding-top 收進自身當遮罩
        （scroll container 有 pt 會讓 sticky 黏在 content-box 頂、上方留縫露 desc，故 pt 放這不放 inner），
-       bg inherit 繼承 panel accent 色遮住下方 desc；mb-xl back btn 在 pt 之後第一個位置不變
-     - padding-bottom 給 title ↔ desc 視覺呼吸；RWD 之後再統一調整手機行為 */
+       bg inherit 繼承 panel accent 色遮住下方 desc；padding-bottom 給 title ↔ desc 視覺呼吸
+     - 矮橫向：landscape.css counter-override 回手機式（pt 96 + pb md、inner pt/gap 歸零） */
   .courses-detail-title-sticky {
     position: sticky;
     top: 0;
@@ -478,7 +478,8 @@
   }
   @media (min-width: 768px) {
     .courses-detail-title-sticky {
-      padding-top: var(--spacing-4xl);
+      padding-top: 0;
+      padding-bottom: 0;
     }
   }
 

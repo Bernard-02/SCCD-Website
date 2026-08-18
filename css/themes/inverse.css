@@ -54,17 +54,14 @@ body.mode-inverse .bg-gray-9 {
 }
 
 /* ===== Typography ===== */
+/* :not(.timeline-year-item)：該 class 的 DOM 已隨舊桌面 timeline 卡片 view 移除（2026-08-16 確認），
+   但 :not() 是特異度配重——hero.css / color.css 多處註解以 (0,3,1) 計算 cascade，拆掉會降級破疊層，保留 */
 body.mode-inverse .text-black:not(.timeline-year-item) {
   color: white !important;
 }
 
 body.mode-inverse .text-gray-6 {
   color: var(--gray-5) !important;
-}
-
-/* ===== Timeline Lines ===== */
-body.mode-inverse .timeline-sticky-container .bg-black {
-  background-color: white !important;
 }
 
 /* ===== Borders ===== */
@@ -345,9 +342,11 @@ body.mode-inverse .anchor-nav-btn:not(.active) .anchor-nav-inner {
   color: rgba(255, 255, 255, 0.5) !important;
 }
 
-/* About 頁專用 override：底色不透明、文字半透明 theme-fg（對齊 standard mode 的 about 處理） */
+/* About 頁專用 override：底色不透明、文字半透明 theme-fg（對齊 standard mode 的 about 處理）
+   #sticky-events-nav = degree-show-detail events nav 同套（2026-08-18） */
 body.mode-inverse #anchor-nav .anchor-nav-btn:not(.active) .anchor-nav-inner,
-body.mode-inverse #mobile-anchor-strip .anchor-nav-btn:not(.active) .anchor-nav-inner {
+body.mode-inverse #mobile-anchor-strip .anchor-nav-btn:not(.active) .anchor-nav-inner,
+body.mode-inverse #sticky-events-nav .anchor-nav-btn:not(.active) .anchor-nav-inner {
   background-color: rgba(0, 0, 0, 1) !important;
   color: rgba(255, 255, 255, 0.5) !important;
 }

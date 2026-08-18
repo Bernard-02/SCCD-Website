@@ -226,10 +226,23 @@ body.mode-color #atlas-main { background-color: var(--theme-bg); }
 }
 
 /* ── 右下角細節面板 ─────────────────────────────── */
-#atlas-detail {
+/* mask（2026-08-16 進場由 clip-path 改 clip-reveal）：定位/旋轉/遮罩/z-index 載體，卡片本體在內
+   x/yPercent 滑入滑出。旋轉在 mask → clip 在旋轉後 local box 生效、跟著轉不切角（同 faculty mask）。
+   fixed + width auto = shrink-to-fit 貼卡片尺寸（卡片自帶 min/max-width/height），免明算尺寸。 */
+#atlas-detail-mask {
   position: fixed;
   right: 32px;
   bottom: 32px;
+  overflow: clip;
+  pointer-events: none; /* 繼承給卡片 */
+  transform: rotate(var(--atlas-detail-rot, 0deg));
+  transform-origin: center center;
+  /* 9999 > mode3 鉛筆面板 9998（user 2026-07-16：hover detail 被鉛筆遮住）；元素必須在 #atlas-main
+     （z-index:0 stacking context）外面此值才生效（見 pages/atlas.html） */
+  z-index: 9999;
+}
+
+#atlas-detail {
   max-width: 380px;
   min-width: 240px;
   /* padding 對齊全站 nav btn 標準（.anchor-nav-inner: 6px 8px 5px；user 2026-06-23） */
@@ -239,22 +252,16 @@ body.mode-color #atlas-main { background-color: var(--theme-bg); }
   /* bg / color 由 atlas.js 在 showDetail 設成 inline 三原色 + 黑字（每次隨機） */
   background: var(--theme-bg, #ffffff);
   color: var(--theme-fg, #000000);
-  pointer-events: none;
-  transform: rotate(var(--atlas-detail-rot, 0deg));
-  transform-origin: center center;
-  /* clip-path 由 atlas.js GSAP 驅動（4 方向隨機 reveal / hide；切換內容時 clip-out 舊 → 換 → clip-in 新）
-     預設 inset(100% 0 0 0) 完全隱藏，避免首次 hover 前閃現 */
-  clip-path: inset(100% 0% 0% 0%);
-  /* 不 transition bg-color：bg 切換發生在 clip-out 完成的 onComplete（panel 完全隱藏的瞬間），
-     若加 transition 會在 clip-in 期間看到 bg 還在過渡（藍→紅 中間色 = 紫色殘留） */
-  /* 9999 > mode3 鉛筆面板 9998（user 2026-07-16：hover detail 被鉛筆遮住）；元素必須在 #atlas-main
-     （z-index:0 stacking context）外面此值才生效（見 pages/atlas.html） */
-  z-index: 9999;
+  /* 滑動由 atlas.js GSAP 驅動（x/yPercent 4 方向隨機 reveal / hide）；
+     預設 translateY(110%) 完全隱藏（±110 過衝防 dpr hairline），避免首次 hover 前閃現 */
+  transform: translateY(110%);
+  /* 不 transition bg-color：bg 切換發生在收合完成的 onComplete（panel 完全隱藏的瞬間），
+     若加 transition 會在滑入期間看到 bg 還在過渡（藍→紅 中間色 = 紫色殘留） */
 }
 
 /* mode3：右下角有 mode-color-panel 浮鈕（收起=鉛筆 48 / 展開=色輪 104），hover 說明卡上移至其上方避讓。
    --mcp-footprint 由 mode-color-panel.js 依收起/展開發佈（已含底部 32 間距）；+16 呼吸。桌面/手機通用（色輪尺寸不同、footprint 亦不同）。 */
-body.mode-color #atlas-detail {
+body.mode-color #atlas-detail-mask {
   bottom: calc(var(--mcp-footprint, 80px) + 16px);
   transition: bottom var(--dur-base) ease;
 }
@@ -958,10 +965,11 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
     font-size: 0.625rem; /* 10px — rem 可縮放 */
     max-width: 150px;
   }
-  #atlas-detail {
+  #atlas-detail-mask {
     right: 16px;
-    bottom: 16px;
-    left: auto;              /* 右下角、不全寬（user 2026-07-09 星雲說明卡放右下，同桌面）；原 left:16 全寬底部退役 */
+    bottom: 16px;            /* 右下角、不全寬（user 2026-07-09 星雲說明卡放右下，同桌面）；原 left:16 全寬底部退役 */
+  }
+  #atlas-detail {
     max-width: 70vw;         /* 手機右下角限寬，不佔滿整列 */
     padding: 10px 12px;
   }

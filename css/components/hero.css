@@ -254,15 +254,16 @@
   }
 
   /* Degree show detail sticky info card chip — 沿用 anchor-nav-inner pattern
-     外 .sticky-chip：transparent wrapper，吃 clip-path reveal + rotation；中性 transform-origin: left center
+     外 .sticky-chip：transparent wrapper，吃 clip-reveal（滑動＋遮罩）+ rotation；中性 transform-origin: left center
      內 .sticky-chip-inner：inline-flex column，吃 padding + accent bg + text color
-     reveal 動畫：clip-path 由上往下露出；四邊留 -12px buffer（仿 atlas .atlas-layout-inner）讓 ref btn hover rotate 角不被切，
-     wiped（hidden）邊用 calc(100% + 12px) 同帶 buffer。JS HIDDEN/SHOWN 同值（setupStickyAndHeroChips） */
+     reveal 動畫：hero 式 clip-reveal＝translate 滑入（獨立屬性，與 inline rotate 共存）＋同步 clip-path 遮罩
+       （同全站 nav chip navChipHidden，2026-07-16 起）；四邊留 -12px buffer（仿 atlas .atlas-layout-inner）讓
+       ref btn hover rotate 角不被切，wiped（hidden）邊用 calc(100% + 12px) 同帶 buffer。JS 值見 setupStickyAndHeroChips */
   .sticky-chip {
     display: inline-block;
     transform-origin: left center;
     clip-path: inset(-12px -12px calc(100% + 12px) -12px);
-    transition: clip-path var(--dur-medium) var(--ease-wipe);
+    transition: clip-path var(--dur-medium) var(--ease-wipe), translate var(--dur-medium) var(--ease-wipe);
   }
   .sticky-chip-inner {
     display: inline-flex;
@@ -272,27 +273,53 @@
     color: #000;
     line-height: 1.15;
   }
-  /* branch chip（p1 雙語）行距對齊 anchor-nav-inner / nav-link 的 base 行距，
-     避免 sticky-chip-inner 預設 1.15 過緊讓中英太貼；
-     英中距同 nav chip 走 flex gap 的 s 字級 token（text-s → 2px，user 2026-08-13） */
-  #sticky-branch-chip .sticky-chip-inner {
+  /* events nav chip（text-s 雙語）行距對齊 anchor-nav-inner base 行距（同原 branch chip）；英中距吃 s 字級 token（2px）；
+     active/inactive 換色走 micro transition */
+  .sticky-event-chip .sticky-chip-inner {
     line-height: var(--line-height-base);
     gap: var(--space-en-zh-s);
+    transition: background var(--dur-micro) ease, color var(--dur-micro) ease;
+  }
+  /* inactive/active/hover 換色不在這裡寫：chip 掛 .anchor-nav-btn/.anchor-nav-inner 直接吃 about nav btn
+     整組三 mode 規則（navigation.css #sticky-events-nav scope 白底 / inverse.css 黑底 / color.css bg=theme-bg 跟 hue）；
+     active 仍由 JS inline 設 accent 底（mode3 被 color.css strict B/W !important 蓋掉＝同 about 行為，user 2026-08-18） */
+  /* 每顆 chip wrapper：沿用 .sticky-chip-inner 撐 padding/雙語，wrapper 只負責旋轉 + 可點；不吃 .sticky-chip 的 clip 藏定位（chip 恆顯、reveal 靠外層 window）*/
+  .sticky-event-chip {
+    display: inline-block;
+    transform-origin: left center;
+    pointer-events: auto;
+    cursor: var(--cursor-pointer);
+    transition: transform var(--dur-fast) var(--ease-standard);
+  }
+  /* window：reveal 用 clip-path + translate 滑入（同原 branch chip）。裁掉「往上收起的舊 chip」靠 clip-path 的
+     SHOWN buffer（inset(-12px) = 12px outset）＝旋轉角能凸出 12px 不被切；不再用 overflow:hidden（0 buffer 會把
+     current chip 旋轉角在窗頂切掉，見 user 2026-08-18 回報）。overflow:clip + 同 12px margin 當保險（clip-path 若失效仍裁）。
+     ⚠️ 舊 chip 要被裁在 12px buffer 之外 → track gap 必須 > buffer + 旋轉下擺量（見下 gap 1.5rem） */
+  #sticky-events-nav {
+    overflow: clip;
+    overflow-clip-margin: 0.75rem;
+    transition: clip-path var(--dur-medium) var(--ease-wipe), translate var(--dur-medium) var(--ease-wipe);
+  }
+  /* track：flex-col chip 列，translateY 把 current 推到窗頂（0.4s wipe），上面已看過的滑出被 12px clip buffer 裁掉。
+     gap 1.5rem（原 0.6rem）：前一顆 chip 底緣要落在 12px buffer 之外才裁得掉，同時容納自身旋轉下擺（~10px）→ 24px 才夠。 */
+  #sticky-events-track {
+    gap: 1.5rem;
+    transition: transform var(--dur-medium) var(--ease-wipe);
   }
   /* title chip 是 text-lg → 英中距吃 lg 字級 token（4px，user 2026-08-13） */
   #sticky-title-chip .sticky-chip-inner {
     gap: var(--space-en-zh-lg);
   }
-  /* sticky 標題 / 分支 chip 寬度 = nav 區寬（grid-20 的 cols 1-4 = col-span-4；內容在 col-5）。
-     chip 是 fixed 在 col-1 起，max-width 設成 col-span-4 寬 → 長名 wrap 不會越過去蓋 col-5 內容，
-     chip 右緣停在 col-4 末、與 col-5 間自然留一個 gutter。比照 nav btn 的 col-span-4 區域，不再用 hardcode 14rem。
-     col-span-4 寬 = 4×欄寬 + 3×gutter；欄寬 = (內容區 100vw−2padding − 19 gutter)/20 → 化簡 = (…)/5 + 3 gutter。桌面 only。 */
+  /* sticky 標題 / 分支 chip 寬度 = grid-20 的 cols 1-3 = col-span-3（內容在 col-5）。
+     chip 是 fixed 在 col-1 起，max-width 設成 col-span-3 寬 → 長名 wrap，chip 右緣停在 col-3 末、
+     與 col-5 間留出 col-4 一整欄當呼吸空間（user 2026-08-18「不要太靠近 col-5、留點空間」；原 col-span-4 只留 1 gutter 太擠）。
+     col-span-3 寬 = 3×欄寬 + 2×gutter；欄寬 = (內容區 100vw−2padding − 19 gutter)/20 → = (…)×3/20 + 2 gutter。桌面 only。 */
   #sticky-title-chip .sticky-chip-inner,
-  #sticky-branch-chip .sticky-chip-inner {
+  .sticky-event-chip .sticky-chip-inner {
     /* width:max-content → chip 撐到「最長一行」自然寬（不會被 inline-flex column 縮成 min-content=逐字斷行）；
-       max-width 才把上限鎖在 col-span-4，超過才 wrap。少了 max-content 會逐字換行（Degree/Show/Forum…）。 */
+       max-width 才把上限鎖在 col-span-3，超過才 wrap。少了 max-content 會逐字換行（Degree/Show/Forum…）。 */
     width: max-content;
-    max-width: calc((100vw - 2 * var(--container-padding) - 19 * var(--spacing-gutter)) / 5 + 3 * var(--spacing-gutter));
+    max-width: calc((100vw - 2 * var(--container-padding) - 19 * var(--spacing-gutter)) * 3 / 20 + 2 * var(--spacing-gutter));
   }
 
   /* Degree show detail 返回按鈕 — 沿用 .sticky-chip 結構（clip-path reveal 由上往下，與 sticky title chip 同節奏）

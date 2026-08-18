@@ -1011,12 +1011,9 @@ body.mode-color .tl-icon-btn-inner {
   position: relative;
   /* 正方形：高 = 可見矩形寬（7 欄寬 − 24px 讓鈕位，同 .tl-list-rect right:24）。
      calc 重算 20-col 欄寬（欄數改動要同步 grid-column 與這裡的 7/6）。
-     min() 保險：極寬矮螢幕方形高過 timeline-area(100vh−164) − bottom(32) − 上緣留 40 時 clamp 進畫面（犧牲正方形）。
+     純以欄寬決定、不再 min() clamp 進視窗（user 2026-08-16：正方形優先於極寬矮螢幕的保險）。
      手機/矮橫向由下方共用 block 的 height:100% 覆寫，不吃這條。 */
-  height: min(
-    calc((100vw - 2 * var(--container-padding) - 19 * var(--spacing-gutter)) / 20 * 7 + 6 * var(--spacing-gutter) - 24px),
-    calc(100vh - 236px)
-  );
+  height: calc((100vw - 2 * var(--container-padding) - 19 * var(--spacing-gutter)) / 20 * 7 + 6 * var(--spacing-gutter) - 24px);
 }
 
 .tl-list-rect {
@@ -1048,15 +1045,15 @@ body.mode-color .tl-icon-btn-inner {
   align-items: start;
 }
 .tl-list-year-row + .tl-list-year-row { margin-top: var(--spacing-xl); }
-.tl-list-year { line-height: 1; }
 
 /* 每筆說明：EN 左 / ZH 右；BFA/MDES 小標跨欄置頂 */
 .tl-list-block + .tl-list-block { margin-top: var(--spacing-md); }
-/* BFA/MDES 小標（splitDesc 出來的 <h5>）：line-height 收到 1 去掉 leading-base 的上半 leading，
-   文字頂才會跟左欄年份（.tl-list-year 也是 lh:1）對齊；margin-bottom 補回與下方 EN/ZH 列的間距 */
+/* BFA/MDES 小標（splitDesc 出來的 <h5>）：行高跟左欄年份同步＝s 行距（年份掛 .text-s、tuple 自帶
+   --line-height-s；這裡的 h5 無 .text-* class 要明寫）→ 有小標的組小標頂、無小標的組 EN 首行頂，
+   都跟年份首行對齊；小標 ↔ 下方 EN/ZH 用 s 字級英中 token（user 2026-08-16 由 sm 收緊、同 .tl-list-cols）*/
 .tl-list-block > h5 {
-  line-height: 1;
-  margin: 0 0 var(--spacing-sm);
+  line-height: var(--line-height-s);
+  margin: 0 0 var(--space-en-zh-s);
   font-size: var(--font-size-s); /* BFA/MDES 小標 = 內文大小、保留 bold（user 2026-08-06） */
   font-weight: 700;
 }
@@ -1080,7 +1077,7 @@ body.mode-color .tl-icon-btn-inner {
   transform: rotate(-2deg);
 }
 
-/* next 鈕：跨在矩形右下角邊上（half on / half off）；對比矩形而非頁面 */
+/* next 鈕：跨在矩形右緣邊上（half on / half off）；對比矩形而非頁面 */
 .tl-list-next-btn {
   position: absolute;
   right: 0;
@@ -1090,6 +1087,15 @@ body.mode-color .tl-icon-btn-inner {
   border: none;
   background: none;
   cursor: var(--cursor-pointer);
+}
+/* 桌面：鈕中心壓在矩形右上角點（user 2026-08-16）：鈕 48px、right:0 時水平中心=cell右−24=矩形右緣，
+   top:-24 垂直中心=矩形頂緣。min-height 排除矮橫向 gate（gate 走 landscape.css 自有定位
+   right:-88/bottom:0，不能吃到 top）。 */
+@media (min-width: 768px) and (min-height: 501px) {
+  .tl-list-next-btn {
+    top: -24px;
+    bottom: auto;
+  }
 }
 /* 底色/箭頭跟 mode 走＝沿用 base .tl-icon-btn-inner 的 var(--theme-fg)/var(--theme-bg)
    （standard 黑底白箭頭、inverse 白底黑箭頭）。別再寫死 #000/#fff——inverse 會變黑底黑頁看不見（2026-06-08 user 報）。
@@ -1730,6 +1736,16 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
   :is(#activities-content-section, #admission-content-section) .list-year-group:has(.list-year-label:hover) .list-item {
     opacity: 1;
   }
+  /* degree-show 卡：年份 <h5> 在 col-1、非 .list-item，上面規則抓不到 → 其卡內容淡但年份不淡。
+     補一條同 :has() 機制，hover 某卡時其餘卡的年份跟著淡出（對齊 admission）。
+     年份 h5 被 clip-reveal-wrapper 包住，故 dim col-1 wrapper（非 > h5 直系，會被 wrapper 打斷）。 */
+  #degree-show-list .degree-show-card > div:not(.degree-show-card-content) {
+    transition: opacity 0.25s ease;
+  }
+  #degree-show-list:has(.degree-show-card:hover)
+    .degree-show-card:not(:hover) > div:not(.degree-show-card-content) {
+    opacity: 0.25;
+  }
 }
 
 /* ===== Degree Show 清單卡片標題 marquee（過長不換行，溢出時捲動）=====
@@ -1766,45 +1782,47 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
   }
 }
 
-/* ===== Degree Show Detail 上下屆（prev/next）標題 marquee =====
+/* ===== Degree Show Detail 上下屆（prev/next）標題（過長換行、不 marquee）=====
    結構：<p class="dshow-next-title">（row）> .dshow-title-inner（setupNextProject setTitle 注入）。
-   共用上方 .dshow-title-inner / .marquee-copy / @keyframes dshow-title-marquee 基建。
-   桌面 labels 為 free-float 無自然寬界 → 給 max-width 讓過長才觸發 marquee（labels 平時 clip-path 藏、hover 才現）；
-   手機色塊卡以卡寬為界。applyMarqueeOverflow 偵測溢出加 .is-overflow + 兩份 copy。 */
+   user 2026-08-17：比照 hero 標題改成過長就 wrap 換行、不再 marquee（移除 applyMarqueeOverflow 呼叫，
+   桌面 label <p> 的 whitespace-nowrap class 也已從 HTML 移除）。桌面 label 給 max-width 當換行界、手機以卡寬為界。 */
 .dshow-next-title {
-  overflow: hidden;
-  white-space: nowrap; /* 手機色塊卡標題也單行（桌面 <p> 已有 whitespace-nowrap） */
+  white-space: normal;
+}
+.dshow-next-title .dshow-title-inner {
+  white-space: normal;   /* 覆寫全站共用 .dshow-title-inner 的 nowrap */
+  text-wrap: balance;    /* 比照 hero：拉寬後兩行約略等寬、不留末行大空白（配合 JS hugTitleBox） */
 }
 @media (min-width: 768px) {
+  /* 上下屆標題比照 hero「滿版」：wrap 上限拉到容器寬（原 42vw 會把長標題擠成 4~5 行），
+     實際色卡寬由 JS hugTitleBox 收到最寬 wrap 行。labels 各自 clip 藏著、hover 才顯一組 → 拉寬不會兩組相撞。 */
   #prev-labels .dshow-next-title,
   #next-labels .dshow-next-title {
-    max-width: 42vw;
-  }
-  .dshow-next-title.is-overflow .dshow-title-inner {
-    animation: dshow-title-marquee var(--marquee-duration, 8s) linear infinite;
+    max-width: calc(100vw - 2 * var(--container-padding));
   }
 }
 @media (max-width: 767px) {
   .dsd-next-card-m .dshow-next-title {
     max-width: 100%;
   }
-  .dsd-next-card-m .dshow-next-title.is-overflow .dshow-title-inner {
-    animation: dshow-title-marquee var(--marquee-duration, 8s) linear infinite;
-  }
 }
 
-/* ===== Degree Show Detail hero 標題 marquee（過長不換行，溢出捲動）=====
+/* ===== Degree Show Detail hero 標題（過長換行、不 marquee）=====
    桌面 #text-title-en/#text-title、手機 .hero-mobile-title(-cn) 掛 .dshow-hero-title(row) > .dshow-title-inner
-   （degree-show-data-loader.js setHeroTitle 注入）。hero 進場 wrapper(.hero-title-wrapper 等)在外層、
-   marquee inner 在內層＝不同元素不衝突。hero 標題恆顯 → 溢出即自動捲（非 hover）。 */
+   （degree-show-data-loader.js setHeroTitle 注入）。user 2026-08-17：改成過長就 wrap 換行（最多約兩行），
+   不再單行 marquee 捲動 → 移除 applyMarqueeOverflow 呼叫，並把共用 .dshow-title-inner 的 nowrap 在 hero 內覆寫。 */
 .dshow-hero-title {
-  overflow: hidden;
-  white-space: nowrap;
-  max-width: 70vw;
+  white-space: normal;
+  /* wrap 上限＝容器右緣（左緣本就在 container-padding）→ 標題能用到整個內容寬、貼近畫面右側（user 2026-08-17）。
+     實際色卡寬再由 JS hugHeroTitleWidths 收到「最寬 wrap 行 + padding」，避免短末行右側空一大塊粉底。 */
+  max-width: calc(100vw - 2 * var(--container-padding));
+}
+.dshow-hero-title .dshow-title-inner {
+  white-space: normal;   /* 覆寫全站共用 .dshow-title-inner 的 nowrap，讓 hero 標題能換行 */
+  /* 兩行標題平均分配寬度：拉寬 max-width 後 CJK 會貪婪塞滿首行、末行只剩幾字→右側一大塊空粉底；
+     balance 讓兩行約略等寬，配合 JS hug 後色卡貼合。未支援的瀏覽器 fallback 貪婪 wrap（仍可讀）。 */
+  text-wrap: balance;
 }
 @media (max-width: 767px) {
   .dshow-hero-title { max-width: 86vw; }
-}
-.dshow-hero-title.is-overflow .dshow-title-inner {
-  animation: dshow-title-marquee var(--marquee-duration, 8s) linear infinite;
 }

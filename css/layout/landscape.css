@@ -301,13 +301,17 @@
   }
   #courses-detail-panel .courses-detail-inner {
     overflow-y: auto;    /* 蓋 md:overflow-hidden：整段捲 */
+    padding-top: 0;      /* 蓋 md:pt-4xl：避讓走 title sticky pt 96（scroll container 透明 pt 帶會露捲動內容） */
+    gap: 0;              /* 蓋 md:gap-lg：間距走 title padding-bottom（透明 gap 帶同理會露捲動內容） */
   }
   /* title 照原本 stacked（英上中下，courses.css base）；user 2026-07-09 #5 改回 sticky：
-     捲 desc 時課程名黏頂（bg inherit + z:2 由 base 帶，蓋住捲過的說明文字）。padding-top 96 清 logo 列。 */
+     捲 desc 時課程名黏頂（bg inherit + z:2 由 base 帶，蓋住捲過的說明文字）。padding-top 96 清 logo 列。
+     padding-bottom 蓋回手機值（courses.css 桌面 min-768 已歸零，矮橫向靠它當 title↔desc 距＋sticky 遮罩）。 */
   #courses-detail-panel .courses-detail-title-sticky {
     position: sticky;
     top: 0;
     padding-top: 96px;
+    padding-bottom: var(--spacing-md);
   }
   /* 滿版 panel 蓋滿 → 浮在上方的 logo（z 拉高）落在 bright accent panel 上（非 dim overlay）→ 黑線恆可見。
      header.js 的 slideInLeavesLogoOnDim 是 60% 時代把矮橫向 slide-in logo 設白，滿版後前提失效 →
@@ -509,13 +513,19 @@
     margin-left: 0;                     /* 左欄內圖不縮排（原 spacing-xl 是 stack 版）*/
     margin-bottom: var(--spacing-md);   /* 圖↔名字間距（縮圖後補一點呼吸）*/
   }
-  /* 右欄 sections 獨立捲（恢復桌面 overflow-y-auto/min-h-0）→ title sticky 有捲動容器可釘。
-     寬固定 55%（user 2026-07-10 二反饋「50% 有點太剛好」），剩餘讓給左欄名字不換行。 */
-  #faculty-panel .list-scroll {
-    overflow-y: auto;
-    min-height: 0;
+  /* 右欄整欄寬固定 55%（user 2026-07-10 二反饋「50% 有點太剛好」），剩餘讓給左欄名字不換行。
+     結構改版後右欄＝#faculty-detail-right（原 .list-scroll 是右欄本身，現 list-scroll 下移到內層捲動 wrapper；
+     矮橫向 lead 在 profile 左欄故此欄只含 sections 捲動區）。 */
+  #faculty-panel #faculty-detail-right {
     flex: none;
     width: 55%;
+    min-height: 0;
+  }
+  /* 內層 sections 獨立捲（恢復桌面 overflow-y-auto/min-h-0）→ title sticky 有捲動容器可釘。
+     窄橫向（<768 寬）md:overflow 不套 → 這裡明寫；flex:1 由 utility flex-1 提供填滿整欄高。 */
+  #faculty-panel #faculty-detail-right .list-scroll {
+    overflow-y: auto;
+    min-height: 0;
   }
   /* 右欄 sections 間距縮成手機式（user 2026-07-09「上下 padding 太大、呈現不了多少文字」）：
      section 之間 gap-2xl(64) → lg(32)；下方不留多餘 padding（panel > div 已有 pb-2xl 到底部才 padding）。 */
@@ -1729,13 +1739,8 @@
   /* events list wrapper：padded grid 內全寬（原 md:col-start-5 col-span-16）→ 起點＝128 */
   #events-section > div { grid-column: 1 / -1; }
 
-  /* 子展覽 events 表格對齊（user 2026-07-11「grid 對齊、標題/城市對齊點一致」）：原 md:grid-cols
-     [1fr_2fr_2fr_1fr] 每列各自獨立 grid、時間欄 nowrap 日期長短不一（"05/17 - 05/20" vs "06/20"）→ 1fr
-     的 min-content 隨列變 → 各列欄位起點不齊（實測列 1 標題 x328、列 3 x301）。改「時間欄固定 8rem +
-     其餘 minmax(0,fr)（允許收縮到 0、內容換行不撐欄）」→ 所有列同 template、欄位起點一致。 */
-  #events-list .dsd-event-row {
-    grid-template-columns: 8rem minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1fr);
-  }
+  /* （events row 2026-08-18 改「標題自成一 row + 下方 日期:地點 1:1 + detail row」＝ .dsd-event-row 不再是 grid，
+     舊的 grid-template-columns 對齊規則已移除；landscape 寬 ≥768 吃 md:grid-cols-2 內層 grid，同桌面。） */
 
   /* 子展覽 tab（header 帶主 strip）上限 3/4 容器寬 + 溢出自動 marquee（觸控無 hover）*/
   .dsd-event-strip .class-division-btn {

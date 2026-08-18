@@ -123,9 +123,10 @@ body.mode-color #next-labels h2[style*="background"] {
 
 /* Degree Show detail sticky info chip（title / branch）：
  * JS 在 .sticky-chip-inner inline 設 background = ACCENT 三原色（粉/綠/藍），mode-color 翻 strict B/W
- * （依 page bg 對比自動翻黑/白，跟 atlas-layout-inner、degree-show-card-content 同 pattern） */
-body.mode-color #sticky-title-chip .sticky-chip-inner,
-body.mode-color #sticky-branch-chip .sticky-chip-inner {
+ * （依 page bg 對比自動翻黑/白，跟 atlas-layout-inner、degree-show-card-content 同 pattern）
+ * events nav chip 不在此列：掛 .anchor-nav-btn/.anchor-nav-inner 走下方 nav btn 統一規則（2026-08-18） */
+body.mode-color #sticky-year-chip .sticky-chip-inner,
+body.mode-color #sticky-title-chip .sticky-chip-inner {
   background: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
 }
@@ -248,14 +249,8 @@ body.mode-color .timeline-card-inner * {
   color: var(--theme-fg-inverse) !important;
 }
 
-/* ===== Timeline lines ===== */
-body.mode-color .timeline-sticky-container .bg-black {
-  background-color: var(--theme-fg) !important;
-}
-
 /* era badge（.timeline-card-inner.bg-black）：mode-color 翻成 fg-inverse 底 + fg 字＝跟主卡(fg 底)相反，
-   才不會跟黑色主卡/深色照片糊在一起看不清（2026-06-08 user 報「要反過來才看得清楚」；只動此 badge，主卡不變）。
-   置於 .timeline-sticky-container .bg-black 規則之後＝同 specificity(0,3,1) 靠 source order 蓋過其 bg=fg。 */
+   才不會跟黑色主卡/深色照片糊在一起看不清（2026-06-08 user 報「要反過來才看得清楚」；只動此 badge，主卡不變）。 */
 body.mode-color .timeline-card-inner.bg-black {
   background-color: var(--theme-fg-inverse) !important;
 }
@@ -630,6 +625,17 @@ body.mode-color #faculty-panel .list-scroll::-webkit-scrollbar-thumb {
  * Chromium/Safari 的 thumb 色已由上一條 ::-webkit-scrollbar-thumb 處理，這裡只補 Firefox。 */
 @supports (-moz-appearance: none) {
   body.mode-color #faculty-panel .list-scroll {
+    scrollbar-color: var(--theme-fg) transparent;
+  }
+}
+
+/* Degree show events 清單捲軸：mode-color 下 page bg = theme-bg（vivid hue），lists.css 寫死黑 thumb
+ * 在深 hue 撞色/看不清 → 跟 var(--theme-fg) 翻黑白永遠對比 bg（同 faculty panel 處理，user 2026-08-18）。 */
+body.mode-color .dsd-events-scroll::-webkit-scrollbar-thumb {
+  background: var(--theme-fg) !important;
+}
+@supports (-moz-appearance: none) {
+  body.mode-color .dsd-events-scroll {
     scrollbar-color: var(--theme-fg) transparent;
   }
 }

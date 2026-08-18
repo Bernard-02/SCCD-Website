@@ -78,7 +78,7 @@ module.exports = {
         'en-zh': 'var(--space-en-zh)',  /* 疊放雙語 EN 元素的 margin-bottom（英中距），mb-en-zh */
         'en-zh-body': 'var(--space-en-zh-body)',  /* 段落內文英中距，mb-en-zh-body */
         'en-zh-s': 'var(--space-en-zh-s)',  /* text-s 疊放雙語 EN margin-bottom（2px），mb-en-zh-s */
-        'en-zh-xl': 'var(--space-en-zh-xl)',  /* text-xl 疊放雙語 EN margin-bottom（2px），mb-en-zh-xl */
+        'en-zh-xl': 'var(--space-en-zh-xl)',  /* text-xl 疊放雙語 EN margin-bottom（8px），mb-en-zh-xl */
         'en-zh-lg': 'var(--space-en-zh-lg)',  /* text-lg 疊放雙語 EN margin-bottom（4px），mb-en-zh-lg */
         'xs': 'var(--spacing-xs)',
         'sm': 'var(--spacing-sm)',

@@ -25,6 +25,90 @@
     overflow: hidden;
   }
 
+  /* Degree Show 列表縮圖（activities /degree-show panel）— user 2026-08-17：
+     固定高度讓一屏（search bar → 底部）剛好容納**兩張封面 + 兩個標題**；封面 object-contain 靠左、
+     右側留白（任何比例封面都 fit 同一高度）。手機不套（維持單欄自然高度）。
+     --dshow-thumb-h ＝ (可視高 − search bar 下緣(221 實測) − 兩卡固定量(244) − 底部呼吸(16)) / 2。
+       244 ＝ 兩卡 py-sm 上下(2×32) + 兩張「圖下標題塊」最高值(2×90＝兩行 EN+ZH 標題實測 90)。
+     ⚠️ 之前只扣一張標題塊 → 次卡標題掉出畫面；改成兩張都扣 = 每張圖各壓 ~26px 換第二個標題進畫面。
+       90 是目前最長標題（2 行）的實測值，日後出現 3 行標題要重新校準。值由 playwright 實測校準、隨 viewport 縮放。 */
+  @media (min-width: 768px) {
+    #degree-show-list {
+      --dshow-thumb-h: calc((100svh - 221px - 244px - 16px) / 2);
+    }
+    .degree-show-img {
+      height: var(--dshow-thumb-h);
+      object-fit: contain;
+      object-position: left center;
+    }
+  }
+
+  /* Degree Show 列表縮圖：無 coverImage 時的灰底 placeholder（user 2026-08-17，後台未傳封面時卡片不空掉）。
+     桌面在 #degree-show-list 內用同 .degree-show-img 的固定 thumb 高；手機/預設用 4/3 比例撐高。 */
+  .degree-show-img-placeholder {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    background: var(--gray-8);
+  }
+  @media (min-width: 768px) {
+    #degree-show-list .degree-show-img-placeholder {
+      aspect-ratio: auto;
+      height: var(--dshow-thumb-h);
+    }
+  }
+
+  /* Degree Show Detail — Events KV（畢展直式 poster，桌面左半；user 2026-08-17）
+     .dsd-events-kv 預設 display:none；JS 偵測到 data.poster 時加 .has-kv（僅桌面顯示）。
+     img 高度上限對齊左下返回鈕底部：section 貼齊捲動頂 → KV 頂＝內容 pt-6xl(192)，返回鈕 bottom:64
+     → 上限＝100vh − 192 − 64 ＝ 100vh − 256（實測 1440×900：192↓836，與返回鈕齊；--dsd-kv-max-h 微調）。
+     直式圖 height 綁上限、width:auto → 靠左、右側留白；不 render 時 list 仍靠右（col-13）。 */
+  .dsd-events-kv { display: none; }
+  @media (min-width: 768px) {
+    .dsd-events-kv.has-kv { display: block; }
+    .dsd-events-kv-img {
+      display: block;
+      width: auto;
+      height: auto;
+      max-width: 100%;
+      max-height: var(--dsd-kv-max-h, calc(100vh - 256px));
+      object-fit: contain;
+      object-position: right top;
+      /* 直式海報靠右上角（user 2026-08-18 二度翻案）：margin-left:auto 鎖右對齊＝海報右緣貼齊全站內容右緣（col 20）。
+         08-18 早前「靠左貼清單」的中間空白問題改由縮 KV 欄寬解決：KV 縮到 col 14-20（≈直式海報自然寬），
+         清單擴到 col 5-13 吃回空間＝「讓 events 區更寬」。 */
+      margin-left: auto;
+    }
+    /* 活動清單桌面內捲：高度上限對齊 KV（100vh−256）→ 活動多時容器內捲；scrollbar 樣式吃共用
+       .list-scroll hook（細黑 thumb / 無 track / 無箭頭，同 faculty slide-in，見 lists.css）。少於一屏 overflow:auto 自動不顯示。
+       padding-right 用 --spacing-md（24px）＝對齊 slide-in 內捲容器慣例（timeline .tl-list-content / curriculum 仿 faculty 右欄皆 pr-md，user 2026-08-17）。 */
+    .dsd-events-scroll {
+      max-height: var(--dsd-kv-max-h, calc(100vh - 256px));
+      overflow-y: auto;
+      padding-right: var(--spacing-md);
+    }
+  }
+
+  /* Events 地點行 marquee：過長不換行、溢出即自動捲（無 hover 情境＝常駐；離屏由 marquee-overflow.js 的 IO 暫停）。
+     結構＝<p.dsd-loc-line>（overflow window）> <span.dsd-loc-inner>；applyMarqueeOverflow 溢出時加 .is-overflow +
+     換兩份 .marquee-copy + 設 --marquee-distance/duration。keyframes 沿用 lists.css 的 dshow-title-marquee。 */
+  .dsd-loc-line {
+    display: block;
+    overflow: hidden;
+    white-space: nowrap;
+    max-width: 100%;
+  }
+  .dsd-loc-inner {
+    display: inline-block;
+    white-space: nowrap;
+  }
+  .dsd-loc-inner > .marquee-copy {
+    display: inline-block;
+    padding-right: var(--marquee-copy-gap);
+  }
+  .dsd-loc-line.is-overflow .dsd-loc-inner {
+    animation: dshow-title-marquee var(--marquee-duration, 8s) linear infinite;
+  }
+
   .faculty-card-image {
     transition: filter var(--dur-fast) var(--ease-standard),
                 transform var(--dur-fast) var(--ease-standard);
@@ -72,21 +156,24 @@
     }
   }
 
-  /* Faculty 卡片預設旋轉（JS 設 --init-deg），hover 恢復 0° 對齊下方文字
-   * 旋轉套在 wrapper 而非 img：image 用 object-cover w-full h-full 完整貼合 wrapper，
-   * wrapper overflow:hidden 維持矩形邊界跟著旋轉；0° 時 wrapper 自然與下方文字 flow 對齊 */
-  .faculty-card-image-wrapper {
+  /* Faculty 卡片預設旋轉（JS 設 --init-deg），hover 恢復 0° 對齊下方文字。
+   * 2026-08-16 圖片進場改 clip-reveal：外層 .faculty-card-image-mask 當遮罩（overflow:clip），
+   * wrapper 整塊（灰底+照片+overlay）在內以 x/yPercent 滑入。旋轉/transition 套在 mask 而非 wrapper：
+   * ① clip 在旋轉後的 local box 生效 → 旋轉角不被遮罩裁掉（同 faculty filter nav chip 做法）
+   * ② wrapper 身上不留 CSS transition → GSAP 每幀寫 transform 不被 0.3s transition 追打（卡頓陷阱） */
+  .faculty-card-image-mask {
+    overflow: clip;
     transform: rotate(var(--init-deg, 0deg));
     transition: transform var(--dur-fast) var(--ease-standard);
   }
 
   @media (min-width: 768px) {
-    .faculty-card:hover .faculty-card-image-wrapper {
+    .faculty-card:hover .faculty-card-image-mask {
       transform: rotate(0deg);
     }
   }
 
-  /* 卡片姓名 EN→ZH 疊放間距：名字＝h5=text-lg → 用「lg 字級」token --space-en-zh-lg（6px，以字體大小為主；
+  /* 卡片姓名 EN→ZH 疊放間距：名字＝h5=text-lg → 用「lg 字級」token --space-en-zh-lg（4px，以字體大小為主；
      跟副標 text-s 的 --space-en-zh-s 2px 分開）。EN(首個 h5)加、ZH(末個 h5)不加。
      faculty 三型 + alumni 會員卡（共用 .faculty-card-name）一起套。 */
   .faculty-card-name h5:not(:last-child) {
@@ -178,18 +265,18 @@
     /* minmax(0, *fr) 不用純 *fr：marquee 雙語格內層 nowrap 會把 cell min-content 撐爆 track 破版；
        minmax(0,...) 解放 min-content 下限 → track 永遠 fair share，內容靠 .faculty-marquee-line overflow clip */
     grid-template-columns: minmax(0, 1fr) minmax(0, 4fr) minmax(0, 2fr) minmax(0, 2fr);
-    gap: 1.5rem;
+    gap: var(--spacing-md);
     align-items: baseline;
     padding-right: 2rem;
     font-size: var(--font-size-s);
   }
   /* row 與 row 間距統一由父層 .faculty-rows 的 gap 控制（取代每 row 自身 padding-bottom）→ 最後一個 row
-     無 trailing 空白、section 底不會看起來過長（user 2026-06-09，桌機手機一致）。桌面 1rem、手機 2rem（mobile query 覆蓋）。
+     無 trailing 空白、section 底不會看起來過長（user 2026-06-09，桌機手機一致）。桌面 sm 16、手機 lg 32（mobile query 覆蓋）。
      桌面移除 row padding-bottom 後，sticky title col 的 md:pb-4 也一併拿掉（兩者皆無 trailing → 標題與最後 row 在 content 底對齊）。*/
   .faculty-rows {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: var(--spacing-sm);
   }
   /* cell（grid item）min-width:0 配合 minmax(0,*fr)：讓桌面 nowrap 內容不撐欄、交給 line overflow clip */
   .faculty-grid-row > span {
@@ -206,6 +293,13 @@
       top: 0;
       align-self: start;
       background: var(--faculty-panel-bg, transparent);
+    }
+    /* 蓋 utility md:top-0：#id 抬特異度（同 .flex-1 案手法）。
+       lead（職級/職稱）已移出 scroll 容器當非捲動 header（faculty.html #faculty-detail-lead）→
+       section title/年份直接釘 scroll 頂 top:0，不再需要 --faculty-lead-h offset；lead 內 rank↔occupation
+       間距吃 .faculty-rows gap（16px），lead↔Education 1rem 走 #faculty-detail-lead 的 md:mb-sm。 */
+    #faculty-panel .faculty-section-title-col {
+      top: 0;
     }
   }
   /* 獲獎 row：year(1fr) | country(1fr) | name(5fr) | category(2fr)；2026-06-04 user 移除獎別欄、改放國家
@@ -272,9 +366,9 @@
     .faculty-grid-row:not(.faculty-grid-row-award) > span:not(:first-child) + span {
       margin-top: 0.25rem; /* 原 row-gap */
     }
-    /* 手機 row 間距比桌面大一點（窄 viewport 易讀），覆蓋 .faculty-rows 基準 gap:1rem → 2rem */
+    /* 手機 row 間距比桌面大一點（窄 viewport 易讀），覆蓋 .faculty-rows 基準 sm → lg */
     .faculty-rows {
-      gap: 2rem;
+      gap: var(--spacing-lg);
     }
 
     /* 獲獎 row：左右兩欄「各自獨立 flow」（user 2026-07-09：country 緊貼 year 下、

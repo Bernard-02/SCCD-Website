@@ -167,7 +167,7 @@
   }
   /* EN→ZH gap：拉開兩語標題距離（user 反映太擠） */
   .legal-section-body .legal-section-title-en {
-    margin-bottom: var(--space-en-zh-xl);   /* text-xl → xl 字級英中距（2px） */
+    margin-bottom: var(--space-en-zh-xl);   /* text-xl → xl 字級英中距（8px） */
   }
   .legal-section-body .legal-section-title-zh {
     margin-bottom: var(--spacing-md);
@@ -316,7 +316,7 @@
     margin: 0;
   }
   .legal-group-title-en {
-    margin-bottom: var(--space-en-zh-xl);   /* text-xl → xl 字級英中距（2px） */
+    margin-bottom: var(--space-en-zh-xl);   /* text-xl → xl 字級英中距（8px） */
   }
   /* 兩大段之間間距＝與 donate/regulations 的 list 間距一致（3xl 96px；user 2026-07-15 統一，原 6xl 拉大取消） */
   .legal-group + .legal-group {
