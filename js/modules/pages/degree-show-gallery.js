@@ -4,10 +4,10 @@
  * 沿用 about/class 的 .class-img 視覺與互動（位置/旋轉/clip-path 由 GSAP 控制），
  * 但容器是 .division-images 全寬橫跨頁面，使用 5 個 slot：slot 0 / 4 跨左右邊界，slot 1~3 在頁面內。
  *
- * 流程：
- *   - slot 0 右→左 clip-path 消失
+ * 流程（2026-08-16 由 clip-path 改 clip-reveal：wrapper=遮罩 overflow:clip＋承載旋轉，img 在內滑動）：
+ *   - slot 0 圖片隨機 4 向滑出遮罩消失（tick 逐張離場；hideAll 頁面退場則全張同向左滑）
  *   - slot 1~4 左移一格
- *   - 新圖在 slot 4 位置 clip-path reveal
+ *   - 新圖在 slot 4 位置隨機 4 向滑入
  * 每 INTERVAL 自動 tick；hover：旋轉歸 0°（slot 0 不啟用）；click slot 1~4：手動觸發 tick。
  */
 
@@ -28,21 +28,23 @@ const ANIM_EASE = 'cubic-bezier(0.25, 0, 0, 1)';
 const HOVER_DUR = 0.3;
 const INTERVAL = 3500;
 
-const HIDE_CLIP_LEAVE = 'inset(0% 100% 0% 0%)';
-const HIDE_CLIPS = [
-  'inset(0% 100% 0% 0%)',
-  'inset(0% 0% 0% 100%)',
-  'inset(100% 0% 0% 0%)',
-  'inset(0% 0% 100% 0%)',
+// clip-reveal 滑動藏定位（±110 過衝防 dpr hairline）：進場與 tick 逐張離場都隨機 4 向；
+// hideAll 頁面退場另用 LEAVE_SLIDE 全張同向左滑（unison sweep，跟整列左移同向）
+const SLIDE_DIRS = [
+  { xPercent: -110, yPercent: 0 },
+  { xPercent: 110, yPercent: 0 },
+  { xPercent: 0, yPercent: -110 },
+  { xPercent: 0, yPercent: 110 },
 ];
-const SHOW_CLIP = 'inset(0% 0% 0% 0%)';
-
-function randomHideClip() { return HIDE_CLIPS[Math.floor(Math.random() * HIDE_CLIPS.length)]; }
+const LEAVE_SLIDE = SLIDE_DIRS[0]; // 頁面退場 unison 左滑
+function randomSlide() { return SLIDE_DIRS[Math.floor(Math.random() * SLIDE_DIRS.length)]; }
 function randomRotation() { return parseFloat(((Math.random() * 2 - 1) * 4).toFixed(2)); }
 
 function buildImg(src, imgWidth) {
   const wrapper = document.createElement('div');
   wrapper.className = 'class-img';
+  // wrapper＝滑動遮罩（本模組限定 inline，不動共用 .class-img class——about 的 slideshow 仍走 clip-path）
+  wrapper.style.overflow = 'clip';
 
   const img = document.createElement('img');
   img.src = src;
@@ -104,6 +106,15 @@ export function initDegreeShowGallery(container, pool) {
   let nextIdx = 0;
   let timer = null;
   let isShifting = false;
+  let destroyed = false;
+
+  // 自動輪播 pause/resume：hover 任一張時暫停、離開後（無任何 slot 被 hover）恢復。
+  // pool 不足 SLOT_COUNT+1 張時本就不輪播（同 init 判斷），resume 也不啟動。
+  function pauseAutoplay() { if (timer) { clearInterval(timer); timer = null; } }
+  function resumeAutoplay() {
+    if (destroyed || timer || pool.length <= SLOT_COUNT) return;
+    timer = setInterval(tick, INTERVAL);
+  }
 
   function clearHoverState(wrapper) {
     if (wrapper._rotation === undefined) return;
@@ -126,26 +137,24 @@ export function initDegreeShowGallery(container, pool) {
     });
   }
 
-  // 點擊 slot 1~N-1：觸發一次 shift-left，整列往左移；slot 0 不動作
-  // hover：旋轉歸 0°，leave 還原原始隨機角度；slot 0 不啟用
+  // 點擊任一張（含 slot 0）：觸發一次 shift-left，整列往左移（user 2026-08-17「點任何一張都往左推、不限第幾張」）
+  // hover：暫停自動輪播 + 旋轉歸 0°（slot 0 不做旋轉但仍暫停）；leave 還原角度、無 slot 被 hover 才恢復輪播
   function attachInteractions(wrapper) {
     wrapper.addEventListener('click', () => {
       if (isShifting) return;
-      const idx = slots.indexOf(wrapper);
-      if (idx <= 0) return;
       tick();
-      if (timer) {
-        clearInterval(timer);
-        timer = setInterval(tick, INTERVAL);
-      }
+      // 手動 tick 後重置間隔避免緊接著自動 tick；hover-pause 期間 timer=null 則不動（離開後 resume 才起跑）
+      if (timer) { clearInterval(timer); timer = setInterval(tick, INTERVAL); }
     });
     wrapper.addEventListener('mouseenter', () => {
+      pauseAutoplay();
       if (isShifting) return;
       if (slots.indexOf(wrapper) === 0) return;
       activateHover(wrapper);
     });
     wrapper.addEventListener('mouseleave', () => {
       clearHoverState(wrapper);
+      if (!slots.some(s => s.matches(':hover'))) resumeAutoplay();
     });
   }
 
@@ -156,7 +165,7 @@ export function initDegreeShowGallery(container, pool) {
     nextIdx++;
     const img = buildImg(src, IMG_WIDTH);
     container.appendChild(img);
-    placeInSlot(img, i, SLOT_LEFTS_VW, { rotation: randomRotation(), clipPath: SHOW_CLIP });
+    placeInSlot(img, i, SLOT_LEFTS_VW, { rotation: randomRotation() });
     slots.push(img);
     attachInteractions(img);
   }
@@ -170,8 +179,8 @@ export function initDegreeShowGallery(container, pool) {
     slots.forEach(clearHoverState);
 
     const leaving = slots[0];
-    gsap.to(leaving, {
-      clipPath: HIDE_CLIP_LEAVE,
+    gsap.to(leaving.firstElementChild, {
+      ...randomSlide(),
       duration: ANIM_DUR,
       ease: ANIM_EASE,
       onComplete: () => leaving.remove(),
@@ -186,9 +195,9 @@ export function initDegreeShowGallery(container, pool) {
     nextIdx++;
     container.appendChild(newImg);
     placeInSlot(newImg, SLOT_COUNT - 1, SLOT_LEFTS_VW, { rotation: randomRotation() });
-    gsap.fromTo(newImg,
-      { clipPath: randomHideClip() },
-      { clipPath: SHOW_CLIP, duration: ANIM_DUR, ease: ANIM_EASE,
+    gsap.fromTo(newImg.firstElementChild,
+      { ...randomSlide() },
+      { xPercent: 0, yPercent: 0, duration: ANIM_DUR, ease: ANIM_EASE,
         onComplete: () => {
           isShifting = false;
           reapplyHoverIfPointerInside();
@@ -209,15 +218,16 @@ export function initDegreeShowGallery(container, pool) {
   }
 
   return {
-    destroy() { if (timer) clearInterval(timer); },
-    // 離頁退場：停輪播 + 每張 slot 同步 clip-path 收掉（= 進場 per-image clip-in 的反向，同方向/時長/ease）
+    destroy() { destroyed = true; if (timer) clearInterval(timer); },
+    // 離頁退場：停輪播 + 每張 slot 的 img 同步往左滑出遮罩（unison sweep；tick 逐張離場改隨機 4 向，此處刻意維持同向齊掃）
     hideAll() {
+      destroyed = true;
       if (timer) { clearInterval(timer); timer = null; }
       if (typeof gsap === 'undefined' || slots.length === 0) return Promise.resolve();
       return new Promise(resolve => {
         let n = slots.length;
-        slots.forEach(s => gsap.to(s, {
-          clipPath: HIDE_CLIP_LEAVE,
+        slots.forEach(s => gsap.to(s.firstElementChild, {
+          ...LEAVE_SLIDE,
           duration: ANIM_DUR,
           ease: ANIM_EASE,
           overwrite: 'auto',

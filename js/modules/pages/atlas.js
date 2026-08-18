@@ -1659,16 +1659,25 @@ export async function initAtlas(options = {}) {
   // ── Hover 連動 + 細節面板 ────────────────────────────
   const nameEl = /** @type {HTMLElement} */ (detail.querySelector('[data-atlas-detail-name]'));
   const descEl = /** @type {HTMLElement} */ (detail.querySelector('[data-atlas-detail-desc]'));
+  // mask（2026-08-16 卡片進場改 clip-reveal）：定位/旋轉/遮罩載體，卡片在內滑動（見 atlas.css #atlas-detail-mask）
+  const detailMask = /** @type {HTMLElement|null} */ (document.getElementById('atlas-detail-mask'));
 
-  // 4 個方向的隱藏 inset（visible 區壓向各邊到 0）
+  // 4 個方向的隱藏 inset（visible 區壓向各邊到 0）——卡片改滑動後只剩 chip span 收展（switchToList 等）在用
   const DETAIL_HIDDEN_INSETS = [
     'inset(100% 0% 0% 0%)', // 從上方刷掉
     'inset(0% 0% 100% 0%)', // 從下方刷掉
     'inset(0% 100% 0% 0%)', // 從右方刷掉
     'inset(0% 0% 0% 100%)', // 從左方刷掉
   ];
-  const DETAIL_VISIBLE_INSET = 'inset(0% 0% 0% 0%)';
   const randomHiddenInset = () => DETAIL_HIDDEN_INSETS[Math.floor(Math.random() * DETAIL_HIDDEN_INSETS.length)];
+  // 卡片 4 方向藏定位（±110 過衝防 dpr hairline；同 faculty SLIDE_MAP）
+  const DETAIL_HIDDEN_OFFSETS = [
+    { xPercent: 0,    yPercent: -110 }, // 從上方滑出
+    { xPercent: 0,    yPercent: 110 },  // 從下方滑出
+    { xPercent: 110,  yPercent: 0 },    // 從右方滑出
+    { xPercent: -110, yPercent: 0 },    // 從左方滑出
+  ];
+  const randomHiddenOffset = () => DETAIL_HIDDEN_OFFSETS[Math.floor(Math.random() * DETAIL_HIDDEN_OFFSETS.length)];
 
   let detailTween = null;
   /** @type {'hidden' | 'visible'} */
@@ -1678,12 +1687,15 @@ export async function initAtlas(options = {}) {
   // 為何需要：#atlas-detail 是 position:fixed width:auto + max-width:380 = shrink-to-fit，但長 title 的「未換行
   //   max-content」超過 380 → 卡片被頂到 380、實際 wrap 後最長行卻較窄 → 右側留白。CSS 無法縮到「最長 wrap 行」，
   //   故用 TreeWalker 量每行 rect 取最寬設 inline width（沿用 footer/sticky-chip snug pattern）。
-  // rotation：卡片有 CSS transform:rotate(var(--atlas-detail-rot)) → 量測前用 inline transform:'none' 暫蓋、量完還原。
+  // rotation：mask 有 CSS transform:rotate(var(--atlas-detail-rot))（2026-08-16 由卡片搬到 mask）→
+  // 量測前用 inline transform:'none' 暫蓋 mask、量完還原（否則 getClientRects 在旋轉座標被放大）。
+  // 卡片自身的滑動 translate 不用蓋：平移不改寬度、左緣基準與文字 rects 同步位移相消。
   function snugDetailWidth() {
     detail.style.width = '';                 // 回 max-width:380 shrink-to-fit、讓長 title 在 380 內 wrap
     detail.style.minWidth = '0';             // 解除 CSS min-width:240 → 短內容(PIXAR/BMW)也貼齊不被撐到 240
-    const savedTransform = detail.style.transform;
-    detail.style.transform = 'none';         // 量測時拿掉旋轉（否則 getClientRects 在旋轉座標被放大）
+    const rotEl = detailMask || detail;
+    const savedTransform = rotEl.style.transform;
+    rotEl.style.transform = 'none';          // 量測時拿掉旋轉
     void detail.offsetWidth;                 // force reflow
     const cs = getComputedStyle(detail);
     const padL = parseFloat(cs.paddingLeft) || 0;
@@ -1702,7 +1714,7 @@ export async function initAtlas(options = {}) {
       }
     }
     if (maxRight > 0) detail.style.width = `${Math.ceil(maxRight) + padL + padR}px`;  // CSS min-width:240/max-width:380 仍 clamp
-    detail.style.transform = savedTransform;  // 還原 → rotation 回到 CSS var 控制
+    rotEl.style.transform = savedTransform;  // 還原 → rotation 回到 CSS var 控制
   }
 
   // ── 國家 detail 分批輪播（每 4s clip-path 換下一批；hover 期間持續，hover-out / 切換時停）──
@@ -1793,7 +1805,8 @@ export async function initAtlas(options = {}) {
     const rot = (Math.random() * 6 - 3).toFixed(2);
     detail.style.backgroundColor = bg;
     detail.style.color = '#000000';
-    detail.style.setProperty('--atlas-detail-rot', `${rot}deg`);
+    // 旋轉消費規則在 mask（clip 跟著旋轉角）→ var 設在 mask；無 mask fallback 設回 detail
+    (detailMask || detail).style.setProperty('--atlas-detail-rot', `${rot}deg`);
     stopDetailBatchCycle();  // 切換 item / 重填內容先停掉上一個國家的輪播
 
     if (nameEl) {
@@ -1926,19 +1939,24 @@ export async function initAtlas(options = {}) {
     panelTarget = 'visible';
 
     if (typeof gsap === 'undefined') {
-      detail.style.clipPath = DETAIL_VISIBLE_INSET;
+      detail.style.transform = 'translate(0%, 0%)';
       return;
     }
 
     // 只有「panel 完全 hidden 且無進行中 tween」時才從隨機方向 reveal
-    // 若 hide tween 進行中，保留當前 clip-path 作起點 → 平滑反轉成 reveal
+    // 若 hide tween 進行中，保留當前位移作起點 → 平滑反轉成 reveal（transform 補間同 clip 版特性）
+    // ⚠️ x/y（像素通道）每次都要一併歸零：CSS 預設 translateY(110%) 會被 GSAP 解析成像素 y（percent 與
+    //    px 是分開合成的兩通道），只動 x/yPercent 的話殘留的像素 y 讓卡片「已 reveal 仍在畫面外」（實測踩到）
     if (!detailTween) {
-      gsap.set(detail, { clipPath: randomHiddenInset() });
+      gsap.set(detail, { ...randomHiddenOffset(), x: 0, y: 0 });
     } else {
       detailTween.kill();
     }
     detailTween = gsap.to(detail, {
-      clipPath: DETAIL_VISIBLE_INSET,
+      xPercent: 0,
+      yPercent: 0,
+      x: 0,
+      y: 0,
       duration: DUR.fast,
       ease: EASE.enterSoft,
       onComplete: () => { detailTween = null; },
@@ -1950,12 +1968,14 @@ export async function initAtlas(options = {}) {
     panelTarget = 'hidden';
     stopDetailBatchCycle();  // hover-out → 停止國家批次輪播
     if (typeof gsap === 'undefined') {
-      detail.style.clipPath = randomHiddenInset();
+      detail.style.transform = 'translateY(110%)';
       return;
     }
     if (detailTween) detailTween.kill();
     detailTween = gsap.to(detail, {
-      clipPath: randomHiddenInset(),
+      ...randomHiddenOffset(),
+      x: 0,
+      y: 0,
       duration: DUR.fast,
       ease: EASE.exitSoft,
       onComplete: () => { detailTween = null; },

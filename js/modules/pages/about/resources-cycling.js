@@ -84,7 +84,14 @@ function renderResourcesAccordion(data, container) {
         trigger: wrapper,
         start: 'top 80%',
         once: true,
-        onEnter: () => gsap.to(items, { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.9, ease: 'power3.out', stagger: 0.1 }),
+        onEnter: () => {
+          // anchor 跳轉飛掠中：直接就定位不播（同桌面 rotated accordion）；目的地是 resources 本身照常播
+          if (document.body.classList.contains('anchor-jumping') && document.body.dataset.anchorTarget !== wrapper.closest('section[id]')?.id) {
+            gsap.set(items, { clipPath: 'inset(0% 0% 0% 0%)' });
+            return;
+          }
+          gsap.to(items, { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.9, ease: 'power3.out', stagger: 0.1 });
+        },
       });
       registerPageExit(() => playClipPathExit(items));
     }

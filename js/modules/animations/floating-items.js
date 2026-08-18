@@ -13,9 +13,18 @@ import { loadActivityCollection } from '../pages/activities-source.js';
 import { sitePath } from '../ui/site-base.js';
 import { CMS_API_BASE, CMS_ASSETS_BASE } from '../../config/api.js';
 
-// 進/退場 clip-path 4 方向（卡片 el 不受 RAF 的 mover transform 影響，clip-path 安全）
+// 進/退場（2026-08-17 圖片卡改 clip-reveal）：
+// 圖片卡＝wrapper（overflow:hidden、自身無 transform——RAF 位移在 mover、搖擺在 rotator）當現成遮罩，
+// img＋newsOverlay 同方向 ±110 滑動；文字卡＝色底 chip（滑內容會露出靜止底色、chip 語彙本就 clip-path）維持 clip-path。
 const FLOAT_HIDE_CLIPS = ['inset(0% 0% 100% 0%)', 'inset(100% 0% 0% 0%)', 'inset(0% 0% 0% 100%)', 'inset(0% 100% 0% 0%)'];
 function randFloatHideClip() { return FLOAT_HIDE_CLIPS[Math.floor(Math.random() * FLOAT_HIDE_CLIPS.length)]; }
+const FLOAT_SLIDE_HIDES = [
+  { xPercent: 0, yPercent: -110 },
+  { xPercent: 0, yPercent: 110 },
+  { xPercent: -110, yPercent: 0 },
+  { xPercent: 110, yPercent: 0 },
+];
+function randFloatSlideHide() { return FLOAT_SLIDE_HIDES[Math.floor(Math.random() * FLOAT_SLIDE_HIDES.length)]; }
 
 // 桌面 20、手機 12（< 768px）。手機減量是視覺優化，不影響桌面。
 // 手機與矮橫向（橫向手機）都用手機參數（user 2026-07-04「首頁也比照手機版」；gate 同 landscape.css）
@@ -247,12 +256,12 @@ async function populatePressCovers(pool, isCancelled) {
   /** @type {{id:string, cover:string, isPdf:boolean}[]} */
   let entries;
   try {
-    const res = await fetch(`${CMS_API_BASE}/library_press?fields=id,pdf,images.directus_files_id&sort=sort&limit=-1`);
+    const res = await fetch(`${CMS_API_BASE}/library_press?fields=id,pdf,pdfLink,images.directus_files_id&sort=sort&limit=-1`);
     if (!res.ok) throw new Error('CMS ' + res.status);
     const rows = (await res.json())?.data;
     if (!Array.isArray(rows) || rows.length === 0) throw new Error('CMS empty');
     entries = rows.map(r => {
-      if (r.pdf) return { id: `press-${r.id}`, cover: `${CMS_ASSETS_BASE}/${r.pdf}`, isPdf: true };
+      if (r.pdfLink || r.pdf) return { id: `press-${r.id}`, cover: r.pdfLink || `${CMS_ASSETS_BASE}/${r.pdf}`, isPdf: true };  // CloudFront 網址優先
       const firstImg = Array.isArray(r.images) ? r.images.map(j => j && j.directus_files_id).filter(Boolean)[0] : null;
       if (firstImg) return { id: `press-${r.id}`, cover: `${CMS_ASSETS_BASE}/${firstImg}?key=web`, isPdf: false };
       return null; // 無 PDF 也無圖 → 沒封面可顯示，不放浮卡
@@ -404,7 +413,9 @@ function createImageEl(src, url, interactive = true) {
     });
   }
 
-  return { el: wrapper, w: IMG_WIDTH, h: IMG_WIDTH }; // h 暫用 IMG_WIDTH，實際由圖片決定
+  // slideTargets：進退場滑動對象（wrapper=遮罩；overlay 跟 img 同向滑、其自身 clip-path wipe 不受 transform 影響）
+  const slideTargets = interactive ? [img, newsOverlay] : [img];
+  return { el: wrapper, w: IMG_WIDTH, h: IMG_WIDTH, slideTargets }; // h 暫用 IMG_WIDTH，實際由圖片決定
 }
 
 function createTextEl(textEn, textZh, url) {
@@ -633,7 +644,7 @@ function spawnItem(container, poolEntry, fromEdge = false) {
     elData = createCircleEl();
   }
 
-  const { el, w, h } = elData;
+  const { el, w, h, slideTargets = null } = elData;
 
   const angle = rand(0, Math.PI * 2);
   const speed = rand(SPEED_MIN, SPEED_MAX);
@@ -725,7 +736,7 @@ function spawnItem(container, poolEntry, fromEdge = false) {
     resume: () => { gsapTweenY.resume(); gsapTweenX.resume(); },
   };
 
-  const item = { el: mover, x, y, vx, vy, w: realW, h: realH, rotation, hovered: false, gsapTween, rotator, card: el, poolEntry };
+  const item = { el: mover, x, y, vx, vy, w: realW, h: realH, rotation, hovered: false, gsapTween, rotator, card: el, slideTargets, poolEntry };
 
   el.addEventListener('mouseenter', () => {
     item.hovered = true;
@@ -811,15 +822,23 @@ export async function initFloatingItems() {
     items.push(trackSpawn(nextEntry(), false));
   }
 
-  // 進場：initial batch 的卡片 clip-path 由隱藏 stagger 揭露（el 在 mover 內、不被 RAF 的 translate 影響 → clip-path 安全）。
-  // 揭露完留 inline inset(0)（不 clearProps）→ 離頁退場可直接 to 隱藏不 snap。揭露時 RAF 已在跑＝邊漂邊揭露。
+  // 進場：initial batch stagger 揭露——圖片卡＝img/overlay 同向滑入 wrapper 遮罩（clip-reveal）、
+  // 文字卡＝clip-path（色底 chip）。揭露時 RAF 已在跑＝邊漂邊揭露。
   // base delay 0.1 讓 floating 排在 news(0.35)/iris(0.6) 之前（首頁協調進場順序）。
-  if (typeof gsap !== 'undefined') {
-    items.forEach(item => { if (item.card) gsap.set(item.card, { clipPath: randFloatHideClip() }); });
+  function playFloatEntrance(baseDelay) {
+    if (typeof gsap === 'undefined') return;
     items.forEach((item, i) => {
-      if (item.card) gsap.to(item.card, { clipPath: 'inset(0% 0% 0% 0%)', duration: DUR.slow, ease: EASE.enter, delay: 0.1 + i * 0.03 });
+      const delay = baseDelay + i * 0.03;
+      if (item.slideTargets) {
+        gsap.set(item.slideTargets, randFloatSlideHide());
+        gsap.to(item.slideTargets, { xPercent: 0, yPercent: 0, duration: DUR.slow, ease: EASE.enter, delay });
+      } else if (item.card) {
+        gsap.set(item.card, { clipPath: randFloatHideClip() });
+        gsap.to(item.card, { clipPath: 'inset(0% 0% 0% 0%)', duration: DUR.slow, ease: EASE.enter, delay });
+      }
     });
   }
+  playFloatEntrance(0.1);
 
   // 轉向（跨矮橫向 gate）重散佈（user 2026-07-04「轉向重 run 一次內容、用手機版本調整」）：
   // 舊 items 的座標是舊視窗算的（轉向後擠一邊/溢出）→ 全部清掉、以新視窗尺寸+新 totalItems()
@@ -831,12 +850,7 @@ export async function initFloatingItems() {
     onScreen.clear();
     CATS.forEach(c => { liveCount[c] = 0; });
     for (let i = 0, n = totalItems(); i < n; i++) items.push(trackSpawn(nextEntry(), false));
-    if (typeof gsap !== 'undefined') {
-      items.forEach(item => { if (item.card) gsap.set(item.card, { clipPath: randFloatHideClip() }); });
-      items.forEach((item, i) => {
-        if (item.card) gsap.to(item.card, { clipPath: 'inset(0% 0% 0% 0%)', duration: DUR.slow, ease: EASE.enter, delay: i * 0.03 });
-      });
-    }
+    playFloatEntrance(0);
   }
   const rotateGateMq = window.matchMedia('(orientation: landscape) and (max-height: 500px)');
   const onRotateGateChange = () => requestAnimationFrame(respawnAll);
@@ -901,8 +915,9 @@ export async function initFloatingItems() {
   }
   document.addEventListener('visibilitychange', onVisibilityChange);
 
-  // 離頁退場：先凍住漂移 RAF（避免退場期間還在 translate），再把當前所有卡片 clip-path 收掉。
-  // 用 fromTo 顯式起點 inset(0)：edge-respawn 的卡片沒設過 clipPath（computed none）、to 會 snap → fromTo 避免。
+  // 離頁退場：先凍住漂移 RAF（避免退場期間還在 translate），再把當前所有卡片收掉——
+  // 圖片卡＝img/overlay 隨機同向滑出遮罩（edge-respawn 沒進場動畫的卡 transform 本就 0、直接 to 不 snap）；
+  // 文字卡＝clip-path 收（fromTo 顯式起點 inset(0)：edge-respawn 卡沒設過 clipPath、to 會 snap）。
   registerPageExit(() => new Promise(resolve => {
     running = false;
     if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
@@ -910,10 +925,15 @@ export async function initFloatingItems() {
     let done = 0;
     const onOne = () => { if (++done >= items.length) resolve(); };
     items.forEach((item, i) => {
+      const delay = i * 0.02;
+      if (item.slideTargets) {
+        gsap.to(item.slideTargets, { ...randFloatSlideHide(), duration: DUR.medium, ease: EASE.exit, delay, overwrite: true, onComplete: onOne });
+        return;
+      }
       if (!item.card) { onOne(); return; }
       gsap.fromTo(item.card,
         { clipPath: 'inset(0% 0% 0% 0%)' },
-        { clipPath: randFloatHideClip(), duration: DUR.medium, ease: EASE.exit, delay: i * 0.02, overwrite: true, onComplete: onOne });
+        { clipPath: randFloatHideClip(), duration: DUR.medium, ease: EASE.exit, delay, overwrite: true, onComplete: onOne });
     });
   }));
 

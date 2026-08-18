@@ -9,27 +9,13 @@
 
 import { enterLightboxMode, exitLightboxMode } from './../lightbox/lightbox-shell.js';
 import { DUR, EASE } from './motion.js';
+import { ensureCardMask } from './scroll-animate.js';
 
 let initialized = false;
 let shareOpen = false;
 let closing = false;
 // 已 prefetch 過的 URL — 避免同一個 share btn 被 hover/touch 多次重複 fetch
 const prefetchedUrls = new Set();
-
-// clip-path 進出場：4 方向隨機 inset reveal
-// inset 四值全 %（記憶教訓：混用單位 GSAP 跳終值不動畫）
-// 'top'    起點 inset(100% 0 0 0)   = 從下往上揭露
-// 'right'  起點 inset(0 100% 0 0)   = 從左往右揭露
-// 'bottom' 起點 inset(0 0 100% 0)   = 從上往下揭露
-// 'left'   起點 inset(0 0 0 100%)   = 從右往左揭露
-const DIR_FROM = {
-  top:    'inset(100% 0% 0% 0%)',
-  right:  'inset(0% 100% 0% 0%)',
-  bottom: 'inset(0% 0% 100% 0%)',
-  left:   'inset(0% 0% 0% 100%)',
-};
-const DIR_KEYS = Object.keys(DIR_FROM);
-let lastDir = null;
 
 // mode1/2 卡片底色隨機三原色，跟 list hover 共用同一 source（SCCDHelpers.getRandomAccentColor：
 // 同三原色 + 不重複上次邏輯）確保永不 drift；mode3(color) 維持白底。fallback 防 helper 未載入。
@@ -104,14 +90,6 @@ function injectHtml() {
   document.body.insertAdjacentHTML('beforeend', LIGHTBOX_HTML);
 }
 
-function pickDir() {
-  // 不重複上一輪方向，避免「同向又跑一次」感覺單調
-  const pool = lastDir ? DIR_KEYS.filter(d => d !== lastDir) : DIR_KEYS;
-  const dir = pool[Math.floor(Math.random() * pool.length)];
-  lastDir = dir;
-  return dir;
-}
-
 function openShareLightbox(url, bg) {
   const lightbox = document.getElementById('share-lightbox');
   const card = document.getElementById('share-lightbox-card');
@@ -163,20 +141,13 @@ function openShareLightbox(url, bg) {
       { backgroundColor: 'rgba(0,0,0,0)' },
       { backgroundColor: 'rgba(0,0,0,0.9)', duration: DUR.slow, ease: EASE.enter, overwrite: true });
   }
-  // 進場 clip-path：方向隨機，從一邊揭露整張卡片
-  // fromTo 確保 from-state 強制套用（避 first-open 從 'none' 跳終值）
+  // 進場 clip-reveal：卡片由下滑入貼身遮罩（取代舊 4 向 clip-path wipe）
+  // fromTo 確保 from-state 強制套用（避 first-open 從殘留 transform 跳終值）
   if (typeof gsap !== 'undefined') {
-    const dir = pickDir();
-    card.dataset.enterDir = dir;
+    ensureCardMask(card);
     gsap.fromTo(card,
-      { clipPath: DIR_FROM[dir] },
-      {
-        clipPath: 'inset(0% 0% 0% 0%)',
-        duration: DUR.slow,
-        ease: EASE.enter,
-        overwrite: true,
-        onComplete: () => { card.style.clipPath = ''; },
-      }
+      { yPercent: 110 },
+      { yPercent: 0, duration: DUR.slow, ease: EASE.enter, overwrite: true }
     );
   }
 
@@ -196,29 +167,24 @@ function closeShareLightbox() {
     closing = false;
     lightbox.style.display = 'none';
     lightbox.style.backgroundColor = ''; // 還原 HTML inline 預設 0.9，下次開再 fromTo
-    card.style.clipPath = '';
     if (shareOpen) {
       shareOpen = false;
       exitLightboxMode();
     }
   };
 
-  // 退場 clip-path：用同一輪 enter 的方向收回去（對稱感）
+  // 退場 clip-reveal：卡片下沉出遮罩（進場反向）
   if (typeof gsap !== 'undefined') {
     closing = true;
     // 背景遮罩同步 fade out（對稱進場）
     gsap.to(lightbox, { backgroundColor: 'rgba(0,0,0,0)', duration: DUR.medium, ease: EASE.exit, overwrite: true });
-    const dir = card.dataset.enterDir && DIR_FROM[card.dataset.enterDir] ? card.dataset.enterDir : pickDir();
-    gsap.fromTo(card,
-      { clipPath: 'inset(0% 0% 0% 0%)' },
-      {
-        clipPath: DIR_FROM[dir],
-        duration: DUR.medium,
-        ease: EASE.exit,
-        overwrite: true,
-        onComplete: finish,
-      }
-    );
+    gsap.to(card, {
+      yPercent: 110,
+      duration: DUR.medium,
+      ease: EASE.exit,
+      overwrite: true,
+      onComplete: finish,
+    });
   } else {
     finish();
   }
@@ -292,12 +258,12 @@ export function initShareModal() {
     const btn = /** @type {HTMLElement} */ (e.target).closest('[data-share-btn]');
     if (!btn) return;
     // 卡片底色優先序：① data-share-bg（library viewer / album 帶 title 渲染色）
-    // ② list-item 當前 hover/open 色（存在 .list-header.dataset.accentHex）→ 卡片跟 list 同色
+    // ② list-item 當前 hover/open 色（.list-header 或 degree-show 卡的 dataset.accentHex）→ 卡片跟 hover 同色
     // ③ 都沒有走 openShareLightbox 內 mode 隨機規則。mode-color 下 list 視覺是 strict B/W（非 accentHex），
     //    不讀 accentHex，交回既有白卡邏輯。
     const listBg = document.body.classList.contains('mode-color')
       ? undefined
-      : /** @type {HTMLElement | null} */ (btn.closest('.list-header'))?.dataset.accentHex;
+      : /** @type {HTMLElement | null} */ (btn.closest('.list-header, .degree-show-card-content'))?.dataset.accentHex;
     openShareLightbox(computeShareUrl(btn), btn.dataset.shareBg || listBg);
   });
 

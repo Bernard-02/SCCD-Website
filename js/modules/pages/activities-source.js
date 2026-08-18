@@ -18,7 +18,7 @@ import { sitePath, SITE_BASE_PATHNAME } from '../ui/site-base.js';
 // 2026-06-22 起 activities 不再 ref award（改 award → library 單向），故不 deep-fetch library_awards。
 const REF_FIELDS = [
   'references.collection',
-  'references.item:library_documents.id', 'references.item:library_documents.titleEn', 'references.item:library_documents.titleZh', 'references.item:library_documents.pdf',
+  'references.item:library_documents.id', 'references.item:library_documents.titleEn', 'references.item:library_documents.titleZh', 'references.item:library_documents.pdf', 'references.item:library_documents.pdfLink',
   'references.item:library_press.id', 'references.item:library_press.titleEn', 'references.item:library_press.titleZh',
   // press 的圖/影片：前台原地開 media lightbox（同 library press 點擊）。M2A 巢狀深取實測可行（2026-06-24）。
   'references.item:library_press.images.directus_files_id', 'references.item:library_press.videoLinks',
@@ -51,7 +51,8 @@ function remapRef(r) {
     case 'activities_industry':
     case 'activities_workshops':    return { section: ACT_SECTION[r.collection], itemId: id };
     // document：直接開 PDF viewer lightbox。沒上傳 pdf 就略過（沒檔可開、避免空按鈕）。
-    case 'library_documents':       return it.pdf ? { labelEn: 'Documents', labelZh: '文件', titleEn: it.titleEn || '', titleZh: it.titleZh || '', pdfUrl: fileUrl(it.pdf) } : null;
+    case 'library_documents': {      const pdfUrl = it.pdfLink || (it.pdf ? fileUrl(it.pdf) : '');  // 貼的 CloudFront 網址優先
+      return pdfUrl ? { labelEn: 'Documents', labelZh: '文件', titleEn: it.titleEn || '', titleZh: it.titleZh || '', pdfUrl } : null; }
     // press：組 media（圖 + YouTube 影片，shape 對齊 activities-lightbox / library press lightbox）。
     // 有 media → pressMedia（前台原地開 lightbox）；都沒有 → href 退回 library deep-link（不壞舊行為）。
     case 'library_press': {
@@ -87,8 +88,16 @@ function normalizeFiles(arr) {
 }
 // '2025-01-15' (+'2025-01-18') → [{startYear,startMonth,startDay,endYear,endMonth,endDay}]
 function buildDates(s, e) {
-  const a = s.split('-').map(Number), b = (e || s).split('-').map(Number);
+  // slice(0,10)：date 欄有時回 'YYYY-MM-DDT..'（repeater），只取日期段免 split NaN
+  const a = String(s).slice(0, 10).split('-').map(Number), b = String(e || s).slice(0, 10).split('-').map(Number);
   return [{ startYear: a[0], startMonth: a[1], startDay: a[2], endYear: b[0], endMonth: b[1], endDay: b[2] }];
+}
+// dates 欄：優先讀 repeater（每列＝一批 {start, end?}；end 空＝單日 → 前台渲染 MM/DD, MM/DD 逗號串接）；
+// 沒填 repeater 才 fallback 舊的單一 startDate/endDate scalar（遷移期並存，舊資料照常）。
+function buildDateGroups(reps, s, e) {
+  if (Array.isArray(reps) && reps.length)
+    return reps.filter(d => d?.start).map(d => buildDates(d.start, d.end)[0]);
+  return s ? buildDates(s, e) : [];
 }
 const ytUrls = (arr) => Array.isArray(arr) ? arr.map(v => typeof v === 'string' ? v : (v?.url || '')).filter(Boolean) : [];
 
@@ -96,18 +105,31 @@ const ytUrls = (arr) => Array.isArray(arr) ? arr.map(v => typeof v === 'string' 
 // stamp：dedicated collection 沒有 category/visitType/exhibitionType 欄，但前台 loadListInto 仍用這些 filter
 //   （visits 拆 in/out、exhibitions 拆 special/permanent）→ 由 caller 依 collection 補判別值，資料進來才不被濾掉。
 function mapRow(r, category, stamp) {
+  // conference 專屬（其他 collection 無此兩欄，變數為 null/undefined → 下方 spread 略過）：
+  //   city：Directus 把城市存在 locations[].cityEn/cityZh（venue 的所在城市），但前台第三欄讀 top-level item.cityEn/cityZh
+  //         → hoist 第一個有填城市的 location 上來（單一 venue 的 conference 即 locations[0]）。
+  //   sessions：o2m 每日場次深取後是完整物件；Directus 存 startDate/endDate，buildSessionsHtml 讀 s.dates group
+  //         → 組出 dates 供渲染，並依 startDate 排序（Directus 深取不保證按日期回傳，實測 07-21 會排在 07-20 前）。
+  const locWithCity = Array.isArray(r.locations) ? r.locations.find(l => l?.cityEn || l?.cityZh) : null;
+  const sessions = (Array.isArray(r.sessions) && typeof r.sessions[0] === 'object')
+    ? [...r.sessions]
+        .sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''))
+        .map(s => ({ ...s, dates: s.startDate ? buildDates(s.startDate, s.endDate) : [] }))
+    : r.sessions;
   return {
     ...r,
     id: r.id,                                    // 前台用 Directus 自帶 id 當 element id + ref 解析鍵
     ...(category ? { category } : {}),           // dedicated collection 無 category 欄 → 補上給 categoryFilter 比對
     ...(stamp || {}),                            // visitType / exhibitionType 等子類型判別欄（同上）
     description: r.descriptionEn || '',          // introField 預設 'description' 讀 item.description（EN）；descriptionZh 前台自動讀
-    dates: r.startDate ? buildDates(r.startDate, r.endDate) : [],
+    dates: buildDateGroups(r.dates, r.startDate, r.endDate),
     poster: fileUrl(r.poster),
     images: normalizeFiles(r.images),
     videos: ytUrls(r.videoLinks),
     videoLinks: undefined,                       // videoLinks 已折進 videos；清掉原欄，否則 getAllVideos 同一支影片會從兩個來源各算一次＝雙 tile（不是去重內容，是移除重複來源欄；後台真填兩支不同影片仍照數）
     references: remapRefs(r.references),
+    ...(locWithCity ? { cityEn: locWithCity.cityEn || '', cityZh: locWithCity.cityZh || '' } : {}),
+    ...(sessions !== undefined ? { sessions } : {}),
   };
 }
 
@@ -134,7 +156,10 @@ export async function loadActivityCollection(collection, fallbackUrl, opts = {})
   try {
     // images 是 files M2M：fields=* 只回 junction row id（非檔案 UUID）→ normalizeFiles 組出 404 asset。
     // 必須深取 images.directus_files_id 才拿到真正檔案 UUID（同 REF_FIELDS 對 library_press.images 的做法）。
-    const res = await fetch(`${CMS_API_BASE}/${collection}?limit=-1&sort=sort&fields=*,images.directus_files_id,${REF_FIELDS}`);
+    // sessions（conference 每日場次 o2m）：fields=* 只回 session id 陣列 → 必須 sessions.* 深取才拿到 titleEn/guests；
+    //   只有 activities_conferences 有此欄，其他 collection 帶上會 400（未知欄）整包 fetch fail → 只對 conferences 加。
+    const sessionsField = collection === 'activities_conferences' ? ',sessions.*' : '';
+    const res = await fetch(`${CMS_API_BASE}/${collection}?limit=-1&sort=sort&fields=*,images.directus_files_id${sessionsField},${REF_FIELDS}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const rows = (await res.json()).data;
     if (!Array.isArray(rows) || !rows.length) throw new Error('empty');
@@ -142,5 +167,33 @@ export async function loadActivityCollection(collection, fallbackUrl, opts = {})
   } catch (err) {
     console.warn(`[activities-source] ${collection} CMS fetch failed → 本地 ${fallbackUrl}:`, err.message);
     return fetch(sitePath(fallbackUrl)).then(r => r.json());
+  }
+}
+
+// 相簿「moment」桶：本地是 general-activities.json 一檔混 visits/exhibitions/competitions/conferences，
+// 後台則是各自獨立 collection。這裡 raw fetch 每個 collection 再 groupByYear 併起來——不逐個走
+// loadActivityCollection 的 fallback，否則 CMS 掛掉時每支都 fallback 整檔＝同一筆被算多次；改成任一支非 200
+// 或全空時，一次性 fallback 本地整檔（維持 CMS 掛掉照常渲染）。
+const MOMENT_COLLECTIONS = [
+  ['activities_competitions', 'competitions'],
+  ['activities_conferences', 'conferences'],
+  ['activities_exhibitions_special', 'exhibitions'],
+  ['activities_visits_inbound', 'visits'],
+  ['activities_visits_outbound', 'visits'],
+];
+export async function loadGeneralActivitiesAlbum() {
+  try {
+    const perCol = await Promise.all(MOMENT_COLLECTIONS.map(async ([col, cat]) => {
+      const res = await fetch(`${CMS_API_BASE}/${col}?limit=-1&sort=sort&fields=*,images.directus_files_id`);
+      if (!res.ok) throw new Error(`${col} HTTP ${res.status}`);
+      const rows = (await res.json()).data;
+      return (Array.isArray(rows) ? rows : []).map(r => mapRow(r, cat));
+    }));
+    const merged = perCol.flat();
+    if (!merged.length) throw new Error('empty');
+    return groupByYear(merged);
+  } catch (err) {
+    console.warn('[activities-source] moment 合併 CMS fetch failed → 本地 general-activities.json:', err.message);
+    return fetch(sitePath('/data/general-activities.json')).then(r => r.json());
   }
 }

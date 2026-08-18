@@ -404,10 +404,11 @@ export function buildAlbumsHtml(item, { unbounded = false } = {}) {
 
 // 海報區塊 HTML
 // poster 沒填時 fallback 用 images[0]（user 指定：「poster 沒有就是第一個圖片，不顯示 broken link」）
+// fallbackToImage=false：forum/conferences 例外，後台沒填 poster 就不渲染 poster 區（相簿仍照常從 gallery 出）
 // onerror 自摧毀 wrapper：URL 對但圖檔 404 / 跨域擋下時不會留 broken icon
 // lightbox-index：poster 來自 item.poster 時對應 mediaList[0]；fallback 自 images[0] 時對應 videos.length（即 images 起點）
-export function buildPosterHtml(item) {
-  const src = getEffectivePoster(item);
+export function buildPosterHtml(item, { fallbackToImage = true } = {}) {
+  const src = fallbackToImage ? getEffectivePoster(item) : (item.poster || '');
   if (!src) return '';
   const lightboxIndex = item.poster ? 0 : (item.videos?.length || 0);
   return `
@@ -568,7 +569,7 @@ function buildSessionsHtml(item, dateColMinWidth, { showGuestCountry = true, sho
       </div>` : ''}
     </div>`;
   }).join('');
-  return `<div class="flex flex-col gap-lg">${rows}</div>`;
+  return `<div class="flex flex-col gap-md">${rows}</div>`;
 }
 
 // ── Shared Post-Render Bindings ───────────────────────────────────────────────
@@ -1001,6 +1002,7 @@ export async function loadListInto(containerId, url, options = {}) {
     showDate             = true,
     showLocation         = true,
     showPoster           = true,
+    posterFallback       = true,   // false = poster 空就不 fallback images[0]（forum/conferences 用）
     showReference        = true,
     showShareBtn         = true,
     showGuestAffiliation = true,
@@ -1218,22 +1220,21 @@ export async function loadListInto(containerId, url, options = {}) {
       // city（conference 摘要列第三欄）：venue(location) 之外的城市/地區，目前只有 conferences 填
       const cityEn = item.city || item.cityEn || '';
       const cityZh = item.city_zh || item.cityZh || '';
-      // 標題國旗來源 = guests（人物/單位）的國家，去重 + 轉小寫給 flag-icons（fi-tw…）。
+      // 標題國旗＋校友 icon 來源 = 所有講者：item-level guests ＋ conference sessions[].guests（去重）。
+      // conference 慣例＝講者填在 sessions 裡、parent guests 留空；舊版國旗只讀 item.guests → session-only forum
+      //   右上無旗（校友帽卻有算 session＝不一致）。統一聚合成一份 allGuests，旗子/帽子同源。
       // 「地點的國家」(item.flag / locations[].country) 暫不納入 — user 2026-06-03：等後台處理 location-country 機制再加進來。
+      const allGuests = [...(item.guests || []), ...((item.sessions || []).flatMap(s => Array.isArray(s.guests) ? s.guests : []))];
       // uk→gb：flag-icons 只認 ISO 3166 的 gb，編輯常填 UK（2026-07-04 實例）→ fi-uk 不存在渲染成空盒
-      const countryCodes = [...new Set((item.guests || []).map(g => (g.country || '').toLowerCase().trim().replace(/^uk$/, 'gb')).filter(Boolean))];
+      const countryCodes = [...new Set(allGuests.map(g => (g.country || '').toLowerCase().trim().replace(/^uk$/, 'gb')).filter(Boolean))];
 
       const itemFlags = alwaysExpanded ? 'data-no-accordion' : 'data-pre-reveal';
       // meta-icons inner（alumni + 全部國旗）共用內容：桌面 render 在右上 group、手機另 render 一份在副標下方 in-flow 區塊
       // （user 2026-06-10 #1/#2/#4：手機把國旗移出右上絕對定位群組→ in-flow 才能「在 title+副標之後進場、不位移、share 無 gap、靠左」；
       //  桌面維持原樣＝雙份 render，CSS 依 viewport 顯隱：桌面顯 .list-header-meta-icons、手機顯 .list-header-meta-mobile）
-      // conference 講者在 item.sessions[].guests（非 item.guests）→ 也要納入，否則 conference 卡 header 永遠無 icon。
-      // icon 統一放 header（對齊 workshop），不再每場次 title 旁各放一個。
+      // icon 統一放 header（對齊 workshop），不再每場次 title 旁各放一個。講者來源同上 allGuests（已含 session）。
       const _isAlumniGuest = g => g.isAlumni === 'on' || g.isAlumni === true || g.isAlumni;
-      const _hasAlumni = showAlumniIcon && (
-        item.guests?.some(_isAlumniGuest) ||
-        (item.sessions || []).some(s => (s.guests || []).some(_isAlumniGuest))
-      );
+      const _hasAlumni = showAlumniIcon && allGuests.some(_isAlumniGuest);
       const _alumniIcon = _hasAlumni ? `<span class="icon icon-alumni icon-s"></span>` : '';
       // 桌面：單一國旗 + 多國家每 5s 輪播（user 2026-06-10 第3輪：桌面保持 switch 原則，不要全 show）→ bindFlagCycles 吃 data-flag-cycle
       const _flagsDesktop = countryCodes.length ? `<span class="fi fi-${countryCodes[0]}"${countryCodes.length > 1 ? ` data-flag-cycle="${countryCodes.join(',')}"` : ''} style="width:1.5em;height:1em;display:inline-block;"></span>` : '';
@@ -1319,7 +1320,10 @@ export async function loadListInto(containerId, url, options = {}) {
                   </div>`;
                 })() : ''}
                 ${buildSessionsHtml(item, dateColMinWidth, { showGuestCountry, showGuestAffiliation })}
-                ${item.guests?.length ? `<div class="flex flex-col gap-sm">
+                <!-- parent item.guests：只在「session 沒帶講者」時渲染。conference 慣例＝講者填 session 裡；
+                     若某 session 已有講者，parent guests 就是重複來源 → 抑制（避免 session 講者 + parent 各出一份）。
+                     但 session 沒填講者（如 Lecture Series 只有 session 標題）時 parent guests 照出，資料不被藏。 -->
+                ${item.guests?.length && !(item.sessions || []).some(s => Array.isArray(s.guests) && s.guests.length) ? `<div class="flex flex-col gap-sm">
                   ${item.guests.map(g => buildGuestHtml(g, { showGuestCountry, showGuestAffiliation })).join('')}
                 </div>` : ''}
                 ${showDescription && (introEn || introZh) && !(Array.isArray(item.sessions) && item.sessions.length) ? `<div class="overflow-y-auto pr-xl list-scroll" style="max-height: 250px;">
@@ -1327,7 +1331,7 @@ export async function loadListInto(containerId, url, options = {}) {
                   ${introZh ? `<p class="text-s leading-base" lang="zh-Hant">${introZh}</p>` : ''}
                 </div>` : ''}
               </div>
-              ${showPoster ? buildPosterHtml(item) : ''}
+              ${showPoster ? buildPosterHtml(item, { fallbackToImage: posterFallback }) : ''}
             </div>
             <!-- albums（年份/日期/地點 + 相簿）移出 9.5fr 文字欄、以 px-sm 對齊左緣的全寬 block：
                  常設展文字保持窄欄、下方相簿列滿版到容器右緣（user 2026-07-14）。只有 permanent-exhibitions 有 albums。
@@ -1341,14 +1345,19 @@ export async function loadListInto(containerId, url, options = {}) {
             ${attachmentsField && Array.isArray(item[attachmentsField]) && item[attachmentsField].length ? `
             <div class="list-ref-wrap flex flex-col">
               ${item[attachmentsField].map((a, i) => {
-                // 兼容兩種 schema：legacy JSON 用 { url, labelEn, labelZh }；WP schema group 用 { file, titleEn, titleZh }
-                const url = a.url || a.file || '#';
+                // 兼容三種來源：legacy JSON { url }、上傳 PDF { file }、貼的外部連結 { link }
+                // 判型：有 link → 外部連結（開新分頁）；否則當上傳檔（download 下載）
+                const link = a.link || '';
+                const fileUrl = a.url || a.file || '';
+                const isLink = !!link;
+                const url = link || fileUrl || '#';
                 const labelEn = a.labelEn || a.titleEn || `Attachment ${i + 1}`;
                 const labelZh = a.labelZh || a.titleZh || `附件 ${i + 1}`;
-                // download 屬性指定 filename：取 URL pathname 最後段（sample.pdf）；無 URL 不渲染 download attr
-                const filename = url !== '#' ? url.split('/').pop().split('?')[0] : '';
+                // 上傳檔：download 屬性指定 filename（URL 尾段）；外部連結：開新分頁不下載
+                const filename = (!isLink && url !== '#') ? url.split('/').pop().split('?')[0] : '';
+                const linkAttrs = isLink ? ' target="_blank" rel="noopener"' : (filename ? ` download="${filename}"` : '');
                 return `
-                <a class="list-ref-btn cursor-pointer w-full grid grid-cols-12 gap-x-md items-start py-sm px-sm no-underline" href="${url}"${filename ? ` download="${filename}"` : ''}>
+                <a class="list-ref-btn cursor-pointer w-full grid grid-cols-12 gap-x-md items-start py-sm px-sm no-underline" href="${url}"${linkAttrs}>
                   <div class="col-span-1 flex justify-start" style="padding-top: 0.25em;">
                     <span class="icon icon-attachment icon-m"></span>
                   </div>
@@ -1645,7 +1654,10 @@ export async function loadGeneralActivitiesInto(containerId, categoryFilter = nu
     showLocation:         !isIndustry,
     showPoster:           !isIndustry,
     showReference:        true,
-    showSubtitle:         isIndustry || isLectures,
+    // forum/conferences：後台沒填 poster 就不渲染 poster（不 fallback 第一張圖），只留 gallery 相簿
+    posterFallback:       categoryFilter !== 'conferences',
+    // conferences 也顯示副標（後台 subtitles 欄，如 forum「畢業展論壇」）；沒填的 forum subList 為空自然不渲染
+    showSubtitle:         isIndustry || isLectures || categoryFilter === 'conferences',
     subtitleFromGuests:   isLectures,
     showGuestAffiliation: !isIndustry,
     showGuestCountry:     !isIndustry,

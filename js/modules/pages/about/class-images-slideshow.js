@@ -2,16 +2,17 @@
  * About Page - Class Section 圖片輪播
  *
  * 每個 .division-images container 初始 render 3 張 .class-img 到 slot 1/2/3；
+ * （2026-08-17 圖片由 clip-path 改 clip-reveal：.class-img wrapper＝遮罩 overflow:clip＋承載旋轉，img 在內滑動）
  * 每 INTERVAL 秒 tick 一次：
- *   - slot 1 的 img 右→左 clip-path 消失
+ *   - slot 1 的 img 往左滑出遮罩（與整列左移同向）
  *   - slot 2 的 img 平移到 slot 1 位置（保留自己的旋轉）
  *   - slot 3 的 img 平移到 slot 2 位置（保留自己的旋轉）
- *   - pool 下一張從 slot 3 位置以隨機 4 方向 clip-path reveal
+ *   - pool 下一張從 slot 3 位置以隨機 4 方向滑入
  *
  * 切換 division 時流程：
- *   1. 舊 panel 的 3 張同步 clip-path 消失（右→左）
+ *   1. 舊 panel 的 3 張圖各自隨機 4 向滑出遮罩（text 卡同步 clip-reveal 滑出）
  *   2. 切 panel display（hidden toggle）
- *   3. 新 panel 的 3 張重新 render 並 clip-path reveal
+ *   3. 新 panel 的 3 張重新 render 並隨機 4 向滑入
  *   4. 新 panel 開始 loop
  */
 
@@ -28,8 +29,9 @@ const ANIM_EASE  = 'cubic-bezier(0.25, 0, 0, 1)';
 const INTERVAL   = 3000;
 const HOVER_DUR  = 0.3;
 
+// clip-path 常數只剩「textHlReveal=false 的 text 卡」在用（外部場景）；圖片滑動藏定位共用下方
+// revealHiddenT / randRevealDir（±110 過衝防 dpr hairline），離場固定 'left'＝跟整列左移同向。
 // 四值單位必須一致（全部 %），否則 GSAP 無法 tween clip-path
-const HIDE_CLIP_LEAVE = 'inset(0% 100% 0% 0%)'; // 右邊裁 100%（右→左消失）
 const HIDE_CLIPS = [
   'inset(0% 100% 0% 0%)',
   'inset(0% 0% 0% 100%)',
@@ -61,6 +63,8 @@ function randomRotation() { return parseFloat(((Math.random() * 2 - 1) * 4).toFi
 function buildImg(src, fixedWidth) {
   const wrapper = document.createElement('div');
   wrapper.className = 'class-img';
+  // wrapper＝滑動遮罩（inline 不動共用 .class-img class；桌面 timeline 照片另有自己的 clip 路線不受影響）
+  wrapper.style.overflow = 'clip';
 
   const img = document.createElement('img');
   img.src = src;
@@ -104,6 +108,7 @@ function placeInSlot(img, slotIdx, slotLefts, extra = {}) {
 // opts.slotLefts / opts.imgWidth：自訂 slot 幾何 + 統一圖寬（degree-show 手機全寬 slideshow 用）；
 // 不傳則維持 about 預設（3 slot % 定位 + natural 尺寸 capped）
 // opts.manual：不綁內建 img 點擊/hover（呼叫端用回傳的 tick() 自行驅動；about history 手機箭頭切年用）
+// opts.leaveRandom：tick 逐張離場改隨機 4 向（dshow-detail 子展覽用）；預設 false = 'left'（與整列左移同向，about/timeline 維持）
 export function createClassImagesSlideshow(container, pool, opts = {}) {
   if (!container || typeof gsap === 'undefined') return null;
 
@@ -116,6 +121,8 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
   const textHlReveal = !!opts.textHlReveal;
   // 單格置中用（timeline 手機單圖輪播：slotLefts ['50%'] + xPercent -50）；預設 0 = 原行為
   const slotXPercent = opts.slotXPercent ?? 0;
+  // tick 離場方向：預設 'left'（與整列左移同向）；dshow-detail 子展覽傳 true → 隨機 4 向
+  const leaveRandom = !!opts.leaveRandom;
 
   // 同一個 panel 內的 text highlight 區塊（含底色），和 imgs 一起做 clip-path
   // about 場景自動從 .class-info-panel 找 [data-class-hl]；degree-show 場景可顯式傳入 textHlEl
@@ -131,6 +138,7 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
   let nextIdx = 0;
   let timer = null;
   let isShifting = false; // 移動中：禁用 hover、避免重複觸發
+  let running = false;    // start()/stop() 的意圖狀態；hover 暫停不改它 → 未 reveal / 切 panel 停用中不被 resume 誤啟動
 
   function clearHoverState(wrapper) {
     if (wrapper._rotation === undefined) return;
@@ -159,17 +167,21 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
     });
   }
 
-  // 點擊第 2 或第 3 張：觸發一次 shift-left（行為等同 tick），整列 slot 往左移一格。
-  // 第 1 張（slot 0）不動作。移動期間 hover 失效。
-  // hover：旋轉歸 0°，leave 還原原始隨機角度；slot 0 不啟用。
-  // cursor 由 updateCursors() 依 slot 位置動態設定（slot 0 = default，其餘 = pointer）。
+  // 自動輪播 hover pause/resume（2026-08-17 對齊 degree-show gallery）：hover 任一張暫停、
+  // 離開後（無任何 slot 被 hover）恢復；running gate 避免 resume 誤啟動已 stop 的實例。
+  function pauseAutoplay() { if (timer) { clearInterval(timer); timer = null; } }
+  function resumeAutoplay() {
+    if (!running || timer || pool.length <= 1) return;
+    timer = setInterval(tick, INTERVAL);
+  }
+
+  // 點擊任一張（含 slot 0）：觸發一次 shift-left，整列往左移（2026-08-17 對齊 degree-show gallery）。
+  // hover：暫停自動輪播 + 旋轉歸 0°（slot 0 不做旋轉但仍暫停）；leave 還原角度、無 slot 被 hover 才恢復。
   function attachInteractions(wrapper) {
     wrapper.addEventListener('click', () => {
       if (isShifting) return;
-      const idx = slots.indexOf(wrapper);
-      if (idx <= 0) return; // slot 0 或已移除：不動作
       tick();
-      // 重置自動輪播計時，給用戶完整 INTERVAL 看新狀態
+      // 重置自動輪播計時，給用戶完整 INTERVAL 看新狀態（hover 暫停中 timer=null 則不動，離開後 resume 才起跑）
       if (timer) {
         clearInterval(timer);
         timer = setInterval(tick, INTERVAL);
@@ -177,12 +189,14 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
     });
 
     wrapper.addEventListener('mouseenter', () => {
+      pauseAutoplay();
       if (isShifting) return;
-      if (slots.indexOf(wrapper) === 0) return; // slot 0（第 1 張）不啟用 hover
+      if (slots.indexOf(wrapper) === 0) return; // slot 0（第 1 張）不做旋轉 hover
       activateHover(wrapper);
     });
     wrapper.addEventListener('mouseleave', () => {
       clearHoverState(wrapper);
+      if (!slots.some(s => s.matches(':hover'))) resumeAutoplay();
     });
   }
 
@@ -196,9 +210,10 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
       container.appendChild(img);
       placeInSlot(img, i, slotLefts, {
         rotation: randomRotation(),
-        clipPath: startHidden ? randomHideClip() : SHOW_CLIP,
         xPercent: slotXPercent,
       });
+      // 圖片藏定位＝img 在 wrapper 遮罩內滑出畫面外（隨機 4 向）
+      gsap.set(img.firstElementChild, startHidden ? revealHiddenT(randRevealDir()) : REVEAL_SHOWN);
       slots.push(img);
       if (!manual) attachInteractions(img);
     }
@@ -221,9 +236,9 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
 
     const leaving = slots[0];
 
-    // 1. slot 1 消失（右→左）
-    gsap.to(leaving, {
-      clipPath: HIDE_CLIP_LEAVE,
+    // 1. leaving img 滑出遮罩：預設 'left'（與整列左移同向）；leaveRandom（dshow-detail）改隨機 4 向
+    gsap.to(leaving.firstElementChild, {
+      ...revealHiddenT(leaveRandom ? randRevealDir() : 'left'),
       duration: ANIM_DUR,
       ease: ANIM_EASE,
       onComplete: () => leaving.remove(),
@@ -234,15 +249,15 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
       gsap.to(slots[i], { left: slotLefts[i - 1], duration: ANIM_DUR, ease: ANIM_EASE });
     }
 
-    // 4. 新圖 reveal 在最後一個 slot（與上面同時進行）
+    // 4. 新圖在最後一個 slot 隨機 4 向滑入（與上面同時進行）
     const nextSrc = pool[nextIdx % pool.length];
     nextIdx++;
     const newImg = buildImg(nextSrc, imgWidth);
     container.appendChild(newImg);
     placeInSlot(newImg, slotCount - 1, slotLefts, { rotation: randomRotation(), xPercent: slotXPercent });
-    gsap.fromTo(newImg,
-      { clipPath: randomHideClip() },
-      { clipPath: SHOW_CLIP, duration: ANIM_DUR, ease: ANIM_EASE,
+    gsap.fromTo(newImg.firstElementChild,
+      revealHiddenT(randRevealDir()),
+      { ...REVEAL_SHOWN, duration: ANIM_DUR, ease: ANIM_EASE,
         onComplete: () => {
           isShifting = false;
           if (!manual) reapplyHoverIfPointerInside();
@@ -258,11 +273,13 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
   }
 
   function start() {
+    running = true;
     if (timer) return;
-    if (pool.length <= 1) return; // 單張圖免輪播（單 slot 下 tick 會原地 clip 閃同一張）
+    if (pool.length <= 1) return; // 單張圖免輪播（單 slot 下 tick 會原地閃同一張）
     timer = setInterval(tick, INTERVAL);
   }
   function stop() {
+    running = false;
     if (timer) { clearInterval(timer); timer = null; }
   }
 
@@ -272,19 +289,20 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
     if (textHlReveal && textHlEl) fitCardToText(textHlEl);
   }
 
-  // mode 'hide'：圖片各自「隨機 4 向」clip-path 收 + text 卡「隨機 4 向」hero clip-reveal 滑出；'show'：都回顯示態。
+  // mode 'hide'：圖片各自「隨機 4 向」滑出遮罩 + text 卡「隨機 4 向」hero clip-reveal 滑出；'show'：都回顯示態。
   //（user 2026-08-10：切 tab 時圖片收合方向 random 4 向、文字也 random 4 向 clip-reveal）
   function animateGroup(mode) {
     return new Promise(resolve => {
-      const clipTargets = [...slots];
-      if (textHlEl && !textHlReveal) clipTargets.push(textHlEl);  // 非 reveal（degree-show）：text 跟 imgs 一起 clip-path
+      const imgWrappers = [...slots];
+      const clipText = (textHlEl && !textHlReveal) ? textHlEl : null;  // 非 reveal（外部場景）：text 維持 clip-path
       const revealText = textHlReveal && !!textHlEl;
-      const total = clipTargets.length + (revealText ? 1 : 0);
+      const total = imgWrappers.length + (clipText ? 1 : 0) + (revealText ? 1 : 0);
       if (total === 0) { resolve(); return; }
       let done = 0;
       const onOne = () => { if (++done >= total) resolve(); };
-      // 圖片（+非 reveal text）：clip-path。hide=每張獨立隨機 4 向、show=inset(0)
-      clipTargets.forEach(el => gsap.to(el, { clipPath: mode === 'hide' ? randomHideClip() : SHOW_CLIP, duration: ANIM_DUR, ease: ANIM_EASE, onComplete: onOne }));
+      // 圖片：img 在 wrapper 遮罩內滑動。hide=每張獨立隨機 4 向、show=歸位
+      imgWrappers.forEach(el => gsap.to(el.firstElementChild, { ...(mode === 'hide' ? revealHiddenT(randRevealDir()) : REVEAL_SHOWN), duration: ANIM_DUR, ease: ANIM_EASE, overwrite: 'auto', onComplete: onOne }));
+      if (clipText) gsap.to(clipText, { clipPath: mode === 'hide' ? randomHideClip() : SHOW_CLIP, duration: ANIM_DUR, ease: ANIM_EASE, onComplete: onOne });
       // reveal text 卡：clip-reveal 隨機 4 向（整塊色卡在貼身遮罩內純位移，無 clip-path）
       if (revealText) {
         if (mode === 'show') fitTextCard(); // 揭露前貼合寬度（隱藏態量寬 OK，translate 不影響寬）
@@ -330,7 +348,7 @@ async function switchTo(newDivision, animate = true) {
     const oldApi = currentDivision ? slideshowsByDivision.get(currentDivision) : null;
     const newApi = slideshowsByDivision.get(newDivision);
 
-    // 1. 舊 panel 的 imgs + text 一起 clip-path 消失
+    // 1. 舊 panel 的 imgs（滑出遮罩）+ text（clip-reveal 滑出）一起消失
     if (animate && oldApi) {
       await oldApi.hideAll();
       oldApi.stop();
@@ -349,7 +367,7 @@ async function switchTo(newDivision, animate = true) {
       el.classList.toggle('hidden', el.getAttribute('data-division') !== newDivision);
     });
 
-    // 4. 新 panel 的 imgs + text 一起 clip-path reveal，然後啟動 loop
+    // 4. 新 panel 的 imgs + text 一起 reveal 滑入，然後啟動 loop
     if (newApi) {
       if (animate) {
         await newApi.showAll();          // showAll → animateGroup('show') 內部已 fitText

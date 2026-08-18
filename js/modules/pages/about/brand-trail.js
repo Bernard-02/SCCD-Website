@@ -18,12 +18,12 @@ function getAccentColors() {
   return CSS_ACCENT_COLORS.map(v => style.getPropertyValue(v).trim());
 }
 
-// clip-path 4方向定義
-const CLIP_DIRS = [
-  { from: 'inset(0 0 100% 0)', to: 'inset(0 0 0% 0)' },   // 上→下
-  { from: 'inset(100% 0 0 0)', to: 'inset(0% 0 0 0)' },   // 下→上
-  { from: 'inset(0 100% 0 0)', to: 'inset(0 0% 0 0)' },   // 右→左
-  { from: 'inset(0 0 0 100%)', to: 'inset(0 0 0 0%)' },   // 左→右
+// 滑入 4 方向藏定位（reveal 語彙：wrapper＝遮罩、img 在內滑動；±110 過衝防 dpr hairline）
+const SLIDE_DIRS = [
+  'translate(0, -110%)',  // 從上滑入
+  'translate(0, 110%)',   // 從下滑入
+  'translate(110%, 0)',   // 從右滑入
+  'translate(-110%, 0)',  // 從左滑入
 ];
 
 async function loadTrailImages() {
@@ -112,7 +112,7 @@ function initOverviewHighlight() {
 }
 
 /**
- * 共用：生成一個 trail item（直接 clip-path 露出圖片，沒有色塊）
+ * 共用：生成一個 trail item（clip-reveal：wrapper 遮罩、img 在內 4 向滑入/滑出）
  * @param {string} imgSrc  - 圖片路徑
  * @param {number} x       - left（相對於 container）
  * @param {number} y       - top（相對於 container）
@@ -122,10 +122,10 @@ function initOverviewHighlight() {
 function spawnTrailItem(imgSrc, x, y, container, registry) {
   const rot = Math.random() * 30 - 15;
 
-  const revealDir = CLIP_DIRS[Math.floor(Math.random() * CLIP_DIRS.length)];
-  const exitDir   = CLIP_DIRS[Math.floor(Math.random() * CLIP_DIRS.length)];
+  const revealDir = SLIDE_DIRS[Math.floor(Math.random() * SLIDE_DIRS.length)];
+  const exitDir   = SLIDE_DIRS[Math.floor(Math.random() * SLIDE_DIRS.length)];
 
-  // wrapper：clip-path 從 hidden → shown 直接露出圖片
+  // wrapper＝遮罩（overflow:hidden、承載旋轉 → 滑動跟著旋轉角、不切角）
   // 不設固定寬：absolute + width auto = shrink-to-fit 圖片實際尺寸，wrapper 跟著 img 的 max box 縮
   const wrapper = document.createElement('div');
   wrapper.style.cssText = `
@@ -136,8 +136,6 @@ function spawnTrailItem(imgSrc, x, y, container, registry) {
     pointer-events: none;
     z-index: 50;
     overflow: hidden;
-    clip-path: ${revealDir.from};
-    transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);
   `;
 
   // max-width/height 同上限 box（保持比例）：直幅海報不會被撐很高 → 在下方位置 spawn 時
@@ -150,20 +148,22 @@ function spawnTrailItem(imgSrc, x, y, container, registry) {
     max-width: 260px;
     max-height: 260px;
     display: block;
+    transform: ${revealDir};
+    transition: transform 0.5s cubic-bezier(0.25,0,0,1);
   `;
 
   wrapper.appendChild(img);
   container.appendChild(wrapper);
   registry.push(wrapper);
 
-  // Step 1：wrapper 直接 clip-path 露出圖片
+  // Step 1：img 滑入遮罩
   requestAnimationFrame(() => {
-    wrapper.style.clipPath = revealDir.to;
+    img.style.transform = 'translate(0, 0)';
   });
 
-  // Step 2：2s 後 wrapper 用隨機方向 clip-path 消失（結束動畫不變）
+  // Step 2：2s 後 img 用隨機方向滑出（結束動畫時序不變）
   setTimeout(() => {
-    wrapper.style.clipPath = exitDir.from;
+    img.style.transform = exitDir;
     setTimeout(() => {
       wrapper.remove();
       const idx = registry.indexOf(wrapper);

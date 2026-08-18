@@ -14,7 +14,7 @@
  */
 
 import { CMS_API_BASE, CMS_ASSETS_BASE } from '../../config/api.js';
-import { sitePath } from './site-base.js';
+import { sitePath, SITE_BASE_PATHNAME } from './site-base.js';
 
 const TAB_FIELDS = 'key,nameZh,nameEn,markIcon,items.type,items.itemKey,items.labelZh,items.labelEn,' +
   'items.textZh,items.textEn,items.phoneCountry,items.phoneNumber,items.phoneExt,items.iconFile,items.url';
@@ -196,7 +196,9 @@ function renderLegal(footerRoot, legal) {
   privacy.querySelectorAll('[data-footer-legal]').forEach((n) => n.remove());
   const anchor = privacy.querySelector('.footer-a11y-badge') || privacy.firstChild;
   legal.forEach((lg) => {
-    const a = link(sitePath('pages/' + (lg.url || '')), { external: false });
+    // ⚠️ 站內頁 href 要用 pathname 形式不能用 sitePath()（完整 http URL 會被 router 攔截器當外部連結放行
+    //    → 整頁重載、footer/頁面退場動畫全不播）；SITE_BASE_PATHNAME 前綴讓子路徑部署也成立
+    const a = link(SITE_BASE_PATHNAME + 'pages/' + (lg.url || ''), { external: false });
     a.dataset.footerLegal = '1';
     a.append(el('span', 'footer-legal-en mb-en-zh-s', `${lg.labelEn || ''} `), el('span', 'footer-legal-zh', lg.labelZh || ''));
     privacy.insertBefore(a, anchor);

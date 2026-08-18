@@ -126,7 +126,7 @@ export function createRefBtn(initialColor, onCloseLightbox) {
               <div class="lightbox-ref-chip-title-window">
                 <div class="lightbox-ref-chip-title-track">
                   <div class="lightbox-ref-chip-title-unit">
-                    <p class="text-xs font-bold">${escape(ref.titleEn)}</p>
+                    <p class="text-s font-bold">${escape(ref.titleEn)}</p>
                   </div>
                 </div>
               </div>
@@ -136,7 +136,7 @@ export function createRefBtn(initialColor, onCloseLightbox) {
               <div class="lightbox-ref-chip-title-window">
                 <div class="lightbox-ref-chip-title-track">
                   <div class="lightbox-ref-chip-title-unit">
-                    <p class="text-xs font-bold">${escape(ref.titleZh)}</p>
+                    <p class="text-s font-bold">${escape(ref.titleZh)}</p>
                   </div>
                 </div>
               </div>

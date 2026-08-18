@@ -246,8 +246,10 @@ function renderFacultyList(containerId, items, eagerCount = 0, highPriority = fa
     const imgDir = randomImgDir();
     return `
     <div class="faculty-card group cursor-pointer p-[6px]" data-category="${item.type}" data-faculty-id="${item.id}" data-img-dir="${imgDir}" style="--card-color: ${color}; --init-deg: ${initDeg}deg">
-      <div class="faculty-card-image-wrapper overflow-hidden mb-md aspect-[4/5] bg-gray-2 relative">
-        <img src="${item.image}" alt="${item.nameEn}" loading="${eager ? 'eager' : 'lazy'}"${eagerHigh ? ' fetchpriority="high"' : ''} class="faculty-card-image w-full h-full object-cover">
+      <div class="faculty-card-image-mask mb-md">
+        <div class="faculty-card-image-wrapper overflow-hidden aspect-[4/5] bg-gray-2 relative">
+          <img src="${item.image}" alt="${item.nameEn}" loading="${eager ? 'eager' : 'lazy'}"${eagerHigh ? ' fetchpriority="high"' : ''} class="faculty-card-image w-full h-full object-cover">
+        </div>
       </div>
       <div class="text-left">
         <div class="faculty-card-name" role="heading" aria-level="2">

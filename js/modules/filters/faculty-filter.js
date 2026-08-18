@@ -9,18 +9,18 @@ import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 
-// 卡片進場動畫：
-//   圖片 → 4 方向 clip-path inset 揭露（每卡 data-img-dir 隨機）
+// 卡片進場動畫（2026-08-16 圖片由 clip-path 擦除改 clip-reveal 滑入，user 指定全卡統一 clip-reveal 語彙）：
+//   圖片 → wrapper 整塊（灰底+照片+overlay）在 .faculty-card-image-mask（overflow:clip，template 內建
+//          非 runtime wrap）內依 data-img-dir 4 方向 x/yPercent 滑入；旋轉在 mask 上 → 滑動跟著旋轉角、角不被裁
 //   文字（name / title）→ Clip-Reveal Entrance（hero-style 由下而上，見 CLAUDE.md「共用動畫模式」）
 //   name 先進，title 略晚進；卡與卡之間再 stagger
-// inset 單位統一用 `%`：混合 `0` 與 `100%` 會讓 GSAP/瀏覽器無法穩定 interpolate → 視覺上看起來「直接出現沒動畫」
-const CLIP_MAP = {
-  top:    'inset(0% 0% 100% 0%)',
-  right:  'inset(0% 0% 0% 100%)',
-  bottom: 'inset(100% 0% 0% 0%)',
-  left:   'inset(0% 100% 0% 0%)',
+// 110 過衝非 100：dpr 非整數時 GPU rasterization 會在貼齊邊露 1-2px hairline（見 about hero SCCD 案）
+const SLIDE_MAP = {
+  top:    { xPercent: 0,    yPercent: -110 },
+  right:  { xPercent: 110,  yPercent: 0 },
+  bottom: { xPercent: 0,    yPercent: 110 },
+  left:   { xPercent: -110, yPercent: 0 },
 };
-const CLIP_REVEALED = 'inset(0% 0% 0% 0%)';
 
 // 左側 filter nav 進場/退場：2026-07-16 改 hero 式 clip-reveal＝translate（獨立屬性，與 inner 的 inline
 // rotate 共存）＋同步 clip-path 滑動揭露（navChipHidden，見 scroll-animate.js）。
@@ -41,7 +41,7 @@ function setupFacultyCardAnim(card) {
   // 重置 reveal 標記：此卡尚未開始進場（reveal tween onStart 觸發才標 started）。
   // exit 用它分辨「這張該不該收」——只收已經露出來的，沒輪到的不強拉出來再收（user 2026-06-06）。
   delete card.dataset.revealStarted;
-  if (imgWrapper) gsap.set(imgWrapper, { clipPath: CLIP_MAP[imgDir] || CLIP_MAP.bottom });
+  if (imgWrapper) gsap.set(imgWrapper, SLIDE_MAP[imgDir] || SLIDE_MAP.bottom);
   // 文字用共用 clip-reveal helper：wrap 一層 overflow:clip + yPercent:100
   if (name) setupClipReveal([name]);
   if (title) setupClipReveal([title]);
@@ -92,11 +92,12 @@ function playFacultyCard(card, startTime) {
 
   if (imgWrapper) {
     gsap.to(imgWrapper, {
-      clipPath: CLIP_REVEALED,
+      xPercent: 0,
+      yPercent: 0,
       duration: IMG_DUR,
       ease: EASE.enter,
       delay: startTime,
-      clearProps: 'clipPath',
+      clearProps: 'transform',
       // image 是每張卡最先動的元素：它真的開跑（onStart，非排程當下）才算這張「已 reveal」。
       // delay 期間被 kill（離頁/切 tab）→ onStart 不會 fire → 維持未標記 → exit 自動跳過這張。
       onStart: () => { card.dataset.revealStarted = '1'; },
@@ -177,7 +178,7 @@ function animateFacultyCards(cards) {
       const name = card.querySelector('.faculty-card-name');
       const title = card.querySelector('.faculty-card-title');
       gsap.killTweensOf([imgWrapper, name, title].filter(Boolean));
-      if (imgWrapper) gsap.set(imgWrapper, { clearProps: 'clipPath' });
+      if (imgWrapper) gsap.set(imgWrapper, { clearProps: 'transform' });
       if (name) gsap.set(name, { clearProps: 'transform' });
       if (title) gsap.set(title, { clearProps: 'transform' });
       if (card._hoverUnlockTimer) { clearTimeout(card._hoverUnlockTimer); card._hoverUnlockTimer = null; }
@@ -193,7 +194,16 @@ function animateFacultyCards(cards) {
       card.querySelector('.faculty-card-name'),
       card.querySelector('.faculty-card-title'),
     ].filter(Boolean));
+    // 每次進場（含 filter 切換）重擲旋轉角（user 2026-08-16；原本 render 時擲一次就固定）。
+    // ⚠️ mask 帶 hover 用的 `transition: transform 0.3s`（cards.css）——改 --init-deg **會觸發**它補間旋轉
+    // （transform 吃 var 變更會動，跟 background-color 吃 var 不動的 atlas 案不同）。第一張卡 delay 0
+    // 進場正好撞上補間尾巴＝「圖片滑入時轉了一下才就定位」（user 回報；後面的卡 stagger 後才進、看不到）。
+    // 修＝關 transition → 改 var → 強制 reflow 讓新角度無過場落地 → 還原（hover 仍需要那條 transition）。
+    const mask = /** @type {HTMLElement|null} */ (card.querySelector('.faculty-card-image-mask'));
+    if (mask) mask.style.transition = 'none';
+    card.style.setProperty('--init-deg', `${((Math.random() < 0.5 ? -1 : 1) * (3 + Math.random() * 3)).toFixed(2)}deg`);
     setupFacultyCardAnim(card);
+    if (mask) { void mask.offsetWidth; mask.style.transition = ''; }
   });
 
   if (typeof ScrollTrigger !== 'undefined') {
@@ -257,25 +267,15 @@ function exitFacultyCards(cards, onComplete) {
     }
     if (imgWrapper) {
       gsap.killTweensOf(imgWrapper);
-      // 退場起點 = 卡片「當下」的揭露狀態（已排除未開始的卡片，這裡只會是「完整」或「進場中」）：
-      //   收合方向永遠 = CLIP_MAP[imgDir]（= 進場起點）→ 沿進場路徑往回收。
-      //   ① 完整揭露：進場 clearProps 已清掉 inline clipPath、computed=none → GSAP 無法 interpolate，
-      //      必 fromTo 顯式給 inset(0%) 起點（見 feedback_clippath_exit_after_clearprops_use_fromto）；
-      //      此時卡片本就全開，fromTo 設 inset(0%) 無視覺跳動，再沿 imgDir 收回。
-      //   ② 進場中（半開）：inline 仍是 GSAP 寫的 partial inset → 直接 gsap.to 從半開往回收（順順倒帶）。
-      const collapseTo = CLIP_MAP[imgDir] || CLIP_MAP.bottom;
-      const exitOpts = {
-        clipPath: collapseTo,
+      // 收合方向永遠 = SLIDE_MAP[imgDir]（= 進場起點）→ 沿進場路徑往回滑出。
+      // transform 沒有 clip-path 那個「clearProps 後 computed=none 補不動」問題（x/yPercent 未設即 0），
+      // 完整揭露 / 進場中（半開）都直接 gsap.to 即可，免 fromTo 分流。
+      gsap.to(imgWrapper, {
+        ...(SLIDE_MAP[imgDir] || SLIDE_MAP.bottom),
         duration: EXIT_DUR,
         ease: EASE.exit,
         delay: cardDelay + EXIT_INTERNAL_STEP * 2,
-      };
-      const inlineClip = imgWrapper.style.clipPath;
-      if (inlineClip && inlineClip !== 'none') {
-        gsap.to(imgWrapper, exitOpts);
-      } else {
-        gsap.fromTo(imgWrapper, { clipPath: CLIP_REVEALED }, exitOpts);
-      }
+      });
     }
     const finish = cardDelay + EXIT_INTERNAL_STEP * 2 + EXIT_DUR;
     if (finish > maxFinish) maxFinish = finish;

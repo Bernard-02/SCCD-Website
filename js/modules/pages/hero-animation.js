@@ -28,13 +28,13 @@ function offsetFor(dir) {
   }
 }
 
-// Banner clip-path 4 方向收/展（沿用 hero-banner 既有 inset reveal pattern）
-const BANNER_INSET_MAP = {
-  top:    'inset(0% 0% 100% 0%)',
-  right:  'inset(0% 0% 0% 100%)',
-  bottom: 'inset(100% 0% 0% 0%)',
-  left:   'inset(0% 100% 0% 0%)',
-};
+// Banner 圖 4 方向滑入/滑出（2026-08-16 由 clip-path inset 改 clip-reveal，user 全站圖片統一 reveal 語彙）：
+// .hero-banner / .hero-mobile-bg 本身 overflow:hidden 就是現成遮罩、旋轉在容器上 → 內層 img 滑動跟著
+// 旋轉角、角不被裁；±110 過衝防 dpr hairline（同 faculty SLIDE_MAP）。容器透明無底色，img 滑出＝什麼都看不到
+function bannerOffsetFor(dir) {
+  const o = offsetFor(dir);
+  return { xPercent: o.xPercent * 1.1, yPercent: o.yPercent * 1.1 };
+}
 
 function wrapElement(el, wrapperClass) {
   const wrapper = document.createElement('div');
@@ -552,7 +552,7 @@ window.addEventListener('resize', () => {
 });
 
 /**
- * Hero 退場動畫：text 4 方向隨機 slide-out + banner 4 方向 clip-path 收合。
+ * Hero 退場動畫：text 4 方向隨機 slide-out + banner img 4 方向遮罩內滑出。
  * 與 page-specific exit handler 並行（page-exit.js 用 Promise.all）。
  */
 // 從「當下狀態」把 hero chips（+ banner）收場：desktop playHeroExit 與 mobile 退場共用。
@@ -561,8 +561,9 @@ window.addEventListener('resize', () => {
 //   （user 2026-06-21；對齊 faculty exitFacultyCards 的「從當下倒帶」邏輯）。
 // - 未開始進場的 chip（快速切頁還沒輪到，dataset.heroRevealStarted 未設）：kill 排隊 tween + 維持隱藏、
 //   不納入退場序列，避免 tl.to 從畫面外起點掃過可見區再離開。
-// - banner 用 clip-path：進場中（inline clip 還在）從當下收；進場完成（clearProps 後 computed=none 無法
-//   interpolate）才 fromTo 顯式 inset(0%) 起點（見 feedback_clippath_exit_after_clearprops_use_fromto）。
+// - banner：img 在容器遮罩內滑出（transform 無 clip-path「clearProps 後 computed=none 補不動」問題，
+//   進場完成/進場中都直接 tl.to 從當下倒帶）。還沒輪到進場（img 仍在 ±110 藏定位）→ kill 排隊 tween
+//   維持隱藏，避免 hidden→hidden 對角補間中途掃過可見區；判準讀 gsap state 非 flag（watchdog 救援也涵蓋）。
 function exitHeroChips(tl, chips, banner) {
   let i = 0;
   chips.forEach(el => {
@@ -571,10 +572,16 @@ function exitHeroChips(tl, chips, banner) {
     tl.to(el, { xPercent: to.xPercent, yPercent: to.yPercent, duration: 0.5, ease: EASE.exit, overwrite: true }, (i++) * 0.06);
   });
   if (banner) {
-    const opts = { clipPath: BANNER_INSET_MAP[pickHeroDir()], duration: 0.5, ease: EASE.exit, overwrite: true };
-    const inlineClip = /** @type {HTMLElement} */ (banner).style.clipPath;
-    if (inlineClip && inlineClip !== 'none') tl.to(banner, opts, 0);
-    else tl.fromTo(banner, { clipPath: 'inset(0% 0% 0% 0%)' }, opts, 0);
+    const bImg = /** @type {HTMLElement|null} */ (banner.querySelector('img'));
+    if (bImg) {
+      const bx = Number(gsap.getProperty(bImg, 'xPercent')) || 0;
+      const by = Number(gsap.getProperty(bImg, 'yPercent')) || 0;
+      if (Math.abs(bx) >= 105 || Math.abs(by) >= 105) {
+        gsap.killTweensOf(bImg);
+      } else {
+        tl.to(bImg, { ...bannerOffsetFor(pickHeroDir()), duration: 0.5, ease: EASE.exit, overwrite: true }, 0);
+      }
+    }
   }
 }
 
@@ -667,7 +674,7 @@ export function waitForHeroAnimDone(maxWaitMs = 4000) {
 
 // ── 手機共用 hero（.hero-mobile，faculty/courses/activities/admission/curriculum）進退場 ──
 // 比照桌面 buildHeroTimeline 的節奏做手機鏡像（user 2026-06-12「手機 hero 也要有動畫，跟桌面一樣」）：
-//   - bg 圖 clip-path 隨機 4 方向 reveal（= 桌面 .hero-banner，DUR.reveal）
+//   - bg 圖 img 在 .hero-mobile-bg 遮罩內隨機 4 方向滑入（= 桌面 .hero-banner，DUR.reveal）
 //   - 4 chip 各包 overflow:hidden mask wrapper、隨機 4 方向滑入；照 DOM 順序（固定 TTDD）
 //     stagger 0.15 / duration 0.9
 //   - onComplete 發 signalHeroDone → deep-link 等的是「看得見的動畫」而非隱藏的桌面 timeline
@@ -714,9 +721,10 @@ function playMobileHeroEntrance() {
 
   // 初始藏起要在同一個 task 內同步 set（hero-mobile-sync 剛把 visibility 打開、瀏覽器還沒 paint → 不閃）
   const tl = gsap.timeline({ paused: true, defaults: { ease: EASE.enter }, onComplete: signalHeroDone });
-  if (bg) {
-    gsap.set(bg, { clipPath: BANNER_INSET_MAP[pickHeroDir()] });
-    tl.to(bg, { clipPath: 'inset(0% 0% 0% 0%)', duration: DUR.reveal, clearProps: 'clipPath' }, 0);
+  const bgImg = /** @type {HTMLElement|null} */ (bg ? bg.querySelector('img') : null);
+  if (bgImg) {
+    gsap.set(bgImg, bannerOffsetFor(pickHeroDir()));
+    tl.to(bgImg, { xPercent: 0, yPercent: 0, duration: DUR.reveal, clearProps: 'transform' }, 0);
   }
   const ENTER_STAGGER = 0.15;
   const ENTER_DURATION = 0.9;
@@ -802,8 +810,8 @@ export function initHeroAnimation() {
   setTimeout(() => {
     if (isStale()) return;
     const els = document.querySelectorAll(
-      '.hero-title, .hero-title-cn, .hero-text-en, .hero-text-cn, .hero-banner,' +
-      '.hero-mobile-title, .hero-mobile-title-cn, .hero-mobile-text-en, .hero-mobile-text-cn, .hero-mobile-bg, [data-hero-logo]'
+      '.hero-title, .hero-title-cn, .hero-text-en, .hero-text-cn, .hero-banner, .hero-banner img,' +
+      '.hero-mobile-title, .hero-mobile-title-cn, .hero-mobile-text-en, .hero-mobile-text-cn, .hero-mobile-bg, .hero-mobile-bg img, [data-hero-logo]'
     );
     const rescuedSigs = [];
     let rescued = 0;
@@ -951,18 +959,21 @@ export function initHeroAnimation() {
   const grid = document.querySelector('.hero-rand-grid');
   if (grid) applyOrBuildLayout(grid);
 
-  // Banner clip-path reveal（4 方向 random，與 faculty card 圖片進場一致風格）
+  // Banner 圖 clip-reveal（4 方向 random，與 faculty card 圖片進場一致風格）：img 在 banner 遮罩內滑入
   const heroBanner = /** @type {HTMLElement | null} */ (document.querySelector('.hero-banner'));
   if (heroBanner) {
-    const dir = pickHeroDir();
-    gsap.set(heroBanner, { clipPath: BANNER_INSET_MAP[dir] });
+    const heroBannerImg = /** @type {HTMLElement | null} */ (heroBanner.querySelector('img'));
+    if (heroBannerImg) gsap.set(heroBannerImg, bannerOffsetFor(pickHeroDir()));
     tl.set(heroBanner, { visibility: 'visible' }, 0);
-    tl.to(heroBanner, {
-      clipPath: 'inset(0% 0% 0% 0%)',
-      duration: DUR.reveal,
-      ease: EASE.enter,
-      clearProps: 'clipPath',
-    }, 0);
+    if (heroBannerImg) {
+      tl.to(heroBannerImg, {
+        xPercent: 0,
+        yPercent: 0,
+        duration: DUR.reveal,
+        ease: EASE.enter,
+        clearProps: 'transform',
+      }, 0);
+    }
   }
 
   const titles = [title, titleCn].filter(Boolean);

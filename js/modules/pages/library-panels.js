@@ -15,7 +15,8 @@ import { sitePath, SITE_BASE_PATHNAME } from '../ui/site-base.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { makeActivatable } from '../ui/a11y.js';
 import { loadSummerCamp } from './summer-camp-source.js';
-import { loadActivityCollection } from './activities-source.js';
+import { loadActivityCollection, loadGeneralActivitiesAlbum } from './activities-source.js';
+import { loadDegreeShowAlbum } from './degree-show-source.js';
 import { loadOthersAlbum } from './library-album-source.js';
 import { getAwardRecords, findAwardById } from './activities-data-loader.js';
 import { renderPdfCover } from '../ui/pdf-cover.js';
@@ -43,6 +44,16 @@ const CAT_LABELS = {
   'moment':           'Moment 日常',
   'others':           'Others 其他',
 };
+
+// 斑馬紋依「當前可見順序」重排：篩選只 display:none 隱藏，靜態 build 的 rowIdx 交替會斷（連續同底色）→
+// 依可見 DOM 順序重算（偶數位＝斑馬，同 build 慣例 rowIdx%2===0）。awards/press/album 三個可篩選斑馬清單共用。
+function restripeZebra(listEl, itemSelector) {
+  let z = 0;
+  listEl.querySelectorAll(itemSelector).forEach(item => {
+    if (item.style.display === 'none') return;
+    item.classList.toggle('list-item-zebra', z++ % 2 === 0);
+  });
+}
 
 const ACCENT_COLORS = ['#FF448A', '#00FF80', '#26BCFF'];
 
@@ -352,7 +363,7 @@ function openLibraryDocument({ url, item, title, color, references, shareUrl, wa
     return;
   }
   document.dispatchEvent(new CustomEvent('sccd:open-pdf', {
-    detail: { pdfUrl: url, title, color, references, shareUrl, watermark },
+    detail: { pdfUrl: url, title, color, references, shareUrl, watermark, cover: (item && item.cover) || '' },
   }));
 }
 
@@ -445,7 +456,7 @@ function bindAwardRefRowClick(row) {
         const { getPdfRefSources } = await import('./pdf-cross-ref-index.js');
         const auto = await getPdfRefSources(item.pdfUrl);
         const references = excludeHostFromRefs(unionRefs(auto, await resolveLibManualRefs(item)), host);
-        document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl, title, color, references, shareUrl: libShareUrl(item.id) } }));
+        document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl, title, color, references, shareUrl: libShareUrl(item.id), cover: item.cover || '' } }));
       }
       return;
     }
@@ -534,7 +545,7 @@ async function fetchAwardLogos(localFallback) {
 // （library_album 已透過 loadOthersAlbum 接上 Directus，M2A 選的 row 跟前台 album 面板渲染的是同一顆 id）。
 const AWARD_REF_FIELDS = [
   'references.collection',
-  'references.item:library_documents.id', 'references.item:library_documents.titleEn', 'references.item:library_documents.titleZh', 'references.item:library_documents.pdf',
+  'references.item:library_documents.id', 'references.item:library_documents.titleEn', 'references.item:library_documents.titleZh', 'references.item:library_documents.pdf', 'references.item:library_documents.pdfLink',
   'references.item:library_press.id', 'references.item:library_press.titleEn', 'references.item:library_press.titleZh',
   'references.item:library_album.id', 'references.item:library_album.titleEn', 'references.item:library_album.titleZh', 'references.item:library_album.images.directus_files_id',
 ].join(',');
@@ -548,8 +559,10 @@ function remapAwardRef(r) {
   const id = it.id;
   if (!id) return null;
   switch (r.collection) {
-    case 'library_documents':
-      return it.pdf ? { kind: 'document', labelEn: AWARD_REF_TYPE_LABELS.document.en, labelZh: AWARD_REF_TYPE_LABELS.document.zh, titleEn: it.titleEn || '', titleZh: it.titleZh || '', pdfUrl: `${CMS_ASSETS_BASE}/${it.pdf}` } : null;
+    case 'library_documents': {
+      const pdfUrl = it.pdfLink || (it.pdf ? `${CMS_ASSETS_BASE}/${it.pdf}` : '');   // 貼的 CloudFront 網址優先，同 mapDirectusFilesRow
+      return pdfUrl ? { kind: 'document', labelEn: AWARD_REF_TYPE_LABELS.document.en, labelZh: AWARD_REF_TYPE_LABELS.document.zh, titleEn: it.titleEn || '', titleZh: it.titleZh || '', pdfUrl } : null;
+    }
     case 'library_press':
       return { kind: 'press', labelEn: AWARD_REF_TYPE_LABELS.press.en, labelZh: AWARD_REF_TYPE_LABELS.press.zh, titleEn: it.titleEn || '', titleZh: it.titleZh || '', pressId: `press-${id}` };
     // 沒圖的相簿沒東西可開，比照 document 沒 pdf 的略過規則（同本地 resolveAwardRef 舊行為）
@@ -1011,6 +1024,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         });
         /** @type {HTMLElement} */ (block).style.display = blockVisible ? '' : 'none';
       });
+      restripeZebra(listEl, '.award-record-item'); // 篩後依可見順序重排斑馬
       const anyVisible = /** @type {HTMLElement[]} */ ([...listEl.querySelectorAll('.year-block')]).some(b => b.style.display !== 'none');
       awardsEmptyState.classList.toggle('hidden', anyVisible);
       updateAwardsCount();
@@ -1205,7 +1219,7 @@ function mapDirectusPressRow(row) {
     year: row.date ? String(row.date).slice(0, 4) : '',           // press 列表用 year 分組（從 date 推）
     images,        // 多圖 asset URL 陣列
     videoUrls,     // 多 YouTube URL 陣列
-    pdfUrl: row.pdf ? `${CMS_ASSETS_BASE}/${row.pdf}` : '',        // 單 PDF（不轉檔）
+    pdfUrl: row.pdfLink || (row.pdf ? `${CMS_ASSETS_BASE}/${row.pdf}` : ''),  // 貼的 CloudFront 網址優先，同 files；press fetch 用 fields=* 已含 pdfLink
   };
 }
 
@@ -1355,6 +1369,7 @@ async function initPressPanel() {
         });
         block.style.display = anyVisible ? '' : 'none';
       });
+      restripeZebra(listEl, '.press-item'); // 篩後依可見順序重排斑馬
       // Empty state：任何篩選組合（search / 年份）歸零都顯示（user 2026-08-10：不限 search）
       const anyVisible = /** @type {HTMLElement[]} */ ([...listEl.querySelectorAll('.press-year-block')]).some(b => b.style.display !== 'none');
       pressEmptyState.classList.toggle('hidden', anyVisible);
@@ -1400,9 +1415,13 @@ function mapDirectusFilesRow(row) {
     id: row.id,
     titleEn: row.titleEn || '',
     titleZh: row.titleZh || '',
+    subtitleEn: row.subtitleEn || '',
+    subtitleZh: row.subtitleZh || '',
     year: row.year || '',
     cover: row.cover ? `${CMS_ASSETS_BASE}/${row.cover}` : '',
-    pdfUrl: documentId ? `${CMS_ASSETS_BASE}/${documentId}` : '',
+    // pdfLink（貼的 CloudFront／S3 網址）優先：直服務 range 比 Directus 代理快 ~25x（見 memory
+    // reference_pdf_move_to_video_cloudfront_bucket）；沒填才 fallback 舊的上傳檔 UUID，方便漸進搬遷。
+    pdfUrl: row.pdfLink || (documentId ? `${CMS_ASSETS_BASE}/${documentId}` : ''),
     documentMimeType: typeof documentFile === 'object' ? documentFile?.type || '' : '',
     categories: row.categories || [],
     references: row.references || [],
@@ -1418,11 +1437,9 @@ function applyPdfCoverTo(card, pdfUrl) {
     if (!dataUrl || !ph) return;
     const probe = new Image();
     probe.onload = () => {
-      // 照 PDF 頁面實際比例撐框，仿真 cover <img> 的 contain 行為（直式吃滿高、橫式吃滿寬、flex 貼底置中）
-      const r = probe.naturalWidth / probe.naturalHeight;
-      ph.style.aspectRatio = String(r);
-      if (r > 4 / 5) { ph.style.width = '100%'; ph.style.height = 'auto'; }
-      else { ph.style.width = 'auto'; ph.style.height = '100%'; }
+      // 照 PDF 頁面實際比例撐 mask（ph 本體恆填滿 mask，比例統一由 mask 的 --cover-ratio 管）
+      const mask = /** @type {HTMLElement|null} */ (ph.closest('.files-item-cover-mask'));
+      if (mask) mask.style.setProperty('--cover-ratio', String(probe.naturalWidth / probe.naturalHeight));
       ph.style.backgroundImage = `url(${dataUrl})`;
       ph.style.backgroundSize = 'cover';
     };
@@ -1466,14 +1483,21 @@ async function initFilesPanel() {
     // 首 EAGER_COVERS 張直接 render（餵 reveal gate、pre-warm 首屏），其餘捲到近視窗（IO rootMargin）才 render。
     // renderPdfCover 本身有併發閘門 3 + sessionStorage 快取；懶載再砍掉「沒看到的也 render」那段。
     const EAGER_COVERS = 10;
-    function scheduleCovers(needCover) {
+    // needCover＝pdf.js fallback 現畫（沒 cover 的書）；lazyImgCards＝預產封面 <img> 視窗外延後補 src。
+    // 同一個 IO 兼管兩種：card 上有 lazyPdfCover → 現畫；card 內有 img[data-lazy-src] → 補 src。
+    function scheduleCovers(needCover, lazyImgCards = []) {
       if (_coverIO) { _coverIO.disconnect(); _coverIO = null; }
       needCover.slice(0, EAGER_COVERS).forEach(c => coverPromises.push(applyPdfCoverTo(c.card, c.pdfUrl)));
       const lazy = needCover.slice(EAGER_COVERS);
-      if (!lazy.length) return;
+      const loadLazyImg = (card) => {
+        const img = card.querySelector('img[data-lazy-src]');
+        if (img) { img.src = img.dataset.lazySrc; delete img.dataset.lazySrc; }
+      };
+      if (!lazy.length && !lazyImgCards.length) return;
       const scroller = document.getElementById('library-files-scroll');
-      if (!('IntersectionObserver' in window) || !scroller) {   // 無 IO 保底：其餘也直接 render
+      if (!('IntersectionObserver' in window) || !scroller) {   // 無 IO 保底：全部直接載
         lazy.forEach(c => applyPdfCoverTo(c.card, c.pdfUrl));
+        lazyImgCards.forEach(loadLazyImg);
         return;
       }
       _coverIO = new IntersectionObserver((entries, obs) => {
@@ -1482,15 +1506,19 @@ async function initFilesPanel() {
           obs.unobserve(e.target);
           const url = e.target.dataset.lazyPdfCover;
           if (url) applyPdfCoverTo(e.target, url);
+          loadLazyImg(e.target);
         });
       }, { root: scroller, rootMargin: '400px 0px' });   // 提前 400px render，捲到時已就緒
       lazy.forEach(c => { c.card.dataset.lazyPdfCover = c.pdfUrl; _coverIO.observe(c.card); });
+      lazyImgCards.forEach(card => _coverIO.observe(card));
       registerPageCleanup(() => { if (_coverIO) { _coverIO.disconnect(); _coverIO = null; } });
     }
 
     function renderItems(data) {
       coverPromises = [];
       const needCover = [];   // 待 render 封面的卡片：{ card, pdfUrl }；首批 eager、其餘懶載
+      let eagerImgs = 0;      // 預產封面 <img>：首批直接 src、其餘視窗外延後（user 2026-08-18「只先載視窗內」）
+      const lazyImgCards = [];
       listEl.innerHTML = '';
       groupByYear(data).forEach(group => {
         const block = document.createElement('div');
@@ -1513,31 +1541,57 @@ async function initFilesPanel() {
           div.className  = 'files-item files-item-card';
           if (item.id) div.id = `f-${item.id}`;
           div.dataset.year   = String(item.year);
-          div.dataset.search = [item.titleEn, item.titleZh].filter(Boolean).join(' ').toLowerCase();
+          div.dataset.search = [item.titleEn, item.titleZh, item.subtitleEn, item.subtitleZh].filter(Boolean).join(' ').toLowerCase();
 
           const accentColor = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
           // 旋轉：sign 隨機 × magnitude 1~3，範圍 [-3,-1] ∪ [1,3]，排除 0 和近 0 避免卡片看起來都一樣
           const finalDeg = (Math.random() < 0.5 ? -1 : 1) * (1 + Math.random() * 2);
-          // rotation 直接套在 image / empty placeholder 上（不是 inner），transform-origin = image 中心
+          // 2026-08-16 封面進場改 clip-reveal（同 faculty 卡）：rotation + 尺寸約束搬到 .files-item-cover-mask
+          // （overflow:clip 遮罩），封面本體填滿 mask、進場在內滑動；mask 比例由 --cover-ratio 依圖實際比例設
+          // （replicate 原 <img> max-w/h auto 的 contain 行為），clip 在旋轉後 local box 生效＝不切旋轉角。
           // 圖片型 document 沒有另外指定 cover 時，直接以檔案本身作為封面。
           const coverUrl = item.cover || (isImageDocumentUrl(item.pdfUrl, item.documentMimeType) ? item.pdfUrl : '');
+          // ⚠️ 不能 loading="lazy"（原生判定圖被 clip 在視窗外＝永不載入，2026-08-18 實測）：
+          // 懶載自己來——首批 EAGER_COVERS 張直接 src，其餘不設 src、IO 靠近視窗才補（見 scheduleCovers）
+          const eagerImg = coverUrl && (eagerImgs++ < EAGER_COVERS);
           const coverContent = coverUrl
-            ? `<img class="files-item-cover" data-init-deg="${finalDeg}" style="transform: rotate(${finalDeg}deg);" src="${coverUrl}" alt="">`
-            : `<div class="files-item-cover files-item-cover--empty" data-init-deg="${finalDeg}" style="transform: rotate(${finalDeg}deg);"></div>`;
+            ? `<img class="files-item-cover"${eagerImg ? ` src="${coverUrl}"` : ''} alt="">`
+            : `<div class="files-item-cover files-item-cover--empty"></div>`;
           const coverHtml = `
             <div class="files-card-cover-wrap">
               <div class="files-item-cover-inner">
-                ${coverContent}
+                <div class="files-item-cover-mask" data-init-deg="${finalDeg}" style="transform: rotate(${finalDeg}deg);">
+                  ${coverContent}
+                </div>
                 <div class="files-thumb-overlay" style="background: ${accentColor};"></div>
               </div>
             </div>`;
           const titleEnHtml = item.titleEn ? `<p class="files-item-title-en"><span class="files-marquee-inner">${item.titleEn}</span></p>` : '';
           const titleZhHtml = item.titleZh ? `<p class="files-item-title-zh"><span class="files-marquee-inner">${item.titleZh}</span></p>` : '';
+          const subEnHtml = item.subtitleEn ? `<p class="files-item-subtitle-en"><span class="files-marquee-inner">${item.subtitleEn}</span></p>` : '';
+          const subZhHtml = item.subtitleZh ? `<p class="files-item-subtitle-zh"><span class="files-marquee-inner">${item.subtitleZh}</span></p>` : '';
+          const subtitleHtml = (item.subtitleEn || item.subtitleZh) ? `<div class="files-item-subtitle-lines">${subEnHtml}${subZhHtml}</div>` : '';
           div.innerHTML = `
             ${coverHtml}
             <div class="files-item-titles files-card-info">
               <div class="files-item-titles-text" role="heading" aria-level="3">${titleEnHtml}${titleZhHtml}</div>
+              ${subtitleHtml}
             </div>`;
+
+          // <img> 封面載入後把實際比例寫進 mask 的 --cover-ratio（載入前/placeholder 用預設 4/5）
+          const coverImg = /** @type {HTMLImageElement|null} */ (div.querySelector('img.files-item-cover'));
+          if (coverImg) {
+            const maskEl = coverImg.parentElement;
+            const applyRatio = () => {
+              if (coverImg.naturalWidth && coverImg.naturalHeight && maskEl) {
+                maskEl.style.setProperty('--cover-ratio', String(coverImg.naturalWidth / coverImg.naturalHeight));
+              }
+            };
+            // 沒 src 的 img「complete=true 但 naturalWidth=0」→ 懶載的也要掛 load listener 等日後補 src
+            if (coverImg.complete && coverImg.naturalWidth) applyRatio();
+            else coverImg.addEventListener('load', applyRatio, { once: true });
+            if (!eagerImg) { coverImg.dataset.lazySrc = coverUrl; lazyImgCards.push(div); }
+          }
 
           // 後台沒設 cover 時抓 PDF 第一頁當封面（cover 欄位＝選填覆蓋；同首頁 floating press 卡）。
           // 收集起來交給 scheduleCovers 懶載（首批 eager、其餘捲近視窗才 render，見上）。
@@ -1589,18 +1643,19 @@ async function initFilesPanel() {
       });
 
       // 封面：首批 eager render、其餘捲到近視窗才懶載（卡片已在 DOM，可掛 IO）
-      scheduleCovers(needCover);
+      scheduleCovers(needCover, lazyImgCards);
 
       if (window.innerWidth >= 768) {
         listEl.querySelectorAll('.files-item-card').forEach(item => {
-          const cover = item.querySelector('.files-item-cover');
-          if (!cover) return;
+          // hover 轉回 0°：目標改 mask（旋轉載體 2026-08-16 搬到 mask；封面本體的 transform 留給進場滑動）
+          const mask = /** @type {HTMLElement|null} */ (item.querySelector('.files-item-cover-mask'));
+          if (!mask) return;
           item.addEventListener('mouseenter', () => {
-            gsap.to(cover, { rotation: 0, duration: DUR.fast, ease: EASE.enterSoft });
+            gsap.to(mask, { rotation: 0, duration: DUR.fast, ease: EASE.enterSoft });
           });
           item.addEventListener('mouseleave', () => {
-            const deg = parseFloat(cover.dataset.initDeg) || 0;
-            gsap.to(cover, { rotation: deg, duration: DUR.fast, ease: EASE.enterSoft });
+            const deg = parseFloat(mask.dataset.initDeg) || 0;
+            gsap.to(mask, { rotation: deg, duration: DUR.fast, ease: EASE.enterSoft });
           });
         });
       }
@@ -1608,7 +1663,7 @@ async function initFilesPanel() {
       bindListItemHover(listEl, '.files-item', '.files-thumb-overlay');
 
       window._filesMarqueeInit = () => {
-        runMarqueeOverflow(listEl, '.files-item-title-en, .files-item-title-zh, .files-item-subtitle-tag', '.files-marquee-inner');
+        runMarqueeOverflow(listEl, '.files-item-title-en, .files-item-title-zh, .files-item-subtitle-en, .files-item-subtitle-zh, .files-item-subtitle-tag', '.files-marquee-inner');
       };
       // 同 press：sort 重渲染後重跑 marquee（隱藏時 no-op、顯示時 showLibPanel 補量）
       requestAnimationFrame(window._filesMarqueeInit);
@@ -1616,17 +1671,20 @@ async function initFilesPanel() {
 
     renderItems(getSorted());
 
-    // 首載 reveal gate：等首屏封面（前 8 張）就緒或 2.5s 到，再一次 clip-wipe 揭卡——
-    // 取代「灰卡先出、封面逐張跳上」的半成品畫面（user 2026-08-08）。之後 sort/filter 重渲染不 gate。
+    // 首載揭卡：預產封面 <img> 不等載入、直接揭（user 2026-08-18「點 documents 直接出內容」；
+    // 快取時瞬顯、未快取灰底先滑入、圖到自動補）。只剩 pdf.js fallback 現畫的（沒 cover 的新書）
+    // 保留原 gate：等首屏前 8 張或 1s（08-08「半成品畫面」決策現僅適用這條慢路徑）。
     if (coverPromises.length) {
       listEl.style.opacity = '0';
       Promise.race([
         Promise.allSettled(coverPromises.slice(0, 8)),
-        new Promise(r => setTimeout(r, 2500)),
+        new Promise(r => setTimeout(r, 1000)),
       ]).then(() => {
         listEl.style.opacity = '';
         clipWipeItems(visibleFilesCards(listEl));
       });
+    } else {
+      clipWipeItems(visibleFilesCards(listEl));
     }
 
     const filesEmptyState = ensureEmptyState(listEl);
@@ -1676,17 +1734,17 @@ async function initFilesPanel() {
 // ── Album Panel ───────────────────────────────────────────────────────────────
 
 const ALBUM_SOURCES = [
-  { url: '/data/workshops.json',         cat: 'workshop',         isDegreeShow: false },
-  { url: '/data/degree-show.json',        cat: 'degree-show',      isDegreeShow: true  },
-  // camp 吃 Directus 真實資料（同 admission 營隊 tab；CMS 失敗 loadSummerCamp 自帶 fallback 本地 JSON）
+  // 全數接 Directus＝單一 source of truth（user 2026-08-17 拍板）。各 loader 自帶本地 JSON fallback（CMS 掛掉照常渲染）。
+  // ⚠️「Directus 取代本地、非合併」＋album 過濾無圖項目 → 後台某類「有 row 但 0 圖」時該類相簿為空（非掉回本地）；
+  //    等後台補圖才會顯示。degree-show/moment 走專用攤平/合併 loader（見各 source 檔）。
+  { load: () => loadActivityCollection('activities_workshops', '/data/workshops.json'), cat: 'workshop', isDegreeShow: false },
+  { load: loadDegreeShowAlbum,            cat: 'degree-show',      isDegreeShow: false },
   { load: loadSummerCamp,                 cat: 'summer-camp',      isDegreeShow: false },
-  { url: '/data/students-present.json',   cat: 'students-present', isDegreeShow: false },
-  { url: '/data/general-activities.json', cat: 'moment',           isDegreeShow: false },
-  // lectures 已接 Directus（activities_lectures）→ album 同步吃線上資料，CMS 掛掉時 loadActivityCollection 自帶本地 fallback。
+  { load: () => loadActivityCollection('activities_students_present', '/data/students-present.json'), cat: 'students-present', isDegreeShow: false },
+  { load: loadGeneralActivitiesAlbum,     cat: 'moment',           isDegreeShow: false },
   { load: () => loadActivityCollection('activities_lectures', '/data/lectures.json'), cat: 'lectures', isDegreeShow: false },
-  { url: '/data/industry.json',           cat: 'industry',         isDegreeShow: false },
-  // others（library 自己上傳、不對應任何活動的相簿）2026-08-03 起吃 Directus library_album，CMS 掛掉時
-  // loadOthersAlbum 自帶 fallback 本地 album-others.json；同步讓 award→album 的 M2A ref 有東西可渲染。
+  { load: () => loadActivityCollection('activities_industry', '/data/industry.json'), cat: 'industry', isDegreeShow: false },
+  // others（library 自己上傳、不對應任何活動的相簿）＝Directus library_album，同步讓 award→album 的 M2A ref 有東西可渲染。
   { load: loadOthersAlbum,                cat: 'others',           isDegreeShow: false },
 ];
 
@@ -1745,7 +1803,10 @@ function loadAlbumItemsCached() {
           ];
           // 無任何媒體的項目不進相簿（camp 真實資料照片未上傳前整類自然缺席，上傳後自動出現）
           if (!media.length) return;
-          allItems.push({ id: item.id, year, cat, titleEn, titleZh, cover, media, references: item.references });
+          // moment 來源混 visits/exhibitions/competitions/conferences 多子類，各自對應相簿 chip（data-cat）→
+          // 用 item 自己的 category 當 cat（否則全壓成 'moment'，Forums/Visits/… chip 篩不到）；其餘來源 item 無 category 欄，維持來源 cat。
+          const itemCat = cat === 'moment' ? (item.category || cat) : cat;
+          allItems.push({ id: item.id, year, cat: itemCat, titleEn, titleZh, cover, media, references: item.references });
         });
       });
     });
@@ -1995,6 +2056,7 @@ async function initAlbumPanel() {
         });
         block.style.display = anyVisible ? '' : 'none';
       });
+      restripeZebra(listEl, '.album-panel-item'); // 篩後依可見順序重排斑馬（clipWipe 隨後 reveal 帶入新底色）
       const hasSel = selectedCats.size > 0;
       const catsWithMatch = q
         ? new Set([...listEl.querySelectorAll('.files-item')].filter(i => i.dataset.search.includes(q)).map(i => i.dataset.cat))
@@ -2107,20 +2169,21 @@ function clipWipeItems(items) {
   }));
 }
 
-// files 卡進場（user 2026-08-11，做法同 faculty-filter.js setupFacultyCardAnim/playFacultyCard）：
-//   封面圖（.files-item-cover 本體）＝clip-path inset 隨機方向 wipe（GSAP 無涉、走 CSS transition，同 rest 分支）；
+// files 卡進場（user 2026-08-11；2026-08-16 封面由 clip-path wipe 改 clip-reveal 滑入，同 faculty 卡）：
+//   封面（.files-item-cover 本體）＝在 .files-item-cover-mask（overflow:clip、承載旋轉）內 4 方向隨機滑入
+//   （GSAP 無涉、走 CSS transition 同 rest 分支；±110 過衝防 dpr hairline；clip 在旋轉後 local box 生效
+//    → 滑動跟著旋轉角、不切角＝faculty mask 同原理，也延續 2026-08-11「clip 別掛軸對齊外框」的教訓）；
 //   標題文字（.files-item-title-en/zh）＝clip-reveal（setupClipReveal 包遮罩 + yPercent 100→0 由下往上滑）。
-// ⚠️ clip 掛在「旋轉的封面本體」而非外層 .files-card-cover-wrap：封面 rotate ~2° 邊角溢出 wrap ~5px，
-//    clip 掛 wrap（軸對齊、比旋轉封面小）→ inset(0) 會切掉那些邊角、transitionend 清 clip 才彈回（user 2026-08-11
-//    回報「圖片被 clip 切到、過一下才恢復」）。改掛封面本體＝clip 在旋轉前 local box 生效、跟封面一起轉＝剛好貼齊、不切角。
-// clip 揭完各自清（保持乾淨態）。文字兩行一起揭（EN/ZH 同時、不 stagger，user 2026-08-11）。
+// 揭完各自清（保持乾淨態；封面的 transition:filter 由 CSS 常駐規則恢復）。文字兩行一起揭（EN/ZH 同時、不 stagger，user 2026-08-11）。
+const COVER_SLIDE_DIRS = ['translate(0%, 110%)', 'translate(0%, -110%)', 'translate(110%, 0%)', 'translate(-110%, 0%)'];
+const pickCoverSlideDir = () => COVER_SLIDE_DIRS[(Math.random() * COVER_SLIDE_DIRS.length) | 0];
 function revealFilesCards(cards) {
   if (!cards || !cards.length) return;
   markRevealBusy(DUR.medium + 0.3);
   const hasGsap = typeof gsap !== 'undefined';
   cards.forEach(card => {
     const cover = /** @type {HTMLElement|null} */ (card.querySelector('.files-item-cover'));
-    if (cover) { cover.style.transition = 'none'; cover.style.clipPath = pickRevealHideDir(); }
+    if (cover) { cover.style.transition = 'none'; cover.style.transform = pickCoverSlideDir(); }
     const texts = [...card.querySelectorAll('.files-item-title-en, .files-item-title-zh')];
     if (hasGsap && texts.length) setupClipReveal(texts); // 包遮罩 + set yPercent:100（隱藏）
   });
@@ -2128,11 +2191,11 @@ function revealFilesCards(cards) {
     cards.forEach(card => {
       const cover = /** @type {HTMLElement|null} */ (card.querySelector('.files-item-cover'));
       if (cover) {
-        cover.style.transition = `clip-path ${DUR.medium}s ease-out`;
-        cover.style.clipPath = 'inset(0 0 0 0)';
+        cover.style.transition = `transform ${DUR.medium}s ease-out`;
+        cover.style.transform = 'translate(0%, 0%)';
         const clear = (e) => {
-          if (e.propertyName !== 'clip-path') return;
-          cover.style.transition = ''; cover.style.clipPath = '';
+          if (e.propertyName !== 'transform') return;
+          cover.style.transition = ''; cover.style.transform = '';
           cover.removeEventListener('transitionend', clear);
         };
         cover.addEventListener('transitionend', clear);
@@ -2290,8 +2353,14 @@ function revealAwardItems(items, dur = DUR.medium) {
   }));
 }
 // 只取目前可見的卡片（被年份/分類篩掉的 display:none 卡 offsetParent=null，套 clip-path 後沒 transitionend 不會自清 → 排除）
+// 只取「捲動視窗內＋200px buffer」的卡做進場動畫：offsetParent 只擋 display:none，
+// 視窗下方 150+ 卡全進 setupClipReveal（每卡 2-4 標題包遮罩+GSAP set）＝主執行緒凍 7s
+// （2026-08-18 CPU profile：scroll-animate 3.3s+gsap 4s）。下方卡不藏不動畫、捲到時已就位。
 function visibleFilesCards(listEl) {
-  return [...listEl.querySelectorAll('.files-item-card')].filter(el => el.offsetParent !== null);
+  const scroller = document.getElementById('library-files-scroll');
+  const cut = (scroller ? scroller.getBoundingClientRect().bottom : window.innerHeight) + 200;
+  return [...listEl.querySelectorAll('.files-item-card')].filter(el =>
+    el.offsetParent !== null && el.getBoundingClientRect().top < cut);
 }
 // award/press/album 各自的 list item（三 selector 通用：每個 listEl 只 match 自己那種）；同上排除 display:none
 function visibleListItems(listEl) {

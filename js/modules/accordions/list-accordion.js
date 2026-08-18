@@ -339,13 +339,15 @@ export function refreshStickyPinObservers(container) {
     const header = /** @type {any} */ (h);
     if (!header._stickyPinIO) return;
     if (Math.abs(getListStickyTop(header) - header._stickyPinTop) < 2) return;
-    const wasPinned = header.classList.contains('is-pinned');
-    detachStickyPinObserver(header);
+    // 只換底層 IO/sentinel，**不動 is-pinned class**：detach 會 remove is-pinned，且 attach 內的 getComputedStyle
+    // 強制 style flush（此刻 is-pinned 缺席）→ 副標的 grid-rows collapse transition 被打斷重播。開 item 時 search bar
+    // 收合讓 RO 連續 fire refresh（每幀移 >2px），每次重播一次＝副標分段「卡卡」收合（user 2026-08-16）。
+    // 保留 is-pinned 不動，新 IO 的初始 delivery（async）會把真值 toggle 回來（同值＝no-op、不重播 transition）。
+    header._stickyPinIO.disconnect();
+    header._stickyPinSentinel?.remove();
+    delete header._stickyPinIO;
+    delete header._stickyPinSentinel;
     attachStickyPinObserver(header);
-    if (wasPinned) {
-      header.classList.add('is-pinned');
-      toggleSectionPinnedFlag(header, true);
-    }
   });
 }
 

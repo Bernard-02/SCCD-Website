@@ -129,6 +129,22 @@ function resolveRoute(pathname) {
   return routes[normalized] || null;
 }
 
+// ── pushState 網址：乾淨 URL vs 真實檔案路徑 ─────────────────────
+// 已設好 SPA fallback（CloudFront 403/404→index.html、或 nginx try_files）的正式網域，pushState 才
+// 輸出乾淨 URL（/about）；其餘（本地 dev server、還沒設 fallback 的站）一律用真實檔案路徑
+// （/pages/about.html）→ 任何 server 都找得到實體檔、refresh 不 404。resolveRoute 兩種寫法都吃，
+// 所以只有「網址列長相」不同，載入邏輯完全不受影響。
+// ⚠️ 把網域加進 CLEAN_URL_HOSTS「之前」，該站的 server fallback 必須先設好，否則乾淨 URL refresh 會 404。
+//    CloudFront fallback 設好後 → const CLEAN_URL_HOSTS = ['sccd.usc.edu.tw'];（細節見 docs/前台上線流程-S3-CloudFront.md）
+const CLEAN_URL_HOSTS = [];
+
+function pushPath(route) {
+  if (route.htmlFile === 'index.html') return SITE_BASE_PATHNAME; // 首頁兩種模式都是站台根
+  return CLEAN_URL_HOSTS.includes(window.location.hostname)
+    ? SITE_BASE_PATHNAME + route.htmlFile.replace(/^pages\//, '').replace(/\.html$/, '') // 正式站：/about
+    : SITE_BASE_PATHNAME + route.htmlFile;                                               // 本地/未設 fallback：/pages/about.html
+}
+
 // ── Prefetch on intent（hover / touchstart）──────────────────────
 // 業界標準（Next.js <Link prefetch> / Remix loader / instant.page）：使用者一表現出導航意圖
 // （桌面 hover、手機 touchstart 先於 click ~100ms+）就先抓該頁的 async 資料，讓 Directus fetch 跟
@@ -373,13 +389,9 @@ export function navigateTo(url) {
   clearNavActive(route.page);
   setNavActive(route.page);
 
-  // pushState 用「真實檔案路徑」(/pages/X.html or /index.html)，不用乾淨 URL：
-  // 開發 server (Live Server) 沒 SPA fallback，乾淨 URL (/support) refresh 會 404；
-  // push 真實檔案路徑 → 任何時候 refresh 都能找到實體 HTML，server 直接回檔案。
-  // 子路徑部署時要帶站台根前綴（/SCCD-Website/pages/X.html），否則 refresh 回網域根 404
-  const realPath = route.htmlFile === 'index.html'
-    ? SITE_BASE_PATHNAME
-    : SITE_BASE_PATHNAME + route.htmlFile;
+  // pushState 網址：預設真實檔案路徑（/pages/X.html，本地/未設 fallback 都能 refresh）；
+  // CLEAN_URL_HOSTS 內的正式站才輸出乾淨 URL。子路徑部署時 SITE_BASE_PATHNAME 帶站台根前綴。見 pushPath。
+  const realPath = pushPath(route);
 
   // 保留 hash 供 deep link 使用（如 library.html#a-2024-01）
   window.history.pushState({ page: route.page }, '', realPath + search + hash);

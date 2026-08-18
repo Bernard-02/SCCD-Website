@@ -1,5 +1,6 @@
 import { registerPageCleanup } from '../../ui/page-cleanup.js';
 import { registerPageExit } from '../../ui/page-exit.js';
+import { DUR, EASE } from '../../ui/motion.js';
 
 /**
  * About 浮動 RGB 多邊形層（取代舊封鎖綫）
@@ -280,11 +281,14 @@ export function initAboutPolygons() {
   // --- SPA 換頁：先播收起動畫再讓 router 換內容（user 2026-08-10）。
   // exiting 旗標擋住 updateGate（gateShown 翻 false 後深區判定會馬上又 show 回來）---
   registerPageExit(() => new Promise(resolve => {
-    if (!gateShown) { resolve(); return; }
+    // 看實際 gate 值不看 gateShown：上行 scrub 中 gateShown 已 false 但形狀可能還半露
+    if (!shapes.some(s => s.gate > 0.01)) { resolve(); return; }
     exiting = true;
     gateShown = false;
-    hide();
-    // hide 總長 = 0.9s + 反向 stagger 2×0.08 ≈ 1.06s
-    gsap.delayedCall(1.1, resolve);
+    // 離頁不走 hide()（0.9s+stagger ≈1.06s 比頁面元素退場 0.4~0.5s 慢一截，
+    // user 2026-08-16「形狀比元素晚消失」）→ 專用快版：DUR.medium 無 stagger 跟元素齊步；
+    // 頁內捲動的 gate 收展仍用 setGate 0.9s 鏡像
+    if (gateTl) { gateTl.kill(); gateTl = null; }
+    gsap.to(shapes, { gate: 0, duration: DUR.medium, ease: EASE.exit, onComplete: resolve });
   }));
 }

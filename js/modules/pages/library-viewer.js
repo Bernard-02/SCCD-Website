@@ -31,25 +31,14 @@ function ensureLightboxListener() {
 let _pdfListenerAdded = false;
 let _pdfjsLoadPromise = null;
 
-// SPA 從沒含 pdf.min.js 的頁面（about / courses 等）navigate 過來時，pdfjsLib 不存在
-// → click 一律 early return "pdf.js not loaded"。動態 inject script 補載入，cached idempotent。
+// pdfjsLib 不存在時動態 import 補載入（v4+ 只出 ESM build；import() 模組快取
+// 與 pdf-cover.js 天然去重）。掛回 window.pdfjsLib 讓既有 typeof 檢查照用。
 function ensurePdfjsLoaded() {
   if (typeof pdfjsLib !== 'undefined') return Promise.resolve();
-  if (_pdfjsLoadPromise) return _pdfjsLoadPromise;
-  _pdfjsLoadPromise = new Promise((resolve, reject) => {
-    const existing = document.querySelector('script[data-pdfjs-dynamic]');
-    if (existing) {
-      existing.addEventListener('load', () => resolve());
-      existing.addEventListener('error', reject);
-      return;
-    }
-    const script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-    script.dataset.pdfjsDynamic = '1';
-    script.onload = () => resolve();
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
+  if (!_pdfjsLoadPromise) {
+    _pdfjsLoadPromise = import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.2.108/pdf.min.mjs')
+      .then(m => { window.pdfjsLib = m; });
+  }
   return _pdfjsLoadPromise;
 }
 
@@ -149,7 +138,7 @@ export function initPdfViewer() {
     if (typeof pdfjsLib === 'undefined') return;
     if (pdfjsLib.GlobalWorkerOptions.workerSrc) return;
     pdfjsLib.GlobalWorkerOptions.workerSrc =
-      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.2.108/pdf.worker.min.mjs';
   }
   setupPdfjsWorker();
 
@@ -750,7 +739,7 @@ export function initPdfViewer() {
   _pdfListenerAdded = true;
 
   document.addEventListener('sccd:open-pdf', async (e) => {
-    const { pdfUrl, title, color, references, shareUrl, watermark } = e.detail || {};
+    const { pdfUrl, title, color, references, shareUrl, watermark, cover } = e.detail || {};
     if (!pdfUrl) return;
     wantWatermark = !!watermark;
     curPage = 1;
@@ -781,10 +770,17 @@ export function initPdfViewer() {
     firstPageRendered = false;
     placeholderShowing = false;
     if (mosaicTween) { mosaicTween.kill(); mosaicTween = null; }   // 停上一本殘留的揭示 tween
-    const cachedCover = peekPdfCover(pdfUrl);
+    // 先清掉上一本殘留頁面：預產封面（detail.cover）普及後 peek 快取常是空的、沒墊圖可蓋
+    // → canvas 一直掛著上一本＝「開錯書」錯覺（user 2026-08-18）。清空後墊圖/真頁面再各自蓋上。
+    canvasL.getContext('2d').clearRect(0, 0, canvasL.width, canvasL.height);
+    // 墊圖來源：caller 帶的預產封面 URL 優先（files panel 靜態圖），沒有才查 pdf.js 現畫快取
+    const cachedCover = cover ? Promise.resolve(cover) : peekPdfCover(pdfUrl);
     if (cachedCover) cachedCover.then(dataUrl => {
       if (!dataUrl || firstPageRendered || myToken !== openToken) return;
       const img = new Image();
+      // ⚠️不設 crossOrigin：panel 封面 <img> 是 no-cors 載的，模式不同＝HTTP 快取不共用，
+      // 設了會重走網路（Directus ~1s）→ 小書真頁面先到、墊圖被跳過（user 2026-08-18「馬賽克不見了」）。
+      // 代價＝墊圖期間 canvas 短暫 tainted，但該窗口無任何 readback；renderPage 重設尺寸即復原。
       img.onload = async () => {
         // 等 stage 佈局停穩再量：modal 剛 display:flex 那幾個 tick stage 尺寸/定位未定，
         // 直接量會把墊圖擺到奇怪位置（user 2026-08-08「多數時候不在畫面中間」）
@@ -823,8 +819,12 @@ export function initPdfViewer() {
       setupPdfjsWorker();
       // disableAutoFetch + disableStream：走 HTTP Range 只抓「當前頁需要的 chunk」，不整本下載——
       // 大掃描本「點開卡在封面（墊圖）很久」的主因（getDocument 預設會 auto-fetch 整本）。同 pdf-cover.js 封面渲染。
-      // 之後翻頁各自 Range 取該頁；正式站同源 Range 生效（跨域 dev 退回整本，與封面同一已知限制）。
-      const doc = await pdfjsLib.getDocument({ url: pdfUrl, disableAutoFetch: true, disableStream: true }).promise;
+      // rangeChunkSize 16K：預設 64K 對散布全檔的 xref/page 物件過抓 3.4×（78MB 專刊實測 13.3→3.9MB）。
+      // _r 唯一 query：封面先 range 抓過同 URL 會留 partial cache，Chrome 把 viewer probe 拼成
+      // 「無 Accept-Ranges 的合成 200」→ pdf.js 誤判不支援 range 整本下載 78MB（＝點開等 10s 的真兇）。
+      // CloudFront cache key 不含 query（實測首發即 Hit），edge 快取零損失。
+      const bustUrl = pdfUrl + (pdfUrl.includes('?') ? '&' : '?') + '_r=' + Date.now();
+      const doc = await pdfjsLib.getDocument({ url: bustUrl, disableAutoFetch: true, disableStream: true, rangeChunkSize: 16384 }).promise;
       // 慢載大本時 user 可能已改開別本：這次開場過期就整段放棄——別讓晚到的 doc 覆寫共用 pdfDoc、
       // 也別 render 進共用 canvas，否則畫面變成「開到別的書」（user 2026-08-11）。
       if (myToken !== openToken) { doc.destroy?.(); return; }

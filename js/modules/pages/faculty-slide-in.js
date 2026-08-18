@@ -13,6 +13,33 @@
 // 無障礙 modal：記住開啟 slide-in 的觸發卡片，關閉時把焦點還回去
 let facultyReturnFocus = /** @type {HTMLElement|null} */ (null);
 
+// 有真實照片＋後台也傳了 wireframe 版的老師：slide-in 內每 5s 照片↔線框輪替的 timer。
+// 2026-08-16 由 clip-path wipe 換 src 改 clip-reveal 層疊（user：placeholder 不動、照片像蓋上去）：
+// 線框墊底恆顯（#faculty-detail-wireframe，absolute 不動畫）、照片上層在旋轉容器（overflow:clip）內
+// 4 方向隨機滑出露線框／滑回蓋住；±110 過衝防 dpr hairline（同 faculty-filter SLIDE_MAP）
+const CYCLE_SLIDE = {
+  top:    { xPercent: 0,    yPercent: -110 },
+  right:  { xPercent: 110,  yPercent: 0 },
+  bottom: { xPercent: 0,    yPercent: 110 },
+  left:   { xPercent: -110, yPercent: 0 },
+};
+const CYCLE_DIRS = Object.keys(CYCLE_SLIDE);
+const randCycleDir = () => CYCLE_DIRS[(Math.random() * CYCLE_DIRS.length) | 0];
+// 圖片遮罩容器旋轉角：每次開卡＋每次照片滑回蓋住時重擲（user 2026-08-16）。
+// 範圍 ±3~6 同 grid 卡圖（HTML 的 rotate(-4deg) 只是 JS 前的初始值）；標題文字另有 ±2~4 cap 別混用
+const randImgDeg = () => (Math.random() < 0.5 ? -1 : 1) * (3 + Math.random() * 3);
+let facultyImgCycleTimer = /** @type {ReturnType<typeof setInterval>|null} */ (null);
+function stopFacultyImgCycle() {
+  if (facultyImgCycleTimer) { clearInterval(facultyImgCycleTimer); facultyImgCycleTimer = null; }
+  // 關卡/換老師可能落在滑動中途 → 殺 tween + 清 transform，下一位照片從「蓋住」狀態開始
+  const img = document.getElementById('faculty-detail-image');
+  if (img) {
+    if (typeof gsap !== 'undefined') gsap.killTweensOf([img, img.parentElement]);
+    img.style.transform = '';
+    // 遮罩容器角度不歸位：中途殺掉停在當下角度即可，下次開卡會重擲
+  }
+}
+
 import { enterLightboxMode, exitLightboxMode } from '../lightbox/lightbox-shell.js';
 import { openSlideInBg, closeSlideInBg } from '../ui/slide-in-bg-sync.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
@@ -81,6 +108,10 @@ export function initFacultySlideIn() {
   const facultyCards = document.querySelectorAll('.faculty-card');
 
   if (!slideIn || facultyCards.length === 0) return;
+
+  // open/close 世代序號（同 lightbox openSeq pattern）：open 與 close 都 ++，
+  // close 動畫的 onComplete 發現序號過期（期間又開了新卡）就放棄隱藏，避免藏掉剛開的 panel
+  let slideSeq = 0;
 
   // 與 faculty-data-loader 共用 faculty-source（cache）→ 同一份 Directus 資料、同一組 id
   getFacultyData()
@@ -191,8 +222,8 @@ export function initFacultySlideIn() {
     if (!list.length) return '';
     return list.map((p) =>
       `<div>` +
-        (p.en ? `<p class="text-s font-regular text-black mb-en-zh-s">${p.en}</p>` : '') +
-        (p.zh ? `<p class="text-s font-regular text-black" lang="zh-Hant">${p.zh}</p>` : '') +
+        (p.en ? `<p class="text-s font-bold text-black mb-en-zh-s">${p.en}</p>` : '') +
+        (p.zh ? `<p class="text-s font-bold text-black" lang="zh-Hant">${p.zh}</p>` : '') +
       `</div>`
     ).join('');
   }
@@ -229,10 +260,50 @@ export function initFacultySlideIn() {
       // 故「固定用黑線框 wireframe 版」而非依 site mode 挑彩色 glitch（user 2026-06-11）。
       // 加 .theme-invert → 線條隨底色亮度翻黑/白對比（CSS var(--theme-invert-filter)，mode-color 期間每幀更新）。
       const imgElement = /** @type {HTMLImageElement | null} */ (document.getElementById('faculty-detail-image'));
+      const wfLayer = /** @type {HTMLImageElement | null} */ (document.getElementById('faculty-detail-wireframe'));
       if (imgElement) {
+        stopFacultyImgCycle(); // 換老師時先停掉上一位的輪替（含照片 transform 復位＝蓋住狀態）
         const phUrl = modePlaceholderUrl(data, 'wireframeBlack');
         imgElement.src = phUrl || data.image;
         imgElement.classList.toggle('theme-invert', !!phUrl);
+
+        // 每次開卡重擲圖片遮罩容器角度（panel 尚未進場，直接 set 無視覺 snap）。
+        // 一律走 gsap.set：容器角度後續由 GSAP rotation tween 接手，直接寫 style.transform 會讓 GSAP 內部快取失準
+        const imgMask = imgElement.parentElement;
+        if (imgMask) {
+          if (typeof gsap !== 'undefined') gsap.set(imgMask, { rotation: randImgDeg() });
+          else imgMask.style.transform = `rotate(${randImgDeg().toFixed(2)}deg)`;
+        }
+
+        // 有真實照片＋後台也有 wireframe 版 → 每 5s 輪替：線框墊底不動、照片滑出露線框／滑回蓋住；
+        // 沒照片者維持恆顯線框不切（線框直接當主圖、底層 hidden）
+        const wfUrl = !phUrl && data.hasRealPhoto && data.placeholders && data.placeholders.wireframeBlack;
+        if (wfLayer) {
+          wfLayer.classList.toggle('hidden', !wfUrl);
+          if (wfUrl) wfLayer.src = wfUrl; // 設 src 即載入，首次掀開不閃空白
+        }
+        if (wfUrl) {
+          let showingWf = false;
+          facultyImgCycleTimer = setInterval(() => {
+            showingWf = !showingWf;
+            const target = showingWf ? CYCLE_SLIDE[randCycleDir()] : { xPercent: 0, yPercent: 0 };
+            if (typeof gsap === 'undefined' || prefersReducedMotion()) {
+              // 減少動態：瞬切不滑動、角度不重擲（減少視覺跳動）
+              imgElement.style.transform = showingWf ? `translate(${target.xPercent}%, ${target.yPercent}%)` : '';
+              return;
+            }
+            gsap.to(imgElement, {
+              ...target,
+              duration: DUR.medium,
+              ease: showingWf ? EASE.exit : EASE.enter,
+              overwrite: true, // 連續 tick 落在動畫中途直接接手，不疊 tween
+            });
+            // 照片滑回蓋住時整個相框（含線框）同步順轉到新隨機角＝「換個角度接住照片」（user 2026-08-16）
+            if (!showingWf && imgMask) {
+              gsap.to(imgMask, { rotation: randImgDeg(), duration: DUR.medium, ease: EASE.enter, overwrite: true });
+            }
+          }, 5000);
+        }
       }
 
       // 姓名 + titles 旋轉：fulltime/admin 桌面手機都套（2026-05-26 user 要求手機也旋轉；
@@ -292,19 +363,24 @@ export function initFacultySlideIn() {
 
       // Sections：依 type 組裝
       const sectionsContainer = document.getElementById('faculty-detail-sections');
+      const leadContainer = document.getElementById('faculty-detail-lead');
+      // 桌面：職級/職稱渲染進 #faculty-detail-lead（非捲動 header，在 sections scroll 區之上）→ 右側 scrollbar
+      // 從 lead 下方才起、不含 lead（user 2026-08-16）；lead↔Education 1rem 由 lead 的 md:mb-sm 控。
+      // 手機/矮橫向：lead 在 profile 左欄 → 此 header 清空（empty:hidden 不佔位）；parttime 的 occupation 照舊排 sections 最上。
+      if (leadContainer) {
+        if (useMobileLayout) {
+          leadContainer.innerHTML = '';
+        } else {
+          const lead = data.type === 'parttime'
+            ? buildRank(data.titles) + buildOccupation(data.occupations)  // parttime 再疊 occupation
+            : buildRank(data.titles);
+          // .faculty-rows 讓 rank↔occupation／多筆間距＝list 內容 gap（16px）
+          leadContainer.innerHTML = lead ? `<div class="faculty-rows faculty-lead-rows">${lead}</div>` : '';
+        }
+      }
       if (sectionsContainer) {
         let html = '';
-        if (useMobileLayout) {
-          // 手機/矮橫向：職級/職稱留在名字下方（sticky profile 左欄，見上）；parttime 的 occupation 照舊排在 sections 最上
-          if (data.type === 'parttime') html += buildOccupation(data.occupations);
-        } else {
-          // 桌面：名字下方的職級/職稱移到右欄最上（三型皆是，user 2026-08-13）；parttime 再疊 occupation。
-          // 包一層 .faculty-rows 讓 rank↔occupation／多筆的間距＝右側 list 內容 gap（16px），而非 section 間 gap-2xl。
-          const lead = data.type === 'parttime'
-            ? buildRank(data.titles) + buildOccupation(data.occupations)
-            : buildRank(data.titles);
-          if (lead) html += `<div class="faculty-rows">${lead}</div>`;
-        }
+        if (useMobileLayout && data.type === 'parttime') html += buildOccupation(data.occupations);
 
         if (data.type === 'admin') {
           html += buildContactSection(data.contact);
@@ -319,6 +395,9 @@ export function initFacultySlideIn() {
           html += buildSection('Awards', '榮譽', data.awards, renderAwardRow);
         }
         sectionsContainer.innerHTML = html;
+
+        // （lead 已移出 scroll 容器當 header → section title/年份 sticky 直接釘 scroll 頂 top:0，
+        //   不再需要 --faculty-lead-h offset 量測；lead↔Education 1rem 走 #faculty-detail-lead 的 md:mb-sm）
 
         // 詳情 row 雙語格各語單行超出欄寬 → hover row 才 marquee（桌面限定，仿卡片職稱）。
         // panel 此時仍 invisible(visibility，非 display:none) → 仍可量 offsetWidth。
@@ -372,6 +451,9 @@ export function initFacultySlideIn() {
 
           const facultyId = card.getAttribute('data-faculty-id');
           if (facultyId && slideIn) {
+            // 世代 ++：作廢仍在跑的上一次 close onComplete（close 動畫中途快速點開下一位，
+            // 舊 onComplete 會把剛開的 panel 蓋回 invisible——同 lightbox openSeq race 三件套）
+            ++slideSeq;
             loadFacultyData(facultyId);
 
             const cardColor = getComputedStyle(card).getPropertyValue('--card-color').trim() || '#26BCFF';
@@ -418,6 +500,9 @@ export function initFacultySlideIn() {
     if (!slideIn) return;
     if (slideIn.classList.contains('invisible')) return;
 
+    const mySeq = ++slideSeq; // close 也 ++（作廢更早的 pending close）；onComplete 過期則整段放棄
+    stopFacultyImgCycle();
+
     // deferHeaderShow：slide-in 往右滑出，header bars 立即揭露會白 bar 冒在頂部蓋住離場中的 panel → 延後到 panel 走完
     exitLightboxMode({ deferHeaderShow: true });
 
@@ -425,6 +510,7 @@ export function initFacultySlideIn() {
       overlay: slideInOverlay,
       panel: slideInPanel,
       onComplete: () => {
+        if (mySeq !== slideSeq) return; // 動畫期間又開了新卡（或再次 close）→ 這次 close 已過期，別藏新 panel
         slideIn.classList.add('invisible', 'pointer-events-none');
         slideIn.classList.remove('pointer-events-auto');
         slideInPanel.style.backgroundColor = '';
@@ -450,5 +536,8 @@ export function initFacultySlideIn() {
     if (e.key === 'Escape' && slideIn && !slideIn.classList.contains('invisible')) closeSlideIn();
   };
   document.addEventListener('keydown', onEsc);
-  registerPageCleanup(() => document.removeEventListener('keydown', onEsc));
+  registerPageCleanup(() => {
+    document.removeEventListener('keydown', onEsc);
+    stopFacultyImgCycle(); // slide-in 開著直接換頁時 interval 不殘留
+  });
 }

@@ -350,6 +350,22 @@ function openCourseSlideIn(card) {
     el.style.width = 'fit-content';
   });
 
+  // desc 貼「旋轉後 title 實際底邊」而非未旋轉 layout 底：正角旋轉讓 ZH 標題右下角下沉、吃掉桌面 flex gap（md:gap-lg 2rem）。
+  // 量 ZH 旋轉後 bbox 底 − sticky 容器 layout 底 = 下沉量，補進 desc margin-top → 視覺 gap 仍 = 旋轉底 + 該 flex gap。
+  // 只桌面（gap-lg 生效）；手機/矮橫向 title 自帶 padding-bottom，且 inline margin 會蓋掉 landscape override → 清空。
+  const descWrap = panel.querySelector('.courses-detail-desc-wrapper');
+  if (descWrap) {
+    const isDesktopLayout = window.innerWidth >= 768
+      && !window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+    const sticky = zhT && zhT.closest('.courses-detail-title-sticky');
+    if (isDesktopLayout && sticky) {
+      const dip = zhT.getBoundingClientRect().bottom - sticky.getBoundingClientRect().bottom;
+      descWrap.style.marginTop = dip > 0.5 ? `${dip}px` : '';
+    } else {
+      descWrap.style.marginTop = '';
+    }
+  }
+
   const panelBg = accent || 'white';
   panel.style.backgroundColor = panelBg;
 

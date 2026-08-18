@@ -86,13 +86,14 @@ function renderVision(data) {
 }
 
 // ── Members（.faculty-card 共用樣式 + clip-reveal 進場） ─────
-const CLIP_DIRS = {
-  top:    'inset(0% 0% 100% 0%)',
-  right:  'inset(0% 0% 0% 100%)',
-  bottom: 'inset(100% 0% 0% 0%)',
-  left:   'inset(0% 100% 0% 0%)',
+// 2026-08-16 圖片由 clip-path 擦除改 clip-reveal 滑入，同 faculty-filter.js（SLIDE_MAP 同款；
+// wrapper 整塊在 .faculty-card-image-mask 內 4 方向滑入，110 過衝防 dpr hairline）
+const SLIDE_DIRS = {
+  top:    { xPercent: 0,    yPercent: -110 },
+  right:  { xPercent: 110,  yPercent: 0 },
+  bottom: { xPercent: 0,    yPercent: 110 },
+  left:   { xPercent: -110, yPercent: 0 },
 };
-const CLIP_REVEALED = 'inset(0% 0% 0% 0%)';
 const IMG_DIRS = ['top', 'right', 'bottom', 'left'];
 
 function renderMembers(data) {
@@ -104,8 +105,10 @@ function renderMembers(data) {
     const imgDir = IMG_DIRS[Math.floor(Math.random() * IMG_DIRS.length)];
     return `
       <div class="faculty-card p-[6px] cursor-default" data-img-dir="${imgDir}" style="--card-color: ${color}; --init-deg: ${initDeg}deg">
-        <div class="faculty-card-image-wrapper overflow-hidden mb-md aspect-[4/5] bg-gray-2 relative">
-          <img src="${escapeHtml(m.image)}" alt="${escapeHtml(m.nameEn)}" loading="lazy" class="faculty-card-image w-full h-full object-cover">
+        <div class="faculty-card-image-mask mb-md">
+          <div class="faculty-card-image-wrapper overflow-hidden aspect-[4/5] bg-gray-2 relative">
+            <img src="${escapeHtml(m.image)}" alt="${escapeHtml(m.nameEn)}" loading="lazy" class="faculty-card-image w-full h-full object-cover">
+          </div>
         </div>
         <div class="text-left">
           <div class="faculty-card-name" role="heading" aria-level="3">
@@ -128,7 +131,7 @@ function renderMembers(data) {
     const name  = card.querySelector('.faculty-card-name');
     const title = card.querySelector('.faculty-card-title');
     const dir = card.getAttribute('data-img-dir') || 'bottom';
-    if (imgWrapper) gsap.set(imgWrapper, { clipPath: CLIP_DIRS[dir] });
+    if (imgWrapper) gsap.set(imgWrapper, SLIDE_DIRS[dir] || SLIDE_DIRS.bottom);
     if (name)  setupClipReveal([name]);
     if (title) setupClipReveal([title]);
   });
@@ -151,7 +154,7 @@ function playMemberCards(cards) {
     const imgWrapper = card.querySelector('.faculty-card-image-wrapper');
     const name  = card.querySelector('.faculty-card-name');
     const title = card.querySelector('.faculty-card-title');
-    if (imgWrapper) gsap.to(imgWrapper, { clipPath: CLIP_REVEALED, duration: DUR.reveal, ease: EASE.enter, delay: t, clearProps: 'clipPath' });
+    if (imgWrapper) gsap.to(imgWrapper, { xPercent: 0, yPercent: 0, duration: DUR.reveal, ease: EASE.enter, delay: t, clearProps: 'transform' });
     if (name)  gsap.to(name,  { yPercent: 0, duration: DUR.slow, ease: EASE.enter, delay: t + 0.4, clearProps: 'transform' });
     if (title) gsap.to(title, { yPercent: 0, duration: DUR.slow, ease: EASE.enter, delay: t + 0.5, clearProps: 'transform' });
   });

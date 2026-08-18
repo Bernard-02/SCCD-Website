@@ -19,7 +19,9 @@ function formatTime(s) {
 
 // 回傳 { el, toggle, destroy }：caller（activities-lightbox renderMain）append el、
 // 換張/關閉時必須呼叫 destroy（解 document listeners + hls.js instance）
-export function createLightboxVideo(url, accent = '#00FF80') {
+// opts.autoplay：lightbox 開啟即播（預設 true）；inline 內嵌（dshow detail）傳 false → 停在首幀等 user 按 play
+// （SPA 換頁本身是 user gesture，瀏覽器可能放行「有聲自動播放」→ 進頁面就出聲，且兩支影片會同時播）
+export function createLightboxVideo(url, accent = '#00FF80', { autoplay = true } = {}) {
   const root = document.createElement('div');
   root.style.cssText = 'position:relative;width:100%;max-width:960px;aspect-ratio:16/9;max-height:100%;background:#000;';
   const video = document.createElement('video');
@@ -29,7 +31,7 @@ export function createLightboxVideo(url, accent = '#00FF80') {
   attachVideoSource(video, url);
   // autoplay 被瀏覽器擋下就停在 paused，等 user 按 play
   const tryPlay = () => { const p = video.play(); if (p) p.catch(() => {}); };
-  tryPlay();
+  if (autoplay) tryPlay();
 
   if (window.innerWidth < 768) {
     video.controls = true;
@@ -59,7 +61,9 @@ export function createLightboxVideo(url, accent = '#00FF80') {
   centerBlock.style.cssText = `background:${accent};padding:0 1.25rem;height:3rem;display:flex;align-items:center;gap:1.25rem;flex:1;min-width:0;margin-right:1rem;`;
   controls.appendChild(centerBlock);
 
-  const playBtn = mkIconBtn('icon-pause', '播放／暫停 Play/Pause');
+  // 初始 icon 依 autoplay 決定：autoplay(lightbox) 播放中→pause icon；autoplay:false(inline dshow)→停在首幀→play icon
+  // （updatePlayIcon 只在 play/pause/ended event 才跑，不初始化就會停在寫死值 → inline 暫停卻顯示 pause icon，user 2026-08-17）
+  const playBtn = mkIconBtn(autoplay ? 'icon-pause' : 'icon-play', '播放／暫停 Play/Pause');
   playBtn.style.width = '1.5rem';
   centerBlock.appendChild(playBtn);
 

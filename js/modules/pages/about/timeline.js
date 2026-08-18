@@ -100,6 +100,15 @@ export function initTimeline() {
   function randomDir4() { return ALL_DIRS[Math.floor(Math.random() * 4)]; }
   function randomDirLR() { return Math.random() < 0.5 ? 'left' : 'right'; }
 
+  // 桌面照片條 clip-reveal 滑動藏定位（2026-08-17 由 clip-path 改；±110 過衝防 dpr hairline）：
+  // rotateDiv（overflow:hidden＋承載旋轉）＝現成遮罩，滑動對象是其子 aspectDiv
+  const SLIDE_HIDE = {
+    top:    { xPercent: 0, yPercent: -110 },
+    bottom: { xPercent: 0, yPercent: 110 },
+    left:   { xPercent: -110, yPercent: 0 },
+    right:  { xPercent: 110, yPercent: 0 },
+  };
+
   // ── List view「黑卡」(.tl-list-chip) hero clip-reveal — 對齊 library 左上角 .lib-panel-title
   // 的 playPanelTitleReveal/Exit（library-panels.js），user 2026-08-04 指定改成同款。
   // chip 本體 translate 沿旋轉軸滑入 + 同向 clip-path inset 同步收，取代舊的「跟 rect 一起純 clip stagger」。
@@ -725,9 +734,10 @@ export function initTimeline() {
     strip.parentNode.appendChild(clone);
     const cloneRotates = Array.from(clone.querySelectorAll('.timeline-photo > div'));
 
+    // revealTargets＝各照片的 rotateDiv 遮罩；動畫對象是其子 aspectDiv（clip-reveal 滑動）
     const revealTargets = [...allRotates, ...cloneRotates];
     if (typeof gsap !== 'undefined') {
-      revealTargets.forEach(el => gsap.set(el, { clipPath: getClipStart(randomDir4()) }));
+      revealTargets.forEach(el => gsap.set(el.firstElementChild, SLIDE_HIDE[randomDir4()]));
     }
 
     let marqueeStarted = false;
@@ -745,7 +755,7 @@ export function initTimeline() {
     function revealAll() {
       if (typeof gsap !== 'undefined') {
         revealTargets.forEach((el, i) => {
-          gsap.to(el, { clipPath: CLIP_END, duration: TIMING.revealDuration, ease: TIMING.revealEase, delay: (i % 24) * TIMING.stagger });
+          gsap.to(el.firstElementChild, { xPercent: 0, yPercent: 0, duration: TIMING.revealDuration, ease: TIMING.revealEase, delay: (i % 24) * TIMING.stagger });
         });
       }
       startMarquee();
@@ -756,8 +766,8 @@ export function initTimeline() {
       revealAll();
     }
 
-    // 離頁退場：freeze 當前 marquee 畫面（暫停無限捲動 tween）→ 可見照片各自 clip-path 收場
-    //（user 2026-08-10：圖片離場走 clip-path、非滑動）。照片以 inline clipPath inset(0) 顯示 → gsap.to 直接收、無 fromTo snap。
+    // 離頁退場：freeze 當前 marquee 畫面（暫停無限捲動 tween）→ 可見照片各自隨機 4 向滑出遮罩
+    //（2026-08-17 由 clip-path 改 clip-reveal，同全站圖片語彙）。遮罩 rect 不受子層滑動影響 → 可見性照量遮罩。
     registerPageExit(() => new Promise(resolve => {
       if (typeof gsap === 'undefined' || !marqueeStarted) { resolve(); return; }
       if (marqueeTween) marqueeTween.pause();  // 凍結當前畫面
@@ -770,8 +780,8 @@ export function initTimeline() {
       let done = 0;
       const onOne = () => { if (++done >= visible.length) resolve(); };
       visible.forEach(el => {
-        gsap.killTweensOf(el);
-        gsap.to(el, { clipPath: getClipStart(randomDir4()), duration: TIMING.exitDuration, ease: TIMING.exitEase, overwrite: true, onComplete: onOne });
+        gsap.killTweensOf(el.firstElementChild);
+        gsap.to(el.firstElementChild, { ...SLIDE_HIDE[randomDir4()], duration: TIMING.exitDuration, ease: TIMING.exitEase, overwrite: true, onComplete: onOne });
       });
     }));
 

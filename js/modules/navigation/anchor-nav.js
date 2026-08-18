@@ -67,8 +67,16 @@ export function initAnchorNav({ reveal = false } = {}) {
         // 手機水平 strip 置中由 setActiveBtn 統一處理（點擊/scroll-spy 同一路徑）
         setActiveBtn(targetId, { force: true });
         clickScrolling = true;
+        // 外露給進場 ScrollTrigger（resources 飛入卡）判斷「anchor 跳轉飛掠中」→ 就定位不播動畫；
+        // anchorTarget 讓目的地 section 自己例外（點 resources 直達仍要播進場）
+        document.body.classList.add('anchor-jumping');
+        document.body.dataset.anchorTarget = targetId;
         clearTimeout(clickScrollTimer);
-        clickScrollTimer = setTimeout(() => { clickScrolling = false; }, 1200);
+        clickScrollTimer = setTimeout(() => {
+          clickScrolling = false;
+          document.body.classList.remove('anchor-jumping');
+          delete document.body.dataset.anchorTarget;
+        }, 1200);
 
         // 使用 scrollIntoView，由各 section 的 scroll-margin-top 決定對齊位置
         targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -297,7 +305,11 @@ export function initAnchorNav({ reveal = false } = {}) {
     observer.observe(section);
   });
   // SPA 離開 about 時 disconnect，否則 observer 持續 hold 已被 router.innerHTML swap 掉的 section refs
-  registerPageCleanup(() => observer.disconnect());
+  registerPageCleanup(() => {
+    observer.disconnect();
+    document.body.classList.remove('anchor-jumping');
+    delete document.body.dataset.anchorTarget;
+  });
 
   // 矮橫向（landscape gate）：nav 是 fixed 在 header 帶（landscape.css 5i）→ hero 區間藏（about）、
   // footer 進視窗前收起（user 2026-07-07「nav btn 不要出現在 footer 上」）。進出場＝clip-path 雙向

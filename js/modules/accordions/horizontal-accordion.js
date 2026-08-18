@@ -181,6 +181,16 @@ export function initRotatedAccordion(wrapper, { height = 600, animateEntry = fal
       start: 'top 80%',
       once: true,
       onEnter: () => {
+        // anchor 跳轉飛掠中（如 vision 直跳 history）：飛入卡的畫面外 offset 會落到下個 section 的
+        // 視圖裡（時間差），直接就定位不播（once 已消耗，之後捲回來卡片已在原位）。
+        // 目的地就是本 section（點 resources 直達）→ 照常播進場
+        const jumpTarget = document.body.dataset.anchorTarget;
+        if (document.body.classList.contains('anchor-jumping') && jumpTarget !== wrapper.closest('section[id]')?.id) {
+          gsap.set(items, { x: 0, y: 0 });
+          openIndex = 0;
+          applyLayout(false);
+          return;
+        }
         const tl = gsap.timeline({
           onComplete: () => {
             openIndex = 0;

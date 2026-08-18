@@ -2,30 +2,18 @@
  * PDF Cover Renderer
  * 用 pdf.js 把 PDF 第一頁 render 成 dataURL，給首頁 floating press 卡與 library files panel
  * （document 沒設 cover 時）用「PDF 本身的封面」。
- * 與 library-viewer 共用同一個 CDN script（data-pdfjs-dynamic 標記）避免重複載入。
+ * 與 library-viewer 共用同一個 CDN module（import() 模組快取天然去重）。
  */
 
-const PDFJS_SRC    = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-const PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+// v4+ 只出 ESM build；6.2 開大書比 3.11 快 ~30%（同 flag 實測 2026-08-18）
+const PDFJS_SRC    = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.2.108/pdf.min.mjs';
+const PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.2.108/pdf.worker.min.mjs';
 
 let _loadPromise = null;
 function ensurePdfjsLoaded() {
   if (typeof pdfjsLib !== 'undefined') return Promise.resolve();
-  if (_loadPromise) return _loadPromise;
-  _loadPromise = new Promise((resolve, reject) => {
-    const existing = document.querySelector('script[data-pdfjs-dynamic]');
-    if (existing) {
-      existing.addEventListener('load', () => resolve());
-      existing.addEventListener('error', reject);
-      return;
-    }
-    const script = document.createElement('script');
-    script.src = PDFJS_SRC;
-    script.dataset.pdfjsDynamic = '1';
-    script.onload = () => resolve();
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
+  // 掛回 window.pdfjsLib 讓既有 typeof 檢查照用
+  if (!_loadPromise) _loadPromise = import(PDFJS_SRC).then(m => { window.pdfjsLib = m; });
   return _loadPromise;
 }
 
@@ -120,8 +108,13 @@ export function renderPdfCover(pdfUrl, targetWidth = 280) {
         pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
       }
       // disableAutoFetch + disableStream：改走 HTTP Range，只抓 xref＋第一頁需要的 chunk，
-      // 不整本下載（Directus /assets 已驗證回 206；掃描本一本可達數十 MB、封面只需第一頁）
-      const doc  = await pdfjsLib.getDocument({ url: pdfUrl, disableAutoFetch: true, disableStream: true }).promise;
+      // 不整本下載（掃描本一本可達數十 MB、封面只需第一頁；stream 開著會背景抓整本）
+      // rangeChunkSize 16K：xref/page 物件散布全檔，預設 64K chunk 過抓 3.4×
+      // （78MB 專刊實測 13.3MB→3.9MB、時間也最快；CloudFront TTFB 60ms 撐得起多段）
+      // _r 唯一 query：同 URL 有 partial cache 時，Chrome 會把 probe 拼成「無 Accept-Ranges 的合成 200」
+      // → pdf.js 誤判不支援 range 整本下載（78MB 實測）。CloudFront cache key 不含 query，edge 零損失。
+      const bustUrl = pdfUrl + (pdfUrl.includes('?') ? '&' : '?') + '_r=' + Date.now();
+      const doc  = await pdfjsLib.getDocument({ url: bustUrl, disableAutoFetch: true, disableStream: true, rangeChunkSize: 16384 }).promise;
       const page = await doc.getPage(1);
       const base = page.getViewport({ scale: 1 });
       const vp   = page.getViewport({ scale: targetWidth / base.width });

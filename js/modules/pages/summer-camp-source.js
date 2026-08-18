@@ -31,7 +31,9 @@ function mapRow(r) {
     ...r,
     description: r.descriptionEn || '',                            // loadListInto intro EN 讀 item.description（zh 讀 descriptionZh 已吻合）
     dates: r.startDate ? buildDates(r.startDate, r.endDate) : [],  // 日期優先讀 item.dates（結構化）
-    ...(r.startDate ? {} : { date: '取消' }),                      // 取消無日期 → 顯示「取消」字串
+    // 「取消」判定：後台 isCancelled 旗標為主；相容舊資料（取消梯次不填日期）→ 無 startDate 也算取消。
+    // 有日期又被標取消（取消已排定梯次）仍走 dates 歸到正確年份，只把日期文字覆蓋成「取消」。
+    ...(r.isCancelled || !r.startDate ? { date: '取消' } : {}),
     // 主辦單位 organizers {organizerZh, organizerEn} → 映射成 guests shape {nameEn, nameZh}，
     // 直接套 loadListInto 既有的 guest layout（buildGuestHtml：名稱 EN/ZH 粗體；營隊無 country/affiliation 故右側留空）。
     guests: (r.organizers || []).map(o => ({ nameEn: o.organizerEn || '', nameZh: o.organizerZh || '' }))

@@ -155,7 +155,9 @@ export function playAdmissionPanelReveal(panel, { useScrollTrigger = false } = {
   }
 
   // 分組策略：以 list-item-divider 為「list-row 群組」終止符，每組 = 年份(若有) + title + 副標/icons + chevron + divider
-  // intro = list 結構之外的 rows（描述塊）；首個 list-item / yearGroup 之後皆視為 list phase
+  // intro = list 結構之外的 rows（描述塊）；首個 list-item / yearGroup / list-reveal-group 之後皆視為 list phase
+  // .list-reveal-group：無 CSS 的分組 hook，給「年份與內容是 grid 兄弟、外框非 list-year-group」的卡片
+  //   （degree-show 卡片：年份欄 col-1 的 reveal-row 沒有 .list-item 祖先，靠此讓它跟該卡內容同組進場）。
   const allRows = /** @type {HTMLElement[]} */ ([...panel.querySelectorAll('.list-reveal-row')]);
   const intro = /** @type {HTMLElement[]} */ ([]);
   const groups = /** @type {HTMLElement[][]} */ ([]);
@@ -163,7 +165,7 @@ export function playAdmissionPanelReveal(panel, { useScrollTrigger = false } = {
   let inListPhase = false;
   for (const row of allRows) {
     if (!inListPhase) {
-      if (row.closest('.list-item') || row.closest('.list-year-group')) {
+      if (row.closest('.list-item') || row.closest('.list-year-group') || row.closest('.list-reveal-group')) {
         inListPhase = true;
       } else {
         intro.push(row);

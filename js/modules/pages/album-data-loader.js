@@ -7,7 +7,8 @@ import { openLightbox } from '../lightbox/activities-lightbox.js';
 import { videoMediaFromUrl, hydrateHlsThumbs, isSelfHostedVideo } from '../ui/video-player.js';
 import { sitePath } from '../ui/site-base.js';
 import { loadSummerCamp } from './summer-camp-source.js';
-import { loadActivityCollection } from './activities-source.js';
+import { loadActivityCollection, loadGeneralActivitiesAlbum } from './activities-source.js';
+import { loadDegreeShowAlbum } from './degree-show-source.js';
 import { loadOthersAlbum } from './library-album-source.js';
 import {
   CARD_COLORS, CATEGORY_LABELS,
@@ -79,14 +80,16 @@ async function fetchData(url) {
 async function aggregateAlbumData() {
   // camp 改吃 Directus 真實資料（同 admission 營隊 tab 的 loadSummerCamp；CMS 失敗它自帶 fallback 本地 JSON）
   const sources = [
-    { url: '/data/workshops.json',         albumCategory: 'workshop',         isDegreeShow: false },
-    { url: '/data/degree-show.json',        albumCategory: 'degree-show',      isDegreeShow: true  },
+    // 全數接 Directus＝單一 source of truth（user 2026-08-17；同 library-panels.js ALBUM_SOURCES）。各 loader 自帶本地 fallback。
+    // ⚠️ Directus 取代本地非合併＋album 過濾無圖項目 → 後台某類「有 row 但 0 圖」時該類相簿為空（等後台補圖才顯示）。
+    { load: () => loadActivityCollection('activities_workshops', '/data/workshops.json'), albumCategory: 'workshop', isDegreeShow: false },
+    { load: loadDegreeShowAlbum,            albumCategory: 'degree-show',      isDegreeShow: false },
     { load: loadSummerCamp,                 albumCategory: 'summer-camp',      isDegreeShow: false },
-    { url: '/data/students-present.json',   albumCategory: 'students-present', isDegreeShow: false },
-    { url: '/data/general-activities.json', albumCategory: 'moment',           isDegreeShow: false },
+    { load: () => loadActivityCollection('activities_students_present', '/data/students-present.json'), albumCategory: 'students-present', isDegreeShow: false },
+    { load: loadGeneralActivitiesAlbum,     albumCategory: 'moment',           isDegreeShow: false },
     // lectures 已接 Directus（activities_lectures）→ album 同步吃線上資料，CMS 掛掉時 loadActivityCollection 自帶本地 fallback。
     { load: () => loadActivityCollection('activities_lectures', '/data/lectures.json'), albumCategory: 'lectures', isDegreeShow: false },
-    { url: '/data/industry.json',           albumCategory: 'industry',         isDegreeShow: false },
+    { load: () => loadActivityCollection('activities_industry', '/data/industry.json'), albumCategory: 'industry', isDegreeShow: false },
     // others 2026-08-03 起吃 Directus library_album（同 library-panels.js ALBUM_SOURCES，兩消費者共用 loadOthersAlbum）
     { load: loadOthersAlbum,                albumCategory: 'others',           isDegreeShow: false },
   ];
@@ -101,7 +104,10 @@ async function aggregateAlbumData() {
       // camp 取消梯次無 startDate → 年份組 key 是 '—'（非數字）：album 依年份分組/排序，略過
       if (!Number.isFinite(Number(year))) return;
       items.forEach(item => {
-        const n = normalizeItem(item, albumCategory, year);
+        // moment 來源混多子類（visits/exhibitions/competitions/conferences）→ 用 item 自己的 category 當 cat，各自對應相簿 chip；
+        // 其餘來源 item 無 category 欄，維持來源 albumCategory。
+        const cat = albumCategory === 'moment' ? (item.category || albumCategory) : albumCategory;
+        const n = normalizeItem(item, cat, year);
         // 無任何媒體不進相簿（camp 真實資料照片未上傳前整類自然缺席，上傳後自動出現）
         if (n.poster.length || n.images.length || n.videos.length) allItems.push(n);
       });
