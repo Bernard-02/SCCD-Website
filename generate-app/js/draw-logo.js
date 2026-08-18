@@ -284,14 +284,16 @@ function drawLogo(pg, alphaMultiplier = 255) {
       pg.strokeWeight(strokeWeightValue);
       pg.text(letter, 0, -offsetY);
 
-      // 第二次：繪製填充顏色（來自色彩選擇器）
-      if (wireframeColor) {
-        pg.fill(_p5.red(wireframeColor), _p5.green(wireframeColor), _p5.blue(wireframeColor), letterAlpha);
-      } else {
-        pg.fill(255, 255, 255, letterAlpha); // 預設白色
+      // 第二次：繪製填充顏色（來自色彩選擇器）；Ctrl+Save 下載無填色版時跳過
+      if (!forceWireframeNoFill) {
+        if (wireframeColor) {
+          pg.fill(_p5.red(wireframeColor), _p5.green(wireframeColor), _p5.blue(wireframeColor), letterAlpha);
+        } else {
+          pg.fill(255, 255, 255, letterAlpha); // 預設白色
+        }
+        pg.noStroke();
+        pg.text(letter, 0, -offsetY);
       }
-      pg.noStroke();
-      pg.text(letter, 0, -offsetY);
     } else {
       // 一般模式：使用RGB顏色，無stroke
       // 結合 alphaMultiplier（頁面載入動畫）和 letterAlpha（hover 效果）

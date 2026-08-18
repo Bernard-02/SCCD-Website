@@ -635,17 +635,17 @@ function setup() {
 
   // --- 綁定Save按鈕事件 ---
   // 將事件綁定到整個 save-box，讓整個容器都可以點擊
-  saveBox.mousePressed(() => {
+  saveBox.mousePressed((e) => {
     if (letters.length > 0) {
-      saveTransparentPNG();
+      saveTransparentPNG(e && e.ctrlKey);
     }
   });
 
   // --- 綁定手機版Save按鈕事件 ---
   if (saveButtonMobile) {
-    saveButtonMobile.mousePressed(() => {
+    saveButtonMobile.mousePressed((e) => {
       if (letters.length > 0) {
-        saveTransparentPNG();
+        saveTransparentPNG(e && e.ctrlKey);
       }
     });
   }

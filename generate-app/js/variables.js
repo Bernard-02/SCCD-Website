@@ -104,6 +104,7 @@ let colorPickerBox; // Color picker 的外層容器（用於控制顯示/隱藏�
 let colorPickerReady = false; // Color picker 容器是否已經展開完成，可以創建 canvas
 let selectedHue = 0; // 選擇的色相（可以超出 0-360，Play 時用於循環動畫）
 let wireframeColor; // Wireframe 模式下的填充顏色
+let forceWireframeNoFill = false; // Ctrl+點擊 Save：下載無填色的 Wireframe 版本（僅下載當下生效）
 let wireframeStrokeColor; // Wireframe 模式下的描邊顏色（當前顯示的顏色，會 lerp 到 targetStrokeColor）
 let targetStrokeColor; // Wireframe 描邊顏色的目標值（黑色或白色）
 let strokeColorLerpProgress = 1; // 顏色 lerp 的進度 (0-1)，1 表示已完成

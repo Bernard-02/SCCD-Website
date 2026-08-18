@@ -6,7 +6,7 @@
 // ========================================
 
 // --- 保存透明PNG函數 ---
-function saveTransparentPNG() {
+function saveTransparentPNG(noFill = false) {
   // 防止重複點擊
   if (isDownloading) return;
   isDownloading = true;
@@ -33,6 +33,8 @@ function saveTransparentPNG() {
 
   // 動畫結束後開始下載
   setTimeout(() => {
+    // 只在離屏繪製這一刻開旗標，避免按鈕動畫期間畫面上的 Wireframe 失去填色
+    forceWireframeNoFill = !!noFill;
     performDownload();
     // 下載完成後重置狀態
     isDownloading = false;
@@ -44,6 +46,10 @@ function saveTransparentPNG() {
 // --- 實際執行下載的函數 ---
 function performDownload() {
   const saveSize = 1080;
+
+  // Ctrl+Save：不論當前模式，暫時切成 Wireframe 畫無填色版，畫完還原
+  const tempMode = mode;
+  if (forceWireframeNoFill) mode = 'Wireframe';
 
   // 生成檔案名稱
   let fileName = generateFileName();
@@ -103,6 +109,10 @@ function performDownload() {
     // 保存文件
     pg.save(fileName);
   }
+
+  // 還原模式與 no-fill 旗標
+  mode = tempMode;
+  forceWireframeNoFill = false;
 }
 
 // --- 生成檔案名稱的函數 ---
@@ -147,6 +157,7 @@ function generateFileName() {
       strokeColorName = "White";
     }
     modePart = `${strokeColorName} Wireframe`;
+    if (forceWireframeNoFill) modePart += ' Outline';
   }
 
   // 組合檔案名稱：文字 - 模式.png
