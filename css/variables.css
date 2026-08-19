@@ -234,11 +234,11 @@
      水平 scroll 由 router.js 對 about 頁加的 body.style.overflowX='hidden' 兜住，
      圖片可以視覺溢出 container 但不會跑出 viewport。 */
 }
-/* degree-show 跨全寬 + 統一 400px wrapper 比 about 圖大很多
-   portrait 圖高度 ≈ 533px + ±4° rotation bbox 投影 → ~570-600px
-   加 buffer 到 660px 避免 .class-img absolute top:50% 上下露出 container 邊界後與相鄰 event-gallery-section 視覺相切 */
+/* degree-show 跨全寬 + 等面積 vw 尺寸（2026-08-18 由 uniform-460px 改，見 degree-show-gallery.js）：
+   直式最高約 35vw（3:4 → 504px@1440 / 672px@1920）；min-height 720 當「不塌陷」的底（section 本身 md:h-screen
+   置中，比 720 高的直式靠 h-screen 容納）。避免 .class-img absolute top:50% 上下露出與相鄰 gallery section 相切 */
 .division-images--degree-show {
-  min-height: 660px;
+  min-height: 720px;
 }
 .class-img {
   position: absolute;

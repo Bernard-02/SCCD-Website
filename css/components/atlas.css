@@ -506,6 +506,22 @@ body.mode-color #atlas-detail-mask {
    span 分配：faculty(2) + label(1) + host(2) + employ(2) + partners(2) = 9
    middle alumni 區 5 cols 等寬（1 label + 4 host/employ sub-cols）；
    faculty/partners 各 span 2 內含 2 sub-cols (= 視覺 col 寬度與 middle 一致) */
+/* ── View morph 飛行層（map ↔ list 共享元素 FLIP，2026-08-18）───────────
+   clone 由 atlas.js 動態塞入（inline 定位/尺寸）；z 60 蓋過 stage / #atlas-filter /
+   #atlas-list-view（50），仍在 header 與 #atlas-detail-mask（9999）之下 */
+#atlas-morph-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 60;
+}
+
+/* morph 期間鎖互動：stage hover / list 點擊都停用，clone 落地收尾後移除 class 解鎖 */
+#atlas-main.atlas-morphing #atlas-stage,
+#atlas-main.atlas-morphing #atlas-list-view {
+  pointer-events: none;
+}
+
 #atlas-list-view {
   position: fixed;
   top: calc(var(--header-height, 80px) + 64px);

@@ -5,7 +5,7 @@
  * 負責 Awards / Press / Files / Album 四個 panel 的資料載入、渲染、篩選邏輯
  */
 
-import { applyMarqueeOverflow } from '../ui/marquee-overflow.js';
+import { applyMarqueeOverflow, bindMarqueeReturn } from '../ui/marquee-overflow.js';
 import { videoMediaFromUrl, grabHlsFrame, isSelfHostedVideo } from '../ui/video-player.js';
 import { ensureFlagIconsCss } from '../ui/ensure-flag-icons.js';
 import { countryName } from '../../data/country-names.js';
@@ -44,6 +44,27 @@ const CAT_LABELS = {
   'moment':           'Moment 日常',
   'others':           'Others 其他',
 };
+
+// CAT_LABELS 值＝「EN ZH」單串（EN 可含空格）→ 拆首個 CJK 字為界，給 ref chip 雙語兩行
+function splitCatLabel(s) {
+  const i = s.search(/[一-鿿]/);
+  return i < 0 ? [s.trim(), ''] : [s.slice(0, i).trim(), s.slice(i).trim()];
+}
+
+// album 卡片由某活動 collection 攤平而來（cat === activities section key；others＝library 自上傳、無來源活動）→
+// 給 lightbox 一顆「回到來源」的 ref chip：
+//   - degree-show：整屆內容（cover→回顧影片）→ href 直接回畢展 detail 頁（非 activities 清單，同 pdf-cross-ref 慣例）
+//   - 其餘：section+itemId deep-link（itemId = 活動 Directus id ＝ activities 頁 `item-<id>` 錨點，見 activities-source mapRow；對不上時 navigateToItem 退回捲到 section）
+function albumSourceRef(item) {
+  if (!item || item.cat === 'others') return null;
+  if (item.cat === 'degree-show') {
+    return item.year == null ? null
+      : { href: `${SITE_BASE_PATHNAME}pages/degree-show-detail.html?year=${item.year}`, labelEn: 'Degree Show', labelZh: '畢業展', titleEn: item.titleEn || '', titleZh: item.titleZh || '' };
+  }
+  if (!item.id || !CAT_LABELS[item.cat]) return null;
+  const [labelEn, labelZh] = splitCatLabel(CAT_LABELS[item.cat]);
+  return { section: item.cat, itemId: item.id, labelEn, labelZh, titleEn: item.titleEn || '', titleZh: item.titleZh || '' };
+}
 
 // 斑馬紋依「當前可見順序」重排：篩選只 display:none 隱藏，靜態 build 的 rowIdx 交替會斷（連續同底色）→
 // 依可見 DOM 順序重算（偶數位＝斑馬，同 build 慣例 rowIdx%2===0）。awards/press/album 三個可篩選斑馬清單共用。
@@ -241,8 +262,15 @@ function bindCoverRatio(containerEl) {
  * @param {string} rowSelector
  * @param {string} innerSelector
  */
-function runMarqueeOverflow(containerEl, rowSelector, innerSelector) {
+function runMarqueeOverflow(containerEl, rowSelector, innerSelector, hoverItemSelector) {
   applyMarqueeOverflow(containerEl, rowSelector, innerSelector);
+  // 桌面 hover 放開平滑回彈（user 2026-08-19 B）：每個 list item 綁 bindMarqueeReturn（手機由 helper 自我 gate 跳過）；
+  // 跟 bindListItemHover（換底色）共存於同一 hover 目標、互不干擾。
+  if (hoverItemSelector) {
+    containerEl.querySelectorAll(hoverItemSelector).forEach((item) => {
+      registerPageCleanup(bindMarqueeReturn(/** @type {HTMLElement} */ (item), innerSelector, rowSelector));
+    });
+  }
 }
 
 // award ref row 標題（buildRefRowsHtml 的 .list-title-marquee）：不能用上面的 applyMarqueeOverflow 共用 utility，
@@ -1345,7 +1373,7 @@ async function initPressPanel() {
       window._pressMarqueeInit = () => {
         runMarqueeOverflow(listEl,
           '.press-item-title-en, .press-item-title-zh, .press-item-subtitle',
-          '.press-marquee-inner, .press-subtitle-inner');
+          '.press-marquee-inner, .press-subtitle-inner', '.press-item');
       };
       // sort 重渲染的新 DOM 沒 marquee（user 2026-07-03 手機報）→ 每次 render 尾端重跑；
       // panel 隱藏時量寬 0 = 無害 no-op，showLibPanel 顯示時會再觸發補量
@@ -1418,7 +1446,9 @@ function mapDirectusFilesRow(row) {
     subtitleEn: row.subtitleEn || '',
     subtitleZh: row.subtitleZh || '',
     year: row.year || '',
-    cover: row.cover ? `${CMS_ASSETS_BASE}/${row.cover}` : '',
+    // ?key=web：跟其餘卡片圖 + 首頁浮動書卡（floating-items files 分類）用**同一個 URL** → 點浮卡跳進來時
+    // 瀏覽器快取已 warm、封面秒出（user 2026-08-19）；size 與原圖幾乎相同（web preset 不縮小已優化的封面）。
+    cover: row.cover ? `${CMS_ASSETS_BASE}/${row.cover}?key=web` : '',
     // pdfLink（貼的 CloudFront／S3 網址）優先：直服務 range 比 Directus 代理快 ~25x（見 memory
     // reference_pdf_move_to_video_cloudfront_bucket）；沒填才 fallback 舊的上傳檔 UUID，方便漸進搬遷。
     pdfUrl: row.pdfLink || (documentId ? `${CMS_ASSETS_BASE}/${documentId}` : ''),
@@ -1519,6 +1549,9 @@ async function initFilesPanel() {
       const needCover = [];   // 待 render 封面的卡片：{ card, pdfUrl }；首批 eager、其餘懶載
       let eagerImgs = 0;      // 預產封面 <img>：首批直接 src、其餘視窗外延後（user 2026-08-18「只先載視窗內」）
       const lazyImgCards = [];
+      // deep-link（#f-<id>）目標卡：即使排在 EAGER_COVERS 之後也 eager 載封面，點首頁浮動書卡跳進來時
+      // 封面立刻出（不必等捲到才 IO 補 src）；配合 cover 帶 ?key=web＝跟浮卡同 URL 共用快取＝秒出。
+      const deepLinkTargetId = (window.location.hash || '').slice(1).startsWith('f-') ? window.location.hash.slice(1) : '__none__';
       listEl.innerHTML = '';
       groupByYear(data).forEach(group => {
         const block = document.createElement('div');
@@ -1553,7 +1586,8 @@ async function initFilesPanel() {
           const coverUrl = item.cover || (isImageDocumentUrl(item.pdfUrl, item.documentMimeType) ? item.pdfUrl : '');
           // ⚠️ 不能 loading="lazy"（原生判定圖被 clip 在視窗外＝永不載入，2026-08-18 實測）：
           // 懶載自己來——首批 EAGER_COVERS 張直接 src，其餘不設 src、IO 靠近視窗才補（見 scheduleCovers）
-          const eagerImg = coverUrl && (eagerImgs++ < EAGER_COVERS);
+          // deep-link 目標卡先判（短路 → 不佔 eager 名額）；否則照首批 EAGER_COVERS
+          const eagerImg = coverUrl && (div.id === deepLinkTargetId || eagerImgs++ < EAGER_COVERS);
           const coverContent = coverUrl
             ? `<img class="files-item-cover"${eagerImg ? ` src="${coverUrl}"` : ''} alt="">`
             : `<div class="files-item-cover files-item-cover--empty"></div>`;
@@ -1663,7 +1697,7 @@ async function initFilesPanel() {
       bindListItemHover(listEl, '.files-item', '.files-thumb-overlay');
 
       window._filesMarqueeInit = () => {
-        runMarqueeOverflow(listEl, '.files-item-title-en, .files-item-title-zh, .files-item-subtitle-en, .files-item-subtitle-zh, .files-item-subtitle-tag', '.files-marquee-inner');
+        runMarqueeOverflow(listEl, '.files-item-title-en, .files-item-title-zh, .files-item-subtitle-en, .files-item-subtitle-zh, .files-item-subtitle-tag', '.files-marquee-inner', '.files-item');
       };
       // 同 press：sort 重渲染後重跑 marquee（隱藏時 no-op、顯示時 showLibPanel 補量）
       requestAnimationFrame(window._filesMarqueeInit);
@@ -1905,8 +1939,9 @@ async function initAlbumPanel() {
             const shareUrl = libShareUrl(item.id && `album-${item.id}`);
             // 直接從 Album panel 點 → 無 host，ref 顯示全部（含 award 反向 ref）；resolveLibManualRefs 解析 award→href chip
             // （原本傳 raw item.references → award 反向 ref 因無 section/itemId/href 被 lightbox-ref-btn 過濾掉、不顯示）
+            // 再 union 一顆「回到來源活動」的 back-ref：workshop/lecture… 相簿圖片點開 lightbox 後可跳回該活動（user 2026-08-19）。
             div.addEventListener('click', async () => {
-              const references = await resolveLibManualRefs(item);
+              const references = unionRefs([albumSourceRef(item)], await resolveLibManualRefs(item));
               document.dispatchEvent(new CustomEvent('sccd:open-lightbox', { detail: { media: item.media, index: 0, title: lbTitle, color: lbColor, references, shareUrl } }));
             });
             makeActivatable(div, [item.titleEn, item.titleZh].filter(Boolean).join(' ')); // 無障礙：相簿項可 Tab + Enter 開
@@ -2017,7 +2052,7 @@ async function initAlbumPanel() {
       bindListItemHover(listEl, '.files-item', '.album-thumb-overlay');
 
       window._albumMarqueeInit = () => {
-        runMarqueeOverflow(listEl, '.files-item-title-en, .files-item-title-zh', '.files-marquee-inner');
+        runMarqueeOverflow(listEl, '.files-item-title-en, .files-item-title-zh', '.files-marquee-inner', '.files-item');
       };
       // 同 press：sort 重渲染後重跑 marquee（隱藏時 no-op、顯示時 showLibPanel 補量）
       requestAnimationFrame(window._albumMarqueeInit);

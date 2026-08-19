@@ -42,10 +42,12 @@ export async function loadDegreeShow() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const rows = (await res.json()).data;
     if (!Array.isArray(rows) || !rows.length) throw new Error('empty');
-    return keyByYear(rows);
+    return groupByYear(rows.map(mapRow));
   } catch (err) {
     console.warn('[degree-show] CMS fetch failed, fallback to /data/degree-show.json:', err.message);
-    return fetch(sitePath(FALLBACK_JSON)).then(r => r.json());
+    return fetch(sitePath(FALLBACK_JSON))
+      .then(r => r.json())
+      .then(groupFallbackByYear);
   }
 }
 
@@ -57,9 +59,9 @@ export async function loadDegreeShow() {
  */
 export async function loadDegreeShowAlbum() {
   const byYear = await loadDegreeShow();
-  return Object.entries(byYear).map(([year, e]) => ({
+  return Object.entries(byYear).map(([year, entries]) => ({
     year: Number(year),
-    items: [{
+    items: entries.map(e => ({
       id: e.id,
       titleEn: e.title_en || '',
       titleZh: e.title || '',
@@ -68,20 +70,32 @@ export async function loadDegreeShowAlbum() {
         ...(Array.isArray(e.images) ? e.images : []),
         ...((Array.isArray(e.events) ? e.events : []).flatMap(ev => Array.isArray(ev.images) ? ev.images : [])),
       ],
-    }],
+    })),
   }));
 }
 
 // year 當 key（同本地 JSON 物件形狀）；新→舊排序由 loader 自己做
-function keyByYear(rows) {
+function groupByYear(rows) {
   const out = {};
-  rows.forEach(r => { if (r.year != null) out[String(r.year)] = mapRow(r); });
+  rows.forEach(r => {
+    if (r.year == null) return;
+    const year = String(r.year);
+    (out[year] ||= []).push(r);
+  });
   return out;
+}
+
+function groupFallbackByYear(data) {
+  return Object.fromEntries(Object.entries(data || {}).map(([year, entries]) => [
+    year,
+    Array.isArray(entries) ? entries : [entries],
+  ]));
 }
 
 function mapRow(r) {
   return {
     id: r.id,
+    year: r.year,
     title: r.titleZh || '',
     title_en: r.titleEn || '',
     coverImage: fileUrl(r.coverImage),

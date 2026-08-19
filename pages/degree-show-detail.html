@@ -73,7 +73,7 @@
           <!-- 清單：桌面左半（col 5-13，避開 col 1-4 sticky 資訊卡）；直式海報改靠右上角後清單再擴一欄（user 2026-08-18「poster 對齊右上角、讓 events 區更寬」）；桌面內捲＋右側 scrollbar -->
           <div class="col-span-full md:col-start-5 md:col-span-9">
             <!-- Data rows（JS render） -->
-            <div id="events-list" class="dsd-events-scroll list-scroll"></div>
+            <div id="events-list" class="dsd-events-scroll list-scroll flex flex-col gap-lg md:gap-xl"></div>
           </div>
           <!-- KV：桌面 only（.dsd-events-kv 預設 display:none，JS 有 poster 時加 .has-kv）；
                poster 容器（col 14-20，約等於直式海報自然寬），直式圖靠右上角（margin-left:auto）＝右緣貼齊全站內容右緣（user 2026-08-18） -->

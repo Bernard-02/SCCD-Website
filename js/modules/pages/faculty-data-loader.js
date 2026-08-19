@@ -16,24 +16,28 @@ import { registerPageCleanup } from '../ui/page-cleanup.js';
 // 2026-08-04 起改 GSAP 共用 timeline（原本純 CSS `:hover` 各自 animation:infinite，多職稱時 EN/ZH 各自
 // duration 久了會脫拍，同 reference_gsap_timeline_desync_marquee_pair_sync）：每個 .faculty-card-title-group
 // （一組職稱的 EN+ZH，多職稱=多組）各自建一條同步 timeline，hover 整張卡時全部一起播放/暫停。
-// 離開沿用原本「瞬間 snap 回原點」（cards.css 舊行為就是這樣，沒有 slide-in 那種平滑捲回，維持原樣）。
+// 離開改「平滑回彈」（user 2026-08-19 B，全站統一）：pause 凍在當下、補間回 0（同 slide-in / list marquee）。
 // card._marqueeBound 防同一張卡重複綁（runMarquee 可能因字型載入/resize 等原因被呼叫多次）。
 function bindFacultyCardMarquee(container) {
   if (typeof gsap === 'undefined') return;
   container.querySelectorAll('.faculty-card').forEach((card) => {
     if (card._marqueeBound) return;
-    const timelines = [...card.querySelectorAll('.faculty-card-title-group')].map((group) => {
+    const groups = [...card.querySelectorAll('.faculty-card-title-group')].map((group) => {
       const items = [...group.querySelectorAll('.faculty-marquee-line.is-overflow')].map((line) => {
         const inner = line.querySelector('.faculty-marquee-inner');
         const dist = Math.abs(parseFloat(getComputedStyle(line).getPropertyValue('--marquee-distance'))) || 0;
         return inner && dist ? { el: inner, distance: dist } : null;
       }).filter(Boolean);
-      return items.length ? buildSyncedMarqueeTimeline(items) : null;
+      return items.length ? { tl: buildSyncedMarqueeTimeline(items), els: items.map((i) => i.el) } : null;
     }).filter(Boolean);
-    if (!timelines.length) return;
+    if (!groups.length) return;
     card._marqueeBound = true;
-    const playAll  = () => timelines.forEach(tl => tl.play());
-    const pauseAll = () => timelines.forEach(tl => tl.pause(0)); // pause(0) 立即歸零＝原本 CSS 移除瞬間 snap 的手感
+    let ret = null;
+    const playAll  = () => { if (ret) { ret.kill(); ret = null; } groups.forEach((g) => g.tl.play()); };
+    const pauseAll = () => {
+      groups.forEach((g) => g.tl.pause());
+      ret = gsap.to(groups.flatMap((g) => g.els), { x: 0, duration: 0.45, ease: 'cubic-bezier(0.25,0,0,1)', onComplete: () => { groups.forEach((g) => g.tl.progress(0)); ret = null; } });
+    };
     card.addEventListener('mouseenter', playAll);
     card.addEventListener('mouseleave', pauseAll);
     registerPageCleanup(() => { card.removeEventListener('mouseenter', playAll); card.removeEventListener('mouseleave', pauseAll); });

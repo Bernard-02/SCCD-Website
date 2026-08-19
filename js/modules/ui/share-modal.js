@@ -25,6 +25,17 @@ function randomAccent() {
     ?? ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
 }
 
+// 4 向遮罩滑入：dir → 隱藏起點（xPercent/yPercent ±110，藏在該側遮罩外）
+// 進場 fromTo 從隱藏起點→0；退場 to 同 dir 反推（來去同一側）。卡片與 QR 共用當次方向。
+const REVEAL_DIRS = {
+  bottom: { yPercent: 110 },
+  top:    { yPercent: -110 },
+  right:  { xPercent: 110 },
+  left:   { xPercent: -110 },
+};
+const REVEAL_DIR_KEYS = Object.keys(REVEAL_DIRS);
+let revealDir = 'bottom';
+
 function getQrEndpoint(url, size = 200) {
   return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(url)}`;
 }
@@ -95,6 +106,9 @@ function openShareLightbox(url, bg) {
   const card = document.getElementById('share-lightbox-card');
   if (!lightbox || !card) return;
 
+  // 本次開啟隨機挑一個滑入方向；卡片 + QR 共用，close 反推同方向出場
+  revealDir = REVEAL_DIR_KEYS[Math.floor(Math.random() * REVEAL_DIR_KEYS.length)];
+
   // 卡片底色（文字始終黑）：
   //   bg 明確帶入（library share btn 帶 title 渲染色）→ 直接用，讓卡片跟 title 同色
   //   否則 mode3(color) 維持白；mode1/2 隨機三原色（同 list hover source）
@@ -107,26 +121,21 @@ function openShareLightbox(url, bg) {
 
   // 填入 QR code 與 URL — crossOrigin 給 download 走 canvas 去背用
   // hover/touch 預先 prefetchQr 過時，這裡 src 設同 URL → HTTP cache hit → 即時（complete=true）直接顯示
-  // 沒命中（有 delay）→ clip-path 由下往上揭露蓋掉等待空窗（取代舊 opacity fade，統一站上 clip-reveal 慣例）
+  // 沒命中（有 delay）→ 遮罩滑入蓋掉等待空窗（跟卡片同方向、統一站上 clip-reveal 慣例，取代舊 clip-path wipe）
   const qrImg = /** @type {HTMLImageElement} */ (document.getElementById('share-qr-img'));
   qrImg.crossOrigin = 'anonymous';
   qrImg.style.opacity = '1';
   qrImg.onload = null;
-  qrImg.style.clipPath = '';
+  if (typeof gsap !== 'undefined') ensureCardMask(qrImg); // 貼身遮罩，讓 ±110 平移藏得掉
   qrImg.src = getQrEndpoint(url);
-  if (!(qrImg.complete && qrImg.naturalWidth)) {
-    // 有 delay：先全裁，onload 後 clip-path reveal（gsap 缺席時退化成直接顯示）
-    qrImg.style.clipPath = 'inset(100% 0% 0% 0%)';
-    qrImg.onload = () => {
-      if (typeof gsap !== 'undefined') {
-        gsap.fromTo(qrImg,
-          { clipPath: 'inset(100% 0% 0% 0%)' },
-          { clipPath: 'inset(0% 0% 0% 0%)', duration: DUR.slow, ease: EASE.enter,
-            onComplete: () => { qrImg.style.clipPath = ''; } });
-      } else {
-        qrImg.style.clipPath = '';
-      }
-    };
+  if (typeof gsap !== 'undefined' && !(qrImg.complete && qrImg.naturalWidth)) {
+    // 有 delay：先藏在遮罩外，onload 後滑入（同卡片方向）
+    gsap.set(qrImg, REVEAL_DIRS[revealDir]);
+    qrImg.onload = () => gsap.fromTo(qrImg,
+      REVEAL_DIRS[revealDir],
+      { xPercent: 0, yPercent: 0, duration: DUR.slow, ease: EASE.enter, overwrite: true, clearProps: 'transform' });
+  } else if (typeof gsap !== 'undefined') {
+    gsap.set(qrImg, { clearProps: 'transform' }); // 命中快取：清掉上次殘留 transform，維持原位直接顯示
   }
   const MAX_URL_LEN = 50;
   const urlEl = /** @type {HTMLElement} */ (document.getElementById('share-url-text'));
@@ -141,13 +150,13 @@ function openShareLightbox(url, bg) {
       { backgroundColor: 'rgba(0,0,0,0)' },
       { backgroundColor: 'rgba(0,0,0,0.9)', duration: DUR.slow, ease: EASE.enter, overwrite: true });
   }
-  // 進場 clip-reveal：卡片由下滑入貼身遮罩（取代舊 4 向 clip-path wipe）
+  // 進場 clip-reveal：卡片沿當次隨機方向滑入貼身遮罩（4 向擇一）
   // fromTo 確保 from-state 強制套用（避 first-open 從殘留 transform 跳終值）
   if (typeof gsap !== 'undefined') {
     ensureCardMask(card);
     gsap.fromTo(card,
-      { yPercent: 110 },
-      { yPercent: 0, duration: DUR.slow, ease: EASE.enter, overwrite: true }
+      REVEAL_DIRS[revealDir],
+      { xPercent: 0, yPercent: 0, duration: DUR.slow, ease: EASE.enter, overwrite: true }
     );
   }
 
@@ -173,13 +182,13 @@ function closeShareLightbox() {
     }
   };
 
-  // 退場 clip-reveal：卡片下沉出遮罩（進場反向）
+  // 退場 clip-reveal：卡片沿進場方向反向滑出遮罩（同 dir、來去同一側）
   if (typeof gsap !== 'undefined') {
     closing = true;
     // 背景遮罩同步 fade out（對稱進場）
     gsap.to(lightbox, { backgroundColor: 'rgba(0,0,0,0)', duration: DUR.medium, ease: EASE.exit, overwrite: true });
     gsap.to(card, {
-      yPercent: 110,
+      ...REVEAL_DIRS[revealDir],
       duration: DUR.medium,
       ease: EASE.exit,
       overwrite: true,

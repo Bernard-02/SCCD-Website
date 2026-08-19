@@ -439,8 +439,10 @@ export function initPdfViewer() {
       zoom.scale = actualScale();
       zoom.tx = 0; zoom.ty = 0;
     } else {
-      zoom.scale = Math.max(minScale(), Math.min(maxScale(), zoom.scale));
-      clampPan();
+      // 手動放大狀態下翻頁 → 回 Fit Page（user 2026-08-19：翻頁不該停在上一頁的放大視角/偏移；
+      // Fit Page / Fit Width / Actual 三個具名模式仍跨頁保留，只有任意手動 zoom 歸位）
+      zoom.scale = fitScale();
+      zoom.tx = 0; zoom.ty = 0;
     }
     applyZoom(false);
 

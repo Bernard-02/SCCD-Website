@@ -224,6 +224,13 @@ xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96p
 - **規範**：inset 四值單位必須一致（全 % 或全 px），混用會讓 interpolate 失敗看起來「直接出現」
 - **用詞**：對話中講「**clip-path**」就是這個 pattern
 
+### Marquee（文字 overflow 跑動）— 新增時選哪套（2026-08-19 定案 B）
+判準看「有沒有 hover、放開時要不要回彈」，**不是**看幾行：
+- **桌面 hover 才捲**（卡片 / 欄 hover 才動，放開要**平滑回彈**到原點）→ 先 `applyMarqueeOverflow` 量寬，再**桌面**逐 hover unit call `bindMarqueeReturn(hoverEl, innerSel, lineSel)`（GSAP 接手、helper 自我 gate 桌面、inline `animation:none` 蓋掉 CSS keyframe）。中英兩行自動同步。手機不綁＝維持 CSS 自動循環。已用：DSD events/list、atlas list、courses、library press/files/album、activities/faculty/ref-chip。
+- **一直自動跑**（無 hover，如首頁 news、library 色卡、得獎人）→ 照舊純 CSS keyframe，**不需要也做不到回彈**。
+- ⚠️「連續循環 + 平滑回彈」只有 JS/GSAP 能做（純 CSS 循環放開必 instant snap）；「單次滑出看一眼就回」才能純 CSS transition。always-on 與手機一律不回彈。
+- **用詞**：對話中講「**回彈 / 放開平滑回去**」就是 `bindMarqueeReturn` 這套。細節見 memory `project_marquee_hover_easeback_unify` / `reference_sitewide_marquee_mechanisms_map`。
+
 ## 共用模組（重要！新功能優先沿用）
 
 | 模組 | 用途 |
@@ -233,7 +240,7 @@ xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96p
 | `js/modules/ui/page-cleanup.js` | 註冊離頁要解綁的 listener / observer |
 | `js/modules/ui/theme-toggle.js` | mode 切換 + color hue loop + 全域 dispatch `theme:changed` |
 | `js/modules/ui/custom-scrollbar.js` | 全站隱藏原生 scrollbar + 自製 fixed thumb div + drag + footer 區換色 |
-| `js/modules/ui/marquee-overflow.js` | 文字 overflow → seamless loop marquee（atlas/courses/library 共用） |
+| `js/modules/ui/marquee-overflow.js` | 文字 overflow → marquee：`applyMarqueeOverflow`（量寬+dual-copy+`--marquee-distance`）；`buildSyncedMarqueeTimeline`（中英同步 GSAP timeline）；`bindMarqueeReturn`（桌面 hover 放開平滑回彈，見下規範） |
 | `js/modules/ui/section-switch-helpers.js` | `setActiveNavBtn` + `showPanel`（4 個 section-switch 共用） |
 | `js/modules/lightbox/lightbox-shell.js` | enter/exit + body lock + header bar 收展（給 lightbox / slide-in / full-screen overlay 共用） |
 | `js/modules/accordions/list-accordion.js` | list-header → list-content 展開（必須在 `loadListInto` 後 call `initListAccordion`） |
@@ -355,14 +362,14 @@ JS random scatter + collision resolution 8 items + 每次 shuffle 即時 generat
 ### D. TIER 3 大架構（明確不做，列出做為設計決策記錄）
 
 - ❌ **section-switch 3 個 caller 抽 helper**：admission/activities/courses 各有 quirks（lazy load / sub-filter / 頭部動畫 / BFA-MDES toggle），抽出 helper hook 後複雜度跟原本 3 份差不多，違反「不過度工程化」
-- ❌ **`renderCard()` 通用 card builder**：5 種 card 結構差異 > 共用因子（faculty / library / courses-grid / alumni-sponsor / activities list-item），共用 helpers 已抽（card-panel-helpers.js）
+- ❌ **`renderCard()` 通用 card builder**：5 種 card 結構差異 > 共用因子（faculty / library / courses-grid / alumni-sponsor / activities list-item），各面板各自建卡、不抽共用 builder
 - ❌ **Web Components / Custom Elements**：原生 JS SPA 是技術選擇，不引入新範式
 - ❌ **header bars `[data-bar]` selector 完全集中化**：about / library / atlas / generate / alumni 各有客製互動，header.js 內保留多處 selector 比集中後配 hook 簡單
 
 ### E. Component-first 長期方向（user 目標，分階段累積）
 
 1. **Utility helpers**（已大半完成）— scroll-animate / lightbox-shell / page-cleanup / awaitLayoutReady / marquee-overflow / section-switch-helpers / theme-toggle / custom-scrollbar
-2. **Render templates**（進行中）— `loadListInto` 是 canonical list template，`card-panel-helpers` 是 card 共用 helpers。下一階段可考慮抽：
+2. **Render templates**（進行中）— `loadListInto` 是 canonical list template（card 目前各面板自建、無共用 builder）。下一階段可考慮抽：
    - 統一 ref/attachment block builder（目前 list-ref-btn HTML 散在多處）
    - 統一 gallery + lightbox bind helpers（loadListInto 內部已有，可獨立 export 給非 list 場景）
 3. **Self-contained widgets**（不做）— 需 Web Components 或框架支援，跟現有 vanilla JS SPA 衝突

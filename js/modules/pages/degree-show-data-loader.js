@@ -12,7 +12,8 @@ import { createClassImagesSlideshow } from './about/class-images-slideshow.js';
 import { getSectionData, findItemById, SECTION_LABELS } from './activities-data-loader.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { registerPageExit } from '../ui/page-exit.js';
-import { applyMarqueeOverflow } from '../ui/marquee-overflow.js';
+import { applyMarqueeOverflow, bindMarqueeReturn } from '../ui/marquee-overflow.js';
+import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { isHlsUrl, isDirectVideoUrl } from '../ui/video-player.js';
 import { createLightboxVideo } from '../lightbox/lightbox-video.js';
@@ -80,14 +81,20 @@ export async function loadDegreeShowListInto(containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
 
-    const years = Object.keys(data).sort((a, b) => Number(b) - Number(a)); // Sort years descending
+    const shows = Object.entries(data)
+      .sort(([a], [b]) => Number(b) - Number(a))
+      .flatMap(([year, entries]) => entries.map((item, itemIndex) => ({
+        year,
+        item,
+        showYear: itemIndex === 0,
+      })));
     const colors = ['#FF448A', '#00FF80', '#26BCFF'];
 
-    years.forEach((year, idx) => {
-      const item = data[year];
+    shows.forEach(({ year, item, showYear }, idx) => {
       const color = colors[idx % colors.length];
       const titleEn = item.title_en || item.titleEn || '';
       const titleZh = item.title || item.titleZh || '';
+      const detailQuery = new URLSearchParams({ year, ...(item.id ? { id: item.id } : {}) }).toString();
       // 無 coverImage（如後台還沒傳封面）→ 灰底 placeholder，卡片仍有縮圖塊 + 標題不空掉（user 2026-08-17）
       const coverHtml = item.coverImage
         ? `<img src="${item.coverImage}" alt="Degree Show ${year}" loading="eager" class="degree-show-img w-full">`
@@ -102,13 +109,15 @@ export async function loadDegreeShowListInto(containerId) {
       // .list-reveal-group 留在外 <div>：年份 col-1 的 .list-reveal-row 沒 .list-item 祖先，靠此 hook 跟該卡內容
       //   同組併入 list phase（見 admission-data-loader playAdmissionPanelReveal 分組）。
       const html = `
-        <div class="grid-12 items-start degree-show-card list-reveal-group" style="--card-color: ${color}">
+        <div class="grid-12 items-start degree-show-card list-reveal-group" data-degree-show-year="${year}" style="--card-color: ${color}">
           <!-- 年份：桌面 md:pt-sm md:pl-xs 對齊 loadListInto 年份文字（filter 下 269）；
                手機 -8px 淨得 12px（card grid 20px row-gap − 8）、md:mb-0（年份與縮圖同排）。
                獨立 label 不進 <a>（比照 admission 年份欄非點擊）。 -->
-          <div class="col-span-12 md:col-start-1 md:col-span-1 mb-[-8px] md:mb-0 md:pt-sm md:pl-xs">
-            <h5 class="list-reveal-row">${year}</h5>
-          </div>
+          ${showYear ? `
+            <div class="col-span-12 md:col-start-1 md:col-span-1 list-year-label mb-[-8px] md:mb-0 md:pt-sm md:pl-xs">
+              <h5 class="list-reveal-row">${year}</h5>
+            </div>
+          ` : ''}
           <!-- 內容＝斑馬紋列（.list-item）＝點擊連結：套 activities panel 逐項 clip-reveal——圖 wrapper 與標題各自
                .list-reveal-row 且**必須在 .list-item 內**才會成組被 revealZebraBg 揭；否則斑馬(偶數)卡
                clip-path:inset(100%) 永不揭＝整卡空白。末尾 .list-item-divider 當分組終止符。
@@ -121,7 +130,7 @@ export async function loadDegreeShowListInto(containerId) {
           <div class="degree-show-card-content list-item relative col-span-12 md:col-start-2 md:col-span-11 px-sm py-sm md:ml-[41px] transition-colors duration-fast" data-accent-hex="${color}">
             <!-- z-[1]：reveal-row 被 .clip-reveal-wrapper 包住，reveal 中殘留 transform（＝暫時 stacking context），且在 DOM
                  晚於本 <a> → 純 absolute（z auto）會被它們蓋在下面、點標題不導航。給正 z 提到它們之上、仍低於 share(z-10)。 -->
-            <a href="/degree-show-detail?year=${year}" class="absolute inset-0 z-[1]" aria-label="${titleEn || titleZh || year} — Degree Show ${year}"></a>
+            <a href="/degree-show-detail?${detailQuery}" class="absolute inset-0 z-[1]" aria-label="${titleEn || titleZh || year} — Degree Show ${year}"></a>
             <div class="degree-show-img-wrapper overflow-hidden mb-sm list-reveal-row">
               ${coverHtml}
             </div>
@@ -137,12 +146,16 @@ export async function loadDegreeShowListInto(containerId) {
               <!-- share 包成獨立 .list-reveal-row（比照 activities：跟標題同步 clip-reveal、不提早現身）；
                    relative z-10 浮在 stretched <a> 之上（否則點按鈕落在覆蓋層＝導頁）；data-share-url 帶該屆詳情頁絕對網址。 -->
               <div class="list-reveal-row relative z-10 flex-shrink-0 self-start">
-                <button data-share-btn data-share-url="${sitePath('pages/degree-show-detail.html?year=' + year)}" aria-label="分享 Share" class="inline-flex items-center">
+                <button data-share-btn data-share-url="${sitePath('pages/degree-show-detail.html?' + detailQuery)}" aria-label="分享 Share" class="inline-flex items-center">
                   <span class="icon icon-share icon-s"></span>
                 </button>
               </div>
             </div>
-            <div class="list-item-divider"></div>
+            <!-- list-reveal-row 必要：playAdmissionPanelReveal 的分組迴圈只走 .list-reveal-row，
+                 靠 divider 當每張卡的終止符。漏這 class → 全部卡併成一組、只有首張斑馬卡被 revealZebraBg
+                 揭開，後面的斑馬卡（如 2003）永遠卡在 clip-path:inset(100%)＝整條裁掉看不到也點不到。
+                 divider 本身在 #activities-content-section 內 display:none，加 class 不產生可見滑動。 -->
+            <div class="list-item-divider list-reveal-row"></div>
           </div>
         </div>
       `;
@@ -159,9 +172,26 @@ export async function loadDegreeShowListInto(containerId) {
       container.querySelectorAll('.degree-show-card').forEach(card => {
         const content = /** @type {HTMLElement | null} */ (card.querySelector('.degree-show-card-content'));
         const color = getComputedStyle(card).getPropertyValue('--card-color').trim();
+        const setYearActive = (active) => {
+          const year = card.dataset.degreeShowYear;
+          container.querySelectorAll('.degree-show-card').forEach(yearCard => {
+            if (yearCard.dataset.degreeShowYear === year) {
+              yearCard.classList.toggle('degree-show-year-active', active);
+              yearCard.querySelectorAll('.list-year-label').forEach(label => {
+                label.style.opacity = active ? '1' : '';
+              });
+            }
+          });
+        };
         if (!content) return;
-        content.addEventListener('mouseenter', () => { content.style.backgroundColor = color; });
-        content.addEventListener('mouseleave', () => { content.style.backgroundColor = ''; });
+        content.addEventListener('mouseenter', () => {
+          content.style.backgroundColor = color;
+          setYearActive(true);
+        });
+        content.addEventListener('mouseleave', () => {
+          content.style.backgroundColor = '';
+          setYearActive(false);
+        });
       });
     }
 
@@ -175,9 +205,10 @@ export async function loadDegreeShowListInto(containerId) {
 
 export async function loadDegreeShowDetail() {
   const params = new URLSearchParams(window.location.search);
-  const year = params.get('year');
+  const requestedYear = params.get('year');
+  const id = params.get('id');
 
-  if (!year) {
+  if (!requestedYear && !id) {
       window.location.href = '404.html';
       return;
   }
@@ -185,8 +216,14 @@ export async function loadDegreeShowDetail() {
   try {
     // Directus activities_degree_show 為主，失敗 / 空 → fallback 本地 JSON（degree-show-source.js）
     const degreeShowData = await loadDegreeShow();
-    const data = degreeShowData[year];
-    const years = Object.keys(degreeShowData).sort((a, b) => Number(b) - Number(a));
+    const shows = Object.entries(degreeShowData)
+      .sort(([a], [b]) => Number(b) - Number(a))
+      .flatMap(([entryYear, entries]) => entries.map(entry => ({ year: entryYear, data: entry })));
+    const current = id
+      ? shows.find(entry => String(entry.data.id) === id)
+      : shows.find(entry => entry.year === requestedYear);
+    const year = current?.year;
+    const data = current?.data;
 
     if (data) {
       document.title = `Degree Show ${year} - SCCD`;
@@ -255,29 +292,36 @@ export async function loadDegreeShowDetail() {
         // 清單列出全部 event：self 型（手填）+ linked 型（欄位從被連活動拉；user 2026-08-17 linked 進清單、跟 ref chip 共存）
         const listEvents = Array.isArray(data.events) ? data.events : [];
         if (listEvents.length > 0) {
-          // 每筆 event：活動標題自成一 row → 下方 日期 : 地點 = 1:1 兩欄 → 再下方 detail row（講者，user 2026-08-18）。
-          // 城市在地點下方（沿用 2026-08-17）。手機 日期/地點 stack（grid-cols-1）、桌面才並排（md:grid-cols-2）。
-          eventsList.innerHTML = listEvents.map((ev, i) => {
+          // 每筆 event（user 2026-08-19 五度改）：日期 : 標題 : 地點 = 1:2:2 純三欄（不再有獨立 detail row）：
+          //   講者（detail）接在「標題欄」的標題下方（mt-xs）、城市接在「地點欄」的地點下方。手機三欄 stack、桌面並排。
+          // event 之間的間距 = #events-list 的 flex gap（gap-lg md:gap-xl，見 detail.html）——非 row margin，故 row 不帶 mt。
+          // 日期 + 標題 + 地點 + 城市四塊都用 .dsd-mq-line/.dsd-mq-inner，過長各自 marquee（見下 applyMarqueeOverflow）；
+          //   marquee hover 單位＝欄 .dsd-mq-col（日期/標題/地點各一欄，城市併入地點欄、講者併入標題欄）。
+          // 欄配置 .dsd-event-grid 全在 cards.css（≥1200 三欄 2:3:3／768-1199 兩欄日期疊標題上／<768 堆疊）。
+          // ⚠️欄用 minmax(0,fr)：純 fr 的 min-content floor 會被 nowrap 標題/地點撐開，害該欄 marquee 不觸發（見 memory）。
+          eventsList.innerHTML = listEvents.map((ev) => {
+            const cityHtml = (ev.cityEn || ev.city) ? `<div class="mt-xs">
+                    ${ev.cityEn ? `<p class="dsd-mq-line text-s text-black font-regular mb-en-zh-s"><span class="dsd-mq-inner">${ev.cityEn}</span></p>` : ''}
+                    ${ev.city ? `<p class="dsd-mq-line text-s text-black font-regular" lang="zh-Hant"><span class="dsd-mq-inner">${ev.city}</span></p>` : ''}
+                  </div>` : '';
+            const guestsHtml = renderEventGuests(ev.guests);
             return `
-            <div class="dsd-event-row flex flex-col gap-sm ${i > 0 ? 'mt-2xl md:mt-xl' : ''}">
-              <div>
-                ${ev.nameEn ? `<p class="text-s text-black font-bold mb-en-zh-s">${ev.nameEn}</p>` : ''}
-                <p class="text-s text-black font-bold" lang="zh-Hant">${ev.name || ''}</p>
-              </div>
-              <div class="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-sm md:gap-md">
-                <div>
-                  <p class="text-s text-black font-bold">${ev.time || ''}</p>
+            <div class="dsd-event-row flex flex-col">
+              <div class="dsd-event-grid grid gap-sm md:gap-md">
+                <div class="dsd-mq-col">
+                  <p class="dsd-mq-line text-s text-black font-bold"><span class="dsd-mq-inner">${ev.time || ''}</span></p>
                 </div>
-                <div>
-                  ${ev.locationEn ? `<p class="dsd-loc-line text-s text-black font-bold mb-en-zh-s"><span class="dsd-loc-inner">${ev.locationEn}</span></p>` : ''}
-                  <p class="dsd-loc-line text-s text-black font-bold" lang="zh-Hant"><span class="dsd-loc-inner">${ev.location || ''}</span></p>
-                  ${(ev.cityEn || ev.city) ? `<div class="mt-xs">
-                    ${ev.cityEn ? `<p class="text-xs text-black font-regular mb-en-zh-s">${ev.cityEn}</p>` : ''}
-                    <p class="text-xs text-black font-regular">${ev.city || ''}</p>
-                  </div>` : ''}
+                <div class="dsd-mq-col">
+                  ${ev.nameEn ? `<p class="dsd-mq-line text-s text-black font-bold mb-en-zh-s"><span class="dsd-mq-inner">${ev.nameEn}</span></p>` : ''}
+                  <p class="dsd-mq-line text-s text-black font-bold" lang="zh-Hant"><span class="dsd-mq-inner">${ev.name || ''}</span></p>
+                  ${guestsHtml ? `<div class="mt-xs">${guestsHtml}</div>` : ''}
+                </div>
+                <div class="dsd-mq-col">
+                  ${ev.locationEn ? `<p class="dsd-mq-line text-s text-black font-bold mb-en-zh-s"><span class="dsd-mq-inner">${ev.locationEn}</span></p>` : ''}
+                  <p class="dsd-mq-line text-s text-black font-bold" lang="zh-Hant"><span class="dsd-mq-inner">${ev.location || ''}</span></p>
+                  ${cityHtml}
                 </div>
               </div>
-              ${renderEventGuests(ev.guests)}
             </div>
           `;
           }).join('');
@@ -293,11 +337,24 @@ export async function loadDegreeShowDetail() {
             } else {
               playClipReveal(revealItems);
             }
-            registerPageExit(() => playRevealExit(eventRows));
+            // 離頁退場：event rows 沉出 + 同步淡出整個內捲容器。原生 ::-webkit-scrollbar 無法直接 tween，但淡化
+            // scroll 容器(eventsList=.dsd-events-scroll)的 opacity 會連它的 scrollbar 一起淡出→修「離頁時捲軸瞬間消失」
+            // 的突兀感（user 2026-08-18）；reduced-motion 時 runPageExit 整批跳過、此淡出也不跑。
+            registerPageExit(() => Promise.all([
+              playRevealExit(eventRows),
+              new Promise(res => gsap.to(eventsList, { opacity: 0, duration: 0.35, ease: 'power2.in', onComplete: res })),
+            ]));
           }
-          // 地點行過長 → seamless marquee（無 hover 情境＝溢出即常駐捲，離屏由 util 的 IO 暫停）。
+          // 標題/地點行過長 → seamless marquee（桌面 hover 該欄才捲、手機自動捲）。
           // fonts.ready：溢出偵測吃字寬，字體 swap 前量會誤判 → 等字體到位再量。
-          document.fonts.ready.then(() => requestAnimationFrame(() => applyMarqueeOverflow(eventsList, '.dsd-loc-line', '.dsd-loc-inner')));
+          // 桌面 hover 放開改「平滑回彈」（user 2026-08-19 B）：applyMarqueeOverflow 量寬後，逐 .dsd-mq-col 綁
+          // bindMarqueeReturn（GSAP 接手、蓋掉 cards.css 的 :hover keyframe）；手機不綁＝維持 CSS 自動循環。
+          document.fonts.ready.then(() => requestAnimationFrame(() => {
+            applyMarqueeOverflow(eventsList, '.dsd-mq-line', '.dsd-mq-inner');
+            eventsList.querySelectorAll('.dsd-mq-col').forEach((col) => {
+              registerPageCleanup(bindMarqueeReturn(/** @type {HTMLElement} */ (col), '.dsd-mq-inner', '.dsd-mq-line'));
+            });
+          }));
         } else {
           eventsSection.classList.add('hidden');
           eventsList.innerHTML = '';
@@ -316,14 +373,29 @@ export async function loadDegreeShowDetail() {
       const kvImg = /** @type {HTMLImageElement | null} */ (document.getElementById('events-kv-img'));
       if (kvBox && kvImg) {
         if (data.poster) {
-          kvImg.src = data.poster;
           kvBox.classList.add('has-kv');
-          // 海報進出場：跟 event rows 同款 clip-reveal（section 進場即揭、離頁沉出）；#events-kv 當遮罩（wrap 由 setupClipReveal 補）
-          const posterReveal = setupClipReveal([kvImg]);
-          if (typeof ScrollTrigger !== 'undefined' && eventsSection) {
-            ScrollTrigger.create({ trigger: eventsSection, start: 'top 85%', once: true, onEnter: () => playClipReveal(posterReveal) });
-          } else {
-            playClipReveal(posterReveal);
+          // 海報進場：四方向隨機滑入（同 gallery SLIDE_DIRS；#events-kv col14-20 ≈ 直式海報自然寬 → 直接當遮罩，
+          //   ±110 過衝覆蓋「≈」餘量）。⚠️等圖「實際載完」才播，否則揭開的是空盒、圖之後才 pop 出來無動畫（user 2026-08-19）。
+          const DIRS = [{ xPercent: -110, yPercent: 0 }, { xPercent: 110, yPercent: 0 }, { xPercent: 0, yPercent: -110 }, { xPercent: 0, yPercent: 110 }];
+          const dir = DIRS[Math.floor(Math.random() * DIRS.length)];
+          kvBox.style.overflow = 'clip';
+          const animate = typeof gsap !== 'undefined' && !prefersReducedMotion();
+          // ⚠️ 用 autoAlpha 藏（非 gsap.set(dir)）：圖未載完時 element 0×0 → xPercent:±110 解析成 0px＝沒真的藏，
+          //   圖載完那幀會先閃現最終位再跳藏定位滑入。autoAlpha:0 先隱形，等「圖有尺寸」再設方向+現身+滑入（同幀無閃）。
+          if (animate) gsap.set(kvImg, { autoAlpha: 0 });
+          kvImg.src = data.poster;
+          if (animate) {
+            const run = () => {
+              gsap.set(kvImg, { ...dir, autoAlpha: 1 });   // 此刻圖已有尺寸 → ±110 解析成真實位移
+              gsap.to(kvImg, { xPercent: 0, yPercent: 0, duration: DUR.reveal, ease: EASE.enter, overwrite: true, clearProps: 'transform' });
+            };
+            const playPoster = () => {
+              if (typeof ScrollTrigger !== 'undefined' && eventsSection) {
+                ScrollTrigger.create({ trigger: eventsSection, start: 'top 85%', once: true, onEnter: run });
+              } else { run(); }
+            };
+            if (kvImg.complete && kvImg.naturalWidth) playPoster();
+            else kvImg.addEventListener('load', playPoster, { once: true });
           }
           registerPageExit(() => playRevealExit([kvImg]));
         } else {
@@ -404,17 +476,20 @@ export async function loadDegreeShowDetail() {
 
       // Prev / Next 雙卡：sort desc 下 idx+1 = 上一屆（較舊，左），idx-1 = 下一屆（較新，右）；**wrap 循環**。
       // user 2026-07-09：第一屆（最新）的右卡要接「最後一屆（最舊）」、最後一屆的左卡接第一屆 → 環狀導覽
-      const idx = years.indexOf(year);
-      const prevYear = years[(idx + 1) % years.length];
-      const nextYear = years[(idx - 1 + years.length) % years.length];
-      const prevData = degreeShowData[prevYear];
-      const nextData = degreeShowData[nextYear];
+      const idx = shows.indexOf(current);
+      const prev = shows[(idx + 1) % shows.length];
+      const next = shows[(idx - 1 + shows.length) % shows.length];
 
-      setupNextProject(prevYear, prevData, nextYear, nextData);
+      setupNextProject(prev, next);
 
       // Sticky info card + hero chip scroll-driven collapse
       // 必須在 events / galleries / nextProject 都渲染完才 init（依賴它們的 DOM 計算 sticky 範圍）
       setupStickyAndHeroChips(data, year);
+
+      // gallery / events 的 ScrollTrigger 建立在「影片區塊還 hidden」的短佈局上——影片 unhide 後
+      // 下方全部下移一屏，start 沒重算＝reveal 在 gallery 進視窗前一屏就提早跑完（user 2026-08-19）。
+      // 全部區塊渲染定案後統一 refresh 重算各 trigger 的 start。
+      if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh();
 
     } else {
       window.location.href = '404.html';
@@ -536,7 +611,9 @@ function revealVideoOnScroll(wrapper) {
  *      其中 chip 隨機色 + 旋轉 + 水平範圍（左 0-50vw / 右 51-100vw）；另一張同時 clip-path 掃入隨機色（仿首頁 newsOverlay）
  * 手機：簡單 stack
  */
-function setupNextProject(prevYear, prevData, nextYear, nextData) {
+function setupNextProject(prev, next) {
+  const { year: prevYear, data: prevData } = prev;
+  const { year: nextYear, data: nextData } = next;
   const ACCENT = ['#00FF80', '#FF448A', '#26BCFF'];
   const CLIP_DIRS = [
     { hidden: 'inset(100% 0 0 0)', shown: 'inset(0% 0 0 0)' },   // 上→下
@@ -581,7 +658,7 @@ function setupNextProject(prevYear, prevData, nextYear, nextData) {
     const titleEnEl = document.getElementById(`${key}-title-en-mobile`);
     const titleEl = document.getElementById(`${key}-title-mobile`);
     if (link) {
-      link.href = '/degree-show-detail?year=' + year;
+      link.href = '/degree-show-detail?' + new URLSearchParams({ year, ...(data.id ? { id: data.id } : {}) }).toString();
       link.style.background = color;
       link.style.transform = `rotate(${localRot()}deg)`;
     }
@@ -603,8 +680,19 @@ function setupNextProject(prevYear, prevData, nextYear, nextData) {
     const yearEl = document.getElementById(`${key}-year`);
     const titleEnEl = document.getElementById(`${key}-title-en`);
     const titleEl = document.getElementById(`${key}-title`);
-    if (link) link.href = '/degree-show-detail?year=' + year;
-    if (img) img.src = data.coverImage || data.poster;   // 上下屆卡片吃 list 封面（橫式 cover），非直式 poster（user 2026-08-17）
+    if (link) link.href = '/degree-show-detail?' + new URLSearchParams({ year, ...(data.id ? { id: data.id } : {}) }).toString();
+    // 上下屆卡片吃 list 封面（橫式 cover），非直式 poster（user 2026-08-17）。
+    // 兩者皆空（新屆後台還沒傳圖）→ 比照 list 灰底 placeholder：藏 img（含 HTML 預設 src，
+    // 否則 img.src='' 壞圖＝卡片高度歸零、標題 hover 不到也點不到），高度由 recompute 以同 ratio 補。
+    const imgSrc = data.coverImage || data.poster;
+    if (img && imgSrc) {
+      img.src = imgSrc;
+    } else if (img) {
+      img.removeAttribute('src');
+      img.style.display = 'none';
+      const card = document.getElementById(`${key}-card`);
+      if (card) card.style.background = 'var(--gray-8)';
+    }
     if (yearEl) yearEl.textContent = year;
     setTitle(titleEnEl, data.title_en);
     setTitle(titleEl, data.title);
@@ -629,6 +717,45 @@ function setupNextProject(prevYear, prevData, nextYear, nextData) {
   // hero 式 clip-reveal（滑動＋遮罩，同全站 nav chip）：原 HTML 只 transition clip-path，補上 translate 讓遮罩之外
   // 再加滑入位移（navChipHidden 沿旋轉軸算、與 inline rotate 共存）。
   const LABEL_TRANSITION = 'clip-path 0.5s cubic-bezier(0.25,0,0,1), translate 0.5s cubic-bezier(0.25,0,0,1)';
+  // 保留每次 hover 的不同構圖，但只從安全位置預設中挑選。
+  const LABEL_PLACEMENTS = {
+    prev: [
+      { left: '5vw', bottom: '20%' },
+      { left: '9vw', bottom: '14%' },
+      { left: '4vw', bottom: '28%' },
+    ],
+    next: [
+      { right: '5vw', top: '20%' },
+      { right: '9vw', top: '14%' },
+      { right: '4vw', top: '28%' },
+    ],
+  };
+  const resetTitleSpacing = (key) => {
+    const zh = document.getElementById(`${key}-title`);
+    if (zh) zh.style.marginTop = '';
+  };
+  const keepLabelsInViewport = (labels) => {
+    const safeInset = 24;
+    labels.style.translate = '';
+    const rect = labels.getBoundingClientRect();
+    const dx = rect.left < safeInset ? safeInset - rect.left
+      : rect.right > window.innerWidth - safeInset ? window.innerWidth - safeInset - rect.right : 0;
+    const dy = rect.top < safeInset ? safeInset - rect.top
+      : rect.bottom > window.innerHeight - safeInset ? window.innerHeight - safeInset - rect.bottom : 0;
+    labels.style.translate = `${Math.round(dx)}px ${Math.round(dy)}px`;
+  };
+  const placeLabels = (key) => {
+    const labels = /** @type {HTMLElement | null} */ (document.getElementById(`${key}-labels`));
+    if (!labels) return;
+    const choices = LABEL_PLACEMENTS[key];
+    const placement = choices[Math.floor(Math.random() * choices.length)];
+    labels.style.translate = '';
+    labels.style.left = placement.left || '';
+    labels.style.right = placement.right || '';
+    labels.style.top = placement.top || '';
+    labels.style.bottom = placement.bottom || '';
+    requestAnimationFrame(() => keepLabelsInViewport(labels));
+  };
   ['prev', 'next'].forEach(key => {
     LABEL_IDS.forEach(id => {
       const el = /** @type {HTMLElement | null} */ (document.getElementById(`${key}-${id}`));
@@ -644,8 +771,7 @@ function setupNextProject(prevYear, prevData, nextYear, nextData) {
   document.fonts.ready.then(() => requestAnimationFrame(() => {
     document.querySelectorAll('#prev-labels .dshow-next-title, #next-labels .dshow-next-title')
       .forEach(el => hugTitleBox(/** @type {HTMLElement} */ (el)));
-    ['prev', 'next'].forEach(key => separateStacked(
-      document.getElementById(`${key}-title-en`), document.getElementById(`${key}-title`)));
+    ['prev', 'next'].forEach(resetTitleSpacing);
     // 初始藏定位 translate（hug 定寬後才量，寬度定了位移向量才準）：讓「第一次」hover reveal 也滑入（非只原地 wipe）。
     // 方向對齊各自的 hidden clip 遮罩側：prev window 在左＝'right'、next window 在右＝'left'。
     ['prev', 'next'].forEach(key => {
@@ -691,11 +817,21 @@ function setupNextProject(prevYear, prevData, nextYear, nextData) {
     nextLink.style.right = sideOffset + 'px';
     nextLink.style.top = nextTop + 'px';
     stage.style.minHeight = Math.max(prevTop + posterW * rP, nextTop + posterW * rN) + 'px';
+    // 無圖灰底 placeholder（img 藏）沒天然高度 → 用「跟版面計算同一個 ratio」給高，stage/minHeight 才對得上
+    if (prevImg.style.display === 'none') {
+      const card = document.getElementById('prev-card');
+      if (card) card.style.height = posterW * rP + 'px';
+    }
+    if (nextImg.style.display === 'none') {
+      const card = document.getElementById('next-card');
+      if (card) card.style.height = posterW * rN + 'px';
+    }
   };
 
   const waitImg = (img) => new Promise(r => {
     if (!img) { r(undefined); return; }
-    if (img.complete && img.naturalWidth) r(undefined);
+    // 只看 complete（無 src / 已 error 也算 done）：卡在 && naturalWidth 會等一個永不 fire 的 load = recompute 永不跑
+    if (img.complete) r(undefined);
     else {
       img.addEventListener('load', () => r(undefined), { once: true });
       img.addEventListener('error', () => r(undefined), { once: true });
@@ -720,12 +856,10 @@ function setupNextProject(prevYear, prevData, nextYear, nextData) {
     const otherClip = /** @type {HTMLElement | null} */ (document.getElementById(`${otherKey}-clip`));
     if (!myLink || !myDim || !otherClip) return;
 
-    // chip clip-path stagger 設定：從 transform-origin 那側 reveal（clip 遮罩）＋同步 translate 滑入（hero 式 clip-reveal）
-    // prev: transform-origin left → hidden clip window 在左 inset(0 100% 0 0) → navChipHidden 'right' 滑入
-    // next: transform-origin right → hidden clip window 在右 inset(0 0 0 100%) → navChipHidden 'left' 滑入
+    // chip hero 式 clip-reveal（clip 遮罩＋同步 translate 滑入）：進出場方向每次重擲（pickNavDir 沿短邊
+    // 四方向隨機，同全站 nav chip；user 2026-08-19，原固定 prev 左/next 右）。HIDDEN_INSET 只當量測中繼藏定位。
     const HIDDEN_INSET = myKey === 'prev' ? 'inset(0 100% 0 0)' : 'inset(0 0 0 100%)';
     const SHOWN_INSET  = 'inset(0 0 0 0)';
-    const NAV_DIR = myKey === 'prev' ? 'right' : 'left';
 
     myLink.addEventListener('mouseenter', () => {
       myLink.style.zIndex = '3';
@@ -743,8 +877,6 @@ function setupNextProject(prevYear, prevData, nextYear, nextData) {
           chip.style.transform = `rotate(${labelRot()}deg)`;   // ±1~2°（原 localRot ±6° 是「可見 hover 態」真兇：寬標題 en/zh 疊，user 2026-08-17）
           chip.style.background = myCardColor;
           chip.style.transitionDelay = (i * 0.08) + 's';
-          chip.style.clipPath = SHOWN_INSET;
-          chip.style.translate = NAV_CHIP_SHOWN.translate;   // 滑入回原位（clip 遮罩之外的位移）
         });
         // 旋轉角每次 hover 重擲 → 每次都要重算 en↔zh 反疊 margin（init 那次是 clip-hidden 態、且原 hover 用
         // localRot ±6° 沒重算＝一直疊）。⚠️真兇二：clip-path **揭露中（inset 右側未收）getBoundingClientRect
@@ -757,12 +889,25 @@ function setupNextProject(prevYear, prevData, nextYear, nextData) {
           enEl.style.transition = zhEl.style.transition = 'none';
           enEl.style.clipPath = zhEl.style.clipPath = 'none';
           void zhEl.offsetWidth;
-          separateStacked(enEl, zhEl);
+          resetTitleSpacing(myKey);
+          placeLabels(myKey);
           enEl.style.clipPath = zhEl.style.clipPath = HIDDEN_INSET;   // 回藏定位（仍 transition:none = snap）
           void zhEl.offsetWidth;
-          enEl.style.transition = et; zhEl.style.transition = zt;     // 還原 clip transition
-          enEl.style.clipPath = zhEl.style.clipPath = SHOWN_INSET;    // 重新觸發 stagger 揭露
+          enEl.style.transition = et; zhEl.style.transition = zt;     // 還原 clip transition（揭露由下方統一觸發）
         }
+        // 進場四方向隨機：每顆 chip 先（transition 關掉）snap 到 pickNavDir 方向的藏定位（hidden→hidden 不可見），
+        // reflow 後還原 transition 再揭露 → 從新方向滑入不閃。navChipHidden 讀 inline rotate（上面剛重擲的新角度）。
+        chips.forEach((chip) => {
+          const t = chip.style.transition;
+          chip.style.transition = 'none';
+          const hid = navChipHidden(chip, pickNavDir(chip));
+          chip.style.clipPath = hid.clipPath;
+          chip.style.translate = hid.translate;
+          void chip.offsetWidth;
+          chip.style.transition = t;
+          chip.style.clipPath = SHOWN_INSET;
+          chip.style.translate = NAV_CHIP_SHOWN.translate;   // 滑入回原位（clip 遮罩之外的位移）
+        });
       }
 
       // 隨機方向 + 隨機色，先 disable transition snap 到 hidden 再 reflow + apply shown
@@ -785,8 +930,9 @@ function setupNextProject(prevYear, prevData, nextYear, nextData) {
         const chips = /** @type {NodeListOf<HTMLElement>} */ (myLabels.querySelectorAll('p'));
         chips.forEach((chip) => {
           chip.style.transitionDelay = '0s';
-          chip.style.clipPath = HIDDEN_INSET;
-          chip.style.translate = navChipHidden(/** @type {HTMLElement} */ (chip), NAV_DIR).translate;   // 沿旋轉軸滑回藏定位
+          const hid = navChipHidden(chip, pickNavDir(chip));   // 出場也每次重擲四方向；沿旋轉軸滑回藏定位
+          chip.style.clipPath = hid.clipPath;
+          chip.style.translate = hid.translate;
         });
       }
       otherClip.style.clipPath = otherClip.dataset.hiddenClip || 'inset(100% 0 0 0)';
@@ -1127,16 +1273,16 @@ function escapeHtml(s) {
   }[c]));
 }
 
-// event 名稱下方的 guests 清單（self 手填 / linked 從活動拉、含論壇 session 講者）：每人 EN/ZH 雙行、只顯示姓名（不含單位，user 2026-08-17）、xs regular
+// event 名稱下方的 guests 清單（self 手填 / linked 從活動拉、含論壇 session 講者）：每人 EN/ZH 雙行、只顯示姓名（不含單位，user 2026-08-17）、s regular；名字過長也 marquee（在標題欄 .dsd-mq-col 內，隨標題欄 hover）
 function renderEventGuests(guests) {
   if (!Array.isArray(guests) || guests.length === 0) return '';
   const rows = guests.map(g => {
     const en = g.nameEn ? escapeHtml(g.nameEn) : '';
     const zh = g.nameZh ? escapeHtml(g.nameZh) : '';
     if (!en && !zh) return '';
-    return `<div class="mt-xs">${en ? `<p class="text-xs text-black font-regular mb-en-zh-s">${en}</p>` : ''}${zh ? `<p class="text-xs text-black font-regular" lang="zh-Hant">${zh}</p>` : ''}</div>`;
+    return `<div>${en ? `<p class="dsd-mq-line text-s text-black font-regular mb-en-zh-s"><span class="dsd-mq-inner">${en}</span></p>` : ''}${zh ? `<p class="dsd-mq-line text-s text-black font-regular" lang="zh-Hant"><span class="dsd-mq-inner">${zh}</span></p>` : ''}</div>`;
   }).join('');
-  return `<div class="dsd-event-guests">${rows}</div>`;
+  return `<div class="dsd-event-guests flex flex-col gap-[0.25rem]">${rows}</div>`;
 }
 
 // ── Ref btn (back btn 右邊) ─────────────────────────────────────────────────
@@ -1183,10 +1329,14 @@ async function setupRefBtn(data) {
   // 卡片旋轉角度跟隨 ref btn（user 2026-06-02）：btn rotation 由 setupStickyAndHeroChips 設、晚於此處 render，
   // 故不在 render 時讀，改在 openPopover 開啟前即時讀 btn.style.transform 套上（同 lightbox-ref-btn.js 卡片跟隨 pill 角度）
 
+  const ACCENT_COLORS = ['#00FF80', '#FF448A', '#26BCFF'];
   resolved.forEach(ref => {
     const row = document.createElement('button');
     row.type = 'button';
     row.className = 'lightbox-ref-chip';
+    // mode1/2 hover 隨機三原色（mode3 仍 strict B/W，見 hero.css）；每 chip 固定一色（render 時定一次）
+    const accent = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
+    row.style.setProperty('--ref-accent', accent);
     row.dataset.refSection = ref.section;
     row.dataset.refItem = ref.itemId;
     row.innerHTML = `
@@ -1209,7 +1359,8 @@ async function setupRefBtn(data) {
       e.stopPropagation();
       if (ref.kind === 'document') {
         // 文件 ref → 原地開 PDF lightbox（sccd:open-pdf，同 library/alumni），不跳 library
-        const color = ['#00FF80', '#FF448A', '#26BCFF'][Math.floor(Math.random() * 3)];
+        // PDF viewer accent 沿用此 chip 的 hover 色（同一隨機色，視覺連貫）
+        const color = accent;
         document.dispatchEvent(new CustomEvent('sccd:open-pdf', {
           detail: { pdfUrl: ref.pdfUrl, title: { en: ref.titleEn, zh: ref.titleZh }, color },
         }));
@@ -1375,12 +1526,19 @@ function playRefChipMarquee(chip) {
   }
 }
 // 還原成靜態截斷單份（桌面 resting / hover 離開 snap 回原點）
-function resetRefChipMarquee(chip) {
+// animate=true（hover 離開）→ 從當下平滑補間回原點再拆 clone（user 2026-08-19 B）；省略＝立即歸零（resting）。
+// 單軌 tween 故 killTweensOf(track) 正確（停 loop + 取消未完成回彈及其 onComplete 拆 clone；playRefChipMarquee 開頭也 kill）。
+function resetRefChipMarquee(chip, animate) {
   const track = /** @type {HTMLElement | null} */ (chip.querySelector('.lightbox-ref-chip-title-track'));
   if (!track) return;
-  if (typeof gsap !== 'undefined') { gsap.killTweensOf(track); gsap.set(track, { x: 0 }); }
-  track.style.transform = '';
-  while (track.children.length > 1) track.removeChild(track.lastElementChild);
+  const strip = () => { track.style.transform = ''; while (track.children.length > 1) track.removeChild(track.lastElementChild); };
+  if (typeof gsap !== 'undefined') gsap.killTweensOf(track);
+  if (animate && typeof gsap !== 'undefined') {
+    gsap.to(track, { x: 0, duration: 0.45, ease: 'cubic-bezier(0.25,0,0,1)', onComplete: strip });
+  } else {
+    if (typeof gsap !== 'undefined') gsap.set(track, { x: 0 });
+    strip();
+  }
 }
 
 // Title overflow → marquee（dual-copy seamless loop，複用 lightbox-ref-btn 演算法）
@@ -1402,7 +1560,7 @@ function setupChipMarquees(stack, popover) {
     if (!chip.dataset.marqueeHoverBound) {
       chip.dataset.marqueeHoverBound = '1';
       chip.addEventListener('mouseenter', () => playRefChipMarquee(chip));
-      chip.addEventListener('mouseleave', () => resetRefChipMarquee(chip));
+      chip.addEventListener('mouseleave', () => resetRefChipMarquee(chip, true));
     }
   });
   if (wasDisplay === 'none' || !wasDisplay) {
@@ -1558,11 +1716,25 @@ function setupStickyAndHeroChips(data, year) {
     secs.forEach((section, navIdx) => {
       const en = section.dataset.branchEn || '';
       const zh = section.dataset.branchZh || '';
-      const wrap = document.createElement('div');
+      const wrap = /** @type {HTMLDivElement & { _baseRot: number, _pendingRot: number | null }} */ (document.createElement('div'));
       // anchor-nav-btn/-inner＝直接吃 about nav btn 的三 mode 規則（buttons/inverse/color.css 整組 selector，
       // 含 mode3 inactive bg=var(--theme-bg) 跟 body hue 同步、active strict B/W、hover 升對比；user 2026-08-18）
       wrap.className = 'sticky-event-chip anchor-nav-btn';
-      wrap.style.transform = `rotate(${randRot()}deg)`;   // 每顆各自 base 旋轉（同 about nav btn 未選態）
+      // hover 旋轉（比照 about anchor-nav.js）：base rot 常駐；hover 換新角、離開還原；active 繼承 hover 角（見 setActiveEvent）。
+      wrap._baseRot = randRot();
+      wrap.style.transform = `rotate(${wrap._baseRot}deg)`;
+      wrap.addEventListener('mouseenter', () => {
+        if (wrap.classList.contains('active')) return;
+        wrap._pendingRot = randRot();
+        wrap.style.transform = `rotate(${wrap._pendingRot}deg)`;
+      });
+      wrap.addEventListener('mouseleave', () => {
+        if (wrap.classList.contains('active')) return;
+        wrap.style.transform = `rotate(${wrap._baseRot}deg)`;
+        wrap._pendingRot = null;
+      });
+      // 每顆各自的 reveal 方向（固定、reveal/hide 來回一致）＝進出場用自己的尺寸滑入不再走整條 track 全高
+      const dir = BRANCH_DIR_KEYS[Math.floor(Math.random() * BRANCH_DIR_KEYS.length)];
       const inner = document.createElement('span');
       inner.className = 'sticky-chip-inner anchor-nav-inner text-s font-bold';
       const enSpan = document.createElement('span'); enSpan.className = 'block'; enSpan.textContent = en; if (!en) enSpan.style.display = 'none';
@@ -1572,7 +1744,7 @@ function setupStickyAndHeroChips(data, year) {
       // 可點：捲到該子展覽（真 nav btn；落點靠 section scroll-margin-top）
       wrap.addEventListener('click', () => section.scrollIntoView({ behavior: 'smooth', block: 'start' }));
       eventsTrack.appendChild(wrap);
-      eventChips.push({ wrap, section, navIdx });
+      eventChips.push({ wrap, section, navIdx, dir });
     });
     eventsNav.style.display = '';
     setEventsNavState(false);   // 初始藏（card 尚未 show，不閃）
@@ -1588,31 +1760,35 @@ function setupStickyAndHeroChips(data, year) {
     eventChips.forEach(ec => {
       const active = ec.navIdx === idx;
       ec.wrap.classList.toggle('active', active);
+      // active 繼承「hover 當下的角度」（有 hover 過就用 _pendingRot，否則保留 base rot 不亂跳）＝比照 about 的 hover→active 銜接
+      if (active) {
+        const rot = ec.wrap._pendingRot ?? ec.wrap._baseRot;
+        ec.wrap._baseRot = rot;
+        ec.wrap._pendingRot = null;
+        ec.wrap.style.transform = `rotate(${rot}deg)`;
+      } else {
+        ec.wrap.style.transform = `rotate(${ec.wrap._baseRot}deg)`;
+      }
       /** @type {HTMLElement} */ (ec.wrap.querySelector('.sticky-chip-inner')).style.background = active ? branchColor : '';
     });
     const active = eventChips.find(ec => ec.navIdx === idx);
     eventsTrack.style.transform = `translateY(${active ? -active.wrap.offsetTop : 0}px)`;
   }
 
-  // window reveal：clip-path 四方向隨機滑入（同原 branch chip 手法；overflow:hidden 仍負責裁掉往上收起的舊 chip）
-  let eventsNavHiddenDir = 'bottom';
+  // 進出場：⭐每顆 chip 各自 clip-reveal（用自己的尺寸算位移，不再套整個 window→修「最後一顆走整條 track 全高飛入」bug）。
+  // window #sticky-events-nav 只保留 overflow:clip 當 track 捲動遮罩、不再動它的 clip-path/translate。
   function setEventsNavState(visible) {
-    if (!eventsNav || eventChips.length === 0) return;
-    if (visible) {
-      eventsNavHiddenDir = BRANCH_DIR_KEYS[Math.floor(Math.random() * BRANCH_DIR_KEYS.length)];
-      const hid = bufHidden(eventsNav, eventsNavHiddenDir);
-      eventsNav.style.transition = 'none';
-      eventsNav.style.clipPath = hid.clipPath;
-      eventsNav.style.translate = hid.translate;
-      void eventsNav.offsetHeight;
-      eventsNav.style.transition = '';
-      eventsNav.style.clipPath = SHOWN;
-      eventsNav.style.translate = NAV_CHIP_SHOWN.translate;
-    } else {
-      const hid = bufHidden(eventsNav, eventsNavHiddenDir);
-      eventsNav.style.clipPath = hid.clipPath;
-      eventsNav.style.translate = hid.translate;
-    }
+    if (eventChips.length === 0) return;
+    eventChips.forEach(ec => {
+      if (visible) {
+        ec.wrap.style.clipPath = SHOWN;
+        ec.wrap.style.translate = NAV_CHIP_SHOWN.translate;
+      } else {
+        const hid = bufHidden(ec.wrap, ec.dir);
+        ec.wrap.style.clipPath = hid.clipPath;
+        ec.wrap.style.translate = hid.translate;
+      }
+    });
   }
   buildEventsNav();
 
@@ -1746,4 +1922,4 @@ function setupStickyAndHeroChips(data, year) {
       onLeaveBack: () => { setEventsNavState(false); setActiveEvent(-1); },
     });
   }
-}
+}

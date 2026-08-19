@@ -223,6 +223,13 @@
       background: rgba(255, 255, 255, 1);
       color: rgba(0, 0, 0, 1);
     }
+    /* about #anchor-nav 與 dsd #sticky-events-nav 的 inactive 規則帶 #id（特異度高於上面無 id 的 hover）
+       → hover 文字會停在 0.55 半透明。用同帶 #id 的 hover 規則蓋過，讓文字 hover 時 100% 不透明
+       （user 2026-08-18）。color 用 theme-fg 全不透明：standard 黑 / inverse 白 / color=theme-fg（比硬寫黑正確）。 */
+    #anchor-nav .anchor-nav-btn:not(.active):hover .anchor-nav-inner,
+    #sticky-events-nav .anchor-nav-btn:not(.active):hover .anchor-nav-inner {
+      color: rgba(var(--theme-fg-rgb), 1);
+    }
   }
 
   /* ===== Faculty Back Button ===== */

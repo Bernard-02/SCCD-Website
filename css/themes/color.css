@@ -629,14 +629,21 @@ body.mode-color #faculty-panel .list-scroll::-webkit-scrollbar-thumb {
   }
 }
 
-/* Degree show events 清單捲軸：mode-color 下 page bg = theme-bg（vivid hue），lists.css 寫死黑 thumb
- * 在深 hue 撞色/看不清 → 跟 var(--theme-fg) 翻黑白永遠對比 bg（同 faculty panel 處理，user 2026-08-18）。 */
-body.mode-color .dsd-events-scroll::-webkit-scrollbar-thumb {
-  background: var(--theme-fg) !important;
+/* Degree show events 捲軸的三 mode thumb 色已移到 lists.css（.dsd-events-scroll 一條涵蓋，含 mode2 修正），此處不再重複。 */
+
+/* activities/admission 展開列（desc + album 捲軸）、about timeline list view：
+ * 這幾個容器 mode-color 下 bg = var(--theme-fg)（strict B/W override，見 color.css:425-428 / :149-151），
+ * lists.css 寫死黑 thumb 在「淺 hue 幀（theme-fg=黑）」= 黑底黑 thumb 不可見。
+ * → thumb 用 var(--theme-fg-inverse)（theme-fg 的保證對比色）永遠看得見。
+ * （mode1/2 這些容器 bg=三原色 accent、黑 thumb 本來就對比，不受影響，故只 scope mode-color。）*/
+body.mode-color .list-header[style*="background"] + .list-content .list-scroll::-webkit-scrollbar-thumb,
+body.mode-color .timeline-card-inner .list-scroll::-webkit-scrollbar-thumb {
+  background: var(--theme-fg-inverse) !important;
 }
 @supports (-moz-appearance: none) {
-  body.mode-color .dsd-events-scroll {
-    scrollbar-color: var(--theme-fg) transparent;
+  body.mode-color .list-header[style*="background"] + .list-content .list-scroll,
+  body.mode-color .timeline-card-inner .list-scroll {
+    scrollbar-color: var(--theme-fg-inverse) transparent;
   }
 }
 

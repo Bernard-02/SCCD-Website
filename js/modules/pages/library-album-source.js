@@ -3,8 +3,8 @@
  * Directus library_album（扁平）→ 本地 album-others.json 的 year-grouped shape
  * （ALBUM_SOURCES 的消費者已支援 titleEn/Zh + images[] + videoLinks[] 直接讀，不用額外改名）。
  * Directus 失敗/空 → fallback 本地 /data/album-others.json（維持原行為）。
- * library-panels.js（library 頁 Album 面板）與 album-data-loader.js（index 浮卡）兩個平行消費者共用這支，
- * 同 summer-camp-source.js 的模式（見 project_album_two_consumers_directus_wiring 記憶）。
+ * library-panels.js（library 頁 Album 面板）的 ALBUM_SOURCES 消費這支（同 summer-camp-source.js 的模式）。
+ * （曾有第二消費者 album-data-loader.js，2026-08-19 確認為死碼已刪；見 project_album_two_consumers_directus_wiring 記憶）。
  */
 import { CMS_API_BASE, CMS_ASSETS_BASE } from '../../config/api.js';
 import { sitePath } from '../ui/site-base.js';

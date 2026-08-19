@@ -287,11 +287,13 @@ function applySlotTransform(b, slotIndex, animate) {
 }
 
 function enterBanner(b) {
-  // 新進場：clip-path 由上往下揭露 row（square + bar 一起出現），無 vertical translation
+  // 新進場：clip-reveal — row 從 clip-wrap 底邊 yPercent:100→0 滑入原地揭露（hero 式，取代原 clip-path wipe）。
+  // rotation 掛在外層 b.el（已 item-bound）＝打破 slot 視覺連續性、不會再「跟著往上」（見 memory
+  // feedback_clip_reveal_context_overrides_ypercent：clip-path 曾是 slot-bound rotation 的治標，現已可回 yPercent）。
   // delay ENTER_DELAY → 等前面的 exit + 平移先進行一陣子才開始 reveal
   gsap.fromTo(b.row,
-    { clipPath: 'inset(0% 0% 100% 0%)' },
-    { clipPath: 'inset(0% 0% 0% 0%)', duration: DUR.reveal, ease: EASE.enter, delay: ENTER_DELAY }
+    { yPercent: 100 },
+    { yPercent: 0, duration: DUR.reveal, ease: EASE.enter, delay: ENTER_DELAY }
   );
 }
 
@@ -385,6 +387,10 @@ function runMarqueeStack(stack, items) {
   let pausedRemaining = 0;    // pause 那一刻剩多少 ms 才該 fire
 
   function scheduleAdvance(ms) {
+    // items ≤ SLOT_COUNT 永不 cycle：line 506 的 early-return 只擋「初始排程」，但 hover 離開的
+    // resumeCycle() 仍會呼到這裡 → advance() 是 hoisted function 照樣跑 → 單則 news 被 hover 一下就開始
+    // cycle/消失（user 2026-08-19 實測「hover 才發生」）。在唯一啟動點擋掉最保險。
+    if (items.length <= SLOT_COUNT) return;
     if (timeoutId) clearTimeout(timeoutId);
     scheduledAt = Date.now();
     scheduledDuration = ms;
@@ -468,28 +474,29 @@ function runMarqueeStack(stack, items) {
     applySlotTransform(b, slotOffset + i, false);
     bindBannerInteraction(b, onEnter, onLeave, pushAbove, restoreAbove);
     banners.push(b);
-    // 進場前先 clip 隱藏（initial banner 原本是 instant 顯示、無進場）
-    if (typeof gsap !== 'undefined') gsap.set(b.row, { clipPath: 'inset(0% 0% 100% 0%)' });
+    // 進場前先藏在 clip-wrap 底邊下（clip-reveal 起點；initial banner 原本 instant 顯示、無進場）
+    if (typeof gsap !== 'undefined') gsap.set(b.row, { yPercent: 100 });
   }
   cursor = visibleCount % items.length;
 
-  // 進場：initial banner clip-path 由上往下 stagger 揭露（沿用 enterBanner 同方向）。
+  // 進場：initial banner clip-reveal（yPercent:100→0）stagger 揭露（同 enterBanner）。
   // base delay 0.35 讓 news 排在 floating(0.1) 之後、iris(0.6) 之前（首頁協調進場順序）。
   if (typeof gsap !== 'undefined') {
     banners.forEach((b, i) => gsap.to(b.row, {
-      clipPath: 'inset(0% 0% 0% 0%)', duration: DUR.reveal, ease: EASE.enter, delay: 0.35 + i * 0.12,
+      yPercent: 0, duration: DUR.reveal, ease: EASE.enter, delay: 0.35 + i * 0.12,
     }));
   }
 
-  // 離頁退場：停 cycle + 當前 banner clip 收回（由下往上，reveal 的反向）。fromTo 顯式起點避免 to-from-none snap。
+  // 離頁退場：停 cycle + 當前 banner clip-reveal 收回（yPercent:0→100 沉回底邊，reveal 的反向）。
+  // fromTo 顯式起點避免 to-from-none snap。
   registerPageExit(() => new Promise(resolve => {
     if (timeoutId) { clearTimeout(timeoutId); timeoutId = null; }
     if (typeof gsap === 'undefined' || !banners.length) { resolve(); return; }
     let done = 0;
     const onOne = () => { if (++done >= banners.length) resolve(); };
     banners.forEach((b, i) => gsap.fromTo(b.row,
-      { clipPath: 'inset(0% 0% 0% 0%)' },
-      { clipPath: 'inset(0% 0% 100% 0%)', duration: DUR.medium, ease: EASE.exit, delay: i * 0.06, overwrite: true, onComplete: onOne }));
+      { yPercent: 0 },
+      { yPercent: 100, duration: DUR.medium, ease: EASE.exit, delay: i * 0.06, overwrite: true, onComplete: onOne }));
   }));
 
   // 轉向重建用：清 timer、殺 tween、拔 banner DOM、還原 hover 態；呼叫後本 closure 全部退役

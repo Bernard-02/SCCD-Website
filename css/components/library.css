@@ -1536,8 +1536,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
    *   ② thumb-strip 從固定 8rem 寬 absolute 疊加容器改 flex-wrap row 自然平鋪
    *   ③ thumb 拿掉 absolute right:0 → 走 flow，每張依 JS 算好的 width/height 自然並排
    *   保留 random rotate（thumb 仍掛 inline transform:rotate(Xdeg)）視覺風格不變
-   * 真正的 album list 渲染在 library-panels.js initAlbumPanel（.album-panel-item / .album-files-item-row / .album-thumb-strip），
-   * 不是 album-data-loader buildAlbumCardHtml（.album-card 是另一條未使用 codepath） */
+   * album list 渲染在 library-panels.js initAlbumPanel（.album-panel-item / .album-files-item-row / .album-thumb-strip）。 */
   #library-album-list .album-files-item-row {
     display: flex !important;
     flex-direction: column !important;

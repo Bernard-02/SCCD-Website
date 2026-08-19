@@ -170,6 +170,39 @@ export async function loadActivityCollection(collection, fallbackUrl, opts = {})
   }
 }
 
+// 常設展演（parent activities_exhibitions_permanent + o2m events）→ loadListInto 吃的 [{year:'', items}] shape。
+// 扁平 list 不同：parent 是展演本身（title / note 頻率 / description），events 是歷屆場次相簿 → 映射成 item.albums。
+// note（每學期舉辦一次）是頻率說明非真實日期 → 塞 date/date_en 讓 computeDateDisplay 原樣輸出（配合 dateFullWidth）。
+const pad2 = (n) => String(n).padStart(2, '0');
+function mapPermanentEvent(e) {
+  const s = String(e.startDate || '').slice(0, 10).split('-').map(Number);
+  const en = String(e.endDate || e.startDate || '').slice(0, 10).split('-').map(Number);
+  const date = s[1] ? `${pad2(s[1])}/${pad2(s[2])} - ${pad2(en[1])}/${pad2(en[2])}` : '';
+  return { year: s[0] || '', date, location: e.nameEn || '', location_zh: e.nameZh || '', images: normalizeFiles(e.albumImages) };
+}
+export async function loadPermanentExhibitions(fallbackUrl) {
+  try {
+    const res = await fetch(`${CMS_API_BASE}/activities_exhibitions_permanent?limit=-1&sort=sort&fields=*,events.*,events.albumImages.directus_files_id`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const rows = (await res.json()).data;
+    if (!Array.isArray(rows) || !rows.length) throw new Error('empty');
+    const items = rows.map(r => ({
+      id: r.id,
+      titleEn: r.titleEn || '', titleZh: r.titleZh || '',
+      date_en: r.noteEn || '', date: r.noteZh || '',
+      description: r.descriptionEn || '', descriptionZh: r.descriptionZh || '',
+      poster: fileUrl(r.mainImage),
+      albums: (Array.isArray(r.events) ? [...r.events] : [])
+        .sort((a, b) => String(b.startDate || '').localeCompare(String(a.startDate || '')))  // 新→舊
+        .map(mapPermanentEvent),
+    }));
+    return [{ year: '', items }];
+  } catch (err) {
+    console.warn(`[activities-source] permanent CMS fetch failed → 本地 ${fallbackUrl}:`, err.message);
+    return fetch(sitePath(fallbackUrl)).then(r => r.json());
+  }
+}
+
 // 相簿「moment」桶：本地是 general-activities.json 一檔混 visits/exhibitions/competitions/conferences，
 // 後台則是各自獨立 collection。這裡 raw fetch 每個 collection 再 groupByYear 併起來——不逐個走
 // loadActivityCollection 的 fallback，否則 CMS 掛掉時每支都 fallback 整檔＝同一筆被算多次；改成任一支非 200

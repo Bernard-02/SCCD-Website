@@ -13,9 +13,10 @@ import { loadActivityCollection } from '../pages/activities-source.js';
 import { sitePath } from '../ui/site-base.js';
 import { CMS_API_BASE, CMS_ASSETS_BASE } from '../../config/api.js';
 
-// 進/退場（2026-08-17 圖片卡改 clip-reveal）：
+// 進/退場（2026-08-17 圖片卡改 clip-reveal；2026-08-19 文字卡也改 clip-reveal）：
 // 圖片卡＝wrapper（overflow:hidden、自身無 transform——RAF 位移在 mover、搖擺在 rotator）當現成遮罩，
-// img＋newsOverlay 同方向 ±110 滑動；文字卡＝色底 chip（滑內容會露出靜止底色、chip 語彙本就 clip-path）維持 clip-path。
+// img＋newsOverlay 同方向 ±110 滑動；文字卡＝spawnItem 量寬後包一層 overflow:hidden 遮罩，整塊 chip 同款 ±110 滑動。
+// clip-path 只留給「hover 覆蓋上顏色」的 newsOverlay wipe（user 2026-08-19：只有覆蓋色那個用 clip-path）。
 const FLOAT_HIDE_CLIPS = ['inset(0% 0% 100% 0%)', 'inset(100% 0% 0% 0%)', 'inset(0% 0% 0% 100%)', 'inset(0% 100% 0% 0%)'];
 function randFloatHideClip() { return FLOAT_HIDE_CLIPS[Math.floor(Math.random() * FLOAT_HIDE_CLIPS.length)]; }
 const FLOAT_SLIDE_HIDES = [
@@ -168,14 +169,30 @@ async function fetchActivityPosters() {
   } catch (_) {}
 
   // Library documents（PDF）→ library.html#f-{id}
+  // ⚠️ 必須跟 library files 面板「同源、同 id 規則」（同 press 浮卡）：Directus library_documents →
+  //    element id = f-<row.id>、封面用後台預產 cover 欄（generate-library-covers.cjs 產）。
+  //    直讀本地 library.json 的舊 id（"1"/"L-PUB-1"）跟面板 Directus row id 對不上 → 點進去不捲動、不 highlight；
+  //    封面也只是舊快照 placeholder（非真封面）。Directus 失敗才 fallback 本地（此時面板也 fallback 本地，id 一致）。
   try {
-    const lib = await fetch(sitePath('data/library.json')).then(r => r.json());
-    lib.forEach(item => {
-      if (item.cover && item.id) {
-        files.push({ type: 'image', src: normalizeImagePath(item.cover), url: `pages/library.html#f-${item.id}` });
+    const res = await fetch(`${CMS_API_BASE}/library_documents?fields=id,cover&sort=-year,sort&limit=-1`);
+    if (!res.ok) throw new Error('CMS ' + res.status);
+    const rows = (await res.json())?.data;
+    if (!Array.isArray(rows) || rows.length === 0) throw new Error('CMS empty');
+    rows.forEach(r => {
+      if (r.cover && r.id != null) {
+        files.push({ type: 'image', src: `${CMS_ASSETS_BASE}/${r.cover}?key=web`, url: `pages/library.html#f-${r.id}` });
       }
     });
-  } catch (_) {}
+  } catch (_) {
+    try {
+      const lib = await fetch(sitePath('data/library.json')).then(r => r.json());
+      lib.forEach(item => {
+        if (item.cover && item.id) {
+          files.push({ type: 'image', src: normalizeImagePath(item.cover), url: `pages/library.html#f-${item.id}` });
+        }
+      });
+    } catch (_) {}
+  }
 
   // Album → library.html#album-{id}（無 id 則只到 album panel）
   try {
@@ -349,7 +366,7 @@ function floatingLinkLabel(url) {
   return '查看更多 View more';
 }
 
-function createImageEl(src, url, interactive = true) {
+function createImageEl(src, url, interactive = true, preImg = null) {
   const wrapper = document.createElement(url ? 'a' : 'div');
   if (url) {
     /** @type {HTMLAnchorElement} */ (wrapper).href = url;
@@ -367,8 +384,10 @@ function createImageEl(src, url, interactive = true) {
     transition: none;
   `;
 
-  const img = document.createElement('img');
-  img.src = src;
+  // preImg：edge-respawn 先 new Image() 預載好的元素，reuse＝量測時已 complete、offsetHeight 正確
+  // （新建 <img> 就算 URL 已快取也不保證同步 complete → offsetHeight 可能 0 → realH 用錯 fallback）。
+  const img = preImg || document.createElement('img');
+  if (!preImg) img.src = src;
   img.alt = ''; // 無障礙：裝飾圖（連結名稱已在 wrapper aria-label；無連結 circle 為純裝飾）
   img.style.cssText = `
     width: 100%;
@@ -628,7 +647,7 @@ function createCircleEl() {
 
 // ── Spawn & Animate ─────────────────────────────────────────
 
-function spawnItem(container, poolEntry, fromEdge = false) {
+function spawnItem(container, poolEntry, fromEdge = false, preImg = null) {
   const cw = container.clientWidth;
   const ch = container.clientHeight;
 
@@ -637,7 +656,7 @@ function spawnItem(container, poolEntry, fromEdge = false) {
     elData = createCircleEl();
   } else if (poolEntry.type === 'image') {
     // interactive 預設 true；poolEntry.interactive === false 跳過 news hover wipe（臨時 Coming Soon index）
-    elData = createImageEl(poolEntry.src, poolEntry.url, poolEntry.interactive !== false);
+    elData = createImageEl(poolEntry.src, poolEntry.url, poolEntry.interactive !== false, preImg);
   } else if (poolEntry.type === 'text') {
     elData = createTextEl(poolEntry.textEn, poolEntry.textZh, poolEntry.url);
   } else {
@@ -686,12 +705,16 @@ function spawnItem(container, poolEntry, fromEdge = false) {
   el.style.position = 'static';
 
   // 計算位置
+  // 邊緣 spawn 要多推「透視縮放溢出量」：tick 的 scale 最大 1.5＝卡片以中心放大、單邊溢出
+  // (1.5-1)/2 = 0.25×尺寸。若只貼著邊（x=cw / y=-realH），第一幀 scale 一放大就露出 0.25×size 一角
+  // ＝在畫面邊緣 pop（圖與文字卡都中招；user 2026-08-19 二報）。多推 OVER×尺寸讓縮放後仍完全在畫面外。
+  const OVER = 0.25;
   if (fromEdge) {
     const edge = randInt(0, 3);
-    if (edge === 0)      { x = rand(-realW, cw); y = -realH; vy = Math.abs(vy) + SPEED_MIN; }
-    else if (edge === 1) { x = cw;               y = rand(-realH, ch); vx = -(Math.abs(vx) + SPEED_MIN); }
-    else if (edge === 2) { x = rand(-realW, cw); y = ch;    vy = -(Math.abs(vy) + SPEED_MIN); }
-    else                 { x = -realW;            y = rand(-realH, ch); vx = Math.abs(vx) + SPEED_MIN; }
+    if (edge === 0)      { x = rand(-realW, cw);    y = -realH * (1 + OVER); vy = Math.abs(vy) + SPEED_MIN; }
+    else if (edge === 1) { x = cw + realW * OVER;   y = rand(-realH, ch);    vx = -(Math.abs(vx) + SPEED_MIN); }
+    else if (edge === 2) { x = rand(-realW, cw);    y = ch + realH * OVER;   vy = -(Math.abs(vy) + SPEED_MIN); }
+    else                 { x = -realW * (1 + OVER); y = rand(-realH, ch);    vx = Math.abs(vx) + SPEED_MIN; }
   } else {
     x = rand(-realW * 0.5, cw - realW * 0.5);
     y = rand(-realH * 0.5, ch - realH * 0.5);
@@ -702,7 +725,11 @@ function spawnItem(container, poolEntry, fromEdge = false) {
   // mover：負責 translate（tick 控制，無 transition）
   const mover = document.createElement('div');
   mover.style.cssText = `position:absolute; top:0; left:0; will-change:transform;`;
-  mover.style.transform = `translate(${x}px, ${y}px)`;
+  // 初始 transform 就帶入透視 scale（跟 tick 同式）——否則第一幀 scale 從 1 跳到實際值（邊緣 ~1.5），
+  // 卡片在畫面邊緣「閃大一下」。cw/ch 於 spawnItem 頂部已取得。
+  const _md = Math.hypot(cw / 2, ch / 2) || 1;
+  const _iscale = 0.6 + Math.min(Math.hypot((x + realW / 2) - cw / 2, (y + realH / 2) - ch / 2) / _md, 1) * 0.9;
+  mover.style.transform = `translate(${x}px, ${y}px) scale(${_iscale})`;
 
   // rotator：負責 rotateX/Y 搖擺（GSAP 控制）
   // perspective 必須設在父層才有透視效果
@@ -711,7 +738,19 @@ function spawnItem(container, poolEntry, fromEdge = false) {
   const rotator = document.createElement('div');
   rotator.style.cssText = `transform-style: preserve-3d;`;
 
-  rotator.appendChild(el);
+  // 文字卡（無 slideTargets）：量寬後包一層 overflow:hidden 遮罩，整塊 chip 在內滑入/滑出＝clip-reveal
+  // （user 2026-08-19：文字卡進出場比照圖片卡改 clip-reveal；hover 覆蓋色的 newsOverlay 仍在 chip 內、
+  //  維持自己的 clip-path wipe——「只有覆蓋上顏色的那個用 clip-path」）。量寬邏輯照舊對 chip el 操作、不受遮罩影響。
+  let itemSlideTargets = slideTargets;
+  let mountEl = el;
+  if (!slideTargets) {
+    const mask = document.createElement('div');
+    mask.style.cssText = 'position:relative; overflow:hidden; display:inline-block;';
+    mask.appendChild(el);
+    mountEl = mask;
+    itemSlideTargets = [el];
+  }
+  rotator.appendChild(mountEl);
   perspectiveWrap.appendChild(rotator);
   mover.appendChild(perspectiveWrap);
   container.appendChild(mover);
@@ -736,7 +775,7 @@ function spawnItem(container, poolEntry, fromEdge = false) {
     resume: () => { gsapTweenY.resume(); gsapTweenX.resume(); },
   };
 
-  const item = { el: mover, x, y, vx, vy, w: realW, h: realH, rotation, hovered: false, gsapTween, rotator, card: el, slideTargets, poolEntry };
+  const item = { el: mover, x, y, vx, vy, w: realW, h: realH, rotation, hovered: false, gsapTween, rotator, card: el, slideTargets: itemSlideTargets, poolEntry };
 
   el.addEventListener('mouseenter', () => {
     item.hovered = true;
@@ -749,6 +788,26 @@ function spawnItem(container, poolEntry, fromEdge = false) {
   });
 
   return item;
+}
+
+// 單張浮卡進場——**只給初始批（畫面內 spawn 的卡）**；edge-respawn 卡從畫面外漂進來、不走這裡（見 tick 註解）。
+// 圖片卡與文字卡都走「slideTargets 在遮罩內滑入」（clip-reveal）。
+// 圖片卡＝**等封面 img 載好才滑入**→ 修「封面比卡晚載＝clip-reveal 先跑完、圖才 pop 出」（初始批 documents 封面大／
+//   首訪未快取最明顯，user 2026-08-19 報）；img 已載/快取則立即依 delay 播。文字卡無 img → 立即滑入。
+// （else clip-path 分支＝理論 fallback，現無卡走到；hover 覆蓋色 newsOverlay 的 clip-path 是另一回事、不在此。）
+function revealFloatItem(item, delay) {
+  if (typeof gsap === 'undefined' || !item) return;
+  if (item.slideTargets) {
+    gsap.set(item.slideTargets, randFloatSlideHide());   // 立即藏（同步，first paint 前生效＝不閃）
+    const img = item.slideTargets.find(t => t instanceof HTMLImageElement);
+    // 離頁 / 離場後 img 才 load 完 → 元素已 detach，別再對殘骸 tween
+    const play = () => { if (item.el && !item.el.isConnected) return; gsap.to(item.slideTargets, { xPercent: 0, yPercent: 0, duration: DUR.slow, ease: EASE.enter, delay }); };
+    if (!img || (img.complete && img.naturalWidth)) play();
+    else img.addEventListener('load', play, { once: true });   // 載入失敗＝createImageEl 的 onerror 會 remove 整張，不需在此補
+  } else if (item.card) {
+    gsap.set(item.card, { clipPath: randFloatHideClip() });
+    gsap.to(item.card, { clipPath: 'inset(0% 0% 0% 0%)', duration: DUR.slow, ease: EASE.enter, delay });
+  }
 }
 
 // ── Init ────────────────────────────────────────────────────
@@ -827,16 +886,7 @@ export async function initFloatingItems() {
   // base delay 0.1 讓 floating 排在 news(0.35)/iris(0.6) 之前（首頁協調進場順序）。
   function playFloatEntrance(baseDelay) {
     if (typeof gsap === 'undefined') return;
-    items.forEach((item, i) => {
-      const delay = baseDelay + i * 0.03;
-      if (item.slideTargets) {
-        gsap.set(item.slideTargets, randFloatSlideHide());
-        gsap.to(item.slideTargets, { xPercent: 0, yPercent: 0, duration: DUR.slow, ease: EASE.enter, delay });
-      } else if (item.card) {
-        gsap.set(item.card, { clipPath: randFloatHideClip() });
-        gsap.to(item.card, { clipPath: 'inset(0% 0% 0% 0%)', duration: DUR.slow, ease: EASE.enter, delay });
-      }
-    });
+    items.forEach((item, i) => revealFloatItem(item, baseDelay + i * 0.03));
   }
   playFloatEntrance(0.1);
 
@@ -855,6 +905,26 @@ export async function initFloatingItems() {
   const rotateGateMq = window.matchMedia('(orientation: landscape) and (max-height: 500px)');
   const onRotateGateChange = () => requestAnimationFrame(respawnAll);
   rotateGateMq.addEventListener('change', onRotateGateChange);
+
+  // edge-respawn：圖片卡先預載封面再 spawn。未載完的 <img height:auto> 高度＝0＝整張隱形，
+  // 從畫面外漂進來時看不見，等封面下載完（常常已漂到畫面內）才「長出高度＋內容」＝從畫面中間 pop 出來
+  // （user 2026-08-19 報「有新 item 是 pop 出現、不是完整從畫面外進場」）。預載後 spawnItem 拿到 img.complete、
+  // 量得到正確高度、內容也現成 → 整張成形才從邊緣漂入。文字卡/無 src 直接 spawn（無載入延遲）。
+  function spawnFromEdge() {
+    const entry = nextEntry();
+    if (!entry || entry.type !== 'image' || !entry.src) { items.push(trackSpawn(entry, true)); return; }
+    onScreen.add(entry); liveCount[entry._cat]++;   // 先佔位：載入空窗期避免下一 tick 重選同一筆
+    const pre = new Image();
+    pre.onload = () => {
+      if (cancelled) { onScreen.delete(entry); liveCount[entry._cat]--; return; }  // 已離頁
+      items.push(spawnItem(container, entry, true, pre));  // reuse 預載元素＝量測 offsetHeight 正確；不走 trackSpawn（佔位已手動做）
+    };
+    pre.onerror = () => {
+      if (cancelled) { onScreen.delete(entry); liveCount[entry._cat]--; return; }
+      items.push(spawnItem(container, entry, true));  // 失敗不 reuse：讓 createImageEl 新建→onerror remove、drift 後自然 cull 釋放佔位
+    };
+    pre.src = entry.src;
+  }
 
   let running = true;
   let rafId = null;
@@ -895,7 +965,9 @@ export async function initFloatingItems() {
         if (item.poolEntry) { onScreen.delete(item.poolEntry); liveCount[item.poolEntry._cat]--; }
         container.removeChild(item.el);
         items.splice(i, 1);
-        items.push(trackSpawn(nextEntry(), true));
+        // edge-respawn 不做 clip-reveal（那是初始批的畫面內進場）：它從畫面外邊緣漂進來就是它的進場。
+        // 但封面要先預載才 spawn（見 spawnFromEdge）——否則未載的 img 高度 0＝隱形漂入、載完才在畫面中間 pop。
+        spawnFromEdge();
       }
     }
 
@@ -916,8 +988,8 @@ export async function initFloatingItems() {
   document.addEventListener('visibilitychange', onVisibilityChange);
 
   // 離頁退場：先凍住漂移 RAF（避免退場期間還在 translate），再把當前所有卡片收掉——
-  // 圖片卡＝img/overlay 隨機同向滑出遮罩（edge-respawn 沒進場動畫的卡 transform 本就 0、直接 to 不 snap）；
-  // 文字卡＝clip-path 收（fromTo 顯式起點 inset(0)：edge-respawn 卡沒設過 clipPath、to 會 snap）。
+  // 圖片卡＝img/overlay 隨機同向滑出遮罩（clip-reveal 退場；overwrite:true 蓋掉可能還在跑的進場 reveal）；
+  // 文字卡＝clip-path 收（色底 chip 語彙；fromTo 顯式起點 inset(0) 保險，即便進場 reveal 未完也不 snap）。
   registerPageExit(() => new Promise(resolve => {
     running = false;
     if (rafId) { cancelAnimationFrame(rafId); rafId = null; }

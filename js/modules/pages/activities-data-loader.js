@@ -14,7 +14,7 @@ import { DUR, EASE } from '../ui/motion.js';
 import { refreshStickyPinObservers } from '../accordions/list-accordion.js';
 import { buildSyncedMarqueeTimeline } from '../ui/marquee-overflow.js';
 import { loadSummerCamp } from './summer-camp-source.js';
-import { loadActivityCollection } from './activities-source.js';
+import { loadActivityCollection, loadPermanentExhibitions } from './activities-source.js';
 // '/data/x.json' 字串同時是 fetch URL 與 map key / 比對識別字（SECTION_DATA_URL 等），
 // 識別字保持原樣，只在真正 fetch 的點包 sitePath()（子路徑部署時換算成站台根絕對 URL）
 import { sitePath } from '../ui/site-base.js';
@@ -43,7 +43,7 @@ export const SECTION_LABELS = {
   'summer-camp':      { en: 'Summer Camp',                   zh: '暑期體驗營' },
   exhibitions:        { en: 'Exhibitions',                   zh: '展演' },
   competitions:       { en: 'Competitions',                  zh: '競賽' },
-  conferences:        { en: 'Conferences',                   zh: '研討會' },
+  conferences:        { en: 'Forums',                        zh: '論壇' },
   visits:             { en: 'Visits',                        zh: '參訪' },
 };
 
@@ -329,11 +329,12 @@ function getEffectivePoster(item) {
 // unbounded=true 時拿掉內層 max-height + scroll（permanent exhibitions 預設展開，user 希望整個 album list 直接攤開不需內層 scroll）
 export function buildAlbumsHtml(item, { unbounded = false } = {}) {
   if (!item.albums?.length) return '';
-  // 過濾單一 album：images 內任何 null/空字串/whitespace 都先剔除，再判斷 album 是否還有有效 image
-  // 沒有就整個 album 不渲染（避免 user 點進去 lightbox 因 mediaList 空 abort 表現為「點了沒反應」）
+  // images 內任何 null/空字串/whitespace 先剔除。無圖 album 仍渲染其 metadata（year/date/location）——
+  //   場次是事實紀錄（如常設展每學期一場），「有什麼渲染什麼」；只是無圖時不出縮圖列、整列不可點（不開空 lightbox）。
+  //   完全沒 metadata 也沒圖的 album 才剔除（避免空白列）。
   const albums = item.albums
     .map(a => ({ ...a, images: (a.images || []).filter(isValidUrl).map(s => s.trim()) }))
-    .filter(a => a.images.length > 0);
+    .filter(a => a.images.length > 0 || a.year || a.date || a.location || a.location_zh);
   if (albums.length === 0) return '';
 
   const itemsHtml = albums.map((album, gi) => {
@@ -359,7 +360,9 @@ export function buildAlbumsHtml(item, { unbounded = false } = {}) {
     //   ① sticky row：grid 3-col [year | date | title]，整列單一 sticky element
     //   ② album-gallery row：同樣 grid 3-col template 對齊，第一個 col 空 spacer 撐 year 寬，
     //      第二 col 起 album-gallery（chevron + thumbs），thumbnail 第一張視覺對齊 date 左緣
-    const gridTemplate = 'grid-template-columns: auto auto 1fr;';
+    // 固定比例 template：year : date = 1 : 3（4rem : 12rem）、location 吃剩餘（minmax(0,1fr) 防長地點撐開）。
+    // 每個 album 各自獨立 grid，用 auto 會讓欄寬隨該列內容變＝跨列不對齊 → 定寬才對齊（faculty slide-in 手法）。
+    const gridTemplate = 'grid-template-columns: 4rem 12rem minmax(0, 1fr);';
     return `
       <div class="album-thumb-item flex flex-col gap-sm py-sm mr-xl ${!isLast ? 'border-b-4 border-black' : ''}"
            data-album-media="${mediaJson}"
@@ -376,9 +379,10 @@ export function buildAlbumsHtml(item, { unbounded = false } = {}) {
         </div>
         <!-- album-gallery row：2-col grid [隱藏 year spacer（撐同 sticky row 的 year 欄寬） | album-gallery]，
              兩 row 各自獨立 grid，靠「同內容 year」讓 col1 等寬 → col2 左緣＝sticky row 的 date 左緣，thumbnail 對齊日期左緣。
-             chevron 改 absolute 疊在 track 左右（不佔位、不把 thumbnail 往右推），thumbs 恆貼 date 左緣（user 2026-07-14）。 -->
-        <div class="grid items-center gap-x-xl" style="grid-template-columns: auto 1fr;">
-          <div class="flex-shrink-0" aria-hidden="true" style="visibility:hidden">${album.year ? `<p class="text-s font-bold">${album.year}</p>` : ''}</div>
+             chevron 改 absolute 疊在 track 左右（不佔位、不把 thumbnail 往右推），thumbs 恆貼 date 左緣（user 2026-07-14）。
+             無圖 album 不渲染此列（只留上方 metadata），避免空 gallery + 不可點列。 -->
+        ${album.images.length ? `<div class="grid items-center gap-x-xl" style="grid-template-columns: 4rem 1fr;">
+          <div class="flex-shrink-0" aria-hidden="true" style="visibility:hidden"></div>
           <div class="album-gallery relative flex items-center min-w-0">
             <button type="button" class="album-prev invisible absolute left-0 top-1/2 -translate-y-1/2 z-10 w-[32px] h-[32px] flex items-center justify-start text-s hover:opacity-60 transition-opacity">
               <span class="icon icon-chevron-list icon-s"></span>
@@ -392,7 +396,7 @@ export function buildAlbumsHtml(item, { unbounded = false } = {}) {
               <span class="icon icon-chevron-list icon-s rotate-180"></span>
             </button>
           </div>
-        </div>
+        </div>` : ''}
       </div>
     `;
   }).join('');
@@ -750,7 +754,7 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
   }
 
   function reconcileChunk(wrapEn, wrapZh) {
-    if (wrapEn._pairGroup) wrapEn._pairGroup.tl.kill();
+    if (wrapEn._pairGroup) { wrapEn._pairGroup.tl.kill(); if (wrapEn._pairGroup._ret) wrapEn._pairGroup._ret.kill(); }
 
     const measured = [wrapEn, wrapZh].map(wrap => {
       const p = wrap.querySelector('p');
@@ -766,31 +770,44 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
     const group = { tl, els: overflowing.map(o => o.p) };
     wrapEn._pairGroup = wrapZh._pairGroup = group;
 
-    // list-content 內的（已隱含「展開才量得到」＝已滿足 open 條件）量到即播；
-    // list-header 內的要 hover（桌面）/ active（手機，MutationObserver 追 class）才播，對齊 lists.css 規則。
+    // 播放 gate（對齊 lists.css / dsd 慣例）：
+    //   - list-header 內：hover（桌面）/ active（手機 accordion，MutationObserver 追 class）才播。
+    //   - list-content 摘要欄（.list-summary-mq-col＝地點/城市）：桌面 hover 該欄才播、手機無 hover 自動捲
+    //     （user 2026-08-19；先前一律「量到即播」＝自動捲，改對齊 dsd 的 col hover-gated）。
+    //   - 其他 list-content marquee（副標/講者/refs/date 等）：維持量到即播。
     const header = wrapEn.closest('.list-header');
-    if (!header) { tl.play(); return true; }
+    const cell = header ? null : wrapEn.closest('.list-summary-mq-col');
+    const gate = header || (window.innerWidth >= 768 ? cell : null);
+    if (!gate) { tl.play(); return true; }
     // playAll/pauseAll 即時掃 DOM 讀 wrap._pairGroup（不維護額外陣列），reconcileChunk 可能因 resize/
     // gallery:check/fonts.ready 重跑多次——若改存陣列每次 push 會累積失效的舊 timeline 參考（真的踩過這個 bug）。
-    if (!header._pairMarqueeBound) {
-      header._pairMarqueeBound = true;
+    if (!gate._pairMarqueeBound) {
+      gate._pairMarqueeBound = true;
       const eachGroup = (fn) => {
         const seen = new Set();
-        header.querySelectorAll('[data-marquee-paired="1"]').forEach(w => {
+        gate.querySelectorAll('[data-marquee-paired="1"]').forEach(w => {
           if (!w._pairGroup || seen.has(w._pairGroup)) return;
           seen.add(w._pairGroup);
           fn(w._pairGroup);
         });
       };
-      const playAll  = () => eachGroup(g => g.tl.play());
-      const pauseAll = () => eachGroup(g => { g.tl.pause(0); gsap.set(g.els, { x: 0 }); });
-      header.addEventListener('mouseenter', playAll);
-      header.addEventListener('mouseleave', pauseAll);
-      const mo = new MutationObserver(() => (header.classList.contains('active') ? playAll() : pauseAll()));
-      mo.observe(header, { attributes: true, attributeFilter: ['class'] });
-      registerPageCleanup(() => { header.removeEventListener('mouseenter', playAll); header.removeEventListener('mouseleave', pauseAll); mo.disconnect(); });
+      // 放開 hover 平滑回彈（user 2026-08-19 B）：desktop mouseleave → easeAll（pause 凍在當下、補間回 0，同 faculty
+      // slide-in）；⚠️手機 accordion 收合（MutationObserver）維持 snapAll（手機不變、且收合中 ease 看不到）。
+      // re-enter 先 kill 未完成回彈 tween 再 play。returnTween 存 group 上（_ret）。⚠️不用 overwrite（會殺 tl 自己的 child tween）。
+      const playAll  = () => eachGroup(g => { if (g._ret) { g._ret.kill(); g._ret = null; } g.tl.play(); });
+      const snapAll  = () => eachGroup(g => { if (g._ret) { g._ret.kill(); g._ret = null; } g.tl.pause(0); gsap.set(g.els, { x: 0 }); });
+      const easeAll  = () => eachGroup(g => {
+        g.tl.pause();
+        g._ret = gsap.to(g.els, { x: 0, duration: 0.45, ease: 'cubic-bezier(0.25,0,0,1)', onComplete: () => { g.tl.progress(0); g._ret = null; } });
+      });
+      gate.addEventListener('mouseenter', playAll);
+      gate.addEventListener('mouseleave', easeAll);
+      // active（手機 accordion 展開）只對 header 有意義；摘要欄無 active 態，桌面純 hover
+      const mo = header ? new MutationObserver(() => (header.classList.contains('active') ? playAll() : snapAll())) : null;
+      if (mo) mo.observe(header, { attributes: true, attributeFilter: ['class'] });
+      registerPageCleanup(() => { gate.removeEventListener('mouseenter', playAll); gate.removeEventListener('mouseleave', easeAll); if (mo) mo.disconnect(); });
     }
-    if (header.matches(':hover') || header.classList.contains('active')) tl.play();
+    if (gate.matches(':hover') || (header && header.classList.contains('active'))) tl.play();
     return true;
   }
 
@@ -1309,11 +1326,11 @@ export async function loadListInto(containerId, url, options = {}) {
                       <div class="list-title-marquee${dateDisplayZh ? ' mb-en-zh-s' : ''}"><p class="text-s font-bold">${dateDisplay}</p></div>
                       ${dateDisplayZh ? `<div class="list-title-marquee"><p class="text-s font-bold">${dateDisplayZh}</p></div>` : ''}
                     </div>` : '<div></div>'}
-                    ${showLocation && (locationEn || locationZh) ? `<div class="min-w-0">
+                    ${showLocation && (locationEn || locationZh) ? `<div class="min-w-0 list-summary-mq-col">
                       ${locationEn ? `<div class="list-title-marquee mb-en-zh-s"><p class="text-s font-bold">${locationEn}</p></div>` : ''}
                       ${locationZh ? `<div class="list-title-marquee"><p class="text-s font-bold">${locationZh}</p></div>` : ''}
                     </div>` : '<div></div>'}
-                    ${hasCity ? `<div class="min-w-0 list-city-cell">
+                    ${hasCity ? `<div class="min-w-0 list-city-cell list-summary-mq-col">
                       ${cityEn ? `<div class="list-title-marquee mb-en-zh-s"><p class="text-s font-bold">${cityEn}</p></div>` : ''}
                       ${cityZh ? `<div class="list-title-marquee"><p class="text-s font-bold">${cityZh}</p></div>` : ''}
                     </div>` : ''}
@@ -1679,7 +1696,10 @@ export async function loadIndustryInto(containerId, options = {}) {
 
 // 分別載入特設 / 常設到各自的 container
 export async function loadExhibitionsInto(options = {}) {
-  const specialData = await fetchActEndpointOrFallback('activities-exhibition-special', '/data/general-activities.json');
+  const [specialData, permanentData] = await Promise.all([
+    fetchActEndpointOrFallback('activities-exhibition-special', '/data/general-activities.json'),
+    loadPermanentExhibitions('/data/permanent-exhibitions.json'),
+  ]);
   const fns = await Promise.all([
     loadListInto('exhibitions-list-special', '/data/general-activities.json', {
       categoryFilter: 'exhibitions',
@@ -1688,12 +1708,16 @@ export async function loadExhibitionsInto(options = {}) {
       data: specialData,
       ...options,
     }),
-    // 常設展演 endpoint user 還沒做（晚點再給），保留舊 JSON 路徑
+    // 常設展演（activities_exhibitions_permanent + _permanent_events 巢狀）→ loadPermanentExhibitions 攤成 albums shape。
     // dateFullWidth：permanent 的 date 是頻率說明（"Once per semester / 每學期舉辦一次"）非真實日期，
     //   要 full-width 顯示、不擠進 14ch date 欄、不 marquee（user 2026-06-05）。
     loadListInto('exhibitions-list-permanent', '/data/permanent-exhibitions.json', {
       hideYearHeader: true, dateFullWidth: true, showPoster: false,
+      // 後台相簿圖片暫未上傳（媒體導向 list 預設濾掉無 media 項目）→ allowNoMedia 讓展演即使沒圖也顯示
+      //（標題/頻率/description）；之後在 Directus 上傳 events.albumImages 會自動帶出相簿。
+      allowNoMedia: true,
       panelSelector: '#panel-exhibitions',
+      data: permanentData,
       ...options,
     }),
   ]);

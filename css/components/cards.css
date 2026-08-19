@@ -88,25 +88,53 @@
     }
   }
 
-  /* Events 地點行 marquee：過長不換行、溢出即自動捲（無 hover 情境＝常駐；離屏由 marquee-overflow.js 的 IO 暫停）。
-     結構＝<p.dsd-loc-line>（overflow window）> <span.dsd-loc-inner>；applyMarqueeOverflow 溢出時加 .is-overflow +
+  /* Events 標題/地點行 marquee：過長不換行、溢出才捲。桌面＝hover 該 event row 才捲（靜止截斷可接受，對齊
+     atlas/courses/dshow 卡片行為）；手機＝無 hover → 偵測到即自動捲，否則長字永久截斷看不到（同 .dshow-title-line）。
+     結構＝<p.dsd-mq-line>（overflow window）> <span.dsd-mq-inner>；applyMarqueeOverflow 溢出時加 .is-overflow +
      換兩份 .marquee-copy + 設 --marquee-distance/duration。keyframes 沿用 lists.css 的 dshow-title-marquee。 */
-  .dsd-loc-line {
+  .dsd-mq-line {
     display: block;
     overflow: hidden;
     white-space: nowrap;
     max-width: 100%;
   }
-  .dsd-loc-inner {
+  .dsd-mq-inner {
     display: inline-block;
     white-space: nowrap;
   }
-  .dsd-loc-inner > .marquee-copy {
+  .dsd-mq-inner > .marquee-copy {
     display: inline-block;
     padding-right: var(--marquee-copy-gap);
   }
-  .dsd-loc-line.is-overflow .dsd-loc-inner {
-    animation: dshow-title-marquee var(--marquee-duration, 8s) linear infinite;
+  @media (min-width: 768px) {
+    /* col 為單位（.dsd-mq-col）而非整個 event row：只有 hover 到的那一欄捲，避免整列標題/地點/城市同時捲 */
+    .dsd-mq-col:hover .dsd-mq-line.is-overflow .dsd-mq-inner {
+      animation: dshow-title-marquee var(--marquee-duration, 8s) linear infinite;
+    }
+  }
+  @media (max-width: 767px) {
+    .dsd-mq-line.is-overflow .dsd-mq-inner {
+      animation: dshow-title-marquee var(--marquee-duration, 8s) linear infinite;
+    }
+  }
+
+  /* Events 每列欄位配置（三個 .dsd-mq-col＝日期/標題/地點）：
+     ≥1200 三欄 2:3:3；768–1199 空間不夠 → 收成 2 欄、日期移到標題上方（date/title 同左欄堆疊、地點獨占右欄跨兩列）；<768 單欄堆疊。
+     grid-template-columns 全寫這裡不用 Tailwind grid-cols utility＝避開 @layer utilities 蓋過 components 斷點覆寫。 */
+  .dsd-event-grid { grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 768px) and (max-width: 1199px) {
+    .dsd-event-grid {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      grid-template-areas: "date location" "title location";
+    }
+    .dsd-event-grid > :nth-child(1) { grid-area: date; }
+    .dsd-event-grid > :nth-child(2) { grid-area: title; }
+    .dsd-event-grid > :nth-child(3) { grid-area: location; }
+  }
+  @media (min-width: 1200px) {
+    .dsd-event-grid {
+      grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) minmax(0, 3fr);
+    }
   }
 
   .faculty-card-image {
@@ -241,14 +269,6 @@
       column-gap: var(--spacing-lg); /* 桌面最小水平間距 32px，寬螢幕 space-between 自動加大（卡片變小→gap 變大，user 接受） */
       row-gap: var(--spacing-4xl);   /* 桌面行距 128px */
     }
-  }
-
-  /* ===== Album Cards ===== */
-  .album-card {
-    transition: background-color var(--dur-fast) var(--ease-standard);
-  }
-  .album-card-img {
-    transition: filter var(--dur-fast) var(--ease-standard);
   }
 
   /* ===== Faculty Slide-in Grid Rows =====

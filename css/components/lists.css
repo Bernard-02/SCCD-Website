@@ -1470,11 +1470,10 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
  * 未來任何 inline scroll 容器都套此 class 共用樣式（細黑 thumb / 無 track / 無箭頭）。
  * library year picker 用 id selector 保留歷史寫法。 */
 .list-scroll::-webkit-scrollbar,
-#album-year-options-wrap::-webkit-scrollbar,
-#files-year-options-wrap::-webkit-scrollbar,
 #library-year-picker-wrap::-webkit-scrollbar {
-  width: 5px !important;
-  height: 5px !important;
+  /* 10px = 對齊全站浮動 scrollbar #custom-scrollbar-thumb 粗細（scrollbar.css:33），user 2026-08-19 */
+  width: 10px !important;
+  height: 10px !important;
   -webkit-appearance: none !important;
   appearance: none !important;
 }
@@ -1482,12 +1481,6 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
 .list-scroll::-webkit-scrollbar-track,
 .list-scroll::-webkit-scrollbar-track-piece,
 .list-scroll::-webkit-scrollbar-corner,
-#album-year-options-wrap::-webkit-scrollbar-track,
-#album-year-options-wrap::-webkit-scrollbar-track-piece,
-#album-year-options-wrap::-webkit-scrollbar-corner,
-#files-year-options-wrap::-webkit-scrollbar-track,
-#files-year-options-wrap::-webkit-scrollbar-track-piece,
-#files-year-options-wrap::-webkit-scrollbar-corner,
 #library-year-picker-wrap::-webkit-scrollbar-track,
 #library-year-picker-wrap::-webkit-scrollbar-track-piece,
 #library-year-picker-wrap::-webkit-scrollbar-corner {
@@ -1495,17 +1488,20 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
 }
 
 .list-scroll::-webkit-scrollbar-thumb,
-#album-year-options-wrap::-webkit-scrollbar-thumb,
-#files-year-options-wrap::-webkit-scrollbar-thumb,
 #library-year-picker-wrap::-webkit-scrollbar-thumb {
   background: #000000 !important;
   border-radius: 0 !important;
   border: none !important;
 }
 
+/* dsd events 捲軸：容器 bg = 頁面 theme-bg（三 mode 都是），thumb 跟 var(--theme-fg) 永遠對比：
+ * mode1 白底黑 thumb（同 base）、mode2 黑底白 thumb（修正原黑 thumb 在 inverse 黑底不可見的 bug）、mode3 依 hue luminance 翻黑白。
+ * 一條涵蓋三 mode，取代原本 color.css 只補 mode3 的寫法（user 2026-08-19）。 */
+.dsd-events-scroll::-webkit-scrollbar-thumb {
+  background: var(--theme-fg) !important;
+}
+
 .list-scroll::-webkit-scrollbar-button,
-#album-year-options-wrap::-webkit-scrollbar-button,
-#files-year-options-wrap::-webkit-scrollbar-button,
 #library-year-picker-wrap::-webkit-scrollbar-button {
   display: none !important;
   height: 0 !important;
@@ -1531,11 +1527,13 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
  * 也實作 standard scrollbar-width 後切到系統 thin scrollbar（會帶 OS 風格小箭頭）覆蓋 webkit 自繪樣式 */
 @supports (-moz-appearance: none) {
   .list-scroll,
-  #album-year-options-wrap,
-  #files-year-options-wrap,
   #library-year-picker-wrap {
     scrollbar-width: thin;
     scrollbar-color: #000000 transparent;
+  }
+  /* dsd events：三 mode 都用 var(--theme-fg)（同上 webkit 規則）*/
+  .dsd-events-scroll {
+    scrollbar-color: var(--theme-fg) transparent;
   }
 }
 
@@ -1645,30 +1643,15 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
   .list-header:hover .list-title-marquee.is-overflow p {
     animation: list-marquee var(--marquee-duration, 4s) linear infinite;
   }
-}
-
-.album-title-marquee {
-  overflow: hidden;
-  white-space: nowrap;
-}
-
-.album-title-marquee h6 {
-  display: inline-block;
-  white-space: nowrap;
-}
-
-@media (min-width: 768px) {
-  .album-title-marquee.is-overflow h6 {
-    transition: none;
+  /* list-content 摘要欄「地點/城市」(.list-summary-mq-col)：桌面改 hover 該欄才 marquee（user 2026-08-19，
+     對齊 dsd 的 col hover-gated），推翻上方 base rule 對 list-content 的「自動跑」。手機無此規則＝base rule 自動捲。
+     只管「單語（無 EN/ZH 配對）走 CSS animation」的情形；配對版是 [data-marquee-paired] GSAP 控（animation:none）、
+     hover 閘在 activities-data-loader.js reconcileChunk 用 .list-summary-mq-col 當 gate。 */
+  .list-summary-mq-col .list-title-marquee.is-overflow p {
+    animation: none;
   }
-
-  .album-card:hover .album-title-marquee.is-overflow h6 {
-    animation: album-marquee var(--marquee-duration, 4s) linear infinite;
-  }
-
-  @keyframes album-marquee {
-    0%   { transform: translateX(0); }
-    100% { transform: translateX(var(--marquee-offset, -50%)); }
+  .list-summary-mq-col:hover .list-title-marquee.is-overflow p {
+    animation: list-marquee var(--marquee-duration, 4s) linear infinite;
   }
 }
 
@@ -1745,6 +1728,12 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
   #degree-show-list:has(.degree-show-card:hover)
     .degree-show-card:not(:hover) > div:not(.degree-show-card-content) {
     opacity: 0.25;
+  }
+  /* 同一年可能有多筆畢展，但年份標籤只在第一筆 DOM 中：hover 同年度任一筆時，
+     JS 將該年度卡片標為 active，讓共用的年份標籤保持不透明。 */
+  #degree-show-list:has(.degree-show-card:hover)
+    .degree-show-card.degree-show-year-active > .list-year-label {
+    opacity: 1;
   }
 }
 

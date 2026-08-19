@@ -180,13 +180,20 @@ export function createRefBtn(initialColor, onCloseLightbox) {
     if (!prep || typeof gsap === 'undefined') return;
     gsap.fromTo(prep.track, { x: 0 }, { x: -prep.distance, duration: prep.duration, ease: 'none', repeat: -1 });
   }
-  // 還原成靜態截斷單份（桌面 resting / hover 離開時 snap 回原點）
-  function resetRow(rowEl) {
+  // 還原成靜態截斷單份。animate=true（hover 離開）→ 從當下平滑補間回原點再拆 clone（user 2026-08-19 B）；
+  // animate 省略（桌面 resting 初始態）→ 立即歸零。單軌 tween 故 killTweensOf(track) 正確（停 loop + 取消未完成的
+  // 回彈 tween 及其 onComplete 拆 clone，避免 re-enter 競態；prepRowMarquee 開頭也 killTweensOf 收尾）。
+  function resetRow(rowEl, animate) {
     const track = /** @type {HTMLElement | null} */ (rowEl.querySelector('.lightbox-ref-chip-title-track'));
     if (!track) return;
-    if (typeof gsap !== 'undefined') { gsap.killTweensOf(track); gsap.set(track, { x: 0 }); }
-    track.style.transform = '';
-    while (track.children.length > 1) track.removeChild(track.lastElementChild);
+    const strip = () => { track.style.transform = ''; while (track.children.length > 1) track.removeChild(track.lastElementChild); };
+    if (typeof gsap !== 'undefined') gsap.killTweensOf(track);
+    if (animate && typeof gsap !== 'undefined') {
+      gsap.to(track, { x: 0, duration: 0.45, ease: 'cubic-bezier(0.25,0,0,1)', onComplete: strip });
+    } else {
+      if (typeof gsap !== 'undefined') gsap.set(track, { x: 0 });
+      strip();
+    }
   }
 
   // 每個 title-row 獨立 marquee（EN/ZH 長度差異大，合在一起短的會空跑）
@@ -215,7 +222,7 @@ export function createRefBtn(initialColor, onCloseLightbox) {
           chip.querySelectorAll('.lightbox-ref-chip-title-row').forEach(r => playRow(prepRowMarquee(r)));
         });
         chip.addEventListener('mouseleave', () => {
-          chip.querySelectorAll('.lightbox-ref-chip-title-row').forEach(r => resetRow(r));
+          chip.querySelectorAll('.lightbox-ref-chip-title-row').forEach(r => resetRow(r, true));
         });
       });
     }

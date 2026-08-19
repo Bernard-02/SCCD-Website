@@ -5,9 +5,8 @@
  */
 
 import { loadExhibitionsInto, loadGeneralActivitiesInto, loadLecturesInto, loadIndustryInto, loadWorkshopsInto, loadSummerCampInto, loadVisitsInto } from './activities-data-loader.js';
-import { loadAlbumData } from './album-data-loader.js';
 import { loadDegreeShowListInto } from './degree-show-data-loader.js';
-import { applyMarqueeOverflow } from '../ui/marquee-overflow.js';
+import { applyMarqueeOverflow, bindMarqueeReturn } from '../ui/marquee-overflow.js';
 import { initActivitiesYearToggle } from '../accordions/activities-year-toggle.js';
 import { initListAccordion, resetListAccordionsInPanel, alignWithBottomSpacer } from '../accordions/list-accordion.js';
 import { reapplySearch } from '../ui/activities-search.js';
@@ -108,7 +107,6 @@ function scrollSectionIntoView(el, behavior = 'instant') {
 }
 
 let currentSectionColor = '';
-export function getCurrentSectionColor() { return currentSectionColor; }
 
 // 等指定 list-item 的進場 reveal 完成（reveal 的 onComplete/onEnter 會移除 data-pre-reveal，見 admission-data-loader
 // unlockGroup / activities-data-loader 的 ScrollTrigger）。給 ref/deep-link 導航用：確保「list 文字 reveal 出現後」
@@ -819,7 +817,7 @@ async function switchToSection(section, btns, shouldScroll, isInitial = false) {
       // 收起 target panel 內遺留的 open accordion（avoid「切到別的 panel 再切回來時 accordion 仍打開」殘留體驗）
       resetListAccordionsInPanel(target);
       // 同步所有 active filter btn 的顏色
-      target.querySelectorAll('.activities-filter-btn.active, .album-filter-option.active').forEach(btnEl => {
+      target.querySelectorAll('.activities-filter-btn.active').forEach(btnEl => {
         const btn = /** @type {HTMLElement} */ (btnEl);
         const inner = /** @type {HTMLElement | null} */ (btn.querySelector('.anchor-nav-inner'));
         if (inner) {
@@ -835,7 +833,13 @@ async function switchToSection(section, btns, shouldScroll, isInitial = false) {
     //     showPanel 後 rAF 重量（比照 dsd-tab strip）；非 degree-show panel 無 .dshow-title-line = no-op
     if (section === 'degree-show' && target) {
       const dsPanel = target;
-      requestAnimationFrame(() => applyMarqueeOverflow(dsPanel, '.dshow-title-line', '.dshow-title-inner'));
+      requestAnimationFrame(() => {
+        applyMarqueeOverflow(dsPanel, '.dshow-title-line', '.dshow-title-inner');
+        // 桌面 hover 放開平滑回彈（user 2026-08-19 B）：每張卡綁 bindMarqueeReturn（手機由 helper 自我 gate 跳過）
+        dsPanel.querySelectorAll('.degree-show-card').forEach((card) => {
+          registerPageCleanup(bindMarqueeReturn(/** @type {HTMLElement} */ (card), '.dshow-title-inner', '.dshow-title-line'));
+        });
+      });
     }
 
     // 7. Scroll to section（點擊時才 scroll，初始載入不 scroll）
@@ -1104,10 +1108,6 @@ async function loadPanel(section) {
     case 'students-present':
       await loadWorkshopsInto('/data/students-present.json', 'students-present-list', opts);
       initListAccordion();
-      return;
-
-    case 'album':
-      await loadAlbumData('album-list-container');
       return;
 
     case 'industry':

@@ -13,38 +13,46 @@
 
 import { sitePath } from '../ui/site-base.js';
 
-// 6 個 slot（桌面）：spacing 17vw + 統一 wrapper 寬 400px（≈20.8vw），同時達成邊界溢出 + 保證每對 overlap：
-// - 每對 overlap = 20.8 - 17 = 3.8vw（~19%）
-// - Total span = 5 × 17 + 20.8 = 105.8vw → slot 0 / 5 各保留 ~3vw 對稱邊界溢出
-// 5 slot 時數學塞不下（4 × spacing + image > 100 與 spacing < image 兩條件互斥），加到 6 slot 才同時成立。
-const SLOT_LEFTS_DESKTOP = ['-3vw', '14vw', '31vw', '48vw', '65vw', '82vw'];
+// 4 個 slot（桌面，user 2026-08-18「調整到 4 張、更大一些」）：slot-left 用 vw、寬度改「等面積 vw」（見 buildImg）。
+// ⭐等面積(equal-area)取代舊 uniform-px-width：每張圖面積≈GALLERY_TARGET_AREA vw²、保留原始長寬比 → 直式變窄、
+//   橫式變寬，但視覺份量接近（user「直橫比例不要差太多、維持平衡」），且不裁圖（維持「看檔案本身寬高」）。
+// ⭐右緣 bleed：寬度改 vw 後整條 strip 隨 viewport 縮放，slot3(74vw)+橫式寬(~42vw)=116vw 於任何寬度都溢出右緣
+//   （修舊 fixed-px 在 >1586px 才留右側空白的 bug）。窄直式(clamp 24vw)最壞 74+24=98vw≈貼齊右緣。
+// overlap：橫式 42vw vs spacing ~25.7vw → 疊 ~16vw；直式較窄時疊量變小、極窄直式串可能留小縫（collage 可接受）。
+const SLOT_LEFTS_DESKTOP = ['-3vw', '23vw', '49vw', '74vw'];
+// 每張圖目標面積（vw²）：橫式 16:9 → √(920·1.78)=40.5vw 寬、直式 3:4 → √(920·0.75)=26.3vw 寬、1:1→30.3vw。
+const GALLERY_TARGET_AREA = 920;
 // 手機（<768）：3-slot/42vw 幾何（2026-07-09 起手機改走 class-images-slideshow 單圖輪播、
 // 不再進本模組，此組值僅防禦性保留給 init 時的 isMobile 分支）
 const SLOT_LEFTS_MOBILE = ['-3vw', '29vw', '61vw'];
-const IMG_WIDTH_DESKTOP = '400px';
+const IMG_WIDTH_DESKTOP = '460px';
 const IMG_WIDTH_MOBILE = '42vw';
 const ANIM_DUR = 0.5;
 const ANIM_EASE = 'cubic-bezier(0.25, 0, 0, 1)';
 const HOVER_DUR = 0.3;
 const INTERVAL = 3500;
 
-// clip-reveal 滑動藏定位（±110 過衝防 dpr hairline）：進場與 tick 逐張離場都隨機 4 向；
-// hideAll 頁面退場另用 LEAVE_SLIDE 全張同向左滑（unison sweep，跟整列左移同向）
+// clip-reveal 滑動藏定位（±110 過衝防 dpr hairline）：首次進場、tick 逐張離場/進場、hideAll 頁面退場全隨機 4 向
 const SLIDE_DIRS = [
   { xPercent: -110, yPercent: 0 },
   { xPercent: 110, yPercent: 0 },
   { xPercent: 0, yPercent: -110 },
   { xPercent: 0, yPercent: 110 },
 ];
-const LEAVE_SLIDE = SLIDE_DIRS[0]; // 頁面退場 unison 左滑
 function randomSlide() { return SLIDE_DIRS[Math.floor(Math.random() * SLIDE_DIRS.length)]; }
 function randomRotation() { return parseFloat(((Math.random() * 2 - 1) * 4).toFixed(2)); }
 
-function buildImg(src, imgWidth) {
+// targetAreaVw 有值（桌面）→ 等面積：wrapper 寬 = √(area·aspect) vw、clamp[24,46]、height:auto 維持原始比例。
+// targetAreaVw 空（手機防禦分支）→ 沿用固定 imgWidth。maxWidth 一律解除 .class-img 的 about cap(336/462)。
+function buildImg(src, imgWidth, targetAreaVw) {
   const wrapper = document.createElement('div');
   wrapper.className = 'class-img';
   // wrapper＝滑動遮罩（本模組限定 inline，不動共用 .class-img class——about 的 slideshow 仍走 clip-path）
   wrapper.style.overflow = 'clip';
+  // ⚠️maxWidth 解 about cap；width 先給 placeholder 避免載入前塌陷（等面積要等 natW/H 才定案，但寬度算好前先撐住）。
+  wrapper.style.maxWidth = 'none';
+  wrapper.style.width = targetAreaVw ? '38vw' : imgWidth;
+  if (!targetAreaVw) wrapper.style.maxWidth = imgWidth;
 
   const img = document.createElement('img');
   img.src = src;
@@ -52,18 +60,26 @@ function buildImg(src, imgWidth) {
   img.style.cssText = 'display:block; width:100%; height:auto;';
   wrapper.appendChild(img);
 
-  const sizeWrapper = () => {
-    if (!img.naturalWidth) return;
-    const isLandscape = img.naturalWidth > img.naturalHeight;
-    if (isLandscape) wrapper.classList.add('class-img--landscape');
-    // 統一所有 wrapper 寬度（桌面 400px ≈ 20.8vw on 1920 / 手機 34vw），不分 landscape/portrait：
-    // class about 用 panel-% 自動跟著縮放沒問題；degree-show 用 viewport-vw fixed slot，
-    // 必須統一寬度才能保證每對 pair 都 overlap（否則 portrait pair 會比 spacing 短出現空隙）。
-    // img 內部 width:100% height:auto 維持原始比例，差別只是 wrapper 框統一寬度。
-    wrapper.style.width = imgWidth;
+  // 拿到 natW/H 後：加 landscape 語意 class + 定案等面積寬度（橫式較寬、直式較窄、面積接近＝視覺平衡、不裁圖）
+  const onMeta = () => {
+    if (!img.naturalWidth || !img.naturalHeight) return;
+    if (img.naturalWidth > img.naturalHeight) wrapper.classList.add('class-img--landscape');
+    if (targetAreaVw) {
+      const ar = img.naturalWidth / img.naturalHeight;
+      const wVw = Math.min(46, Math.max(24, Math.sqrt(targetAreaVw * ar)));
+      wrapper.style.width = wVw.toFixed(2) + 'vw';
+    }
   };
-  if (img.complete && img.naturalWidth) sizeWrapper();
-  else img.addEventListener('load', sizeWrapper, { once: true });
+  if (img.naturalWidth) onMeta();
+  else {
+    // 大圖(CORS)：naturalWidth(長寬比) 在 headers 解析後就有、早於 'load' 完整下載 → rAF 輪詢盡早定案等面積寬度，
+    // 免長時間停在 38vw placeholder 到載完才跳。done guard 讓 poll / load 誰先到都只跑一次；cap ~10s 防破圖無限輪詢。
+    let done = false, tries = 0;
+    const run = () => { if (!done) { done = true; onMeta(); } };
+    img.addEventListener('load', run, { once: true });
+    const poll = () => { if (done) return; if (img.naturalWidth) run(); else if (++tries < 600) requestAnimationFrame(poll); };
+    requestAnimationFrame(poll);
+  }
 
   return wrapper;
 }
@@ -92,11 +108,12 @@ export function initDegreeShowGallery(container, pool) {
   const isMobile = window.innerWidth < 768;
   const SLOT_LEFTS_VW = isMobile ? SLOT_LEFTS_MOBILE : SLOT_LEFTS_DESKTOP;
   const IMG_WIDTH = isMobile ? IMG_WIDTH_MOBILE : IMG_WIDTH_DESKTOP;
+  const TARGET_AREA = isMobile ? 0 : GALLERY_TARGET_AREA;   // 桌面走等面積、手機防禦分支維持固定寬
   const SLOT_COUNT = SLOT_LEFTS_VW.length;
 
   if (typeof gsap === 'undefined') {
     container.innerHTML = '';
-    const img = buildImg(pool[0], IMG_WIDTH);
+    const img = buildImg(pool[0], IMG_WIDTH, TARGET_AREA);
     img.style.cssText += 'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);';
     container.appendChild(img);
     return null;
@@ -107,6 +124,7 @@ export function initDegreeShowGallery(container, pool) {
   let timer = null;
   let isShifting = false;
   let destroyed = false;
+  let st = null;   // 首次進場 ScrollTrigger
 
   // 自動輪播 pause/resume：hover 任一張時暫停、離開後（無任何 slot 被 hover）恢復。
   // pool 不足 SLOT_COUNT+1 張時本就不輪播（同 init 判斷），resume 也不啟動。
@@ -163,7 +181,7 @@ export function initDegreeShowGallery(container, pool) {
   for (let i = 0; i < SLOT_COUNT; i++) {
     const src = pool[nextIdx % pool.length];
     nextIdx++;
-    const img = buildImg(src, IMG_WIDTH);
+    const img = buildImg(src, IMG_WIDTH, TARGET_AREA);
     container.appendChild(img);
     placeInSlot(img, i, SLOT_LEFTS_VW, { rotation: randomRotation() });
     slots.push(img);
@@ -191,7 +209,7 @@ export function initDegreeShowGallery(container, pool) {
       gsap.to(slots[i], { left: SLOT_LEFTS_VW[i - 1], duration: ANIM_DUR, ease: ANIM_EASE });
     }
 
-    const newImg = buildImg(pool[nextIdx % pool.length], IMG_WIDTH);
+    const newImg = buildImg(pool[nextIdx % pool.length], IMG_WIDTH, TARGET_AREA);
     nextIdx++;
     container.appendChild(newImg);
     placeInSlot(newImg, SLOT_COUNT - 1, SLOT_LEFTS_VW, { rotation: randomRotation() });
@@ -212,14 +230,30 @@ export function initDegreeShowGallery(container, pool) {
     updateCursors();
   }
 
-  // pool 至少 SLOT_COUNT+1 張才需要輪播；否則靜態（避免 tick 重複同一張）
-  if (pool.length > SLOT_COUNT) {
-    timer = setInterval(tick, INTERVAL);
+  // 首次進場（user 2026-08-19）：初始 SLOT_COUNT 張各自隨機 4 向滑出遮罩藏好，gallery 首次捲進視窗才 stagger 滑入；
+  // 進場後才起跑自動輪播（避免 off-screen 空轉、也讓「第一次看到」有進場動畫）。ScrollTrigger 缺席／已在視窗內 → 直接播。
+  const inners = slots.map(s => s.firstElementChild);
+  const revealDirs = inners.map(() => randomSlide());
+  inners.forEach((el, i) => gsap.set(el, revealDirs[i]));
+  let revealed = false;
+  function revealInitial() {
+    if (revealed || destroyed) return;
+    revealed = true;
+    inners.forEach((el, i) => gsap.fromTo(el, revealDirs[i],
+      { xPercent: 0, yPercent: 0, duration: ANIM_DUR, ease: ANIM_EASE, delay: i * 0.08 }));
+    // pool 至少 SLOT_COUNT+1 張才輪播；否則靜態（避免 tick 重複同一張）
+    if (pool.length > SLOT_COUNT) timer = setInterval(tick, INTERVAL);
+  }
+  const alreadyInView = container.getBoundingClientRect().top < window.innerHeight * 0.9;
+  if (typeof ScrollTrigger === 'undefined' || alreadyInView) {
+    revealInitial();
+  } else {
+    st = ScrollTrigger.create({ trigger: container, start: 'top 90%', once: true, onEnter: revealInitial });
   }
 
   return {
-    destroy() { destroyed = true; if (timer) clearInterval(timer); },
-    // 離頁退場：停輪播 + 每張 slot 的 img 同步往左滑出遮罩（unison sweep；tick 逐張離場改隨機 4 向，此處刻意維持同向齊掃）
+    destroy() { destroyed = true; if (timer) clearInterval(timer); if (st) st.kill(); },
+    // 離頁退場：停輪播 + 每張 slot 的 img 各自隨機 4 向滑出遮罩（user 2026-08-19：不再全張齊掃左滑）
     hideAll() {
       destroyed = true;
       if (timer) { clearInterval(timer); timer = null; }
@@ -227,7 +261,7 @@ export function initDegreeShowGallery(container, pool) {
       return new Promise(resolve => {
         let n = slots.length;
         slots.forEach(s => gsap.to(s.firstElementChild, {
-          ...LEAVE_SLIDE,
+          ...randomSlide(),
           duration: ANIM_DUR,
           ease: ANIM_EASE,
           overwrite: 'auto',

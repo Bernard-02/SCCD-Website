@@ -126,3 +126,73 @@ export function buildSyncedMarqueeTimeline(items, opts = {}) {
   });
   return tl;
 }
+
+/**
+ * Hover marquee「放開平滑回彈」（泛化 faculty-slide-in.js bindFacultyMarqueeReturn，2026-08-19 user 定案 B）：
+ * 把「hover 才捲」的單元從 CSS keyframe（放開瞬間 snap 回原點）改成 GSAP timeline 驅動——放開時從**當下位置**
+ * 平滑補間回原點。**僅桌面呼叫**；手機無 hover、維持各元件 CSS `@media(max-width:767px)` 自動循環（本函式不碰）。
+ *
+ * 前置：呼叫端要先跑過 applyMarqueeOverflow（量寬 + 建 dual-copy + 設 --marquee-distance / is-overflow）。
+ * 手法：bind 時對 hoverEl 內所有 inner 設 inline `animation:none`——蓋掉 CSS `.X:hover ...{animation}` keyframe
+ *   （那些規則皆非 !important，inline 贏），改由 GSAP 獨佔 transform，兩邊不搶。timeline 於每次 enter lazy build
+ *   （讀當下 --marquee-distance / is-overflow → resize / re-measure 後自動對；大列表零 init 成本，只有 hover 到才建）。
+ * ⚠️ 絕不 `gsap.killTweensOf(inners)`：inners 同時是 timeline 自己 child tween 的 target，殺掉會讓 tl.play() 沒東西跑
+ *   （faculty 踩過的坑）。只 kill 獨立的 returnTween。
+ *
+ * @param {HTMLElement} hoverEl 觸發 hover 的單元（卡片 / 欄）
+ * @param {string} innerSelector hoverEl 內會捲動的 inner span selector（如 '.dsd-mq-inner'）
+ * @param {string} lineSelector 帶 .is-overflow + --marquee-distance 的「行」selector（如 '.dsd-mq-line'）
+ * @param {{returnDur?: number, ease?: string}} [opts]
+ * @returns {() => void} cleanup（解綁 + kill；呼叫端接 registerPageCleanup）
+ */
+export function bindMarqueeReturn(hoverEl, innerSelector, lineSelector, opts = {}) {
+  if (typeof gsap === 'undefined' || !hoverEl || /** @type {any} */ (hoverEl)._mqReturnBound) return () => {};
+  // 自我 gate 桌面（同 isMobileView）：手機 / 矮橫向無 hover，維持各元件 CSS 自動循環，本函式不介入。
+  // caller 可無條件呼叫、不必各自重複判斷（init 時決定一次；跨 gate 轉向由全站 orientation-reload 自癒）。
+  if (window.innerWidth < 768 || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) return () => {};
+  /** @type {any} */ (hoverEl)._mqReturnBound = true;
+  const returnDur = opts.returnDur ?? 0.45;
+  const ease = opts.ease ?? 'cubic-bezier(0.25,0,0,1)';
+
+  // 桌面立刻關掉 CSS keyframe（inner 全設 animation:none），避免首次 hover 前/中 CSS 跟 GSAP 搶同一個 transform
+  hoverEl.querySelectorAll(innerSelector).forEach((i) => { /** @type {HTMLElement} */ (i).style.animation = 'none'; });
+
+  let tl = null, returnTween = null, inners = /** @type {Element[]} */ ([]);
+  const build = () => {
+    if (tl) { tl.kill(); tl = null; }
+    const items = /** @type {{el: Element, distance: number}[]} */ ([]);
+    hoverEl.querySelectorAll(lineSelector).forEach((line) => {
+      if (!line.classList.contains('is-overflow')) return;
+      const inner = line.querySelector(innerSelector);
+      const dist = Math.abs(parseFloat(getComputedStyle(line).getPropertyValue('--marquee-distance'))) || 0;
+      if (inner && dist) items.push({ el: inner, distance: dist });
+    });
+    inners = items.map((i) => i.el);
+    tl = items.length ? buildSyncedMarqueeTimeline(items) : null;
+  };
+  const enter = () => {
+    if (returnTween) { returnTween.kill(); returnTween = null; }
+    build();                       // 每次 enter 重建：resize / re-measure 後 distance 也對
+    if (tl) tl.play();
+  };
+  const leave = () => {
+    if (!tl) return;
+    tl.pause();                    // 凍在當下位置
+    if (!inners.length) return;
+    // 不用 overwrite:true（footgun）——tl 已 pause 不 tick、其 child tween 不會跟這條搶；re-enter 由 build() kill 舊 tl。
+    // 同 faculty-slide-in 範本；別把 overwrite 帶進「會重用 tl」的 Family A handler（那裡會殺掉 tl 自己的 child tween）。
+    returnTween = gsap.to(inners, {
+      x: 0, duration: returnDur, ease,
+      onComplete: () => { if (tl) tl.progress(0); returnTween = null; },   // 歸零供下次 play 乾淨起步
+    });
+  };
+  hoverEl.addEventListener('mouseenter', enter);
+  hoverEl.addEventListener('mouseleave', leave);
+  return () => {
+    hoverEl.removeEventListener('mouseenter', enter);
+    hoverEl.removeEventListener('mouseleave', leave);
+    if (tl) tl.kill();
+    if (returnTween) returnTween.kill();
+    /** @type {any} */ (hoverEl)._mqReturnBound = false;
+  };
+}

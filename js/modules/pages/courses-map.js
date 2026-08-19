@@ -16,7 +16,7 @@
  */
 
 import { enterLightboxMode, exitLightboxMode } from '../lightbox/lightbox-shell.js';
-import { applyMarqueeOverflow } from '../ui/marquee-overflow.js';
+import { applyMarqueeOverflow, bindMarqueeReturn } from '../ui/marquee-overflow.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { setActiveNavBtn } from '../ui/section-switch-helpers.js';
 import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
@@ -683,6 +683,10 @@ function bindCardHover(panelEl) {
 // 使用共用 utility applyMarqueeOverflow（取代 atlas/courses-map/library-panels 三處重複實作）
 function runMarqueeOverflow(panelEl) {
   applyMarqueeOverflow(panelEl, '.courses-grid-card-en, .courses-grid-card-zh', '.courses-marquee-inner');
+  // 桌面 hover 放開平滑回彈（user 2026-08-19 B）：每張卡綁 bindMarqueeReturn（手機由 helper 自我 gate 跳過）
+  panelEl.querySelectorAll('.courses-grid-card').forEach((card) => {
+    registerPageCleanup(bindMarqueeReturn(/** @type {HTMLElement} */ (card), '.courses-marquee-inner', '.courses-grid-card-en, .courses-grid-card-zh'));
+  });
 }
 
 /**
