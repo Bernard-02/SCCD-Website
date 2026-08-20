@@ -66,6 +66,8 @@ export async function loadDegreeShowAlbum() {
       titleEn: e.title_en || '',
       titleZh: e.title || '',
       cover: e.coverImage || e.heroImage || (Array.isArray(e.poster) ? e.poster[0] : e.poster) || '',
+      // 頂層主視覺(mainVideoUrl→videoUrl)+紀錄片(documentaryUrl)轉進相簿；library-panels album builder 讀 videoLinks→videoMediaFromUrl 渲染（原本只走詳情頁 inline 播放器、相簿看不到）
+      videoLinks: [e.videoUrl, e.documentaryUrl].filter(Boolean),
       images: [
         ...(Array.isArray(e.images) ? e.images : []),
         ...((Array.isArray(e.events) ? e.events : []).flatMap(ev => Array.isArray(ev.images) ? ev.images : [])),
@@ -155,7 +157,7 @@ function mapEvent(ev) {
       id: (a && a.id) || (typeof (link && link.item) === 'string' ? link.item : ''),
       titleEn: (a && a.titleEn) || '',
       titleZh: (a && a.titleZh) || '',
-      time: a ? buildTime(a.startDate, a.endDate) : '',  // 以下＝主清單列，欄位從被連活動拉
+      time: a ? buildTime(a.startDate, a.endDate, a.dates) : '',  // 以下＝主清單列，欄位從被連活動拉（連結活動已有 dates repeater）
       nameEn: (a && a.titleEn) || '',
       name: (a && a.titleZh) || '',
       locationEn: loc.nameEn || '',
@@ -166,7 +168,7 @@ function mapEvent(ev) {
     };
   }
   return {
-    time: buildTime(ev.startDate, ev.endDate),
+    time: buildTime(ev.startDate, ev.endDate, ev.dates),
     nameEn: ev.nameEn || '',
     name: ev.nameZh || '',
     locationEn: ev.locationEn || '',
@@ -190,9 +192,14 @@ function cleanGuests(arr) {
   return Array.isArray(arr) ? arr.filter(g => g && (g.nameZh || g.nameEn)) : [];
 }
 
-// '2024-05-17' → '05 / 17'；有 endDate 且不同 → '05 / 17 - 05 / 20'（同本地 time 字串格式，
-// loader 用 /\s*-\s*/ split 成起訖兩段）
-function buildTime(start, end) {
+// '2024-05-17' → '05 / 17'；有 endDate 且不同 → '05 / 17 - 05 / 20'。
+// dates repeater（每列 {start, end?}，end 空＝單日）優先 → 逗號串接支援不連續日期（04 / 19, 04 / 23）；
+// 沒填 repeater 才 fallback 舊 startDate/endDate scalar（遷移期並存，舊資料照常）。
+function buildTime(start, end, dates) {
+  if (Array.isArray(dates) && dates.length) {
+    const parts = dates.filter(d => d?.start).map(d => buildTime(d.start, d.end)).filter(Boolean);
+    if (parts.length) return parts.join(', ');
+  }
   if (!start) return '';
   const s = md(start);
   return end && end !== start ? `${s} - ${md(end)}` : s;
@@ -201,15 +208,20 @@ function md(d) { const p = String(d).split('-'); return p.length >= 3 ? `${p[1]}
 
 // 媒體：null→''；UUID 字串 / 展開 file 物件 / M2M junction 都解析成 assets URL（同 summer-camp-source）
 const asset = (uuid) => uuid ? `${CMS_ASSETS_BASE}/${uuid}` : '';
+// 顯示用圖片：後台原檔是全解析 JPEG（畢展展場照常 2~5MB），前台卻只顯示 ≤1600px → Directus on-the-fly
+// transform 轉 webp + 上限寬（withoutEnlargement 小圖不放大、不裁）＝載入變小/快很多，變體由 CloudFront 快取。
+// ⚠️ 只給圖片：PDF/影片走 asset() 原檔（line 122 pdf 不可加 format=webp）。實測見 2026-08-20 session。
+const IMG_TX = '?width=1600&format=webp&quality=80&withoutEnlargement=true';
+const imgAsset = (uuid) => uuid ? `${CMS_ASSETS_BASE}/${uuid}${IMG_TX}` : '';
 function fileUrl(f) {
   if (!f) return '';
-  return typeof f === 'string' ? asset(f) : asset(f.id);
+  return typeof f === 'string' ? imgAsset(f) : imgAsset(f.id);
 }
 function normalizeFiles(arr) {
   if (!Array.isArray(arr)) return [];
   return arr.map(x => {
-    if (typeof x === 'string') return asset(x);
-    if (x?.directus_files_id) { const f = x.directus_files_id; return asset(typeof f === 'string' ? f : f?.id); }
-    return asset(x?.id);
+    if (typeof x === 'string') return imgAsset(x);
+    if (x?.directus_files_id) { const f = x.directus_files_id; return imgAsset(typeof f === 'string' ? f : f?.id); }
+    return imgAsset(x?.id);
   }).filter(Boolean);
 }

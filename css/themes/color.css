@@ -107,16 +107,15 @@ body.mode-color .degree-show-card-content[style*="background"] * {
 
 /* Degree Show detail 頁 Next Project 區 hover：
  *   - #prev-clip / #next-clip：被覆蓋卡片的 clip-path 掃入色（JS 設 ACCENT 三原色）→ strict B/W
- *   - #prev-labels / #next-labels 內 h4/h2 chip：hover 卡片的 year / title-en / title 標籤（JS 設 cardColor 三原色 bg + inline color:#000）→ strict B/W chip + 翻字 */
+ *   - #prev-labels / #next-labels 內 <p> chip：hover 卡片的 year / title-en / title 標籤（JS 設 cardColor 三原色 bg + HTML inline color:#000）→ strict B/W chip + 翻字
+ *     ⚠️chip 標籤 2026-07-13 已從 h4/h2 改 <p>（JS querySelectorAll('p')）；此規則同步改 p，別回 h4/h2（會抓不到＝mode3 accent 不翻黑白） */
 body.mode-color #prev-clip[style*="background"],
 body.mode-color #next-clip[style*="background"] {
   background: var(--theme-fg) !important;
 }
 
-body.mode-color #prev-labels h4[style*="background"],
-body.mode-color #prev-labels h2[style*="background"],
-body.mode-color #next-labels h4[style*="background"],
-body.mode-color #next-labels h2[style*="background"] {
+body.mode-color #prev-labels p[style*="background"],
+body.mode-color #next-labels p[style*="background"] {
   background: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
 }
@@ -137,6 +136,22 @@ body.mode-color #sticky-title-chip .sticky-chip-inner {
 body.mode-color .dsd-next-card-m {
   background: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
+}
+
+/* 自訂影片 player UI（createLightboxVideo，lightbox-video.js；dsd inline 影片 + activities lightbox 共用）：
+ * mode1/2 = accent 色塊 + 黑 ink（JS inline），mode-color 翻 strict B/W（依 page hue 對比翻黑/白，user 2026-08-19）。
+ *   - .lb-video-block（中央 bar / 全螢幕塊）accent 底 → var(--theme-fg)
+ *   - .lb-video-ink（icon 鈕 / 時間字）黑字 → var(--theme-fg-inverse)（對比色塊）
+ *   - .lb-video-ink-bg（進度/音量 track/fill/thumb）黑線 → var(--theme-fg-inverse)
+ * inline var 會隨 mode-color 每幀 hue cycle 自動 resolve；手機走原生 controls 不掛這些 class。 */
+body.mode-color .lb-video-block {
+  background: var(--theme-fg) !important;
+}
+body.mode-color .lb-video-ink {
+  color: var(--theme-fg-inverse) !important;
+}
+body.mode-color .lb-video-ink-bg {
+  background: var(--theme-fg-inverse) !important;
 }
 
 /* ===== 三原色 highlight bg → strict B/W ===== */

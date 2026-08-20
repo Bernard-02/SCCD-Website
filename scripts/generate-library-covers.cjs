@@ -2,15 +2,20 @@
 // 前台 mapDirectusFilesRow 讀 row.cover：有值就直接用圖、不再現畫 → Documents 面板秒揭示（免那 1s 封面閘門）。
 // idempotent：已有 cover 的跳過。--limit N 先測幾本；--force 連已有 cover 也重產。
 // 跑（repo 根目錄）：NODE_TLS_REJECT_UNAUTHORIZED=0 node scripts/generate-library-covers.cjs --limit 1
+// 每天由 GitHub Actions（.github/workflows/generate-covers.yml）自動跑一次補新書封面。
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 const fs = require('fs');
 const { chromium } = require('playwright');
-const token = fs.readFileSync('scripts/.directus-token', 'utf8').trim();
+// CI（GitHub Actions）讀環境變數 DIRECTUS_TOKEN；本機讀 scripts/.directus-token（gitignore）
+const token = (process.env.DIRECTUS_TOKEN || fs.readFileSync('scripts/.directus-token', 'utf8')).trim();
 const H = { Authorization: 'Bearer ' + token };
 const BASE = 'https://sccdtest.usc.edu.tw';
 const ASSETS = BASE + '/assets';
 const PDFJS  = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
 const WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+// CID 字型用預定義外部 CMap 的 PDF（中文舊檔常見）→ 沒給 cMapUrl 就整段中文缺字（原生 PDF viewer 有系統中文字型故看起來正常，pdf.js 沒有）。
+// cdnjs 不供 cmaps（403）→ 用 jsdelivr pdfjs-dist cmaps。
+const CMAPS  = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/cmaps/';
 const LONG_EDGE = 800;         // 封面縮圖不用大
 const QUALITY   = 0.8;
 const argN = (flag) => { const i = process.argv.indexOf(flag); return i >= 0 ? process.argv[i + 1] : null; };
@@ -24,7 +29,10 @@ const FORCE = process.argv.includes('--force');
   console.log(`${rows.length} 本，需要產封面：${todo.length} 本${LIMIT !== Infinity ? `（--limit ${LIMIT}）` : ''}`);
   if (!todo.length) { console.log('沒有要做的。'); return; }
 
-  const browser = await chromium.launch({ channel: 'chrome', headless: true });
+  // 本機用系統 Chrome（channel:'chrome' 免下載）；CI 用 playwright 自帶 chromium（workflow 已 install，無系統 Chrome）
+  const launchOpts = { headless: true };
+  if (!process.env.CI) launchOpts.channel = 'chrome';
+  const browser = await chromium.launch(launchOpts);
   const page = await browser.newPage();
   await page.setContent('<!doctype html><meta charset=utf-8>');
   await page.addScriptTag({ url: PDFJS });
@@ -33,9 +41,9 @@ const FORCE = process.argv.includes('--force');
   for (const r of todo) {
     const pdfUrl = r.pdfLink || `${ASSETS}/${r.pdf}`;   // 有 CloudFront link 優先、否則 Directus 原檔
     try {
-      const b64 = await page.evaluate(async ({ pdfUrl, WORKER, LONG_EDGE, QUALITY }) => {
+      const b64 = await page.evaluate(async ({ pdfUrl, WORKER, CMAPS, LONG_EDGE, QUALITY }) => {
         pdfjsLib.GlobalWorkerOptions.workerSrc = WORKER;
-        const doc = await pdfjsLib.getDocument({ url: pdfUrl, disableAutoFetch: true, disableStream: true }).promise;
+        const doc = await pdfjsLib.getDocument({ url: pdfUrl, disableAutoFetch: true, disableStream: true, cMapUrl: CMAPS, cMapPacked: true }).promise;
         const p = await doc.getPage(1);
         const nat = p.getViewport({ scale: 1 });
         const scale = LONG_EDGE / Math.max(nat.width, nat.height);
@@ -43,7 +51,7 @@ const FORCE = process.argv.includes('--force');
         const c = document.createElement('canvas'); c.width = Math.round(vp.width); c.height = Math.round(vp.height);
         await p.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
         return c.toDataURL('image/jpeg', QUALITY).split(',')[1];
-      }, { pdfUrl, WORKER, LONG_EDGE, QUALITY });
+      }, { pdfUrl, WORKER, CMAPS, LONG_EDGE, QUALITY });
 
       // 上傳到 Directus /files（multipart）
       const buf = Buffer.from(b64, 'base64');

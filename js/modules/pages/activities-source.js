@@ -22,9 +22,11 @@ const REF_FIELDS = [
   'references.item:library_press.id', 'references.item:library_press.titleEn', 'references.item:library_press.titleZh',
   // press 的圖/影片：前台原地開 media lightbox（同 library press 點擊）。M2A 巢狀深取實測可行（2026-06-24）。
   'references.item:library_press.images.directus_files_id', 'references.item:library_press.videoLinks',
-  'references.item:activities_competitions.id',
-  'references.item:activities_industry.id',
-  'references.item:activities_workshops.id',
+  // activity→activity ref 也深取 title：resolveRef 靠本地 JSON 用 id 查標題，但 Directus 記錄是 UUID、本地 JSON 沒有
+  //   → 深取 title 直接帶，前台不再依賴本地查（否則 category 有、標題空）。
+  'references.item:activities_competitions.id', 'references.item:activities_competitions.titleEn', 'references.item:activities_competitions.titleZh',
+  'references.item:activities_industry.id', 'references.item:activities_industry.titleEn', 'references.item:activities_industry.titleZh',
+  'references.item:activities_workshops.id', 'references.item:activities_workshops.titleEn', 'references.item:activities_workshops.titleZh',
 ].join(',');
 
 // activities collection → loadListInto SECTION_DATA_URL 的 section key（workshops 是單數 'workshop'）
@@ -49,7 +51,7 @@ function remapRef(r) {
   switch (r.collection) {
     case 'activities_competitions':
     case 'activities_industry':
-    case 'activities_workshops':    return { section: ACT_SECTION[r.collection], itemId: id };
+    case 'activities_workshops':    return { section: ACT_SECTION[r.collection], itemId: id, titleEn: it.titleEn || '', titleZh: it.titleZh || '' };
     // document：直接開 PDF viewer lightbox。沒上傳 pdf 就略過（沒檔可開、避免空按鈕）。
     case 'library_documents': {      const pdfUrl = it.pdfLink || (it.pdf ? fileUrl(it.pdf) : '');  // 貼的 CloudFront 網址優先
       return pdfUrl ? { labelEn: 'Documents', labelZh: '文件', titleEn: it.titleEn || '', titleZh: it.titleZh || '', pdfUrl } : null; }

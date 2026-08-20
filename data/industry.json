@@ -19,23 +19,6 @@
           "../images/SCCD-1-4-0.jpg",
           "../images/S__6742028.jpg"
         ],
-        "references": [
-          {
-            "section": "workshop",
-            "itemId": "W-2025-01",
-            "labelEn": "Workshop",
-            "labelZh": "工作坊",
-            "titleEn": "Listen to Island of Body: Sensory Awareness and Improvisational Body Texture Workshop (II)",
-            "titleZh": "傾聽身體之島：感官覺察與即興肢體質地工作坊（II）"
-          },
-          {
-            "pdfUrl": "../assets/sample.pdf",
-            "labelEn": "Documents",
-            "labelZh": "文件",
-            "titleEn": "Publication Title 1",
-            "titleZh": "出版物標題 1"
-          }
-        ],
         "id": "I-2025-01",
         "dates": [
           {

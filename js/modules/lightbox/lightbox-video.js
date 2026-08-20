@@ -48,8 +48,12 @@ export function createLightboxVideo(url, accent = '#00FF80', { autoplay = true }
   controls.style.cssText = 'position:absolute;left:0;right:0;bottom:20px;margin:0 auto;width:70%;display:flex;align-items:center;opacity:0;pointer-events:none;';
   root.appendChild(controls);
 
+  // color/background 都寫 inline（mode1/2 = accent 塊 + 黑 ink）；mode3 由 .lb-video-* class 掛 color.css
+  // body.mode-color 覆寫成 strict B/W（塊→theme-fg、ink→theme-fg-inverse，依 page hue 對比翻黑白），
+  // 同 .sticky-chip-inner / .dsd-next-card-m 全站 mode3 accent→B/W pattern（CSS 自動吃 mode 切換 + hue cycle）。
   const mkIconBtn = (icon, label) => {
     const b = document.createElement('button');
+    b.className = 'lb-video-ink';
     b.setAttribute('aria-label', label);
     b.style.cssText = 'color:#000;background:none;border:none;padding:0;line-height:1;flex-shrink:0;';
     b.innerHTML = `<span class="icon ${icon} icon-l"></span>`;
@@ -58,6 +62,7 @@ export function createLightboxVideo(url, accent = '#00FF80', { autoplay = true }
 
   // 中央 control bar（規格同 WATCH 區塊 2）
   const centerBlock = document.createElement('div');
+  centerBlock.className = 'lb-video-block';
   centerBlock.style.cssText = `background:${accent};padding:0 1.25rem;height:3rem;display:flex;align-items:center;gap:1.25rem;flex:1;min-width:0;margin-right:1rem;`;
   controls.appendChild(centerBlock);
 
@@ -69,17 +74,20 @@ export function createLightboxVideo(url, accent = '#00FF80', { autoplay = true }
 
   // 時間軸：track 全黑 + fill 全黑（連續黑線）；thumb = 4px 寬黑直線上下伸出 5px 標位置（同 WATCH）
   const progTrack = document.createElement('div');
+  progTrack.className = 'lb-video-ink-bg';
   progTrack.style.cssText = 'flex:1;height:4px;background:#000;position:relative;min-width:0;cursor:pointer;';
   const progFill = document.createElement('div');
+  progFill.className = 'lb-video-ink-bg';
   progFill.style.cssText = 'height:100%;width:0%;pointer-events:none;position:relative;background:#000;';
   const progThumb = document.createElement('div');
+  progThumb.className = 'lb-video-ink-bg';
   progThumb.style.cssText = 'position:absolute;right:-2px;top:50%;transform:translateY(-50%);width:4px;height:14px;background:#000;pointer-events:none;';
   progFill.appendChild(progThumb);
   progTrack.appendChild(progFill);
   centerBlock.appendChild(progTrack);
 
   const timeEl = document.createElement('span');
-  timeEl.className = 'text-s';
+  timeEl.className = 'text-s lb-video-ink';
   timeEl.style.cssText = 'color:#000;white-space:nowrap;flex-shrink:0;';
   timeEl.textContent = '0:00';
   centerBlock.appendChild(timeEl);
@@ -90,10 +98,13 @@ export function createLightboxVideo(url, accent = '#00FF80', { autoplay = true }
   const muteBtn = mkIconBtn('icon-volume', '靜音／取消靜音 Mute/Unmute');
   volWrap.appendChild(muteBtn);
   const volTrack = document.createElement('div');
+  volTrack.className = 'lb-video-ink-bg';
   volTrack.style.cssText = 'width:0;overflow:visible;transition:width 0.25s cubic-bezier(0.25,0,0,1);height:4px;background:#000;position:relative;flex-shrink:0;cursor:pointer;';
   const volFill = document.createElement('div');
+  volFill.className = 'lb-video-ink-bg';
   volFill.style.cssText = 'height:100%;width:100%;background:#000;pointer-events:none;position:relative;';
   const volThumb = document.createElement('div');
+  volThumb.className = 'lb-video-ink-bg';
   volThumb.style.cssText = 'position:absolute;right:-2px;top:50%;transform:translateY(-50%);width:4px;height:14px;background:#000;pointer-events:none;opacity:0;transition:opacity 0.25s;';
   volFill.appendChild(volThumb);
   volTrack.appendChild(volFill);
@@ -102,6 +113,7 @@ export function createLightboxVideo(url, accent = '#00FF80', { autoplay = true }
 
   // 全螢幕（獨立色塊，同 WATCH 區塊 3）
   const fsBlock = document.createElement('div');
+  fsBlock.className = 'lb-video-block';
   fsBlock.style.cssText = `background:${accent};padding:0 1rem;height:3rem;display:flex;align-items:center;flex-shrink:0;`;
   const fsBtn = mkIconBtn('icon-full-screen', '全螢幕 Fullscreen');
   fsBlock.appendChild(fsBtn);

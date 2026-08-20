@@ -8,6 +8,9 @@
 // v4+ 只出 ESM build；6.2 開大書比 3.11 快 ~30%（同 flag 實測 2026-08-18）
 const PDFJS_SRC    = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.2.108/pdf.min.mjs';
 const PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.2.108/pdf.worker.min.mjs';
+// CID 字型用預定義（外部）CMap 的 PDF（常見於中文舊檔）→ pdf.js 要外部 cMap 資料才能把 CID 解成字形，
+// 沒給就整段中文渲染成空白（缺字）。cdnjs 不供 cmaps 目錄（403）→ 用 jsdelivr 的 pdfjs-dist cmaps。
+const PDFJS_CMAPS  = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/cmaps/';
 
 let _loadPromise = null;
 function ensurePdfjsLoaded() {
@@ -19,6 +22,11 @@ function ensurePdfjsLoaded() {
 
 // pdfUrl → dataURL（Promise）快取：同一份 PDF 不重複 render（sample 階段多筆共用 sample.pdf）
 const _coverCache = new Map();
+
+// 持久快取（IndexedDB）key 版本：render 邏輯改動後 bump，讓舊 session 已快取的壞封面全域失效重渲，
+// 免逐使用者手動清 IndexedDB。v2 = 2026-08-20 補 cMapUrl 修中文缺字（見 memory）。
+const _CACHE_VER = 'v2';
+const _ck = (u) => `${_CACHE_VER}:${u}`;
 
 // 併發閘門：同時最多 3 份 PDF 在抓＋渲。library files 一頁 28+ 本掃描檔全並行
 // 會把頻寬＋主執行緒灌爆（refresh 灰卡卡頓的根因，user 2026-08-08）
@@ -84,7 +92,7 @@ export function peekPdfCover(pdfUrl) {
   if (!pdfUrl) return null;
   if (_coverCache.has(pdfUrl)) return _coverCache.get(pdfUrl);
   // L2：IndexedDB（跨 session 持久）。未命中 resolve null，caller 已容忍（只 read 不下載）。
-  return idbGet(pdfUrl).then(v => {
+  return idbGet(_ck(pdfUrl)).then(v => {
     if (!v) return null;
     _coverCache.set(pdfUrl, Promise.resolve(v));
     return v;
@@ -98,7 +106,7 @@ export function renderPdfCover(pdfUrl, targetWidth = 280) {
   const promise = (async () => {
     // 持久快取命中就直接回（跨 session、關分頁不清；每本一生渲一次，之後瞬取）。
     // key 不含 targetWidth——目前兩個 caller 同寬。
-    const cached = await idbGet(pdfUrl);
+    const cached = await idbGet(_ck(pdfUrl));
     if (cached) return cached;
     await _acquire();
     try {
@@ -114,7 +122,7 @@ export function renderPdfCover(pdfUrl, targetWidth = 280) {
       // _r 唯一 query：同 URL 有 partial cache 時，Chrome 會把 probe 拼成「無 Accept-Ranges 的合成 200」
       // → pdf.js 誤判不支援 range 整本下載（78MB 實測）。CloudFront cache key 不含 query，edge 零損失。
       const bustUrl = pdfUrl + (pdfUrl.includes('?') ? '&' : '?') + '_r=' + Date.now();
-      const doc  = await pdfjsLib.getDocument({ url: bustUrl, disableAutoFetch: true, disableStream: true, rangeChunkSize: 16384 }).promise;
+      const doc  = await pdfjsLib.getDocument({ url: bustUrl, disableAutoFetch: true, disableStream: true, rangeChunkSize: 16384, cMapUrl: PDFJS_CMAPS, cMapPacked: true }).promise;
       const page = await doc.getPage(1);
       const base = page.getViewport({ scale: 1 });
       const vp   = page.getViewport({ scale: targetWidth / base.width });
@@ -130,7 +138,7 @@ export function renderPdfCover(pdfUrl, targetWidth = 280) {
 
       const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
       doc.destroy?.();
-      idbSet(pdfUrl, dataUrl);
+      idbSet(_ck(pdfUrl), dataUrl);
       return dataUrl;
     } catch (_) {
       return null;

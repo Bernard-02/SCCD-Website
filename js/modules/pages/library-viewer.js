@@ -30,6 +30,9 @@ function ensureLightboxListener() {
 
 let _pdfListenerAdded = false;
 let _pdfjsLoadPromise = null;
+// CID 字型用預定義外部 CMap 的 PDF（中文舊檔常見）→ 沒給 cMapUrl 就整段中文渲染成空白（缺字）；
+// cdnjs 不供 cmaps（403）→ 用 jsdelivr pdfjs-dist cmaps（同 pdf-cover.js）。
+const PDFJS_CMAPS = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/cmaps/';
 
 // pdfjsLib 不存在時動態 import 補載入（v4+ 只出 ESM build；import() 模組快取
 // 與 pdf-cover.js 天然去重）。掛回 window.pdfjsLib 讓既有 typeof 檢查照用。
@@ -71,9 +74,10 @@ function ensurePdfModal() {
         <div class="pdf-canvas-row flex items-center justify-center gap-0 w-full h-full" style="transform-origin:center;will-change:transform;">
           <div class="pdf-rendered-content" style="position:relative;overflow:hidden;flex-shrink:0;">
             <canvas id="pdf-canvas-left" class="bg-white block" style="user-select:none;"></canvas>
-            <div class="pdf-watermark" aria-hidden="true" style="position:absolute;inset:0;pointer-events:none;z-index:20;"></div>
           </div>
         </div>
+        <!-- 浮水印放在 zoom-stage（非 .pdf-canvas-row）→ 不吃 zoom 的 scale transform，放大 PDF 時水印字級不變（user 2026-08-20）-->
+        <div class="pdf-watermark" aria-hidden="true" style="position:absolute;inset:0;pointer-events:none;z-index:20;"></div>
       </div>
       <button id="pdf-next-btn" class="absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 disabled:opacity-20" style="right: var(--container-padding, 1.5rem); z-index: 30;">
         <span class="icon icon-chevron-lightbox icon-m rotate-180"></span>
@@ -90,10 +94,10 @@ function ensurePdfModal() {
       <!-- back btn + title（ref btn 由 JS 插入此 bar）：absolute 靠左 + top:50% translateY(-50%)，
            與頁碼/zoom 同一水平線置中（user 2026-06-03；鏡像 album .alb-topbar 在 thumbs-wrap 內的做法）。
            translateY 套外層定位元素、rotate 套內層 pill → 兩 transform 不衝突。
-           rotate 的 transform-origin = left bottom（與 album .alb-close-pill / .alb-title-pill 一致，user 2026-06-03 要求對齊 album）；
-           繞左下角轉會讓寬 title pill 右端下沉，跟 album 同樣的視覺（接受） -->
+           rotate 的 transform-origin = center（繞中心旋轉；原 left bottom 會讓寬 title 右端下沉 ~15-19px、把 share 拽得看起來低一截、跟 back 不在同一線，user 2026-08-20 改中心。
+           media lightbox 同步改，見 activities-lightbox）-->
       <button class="pdf-back-btn absolute" style="top: 50%; transform: translateY(-50%); left: var(--container-padding, 1.5rem); z-index: 50;">
-        <span class="pdf-back-pill" style="display:inline-flex;align-items:center;justify-content:center;background:#00FF80;color:#000;width:44px;height:44px;font-size:var(--font-size-s);line-height:1;transform:rotate(0deg);transform-origin:left bottom;box-sizing:border-box;">
+        <span class="pdf-back-pill" style="display:inline-flex;align-items:center;justify-content:center;background:#00FF80;color:#000;width:44px;height:44px;font-size:var(--font-size-s);line-height:1;transform:rotate(0deg);transform-origin:center;box-sizing:border-box;">
           <span class="icon icon-arrow-left icon-m"></span>
         </span>
       </button>
@@ -102,7 +106,7 @@ function ensurePdfModal() {
            data-share-url 由 open-pdf handler 設、全站 share-modal.js [data-share-btn] delegation 接管（QR + 複製）。
            圖示＝返回鍵那顆粗箭頭旋轉 135° 指右上 ↗（與 album share btn 一致，user 2026-06-15）。-->
       <button class="pdf-share-btn absolute" data-share-btn aria-label="分享 Share" style="top: 50%; transform: translateY(-50%); left: 4rem; z-index: 50; display: none;">
-        <span class="pdf-share-pill" style="display:inline-flex;align-items:center;justify-content:center;background:#00FF80;color:#000;width:44px;height:44px;transform-origin:left bottom;box-sizing:border-box;">
+        <span class="pdf-share-pill" style="display:inline-flex;align-items:center;justify-content:center;background:#00FF80;color:#000;width:44px;height:44px;transform-origin:center;box-sizing:border-box;">
           <span class="icon icon-arrow-left icon-m" style="transform: rotate(135deg);"></span>
         </span>
       </button>
@@ -491,7 +495,7 @@ export function initPdfViewer() {
     // 結構：pill > window(overflow:hidden) > track > unit(EN+ZH column-stacked)
     // EN+ZH 為單一 marquee unit 同步捲動（不是兩行各自 marquee 失同步）；max-width 防 Press 長標題撐爆 layout
     titleEl.innerHTML = `
-      <span class="pdf-title-pill" style="display:inline-block;background:${bg};color:#000;padding:6px 8px 5px;font-weight:700;font-size:var(--font-size-s);line-height:1.2;transform:rotate(${smallRot()}deg);transform-origin:left bottom;max-width:min(40vw, 360px);box-sizing:border-box;">
+      <span class="pdf-title-pill" style="display:inline-block;background:${bg};color:#000;padding:6px 8px 5px;font-weight:700;font-size:var(--font-size-s);line-height:1.2;transform:rotate(${smallRot()}deg);transform-origin:center;max-width:min(40vw, 360px);box-sizing:border-box;">
         <span class="pdf-title-window" style="display:block;overflow:hidden;">
           <span class="pdf-title-track" style="display:inline-block;white-space:nowrap;will-change:transform;">
             <span class="pdf-title-unit" style="display:inline-flex;flex-direction:column;align-items:flex-start;white-space:nowrap;vertical-align:top;">
@@ -826,7 +830,7 @@ export function initPdfViewer() {
       // 「無 Accept-Ranges 的合成 200」→ pdf.js 誤判不支援 range 整本下載 78MB（＝點開等 10s 的真兇）。
       // CloudFront cache key 不含 query（實測首發即 Hit），edge 快取零損失。
       const bustUrl = pdfUrl + (pdfUrl.includes('?') ? '&' : '?') + '_r=' + Date.now();
-      const doc = await pdfjsLib.getDocument({ url: bustUrl, disableAutoFetch: true, disableStream: true, rangeChunkSize: 16384 }).promise;
+      const doc = await pdfjsLib.getDocument({ url: bustUrl, disableAutoFetch: true, disableStream: true, rangeChunkSize: 16384, cMapUrl: PDFJS_CMAPS, cMapPacked: true }).promise;
       // 慢載大本時 user 可能已改開別本：這次開場過期就整段放棄——別讓晚到的 doc 覆寫共用 pdfDoc、
       // 也別 render 進共用 canvas，否則畫面變成「開到別的書」（user 2026-08-11）。
       if (myToken !== openToken) { doc.destroy?.(); return; }

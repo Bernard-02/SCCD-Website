@@ -814,7 +814,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     // cell gap 矮橫向縮 1rem（窄卡 2rem×6 吃掉太多欄寬）；gate 每次 init 判一次、跨 gate 轉向靠 orientation-reload
     const AWARD_GRID = `grid-template-columns: 1.5em 2.5fr 2.5fr 1.3fr 1fr 1fr 1.5em; gap: 0 ${isShortLandscape() ? '1rem' : '2rem'};`;
     // ref 展開列：版型沿用 list-ref-btn（hover 黑底），但 grid 改用 AWARD_GRID 對齊主表 —
-    // label 落「競賽名稱」欄(col 2)、title 落「主辦單位」欄(col 3)起算往右展開；左側 col 1 不放 ref icon。
+    // 箭頭 icon 落國旗欄(col 1)、label/title 從「競賽名稱」欄(col 2)起算往右展開對齊 award 名稱。
     const escAttr = s => String(s || '').replace(/"/g, '&quot;');
     // hostAwardId = 此 ref row 所在的 award id → 點 document/press ref 開 lightbox 時當 host 排除（popover 不 ref 回本 award）
     const buildRefRowsHtml = (refs, hostAwardId) => refs.map(r => {
@@ -827,13 +827,16 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         : `data-ref-section="${escAttr(r.section)}" data-ref-item="${escAttr(r.itemId)}"`;
       return `
         <button class="list-ref-btn award-ref-row cursor-pointer border-none w-full text-left" style="display:grid;${AWARD_GRID}align-items:start;padding:var(--spacing-xs) var(--spacing-sm);" data-ref-host-award="${escAttr(hostAwardId)}" ${dataAttrs}>
-          <div class="flex flex-col" style="grid-column:2;">
-            ${r.labelEn ? `<p>${r.labelEn}</p>` : ''}
-            ${r.labelZh ? `<p>${r.labelZh}</p>` : ''}
+          <div class="flex justify-start" style="grid-column:1;padding-top:0.25em;">
+            <span class="icon icon-ref-list icon-s"></span>
           </div>
-          <div class="flex flex-col min-w-0" style="grid-column:3 / -2;">
-            ${r.titleEn ? `<div class="list-title-marquee"><p class="font-bold">${r.titleEn}</p></div>` : ''}
-            ${r.titleZh ? `<div class="list-title-marquee"><p class="font-bold">${r.titleZh}</p></div>` : ''}
+          <div class="flex flex-col min-w-0" style="grid-column:2 / -2;">
+            ${r.labelEn || r.labelZh ? `<div class="list-ref-label mb-en-zh-s">
+              ${r.labelEn ? `<p class="text-xs">${r.labelEn}</p>` : ''}
+              ${r.labelZh ? `<p class="text-xs">${r.labelZh}</p>` : ''}
+            </div>` : ''}
+            ${r.titleEn ? `<div class="list-title-marquee"><p class="text-xs font-bold">${r.titleEn}</p></div>` : ''}
+            ${r.titleZh ? `<div class="list-title-marquee"><p class="text-xs font-bold">${r.titleZh}</p></div>` : ''}
           </div>
         </button>`;
     }).join('');

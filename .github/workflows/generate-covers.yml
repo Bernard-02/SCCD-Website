@@ -1,0 +1,23 @@
+name: 產 library 封面（每日）
+
+# 每天自動把「還沒有封面」的新書 PDF 第一頁渲成封面圖回填 Directus，
+# 免每次手動跑 scripts/generate-library-covers.cjs。腳本是 idempotent：沒有新書就 no-op。
+on:
+  schedule:
+    - cron: '0 18 * * *'   # 每天 UTC 18:00 = 台北 02:00（離峰）
+  workflow_dispatch: {}      # 也可在 GitHub Actions 頁面手動按一下立即觸發
+
+jobs:
+  covers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      # 腳本只依賴 playwright + Node builtin fetch/FormData/Blob；不需整包 npm ci
+      - run: npm install playwright@1.61.1
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/generate-library-covers.cjs
+        env:
+          DIRECTUS_TOKEN: ${{ secrets.DIRECTUS_TOKEN }}

@@ -3241,6 +3241,15 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
   transition: background var(--dur-micro) ease, color var(--dur-micro) ease;
 }
 
+/* 分類標籤與 DSD ref chip 一致：英文／中文同列、baseline 對齊，不拆成兩行。 */
+
+.list-ref-label {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  white-space: nowrap;
+}
+
 /* hover 包 desktop guard：手機 tap 後 sticky hover 會留黑底白字無法清除 */
 
 @media (min-width: 768px) {
@@ -3524,6 +3533,11 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
 
 .dshow-next-title {
   white-space: normal;
+  /* line-height 對齊 hero 標題（.dshow-hero-title）＝同 text-2xl 96px、同會換行、同 clip-reveal，
+     line-height:1 一樣切降部 g/y/p（行間撞字 + 末行被切）→ 統一（見 .dshow-hero-title 說明）。
+     !important 蓋 text-2xl utility 綁的 lh。user 2026-08-19 要求兩者一致。 */
+  line-height: 1.1 !important;
+  /* user 2026-08-20 改試 1.1（原 1.2） */
 }
 
 .dshow-next-title .dshow-title-inner {
@@ -3559,6 +3573,11 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
   /* wrap 上限＝容器右緣（左緣本就在 container-padding）→ 標題能用到整個內容寬、貼近畫面右側（user 2026-08-17）。
      實際色卡寬再由 JS hugHeroTitleWidths 收到「最寬 wrap 行 + padding」，避免短末行右側空一大塊粉底。 */
   max-width: calc(100vw - 2 * var(--container-padding));
+  /* text-2xl 的 line-height:1 太緊：換行時上一行降部(g/y/p)撞下一行大寫、且末行降部被 clip-reveal wrapper 切。
+     padding-bottom 只救得了末行、救不了行間撞字 → 用 line-height 給行間+末行都留降部空間（user 2026-08-19 定案）。
+     user 2026-08-20 改試 1.1（原 1.2）；中英標題皆無 lang="zh-Hant" → 一起吃此規則、色卡高一致。
+     !important＝蓋掉 text-2xl utility 綁的 line-height:var(--line-height-2xl)（同特異度但 utility source order 較後會贏）。 */
+  line-height: 1.1 !important;
 }
 
 .dshow-hero-title .dshow-title-inner {
@@ -6870,17 +6889,16 @@ body.mode-color .degree-show-card-content[style*="background"] * {
 
 /* Degree Show detail 頁 Next Project 區 hover：
  *   - #prev-clip / #next-clip：被覆蓋卡片的 clip-path 掃入色（JS 設 ACCENT 三原色）→ strict B/W
- *   - #prev-labels / #next-labels 內 h4/h2 chip：hover 卡片的 year / title-en / title 標籤（JS 設 cardColor 三原色 bg + inline color:#000）→ strict B/W chip + 翻字 */
+ *   - #prev-labels / #next-labels 內 <p> chip：hover 卡片的 year / title-en / title 標籤（JS 設 cardColor 三原色 bg + HTML inline color:#000）→ strict B/W chip + 翻字
+ *     ⚠️chip 標籤 2026-07-13 已從 h4/h2 改 <p>（JS querySelectorAll('p')）；此規則同步改 p，別回 h4/h2（會抓不到＝mode3 accent 不翻黑白） */
 
 body.mode-color #prev-clip[style*="background"],
 body.mode-color #next-clip[style*="background"] {
   background: var(--theme-fg) !important;
 }
 
-body.mode-color #prev-labels h4[style*="background"],
-body.mode-color #prev-labels h2[style*="background"],
-body.mode-color #next-labels h4[style*="background"],
-body.mode-color #next-labels h2[style*="background"] {
+body.mode-color #prev-labels p[style*="background"],
+body.mode-color #next-labels p[style*="background"] {
   background: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
 }
@@ -6903,6 +6921,25 @@ body.mode-color #sticky-title-chip .sticky-chip-inner {
 body.mode-color .dsd-next-card-m {
   background: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
+}
+
+/* 自訂影片 player UI（createLightboxVideo，lightbox-video.js；dsd inline 影片 + activities lightbox 共用）：
+ * mode1/2 = accent 色塊 + 黑 ink（JS inline），mode-color 翻 strict B/W（依 page hue 對比翻黑/白，user 2026-08-19）。
+ *   - .lb-video-block（中央 bar / 全螢幕塊）accent 底 → var(--theme-fg)
+ *   - .lb-video-ink（icon 鈕 / 時間字）黑字 → var(--theme-fg-inverse)（對比色塊）
+ *   - .lb-video-ink-bg（進度/音量 track/fill/thumb）黑線 → var(--theme-fg-inverse)
+ * inline var 會隨 mode-color 每幀 hue cycle 自動 resolve；手機走原生 controls 不掛這些 class。 */
+
+body.mode-color .lb-video-block {
+  background: var(--theme-fg) !important;
+}
+
+body.mode-color .lb-video-ink {
+  color: var(--theme-fg-inverse) !important;
+}
+
+body.mode-color .lb-video-ink-bg {
+  background: var(--theme-fg-inverse) !important;
 }
 
 /* ===== 三原色 highlight bg → strict B/W ===== */
@@ -16066,20 +16103,12 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
   grid-column:  span 1 / span 1;
 }
 
-.col-span-11{
-  grid-column:  span 11 / span 11;
-}
-
 .col-span-12{
   grid-column:  span 12 / span 12;
 }
 
 .col-span-16{
   grid-column:  span 16 / span 16;
-}
-
-.col-span-3{
-  grid-column:  span 3 / span 3;
 }
 
 .col-span-4{
@@ -16090,20 +16119,12 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
   grid-column:  span 6 / span 6;
 }
 
-.col-span-8{
-  grid-column:  span 8 / span 8;
-}
-
 .col-span-full{
   grid-column:  1 / -1;
 }
 
 .col-start-2{
   grid-column-start:  2;
-}
-
-.col-start-5{
-  grid-column-start:  5;
 }
 
 .-mx-md{
@@ -16434,12 +16455,16 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
   --tw-scroll-snap-strictness:  proximity;
 }
 
-.grid-cols-12{
-  grid-template-columns:  repeat(12, minmax(0, 1fr));
-}
-
 .grid-cols-2{
   grid-template-columns:  repeat(2, minmax(0, 1fr));
+}
+
+.grid-cols-\[1fr_12fr\]{
+  grid-template-columns:  1fr 12fr;
+}
+
+.grid-cols-\[1fr_2fr_10fr\]{
+  grid-template-columns:  1fr 2fr 10fr;
 }
 
 .flex-row{
@@ -16529,11 +16554,6 @@ body:not(.mode-color) [data-hero-hl][data-hero-hl],
 .gap-x-md{
   -moz-column-gap:  var(--spacing-md);
        column-gap:  var(--spacing-md);
-}
-
-.gap-x-xl{
-  -moz-column-gap:  var(--spacing-xl);
-       column-gap:  var(--spacing-xl);
 }
 
 .gap-x-xs{

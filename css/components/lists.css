@@ -1551,6 +1551,14 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
   transition: background var(--dur-micro) ease, color var(--dur-micro) ease;
 }
 
+/* 分類標籤與 DSD ref chip 一致：英文／中文同列、baseline 對齊，不拆成兩行。 */
+.list-ref-label {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  white-space: nowrap;
+}
+
 /* hover 包 desktop guard：手機 tap 後 sticky hover 會留黑底白字無法清除 */
 @media (min-width: 768px) {
   .list-ref-btn:hover {
@@ -1777,6 +1785,10 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
    桌面 label <p> 的 whitespace-nowrap class 也已從 HTML 移除）。桌面 label 給 max-width 當換行界、手機以卡寬為界。 */
 .dshow-next-title {
   white-space: normal;
+  /* line-height 對齊 hero 標題（.dshow-hero-title）＝同 text-2xl 96px、同會換行、同 clip-reveal，
+     line-height:1 一樣切降部 g/y/p（行間撞字 + 末行被切）→ 統一（見 .dshow-hero-title 說明）。
+     !important 蓋 text-2xl utility 綁的 lh。user 2026-08-19 要求兩者一致。 */
+  line-height: 1.1 !important;   /* user 2026-08-20 改試 1.1（原 1.2） */
 }
 .dshow-next-title .dshow-title-inner {
   white-space: normal;   /* 覆寫全站共用 .dshow-title-inner 的 nowrap */
@@ -1805,6 +1817,11 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
   /* wrap 上限＝容器右緣（左緣本就在 container-padding）→ 標題能用到整個內容寬、貼近畫面右側（user 2026-08-17）。
      實際色卡寬再由 JS hugHeroTitleWidths 收到「最寬 wrap 行 + padding」，避免短末行右側空一大塊粉底。 */
   max-width: calc(100vw - 2 * var(--container-padding));
+  /* text-2xl 的 line-height:1 太緊：換行時上一行降部(g/y/p)撞下一行大寫、且末行降部被 clip-reveal wrapper 切。
+     padding-bottom 只救得了末行、救不了行間撞字 → 用 line-height 給行間+末行都留降部空間（user 2026-08-19 定案）。
+     user 2026-08-20 改試 1.1（原 1.2）；中英標題皆無 lang="zh-Hant" → 一起吃此規則、色卡高一致。
+     !important＝蓋掉 text-2xl utility 綁的 line-height:var(--line-height-2xl)（同特異度但 utility source order 較後會贏）。 */
+  line-height: 1.1 !important;
 }
 .dshow-hero-title .dshow-title-inner {
   white-space: normal;   /* 覆寫全站共用 .dshow-title-inner 的 nowrap，讓 hero 標題能換行 */

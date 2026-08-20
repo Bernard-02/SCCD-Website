@@ -118,10 +118,10 @@ function ensureLightbox() {
          （原為 pb-xl 補償 title pill 繞 left bottom 旋轉的 ~18px 下沉，user 改回對稱 md） -->
     <div class="alb-thumbs-wrap relative flex justify-center w-full pt-md pb-md flex-shrink-0">
       <!-- 左側：返回按鈕（arrow icon-only pill）+ title pill 並排，與 thumbs row 同高（vertically centered）
-           transform-origin:left bottom 讓兩 pill 從 bottom-left 樞紐，避免旋轉時 bbox 溢出視窗左邊 -->
+           transform-origin:center：pill 繞中心旋轉（原 left bottom 會讓寬 title 右端下沉、把 share 拽得看起來低一截、跟 back 不在同一線，user 2026-08-20 改中心；小 pill 微傾 bbox 溢出左邊 ~1px 可忽略）-->
       <div class="alb-topbar absolute" style="left: var(--container-padding, 1.5rem); top: 50%; transform: translateY(-50%); z-index: 5; display: flex; align-items: center; gap: 20px;">
         <button class="alb-close">
-          <span class="alb-close-pill" style="display:inline-flex;align-items:center;justify-content:center;background:#00FF80;color:#000;width:44px;height:44px;font-size:var(--font-size-s);line-height:1;transform:rotate(0deg);transform-origin:left bottom;">
+          <span class="alb-close-pill" style="display:inline-flex;align-items:center;justify-content:center;background:#00FF80;color:#000;width:44px;height:44px;font-size:var(--font-size-s);line-height:1;transform:rotate(0deg);transform-origin:center;">
             <span class="icon icon-arrow-left icon-m"></span>
           </span>
         </button>
@@ -130,7 +130,7 @@ function ensureLightbox() {
         <!-- Share btn：排在 title 與（置中的）縮圖列之間。只有 caller 帶 opts.shareUrl（library album）才顯示；
              data-share-url 由 openLightbox 設、全站 share-modal.js 的 [data-share-btn] delegation 接管點擊（QR + 複製）。-->
         <button class="alb-share" data-share-btn aria-label="分享 Share" style="display: none;">
-          <span class="alb-share-pill" style="display:inline-flex;align-items:center;justify-content:center;background:#00FF80;color:#000;width:44px;height:44px;transform-origin:left bottom;box-sizing:border-box;">
+          <span class="alb-share-pill" style="display:inline-flex;align-items:center;justify-content:center;background:#00FF80;color:#000;width:44px;height:44px;transform-origin:center;box-sizing:border-box;">
             <!-- 用返回鍵那顆粗箭頭（icon-arrow-left ←），旋轉 135° 指向右上 ↗ 當分享（比 icon-share 細箭頭粗，user 2026-06-15）-->
             <span class="icon icon-arrow-left icon-m" style="transform: rotate(135deg);"></span>
           </span>
@@ -836,7 +836,7 @@ function renderTitle(title, color) {
   // marquee 動畫 track translateX，dual-copy 時 unit 整組（EN+ZH）一起捲動 = 中英字 textbox 為一個單位
   // 不是兩行各自 marquee 害 EN/ZH 互不同步
   titleEl.innerHTML = `
-    <span class="alb-title-pill" style="display:inline-block;background:${bg};color:#000;padding:6px 8px 5px;font-weight:700;font-size:var(--font-size-s);line-height:1.2;transform:rotate(${rot}deg);transform-origin:left bottom;max-width:min(40vw, 360px);box-sizing:border-box;">
+    <span class="alb-title-pill" style="display:inline-block;background:${bg};color:#000;padding:6px 8px 5px;font-weight:700;font-size:var(--font-size-s);line-height:1.2;transform:rotate(${rot}deg);transform-origin:center;max-width:min(40vw, 360px);box-sizing:border-box;">
       <span class="alb-title-window" style="display:block;overflow:hidden;">
         <span class="alb-title-track" style="display:inline-block;white-space:nowrap;will-change:transform;">
           <span class="alb-title-unit" style="display:inline-flex;flex-direction:column;align-items:flex-start;white-space:nowrap;vertical-align:top;">

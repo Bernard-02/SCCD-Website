@@ -4564,18 +4564,23 @@ export async function initAtlas(options = {}) {
     });
     clone.querySelectorAll('.atlas-name-cover').forEach(c => c.remove());
     // B chip 的 padding 來自 .atlas-cat-b 祖先選擇器 → clone 脫離 anchor 會掉，補 computed 值
-    clone.style.padding = getComputedStyle(srcEl).padding;
+    const cs = getComputedStyle(srcEl);
+    clone.style.padding = cs.padding;
     let node = clone;
     if (opts.wrapClass) {
       const wrap = document.createElement('div');
       wrap.className = opts.wrapClass;
       wrap.style.overflow = 'visible';   // 蓋掉 .atlas-filter-btn 的 overflow:clip 遮罩窗行為
       clone.style.transform = '';        // rotation 統一由外層承載
+      clone.style.width = '100%';        // 跟著外層 box 尺寸補間（chip 形狀 morph 用）
+      clone.style.height = '100%';
       wrap.appendChild(clone);
       node = wrap;
     }
-    const w = srcEl.offsetWidth || 1;
-    const h = srcEl.offsetHeight || 1;
+    // 尺寸用 computed 小數值：offsetWidth 取整會少 0.x px，chip 是 max-content 寬 +
+    // overflow-wrap:anywhere → 差一點就把最後一個字擠到下一行（clone 飛行中 layout 跳動）
+    const w = parseFloat(cs.width) || srcEl.offsetWidth || 1;
+    const h = parseFloat(cs.height) || srcEl.offsetHeight || 1;
     node.style.position = 'absolute';
     node.style.margin = '0';
     node.style.left = `${srcRect.left + srcRect.width / 2 - w / 2}px`;
@@ -4748,13 +4753,14 @@ export async function initAtlas(options = {}) {
 
     // ── 配對＋量測（全讀完才寫入，避免 layout thrash）──
     const pairedItems = new Set();
-    /** @type {{item: any, el: HTMLElement, nameLine: HTMLElement, srcRect: DOMRect, dstRect: DOMRect, srcRot: number}[]} */
+    /** @type {{item: any, el: HTMLElement, nameLine: HTMLElement, srcRect: DOMRect, dstRect: DOMRect, srcRot: number, srcFont: number, dstFont: number, dstColor: string}[]} */
     const itemPairs = [];
     listView.querySelectorAll('.atlas-list-item').forEach(el => {
       const item = itemById.get(/** @type {HTMLElement} */ (el).dataset.itemId || '');
       const nameLine = /** @type {HTMLElement|null} */ (el.querySelector('.atlas-list-item-name'));
       if (!item || !item._span || !nameLine) return;
       if (!filterAllowsItem(item)) return;   // 星雲上被 filter 藏掉 → 無來源，走一般進場
+      const dstCs = getComputedStyle(nameLine);
       itemPairs.push({
         item,
         el: /** @type {HTMLElement} */ (el),
@@ -4762,6 +4768,9 @@ export async function initAtlas(options = {}) {
         srcRect: item._span.getBoundingClientRect(),
         dstRect: nameLine.getBoundingClientRect(),
         srcRot: inlineRotDeg(item._span),
+        srcFont: parseFloat(getComputedStyle(item._span).fontSize) || 1,
+        dstFont: parseFloat(dstCs.fontSize) || 1,
+        dstColor: dstCs.color,
       });
       pairedItems.add(item);
     });
@@ -4769,19 +4778,24 @@ export async function initAtlas(options = {}) {
     /** @param {string} cat */
     const colTitle = (cat) => /** @type {HTMLElement|null} */ (listView.querySelector(`.atlas-list-col[data-category="${cat}"] .atlas-list-col-title`));
     const masterTitle = /** @type {HTMLElement|null} */ (listView.querySelector('.atlas-list-group-label-col .atlas-list-col-title'));
-    /** @type {{key: string, srcEl: HTMLElement, hideEl: HTMLElement, dstEl: HTMLElement, srcRot: number, dstRot: number, srcRect: DOMRect, dstRect: DOMRect, wrapClass: string}[]} */
+    /** @type {{key: string, srcEl: HTMLElement, hideEl: HTMLElement, dstEl: HTMLElement, srcRot: number, dstRot: number, srcRect: DOMRect, dstRect: DOMRect, wrapClass: string, dstW: number, dstH: number, dstBg: string, dstColor: string}[]} */
     const navPairs = [];
     /** @param {string} key @param {HTMLElement|null} srcEl @param {HTMLElement|null} hideEl @param {HTMLElement|null} dstEl @param {string} wrapClass */
     const addNavPair = (key, srcEl, hideEl, dstEl, wrapClass) => {
       if (!srcEl || !hideEl || !dstEl) return;
       // 欄標題旋轉載體＝titleblock / label-col（inline rotate）
       const block = /** @type {HTMLElement|null} */ (dstEl.closest('.atlas-list-col-titleblock, .atlas-list-group-label-col'));
+      const dstCs = getComputedStyle(dstEl);
       navPairs.push({
         key, srcEl, hideEl, dstEl, wrapClass,
         srcRot: inlineRotDeg(srcEl),
         dstRot: inlineRotDeg(block),
         srcRect: srcEl.getBoundingClientRect(),
         dstRect: dstEl.getBoundingClientRect(),
+        dstW: dstEl.offsetWidth,
+        dstH: dstEl.offsetHeight,
+        dstBg: dstCs.backgroundColor,
+        dstColor: dstCs.color,
       });
     };
     btns.forEach(b => {
@@ -4813,13 +4827,16 @@ export async function initAtlas(options = {}) {
       const subLines = /** @type {HTMLElement[]} */ ([...p.el.querySelectorAll('.atlas-list-line-clip > *')]).slice(1);
       // B（Hosting 環企業）＝實色底 chip：落地不硬切，底色 0.35s 淡出（user 08-19「閃一下太硬」）
       const chipBg = p.item.category === 'B' && p.item.bgColor ? p.item.bgColor : null;
+      // 與 filter 同一波起飛（clone 在此之前原地待命＝視覺上「留下來的」）
+      const delay = M_ITEM_START + Math.random() * M_ITEM_RANGE;
+      // 飛行中字色線性補間到 list 終值 → 落地換裝零 snap（user 08-19「看起來像兩個東西」）
+      gsap.to(clone, { color: p.dstColor, duration: DUR.slow, ease: EASE.move, delay });
       flights.push(flyClone(clone, p.srcRect, p.dstRect, {
-        // 目標視覺高 ÷ clone layout 高（雙端行結構同構：en/zh 條件同一份 item 資料）
-        dstScale: p.dstRect.height / (p.item._span.offsetHeight || 1),
+        // 字級比（不用 box 高比：host 欄 min-height 2.6em / line-height 差會放大過頭、落地再縮回）
+        dstScale: p.dstFont / p.srcFont,
         dstRot: 0,
-        // 與 filter 同一波起飛（clone 在此之前原地待命＝視覺上「留下來的」）
-        delay: M_ITEM_START + Math.random() * M_ITEM_RANGE,
-        holdClone: !!chipBg,
+        delay,
+        holdClone: true,
         onLand: (node) => {
           gsap.set(p.nameLine, { clearProps: 'transform' });   // 落地換裝：list 黑字原地接手
           revealListLines(subLines);                            // 副標接著滑出
@@ -4827,18 +4844,40 @@ export async function initAtlas(options = {}) {
             // 文字先讓位（真行已現身），只留色塊蓋在上面淡出；8-digit hex 保色相純淡 alpha
             [...node.children].forEach(c => { /** @type {HTMLElement} */ (c).style.visibility = 'hidden'; });
             gsap.to(node, { backgroundColor: `${chipBg}00`, duration: 0.35, ease: EASE.exitSoft, onComplete: () => node.remove() });
+          } else {
+            // 交叉淡出（非硬切）：換行結構兩端不同（chip 170px 多行 ↔ list 單行截斷）時
+            // 疊影 dissolve；結構相同時兩層像素一致、視覺上無感
+            gsap.to(node, { opacity: 0, duration: 0.25, ease: EASE.exitSoft, onComplete: () => node.remove() });
           }
         },
       }));
     });
     navPairs.forEach(p => {
       const clone = makeFlyClone(p.srcEl, p.srcRect, { srcRot: p.srcRot, wrapClass: p.wrapClass });
+      // chip 視覺載體：wrap 時在 inner（bg/color 都在 inner），否則就是 clone 本身
+      const chip = /** @type {HTMLElement} */ (p.wrapClass ? clone.firstElementChild : clone);
+      clone.style.overflow = 'hidden';   // box 收窄/壓扁過程截掉溢出文字（stacked btn ↔ row title）
       p.hideEl.style.visibility = 'hidden';
+      // stage 3：filter 先飛，老師→系友→(主持→就職)→合作單位 階梯
+      const delay = M_NAV_START + (NAV_ORDER[p.key] ?? 0) * M_NAV_STEP;
+      // chip 底色/字色 + box 尺寸一路補間到欄標題終值（left/top 隨寬高補位、保持中心錨定）
+      if (chip) gsap.to(chip, { backgroundColor: p.dstBg, color: p.dstColor, duration: DUR.slow, ease: EASE.move, delay });
+      gsap.to(clone, {
+        left: parseFloat(clone.style.left) - (p.dstW - parseFloat(clone.style.width)) / 2,
+        top:  parseFloat(clone.style.top)  - (p.dstH - parseFloat(clone.style.height)) / 2,
+        width: p.dstW,
+        height: p.dstH,
+        duration: DUR.slow, ease: EASE.move, delay,
+      });
       flights.push(flyClone(clone, p.srcRect, p.dstRect, {
         dstRot: p.dstRot,
-        // stage 3：filter 先飛，老師→系友→(主持→就職)→合作單位 階梯
-        delay: M_NAV_START + (NAV_ORDER[p.key] ?? 0) * M_NAV_STEP,
-        onLand: () => { gsap.set(p.dstEl, { clearProps: 'transform' }); },
+        delay,
+        holdClone: true,
+        onLand: (node) => {
+          gsap.set(p.dstEl, { clearProps: 'transform' });
+          // 交叉淡出：btn 直疊 ↔ 標題橫排 文字排列不同，dissolve 取代硬切
+          gsap.to(node, { opacity: 0, duration: 0.25, ease: EASE.exitSoft, onComplete: () => node.remove() });
+        },
       }));
     });
 
@@ -4933,26 +4972,30 @@ export async function initAtlas(options = {}) {
 
     // ── 配對＋量測：list 當前可見頁 → 星雲 chip 位置 ──
     const pairedItems = new Set();
-    /** @type {{item: any, nameLine: HTMLElement, srcRect: DOMRect, dstRect: DOMRect, dstRot: number}[]} */
+    /** @type {{item: any, nameLine: HTMLElement, srcRect: DOMRect, dstRect: DOMRect, dstRot: number, srcFont: number, dstFont: number, dstColor: string}[]} */
     const itemPairs = [];
     listView.querySelectorAll('.atlas-list-item').forEach(el => {
       const item = itemById.get(/** @type {HTMLElement} */ (el).dataset.itemId || '');
       const nameLine = /** @type {HTMLElement|null} */ (el.querySelector('.atlas-list-item-name'));
       if (!item || !item._span || !nameLine) return;
       if (!filterAllowsItem(item)) return;   // 回到星雲後不可見 → 無落點，走一般退場
+      const dstCs = getComputedStyle(item._span);
       itemPairs.push({
         item,
         nameLine,
         srcRect: nameLine.getBoundingClientRect(),
         dstRect: item._span.getBoundingClientRect(),
         dstRot: inlineRotDeg(item._span),
+        srcFont: parseFloat(getComputedStyle(nameLine).fontSize) || 1,
+        dstFont: parseFloat(dstCs.fontSize) || 1,
+        dstColor: dstCs.color,
       });
       pairedItems.add(item);
     });
 
     // nav 反向只飛 3 顆主 btn ← 欄標題（subchip 落地時仍收合、無 slot 可對位；照原節奏 showCareer 展開）
     const masterTitle = /** @type {HTMLElement|null} */ (listView.querySelector('.atlas-list-group-label-col .atlas-list-col-title'));
-    /** @type {{srcEl: HTMLElement, dstBtn: HTMLElement, backIdx: number, srcRot: number, dstRot: number, srcRect: DOMRect, dstRect: DOMRect}[]} */
+    /** @type {{srcEl: HTMLElement, dstBtn: HTMLElement, backIdx: number, srcRot: number, dstRot: number, srcRect: DOMRect, dstRect: DOMRect, dstW: number, dstH: number, dstBg: string, dstColor: string}[]} */
     const navPairs = [];
     btns.forEach((b, bi) => {
       const srcEl = b.dataset.filter === 'alumni'
@@ -4961,6 +5004,7 @@ export async function initAtlas(options = {}) {
       if (!srcEl) return;
       const block = /** @type {HTMLElement|null} */ (srcEl.closest('.atlas-list-col-titleblock, .atlas-list-group-label-col'));
       const inner = /** @type {HTMLElement|null} */ (b.querySelector('.anchor-nav-inner'));
+      const innerCs = inner ? getComputedStyle(inner) : null;
       navPairs.push({
         srcEl,
         dstBtn: b,
@@ -4970,6 +5014,10 @@ export async function initAtlas(options = {}) {
         srcRect: srcEl.getBoundingClientRect(),
         // btn 遮罩窗本體不動（只有 inner translate）→ btn rect 即 revealed inner 落點
         dstRect: b.getBoundingClientRect(),
+        dstW: inner ? inner.offsetWidth : b.offsetWidth,
+        dstH: inner ? inner.offsetHeight : b.offsetHeight,
+        dstBg: innerCs ? innerCs.backgroundColor : '',
+        dstColor: innerCs ? innerCs.color : '',
       });
     });
 
@@ -4981,13 +5029,17 @@ export async function initAtlas(options = {}) {
       p.item._span.style.visibility = 'hidden';   // 落地才現身（正向已設；首次反向保險）
       // B chip 鏡像換裝：現身時底色從透明淡入（正向淡出的反向）；fromTo 終值＝原 inline bgColor 不用 clearProps
       const chipBg = p.item.category === 'B' && p.item.bgColor ? p.item.bgColor : null;
+      // 鏡像 stage 2：chevron / 未配對 rows 先走，第一頁內容與標題同波飛回
+      const delay = R_ITEM_START + Math.random() * R_ITEM_RANGE;
+      // 字色線性補間回 chip 色（正向鏡像；落地現身零 snap）
+      gsap.to(clone, { color: p.dstColor, duration: DUR.slow, ease: EASE.move, delay });
       flights.push(flyClone(clone, p.srcRect, p.dstRect, {
-        // 目標視覺高＝span layout 高 × zoom scale（不用 bbox 高：旋轉 chip 的 bbox 膨脹會灌爆比例）
-        dstScale: (p.item._span.offsetHeight * scale) / (p.nameLine.offsetHeight || 1),
+        // 字級比 × zoom scale（不用 box 高比：host 欄 min-height / line-height 差會灌爆比例）
+        dstScale: (p.dstFont * scale) / p.srcFont,
         dstRot: p.dstRot,
-        // 鏡像 stage 2：chevron / 未配對 rows 先走，第一頁內容與標題同波飛回
-        delay: R_ITEM_START + Math.random() * R_ITEM_RANGE,
-        onLand: () => {
+        delay,
+        holdClone: true,
+        onLand: (node) => {
           p.item._span.style.visibility = '';
           if (chipBg) {
             gsap.fromTo(p.item._span,
@@ -4995,17 +5047,34 @@ export async function initAtlas(options = {}) {
               { backgroundColor: chipBg, duration: 0.35, ease: EASE.enterSoft, overwrite: 'auto' }
             );
           }
+          // 交叉淡出：chip 端多行 wrap 與 list 單行結構不同時 dissolve（正向鏡像）
+          gsap.to(node, { opacity: 0, duration: 0.25, ease: EASE.exitSoft, onComplete: () => node.remove() });
         },
       }));
     });
     navPairs.forEach(p => {
       const clone = makeFlyClone(p.srcEl, p.srcRect, { srcRot: p.srcRot });
+      clone.style.overflow = 'hidden';   // row title 收窄成 stacked btn box 過程截掉溢出文字
       p.srcEl.style.visibility = 'hidden';
+      // 鏡像 stage 3：標題飛回 filter 位（合作單位→系友→老師 階梯）
+      const delay = R_NAV_START + p.backIdx * R_NAV_STEP;
+      // chip 底色/字色 + box 尺寸補間回 btn 終值（正向鏡像；left/top 隨寬高補位保持中心）
+      if (p.dstBg) {
+        gsap.to(clone, {
+          backgroundColor: p.dstBg,
+          color: p.dstColor,
+          left: parseFloat(clone.style.left) - (p.dstW - parseFloat(clone.style.width)) / 2,
+          top:  parseFloat(clone.style.top)  - (p.dstH - parseFloat(clone.style.height)) / 2,
+          width: p.dstW,
+          height: p.dstH,
+          duration: DUR.slow, ease: EASE.move, delay,
+        });
+      }
       flights.push(flyClone(clone, p.srcRect, p.dstRect, {
         dstRot: p.dstRot,
-        // 鏡像 stage 3：標題飛回 filter 位（合作單位→系友→老師 階梯）
-        delay: R_NAV_START + p.backIdx * R_NAV_STEP,
-        onLand: () => {
+        delay,
+        holdClone: true,
+        onLand: (node) => {
           // 落地瞬間揭露 btn：關掉 inner 的 translate transition 防 0.5s 滑入（swap 要原地接手）
           const inner = /** @type {HTMLElement|null} */ (p.dstBtn.querySelector('.anchor-nav-inner'));
           if (inner) inner.style.transition = 'none';
@@ -5014,6 +5083,8 @@ export async function initAtlas(options = {}) {
             void inner.offsetWidth;
             requestAnimationFrame(() => { inner.style.transition = ''; });
           }
+          // 交叉淡出：標題橫排 ↔ btn 直疊 文字排列不同，dissolve 取代硬切
+          gsap.to(node, { opacity: 0, duration: 0.25, ease: EASE.exitSoft, onComplete: () => node.remove() });
         },
       }));
     });

@@ -337,8 +337,7 @@ export function buildAlbumsHtml(item, { unbounded = false } = {}) {
     .filter(a => a.images.length > 0 || a.year || a.date || a.location || a.location_zh);
   if (albums.length === 0) return '';
 
-  const itemsHtml = albums.map((album, gi) => {
-    const isLast = gi === albums.length - 1;
+  const itemsHtml = albums.map((album) => {
     const mediaJson = JSON.stringify(album.images.map(src => ({ type: 'image', src, thumb: src }))).replace(/"/g, '&quot;');
     // Lightbox title 用「該 album 本身」(date + location)，不是父 list-item 標題
     const albumTitleEn = [album.date, album.location].filter(Boolean).join('  ');
@@ -360,29 +359,25 @@ export function buildAlbumsHtml(item, { unbounded = false } = {}) {
     //   ① sticky row：grid 3-col [year | date | title]，整列單一 sticky element
     //   ② album-gallery row：同樣 grid 3-col template 對齊，第一個 col 空 spacer 撐 year 寬，
     //      第二 col 起 album-gallery（chevron + thumbs），thumbnail 第一張視覺對齊 date 左緣
-    // 固定比例 template：year : date = 1 : 3（4rem : 12rem）、location 吃剩餘（minmax(0,1fr) 防長地點撐開）。
-    // 每個 album 各自獨立 grid，用 auto 會讓欄寬隨該列內容變＝跨列不對齊 → 定寬才對齊（faculty slide-in 手法）。
-    const gridTemplate = 'grid-template-columns: 4rem 12rem minmax(0, 1fr);';
+    // year : date : location = 1 : 2 : 10。每個 album 各自獨立 grid，用共用 template 跨列對齊。
     return `
-      <div class="album-thumb-item flex flex-col gap-sm py-sm mr-xl ${!isLast ? 'border-b-4 border-black' : ''}"
+      <div class="album-thumb-item flex flex-col gap-sm py-sm mr-xl"
            data-album-media="${mediaJson}"
            data-album-title="${albumTitleJson}">
-        <div class="album-sticky-cell grid items-start gap-x-xl pb-xs" style="${gridTemplate}">
-          ${album.year ? `<div class="flex-shrink-0"><p class="text-s font-bold">${album.year}</p></div>` : '<div></div>'}
-          ${album.date ? `<div class="flex-shrink-0"><p class="text-s font-bold">${album.date}</p></div>` : '<div></div>'}
-          ${album.location || album.location_zh ? `<div class="flex items-start justify-between gap-xl">
-            <div>
-              ${album.location ? `<p class="text-s font-bold">${album.location}</p>` : ''}
-              ${album.location_zh ? `<p class="text-s font-bold">${album.location_zh}</p>` : ''}
-            </div>
-          </div>` : '<div></div>'}
+        <div class="album-sticky-cell grid grid-cols-[1fr_2fr_10fr] items-start gap-x-md pb-xs">
+          <div class="flex-shrink-0">${album.year ? `<p class="text-s font-bold">${album.year}</p>` : ''}</div>
+          <div class="flex-shrink-0">${album.date ? `<p class="text-s font-bold">${album.date}</p>` : ''}</div>
+          <div class="min-w-0">
+            ${album.location ? `<p class="text-s font-bold">${album.location}</p>` : ''}
+            ${album.location_zh ? `<p class="text-s font-bold">${album.location_zh}</p>` : ''}
+          </div>
         </div>
         <!-- album-gallery row：2-col grid [隱藏 year spacer（撐同 sticky row 的 year 欄寬） | album-gallery]，
              兩 row 各自獨立 grid，靠「同內容 year」讓 col1 等寬 → col2 左緣＝sticky row 的 date 左緣，thumbnail 對齊日期左緣。
              chevron 改 absolute 疊在 track 左右（不佔位、不把 thumbnail 往右推），thumbs 恆貼 date 左緣（user 2026-07-14）。
              無圖 album 不渲染此列（只留上方 metadata），避免空 gallery + 不可點列。 -->
-        ${album.images.length ? `<div class="grid items-center gap-x-xl" style="grid-template-columns: 4rem 1fr;">
-          <div class="flex-shrink-0" aria-hidden="true" style="visibility:hidden"></div>
+        ${album.images.length ? `<div class="grid grid-cols-[1fr_12fr] items-center gap-x-md">
+          <div aria-hidden="true"></div>
           <div class="album-gallery relative flex items-center min-w-0">
             <button type="button" class="album-prev invisible absolute left-0 top-1/2 -translate-y-1/2 z-10 w-[32px] h-[32px] flex items-center justify-start text-s hover:opacity-60 transition-opacity">
               <span class="icon icon-chevron-list icon-s"></span>
@@ -1373,12 +1368,17 @@ export async function loadListInto(containerId, url, options = {}) {
                 // 上傳檔：download 屬性指定 filename（URL 尾段）；外部連結：開新分頁不下載
                 const filename = (!isLink && url !== '#') ? url.split('/').pop().split('?')[0] : '';
                 const linkAttrs = isLink ? ' target="_blank" rel="noopener"' : (filename ? ` download="${filename}"` : '');
+                // 版型同 ref：icon + 每筆各自「Attachment／附件」副標在上、附件名在下。
                 return `
-                <a class="list-ref-btn cursor-pointer w-full grid grid-cols-12 gap-x-md items-start py-sm px-sm no-underline" href="${url}"${linkAttrs}>
-                  <div class="col-span-1 flex justify-start" style="padding-top: 0.25em;">
+                <a class="list-ref-btn cursor-pointer w-full flex gap-md items-start py-sm px-sm no-underline" href="${url}"${linkAttrs}>
+                  <div class="flex-shrink-0" style="padding-top: 0.25em;">
                     <span class="icon icon-attachment icon-m"></span>
                   </div>
-                  <div class="col-span-11 flex flex-col">
+                  <div class="flex-1 flex flex-col min-w-0">
+                    <div class="list-ref-label mb-en-zh-s">
+                      <p class="text-s">Attachment</p>
+                      <p class="text-s">附件</p>
+                    </div>
                     <p class="text-s font-bold mb-en-zh-s">${labelEn}</p>
                     <p class="text-s font-bold">${labelZh}</p>
                   </div>
@@ -1389,31 +1389,31 @@ export async function loadListInto(containerId, url, options = {}) {
             <div class="list-ref-wrap flex flex-col">
               ${references.map(ref => `
               ${ref.pdfUrl
-                ? `<button class="list-ref-btn cursor-pointer border-none w-full grid grid-cols-12 gap-x-md items-start py-sm px-sm text-left"
+                ? `<button class="list-ref-btn cursor-pointer border-none w-full flex gap-md items-start py-sm px-sm text-left"
                     data-ref-pdf-url="${ref.pdfUrl}"
                     data-ref-title-en="${(ref.titleEn || '').replace(/"/g, '&quot;')}"
                     data-ref-title-zh="${(ref.titleZh || '').replace(/"/g, '&quot;')}"
                     data-ref-host-section="${hostSection || ''}"
                     data-ref-host-item="${item.id || ''}">`
                 : ref.pressMedia
-                ? `<button class="list-ref-btn cursor-pointer border-none w-full grid grid-cols-12 gap-x-md items-start py-sm px-sm text-left"
+                ? `<button class="list-ref-btn cursor-pointer border-none w-full flex gap-md items-start py-sm px-sm text-left"
                     data-ref-press-media="${JSON.stringify(ref.pressMedia).replace(/"/g, '&quot;')}"
                     data-ref-title-en="${(ref.titleEn || '').replace(/"/g, '&quot;')}"
                     data-ref-title-zh="${(ref.titleZh || '').replace(/"/g, '&quot;')}">`
                 : ref.href
-                ? `<a class="list-ref-btn cursor-pointer w-full grid grid-cols-12 gap-x-md items-start py-sm px-sm no-underline" href="${ref.href}">`
-                : `<button class="list-ref-btn cursor-pointer border-none w-full grid grid-cols-12 gap-x-md items-start py-sm px-sm text-left"
+                ? `<a class="list-ref-btn cursor-pointer w-full flex gap-md items-start py-sm px-sm no-underline" href="${ref.href}">`
+                : `<button class="list-ref-btn cursor-pointer border-none w-full flex gap-md items-start py-sm px-sm text-left"
                     data-ref-section="${ref.section || ''}"
                     data-ref-item="${ref.itemId || ''}">`
               }
-                <div class="col-span-1 flex justify-start" style="padding-top: 0.25em;">
+                <div class="flex-shrink-0" style="padding-top: 0.25em;">
                   <span class="icon icon-ref-list icon-s"></span>
                 </div>
-                <div class="col-span-3 flex flex-col">
-                  ${ref.labelEn ? `<p class="text-s mb-en-zh-s">${ref.labelEn}</p>` : ''}
-                  ${ref.labelZh ? `<p class="text-s">${ref.labelZh}</p>` : ''}
-                </div>
-                <div class="col-start-5 col-span-8 flex flex-col min-w-0">
+                <div class="flex-1 flex flex-col min-w-0">
+                  ${ref.labelEn || ref.labelZh ? `<div class="list-ref-label mb-en-zh-s">
+                    ${ref.labelEn ? `<p class="text-s">${ref.labelEn}</p>` : ''}
+                    ${ref.labelZh ? `<p class="text-s">${ref.labelZh}</p>` : ''}
+                  </div>` : ''}
                   ${ref.titleEn ? `<div class="list-title-marquee mb-en-zh-s"><p class="text-s font-bold">${ref.titleEn}</p></div>` : ''}
                   ${ref.titleZh ? `<div class="list-title-marquee"><p class="text-s font-bold" lang="zh-Hant">${ref.titleZh}</p></div>` : ''}
                 </div>
