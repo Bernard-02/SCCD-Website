@@ -1,0 +1,62 @@
+【IT 協助請求】整理 Directus 的 S3 儲存 —— 把檔案集中到 Directus/ 子資料夾
+
+── 背景與目標 ──────────────────────────────────────────
+・這個 S3 bucket 之後還要放其他用途的資料，希望先把「Directus 自動管理的檔案」
+  集中到一個子資料夾（暫定名：Directus/），跟其他資料分開、方便整理。
+・目前 bucket 是扁平的：根目錄一堆 <uuid>.jpg/.png 原檔 ＋ <uuid>__<hash>.avif/.webp
+  轉檔快取，全部都是 Directus 產生/管理的檔案。
+
+目標：
+  1. 現有 Directus 檔案全部移到 Directus/ 子資料夾。
+  2. Directus 設定改成讀寫 Directus/（含以後上傳、自動生成的縮圖變體都存這）。
+  3. 確認舊圖照常顯示、新上傳會自動進 Directus/。
+
+── 關鍵原理（務必先懂，否則會全站破圖）────────────────────
+・Directus 資料庫的 filename_disk 欄位存的是「不含資料夾前綴」的檔名（例：<uuid>.jpg）。
+  子資料夾是靠 .env 的 STORAGE_S3_ROOT，在存取時「自動補上前綴」，
+  **不要去改資料庫 filename_disk**。
+・所以「搬檔」和「設定 STORAGE_S3_ROOT」要成套且順序正確：
+  若只設了 ROOT 卻沒搬檔，Directus 會去 Directus/ 底下找、但檔還在根目錄 → 全站圖片破。
+
+── 建議步驟（安全、可回退）────────────────────────────────
+1. 先「複製」（不是移動）根目錄現有物件進 Directus/（先複製、留退路）：
+     aws s3 cp s3://<bucket>/ s3://<bucket>/Directus/ --recursive --exclude "Directus/*"
+   ・--exclude "Directus/*" 避免把 Directus/ 自己再遞迴複製一層。
+   ・原檔 <uuid>.<ext> 與轉檔快取 <uuid>__<hash>.<fmt> 都是 Directus 的、都要搬。
+     （轉檔快取 __hash 檔可選擇「不搬、日後讓它自動重生」以減少複製量，非必要。）
+
+2. Directus .env 設定（新增或修改）：
+     STORAGE_S3_ROOT=Directus
+   ・大小寫要和資料夾名稱完全一致（S3 區分大小寫）。
+   ・STORAGE 的 location 名稱目前是 s3（若你們 .env 用別的 location 名，
+     請對應改成 STORAGE_<location>_ROOT）。
+
+3. 重啟 Directus 套用設定。
+   （附帶：目前 Directus 有 S3 連線逾時的狀況——/server/health 顯示 storage:s3 TimeoutError；
+     這次重啟通常也會順便把它清掉。）
+
+4. 驗證：
+   ・前台重新整理，舊圖片正常顯示。
+   ・curl -s https://sccdtest.usc.edu.tw/server/health → status 應為 "ok"、storage:s3 為 "ok"。
+   ・在 Directus 後台上傳一張測試圖 → 到 S3 確認它進了 Directus/ 底下。
+
+5. 全部確認 OK 後，才刪掉根目錄那批「舊的重複檔」：
+   ⚠️ 這步有刪檔風險，請小心：只刪「不在 Directus/ 裡、且是這次複製前就有的 Directus 檔」。
+   ・若此時 bucket 根目錄還沒放別的東西，等於：
+       aws s3 rm s3://<bucket>/ --recursive --exclude "Directus/*"
+   ・若根目錄已經放了其他資料，**不要**無差別刪根目錄；請改用精確前綴或先列清單再刪。
+
+── 時機說明 ────────────────────────────────────────────
+・步驟 1 的複製是從 IT 端用 aws-cli 直接對 S3 操作、不經 Lightsail 主機，可先進行。
+・步驟 4 的驗證需要 Directus 能連上 S3（步驟 3 重啟後應恢復）。
+・建議整套一次做完並當場驗證，別留半套狀態。
+
+── 以後 ────────────────────────────────────────────────
+・設好 STORAGE_S3_ROOT 後，Directus 之後所有上傳＋自動生成的變體都會自動存進 Directus/，
+  不需要再手動整理。
+・其他用途的資料放 bucket 的其他資料夾，與 Directus/ 分開即可。
+
+── 主機資訊 ────────────────────────────────────────────
+・主機：sccdtest.usc.edu.tw（54.116.86.165）
+・Directus 版本：11.17.4
+・如需要，我可提供後台管理員權限協助驗證。
