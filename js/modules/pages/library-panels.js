@@ -319,7 +319,7 @@ function loadPressDataCached() {
   if (!_pressDataPromise) {
     _pressDataPromise = (async () => {
       try {
-        const url = `${CMS_API_BASE}/library_press?fields=*,images.directus_files_id&sort=sort&limit=-1`;
+        const url = `${CMS_API_BASE}/library_press?fields=*&sort=sort&limit=-1`;
         const res = await fetch(url);
         if (!res.ok) throw new Error('CMS ' + res.status);
         const rows = (await res.json())?.data;
@@ -468,13 +468,11 @@ function bindAwardRefRowClick(row) {
       const item = (Array.isArray(press) ? press : []).find(p => String(p.id) === String(pressId));
       if (!item) return;
       const title = { en: item.titleEn || '', zh: item.titleZh || '' };
-      // 同 press panel：支援 Directus 多值（images[]/videoUrls[]）與本地單值（image/videoUrl）兩種 shape
-      const imgList = (item.images && item.images.length) ? item.images : (item.image ? [item.image] : []);
+      // press 只吃 PDF + 影片（images 已移除 2026-08-20）：有影片→media lightbox、否則 PDF→viewer（同 press panel 點擊）
       const vidList = (item.videoUrls && item.videoUrls.length) ? item.videoUrls : (item.videoUrl ? [item.videoUrl] : []);
       const media = [];
-      imgList.forEach(src => media.push({ type: 'image', src, thumb: src }));
       vidList.forEach(url => {
-        const m = videoMediaFromUrl(url, imgList[0] || '');
+        const m = videoMediaFromUrl(url, '');
         if (m) media.push(m);
       });
       if (media.length) {
@@ -484,7 +482,8 @@ function bindAwardRefRowClick(row) {
         const { getPdfRefSources } = await import('./pdf-cross-ref-index.js');
         const auto = await getPdfRefSources(item.pdfUrl);
         const references = excludeHostFromRefs(unionRefs(auto, await resolveLibManualRefs(item)), host);
-        document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl, title, color, references, shareUrl: libShareUrl(item.id), cover: item.cover || '' } }));
+        // press 無浮水印 → 更高 canvas 上限＋裁頂封面當馬賽克墊圖（同 press panel 點擊）
+        document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl, title, color, references, shareUrl: libShareUrl(item.id), cover: item.cover || '', maxCanvasDim: 16384, coverAspect: 1.5 } }));
       }
       return;
     }
@@ -828,7 +827,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
       return `
         <button class="list-ref-btn award-ref-row cursor-pointer border-none w-full text-left" style="display:grid;${AWARD_GRID}align-items:start;padding:var(--spacing-xs) var(--spacing-sm);" data-ref-host-award="${escAttr(hostAwardId)}" ${dataAttrs}>
           <div class="flex justify-start" style="grid-column:1;padding-top:0.25em;">
-            <span class="icon icon-ref-list icon-s"></span>
+            <span class="icon icon-ref-list icon-xs"></span>
           </div>
           <div class="flex flex-col min-w-0" style="grid-column:2 / -2;">
             ${r.labelEn || r.labelZh ? `<div class="list-ref-label mb-en-zh-s">
@@ -1232,14 +1231,10 @@ function formatMediaWithCountry(media, countryCode, zh) {
 }
 
 // Directus library_press row → 前台 press item shape（對應 field-key 差異 + 組 asset URL）。
-// 後台 field key 跟前台讀的不同：mediaEn/Zh=副標、country=報導單位國家(ISO2)、pdf(uuid)=單 PDF、
-// images(M2M)=多圖、videoLinks(json)=多 YouTube、date(真日期)→推 year、id(uuid)→加 press- 前綴（deep-link hash 用）。
-// 撈時要帶 images.directus_files_id deep field。
+// 後台 field key 跟前台讀的不同：mediaEn/Zh=副標、country=報導單位國家(ISO2)、pdf(uuid)=單 PDF（原生上傳）、
+// videoLinks(json)=影片自架 link、year(整數，同 documents)、id(uuid)→加 press- 前綴（deep-link hash 用）。
+// ⚠️ press 只吃 PDF + 影片（user 2026-08-20 拿掉 images M2M 與 pdfLink 兩欄，後台亦已刪）。
 function mapDirectusPressRow(row) {
-  const images = Array.isArray(row.images)
-    ? row.images.map(j => j && j.directus_files_id).filter(Boolean)
-        .map(id => `${CMS_ASSETS_BASE}/${id}?key=web`)   // ?key=web = Directus 壓縮+webp preset
-    : [];
   const videoUrls = Array.isArray(row.videoLinks) ? row.videoLinks.filter(Boolean) : [];
   return {
     id: row.id != null ? `press-${row.id}` : undefined,           // deep-link hash 需 press- 前綴
@@ -1247,10 +1242,10 @@ function mapDirectusPressRow(row) {
     // mediaEn/Zh = 刊登媒體名 = 副標，country 有值時附加（國家）
     subtitleEn: formatMediaWithCountry(row.mediaEn || '', row.country, false),
     subtitleZh: formatMediaWithCountry(row.mediaZh || '', row.country, true),
-    year: row.date ? String(row.date).slice(0, 4) : '',           // press 列表用 year 分組（從 date 推）
-    images,        // 多圖 asset URL 陣列
-    videoUrls,     // 多 YouTube URL 陣列
-    pdfUrl: row.pdfLink || (row.pdf ? `${CMS_ASSETS_BASE}/${row.pdf}` : ''),  // 貼的 CloudFront 網址優先，同 files；press fetch 用 fields=* 已含 pdfLink
+    year: row.year != null ? String(row.year) : '',               // press 列表用 year 分組（同 documents 整數欄）
+    videoUrls,     // 自架影片 link 陣列
+    pdfUrl: row.pdf ? `${CMS_ASSETS_BASE}/${row.pdf}` : '',        // 原生 Directus 上傳的單一 PDF（pdfLink 欄已移除）
+    cover: row.cover ? `${CMS_ASSETS_BASE}/${row.cover}` : '',     // 預產封面(generate-library-covers.cjs 裁頂)：有就秒出、免現畫 pdf
   };
 }
 
@@ -1259,7 +1254,7 @@ async function initPressPanel() {
     // Directus 為主、空/失敗 fallback 本地 press.json（同 legal pattern；press 接 Directus 2026-06-08）
     let pressData;
     try {
-      const url = `${CMS_API_BASE}/library_press?fields=*,images.directus_files_id&sort=sort&limit=-1`;
+      const url = `${CMS_API_BASE}/library_press?fields=*&sort=sort&limit=-1`;
       const res = await fetch(url);
       if (!res.ok) throw new Error('CMS ' + res.status);
       const rows = (await res.json())?.data;
@@ -1283,6 +1278,23 @@ async function initPressPanel() {
     const sorted = [...pressData].sort(byYearThenTitle(1));
     const getSorted = () => [...pressData].sort(byYearThenTitle(latestFirst ? 1 : -1));
 
+    // 縮圖懶載 observer：PDF 首頁封面 render / 自架影片抓幀，捲近視窗才做
+    // （renderPdfCover / grabHlsFrame 皆自帶跨 session 快取＋併發閘門，同 files panel 封面那套；純前端零後端）
+    const attr = s => String(s || '').replace(/"/g, '&quot;');
+    const thumbIO = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (!e.isIntersecting) return;
+        const el = /** @type {HTMLElement} */ (e.target);
+        thumbIO.unobserve(el);
+        const img = /** @type {HTMLImageElement | null} */ (el.querySelector('.press-thumb-img'));
+        if (!img) return;
+        // maxAspectRatio 1.5：長頁 PDF（網頁長文）只取頂部裁成正常比例，免糊成一團＋容器右側露灰
+        if (el.dataset.pdfCover) renderPdfCover(el.dataset.pdfCover, 280, 1.5).then(d => { if (d) img.src = d; }).catch(() => {});
+        else if (el.dataset.videoFrame) grabHlsFrame(el.dataset.videoFrame).then(d => { if (d) img.src = d; }).catch(() => {});
+      });
+    }, { rootMargin: '300px' });
+    registerPageCleanup(() => thumbIO.disconnect());
+
     function renderItems(items) {
       listEl.innerHTML = '';
       let rowIdx = 0; // 跨 year-block 連續編號，斑馬交替（同 award/activities）
@@ -1305,10 +1317,8 @@ async function initPressPanel() {
           if (item.id) div.id = item.id; // 供 hash deep link 使用
           div.dataset.year    = String(item.year);
           div.dataset.search  = [item.titleEn, item.titleZh, item.subtitleEn, item.subtitleZh].filter(Boolean).join(' ').toLowerCase();
-          // 支援兩種 shape：Directus(images[]/videoUrls[] 多值) + 本地 fallback(image/videoUrl 單值)
-          const imgList = (item.images && item.images.length) ? item.images : (item.image ? [item.image] : []);
+          // press 只吃 PDF + 影片（images 已移除 2026-08-20）；影片支援 Directus videoUrls[] 與本地 fallback videoUrl 單值
           const vidList = (item.videoUrls && item.videoUrls.length) ? item.videoUrls : (item.videoUrl ? [item.videoUrl] : []);
-          const hasMedia  = !!(imgList.length || vidList.length || item.pdfUrl);
           // 副標 EN/ZH 拆成兩個獨立 span：桌面 CSS inline 視覺一行（中間 &ensp; 由 ::after 補），手機 block 拆兩行
           const subtitleEnHtml = item.subtitleEn ? `<span class="press-item-subtitle press-item-subtitle-en"><span class="press-subtitle-inner">${item.subtitleEn}</span></span>` : '';
           const subtitleZhHtml = item.subtitleZh ? `<span class="press-item-subtitle press-item-subtitle-zh"><span class="press-subtitle-inner">${item.subtitleZh}</span></span>` : '';
@@ -1317,24 +1327,56 @@ async function initPressPanel() {
             <div class="press-item-meta">
               <span class="press-item-subtitle-wrap">${subtitleEnHtml}${subtitleZhHtml}</span>
             </div>` : '';
-          // 媒體 icon 移到 title 右側（press-item-row 右欄），大小比照 activities list icon（1rem/icon-s）；
-          // 右上角分類 tag 已移除（user 2026-06-21）
+          // 縮圖（album 風格，取代舊 media icon；user 2026-08-20）：縮圖來源＝影片抓幀 / PDF 首頁封面。
+          // 圖片 slot 已移除（user 2026-08-20：press 列表只出 PDF cover 或影片縮圖，不再吃 images）。
+          // PDF/自架影片走 async render，捲近視窗才由 thumbIO 補 src；純圖片 press → 無縮圖。
+          let thumbHtml = '';
+          let readySrc = '', pdfCover = '', videoFrame = '', isVid = false;
+          if (vidList.length) {
+            const vm = videoMediaFromUrl(vidList[0], '');
+            if (vm) {
+              isVid = true;
+              if (vm.thumb) readySrc = vm.thumb;                    // YouTube 現成縮圖
+              else if (vm.videoKind !== 'yt') videoFrame = vm.src;  // 自架 HLS/mp4 → grabHlsFrame 懶抓幀
+            }
+          } else if (item.cover) {
+            readySrc = item.cover;                                  // 預產封面：秒出、免 pdf.js 現畫
+          } else if (item.pdfUrl) {
+            pdfCover = item.pdfUrl;                                 // 無預產 → PDF 首頁 render 懶載（fallback）
+          }
+          if (readySrc || pdfCover || videoFrame) {
+            const sign = Math.random() < 0.4 ? -1 : 1;
+            const deg  = (sign > 0 ? (Math.random() * 5.5 + 0.5) : -(Math.random() * 3.5 + 0.5)).toFixed(2);
+            const accent = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
+            const lazyAttr = pdfCover ? ` data-pdf-cover="${attr(pdfCover)}"`
+                           : videoFrame ? ` data-video-frame="${attr(videoFrame)}"` : '';
+            thumbHtml = `
+              <div class="press-item-thumb-wrap">
+                <div class="press-item-thumb" data-init-deg="${deg}" style="transform: rotate(${deg}deg);"${lazyAttr}>
+                  <img class="press-thumb-img"${readySrc ? ` src="${attr(readySrc)}" loading="lazy"` : ''} alt="">
+                  <div class="album-thumb-overlay" style="background: ${accent};"></div>
+                  ${isVid ? '<div class="album-thumb-play"></div>' : ''}
+                </div>
+              </div>`;
+          }
+          // 單語言 title：只渲有值的那行（空 <p> 會多一條空行）＋ list 高度靠縮圖撐、title 區塊置中（同 album）
+          const titleEnHtml = item.titleEn ? `<p class="press-item-title-en"><span class="press-marquee-inner">${item.titleEn}</span></p>` : '';
+          const titleZhHtml = item.titleZh ? `<p class="press-item-title-zh"><span class="press-marquee-inner">${item.titleZh}</span></p>` : '';
+          const oneLang = !!(item.titleEn) !== !!(item.titleZh);
           div.innerHTML = `
             <div class="press-item-row">
               <div class="press-item-titles" role="heading" aria-level="3">
-                <p class="press-item-title-en"><span class="press-marquee-inner">${item.titleEn || ''}</span></p>
-                <p class="press-item-title-zh"><span class="press-marquee-inner">${item.titleZh || ''}</span></p>
+                <div class="press-item-titles-text${oneLang ? ' press-item-titles-text--center' : ''}">${titleEnHtml}${titleZhHtml}</div>
                 ${metaHtml}
               </div>
-              ${hasMedia ? `<span class="icon icon-album press-item-media-icon"></span>` : ''}
+              ${thumbHtml}
             </div>`;
           // 後台放圖/影片 → 開 media viewer(lightbox)；只放 PDF → 開 PDF viewer（圖/影片同時有時優先 lightbox）
-          if (imgList.length || vidList.length) {
+          if (vidList.length) {
             div.style.cursor = `url('${sitePath('custom-cursor/pointer.svg')}') 14 1, pointer`;
             const media = [];
-            imgList.forEach(src => media.push({ type: 'image', src, thumb: src }));
             vidList.forEach(url => {
-              const m = videoMediaFromUrl(url, imgList[0] || '');
+              const m = videoMediaFromUrl(url, '');
               if (m) media.push(m);
             });
             if (media.length) {
@@ -1358,7 +1400,9 @@ async function initPressPanel() {
               const { getPdfRefSources } = await import('./pdf-cross-ref-index.js');
               const auto = await getPdfRefSources(item.pdfUrl);
               const references = unionRefs(auto, await resolveLibManualRefs(item));
-              document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl, title: pdfTitle, color: pdfColor, references, shareUrl: libShareUrl(item.id) } }));
+              // press 無浮水印 → 給更高 canvas 上限，高倍放大更清晰（16384＝Chrome 單邊實用上限）
+              // cover＝預產封面(有則秒出當墊圖)；coverAspect 1.5＝無預產時 peek 縮圖裁頂封面當馬賽克墊圖
+              document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl, title: pdfTitle, color: pdfColor, references, shareUrl: libShareUrl(item.id), cover: item.cover || '', maxCanvasDim: 16384, coverAspect: 1.5 } }));
             });
             makeActivatable(div, [item.titleEn, item.titleZh].filter(Boolean).join(' ')); // 無障礙：報導(PDF)項可 Tab + Enter 開
           }
@@ -1368,7 +1412,9 @@ async function initPressPanel() {
         listEl.appendChild(block);
       });
 
-      bindListItemHover(listEl, '.press-item');
+      bindListItemHover(listEl, '.press-item', '.album-thumb-overlay');
+      // PDF 封面 / 自架影片抓幀縮圖懶載（捲近視窗才 render，sort 重渲的新 DOM 每次重新 observe）
+      listEl.querySelectorAll('.press-item-thumb[data-pdf-cover], .press-item-thumb[data-video-frame]').forEach(el => thumbIO.observe(el));
 
       // marquee 溢出偵測（panel 顯示後才執行）
       // 不 self-null：tab 切回 / window resize 變寬度後需重算；applyMarqueeOverflow 內含 dual-copy → single

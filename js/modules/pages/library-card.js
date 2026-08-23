@@ -853,6 +853,29 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
   });
   grayEl.addEventListener('click', () => { if (grayEl !== activeEl) switchTab(grayEl); });
 
+  // ── 灰卡右上角「下一個分頁」箭頭鈕（user 2026-08-20）───────────────
+  // 依固定順序循環切分頁（與各色卡當下持有的 tab 無關）；視覺/行為對齊 about timeline
+  // 的 .tl-list-next-btn（沿用 .tl-icon-btn-inner 黑方塊）。掛在 #library-card-content 內
+  // → _doSwitchTab 搬 content 時自動跟到新灰卡、隨灰卡 clip 進退場，免另外編排。
+  const TAB_ORDER = ['awards', 'files', 'press', 'album'];  // award → document → press → album
+  const libContent = document.getElementById('library-card-content');
+  if (libContent) {
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'lib-card-next-btn';
+    nextBtn.setAttribute('aria-label', '下一個分頁 Next section');
+    nextBtn.innerHTML = '<span class="tl-icon-btn-inner"><span class="icon icon-arrow-right"></span></span>';
+    libContent.appendChild(nextBtn);
+    nextBtn.addEventListener('click', () => {
+      if (isSwitching) return;
+      const cur  = tabOf.get(activeEl);
+      const next = TAB_ORDER[(TAB_ORDER.indexOf(cur) + 1) % TAB_ORDER.length];
+      // 找當下持有 next tab 的非 active 卡；⚠️用 allEls 不用 colorEls：切一次後 grayEl(#library-card-main)
+      // 自己也會變成色卡持有某 tab，只找 colorEls 會漏掉它（回到 awards 時 target=undefined 而卡住）
+      const target = allEls.find(el => el !== activeEl && tabOf.get(el) === next);
+      if (target) switchTab(target);
+    });
+  }
+
   // 公開 API（供 library-panels.js 使用）
   return { tabOf, allEls, colorEls, grayEl, get activeEl() { return activeEl; } };
 }

@@ -86,6 +86,24 @@
   transition: clip-path var(--dur-fast) ease;
 }
 
+/* ── 灰卡右上角「下一個分頁」箭頭鈕 ─────────────────────────────
+ * 沿用 timeline .tl-icon-btn-inner 黑方塊視覺（48px／三 mode 配色／rotate／clip buffer 全繼承 lists.css）。
+ * 鈕中心壓在灰卡右上角點：48px 鈕 top/right 各 -24 → 半在卡內半凸出（同 .tl-list-next-btn 桌面定位）。
+ * offset parent = 當前 active 灰卡（色/灰卡皆 position:absolute）；只在桌面存在（手機改用 #library-mobile-tabs）。 */
+.lib-card-next-btn {
+  position: absolute;
+  top: -24px;
+  right: -24px;
+  z-index: 20;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: var(--cursor-pointer);
+}
+@media (min-width: 768px) {
+  .lib-card-next-btn:hover .tl-icon-btn-inner { transform: rotate(8deg); }
+}
+
 /* ── Search placeholder ────────────────────────────────────── */
 #library-awards-search::placeholder {
   color: rgba(var(--lib-fg-rgb), 0.5);
@@ -164,7 +182,9 @@
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 0 var(--spacing-xl);
-  align-items: start;
+  /* stretch（原 start）：標題欄撐到縮圖高 → 單語言 title 可垂直置中、list 高度靠縮圖維持一致（同 album）。
+     縮圖 .press-item-thumb-wrap 自身 align-self:start 不受影響、仍貼頂。 */
+  align-items: stretch;
   min-width: 0;
 }
 
@@ -179,6 +199,20 @@
   overflow: hidden;
   /* 不設 max-width：grid 1fr 欄已扣掉右側 icon(auto 欄)+欄距；原 calc(100% - 5rem) 是給已移除的分類 tag
      預留空間，留著會在 title 與 icon 間多出 ~5rem 空隙（user 2026-06-21 移除 tag 後不需要）*/
+}
+/* 標題行 wrapper：一律保留「兩行標題」高度（min-height＝2 行 s 字級 + EN→ZH gap）→ 單語言列不會比雙語矮，
+   全 list 高度一致（縮圖 4.5rem 比兩行標題矮、故高度由標題決定）。字級寫 s 讓 em 對到標題行高。 */
+.press-item-titles-text {
+  font-size: var(--font-size-s);
+  min-height: calc(1.3em * 2 + var(--space-en-zh-s));
+}
+/* 單語言時（--center）flex 垂直置中那一行於保留的兩行高度內（同 album files-item-titles-text）。 */
+.press-item-titles-text--center {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1;
+  min-width: 0;
 }
 .press-item-title-en,
 .press-item-title-zh {
@@ -252,6 +286,37 @@
   color: rgba(var(--lib-fg-rgb), 0.5);
   white-space: nowrap;
   align-self: start;
+}
+
+/* ── Press 列縮圖（album 風格，取代舊 media icon；user 2026-08-20）──────────────
+   press 一次一檔一類型＝單顆縮圖：image / 自架影片抓幀 / PDF 首頁封面。
+   沿用 album 的 .album-thumb-overlay（hover accent tint）+ .album-thumb-play（影片三角）視覺。 */
+.press-item-thumb-wrap {
+  display: flex;
+  align-items: center;
+  align-self: start;         /* 對齊標題頂端（同舊 icon 靠上） */
+  min-height: 4.5rem;
+}
+.press-item-thumb {
+  position: relative;
+  height: 4.5rem;
+  max-width: 8rem;
+  background: var(--gray-8);
+  overflow: visible;         /* 讓微旋轉的角超出不被裁 */
+  transform-origin: center center;
+  flex-shrink: 0;
+  line-height: 0;            /* 去 inline img 底部空隙 */
+}
+/* min-width 只在封面/抓幀 async 載入前當佔位；載入後容器貼齊圖片實寬，
+   避免窄封面（長頁 PDF 裁頂後 ~3rem 寬）右側露出灰底。 */
+.press-item-thumb:not(:has(.press-thumb-img[src])) {
+  min-width: 3.4rem;
+}
+.press-item-thumb img {
+  display: block;
+  height: 4.5rem;            /* 高鎖 4.5rem、寬依比例（PDF 直式 ~3.4rem、影片 16:9 撐到 8rem） */
+  max-width: 8rem;
+  width: auto;
 }
 
 /* ── Press category filter buttons ──────────────────────────── */
