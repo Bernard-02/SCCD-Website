@@ -217,6 +217,14 @@ export function initPdfViewer() {
   // 渲染品質：每次切換 scale 重渲（不靠 CSS 放大避免高倍模糊；同 album 但 album 用 img naturalDims+CSS scale）
   // PDF 不一樣：CSS scale 放大會糊文字，重渲較慢但清晰；採折衷 RENDER_QUALITY=2 平衡
   const RENDER_QUALITY = 2;
+  // 放大後 canvas 是 CSS-transform 拉大固定點陣圖 → 超過緩衝解析度就糊（retina 更早）。
+  // sharpenRender：縮放停下後依「zoom.scale × DPR」重渲當頁到對應解析度（幾何不變、只換清晰度）。
+  const MAX_CANVAS_DIM = 8192;   // 預設上限，避免高倍 × 大頁超過瀏覽器 canvas 記憶體/尺寸限制
+  // Chrome canvas 面積硬限 ~2^28(268M)px，超過整片變空白 → 留 buffer 當第二道保護（單邊 + 面積都要卡）
+  const MAX_CANVAS_AREA = 240000000;
+  let curMaxDim = MAX_CANVAS_DIM;   // 每次 open 可由 detail.maxCanvasDim 覆蓋（press 無浮水印 → 給更高清上限）
+  let sharpenTimer = 0;
+  let sharpenedQuality = RENDER_QUALITY;   // 目前 canvas 點陣圖的品質倍率（renderPage 後 = RENDER_QUALITY）
   let zoom = { scale: 1, tx: 0, ty: 0 };
   // fitDims / naturalDims（同 album 命名）：
   // - naturalDims = PDF 原寸 (PDF.js scale=1 的 viewport 寬高 = CSS px @96dpi)
@@ -281,6 +289,56 @@ export function initPdfViewer() {
           ? `url('${sitePath('custom-cursor/drag_1.svg')}') 10 10, grab`
           : `url('${sitePath('custom-cursor/default.svg')}') 6 1, default`);
     updateZoomUI();
+    scheduleSharpen();
+  }
+
+  // 縮放停下後把當頁重渲到「螢幕實際裝置像素」對應的解析度，避免高倍/retina 下 CSS 放大糊掉。
+  // debounce：手勢/連點期間只做 CSS transform（即時但暫糊），停 160ms 後補一張清晰的。
+  function scheduleSharpen() {
+    // 需要更高解析度才排程（fit 或已足夠清晰就免重工）
+    const dpr = window.devicePixelRatio || 1;
+    const need = Math.max(RENDER_QUALITY, zoom.scale * dpr);
+    if (need <= sharpenedQuality + 0.01) return;
+    clearTimeout(sharpenTimer);
+    sharpenTimer = setTimeout(sharpenRender, 160);
+  }
+
+  async function sharpenRender() {
+    if (!pdfDoc) return;
+    if (rendering) { scheduleSharpen(); return; }   // 翻頁/初渲中 → 稍後重試
+    const fitRatio = getFitRatio();
+    if (fitRatio <= 0) return;
+    const dpr = window.devicePixelRatio || 1;
+    let quality = Math.max(RENDER_QUALITY, zoom.scale * dpr);
+    // canvas 上限保護：大頁 × 高倍會爆記憶體/超過瀏覽器限制 → 依單邊 + 面積回退品質
+    const bw = naturalDims.w * fitRatio, bh = naturalDims.h * fitRatio;
+    const longSide = Math.max(bw, bh) * quality;
+    if (longSide > curMaxDim) quality *= curMaxDim / longSide;
+    const area = bw * quality * bh * quality;
+    if (area > MAX_CANVAS_AREA) quality *= Math.sqrt(MAX_CANVAS_AREA / area);
+    if (quality <= sharpenedQuality + 0.01) return;
+    const pageNum = curPage;
+    rendering = true;
+    try {
+      const page = await pdfDoc.getPage(pageNum);
+      const vp = page.getViewport({ scale: fitRatio * quality });
+      const buf = document.createElement('canvas');
+      buf.width = vp.width; buf.height = vp.height;
+      await page.render({ canvasContext: buf.getContext('2d'), viewport: vp }).promise;
+      // 翻頁/關閉搶先 → 放棄（別覆寫別頁）
+      if (pageNum !== curPage || modal.style.display === 'none') return;
+      // 只換點陣圖解析度；CSS 顯示尺寸(fitDims)與 rowEl transform 不動＝畫面幾何完全不變、只變清晰
+      canvasL.width = vp.width; canvasL.height = vp.height;
+      canvasL.style.width  = fitDims.w + 'px';
+      canvasL.style.height = fitDims.h + 'px';
+      canvasL.getContext('2d').drawImage(buf, 0, 0);
+      sharpenedQuality = quality;
+    } catch (_) {
+    } finally {
+      rendering = false;
+      // sharpen 佔用 rendering 期間被擋掉的翻頁 → 補渲最新目標頁（同 renderPage 尾端 recovery）
+      if (curPage !== pageNum && modal.style.display !== 'none') renderPage(curPage);
+    }
   }
 
   function updateZoomUI() {
@@ -428,6 +486,8 @@ export function initPdfViewer() {
       renderedContentEl.style.height = fitDims.h + 'px';
     }
     canvasL.getContext('2d').drawImage(buf, 0, 0);
+    clearTimeout(sharpenTimer);           // 新頁點陣圖回到 RENDER_QUALITY，作廢上一頁的 sharpen 排程
+    sharpenedQuality = RENDER_QUALITY;
 
     // 跨頁 state：first render 預設 Fit Page（仿 Acrobat：一打開看到整頁、撐滿視窗）。
     // 之前是 actual-size（同 album）→ A4 太小，user 2026-06-02 改採 Acrobat 邏輯。
@@ -726,6 +786,8 @@ export function initPdfViewer() {
         modal.style.display = 'none';
         touchMode = null;        // 清手機觸控手勢狀態
         if (pdfDoc) { pdfDoc.destroy(); pdfDoc = null; }
+        clearTimeout(sharpenTimer);      // 停還沒跑的 sharpen 重渲
+        sharpenedQuality = RENDER_QUALITY;
         if (mosaicTween) { mosaicTween.kill(); mosaicTween = null; }   // 停 de-pixelate 揭示 tween
         placeholderShowing = false;
         pageInfo.textContent = '';   // 下次 open 等新總頁數，不殘留舊值
@@ -745,9 +807,10 @@ export function initPdfViewer() {
   _pdfListenerAdded = true;
 
   document.addEventListener('sccd:open-pdf', async (e) => {
-    const { pdfUrl, title, color, references, shareUrl, watermark, cover } = e.detail || {};
+    const { pdfUrl, title, color, references, shareUrl, watermark, cover, maxCanvasDim, coverAspect } = e.detail || {};
     if (!pdfUrl) return;
     wantWatermark = !!watermark;
+    curMaxDim = maxCanvasDim || MAX_CANVAS_DIM;   // press 帶更高上限 → 高倍更清晰；其他維持預設
     curPage = 1;
     // 重置內部狀態：naturalDims=0 讓 renderPage 視為「初次 render」自動套 actual size
     zoom = { scale: 1, tx: 0, ty: 0 };
@@ -780,7 +843,8 @@ export function initPdfViewer() {
     // → canvas 一直掛著上一本＝「開錯書」錯覺（user 2026-08-18）。清空後墊圖/真頁面再各自蓋上。
     canvasL.getContext('2d').clearRect(0, 0, canvasL.width, canvasL.height);
     // 墊圖來源：caller 帶的預產封面 URL 優先（files panel 靜態圖），沒有才查 pdf.js 現畫快取
-    const cachedCover = cover ? Promise.resolve(cover) : peekPdfCover(pdfUrl);
+    // coverAspect：press 縮圖用裁頂變體快取（#a1.5），要帶同 aspect 才 peek 得到 → 才有馬賽克墊圖
+    const cachedCover = cover ? Promise.resolve(cover) : peekPdfCover(pdfUrl, coverAspect || 0);
     if (cachedCover) cachedCover.then(dataUrl => {
       if (!dataUrl || firstPageRendered || myToken !== openToken) return;
       const img = new Image();

@@ -88,25 +88,32 @@ async function idbSet(key, val) {
  * @param {string} pdfUrl
  * @returns {Promise<string|null>|null} 有快取回 Promise，沒有回 null
  */
-export function peekPdfCover(pdfUrl) {
+export function peekPdfCover(pdfUrl, maxAspectRatio = 0) {
   if (!pdfUrl) return null;
-  if (_coverCache.has(pdfUrl)) return _coverCache.get(pdfUrl);
+  // 跟 renderPdfCover 同一組 key：press 縮圖用裁頂變體（#a1.5）快取，plain key 查不到 → 要帶 aspect
+  const cacheKey = maxAspectRatio ? `${pdfUrl}#a${maxAspectRatio}` : pdfUrl;
+  if (_coverCache.has(cacheKey)) return _coverCache.get(cacheKey);
   // L2：IndexedDB（跨 session 持久）。未命中 resolve null，caller 已容忍（只 read 不下載）。
-  return idbGet(_ck(pdfUrl)).then(v => {
+  return idbGet(_ck(cacheKey)).then(v => {
     if (!v) return null;
-    _coverCache.set(pdfUrl, Promise.resolve(v));
+    _coverCache.set(cacheKey, Promise.resolve(v));
     return v;
   });
 }
 
-export function renderPdfCover(pdfUrl, targetWidth = 280) {
+// maxAspectRatio：封面最大高/寬比。0＝不裁（完整第一頁，files/floating 用）；
+// >0＝超長頁只取頂部裁到此比例（如網頁長文 PDF：整頁塞進窄縮圖會糊成一團＋容器右側露灰，
+// 裁頂 → 顯示文章頭圖/標題、正常比例、清晰。press 面板用）。
+export function renderPdfCover(pdfUrl, targetWidth = 280, maxAspectRatio = 0) {
   if (!pdfUrl) return Promise.resolve(null);
-  if (_coverCache.has(pdfUrl)) return _coverCache.get(pdfUrl);
+  // 裁切變體另存快取（key 帶比例）→ 不與完整封面（files/viewer 墊圖用 plain url）互撞。
+  const cacheKey = maxAspectRatio ? `${pdfUrl}#a${maxAspectRatio}` : pdfUrl;
+  if (_coverCache.has(cacheKey)) return _coverCache.get(cacheKey);
 
   const promise = (async () => {
     // 持久快取命中就直接回（跨 session、關分頁不清；每本一生渲一次，之後瞬取）。
-    // key 不含 targetWidth——目前兩個 caller 同寬。
-    const cached = await idbGet(_ck(pdfUrl));
+    // key 不含 targetWidth——目前 caller 同寬。
+    const cached = await idbGet(_ck(cacheKey));
     if (cached) return cached;
     await _acquire();
     try {
@@ -129,7 +136,8 @@ export function renderPdfCover(pdfUrl, targetWidth = 280) {
 
       const canvas = document.createElement('canvas');
       canvas.width  = vp.width;
-      canvas.height = vp.height;
+      // 裁頂：canvas 比 viewport 矮時，page 從 (0,0) 畫、底部超出被裁掉＝保留頂部。
+      canvas.height = maxAspectRatio ? Math.min(vp.height, Math.round(vp.width * maxAspectRatio)) : vp.height;
       const ctx = canvas.getContext('2d');
       // PDF 透明區填白，否則轉 JPEG 會變黑底
       ctx.fillStyle = '#ffffff';
@@ -138,7 +146,7 @@ export function renderPdfCover(pdfUrl, targetWidth = 280) {
 
       const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
       doc.destroy?.();
-      idbSet(_ck(pdfUrl), dataUrl);
+      idbSet(_ck(cacheKey), dataUrl);
       return dataUrl;
     } catch (_) {
       return null;
@@ -147,6 +155,6 @@ export function renderPdfCover(pdfUrl, targetWidth = 280) {
     }
   })();
 
-  _coverCache.set(pdfUrl, promise);
+  _coverCache.set(cacheKey, promise);
   return promise;
 }
