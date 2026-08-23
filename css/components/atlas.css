@@ -265,6 +265,15 @@ body.mode-color #atlas-detail-mask {
   bottom: calc(var(--mcp-footprint, 80px) + 16px);
   transition: bottom var(--dur-base) ease;
 }
+/* 桌面 mode3：hover 說明卡改貼「鉛筆/色輪」左側、底部對齊（user 2026-08-20：原本在右上方避讓，改到左下方對齊）。
+   --mcp-footprint-x＝面板左緣距視窗右緣（mode-color-panel.js 發佈）；+16 呼吸。手機維持上方（空間不足不左移）。 */
+@media (min-width: 768px) {
+  body.mode-color #atlas-detail-mask {
+    right: calc(var(--mcp-footprint-x, 48px) + 16px);
+    bottom: 32px;
+    transition: right var(--dur-base) ease, bottom var(--dur-base) ease;
+  }
+}
 
 .atlas-detail-name {
   font-size: var(--font-size-s); /* 桌面 16px＝s；手機保留下方 @media 的 14px 局部 override（不動全域 s）*/

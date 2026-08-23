@@ -154,6 +154,9 @@ const PANEL_BOTTOM = 32;   // .mcp-*-mask bottom（--spacing-lg）
 function publishFootprint() {
   const h = isOpen ? (WHEEL + 32) : 48;
   document.body.style.setProperty('--mcp-footprint', (PANEL_BOTTOM + h) + 'px');
+  // 水平佔用（面板左緣距視窗右緣）：鉛筆貼右緣(right:0)寬 48；色輪 right:32 寬 WHEEL+32。
+  // atlas 桌面 mode3 hover 卡讀此值貼到面板左側（見 atlas.css）。
+  document.body.style.setProperty('--mcp-footprint-x', (isOpen ? (32 + WHEEL + 32) : 48) + 'px');
 }
 
 function syncPlayIcon() {
