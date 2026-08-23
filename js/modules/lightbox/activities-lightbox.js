@@ -626,10 +626,12 @@ export async function openLightbox(media, startIndex = 0, opts = {}) {
   }
 
   // Probe 每個 image 是否真的能載入（video 預設通過，YouTube embed 無法 cross-origin probe）
-  // Promise.all 跑完才往下：本地檔最壞情況 ~50ms（broken fire error 很快），cached 後續開 lightbox 是 sync
+  // ⚠️ 逐張 probe 逾時保護：畢展相簿等「30+ 張 Directus /assets 慢圖」（TTFB ~2s + 瀏覽器 6 連線上限）
+  //    若死等 Promise.all 把每張 probe 完，整個 lightbox 會卡 10s+ 視覺上像「打不開」（degree-show 2025 案）。
+  //    逾時（800ms）就當 OK 保留：真 404 會在 ~100ms fire error 先被丟掉，慢但有效的圖留著、進 lightbox 自己慢慢載。
   const probed = await Promise.all(initial.map(async item => {
     if (item.type === 'video') return item;
-    const ok = await probeImage(item.src);
+    const ok = await Promise.race([probeImage(item.src), new Promise(r => setTimeout(() => r(true), 800))]);
     return ok ? item : null;
   }));
   // await 期間被 close / 更新的 open 接手 → 整段放棄（lbOpen 現值由接手者管理，不還原）
