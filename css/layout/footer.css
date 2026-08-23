@@ -357,14 +357,14 @@
       display: block;
       height: var(--tab-mark-h);
       width: auto;
-      margin-bottom: var(--spacing-sm);
+      margin-bottom: var(--spacing-xs);
       background-color: var(--footer-fg, #fff);
       -webkit-mask: var(--tab-mark-src) no-repeat center / contain;
               mask: var(--tab-mark-src) no-repeat center / contain;
     }
     /* 無圖 mark 的 units tab：首行往下墊 = mark 高 + margin-bottom → 對齊有 mark tab 的說明文字。 */
     .footer-tab:not(:has(.footer-tab-mark)) {
-      padding-top: calc(var(--tab-mark-h) + var(--spacing-sm));
+      padding-top: calc(var(--tab-mark-h) + var(--spacing-xs));
     }
     .footer-tab .footer-tab-en,
     .footer-tab .footer-tab-zh {

@@ -80,7 +80,9 @@ function resolveAsset(v) {
   return `${CMS_ASSETS_BASE}/${v}`;
 }
 
-// 主照片：解不出（null/空）時退回既有 placeholder（維持舊行為）
+// 主照片：解不出（null/空）時退回既有 placeholder（維持舊行為）。
+// ⚠️ 刻意用原檔、不套任何 on-the-fly transform：這台弱 Lightsail 無法可靠現場轉檔——多圖頁首訪冷生成會 504
+//   （faculty 48 張案）、連 pre-warm 都會把 /assets 打到 403。webp 要用「離線轉檔」不是伺服器 transform（見 2026-08-20 session）。
 function resolveImage(img) {
   return resolveAsset(img) || PLACEHOLDER_IMAGE;
 }
