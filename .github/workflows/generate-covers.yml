@@ -23,6 +23,19 @@ jobs:
         env:
           DIRECTUS_TOKEN: ${{ secrets.DIRECTUS_TOKEN }}
       # 封面產完後，把所有 jpeg/png（含新上傳圖與剛產的封面）原地轉 webp。idempotent：已是 webp 的自動跳過。
-      - run: node scripts/convert-images-to-webp.cjs
+      # ⚠️弱主機每個 node process 約 12 張就連線雪崩（見 memory reference_directus_image_transform_webp）→
+      #   改 loop 開「獨立 process、每批 12 張」（每批新連線繞開雪崩），跑到轉完或 5h 時間預算（Action 上限 6h）。
+      #   全庫 ~15h＝一晚跑不完；被時間截斷沒關係，idempotent，隔天 02:00 自動接著補，約 3 晚清完。
+      - run: |
+          deadline=$(( $(date +%s) + 18000 ))   # 5h 預算（<Action 6h 上限；台北 02:00→07:00 離峰）
+          zero=0
+          while [ "$(date +%s)" -lt "$deadline" ]; do
+            out=$(node scripts/convert-images-to-webp.cjs --limit 12 2>&1 || true)
+            echo "$out" | tail -2
+            conv=$(echo "$out" | grep -c '→' || true)   # 轉檔行含「KB → KB」；跳過/失敗行無 →
+            if [ "$conv" -eq 0 ]; then zero=$((zero + 1)); else zero=0; fi
+            if [ "$zero" -ge 5 ]; then echo "連續 5 批 0 轉檔 → 視為全部轉完，收工"; break; fi
+            sleep 5
+          done
         env:
           DIRECTUS_TOKEN: ${{ secrets.DIRECTUS_TOKEN }}
