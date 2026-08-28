@@ -68,10 +68,11 @@ function initListYearToggle() {
         this.setAttribute('aria-expanded', String(!isOpen)); // 無障礙：報讀切換後狀態
 
         if (isOpen) {
-          // Close with GSAP animation
+          // Close = 展開的完美倒帶（user 2026-08-28）：duration 用 DUR.medium 對齊 open（原 DUR.base 快 100ms），
+          // ease 維持 exitSoft(power2.in)＝enterSoft(power2.out) 的時間反向 → 收起就是展開反著播。
           gsap.to(itemsContainer, {
             height: 0,
-            duration: DUR.base,
+            duration: DUR.medium,
             ease: EASE.exitSoft,
             onComplete: () => {
               itemsContainer.style.display = 'none';
@@ -105,6 +106,53 @@ const ACCENT_TO_DEEP = {
   '#00FF80': '#23eb7d', '#00ff80': '#23eb7d',
   '#26BCFF': '#23a5ff', '#26bcff': '#23a5ff',
 };
+
+function listContentOf(header) {
+  return /** @type {HTMLElement|null} */ (
+    (header.nextElementSibling?.classList.contains('list-content')
+      ? header.nextElementSibling
+      : header.closest('.list-item')?.querySelector('.list-content')) || header.nextElementSibling);
+}
+
+// 打開某 item 後 hover 其他 item：把已展開 item 的 accent inline 色清掉 → 露出原本斑馬底色（減弱展開色）。
+// 全站 accent 外觀（inverse/mode-color 的文字翻色、album sticky cell、ref 深色）都靠這幾個 inline 值驅動，
+// 清掉即一次連動還原：文字自動回 theme-fg（[style*=background] 不再命中）、圖片無 inline 依賴故不受影響。
+// restore 從 dataset.accentHex（proceedOpen 存的）重建；rAF 去抖讓 hover A→B（mouseleave 先於 mouseenter）不閃。
+let dimRestoreRAF = 0;
+function dimOpenItemForHover(hoveredHeader) {
+  cancelAnimationFrame(dimRestoreRAF);
+  const scope = hoveredHeader.closest('.activities-panel') || document;
+  const active = /** @type {HTMLElement|null} */ (scope.querySelector('.list-header.active'));
+  if (!active || active === hoveredHeader || active.dataset.dimmed) return;
+  const content = listContentOf(active);
+  const item = /** @type {HTMLElement|null} */ (active.closest('.list-item'));
+  active.dataset.dimmed = '1';
+  active.style.background = '';
+  if (content) content.style.background = '';
+  if (item) {
+    item.style.background = '';
+    item.style.removeProperty('--item-color');
+    item.style.removeProperty('--item-color-deep');
+  }
+}
+function restoreDimmedOpenItem() {
+  dimRestoreRAF = requestAnimationFrame(() => {
+    const active = /** @type {HTMLElement|null} */ (document.querySelector('.list-header.active[data-dimmed]'));
+    if (!active) return;
+    delete active.dataset.dimmed;
+    const color = active.dataset.accentHex;
+    if (!color) return;
+    const content = listContentOf(active);
+    const item = /** @type {HTMLElement|null} */ (active.closest('.list-item'));
+    active.style.background = color;
+    if (content) content.style.background = color;
+    if (item) {
+      item.style.background = color;
+      item.style.setProperty('--item-color', color);
+      item.style.setProperty('--item-color-deep', ACCENT_TO_DEEP[color] || color);
+    }
+  });
+}
 
 // 兩段式開合的序列鎖（2026-06-08 prototype）：開新 item 改成「先動畫收回舊的 → 收完才量測落點 + 展開」，
 // 序列期間 (~0.9s) 鎖住 list-header 點擊避免連點 race。module 常駐記憶體 → 於 initListAccordion 與
@@ -152,6 +200,7 @@ export function instantCloseListHeader(header) {
   header.style.background = '';
   delete header.dataset.accentHex;
   delete header.dataset.collapsing;
+  delete header.dataset.dimmed;
 
   snapSubtitleHeight(header);  // 移 .active 後副標會 0.3s 重新展開 → snap 定高，讓緊接的量測拿到真值
 
@@ -439,6 +488,7 @@ function closeListHeader(header, { duration = DUR.medium, scrollFollow = false }
       }
       delete header.dataset.accentHex;
       delete header.dataset.collapsing;
+      delete header.dataset.dimmed;
       // 「一律對齊頂部」spacer：self-close 收完才清（scrollFollow 已把 scrollTop 帶到 postMax ≤ 清掉後 maxScroll → 不跳）。
       //   close-others（scrollFollow=false）不清，交給隨後的 proceedOpen 重算（避免多一次 clamp）。
       if (scrollFollow) resetBoxSpacer(header);
@@ -491,12 +541,14 @@ function initListHeaderAccordion() {
         const color = SCCDHelpers.getRandomAccentColor();
         this.style.background = color;
         this.dataset.accentHex = color;
+        dimOpenItemForHover(this);  // hover 別的 item → 已展開 item 退回斑馬底色
       }
     });
     header.addEventListener('mouseleave', function() {
       if (!this.classList.contains('active') && !this.dataset.collapsing && !this.dataset.opening) {
         this.style.background = '';
         delete this.dataset.accentHex;
+        restoreDimmedOpenItem();  // 離開 → 還原展開 item 的 accent
       }
     });
 

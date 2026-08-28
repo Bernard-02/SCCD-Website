@@ -554,6 +554,7 @@
     display: none;
     overflow: clip;   /* 遮罩：inner 滑出邊界被剪裁 */
     z-index: 30;
+    transition: transform var(--dur-fast) var(--ease-standard); /* hover 重擲角度的補間；GSAP 只寫 inner 不寫外層、無追打 */
   }
   .slide-in-back-square-inner {
     display: flex;

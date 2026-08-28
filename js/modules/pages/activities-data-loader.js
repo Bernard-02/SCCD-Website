@@ -313,16 +313,6 @@ export function buildItemMedia(item) {
   return all.filter(m => m.src);
 }
 
-// 視覺 poster：item.poster 沒填就 fallback 用 item.images[0]
-// caller buildPosterHtml / 過濾空 media 都靠這個判斷
-function getEffectivePoster(item) {
-  if (item.poster) return item.poster;
-  // images 可能是 string array 或 group repeater 物件 array
-  const first = item.images?.[0];
-  if (!first) return '';
-  return typeof first === 'string' ? first : (first.image || '');
-}
-
 // Albums list HTML（每筆 = 一個 album，各自有獨立 media，點擊開 lightbox）
 // 過濾掉沒有 images 的 album：user 反映「list 裡有些 album 沒圖片卻仍能切換過去」
 // 沒圖片就不該佔 list 位置（即使有 date/location 也不渲染）
@@ -383,7 +373,7 @@ export function buildAlbumsHtml(item, { unbounded = false } = {}) {
               <span class="icon icon-chevron-list icon-s"></span>
             </button>
             <div class="album-track flex-1 min-w-0" style="overflow-x: clip; overflow-clip-margin: 0.5rem; overflow-y: visible; padding: 8px 0;">
-              <div class="album-track-inner flex items-center gap-sm" style="transition: transform 0.3s ease;">
+              <div class="album-track-inner flex items-center gap-sm" style="transition: transform 0.3s ease, opacity 0.3s ease;">
                 ${thumbsHtml}
               </div>
             </div>
@@ -402,16 +392,14 @@ export function buildAlbumsHtml(item, { unbounded = false } = {}) {
 }
 
 // 海報區塊 HTML
-// poster 沒填時 fallback 用 images[0]（user 指定：「poster 沒有就是第一個圖片，不顯示 broken link」）
-// fallbackToImage=false：forum/conferences 例外，後台沒填 poster 就不渲染 poster 區（相簿仍照常從 gallery 出）
+// poster 只渲染後台實際填的 item.poster；沒填就不渲染 poster 區（user 2026-08-28 改：不再 fallback 用 images[0]，
+// 避免右側多出一張 poster、且跟 gallery 第一張重複）。相簿仍照常從 gallery 出。item.poster 恆對應 mediaList[0]（buildItemMedia）。
 // onerror 自摧毀 wrapper：URL 對但圖檔 404 / 跨域擋下時不會留 broken icon
-// lightbox-index：poster 來自 item.poster 時對應 mediaList[0]；fallback 自 images[0] 時對應 videos.length（即 images 起點）
-export function buildPosterHtml(item, { fallbackToImage = true } = {}) {
-  const src = fallbackToImage ? getEffectivePoster(item) : (item.poster || '');
+export function buildPosterHtml(item) {
+  const src = item.poster || '';
   if (!src) return '';
-  const lightboxIndex = item.poster ? 0 : (item.videos?.length || 0);
   return `
-    <div class="overflow-hidden cursor-pointer" data-lightbox-open data-lightbox-index="${lightboxIndex}">
+    <div class="overflow-hidden cursor-pointer" data-lightbox-open data-lightbox-index="0">
       <img src="${src}" alt="${item.title} poster" class="poster-img w-full block object-cover" onerror="this.closest('[data-lightbox-open]').style.display='none'">
     </div>
   `;
@@ -466,7 +454,7 @@ export function buildGalleryHtml(item) {
       <!-- min-w-0：flex item 的 min-width:auto 會被內容撐開（手機 327px 容器內 track 被撐到 ~357px），
            把 gallery-next 推出 viewport 右側「右 chevron 消失」；album-track 已有同款 fix -->
       <div class="gallery-track flex-1 min-w-0" style="height: 120px; overflow-x: clip; overflow-clip-margin: 0.5rem; overflow-y: visible;">
-        <div class="gallery-inner flex gap-md h-full" style="transition: transform 0.3s ease;">
+        <div class="gallery-inner flex gap-md h-full" style="transition: transform 0.3s ease, opacity 0.3s ease;">
           ${galleryItems.join('')}
         </div>
       </div>
@@ -588,7 +576,27 @@ function getLightboxMeta(elem) {
     zh: marquees[1]?.querySelector('p')?.textContent.trim() || ''
   };
 
-  return { title, color };
+  // Share URL：跟外層 list-item 的 [data-share-btn] 同一份（複製 share-modal.js computeShareUrl 的 section+item 規則）
+  const itemId = listItem?.id?.replace(/^item-/, '');
+  const section = elem.closest('[id^="panel-"]')?.id?.replace(/^panel-/, '');
+  const shareUrl = (section && itemId) ? `${location.href.split('?')[0]}?section=${section}&item=${itemId}` : '';
+
+  return { title, color, shareUrl };
+}
+
+// 縮圖橫向 strip（album / gallery）：w-auto 縮圖 decode 後才撐寬，逐張載入會把右側縮圖往右推＝展開時「往右移」
+// （user 2026-08-28）。先藏整條 strip、全部圖 decode 完才一次淡入 → 保留原比例又零可見位移（reflow 藏在隱藏態）；
+// 已 complete（cached）全跳過、不多閃一幀；onReveal 淡入後補跑（updateChevrons：載完前就展開時 scrollWidth 偏小、chevron 會漏顯）。
+// ⚠️ 只認「有 src」的 img：gallery 的 HLS 影片 tile 佔位 img 無 src（complete=true naturalWidth=0、之後才 hydrate），
+//    納入會永遠等不到 load/error → strip 卡死在 opacity:0。poster 在 .gallery-section 外、不在此 inner，天生不受影響。
+function gateStripRevealOnLoad(inner, onReveal) {
+  const imgs = [...inner.querySelectorAll('img')].filter(im => im.getAttribute('src'));
+  if (!imgs.length || imgs.every(im => im.complete && im.naturalWidth)) return;
+  inner.style.opacity = '0';
+  Promise.all(imgs.map(im => (im.complete && im.naturalWidth)
+    ? Promise.resolve()
+    : new Promise(res => { im.addEventListener('load', res, { once: true }); im.addEventListener('error', res, { once: true }); })))
+    .then(() => { inner.style.opacity = '1'; onReveal?.(); });
 }
 
 // Gallery 滑動、Lightbox、hover、海報比例偵測；回傳 GSAP 動畫啟動函數
@@ -644,6 +652,8 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
     if (typeof ResizeObserver !== 'undefined') {
       new ResizeObserver(updateChevrons).observe(track);
     }
+    // 縮圖 w-auto：decode 後才撐寬、逐張載入把右側往右推＝展開「往右移」→ 先藏整條、全載完才一次淡入
+    gateStripRevealOnLoad(inner, updateChevrons);
     const STEP = () => track.clientWidth * 0.6;
     prevBtn?.addEventListener('click', e => {
       e.stopPropagation();
@@ -687,6 +697,8 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
     if (typeof ResizeObserver !== 'undefined') {
       new ResizeObserver(updateChevrons).observe(track);
     }
+    // 縮圖 w-auto：同 album strip 的展開「往右移」→ 先藏整條、全載完才一次淡入（排除無 src 的 HLS 佔位 img）
+    gateStripRevealOnLoad(inner, updateChevrons);
     const STEP = () => track.clientWidth * 0.6;
     prevBtn?.addEventListener('click', () => {
       offset = Math.max(0, offset - STEP());
@@ -739,39 +751,47 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
   // 偶數 index 配下一個、奇數 index 配上一個），落單尾巴（該段只有 en 沒有 zh）維持原本單條 CSS 邏輯。
   function reconcilePair(wrap) {
     const parent = wrap.parentElement;
+    if (!parent) return false; // detached（re-render 後仍排隊的 ResizeObserver callback）→ no-op 不炸
     const siblings = [...parent.querySelectorAll(':scope > .list-title-marquee')];
     const idx = siblings.indexOf(wrap);
-    if (idx === -1 || siblings.length < 2) return false;
+    if (idx === -1) return false;
     const isEven = idx % 2 === 0;
     const partnerIdx = isEven ? idx + 1 : idx - 1;
-    if (partnerIdx < 0 || partnerIdx >= siblings.length) return false; // 落單，交回原本單條 CSS 邏輯
-    return reconcileChunk(isEven ? wrap : siblings[partnerIdx], isEven ? siblings[partnerIdx] : wrap);
+    const partner = (partnerIdx >= 0 && partnerIdx < siblings.length) ? siblings[partnerIdx] : null;
+    if (partner) return reconcileChunk(isEven ? [wrap, partner] : [partner, wrap]);
+    // 落單（單語言，實務上＝有英沒中；有中沒英會補英故仍雙語，user 2026-08-25）：只有 hover-gated 情境
+    // （list-header 主/副標、摘要欄）才單條走 GSAP＝一樣要 hover 放開回彈；其他 list-content 自動跑的 lone
+    // marquee 維持 CSS seamless（本來就無 hover snap 問題，別改它的 loop 風格）→ return false 交回 CSS。
+    if (wrap.closest('.list-header') || wrap.closest('.list-summary-mq-col')) return reconcileChunk([wrap]);
+    return false;
   }
 
-  function reconcileChunk(wrapEn, wrapZh) {
-    if (wrapEn._pairGroup) { wrapEn._pairGroup.tl.kill(); if (wrapEn._pairGroup._ret) wrapEn._pairGroup._ret.kill(); }
+  // wraps＝配對 [en, zh] 或落單 [wrap]（單語言）；兩者都走同一條 GSAP 路徑（buildSyncedMarqueeTimeline 吃 1~N 條）。
+  function reconcileChunk(wraps) {
+    const first = wraps[0];
+    if (first._pairGroup) { first._pairGroup.tl.kill(); if (first._pairGroup._ret) first._pairGroup._ret.kill(); }
 
-    const measured = [wrapEn, wrapZh].map(wrap => {
+    const measured = wraps.map(wrap => {
       const p = wrap.querySelector('p');
-      wrap.dataset.marqueePaired = '1'; // lists.css 用這個 class 蓋掉 CSS animation，避免跟 GSAP 打架
+      wrap.dataset.marqueePaired = '1'; // lists.css 用這個 class 蓋掉 CSS animation，避免跟 GSAP 打架（落單也套＝關 CSS keyframe）
       return { wrap, p, distance: p ? p.scrollWidth - wrap.clientWidth : 0 };
     });
     const overflowing = measured.filter(m => m.p && m.distance > 1);
     measured.forEach(({ wrap, p }) => { wrap.classList.toggle('is-overflow', overflowing.some(o => o.wrap === wrap)); if (p) gsap.set(p, { x: 0 }); });
 
-    if (!overflowing.length) { wrapEn._pairGroup = wrapZh._pairGroup = null; return true; }
+    if (!overflowing.length) { wraps.forEach(w => w._pairGroup = null); return true; }
 
     const tl = buildSyncedMarqueeTimeline(overflowing.map(({ p, distance }) => ({ el: p, distance })));
     const group = { tl, els: overflowing.map(o => o.p) };
-    wrapEn._pairGroup = wrapZh._pairGroup = group;
+    wraps.forEach(w => w._pairGroup = group);
 
     // 播放 gate（對齊 lists.css / dsd 慣例）：
     //   - list-header 內：hover（桌面）/ active（手機 accordion，MutationObserver 追 class）才播。
     //   - list-content 摘要欄（.list-summary-mq-col＝地點/城市）：桌面 hover 該欄才播、手機無 hover 自動捲
     //     （user 2026-08-19；先前一律「量到即播」＝自動捲，改對齊 dsd 的 col hover-gated）。
     //   - 其他 list-content marquee（副標/講者/refs/date 等）：維持量到即播。
-    const header = wrapEn.closest('.list-header');
-    const cell = header ? null : wrapEn.closest('.list-summary-mq-col');
+    const header = first.closest('.list-header');
+    const cell = header ? null : first.closest('.list-summary-mq-col');
     const gate = header || (window.innerWidth >= 768 ? cell : null);
     if (!gate) { tl.play(); return true; }
     // playAll/pauseAll 即時掃 DOM 讀 wrap._pairGroup（不維護額外陣列），reconcileChunk 可能因 resize/
@@ -975,7 +995,7 @@ function formatSingleDateGroup(d, includeStartYear = false) {
 // options（全部預設顯示，需隱藏的才設 false）：
 //   categoryFilter       {string|null}  過濾 item.category
 //   showYearToggle       {boolean}      年份收合 toggle（預設 true；false = 顯示年份但不可收合，summer camp 用）
-//   showSubtitle         {boolean}      subtitle / subtitle_zh（預設 false）
+//   showSubtitle         {boolean}      subtitle / subtitle_zh（預設 true；沒填自然不渲染）
 //   subtitleFromGuests   {boolean}      副標改從 item.guests 派生（lectures 用：每位講者一段 EN+ZH，max 3 個）
 //   showAlumniIcon       {boolean}      畢業帽 icon（預設 true）
 //   showDate             {boolean}      date（預設 true）
@@ -1007,14 +1027,13 @@ export async function loadListInto(containerId, url, options = {}) {
     visitTypeField       = 'visitType',
     showYearToggle       = true,
     hideYearHeader       = false,
-    showSubtitle         = false,
+    showSubtitle         = true,   // 後台有填 subtitle 就顯示；沒填 subList 為空、renderSubListBlock 回 '' 自然不渲染（user 2026-08-28：exhibition 等直接走 loadListInto 的 section 原漏渲染）
     subtitleFromGuests   = false,
     showAlumniIcon       = true,
     showDescription      = true,
     showDate             = true,
     showLocation         = true,
     showPoster           = true,
-    posterFallback       = true,   // false = poster 空就不 fallback images[0]（forum/conferences 用）
     showReference        = true,
     showShareBtn         = true,
     showGuestAffiliation = true,
@@ -1343,7 +1362,7 @@ export async function loadListInto(containerId, url, options = {}) {
                   ${introZh ? `<p class="text-s leading-base" lang="zh-Hant">${introZh}</p>` : ''}
                 </div>` : ''}
               </div>
-              ${showPoster ? buildPosterHtml(item, { fallbackToImage: posterFallback }) : ''}
+              ${showPoster ? buildPosterHtml(item) : ''}
             </div>
             <!-- albums（年份/日期/地點 + 相簿）移出 9.5fr 文字欄、以 px-sm 對齊左緣的全寬 block：
                  常設展文字保持窄欄、下方相簿列滿版到容器右緣（user 2026-07-14）。只有 permanent-exhibitions 有 albums。
@@ -1569,6 +1588,8 @@ export async function loadWorkshopsInto(jsonFile, containerId = null, options = 
     showSubtitle: true,
     introField: 'intro',
     showAlumniIcon: false,
+    // user 定案：只要有標題就渲染（workshops / students-present 皆走此函式）
+    allowNoMedia: true,
     ...(data ? { data } : {}),
     ...options,
   });
@@ -1635,7 +1656,7 @@ function deriveHostSection(url, categoryFilter, visitTypeFilter) {
 //   跟扁平 list 不同，尚未接（loadExhibitionsInto permanent 分支仍走本地）；degree-show 同理走自己的 loader。
 const ACT_DIRECTUS_MAP = {
   'activities-competition':      { collection: 'activities_competitions', category: 'competitions' },
-  'activities-industry':         { collection: 'activities_industry' },
+  'activities-industry':         { collection: 'activities_industry', sortByDate: true },  // press 式單一 year+monthDay，前台依日期排序
   'activities-workshop':         { collection: 'activities_workshops' },
   'activities-lecture':          { collection: 'activities_lectures' },
   'activities-students-present': { collection: 'activities_students_present' },
@@ -1646,7 +1667,7 @@ const ACT_DIRECTUS_MAP = {
 };
 async function fetchActEndpointOrFallback(endpoint, fallbackUrl) {
   const m = ACT_DIRECTUS_MAP[endpoint];
-  if (m) return loadActivityCollection(m.collection, fallbackUrl, { category: m.category, stamp: m.stamp });
+  if (m) return loadActivityCollection(m.collection, fallbackUrl, { category: m.category, stamp: m.stamp, sortByDate: m.sortByDate });
   return fetch(sitePath(fallbackUrl)).then(r => r.json());
 }
 
@@ -1663,21 +1684,20 @@ export async function loadGeneralActivitiesInto(containerId, categoryFilter = nu
   const data = (endpoint && !options.data) ? await fetchActEndpointOrFallback(endpoint, url) : null;
   return loadListInto(containerId, url, {
     categoryFilter,
-    // competitions / conferences 是純文字活動（標題＋日期＋描述，無海報/圖片），放行無媒體項目才不會被濾成空清單
-    allowNoMedia:         categoryFilter === 'competitions' || categoryFilter === 'conferences',
+    // user 定案：activities 清單只要有標題就渲染，不因缺 media 被濾掉（後台可先填標題、媒體之後補）
+    allowNoMedia:         true,
     showAlumniIcon:       true,
     showDate:             !isIndustry,
     showDescription:      !isLectures && !isIndustry,
     showLocation:         !isIndustry,
     showPoster:           !isIndustry,
     showReference:        true,
-    // forum/conferences：後台沒填 poster 就不渲染 poster（不 fallback 第一張圖），只留 gallery 相簿
-    posterFallback:       categoryFilter !== 'conferences',
-    // conferences 也顯示副標（後台 subtitles 欄，如 forum「畢業展論壇」）；沒填的 forum subList 為空自然不渲染
-    showSubtitle:         isIndustry || isLectures || categoryFilter === 'conferences',
+    // showSubtitle 走 loadListInto 預設 true（有填才渲染）；lectures 例外從 guests 派生副標
     subtitleFromGuests:   isLectures,
     showGuestAffiliation: !isIndustry,
-    showGuestCountry:     !isIndustry,
+    // industry 的 guest＝合作單位，也顯示其國家（user 2026-08-27：後台已在 guests 填 country）；
+    // affiliation 仍關（單位名就是 guest 本身、無另外的 org 欄）
+    showGuestCountry:     true,
     panelSelector:        _panelSelectorMap[containerId] || '#panel-exhibitions',
     ...(data ? { data } : {}),
     ...options,
@@ -1704,6 +1724,8 @@ export async function loadExhibitionsInto(options = {}) {
     loadListInto('exhibitions-list-special', '/data/general-activities.json', {
       categoryFilter: 'exhibitions',
       visitTypeFilter: 'special', visitTypeField: 'exhibitionType',
+      // 後台可只填標題（媒體之後補）→ 沒圖也要渲染，別被媒體導向 filter 濾掉
+      allowNoMedia: true,
       panelSelector: '#panel-exhibitions',
       data: specialData,
       ...options,
@@ -1735,12 +1757,15 @@ export async function loadVisitsInto(options = {}) {
   const fns = await Promise.all([
     loadListInto('visits-list-outbound', '/data/general-activities.json', {
       categoryFilter: 'visits', visitTypeFilter: 'outbound',
+      // 後台可只填標題（媒體之後補）→ 沒圖也要渲染
+      allowNoMedia: true,
       panelSelector: '#panel-visits',
       data: outboundData,
       ...options,
     }),
     loadListInto('visits-list-inbound', '/data/general-activities.json', {
       categoryFilter: 'visits', visitTypeFilter: 'inbound',
+      allowNoMedia: true,
       panelSelector: '#panel-visits',
       data: inboundData,
       ...options,

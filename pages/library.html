@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.2.3/css/flag-icons.min.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bitter:ital,wght@0,400;0,600;0,700;1,400&family=Noto+Serif+TC:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bitter:ital,wght@0,400;0,600;0,700;1,400&family=Noto+Serif+TC:wght@400;600;700&family=Noto+Serif+JP:wght@400;600;700&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../css/components/library.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
 </head>
@@ -30,16 +30,16 @@
            繼承 buttons.css 樣式（pill + active 隨機色/旋轉 + 手機 horizontal scroll） -->
       <div id="library-mobile-tabs" class="library-mobile-tabs activities-section-bar flex flex-row gap-xs no-scrollbar">
         <button class="activities-section-btn w-fit active text-left" data-tab="awards">
-          <span class="anchor-nav-inner"><span>Awards</span><span>榮譽</span></span>
+          <span class="anchor-nav-inner"><span data-label-key="lib.awards" data-label-part="en">Awards</span><span data-label-key="lib.awards" data-label-part="zh">榮譽</span></span>
         </button>
         <button class="activities-section-btn w-fit text-left" data-tab="files">
-          <span class="anchor-nav-inner"><span>Documents</span><span>文件</span></span>
+          <span class="anchor-nav-inner"><span data-label-key="lib.files" data-label-part="en">Documents</span><span data-label-key="lib.files" data-label-part="zh">文件</span></span>
         </button>
         <button class="activities-section-btn w-fit text-left" data-tab="press">
-          <span class="anchor-nav-inner"><span>Press</span><span>報導</span></span>
+          <span class="anchor-nav-inner"><span data-label-key="lib.press" data-label-part="en">Press</span><span data-label-key="lib.press" data-label-part="zh">報導</span></span>
         </button>
         <button class="activities-section-btn w-fit text-left" data-tab="album">
-          <span class="anchor-nav-inner"><span>Albums</span><span>相簿</span></span>
+          <span class="anchor-nav-inner"><span data-label-key="lib.album" data-label-part="en">Albums</span><span data-label-key="lib.album" data-label-part="zh">相簿</span></span>
         </button>
       </div>
       <div id="library-card-stack" class="absolute inset-0 flex items-center justify-center">
@@ -54,12 +54,12 @@
           <!-- ══ Awards Panel ══ -->
           <div id="lib-panel-awards" style="display: flex; flex-direction: column; width: 100%; height: 100%; position: relative; overflow: visible;">
 
-            <!-- 標題（貼在 panel 左上角） -->
-            <h2 class="lib-panel-title" style="margin: 0; position: absolute; top: 0; left: calc(-1 * var(--spacing-xl)); font-size: var(--font-size-lg); font-weight: 700; display: inline-block; padding: 6px 8px 5px; z-index: 1; clip-path: inset(0 0 100% 0);">Awards 榮譽</h2>
+            <!-- 標題（灰卡頂部靜態標題列；樣式在 library.css） -->
+            <h2 class="lib-panel-title" style="margin: 0; clip-path: inset(0 0 100% 0);"><span data-label-key="lib.awards" data-label-part="en">Awards</span> <span data-label-key="lib.awards" data-label-part="zh">榮譽</span></h2>
 
             <!-- 內容區（flex: 1，不含 ticker） -->
-            <!-- padding-top = md 對齊其他三個 panel（press/files/album 都是 var(--spacing-md)）；原本 md/2 害 award 灰卡內容比其他高 12px（user 2026-06-15） -->
-            <div style="flex: 1; min-height: 0; display: grid; grid-template-columns: max-content 1fr; grid-template-rows: 1fr; gap: 0 var(--spacing-2xl); padding: var(--spacing-md) var(--spacing-md) 0 var(--spacing-md);">
+            <!-- padding-top = lg（標題移到灰卡底部後、頂部無標題列，恢復 lg 讓 search bar 上方有呼吸；user 2026-08-26） -->
+            <div style="flex: 1; min-height: 0; display: grid; grid-template-columns: max-content 1fr; grid-template-rows: 1fr; gap: 0 var(--spacing-2xl); padding: var(--spacing-lg) var(--spacing-lg) 0 var(--spacing-lg);">
 
               <!-- 左：年份 Picker；padding-top:4px 讓 picker 第一個年份對齊右側 list 第一個年份標題
                    （4px = 右側 search bar 的 padding-bottom 4px；border-bottom 已移除 user 2026-06-23，純 px 不隨字級變、穩定） -->
@@ -81,7 +81,7 @@
                   <div style="flex: 1; display: flex; align-items: center; gap: var(--spacing-sm); padding-bottom: 4px;">
                     <span class="icon icon-search icon-xs"></span>
                     <input type="text" id="library-awards-search" placeholder="Search 搜尋" aria-label="搜尋 Search"
-                      style="flex: 1; background: transparent; border: none; outline: none; font-family: 'Bitter', 'Noto Serif TC', serif; font-size: var(--font-size-xs); font-weight: 700; color: var(--lib-fg);"
+                      style="flex: 1; background: transparent; border: none; outline: none; font-family: 'Bitter', 'Noto Serif TC', 'Noto Serif JP', 'Noto Serif SC', serif; font-size: var(--font-size-xs); font-weight: 700; color: var(--lib-fg);"
                       autocomplete="off">
                   </div>
                   <button id="library-awards-sort-btn" class="library-sort-btn">Date 時間<span class="icon icon-arrow-down sort-arrow icon-xs"></span></button>
@@ -96,7 +96,7 @@
             </div>
 
             <!-- Logo Ticker -->
-            <div id="library-awards-ticker" style="flex-shrink: 0; padding-top: calc(var(--spacing-md) / 2); padding-bottom: var(--spacing-md); width: 100%;">
+            <div id="library-awards-ticker" style="flex-shrink: 0; padding: calc(var(--spacing-md) / 2) var(--spacing-lg) var(--spacing-lg); width: 100%;">
               <div class="awards-ticker-wrapper" style="display: flex; width: 100%;"></div>
             </div>
 
@@ -105,11 +105,11 @@
           <!-- ══ Press Panel ══ -->
           <div id="lib-panel-press" style="display: none; flex-direction: column; width: 100%; height: 100%; position: relative; overflow: visible;">
 
-            <!-- 標題（貼在 panel 頂邊） -->
-            <h2 class="lib-panel-title" style="margin: 0; position: absolute; top: 0; left: calc(-1 * var(--spacing-xl)); font-size: var(--font-size-lg); font-weight: 700; display: inline-block; padding: 6px 8px 5px; z-index: 1; clip-path: inset(0 0 100% 0);">Press 報導</h2>
+            <!-- 標題（灰卡頂部靜態標題列；樣式在 library.css） -->
+            <h2 class="lib-panel-title" style="margin: 0; clip-path: inset(0 0 100% 0);"><span data-label-key="lib.press" data-label-part="en">Press</span> <span data-label-key="lib.press" data-label-part="zh">報導</span></h2>
 
             <!-- 內容區：2 rows — 分類篩選/search、picker/list -->
-            <div style="flex: 1; min-height: 0; display: grid; grid-template-columns: max-content 1fr; grid-template-rows: auto 1fr; gap: 0 var(--spacing-2xl); padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm) var(--spacing-md);">
+            <div style="flex: 1; min-height: 0; display: grid; grid-template-columns: max-content 1fr; grid-template-rows: auto 1fr; gap: 0 var(--spacing-2xl); padding: var(--spacing-lg) var(--spacing-lg) var(--spacing-lg);">
 
               <!-- 左上：grid 佔位（Year 年份 標題已移除，保留空 cell 維持 grid/nth-child 結構） -->
               <div></div>
@@ -120,7 +120,7 @@
                   <div style="flex: 1; display: flex; align-items: center; gap: var(--spacing-sm); padding-bottom: 4px;">
                     <span class="icon icon-search icon-xs"></span>
                     <input type="text" id="library-press-search" placeholder="Search 搜尋" aria-label="搜尋 Search"
-                      style="flex: 1; background: transparent; border: none; outline: none; font-family: 'Bitter', 'Noto Serif TC', serif; font-size: var(--font-size-xs); font-weight: 700; color: var(--lib-fg);"
+                      style="flex: 1; background: transparent; border: none; outline: none; font-family: 'Bitter', 'Noto Serif TC', 'Noto Serif JP', 'Noto Serif SC', serif; font-size: var(--font-size-xs); font-weight: 700; color: var(--lib-fg);"
                       autocomplete="off">
                   </div>
                   <button id="library-press-sort-btn" class="library-sort-btn">Date 時間<span class="icon icon-arrow-down sort-arrow icon-xs"></span></button>
@@ -146,25 +146,31 @@
           <!-- ══ Files Panel ══ -->
           <div id="lib-panel-files" style="display: none; flex-direction: column; width: 100%; height: 100%; position: relative; overflow: visible;">
 
-            <!-- 標題（貼在 panel 頂邊） -->
-            <!-- left -2xl-sm＝-80（其他 panel 是 -xl/-2xl）：Documents 標籤最長，多往左 16px 才不遮到右側 search icon（user 2026-07-16 定 16、-3xl 的 32 太多） -->
-            <h2 class="lib-panel-title" style="margin: 0; position: absolute; top: 0; left: calc(-1 * var(--spacing-2xl) - var(--spacing-sm)); font-size: var(--font-size-lg); font-weight: 700; display: inline-block; padding: 6px 8px 5px; z-index: 1; clip-path: inset(0 0 100% 0);">Documents 文件</h2>
+            <!-- 標題（灰卡頂部靜態標題列；樣式在 library.css） -->
+            <h2 class="lib-panel-title" style="margin: 0; clip-path: inset(0 0 100% 0);"><span data-label-key="lib.files" data-label-part="en">Documents</span> <span data-label-key="lib.files" data-label-part="zh">文件</span></h2>
 
-            <div style="flex: 1; min-height: 0; display: grid; grid-template-columns: max-content 1fr; grid-template-rows: auto 1fr; gap: 0 var(--spacing-2xl); padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm) var(--spacing-md);">
+            <div style="flex: 1; min-height: 0; display: grid; grid-template-columns: max-content 1fr; grid-template-rows: auto 1fr; gap: 0 var(--spacing-2xl); padding: var(--spacing-lg) var(--spacing-lg) var(--spacing-lg);">
 
               <!-- 左上：grid 佔位（Year 年份 標題已移除，保留空 cell 維持 grid/nth-child 結構） -->
               <div></div>
 
-              <!-- 右上：Search -->
+              <!-- 右上：Search + 分類篩選 -->
               <div style="min-width: 0; padding-bottom: var(--spacing-sm);">
-                <div style="display: flex; align-items: flex-end; gap: var(--spacing-sm);">
+                <div style="display: flex; align-items: flex-end; gap: var(--spacing-sm); margin-bottom: var(--spacing-sm);">
                   <div style="flex: 1; display: flex; align-items: center; gap: var(--spacing-sm); padding-bottom: 4px;">
                     <span class="icon icon-search icon-xs"></span>
                     <input type="text" id="library-files-search" placeholder="Search 搜尋" aria-label="搜尋 Search"
-                      style="flex: 1; background: transparent; border: none; outline: none; font-family: 'Bitter', 'Noto Serif TC', serif; font-size: var(--font-size-xs); font-weight: 700; color: var(--lib-fg);"
+                      style="flex: 1; background: transparent; border: none; outline: none; font-family: 'Bitter', 'Noto Serif TC', 'Noto Serif JP', 'Noto Serif SC', serif; font-size: var(--font-size-xs); font-weight: 700; color: var(--lib-fg);"
                       autocomplete="off">
                   </div>
                   <button id="library-files-sort-btn" class="library-sort-btn">Date 時間<span class="icon icon-arrow-down sort-arrow icon-xs"></span></button>
+                </div>
+                <!-- 文件分類篩選（對應後台 library_documents.docType；文字走 ui_labels lib.doctype.* 可後台改） -->
+                <div id="library-files-cat-filter" style="display: flex; flex-wrap: wrap; gap: var(--spacing-sm) var(--spacing-lg); align-content: flex-start;">
+                  <button class="lib-files-cat-btn" data-cat="books"><span class="cat-btn-en" data-label-key="lib.doctype.books" data-label-part="en">Books</span><span class="cat-btn-zh" data-label-key="lib.doctype.books" data-label-part="zh">書籍</span></button>
+                  <button class="lib-files-cat-btn" data-cat="contributions"><span class="cat-btn-en" data-label-key="lib.doctype.contributions" data-label-part="en">Contributions</span><span class="cat-btn-zh" data-label-key="lib.doctype.contributions" data-label-part="zh">收錄</span></button>
+                  <button class="lib-files-cat-btn" data-cat="booklets"><span class="cat-btn-en" data-label-key="lib.doctype.booklets" data-label-part="en">Booklets &amp; Leaflets</span><span class="cat-btn-zh" data-label-key="lib.doctype.booklets" data-label-part="zh">冊頁</span></button>
+                  <button class="lib-files-cat-btn" data-cat="other"><span class="cat-btn-en" data-label-key="lib.doctype.other" data-label-part="en">Other</span><span class="cat-btn-zh" data-label-key="lib.doctype.other" data-label-part="zh">其他</span></button>
                 </div>
               </div>
 
@@ -187,10 +193,10 @@
           <!-- ══ Album Panel ══ -->
           <div id="lib-panel-album" style="display: none; flex-direction: column; width: 100%; height: 100%; position: relative; overflow: visible;">
 
-            <!-- 標題（貼在 panel 頂邊） -->
-            <h2 class="lib-panel-title" style="margin: 0; position: absolute; top: 0; left: calc(-1 * var(--spacing-xl)); font-size: var(--font-size-lg); font-weight: 700; display: inline-block; padding: 6px 8px 5px; z-index: 1; clip-path: inset(0 0 100% 0);">Albums 相簿</h2>
+            <!-- 標題（灰卡頂部靜態標題列；樣式在 library.css） -->
+            <h2 class="lib-panel-title" style="margin: 0; clip-path: inset(0 0 100% 0);"><span data-label-key="lib.album" data-label-part="en">Albums</span> <span data-label-key="lib.album" data-label-part="zh">相簿</span></h2>
 
-            <div style="flex: 1; min-height: 0; display: grid; grid-template-columns: max-content 1fr; grid-template-rows: auto 1fr; gap: 0 var(--spacing-2xl); padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm) var(--spacing-md);">
+            <div style="flex: 1; min-height: 0; display: grid; grid-template-columns: max-content 1fr; grid-template-rows: auto 1fr; gap: 0 var(--spacing-2xl); padding: var(--spacing-lg) var(--spacing-lg) var(--spacing-lg);">
 
               <!-- 左上：grid 佔位（Year 年份 標題已移除，保留空 cell 維持 grid/nth-child 結構） -->
               <div></div>
@@ -201,25 +207,25 @@
                   <div style="flex: 1; display: flex; align-items: center; gap: var(--spacing-sm); padding-bottom: 4px;">
                     <span class="icon icon-search icon-xs"></span>
                     <input type="text" id="library-album-search" placeholder="Search 搜尋" aria-label="搜尋 Search"
-                      style="flex: 1; background: transparent; border: none; outline: none; font-family: 'Bitter', 'Noto Serif TC', serif; font-size: var(--font-size-xs); font-weight: 700; color: var(--lib-fg);"
+                      style="flex: 1; background: transparent; border: none; outline: none; font-family: 'Bitter', 'Noto Serif TC', 'Noto Serif JP', 'Noto Serif SC', serif; font-size: var(--font-size-xs); font-weight: 700; color: var(--lib-fg);"
                       autocomplete="off">
                   </div>
                   <button id="library-album-sort-btn" class="library-sort-btn">Date 時間<span class="icon icon-arrow-down sort-arrow icon-xs"></span></button>
                 </div>
                 <div id="library-album-cat-filter" style="display: flex; flex-wrap: wrap; gap: var(--spacing-sm) var(--spacing-lg); align-content: flex-start;">
-                  <button class="lib-album-cat-btn" data-cat="degree-show"><span class="cat-btn-en">Degree Shows</span><span class="cat-btn-zh">畢業展</span></button>
-                  <button class="lib-album-cat-btn" data-cat="exhibitions"><span class="cat-btn-en">Exhibitions</span><span class="cat-btn-zh">展演</span></button>
-                  <button class="lib-album-cat-btn" data-cat="workshop"><span class="cat-btn-en">Workshops</span><span class="cat-btn-zh">工作營</span></button>
-                  <button class="lib-album-cat-btn" data-cat="courses"><span class="cat-btn-en">Courses</span><span class="cat-btn-zh">課程</span></button>
-                  <button class="lib-album-cat-btn" data-cat="lectures"><span class="cat-btn-en">Lectures</span><span class="cat-btn-zh">講座</span></button>
-                  <button class="lib-album-cat-btn" data-cat="visits"><span class="cat-btn-en">Visits</span><span class="cat-btn-zh">參訪</span></button>
-                  <button class="lib-album-cat-btn" data-cat="competitions"><span class="cat-btn-en">Competitions</span><span class="cat-btn-zh">競賽</span></button>
-                  <button class="lib-album-cat-btn" data-cat="conferences"><span class="cat-btn-en">Forums</span><span class="cat-btn-zh">論壇</span></button>
-                  <button class="lib-album-cat-btn" data-cat="students-present"><span class="cat-btn-en">Students Present</span><span class="cat-btn-zh">學生自主</span></button>
-                  <button class="lib-album-cat-btn" data-cat="industry"><span class="cat-btn-en">Industry Partnerships</span><span class="cat-btn-zh">產學合作</span></button>
-                  <button class="lib-album-cat-btn" data-cat="summer-camp"><span class="cat-btn-en">Camp</span><span class="cat-btn-zh">體驗營</span></button>
-                  <button class="lib-album-cat-btn" data-cat="moment"><span class="cat-btn-en">Moment</span><span class="cat-btn-zh">日常</span></button>
-                  <button class="lib-album-cat-btn" data-cat="others"><span class="cat-btn-en">Others</span><span class="cat-btn-zh">其他</span></button>
+                  <button class="lib-album-cat-btn" data-cat="degree-show"><span class="cat-btn-en" data-label-key="lib.cat.degree-show" data-label-part="en">Degree Shows</span><span class="cat-btn-zh" data-label-key="lib.cat.degree-show" data-label-part="zh">畢業展</span></button>
+                  <button class="lib-album-cat-btn" data-cat="exhibitions"><span class="cat-btn-en" data-label-key="lib.cat.exhibitions" data-label-part="en">Exhibitions</span><span class="cat-btn-zh" data-label-key="lib.cat.exhibitions" data-label-part="zh">展演</span></button>
+                  <button class="lib-album-cat-btn" data-cat="workshop"><span class="cat-btn-en" data-label-key="lib.cat.workshop" data-label-part="en">Workshops</span><span class="cat-btn-zh" data-label-key="lib.cat.workshop" data-label-part="zh">工作營</span></button>
+                  <button class="lib-album-cat-btn" data-cat="courses"><span class="cat-btn-en" data-label-key="lib.cat.courses" data-label-part="en">Courses</span><span class="cat-btn-zh" data-label-key="lib.cat.courses" data-label-part="zh">課程</span></button>
+                  <button class="lib-album-cat-btn" data-cat="lectures"><span class="cat-btn-en" data-label-key="lib.cat.lectures" data-label-part="en">Lectures</span><span class="cat-btn-zh" data-label-key="lib.cat.lectures" data-label-part="zh">講座</span></button>
+                  <button class="lib-album-cat-btn" data-cat="visits"><span class="cat-btn-en" data-label-key="lib.cat.visits" data-label-part="en">Visits</span><span class="cat-btn-zh" data-label-key="lib.cat.visits" data-label-part="zh">參訪</span></button>
+                  <button class="lib-album-cat-btn" data-cat="competitions"><span class="cat-btn-en" data-label-key="lib.cat.competitions" data-label-part="en">Competitions</span><span class="cat-btn-zh" data-label-key="lib.cat.competitions" data-label-part="zh">競賽</span></button>
+                  <button class="lib-album-cat-btn" data-cat="conferences"><span class="cat-btn-en" data-label-key="lib.cat.conferences" data-label-part="en">Forums</span><span class="cat-btn-zh" data-label-key="lib.cat.conferences" data-label-part="zh">論壇</span></button>
+                  <button class="lib-album-cat-btn" data-cat="students-present"><span class="cat-btn-en" data-label-key="lib.cat.students-present" data-label-part="en">Students Present</span><span class="cat-btn-zh" data-label-key="lib.cat.students-present" data-label-part="zh">學生自主</span></button>
+                  <button class="lib-album-cat-btn" data-cat="industry"><span class="cat-btn-en" data-label-key="lib.cat.industry" data-label-part="en">Industry Partnerships</span><span class="cat-btn-zh" data-label-key="lib.cat.industry" data-label-part="zh">產學合作</span></button>
+                  <button class="lib-album-cat-btn" data-cat="summer-camp"><span class="cat-btn-en" data-label-key="lib.cat.summer-camp" data-label-part="en">Camp</span><span class="cat-btn-zh" data-label-key="lib.cat.summer-camp" data-label-part="zh">體驗營</span></button>
+                  <button class="lib-album-cat-btn" data-cat="moment"><span class="cat-btn-en" data-label-key="lib.cat.moment" data-label-part="en">Moment</span><span class="cat-btn-zh" data-label-key="lib.cat.moment" data-label-part="zh">日常</span></button>
+                  <button class="lib-album-cat-btn" data-cat="others"><span class="cat-btn-en" data-label-key="lib.cat.others" data-label-part="en">Others</span><span class="cat-btn-zh" data-label-key="lib.cat.others" data-label-part="zh">其他</span></button>
                 </div>
               </div>
 

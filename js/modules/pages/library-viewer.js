@@ -10,7 +10,7 @@ import { createRefBtn } from '../lightbox/lightbox-ref-btn.js';
 import { applyScreenWatermark, repositionScreenWatermark } from '../lightbox/screen-watermark.js';
 import { sitePath } from '../ui/site-base.js';
 import { peekPdfCover } from '../ui/pdf-cover.js';
-import { awaitLayoutReady } from '../ui/await-layout-ready.js';
+import { DUR, EASE } from '../ui/motion.js';
 
 // ── Lightbox ──────────────────────────────────────────────────────────────────
 
@@ -33,6 +33,13 @@ let _pdfjsLoadPromise = null;
 // CID 字型用預定義外部 CMap 的 PDF（中文舊檔常見）→ 沒給 cMapUrl 就整段中文渲染成空白（缺字）；
 // cdnjs 不供 cmaps（403）→ 用 jsdelivr pdfjs-dist cmaps（同 pdf-cover.js）。
 const PDFJS_CMAPS = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/cmaps/';
+// 非嵌入標準字型（Helvetica/Times/Arial 等）→ pdf.js 沒 standardFontDataUrl 就整段畫成空白（掉字）；
+// Acrobat 有系統/內建字型故看起來正常（user 2026-08-23「掃描檔內頁掉字、Acrobat 正常」；press 實測有此檔）。同 cmaps 走 jsdelivr。
+const PDFJS_STD_FONTS = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/standard_fonts/';
+// pdf.js 6.x 把 CCITT/JBIG2/JPX 影像解碼移進 wasm 模組 → 沒給 wasmUrl 會「Jbig2 failed to initialize」
+// 整張 XObject 被丟掉（MRC 壓縮掃描檔＝JPEG 背景＋CCITT 文字遮罩 → 文字層全消失只剩糊背景；
+// user 2026-08-23 MINTS press 第 2 頁實測）。cdnjs 不供 wasm 目錄 → 同 cmaps 走 jsdelivr。
+const PDFJS_WASM = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/wasm/';
 
 // pdfjsLib 不存在時動態 import 補載入（v4+ 只出 ESM build；import() 模組快取
 // 與 pdf-cover.js 天然去重）。掛回 window.pdfjsLib 讓既有 typeof 檢查照用。
@@ -66,7 +73,9 @@ function ensurePdfModal() {
          px-32 = 128px → mask 邊 60px gap。mobile 維持 px-16 -->
     <div class="pdf-main-row flex items-center justify-center w-full px-16 md:px-32 pt-xl pb-md flex-1 min-h-0 relative">
       <!-- chevron 對齊 logo 左/右邊（var(--container-padding)）= 跟 back btn 同 column -->
-      <button id="pdf-prev-btn" class="absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 disabled:opacity-20" style="left: var(--container-padding, 1.5rem); z-index: 30;">
+      <!-- 用 aria-disabled 不用原生 disabled：Chrome 對原生 disabled 強制預設箭頭、CSS cursor 無效
+           （同 activities-lightbox chevron；到底時要顯示 not-allowed 游標，user 2026-08-23）。turnPage 有 guard，點擊本就 no-op -->
+      <button id="pdf-prev-btn" class="absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 aria-disabled:opacity-20 aria-disabled:hover:opacity-20 aria-disabled:[cursor:var(--cursor-not-allowed)]" style="left: var(--container-padding, 1.5rem); z-index: 30;">
         <span class="icon icon-chevron-lightbox icon-m"></span>
       </button>
       <!-- zoom stage：overflow:hidden 容器，transform 套在 .pdf-canvas-row 上做 zoom + pan -->
@@ -76,10 +85,35 @@ function ensurePdfModal() {
             <canvas id="pdf-canvas-left" class="bg-white block" style="user-select:none;"></canvas>
           </div>
         </div>
-        <!-- 浮水印放在 zoom-stage（非 .pdf-canvas-row）→ 不吃 zoom 的 scale transform，放大 PDF 時水印字級不變（user 2026-08-20）-->
-        <div class="pdf-watermark" aria-hidden="true" style="position:absolute;inset:0;pointer-events:none;z-index:20;"></div>
+        <!-- 載入色塊（取代舊 LQIP 馬賽克墊圖）：放 .pdf-zoom-stage 內（非 rendered-content）＝stage 絕對定位、
+             開場依「頁面可視矩形」定尺寸一次、render 完全不碰 → 不再「先大後縮兩段跳」（user 2026-08-24）。
+             仍是頁面大小（非蓋滿整個 stage，user 要求）；render 完成前每秒換三原色，完成後隨機四方向 clip-reveal 揭露 PDF。
+             z-index:15＝蓋在 canvas-row 上、低於浮水印(z20，load 期間 opacity:0)與 minimap(z25，load 期間藏)。 -->
+        <div class="pdf-color-loader" aria-hidden="true" style="position:absolute;left:0;top:0;pointer-events:none;display:none;z-index:15;"></div>
+        <!-- 浮水印放在 zoom-stage（非 .pdf-canvas-row）→ 不吃 zoom 的 scale transform，放大 PDF 時水印字級不變（user 2026-08-20）。
+             外層 .pdf-watermark-clip（未旋轉、inset:0）用 clip-path 把浮水印裁成「PDF 頁面在螢幕上的矩形」
+             → 浮水印只蓋頁面、不蓋整個視窗（user 2026-08-23；updateWatermarkClip 跟著 zoom/pan 更新）。
+             內層圖樣仍全幅+旋轉+repeat（字級恆定、不隨 pan 位移），只是被外層裁到頁框內。-->
+        <div class="pdf-watermark-clip" aria-hidden="true" style="position:absolute;inset:0;pointer-events:none;z-index:20;">
+          <div class="pdf-watermark" style="position:absolute;pointer-events:none;"></div>
+        </div>
+        <!-- 右上角 minimap（press + documents 全部開檔都有，user 2026-08-23）：當前頁縮圖＋壓暗標示目前可視範圍。
+             只在「頁面被視窗裁切」時顯示（整頁可見時藏）；翻頁/縮放/拖曳都同步。
+             放 zoom-stage 而非 canvas-row → 不吃 zoom/pan，始終固定。pointer-events:none 不擋拖曳 -->
+        <div class="pdf-corner-thumb" style="position:absolute;top:0;right:0;width:clamp(56px,12vw,88px);z-index:25;pointer-events:none;display:none;overflow:hidden;">
+          <!-- inner 做 clip-reveal 進出場（yPercent 滑動）；外層 .pdf-corner-thumb overflow:hidden = reveal clip 罩。
+               ⚠️inner 也要 overflow:hidden：spotlight 是 rect 的 box-shadow 0 0 0 9999px，若只靠外層裁，滑動時
+               巨大陰影會一直填滿「不動的外層」→ 縮圖主體滑走、黑色壓暗留在原地（拆成兩塊，user 2026-08-23）。
+               裁在「會跟著滑」的 inner box → 陰影與主體整體一起進出場。-->
+          <div class="pdf-corner-thumb-inner" style="position:relative;overflow:hidden;will-change:transform;">
+            <canvas class="pdf-corner-thumb-canvas" style="display:block;width:100%;height:auto;background:#fff;"></canvas>
+            <!-- 可視範圍標示：框外用大 box-shadow 疊 70% 黑（spotlight 技巧）＝「畫面內 100% 亮、畫面外壓暗」；
+                 不用白框（user 2026-08-23 定案改暗區做法、同日調 70%） -->
+            <div class="pdf-corner-thumb-rect" style="position:absolute;left:0;top:0;box-sizing:border-box;box-shadow:0 0 0 9999px rgba(0,0,0,0.7);"></div>
+          </div>
+        </div>
       </div>
-      <button id="pdf-next-btn" class="absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 disabled:opacity-20" style="right: var(--container-padding, 1.5rem); z-index: 30;">
+      <button id="pdf-next-btn" class="absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 aria-disabled:opacity-20 aria-disabled:hover:opacity-20 aria-disabled:[cursor:var(--cursor-not-allowed)]" style="right: var(--container-padding, 1.5rem); z-index: 30;">
         <span class="icon icon-chevron-lightbox icon-m rotate-180"></span>
       </button>
     </div>
@@ -114,15 +148,15 @@ function ensurePdfModal() {
       <!-- 頁碼 justify-center 置中；zoom controls 靠右 absolute，top:50%+translateY(-50%) 與頁碼同一水平線
            （user 2026-06-03 澄清：頁碼置中、controls 靠右、兩者對齊在同一水平線，不是整組置中）-->
       <div class="pdf-zoom-controls absolute text-white" style="right: var(--container-padding, 1.5rem); top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 12px;">
-        <button id="pdf-zoom-out" class="p-2 transition-opacity hover:opacity-60 disabled:opacity-30 disabled:[cursor:var(--cursor-not-allowed)]" aria-label="Zoom out">
+        <button id="pdf-zoom-out" class="p-2 transition-opacity hover:opacity-60 aria-disabled:opacity-30 aria-disabled:hover:opacity-30 aria-disabled:[cursor:var(--cursor-not-allowed)]" aria-label="Zoom out">
           <span class="icon icon-zoom-out icon-m"></span>
         </button>
         <span id="pdf-zoom-pct" class="text-s" style="font-variant-numeric: tabular-nums; min-width: 3.5rem; text-align: center;">100%</span>
-        <button id="pdf-zoom-in" class="p-2 transition-opacity hover:opacity-60 disabled:opacity-30 disabled:[cursor:var(--cursor-not-allowed)]" aria-label="Zoom in">
+        <button id="pdf-zoom-in" class="p-2 transition-opacity hover:opacity-60 aria-disabled:opacity-30 aria-disabled:hover:opacity-30 aria-disabled:[cursor:var(--cursor-not-allowed)]" aria-label="Zoom in">
           <span class="icon icon-zoom-in icon-m"></span>
         </button>
         <!-- Fit Page ↔ Fit Width 雙態 toggle；icon 顯示「下一個動作」：預設 Fit Page → 顯示 fit_width（點了切滿寬）-->
-        <button id="pdf-fit-toggle" class="p-2 transition-opacity hover:opacity-60 disabled:opacity-30 disabled:[cursor:var(--cursor-not-allowed)]" aria-label="Fit / zoom toggle">
+        <button id="pdf-fit-toggle" class="p-2 transition-opacity hover:opacity-60 aria-disabled:opacity-30 aria-disabled:hover:opacity-30 aria-disabled:[cursor:var(--cursor-not-allowed)]" aria-label="Fit / zoom toggle">
           <span class="icon icon-fit-width icon-m"></span>
         </button>
       </div>
@@ -156,6 +190,13 @@ export function initPdfViewer() {
   const stageEl   = modal.querySelector('.pdf-zoom-stage');
   const rowEl     = modal.querySelector('.pdf-canvas-row');
   const renderedContentEl = modal.querySelector('.pdf-rendered-content');
+  const cornerThumbEl = modal.querySelector('.pdf-corner-thumb');
+  const cornerThumbCanvas = /** @type {HTMLCanvasElement | null} */ (modal.querySelector('.pdf-corner-thumb-canvas'));
+  const cornerThumbRect = /** @type {HTMLElement | null} */ (modal.querySelector('.pdf-corner-thumb-rect'));
+  const cornerThumbInner = /** @type {HTMLElement | null} */ (modal.querySelector('.pdf-corner-thumb-inner'));
+  const colorLoaderEl = /** @type {HTMLElement | null} */ (modal.querySelector('.pdf-color-loader'));
+  const watermarkEl = /** @type {HTMLElement | null} */ (modal.querySelector('.pdf-watermark'));
+  const watermarkClipEl = /** @type {HTMLElement | null} */ (modal.querySelector('.pdf-watermark-clip'));
   const mainRowEl = modal.querySelector('.pdf-main-row');
   const bottomBarEl = modal.querySelector('.pdf-bottom-bar');
   const titleEl   = modal.querySelector('.pdf-title');
@@ -166,6 +207,12 @@ export function initPdfViewer() {
   const zoomPctEl  = document.getElementById('pdf-zoom-pct');
   const fitToggleBtn = document.getElementById('pdf-fit-toggle');
   if (!modal || !canvasL || !stageEl || !rowEl) return;
+
+  // 翻頁 chevron 的 disabled 走 aria-disabled 不用原生 disabled：Chrome 對原生 disabled 元素
+  // 強制預設箭頭游標、CSS cursor 蓋不過（同 activities-lightbox chevron / create.css）；
+  // 到底時要顯示 not-allowed 游標（user 2026-08-23）。點擊由 turnPage 的 navDisabled guard 擋。
+  const setNavDisabled = (btn, dis) => btn.setAttribute('aria-disabled', dis ? 'true' : 'false');
+  const navDisabled = (btn) => btn.getAttribute('aria-disabled') === 'true';
 
   // ── 螢幕浮水印 + 禁右鍵下載（user 2026-06-08；2026-06-09 改連續重複斜向版）──────────
   // 浮水印排版（user 指定）：英文一行「整句連續重複」+ 中文一行「整句連續重複」、英中交替數行，整片斜 30°。
@@ -199,12 +246,16 @@ export function initPdfViewer() {
   let curPage  = 1;
   let rendering = false;
   let wantWatermark = false;   // 只有 document/files 來源的 PDF 要浮水印（press / 會議紀錄 / charter 不用）
-  let openToken = 0;             // 每次 open ++、close 也 ++：作廢慢到的開場墊圖（見 sccd:open-pdf handler）
-  let firstPageRendered = false; // 高解析第一頁已上 canvas → 墊圖不得再蓋
-  let placeholderShowing = false; // LQIP 墊圖（馬賽克）顯示中 → 第一頁 render 完做 de-pixelate 揭示
-  let mosaicTween = null;         // de-pixelate 揭示 tween（close / 重開要 kill）
-  const mosaicScratch  = document.createElement('canvas');  // 馬賽克降採樣暫存（reused）
-  const mosaicPristine = document.createElement('canvas');  // 揭示前的清晰頁快照（reused）
+  let allowAutoRead = false;   // 首開「閱讀縮放」只給 press（detail.autoRead）；documents/其他一律 Fit Page 整頁（user 2026-08-23）
+  let openToken = 0;             // 每次 open ++、close 也 ++：作廢慢到的開場（見 sccd:open-pdf handler）
+  // 載入色塊（取代舊 LQIP 馬賽克墊圖）：render 完成前蓋住頁面（.pdf-color-loader 是 .pdf-zoom-stage 的
+  // stage 絕對定位 overlay、開場依頁面可視矩形定尺寸一次、render 不碰＝不跳）、每秒切一個「不同的」三原色循環；
+  // render 完成後等當前色塊 1s 走完再隨機四方向 clip-reveal 揭露頁面。
+  const LOADER_COLORS = ['#00FF80', '#FF448A', '#26BCFF'];   // 設計系統三原色（綠 / 粉 / 藍）
+  let loaderTimer = 0;
+  let loaderActive = false;
+  let loaderReady  = false;   // render 完成、等當前色塊 1s 走完才揭露
+  let lastColorIdx = -1;
 
   // ── Zoom 狀態（對齊 activities-lightbox album viewer 邏輯）────────────────
   // 內部 zoom.scale 恆以「fit-to-stage」為 1（同 album）。
@@ -214,6 +265,10 @@ export function initPdfViewer() {
   // fit-toggle = 回 zoom.scale=1（fit-to-stage / Fit Page）
   const MIN_PCT = 0.10;   // 10% 下限（百分比 = 相對 PDF 原寸）
   const MAX_PCT = 6;      // 600% 上限
+  // 長頁自動「閱讀縮放」：首開仿 Acrobat，把偏窄（portrait）的頁面放大貼頂、往下捲即讀，免手動放大（user 2026-08-23）。
+  // 桌面目標 = 頁面寬佔 stage 寬的一半（≈50% 螢幕；Fit Width 滿寬 ~200% user 覺得太大）；
+  // 手機窄螢幕 50% 會太小 → 放滿寬。一律不小於 Fit Page，故 landscape / 近方形頁維持整頁不變。
+  const READ_WIDTH_FRACTION_DESKTOP = 0.5;
   // 渲染品質：每次切換 scale 重渲（不靠 CSS 放大避免高倍模糊；同 album 但 album 用 img naturalDims+CSS scale）
   // PDF 不一樣：CSS scale 放大會糊文字，重渲較慢但清晰；採折衷 RENDER_QUALITY=2 平衡
   const RENDER_QUALITY = 2;
@@ -279,9 +334,110 @@ export function initPdfViewer() {
     applyZoom(animated);
   }
 
+  // 首開「閱讀縮放」目標 scale：桌面把頁寬放到 stage 寬的一半、手機放滿寬；不小於 Fit Page。
+  function readingScale() {
+    if (fitDims.w <= 0) return fitScale();
+    const availW = stageEl.clientWidth || window.innerWidth;
+    const frac = isMobile() ? 1 : READ_WIDTH_FRACTION_DESKTOP;
+    return Math.max(fitScale(), (availW * frac) / fitDims.w);
+  }
+  // 觸發判準＝頁面「長:寬 ≥ 2:1」才放大貼頂（user 2026-08-23 定案；先前「Fit Page 下比閱讀寬窄就放」
+  // 連 A4/報紙掃描頁 aspect ~1.4 也放大，user 嫌太激進）。近方形 / landscape / 一般 portrait 頁維持 Fit Page 整頁。
+  function shouldAutoRead() {
+    return allowAutoRead
+      && naturalDims.w > 0 && naturalDims.h / naturalDims.w >= 2
+      && readingScale() > fitScale() + 0.01;
+  }
+  function applyReading() {
+    zoom.scale = Math.max(minScale(), Math.min(maxScale(), readingScale()));
+    zoom.tx = 0;
+    zoom.ty = fitWidthTopTy(zoom.scale);
+  }
+
+  // ── 右上角 minimap（所有 PDF 開檔）──────────────────────────────────────
+  // 內容＝當前頁縮圖（renderPage 後從 canvasL 縮繪，翻頁自動跟）；白框＝目前 stage 可視範圍。
+  // 只在「頁面被視窗裁切」（放大後溢出 stage）時顯示；整頁可見時藏（user 2026-08-23）。
+  function updateCornerThumbPage() {
+    if (!cornerThumbCanvas || !cornerThumbEl) return;
+    if (fitDims.w <= 0 || !canvasL.width) return;
+    cornerThumbCanvas.width  = 176;   // 2× 顯示寬（clamp 上限 88px）→ retina 不糊；內容小、成本可忽略
+    cornerThumbCanvas.height = Math.max(1, Math.round(176 * fitDims.h / fitDims.w));
+    cornerThumbCanvas.getContext('2d').drawImage(canvasL, 0, 0, cornerThumbCanvas.width, cornerThumbCanvas.height);
+  }
+  let thumbVisible = false;    // minimap 目前視覺狀態（進出場動畫的狀態機）
+  let loaderVeilUp = false;    // 載入色塊蓋著期間 minimap 不准出現（色塊揭露完才進場，user 2026-08-23）
+  // clip-reveal 進出場方向隨機四選一（user 2026-08-24，原本只上下）：inner 從該邊滑入/滑出、外層 overflow:hidden 當罩。
+  // 螢幕上恆 (0,0)；離場端在該軸 ±100%（另一軸歸 0 避免對角殘留）。
+  const THUMB_DIRS = [{ x: 0, y: -100 }, { x: 0, y: 100 }, { x: -100, y: 0 }, { x: 100, y: 0 }];
+  const randThumbDir = () => THUMB_DIRS[Math.floor(Math.random() * THUMB_DIRS.length)];
+  function updateCornerThumb() {
+    if (!cornerThumbEl || !cornerThumbRect) return;
+    if (fitDims.w <= 0) return;
+    const sw = stageEl.clientWidth, sh = stageEl.clientHeight;
+    const scaledW = fitDims.w * zoom.scale, scaledH = fitDims.h * zoom.scale;
+    const cropped = scaledW > sw + 1 || scaledH > sh + 1;
+    const want = cropped && !loaderVeilUp;
+    if (want) {
+      // 幾何即時更新（顯示中 pan/zoom 暗框直接跟、不重播進場）
+      // 頁面在 stage 座標的位置（rowEl 撐滿 stage、transform-origin center → 頁中心 = stage 中心 + (tx,ty)）
+      const left = (sw - scaledW) / 2 + zoom.tx;
+      const top  = (sh - scaledH) / 2 + zoom.ty;
+      // 寬對齊 CSS clamp(56px,12vw,88px)（JS 算免量測 reflow）；超長頁高度 cap 在 stage 高 60%，太長改縮窄
+      let tw = Math.max(56, Math.min(88, window.innerWidth * 0.12));
+      let th = tw * fitDims.h / fitDims.w;
+      const maxH = sh * 0.6;
+      if (th > maxH) { tw = maxH * fitDims.w / fitDims.h; th = maxH; }
+      cornerThumbEl.style.width = tw + 'px';
+      const fl = Math.max(0, -left / scaledW),        ft = Math.max(0, -top / scaledH);
+      const fr = Math.min(1, (sw - left) / scaledW),  fb = Math.min(1, (sh - top) / scaledH);
+      cornerThumbRect.style.left   = (fl * tw) + 'px';
+      cornerThumbRect.style.top    = (ft * th) + 'px';
+      cornerThumbRect.style.width  = ((fr - fl) * tw) + 'px';
+      cornerThumbRect.style.height = ((fb - ft) * th) + 'px';
+    }
+    if (want === thumbVisible) return;
+    thumbVisible = want;
+    const canTween = typeof gsap !== 'undefined' && cornerThumbInner;
+    if (want) {
+      cornerThumbEl.style.display = '';
+      // clip-reveal 進場：inner 從隨機一邊滑入（fromTo 同時設 x/y → 清掉上次退場殘留的另一軸）
+      if (canTween) {
+        const d = randThumbDir();
+        gsap.killTweensOf(cornerThumbInner);
+        gsap.fromTo(cornerThumbInner, { xPercent: d.x, yPercent: d.y }, { xPercent: 0, yPercent: 0, duration: DUR.medium, ease: EASE.enter });
+      }
+    } else if (canTween) {
+      // clip-reveal 退場：滑向隨機一邊、收完才藏（onComplete 檢查 thumbVisible 防退場中又進場）
+      const d = randThumbDir();
+      gsap.killTweensOf(cornerThumbInner);
+      gsap.to(cornerThumbInner, { xPercent: d.x, yPercent: d.y, duration: DUR.base, ease: EASE.exitSoft,
+        onComplete: () => { if (!thumbVisible) cornerThumbEl.style.display = 'none'; } });
+    } else {
+      cornerThumbEl.style.display = 'none';
+    }
+  }
+
+  // 把浮水印裁切框對齊「PDF 頁面在螢幕上的矩形」→ 浮水印只蓋在頁面上、不蓋整個視窗（user 2026-08-23）。
+  // clip-path 掛在未旋轉、inset:0 的外層 .pdf-watermark-clip（座標系＝stage px 好算）；內層圖樣不動＝字級恆定。
+  function updateWatermarkClip() {
+    if (!watermarkClipEl) return;
+    if (fitDims.w <= 0) { watermarkClipEl.style.clipPath = ''; return; }
+    const sw = stageEl.clientWidth, sh = stageEl.clientHeight;
+    const scaledW = fitDims.w * zoom.scale, scaledH = fitDims.h * zoom.scale;
+    const left = (sw - scaledW) / 2 + zoom.tx;
+    const top  = (sh - scaledH) / 2 + zoom.ty;
+    const l = Math.max(0, left), t = Math.max(0, top);
+    const r = Math.min(sw, left + scaledW), b = Math.min(sh, top + scaledH);
+    // inset(T R B L) 全 px：裁掉頁面矩形以外；頁面整個在視窗外就整片裁掉
+    watermarkClipEl.style.clipPath =
+      (r > l && b > t) ? `inset(${t}px ${sw - r}px ${sh - b}px ${l}px)` : 'inset(50%)';
+  }
+
   function applyZoom(animated = false) {
     rowEl.style.transition = animated ? 'transform 0.2s ease-out' : 'none';
     rowEl.style.transform = `translate(${zoom.tx}px, ${zoom.ty}px) scale(${zoom.scale})`;
+    updateCornerThumb();
+    updateWatermarkClip();
     const canPan = zoom.scale > fitScale() + 0.001;
     rowEl.style.cursor = isDragging
       ? `url('${sitePath('custom-cursor/drag_2.svg')}') 10 10, grabbing`
@@ -303,19 +459,26 @@ export function initPdfViewer() {
     sharpenTimer = setTimeout(sharpenRender, 160);
   }
 
+  // canvas 上限保護：大頁 × 高倍會爆記憶體/超過瀏覽器限制（超過整片變空白）→ 依單邊 + 面積回退品質。
+  // renderPage 首渲與 sharpenRender 共用（fitRatio/naturalDims 皆已備好時呼叫）。
+  function cappedQuality(quality) {
+    const fitRatio = getFitRatio();
+    if (fitRatio <= 0) return quality;
+    const bw = naturalDims.w * fitRatio, bh = naturalDims.h * fitRatio;
+    const longSide = Math.max(bw, bh) * quality;
+    if (longSide > curMaxDim) quality *= curMaxDim / longSide;
+    const area = bw * quality * bh * quality;
+    if (area > MAX_CANVAS_AREA) quality *= Math.sqrt(MAX_CANVAS_AREA / area);
+    return quality;
+  }
+
   async function sharpenRender() {
     if (!pdfDoc) return;
     if (rendering) { scheduleSharpen(); return; }   // 翻頁/初渲中 → 稍後重試
     const fitRatio = getFitRatio();
     if (fitRatio <= 0) return;
     const dpr = window.devicePixelRatio || 1;
-    let quality = Math.max(RENDER_QUALITY, zoom.scale * dpr);
-    // canvas 上限保護：大頁 × 高倍會爆記憶體/超過瀏覽器限制 → 依單邊 + 面積回退品質
-    const bw = naturalDims.w * fitRatio, bh = naturalDims.h * fitRatio;
-    const longSide = Math.max(bw, bh) * quality;
-    if (longSide > curMaxDim) quality *= curMaxDim / longSide;
-    const area = bw * quality * bh * quality;
-    if (area > MAX_CANVAS_AREA) quality *= Math.sqrt(MAX_CANVAS_AREA / area);
+    const quality = cappedQuality(Math.max(RENDER_QUALITY, zoom.scale * dpr));
     if (quality <= sharpenedQuality + 0.01) return;
     const pageNum = curPage;
     rendering = true;
@@ -346,8 +509,9 @@ export function initPdfViewer() {
     const fitRatio = getFitRatio();
     const displayPct = Math.round(zoom.scale * (fitRatio > 0 ? fitRatio : 1) * 100);
     zoomPctEl.textContent = `${displayPct}%`;
-    zoomInBtn.disabled  = zoom.scale >= maxScale() - 0.001;
-    zoomOutBtn.disabled = zoom.scale <= minScale() + 0.001;
+    // aria-disabled 同 chevron（Chrome 原生 disabled 吃不到自訂 not-allowed 游標）；zoomAt 有 no-op clamp
+    setNavDisabled(zoomInBtn, zoom.scale >= maxScale() - 0.001);
+    setNavDisabled(zoomOutBtn, zoom.scale <= minScale() + 0.001);
     // fit-toggle = Fit Page ↔ Fit Width 雙態切換（user 2026-06-02）；不 disable，icon 反映當前模式：
     // 在 Fit Width → fit_width icon；其他（Fit Page / 手動 zoom）→ fit_to_viewport icon
     if (fitToggleBtn) {
@@ -403,59 +567,119 @@ export function initPdfViewer() {
 
   function resetToFit(animated = false)    { zoomToScale(fitScale(),    animated); }
 
-  // 渲染單頁（一頁一頁翻）；計算 fitDims/naturalDims，保留 wasFit/wasActual 狀態跨頁
-  // ── LQIP 馬賽克墊圖（取代 gaussian blur-up；user 2026-08-10）───────────────
-  // 業界 pixelation = 最近鄰放大縮圖：把來源降採到 N 格、再 nearest-neighbor 放大回滿版。
-  // blocksAcross = 水平格數（越小越糊）。canvasL 尺寸即時讀（墊圖=封面原寸、揭示=高解析頁）。
-  function drawMosaic(source, blocksAcross) {
-    const w = canvasL.width, h = canvasL.height;
-    if (!w || !h) return;
-    const n  = Math.max(1, Math.round(blocksAcross));
-    const sw = n, sh = Math.max(1, Math.round(n * h / w));
-    mosaicScratch.width = sw; mosaicScratch.height = sh;
-    const sctx = mosaicScratch.getContext('2d');
-    sctx.imageSmoothingEnabled = false;
-    sctx.drawImage(source, 0, 0, sw, sh);                     // 降採 → N 格縮圖
-    const ctx = canvasL.getContext('2d');
-    ctx.imageSmoothingEnabled = false;                        // 關平滑 = 硬邊馬賽克（非模糊）
-    ctx.clearRect(0, 0, w, h);
-    ctx.drawImage(mosaicScratch, 0, 0, sw, sh, 0, 0, w, h);   // 最近鄰放大回滿版
+  // ── 載入色塊（取代舊 LQIP 馬賽克墊圖）─────────────────────────────────────
+  // 三原色隨機不重複；render 完成前每 1s 換色循環，完成後隨機四方向 clip-reveal 揭露頁面。
+  function pickLoaderColor() {
+    let i;
+    do { i = Math.floor(Math.random() * LOADER_COLORS.length); } while (i === lastColorIdx);
+    lastColorIdx = i;
+    return LOADER_COLORS[i];
+  }
+  // render 算出真頁面 naturalDims/fitDims + fit/reading 決策後（bitmap render 之前）把載入色塊改成
+  // 「真頁面在螢幕上的可視矩形」＝色塊必 == 頁面。修 open 時只能靠裁頂 1.5 封面猜 reading、真頁 aspect<2
+  // 走 Fit Page 時的失配（色塊放大但頁面沒放大 / 色塊寬度不 fit press，user 2026-08-24）。
+  // 用 render 自己的 shouldAutoRead/readingScale/fitDims 校準（跟 renderPage 同一套數字，保證一致）。
+  // 只在載入色塊還蓋著時（loaderActive）做；翻頁時 loader 已收＝no-op。
+  function sizeLoaderToPage() {
+    if (!colorLoaderEl || !loaderActive) return;
+    if (fitDims.w <= 0) return;
+    const sw = stageEl.clientWidth || window.innerWidth;
+    const sh = stageEl.clientHeight || window.innerHeight * 0.8;
+    let vw, vh, left, top;
+    if (shouldAutoRead()) {   // 閱讀縮放：寬 = fitDims.w×scale、貼頂、水平置中、溢出高度裁到 stage（鏡像 applyReading）
+      const s = Math.max(minScale(), Math.min(maxScale(), readingScale()));
+      const scaledH = fitDims.h * s;
+      vw = fitDims.w * s;
+      vh = Math.min(scaledH, sh);
+      left = (sw - vw) / 2;
+      top  = scaledH >= sh ? 0 : (sh - scaledH) / 2;
+    } else {                  // Fit Page：整頁置中（scale 1）
+      vw = fitDims.w; vh = fitDims.h;
+      left = (sw - vw) / 2; top = (sh - vh) / 2;
+    }
+    colorLoaderEl.style.left   = left + 'px';
+    colorLoaderEl.style.top    = top + 'px';
+    colorLoaderEl.style.width  = vw + 'px';
+    colorLoaderEl.style.height = vh + 'px';
+    colorLoaderEl.style.display = '';   // 非 press 無封面時 open 先藏著 → 這裡確保顯示
   }
 
-  // 揭示：把「已在 canvasL 上的高解析頁」快照成 pristine，再從粗格→細格 de-pixelate 到清晰。
-  // 幾何插值（log 空間等速）＝格子大小視覺上等速縮小，收尾「對焦入場」感。
-  function revealMosaic() {
-    const w = canvasL.width, h = canvasL.height;
-    placeholderShowing = false;
-    if (!w || !h || typeof gsap === 'undefined') return;
-    mosaicPristine.width = w; mosaicPristine.height = h;
-    mosaicPristine.getContext('2d').drawImage(canvasL, 0, 0); // 快照清晰頁（此刻 canvasL 尚未被馬賽克覆蓋）
-    const START = 22, END = w, s = { p: 0 };
-    drawMosaic(mosaicPristine, START);                        // 同 tick 先蓋粗格，避免先閃一幀清晰
-    if (mosaicTween) mosaicTween.kill();
-    mosaicTween = gsap.to(s, {
-      p: 1, duration: 0.5, ease: 'none',
-      onUpdate: () => drawMosaic(mosaicPristine, START * Math.pow(END / START, s.p)),
-      onComplete: () => {
-        const ctx = canvasL.getContext('2d');
-        ctx.imageSmoothingEnabled = true;
-        ctx.drawImage(mosaicPristine, 0, 0);                 // 收尾補一張 1:1 清晰
-        mosaicTween = null;
-      },
-    });
+  function startColorLoader() {
+    if (!colorLoaderEl) return;
+    loaderActive = true;
+    loaderReady = false;
+    loaderVeilUp = true;   // 色塊蓋著期間 minimap 不出現（揭露完 hide() 才放行）
+    lastColorIdx = -1;
+    // loading 期間不顯示浮水印（user 2026-08-23）：浮水印是 .pdf-zoom-stage 全幅覆蓋(z20，蓋在色塊之上)，
+    // 色塊只有頁面大小 → 不藏的話浮水印會蓋到色塊外圍看起來「跑到 pdf 外」。揭露時才 fade 回來。
+    if (watermarkEl) { if (typeof gsap !== 'undefined') gsap.killTweensOf(watermarkEl); watermarkEl.style.opacity = '0'; }
+    if (typeof gsap !== 'undefined') gsap.killTweensOf(colorLoaderEl);
+    colorLoaderEl.style.clipPath = '';
+    colorLoaderEl.style.background = pickLoaderColor();   // 第一個色塊備好（尺寸未知前先藏）
+    // ⭐尺寸一律等「真頁面可視矩形」算出才顯示，不在 open 時猜（press 裁頂 1.5 封面看不出真 aspect →
+    // 猜 reading 對 <2 的頁會太大，user 2026-08-24「色塊太大、pdf 沒那麼大」）。誰負責顯示：
+    //  • 非 press：cover onload 用真封面 fit 尺寸撐好才顯示（封面非裁頂＝準）。
+    //  • press / 所有情況：renderPage 的 sizeLoaderToPage 用 render 真數字定尺寸才顯示（精準、恆不太大）。
+    // 代價：press 在 getDocument 網路窗（通常很短）色塊還沒出現；modal 淡入 + chrome 已是「載入中」訊號（要精準勝過即時）。
+    colorLoaderEl.style.display = 'none';
+    scheduleColorTick();
+  }
+  // 每 1s 一 tick：render 未完成→換色續轉；已完成→在此 1s 邊界揭露（＝當前色塊必走滿 1s，user 要求）
+  function scheduleColorTick() {
+    clearTimeout(loaderTimer);
+    loaderTimer = setTimeout(() => {
+      if (!loaderActive) return;
+      if (loaderReady) { revealColorLoader(); return; }
+      colorLoaderEl.style.background = pickLoaderColor();
+      scheduleColorTick();
+    }, 1000);
+  }
+  function revealColorLoader() {
+    if (!colorLoaderEl) return;
+    loaderActive = false;
+    clearTimeout(loaderTimer);
+    // 頁面揭露時才把浮水印 fade 回來（loading 期間藏著；press/會議紀錄等無浮水印的 wantWatermark=false 就不動）
+    if (wantWatermark && watermarkEl) {
+      if (typeof gsap !== 'undefined') gsap.fromTo(watermarkEl, { opacity: 0 }, { opacity: 1, duration: DUR.slow, ease: EASE.enter });
+      else watermarkEl.style.opacity = '1';
+    }
+    const hide = () => {
+      colorLoaderEl.style.display = 'none'; colorLoaderEl.style.clipPath = ''; colorLoaderEl.style.background = '';
+      loaderVeilUp = false;
+      updateCornerThumb();   // 色塊揭露完 → minimap 若該出現（頁被裁切）此刻才 clip-reveal 進場
+    };
+    if (typeof gsap === 'undefined') { hide(); return; }
+    // 隨機四方向：色塊往該邊收（inset 全 % — 混單位 GSAP 會直接跳終值，見 lightbox-shell memory）
+    const DIRS = ['inset(0% 0% 0% 100%)', 'inset(0% 100% 0% 0%)', 'inset(100% 0% 0% 0%)', 'inset(0% 0% 100% 0%)'];
+    gsap.fromTo(colorLoaderEl,
+      { clipPath: 'inset(0% 0% 0% 0%)' },
+      { clipPath: DIRS[Math.floor(Math.random() * DIRS.length)], duration: DUR.slow, ease: EASE.enter, onComplete: hide });
+  }
+  function stopColorLoader() {
+    loaderActive = false;
+    loaderReady = false;
+    loaderVeilUp = false;
+    clearTimeout(loaderTimer);
+    if (!colorLoaderEl) return;
+    if (typeof gsap !== 'undefined') gsap.killTweensOf(colorLoaderEl);
+    colorLoaderEl.style.display = 'none';
+    colorLoaderEl.style.clipPath = '';
+    colorLoaderEl.style.background = '';
   }
 
   async function renderPage(pageNum) {
-    if (!pdfDoc || rendering) return;
+    if (!pdfDoc || rendering) return false;
     rendering = true;
+    try {
 
     // 先對齊 logo 下緣（再讀 stageEl.clientHeight，下方讀取會強制 reflow 拿到正確高度）
     positionPdfStageRelativeToLogo();
 
     const totalPages = pdfDoc.numPages;
     const isFirstRender = naturalDims.w === 0;
-    const wasFit      = !isFirstRender && Math.abs(zoom.scale - fitScale())    < 0.001;
-    const wasFitWidth = !isFirstRender && isFitWidth();   // 用「舊」fitDims 判斷（此時尚未更新）
+    // 只有 Actual 這個「具名模式」跨頁維持；Fit Width / fit / 閱讀縮放 / 手動一律 per-page auto 重新決定（見下）。
+    // ⭐Fit Width 不再跨頁維持（user 2026-08-24）：Fit Width 是「看近這一頁」的臨時動作，翻頁應 reset 回該頁預設 fit。
+    // 用「舊」fitDims 判斷（此時尚未更新）。首開（isFirstRender）走 else 分支依 aspect 自動決定 fit / 閱讀縮放。
     const wasActual   = !isFirstRender && Math.abs(zoom.scale - actualScale()) < 0.001;
 
     const page = await pdfDoc.getPage(pageNum);
@@ -469,8 +693,19 @@ export function initPdfViewer() {
     const fitFactor = Math.min(availH / base.height, availW / base.width);
     fitDims = { w: base.width * fitFactor, h: base.height * fitFactor };
 
-    // 內部 buffer 多渲 RENDER_QUALITY 倍給 zoom 用；CSS 鎖在 fit 顯示尺寸
-    const vp = page.getViewport({ scale: fitFactor * RENDER_QUALITY });
+    // 載入色塊校準到「真頁面可視矩形」（bitmap render 之前先做）：修 open 時 press 賭 reading、
+    // 但真頁 aspect<2 走 Fit Page 造成的「色塊放大/寬度不符頁面」失配（user 2026-08-24）。
+    sizeLoaderToPage();
+
+    // 首渲品質：一般頁用 RENDER_QUALITY(2) 快出、再靠 sharpen 補；但**會自動閱讀縮放的頁**首渲就直接渲到
+    // 閱讀縮放需要的解析度（= readingScale × DPR），避免「先糊一下再變清晰」那段空窗——低解析掃描長頁在
+    // 該空窗被 CSS 放大特別糊、user 2026-08-23 反映「圖太糊看不清字」。sharpen 之後判 need<=已渲品質即免重工。
+    const dpr = window.devicePixelRatio || 1;
+    const initQuality = shouldAutoRead()
+      ? cappedQuality(Math.max(RENDER_QUALITY, readingScale() * dpr))
+      : RENDER_QUALITY;
+    // 內部 buffer 多渲給 zoom 用；CSS 鎖在 fit 顯示尺寸
+    const vp = page.getViewport({ scale: fitFactor * initQuality });
     // 雙緩衝：先渲到暫存 canvas、完成才換上。設 canvas 寬高會立刻清空畫面，
     // 大掃描 PDF 抓頁＋解碼要等，直接渲在可見 canvas 上會讓翻頁白一段（user 2026-08-08）
     const buf = document.createElement('canvas');
@@ -486,33 +721,28 @@ export function initPdfViewer() {
       renderedContentEl.style.height = fitDims.h + 'px';
     }
     canvasL.getContext('2d').drawImage(buf, 0, 0);
-    clearTimeout(sharpenTimer);           // 新頁點陣圖回到 RENDER_QUALITY，作廢上一頁的 sharpen 排程
-    sharpenedQuality = RENDER_QUALITY;
+    canvasL.style.visibility = '';        // 頁面已畫上 → 顯示（open 時暫藏避免 stale 白矩形，翻頁時已 visible 為 no-op）
+    clearTimeout(sharpenTimer);           // 作廢上一頁的 sharpen 排程
+    sharpenedQuality = initQuality;       // 首渲已到閱讀縮放解析度時，sharpen 判 need<=此值即免重工
+    updateCornerThumbPage();              // minimap 縮圖跟當前頁同步（翻頁即換）
 
-    // 跨頁 state：first render 預設 Fit Page（仿 Acrobat：一打開看到整頁、撐滿視窗）。
-    // 之前是 actual-size（同 album）→ A4 太小，user 2026-06-02 改採 Acrobat 邏輯。
-    // 之前在 fit/actual → 跟新 page 對齊；其他 zoom 維持 scale 但 clamp 進範圍
-    if (isFirstRender || wasFit) {
-      zoom.scale = fitScale();
-      zoom.tx = 0; zoom.ty = 0;
-    } else if (wasFitWidth) {
-      zoom.scale = fitWidthScale();   // 用新 fitDims 重算，跨頁維持 Fit Width
-      zoom.tx = 0;
-      zoom.ty = fitWidthTopTy(zoom.scale);   // 跨頁也對齊新頁頂端（同 applyFitWidth）
-    } else if (wasActual) {
+    // 跨頁 state：只有 Actual 跨頁「維持」；其餘（首開 / Fit Page / Fit Width / 閱讀縮放 / 任意手動 zoom）
+    // 一律走 auto——**每頁依自己的 aspect 重新決定 fit vs 閱讀縮放**。翻頁即 reset（含 Fit Width，user 2026-08-24）。
+    // ⚠️關鍵（user 2026-08-23）：press 多頁常混排（首頁 landscape banner + 內頁 portrait），
+    // 若像以前把「首頁 fit」跨頁沿用，portrait 內頁會卡在 fit 不放大；per-page auto 才對。
+    if (wasActual) {
       zoom.scale = actualScale();
       zoom.tx = 0; zoom.ty = 0;
     } else {
-      // 手動放大狀態下翻頁 → 回 Fit Page（user 2026-08-19：翻頁不該停在上一頁的放大視角/偏移；
-      // Fit Page / Fit Width / Actual 三個具名模式仍跨頁保留，只有任意手動 zoom 歸位）
-      zoom.scale = fitScale();
-      zoom.tx = 0; zoom.ty = 0;
+      // 偏長 / portrait 頁：仿 Acrobat「閱讀縮放」貼頂放大、往下捲即讀；近方形 / landscape 頁維持 Fit Page 整頁。
+      if (shouldAutoRead()) applyReading();
+      else { zoom.scale = fitScale(); zoom.tx = 0; zoom.ty = 0; }
     }
     applyZoom(false);
 
     pageInfo.textContent = `${pageNum} / ${totalPages}`;
-    prevBtn.disabled = pageNum <= 1;
-    nextBtn.disabled = pageNum >= totalPages;
+    setNavDisabled(prevBtn, pageNum <= 1);
+    setNavDisabled(nextBtn, pageNum >= totalPages);
     rendering = false;
     // 等新 canvas 已繪製後才換水印位置，避免翻頁時先動一次水印、再出新頁面。
     if (wantWatermark) {
@@ -522,13 +752,22 @@ export function initPdfViewer() {
     }
     // 渲染期間又翻了頁（該次 renderPage 被 rendering guard 擋掉、curPage 已前進）→ 補渲染最新目標頁
     if (curPage !== pageNum) renderPage(curPage);
+    } catch (err) {
+      // getPage / render 失敗（壞檔/損頁）：重置 rendering 並回報失敗讓 caller 收拾——否則 rendering 卡在 true，
+      // 之後所有 render 被開頭 guard 擋掉、色塊 loader 的 loaderReady 永不設＝每秒換色卡死（soft-lock，2026-08-24 抓到）。
+      console.error('PDF page render error:', err);
+      rendering = false;
+      return false;
+    }
+    // 成功：rendering 已在 try 內（recovery 之前）設回 false，這裡別再動，否則會在遞迴補渲染 in-flight 時誤清
+    return true;
   }
 
   // 上一/下一頁（一頁一頁翻，邊界自動 clamp）
   function turnPage(dir) {
     if (!pdfDoc) return;
-    if (dir > 0 && nextBtn.disabled) return;
-    if (dir < 0 && prevBtn.disabled) return;
+    if (dir > 0 && navDisabled(nextBtn)) return;
+    if (dir < 0 && navDisabled(prevBtn)) return;
     curPage = Math.max(1, Math.min(pdfDoc.numPages, curPage + dir));
     renderPage(curPage);
   }
@@ -687,7 +926,8 @@ export function initPdfViewer() {
   // 把 stage 上緣推到 header logo 底邊以下，鏡像 activities-lightbox positionUIRelativeToLogo
   // （讓 PDF fit 高度 == album fit 高度；user 2026-06-02 拍板「PDF 對齊 album」）。
   // SHELL_PT=24：lightbox-shell padLightboxTops 已給 modal root 加 1.5rem(24px)，這裡扣回避免雙重下推
-  // → 淨 gap = logoBottom + ZOOM_GAP(16)。無 logo 時 early return，main row 維持原 py-xl 上緣。
+  // → 淨 gap = logoBottom + ZOOM_GAP(36)。無 logo 時 early return，main row 維持原 py-xl 上緣。
+  // ZOOM_GAP 36：對齊 atlas 歷屆教師 nav btn 與 logo 底邊的距離（user 2026-08-24 嫌太靠近 logo；實測 atlas 36px）。
   function positionPdfStageRelativeToLogo() {
     // 手機：單頁置中，padding-top 推到手機 logo 底邊下方（避免頁面上緣被 logo 蓋；控制列在底部 bar 不在此處理）
     if (isMobile()) {
@@ -698,7 +938,7 @@ export function initPdfViewer() {
     }
     const logo = document.querySelector('#header-logo');
     if (!logo || !mainRowEl) return;
-    const ZOOM_GAP = 16;
+    const ZOOM_GAP = 36;
     const SHELL_PT = 24;
     mainRowEl.style.paddingTop = `${Math.max(0, logo.getBoundingClientRect().bottom + ZOOM_GAP - SHELL_PT)}px`;
   }
@@ -772,7 +1012,8 @@ export function initPdfViewer() {
 
   // （2026-07-04 起 ref btn 跳轉不再 await 此函式：關閉 fadeout 與 SPA 換頁並行，統一 ref timing）
   function closeModal() {
-    openToken++;   // 作廢還在路上的開場墊圖（close 後才 load 完的 cover 不得畫上）
+    openToken++;   // 作廢還在路上的開場（close 後才回來的 getDocument 不得畫上）
+    stopColorLoader();   // 停載入色塊循環 + 揭露 tween
     modal.style.opacity = '0';
     // exitLightboxMode：show bars + 移除 body.lightbox-open → theme-toggle MutationObserver
     // 自動把 logo 切回 standard/inverse/wireframe（依當前 mode）
@@ -786,10 +1027,9 @@ export function initPdfViewer() {
         modal.style.display = 'none';
         touchMode = null;        // 清手機觸控手勢狀態
         if (pdfDoc) { pdfDoc.destroy(); pdfDoc = null; }
+        rendering = false;               // 防「render 卡在 in-flight 就關閉」→ rendering 殘留 true 讓下次開檔 render 被 guard 擋掉
         clearTimeout(sharpenTimer);      // 停還沒跑的 sharpen 重渲
         sharpenedQuality = RENDER_QUALITY;
-        if (mosaicTween) { mosaicTween.kill(); mosaicTween = null; }   // 停 de-pixelate 揭示 tween
-        placeholderShowing = false;
         pageInfo.textContent = '';   // 下次 open 等新總頁數，不殘留舊值
         canvasL.getContext('2d').clearRect(0, 0, canvasL.width, canvasL.height);
         // reset 內部狀態（下次 open 重新計 fitDims/naturalDims）
@@ -807,9 +1047,17 @@ export function initPdfViewer() {
   _pdfListenerAdded = true;
 
   document.addEventListener('sccd:open-pdf', async (e) => {
-    const { pdfUrl, title, color, references, shareUrl, watermark, cover, maxCanvasDim, coverAspect } = e.detail || {};
+    const { pdfUrl, title, color, references, shareUrl, watermark, cover, maxCanvasDim, coverAspect, autoRead } = e.detail || {};
     if (!pdfUrl) return;
     wantWatermark = !!watermark;
+    allowAutoRead = !!autoRead;   // 只有 press 帶 autoRead → 首開閱讀縮放；documents 等不帶 → 恆 Fit Page
+    // 右上角 minimap：所有開檔都有（press + documents，user 2026-08-23；detail.cornerThumb 旗標已退役）。
+    // 先藏並重置進出場狀態機，等色塊揭露完＋頁被裁切才 clip-reveal 進場。
+    if (cornerThumbEl) {
+      cornerThumbEl.style.display = 'none';
+      thumbVisible = false;
+      if (typeof gsap !== 'undefined' && cornerThumbInner) gsap.killTweensOf(cornerThumbInner);
+    }
     curMaxDim = maxCanvasDim || MAX_CANVAS_DIM;   // press 帶更高上限 → 高倍更清晰；其他維持預設
     curPage = 1;
     // 重置內部狀態：naturalDims=0 讓 renderPage 視為「初次 render」自動套 actual size
@@ -830,57 +1078,50 @@ export function initPdfViewer() {
 
     // 頁碼等 getDocument 拿到總頁數才顯示（先清空，避免「舊值→新值」跳兩次，user 2026-08-08）
     pageInfo.textContent = '';
-    prevBtn.disabled = true;
-    nextBtn.disabled = true;
+    setNavDisabled(prevBtn, true);
+    setNavDisabled(nextBtn, true);
 
-    // 開場墊圖（LQIP blur-up）：files panel 已渲好的封面（快取秒取、絕不額外下載）
-    // 先以模糊態鋪上 canvas，高解析第一頁 render 完退模糊（user 2026-08-08 參考 LQIP 文章）
     const myToken = ++openToken;
-    firstPageRendered = false;
-    placeholderShowing = false;
-    if (mosaicTween) { mosaicTween.kill(); mosaicTween = null; }   // 停上一本殘留的揭示 tween
-    // 先清掉上一本殘留頁面：預產封面（detail.cover）普及後 peek 快取常是空的、沒墊圖可蓋
-    // → canvas 一直掛著上一本＝「開錯書」錯覺（user 2026-08-18）。清空後墊圖/真頁面再各自蓋上。
+    // 先清掉上一本殘留頁面（載入色塊會蓋住，仍清掉以免揭露瞬間閃到舊頁）
     canvasL.getContext('2d').clearRect(0, 0, canvasL.width, canvasL.height);
-    // 墊圖來源：caller 帶的預產封面 URL 優先（files panel 靜態圖），沒有才查 pdf.js 現畫快取
-    // coverAspect：press 縮圖用裁頂變體快取（#a1.5），要帶同 aspect 才 peek 得到 → 才有馬賽克墊圖
+    // canvas 先藏：非 press 又無封面時色塊整段藏著（等 renderPage 才知尺寸），此時 bg-white 的 canvas 會殘留
+    // 上一本的 stale 尺寸＝黑底上閃一塊「錯尺寸白矩形」（2026-08-24 workflow 抓到）。renderPage 畫好頁面才顯示。
+    canvasL.style.visibility = 'hidden';
+    // 先把 stage 對齊 logo 下緣（renderPage 也會跑、idempotent）：cover onload / sizeLoaderToPage 讀
+    // stageEl.clientHeight 才是「最終」高度，色塊尺寸不受 padding-top 之後變動影響（user 2026-08-24）。
+    positionPdfStageRelativeToLogo();
+    // 載入色塊：每秒換三原色蓋住頁面直到 render 完成（取代舊 LQIP 馬賽克墊圖）。open 時先藏、不猜尺寸——
+    // 由 cover onload（非 press，真封面 fit）或 renderPage 的 sizeLoaderToPage（所有情況，render 真數字）定尺寸才顯示。
+    startColorLoader();
+    // 非 press 封面校準（色塊＝stage 絕對定位 overlay、定一次、render 不碰）：等真封面 onload 撐 fit 尺寸才顯示
+    // （封面非裁頂＝與真頁面 fit 一致、不閃）。press 封面是裁頂 1.5、看不出真 aspect → 這裡不拿來定尺寸（早退），
+    // 交給 sizeLoaderToPage 用 render 真數字精準定（避免 <2 頁色塊太大，user 2026-08-24）。
+    // ⚠️只設色塊自己的 stage 座標尺寸、不碰 naturalDims/fitDims → renderPage 仍視為初次 render；沒封面就等 renderPage。
     const cachedCover = cover ? Promise.resolve(cover) : peekPdfCover(pdfUrl, coverAspect || 0);
-    if (cachedCover) cachedCover.then(dataUrl => {
-      if (!dataUrl || firstPageRendered || myToken !== openToken) return;
-      const img = new Image();
-      // ⚠️不設 crossOrigin：panel 封面 <img> 是 no-cors 載的，模式不同＝HTTP 快取不共用，
-      // 設了會重走網路（Directus ~1s）→ 小書真頁面先到、墊圖被跳過（user 2026-08-18「馬賽克不見了」）。
-      // 代價＝墊圖期間 canvas 短暫 tainted，但該窗口無任何 readback；renderPage 重設尺寸即復原。
-      img.onload = async () => {
-        // 等 stage 佈局停穩再量：modal 剛 display:flex 那幾個 tick stage 尺寸/定位未定，
-        // 直接量會把墊圖擺到奇怪位置（user 2026-08-08「多數時候不在畫面中間」）
-        await awaitLayoutReady(stageEl, { minWidth: 50, minHeight: 50, stableFrames: 2, maxAttempts: 30, awaitFonts: false });
-        if (firstPageRendered || myToken !== openToken) return;
-        positionPdfStageRelativeToLogo();
-        // 跟 renderPage 同一套 fit 簿記（naturalDims/fitDims + row transform 歸位）→ 同一條置中管線
+    if (cachedCover) cachedCover.then(src => {
+      if (!src || myToken !== openToken || naturalDims.w > 0 || !colorLoaderEl) return;   // render 已先到就不用墊
+      const img = new Image();   // 不設 crossOrigin：panel 封面是 no-cors 載的，設了會重走網路（見舊 memory）；此處只讀尺寸不畫 canvas
+      img.onload = () => {
+        if (myToken !== openToken || naturalDims.w > 0 || !loaderActive) return;
+        const imgAspect = img.naturalHeight / img.naturalWidth;
+        const coverIsCropped = (coverAspect || 0) > 0 && imgAspect >= coverAspect - 0.02;
+        // press 且封面確認長頁（裁頂 or aspect≥2）→ reading-fill 已正確，不動。
+        // ponytail: 裁頂封面(=1.5)無法分辨真頁 aspect 落 [1.5,2)（render 走 Fit Page）還是 ≥2（reading）；此處賭 reading
+        //   （本站 press 幾乎全是 ≥2 長文，見封面裁頂理由）。真頁若在 [1.5,2)（雜誌/報紙掃描）色塊會在揭露前縮一次（罕見）。
+        //   render 的 ≥2 門檻是 user 定案不能降；要全消得把色塊移出 rendered-content、改 zoom-stage 絕對定位不隨 render 重算。
+        if (allowAutoRead && (coverIsCropped || imgAspect >= 2)) return;
+        // 其餘 → 封面 fit 尺寸置中（非 press，或 press 首頁橫幅/短頁）。色塊＝stage 絕對定位（Fit Page 置中矩形）、render 不碰＝零跳
         const availH = stageEl.clientHeight || window.innerHeight * 0.8;
         const availW = stageEl.clientWidth || window.innerWidth;
         const f = Math.min(availH / img.naturalHeight, availW / img.naturalWidth);
-        naturalDims = { w: img.naturalWidth, h: img.naturalHeight };
-        fitDims = { w: img.naturalWidth * f, h: img.naturalHeight * f };
-        canvasL.width  = img.naturalWidth;
-        canvasL.height = img.naturalHeight;
-        canvasL.style.width  = fitDims.w + 'px';
-        canvasL.style.height = fitDims.h + 'px';
-        // wrapper 尺寸必須跟著寫（同 renderPage）：它殘留「上一本」的 fitDims，canvas 貼其左上角
-        // → 墊圖偏左上（user 實機 diag 抓到 content 522×746 vs canvas 468×660；首開重現不了的原因）
-        if (renderedContentEl) {
-          renderedContentEl.style.width  = fitDims.w + 'px';
-          renderedContentEl.style.height = fitDims.h + 'px';
-        }
-        drawMosaic(img, 22);          // 馬賽克墊圖（取代 gaussian blur(14px)；最近鄰放大縮圖）
-        placeholderShowing = true;
-        zoom = { scale: 1, tx: 0, ty: 0 };
-        // 不走 applyZoom：它會 updateZoomUI，墊圖的 % 是封面像素比出來的假值（renderPage 才是真值）
-        rowEl.style.transition = 'none';
-        rowEl.style.transform = 'translate(0px, 0px) scale(1)';
+        const cw = img.naturalWidth * f, ch = img.naturalHeight * f;
+        colorLoaderEl.style.left   = ((availW - cw) / 2) + 'px';
+        colorLoaderEl.style.top    = ((availH - ch) / 2) + 'px';
+        colorLoaderEl.style.width  = cw + 'px';
+        colorLoaderEl.style.height = ch + 'px';
+        colorLoaderEl.style.display = '';   // 尺寸定好才顯示（startColorLoader 對非 press 先藏，避免閃 stale 尺寸）
       };
-      img.src = dataUrl;
+      img.src = src;
     });
 
     try {
@@ -894,20 +1135,18 @@ export function initPdfViewer() {
       // 「無 Accept-Ranges 的合成 200」→ pdf.js 誤判不支援 range 整本下載 78MB（＝點開等 10s 的真兇）。
       // CloudFront cache key 不含 query（實測首發即 Hit），edge 快取零損失。
       const bustUrl = pdfUrl + (pdfUrl.includes('?') ? '&' : '?') + '_r=' + Date.now();
-      const doc = await pdfjsLib.getDocument({ url: bustUrl, disableAutoFetch: true, disableStream: true, rangeChunkSize: 16384, cMapUrl: PDFJS_CMAPS, cMapPacked: true }).promise;
+      const doc = await pdfjsLib.getDocument({ url: bustUrl, disableAutoFetch: true, disableStream: true, rangeChunkSize: 16384, cMapUrl: PDFJS_CMAPS, cMapPacked: true, standardFontDataUrl: PDFJS_STD_FONTS, wasmUrl: PDFJS_WASM }).promise;
       // 慢載大本時 user 可能已改開別本：這次開場過期就整段放棄——別讓晚到的 doc 覆寫共用 pdfDoc、
       // 也別 render 進共用 canvas，否則畫面變成「開到別的書」（user 2026-08-11）。
       if (myToken !== openToken) { doc.destroy?.(); return; }
       pdfDoc = doc;
       pageInfo.textContent = `${curPage} / ${pdfDoc.numPages}`;   // 總頁數已確定，一次到位
       // 桌面/手機同走單頁引擎（手機多 touch 手勢層：swipe 換頁 / pinch 縮放）
-      renderPage(curPage).then(() => {
+      renderPage(curPage).then(ok => {
         if (myToken !== openToken) return;
-        firstPageRendered = true;
-        if (placeholderShowing) {
-          // 馬賽克墊圖收尾：高解析頁已在 canvas 上（雙緩衝 swap），de-pixelate 揭示即「對焦入場」
-          revealMosaic();
-        }
+        if (!ok) { closeModal(); return; }   // 首頁 render 失敗（壞檔/損頁）→ 關閉，別讓色塊 loader 卡死不揭露
+        // render 完成：頁面已在 canvas 上（雙緩衝 swap）。標記讓載入色塊在當前色塊 1s 走完後 clip-reveal 揭露
+        loaderReady = true;
       });
     } catch (err) {
       console.error('PDF load error:', err);

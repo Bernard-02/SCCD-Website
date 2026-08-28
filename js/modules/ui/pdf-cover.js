@@ -11,6 +11,11 @@ const PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.2.108/pdf.
 // CID 字型用預定義（外部）CMap 的 PDF（常見於中文舊檔）→ pdf.js 要外部 cMap 資料才能把 CID 解成字形，
 // 沒給就整段中文渲染成空白（缺字）。cdnjs 不供 cmaps 目錄（403）→ 用 jsdelivr 的 pdfjs-dist cmaps。
 const PDFJS_CMAPS  = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/cmaps/';
+// 非嵌入標準字型（Helvetica/Times 等）→ 沒 standardFontDataUrl 會缺字（同 library-viewer；封面若第一頁用這類字型也會掉字）。
+const PDFJS_STD_FONTS = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/standard_fonts/';
+// pdf.js 6.x CCITT/JBIG2/JPX 解碼在 wasm 模組 → 沒給 wasmUrl 整張影像 XObject 被丟掉
+// （MRC 掃描檔文字遮罩層全消失；同 library-viewer）。cdnjs 不供 wasm → jsdelivr。
+const PDFJS_WASM = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/wasm/';
 
 let _loadPromise = null;
 function ensurePdfjsLoaded() {
@@ -24,8 +29,9 @@ function ensurePdfjsLoaded() {
 const _coverCache = new Map();
 
 // 持久快取（IndexedDB）key 版本：render 邏輯改動後 bump，讓舊 session 已快取的壞封面全域失效重渲，
-// 免逐使用者手動清 IndexedDB。v2 = 2026-08-20 補 cMapUrl 修中文缺字（見 memory）。
-const _CACHE_VER = 'v2';
+// 免逐使用者手動清 IndexedDB。v2 = 2026-08-20 補 cMapUrl 修中文缺字；v3 = 2026-08-23 補 standardFontDataUrl 修非嵌入字型缺字；
+// v4 = 2026-08-23 補 wasmUrl 修 CCITT/JBIG2 遮罩層整層消失（MRC 壓縮掃描檔）。
+const _CACHE_VER = 'v4';
 const _ck = (u) => `${_CACHE_VER}:${u}`;
 
 // 併發閘門：同時最多 3 份 PDF 在抓＋渲。library files 一頁 28+ 本掃描檔全並行
@@ -129,7 +135,7 @@ export function renderPdfCover(pdfUrl, targetWidth = 280, maxAspectRatio = 0) {
       // _r 唯一 query：同 URL 有 partial cache 時，Chrome 會把 probe 拼成「無 Accept-Ranges 的合成 200」
       // → pdf.js 誤判不支援 range 整本下載（78MB 實測）。CloudFront cache key 不含 query，edge 零損失。
       const bustUrl = pdfUrl + (pdfUrl.includes('?') ? '&' : '?') + '_r=' + Date.now();
-      const doc  = await pdfjsLib.getDocument({ url: bustUrl, disableAutoFetch: true, disableStream: true, rangeChunkSize: 16384, cMapUrl: PDFJS_CMAPS, cMapPacked: true }).promise;
+      const doc  = await pdfjsLib.getDocument({ url: bustUrl, disableAutoFetch: true, disableStream: true, rangeChunkSize: 16384, cMapUrl: PDFJS_CMAPS, cMapPacked: true, standardFontDataUrl: PDFJS_STD_FONTS, wasmUrl: PDFJS_WASM }).promise;
       const page = await doc.getPage(1);
       const base = page.getViewport({ scale: 1 });
       const vp   = page.getViewport({ scale: targetWidth / base.width });

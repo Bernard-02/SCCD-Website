@@ -73,6 +73,39 @@ export function ensureCardMask(el) {
   el.dataset.cardMasked = '1';
 }
 
+// ── icon glyph 切換 clip-reveal（取代黑方塊鈕內 .icon 的 clip-path inset wipe）─────
+// 貼身 overflow:clip 遮罩包住 glyph；glyph 比外框(48px)小，借外框當遮罩 yPercent:100 會留殘影，
+// 故 wrap 用 inline-flex fit-content 貼合 1em glyph。idempotent（dataset.iconClipWrap 守衛）。
+export function ensureIconClipWrap(iconEl) {
+  if (!iconEl) return null;
+  const parent = iconEl.parentElement;
+  if (parent && parent.dataset.iconClipWrap) return parent;
+  const wrap = document.createElement('span');
+  wrap.dataset.iconClipWrap = '1';
+  wrap.style.cssText = 'display:inline-flex; align-items:center; overflow:clip; line-height:0;';
+  iconEl.parentNode.insertBefore(wrap, iconEl);
+  wrap.appendChild(iconEl);
+  return wrap;
+}
+
+const _ICON_REVEAL_DIRS = [{ yPercent: -100 }, { yPercent: 100 }, { xPercent: -100 }, { xPercent: 100 }];
+// 隨機四向：滑出遮罩 → 換 icon class → 同向滑入（= hide 的時間反向，連續不跳）
+export function clipRevealIconSwap(iconEl, newClass) {
+  if (!iconEl) return;
+  if (typeof gsap === 'undefined') { if (newClass) iconEl.className = newClass; return; }
+  ensureIconClipWrap(iconEl);
+  const dir = _ICON_REVEAL_DIRS[Math.floor(Math.random() * 4)];
+  gsap.killTweensOf(iconEl);
+  gsap.to(iconEl, {
+    ...dir, duration: 0.4, ease: 'power2.out', overwrite: true,
+    onComplete: () => {
+      if (newClass) iconEl.className = newClass;
+      gsap.fromTo(iconEl, dir,
+        { xPercent: 0, yPercent: 0, duration: 0.4, ease: 'power2.out', clearProps: 'transform', overwrite: true });
+    },
+  });
+}
+
 // 色卡寬度貼合「最寬一行換行文字 + padding」（桌面）；手機/矮橫向還原 fit-content。
 // 為何要 JS：CSS width:fit-content 只夾到「可用寬度(grid cell)」，長文 max-content 遠超 cell → 卡片右緣
 // 落在欄邊而非最寬文字行；要縮到「換行後最寬行」必須用 Range 逐行量（同 timeline 手機年份卡）。

@@ -213,7 +213,8 @@ body.mode-color .colored-accordion .accordion-text-wrap p {
 }
 
 body.mode-color .colored-accordion .accordion-label[style*="background"],
-body.mode-color .colored-accordion .accordion-text-wrap[style*="background"] {
+body.mode-color .colored-accordion .accordion-text-wrap[style*="background"],
+body.mode-color .colored-accordion .accordion-img-wrap[style*="background"] {
   background-color: var(--theme-fg-inverse) !important;
 }
 
@@ -652,12 +653,14 @@ body.mode-color #faculty-panel .list-scroll::-webkit-scrollbar-thumb {
  * → thumb 用 var(--theme-fg-inverse)（theme-fg 的保證對比色）永遠看得見。
  * （mode1/2 這些容器 bg=三原色 accent、黑 thumb 本來就對比，不受影響，故只 scope mode-color。）*/
 body.mode-color .list-header[style*="background"] + .list-content .list-scroll::-webkit-scrollbar-thumb,
-body.mode-color .timeline-card-inner .list-scroll::-webkit-scrollbar-thumb {
+body.mode-color .timeline-card-inner .list-scroll::-webkit-scrollbar-thumb,
+body.mode-color .colored-accordion .accordion-text-wrap.list-scroll::-webkit-scrollbar-thumb {
   background: var(--theme-fg-inverse) !important;
 }
 @supports (-moz-appearance: none) {
   body.mode-color .list-header[style*="background"] + .list-content .list-scroll,
-  body.mode-color .timeline-card-inner .list-scroll {
+  body.mode-color .timeline-card-inner .list-scroll,
+  body.mode-color .colored-accordion .accordion-text-wrap.list-scroll {
     scrollbar-color: var(--theme-fg-inverse) transparent;
   }
 }
@@ -694,7 +697,7 @@ body.mode-color #library-card-content {
 }
 /* 卡內文字本來繼承 body 的 --theme-fg（= page 對比，亮 hue 黑）；反色島翻卡後深卡上黑字看不到。
  * 在 card subtree 顯式吃 --lib-fg（已 remap 成卡的反色字）→ award/press/files/album 所有文字跟著卡翻白/黑。
- * lib-panel-title 自己有 theme-fg-inverse !important（strict B/W chip）不受此影響。 */
+ * lib-panel-title 標題 bar 也在此 subtree 內 → 文字色一併跟 --lib-fg（無底色，不需另覆蓋）。 */
 body.mode-color #library-card-content {
   color: var(--lib-fg);
 }
@@ -710,12 +713,6 @@ body.mode-color #library-card-content {
   }
 }
 
-/* lib-panel-title chip：mode-color 走 strict B/W 對比（依 page hue luminance 自動翻黑白）
- * standard 純黑底白字（library.css）、inverse 純白底黑字（inverse.css） */
-body.mode-color .lib-panel-title {
-  background: var(--theme-fg) !important;
-  color: var(--theme-fg-inverse) !important;
-}
 
 /* ===== Library color rect stack：mode-color 三原色 → strict B/W =====
  * library-card.js JS 把 #library-card-stack 內三個矩形染成 PRIMARY_COLORS（粉/綠/藍）
@@ -831,6 +828,12 @@ body.mode-color .atlas-cat-b .atlas-name {
  * 非 D items cover = fg 與 fg text 同色（覆蓋時文字「同色融入」消失），
  * D items cover = fg 與 chip bg (fg) 同色（覆蓋時整塊維持 fg bg），兩種情境視覺都連續 */
 body.mode-color .atlas-name-cover {
+  background-color: var(--theme-fg) !important;
+}
+
+/* 單一節點 morph 飛行色塊（2026-08-25）：mode3 恆 fg——spawn 時抄的 computed 色若遇 hue 翻轉，
+ * 此規則讓飛行中色塊與全畫面同幀跟上（動畫只補間 transform/clip-path、色彩全交 cascade） */
+body.mode-color .atlas-view-mask {
   background-color: var(--theme-fg) !important;
 }
 

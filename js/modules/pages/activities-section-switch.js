@@ -108,6 +108,22 @@ function scrollSectionIntoView(el, behavior = 'instant') {
 
 let currentSectionColor = '';
 
+// 初載 reveal 時機：舊版固定 double-rAF 賭「兩幀後 DOM 就定案」——慢機 / webfont 晚 swap / Directus 資料
+// 晚到重排時兩幀不夠，部分 year-group 的 row 還沒進 DOM → playAdmissionPanelReveal 快照抓不到 → tween 沒建 →
+// 卡 yPercent:100 留白（user 報「list 沒載滿、下方預留空白」）。改成「等 .list-reveal-row 數連兩幀不變」才揭，
+// 讓晚到的 row 也進同一條 timeline、每列都有進場動畫。封頂 60 幀（~1s）免極端情況空等。
+function revealWhenListRowsSettled(panel, run) {
+  let last = -1, stable = 0, frames = 0;
+  const tick = () => {
+    const n = panel.querySelectorAll('.list-reveal-row').length;
+    stable = n === last ? stable + 1 : 0;
+    last = n;
+    if ((n > 0 && stable >= 2) || ++frames > 60) run();
+    else requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
 // 等指定 list-item 的進場 reveal 完成（reveal 的 onComplete/onEnter 會移除 data-pre-reveal，見 admission-data-loader
 // unlockGroup / activities-data-loader 的 ScrollTrigger）。給 ref/deep-link 導航用：確保「list 文字 reveal 出現後」
 // 才 highlight，不在 rows 還 clip-reveal 中途就先亮（user 2026-06-09）。
@@ -860,8 +876,20 @@ async function switchToSection(section, btns, shouldScroll, isInitial = false) {
     //      onEnter 對「建立當下就已在視窗內」的元素觸發不可靠（有時 fire 有時不）→ 卡 yPercent:100 不進場
     //      （= user 回報「有時 activities list 沒進場動畫」）。改 false 走 master-timeline 立即播，必定 reveal。
     if (target) {
-      playAdmissionPanelReveal(target, { useScrollTrigger: isInitial });
-      playFilterChipsReveal(target, { useScrollTrigger: isInitial });  // chip 自身 clip reveal（timing 跟 panel 一致）
+      // ⚠️ 初載也走「master-timeline 一次全揭」（useScrollTrigger:false），不用 ScrollTrigger lazy reveal：
+      //    桌面清單在 `.inner-scroll-scroll-col` 內「內捲」（window 幾乎不動），但 reveal 的 ScrollTrigger 綁
+      //    預設 window scroller → 捲內容器不 fire trigger、fold 以下 year-group 永遠卡 yPercent:100 留白
+      //    （user 報 exhibitions reload「只出第一年、下面預留空位一片空白」）。
+      // ⚠️ 初載 reveal 要等 DOM 定案：exhibitions 兩個 list（special+permanent）＋year-toggle/type-filter init
+      //    都在此刻剛跑完，慢機／webfont 晚 swap／資料晚到重排時 row 會分幾幀才進齊，同步跑 reveal 會有部分
+      //    group 的 tween 沒建到（實測初載 12/24 卡住）。固定 double-rAF 只擋得住兩幀內的延遲；改用
+      //    revealWhenListRowsSettled 等 row 數連兩幀不變才揭，晚到的 row 也進同一條 timeline、每列都有動畫。
+      const revealNow = () => {
+        playAdmissionPanelReveal(target, { useScrollTrigger: false });
+        playFilterChipsReveal(target, { useScrollTrigger: false });
+      };
+      if (isInitial) revealWhenListRowsSettled(target, revealNow);
+      else revealNow();
     }
     switching = false;
   }

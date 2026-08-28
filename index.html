@@ -10,7 +10,7 @@
   </style>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&family=Bitter:ital,wght@0,400;0,600;0,700;1,400&family=Noto+Serif+TC:wght@400;600;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&family=Noto+Sans+SC:wght@400;500;700&family=Bitter:ital,wght@0,400;0,600;0,700;1,400&family=Noto+Serif+TC:wght@400;600;700&family=Noto+Serif+JP:wght@400;600;700&family=Noto+Serif+SC:wght@400;600;700&display=swap">
   <link rel="stylesheet" href="css/output.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.2.3/css/flag-icons.min.css">
@@ -37,11 +37,11 @@
       <div id="floating-layer" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:0; overflow:hidden;"></div>
 
       <!-- News Marquee Stack（4 個 banner 旋轉排列在左下角；JS 動態渲染 + cycling） -->
-      <div id="homepage-marquee-stack" style="position:absolute; left:0; bottom:0; width:100%; height:100%; z-index:20; pointer-events:none;"></div>
+      <div id="homepage-marquee-stack" style="position:absolute; left:0; bottom:0; width:100%; height:100%; z-index:15; pointer-events:none;"></div>
 
       <!-- YouTube Card：絕對定位，JS 負責隨機位置 + 旋轉
            width/height 改由 .homepage-card class 控制（桌面 160 / 手機 96，CSS 分流） -->
-      <div id="homepage-yt-card" class="homepage-card" style="position:absolute; border-radius:50%; cursor:pointer; overflow:hidden; background:#000; display:flex; align-items:center; justify-content:center; z-index:15;">
+      <div id="homepage-yt-card" class="homepage-card" style="position:absolute; border-radius:50%; cursor:pointer; overflow:hidden; background:#000; display:flex; align-items:center; justify-content:center; z-index:20;">
         <div id="homepage-yt-chars" style="position:absolute;inset:0;"></div>
       </div>
 

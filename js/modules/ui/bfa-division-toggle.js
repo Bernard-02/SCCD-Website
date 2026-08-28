@@ -572,6 +572,31 @@ export function initBFADivisionToggle() {
     if (label) label.style.background = color;
   };
 
+  // ─── 首次滑進 works 的內容進場（class-buttons-sticky.js 呼叫）────────────────
+  // class 區的 slideshow 圖片有 revealActive 進場，works 的字卡/影片原本 instant 顯示（無進場）。
+  // user 2026-08-24：works 也要進場。沿用本模組 works 切換的同組常數/機制（手感一致），
+  // hide＝把 active panel 字卡藏進遮罩外＋影片落到下方等待位；reveal＝滑入（同 setWorksPanelState 反向）。
+  const activeWorksPanel = () => Array.from(classWorksPanels).find(p => p.style.zIndex === '1');
+  window.SCCD_hideWorksActive = function () {
+    if (typeof gsap === 'undefined') return;
+    initWorksLayoutOnce();
+    const panel = activeWorksPanel();
+    if (!panel) return;
+    const text  = panel.querySelector('[data-works-hl]');
+    const video = panel.querySelector('iframe');
+    if (text)  { ensureCardMask(text); fitCardToText(text); gsap.set(text, revealHiddenT(randRevealDir())); }
+    if (video) gsap.set(video, { yPercent: 100, xPercent: 0 });
+  };
+  window.SCCD_revealWorksActive = function () {
+    if (typeof gsap === 'undefined') return;
+    const panel = activeWorksPanel();
+    if (!panel) return;
+    const text  = panel.querySelector('[data-works-hl]');
+    const video = panel.querySelector('iframe');
+    if (video) gsap.to(video, { yPercent: 0, xPercent: 0, duration: WORKS_ANIM_DUR, ease: WORKS_VIDEO_EASE, overwrite: true });
+    if (text)  { ensureCardMask(text); fitCardToText(text); gsap.to(text, { ...REVEAL_SHOWN, duration: WORKS_ANIM_DUR, ease: WORKS_ANIM_EASE, overwrite: true }); }
+  };
+
   // ─── Initial State ───────────────────────────────────────────
 
   requestAnimationFrame(() => {

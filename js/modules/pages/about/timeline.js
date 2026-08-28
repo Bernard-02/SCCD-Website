@@ -7,6 +7,7 @@
  */
 
 import { registerPageExit } from '../../ui/page-exit.js';
+import { clipRevealIconSwap } from '../../ui/scroll-animate.js';
 import { registerPageCleanup } from '../../ui/page-cleanup.js';
 import { createClassImagesSlideshow } from './class-images-slideshow.js';
 import { loadHistory } from './history-source.js';
@@ -430,21 +431,8 @@ export function initTimeline() {
       listContent.scrollTop = 0;
     }
 
-    // icon wipe swap（同桌面 wipeToggleIcon）
-    function wipeListIcon(newClass) {
-      if (typeof gsap === 'undefined') { listIcon.className = newClass; return; }
-      const dirs = ['inset(0% 100% 0% 0%)', 'inset(0% 0% 0% 100%)', 'inset(100% 0% 0% 0%)', 'inset(0% 0% 100% 0%)'];
-      const dir = dirs[Math.floor(Math.random() * 4)];
-      gsap.killTweensOf(listIcon);
-      gsap.to(listIcon, {
-        clipPath: dir, duration: 0.4, ease: 'power2.out', overwrite: true,
-        onComplete: () => {
-          listIcon.className = newClass;
-          gsap.fromTo(listIcon, { clipPath: dir },
-            { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.4, ease: 'power2.out', clearProps: 'clipPath', overwrite: true });
-        },
-      });
-    }
+    // icon 切換走 clip-reveal（同桌面 wipeToggleIcon）
+    const wipeListIcon = (newClass) => clipRevealIconSwap(listIcon, newClass);
 
     function showList() {
       if (listAnimating || switching || listMode) return;
@@ -813,27 +801,8 @@ export function initTimeline() {
     area.appendChild(btnGrid);
     const listIcon = listBtn.querySelector('.icon');
 
-    const TL_ICON_DIRS = [
-      'inset(0% 100% 0% 0%)',
-      'inset(0% 0% 0% 100%)',
-      'inset(100% 0% 0% 0%)',
-      'inset(0% 0% 100% 0%)',
-    ];
-    // 通用 icon glyph wipe：隨機四方向 clip-out → 換 class(可略) → 同方向 clip-in（reveal = hide 時間反向、連續不跳）
-    function wipeIconGlyph(iconEl, newClass) {
-      if (typeof gsap === 'undefined') { if (newClass) iconEl.className = newClass; return; }
-      const dir = TL_ICON_DIRS[Math.floor(Math.random() * 4)];
-      gsap.killTweensOf(iconEl);
-      gsap.to(iconEl, {
-        clipPath: dir, duration: 0.4, ease: 'power2.out', overwrite: true,
-        onComplete: () => {
-          if (newClass) iconEl.className = newClass;
-          gsap.fromTo(iconEl, { clipPath: dir },
-            { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.4, ease: 'power2.out', clearProps: 'clipPath', overwrite: true });
-        },
-      });
-    }
-    const wipeToggleIcon = (newClass) => wipeIconGlyph(listIcon, newClass);
+    // icon glyph 切換走 clip-reveal（滑出遮罩→換 class→同向滑入），取代原 clip-path inset wipe
+    const wipeToggleIcon = (newClass) => clipRevealIconSwap(listIcon, newClass);
 
     const listView = document.createElement('div');
     listView.id = 'timeline-list-view';
@@ -897,11 +866,12 @@ export function initTimeline() {
       listContent.scrollTop = 0;
     }
 
-    function showListView() {
+    function showListView(skipIconWipe = false) {
       if (listAnimating || listMode || typeof gsap === 'undefined') return;
       listAnimating = true;
       listMode = true;
-      wipeToggleIcon('icon icon-atlas-view');
+      if (skipIconWipe) listIcon.className = 'icon icon-atlas-view';
+      else wipeToggleIcon('icon icon-atlas-view');
       const pool = shuffle(ACCENT_COLORS);
       listEraColors = eraGroups.map((_, i) => pool[i % pool.length]);
       renderListEra(listEraIndex);
@@ -973,5 +943,8 @@ export function initTimeline() {
       const onOne = () => { if (++done >= inners.length) resolve(); };
       inners.forEach(el => { gsap.killTweensOf(el); exitChip(el, TIMING.exitDuration, TIMING.exitEase, onOne); });
     }));
+
+    // 預設展開左側 list（about history 一進頁即開，非等點擊）；skipIconWipe=true 因無「切換」動作
+    showListView(true);
   }
 }

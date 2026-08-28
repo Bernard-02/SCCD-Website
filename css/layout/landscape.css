@@ -191,6 +191,7 @@
         收成 p2(0.875rem) ＝ .courses-bfa-label 同級。集中一條、新 nav 進 header 帶的頁面補 selector。 */
   #courses-content-section .courses-program-btn,
   #faculty-cards .faculty-filter-btn,
+  #faculty-cards .faculty-dept-btn,
   #admission-content-section .activities-section-btn,
   #activities-content-section .activities-section-btn,
   body #anchor-nav .anchor-nav-btn {
@@ -448,9 +449,12 @@
     align-self: stretch;
     padding: 0;                         /* 蓋 lists.css box padding:md（box 裁切用的旋轉 clearance，window 捲無裁切） */
   }
-  /* buttons.css ≥768 給 btn width:100%（桌面窄側欄折行門檻）→ 水平 strip 每顆被撐滿寬、一屏只見一顆 → 還原 content 寬單行 */
-  #faculty-cards .faculty-filter-btn {
-    width: auto;
+  /* 分類 filter 2026-08-24 移到內容區上方 .faculty-dept-bar（原 SCCD 系所鈕位置、與左欄 DCD 調換）：
+     該 bar 帶 md:sticky，矮橫向寬 ≥768 會吃 md: → 釘 top:0 躲進 fixed header 帶（z-40）後不可點 →
+     改 static、隨內容捲可觸及。左欄系所鈕 DCD 沿用 .inner-scroll-nav-col 進 header 帶既有規則（上方 5d+）
+     ＝系所在 header、分類在內容頂。 */
+  #faculty-cards .faculty-dept-bar {
+    position: static;
   }
   /* 老師 slide-in 比照直向手機滿版（user 2026-07-09 三改）：100% 滿版 + 直向 stack（照片→名字→sections）
      + 整段捲 + 返回鍵；profile/title sticky（見下，右側詳情用手機版排法且釘住）。 */

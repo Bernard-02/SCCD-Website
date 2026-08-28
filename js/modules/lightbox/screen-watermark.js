@@ -13,7 +13,7 @@ export function applyScreenWatermark(wmEl) {
   if (!wmEl) return;
   const mob = window.innerWidth < 768;
   const FS = mob ? 14 : 24;                         // 手機字級縮小
-  const WEIGHT = 700, FAM = "Inter,'Noto Sans TC',sans-serif";
+  const WEIGHT = 700, FAM = "Inter,'Noto Sans TC','Noto Sans JP','Noto Sans SC',sans-serif";
   const LH = Math.round(FS * (mob ? 4.4 : 5.6));    // 行距倍率：手機調小 → 垂直更密；tile 高 = 2*LH
   const SEP = '  ';                   // 2 個 em space(U+2003) 分隔 → 全站 marquee 統一 2em gap（同 index-marquee / library-card 色卡）；textContent 只能用字元不能用 &emsp;
   const EN_UNIT = 'Department of Communications Design, Shih Chien University' + SEP;

@@ -10,6 +10,7 @@
 
 import { attachVideoSource, detachVideoSource } from '../ui/video-player.js';
 import { DUR, EASE } from '../ui/motion.js';
+import { navChipHidden, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
 
 function formatTime(s) {
   const m = Math.floor(s / 60);
@@ -23,10 +24,13 @@ function formatTime(s) {
 // （SPA 換頁本身是 user gesture，瀏覽器可能放行「有聲自動播放」→ 進頁面就出聲，且兩支影片會同時播）
 export function createLightboxVideo(url, accent = '#00FF80', { autoplay = true } = {}) {
   const root = document.createElement('div');
-  root.style.cssText = 'position:relative;width:100%;max-width:960px;aspect-ratio:16/9;max-height:100%;background:#000;';
+  // 不鎖 aspect-ratio / 不填黑底：讓 <video> 以原生比例 contain（同 lightbox 圖片），非 16:9 影片才不會被墊上黑框
+  // （user 2026-08-23：2002 4:3 報導在 16:9 框內兩側出現黑框）。root 只負責填滿 stage + 置中，實際尺寸交給影片。
+  root.style.cssText = 'position:relative;width:100%;max-width:960px;height:100%;max-height:100%;display:flex;align-items:center;justify-content:center;';
   const video = document.createElement('video');
   video.playsInline = true;
-  video.style.cssText = 'width:100%;height:100%;display:block;';
+  // max-width/height + auto：replaced element 依原生比例縮到 contain，box 恆等於內容比例＝零黑框
+  video.style.cssText = 'max-width:100%;max-height:100%;display:block;';
   root.appendChild(video);
   attachVideoSource(video, url);
   // autoplay 被瀏覽器擋下就停在 paused，等 user 按 play
@@ -123,15 +127,12 @@ export function createLightboxVideo(url, accent = '#00FF80', { autoplay = true }
   const docListeners = [];
   const onDoc = (type, fn) => { document.addEventListener(type, fn); docListeners.push([type, fn]); };
 
-  // ── 顯隱：每塊隨機方向 clip reveal + 隨機旋轉（同 WATCH showControls/hideControls）──
-  const CLIP_DIRS = {
-    top:    { from: 'inset(0% 0% 100% 0%)', to: 'inset(0% 0% 0% 0%)' },
-    bottom: { from: 'inset(100% 0% 0% 0%)', to: 'inset(0% 0% 0% 0%)' },
-    left:   { from: 'inset(0% 100% 0% 0%)', to: 'inset(0% 0% 0% 0%)' },
-    right:  { from: 'inset(0% 0% 0% 100%)', to: 'inset(0% 0% 0% 0%)' },
-  };
+  // ── 顯隱：hero clip-reveal（滑動＋遮罩，同全站 nav chip / scroll-animate navChipHidden）＋隨機傾角 ──
+  // 由「原地 inset wipe」改成「滑入＋clip-path 遮罩」＝ hero 進場（user 2026-08-23）。
+  // rotation 寫在 block 自身 transform（靜止傾角、reveal 期間不變）；動畫量是獨立的 translate 屬性 + clipPath，
+  // 兩者共存不打架（見 scroll-animate nav chip 註）。navChipHidden 依 dir + 當前 rotation 算隱藏態（沿旋轉軸位移）。
   const ALL_DIRS  = ['top', 'bottom', 'left', 'right'];
-  const VERT_DIRS = ['top', 'bottom'];   // 中央 bar 限上下（同 WATCH）
+  const VERT_DIRS = ['top', 'bottom'];   // 中央 bar 限上下（寬 bar 從左右飛入距離太遠、不像 hero 揭露）
   const randDir = dirs => dirs[Math.floor(Math.random() * dirs.length)];
   function randRot(exclude = [], min = -4, max = 6) {
     let r;
@@ -155,17 +156,14 @@ export function createLightboxVideo(url, accent = '#00FF80', { autoplay = true }
     isVisible = true;
     const usedRots = [];
     uiBlocks.forEach((block, i) => {
-      const dirs = i === 0 ? VERT_DIRS : ALL_DIRS;
-      const dir  = randDir(dirs);
-      const clip = CLIP_DIRS[dir];
-      const rot  = i === 0 ? randRot(usedRots, -2, 2) : randRot(usedRots);
+      const dir = randDir(i === 0 ? VERT_DIRS : ALL_DIRS);
+      const rot = i === 0 ? randRot(usedRots, -2, 2) : randRot(usedRots);
       usedRots.push(rot);
-      // 記錄進場方向/旋轉 → hideControls 沿同方向反向收回（出場 = 進場反向）
-      block._enterDir = dir;
-      block._enterRot = rot;
+      block.style.transform = `rotate(${rot}deg)`;   // 靜止傾角；navChipHidden 讀它算沿旋轉軸的位移
+      block._enterDir = dir;                          // hideControls 沿同方向滑回（出場＝進場反向）
       gsap.fromTo(block,
-        { clipPath: clip.from, rotation: rot },
-        { clipPath: clip.to,   rotation: rot, duration: DUR.base, ease: EASE.enter, overwrite: true }
+        navChipHidden(block, dir),
+        { ...NAV_CHIP_SHOWN, duration: DUR.base, ease: EASE.enter, overwrite: true }
       );
     });
   }
@@ -175,11 +173,7 @@ export function createLightboxVideo(url, accent = '#00FF80', { autoplay = true }
       uiBlocks.forEach(block => {
         const dir = block._enterDir;
         if (!dir) return;
-        gsap.to(block, {
-          clipPath: CLIP_DIRS[dir].from,
-          rotation: block._enterRot ?? 0,
-          duration: DUR.base, ease: EASE.exit, overwrite: true,
-        });
+        gsap.to(block, { ...navChipHidden(block, dir), duration: DUR.base, ease: EASE.exit, overwrite: true });
       });
     } else if (typeof gsap === 'undefined') {
       controls.style.opacity = '0';

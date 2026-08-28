@@ -7,6 +7,7 @@ import { initMobileMenu } from './mobile-menu.js';
 import { getHeaderTargets } from './modules/lightbox/lightbox-shell.js';
 import { DUR, EASE } from './modules/ui/motion.js';
 import { sitePath } from './modules/ui/site-base.js';
+import { loadUiLabels, applyUiLabels } from './modules/ui/ui-labels.js';
 
 // Footer-near hide state（module-scope 讓 updateNavActive 能在 SPA 換頁時同步 reset）：
 // scroll listener 內 closure 變數會跨換頁存活，但 updateNavActive 拿不到 → 提升到 module scope
@@ -1271,11 +1272,15 @@ export function initHeader() {
       })
       .then(html => {
         headerContainer.innerHTML = html;
+        // nav 選單文字接後台 ui_labels（header 在 #site-header、SPA 換頁不重載 → 只在此填一次）
+        loadUiLabels().then(map => applyUiLabels(map, headerContainer));
         setupHeaderLogic();
         document.dispatchEvent(new CustomEvent('header:ready'));
       })
       .catch(e => console.log('Header load failed', e));
   } else {
+    // header 已在 DOM（未走 fetch）→ 一樣填 nav label
+    loadUiLabels().then(map => applyUiLabels(map, headerContainer || document));
     setupHeaderLogic();
   }
 }

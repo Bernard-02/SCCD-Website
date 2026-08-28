@@ -17,7 +17,7 @@ import { makeActivatable } from '../ui/a11y.js';
 function isChinese(ch) { return /[\u4e00-\u9fff]/.test(ch); }
 
 function makeFont(enSize, zhSize) {
-  return { en: '600 ' + enSize + 'px Inter', zh: '700 ' + zhSize + 'px "Noto Sans TC"' };
+  return { en: '600 ' + enSize + 'px Inter', zh: '700 ' + zhSize + 'px "Noto Sans TC", "Noto Sans JP", "Noto Sans SC"' };
 }
 
 function getExactSize(ch, fontStr) {
@@ -291,8 +291,9 @@ function initYTCardFloat(ytCard) {
     if (!frozen) {
       x += vx; y += vy;
       const cw = section.clientWidth, ch = section.clientHeight;
-      if (x > cw + 10) x = -cardW; else if (x < -cardW) x = cw + 10;
-      if (y > ch + 10) y = -cardH; else if (y < -cardH) y = ch + 10;
+      // 撞牆反彈（user 2026-08-28）：碰到邊界就反向速度並夾回界內，取代原本「飄出去從對邊繞回」的 wrap
+      if (x <= 0) { x = 0; vx = Math.abs(vx); } else if (x >= cw - cardW) { x = cw - cardW; vx = -Math.abs(vx); }
+      if (y <= 0) { y = 0; vy = Math.abs(vy); } else if (y >= ch - cardH) { y = ch - cardH; vy = -Math.abs(vy); }
       ytCard.style.transform = `translate(${x}px, ${y}px) rotate(${rotation}deg)`;
     }
     rafId = requestAnimationFrame(tick);

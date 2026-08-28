@@ -109,9 +109,11 @@
       position: static;
       z-index: 3;
       background: var(--theme-bg);
-      /* padding-top: 0 — 第 1 個 BFA btn 對齊 grid 年級表頭頂部（兩個都在 row 0）。
-         label absolute 在 btn 上方往外露，落在 section py-6xl 預留的上方空間裡 */
-      padding-top: 0;
+      /* padding-top = BFA label 突出量（user 2026-08-24「對齊點含 BFA 學士班小 tag、往下調」）：
+         label 是 absolute（bottom:calc(100%+4px)）浮在 btn 上方，原 padding-top:0 讓 btn 頂對齊年級表頭、label 浮在線外。
+         下移整條 bar ≈ label 高（font-size-s × line-height-s + 上下 padding 13px）+ 4px gap ≈ 39px
+         → label 頂端（而非 btn 頂端）落在年級表頭線，label+btn group 整體視覺對齊內容。MDES btn 隨整條同步下移、相對間距不變。 */
+      padding-top: calc(var(--font-size-s) * var(--line-height-s) + 18px);
       padding-bottom: var(--spacing-md);
     }
   }

@@ -65,9 +65,11 @@ function groupByYear(rows) {
     if (!byYear.has(key)) byYear.set(key, []);
     byYear.get(key).push(r);
   });
+  // 組內依「月/日新→舊」排（user 2026-08-28：清單一律 12→1 月，不吃後台手動 sort；取消/無日期者排最後）。
+  const monthDayKey = it => { const d = it.dates?.[0]; return d ? (d.startMonth || 0) * 100 + (d.startDay || 0) : -Infinity; };
   return [...byYear.entries()]
     .sort((a, b) => (Number(b[0]) || -Infinity) - (Number(a[0]) || -Infinity))
-    .map(([year, items]) => ({ year, items }));
+    .map(([year, items]) => ({ year, items: [...items].sort((a, b) => monthDayKey(b) - monthDayKey(a)) }));
 }
 
 // 媒體：null→''；UUID 字串 / 展開 file 物件 / M2M junction 都解析成 assets URL

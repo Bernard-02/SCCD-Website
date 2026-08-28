@@ -21,6 +21,7 @@ import { initOrientationReload } from './modules/ui/orientation-reload.js';
 import { initCustomScrollbar } from './modules/ui/custom-scrollbar.js';
 import { initModeColorPanel } from './modules/ui/mode-color-panel.js';
 import { installReducedMotionGsap } from './modules/ui/reduce-motion.js';
+import { loadUiLabels, applyUiLabels } from './modules/ui/ui-labels.js';
 
 // Import About Page Modules
 import { initResourcesCycling } from './modules/pages/about/resources-cycling.js';
@@ -181,6 +182,14 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
   // /generate 頁暫停 mode（移除 body class）+ 按鈕 disabled；其他頁恢復 sessionStorage 的 mode
   applyModeForPage(page);
   updateToggleBtnVisualState(page);
+
+  // Nav / 分頁按鈕文字：後台 ui_labels 為主、本地 fallback（見 ui-labels.js）。
+  // 只在該頁有帶 data-label-key 的按鈕時才抓（避免無關頁面打 Directus）；fire-and-forget，
+  // HTML 內原文字＝載入前 / 斷線的 fallback，故晚填也不閃。
+  const labelRoot = document.getElementById('page-content') || document;
+  if (labelRoot.querySelector('[data-label-key]')) {
+    loadUiLabels().then(map => applyUiLabels(map, labelRoot));
+  }
 
   // Hero animation 所有頁面都跑（有 hero section 就會觸發）
   // 例外：degree-show-detail 的 hero 文字由 async fetch 填入，必須等 data loader 設好 textContent 後再呼叫，
@@ -492,8 +501,8 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
       onTabSwitchPre: (tab) => {
         panels.showPanel(tab, { reveal: false });
       },
-      onTabSwitch: (tab) => {
-        panels.showPanel(tab);
+      onTabSwitch: (tab, opts) => {
+        panels.showPanel(tab, opts);   // 分頁切換帶 {instant:true}（veil 下直接渲染）；進場不帶＝照舊 wipe
         if (!entranceDone) return; // 自動切換（進場動畫）→ 保留現有 hash
 
         // 使用者手動切換 tab → 更新 URL hash

@@ -251,7 +251,7 @@ function renderFacultyList(containerId, items, eagerCount = 0, highPriority = fa
     return `
     <div class="faculty-card group cursor-pointer p-[6px]" data-category="${item.type}" data-faculty-id="${item.id}" data-img-dir="${imgDir}" style="--card-color: ${color}; --init-deg: ${initDeg}deg">
       <div class="faculty-card-image-mask mb-md">
-        <div class="faculty-card-image-wrapper overflow-hidden aspect-[4/5] bg-gray-2 relative">
+        <div class="faculty-card-image-wrapper overflow-hidden aspect-[4/5] relative">
           <img src="${item.image}" alt="${item.nameEn}" loading="${eager ? 'eager' : 'lazy'}"${eagerHigh ? ' fetchpriority="high"' : ''} class="faculty-card-image w-full h-full object-cover">
         </div>
       </div>
@@ -279,12 +279,8 @@ function renderFacultyList(containerId, items, eagerCount = 0, highPriority = fa
       const wrapper = cardEl.querySelector('.faculty-card-image-wrapper');
       // 預設方形（代用 logo 通常方形、避免載入前 HTML 的 4:5 閃一下）；
       // 實際比例由 applyPlaceholderMode 換 src 後 applyNaturalAspect 校正＝跟真實照片同原則「上傳什麼比例吃什麼」
-      if (wrapper) {
-        wrapper.style.aspectRatio = '1 / 1';
-        // 底色設透明（蓋掉 HTML 的 bg-gray-2）→ 透明 logo 直接襯頁面背景：mode3 跟頁面 hue 完美同步無階梯閃、
-        // standard/inverse 透出白/黑也正好是各變體設計底色；JS 不再追色。
-        wrapper.style.backgroundColor = 'transparent';
-      }
+      // wrapper 底色已留白（不再 bg-gray-2）→ 透明 logo 直接襯頁面背景：mode3 跟頁面 hue 同步無階梯閃
+      if (wrapper) wrapper.style.aspectRatio = '1 / 1';
       img.style.objectFit = 'contain'; // inline 覆蓋 class object-cover（logo 不裁切）
       // cross-fade overlay 層：mode 切換時新變體在這層淡入蓋住舊圖（同 background fade timing）
       let fadeImg = null;

@@ -215,26 +215,31 @@ export function initRotatedAccordion(wrapper, { height = 600, animateEntry = fal
     items.forEach((it) => {
       const lb = it.querySelector('.accordion-label');
       const tw = it.querySelector('.accordion-text-wrap');
+      const iw = it.querySelector('.accordion-img-wrap');
       // 清除 inline style，讓 CSS nth-child 規則接管
       if (lb) lb.style.background = '';
       if (tw) tw.style.background = '';
+      if (iw) iw.style.background = '';
     });
   }
 
   items.forEach((item, i) => {
     const label = item.querySelector('.accordion-label');
     const textWrap = item.querySelector('.accordion-text-wrap');
+    const imgWrap = item.querySelector('.accordion-img-wrap');
     if (!label) return;
 
     item.addEventListener('mouseenter', () => {
       if (i === openIndex) return;
       label.style.background = 'var(--theme-fg)';
       if (textWrap) textWrap.style.background = 'var(--theme-fg)';
+      if (imgWrap) imgWrap.style.background = 'var(--theme-fg)';
     });
     item.addEventListener('mouseleave', () => {
       if (i === openIndex) return;
       label.style.background = '';
       if (textWrap) textWrap.style.background = '';
+      if (imgWrap) imgWrap.style.background = '';
     });
 
     label.addEventListener('mouseenter', () => {

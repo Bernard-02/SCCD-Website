@@ -144,16 +144,8 @@
     }
   }
 
-  /* faculty 側欄占 4 欄（grid-20：nav col 1-4、卡片區 col 5-20）：
-   * 卡片移到 col-5 後 nav 有 cols 1-4 可用，主流桌面（≥~1125px）單行「Full-time Professors」(~185px)塞得下。
-   * chip = inline-flex content-sized：內容 < 側欄寬(4 欄) → 單行貼齊文字（底色 hug、左右 padding 對稱）；
-   *        內容 > 側欄寬(小筆電 768–1124) → max-width:100% 封頂 → 自動折行，仍不碰卡片(col-5)。
-   * btn width:100% 撐滿 4 欄當折行門檻 + click area。
-   * 只桌面：手機 nav 水平 scroll、btn shrink-0 content-width，維持單行不折。 */
-  @media (min-width: 768px) {
-    .faculty-filter-btn { width: 100%; }
-    .faculty-filter-btn .anchor-nav-inner { max-width: 100%; }
-  }
+  /* faculty 分類 filter 2026-08-24 由左直欄移到內容區上方橫向 bar（與系所鈕 DCD 調換）：
+   * 橫向排列 → 各顆 content 寬（shrink-0），不再 width:100% 撐滿側欄；DCD 系所鈕現占左欄、單顆 content 寬即可。 */
 
   /* ===== Activities Section Bar（手機水平 scroll；桌面 sticky vertical stack） =====
    * 手機：force row + overflow-x:auto + 兩側負 margin 延伸到 viewport 邊（courses-program-bar 同 pattern）
@@ -228,6 +220,14 @@
     background: var(--theme-fg);
     color: var(--theme-bg);
     transition: background var(--dur-micro) ease, color var(--dur-micro) ease, transform var(--dur-fast) var(--ease-standard);
+  }
+
+  /* group 標籤 En/Zh 兩行：ui_labels 把 group（來源 group.bfa）拆成兩個子 span，各自成行。
+     只 scope curriculum .courses-bfa-label 與 about 兩處 nav，避免影響其他借用 .class-group-label 的頁面。 */
+  .courses-bfa-label > span,
+  #class-buttons-sticky .class-group-label > span,
+  #mobile-division-nav .class-group-label > span {
+    display: block;
   }
 
   /* ===== Class Division Toggle Buttons ===== */

@@ -71,33 +71,33 @@
           <div class="w-full md:col-span-4 activities-nav-col inner-scroll-nav-col">
             <div class="activities-section-bar flex flex-row md:flex-col gap-xs md:gap-xs md:mb-0 no-scrollbar">
               <button class="activities-section-btn w-fit active text-left" data-section="exhibitions">
-                <span class="anchor-nav-inner"><span>Exhibitions</span><span>展演</span></span>
+                <span class="anchor-nav-inner"><span data-label-key="act.exhibitions" data-label-part="en">Exhibitions</span><span data-label-key="act.exhibitions" data-label-part="zh">展演</span></span>
               </button>
               <button class="activities-section-btn w-fit text-left" data-section="workshop">
-                <span class="anchor-nav-inner"><span>Workshops</span><span>工作營</span></span>
+                <span class="anchor-nav-inner"><span data-label-key="act.workshop" data-label-part="en">Workshops</span><span data-label-key="act.workshop" data-label-part="zh">工作營</span></span>
               </button>
               <button class="activities-section-btn w-fit text-left" data-section="degree-show">
-                <span class="anchor-nav-inner"><span>Degree Shows</span><span>畢業展</span></span>
+                <span class="anchor-nav-inner"><span data-label-key="act.degree-show" data-label-part="en">Degree Shows</span><span data-label-key="act.degree-show" data-label-part="zh">畢業展</span></span>
               </button>
               <button class="activities-section-btn w-fit text-left" data-section="lectures">
-                <span class="anchor-nav-inner"><span>Lectures</span><span>講座</span></span>
+                <span class="anchor-nav-inner"><span data-label-key="act.lectures" data-label-part="en">Lectures</span><span data-label-key="act.lectures" data-label-part="zh">講座</span></span>
               </button>
               <button class="activities-section-btn w-fit text-left" data-section="visits">
-                <span class="anchor-nav-inner"><span>Visits</span><span>參訪</span></span>
+                <span class="anchor-nav-inner"><span data-label-key="act.visits" data-label-part="en">Visits</span><span data-label-key="act.visits" data-label-part="zh">參訪</span></span>
               </button>
               <button class="activities-section-btn w-fit text-left" data-section="competitions">
-                <span class="anchor-nav-inner"><span>Competitions</span><span>競賽</span></span>
+                <span class="anchor-nav-inner"><span data-label-key="act.competitions" data-label-part="en">Competitions</span><span data-label-key="act.competitions" data-label-part="zh">競賽</span></span>
               </button>
               <button class="activities-section-btn w-fit text-left" data-section="conferences">
-                <span class="anchor-nav-inner"><span>Forums</span><span>論壇</span></span>
+                <span class="anchor-nav-inner"><span data-label-key="act.conferences" data-label-part="en">Forums</span><span data-label-key="act.conferences" data-label-part="zh">論壇</span></span>
               </button>
               <button class="activities-section-btn w-fit text-left" data-section="students-present">
-                <span class="anchor-nav-inner"><span>Students Present</span><span>學生自主</span></span>
+                <span class="anchor-nav-inner"><span data-label-key="act.students-present" data-label-part="en">Students Present</span><span data-label-key="act.students-present" data-label-part="zh">學生自主</span></span>
               </button>
               <!-- EN 不再 hardcode <br>（br 的斷行是 UA 行為、CSS display 蓋不掉，手機單行 strip 會被它撐成兩行）：
                    改真空格，桌面兩行由 buttons.css width:min-content 達成 -->
               <button class="activities-section-btn w-fit text-left" data-section="industry">
-                <span class="anchor-nav-inner"><span>Industry Partnerships</span><span>產學合作</span></span>
+                <span class="anchor-nav-inner"><span data-label-key="act.industry" data-label-part="en">Industry Partnerships</span><span data-label-key="act.industry" data-label-part="zh">產學合作</span></span>
               </button>
             </div>
           </div>
@@ -111,8 +111,8 @@
                 <div class="grid-12 pb-lg">
                   <div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px]">
                     <div id="exhibitions-type-filter" class="flex flex-wrap gap-lg pb-lg">
-                      <button class="exhibitions-type-btn courses-filter-btn active whitespace-nowrap" data-type="special"><span class="anchor-nav-inner">Temporary 特設</span></button>
-                      <button class="exhibitions-type-btn courses-filter-btn whitespace-nowrap" data-type="permanent"><span class="anchor-nav-inner">Permanent 常設</span></button>
+                      <button class="exhibitions-type-btn courses-filter-btn active whitespace-nowrap" data-type="special"><span class="anchor-nav-inner"><span data-label-key="act.type.special" data-label-part="en">Temporary</span><span data-label-key="act.type.special" data-label-part="zh">特設</span></span></button>
+                      <button class="exhibitions-type-btn courses-filter-btn whitespace-nowrap" data-type="permanent"><span class="anchor-nav-inner"><span data-label-key="act.type.permanent" data-label-part="en">Permanent</span><span data-label-key="act.type.permanent" data-label-part="zh">常設</span></span></button>
                     </div>
                     <div class="activities-search-inner list-reveal-row flex items-center gap-sm pb-xs">
                       <span class="icon icon-search icon-m activities-search-icon"></span>
@@ -185,8 +185,8 @@
                 <div class="grid-12 pb-lg">
                   <div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px]">
                     <div id="visits-type-filter" class="flex flex-wrap gap-lg pb-lg">
-                      <button class="visits-type-btn courses-filter-btn active whitespace-nowrap" data-type="outbound"><span class="anchor-nav-inner">Outbound 出訪</span></button>
-                      <button class="visits-type-btn courses-filter-btn whitespace-nowrap" data-type="inbound"><span class="anchor-nav-inner">Inbound 來訪</span></button>
+                      <button class="visits-type-btn courses-filter-btn active whitespace-nowrap" data-type="outbound"><span class="anchor-nav-inner"><span data-label-key="act.type.outbound" data-label-part="en">Outbound</span><span data-label-key="act.type.outbound" data-label-part="zh">出訪</span></span></button>
+                      <button class="visits-type-btn courses-filter-btn whitespace-nowrap" data-type="inbound"><span class="anchor-nav-inner"><span data-label-key="act.type.inbound" data-label-part="en">Inbound</span><span data-label-key="act.type.inbound" data-label-part="zh">來訪</span></span></button>
                     </div>
                     <div class="activities-search-inner list-reveal-row flex items-center gap-sm pb-xs">
                       <span class="icon icon-search icon-m activities-search-icon"></span>

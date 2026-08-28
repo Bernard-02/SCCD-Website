@@ -11,13 +11,15 @@
  *   employment(em) ← alumni_employment   （系友就職企業 → 浮動 chip，帶 country 對到國家 D 節點）
  *   careers        ← alumni_careers      （filter 下方職業輪播）
  *
- * ── 尚未上後台 → 仍讀本地 ──
- *   workshops / industry：Directus collection（activities_workshops / activities_industry）已建但 0 筆，
- *   且為扁平 shape，與 atlas 需要的「年份 → items → guests」巢狀結構不符；待後台補資料 + 對齊 shape 再接。
+ * ── workshops / industry ──
+ *   接 activities_workshops / activities_industry（＝activities 頁同源）。loadActivityCollection
+ *   已 groupByYear + 保留 guests(含 country)＝正好是 atlas 要的「年份 → items → guests」巢狀 shape，
+ *   直接沿用（Directus 優先、失敗/空 fallback 本地 workshops.json / industry.json）。
  */
 
 import { CMS_API_BASE } from '../../config/api.js';
 import { getFacultyData, getFormerFacultyData } from './faculty-source.js';
+import { loadActivityCollection } from './activities-source.js';
 import { sitePath } from '../ui/site-base.js';
 
 // 抓 collection 全部 rows（依後台 sort）；空陣列視為「沒資料」往 fallback 走
@@ -63,9 +65,9 @@ export async function loadAtlasData() {
       // 職業輪播；無 fallback → 失敗時用內建 ALUMNI_CAREERS
       withFallback('alumni_careers', 'alumni_careers', null,
         r => ({ en: r.careerEn || '', zh: r.careerZh || '' })),
-      // 工作營 / 產學：暫讀本地（見檔頭說明）
-      fetch(sitePath('data/workshops.json')).then(r => r.json()).catch(() => null),
-      fetch(sitePath('data/industry.json')).then(r => r.json()).catch(() => null),
+      // 工作營 / 產學：接 activities collection（同 activities 頁；含本地 fallback，見檔頭說明）
+      loadActivityCollection('activities_workshops', '/data/workshops.json').catch(() => null),
+      loadActivityCollection('activities_industry', '/data/industry.json').catch(() => null),
     ]);
 
   return { facultyCurrent, facultyFormer, companies, employment, careers, workshops, industry };

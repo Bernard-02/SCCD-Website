@@ -65,20 +65,21 @@
           <div class="md:col-span-4 inner-scroll-nav-col">
           <div class="courses-program-bar flex flex-col items-start gap-lg md:gap-2xl mb-md md:mb-0">
             <div class="courses-program-group flex flex-col items-start gap-xs">
-              <span class="courses-bfa-label">BFA 學士班</span>
+              <span class="courses-bfa-label"><span data-label-key="curriculum.group.bfa" data-label-part="en">BFA</span><span data-label-key="curriculum.group.bfa" data-label-part="zh">學士班</span></span>
               <button class="courses-program-btn active" data-program="bfa-animation">
-                <!-- br 後的空格：br 顯示時被行首 collapse（零視覺差）；橫向 gate 藏 br 後成為單行的字間空格 -->
-                <span class="anchor-nav-inner"><span>Animation &amp; Moving<br> Image</span><span>動畫影像設計組</span></span>
+                <!-- br 後的空格：br 顯示時被行首 collapse（零視覺差）；橫向 gate 藏 br 後成為單行的字間空格。
+                     ⚠️ ui_labels 填入後 br 消失（textContent）→ 靠容器寬度自然換行 -->
+                <span class="anchor-nav-inner"><span data-label-key="curriculum.program.animation" data-label-part="en">Animation &amp; Moving<br> Image</span><span data-label-key="curriculum.program.animation" data-label-part="zh">動畫影像設計組</span></span>
               </button>
             </div>
             <div class="courses-program-group flex flex-col items-start gap-xs">
-              <span class="courses-bfa-label">BFA 學士班</span>
+              <span class="courses-bfa-label"><span data-label-key="curriculum.group.bfa" data-label-part="en">BFA</span><span data-label-key="curriculum.group.bfa" data-label-part="zh">學士班</span></span>
               <button class="courses-program-btn" data-program="bfa-cmd">
-                <span class="anchor-nav-inner"><span>Creative Media Design</span><span>創意媒體設計組</span></span>
+                <span class="anchor-nav-inner"><span data-label-key="curriculum.program.creative-media" data-label-part="en">Creative Media Design</span><span data-label-key="curriculum.program.creative-media" data-label-part="zh">創意媒體設計組</span></span>
               </button>
             </div>
             <button class="courses-program-btn" data-program="mdes">
-              <span class="anchor-nav-inner"><span>MDES</span><span>碩士班</span></span>
+              <span class="anchor-nav-inner"><span data-label-key="curriculum.program.mdes" data-label-part="en">MDES</span><span data-label-key="curriculum.program.mdes" data-label-part="zh">碩士班</span></span>
             </button>
           </div>
           </div>

@@ -33,6 +33,7 @@ const MOBILE_PADDING_X = 16;
 const WIDTH_MOBILE_MAX = 480;
 const WIDTH_MOBILE = () => Math.min(window.innerWidth - MOBILE_PADDING_X * 2, WIDTH_MOBILE_MAX);
 const BAR_HEIGHT = 40;        // 數字方塊邊長 ≈ bar 高度（h5 font 1.4rem + 預設 line-height + padding 0.35rem*2 ≈ 40）
+const BAR_PADDING_X = 12;     // bar 左右內縮：library 色塊 axisPad(24) 的一半，文字不貼邊
 function isMobile() {
   // 矮橫向也走手機參數（slot 座標 / banner 寬；user 2026-07-04「首頁比照手機版」，gate 同 landscape.css）
   if (window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) return true;
@@ -208,11 +209,15 @@ function createBanner(item, squareColor) {
     flex: 1;
     min-width: 0;
     background: #000;
-    padding: 0.35rem 0;
-    overflow: hidden;
+    padding: 0.35rem ${BAR_PADDING_X}px;
     text-decoration: none;
     cursor: pointer;
   `;
+
+  // marquee viewport：overflow:hidden 掛在這層（不在 link）→ 裁切邊 = link 內容框 = 左右各縮 BAR_PADDING_X，
+  // 對齊 library 色塊 marquee 的 axisPad inset（padding 直接放 link 會被 overflow 的 padding-box 裁切邊漏出文字）
+  const viewport = document.createElement('div');
+  viewport.style.cssText = 'overflow: hidden;';
 
   const inner = document.createElement('div');
   inner.className = 'homepage-marquee-inner';
@@ -232,7 +237,8 @@ function createBanner(item, squareColor) {
 
   inner.appendChild(text);
   inner.appendChild(clone);
-  link.appendChild(inner);
+  viewport.appendChild(inner);
+  link.appendChild(viewport);
 
   row.appendChild(square);
   row.appendChild(link);
@@ -262,14 +268,14 @@ function createBanner(item, squareColor) {
     posterEl.addEventListener('click', () => window.open(item.url || '#', '_blank'));
   }
 
-  return { el: wrap, row, link, inner, textEl: text, cloneEl: clone, posterEl, item, rotation, width: totalWidth, color: squareColor, _posterH: 0 };
+  return { el: wrap, row, link, viewport, inner, textEl: text, cloneEl: clone, posterEl, item, rotation, width: totalWidth, color: squareColor, _posterH: 0 };
 }
 
 // 文字放得下 banner 時停掉橫向捲動（否則單則短 news 也一直滑，看起來像一直刷新）；
 // 需 banner 已進 DOM 才能量寬。clone 是為無縫 loop 準備的第二份，靜態時藏起來避免看到兩份。
 function gateMarqueeScroll(b) {
-  if (!b.textEl || !b.link || !b.inner) return;
-  const fits = b.textEl.getBoundingClientRect().width <= b.link.clientWidth;
+  if (!b.textEl || !b.viewport || !b.inner) return;
+  const fits = b.textEl.getBoundingClientRect().width <= b.viewport.clientWidth;
   b.inner.style.animationName = fits ? 'none' : '';
   if (b.cloneEl) b.cloneEl.style.display = fits ? 'none' : '';
 }

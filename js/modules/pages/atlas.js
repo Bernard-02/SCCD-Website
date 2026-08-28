@@ -3,10 +3,12 @@ import { applyMarqueeOverflow, bindMarqueeReturn } from '../ui/marquee-overflow.
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { DUR, EASE } from '../ui/motion.js';
+import { ensureIconClipWrap } from '../ui/scroll-animate.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { loadAtlasData } from './atlas-source.js';
 import { countryName } from '../../data/country-names.js';
 import { sitePath } from '../ui/site-base.js';
+import { loadUiLabels, applyUiLabels } from '../ui/ui-labels.js';
 
 /**
  * Atlas Page — SCCD-Centered Living Textile
@@ -337,18 +339,30 @@ export async function initAtlas(options = {}) {
   // 目前無 ec 節點，partners filter 實質顯示 工作營 + 產學。
 
   // C: 工作營合作單位（國家 = 該單位自己的 country，不是工作營舉辦地點）
+  // guest 欄名雙 shape：本地 workshops.json＝name/name_zh（name 即單位名）；
+  // Directus activities guests repeater＝nameEn/Zh（人名）+ orgEn/Zh（單位）→ 單位優先、無單位退人名
+  // （08-26 踩坑：只讀 name/affiliation → 後台一有樣本資料就整類 0 顆、partners 欄整欄消失）
+  /** @param {any} g */
+  const guestEn = (g) => g.name || g.orgEn || g.nameEn || g.affiliation || '';
+  /** @param {any} g */
+  const guestZh = (g) => g.name_zh || g.orgZh || g.nameZh || g.affiliation_zh || '';
+  // 同一單位跨多場次（Directus 真資料常見）→ 共用同一顆 chip、只把 id 加進各場次 group
+  const seenPartnerChip = new Map();
   (workshops || []).forEach(yearGroup => {
     (yearGroup.items || []).forEach(ws => {
       const wsGroupId = ws.id;
       if (!wsGroupId) return;
-      const dt = (ws.intro_zh || ws.intro || '').trim().slice(0, 140) ||
+      const dt = (ws.descriptionZh || ws.description || ws.intro_zh || ws.intro || '').trim().slice(0, 140) ||
                  '本系與外部單位合作之工作營。';
       const memberIds = [];
 
       (ws.guests || []).forEach(g => {
-        const en = g.name || g.affiliation || '';
-        const zh = g.name_zh || g.affiliation_zh || '';
+        const en = guestEn(g);
+        const zh = guestZh(g);
         if (!en && !zh) return;
+        const dupKey = `wsg|${en}|${zh}`;
+        const dup = seenPartnerChip.get(dupKey);
+        if (dup) { dup.groups.push(wsGroupId); memberIds.push(dup.id); return; }
         // cityKey = 該單位 country(ISO 大寫)，連到同 ISO 的 D 節點；_countryCode 留真實國碼給 list 副標
         const canon = g.country ? String(g.country).toUpperCase() : null;
         const it = {
@@ -359,6 +373,7 @@ export async function initAtlas(options = {}) {
         };
         items.push(it);
         memberIds.push(it.id);
+        seenPartnerChip.set(dupKey, it);
       });
 
       // 國家節點「不」掛進工作營 group（2026-08-10 拆除舊跨國連結）：多國工作營會讓 hover 台灣
@@ -377,9 +392,12 @@ export async function initAtlas(options = {}) {
       const dt = '本系產學合作計畫，與業界共同推動實務研究與創新設計。';
       const memberIds = [];
       (ind.guests || []).forEach(g => {
-        const en = g.name || '';
-        const zh = g.name_zh || '';
+        const en = guestEn(g);   // 雙 shape（見 workshops 段註解）
+        const zh = guestZh(g);
         if (!en && !zh) return;
+        const dupKey = `ind|${en}|${zh}`;
+        const dup = seenPartnerChip.get(dupKey);
+        if (dup) { dup.groups.push(indGroupId); memberIds.push(dup.id); return; }
         const canon = g.country ? String(g.country).toUpperCase() : null;
         const it = {
           id: uid('ind'), category: 'C',
@@ -389,6 +407,7 @@ export async function initAtlas(options = {}) {
         };
         items.push(it);
         memberIds.push(it.id);
+        seenPartnerChip.set(dupKey, it);
       });
       // 同 workshops：國家節點不掛進 group（見上方 2026-08-10 註解）
       if (memberIds.length > 0) groups.set(indGroupId, { detail: dt, members: memberIds });
@@ -860,6 +879,9 @@ export async function initAtlas(options = {}) {
 
   const dRelocateTimer = setInterval(() => {
     if (document.hidden) return;
+    // list view / morph 期間不換排列：凍結中偷換 orbit 參數＝回 map 線畫好後 float 一恢復整組跳版
+    // （user 08-25「連線暫停後跳成另一版」）。兩變數宣告在後（首次 tick 10s 時 init 早已完成）。
+    if (viewMorphing || currentView !== 'map') return;
     // 挑一組「整組已驗證不重疊」的排列（保證跟當前組不同）→ relocate 後不會有兩 city chip 疊成一個。
     cityLayoutIdx = (cityLayoutIdx + 1 + Math.floor(orbitRand() * (CITY_LAYOUT_POOL - 1))) % CITY_LAYOUT_POOL;
     const layout = cityLayouts[cityLayoutIdx];
@@ -1018,18 +1040,77 @@ export async function initAtlas(options = {}) {
     // 橫向手機圓點模式的圓點色（CSS ::after 讀取）：B 用 chip 底色（字色是黑）、A/C 用字色
     span.style.setProperty('--atlas-chip-c', item.bgColor || item.color);
 
+    // ── 單一節點雙形態結構（2026-08-25）────────────────────────────
+    // 同一個 span 同時是 map chip 與 list row：名行包兩層 wrapper（外層 list 形態當
+    // .atlas-list-line-clip 遮罩、內層當 .atlas-list-item-name），en/zh 內建 .atlas-marquee-inner
+    // （list marquee 用；chip 形態純 inline 不影響折行）。list 專用 class 由 toListForm 動態掛
+    // （靜態掛會讓 .atlas-list-name-en 的 nowrap 規則吃到 chip 折行）。
+    const nameLine = document.createElement('div');
+    nameLine.className = 'atlas-item-nameline';
+    const nameBlock = document.createElement('div');
+    nameBlock.className = 'atlas-item-nameblock';
+    /** @param {string} cls @param {string} text */
+    const mkNameSpan = (cls, text) => {
+      const el = document.createElement('span');
+      el.className = cls;
+      const inner = document.createElement('span');
+      inner.className = 'atlas-marquee-inner';
+      inner.textContent = text;
+      el.appendChild(inner);
+      return el;
+    };
+    let enEl = null, zhEl = null;
     if (item.textEn) {
-      const enEl = document.createElement('span');
-      enEl.className = 'atlas-name-en';
-      enEl.textContent = item.textEn;
-      span.appendChild(enEl);
+      enEl = mkNameSpan('atlas-name-en', item.textEn);
+      nameBlock.appendChild(enEl);
     }
     if (item.textZh && item.textZh !== item.textEn) {
-      const zhEl = document.createElement('span');
-      zhEl.className = 'atlas-name-zh';
-      zhEl.textContent = item.textZh;
-      span.appendChild(zhEl);
+      zhEl = mkNameSpan('atlas-name-zh', item.textZh);
+      nameBlock.appendChild(zhEl);
     }
+    nameLine.appendChild(nameBlock);
+    span.appendChild(nameLine);
+
+    // 副標區（list 形態專用、chip 隱藏）：結構同原 buildListItemEl 的 line-clip 副標，
+    // list 專用 class 靜態掛（display:none 下無害、換形免逐項 toggle）
+    const subsEl = document.createElement('div');
+    subsEl.className = 'atlas-item-subs';
+    /** @param {string|undefined} en @param {string|undefined} zh */
+    const addSub = (en, zh) => {
+      if (!en && !zh) return;
+      const clip = document.createElement('div');
+      clip.className = 'atlas-list-line-clip';
+      const sub = document.createElement('div');
+      sub.className = 'atlas-list-item-label';
+      const addLabel = (/** @type {string} */ cls, /** @type {string} */ text) => {
+        const label = document.createElement('span');
+        label.className = cls;
+        const inner = document.createElement('span');
+        inner.className = 'atlas-marquee-inner';
+        inner.textContent = text;
+        label.appendChild(inner);
+        sub.appendChild(label);
+      };
+      if (en) addLabel('atlas-list-item-label-en', en);
+      if (zh) addLabel('atlas-list-item-label-zh', zh);
+      clip.appendChild(sub);
+      subsEl.appendChild(clip);
+    };
+    if (item.category !== 'D') {
+      const listCat = getItemCat(item);
+      if (listCat === 'partners') {
+        addSub(item._listCountryEn, item._listCountryZh);   // 先國家、後類型（user 2026-06-23 對調）
+        addSub(item._listTypeEn, item._listTypeZh);
+      } else {
+        addSub(item._listSubEn, item._listSubZh);   // faculty: 職稱(＋國家)；host/employ: 國家
+      }
+    }
+    span.appendChild(subsEl);
+    item._nameLine = nameLine;
+    item._nameBlock = nameBlock;
+    item._enEl = enEl;
+    item._zhEl = zhEl;
+    item._subsEl = subsEl;
 
     // A/C/B 有 float wobble + random rotation；D 在 Saturn ring orbit 靜止
     //   B 的 anchor 由 _orbit 驅動沿橢圓周流動，_float 只動 span 的 wobble + rotate（不會脫離橢圓）
@@ -1575,6 +1656,7 @@ export async function initAtlas(options = {}) {
       const item = items[i];
       if (!item._float) continue;
       if (item.category === 'B') continue;
+      if (item._asList) continue;   // 單一節點：list 形態中的節點不吃 wobble（會蓋掉 list 排版）
       const f = item._float;
       const cycleLen = f.dur * 2;
       const cyclePos = ((t + f.phase) % cycleLen + cycleLen) % cycleLen;
@@ -1626,6 +1708,13 @@ export async function initAtlas(options = {}) {
   //   手機直向轉向提示都會把 stage display:none → 暫停整個 tickFloat，不必逐幀對隱藏的 map
   //   寫 ~250 個 transform + ~190 條線端點。各 stage.style.display 變動點都會呼叫此函式重新評估。
   //   暫停期間累積時間在恢復時補回 floatStart → ambient 漂移從停的地方接續、不跳。
+  // 單一節點遮罩架構（2026-08-25）：morph 期間 wobble 時鐘全程凍結（含 list 停留期＝stage 藏），
+  // 回 map 收尾 refreshFloatRunning 用既有 floatPausedAt 補償 → 從凍結相位接續、落點零跳動。
+  // 宣告在此（refreshFloatRunning init 就會讀，宣告在 morph 區會 TDZ）
+  let viewMorphing = false;
+  // 反向 morph「全 item 掀完」提前解凍（user 08-25：host 圈落地後呆等城市線收尾才轉）：
+  // mask 全離場＋落點量測全完成後，wobble 不必等 master（被城市/線 2.25s 拖尾）收尾
+  let floatThawEarly = false;
   function refreshFloatRunning() {
     // 減少動態：定位一次後凍結，不持續 rAF 漂浮（WCAG 2.3.3 / 2.2.2）。tickFloat 用絕對時間算位置、
     // floatRunning 維持 false → 跑一幀即完整定位且不自排下一幀；display/visibility 變動時再補定位一次。
@@ -1633,7 +1722,7 @@ export async function initAtlas(options = {}) {
       if (!document.hidden && stage.style.display !== 'none') tickFloat(performance.now());
       return;
     }
-    const want = !document.hidden && !menuPausedAtlas && stage.style.display !== 'none';
+    const want = !document.hidden && !menuPausedAtlas && (!viewMorphing || floatThawEarly) && stage.style.display !== 'none';
     if (want && !floatRunning) {
       if (floatPausedAt != null) { floatStart += (performance.now() - floatPausedAt) / 1000; floatPausedAt = null; }
       floatRunning = true;
@@ -3134,8 +3223,8 @@ export async function initAtlas(options = {}) {
     // ── Hosting / Employment 靜態 label chip（alumniRow 下方 column 內，alumni active 才出現）
     //     灰底黑字 + 每張自帶 random tilt + cursor:pointer（map view 下可點擊）
     const HOST_EMPLOY_LABELS = [
-      { en: 'Hosting',    zh: '主持',  key: 'host' },
-      { en: 'Employment', zh: '就職',  key: 'employ' },
+      { en: 'Hosting',    zh: '主持',  key: 'host',   labelKey: 'atlas.host' },
+      { en: 'Employment', zh: '就職',  key: 'employ', labelKey: 'atlas.employ' },
     ];
     /** @type {HTMLElement} */
     let lastInsertedEl = alumniRow;
@@ -3153,10 +3242,12 @@ export async function initAtlas(options = {}) {
       chip.style.marginTop = COLLAPSED_MARGIN_TOP;
       const enEl = document.createElement('span');
       enEl.className = 'atlas-alumni-career-en';
-      enEl.textContent = label.en;
+      enEl.textContent = label.en;                 // ui_labels 載入前的 fallback
+      enEl.dataset.labelKey = label.labelKey; enEl.dataset.labelPart = 'en';
       const zhEl = document.createElement('span');
       zhEl.className = 'atlas-alumni-career-zh';
       zhEl.textContent = label.zh;
+      zhEl.dataset.labelKey = label.labelKey; zhEl.dataset.labelPart = 'zh';
       chip.appendChild(enEl);
       chip.appendChild(zhEl);
       // 無障礙：subchip 是可點 <div> toggle → 補 button 語義 + 鍵盤；預設收合 tabindex=-1（不可聚焦隱形元素），
@@ -3173,6 +3264,8 @@ export async function initAtlas(options = {}) {
       mapSubchipCtrls.push(createStaticChipCtrl(chip));
       subchipMap[label.key] = chip;
     });
+    // subchip 是 page-init 後才動態建 → 這裡自行填後台文字（main-modular 的 applyUiLabels 早跑、抓不到）
+    loadUiLabels().then(m => applyUiLabels(m, alumniRow.parentElement || document));
 
     // 點擊 subchip：toggle 對應 _listSubGroup 的 alumni B chip 顯隱
     // 兩個都關 → 模擬 alumni btn 被 deselect（apply 會走 hideCareer + ring + B items 收掉的完整 inactive 動畫）
@@ -3453,6 +3546,12 @@ export async function initAtlas(options = {}) {
 
   let currentView = 'map';
 
+  // 單一節點架構共用索引：span.dataset.itemId ↔ item（換形/撤離/配對都用）
+  const itemByIdMap = new Map(items.map(it => [String(it.id), it]));
+  // defer 模式（桌面 switchToList 預渲染期間 true）：build() 只建 wrapper 殼＋掛 _atlasItem 配對 ref，
+  // 節點留在星雲等 morph 全遮蔽時才 toListForm；翻頁/手機（flag false）維持立即 reparent
+  let deferListNodes = false;
+
   const listView = document.createElement('div');
   listView.id = 'atlas-list-view';
   main.appendChild(listView);
@@ -3607,6 +3706,92 @@ export async function initAtlas(options = {}) {
     return { rowsPerCol, gap, itemH };
   }
 
+  // ── 單一節點換形（2026-08-25 單一節點遮罩架構）──────────────────────
+  // 同一個 item._span 在 map chip ↔ list row 之間 reparent＋toggle class。
+  // 名行 list class 動態掛（靜態掛會讓 .atlas-list-name-en 的 nowrap 吃到 chip 折行）；
+  // 副標區 class 靜態掛（chip 形態 display:none 無害）。
+  /** map chip → list row（呼叫端負責在「全遮蔽」或不可見時機呼叫）
+   * @param {any} item @param {HTMLElement} slotEl 目標 .atlas-list-item-wrapper @param {string} cat list 欄位 */
+  function toListForm(item, slotEl, cat) {
+    const n = /** @type {HTMLElement} */ (item._span);
+    // 暫存 wobble inline（回程落點與復原用；凍結相位下值恆定）
+    item._savedTranslate = n.style.translate;
+    item._savedRotate = n.style.rotate;
+    n.style.translate = '';
+    n.style.rotate = '';
+    n.style.clipPath = '';   // 手機 map 出場的 clip 殘值（「殘留由回程進場重設」的舊約定不再成立）
+    if (typeof gsap !== 'undefined') gsap.killTweensOf(n);   // 殺 span 級 clip/filter tween 防跨形態亂寫
+    n.classList.remove('atlas-flying');            // 直飛被中斷的殘留（class / 字色 var / FLIP transform）
+    n.style.removeProperty('--atlas-fly-c');
+    n.style.transform = '';
+    n.classList.add('atlas-as-list', 'atlas-list-item');
+    n.dataset.category = cat;   // host 名稱 min-height 置中等規則吃 [data-category]
+    item._nameLine.classList.add('atlas-list-line-clip');
+    item._nameBlock.classList.add('atlas-list-item-name');
+    if (item._enEl) item._enEl.classList.add('atlas-list-name-en');
+    if (item._zhEl) item._zhEl.classList.add('atlas-list-name-zh');
+    item._asList = true;   // tickFloat wobble gate 讀
+    slotEl.appendChild(n);
+  }
+  /** marquee 狀態全歸零：殺 tween、剝 dual-copy、清 translateX/animation/is-overflow。
+   *  ⚠️ 必須在「遮罩量測之前」跑（dual-copy 讓 inner 寬度翻倍 → 遮罩/內容盒全被灌爆）
+   * @param {any} item */
+  function resetMarqueeState(item) {
+    const n = /** @type {HTMLElement} */ (item._span);
+    n.querySelectorAll('.atlas-marquee-inner').forEach(inner => {
+      const el = /** @type {HTMLElement} */ (inner);
+      if (typeof gsap !== 'undefined') gsap.killTweensOf(el);
+      const first = el.firstElementChild;
+      if (el.children.length === 2 && first && first.classList.contains('marquee-copy')) {
+        el.innerHTML = first.innerHTML;   // 剝 dual-copy 還原單份
+      }
+      el.style.transform = '';
+      el.style.animation = '';
+    });
+    n.querySelectorAll('.is-overflow').forEach(el => {
+      el.classList.remove('is-overflow');
+      /** @type {HTMLElement} */ (el).style.removeProperty('--marquee-distance');
+    });
+  }
+  /** list row → map chip：殺 marquee/行級殘留歸零（殘值會歪 chip 折行與遮罩量測）
+   * @param {any} item */
+  function toChipForm(item) {
+    const n = /** @type {HTMLElement} */ (item._span);
+    resetMarqueeState(item);
+    if (typeof gsap !== 'undefined') gsap.killTweensOf(n);   // 直飛 FLIP tween 可能還掛在 span 上
+    n.classList.remove('atlas-flying');
+    n.style.removeProperty('--atlas-fly-c');
+    n.style.transform = '';   // FLIP 殘值；A/C chip 置中回 CSS translateY(-50%)（D 不走此函式、inline rotate 不受影響）
+    // 行級進退場殘留清理：翻頁/切換的 yPercent tween 可能還掛在行上（gsap 跨 tween 不 overwrite，
+    // 殘留 translateY 會讓 chip 文字位移）→ 殺 tween + 清 inline transform
+    n.querySelectorAll('.atlas-item-nameblock, .atlas-list-item-label').forEach(el => {
+      if (typeof gsap !== 'undefined') gsap.killTweensOf(el);
+      /** @type {HTMLElement} */ (el).style.transform = '';
+    });
+    n.classList.remove('atlas-as-list', 'atlas-list-item');
+    item._nameLine.classList.remove('atlas-list-line-clip');
+    item._nameBlock.classList.remove('atlas-list-item-name');
+    if (item._enEl) item._enEl.classList.remove('atlas-list-name-en');
+    if (item._zhEl) item._zhEl.classList.remove('atlas-list-name-zh');
+    if (item._savedTranslate) n.style.translate = item._savedTranslate;
+    if (item._savedRotate) n.style.rotate = item._savedRotate;
+    // 正向起飛前的「溶色塊」tween 掉了 inline bg／字色（B host）→ 回 chip 形態還原本色
+    // （A/C 的 inline color 本來就是 item.color，重設無感）
+    if (item.category === 'B' && item.bgColor) n.style.backgroundColor = item.bgColor;
+    n.style.color = item.color;
+    item._asList = false;
+    item._anchor.appendChild(n);
+  }
+  /** 把某容器內所有 list 形態節點撤回星雲 anchor（renderList/renderListPage 清 DOM 前必呼叫，
+   * 否則 innerHTML='' 會把單一節點一起炸掉）
+   * @param {HTMLElement} container */
+  function evacuateListNodes(container) {
+    container.querySelectorAll('.atlas-name.atlas-as-list').forEach(n => {
+      const item = itemByIdMap.get(/** @type {HTMLElement} */ (n).dataset.itemId || '');
+      if (item) toChipForm(item);
+    });
+  }
+
   /** @param {any} item @param {string} cat @returns {HTMLElement} */
   function buildListItemEl(item, cat) {
     // 外層 wrapper：min-height 撐 row slot；內部每行包 .atlas-list-line-clip 各自獨立 yPercent reveal
@@ -3730,6 +3915,7 @@ export async function initAtlas(options = {}) {
     // chevron 切頁時保持不動（使用者要求：只在 view 切換時動，分頁切換不動）
     /** @param {(number|undefined)[]|null} enterDirsHint */
     function build(enterDirsHint) {
+      evacuateListNodes(itemsEl);   // 單一節點：先撤回星雲 anchor，innerHTML='' 才不會炸掉節點
       itemsEl.innerHTML = ''; // clears both sub-cols
 
       // sub-col 數依情境（listSubCols）：桌面/直向=2、直向 alumni=1、橫向 gate=3。
@@ -3743,7 +3929,18 @@ export async function initAtlas(options = {}) {
       for (let k = 0; k < numCols; k++) {
         const sc = document.createElement('div');
         sc.className = 'atlas-list-sub-col';
-        pageItems.slice(k * splitAt, (k + 1) * splitAt).forEach(item => sc.appendChild(buildListItemEl(item, cat)));
+        // 單一節點：只建 wrapper 殼（slot 幾何），真內容＝星雲節點 reparent 進來換 list 形態
+        pageItems.slice(k * splitAt, (k + 1) * splitAt).forEach(item => {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'atlas-list-item-wrapper';
+          sc.appendChild(wrapper);
+          if (deferListNodes) {
+            /** @type {any} */ (wrapper)._atlasItem = item;   // morph 配對 ref（查 live DOM＝rebuild 安全）
+            wrapper.dataset.category = cat;
+          } else {
+            toListForm(item, wrapper, cat);
+          }
+        });
         subCols.push(sc);
       }
 
@@ -3948,6 +4145,7 @@ export async function initAtlas(options = {}) {
   }
 
   function renderList() {
+    evacuateListNodes(listView);   // 單一節點：清 DOM 前先撤回星雲 anchor
     listView.innerHTML = '';
 
     // Align left to logo position (container left + paddingLeft)
@@ -4424,17 +4622,17 @@ export async function initAtlas(options = {}) {
         });
         return;
       }
-      if (selected.has(k)) {
-        if (selected.size <= 1) return;
-        selected.delete(k);
-      } else {
-        selected.add(k);
-        // alumni 重新打開 → 兩 subchip flag + class 都 reset，所有 B chip 重新顯示
-        if (k === 'alumni') {
-          subchipActive.host = true;
-          subchipActive.employ = true;
-          Object.values(subchipMap).forEach(c => c && c.classList.remove('subchip-inactive'));
-        }
+      // 點擊 → 只有這顆 active；再點一次同一顆（已是唯一 active）→ 三顆全 active
+      const onlyThis = selected.size === 1 && selected.has(k);
+      const hadAlumni = selected.has('alumni');
+      selected.clear();
+      if (onlyThis) btns.forEach(bb => bb.dataset.filter && selected.add(bb.dataset.filter));
+      else selected.add(k);
+      // alumni 由未選變已選 → 兩 subchip flag + class 都 reset，所有 B chip 重新顯示
+      if (selected.has('alumni') && !hadAlumni) {
+        subchipActive.host = true;
+        subchipActive.employ = true;
+        Object.values(subchipMap).forEach(c => c && c.classList.remove('subchip-inactive'));
       }
       apply(true);
     });
@@ -4447,15 +4645,11 @@ export async function initAtlas(options = {}) {
 
   // icon 跟著星雲整段 intro tween 同步做（0.75s = Phase 1 cover reveal 0→0.35 + Phase 2 span hide 0.35→0.75）：
   // exit hide / entry reveal 都 0→0.75 + power2.out，**起跑點不延遲、duration 同 chip 整段**，forward/return 時間對稱即互為反向
-  const LAYOUT_ICON_DIRS = [
-    'inset(0% 100% 0% 0%)', // 收/起 - 右
-    'inset(0% 0% 0% 100%)', // 收/起 - 左
-    'inset(100% 0% 0% 0%)', // 收/起 - 上
-    'inset(0% 0% 100% 0%)', // 收/起 - 下
-  ];
+  // icon 切換走 clip-reveal（貼身 overflow:clip 遮罩 + 隨機四向滑出/滑入），取代原 clip-path inset wipe
+  const LAYOUT_ICON_SLIDES = [{ yPercent: -100 }, { yPercent: 100 }, { xPercent: -100 }, { xPercent: 100 }];
   const LAYOUT_ICON_DURATION = 0.4;
   const LAYOUT_ICON_EASE = 'power2.out';
-  /** @type {string|null} */
+  /** @type {{xPercent?:number,yPercent?:number}|null} */
   let _lastIconHideDir = null;
 
   /**
@@ -4465,9 +4659,10 @@ export async function initAtlas(options = {}) {
     const { timeline = null, position = 0 } = opts;
     const icon = /** @type {HTMLElement|null} */ (layoutBtn?.querySelector('.icon'));
     if (!icon || typeof gsap === 'undefined') return;
-    const dir = LAYOUT_ICON_DIRS[Math.floor(Math.random() * 4)];
+    ensureIconClipWrap(icon);
+    const dir = LAYOUT_ICON_SLIDES[Math.floor(Math.random() * 4)];
     _lastIconHideDir = dir;
-    const vars = { clipPath: dir, duration: LAYOUT_ICON_DURATION, ease: LAYOUT_ICON_EASE, overwrite: true };
+    const vars = { ...dir, duration: LAYOUT_ICON_DURATION, ease: LAYOUT_ICON_EASE, overwrite: true };
     if (timeline) timeline.to(icon, vars, position);
     else gsap.to(icon, vars);
   }
@@ -4479,23 +4674,20 @@ export async function initAtlas(options = {}) {
       icon.className = newClass;
       return;
     }
+    ensureIconClipWrap(icon);
     icon.className = newClass;
-    // reveal 起點 = 上次 hide 的終點方向 → 視覺上 reveal 就是 hide 的時間反向
-    // target 必須用四值 inset(0% 0% 0% 0%)，不能用 inset(0%) 短寫 — GSAP 對兩種 syntax shape 沒辦法 interpolate，
-    // 寫 inset(0%) 會直接跳終值（看起來 icon 跳出來、沒 reveal 動畫）
-    const startDir = _lastIconHideDir ?? LAYOUT_ICON_DIRS[Math.floor(Math.random() * 4)];
-    gsap.fromTo(icon,
-      { clipPath: startDir },
-      { clipPath: 'inset(0% 0% 0% 0%)', duration: LAYOUT_ICON_DURATION, ease: LAYOUT_ICON_EASE, clearProps: 'clipPath', overwrite: true }
+    // reveal 起點 = 上次 hide 的滑出方向 → 視覺上 reveal 就是 hide 的時間反向
+    const startDir = _lastIconHideDir ?? LAYOUT_ICON_SLIDES[Math.floor(Math.random() * 4)];
+    gsap.fromTo(icon, startDir,
+      { xPercent: 0, yPercent: 0, duration: LAYOUT_ICON_DURATION, ease: LAYOUT_ICON_EASE, clearProps: 'transform', overwrite: true }
     );
   }
 
-  // ── View morph（map ↔ list 共享元素飛行，2026-08-18）──────────────────────
-  // 有對應且雙端可見的元素 clone 進 #atlas-morph-layer 位移（原件同幀藏、落地換裝）：
-  //   list 第一頁 item ↔ item._span（星雲 chip）；filter btn ↔ 欄標題；host/employ subchip ↔ 同名欄標題。
-  // 無對應（城市方塊/連線、非當頁 item、chevron、career chip）→ 沿用原本 clip 進退場。
-  // 反向（list→map）只飛 3 顆主 btn（subchip 落地時仍收合、無 slot 可對位 → 照原節奏 showCareer 展開）。
-  let viewMorphing = false;
+  // ── View morph（2026-08-25 單一節點遮罩架構，取代 2026-08-18 clone FLIP）──────
+  // item＝單一節點：吞（自帶 cover）→ 全遮蔽時 reparent＋換形 → 純色塊接手飛行 → 落地掀開同一節點。
+  // chrome（filter btn／欄標題）＝maskFlyChrome hidden-swap（DOM 不合併、視覺恆單一）。
+  // 無對應（城市方塊/連線、非當頁 item、chevron、career chip）→ 沿用 buildMapExit/EnterTl 分階段進退場。
+  // viewMorphing 宣告在 refreshFloatRunning 前（凍結 gate 讀）。
   /** @type {HTMLElement|null} */
   let morphLayer = null;
   function ensureMorphLayer() {
@@ -4507,14 +4699,15 @@ export async function initAtlas(options = {}) {
   }
   cleanupFns.push(() => {
     viewMorphing = false;
+    floatThawEarly = false;
     if (morphLayer) { morphLayer.remove(); morphLayer = null; }
   });
 
-  // 分階段節奏（user 2026-08-18；08-19 修=飛行合併同一波）：不會出現的先消失（城市+線）→
-  // 非第一頁內容 fade（不用 clip）→ filter 與第一頁內容**同一波**起飛（filter 內仍保
-  // 老師→系友→合作單位 階梯）→ chevron 最後；反向＝鏡像倒放
+  // 分階段節奏（user 2026-08-18；08-19 修=飛行合併同一波；08-27 修=靠攏也併同波）：
+  // 不會出現的先消失（城市+線）→ 非第一頁靠攏+fade 與 filter、第一頁起飛**全同一波**
+  // （user 08-27：靠攏 item 不需要先離開）→ chevron 最後；反向＝鏡像倒放
   const M_CITY_DUR   = 0.5;    // 正向 stage 1：城市 fade + 線 retract
-  const M_FADE_START = 0.35;   // 正向 stage 2：非第一頁 chip fade out 起點
+  const M_FADE_START = 1.0;    // 非第一頁 chip 靠攏+fade 起點＝M_ITEM_START 同波（08-27）
   const M_FADE_DUR   = 0.45;
   const M_FADE_RANGE = 0.25;   // fade 微 stagger 散開
   const M_NAV_START  = 1.0;    // 正向 stage 3：fade 收完、filter + item 同波起飛
@@ -4525,9 +4718,278 @@ export async function initAtlas(options = {}) {
   const R_ITEM_RANGE = 0.3;
   const R_NAV_START  = 0.3;    // 反向：欄標題與 item 同波（合作單位→系友→老師 階梯）
   const R_NAV_STEP   = 0.12;
-  const R_FADE_START = 1.1;    // 反向：其餘 chip fade in（飛行波收尾後）
+  const R_FADE_START = 0.3;    // 反向：其餘 chip 散回+fade in＝R_ITEM_START 同波（08-27 鏡像）
   const R_CITY_START = 1.5;    // 反向：城市 + 線最後回來
   const NAV_ORDER = /** @type {Record<string, number>} */ ({ faculty: 0, alumni: 1, host: 2, employ: 3, partners: 4 });
+
+  // ── 遮罩三段核心（單一節點架構）────────────────────────────
+  const COVER_SHOWN_M = 'inset(0% 0% 0% 0%)';
+  /** 落地掀開沿「飛行方向」掃出（user 08-26：落地後原地隨機掀＝色塊停下來等＝卡頓感；
+   *  沿動勢方向掃出＝開口邊持續往前跑、視覺不中斷）。inset 四值＝top right bottom left。
+   * @param {number} dx @param {number} dy */
+  function travelCoverDir(dx, dy) {
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      return dx >= 0 ? 'inset(0% 0% 0% 100%)' : 'inset(0% 100% 0% 0%)';   // 向右掃出／向左掃出
+    }
+    return dy >= 0 ? 'inset(100% 0% 0% 0%)' : 'inset(0% 0% 100% 0%)';     // 向下掃出／向上掃出
+  }
+  const SWALLOW_DUR = 0.3;    // 吞（cover 掃入）
+  const CHROME_TEXT_OUT = 0.22;   // chrome 起飛前：文字 clip 收掉、box 上只剩純色塊
+  const CHROME_TEXT_IN  = 0.32;   // chrome 落地後：文字以新形態 clip reveal 回 box（左→右閱讀方向）
+  const FLY_DUR = DUR.slow;   // 色塊飛行
+  const REVEAL_DUR = 0.4;     // 展（mask 掃開）
+  const RESTORE_DUR = 0.7;    // restore-first：篩選/zoom 回初始態的前置窗（有需要才 > 0）
+
+  /** 螢幕座標層生成純色塊（中心錨定）
+   * @param {string} color @param {{cx:number,cy:number,w:number,h:number,rot:number}} box */
+  function spawnMask(color, box) {
+    const m = document.createElement('div');
+    m.className = 'atlas-view-mask';
+    m.style.backgroundColor = color;
+    m.style.left = `${box.cx - box.w / 2}px`;
+    m.style.top = `${box.cy - box.h / 2}px`;
+    m.style.width = `${box.w}px`;
+    m.style.height = `${box.h}px`;
+    gsap.set(m, { rotation: box.rot || 0 });
+    ensureMorphLayer().appendChild(m);
+    return m;
+  }
+
+  /** 量 item 節點「當前形態」的視覺盒（遮罩對位）：
+   *  chip＝cover bbox 中心（旋轉不變）+ 未縮放尺寸×zoom scale + inline rotate；
+   *  list＝內容實寬（各行 marquee-inner 最寬者，非整欄 slot 寬——吞整欄會變大色條橫掃）
+   * @param {any} item */
+  function measureNodeBox(item) {
+    const n = /** @type {HTMLElement} */ (item._span);
+    if (item._asList) {
+      const r = n.getBoundingClientRect();
+      let w = 0;
+      n.querySelectorAll('.atlas-marquee-inner').forEach(inner => {
+        const iw = inner.getBoundingClientRect().width;
+        if (iw > w) w = iw;
+      });
+      w = Math.min(w + 8, r.width || w + 8);
+      return { cx: r.left + w / 2, cy: r.top + r.height / 2, w, h: r.height + 4, rot: 0 };
+    }
+    const r = /** @type {HTMLElement} */ (item._cover).getBoundingClientRect();
+    return {
+      cx: r.left + r.width / 2, cy: r.top + r.height / 2,
+      w: n.offsetWidth * scale, h: n.offsetHeight * scale,
+      rot: inlineRotDeg(n),
+    };
+  }
+
+  /** item 遮罩三段：吞（自帶 cover 原地掃入；B/D＝卡片同色吃自己的字）→ 全遮蔽時 swapFn
+   *  （reparent＋換形，此窗內清狀態視覺無感）→ 色塊像素對齊接手、live 量新形態落點飛過去 →
+   *  落地掀開露出同一個節點。swap 後 live 量測＝免預量、視窗 resize 不失準。
+   * @param {any} item @param {number} delay @param {() => void} swapFn @param {(() => void)=} onLand
+   * @param {number=} hold 吞完 → 起飛前的持色窗（host 圈提早消失、飛行仍同波用） */
+  function maskFlyNode(item, delay, swapFn, onLand, hold = 0) {
+    const tl = gsap.timeline({ delay });
+    // list 形態 cover 是整列寬（inset:0）：吞之前先縮到內容實寬，否則大色條橫掃整欄（沙盒教訓）
+    tl.call(() => {
+      if (destroyed || !item._asList) return;
+      const b = measureNodeBox(item);
+      item._cover.style.width = `${b.w}px`;
+      item._cover.style.height = `${b.h}px`;
+    });
+    tl.to(item._cover, { clipPath: COVER_SHOWN_M, duration: SWALLOW_DUR, ease: EASE.enterSoft });
+    if (hold > 0) tl.to({}, { duration: hold });
+    tl.call(() => {
+      if (destroyed) return;
+      const src = measureNodeBox(item);
+      const m = spawnMask(getComputedStyle(item._cover).backgroundColor, src);
+      item._span.style.visibility = 'hidden';
+      item._cover.style.clipPath = '';   // 歸位 CSS 預設（隱藏），供反向再用
+      item._cover.style.width = '';
+      item._cover.style.height = '';
+      swapFn();
+      const dst = measureNodeBox(item);
+      gsap.to(m, {
+        left: dst.cx - dst.w / 2, top: dst.cy - dst.h / 2,
+        width: dst.w, height: dst.h, rotation: dst.rot,
+        duration: FLY_DUR, ease: EASE.move,
+        onComplete: () => {
+          item._span.style.visibility = '';
+          if (onLand && !destroyed) onLand();
+          gsap.to(m, { clipPath: travelCoverDir(dst.cx - src.cx, dst.cy - src.cy), duration: REVEAL_DUR, ease: EASE.enterSoft, onComplete: () => m.remove() });
+        },
+      });
+    });
+    tl.to({}, { duration: FLY_DUR + REVEAL_DUR });   // 佔位：timeline 時長涵蓋飛行＋掀開（否則 master 提早收尾）
+    return tl;
+  }
+
+  const SUB_HIDE_DUR = 0.25;    // 直飛反向：副標原地收回窗（收完才起飛）
+  const FLIP_FLY_MAX = 1.0;     // 直飛距離加時上限（見 flipFlyNode 內 flyDur）
+
+  /** A/C 無底色文字＝節點本體直飛（user 2026-08-26，取代色塊遮蓋）：swap 換形後以 FLIP 從舊形態
+   *  盒補間位移＋縮放＋轉正到新形態落點，字色同步 彩↔theme-fg；chip 沒有的副標不參與飛行——
+   *  正向落地後 onLand 原地 clip reveal、反向起飛前原地收回。
+   *  對位基準＝nameBlock 盒中心（旋轉不變）；套初值後量殘差再校正一次＝individual translate/rotate
+   *  （wobble）與 transform compose 次序的誤差全被吸收。chip 形態置中靠 CSS translateY(-50%) →
+   *  飛行期間由 gsap yPercent:-50 代管、落地 clearProps 交還 CSS。
+   * @param {any} item @param {number} delay @param {() => void} swapFn
+   * @param {(() => void)|null} onLand @param {boolean} toList */
+  function flipFlyNode(item, delay, swapFn, onLand, toList) {
+    const tl = gsap.timeline({ delay });
+    if (!toList) {
+      tl.call(() => {
+        if (destroyed) return;
+        const subs = /** @type {HTMLElement[]} */ ([...item._subsEl.querySelectorAll('.atlas-list-item-label')]);
+        if (subs.length) gsap.to(subs, { yPercent: 100, duration: SUB_HIDE_DUR, ease: EASE.exitSoft, overwrite: true, stagger: 0.04 });
+      });
+      tl.to({}, { duration: SUB_HIDE_DUR + 0.05 });
+    }
+    tl.call(() => {
+      if (destroyed) return;
+      const n = /** @type {HTMLElement} */ (item._span);
+      const nb = /** @type {HTMLElement} */ (item._nameBlock);
+      const sRect = nb.getBoundingClientRect();
+      const srcC = { x: sRect.left + sRect.width / 2, y: sRect.top + sRect.height / 2 };
+      const srcH = toList ? nb.offsetHeight * scale : nb.offsetHeight;   // 未旋轉視覺高（chip 吃 zoom）
+      const srcRot = toList ? inlineRotDeg(n) : 0;
+      const fromColor = getComputedStyle(n).color;
+      swapFn();
+      const toColor = getComputedStyle(n).color;   // 新形態穩態字色（list=theme-fg／chip=inline accent、mode3 覆寫自動吸收）
+      const zoomK = toList ? 1 : scale;            // gsap 局部 px → 螢幕 px（chip 在 zoom 容器內）
+      const dRect = nb.getBoundingClientRect();
+      const dstC = { x: dRect.left + dRect.width / 2, y: dRect.top + dRect.height / 2 };
+      // 長途依距離拉長（上限 1s）：跨全螢幕仍吃固定 0.6s＝尖峰 ~5000px/s、小字肉眼跟不上
+      // ＝user 08-26「沒到對應的地方直接跳走不見」；佔位吃 FLIP_FLY_MAX 恆涵蓋
+      const flyDur = Math.min(FLIP_FLY_MAX, FLY_DUR + Math.hypot(srcC.x - dstC.x, srcC.y - dstC.y) / 3000);
+      // 裁切鏈（wrapper/sub-col/col-items）由 .atlas-morphing CSS 統一放開，這裡不逐項動 overflow
+      n.classList.add('atlas-flying');
+      if (toList) {
+        const subs = /** @type {HTMLElement[]} */ ([...item._subsEl.querySelectorAll('.atlas-list-item-label')]);
+        if (subs.length) gsap.set(subs, { yPercent: 100 });   // 副標藏進 line-clip、落地才 reveal
+      }
+      const base = {
+        transformOrigin: `${nb.offsetLeft + nb.offsetWidth / 2}px ${nb.offsetTop + nb.offsetHeight / 2}px`,
+        yPercent: toList ? 0 : -50,
+        scale: srcH / (nb.offsetHeight * zoomK),
+        rotation: toList ? srcRot : -inlineRotDeg(n),
+        x: (srcC.x - dstC.x) / zoomK,
+        y: (srcC.y - dstC.y) / zoomK,
+      };
+      gsap.set(n, base);
+      if (!toList) {
+        // chip 端帶 individual wobble props、compose 次序有誤差要量殘差校正；
+        // list 端無 individual transform＝純 gsap 精確，跳過＝每顆省一次同步 reflow（起飛更順）
+        const chk = nb.getBoundingClientRect();
+        gsap.set(n, {
+          x: base.x + (srcC.x - (chk.left + chk.width / 2)) / zoomK,
+          y: base.y + (srcC.y - (chk.top + chk.height / 2)) / zoomK,
+        });
+      }
+      // 寬度連續性（user 08-26 三輪）：長名在 chip（全寬單行）↔ list（欄寬截斷＋marquee）間換形
+      // 會瞬間變寬/截斷＝眼睛跟丟像「跳走／原地出現」。飛行中行截斷停用（.atlas-flying CSS 開
+      // overflow），改由節點 clip-path 從「起點可見寬」掃到「終點可見寬」（user 的「右側 mask
+      // 往左裁」）；短名兩端同寬＝跳過。量測全用未縮放 local px（offsetWidth/clientWidth）。
+      let widthClip = false;
+      if (toList) {
+        let overhang = 0;
+        nb.querySelectorAll('.atlas-list-name-en, .atlas-list-name-zh').forEach(line => {
+          const inner = /** @type {HTMLElement} */ (line.firstElementChild);
+          if (inner) overhang = Math.max(overhang, inner.offsetWidth - /** @type {HTMLElement} */ (line).clientWidth);
+        });
+        if (overhang > 2) {
+          n.style.clipPath = `inset(0px ${-overhang}px 0px 0px)`;   // 起點＝全寬可見（含溢出欄外的字）
+          widthClip = true;
+        }
+      } else {
+        const clipR = n.offsetWidth - sRect.width / (base.scale * zoomK);
+        if (clipR > 2) {
+          n.style.clipPath = `inset(0px ${clipR}px 0px 0px)`;       // 起點＝只露 list 的截斷寬
+          widthClip = true;
+        }
+      }
+      if (widthClip) gsap.to(n, { clipPath: 'inset(0px 0px 0px 0px)', duration: flyDur, ease: EASE.move });
+      if (toList) {
+        // list 形態字色被 .atlas-as-list 的 !important fg 鎖死 → 走 --atlas-fly-c（.atlas-flying 規則讓位）
+        n.style.setProperty('--atlas-fly-c', fromColor);
+        gsap.to(n, { '--atlas-fly-c': toColor, duration: flyDur, ease: EASE.move });
+      } else {
+        n.style.color = fromColor;
+        gsap.to(n, { color: toColor, duration: flyDur, ease: EASE.move });
+      }
+      gsap.to(n, {
+        x: 0, y: 0, scale: 1, rotation: 0, yPercent: toList ? 0 : -50,
+        duration: flyDur, ease: EASE.move,
+        onComplete: () => {
+          n.classList.remove('atlas-flying');
+          n.style.removeProperty('--atlas-fly-c');
+          n.style.clipPath = '';   // 寬度 clip 交還給行級 overflow（list）／全寬（chip），同寬無感
+          gsap.set(n, { clearProps: 'transform,transformOrigin' });
+          if (!toList) n.style.color = item.color;   // 回寫原 inline accent（tween 終值同色、僅語義歸位）
+          if (onLand && !destroyed) onLand();
+        },
+      });
+    });
+    tl.to({}, { duration: FLIP_FLY_MAX + 0.05 });   // 佔位：飛行 tween 逃逸母 timeline（吃距離加時上限）
+    return tl;
+  }
+
+  /** visibility:hidden 立即生效版：.anchor-nav-inner 帶 `transition: all var(--dur-fast)`（含
+   *  visibility）→ 直接設 hidden 會被 transition 拖到 0.3s 後才翻面＝mask 已起飛、本體還留在
+   *  原地「兩顆並存 → 閃一下消失」（user 08-26 系友/合作單位 btn；faculty 落點同位看不出）。
+   *  關 transition 寫完 reflow 再還原，之後的 reveal transition 不受影響。
+   * @param {HTMLElement} el */
+  function hideInstant(el) {
+    el.style.transition = 'none';
+    el.style.visibility = 'hidden';
+    void el.offsetWidth;
+    el.style.transition = '';
+  }
+
+  /** chrome（filter btn ↔ 欄標題）box 恆存三段（user 08-26 定案，取代 淡入/掃開/自然滑入 三案）：
+   *  ① src 文字 clip 收掉（box 上只剩純色塊）→ ② 純色塊無痕接手（色塊 vs 無字 chip 像素相同、
+   *  瞬換不可見）飛到 dst 矩形 → ③ 落地瞬換 dst box、文字以新形態 clip reveal 回 box（左→右）。
+   *  DOM 刻意不合併（filter btn 掛 ui_labels data-label-key 與 anchor-nav 結構，合併風險 > 收益）。
+   * @param {HTMLElement} srcEl @param {number} srcRot @param {HTMLElement} dstEl @param {number} dstRot
+   * @param {number} delay
+   * @param {{onSwap?: () => void, onLand?: () => void, dstBoxFn?: () => {cx:number,cy:number,w:number,h:number}}} [opts]
+   *   dstBoxFn＝自訂落點矩形（反向回 btn 用：inner 未 reveal 前帶 CSS translate，rect 不可信 → 用 btn 本體矩形） */
+  function maskFlyChrome(srcEl, srcRot, dstEl, dstRot, delay, opts = {}) {
+    const TEXT_HIDDEN = 'inset(0% 100% 0% 0%)';   // 收攏到左緣（進場時左→右展開＝閱讀方向）
+    const tl = gsap.timeline({ delay });
+    tl.call(() => {
+      if (destroyed) return;
+      const sr = srcEl.getBoundingClientRect();
+      const srcTexts = /** @type {HTMLElement[]} */ ([...srcEl.children]);
+      if (srcTexts.length) gsap.to(srcTexts, { clipPath: TEXT_HIDDEN, duration: CHROME_TEXT_OUT, ease: EASE.exitSoft, overwrite: true });
+      gsap.delayedCall(CHROME_TEXT_OUT, () => {
+        if (destroyed) return;
+        const m = spawnMask(getComputedStyle(srcEl).backgroundColor,
+          { cx: sr.left + sr.width / 2, cy: sr.top + sr.height / 2, w: srcEl.offsetWidth, h: srcEl.offsetHeight, rot: srcRot });
+        hideInstant(srcEl);
+        srcTexts.forEach(t => { gsap.killTweensOf(t); t.style.clipPath = ''; });   // 藏起後文字歸位（回程/下次直接可用）
+        if (opts.onSwap) opts.onSwap();
+        let dst;
+        if (opts.dstBoxFn) {
+          dst = opts.dstBoxFn();
+        } else {
+          const dr = dstEl.getBoundingClientRect();
+          dst = { cx: dr.left + dr.width / 2, cy: dr.top + dr.height / 2, w: dstEl.offsetWidth, h: dstEl.offsetHeight };
+        }
+        gsap.to(m, {
+          left: dst.cx - dst.w / 2, top: dst.cy - dst.h / 2,
+          width: dst.w, height: dst.h, rotation: dstRot,
+          duration: FLY_DUR, ease: EASE.move,
+          onComplete: () => {
+            const dstTexts = /** @type {HTMLElement[]} */ ([...dstEl.children]);
+            gsap.set(dstTexts, { clipPath: TEXT_HIDDEN, overwrite: true });   // 先藏字再現身＝box 對 box 無痕瞬換
+            dstEl.style.visibility = '';
+            if (opts.onLand && !destroyed) opts.onLand();
+            m.remove();
+            gsap.to(dstTexts, { clipPath: 'inset(0% 0% 0% 0%)', duration: CHROME_TEXT_IN, ease: EASE.enterSoft, clearProps: 'clipPath' });
+          },
+        });
+      });
+    });
+    tl.to({}, { duration: CHROME_TEXT_OUT + FLY_DUR + CHROME_TEXT_IN });
+    return tl;
+  }
 
   /** 解析 inline rotate 角度（style.rotate 個別屬性或 style.transform 的 rotate(..deg)）
    * @param {HTMLElement|null} el */
@@ -4539,96 +5001,33 @@ export async function initAtlas(options = {}) {
     return m ? parseFloat(m[1]) : 0;
   }
 
-  /**
-   * 以「bbox 中心」錨定 clone（rotate 不改變中心點 → 旋轉元素也能對位；transform-origin 差異誤差 <2px）。
-   * wrapClass：外包一層帶 class 的 div，讓後代選擇器規則（.atlas-filter-btn .anchor-nav-inner）在 layer 內生效。
-   * @param {HTMLElement} srcEl @param {DOMRect} srcRect
-   * @param {{srcScale?: number, srcRot?: number, wrapClass?: string}} [opts]
-   */
-  function makeFlyClone(srcEl, srcRect, opts = {}) {
-    const layer = ensureMorphLayer();
-    const clone = /** @type {HTMLElement} */ (srcEl.cloneNode(true));
-    // 洗掉會干擾定位/顯示的殘留 inline（wobble translate/rotate、clip、visibility）
-    clone.style.translate = '';
-    clone.style.rotate = '';
-    clone.style.clipPath = '';
-    clone.style.visibility = '';
-    clone.style.transition = 'none';
-    clone.style.pointerEvents = 'none';
-    // marquee dual-copy 還原單份（clone 脫離 hover context；雙份文字會拖寬）
-    clone.querySelectorAll('.atlas-marquee-inner').forEach(inner => {
-      const first = inner.firstElementChild;
-      if (inner.children.length === 2 && first && first.classList.contains('marquee-copy')) {
-        inner.innerHTML = first.innerHTML;
-      }
-    });
-    clone.querySelectorAll('.atlas-name-cover').forEach(c => c.remove());
-    // B chip 的 padding 來自 .atlas-cat-b 祖先選擇器 → clone 脫離 anchor 會掉，補 computed 值
-    const cs = getComputedStyle(srcEl);
-    clone.style.padding = cs.padding;
-    let node = clone;
-    if (opts.wrapClass) {
-      const wrap = document.createElement('div');
-      wrap.className = opts.wrapClass;
-      wrap.style.overflow = 'visible';   // 蓋掉 .atlas-filter-btn 的 overflow:clip 遮罩窗行為
-      clone.style.transform = '';        // rotation 統一由外層承載
-      clone.style.width = '100%';        // 跟著外層 box 尺寸補間（chip 形狀 morph 用）
-      clone.style.height = '100%';
-      wrap.appendChild(clone);
-      node = wrap;
-    }
-    // 尺寸用 computed 小數值：offsetWidth 取整會少 0.x px，chip 是 max-content 寬 +
-    // overflow-wrap:anywhere → 差一點就把最後一個字擠到下一行（clone 飛行中 layout 跳動）
-    const w = parseFloat(cs.width) || srcEl.offsetWidth || 1;
-    const h = parseFloat(cs.height) || srcEl.offsetHeight || 1;
-    node.style.position = 'absolute';
-    node.style.margin = '0';
-    node.style.left = `${srcRect.left + srcRect.width / 2 - w / 2}px`;
-    node.style.top = `${srcRect.top + srcRect.height / 2 - h / 2}px`;
-    node.style.width = `${w}px`;
-    node.style.height = `${h}px`;
-    layer.appendChild(node);
-    gsap.set(node, { scale: opts.srcScale ?? 1, rotation: opts.srcRot ?? 0, transformOrigin: '50% 50%' });
-    return node;
-  }
+  // 未配對 item「往所屬欄位靠攏」（user 08-26：原地 fade 沒有歸屬感）——只走 75% 路程、
+  // 途中 fade 完＝聚攏的印象而非真的入列；反向鏡像（從欄位方向散回原位）
+  const CONVERGE_FRACTION = 0.75;
+  const CONVERGE_DUR = 0.85;
+  const CONVERGE_FADE_LAG = 0.35;   // 位移起跑 → fade 開始的延遲（fade 收尾 ≈ 位移收尾）
 
-  /**
-   * clone 位移飛行：中心到中心，x/y + scale + rotation 同一 tween。
-   * holdClone=true → 落地不自動移除，交給 onLand 處理（B chip 底色淡出換裝用）
-   * @param {HTMLElement} node @param {DOMRect} srcRect @param {DOMRect} dstRect
-   * @param {{dstScale?: number, dstRot?: number, delay?: number, holdClone?: boolean, onLand?: (node: HTMLElement) => void}} [opts]
-   * @returns {Promise<any> & {kill: () => void}} gsap tween（thenable；kill 也 resolve → caller 需 destroyed 守衛）
-   */
-  function flyClone(node, srcRect, dstRect, opts = {}) {
-    return gsap.to(node, {
-      x: (dstRect.left + dstRect.width / 2) - (srcRect.left + srcRect.width / 2),
-      y: (dstRect.top + dstRect.height / 2) - (srcRect.top + srcRect.height / 2),
-      scale: opts.dstScale ?? 1,
-      rotation: opts.dstRot ?? 0,
-      duration: DUR.slow,
-      ease: EASE.move,
-      delay: opts.delay || 0,
-      onComplete: () => {
-        if (opts.onLand && !destroyed) opts.onLand(node);
-        if (!opts.holdClone || destroyed) node.remove();
-      },
-    });
-  }
-
-  /** list 行群 yPercent 滑入（clip 遮罩由 .atlas-list-line-clip 提供）
-   * @param {HTMLElement[]} lines @param {number} [delay] */
-  function revealListLines(lines, delay = 0) {
-    if (!lines.length) return;
-    gsap.fromTo(lines,
-      { yPercent: 100 },
-      { yPercent: 0, duration: DUR.reveal, delay, ease: EASE.enter, clearProps: 'transform', overwrite: true, stagger: 0.05 }
-    );
+  /** 未配對 item 靠攏目標＝所屬 list 欄：span 中心 → 欄水平中心、垂直 clamp 進欄框
+   * @param {any} item @returns {{tx:number,ty:number}|null} 螢幕 px 位移量 */
+  function convergeDelta(item) {
+    const key = item._listSubGroup || getItemCat(item);
+    const col = listView.querySelector(`.atlas-list-col[data-category="${key === 'alumni' ? 'host' : key}"]`);
+    if (!col || !item._span) return null;
+    const r = item._span.getBoundingClientRect();
+    const c = col.getBoundingClientRect();
+    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    if (!c.width || !c.height) return null;
+    return {
+      tx: (c.left + c.width / 2) - cx,
+      ty: Math.max(c.top + 40, Math.min(cy, c.bottom - 40)) - cy,
+    };
   }
 
   /** 星雲分階段退場（morph 正向；spanItems=未被 clone 接管者）：
    *  Stage 1（t=0）：list 不會出現的先消失＝D 城市方塊 fade + 城市連線物理 retract（ring 由 hideCareer erase）
-   *  Stage 2（t=M_FADE_START）：非第一頁的 A/B/C chip 以 fade 隱藏（user 2026-08-18 指定不用 clip-path）
-   *  ⚠️ opacity 掛 _anchor 不掛 span：.atlas-name 有 CSS opacity transition，掛 span 會跟 GSAP 每幀打架
+   *  Stage 2（t=M_FADE_START）：非第一頁的 A/B/C chip 往所屬欄位靠攏＋途中 fade（user 08-26）
+   *  ⚠️ opacity 掛 _anchor 不掛 span：.atlas-name 有 CSS opacity transition，掛 span 會跟 GSAP 每幀打架；
+   *  位移掛 span 的 gsap transform（xPercent/yPercent 代管 CSS 置中、wobble individual props 不衝突、收尾清掉）
    *  cityLines onUpdate 直呼 updateCityLineEndpoints → float 暫停時線仍會動（正向 float 在跑、重複無害）
    * @param {any[]} spanItems */
   function buildMapExitTl(spanItems) {
@@ -4652,9 +5051,19 @@ export async function initAtlas(options = {}) {
         onUpdate: () => updateCityLineEndpoints(cl),
       }, 0);
     });
-    // Stage 2：非第一頁內容 fade out（微 stagger 散開）
-    others.forEach(i => {
-      tl.to(i._anchor, { opacity: 0, duration: M_FADE_DUR, ease: EASE.exitSoft }, M_FADE_START + Math.random() * M_FADE_RANGE);
+    // Stage 2：非第一頁內容往所屬欄位靠攏＋途中 fade out（微 stagger 散開）
+    const moves = others.map(i => ({ i, d: convergeDelta(i) }));   // 先批量讀 rect 再建 tween（防 read/write 交錯 reflow）
+    moves.forEach(({ i, d }) => {
+      const at = M_FADE_START + Math.random() * M_FADE_RANGE;
+      tl.to(i._anchor, { opacity: 0, duration: M_FADE_DUR, ease: EASE.exitSoft }, at + (d ? CONVERGE_FADE_LAG : 0));
+      if (!d) return;   // 無對應欄（如 ec 佔位）→ 維持原地 fade
+      tl.fromTo(i._span,
+        { x: 0, y: 0, xPercent: i.category === 'B' ? -50 : 0, yPercent: -50 },
+        {
+          x: d.tx * CONVERGE_FRACTION / scale, y: d.ty * CONVERGE_FRACTION / scale,
+          duration: CONVERGE_DUR, ease: EASE.move,
+          onComplete: () => gsap.set(i._span, { clearProps: 'transform' }),   // 隱形時歸位，回程無殘留
+        }, at);
     });
     // layout btn icon 於 t=0 同步 hide
     hideLayoutIcon({ timeline: tl, position: 0 });
@@ -4685,9 +5094,16 @@ export async function initAtlas(options = {}) {
         [...dItems, ...others].forEach(i => { i._anchor.style.opacity = ''; });
       },
     });
-    // 其餘內容 fade in（微 stagger）
-    others.forEach(i => {
-      tl.to(i._anchor, { opacity: 1, duration: M_FADE_DUR, ease: EASE.enterSoft }, R_FADE_START + Math.random() * M_FADE_RANGE);
+    // 其餘內容鏡像：從所屬欄位方向散回原位、途中 fade in
+    const movesIn = others.map(i => ({ i, d: convergeDelta(i) }));
+    movesIn.forEach(({ i, d }) => {
+      const at = R_FADE_START + Math.random() * M_FADE_RANGE;
+      tl.to(i._anchor, { opacity: 1, duration: M_FADE_DUR, ease: EASE.enterSoft }, at);
+      if (!d) return;
+      tl.fromTo(i._span,
+        { x: d.tx * CONVERGE_FRACTION / scale, y: d.ty * CONVERGE_FRACTION / scale, xPercent: i.category === 'B' ? -50 : 0, yPercent: -50 },
+        { x: 0, y: 0, duration: CONVERGE_DUR, ease: EASE.move, onComplete: () => gsap.set(i._span, { clearProps: 'transform' }) },
+        at);
     });
     // 城市 + 連線最後回來（gate 藏掉的國家線維持 1、不 draw 進空氣）
     dItems.forEach(i => {
@@ -4717,7 +5133,7 @@ export async function initAtlas(options = {}) {
     Object.keys(listPageState).forEach(k => { listPageState[k] = 0; });
 
     if (typeof gsap === 'undefined') {
-      // 無動畫 fallback：瞬切
+      // 無動畫 fallback：瞬切（defer off → renderList 直接 reparent 節點）
       stage.style.display = 'none';
       stage.style.opacity = '';
       refreshFloatRunning();
@@ -4732,206 +5148,177 @@ export async function initAtlas(options = {}) {
     }
 
     viewMorphing = true;
+    floatThawEarly = false;
+    refreshFloatRunning();   // 凍結 wobble（floatPausedAt 記點；回 map 收尾恢復時補償＝相位接續）
     main.classList.add('atlas-morphing');
     drainRevealTimers();
     if (introTween) introTween.kill();
 
-    // 先隱藏渲染 list 供量測（visibility:hidden 保留 layout）；等 2 個 rAF 讓 pre-measure ghost
-    // （首次會實測 item 高後同步重渲染）落定才量 target rect，太早量目標位置會偏
+    // ── restore-first（user 2026-08-25 定案）：有篩選/zoom → 先回初始星雲，再跑正常轉場敘事 ──
+    let restoreDelay = 0;
+    const filterDirty = selected.size < btns.length || subchipActive.host === false || subchipActive.employ === false;
+    const zoomDirty = Math.abs(scale - defaultScaleAtlas) > 0.001 || Math.abs(tx) > 0.5 || Math.abs(ty) > 0.5;
+    if (filterDirty) {
+      btns.forEach(b => { if (b.dataset.filter) selected.add(b.dataset.filter); });
+      subchipActive.host = true;
+      subchipActive.employ = true;
+      Object.values(subchipMap).forEach(c => c && c.classList.remove('subchip-inactive'));
+      // currentView 已在函式開頭設 'list' → apply(true) 會分流到 applyListFilter、星雲 chip 永遠不會還原
+      // （被篩掉的 chip 直接在 list 端憑空出現）→ 直呼 map 版：既有 clip 四向 show 動畫＝restore 視覺
+      btns.forEach(b => b.classList.toggle('active', selected.has(b.dataset.filter)));
+      applyMapFilter(true);
+      updateFilterBtnColors();
+      syncCareer();
+      restoreDelay = RESTORE_DUR;
+    }
+    if (zoomDirty) {
+      const st = { s: scale, x: tx, y: ty };
+      gsap.to(st, {
+        s: defaultScaleAtlas, x: 0, y: 0, duration: 0.45, ease: EASE.move,
+        onUpdate: () => { scale = st.s; tx = st.x; ty = st.y; applyTransform(); },
+      });
+      restoreDelay = RESTORE_DUR;
+    }
+
+    // 預渲染 list（defer：只建 slot 殼＋配對 ref，節點留星雲等吞）；等 2 個 rAF 讓 pre-measure ghost
+    // （首次會實測 item 高後同步重渲染）落定，配對才查 live DOM
+    deferListNodes = true;
     renderList();
     applyListFilter();
     listView.classList.add('visible');
     listView.style.visibility = 'hidden';
     requestAnimationFrame(() => requestAnimationFrame(() => {
       if (destroyed) return;
-      morphToList();
+      morphToList(restoreDelay);
     }));
   }
 
-  function morphToList() {
-    const itemById = new Map(items.map(it => [String(it.id), it]));
-
-    // ── 配對＋量測（全讀完才寫入，避免 layout thrash）──
-    const pairedItems = new Set();
-    /** @type {{item: any, el: HTMLElement, nameLine: HTMLElement, srcRect: DOMRect, dstRect: DOMRect, srcRot: number, srcFont: number, dstFont: number, dstColor: string}[]} */
-    const itemPairs = [];
-    listView.querySelectorAll('.atlas-list-item').forEach(el => {
-      const item = itemById.get(/** @type {HTMLElement} */ (el).dataset.itemId || '');
-      const nameLine = /** @type {HTMLElement|null} */ (el.querySelector('.atlas-list-item-name'));
-      if (!item || !item._span || !nameLine) return;
-      if (!filterAllowsItem(item)) return;   // 星雲上被 filter 藏掉 → 無來源，走一般進場
-      const dstCs = getComputedStyle(nameLine);
-      itemPairs.push({
-        item,
-        el: /** @type {HTMLElement} */ (el),
-        nameLine,
-        srcRect: item._span.getBoundingClientRect(),
-        dstRect: nameLine.getBoundingClientRect(),
-        srcRot: inlineRotDeg(item._span),
-        srcFont: parseFloat(getComputedStyle(item._span).fontSize) || 1,
-        dstFont: parseFloat(dstCs.fontSize) || 1,
-        dstColor: dstCs.color,
-      });
-      pairedItems.add(item);
+  /** 正向 morph（單一節點遮罩三段）
+   * @param {number} restoreDelay restore-first 前置窗（0＝無篩選/zoom） */
+  function morphToList(restoreDelay) {
+    // ── 配對：defer build 掛在 wrapper 上的 _atlasItem（pre-measure rebuild 後查 live DOM 仍最新）──
+    /** @type {{item:any, wrapper:HTMLElement, cat:string}[]} */
+    const pairs = [];
+    listView.querySelectorAll('.atlas-list-item-wrapper').forEach(w => {
+      const it = /** @type {any} */ (w)._atlasItem;
+      if (it && it._span) pairs.push({ item: it, wrapper: /** @type {HTMLElement} */ (w), cat: /** @type {HTMLElement} */ (w).dataset.category || '' });
     });
+    const pairedItems = new Set(pairs.map(p => p.item));
 
+    // ── chrome 配對：3 主 btn + alumni master → 欄標題；host/employ subchip → 同名欄標題 ──
     /** @param {string} cat */
     const colTitle = (cat) => /** @type {HTMLElement|null} */ (listView.querySelector(`.atlas-list-col[data-category="${cat}"] .atlas-list-col-title`));
     const masterTitle = /** @type {HTMLElement|null} */ (listView.querySelector('.atlas-list-group-label-col .atlas-list-col-title'));
-    /** @type {{key: string, srcEl: HTMLElement, hideEl: HTMLElement, dstEl: HTMLElement, srcRot: number, dstRot: number, srcRect: DOMRect, dstRect: DOMRect, wrapClass: string, dstW: number, dstH: number, dstBg: string, dstColor: string}[]} */
-    const navPairs = [];
-    /** @param {string} key @param {HTMLElement|null} srcEl @param {HTMLElement|null} hideEl @param {HTMLElement|null} dstEl @param {string} wrapClass */
-    const addNavPair = (key, srcEl, hideEl, dstEl, wrapClass) => {
-      if (!srcEl || !hideEl || !dstEl) return;
-      // 欄標題旋轉載體＝titleblock / label-col（inline rotate）
-      const block = /** @type {HTMLElement|null} */ (dstEl.closest('.atlas-list-col-titleblock, .atlas-list-group-label-col'));
-      const dstCs = getComputedStyle(dstEl);
-      navPairs.push({
-        key, srcEl, hideEl, dstEl, wrapClass,
-        srcRot: inlineRotDeg(srcEl),
-        dstRot: inlineRotDeg(block),
-        srcRect: srcEl.getBoundingClientRect(),
-        dstRect: dstEl.getBoundingClientRect(),
-        dstW: dstEl.offsetWidth,
-        dstH: dstEl.offsetHeight,
-        dstBg: dstCs.backgroundColor,
-        dstColor: dstCs.color,
-      });
-    };
+    /** @type {{srcEl:HTMLElement, srcRot:number, dstEl:HTMLElement, dstRot:number, key:string}[]} */
+    const chromePairs = [];
     btns.forEach(b => {
       const inner = /** @type {HTMLElement|null} */ (b.querySelector('.anchor-nav-inner'));
       const dstEl = b.dataset.filter === 'alumni' ? masterTitle : colTitle(b.dataset.filter || '');
-      addNavPair(b.dataset.filter || '', inner, b, dstEl, 'atlas-filter-btn atlas-filter-revealed');
+      if (!inner || !dstEl) return;
+      const block = /** @type {HTMLElement|null} */ (dstEl.closest('.atlas-list-col-titleblock, .atlas-list-group-label-col'));
+      chromePairs.push({ srcEl: inner, srcRot: inlineRotDeg(inner), dstEl, dstRot: inlineRotDeg(block), key: b.dataset.filter || '' });
     });
     if (selected.has('alumni')) {
-      const hostChip = subchipMap.host || null;
-      const employChip = subchipMap.employ || null;
-      if (hostChip && hostChip.offsetHeight > 0) addNavPair('host', hostChip, hostChip, colTitle('host'), '');
-      if (employChip && employChip.offsetHeight > 0) addNavPair('employ', employChip, employChip, colTitle('employ'), '');
+      [['host', subchipMap.host], ['employ', subchipMap.employ]].forEach(([key, chip]) => {
+        const chipEl = /** @type {HTMLElement|null} */ (chip);
+        const dstEl = colTitle(/** @type {string} */ (key));
+        if (chipEl && chipEl.offsetHeight > 0 && dstEl) {
+          const block = /** @type {HTMLElement|null} */ (dstEl.closest('.atlas-list-col-titleblock'));
+          chromePairs.push({ srcEl: chipEl, srcRot: inlineRotDeg(chipEl), dstEl, dstRot: inlineRotDeg(block), key: /** @type {string} */ (key) });
+        }
+      });
     }
+    const pairedTitles = new Set(chromePairs.map(p => p.dstEl));
 
-    // ── 進場前置：list 行全藏（配對者落地換裝、未配對者尾段一般進場）──
-    const allLines  = /** @type {HTMLElement[]} */ ([...listView.querySelectorAll('.atlas-list-line-clip > *')]);
+    // ── list 端初始藏（listView 即將轉可見）：配對標題等 mask 揭露、未配對標題一般進場、chevron 壓軸 ──
     const allTitles = /** @type {HTMLElement[]} */ ([...listView.querySelectorAll('.atlas-list-col-title')]);
-    const navItems  = /** @type {HTMLElement[]} */ ([...listView.querySelectorAll('.atlas-list-nav-item')]);
-    if (allLines.length) gsap.set(allLines, { yPercent: 100, overwrite: true });
-    if (allTitles.length) gsap.set(allTitles, { yPercent: 100, overwrite: true });
+    const navItems = /** @type {HTMLElement[]} */ ([...listView.querySelectorAll('.atlas-list-nav-item')]);
+    allTitles.forEach(t => { if (pairedTitles.has(t)) t.style.visibility = 'hidden'; });
+    const restTitles = allTitles.filter(t => !pairedTitles.has(t));
+    if (restTitles.length) gsap.set(restTitles, { yPercent: 100, overwrite: true });
     if (navItems.length) gsap.set(navItems, { clipPath: 'inset(0% 0% 100% 0%)', overwrite: true });
     listView.style.visibility = '';
 
-    // ── clones 起飛（原件同幀藏 → 無雙影）──
-    const flights = /** @type {Promise<any>[]} */ ([]);
-    itemPairs.forEach(p => {
-      const clone = makeFlyClone(p.item._span, p.srcRect, { srcScale: scale, srcRot: p.srcRot });
-      p.item._span.style.visibility = 'hidden';
-      const subLines = /** @type {HTMLElement[]} */ ([...p.el.querySelectorAll('.atlas-list-line-clip > *')]).slice(1);
-      // B（Hosting 環企業）＝實色底 chip：落地不硬切，底色 0.35s 淡出（user 08-19「閃一下太硬」）
-      const chipBg = p.item.category === 'B' && p.item.bgColor ? p.item.bgColor : null;
-      // 與 filter 同一波起飛（clone 在此之前原地待命＝視覺上「留下來的」）
-      const delay = M_ITEM_START + Math.random() * M_ITEM_RANGE;
-      // 飛行中字色線性補間到 list 終值 → 落地換裝零 snap（user 08-19「看起來像兩個東西」）
-      gsap.to(clone, { color: p.dstColor, duration: DUR.slow, ease: EASE.move, delay });
-      flights.push(flyClone(clone, p.srcRect, p.dstRect, {
-        // 字級比（不用 box 高比：host 欄 min-height 2.6em / line-height 差會放大過頭、落地再縮回）
-        dstScale: p.dstFont / p.srcFont,
-        dstRot: 0,
-        delay,
-        holdClone: true,
-        onLand: (node) => {
-          gsap.set(p.nameLine, { clearProps: 'transform' });   // 落地換裝：list 黑字原地接手
-          revealListLines(subLines);                            // 副標接著滑出
-          if (chipBg) {
-            // 文字先讓位（真行已現身），只留色塊蓋在上面淡出；8-digit hex 保色相純淡 alpha
-            [...node.children].forEach(c => { /** @type {HTMLElement} */ (c).style.visibility = 'hidden'; });
-            gsap.to(node, { backgroundColor: `${chipBg}00`, duration: 0.35, ease: EASE.exitSoft, onComplete: () => node.remove() });
-          } else {
-            // 交叉淡出（非硬切）：換行結構兩端不同（chip 170px 多行 ↔ list 單行截斷）時
-            // 疊影 dissolve；結構相同時兩層像素一致、視覺上無感
-            gsap.to(node, { opacity: 0, duration: 0.25, ease: EASE.exitSoft, onComplete: () => node.remove() });
-          }
-        },
-      }));
+    const master = gsap.timeline({
+      onComplete: () => {
+        if (destroyed || currentView !== 'list') return;
+        stage.style.display = 'none';
+        stage.style.opacity = '';
+        deferListNodes = false;
+        viewMorphing = false;
+        refreshFloatRunning();   // stage 已藏 → 維持暫停（floatPausedAt 已記，回 map 恢復時補償）
+        chromePairs.forEach(p => { p.srcEl.style.visibility = ''; });   // filterEl 即將藏，歸位無感
+        pairs.forEach(p => { p.item._span.style.visibility = ''; });    // 保險（landing 已還原）
+        btns.forEach(b => b.classList.remove('atlas-filter-revealed'));
+        if (filterEl) filterEl.style.display = 'none';
+        updateFilterBtnColors();
+        revealLayoutIcon('icon icon-atlas-view');
+        // 未配對標題（subchip 收合等少見情境）一般進場
+        if (restTitles.length) {
+          gsap.fromTo(restTitles, { yPercent: 100 },
+            { yPercent: 0, duration: DUR.slow, ease: EASE.enter, clearProps: 'transform', overwrite: true });
+        }
+        // stage4：chevron 壓軸
+        if (navItems.length) {
+          gsap.fromTo(navItems, { clipPath: 'inset(0% 0% 100% 0%)' },
+            { clipPath: 'inset(0% 0% 0% 0%)', duration: DUR.reveal, delay: 0.3, ease: EASE.enter, clearProps: 'clipPath', overwrite: true });
+        }
+        if (listCareerCtrl) listCareerCtrl.show({ delay: 0.15 });
+        applyListMarquee(listView);   // 節點落定後才量 marquee＋綁 hover 回彈
+        main.classList.remove('atlas-morphing');
+      },
     });
-    navPairs.forEach(p => {
-      const clone = makeFlyClone(p.srcEl, p.srcRect, { srcRot: p.srcRot, wrapClass: p.wrapClass });
-      // chip 視覺載體：wrap 時在 inner（bg/color 都在 inner），否則就是 clone 本身
-      const chip = /** @type {HTMLElement} */ (p.wrapClass ? clone.firstElementChild : clone);
-      clone.style.overflow = 'hidden';   // box 收窄/壓扁過程截掉溢出文字（stacked btn ↔ row title）
-      p.hideEl.style.visibility = 'hidden';
-      // stage 3：filter 先飛，老師→系友→(主持→就職)→合作單位 階梯
-      const delay = M_NAV_START + (NAV_ORDER[p.key] ?? 0) * M_NAV_STEP;
-      // chip 底色/字色 + box 尺寸一路補間到欄標題終值（left/top 隨寬高補位、保持中心錨定）
-      if (chip) gsap.to(chip, { backgroundColor: p.dstBg, color: p.dstColor, duration: DUR.slow, ease: EASE.move, delay });
-      gsap.to(clone, {
-        left: parseFloat(clone.style.left) - (p.dstW - parseFloat(clone.style.width)) / 2,
-        top:  parseFloat(clone.style.top)  - (p.dstH - parseFloat(clone.style.height)) / 2,
-        width: p.dstW,
-        height: p.dstH,
-        duration: DUR.slow, ease: EASE.move, delay,
-      });
-      flights.push(flyClone(clone, p.srcRect, p.dstRect, {
-        dstRot: p.dstRot,
-        delay,
-        holdClone: true,
-        onLand: (node) => {
-          gsap.set(p.dstEl, { clearProps: 'transform' });
-          // 交叉淡出：btn 直疊 ↔ 標題橫排 文字排列不同，dissolve 取代硬切
-          gsap.to(node, { opacity: 0, duration: 0.25, ease: EASE.exitSoft, onComplete: () => node.remove() });
-        },
-      }));
-    });
+    introTween = /** @type {any} */ (master);   // 離頁/中斷 kill 用
 
-    // ── 未配對星雲元素分階段退場（城市+線先、其餘 fade）；career chip（無對應）照舊收，
-    //    subchip 原件已藏、hide 僅同步 ctrl 狀態 ──
-    hideCareer({ stagger: SUBCHIP_STAGGER });
-    const unpairedExitItems = items.filter(i => i._span && !pairedItems.has(i));
-    introTween = buildMapExitTl(unpairedExitItems);
+    // stage1（restore 窗之後）：career/ring 收 + 城市/線退場（buildMapExitTl 內含 layout icon 收；
+    // 非第一頁靠攏+fade 也在其中、但排在 M_FADE_START＝起飛同波）
+    master.call(() => {
+      if (destroyed) return;
+      if (mapCareerCtrl) mapCareerCtrl.hide();
+      animateRingEllipse(false);
+    }, null, restoreDelay);
+    const unpairedExitItems = items.filter(i => i._span && !i._asList && !pairedItems.has(i));
+    master.add(buildMapExitTl(unpairedExitItems), restoreDelay);
 
-    // ── 飛行 + 退場都完成才收尾 ──
-    Promise.all([...flights, introTween.then()]).then(() => {
-      if (destroyed || currentView !== 'list') return;
-      stage.style.display = 'none';
-      stage.style.opacity = '';
-      refreshFloatRunning();   // list view：暫停隱藏 map 的 rAF
-      itemPairs.forEach(p => { p.item._span.style.visibility = ''; });
-      navPairs.forEach(p => { p.hideEl.style.visibility = ''; });
-      unpairedExitItems.forEach(i => { if (i._anchor) i._anchor.style.opacity = ''; });   // fade 殘留歸位（stage 已藏）
-      btns.forEach(b => b.classList.remove('atlas-filter-revealed'));   // filterEl 藏好後歸位（無可見 transition）
-      if (filterEl) filterEl.style.display = 'none';
-      updateFilterBtnColors();
-      revealLayoutIcon('icon icon-atlas-view');
-      // 尾段：無來源者一般進場（未配對行、未配對欄標題、chevron、list career chip）
-      const pairedLines = new Set();
-      itemPairs.forEach(p => p.el.querySelectorAll('.atlas-list-line-clip > *').forEach(l => pairedLines.add(l)));
-      const pairedTitles = new Set(navPairs.map(p => p.dstEl));
-      revealListLines(allLines.filter(l => !pairedLines.has(l)));
-      const restTitles = allTitles.filter(t => !pairedTitles.has(t));
-      if (restTitles.length) {
-        gsap.fromTo(restTitles,
-          { yPercent: 100 },
-          { yPercent: 0, duration: DUR.slow, ease: EASE.enter, clearProps: 'transform', overwrite: true }
-        );
+    // stage3：第一頁 item + chrome 同波起飛（chrome 沿 NAV_ORDER 階梯、item 隨機散開）
+    // A/C 無底色文字（user 08-26）：本體直飛（flipFlyNode）
+    // B host 卡（user 08-27）：正向不吞——色塊在原 swallow 時段溶掉＋字色轉前景色，
+    // 文字本體直飛同 A/C；反向維持色塊吞回（maskFlyNode，見 switchToMap）
+    const themeFg = getComputedStyle(document.body).color;
+    pairs.forEach(p => {
+      const flyAt = M_ITEM_START + Math.random() * M_ITEM_RANGE;
+      const onLand = () => {   // 落地：副標行 line-clip 滑入（host 模型「底部長出」手感）
+        const subs = /** @type {HTMLElement[]} */ ([...p.item._subsEl.querySelectorAll('.atlas-list-item-label')]);
+        if (subs.length) {
+          gsap.fromTo(subs, { yPercent: 100 },
+            { yPercent: 0, duration: DUR.reveal, ease: EASE.enter, clearProps: 'transform', overwrite: true, stagger: 0.05 });
+        }
+      };
+      if (p.item.category === 'B') {
+        master.to(p.item._span, {
+          backgroundColor: 'rgba(0,0,0,0)', color: themeFg,
+          duration: SWALLOW_DUR, ease: EASE.exitSoft,
+        }, restoreDelay + flyAt);
       }
-      // stage 4：chevron 壓軸（其餘內容起跑後 +0.3s 才揭露）
-      if (navItems.length) {
-        gsap.fromTo(navItems,
-          { clipPath: 'inset(0% 0% 100% 0%)' },
-          { clipPath: 'inset(0% 0% 0% 0%)', duration: DUR.reveal, delay: 0.3, ease: EASE.enter, clearProps: 'clipPath', overwrite: true }
-        );
-      }
-      if (listCareerCtrl) listCareerCtrl.show({ delay: 0.15 });
-      viewMorphing = false;
-      main.classList.remove('atlas-morphing');
+      master.add(flipFlyNode(p.item, restoreDelay + flyAt + SWALLOW_DUR,
+        () => toListForm(p.item, p.wrapper, p.cat), onLand, true), 0);
     });
+    chromePairs.forEach(p => {
+      master.add(maskFlyChrome(p.srcEl, p.srcRot, p.dstEl, p.dstRot,
+        restoreDelay + M_NAV_START + (NAV_ORDER[p.key] ?? 0) * M_NAV_STEP), 0);
+    });
+    // subchip 跨切換不收合（user 08-25）：ctrl 恆 visible=true——list 期間靠 filterEl display:none
+    // 隱藏即可；回程 showCareer 對 subchip 冪等 no-op、chip 佔位不塌＝Partners btn 不跳位
   }
 
   function switchToMap() {
     if (currentView === 'map' || viewMorphing) return;
 
     if (typeof gsap === 'undefined') {
-      // 無動畫 fallback：瞬切
+      // 無動畫 fallback：瞬切（節點撤回星雲 anchor）
       currentView = 'map';
       if (listCareerCtrl) { listCareerCtrl.destroy(); listCareerCtrl = null; }
+      evacuateListNodes(listView);
       stage.style.display = '';
       stage.style.opacity = '';
       refreshFloatRunning();
@@ -4954,191 +5341,148 @@ export async function initAtlas(options = {}) {
     drainRevealTimers();
     if (introTween) introTween.kill();
     hideLayoutIcon();
-    // list career chip（無對應）用 hide() 反向收；delay 讓 chevron（鏡像 stage 1）先走；destroy 留給 renderList / cleanupFns
-    if (listCareerCtrl) listCareerCtrl.hide({ delay: 0.2 });
+    if (listCareerCtrl) listCareerCtrl.hide({ delay: 0.2 });   // 鏡像 stage1：list career 先收
 
-    // ── 星雲復位＋隱藏顯示供量測；float 先不恢復（不呼叫 refreshFloatRunning）→
-    //    wobble/orbit 維持凍結相位，量到的落點在飛行期間不漂移，落地後恢復時從凍結點接續、不跳位 ──
+    // ── 星雲復位（zoom 初始態）＋顯示；wobble 維持凍結（refreshFloatRunning gate viewMorphing）──
     scale = defaultScaleAtlas;
     tx = 0; ty = 0;
     applyTransform();
     stage.style.display = '';
-    stage.style.visibility = 'hidden';
     if (filterEl) filterEl.style.display = '';
-    Object.values(subchipMap).forEach(c => { if (c) c.style.visibility = ''; });   // 收合態、顯示無妨
-    apply();   // 同步 filter active class / anchors 顯隱（量測前確保 layout 正確）
+    Object.values(subchipMap).forEach(c => { if (c) c.style.visibility = ''; });
+    apply();   // filter active class / anchors 顯隱同步（全開狀態、切 list 時已 restore）
 
-    const itemById = new Map(items.map(it => [String(it.id), it]));
-
-    // ── 配對＋量測：list 當前可見頁 → 星雲 chip 位置 ──
-    const pairedItems = new Set();
-    /** @type {{item: any, nameLine: HTMLElement, srcRect: DOMRect, dstRect: DOMRect, dstRot: number, srcFont: number, dstFont: number, dstColor: string}[]} */
-    const itemPairs = [];
-    listView.querySelectorAll('.atlas-list-item').forEach(el => {
-      const item = itemById.get(/** @type {HTMLElement} */ (el).dataset.itemId || '');
-      const nameLine = /** @type {HTMLElement|null} */ (el.querySelector('.atlas-list-item-name'));
-      if (!item || !item._span || !nameLine) return;
-      if (!filterAllowsItem(item)) return;   // 回到星雲後不可見 → 無落點，走一般退場
-      const dstCs = getComputedStyle(item._span);
-      itemPairs.push({
-        item,
-        nameLine,
-        srcRect: nameLine.getBoundingClientRect(),
-        dstRect: item._span.getBoundingClientRect(),
-        dstRot: inlineRotDeg(item._span),
-        srcFont: parseFloat(getComputedStyle(nameLine).fontSize) || 1,
-        dstFont: parseFloat(dstCs.fontSize) || 1,
-        dstColor: dstCs.color,
-      });
-      pairedItems.add(item);
+    // ── 配對：當下頁的 list 形態節點（翻頁後＝當下頁；查 live DOM）──
+    /** @type {any[]} */
+    const flyItems = [];
+    listView.querySelectorAll('.atlas-name.atlas-as-list').forEach(n => {
+      const it = itemByIdMap.get(/** @type {HTMLElement} */ (n).dataset.itemId || '');
+      if (it) flyItems.push(it);
     });
+    const pairedItems = new Set(flyItems);
+    // 吞之前先剝 marquee dual-copy 歸零（否則 cover 縮寬/遮罩量測吃到兩倍 inner 寬）
+    flyItems.forEach(resetMarqueeState);
 
-    // nav 反向只飛 3 顆主 btn ← 欄標題（subchip 落地時仍收合、無 slot 可對位；照原節奏 showCareer 展開）
-    const masterTitle = /** @type {HTMLElement|null} */ (listView.querySelector('.atlas-list-group-label-col .atlas-list-col-title'));
-    /** @type {{srcEl: HTMLElement, dstBtn: HTMLElement, backIdx: number, srcRot: number, dstRot: number, srcRect: DOMRect, dstRect: DOMRect, dstW: number, dstH: number, dstBg: string, dstColor: string}[]} */
-    const navPairs = [];
-    btns.forEach((b, bi) => {
+    // chrome 反向：3 主 btn + alumni master + host/employ subchip ← 欄標題；
+    // 階梯＝正向 NAV_ORDER 鏡像（partners→employ→host→alumni→faculty）
+    const masterTitleR = /** @type {HTMLElement|null} */ (listView.querySelector('.atlas-list-group-label-col .atlas-list-col-title'));
+    /** @type {{srcEl:HTMLElement, srcRot:number, dstBtn:HTMLElement, inner:HTMLElement, dstRot:number, backIdx:number}[]} */
+    const chromePairsR = [];
+    btns.forEach(b => {
       const srcEl = b.dataset.filter === 'alumni'
-        ? masterTitle
+        ? masterTitleR
         : /** @type {HTMLElement|null} */ (listView.querySelector(`.atlas-list-col[data-category="${b.dataset.filter}"] .atlas-list-col-title`));
-      if (!srcEl) return;
-      const block = /** @type {HTMLElement|null} */ (srcEl.closest('.atlas-list-col-titleblock, .atlas-list-group-label-col'));
       const inner = /** @type {HTMLElement|null} */ (b.querySelector('.anchor-nav-inner'));
-      const innerCs = inner ? getComputedStyle(inner) : null;
-      navPairs.push({
-        srcEl,
-        dstBtn: b,
-        backIdx: btns.length - 1 - bi,   // 鏡像階梯：合作單位→系友→老師
-        srcRot: inlineRotDeg(block),
-        dstRot: inlineRotDeg(inner),
-        srcRect: srcEl.getBoundingClientRect(),
-        // btn 遮罩窗本體不動（只有 inner translate）→ btn rect 即 revealed inner 落點
-        dstRect: b.getBoundingClientRect(),
-        dstW: inner ? inner.offsetWidth : b.offsetWidth,
-        dstH: inner ? inner.offsetHeight : b.offsetHeight,
-        dstBg: innerCs ? innerCs.backgroundColor : '',
-        dstColor: innerCs ? innerCs.color : '',
-      });
+      if (!srcEl || !inner) return;
+      const block = /** @type {HTMLElement|null} */ (srcEl.closest('.atlas-list-col-titleblock, .atlas-list-group-label-col'));
+      chromePairsR.push({ srcEl, srcRot: inlineRotDeg(block), dstBtn: b, inner, dstRot: inlineRotDeg(inner), backIdx: 4 - (NAV_ORDER[b.dataset.filter || ''] ?? 0) });
     });
+    // subchip 反向也 mask 飛回（user 08-25 跨切換不收合、落地即打開狀態）：src=同名欄標題、
+    // dst=chip 本體（未收合、layout 佔位中、先藏到 mask 落地揭露——filterEl 已顯示，不藏會 t=0 閃現）
+    /** @type {{srcEl:HTMLElement, srcRot:number, chip:HTMLElement, dstRot:number, backIdx:number}[]} */
+    const subchipPairsR = [];
+    [['host', subchipMap.host], ['employ', subchipMap.employ]].forEach(([key, chip]) => {
+      const chipEl = /** @type {HTMLElement|null} */ (chip);
+      const srcEl = /** @type {HTMLElement|null} */ (listView.querySelector(`.atlas-list-col[data-category="${key}"] .atlas-list-col-title`));
+      // 未展開（intro 被中斷）→ 不飛，收尾 showCareer 的 ctrl.show 冪等 fallback 會補展開
+      if (!chipEl || chipEl.offsetHeight === 0 || !srcEl) return;
+      const block = /** @type {HTMLElement|null} */ (srcEl.closest('.atlas-list-col-titleblock'));
+      chipEl.style.visibility = 'hidden';
+      subchipPairsR.push({ srcEl, srcRot: inlineRotDeg(block), chip: chipEl, dstRot: inlineRotDeg(chipEl), backIdx: 4 - (NAV_ORDER[/** @type {string} */ (key)] ?? 0) });
+    });
+    const pairedTitleEls = new Set([...chromePairsR, ...subchipPairsR].map(p => p.srcEl));
 
-    // ── clones 起飛（原件同幀藏）──
-    const flights = /** @type {Promise<any>[]} */ ([]);
-    itemPairs.forEach(p => {
-      const clone = makeFlyClone(p.nameLine, p.srcRect);
-      p.nameLine.style.visibility = 'hidden';
-      p.item._span.style.visibility = 'hidden';   // 落地才現身（正向已設；首次反向保險）
-      // B chip 鏡像換裝：現身時底色從透明淡入（正向淡出的反向）；fromTo 終值＝原 inline bgColor 不用 clearProps
-      const chipBg = p.item.category === 'B' && p.item.bgColor ? p.item.bgColor : null;
-      // 鏡像 stage 2：chevron / 未配對 rows 先走，第一頁內容與標題同波飛回
-      const delay = R_ITEM_START + Math.random() * R_ITEM_RANGE;
-      // 字色線性補間回 chip 色（正向鏡像；落地現身零 snap）
-      gsap.to(clone, { color: p.dstColor, duration: DUR.slow, ease: EASE.move, delay });
-      flights.push(flyClone(clone, p.srcRect, p.dstRect, {
-        // 字級比 × zoom scale（不用 box 高比：host 欄 min-height / line-height 差會灌爆比例）
-        dstScale: (p.dstFont * scale) / p.srcFont,
-        dstRot: p.dstRot,
-        delay,
-        holdClone: true,
-        onLand: (node) => {
-          p.item._span.style.visibility = '';
-          if (chipBg) {
-            gsap.fromTo(p.item._span,
-              { backgroundColor: `${chipBg}00` },
-              { backgroundColor: chipBg, duration: 0.35, ease: EASE.enterSoft, overwrite: 'auto' }
-            );
-          }
-          // 交叉淡出：chip 端多行 wrap 與 list 單行結構不同時 dissolve（正向鏡像）
-          gsap.to(node, { opacity: 0, duration: 0.25, ease: EASE.exitSoft, onComplete: () => node.remove() });
-        },
-      }));
+    // ── 未配對星雲元素分階段進場（anchors 壓 0 / 線縮點；paired 的 anchor 是空殼不受影響）──
+    const enterTl = buildMapEnterTl(items.filter(i => i._span && !pairedItems.has(i)));
+
+    const master = gsap.timeline({
+      onComplete: () => {
+        if (destroyed || currentView !== 'map') return;
+        listView.classList.remove('visible');
+        listView.style.visibility = '';
+        chromePairsR.forEach(p => { p.srcEl.style.visibility = ''; });   // 標題歸位（renderList 下次重建）
+        subchipPairsR.forEach(p => { p.srcEl.style.visibility = ''; p.chip.style.visibility = ''; });   // 保險（落地已揭露）
+        btns.forEach(b => b.classList.add('atlas-filter-revealed'));     // 落地已加；漏網補上
+        stage.style.opacity = '';
+        viewMorphing = false;
+        refreshFloatRunning();   // 恢復 float（通常 floatThawEarly 已提前解凍＝no-op；補償在解凍當下做）
+        floatThawEarly = false;
+        revealLayoutIcon('icon icon-atlas-list');
+        // 收尾補 career chip + ring（subchip 已飛回且 ctrl 恆 visible → show() 冪等 no-op；
+        // 僅 intro 被中斷、subchip 從未展開的邊角才會由此 fallback 展開）
+        const subchipT = /** @type {any} */ (setTimeout(() => {
+          if (selected.has('alumni')) showCareer({ stagger: SUBCHIP_STAGGER });
+        }, SUBCHIP_GAP + 200));
+        revealTimers.push(subchipT);
+        main.classList.remove('atlas-morphing');
+      },
     });
-    navPairs.forEach(p => {
-      const clone = makeFlyClone(p.srcEl, p.srcRect, { srcRot: p.srcRot });
-      clone.style.overflow = 'hidden';   // row title 收窄成 stacked btn box 過程截掉溢出文字
-      p.srcEl.style.visibility = 'hidden';
-      // 鏡像 stage 3：標題飛回 filter 位（合作單位→系友→老師 階梯）
-      const delay = R_NAV_START + p.backIdx * R_NAV_STEP;
-      // chip 底色/字色 + box 尺寸補間回 btn 終值（正向鏡像；left/top 隨寬高補位保持中心）
-      if (p.dstBg) {
-        gsap.to(clone, {
-          backgroundColor: p.dstBg,
-          color: p.dstColor,
-          left: parseFloat(clone.style.left) - (p.dstW - parseFloat(clone.style.width)) / 2,
-          top:  parseFloat(clone.style.top)  - (p.dstH - parseFloat(clone.style.height)) / 2,
-          width: p.dstW,
-          height: p.dstH,
-          duration: DUR.slow, ease: EASE.move, delay,
-        });
+    introTween = /** @type {any} */ (master);
+    master.add(enterTl, 0);
+
+    // 當下頁 item 飛回：B＝遮罩三段（底色隨 toChipForm 摘 class 即回）；A/C＝本體直飛（user 08-26）
+    // B 延遲收攏到窗尾＝落地≈lastLand → 解凍等待壓到 ~0.1s（不然先落地的 host 圈卡片
+    // 要呆等其他 item 掀完才恢復旋轉，user 08-26「停頓一下才繼續轉」）
+    let lastLand = 0;
+    flyItems.forEach(it => {
+      if (it.category === 'A' || it.category === 'C') {
+        // 直飛落點跟著 anchor 補間（gsap x/y 疊在 anchor 座標上）→ 不 gate 解凍、不推 lastLand
+        const delay = R_ITEM_START + Math.random() * R_ITEM_RANGE;
+        master.add(flipFlyNode(it, delay, () => toChipForm(it), null, false), 0);
+        return;
       }
-      flights.push(flyClone(clone, p.srcRect, p.dstRect, {
-        dstRot: p.dstRot,
-        delay,
-        holdClone: true,
-        onLand: (node) => {
-          // 落地瞬間揭露 btn：關掉 inner 的 translate transition 防 0.5s 滑入（swap 要原地接手）
-          const inner = /** @type {HTMLElement|null} */ (p.dstBtn.querySelector('.anchor-nav-inner'));
-          if (inner) inner.style.transition = 'none';
-          p.dstBtn.classList.add('atlas-filter-revealed');
-          if (inner) {
-            void inner.offsetWidth;
-            requestAnimationFrame(() => { inner.style.transition = ''; });
-          }
-          // 交叉淡出：標題橫排 ↔ btn 直疊 文字排列不同，dissolve 取代硬切
-          gsap.to(node, { opacity: 0, duration: 0.25, ease: EASE.exitSoft, onComplete: () => node.remove() });
+      // 收攏窗 0.15：再窄（0.08）＝20 顆 B 同窗 reparent+量測的 reflow 風暴、實機掉幀卡頓
+      const delay = R_ITEM_START + R_ITEM_RANGE - Math.random() * 0.15;
+      lastLand = Math.max(lastLand, delay + SWALLOW_DUR + FLY_DUR);
+      master.add(maskFlyNode(it, delay, () => toChipForm(it)), 0);
+    });
+    // 最後一顆 mask「落地」即解凍 wobble（掀開起點、不等 0.4s 掃完＝chip 露出瞬間就在轉）：
+    // 掃開期間 ring 流速下 anchor 漂移僅幾 px、被縮退中的色塊吸收——但不可早於落地
+    // （mask 飛行吃的是預量落點，float 先跑＝anchor 漂走 mask 撲空）
+    if (flyItems.length) {
+      master.call(() => {
+        if (destroyed || currentView !== 'map') return;
+        floatThawEarly = true;
+        refreshFloatRunning();
+      }, null, lastLand + 0.05);
+    }
+    // subchip 飛回：落地即打開狀態（maskFlyChrome onComplete 揭露 visibility）
+    subchipPairsR.forEach(p => {
+      master.add(maskFlyChrome(p.srcEl, p.srcRot, p.chip, p.dstRot, R_NAV_START + p.backIdx * R_NAV_STEP), 0);
+    });
+    // chrome 反向（合作單位→就職→主持→系友→老師 鏡像階梯）；落地揭露 btn（關 transition 防 0.5s 滑入）
+    chromePairsR.forEach(p => {
+      master.add(maskFlyChrome(p.srcEl, p.srcRot, p.inner, p.dstRot, R_NAV_START + p.backIdx * R_NAV_STEP, {
+        dstBoxFn: () => {
+          const r = p.dstBtn.getBoundingClientRect();   // btn 遮罩窗本體不動＝revealed inner 落點
+          return { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: p.inner.offsetWidth, h: p.inner.offsetHeight };
         },
-      }));
+        // 落地：inner 關 transition 即時定位（色塊→無字 box 要像素同位無痕瞬換；0.9s 自然滑入
+        // ＝重播 intro 進場，user 打回）；文字 reveal 由 maskFlyChrome 統一的 clip 左→右進場負責
+        onLand: () => {
+          p.inner.style.transition = 'none';
+          p.dstBtn.classList.add('atlas-filter-revealed');
+          void p.inner.offsetWidth;
+          requestAnimationFrame(() => { p.inner.style.transition = ''; });
+        },
+      }), 0);
     });
 
-    // ── 未配對 list 元素照舊退場（lines/titles yPercent ±100、chevron clip 原地收）──
-    const pairedEls = new Set();
-    itemPairs.forEach(p => pairedEls.add(p.nameLine));
-    navPairs.forEach(p => pairedEls.add(p.srcEl));
-    const yPercentExitTargets = /** @type {HTMLElement[]} */ ([
-      ...listView.querySelectorAll('.atlas-list-line-clip > *'),
-      ...listView.querySelectorAll('.atlas-list-col-title'),
-    ]).filter(el => !pairedEls.has(el));
-    if (yPercentExitTargets.length) {
-      // delay 0.2＝鏡像順序：chevron（t=0）先收，內容才退
-      gsap.to(yPercentExitTargets, {
+    // 未配對 list 元素照舊退場（未飛標題 yPercent、chevron clip；delay 0.2 鏡像 chevron 先收）
+    const yTargets = /** @type {HTMLElement[]} */ ([...listView.querySelectorAll('.atlas-list-col-title')])
+      .filter(el => !pairedTitleEls.has(el));
+    if (yTargets.length) {
+      gsap.to(yTargets, {
         yPercent: () => Math.random() < 0.5 ? 100 : -100,
-        duration: DUR.slow,
-        delay: 0.2,
-        ease: EASE.exitSoft,
-        overwrite: true,
+        duration: DUR.slow, delay: 0.2, ease: EASE.exitSoft, overwrite: true,
       });
     }
-    const navExitTargets = /** @type {HTMLElement[]} */ ([...listView.querySelectorAll('.atlas-list-nav-item')]);
-    if (navExitTargets.length) {
-      // inset 四值統一用 %（與 entry 一致，避免 GSAP 跳終值）；fromTo 確保 from-state 不是 'none'
-      gsap.fromTo(navExitTargets,
-        { clipPath: 'inset(0% 0% 0% 0%)' },
-        { clipPath: 'inset(0% 0% 100% 0%)', duration: DUR.slow, ease: EASE.exitSoft, overwrite: true }
-      );
+    const navExitR = /** @type {HTMLElement[]} */ ([...listView.querySelectorAll('.atlas-list-nav-item')]);
+    if (navExitR.length) {
+      gsap.fromTo(navExitR, { clipPath: 'inset(0% 0% 0% 0%)' },
+        { clipPath: 'inset(0% 0% 100% 0%)', duration: DUR.slow, ease: EASE.exitSoft, overwrite: true });
     }
-
-    // ── 未配對星雲元素照舊 clip 進場（含 cityLines draw / ring 起始態），與飛行同時跑 ──
-    introTween = buildMapEnterTl(items.filter(i => i._span && !pairedItems.has(i)));
-    stage.style.visibility = '';
-
-    // ── 飛行 + 進場都完成才收尾 ──
-    Promise.all([...flights, introTween.then()]).then(() => {
-      if (destroyed || currentView !== 'map') return;
-      listView.classList.remove('visible');
-      listView.style.visibility = '';
-      itemPairs.forEach(p => { p.nameLine.style.visibility = ''; });   // renderList 會重建；還原保險
-      navPairs.forEach(p => { p.srcEl.style.visibility = ''; });
-      btns.forEach(b => b.classList.add('atlas-filter-revealed'));     // 落地已加；漏網補上
-      stage.style.opacity = '';
-      refreshFloatRunning();   // 恢復 float：暫停時間補回 → wobble 從凍結相位接續、落點不跳
-      revealLayoutIcon('icon icon-atlas-list');
-      // subchips / career 照原節奏接在 btn 之後展開（btn 已全數落地 → 只留短 gap）
-      const subchipT = /** @type {any} */ (setTimeout(() => {
-        if (selected.has('alumni')) showCareer({ stagger: SUBCHIP_STAGGER });
-      }, SUBCHIP_GAP + 200));
-      revealTimers.push(subchipT);
-      viewMorphing = false;
-      main.classList.remove('atlas-morphing');
-    });
+    return;
   }
 
   if (layoutBtn) {
@@ -5193,6 +5537,7 @@ export async function initAtlas(options = {}) {
     // list 出場（同 playListExit 視覺：lines yPercent 滑出 + chevron clip 收）跑完才換畫面
     // — 直式（轉向提示）跟橫式（星雲）都要有出場，不能瞬切（user 2026-06-13）
     const finalize = () => {
+      evacuateListNodes(listView);   // 單一節點：list 形態節點先撤回星雲 anchor，星雲才有內容可顯示
       listView.classList.remove('visible');
       if (filterEl) filterEl.style.display = 'none'; // 星雲模式收起分類 tab，只留 layout btn 可返回
       updateGateSubVisibility(); // 橫向 gate：alumni 子分頁鈕跟著收

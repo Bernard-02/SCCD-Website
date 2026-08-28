@@ -12,13 +12,7 @@
  * 此 loader 只填內容、不碰互動 → 必須在那些 init 之前 await 完成（main-modular 已 defer）。
  */
 
-import { sitePath } from '../../ui/site-base.js';
-
-const SRC = {
-  vision: '/data/about-vision.json',
-  classes: '/data/about-class.json',
-  works: '/data/about-works.json',
-};
+import { loadAboutVision, loadAboutClasses, loadAboutWorks } from './about-source.js';
 
 // ── Vision（理念）：兩個 [data-overview-hl] span，DOM 順序 = EN、ZH ──
 // 文字寫進內層 [data-overview-text]（手機內捲層，padding 留在外盒）；無內層時退回外盒
@@ -40,26 +34,8 @@ function fillClasses(list) {
     const key = item.divisionKey;
     if (!key) return;
 
-    // 桌面按鈕：第 1 個 div = EN、第 2 個 div = ZH
-    const btn = document.querySelector(`.class-division-btn[data-division="${key}"]`);
-    if (btn) {
-      const divs = btn.querySelectorAll(':scope > div');
-      if (divs[0] && item.nameEn != null) divs[0].textContent = item.nameEn;
-      if (divs[1] && item.nameZh != null) divs[1].textContent = item.nameZh;
-      // 學制標籤（按鈕前一個 .class-group-label，例 BFA 學士班）；groupLabel 空則不動
-      const label = btn.previousElementSibling;
-      if (label && label.classList.contains('class-group-label') && item.groupLabel) {
-        label.textContent = item.groupLabel;
-      }
-    }
-
-    // 手機分組 pill（.mobile-division-btn）：同步 EN/ZH 標籤（與桌面同一資料來源）
-    const mobileBtn = document.querySelector(`.mobile-division-btn[data-division="${key}"]`);
-    if (mobileBtn) {
-      const mdivs = mobileBtn.querySelectorAll('.anchor-nav-inner > div');
-      if (mdivs[0] && item.nameEn != null) mdivs[0].textContent = item.nameEn;
-      if (mdivs[1] && item.nameZh != null) mdivs[1].textContent = item.nameZh;
-    }
+    // 組別按鈕標籤（EN/ZH/學制）已移到 ui_labels 統一管（見 ui-labels.js，data-label-key="program.*"），
+    // 與 curriculum 組別按鈕共用單一後台來源；此 loader 只填圖文段落。
 
     // 圖文段落：一段英文、一段中文（EN 吃 mb-en-zh-body、ZH 末段無距）
     const hl = document.querySelector(`.class-info-panel[data-division="${key}"] [data-class-hl]`);
@@ -125,10 +101,11 @@ function fillWorks(list) {
 }
 
 export async function loadAboutContent() {
+  // Directus 優先，各自本地 fallback（about-source.js）；任一失敗只影響該區、其餘照填
   const [vision, classes, works] = await Promise.all([
-    fetch(sitePath(SRC.vision)).then(r => (r.ok ? r.json() : null)).catch(() => null),
-    fetch(sitePath(SRC.classes)).then(r => (r.ok ? r.json() : null)).catch(() => null),
-    fetch(sitePath(SRC.works)).then(r => (r.ok ? r.json() : null)).catch(() => null),
+    loadAboutVision().catch(() => null),
+    loadAboutClasses().catch(() => null),
+    loadAboutWorks().catch(() => null),
   ]);
   fillVision(vision);
   fillClasses(classes);

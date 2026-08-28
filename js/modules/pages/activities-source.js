@@ -96,10 +96,18 @@ function buildDates(s, e) {
 }
 // dates 欄：優先讀 repeater（每列＝一批 {start, end?}；end 空＝單日 → 前台渲染 MM/DD, MM/DD 逗號串接）；
 // 沒填 repeater 才 fallback 舊的單一 startDate/endDate scalar（遷移期並存，舊資料照常）。
-function buildDateGroups(reps, s, e) {
+// industry 改用 press 式單一日期 year + monthDay（"MM-DD"，無 range/repeater）→ 組成單一 date group 供分組/排序；
+// monthDay 缺就當該年 1/1（只用年份排序）。只 industry 有 year 欄，其他 collection 不受影響。
+function buildDateGroups(reps, s, e, year, monthDay) {
   if (Array.isArray(reps) && reps.length)
     return reps.filter(d => d?.start).map(d => buildDates(d.start, d.end)[0]);
-  return s ? buildDates(s, e) : [];
+  if (s) return buildDates(s, e);
+  if (year) {
+    const m = String(monthDay || '').match(/(\d{1,2})\D+(\d{1,2})/);
+    const mo = m ? +m[1] : 1, da = m ? +m[2] : 1;
+    return [{ startYear: +year, startMonth: mo, startDay: da, endYear: +year, endMonth: mo, endDay: da }];
+  }
+  return [];
 }
 const ytUrls = (arr) => Array.isArray(arr) ? arr.map(v => typeof v === 'string' ? v : (v?.url || '')).filter(Boolean) : [];
 
@@ -124,7 +132,7 @@ function mapRow(r, category, stamp) {
     ...(category ? { category } : {}),           // dedicated collection 無 category 欄 → 補上給 categoryFilter 比對
     ...(stamp || {}),                            // visitType / exhibitionType 等子類型判別欄（同上）
     description: r.descriptionEn || '',          // introField 預設 'description' 讀 item.description（EN）；descriptionZh 前台自動讀
-    dates: buildDateGroups(r.dates, r.startDate, r.endDate),
+    dates: buildDateGroups(r.dates, r.startDate, r.endDate, r.year, r.monthDay),
     poster: fileUrl(r.poster),
     images: normalizeFiles(r.images),
     videos: ytUrls(r.videoLinks),
@@ -137,6 +145,8 @@ function mapRow(r, category, stamp) {
 
 // loadListInto 吃的活動類 data 是 year-grouped [{year, items}]（見 activities-data-loader.js loadListInto 註解）。
 // 依 dates[0].startYear 分組、新→舊；無日期歸到 '—' 排最後。
+// 組內再依「月/日新→舊」排序（user 2026-08-28：清單一律 12→1 月，不吃後台手動 sort；無日期者排最後、同日期保留原 sort 當 tiebreaker）。
+const monthDayKey = it => { const d = it.dates?.[0]; return d ? (d.startMonth || 0) * 100 + (d.startDay || 0) : -Infinity; };
 function groupByYear(items) {
   const byYear = new Map();
   items.forEach(it => {
@@ -146,13 +156,14 @@ function groupByYear(items) {
   });
   return [...byYear.entries()]
     .sort((a, b) => (Number(b[0]) || -Infinity) - (Number(a[0]) || -Infinity))
-    .map(([year, items]) => ({ year, items }));
+    .map(([year, items]) => ({ year, items: [...items].sort((a, b) => monthDayKey(b) - monthDayKey(a)) }));
 }
 
 /**
  * @param {string} collection  Directus collection（如 'activities_competitions'）
  * @param {string} fallbackUrl 本地 JSON 路徑（Directus 失敗/空時用）
- * @param {{category?: string, stamp?: object}} [opts]  stamp = 補到每筆的子類型判別欄（visitType/exhibitionType）
+ * @param {{category?: string, stamp?: object, sortByDate?: boolean}} [opts]  stamp = 補到每筆的子類型判別欄（visitType/exhibitionType）；
+ *   sortByDate = 前台依單一日期(year+monthDay)排序而非後台 sort 欄（industry 用，見上）
  */
 export async function loadActivityCollection(collection, fallbackUrl, opts = {}) {
   try {
@@ -165,7 +176,13 @@ export async function loadActivityCollection(collection, fallbackUrl, opts = {})
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const rows = (await res.json()).data;
     if (!Array.isArray(rows) || !rows.length) throw new Error('empty');
-    return groupByYear(rows.map(r => mapRow(r, opts.category, opts.stamp)));
+    const mapped = rows.map(r => mapRow(r, opts.category, opts.stamp));
+    // industry：前台依單一日期排序（新→舊），不吃後台 sort 欄。groupByYear 保留組內順序＝月日新→舊。
+    if (opts.sortByDate) {
+      const key = it => { const d = it.dates?.[0]; return d ? d.startYear * 10000 + (d.startMonth || 0) * 100 + (d.startDay || 0) : -Infinity; };
+      mapped.sort((a, b) => key(b) - key(a));
+    }
+    return groupByYear(mapped);
   } catch (err) {
     console.warn(`[activities-source] ${collection} CMS fetch failed → 本地 ${fallbackUrl}:`, err.message);
     return fetch(sitePath(fallbackUrl)).then(r => r.json());

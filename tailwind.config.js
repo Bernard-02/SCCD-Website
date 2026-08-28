@@ -46,8 +46,8 @@ module.exports = {
       // 字體系統
       fontFamily: {
         'inter': ['Inter', 'sans-serif'],
-        'noto': ['Noto Sans TC', 'sans-serif'],
-        'sans': ['Inter', 'Noto Sans TC', 'system-ui', '-apple-system', 'sans-serif'],
+        'noto': ['Noto Sans TC', 'Noto Sans JP', 'Noto Sans SC', 'sans-serif'],
+        'sans': ['Inter', 'Noto Sans TC', 'Noto Sans JP', 'Noto Sans SC', 'system-ui', '-apple-system', 'sans-serif'],
       },
 
       // 字體大小 (使用 rem)：[字級, 行距] tuple → .text-* 自帶該階 line-height（size-based，2026-08-12）

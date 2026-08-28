@@ -9,7 +9,7 @@ import { setupClipReveal } from '../ui/scroll-animate.js';
 import { initListAccordion } from '../accordions/list-accordion.js';
 import { loadListInto } from './activities-data-loader.js';
 import { DUR, EASE } from '../ui/motion.js';
-import { sitePath } from '../ui/site-base.js';
+import { loadAdmissionAnnouncements } from './admission-source.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 
 // admission news 走通用 loadListInto（canonical list template），靠 options 切變體：
@@ -43,10 +43,10 @@ function parseNewsDate(s) {
 export async function loadAdmissionData() {
   const container = document.getElementById('admission-list');
   if (!container) return;
-  // 讀本地 JSON（WP-headless 邏輯已移除 2026-06-05）；之後 flip 接 Directus 時改 Directus 為主 + 本地 fallback。
+  // Directus admission_announcements 優先，本地 admission.json fallback（admission-source.js）
   let data;
   try {
-    data = await fetch(sitePath('data/admission.json')).then(r => r.json());
+    data = await loadAdmissionAnnouncements();
   } catch (error) {
     console.error('Error loading admission data:', error);
     return;

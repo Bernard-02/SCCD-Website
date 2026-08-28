@@ -9,9 +9,11 @@ import { renderPdfCover } from '../ui/pdf-cover.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { loadCourses } from '../pages/courses-source.js';
 import { loadSummerCamp } from '../pages/summer-camp-source.js';
-import { loadActivityCollection } from '../pages/activities-source.js';
+import { loadActivityCollection, loadPermanentExhibitions } from '../pages/activities-source.js';
+import { loadOthersAlbum } from '../pages/library-album-source.js';
 import { sitePath } from '../ui/site-base.js';
 import { CMS_API_BASE, CMS_ASSETS_BASE } from '../../config/api.js';
+import { shortLibId } from '../pages/library-deeplink.js';
 
 // 進/退場（2026-08-17 圖片卡改 clip-reveal；2026-08-19 文字卡也改 clip-reveal）：
 // 圖片卡＝wrapper（overflow:hidden、自身無 transform——RAF 位移在 mover、搖擺在 rotator）當現成遮罩，
@@ -58,9 +60,10 @@ async function fetchActivityPosters() {
   const files = [];
   const album = [];
 
-  // permanent-exhibitions：巢狀 parent/child shape，尚未接 Directus（見 activities-data-loader.js loadExhibitionsInto 註解），維持純本地讀取。
+  // permanent-exhibitions：改用共用 loadPermanentExhibitions（Directus activities_exhibitions_permanent 優先、失敗 fallback 本地）
+  // → id/poster 跟 activities 頁渲染同源，deep-link item id 才對得上（同 workshop/lecture 慣例）。
   try {
-    const data = await fetch(sitePath('data/permanent-exhibitions.json')).then(r => r.json());
+    const data = await loadPermanentExhibitions('/data/permanent-exhibitions.json');
     const groups = Array.isArray(data) ? data : (data.items || data.records || []);
     groups.forEach(group => {
       const items = Array.isArray(group) ? group : (group.items || []);
@@ -180,7 +183,7 @@ async function fetchActivityPosters() {
     if (!Array.isArray(rows) || rows.length === 0) throw new Error('CMS empty');
     rows.forEach(r => {
       if (r.cover && r.id != null) {
-        files.push({ type: 'image', src: `${CMS_ASSETS_BASE}/${r.cover}?key=web`, url: `pages/library.html#f-${r.id}` });
+        files.push({ type: 'image', src: `${CMS_ASSETS_BASE}/${r.cover}?key=web`, url: `pages/library.html#f-${shortLibId(r.id)}` });
       }
     });
   } catch (_) {
@@ -195,14 +198,17 @@ async function fetchActivityPosters() {
   }
 
   // Album → library.html#album-{id}（無 id 則只到 album panel）
+  // 改用共用 loadOthersAlbum（Directus library_album 優先、失敗 fallback 本地 album-others.json）→ id 跟 album 面板同源。
+  // Directus row 無 cover 欄（用 images[]），fallback 本地才有 cover → 兩者相容取 cover || images[0]。
   try {
-    const albumGroups = await fetch(sitePath('data/album-others.json')).then(r => r.json());
+    const albumGroups = await loadOthersAlbum();
     albumGroups.forEach(group => {
       (group.items || []).forEach(item => {
-        if (item.cover) {
+        const cover = item.cover || item.images?.[0];
+        if (cover) {
           album.push({
             type: 'image',
-            src: normalizeImagePath(item.cover),
+            src: normalizeImagePath(cover),
             url: item.id ? `pages/library.html#album-${item.id}` : 'pages/library.html',
           });
         }
@@ -239,23 +245,41 @@ async function fetchCourseTexts() {
   return pool;
 }
 
-// 從 records.json 撈 awards title（有導航）
+// awards title 浮動文字卡（有導航）
+// ⚠️ 同 award 面板「同源、同 id 規則」：Directus library_awards → element id = a-<row.id>（見 library-panels mapDirectusAwardRow）。
+//    直讀本地 records.json 的 a-YYYY-NN 舊 id 跟面板 Directus row id 對不上 → deep-link #{id} 撈不到。
+//    Directus 失敗才 fallback records.json（此時面板也 fallback、id 一致）。
+function buildAwardText(competition, rank, competitionEn, rankEn) {
+  const zh = `${competition} ${rank}`.trim();
+  const en = competitionEn ? `${rankEn || ''}, ${competitionEn}`.trim().replace(/^,\s*/, '') : '';
+  return { zh, en };
+}
 async function fetchAwardTexts() {
   const pool = [];
+  try {
+    const res = await fetch(`${CMS_API_BASE}/library_awards?fields=id,country,competitionEn,competitionZh,rankEn,rankZh,ranks&sort=-year,sort&limit=-1`);
+    if (!res.ok) throw new Error('CMS ' + res.status);
+    const rows = (await res.json())?.data;
+    if (!Array.isArray(rows) || rows.length === 0) throw new Error('CMS empty');
+    rows.forEach(r => {
+      if (!r.competitionZh && !r.competitionEn) return;
+      if (r.country === 'tw') return; // 只顯示台灣以外的獎項
+      const rank = r.rankZh || r.ranks?.[0]?.zh || '';
+      const rankEn = r.rankEn || r.ranks?.[0]?.en || '';
+      const { zh, en } = buildAwardText(r.competitionZh, rank, r.competitionEn, rankEn);
+      pool.push({ type: 'text', textEn: en, textZh: zh, url: `pages/library.html${r.id != null ? `#a-${r.id}` : ''}` });
+    });
+    return pool;
+  } catch (_) {}
+  // fallback 本地 records.json（id 本就是 a-YYYY-NN，跟面板 fallback 一致）
   try {
     const data = await fetch(sitePath('data/records.json')).then(r => r.json());
     (data.records || []).forEach(yearGroup => {
       (yearGroup.items || []).forEach(item => {
         if (!item.competition) return;
-        if (item.flag === 'tw') return; // 只顯示台灣以外的獎項
-        // 中文：競賽名稱 加空格 rank
-        const zh = `${item.competition} ${item.rank}`;
-        // 英文：rank, 競賽名稱
-        const en = item.competition_en
-          ? `${item.rank_en || ''}, ${item.competition_en}`.trim().replace(/^,\s*/, '')
-          : '';
-        const hash = item.id ? `#${item.id}` : '';
-        pool.push({ type: 'text', textEn: en, textZh: zh, url: `pages/library.html${hash}` });
+        if (item.flag === 'tw') return;
+        const { zh, en } = buildAwardText(item.competition, item.rank, item.competition_en, item.rank_en);
+        pool.push({ type: 'text', textEn: en, textZh: zh, url: `pages/library.html${item.id ? `#${item.id}` : ''}` });
       });
     });
   } catch (_) {}
@@ -297,7 +321,7 @@ async function populatePressCovers(pool, isCancelled) {
     if (isCancelled()) return;
     const src = e.isPdf ? await renderPdfCover(normalizeImagePath(e.cover)) : normalizeImagePath(e.cover);
     if (!src || isCancelled()) return;
-    pool.push({ type: 'image', src, url: `pages/library.html#${e.id}`, _cat: 'press' });
+    pool.push({ type: 'image', src, url: `pages/library.html#${shortLibId(e.id)}`, _cat: 'press' });
   }));
 }
 
@@ -449,7 +473,7 @@ function createTextEl(textEn, textZh, url) {
     display: inline-block;
     position: absolute;
     top: 0; left: 0;
-    padding: 0.5rem 0.75rem;
+    padding: 6px 8px 5px;
     font-weight: 700;
     line-height: var(--line-height-s);
     will-change: transform;
@@ -943,7 +967,7 @@ export async function initFloatingItems() {
 
     for (let i = items.length - 1; i >= 0; i--) {
       const item = items[i];
-      const speedMult = item.hovered ? 0.3 : 1;
+      const speedMult = item.hovered ? 0 : 1;  // hover 完全停住（user 2026-08-28：原本 0.3 減速→改停下，方便點擊）
       item.x += item.vx * speedMult;
       item.y += item.vy * speedMult;
 

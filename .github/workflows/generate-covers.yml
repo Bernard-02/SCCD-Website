@@ -1,7 +1,8 @@
-name: 產 library 封面（每日）
+name: 產 library 封面 + 圖片轉 webp（每日）
 
-# 每天自動把「還沒有封面」的新書 PDF 第一頁渲成封面圖回填 Directus，
-# 免每次手動跑 scripts/generate-library-covers.cjs。腳本是 idempotent：沒有新書就 no-op。
+# 每天自動：①把「還沒有封面」的新書 PDF 第一頁渲成封面圖回填 Directus
+#          ②把檔案庫所有 jpeg/png 原地轉 webp（同 UUID、前台零改）補轉新上傳的圖
+# 兩支腳本都 idempotent：沒有新書/新圖就 no-op。
 on:
   schedule:
     - cron: '0 18 * * *'   # 每天 UTC 18:00 = 台北 02:00（離峰）
@@ -19,5 +20,9 @@ jobs:
       - run: npm install playwright@1.61.1
       - run: npx playwright install --with-deps chromium
       - run: node scripts/generate-library-covers.cjs
+        env:
+          DIRECTUS_TOKEN: ${{ secrets.DIRECTUS_TOKEN }}
+      # 封面產完後，把所有 jpeg/png（含新上傳圖與剛產的封面）原地轉 webp。idempotent：已是 webp 的自動跳過。
+      - run: node scripts/convert-images-to-webp.cjs
         env:
           DIRECTUS_TOKEN: ${{ secrets.DIRECTUS_TOKEN }}

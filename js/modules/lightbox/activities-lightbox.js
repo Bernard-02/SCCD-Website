@@ -140,15 +140,15 @@ function ensureLightbox() {
       <!-- overflow-x:auto 會讓 overflow-y 被瀏覽器隱式設成 auto，沒 padding 上下 outline 會被 clip 掉 -->
       <div class="alb-thumbs flex items-center gap-sm" style="max-width: min(80vw, 960px); overflow-x: auto;"></div>
       <div class="alb-zoom-controls absolute text-white" style="right: var(--container-padding, 1.5rem); top: 50%; transform: translateY(-50%); display: none; align-items: center; gap: 12px;">
-        <button class="alb-zoom-out p-2 transition-opacity hover:opacity-60 disabled:opacity-30" aria-label="Zoom out">
+        <button class="alb-zoom-out p-2 transition-opacity hover:opacity-60 aria-disabled:opacity-30 aria-disabled:hover:opacity-30 aria-disabled:[cursor:var(--cursor-not-allowed)]" aria-label="Zoom out">
           <span class="icon icon-zoom-out icon-m"></span>
         </button>
         <span class="alb-zoom-pct text-s" style="font-variant-numeric: tabular-nums; min-width: 3.5rem; text-align: center;">100%</span>
-        <button class="alb-zoom-in p-2 transition-opacity hover:opacity-60 disabled:opacity-30" aria-label="Zoom in">
+        <button class="alb-zoom-in p-2 transition-opacity hover:opacity-60 aria-disabled:opacity-30 aria-disabled:hover:opacity-30 aria-disabled:[cursor:var(--cursor-not-allowed)]" aria-label="Zoom in">
           <span class="icon icon-zoom-in icon-m"></span>
         </button>
         <!-- Fit-to-window 按鈕（user 2026-06-02）：點下去切到 fit；已在 fit 時 disabled -->
-        <button class="alb-fit-toggle p-2 transition-opacity hover:opacity-60 disabled:opacity-30" aria-label="Fit to window">
+        <button class="alb-fit-toggle p-2 transition-opacity hover:opacity-60 aria-disabled:opacity-30 aria-disabled:hover:opacity-30 aria-disabled:[cursor:var(--cursor-not-allowed)]" aria-label="Fit to window">
           <span class="icon icon-fit-viewport icon-m"></span>
         </button>
       </div>
@@ -318,12 +318,14 @@ function updateZoomUI() {
   const fitRatio = getFitRatio();
   const displayPct = Math.round(zoom.scale * (fitRatio > 0 ? fitRatio : 1) * 100);
   zoomPctEl.textContent = `${displayPct}%`;
-  zoomInBtn.disabled  = zoom.scale >= maxScale() - 0.001;
-  zoomOutBtn.disabled = zoom.scale <= minScale() + 0.001;
+  // aria-disabled 不用原生 disabled：Chrome 對原生 disabled 強制預設箭頭、not-allowed 游標出不來
+  // （同 chevron）；zoomAt/zoomToScale 有 no-op clamp，點擊本就無效果
+  zoomInBtn.setAttribute('aria-disabled', String(zoom.scale >= maxScale() - 0.001));
+  zoomOutBtn.setAttribute('aria-disabled', String(zoom.scale <= minScale() + 0.001));
   // fit-toggle 功能單一（切到 fit）；已在 fit 狀態時 disable（user 2026-06-02）
   // icon 用 CSS mask 系統 .icon-fit-viewport（HTML 寫死，不再 JS 切 className）
   if (fitToggleBtn) {
-    fitToggleBtn.disabled = Math.abs(zoom.scale - fitScale()) < 0.001;
+    fitToggleBtn.setAttribute('aria-disabled', String(Math.abs(zoom.scale - fitScale()) < 0.001));
   }
 }
 
@@ -752,7 +754,8 @@ function positionUIRelativeToLogo() {
   if (!logo) return;
   const rect = logo.getBoundingClientRect();
   const logoBottom = rect.bottom;
-  const ZOOM_GAP = 16;
+  // ZOOM_GAP 36：對齊 atlas 歷屆教師 nav btn 與 logo 底邊的距離（user 2026-08-24 嫌太靠近 logo；實測 atlas 36px）。
+  const ZOOM_GAP = 36;
   const SHELL_PT = 24;
   if (mainContainerEl) mainContainerEl.style.paddingTop = `${Math.max(0, logoBottom + ZOOM_GAP - SHELL_PT)}px`;
 }

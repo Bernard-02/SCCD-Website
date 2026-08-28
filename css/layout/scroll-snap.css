@@ -126,4 +126,19 @@ html {
   #works .section-title-strip { top: calc(15vh + 100px) !important; }
 
   #resources { height: 100vh; }
+
+  /* Vision/Programs/Works 文字盒一屏 desktop 版（user 2026-08-27）：一屏（100vh section）下長文改內捲、
+     不撐破版面往下屆溢出；顯示細黑 scrollbar（about.html 內層 [data-*-text] 加 .list-scroll class）。
+     手機/矮橫向早已各自內捲（軸隱藏，見 variables.css / landscape.css）。
+     max-height 扣掉各 section 內容起點 top offset（見上方各 padding）＋底部呼吸；padding-right 讓 10px thumb 不壓字。
+     只在 100vh gate（min-height:900）生效＝短桌面維持自然高、頁面照常往下捲，無 regression。 */
+  #overview [data-overview-text],
+  .class-info-panel [data-class-text],
+  .class-works-panel [data-works-text] {
+    overflow-y: auto;
+    padding-right: var(--spacing-sm);
+  }
+  #overview [data-overview-text] { max-height: calc(100svh - 340px); }
+  .class-info-panel [data-class-text] { max-height: calc(100svh - 440px); }
+  .class-works-panel [data-works-text] { max-height: calc(100svh - 400px); }
 }

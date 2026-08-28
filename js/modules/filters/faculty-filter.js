@@ -474,6 +474,74 @@ export function initFacultyFilter() {
     });
   });
 
+  // ── Department tabs（老師分頁；第二系所暫無資料＝空 roster；user 2026-08-23 先確認位置）──
+  // 沿用 category filter 的 exit → 切換 → enter 流程；chip active accent 同 setActiveStyle 做法。
+  const deptButtons = document.querySelectorAll('.faculty-dept-btn');
+  if (deptButtons.length) {
+    const setDeptActiveStyle = (activeBtn, color) => {
+      deptButtons.forEach(b => {
+        const inner = /** @type {HTMLElement|null} */ (b.querySelector('.anchor-nav-inner'));
+        if (inner) { inner.style.background = ''; inner.style.transform = ''; }
+      });
+      const inner = /** @type {HTMLElement|null} */ (activeBtn.querySelector('.anchor-nav-inner'));
+      if (inner) { inner.style.background = color; inner.style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`; }
+    };
+    deptButtons.forEach(button => {
+      button.addEventListener('click', function() {
+        if (this.classList.contains('active')) { SCCDHelpers.scrollToElement('#faculty-cards'); this.blur(); return; }
+        setDeptActiveStyle(this, SCCDHelpers.getRandomAccentColor());
+        SCCDHelpers.setActive(this, deptButtons);
+        const dept = this.getAttribute('data-dept');
+        const currentlyVisible = Array.from(facultyCards).filter(c => /** @type {HTMLElement} */ (c).style.display !== 'none');
+        exitFacultyCards(currentlyVisible, () => {
+          if (dept === 'sccd') {
+            // 還原目前分類（fulltime/parttime/admin）的卡片並重播進場
+            const cat = document.querySelector('.faculty-filter-btn.active')?.getAttribute('data-filter') || 'fulltime';
+            SCCDHelpers.filterElements(facultyCards, cat);
+            animateFacultyCards(Array.from(facultyCards).filter(c => c.getAttribute('data-category') === cat));
+          } else {
+            facultyCards.forEach(c => { /** @type {HTMLElement} */ (c).style.display = 'none'; });
+          }
+        });
+        this.blur();
+      });
+    });
+    const defDept = [...deptButtons].find(b => b.getAttribute('data-dept') === 'sccd');
+    if (defDept) setDeptActiveStyle(defDept, SCCDHelpers.getRandomAccentColor());
+
+    // Dept tag 進出場：比照 activities sub-filter chip 的 hero clip-reveal（純垂直由下滑入——不套 navChipHidden，
+    // 免 active chip 的隨機 rotate 把位移向量轉斜；clip/translate 套在 .anchor-nav-inner 本身，旋轉角不被裁）。
+    // 進場＝section 進視窗（同左 nav reveal 時機）；退場＝離頁。transition:'none' 解 navigation.css `transition:all` 衝突。
+    const deptInners = [...deptButtons].map(b => /** @type {HTMLElement|null} */ (b.querySelector('.anchor-nav-inner'))).filter(Boolean);
+    const deptHidden = (el) => ({ clipPath: 'inset(0% 0% 100% 0%)', translate: `0px ${el.offsetHeight || 0}px` });
+    if (typeof gsap !== 'undefined' && deptInners.length && !prefersReducedMotion()) {
+      let deptRevealed = false;
+      deptInners.forEach(el => { el.style.transition = 'none'; gsap.set(el, deptHidden(el)); });
+      const playDeptReveal = () => {
+        if (deptRevealed) return;
+        deptRevealed = true;
+        deptInners.forEach(el => { el.style.transition = 'none'; });
+        const hid = deptInners.map(deptHidden);
+        gsap.fromTo(deptInners,
+          { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate },
+          { ...NAV_CHIP_SHOWN, duration: DUR.slow, ease: EASE.enter, stagger: 0.08, clearProps: 'clipPath,transition,translate' });
+      };
+      const deptSection = document.getElementById('faculty-cards');
+      const deptInView = deptSection && deptSection.getBoundingClientRect().top < window.innerHeight * 0.9;
+      if (!deptSection || deptInView || typeof ScrollTrigger === 'undefined') playDeptReveal();
+      else ScrollTrigger.create({ trigger: deptSection, start: 'top 90%', once: true, onEnter: playDeptReveal });
+      registerPageExit(() => new Promise(resolve => {
+        if (!deptRevealed) { resolve(); return; }
+        gsap.killTweensOf(deptInners);
+        deptInners.forEach(el => { el.style.transition = 'none'; });
+        const hid = deptInners.map(deptHidden);
+        gsap.fromTo(deptInners,
+          { ...NAV_CHIP_SHOWN },
+          { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate, duration: DUR.base, ease: EASE.exit, stagger: 0.06, overwrite: true, onComplete: resolve });
+      }));
+    }
+  }
+
   // Initialize: set random color on the default active button
   const defaultBtn = [...filterButtons].find(b => b.getAttribute('data-filter') === 'fulltime');
   if (defaultBtn) setActiveStyle(defaultBtn, SCCDHelpers.getRandomAccentColor());

@@ -4,7 +4,7 @@
  */
 
 import { initRotatedAccordion } from '../../accordions/horizontal-accordion.js';
-import { sitePath } from '../../ui/site-base.js';
+import { loadAboutResources } from './about-source.js';
 import { prefersReducedMotion } from '../../ui/reduce-motion.js';
 import { registerPageExit } from '../../ui/page-exit.js';
 import { playClipPathExit } from '../../ui/scroll-animate.js';
@@ -13,12 +13,8 @@ export function initResourcesCycling() {
   const container = document.getElementById('resources-accordion-container');
   if (!container) return;
 
-  // Fetch data from JSON file
-  fetch(sitePath('data/about-resources.json'))
-    .then(response => {
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status} - Check if data/about-resources.json exists`);
-      return response.json();
-    })
+  // Directus 優先，本地 fallback（about-source.js）
+  loadAboutResources()
     .then(resourcesContent => {
       renderResourcesAccordion(resourcesContent, container);
     })
@@ -50,9 +46,9 @@ function renderResourcesAccordion(data, container) {
       <div class="accordion-body">
         <div class="accordion-body-inner">
           <div class="accordion-img-wrap">
-            <img src="${item.image}" alt="${item.title}" class="w-full h-full object-cover">
+            <img src="${item.image}" alt="${item.title}" class="w-full h-full object-cover" onerror="this.closest('.accordion-img-wrap').style.display='none'">
           </div>
-          <div class="accordion-text-wrap">
+          <div class="accordion-text-wrap list-scroll">
             <!-- data-resources-text：手機內捲層（padding 留在 text-wrap 上不隨捲動，同 vision/class/works pattern） -->
             <div data-resources-text>
               <p class="text-white mb-en-zh-body">${item.textEn || item.descriptionEn}</p>

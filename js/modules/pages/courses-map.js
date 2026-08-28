@@ -308,6 +308,13 @@ function buildHTML(program, courses) {
 
 // 無障礙 modal：記住開啟課程詳情的觸發元素，關閉時把焦點還回去
 let coursesReturnFocus = /** @type {HTMLElement|null} */ (null);
+// 返回鍵 clip-reveal：每次開隨機四方向滑入、退場沿原方向滑回（2026-08-24 從固定由下改；同 faculty-slide-in.js。
+// 不用 pickNavDir：方塊是正方形，其「沿較短邊」規則會恆挑 top/bottom、退化成只剩上下兩向）
+const BACK_DIRS = [
+  { xPercent: 0, yPercent: 100 }, { xPercent: 0, yPercent: -100 },
+  { xPercent: 100, yPercent: 0 }, { xPercent: -100, yPercent: 0 },
+];
+let backHidden = BACK_DIRS[0];
 function getSlideIn()      { return document.getElementById('courses-slide-in'); }
 function getSlidePanel()   { return document.getElementById('courses-detail-panel'); }
 function getSlideOverlay() { return document.getElementById('courses-overlay'); }
@@ -373,14 +380,23 @@ function openCourseSlideIn(card) {
   coursesReturnFocus = /** @type {HTMLElement|null} */ (document.activeElement);
   slideIn.classList.remove('invisible', 'pointer-events-none');
   slideIn.classList.add('pointer-events-auto');
-  // 桌面黑方塊返回鍵：每次開重隨機旋轉（角度套外層遮罩）+ inner 平移做 hero clip-reveal（比照 header bars：外層 overflow:clip 當遮罩、inner 從下方滑入被剪裁）
+  // 桌面黑方塊返回鍵：每次開重隨機旋轉（角度套外層遮罩）+ inner 平移做 hero clip-reveal（比照 header bars：外層 overflow:clip 當遮罩、inner 隨機四方向滑入被剪裁）
   const backBtn = document.getElementById('courses-back-btn-desktop');
   let backInner = null;
   if (backBtn) {
     backBtn.style.transform = `rotate(${Math.random() * 30 - 15}deg)`;
+    // hover 重擲隨機角度（同 faculty-slide-in.js；guard 防每次開重綁）
+    if (!backBtn.dataset.hoverRotBound) {
+      backBtn.dataset.hoverRotBound = '1';
+      backBtn.addEventListener('mouseenter', () => {
+        backBtn.style.transform = `rotate(${Math.random() * 30 - 15}deg)`;
+      });
+    }
     if (typeof gsap !== 'undefined' && !prefersReducedMotion() && window.innerWidth >= 768) {
       backInner = backBtn.querySelector('.slide-in-back-square-inner');
-      if (backInner) gsap.set(backInner, { yPercent: 100 });
+      backHidden = BACK_DIRS[Math.floor(Math.random() * BACK_DIRS.length)];
+      // 兩軸都 set：洗掉上次退場殘留的另一軸位移
+      if (backInner) gsap.set(backInner, backHidden);
     }
   }
   requestAnimationFrame(() => panel.focus({ preventScroll: true }));
@@ -409,8 +425,8 @@ function openCourseSlideIn(card) {
       .to(htmlEl, { '--slide-bg-color': panelBg, duration: DUR.medium, ease: EASE.enter }, 0.3);
     // 返回鍵跟 panel 同步 clip-reveal
     if (backInner) {
-      tl.fromTo(backInner, { yPercent: 100 },
-        { yPercent: 0, duration: DUR.medium, ease: EASE.enter, clearProps: 'transform' }, 0.3);
+      tl.fromTo(backInner, backHidden,
+        { xPercent: 0, yPercent: 0, duration: DUR.medium, ease: EASE.enter, clearProps: 'transform' }, 0.3);
     }
   } else {
     overlay.style.opacity = '0.8';
@@ -459,9 +475,9 @@ export function closeCourseSlideIn() {
       .to(htmlEl, { '--slide-bg-color': dimBg, duration: DUR.medium, ease: EASE.exit }, 0)
       .to(overlay, { opacity: 0, duration: DUR.fast }, 0.5)
       .to(htmlEl, { '--slide-bg-color': targetBg, duration: DUR.fast }, 0.5);
-    // 返回鍵跟 panel 同步 clip-reveal 退場（inner 滑回下方被遮罩剪掉；panel 退場 offset 0）
+    // 返回鍵跟 panel 同步 clip-reveal 退場（inner 沿進場方向滑回被遮罩剪掉；panel 退場 offset 0）
     if (backInner && !prefersReducedMotion() && window.innerWidth >= 768) {
-      tl.to(backInner, { yPercent: 100, duration: DUR.medium, ease: EASE.exit }, 0);
+      tl.to(backInner, { ...backHidden, duration: DUR.medium, ease: EASE.exit }, 0);
     }
     tl.call(() => {
         slideIn.classList.add('invisible', 'pointer-events-none');

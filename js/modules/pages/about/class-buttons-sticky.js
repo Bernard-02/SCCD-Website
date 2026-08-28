@@ -106,6 +106,23 @@ export function initClassButtonsSticky() {
   // 首次進入 works（本次 About 訪問）時自動 active BFA；之後保留使用者選擇
   let hasEnteredWorks = false;
 
+  // works 內容進場（每次 About 訪問一次）：setDivisionActive('bfa',false) 已 instant 顯示 active panel，
+  // 這裡把它先藏起、待 works panels 進視窗才 clip-reveal（比照 class slideshow 的 revealActive）。
+  // 進 works context 時 panels 常仍在視窗下方；若已在視窗內（矮視窗）則立即播（ST 已過 start 不會 onEnter）。
+  let worksEntranceDone = false;
+  function armWorksEntrance() {
+    if (worksEntranceDone || typeof window.SCCD_hideWorksActive !== 'function') return;
+    worksEntranceDone = true;
+    window.SCCD_hideWorksActive();
+    const inZone = worksPanels.getBoundingClientRect().top <= window.innerHeight * 0.88;
+    if (inZone || typeof ScrollTrigger === 'undefined') {
+      window.SCCD_revealWorksActive();
+    } else {
+      ScrollTrigger.create({ trigger: worksPanels, start: 'top 88%', once: true,
+        onEnter: () => window.SCCD_revealWorksActive() });
+    }
+  }
+
   ScrollTrigger.create({
     trigger: infoArea,
     start: 'bottom 55%',   // 圖文底部到達視窗 55% 時觸發
@@ -127,6 +144,7 @@ export function initClassButtonsSticky() {
         if (typeof window.SCCD_setDivisionActive === 'function') {
           window.SCCD_setDivisionActive('bfa', false);
         }
+        armWorksEntrance();  // 字卡+影片改成進場（原本 setDivisionActive 是 instant 顯示）
       } else if (typeof window.SCCD_recolorActiveDivision === 'function') {
         // 之後每次滑進 works 都重新換色（保留當前 active division，只換色+旋轉，避開 works 封鎖綫）
         window.SCCD_recolorActiveDivision();

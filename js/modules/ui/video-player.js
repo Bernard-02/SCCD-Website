@@ -1,5 +1,6 @@
 import { DUR, EASE } from './motion.js';
 import { sitePath } from './site-base.js';
+import { navChipHidden, NAV_CHIP_SHOWN } from './scroll-animate.js';
 /**
  * Video Player
  * Netflix 風格全螢幕播放器
@@ -390,16 +391,11 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete, fr
     return r;
   }
 
-  // clipPath reveal：從四個方向之一展開
-  // inset(top right bottom left)，全遮 = inset(0 100% 0 0) 之類
-  const CLIP_DIRS = {
-    top:    { from: 'inset(0% 0% 100% 0%)', to: 'inset(0% 0% 0% 0%)' },
-    bottom: { from: 'inset(100% 0% 0% 0%)', to: 'inset(0% 0% 0% 0%)' },
-    left:   { from: 'inset(0% 100% 0% 0%)', to: 'inset(0% 0% 0% 0%)' },
-    right:  { from: 'inset(0% 0% 0% 100%)', to: 'inset(0% 0% 0% 0%)' },
-  };
+  // hero clip-reveal（滑動＋遮罩，同全站 nav chip / lightbox 影片 UI）：rotation 寫 block 自身 transform
+  // （靜止傾角、reveal 期間不變），動畫量是獨立的 translate 屬性 + clipPath（兩者共存不打架，見 scroll-animate nav chip 註）。
+  // navChipHidden 依 dir + 當前 rotation 算隱藏態（沿旋轉軸位移 + 方向 inset）。
   const ALL_DIRS   = ['top', 'bottom', 'left', 'right'];
-  const VERT_DIRS  = ['top', 'bottom']; // 中間 bar 限制上下
+  const VERT_DIRS  = ['top', 'bottom']; // 中間 bar 限上下（寬 bar 從左右飛入距離太遠、不像 hero 揭露）
 
   function randDir(dirs) { return dirs[Math.floor(Math.random() * dirs.length)]; }
 
@@ -415,17 +411,14 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete, fr
       isVisible = true;
       const usedRots = [];
       uiBlocks.forEach((block, i) => {
-        const dirs = i === 1 ? VERT_DIRS : ALL_DIRS;
-        const dir  = randDir(dirs);
-        const clip = CLIP_DIRS[dir];
-        const rot  = i === 1 ? randRot(usedRots, -2, 2) : randRot(usedRots);
+        const dir = randDir(i === 1 ? VERT_DIRS : ALL_DIRS);
+        const rot = i === 1 ? randRot(usedRots, -2, 2) : randRot(usedRots);
         usedRots.push(rot);
-        // 記錄進場方向/旋轉 → hideControls 沿同方向反向收回（出場 = 進場反向動畫）
-        block._enterDir = dir;
-        block._enterRot = rot;
+        block.style.transform = `rotate(${rot}deg)`;   // 靜止傾角；navChipHidden 讀它算沿旋轉軸位移
+        block._enterDir = dir;                          // hideControls 沿同方向滑回（出場＝進場反向）
         gsap.fromTo(block,
-          { clipPath: clip.from, rotation: rot },
-          { clipPath: clip.to,   rotation: rot, duration: DUR.base, ease: EASE.enter, overwrite: true }
+          navChipHidden(block, dir),
+          { ...NAV_CHIP_SHOWN, duration: DUR.base, ease: EASE.enter, overwrite: true }
         );
       });
     }
@@ -433,26 +426,21 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete, fr
   }
 
   function hideControls() {
-    // 無操作隱藏：做進場 clip-reveal 的反向動畫（每個 block 沿進場方向收回），取代原本的 opacity fade。
-    // 只在「目前是顯示中」才播收回動畫；初始 / reopen 時 isVisible 為 false → 不播（容器 opacity 已是 0）。
+    // 無操作隱藏：進場 clip-reveal 的反向（每個 block 沿進場方向滑出＋遮罩），只在顯示中才播。
     if (isVisible) {
       uiBlocks.forEach(block => {
         const dir = block._enterDir;
         if (!dir) return;
-        gsap.to(block, {
-          clipPath: CLIP_DIRS[dir].from,
-          rotation: block._enterRot ?? 0,
-          duration: DUR.base, ease: EASE.exit, overwrite: true,
-        });
+        gsap.to(block, { ...navChipHidden(block, dir), duration: DUR.base, ease: EASE.exit, overwrite: true });
       });
     }
     controls.style.pointerEvents = 'none';
     isVisible = false;
   }
 
-  // 初始化
+  // 初始化（clipPath inset(0)＝未 reveal 前的靜止全顯態；rotation 由 showControls 寫 inline transform、這裡不設避免 GSAP 佔用 transform）
   gsap.set(controls, { opacity: 0 });
-  gsap.set(uiBlocks, { clipPath: 'inset(0% 0% 0% 0%)', rotation: 0 });
+  gsap.set(uiBlocks, { clipPath: 'inset(0% 0% 0% 0%)' });
 
   // 按鈕永遠可點擊（即使 controls 容器 pointer-events: none）
   [playBtn, muteBtn, seekBackBtn, seekFwdBtn, fullscreenBtn, closeBtn].forEach(btn => {

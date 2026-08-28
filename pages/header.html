@@ -18,11 +18,11 @@
       <div data-bar="about" class="flex-shrink-0 ml-2xl bg-white rounded-none">
         <nav>
           <ul class="flex items-center gap-xl px-xs py-xs">
-            <li><a href="about.html" class="nav-link"><span>About</span><span class="nav-link-cn">關於</span></a></li>
-            <li><a href="faculty.html" class="nav-link"><span>Faculty</span><span class="nav-link-cn">師資</span></a></li>
-            <li><a href="curriculum.html" class="nav-link"><span>Curriculum</span><span class="nav-link-cn">課程</span></a></li>
-            <li><a href="activities.html" class="nav-link"><span>Activities</span><span class="nav-link-cn">動態</span></a></li>
-            <li><a href="admission.html" class="nav-link"><span>Admissions</span><span class="nav-link-cn">入學</span></a></li>
+            <li><a href="about.html" class="nav-link"><span data-label-key="nav.about" data-label-part="en">About</span><span class="nav-link-cn" data-label-key="nav.about" data-label-part="zh">關於</span></a></li>
+            <li><a href="faculty.html" class="nav-link"><span data-label-key="nav.faculty" data-label-part="en">Faculty</span><span class="nav-link-cn" data-label-key="nav.faculty" data-label-part="zh">師資</span></a></li>
+            <li><a href="curriculum.html" class="nav-link"><span data-label-key="nav.curriculum" data-label-part="en">Curriculum</span><span class="nav-link-cn" data-label-key="nav.curriculum" data-label-part="zh">課程</span></a></li>
+            <li><a href="activities.html" class="nav-link"><span data-label-key="nav.activities" data-label-part="en">Activities</span><span class="nav-link-cn" data-label-key="nav.activities" data-label-part="zh">動態</span></a></li>
+            <li><a href="admission.html" class="nav-link"><span data-label-key="nav.admission" data-label-part="en">Admissions</span><span class="nav-link-cn" data-label-key="nav.admission" data-label-part="zh">入學</span></a></li>
           </ul>
         </nav>
       </div>
@@ -32,7 +32,7 @@
       <div data-bar="alumni-full" class="flex-shrink-0 ml-2xl bg-white rounded-none" style="display: none;">
         <nav>
           <ul class="flex items-center gap-xl px-xs py-xs">
-            <li><a href="alumni.html" class="nav-link"><span>Alumni Association</span><span class="nav-link-cn">系友會</span></a></li>
+            <li><a href="alumni.html" class="nav-link"><span data-label-key="nav.alumni" data-label-part="en">Alumni Association</span><span class="nav-link-cn" data-label-key="nav.alumni" data-label-part="zh">系友會</span></a></li>
           </ul>
         </nav>
       </div>
@@ -55,14 +55,14 @@
       <!-- Library 組 -->
       <div data-bar="library" class="flex-shrink-0 bg-black ml-lg" style="transition: background 0.4s ease;">
         <div class="px-xs py-xs">
-          <a href="library.html" class="nav-link text-white"><span>Library</span><span class="nav-link-cn">檔案室</span></a>
+          <a href="library.html" class="nav-link text-white"><span data-label-key="nav.library" data-label-part="en">Library</span><span class="nav-link-cn" data-label-key="nav.library" data-label-part="zh">檔案室</span></a>
         </div>
       </div>
 
       <!-- Atlas 組 -->
       <div data-bar="atlas" class="flex-shrink-0 bg-black ml-lg" style="transition: background 0.4s ease;">
         <div class="px-xs py-xs">
-          <a href="atlas.html" class="nav-link text-white"><span>Atlas</span><span class="nav-link-cn">圖譜</span></a>
+          <a href="atlas.html" class="nav-link text-white"><span data-label-key="nav.atlas" data-label-part="en">Atlas</span><span class="nav-link-cn" data-label-key="nav.atlas" data-label-part="zh">圖譜</span></a>
         </div>
       </div>
 
@@ -78,7 +78,7 @@
       <!-- Generate 組 -->
       <div data-bar="generate" class="flex-shrink-0 bg-black ml-lg" style="transition: background 0.4s ease;">
         <div class="px-xs py-xs">
-          <a href="create.html" class="nav-link text-white"><span>CREATE!</span><span class="nav-link-cn">創造！</span></a>
+          <a href="create.html" class="nav-link text-white"><span data-label-key="nav.create" data-label-part="en">CREATE!</span><span class="nav-link-cn" data-label-key="nav.create" data-label-part="zh">創造！</span></a>
         </div>
       </div>
 
@@ -135,11 +135,11 @@
         <!-- 上組：about-bar 內 5 項，順序對齊桌面：About → Faculty → Curriculum → Activities → Admissions
              位置靠容器 pt-6xl(128) 清開 header 即可（user 2026-07-09 拿掉原 mt-3xl 額外下推） -->
         <ul class="flex flex-col gap-sm">
-          <li><a href="about.html" class="mobile-nav-link block text-xl font-bold"><span class="mobile-nav-en">About</span> <span class="mobile-nav-zh">關於</span></a></li>
-          <li><a href="faculty.html" class="mobile-nav-link block text-xl font-bold"><span class="mobile-nav-en">Faculty</span> <span class="mobile-nav-zh">師資</span></a></li>
-          <li><a href="curriculum.html" class="mobile-nav-link block text-xl font-bold"><span class="mobile-nav-en">Curriculum</span> <span class="mobile-nav-zh">課程</span></a></li>
-          <li><a href="activities.html" class="mobile-nav-link block text-xl font-bold"><span class="mobile-nav-en">Activities</span> <span class="mobile-nav-zh">動態</span></a></li>
-          <li><a href="admission.html" class="mobile-nav-link block text-xl font-bold"><span class="mobile-nav-en">Admissions</span> <span class="mobile-nav-zh">入學</span></a></li>
+          <li><a href="about.html" class="mobile-nav-link block text-xl font-bold"><span class="mobile-nav-en" data-label-key="nav.about" data-label-part="en">About</span> <span class="mobile-nav-zh" data-label-key="nav.about" data-label-part="zh">關於</span></a></li>
+          <li><a href="faculty.html" class="mobile-nav-link block text-xl font-bold"><span class="mobile-nav-en" data-label-key="nav.faculty" data-label-part="en">Faculty</span> <span class="mobile-nav-zh" data-label-key="nav.faculty" data-label-part="zh">師資</span></a></li>
+          <li><a href="curriculum.html" class="mobile-nav-link block text-xl font-bold"><span class="mobile-nav-en" data-label-key="nav.curriculum" data-label-part="en">Curriculum</span> <span class="mobile-nav-zh" data-label-key="nav.curriculum" data-label-part="zh">課程</span></a></li>
+          <li><a href="activities.html" class="mobile-nav-link block text-xl font-bold"><span class="mobile-nav-en" data-label-key="nav.activities" data-label-part="en">Activities</span> <span class="mobile-nav-zh" data-label-key="nav.activities" data-label-part="zh">動態</span></a></li>
+          <li><a href="admission.html" class="mobile-nav-link block text-xl font-bold"><span class="mobile-nav-en" data-label-key="nav.admission" data-label-part="en">Admissions</span> <span class="mobile-nav-zh" data-label-key="nav.admission" data-label-part="zh">入學</span></a></li>
         </ul>
 
         <!-- 中間空白撐開（兩組視覺分離） -->
@@ -147,13 +147,13 @@
 
         <!-- 下組：utility（Library / Atlas / A.A. / CREATE!） -->
         <ul class="flex flex-col gap-sm">
-          <li><a href="library.html" class="mobile-nav-link block text-xl font-bold"><span class="mobile-nav-en">Library</span> <span class="mobile-nav-zh">檔案室</span></a></li>
-          <li><a href="atlas.html" class="mobile-nav-link block text-xl font-bold"><span class="mobile-nav-en">Atlas</span> <span class="mobile-nav-zh">圖譜</span></a></li>
+          <li><a href="library.html" class="mobile-nav-link block text-xl font-bold"><span class="mobile-nav-en" data-label-key="nav.library" data-label-part="en">Library</span> <span class="mobile-nav-zh" data-label-key="nav.library" data-label-part="zh">檔案室</span></a></li>
+          <li><a href="atlas.html" class="mobile-nav-link block text-xl font-bold"><span class="mobile-nav-en" data-label-key="nav.atlas" data-label-part="en">Atlas</span> <span class="mobile-nav-zh" data-label-key="nav.atlas" data-label-part="zh">圖譜</span></a></li>
           <!-- TEMP HIDDEN 2026-05-26：Alumni 頁暫時隱藏（user 要求），mobile nav 不渲染系友會入口
           <li><a href="alumni.html" class="mobile-nav-link block text-xl font-bold"><span class="mobile-nav-en">A.A.</span> <span class="mobile-nav-zh">系友會</span></a></li>
           -->
           <!-- /TEMP HIDDEN -->
-          <li><a href="create.html" class="mobile-nav-link block text-xl font-bold"><span class="mobile-nav-en">CREATE!</span> <span class="mobile-nav-zh">創造！</span></a></li>
+          <li><a href="create.html" class="mobile-nav-link block text-xl font-bold"><span class="mobile-nav-en" data-label-key="nav.create" data-label-part="en">CREATE!</span> <span class="mobile-nav-zh" data-label-key="nav.create" data-label-part="zh">創造！</span></a></li>
         </ul>
       </nav>
     </div>

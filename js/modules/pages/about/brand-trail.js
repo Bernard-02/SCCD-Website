@@ -3,6 +3,7 @@ import { registerPageExit } from '../../ui/page-exit.js';
 import { registerPageCleanup } from '../../ui/page-cleanup.js';
 import { sitePath } from '../../ui/site-base.js';
 import { setupClipReveal, playClipReveal, playRevealExit } from '../../ui/scroll-animate.js';
+import { loadAboutVisionImages } from './about-source.js';
 /**
  * Brand Trail Module (About Page)
  * 處理系友發展區塊的游標拖尾效果（桌面版）
@@ -10,6 +11,10 @@ import { setupClipReveal, playClipReveal, playRevealExit } from '../../ui/scroll
  */
 
 let TRAIL_IMAGES = [];
+
+// 存活中的 trail 圖（含各自的 exit 滑出函式）：離頁換頁時要一起「依當下位置」clip-reveal 滑出，
+// 而不是被 innerHTML swap 硬砍（overview trail 在 #page-content 內、desktop trail 在 body 上均涵蓋）。
+const aliveTrail = new Set();
 
 // 從 CSS variables 讀取三原色
 const CSS_ACCENT_COLORS = ['--color-green', '--color-pink', '--color-blue'];
@@ -27,6 +32,11 @@ const SLIDE_DIRS = [
 ];
 
 async function loadTrailImages() {
+  // vision 拖尾圖優先吃後台 about_vision.hoverImages；沒上傳（空）才 fallback 畢展封面（維持原視覺）
+  try {
+    const visionImgs = await loadAboutVisionImages();
+    if (visionImgs.length) { TRAIL_IMAGES = visionImgs; return; }
+  } catch (_) { /* 落到下方 fallback */ }
   try {
     const res = await fetch(sitePath('data/degree-show.json'));
     const data = await res.json();
@@ -45,6 +55,12 @@ export async function initBrandTrail() {
   initOverviewHighlight(); // 先跑（不依賴 fetch），避免下面出錯就不執行
   initClassHighlight();
   initWorksHighlight();
+  // 離頁時把還停在畫面上的 trail 圖一起滑出（依當下位置），await ~0.5s 讓動畫跑完再換頁
+  registerPageExit(() => {
+    if (!aliveTrail.size) return Promise.resolve();
+    aliveTrail.forEach(item => item.exit());
+    return new Promise(r => setTimeout(r, 500));
+  });
   await loadTrailImages();
   initDesktopTrail();
   initOverviewTrail();
@@ -161,15 +177,30 @@ function spawnTrailItem(imgSrc, x, y, container, registry) {
     img.style.transform = 'translate(0, 0)';
   });
 
-  // Step 2：2s 後 img 用隨機方向滑出（結束動畫時序不變）
-  setTimeout(() => {
+  // 壽命到期、被擠出上限、離頁換頁共用同一組移除/滑出邏輯
+  const record = {};
+  aliveTrail.add(record);
+  let removed = false;
+  const remove = () => {
+    if (removed) return;
+    removed = true;
+    aliveTrail.delete(record);
+    wrapper.remove();
+    const idx = registry.indexOf(wrapper);
+    if (idx > -1) registry.splice(idx, 1);
+  };
+  wrapper._removeTrail = remove;  // 超過 maxItems 被擠出時走這條（同步清 aliveTrail）
+  let exiting = false;
+  // img 用隨機方向從當下位置滑出遮罩（clip-reveal 反向）+ 0.5s 後移除
+  record.exit = () => {
+    if (exiting) { return; }
+    exiting = true;
     img.style.transform = exitDir;
-    setTimeout(() => {
-      wrapper.remove();
-      const idx = registry.indexOf(wrapper);
-      if (idx > -1) registry.splice(idx, 1);
-    }, 500);
-  }, 2000);
+    setTimeout(remove, 500);
+  };
+
+  // Step 2：2s 後自動滑出
+  setTimeout(record.exit, 2000);
 }
 
 // === 桌面版：游標拖尾（alumni 區）===
@@ -191,7 +222,7 @@ function initDesktopTrail() {
 
     if (registry.length >= maxItems) {
       const oldest = registry.shift();
-      oldest.remove();
+      oldest._removeTrail();
     }
 
     const imgSrc = TRAIL_IMAGES[currentIndex];
@@ -248,7 +279,7 @@ function initOverviewTrail() {
 
     if (registry.length >= maxItems) {
       const oldest = registry.shift();
-      oldest.remove();
+      oldest._removeTrail();
     }
 
     // 相對座標 = clientX/Y 減去 host overlay 的 viewport 位置

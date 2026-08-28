@@ -250,11 +250,7 @@ body.mode-inverse .list-content .border-black {
  * --lib-bg / --lib-fg / --lib-fg-rgb 在 variables.css + 此檔 body.mode-inverse 各有定義
  * library.css / library.html / library-panels.js / library-card.js 都用 var() 取色，自動跟 mode */
 
-/* lib-panel-title chip：inverse 翻成純白底黑字（standard 是純黑底白字，由 library.css 定義） */
-body.mode-inverse .lib-panel-title {
-  background: #fff;
-  color: #000;
-}
+/* lib-panel-title 標題 bar：無底色、文字跟卡走 var(--lib-fg)（inverse 已 remap 成白）→ 無需覆蓋 */
 
 /* Awards ticker logos：黑色 PNG → inverse 模式下翻白（!important 蓋過 JS inline filter:grayscale） */
 body.mode-inverse #library-awards-ticker .awards-ticker-wrapper img {

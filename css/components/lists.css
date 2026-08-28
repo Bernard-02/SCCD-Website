@@ -66,12 +66,27 @@
 
   /* ── faculty 專屬：卡片旋轉 clearance ──
      卡片 wrapper 旋轉 --init-deg(±3~6°)，貼齊 box 四邊的卡片頂/底/側角投影出 box 邊緣 ~14px、被 overflow 裁。
-     faculty box 內**無 sticky 元素** → 直接在 scroll-col 補四邊 padding 安全（不踩 activities 的 sticky content-box
-     疊加坑，故 activities 走 panel padding、faculty 走 box padding）；box-sizing:border-box → padding 吃進 height 不溢出。 */
+     在 scroll-col 補左右+底 padding（box-sizing:border-box → padding 吃進 height 不溢出）。
+     頂部 0（user 2026-08-24）：dept bar 為首子＋pb-lg(32px) 已給第一列旋轉頂角 clearance，故不需 scroll-col padding-top；
+     bar 釘頂後貼齊 scrollport top:0、自身 bg 遮住捲到下方的卡片 → 原 padding-top 遮罩 ::before 已無作用一併移除。 */
   #faculty-cards .inner-scroll-scroll-col {
-    padding: var(--spacing-md, 24px);
-    padding-bottom: var(--spacing-2xl, 64px);  /* shorthand 上面已把四邊設 24px，這裡補回捲到底的緩衝（同其他三頁） */
+    padding: 0 var(--spacing-md, 24px);        /* 上 0、左右 24px 留側角 clearance */
+    padding-bottom: var(--spacing-2xl, 64px);  /* 捲到底緩衝（同其他三頁） */
   }
+  /* dept bar 左右外擴＝上面 scroll-col 的側邊 clearance 寬：bar 是 scroll-col 子層，自身 box 不含側邊
+     24px padding 帶 → 捲動時第 1/4 欄卡片旋轉側角投影進 clearance 區、bar 白色蓋不到（user 2026-08-24 報露角）。
+     負 margin 外擴到 scrollport 全寬＋等量 padding 補回 chip 原位。 */
+  #faculty-cards .faculty-dept-bar {
+    margin-inline: calc(-1 * var(--spacing-md, 24px));
+    padding-inline: var(--spacing-md, 24px);
+  }
+}
+/* 首列卡片 default 下移、不被 dept bar 切到（user 2026-08-24 晚定案，推翻同日稍早的「負 margin 塞進 bar 當
+   遮罩露水平上緣」——實看後首列一開始就被切不能接受）：bar 的 sticky 白色遮罩只在「捲動中」蓋經過的卡片；
+   靜止時首列含旋轉頂角要完整可見。正 margin 下限＝mask 頂角投影(238×sin6°/2≈12) − card padding 6 ≈ 6px
+   （再小頂角會伸進 bar 的 pb 白色區被切），取 sm(16) 留 10px 呼吸距。 */
+#faculty-cards .faculty-card-wall {
+  margin-top: var(--spacing-sm);
 }
 
 /* ===== Panel Description（exhibitions / visits 分頁切換對應文字） =====
@@ -1705,14 +1720,47 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
   background-color: var(--list-zebra-strip, rgba(255, 255, 255, 0.15));
 }
 
+/* 減弱展開 item（hover 其他 item 時 list-accordion.js 移除 accent inline → 露出斑馬底色）：
+   打開的 title 是 position:sticky，pin 住時蓋在下方展開內容上；accent 一移除 header 變透明 → 內容透出來跟 title
+   疊字（user 2026-08-25）。zebra 疊色本身半透明遮不住內容 → 把 title **與 content** 都補成「不透明的同款 zebra 灰」
+   （zebra 疊色 stack 在不透明 theme-bg 上）。**只在 accent inline 不在時生效**：正常展開 header/content 帶 inline
+   accent，inline 特異度永遠勝過此 class 規則 → 自動休眠、不影響原本的彩色展開。opacity 0.25 交給既有 hover-dim。
+   ⭐content 也要「不透明灰」而非只移除 inline 露出下層 item 半透明疊色：不然 title 走 accent→灰的 opaque 色彩內插、
+   content 走 accent→透明的 alpha fade 疊在（同樣在褪色的）item 上＝content 保留 accent 飽和度較久，肉眼看 title 褪色
+   快半拍（user 2026-08-25，量測 bg-color 進度雖同步但感知不同步）。content 改用與 title 完全相同的不透明灰目標 → 兩者
+   每一幀同色（opaque lerp），且 content 不透明遮住下層 item 的疊加褪色＝感知同步。rest 態 opaque 灰 == item 半透明
+   疊色 over page 視覺相同、不變。 */
+:is(#activities-content-section, #admission-content-section) .list-item.list-item-zebra > .list-header.active,
+:is(#activities-content-section, #admission-content-section) .list-item.list-item-zebra > .list-header.active + .list-content {
+  background: linear-gradient(rgba(var(--theme-fg-rgb), var(--list-zebra-alpha, 0.05)), rgba(var(--theme-fg-rgb), var(--list-zebra-alpha, 0.05))), var(--theme-bg);
+}
+:is(#activities-content-section, #admission-content-section) .list-item:not(.list-item-zebra) > .list-header.active,
+:is(#activities-content-section, #admission-content-section) .list-item:not(.list-item-zebra) > .list-header.active + .list-content {
+  background: var(--theme-bg);
+}
+body.mode-color :is(#activities-content-section, #admission-content-section) .list-item.list-item-zebra > .list-header.active,
+body.mode-color :is(#activities-content-section, #admission-content-section) .list-item.list-item-zebra > .list-header.active + .list-content {
+  background: linear-gradient(var(--list-zebra-strip, rgba(255,255,255,0.15)), var(--list-zebra-strip, rgba(255,255,255,0.15))), var(--theme-bg);
+}
+
 /* hover dim（同 atlas hover 聯動）— hover 某 list-item 時其餘（含年份標籤）半透明凸顯當前項；
    同年份 group 的標籤視為「active」不淡出。:has() 純 CSS 免 JS；只桌面（手機無 hover）。
    admission 測試 OK 後 2026-08-04 擴到 activities；兩 section 共用同一份 loadListInto 結構。
    .list-year-label＝toggle/非 toggle 兩變體共用 hook（hideYearHeader 的 list 無此元素）。 */
 @media (min-width: 768px) {
-  :is(#activities-content-section, #admission-content-section) .list-item,
   :is(#activities-content-section, #admission-content-section) .list-year-label {
     transition: opacity 0.25s ease;
+  }
+  /* .list-item / .list-content 的 background-color 也走 200ms 過渡，且 timing-function 必須跟 header 完全一致
+     ＝`cubic-bezier(0.4,0,0.2,1)`（Tailwind `transition-colors` 內建曲線，非 `ease`）：「退回斑馬」時 header 有色彩
+     過渡、content/item 原本瞬間切→title 慢半拍；補過渡後若曲線不同(ease vs cubic)三者中段仍錯開(t=40ms header 19%
+     但 content 37%)＝還是不同步(user 2026-08-25)。同 duration + 同曲線才每一幀都齊。item 的 opacity 過渡是另一維度
+     (整塊一起淡、不造成 title↔content 錯位)、維持 0.25s ease 不動。 */
+  :is(#activities-content-section, #admission-content-section) .list-item {
+    transition: opacity 0.25s ease, background-color 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  :is(#activities-content-section, #admission-content-section) .list-content {
+    transition: background-color 200ms cubic-bezier(0.4, 0, 0.2, 1);
   }
   :is(#activities-content-section, #admission-content-section):has(.list-item:hover, .list-year-label:hover)
     :is(.list-item, .list-year-label):not(:hover) {

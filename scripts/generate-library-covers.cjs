@@ -17,6 +17,8 @@ const WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worke
 // CID 字型用預定義外部 CMap 的 PDF（中文舊檔常見）→ 沒給 cMapUrl 就整段中文缺字（原生 PDF viewer 有系統中文字型故看起來正常，pdf.js 沒有）。
 // cdnjs 不供 cmaps（403）→ 用 jsdelivr pdfjs-dist cmaps。
 const CMAPS  = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/cmaps/';
+// 非嵌入標準字型（Helvetica/Times 等）→ 沒 standardFontDataUrl 會缺字（同前台 pdf-cover / library-viewer）。版本對齊此腳本用的 pdf.js 3.11.174。
+const STD_FONTS = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/standard_fonts/';
 const LONG_EDGE = 800;         // 封面縮圖不用大
 const QUALITY   = 0.8;
 const argN = (flag) => { const i = process.argv.indexOf(flag); return i >= 0 ? process.argv[i + 1] : null; };
@@ -25,9 +27,22 @@ const FORCE = process.argv.includes('--force');
 
 // 要產封面的 collection：documents 用完整第一頁；press 是網頁長文 PDF → cropAspect 1.5 只取頂部（對齊前台縮圖）
 const COLLECTIONS = [
-  { name: 'library_documents', fields: 'id,titleZh,pdf,pdfLink,cover', cropAspect: 0 },
-  { name: 'library_press',     fields: 'id,titleZh,pdf,cover',         cropAspect: 1.5 },
+  { name: 'library_documents', fields: 'id,titleZh,pdf,pdfLink,cover', cropAspect: 0,   folder: 'document' },
+  { name: 'library_press',     fields: 'id,titleZh,pdf,cover',         cropAspect: 1.5, folder: 'press' },
 ];
+
+// Directus 虛擬資料夾 Cover/document、Cover/press：封面統一收納，上傳時掛 folder。idempotent（有就用、沒有才建）。
+async function ensureFolder(name, parent = null) {
+  const filt = parent ? `&filter[parent][_eq]=${parent}` : '&filter[parent][_null]=true';
+  const got = (await (await fetch(`${BASE}/folders?filter[name][_eq]=${encodeURIComponent(name)}${filt}`, { headers: H })).json()).data;
+  if (got?.length) return got[0].id;
+  const made = await (await fetch(`${BASE}/folders`, {
+    method: 'POST', headers: { ...H, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, parent }),
+  })).json();
+  if (!made?.data?.id) throw new Error('建資料夾失敗 ' + JSON.stringify(made).slice(0, 200));
+  return made.data.id;
+}
 
 (async () => {
   // 本機用系統 Chrome（channel:'chrome' 免下載）；CI 用 playwright 自帶 chromium（workflow 已 install，無系統 Chrome）
@@ -38,8 +53,11 @@ const COLLECTIONS = [
   await page.setContent('<!doctype html><meta charset=utf-8>');
   await page.addScriptTag({ url: PDFJS });
 
+  const coverRoot = await ensureFolder('Cover');
+
   let ok = 0, fail = 0;
   for (const col of COLLECTIONS) {
+    col.folderId = await ensureFolder(col.folder, coverRoot);
     const rows = (await (await fetch(`${BASE}/items/${col.name}?fields=${col.fields}&limit=-1`, { headers: H })).json()).data;
     // pdfLink（CloudFront 網址）是 08-18 後主要形態、pdf UUID 是舊/press 形態，兩者有其一就能產
     const todo = rows.filter(r => (r.pdf || r.pdfLink) && (FORCE || !r.cover)).slice(0, LIMIT);
@@ -49,9 +67,9 @@ const COLLECTIONS = [
     for (const r of todo) {
       const pdfUrl = r.pdfLink || `${ASSETS}/${r.pdf}`;   // 有 CloudFront link 優先、否則 Directus 原檔
       try {
-        const b64 = await page.evaluate(async ({ pdfUrl, WORKER, CMAPS, LONG_EDGE, QUALITY, cropAspect }) => {
+        const b64 = await page.evaluate(async ({ pdfUrl, WORKER, CMAPS, STD_FONTS, LONG_EDGE, QUALITY, cropAspect }) => {
           pdfjsLib.GlobalWorkerOptions.workerSrc = WORKER;
-          const doc = await pdfjsLib.getDocument({ url: pdfUrl, disableAutoFetch: true, disableStream: true, cMapUrl: CMAPS, cMapPacked: true }).promise;
+          const doc = await pdfjsLib.getDocument({ url: pdfUrl, disableAutoFetch: true, disableStream: true, cMapUrl: CMAPS, cMapPacked: true, standardFontDataUrl: STD_FONTS }).promise;
           const p = await doc.getPage(1);
           const nat = p.getViewport({ scale: 1 });
           const scale = LONG_EDGE / Math.max(nat.width, nat.height);
@@ -65,12 +83,13 @@ const COLLECTIONS = [
           ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, c.width, c.height);   // 白底：PDF 透明區轉 JPEG 才不變黑
           await p.render({ canvasContext: ctx, viewport: vp }).promise;
           return c.toDataURL('image/jpeg', QUALITY).split(',')[1];
-        }, { pdfUrl, WORKER, CMAPS, LONG_EDGE, QUALITY, cropAspect: col.cropAspect });
+        }, { pdfUrl, WORKER, CMAPS, STD_FONTS, LONG_EDGE, QUALITY, cropAspect: col.cropAspect });
 
         // 上傳到 Directus /files（multipart）
         const buf = Buffer.from(b64, 'base64');
         const fd = new FormData();
         fd.append('title', `cover ${r.titleZh || r.id}`);
+        fd.append('folder', col.folderId);   // 非 file 欄位必須排在 file 之前，Directus 才吃得到
         fd.append('file', new Blob([buf], { type: 'image/jpeg' }), `cover-${r.id}.jpg`);
         const up = await (await fetch(`${BASE}/files`, { method: 'POST', headers: H, body: fd })).json();
         if (!up?.data?.id) throw new Error('上傳失敗 ' + JSON.stringify(up).slice(0, 200));

@@ -5,7 +5,7 @@
  * 負責 Awards / Press / Files / Album 四個 panel 的資料載入、渲染、篩選邏輯
  */
 
-import { applyMarqueeOverflow, bindMarqueeReturn } from '../ui/marquee-overflow.js';
+import { applyMarqueeOverflow, bindMarqueeReturn, buildSyncedMarqueeTimeline } from '../ui/marquee-overflow.js';
 import { videoMediaFromUrl, grabHlsFrame, isSelfHostedVideo } from '../ui/video-player.js';
 import { ensureFlagIconsCss } from '../ui/ensure-flag-icons.js';
 import { countryName } from '../../data/country-names.js';
@@ -20,8 +20,16 @@ import { loadDegreeShowAlbum } from './degree-show-source.js';
 import { loadOthersAlbum } from './library-album-source.js';
 import { getAwardRecords, findAwardById } from './activities-data-loader.js';
 import { renderPdfCover } from '../ui/pdf-cover.js';
-import { awaitLayoutReady } from '../ui/await-layout-ready.js';
-import { setupClipReveal } from '../ui/scroll-animate.js';
+import { loadUiLabels } from '../ui/ui-labels.js';
+import { shortLibId } from './library-deeplink.js';
+
+// 文件分類 dropdown（後台 library_documents.docType）→ 顯示文字。fallback 用；實際文字優先讀 ui_labels（可後台改）
+const DOCTYPE_FALLBACK = {
+  books:         ['Books',               '書籍'],
+  contributions: ['Contributions',       '收錄'],
+  booklets:      ['Booklets & Leaflets', '冊頁'],
+  other:         ['Other',               '其他'],
+};
 
 // ── 共用常數 ──────────────────────────────────────────────────────────────────
 
@@ -51,6 +59,21 @@ function splitCatLabel(s) {
   return i < 0 ? [s.trim(), ''] : [s.slice(0, i).trim(), s.slice(i).trim()];
 }
 
+// 分類顯示文字以後台 ui_labels（lib.cat.*）為準（可編輯、與篩選鈕同源），退 CAT_LABELS 硬編。
+// 讓 album 卡片 tag ＋ ref chip 跟篩選鈕吃同一份文字 → 後台改 lib.cat.* 一列，三處同步（含 camp 加 s 等）。
+// _catUiMap 由 initAlbumPanel 載入時填（loadUiLabels single-flight cache，快）；ref chip 於點擊時才用、屆時已填。
+let _catUiMap = null;
+function catLabelCombined(cat) {
+  const row = _catUiMap && _catUiMap[`lib.cat.${cat}`];
+  const combined = row ? [row.en, row.zh].filter(Boolean).join(' ') : '';
+  return combined || CAT_LABELS[cat] || cat;
+}
+function catLabelParts(cat) {
+  const row = _catUiMap && _catUiMap[`lib.cat.${cat}`];
+  if (row && (row.en || row.zh)) return [row.en || '', row.zh || ''];
+  return splitCatLabel(CAT_LABELS[cat] || '');
+}
+
 // album 卡片由某活動 collection 攤平而來（cat === activities section key；others＝library 自上傳、無來源活動）→
 // 給 lightbox 一顆「回到來源」的 ref chip：
 //   - degree-show：整屆內容（cover→回顧影片）→ href 直接回畢展 detail 頁（非 activities 清單，同 pdf-cross-ref 慣例）
@@ -62,7 +85,7 @@ function albumSourceRef(item) {
       : { href: `${SITE_BASE_PATHNAME}pages/degree-show-detail.html?year=${item.year}`, labelEn: 'Degree Show', labelZh: '畢業展', titleEn: item.titleEn || '', titleZh: item.titleZh || '' };
   }
   if (!item.id || !CAT_LABELS[item.cat]) return null;
-  const [labelEn, labelZh] = splitCatLabel(CAT_LABELS[item.cat]);
+  const [labelEn, labelZh] = catLabelParts(item.cat);
   return { section: item.cat, itemId: item.id, labelEn, labelZh, titleEn: item.titleEn || '', titleZh: item.titleZh || '' };
 }
 
@@ -277,7 +300,8 @@ function runMarqueeOverflow(containerEl, rowSelector, innerSelector, hoverItemSe
 // 因為 .list-title-marquee 的 CSS（lists.css）讀的是 --marquee-offset / list-marquee keyframe，跟 utility
 // 寫的 --marquee-distance 是不同變數——這裡沿用 activities-data-loader.js initMarquees 對 .list-title-marquee
 // 的量測寫法（clone + --marquee-offset），只是換個掃描範圍（award ref row 而非 list-header/list-content）。
-// hover 才跑（桌面）由 library.css 的 .award-ref-row 專屬覆寫負責，這裡只負責量測 + 設 is-overflow/變數。
+// 這裡量測 + 設 is-overflow/變數（clone 給手機 CSS seamless loop 用）；桌面 hover 放開平滑回彈改由
+// bindAwardRefTitleReturn（GSAP）接手（見下），library.css 的 .award-ref-row:hover keyframe 退為 gsap-undefined fallback。
 function initAwardRefTitleMarquees(scope) {
   scope.querySelectorAll('.award-ref-row .list-title-marquee').forEach(wrap => {
     const p = wrap.querySelector('p');
@@ -299,6 +323,100 @@ function initAwardRefTitleMarquees(scope) {
       wrap.classList.remove('is-overflow');
     }
   });
+  // 桌面 hover 放開平滑回彈（user 2026-08-25，對齊 activities list 標題 GSAP；手機不綁＝維持 CSS seamless loop）
+  scope.querySelectorAll('.award-ref-row').forEach(row => registerPageCleanup(bindAwardRefTitleReturn(row)));
+}
+
+// award ref 展開列標題 hover 放開平滑回彈：對齊 activities-data-loader.js reconcileChunk（.list-title-marquee 共用結構）——
+// 量溢出距離、EN/ZH 兩條共用 buildSyncedMarqueeTimeline（捲一輪停 0.6s 歸零），hover 播、放開從當下補間回 0。
+// inline animation:none 蓋掉 library.css 的 .award-ref-row:hover keyframe（那條非 !important，inline 贏）；手機不綁＝CSS 原樣。
+// gsap 未載入時 no-op（不設 animation:none）→ CSS keyframe 仍是 fallback（snap，如舊）。
+function bindAwardRefTitleReturn(row) {
+  if (typeof gsap === 'undefined' || !row || row._refTitleBound) return () => {};
+  if (window.innerWidth < 768 || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) return () => {};
+  row._refTitleBound = true;
+  let tl = null, returnTween = null, els = [];
+  const build = () => {
+    if (tl) { tl.kill(); tl = null; }
+    const items = [];
+    row.querySelectorAll('.list-title-marquee.is-overflow').forEach(wrap => {
+      const p = /** @type {HTMLElement|null} */ (wrap.querySelector('p'));
+      if (!p) return;
+      wrap.querySelectorAll('p').forEach(pp => { /** @type {HTMLElement} */ (pp).style.animation = 'none'; });  // 關掉 CSS keyframe（含 clone）
+      const dist = p.scrollWidth - wrap.clientWidth;
+      if (dist > 1) items.push({ el: p, distance: dist });
+    });
+    els = items.map(i => i.el);
+    tl = items.length ? buildSyncedMarqueeTimeline(items) : null;
+  };
+  const enter = () => { if (returnTween) { returnTween.kill(); returnTween = null; } build(); if (tl) tl.play(); };
+  const leave = () => {
+    if (!tl) return;
+    tl.pause();
+    if (!els.length) return;
+    returnTween = gsap.to(els, {
+      x: 0, duration: 0.45, ease: 'cubic-bezier(0.25,0,0,1)',
+      onComplete: () => { if (tl) tl.progress(0); returnTween = null; },
+    });
+  };
+  row.addEventListener('mouseenter', enter);
+  row.addEventListener('mouseleave', leave);
+  return () => {
+    row.removeEventListener('mouseenter', enter);
+    row.removeEventListener('mouseleave', leave);
+    if (tl) tl.kill();
+    if (returnTween) returnTween.kill();
+    row._refTitleBound = false;
+  };
+}
+
+// award 水平 track marquee 桌面「放開平滑回彈」（user 2026-08-25）：對齊全站 bindMarqueeReturn 手感，但
+// award 水平 track 是 bespoke 結構（非 applyMarqueeOverflow 的 .marquee-copy、跑 --hmarquee-distance 而非
+// --marquee-distance），故不共用該 helper，另寫一支。一列可有多條 track（得獎人＋主辦/類別/名次各自 marquee）。
+// 手法：inline animation:none 蓋掉 CSS :hover keyframe（那些規則非 !important，inline 贏），GSAP 獨佔 transform；
+// 各 track 各自獨立 loop（距離/時長不同→別共用一條 timeline，否則短的會等長的卡在接縫）。每次 enter 依當下
+// --hmarquee-distance/duration lazy 收集（applyWinnersHMarquee 對各 cell 逐一 set is-hmarquee，bind 當下未必全
+// set；重量後距離也會變，enter 重讀才對）。放開→各 track 從當下位置補間回起點。
+// gsap 未載入時 no-op（不設 animation:none）→ CSS keyframe 仍是 fallback（snap，如舊）。
+function bindAwardWinnersReturn(itemEl) {
+  if (typeof gsap === 'undefined' || !itemEl || itemEl._awardHmBound) return () => {};
+  itemEl._awardHmBound = true;
+  let tls = [], returnTween = null, tracks = [];
+  const collect = () => {
+    tracks = [...itemEl.querySelectorAll('.award-winners.is-hmarquee')].map(view => {
+      const track = /** @type {HTMLElement|null} */ (view.querySelector('.award-winners-track'));
+      if (!track) return null;
+      track.style.animation = 'none';  // 關掉 CSS :hover keyframe，GSAP 獨佔 transform
+      const dist = Math.abs(parseFloat(getComputedStyle(view).getPropertyValue('--hmarquee-distance'))) || 0;
+      const dur = parseFloat(getComputedStyle(view).getPropertyValue('--hmarquee-duration')) || (dist / 80);
+      // 內容已複製一份 → 捲一份寬度到底恰好與起點無縫接合，repeat 從 0 重播即 seamless（不需 repeatDelay）
+      return dist ? { track, dist, dur } : null;
+    }).filter(Boolean);
+  };
+  const enter = () => {
+    if (returnTween) { returnTween.kill(); returnTween = null; }
+    tls.forEach(t => t.kill());
+    collect();
+    tls = tracks.map(({ track, dist, dur }) =>
+      gsap.timeline({ repeat: -1 }).fromTo(track, { x: 0 }, { x: -dist, duration: dur, ease: 'none' }));
+  };
+  const leave = () => {
+    if (!tls.length) return;
+    tls.forEach(t => t.pause());  // 凍在當下位置
+    returnTween = gsap.to(tracks.map(t => t.track), {
+      x: 0, duration: 0.45, ease: 'cubic-bezier(0.25,0,0,1)',
+      onComplete: () => { tls.forEach(t => t.kill()); tls = []; returnTween = null; },
+    });
+  };
+  itemEl.addEventListener('mouseenter', enter);
+  itemEl.addEventListener('mouseleave', leave);
+  return () => {
+    itemEl.removeEventListener('mouseenter', enter);
+    itemEl.removeEventListener('mouseleave', leave);
+    tls.forEach(t => t.kill());
+    if (returnTween) returnTween.kill();
+    itemEl._awardHmBound = false;
+  };
 }
 
 // ── Awards refs（award row 右端 ref 鈕展開的 ref 列）──────────────────────────
@@ -483,7 +601,7 @@ function bindAwardRefRowClick(row) {
         const auto = await getPdfRefSources(item.pdfUrl);
         const references = excludeHostFromRefs(unionRefs(auto, await resolveLibManualRefs(item)), host);
         // press 無浮水印 → 更高 canvas 上限＋裁頂封面當馬賽克墊圖（同 press panel 點擊）
-        document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl, title, color, references, shareUrl: libShareUrl(item.id), cover: item.cover || '', maxCanvasDim: 16384, coverAspect: 1.5 } }));
+        document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl, title, color, references, shareUrl: libShareUrl(item.id), cover: item.cover || '', maxCanvasDim: 16384, coverAspect: 1.5, autoRead: true } }));
       }
       return;
     }
@@ -611,6 +729,10 @@ function mapDirectusAwardRow(row) {
     flag: row.country || '',
     year: row.year,
     competition_en: row.competitionEn || '', competition: row.competitionZh || '',
+    // 主辦單位／獎項類別／名次 2026-08-25 起改 repeater（可多筆 {en,zh}）；scalar 欄保留作舊資料 / records.json fallback。
+    categories: Array.isArray(row.categories) ? row.categories.map(o => ({ en: o.en || '', zh: o.zh || '' })) : [],
+    ranks: Array.isArray(row.ranks) ? row.ranks.map(o => ({ en: o.en || '', zh: o.zh || '' })) : [],
+    organizers: Array.isArray(row.organizers) ? row.organizers.map(o => ({ en: o.en || '', zh: o.zh || '' })) : [],
     award_en: row.categoryEn || '', award: row.categoryZh || '',
     rank_en: row.rankEn || '', rank: row.rankZh || '',
     // winners repeater（可多人）→ normalizeWinners 認得的 {en,zh} 陣列；沒填時給空陣列，
@@ -719,6 +841,11 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     const bilingualBold = (en, zh) => en
       ? cellLine(en, 700) + cellLine(zh, 700)
       : cellLine(zh, 700);
+    // 主辦單位／獎項類別／名次可為 repeater 陣列 [{en,zh}]（Directus）或舊 scalar（records.json）；
+    // 統一成陣列，每筆各自 bilingual 疊放在同一 cell（獨立 repeater、不跟隔壁欄配對對齊，user 2026-08-25 定案）。
+    const toBiList = (arr, en, zh) =>
+      (Array.isArray(arr) && arr.length) ? arr.filter(o => o.en || o.zh)
+        : (en || zh) ? [{ en, zh }] : [];
 
     let latestFirst = true;
     const getSorted = () => latestFirst ? records : [...records].reverse();
@@ -732,18 +859,21 @@ async function initAwardsPanel(onEntranceDoneCallback) {
       return [{ en: item.winner_en || '', zh: item.winner || '' }];
     };
 
-    // 多 winner 時用「水平 marquee」自動跑：整列獲獎者橫向滾動，hover 不需要
-    // 結構：.award-winners (overflow:hidden) > .award-winners-track (橫向 inline-flex) > N × .award-winner-pair (column EN+ZH)
-    // pairs 之間用 padding-right 拉開 gap，避免兩位獲獎者文字黏在一起
-    // en/zh 文字包進 .award-marquee-inner span：手機固定欄寬下名字太長 → applyMarqueeOverflow 偵測溢出跑 marquee（#1）
-    const buildWinnersHtml = (winners) => {
-      const pairs = winners.map(w => {
-        const enHtml = w.en ? `<div class="award-winner-en" style="font-weight:700;"><span class="award-marquee-inner">${w.en}</span></div>` : '';
-        const zhHtml = w.zh ? `<div class="award-winner-zh" style="font-weight:700;"><span class="award-marquee-inner">${w.zh}</span></div>` : '';
+    // 水平 track marquee 內容（得獎人 + 主辦/類別/名次共用同結構＝同 CSS＋同 applyWinnersHMarquee 橫捲＋同 hover 回彈）：
+    // 每筆＝一個 .award-winner-pair（EN 上 ZH 下，各含 .award-marquee-inner 供手機逐行 marquee）。桌面多筆整位橫捲、
+    // 單筆靜態；手機直排。bold 只給得獎人（原本 700）。pairs 間 gap 由 CSS 撐開，避免文字黏一起。
+    const buildHMarqueeTrack = (list, bold) => {
+      const w = bold ? ' style="font-weight:700;"' : '';
+      const pairs = list.map(o => {
+        const enHtml = o.en ? `<div class="award-winner-en"${w}><span class="award-marquee-inner">${o.en}</span></div>` : '';
+        const zhHtml = o.zh ? `<div class="award-winner-zh"${w}><span class="award-marquee-inner">${o.zh}</span></div>` : '';
         return `<div class="award-winner-pair">${enHtml}${zhHtml}</div>`;
       }).join('');
       return `<div class="award-winners-track">${pairs}</div>`;
     };
+    const buildWinnersHtml = (winners) => buildHMarqueeTrack(winners, true);
+    // 主表 marquee cell（主辦/類別/名次）：套 .award-winners viewport → 跟得獎人欄一模一樣的 marquee 行為
+    const hmarqueeCell = (list) => `<div class="award-winners flex flex-col" style="min-width:0;">${buildHMarqueeTrack(list, false)}</div>`;
 
     // 多獲獎者水平 marquee：每位獲獎者佔滿整個 col 寬，整位整位滾（不會卡到一半）
     // viewport = grid col 寬 → 量 view.offsetWidth 當作 pair 寬，強制 set 到每個 pair
@@ -804,6 +934,10 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         view.classList.add('is-hmarquee');
         view.style.setProperty('--hmarquee-distance', `-${distance}px`);
         view.style.setProperty('--hmarquee-duration', `${pairs.length * SECONDS_PER_WINNER}s`);
+
+        // 桌面 hover 放開平滑回彈：只綁一次（applyWinnersHMarquee 會重跑；enter lazy 讀當下 distance 故重量自動對）
+        const item = /** @type {HTMLElement|null} */ (view.closest('.award-record-item'));
+        if (item && !item._awardHmBound) registerPageCleanup(bindAwardWinnersReturn(item));
       });
     }
 
@@ -873,13 +1007,14 @@ async function initAwardsPanel(onEntranceDoneCallback) {
           const winners = normalizeWinners(item);
           const refs = item._resolvedRefs || [];
           const winnerSearch = winners.map(w => `${w.en} ${w.zh}`).join(' ');
-          const searchText = [item.competition_en, item.competition, item.award_en, item.award, winnerSearch, item.rank_en, item.rank]
+          // 主辦單位／獎項類別／名次：repeater（可多筆）→ 統一成陣列（scalar 舊資料當單筆）。
+          // 空資料也渲染空 cell 保持欄位結構（auto-flow 不錯位、各列對齊點一致）。user 2026-06-13 六輪。
+          const organizers = toBiList(item.organizers, item.organizer_en, item.organizer);
+          const categories = toBiList(item.categories, item.award_en, item.award);
+          const ranks = toBiList(item.ranks, item.rank_en, item.rank);
+          const flat = (arr) => arr.map(o => `${o.en} ${o.zh}`).join(' ');
+          const searchText = [item.competition_en, item.competition, flat(categories), winnerSearch, flat(ranks), flat(organizers)]
             .filter(Boolean).join(' ').toLowerCase();
-          // 主辦單位（records.json organizer/organizer_en）：主表常駐欄、在「競賽名稱」右側（col 3）；
-          // 無資料也渲染空 cell 保持欄位結構（auto-flow 不錯位、各列對齊點一致）。user 2026-06-13 六輪。
-          const organizerEn = item.organizer_en || '';
-          const organizerZh = item.organizer || '';
-          const organizerInner = (organizerEn || organizerZh) ? bilingual(organizerEn, organizerZh) : '';
           const hasExpand = refs.length > 0;
           // 有 ref → pointer cursor（暗示可展開）；無 ref → default。JS inline 不能用 var(--cursor-*)
           // （variables.css 註明），且 library.css 動態載入會讓 var 內相對 url 404 → 用 sitePath 寫完整 url
@@ -912,9 +1047,9 @@ async function initAwardsPanel(onEntranceDoneCallback) {
                 <div style="padding-top: 0.1em;">${item.flag ? `<span class="fi fi-${item.flag}" style="width:1.5em;height:1em;display:inline-block;"></span>` : ''}</div>
                 <div class="award-mid">
                   <div class="truncate flex flex-col" role="heading" aria-level="3">${bilingualBold(item.competition_en, item.competition)}</div>
-                  <div class="award-organizer truncate flex flex-col">${organizerInner}</div>
-                  <div class="truncate flex flex-col">${bilingual(item.award_en, item.award)}</div>
-                  <div class="truncate flex flex-col">${bilingual(item.rank_en, item.rank)}</div>
+                  ${hmarqueeCell(organizers)}
+                  ${hmarqueeCell(categories)}
+                  ${hmarqueeCell(ranks)}
                 </div>
                 <div class="award-winners flex flex-col" style="min-width:0;">${buildWinnersHtml(winners)}</div>
                 <div class="award-ref-cell" style="display:flex;justify-content:flex-end;">${refBtnHtml}</div>
@@ -1234,8 +1369,20 @@ function formatMediaWithCountry(media, countryCode, zh) {
 // 後台 field key 跟前台讀的不同：mediaEn/Zh=副標、country=報導單位國家(ISO2)、pdf(uuid)=單 PDF（原生上傳）、
 // videoLinks(json)=影片自架 link、year(整數，同 documents)、id(uuid)→加 press- 前綴（deep-link hash 用）。
 // ⚠️ press 只吃 PDF + 影片（user 2026-08-20 拿掉 images M2M 與 pdfLink 兩欄，後台亦已刪）。
+// press 年內排序鍵：monthDay（Directus 新欄 "MM-DD"）優先，退 fallback press.json 的 date（"YYYY.MM"，只有月）。
+// 缺值→0（latest-first 時排該年最後）。回 月*100+日 的整數，好比大小。
+function pressMonthDayKey(item) {
+  const raw = String(item.monthDay || '').trim();
+  let m = raw.match(/(\d{1,2})\D+(\d{1,2})/);                    // "06-15" "6/15" "6.15"
+  if (!m && /^\d{3,4}$/.test(raw)) m = [raw, raw.slice(0, -2), raw.slice(-2)]; // "0615" "615"
+  if (m) return Number(m[1]) * 100 + Number(m[2]);
+  const d = String(item.date || '').match(/[.\-/](\d{1,2})/);   // fallback 只有月
+  return d ? Number(d[1]) * 100 : 0;
+}
+
 function mapDirectusPressRow(row) {
-  const videoUrls = Array.isArray(row.videoLinks) ? row.videoLinks.filter(Boolean) : [];
+  // videoLinks 是 Directus repeater → [{url}]，攤成純字串（videoMediaFromUrl 只吃 string；同 album/activities 慣例）
+  const videoUrls = Array.isArray(row.videoLinks) ? row.videoLinks.map(v => (v && typeof v === 'object') ? v.url : v).filter(Boolean) : [];
   return {
     id: row.id != null ? `press-${row.id}` : undefined,           // deep-link hash 需 press- 前綴
     titleEn: row.titleEn || '', titleZh: row.titleZh || '',
@@ -1243,6 +1390,7 @@ function mapDirectusPressRow(row) {
     subtitleEn: formatMediaWithCountry(row.mediaEn || '', row.country, false),
     subtitleZh: formatMediaWithCountry(row.mediaZh || '', row.country, true),
     year: row.year != null ? String(row.year) : '',               // press 列表用 year 分組（同 documents 整數欄）
+    monthDay: row.monthDay || '',                                 // 月日（MM-DD）：同年份內排序用，見 pressMonthDayKey
     videoUrls,     // 自架影片 link 陣列
     pdfUrl: row.pdf ? `${CMS_ASSETS_BASE}/${row.pdf}` : '',        // 原生 Directus 上傳的單一 PDF（pdfLink 欄已移除）
     cover: row.cover ? `${CMS_ASSETS_BASE}/${row.cover}` : '',     // 預產封面(generate-library-covers.cjs 裁頂)：有就秒出、免現畫 pdf
@@ -1271,12 +1419,14 @@ async function initPressPanel() {
     if (!listEl) return;
 
     let latestFirst = true;
-    // 年份 → 英文標題 A-Z（user 2026-08-08 指定；sort 箭頭只翻年份方向，年內恆 A-Z，不能用 reverse——會連年內順序一起反轉）
-    const byYearThenTitle = yearDir => (a, b) =>
+    // 依「年月日」完整時序排（2026-08-23 起，取代原本年內 A-Z）：sort 箭頭翻整個時序方向
+    // （latest-first：年降序、年內月日也降序＝最新在上；反向則全鏡像）；同月日再退英文標題 A-Z 當穩定 tiebreak。
+    const byYearThenDate = yearDir => (a, b) =>
       yearDir * (Number(b.year) - Number(a.year)) ||
+      yearDir * (pressMonthDayKey(b) - pressMonthDayKey(a)) ||
       String(a.titleEn || '').localeCompare(String(b.titleEn || ''), 'en', { sensitivity: 'base' });
-    const sorted = [...pressData].sort(byYearThenTitle(1));
-    const getSorted = () => [...pressData].sort(byYearThenTitle(latestFirst ? 1 : -1));
+    const sorted = [...pressData].sort(byYearThenDate(1));
+    const getSorted = () => [...pressData].sort(byYearThenDate(latestFirst ? 1 : -1));
 
     // 縮圖懶載 observer：PDF 首頁封面 render / 自架影片抓幀，捲近視窗才做
     // （renderPdfCover / grabHlsFrame 皆自帶跨 session 快取＋併發閘門，同 files panel 封面那套；純前端零後端）
@@ -1402,7 +1552,7 @@ async function initPressPanel() {
               const references = unionRefs(auto, await resolveLibManualRefs(item));
               // press 無浮水印 → 給更高 canvas 上限，高倍放大更清晰（16384＝Chrome 單邊實用上限）
               // cover＝預產封面(有則秒出當墊圖)；coverAspect 1.5＝無預產時 peek 縮圖裁頂封面當馬賽克墊圖
-              document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl, title: pdfTitle, color: pdfColor, references, shareUrl: libShareUrl(item.id), cover: item.cover || '', maxCanvasDim: 16384, coverAspect: 1.5 } }));
+              document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl: item.pdfUrl, title: pdfTitle, color: pdfColor, references, shareUrl: libShareUrl(item.id), cover: item.cover || '', maxCanvasDim: 16384, coverAspect: 1.5, autoRead: true } }));
             });
             makeActivatable(div, [item.titleEn, item.titleZh].filter(Boolean).join(' ')); // 無障礙：報導(PDF)項可 Tab + Enter 開
           }
@@ -1502,11 +1652,49 @@ function mapDirectusFilesRow(row) {
     // reference_pdf_move_to_video_cloudfront_bucket）；沒填才 fallback 舊的上傳檔 UUID，方便漸進搬遷。
     pdfUrl: row.pdfLink || (documentId ? `${CMS_ASSETS_BASE}/${documentId}` : ''),
     documentMimeType: typeof documentFile === 'object' ? documentFile?.type || '' : '',
+    docType: row.docType || '',   // 文件分類 dropdown（books/contributions/booklets/other），空＝未分類
     categories: row.categories || [],
     references: row.references || [],
     images,
     videoUrls,
   };
+}
+
+// 封面本體（<img> 或 --empty div）從隨機方向平移滑入遮罩，底下 mask 灰卡透出＝看得到「圖在動」的位移
+// （灰卡均勻色，讓灰卡動看起來像 wipe→動的是有紋理的圖才有位移感，user 2026-08-24）。guarded：一張只滑一次。
+// 沿用 revealFilesCards 進場的同一組 pickCoverSlideDir / DUR.medium（手感一致）。
+function slideCoverIn(card) {
+  if (card.dataset.coverSlid) return;
+  card.dataset.coverSlid = '1';
+  const cover = /** @type {HTMLElement|null} */ (card.querySelector('.files-item-cover'));
+  if (!cover) return;
+  cover.style.transition = 'none';
+  cover.style.transform  = pickCoverSlideDir();  // 同步設起點：圖第一次上色就在畫外、不閃 rest
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    cover.style.transition = `transform ${DUR.medium}s ease-out`;
+    cover.style.transform  = 'translate(0%, 0%)';
+    const done = (e) => {
+      if (e.propertyName !== 'transform') return;
+      cover.removeEventListener('transitionend', done);
+      cover.style.transition = ''; cover.style.transform = '';
+    };
+    cover.addEventListener('transitionend', done);
+  }));
+}
+
+// 卡片目前是否落在 files 捲動容器的可視範圍（判「圖載好的當下卡片看不看得到」，決定滑入或直接就位）。
+function coverCardVisible(card) {
+  const r = card.getBoundingClientRect();
+  const scroller = document.getElementById('library-files-scroll');
+  if (scroller) { const s = scroller.getBoundingClientRect(); return r.bottom > s.top && r.top < s.bottom; }
+  return r.bottom > 0 && r.top < (window.innerHeight || 0);
+}
+
+// 進場 gate＝「圖 ready 才滑」：沒 placeholder（封面框載入中留白）、圖畫好後才 clip-reveal 進場（user 2026-08-24）。
+// ⚠️故意在 ready 才滑＝不滑一個空白框（延續 2026-08-16「不滑透明框」精神，只是等待期由灰卡改留白）。
+// 仍守可視 gate：ready 當下卡在畫外（預載）就直接就位不動畫（效能定案）。
+function maybeSlideCover(card) {
+  if (card.dataset.coverReady && coverCardVisible(card)) slideCoverIn(card);
 }
 
 // 把 PDF 第一頁 render 成封面貼到卡片的 .files-item-cover--empty（原地轉背景圖，不 replaceWith：hover 旋轉 handler 已抓住此節點）
@@ -1521,6 +1709,8 @@ function applyPdfCoverTo(card, pdfUrl) {
       if (mask) mask.style.setProperty('--cover-ratio', String(probe.naturalWidth / probe.naturalHeight));
       ph.style.backgroundImage = `url(${dataUrl})`;
       ph.style.backgroundSize = 'cover';
+      card.dataset.coverReady = '1';
+      maybeSlideCover(card);   // ready＋可見才滑入（畫外預載的直接就位）
     };
     probe.src = dataUrl;
   });
@@ -1546,6 +1736,14 @@ async function initFilesPanel() {
     const yearPickerEl = document.getElementById('library-files-year-picker');
     const searchInput  = document.getElementById('library-files-search');
     if (!listEl) return;
+
+    // 分類 tag 顯示文字：優先後台 ui_labels（可改），斷線退 DOCTYPE_FALLBACK。cached、快。
+    const uiMap = await loadUiLabels().catch(() => ({}));
+    const doctypeLabel = (dt) => {
+      const row = uiMap[`lib.doctype.${dt}`] || {};
+      const [fe, fz] = DOCTYPE_FALLBACK[dt] || ['', ''];
+      return [row.en || fe, row.zh || fz].filter(Boolean).join(' ');
+    };
 
     let latestFirst = true;
     // 年份 → 英文標題 A-Z（同 press，user 2026-08-08 指定；箭頭只翻年份方向、年內恆 A-Z）
@@ -1623,6 +1821,7 @@ async function initFilesPanel() {
           div.className  = 'files-item files-item-card';
           if (item.id) div.id = `f-${item.id}`;
           div.dataset.year   = String(item.year);
+          div.dataset.cat    = item.docType || '';   // 分類篩選用（空＝未分類，任何 chip 都不選中）
           div.dataset.search = [item.titleEn, item.titleZh, item.subtitleEn, item.subtitleZh].filter(Boolean).join(' ').toLowerCase();
 
           const accentColor = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
@@ -1636,7 +1835,7 @@ async function initFilesPanel() {
           // ⚠️ 不能 loading="lazy"（原生判定圖被 clip 在視窗外＝永不載入，2026-08-18 實測）：
           // 懶載自己來——首批 EAGER_COVERS 張直接 src，其餘不設 src、IO 靠近視窗才補（見 scheduleCovers）
           // deep-link 目標卡先判（短路 → 不佔 eager 名額）；否則照首批 EAGER_COVERS
-          const eagerImg = coverUrl && (div.id === deepLinkTargetId || eagerImgs++ < EAGER_COVERS);
+          const eagerImg = coverUrl && (div.id.startsWith(deepLinkTargetId) || eagerImgs++ < EAGER_COVERS);
           const coverContent = coverUrl
             ? `<img class="files-item-cover"${eagerImg ? ` src="${coverUrl}"` : ''} alt="">`
             : `<div class="files-item-cover files-item-cover--empty"></div>`;
@@ -1654,25 +1853,32 @@ async function initFilesPanel() {
           const subEnHtml = item.subtitleEn ? `<p class="files-item-subtitle-en"><span class="files-marquee-inner">${item.subtitleEn}</span></p>` : '';
           const subZhHtml = item.subtitleZh ? `<p class="files-item-subtitle-zh"><span class="files-marquee-inner">${item.subtitleZh}</span></p>` : '';
           const subtitleHtml = (item.subtitleEn || item.subtitleZh) ? `<div class="files-item-subtitle-lines">${subEnHtml}${subZhHtml}</div>` : '';
+          // 分類 tag（有 docType 才渲染，貼在副標下方；文字來自 ui_labels 可後台改，過長桌面 hover 跑 marquee）
+          const catTag = item.docType && DOCTYPE_FALLBACK[item.docType]
+            ? `<div class="files-item-subtitle-wrap"><span class="files-item-subtitle-tag"><span class="files-marquee-inner">${doctypeLabel(item.docType)}</span></span></div>`
+            : '';
           div.innerHTML = `
             ${coverHtml}
             <div class="files-item-titles files-card-info">
               <div class="files-item-titles-text" role="heading" aria-level="3">${titleEnHtml}${titleZhHtml}</div>
               ${subtitleHtml}
+              ${catTag}
             </div>`;
 
           // <img> 封面載入後把實際比例寫進 mask 的 --cover-ratio（載入前/placeholder 用預設 4/5）
           const coverImg = /** @type {HTMLImageElement|null} */ (div.querySelector('img.files-item-cover'));
           if (coverImg) {
             const maskEl = coverImg.parentElement;
-            const applyRatio = () => {
+            const onReady = () => {
               if (coverImg.naturalWidth && coverImg.naturalHeight && maskEl) {
                 maskEl.style.setProperty('--cover-ratio', String(coverImg.naturalWidth / coverImg.naturalHeight));
               }
+              div.dataset.coverReady = '1';
+              maybeSlideCover(div);   // ready＋可見才 clip-reveal 進場（畫外預載直接就位）
             };
             // 沒 src 的 img「complete=true 但 naturalWidth=0」→ 懶載的也要掛 load listener 等日後補 src
-            if (coverImg.complete && coverImg.naturalWidth) applyRatio();
-            else coverImg.addEventListener('load', applyRatio, { once: true });
+            if (coverImg.complete && coverImg.naturalWidth) onReady();
+            else coverImg.addEventListener('load', onReady, { once: true });
             if (!eagerImg) { coverImg.dataset.lazySrc = coverUrl; lazyImgCards.push(div); }
           }
 
@@ -1772,28 +1978,76 @@ async function initFilesPanel() {
 
     const filesEmptyState = ensureEmptyState(listEl);
 
-    const selYears = (() => {
-      const years = [...new Set(sorted.map(p => String(p.year)))].sort((a, b) => Number(b) - Number(a));
-      return createYearPicker(yearPickerEl, years, () => { const before = snapshotVisibleYears(listEl); applyFilters(); clipWipeChangedBlocks(listEl, before); });
-    })();
+    // 分類篩選（多選 toggle，全不選＝全部；同 album panel）
+    const selectedCats = new Set();
+
+    // 年份 picker「配合分類」（user 2026-08-26）：選了分類 → 只列出該分類 item 有的年份（切分類即重建、年份選取重置）。
+    const onYearFilter = () => { const before = snapshotVisibleYears(listEl); applyFilters(); clipWipeChangedBlocks(listEl, before); };  // 重播近視窗卡片進場＝對齊 album（user 2026-08-27；7s reflow thrash 根因已修故不卡）
+    const availYears = () => {
+      const isAll = selectedCats.size === 0;
+      const set = new Set();
+      listEl.querySelectorAll('.files-item').forEach(it => { if (isAll || selectedCats.has(it.dataset.cat)) set.add(it.dataset.year); });
+      return [...set].sort((a, b) => Number(b) - Number(a));
+    };
+    let selYears;
+    function rebuildYearPicker() {
+      yearPickerEl.querySelectorAll('button[data-year]').forEach(b => b.remove());  // 清舊年份鈕（reset 鈕由 createYearPicker 內部自清）
+      selYears = createYearPicker(yearPickerEl, availYears(), onYearFilter);
+    }
+    rebuildYearPicker();
 
     function applyFilters() {
       const q = searchInput ? searchInput.value.trim().toLowerCase() : '';
+      const isAll = selectedCats.size === 0;
+      const singleCat = selectedCats.size === 1;   // 單選＝卡片下方分類 tag 冗餘（全同類）
       listEl.querySelectorAll('.files-year-block').forEach(block => {
         const yearMatch = selYears.size === 0 || selYears.has(block.dataset.year);
         let anyVisible  = false;
         block.querySelectorAll('.files-item').forEach(item => {
+          const catMatch    = isAll || selectedCats.has(item.dataset.cat);
           const searchMatch = !q || item.dataset.search.includes(q);
-          const visible = yearMatch && searchMatch;
+          const visible = catMatch && yearMatch && searchMatch;
           item.style.display = visible ? '' : 'none';
           if (visible) anyVisible = true;
+          // 只選一個分類時 tag 全同類＝多餘 → display:none（user 2026-08-26：不渲染、**不占位**＝消除標題下方
+          // 隱形空白；卡片隨之收短、交還 .files-grid 依「該行最高」重新等高）。2 類以上才顯示供區分。
+          item.dataset.hideCatTag = singleCat ? '1' : '';
+          const tagWrap = item.querySelector('.files-item-subtitle-wrap');
+          if (tagWrap) {
+            tagWrap.style.display = singleCat ? 'none' : '';
+            tagWrap.style.transform = '';  // 清舊 yPercent 殘留；純寫入不讀 layout（⚠️改回逐項 gsap.set clearProps 會 reflow thrash＝篩選卡 7 秒，user 2026-08-26）
+            // tag 若已被 revealFilesCards 包進 clip-reveal-wrapper，wrapper 也一起顯隱（否則 tag 藏時 wrapper 空殼仍占一格 flex gap＝標題下方留白）
+            const w = tagWrap.parentElement;
+            if (w && w.classList.contains('clip-reveal-wrapper')) w.style.display = singleCat ? 'none' : '';
+          }
         });
         block.style.display = anyVisible ? '' : 'none';
       });
-      // Empty state：任何篩選組合（search / 年份）歸零都顯示（user 2026-08-10：不限 search）
+      // chip dim（有選時未選的變淡）＋ 依 search 結果把「當前搜尋下無任何結果」的分類文字再壓淡（同 album）
+      const hasSel = selectedCats.size > 0;
+      const catsWithMatch = q
+        ? new Set([...listEl.querySelectorAll('.files-item')].filter(i => i.dataset.search.includes(q)).map(i => i.dataset.cat))
+        : null;
+      document.querySelectorAll('.lib-files-cat-btn').forEach(b => {
+        b.classList.toggle('dimmed', hasSel && !selectedCats.has(b.dataset.cat));
+        b.style.color = (catsWithMatch && !catsWithMatch.has(b.dataset.cat)) ? 'rgba(var(--lib-fg-rgb),0.3)' : '';
+      });
+      // Empty state：任何篩選組合（search / 年份 / 分類）歸零都顯示（user 2026-08-10：不限 search）
       const anyVisible = /** @type {HTMLElement[]} */ ([...listEl.querySelectorAll('.files-year-block')]).some(b => b.style.display !== 'none');
       filesEmptyState.classList.toggle('hidden', anyVisible);
     }
+
+    const filesCatBtns = [...document.querySelectorAll('.lib-files-cat-btn')];
+    filesCatBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const cat = btn.dataset.cat;
+        if (selectedCats.has(cat)) { selectedCats.delete(cat); } else { selectedCats.add(cat); }
+        if (selectedCats.size === filesCatBtns.length) selectedCats.clear();  // 全選＝全部（回到無篩選）
+        rebuildYearPicker();   // 年份 picker 重建成「當前分類的年份」（user 2026-08-26；年份選取重置）
+        applyFilters();
+        clipWipeItems(visibleFilesCards(listEl));  // 重播近視窗卡片進場（含副標 clip-reveal）＝對齊 album（user 2026-08-27）
+      });
+    });
 
     const sortBtn = document.getElementById('library-files-sort-btn');
     if (sortBtn) {
@@ -1844,7 +2098,8 @@ function normalizeDegreeShow(data) {
 // 跟 hash deep-link / highlight 用的 element id 一致。跑在 library 頁 → location.pathname 即正確路徑（含子路徑部署前綴）。
 // 給 lightbox（album）與 PDF viewer（press/files）內的 share btn 用。
 function libShareUrl(domId) {
-  return domId ? `${location.origin}${location.pathname}#${domId}` : undefined;
+  // uuid 截前 8 碼（與首頁浮卡共用 shortLibId，細節＋落地相容見 library-deeplink.js）
+  return domId ? `${location.origin}${location.pathname}#${shortLibId(domId)}` : undefined;
 }
 
 // 相簿 item 組裝（cover/影片/圖片 → media、references 原樣帶上）抽成快取 loader：
@@ -1902,6 +2157,8 @@ function loadAlbumItemsCached() {
 async function initAlbumPanel() {
   try {
     const sorted = await loadAlbumItemsCached();
+    // 分類 tag / ref chip 顯示文字改吃 ui_labels（可後台改，與篩選鈕同源）；填模組級 _catUiMap 供 catLabel* 用
+    _catUiMap = await loadUiLabels().catch(() => null);
 
     const listEl       = document.getElementById('library-album-list');
     const yearPickerEl = document.getElementById('library-album-year-picker');
@@ -1947,7 +2204,7 @@ async function initAlbumPanel() {
           // random accent color per item (for hover overlay)
           const accentColor = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
 
-          const catTagHtml = `<span class="files-item-subtitle-tag">${CAT_LABELS[item.cat] || item.cat}</span>`;
+          const catTagHtml = `<span class="files-item-subtitle-tag">${catLabelCombined(item.cat)}</span>`;
 
           // thumbnails: 預設只顯示前 3 張（2026-06-01 user 改：「預設 thumbnail 最多 3 張不會全部呈現」）
           // 點進 lightbox 後仍可看完整 media list（lightbox 取 item.media 不受此 slice 影響）
@@ -2112,10 +2369,21 @@ async function initAlbumPanel() {
     const albumEmptyState = ensureEmptyState(listEl);
 
     const selectedCats = new Set();
-    const selYears     = (() => {
-      const years = [...new Set(sorted.map(p => String(p.year)))].sort((a, b) => Number(b) - Number(a));
-      return createYearPicker(yearPickerEl, years, () => { const before = snapshotVisibleYears(listEl); applyFilters(); clipWipeChangedBlocks(listEl, before); });
-    })();
+
+    // 年份 picker「配合分類」（user 2026-08-26，同 Documents）：選了分類 → 只列出該分類 item 有的年份（切分類即重建、年份選取重置）。
+    const onYearFilter = () => { const before = snapshotVisibleYears(listEl); applyFilters(); clipWipeChangedBlocks(listEl, before); };
+    const availYears = () => {
+      const isAll = selectedCats.size === 0;
+      const set = new Set();
+      listEl.querySelectorAll('.files-item').forEach(it => { if (isAll || selectedCats.has(it.dataset.cat)) set.add(it.dataset.year); });
+      return [...set].sort((a, b) => Number(b) - Number(a));
+    };
+    let selYears;
+    function rebuildYearPicker() {
+      yearPickerEl.querySelectorAll('button[data-year]').forEach(b => b.remove());
+      selYears = createYearPicker(yearPickerEl, availYears(), onYearFilter);
+    }
+    rebuildYearPicker();
 
     function applyFilters() {
       const q     = searchInput ? searchInput.value.trim().toLowerCase() : '';
@@ -2131,12 +2399,11 @@ async function initAlbumPanel() {
           if (visible) anyVisible = true;
           const tagWrap = item.querySelector('.album-cat-tag-wrap');
           const singleCat = selectedCats.size === 1;
+          // 單選一個分類＝該分類 tag 全同類多餘 → display:none（user 2026-08-26：不渲染、不占位＝消除標題下方隱形空白，同 Documents）。
           if (tagWrap) {
-            tagWrap.style.opacity = singleCat ? '0' : '';
-            tagWrap.style.pointerEvents = singleCat ? 'none' : '';
+            tagWrap.style.display = singleCat ? 'none' : '';
+            tagWrap.style.transform = '';  // 清舊 yPercent 殘留；純寫入不讀 layout（避免逐項 reflow thrash）
           }
-          const titlesEl = item.querySelector('.files-item-titles');
-          if (titlesEl) titlesEl.style.transform = singleCat ? 'translateY(0.7rem)' : '';
         });
         block.style.display = anyVisible ? '' : 'none';
       });
@@ -2160,6 +2427,7 @@ async function initAlbumPanel() {
         const cat = btn.dataset.cat;
         if (selectedCats.has(cat)) { selectedCats.delete(cat); } else { selectedCats.add(cat); }
         if (selectedCats.size === albumCatBtns.length) selectedCats.clear();
+        rebuildYearPicker();   // 年份 picker 重建成「當前分類的年份」（user 2026-08-26）
         applyFilters();
         clipWipeItems(visibleListItems(listEl));
       });
@@ -2193,15 +2461,46 @@ const PANEL_MAP = {
   album:  'lib-panel-album',
 };
 
-function randomTitleTransform(el, isAwards = false) {
-  const sign = Math.random() < 0.5 ? -1 : 1;
-  const deg  = sign * (4 + Math.random() * 2);
-  const yPct = isAwards
-    ? -(10 + Math.random() * 20)  // -10% 到 -30%
-    : 10 - Math.random() * 40;   // +10% 到 -30%（偏上）：原 +60% 下限會讓最長的 Documents 文件 chip
-                                 // 下緣垂到年份 picker 第一個年份上（chipBottom 264>picker 252），
-                                 // 蓋住「2025」；封頂 +10% 後最長 chip 也距 picker 約 10px（user 2026-06-21）
-  el.style.transform = `translateY(${yPct}%) rotate(${deg}deg)`;
+// 灰卡底部標題整行連續 marquee（user 2026-08-26 改回整行）：box 寬＝整行（title padding 內），
+// track 填滿整行寬 + 1 個 unit 的複製份、捲一個 unit 無縫循環（同 RGB 色卡 renderMarquee 的做法）。
+// 首個 unit 保留原 data-label-key spans（CMS 可編＋SR 讀）、其餘複製份 aria-hidden。手機/矮橫向不跑（display:none）。
+// unitW 為字寬（與卡當下寬無關）→ morph 前 onTabSwitchPre 量也準；idempotent（box 已建則只重量重設複製份）。
+function buildTitleMarquee(titleEl) {
+  if (!titleEl || window.innerWidth < 768 || isShortLandscape()) return;
+  let box = titleEl.querySelector('.lib-title-box');
+  if (!box) {
+    box = document.createElement('span');
+    box.className = 'lib-title-box';
+    const track = document.createElement('span');
+    track.className = 'lib-title-track';
+    const unit = document.createElement('span');
+    unit.className = 'lib-title-unit';
+    while (titleEl.firstChild) unit.appendChild(titleEl.firstChild);  // 原 label spans 移入首個 unit
+    track.appendChild(unit);
+    box.appendChild(track);
+    titleEl.appendChild(box);
+  }
+  const track = box.querySelector('.lib-title-track');
+  const firstUnit = /** @type {HTMLElement|null} */ (track && track.querySelector('.lib-title-unit'));
+  if (!track || !firstUnit) return;
+  const label = (firstUnit.textContent || '').trim();
+  if (!label) return;
+  track.querySelectorAll('.lib-title-unit:not(:first-child)').forEach(n => n.remove());  // 移除舊複製份
+  const unitW = firstUnit.getBoundingClientRect().width;
+  if (!unitW) return;  // 未 sized（display:none / 未 layout）→ 下次 showLibPanel 再試
+  const cs = getComputedStyle(titleEl);
+  const rowW = titleEl.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+  const copies = Math.max(2, Math.ceil(rowW / unitW) + 1);        // 填滿整行 + 1 unit（捲一個 unit 無縫）
+  box.style.width = '100%';                                        // box 吃整行寬（user 2026-08-26 改回整行）
+  track.style.setProperty('--marquee-shift-x', `-${unitW}px`);    // 捲一個完整 unit（title+間距）接回下一份、無縫
+  track.style.animationDuration = `${Math.max(4, unitW / 45)}s`;  // ~45px/s 可讀
+  for (let i = 1; i < copies; i++) {                              // 補足複製份填滿整行
+    const clone = document.createElement('span');
+    clone.className = 'lib-title-unit';
+    clone.setAttribute('aria-hidden', 'true');
+    clone.textContent = label;
+    track.appendChild(clone);
+  }
 }
 
 // 4 方向 clip-path 起點（終點統一 inset(0)）
@@ -2257,36 +2556,54 @@ function clipWipeItems(items) {
 //   封面（.files-item-cover 本體）＝在 .files-item-cover-mask（overflow:clip、承載旋轉）內 4 方向隨機滑入
 //   （GSAP 無涉、走 CSS transition 同 rest 分支；±110 過衝防 dpr hairline；clip 在旋轉後 local box 生效
 //    → 滑動跟著旋轉角、不切角＝faculty mask 同原理，也延續 2026-08-11「clip 別掛軸對齊外框」的教訓）；
-//   標題文字（.files-item-title-en/zh）＝clip-reveal（setupClipReveal 包遮罩 + yPercent 100→0 由下往上滑）。
-// 揭完各自清（保持乾淨態；封面的 transition:filter 由 CSS 常駐規則恢復）。文字兩行一起揭（EN/ZH 同時、不 stagger，user 2026-08-11）。
+//   標題文字＝clip-reveal（yPercent 100→0 由下往上滑）。
+// 揭完各自清（保持乾淨態；封面的 transition:filter 由 CSS 常駐規則恢復）。
 const COVER_SLIDE_DIRS = ['translate(0%, 110%)', 'translate(0%, -110%)', 'translate(110%, 0%)', 'translate(-110%, 0%)'];
 const pickCoverSlideDir = () => COVER_SLIDE_DIRS[(Math.random() * COVER_SLIDE_DIRS.length) | 0];
+
+// 把一個容器包進貼身 clip 遮罩（overflow-y:clip / x:visible）供整組 yPercent 揭；idempotent。
+// ⚠️不直接用 setupClipReveal：files 這幾組的父層 `.files-item-titles` 是 overflow:hidden，setupClipReveal 會
+//   判定「父層已建 clip 結構」而跳過 wrap（改用父層當窗）→ 多組共用同一遮罩窗、揭時互相重疊。故強制逐組新包。
+function ensureGroupClip(el) {
+  if (!el || el.dataset.clipWrapped) return;
+  const w = document.createElement('div');
+  w.className = 'clip-reveal-wrapper';
+  w.style.overflowY = 'clip';
+  w.style.overflowX = 'visible';
+  el.parentNode.insertBefore(w, el);
+  w.appendChild(el);
+  el.dataset.clipWrapped = '1';
+}
+
 function revealFilesCards(cards) {
   if (!cards || !cards.length) return;
   markRevealBusy(DUR.medium + 0.3);
   const hasGsap = typeof gsap !== 'undefined';
-  cards.forEach(card => {
-    const cover = /** @type {HTMLElement|null} */ (card.querySelector('.files-item-cover'));
-    if (cover) { cover.style.transition = 'none'; cover.style.transform = pickCoverSlideDir(); }
-    const texts = [...card.querySelectorAll('.files-item-title-en, .files-item-title-zh')];
-    if (hasGsap && texts.length) setupClipReveal(texts); // 包遮罩 + set yPercent:100（隱藏）
+  // 三個獨立 group 各自「一起」揭（user 2026-08-27：title 英中一組、副標一組、分類一組，三者分開不混）：
+  //   ①標題 EN/ZH＝`.files-item-titles-text` ②副標 EN/ZH＝`.files-item-subtitle-lines` ③分類 tag＝
+  //   `.files-item-subtitle-wrap`（該顯示時）。各包貼身 clip 遮罩、yPercent:100→0 一起滑入，組內 EN/ZH 同動、組間分開。
+  // tag 藏時（singleCat）display:none＝不占位（其 wrapper 由 applyFilters 一併顯隱、免留 flex gap），故排除出組。
+  const revealSets = cards.map(card => {
+    // 重播出場＝整卡刷新（封面也重滑、非只標題）：清掉 slideCoverIn 的「只滑一次」guard 讓它重跑。
+    // guard 原意是防捲動/lazy-load 重滑；這裡是刻意的 filter/sort 重播，要跟 album 整卡進場一致（user 2026-08-25）。
+    // 只影響 revealFilesCards 收到的近視窗卡片；lazy-load onReady 那條路仍走 guard、不受影響。
+    card.dataset.coverSlid = '';
+    maybeSlideCover(card);  // 圖 ready 才滑（沒 ready 留白、等 onReady 補滑）
+    const groups = [
+      card.querySelector('.files-item-titles-text'),
+      card.querySelector('.files-item-subtitle-lines'),
+      card.dataset.hideCatTag !== '1' ? card.querySelector('.files-item-subtitle-wrap') : null,
+    ].filter(Boolean);
+    if (hasGsap && groups.length) {
+      groups.forEach(ensureGroupClip);       // 各組獨立遮罩（見 ensureGroupClip 註解）
+      gsap.set(groups, { yPercent: 100 });   // 隱藏準備
+    }
+    return groups;
   });
   requestAnimationFrame(() => requestAnimationFrame(() => {
-    cards.forEach(card => {
-      const cover = /** @type {HTMLElement|null} */ (card.querySelector('.files-item-cover'));
-      if (cover) {
-        cover.style.transition = `transform ${DUR.medium}s ease-out`;
-        cover.style.transform = 'translate(0%, 0%)';
-        const clear = (e) => {
-          if (e.propertyName !== 'transform') return;
-          cover.style.transition = ''; cover.style.transform = '';
-          cover.removeEventListener('transitionend', clear);
-        };
-        cover.addEventListener('transitionend', clear);
-      }
-      const texts = [...card.querySelectorAll('.files-item-title-en, .files-item-title-zh')];
-      if (hasGsap && texts.length) {
-        gsap.to(texts, { yPercent: 0, duration: DUR.medium, ease: EASE.enter, clearProps: 'transform' });
+    revealSets.forEach(groups => {
+      if (hasGsap && groups.length) {
+        gsap.to(groups, { yPercent: 0, duration: DUR.medium, ease: EASE.enter, clearProps: 'transform' });
       }
     });
   }));
@@ -2387,20 +2704,31 @@ function playYearLabel(block, dur, delay) {
 // 初始在視窗內的逐年 stagger；視窗外的先藏，捲動時（top 越過容器下緣）各自即揭（不 stagger、label 補揭）。
 // 用 scroll listener 而非 IntersectionObserver：IO 對「瞬間/快速捲過」的列不可靠（fling 掠過 → 永久藏住看不見）；
 // 這裡每次捲動把「top 已在容器下緣以上」的未播列全部補揭 → 快捲也保證揭完、不卡隱形（user 要保證修不 best-effort）。
-function revealAwardItems(items, dur = DUR.medium) {
+function revealAwardItems(items, dur = DUR.medium, { skipInitial = false } = {}) {
   if (!items.length) return;
   const scroller = /** @type {HTMLElement|null} */ (items[0].closest('#library-awards-scroll, #library-album-scroll, #library-press-scroll'));
   if (_awardRevealCleanup) { _awardRevealCleanup(); _awardRevealCleanup = null; }
   const blockOf = el => /** @type {HTMLElement|null} */ (el.closest('[class$="year-block"]'));
+  // skipInitial（切分頁「色塊掀開即見內容」，user 2026-08-23）：視窗內的不藏不動畫、
+  // 只 gate 視窗下方的等捲入才進場（scroll-gate 照舊）。跨 fold 的年份 label 已可見 → 記進 preShown 別重播。
+  const preShown = new Set();
+  if (skipInitial) {
+    const rb = scroller ? scroller.getBoundingClientRect().bottom : window.innerHeight;
+    const below = items.filter(el => el.getBoundingClientRect().top >= rb);
+    const belowSet = new Set(below);
+    items.forEach(el => { if (!belowSet.has(el)) { const b = blockOf(el); if (b) preShown.add(b); } });
+    items = below;
+    if (!items.length) return;
+  }
   const hiddenLabels = new Set();
   items.forEach(el => {
     hideAwardItem(el);
     const block = blockOf(el);
-    if (block && !hiddenLabels.has(block)) { hiddenLabels.add(block); hideYearLabel(block); }
+    if (block && !hiddenLabels.has(block) && !preShown.has(block)) { hiddenLabels.add(block); hideYearLabel(block); }
   });
   requestAnimationFrame(() => requestAnimationFrame(() => {
     const pending = new Set(items);
-    const shownLabels = new Set();
+    const shownLabels = new Set(preShown);
     // sequential=true：依 year-block 分組逐年（組內 stagger、組間等前組揭完）；false：捲入視窗即揭（delay 0）
     // 讀所有 rect（讀相）→ 再一次 play（寫相），避免 loop 內讀寫交錯 forced reflow
     const flush = (sequential) => {
@@ -2461,7 +2789,11 @@ function clipWipeChangedBlocks(listEl, beforeYears) {
   const after = [...listEl.querySelectorAll('[class$="year-block"]')].filter(b => b.style.display !== 'none');
   const changed = after.filter((b, i) => { const k = beforeYears.indexOf(b.dataset.year); return k === -1 || k !== i; });
   const items = changed.flatMap(b => [...b.querySelectorAll('.award-record-item, .press-item, .album-panel-item, .files-item-card')]);
-  clipWipeItems(items.filter(el => el.offsetParent !== null));
+  // 分類篩選會讓下方 block 的可見 index 全體位移→幾乎全判為 changed；但畫外卡片重播進場沒人看到、白付成本
+  // （files 卡尤重：setupClipReveal 包遮罩＋reflow＋GSAP＋封面滑入）＝點分類鈕卡頓。裁到近視窗，同 visibleFilesCards。
+  const scroller = listEl.closest('[id^="lib-panel-"]')?.querySelector('[id$="-scroll"]');
+  const cut = (scroller ? scroller.getBoundingClientRect().bottom : window.innerHeight) + 200;
+  clipWipeItems(items.filter(el => el.offsetParent !== null && el.getBoundingClientRect().top < cut));
 }
 
 // ── Reveal busy 訊號（供 library-card.js 延後重排輪詢）─────────────────────
@@ -2474,10 +2806,10 @@ function markRevealBusy(sec) {
 }
 export function isPanelRevealing() { return performance.now() < _revealBusyUntil; }
 
-// ── Panel 標題 chip：hero clip-reveal（取代原隨機方向 clip-path wipe，user 2026-07-15）──────
-// chip 是 position:absolute + randomTitleTransform 的隨機 rotate/Y；用「本體 translate 沿旋轉軸滑入
-// ＋ 同向 clip-path inset 同步收」的免-wrapper hero 技法（reparent 對 absolute+rotate 風險高）。
-// clip 與進入方向同側＝從該側滑入、該側 inset 同步開 → 視覺上「遮罩窗釘死版位、chip 滑進來」。
+// ── Panel 標題 bar：hero clip-reveal（本體 translate 滑入＋同向 clip 同步收）──────
+// 標題現為灰卡頂部 in-flow marquee bar（無 rotate；translate 是 CSS 位移不影響 flow → 佔位不受 reveal 干擾）。
+// clip 與進入方向同側＝從該側滑入、該側 inset 同步開 → 視覺上「遮罩窗釘死版位、bar 滑進來」。⚠️2026-08-23
+// user 澄清「clip reveal」＝要保留位移的招牌語彙、只要求「等定位完才揭」（awaitLayoutReady gate）——別再拆位移。
 // 見 reference_gsap_translate_string_needs_matching_units / reference_rotated_element_in_clip_mask_slide。
 const TITLE_ENTER_CLIP = {
   top:    'inset(100% 0% 0% 0%)',
@@ -2508,52 +2840,69 @@ function titleHiddenTranslate(el, dir) {
   return `${v[0].toFixed(2)}px ${v[1].toFixed(2)}px`;
 }
 
-async function playPanelTitleReveal(title) {
+// 連點快速切換時 chip 的「單一寫入者」防護（user 2026-08-23「快速切換 chip 沒遮罩直接飛」）：
+// gsap 預設不跨 tween overwrite——舊 reveal（1s）沒被殺就會跟新一輪 exit/hidePanelChildren 搶寫
+// 同一顆 chip 的 clipPath/translate：舊 tween 每幀重開遮罩＋續插位移＝chip 裸奔騎卡飛。
+// 每輪 reveal/exit 起跑前 killTweensOf(title)，並用序號作廢仍掛在 await 的舊 reveal。
+const _titleAnimSeq = new WeakMap();
+function bumpTitleSeq(title) {
+  const seq = (_titleAnimSeq.get(title) || 0) + 1;
+  _titleAnimSeq.set(title, seq);
+  return seq;
+}
+
+// user 2026-08-26：標題「不進場動畫」——直接顯示（清 clipPath、無 tween）。
+// tab 切換時標題在 z 低於離場色塊 veil，veil 掀開就把它露出＝「色塊離開就直接出現」；
+// entrance 時隨灰卡 clip-reveal 就位後即刻現身。exit 仍走 playPanelTitleExit 的 hero 收場（未動）。
+export function playPanelTitleReveal(title) {
   if (!title) return;
-  if (typeof gsap === 'undefined') { title.style.clipPath = ''; title.style.translate = ''; return; }
-  // 量測前先等佈局穩定（fonts＋連續兩幀尺寸不變）：resize 殘留的過渡幀（文字換行變高）
-  // 會讓 pickTitleDir / titleHiddenTranslate 拿到錯誤幾何 →「從遠處飛入」（user 2026-08-08）。
-  // 等待期間維持全遮（hidePanelChildren 已設；此處再設一次防未 hide 的呼叫路徑閃現）。
-  // ⚠️transition 設完不還原（沿 hidePanelChildren 慣例）——還原會讓下次 randomTitleTransform
-  // 的 transform 變更吃到 CSS transition、以可見動畫滑去新隨機位（實測 439px 飛遠，比原 bug 更糟）
+  bumpTitleSeq(title);  // 作廢仍掛在 await 的舊 exit tween 序號（連點防護，與 playPanelTitleExit 共用）
+  if (typeof gsap !== 'undefined') gsap.killTweensOf(title);
   title.style.transition = 'none';
-  title.style.clipPath = 'inset(0 0 100% 0)';
-  // stableFrames 連 x/y 也要穩：resize 後回 library 的 relayout 途中揭露會讓 chip 跟著卡片飛
-  // （430px 實測重現）；等卡片停穩才揭。maxAttempts 90≈1.5s 蓋過 grayEl 0.6s 展開＋relayout debounce
-  const stable = await awaitLayoutReady(title, { minWidth: 10, minHeight: 10, stableFrames: 2, maxAttempts: 90 });
-  markRevealBusy(DUR.reveal + 0.2);
-  const dir = pickTitleDir(title);
-  // gate 等滿仍不穩（如 user 持續拉視窗）→ 放棄位移改純 wipe：原地揭露不可能飛
-  gsap.fromTo(title,
-    { clipPath: TITLE_ENTER_CLIP[dir], translate: stable ? titleHiddenTranslate(title, dir) : '0px 0px' },
-    { clipPath: 'inset(0% 0% 0% 0%)', translate: '0px 0px', duration: DUR.reveal, ease: EASE.enter,
-      onComplete: () => { title.style.clipPath = ''; title.style.translate = ''; } });
+  title.style.translate = '';
+  title.style.clipPath = '';
 }
 
 // title = hero clip-reveal（slide-in）；內容區維持原隨機方向 clip-path wipe（兩者視覺獨立）
-export function playPanelReveal(panelEl) {
+// instant（user 2026-08-23 色塊 veil 流程）：內容「直接就位」不跑 wipe——色塊蓋著時已渲染好、
+// veil 掀開即見內容；只有視窗下方的 list items 保留 scroll-gate 進場（skipInitial）。
+// chip 標題仍走 hero reveal：它凸出灰卡邊界外、veil 蓋不到，instant 直接現身會早於 veil 掀開穿幫。
+export function playPanelReveal(panelEl, { instant = false } = {}) {
   if (!panelEl) return;
-  // 同步 tick 就撐起 busy（isSwitching 解鎖與本呼叫同 tick）→ 延後重排的 100ms 輪詢無縫接手；
+  // 同步 tick 就撐起 busy（isSwitching 解鎖與本呼叫同 tick)→ 延後重排的 100ms 輪詢無縫接手；
   // title tween 起跑後會再各自延長時窗
   markRevealBusy(DUR.fast + 0.3);
   const title = panelEl.querySelector(':scope > .lib-panel-title');
   const others = [...panelEl.querySelectorAll(':scope > :not(.lib-panel-title)')];
+  // 標題「不進場動畫」（user 2026-08-26）：一律即刻清 clipPath 直接顯示（instant/entrance 皆是）。
+  // instant（veil 流程）此刻標題在離場色塊 veil 底下、z 低於 veil → veil 掀開就把它露出
+  // ＝「色塊離開就直接出現」，不需 library-card.js 再特別揭。
   if (title) playPanelTitleReveal(title);
   // awards：list 逐列進場（box 下往上＋文字上下隨機＋stagger＋scroll-gate），同 filter/sort 路徑
   // （user 2026-07-16：進場也要，不只 filter 後）。外層內容區塊照舊整塊 wipe（year picker/search/ticker），
   // items 在塊內各自藏→stagger 揭，兩層動畫可疊。
   const awardsList = panelEl.querySelector('#library-awards-list');
-  if (awardsList) revealAwardItems(visibleListItems(awardsList));
+  if (awardsList) revealAwardItems(visibleListItems(awardsList), DUR.medium, { skipInitial: instant });
   // album 同 awards：box 由下往上＋文字上下隨機＋stagger＋scroll-gate（user 2026-07-17）
   const albumListEl = panelEl.querySelector('#library-album-list');
-  if (albumListEl) revealAwardItems(visibleListItems(albumListEl));
+  if (albumListEl) revealAwardItems(visibleListItems(albumListEl), DUR.medium, { skipInitial: instant });
   // press 同 awards/album：box 由下往上＋文字上下隨機＋逐年 stagger＋scroll-gate（user 2026-08-11）
   const pressListEl = panelEl.querySelector('#library-press-list');
-  if (pressListEl) revealAwardItems(visibleListItems(pressListEl));
+  if (pressListEl) revealAwardItems(visibleListItems(pressListEl), DUR.medium, { skipInitial: instant });
   // files（Documents）：卡片圖片 clip-path＋文字 clip-reveal（同 filter/sort 路徑，user 2026-08-11）；外層容器仍整塊 wipe
+  // instant：不跑（卡片本就未藏、veil 掀開即見；視窗下方 files 卡依既有效能定案本就不動畫）
   const filesListEl = panelEl.querySelector('#library-files-list');
-  if (filesListEl) revealFilesCards(visibleFilesCards(filesListEl));
+  if (filesListEl && !instant) revealFilesCards(visibleFilesCards(filesListEl));
   if (!others.length) return;
+
+  if (instant) {
+    // 內容直接就位（veil 下已渲染完成）
+    others.forEach(el => {
+      /** @type {HTMLElement} */ (el).style.transition = 'none';
+      /** @type {HTMLElement} */ (el).style.clipPath   = '';
+    });
+    return;
+  }
 
   // 各自挑方向
   const dirs = others.map(() => pickRevealHideDir());
@@ -2583,8 +2932,10 @@ export function playPanelTitleExit(panelEl, dur = DUR.medium) {
   if (!panelEl) return;
   const title = /** @type {HTMLElement|null} */ (panelEl.querySelector(':scope > .lib-panel-title'));
   if (!title) return;
+  bumpTitleSeq(title);  // 作廢仍掛在 await 的 pending reveal（連點防護）
   const dir = pickTitleDir(title);
   if (typeof gsap === 'undefined') { title.style.clipPath = TITLE_ENTER_CLIP[dir]; return; }
+  gsap.killTweensOf(title);  // 殺掉跑到一半的 reveal，避免跨 tween 搶寫 clip/translate
   // 對稱 hero slide-out：translate 沿旋轉軸滑出 + 同向 clip 同步收。fromTo 顯式起點 inset(0)：
   // 進場 onComplete 已 clearProps → computed clipPath=none，gsap.to 從 none 補間不動會 snap
   // （見 feedback_clippath_exit_after_clearprops_use_fromto）
@@ -2597,10 +2948,18 @@ export function playPanelBodyExit(panelEl, dur = 0.35) {
   if (!panelEl) return;
   const others = [...panelEl.querySelectorAll(':scope > :not(.lib-panel-title)')];
   if (!others.length) return;
+  const dirs = others.map(() => pickRevealHideDir());
+  // ⚠️明確 inset(0) 起點 + reflow 提交，才會真的跑出場 wipe：切分頁走 veil instant 流程收尾把內容
+  // clipPath 設成 ''（=computed none），CSS `none → inset()` **不插值會 snap** → 內容「直接消失」不跑
+  // clip 出場（user 2026-08-24）。title chip 用 gsap.fromTo 顯式起點故無此症，只有 body 這條要修。
   others.forEach(el => {
-    const hideDir = pickRevealHideDir();
+    /** @type {HTMLElement} */ (el).style.transition = 'none';
+    /** @type {HTMLElement} */ (el).style.clipPath   = 'inset(0 0 0 0)';
+  });
+  void panelEl.offsetWidth;  // 一次 reflow 把 inset(0) 起點提交，下面轉 hideDir 才有基準可插值
+  others.forEach((el, i) => {
     /** @type {HTMLElement} */ (el).style.transition = `clip-path ${dur}s ease-in`;
-    /** @type {HTMLElement} */ (el).style.clipPath = hideDir;
+    /** @type {HTMLElement} */ (el).style.clipPath   = dirs[i];
   });
 }
 
@@ -2617,16 +2976,17 @@ function hidePanelChildren(panelEl) {
 }
 
 // reveal=false：只切 display 不跑 wipe（library-card grayEl 進場前 pre-swap 用，避免 chip 提早 visible）
-function showLibPanel(tab, { reveal = true } = {}) {
+// instant=true：內容直接就位不跑 wipe（色塊 veil 掀開流程，見 playPanelReveal）
+function showLibPanel(tab, { reveal = true, instant = false } = {}) {
   Object.entries(PANEL_MAP).forEach(([key, id]) => {
     const el = document.getElementById(id);
     if (!el) return;
     if (key === tab) {
       el.style.display = 'flex';
-      const title = el.querySelector('.lib-panel-title');
-      if (title) randomTitleTransform(title, key === 'awards');
+      const titleMq = el.querySelector('.lib-panel-title');
+      if (titleMq) buildTitleMarquee(titleMq);  // 顯示後（可量字寬）建/重算頂部標題 marquee box
       if (reveal) {
-        playPanelReveal(el);
+        playPanelReveal(el, { instant });
       } else {
         // 預設隱藏，等之後 onTabSwitch / 手動 showPanel 再 reveal
         hidePanelChildren(el);
@@ -2666,12 +3026,6 @@ export function initLibraryPanels() {
   initPressPanel();
   initFilesPanel();
   initAlbumPanel();
-
-  // 隨機旋轉 + 隨機 Y 位置 panel 標題
-  Object.entries(PANEL_MAP).forEach(([key, id]) => {
-    const title = document.querySelector(`#${id} .lib-panel-title`);
-    if (title) randomTitleTransform(title, key === 'awards');
-  });
 
   // 預設所有 panel 內 chip + 內容隱藏（等 grayEl 進場揭露完 onTabSwitch 才 reveal）
   // 不做的話 awards (HTML 預設 display:flex) chip 會在 grayEl clip wipe 時被一起揭出半身
@@ -2771,7 +3125,10 @@ function handleLibraryHash() {
   const HIGHLIGHT_DELAY = 400;
 
   function tryFindAndHandle() {
-    const el = document.getElementById(hash);
+    // 分享網址的 uuid 已縮成前 8 碼（libShareUrl）→ 精確 getElementById 找不到時退回前綴比對；
+    // 完整 uuid 舊連結仍走 getElementById 精確命中。hash 來自 URL（外部輸入）→ escape 引號/反斜線。
+    const safeHash = hash.replace(/["\\]/g, '\\$&');
+    const el = document.getElementById(hash) || document.querySelector(`[id^="${safeHash}"]`);
     if (!el) {
       if (Date.now() - startTime < MAX_WAIT) {
         setTimeout(tryFindAndHandle, 100);

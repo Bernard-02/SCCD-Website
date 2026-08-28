@@ -132,11 +132,9 @@ body.mode-color #atlas-main { background-color: var(--theme-bg); }
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   user-select: none;
-  white-space: normal;
-  word-break: break-word;
-  overflow-wrap: anywhere;
+  /* 英中各一行不折行（user 08-25）：寬＝最長行自然寬；原 170px 折行上限退役 */
+  white-space: nowrap;
   width: max-content;
-  max-width: 170px;
   text-align: left;
   cursor: var(--cursor-default);
   transition: opacity var(--dur-fast) ease;
@@ -162,6 +160,62 @@ body.mode-color #atlas-main { background-color: var(--theme-bg); }
   pointer-events: none;
   clip-path: inset(0% 100% 0% 0%);
 }
+
+/* ── 單一節點雙形態（2026-08-25 單一節點遮罩架構）──
+   同一個 .atlas-name 同時是 map chip 與 list row（換 view 時 reparent 到 list slot）：
+   - .atlas-item-nameline / .atlas-item-nameblock＝名行兩層 wrapper（chip 形態視覺中性；
+     list 形態由 JS 掛 .atlas-list-line-clip / .atlas-list-item-name 接上既有 list 規則）
+   - .atlas-item-subs＝副標區，只在 list 形態顯示
+   - .atlas-as-list＝list 形態 modifier：中和 chip 基底（absolute / max-content / inline 色），
+     typography 交給既有 .atlas-list-item* 規則；!important 專蓋 inline（B/D bg、A/C accent 字色） */
+.atlas-item-subs { display: none; }
+.atlas-name.atlas-as-list {
+  /* 不能 static：cover（absolute inset:0）定位基準要留在本列，
+     否則反向吞色塊全疊到 #atlas-list-view（fixed）左上角（user 08-25「覆蓋好幾層」） */
+  position: relative;
+  transform: none;
+  display: flex;
+  align-items: stretch;   /* 蓋掉 chip 的 flex-start：line 要滿欄寬 marquee 量測才準 */
+  width: auto;
+  max-width: none;
+  letter-spacing: normal;
+  word-break: normal;
+  overflow-wrap: normal;
+  user-select: auto;
+  background-color: transparent !important;
+  color: var(--theme-fg, #000) !important;
+}
+.atlas-name.atlas-as-list .atlas-item-subs { display: block; }
+
+/* A/C 無底色文字的「本體直飛」（2026-08-26，取代色塊遮蓋）：
+   - z-index 抬起：list 端不被鄰欄壓住、chip 端不被鄰 label 蓋（兩形態都 positioned）
+   - list 形態字色被上方 .atlas-as-list 的 var(--theme-fg) !important 鎖死 →
+     飛行期間讓位給 --atlas-fly-c（JS 逐幀補間 彩→fg）；chip 形態無此規則、JS 直接補間 inline color */
+.atlas-name.atlas-flying { z-index: 20; }
+.atlas-name.atlas-as-list.atlas-flying { color: var(--atlas-fly-c, var(--theme-fg)) !important; }
+/* 飛行中名行截斷停用：寬度過渡改由 JS 在節點上動 clip-path（右緣掃入/掃出）；
+   副標各自的 .atlas-list-line-clip 不在此列、維持裁切 */
+.atlas-name.atlas-as-list.atlas-flying .atlas-list-name-en,
+.atlas-name.atlas-as-list.atlas-flying .atlas-list-name-zh { overflow: visible; }
+/* view morph 期間放開 list 欄位的三層裁切鏈（wrapper/sub-col/col-items 都是 overflow:hidden）：
+   直飛節點從星雲飛進欄位的前半程會被裁掉＝「只看得到快落地的後半段」（user 08-26）。
+   morph 收尾摘 .atlas-morphing 即恢復裁切（marquee 靠行級 overflow、不受影響）。
+   ⚠️ overflow:hidden 在 flex item 上自帶「自動最小尺寸=0」，改 visible 會退回 content-based
+   min-size → 長名把欄撐爆、ghost 預量列高失真 → partners slot 算成 0（08-26 踩過）；
+   必須同步補 min-width/height:0（wrapper 的 min-height 是 slot 高 token、不能歸零） */
+#atlas-main.atlas-morphing .atlas-list-item-wrapper {
+  overflow: visible;
+  min-width: 0;
+}
+#atlas-main.atlas-morphing .atlas-list-sub-col,
+#atlas-main.atlas-morphing .atlas-list-col-items {
+  overflow: visible;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* 遮罩三段的飛行色塊（#atlas-morph-layer 內、螢幕座標）；色彩由 JS 依 cover computed 色 inline 設 */
+.atlas-view-mask { position: absolute; pointer-events: none; }
 
 /* side-left：label 改放 line 端點的左側，文字仍靠左對齊（align-items: flex-start 預設） */
 .atlas-anchor.atlas-side-left .atlas-name {
@@ -910,7 +964,7 @@ body.mode-color #atlas-detail-mask {
   display: inline-flex;
   flex-direction: column;  /* EN/ZH 兩行垂直 stack */
   align-items: flex-start;
-  background: transparent;
+  background: rgba(255, 255, 255, 1);  /* inactive 白底，對齊 about nav btn（navigation.css #anchor-nav inactive）；inverse/color mode 由下方 !important 覆蓋 */
   color: rgba(0, 0, 0, 0.5);
   padding: 6px 8px 5px;
   /* 藏起＝滑出遮罩左緣外：-24px = 12（clip-margin 窗界）+ 12（active inner ±3° 旋轉角落外溢——

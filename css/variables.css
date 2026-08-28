@@ -43,7 +43,7 @@
 
   /* Font Families */
   --font-en: 'Inter', sans-serif;
-  --font-zh: 'Noto Sans TC', sans-serif;
+  --font-zh: 'Noto Sans TC', 'Noto Sans JP', 'Noto Sans SC', sans-serif;
 
   /* Font Sizes (rem) - Base: 16px */
   /* 字級刻度：xs → 3xl（2026-08-05 由 h1-h6/p1-p2 統一改名；原 h3 3.125rem 已移出文字階） */

@@ -35,7 +35,7 @@
   display: inline-block;
   white-space: nowrap;
   animation: color-rect-marquee 5s linear infinite;
-  font-family: 'Inter', 'Noto Sans TC', sans-serif;
+  font-family: 'Inter', 'Noto Sans TC', 'Noto Sans JP', 'Noto Sans SC', sans-serif;
   font-size: var(--font-size-xl);
   font-weight: 700;
   color: inherit;
@@ -47,23 +47,49 @@
   100% { transform: translate(var(--marquee-shift-x, -50%), var(--marquee-shift-y, 0)); }
 }
 
-/* ── Panel 標題 chip ──────────────────────────────────────────
- * 統一純黑底白字（standard）；inverse → 純白底黑字（themes/inverse.css 覆蓋）；
- * mode-color → bg=var(--theme-fg) + text=var(--theme-fg-inverse)（依 hue luminance 自動翻黑白，themes/color.css 覆蓋）*/
+/* ── Panel 標題（灰卡底部標題列）──────────────────────────────────
+ * in-flow flex-shrink:0，order:1 排到 flex column 最後 → 佔灰卡底部一列（user 2026-08-26 移到底部）。
+ * 左右 padding = 內容 grid 的 var(--spacing-lg)（對齊上方容器）；下 padding 12px 距卡底邊、上 padding xs 距內容。
+ * 文字色跟卡走 var(--lib-fg)（三 mode 皆對；mode 切換 fade 由 typography.css 的 .lib-panel-title whitelist）。
+ * 不設 z-index（user 2026-08-26 標題不進場）：切換時標題就位於離場色塊 veil(z:60) 底下，veil 掀開即露出
+ *   ＝「色塊離開就直接出現」；原 z:70 疊 veil 上同步揭的做法已退場（見 project_library_panel_title_top_bar）。
+ * 手機/矮橫向 display:none（tabs 已標分頁）。*/
 .lib-panel-title {
-  font-family: 'Inter', 'Noto Sans TC', sans-serif;
-  background: #000;
-  color: #fff;
-  /* 標題 chip 高度＝行高決定：先前是 <p>(leading-base 1.5)，改 <h2> 後吃到 h2 的 leading-h1(1.1) 變扁
-     → 明寫回 1.5 還原原本高度（語意維持 h2、視覺不變）。
-     ⚠️ 這是「撐 chip 高度」不是內文行距，故用字面 1.5，不跟 --line-height-base（2026-08-12 降到 1.3）連動 */
-  line-height: 1.5;
+  order: 1;
+  flex-shrink: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  padding: var(--spacing-xs) var(--spacing-lg) 12px;
+  font-family: 'Inter', 'Noto Sans TC', 'Noto Sans JP', 'Noto Sans SC', sans-serif;
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--lib-fg);
+}
+/* 標題整行連續 marquee（user 2026-08-26 改回整行）：box 寬＝整行、overflow 裁掉多的；
+   track 填滿整行 + 1 unit 捲一個單位無縫循環（box 寬 / --marquee-shift-x / animation-duration 由 buildTitleMarquee 量字寬後設）。 */
+.lib-title-box {
+  display: inline-block;
+  overflow: hidden;
+  max-width: 100%;
+  vertical-align: bottom;
+}
+.lib-title-track {
+  display: inline-block;
+  white-space: nowrap;
+  animation-name: color-rect-marquee;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.lib-title-unit {
+  display: inline-block;
+  padding-right: 2em;  /* 單位間距（含進 shift 距離）*/
 }
 
 /* ── 灰色矩形內容字體 ────────────────────────────────────────── */
 #library-card-main,
 #library-card-content {
-  font-family: 'Bitter', 'Noto Serif TC', serif;
+  font-family: 'Bitter', 'Noto Serif TC', 'Noto Serif JP', 'Noto Serif SC', serif;
 }
 
 /* ── 進場動畫：頁面初始隱藏所有矩形 ─────────────────────────── */
@@ -88,14 +114,19 @@
 
 /* ── 灰卡右上角「下一個分頁」箭頭鈕 ─────────────────────────────
  * 沿用 timeline .tl-icon-btn-inner 黑方塊視覺（48px／三 mode 配色／rotate／clip buffer 全繼承 lists.css）。
- * 鈕中心壓在灰卡右上角點：48px 鈕 top/right 各 -24 → 半在卡內半凸出（同 .tl-list-next-btn 桌面定位）。
- * offset parent = 當前 active 灰卡（色/灰卡皆 position:absolute）；只在桌面存在（手機改用 #library-mobile-tabs）。 */
+ * 掛在 section 層（非灰卡內：卡的 clip-path reveal/wipe 會切掉凸出的半顆鈕，user 2026-08-23）；
+ * 鈕中心釘在灰卡 footprint 右上角點——left/top 由 JS positionNextBtn 設（RO init/resize），
+ * translate(-50%,-50%) 置中 → 半在卡內半凸出；z 恆在所有卡之上，顯隱只跟頁面進退場
+ * （JS hero clip-reveal：heroRevealCard／heroExitCard，非 fade）。
+ * 只在桌面存在（手機改用 #library-mobile-tabs）。 */
 .lib-card-next-btn {
   position: absolute;
-  top: -24px;
-  right: -24px;
+  transform: translate(-50%, -50%);
   z-index: 20;
-  padding: 0;
+  /* clip buffer：hero clip-reveal 的 clip 跑在鈕盒上，inner 方塊 rotate(-8deg) 的角凸出 48px 盒外
+     會被切（user 2026-08-23 截圖）→ 盒加 12px padding 撐成 72px，角永遠在 clip 範圍內；
+     translate(-50%,-50%) 置中不受 padding 影響 */
+  padding: 12px;
   border: none;
   background: none;
   cursor: var(--cursor-pointer);
@@ -312,6 +343,11 @@
 .press-item-thumb:not(:has(.press-thumb-img[src])) {
   min-width: 3.4rem;
 }
+/* 影格/封面未載入前（img 無 src）＝只出灰色塊佔位，不出 play 三角（user 2026-08-23：
+   play icon 疊在空色塊上像壞圖）；grabHlsFrame 回寫 src 後 :has 轉真 → play 才顯示。 */
+.press-item-thumb:not(:has(.press-thumb-img[src])) .album-thumb-play {
+  display: none;
+}
 .press-item-thumb img {
   display: block;
   height: 4.5rem;            /* 高鎖 4.5rem、寬依比例（PDF 直式 ~3.4rem、影片 16:9 撐到 8rem） */
@@ -496,7 +532,7 @@ body.mode-color #library-awards-list .award-ref-wrap .list-ref-btn:hover * {
   color: var(--lib-bg) !important;
 }
 #library-awards-list .award-ref-row {
-  font-family: 'Inter', 'Noto Sans TC', sans-serif;
+  font-family: 'Inter', 'Noto Sans TC', 'Noto Sans JP', 'Noto Sans SC', sans-serif;
 }
 /* ref 文字大小跟 award 主表列一致（user 2026-06-22：ref 看起來比主表大）。主表列 font-size 桌面 p3 /
    手機 p2（item inline + 手機 !important），ref <p> 用 inherit 自動跟著兩個斷點走，蓋過全域 p{font-size:p2}
@@ -599,6 +635,13 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   padding-bottom: var(--spacing-sm);
 }
 
+/* 年份 picker min-width（≈4 位年份寬）：分類篩選後若某分類無年份（極端、通常不會），max-content 欄不塌成 0
+   → 右側內容區不會左移走位（user 2026-08-26 防呆）。有年份時內容本就 ≥ 此值、無位移。 */
+#library-files-year-picker,
+#library-album-year-picker {
+  min-width: 34px;
+}
+
 .files-item-card {
   padding: 6px;
   border-bottom: none;
@@ -647,6 +690,9 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   width: min(100%, calc(125% * var(--cover-ratio, 0.8)));
   overflow: clip;
   transform-origin: center;
+  /* 不放 placeholder 灰卡：cover 實際比例載入前未知，灰卡只能用預設 4:5＝跟 cover 不同尺寸、
+     載入時會 reshape 露餡（user 2026-08-24「灰卡大小不等於 cover 就沒意義」）。改留白：
+     載入中框內透明、圖 ready(比例已定→mask 已是正確尺寸)才 clip-reveal 進場，全程不見錯尺寸占位。 */
 }
 
 .files-item-card .files-item-cover {
@@ -661,12 +707,9 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   height: 100%;
 }
 
-/* <img> 封面載入前/載入失敗：同 --empty 的 placeholder 灰底（user 2026-08-16「load 不出圖也要有這個動畫」）
-   → 進場滑入永遠看得到灰卡，不會滑一個透明框、圖到了才 pop；載入完成後圖素填滿整框（object-fit:cover）
-   自然蓋掉灰底。transition 保留 filter（沿用全域 hover 規則）＋補 background-color（mode3 翻色同 --empty fade）。 */
+/* <img> 封面：本體透明，灰卡由 mask 提供（見上）；transition 只保留 filter（沿用全域 hover 規則）。 */
 .files-item-card img.files-item-cover {
-  background: color-mix(in srgb, var(--lib-fg) 10%, var(--lib-bg));
-  transition: filter var(--dur-fast) ease, background-color 0.4s ease;
+  transition: filter var(--dur-fast) ease;
 }
 
 .files-card-info {
@@ -687,8 +730,10 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   color: rgba(var(--lib-fg-rgb), 0.5);
   white-space: nowrap;
 }
-/* Album 分類標籤：regular 字重 + 全不透明（user 2026-08-13）。只 scope 到 album，Files panel 的 tag 不動。 */
-#library-album-list .files-item-subtitle-tag {
+/* 分類標籤：regular 字重 + 全不透明（user 2026-08-13 album 定案，2026-08-25 Documents 沿用）。
+   蓋掉 base 的 bold + 0.5 opacity；album 與 files 兩面板 tag 視覺一致。 */
+#library-album-list .files-item-subtitle-tag,
+#library-files-list .files-item-subtitle-tag {
   font-weight: 400;
   color: var(--lib-fg);
 }
@@ -733,13 +778,8 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   transition: opacity var(--dur-fast) ease;
   pointer-events: none;
 }
-/* placeholder 用「卡底 + 10% 前景」算成不透明灰（user 2026-08-12：mode3 亮卡要同 mode1 灰、暗卡同 mode2）。
-   必須不透明——半透明 rgba 在 mode3 會透出一直在動的 hue 背景（08-11 白底版的初衷，保留該約束）。
-   常駐 background-color transition：mode3 hue loop 兩階翻 --lib-bg 時跟灰卡一起 fade 不 snap。 */
-.files-item-cover--empty {
-  background: color-mix(in srgb, var(--lib-fg) 10%, var(--lib-bg));
-  transition: background-color 0.4s ease;
-}
+/* 不放 placeholder 灰卡：載入中留白（透明），封面 render 好才由 JS 設 backgroundImage 顯示＝跟 <img> 封面路徑
+   一致（user 2026-08-28 定案「document 完全沒 placeholder、空白即可、渲染那個 cover」，撤回 08-12 的不透明灰卡）。 */
 .files-item-titles {
   display: flex;
   flex-direction: column;
