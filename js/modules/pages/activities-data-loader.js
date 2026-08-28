@@ -593,10 +593,17 @@ function gateStripRevealOnLoad(inner, onReveal) {
   const imgs = [...inner.querySelectorAll('img')].filter(im => im.getAttribute('src'));
   if (!imgs.length || imgs.every(im => im.complete && im.naturalWidth)) return;
   inner.style.opacity = '0';
+  let revealed = false;
+  const reveal = () => { if (revealed) return; revealed = true; inner.style.opacity = '1'; onReveal?.(); };
   Promise.all(imgs.map(im => (im.complete && im.naturalWidth)
     ? Promise.resolve()
     : new Promise(res => { im.addEventListener('load', res, { once: true }); im.addEventListener('error', res, { once: true }); })))
-    .then(() => { inner.style.opacity = '1'; onReveal?.(); });
+    .then(reveal);
+  // ⚠️逾時兜底（user 2026-08-28，隕石濃湯 exhibition 15 張圖實測）：Directus /assets 慢（TTFB~2s×多張、6 連線上限）
+  //    或某張永遠不 fire load/error 時，「等全部載完才淡入」會讓整條相簿永遠卡 opacity:0＝有圖但看不見。1.5s 到就
+  //    先淡入，未載完的圖之後自然到位（頂多輕微往右移，遠比整條不見好；同 reference_lightbox_probe_all_images_blocks_open
+  //    的逾時取捨）。track 的 ResizeObserver 會在圖載入撐寬時重算 chevron → onReveal 早跑不影響最終 chevron。
+  setTimeout(reveal, 1500);
 }
 
 // Gallery 滑動、Lightbox、hover、海報比例偵測；回傳 GSAP 動畫啟動函數
@@ -878,7 +885,21 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
       }
     });
   };
-  requestAnimationFrame(initMarquees);
+  // initMarquees 逐列讀 scrollWidth/clientWidth（forced reflow）＝ ~250ms thrash（profiler 實測 activities-data-loader.js:774）。
+  // 初載時 list 在 hero 下方 fold 外、量測又跟 hero 進場搶主執行緒 → hero 卡頓。改用 IntersectionObserver 只在
+  // container 捲近 viewport 才量：初載 fold 外時完全不在 hero 期間跑（rIC 會在幀間空檔誤觸 hero、IO 不會）；
+  // 已可見的 panel（section 切換後 user 早在內容區）IO 立即 fire、marquee 無延遲。marquee 是裝飾性 overflow 捲動，
+  // 「看得到才量」語意也對。fonts.ready / 逐 wrap ResizeObserver re-check 仍照舊補量。離頁由 registerPageCleanup 收。
+  const runMarquees = () => { if (container.isConnected) initMarquees(); };
+  if (typeof IntersectionObserver !== 'undefined') {
+    const mqIo = new IntersectionObserver((entries, obs) => {
+      if (entries.some(e => e.isIntersecting)) { obs.disconnect(); runMarquees(); }
+    }, { rootMargin: '200px' });  // 提前 200px 量好，捲到時 marquee 已就緒
+    mqIo.observe(container);
+    registerPageCleanup(() => mqIo.disconnect());
+  } else {
+    requestAnimationFrame(runMarquees);
+  }
 
   // 海報比例偵測
   container.querySelectorAll('.poster-img').forEach(img => {
@@ -913,6 +934,17 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
   container.querySelectorAll('.workshop-ref-btn, .list-ref-btn').forEach(btn => {
     bindRefBtnClick(btn);
   });
+
+  // ref document 封面預產（user 2026-08-28「第一次打開色塊就要是封面 size」）：背景用 pdf-cover
+  // range 抓第一頁進 IDB（幾十 KB、跨 session 一生一次），點開時 viewer peekPdfCover 命中
+  // ＝首次開檔色塊即真實比例（跟 library documents 預產封面同邏輯）。idle 起跑＋
+  // renderPdfCover 內建併發閘門與 single-flight → 不搶 hero/list 進場的主執行緒與頻寬。
+  const refPdfUrls = [...new Set([...container.querySelectorAll('[data-ref-pdf-url]')]
+    .map(b => b.dataset.refPdfUrl).filter(Boolean))];
+  if (refPdfUrls.length) {
+    const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 1000));
+    idle(() => import('../ui/pdf-cover.js').then(m => refPdfUrls.forEach(u => m.renderPdfCover(u))));
+  }
 
   // 進場動畫：per-row clip reveal + data-pre-reveal 守門（動畫前禁 hover/click）
   // onEnter 時同步移除 closest .list-item 的 data-pre-reveal，解鎖互動
@@ -1245,9 +1277,8 @@ export async function loadListInto(containerId, url, options = {}) {
         : ((item.location || item.location_zh || item.flag)
           ? [{ en: item.location || '', zh: item.location_zh || '', country: item.flag || '' }]
           : []);
-      // locationEn/Zh：search + 「一行地點顯示」用（venue 單一 / 多城市 ' / ' join 成一行）
-      const locationEn = locationRows.map(l => l.en).filter(Boolean).join(' / ');
-      const locationZh = locationRows.map(l => l.zh).filter(Boolean).join(' / ');
+      // 多地點：前台改「一個個往下堆疊」渲染（每個 venue 各自 EN+ZH 一組），不再 ' / ' 併成一行（user 2026-08-28）。
+      // 渲染直接吃 locationRows（見下方 .list-summary-mq-col）；search 仍走上面 searchText 的 item.location/location_zh。
       // city（conference 摘要列第三欄）：venue(location) 之外的城市/地區，目前只有 conferences 填
       const cityEn = item.city || item.cityEn || '';
       const cityZh = item.city_zh || item.cityZh || '';
@@ -1340,9 +1371,11 @@ export async function loadListInto(containerId, url, options = {}) {
                       <div class="list-title-marquee${dateDisplayZh ? ' mb-en-zh-s' : ''}"><p class="text-s font-bold">${dateDisplay}</p></div>
                       ${dateDisplayZh ? `<div class="list-title-marquee"><p class="text-s font-bold">${dateDisplayZh}</p></div>` : ''}
                     </div>` : '<div></div>'}
-                    ${showLocation && (locationEn || locationZh) ? `<div class="min-w-0 list-summary-mq-col">
-                      ${locationEn ? `<div class="list-title-marquee mb-en-zh-s"><p class="text-s font-bold">${locationEn}</p></div>` : ''}
-                      ${locationZh ? `<div class="list-title-marquee"><p class="text-s font-bold">${locationZh}</p></div>` : ''}
+                    ${showLocation && locationRows.some(l => l.en || l.zh) ? `<div class="min-w-0 list-summary-mq-col">
+                      ${locationRows.filter(l => l.en || l.zh).map((l, i, arr) => `<div${i < arr.length - 1 ? ' style="margin-bottom: var(--spacing-xs, 8px)"' : ''}>
+                        ${l.en ? `<div class="list-title-marquee${l.zh ? ' mb-en-zh-s' : ''}"><p class="text-s font-bold">${l.en}</p></div>` : ''}
+                        ${l.zh ? `<div class="list-title-marquee"><p class="text-s font-bold">${l.zh}</p></div>` : ''}
+                      </div>`).join('')}
                     </div>` : '<div></div>'}
                     ${hasCity ? `<div class="min-w-0 list-city-cell list-summary-mq-col">
                       ${cityEn ? `<div class="list-title-marquee mb-en-zh-s"><p class="text-s font-bold">${cityEn}</p></div>` : ''}

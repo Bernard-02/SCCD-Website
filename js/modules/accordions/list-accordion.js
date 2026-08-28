@@ -24,6 +24,10 @@ function initListYearToggle() {
         // 用 overflow:clip 不用 hidden — hidden 會把這層變成 sticky 的 scroll container，
         // 讓內部 .list-header.active 的 position:sticky 完全失效（黏不住）；clip 只剪裁不建立 scroll container
         itemsContainer.style.overflow = 'clip';
+        // 收/展＝整塊 clip-reveal（user 2026-08-28）：justify-end 讓 flex 內容底部貼齊收合中的容器底邊、
+        // 溢出往「上」被 clip 剪掉 → height tween 時整塊往上滑出、下方 list 跟著上來（非逐項、大清單也不卡）。
+        // 展開態 height:auto 無溢出 → 是 no-op，不影響 sticky 定位與排版。
+        itemsContainer.style.justifyContent = 'flex-end';
 
         // Check if chevron has rotate-90 class (indicates initially open)
         const isInitiallyOpen = chevron && chevron.classList.contains('rotate-90');

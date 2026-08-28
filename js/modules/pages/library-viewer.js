@@ -248,6 +248,7 @@ export function initPdfViewer() {
   let wantWatermark = false;   // 只有 document/files 來源的 PDF 要浮水印（press / 會議紀錄 / charter 不用）
   let allowAutoRead = false;   // 首開「閱讀縮放」只給 press（detail.autoRead）；documents/其他一律 Fit Page 整頁（user 2026-08-23）
   let openToken = 0;             // 每次 open ++、close 也 ++：作廢慢到的開場（見 sccd:open-pdf handler）
+  let curPdfUrl = '';            // 當前開檔 URL（頁面比例快取的 key，見 setCachedPdfDims）
   // 載入色塊（取代舊 LQIP 馬賽克墊圖）：render 完成前蓋住頁面（.pdf-color-loader 是 .pdf-zoom-stage 的
   // stage 絕對定位 overlay、開場依頁面可視矩形定尺寸一次、render 不碰＝不跳）、每秒切一個「不同的」三原色循環；
   // render 完成後等當前色塊 1s 走完再隨機四方向 clip-reveal 揭露頁面。
@@ -575,6 +576,21 @@ export function initPdfViewer() {
     lastColorIdx = i;
     return LOADER_COLORS[i];
   }
+  // 頁面比例快取（localStorage）：無預產封面的 ref/會議紀錄 PDF，第一次 render 時記下第一頁真尺寸，
+  // 之後再開同檔＝open 即真實比例（跟 documents 封面同邏輯、零跳動）；只有首次開才退 A4 猜（user 2026-08-28）。
+  const PDF_DIMS_KEY = 'sccdPdfPageDims';
+  function getCachedPdfDims(url) {
+    try { return JSON.parse(localStorage.getItem(PDF_DIMS_KEY) || '{}')[url] || null; } catch { return null; }
+  }
+  function setCachedPdfDims(url, w, h) {
+    if (!url || !(w > 0) || !(h > 0)) return;
+    try {
+      const m = JSON.parse(localStorage.getItem(PDF_DIMS_KEY) || '{}');
+      m[url] = [Math.round(w), Math.round(h)];
+      localStorage.setItem(PDF_DIMS_KEY, JSON.stringify(m));
+    } catch { /* 隱私模式/quota 失敗＝下次照樣 A4 猜，無害 */ }
+  }
+
   // render 算出真頁面 naturalDims/fitDims + fit/reading 決策後（bitmap render 之前）把載入色塊改成
   // 「真頁面在螢幕上的可視矩形」＝色塊必 == 頁面。修 open 時只能靠裁頂 1.5 封面猜 reading、真頁 aspect<2
   // 走 Fit Page 時的失配（色塊放大但頁面沒放大 / 色塊寬度不 fit press，user 2026-08-24）。
@@ -583,6 +599,7 @@ export function initPdfViewer() {
   function sizeLoaderToPage() {
     if (!colorLoaderEl || !loaderActive) return;
     if (fitDims.w <= 0) return;
+    setCachedPdfDims(curPdfUrl, naturalDims.w, naturalDims.h);   // loaderActive 期間必是第一頁＝封面尺寸
     const sw = stageEl.clientWidth || window.innerWidth;
     const sh = stageEl.clientHeight || window.innerHeight * 0.8;
     let vw, vh, left, top;
@@ -1059,6 +1076,7 @@ export function initPdfViewer() {
       if (typeof gsap !== 'undefined' && cornerThumbInner) gsap.killTweensOf(cornerThumbInner);
     }
     curMaxDim = maxCanvasDim || MAX_CANVAS_DIM;   // press 帶更高上限 → 高倍更清晰；其他維持預設
+    curPdfUrl = pdfUrl;
     curPage = 1;
     // 重置內部狀態：naturalDims=0 讓 renderPage 視為「初次 render」自動套 actual size
     zoom = { scale: 1, tx: 0, ty: 0 };
@@ -1090,16 +1108,39 @@ export function initPdfViewer() {
     // 先把 stage 對齊 logo 下緣（renderPage 也會跑、idempotent）：cover onload / sizeLoaderToPage 讀
     // stageEl.clientHeight 才是「最終」高度，色塊尺寸不受 padding-top 之後變動影響（user 2026-08-24）。
     positionPdfStageRelativeToLogo();
-    // 載入色塊：每秒換三原色蓋住頁面直到 render 完成（取代舊 LQIP 馬賽克墊圖）。open 時先藏、不猜尺寸——
-    // 由 cover onload（非 press，真封面 fit）或 renderPage 的 sizeLoaderToPage（所有情況，render 真數字）定尺寸才顯示。
+    // 載入色塊：每秒換三原色蓋住頁面直到 render 完成（取代舊 LQIP 馬賽克墊圖）。open 時先藏——
+    // 由 cover onload（有封面，真封面 fit）／A4 猜測（無封面文件）／sizeLoaderToPage（render 真數字）定尺寸才顯示。
     startColorLoader();
-    // 非 press 封面校準（色塊＝stage 絕對定位 overlay、定一次、render 不碰）：等真封面 onload 撐 fit 尺寸才顯示
-    // （封面非裁頂＝與真頁面 fit 一致、不閃）。press 封面是裁頂 1.5、看不出真 aspect → 這裡不拿來定尺寸（早退），
-    // 交給 sizeLoaderToPage 用 render 真數字精準定（避免 <2 頁色塊太大，user 2026-08-24）。
-    // ⚠️只設色塊自己的 stage 座標尺寸、不碰 naturalDims/fitDims → renderPage 仍視為初次 render；沒封面就等 renderPage。
+    // 色塊 Fit Page 置中矩形（stage 絕對定位 overlay、render 不碰＝零跳）；pw/ph 只取比例
+    const showLoaderFitRect = (pw, ph) => {
+      const availH = stageEl.clientHeight || window.innerHeight * 0.8;
+      const availW = stageEl.clientWidth || window.innerWidth;
+      const f = Math.min(availH / ph, availW / pw);
+      const cw = pw * f, ch = ph * f;
+      colorLoaderEl.style.left   = ((availW - cw) / 2) + 'px';
+      colorLoaderEl.style.top    = ((availH - ch) / 2) + 'px';
+      colorLoaderEl.style.width  = cw + 'px';
+      colorLoaderEl.style.height = ch + 'px';
+      colorLoaderEl.style.display = '';   // 尺寸定好才顯示（startColorLoader 先藏，避免閃 stale 尺寸）
+    };
+    // 非 press 封面校準：等真封面 onload 撐 fit 尺寸才顯示（封面非裁頂＝與真頁面 fit 一致、不閃）。
+    // press 封面是裁頂 1.5、看不出真 aspect → 這裡不拿來定尺寸（早退），交給 sizeLoaderToPage 用
+    // render 真數字精準定（避免 <2 頁色塊太大，user 2026-08-24）。
+    // ⚠️只設色塊自己的 stage 座標尺寸、不碰 naturalDims/fitDims → renderPage 仍視為初次 render。
     const cachedCover = cover ? Promise.resolve(cover) : peekPdfCover(pdfUrl, coverAspect || 0);
-    if (cachedCover) cachedCover.then(src => {
-      if (!src || myToken !== openToken || naturalDims.w > 0 || !colorLoaderEl) return;   // render 已先到就不用墊
+    Promise.resolve(cachedCover).then(src => {
+      if (myToken !== openToken || naturalDims.w > 0 || !colorLoaderEl || !loaderActive) return;   // render 已先到就不用墊
+      if (!src) {
+        // 無封面可量（activities/dshow ref、alumni 會議紀錄）：開過的檔用快取真實比例（跟 documents 封面
+        // 同邏輯、零跳動）；首次開才退 A4 直式猜（並非所有書都 A4，user 2026-08-28），getDocument 網路窗
+        // 就看得到色塊；renderPage 的 sizeLoaderToPage 拿真尺寸校正＋寫入快取。
+        // press（autoRead）不猜：可能走 reading-fill，Fit Page 猜測會大跳（08-24 定案）→ 維持等 sizeLoaderToPage。
+        if (!allowAutoRead) {
+          const d = getCachedPdfDims(pdfUrl);
+          showLoaderFitRect(d ? d[0] : 210, d ? d[1] : 297);
+        }
+        return;
+      }
       const img = new Image();   // 不設 crossOrigin：panel 封面是 no-cors 載的，設了會重走網路（見舊 memory）；此處只讀尺寸不畫 canvas
       img.onload = () => {
         if (myToken !== openToken || naturalDims.w > 0 || !loaderActive) return;
@@ -1110,16 +1151,8 @@ export function initPdfViewer() {
         //   （本站 press 幾乎全是 ≥2 長文，見封面裁頂理由）。真頁若在 [1.5,2)（雜誌/報紙掃描）色塊會在揭露前縮一次（罕見）。
         //   render 的 ≥2 門檻是 user 定案不能降；要全消得把色塊移出 rendered-content、改 zoom-stage 絕對定位不隨 render 重算。
         if (allowAutoRead && (coverIsCropped || imgAspect >= 2)) return;
-        // 其餘 → 封面 fit 尺寸置中（非 press，或 press 首頁橫幅/短頁）。色塊＝stage 絕對定位（Fit Page 置中矩形）、render 不碰＝零跳
-        const availH = stageEl.clientHeight || window.innerHeight * 0.8;
-        const availW = stageEl.clientWidth || window.innerWidth;
-        const f = Math.min(availH / img.naturalHeight, availW / img.naturalWidth);
-        const cw = img.naturalWidth * f, ch = img.naturalHeight * f;
-        colorLoaderEl.style.left   = ((availW - cw) / 2) + 'px';
-        colorLoaderEl.style.top    = ((availH - ch) / 2) + 'px';
-        colorLoaderEl.style.width  = cw + 'px';
-        colorLoaderEl.style.height = ch + 'px';
-        colorLoaderEl.style.display = '';   // 尺寸定好才顯示（startColorLoader 對非 press 先藏，避免閃 stale 尺寸）
+        // 其餘 → 封面 fit 尺寸置中（非 press，或 press 首頁橫幅/短頁）
+        showLoaderFitRect(img.naturalWidth, img.naturalHeight);
       };
       img.src = src;
     });

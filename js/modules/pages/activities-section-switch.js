@@ -759,7 +759,13 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
     // refresh / 直接開連結 / 上一頁下一頁（fromUserNav=false）：清掉 deep-link query（URL 變乾淨）+ 停在 default section
     // ＝「直接點 activities 分頁的樣子」（user 2026-06-04），不停在 ?section= 指定的分頁也不導航
     if (hasDeepLink) history.replaceState(history.state, '', window.location.pathname);
-    switchToSection(defaultSection, btns, false, true);
+    // 初載 list 的 fetch+render+setup 延到 hero 進場動畫跑完才做（user 2026-08-28）：activities 是唯一在 init 就
+    // 同步 render 整個 section 清單的 .hero-rand-grid 頁，這坨跟 hero 的 randomizeHeroLayout live build（cache
+    // 是 in-memory Map、reload 必重建）疊在同一主執行緒窗口 → hero 卡片/文字進場卡頓（其他頁沒這個並發）。
+    // list 在 fold 外、reveal 已 scroll-gated → 晚 ~1.7s load 不可見無感。用預設 cap（等真正 hero:animation-done
+    // event ~1.7s；4000ms 只是 hero 壞掉時的兜底，同 deep-link 用法）——別給短 cap，會在 hero 還沒播完就 render 回來搶主
+    // 執行緒。deep-link 路徑（上面 branch）維持即時 render＝要在 hero 期間於畫面外把目標 item 定位好。
+    waitForHeroAnimDone().then(() => switchToSection(defaultSection, btns, false, true));
   }
 
   btns.forEach(btn => {
@@ -888,8 +894,31 @@ async function switchToSection(section, btns, shouldScroll, isInitial = false) {
         playAdmissionPanelReveal(target, { useScrollTrigger: false });
         playFilterChipsReveal(target, { useScrollTrigger: false });
       };
-      if (isInitial) revealWhenListRowsSettled(target, revealNow);
-      else revealNow();
+      if (isInitial) {
+        // 初載：list 進場「延到內容區捲進 window 視窗才播」（單一 section-level ScrollTrigger，非 per-row）。
+        //   ① 修 hero 進場卡頓：reveal 的 master timeline（多列 GSAP）本來在資料 fetch 一 resolve（≈hero 動畫播到一半）
+        //      就立刻建 + 播 → 跟 hero clip-reveal 搶主執行緒，hero 停一下才續。延到捲到才播＝ hero 播時它不在跑。
+        //   ② 修「捲下去 list 已渲染完、沒進場」：本來在 fold 外就播完，改成捲到才播、看得到。
+        //   ⚠️ 仍用 master timeline（useScrollTrigger:false 內部）非 per-row：桌面 list 在 .inner-scroll-scroll-col
+        //      內捲、window 不動 → per-row 綁 window scroller 會漏掉 fold 以下 year-group 卡 yPercent:100 空白；
+        //      單一 section trigger 只負責「何時播」，播的仍是整條 timeline 涵蓋全部 group。
+        //   rows 已在 step 5 setupAdmissionReveal 藏好（yPercent:110），trigger 前維持隱藏、不閃；section 在
+        //   #page-content 內，離頁時 router cleanup 會 kill 此 trigger。
+        revealWhenListRowsSettled(target, () => {
+          const sectionEl = document.getElementById('activities-content-section');
+          if (typeof ScrollTrigger !== 'undefined' && sectionEl) {
+            ScrollTrigger.create({
+              trigger: sectionEl, start: 'top 80%', once: true,
+              // guard：若使用者已切到別的 section（target 被 showPanel 加上 .hidden）就別對隱藏 panel 播
+              onEnter: () => { if (!target.classList.contains('hidden')) revealNow(); },
+            });
+          } else {
+            revealNow();
+          }
+        });
+      } else {
+        revealNow();
+      }
     }
     switching = false;
   }

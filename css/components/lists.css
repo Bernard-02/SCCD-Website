@@ -333,16 +333,12 @@
        min-width:0 讓副標回到欄寬、溢出交給 .list-title-marquee(overflow:hidden) 截斷＋開啟 marquee（同 title；min-height:0 的水平對應）。 */
     min-width: 0;
   }
-  .list-header.active.is-pinned > * > .clip-reveal-wrapper:has(.list-subtitles) {
+  /* user 2026-08-28：只有 lectures 收副標（scope #panel-lectures），其他 section 打開/pin 後都保留副標。
+     手機仍「捲過 pin 線才收」（不複製桌面一開就收）。原 general 收合＋summer-camp 例外已移除。 */
+  #panel-lectures .list-header.active.is-pinned > * > .clip-reveal-wrapper:has(.list-subtitles) {
     grid-template-rows: 0fr;
     opacity: 0;
     margin-top: -0.5rem;  /* 抵消父 flex-col gap-xs，collapsed 後 title 不留視覺 gap */
-  }
-  /* summer-camp 例外與桌面一致（user 2026-06-22：營隊副標 pin 後也不收） */
-  #panel-summer-camp .list-header.active.is-pinned > * > .clip-reveal-wrapper:has(.list-subtitles) {
-    grid-template-rows: 1fr;
-    opacity: 1;
-    margin-top: 0;
   }
 
   /* 手機：年份→list 的 grid gap 移除（year-toggle py-md + items mt-md 已提供間距，year 緊貼 list）。
@@ -652,21 +648,9 @@
        min-width:0 讓副標回到欄寬、溢出交給 .list-title-marquee(overflow:hidden) 截斷＋開啟 marquee（同 title；min-height:0 的水平對應）。 */
     min-width: 0;
   }
-  .list-header.active.is-pinned > * > .clip-reveal-wrapper:has(.list-subtitles) {
-    grid-template-rows: 0fr;
-    opacity: 0;
-    margin-top: -0.5rem;  /* 抵消父 flex-col gap-xs (0.5rem)，collapsed 後 title 不留視覺 gap */
-  }
-  /* summer-camp 例外（user 2026-06-22）：營隊副標（梯次名稱 High School Students Design Camp…）
-   * 打開後即使捲到 pin 線也保留顯示，不像其他 section pin 後收掉。ID specificity 蓋過上面 collapse。 */
-  #panel-summer-camp .list-header.active.is-pinned > * > .clip-reveal-wrapper:has(.list-subtitles) {
-    grid-template-rows: 1fr;
-    opacity: 1;
-    margin-top: 0;
-  }
-  /* Lecture 例外（user 2026-06-05）：講座 accordion 一「打開」(.active) 就收副標，不必等捲到 pin 線。
-   * 其他有副標 section（industry/students-present）維持「pinned 才收」(上面 is-pinned 規則) → 故 scope #panel-lectures。
-   * 原因：在頂部直接點開講座時 header 不一定壓到 sticky-top 線 → is-pinned 不 fire → 副標收不掉。 */
+  /* user 2026-08-28：桌面只有 lectures 收副標——一「打開」(.active) 就收，不必等 pin。
+   * 其他有副標 section（industry/students-present/exhibitions…）打開後一律保留副標（原 general is-pinned collapse 與 summer-camp 例外已移除）。
+   * 原因：在頂部直接點開講座時 header 不一定壓到 sticky-top 線 → is-pinned 不 fire → 只靠 .active 才收得掉。 */
   #panel-lectures .list-header.active > * > .clip-reveal-wrapper:has(.list-subtitles) {
     grid-template-rows: 0fr;
     opacity: 0;
