@@ -100,7 +100,7 @@ function buildDates(s, e) {
 // monthDay 缺就當該年 1/1（只用年份排序）。只 industry 有 year 欄，其他 collection 不受影響。
 function buildDateGroups(reps, s, e, year, monthDay) {
   if (Array.isArray(reps) && reps.length)
-    return reps.filter(d => d?.start).map(d => buildDates(d.start, d.end)[0]);
+    return reps.filter(d => d?.start).map(d => ({ ...buildDates(d.start, d.end)[0], monthOnly: !!d.monthOnly }));
   if (s) return buildDates(s, e);
   if (year) {
     const m = String(monthDay || '').match(/(\d{1,2})\D+(\d{1,2})/);
@@ -165,7 +165,17 @@ function groupByYear(items) {
  * @param {{category?: string, stamp?: object, sortByDate?: boolean}} [opts]  stamp = 補到每筆的子類型判別欄（visitType/exhibitionType）；
  *   sortByDate = 前台依單一日期(year+monthDay)排序而非後台 sort 欄（industry 用，見上）
  */
-export async function loadActivityCollection(collection, fallbackUrl, opts = {}) {
+// single-flight fetch cache（CLAUDE.md *-source.js 慣例）：讓 init 期 prefetch 與 hero 播完後的 render 共用
+// 同一次 fetch，避免 fetch 落在「hero gate 之後才起跑」的關鍵路徑（見 activities-section-switch prefetchExhibitionsData）。
+// 離頁重進由 initActivitiesSectionSwitch 呼 resetActivitiesFetchCache 清掉 → 抓最新內容。
+const _flightCache = new Map();
+const flight = (key, fn) => { if (!_flightCache.has(key)) _flightCache.set(key, fn()); return _flightCache.get(key); };
+export function resetActivitiesFetchCache() { _flightCache.clear(); }
+
+export function loadActivityCollection(collection, fallbackUrl, opts = {}) {
+  return flight(`col:${collection}:${opts.category || ''}:${opts.sortByDate ? 1 : 0}`, () => _loadActivityCollection(collection, fallbackUrl, opts));
+}
+async function _loadActivityCollection(collection, fallbackUrl, opts = {}) {
   try {
     // images 是 files M2M：fields=* 只回 junction row id（非檔案 UUID）→ normalizeFiles 組出 404 asset。
     // 必須深取 images.directus_files_id 才拿到真正檔案 UUID（同 REF_FIELDS 對 library_press.images 的做法）。
@@ -199,7 +209,10 @@ function mapPermanentEvent(e) {
   const date = s[1] ? `${pad2(s[1])}/${pad2(s[2])} - ${pad2(en[1])}/${pad2(en[2])}` : '';
   return { year: s[0] || '', date, location: e.nameEn || '', location_zh: e.nameZh || '', images: normalizeFiles(e.albumImages) };
 }
-export async function loadPermanentExhibitions(fallbackUrl) {
+export function loadPermanentExhibitions(fallbackUrl) {
+  return flight('perm-exhibitions', () => _loadPermanentExhibitions(fallbackUrl));
+}
+async function _loadPermanentExhibitions(fallbackUrl) {
   try {
     const res = await fetch(`${CMS_API_BASE}/activities_exhibitions_permanent?limit=-1&sort=sort&fields=*,events.*,events.albumImages.directus_files_id`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);

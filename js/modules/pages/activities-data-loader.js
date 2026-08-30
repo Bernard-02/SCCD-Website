@@ -835,7 +835,8 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
 
   const initMarquees = () => {
     // 桌面手機都跑 — 手機 title 區窄更容易 overflow，user 要求收起時就要 marquee
-    container.querySelectorAll('.list-title-marquee').forEach(wrap => {
+    const wraps = [...container.querySelectorAll('.list-title-marquee')];
+    const processWrap = (wrap) => {
       const p = wrap.querySelector('p');
       if (!p) return;
       const checkOverflow = () => {
@@ -883,7 +884,18 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
         window.addEventListener('resize', checkOverflow);
         registerPageCleanup(() => window.removeEventListener('resize', checkOverflow));
       }
-    });
+    };
+    // 分幀處理：逐 wrap 讀 scrollWidth＝forced reflow，整批一次量＝單一 ~250ms long task（捲近 list 時卡一下）。
+    // 每幀 ~8ms 預算、其餘留給捲動 paint → 60fps 不掉幀、marquee 於 ~0.25s 內漸次補上（裝飾性 overflow 無感）。
+    // reconcilePair 靠 DOM 兄弟找 partner（非處理順序）→ 分幀不影響 EN/ZH 配對。離頁 container 斷開即自停。
+    let i = 0;
+    const step = () => {
+      if (!container.isConnected) return;
+      const budget = performance.now() + 8;
+      while (i < wraps.length && performance.now() < budget) processWrap(wraps[i++]);
+      if (i < wraps.length) requestAnimationFrame(step);
+    };
+    step();
   };
   // initMarquees 逐列讀 scrollWidth/clientWidth（forced reflow）＝ ~250ms thrash（profiler 實測 activities-data-loader.js:774）。
   // 初載時 list 在 hero 下方 fold 外、量測又跟 hero 進場搶主執行緒 → hero 卡頓。改用 IntersectionObserver 只在
@@ -990,6 +1002,8 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
 //   - 單日 → `YYYY/MM/DD`
 //   - 同年跨日 → `YYYY/MM/DD - MM/DD`
 //   - 跨年 → `YYYY/MM/DD - YYYY/MM/DD`
+const EN_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const ZH_MONTHS = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
 function formatDatesFromGroups(datesArr, { includeStartYear = false } = {}) {
   if (!Array.isArray(datesArr) || datesArr.length === 0) return '';
   return datesArr.map(d => formatSingleDateGroup(d, includeStartYear)).filter(Boolean).join(', ');
@@ -997,6 +1011,13 @@ function formatDatesFromGroups(datesArr, { includeStartYear = false } = {}) {
 function formatSingleDateGroup(d, includeStartYear = false) {
   if (!d) return '';
   const sY = d.startYear, sM = d.startMonth, sD = d.startDay;
+  // 後台 dates repeater 勾「只到月」→ 只渲染月份（英全名 + 中文），忽略日與 range
+  // ponytail: 只做單月；要跨月 range（May 五月 - June 六月）之後再加
+  if (d.monthOnly) {
+    if (!sM) return '';
+    const mo = `${EN_MONTHS[sM - 1]} ${ZH_MONTHS[sM - 1]}`;
+    return includeStartYear ? `${sY} ${mo}` : mo;
+  }
   const eY = d.endYear || sY, eM = d.endMonth || sM, eD = d.endDay || sD;
   if (!sM || !sD) return '';
   const sameYear = sY === eY;
@@ -1779,6 +1800,15 @@ export async function loadExhibitionsInto(options = {}) {
   return () => {
     fns.forEach(fn => { if (fn) fn(); });
   };
+}
+
+// init 期（hero 進場動畫進行中）預抓預設分頁 exhibitions 的資料填 single-flight cache：原本整個
+// switchToSection（含這兩支 fetch）都 defer 到 hero gate 之後才跑 → fetch 落在關鍵路徑（實測 hero 播完後
+// 還要再等 ~1.1s fetch 才 render）。fetch 是網路 I/O、不搶 hero 主執行緒，並行安全 → hero 播完 render 直接命中快取。
+// fire-and-forget：.catch 吞掉暫態 rejection（真正的錯誤由 loadExhibitionsInto await 快取時交 switchToSection try/catch 處理）。
+export function prefetchExhibitionsData() {
+  fetchActEndpointOrFallback('activities-exhibition-special', '/data/general-activities.json').catch(() => {});
+  loadPermanentExhibitions('/data/permanent-exhibitions.json').catch(() => {});
 }
 
 // 分別載入 outbound / inbound 到各自的 container

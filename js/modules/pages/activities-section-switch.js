@@ -4,7 +4,8 @@
  * 同時負責載入各區塊資料
  */
 
-import { loadExhibitionsInto, loadGeneralActivitiesInto, loadLecturesInto, loadIndustryInto, loadWorkshopsInto, loadSummerCampInto, loadVisitsInto } from './activities-data-loader.js';
+import { loadExhibitionsInto, loadGeneralActivitiesInto, loadLecturesInto, loadIndustryInto, loadWorkshopsInto, loadSummerCampInto, loadVisitsInto, prefetchExhibitionsData } from './activities-data-loader.js';
+import { resetActivitiesFetchCache } from './activities-source.js';
 import { loadDegreeShowListInto } from './degree-show-data-loader.js';
 import { applyMarqueeOverflow, bindMarqueeReturn } from '../ui/marquee-overflow.js';
 import { initActivitiesYearToggle } from '../accordions/activities-year-toggle.js';
@@ -706,6 +707,8 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
 
   // SPA 換頁後 DOM 重建，需重置 loaded 狀態讓資料重新載入
   Object.keys(loaded).forEach(k => delete loaded[k]);
+  // 清 single-flight fetch cache：每次進頁抓最新內容（prefetch 與 render 共用同一次 fetch，見下 prefetchExhibitionsData）
+  resetActivitiesFetchCache();
   // 模組級旗標跨 SPA 換頁不會自動清。若上次離頁時某 switch 被導航打斷（exit 動畫被 cleanup 殺、
   // onComplete 沒跑→Promise 永不 resolve→finally 沒跑），switching 會卡 true 擋掉本頁所有 panel 載入。
   // 重新進頁 DOM 全新、沒有進行中的 switch → 一律歸零。
@@ -759,6 +762,9 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
     // refresh / 直接開連結 / 上一頁下一頁（fromUserNav=false）：清掉 deep-link query（URL 變乾淨）+ 停在 default section
     // ＝「直接點 activities 分頁的樣子」（user 2026-06-04），不停在 ?section= 指定的分頁也不導航
     if (hasDeepLink) history.replaceState(history.state, '', window.location.pathname);
+    // ⭐fetch 提前：hero 進場時就先抓 exhibitions 資料填快取（跟 hero 並行、fetch 不搶主執行緒），
+    // 這樣下面 hero 播完 switchToSection→render 時直接命中快取，不必再等 ~1.1s fetch（原本 fetch 也被 defer 在 gate 後）。
+    prefetchExhibitionsData();
     // 初載 list 的 fetch+render+setup 延到 hero 進場動畫跑完才做（user 2026-08-28）：activities 是唯一在 init 就
     // 同步 render 整個 section 清單的 .hero-rand-grid 頁，這坨跟 hero 的 randomizeHeroLayout live build（cache
     // 是 in-memory Map、reload 必重建）疊在同一主執行緒窗口 → hero 卡片/文字進場卡頓（其他頁沒這個並發）。
