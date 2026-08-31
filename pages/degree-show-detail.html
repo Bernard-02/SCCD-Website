@@ -99,7 +99,7 @@
            → 加入 / 移除 副 chip 不會影響 title group 的視覺位置（之前用 flex stack 改變 group 高度，
               translateY(-50%) 套整塊讓 title 上下跳） -->
     <div id="sticky-info-card" class="hidden md:block fixed pointer-events-none"
-         style="top: 200px; left: var(--container-padding, 60px); z-index: 20; opacity: 0; visibility: hidden;">
+         style="top: 160px; left: var(--container-padding, 60px); z-index: 20; opacity: 0; visibility: hidden;">
       <div class="sticky-title-group relative flex flex-col items-start" style="gap: 0.6rem; width: max-content;">
         <!-- year chip：釘 title chip 上方（absolute bottom:100%，脫離 flex flow → 不影響 title group 高度，同 branch chip 手法）；
              accent 底跟 title 同 cardColor（JS 設）＝ courses program bar「類別 label 疊在名稱上方」的定位 pattern（user 2026-08-18） -->

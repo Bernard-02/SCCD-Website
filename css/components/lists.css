@@ -18,7 +18,7 @@
 @media (min-width: 768px) {
   .inner-scroll-frame-grid {
     height: 100vh;
-    --inner-pad: var(--spacing-3xl, 96px);                            /* content 區上 pad（下 pad 見 --inner-pad-bottom） */
+    --inner-pad: var(--spacing-2xl, 64px);                            /* content 區上 pad（下 pad 見 --inner-pad-bottom）；nav chip resting = header+此值 = 96+64 = 160（user 2026-08-31 由 3xl/96→2xl/64 收上來，四頁 nav 齊動） */
     --inner-pad-bottom: 0px;                                          /* box 底貼齊 viewport 底，切到的卡片直接被螢幕邊緣切齊、不留白 bar（user 2026-08-03）*/
     --inner-box-top: calc(var(--header-height, 96px) + var(--inner-pad));  /* content 區上緣（扣 fixed header）*/
   }
