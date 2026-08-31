@@ -3,10 +3,10 @@
  * Directus admission_summer_camp（扁平）→ 本地 summer-camp.json 的 year-grouped shape
  * （loadListInto 吃這個；它已直接讀 titleEn/Zh、subtitleEn/Zh、locations[]、videoLinks）。
  * 主要補：dates 結構化（startDate/endDate → [{startYear,...}]）、EN 描述（descriptionEn→description）、
- * 媒體 UUID→asset URL、依年份分組。Directus 失敗 → fallback 本地 /data/summer-camp.json。
+ * 圖片媒體（poster/images）走 CloudFront、依年份分組。Directus 失敗 → fallback 本地 /data/summer-camp.json。
  * admission 頁「營隊」tab 與 activities 頁共用 loadSummerCampInto → 都吃這個來源。
  */
-import { CMS_API_BASE, CMS_ASSETS_BASE } from '../../config/api.js';
+import { CMS_API_BASE, CMS_CDN_BASE } from '../../config/api.js';
 import { sitePath } from '../ui/site-base.js';
 
 const CMS_COLLECTION = 'admission_summer_camp';
@@ -14,7 +14,9 @@ const FALLBACK_JSON = '/data/summer-camp.json';
 
 export async function loadSummerCamp() {
   try {
-    const res = await fetch(`${CMS_API_BASE}/${CMS_COLLECTION}?limit=-1&sort=sort&fields=*.*`);
+    // *.* 展開 poster 檔案物件（含 filename_disk）＋ references 附件；images 是 M2M junction，多深一層
+    // 取 directus_files_id.filename_disk 才拿得到檔名（*.* 只到 junction 層）→ 組 CloudFront URL。
+    const res = await fetch(`${CMS_API_BASE}/${CMS_COLLECTION}?limit=-1&sort=sort&fields=*.*,images.directus_files_id.filename_disk`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const rows = (await res.json()).data;
     if (!Array.isArray(rows) || !rows.length) throw new Error('empty');
@@ -72,17 +74,27 @@ function groupByYear(rows) {
     .map(([year, items]) => ({ year, items: [...items].sort((a, b) => monthDayKey(b) - monthDayKey(a)) }));
 }
 
-// 媒體：null→''；UUID 字串 / 展開 file 物件 / M2M junction 都解析成 assets URL
-const asset = (uuid) => uuid ? `${CMS_ASSETS_BASE}/${uuid}` : '';
+// 圖片（poster / images）走 CloudFront（d2df28pyzslt2v，直吃 S3）繞過弱機 /assets 5s 逾時回 403、全站掉圖
+// （見 memory reference_directus_s3_timeout_all_assets_down）。用檔案的即時 filename_disk（<uuid>.<副檔名>）組 key、
+// 不寫死副檔名 → 離線 webp 轉檔（.jpg/.png→.webp）自動跟上。影片走 videoLinks（loadListInto 直接讀 url），不經此。
+// null/空→''；已是 URL / 本地路徑（防禦性；fallback JSON 不經 mapRow 故正常走不到）→ 原樣。
+const asset = (name) => {
+  if (!name) return '';
+  if (/^(https?:)?\/\//.test(name) || name.startsWith('/') || name.startsWith('../')) return name;
+  return `${CMS_CDN_BASE}/${name}`;
+};
+// poster：*.* 展開的檔案物件 { filename_disk }（相容純字串）
 function fileUrl(f) {
   if (!f) return '';
-  return typeof f === 'string' ? asset(f) : asset(f.id);
+  return asset(typeof f === 'string' ? f : f?.filename_disk);
 }
+// images：M2M junction，每列 directus_files_id 深取成 { filename_disk }
 function normalizeFiles(arr) {
   if (!Array.isArray(arr)) return [];
   return arr.map(x => {
     if (typeof x === 'string') return asset(x);
-    if (x?.directus_files_id) { const f = x.directus_files_id; return asset(typeof f === 'string' ? f : f?.id); }
-    return asset(x?.id);
+    const f = x?.directus_files_id;
+    if (f) return asset(typeof f === 'string' ? f : f?.filename_disk);
+    return asset(x?.filename_disk);
   }).filter(Boolean);
 }

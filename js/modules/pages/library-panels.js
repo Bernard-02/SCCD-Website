@@ -10,7 +10,8 @@ import { videoMediaFromUrl, grabHlsFrame, isSelfHostedVideo } from '../ui/video-
 import { ensureFlagIconsCss } from '../ui/ensure-flag-icons.js';
 import { countryName } from '../../data/country-names.js';
 import { DUR, EASE } from '../ui/motion.js';
-import { CMS_API_BASE, CMS_ASSETS_BASE } from '../../config/api.js';
+import { CMS_API_BASE, CMS_CDN_BASE } from '../../config/api.js';
+import { pdfOpenUrl } from './pdf-url.js';
 import { sitePath, SITE_BASE_PATHNAME } from '../ui/site-base.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { makeActivatable } from '../ui/a11y.js';
@@ -107,6 +108,16 @@ const ACCENT_TO_DEEP = {
   '#00FF80': '#23eb7d', '#00ff80': '#23eb7d',
   '#26BCFF': '#23a5ff', '#26bcff': '#23a5ff',
 };
+
+// 圖片欄位的即時 filename_disk（<uuid>.<副檔名>）→ CloudFront 圖片 URL：走 CloudFront 直吃 S3、繞過弱機
+// /assets 逾時（見 config/api.js CMS_CDN_BASE、memory reference_directus_s3_timeout_all_assets_down）。
+// 給圖片用（cover / award logos / images M2M）；PDF 走 pdfOpenUrl（也是 CloudFront，見 pdf-url.js）、影片走 videoUrls。
+// 不寫死副檔名＝離線 webp 轉檔（.jpg/.png→.webp）自動跟上。null/空→''；已是完整 URL 或本地路徑（fallback json）→原樣。
+function cdnImage(fd) {
+  if (!fd) return '';
+  if (/^(https?:)?\/\//.test(fd) || fd.startsWith('/') || fd.startsWith('../')) return fd;
+  return `${CMS_CDN_BASE}/${fd}`;
+}
 
 // ── 共用 helpers ──────────────────────────────────────────────────────────────
 
@@ -437,7 +448,7 @@ function loadPressDataCached() {
   if (!_pressDataPromise) {
     _pressDataPromise = (async () => {
       try {
-        const url = `${CMS_API_BASE}/library_press?fields=*&sort=sort&limit=-1`;
+        const url = `${CMS_API_BASE}/library_press?fields=*,cover.filename_disk,pdf.filename_disk&sort=sort&limit=-1`;
         const res = await fetch(url);
         if (!res.ok) throw new Error('CMS ' + res.status);
         const rows = (await res.json())?.data;
@@ -672,13 +683,13 @@ function spawnAwardIcon(x, y) {
 // 沿用 press panel 的「CMS 優先、失敗/空 fallback 本地」pattern：CMS 掛掉時用 records.json 的 awardsImages。
 async function fetchAwardLogos(localFallback) {
   try {
-    const url = `${CMS_API_BASE}/library_award_logos?fields=logos.directus_files_id&deep[logos][_sort]=sort`;
+    const url = `${CMS_API_BASE}/library_award_logos?fields=logos.directus_files_id.filename_disk&deep[logos][_sort]=sort`;
     const res = await fetch(url);
     if (!res.ok) throw new Error('CMS ' + res.status);
     const logos = (await res.json())?.data?.logos;
     if (!Array.isArray(logos) || logos.length === 0) throw new Error('CMS empty');
-    return logos.map(j => j && j.directus_files_id).filter(Boolean)
-      .map(id => `${CMS_ASSETS_BASE}/${id}?key=web`);   // ?key=web：raster 自動優化、SVG pass-through
+    return logos.map(j => j?.directus_files_id?.filename_disk).filter(Boolean)
+      .map(cdnImage);   // CloudFront：離線 webp 轉檔後即 webp、SVG 亦直接 serve；繞過弱機 /assets 逾時
   } catch (cmsErr) {
     console.warn('[awards] Directus logos 抓取失敗/無資料，fallback 本地 awardsImages：', cmsErr.message);
     return localFallback || [];
@@ -690,7 +701,7 @@ async function fetchAwardLogos(localFallback) {
 // （library_album 已透過 loadOthersAlbum 接上 Directus，M2A 選的 row 跟前台 album 面板渲染的是同一顆 id）。
 const AWARD_REF_FIELDS = [
   'references.collection',
-  'references.item:library_documents.id', 'references.item:library_documents.titleEn', 'references.item:library_documents.titleZh', 'references.item:library_documents.pdf', 'references.item:library_documents.pdfLink',
+  'references.item:library_documents.id', 'references.item:library_documents.titleEn', 'references.item:library_documents.titleZh', 'references.item:library_documents.pdf.filename_disk', 'references.item:library_documents.pdfLink',
   'references.item:library_press.id', 'references.item:library_press.titleEn', 'references.item:library_press.titleZh',
   'references.item:library_album.id', 'references.item:library_album.titleEn', 'references.item:library_album.titleZh', 'references.item:library_album.images.directus_files_id',
 ].join(',');
@@ -705,7 +716,7 @@ function remapAwardRef(r) {
   if (!id) return null;
   switch (r.collection) {
     case 'library_documents': {
-      const pdfUrl = it.pdfLink || (it.pdf ? `${CMS_ASSETS_BASE}/${it.pdf}` : '');   // 貼的 CloudFront 網址優先，同 mapDirectusFilesRow
+      const pdfUrl = pdfOpenUrl(it.pdfLink, it.pdf);   // pdfLink 優先，否則上傳檔走 CloudFront（見 pdf-url.js，與 mapDirectusFilesRow / cross-ref 共用）
       return pdfUrl ? { kind: 'document', labelEn: AWARD_REF_TYPE_LABELS.document.en, labelZh: AWARD_REF_TYPE_LABELS.document.zh, titleEn: it.titleEn || '', titleZh: it.titleZh || '', pdfUrl } : null;
     }
     case 'library_press':
@@ -1392,8 +1403,8 @@ function mapDirectusPressRow(row) {
     year: row.year != null ? String(row.year) : '',               // press 列表用 year 分組（同 documents 整數欄）
     monthDay: row.monthDay || '',                                 // 月日（MM-DD）：同年份內排序用，見 pressMonthDayKey
     videoUrls,     // 自架影片 link 陣列
-    pdfUrl: row.pdf ? `${CMS_ASSETS_BASE}/${row.pdf}` : '',        // 原生 Directus 上傳的單一 PDF（pdfLink 欄已移除）
-    cover: row.cover ? `${CMS_ASSETS_BASE}/${row.cover}` : '',     // 預產封面(generate-library-covers.cjs 裁頂)：有就秒出、免現畫 pdf
+    pdfUrl: pdfOpenUrl(null, row.pdf),                            // 上傳的單一 PDF（press 無 pdfLink 欄）→ CloudFront 繞過弱機 /assets（見 pdf-url.js）
+    cover: cdnImage(row.cover?.filename_disk),                     // 預產封面(generate-library-covers.cjs 裁頂)：有就秒出、免現畫 pdf；圖走 CloudFront 繞過弱機 /assets
   };
 }
 
@@ -1402,7 +1413,7 @@ async function initPressPanel() {
     // Directus 為主、空/失敗 fallback 本地 press.json（同 legal pattern；press 接 Directus 2026-06-08）
     let pressData;
     try {
-      const url = `${CMS_API_BASE}/library_press?fields=*&sort=sort&limit=-1`;
+      const url = `${CMS_API_BASE}/library_press?fields=*,cover.filename_disk,pdf.filename_disk&sort=sort&limit=-1`;
       const res = await fetch(url);
       if (!res.ok) throw new Error('CMS ' + res.status);
       const rows = (await res.json())?.data;
@@ -1632,12 +1643,11 @@ async function initPressPanel() {
 // Directus library_documents row → 前台 files item shape
 function mapDirectusFilesRow(row) {
   const images = Array.isArray(row.images)
-    ? row.images.map(j => j && j.directus_files_id).filter(Boolean)
-        .map(id => `${CMS_ASSETS_BASE}/${id}?key=web`)
+    ? row.images.map(j => j?.directus_files_id?.filename_disk).filter(Boolean)
+        .map(cdnImage)   // CloudFront 圖片 URL（繞過弱機 /assets）；即時 filename_disk＝離線 webp 轉檔自動跟上
     : [];
   const videoUrls = Array.isArray(row.videoUrls) ? row.videoUrls.filter(Boolean) : [];
   const documentFile = row.pdf;
-  const documentId = typeof documentFile === 'object' ? documentFile?.id : documentFile;
   return {
     id: row.id,
     titleEn: row.titleEn || '',
@@ -1645,12 +1655,12 @@ function mapDirectusFilesRow(row) {
     subtitleEn: row.subtitleEn || '',
     subtitleZh: row.subtitleZh || '',
     year: row.year || '',
-    // ?key=web：跟其餘卡片圖 + 首頁浮動書卡（floating-items files 分類）用**同一個 URL** → 點浮卡跳進來時
-    // 瀏覽器快取已 warm、封面秒出（user 2026-08-19）；size 與原圖幾乎相同（web preset 不縮小已優化的封面）。
-    cover: row.cover ? `${CMS_ASSETS_BASE}/${row.cover}?key=web` : '',
-    // pdfLink（貼的 CloudFront／S3 網址）優先：直服務 range 比 Directus 代理快 ~25x（見 memory
-    // reference_pdf_move_to_video_cloudfront_bucket）；沒填才 fallback 舊的上傳檔 UUID，方便漸進搬遷。
-    pdfUrl: row.pdfLink || (documentId ? `${CMS_ASSETS_BASE}/${documentId}` : ''),
+    // 走 CloudFront（cdnImage）繞過弱機 /assets 逾時；封面沿用即時 filename_disk 組 CloudFront URL，跟其餘卡片圖
+    // + 首頁浮動書卡（floating-items files 分類）用**同一個 URL** → 點浮卡跳進來時瀏覽器快取已 warm、封面秒出（user 2026-08-19）。
+    cover: cdnImage(row.cover?.filename_disk),
+    // pdfLink（貼的 CloudFront／S3 網址）優先；沒填才用上傳檔走 CloudFront（filename_disk，繞過弱機 /assets 逾時）。
+    // 與 award ref / degree-show / activities / cross-ref key 共用 pdfOpenUrl → 開檔 URL 與反查 key 逐字元一致。
+    pdfUrl: pdfOpenUrl(row.pdfLink, row.pdf),
     documentMimeType: typeof documentFile === 'object' ? documentFile?.type || '' : '',
     docType: row.docType || '',   // 文件分類 dropdown（books/contributions/booklets/other），空＝未分類
     categories: row.categories || [],
@@ -1720,8 +1730,10 @@ async function initFilesPanel() {
   try {
     let filesData;
     try {
-      // library_documents 只有 cover/pdf（無 images M2M / references M2A）；請求不存在的欄位 Directus 會 403 整包失敗
-      const url = `${CMS_API_BASE}/library_documents?fields=*,pdf.id,pdf.type&sort=-year,sort&limit=-1`;
+      // cover / images / pdf 都深取 filename_disk → 組 CloudFront URL（繞過弱機 /assets）；pdf.type 供 isImageDocumentUrl 判別。
+      // library_documents 目前無 images M2M 欄，深取缺 relational 欄 Directus 回 200 忽略（不炸、為日後補圖預留；
+      // 會 403 整包失敗的是缺「scalar」欄，非 relational — 見 memory reference_directus_m2a_ref_title_deepfetch）。
+      const url = `${CMS_API_BASE}/library_documents?fields=*,pdf.id,pdf.type,pdf.filename_disk,cover.filename_disk,images.directus_files_id.filename_disk&sort=-year,sort&limit=-1`;
       const res = await fetch(url);
       if (!res.ok) throw new Error('CMS ' + res.status);
       const rows = (await res.json())?.data;
@@ -1797,7 +1809,7 @@ async function initFilesPanel() {
       let eagerImgs = 0;      // 預產封面 <img>：首批直接 src、其餘視窗外延後（user 2026-08-18「只先載視窗內」）
       const lazyImgCards = [];
       // deep-link（#f-<id>）目標卡：即使排在 EAGER_COVERS 之後也 eager 載封面，點首頁浮動書卡跳進來時
-      // 封面立刻出（不必等捲到才 IO 補 src）；配合 cover 帶 ?key=web＝跟浮卡同 URL 共用快取＝秒出。
+      // 封面立刻出（不必等捲到才 IO 補 src）；cover 走 bare /assets URL＝跟浮卡同 URL 共用快取＝秒出。
       const deepLinkTargetId = (window.location.hash || '').slice(1).startsWith('f-') ? window.location.hash.slice(1) : '__none__';
       listEl.innerHTML = '';
       groupByYear(data).forEach(group => {

@@ -11,13 +11,13 @@
  * 跟 legal-data-loader 同 pattern；CMS 掛掉時頁面仍渲染、不留白。
  */
 
-import { CMS_API_BASE, CMS_ASSETS_BASE } from '../../config/api.js';
+import { CMS_API_BASE, CMS_CDN_BASE } from '../../config/api.js';
 import { sitePath } from '../ui/site-base.js';
 
 const COLLECTION = 'faculty';
 
 // 後台目前尚未上傳老師相片（image 全 null）→ 暫用既有 placeholder。
-// 之後後台一上傳，image 會是 Directus 檔案 UUID，resolveImage 自動切到 assets URL（不用改 code）。
+// 之後後台一上傳，image 會是 Directus 檔案物件，resolveImage 自動切到 CloudFront URL（不用改 code）。
 const PLACEHOLDER_IMAGE = '../images/S__6742028.jpg';
 
 // single-flight：cache 存 Promise（非結果）→ prefetch-on-intent 與進頁/slide-in/atlas 的並發呼叫共用同一個
@@ -25,17 +25,21 @@ const PLACEHOLDER_IMAGE = '../images/S__6742028.jpg';
 let _promise = null;
 let _formerPromise = null;
 
+// image / placeholder 欄位深取成 { filename_disk }（見下方 fetch 的 fields）→ 取 filename_disk 組 CloudFront URL。
 function mapRow(r) {
-  const item = { ...r, type: r.facultyType, image: resolveImage(r.image) };
+  const item = { ...r, type: r.facultyType, image: resolveImage(r.image?.filename_disk) };
   item.hasRealPhoto = !!r.image;
   item.placeholders = {
-    standard: resolvePlaceholder(r.placeholderStandard),         // 白底(標準) ← generator Standard
-    inverse: resolvePlaceholder(r.placeholderInverse),           // 黑底(反白) ← generator Inverse
-    wireframeBlack: resolvePlaceholder(r.placeholderWireframeBlack), // 彩色淺底 ← Black Wireframe
+    standard: resolvePlaceholder(r.placeholderStandard?.filename_disk),         // 白底(標準) ← generator Standard
+    inverse: resolvePlaceholder(r.placeholderInverse?.filename_disk),           // 黑底(反白) ← generator Inverse
+    wireframeBlack: resolvePlaceholder(r.placeholderWireframeBlack?.filename_disk), // 彩色淺底 ← Black Wireframe
     wireframeWhite: null, // 欄位暫無 → null，mode3 靠 CSS filter 不需要
   };
   return item;
 }
+
+// 深取這些檔案欄位的 filename_disk（<uuid>.<副檔名>）→ 組 CloudFront URL。fields=* 保留全部 scalar。
+const FACULTY_FIELDS = '*,image.filename_disk,placeholderStandard.filename_disk,placeholderInverse.filename_disk,placeholderWireframeBlack.filename_disk';
 
 export function getFacultyData() {
   if (!_promise) _promise = _fetchFacultyData().catch(err => { _promise = null; throw err; });
@@ -44,7 +48,7 @@ export function getFacultyData() {
 
 async function _fetchFacultyData() {
   try {
-    const res = await fetch(`${CMS_API_BASE}/${COLLECTION}?limit=-1&sort=sort&filter[status][_eq]=active`);
+    const res = await fetch(`${CMS_API_BASE}/${COLLECTION}?limit=-1&sort=sort&filter[status][_eq]=active&fields=${FACULTY_FIELDS}`);
     if (!res.ok) throw new Error(`${COLLECTION} HTTP ${res.status}`);
     const rows = (await res.json()).data || [];
     const merged = rows.map(mapRow);
@@ -73,30 +77,28 @@ async function _fetchFormerFacultyData() {
   });
 }
 
-// null/空 → null；已是 URL / 本地路徑（fallback json）→ 原樣；其餘當 Directus 檔案 UUID → assets URL
+// null/空 → null；已是 URL / 本地路徑（fallback json）→ 原樣；其餘為 Directus filename_disk（<uuid>.<副檔名>）→ CloudFront URL
 function resolveAsset(v) {
   if (!v) return null;
   if (/^(https?:)?\/\//.test(v) || v.startsWith('/') || v.startsWith('../')) return v;
-  return `${CMS_ASSETS_BASE}/${v}`;
+  return `${CMS_CDN_BASE}/${v}`;
 }
 
 // 主照片：解不出（null/空）時退回既有 placeholder（維持舊行為）。
-// ⚠️ 刻意用原檔、不套任何 on-the-fly transform：這台弱 Lightsail 無法可靠現場轉檔——多圖頁首訪冷生成會 504
-//   （faculty 48 張案）、連 pre-warm 都會把 /assets 打到 403。webp 要用「離線轉檔」不是伺服器 transform（見 2026-08-20 session）。
+// 走 CloudFront（見 resolveAsset）繞過弱機 /assets 逾時；仍是原檔、不套任何 on-the-fly transform
+//   （弱 Lightsail 現場轉檔會 504、pre-warm 打爆 /assets）。webp 靠「離線轉檔」不是伺服器 transform。
 function resolveImage(img) {
   return resolveAsset(img) || PLACEHOLDER_IMAGE;
 }
 
-// 代用 logo：Directus 原圖是 2160² 透明 PNG（~240KB），卡片只顯示 ~400px → 套 ?key=web 壓縮
-// （web preset：max 1600 + webp + q80）省頻寬、加快 preload。本地 fallback 路徑不動。
+// 代用 logo：直接讀 Directus 檔（離線 webp 轉檔後同 UUID 即為 ≤1600px webp、含 alpha）；不再套 ?key=web
+// on-the-fly transform（弱機 transform 有 504 風險，見 memory reference_directus_image_transform_webp）。
 function resolvePlaceholder(v) {
-  const u = resolveAsset(v);
-  if (!u) return null;
-  return u.startsWith(CMS_ASSETS_BASE) ? `${u}?key=web` : u;
+  return resolveAsset(v);
 }
 
 // prefetch-on-intent 用：資料一到就 new Image() 預載真實照片 → 進頁時 <img loading="lazy"> 直接命中瀏覽器快取，
-// 卡片一出現照片就在（不再「灰底再跳出照片」）。圖已帶 ?key=web 壓縮；placeholder logo 各卡自己 preload；
+// 卡片一出現照片就在（不再「灰底再跳出照片」）。圖直接讀 Directus（webp 轉檔後即 webp）；placeholder logo 各卡自己 preload；
 // fallback 本地圖路徑快、hasRealPhoto 未設 → 跳過不預載。new Image() 不留 ref（GC 掉但 HTTP response 已進快取，同 placeholder 既有手法）。
 export function preloadFacultyImages(data) {
   if (!Array.isArray(data)) return;

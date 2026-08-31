@@ -12,7 +12,8 @@ import { loadSummerCamp } from '../pages/summer-camp-source.js';
 import { loadActivityCollection, loadPermanentExhibitions } from '../pages/activities-source.js';
 import { loadOthersAlbum } from '../pages/library-album-source.js';
 import { sitePath } from '../ui/site-base.js';
-import { CMS_API_BASE, CMS_ASSETS_BASE } from '../../config/api.js';
+import { CMS_API_BASE, CMS_CDN_BASE } from '../../config/api.js';
+import { pdfOpenUrl } from '../pages/pdf-url.js';
 import { shortLibId } from '../pages/library-deeplink.js';
 
 // 進/退場（2026-08-17 圖片卡改 clip-reveal；2026-08-19 文字卡也改 clip-reveal）：
@@ -177,13 +178,15 @@ async function fetchActivityPosters() {
   //    直讀本地 library.json 的舊 id（"1"/"L-PUB-1"）跟面板 Directus row id 對不上 → 點進去不捲動、不 highlight；
   //    封面也只是舊快照 placeholder（非真封面）。Directus 失敗才 fallback 本地（此時面板也 fallback 本地，id 一致）。
   try {
-    const res = await fetch(`${CMS_API_BASE}/library_documents?fields=id,cover&sort=-year,sort&limit=-1`);
+    // cover 深取 filename_disk（<uuid>.<副檔名>）→ 組 CloudFront URL 繞過弱機 /assets 逾時（見 config/api.js CMS_CDN_BASE）
+    const res = await fetch(`${CMS_API_BASE}/library_documents?fields=id,cover.filename_disk&sort=-year,sort&limit=-1`);
     if (!res.ok) throw new Error('CMS ' + res.status);
     const rows = (await res.json())?.data;
     if (!Array.isArray(rows) || rows.length === 0) throw new Error('CMS empty');
     rows.forEach(r => {
-      if (r.cover && r.id != null) {
-        files.push({ type: 'image', src: `${CMS_ASSETS_BASE}/${r.cover}?key=web`, url: `pages/library.html#f-${shortLibId(r.id)}` });
+      const cover = r.cover?.filename_disk;
+      if (cover && r.id != null) {
+        files.push({ type: 'image', src: `${CMS_CDN_BASE}/${cover}`, url: `pages/library.html#f-${shortLibId(r.id)}` });
       }
     });
   } catch (_) {
@@ -297,14 +300,17 @@ async function populatePressCovers(pool, isCancelled) {
   /** @type {{id:string, cover:string, isPdf:boolean}[]} */
   let entries;
   try {
-    const res = await fetch(`${CMS_API_BASE}/library_press?fields=id,pdf,pdfLink,images.directus_files_id&sort=sort&limit=-1`);
+    // ⚠️ 不要 request pdfLink：press collection 無此欄，Directus 對不存在欄位回整條 403 → press 浮卡永遠 fallback（原 console library_press 403 元凶）。press 用上傳的 pdf 欄，pdfLink 是 documents 專屬。
+    // pdf 深取 filename_disk → 組 CloudFront 開檔 URL（見 pdf-url.js）
+    const res = await fetch(`${CMS_API_BASE}/library_press?fields=id,pdf.filename_disk,images.directus_files_id.filename_disk&sort=sort&limit=-1`);
     if (!res.ok) throw new Error('CMS ' + res.status);
     const rows = (await res.json())?.data;
     if (!Array.isArray(rows) || rows.length === 0) throw new Error('CMS empty');
     entries = rows.map(r => {
-      if (r.pdfLink || r.pdf) return { id: `press-${r.id}`, cover: r.pdfLink || `${CMS_ASSETS_BASE}/${r.pdf}`, isPdf: true };  // CloudFront 網址優先
-      const firstImg = Array.isArray(r.images) ? r.images.map(j => j && j.directus_files_id).filter(Boolean)[0] : null;
-      if (firstImg) return { id: `press-${r.id}`, cover: `${CMS_ASSETS_BASE}/${firstImg}?key=web`, isPdf: false };
+      if (r.pdfLink || r.pdf) return { id: `press-${r.id}`, cover: pdfOpenUrl(r.pdfLink, r.pdf), isPdf: true };  // 上傳 PDF 走 CloudFront（見 pdf-url.js）
+      // images M2M：深取 directus_files_id.filename_disk → CloudFront URL（繞過弱機 /assets，見 config/api.js CMS_CDN_BASE）
+      const firstImg = Array.isArray(r.images) ? r.images.map(j => j?.directus_files_id?.filename_disk).filter(Boolean)[0] : null;
+      if (firstImg) return { id: `press-${r.id}`, cover: `${CMS_CDN_BASE}/${firstImg}`, isPdf: false };
       return null; // 無 PDF 也無圖 → 沒封面可顯示，不放浮卡
     }).filter(Boolean);
   } catch (cmsErr) {

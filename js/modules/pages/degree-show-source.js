@@ -9,7 +9,8 @@
  *   event 兩型（activity M2A 有連＝關聯型：欄位/照片從被連活動拉、取第一筆；留空＝自有型：手填欄位+event.images）。
  *   相簿由 event.images 組成（無獨立 album 欄，user 2026-08-17）。
  */
-import { CMS_API_BASE, CMS_ASSETS_BASE } from '../../config/api.js';
+import { CMS_API_BASE, CMS_CDN_BASE } from '../../config/api.js';
+import { pdfOpenUrl } from './pdf-url.js';
 import { sitePath } from '../ui/site-base.js';
 
 const CMS_COLLECTION = 'activities_degree_show';
@@ -30,10 +31,13 @@ const _activityDeep = ACTIVITY_COLLECTIONS.flatMap(c => [
 const _refDeep = [
   ...ACTIVITY_COLLECTIONS.map(c => `references.item:${c}.*`),
   'references.item:library_documents.*',
+  'references.item:library_documents.pdf.filename_disk',   // pdf 深取 filename_disk → 組 CloudFront 開檔 URL（見 pdf-url.js）
 ].join(',');
 // deep：events 依 sort、帶 event 自身 images + M2A 關聯活動（collection 判別 + item 展開）；parent poster UUID
 // 論壇（conference）講者常寫在 sessions[].guests 而非 item.guests → 額外 deep-fetch session 講者
-const FIELDS = `*,events.*,events.images.directus_files_id,events.activity.collection,${_activityDeep},events.activity.item:activities_conferences.sessions.guests,references.collection,${_refDeep},poster.directus_files_id`;
+// 圖片檔案欄深取 filename_disk（<uuid>.<副檔名>）→ imgAsset 組 CloudFront URL；直接檔欄 coverImage/bannerImage
+// 用 field.filename_disk，M2M（poster / events.images）用 junction.directus_files_id.filename_disk
+const FIELDS = `*,coverImage.filename_disk,bannerImage.filename_disk,events.*,events.images.directus_files_id.filename_disk,events.activity.collection,${_activityDeep},events.activity.item:activities_conferences.sessions.guests,references.collection,${_refDeep},poster.directus_files_id.filename_disk`;
 
 export async function loadDegreeShow() {
   try {
@@ -119,7 +123,7 @@ function mapReferences(arr) {
     const it = ref && ref.item && typeof ref.item === 'object' ? ref.item : null;
     if (!it) return null;
     if (ref.collection === 'library_documents') {
-      const pdfUrl = it.pdfLink || (it.pdf ? asset(it.pdf) : '');   // 貼的 CloudFront 網址優先（refs fetch 用 .* 已含 pdfLink）
+      const pdfUrl = pdfOpenUrl(it.pdfLink, it.pdf);   // pdfLink 優先，否則上傳檔走 CloudFront（見 pdf-url.js）
       return pdfUrl ? { kind: 'document', titleEn: it.titleEn || '', titleZh: it.titleZh || '', pdfUrl } : null;
     }
     const source = COLLECTION_TO_SECTION[ref.collection];
@@ -206,22 +210,25 @@ function buildTime(start, end, dates) {
 }
 function md(d) { const p = String(d).split('-'); return p.length >= 3 ? `${p[1]} / ${p[2]}` : String(d); }
 
-// 媒體：null→''；UUID 字串 / 展開 file 物件 / M2M junction 都解析成 assets URL（同 summer-camp-source）
-const asset = (uuid) => uuid ? `${CMS_ASSETS_BASE}/${uuid}` : '';
-// 顯示用圖片：後台原檔是全解析 JPEG（畢展展場照常 2~5MB），前台卻只顯示 ≤1600px → Directus on-the-fly
-// transform 轉 webp + 上限寬（withoutEnlargement 小圖不放大、不裁）＝載入變小/快很多，變體由 CloudFront 快取。
-// ⚠️ 只給圖片：PDF/影片走 asset() 原檔（line 122 pdf 不可加 format=webp）。實測見 2026-08-20 session。
-const IMG_TX = '?width=1600&format=webp&quality=80&withoutEnlargement=true';
-const imgAsset = (uuid) => uuid ? `${CMS_ASSETS_BASE}/${uuid}${IMG_TX}` : '';
+// 顯示用圖片：走 CloudFront（繞過弱機 /assets 常連不到 S3 的 5s 逾時 403，見 memory
+// reference_directus_s3_timeout_all_assets_down），從檔案即時 filename_disk 組 key（不寫死副檔名 →
+// 離線 webp 轉檔 .jpg/.png→.webp 前台自動跟上）。null/空→''；已是 URL / 本地路徑（fallback json）→ 原樣。
+const imgAsset = (name) => {
+  if (!name) return '';
+  if (/^(https?:)?\/\//.test(name) || name.startsWith('/') || name.startsWith('../')) return name;
+  return `${CMS_CDN_BASE}/${name}`;
+};
+// 直接檔欄深取後為 { filename_disk }；fallback json 可能直接給字串路徑 → 交 imgAsset 守衛原樣放行
 function fileUrl(f) {
   if (!f) return '';
-  return typeof f === 'string' ? imgAsset(f) : imgAsset(f.id);
+  return typeof f === 'string' ? imgAsset(f) : imgAsset(f.filename_disk);
 }
+// M2M junction 深取後為 { directus_files_id: { filename_disk } }
 function normalizeFiles(arr) {
   if (!Array.isArray(arr)) return [];
   return arr.map(x => {
     if (typeof x === 'string') return imgAsset(x);
-    if (x?.directus_files_id) { const f = x.directus_files_id; return imgAsset(typeof f === 'string' ? f : f?.id); }
-    return imgAsset(x?.id);
+    if (x?.directus_files_id) { const f = x.directus_files_id; return imgAsset(typeof f === 'string' ? f : f?.filename_disk); }
+    return imgAsset(x?.filename_disk);
   }).filter(Boolean);
 }

@@ -14,7 +14,7 @@ import { applyNewsHover, removeNewsHover } from '../animations/floating-items.js
 import { DUR, EASE } from '../ui/motion.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
-import { CMS_API_BASE, CMS_ASSETS_BASE } from '../../config/api.js';
+import { CMS_API_BASE, CMS_CDN_BASE } from '../../config/api.js';
 import { sitePath } from '../ui/site-base.js';
 
 const SLOT_COUNT = 3;
@@ -71,15 +71,22 @@ function randomRotation() {
   return sign * (0.3 + Math.random() * 0.7);
 }
 
+// poster 圖走 CloudFront（filename_disk → CDN key）：繞過弱機 /assets 對 S3 的 5s 逾時（見 config/api.js）。
+// 不寫死副檔名 → 離線 webp 轉檔自動跟上。fallback news.json 的 poster 是本地相對路徑 → 原樣回傳（別當 filename_disk 組 URL）。
+function resolvePoster(v) {
+  if (!v) return '';
+  if (/^(https?:)?\/\//.test(v) || v.startsWith('/') || v.startsWith('../')) return v;
+  return `${CMS_CDN_BASE}/${v}`;
+}
+
 export function initMarquee() {
   const stack = document.getElementById('homepage-marquee-stack');
   if (!stack) return;
 
   // news 來源改 Directus index_news（一般 collection，依後台 sort 排序）。
-  // 每筆：titleZh — titleEn 串成跑馬燈文字；poster(file UUID) 轉 Directus 資產 URL（format=auto 自動 WebP + 縮放）。
-  const POSTER_PARAMS = '?format=auto&width=800&quality=80';
+  // 每筆：titleZh — titleEn 串成跑馬燈文字；poster 深取 filename_disk → 走 CloudFront（見 resolvePoster）。
   const fetchNews = () =>
-    fetch(`${CMS_API_BASE}/index_news?sort=sort`)
+    fetch(`${CMS_API_BASE}/index_news?sort=sort&fields=*,poster.filename_disk`)
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then(j => {
         const rows = Array.isArray(j.data) ? j.data : [];
@@ -88,7 +95,7 @@ export function initMarquee() {
           // 只能用 U+2003 字元，不能用 &emsp; 實體；不用破折號）
           text: [row.titleEn, row.titleZh].filter(Boolean).join('  ') + '  ',
           url: row.url || '#',
-          poster: row.poster ? `${CMS_ASSETS_BASE}/${row.poster}${POSTER_PARAMS}` : '',
+          poster: resolvePoster(row.poster?.filename_disk),
         }));
         return { items };
       })

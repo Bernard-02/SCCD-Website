@@ -13,11 +13,12 @@
  * 社群 icon 走全站 .icon（--icon mask + currentColor=--footer-fg）；tab 標誌 mask src+aspect-ratio 由 SVG viewBox 量。
  */
 
-import { CMS_API_BASE, CMS_ASSETS_BASE } from '../../config/api.js';
+import { CMS_API_BASE, CMS_CDN_BASE } from '../../config/api.js';
 import { sitePath, SITE_BASE_PATHNAME } from './site-base.js';
 
-const TAB_FIELDS = 'key,nameZh,nameEn,markIcon,items.type,items.itemKey,items.labelZh,items.labelEn,' +
-  'items.textZh,items.textEn,items.phoneCountry,items.phoneNumber,items.phoneExt,items.iconFile,items.url';
+// 圖示檔案欄位深取 filename_disk（<uuid>.svg）→ 組 CloudFront URL 繞過弱機 /assets 逾時（見 CMS_CDN_BASE）。
+const TAB_FIELDS = 'key,nameZh,nameEn,markIcon.filename_disk,items.type,items.itemKey,items.labelZh,items.labelEn,' +
+  'items.textZh,items.textEn,items.phoneCountry,items.phoneNumber,items.phoneExt,items.iconFile.filename_disk,items.url';
 const DEEP = encodeURIComponent(JSON.stringify({ items: { _sort: ['sort'] } }));
 
 // 右下法務連結：固定 3 個站內頁、標籤固定 → 寫死（不進 CMS）。頁面內文在 Directus regulations/support/policy_and_statements。
@@ -35,10 +36,10 @@ async function fetchFooterData() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const tabs = (await res.json()).data;
     if (!Array.isArray(tabs) || tabs.length === 0) throw new Error('empty data');
-    // 圖示 UUID → assets URL（fallback JSON 已是本地路徑，不進這裡）
+    // 圖示 filename_disk → CloudFront URL（fallback JSON 已是本地路徑，不進這裡）
     tabs.forEach((t) => {
-      t.markIconUrl = t.markIcon ? `${CMS_ASSETS_BASE}/${t.markIcon}` : null;
-      (t.items || []).forEach((it) => { it.iconUrl = it.iconFile ? `${CMS_ASSETS_BASE}/${it.iconFile}` : null; });
+      t.markIconUrl = t.markIcon?.filename_disk ? `${CMS_CDN_BASE}/${t.markIcon.filename_disk}` : null;
+      (t.items || []).forEach((it) => { it.iconUrl = it.iconFile?.filename_disk ? `${CMS_CDN_BASE}/${it.iconFile.filename_disk}` : null; });
     });
     return { tabs };
   } catch (err) {

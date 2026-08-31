@@ -8,7 +8,8 @@
  * M2A 關聯本身存的就是 target 的 uuid，後台選單也是靠 display_template 顯示標題挑選，refCode 從來
  * 不影響「選誰」，只影響對外網址好不好看；改用 id 後零填寫負擔、target 一定有 id 不會漏。）
  */
-import { CMS_API_BASE, CMS_ASSETS_BASE } from '../../config/api.js';
+import { CMS_API_BASE, CMS_CDN_BASE } from '../../config/api.js';
+import { pdfOpenUrl } from './pdf-url.js';
 import { videoMediaFromUrl } from '../ui/video-player.js';
 import { sitePath, SITE_BASE_PATHNAME } from '../ui/site-base.js';
 
@@ -18,10 +19,10 @@ import { sitePath, SITE_BASE_PATHNAME } from '../ui/site-base.js';
 // 2026-06-22 起 activities 不再 ref award（改 award → library 單向），故不 deep-fetch library_awards。
 const REF_FIELDS = [
   'references.collection',
-  'references.item:library_documents.id', 'references.item:library_documents.titleEn', 'references.item:library_documents.titleZh', 'references.item:library_documents.pdf', 'references.item:library_documents.pdfLink',
+  'references.item:library_documents.id', 'references.item:library_documents.titleEn', 'references.item:library_documents.titleZh', 'references.item:library_documents.pdf.filename_disk', 'references.item:library_documents.pdfLink',
   'references.item:library_press.id', 'references.item:library_press.titleEn', 'references.item:library_press.titleZh',
   // press 的圖/影片：前台原地開 media lightbox（同 library press 點擊）。M2A 巢狀深取實測可行（2026-06-24）。
-  'references.item:library_press.images.directus_files_id', 'references.item:library_press.videoLinks',
+  'references.item:library_press.images.directus_files_id.filename_disk', 'references.item:library_press.videoLinks',
   // activity→activity ref 也深取 title：resolveRef 靠本地 JSON 用 id 查標題，但 Directus 記錄是 UUID、本地 JSON 沒有
   //   → 深取 title 直接帶，前台不再依賴本地查（否則 category 有、標題空）。
   'references.item:activities_competitions.id', 'references.item:activities_competitions.titleEn', 'references.item:activities_competitions.titleZh',
@@ -53,7 +54,7 @@ function remapRef(r) {
     case 'activities_industry':
     case 'activities_workshops':    return { section: ACT_SECTION[r.collection], itemId: id, titleEn: it.titleEn || '', titleZh: it.titleZh || '' };
     // document：直接開 PDF viewer lightbox。沒上傳 pdf 就略過（沒檔可開、避免空按鈕）。
-    case 'library_documents': {      const pdfUrl = it.pdfLink || (it.pdf ? fileUrl(it.pdf) : '');  // 貼的 CloudFront 網址優先
+    case 'library_documents': {      const pdfUrl = pdfOpenUrl(it.pdfLink, it.pdf);  // pdfLink 優先，否則上傳檔走 CloudFront（見 pdf-url.js）
       return pdfUrl ? { labelEn: 'Documents', labelZh: '文件', titleEn: it.titleEn || '', titleZh: it.titleZh || '', pdfUrl } : null; }
     // press：組 media（圖 + YouTube 影片，shape 對齊 activities-lightbox / library press lightbox）。
     // 有 media → pressMedia（前台原地開 lightbox）；都沒有 → href 退回 library deep-link（不壞舊行為）。
@@ -71,23 +72,24 @@ function remapRef(r) {
 }
 const remapRefs = (arr) => Array.isArray(arr) ? arr.map(remapRef).filter(Boolean) : [];
 
-// 媒體：UUID/展開物件/M2M junction → assets URL（同 summer-camp-source）；poster 已是 URL/路徑則原樣用
-const asset = (u) => u ? `${CMS_ASSETS_BASE}/${u}` : '';
 const isUrlish = (s) => typeof s === 'string' && /^(https?:|\.\.?\/|\/)/.test(s);
-function fileUrl(f) {
-  if (!f) return '';
-  if (isUrlish(f)) return f;
-  return typeof f === 'string' ? asset(f) : asset(f.id);
-}
+
+// 圖片走 CloudFront，繞過弱機 /assets 去 S3 抓檔的 5s 逾時掉圖（見 config CMS_CDN_BASE /
+// memory reference_directus_s3_timeout_all_assets_down）。用檔案的即時 filename_disk（<uuid>.<副檔名>）組 key，
+// 不寫死副檔名 → 離線 webp 轉檔（.jpg/.png→.webp）自動跟上；fallback JSON 的完整 URL/本地路徑（isUrlish）原樣回。
+const cdnUrl = (name) => !name ? '' : isUrlish(name) ? name : `${CMS_CDN_BASE}/${name}`;
+// poster / mainImage（單一圖片檔）：深取後是 { filename_disk }；fallback json 可能直接給 URL 字串。
+const imageUrl = (f) => cdnUrl(typeof f === 'string' ? f : f?.filename_disk);
+// images 是 files M2M：深取後每列 = { directus_files_id: { filename_disk } }。
 function normalizeFiles(arr) {
   if (!Array.isArray(arr)) return [];
   return arr.map(x => {
     if (isUrlish(x)) return x;
-    if (typeof x === 'string') return asset(x);
-    if (x?.directus_files_id) { const f = x.directus_files_id; return asset(typeof f === 'string' ? f : f?.id); }
-    return asset(x?.id);
+    const f = x?.directus_files_id ?? x;
+    return cdnUrl(typeof f === 'string' ? f : f?.filename_disk);
   }).filter(Boolean);
 }
+
 // '2025-01-15' (+'2025-01-18') → [{startYear,startMonth,startDay,endYear,endMonth,endDay}]
 function buildDates(s, e) {
   // slice(0,10)：date 欄有時回 'YYYY-MM-DDT..'（repeater），只取日期段免 split NaN
@@ -133,7 +135,7 @@ function mapRow(r, category, stamp) {
     ...(stamp || {}),                            // visitType / exhibitionType 等子類型判別欄（同上）
     description: r.descriptionEn || '',          // introField 預設 'description' 讀 item.description（EN）；descriptionZh 前台自動讀
     dates: buildDateGroups(r.dates, r.startDate, r.endDate, r.year, r.monthDay),
-    poster: fileUrl(r.poster),
+    poster: imageUrl(r.poster),
     images: normalizeFiles(r.images),
     videos: ytUrls(r.videoLinks),
     videoLinks: undefined,                       // videoLinks 已折進 videos；清掉原欄，否則 getAllVideos 同一支影片會從兩個來源各算一次＝雙 tile（不是去重內容，是移除重複來源欄；後台真填兩支不同影片仍照數）
@@ -177,12 +179,12 @@ export function loadActivityCollection(collection, fallbackUrl, opts = {}) {
 }
 async function _loadActivityCollection(collection, fallbackUrl, opts = {}) {
   try {
-    // images 是 files M2M：fields=* 只回 junction row id（非檔案 UUID）→ normalizeFiles 組出 404 asset。
-    // 必須深取 images.directus_files_id 才拿到真正檔案 UUID（同 REF_FIELDS 對 library_press.images 的做法）。
+    // 圖片走 CloudFront（見 imageUrl / normalizeFiles）→ 要檔案的 filename_disk：poster.filename_disk（單檔）、
+    // images 是 files M2M（fields=* 只回 junction id）→ 深取 images.directus_files_id.filename_disk。
     // sessions（conference 每日場次 o2m）：fields=* 只回 session id 陣列 → 必須 sessions.* 深取才拿到 titleEn/guests；
     //   只有 activities_conferences 有此欄，其他 collection 帶上會 400（未知欄）整包 fetch fail → 只對 conferences 加。
     const sessionsField = collection === 'activities_conferences' ? ',sessions.*' : '';
-    const res = await fetch(`${CMS_API_BASE}/${collection}?limit=-1&sort=sort&fields=*,images.directus_files_id${sessionsField},${REF_FIELDS}`);
+    const res = await fetch(`${CMS_API_BASE}/${collection}?limit=-1&sort=sort&fields=*,poster.filename_disk,images.directus_files_id.filename_disk${sessionsField},${REF_FIELDS}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const rows = (await res.json()).data;
     if (!Array.isArray(rows) || !rows.length) throw new Error('empty');
@@ -214,7 +216,7 @@ export function loadPermanentExhibitions(fallbackUrl) {
 }
 async function _loadPermanentExhibitions(fallbackUrl) {
   try {
-    const res = await fetch(`${CMS_API_BASE}/activities_exhibitions_permanent?limit=-1&sort=sort&fields=*,events.*,events.albumImages.directus_files_id`);
+    const res = await fetch(`${CMS_API_BASE}/activities_exhibitions_permanent?limit=-1&sort=sort&fields=*,mainImage.filename_disk,events.*,events.albumImages.directus_files_id.filename_disk`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const rows = (await res.json()).data;
     if (!Array.isArray(rows) || !rows.length) throw new Error('empty');
@@ -223,7 +225,7 @@ async function _loadPermanentExhibitions(fallbackUrl) {
       titleEn: r.titleEn || '', titleZh: r.titleZh || '',
       date_en: r.noteEn || '', date: r.noteZh || '',
       description: r.descriptionEn || '', descriptionZh: r.descriptionZh || '',
-      poster: fileUrl(r.mainImage),
+      poster: imageUrl(r.mainImage),
       albums: (Array.isArray(r.events) ? [...r.events] : [])
         .sort((a, b) => String(b.startDate || '').localeCompare(String(a.startDate || '')))  // 新→舊
         .map(mapPermanentEvent),
@@ -249,7 +251,7 @@ const MOMENT_COLLECTIONS = [
 export async function loadGeneralActivitiesAlbum() {
   try {
     const perCol = await Promise.all(MOMENT_COLLECTIONS.map(async ([col, cat]) => {
-      const res = await fetch(`${CMS_API_BASE}/${col}?limit=-1&sort=sort&fields=*,images.directus_files_id`);
+      const res = await fetch(`${CMS_API_BASE}/${col}?limit=-1&sort=sort&fields=*,poster.filename_disk,images.directus_files_id.filename_disk`);
       if (!res.ok) throw new Error(`${col} HTTP ${res.status}`);
       const rows = (await res.json()).data;
       return (Array.isArray(rows) ? rows : []).map(r => mapRow(r, cat));

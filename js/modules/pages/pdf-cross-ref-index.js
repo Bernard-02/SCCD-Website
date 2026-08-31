@@ -19,7 +19,8 @@
  */
 
 import { sitePath, SITE_BASE_PATHNAME } from '../ui/site-base.js';
-import { CMS_API_BASE, CMS_ASSETS_BASE } from '../../config/api.js';
+import { CMS_API_BASE } from '../../config/api.js';
+import { pdfOpenUrl } from './pdf-url.js';
 
 const SECTION_LABELS = {
   workshop:           { en: 'Workshop',                      zh: '工作坊' },
@@ -48,10 +49,9 @@ const CMS_HOST_COLLECTIONS = [
     href: row => `${SITE_BASE_PATHNAME}pages/admission.html?section=summer-camp&item=${row.id}` },
 ];
 
-// 跟 library-panels.js mapDirectusFilesRow 同一條計算：pdfLink（貼的 CloudFront 網址）優先，沒填才 fallback 上傳檔 UUID。
-// 反查 key 必須跟「開檔時的 item.pdfUrl」逐字元相同才對得上。
+// 反查 key 必須跟「開檔時的 item.pdfUrl」逐字元相同才對得上 → 與所有開檔處共用 pdfOpenUrl（見 pdf-url.js）。
 function docPdfUrl(it) {
-  return (it && (it.pdfLink || (it.pdf ? `${CMS_ASSETS_BASE}/${it.pdf}` : ''))) || '';
+  return it ? pdfOpenUrl(it.pdfLink, it.pdf) : '';
 }
 
 function toChip(host, row) {
@@ -68,7 +68,7 @@ async function buildIndexFromDirectus() {
     const fields = [
       'id', 'titleEn', 'titleZh', host.extraFields || null,
       'references.collection',
-      'references.item:library_documents.pdf',
+      'references.item:library_documents.pdf.filename_disk',
       'references.item:library_documents.pdfLink',
     ].filter(Boolean).join(',');
     try {
