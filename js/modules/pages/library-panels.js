@@ -239,7 +239,7 @@ function createYearPicker(pickerEl, years, onFilter) {
     btn.textContent = year;
     btn.dataset.year = year;
     btn.setAttribute('aria-pressed', 'false');
-    btn.style.cssText = 'text-align:left;background:none;border:none;padding:0;font-family:inherit;font-size:var(--font-size-xs);cursor:pointer;font-weight:700;color:var(--lib-fg);transition:color 0.3s ease;';
+    btn.style.cssText = 'text-align:left;background:none;border:none;padding:0;font-family:inherit;font-size:var(--font-size-xs);cursor:var(--cursor-pointer);font-weight:700;color:var(--lib-fg);transition:color 0.3s ease;';
     btn.addEventListener('click', () => {
       const adding = !selected.has(year);
       if (selected.has(year)) { selected.delete(year); } else { selected.add(year); }
@@ -986,7 +986,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     }).join('');
 
     // 收合單一 award ref 手風琴 + 清底色。instant=無動畫（切 panel reset 用）；動畫版＝開新項時先收其他項。
-    function collapseAwardItem(item, { instant = false } = {}) {
+    function collapseAwardItem(item, { instant = false, matchOpen = false } = {}) {
       const wrap = /** @type {HTMLElement | null} */ (item.querySelector('.award-ref-wrap'));
       if (!wrap || wrap.dataset.open !== '1') return;
       wrap.dataset.open = '';
@@ -1001,11 +1001,14 @@ async function initAwardsPanel(onEntranceDoneCallback) {
       if (instant || typeof gsap === 'undefined') {
         if (typeof gsap !== 'undefined') { gsap.killTweensOf(wrap); if (chevron) gsap.set(chevron, { rotation: -90 }); }
         wrap.style.height = '0';
-        wrap.style.marginBottom = '0';
         cleanup();
       } else {
         if (chevron) gsap.to(chevron, { rotation: -90, duration: DUR.fast, overwrite: true });
-        gsap.to(wrap, { height: 0, marginBottom: '0rem', duration: DUR.medium, ease: EASE.move, overwrite: true, onComplete: cleanup });
+        // matchOpen＝「開新項同時收舊項」路徑：收合 ease/duration 必須跟開新 wrap 的 tween 完全一致（enterSoft），
+        // 兩條 tween 逐幀高度互相抵銷、list 淨高度單調變化。原本收用 exitSoft（power2.in 慢起步）、開用 enterSoft
+        // （power2.out 快起步）＝中段淨高度暫時多出 ~60px 再收回 → 固定高捲動框內 scroll anchoring 補償 scrollTop，
+        // 視覺上整個 list 被推上去又彈回（user 2026-09-01 報「list 高度被縮小、定位後又恢復」）。自關維持 exitSoft 倒帶。
+        gsap.to(wrap, { height: 0, duration: DUR.medium, ease: matchOpen ? EASE.enterSoft : EASE.exitSoft, overwrite: true, onComplete: cleanup });
       }
     }
 
@@ -1042,9 +1045,13 @@ async function initAwardsPanel(onEntranceDoneCallback) {
           // ref 展開區：item 改 block 後，ref-wrap 是 item 的「滿寬 block child」(對齊 activities .list-content：
           // 乾淨 block、不是 grid-column 1/-1 的 fractional grid item)→ 不靠負 margin 逃逸 item padding，button w-full
           // 完全貼齊容器寬、右緣不再有 sub-pixel 縫。height 0 起始由 toggle 做 accordion 開合。
+          // 間距全靜態（user 2026-09-01「padding 不該在 ref 開合時被調整」，對齊 activities 結構）：
+          // item 底 padding 移到 .award-row 的 padding-bottom（library.css）→ wrap 貼 item 底邊＝分割線。
+          // 開 ref：塊貼齊分割線、與主列文字的縫＝row 自己的 padding-bottom（恆定不動）；
+          // 動畫只動 wrap height，無任何 margin/padding tween，list 總高＝原高＋ref 塊、除插入外零位移。
           const refWrapHtml = hasExpand ? `
-            <div class="award-ref-wrap" style="height:0;overflow:hidden;margin-bottom:0;">
-              <div class="flex flex-col" style="padding-top:var(--spacing-xs);">${buildRefRowsHtml(refs, item.id)}</div>
+            <div class="award-ref-wrap" style="height:0;overflow:hidden;">
+              <div class="flex flex-col">${buildRefRowsHtml(refs, item.id)}</div>
             </div>` : '';
           // award-mid 桌面 display:contents → 內 4 cell 落 col 2-5（競賽名稱 / 主辦單位 / 獎項 / 名次）；
           // 手機 flex-column 內部直排。主辦單位插在競賽名稱與獎項之間 = 主表第 3 欄、對齊 ref title 欄。
@@ -1119,7 +1126,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
           if (!isOpen) {
             // 一次只開一個（比照 activities）：開新項前先收其他展開中的 ref
             listEl.querySelectorAll('.award-record-item').forEach(other => {
-              if (other !== item) collapseAwardItem(other);
+              if (other !== item) collapseAwardItem(other, { matchOpen: true });
             });
             // 開：立刻鎖 accent 底 + deep ref（同 activities proceedOpen）
             item.dataset.refOpen = '1';
@@ -1145,19 +1152,23 @@ async function initAwardsPanel(onEntranceDoneCallback) {
               delete item.dataset.accentHex;
             }
           };
-          // 開啟時負 margin-bottom 抵銷 item 的 bottom padding → ref 列貼齊分割綫；收起還原。
-          // 抵銷量取 item 實際 computed padding-bottom（桌面 py-[0.5rem]=8px、手機 media query 蓋成 sm=16px），
-          // 寫死 -0.5rem 在手機會剩 8px 縫（user 2026-07-04 報 bug）。
-          const openMargin = `-${getComputedStyle(item).paddingBottom}`;
+          // ⚠️2026-09-01 定案：無任何 margin/padding tween（見 refWrapHtml 註解）——舊「負 marginBottom 貼齊
+          // 分割線」會在開啟過程漸進吃掉 item 底 padding＝user 報「ref 出來時 list 高度縮小一個 padding」；
+          // 改為 padding 靜態搬到 .award-row、wrap 本就貼分割線，動畫只動 height。
+          // ⚠️2026-09-01 撤掉 scroll-anchor（原試把 item 捲到 #library-awards-scroll 框頂、像 activities）：
+          // user 要「固定 list 位置及高度、ref 從 list 裏面原地往下推出」，不要整個 list 捲動重定位
+          // （會把 item 自己的標題捲到裁掉，見 user 截圖）→ 維持原地展開：item 不動、ref 往下推、下方列跟著下移。
+          // list 外框（#library-awards-scroll）本就固定高（426px）、content 在框內捲，開 ref 不改外框。
           if (typeof gsap !== 'undefined') {
             gsap.to(wrap, {
-              height: isOpen ? 0 : 'auto', marginBottom: isOpen ? '0rem' : openMargin,
-              duration: DUR.medium, ease: EASE.move, overwrite: true,
+              // ease 對齊 activities .list-content（開 enterSoft 快起步／收 exitSoft）：flex-end 往下推需快起步，
+              // 否則慢起步（power2.inOut）讓盒子先露底部空隙、文字後到＝不同步（user 2026-08-31）。
+              height: isOpen ? 0 : 'auto',
+              duration: DUR.medium, ease: isOpen ? EASE.exitSoft : EASE.enterSoft, overwrite: true,
               onComplete: isOpen ? onCloseDone : undefined,
             });
           } else {
             wrap.style.height = isOpen ? '0' : 'auto';
-            wrap.style.marginBottom = isOpen ? '0' : openMargin;
             if (isOpen) onCloseDone();
           }
         });

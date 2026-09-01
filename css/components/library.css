@@ -496,6 +496,14 @@ body.mode-color #library-album-list .files-item.list-item-zebra {
 #library-awards-list .award-row {
   padding-left: var(--spacing-sm);
   padding-right: var(--spacing-sm);
+  /* item 底 padding 搬到 row（2026-09-01）：開 ref 時間距全靜態、不做任何 margin/padding tween——
+     ref wrap 因此直接貼 item 底邊＝分割線，主列文字與 ref 塊的縫＝這個 padding-bottom（恆定）。
+     閉合外觀不變（原 item py 下半 8px 改由 row 提供）。 */
+  padding-bottom: 0.5rem;
+}
+/* item 自身底 padding 歸零（template 是 Tailwind py-[0.5rem]，此 selector (1,1,0) + library.css 後載蓋過 utility） */
+#library-awards-list .award-record-item {
+  padding-bottom: 0;
 }
 /* award ref 展開列：抵銷 item 左右 padding → ref 底色（deep accent）延伸到 item 邊，跟主表斑馬滿格 + activities
    ref 底色延伸一致；ref row 自己 padding:sm（上面 buildRefRowsHtml）讓欄位仍對齊主表 grid（user 2026-06-23）*/
@@ -503,10 +511,19 @@ body.mode-color #library-album-list .files-item.list-item-zebra {
   /* item 改 block 後，wrap 是滿寬 block child（不再需要負 margin 逃逸 item padding）→ button w-full 完全貼齊容器，
      右緣無 sub-pixel 縫（之前 wrap 是 grid-column 1/-1 的 fractional grid item + 負 margin → button 100% 對不齊整數
      像素、hover 時右緣露一條主列色細線；對齊 activities .list-content 乾淨 block 後消失）。
-     塗「開啟列色」(list-accordion.js 也是 content.style.background = header 同 accent，非 deep)：padding-top:xs
-     的縫＝主列色（延續主列），ref row 自己 deep 色當內凹塊。--item-color 由 JS open 設、close onComplete 才清 →
-     收合不閃；mode3 由下面 override 成 theme-fg（= 開啟列色）。 */
+     塗「開啟列色」(list-accordion.js 也是 content.style.background = header 同 accent，非 deep)：主列與 ref 塊
+     之間的縫＝.award-row 的 padding-bottom（2026-09-01 定案：間距全靜態、開合零 margin/padding tween，
+     見 library-panels.js refWrapHtml 註解）＝item 底色（open 時同 accent），ref row 自己 deep 色當內凹塊。
+     --item-color 由 JS open 設、close onComplete 才清 → 收合不閃；mode3 由下面 override 成 theme-fg（= 開啟列色）。 */
   background: var(--item-color, transparent);
+  /* accordion 展開＝整塊 clip-reveal 往下推出（對齊 activities .list-content，user 要「從 award list 往下出來」）：
+     flex-col + justify-end 讓內容貼容器底邊、GSAP height:0→auto 時整塊往下滑入。
+     ⚠️ 關鍵配套＝tween ease 必須跟 activities 一致（開 enterSoft/power2.out 快起步、收 exitSoft）：
+     award ref 舊用 EASE.move（power2.inOut 慢起步）→ 盒子在小高度停留久、只露底部空隙＝「盒先開、字後到」
+     不同步感（user 2026-08-31 報「應該是一起的」）。快起步後盒子與文字一起衝出＝同步，見 library-panels.js。 */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
 }
 /* mode3：award ref 結構不在 .list-header + .list-content 內 → 吃不到 activities 的「active-content」ref 規則，
    會掉回 base .list-ref-btn（resting neutral-gray / hover theme-fg）→ hover 那列翻 theme-fg 跟 theme-fg 開啟列
@@ -645,9 +662,13 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
 .files-item-card {
   padding: 6px;
   border-bottom: none;
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-md);
+  /* subgrid：同一排卡片的「封面帶 / 資訊帶」各自對齊 → 封面帶高度 = 該排最高封面
+     （2026-08-31 取代原固定 4:5；user「以那個 row 的最高 cover 為主」）。
+     row-gap 覆寫繼承自 .files-grid 的 2xl → 封面↔資訊維持 md；卡片之間縱向 gap 仍走 .files-grid 的 2xl。 */
+  display: grid;
+  grid-row: span 2;
+  grid-template-rows: subgrid;
+  row-gap: var(--spacing-md);
   min-width: 0;
   overflow: visible;
 }
@@ -657,35 +678,36 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
 }
 
 .files-card-cover-wrap {
-  aspect-ratio: 4 / 5;
+  /* 不再固定 4:5：封面帶高度由 subgrid track（= 該排最高封面）決定；
+     wrap 被 grid 拉伸到 track 高，短封面靠 align-items:flex-end 在帶內貼底對齊（同排 baseline 一致）。 */
   width: 100%;
   position: relative;
   overflow: visible;
-  flex-shrink: 0;
+  display: flex;
+  align-items: flex-end;
 }
 
-/* inner 鋪滿 wrap 當 flex container，bottom-align + horizontally center 封面 mask
-   rotation 在 mask（中心＝封面中心，同原 image 本身旋轉），避免 inner 中心 ≠ 封面中心時的「甩繩」感 */
+/* inner in-flow（原 absolute inset:0）→ wrap 才量得到封面實際高度撐 subgrid track；
+   position:relative 當 .files-thumb-overlay 的定位參考。flex 讓被 max-height 收窄的高封面水平置中、
+   並與 wrap 一致貼底（rotation 在 mask、中心＝封面中心）。 */
 .files-item-card .files-item-cover-inner {
-  position: absolute;
-  inset: 0;
+  position: relative;
+  width: 100%;
   display: flex;
   align-items: flex-end;
   justify-content: center;
   overflow: visible;
 }
 
-/* 封面 contain 縮放邏輯（仿 Windows File Explorer；2026-08-16 起由 mask 承載，原 <img> max-w/h auto 等效搬移）：
+/* 封面尺寸（2026-08-31 起不再固定 4:5，改吃滿欄寬取自然高，但保留「max-height = 4:5」封頂）：
    - mask aspect-ratio = --cover-ratio（JS 依圖/PDF 頁實際比例設；載入前/placeholder 預設 4/5）
-   - max-w 100% / max-h 100%：寬圖吃滿寬、高圖 max-height 經 aspect-ratio 反推寬變窄（constraint transfer）
+   - width min(100%, 125%×ratio)＝隱含 max-height 1.25×欄寬（=4:5，舊固定高度）：
+       ratio≥0.8 取 100%（吃滿寬、高<4:5）；ratio<0.8 取 125%×ratio（寬收窄 → 高恰好封頂 4:5）
+     → 超高直圖不撐爆整排，subgrid 那排 track 自然被 4:5 封頂；收窄後靠 inner 的 justify-content 置中。
    - overflow:clip = 封面進場滑入遮罩；旋轉在 mask → clip 在旋轉後 local box 生效、跟著轉不切角
      （同 faculty .faculty-card-image-mask；別把 clip 掛回軸對齊外框＝2026-08-11 切角教訓）
    - 封面本體填滿 mask，transform 留給進場滑動（revealFilesCards） */
 .files-item-card .files-item-cover-mask {
-  /* --cover-ratio ＝ 無單位數字（寬/高），aspect-ratio 與下方 calc 共用。
-     width 明算 contain：wrap 固定 4:5（高=寬×1.25，改 wrap 比例要同步 125%）→
-     寬圖 min 取 100%（吃滿寬、高變矮）、高圖取 125%×ratio（吃滿高、寬反推變窄）。
-     不能只靠 max-w/h + aspect-ratio 的 constraint transfer：div 無內容自然尺寸=0，max 只封頂不撐大（實測 0×0）。 */
   aspect-ratio: var(--cover-ratio, 0.8);
   width: min(100%, calc(125% * var(--cover-ratio, 0.8)));
   overflow: clip;
@@ -1196,8 +1218,9 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
      grid 四欄自動 place：flag→col1、.award-mid→col2、.award-winners→col3、.award-ref-cell→col4；
      item 改 block 後，4 欄 grid 在 .award-row（非 item）；ref-wrap 是 item 的 block child 滿寬不受影響。*/
   #library-awards-list .award-record-item {
-    /* item 是 block：垂直 padding + 字級留 item；水平 0（手機主列滿寬不縮）。zebra/open bg 滿寬。 */
-    padding: var(--spacing-sm) 0 !important;
+    /* item 是 block：上 padding 留 item、底 padding 搬到 .award-row（同桌面，2026-09-01 間距全靜態）；
+       水平 0（手機主列滿寬不縮）。zebra/open bg 滿寬。 */
+    padding: var(--spacing-sm) 0 0 !important;
     min-width: 0 !important;
     font-size: var(--font-size-s) !important;
   }
@@ -1209,6 +1232,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
     /* sm 內縮：list scroll 滿版後（下方 full-bleed 規則）主列文字與 ref-row（padding:sm）/ search 同 sm 起點對齊 */
     padding-left: var(--spacing-sm) !important;
     padding-right: var(--spacing-sm) !important;
+    padding-bottom: var(--spacing-sm) !important;  /* item 底 padding 搬到 row（同桌面 0.5rem 規則，手機值 sm） */
     min-width: 0 !important;
     align-items: start !important;
   }
