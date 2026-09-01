@@ -551,6 +551,17 @@
   list-style: none;
   padding-bottom: 4px;
 }
+
+/* content-visibility：畫面外的 list-item 整棵跳過 style/layout/paint（業界 long-list 標準處方）。
+ * 這頁卡頓的「單價」＝每次 forced recalc 都重算整份清單；此規則把畫面外 item 移出計算範圍，
+ * 跟 JS 端的 RO bail／setup limit（memory: reference_activities_switch_ro_recalc_storm）相乘生效：
+ * 實測展開 accordion long task 2605→654ms（max 1068→132ms）、FULL 清單切換 max 1121→536ms。
+ * contain-intrinsic-size auto 96px＝收合 item 估高（auto 會記住實際渲染高：展開過的 item 捲遠再回來不跳動）。
+ * 不支援的瀏覽器（Safari <18）忽略＝純漸進增強，零風險。 */
+.list-item {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 96px;
+}
 /* divider 進場時被 setupClipReveal 包進 .clip-reveal-wrapper → wrap 前後兩種結構都 target */
 .list-item > .list-item-divider,
 .list-item > .clip-reveal-wrapper:has(> .list-item-divider) {
@@ -579,6 +590,17 @@
 .list-header.active + .list-content {
   padding-top: 4px;
   margin-top: -1px;
+}
+
+/* accordion 展開＝整塊 clip-reveal 往下推出（對齊 .list-year-items 年份展開的做法，見 list-accordion.js）：
+ * flex-col + justify-end 讓內容貼容器底邊 → GSAP height:0→auto 時整塊往下滑入、溢出往「上」被
+ * overflow:hidden（動畫期間 inline 設）剪掉；收合為反向鏡像（整塊往上滑出）。
+ * height:auto 全開時無溢出 → justify-end 是 no-op、不影響排版。直系子皆用 padding 撐間距、無 order 覆寫，
+ * 轉 flex 不改順序/間距。 */
+.list-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
 }
 
 /* 桌面版：list-header sticky 只在 .active（展開）狀態啟用 — 滑動長內文時使用者看到當前條目標題。

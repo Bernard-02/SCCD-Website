@@ -79,9 +79,29 @@ export async function loadAdmissionData() {
  * hide=true（預設）：wrap + 推 yPercent:100 隱藏準備 reveal
  * hide=false：只 wrap 不隱藏 — 初次載入時描述塊在 HTML 已可見，但需 clip-wrapper 讓首次 exit 能乾淨剪裁
  */
-export function setupAdmissionReveal(container, { hide = true } = {}) {
+export function setupAdmissionReveal(container, { hide = true, limit = 0 } = {}) {
   if (typeof gsap === 'undefined' || !container) return;
-  const rows = container.querySelectorAll('.list-reveal-row');
+  // limit>0（activities 切換路徑）：只藏「前 limit 條會被看到的 row」，其餘完全不碰。
+  // 為何能限縮：切換的 reveal 前 scroll 一律回頂（switchToSection step 7 / sub-filter instant scroll），
+  // 只有第一屏 + cull MARGIN 內的 row 真的會播進場；但 setup 跑在 showPanel 前（display:none 量不到幾何），
+  // 只能用「DOM 序＝垂直序」取前 N 近似，跳過收合年份組（display:none/height:0，不佔畫面）。
+  // 沒藏的 row 本來就在終態（上輪 reveal 收尾 clearProps）＝跟 cull snap 後的樣子一致，零視覺差。
+  // 為何要限縮：clearProps 後 GSAP transform cache 失效，整份 gsap.set 逐列重讀 computed style
+  // ＝逐列全頁 recalc，535 row 實測凍 8~9s（reference_activities_switch_ro_recalc_storm）。
+  let rows = /** @type {HTMLElement[]} */ ([...container.querySelectorAll('.list-reveal-row')]);
+  let limitedItems = null;
+  if (limit && rows.length > limit) {
+    const eligible = [];
+    for (const r of rows) {
+      const yi = /** @type {HTMLElement | null} */ (r.closest('.list-year-items'));
+      if (yi && (yi.style.display === 'none' || yi.style.height === '0px')) continue;
+      eligible.push(r);
+      if (eligible.length >= limit) break;
+    }
+    rows = eligible;
+    limitedItems = new Set();
+    rows.forEach(r => { const it = r.closest('.list-item'); if (it) limitedItems.add(it); });
+  }
   setupClipReveal(rows, { hide });
   // 進場方向 per-item 隨機，但**整筆一致**：一半從上滑入（文字 yPercent:-100 ＋ 斑馬底色 box 由上往下揭），
   // 一半維持從下（setupClipReveal 預設 100 ＋ box 由下往上揭）。
@@ -92,7 +112,8 @@ export function setupAdmissionReveal(container, { hide = true } = {}) {
   //    藏起，底色不跟著藏 → 初次進場「灰底已在、只有文字滑入」（user 2026-06-22）；揭露一律由
   //    playAdmissionPanelReveal 的 revealZebraBg 接（→inset(0)，兩方向都適用）。
   const canFlip = hide && !prefersReducedMotion();
-  container.querySelectorAll('.list-item').forEach(item => {
+  // limit 時 flip/zebra 也只掃被藏的那些 item（同上，沒藏的不動＝維持終態）
+  (limitedItems ? [...limitedItems] : [...container.querySelectorAll('.list-item')]).forEach(item => {
     const fromTop = canFlip && Math.random() < 0.5;
     if (fromTop) {
       item.querySelectorAll('.list-reveal-row').forEach(row => {
@@ -136,13 +157,23 @@ function killPanelRevealSTs() {
   _panelRevealSTs = [];
 }
 
+// panel 的捲動框偵測：桌面清單在 .inner-scroll-scroll-col 內捲（window 幾乎不動），viewport cull 要對「框」
+// 量可見而非 window；手機<768 / 矮橫向 gate 時框 overflow 被改回 visible → 回 null 走 window 判斷。
+// 用 computed overflow-y 判定（不硬編 innerWidth，矮橫向寬≥768 但框已撕裂）。
+function getPanelScroller(panel) {
+  const box = panel && panel.closest('.inner-scroll-scroll-col');
+  if (!box) return null;
+  const oy = getComputedStyle(box).overflowY;
+  return (oy === 'auto' || oy === 'scroll') ? box : null;
+}
+
 /**
  * 播放整個 panel 的進場動畫
  * - useScrollTrigger=true（初次載入）：intro + 每個 list-row group 各自一個 ScrollTrigger，捲入 viewport 才 reveal
  * - useScrollTrigger=false（panel 切換）：master timeline 立即 sequential 播放
  * 逐 item：先 clip-reveal 底色（zebra item）再進文字（user 2026-06-21：底色→文字→底色→文字 交錯）。
  */
-export function playAdmissionPanelReveal(panel, { useScrollTrigger = false } = {}) {
+export function playAdmissionPanelReveal(panel, { useScrollTrigger = false, viewportCull = false } = {}) {
   if (!panel || typeof gsap === 'undefined') return;
   killPanelRevealSTs();  // 殺掉上一輪殘留 trigger，免它被 refresh 喚醒跟本次 reveal 打架
 
@@ -218,6 +249,59 @@ export function playAdmissionPanelReveal(panel, { useScrollTrigger = false } = {
     });
   } else {
     // 切換時：master timeline 嚴格 sequential — intro 0s → list-row groups 從 0.3s 起每 0.18s 接力
+    // ── viewport cull（user 2026-08-30）：清單越長，逐 group 建 tween + 動 clip-path 的成本越高（實測
+    //    exhibitions 535 row 切一次 ~14 個 >50ms long task）。只對「當下在可視捲動框內」的 group 跑進場，
+    //    框外的一次性 gsap.set snap 到終態（看不到、不 tween、也無 lazy re-trigger），成本降成 O(可見 group)。
+    // ponytail: group 數 ≤20 的小 panel（degree-show 9 / admission / 其他 section）跳過 cull＝行為零改、免量測。
+    const cull = viewportCull && groups.length > 20;
+    const scroller = cull ? getPanelScroller(panel) : null;
+    const boxRect = scroller ? scroller.getBoundingClientRect() : null;
+    // scroller 存在但量到 0 高（罕見 display 撕裂）→ 放棄 cull 動全部，寧慢不空白
+    const doCull = cull && (!scroller || (boxRect && boxRect.height > 0));
+
+    let visibleGroups = groups.filter(g => g.length);
+    const offGroups = [];
+    if (doCull) {
+      // PASS-1 純讀：框 rect/clientHeight/scrollTop 各讀一次，再逐 group 讀 anchor rect 分類（無寫、單次 reflow）
+      const MARGIN = 240;                                   // >1 row 高：吸收 wrapper-skip row 一行位移 + 緩衝
+      const boxClientH = scroller ? scroller.clientHeight : 0;
+      const boxScrollTop = scroller ? scroller.scrollTop : 0;
+      const innerH = window.innerHeight;
+      visibleGroups = [];
+      let below = false;  // 撞到第一個 fold 以下的 group 後其餘不再量測（DOM 序=垂直序）
+      for (const groupRows of groups) {
+        if (!groupRows.length) continue;
+        if (below) { offGroups.push(groupRows); continue; }
+        // anchor 用 layout-stable 的 .list-item（子 row 的 yPercent 不動 item 盒），非被 setup 位移的 .list-reveal-row
+        const anchor = groupRows[0].closest('.list-item') || groupRows[0];
+        // display:none（收合年份）→ offsetParent null：直接 snap、且不觸發 below-break
+        //   （否則它夾在可見 group 之間會誤把後面還可見的年份也斷成 off＝空白）
+        if (anchor.offsetParent === null) { offGroups.push(groupRows); continue; }
+        const r = anchor.getBoundingClientRect();
+        const inView = scroller
+          ? (r.top - boxRect.top + boxScrollTop < boxClientH + MARGIN)  // scrollTop~0：上緣不會有東西
+          : (r.bottom > -MARGIN && r.top < innerH + MARGIN);
+        if (inView) visibleGroups.push(groupRows);
+        else { offGroups.push(groupRows); below = true; }
+      }
+      // PASS-2A 寫：框外 group 一次性 snap 終態 + 解鎖 pointer（killTweensOf 防上一輪殘 tween 在 snap 後又寫＝裸奔）
+      const offRows = [];
+      const offZebra = [];
+      offGroups.forEach(groupRows => {
+        offRows.push(...groupRows);
+        const bg = zebraBgTarget(groupRows);
+        if (bg) offZebra.push(bg);
+        unlockGroup(groupRows);
+      });
+      // 只 snap「setup 真的藏過」的（有 inline transform/clipPath）：setup limit 沒碰的本來就在終態，
+      // 對它們 clearProps＝白付一次 GSAP touch（uncached parse＝逐列 recalc，見 setupAdmissionReveal 註解）
+      const touchedRows = offRows.filter(r => r.style.transform);
+      const touchedZebra = offZebra.filter(z => z.style.clipPath);
+      if (touchedRows.length) { gsap.killTweensOf(touchedRows); gsap.set(touchedRows, { clearProps: 'transform' }); }
+      if (touchedZebra.length) { gsap.killTweensOf(touchedZebra); gsap.set(touchedZebra, { clearProps: 'clipPath' }); }
+    }
+
+    // PASS-2B 寫：只對可見 group 建進場 timeline（原邏輯照舊，改吃 visibleGroups）
     const tl = gsap.timeline();
     if (intro.length) {
       tl.to(intro, {
@@ -226,8 +310,7 @@ export function playAdmissionPanelReveal(panel, { useScrollTrigger = false } = {
       }, 0);
     }
     let cursor = intro.length ? 0.3 : 0;
-    groups.forEach((groupRows) => {
-      if (groupRows.length === 0) return;
+    visibleGroups.forEach((groupRows) => {
       const bgItem = zebraBgTarget(groupRows);
       if (bgItem) revealZebraBg(bgItem, tl, cursor);   // 底色先 clip-reveal
       const textAt = cursor + (bgItem ? 0.2 : 0);       // 文字晚底色 0.2s
@@ -305,7 +388,7 @@ function collapseOpenAccordionsInPanel(panel) {
  * 「沒收就被推走」，分兩段做才有層次感。三個 caller（page exit / section switch / sub-filter switch）
  * 都從本函式統一受益，不必每個 caller 自己包一層 collapse 邏輯。
  */
-export async function playAdmissionPanelExit(panel) {
+export async function playAdmissionPanelExit(panel, { viewportCull = false } = {}) {
   if (!panel || typeof gsap === 'undefined') return;
   // 離場一開頭就殺殘留 once trigger：比 reveal-start 殺更早，趕在 camp lazy-load 的 ScrollTrigger.refresh
   // 之前——否則那次 refresh 會喚醒 news 初載未 fire 的 once trigger → onEnter clearProps 把 news rows 還原成
@@ -318,14 +401,39 @@ export async function playAdmissionPanelExit(panel) {
 
   // 2. 再跑 panel rows fade-out（load-more 按鈕已移除）
   return new Promise(resolve => {
+    // data-pre-reveal 一律設在全部 .list-item（cheap 屬性寫、不 tween）：重新鎖 pointer，讓下次 reveal 的
+    // unlockGroup 循環全程對稱，culling 退場 tween 不能連這個也 cull 掉。
     panel.querySelectorAll('.list-item').forEach(it => it.setAttribute('data-pre-reveal', ''));
-    const rows = panel.querySelectorAll('.list-reveal-row');
+    let rows = [...panel.querySelectorAll('.list-reveal-row')];
+    let zebra = [...panel.querySelectorAll('.list-item.list-item-zebra')];
+
+    // viewport cull（同 reveal，只在數百 row 的重 panel 開）：只讓可見的 row/zebra 跑退場滑出，框外的直接
+    // 隨 panel display:none 消失（切回時 setupAdmissionReveal 重新藏全部＝不留殘態）。量可見用 layout-stable
+    // 的 .list-item anchor（即使上一輪 reveal tween 還在跑，子 row 的 yPercent 不動 item 盒→仍量得準）。
+    // filter 在 empty-guard 之前：全被 cull 掉時 rows 為空也要往下 resolve()，不能讓 router await 的 Promise 卡死。
+    if (viewportCull && rows.length > 60) {
+      const scroller = getPanelScroller(panel);
+      const boxRect = scroller ? scroller.getBoundingClientRect() : null;
+      if (!scroller || (boxRect && boxRect.height > 0)) {
+        const MARGIN = 240;
+        const innerH = window.innerHeight;
+        const vis = (el) => {
+          const a = el.closest('.list-item') || el;
+          const r = a.getBoundingClientRect();
+          return scroller
+            ? (r.bottom > boxRect.top - MARGIN && r.top < boxRect.bottom + MARGIN)
+            : (r.bottom > -MARGIN && r.top < innerH + MARGIN);
+        };
+        rows = rows.filter(vis);
+        zebra = zebra.filter(vis);
+      }
+    }
     if (rows.length === 0) { resolve(); return; }
 
     // 灰底退場：clip-path inset(0)→inset(100%) 收回（鏡像進場揭露），與文字 yPercent 同步滑出。
     // 進場收尾 clearProps 後 inline clip-path 為空 → fromTo 顯式從 inset(0) 收（否則從 none 補間會 snap，
     // 見 [[feedback_clippath_exit_after_clearprops_use_fromto]]）；進場中(inline 仍有值)則直接 to 從當下收。
-    panel.querySelectorAll('.list-item.list-item-zebra').forEach(item => {
+    zebra.forEach(item => {
       const to = { clipPath: 'inset(100% 0% 0% 0%)', duration: DUR.base, ease: EASE.exit, overwrite: true };
       if (item.style.clipPath) gsap.to(item, to);
       else gsap.fromTo(item, { clipPath: 'inset(0% 0% 0% 0%)' }, to);

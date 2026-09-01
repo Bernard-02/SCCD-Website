@@ -4,7 +4,7 @@
  * 同時負責載入各區塊資料
  */
 
-import { loadExhibitionsInto, loadGeneralActivitiesInto, loadLecturesInto, loadIndustryInto, loadWorkshopsInto, loadSummerCampInto, loadVisitsInto, prefetchExhibitionsData } from './activities-data-loader.js';
+import { loadExhibitionsInto, loadGeneralActivitiesInto, loadLecturesInto, loadIndustryInto, loadWorkshopsInto, loadSummerCampInto, loadVisitsInto, prefetchExhibitionsData, prefetchOtherActivitiesData } from './activities-data-loader.js';
 import { resetActivitiesFetchCache } from './activities-source.js';
 import { loadDegreeShowListInto } from './degree-show-data-loader.js';
 import { applyMarqueeOverflow, bindMarqueeReturn } from '../ui/marquee-overflow.js';
@@ -176,6 +176,8 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
   // 改短輪詢等 target 出現（最多 ~3s）；撈不到（item 不存在 / 無 media 被濾掉 / id 對不上）就退而捲到 section、別卡 hero。
   let target = document.getElementById(`item-${itemId}`);
   for (let i = 0; i < 30 && !target; i++) {
+    // lazy 清單：目標 item 可能還沒建（不在首批）→ 先把該 section 的 lazy list 全建出來再找（idempotent、建完即 no-op）
+    document.querySelectorAll(`#panel-${section} [data-lazy-list]`).forEach(c => { const fn = /** @type {any} */ (c)._lazyRenderAll; if (typeof fn === 'function') fn(); });
     await new Promise(r => setTimeout(r, 100));
     target = document.getElementById(`item-${itemId}`);
   }
@@ -727,6 +729,8 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
     const initialSection = params.get('section') || defaultSection;
     const initialItem = params.get('item');
     const initSwitchPromise = switchToSection(initialSection, btns, false, true);
+    // deep-link 進場後同樣預暖其餘分頁資料，讓後續手動切換免等網路
+    initSwitchPromise.then(() => prefetchOtherActivitiesData());
     // 等 hero 進場才往下捲（waitForHeroAnimDone；封頂 ~0.9s = hero 多組時不等全播完免「卡在 hero 太久」，user 2026-06-27；對齊 curriculum）。
     // 手機也適用：hero-animation playMobileHeroEntrance 跑「看得見的」.hero-mobile-* 進場後才 signal
     // （2026-06-12 起；先前手機 hero 靜態、等的是隱藏桌面 timeline ＝ 白等，曾短暫改成跳過）。
@@ -771,7 +775,10 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
     // list 在 fold 外、reveal 已 scroll-gated → 晚 ~1.7s load 不可見無感。用預設 cap（等真正 hero:animation-done
     // event ~1.7s；4000ms 只是 hero 壞掉時的兜底，同 deep-link 用法）——別給短 cap，會在 hero 還沒播完就 render 回來搶主
     // 執行緒。deep-link 路徑（上面 branch）維持即時 render＝要在 hero 期間於畫面外把目標 item 定位好。
-    waitForHeroAnimDone().then(() => switchToSection(defaultSection, btns, false, true));
+    waitForHeroAnimDone()
+      .then(() => switchToSection(defaultSection, btns, false, true))
+      // 預設分頁進場後，閒置序列預暖其餘分頁資料（見 prefetchOtherActivitiesData）→ 之後切換免等網路
+      .then(() => prefetchOtherActivitiesData());
   }
 
   btns.forEach(btn => {
@@ -807,10 +814,14 @@ async function switchToSection(section, btns, shouldScroll, isInitial = false) {
   //    且 switching=true 永遠不重置 → 下次切 panel 全被擋。finally 保證 reveal + switching reset 兩個必跑
   let target = null;
   try {
-    // 0. 先啟動 loadPanel fetch + render（**並行於 exit 動畫**），target panel 還 hidden 對 user 不可見
-    //    過去 await exit → 再 await load 序列等於兩段時間相加，user 看到 panel 空白等 list render
-    //    並行後等 exit 動畫跑完 load 通常也好了，直接 reveal 沒空窗
-    const loadPromise = loadPanel(section);
+    // 0. 只預暖「資料」不 render：section JSON 早在 init 後由 prefetchOtherActivitiesData 序列預暖，
+    //    這裡對冷快取情境（落地就秒點分頁）再補一發 fire-and-forget（single-flight，命中快取零成本），
+    //    讓 fetch 仍與退場動畫並行。
+    //    ⚠️ loadPanel（render+bind+ScrollTrigger.refresh）**不再**與退場並行（2026-09-01 改序）：
+    //    fetch 被預暖吸收後，並行 render 省不到時間、只會把首次 render 的 long task 疊進退場幀間
+    //    ＝收起動畫掉幀、零散色塊凍在半路才隨 display:none 消失（user 回報「殘餘幾個框才消失」）。
+    //    改為退場跑完才 render，退場獨佔主執行緒；代價只有冷快取時多等 fetch 尾巴。
+    if (!loaded[section]) prefetchOtherActivitiesData();
 
     // 1. 退場（首次 init 跳過；切到同 panel 也跳過）
     //    degree-show cards 已加 .list-reveal-row，與其他 panel 統一走 playAdmissionPanelExit；
@@ -818,7 +829,7 @@ async function switchToSection(section, btns, shouldScroll, isInitial = false) {
     //    （chip 自身 clip-path，不裁旋轉角；user 2026-06-07「切分頁時 filter btn 也要出場」）。並行 await。
     if (!isInitial && currentPanel && currentPanel.id !== targetId) {
       await Promise.all([
-        playAdmissionPanelExit(currentPanel),
+        playAdmissionPanelExit(currentPanel, { viewportCull: true }),
         playFilterChipsExit(currentPanel),
       ]);
     }
@@ -827,15 +838,16 @@ async function switchToSection(section, btns, shouldScroll, isInitial = false) {
     const { color } = setActiveNavBtn(btns, section, 'data-section');
     currentSectionColor = color;
 
-    // 3. 等 load 完成（多數情況 exit 動畫已 cover 此時間；首次 fetch 大 JSON 仍可能略等）
-    await loadPromise;
+    // 3. 退場結束才 fetch(命中快取)+render（見 step 0 註解；已載入的 panel 此步為 no-op）
+    await loadPanel(section);
 
     // 4. 拿到 target panel（還是 .hidden 狀態，setup 先跑）
     target = /** @type {HTMLElement | null} */ (document.getElementById(targetId));
 
     // 5. 進場 setup：在 showPanel 前完成 yPercent:100 推送，避免 panel 顯示後才 set 造成 1 frame 閃爍
     //    .hidden 上的 element 仍可 wrap clip-reveal-wrapper + gsap.set（GSAP 不在乎 visibility）
-    if (target) setupAdmissionReveal(target, { hide: true });
+    // limit 64 ≈ 一屏 row 數上限（~14 item×4 row）+ cull MARGIN 緩衝：大清單只藏會被看到的，見 setupAdmissionReveal
+    if (target) setupAdmissionReveal(target, { hide: true, limit: 64 });
     // filter chip（exhibitions/visits sub-tab）改 chip 自身 clip-path reveal，先收起
     if (target) hideFilterChips(target);
 
@@ -897,7 +909,7 @@ async function switchToSection(section, btns, shouldScroll, isInitial = false) {
       //    group 的 tween 沒建到（實測初載 12/24 卡住）。固定 double-rAF 只擋得住兩幀內的延遲；改用
       //    revealWhenListRowsSettled 等 row 數連兩幀不變才揭，晚到的 row 也進同一條 timeline、每列都有動畫。
       const revealNow = () => {
-        playAdmissionPanelReveal(target, { useScrollTrigger: false });
+        playAdmissionPanelReveal(target, { useScrollTrigger: false, viewportCull: true });
         playFilterChipsReveal(target, { useScrollTrigger: false });
       };
       if (isInitial) {
@@ -956,7 +968,7 @@ async function animatedSubListSwitch(panelId, lists, targetType) {
     }
 
     if (outgoing) {
-      await playAdmissionPanelExit(outgoing);
+      await playAdmissionPanelExit(outgoing, { viewportCull: true });
     }
 
     for (const k of Object.keys(lists)) {
@@ -975,8 +987,8 @@ async function animatedSubListSwitch(panelId, lists, targetType) {
     }
 
     // 進場 reveal：useScrollTrigger=false 立刻播（不等捲到 viewport）
-    setupAdmissionReveal(incoming, { hide: true });
-    playAdmissionPanelReveal(incoming, { useScrollTrigger: false });
+    setupAdmissionReveal(incoming, { hide: true, limit: 64 });
+    playAdmissionPanelReveal(incoming, { useScrollTrigger: false, viewportCull: true });
   } finally {
     subFilterSwitching = false;
   }
@@ -1113,7 +1125,14 @@ async function loadPanel(section) {
   // ⚠️ 設 flag 後出錯（fetch fail / DOM missing）→ switchToSection 的 catch 會 delete loaded[section]
   //    讓 user 重切回此 panel 能 retry。本函數不另外 try/catch（讓 error propagate 給 caller 統一處理）
 
-  const opts = { autoReveal: false };
+  // lazy:true → 大清單只渲染視窗內第一批、捲到底才續建（loadListInto 內 >24 筆才生效）：每次切換/reveal/exit 的
+  // 工作量恆定在「已渲染那批」而非整份(exhibitions 535 row)，切分頁不當機。小清單／permanent 自動走同步路徑；
+  // alumni/admission 不經此＝不受影響。onLazyBatch：捲入新批次後重跑 accordion/year-toggle init（idempotent）讓新 row 可展開。
+  const opts = {
+    autoReveal: false,
+    lazy: true,
+    onLazyBatch: () => { initActivitiesYearToggle(); initListAccordion(); },
+  };
 
   switch (section) {
     case 'exhibitions':

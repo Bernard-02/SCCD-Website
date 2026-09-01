@@ -6,6 +6,7 @@
 import { openLightbox } from '../lightbox/activities-lightbox.js';
 import { isHlsUrl, isDirectVideoUrl, videoMediaFromUrl, hydrateHlsThumbs } from '../ui/video-player.js';
 import { setupClipReveal, playClipReveal } from '../ui/scroll-animate.js';
+import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { makeActivatable } from '../ui/a11y.js';
 import { ensureFlagIconsCss } from '../ui/ensure-flag-icons.js';
@@ -191,7 +192,9 @@ function bindRefBtnClick(btn) {
 // Helper: 為 list-item 內的海報及 gallery 圖片加上 hover 旋轉歸 0 效果
 // 對齊 library files/album 模式：random rotation 1~3°（兩邊隨機 sign），hover 歸 0
 export function bindMediaHover(container) {
-  container.querySelectorAll('.list-item').forEach(workshopItem => {
+  // scope 可為容器（掃內含 .list-item）或單一 .list-item（分幀逐 item 綁時傳自己）
+  const _items = container.matches?.('.list-item') ? [container] : container.querySelectorAll('.list-item');
+  _items.forEach(workshopItem => {
     const applyHover = (wrapper) => {
       if (wrapper.dataset.hoverInit) return;
       wrapper.dataset.hoverInit = '1';
@@ -337,7 +340,7 @@ export function buildAlbumsHtml(item, { unbounded = false } = {}) {
     // onerror 自摧毀單張 thumb：broken 檔不留 broken icon（對齊 buildPosterHtml）
     const thumbsHtml = album.images.map((src, i) => `
       <button type="button" class="album-thumb-btn flex-shrink-0 overflow-hidden cursor-pointer" data-album-index="${i}" style="height: 72px;">
-        <img src="${src}" alt="" class="h-full w-auto block" onerror="this.parentElement.style.display='none'">
+        <img src="${src}" alt="" decoding="async" class="h-full w-auto block" onerror="this.parentElement.style.display='none'">
       </button>
     `).join('');
     // 結構：外層 grid 2 col [year | content]，year 在最左 col1，content 在 col2
@@ -400,7 +403,7 @@ export function buildPosterHtml(item) {
   if (!src) return '';
   return `
     <div class="overflow-hidden cursor-pointer" data-lightbox-open data-lightbox-index="0">
-      <img src="${src}" alt="${item.title} poster" class="poster-img w-full block object-cover" onerror="this.closest('[data-lightbox-open]').style.display='none'">
+      <img src="${src}" alt="${item.title} poster" decoding="async" class="poster-img w-full block object-cover" onerror="this.closest('[data-lightbox-open]').style.display='none'">
     </div>
   `;
 }
@@ -432,7 +435,7 @@ export function buildGalleryHtml(item) {
       const videoId = url.match(/(?:v=|youtu\.be\/)([^&?/]+)/)?.[1];
       if (!videoId) return '';
       return `<div class="h-full flex-shrink-0 aspect-video relative cursor-pointer" data-lightbox-open data-lightbox-index="${lbIndex}">
-        <img src="https://img.youtube.com/vi/${videoId}/hqdefault.jpg" alt="" class="w-full h-full object-cover block">
+        <img src="https://img.youtube.com/vi/${videoId}/hqdefault.jpg" alt="" decoding="async" class="w-full h-full object-cover block">
         ${playOverlay}
       </div>`;
     }),
@@ -440,7 +443,7 @@ export function buildGalleryHtml(item) {
     ...images.map((src, ii) => {
       const lbIndex = posterOffset + videos.length + ii;
       return `<div class="h-full flex-shrink-0 relative cursor-pointer" data-lightbox-open data-lightbox-index="${lbIndex}">
-        <img src="${src}" alt="" class="h-full w-auto block" onerror="this.closest('[data-lightbox-open]').style.display='none'">
+        <img src="${src}" alt="" decoding="async" class="h-full w-auto block" onerror="this.closest('[data-lightbox-open]').style.display='none'">
       </div>`;
     }),
   ].filter(Boolean);
@@ -510,7 +513,7 @@ export function buildGuestHtml(g, { showGuestCountry = true, showGuestAffiliatio
       ${showGuestCountry ? `<div class="min-w-0">${countryCell('text-s', gCountry, g.country_zh)}</div>` : ''}
     </div>
     ${showGuestAffiliation && gOrgEn ? `<div class="grid gap-md items-start guest-row-grid">
-      <div class="text-xs min-w-0">${gOrgEn.length > 20 ? `${gOrgEn}${gOrgZh ? `<div class="text-xs" lang="zh-Hant" style="margin-top: var(--space-en-zh-xs)">${gOrgZh}</div>` : ''}` : `${gOrgEn}${gOrgZh ? ' ' + gOrgZh : ''}`}</div>
+      <div class="text-xs min-w-0">${gOrgEn}${gOrgZh ? `<div class="text-xs" lang="zh-Hant" style="margin-top: var(--space-en-zh-xs)">${gOrgZh}</div>` : ''}</div>
       ${showGuestCountry ? countryCell('text-xs', gOrgCountry) : ''}
     </div>` : ''}
   </div>`;
@@ -607,12 +610,26 @@ function gateStripRevealOnLoad(inner, onReveal) {
 }
 
 // Gallery 滑動、Lightbox、hover、海報比例偵測；回傳 GSAP 動畫啟動函數
-export function bindInteractions(container, { autoReveal = true } = {}) {
+export function bindInteractions(container, { autoReveal = true, incremental = false, deferBinds = false } = {}) {
   // Albums lightbox：click 單張 thumb 開 lightbox 對應 index
   // data-album-media + data-album-title 在父 .album-thumb-item，data-album-index 在 .album-thumb-btn
   // 整個 row 不再 click open（user 反映：要看 thumbnail 不是 row click → 視覺有 thumb 後點 thumb 才直觀）
   // title override = 該 album 的 date+location；不用父 list-item title（user 指定）
-  container.querySelectorAll('.album-thumb-btn').forEach(btn => {
+  // ── 展開內容(album/gallery/lightbox/hover)的綁定：只在 accordion 展開時才看得到，非首屏所需。
+  //    大清單(>24 items，如 exhibitions 93 item/526 row)首次載入同步綁這堆＝實測 ~236ms 卡死主執行緒
+  //    （setupClipReveal 只 75ms、建 HTML 228ms，binds 才是大頭）。改成逐 .list-item 分幀綁：清單先出現(build+
+  //    reveal 仍同步)，這些綁定在背景每 8ms/幀補上、container 斷開(離頁)自停（user 2026-08-31）。
+  //    小清單/alumni/admission(<24 item) 維持同步、byte-identical。⚠️各 pass 掃描 scope 從 container→逐 item，
+  //    每 item 只掃一次＝無雙綁；bindMediaHover/hydrateHlsThumbs 本就自帶 dataset 守衛、逐 item 呼叫安全。
+  // incremental（lazy 捲入補綁）：只處理尚未綁過的 item（data-bound 守衛），避免重綁第一批；小批次一律同步綁
+  const _allItems = [...container.querySelectorAll(incremental ? '.list-item:not([data-bound])' : '.list-item')];
+  // deferBinds：lazy 首批強制分幀綁（切換時逐 item bindMediaHover 同步跑會卡退場動畫；binds 是展開內容用、非首屏所需）
+  const _deferItemBinds = !incremental && (deferBinds || _allItems.length > 24);
+  // 逐 .list-item 綁「展開內容」互動（scope 到單一 item，每 item 只掃一次＝無雙綁）。
+  const _bindOneItem = (scope) => {
+  if (scope.dataset.bound) return;   // 已綁過（lazy 重跑）→ 跳過
+  scope.dataset.bound = '1';
+  scope.querySelectorAll('.album-thumb-btn').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();  // 避免父 list-header 收合
       const albumEl = /** @type {HTMLElement | null} */ (btn.closest('.album-thumb-item'));
@@ -632,7 +649,7 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
 
   // Album thumbnails 橫向 track：chevron 切換（跟 .gallery-section 同 pattern，只是 selector 不同）
   // chevron absolute 蓋在 track 左右邊：thumbs 永遠對齊 location 左緣不被 chevron 推開
-  container.querySelectorAll('.album-gallery').forEach(gallery => {
+  scope.querySelectorAll('.album-gallery').forEach(gallery => {
     const inner = /** @type {HTMLElement | null} */ (gallery.querySelector('.album-track-inner'));
     const track = /** @type {HTMLElement | null} */ (gallery.querySelector('.album-track'));
     const prevBtn = /** @type {HTMLElement | null} */ (gallery.querySelector('.album-prev'));
@@ -641,15 +658,22 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
     let offset = 0;
     const getMaxOffset = () => Math.max(0, inner.scrollWidth - track.clientWidth);
     // max==0 整顆隱藏（沒東西可滑）；否則依 offset 端點 50% 透明暗示「到底了」
+    // 藏起(0 寬)不跑＋三態沒變不寫：per-gallery RO 跟 marquee 的 RO 在 panel display 切換同批 delivery，
+    // 回呼裡「讀 layout+寫 DOM」跟鄰居交錯＝每個 item 邊界一次全頁 recalc（reference_activities_switch_ro_recalc_storm）。
+    // 狀態存 JS property 不存 dataset（attribute 寫入本身會 dirty style）。
     const updateChevrons = () => {
+      if (track.clientWidth === 0) return;
       const max = getMaxOffset();
       const noScroll = max === 0;
-      prevBtn?.classList.toggle('invisible', noScroll);
-      nextBtn?.classList.toggle('invisible', noScroll);
       // 到端點＝視覺暗示「到底了」：opacity 0.5 + not-allowed 游標。這些 chevron 不是原生 disabled（只改 opacity），
       // inline style.cursor（spec=1000）直接生效；不設的話會吃到 cursor.css `button:not(:disabled)` 的 pointer。
       const atStart = !noScroll && offset <= 0;
       const atEnd   = !noScroll && offset >= max;
+      const state = `${noScroll}|${atStart}|${atEnd}`;
+      if (gallery._chevState === state) return;
+      gallery._chevState = state;
+      prevBtn?.classList.toggle('invisible', noScroll);
+      nextBtn?.classList.toggle('invisible', noScroll);
       if (prevBtn) { prevBtn.style.opacity = atStart ? '0.5' : ''; prevBtn.style.cursor = atStart ? 'var(--cursor-not-allowed)' : ''; }
       if (nextBtn) { nextBtn.style.opacity = atEnd ? '0.5' : ''; nextBtn.style.cursor = atEnd ? 'var(--cursor-not-allowed)' : ''; }
     };
@@ -677,7 +701,7 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
   });
 
   // Gallery 左右滑動
-  container.querySelectorAll('.gallery-section').forEach(gallery => {
+  scope.querySelectorAll('.gallery-section').forEach(gallery => {
     const inner = gallery.querySelector('.gallery-inner');
     const track = gallery.querySelector('.gallery-track');
     const prevBtn = gallery.querySelector('.gallery-prev');
@@ -685,15 +709,20 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
     if (!inner || !track) return;
     let offset = 0;
     const getMaxOffset = () => Math.max(0, inner.scrollWidth - track.clientWidth);
+    // 藏起不跑＋三態沒變不寫（同 album-gallery updateChevrons，見該處註解）
     const updateChevrons = () => {
+      if (track.clientWidth === 0) return;
       const max = getMaxOffset();
       const noScroll = max === 0;
+      const atStart = !noScroll && offset <= 0;
+      const atEnd   = !noScroll && offset >= max;
+      const state = `${noScroll}|${atStart}|${atEnd}`;
+      if (gallery._chevState === state) return;
+      gallery._chevState = state;
       // 不需捲動時 chevron 收掉寬度（display:none 非 invisible）→ 圖左緣直接對齊 padding/文字，不留 32px 空位
       if (prevBtn) prevBtn.style.display = noScroll ? 'none' : 'flex';
       if (nextBtn) nextBtn.style.display = noScroll ? 'none' : 'flex';
       // 到端點 opacity 0.5 + not-allowed 游標（同 album-gallery，非原生 disabled inline cursor 直接生效）
-      const atStart = !noScroll && offset <= 0;
-      const atEnd   = !noScroll && offset >= max;
       if (prevBtn) { prevBtn.style.opacity = atStart ? '0.5' : ''; prevBtn.style.cursor = atStart ? 'var(--cursor-not-allowed)' : ''; }
       if (nextBtn) { nextBtn.style.opacity = atEnd ? '0.5' : ''; nextBtn.style.cursor = atEnd ? 'var(--cursor-not-allowed)' : ''; }
     };
@@ -719,8 +748,8 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
     });
   });
 
-  // Lightbox 綁定
-  container.querySelectorAll('.list-item').forEach(workshopItem => {
+  // Lightbox 綁定（scope 已是單一 .list-item）
+  [scope].forEach(workshopItem => {
     const media = JSON.parse(workshopItem.dataset.media || '[]');
     if (media.length === 0) return;
     workshopItem.querySelectorAll('[data-lightbox-open]').forEach(el => {
@@ -734,11 +763,32 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
     });
   });
 
-  // 海報 & gallery hover 效果
-  bindMediaHover(container);
+  // 海報 & gallery hover 效果（bindMediaHover 認得單一 item scope）
+  bindMediaHover(scope);
 
   // 自架影片（m3u8）gallery tile 補截幀縮圖（cached，同 URL 只截一次）
-  hydrateHlsThumbs(container);
+  hydrateHlsThumbs(scope);
+  };
+  // 小清單(<24 item)：同步逐 item 綁，順序與行為跟改前一致。
+  // 大清單：延到 first-paint 後「每 8ms/幀」逐 item 綁——實測 exhibitions 93 item 的這堆綁定同步跑要 ~1.2s
+  //   （1127 張 hover 圖），一次跑完＝把凍結搬到 paint 後(反而更糟)；分幀讓每幀 ≤8ms、其餘留給捲動 paint，
+  //   清單第一屏立刻可見可捲，展開內容的互動在背景漸次補上。container 斷開(離頁)自停（同 initMarquees）。
+  if (!_deferItemBinds) {
+    _allItems.forEach(_bindOneItem);
+  } else {
+    let _i = 0;
+    const _step = () => {
+      if (!container.isConnected || _i >= _allItems.length) return;
+      const _budget = performance.now() + 8;
+      do { _bindOneItem(_allItems[_i++]); } while (_i < _allItems.length && performance.now() < _budget);
+      if (_i < _allItems.length) requestAnimationFrame(_step);
+    };
+    // 延 1.6s（≈ exit 0.5~0.9s + reveal 主要窗口）才起跑：8ms/幀預算迴圈跟切換動畫同幀＝每幀 8ms 預算
+    // + GSAP tick + paint 必 >16.7ms 掉幀（實測每次切換 5~13 個 >33ms 幀）。binds 是展開內容用、
+    // rows 在 reveal 完成前本就被 data-pre-reveal 鎖 pointer → 延後起跑對互動零影響。
+    const _bindTimer = setTimeout(() => requestAnimationFrame(_step), 1600);
+    registerPageCleanup(() => { clearTimeout(_bindTimer); _i = _allItems.length; });
+  }
 
   // 標題跑馬燈：偵測是否溢出，是則加 is-overflow + 設定捲動距離
   // list-content 內的 location marquee 渲染當下 clientWidth=0（h-0 overflow-hidden），會錯判 overflow；
@@ -776,6 +826,30 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
   // wraps＝配對 [en, zh] 或落單 [wrap]（單語言）；兩者都走同一條 GSAP 路徑（buildSyncedMarqueeTimeline 吃 1~N 條）。
   function reconcileChunk(wraps) {
     const first = wraps[0];
+    // Panel display 切換時「該 panel 每個 wrap 的 per-wrap ResizeObserver」同批 fire（藏起量到 0 寬、切回量回原寬）。
+    // 舊版無條件 kill＋重量＋重建＝每個回呼讀 layout 又寫 DOM，批次內讀寫交錯 → 每個 wrap 強制一次全頁 style
+    // recalc，實測已載入分頁互切凍結 1.3~7.6s（見 memory reference_activities_switch_ro_recalc_storm）。兩道 bail：
+    //   ① 藏起（0 寬）→ 只暫停 tl（隱藏中還逐幀寫 transform 白燒 CPU），其餘不讀不寫；重新可見 RO 會再 fire。
+    //   ② 尺寸簽名沒變（切回來、寬度同藏前）→ 免重建，只把 ① 暫停的 tl 依 gate 規則恢復。
+    // 簽名變了（首次量測 / resize / fonts.ready 後實寬變）才走下面完整重建。
+    if (first.clientWidth === 0) {
+      if (first._pairGroup) { first._pairGroup.tl.pause(); first._pairGroup._hiddenPaused = true; }
+      return true;
+    }
+    const sig = wraps.map(w => { const p = w.querySelector('p'); return w.clientWidth + ',' + (p ? p.scrollWidth : 0); }).join(';');
+    if (sig === first._mqSig) {
+      const g = first._pairGroup;
+      if (g && g._hiddenPaused) {
+        g._hiddenPaused = false;
+        const header = first.closest('.list-header');
+        const cell = header ? null : first.closest('.list-summary-mq-col');
+        const gate = header || (window.innerWidth >= 768 ? cell : null);
+        // 無 gate（list-content 自動捲）→ 續播；有 gate → 只在當下 hover/active 才播（同下方初建規則）
+        if (!gate || gate.matches(':hover') || (header && header.classList.contains('active'))) g.tl.play();
+      }
+      return true;
+    }
+    first._mqSig = sig;
     if (first._pairGroup) { first._pairGroup.tl.kill(); if (first._pairGroup._ret) first._pairGroup._ret.kill(); }
 
     const measured = wraps.map(wrap => {
@@ -837,10 +911,13 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
     // 桌面手機都跑 — 手機 title 區窄更容易 overflow，user 要求收起時就要 marquee
     const wraps = [...container.querySelectorAll('.list-title-marquee')];
     const processWrap = (wrap) => {
+      if (wrap.dataset.mqBound) return;   // 已量過（lazy 重跑）→ 跳過，避免重複 ResizeObserver 累積
+      wrap.dataset.mqBound = '1';
       const p = wrap.querySelector('p');
       if (!p) return;
       const checkOverflow = () => {
         if (typeof gsap !== 'undefined' && reconcilePair(wrap)) return; // 配對交給上面處理
+        if (wrap.clientWidth === 0) return; // 藏起（display:none）：狀態保持不寫，重新可見 RO 再 fire 才重量
         if (p.scrollWidth > wrap.clientWidth + 1) {
           wrap.classList.add('is-overflow');
           if (!wrap.dataset.marqueeInit) {
@@ -903,9 +980,17 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
   // 已可見的 panel（section 切換後 user 早在內容區）IO 立即 fire、marquee 無延遲。marquee 是裝飾性 overflow 捲動，
   // 「看得到才量」語意也對。fonts.ready / 逐 wrap ResizeObserver re-check 仍照舊補量。離頁由 registerPageCleanup 收。
   const runMarquees = () => { if (container.isConnected) initMarquees(); };
-  if (typeof IntersectionObserver !== 'undefined') {
+  if (incremental) {
+    // lazy 捲入補綁：container 早已在視窗內，直接量新 wrap（processWrap 的 mqBound 守衛跳過舊的）
+    runMarquees();
+  } else if (typeof IntersectionObserver !== 'undefined') {
     const mqIo = new IntersectionObserver((entries, obs) => {
-      if (entries.some(e => e.isIntersecting)) { obs.disconnect(); runMarquees(); }
+      if (!entries.some(e => e.isIntersecting)) return;
+      obs.disconnect();
+      // 延 1.6s：IO fire 的時點＝panel 剛顯示（切換）或捲近（初載），正是 exit+reveal 動畫窗口；
+      // 量測迴圈每幀 8ms 預算跟動畫搶幀（同上 _bindTimer 註解）。marquee 是裝飾性 overflow，晚 1.6s 無感。
+      const t = setTimeout(runMarquees, 1600);
+      registerPageCleanup(() => clearTimeout(t));
     }, { rootMargin: '200px' });  // 提前 200px 量好，捲到時 marquee 已就緒
     mqIo.observe(container);
     registerPageCleanup(() => mqIo.disconnect());
@@ -913,8 +998,9 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
     requestAnimationFrame(runMarquees);
   }
 
-  // 海報比例偵測
-  container.querySelectorAll('.poster-img').forEach(img => {
+  // 海報比例偵測（:not([data-pbound]) → lazy 重跑只綁新海報）
+  container.querySelectorAll('.poster-img:not([data-pbound])').forEach(img => {
+    img.dataset.pbound = '1';
     const apply = () => {
       const grid = img.closest('.list-content')?.querySelector('[style*="grid-template-columns"]');
       if (img.naturalWidth > img.naturalHeight) {
@@ -943,7 +1029,9 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
   });
 
   // Reference 按鈕（舊 workshop-ref-btn / industry-ref-btn 已統一為 list-ref-btn，此處保留相容）
-  container.querySelectorAll('.workshop-ref-btn, .list-ref-btn').forEach(btn => {
+  // :not([data-rbound]) → lazy 重跑只綁新 ref 按鈕，不重綁舊的（否則雙 dispatch open-pdf）
+  container.querySelectorAll('.workshop-ref-btn:not([data-rbound]), .list-ref-btn:not([data-rbound])').forEach(btn => {
+    btn.dataset.rbound = '1';
     bindRefBtnClick(btn);
   });
 
@@ -951,8 +1039,8 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
   // range 抓第一頁進 IDB（幾十 KB、跨 session 一生一次），點開時 viewer peekPdfCover 命中
   // ＝首次開檔色塊即真實比例（跟 library documents 預產封面同邏輯）。idle 起跑＋
   // renderPdfCover 內建併發閘門與 single-flight → 不搶 hero/list 進場的主執行緒與頻寬。
-  const refPdfUrls = [...new Set([...container.querySelectorAll('[data-ref-pdf-url]')]
-    .map(b => b.dataset.refPdfUrl).filter(Boolean))];
+  const refPdfUrls = [...new Set([...container.querySelectorAll('[data-ref-pdf-url]:not([data-refpdfscan])')]
+    .map(b => { b.dataset.refpdfscan = '1'; return b.dataset.refPdfUrl; }).filter(Boolean))];
   if (refPdfUrls.length) {
     const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 1000));
     idle(() => import('../ui/pdf-cover.js').then(m => refPdfUrls.forEach(u => m.renderPdfCover(u))));
@@ -962,6 +1050,13 @@ export function bindInteractions(container, { autoReveal = true } = {}) {
   // onEnter 時同步移除 closest .list-item 的 data-pre-reveal，解鎖互動
   // autoReveal=false 時跳過此段，由 caller 自行管理 reveal（admission lazy load summer-camp 用）
   if (typeof gsap === 'undefined') return null;
+
+  // lazy 捲入補綁：只 wrap 尚未 clip-wrapped 的新 row 且不隱藏（直接可見，無進場動畫）；不建 reveal trigger
+  //（⚠️ setupClipReveal 的 hide 對「傳入的全部元素」gsap.set，故必須只餵新 row，否則重藏已揭的第一批）
+  if (incremental) {
+    setupClipReveal([...container.querySelectorAll('.list-reveal-row:not([data-clip-wrapped])')], { hide: false });
+    return null;
+  }
 
   const allRows = [...container.querySelectorAll('.list-reveal-row')];
   if (allRows.length === 0) return null;
@@ -1049,7 +1144,7 @@ function formatSingleDateGroup(d, includeStartYear = false) {
 //   categoryFilter       {string|null}  過濾 item.category
 //   showYearToggle       {boolean}      年份收合 toggle（預設 true；false = 顯示年份但不可收合，summer camp 用）
 //   showSubtitle         {boolean}      subtitle / subtitle_zh（預設 true；沒填自然不渲染）
-//   subtitleFromGuests   {boolean}      副標改從 item.guests 派生（lectures 用：每位講者一段 EN+ZH，max 3 個）
+//   subtitleFromGuests   {boolean}      副標改從 item.guests 派生（lectures 用：每位講者一段 EN+ZH）
 //   showAlumniIcon       {boolean}      畢業帽 icon（預設 true）
 //   showDate             {boolean}      date（預設 true）
 //   showDescription      {boolean}      description / descriptionZh（預設 true）
@@ -1103,6 +1198,8 @@ export async function loadListInto(containerId, url, options = {}) {
     dateColWidth         = null,
     dateFullWidth        = false,
     data: providedData   = null,
+    lazy                 = false,   // 大清單只渲染視窗內第一批，捲到底 IO 才續建（activities 大 section 開）
+    onLazyBatch          = null,    // 每批捲入後回呼（重跑 accordion / year-toggle init，idempotent）
   } = options;
 
   const container = document.getElementById(containerId);
@@ -1159,13 +1256,14 @@ export async function loadListInto(containerId, url, options = {}) {
     }))
     .filter(yg => yg.items.length > 0);
 
-  // Resolve refs：補齊 title/cover/label（讓 ref 只填 section + itemId 即可運作）
-  await Promise.all(filteredData.flatMap(yg =>
-    yg.items.flatMap(item => {
-      const refs = item.references || (item.reference ? [item.reference] : []);
-      return refs.map(ref => resolveRef(ref));
-    })
-  ));
+  // Resolve refs（補齊 ref title/label；ref 只填 section+itemId 即可運作）。⚠️改「按需」resolve 而非一次全 125 筆：
+  // resolveRef 會去目標 section fetch(getSectionData) 查標題，一次解全部 = 首批渲染前卡在解所有 item 的 ref
+  //（lectures 實測 click→render ~4.7s）。改成：lazy 先解首批 ref → 其餘背景 fire-and-forget 解（快取後很快）。
+  const resolveRefsFor = (items) => Promise.all(items.flatMap(item => {
+    const refs = item.references || (item.reference ? [item.reference] : []);
+    return refs.map(ref => resolveRef(ref));
+  }));
+  const allItemsFlat = filteredData.flatMap(yg => yg.items);
 
   // 推當前 list 的 section（給 PDF cross-ref 排除自己用）；推不出來 = null（PDF viewer 仍顯示全部來源）
   const hostSection = deriveHostSection(url, categoryFilter, visitTypeFilter);
@@ -1194,11 +1292,8 @@ export async function loadListInto(containerId, url, options = {}) {
   //   - dateColWidth option 仍保留供個別 list 覆寫；dateInHeader（admission）副標自由排版不受此 col 約束。
   const dateColMinWidth = dateColWidth || '14ch';
 
-  filteredData.forEach((yearGroup, index) => {
-    const isLast  = index === filteredData.length - 1;
-    const total   = yearGroup.items.length;
-
-    const itemsHtml = yearGroup.items.map((item, itemIdx) => {
+  // 逐筆 item HTML 建構器（sync／streamed 兩路共用）：只依賴 item / itemIdx / total（body 不碰年份組 scope）
+  const buildItemHtml = (item, itemIdx, total) => {
       const media        = buildItemMedia(item);
       const mediaJson    = JSON.stringify(media).replace(/"/g, '&quot;');
       // 向下相容：支援舊的 reference 單一物件 → 自動轉為 array
@@ -1225,9 +1320,9 @@ export async function loadListInto(containerId, url, options = {}) {
       const titleLine1 = titleEn || titleZh;
       const titleLine2 = titleEn ? titleZh : '';
       // 副標 normalize：吃 array `subtitles: [{en, zh}]` 或字串 `subtitle / subtitleEn / subtitleZh`
-      // 都 → 統一 [{en, zh}] 形式（max 3 段）；空字串/空 obj 自動 filter。
+      // 都 → 統一 [{en, zh}] 形式（後台填幾段渲染幾段）；空字串/空 obj 自動 filter。
       // 兩處 render 點（dateInHeader fallback / showSubtitle 展開區）共用 → 行為一致。
-      // subtitleFromGuests=true（lectures 用）：改從 item.guests 派生簡名副標，每位講者一段 EN+ZH，
+      // subtitleFromGuests=true（lectures 用）：改從 item.guests 派生簡名副標，每位講者一段 EN+ZH（全數渲染），
       // expand 區的 guests 詳細資料（affiliation / country）保留不變
       const subList = (() => {
         if (subtitleFromGuests && Array.isArray(item.guests) && item.guests.length) {
@@ -1236,14 +1331,12 @@ export async function loadListInto(containerId, url, options = {}) {
               en: formatNameWithAka(g.nameEn || g.name || '', g.akaEn, g.akaZh, false),
               zh: formatNameWithAka(g.nameZh || g.name_zh || '', g.akaZh, g.akaEn, true),
             }))
-            .filter(s => s.en || s.zh)
-            .slice(0, 3);
+            .filter(s => s.en || s.zh);
         }
         if (Array.isArray(item.subtitles)) {
           return item.subtitles
             .map(s => ({ en: s?.en || s?.subtitleEn || '', zh: s?.zh || s?.subtitleZh || '' }))
-            .filter(s => s.en || s.zh)
-            .slice(0, 3);
+            .filter(s => s.en || s.zh);
         }
         const en = item.subtitleEn || item.subtitle || '';
         const zh = item.subtitleZh || item.subtitle_zh || '';
@@ -1367,7 +1460,7 @@ export async function loadListInto(containerId, url, options = {}) {
             <div class="pt-sm pb-lg px-sm flex flex-col gap-md">
               <div class="admission-body flex flex-col gap-md">${normalizeBodyHtml(item[bodyField])}</div>
             </div>` : `
-            <div class="pt-sm pb-lg px-sm grid gap-gutter items-start" style="grid-template-columns: 9.5fr 2.5fr;">
+            <div class="pt-sm pb-lg px-sm grid gap-gutter items-start" style="grid-template-columns: 10fr 2fr;">
               <div class="flex flex-col gap-md pr-2xl">
                 ${showDate && dateDisplay && !dateInHeader && dateFullWidth ? `<div>
                   <p class="text-s font-bold${dateDisplayZh ? ' mb-en-zh-s' : ''}">${dateDisplay}</p>
@@ -1497,12 +1590,14 @@ export async function loadListInto(containerId, url, options = {}) {
           ${dividerHtml}
         </div>
       `;
-    }).join('');
+  };
 
-    // 結構：year col 是「組件」，存在才包 grid-12 + 套 col-2/pl-41 gap；不存在則 list 純 flex flush-left
-    // pl-[41px] 屬於「年份欄→title 間距」，跟 col-span-1 年份欄共構，不該存在於 standalone list 上
-    // list-year-label：toggle / 非 toggle 兩變體共用的 hook class（非 toggle 版原本沒有專屬 class，
-    // hover-dim 等跨變體效果抓不到它）；list-year-toggle 保留給 toggle 專屬行為（click 收合/sticky/chevron）。
+  // 開一個「空」年份組骨架（year col + 空 .list-year-items），插入 container，回傳可 append item 的元素。
+  // itemsHtml 改由外層逐筆 append（sync 一次灌完；streamed 分幀灌）→ 建構可切段、主執行緒不凍。
+  // 結構：year col 是「組件」，存在才包 grid-12 + 套 col-2/pl-41 gap；不存在則 list 純 flex flush-left。
+  // list-year-label：toggle／非 toggle 兩變體共用的 hook class；list-year-toggle 保留 toggle 專屬行為（收合/sticky/chevron）。
+  // beforeEl（lazy 用）：把年份組插在該錨點之前（尾端 sentinel），讓 sentinel 恆在最底；不傳＝beforeend（原路徑）
+  const openYearGroup = (yearGroup, index, isLast, beforeEl = null) => {
     const yearColHtml = showYearToggle
       ? `<div class="col-span-12 md:col-span-1 md:col-start-1 list-year-toggle list-year-label cursor-pointer flex items-center gap-sm order-1 pt-sm pb-md pl-xs md:sticky md:self-start md:pb-sm">
           <div class="list-reveal-row flex justify-center items-center w-[1.5em] h-[1.5em] flex-shrink-0"><span class="icon icon-chevron-list icon-s transition-all duration-fast rotate-90"></span></div>
@@ -1511,66 +1606,173 @@ export async function loadListInto(containerId, url, options = {}) {
       : `<div class="col-span-12 md:col-span-1 md:col-start-1 list-year-label flex items-center order-1 pt-sm pb-md pl-xs">
           <span class="list-reveal-row inline-block text-lg font-bold">${yearGroup.year}</span>
         </div>`;
-
     const groupHtml = hideYearHeader
-      ? `<div class="list-year-items flex flex-col">${itemsHtml}</div>`
+      ? `<div class="list-year-items flex flex-col"></div>`
       : `<div class="list-year-group grid-12 items-start">
           ${yearColHtml}
-          <div class="col-span-12 md:col-span-11 md:col-start-2 list-year-items flex flex-col order-2 mt-md md:mt-0 md:pl-[41px]">
-            ${itemsHtml}
-          </div>
+          <div class="col-span-12 md:col-span-11 md:col-start-2 list-year-items flex flex-col order-2 mt-md md:mt-0 md:pl-[41px]"></div>
         </div>`;
+    const sep = !isLast ? '<div class="activities-separator list-reveal-row border-b-4 border-black" style="height:4px"></div>' : '';
+    let groupEl;
+    if (beforeEl) {
+      beforeEl.insertAdjacentHTML('beforebegin', groupHtml + sep);
+      groupEl = /** @type {HTMLElement} */ (sep ? beforeEl.previousElementSibling.previousElementSibling : beforeEl.previousElementSibling);
+    } else {
+      container.insertAdjacentHTML('beforeend', groupHtml + sep);
+      // 剛插入的年份組＝有 sep 時倒數第 2、無 sep 時最後一個
+      groupEl = /** @type {HTMLElement} */ (sep ? container.children[container.children.length - 2] : container.children[container.children.length - 1]);
+    }
+    return hideYearHeader ? groupEl : /** @type {HTMLElement} */ (groupEl.querySelector('.list-year-items'));
+  };
 
-    container.insertAdjacentHTML('beforeend', `
-      ${groupHtml}
-      ${!isLast ? '<div class="activities-separator list-reveal-row border-b-4 border-black" style="height:4px"></div>' : ''}
-    `);
-  });
-
-  // ref btn 綁定統一交給 bindInteractions（line 576）— 此處不再重複綁，否則同 btn 兩個 listener
-  // dispatch 兩次 sccd:open-pdf → openModal 跑兩次 → enterLightboxMode openCount=2，close 後卡 1 不 reset
-
-  // sticky top（year toggle 與 list-header 的 sticky top 緊接在 filter bar 下方）
-  // --list-header-sticky-top 由 lists.css `.list-header` sticky 規則讀取，預設 200（admission 用）
-  // 用 ResizeObserver 跟著 filter-bar 高度變化即時同步：bar-hidden 收起 search-inner 時 filter-bar 縮 ~80px，
-  // 不同步會讓 sticky title 跟 filter-bar 底部之間出現透視縫，捲動內容穿過
-  // 手機直向 activities 的 filter bar 也 sticky（lists.css 2026-07-13）→ 同一公式設 var（title 釘 bar 正下方）；
-  // 非 sticky bar（admission 手機 / 矮橫向 static bar）不設 → getListStickyTop / CSS fallback 8rem 沿用。
+  // sticky top updater（year toggle / list-header sticky top 緊接 filter bar 下方；lazy 每批新年份組要重設 → 抽成可重呼叫）
+  // --list-header-sticky-top 由 lists.css `.list-header` sticky 規則讀；ResizeObserver 跟 filter-bar 高度變化同步。
+  // 非 sticky bar（admission 手機 / 矮橫向 static bar）不設 → CSS fallback 沿用。
   const filterBar = /** @type {HTMLElement | null} */ (panelSelector
     ? document.querySelector(`${panelSelector} .activities-filter-bar`)
     : container.closest('.activities-panel')?.querySelector('.activities-filter-bar'));
   const filterBarSticky = !!filterBar && getComputedStyle(filterBar).position === 'sticky';
-  if (window.innerWidth >= 768 || filterBarSticky) {
-    const updateStickyTop = () => {
-      // 扣除 1px 讓它與 filter bar 稍微重疊，避免因瀏覽器 Sub-pixel 渲染造成 1px 透視縫。
-      // 2026-06-29 inner-scroll：filter bar 改 sticky 到 scroll col 的「header 下」(calc header+lg，原寫死 200)，基準改讀
-      //   filter bar 實際 computed top（自動跟著 clearance 走），list-header 釘在它正下方。
-      const base = filterBar ? (parseFloat(getComputedStyle(filterBar).top) || 0) : 0;
-      const top = filterBar ? base + filterBar.offsetHeight - 1 : base;
-      container.style.setProperty('--list-header-sticky-top', top + 'px');
-      if (showYearToggle) {
-        container.querySelectorAll('.list-year-toggle').forEach((/** @type {any} */ el) => { el.style.top = top + 'px'; });
-      }
-      // 釘點變了 → 開著的 header 的 pin-IO rootMargin（attach 時凍結）要跟上，否則 is-pinned
-      // 偵測線與真釘線錯開一個 search 高 → 手機 title ::before 補縫蓋錯位置（見 list-accordion 註解）
-      refreshStickyPinObservers(container);
-    };
+  const stickyActive = window.innerWidth >= 768 || filterBarSticky;
+  const updateStickyTop = () => {
+    if (!stickyActive) return;
+    const base = filterBar ? (parseFloat(getComputedStyle(filterBar).top) || 0) : 0;
+    const top = filterBar ? base + filterBar.offsetHeight - 1 : base;
+    container.style.setProperty('--list-header-sticky-top', top + 'px');
+    if (showYearToggle) container.querySelectorAll('.list-year-toggle').forEach((/** @type {any} */ el) => { el.style.top = top + 'px'; });
+    refreshStickyPinObservers(container);
+  };
+  const installStickyObserver = () => {
     updateStickyTop();
-    if (filterBar && typeof ResizeObserver !== 'undefined') {
-      new ResizeObserver(updateStickyTop).observe(filterBar);
-    }
+    if (filterBar && stickyActive && typeof ResizeObserver !== 'undefined') new ResizeObserver(updateStickyTop).observe(filterBar);
+  };
+
+  // 灰白交叉斑馬紋：全列「連續」計數（跨年份組）→ 偶數索引套淺灰。純 CSS nth-child 在各 .list-year-items 內重算
+  // 無法跨組，故 JS 全域標記；lazy 用 container._zebraIdx 連續計數讓捲入批次接續正確深淺。
+  const setZebra = (el) => { el.classList.toggle('list-item-zebra', (container._zebraIdx || 0) % 2 === 0); container._zebraIdx = (container._zebraIdx || 0) + 1; };
+
+  const LAZY_THRESHOLD = 24, FIRST_BATCH = 15, LAZY_BATCH = 10;
+  const totalItemCount = filteredData.reduce((n, g) => n + g.items.length, 0);
+  const useLazy = lazy && !hideYearHeader && totalItemCount > LAZY_THRESHOLD && typeof IntersectionObserver !== 'undefined';
+
+  if (!useLazy) {
+    // 一次建完（原路徑：alumni/admission/小清單）→ ref 全部先解（清單小、無妨）
+    await resolveRefsFor(allItemsFlat);
+    filteredData.forEach((yearGroup, index) => {
+      const itemsEl = openYearGroup(yearGroup, index, index === filteredData.length - 1);
+      itemsEl.insertAdjacentHTML('beforeend',
+        yearGroup.items.map((item, itemIdx) => buildItemHtml(item, itemIdx, yearGroup.items.length)).join(''));
+    });
+    installStickyObserver();
+    container.querySelectorAll('.list-item').forEach((el, i) => el.classList.toggle('list-item-zebra', i % 2 === 0));
+    bindFlagCycles(container);
+    return bindInteractions(container, { autoReveal });
   }
 
-  // 灰白交叉斑馬紋：全列「連續」計數（跨年份組）→ 偶數索引(第 1、3、5…筆)套淺灰、其餘白。
-  // 連續計數讓某年筆數為奇數時，下一年第一筆自動接續正確深淺（user 2026-06-21）。
-  // 純 CSS nth-child 在各 .list-year-items 容器內重新計數無法跨組，故在此 JS 全域標記。
-  // class 在非 activities 頁的 list 上是 no-op（套色 CSS scope 在 #activities-content-section）。
-  container.querySelectorAll('.list-item').forEach((el, i) => {
-    el.classList.toggle('list-item-zebra', i % 2 === 0);
-  });
+  // ── lazy 路徑：只建第一批，其餘靠尾端 sentinel 的 IntersectionObserver 捲近才續建 ──
+  // 每次切換/reveal/exit 的工作量恆定在「已渲染的那批」而非整份(exhibitions 535 row) → 切換不再正比 row 數。
+  const scroller = /** @type {HTMLElement | null} */ (container.closest('.inner-scroll-scroll-col'));
+  const flat = filteredData.flatMap((yg, index) =>
+    yg.items.map((item, itemIdx) => ({ item, itemIdx, total: yg.items.length, yg, index, isLast: index === filteredData.length - 1 })));
+  const openYears = new Map();
+  container._zebraIdx = 0;
+  let cursor = 0;
 
+  // 尾端 sentinel（1px、永不隱藏）：新年份組一律插在它之前，它恆在最底 → IO 觀察它，避開「第一批被 reveal
+  // 的 yPercent 藏起、觀察 .list-item 量不到、單次 fire 不續建」等問題。
+  const sentinel = document.createElement('div');
+  sentinel.setAttribute('aria-hidden', 'true');
+  sentinel.style.cssText = 'height:1px;width:100%;flex:0 0 auto;';
+  container.appendChild(sentinel);
+
+  const renderBatch = (count) => {
+    const newItems = [];
+    const end = Math.min(cursor + count, flat.length);
+    for (; cursor < end; cursor++) {
+      const e = flat[cursor];
+      let itemsEl = openYears.get(e.index);
+      if (!itemsEl) { itemsEl = openYearGroup(e.yg, e.index, e.isLast, sentinel); openYears.set(e.index, itemsEl); }
+      itemsEl.insertAdjacentHTML('beforeend', buildItemHtml(e.item, e.itemIdx, e.total));
+      const newItem = /** @type {HTMLElement | null} */ (itemsEl.lastElementChild);
+      if (newItem) { setZebra(newItem); newItems.push(newItem); }
+    }
+    return newItems;
+  };
+
+  // 只先解「首批」的 ref（切換即時的關鍵）→ 建首批 → 其餘 ref 背景 fire-and-forget 解（getSectionData 快取後很快、
+  // 使用者捲到時多半已解好；未解好的 ref 按鈕暫無標題，屬次要）。
+  await resolveRefsFor(flat.slice(0, FIRST_BATCH).map(e => e.item));
+  renderBatch(FIRST_BATCH);
+  installStickyObserver();
   bindFlagCycles(container);
-  return bindInteractions(container, { autoReveal });
+  const ret = bindInteractions(container, { autoReveal, deferBinds: true });
+  if (cursor < flat.length) resolveRefsFor(flat.slice(FIRST_BATCH).map(e => e.item)).catch(() => {});
+
+  if (cursor < flat.length) {
+    let io = /** @type {IntersectionObserver | null} */ (null);
+    // reveal-IO（捲入的 row 進到 scroller viewport 才 clip-reveal 進場，非一載入就直接現）：
+    // batch 在 sentinel 提前 600px 就建好但先藏，捲到才逐 item 揭 → 有「scroll in view 的進場動畫」。
+    const revealIo = typeof IntersectionObserver !== 'undefined' ? new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (!e.isIntersecting) return;
+        const it = /** @type {HTMLElement} */ (e.target);
+        revealIo.unobserve(it);
+        const rows = [...it.querySelectorAll('.list-reveal-row')];
+        if (typeof gsap !== 'undefined') {
+          // 斑馬底色 clip-reveal（由下往上揭，比照 switch reveal）→ 文字 clip-reveal 滑入
+          if (it.classList.contains('list-item-zebra')) gsap.to(it, { clipPath: 'inset(0% 0% 0% 0%)', duration: DUR.base, ease: EASE.enter, clearProps: 'clipPath' });
+          if (rows.length) { playClipReveal(rows, { onComplete: () => it.removeAttribute('data-pre-reveal') }); return; }
+        }
+        it.removeAttribute('data-pre-reveal');
+      });
+    }, { root: scroller || null, rootMargin: '0px 0px -8% 0px' }) : null;
+    if (revealIo) registerPageCleanup(() => revealIo.disconnect());
+    // sentinel 進到 scroller viewport 下緣 +600px 內就補下一批，並 loop 補到「餘量 >600px」或全部建完
+    //（單次 IO fire 只補一批，內容仍短時 sentinel 還在框內卻不會再 fire → 用 loop 一次補足視窗餘量）。
+    const fill = (retries = 0) => {
+      if (!container.isConnected) return;
+      const vb = scroller ? scroller.getBoundingClientRect().bottom : window.innerHeight;
+      // vb<=0：panel 剛 display:none→顯示、版面還沒 flush（IO 可能早於 layout fire）→ 下一幀重試幾次，
+      // 避免「切回已載入的 panel、內容剛好填滿視窗沒得捲」時初次 fill 撲空、之後不再補。仍隱藏就放棄（IO 之後會再 fire）。
+      if (vb <= 0) { if (retries < 3) requestAnimationFrame(() => fill(retries + 1)); return; }
+      let guard = 0;
+      while (cursor < flat.length && guard++ < 60) {
+        const newItems = renderBatch(LAZY_BATCH);
+        bindInteractions(container, { autoReveal: false, incremental: true });   // 逐批補綁互動 + wrap 新 row
+        // 捲入 row 先藏(setupClipReveal 尊重 reduce-motion)，交給 reveal-IO 進視窗才 clip-reveal；無 IO fallback 直接現
+        newItems.forEach(it => {
+          setupClipReveal([...it.querySelectorAll('.list-reveal-row')], { hide: true });
+          // ⚠️斑馬底色也要一起藏(clip inset 100%)：否則「文字藏起但底色塊還在」→ 退場/切換時殘留色塊(user 2026-08-31)
+          if (revealIo && it.classList.contains('list-item-zebra') && typeof gsap !== 'undefined' && !prefersReducedMotion()) gsap.set(it, { clipPath: 'inset(100% 0% 0% 0%)' });
+          if (revealIo) revealIo.observe(it); else it.removeAttribute('data-pre-reveal');
+        });
+        updateStickyTop();                                                        // 新年份組的 sticky top
+        if (typeof onLazyBatch === 'function') onLazyBatch();                     // 重跑 accordion / year-toggle init（idempotent）
+        if (sentinel.getBoundingClientRect().top > vb + 600) break;              // 視窗下緣已有 >600px 緩衝 → 停
+      }
+      if (cursor >= flat.length && io) { io.disconnect(); sentinel.remove(); }
+    };
+    io = new IntersectionObserver((entries) => {
+      if (!container.isConnected) { io.disconnect(); return; }
+      if (entries.some(e => e.isIntersecting)) fill();
+    }, { root: scroller || null, rootMargin: '600px 0px' });
+    io.observe(sentinel);
+    registerPageCleanup(() => io && io.disconnect());
+
+    // deep-link（navigateToItem）需要目標 item 已在 DOM：暴露「立即全建剩餘」給它呼叫（否則只在首批的目標找不到）。
+    // deep-link 是刻意的單一導航（首頁浮卡跳指定活動）→ 該次全建可接受；一般切換仍走 lazy。
+    container.dataset.lazyList = '1';
+    container._lazyRenderAll = () => {
+      while (cursor < flat.length && container.isConnected) {
+        const ni = renderBatch(LAZY_BATCH);
+        bindInteractions(container, { autoReveal: false, incremental: true });
+        ni.forEach(it => it.removeAttribute('data-pre-reveal'));
+      }
+      updateStickyTop();
+      if (typeof onLazyBatch === 'function') onLazyBatch();
+      if (io) io.disconnect();
+    };
+  }
+  return ret;
 }
 
 // ── Flag cycle: 多 country code 每 5s 切換 fi-XX class ──────────────────
@@ -1809,6 +2011,28 @@ export async function loadExhibitionsInto(options = {}) {
 export function prefetchExhibitionsData() {
   fetchActEndpointOrFallback('activities-exhibition-special', '/data/general-activities.json').catch(() => {});
   loadPermanentExhibitions('/data/permanent-exhibitions.json').catch(() => {});
+}
+
+// 其餘分頁的資料也在閒置時預暖 single-flight cache（exhibitions 已由上面預抓）：目前每個未點過的分頁
+// 都「點下去才 fetch」，弱機 Directus 冷啟 ~200ms-1.1s 疊在切換動畫上＝「切換 load 一陣子」的主因。
+// 預暖後 loadPanel 內的 fetchActEndpointOrFallback 直接命中快取、免等網路。item JSON 輕量（非圖片），
+// 但弱機怕並發 → 序列逐支抓最溫和；離頁（#activities-content-section 消失）即停，不為看不到的頁浪費請求。
+// ponytail: 序列 warm 省弱機；若 warm-up 太慢再提高並發。
+const _WARM_ENDPOINTS = [
+  ['activities-competition', '/data/general-activities.json'],
+  ['activities-conference', '/data/general-activities.json'],
+  ['activities-lecture', '/data/lectures.json'],
+  ['activities-industry', '/data/industry.json'],
+  ['activities-visit-outbound', '/data/general-activities.json'],
+  ['activities-visit-inbound', '/data/general-activities.json'],
+  ['activities-workshop', '/data/workshops.json'],
+  ['activities-students-present', '/data/students-present.json'],
+];
+export async function prefetchOtherActivitiesData() {
+  for (const [ep, fb] of _WARM_ENDPOINTS) {
+    if (!document.getElementById('activities-content-section')) return;  // 已離頁 → 停
+    await fetchActEndpointOrFallback(ep, fb).catch(() => {});
+  }
 }
 
 // 分別載入 outbound / inbound 到各自的 container

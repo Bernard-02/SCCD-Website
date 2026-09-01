@@ -709,10 +709,15 @@ function initListHeaderAccordion() {
             attachStickyPinObserver(self);
           };
 
+          // lectures 副標「先收合再展開內容」(user 2026-08-31，不同時進行)：副標 grid-rows collapse ~DUR.fast(0.3s)
+          //   等它收完才 doExpand。只 lectures 收副標(lists.css #panel-lectures scope)→其他 section 無此延遲。
+          const subtitleFirst = self.closest('#panel-lectures') && self.querySelector('.list-subtitles');
+          const subtitleDone = subtitleFirst ? new Promise(res => setTimeout(res, DUR.fast * 1000 + 30)) : Promise.resolve();
+
           // 兩段式（user 2026-06-30）：開新 item（剛動畫收回其他展開項）時「先捲對齊 → 捲完才展開」，不那麼 rush、較順；
           //   無其他展開項（自開 / 同一筆 re-open）維持「對齊捲動與展開並行」（原行為、較即時）。
-          if (others.length) alignDone.then(doExpand);
-          else doExpand();
+          if (others.length) Promise.all([alignDone, subtitleDone]).then(doExpand);
+          else subtitleDone.then(doExpand);
         };
 
         // 先「動畫收回」其他已展開 item（DUR.base，比自關 DUR.medium 短，序列不拖）→ 全部收完才 proceedOpen。

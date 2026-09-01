@@ -3,6 +3,40 @@
  * Activities Search Module
  * 各 panel 各自的 search input，對應各自 panel 內容
  */
+import { setupClipReveal, playClipReveal } from './scroll-animate.js';
+
+// lazy 清單：搜尋前把所有 item 建出來（否則只搜得到已渲染的首批＋捲過的）＝search「無結果」根因。
+// _lazyRenderAll 由 activities-data-loader lazy 容器暴露、idempotent；建完清 originalOrders 讓下面重新捕捉完整順序。
+function ensureFullyRendered(panel) {
+  let changed = false;
+  panel.querySelectorAll('[data-lazy-list]').forEach(c => {
+    const fn = /** @type {any} */ (c)._lazyRenderAll;
+    if (typeof fn !== 'function') return;
+    const before = c.querySelectorAll('.list-item').length;
+    fn();
+    if (c.querySelectorAll('.list-item').length !== before) changed = true;
+  });
+  if (changed) originalOrders.clear();
+}
+
+// 清 lazy 藏起的 transform / 斑馬 clip / data-pre-reveal → 讓（清空搜尋後）所有 item 直接可見可互動。
+function revealAllInstant(panel) {
+  if (typeof gsap !== 'undefined') {
+    gsap.set(panel.querySelectorAll('.list-reveal-row'), { clearProps: 'transform' });
+    panel.querySelectorAll('.list-item.list-item-zebra').forEach(it => gsap.set(it, { clearProps: 'clipPath' }));
+  }
+  panel.querySelectorAll('.list-item[data-pre-reveal]').forEach(it => it.removeAttribute('data-pre-reveal'));
+}
+
+// 搜尋結果進場動畫（user 2026-08-31）：match 的 row clip-reveal 滑入、斑馬底色清 clip 直接現。
+function animateMatches(matchedItems) {
+  if (typeof gsap === 'undefined' || !matchedItems.length) return;
+  const rows = matchedItems.flatMap(it => [...it.querySelectorAll('.list-reveal-row')]);
+  matchedItems.forEach(it => { it.removeAttribute('data-pre-reveal'); if (it.classList.contains('list-item-zebra')) gsap.set(it, { clearProps: 'clipPath' }); });
+  if (!rows.length) return;
+  setupClipReveal(rows, { hide: true });   // 先藏（同一 tick、不閃）
+  playClipReveal(rows);                     // 再 clip-reveal 滑入
+}
 
 // ── Empty State ──────────────────────────────────────────────────────────
 
@@ -107,6 +141,8 @@ function applyGenericSearch(panelId, query) {
   const panel = document.getElementById(panelId);
   if (!panel) return;
 
+  if (query) ensureFullyRendered(panel);  // lazy：搜尋前全建，否則只搜得到已渲染那批＝無結果
+
   const yearGroups = getVisibleYearGroups(panel);
 
   // 儲存原始 DOM 順序（第一次呼叫時記住）
@@ -142,11 +178,13 @@ function applyGenericSearch(panelId, query) {
       }
     });
     hideLastSeparator(yearGroups);
+    revealAllInstant(panel);   // lazy 藏起的 item 清空搜尋後也要現，否則留白
     setEmptyState(panel, false);
     return;
   }
 
   const q = query.toLowerCase();
+  const allMatched = [];
   yearGroups.forEach(group => {
     const container = getItemsContainer(group);
     const allItems = container && originalOrders.has(container)
@@ -175,6 +213,7 @@ function applyGenericSearch(panelId, query) {
 
     if (container) matched.forEach(item => container.appendChild(item));
     matched.forEach(item => { item.style.display = ''; });
+    allMatched.push(...matched);
     rebuildBorders(matched);
 
     // 若 year-items 因 year toggle 被收合，展開讓結果可見，並記錄以便清空時還原
@@ -188,6 +227,9 @@ function applyGenericSearch(panelId, query) {
   });
 
   hideLastSeparator(yearGroups);
+
+  // 搜尋結果進場動畫：match 的 row clip-reveal 滑入（lazy 藏起的 match 也一併揭）
+  animateMatches(allMatched);
 
   // Empty state
   const anyVisible = yearGroups.some(g => g.style.display !== 'none');
@@ -337,12 +379,16 @@ export function initActivitiesSearch() {
   const panelInputs = /** @type {NodeListOf<HTMLInputElement>} */ (document.querySelectorAll('.activities-search-input[data-panel]'));
   panelInputs.forEach(input => {
     const panelId = input.getAttribute('data-panel');
+    // debounce：lazy 全建 + 結果進場動畫較重，不必每次按鍵都跑；停鍵 ~140ms 才 apply（清空即時還原）
+    let t = null;
     input.addEventListener('input', () => {
-      if (panelId === 'panel-degree-show') {
-        applyDegreeShowSearch(input.value.trim());
-      } else {
-        applyGenericSearch(panelId, input.value.trim());
-      }
+      const run = () => {
+        if (panelId === 'panel-degree-show') applyDegreeShowSearch(input.value.trim());
+        else applyGenericSearch(panelId, input.value.trim());
+      };
+      clearTimeout(t);
+      if (!input.value.trim()) run();          // 清空即時還原、不 debounce
+      else t = setTimeout(run, 140);
     });
   });
 

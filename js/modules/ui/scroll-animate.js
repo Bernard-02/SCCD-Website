@@ -23,27 +23,34 @@ export function setupClipReveal(elements, { hide = true } = {}) {
   const items = Array.from(elements);
   if (items.length === 0) return [];
 
+  // ⚠️ 兩段式避免 layout thrash（見 memory reference_gsap_set_per_item_loop_reflow_thrash）：
+  //   pass 1 只讀 getComputedStyle（父層 overflowY），pass 2 才 insertBefore/appendChild 動 DOM。
+  //   舊版每個 el 讀一次 → 動一次 DOM，read/write 交錯 → 每次 getComputedStyle 都強制 flush 前面的 DOM 變更
+  //   ＝ O(N) forced reflow，長清單初載塞主執行緒數秒、hero 進場卡頓（實測 setupAdmissionReveal 這段 ~3.6s）。
+  //   分兩段後全部讀先做（單次 reflow）、全部寫再做（無交錯讀）。父層 overflowY 是靜態容器值，wrap 別的 row 不會改它 → 讀先做安全。
+  // pass 1：讀。overflowY（非 overflow shorthand）：Chromium 對 Tailwind .overflow-hidden 返回 "hidden hidden"
+  //   不等於 "hidden"，誤判會把 element 搬進新 div 破壞 nextElementSibling 關係。
+  const toWrap = [];
   items.forEach(el => {
     if (el.dataset.clipWrapped) return;
-    // 父層已是 overflow:hidden/clip（caller 自己建好結構）就跳過動態 wrap
-    // 必須查 overflowY 而非 overflow shorthand：Chromium 對 Tailwind .overflow-hidden 返回 "hidden hidden"
-    // 不等於字串 "hidden"，會誤判為要動態 wrap，把 element 搬進新 div 而破壞 nextElementSibling 等關係
     const parent = el.parentElement;
     if (parent) {
       const overflowY = getComputedStyle(parent).overflowY;
       if (overflowY === 'hidden' || overflowY === 'clip') {
-        el.dataset.clipWrapped = '1';
+        el.dataset.clipWrapped = '1';  // 父層已 clip（caller 自建結構）→ 跳過動態 wrap
         return;
       }
     }
+    toWrap.push(el);
+  });
+  // pass 2：寫。querySelector 是 DOM 走訪不觸發 layout，留在寫段無妨。
+  toWrap.forEach(el => {
+    if (!el.parentNode) { el.dataset.clipWrapped = '1'; return; }
     const wrapper = document.createElement('div');
     wrapper.className = 'clip-reveal-wrapper';
     // reveal 動畫 yPercent:100→0 只動 y 軸 → 縱向要 clip 才有 wipe。
-    // 一般 row：overflow-y:clip + overflow-x:visible，橫向放行讓旋轉 chip 左右凸出不被裁
-    //   （CSS spec：此組合兩值都保留，不像 hidden+visible 會強制 auto；修早期 activities-filter chip 左邊被切）。
-    // 含旋轉 filter chip（.courses-filter-btn，active 時 .anchor-nav-inner 會 rotate）的 row：改 overflow:clip
-    //   兩軸 + overflow-clip-margin，讓旋轉角「縱向也」凸出 clip 邊界不被切 —— 去掉 filter 的 pt-lg padding
-    //   buffer 後（user 2026-06-05）縱向沒緩衝，靠這個 margin 容納旋轉（橫向凸 ~3px / 縱向 ~10px，20px 都夠）。
+    // 一般 row：overflow-y:clip + overflow-x:visible，橫向放行讓旋轉 chip 左右凸出不被裁。
+    // 含旋轉 filter chip（.courses-filter-btn）的 row：overflow:clip 兩軸 + overflow-clip-margin 讓旋轉角縱向也不被切。
     if (el.querySelector(':scope > .courses-filter-btn')) {
       wrapper.style.overflow = 'clip';
       wrapper.style.overflowClipMargin = '1.25rem';
