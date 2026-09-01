@@ -870,6 +870,21 @@ body.mode-color .atlas-alumni-career:not(.atlas-alumni-subchip) {
   background-color: var(--lib-bg) !important;
   color: var(--lib-fg) !important;
 }
+/* host/employ subchip inactive（user 08-27）：底色對齊 .atlas-filter-btn inactive 的 mode3 規則
+   （theme-bg 底 + half-fg 字；active 維持 base 的 --lib-bg 灰底不蓋） */
+body.mode-color .atlas-alumni-subchip.subchip-inactive {
+  background-color: var(--theme-bg) !important;
+}
+body.mode-color .atlas-alumni-subchip.subchip-inactive .atlas-alumni-career-en,
+body.mode-color .atlas-alumni-subchip.subchip-inactive .atlas-alumni-career-zh {
+  color: rgba(var(--theme-fg-rgb), 0.5) !important;
+}
+@media (min-width: 768px) {
+  body.mode-color .atlas-alumni-subchip.subchip-inactive:hover .atlas-alumni-career-en,
+  body.mode-color .atlas-alumni-subchip.subchip-inactive:hover .atlas-alumni-career-zh {
+    color: rgba(var(--theme-fg-rgb), 1) !important;
+  }
+}
 body.mode-color .atlas-list-col-career {
   background-color: var(--list-zebra-strip, rgba(255, 255, 255, 0.15)) !important;
   color: var(--lib-fg) !important;

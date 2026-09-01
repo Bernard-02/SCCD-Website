@@ -172,6 +172,10 @@ export function bindMarqueeReturn(hoverEl, innerSelector, lineSelector, opts = {
   };
   const enter = () => {
     if (returnTween) { returnTween.kill(); returnTween = null; }
+    // 每次 enter 重新斷言 animation:none：bind 時設的 inline 壓制可能被外部 reset 清掉
+    // （如 atlas resetMarqueeState 的 style.animation=''，而 _mqReturnBound guard 讓重綁 no-op）
+    // → CSS hover keyframe 復活且 paused 在第 0 幀＝蓋住 GSAP 位移「hover 沒動靜、放開才彈」
+    hoverEl.querySelectorAll(innerSelector).forEach((i) => { /** @type {HTMLElement} */ (i).style.animation = 'none'; });
     build();                       // 每次 enter 重建：resize / re-measure 後 distance 也對
     if (tl) tl.play();
   };

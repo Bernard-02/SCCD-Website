@@ -125,7 +125,9 @@ body.mode-color #atlas-main { background-color: var(--theme-bg); }
   font-family: var(--font-en, 'Inter'), var(--font-zh, 'Noto Sans TC'), system-ui, sans-serif;
   font-size: 0.6875rem; /* 11px — rem 隨使用者字級縮放（WCAG 1.4.4） */
   font-weight: 700;
-  line-height: 1.25;
+  /* 1.3 對齊 list 名行（--line-height-xs）：view morph 直飛以字級比縮放，行距係數兩形態一致
+     才不會 swap 瞬間行距收緊「英中變扁」（原 1.25，每行差 0.55px 靜態無感） */
+  line-height: 1.3;
   letter-spacing: 0.01em;
   /* 高 zoom 下文字銳利化 hint */
   text-rendering: geometricPrecision;
@@ -474,26 +476,27 @@ body.mode-color #atlas-detail-mask {
 }
 
 /* Map view 下 subchip 可互動：cursor + 點擊由 atlas.js handle
-   完全對齊 .atlas-filter-btn 三態 pattern（只差預設底色 = 灰底而非透明，且文字單行 not 雙行 stack）：
+   三態（user 08-27 三修：inactive 底色對齊 .atlas-filter-btn inactive 的「看 mode」邏輯——
+   不透明底防被後面的星雲 item 透吃）：
      active (預設)：灰底 var(--lib-bg) + 黑字 var(--lib-fg)
-     inactive：透明底 + 50% 字（rgba(var(--lib-fg-rgb), 0.5)）
-     inactive + hover：透明底 + 100% 字（純黑，dim 文字 brighten） */
+     inactive：白底 rgba(255,255,255,1) + 50% 黑字（同 nav btn inactive；inverse 同白底；mode3 由 color.css 蓋 var(--theme-bg)）
+     inactive + hover：文字 brighten 到 100% */
 .atlas-alumni-subchip {
   pointer-events: auto;
   cursor: var(--cursor-pointer);
   transition: background-color var(--dur-micro) ease, color var(--dur-micro) ease;
 }
 .atlas-alumni-subchip.subchip-inactive {
-  background: transparent;
+  background: rgba(255, 255, 255, 1);
 }
 .atlas-alumni-subchip.subchip-inactive .atlas-alumni-career-en,
 .atlas-alumni-subchip.subchip-inactive .atlas-alumni-career-zh {
-  color: rgba(var(--lib-fg-rgb), 0.5);
+  color: rgba(0, 0, 0, 0.5);
 }
 @media (min-width: 768px) {
   .atlas-alumni-subchip.subchip-inactive:hover .atlas-alumni-career-en,
   .atlas-alumni-subchip.subchip-inactive:hover .atlas-alumni-career-zh {
-    color: rgba(var(--lib-fg-rgb), 1);
+    color: rgba(0, 0, 0, 1);
   }
 }
 
@@ -593,7 +596,7 @@ body.mode-color #atlas-detail-mask {
   /* left: set dynamically by JS after measuring container padding */
   display: none;
   grid-template-columns: repeat(9, minmax(0, 1fr));
-  gap: var(--spacing-lg, 2rem);
+  gap: var(--spacing-xl, 3rem);   /* 欄間 48px（user 09-01）；label→host 另用 host margin-left 收窄，見 .atlas-list-col[data-category="host"] */
   z-index: 50;
   pointer-events: auto;
   user-select: none;
@@ -622,6 +625,13 @@ body.mode-color #atlas-detail-mask {
   min-width: 0;
   overflow: visible; /* title chip 旋轉不裁切 */
   height: 100%;
+}
+
+/* 系友 label 是 host 欄的標頭 → host 往左靠向它＝label→host 縫比其餘 48 小（user 09-01「系友到 host 可以小一點」）。
+   空間守恆：faculty→label / host→employ 都要保 48，省下的縫只能給 host 寬度 → host 因此比 employ/partners 略寬（此為必然取捨）。
+   手機 / 橫向 gate label 隱藏、版面不同 → 各自 reset margin。 */
+.atlas-list-col[data-category="host"] {
+  margin-left: -1.5rem;
 }
 
 /* Label col：Alumni title + career chip 垂直堆疊（無 items list）
@@ -1152,6 +1162,7 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   .atlas-list-col[data-category="host"],
   .atlas-list-col[data-category="employ"] {
     grid-column: span 1;
+    margin-left: 0;   /* 桌面 label→host 收窄的 margin 手機不需要 */
   }
   /* Alumni label col（Alumni 大標 + career chip）：tab 已標示分類，手機不佔位 */
   .atlas-list-group-label-col {
@@ -1348,6 +1359,7 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   }
   #atlas-list-view .atlas-list-col {
     grid-column: 1 / -1;        /* 蓋 base span 2 / 直向手機 span 1（1 軌 grid 會長出 implicit track） */
+    margin-left: 0;             /* 桌面 label→host 收窄的 host margin 橫向 gate 不需要 */
   }
   .atlas-list-group-label-col {
     display: none !important;
