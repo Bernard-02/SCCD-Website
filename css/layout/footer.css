@@ -23,6 +23,10 @@
     height: 100vh;
     background-color: var(--footer-bg, #000);
     color: var(--footer-fg, #fff);
+    /* header（fixed z-9999）往下收起時不蓋 footer：footer 提到同層、DOM 在後→勝；
+     * 仍低於 lightbox/overlay(10000+)＝modal 照常在最上。ponytail: 9999 是刻意對齊 header 上限 */
+    position: relative;
+    z-index: 9999;
   }
 
   .footer-link {
@@ -373,6 +377,11 @@
       white-space: nowrap;
       color: var(--footer-fg, #fff);
     }
+    /* 英文全名過長（如 Department of Communications Design）設上限自動換行；中文短維持 nowrap */
+    .footer-tab .footer-tab-en {
+      white-space: normal;
+      max-width: 12rem;
+    }
     .footer-tab .footer-tab-zh {
       margin-top: var(--space-en-zh-s);   /* text-s EN→ZH gap 收進 tier token（值同 2px） */
     }
@@ -440,6 +449,11 @@
       top: 0;
       left: 0;
       max-width: 100%;   /* tab 多到超出散佈區寬時 overflow-x 內捲（可拖動），不外溢 */
+      /* tab 有 ±1~3° 隨機旋轉；overflow-x:auto 會連帶把 overflow-y 算成 auto→兩軸都裁。
+       * 第一顆(SCCD)在 left:0，旋轉時左緣swing 到 scroll 原點左側被裁 → 補 padding-left 讓旋轉有空間、
+       * 再用等值負 margin 拉回、視覺左緣仍對齊 logo。 */
+      padding-left: var(--spacing-md);
+      margin-left: calc(-1 * var(--spacing-md));
       z-index: 1;
       opacity: 1;   /* ⚠️ 蓋掉下方 `.footer-random > div { opacity:0 }`（scatter anchor 預設）——tabs 是 div 會誤中 */
       padding-top: var(--spacing-sm);

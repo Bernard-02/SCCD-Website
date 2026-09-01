@@ -215,8 +215,9 @@ export function resetFooterHide() {
 }
 if (typeof window !== 'undefined') {
   window.__sccdResetFooterHide = resetFooterHide;
-  // 手機 slide-in/lightbox 開關時，兩顆 header 鈕（.mobile-header-btn）改用 clip-reveal 收/展（比照 footer-near hide）——
-  // lightbox-shell.animateHeaderHide/Show 偵測到 .mobile-header-btn 後經此 hook 委派（避免與 lightbox-shell 循環 import）。
+  // slide-in/lightbox 開關時，header bars（桌面 [data-bar]/#mode-btn＋手機兩顆 .mobile-header-btn）皆改用
+  // clip-reveal 收/展（比照 footer-near hide，user 2026-08-31）——lightbox-shell.animateHeaderHide/Show 經此
+  // hook 委派（避免與 lightbox-shell 循環 import）；桌面隨機四方向、手機一致上滑由 footerHideBars 內部 gate 決定。
   window.__sccdHideHeaderBars = footerHideBars;   // 皆接受 { duration, ease }
   window.__sccdShowHeaderBars = footerShowBars;
 }
@@ -1208,7 +1209,8 @@ export function initHeader() {
     // 5. Header Hide on Footer Reveal
     // bars + logo 都走 hero 平移滑動（footerHideBars/footerHideLogo）：bars 每個隨機四方向、各自 overflow:clip
     // 遮罩；logo <a> 遮罩 + 本體 yPercent。兩者同 duration/ease、無 stagger → 一起收起（user 2026-06-08「他們
-    // 不是一起收起的嗎」）。lightbox/slide-in 的 header 收起仍走 lightbox-shell 的 clip-path 那套、維持不變。
+    // 不是一起收起的嗎」）。lightbox/slide-in 的 header 收起也走同一套 clip-reveal（lightbox-shell.animateHeaderHide
+    // 經 __sccdHideHeaderBars 委派回這裡，user 2026-08-31；bars 是同一組 getHeaderTargets）。
     // instant=true：初次載入同步時瞬間收起（duration:0），不要 refresh 後看到 bars 閃現再滑走
     function syncFooterHide(instant = false) {
       // SPA 換頁後 footer DOM 會替換（static index footer / SPA 注入 footer 切換），closure 捕捉到的舊 ref
