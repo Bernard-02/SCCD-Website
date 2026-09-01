@@ -69,11 +69,13 @@ export async function loadFacultyData() {
     // fulltime 是第一個 list（上半屏）→ 前 4 張 eager + high priority 先載。
     // parttime/admin 在下方且初始被 filter 設 display:none → 原本全 lazy：lazy 圖在隱藏時永遠不下載，
     //   切到該分頁那刻才開始抓 → 前幾張先露 bg-gray-2 灰底再閃出照片（user 2026-06-28 報）。
-    // 修：前 4 張改 eager（display:none 也會下載進快取）但「不」給 high priority → 不搶 fulltime 首屏頻寬，
-    //   fulltime 載完後背景補載；切分頁時已快取命中＝照片直接在、不再灰閃。
+    // 修：隱藏面板前 N 張改 eager（display:none 也會下載進快取）但「不」給 high priority → 不搶 fulltime 首屏頻寬，
+    //   fulltime 載完後背景補載；切分頁時首屏已快取命中＝照片直接在、不再灰閃/空白。
+    //   N=8（≈首屏張數，2026-08-28 由 4 提高）：原 4 只暖第一列，切過去第二列還在空白等 lazy；8 覆蓋首屏。
+    //   更深的列由 .faculty-filter-btn hover 意圖預載補暖（見 faculty-filter.js warmCategoryImages）。
     renderFacultyList('faculty-fulltime-list', fulltime, 4, true);
-    renderFacultyList('faculty-parttime-list', parttime, 4);
-    renderFacultyList('faculty-admin-list', admin, 4);
+    renderFacultyList('faculty-parttime-list', parttime, 8);
+    renderFacultyList('faculty-admin-list', admin, 8);
 
     // 代用 logo 卡片：依當前 mode 套對應圖 + 底色（首次不做 fade），並綁 theme:changed 之後切換時 cross-fade
     applyPlaceholderMode(false);

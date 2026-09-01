@@ -474,6 +474,26 @@ export function initFacultyFilter() {
     });
   });
 
+  // 意圖預載：滑到/focus 某分類 tab 就先暖該分類前 16 張照片進快取（new Image()），切過去時 lazy 圖直接命中、
+  // 不再等切換那刻才開始抓。前 8 張已是 eager 背景載（faculty-data-loader）；這裡補暖到第二~三屏。每顆 tab 只暖一次。
+  const warmCategoryImages = (cat) => {
+    let n = 0;
+    facultyCards.forEach(card => {
+      if (n >= 16 || card.getAttribute('data-category') !== cat) return;
+      const src = card.querySelector('.faculty-card-image')?.getAttribute('src');
+      if (src) { const im = new Image(); im.src = src; n++; }
+    });
+  };
+  filterButtons.forEach(btn => {
+    const warm = () => {
+      if (btn.dataset.imgsWarmed) return;
+      btn.dataset.imgsWarmed = '1';
+      warmCategoryImages(btn.getAttribute('data-filter'));
+    };
+    btn.addEventListener('pointerenter', warm);
+    btn.addEventListener('focusin', warm);
+  });
+
   // ── Department tabs（老師分頁；第二系所暫無資料＝空 roster；user 2026-08-23 先確認位置）──
   // 沿用 category filter 的 exit → 切換 → enter 流程；chip active accent 同 setActiveStyle 做法。
   const deptButtons = document.querySelectorAll('.faculty-dept-btn');
