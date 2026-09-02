@@ -18,7 +18,7 @@
  *   // 餵給 PDF viewer / media lightbox 的 references（createRefBtn setReferences 吃 section+itemId 或 href）
  */
 
-import { sitePath, SITE_BASE_PATHNAME } from '../ui/site-base.js';
+import { SITE_BASE_PATHNAME } from '../ui/site-base.js';
 import { CMS_API_BASE } from '../../config/api.js';
 import { pdfOpenUrl } from './pdf-url.js';
 
@@ -99,62 +99,18 @@ async function buildIndexFromDirectus() {
   return index;
 }
 
-// ── 本地 JSON 反查（fallback；Directus 全掛時 document 也 fallback 本地、pdfUrl 一致）──
-const SOURCE_URLS = [
-  { url: '/data/workshops.json',             section: 'workshop' },
-  { url: '/data/industry.json',              section: 'industry' },
-  { url: '/data/lectures.json',              section: 'lectures' },
-  { url: '/data/students-present.json',      section: 'students-present' },
-  { url: '/data/summer-camp.json',           section: 'summer-camp' },
-  { url: '/data/permanent-exhibitions.json', section: 'exhibitions' },
-  { url: '/data/general-activities.json',    section: null }, // section 從 item.category
-];
-
-async function buildIndexFromLocal() {
-  const index = new Map();
-  const sources = await Promise.all(
-    SOURCE_URLS.map(({ url, section }) =>
-      fetch(sitePath(url)).then(r => r.json()).then(data => ({ section, data }))
-        .catch(e => { console.warn('[pdf-cross-ref-index] failed to load', url, e); return { section, data: null }; })
-    )
-  );
-  sources.forEach(({ section: fixedSection, data }) => {
-    if (!Array.isArray(data)) return;
-    data.forEach(yg => {
-      (yg.items || []).forEach(item => {
-        const refs = item.references || (item.reference ? [item.reference] : []);
-        if (!Array.isArray(refs) || refs.length === 0) return;
-        const itemSection = fixedSection || item.category;   // general-activities.json 一檔 4 category
-        if (!itemSection) return;
-        const isModeA = !!item.title_en;                     // 兩種命名模式（對齊 activities resolveRef）
-        const titleEn = isModeA ? item.title_en : item.title;
-        const titleZh = isModeA ? item.title    : item.title_zh;
-        refs.forEach(ref => {
-          const pdfUrl = ref && ref.pdfUrl;
-          if (!pdfUrl) return;
-          const lbl = SECTION_LABELS[itemSection] || { en: '', zh: '' };
-          if (!index.has(pdfUrl)) index.set(pdfUrl, []);
-          index.get(pdfUrl).push({
-            section: itemSection, itemId: item.id || '',
-            labelEn: lbl.en, labelZh: lbl.zh, titleEn: titleEn || '', titleZh: titleZh || '',
-          });
-        });
-      });
-    });
-  });
-  return index;
-}
-
 let _indexPromise = null;
 
 /**
- * 建立索引：Map<pdfUrl, Array<chipObj>>。Directus 為主、失敗 fallback 本地。Cache 一次。
+ * 建立索引：Map<pdfUrl, Array<chipObj>>。Directus 為單一來源；失敗回空 index（chip 不顯示，不查本地假資料）。Cache 一次。
  */
 function buildIndex() {
   if (_indexPromise) return _indexPromise;
   _indexPromise = buildIndexFromDirectus().catch(e => {
-    console.warn('[pdf-cross-ref-index] Directus 反查失敗，fallback 本地 JSON：', e.message);
-    return buildIndexFromLocal();
+    // P1-5：Directus 全掛 → 空 index（cross-ref chip 不顯示即可）；不快取失敗 → 下次開 PDF 重試
+    console.warn('[pdf-cross-ref-index] Directus 反查失敗，chip 不顯示：', e.message);
+    _indexPromise = null;
+    return new Map();
   });
   return _indexPromise;
 }

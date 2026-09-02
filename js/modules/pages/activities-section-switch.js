@@ -5,10 +5,9 @@
  */
 
 import { loadExhibitionsInto, loadGeneralActivitiesInto, loadLecturesInto, loadIndustryInto, loadWorkshopsInto, loadSummerCampInto, loadVisitsInto, prefetchExhibitionsData, prefetchOtherActivitiesData } from './activities-data-loader.js';
-import { resetActivitiesFetchCache } from './activities-source.js';
+import { revalidateActivitiesData, beginActivitiesVisit } from './activities-source.js';
 import { loadDegreeShowListInto } from './degree-show-data-loader.js';
 import { applyMarqueeOverflow, bindMarqueeReturn } from '../ui/marquee-overflow.js';
-import { initActivitiesYearToggle } from '../accordions/activities-year-toggle.js';
 import { initListAccordion, resetListAccordionsInPanel, alignWithBottomSpacer } from '../accordions/list-accordion.js';
 import { reapplySearch } from '../ui/activities-search.js';
 import { setActiveNavBtn, showPanel } from '../ui/section-switch-helpers.js';
@@ -25,6 +24,8 @@ import { scrollWindowNoSnap } from '../ui/snap-scroll.js';
 const loaded = {};
 // 防連點：exit/reveal 動畫期間 swallow 重複觸發
 let switching = false;
+// P2-4 latest-wins：動畫期間被吞的最後一次點擊記在這，finally 收尾接手（中間連點丟棄）
+let pendingSwitch = null;
 
 // box 是否「真的是捲動容器」：矮橫向 landscape gate 把 activities 的 100vh frame 拆掉（overflow 改 visible、
 // window 捲），但 class 還在 → 看 computed overflow-y 不看寬度（同 list-accordion getScrollableBox / admission）。
@@ -707,10 +708,10 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
   // 手機直向：量 nav 高設 --act-filter-top（filter bar sticky 釘點，lists.css portrait 區塊配套）
   initMobileStickyBars();
 
-  // SPA 換頁後 DOM 重建，需重置 loaded 狀態讓資料重新載入
+  // SPA 換頁後 DOM 重建，需重置 loaded 狀態讓資料重新載入（DOM 已換、但資料快取跨頁保留＝秒開）
   Object.keys(loaded).forEach(k => delete loaded[k]);
-  // 清 single-flight fetch cache：每次進頁抓最新內容（prefetch 與 render 共用同一次 fetch，見下 prefetchExhibitionsData）
-  resetActivitiesFetchCache();
+  // P1-4：進頁**不清** single-flight cache（回訪 render 吃舊值＝秒開）；只 ++visit epoch，讓 post-hero revalidate 只背景重抓「上次 visit」的 key。
+  beginActivitiesVisit();
   // 模組級旗標跨 SPA 換頁不會自動清。若上次離頁時某 switch 被導航打斷（exit 動畫被 cleanup 殺、
   // onComplete 沒跑→Promise 永不 resolve→finally 沒跑），switching 會卡 true 擋掉本頁所有 panel 載入。
   // 重新進頁 DOM 全新、沒有進行中的 switch → 一律歸零。
@@ -730,7 +731,7 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
     const initialItem = params.get('item');
     const initSwitchPromise = switchToSection(initialSection, btns, false, true);
     // deep-link 進場後同樣預暖其餘分頁資料，讓後續手動切換免等網路
-    initSwitchPromise.then(() => prefetchOtherActivitiesData());
+    initSwitchPromise.then(() => prefetchOtherActivitiesData()).then(() => revalidateActivitiesData());
     // 等 hero 進場才往下捲（waitForHeroAnimDone；封頂 ~0.9s = hero 多組時不等全播完免「卡在 hero 太久」，user 2026-06-27；對齊 curriculum）。
     // 手機也適用：hero-animation playMobileHeroEntrance 跑「看得見的」.hero-mobile-* 進場後才 signal
     // （2026-06-12 起；先前手機 hero 靜態、等的是隱藏桌面 timeline ＝ 白等，曾短暫改成跳過）。
@@ -778,7 +779,9 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
     waitForHeroAnimDone()
       .then(() => switchToSection(defaultSection, btns, false, true))
       // 預設分頁進場後，閒置序列預暖其餘分頁資料（見 prefetchOtherActivitiesData）→ 之後切換免等網路
-      .then(() => prefetchOtherActivitiesData());
+      .then(() => prefetchOtherActivitiesData())
+      // P1-4：warm 完再背景 revalidate 上次 visit 的 key（post-hero、序列、避開進場窗口）→ 新內容供本次瀏覽後續與下次進頁
+      .then(() => revalidateActivitiesData());
   }
 
   btns.forEach(btn => {
@@ -792,13 +795,31 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
   });
 }
 
+// P1-3：資料層失敗（三層鏈連 last-known-good 都沒有）時 panel 的錯誤態，比照 search empty-state 置中。
+// 再點分頁鈕會 delete loaded[] + 清此元素 → 自動重試（不需 retry 按鈕）。
+function showPanelLoadError(section) {
+  const panel = document.getElementById(`panel-${section}`);
+  if (!panel) return;
+  let el = /** @type {HTMLElement | null} */ (panel.querySelector('.panel-load-error'));
+  if (!el) {
+    el = document.createElement('div');
+    el.className = 'panel-load-error';
+    el.style.cssText = 'min-height:60vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;';
+    el.innerHTML = '<p class="text-s">Failed to load</p><p class="text-s">載入失敗，請稍後再試</p>';
+    panel.appendChild(el);
+  }
+  el.style.display = 'flex';
+}
+
 async function switchToSection(section, btns, shouldScroll, isInitial = false) {
-  if (switching) return;
+  // P2-4 latest-wins：動畫期間連點記下最後一個，finally 收尾接手（中間的丟棄）→ 點擊不再被整顆吞
+  if (switching) { pendingSwitch = { section, btns, shouldScroll }; return; }
 
   const currentPanel = /** @type {HTMLElement | null} */ (document.querySelector('.activities-panel:not(.hidden)'));
   const targetId = `panel-${section}`;
-  // 已 active 同 panel：跳過退場/進場動畫；如果是 click（shouldScroll）仍 scroll 對齊 anchor
-  if (currentPanel && currentPanel.id === targetId && !isInitial) {
+  // 已 active 同 panel：跳過退場/進場動畫；如果是 click（shouldScroll）仍 scroll 對齊 anchor。
+  // ⚠️ loaded[section] 守衛：上次載入失敗（loaded 已 delete、panel 顯示錯誤態）時**不** early-return，往下重試。
+  if (currentPanel && currentPanel.id === targetId && !isInitial && loaded[section]) {
     if (shouldScroll) {
       const sectionEl = /** @type {HTMLElement | null} */ (document.getElementById('activities-content-section'));
       scrollSectionIntoView(sectionEl);
@@ -807,6 +828,7 @@ async function switchToSection(section, btns, shouldScroll, isInitial = false) {
   }
 
   switching = true;
+  document.getElementById(targetId)?.querySelector('.panel-load-error')?.remove();  // P1-3：重試時先清掉上次錯誤態
 
   // ⚠️ try/finally：第 5 步把 rows 推到 yPercent:100 (hidden)，第 8 步才 reveal 回 yPercent:0。
   //    若中間第 3 步 await loadPromise 拋錯（fetch 被瀏覽器在 SPA 換頁時 cancel / JSON parse 失敗），
@@ -892,6 +914,9 @@ async function switchToSection(section, btns, shouldScroll, isInitial = false) {
     console.error('[activities-section-switch] switchToSection error:', err);
     // loadPanel 失敗時把 loaded[] 旗標清掉，user 重切回此 panel 才會再試 fetch
     delete loaded[section];
+    // P1-3：資料層三層鏈全失敗（連 last-known-good 都沒有）→ 顯示錯誤態。loadPanel throw 時 step 6 沒跑、panel 仍 .hidden，先 showPanel 顯示出來。
+    showPanel('.activities-panel', targetId);
+    showPanelLoadError(section);
   } finally {
     // 8. 進場 reveal — 無論成不成功都跑，否則 rows 卡 yPercent:100。
     //    useScrollTrigger 跟 isInitial 綁（對齊 admission-section-switch 的正確做法）：
@@ -939,6 +964,13 @@ async function switchToSection(section, btns, shouldScroll, isInitial = false) {
       }
     }
     switching = false;
+    // P2-4 latest-wins：動畫期間被吞的最後一次切換，收尾後接手（section 不同才切）
+    if (pendingSwitch && pendingSwitch.section !== section) {
+      const next = pendingSwitch; pendingSwitch = null;
+      switchToSection(next.section, next.btns, next.shouldScroll);
+    } else {
+      pendingSwitch = null;
+    }
   }
 }
 
@@ -1131,13 +1163,12 @@ async function loadPanel(section) {
   const opts = {
     autoReveal: false,
     lazy: true,
-    onLazyBatch: () => { initActivitiesYearToggle(); initListAccordion(); },
+    onLazyBatch: () => { initListAccordion(); },
   };
 
   switch (section) {
     case 'exhibitions':
       await loadExhibitionsInto(opts);
-      initActivitiesYearToggle();
       initListAccordion();
       initExhibitionsTypeFilter();
       if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh();
@@ -1145,7 +1176,6 @@ async function loadPanel(section) {
 
     case 'visits':
       await loadVisitsInto(opts);
-      initActivitiesYearToggle();
       initListAccordion();
       initVisitsTypeFilter();
       if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh();
@@ -1153,21 +1183,18 @@ async function loadPanel(section) {
 
     case 'competitions':
       await loadGeneralActivitiesInto('competitions-list', 'competitions', '/data/general-activities.json', opts);
-      initActivitiesYearToggle();
       initListAccordion();
       if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh();
       return;
 
     case 'conferences':
       await loadGeneralActivitiesInto('conferences-list', 'conferences', '/data/general-activities.json', opts);
-      initActivitiesYearToggle();
       initListAccordion();
       if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh();
       return;
 
     case 'lectures':
       await loadLecturesInto('lectures-list', opts);
-      initActivitiesYearToggle();
       initListAccordion();
       if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh();
       return;
@@ -1194,7 +1221,6 @@ async function loadPanel(section) {
 
     case 'industry':
       await loadIndustryInto('industry-list', opts);
-      initActivitiesYearToggle();
       initListAccordion();
       if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh();
       return;

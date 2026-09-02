@@ -16,25 +16,13 @@ import { refreshStickyPinObservers } from '../accordions/list-accordion.js';
 import { buildSyncedMarqueeTimeline } from '../ui/marquee-overflow.js';
 import { loadSummerCamp } from './summer-camp-source.js';
 import { loadActivityCollection, loadPermanentExhibitions } from './activities-source.js';
-// '/data/x.json' 字串同時是 fetch URL 與 map key / 比對識別字（SECTION_DATA_URL 等），
+// '/data/x.json' 字串同時是 fetch URL 與 map key / 比對識別字（deriveHostSection / _panelSelectorMap 等），
 // 識別字保持原樣，只在真正 fetch 的點包 sitePath()（子路徑部署時換算成站台根絕對 URL）
 import { sitePath } from '../ui/site-base.js';
 
-// ── Reference 自動 lookup ─────────────────────────────────────────────────────
-// ref 只填 { section, itemId } 即可；title/label 渲染前自動從目標 JSON lookup。
-// 已手動填的欄位（titleEn/titleZh/labelEn/labelZh）視為 override，不覆蓋。
-
-const SECTION_DATA_URL = {
-  workshop:           '/data/workshops.json',
-  industry:           '/data/industry.json',
-  lectures:           '/data/lectures.json',
-  'students-present': '/data/students-present.json',
-  'summer-camp':      '/data/summer-camp.json',
-  exhibitions:        '/data/general-activities.json',
-  competitions:       '/data/general-activities.json',
-  conferences:        '/data/general-activities.json',
-  visits:             '/data/general-activities.json',
-};
+// ── Reference label lookup ────────────────────────────────────────────────────
+// P1-5：ref title 由 activities-source remapRef 的 M2A deep-fetch 直接帶（Directus 單一來源）；本地 JSON id 是人工碼、
+// Directus 是 UUID → 舊「回查本地補 title」永遠 miss、純浪費，已移除。SECTION_LABELS 只補 section 名（label）。
 
 export const SECTION_LABELS = {
   workshop:           { en: 'Workshop',                      zh: '工作坊' },
@@ -47,48 +35,6 @@ export const SECTION_LABELS = {
   conferences:        { en: 'Forums',                        zh: '論壇' },
   visits:             { en: 'Visits',                        zh: '參訪' },
 };
-
-const _refDataCache = new Map();
-
-export async function getSectionData(section) {
-  // 特例：exhibitions section 同時涵蓋 special（general-activities.json category=exhibitions）+ permanent（permanent-exhibitions.json）
-  if (section === 'exhibitions') {
-    const cacheKey = '__exhibitions_merged__';
-    if (_refDataCache.has(cacheKey)) return _refDataCache.get(cacheKey);
-    const promise = Promise.all([
-      fetch(sitePath('data/general-activities.json')).then(r => r.json()),
-      fetch(sitePath('data/permanent-exhibitions.json')).then(r => r.json()),
-    ]).then(([a, b]) => [
-      ...(Array.isArray(a) ? a : []),
-      ...(Array.isArray(b) ? b : []),
-    ]).catch(e => {
-      console.warn('ref lookup: failed to merge exhibitions', e);
-      return null;
-    });
-    _refDataCache.set(cacheKey, promise);
-    return promise;
-  }
-
-  const url = SECTION_DATA_URL[section];
-  if (!url) return null;
-  if (_refDataCache.has(url)) return _refDataCache.get(url);
-  const promise = fetch(sitePath(url)).then(r => r.json()).catch(e => {
-    console.warn('ref lookup: failed to load', url, e);
-    return null;
-  });
-  _refDataCache.set(url, promise);
-  return promise;
-}
-
-export function findItemById(data, itemId) {
-  if (!Array.isArray(data)) return null;
-  for (const yg of data) {
-    for (const item of yg.items || []) {
-      if (item.id === itemId) return item;
-    }
-  }
-  return null;
-}
 
 // getAwardRecords / findAwardById：library press/files 的 references 反查得獎紀錄用（library-panels.js）。
 // 2026-06-22 起 activities/admission 不再 ref award（改為 award → library 單向），故 resolveRef 已移除 award 分支。
@@ -111,33 +57,14 @@ export function findAwardById(records, id) {
   return null;
 }
 
-async function resolveRef(ref) {
+// P1-5：title 由 activities-source remapRef 的 M2A deep-fetch 直接帶（單語就顯示單語，資料導向）；此處只補 label（section 名）。
+function resolveRef(ref) {
   if (!ref || !ref.section || !ref.itemId) return;
-
-  // label 用 section 對應表自動填（若 ref 沒寫）
   const labelMap = SECTION_LABELS[ref.section];
   if (labelMap) {
     if (!ref.labelEn) ref.labelEn = labelMap.en;
     if (!ref.labelZh) ref.labelZh = labelMap.zh;
   }
-
-  // title 需要去目標 JSON lookup
-  if (ref.titleEn && ref.titleZh) return;
-
-  const data = await getSectionData(ref.section);
-  if (!data) return;
-  const item = findItemById(data, ref.itemId);
-  if (!item) return;
-
-  // 兩種命名模式：
-  //  A) title=zh, title_en=en（industry / lectures / summer-camp / general-activities）
-  //  B) title=en, title_zh=zh（workshops / students-present）
-  const isModeA = !!item.title_en;
-  const targetEn = isModeA ? item.title_en : item.title;
-  const targetZh = isModeA ? item.title    : item.title_zh;
-
-  if (!ref.titleEn && targetEn) ref.titleEn = targetEn;
-  if (!ref.titleZh && targetZh) ref.titleZh = targetZh;
 }
 
 // Ref btn click 分派：pdfUrl 走共用 PDF viewer（sccd:open-pdf）／否則走 SPA item 跳轉
@@ -401,9 +328,13 @@ export function buildAlbumsHtml(item, { unbounded = false } = {}) {
 export function buildPosterHtml(item) {
   const src = item.poster || '';
   if (!src) return '';
+  // 有原圖尺寸 → wrapper 設 aspect-ratio 預留高度（載入前就佔位、免 layout shift），並解鎖 poster loading="lazy"
+  //（原本不能 lazy＝0 面積永不觸發載入，見 memory reference_activities_switch_ro_recalc_storm ①）。拿不到尺寸則維持 eager + load 補償動畫。
+  const ar = (item.posterW && item.posterH) ? ` style="aspect-ratio: ${item.posterW}/${item.posterH}"` : '';
+  const lazy = ar ? ' loading="lazy"' : '';
   return `
-    <div class="overflow-hidden cursor-pointer" data-lightbox-open data-lightbox-index="0">
-      <img src="${src}" alt="${item.title} poster" decoding="async" class="poster-img w-full block object-cover" onerror="this.closest('[data-lightbox-open]').style.display='none'">
+    <div class="overflow-hidden cursor-pointer" data-lightbox-open data-lightbox-index="0"${ar}>
+      <img src="${src}"${lazy} alt="${item.title} poster" decoding="async" class="poster-img w-full block object-cover" onerror="this.closest('[data-lightbox-open]').style.display='none'">
     </div>
   `;
 }
@@ -1017,8 +948,9 @@ export function bindInteractions(container, { autoReveal = true, incremental = f
       const wrap    = /** @type {HTMLElement|null} */ (img.closest('[data-lightbox-open]'));
       const content = /** @type {HTMLElement|null} */ (img.closest('.list-content'));
       const header  = img.closest('.list-item')?.querySelector('.list-header');
-      // 只在「展開且 proceedOpen 已 onComplete（overflow:visible）」時介入；收合中 / 開啟動畫進行中不碰，避免跟 content height tween 打架
-      if (wrap && content && header?.classList.contains('active') && content.style.overflow === 'visible' && typeof gsap !== 'undefined') {
+      // 只在「展開且 proceedOpen 已 onComplete（overflow:visible）」時介入；收合中 / 開啟動畫進行中不碰，避免跟 content height tween 打架。
+      // ⚠️ wrapper 已有 aspect-ratio（P2-2 預留高度）就跳過：高度已佔位、無跳動可補償，再跑 0→full 反而多一次收合再展開。
+      if (wrap && content && header?.classList.contains('active') && content.style.overflow === 'visible' && !wrap.style.aspectRatio && typeof gsap !== 'undefined') {
         const fullH = wrap.offsetHeight;
         if (fullH > 0) {
           gsap.killTweensOf(wrap);
@@ -1256,9 +1188,8 @@ export async function loadListInto(containerId, url, options = {}) {
     }))
     .filter(yg => yg.items.length > 0);
 
-  // Resolve refs（補齊 ref title/label；ref 只填 section+itemId 即可運作）。⚠️改「按需」resolve 而非一次全 125 筆：
-  // resolveRef 會去目標 section fetch(getSectionData) 查標題，一次解全部 = 首批渲染前卡在解所有 item 的 ref
-  //（lectures 實測 click→render ~4.7s）。改成：lazy 先解首批 ref → 其餘背景 fire-and-forget 解（快取後很快）。
+  // Resolve refs（補齊 ref label；title 已由 activities-source remapRef 帶）。P1-5 後 resolveRef 為同步純填 label（無 fetch）＝即時；
+  // 保留 flatMap/Promise.all 結構（與下方首批/背景 render 呼叫點相容、零行為差）。
   const resolveRefsFor = (items) => Promise.all(items.flatMap(item => {
     const refs = item.references || (item.reference ? [item.reference] : []);
     return refs.map(ref => resolveRef(ref));
@@ -1402,7 +1333,9 @@ export async function loadListInto(containerId, url, options = {}) {
       // 「地點的國家」(item.flag / locations[].country) 暫不納入 — user 2026-06-03：等後台處理 location-country 機制再加進來。
       const allGuests = [...(item.guests || []), ...((item.sessions || []).flatMap(s => Array.isArray(s.guests) ? s.guests : []))];
       // uk→gb：flag-icons 只認 ISO 3166 的 gb，編輯常填 UK（2026-07-04 實例）→ fi-uk 不存在渲染成空盒
-      const countryCodes = [...new Set(allGuests.map(g => (g.country || '').toLowerCase().trim().replace(/^uk$/, 'gb')).filter(Boolean))];
+      // guest 個人國家 + 所屬單位國家（orgCountry）都納入（expand 兩排各有旗、標題也要一併抓；2026-09-01）
+      const _normCode = c => (c || '').toLowerCase().trim().replace(/^uk$/, 'gb');
+      const countryCodes = [...new Set(allGuests.flatMap(g => [_normCode(g.country), _normCode(g.orgCountry)]).filter(Boolean))];
 
       const itemFlags = alwaysExpanded ? 'data-no-accordion' : 'data-pre-reveal';
       // meta-icons inner（alumni + 全部國旗）共用內容：桌面 render 在右上 group、手機另 render 一份在副標下方 in-flow 區塊
@@ -1698,8 +1631,7 @@ export async function loadListInto(containerId, url, options = {}) {
     return newItems;
   };
 
-  // 只先解「首批」的 ref（切換即時的關鍵）→ 建首批 → 其餘 ref 背景 fire-and-forget 解（getSectionData 快取後很快、
-  // 使用者捲到時多半已解好；未解好的 ref 按鈕暫無標題，屬次要）。
+  // 先解「首批」的 ref → 建首批 → 其餘 ref 背景解（P1-5 後 resolveRef 同步純填 label、即時；保留分批結構與 render 呼叫相容）。
   await resolveRefsFor(flat.slice(0, FIRST_BATCH).map(e => e.item));
   renderBatch(FIRST_BATCH);
   installStickyObserver();
@@ -1924,7 +1856,8 @@ const ACT_DIRECTUS_MAP = {
 async function fetchActEndpointOrFallback(endpoint, fallbackUrl) {
   const m = ACT_DIRECTUS_MAP[endpoint];
   if (m) return loadActivityCollection(m.collection, fallbackUrl, { category: m.category, stamp: m.stamp, sortByDate: m.sortByDate });
-  return fetch(sitePath(fallbackUrl)).then(r => r.json());
+  // Directus-only：全部 endpoint 都應在 ACT_DIRECTUS_MAP，走到這裡＝打錯 endpoint 名（programming error），別靜默吃本地假資料
+  throw new Error(`[activities] unknown endpoint: ${endpoint}`);
 }
 
 export async function loadGeneralActivitiesInto(containerId, categoryFilter = null, url = '/data/general-activities.json', options = {}) {

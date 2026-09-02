@@ -7,23 +7,35 @@
  * admission 頁「營隊」tab 與 activities 頁共用 loadSummerCampInto → 都吃這個來源。
  */
 import { CMS_API_BASE, CMS_CDN_BASE } from '../../config/api.js';
-import { sitePath } from '../ui/site-base.js';
 
 const CMS_COLLECTION = 'admission_summer_camp';
-const FALLBACK_JSON = '/data/summer-camp.json';
+
+// 逾時 + last-known-good：同 activities-source（本地 /data/*.json 是假資料 → 退場，改存 sessionStorage 上次成功真資料）。
+function fetchWithTimeout(url, ms = 10000) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(t));
+}
+const LKG_KEY = 'sccd:act:summer-camp';
+function saveLKG(data) { try { sessionStorage.setItem(LKG_KEY, JSON.stringify(data)); } catch {} }
+function readLKG() { try { const s = sessionStorage.getItem(LKG_KEY); return s ? JSON.parse(s) : null; } catch { return null; } }
 
 export async function loadSummerCamp() {
   try {
     // *.* 展開 poster 檔案物件（含 filename_disk）＋ references 附件；images 是 M2M junction，多深一層
     // 取 directus_files_id.filename_disk 才拿得到檔名（*.* 只到 junction 層）→ 組 CloudFront URL。
-    const res = await fetch(`${CMS_API_BASE}/${CMS_COLLECTION}?limit=-1&sort=sort&fields=*.*,images.directus_files_id.filename_disk`);
+    const res = await fetchWithTimeout(`${CMS_API_BASE}/${CMS_COLLECTION}?limit=-1&sort=sort&fields=*.*,images.directus_files_id.filename_disk`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const rows = (await res.json()).data;
     if (!Array.isArray(rows) || !rows.length) throw new Error('empty');
-    return groupByYear(rows.map(mapRow));
+    const grouped = groupByYear(rows.map(mapRow));
+    saveLKG(grouped);
+    return grouped;
   } catch (err) {
-    console.warn('[summer-camp] CMS fetch failed, fallback to /data/summer-camp.json:', err.message);
-    return fetch(sitePath(FALLBACK_JSON)).then(r => r.json());
+    // Directus-only → last-known-good；連它都沒 → throw（activities switchToSection / admission try-finally 各自處理）
+    const lkg = readLKG();
+    if (lkg) { console.warn('[summer-camp] fetch failed → last-known-good:', err.message); return lkg; }
+    throw err;
   }
 }
 

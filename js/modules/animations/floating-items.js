@@ -155,8 +155,8 @@ async function fetchActivityPosters() {
   } catch (_) {}
 
   // Summer camp → admission.html?section=summer-camp&item={id}（camp 已搬到 admission）。
-  // 用 loadSummerCamp()（Directus 同源 + 本地 fallback）：id/poster 跟 admission 渲染一致，deep-link id 才對得上
-  // （直接讀 local json 的 SC-YYYY-NN 對不上 Directus UUID）。
+  // 用 loadSummerCamp()（Directus-only + sessionStorage last-known-good）：id/poster 跟 admission 渲染一致，
+  // deep-link id 才對得上（本地 json 的 SC-YYYY-NN 對不上 Directus UUID）。全失敗 throw → 下方 catch 吞、該類浮卡缺席。
   try {
     const campGroups = await loadSummerCamp();   // [{ year, items:[{ id, poster, ... }] }]
     campGroups.forEach(group => {

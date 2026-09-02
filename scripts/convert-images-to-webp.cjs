@@ -30,7 +30,10 @@ const DRY = process.argv.includes('--dry');
 
   // 只挑 raster 原圖：jpeg/png。webp（已轉）/svg（向量不可轉）/pdf/影片都跳過。
   const q = encodeURIComponent('image/jpeg,image/png');
-  const files = (await (await fetch(`${BASE}/files?filter[type][_in]=${q}&fields=id,type,filename_download,filesize&limit=-1`, { headers: H })).json()).data || [];
+  // sort=-filesize：大檔優先（最大的省最多、前台最痛的先解）。也修一個死鎖：「webp 沒比原檔小」的 perma-skip 圖
+  // 永遠留在 jpeg/png 清單，無排序時佔清單頭 → workflow「連續 5 批 0 轉檔」會提前誤判轉完、排在後面的新上傳圖永遠輪不到；
+  // 大檔優先讓這些小 skip 沉底，新上傳的大圖天然排前。
+  const files = (await (await fetch(`${BASE}/files?filter[type][_in]=${q}&fields=id,type,filename_download,filesize&sort=-filesize&limit=-1`, { headers: H })).json()).data || [];
   const todo = files.slice(0, LIMIT);
   console.log(`檔案庫 jpeg/png：${files.length} 張，本次處理 ${todo.length} 張${DRY ? '（--dry 不寫回）' : ''}`);
 

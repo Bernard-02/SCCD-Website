@@ -15,6 +15,10 @@ function initListYearToggle() {
 
   // Initialize heights for all containers on page load
   workshopYearToggles.forEach(toggle => {
+    // 只在首見時定初始高度：lazy 補批捲入會重跑此 init，但用戶手動收合的年份 chevron 仍留 rotate-90 sentinel
+    // → 重跑會把它 reset 回展開角（height:auto + rotation:270），但 display:none 還在 = chevron 顯示開/實際收合、要點兩下才重開。
+    if (toggle.dataset.ytInit) return;
+    toggle.dataset.ytInit = '1';
     const yearGrid = toggle.closest('.grid-12');
     if (yearGrid) {
       const itemsContainer = /** @type {HTMLElement | null} */ (yearGrid.querySelector('.list-year-items'));

@@ -7,9 +7,10 @@
 import { initDegreeShowGallery } from './degree-show-gallery.js';
 import { initHeroAnimation } from './hero-animation.js';
 import { initHeroMobileSync } from './hero-mobile-sync.js';
-import { animateCardsClipReveal, playRevealExit, setupClipReveal, playClipReveal, navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
+import { playRevealExit, setupClipReveal, playClipReveal, navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
 import { createClassImagesSlideshow } from './about/class-images-slideshow.js';
-import { getSectionData, findItemById, SECTION_LABELS } from './activities-data-loader.js';
+import { SECTION_LABELS } from './activities-data-loader.js';
+import { CMS_API_BASE, CMS_CDN_BASE } from '../../config/api.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { applyMarqueeOverflow, bindMarqueeReturn } from '../ui/marquee-overflow.js';
@@ -65,19 +66,11 @@ function separateHeroTitles() {
     document.getElementById('text-title')?.closest('.hero-title-wrapper'));
 }
 
-export async function loadDegreeShowList() {
-  await loadDegreeShowListInto('degree-show-list');
-  // 獨立頁 /degree-show：cards 進 viewport 才 reveal（panel-switch 路徑由 activities-section-switch 接管，不用此分支）
-  // 沿用全站 clip-reveal helper，跟其他 list 同節奏
-  const cards = document.querySelectorAll('#degree-show-list .degree-show-card');
-  if (cards.length) animateCardsClipReveal(cards, true);
-}
-
 export async function loadDegreeShowListInto(containerId) {
+  // Directus-only（degree-show-source.js：失敗 → last-known-good → throw）。放 try 外＝資料層全失敗往上拋，
+  // 由 activities switchToSection 的 catch 顯示 .panel-load-error 錯誤態（與其他 section 一致）；渲染錯誤仍就地吞。
+  const data = await loadDegreeShow();
   try {
-    // Directus activities_degree_show 為主，失敗 / 空 → fallback 本地 JSON（degree-show-source.js）
-    const data = await loadDegreeShow();
-
     const container = document.getElementById(containerId);
     if (!container) return;
 
@@ -214,7 +207,7 @@ export async function loadDegreeShowDetail() {
   }
 
   try {
-    // Directus activities_degree_show 為主，失敗 / 空 → fallback 本地 JSON（degree-show-source.js）
+    // Directus-only（失敗 → last-known-good → throw；throw 由本 try 的 catch 接、頁面顯示不出 detail 屬預期）
     const degreeShowData = await loadDegreeShow();
     const shows = Object.entries(degreeShowData)
       .sort(([a], [b]) => Number(b) - Number(a))
@@ -1252,19 +1245,44 @@ async function appendRefBasedSection(root, index, ev, branchEn, branchZh) {
   }
 }
 
-// Ref image resolver：吃 {source, id} 回傳該 activities item 的 images[]（子展覽只渲染圖片）
+// section key → Directus collection（單一 item 查圖）。exhibitions/visits 有兩子類 → 依序試（id 是 UUID、命中即回）。
+const REF_SECTION_COLLECTIONS = {
+  workshop:           ['activities_workshops'],
+  industry:           ['activities_industry'],
+  lectures:           ['activities_lectures'],
+  'students-present': ['activities_students_present'],
+  'summer-camp':      ['admission_summer_camp'],
+  competitions:       ['activities_competitions'],
+  conferences:        ['activities_conferences'],
+  exhibitions:        ['activities_exhibitions_special'],  // permanent 是 parent/child 巢狀、不當子展覽 ref 圖來源
+  visits:             ['activities_visits_outbound', 'activities_visits_inbound'],
+};
+const _refIsUrlish = (s) => typeof s === 'string' && /^(https?:|\.\.?\/|\/)/.test(s);
+const _refCdnUrl = (name) => !name ? '' : _refIsUrlish(name) ? name : `${CMS_CDN_BASE}/${name}`;
+function normalizeRefImages(arr) {
+  if (!Array.isArray(arr)) return [];
+  return arr.map(x => {
+    if (_refIsUrlish(x)) return x;
+    const f = x?.directus_files_id ?? x;
+    return _refCdnUrl(typeof f === 'string' ? f : f?.filename_disk);
+  }).filter(Boolean);
+}
+
+// Ref image resolver：吃 {source, id} → Directus 單筆查該 activities item 的 images[]（子展覽只渲染圖片）。
+// P1-5：改 Directus 單筆查詢（本地 JSON id 是人工碼、Directus 是 UUID → 舊 getSectionData/findItemById 回查永遠 miss）。
 async function resolveRefImages(ref) {
   if (!ref || !ref.source || !ref.id) return [];
-  const data = await getSectionData(ref.source);
-  if (!data) return [];
-  const item = findItemById(data, ref.id);
-  if (!item) {
-    console.warn('[degree-show] ref item not found:', ref);
-    return [];
+  const collections = REF_SECTION_COLLECTIONS[ref.source] || [];
+  for (const col of collections) {
+    try {
+      const res = await fetch(`${CMS_API_BASE}/${col}/${ref.id}?fields=images.directus_files_id.filename_disk`);
+      if (!res.ok) continue;  // 404＝不在此 collection → 試下一個（exhibitions/visits 兩子類）
+      const item = (await res.json())?.data;
+      const imgs = normalizeRefImages(item?.images);
+      if (imgs.length) return imgs;
+    } catch (e) { /* 該 collection fetch 失敗 → 試下一個；全失敗回 [] */ }
   }
-  return Array.isArray(item.images) ? item.images
-       : Array.isArray(item.albumImages) ? item.albumImages
-       : [];
+  return [];
 }
 
 function escapeHtml(s) {

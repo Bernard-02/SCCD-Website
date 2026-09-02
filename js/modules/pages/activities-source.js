@@ -11,10 +11,18 @@
 import { CMS_API_BASE, CMS_CDN_BASE } from '../../config/api.js';
 import { pdfOpenUrl } from './pdf-url.js';
 import { videoMediaFromUrl } from '../ui/video-player.js';
-import { sitePath, SITE_BASE_PATHNAME } from '../ui/site-base.js';
+import { SITE_BASE_PATHNAME } from '../ui/site-base.js';
+
+// Directus 弱機的已知故障模式是「hang 而非拒絕」→ 無逾時 fetch 會吊住 switchToSection 的 switching 鎖、吞掉所有分頁切換。
+// 統一逾時 abort → throw 進三層失敗鏈（記憶體快取 → sessionStorage last-known-good → 錯誤態）。
+function fetchWithTimeout(url, ms = 10000) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(t));
+}
 
 // M2A references deep-fetch：每個目標 collection 都要列一條 item:<col>.id（沒列到的該 ref item 會是 raw uuid）。
-// library_documents/press 另取 titleEn/Zh（前台 ref 列要顯示標題；activity 的 title 由 resolveRef 從本地查）。
+// library_documents/press 另取 titleEn/Zh（前台 ref 列要顯示標題；activity 的 title 也在此深取＝唯一來源，見 remapRef）。
 // document 另取 pdf（前台直接開 PDF viewer，不跳 library）。album 不再當 ref（活動相簿就在活動內），故不 deep-fetch。
 // 2026-06-22 起 activities 不再 ref award（改 award → library 單向），故不 deep-fetch library_awards。
 const REF_FIELDS = [
@@ -136,6 +144,9 @@ function mapRow(r, category, stamp) {
     description: r.descriptionEn || '',          // introField 預設 'description' 讀 item.description（EN）；descriptionZh 前台自動讀
     dates: buildDateGroups(r.dates, r.startDate, r.endDate, r.year, r.monthDay),
     poster: imageUrl(r.poster),
+    // 原圖尺寸（deep-fetch poster.width/height）→ buildPosterHtml 設 aspect-ratio 預留高度 + 解鎖 loading="lazy"（P2-2）
+    posterW: (r.poster && typeof r.poster === 'object') ? (r.poster.width || 0) : 0,
+    posterH: (r.poster && typeof r.poster === 'object') ? (r.poster.height || 0) : 0,
     images: normalizeFiles(r.images),
     videos: ytUrls(r.videoLinks),
     videoLinks: undefined,                       // videoLinks 已折進 videos；清掉原欄，否則 getAllVideos 同一支影片會從兩個來源各算一次＝雙 tile（不是去重內容，是移除重複來源欄；後台真填兩支不同影片仍照數）
@@ -167,24 +178,54 @@ function groupByYear(items) {
  * @param {{category?: string, stamp?: object, sortByDate?: boolean}} [opts]  stamp = 補到每筆的子類型判別欄（visitType/exhibitionType）；
  *   sortByDate = 前台依單一日期(year+monthDay)排序而非後台 sort 欄（industry 用，見上）
  */
-// single-flight fetch cache（CLAUDE.md *-source.js 慣例）：讓 init 期 prefetch 與 hero 播完後的 render 共用
-// 同一次 fetch，避免 fetch 落在「hero gate 之後才起跑」的關鍵路徑（見 activities-section-switch prefetchExhibitionsData）。
-// 離頁重進由 initActivitiesSectionSwitch 呼 resetActivitiesFetchCache 清掉 → 抓最新內容。
+// single-flight fetch cache（CLAUDE.md *-source.js 慣例）：讓 init 期 prefetch 與 hero 播完後的 render 共用同一次 fetch。
+// ⭐進頁**不清**（P1-4）：SPA 換頁不換 JS context，cache 天然存活 → 回訪 render 吃舊值＝秒開，背景 revalidate 拿新值供下次。
+//   硬重整＝全新 context＝cache 空＝必走網路（sessionStorage 只當災難備援），後台編輯「重整即生效」不變。
+// entry 存 { promise, produce, epoch }：produce=原始 producer thunk（revalidate 用它重抓、不經 cache）；epoch=抓取時的 visit 序號。
+let _visitEpoch = 0;
+export function beginActivitiesVisit() { _visitEpoch++; }  // 每次進頁 ++：revalidate 只重抓「上次 visit（epoch 較舊）」的 key，跳過本次已新抓的（免冷訪重抓）
 const _flightCache = new Map();
-const flight = (key, fn) => { if (!_flightCache.has(key)) _flightCache.set(key, fn()); return _flightCache.get(key); };
-export function resetActivitiesFetchCache() { _flightCache.clear(); }
+function flight(key, produce) {
+  if (!_flightCache.has(key)) {
+    const promise = produce();
+    // 失敗（Directus 掛且無 last-known-good）→ 逐出，讓 user 重點分頁能重試（rejected promise 不可留快取、否則永久卡）
+    promise.catch(() => { if (_flightCache.get(key)?.promise === promise) _flightCache.delete(key); });
+    _flightCache.set(key, { promise, produce, epoch: _visitEpoch });
+  }
+  return _flightCache.get(key).promise;
+}
+
+// last-known-good：Directus 掛掉時的災難備援（本地 /data/*.json 是假資料、渲染無意義 → 全退場，改存「上次成功的真資料」）。
+// 存最終 shape（groupByYear 後、render 直接吃）；key 對齊 flight key。只在網路失敗時墊背、不設 TTL（正常路徑永遠走網路）。
+const LKG_PREFIX = 'sccd:act:';
+function saveLKG(key, data) { try { sessionStorage.setItem(LKG_PREFIX + key, JSON.stringify(data)); } catch {} }
+function readLKG(key) { try { const s = sessionStorage.getItem(LKG_PREFIX + key); return s ? JSON.parse(s) : null; } catch { return null; } }
+
+// 進頁背景重抓已快取的 key（P1-4，post-hero 呼叫避開進場動畫窗口）：弱機怕並發 → 序列逐支；離頁即停。
+// 只重抓「上次 visit」的 key（epoch 較舊）→ 冷訪剛抓的不重複；成功替換 entry（LKG 由 producer saveLKG 一併更新）、失敗保留舊值。
+export async function revalidateActivitiesData() {
+  for (const [key, entry] of [..._flightCache]) {
+    if (entry.epoch === _visitEpoch) continue;  // 本次 visit 已新抓 → 跳過
+    if (typeof document !== 'undefined' && !document.getElementById('activities-content-section')) return;  // 離頁即停
+    try {
+      const fresh = await entry.produce();
+      _flightCache.set(key, { promise: Promise.resolve(fresh), produce: entry.produce, epoch: _visitEpoch });
+    } catch { /* 重抓失敗 → 保留舊快取（含上次 last-known-good） */ }
+  }
+}
 
 export function loadActivityCollection(collection, fallbackUrl, opts = {}) {
   return flight(`col:${collection}:${opts.category || ''}:${opts.sortByDate ? 1 : 0}`, () => _loadActivityCollection(collection, fallbackUrl, opts));
 }
 async function _loadActivityCollection(collection, fallbackUrl, opts = {}) {
+  const lkgKey = `col:${collection}:${opts.category || ''}:${opts.sortByDate ? 1 : 0}`;  // 對齊 flight key
   try {
     // 圖片走 CloudFront（見 imageUrl / normalizeFiles）→ 要檔案的 filename_disk：poster.filename_disk（單檔）、
     // images 是 files M2M（fields=* 只回 junction id）→ 深取 images.directus_files_id.filename_disk。
     // sessions（conference 每日場次 o2m）：fields=* 只回 session id 陣列 → 必須 sessions.* 深取才拿到 titleEn/guests；
     //   只有 activities_conferences 有此欄，其他 collection 帶上會 400（未知欄）整包 fetch fail → 只對 conferences 加。
     const sessionsField = collection === 'activities_conferences' ? ',sessions.*' : '';
-    const res = await fetch(`${CMS_API_BASE}/${collection}?limit=-1&sort=sort&fields=*,poster.filename_disk,images.directus_files_id.filename_disk${sessionsField},${REF_FIELDS}`);
+    const res = await fetchWithTimeout(`${CMS_API_BASE}/${collection}?limit=-1&sort=sort&fields=*,poster.filename_disk,poster.width,poster.height,images.directus_files_id.filename_disk${sessionsField},${REF_FIELDS}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const rows = (await res.json()).data;
     if (!Array.isArray(rows) || !rows.length) throw new Error('empty');
@@ -194,10 +235,14 @@ async function _loadActivityCollection(collection, fallbackUrl, opts = {}) {
       const key = it => { const d = it.dates?.[0]; return d ? d.startYear * 10000 + (d.startMonth || 0) * 100 + (d.startDay || 0) : -Infinity; };
       mapped.sort((a, b) => key(b) - key(a));
     }
-    return groupByYear(mapped);
+    const grouped = groupByYear(mapped);
+    saveLKG(lkgKey, grouped);
+    return grouped;
   } catch (err) {
-    console.warn(`[activities-source] ${collection} CMS fetch failed → 本地 ${fallbackUrl}:`, err.message);
-    return fetch(sitePath(fallbackUrl)).then(r => r.json());
+    // Directus-only（本地 JSON 是假資料）→ 讀 sessionStorage last-known-good；連它都沒有 → throw 讓 panel 顯示錯誤態
+    const lkg = readLKG(lkgKey);
+    if (lkg) { console.warn(`[activities-source] ${collection} fetch failed → last-known-good:`, err.message); return lkg; }
+    throw err;
   }
 }
 
@@ -216,7 +261,7 @@ export function loadPermanentExhibitions(fallbackUrl) {
 }
 async function _loadPermanentExhibitions(fallbackUrl) {
   try {
-    const res = await fetch(`${CMS_API_BASE}/activities_exhibitions_permanent?limit=-1&sort=sort&fields=*,mainImage.filename_disk,events.*,events.albumImages.directus_files_id.filename_disk`);
+    const res = await fetchWithTimeout(`${CMS_API_BASE}/activities_exhibitions_permanent?limit=-1&sort=sort&fields=*,mainImage.filename_disk,events.*,events.albumImages.directus_files_id.filename_disk`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const rows = (await res.json()).data;
     if (!Array.isArray(rows) || !rows.length) throw new Error('empty');
@@ -230,10 +275,13 @@ async function _loadPermanentExhibitions(fallbackUrl) {
         .sort((a, b) => String(b.startDate || '').localeCompare(String(a.startDate || '')))  // 新→舊
         .map(mapPermanentEvent),
     }));
-    return [{ year: '', items }];
+    const grouped = [{ year: '', items }];
+    saveLKG('perm-exhibitions', grouped);
+    return grouped;
   } catch (err) {
-    console.warn(`[activities-source] permanent CMS fetch failed → 本地 ${fallbackUrl}:`, err.message);
-    return fetch(sitePath(fallbackUrl)).then(r => r.json());
+    const lkg = readLKG('perm-exhibitions');
+    if (lkg) { console.warn('[activities-source] permanent fetch failed → last-known-good:', err.message); return lkg; }
+    throw err;
   }
 }
 
@@ -251,16 +299,20 @@ const MOMENT_COLLECTIONS = [
 export async function loadGeneralActivitiesAlbum() {
   try {
     const perCol = await Promise.all(MOMENT_COLLECTIONS.map(async ([col, cat]) => {
-      const res = await fetch(`${CMS_API_BASE}/${col}?limit=-1&sort=sort&fields=*,poster.filename_disk,images.directus_files_id.filename_disk`);
+      const res = await fetchWithTimeout(`${CMS_API_BASE}/${col}?limit=-1&sort=sort&fields=*,poster.filename_disk,images.directus_files_id.filename_disk`);
       if (!res.ok) throw new Error(`${col} HTTP ${res.status}`);
       const rows = (await res.json()).data;
       return (Array.isArray(rows) ? rows : []).map(r => mapRow(r, cat));
     }));
     const merged = perCol.flat();
     if (!merged.length) throw new Error('empty');
-    return groupByYear(merged);
+    const grouped = groupByYear(merged);
+    saveLKG('moment-album', grouped);
+    return grouped;
   } catch (err) {
-    console.warn('[activities-source] moment 合併 CMS fetch failed → 本地 general-activities.json:', err.message);
-    return fetch(sitePath('/data/general-activities.json')).then(r => r.json());
+    // library-panels loadAlbumItemsCached 已 .catch(()=>null)：全掛且無 last-known-good 則該類相簿為空（不掉回假資料）
+    const lkg = readLKG('moment-album');
+    if (lkg) { console.warn('[activities-source] moment fetch failed → last-known-good:', err.message); return lkg; }
+    throw err;
   }
 }

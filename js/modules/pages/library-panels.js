@@ -2094,9 +2094,10 @@ async function initFilesPanel() {
 // ── Album Panel ───────────────────────────────────────────────────────────────
 
 const ALBUM_SOURCES = [
-  // 全數接 Directus＝單一 source of truth（user 2026-08-17 拍板）。各 loader 自帶本地 JSON fallback（CMS 掛掉照常渲染）。
-  // ⚠️「Directus 取代本地、非合併」＋album 過濾無圖項目 → 後台某類「有 row 但 0 圖」時該類相簿為空（非掉回本地）；
-  //    等後台補圖才會顯示。degree-show/moment 走專用攤平/合併 loader（見各 source 檔）。
+  // 全數接 Directus＝單一 source of truth（user 2026-08-17 拍板；2026-09-02 起 Directus-only——本地 JSON fallback
+  // 全退場，loader 失敗改讀 sessionStorage last-known-good、都沒有則 throw → 下方 .catch(()=>null) 該類相簿缺席）。
+  // ⚠️album 過濾無圖項目 → 後台某類「有 row 但 0 圖」時該類相簿為空；等後台補圖才會顯示。
+  //    degree-show/moment 走專用攤平/合併 loader（見各 source 檔）。
   { load: () => loadActivityCollection('activities_workshops', '/data/workshops.json'), cat: 'workshop', isDegreeShow: false },
   { load: loadDegreeShowAlbum,            cat: 'degree-show',      isDegreeShow: false },
   { load: loadSummerCamp,                 cat: 'summer-camp',      isDegreeShow: false },

@@ -2,7 +2,7 @@
  * Degree Show 資料源（共用）
  * Directus activities_degree_show（+ o2m events、files 圖片）→ 本地 degree-show.json 的
  * year-keyed shape（degree-show-data-loader.js 的 list 與 detail 都吃這個）。
- * Directus 失敗 / 空 → fallback 本地 /data/degree-show.json（同 summer-camp-source pattern）。
+ * Directus-only（同 summer-camp-source pattern）：失敗 → sessionStorage last-known-good（上次成功真資料）→ 都沒有 throw。
  *
  * 欄名對映（後台 → 前台）：titleZh→title、titleEn→title_en、bannerImage→heroImage、
  *   mainVideoUrl→videoUrl、poster(files)→poster(第一張)、event.startDate/endDate→time 字串、
@@ -11,10 +11,18 @@
  */
 import { CMS_API_BASE, CMS_CDN_BASE } from '../../config/api.js';
 import { pdfOpenUrl } from './pdf-url.js';
-import { sitePath } from '../ui/site-base.js';
 
 const CMS_COLLECTION = 'activities_degree_show';
-const FALLBACK_JSON = 'data/degree-show.json';
+
+// 逾時 + last-known-good：同 activities-source / summer-camp-source（本地 /data/*.json 是假資料 → 退場）。
+function fetchWithTimeout(url, ms = 10000) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(t));
+}
+const LKG_KEY = 'sccd:act:degree-show';
+function saveLKG(data) { try { sessionStorage.setItem(LKG_KEY, JSON.stringify(data)); } catch {} }
+function readLKG() { try { const s = sessionStorage.getItem(LKG_KEY); return s ? JSON.parse(s) : null; } catch { return null; } }
 // events.activity 是 M2A（可連任一 activity collection）；per-collection deep-fetch 各自顯示欄位 + images
 const ACTIVITY_COLLECTIONS = [
   'activities_competitions', 'activities_conferences', 'activities_exhibitions_special',
@@ -42,16 +50,18 @@ const FIELDS = `*,coverImage.filename_disk,bannerImage.filename_disk,events.*,ev
 export async function loadDegreeShow() {
   try {
     const url = `${CMS_API_BASE}/${CMS_COLLECTION}?limit=-1&sort=sort&fields=${FIELDS}&deep[events][_sort]=sort`;
-    const res = await fetch(url);
+    const res = await fetchWithTimeout(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const rows = (await res.json()).data;
     if (!Array.isArray(rows) || !rows.length) throw new Error('empty');
-    return groupByYear(rows.map(mapRow));
+    const grouped = groupByYear(rows.map(mapRow));
+    saveLKG(grouped);
+    return grouped;
   } catch (err) {
-    console.warn('[degree-show] CMS fetch failed, fallback to /data/degree-show.json:', err.message);
-    return fetch(sitePath(FALLBACK_JSON))
-      .then(r => r.json())
-      .then(groupFallbackByYear);
+    // Directus-only → last-known-good；連它都沒 → throw（activities switchToSection 顯示錯誤態；detail 頁 catch 自理）
+    const lkg = readLKG();
+    if (lkg) { console.warn('[degree-show] fetch failed → last-known-good:', err.message); return lkg; }
+    throw err;
   }
 }
 
@@ -89,13 +99,6 @@ function groupByYear(rows) {
     (out[year] ||= []).push(r);
   });
   return out;
-}
-
-function groupFallbackByYear(data) {
-  return Object.fromEntries(Object.entries(data || {}).map(([year, entries]) => [
-    year,
-    Array.isArray(entries) ? entries : [entries],
-  ]));
 }
 
 function mapRow(r) {
