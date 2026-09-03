@@ -61,7 +61,6 @@
 ├── docs/                       # 深度參考文件（CLAUDE.md 只當索引、細節看這裡）
 │   ├── SPA-接-Directus-Headless-最佳實踐.md   # 後台架構權威文件（⚠️前台部署部分過時，以「前台上線流程」為準）
 │   ├── 前台上線流程-S3-CloudFront.md          # 前台正式上線（S3+CloudFront）權威文件
-│   ├── activities-優化四輪.md ＋ 優化五輪.md   # 大清單效能優化的完整診斷與方案（見「效能最佳實踐」）
 │   ├── 橫向手機版最佳實踐.md    # 矮橫向 RWD 的原理與業界慣例
 │   └── 動畫盤點表.md ＋ 無障礙稽核與改進清單.md
 └── package.json                # scripts：build:css / watch:css / check:ts
@@ -237,7 +236,7 @@ xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96p
 - ⚠️「連續循環 + 平滑回彈」只有 JS/GSAP 能做（純 CSS 循環放開必 instant snap）；「單次滑出看一眼就回」才能純 CSS transition。always-on 與手機一律不回彈。
 - **用詞**：對話中講「**回彈 / 放開平滑回去**」就是 `bindMarqueeReturn` 這套。細節見 memory `project_marquee_hover_easeback_unify` / `reference_sitewide_marquee_mechanisms_map`。
 
-## 效能最佳實踐（2026-08~09 activities 優化戰役定案；完整診斷見 docs/activities-優化四輪/五輪.md）
+## 效能最佳實踐（2026-08~09 activities 優化戰役定案；診斷過程 md 已清，完整版見 git 歷史 30ce440 的 docs/activities-優化四~九輪.md）
 
 大清單（百項以上）頁面的鐵則，新頁面／新清單直接照做，別重走一遍診斷：
 
