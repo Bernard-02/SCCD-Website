@@ -366,9 +366,21 @@ body.mode-color #atlas-detail-mask {
   display: block;
   white-space: nowrap;
   overflow: hidden;
+  /* fit-content：遮罩寬貼齊文字（capped 欄寬）→ 切批時內層 cell xPercent 平移「只滑自己文字寬」在此邊被裁＝四向 contained */
+  width: fit-content;
+  max-width: 100%;
   /* 主標字級對齊 list view .atlas-list-item-name（同 var，改一處兩邊同步）；之前是繼承 .atlas-detail-desc 14px */
   font-size: var(--font-size-xs, 0.85rem);
   font-weight: 700;
+}
+/* 切批動畫目標：block cell 寬＝遮罩寬，gsap 只動 cell 的 transform（marquee 動更內層 .atlas-marquee-inner，兩者不撞） */
+.atlas-detail-cell { display: block; }
+/* cat 區塊的遮罩：貼 label 寬（capped 148 欄），讓 cat cell 水平平移也被框在自己文字寬內 */
+.atlas-detail-cat-clip {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  overflow: hidden;
 }
 .atlas-detail-row-cat {
   /* 統一欄寬：各列類別左緣對齊成一直欄（auto 會依字寬讓左緣參差、視覺像靠右，user 2026-08-11）
@@ -423,10 +435,10 @@ body.mode-color #atlas-detail-mask {
 /* 職業 chip 英中距對齊 nav/filter chip 的 2px（--space-en-zh-s）：主 career chip 是 block 兩行堆疊、
    沒有 .anchor-nav-inner 的 flex gap → 給 EN 補 margin-bottom（EN 恆有 ZH 隨後，後台兩欄必填）。
    subchip 是 flex-row EN/ZH 同行 → :not(.atlas-alumni-subchip) 排除。list view career chip 同理。 */
-.atlas-alumni-career:not(.atlas-alumni-subchip) .atlas-alumni-career-en,
-.atlas-list-col-career-en {
+.atlas-alumni-career:not(.atlas-alumni-subchip) .atlas-alumni-career-en {
   margin-bottom: var(--space-en-zh-s);
 }
+/* list view 職業chip 是 flex-row baseline 同行（EN+ZH），EN 的 mb 只會多墊高一行 → 去掉（user 09-01） */
 
 /* alumni btn + career chip 並排 row（map view 才有 career chip insert；list view 無此 wrapper）
    career 在 flex 流內貼 alumni 右側、頂部對齊 alumni 頂部（align-items: flex-start）
@@ -595,8 +607,14 @@ body.mode-color #atlas-detail-mask {
   right: 32px;
   /* left: set dynamically by JS after measuring container padding */
   display: none;
-  grid-template-columns: repeat(9, minmax(0, 1fr));
-  gap: var(--spacing-xl, 3rem);   /* 欄間 48px（user 09-01）；label→host 另用 host margin-left 收窄，見 .atlas-list-col[data-category="host"] */
+  /* 09-01：4 欄之間 gap 一律 3xl 96（顯式 gap 軌、gap:0）：faculty | 96 | host | 96 | employ | 96 | partners
+     （欄在 1/3/5/7 軌，見下 per-category grid-column）。欄「內」兩子欄的間距另由 .atlas-list-col-items gap 控（較小） */
+  grid-template-columns:
+    minmax(0, 1fr) var(--spacing-3xl, 6rem)
+    minmax(0, 1fr) var(--spacing-3xl, 6rem)
+    minmax(0, 1fr) var(--spacing-3xl, 6rem)
+    minmax(0, 1fr);
+  gap: 0;
   z-index: 50;
   pointer-events: auto;
   user-select: none;
@@ -618,7 +636,6 @@ body.mode-color #atlas-detail-mask {
    label col 套 span 1（只放 title + career chip，無 items 不需 sub-col）
    title 置頂、items 排在 title 下方；items-container 用 flex:1 接收剩餘高度 */
 .atlas-list-col {
-  grid-column: span 2;
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm, 1rem);
@@ -626,28 +643,49 @@ body.mode-color #atlas-detail-mask {
   overflow: visible; /* title chip 旋轉不裁切 */
   height: 100%;
 }
+/* 4 欄放進顯式 gap 軌的 1/3/5/7（見 #atlas-list-view grid-template-columns）；手機 repeat(2)/橫向 1fr 各自覆蓋 */
+.atlas-list-col[data-category="faculty"]  { grid-column: 1; }
+.atlas-list-col[data-category="host"]     { grid-column: 3; }
+.atlas-list-col[data-category="employ"]   { grid-column: 5; }
+.atlas-list-col[data-category="partners"] { grid-column: 7; }
 
-/* 系友 label 是 host 欄的標頭 → host 往左靠向它＝label→host 縫比其餘 48 小（user 09-01「系友到 host 可以小一點」）。
-   空間守恆：faculty→label / host→employ 都要保 48，省下的縫只能給 host 寬度 → host 因此比 employ/partners 略寬（此為必然取捨）。
-   手機 / 橫向 gate label 隱藏、版面不同 → 各自 reset margin。 */
-.atlas-list-col[data-category="host"] {
-  margin-left: -1.5rem;
-}
 
-/* Label col：Alumni title + career chip 垂直堆疊（無 items list）
+/* Label col：Alumni title + 職業chip 水平並排（user 09-01「職業chip 一行、獨立在 Alumni 右側」）
    經 .atlas-list-group { display: contents } 提升為 #atlas-list-view grid 直接 child（與 faculty/host/employ/partners 同層）
-   span 1 = 1/9 viewport，與 host/employ 內每個 sub-col 等寬
-   career chip 用 width:100% + word-break:break-word 在窄欄內 wrap，不會推右側 cols
-   旋轉宿主在這層，title-wrapper 提供 yPercent reveal 遮罩 */
+   span 1 = 1/9 viewport；職業chip 一行 nowrap 會超出 label 欄往右，落在 host 欄「已空出」的頂端帶（host 標題已移欄底）
+   flex-row gap = xs(8px) = activities sub tab 間距；旋轉宿主在這層，title-wrapper 提供 yPercent reveal 遮罩 */
 .atlas-list-group-label-col {
-  grid-column: span 1;
   align-self: flex-start;
   display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xs, 0.5rem);
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  gap: var(--spacing-lg, 2rem);   /* Alumni title ↔ 職業chip gap = lg 32px = faculty filter bar(.faculty-dept-bar Full-time/Part-time/Admin) gap-lg（user 09-01 修正，非 xs） */
   min-width: 0;
   transform-origin: left center;
-  /* 旋轉角度由 JS 設成 inline transform */
+  /* 旋轉角度由 JS 設成 inline transform；09-01 起不再是 grid child，而是 host 欄頂端的 flex-row 欄頭 */
+}
+
+/* career mask（JS 建，overflow:hidden 遮罩）在 flex-row 內不被壓縮 → 職業chip 完整一行往右伸 */
+.atlas-list-col-career-mask {
+  flex-shrink: 0;
+}
+
+/* 職業chip slot（user 09-01「移到右邊、對齊 employ col 右緣」）：employ 欄頂端靠右，absolute 不佔 employ items 流
+   （employ 仍靠 padding-top 對齊 faculty/host）；width 自動貼職業chip、right:0 讓右緣貼 employ 右緣，長職業往左長；
+   rotate 由 JS 套較小角度（randDeg 減半），transform-origin 頂右錨定不跑位 */
+.atlas-list-career-slot {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
+  transform-origin: top right;
+}
+
+/* ⚠️ Alumni title wrapper 在 flex-row labelCol 內也要 flex-shrink:0：否則被 career mask（shrink:0, ~154px）
+   擠壓到 ~0 寬、overflow:hidden 裁掉整個 Alumni 標題（實測收成 1.3px）。兩者都不縮 → 一起超出窄 label 欄往右。 */
+.atlas-list-group-label-col > .atlas-list-col-title-wrapper {
+  flex-shrink: 0;
 }
 
 /* ── Column title block（旋轉 host，flex-row 把 title + 可選 career chip 並排）
@@ -681,16 +719,20 @@ body.mode-color #atlas-detail-mask {
 .atlas-list-col-career {
   align-self: flex-start;
   width: max-content;
-  max-width: 100%;
+  max-width: none;   /* 一行不 wrap、可超出窄 label 欄往右（user 09-01） */
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 6px;          /* EN/ZH 同行間距（對齊 .atlas-list-col-title） */
+  white-space: nowrap;
+  /* 職業chip 照 nav btn(.atlas-list-col-title) 一樣渲染：同 padding 6/8/5、EN+ZH 一行、line-height 交給 span（user 09-01：同渲染就無下 padding 問題） */
   padding: 6px 8px 5px;
   font-family: var(--font-en, 'Inter'), var(--font-zh, 'Noto Sans TC'), system-ui, sans-serif;
   font-size: var(--font-size-s);
   font-weight: 700;
-  line-height: var(--line-height-s);   /* s 標準行距 1.3（同 map view career chip） */
   color: #000;
   /* bg 由 JS inline 設 random 三原色；clip-path 統一上→下 reveal、下→上 collapse */
   clip-path: inset(0% 0% 100% 0%);
-  word-break: break-word;
   user-select: none;
   pointer-events: none;
   /* 收/展 height + padding 動畫，overflow:hidden 讓內容隨 height 乾淨裁切 */
@@ -704,7 +746,11 @@ body.mode-color #atlas-detail-mask {
 
 .atlas-list-col-career-en,
 .atlas-list-col-career-zh {
-  display: block;
+  display: inline;
+  white-space: nowrap;
+  font-size: var(--font-size-s, 1rem);   /* 對齊 .atlas-list-col-title-en/-zh：字級/字重/行高全同＝跟 nav btn 一樣渲染 */
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 /* ── Column title chip（黑底白字，EN ZH 並排於同一行）
@@ -721,9 +767,36 @@ body.mode-color #atlas-detail-mask {
   white-space: nowrap; /* EN + ZH 同行，不換行 */
 }
 
-/* host/employ 副 title：用 --lib-bg / --lib-fg（淺/深灰自動切 mode）區分跟主 cols 黑底白字 chip */
-.atlas-list-col[data-category="host"] .atlas-list-col-title,
-.atlas-list-col[data-category="employ"] .atlas-list-col-title {
+/* host/employ 標題移到欄底（user 09-01「標題移欄底」）：Alumni 傘下的 host/就職 不在頂端當欄標題，
+   改成貼欄底左側的黑方塊、跟分頁鈕同一列；頂端帶空出來給 Alumni 職業chip 往右延伸／對齊 faculty。
+   標題保留黑底白字（= base .atlas-list-col-title，移除舊灰底 override）。morph 目標 colTitle('host'/'employ')
+   仍指到這顆 title（螢幕座標 → 飛到欄底），只是落點從頂端變欄底。 */
+.atlas-list-col[data-category="host"],
+.atlas-list-col[data-category="employ"] {
+  position: relative;   /* 欄底 absolute 標題的定位錨 */
+}
+.atlas-list-col[data-category="host"] > .atlas-list-col-titleblock,
+.atlas-list-col[data-category="employ"] > .atlas-list-col-titleblock {
+  position: absolute;
+  left: 0;
+  bottom: 6px;   /* 對齊 nav-item（bottom:10px）中線，實測後可微調 */
+  z-index: 1;
+}
+/* employ 欄頂端空著（標題在欄底、Alumni 欄頭在 host 那欄）→ 補 padding-top 對齊 faculty/host 首列（headerBand 實測 47.2）。
+   host 欄頂端已有 Alumni 欄頭（.atlas-list-group-label-col）自然撐出 band，不需 padding-top。 */
+.atlas-list-col[data-category="employ"] > .atlas-list-col-items {
+  padding-top: var(--spacing-xl, 3rem);
+}
+
+/* host/就職 欄底標題 + 其欄內分頁箭頭 = 灰色 sub-tab（user 09-01 #2；區別 faculty/partners 的黑色主標/黑箭頭）。
+   ⚠️ 限 > .atlas-list-col-titleblock：host 欄頂端巢的 Alumni 標題要留黑、不可被灰到。 */
+.atlas-list-col[data-category="host"] > .atlas-list-col-titleblock .atlas-list-col-title,
+.atlas-list-col[data-category="employ"] > .atlas-list-col-titleblock .atlas-list-col-title {
+  background: var(--lib-bg);
+  color: var(--lib-fg);
+}
+.atlas-list-col[data-category="host"] .atlas-list-nav-btn,
+.atlas-list-col[data-category="employ"] .atlas-list-nav-btn {
   background: var(--lib-bg);
   color: var(--lib-fg);
 }
@@ -754,7 +827,7 @@ body.mode-color #atlas-detail-mask {
 .atlas-list-col-items {
   display: flex;
   flex-direction: row;
-  gap: var(--spacing-sm, 1rem);
+  gap: var(--spacing-xs, 0.5rem);   /* 09-01：欄內兩子欄間距 16→8（user「每個分類內兩 col 之間 gap 減少」）；faculty/partners 等所有欄一致 */
   flex: 1;
   min-width: 0;
   min-height: 0;
@@ -916,32 +989,42 @@ body.mode-color #atlas-detail-mask {
   bottom: 10px;
   display: flex;
   flex-direction: row;
-  justify-content: space-between; /* < 頂欄左緣、> 頂欄右緣（手機桌面一致） */
-  gap: 12px;
+  justify-content: flex-end;   /* 09-01：箭頭移到欄右側；欄底左側留給 host/就職 標題方塊 */
+  /* 箭頭緊貼欄右緣，hover 旋轉(+8°)時右上角凸出被 .atlas-list-col-items overflow:hidden 切掉(實測 1.7px)
+     → 右邊留 5px 讓旋轉有餘裕（左側有 96px 欄距、不需要）（user 09-01「hover 旋轉被切到」） */
+  padding-right: 5px;
+  gap: 8px;
   align-items: flex-end;
 }
 
+/* 分頁鈕 → 黑方塊（user 09-01「btn 改成方塊的那種」）；尺寸 30×30 對齊 sub-tab 標題 chip 高度（font-size-s 16 × 1.2 + padding 11 ≈ 30，user 09-01 #5「箭頭跟 nav btn 一樣大」） */
 .atlas-list-nav-btn {
-  background: none;
+  background: black;
+  color: white;
   border: none;
-  /* 左右 0 → < / > icon 真正頂到欄左右緣（user 2026-06-25；2026-07-03 起手機同套） */
-  padding: 4px 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
   cursor: var(--cursor-pointer);
-  color: black;
   opacity: 1;
-  font-size: 19.5px;
+  font-size: 15px;
   line-height: 1;
-  transition: opacity var(--dur-micro) ease;
+  transform: rotate(var(--nav-rot, 0deg));   /* 隨機微傾斜（±1~3°）由 JS 存 --nav-rot；用 var 讓 hover 能 calc 疊加 */
+  transition: transform var(--dur-base, 0.3s) ease;
 }
 
 .atlas-list-nav-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.35;
   cursor: var(--cursor-not-allowed);
 }
-
+/* 09-01：hover 疊加傾斜 +8°、不改不透明度（對齊全站黑方塊 icon 鈕 .tl-icon-btn-inner hover rotate 慣例）；
+   calc(var(--nav-rot) + 8deg) 疊在 JS 給的隨機底角上 */
 @media (min-width: 768px) {
   .atlas-list-nav-btn:not(:disabled):hover {
-    opacity: 1;
+    transform: rotate(calc(var(--nav-rot, 0deg) + 8deg));
   }
 }
 
@@ -1164,6 +1247,11 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
     grid-column: span 1;
     margin-left: 0;   /* 桌面 label→host 收窄的 margin 手機不需要 */
   }
+  /* 桌面把 4 欄放進顯式 1/3/5/7 軌；手機 repeat(2) → faculty/partners reset 回全寬 span 2（一次顯示一類、全寬） */
+  #atlas-list-view .atlas-list-col[data-category="faculty"],
+  #atlas-list-view .atlas-list-col[data-category="partners"] {
+    grid-column: span 2;
+  }
   /* Alumni label col（Alumni 大標 + career chip）：tab 已標示分類，手機不佔位 */
   .atlas-list-group-label-col {
     display: none !important;
@@ -1172,6 +1260,16 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   #atlas-list-view .atlas-list-col[data-category="faculty"] > .atlas-list-col-titleblock,
   #atlas-list-view .atlas-list-col[data-category="partners"] > .atlas-list-col-titleblock {
     display: none;
+  }
+  /* 桌面 host/就職 標題移欄底（absolute）+ items 讓位 padding-top 是桌面專屬；
+     手機 host/employ 標題留頂端當上下兩列的列標 → reset 回正常流 + 去掉頂端讓位 */
+  #atlas-list-view .atlas-list-col[data-category="host"] > .atlas-list-col-titleblock,
+  #atlas-list-view .atlas-list-col[data-category="employ"] > .atlas-list-col-titleblock {
+    position: static;
+  }
+  #atlas-list-view .atlas-list-col[data-category="host"] > .atlas-list-col-items,
+  #atlas-list-view .atlas-list-col[data-category="employ"] > .atlas-list-col-items {
+    padding-top: 0;
   }
   /* item 自然高 + 固定 gap 由上往下排（解除桌面 slot 均分制的 min-height 撐高）：
      4/5 行 item 視覺間距才會一致、不殘留 slot 死空間（atlas.js LIST_GAP_MOBILE 同步） */
@@ -1377,6 +1475,11 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   /* 矮橫向寬 ≥768 會吃到桌面 host 名稱 min-height：自然高不套 box 置中 */
   .atlas-list-item[data-category="host"] .atlas-list-item-name {
     min-height: 0;
+  }
+  /* 桌面 host/就職 items 頂端讓位 padding-top（給移欄底的標題）在橫向 gate 不需要（標題已 display:none）→ reset */
+  #atlas-list-view .atlas-list-col[data-category="host"] > .atlas-list-col-items,
+  #atlas-list-view .atlas-list-col[data-category="employ"] > .atlas-list-col-items {
+    padding-top: 0;
   }
   .atlas-list-col-items {
     padding-bottom: 64px;       /* chevron 帶（atlas.js CHEVRON_BAND_MOBILE=64 同步） */
