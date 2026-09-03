@@ -13,6 +13,7 @@ import { reapplySearch } from '../ui/activities-search.js';
 import { setActiveNavBtn, showPanel } from '../ui/section-switch-helpers.js';
 import { playAdmissionPanelExit, playAdmissionPanelReveal, setupAdmissionReveal } from './admission-data-loader.js';
 import { playClipReveal, navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
+import { snapRowsShown } from '../ui/list-row-reveal.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
@@ -24,8 +25,16 @@ import { scrollWindowNoSnap } from '../ui/snap-scroll.js';
 const loaded = {};
 // 防連點：exit/reveal 動畫期間 swallow 重複觸發
 let switching = false;
+// 八輪 Part 1：分拍——exit 完後的「空拍」時長（乾淨空白呼吸＋給瀏覽器一幀把 exit 尾幀畫完，避免 build/reveal
+//   疊進 exit 尾幀掉幀）。user 「適當讓動畫完整跑完、不必趕」→ 想更舒緩只調此常數。
+const SWITCH_BEAT_MS = 150;
+// idle builder 的「切換讓路」gate（第三個 gate，與 scroll/accordion 並存）：用 window 時間戳而非 export
+//   isSectionSwitching()＝避免 activities-data-loader 反向 import 本檔造成循環＋把 section-switch 拖進
+//   admission/alumni/legal/library 等只 import loadListInto 的頁面的模組圖。idleBuild 讀 window 旗標（見該處）。
 // P2-4 latest-wins：動畫期間被吞的最後一次點擊記在這，finally 收尾接手（中間連點丟棄）
 let pendingSwitch = null;
+// Part 4-1：進行中那輪 switch 的 promise（guard 命中時回傳它，讓 navigateToItem 的 await 真正等到 render，不再靠 sleep+輪詢硬等）
+let currentSwitchPromise = null;
 
 // box 是否「真的是捲動容器」：矮橫向 landscape gate 把 activities 的 100vh frame 拆掉（overflow 改 visible、
 // window 捲），但 class 還在 → 看 computed overflow-y 不看寬度（同 list-accordion getScrollableBox / admission）。
@@ -167,17 +176,23 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
   centerSectionNavBtn(section);
   if (!itemId) return;
 
-  // 等 fetch + DOM render 完成後再 scroll。
-  await new Promise(r => setTimeout(r, 150));
+  // 等 fetch + DOM render 完成後再 scroll。Part 4-2：await switchToSection 現真正涵蓋 fetch+render（非 guard 情況）→ 刪 150ms sleep，只留 rAF 一幀等 layout。
   await new Promise(r => requestAnimationFrame(r));
 
   // Directus 慢時 panel 可能還沒 render 完：navigateToItem 開頭的 await switchToSection 會被 switching guard
   // 短路（deep-link 時 init 那次 switch 還在跑、switching===true）→ 不真的等載入；加上 deep-link hero wait 封頂
   // 0.9s 縮短緩衝 → 單次 getElementById 常撈不到 target → 舊版直接 return = 永遠卡在 hero（user 2026-06-28）。
   // 改短輪詢等 target 出現（最多 ~3s）；撈不到（item 不存在 / 無 media 被濾掉 / id 對不上）就退而捲到 section、別卡 hero。
+  // Part 4-2：輪詢降到 12×100ms（只剩 guard-queue 拿到「當前輪」promise 與極慢網路兜底；idle 補建上線後 _lazyRenderAll 多為 no-op）。
+  // 八輪 Part 3：先「分幀建到目標」（每幀 ~8ms、rAF 續跑）＝目標多深都零大 task；await 完成才往下。
+  //   傳 targetDomId → 分幀版（建到目標或全建完 resolve）；餘量未建完時 io/idle 續背景建。
+  await Promise.all([...document.querySelectorAll(`#panel-${section} [data-lazy-list]`)].map(c => {
+    const fn = /** @type {any} */ (c)._lazyRenderAll;
+    return typeof fn === 'function' ? fn(`item-${itemId}`) : Promise.resolve();
+  }));
   let target = document.getElementById(`item-${itemId}`);
-  for (let i = 0; i < 30 && !target; i++) {
-    // lazy 清單：目標 item 可能還沒建（不在首批）→ 先把該 section 的 lazy list 全建出來再找（idempotent、建完即 no-op）
+  // 兜底輪詢（guard-queue 拿當前輪 promise、極慢網路）：仍撈不到才無參數同步全建保險（分幀已建過→多為 no-op）
+  for (let i = 0; i < 12 && !target; i++) {
     document.querySelectorAll(`#panel-${section} [data-lazy-list]`).forEach(c => { const fn = /** @type {any} */ (c)._lazyRenderAll; if (typeof fn === 'function') fn(); });
     await new Promise(r => setTimeout(r, 100));
     target = document.getElementById(`item-${itemId}`);
@@ -745,10 +760,10 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
         if (!panel) return;
         if (typeof gsap !== 'undefined') {
           const rows = panel.querySelectorAll('.list-reveal-row');
-          if (rows.length) { gsap.killTweensOf(rows); gsap.set(rows, { clearProps: 'transform' }); }
+          if (rows.length) snapRowsShown(rows);  // Part 1：CSS 直達終態（清 inline transform；無 GSAP）
           // 斑馬底色 clip（setupAdmissionReveal 設的 inset(100%)）也直接到位：揭露它的 ScrollTrigger 綁 window，
           // inner-scroll box 捲動不會驅動它 → onEnter 沒 fire 時整個 zebra item 被裁成空白且永不恢復
-          panel.querySelectorAll('.list-item.list-item-zebra').forEach(it => gsap.set(it, { clearProps: 'clipPath' }));
+          /** @type {NodeListOf<HTMLElement>} */ (panel.querySelectorAll('.list-item.list-item-zebra')).forEach(it => { it.style.clipPath = ''; });  // P2-3：直寫清
         }
         panel.querySelectorAll('.list-item[data-pre-reveal]').forEach(it => it.removeAttribute('data-pre-reveal'));
         const filterBar = /** @type {HTMLElement | null} */ (panel.querySelector('.activities-filter-bar'));
@@ -811,10 +826,14 @@ function showPanelLoadError(section) {
   el.style.display = 'flex';
 }
 
-async function switchToSection(section, btns, shouldScroll, isInitial = false) {
+// Part 4-1：wrapper 存進行中那輪的 promise；guard 命中回傳它（原本回 undefined → navigateToItem 的 await 形同虛設）。
+function switchToSection(section, btns, shouldScroll, isInitial = false) {
   // P2-4 latest-wins：動畫期間連點記下最後一個，finally 收尾接手（中間的丟棄）→ 點擊不再被整顆吞
-  if (switching) { pendingSwitch = { section, btns, shouldScroll }; return; }
-
+  if (switching) { pendingSwitch = { section, btns, shouldScroll }; return currentSwitchPromise; }
+  currentSwitchPromise = _switchToSection(section, btns, shouldScroll, isInitial);
+  return currentSwitchPromise;
+}
+async function _switchToSection(section, btns, shouldScroll, isInitial = false) {
   const currentPanel = /** @type {HTMLElement | null} */ (document.querySelector('.activities-panel:not(.hidden)'));
   const targetId = `panel-${section}`;
   // 已 active 同 panel：跳過退場/進場動畫；如果是 click（shouldScroll）仍 scroll 對齊 anchor。
@@ -828,6 +847,9 @@ async function switchToSection(section, btns, shouldScroll, isInitial = false) {
   }
 
   switching = true;
+  // 八輪 Part 1-A：切換忙碌旗標（時間戳）→ idle builder 讓路直到 reveal 大致跑完（exit0.4＋空拍0.15＋build＋reveal0.9≈2s；
+  //   2500 寬鬆蓋過、到時自動失效＝不必 thread reveal onDone）。window 旗標避免循環 import（見檔頭註解）。
+  /** @type {any} */ (window).__sccdActSwitchBusyUntil = performance.now() + 2500;
   document.getElementById(targetId)?.querySelector('.panel-load-error')?.remove();  // P1-3：重試時先清掉上次錯誤態
 
   // ⚠️ try/finally：第 5 步把 rows 推到 yPercent:100 (hidden)，第 8 步才 reveal 回 yPercent:0。
@@ -854,6 +876,9 @@ async function switchToSection(section, btns, shouldScroll, isInitial = false) {
         playAdmissionPanelExit(currentPanel, { viewportCull: true }),
         playFilterChipsExit(currentPanel),
       ]);
+      // 八輪 Part 1-B 空拍：exit 跑完給一幀喘息＋乾淨空白，避免緊接的 loadPanel(render+bind+accordion) 同步大塊
+      //   疊進 exit 尾幀＝收起動畫掉幀。想更舒緩只調 SWITCH_BEAT_MS。
+      await new Promise(r => setTimeout(r, SWITCH_BEAT_MS));
     }
 
     // 2. 切按鈕 active 狀態（隨機顏色 + 旋轉）
@@ -1044,7 +1069,7 @@ async function setPanelDescActive(panelId, descType) {
   // 減少動態：直接切 active、不跑 desc exit/reveal 滑入
   if (prefersReducedMotion()) {
     if (current) current.classList.remove('active');
-    gsap.set(target, { clearProps: 'transform' });
+    gsap.set(target, { yPercent: 0 });  // P2-3：保留 inline transform（cache 常溫）
     target.classList.add('active');
     return;
   }
@@ -1067,7 +1092,7 @@ async function setPanelDescActive(panelId, descType) {
   // 顯式 set 回 100 再 reveal，保證每次切換都有滑入動畫
   gsap.set(target, { yPercent: 100 });
   target.classList.add('active');
-  playClipReveal([target]);
+  playClipReveal([target], { clear: false });  // P2-3：transform 常駐 GSAP
 }
 
 function initExhibitionsTypeFilter() {

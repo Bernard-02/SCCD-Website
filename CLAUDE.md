@@ -59,7 +59,9 @@
 ├── images/  assets/            # 圖片與其他資源
 ├── js/config/api.js            # Directus API base 唯一注入點（CMS_API_BASE / CMS_ASSETS_BASE）
 ├── docs/                       # 深度參考文件（CLAUDE.md 只當索引、細節看這裡）
-│   ├── SPA-接-Directus-Headless-最佳實踐.md   # 後台/部署架構權威文件（Lightsail + Apache + Directus）
+│   ├── SPA-接-Directus-Headless-最佳實踐.md   # 後台架構權威文件（⚠️前台部署部分過時，以「前台上線流程」為準）
+│   ├── 前台上線流程-S3-CloudFront.md          # 前台正式上線（S3+CloudFront）權威文件
+│   ├── activities-優化四輪.md ＋ 優化五輪.md   # 大清單效能優化的完整診斷與方案（見「效能最佳實踐」）
 │   ├── 橫向手機版最佳實踐.md    # 矮橫向 RWD 的原理與業界慣例
 │   └── 動畫盤點表.md ＋ 無障礙稽核與改進清單.md
 └── package.json                # scripts：build:css / watch:css / check:ts
@@ -120,16 +122,20 @@ router 換頁時 `runPageExit(route)` await 完成才繼續 cleanup + swap。
 > 架構細節、schema 建法、permission 設定的權威文件＝`docs/SPA-接-Directus-Headless-最佳實踐.md`。
 
 ### 架構
-- **主機**：學校 IT 提供的 Lightsail（Bitnami）。Apache 同時服務：靜態 SPA（前台）＋ reverse proxy `/cms/*` → Directus（Node :8055）＋ PostgreSQL
-- **API base**：`js/config/api.js` 是唯一注入點——`CMS_API_BASE = https://sccdtest.usc.edu.tw/items`、`CMS_ASSETS_BASE = .../assets`。⚠️ 網域帶 test，正式上線換子網域只改這一檔
+- **主機**：學校 IT 提供的 Lightsail（Bitnami）**只跑後台** Directus（Apache reverse proxy `/cms/*` → Node :8055 ＋ MySQL——實測是 MySQL 非 PostgreSQL）。前台靜態檔**不在** Lightsail：開發預覽＝GitHub Pages（bernard-02.github.io/SCCD-Website，push main 自動上線）；正式網域 sccd.usc.edu.tw＝S3 + CloudFront（現仍為舊 WP 站，SPA 首次上線流程見《docs/前台上線流程-S3-CloudFront.md》）
+- **API base**：`js/config/api.js` 是唯一注入點——`CMS_API_BASE = https://sccdtest.usc.edu.tw/items`、`CMS_ASSETS_BASE = .../assets`、`CMS_CDN_BASE = https://d2df28pyzslt2v.cloudfront.net/Directus`。⚠️ 網域帶 test，正式上線換子網域只改這一檔
+- **檔案交付分流**（2026-08-31 起）：圖片＋PDF 走 `CMS_CDN_BASE`（CloudFront 直吃 S3，用即時 `filename_disk` 組 key、不寫死副檔名——離線 webp 轉檔自動跟上；繞過弱機 `/assets` S3 逾時掉圖問題）；`/assets` 只剩下載附件（要漂亮檔名）；影片＝HLS CloudFront 網址直貼
 - **鐵則**：SPA 100% 保留（Directus 只給 JSON）；schema 在後台 GUI 建（不寫 code）；Public role 必須開 Read（沒開 = 前台 fetch 全 401）；collection 名 = endpoint 名
 
 ### 前端資料載入 pattern（`*-source.js` / `*-data-loader.js`）
-1. fetch Directus（`?limit=-1&sort=sort`，排序吃後台 sort 欄、前台不重排）
-2. 失敗（CORS / 斷網 / 5xx / 空資料——**200 但空也要 throw**）→ fallback 讀本地 `/data/*.json`，CMS 掛掉頁面照常渲染
-3. single-flight cache：cache 存 Promise，同頁多個消費者共用一次請求；離頁 reset
-4. 圖片欄位 = Directus 檔案 UUID → `resolveImage` 轉 assets URL；null 用 placeholder
-- 已上 Directus：faculty（fulltime/parttime/admin）、curriculum、activities、admission/summer-camp、degree-show、library（awards/press）、alumni、legal、heroes、about-resources、about-history（年表＋照片兩 collection）、index_video 等；**尚未上**的（如 atlas workshops/industry）暫讀本地 JSON，各 `*-source.js` 檔頭有註明
+兩套失敗策略，新 collection 優先用 A：
+- **A. Directus-only + last-known-good**（activities 全系列 / summer-camp / degree-show，2026-09 起）：本地假資料 fallback 全退場；失敗（逾時 abort / 5xx / **200 但空也要 throw**）→ 讀 sessionStorage 上次成功真資料 → 都沒有才顯示錯誤態。快取進頁不清＋背景 revalidate（latest-wins），後台編輯「硬重整即生效」不變。範本：`activities-source.js`
+- **B. fallback JSON**（faculty / library / footer / ui-labels 等舊 collection）：失敗 → 讀本地 `/data/*.json` 快照，CMS 掛掉照常渲染；大改後台內容時同步更新快照
+共通：
+1. fetch Directus（`?limit=-1&sort=sort`，排序吃後台 sort 欄、前台不重排；例外＝activities 同年內強制月/日新→舊）
+2. single-flight cache：cache 存 Promise，同頁多個消費者共用一次請求
+3. 圖片欄位 = Directus 檔案 UUID → 經 `CMS_CDN_BASE` 組 URL；null 用 placeholder
+- **尚未上 Directus**：alumni 整頁、atlas workshops/industry——暫讀本地 JSON，各 `*-source.js` 檔頭有註明；其餘頁面已全接
 - **影片**：自架（user 明確排除 YouTube）——S3 + CloudFront HLS，原生 `<video>` 播放。⚠️ 播放必須 no-cors（加 crossOrigin 會炸，見 memory）
 
 ### 內容更新方式（給後台編輯者）
@@ -231,6 +237,35 @@ xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96p
 - ⚠️「連續循環 + 平滑回彈」只有 JS/GSAP 能做（純 CSS 循環放開必 instant snap）；「單次滑出看一眼就回」才能純 CSS transition。always-on 與手機一律不回彈。
 - **用詞**：對話中講「**回彈 / 放開平滑回去**」就是 `bindMarqueeReturn` 這套。細節見 memory `project_marquee_hover_easeback_unify` / `reference_sitewide_marquee_mechanisms_map`。
 
+## 效能最佳實踐（2026-08~09 activities 優化戰役定案；完整診斷見 docs/activities-優化四輪/五輪.md）
+
+大清單（百項以上）頁面的鐵則，新頁面／新清單直接照做，別重走一遍診斷：
+
+### 渲染
+- **Viewport lazy render**：首批 ~15 項＋sentinel IO 續建（10/批）；deep-link 走 `_lazyRenderAll` 兜底。小清單不需要
+- **HTML string 一次組完再 innerHTML**；隱藏態直接烙在 HTML string（出生自帶 class），**不要**渲染後逐項 `gsap.set`——新元素對 GSAP 永遠「冷」，首觸逐列讀 computed style＝逐列全頁 recalc（50~120ms×N，切分頁曾凍 9~34s）
+- 事件綁定分幀（rAF 批次）＋ incremental（`data-bound` 守衛）；`.list-item` 加 `content-visibility: auto`
+- **讀寫分離**：先讀全部 layout 再寫全部 style，別逐項讀寫交錯（forced reflow thrash）；per-元素 ResizeObserver 要 bail 守衛
+
+### 動畫
+- 清單 rows 進退場用 **`list-row-reveal.js`**（CSS transition、compositor 接管、零 computed 讀），不用 GSAP yPercent。⚠️ 揭前隱藏態必須已 commit（painted）才會 transition 而非 snap——同步 hide→reveal 之間要 `void el.offsetHeight` 單次 reflow
+- 重複跑的動畫用 **transform**（clip-reveal）不用 **clip-path**（每幀 full repaint）；判準＝文字有沒有位移
+- 切分頁 reveal/exit 加 **viewport-cull**（視窗外項目 snap 不動畫）
+- GSAP reveal 完要沉澱成 `translate(0px, 0px)`（非 0%）
+
+### 圖片
+- 縮圖 `decoding="async"`；⚠️ poster/strip **勿** `loading="lazy"`（會破 reveal gate）；縮圖不寫 >1600px
+- 交付走 CloudFront（`CMS_CDN_BASE`）；新上傳大圖跑 `scripts/convert-images-to-webp.cjs`（每日 Action 已掛）
+- 弱機不能 on-the-fly transform——不要用 Directus `?width=` 參數（冷生成 504）
+
+### 快取
+- single-flight promise cache＋sessionStorage last-known-good＋背景 revalidate（latest-wins，防慢請求蓋新資料）
+- 切換／請求類 race 一律**序號作廢**（navSeq pattern）；動畫接管前 `killTweensOf` 目標本身（外層蓋不到子元素）
+
+### 量測
+- CDP Profiler 看 self-time 找真根因（別猜）；headless 自驗要用 fresh node static server（舊 server 快取 JS 會量到假的「0 變化」，先 `curl | grep` 確認 serve==disk）
+- ⚠️ headless 量到的「reveal 延遲」可能是測量假象，實機確認
+
 ## 共用模組（重要！新功能優先沿用）
 
 | 模組 | 用途 |
@@ -243,6 +278,7 @@ xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96p
 | `js/modules/ui/marquee-overflow.js` | 文字 overflow → marquee：`applyMarqueeOverflow`（量寬+dual-copy+`--marquee-distance`）；`buildSyncedMarqueeTimeline`（中英同步 GSAP timeline）；`bindMarqueeReturn`（桌面 hover 放開平滑回彈，見下規範） |
 | `js/modules/ui/section-switch-helpers.js` | `setActiveNavBtn` + `showPanel`（4 個 section-switch 共用） |
 | `js/modules/lightbox/lightbox-shell.js` | enter/exit + body lock + header bar 收展（給 lightbox / slide-in / full-screen overlay 共用） |
+| `js/modules/ui/list-row-reveal.js` | 清單 rows 進退場引擎（CSS transition 取代 GSAP yPercent，見「效能最佳實踐」；activities/admission 清單用） |
 | `js/modules/accordions/list-accordion.js` | list-header → list-content 展開（必須在 `loadListInto` 後 call `initListAccordion`） |
 | `js/modules/pages/activities-data-loader.js` `loadListInto` | 通用 list 渲染（activities / admission summer-camp 等） |
 
@@ -296,8 +332,9 @@ JS random scatter + collision resolution 8 items + 每次 shuffle 即時 generat
 5. **自驗**：repo 有 playwright + 系統 Chrome 可 headless e2e（`channel:'chrome'` 免下載；先起 `npx http-server`）——RWD/互動改動先 headless 量測+截圖再交付；但 logo invert 等視覺細節 headless 不準、要實機確認
 
 ### 部署
-- 前台＝靜態檔上傳到 Lightsail Apache docroot；後台 Directus 在同主機 `/cms`（reverse proxy → Node :8055）
-- 細節與環境設定見《docs/SPA-接-Directus-Headless-最佳實踐.md》；user 不熟 devops，部署話題先建心智模型再給步驟
+- **開發預覽**＝GitHub Pages：push main 自動上線（bernard-02.github.io/SCCD-Website）。⚠️「線上是舊版」通常＝改動沒 commit；CSS 改了要先 `npm run build:css` 再 commit
+- **正式前台**＝S3 + CloudFront（sccd.usc.edu.tw，尚未切換，流程見《docs/前台上線流程-S3-CloudFront.md》）；**後台** Directus 在 Lightsail `/cms`（reverse proxy → Node :8055）
+- user 不熟 devops，部署話題先建心智模型再給步驟
 
 ### Git
 - 繁體中文 commit message
@@ -310,7 +347,7 @@ JS random scatter + collision resolution 8 items + 每次 shuffle 即時 generat
 - **矮橫向**（844×390、667×375）：nav 進 header 帶 / hero 前藏 nav / 不吃桌面 md: 樣式 / 轉向 reload 自癒
 - **RWD 互不影響**：手機改不影響桌面 / 媒體查詢正確包裹 / JS 條件式執行（gate 判準跟 CSS 同式）
 - **SPA 換頁**：footer 顯隱正確 / body overflow 復原 / listener 不累積（DevTools Memory 看 listener count）
-- **資料層**：Directus 斷線時 fallback JSON 正常渲染 / 後台改內容前台 refresh 生效
+- **資料層**：Directus 斷線時降級正常（A 類走 sessionStorage LKG／B 類走 fallback JSON）/ 後台改內容前台硬重整生效
 
 ## 偏好設定
 - 繁體中文溝通

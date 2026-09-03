@@ -138,14 +138,20 @@ export function fitCardToText(box) {
 // 觸發 clip reveal 動畫（assumes setupClipReveal 已執行）
 // 用於 ScrollTrigger.create 的 onEnter，或非 ScrollTrigger 立即播放
 // stagger 可覆寫：預設用 grid-auto-y（卡片牆用）；要嚴格 DOM 順序「依序進場」(title→副標→內文) 傳 { each: 0.12 } 線性
-export function playClipReveal(elements, { onComplete = null, stagger } = {}) {
+/**
+ * @param {Iterable<Element>} elements
+ * @param {{ onComplete?: (() => void)|null, stagger?: any, clear?: boolean }} [opts]
+ */
+export function playClipReveal(elements, { onComplete = null, stagger, clear = true } = {}) {
   if (typeof gsap === 'undefined') return;
   const items = Array.from(elements);
   if (items.length === 0) return;
   gsap.killTweensOf(items);
   // 減少動態：直接到終態，不滑入（仍呼叫 onComplete，呼叫端可能依賴它接後續）。
+  // clear=false（activities 清單生態系，P2-3）：停在 yPercent:0 保留 inline transform → GSAP transform cache 常溫，
+  //   下次 setup hide／exit／cull snap 全純寫、零 computed read（避免逐元素全頁 recalc 吃掉退場幀）。其他頁預設 clear:true 不變。
   if (prefersReducedMotion()) {
-    gsap.set(items, { yPercent: 0, clearProps: 'transform' });
+    gsap.set(items, clear ? { yPercent: 0, clearProps: 'transform' } : { yPercent: 0 });
     if (onComplete) onComplete();
     return;
   }
@@ -155,7 +161,7 @@ export function playClipReveal(elements, { onComplete = null, stagger } = {}) {
     stagger: stagger || { each: 0.12, grid: 'auto', axis: 'y' },
     ease: EASE.enter,
     overwrite: true,
-    clearProps: 'transform',
+    ...(clear ? { clearProps: 'transform' } : {}),
     onComplete: onComplete || undefined,
   });
 }

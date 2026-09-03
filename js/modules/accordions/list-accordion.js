@@ -36,14 +36,16 @@ function initListYearToggle() {
         // Check if chevron has rotate-90 class (indicates initially open)
         const isInitiallyOpen = chevron && chevron.classList.contains('rotate-90');
 
+        // 八輪 Part 1-B：初始態改直寫 inline style（非 gsap.set）——gsap.set 對新建元素首觸要讀 computed
+        //   ＝逐 toggle 全頁 forced recalc（切分頁時 lectures 全建態下 initListYearToggle 實測 755ms）；
+        //   直寫零讀取、瀏覽器批次不強制 recalc（同四輪 rows lever）。開合仍走 gsap.to（讀 inline 起點正常接手）。
         if (isInitiallyOpen) {
-          // Set initial height to auto for open state
-          gsap.set(itemsContainer, { height: 'auto' });
-          // 初始即展開 → chevron 朝下（270）；rotate-90 class 只當「初始展開」sentinel，實際角度由 GSAP 蓋過。user 2026-06-21
-          if (chevron) gsap.set(chevron, { rotation: 270 });
+          itemsContainer.style.height = 'auto';
+          // 初始即展開 → chevron 朝下（270）；rotate-90 class 只當「初始展開」sentinel，實際角度由後續 gsap 蓋過。user 2026-06-21
+          if (chevron) /** @type {HTMLElement} */ (chevron).style.transform = 'rotate(270deg)';
         } else {
-          // Set initial height to 0 and hide for closed state
-          gsap.set(itemsContainer, { height: 0, display: 'none' });
+          itemsContainer.style.height = '0px';
+          itemsContainer.style.display = 'none';
         }
       }
     }
@@ -167,6 +169,24 @@ function restoreDimmedOpenItem() {
 // resetListAccordionsInPanel 重置，避免離頁或切 section 把 tween kill 掉、序列未完成殘留 true 卡死所有點擊。
 let listAnimating = false;
 
+// 六輪 2-A：開合忙碌旗標——讓 activities-data-loader 的 idle builder 在開合動畫期間讓路（背景補建撞開合＝
+//   profiler 實測 buildOneBatch 27s 吃開合幀）。寬鬆蓋過整段序列即可、不必精準；markAccordionBusy 取 max 疊加。
+let _accordionBusyUntil = 0;
+function markAccordionBusy(ms) { const t = performance.now() + ms; if (t > _accordionBusyUntil) _accordionBusyUntil = t; }
+export function isAccordionBusy() { return performance.now() < _accordionBusyUntil; }
+
+// 九輪 Part 3：gallery:check（觸發 checkOverflow 逐 wrap 讀寫交錯＝大 panel forced reflow 連環、4x 實測 clientWidth self 2.8s）
+//   延到「開合序列完（非 busy）＋DOM 乾淨」才派發，不砸動畫窗。marquee 是裝飾性、晚 ~0.5s 重量無感。
+//   不重構 checkOverflow（pair/回彈/RO 生態，動它過度工程化）——只挪派發時機。
+function dispatchGalleryCheckWhenIdle(item, delay = 0) {
+  const fire = () => {
+    if (!item || !item.isConnected) return;
+    if (isAccordionBusy()) { setTimeout(fire, 250); return; }
+    item.dispatchEvent(new Event('gallery:check'));
+  };
+  setTimeout(fire, delay);
+}
+
 // 清掉殘留的 dataset.opening（兩段式 open 標記）。正常由 proceedOpen 清；但 section 切換/離頁打斷 0.4s 收回
 // 窗口時 proceedOpen 不會跑 → 該 header 卡 opening → hover handler 失效。於 reset 點 document-wide 清掉保險。
 function clearStaleOpeningFlags() {
@@ -259,11 +279,20 @@ export function resetListAccordionsInPanel(panel) {
 // overflow 改 visible、window 捲，但 .inner-scroll-scroll-col class 還在元素上）→ 不能只看 class/寬度，
 // 看 computed overflow-y。activities 矮橫向仍保留 frame（box 可捲）→ 此偵測讓共用碼自動各走各路，免 per-page 旗標；
 // 手機（<768）lists.css 不給這些 class 任何 overflow → visible → 自然回 null（= 原 window 路徑）。
+// 六輪 2-C：box→可捲判定快取（profiler：每次 onLazyBatch 重跑 initListAccordion 逐 header getComputedStyle
+//   overflowY，box 同顆答案不變卻在髒 DOM 上讀幾千次＝self 3.6s）。box 是同一元素 → WeakMap 快取。
+//   overflowY 只在 viewport 變（矮橫向 gate / 桌↔手機斷點）才改＝resize 清空（本專案跨 gate 另有整頁 reload 自癒，
+//   WeakMap 也天然隨 box 重建失效）；模組級單一 listener、隨頁面生命週期存活、免 per-page cleanup。
+let _boxOyCache = new WeakMap();
+if (typeof window !== 'undefined') window.addEventListener('resize', () => { _boxOyCache = new WeakMap(); });
 function getScrollableBox(el) {
   const box = /** @type {HTMLElement | null} */ (el.closest('.inner-scroll-scroll-col'));
   if (!box) return null;
+  if (_boxOyCache.has(box)) return _boxOyCache.get(box);
   const oy = getComputedStyle(box).overflowY;
-  return (oy === 'auto' || oy === 'scroll') ? box : null;
+  const result = (oy === 'auto' || oy === 'scroll') ? box : null;
+  _boxOyCache.set(box, result);
+  return result;
 }
 
 function getListStickyTop(header) {
@@ -420,6 +449,7 @@ function toggleSectionPinnedFlag(header, on) {
 // 回傳 Promise（content 收合 tween onComplete 時 resolve）：開新 item 時 await 收回動畫跑完才量落點+展開（兩段式）。
 // duration 可覆寫：自關用預設 DUR.medium；開新先關舊用較短 DUR.base 讓序列不拖。
 function closeListHeader(header, { duration = DUR.medium, scrollFollow = false } = {}) {
+  markAccordionBusy(duration * 1000 + 300);   // 六輪 2-A：收合期間 idle builder 讓路
   let resolveDone;
   const done = new Promise((r) => { resolveDone = r; });
   const content = (header.nextElementSibling?.classList.contains('list-content')
@@ -483,8 +513,8 @@ function closeListHeader(header, { duration = DUR.medium, scrollFollow = false }
       content.setAttribute('inert', ''); // 無障礙：收合完成 → 內容移出 tab 順序
       if (titleEl) titleEl.style.transform = '';
       if (metaMobileEl) metaMobileEl.style.paddingLeft = '';
-      // title translateX 復位後 0.3s 才到位，等 transition 結束再 dispatch 讓 marquee 重新測寬
-      setTimeout(() => workshopItem?.dispatchEvent(new Event('gallery:check')), 320);
+      // title translateX 復位後 0.3s 才到位，等 transition 結束再 dispatch 讓 marquee 重新測寬（九輪：延到序列完＋DOM 乾淨）
+      dispatchGalleryCheckWhenIdle(workshopItem, 320);
       // sticky-pin observer 跟著 active state 走：close 後不需偵測 pinned（header 已不 sticky）
       detachStickyPinObserver(header);
       header.style.background = '';
@@ -536,7 +566,9 @@ function initListHeaderAccordion() {
     const content = (header.nextElementSibling?.classList.contains('list-content')
       ? header.nextElementSibling
       : header.closest('.list-item')?.querySelector('.list-content')) || header.nextElementSibling;
-    gsap.set(content, { height: 0, overflow: 'hidden' });
+    // 八輪 Part 1-B：初始收合態直寫 inline（非 gsap.set）＝零 computed 讀、免逐 header 全頁 recalc（切分頁 build 窗省 task）；
+    //   開合仍走 gsap.to(height) 讀 inline 起點接手。content 可能為 null（防禦）。
+    if (content) { const c = /** @type {HTMLElement} */ (content); c.style.height = '0px'; c.style.overflow = 'hidden'; }
     // 無障礙：收合的 list-content 是 height:0 overflow:hidden（非 display:none）→ 內部 ref/share/gallery
     // 仍在 Tab 順序＝收合時 Tab 會落到看不見的元素。inert 把收合內容移出 tab 與 a11y 樹，open 時移除。
     if (content) content.setAttribute('inert', '');
@@ -582,6 +614,7 @@ function initListHeaderAccordion() {
 
       const workshopItem = /** @type {HTMLElement | null} */ (this.closest('.list-item'));
       if (isActive) {
+        markAccordionBusy(1800);   // 六輪 2-A：開序列（收舊→對齊→展開）全程 idle builder 讓路，寬鬆蓋過
         // 磁吸提早在「收舊項之前」就鎖掉（原本在 proceedOpen＝舊項收完才鎖）：收合期間文件高度
         // 逐幀變化，mandatory snap 會邊收邊微調 scrollY＝畫面顫動才展開（user 2026-07-09，
         // headless A/B 實證：早鎖後收合期振盪歸零）。桌面 inner-scroll（box 捲、snap 在 window）不需鎖。
@@ -615,6 +648,7 @@ function initListHeaderAccordion() {
         listAnimating = true;  // 鎖住：兩段式序列期間忽略新點擊，避免連點 race
 
         const proceedOpen = () => {
+          markAccordionBusy(1500);   // 六輪 2-A：對齊捲動＋展開段再刷新一次讓路窗口
           // 真正展開才轉 .active：副標收合（lectures .active 即收）與內容展開同時發生＝連貫，
           // 避免「先 active 收副標縮短 → 等收舊的 0.4s → 才展開」中間露出矮的彩色短條（見 click 處註解）。
           self.classList.add('active');
@@ -705,7 +739,7 @@ function initListHeaderAccordion() {
                   sp.style.height = Math.max(0, Math.round(openBoxTarget - maxNoSpacer)) + 'px';
                   innerScroller.scrollTop = openBoxTarget;
                 }
-                workshopItem?.dispatchEvent(new Event('gallery:check'));
+                dispatchGalleryCheckWhenIdle(workshopItem);   // 九輪 Part 3：延到序列完＋DOM 乾淨才派發
                 listAnimating = false;  // 序列完成解鎖
               }
             });

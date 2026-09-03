@@ -5,14 +5,15 @@
 
 import { openLightbox } from '../lightbox/activities-lightbox.js';
 import { isHlsUrl, isDirectVideoUrl, videoMediaFromUrl, hydrateHlsThumbs } from '../ui/video-player.js';
-import { setupClipReveal, playClipReveal } from '../ui/scroll-animate.js';
+import { setupClipReveal } from '../ui/scroll-animate.js';
+import { hideRows, revealRows } from '../ui/list-row-reveal.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { makeActivatable } from '../ui/a11y.js';
 import { ensureFlagIconsCss } from '../ui/ensure-flag-icons.js';
 import { countryName } from '../../data/country-names.js';
 import { DUR, EASE } from '../ui/motion.js';
-import { refreshStickyPinObservers } from '../accordions/list-accordion.js';
+import { refreshStickyPinObservers, isAccordionBusy } from '../accordions/list-accordion.js';
 import { buildSyncedMarqueeTimeline } from '../ui/marquee-overflow.js';
 import { loadSummerCamp } from './summer-camp-source.js';
 import { loadActivityCollection, loadPermanentExhibitions } from './activities-source.js';
@@ -116,6 +117,10 @@ function bindRefBtnClick(btn) {
   });
 }
 
+// 六輪 zebra generation 戳記（本檔 reveal-IO 用；值加 'a' 前綴＝與 admission-data-loader 的 'd' 前綴跨檔不撞值：
+//   activities 退場走 admission 的 playAdmissionPanelExit，會以 'd' 代蓋掉這裡的 'a' 代 → 比對必不符＝正確作廢殘留 clrZebra）。
+let _zbGen = 0;
+
 // Helper: 為 list-item 內的海報及 gallery 圖片加上 hover 旋轉歸 0 效果
 // 對齊 library files/album 模式：random rotation 1~3°（兩邊隨機 sign），hover 歸 0
 export function bindMediaHover(container) {
@@ -132,11 +137,17 @@ export function bindMediaHover(container) {
       // 旋轉幅度刻意小（0.5°~1.5°），避免外溢過多影響 layout
       const initDeg = (Math.random() < 0.5 ? -1 : 1) * (0.5 + Math.random() * 1);
       img.dataset.initDeg = String(initDeg);
-      gsap.set(img, { rotation: initDeg });
+      // 六輪 2-B：純寫、零 computed 讀（原 gsap.set 逐圖冷觸 Td）；hover 的 gsap.to 能從此 CSS rotate 接手。
+      // 七輪 1-C 組合契約：poster 的 inline transform 同時承載 pending translate（buildPosterHtml 烙）＋此 rotate；
+      //   只動 rotate 那半、保留對方的 translate（別整串覆蓋，否則揭露前 poster 會瞬跳回原位露出）。
+      const keep = (img.style.transform.match(/translate\([^)]*\)/) || [''])[0];
+      img.style.transform = `${keep} rotate(${initDeg}deg)`.trim();
       wrapper.addEventListener('mouseenter', () => {
+        if (img.dataset.pendingReveal) return;   // 七輪 1-C：揭露前不讓 gsap 碰 rotation（會把 mid 態定格再被清＝閃跳）
         gsap.to(img, { rotation: 0, duration: DUR.fast, ease: EASE.enterSoft });
       });
       wrapper.addEventListener('mouseleave', () => {
+        if (img.dataset.pendingReveal) return;
         const deg = parseFloat(img.dataset.initDeg) || 0;
         gsap.to(img, { rotation: deg, duration: DUR.fast, ease: EASE.enterSoft });
       });
@@ -324,6 +335,10 @@ export function buildAlbumsHtml(item, { unbounded = false } = {}) {
 // 海報區塊 HTML
 // poster 只渲染後台實際填的 item.poster；沒填就不渲染 poster 區（user 2026-08-28 改：不再 fallback 用 images[0]，
 // 避免右側多出一張 poster、且跟 gallery 第一張重複）。相簿仍照常從 gallery 出。item.poster 恆對應 mediaList[0]（buildItemMedia）。
+// 七輪：poster「載好才滑入」用——img 出生自帶隨機方向 translate（純寫 HTML string、零 JS touch，同四輪哲學）；
+//   揭露由 bindInteractions 的 revealPoster 接（圖 ready 才 clip-reveal 進場，對齊 library COVER_SLIDE_DIRS 語彙）。
+const POSTER_SLIDE_DIRS = ['0%, 110%', '0%, -110%', '110%, 0%', '-110%, 0%'];
+
 // onerror 自摧毀 wrapper：URL 對但圖檔 404 / 跨域擋下時不會留 broken icon
 export function buildPosterHtml(item) {
   const src = item.poster || '';
@@ -332,9 +347,10 @@ export function buildPosterHtml(item) {
   //（原本不能 lazy＝0 面積永不觸發載入，見 memory reference_activities_switch_ro_recalc_storm ①）。拿不到尺寸則維持 eager + load 補償動畫。
   const ar = (item.posterW && item.posterH) ? ` style="aspect-ratio: ${item.posterW}/${item.posterH}"` : '';
   const lazy = ar ? ' loading="lazy"' : '';
+  const dir = POSTER_SLIDE_DIRS[(Math.random() * 4) | 0];   // 七輪：pending 態隨機四向，載好才滑入
   return `
     <div class="overflow-hidden cursor-pointer" data-lightbox-open data-lightbox-index="0"${ar}>
-      <img src="${src}"${lazy} alt="${item.title} poster" decoding="async" class="poster-img w-full block object-cover" onerror="this.closest('[data-lightbox-open]').style.display='none'">
+      <img src="${src}"${lazy} alt="${item.title} poster" decoding="async" class="poster-img w-full block object-cover" data-pending-reveal="1" style="transform: translate(${dir})" onerror="this.closest('[data-lightbox-open]').style.display='none'">
     </div>
   `;
 }
@@ -929,6 +945,28 @@ export function bindInteractions(container, { autoReveal = true, incremental = f
     requestAnimationFrame(runMarquees);
   }
 
+  // 七輪：poster「載好才 clip-reveal 滑入」（對齊 library，消滅 progressive 掃描浮現）。translate 由 buildPosterHtml 烙 inline、
+  //   rotate 由 bindMediaHover 承載（1-C 組合契約）。⚠️ wrapper 的 overflow 被 applyHover 設成 visible（供 hover 微旋不裁），
+  //   故滑入期間必須自己補 overflow:clip 當遮罩、揭完還原 visible——否則畫外起點裸露、非乾淨 clip-reveal。
+  //   rot 讀 dataset.initDeg 現值＝與 bind/reveal 先後順序無關（deferBinds 時 bindMediaHover 可能晚於此 reveal）。
+  const revealPoster = (img) => {
+    if (!img.dataset.pendingReveal) return;
+    delete img.dataset.pendingReveal;
+    const wrap = /** @type {HTMLElement|null} */ (img.closest('[data-lightbox-open]'));
+    const rotOf = () => img.dataset.initDeg ? ` rotate(${img.dataset.initDeg}deg)` : '';
+    if (wrap) { wrap.style.overflow = 'clip'; wrap.style.overflowClipMargin = '0.75rem'; }
+    img.style.transition = 'transform 0.6s cubic-bezier(0.25, 0, 0, 1)';   // EASE.enter
+    img.style.transform = `translate(0%, 0%)${rotOf()}`;
+    const clr = (e) => {
+      if (e.target !== img || e.propertyName !== 'transform') return;
+      img.style.transition = '';
+      img.style.transform = rotOf().trim();                                 // 收斂：只留 hover 初始旋轉
+      if (wrap) { wrap.style.overflow = 'visible'; wrap.style.overflowClipMargin = ''; }  // 還原 applyHover 的 hover-不裁態
+      img.removeEventListener('transitionend', clr);
+    };
+    img.addEventListener('transitionend', clr);
+  };
+
   // 海報比例偵測（:not([data-pbound]) → lazy 重跑只綁新海報）
   container.querySelectorAll('.poster-img:not([data-pbound])').forEach(img => {
     img.dataset.pbound = '1';
@@ -940,11 +978,12 @@ export function bindInteractions(container, { autoReveal = true, incremental = f
         if (grid) grid.style.gridTemplateColumns = '8.5fr 3.5fr';
       }
     };
-    if (img.complete && img.naturalWidth) { apply(); return; }
+    if (img.complete && img.naturalWidth) { apply(); revealPoster(img); return; }
     // poster 未載入：poster-img w-full 沒預留高度，手機慢載時「item 已展開後才載入」會瞬間把下方內容頂下去（user 2026-06-15「內容跳動」）。
     // 修：load 時若 item 已展開且開啟動畫已收尾，用外框（本就 overflow-hidden）把海報高度 0→自然高 平滑揭露，下方內容隨之緩降，取代瞬跳。
     img.addEventListener('load', () => {
       apply();
+      revealPoster(img);   // 七輪：載好才滑入（AR 佔位＝乾淨白框；此時才 clip-reveal）
       const wrap    = /** @type {HTMLElement|null} */ (img.closest('[data-lightbox-open]'));
       const content = /** @type {HTMLElement|null} */ (img.closest('.list-content'));
       const header  = img.closest('.list-item')?.querySelector('.list-header');
@@ -993,7 +1032,8 @@ export function bindInteractions(container, { autoReveal = true, incremental = f
   const allRows = [...container.querySelectorAll('.list-reveal-row')];
   if (allRows.length === 0) return null;
 
-  const items = setupClipReveal(allRows);
+  const items = setupClipReveal(allRows, { hide: false });  // Part 1：只 wrap 遮罩、CSS 藏（除 GSAP 冷觸 recalc storm）
+  hideRows(items, false);
   if (!autoReveal) return null;
   if (typeof ScrollTrigger !== 'undefined') {
     ScrollTrigger.batch(items, {
@@ -1001,8 +1041,9 @@ export function bindInteractions(container, { autoReveal = true, incremental = f
       onEnter: /** @param {HTMLElement[]} batch */ batch => {
         // data-pre-reveal（pointer-events:none 禁 hover/click）延到 reveal 動畫「完成」才解鎖：
         // 若在 onEnter 就解，reveal 進行中 header 已可 hover → 文字還在滑入時 hover 出現「有色塊沒文字」（user 2026-07-14）。
-        playClipReveal(batch, {
-          onComplete: () => batch.forEach(/** @param {HTMLElement} row */ row => {
+        revealRows(batch, {
+          dur: DUR.reveal, stagger: 0.12,  // Part 1：CSS transition（同 playClipReveal 的 reveal 時長/跨列 stagger）
+          onDone: () => batch.forEach(/** @param {HTMLElement} row */ row => {
             const listItem = row.closest('.list-item');
             if (listItem) listItem.removeAttribute('data-pre-reveal');
           }),
@@ -1010,7 +1051,7 @@ export function bindInteractions(container, { autoReveal = true, incremental = f
       },
     });
   } else {
-    playClipReveal(items);
+    revealRows(items, { dur: DUR.reveal, stagger: 0.12 });  // Part 1：同上（無 ScrollTrigger fallback 路徑）
   }
   return null;
 }
@@ -1305,16 +1346,6 @@ export async function loadListInto(containerId, url, options = {}) {
           ${showSubtitle ? renderSubListBlock() : ''}
         </div>`;
 
-      const searchText = [
-        item.title, item.title_zh, item.title_en,
-        item.subtitle, item.subtitle_zh,
-        ...subList.flatMap(s => [s.en, s.zh]),
-        item[introField], item[introField + '_zh'],
-        item.description, item.descriptionZh,
-        item.location, item.location_zh,
-        ...(item.guests || []).flatMap(g => [g.name, g.name_zh, g.affiliation, g.affiliation_zh, g.akaEn, g.akaZh]),
-      ].filter(Boolean).join(' ').toLowerCase().replace(/"/g, '&quot;');
-
       // Locations 結構：每筆 {en, zh, country} 一個 row，渲染時 vertical stack（user 契約：往下增加）
       // 新 endpoint shape `item.locations = [{nameZh, nameEn, country}, ...]` 優先；fallback 舊 `item.location / location_zh / flag` 字串包成單筆
       const locationRows = Array.isArray(item.locations) && item.locations.length > 0
@@ -1332,6 +1363,22 @@ export async function loadListInto(containerId, url, options = {}) {
       //   右上無旗（校友帽卻有算 session＝不一致）。統一聚合成一份 allGuests，旗子/帽子同源。
       // 「地點的國家」(item.flag / locations[].country) 暫不納入 — user 2026-06-03：等後台處理 location-country 機制再加進來。
       const allGuests = [...(item.guests || []), ...((item.sessions || []).flatMap(s => Array.isArray(s.guests) ? s.guests : []))];
+
+      // 搜尋索引（3-1）：舊 JSON shape + Directus shape 全納入（否則 Directus 標題/講者/地點/城市/場次搜不到＝功能 bug）。
+      // ⚠️ 移到 locationRows/cityEn/allGuests 宣告「之後」（原本在前面、拿不到這些）。舊欄位全保留（LKG 舊 shape 相容）。
+      const searchText = [
+        item.title, item.title_zh, item.title_en, item.titleEn, item.titleZh,       // 標題（舊+Directus）
+        item.subtitle, item.subtitle_zh, item.subtitleEn, item.subtitleZh,          // 副標（舊+Directus）
+        ...subList.flatMap(s => [s.en, s.zh]),
+        item[introField], item[introField + '_zh'],
+        item.description, item.descriptionZh,
+        item.location, item.location_zh,
+        ...locationRows.flatMap(l => [l.en, l.zh]),                                  // Directus locations[] venue
+        cityEn, cityZh,                                                              // conference 城市
+        ...allGuests.flatMap(g => [g.name, g.name_zh, g.affiliation, g.affiliation_zh, g.akaEn, g.akaZh, g.nameEn, g.nameZh, g.orgEn, g.orgZh]),  // 講者名/單位（舊+Directus、含 session 講者）
+        ...(item.sessions || []).flatMap(s => [s.titleEn, s.title_en, s.titleZh, s.title_zh, s.title]),  // 場次標題
+      ].filter(Boolean).join(' ').toLowerCase().replace(/"/g, '&quot;');
+
       // uk→gb：flag-icons 只認 ISO 3166 的 gb，編輯常填 UK（2026-07-04 實例）→ fi-uk 不存在渲染成空盒
       // guest 個人國家 + 所屬單位國家（orgCountry）都納入（expand 兩排各有旗、標題也要一併抓；2026-09-01）
       const _normCode = c => (c || '').toLowerCase().trim().replace(/^uk$/, 'gb');
@@ -1566,17 +1613,38 @@ export async function loadListInto(containerId, url, options = {}) {
     : container.closest('.activities-panel')?.querySelector('.activities-filter-bar'));
   const filterBarSticky = !!filterBar && getComputedStyle(filterBar).position === 'sticky';
   const stickyActive = window.innerWidth >= 768 || filterBarSticky;
+  // 六輪 2-D：bar 量測快取。buildOneBatch 每批呼叫 updateStickyTop，若每次都讀 filterBar.offsetHeight＝
+  //   剛被批次弄髒的 DOM 上 forced recalc（profiler self 8s）。bar 高只在「bar 自己 resize」時變（bar-hidden/
+  //   搜尋收合/viewport），由下方 ResizeObserver 專責失效重量；批次只改 list DOM、bar 高不變 → 用快取零讀取。
+  let _barH = -1, _barTop = 0, _refreshTid = 0;
+  const measureBar = () => { _barH = filterBar ? filterBar.offsetHeight : 0; _barTop = filterBar ? (parseFloat(getComputedStyle(filterBar).top) || 0) : 0; };
   const updateStickyTop = () => {
     if (!stickyActive) return;
-    const base = filterBar ? (parseFloat(getComputedStyle(filterBar).top) || 0) : 0;
-    const top = filterBar ? base + filterBar.offsetHeight - 1 : base;
+    if (_barH < 0) measureBar();
+    const top = filterBar ? _barTop + _barH - 1 : _barTop;
     container.style.setProperty('--list-header-sticky-top', top + 'px');
     if (showYearToggle) container.querySelectorAll('.list-year-toggle').forEach((/** @type {any} */ el) => { el.style.top = top + 'px'; });
-    refreshStickyPinObservers(container);
+    // 九輪 Part 4：pin-IO 重建改 trailing debounce——bar 收合 0.3s transition 讓 RO 每幀 fire，每次 refresh 都重建
+    //   pin-IO（getListStickyTop 讀 computed）＝髒 DOM forced recalc（4x 實測 getPropertyValue self 1.5s）。var／
+    //   year-toggle top 仍每幀純寫跟 bar 平滑走；pin-IO 等值穩定、DOM 乾淨才一次重建（08-16「保留 is-pinned」續章）。
+    clearTimeout(_refreshTid);
+    _refreshTid = setTimeout(() => refreshStickyPinObservers(container), 150);
   };
   const installStickyObserver = () => {
     updateStickyTop();
-    if (filterBar && stickyActive && typeof ResizeObserver !== 'undefined') new ResizeObserver(updateStickyTop).observe(filterBar);
+    if (filterBar && stickyActive && typeof ResizeObserver !== 'undefined') {
+      // 九輪 Part 4：RO 回呼零讀取——直接取 entry.borderBoxSize（免 measureBar 的 offsetHeight forced layout，
+      //   bar-hidden transition 每幀 fire 才不砸動畫窗）；極舊瀏覽器無 borderBoxSize 才 fallback measureBar。
+      new ResizeObserver((entries) => {
+        const bs = entries[entries.length - 1]?.borderBoxSize?.[0];
+        if (bs) _barH = bs.blockSize; else measureBar();
+        updateStickyTop();
+      }).observe(filterBar);
+      // _barTop（computed top）只跟 viewport 變 → window resize 失效重讀（_barH=-1 → 下次 updateStickyTop 走 measureBar 全量）
+      const onResize = () => { _barH = -1; updateStickyTop(); };
+      window.addEventListener('resize', onResize);
+      registerPageCleanup(() => { window.removeEventListener('resize', onResize); clearTimeout(_refreshTid); });
+    }
   };
 
   // 灰白交叉斑馬紋：全列「連續」計數（跨年份組）→ 偶數索引套淺灰。純 CSS nth-child 在各 .list-year-items 內重算
@@ -1651,34 +1719,56 @@ export async function loadListInto(containerId, url, options = {}) {
         const rows = [...it.querySelectorAll('.list-reveal-row')];
         if (typeof gsap !== 'undefined') {
           // 斑馬底色 clip-reveal（由下往上揭，比照 switch reveal）→ 文字 clip-reveal 滑入
-          if (it.classList.contains('list-item-zebra')) gsap.to(it, { clipPath: 'inset(0% 0% 0% 0%)', duration: DUR.base, ease: EASE.enter, clearProps: 'clipPath' });
-          if (rows.length) { playClipReveal(rows, { onComplete: () => it.removeAttribute('data-pre-reveal') }); return; }
+          // B-1：zebra 改 CSS transition（compositor，longtask 不凍幀）；hide 在 buildOneBatch 設好、IO 隔幀才 fire＝起點已 commit → 同步設可 transition
+          if (it.classList.contains('list-item-zebra')) {
+            const zg = 'a' + (++_zbGen); it.dataset.zbGen = zg;   // 六輪：換代（退場的 'd' 代會蓋掉、比對不符＝作廢本 clrZebra）
+            it.style.transition = `clip-path ${DUR.base}s ease-out`;
+            it.style.clipPath = 'inset(0% 0% 0% 0%)';
+            const clrZebra = (e) => { if (it.dataset.zbGen !== zg) { it.removeEventListener('transitionend', clrZebra); return; } if (e.target !== it || e.propertyName !== 'clip-path') return; it.style.transition = ''; it.style.clipPath = ''; it.removeEventListener('transitionend', clrZebra); };
+            it.addEventListener('transitionend', clrZebra);
+          }
+          if (rows.length) { revealRows(rows, { dur: DUR.reveal, stagger: 0.12, onDone: () => it.removeAttribute('data-pre-reveal') }); return; }  // Part 1：CSS transition
         }
         it.removeAttribute('data-pre-reveal');
       });
     }, { root: scroller || null, rootMargin: '0px 0px -8% 0px' }) : null;
     if (revealIo) registerPageCleanup(() => revealIo.disconnect());
+    // 一批建構（renderBatch + 補綁 + 藏新 row + revealIo.observe + sticky/accordion 重跑）＝捲動 fill 與 idle 背景補建共用同一條，
+    // 確保 idle 建的也「先藏、進視窗才 reveal」＝視覺與捲動建的零差異（3-2）。
+    const buildOneBatch = () => {
+      const newItems = renderBatch(LAZY_BATCH);
+      bindInteractions(container, { autoReveal: false, incremental: true });   // 逐批補綁互動 + wrap 新 row
+      // 捲入 row 先藏(setupClipReveal 尊重 reduce-motion)，交給 reveal-IO 進視窗才 clip-reveal；無 IO fallback 直接現
+      newItems.forEach(it => {
+        const bRows = [...it.querySelectorAll('.list-reveal-row')];
+        setupClipReveal(bRows, { hide: false });  // Part 1：只 wrap 遮罩
+        hideRows(bRows, false);                    // CSS 藏（reveal-IO 進視窗才 revealRows）
+        // ⚠️斑馬底色也要一起藏(clip inset 100%)：否則「文字藏起但底色塊還在」→ 退場/切換時殘留色塊(user 2026-08-31)
+        if (revealIo && it.classList.contains('list-item-zebra') && typeof gsap !== 'undefined' && !prefersReducedMotion()) { it.dataset.zbGen = 'a' + (++_zbGen); it.style.transition = 'none'; it.style.clipPath = 'inset(100% 0% 0% 0%)'; }  // B-1：transition:none 直寫，揭時 revealIo 才設 CSS transition（六輪：hide 也換代）
+        if (revealIo) revealIo.observe(it); else it.removeAttribute('data-pre-reveal');
+      });
+      updateStickyTop();                                                        // 新年份組的 sticky top
+      if (typeof onLazyBatch === 'function') onLazyBatch();                     // 重跑 accordion / year-toggle init（idempotent）
+    };
     // sentinel 進到 scroller viewport 下緣 +600px 內就補下一批，並 loop 補到「餘量 >600px」或全部建完
     //（單次 IO fire 只補一批，內容仍短時 sentinel 還在框內卻不會再 fire → 用 loop 一次補足視窗餘量）。
+    let fillDeferred = false;
     const fill = (retries = 0) => {
       if (!container.isConnected) return;
+      // 九輪 Part 2：開合動畫中讓路（idleBuild 已有同 gate、fill 漏了——align 捲動把 sentinel 拉進 600px 邊界就同步連建 2 批
+      //   685ms 砸動畫窗）。spacer 已撐住捲動空間＝晚建不跳版；建出的 item 仍 born-hidden + reveal-IO 進場（非 pop）。
+      //   ⚠️不 gate 切換窗（__sccdActSwitchBusyUntil）：切入新 section 首屏不足時 fill 必須立刻補＝正確性。
+      if (isAccordionBusy()) {
+        if (!fillDeferred) { fillDeferred = true; setTimeout(() => { fillDeferred = false; fill(); }, 300); }
+        return;
+      }
       const vb = scroller ? scroller.getBoundingClientRect().bottom : window.innerHeight;
       // vb<=0：panel 剛 display:none→顯示、版面還沒 flush（IO 可能早於 layout fire）→ 下一幀重試幾次，
       // 避免「切回已載入的 panel、內容剛好填滿視窗沒得捲」時初次 fill 撲空、之後不再補。仍隱藏就放棄（IO 之後會再 fire）。
       if (vb <= 0) { if (retries < 3) requestAnimationFrame(() => fill(retries + 1)); return; }
       let guard = 0;
       while (cursor < flat.length && guard++ < 60) {
-        const newItems = renderBatch(LAZY_BATCH);
-        bindInteractions(container, { autoReveal: false, incremental: true });   // 逐批補綁互動 + wrap 新 row
-        // 捲入 row 先藏(setupClipReveal 尊重 reduce-motion)，交給 reveal-IO 進視窗才 clip-reveal；無 IO fallback 直接現
-        newItems.forEach(it => {
-          setupClipReveal([...it.querySelectorAll('.list-reveal-row')], { hide: true });
-          // ⚠️斑馬底色也要一起藏(clip inset 100%)：否則「文字藏起但底色塊還在」→ 退場/切換時殘留色塊(user 2026-08-31)
-          if (revealIo && it.classList.contains('list-item-zebra') && typeof gsap !== 'undefined' && !prefersReducedMotion()) gsap.set(it, { clipPath: 'inset(100% 0% 0% 0%)' });
-          if (revealIo) revealIo.observe(it); else it.removeAttribute('data-pre-reveal');
-        });
-        updateStickyTop();                                                        // 新年份組的 sticky top
-        if (typeof onLazyBatch === 'function') onLazyBatch();                     // 重跑 accordion / year-toggle init（idempotent）
+        buildOneBatch();
         if (sentinel.getBoundingClientRect().top > vb + 600) break;              // 視窗下緣已有 >600px 緩衝 → 停
       }
       if (cursor >= flat.length && io) { io.disconnect(); sentinel.remove(); }
@@ -1693,16 +1783,68 @@ export async function loadListInto(containerId, url, options = {}) {
     // deep-link（navigateToItem）需要目標 item 已在 DOM：暴露「立即全建剩餘」給它呼叫（否則只在首批的目標找不到）。
     // deep-link 是刻意的單一導航（首頁浮卡跳指定活動）→ 該次全建可接受；一般切換仍走 lazy。
     container.dataset.lazyList = '1';
-    container._lazyRenderAll = () => {
-      while (cursor < flat.length && container.isConnected) {
+    // 八輪 Part 3：有 targetDomId（deep-link）走「分幀建到目標」＝不管目標多深都零大 task（每幀 ~8ms budget 建 1~2 批、
+    //   rAF 續跑，建到目標或全建完 resolve）；無參數（search / ensureFullyRendered）維持同步全建＝語意不變。
+    //   ⚠️ 沒建完就找到目標時 io/idle 不拆，餘量照常背景續建（只有 cursor>=flat.length 才 disconnect）。
+    container._lazyRenderAll = (targetDomId = null) => {
+      const buildOne = () => {
         const ni = renderBatch(LAZY_BATCH);
         bindInteractions(container, { autoReveal: false, incremental: true });
         ni.forEach(it => it.removeAttribute('data-pre-reveal'));
+      };
+      const finish = () => {
+        updateStickyTop();
+        if (typeof onLazyBatch === 'function') onLazyBatch();
+        if (cursor >= flat.length && io) io.disconnect();
+      };
+      if (!targetDomId) {   // search／ensureFullyRendered：同步全建（語意不變）
+        while (cursor < flat.length && container.isConnected) buildOne();
+        finish();
+        return Promise.resolve(true);
       }
-      updateStickyTop();
-      if (typeof onLazyBatch === 'function') onLazyBatch();
-      if (io) io.disconnect();
+      return new Promise(resolve => {   // deep-link：分幀建到目標
+        const step = () => {
+          if (!container.isConnected) { resolve(false); return; }
+          const budget = performance.now() + 8;
+          while (cursor < flat.length && performance.now() < budget) {
+            buildOne();
+            if (document.getElementById(targetDomId)) { finish(); resolve(true); return; }
+          }
+          if (cursor >= flat.length) { finish(); resolve(true); return; }
+          requestAnimationFrame(step);
+        };
+        step();
+      });
     };
+
+    // 3-2：首批 reveal 後閒置分批把剩餘全建 → search 首鍵多數已全建＝零凍結、deep-link 免同步全建。
+    // 每 idle slot 只建「一批」（含 setupClipReveal first-touch computed read，多批一 slot 會卡）；走 buildOneBatch＝
+    // 與捲動建的同一條（先藏、進視窗才 reveal），視覺零差異。panel 隱藏時暫停、下個 slot 續（週期重試、不掛 MutationObserver）。
+    // ⚠️ 帶 timeout：activities 頁常駐動畫（marquee/flag cycle）讓瀏覽器幾乎無真正 idle → 純 requestIdleCallback 會餓死。
+    //   四輪 Part 2：timeout 500→2000＝讓路優先（全建慢十幾秒無妨，search 前有 ensureFullyRendered 兜底），
+    //   background 補建不再每 ~2s 撞進使用者捲動/hover 窗口凍一下（user 實機回報「往下捲卡頓」的主因）。
+    const ric = window.requestIdleCallback ? (fn) => window.requestIdleCallback(fn, { timeout: 2000 }) : (fn) => setTimeout(fn, 300);
+    // 互動讓路：記最後捲動時間，idleBuild 開頭若「剛捲過（<400ms）」就延後，不跟捲動搶主執行緒。
+    let lastScrollTs = 0;
+    if (scroller) {
+      const onScrollTs = () => { lastScrollTs = performance.now(); };
+      scroller.addEventListener('scroll', onScrollTs, { passive: true });
+      registerPageCleanup(() => scroller.removeEventListener('scroll', onScrollTs));
+    }
+    let idleHandle = /** @type {any} */ (0);
+    const idleBuild = () => {
+      if (!container.isConnected) return;                                        // 離頁停
+      if (cursor >= flat.length) { if (io) { io.disconnect(); sentinel.remove(); } return; }  // 全建完 → 收尾（同 fill）
+      if (container.offsetParent === null) { idleHandle = setTimeout(idleBuild, 400); return; }  // panel 隱藏 → 稍後重試
+      if (performance.now() - lastScrollTs < 400) { idleHandle = setTimeout(idleBuild, 450); return; }  // Part 2：捲動中讓路，等停手再建
+      if (isAccordionBusy()) { idleHandle = setTimeout(idleBuild, 450); return; }  // 六輪 2-A：開合動畫中讓路（等序列完再補建）
+      if (performance.now() < (/** @type {any} */ (window).__sccdActSwitchBusyUntil || 0)) { idleHandle = setTimeout(idleBuild, 450); return; }  // 八輪 1-A：分頁切換中讓路（重活不疊進切換窗）
+      buildOneBatch();
+      idleHandle = ric(idleBuild);
+    };
+    // 延 ~2s 起跑（比照 1600ms defer 精神，不跟切換/進場動畫窗口搶主執行緒）
+    idleHandle = setTimeout(idleBuild, 2000);
+    registerPageCleanup(() => { clearTimeout(idleHandle); if (typeof window.cancelIdleCallback === 'function') { try { window.cancelIdleCallback(idleHandle); } catch (_) {} } });
   }
   return ret;
 }
@@ -1717,17 +1859,18 @@ function setFlagClass(el, code) {
   [...el.classList].filter(c => c.startsWith('fi-')).forEach(c => el.classList.remove(c));
   el.classList.add('fi-' + code);
 }
-// 國旗切換用 clip-reveal（垂直 wipe）取代直接跳換 class（user 2026-06-22，仿 create download/load icon 的 clip-reveal）：
-// 舊旗往上 wipe 收掉(inset bottom→100%) → 換 class → 新旗從下 wipe 揭入(inset top 100%→0)。無 gsap fallback 直接換。
+// 國旗切換＝真 clip-reveal（user 2026-09-03：位移＋遮罩，取代原 clip-path inset 原地擦除）：
+// 舊旗往上「滑出」遮罩 → 換 class → 新旗從下「滑入」。遮罩＝bindFlagCycles 包的 .flag-cycle-mask
+// （overflow:clip、inline-flex 貼身尺寸）。無 gsap fallback 直接換。
 function clipRevealFlag(el, code) {
   if (typeof gsap === 'undefined') { setFlagClass(el, code); return; }
   gsap.killTweensOf(el);
   gsap.to(el, {
-    clipPath: 'inset(0 0 100% 0)', duration: 0.18, ease: 'power2.in',
+    yPercent: -110, duration: 0.18, ease: 'power2.in',
     onComplete: () => {
       setFlagClass(el, code);
-      gsap.fromTo(el, { clipPath: 'inset(100% 0 0 0)' },
-        { clipPath: 'inset(0 0 0 0)', duration: 0.2, ease: 'power3.out', clearProps: 'clipPath' });
+      gsap.fromTo(el, { yPercent: 110 },
+        { yPercent: 0, duration: 0.2, ease: 'power3.out', clearProps: 'transform' });
     },
   });
 }
@@ -1741,6 +1884,15 @@ function bindFlagCycles(container) {
     }
     const codes = (el.dataset.flagCycle || '').split(',').map(s => s.trim()).filter(Boolean);
     if (codes.length < 2) return;
+    // 真 clip-reveal 的遮罩：包一層貼身 inline-flex + overflow:clip，滑出/滑入的畫外部分被裁掉。
+    // inline-flex 尺寸＝旗子本身（1.5em×1em），外層 flex row 的 gap/對齊不變；重綁 idempotent。
+    if (!el.parentElement?.classList.contains('flag-cycle-mask')) {
+      const mask = document.createElement('span');
+      mask.className = 'flag-cycle-mask';
+      mask.style.cssText = 'display:inline-flex;overflow:clip;';
+      el.parentNode?.insertBefore(mask, el);
+      mask.appendChild(el);
+    }
     let idx = 0;
     const intervalId = setInterval(() => {
       idx = (idx + 1) % codes.length;

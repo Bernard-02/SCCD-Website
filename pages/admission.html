@@ -109,13 +109,17 @@
                   </div>
                 </div>
               </div>
-              <!-- 搜尋（比照 activities；admission 為 inner-scroll frame，此處不做 sticky，隨內容捲動） -->
-              <div class="grid-12 mb-lg relative z-20">
-                <div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px]">
-                  <!-- list-reveal-row：panel 切換時與描述塊/items 一起參與 reveal/exit（比照 activities 各 panel 的 search bar） -->
-                  <div class="activities-search-inner list-reveal-row flex items-center gap-sm pb-xs">
-                    <span class="icon icon-search icon-m activities-search-icon"></span>
-                    <input type="text" placeholder="Search 搜尋" aria-label="搜尋 Search" class="activities-search-input flex-1 bg-transparent outline-none text-s font-bold" data-panel="panel-summer-camp" autocomplete="off">
+              <!-- 搜尋：比照 activities filter bar（桌面 inner-scroll 內 sticky 頂、往下捲收合往上還原；see activities-search.js
+                   scrollHandler/colScrollHandler）。z-20 蓋過上方描述塊（同 z-20）＝釘住時描述 tuck 進 bar 下（DOM 序後 → 在上）。
+                   md:sticky 只桌面套＝手機版維持隨內容捲動（scrollHandler 的 sticky guard 手機自動跳過收合）。 -->
+              <div class="activities-filter-bar md:sticky md:top-0 bg-white z-20">
+                <div class="grid-12 pb-lg">
+                  <div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px]">
+                    <!-- list-reveal-row：panel 切換時與描述塊/items 一起參與 reveal/exit（比照 activities 各 panel 的 search bar） -->
+                    <div class="activities-search-inner list-reveal-row flex items-center gap-sm pb-xs">
+                      <span class="icon icon-search icon-m activities-search-icon"></span>
+                      <input type="text" placeholder="Search 搜尋" aria-label="搜尋 Search" class="activities-search-input flex-1 bg-transparent outline-none text-s font-bold" data-panel="panel-summer-camp" autocomplete="off">
+                    </div>
                   </div>
                 </div>
               </div>

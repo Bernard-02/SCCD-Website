@@ -3,7 +3,8 @@
  * Activities Search Module
  * 各 panel 各自的 search input，對應各自 panel 內容
  */
-import { setupClipReveal, playClipReveal } from './scroll-animate.js';
+import { hideRows, revealRows, snapRowsShown } from './list-row-reveal.js';
+import { DUR } from './motion.js';
 
 // lazy 清單：搜尋前把所有 item 建出來（否則只搜得到已渲染的首批＋捲過的）＝search「無結果」根因。
 // _lazyRenderAll 由 activities-data-loader lazy 容器暴露、idempotent；建完清 originalOrders 讓下面重新捕捉完整順序。
@@ -21,21 +22,65 @@ function ensureFullyRendered(panel) {
 
 // 清 lazy 藏起的 transform / 斑馬 clip / data-pre-reveal → 讓（清空搜尋後）所有 item 直接可見可互動。
 function revealAllInstant(panel) {
-  if (typeof gsap !== 'undefined') {
-    gsap.set(panel.querySelectorAll('.list-reveal-row'), { clearProps: 'transform' });
-    panel.querySelectorAll('.list-item.list-item-zebra').forEach(it => gsap.set(it, { clearProps: 'clipPath' }));
-  }
+  snapRowsShown(panel.querySelectorAll('.list-reveal-row'));  // 五輪：transition:none＋transform=''（零讀取，不再逐列冷觸 recalc）
+  panel.querySelectorAll('.list-item.list-item-zebra').forEach(it => { it.style.clipPath = ''; });
   panel.querySelectorAll('.list-item[data-pre-reveal]').forEach(it => it.removeAttribute('data-pre-reveal'));
 }
 
-// 搜尋結果進場動畫（user 2026-08-31）：match 的 row clip-reveal 滑入、斑馬底色清 clip 直接現。
-function animateMatches(matchedItems) {
-  if (typeof gsap === 'undefined' || !matchedItems.length) return;
-  const rows = matchedItems.flatMap(it => [...it.querySelectorAll('.list-reveal-row')]);
-  matchedItems.forEach(it => { it.removeAttribute('data-pre-reveal'); if (it.classList.contains('list-item-zebra')) gsap.set(it, { clearProps: 'clipPath' }); });
-  if (!rows.length) return;
-  setupClipReveal(rows, { hide: true });   // 先藏（同一 tick、不閃）
-  playClipReveal(rows);                     // 再 clip-reveal 滑入
+// 搜尋結果進場動畫（user 2026-09-03 改版）：每次結果變動＝捲回頂、從第一筆開始 cascade。
+// 年份標籤 rows 跟自己 group 的 items 同一波（DOM 序）進場——原版只藏 item rows，年份/zebra 即時現、
+// 文字全量線性 stagger（0.06×兩百多列＝尾端十幾秒）＝user 報「年份跟 zebra 提前渲染、文字才來」的空帶。
+// cull 用 item 計數（零 layout 讀）：首屏後的直接現（做過的就不需要），同切換 reveal 的視窗裁切精神。
+const SEARCH_ANIM_ITEMS = 12;      // 桌面一屏 ~9-12 筆
+const SEARCH_ITEM_STAGGER = 0.08;  // 逐「筆」起跑間隔（非逐 row 線性——45 row×0.06 尾端 2.7s，下緣又變 zebra 先文字後）
+function animateMatches(panel) {
+  const sc = panelScroller(panel);
+  panel.querySelector('.activities-filter-bar')?.classList.remove('bar-hidden');   // 結果回頂＝bar 保留在畫面上（與清空側對稱）
+  if (sc) { markProgrammaticScroll(); sc.scrollTop = 0; }   // 從頭開始；window path（手機 bar 非 sticky＝本來就在頂部打字）不捲
+  const animUnits = [];   // { rows, slot }：year 標籤與該組第一筆同 slot（同拍滑入）、每筆 item 一 slot
+  const snapRows = [];
+  let itemCount = 0;
+  getVisibleYearGroups(panel).forEach(group => {
+    const g = /** @type {HTMLElement} */ (group);
+    if (g.style.display === 'none') return;   // 本輪無命中被藏的 group
+    const labelRows = [...group.querySelectorAll('.list-year-label .list-reveal-row')];
+    if (itemCount < SEARCH_ANIM_ITEMS) animUnits.push({ rows: labelRows, slot: itemCount });
+    else snapRows.push(...labelRows);
+    const container = getItemsContainer(group);
+    if (!container) return;
+    [...container.querySelectorAll('.list-item')].forEach(item => {
+      const it = /** @type {HTMLElement} */ (item);
+      if (it.style.display === 'none') return;
+      it.removeAttribute('data-pre-reveal');
+      const rows = [...it.querySelectorAll('.list-reveal-row')];
+      if (itemCount < SEARCH_ANIM_ITEMS) animUnits.push({ rows, slot: itemCount });
+      else snapRows.push(...rows);
+      itemCount++;
+    });
+  });
+  snapRowsShown(snapRows);   // 視窗外＋殘留隱藏態（lazy pending）一步到位直接現
+  const allAnimRows = animUnits.flatMap(u => u.rows);
+  if (!allAnimRows.length) return;
+  hideRows(allAnimRows);
+  void allAnimRows[0].offsetHeight;  // ⚠️ 必要：同步區塊先藏再揭、無中間 paint 會 snap（list-row-reveal 檔頭警語）；單次 reflow commit 起點
+  animUnits.forEach(u => {
+    if (u.rows.length) revealRows(u.rows, { dur: DUR.reveal, delay: u.slot * SEARCH_ITEM_STAGGER, stagger: 0.05 });
+  });
+}
+
+// 八輪 Part 2：search 顯隱/重排後按「可見 DOM 序」重新交錯 zebra——原 setZebra 是建行時的 default 連續序，
+//   search 只改 display/排序、從不動 zebra → 結果會連灰/連白。順帶清殘留 inline clip（pending/被打斷 item 帶
+//   inset(100%) 會把整筆裁隱形，搜尋結果須立即完整可見）＋zbGen 換代（'s' 前綴＝作廢舊 zebra 動畫回呼，六輪機制；
+//   與 activities 'a'／admission 'd' 跨檔不撞值）。judge 可見用 style.display（applyGenericSearch 自寫的 inline、零 layout 讀）。
+let _restripeZbGen = 0;
+function restripeVisibleZebra(panel) {
+  const visible = [...panel.querySelectorAll('.list-item')].filter(it => /** @type {HTMLElement} */ (it).style.display !== 'none');
+  visible.forEach((it, i) => {
+    const el = /** @type {HTMLElement} */ (it);
+    el.classList.toggle('list-item-zebra', i % 2 === 0);
+    if (el.style.clipPath) { el.style.transition = 'none'; el.style.clipPath = ''; }
+    el.dataset.zbGen = 's' + (++_restripeZbGen);
+  });
 }
 
 // ── Empty State ──────────────────────────────────────────────────────────
@@ -137,9 +182,29 @@ function getVisibleYearGroups(panel) {
 
 // ── Generic panel 搜尋 ─────────────────────────────────────────────────────
 
+// search 清空後把捲動位置還原到「搜尋前」（user 2026-09-03）：桌面捲在 .inner-scroll-scroll-col（矮橫向拆 frame→
+//   overflow visible→改 window）。搜尋重排/隱藏 item 使清單變短→scrollTop 被 clamp→清空還原後停頂端；記原位捲回。
+function panelScroller(panel) {
+  const box = /** @type {HTMLElement | null} */ (panel.closest('.inner-scroll-scroll-col'));
+  if (box) { const oy = getComputedStyle(box).overflowY; if (oy === 'auto' || oy === 'scroll') return box; }
+  return null;  // window path（手機/矮橫向拆 frame）
+}
+
+// 程式化捲動抑制（user 2026-09-03「清空後 search bar 要留在畫面上」）：搜尋捲頂/清空還原的 scrollTop 跳動
+// 也會 fire scroll event，方向式 bar 開合 handler 會把「還原往下跳」誤判成使用者下捲＝自動收 bar。
+// 寫 scrollTop 前標記短窗，兩個 scroll handler 在窗內只同步基準值、不動 bar。
+let _progScrollUntil = 0;
+function markProgrammaticScroll() { _progScrollUntil = performance.now() + 250; }
+
 function applyGenericSearch(panelId, query) {
   const panel = document.getElementById(panelId);
   if (!panel) return;
+
+  // user 2026-09-03：首個非空 query（_searchShown 還是 null＝搜尋開始）記住當前捲動位置，供清空時捲回（見空查詢分支末）
+  if (query && !/** @type {any} */ (panel)._searchShown) {
+    const sc = panelScroller(panel);
+    /** @type {any} */ (panel)._preSearchScroll = sc ? sc.scrollTop : window.scrollY;
+  }
 
   if (query) ensureFullyRendered(panel);  // lazy：搜尋前全建，否則只搜得到已渲染那批＝無結果
 
@@ -154,6 +219,10 @@ function applyGenericSearch(panelId, query) {
   });
 
   if (!query) {
+    // 五輪：從沒搜尋過（或已還原過）＝零副作用可還原 → 什麼都不做。
+    // 否則每次切分頁的 +300ms 重 apply（:414 listener）都會對全建 panel 跑整套還原
+    // ＋revealAllInstant＝數百列冷觸 recalc storm（headless 實測 34s 單一 task）。
+    if (!/** @type {any} */ (panel)._searchShown) { setEmptyState(panel, false); return; }
     // 防禦性：先把 panel 內所有 .activities-separator restore（含 wrapper），再讓 hideLastSeparator
     // 收掉最後一條。覆蓋任何前一輪 no-match 狀態下 hideAllSeparators 殘留的 hidden 分隔線。
     panel.querySelectorAll('.activities-separator').forEach(sep => {
@@ -179,21 +248,43 @@ function applyGenericSearch(panelId, query) {
     });
     hideLastSeparator(yearGroups);
     revealAllInstant(panel);   // lazy 藏起的 item 清空搜尋後也要現，否則留白
+    restripeVisibleZebra(panel);   // 八輪 Part 2：還原後 DOM 序＝原始序 → restripe 天然等於 default 交錯（免另存舊態）
+    // user 2026-09-03：捲回搜尋前的位置（DOM 已全還原、scrollHeight 回滿→不被 clamp）；否則停在搜尋結果短清單頂端
+    const _preY = /** @type {any} */ (panel)._preSearchScroll;
+    if (typeof _preY === 'number') {
+      const sc = panelScroller(panel);
+      markProgrammaticScroll();   // 還原跳動非使用者捲動——別讓方向式開合收掉 bar（user 2026-09-03）
+      panel.querySelector('.activities-filter-bar')?.classList.remove('bar-hidden');   // 清空後 bar 保留在畫面上
+      if (sc) sc.scrollTop = _preY; else window.scrollTo(0, _preY);
+      /** @type {any} */ (panel)._preSearchScroll = null;
+    }
     setEmptyState(panel, false);
+    /** @type {any} */ (panel)._searchShown = null;  // 3-3：清空搜尋 → 重置 diff 基準
     return;
   }
 
   const q = query.toLowerCase();
-  const allMatched = [];
-  yearGroups.forEach(group => {
+  // 3-3：先純算每組 matched（不動 DOM）→ 得 allMatched 供 diff。matchScore 原本 binary 1/0 + no-op sort：直接 filter（保留原 DOM 序）
+  const groupMatched = yearGroups.map(group => {
     const container = getItemsContainer(group);
     const allItems = container && originalOrders.has(container)
       ? originalOrders.get(container)
       : [...group.querySelectorAll('.list-item')];
-    if (!allItems.length) return;
+    return { group, container, allItems, matched: allItems.filter(item => (item.dataset.search || '').includes(q)) };
+  });
+  const allMatched = groupMatched.flatMap(g => g.matched);
 
-    // matchScore 原本是 binary 1/0 + 永遠 no-op 的 sort：直接 filter（保留 allItems 順序＝原 DOM append 順序）
-    const matched = allItems.filter(item => (item.dataset.search || '').includes(q));
+  // 命中集合＋順序與上輪完全相同（如連續輸入到結果已穩定）→ DOM 重排／divider 重建／animate 全跳過（免 cross-tween race + 閃）
+  const prev = /** @type {any} */ (panel)._searchShown;
+  const unchanged = Array.isArray(prev) && prev.length === allMatched.length && allMatched.every((it, i) => prev[i] === it);
+  if (unchanged) {
+    const anyVis = yearGroups.some(g => g.style.display !== 'none');
+    setEmptyState(panel, !anyVis);
+    return;
+  }
+
+  groupMatched.forEach(({ group, container, allItems, matched }) => {
+    if (!allItems.length) return;
 
     if (!matched.length) {
       allItems.forEach(item => { item.style.display = 'none'; });
@@ -213,7 +304,6 @@ function applyGenericSearch(panelId, query) {
 
     if (container) matched.forEach(item => container.appendChild(item));
     matched.forEach(item => { item.style.display = ''; });
-    allMatched.push(...matched);
     rebuildBorders(matched);
 
     // 若 year-items 因 year toggle 被收合，展開讓結果可見，並記錄以便清空時還原
@@ -228,13 +318,19 @@ function applyGenericSearch(panelId, query) {
 
   hideLastSeparator(yearGroups);
 
-  // 搜尋結果進場動畫：match 的 row clip-reveal 滑入（lazy 藏起的 match 也一併揭）
-  animateMatches(allMatched);
+  // 八輪 Part 2：排序＋顯隱寫完、animateMatches 之前重排 zebra——matched rows 照常滑入、zebra 底色按新交錯直接現
+  //   （與 3-3「zebra 直寫清」一致、無動畫）。
+  restripeVisibleZebra(panel);
+
+  // user 2026-09-03：結果變動＝捲回頂、整段從頭 cascade（year 標籤＋items 同波、首屏外直接現）。
+  // 結果集合＋順序沒變的重打（unchanged 守衛 :242）仍完全跳過＝連續輸入不閃。gen 戳記保打斷安全。
+  animateMatches(panel);
+  /** @type {any} */ (panel)._searchShown = allMatched;
 
   // Empty state
   const anyVisible = yearGroups.some(g => g.style.display !== 'none');
-  if (query && !anyVisible) hideAllSeparators(panel);
-  setEmptyState(panel, query && !anyVisible);
+  if (!anyVisible) hideAllSeparators(panel);
+  setEmptyState(panel, !anyVisible);
 }
 
 function hideLastSeparator(yearGroups) {
@@ -293,8 +389,10 @@ let colScrollHandler = null;
 // 桌面 inner-scroll：右欄是「置中 box」(.activities-scroll-col)、window 不捲 → bar 收合改掛 box 自己的 scroll。
 // 矮橫向拆 frame（landscape gate 把 box overflow 改 visible、window 捲）→ 回 false，讓 window scroll handler
 // 接管收合（同手機）；看 computed overflow 不看寬度（同 list-accordion getScrollableBox）。
+// .inner-scroll-scroll-col（非 .activities-scroll-col）：activities 的欄同時帶兩 class，admission 只帶前者
+// → 用共用 class 一併涵蓋兩頁（camp 搜尋列共用本模組，見 main-modular initActivitiesSearch）。
 function isDesktopInnerScroll() {
-  const col = /** @type {HTMLElement | null} */ (document.querySelector('.activities-scroll-col'));
+  const col = /** @type {HTMLElement | null} */ (document.querySelector('.inner-scroll-scroll-col'));
   if (!col || window.innerWidth < 768) return false;
   const oy = getComputedStyle(col).overflowY;
   return oy === 'auto' || oy === 'scroll';
@@ -310,12 +408,16 @@ export function initActivitiesSearch() {
   scrollHandler = () => {
     // 桌面 inner-scroll：bar 收合由下方 box scroll 接管；window 不捲（snap 在 section），此處不插手免互搶 bar-hidden
     if (isDesktopInnerScroll()) return;
+    if (performance.now() < _progScrollUntil) { lastScrollY = window.scrollY; return; }  // 程式化捲動（搜尋捲頂/清空還原）不觸發 bar 開合
     const currentY = window.scrollY;
     const goingDown = currentY > lastScrollY;
     lastScrollY = currentY;
 
     const activeBar = document.querySelector('.activities-panel:not(.hidden) .activities-filter-bar');
     if (!activeBar) return;
+    // 只有實際 position:sticky 的 bar 收合才有意義（釘住後隱藏）；非 sticky（admission camp 手機版，bar 隨內容捲）
+    // 收合只會讓下方內容跳動 → 跳過。activities 手機版 filter bar 有 sticky 規則故照收。
+    if (getComputedStyle(activeBar).position !== 'sticky') return;
 
     // search bar 純捲動驅動 hide/show，即使有 item 展開也一樣（user 2026-06-09 改：開 item 後 scroll-up 仍可
     // 還原 search bar，不再永久鎖收）。開 item 時由 list-accordion 平滑加 bar-hidden，這裡只接管之後的捲動開合；
@@ -336,11 +438,19 @@ export function initActivitiesSearch() {
 
   // 桌面 inner-scroll：search bar 收合掛在置中 box (.activities-scroll-col) 的捲動（往下捲 → 收，往上 → 還原；
   // bar 釘 box 頂、原地收合不頂到 header）。box 是 SPA 換頁時整段重建，故每次 init 重抓 + registerPageCleanup 解綁。
-  const scrollCol = /** @type {HTMLElement | null} */ (document.querySelector('.activities-scroll-col'));
+  const scrollCol = /** @type {HTMLElement | null} */ (document.querySelector('.inner-scroll-scroll-col'));
   if (scrollCol) {
     colScrollHandler = () => {
       const cur = scrollCol.scrollTop;
-      const activeBar = document.querySelector('.activities-panel:not(.hidden) .activities-filter-bar');
+      if (performance.now() < _progScrollUntil) { lastColY = cur; return; }  // 程式化捲動（搜尋捲頂/清空還原）不觸發 bar 開合
+
+      // 六輪 2-E：惰性快取 active bar，去掉每次 scroll 的 `.activities-panel:not(.hidden) ...` 後代選擇器全掃（profiler self 4.3s）。
+      //   快取存 scrollCol 上（同元素跨 event 存活；SPA 換頁 box 重建＝天然失效）；失效條件＝那顆 bar 的 panel 被切成 hidden／脫離 DOM，
+      //   改用廉價的 closest+contains 判定，僅在失效時才重掃一次。全部收在此 closure 內（此檔有 camp sticky WIP、只准動這裡）。
+      let activeBar = /** @type {any} */ (scrollCol)._colBar;
+      if (!activeBar || !activeBar.isConnected || activeBar.closest('.activities-panel')?.classList.contains('hidden')) {
+        activeBar = /** @type {any} */ (scrollCol)._colBar = document.querySelector('.activities-panel:not(.hidden) .activities-filter-bar');
+      }
       // 方向式（往下收、往上還原），比照改 100vh 前的 window 版（user 2026-06-30「往上要看得到 search bar」）。
       // 可靠的前提＝scroll-col 已設 overflow-anchor:none：收合改高度不補償 scrollTop → 無自觸發 scroll →
       // lastColY 純由使用者捲動驅動、方向不會被翻轉（先前方向式抖動、位置式不還原都是這個 anchoring 補償造成）。

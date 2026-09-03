@@ -71,6 +71,11 @@
   #admission-content-section .inner-scroll-scroll-col {
     overflow-anchor: none;
   }
+  /* ⚠️關掉 activities filter bar 那個「向上 200px 白遮罩」：activities 用它遮 chip-clearance 空隙，但 admission
+     bar 上方緊鄰 camp 說明文字塊（無 clearance）→ 白遮罩會直接蓋住描述。bar 自身 bg 已足以遮捲到底下的 list。 */
+  #admission-content-section .activities-filter-bar::before {
+    display: none;
+  }
 
   /* ── faculty 專屬：卡片旋轉 clearance ──
      卡片 wrapper 旋轉 --init-deg(±3~6°)，貼齊 box 四邊的卡片頂/底/側角投影出 box 邊緣 ~14px、被 overflow 裁。
@@ -332,7 +337,8 @@
   .list-header > * > .clip-reveal-wrapper:has(.list-subtitles) {
     display: grid;
     grid-template-rows: 1fr;
-    transition: grid-template-rows var(--dur-fast) ease, opacity var(--dur-fast) ease, margin-top var(--dur-fast) ease;
+    /* 九輪：副標收起改純 clip-reveal（拿掉 opacity fade）；只補間 grid-rows + margin-top */
+    transition: grid-template-rows var(--dur-fast) ease, margin-top var(--dur-fast) ease;
   }
   .list-header > * > .clip-reveal-wrapper:has(.list-subtitles) > * {
     min-height: 0;
@@ -340,13 +346,17 @@
        溢出 viewport → 手機瀏覽器把 ICB 撐寬整頁重縮放（user 2026-07-17 報「點 Camp 畫面 scale 放大」）。
        min-width:0 讓副標回到欄寬、溢出交給 .list-title-marquee(overflow:hidden) 截斷＋開啟 marquee（同 title；min-height:0 的水平對應）。 */
     min-width: 0;
+    /* 九輪：底部貼齊（同 year-toggle 收合配方 list-accordion.js:31-34）→ row 縮時副標整塊往上滑出、溢出上緣被
+       wrapper overflow-y:clip 剪掉＝clip-reveal 位移感（非原地 fade）；展開態 row 高=內容高 → justify-end no-op 零位移。 */
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
   }
   /* user 2026-08-28：只有 lectures 收副標（scope #panel-lectures），其他 section 打開/pin 後都保留副標。
      手機仍「捲過 pin 線才收」（不複製桌面一開就收）。原 general 收合＋summer-camp 例外已移除。 */
   #panel-lectures .list-header.active.is-pinned > * > .clip-reveal-wrapper:has(.list-subtitles) {
     grid-template-rows: 0fr;
-    opacity: 0;
-    margin-top: -0.5rem;  /* 抵消父 flex-col gap-xs，collapsed 後 title 不留視覺 gap */
+    margin-top: -0.5rem;  /* 抵消父 flex-col gap-xs，collapsed 後 title 不留視覺 gap（九輪：拿掉 opacity＝純 clip 收起） */
   }
 
   /* 手機：年份→list 的 grid gap 移除（year-toggle py-md + items mt-md 已提供間距，year 緊貼 list）。
@@ -664,7 +674,8 @@
   .list-header > * > .clip-reveal-wrapper:has(.list-subtitles) {
     display: grid;
     grid-template-rows: 1fr;
-    transition: grid-template-rows var(--dur-fast) ease, opacity var(--dur-fast) ease, margin-top var(--dur-fast) ease;
+    /* 九輪：副標收起改純 clip-reveal（拿掉 opacity fade）；只補間 grid-rows + margin-top */
+    transition: grid-template-rows var(--dur-fast) ease, margin-top var(--dur-fast) ease;
   }
   .list-header > * > .clip-reveal-wrapper:has(.list-subtitles) > * {
     min-height: 0;
@@ -672,14 +683,18 @@
        溢出 viewport → 手機瀏覽器把 ICB 撐寬整頁重縮放（user 2026-07-17 報「點 Camp 畫面 scale 放大」）。
        min-width:0 讓副標回到欄寬、溢出交給 .list-title-marquee(overflow:hidden) 截斷＋開啟 marquee（同 title；min-height:0 的水平對應）。 */
     min-width: 0;
+    /* 九輪：底部貼齊（同 year-toggle 收合配方 list-accordion.js:31-34）→ row 縮時副標整塊往上滑出、溢出上緣被
+       wrapper overflow-y:clip 剪掉＝clip-reveal 位移感（非原地 fade）；展開態 row 高=內容高 → justify-end no-op 零位移。 */
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
   }
   /* user 2026-08-28：桌面只有 lectures 收副標——一「打開」(.active) 就收，不必等 pin。
    * 其他有副標 section（industry/students-present/exhibitions…）打開後一律保留副標（原 general is-pinned collapse 與 summer-camp 例外已移除）。
    * 原因：在頂部直接點開講座時 header 不一定壓到 sticky-top 線 → is-pinned 不 fire → 只靠 .active 才收得掉。 */
   #panel-lectures .list-header.active > * > .clip-reveal-wrapper:has(.list-subtitles) {
     grid-template-rows: 0fr;
-    opacity: 0;
-    margin-top: -0.5rem;
+    margin-top: -0.5rem;  /* 九輪：拿掉 opacity＝副標純 clip-reveal 往上滑出收起，不 fade */
   }
 
   /* album-thumb-item 內 year + date+title group 各自 sticky；scope 受父 .album-thumb-item 限制，

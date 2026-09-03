@@ -21,6 +21,9 @@ import { createLightboxVideo } from '../lightbox/lightbox-video.js';
 import { loadDegreeShow } from './degree-show-source.js';
 import { sitePath } from '../ui/site-base.js';
 
+// 七輪：分頁封面「載好才滑入」的隨機四向（同 activities POSTER_SLIDE_DIRS / library COVER_SLIDE_DIRS 語彙）
+const POSTER_SLIDE_DIRS = ['0%, 110%', '0%, -110%', '110%, 0%', '-110%, 0%'];
+
 // 「用手機版做法」的 gate：直向手機（<768）＋矮橫向手機（同全站 landscape.css：orientation:landscape
 // + max-height:500）。矮橫向手機寬常 ≥768 會誤吃桌面分支 → 併進來，detail 頁 body/hero 全走手機路徑。
 function isMobileView() {
@@ -89,8 +92,10 @@ export async function loadDegreeShowListInto(containerId) {
       const titleZh = item.title || item.titleZh || '';
       const detailQuery = new URLSearchParams({ year, ...(item.id ? { id: item.id } : {}) }).toString();
       // 無 coverImage（如後台還沒傳封面）→ 灰底 placeholder，卡片仍有縮圖塊 + 標題不空掉（user 2026-08-17）
+      // 七輪：有封面時烙 pending translate（載好才滑入，同 activities poster）；wrapper .degree-show-img-wrapper 恆 overflow-hidden＝現成遮罩。
+      const dir = POSTER_SLIDE_DIRS[(Math.random() * 4) | 0];
       const coverHtml = item.coverImage
-        ? `<img src="${item.coverImage}" alt="Degree Show ${year}" loading="eager" class="degree-show-img w-full">`
+        ? `<img src="${item.coverImage}" alt="Degree Show ${year}" loading="eager" class="degree-show-img w-full" data-pending-reveal="1" style="transform: translate(${dir})">`
         : `<div class="degree-show-img-placeholder" role="img" aria-label="Degree Show ${year}"></div>`;
       // .list-reveal-row 讓 setupAdmissionReveal + playAdmissionPanelReveal 接管進場
       //   → 跟 description / search bar 同一條 stagger timeline，無 hardcoded delay
@@ -158,6 +163,25 @@ export async function loadDegreeShowListInto(containerId) {
     // 斑馬紋灰白交替（同 loadListInto activities-data-loader.js:1469）：全域計數標記偶數 .list-item；
     // 每張 card 一個 .list-item → 逐年交替。CSS 只在 #activities-content-section 上色，degree-show panel 在其內故生效。
     container.querySelectorAll('.list-item').forEach((el, i) => el.classList.toggle('list-item-zebra', i % 2 === 0));
+
+    // 七輪：封面載好才滑入（抄 activities poster 小段；wrapper 恆 overflow-hidden＝遮罩、無 hover rotate 故無組合契約、rot 恆空）。
+    container.querySelectorAll('.degree-show-img[data-pending-reveal]').forEach(el => {
+      const img = /** @type {HTMLImageElement} */ (el);
+      const reveal = () => {
+        if (!img.dataset.pendingReveal) return;
+        delete img.dataset.pendingReveal;
+        img.style.transition = 'transform 0.6s cubic-bezier(0.25, 0, 0, 1)';   // EASE.enter
+        img.style.transform = 'translate(0%, 0%)';
+        const clr = (e) => {
+          if (e.target !== img || e.propertyName !== 'transform') return;
+          img.style.transition = ''; img.style.transform = '';
+          img.removeEventListener('transitionend', clr);
+        };
+        img.addEventListener('transitionend', clr);
+      };
+      if (img.complete && img.naturalWidth) reveal();
+      else img.addEventListener('load', reveal, { once: true });
+    });
 
     // Hover：accent 底色套在斑馬列本身，觸發區＝整條斑馬列（＝點擊連結區，比照 admission list-header 整列 hover）。
     // 用 inline style 設底色：斑馬灰 bg 是 #activities-content-section 下 ID scope（specificity 高），inline 才蓋得過。
