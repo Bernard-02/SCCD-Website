@@ -63,7 +63,7 @@
                桌面 inner-scroll frame：外層 nav-col wrapper（占 col-span-4）padding-top 把 bar 推到 content 區頂、頂部對齊；
                bar 不再 col-span-4、courses.css frame 規則把 bar 的 position:sticky 改回 static（見 courses.css）。 -->
           <div class="md:col-span-4 inner-scroll-nav-col">
-          <div class="courses-program-bar flex flex-col items-start gap-lg md:gap-2xl mb-md md:mb-0">
+          <div class="courses-program-bar flex flex-col items-start gap-lg md:gap-lg mb-md md:mb-0">
             <div class="courses-program-group flex flex-col items-start gap-xs">
               <span class="courses-bfa-label"><span data-label-key="curriculum.group.bfa" data-label-part="en">BFA</span><span data-label-key="curriculum.group.bfa" data-label-part="zh">學士班</span></span>
               <button class="courses-program-btn active" data-program="bfa-animation">
@@ -104,8 +104,9 @@
     <!-- Course Detail Slide-in Modal（仿 #faculty-slide-in pattern）
          click 卡片 → 從右滑入；overlay/close-btn/Esc 關閉；body.overflow lock 鎖捲動
          手機：頂部留 header 高度避讓 logo + mode + menu；返回鍵在 panel 內 flow 最上方，title 接著返回鍵
-         z-[10001]：高於 header lightbox-raise(10000)，免收合動畫中的 header bars 蓋住 slide-in（user 2026-08-31） -->
-    <div id="courses-slide-in" class="invisible pointer-events-none fixed inset-0 z-[10001]">
+         z-[9999]（比照 lightbox 容器）：低於 header lightbox-raise(10000)，讓 logo 浮在 slide-in 之上＝開啟時 logo 恆可見
+         （user 2026-09-02，翻掉 08-31「slide-in 高過 header」的決定——bars 收合快、實測不會蓋到滑入的 panel） -->
+    <div id="courses-slide-in" class="invisible pointer-events-none fixed inset-0 z-[9999]">
       <div id="courses-overlay" class="absolute inset-0 bg-black opacity-0 cursor-pointer"></div>
       <!-- title 區 sticky 在頂端不動；desc 包進固定 wrapper，內部 overflow-y 自己 scroll（參考 activities list-scroll pattern） -->
       <div id="courses-detail-panel" role="dialog" aria-modal="true" aria-labelledby="courses-detail-title-en courses-detail-title-zh" tabindex="-1" class="absolute right-0 top-0 bottom-0 w-full md:w-[40%] overflow-hidden"

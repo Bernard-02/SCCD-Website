@@ -46,11 +46,12 @@ function viewIO() {
  * @param {Element} scope - 容器（querySelectorAll 的根）
  * @param {string} rowSelector - 要 marquee 的「行」selector
  * @param {string} innerSelector - row 內部包文字的 inner span selector
- * @param {{speed?: number, minDuration?: number}} [opts]
+ * @param {{speed?: number, minDuration?: number, tolerance?: number}} [opts]
  */
 export function applyMarqueeOverflow(scope, rowSelector, innerSelector, opts = {}) {
   const speed = opts.speed ?? 80;
   const minDuration = opts.minDuration ?? 3;
+  const tolerance = opts.tolerance ?? 0;  // fit-content 遮罩貼齊時吸掉 subpixel 假溢出；預設 0 不影響其他 caller
 
   const pairs = [];
   scope.querySelectorAll(rowSelector).forEach((rowEl) => {
@@ -78,7 +79,7 @@ export function applyMarqueeOverflow(scope, rowSelector, innerSelector, opts = {
     // 會把沒真溢出的標題誤判溢出。0 寬無法可靠偵測，跳過；caller 的 _XMarqueeInit（panel show 後 rAF 重觸）會補量。
     const rowW = row.offsetWidth;
     if (!rowW) return;
-    if (inner.scrollWidth - rowW > 0) overflowing.push({ row, inner, copyWidth: 0 });
+    if (inner.scrollWidth - rowW > tolerance) overflowing.push({ row, inner, copyWidth: 0 });
   });
   if (!overflowing.length) return;
 

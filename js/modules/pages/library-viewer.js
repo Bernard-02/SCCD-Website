@@ -89,7 +89,10 @@ function ensurePdfModal() {
              開場依「頁面可視矩形」定尺寸一次、render 完全不碰 → 不再「先大後縮兩段跳」（user 2026-08-24）。
              仍是頁面大小（非蓋滿整個 stage，user 要求）；render 完成前每秒換三原色，完成後隨機四方向 clip-reveal 揭露 PDF。
              z-index:15＝蓋在 canvas-row 上、低於浮水印(z20，load 期間 opacity:0)與 minimap(z25，load 期間藏)。 -->
-        <div class="pdf-color-loader" aria-hidden="true" style="position:absolute;left:0;top:0;pointer-events:none;display:none;z-index:15;"></div>
+        <div class="pdf-color-loader" aria-hidden="true" style="position:absolute;left:0;top:0;pointer-events:none;display:none;z-index:15;">
+          <!-- 換色 swipe 子層：新色從隨機一邊 clip-reveal 掃入蓋過舊色（user 2026-09-01，取代直接 snap 背景色） -->
+          <div class="pdf-color-loader-swipe" style="position:absolute;inset:0;display:none;"></div>
+        </div>
         <!-- 浮水印放在 zoom-stage（非 .pdf-canvas-row）→ 不吃 zoom 的 scale transform，放大 PDF 時水印字級不變（user 2026-08-20）。
              外層 .pdf-watermark-clip（未旋轉、inset:0）用 clip-path 把浮水印裁成「PDF 頁面在螢幕上的矩形」
              → 浮水印只蓋頁面、不蓋整個視窗（user 2026-08-23；updateWatermarkClip 跟著 zoom/pan 更新）。
@@ -195,6 +198,7 @@ export function initPdfViewer() {
   const cornerThumbRect = /** @type {HTMLElement | null} */ (modal.querySelector('.pdf-corner-thumb-rect'));
   const cornerThumbInner = /** @type {HTMLElement | null} */ (modal.querySelector('.pdf-corner-thumb-inner'));
   const colorLoaderEl = /** @type {HTMLElement | null} */ (modal.querySelector('.pdf-color-loader'));
+  const colorSwipeEl = /** @type {HTMLElement | null} */ (modal.querySelector('.pdf-color-loader-swipe'));
   const watermarkEl = /** @type {HTMLElement | null} */ (modal.querySelector('.pdf-watermark'));
   const watermarkClipEl = /** @type {HTMLElement | null} */ (modal.querySelector('.pdf-watermark-clip'));
   const mainRowEl = modal.querySelector('.pdf-main-row');
@@ -383,11 +387,16 @@ export function initPdfViewer() {
       // 頁面在 stage 座標的位置（rowEl 撐滿 stage、transform-origin center → 頁中心 = stage 中心 + (tx,ty)）
       const left = (sw - scaledW) / 2 + zoom.tx;
       const top  = (sh - scaledH) / 2 + zoom.ty;
-      // 寬對齊 CSS clamp(56px,12vw,88px)（JS 算免量測 reflow）；超長頁高度 cap 在 stage 高 60%，太長改縮窄
+      // 寬對齊 CSS clamp(56px,12vw,88px)（JS 算免量測 reflow）＝直式/近方頁的基準寬。
       let tw = Math.max(56, Math.min(88, window.innerWidth * 0.12));
+      // 橫式頁（寬>高）：把基準寬當「短邊（高）」、寬度依長寬比加寬 → minimap 不再又矮又小（user 2026-09-03）。
+      if (fitDims.w > fitDims.h) tw = tw * fitDims.w / fitDims.h;
       let th = tw * fitDims.h / fitDims.w;
+      // 超長直式頁高度 cap 在 stage 高 60%（太長改縮窄）；超寬橫式頁寬度 cap 176px（= thumb canvas 內建寬，超過會糊）。
       const maxH = sh * 0.6;
       if (th > maxH) { tw = maxH * fitDims.w / fitDims.h; th = maxH; }
+      const maxW = 176;
+      if (tw > maxW) { tw = maxW; th = tw * fitDims.h / fitDims.w; }
       cornerThumbEl.style.width = tw + 'px';
       const fl = Math.max(0, -left / scaledW),        ft = Math.max(0, -top / scaledH);
       const fr = Math.min(1, (sw - left) / scaledW),  fb = Math.min(1, (sh - top) / scaledH);
@@ -569,12 +578,32 @@ export function initPdfViewer() {
   function resetToFit(animated = false)    { zoomToScale(fitScale(),    animated); }
 
   // ── 載入色塊（取代舊 LQIP 馬賽克墊圖）─────────────────────────────────────
-  // 三原色隨機不重複；render 完成前每 1s 換色循環，完成後隨機四方向 clip-reveal 揭露頁面。
+  // 三原色隨機不重複；render 完成前每 1s 換色（新色從隨機一邊 clip-reveal 掃入），完成後隨機四方向 clip-reveal 揭露頁面。
   function pickLoaderColor() {
     let i;
     do { i = Math.floor(Math.random() * LOADER_COLORS.length); } while (i === lastColorIdx);
     lastColorIdx = i;
     return LOADER_COLORS[i];
+  }
+  // 隨機四方向 inset（全 % — 混單位 GSAP 會直接跳終值，見 lightbox-shell memory）。
+  // 揭露用作「收往該邊」終值；換色 swipe 用作「從該邊掃入」起值。
+  const LOADER_DIRS = ['inset(0% 0% 0% 100%)', 'inset(0% 100% 0% 0%)', 'inset(100% 0% 0% 0%)', 'inset(0% 0% 100% 0%)'];
+  // 換色不 snap：新色在 swipe 子層從隨機一邊 clip-reveal 掃入、掃完落定到底層背景（user 2026-09-01）
+  function swipeLoaderColor() {
+    const c = pickLoaderColor();
+    // 色塊還沒顯示（等真尺寸）或無 gsap → 掃入沒人看得到，直接換底色
+    if (!colorSwipeEl || typeof gsap === 'undefined' || colorLoaderEl.style.display === 'none') {
+      colorLoaderEl.style.background = c;
+      return;
+    }
+    gsap.killTweensOf(colorSwipeEl);
+    if (colorSwipeEl.style.display !== 'none') colorLoaderEl.style.background = colorSwipeEl.style.background;   // 前一掃未完→先落定
+    colorSwipeEl.style.background = c;
+    colorSwipeEl.style.display = '';
+    gsap.fromTo(colorSwipeEl,
+      { clipPath: LOADER_DIRS[Math.floor(Math.random() * LOADER_DIRS.length)] },
+      { clipPath: 'inset(0% 0% 0% 0%)', duration: DUR.slow, ease: EASE.enter,
+        onComplete: () => { colorLoaderEl.style.background = c; colorSwipeEl.style.display = 'none'; } });
   }
   // 頁面比例快取（localStorage）：無預產封面的 ref/會議紀錄 PDF，第一次 render 時記下第一頁真尺寸，
   // 之後再開同檔＝open 即真實比例（跟 documents 封面同邏輯、零跳動）；只有首次開才退 A4 猜（user 2026-08-28）。
@@ -630,8 +659,9 @@ export function initPdfViewer() {
     // loading 期間不顯示浮水印（user 2026-08-23）：浮水印是 .pdf-zoom-stage 全幅覆蓋(z20，蓋在色塊之上)，
     // 色塊只有頁面大小 → 不藏的話浮水印會蓋到色塊外圍看起來「跑到 pdf 外」。揭露時才 fade 回來。
     if (watermarkEl) { if (typeof gsap !== 'undefined') gsap.killTweensOf(watermarkEl); watermarkEl.style.opacity = '0'; }
-    if (typeof gsap !== 'undefined') gsap.killTweensOf(colorLoaderEl);
+    if (typeof gsap !== 'undefined') { gsap.killTweensOf(colorLoaderEl); if (colorSwipeEl) gsap.killTweensOf(colorSwipeEl); }
     colorLoaderEl.style.clipPath = '';
+    if (colorSwipeEl) { colorSwipeEl.style.display = 'none'; colorSwipeEl.style.clipPath = ''; colorSwipeEl.style.background = ''; }
     colorLoaderEl.style.background = pickLoaderColor();   // 第一個色塊備好（尺寸未知前先藏）
     // ⭐尺寸一律等「真頁面可視矩形」算出才顯示，不在 open 時猜（press 裁頂 1.5 封面看不出真 aspect →
     // 猜 reading 對 <2 的頁會太大，user 2026-08-24「色塊太大、pdf 沒那麼大」）。誰負責顯示：
@@ -647,7 +677,7 @@ export function initPdfViewer() {
     loaderTimer = setTimeout(() => {
       if (!loaderActive) return;
       if (loaderReady) { revealColorLoader(); return; }
-      colorLoaderEl.style.background = pickLoaderColor();
+      swipeLoaderColor();
       scheduleColorTick();
     }, 1000);
   }
@@ -662,15 +692,21 @@ export function initPdfViewer() {
     }
     const hide = () => {
       colorLoaderEl.style.display = 'none'; colorLoaderEl.style.clipPath = ''; colorLoaderEl.style.background = '';
+      if (colorSwipeEl) { colorSwipeEl.style.display = 'none'; colorSwipeEl.style.clipPath = ''; colorSwipeEl.style.background = ''; }
       loaderVeilUp = false;
       updateCornerThumb();   // 色塊揭露完 → minimap 若該出現（頁被裁切）此刻才 clip-reveal 進場
     };
     if (typeof gsap === 'undefined') { hide(); return; }
-    // 隨機四方向：色塊往該邊收（inset 全 % — 混單位 GSAP 會直接跳終值，見 lightbox-shell memory）
-    const DIRS = ['inset(0% 0% 0% 100%)', 'inset(0% 100% 0% 0%)', 'inset(100% 0% 0% 0%)', 'inset(0% 0% 100% 0%)'];
+    // swipe 若還在掃（理論上 0.6s < 1s tick 已掃完，防萬一）：殺掉並落定其色再整塊揭露
+    if (colorSwipeEl && colorSwipeEl.style.display !== 'none') {
+      gsap.killTweensOf(colorSwipeEl);
+      colorLoaderEl.style.background = colorSwipeEl.style.background;
+      colorSwipeEl.style.display = 'none';
+    }
+    // 隨機四方向：色塊往該邊收
     gsap.fromTo(colorLoaderEl,
       { clipPath: 'inset(0% 0% 0% 0%)' },
-      { clipPath: DIRS[Math.floor(Math.random() * DIRS.length)], duration: DUR.slow, ease: EASE.enter, onComplete: hide });
+      { clipPath: LOADER_DIRS[Math.floor(Math.random() * LOADER_DIRS.length)], duration: DUR.slow, ease: EASE.enter, onComplete: hide });
   }
   function stopColorLoader() {
     loaderActive = false;
@@ -678,10 +714,11 @@ export function initPdfViewer() {
     loaderVeilUp = false;
     clearTimeout(loaderTimer);
     if (!colorLoaderEl) return;
-    if (typeof gsap !== 'undefined') gsap.killTweensOf(colorLoaderEl);
+    if (typeof gsap !== 'undefined') { gsap.killTweensOf(colorLoaderEl); if (colorSwipeEl) gsap.killTweensOf(colorSwipeEl); }
     colorLoaderEl.style.display = 'none';
     colorLoaderEl.style.clipPath = '';
     colorLoaderEl.style.background = '';
+    if (colorSwipeEl) { colorSwipeEl.style.display = 'none'; colorSwipeEl.style.clipPath = ''; colorSwipeEl.style.background = ''; }
   }
 
   async function renderPage(pageNum) {

@@ -11,16 +11,31 @@
     color: var(--theme-fg);
   }
 
+  /* EN→ZH 揭露＝clip-reveal（文字從遮罩後「推出來」，非 clip-path 原地擦除）：
+     .nav-link-cn 是遮罩（overflow:hidden＋max-width 撐開讓位＝「色塊寬度」），
+     .nav-link-cn-i 是內層文字、用 transform 從遮罩邊外推入。兩者同拍同時變化（同 --dur-fast、無 delay、無淡入）
+     → 色塊變寬與文字推出「同時」發生，不是先撐寬再冒字。
+     推入方向預設由下往上（site clip-reveal 慣例）；主 nav 各項用 nth-child 錯開成上/下/左/右。 */
   .nav-link .nav-link-cn {
     display: inline-block;
     max-width: 0;
     overflow: hidden;
-    opacity: 0;
     margin-left: 0;
     vertical-align: middle;
-    transition: max-width var(--dur-fast) var(--ease-wipe), opacity var(--dur-fast) ease-out, margin-left var(--dur-fast) ease-out;
     white-space: nowrap;
+    transition: max-width var(--dur-fast) var(--ease-wipe),
+                margin-left var(--dur-fast) var(--ease-wipe);
   }
+  .nav-link .nav-link-cn-i {
+    display: inline-block;
+    transform: translateY(100%);
+    transition: transform var(--dur-fast) var(--ease-wipe);
+  }
+
+  /* 主 nav 各項推入方向錯開（開啟一律 translate 0，由 .active/:hover 較高特異度蓋過）：整列涵蓋上下左右 */
+  nav ul li:nth-child(2) .nav-link-cn-i { transform: translateY(-100%); }  /* 由上 */
+  nav ul li:nth-child(3) .nav-link-cn-i { transform: translateX(-100%); }  /* 由左 */
+  nav ul li:nth-child(4) .nav-link-cn-i { transform: translateX(100%); }   /* 由右 */
 
   .nav-link.active {
     font-weight: 700;
@@ -39,8 +54,10 @@
 
   .nav-link.active .nav-link-cn {
     max-width: 6rem;
-    opacity: 1;
-    margin-left: 0.25rem;
+    margin-left: 0.5rem;   /* 離英文約兩個空格 */
+  }
+  .nav-link.active .nav-link-cn-i {
+    transform: translate(0, 0);
   }
 
   /* Hover 效果：僅桌面版 */
@@ -84,8 +101,10 @@
 
     .nav-link:hover .nav-link-cn {
       max-width: 6rem;
-      opacity: 1;
-      margin-left: 0.25rem;
+      margin-left: 0.5rem;   /* 離英文約兩個空格 */
+    }
+    .nav-link:hover .nav-link-cn-i {
+      transform: translate(0, 0);
     }
   }
 
@@ -262,8 +281,10 @@
    * alumni-full = 點開後的擴展版，必須直接看到全名「A.A. 系友會」不靠 active/hover */
   [data-bar="alumni-full"] .nav-link .nav-link-cn {
     max-width: 6rem;
-    opacity: 1;
-    margin-left: 0.25rem;
+    margin-left: 0.5rem;   /* 離英文約兩個空格 */
+  }
+  [data-bar="alumni-full"] .nav-link .nav-link-cn-i {
+    transform: translate(0, 0);
   }
 }
 

@@ -645,11 +645,15 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
     // 被點色卡：morph 放大成灰卡。色塊「保持原色」放大到完全蓋住灰卡版位，落定後才四向 clip 掀開
     // 露出底下已渲染好的內容（user 2026-08-23）——做法＝卡內鋪一層同色 veil（inset:0 跟著幾何長大、
     // z 蓋過內容），卡本體底色直接 snap 成灰（藏在 veil 下看不見）；MORPH_DUR 後 veil 掀開。
+    // mode3：色卡實際被 color.css !important 蓋成 strict B/W（var(--theme-fg)）；veil 是卡的子元素、蓋不到那條規則，
+    // 用 RGB clickedColor 會在放大時冒出三原色閃一下（user 2026-09-02：mode3 應該黑色變大、黑色去掉才露灰、不保持 rgb）。
+    // 改用 var(--theme-fg)＝跟卡片實色一致（隨 hue loop 每幀翻黑白）。mode1/2 仍用 clickedColor。
+    const veilColor = document.body.classList.contains('mode-color') ? 'var(--theme-fg)' : clickedColor;
     const veil = document.createElement('div');
     veil.className = 'lib-card-veil';
     // pointer-events:auto（非 none）：色塊蓋住期間攔截點擊 → 底下已渲染就位的內容不可點；clipAway 掀開＋移除後才可點
     // （user 2026-08-25：色塊消失前內容不給點、離開時才點得到）。clip-path 連 pointer 一起裁 → 掀開處漸次恢復可點。
-    veil.style.cssText = `position:absolute;inset:0;z-index:60;background:${clickedColor};pointer-events:auto;`;
+    veil.style.cssText = `position:absolute;inset:0;z-index:60;background:${veilColor};pointer-events:auto;`;
     clickedEl.appendChild(veil);
     // 補清 clipPath：前一輪 reveal 若被打斷會殘留部分 clip
     clickedEl.style.transition = TRANSITION;
@@ -672,7 +676,7 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
       outgoingEl.style.zIndex = '1';
       const colorVeil = document.createElement('div');
       colorVeil.className = 'lib-card-veil';
-      colorVeil.style.cssText = `position:absolute;inset:0;z-index:60;background:${clickedColor};pointer-events:none;`;
+      colorVeil.style.cssText = `position:absolute;inset:0;z-index:60;background:${veilColor};pointer-events:none;`;
       colorVeil.style.clipPath = 'inset(0% 0% 100% 0%)';  // 起始全遮：gray hold 期間隱形，clipIn 才掀入
       outgoingEl.appendChild(colorVeil);
       heroRevealCard(outgoingEl, revealDir(outgoingEl), DUR.medium, () => {

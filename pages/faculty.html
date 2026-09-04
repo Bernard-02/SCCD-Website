@@ -111,9 +111,9 @@
     <!-- Faculty Slide-in Panel：放在 main 內供 SPA router 一併載入；
          router 只搬 newMain.innerHTML，main 外的元素 SPA 切頁時不會出現 -->
     <!-- 比照 #courses-slide-in pattern：全螢幕 overlay + 右側 panel；header bars 由 lightbox-shell clip-reveal 收掉。
-         z-[10001]：header 常駐 9999、lightbox 開啟再 raise 到 10000（lightbox-shell HEADER_Z_ABOVE_LIGHTBOX）——
-         slide-in 要高過它，否則收合動畫中的 header bars 會蓋住 slide-in（user 2026-08-31） -->
-    <div id="faculty-slide-in" class="invisible pointer-events-none fixed inset-0 z-[10001]">
+         z-[9999]（比照 lightbox 容器）：低於 header lightbox-raise(10000)，讓 logo 浮在 slide-in 之上＝開啟時 logo 恆可見
+         （user 2026-09-02，翻掉 08-31「slide-in 高過 header 免 bars 蓋」的決定——bars 收合快、實測不會蓋到滑入的 panel）。 -->
+    <div id="faculty-slide-in" class="invisible pointer-events-none fixed inset-0 z-[9999]">
     <!-- Overlay (Full screen black dim) -->
     <div id="faculty-overlay" class="absolute inset-0 bg-black opacity-0"></div>
 

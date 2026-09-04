@@ -765,6 +765,13 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
 #library-album-list .files-item-titles {
   gap: var(--spacing-xs);
 }
+/* 單語言 album（只有英或只有中）：標題區一律保留「兩行標題」高度（比照 press .press-item-titles-text），
+   單行由 --center 的 justify-content:center 垂直置中 → 分類標籤(副標)位置單/雙語一致、不上移（user 2026-09-03）。
+   font-size:s 讓 1.3em 對到標題行高（子 .files-item-title-* 自帶 s、不受影響）。只 scope album，Documents 卡片 subgrid 高度不動。 */
+#library-album-list .files-item-titles-text {
+  font-size: var(--font-size-s);
+  min-height: calc(1.3em * 2 + var(--space-en-zh-s));
+}
 .files-item-row {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -811,6 +818,17 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   overflow: hidden;
   transition: transform var(--dur-fast) ease;
 }
+/* files 卡 scroll-in 進場（三輪 A-4）：卡出生自帶 .files-card-pending＝整卡先藏，捲入視窗才由 revealFilesCards 揭。
+   用 visibility 而非 translateY：三組標題（title/副標/tag）各需獨立遮罩才 translate 得住，靜態無遮罩用 visibility 全藏最穩；
+   揭時移除本 class → ensureGroupClip 包遮罩 + gsap yPercent:100→0 滑入（兩態皆不可見＝無閃）。
+   ⭐封面也一起預藏（user 2026-09-02）：否則已載入的封面在捲到前就顯示、scroll-gate 揭時 slideCoverIn 又滑一次＝「已渲染封面重播」打架。
+   預藏後封面首次現身＝reveal 的 slideCoverIn 4 向滑入（clip-reveal），非重播。 */
+.files-card-pending .files-item-titles,
+.files-card-pending .files-card-cover-wrap { visibility: hidden; }
+/* album strip / press thumb 出生預藏（同 .files-card-pending 精神）：圖 ready 才由 slideThumbIn 從畫外滑入，
+   不再「載好就 pop」（user 2026-09-02）。visibility 保留版位、無灰底閃現。 */
+.album-thumb-strip.thumb-reveal-pending,
+.press-item-thumb.thumb-reveal-pending { visibility: hidden; }
 .files-item-titles-text {
   /* 標題 text-s → EN→ZH 間距吃 s 字級 token（2px、user 2026-08-13）。原本 display:contents 讓 EN/ZH 直接
      吃外層 .files-item-titles 的 gap（跟 album 的 title→cat-tag 同一個值）→ 改成自身 flex-col 把「標題雙語

@@ -51,6 +51,11 @@ export function initAnchorNav({ reveal = false } = {}) {
     }
   });
 
+  // Programs(class) 的視覺起點是學制樹（#program-structure，排在 class-info-area 之前）；一併觀察
+  // → 中心線落在樹上就高亮 Programs（否則樹整屏還在時，中心線在 class-info-area 之前＝仍算 Vision）
+  const treeEl = document.getElementById('program-structure');
+  if (treeEl && treeEl.offsetHeight >= 2 && !sectionMap.has(treeEl)) sectionMap.set(treeEl, 'class');
+
   const sections = [...sectionMap.keys()];
 
   if (navButtons.length === 0 || sections.length === 0) return;

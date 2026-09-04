@@ -50,6 +50,15 @@ import { modePlaceholderUrl } from './faculty-data-loader.js';
 import { applyMarqueeOverflow, buildSyncedMarqueeTimeline } from '../ui/marquee-overflow.js';
 import { makeActivatable } from '../ui/a11y.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
+import { loadUiLabels } from '../ui/ui-labels.js';
+
+// 系所全名（slide-in 名字上方 tag）＝Directus ui_labels，老師後台可改；載入後填入、開卡時讀。
+// key = `faculty.department.<department 欄值>`（dcd / bpaidc）；未載入 / 無此 row → 退下方 DEPT_FALLBACK。
+let facultyUiLabels = null;
+const DEPT_FALLBACK = {
+  dcd:    { en: 'Department of Communications Design (DCD)', zh: '媒體傳達設計學系' },
+  bpaidc: { en: 'Bachelor Program of AI Design Craftsmentship (BPAIDC)', zh: 'AI 設計職人學位學程' },
+};
 
 // 桌面 slide-in 詳情 cell 的 marquee 改用 JS 驅動，取代 CSS :hover animation——
 // 目的：hover 離開時讓正在跑的文字「平滑捲回原點」，而非 CSS animation 被移除時 transform 直接歸 0 的瞬間 snap。
@@ -121,6 +130,8 @@ export function initFacultySlideIn() {
   const facultyCards = document.querySelectorAll('.faculty-card');
 
   if (!slideIn || facultyCards.length === 0) return;
+
+  loadUiLabels().then(m => { facultyUiLabels = m; });   // 系所全名來源（single-flight cache；開卡前通常已就緒）
 
   // open/close 世代序號（同 lightbox openSeq pattern）：open 與 close 都 ++，
   // close 動畫的 onComplete 發現序號過期（期間又開了新卡）就放棄隱藏，避免藏掉剛開的 panel
@@ -352,6 +363,19 @@ export function initFacultySlideIn() {
         nameZhElement.style.width = nameWidth;
       }
 
+      // 系所全名（英上中下）：dcd / bpaidc → 完整名稱，顯示在職級/職稱（Founder 等）「上方」。
+      // 版位隨 layout：桌面進右欄 lead、手機進左欄 titles（Founder 在哪欄，dept 就墊該欄 title 區頂端）。
+      // 有值才渲染、空值不顯示；每次 open 靠 innerHTML 重寫＝冪等、換老師不殘留。
+      // data.department 由 mapRow 的 {...r} 帶入（fallback JSON 無此欄→undefined→不顯示）。
+      // 顯示文字＝ui_labels `faculty.department.<key>`（後台可改）；無 row 退 DEPT_FALLBACK。
+      const deptKey = (data.department || '').trim().toLowerCase();
+      const deptRow = facultyUiLabels?.[`faculty.department.${deptKey}`];
+      const deptInfo = deptRow ? { en: deptRow.en, zh: deptRow.zh } : DEPT_FALLBACK[deptKey];
+      const deptHtml = deptInfo
+        ? `<div class="mb-sm"><p class="text-s font-bold text-black mb-en-zh-s">${deptInfo.en}</p>` +
+          `<p class="text-s font-bold text-black" lang="zh-Hant">${deptInfo.zh}</p></div>`
+        : '';
+
       // Titles（subtitle）：三種 type 共用 titles[] repeater，EN 上 ZH 下、多筆各自 stack、隨機旋轉一個角（跟名字不同角）。
       // 2026-08-12：兼任的 titles[] 語意＝「職級」（兼任講師等）→ 左欄 subtitle；公司/身份（職業/單位）改存
       // occupation 欄、顯示在右側（見下方 sections）。fulltime/admin 的 titles[] 維持學術職稱。
@@ -368,7 +392,7 @@ export function initFacultySlideIn() {
             `<p class="text-s font-regular text-black">${p.zh}</p>` +
             `</div>`;
         });
-        titlesContainer.innerHTML = html;
+        titlesContainer.innerHTML = (useMobileLayout ? deptHtml : '') + html;   // 手機：系所全名墊在 titles 頂
         titlesContainer.style.transform = rotateTitles ? `rotate(${titlesDeg}deg)` : '';
         titlesContainer.style.transformOrigin = rotateTitles ? 'left top' : '';
         titlesContainer.style.display = rotateTitles ? 'block' : '';
@@ -388,7 +412,8 @@ export function initFacultySlideIn() {
             ? buildRank(data.titles) + buildOccupation(data.occupations)  // parttime 再疊 occupation
             : buildRank(data.titles);
           // .faculty-rows 讓 rank↔occupation／多筆間距＝list 內容 gap（16px）
-          leadContainer.innerHTML = lead ? `<div class="faculty-rows faculty-lead-rows">${lead}</div>` : '';
+          const leadRows = lead ? `<div class="faculty-rows faculty-lead-rows">${lead}</div>` : '';
+          leadContainer.innerHTML = deptHtml + leadRows;   // 桌面：系所全名墊在職級(Founder 等)上方
         }
       }
       if (sectionsContainer) {

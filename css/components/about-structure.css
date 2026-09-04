@@ -1,0 +1,148 @@
+/**
+ * About — Programs 結構圖（#program-structure）
+ * DCD 學制樹狀圖：固定學系色 chip（.prog-box：DCD 家族粉、BPAIDC 綠）+ 父→子斜連綫（SVG）。
+ * 頂列 = [黑底標準字塊 .prog-acronym（SCCD wordmark SVG，CSS mask 依 mode 上色，同 footer tab mark）+ 學系色塊].prog-titled
+ *        — 連結橫綫(.prog-seg--link) — 同結構 BPAIDC。
+ * 子樹 = 頂下橫向 fan（.prog-children flex row；父 chip 置中於子列上方）；父→子斜綫由 .prog-lines SVG overlay
+ *        依 box 位置量測後畫（about-structure.js drawLines），不用垂直立柱/短橫綫。
+ * chip 隨機旋轉（hover 再換角度）由 about-structure.js 上（.prog-tilt）。
+ * 字級/內距對齊 program 切換 btn（.class-division-btn）：text-lg + padding 6/8/5 + 英中距 --space-en-zh-lg。
+ * 內容暫硬編（mockup 為準），之後接 Directus。可調值集中在 #program-structure 的 CSS 變數。
+ */
+
+@layer components {
+
+  #program-structure {
+    --prog-seg-w: 10px;                  /* 綫段/連綫粗細 = scrollbar thumb */
+    --prog-link-w: 3.5rem;               /* DCD↔BPAIDC 連結橫綫長度（比原 2.5 長；再長頂列會頂到 viewport 右緣） */
+    --prog-line-gap: 36px;               /* 斜連綫兩端離 chip 的 gap（JS 內縮端點；chip 傾斜 -4~+6°→bbox 溢出 ~18px，要夠大才不貼） */
+    --prog-gap: var(--spacing-md);       /* 頂列 chip↔link↔chip gap */
+    --prog-fan-gap: var(--spacing-xl);   /* fan：同層兄弟 chip 水平間距 */
+    --prog-level-gap: var(--spacing-4xl);/* 父列↔子列垂直間距（拉大＝chip 往下移＋斜綫更垂直不那麼斜） */
+    --prog-chip-max: 21rem;              /* 子 chip：英中各一行（BFA/組別最長 ~20.8rem） */
+    --prog-top-chip-max: 21rem;          /* 頂 chip：英文兩行（字級 md）；.prog-top fit-content 讓整列不被容器擠窄 */
+    --prog-mark-h: 1.75rem;              /* 標準字塊 wordmark 高 */
+  }
+
+  .prog-roots { position: relative; display: flex; flex-direction: column; align-items: flex-start; }
+
+  /* 父→子斜連綫 SVG overlay：鋪滿 .prog-roots、置於 chip 之下（端點座標 px，由 JS 畫） */
+  .prog-lines {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    overflow: visible;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .prog-lines line {
+    stroke: var(--theme-fg);             /* 黑；inverse 白 */
+    stroke-width: var(--prog-seg-w);
+    stroke-linecap: butt;                /* 方角（非圓角） */
+    transition: stroke var(--dur-base) ease;
+  }
+
+  /* 頂列：DCD ── 連結橫綫 ── BPAIDC（子樹在下方另起，不撐此列寬）。
+     width:fit-content = clamp 到容器寬（永不裁）；夠寬的螢幕(min-1440)才升級 max-content 讓整列不折行（見下方 @media）。 */
+  .prog-top { position: relative; z-index: 1; display: flex; align-items: center; gap: var(--prog-gap); width: fit-content; }
+  .prog-seg--link { width: var(--prog-link-w); height: var(--prog-seg-w); }
+
+  .prog-seg { background: var(--theme-fg); flex-shrink: 0; transform-origin: center; }
+
+  .prog-box {
+    display: inline-flex;
+    flex-direction: column;
+    width: fit-content;
+    max-width: var(--prog-chip-max);          /* 固定寬上限 → 英文換行、卡片不過寬 */
+    padding: 6px 8px 5px;                     /* = .class-division-btn */
+    color: #000;                               /* 底色固定學系色（粉/綠），皆淺、黑字可讀 */
+    background: var(--color-pink);             /* DCD 家族（DCD/BFA/MDES/兩組）統一粉 */
+  }
+  .prog-box--bpaidc { background: var(--color-green); }   /* BPAIDC 家族統一綠 */
+  .prog-top .prog-box { max-width: var(--prog-top-chip-max); }   /* 頂 chip 較寬 → 英文兩行 */
+  /* 頂 chip 字級降 md：窄容器（cols 5-20，左側 sticky nav 佔 1-4）塞不下兩顆 lg 兩行，md 才行 */
+  .prog-top .prog-box-en,
+  .prog-top .prog-box-zh { font-size: var(--font-size-md); line-height: var(--line-height-md); }
+  .prog-top .prog-box-zh[lang="zh-Hant"] { line-height: var(--line-height-zh-md); }
+
+  /* 頂層單位：黑底標準字塊 + 學系色塊 併排，整塊為傾斜/hover 單位 */
+  .prog-titled { display: inline-flex; align-items: stretch; width: fit-content; }
+  .prog-acronym {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 var(--spacing-sm);
+    background: var(--theme-fg);               /* 黑底；inverse 白（隨 mode，同 .prog-seg） */
+  }
+  /* wordmark：SVG 當 mask，填色 = var(--theme-bg)（黑底上白字；inverse 白底上黑字）。同 footer .footer-tab-mark 手法。 */
+  .prog-acronym-mark {
+    display: block;
+    height: var(--prog-mark-h);
+    aspect-ratio: 1135 / 320;                  /* SCCD - Black.svg viewBox */
+    background-color: var(--theme-bg);
+    -webkit-mask: url('../images/SCCD - Black.svg') no-repeat center / contain;
+            mask: url('../images/SCCD - Black.svg') no-repeat center / contain;
+  }
+
+  /* 傾斜/hover 單位（頂層 .prog-titled 與各子 .prog-box 共用；角度由 about-structure.js 上） */
+  .prog-tilt {
+    transform-origin: center;
+    transition: transform var(--dur-fast) cubic-bezier(0.25, 0, 0, 1);  /* hover 換角度平滑 */
+  }
+  .prog-box-en { margin-bottom: var(--space-en-zh-lg); }   /* 英中距 = btn */
+  .prog-box-en,
+  .prog-box-zh {
+    font-weight: 700;
+    font-size: var(--font-size-lg);            /* text-lg，同 program btn */
+    line-height: var(--line-height-lg);
+  }
+
+  /* 節點：box 置於其子列上方置中；子列 = 橫向 fan */
+  .prog-node { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; }
+  .prog-row { display: flex; justify-content: center; }
+  .prog-children {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: center;
+    gap: var(--prog-fan-gap);
+    width: fit-content;
+    margin-top: var(--prog-level-gap);         /* 給父→子斜連綫的垂直空間 */
+  }
+  /* DCD 子樹：掛在 DCD（頂列左側）下方、靠左（不置中於整個頂列寬） */
+  .prog-children--root { align-self: flex-start; }
+
+  /* 桌面：巢狀子列（BFA 的動畫/創媒）改「絕對掛在父 box 正下方置中」、脫離流程
+     → 不佔父節點寬度 → 叔叔節點（MDES）緊接 BFA box 右側、不被整條子樹推到最右（碩士班貼近學士班、留在 DCD 下方）。
+     佔位高度由 about-structure.js reserveHeights 量子列高後補 margin-bottom（撐開列高、不壓到下一區）。 */
+  @media (min-width: 768px) {
+    .prog-node > .prog-children {
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      justify-content: center;
+      width: max-content;   /* 絕對定位子列不被 containing block（父 box 寬）夾窄 → 子 chip 才拿得到 21rem 一行 */
+    }
+  }
+  /* 頂列升級 max-content：整列取自然寬、不折行，比容器寬時往右溢出到 site-container 右 padding。
+     ⚠️只在 ≥1440（整列 ~1046px + 左偏移放得下 viewport）才開，較窄螢幕維持 fit-content 讓 chip 縮而非被 viewport 右緣裁掉。 */
+  @media (min-width: 1440px) { .prog-top { width: max-content; } }
+
+  @media (max-width: 767px) {
+    #program-structure { --prog-gap: var(--spacing-md); --prog-chip-max: 17rem; --prog-mark-h: 1.4rem; }
+    .prog-top { flex-direction: column; align-items: flex-start; }
+    .prog-seg--link { display: none; }                       /* 手機直向堆疊，不要橫向連結線 */
+    /* 手機：fan 三顆塞不下 → 改直向堆疊，層級用縮排表達（斜連綫在窄欄會全高交錯、太亂 → 收起） */
+    .prog-lines { display: none; }
+    .prog-node { align-items: flex-start; }
+    .prog-children {
+      flex-direction: column;
+      align-items: flex-start;
+      width: auto;
+      margin-top: var(--spacing-md);
+      padding-left: var(--spacing-lg);                       /* 每層縮排 → 巢狀累加 */
+    }
+    .prog-acronym { padding: 0 var(--spacing-sm); }
+  }
+}

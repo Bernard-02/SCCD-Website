@@ -31,6 +31,7 @@ import { initAboutPolygons } from './modules/pages/about/floating-polygons.js';
 import { initClassButtonsSticky } from './modules/pages/about/class-buttons-sticky.js';
 import { initClassImagesSlideshow } from './modules/pages/about/class-images-slideshow.js';
 import { loadAboutContent } from './modules/pages/about/about-data-loader.js';
+import { initProgramStructure } from './modules/pages/about/about-structure.js';
 import { initAnchorNav } from './modules/navigation/anchor-nav.js';
 import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from './modules/ui/scroll-animate.js';
 
@@ -247,6 +248,7 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
       initAboutPolygons();
       initClassButtonsSticky();
       initClassImagesSlideshow();
+      initProgramStructure();
 
       const classImages = document.querySelector('[data-class-images]');
       if (classImages) {

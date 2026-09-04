@@ -31,6 +31,8 @@
     { "key": "faculty.parttime", "en": "Part-time Professors", "zh": "兼任教師" },
     { "key": "faculty.admin",    "en": "Administrators",       "zh": "行政管理" },
     { "key": "faculty.dept.sccd","en": "DCD",                  "zh": "媒體傳達設計學系" },
+    { "key": "faculty.department.dcd",    "en": "Department of Communications Design (DCD)",     "zh": "媒體傳達設計學系" },
+    { "key": "faculty.department.bpaidc", "en": "Bachelor Program of AI Design Craftsmentship (BPAIDC)", "zh": "AI 設計職人學位學程" },
 
     { "key": "act.exhibitions",      "en": "Exhibitions",           "zh": "展演" },
     { "key": "act.workshop",         "en": "Workshops",             "zh": "工作營" },

@@ -4869,8 +4869,8 @@ export async function initAtlas(options = {}) {
   const R_NAV_START  = R_LIST_EXIT;   // 反向：欄標題與 item 同波
   const R_NAV_STEP   = 0;      // user 08-31：回程 nav btn 也對齊正向＝同時到位（原 0.12 階梯，去程已設 0 故拉平）
   const R_FADE_START = R_LIST_EXIT;   // 反向：其餘 chip 散回+fade in＝R_ITEM_START 同波（08-27 鏡像）
-  const R_CITY_START = 1.45;   // 反向：城市 + 線最後回來（隨落地窗整體提前 0.3、仍壓軸；原 1.75）
-  const R_B_ENTER = 1.0;   // 反向：未配對 host 圈 clip-reveal「收尾對齊 paired 落地」（user 09-02：item 波提前 0.3 → 落地窗等距平移，1.3→1.0；仍「快定位時才出現、同時完成定位」，⚠️別拉到 0.55＝08-31 早段太早被 user 打回，B 是原地 reveal 無位移可言）
+  const R_CITY_START = 2.15;   // 反向 stage4：城市「最後」出現（user）；＝R_BLOOM + M_COLOR_FADE（bloom 上色收完才起）＝城市確實壓軸
+  const R_BLOOM = 1.65;    // 反向 stage3 bloom（user 09-04）：非 host item 到位後，全體 recolor（黑→彩色）＋ host 色塊 clip-in「一起現身」＝正向 exit「decolorize + 色塊 clip-out」的鏡像；＝R_FADE_START(0.55)+M_FADE_RANGE(0.25)+CONVERGE_DUR(0.85)＝未配對 A/C 落地窗尾（晚到的 paired straggler 各自 onLand 自補、不卡此時點）
   const NAV_ORDER = /** @type {Record<string, number>} */ ({ faculty: 0, alumni: 1, host: 2, employ: 3, partners: 4 });
 
   // ── 遮罩三段核心（單一節點架構）────────────────────────────
@@ -5059,8 +5059,7 @@ export async function initAtlas(options = {}) {
         n.style.setProperty('--atlas-fly-c', fromColor);
         gsap.to(n, { '--atlas-fly-c': toColor, duration: flyDur, ease: EASE.move });
       } else {
-        n.style.color = fromColor;
-        gsap.to(n, { color: toColor, duration: flyDur, ease: EASE.move });
+        n.style.color = fromColor;   // 反向：飛行途中維持黑（theme-fg）；到位（finish/onLand）才黑→彩色＝色與色塊一起現身（user 09-03）
       }
       const finish = () => {
         n.classList.remove('atlas-flying');
@@ -5068,7 +5067,7 @@ export async function initAtlas(options = {}) {
         n.style.clipPath = '';   // 寬度 clip 交還給行級 overflow（list）／全寬（chip），同寬無感
         gsap.set(n, { clearProps: 'transform,transformOrigin' });
         if (!toList) {
-          n.style.color = item.color;   // 回寫原 inline accent（tween 終值同色、僅語義歸位）
+          // 反向不在此上色：色與 host 色塊在 Stage-3 bloom（switchToMap R_BLOOM／straggler 自己 onLand）一起現（user 09-04）；此處維持黑
           // ⚠️ clearProps 'transform' 會把 gsap.set 期間清成 none 的個別 rotate/translate 一併抹掉 →
           // 回 map 後 B 靜態傾斜掉光（實測 42 顆全變平＝flat 文字沿軌道 30fps 步進「上下抖」比傾斜更顯眼）；
           // 補回起飛前存的 wobble（B＝baseRot 靜態、A/C 下一幀 tickFloat 覆寫＝無害）
@@ -5324,18 +5323,26 @@ export async function initAtlas(options = {}) {
   function buildMapEnterTl(spanItems) {
     const dItems = spanItems.filter(i => i.category === 'D' && i._anchor);
     const allOthers = spanItems.filter(i => i.category !== 'D' && i._anchor);
-    // 未配對 B（user 08-28 三輪）：回 map 走進場同款 hero clip-reveal（bChipRevealTween 隨機四向），
-    // 不從欄位散回——anchor 直接可見（清掉正向收尾留下的 opacity 0），藏由 clip 負責（build 當下即 set）
+    // 未配對 host chip（B）：Stage2 裸文字（透明底）逐漸 fade in；色塊 clip-in + 上色留到 Stage3 bloom（switchToMap R_BLOOM）
+    // ＝正向 exit「色塊 clip-out → 裸文字 drift+fade out」的鏡像倒放（user 09-04）。
     const bOthers = allOthers.filter(i => i.category === 'B');
     const others = allOthers.filter(i => i.category !== 'B');
     // init：anchors 全隱、cityLines 縮成點＋立即同步 path d（防 stage 顯示首幀閃 full line）
     [...dItems, ...others].forEach(i => { i._anchor.style.opacity = '0'; });
-    others.forEach(i => { i._span.style.color = i.color; });   // 還原 exit Stage-1 統一轉的 theme-fg（未配對 A/C；paired 靠 flight、B 靠 bOthers）
+    // 未配對 A/C 回程：散回途中維持 theme-fg（黑），「到位才黑→彩色」（user 09-03）＝正向退場（黑→靠攏 fade out）
+    // 的鏡像。先用隱形 probe 解 concrete theme-fg（gsap 不能 interp CSS var；同 exit Stage-1 decolorize 手法）。
+    const _fgProbe = document.createElement('span');
+    _fgProbe.style.cssText = 'position:absolute;visibility:hidden;color:var(--theme-fg)';
+    document.body.appendChild(_fgProbe);
+    const themeFg = getComputedStyle(_fgProbe).color;
+    _fgProbe.remove();
+    others.forEach(i => { i._span.style.color = themeFg; });   // 起飛前黑；到位才 tween 回 i.color（見 movesIn）
     bOthers.forEach(i => {
-      i._anchor.style.opacity = '';
-      if (i.bgColor) i._span.style.backgroundColor = i.bgColor;   // 保險（正向 clip 離開收尾已還原）
-      i._span.style.color = i.color;   // 保險：exit 中途被 kill 時字色可能停在 theme-fg
-      // 未配對 B 現改為正向靠攏位移（user 09-02）＝span 可能殘留 exit 的 translate（fade 關時不 clearProps）→ 先清乾淨才 reveal，否則回 map 停在趨勢位置
+      i._anchor.style.opacity = '0';                   // 起點隱形，Stage2 裸文字逐漸 fade in（user 09-04）
+      i._span.style.backgroundColor = 'transparent';   // 裸文字回來；色塊留到 Stage3 bloom clip-in（user 09-04：色塊用 clip reveal 非 fade）
+      i._span.style.color = themeFg;                   // 黑；bloom 才 recolor（與 host 色塊一起現）
+      i._span.style.clipPath = '';
+      // span 可能殘留 exit 的 translate（fade 關時不 clearProps）→ 先清乾淨，否則回 map 停在趨勢位置
       gsap.set(i._span, { clearProps: 'transform' });
       // 靠攏 tween 接管 transform 時把個別 rotate 清成 none（未配對 B 不走 flipFlyNode 補不到）→
       // 補回靜態傾斜，否則回 map 變平＝文字上下抖更明顯（fresh 態全 42 顆都帶 baseRot）
@@ -5354,23 +5361,22 @@ export async function initAtlas(options = {}) {
         [...dItems, ...allOthers].forEach(i => { i._anchor.style.opacity = ''; });
       },
     });
-    // 其餘內容鏡像：從所屬欄位方向散回原位、途中 fade in
+    // 其餘內容鏡像：從所屬欄位方向散回原位、途中維持黑、逐漸 fade in（linear、跨整段位移＝正向「邊位移邊 fade out」
+    // 的鏡像，user 09-04「不是一位移就全顯」）；上色留到 Stage3 bloom（switchToMap）與 host 色塊一起。
     const movesIn = others.map(i => ({ i, d: convergeDelta(i) }));
     movesIn.forEach(({ i, d }) => {
       const at = R_FADE_START + Math.random() * M_FADE_RANGE;
-      tl.to(i._anchor, { opacity: 1, duration: M_FADE_DUR, ease: EASE.enterSoft }, at);
+      tl.to(i._anchor, { opacity: 1, duration: UNPAIRED_FADE_DUR, ease: 'none' }, at);
       if (!d) return;
       tl.fromTo(i._span,
         { x: d.tx * CONVERGE_FRACTION / scale, y: d.ty * CONVERGE_FRACTION / scale, yPercent: -50 },
         { x: 0, y: 0, duration: CONVERGE_DUR, ease: EASE.move, onComplete: () => gsap.set(i._span, { clearProps: 'transform' }) },
         at);
     });
-    // 未配對 B：hero clip-reveal 進場（同 intro／subchip 開關的 bChipRevealTween 語彙）；
-    // 排在 R_B_ENTER＝等 paired list item 快歸位才出現，reveal 縮短成 0.25＝收尾對齊 paired 落地
-    // ＝「list 那幾個先回、剩下的同時完成定位」（user 08-31；0.45 會晚 paired ~200ms 收尾）
+    // 未配對 host chip（B）：裸文字 Stage2 逐漸 fade in（同 A/C，user 09-04）；色塊 clip-in + 上色留到 Stage3 bloom（switchToMap R_BLOOM）
     bOthers.forEach(i => {
-      const at = R_B_ENTER + Math.random() * M_FADE_RANGE;
-      bChipRevealTween(i._span, randomBDir(), 'show', { tl, position: at, duration: 0.25 });
+      const at = R_FADE_START + Math.random() * M_FADE_RANGE;
+      tl.to(i._anchor, { opacity: 1, duration: UNPAIRED_FADE_DUR, ease: 'none' }, at);
     });
     // 城市 + 連線最後回來（gate 藏掉的國家線維持 1、不 draw 進空氣）
     dItems.forEach(i => {
@@ -5727,28 +5733,25 @@ export async function initAtlas(options = {}) {
     introTween = /** @type {any} */ (master);
     master.add(enterTl, 0);
 
-    // 當下頁 item 飛回＝全類本體直飛（user 08-28 三輪：B 也改直飛——文字先回去、定位後底色
-    // ghost 沿來向 clip 進場＝正向掃出的鏡像；原 maskFlyNode 色塊吞回已退場）
+    // Stage 3 bloom（user 09-04）：非 host item 到位後，全體 recolor（黑→彩色）＋ host 色塊 clip-in「一起現身」
+    // ＝正向 exit「decolorize + 色塊 clip-out」的鏡像倒放。bulk 在 R_BLOOM 同步；晚到的 paired straggler 各自 onLand 自補。
+    let bloomed = false;
+    const bloomItem = (i) => {
+      gsap.to(i._span, { color: i.color, duration: M_COLOR_FADE, ease: EASE.enterSoft, overwrite: 'auto' });   // 黑→彩色
+      if (i.category === 'B') {   // host 色塊 clip-in（ghost 隨機四向掃入＝exit clip-out 鏡像）
+        const g = spawnBChipBgGhost(i);
+        gsap.fromTo(g, { clipPath: NODE_HIDE_INSETS[Math.floor(Math.random() * 4)] },
+          { clipPath: COVER_SHOWN_M, duration: REVEAL_DUR, ease: EASE.enterSoft,
+            onComplete: () => { i._span.style.backgroundColor = i.bgColor || ''; g.remove(); } });
+      }
+    };
+    // 當下頁 item 飛回＝全類本體直飛（黑、B 裸文字）；到位才 bloom（bulk 在 R_BLOOM／晚到自補）＝色與色塊一起、不在飛行中上色
     flyItems.forEach(it => {
       const delay = R_ITEM_START + Math.random() * R_ITEM_RANGE;
-      if (it.category !== 'B') {
-        master.add(flipFlyNode(it, delay, () => toChipForm(it), null, false), 0);
-        return;
-      }
-      const srcR = it._span.getBoundingClientRect();   // 起點（list 端）先記，落地算來向
-      master.add(flipFlyNode(it, delay,
-        () => { toChipForm(it); it._span.style.backgroundColor = 'transparent'; },   // 飛行中裸文字（bg 落地才回）
-        () => {
-          const n = /** @type {HTMLElement} */ (it._span);
-          const g = spawnBChipBgGhost(it);
-          const dstR = n.getBoundingClientRect();
-          const dx = (dstR.left + dstR.width / 2) - (srcR.left + srcR.width / 2);
-          const dy = (dstR.top + dstR.height / 2) - (srcR.top + srcR.height / 2);
-          gsap.fromTo(g, { clipPath: travelCoverDir(-dx, -dy) }, {
-            clipPath: COVER_SHOWN_M, duration: REVEAL_DUR, ease: EASE.enterSoft,
-            onComplete: () => { n.style.backgroundColor = it.bgColor || ''; g.remove(); },
-          });
-        }, false), 0);
+      const swapFn = it.category === 'B'
+        ? () => { toChipForm(it); it._span.style.backgroundColor = 'transparent'; }   // B 飛行中裸文字（色塊 bloom 才 clip-in）
+        : () => toChipForm(it);
+      master.add(flipFlyNode(it, delay, swapFn, () => { if (bloomed) bloomItem(it); }, false), 0);
     });
     // 全類直飛＝落點跟著 anchor 補間（gsap x/y 疊在 anchor 座標上）、無 mask 預量落點約束 →
     // 起手即解凍 wobble（原「不可早於 mask 落地」限制隨 maskFlyNode 退場；host 圈即刻恢復轉動）
@@ -5759,6 +5762,12 @@ export async function initAtlas(options = {}) {
         refreshFloatRunning();
       }, null, 0.05);
     }
+    // bulk bloom：R_BLOOM 一次同步（跳過還在飛的 straggler＝其 onLand 見 bloomed 後自補、於各自到位時 bloom）
+    master.call(() => {
+      if (destroyed || currentView !== 'map') return;
+      bloomed = true;
+      items.filter(i => i._span && i.category !== 'D' && !i._span.classList.contains('atlas-flying')).forEach(bloomItem);
+    }, null, R_BLOOM);
     // subchip 飛回：落地即打開狀態（maskFlyChrome onComplete 揭露 visibility）
     subchipPairsR.forEach(p => {
       master.add(maskFlyChrome(p.srcEl, p.srcRot, p.chip, p.dstRot, R_NAV_START + p.backIdx * R_NAV_STEP), 0);

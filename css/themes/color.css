@@ -227,6 +227,23 @@ body.mode-color .colored-accordion .accordion-img-wrap[style*="background"] {
 
 /* Timeline era 卡片 / photo tooltip（標準是 bg-black + text-white）：mode-color 下也走 strict B/W，跟一般 timeline-card-inner 同款（規則已在上方統一） */
 
+/* ===== About Programs 結構樹（#program-structure）：mode-color strict B/W =====
+ * chip 全去三原色改 strict B/W；SCCD 黑塊與右色塊「反著」、以右色塊為主（user 2026-09-03）：
+ *   - 右 box（.prog-box，主）= var(--theme-fg) 底 + var(--theme-fg-inverse) 字（!important 蓋 JS inline accent + CSS 預設）
+ *   - 左 SCCD 塊（.prog-acronym）= var(--theme-fg-inverse) 底（跟右 box 相反），wordmark（.prog-acronym-mark）回填
+ *     var(--theme-fg) 對比左塊（standard/inverse 原填 --theme-bg，mode3 是 vivid hue 會「吃背景色」）。
+ * .prog-seg 連結橫綫、.prog-lines 斜綫已吃 var(--theme-fg) 自動跟走，不需在此覆蓋。 */
+body.mode-color #program-structure .prog-box {
+  background: var(--theme-fg) !important;
+  color: var(--theme-fg-inverse) !important;
+}
+body.mode-color #program-structure .prog-acronym {
+  background: var(--theme-fg-inverse) !important;
+}
+body.mode-color #program-structure .prog-acronym-mark {
+  background-color: var(--theme-fg) !important;
+}
+
 /* ===== Typography ===== */
 /* :not([data-hero-hl]) 把 hero hl chip 從廣域 .text-black→theme-fg 排除，避免跟下方 [data-hero-hl] strict B/W 規則同 specificity 廝殺；
  * 排除後 hero h1/p 的 color 只剩 [data-hero-hl] 規則一條，直接走 theme-fg-inverse 對比 chip bg */
@@ -861,14 +878,14 @@ body.mode-color #atlas-detail {
   color: var(--theme-fg-inverse) !important;
 }
 
-/* Career rotating chip（map + list 共用）：bg primary + 黑字 → lib-bg 灰底（mode3 視覺柔和）
- * .atlas-alumni-subchip 跟 .atlas-alumni-career 共用 className 但走自己 active/inactive 邏輯（用 --lib-bg），排除避免被蓋
- * 2026-05-25 user 反映 strict B/W 太強烈，改 --lib-bg（亮 hue→#f2f2f2 / 暗 hue→#333333 兩階） */
-/* career rotating chip mode3：map view (.atlas-alumni-career) 維持 --lib-bg 中性灰（user 2026-06-23：紫底上白疊不好看、改回）；
-   list view (.atlas-list-col-career) 保持 --list-zebra-strip 固定白淡疊（user 要 list view 不變）。subchip 排除（走自己 active/inactive）*/
+/* Career rotating chip（map + list 共用）mode3＝alumni chip 的「相反色」：bg var(--theme-fg-inverse)＋字 var(--theme-fg)
+ * （alumni 主標 chip 是 theme-fg 底 → career 用 fg-inverse 底＝黑白對翻、一眼分主次）。
+ * .atlas-alumni-subchip 共用 className 但走自己邏輯（active 白半透明 / inactive theme-bg），故 :not 排除避免被蓋。
+ * 2026-09-02 定案（user）：推翻舊 2026-05-25「strict B/W 太強改 --lib-bg 灰」與 2026-06-23「list view 不變」——
+ *   career 現統一走 alumni 反色，map + list 同待遇。 */
 body.mode-color .atlas-alumni-career:not(.atlas-alumni-subchip) {
-  background-color: var(--lib-bg) !important;
-  color: var(--lib-fg) !important;
+  background-color: var(--theme-fg-inverse) !important;
+  color: var(--theme-fg) !important;
 }
 /* host/employ subchip inactive（user 08-27）：底色對齊 .atlas-filter-btn inactive 的 mode3 規則
    （theme-bg 底 + half-fg 字；active 維持 base 的 --lib-bg 灰底不蓋） */
@@ -885,9 +902,16 @@ body.mode-color .atlas-alumni-subchip.subchip-inactive .atlas-alumni-career-zh {
     color: rgba(var(--theme-fg-rgb), 1) !important;
   }
 }
-body.mode-color .atlas-list-col-career {
+/* host/employ subchip active（user 09-02）：mode3 改白色半透明（--list-zebra-strip，同 list host/employ 欄標）；
+   原本 active 態無 mode3 規則 → 吃 base 的 --lib-bg 灰。⚠️不可用 rgba(theme-fg)：亮 hue 會變黑疊非白（同下方 903 註解）。
+   文字色靠 base color:var(--lib-fg)＋mode3 --lib-fg:var(--theme-fg) 繼承，不另寫。 */
+body.mode-color .atlas-alumni-subchip:not(.subchip-inactive) {
   background-color: var(--list-zebra-strip, rgba(255, 255, 255, 0.15)) !important;
-  color: var(--lib-fg) !important;
+}
+body.mode-color .atlas-list-col-career {
+  /* 2026-09-02：list career 亦改 alumni 反色（同 map view，見上；原 --list-zebra-strip 半透明退場） */
+  background-color: var(--theme-fg-inverse) !important;
+  color: var(--theme-fg) !important;
 }
 
 /* List view column title chip：分階級 mode-color 處理（2026-05-25 修）
@@ -900,8 +924,11 @@ body.mode-color .atlas-list-group-label-col .atlas-list-col-title {
   color: var(--theme-fg-inverse) !important;
 }
 
-body.mode-color .atlas-list-col[data-category="host"] .atlas-list-col-title,
-body.mode-color .atlas-list-col[data-category="employ"] .atlas-list-col-title {
+/* ⚠️ 限 > .atlas-list-col-titleblock（跟 atlas.js colTitle 同款）：09-01 起 Alumni 主標 .atlas-list-group-label-col
+   巢在 host 欄頂端也含 .atlas-list-col-title，不限定會被此 zebra 規則（特異度較高）命中→Alumni 主標變半透明，
+   而非上方 897 的 theme-fg strict B/W。加直下限定後只命中 host/employ 自己的欄標（在 titleblock 內）。 */
+body.mode-color .atlas-list-col[data-category="host"] > .atlas-list-col-titleblock .atlas-list-col-title,
+body.mode-color .atlas-list-col[data-category="employ"] > .atlas-list-col-titleblock .atlas-list-col-title {
   /* mode3 用 --list-zebra-strip 固定白淡疊（user 2026-06-23：同 curriculum courses-grid-card / activities 斑馬；
      theme-toggle.js 依 hue set rgba(255,255,255, 亮 0.4/暗 0.15)）。⚠️不可用 rgba(theme-fg)——那會吃 hue、亮 hue 變黑疊，user 不要 */
   background: var(--list-zebra-strip, rgba(255, 255, 255, 0.15)) !important;

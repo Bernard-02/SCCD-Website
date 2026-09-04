@@ -58,9 +58,11 @@ html {
    基準 scroll-margin（原 about.html inline style 移入；不分寬度 → 手機 deep-link 落點不變）：
    overview 160 = 對齊 #anchor-nav sticky top:160（user 2026-08-31 由 200 收上來，比照四頁 nav） */
 #overview { scroll-margin-top: 160px; }
-#class, #works { scroll-margin-top: 100px; }
+#class, #class-info-anchor, #works { scroll-margin-top: 100px; }
 #class-info-area { min-height: 100vh; }
 #resources { min-height: 100vh; }
+/* Programs 結構圖自成一屏（#class snap 落點）→ 下方 division 內容不擠進 tree 視窗（2026-09-01 #10） */
+#program-structure { min-height: 100svh; }
 
 /* 手機（2026-07-07）：anchor strip 改全程 sticky（釘 88、高 91 → 底 179，2026-07-13 從 96 收上來）後，
    落點要讓出 strip 高度，否則點 nav 對齊的內容鑽進 strip/blocker 底下。180 = strip 底 +1；
@@ -94,7 +96,7 @@ html {
 
 @media (min-width: 768px) and (min-height: 900px) {
   /* 落點全部頂對齊；原本 −100/−200 offset 提供的框景改由各 section 內部 padding 補（見下） */
-  #overview, #class, #works { scroll-margin-top: 0; }
+  #overview, #class, #class-info-anchor, #works { scroll-margin-top: 0; }
 
   /* overview：一屏、理念文字頂端對齊左側 #anchor-nav 的 sticky 位置（top:160px，見 about.html）。
      user 2026-08-05：原 align-items:center 改 flex-start，padding-top 由 header-height 改對齊 nav btn（2026-08-31 由 200→160）。 */

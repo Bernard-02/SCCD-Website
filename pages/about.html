@@ -132,6 +132,86 @@
       <!-- 移除 md:pt-6xl：讓 btn 自然位置就 ≤ sticky 閾值（96px），點擊 class 時 btn 立即貼頂 100px -->
       <div id="class-works-area" class="relative z-10 md:pb-6xl">
 
+        <!-- Programs 結構圖：DCD 學制樹狀圖，出現在既有 division 內容之前。
+             綫段(.prog-seg)的 rgb 隨機底色＋旋轉由 about-structure.js 上；內容暫硬編（mockup 為準），之後接 Directus。
+             左緣對齊 col-5（md:col-start-5），比照其他 section。樣式在 components/about-structure.css。 -->
+        <div id="program-structure" class="site-container pt-3xl md:pt-6xl pb-2xl relative z-10">
+          <div class="grid-20">
+            <div class="col-span-full md:col-start-6 md:col-span-15">
+              <div class="prog-tree">
+                <div class="prog-roots">
+                  <!-- 父→子斜連綫：SVG overlay，端點由 about-structure.js 依 box 位置量測後畫（不用垂直立柱/短綫）。 -->
+                  <svg class="prog-lines" aria-hidden="true"></svg>
+
+                  <!-- 頂列：SCCD·DCD ── 連結橫綫 ── SCAIDC·BPAIDC。
+                       每個頂層 = 黑底標準字塊(.prog-acronym：wordmark SVG mask) + 學系色塊(.prog-box)，整個 .prog-titled 為傾斜/hover 單位。 -->
+                  <div class="prog-top">
+                    <div class="prog-titled prog-tilt">
+                      <span class="prog-acronym"><span class="prog-acronym-mark"></span></span>
+                      <div class="prog-box">
+                        <span class="prog-box-en">Department of Communications Design (DCD)</span>
+                        <span class="prog-box-zh" lang="zh-Hant">媒體傳達設計學系</span>
+                      </div>
+                    </div>
+                    <div class="prog-seg prog-seg--link"></div>
+                    <div class="prog-titled prog-tilt">
+                      <!-- ponytail: SCAIDC 標準字未定，暫用 SCCD wordmark 佔位（user 指示） -->
+                      <span class="prog-acronym"><span class="prog-acronym-mark"></span></span>
+                      <div class="prog-box prog-box--bpaidc">
+                        <span class="prog-box-en">Bachelor Program of AI Design Craftsmentship (BPAIDC)</span>
+                        <span class="prog-box-zh" lang="zh-Hant">AI 設計職人學位學程</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- DCD 子樹（頂下橫向 fan；父→子斜綫由 SVG 畫） -->
+                  <div class="prog-children prog-children--root">
+
+                      <!-- BFA ＋ 兩組 -->
+                      <div class="prog-node">
+                        <div class="prog-row">
+                          <div class="prog-box prog-tilt">
+                            <span class="prog-box-en">Bachelor of Fine Art (BFA)</span>
+                            <span class="prog-box-zh" lang="zh-Hant">學士班</span>
+                          </div>
+                        </div>
+
+                        <div class="prog-children">
+                          <div class="prog-node">
+                            <div class="prog-row">
+                              <div class="prog-box prog-tilt">
+                                <span class="prog-box-en">Animation &amp; Moving Image</span>
+                                <span class="prog-box-zh" lang="zh-Hant">動畫影像設計組</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div class="prog-node">
+                            <div class="prog-row">
+                              <div class="prog-box prog-tilt">
+                                <span class="prog-box-en">Creative Media Design</span>
+                                <span class="prog-box-zh" lang="zh-Hant">創意媒體設計組</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- MDES -->
+                      <div class="prog-node">
+                        <div class="prog-row">
+                          <div class="prog-box prog-tilt">
+                            <span class="prog-box-en">Master of Design (MDES)</span>
+                            <span class="prog-box-zh" lang="zh-Hant">碩士班</span>
+                          </div>
+                        </div>
+                      </div>
+                  </div><!-- end .prog-children--root -->
+
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <!-- Mobile Division Nav：水平 scroll pill 列（沿用 .section-nav-btn / .anchor-nav-inner，與其他 section nav 一致）；
              點擊切換下方圖文（wiring 在 bfa-division-toggle.js）。取代舊的 prev/next chevron 控制。
@@ -170,6 +250,11 @@
           </div>
         </div>
 
+        <!-- Programs division 圖文視圖的 snap 落點（零高度）：tree 佔了 #class 的 snap，division 視圖需自己的落點，
+             否則往下捲會從 tree 直接吸到 #works、中間 division 視圖沒 frame 對齊 → 半屏錯位（2026-09-01 #7 修）。
+             scroll-margin 規則在 scroll-snap.css（比照 #class）。 -->
+        <div id="class-info-anchor" class="snap-zone" style="height: 0;"></div>
+
         <!-- Sticky 範圍容器：btn 的 sticky 只在 info 結束前生效 -->
         <div id="class-info-sticky-wrapper" class="relative z-10">
 
@@ -177,34 +262,34 @@
         <div id="class-buttons-sticky" class="hidden md:block sticky z-40 pt-3xl pb-md" style="top: 100px;">
           <div class="site-container">
             <div class="grid-20">
-              <div class="md:col-start-5 md:col-span-16 flex items-end gap-xl">
+              <div class="md:col-start-5 md:col-span-16 flex items-end gap-lg">
                 <!-- BFA / Design Fundamental（works 模式才顯示，預設收起；樣式仿 MDES） -->
                 <div class="class-division-bfa-wrap">
-                  <button class="class-division-btn font-bold transition-all duration-fast text-left whitespace-nowrap" data-division="bfa">
-                    <div class="text-lg font-bold whitespace-nowrap" data-label-key="about.program.design-fundamental" data-label-part="en">Design Fundamental</div>
-                    <div class="text-lg font-bold whitespace-nowrap" data-label-key="about.program.design-fundamental" data-label-part="zh">創作基礎</div>
+                  <button class="class-division-btn font-bold transition-all duration-fast text-left" data-division="bfa">
+                    <div class="text-lg font-bold" data-label-key="about.program.design-fundamental" data-label-part="en">Design Fundamental</div>
+                    <div class="text-lg font-bold" data-label-key="about.program.design-fundamental" data-label-part="zh">創作基礎</div>
                   </button>
                 </div>
                 <!-- Animation: BFA label + btn -->
                 <div class="relative flex flex-col justify-end">
                   <span class="class-group-label text-s font-bold whitespace-nowrap self-start"><span data-label-key="about.group.bfa" data-label-part="en">BFA</span><span data-label-key="about.group.bfa" data-label-part="zh">學士班</span></span>
                   <button class="class-division-btn class-division-btn--bfa font-bold transition-all duration-fast text-left" data-division="animation">
-                    <div class="text-lg font-bold whitespace-nowrap" data-label-key="about.program.animation" data-label-part="en">Animation & Moving Image</div>
-                    <div class="text-lg font-bold whitespace-nowrap" data-label-key="about.program.animation" data-label-part="zh">動畫影像設計組</div>
+                    <div class="text-lg font-bold" data-label-key="about.program.animation" data-label-part="en">Animation & Moving Image</div>
+                    <div class="text-lg font-bold" data-label-key="about.program.animation" data-label-part="zh">動畫影像設計組</div>
                   </button>
                 </div>
                 <!-- Creative Media: BFA label + btn -->
                 <div class="relative flex flex-col justify-end">
                   <span class="class-group-label text-s font-bold whitespace-nowrap self-start"><span data-label-key="about.group.bfa" data-label-part="en">BFA</span><span data-label-key="about.group.bfa" data-label-part="zh">學士班</span></span>
                   <button class="class-division-btn class-division-btn--bfa font-bold transition-all duration-fast text-left" data-division="creative-media">
-                    <div class="text-lg font-bold whitespace-nowrap" data-label-key="about.program.creative-media" data-label-part="en">Creative Media Design</div>
-                    <div class="text-lg font-bold whitespace-nowrap" data-label-key="about.program.creative-media" data-label-part="zh">創意媒體設計組</div>
+                    <div class="text-lg font-bold" data-label-key="about.program.creative-media" data-label-part="en">Creative Media Design</div>
+                    <div class="text-lg font-bold" data-label-key="about.program.creative-media" data-label-part="zh">創意媒體設計組</div>
                   </button>
                 </div>
                 <!-- MDES -->
                 <button class="class-division-btn class-division-btn--bfa font-bold transition-all duration-fast text-left" data-division="mdes">
-                  <div class="text-lg font-bold whitespace-nowrap" data-label-key="about.program.mdes" data-label-part="en">MDES</div>
-                  <div class="text-lg font-bold whitespace-nowrap" data-label-key="about.program.mdes" data-label-part="zh">碩士班</div>
+                  <div class="text-lg font-bold" data-label-key="about.program.mdes" data-label-part="en">MDES</div>
+                  <div class="text-lg font-bold" data-label-key="about.program.mdes" data-label-part="zh">碩士班</div>
                 </button>
               </div>
             </div>

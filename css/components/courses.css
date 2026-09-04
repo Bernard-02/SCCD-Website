@@ -109,11 +109,12 @@
       position: static;
       z-index: 3;
       background: var(--theme-bg);
-      /* padding-top = BFA label 突出量（user 2026-08-24「對齊點含 BFA 學士班小 tag、往下調」）：
-         label 是 absolute（bottom:calc(100%+4px)）浮在 btn 上方，原 padding-top:0 讓 btn 頂對齊年級表頭、label 浮在線外。
-         下移整條 bar ≈ label 高（font-size-s × line-height-s + 上下 padding 13px）+ 4px gap ≈ 39px
-         → label 頂端（而非 btn 頂端）落在年級表頭線，label+btn group 整體視覺對齊內容。MDES btn 隨整條同步下移、相對間距不變。 */
-      padding-top: calc(var(--font-size-s) * var(--line-height-s) + 18px);
+      /* padding-top = 下移整條 bar，讓 **BFA 小 tag 頂端**對齊右側年級表頭線（content 區頂 160）＝user 要的對齊基準
+         （user 2026-08-24 定案、2026-09-02 再次確認「對齊點是 BFA 小標題不是按鈕」）。tag 是 absolute（bottom:calc(100%+4px)）
+         浮在 btn 上方、不佔 flow → 下移量＝tag 突出量。⚠️tag 是**兩行**（EN+ZH block span），故 ×2；舊版誤用 ×1
+         → tag 落在表頭線上方 ~22px 沒真的對齊（headless 實測 delta+2，×2 才 delta≈0）。btn 隨之落到表頭下方（≈220，
+         約課程卡片列）＝正常、對齊基準是 tag。MDES btn 無 tag 隨整條同步、相對間距不變。改後要 build:css。 */
+      padding-top: calc(var(--font-size-s) * var(--line-height-s) * 2 + 18px);
       padding-bottom: var(--spacing-md);
     }
   }
@@ -134,13 +135,15 @@
     white-space: nowrap;
   }
 
-  /* MDES btn 沒有上方 label，不需要 BFA-cmd 那種被 label 吃掉一半 gap 的 clearance；
-     用 negative margin-top 把 gap 砍半（4rem → 2rem），視覺上 BFA-cmd→MDES 跟其他兩段
-     btn-to-btn 的「乾淨剩餘」距離吻合。selector：bar 的 direct child + .courses-program-btn
-     只有 MDES 符合（BFA btn 被包在 .courses-program-group div 裡）。 */
+  /* 桌面 nav 垂直間距模型（user 2026-09-02「間距要加上子標題，不然 Animation 跟 Creative Media 太靠近」）：
+     bar flex gap = --spacing-lg(32)＝**乾淨間距**（可見空白，全站一致；HTML md:gap-lg）。BFA group 的 label 是
+     absolute 浮在 btn 上方、不佔 flow → flex gap 看不到它、被它吃掉（實測 Animation btn→CreativeMedia label 只剩 3px）。
+     解＝給非首個 group 補 margin-top = label 兩行突出量（同 bar padding-top 那條 calc），把 32px 乾淨 gap 推到 label 上方。
+     首個 group（Animation）頂由 bar padding-top 定位（label 對齊年級表頭）→ :not(:first-child) 排除它。
+     MDES btn 無 label、直接吃 flex gap(32) 不需補（舊的 negative-margin 砍半 4rem→2rem hack 已移除，因 gap 本身就是 32）。 */
   @media (min-width: 768px) {
-    .courses-program-bar > .courses-program-btn {
-      margin-top: calc(var(--spacing-2xl) * -0.5);
+    .courses-program-group:not(:first-child) {
+      margin-top: calc(var(--font-size-s) * var(--line-height-s) * 2 + 18px);
     }
   }
 

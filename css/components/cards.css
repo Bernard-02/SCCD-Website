@@ -266,7 +266,11 @@
   @media (min-width: 768px) {
     .faculty-card-wall {
       grid-template-columns: repeat(4, minmax(0, 250px)); /* 卡片上限 250 → 圖片 ~238px（扣 12px padding）；user 2026-06-03 縮小 */
-      column-gap: var(--spacing-lg); /* 桌面最小水平間距 32px，寬螢幕 space-between 自動加大（卡片變小→gap 變大，user 接受） */
+      /* 最小 column-gap 隨視窗放大：2rem(32) 保底 → 3.5vw → 5rem(80) 上限。原本死釘 32px，害中寬度區間
+         （vw~1280–1600：圖片已隨容器放大到接近 250 上限、但 space-between surplus 還沒啟動）gap 卡在 32＝
+         圖大 gap 小視覺擁擠（user 2026-09-02）。改 clamp 讓 gap 跟著圖一起長（gap:圖 比值穩定 ~0.23，對齊窄螢幕手感），
+         >~1700px 圖片封頂後照舊由 space-between surplus 主導把 gap 撐更大。floor 2rem = 原 --spacing-lg，窄桌面不變。 */
+      column-gap: clamp(2rem, 3.5vw, 5rem);
       row-gap: var(--spacing-4xl);   /* 桌面行距 128px */
     }
   }
