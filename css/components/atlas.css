@@ -573,6 +573,12 @@ body.mode-color #atlas-detail-mask {
   clip-path: inset(-12px -12px -12px -12px);
 }
 
+/* 未 reveal（init await / intro 中 / 退場已摘 class）不吃 pointer：
+   隱形鈕不給 pointer cursor 也不可點（同 .atlas-filter-btn 的 :not gate） */
+#atlas-layout-btn:not(.atlas-layout-revealed) {
+  pointer-events: none;
+}
+
 @media (min-width: 768px) {
   #atlas-layout-btn:hover .atlas-layout-inner {
     transform: rotate(15deg);
