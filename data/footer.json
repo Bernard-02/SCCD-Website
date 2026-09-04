@@ -2,41 +2,117 @@
   "tabs": [
     {
       "key": "dept",
-      "nameZh": "學系",
-      "nameEn": "Department",
-      "markIconUrl": "images/SCCD - Black.svg",
+      "nameZh": "媒體傳達設計學系",
+      "nameEn": "Department of Communications Design",
       "items": [
-        { "type": "social", "iconUrl": "website-icons/youtube_solid.svg", "url": "https://www.youtube.com/@communicationsdesign" },
-        { "type": "social", "iconUrl": "website-icons/instagram_solid.svg", "url": "https://www.instagram.com/communications.design_sccd" },
-        { "type": "social", "iconUrl": "website-icons/facebook_solid.svg", "url": "https://www.facebook.com/communications.design" },
-        { "type": "phone", "itemKey": "tel", "labelZh": "電話", "labelEn": "TEL", "phoneCountry": "+886", "phoneNumber": "2 2538 1111", "phoneExt": "7211" },
-        { "type": "phone", "itemKey": "fax", "labelZh": "傳真", "labelEn": "FAX", "phoneCountry": "+886", "phoneNumber": "2 2538 1111", "phoneExt": "7050" },
-        { "type": "info", "itemKey": "email", "labelZh": "電子郵件", "labelEn": "E-Mail", "textEn": "sccd@g2.usc.edu.tw", "url": "mailto:sccd@g2.usc.edu.tw" },
-        { "type": "address", "itemKey": "office", "labelZh": "學系辦公室", "labelEn": "Office", "textEn": "5F, Building A, No.70, Dazhi Street, Zhongshan District, Taipei City 104336, Taiwan", "textZh": "104336 台灣台北市中山區大直街 70 號 A 棟 5 樓" }
-      ]
+        {
+          "type": "social",
+          "url": "https://www.youtube.com/@communicationsdesign",
+          "iconUrl": "https://d2df28pyzslt2v.cloudfront.net/Directus/c9c7ee63-18a8-487b-8c58-8310386c33cb.svg"
+        },
+        {
+          "type": "social",
+          "url": "https://www.instagram.com/communications.design_sccd",
+          "iconUrl": "https://d2df28pyzslt2v.cloudfront.net/Directus/4295c724-1e3a-405d-a296-5599f4c8fb91.svg"
+        },
+        {
+          "type": "social",
+          "url": "https://www.facebook.com/communications.design",
+          "iconUrl": "https://d2df28pyzslt2v.cloudfront.net/Directus/e851e301-cb16-421a-bb7a-85f848abb959.svg"
+        },
+        {
+          "type": "phone",
+          "itemKey": "tel",
+          "labelZh": "電話",
+          "labelEn": "TEL",
+          "phoneCountry": "+886",
+          "phoneNumber": "2 2538 1111",
+          "phoneExt": "7211"
+        },
+        {
+          "type": "phone",
+          "itemKey": "fax",
+          "labelZh": "傳真",
+          "labelEn": "FAX",
+          "phoneCountry": "+886",
+          "phoneNumber": "2 2538 1111",
+          "phoneExt": "7050"
+        },
+        {
+          "type": "info",
+          "itemKey": "email",
+          "labelZh": "電子郵件",
+          "labelEn": "E-Mail",
+          "textEn": "sccd@g2.usc.edu.tw",
+          "url": "mailto:sccd@g2.usc.edu.tw"
+        },
+        {
+          "type": "address",
+          "itemKey": "office",
+          "labelZh": "學系辦公室",
+          "labelEn": "Office",
+          "textZh": "104336 台灣台北市中山區大直街 70 號 A 棟 5 樓",
+          "textEn": "5F, Building A, No.70, Dazhi Street, Zhongshan District, Taipei City 104336, Taiwan"
+        }
+      ],
+      "markIconUrl": "https://d2df28pyzslt2v.cloudfront.net/Directus/9a51fca5-c77d-4f08-b8d4-ace882a76852.svg"
     },
     {
       "key": "aa",
       "nameZh": "系友會",
       "nameEn": "Alumni Association",
-      "markIconUrl": "images/SCCDAA Logo 20260810.svg",
       "items": [
-        { "type": "social", "iconUrl": "website-icons/facebook_solid.svg", "url": "https://www.facebook.com/groups/445872492110612" }
-      ]
+        {
+          "type": "social",
+          "url": "https://www.facebook.com/groups/445872492110612",
+          "iconUrl": "https://d2df28pyzslt2v.cloudfront.net/Directus/e851e301-cb16-421a-bb7a-85f848abb959.svg"
+        }
+      ],
+      "markIconUrl": "https://d2df28pyzslt2v.cloudfront.net/Directus/e01224c2-3b87-4d46-8bcd-9ba3131690b9.svg"
     },
     {
       "key": "units",
       "nameZh": "關聯單位",
       "nameEn": "Affiliated Units",
-      "markIconUrl": null,
       "items": [
-        { "type": "link", "labelEn": "Department of Architecture", "labelZh": "建築設計學系", "url": "https://www.arch.usc.edu.tw/" },
-        { "type": "link", "labelEn": "Bachelor Program in Architectural Craftsmanship", "labelZh": "建築職人學士學位學程", "url": "https://www.arch.usc.edu.tw/" },
-        { "type": "link", "labelEn": "Department of Fashion Design", "labelZh": "服裝設計學系", "url": "https://scfd.usc.edu.tw/" },
-        { "type": "link", "labelEn": "Department of Industrial Design", "labelZh": "工業設計學系", "url": "https://scid.usc.edu.tw/" },
-        { "type": "link", "labelEn": "College of Design", "labelZh": "設計學院", "url": "https://www.scdesign.usc.edu.tw/" },
-        { "type": "link", "labelEn": "Shih Chien University", "labelZh": "實踐大學", "url": "https://www.usc.edu.tw/" }
-      ]
+        {
+          "type": "link",
+          "labelZh": "建築職人學士學位學程",
+          "labelEn": "Bachelor Program in Architectural Craftsmanship",
+          "url": "https://www.arch.usc.edu.tw/"
+        },
+        {
+          "type": "link",
+          "labelZh": "建築設計學系",
+          "labelEn": "Department of Architecture",
+          "url": "https://www.arch.usc.edu.tw/"
+        },
+        {
+          "type": "link",
+          "labelZh": "服裝設計學系",
+          "labelEn": "Department of Fashion Design",
+          "url": "https://scfd.usc.edu.tw/"
+        },
+        {
+          "type": "link",
+          "labelZh": "工業設計學系",
+          "labelEn": "Department of Industrial Design",
+          "url": "https://scid.usc.edu.tw/"
+        },
+        {
+          "type": "link",
+          "labelZh": "設計學院",
+          "labelEn": "College of Design",
+          "url": "https://www.scdesign.usc.edu.tw/"
+        },
+        {
+          "type": "link",
+          "labelZh": "實踐大學",
+          "labelEn": "Shih Chien University",
+          "url": "https://www.usc.edu.tw/"
+        }
+      ],
+      "markIconUrl": null
     }
   ]
 }

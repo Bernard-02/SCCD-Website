@@ -8,7 +8,7 @@
  *   （對應內容仍在 Directus regulations/support/policy_and_statements；那些是頁面內文，標題與 footer 標籤不同）。
  * 圖示（tab 標誌 + 社群 icon）＝Directus Files「Site Icons」資料夾的 SVG，前台以 CSS mask 依 mode 上色。
  *
- * 前台：single-flight cache；CMS 掛/空 → fallback /data/footer.json（其 icon 存本地路徑）。
+ * 前台：single-flight cache；CMS 掛/空 → fallback /data/footer.json（快照自 Directus 重產，icon 存 CDN 絕對 URL——CDN 與後台主機分離，後台掛時仍可載）。
  * 渲染輸出「與 legacy 靜態 HTML 同構」DOM：資訊卡帶 .footer-info + itemKey(.footer-tel/fax/email/office) 吃既有版面；
  * 社群 icon 走全站 .icon（--icon mask + currentColor=--footer-fg）；tab 標誌 mask src+aspect-ratio 由 SVG viewBox 量。
  */
@@ -36,7 +36,7 @@ async function fetchFooterData() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const tabs = (await res.json()).data;
     if (!Array.isArray(tabs) || tabs.length === 0) throw new Error('empty data');
-    // 圖示 filename_disk → CloudFront URL（fallback JSON 已是本地路徑，不進這裡）
+    // 圖示 filename_disk → CloudFront URL（fallback JSON 已預存 CDN 絕對 URL，不進這裡）
     tabs.forEach((t) => {
       t.markIconUrl = t.markIcon?.filename_disk ? `${CMS_CDN_BASE}/${t.markIcon.filename_disk}` : null;
       (t.items || []).forEach((it) => { it.iconUrl = it.iconFile?.filename_disk ? `${CMS_CDN_BASE}/${it.iconFile.filename_disk}` : null; });
