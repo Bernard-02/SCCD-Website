@@ -19,8 +19,8 @@
     --prog-gap: var(--spacing-md);       /* 頂列 chip↔link↔chip gap */
     --prog-fan-gap: var(--spacing-xl);   /* fan：同層兄弟 chip 水平間距 */
     --prog-level-gap: var(--spacing-4xl);/* 父列↔子列垂直間距（拉大＝chip 往下移＋斜綫更垂直不那麼斜） */
-    --prog-chip-max: 21rem;              /* 子 chip：英中各一行（BFA/組別最長 ~20.8rem） */
-    --prog-top-chip-max: 21rem;          /* 頂 chip：英文兩行（字級 md）；.prog-top fit-content 讓整列不被容器擠窄 */
+    --prog-chip-max: 24rem;              /* 子 chip 與頂 chip 同寬（user 要框一致）；lg 下 DCD 英文兩行需 ≥350px 容 "Department of Communications" 首行 */
+    --prog-top-chip-max: 24rem;          /* 頂 chip：與子 chip 同寬；lg 下 DCD 英文兩行、自然換行 */
     --prog-mark-h: 1.75rem;              /* 標準字塊 wordmark 高 */
   }
 
@@ -54,15 +54,18 @@
     width: fit-content;
     max-width: var(--prog-chip-max);          /* 固定寬上限 → 英文換行、卡片不過寬 */
     padding: 6px 8px 5px;                     /* = .class-division-btn */
-    color: #000;                               /* 底色固定學系色（粉/綠），皆淺、黑字可讀 */
-    background: var(--color-pink);             /* DCD 家族（DCD/BFA/MDES/兩組）統一粉 */
+    color: var(--theme-bg);                    /* 黑底白字（inverse 白底黑字）；user 2026-09-04 由 rgb 改黑 */
+    background: var(--theme-fg);               /* 色塊改黑（跟 mode 走，同 .prog-acronym）；不再隨機三原色 */
   }
-  .prog-box--bpaidc { background: var(--color-green); }   /* BPAIDC 家族統一綠 */
-  .prog-top .prog-box { max-width: var(--prog-top-chip-max); }   /* 頂 chip 較寬 → 英文兩行 */
-  /* 頂 chip 字級降 md：窄容器（cols 5-20，左側 sticky nav 佔 1-4）塞不下兩顆 lg 兩行，md 才行 */
-  .prog-top .prog-box-en,
-  .prog-top .prog-box-zh { font-size: var(--font-size-md); line-height: var(--line-height-md); }
-  .prog-top .prog-box-zh[lang="zh-Hant"] { line-height: var(--line-height-zh-md); }
+  .prog-top .prog-box { max-width: var(--prog-top-chip-max); }   /* 頂 chip：與子 chip 同寬同字級 lg；DCD 英文兩行、自然換行 */
+  /* 頂 chip 各自貼文字：max-width＝最長行(lg)＋16 padding＋~3 餘裕（同 tier2 邏輯，inline-flex 盒撐到 max-width 不 hug）。
+     ⚠仍要 ≥「最長行」＝維持兩行不掉三行；窄螢幕 fit-content clamp 會再縮（本就 3 行 graceful）。 */
+  .prog-top .prog-box--dcd     { max-width: 370px; }   /* 首行 "Department of Communications"(351) */
+  .prog-top .prog-box--bpaidc  { max-width: 354px; }   /* 首行 "Bachelor Program of AI Design"(335) */
+  /* 第三層 chip：各自 max-width 卡在「desired 首行剛好容、下一字溢出」＝斷點正確＋盒寬貼文字（box-sizing:border-box，值＝首行 px＋16 padding＋餘裕）。
+     inline-flex 盒會撐到 max-width 不會 hug 折後最長行，故 max-width 必須≈最長行才不留右側空白。lg 22.4px 量。 */
+  .prog-box--animation { max-width: 274px; }   /* 首行 "Division of Animation &"(254)＝於 & 後折 */
+  .prog-box--cm        { max-width: 234px; }   /* 首行 "Division of Creative"(214)＝於 Creative 後折 */
 
   /* 頂層單位：黑底標準字塊 + 學系色塊 併排，整塊為傾斜/hover 單位 */
   .prog-titled { display: inline-flex; align-items: stretch; width: fit-content; }
@@ -125,9 +128,10 @@
       width: max-content;   /* 絕對定位子列不被 containing block（父 box 寬）夾窄 → 子 chip 才拿得到 21rem 一行 */
     }
   }
-  /* 頂列升級 max-content：整列取自然寬、不折行，比容器寬時往右溢出到 site-container 右 padding。
-     ⚠️只在 ≥1440（整列 ~1046px + 左偏移放得下 viewport）才開，較窄螢幕維持 fit-content 讓 chip 縮而非被 viewport 右緣裁掉。 */
-  @media (min-width: 1440px) { .prog-top { width: max-content; } }
+  /* 頂列升級 max-content：整列取自然寬、不折行、DCD 英文兩行，比容器寬時往右溢出到 site-container 右 padding。
+     ⚠️24rem lg chip 後整列 ~1130px，只有 ≥1800 才放得下不被 viewport 右緣裁 BPAIDC；1440~1799 維持 fit-content
+     讓 chip 縮（DCD 退 3 行 graceful、不裁切）。要更低斷點得縮 chip/acronym/link 或改頂列直向堆疊。 */
+  @media (min-width: 1800px) { .prog-top { width: max-content; } }
 
   @media (max-width: 767px) {
     #program-structure { --prog-gap: var(--spacing-md); --prog-chip-max: 17rem; --prog-mark-h: 1.4rem; }

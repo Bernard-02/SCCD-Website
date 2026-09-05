@@ -48,9 +48,9 @@ function renderResourcesAccordion(data, container) {
           <div class="accordion-img-wrap">
             <img src="${item.image}" alt="${item.title}" class="w-full h-full object-cover" onerror="this.closest('.accordion-img-wrap').style.display='none'">
           </div>
-          <div class="accordion-text-wrap list-scroll">
-            <!-- data-resources-text：手機內捲層（padding 留在 text-wrap 上不隨捲動，同 vision/class/works pattern） -->
-            <div data-resources-text>
+          <div class="accordion-text-wrap">
+            <!-- data-resources-text：內捲層（桌面+手機皆此層捲動；padding 留在 text-wrap 當固定 frame、不隨捲動，同 vision/class/works pattern） -->
+            <div data-resources-text class="list-scroll">
               <p class="text-white mb-en-zh-body">${item.textEn || item.descriptionEn}</p>
               <p class="text-white" lang="zh-Hant">${item.textZh || item.descriptionZh}</p>
             </div>

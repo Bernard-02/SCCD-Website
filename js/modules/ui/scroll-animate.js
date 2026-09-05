@@ -113,6 +113,16 @@ export function clipRevealIconSwap(iconEl, newClass) {
   });
 }
 
+// scrollbar 呼吸 pr（scroll-snap.css 100vh gate 內、限 .has-scroll-pr）：內層捲動盒真的溢出(顯 scrollbar)才掛、
+// 不捲則拿掉 → 不捲時貼文字、捲時 thumb 不貼字（user 2026-09-05；桌面才判、手機/矮橫向一律拿掉）。
+// 通用給 about program/works/vision（皆 fitCardToText 內叫；vision 2026-09-05 起也 hug）。
+export function toggleScrollPr(scroller) {
+  if (!scroller) return;
+  const desktop = window.innerWidth >= 768
+    && !window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+  scroller.classList.toggle('has-scroll-pr', desktop && scroller.scrollHeight > scroller.clientHeight + 1);
+}
+
 // 色卡寬度貼合「最寬一行換行文字 + padding」（桌面）；手機/矮橫向還原 fit-content。
 // 為何要 JS：CSS width:fit-content 只夾到「可用寬度(grid cell)」，長文 max-content 遠超 cell → 卡片右緣
 // 落在欄邊而非最寬文字行；要縮到「換行後最寬行」必須用 Range 逐行量（同 timeline 手機年份卡）。
@@ -121,7 +131,8 @@ export function fitCardToText(box) {
   if (!box) return;
   const desktop = window.innerWidth >= 768
     && !window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
-  if (!desktop) { box.style.width = 'fit-content'; return; } // 手機色卡走內捲盒，維持原生 fit-content
+  const scroller = box.querySelector('[data-class-text], [data-works-text], [data-overview-text]'); // 內層捲動盒（有才是 about 說明卡）
+  if (!desktop) { box.style.width = 'fit-content'; toggleScrollPr(scroller); return; } // 手機色卡走內捲盒，維持原生 fit-content
   box.style.width = 'fit-content';   // 先回 fit-content 讓文字在 cell 寬內重新換行後再量
   const cs = getComputedStyle(box);
   const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
@@ -133,6 +144,7 @@ export function fitCardToText(box) {
     for (const r of rg.getClientRects()) widest = Math.max(widest, r.width);
   }
   if (widest > 0) box.style.width = `${Math.ceil(widest + padX) + 1}px`; // +1 防 sub-pixel 再折行
+  toggleScrollPr(scroller);   // 設寬後才判溢出（貼文字寬度會影響行數/高度）
 }
 
 // 觸發 clip reveal 動畫（assumes setupClipReveal 已執行）

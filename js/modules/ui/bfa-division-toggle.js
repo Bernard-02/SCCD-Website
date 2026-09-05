@@ -77,6 +77,8 @@ export function initBFADivisionToggle() {
   function fitVisibleClassText() {
     document.querySelectorAll('.class-info-panel [data-class-hl], .class-works-panel [data-works-hl]')
       .forEach(box => { if (box.offsetParent !== null) fitCardToText(box); }); // 只量可見 panel
+    // vision 說明文字也貼文字寬 + 條件 pr（user 2026-09-05，與 program/works 一致）
+    document.querySelectorAll('#overview [data-overview-hl]').forEach(fitCardToText);
   }
 
   // ─── Works 切換動畫（clip-path 文字 + slide-up 影片） ──────

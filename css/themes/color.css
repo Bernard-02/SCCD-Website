@@ -228,20 +228,20 @@ body.mode-color .colored-accordion .accordion-img-wrap[style*="background"] {
 /* Timeline era 卡片 / photo tooltip（標準是 bg-black + text-white）：mode-color 下也走 strict B/W，跟一般 timeline-card-inner 同款（規則已在上方統一） */
 
 /* ===== About Programs 結構樹（#program-structure）：mode-color strict B/W =====
- * chip 全去三原色改 strict B/W；SCCD 黑塊與右色塊「反著」、以右色塊為主（user 2026-09-03）：
- *   - 右 box（.prog-box，主）= var(--theme-fg) 底 + var(--theme-fg-inverse) 字（!important 蓋 JS inline accent + CSS 預設）
- *   - 左 SCCD 塊（.prog-acronym）= var(--theme-fg-inverse) 底（跟右 box 相反），wordmark（.prog-acronym-mark）回填
- *     var(--theme-fg) 對比左塊（standard/inverse 原填 --theme-bg，mode3 是 vivid hue 會「吃背景色」）。
+ * chip 全去三原色改 strict B/W；SCCD 塊與右色塊「同色」（user 2026-09-05，撤回 09-03 反色版）：
+ *   - 右 box（.prog-box）= var(--theme-fg) 底 + var(--theme-fg-inverse) 字（!important 蓋 JS inline accent + CSS 預設）
+ *   - 左 SCCD 塊（.prog-acronym）= 同 var(--theme-fg) 底；wordmark（.prog-acronym-mark）填
+ *     var(--theme-fg-inverse) 對比（standard/inverse 原填 --theme-bg，mode3 是 vivid hue 會「吃背景色」）。
  * .prog-seg 連結橫綫、.prog-lines 斜綫已吃 var(--theme-fg) 自動跟走，不需在此覆蓋。 */
 body.mode-color #program-structure .prog-box {
   background: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
 }
 body.mode-color #program-structure .prog-acronym {
-  background: var(--theme-fg-inverse) !important;
+  background: var(--theme-fg) !important;
 }
 body.mode-color #program-structure .prog-acronym-mark {
-  background-color: var(--theme-fg) !important;
+  background-color: var(--theme-fg-inverse) !important;
 }
 
 /* ===== Typography ===== */
@@ -671,13 +671,13 @@ body.mode-color #faculty-panel .list-scroll::-webkit-scrollbar-thumb {
  * （mode1/2 這些容器 bg=三原色 accent、黑 thumb 本來就對比，不受影響，故只 scope mode-color。）*/
 body.mode-color .list-header[style*="background"] + .list-content .list-scroll::-webkit-scrollbar-thumb,
 body.mode-color .timeline-card-inner .list-scroll::-webkit-scrollbar-thumb,
-body.mode-color .colored-accordion .accordion-text-wrap.list-scroll::-webkit-scrollbar-thumb {
+body.mode-color .colored-accordion .accordion-text-wrap > [data-resources-text].list-scroll::-webkit-scrollbar-thumb {
   background: var(--theme-fg-inverse) !important;
 }
 @supports (-moz-appearance: none) {
   body.mode-color .list-header[style*="background"] + .list-content .list-scroll,
   body.mode-color .timeline-card-inner .list-scroll,
-  body.mode-color .colored-accordion .accordion-text-wrap.list-scroll {
+  body.mode-color .colored-accordion .accordion-text-wrap > [data-resources-text].list-scroll {
     scrollbar-color: var(--theme-fg-inverse) transparent;
   }
 }

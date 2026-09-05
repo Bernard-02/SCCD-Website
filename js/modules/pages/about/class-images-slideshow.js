@@ -329,6 +329,7 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
 const slideshowsByDivision = new Map();
 let currentDivision = null;
 let switching = false;
+let pendingDivision = null; // 切換動畫進行中的「最新請求」：快速連點 A→B 時 B 記在這、A 切完補跑（防 btn active=B 但內容=A）
 let revealed = false; // 初次 scroll 進 class section 前保持 HIDE，ScrollTrigger 觸發才 reveal
 
 async function revealActive() {
@@ -341,7 +342,8 @@ async function revealActive() {
 }
 
 async function switchTo(newDivision, animate = true) {
-  if (switching || currentDivision === newDivision) return;
+  if (switching) { pendingDivision = newDivision; return; }  // 進行中：記最新請求，當前切完再補（latest-wins）
+  if (currentDivision === newDivision) return;
   switching = true;
   try {
     const allPanels = document.querySelectorAll('.class-info-panel');
@@ -382,6 +384,12 @@ async function switchTo(newDivision, animate = true) {
   } finally {
     switching = false;
   }
+  // 切換期間有更新請求（快速連點）→ 補切到最新，確保內容＝最後點的 active btn（其內部再判 ===current 則 no-op）
+  if (pendingDivision !== null) {
+    const next = pendingDivision;
+    pendingDivision = null;
+    await switchTo(next, animate);
+  }
 }
 
 // ── Entry ───────────────────────────────────────────────────────────────────
@@ -393,6 +401,7 @@ export async function initClassImagesSlideshow() {
   slideshowsByDivision.clear();
   currentDivision = null;
   switching = false;
+  pendingDivision = null;
   revealed = false;
 
   // 離頁退場：active panel 的 imgs + text highlight 一起 clip-path 收掉（= 進場 reveal 的反向，沿用 hideAll）。

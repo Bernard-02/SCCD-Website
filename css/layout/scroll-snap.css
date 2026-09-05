@@ -63,6 +63,11 @@ html {
 #resources { min-height: 100vh; }
 /* Programs 結構圖自成一屏（#class snap 落點）→ 下方 division 內容不擠進 tree 視窗（2026-09-01 #10） */
 #program-structure { min-height: 100svh; }
+/* 短桌面(<900h)tree 也頂對齊：#program-structure 的 pt-4xl 已當框景，免再疊 #class 的 100px marker 落點
+   （否則 100+128=228 → tree 偏下、與高視窗 128 不一致）。min-height:501 排除橫向手機 gate（那走手機值）。 */
+@media (min-width: 768px) and (min-height: 501px) and (max-height: 899px) {
+  #class { scroll-margin-top: 0; }
+}
 
 /* 手機（2026-07-07）：anchor strip 改全程 sticky（釘 88、高 91 → 底 179，2026-07-13 從 96 收上來）後，
    落點要讓出 strip 高度，否則點 nav 對齊的內容鑽進 strip/blocker 底下。180 = strip 底 +1；
@@ -139,8 +144,12 @@ html {
   .class-info-panel [data-class-text],
   .class-works-panel [data-works-text] {
     overflow-y: auto;
-    padding-right: var(--spacing-sm);
   }
+  /* vision/program/works 說明卡：pr 只在文字真的溢出(顯 scrollbar)時給，不捲時貼文字（user 2026-09-04→05）。
+     .has-scroll-pr 由 fitCardToText / toggleScrollPr 依 scrollHeight>clientHeight 動態掛。 */
+  #overview [data-overview-text].has-scroll-pr,
+  .class-info-panel [data-class-text].has-scroll-pr,
+  .class-works-panel [data-works-text].has-scroll-pr { padding-right: var(--spacing-sm); }
   #overview [data-overview-text] { max-height: calc(100svh - 340px); }
   .class-info-panel [data-class-text] { max-height: calc(100svh - 440px); }
   .class-works-panel [data-works-text] { max-height: calc(100svh - 400px); }

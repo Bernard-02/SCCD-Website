@@ -1077,6 +1077,26 @@ body.mode-color .tl-icon-btn-inner {
   color: #000;           /* standard mode 黑字（inverse/color 由 .timeline-card-inner 規則覆蓋）*/
 }
 
+/* era 名稱標頭（2026-09-04 由左上角黑 chip 搬進色塊卡片內）：固定在捲動區「上方」、只有 .tl-list-years 捲動
+   → scrollbar 從第一個年份起、不含標頭（user 2026-09-04 二輪）。底色＝當前 era 卡片色（JS renderListEra 設）。
+   ⚠️ :has(> .tl-list-years) 只中桌面 buildStrip 的新結構；手機 buildMobile 的 .tl-list-content（無 .tl-list-years）不受影響。 */
+.tl-list-content:has(> .tl-list-years) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;              /* 捲動移到 .tl-list-years */
+  padding-right: 0;              /* padding-right 移到 .tl-list-years */
+}
+.tl-list-era-head {
+  flex: 0 0 auto;                /* 固定在頂、不參與捲動 */
+  padding-bottom: var(--spacing-md);
+}
+.tl-list-years {
+  flex: 1 1 auto;
+  min-height: 0;                 /* 允許收縮 → 內部捲動 */
+  overflow-y: auto;
+  padding-right: var(--spacing-md);   /* 右欄文字 ↔ scrollbar gap（原在 .tl-list-content）*/
+}
+
 .tl-list-year-row {
   display: grid;
   grid-template-columns: 2.75rem 1fr;   /* 年份欄「固定寬」→ 右側 EN/ZH 內文左緣逐列對齊、不受年份字寬(1 比 2/0 窄)影響（user 2026-08-13）；每個 year-row 是獨立 grid，用 max-content 會逐列跳位 */

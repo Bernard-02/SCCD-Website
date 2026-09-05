@@ -59,14 +59,7 @@ export function initProgramStructure() {
     };
   });
 
-  // ── 每次進場隨機給兩家族（DCD / BPAIDC）不同三原色（覆蓋 CSS 預設粉/綠）──
-  const PRIMARIES = ['--color-green', '--color-pink', '--color-blue'];
-  const dcdBoxes = [...root.querySelectorAll('.prog-box:not(.prog-box--bpaidc)')];
-  const bpBoxes = [...root.querySelectorAll('.prog-box--bpaidc')];
-  const dCol = PRIMARIES[Math.floor(Math.random() * 3)];
-  const bCol = PRIMARIES.filter((c) => c !== dCol)[Math.floor(Math.random() * 2)];   // 與 DCD 不同色
-  dcdBoxes.forEach((x) => { x.style.background = `var(${dCol})`; });
-  bpBoxes.forEach((x) => { x.style.background = `var(${bCol})`; });
+  // 色塊改黑（user 2026-09-04「原本 rgb 改成黑色」）：不再隨機三原色，chip 底色由 CSS 走 var(--theme-fg)。
 
   // 分層（cascade 順序 + 連綫父/子對應）
   const tier0 = [...root.querySelectorAll('.prog-top .prog-tilt')];                                                // DCD / BPAIDC
@@ -87,7 +80,9 @@ export function initProgramStructure() {
 
   // ── 桌面：BFA/MDES 置中於 DCD chip 下方 → 兩條父→子斜綫等長（父點=DCD 中心、子點對稱）。
   //    fan 用 restRect 量中心（rotation 對 center 無感、扣掉進場/浮動位移）＝穩態落點。
-  //    置中後若孫列（tier2）左緣貼到左側 sticky nav → 整棵樹右移閃避（右限＝BPAIDC 不出視窗）。 ──
+  //    置中後整棵樹右移：取「nav 閃避」與「大螢幕想右移」較大者，兩者皆用 room 封頂＝任何寬度 BPAIDC 都不出視窗。 ──
+  const RIGHT_MARGIN = 64;   // BPAIDC 右緣至少離視窗右緣的留白
+  const WANT_SHIFT = 200;    // 大螢幕(≥1600)想把整棵樹往右移的量（user：大螢幕才右移、窄螢幕維持不裁）
   function layoutFan() {
     if (!rootChildren) return;
     rootChildren.style.marginLeft = '';
@@ -97,16 +92,19 @@ export function initProgramStructure() {
     if (!dcd || !bfa || !mdes) return;
     const cx = (el) => { const r = restRect(el); return r.left + r.width / 2; };
     rootChildren.style.marginLeft = `${(cx(dcd) - (cx(bfa) + cx(mdes)) / 2).toFixed(2)}px`;
-    // nav 閃避：居中後量 tier2 rest 左緣 vs nav 右緣
     const bpaidc = tier0[1];
-    if (!tier2.length || !progTree || !bpaidc) return;
+    if (!progTree || !bpaidc) return;
+    // room＝BPAIDC 右緣還能往右移多少而不越過「視窗右緣−RIGHT_MARGIN」＝所有右移的封頂（保證不裁）
+    const br = restRect(bpaidc);
+    const room = Math.max(0, (window.innerWidth - RIGHT_MARGIN) - (br.left + br.width));
+    // ① nav 閃避：tier2 左緣貼到左側 sticky nav → 右移讓開（room 內盡量）
     const nav = document.getElementById('anchor-nav');
     const limit = (nav ? nav.getBoundingClientRect().right : 0) + 16;
-    const leftEdge = Math.min(...tier2.map((b) => restRect(b).left));
-    if (leftEdge >= limit) return;
-    const br = restRect(bpaidc);
-    const room = (window.innerWidth - 16) - (br.left + br.width);
-    const push = Math.min(limit - leftEdge, Math.max(0, room));
+    const leftEdge = tier2.length ? Math.min(...tier2.map((b) => restRect(b).left)) : Infinity;
+    const navPush = leftEdge < limit ? Math.min(limit - leftEdge, room) : 0;
+    // ② 大螢幕才右移：≥1600 且有 room 才推（窄螢幕 room≈0 自動不動＝不裁）
+    const wantPush = window.innerWidth >= 1600 ? Math.min(WANT_SHIFT, room) : 0;
+    const push = Math.max(navPush, wantPush);
     if (push > 0) progTree.style.transform = `translateX(${push.toFixed(2)}px)`;
   }
 

@@ -179,8 +179,9 @@
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
-    padding: var(--spacing-md) var(--spacing-lg) var(--spacing-md) var(--spacing-md);
-    overflow-y: auto;
+    /* padding 當固定 frame：捲動下放內層 [data-resources-text]，上下留白不隨捲動、scrollbar 內縮不貼卡緣（user 2026-09-05） */
+    padding: var(--spacing-md);
+    overflow: hidden;
   }
 
   /* about resources（colored-accordion）桌面：title 與說明文字改頂端對齊（user）。
@@ -191,6 +192,14 @@
     }
     .colored-accordion .accordion-text-wrap {
       justify-content: flex-start;
+    }
+    /* 桌面說明文字捲動下放內層（wrap padding 當固定 frame）：上下留白不隨捲動、scrollbar 內縮不貼卡緣，
+       同 about vision/programs/works（user 2026-09-05）。inner pr = 文字與自身 scrollbar 的呼吸 gap。 */
+    .colored-accordion .accordion-text-wrap > [data-resources-text] {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      padding-right: var(--spacing-sm);
     }
     /* 中英間距只交給 -sep 空格管；拿掉 base 137 的 0.4em（否則 sep + margin 疊加、EN/ZH 看起來太遠） */
     .colored-accordion .accordion-label-zh {

@@ -103,14 +103,14 @@
             <!-- English Text (左半，cols 4-12) -->
             <div class="col-span-full md:col-start-5 md:col-span-8">
               <p class="text-md font-bold text-black">
-                <span data-overview-hl style="display: block; padding: 0.5em 0.6em;"><span data-overview-text class="list-scroll" style="display: block;">Department of Communications Design, Shih Chien University / SCCD is the first academic institution to establish the "Communications Design" department in the country. The teaching of the department takes design thinking, humanities, and aesthetics as the cornerstones, uses multidimensional platforms as the foundation, diverse media as the carrier, and integrates teaching experiments and design training such as animation, narrative video, interaction, performance, game, product, space. and environment. Supplemented by intensive international workshop and industry-academy cooperation in various fields, as well as overseas exchange opportunities. It aims to cultivate director-type creative talents who can integrate "media" as the vehicle, "design" as the method, emphasize "communications" as the core of human civilization, and adapt to the rapid changes of the era.</span></span>
+                <span data-overview-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;"><span data-overview-text class="list-scroll" style="display: block;">Department of Communications Design, Shih Chien University / SCCD is the first academic institution to establish the "Communications Design" department in the country. The teaching of the department takes design thinking, humanities, and aesthetics as the cornerstones, uses multidimensional platforms as the foundation, diverse media as the carrier, and integrates teaching experiments and design training such as animation, narrative video, interaction, performance, game, product, space. and environment. Supplemented by intensive international workshop and industry-academy cooperation in various fields, as well as overseas exchange opportunities. It aims to cultivate director-type creative talents who can integrate "media" as the vehicle, "design" as the method, emphasize "communications" as the core of human civilization, and adapt to the rapid changes of the era.</span></span>
               </p>
             </div>
 
             <!-- Chinese Text (右半，cols 13-20) -->
             <div class="col-span-full md:col-start-13 md:col-span-8">
               <p class="text-md font-bold text-black" lang="zh-Hant">
-                <span data-overview-hl style="display: block; padding: 0.5em 0.6em;"><span data-overview-text class="list-scroll" style="display: block;">實踐大學媒體傳達設計學系為全國首創成立「媒體傳達設計」之學系。學系教學以設計思考、人文、美學為核心基石，運用多維度平台為基礎與多樣性媒材為載體，整合動畫、敘事影像、互動、展演、遊戲、商品、空間、環境等教學實驗與設計訓練，輔以密集舉辦之跨國工作與各領域產學合作，同時提供海外交換留學機會，旨在培育能整合「媒體」為乘載，「設計」為方法，強調「傳達」為人類文明之核心，得以適應時代快速變遷之總監型創作人才。</span></span>
+                <span data-overview-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;"><span data-overview-text class="list-scroll" style="display: block;">實踐大學媒體傳達設計學系為全國首創成立「媒體傳達設計」之學系。學系教學以設計思考、人文、美學為核心基石，運用多維度平台為基礎與多樣性媒材為載體，整合動畫、敘事影像、互動、展演、遊戲、商品、空間、環境等教學實驗與設計訓練，輔以密集舉辦之跨國工作與各領域產學合作，同時提供海外交換留學機會，旨在培育能整合「媒體」為乘載，「設計」為方法，強調「傳達」為人類文明之核心，得以適應時代快速變遷之總監型創作人才。</span></span>
               </p>
             </div>
           </div>
@@ -135,7 +135,7 @@
         <!-- Programs 結構圖：DCD 學制樹狀圖，出現在既有 division 內容之前。
              綫段(.prog-seg)的 rgb 隨機底色＋旋轉由 about-structure.js 上；內容暫硬編（mockup 為準），之後接 Directus。
              左緣對齊 col-5（md:col-start-5），比照其他 section。樣式在 components/about-structure.css。 -->
-        <div id="program-structure" class="site-container pt-3xl md:pt-6xl pb-2xl relative z-10">
+        <div id="program-structure" class="site-container pt-3xl md:pt-[160px] pb-2xl relative z-10">
           <div class="grid-20">
             <div class="col-span-full md:col-start-6 md:col-span-15">
               <div class="prog-tree">
@@ -148,7 +148,7 @@
                   <div class="prog-top">
                     <div class="prog-titled prog-tilt">
                       <span class="prog-acronym"><span class="prog-acronym-mark"></span></span>
-                      <div class="prog-box">
+                      <div class="prog-box prog-box--dcd">
                         <span class="prog-box-en">Department of Communications Design (DCD)</span>
                         <span class="prog-box-zh" lang="zh-Hant">媒體傳達設計學系</span>
                       </div>
@@ -179,16 +179,16 @@
                         <div class="prog-children">
                           <div class="prog-node">
                             <div class="prog-row">
-                              <div class="prog-box prog-tilt">
-                                <span class="prog-box-en">Animation &amp; Moving Image</span>
+                              <div class="prog-box prog-tilt prog-box--animation">
+                                <span class="prog-box-en">Division of Animation &amp; Moving Image</span>
                                 <span class="prog-box-zh" lang="zh-Hant">動畫影像設計組</span>
                               </div>
                             </div>
                           </div>
                           <div class="prog-node">
                             <div class="prog-row">
-                              <div class="prog-box prog-tilt">
-                                <span class="prog-box-en">Creative Media Design</span>
+                              <div class="prog-box prog-tilt prog-box--cm">
+                                <span class="prog-box-en">Division of Creative Media Design</span>
                                 <span class="prog-box-zh" lang="zh-Hant">創意媒體設計組</span>
                               </div>
                             </div>
@@ -266,30 +266,30 @@
                 <!-- BFA / Design Fundamental（works 模式才顯示，預設收起；樣式仿 MDES） -->
                 <div class="class-division-bfa-wrap">
                   <button class="class-division-btn font-bold transition-all duration-fast text-left" data-division="bfa">
-                    <div class="text-lg font-bold" data-label-key="about.program.design-fundamental" data-label-part="en">Design Fundamental</div>
-                    <div class="text-lg font-bold" data-label-key="about.program.design-fundamental" data-label-part="zh">創作基礎</div>
+                    <div class="text-md font-bold" data-label-key="about.program.design-fundamental" data-label-part="en">Design Fundamental</div>
+                    <div class="text-md font-bold" data-label-key="about.program.design-fundamental" data-label-part="zh">創作基礎</div>
                   </button>
                 </div>
                 <!-- Animation: BFA label + btn -->
                 <div class="relative flex flex-col justify-end">
                   <span class="class-group-label text-s font-bold whitespace-nowrap self-start"><span data-label-key="about.group.bfa" data-label-part="en">BFA</span><span data-label-key="about.group.bfa" data-label-part="zh">學士班</span></span>
                   <button class="class-division-btn class-division-btn--bfa font-bold transition-all duration-fast text-left" data-division="animation">
-                    <div class="text-lg font-bold" data-label-key="about.program.animation" data-label-part="en">Animation & Moving Image</div>
-                    <div class="text-lg font-bold" data-label-key="about.program.animation" data-label-part="zh">動畫影像設計組</div>
+                    <div class="text-md font-bold" data-label-key="about.program.animation" data-label-part="en">Animation & Moving Image</div>
+                    <div class="text-md font-bold" data-label-key="about.program.animation" data-label-part="zh">動畫影像設計組</div>
                   </button>
                 </div>
                 <!-- Creative Media: BFA label + btn -->
                 <div class="relative flex flex-col justify-end">
                   <span class="class-group-label text-s font-bold whitespace-nowrap self-start"><span data-label-key="about.group.bfa" data-label-part="en">BFA</span><span data-label-key="about.group.bfa" data-label-part="zh">學士班</span></span>
                   <button class="class-division-btn class-division-btn--bfa font-bold transition-all duration-fast text-left" data-division="creative-media">
-                    <div class="text-lg font-bold" data-label-key="about.program.creative-media" data-label-part="en">Creative Media Design</div>
-                    <div class="text-lg font-bold" data-label-key="about.program.creative-media" data-label-part="zh">創意媒體設計組</div>
+                    <div class="text-md font-bold" data-label-key="about.program.creative-media" data-label-part="en">Creative Media Design</div>
+                    <div class="text-md font-bold" data-label-key="about.program.creative-media" data-label-part="zh">創意媒體設計組</div>
                   </button>
                 </div>
                 <!-- MDES -->
                 <button class="class-division-btn class-division-btn--bfa font-bold transition-all duration-fast text-left" data-division="mdes">
-                  <div class="text-lg font-bold" data-label-key="about.program.mdes" data-label-part="en">MDES</div>
-                  <div class="text-lg font-bold" data-label-key="about.program.mdes" data-label-part="zh">碩士班</div>
+                  <div class="text-md font-bold" data-label-key="about.program.mdes" data-label-part="en">MDES</div>
+                  <div class="text-md font-bold" data-label-key="about.program.mdes" data-label-part="zh">碩士班</div>
                 </button>
               </div>
             </div>

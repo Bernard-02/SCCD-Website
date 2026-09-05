@@ -807,18 +807,21 @@ export function initTimeline() {
     const listView = document.createElement('div');
     listView.id = 'timeline-list-view';
     listView.style.display = 'none';
+    // era 名稱從「左上角黑 chip」搬進色塊卡片內、當 sticky 標頭（user 2026-09-04；text-s bold、捲動時釘頂）
     listView.innerHTML =
       '<div class="tl-list-grid"><div class="tl-list-cell">' +
-        '<div class="tl-list-rect timeline-card-inner"><div class="tl-list-content list-scroll"></div></div>' +
-        '<div class="tl-list-chip timeline-card-inner bg-black text-white"><div class="text-s font-bold"></div></div>' +
+        '<div class="tl-list-rect timeline-card-inner"><div class="tl-list-content">' +
+          '<div class="tl-list-era-head text-s font-bold"></div>' +
+          '<div class="tl-list-years list-scroll"></div>' +   /* 捲動在年份列，標頭固定→scrollbar 不含標頭 */
+        '</div></div>' +
         '<button class="tl-list-next-btn" aria-label="下一個時期"><span class="tl-icon-btn-inner"><span class="icon icon-arrow-right"></span></span></button>' +
       '</div></div>';
     area.appendChild(listView);
 
-    const listChip = listView.querySelector('.tl-list-chip');
-    const listChipText = listChip.querySelector('div');
     const listRect = listView.querySelector('.tl-list-rect');
     const listContent = listView.querySelector('.tl-list-content');
+    const eraHead = listView.querySelector('.tl-list-era-head');
+    const listYears = listView.querySelector('.tl-list-years');
     const listNextBtn = listView.querySelector('.tl-list-next-btn');
     const rectEls = [listRect];
 
@@ -846,9 +849,10 @@ export function initTimeline() {
 
     function renderListEra(idx) {
       const era = eraGroups[idx];
-      listChipText.innerHTML = `<span class="tl-list-era-en">${era.title}</span> <span class="tl-list-era-zh">${era.label}</span>`;
+      eraHead.innerHTML = `<span class="tl-list-era-en">${era.title}</span> <span class="tl-list-era-zh">${era.label}</span>`;
+      eraHead.style.background = listEraColors[idx];   // 標頭底色＝卡片色（固定在捲動區上方、scrollbar 不含它）
       listRect.style.background = listEraColors[idx];
-      listContent.innerHTML = era.years.map(y => {
+      listYears.innerHTML = era.years.map(y => {
         const descs = y.descriptions || (y.description ? [y.description] : []);
         const blocks = descs.map(d => {
           const { heading, en, zh } = splitDesc(d);
@@ -863,7 +867,7 @@ export function initTimeline() {
           `<div class="tl-list-year-body text-s font-regular">${blocks}</div>` +
         '</div>';
       }).join('');
-      listContent.scrollTop = 0;
+      listYears.scrollTop = 0;   // 捲回頂（捲動容器改成 .tl-list-years）
     }
 
     function showListView(skipIconWipe = false) {
@@ -881,7 +885,6 @@ export function initTimeline() {
         ...rslideShown, duration: TIMING.cardRevealDuration, ease: TIMING.revealEase,
         onComplete: () => { listAnimating = false; },
       });
-      revealChip(listChip, TIMING.cardRevealDuration, TIMING.revealEase);
       revealChip(listNextBtn.querySelector('.tl-icon-btn-inner'), TIMING.cardRevealDuration, TIMING.revealEase);
     }
 
@@ -893,7 +896,6 @@ export function initTimeline() {
         ...rslideHidden(randRslideDir()), duration: TIMING.exitDuration, ease: TIMING.exitEase,
         onComplete: () => { listView.style.display = 'none'; listMode = false; listAnimating = false; },
       });
-      exitChip(listChip, TIMING.exitDuration, TIMING.exitEase);
       // 右箭頭鈕跟著 clip 收起（user 2026-08-11：關閉說明時箭頭不能原地消失）
       exitChip(listNextBtn.querySelector('.tl-icon-btn-inner'), TIMING.exitDuration, TIMING.exitEase);
     }
@@ -912,23 +914,18 @@ export function initTimeline() {
             ...rslideShown, duration: TIMING.cardRevealDuration, ease: TIMING.revealEase,
             onComplete: () => { listAnimating = false; },
           });
-          revealChip(listChip, TIMING.cardRevealDuration, TIMING.revealEase);
         },
       });
-      exitChip(listChip, TIMING.exitDuration, TIMING.exitEase);
     }
 
     listBtn.addEventListener('click', () => { if (listMode) hideListView(); else showListView(); });
     listNextBtn.addEventListener('click', nextListEra);
 
-    // 離頁退場：list view 開著時收掉矩形 + chip；否則直接放行（背景照片隨換頁 swap 掉）
+    // 離頁退場：list view 開著時收掉矩形（era 標頭在矩形內、隨矩形一起收）；否則直接放行（背景照片隨換頁 swap 掉）
     registerPageExit(() => new Promise(resolve => {
       if (typeof gsap === 'undefined' || !listMode) { resolve(); return; }
       gsap.killTweensOf(rectEls);
-      let done = 0;
-      const onOne = () => { if (++done >= 2) resolve(); };
-      gsap.to(listRect, { ...rslideHidden(randRslideDir()), duration: TIMING.exitDuration, ease: TIMING.exitEase, overwrite: true, onComplete: onOne });
-      exitChip(listChip, TIMING.exitDuration, TIMING.exitEase, onOne);
+      gsap.to(listRect, { ...rslideHidden(randRslideDir()), duration: TIMING.exitDuration, ease: TIMING.exitEase, overwrite: true, onComplete: resolve });
     }));
 
     // 離頁退場：桌面 list 切換鈕（把說明叫出來的 btn）+ list view 內「下一時期」鈕的黑方塊 inner 也做出場

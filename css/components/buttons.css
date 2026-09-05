@@ -248,22 +248,23 @@
   .class-division-btn > div:first-child {
     margin-bottom: var(--space-en-zh-s);
   }
-  /* about BFA/MDES 切換首行 div 帶 .text-lg → 吃 lg 字級 gap（--space-en-zh-lg，現 4px；specificity 0,3,0 贏過上面 div:first-child 的 0,2,1） */
-  .class-division-btn > .text-lg:first-child {
-    margin-bottom: var(--space-en-zh-lg);
+  /* about BFA/MDES 切換首行 div 帶 .text-md → 吃 md 字級 gap（無 md 專屬 token，用 -s 2px；specificity 0,3,0 贏過上面 div:first-child 的 0,2,1） */
+  .class-division-btn > .text-md:first-child {
+    margin-bottom: var(--space-en-zh-s);
   }
   /* 分類 btn 斷行＝max-width 自然換行（非強制 \n）。各 btn 為 flex 內 block、會撐到自身 max-width，
      故 max-width 卡在「line-1 剛好、下一字溢出」的窗口 → Animation 於 & 後、Creative 於 Creative 後自然折行。
      短的 bfa/mdes 免 cap（單行 hug）。 */
   /* 創作基礎短、恆單行（也免 flex 在臨界寬把它擠成兩行）；長 label 才靠 max-width 折。 */
-  #class-buttons-sticky .class-division-btn[data-division="bfa"] .text-lg {
+  #class-buttons-sticky .class-division-btn[data-division="bfa"] .text-md {
     white-space: nowrap;
   }
+  /* max-width 卡在「md 首行剛好容、下一字溢出」＝斷點正確＋盒寬貼文字（不留右側空白）。md 20px 量、box-sizing:border-box（值＝首行 px＋16 padding＋餘裕）。 */
   #class-buttons-sticky .class-division-btn[data-division="animation"] {
-    max-width: 274px;   /* 內容 ~258：容 "Division of Animation &"(254)、擋 "…& Moving"(341) */
+    max-width: 247px;   /* 首行 "Division of Animation &"(md 227)＝於 & 後折 */
   }
   #class-buttons-sticky .class-division-btn[data-division="creative-media"] {
-    max-width: 234px;   /* 內容 ~218：容 "Division of Creative"(214)、擋 "…Creative Media"(287) */
+    max-width: 211px;   /* 首行 "Division of Creative"(md 191)＝於 Creative 後折 */
   }
   /* 不設 flex-shrink:0：≥1500 內容+gap 有餘裕不 shrink＝斷點正確；<~1440 容器擠不下時讓 flex 自然
      shrink 折多行、留在畫面內（勝過 shrink:0 整排飛出）。program/works 共用 gap-lg(32px)＝gap 一致（user）。 */

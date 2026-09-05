@@ -201,6 +201,9 @@ export function initClassButtonsSticky() {
     });
   }
 
+  // 說明文字 box 貼文字寬（[data-class-hl]/[data-works-hl]）由 bfa-division-toggle.js 的 fitCardToText 統一處理
+  // （fonts.ready / resize / 切 tab / reveal 前都會叫）；此處不重複 fit。
+
   // ─── class tab / label：hero clip-reveal 進退場（user 2026-08-10 一致化：文字字卡/tab 一律 clip-reveal）──
   // 改用與 courses nav chip 同套「translate + clip-path 同步滑動」(navChipHidden / NAV_CHIP_SHOWN)：
   // 原本進場瞬間出現、退場 clip-path 擦除 → 現在進退場都滑動+遮罩。旋轉在 btn/label 自身 inline transform
