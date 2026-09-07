@@ -276,10 +276,11 @@ export function initFacultySlideIn() {
       const data = facultyData[facultyId];
       if (!data) return;
 
-      // 桌面才把名字下方的職級/職稱移到右欄最上；手機/矮橫向維持在 sticky profile 左欄（手機無「右欄」）。
+      // 系所全名 + 職級/職稱的版位（user 2026-09-06 直向手機比照桌面）：
+      //   桌機＋直向手機 → 進 #faculty-detail-lead（不旋轉、單獨一塊、sticky 釘在 Education 上方）。
+      //   只有矮橫向（landscape gate）沿用舊版 → 旋轉塞在 profile 左欄名字下方（右欄只留 sections）。
       // 每次開卡即時判斷（跨斷點靠 orientation-reload 自癒，比照本頁其他 isMobile 判斷）。
-      const useMobileLayout = window.innerWidth < 768 ||
-        window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+      const isLandscapeGate = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
 
       // 圖片：沒真實照片的 fulltime/parttime/admin → 用代用 logo。slide-in 底色一直是彩色 accent（panelBg），
       // 故「固定用黑線框 wireframe 版」而非依 site mode 挑彩色 glitch（user 2026-06-11）。
@@ -383,8 +384,8 @@ export function initFacultySlideIn() {
       const rotateTitles = rotateName;
       const titlesContainer = document.getElementById('faculty-detail-titles');
       if (titlesContainer) {
-        // 桌面：職級/職稱移到右欄（見下方 sections）→ 左欄名字下方留空；手機/矮橫向：維持在名字下方（三型皆是，user 2026-08-13）
-        const pairs = useMobileLayout ? (data.titles || []).map(t => ({ en: t.titleEn || '', zh: t.titleZh || '' })) : [];
+        // 矮橫向：職級/職稱旋轉塞在名字下方（左欄）；桌機＋直向手機：留空（dept/rank 改進 lead、不旋轉，見下方 leadContainer）
+        const pairs = isLandscapeGate ? (data.titles || []).map(t => ({ en: t.titleEn || '', zh: t.titleZh || '' })) : [];
         let html = '';
         pairs.forEach((p, i) => {
           const isLast = i === pairs.length - 1;
@@ -393,7 +394,7 @@ export function initFacultySlideIn() {
             `<p class="text-s font-regular text-black">${p.zh}</p>` +
             `</div>`;
         });
-        titlesContainer.innerHTML = (useMobileLayout ? deptHtml : '') + html;   // 手機：系所全名墊在 titles 頂
+        titlesContainer.innerHTML = (isLandscapeGate ? deptHtml : '') + html;   // 矮橫向：系所全名墊在 titles 頂
         titlesContainer.style.transform = rotateTitles ? `rotate(${titlesDeg}deg)` : '';
         titlesContainer.style.transformOrigin = rotateTitles ? 'left top' : '';
         titlesContainer.style.display = rotateTitles ? 'block' : '';
@@ -406,20 +407,22 @@ export function initFacultySlideIn() {
       // 從 lead 下方才起、不含 lead（user 2026-08-16）；lead↔Education 1rem 由 lead 的 md:mb-sm 控。
       // 手機/矮橫向：lead 在 profile 左欄 → 此 header 清空（empty:hidden 不佔位）；parttime 的 occupation 照舊排 sections 最上。
       if (leadContainer) {
-        if (useMobileLayout) {
-          leadContainer.innerHTML = '';
+        if (isLandscapeGate) {
+          leadContainer.innerHTML = '';   // 矮橫向：dept/rank 在 profile 左欄（旋轉），lead 留空
         } else {
+          // 桌機＋直向手機同款：系所全名 + 職級/職稱（parttime 再疊 occupation）進 lead，不旋轉。
           const lead = data.type === 'parttime'
             ? buildRank(data.titles) + buildOccupation(data.occupations)  // parttime 再疊 occupation
             : buildRank(data.titles);
           // .faculty-rows 讓 rank↔occupation／多筆間距＝list 內容 gap（16px）
           const leadRows = lead ? `<div class="faculty-rows faculty-lead-rows">${lead}</div>` : '';
-          leadContainer.innerHTML = deptHtml + leadRows;   // 桌面：系所全名墊在職級(Founder 等)上方
+          leadContainer.innerHTML = deptHtml + leadRows;   // 系所全名墊在職級(Founder 等)上方
         }
       }
       if (sectionsContainer) {
         let html = '';
-        if (useMobileLayout && data.type === 'parttime') html += buildOccupation(data.occupations);
+        // 矮橫向 parttime 的 occupation 排 sections 最上（lead 在該版位留空）；桌機/直向手機已隨 lead 一起渲染
+        if (isLandscapeGate && data.type === 'parttime') html += buildOccupation(data.occupations);
 
         if (data.type === 'admin') {
           html += buildContactSection(data.contact);
@@ -462,7 +465,11 @@ export function initFacultySlideIn() {
             // getBoundingClientRect 取精確浮點高（offsetHeight 取整會差 <1px，title 釘住位置
             // 跟 profile 底之間露出 sub-pixel 縫）
             slideInPanel.style.setProperty('--faculty-profile-h', `${profile.getBoundingClientRect().height}px`);
-            // 左欄（年份/國家）sticky top = profile 高 + title 高（cards.css）；title 單行、各 section 等高，量第一個即可
+            // lead（系所+職級/職稱，sticky 在 profile 下、Education 上）高度：section title / 年份 sticky top 用
+            // profile + lead + title 接力（cards.css）。直向手機 lead 有內容；矮橫向 lead 空 → empty:hidden 高 0。
+            const lead = document.getElementById('faculty-detail-lead');
+            slideInPanel.style.setProperty('--faculty-lead-h', lead ? `${lead.getBoundingClientRect().height}px` : '0px');
+            // 左欄（年份/國家）sticky top = profile 高 + lead 高 + title 高（cards.css）；title 單行、各 section 等高，量第一個即可
             const titleCol = slideInPanel.querySelector('.faculty-section-title-col');
             if (titleCol) {
               slideInPanel.style.setProperty('--faculty-title-h', `${titleCol.getBoundingClientRect().height}px`);
@@ -483,7 +490,7 @@ export function initFacultySlideIn() {
 
     facultyCards.forEach(card => {
       const category = card.getAttribute('data-category');
-      if (category === 'fulltime' || category === 'admin' || category === 'parttime') {
+      if (category === 'fulltime' || category === 'admin' || category === 'parttime' || category === 'founder') {
         makeActivatable(card); // 無障礙：師資卡是 <div>，補可 Tab + Enter 開詳情（名字當可讀名）
         card.addEventListener('click', function(e) {
           e.preventDefault();

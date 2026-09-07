@@ -15,10 +15,16 @@ import { SITE_BASE_PATHNAME } from '../ui/site-base.js';
 
 // Directus 弱機的已知故障模式是「hang 而非拒絕」→ 無逾時 fetch 會吊住 switchToSection 的 switching 鎖、吞掉所有分頁切換。
 // 統一逾時 abort → throw 進三層失敗鏈（記憶體快取 → sessionStorage last-known-good → 錯誤態）。
-function fetchWithTimeout(url, ms = 10000) {
+// ⚠️ 逾時必須涵蓋到 body 讀完（res.json()）：headers 到了 body stream 照樣可能 hang，
+// 只保護 headers 的話 json() 永不 settle → switching 卡 true 整頁切換死鎖 → 直接回傳解析後 data。
+async function fetchJsonWithTimeout(url, ms = 10000) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), ms);
-  return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(t));
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return (await res.json()).data;
+  } finally { clearTimeout(t); }
 }
 
 // M2A references deep-fetch：每個目標 collection 都要列一條 item:<col>.id（沒列到的該 ref item 會是 raw uuid）。
@@ -110,7 +116,7 @@ function buildDates(s, e) {
 // monthDay 缺就當該年 1/1（只用年份排序）。只 industry 有 year 欄，其他 collection 不受影響。
 function buildDateGroups(reps, s, e, year, monthDay) {
   if (Array.isArray(reps) && reps.length)
-    return reps.filter(d => d?.start).map(d => ({ ...buildDates(d.start, d.end)[0], monthOnly: !!d.monthOnly }));
+    return reps.filter(d => d?.start).map(d => ({ ...buildDates(d.start, d.end)[0], monthOnly: !!d.monthOnly, monthRange: !!d.monthRange }));
   if (s) return buildDates(s, e);
   if (year) {
     const m = String(monthDay || '').match(/(\d{1,2})\D+(\d{1,2})/);
@@ -225,9 +231,7 @@ async function _loadActivityCollection(collection, fallbackUrl, opts = {}) {
     // sessions（conference 每日場次 o2m）：fields=* 只回 session id 陣列 → 必須 sessions.* 深取才拿到 titleEn/guests；
     //   只有 activities_conferences 有此欄，其他 collection 帶上會 400（未知欄）整包 fetch fail → 只對 conferences 加。
     const sessionsField = collection === 'activities_conferences' ? ',sessions.*' : '';
-    const res = await fetchWithTimeout(`${CMS_API_BASE}/${collection}?limit=-1&sort=sort&fields=*,poster.filename_disk,poster.width,poster.height,images.directus_files_id.filename_disk${sessionsField},${REF_FIELDS}`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const rows = (await res.json()).data;
+    const rows = await fetchJsonWithTimeout(`${CMS_API_BASE}/${collection}?limit=-1&sort=sort&fields=*,poster.filename_disk,poster.width,poster.height,images.directus_files_id.filename_disk${sessionsField},${REF_FIELDS}`);
     if (!Array.isArray(rows) || !rows.length) throw new Error('empty');
     const mapped = rows.map(r => mapRow(r, opts.category, opts.stamp));
     // industry：前台依單一日期排序（新→舊），不吃後台 sort 欄。groupByYear 保留組內順序＝月日新→舊。
@@ -261,9 +265,7 @@ export function loadPermanentExhibitions(fallbackUrl) {
 }
 async function _loadPermanentExhibitions(fallbackUrl) {
   try {
-    const res = await fetchWithTimeout(`${CMS_API_BASE}/activities_exhibitions_permanent?limit=-1&sort=sort&fields=*,mainImage.filename_disk,events.*,events.albumImages.directus_files_id.filename_disk`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const rows = (await res.json()).data;
+    const rows = await fetchJsonWithTimeout(`${CMS_API_BASE}/activities_exhibitions_permanent?limit=-1&sort=sort&fields=*,mainImage.filename_disk,events.*,events.albumImages.directus_files_id.filename_disk`);
     if (!Array.isArray(rows) || !rows.length) throw new Error('empty');
     const items = rows.map(r => ({
       id: r.id,
@@ -299,13 +301,14 @@ const MOMENT_COLLECTIONS = [
 export async function loadGeneralActivitiesAlbum() {
   try {
     const perCol = await Promise.all(MOMENT_COLLECTIONS.map(async ([col, cat]) => {
-      const res = await fetchWithTimeout(`${CMS_API_BASE}/${col}?limit=-1&sort=sort&fields=*,poster.filename_disk,images.directus_files_id.filename_disk`);
-      if (!res.ok) throw new Error(`${col} HTTP ${res.status}`);
-      const rows = (await res.json()).data;
-      return (Array.isArray(rows) ? rows : []).map(r => mapRow(r, cat));
+      const rows = await fetchJsonWithTimeout(`${CMS_API_BASE}/${col}?limit=-1&sort=sort&fields=*,poster.filename_disk,images.directus_files_id.filename_disk`)
+        .catch(e => { throw new Error(`${col} ${e.message}`); });
+      // 5 支 collection 後台都有既有內容，200＋空＝權限壞/CMS 異常而非真空 → 逐支 throw，
+      // 否則單支殘缺的合併結果會 saveLKG 蓋掉完好的 last-known-good（A 策略「200 但空也要 throw」逐源適用）
+      if (!Array.isArray(rows) || !rows.length) throw new Error(`${col} empty`);
+      return rows.map(r => mapRow(r, cat));
     }));
     const merged = perCol.flat();
-    if (!merged.length) throw new Error('empty');
     const grouped = groupByYear(merged);
     saveLKG('moment-album', grouped);
     return grouped;

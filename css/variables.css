@@ -553,6 +553,13 @@
     display: none;
   }
 
+  /* 釘住才出現白底（user 2026-09-06 二輪）：自然 flow 時透明（tab 疊 floating polygons），
+     sticky pinned 後下方圖文會捲到 pill 上 → 加底色遮。is-stuck 由 bfa-division-toggle.js 的
+     sentinel + IntersectionObserver toggle（免 scroll listener）。var(--theme-bg) 三 mode 自動跟底。 */
+  .mobile-division-wrap.is-stuck {
+    background: var(--theme-bg);
+  }
+
   /* Pill 配色對齊桌面 .class-division-btn（不要 .section-nav-btn 預設的白底半透明字）：
      inactive = theme-fg 底 / theme-bg 字（standard 黑底白字、inverse 白底黑字）。
      active 維持 accent 底（setActiveNavBtn inline）+ 黑字（buttons.css .section-nav-btn.active）。

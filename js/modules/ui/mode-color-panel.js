@@ -15,15 +15,13 @@ import { setColorHue, getColorHue, startSiteColorLoop, stopSiteColorLoop, isColo
 
 // 手機直向：整個面板白框以 faculty 卡片牆縮圖寬為基準再乘 PANEL_SCALE（每欄 = 50vw − 36，
 // container-padding 24 + gap 24；上限 200＝卡片上限）。白框 = 色環 + 2×16 padding，故色環 = 白框 − 32。
-// 桌面/橫向 ≥768 維持 72（見 CLAUDE.md landscape gate）。canvas 是點陣，改大要連 WHEEL 一起改讓 buffer 跟著長，純 CSS 放大會糊
+// 桌面/橫向 ≥768 維持 72（見 CLAUDE.md landscape gate）。色環改 SVG/CSS conic 向量繪製＝任何尺寸/DPR 皆銳利、不需 buffer。
 const PANEL_SCALE = 0.95;   // 面板整體大小微調鈕：要再大/小改這個數
 const WHEEL = window.innerWidth < 768
   ? Math.round(Math.min(200, window.innerWidth * 0.5 - 36) * PANEL_SCALE) - 32
   : 72;   // 色環尺寸，桌面同 create
-const DPR = Math.min(window.devicePixelRatio || 1, 3);
 
-let root, pencilBtn, panel, panelMask, canvas, ctx, playBtn, playIcon;
-let ringCanvas = null;               // 靜態色環預繪（hue 環不變，畫一次）
+let root, pencilBtn, panel, panelMask, canvas, playBtn, playIcon, svgEl, indEl;
 let isOpen = false;
 let dragging = false;
 let redrawRAF = null;
@@ -50,44 +48,12 @@ function hueIsLight(hue) {
   return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b) > 0.5;
 }
 
-/* ── 靜態色環預繪（360 段弧，同 create drawColorRing 幾何）── */
-function buildRing() {
-  ringCanvas = document.createElement('canvas');
-  ringCanvas.width = WHEEL * DPR;
-  ringCanvas.height = WHEEL * DPR;
-  const rc = ringCanvas.getContext('2d');
-  rc.scale(DPR, DPR);
-  const cx = WHEEL / 2, cy = WHEEL / 2;
-  const outer = WHEEL * 0.49, inner = outer * 0.54;
-  const arcR = (outer + inner) / 2;
-  rc.lineWidth = outer - inner;
-  rc.lineCap = 'butt';               // SQUARE：段與段不留縫
-  for (let a = 0; a < 360; a++) {
-    rc.beginPath();
-    rc.strokeStyle = `rgb(${hsbToRgb(a, 80, 100).join(',')})`;
-    const start = (a - 90 - 0.5) * Math.PI / 180;   // 從頂部順時針，兩端各 +0.5 重疊防縫
-    const end = (a - 90 + 1.5) * Math.PI / 180;
-    rc.arc(cx, cy, arcR, start, end);
-    rc.stroke();
-  }
-}
-
+// SVG 版：色環是 CSS conic-gradient（畫一次、免逐幀）；此處逐幀只更新 indicator 旋轉角 + 內外圈/指標的對比色。
+// indicator line 在 viewBox top（hue 0＝12 點）→ rotate(hue) 順時針對到 conic 的色相；shade 走 currentColor。
 function drawWheel() {
-  const cx = WHEEL / 2, cy = WHEEL / 2;
-  const outer = WHEEL * 0.49, inner = outer * 0.54;
   const hue = getColorHue();
-  const shade = hueIsLight(hue) ? '#fff' : '#000';   // 對比 panel 底（=var(--theme-fg) 純黑/白）
-  ctx.clearRect(0, 0, WHEEL, WHEEL);
-  ctx.drawImage(ringCanvas, 0, 0, WHEEL, WHEEL);   // 環畫正的；整個 wheel box 的旋轉由 CSS transform 做（見 open）
-  ctx.lineWidth = 1.8;
-  ctx.strokeStyle = shade;
-  ctx.beginPath(); ctx.arc(cx, cy, outer, 0, Math.PI * 2); ctx.stroke();  // 外圈
-  ctx.beginPath(); ctx.arc(cx, cy, inner, 0, Math.PI * 2); ctx.stroke();  // 內圈
-  const ang = (hue / 360) * Math.PI * 2 - Math.PI / 2;
-  ctx.beginPath();
-  ctx.moveTo(cx + Math.cos(ang) * inner, cy + Math.sin(ang) * inner);
-  ctx.lineTo(cx + Math.cos(ang) * outer, cy + Math.sin(ang) * outer);
-  ctx.stroke();
+  svgEl.style.color = hueIsLight(hue) ? '#fff' : '#000';   // 內外圈 + indicator 描邊對比 panel 底
+  indEl.setAttribute('transform', `rotate(${hue} 36 36)`);
 }
 
 function redrawLoop() {
@@ -319,7 +285,13 @@ function build() {
     <div class="mcp-panel-mask">
       <div class="mcp-panel" role="dialog" aria-label="背景色 Background colour">
         <div class="mcp-wheel-wrap">
-          <canvas class="mcp-wheel" width="${WHEEL * DPR}" height="${WHEEL * DPR}"></canvas>
+          <div class="mcp-wheel">
+            <svg class="mcp-wheel-svg" viewBox="0 0 72 72" aria-hidden="true">
+              <circle cx="36" cy="36" r="35.28" fill="none" stroke="currentColor" stroke-width="1.8" vector-effect="non-scaling-stroke"/>
+              <circle cx="36" cy="36" r="19.05" fill="none" stroke="currentColor" stroke-width="1.8" vector-effect="non-scaling-stroke"/>
+              <line class="mcp-ind" x1="36" y1="16.95" x2="36" y2="0.72" stroke="currentColor" stroke-width="1.8" vector-effect="non-scaling-stroke"/>
+            </svg>
+          </div>
           <button class="mcp-play" type="button" aria-label="播放 / 暫停 背景色循環 Play / pause">
             <span class="icon icon-play" aria-hidden="true"></span>
           </button>
@@ -331,11 +303,11 @@ function build() {
   pencilBtn = root.querySelector('.mcp-pencil');
   panel = root.querySelector('.mcp-panel');
   panelMask = root.querySelector('.mcp-panel-mask');
-  canvas = root.querySelector('.mcp-wheel');
+  canvas = root.querySelector('.mcp-wheel');   // hit-test 用（getBoundingClientRect）；色環已改 SVG，非 <canvas>
+  svgEl = root.querySelector('.mcp-wheel-svg');
+  indEl = root.querySelector('.mcp-ind');
   playBtn = root.querySelector('.mcp-play');
   playIcon = playBtn.querySelector('.icon');
-  ctx = canvas.getContext('2d');
-  ctx.scale(DPR, DPR);
 
   // 手機放大：CSS 顯示尺寸跟 WHEEL 走（panel = wheel + 2×16 padding）；桌面 72 由 CSS 顧，不覆蓋。
   // play/pause 鈕與 icon 依 WHEEL 等比放大（桌面 72→30/16），維持與色環同比例
@@ -349,8 +321,7 @@ function build() {
     playIcon.style.fontSize = Math.round(WHEEL * 13 / 72) + 'px';
   }
 
-  buildRing();
-  drawWheel();
+  drawWheel();   // 初始 indicator 角度 + 對比色（色環本身是 SVG/CSS conic，畫一次、免逐幀）
 
   // 面板初始藏起（滑出遮罩左側外）：必須用 gsap xPercent（同 tween 的分量）；CSS translate% 會被
   // gsap 解析成 px 的 x 分量、跟 xPercent 疊加 → 開場後殘留偏移（實測 x=104 卡死）

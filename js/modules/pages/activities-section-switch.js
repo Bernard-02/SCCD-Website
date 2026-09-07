@@ -10,7 +10,7 @@ import { loadDegreeShowListInto } from './degree-show-data-loader.js';
 import { applyMarqueeOverflow, bindMarqueeReturn } from '../ui/marquee-overflow.js';
 import { initListAccordion, resetListAccordionsInPanel, alignWithBottomSpacer } from '../accordions/list-accordion.js';
 import { reapplySearch } from '../ui/activities-search.js';
-import { setActiveNavBtn, showPanel } from '../ui/section-switch-helpers.js';
+import { setActiveNavBtn, showPanel, initHoverDimMoveGuard, bindNavBtnFit, bindFrameScrollSplit } from '../ui/section-switch-helpers.js';
 import { playAdmissionPanelExit, playAdmissionPanelReveal, setupAdmissionReveal } from './admission-data-loader.js';
 import { playClipReveal, navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
 import { snapRowsShown } from '../ui/list-row-reveal.js';
@@ -33,6 +33,9 @@ const SWITCH_BEAT_MS = 150;
 //   admission/alumni/legal/library 等只 import loadListInto 的頁面的模組圖。idleBuild 讀 window 旗標（見該處）。
 // P2-4 latest-wins：動畫期間被吞的最後一次點擊記在這，finally 收尾接手（中間連點丟棄）
 let pendingSwitch = null;
+// 非 deep-link 初載的 default switch 延到 hero 播完（~1.7s）才跑：期間使用者若已手動切換，
+// 延遲的 init switch 不可把 panel 硬切回 default（覆蓋使用者選擇）→ 點 nav btn 即豎旗、init switch 讓路
+let userSwitchedSection = false;
 // Part 4-1：進行中那輪 switch 的 promise（guard 命中時回傳它，讓 navigateToItem 的 await 真正等到 render，不再靠 sleep+輪詢硬等）
 let currentSwitchPromise = null;
 
@@ -401,7 +404,9 @@ async function playActivitiesExit() {
   // ⚠️ 不再 clip 整個 .activities-filter-bar（父容器）—— 那會把裡面旋轉 chip 的角一起裁掉
   //    （user 2026-06-07 回報「出場動畫加在父容器、chip 被 crop」）。改成跟 curriculum 灰卡一樣每個 chip 自己做。
   await Promise.all([
-    playAdmissionPanelExit(panel),
+    // viewportCull：離頁跟切分頁同邏輯——只動畫視窗內看得到的 rows，捲讀過的長清單（lazy 已建 60+ 列）
+    // 視窗外直接 snap（user 2026-09-07 確認）
+    playAdmissionPanelExit(panel, { viewportCull: true }),
     playFilterChipsExit(panel),
   ]);
 }
@@ -621,6 +626,25 @@ function setupSectionNavReveal() {
     });
     // 初載已在視窗內：ScrollTrigger 不補 fire onEnter，手動播一次
     if (section.getBoundingClientRect().top < window.innerHeight * 0.9) reveal();
+
+    // ⚠️ 手機直向：section 高度隨可見 panel 內容成長（切分頁換內容、封面圖非同步載入撐高卡片、大清單 lazy 續建、
+    //   accordion 展開）。桌面是固定 md:h-screen frame（內容在 box 內捲、section 不長高）故此 RO 不會 fire。
+    //   上面的 hide/reveal ScrollTrigger 是 init 時以「空 section(min-h:100vh)」量的 start/end（end 卡在空高的底 ≈1543）
+    //   → 不隨內容成長重算的話，onLeave(hide) 會在「捲到那條空高底線」就 fire＝清單還沒到底 nav 就 clip 收起
+    //   （user 2026-09-06；桌面因 frame 不長高無此問題）。RO 觀察 section 高度變化 → settle 去抖後 refresh 重算 end
+    //   到真底。debounce（非每幀）避開 accordion/marquee 動畫期間連續 resize 狂 refresh 掉幀。
+    if (typeof ResizeObserver !== 'undefined') {
+      let t = 0, lastH = 0;
+      const ro = new ResizeObserver((entries) => {
+        const h = Math.round(entries[0].contentRect.height);
+        if (h === lastH) return;   // 寬度變／同高的雜訊不觸發
+        lastH = h;
+        clearTimeout(t);
+        t = window.setTimeout(() => { if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh(); }, 150);
+      });
+      ro.observe(section);
+      registerPageCleanup(() => { clearTimeout(t); ro.disconnect(); });
+    }
   }
 
   // SPA 離頁退場（與 scroll hide 同動畫，但 onComplete resolve 給 page-exit await）
@@ -658,53 +682,9 @@ function initMobileStickyBars() {
   }
 }
 
-// Issue 2 修（user 2026-06-30 選「mandatory + JS 邊界接手」）：桌面 inner-scroll box 捲到邊界後、繼續同向滾的小幅捲動
-// 會被 window mandatory snap 吃掉、彈回 section（box 吸走滾輪、剩下 chain 太弱過不了 snap）→ 感覺「卡住、上不去 footer」。
-// 解＝box 在邊界且同向續滾時攔截 wheel，用 scrollWindowNoSnap 平滑把 window 帶到相鄰 snap（往下→footer / 往上→hero），
-//   捲動全程關 snap 不被吃。**只在 box「可捲」時接手**：短 panel（content<box、不可捲）不攔 → 讓 window 自己 snap，
-//   且避免「從 hero 進到 section 當下、box 在底→被立刻帶去 footer 跳過內容」。手機（<768）window 捲照舊、不掛。
-function initBoxSnapHandoff() {
-  const section = document.getElementById('activities-content-section');
-  const box = /** @type {HTMLElement | null} */ (section && section.querySelector('.inner-scroll-scroll-col'));  // 通用 inner-scroll 類（與其他頁一致）
-  if (!box || !section) return;
-  let handing = false;
-  let lastWheelTs = 0;
-  let armedDir = 0;   // 邊界武裝方向：1=底(→footer)、-1=頂(→hero)、0=未武裝
-  const onWheel = (/** @type {WheelEvent} */ e) => {
-    if (window.innerWidth < 768) return;                      // 只桌面 inner-scroll
-    if (handing) { e.preventDefault(); return; }              // 接手動畫中：吞滾輪免干擾
-    if (box.scrollHeight <= box.clientHeight + 1) return;     // box 不可捲 → 交回 window（短 panel / 進場剛到 section）
-    const atBottom = box.scrollTop >= box.scrollHeight - box.clientHeight - 1;
-    const atTop = box.scrollTop <= 0;
-    // 兩段手勢閘（user 2026-07-04「捲一捲直接滑到 footer」二修）：交棒必須①邊界已被同方向事件「武裝」過
-    // （到邊界後第一顆一律只吞不交棒）＋②真正停頓 >600ms 後再滾一次。任何連續滾動流（不論觸控板慣性
-    // ~16ms 或滑鼠逐格 ~300ms 間隔）結構上都到不了②，不可能一路滑進 footer。初版用 250ms 間隔判「新手勢」
-    // 對滑鼠失效：逐格滾輪連續滾時每格間隔就常 >250ms，格格都被當新手勢。
-    const gap = performance.now() - lastWheelTs;
-    lastWheelTs = performance.now();
-    let targetY = null;
-    if (e.deltaY > 0 && atBottom) {
-      // 往下到底 → 末段 footer（footer align:end，捲到文件底即吸到它）
-      targetY = ((document.scrollingElement || document.documentElement).scrollHeight) - window.innerHeight;
-    } else if (e.deltaY < 0 && atTop) {
-      // 往上到頂 → 上一個 snap（section 上方一個視窗高 = hero）
-      targetY = Math.max(0, Math.round(section.getBoundingClientRect().top + window.scrollY - window.innerHeight));
-    }
-    if (targetY === null) { armedDir = 0; return; }           // 不在邊界：解除武裝、讓 box 正常捲
-    e.preventDefault();                                       // 邊界一律吞掉（否則 chain 給 window 被 mandatory snap 吃掉會抖）
-    const dir = e.deltaY > 0 ? 1 : -1;
-    if (armedDir === dir && gap > 600) {
-      armedDir = 0;
-      handing = true;
-      scrollWindowNoSnap(targetY, { duration: DUR.medium, ease: EASE.move });
-      setTimeout(() => { handing = false; }, 650);
-    } else {
-      armedDir = dir;                                         // 只武裝：停頓 >600ms 後的下一顆才交棒
-    }
-  };
-  box.addEventListener('wheel', onWheel, { passive: false });
-  registerPageCleanup(() => box.removeEventListener('wheel', onWheel));
-}
+// （2026-09-05）舊 initBoxSnapHandoff（box 邊界兩段手勢閘交棒 window，2026-06-30/07-04）已退役：
+// 改為 bindFrameScrollSplit 空間分區模型——col 1-3 nav 欄捲 window（去 footer/hero）、col 4 起一律內部捲
+// （box 到邊界不外溢＝lists.css overscroll-behavior: contain）。短 panel 放行給 window 的守衛沿用。
 
 // fromUserNav：true=使用者點連結的 SPA 導航（首頁 floating 活動海報）；false=初始載入 / refresh / 上一頁下一頁。
 // 只有 fromUserNav 才播 ?item= 的「捲到 item + flash + 展開 accordion」導航動畫，refresh 視為全新頁面（只套 ?section= 分頁，不重播）。
@@ -712,13 +692,19 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
   const btns = document.querySelectorAll('.activities-section-btn');
   if (btns.length === 0) return;
 
+  // btn 色塊貼文字寬（CMS label 折行時盒不 hug 最長行）＝四頁共用 helper，見 section-switch-helpers
+  bindNavBtnFit(btns);
+
   registerPageExit(playActivitiesExit);
 
   // 左側 section nav clip-path 進場（section 進視窗 once）+ 離頁退場，比照 faculty nav
   setupSectionNavReveal();
 
-  // box 捲到邊界 → 接手帶 window 到相鄰 snap（解 mandatory snap 吃掉 chain、開著 item 捲不到 footer）
-  initBoxSnapHandoff();
+  // hover-dim 只在滑鼠真的移動後才生效（打開短 list 捲到頂→cursor 底下換 item 不誤觸半透明）
+  initHoverDimMoveGuard(document.getElementById('activities-content-section'));
+
+  // 滾輪分區：col 1-3 捲 window（去 footer/hero）、col 4 起內部捲（box 邊界不外溢），見 section-switch-helpers
+  bindFrameScrollSplit(document.getElementById('activities-content-section'));
 
   // 手機直向：量 nav 高設 --act-filter-top（filter bar sticky 釘點，lists.css portrait 區塊配套）
   initMobileStickyBars();
@@ -733,6 +719,11 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
   switching = false;
   subFilterSwitching = false;
   chipsScrollHidden = false;  // 上次離頁時若正被 scroll 收起，旗標殘留會擋掉新頁第一次 chip exit
+  userSwitchedSection = false;
+  // 上次離頁時 switch 被打斷的殘留佇列：內含舊頁已 detach 的 btns NodeList，被新頁第一次 switch 的
+  // finally 消費會切去過期 section＋active 樣式寫到死節點 → 一併歸零
+  pendingSwitch = null;
+  currentSwitchPromise = null;
 
   // 暴露給 industry reference 按鈕使用（避免循環 import）
   window.__sccdNavigateToItem = (section, itemId) => navigateToItem(section, itemId);
@@ -792,7 +783,8 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
     // event ~1.7s；4000ms 只是 hero 壞掉時的兜底，同 deep-link 用法）——別給短 cap，會在 hero 還沒播完就 render 回來搶主
     // 執行緒。deep-link 路徑（上面 branch）維持即時 render＝要在 hero 期間於畫面外把目標 item 定位好。
     waitForHeroAnimDone()
-      .then(() => switchToSection(defaultSection, btns, false, true))
+      // 使用者已在 hero 期間手動切換 → init switch 讓路（否則 1.7s 後硬切回 default 覆蓋使用者選擇）
+      .then(() => userSwitchedSection ? undefined : switchToSection(defaultSection, btns, false, true))
       // 預設分頁進場後，閒置序列預暖其餘分頁資料（見 prefetchOtherActivitiesData）→ 之後切換免等網路
       .then(() => prefetchOtherActivitiesData())
       // P1-4：warm 完再背景 revalidate 上次 visit 的 key（post-hero、序列、避開進場窗口）→ 新內容供本次瀏覽後續與下次進頁
@@ -802,6 +794,7 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
   btns.forEach(btn => {
     btn.addEventListener('click', () => {
       const section = btn.getAttribute('data-section');
+      userSwitchedSection = true;
       switchToSection(section, btns, true);
       // 手機 section nav 是水平 scroll strip（9 顆，overflow-x:auto）：點到的 btn 可能被捲到部分出界
       // → 捲 strip 讓它落在畫面中間（user 2026-07-03，比照 curriculum 但改置中）。
@@ -1108,7 +1101,9 @@ function initExhibitionsTypeFilter() {
   btns.forEach(btnEl => {
     const btn = /** @type {HTMLElement} */ (btnEl);
     btn.addEventListener('click', () => {
-      if (btn.classList.contains('active')) return;
+      // subFilterSwitching 前置：animatedSubListSwitch 的 guard 在 async 內、擋不住這裡先同步翻 active/desc
+      // → 動畫中連點會「按鈕與 desc 已切、清單沒切」永久 desync（再點也被 active guard 擋）。動畫期間整顆點擊忽略。
+      if (subFilterSwitching || btn.classList.contains('active')) return;
       btns.forEach(bEl => {
         const b = /** @type {HTMLElement} */ (bEl);
         b.classList.remove('active');
@@ -1148,7 +1143,9 @@ function initVisitsTypeFilter() {
   btns.forEach(btnEl => {
     const btn = /** @type {HTMLElement} */ (btnEl);
     btn.addEventListener('click', () => {
-      if (btn.classList.contains('active')) return;
+      // subFilterSwitching 前置：animatedSubListSwitch 的 guard 在 async 內、擋不住這裡先同步翻 active/desc
+      // → 動畫中連點會「按鈕與 desc 已切、清單沒切」永久 desync（再點也被 active guard 擋）。動畫期間整顆點擊忽略。
+      if (subFilterSwitching || btn.classList.contains('active')) return;
       btns.forEach(bEl => {
         const b = /** @type {HTMLElement} */ (bEl);
         b.classList.remove('active');

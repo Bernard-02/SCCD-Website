@@ -3,7 +3,7 @@
  * admission.html 左側 section 切換邏輯：當前 panel 統一往下退場 → 切換 → 新 panel per-item 進場
  */
 
-import { setActiveNavBtn, showPanel } from '../ui/section-switch-helpers.js';
+import { setActiveNavBtn, showPanel, initHoverDimMoveGuard, bindNavBtnFit, bindFrameScrollSplit } from '../ui/section-switch-helpers.js';
 import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
 import {
   playAdmissionPanelExit,
@@ -263,6 +263,12 @@ export function initAdmissionSectionSwitch(fromUserNav = false) {
   const btns = /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.activities-section-btn'));
   if (!btns.length) return;
 
+  // btn 色塊貼文字寬（CMS label 折行時盒不 hug 最長行）＝四頁共用 helper，見 section-switch-helpers
+  bindNavBtnFit(btns);
+
+  // 滾輪分區：col 1-3 捲 window（去 footer/hero）、col 4 起內部捲（box 邊界不外溢），見 section-switch-helpers
+  bindFrameScrollSplit(document.getElementById('admission-content-section'));
+
   // 矮橫向「hero 藏 nav」已併入 setupSectionNavReveal 的 clip-path 雙向分支（user 2026-07-10
   // 定為原則：nav btn 進出場用 clip-path 不用 opacity；舊 .admission-nav-shown opacity 版退役）。
 
@@ -279,6 +285,9 @@ export function initAdmissionSectionSwitch(fromUserNav = false) {
 
   // 手機直向 nav sticky 疊層：量 nav 高把展開 list title 釘在 nav 下方（比照 activities，見函式註解）
   initAdmissionMobileSticky();
+
+  // hover-dim 只在滑鼠真的移動後才生效（打開短 list 捲到頂→cursor 底下換 item 不誤觸半透明，比照 activities）
+  initHoverDimMoveGuard(document.getElementById('admission-content-section'));
 
   const loaded = {};
   let switching = false;  // 防連點

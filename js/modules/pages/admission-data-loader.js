@@ -175,6 +175,9 @@ function revealZebraBg(item, tl, at) {
 // 對齊 activities-section-switch playFilterChipsReveal 的 _chipRevealSTs 清理。此 fn 為 activities/admission 共用，
 // 一起受益。頁級殘留由 cleanupPageModules（kill #page-content 內 trigger）兜底。
 let _panelRevealSTs = [];
+// user 2026-09-04：清單「打開」reveal 期間在 host section 掛 .list-opening，CSS hover-dim 規則自我 gate 關掉半透明。
+// reveal 全部跑完（下方 cursor 尾端）才移除 → 之後 hover 才恢復 dim。跨連續切換用同一個 timer（clear 舊、設新）。
+let _openingTimer = null;
 function killPanelRevealSTs() {
   _panelRevealSTs.forEach(t => { try { t.kill(); } catch (_) {} });
   _panelRevealSTs = [];
@@ -271,6 +274,9 @@ export function playAdmissionPanelReveal(panel, { useScrollTrigger = false, view
     //    exhibitions 535 row 切一次 ~14 個 >50ms long task）。只對「當下在可視捲動框內」的 group 跑進場，
     //    框外的一次性 gsap.set snap 到終態（看不到、不 tween、也無 lazy re-trigger），成本降成 O(可見 group)。
     // ponytail: group 數 ≤20 的小 panel（degree-show 9 / admission / 其他 section）跳過 cull＝行為零改、免量測。
+    // reveal 一開始就掛 .list-opening（frame 1 起關掉 hover-dim，即使 reveal 前已有 hover）；尾端 setTimeout 移除。
+    const dimHost = /** @type {HTMLElement|null} */ (panel.closest('#activities-content-section, #admission-content-section'));
+    if (dimHost) { clearTimeout(_openingTimer); dimHost.classList.add('list-opening'); }
     const cull = viewportCull && groups.length > 20;
     const scroller = cull ? getPanelScroller(panel) : null;
     const boxRect = scroller ? scroller.getBoundingClientRect() : null;
@@ -339,6 +345,8 @@ export function playAdmissionPanelReveal(panel, { useScrollTrigger = false, view
       });
       cursor = textAt + 0.18;  // 下一 item 起步：底色→文字→底色→文字 接力
     });
+    // reveal 全跑完才解除 .list-opening：cursor＝最後 group 的 textAt+0.18，實際尾巴 ≈ cursor+DUR.slow，加 buffer 從寬。
+    if (dimHost) _openingTimer = setTimeout(() => dimHost.classList.remove('list-opening'), (cursor + DUR.slow + 0.3) * 1000);
   }
 }
 

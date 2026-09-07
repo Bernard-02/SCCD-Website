@@ -545,11 +545,12 @@ const TABLET_GROUP_SELECTOR = '.footer-social, .footer-fax, .footer-tel, .footer
 // ── 群組顯隱（2026-08-11 CMS 化後由 CSS 三向互斥改 JS class）──
 // tab 改後台管理（footer_tabs）＝群組 key 任意，CSS 無法窮舉配對 → 改 JS 對非 active 群組
 // item（含其 clip-reveal wrapper——wrapper 不藏會留空佔 flex/grid 位）掛 .fgroup-off（footer.css display:none）。
-// gate：手機 <768 與矮橫向「全群組線性顯示」→ 清光 class；≥768（平板+桌面）才分群。
+// gate：橫向「全群組線性顯示」→ 清光 class；直向（含 <768 手機，2026-09-05 開 tab 分頁）都分群。
+// 橫向＝矮橫向 gate ＋「寬 <768 的橫向視窗」（CSS tabs 只開 portrait，這裡不對齊會變成有分群卻沒 tab 可切）。
 function applyGroupVisibility(area) {
   if (!area) return;
-  const showAll = window.innerWidth < 768
-    || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+  const showAll = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches
+    || (window.innerWidth < 768 && window.matchMedia('(orientation: landscape)').matches);
   const active = area.dataset.fgroup;
   area.querySelectorAll('[data-fgroup]').forEach((el) => {
     if (el.classList.contains('footer-tab') || el.closest('.footer-tabs')) return;   // tab 本體恆顯示
@@ -802,8 +803,8 @@ function footerInViewport(footer) {
 
 function initFooterMobileReveal(footer, animate = false) {
   if (typeof gsap === 'undefined') return;
-  // 平板 768-1199：右上 tab 切換版型（radio；版面 CSS 在 footer.css hybrid 段）。綁 tab click + 可拖動。
-  // <768 手機 tabs 由 CSS display:none 收（綁了也不觸發、不顯示）；矮橫向亦然。旋轉在平板由 CSS transform:none 蓋掉。
+  // 平板 768-1199 與 <768 手機（2026-09-05 起）都是 tab 切換版型（radio；CSS 各自段）。綁 tab click + 可拖動。
+  // 矮橫向 tabs 由 CSS display:none 收（綁了也不觸發、全群組線性）。旋轉在平板/手機由 CSS transform:none 蓋掉。
   bindFooterTabs(footer);
   const tabsEl = /** @type {HTMLElement | null} */ (footer.querySelector('.footer-tabs'));
   makeTabsDraggable(tabsEl);

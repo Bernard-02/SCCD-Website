@@ -223,7 +223,7 @@
              sticky 容器是 class-works-area 的子層 → 從 class 區一路黏到 works 區結束。z-40 蓋過內容、低於 header(z-9999)。
              items-end：pill 底部對齊，BFA 學士班 label 浮在 Animation/Creative Media pill 上方（比照桌面）。
              ⚠️ 改 top 要同步 scroll-snap.css #works scroll-margin（= top + nav 高 126 + 13 呼吸）。 -->
-        <div class="md:hidden site-container sticky z-40 mt-3xl" style="top: 168px; background: var(--theme-bg);">
+        <div class="mobile-division-wrap md:hidden site-container sticky z-40 mt-3xl" style="top: 168px;">
           <div id="mobile-division-nav" class="flex flex-row items-end gap-md overflow-x-auto py-sm">
             <!-- Design Fundamental（works-only；CSS 預設收起，.is-works-context 才展開） -->
             <button class="section-nav-btn mobile-division-btn mobile-division-btn--bfa shrink-0 text-left whitespace-nowrap" data-division="bfa">
@@ -481,8 +481,8 @@
         <!-- History 標題（封鎖綫已移除，留 sr-only 保 heading 語意）-->
         <h2 class="sr-only">History 沿革</h2>
 
-        <!-- 桌面高度＝100vh − padding-top(100px) − pb-2xl(64px)＝section 連同 pb 正好一屏 → snap 往下直達 footer。
-             手機由 timeline.js buildMobile 設 height:auto 覆蓋（#timeline-mobile 自然高），故此值只作用桌面。 -->
+        <!-- 高度＝100vh − padding-top(100px) − pb-2xl(64px)＝section 連同 pb 正好一屏 → snap 往下直達 footer。
+             手機/矮橫向由 timeline.js buildStrip 改設 calc(100svh − 164px)（svh 免工具列高估溢出），故此 vh 值只作用桌面。 -->
         <div id="timeline-area" class="relative w-full" style="height: calc(100vh - 164px);">
 
           <!-- 卷軸容器：照片 + 年份/說明字卡，JS 動態生成 -->

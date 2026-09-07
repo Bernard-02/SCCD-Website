@@ -275,7 +275,7 @@ xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96p
 | `js/modules/ui/theme-toggle.js` | mode 切換 + color hue loop + 全域 dispatch `theme:changed` |
 | `js/modules/ui/custom-scrollbar.js` | 全站隱藏原生 scrollbar + 自製 fixed thumb div + drag + footer 區換色 |
 | `js/modules/ui/marquee-overflow.js` | 文字 overflow → marquee：`applyMarqueeOverflow`（量寬+dual-copy+`--marquee-distance`）；`buildSyncedMarqueeTimeline`（中英同步 GSAP timeline）；`bindMarqueeReturn`（桌面 hover 放開平滑回彈，見下規範） |
-| `js/modules/ui/section-switch-helpers.js` | `setActiveNavBtn` + `showPanel`（4 個 section-switch 共用） |
+| `js/modules/ui/section-switch-helpers.js` | `setActiveNavBtn` + `showPanel` + `bindNavBtnFit` + `bindFrameScrollSplit`（4 個 inner-scroll 頁共用；2026-09-05 定案：nav 佔 cols 1-3、col 4 留白、內容 col-5 起；bindNavBtnFit＝nav btn 貼文字寬；bindFrameScrollSplit＝滾輪分區——col 1-3 捲 window 去 footer/hero、col 4 起一律內部捲，box 邊界不外溢靠 lists.css `overscroll-behavior: contain`，短 panel 放行 window） |
 | `js/modules/lightbox/lightbox-shell.js` | enter/exit + body lock + header bar 收展（給 lightbox / slide-in / full-screen overlay 共用） |
 | `js/modules/ui/list-row-reveal.js` | 清單 rows 進退場引擎（CSS transition 取代 GSAP yPercent，見「效能最佳實踐」；activities/admission 清單用） |
 | `js/modules/accordions/list-accordion.js` | list-header → list-content 展開（必須在 `loadListInto` 後 call `initListAccordion`） |

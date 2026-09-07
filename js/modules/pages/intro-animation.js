@@ -19,7 +19,7 @@ export function initIntroAnimation() {
   if (prefersReducedMotion()) {
     overlay.style.display = 'none';
     document.body.style.overflow = '';
-    const showHeader = () => { const h = document.querySelector('header'); if (h) h.style.opacity = '1'; };
+    const showHeader = () => { const h = /** @type {HTMLElement|null} */ (document.querySelector('header')); if (h) { h.style.opacity = '1'; h.style.pointerEvents = 'auto'; } };   // 無淡入＝直接開互動（見 index.html pe:none）
     if (document.querySelector('header')) showHeader();
     else document.addEventListener('header:ready', showHeader, { once: true });
     return;
@@ -55,6 +55,7 @@ export function initIntroAnimation() {
           duration: DUR.base,
           ease: EASE.enterSoft,
           onStart: () => { document.body.style.overflow = ''; },
+          onComplete: () => { /** @type {HTMLElement} */ (header).style.pointerEvents = 'auto'; },   // 淡入完成才開互動（淡入中隱形不可點，見 index.html pe:none；user 2026-09-04）
         }, '<');
       } else {
         tl.call(() => { document.body.style.overflow = ''; }, null, '<');

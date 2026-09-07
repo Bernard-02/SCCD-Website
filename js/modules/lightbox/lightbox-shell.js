@@ -284,7 +284,10 @@ export function exitLightboxMode({ deferHeaderShow = false } = {}) {
     const revealHeader = () => {
       if (openCount !== 0) return;  // 延後窗口內又開了新 lightbox（enter 已 raiseHeaderZ + hide）→ 放棄還原
       animateHeaderShow(getHeaderTargets());
-      restoreHeaderZ();
+      // z 還原延後到 overlay 300ms 淡出結束：header 預設 z=9999 與 lightbox overlay 同層、overlay 後 append DOM →
+      //   立即降回會讓「仍在淡出中的 overlay」重新蓋住浮在最上的 logo → 關閉時 logo 閃一下（user 2026-09-07）。
+      //   保持 logo 於 overlay 之上整段淡出期間，待 overlay display:none 後才降回（openCount 再守衛：延後窗口內又開新 lightbox 則不還原）。
+      setTimeout(() => { if (openCount === 0) restoreHeaderZ(); }, 300);
     };
     if (deferHeaderShow) setTimeout(revealHeader, DUR.medium * 1000);
     else revealHeader();

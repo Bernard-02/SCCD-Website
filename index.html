@@ -6,7 +6,9 @@
   <title>SCCD - Shih Chien University</title>
   <style>
     #intro-overlay { position: fixed; inset: 0; background: #ffffff; z-index: 10000; }
-    #site-header header { opacity: 0; }
+    /* 未渲染（reveal 前）＝隱形＋不可互動：opacity:0 不擋 pointer → mode btn 等會有 pointer cursor＋可點；
+       pointer-events:none 讓隱形 header 不吃 hover/click（showHeader reveal 時設 inline auto 恢復）。user 2026-09-04 */
+    #site-header header { opacity: 0; pointer-events: none; }
   </style>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

@@ -101,8 +101,10 @@
   @media (min-width: 768px) {
     .courses-program-bar {
       flex: 0 0 14rem;
-      width: 14rem;
-      margin-right: var(--spacing-2xl);
+      /* 100% ＝ nav wrapper 軌寬（col-span-3；col 4 整欄留白、內容第 5 欄起＝user 2026-09-05 定案
+         「max 到欄界、文字沒那麼寬則以文字為主」）。文字寬由 courses-section-switch fitProgramBtns 貼合；
+         縮視窗軌變窄 → btn 換行在內、不疊右欄。舊 14rem 寫死值與 margin-right（flex row 時代殘留）已移除。 */
+      width: 100%;
       align-self: flex-start;
       /* inner-scroll frame：bar 在 .inner-scroll-nav-col wrapper 內、由 wrapper padding-top 定位到 content 區頂、
          頂部對齊 → 不再 sticky（取代舊 position:sticky; top:200px）。 */
@@ -129,10 +131,17 @@
   .courses-program-btn .anchor-nav-inner {
     line-height: var(--line-height-s);
   }
-  /* EN span：white-space:nowrap 確保「Creative Media Design」「MDES Class」維持單行不 auto-wrap；
-     「Animation & Moving Image」用 HTML 顯式 <br> 強制斷行（避免靠 max-width 鎖寬造成右 padding 大於左）。 */
+  /* EN span nowrap：手機水平捲動列與矮橫向靠它不被擠扁（landscape.css 5c「span 已 nowrap 不會 rewrap」）。 */
   .courses-program-btn .anchor-nav-inner > span:first-child {
     white-space: nowrap;
+  }
+  /* 桌面（含 iPad 直向；min-height 排除矮橫向 gate，同 lists.css 慣例）改回自然換行：
+     CMS label 變長（Division of Animation & Moving Image）後 nowrap 單行衝出 14rem bar、疊到右欄內容
+     （user 2026-09-05）；換行後寬度被 bar clamp、縮視窗自動調整。 */
+  @media (min-width: 768px) and (min-height: 501px) {
+    .courses-program-btn .anchor-nav-inner > span:first-child {
+      white-space: normal;
+    }
   }
 
   /* 桌面 nav 垂直間距模型（user 2026-09-02「間距要加上子標題，不然 Animation 跟 Creative Media 太靠近」）：
@@ -476,9 +485,8 @@
     z-index: 2;
     flex-shrink: 0;
     background: inherit;
-    /* +2.5rem 對齊 faculty slide-in profile 圖片區塊的頂部位置（容器 pt=header + profile pt 2.5rem，
-       user 2026-07-09「title 移上去、pt 跟 faculty 圖片區塊一樣」）；原 +4rem */
-    padding-top: calc(var(--header-height, 80px) + 2.5rem);
+    /* +1rem 對齊 faculty slide-in profile 圖片區塊頂部（faculty 同步由 2.5rem→1rem，user 2026-09-06「減少 pt、讓它 1rem」）；原 2.5rem/4rem */
+    padding-top: calc(var(--header-height, 80px) + 1rem);
     padding-bottom: var(--spacing-md);
   }
   @media (min-width: 768px) {
@@ -598,10 +606,11 @@
     #courses-content-section .courses-content-row {
       gap: 0;
     }
-    /* padding-top 2rem→40px：BFA label 上撐（label 高 28 + gap 8 = 36 ≤ 40，不被 bar overflow-y:clip 裁） */
+    /* padding-top 給上方絕對定位的 group label（BFA/MDes 學位標）clearance，不被 bar overflow 上緣裁。
+       ⚠️label 兩行實高 ~53（EN+ZH），舊硬編 40 不夠 → 改吃 JS 量的 --courses-bar-padtop（labelH+16；courses-section-switch.js）。 */
     #courses-content-section .courses-program-bar {
       margin-bottom: 0;
-      padding-top: 40px;
+      padding-top: var(--courses-bar-padtop, 40px);
     }
     /* label ↔ btn gap 比照 about .class-group-label（bottom: 100% + xs，user 2026-07-13 三修「以 about 設定為主」，
        14px 太遠退役）；left 0 對齊主 btn 左緣（同日二修） */
@@ -628,7 +637,7 @@
     }
     #courses-content-section .courses-mobile-grade-bar {
       position: sticky;
-      top: 216px;
+      top: var(--courses-grade-top, 216px);   /* = 112 + nav 實高 − 2；JS 量寫（courses-section-switch.js）消 nav↔grade 縫（user 2026-09-06）*/
       z-index: 4;
       background: var(--theme-bg);
       transform: translateZ(0);
@@ -648,7 +657,7 @@
     }
     #courses-content-section .courses-mobile-row-label {
       position: sticky;
-      top: 287px;
+      top: var(--courses-rowlabel-top, 287px);   /* = gradeTop + 年級 bar 實高 − 2；JS 量寫（courses-section-switch.js）*/
       z-index: 3;
       align-self: stretch;
       padding-bottom: var(--spacing-sm);

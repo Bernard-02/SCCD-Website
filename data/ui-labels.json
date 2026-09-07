@@ -1,15 +1,15 @@
 {
   "data": [
-    { "key": "curriculum.group.bfa", "en": "BFA", "zh": "學士班" },
-    { "key": "curriculum.program.animation",      "en": "Animation & Moving Image", "zh": "動畫影像設計組" },
-    { "key": "curriculum.program.creative-media", "en": "Creative Media Design",    "zh": "創意媒體設計組" },
-    { "key": "curriculum.program.mdes",           "en": "MDES",                     "zh": "碩士班" },
+    { "key": "curriculum.group.bfa", "en": "Bachelor of Fine Art (BFA)", "zh": "學士班" },
+    { "key": "curriculum.program.animation",      "en": "Division of Animation & Moving Image", "zh": "動畫影像設計組" },
+    { "key": "curriculum.program.creative-media", "en": "Division of Creative Media Design",    "zh": "創意媒體設計組" },
+    { "key": "curriculum.program.mdes",           "en": "Master of Design (MDES)",              "zh": "碩士班" },
 
-    { "key": "about.group.bfa", "en": "BFA", "zh": "學士班" },
+    { "key": "about.group.bfa", "en": "Bachelor of Fine Art (BFA)", "zh": "學士班" },
     { "key": "about.program.design-fundamental","en": "Design Fundamental",       "zh": "創作基礎" },
-    { "key": "about.program.animation",         "en": "Animation & Moving Image", "zh": "動畫影像設計組" },
-    { "key": "about.program.creative-media",    "en": "Creative Media Design",    "zh": "創意媒體設計組" },
-    { "key": "about.program.mdes",              "en": "MDES",                     "zh": "碩士班" },
+    { "key": "about.program.animation",         "en": "Division of Animation & Moving Image", "zh": "動畫影像設計組" },
+    { "key": "about.program.creative-media",    "en": "Division of Creative Media Design",    "zh": "創意媒體設計組" },
+    { "key": "about.program.mdes",              "en": "Master of Design (MDES)",              "zh": "碩士班" },
 
     { "key": "nav.about",      "en": "About",              "zh": "關於" },
     { "key": "nav.faculty",    "en": "Faculty",            "zh": "師資" },
@@ -30,6 +30,7 @@
     { "key": "faculty.fulltime", "en": "Full-time Professors", "zh": "專任教師" },
     { "key": "faculty.parttime", "en": "Part-time Professors", "zh": "兼任教師" },
     { "key": "faculty.admin",    "en": "Administrators",       "zh": "行政管理" },
+    { "key": "faculty.founder",  "en": "Founder",              "zh": "創辦人" },
     { "key": "faculty.dept.sccd","en": "DCD",                  "zh": "媒體傳達設計學系" },
     { "key": "faculty.department.dcd",    "en": "Department of Communications Design (DCD)",     "zh": "媒體傳達設計學系" },
     { "key": "faculty.department.bpaidc", "en": "Bachelor Program of AI Design Craftsmentship (BPAIDC)", "zh": "AI 設計職人學位學程" },
@@ -51,7 +52,8 @@
     { "key": "adm.news",        "en": "Announcements", "zh": "公告" },
     { "key": "adm.summer-camp", "en": "Camps",         "zh": "體驗營" },
 
-    { "key": "atlas.faculty",  "en": "Professors", "zh": "歷屆教師" },
+    { "key": "atlas.faculty",       "en": "Professors", "zh": "教師" },
+    { "key": "atlas.faculty.type",  "en": "Professor",  "zh": "教師" },
     { "key": "atlas.alumni",   "en": "Alumni",     "zh": "系友" },
     { "key": "atlas.partners", "en": "Partners",   "zh": "合作單位" },
     { "key": "atlas.host",     "en": "Hosting",    "zh": "主持" },

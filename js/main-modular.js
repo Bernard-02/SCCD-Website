@@ -168,7 +168,15 @@ function revealHeaderWhenReady() {
   document.body.style.overflow = '';
   const showHeader = () => {
     const header = /** @type {HTMLElement | null} */ (document.querySelector('#site-header header'));
-    if (header) header.style.opacity = '1';
+    if (!header) return;
+    header.style.opacity = '1';
+    // pointer-events:auto 只在「完全顯示後」才給：opacity 是淡入的（typography 白名單 transition）→ 淡入中隱形卻可點＝
+    // mode btn 有 pointer cursor＋可點（user 2026-09-04）。輪詢 opacity 至 ~1 才開互動（隱形時 CSS pe:none，見 index.html）
+    const enablePE = () => {
+      if (parseFloat(getComputedStyle(header).opacity) >= 0.99) header.style.pointerEvents = 'auto';
+      else requestAnimationFrame(enablePE);
+    };
+    requestAnimationFrame(enablePE);
   };
   if (document.querySelector('#site-header header')) {
     showHeader();

@@ -6,6 +6,7 @@
 import { setupClipReveal, navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
+import { bindNavBtnFit, bindFrameScrollSplit } from '../ui/section-switch-helpers.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 
@@ -290,6 +291,25 @@ export function initFacultyFilter() {
 
   if (filterButtons.length === 0 || facultyCards.length === 0) return;
 
+  // 滾輪分區：col 1-3 捲 window（去 footer/hero）、col 4 起內部捲（box 邊界不外溢），見 section-switch-helpers
+  bindFrameScrollSplit(document.getElementById('faculty-cards'));
+
+  // 手機直向：filter bar（專任/兼任/行政）疊在已 sticky 的 DCD nav（top:88）下方（user 2026-09-06「專任 row 也要 sticky」）。
+  // DCD nav 內容固定但高度隨 padding 改版變 → 量 nav 實高寫 --faculty-filter-top = 88 + navH − 2(tuck 消縫)，
+  // lists.css `.faculty-dept-bar { top: var(--faculty-filter-top) }` 消費。桌面/矮橫向清掉 var（走各自 sticky 規則）。
+  const updateFacultyFilterTop = () => {
+    const section = document.getElementById('faculty-cards');
+    if (!section) return;
+    const navCol = /** @type {HTMLElement|null} */ (section.querySelector('.inner-scroll-nav-col'));
+    const portraitMobile = window.innerWidth < 768 && window.matchMedia('(orientation: portrait)').matches;
+    if (navCol && portraitMobile) section.style.setProperty('--faculty-filter-top', `${88 + navCol.offsetHeight - 2}px`);
+    else section.style.removeProperty('--faculty-filter-top');
+  };
+  updateFacultyFilterTop();
+  if (document.fonts && document.fonts.status !== 'loaded') document.fonts.ready.then(updateFacultyFilterTop);
+  window.addEventListener('resize', updateFacultyFilterTop);
+  registerPageCleanup(() => window.removeEventListener('resize', updateFacultyFilterTop));
+
   // （手機 header 底色帶 .mobile-header-bg 已提升為全站元素：放 header.html、footer-near hide 在 header.js
   //   bindFooterScroll，2026-07-17。原 faculty 專屬 .faculty-header-bg + 此處 scroll listener 已移除。）
 
@@ -498,6 +518,8 @@ export function initFacultyFilter() {
   // 沿用 category filter 的 exit → 切換 → enter 流程；chip active accent 同 setActiveStyle 做法。
   const deptButtons = document.querySelectorAll('.faculty-dept-btn');
   if (deptButtons.length) {
+    // btn 色塊貼文字寬（CMS label 折行時盒不 hug 最長行）＝四頁共用 helper，見 section-switch-helpers
+    bindNavBtnFit(deptButtons);
     const setDeptActiveStyle = (activeBtn, color) => {
       deptButtons.forEach(b => {
         const inner = /** @type {HTMLElement|null} */ (b.querySelector('.anchor-nav-inner'));

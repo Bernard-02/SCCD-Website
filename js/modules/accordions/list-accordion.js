@@ -448,7 +448,7 @@ function toggleSectionPinnedFlag(header, on) {
 // 收合順序：先 collapse content（保留 .active）→ onComplete 移除 .active 觸發 title 往左 transform transition
 // 回傳 Promise（content 收合 tween onComplete 時 resolve）：開新 item 時 await 收回動畫跑完才量落點+展開（兩段式）。
 // duration 可覆寫：自關用預設 DUR.medium；開新先關舊用較短 DUR.base 讓序列不拖。
-function closeListHeader(header, { duration = DUR.medium, scrollFollow = false } = {}) {
+function closeListHeader(header, { duration = DUR.medium, scrollFollow = false, restoreScroll = null } = {}) {
   markAccordionBusy(duration * 1000 + 300);   // 六輪 2-A：收合期間 idle builder 讓路
   let resolveDone;
   const done = new Promise((r) => { resolveDone = r; });
@@ -481,7 +481,24 @@ function closeListHeader(header, { duration = DUR.medium, scrollFollow = false }
   //   讓 footer 一路貼著視窗底、scrollY 全程 ≤ maxScroll → 不 clamp、section 不跳（視覺＝往下收、footer 不動）。
   //   只在「確實接近底部(postMax < 現 scrollY)」才捲；中段 item 收合在底部以上、postMax ≥ scrollY → 不捲。
   //   scrollFollow 只給 self-close（開新 item 的 close-others 不捲，落點由隨後的 proceedOpen 重算）。
-  if (scrollFollow) {
+  if (restoreScroll != null) {
+    // 自關：收合時同步捲回「打開前」的位置（proceedOpen 記的 this._preOpenScroll＝全收合座標系）。往回通常是往上
+    //   （開 item 的對齊捲動多半往下捲過）＝一路 ≤ maxScroll、不觸底部 clamp。取代 scrollFollow（那只防「靠底 item
+    //   收合 clamp 跳」）。box-path 捲 scroller、window-path 捲 window，同 open 記錄的路徑。
+    //   仍 clamp 到「收合後」postMax（同 scrollFollow 算法）：記錄後版面可能變矮（開著時手動收合上方年份組、
+    //   舊 spacer 殘留等）→ 超標的還原值會在 onComplete 清 spacer 時被瀏覽器瞬間 clamp＝跳；base case 不受影響（min 不動）。
+    const collapseAmount = content.getBoundingClientRect().height;
+    const scroller = getScrollableBox(header);
+    if (scroller) {
+      const sp = /** @type {HTMLElement | null} */ (scroller.querySelector(':scope > .box-scroll-spacer'));
+      const spacerH = sp ? sp.getBoundingClientRect().height : 0;
+      const target = Math.min(restoreScroll, Math.max(0, scroller.scrollHeight - collapseAmount - spacerH - scroller.clientHeight));
+      if (Math.abs(target - scroller.scrollTop) > 1) gsap.to(scroller, { scrollTop: target, duration, ease: EASE.exitSoft, overwrite: true });
+    } else {
+      const target = Math.min(restoreScroll, Math.max(0, document.documentElement.scrollHeight - collapseAmount - window.innerHeight));
+      if (Math.abs(target - window.scrollY) > 1) scrollWindowNoSnap(target, { duration, ease: EASE.exitSoft });
+    }
+  } else if (scrollFollow) {
     const collapseAmount = content.getBoundingClientRect().height;
     // 桌面 inner-scroll：收合靠底 item → scroller 變矮 → scroller.scrollTop 被 clamp → 跳；同步往上捲 scroller（footer/snap 不在
     //   scroller）。手機（<768）與矮橫向拆 frame：原 window scrollFollow（footer 在 window 文件底）。
@@ -527,9 +544,9 @@ function closeListHeader(header, { duration = DUR.medium, scrollFollow = false }
       delete header.dataset.accentHex;
       delete header.dataset.collapsing;
       delete header.dataset.dimmed;
-      // 「一律對齊頂部」spacer：self-close 收完才清（scrollFollow 已把 scrollTop 帶到 postMax ≤ 清掉後 maxScroll → 不跳）。
-      //   close-others（scrollFollow=false）不清，交給隨後的 proceedOpen 重算（避免多一次 clamp）。
-      if (scrollFollow) resetBoxSpacer(header);
+      // 「一律對齊頂部」spacer：self-close 收完才清（scrollFollow→scrollTop 帶到 postMax、restoreScroll→帶到打開前位置，
+      //   兩者都 ≤ 清掉後 maxScroll → 不跳）。close-others（兩旗標皆無）不清，交給隨後的 proceedOpen 重算（避免多一次 clamp）。
+      if (scrollFollow || restoreScroll != null) resetBoxSpacer(header);
       // cursor 若仍在 header 上補回 hover bg（mouseenter 不會 re-fire）
       if (header.matches(':hover')) {
         const refill = SCCDHelpers.getRandomAccentColor();
@@ -577,6 +594,10 @@ function initListHeaderAccordion() {
     // collapsing flag 防止收合動畫期間 cursor 離開時清掉 inline bg → 字色 flicker
     // opening flag 同理：兩段式「先收舊的」期間 header 還沒 .active 但已選定要開，cursor 離開別清掉 hover bg
     header.addEventListener('mouseenter', function() {
+      // ⚠️捲動造成的 hover（滑鼠沒動、內容在 cursor 底下位移，如打開短 list 捲到頂）不算數：否則會把剛打開 item 的
+      //    accent 拔掉、改上色到「被捲到 cursor 下」的別的 item（user 2026-09-04）。同 hover-dim 的 move-guard
+      //    訊號：host section 有 .hover-dim-suppress（section-switch-helpers.initHoverDimMoveGuard 捲動掛、真 pointermove 才解）→ 跳過。
+      if (this.closest('#activities-content-section, #admission-content-section')?.classList.contains('hover-dim-suppress')) return;
       if (!this.classList.contains('active') && !this.dataset.collapsing && !this.dataset.opening) {
         const color = SCCDHelpers.getRandomAccentColor();
         this.style.background = color;
@@ -662,6 +683,12 @@ function initListHeaderAccordion() {
           //   手機（<768）與矮橫向拆 frame（box 不可捲）走原 window 邏輯：真實量測 clampBelowFooter + scrollWindowNoSnap。
           //   lockSnapOff 已提前到 click 當下（收舊項之前）鎖，這裡不重複。
           const innerScroller = getScrollableBox(self);
+          // 記「打開前」的捲動位置 → 自關時捲回這裡（user 2026-09-06）：開 item 的對齊捲動只為看內容，
+          //   關閉後應還原整頁閱讀進度、不把使用者留在被推下去的位置（見 closeListHeader restoreScroll）。
+          //   記錄點在 proceedOpen（不在 click 當下）：開 A→直接點開 B 的鏈式操作，click 時 A 還展開著、
+          //   記到的位置含 A 內容高 → 自關 B 還原會落錯位＋超出收合後 maxScroll。等 close-others 收完
+          //   （全收合座標系）才記，正是自關後版面的座標、恆合法。無其他展開項時 proceedOpen 同步跑＝與 click 當下等值。
+          /** @type {any} */ (self)._preOpenScroll = innerScroller ? innerScroller.scrollTop : window.scrollY;
           let openBoxTarget = null;  // 桌面：開合捲動目標，給 content 展開 onComplete 收齊對位（見下）用
 
           // Open - header / content 都保留 100% accent；ref 用對應 deep 色。**先上色**（兩段式 staged 捲動期間 header 已是
@@ -768,7 +795,11 @@ function initListHeaderAccordion() {
         listAnimating = true;
         // 自關 item → unlockSnap 交回 mandatory。開新 item 走的是上面「close others → proceedOpen」路徑、不經這裡
         // （proceedOpen 會重新 lockSnapOff），故只有「使用者自己關掉」才在這裡解鎖。
-        closeListHeader(this, { scrollFollow: true }).then(() => { listAnimating = false; unlockSnap(); });
+        // 捲回打開前的位置（this._preOpenScroll，open branch 記）；極端邊界沒記到 → 退回 scrollFollow 防靠底跳。
+        const restoreTo = this._preOpenScroll;
+        delete this._preOpenScroll;
+        closeListHeader(this, restoreTo != null ? { restoreScroll: restoreTo } : { scrollFollow: true })
+          .then(() => { listAnimating = false; unlockSnap(); });
       }
     });
   });

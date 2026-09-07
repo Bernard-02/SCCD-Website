@@ -15,16 +15,23 @@
      .nav-link-cn 是遮罩（overflow:hidden＋max-width 撐開讓位＝「色塊寬度」），
      .nav-link-cn-i 是內層文字、用 transform 從遮罩邊外推入。兩者同拍同時變化（同 --dur-fast、無 delay、無淡入）
      → 色塊變寬與文字推出「同時」發生，不是先撐寬再冒字。
-     推入方向預設由下往上（site clip-reveal 慣例）；主 nav 各項用 nth-child 錯開成上/下/左/右。 */
+     推入方向預設由下往上（site clip-reveal 慣例）；主 nav 各項用 nth-child 錯開成上/下/左/右。
+     離英文的兩個空格＝遮罩「靜態」margin-left（不動畫）——揭露窗起點恆在英文右緣+0.5rem，
+     文字才不會貼著英文邊緣冒出（margin 若跟著動畫，開窗起點會從英文邊緣長出來）；
+     收合態用等值負 margin-right 抵銷、不多佔 8px（黑 bar 盒寬/1520 壓縮 tier 按原 layout 調的），
+     開啟時 margin-right 歸零與 max-width 同拍。
+     max-width 終值＝header.js 實測寬（--cn-w，em 單位），不寫死 overshoot——
+     水平開窗與垂直滑入才會同時完成，否則上/下方向軌跡先斜後直＝arc 彎折。 */
   .nav-link .nav-link-cn {
     display: inline-block;
     max-width: 0;
     overflow: hidden;
-    margin-left: 0;
+    margin-left: 0.5rem;    /* 離英文約兩個空格（靜態＝揭露起點） */
+    margin-right: -0.5rem;  /* 收合態抵銷上行、不佔位 */
     vertical-align: middle;
     white-space: nowrap;
     transition: max-width var(--dur-fast) var(--ease-wipe),
-                margin-left var(--dur-fast) var(--ease-wipe);
+                margin-right var(--dur-fast) var(--ease-wipe);
   }
   .nav-link .nav-link-cn-i {
     display: inline-block;
@@ -53,8 +60,8 @@
   }
 
   .nav-link.active .nav-link-cn {
-    max-width: 6rem;
-    margin-left: 0.5rem;   /* 離英文約兩個空格 */
+    max-width: var(--cn-w, 6rem);
+    margin-right: 0;
   }
   .nav-link.active .nav-link-cn-i {
     transform: translate(0, 0);
@@ -100,8 +107,8 @@
     }
 
     .nav-link:hover .nav-link-cn {
-      max-width: 6rem;
-      margin-left: 0.5rem;   /* 離英文約兩個空格 */
+      max-width: var(--cn-w, 6rem);
+      margin-right: 0;
     }
     .nav-link:hover .nav-link-cn-i {
       transform: translate(0, 0);
@@ -141,6 +148,17 @@
   html.has-slide-in body.lightbox-open #site-header #mode-btn-mobile,
   html.has-slide-in body.lightbox-open #site-header .mobile-menu-btn {
     pointer-events: auto;
+  }
+
+  /* ⚠️ #site-header 的 none（上面 134）只作用在外層容器 div，攔不到 <header> 元素本身——
+     main-modular.js showHeader 在 opacity 淡入完成後給 <header> **inline** pointer-events:auto，
+     inline 勝過 stylesheet → auto 沿 header 子樹下傳，讓收起的手機 mode/menu 遮罩（.header-bar-clip）與其
+     容器（.col-span-6.justify-end）在 header 拉高 z(10000) 蓋 slide-in(9999) 時，仍攔截 top-right 點擊，
+     手機返回鍵（同位、z-9999）點不到（實測 elementFromPoint 命中 .header-bar-clip；user 回報）。
+     lightbox/slide-in 期間 header 純裝飾（logo href 已被 disableLogoLinks 拔掉）→ !important 蓋掉 inline auto，
+     讓點擊穿透到 modal；上面 has-slide-in 例外只把「真互動鈕」開回 auto（它們已收起離場、不在返回鍵位）。 */
+  body.lightbox-open #site-header header {
+    pointer-events: none !important;
   }
 
   /* ===== 全站手機 header 底色帶（.mobile-header-bg）2026-07-17 =====
@@ -280,8 +298,8 @@
    * 小 AA bar = 縮寫「A.A.」hover 才補「系友會」；
    * alumni-full = 點開後的擴展版，必須直接看到全名「A.A. 系友會」不靠 active/hover */
   [data-bar="alumni-full"] .nav-link .nav-link-cn {
-    max-width: 6rem;
-    margin-left: 0.5rem;   /* 離英文約兩個空格 */
+    max-width: var(--cn-w, 6rem);
+    margin-right: 0;
   }
   [data-bar="alumni-full"] .nav-link .nav-link-cn-i {
     transform: translate(0, 0);

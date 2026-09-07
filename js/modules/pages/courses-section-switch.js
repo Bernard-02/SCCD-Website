@@ -13,7 +13,7 @@
 
 import { renderCoursesGrid, deselectActiveCard, resetCoursesMapState, selectCardBySlugInPanel, highlightCardBySlugInPanel, ensureMobileGradeForSlug } from './courses-map.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
-import { setActiveNavBtn } from '../ui/section-switch-helpers.js';
+import { setActiveNavBtn, bindNavBtnFit, bindFrameScrollSplit } from '../ui/section-switch-helpers.js';
 import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
 
 // 卡片維持四方向隨機（要多樣性）；滿寬 row-label 抽到 left/right 會滑整個 box 寬
@@ -171,6 +171,41 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
   // hover 一次性綁定（每 btn 帶 dataset flag 避免重綁）
   programBtns.forEach(bindHover);
 
+  // btn 色塊貼文字寬（CMS label 折行時盒不 hug 最長行）＝四頁共用 helper，時機/機制見 section-switch-helpers
+  bindNavBtnFit(programBtns);
+
+  // 滾輪分區：col 1-3 捲 window（去 footer/hero）、col 4 起內部捲（box 邊界不外溢），見 section-switch-helpers
+  bindFrameScrollSplit(sectionEl);
+
+  // 手機直向三層 sticky（program nav / 年級 bar / 類型 label）：原本硬編 T1/T2/T3(112/216/287) 是 375×812 一次性
+  // 校準，group label 變兩行(高 ~53)後 → ①label 被 bar overflow 上緣裁（padding-top 40 不夠）②nav 實高(101)≠假設(108.6)
+  // → 年級 bar(216) 與 nav 底(213) 差 3px 縫、下面內容漏出（user 2026-09-06 兩報）。改成**量實高寫 CSS var**：
+  //   --courses-bar-padtop = 最高 group label 高 + gap 8 + buffer 8（label 絕對定位在 btn 上方，padTop 要容得下才不被裁）
+  //   --courses-grade-top  = 112 + nav 實高 − 2(tuck 消縫)；--courses-rowlabel-top = gradeTop + 年級 bar 實高 − 2
+  // 桌面/矮橫向清掉 var（走各自規則）。T1=112 仍是「貼 fixed header」錨定值，不量。
+  const updateCoursesMobileSticky = () => {
+    if (!sectionEl) return;
+    const portrait = window.innerWidth < 768 && window.matchMedia('(orientation: portrait)').matches;
+    if (!portrait) {
+      sectionEl.style.removeProperty('--courses-bar-padtop');
+      sectionEl.style.removeProperty('--courses-grade-top');
+      sectionEl.style.removeProperty('--courses-rowlabel-top');
+      return;
+    }
+    const T1 = 112;
+    const labels = [...sectionEl.querySelectorAll('.courses-bfa-label')].filter(el => /** @type {HTMLElement} */ (el).offsetHeight > 0);
+    const labelH = labels.length ? Math.max(...labels.map(el => el.getBoundingClientRect().height)) : 0;
+    if (labelH) sectionEl.style.setProperty('--courses-bar-padtop', `${Math.ceil(labelH) + 16}px`);
+    const navCol = /** @type {HTMLElement|null} */ (sectionEl.querySelector('.inner-scroll-nav-col'));
+    if (!navCol) return;
+    const gradeTop = T1 + navCol.offsetHeight - 2;   // offsetHeight 讀取強制 reflow → 已套上面新 padTop
+    sectionEl.style.setProperty('--courses-grade-top', `${gradeTop}px`);
+    const grade = [...sectionEl.querySelectorAll('.courses-mobile-grade-bar')].find(el => /** @type {HTMLElement} */ (el).offsetHeight > 0);
+    if (grade) sectionEl.style.setProperty('--courses-rowlabel-top', `${gradeTop + /** @type {HTMLElement} */ (grade).offsetHeight - 2}px`);
+  };
+  window.addEventListener('resize', updateCoursesMobileSticky);
+  registerPageCleanup(() => window.removeEventListener('resize', updateCoursesMobileSticky));
+
   // ?program= deep-link：只有從首頁 floating course card 點進來的 SPA 導航（fromUserNav）才套指定 program + 跑導航動畫。
   // refresh / 直接開 / 上一頁下一頁（fromUserNav=false）→ 清掉 query、回 default program（= 直接點 curriculum 的樣子，user 2026-06-04）。
   const params = new URLSearchParams(window.location.search);
@@ -195,6 +230,9 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
   const deepLinkAutoNav = hasQueryDeepLink && fromUserNav;
 
   const initSwitchPromise = switchToProgram(initialProgram, programBtns, false);
+  // 初始 program 渲染完（年級 bar 進 DOM）才量三層 sticky 高；字型晚到會改 label/nav 高 → fonts.ready 再量一次
+  initSwitchPromise.then(updateCoursesMobileSticky);
+  if (document.fonts && document.fonts.status !== 'loaded') document.fonts.ready.then(updateCoursesMobileSticky);
 
   // deep-link 導航動畫（只在使用者從首頁 floating course card 點進來的 SPA 導航才播）：
   //   ① 等 hero 進場才往下捲 — waitForHeroAnimDone()（hero onComplete 時 resolve，但封頂 ~0.9s：hero 多組時

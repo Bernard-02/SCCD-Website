@@ -64,6 +64,7 @@ export async function loadFacultyData() {
     const fulltime = data.filter(item => item.type === 'fulltime');
     const parttime = data.filter(item => item.type === 'parttime').sort(bySurname);
     const admin = data.filter(item => item.type === 'admin');
+    const founder = data.filter(item => item.type === 'founder');  // 創辦人（後台 facultyType=founder，目前僅謝大立）
 
     _phCards = []; // 重抓重渲染前清空，避免站內導航回來累積舊卡片 ref
     // fulltime 是第一個 list（上半屏）→ 前 4 張 eager + high priority 先載。
@@ -76,6 +77,7 @@ export async function loadFacultyData() {
     renderFacultyList('faculty-fulltime-list', fulltime, 4, true);
     renderFacultyList('faculty-parttime-list', parttime, 8);
     renderFacultyList('faculty-admin-list', admin, 8);
+    renderFacultyList('faculty-founder-list', founder, 8);
 
     // 代用 logo 卡片：依當前 mode 套對應圖 + 底色（首次不做 fade），並綁 theme:changed 之後切換時 cross-fade
     applyPlaceholderMode(false);

@@ -8,16 +8,18 @@ import { DUR } from './motion.js';
 
 // lazy 清單：搜尋前把所有 item 建出來（否則只搜得到已渲染的首批＋捲過的）＝search「無結果」根因。
 // _lazyRenderAll 由 activities-data-loader lazy 容器暴露、idempotent；建完清 originalOrders 讓下面重新捕捉完整順序。
+// ⚠️ 只作廢「長高的那個 container」內的 captured order：原本 originalOrders.clear() 全清，會把**其他 panel**
+//   已重排中的 captured 原始序也丟掉 → 切回去清空搜尋時把「重排後的序」誤捕捉成 original＝永久錯序。
 function ensureFullyRendered(panel) {
-  let changed = false;
+  const grown = [];
   panel.querySelectorAll('[data-lazy-list]').forEach(c => {
     const fn = /** @type {any} */ (c)._lazyRenderAll;
     if (typeof fn !== 'function') return;
     const before = c.querySelectorAll('.list-item').length;
     fn();
-    if (c.querySelectorAll('.list-item').length !== before) changed = true;
+    if (c.querySelectorAll('.list-item').length !== before) grown.push(c);
   });
-  if (changed) originalOrders.clear();
+  if (grown.length) [...originalOrders.keys()].forEach(k => { if (grown.some(c => c.contains(k))) originalOrders.delete(k); });
 }
 
 // 清 lazy 藏起的 transform / 斑馬 clip / data-pre-reveal → 讓（清空搜尋後）所有 item 直接可見可互動。
@@ -164,12 +166,16 @@ function getItemsContainer(group) {
   return group.matches('.list-year-items') ? group : group.querySelector('.list-year-items');
 }
 
-function getVisibleYearGroups(panel) {
+function getAllYearGroups(panel) {
   const groups = [...panel.querySelectorAll('.list-year-group')];
   panel.querySelectorAll('.list-year-items').forEach(c => {
     if (!c.closest('.list-year-group')) groups.push(c);
   });
-  return groups.filter(g => {
+  return groups;
+}
+
+function getVisibleYearGroups(panel) {
+  return getAllYearGroups(panel).filter(g => {
     let el = g.parentElement;
     while (el && el !== panel) {
       // inline style.display === 'none'（type filter 用這個隱藏 container）
@@ -228,7 +234,10 @@ function applyGenericSearch(panelId, query) {
     panel.querySelectorAll('.activities-separator').forEach(sep => {
       setSeparatorVisibility(/** @type {HTMLElement} */ (sep), true);
     });
-    yearGroups.forEach(group => {
+    // ⚠️ 還原走「全 groups」不濾可見：搜尋中切 sub-filter 再清空時，被 type filter 藏掉的 container 也有
+    //   搜尋殘態（item inline display:none／重排／collapsedBySearch 強開）——只還原可見那半，切回去會殘留
+    //   「搜尋框是空的但清單被濾過」的死狀態。藏起的 container 還原純 DOM 寫、無視覺影響。
+    getAllYearGroups(panel).forEach(group => {
       const container = getItemsContainer(group);
       const original = container ? originalOrders.get(container) : null;
       if (original) original.forEach(item => container.appendChild(item));

@@ -823,29 +823,6 @@ async function initAwardsPanel(onEntranceDoneCallback) {
       if (e.target.closest('.award-record-item')) spawnAwardIcon(e.clientX, e.clientY);
     }, true);
 
-    const scrollEl = document.getElementById('library-awards-scroll');
-    const countEl  = document.getElementById('library-awards-count');
-
-    // list 下方計數：「目前 viewport 內第 first-last 個 / 總數」
-    // total = 目前可見（未被年份篩選 / 搜尋隱藏）的 award 項目數；隱藏項 offsetParent 為 null 自動排除
-    function updateAwardsCount() {
-      if (!countEl || !scrollEl) return;
-      const items = [...listEl.querySelectorAll('.award-record-item')].filter(el => el.offsetParent !== null);
-      const total = items.length;
-      if (!total) { countEl.textContent = ''; return; }
-      const vTop    = scrollEl.getBoundingClientRect().top;
-      const vBottom = vTop + scrollEl.clientHeight;
-      let first = 0, last = 0;
-      items.forEach((el, i) => {
-        const r = el.getBoundingClientRect();
-        if (r.bottom > vTop && r.top < vBottom) { if (!first) first = i + 1; last = i + 1; }
-      });
-      if (!first) { countEl.textContent = `${total} / ${total}`; return; }
-      countEl.textContent = first === last ? `${first} / ${total}` : `${first}-${last} / ${total}`;
-    }
-    // 元素級 listener：SPA 換頁時 scrollEl 隨 #page-content 一起銷毀，不會累積，免註冊 page-cleanup
-    if (scrollEl) scrollEl.addEventListener('scroll', updateAwardsCount, { passive: true });
-
     // ── 渲染 ──
     // 每行包 .award-cell-line > .award-cell-inner：矮橫向窄欄 crop 時逐行 marquee 用
     //（applyMarqueeOverflow row/inner 結構；桌面/直向無對應 CSS＝純多一層 span 零視覺差）
@@ -1188,8 +1165,6 @@ async function initAwardsPanel(onEntranceDoneCallback) {
       if (window.innerWidth < 768 || isShortLandscape()) runMarqueeOverflow(listEl, '.award-cell-line', '.award-cell-inner');
       // ref 展開列標題過長 → marquee（桌面 hover 才跑、手機沿用全站 .list-title-marquee 自動跑慣例；量測見上）
       initAwardRefTitleMarquees(listEl);
-
-      updateAwardsCount();
     }
 
     renderItems(getSorted());
@@ -1217,7 +1192,6 @@ async function initAwardsPanel(onEntranceDoneCallback) {
       restripeZebra(listEl, '.award-record-item'); // 篩後依可見順序重排斑馬
       const anyVisible = /** @type {HTMLElement[]} */ ([...listEl.querySelectorAll('.year-block')]).some(b => b.style.display !== 'none');
       awardsEmptyState.classList.toggle('hidden', anyVisible);
-      updateAwardsCount();
     };
 
     // showLibPanel('awards') 顯示 panel 後重量一次 winners marquee（首次 render 時卡片可能尚未 sized →
@@ -1227,7 +1201,6 @@ async function initAwardsPanel(onEntranceDoneCallback) {
       if (window.innerWidth < 768 || isShortLandscape()) runMarqueeOverflow(listEl, '.award-winner-en, .award-winner-zh', '.award-marquee-inner');
       if (window.innerWidth < 768 || isShortLandscape()) runMarqueeOverflow(listEl, '.award-cell-line', '.award-cell-inner');
       initAwardRefTitleMarquees(listEl);
-      updateAwardsCount();
     };
 
     // showLibPanel 切走 awards 時呼叫：瞬間收合所有展開的 ref 手風琴，回到 awards 不殘留展開態
@@ -2513,6 +2486,7 @@ const PANEL_MAP = {
 // unitW 為字寬（與卡當下寬無關）→ morph 前 onTabSwitchPre 量也準；idempotent（box 已建則只重量重設複製份）。
 function buildTitleMarquee(titleEl) {
   if (!titleEl || window.innerWidth < 768 || isShortLandscape()) return;
+  // §22（v4.3）：adopt/flight 退役 → 無 marqueeFlying guard（box 不再被搬走）。
   let box = titleEl.querySelector('.lib-title-box');
   if (!box) {
     box = document.createElement('span');

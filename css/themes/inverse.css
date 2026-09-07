@@ -524,6 +524,13 @@ body.mode-inverse .atlas-list-group-label-col .atlas-list-col-title {
   color: black !important;
 }
 
+/* 右箭頭 nav-btn 跟主 col title 同款翻白底黑字（user 09-04「箭頭應該白色、看 title tab 怎麽做」）；
+ * 排除 host/employ：那兩欄箭頭留 base var(--lib-bg) 深灰、同其欄標（chevron 色由上方廣域規則給白） */
+body.mode-inverse .atlas-list-col:not([data-category="host"]):not([data-category="employ"]) .atlas-list-nav-btn {
+  background: white !important;
+  color: black !important;
+}
+
 /* B 企業環 chip（系友任職企業 / hosting）：2026-06-08 起 JS inline 設隨機三原色底 + 黑字（同 D 城市方塊、
    同 standard mode）→ inverse 沿用「保留三原色 accent、字色黑」慣例，不再 override 成白底黑字（舊邏輯，
    當時 B 是黑底白字才需翻）。inline 三原色 bg + 黑字在 inverse 下直接顯示，無需任何規則。 */

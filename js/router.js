@@ -324,7 +324,9 @@ async function loadPage(route, search = '', fromUserNav = false) {
     // - iOS Safari position:fixed header 不 fix 的舊問題：clip 同樣防止 body 搶 scroll container 角色
     // 瀏覽器支援：Chrome 90+ / Safari 16+ / Firefox 81+
     // degree-show-detail：子展覽 gallery 全寬 6-slot（~105vw）+ hero banner 兩側溢出 → 不 clip 整頁可橫向 pan
-    const needsClipX = route.page === 'about' || route.page === 'alumni' || route.page === 'faculty' || route.page === 'activities' || route.page === 'degree-show-detail';
+    // curriculum：手機 program/年級 bar negative-margin 出血 + 旋轉 chip 溢出；且缺 clip 時 iOS body 搶 scroll
+    //   container → slide-in 的 fixed 退化、往下滑露 footer（user 2026-09-06；同 faculty，SPA 進來也要靠此設）
+    const needsClipX = route.page === 'about' || route.page === 'alumni' || route.page === 'faculty' || route.page === 'activities' || route.page === 'curriculum' || route.page === 'degree-show-detail';
     document.documentElement.style.overflowX = needsClipX ? 'clip' : '';
     document.body.style.overflowX = needsClipX ? 'clip' : '';
 

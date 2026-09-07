@@ -10,7 +10,7 @@
  * Banner 寬度依 poster orientation：landscape=400 / portrait=300（poster 自然尺寸 preload 判定）
  */
 
-import { applyNewsHover, removeNewsHover } from '../animations/floating-items.js';
+import { applyNewsHover, removeNewsHover, subscribeWatchMask } from '../animations/floating-items.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
@@ -42,6 +42,12 @@ function isMobile() {
 // 數字方塊配色：專案三原色固定一輪（綠 / 粉 / 藍）；
 // cycle 時消失的 banner 顏色由新進場 banner 繼承 → 同時始終保有三色各一個
 const RGB_COLORS = ['#00FF80', '#FF448A', '#26BCFF'];
+// hover WATCH 卡時整條 news 被遮蔽：數字方塊蓋回自己的 rgb、黑條蓋黑 → 內容變抽象色塊（同浮卡池 news hover 語彙）。
+// clip-path wipe（跟浮卡 newsOverlay 同款 0.5s cubic-bezier）。四個藏起方向（上/下/右/左）；進場一律 wipe 到滿版，
+// 退場改抽一個新隨機方向 wipe 出去 → 下次進場自然從那個新方向進來，四方向輪替（user 2026-09-04）。
+const MASK_HIDDEN = ['inset(100% 0 0 0)', 'inset(0 0 100% 0)', 'inset(0 100% 0 0)', 'inset(0 0 0 100%)'];
+const MASK_SHOWN = 'inset(0 0 0 0)';
+const randMaskHidden = () => MASK_HIDDEN[Math.floor(Math.random() * MASK_HIDDEN.length)];
 const ENTER_DELAY = 0.5;      // 新進場 banner 在 cycle 觸發後 delay 0.5s 才走 reveal
 const PUSH_DUR = 0.5;         // hover 時上方 banner 被推開的 GSAP duration（仿 about resources accordion 節奏）
 const PUSH_EASE = 'power2.inOut';
@@ -246,6 +252,35 @@ function createBanner(item, squareColor) {
   inner.appendChild(clone);
   viewport.appendChild(inner);
   link.appendChild(viewport);
+
+  // watch-hover 遮蔽 overlay：方塊蓋回自己的 rgb（藏數字）、黑條蓋黑（藏文字）→ 整條變抽象色塊。
+  // 兩塊共用同一 wipe 方向；訂閱 subscribeWatchMask（只在 hover WATCH 卡時觸發，非 news 自身 hover）。
+  square.style.position = 'relative';
+  const squareMask = document.createElement('div');
+  squareMask.style.cssText = `position:absolute; inset:0; background:${squareColor}; pointer-events:none; transition:clip-path 0.5s cubic-bezier(0.25,0,0,1);`;
+  square.appendChild(squareMask);
+
+  link.style.position = 'relative';
+  const linkMask = document.createElement('div');
+  linkMask.style.cssText = `position:absolute; inset:0; background:#000; pointer-events:none; transition:clip-path 0.5s cubic-bezier(0.25,0,0,1);`;
+  link.appendChild(linkMask);
+
+  let curHidden = randMaskHidden();
+  squareMask.style.clipPath = curHidden;
+  linkMask.style.clipPath = curHidden;
+  subscribeWatchMask(
+    () => {   // 進場：從當前藏起方向 wipe 到滿版
+      if (!squareMask.isConnected) return;
+      squareMask.style.clipPath = MASK_SHOWN;
+      linkMask.style.clipPath = MASK_SHOWN;
+    },
+    () => {   // 退場：抽一個新方向 wipe 出去（＝下次進場的來向）→ 四方向輪替
+      if (!squareMask.isConnected) return;
+      curHidden = randMaskHidden();
+      squareMask.style.clipPath = curHidden;
+      linkMask.style.clipPath = curHidden;
+    }
+  );
 
   row.appendChild(square);
   row.appendChild(link);

@@ -59,12 +59,12 @@
            桌面用 .admission-scroll-mask（hidden md:block）故此條 md:hidden。詳見 lists.css .list-mobile-header-blocker -->
       <div class="list-mobile-header-blocker md:hidden" aria-hidden="true"></div>
       <div class="site-container">
-        <!-- grid-20：桌面 nav 占 cols 1-4、內容 cols 5-20（對齊 faculty/about/curriculum col-5）；手機 flex-col 堆疊 -->
+        <!-- grid-20：桌面 nav 占 cols 1-3（col 4 留白＝全站 nav 欄界統一，user 2026-09-05）、內容 cols 5-20（對齊 faculty/about/curriculum col-5）；手機 flex-col 堆疊 -->
         <div class="flex flex-col gap-gutter md:grid md:grid-cols-20 inner-scroll-frame-grid">
 
-          <!-- Left Nav（桌面 cols 1-4；mobile flex-col 自然流）
+          <!-- Left Nav（桌面 cols 1-3；mobile flex-col 自然流）
                桌面 inner-scroll frame：nav-col padding-top 把 nav 推到 content 區頂、頂部對齊（取代舊 md:sticky md:top-[200px]） -->
-          <div class="w-full md:col-span-4 inner-scroll-nav-col">
+          <div class="w-full md:col-span-3 inner-scroll-nav-col">
             <!-- 手機 pt-md：section pt-4xl(80) < fixed header(92)，btn 自己補 24 clearance → 視覺頂 104 對齊 faculty -->
             <div class="flex flex-row flex-wrap md:flex-col gap-xs mb-xl md:mb-0 pt-md md:pt-0">
               <button class="activities-section-btn w-fit active text-left" data-section="news">

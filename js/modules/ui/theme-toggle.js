@@ -162,7 +162,11 @@ function applyColorVars() {
   const logo = document.getElementById('header-logo');
   if (logo) {
     if (logo.dataset.logoType === 'wireframe') {
-      const desired = isLightBg ? 'none' : 'invert(1)';
+      // 全螢幕黑底 lightbox（非 slide-in）開啟時 wireframe 一律翻白：黑底恆需白 logo，不受 page hue 影響
+      //（否則亮 hue 下 filter:none 黑線落在 bg-black/90 上看不見）。slide-in（panel=theme-bg 同 hue）仍走 hue 對比、零跳動。
+      const fullBlackLightbox = document.body.classList.contains('lightbox-open')
+        && !document.documentElement.classList.contains('has-slide-in');
+      const desired = fullBlackLightbox ? 'invert(1)' : (isLightBg ? 'none' : 'invert(1)');
       if (logo.style.filter !== desired) logo.style.filter = desired;
     } else if (logo.dataset.logoType === 'wireframe-inverse') {
       if (logo.style.filter !== 'none') logo.style.filter = 'none';
@@ -274,9 +278,11 @@ function checkSlideInState() {
     // mode3 維持 wireframe 不換 JSON——換 wireframe-inverse 會 Lottie reload 跳動一下（user 2026-06-24 報），
     // logo 黑/白由 applyColorVars 依 hue 對比每幀決定（slide-in 不強制白；hue 不因 slide-in 改 → 開啟當下不翻＝零跳動）。
     // 關閉 → 依 mode 還原（color=wireframe / inverse=inverse / standard=standard）
+    // 全螢幕黑底 lightbox 與 slide-in 面板一律白線框：mode1/2 換 wireframe-inverse（白線框 JSON）、mode3 維持
+    //   wireframe（白由 applyColorVars 依 fullBlackLightbox 強制 invert(1)；user 2026-09-07 統一白 wireframe）。
     let logoType;
     if (mode === 'color') logoType = 'wireframe';            // mode3 恆 wireframe（switchHeaderLogo 同 type → skip reload）
-    else if (isSlideInOpen) logoType = 'wireframe-inverse';
+    else if (isSlideInOpen) logoType = 'wireframe-inverse';  // slide-in / lightbox：白線框
     else if (mode === 'inverse') logoType = 'inverse';
     else logoType = 'standard';
 
@@ -539,8 +545,8 @@ function applyMode(mode, opts) {
   const _page = getCurrentPage();
   if (_page === 'create' || _page === 'generate') return;
 
-  // overlay（slide-in / lightbox）開啟：mode1/2 換白 wireframe-inverse；mode3 維持 wireframe（不換 JSON 避免 reload
-  //   跳動，黑/白由 applyColorVars 依 hue 對比決定，不強制白）。關閉 → 依 mode 還原。
+  // overlay 開啟時 logo 變體（與 checkSlideInState 同一套，改一處要兩處同步）：slide-in / full-black lightbox
+  //   一律白線框——mode1/2 wireframe-inverse、mode3 wireframe（白由 applyColorVars 強制）。關閉 → 依 mode 還原。
   let logoType;
   if (mode === 'color') logoType = 'wireframe';
   else if (isSlideInOpen) logoType = 'wireframe-inverse';

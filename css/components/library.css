@@ -153,10 +153,6 @@
 #library-awards-list .year-block { margin-bottom: var(--spacing-2xl); }
 #library-awards-list .year-block:last-child { margin-bottom: 0; }
 
-/* count（list 底部計數）桌面上下 xs；手機歸零（見下方 max-width:767 block）。
-   padding 放 CSS 不放 inline → 桌/手值分流免 !important */
-#library-awards-count { padding: var(--spacing-xs) 0; }
-
 /* ── Awards Ticker ──────────────────────────────────────────── */
 #library-awards-ticker {
   background: var(--lib-bg);
@@ -223,9 +219,11 @@
 .press-item-titles {
   display: flex;
   flex-direction: column;
-  /* gap:0 → 雙語與副標間距分開控（user 2026-08-13）：標題 EN→ZH 走 .press-item-title-en 的 s token(2px)、
-     標題→副標走 .press-item-meta 的 margin-top(8px、比照 activities list title→subtitle 的 gap-xs） */
-  gap: 0;
+  /* 標題→副標距離＝8px 走**父層 gap**（比照 album #library-album-list .files-item-titles gap；user 2026-09-06 §14.3）：
+     原本放 .press-item-meta 的 margin-top，但 zebra reveal 時 ensureGroupClip 包住 meta＝margin 落在 clip 區內
+     → translateY(-100%) 藏不乾淨、副標底 8px 提早露臉（user「副標好像提早出現」）。改父層 gap＝clip 貼身、藏乾淨。
+     標題 EN→ZH 仍走 .press-item-titles-text 內 .press-item-title-en 的 s token(2px)、不受此 gap 影響。 */
+  gap: var(--spacing-xs);
   min-width: 0;
   overflow: hidden;
   /* 不設 max-width：grid 1fr 欄已扣掉右側 icon(auto 欄)+欄距；原 calc(100% - 5rem) 是給已移除的分類 tag
@@ -268,8 +266,7 @@
   display: grid;
   grid-template-columns: 16rem max-content;
   gap: 0 var(--spacing-md);
-  /* 標題→副標距離＝8px，比照 activities list 的 title→subtitle（gap-xs）（user 2026-08-13） */
-  margin-top: var(--spacing-xs);
+  /* ⚠️不放 margin-top：標題→副標 8px 已移到父層 .press-item-titles gap（§14.3；margin 落在 reveal clip 區內會害副標提早露臉） */
 }
 /* subtitle EN/ZH 拆兩個獨立 span（library-panels.js 渲染）：
    桌面 + 手機統一 EN/ZH 兩行渲染，各自獨立 row + 各自 overflow 偵測 + 各自 marquee
@@ -1600,8 +1597,6 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
     padding-top: 0 !important;          /* 手機 award logo 不留 pt（user 2026-06-12） */
     padding-bottom: var(--spacing-sm) !important;
   }
-  /* 手機 count 不留上下 padding（user 2026-06-12）；無 inline padding 故免 !important */
-  #library-awards-count { padding: 0; }
   #library-awards-ticker img {
     height: 40px !important;
     /* logo 全部是 Directus ?key=web 預設的 300×117（27 張實測同尺寸）→ 用 aspect-ratio 預留 box 寬度，

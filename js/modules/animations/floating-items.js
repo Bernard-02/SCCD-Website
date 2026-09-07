@@ -5,7 +5,6 @@
 
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { registerPageExit } from '../ui/page-exit.js';
-import { renderPdfCover } from '../ui/pdf-cover.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { loadCourses } from '../pages/courses-source.js';
 import { loadSummerCamp } from '../pages/summer-camp-source.js';
@@ -13,7 +12,6 @@ import { loadActivityCollection, loadPermanentExhibitions } from '../pages/activ
 import { loadOthersAlbum } from '../pages/library-album-source.js';
 import { sitePath } from '../ui/site-base.js';
 import { CMS_API_BASE, CMS_CDN_BASE } from '../../config/api.js';
-import { pdfOpenUrl } from '../pages/pdf-url.js';
 import { shortLibId } from '../pages/library-deeplink.js';
 
 // 進/退場（2026-08-17 圖片卡改 clip-reveal；2026-08-19 文字卡也改 clip-reveal）：
@@ -289,48 +287,6 @@ async function fetchAwardTexts() {
   return pool;
 }
 
-// 從 library press 撈報導當浮動圖卡（非文字卡——文字卡只給 award / curriculum）。
-// ⚠️ 必須跟 library press 面板「同源、同 id 規則」：Directus library_press → element id = press-<row.id>；
-//    Directus 失敗才 fallback 本地 press.json（id 本就是 press-N，跟面板 fallback 一致）。
-//    否則浮卡 deep-link 的 #press-<id> 跟 library 渲染的 element id 對不上 → 點進去不捲動、不 highlight
-//    （user 2026-06-25 報；press 面板 2026-06-08 搬 Directus 後浮卡仍讀本地 press.json/press-1 沒跟上 → id 脫節）。
-// 封面：有 PDF 用 PDF 第一頁（render 成 dataURL，pdf-cover.js 依 URL 快取）；沒 PDF 用第一張圖；都沒有就不放浮卡。
-// 不阻塞首頁：傳入空 press queue，render 好一筆 push 一筆，nextEntry 下次選位 live 讀 queue.length 自動加入輪替。
-async function populatePressCovers(pool, isCancelled) {
-  /** @type {{id:string, cover:string, isPdf:boolean}[]} */
-  let entries;
-  try {
-    // ⚠️ 不要 request pdfLink：press collection 無此欄，Directus 對不存在欄位回整條 403 → press 浮卡永遠 fallback（原 console library_press 403 元凶）。press 用上傳的 pdf 欄，pdfLink 是 documents 專屬。
-    // pdf 深取 filename_disk → 組 CloudFront 開檔 URL（見 pdf-url.js）
-    const res = await fetch(`${CMS_API_BASE}/library_press?fields=id,pdf.filename_disk,images.directus_files_id.filename_disk&sort=sort&limit=-1`);
-    if (!res.ok) throw new Error('CMS ' + res.status);
-    const rows = (await res.json())?.data;
-    if (!Array.isArray(rows) || rows.length === 0) throw new Error('CMS empty');
-    entries = rows.map(r => {
-      if (r.pdfLink || r.pdf) return { id: `press-${r.id}`, cover: pdfOpenUrl(r.pdfLink, r.pdf), isPdf: true };  // 上傳 PDF 走 CloudFront（見 pdf-url.js）
-      // images M2M：深取 directus_files_id.filename_disk → CloudFront URL（繞過弱機 /assets，見 config/api.js CMS_CDN_BASE）
-      const firstImg = Array.isArray(r.images) ? r.images.map(j => j?.directus_files_id?.filename_disk).filter(Boolean)[0] : null;
-      if (firstImg) return { id: `press-${r.id}`, cover: `${CMS_CDN_BASE}/${firstImg}`, isPdf: false };
-      return null; // 無 PDF 也無圖 → 沒封面可顯示，不放浮卡
-    }).filter(Boolean);
-  } catch (cmsErr) {
-    // Directus 失敗 → fallback 本地 press.json（同 library press 面板 fallback：id 直接用 press-N、不重加前綴）
-    try {
-      const local = await fetch(sitePath('data/press.json')).then(r => r.json());
-      entries = (Array.isArray(local) ? local : [])
-        .filter(i => i.id && i.pdfUrl)
-        .map(i => ({ id: i.id, cover: i.pdfUrl, isPdf: true }));
-    } catch (_) { return; }
-  }
-
-  await Promise.all(entries.map(async (e) => {
-    if (isCancelled()) return;
-    const src = e.isPdf ? await renderPdfCover(normalizeImagePath(e.cover)) : normalizeImagePath(e.cover);
-    if (!src || isCancelled()) return;
-    pool.push({ type: 'image', src, url: `pages/library.html#${shortLibId(e.id)}`, _cat: 'press' });
-  }));
-}
-
 // Fisher-Yates shuffle
 function shuffle(arr) {
   for (let i = arr.length - 1; i > 0; i--) {
@@ -338,6 +294,22 @@ function shuffle(arr) {
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr;
+}
+
+// 開場均勻鋪點：純隨機會結塊（一角一坨），改 jittered grid——切成 ~sqrt(n) 欄列、每格放一點再在格內
+// 抖動（0.2~0.8 格）→ 鋪滿整個視窗又不呆板。回傳視窗座標（卡片中心），數量 = n。
+function scatterPositions(n, cw, ch) {
+  const cols = Math.max(1, Math.round(Math.sqrt(n * cw / ch)));
+  const rows = Math.ceil(n / cols);
+  const cellW = cw / cols;
+  const cellH = ch / rows;
+  const pts = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      pts.push({ x: (c + 0.2 + Math.random() * 0.6) * cellW, y: (r + 0.2 + Math.random() * 0.6) * cellH });
+    }
+  }
+  return shuffle(pts).slice(0, n);
 }
 
 // 把一組 entry 包成 category 池：標記 _cat（給去重/均分用）+ 洗牌後配一個 cursor 輪替
@@ -359,15 +331,44 @@ function preventOrphan(text) {
 
 // 全局 news hover 狀態，所有 item 訂閱
 const newsHoverListeners = { enter: [], leave: [] };
+let newsHoverActive = false;   // 當前是否處於 news hover 態——給「hover 中才 spawn 進來的新卡」判斷用
 
 // 全局 theme:changed listener registry（離頁時統一移除，避免 SPA 換頁累積）
 const themeListeners = [];
 
+// 訂閱 news hover：注意「hover 進行中才誕生的卡（edge-respawn thumbnail / 文字卡）」——
+// 過去只 push listener、不看當前狀態 → 新卡不會補上遮蔽（user 報 bug）。訂閱當下若已在 hover 態就立刻套。
+function subscribeNewsHover(enterFn, leaveFn) {
+  newsHoverListeners.enter.push(enterFn);
+  newsHoverListeners.leave.push(leaveFn);
+  if (newsHoverActive) enterFn();
+}
 export function applyNewsHover() {
+  newsHoverActive = true;
   newsHoverListeners.enter.forEach(fn => fn());
 }
 export function removeNewsHover() {
+  newsHoverActive = false;
   newsHoverListeners.leave.forEach(fn => fn());
+}
+
+// watch-hover 專屬遮蔽頻道（給 news marquee 訂閱）：只有 hover WATCH 卡時觸發，
+// 不隨「hover 單條 news banner」（那條走 applyNewsHover 只遮浮卡池、不遮 marquee 自己）。
+// 同 subscribeNewsHover：訂閱當下若已在 mask 態就立刻套（cycle 進來的新 banner 也會被遮）。
+const watchMaskListeners = { enter: [], leave: [] };
+let watchMaskActive = false;
+export function subscribeWatchMask(enterFn, leaveFn) {
+  watchMaskListeners.enter.push(enterFn);
+  watchMaskListeners.leave.push(leaveFn);
+  if (watchMaskActive) enterFn();
+}
+function applyWatchMask() {
+  watchMaskActive = true;
+  watchMaskListeners.enter.forEach(fn => fn());
+}
+function removeWatchMask() {
+  watchMaskActive = false;
+  watchMaskListeners.leave.forEach(fn => fn());
 }
 
 const ACCENT_COLORS = ['#00FF80', '#FF448A', '#26BCFF'];
@@ -449,15 +450,14 @@ function createImageEl(src, url, interactive = true, preImg = null) {
 
     // 訂閱 news hover 事件：每次 enter 時隨機選色
     // mode-color：用 var(--theme-fg) strict 對比，不隨機（與整體 B/W 對比 pattern 一致）
-    newsHoverListeners.enter.push(() => {
+    subscribeNewsHover(() => {
       if (document.body.classList.contains('mode-color')) {
         newsOverlay.style.background = 'var(--theme-fg)';
       } else {
         newsOverlay.style.background = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
       }
       newsOverlay.style.clipPath = wipe.shown;
-    });
-    newsHoverListeners.leave.push(() => {
+    }, () => {
       newsOverlay.style.clipPath = wipe.hidden;
     });
   }
@@ -538,11 +538,10 @@ function createTextEl(textEn, textZh, url) {
 
   // 訂閱 news hover：純色 block 從 wipe 方向 clip-path 蓋住文字 → 整張變純色 block（圖片卡片同款）。
   // 蓋色＝卡片底色（mode-color var(--theme-fg) 隨 hue 自動翻、不必監聽 theme:changed；其他模式 accent 底色）→ 文字被同色 wipe 抹掉。
-  newsHoverListeners.enter.push(() => {
+  subscribeNewsHover(() => {
     newsOverlay.style.background = document.body.classList.contains('mode-color') ? 'var(--theme-fg)' : defaultColor;
     newsOverlay.style.clipPath = wipe.shown;
-  });
-  newsHoverListeners.leave.push(() => {
+  }, () => {
     newsOverlay.style.clipPath = wipe.hidden;
   });
 
@@ -581,7 +580,7 @@ export function initWatchHover() {
   // 不然每次回 index body 累積一個透明 overlay（pointer-events:none 不擋 click 但 DOM leak）
   document.querySelectorAll('[data-watch-spotlight]').forEach(el => el.remove());
 
-  // 全頁暗化 overlay，中間挖洞 spotlight
+  // 全頁暗化 overlay，中間挖洞 spotlight。
   const overlay = document.createElement('div');
   overlay.dataset.watchSpotlight = '1';
   overlay.style.cssText = `
@@ -592,6 +591,19 @@ export function initWatchHover() {
     z-index: 9998;
   `;
   document.body.appendChild(overlay);
+
+  // ⭐overlay 要掛進 <header> 內（而非 body）＝關鍵：header 是 z-9999 的 stacking context，overlay 當它子層、
+  //   z-index:5 剛好夾在 nav bars（z-auto=0）之上、logo-wrapper（.z-10）之下 → overlay 自然蓋住 bars（bar 完全
+  //   不動：不 hide/不 fade/不調 opacity，user 2026-09-04），logo 在 overlay 之上恆亮＝「logo 除外」。header
+  //   context(9999) 整體又在 section(9998) 之上 → 同片 overlay 順帶蓋住 section（floating pool + news marquee），
+  //   單層無雙重壓暗。⚠️但 header 是 async fetch 進 #site-header、initWatchHover 執行時多半還沒到 → 首次 hover 才移
+  //   （lazy）；移不到（header 未載）就留在 body z-9998 當 fallback（蓋 section、蓋不到 header bars）。
+  //   ⚠️靠 <header> 本身無 transform（只 bars 被 collapse 動 transform）→ position:fixed 子層才仍以 viewport 為基準、
+  //   不被裁到 header box；若哪天 header 元素自身上 transform，這條會退化成只蓋 header 條、要改回純 body 掛法。
+  function ensureOverlayInHeader() {
+    const h = document.querySelector('#site-header header');
+    if (h && overlay.parentElement !== h) { overlay.style.zIndex = '5'; h.appendChild(overlay); }
+  }
 
   function updateSpotlight() {
     const rect = watchBtn.getBoundingClientRect();
@@ -628,9 +640,11 @@ export function initWatchHover() {
 
   watchBtn.addEventListener('mouseenter', () => {
     if (unlockTimer) { clearTimeout(unlockTimer); unlockTimer = null; }
+    ensureOverlayInHeader();   // header 此時已載 → 把 overlay 移進 header 蓋住 bars（idempotent）
     updateSpotlight();
     overlay.style.opacity = '1';
     applyNewsHover();
+    applyWatchMask();   // 遮蔽 news marquee（rgb 方塊蓋 rgb、黑條蓋黑）
     if (!isLocked) {
       savedBodyOverflow = document.body.style.overflow;
       isLocked = true;
@@ -648,6 +662,7 @@ export function initWatchHover() {
     }
     overlay.style.opacity = '0';
     removeNewsHover();
+    removeWatchMask();
     // overlay 有 transition: opacity 0.3s，fade-out 期間 scroll 會讓 fading 中的 spotlight
     // 在 viewport 原位 → 視覺跑位；等 fade 完才解鎖 scroll + 停 tracking
     unlockTimer = setTimeout(() => {
@@ -660,7 +675,14 @@ export function initWatchHover() {
   watchBtn.__closeSpotlight = () => {
     overlay.style.opacity = '0';
     removeNewsHover();
+    removeWatchMask();
   };
+
+  // 離頁：overlay 現掛在跨 SPA 常駐的 <header> 內 → 一定要移除，否則殘留在別頁 header（雖 opacity:0 pe:none 無害、但積累）
+  registerPageCleanup(() => {
+    overlay.remove();
+    removeWatchMask();
+  });
 }
 
 const FALLBACK_IMAGES = [
@@ -677,7 +699,7 @@ function createCircleEl() {
 
 // ── Spawn & Animate ─────────────────────────────────────────
 
-function spawnItem(container, poolEntry, fromEdge = false, preImg = null) {
+function spawnItem(container, poolEntry, fromEdge = false, preImg = null, initialPos = null) {
   const cw = container.clientWidth;
   const ch = container.clientHeight;
 
@@ -745,6 +767,10 @@ function spawnItem(container, poolEntry, fromEdge = false, preImg = null) {
     else if (edge === 1) { x = cw + realW * OVER;   y = rand(-realH, ch);    vx = -(Math.abs(vx) + SPEED_MIN); }
     else if (edge === 2) { x = rand(-realW, cw);    y = ch + realH * OVER;   vy = -(Math.abs(vy) + SPEED_MIN); }
     else                 { x = -realW * (1 + OVER); y = rand(-realH, ch);    vx = Math.abs(vx) + SPEED_MIN; }
+  } else if (initialPos) {
+    // 初始批：jittered-grid 中心點（見 scatterPositions）→ 開場均勻鋪滿視窗、不擠一角
+    x = initialPos.x - realW / 2;
+    y = initialPos.y - realH / 2;
   } else {
     x = rand(-realW * 0.5, cw - realW * 0.5);
     y = rand(-realH * 0.5, ch - realH * 0.5);
@@ -809,11 +835,13 @@ function spawnItem(container, poolEntry, fromEdge = false, preImg = null) {
 
   el.addEventListener('mouseenter', () => {
     item.hovered = true;
+    item.el.style.zIndex = '10';   // 疊到最上層，避免被相鄰卡片蓋住（同時只有一張被 hover）
     gsapTween.pause();
     gsap.to(rotator, { rotateY: 0, rotateX: 0, duration: DUR.fast, ease: EASE.enterSoft });
   });
   el.addEventListener('mouseleave', () => {
     item.hovered = false;
+    item.el.style.zIndex = '';
     gsapTween.resume();
   });
 
@@ -846,10 +874,9 @@ export async function initFloatingItems() {
   const container = document.getElementById('floating-layer');
   if (!container) return;
 
-  // 七個 category 各自一池，畫面上「均分 + 不重複」（user 2026-06-28）：
-  //   activities / summer-camp / library-files / album / curriculum / awards / press 等權，
-  //   選位時挑「畫面上現有數量最少」的可用 category（等權 → 自動均分）；
-  //   press 走 PDF 封面背景 render → 先空池、render 好逐筆 push 進 queue，自然加入輪替。
+  // 六個 category 各自一池，畫面上「均分 + 不重複」（user 2026-06-28；press 已於 2026-09-04 退出首頁 pool——不渲染、不 deep-link）：
+  //   activities / summer-camp / library-files / album / curriculum / awards 等權，
+  //   選位時挑「畫面上現有數量最少」的可用 category（等權 → 自動均分）。
   const [actCats, coursePool, awardPool] = await Promise.all([
     fetchActivityPosters(),
     fetchCourseTexts(),
@@ -862,7 +889,6 @@ export async function initFloatingItems() {
     album:      mkCat(actCats.album,      'album'),
     curriculum: mkCat(coursePool,         'curriculum'),
     awards:     mkCat(awardPool,          'awards'),
-    press:      mkCat([],                 'press'),
   };
   const CATS = Object.keys(categoryPools);
   const liveCount = {};               // 每個 category 目前在畫面上的數量
@@ -894,21 +920,22 @@ export async function initFloatingItems() {
     return takeFrom(ties[Math.floor(Math.random() * ties.length)]);
   }
 
-  function trackSpawn(entry, fromEdge) {
+  function trackSpawn(entry, fromEdge, pos = null) {
     if (entry) { onScreen.add(entry); liveCount[entry._cat]++; }
-    return spawnItem(container, entry, fromEdge);
+    return spawnItem(container, entry, fromEdge, null, pos);
   }
 
   const items = [];
 
-  // press PDF 封面背景 render（不 await，render 好逐筆 push 進 press queue 自動加入輪替）；
-  // 離頁後 cancelled 為 true，in-flight render 完成時不再 push（避免動已棄置的 pool）
+  // 離頁後 cancelled 為 true，in-flight 的 edge-respawn 圖片預載完成時不再 spawn（避免動已棄置的 pool）
   let cancelled = false;
-  populatePressCovers(categoryPools.press.queue, () => cancelled);
 
-  // 初始化 items：nextEntry 逐筆挑最少的 category → 開場即均分、無重複
-  for (let i = 0, n = totalItems(); i < n; i++) {
-    items.push(trackSpawn(nextEntry(), false));
+  // 初始化 items：nextEntry 逐筆挑最少的 category → 開場即均分、無重複；
+  // 座標走 jittered grid（scatterPositions）→ 開場均勻鋪滿視窗、不擠一角
+  {
+    const n = totalItems();
+    const positions = scatterPositions(n, container.clientWidth, container.clientHeight);
+    for (let i = 0; i < n; i++) items.push(trackSpawn(nextEntry(), false, positions[i]));
   }
 
   // 進場：initial batch stagger 揭露——圖片卡＝img/overlay 同向滑入 wrapper 遮罩（clip-reveal）、
@@ -929,7 +956,9 @@ export async function initFloatingItems() {
     items.length = 0;
     onScreen.clear();
     CATS.forEach(c => { liveCount[c] = 0; });
-    for (let i = 0, n = totalItems(); i < n; i++) items.push(trackSpawn(nextEntry(), false));
+    const n = totalItems();
+    const positions = scatterPositions(n, container.clientWidth, container.clientHeight);
+    for (let i = 0; i < n; i++) items.push(trackSpawn(nextEntry(), false, positions[i]));
     playFloatEntrance(0);
   }
   const rotateGateMq = window.matchMedia('(orientation: landscape) and (max-height: 500px)');
@@ -1051,5 +1080,9 @@ export async function initFloatingItems() {
     themeListeners.length = 0;
     newsHoverListeners.enter.length = 0;
     newsHoverListeners.leave.length = 0;
+    newsHoverActive = false;
+    watchMaskListeners.enter.length = 0;
+    watchMaskListeners.leave.length = 0;
+    watchMaskActive = false;
   });
 }

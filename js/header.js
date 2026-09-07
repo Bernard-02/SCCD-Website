@@ -671,6 +671,24 @@ function applyNavLinkMarks(header, activeHref) {
   }
 }
 
+// 中文遮罩 max-width 終值（--cn-w）＝內層實測文字寬（空格另在遮罩外側靜態 margin）。寫死 6rem overshoot 會讓
+// 「視覺展開」提早完成（內容只 2~3 字），而內層 translate 跑滿全程 → 上/下方向軌跡先斜後直＝arc 彎折。
+// 單位用 em：768–1520 壓縮層的 clamp 字級縮放時自動跟上，不用 resize 重量。
+// 量不到（display:none，如平板 gate / alumni-full 未開）就跳過留 6rem fallback——那些狀態沒有動畫、overshoot 無害。
+function fitNavCnWidths() {
+  document.querySelectorAll('#site-header .nav-link-cn').forEach((/** @type {HTMLElement} */ cn) => {
+    const inner = cn.querySelector('.nav-link-cn-i');
+    if (!inner) return;
+    const w = inner.getBoundingClientRect().width;
+    const fs = parseFloat(getComputedStyle(inner).fontSize);
+    if (w > 0 && fs > 0) cn.style.setProperty('--cn-w', (w / fs) + 'em');
+  });
+}
+// Noto Sans TC 晚到會微改字寬；平板窗拉寬跨 1200 桌面排才首次可量
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitNavCnWidths);
+const cnDesktopMq = window.matchMedia('(min-width: 1200px)');
+if (cnDesktopMq.addEventListener) cnDesktopMq.addEventListener('change', e => { if (e.matches) fitNavCnWidths(); });
+
 // 側 bar（library/atlas/generate/alumni 小 bar）的完整 active 樣式：黑底 box + bar-active(白字) class +
 // nav-link .active（驅動 .nav-link-cn 中文展開）。抽 module-level 讓 setNavActive（點擊當下）與
 // updateNavActive（post-swap）共用；用 class 不用 inline 是為了避免瀏覽器擴充功能干擾文字色（見 navigation.css）。
@@ -1111,17 +1129,20 @@ export function initHeader() {
         const isInverseM  = document.body.classList.contains('mode-inverse');
         const isColorM    = document.body.classList.contains('mode-color');
         let logoFileM;
-        if (isFullLightbox || isSlideIn || isColorM) logoFileM = 'SCCDLogoWireframeStandard.json';
+        // 全螢幕黑底 lightbox（media/PDF/share）：一律白線框 wireframe（user 2026-09-07，對齊桌面 #header-logo 統一白 wireframe）
+        if (isFullLightbox) logoFileM = 'SCCDLogoWireframeStandard.json';
+        else if (isSlideIn || isColorM) logoFileM = 'SCCDLogoWireframeStandard.json';
         else if (isInverseM) logoFileM = 'SCCDLogoInverse.json';
         else logoFileM = 'SCCDLogoStandard.json';
         try { lottie.destroy('header-logo-mobile-anim'); } catch (e) { /* 首次無 anim 可砸 */ }
         mobileLogo.innerHTML = '';
-        // filter + 對比追蹤標記：full lightbox 白線；slide-in mode1/2 黑線、mode3 auto（applyColorVars 接手翻面）；其餘清空
+        // filter + 對比追蹤標記：full lightbox 一律白線框（WireframeStandard 黑線 → invert 成白）；slide-in mode1/2 黑線、mode3 auto；其餘清空
         let filterM = '', contrastM = '';
         // 矮橫向的 slide-in 只蓋右側 ~60%（landscape gate），logo 留在左側「黑色半透明 dim」上 →
         // 黑線隱形，改走 full-lightbox 的白線邏輯（user 2026-07-04）。直向 slide-in 蓋滿含 logo 區（accent 底）→ 維持黑線。
         const slideInLeavesLogoOnDim = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
-        if (isFullLightbox || (isSlideIn && slideInLeavesLogoOnDim)) { filterM = 'invert(1)'; contrastM = 'white'; }
+        if (isFullLightbox) { filterM = 'invert(1)'; contrastM = 'white'; }  // WireframeStandard 黑線 → invert 白
+        else if (isSlideIn && slideInLeavesLogoOnDim) { filterM = 'invert(1)'; contrastM = 'white'; }
         else if (isSlideIn)  { filterM = 'none'; contrastM = isColorM ? 'auto' : 'black'; }
         else if (isColorM)   {
           // 純 mode3（無 overlay）：手機 logo 要跟著 hue 背景翻黑/白對比（對齊桌面 #header-logo wireframe）。
@@ -1274,15 +1295,18 @@ export function initHeader() {
       })
       .then(html => {
         headerContainer.innerHTML = html;
+        fitNavCnWidths();
         // nav 選單文字接後台 ui_labels（header 在 #site-header、SPA 換頁不重載 → 只在此填一次）
-        loadUiLabels().then(map => applyUiLabels(map, headerContainer));
+        // label 可能改字數 → 填完重量 --cn-w
+        loadUiLabels().then(map => { applyUiLabels(map, headerContainer); fitNavCnWidths(); });
         setupHeaderLogic();
         document.dispatchEvent(new CustomEvent('header:ready'));
       })
       .catch(e => console.log('Header load failed', e));
   } else {
     // header 已在 DOM（未走 fetch）→ 一樣填 nav label
-    loadUiLabels().then(map => applyUiLabels(map, headerContainer || document));
+    fitNavCnWidths();
+    loadUiLabels().then(map => { applyUiLabels(map, headerContainer || document); fitNavCnWidths(); });
     setupHeaderLogic();
   }
 }

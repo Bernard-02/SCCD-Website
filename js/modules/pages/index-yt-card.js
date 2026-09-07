@@ -178,19 +178,30 @@ function initWatchChars(ytCharsEl) {
         function drawLayout(reuse = false) {
           clearCanvas();
           if (!reuse || !lastPlaced) {
-            // 重新洗牌：copy 一份並重置 _scale=1，避免 fadeOut 後 reshuffle 拿到 scale:0 的 stale ref
-            lastPlaced = layouts[Math.floor(Math.random() * layouts.length)].map(pos => ({ ...pos, _scale: 1 }));
+            // 重新洗牌：copy 一份並重置 _scale=1 / _reveal=1（全顯示），避免 fadeOut/進場後拿到 stale ref
+            lastPlaced = layouts[Math.floor(Math.random() * layouts.length)].map(pos => ({ ...pos, _scale: 1, _reveal: 1 }));
           }
           const color = getCharColor();
           for (const pos of lastPlaced) {
             const cd = charData[pos.charIdx];
             const s = pos._scale ?? 1;
             if (s <= 0) continue; // scale=0 不畫，省 ctx 操作
+            const r = pos._reveal ?? 1;   // 逐字 clip-reveal 進場進度（0=藏在框下方、1=定位）
             ctx.save();
             ctx.font = cd.fontStr; ctx.fillStyle = color;
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.translate(pos.cx, pos.cy); ctx.rotate(pos.angle);
             if (s !== 1) ctx.scale(s, s);
+            if (r < 1) {
+              // 遮罩＝字母定格框（±0.6th）；字從框下方滑入（clip-reveal：字有位移＋被框裁切），一個個 stagger。
+              // ⚠️滑距要 >框半高＋字半高(0.6+0.5=1.1th) 否則 _reveal=0 時字頂還露在框內＝「出現前先露一角」(user 報)；
+              // 取 1.3th 留餘裕：r=0 時字頂在 1.3-0.5=0.8th、已在框底 0.6th 之外＝完全不露。
+              const th = cd.th;
+              ctx.beginPath();
+              ctx.rect(-cd.tw, -th * 0.6, cd.tw * 2, th * 1.2);
+              ctx.clip();
+              ctx.translate(0, (1 - r) * th * 1.3);
+            }
             ctx.fillText(cd.ch, -cd.offX, -cd.offY);
             ctx.restore();
           }
@@ -208,38 +219,40 @@ function initWatchChars(ytCharsEl) {
           clearInterval(layoutInterval);
         });
 
-        // 暴露 fadeOut/reset hooks 給 click handler 用：
-        // - fadeOutWatch：依 chars 順序 stagger 把每字 _scale 直接從 1 切到 0（瞬間不見，不縮小），onUpdate 每幀 redraw
-        // - resetWatchAlpha：把所有 _scale 還原為 1（player 關閉後恢復顯示）
-        ytCharsEl.__fadeOutWatch = function(opts = {}) {
+        // 逐字 clip-reveal 引擎（in：_reveal 0→1 由定格框下方滑入；out：1→0 滑回框下離場），一個個 stagger、回傳 Promise。
+        // 首頁進場 / 點擊開影片離場 / 影片關閉回來 全走這套（user 2026-09-04：點擊動畫也改 clip-reveal 離開＋回來）。
+        function clipReveal(target, stagger, dur, ease) {
           if (!lastPlaced || typeof gsap === 'undefined') return Promise.resolve();
-          const stagger = opts.stagger ?? 0.06;
+          // reveal-in（target=1）期間停掉 3s reshuffle：①別中途換 layout 蓋掉正在揭露的這組 ②揭露完才重啟計時器＝
+          // 剛揭露的這組完整撐一個 interval 才換（修 user 報「影片關閉回來、揭露動畫一結束就立刻跳成另一組 watch」——
+          // 原因：影片播放期間 interval 一直在跑、關閉揭露完常碰上殘餘半拍立即 fire）。
+          if (target === 1 && layoutInterval) { clearInterval(layoutInterval); layoutInterval = null; }
+          const start = target === 1 ? 0 : 1;
+          lastPlaced.forEach(pos => { pos._scale = 1; pos._reveal = start; });
+          drawLayout(true);
           return new Promise(resolve => {
             const tl = gsap.timeline({
               onUpdate: () => drawLayout(true),
-              onComplete: resolve,
+              onComplete: () => {
+                if (target === 1 && !layoutInterval) layoutInterval = setInterval(() => drawLayout(false), 3000);
+                resolve();
+              },
             });
-            lastPlaced.forEach((pos, i) => {
-              tl.set(pos, { _scale: 0 }, i * stagger);
-            });
+            lastPlaced.forEach((pos, i) => tl.to(pos, { _reveal: target, duration: dur, ease }, i * stagger));
           });
-        };
+        }
+        // 點擊開影片 / 離頁：逐字 clip-reveal 滑回框下離場（取代舊 _scale 瞬切 0）；回傳 Promise 供接續 clone/iris。
+        ytCharsEl.__fadeOutWatch = function(opts = {}) { return clipReveal(0, opts.stagger ?? 0.06, DUR.medium, EASE.exit); };
         ytCharsEl.__resetWatchAlpha = function() {
           if (!lastPlaced) return;
-          lastPlaced.forEach(pos => { pos._scale = 1; });
+          lastPlaced.forEach(pos => { pos._scale = 1; pos._reveal = 1; });
           drawLayout(true);
         };
-        // 關閉動畫完成後：先隱藏所有字，再依序 stagger 顯現
-        ytCharsEl.__fadeInWatch = function(opts = {}) {
-          if (!lastPlaced || typeof gsap === 'undefined') return;
-          const stagger = opts.stagger ?? 0.06;
-          lastPlaced.forEach(pos => { pos._scale = 0; });
-          drawLayout(true);
-          const tl = gsap.timeline({ onUpdate: () => drawLayout(true) });
-          lastPlaced.forEach((pos, i) => {
-            tl.set(pos, { _scale: 1 }, i * stagger);
-          });
-        };
+        // index 初始進場 clip-reveal（逐字 stagger、每字從定格框下方滑入；見 drawLayout 的 _reveal）。
+        // reshuffle（每 3s 換 layout）直接畫 _reveal=1 全顯示、不重播 ＝「切換保持現狀」。
+        ytCharsEl.__clipRevealWatch = function() { clipReveal(1, 0.12, DUR.slow, EASE.enter); };
+        // 影片關閉回來：同款逐字 clip-reveal 進場。
+        ytCharsEl.__fadeInWatch = function(opts = {}) { clipReveal(1, opts.stagger ?? 0.06, DUR.slow, EASE.enter); };
         // click 動畫期間暫停 reshuffle interval，避免 fade 完的字母被 reshuffle reset _scale=1 重畫
         ytCharsEl.__pauseLayoutInterval = function() {
           if (layoutInterval) { clearInterval(layoutInterval); layoutInterval = null; }
@@ -253,15 +266,15 @@ function initWatchChars(ytCharsEl) {
           return (chars.length - 1) * stagger;
         };
 
-        // index 首頁進場：initYTCard 標記 __entrancePending → 文字起始藏起來（_scale 0），等 iris 光圈開完才 stagger 畫上。
-        // 同一 setup tick 內 drawLayout()(_scale 1)→這裡改 _scale 0 不會閃（paint 在 setup return 後才發生）。
+        // index 首頁進場：initYTCard 標記 __entrancePending → 每字起始 _reveal=0（藏在各自框下方），等 iris 光圈開完才逐字揭露。
+        // 同一 setup tick 內先前 drawLayout()(_reveal=1)→這裡改 _reveal=0 不會閃（paint 在 setup return 後才發生）。
         // 時序握手：setup 早於 iris-complete → 設好 __charsReady 等 onComplete 來 call；晚於 → onComplete 標 __entranceRequested、這裡補播。
-        // reshuffle 首次 fire 在 setup+3s、晚於 iris(~1.2s)→不會把 _scale reset 成 1 干擾進場。
+        // reshuffle 首次 fire 在 setup+3s、晚於 iris(~1.2s)→不會干擾進場。
         if (ytCharsEl.__entrancePending) {
-          lastPlaced.forEach(pos => { pos._scale = 0; });
+          lastPlaced.forEach(pos => { pos._scale = 1; pos._reveal = 0; });
           drawLayout(true);
           ytCharsEl.__charsReady = true;
-          if (ytCharsEl.__entranceRequested) { ytCharsEl.__entranceRequested = false; ytCharsEl.__fadeInWatch({ stagger: ytCharsEl.__entranceStagger ?? 0.06 }); }
+          if (ytCharsEl.__entranceRequested) { ytCharsEl.__entranceRequested = false; ytCharsEl.__clipRevealWatch(); }
         }
       })();
   });
@@ -445,13 +458,12 @@ export function initYTCard() {
   delete ytCard.dataset.clickAnimating;
 
   initYTCardFloat(ytCard);
-  // 進場標記：文字起始藏起來，等 iris 光圈開到差不多才 stagger 畫上（必須在 initWatchChars 之前設）。
-  // __entranceStagger 0.03＝快 stagger（user 2026-06-08「iris 出來後 watch 繪製可以再快點」）。
-  if (ytCharsEl && typeof gsap !== 'undefined') { ytCharsEl.__entrancePending = true; ytCharsEl.__entranceStagger = 0.03; }
+  // 進場標記：文字塊起始藏在圓下方，等 iris 光圈開到差不多才 clip-reveal 滑上來（必須在 initWatchChars 之前設）。
+  if (ytCharsEl && typeof gsap !== 'undefined') { ytCharsEl.__entrancePending = true; }
   initWatchChars(ytCharsEl);
 
-  // iris 進場（兩段）：先開「空的」黑色光圈 circle(0%→50%)，開到 ~85% 文字就開始 stagger 畫上（不等完全開滿）
-  // → 少一段「空黑圈」死時間 + 快 stagger 畫快點（見 initWatchChars 握手）。
+  // iris 進場（兩段）：先開「空的」黑色光圈 circle(0%→50%)，開到 ~85% 文字塊就開始 clip-reveal 滑上（不等完全開滿）
+  // → 少一段「空黑圈」死時間（見 initWatchChars 握手）。
   // RAF-safe：float 寫 transform、clip-path 獨立。base delay 0.6 = 排在 floating(0.1)/news(0.35) 之後＝首頁最後浮現的焦點。
   if (typeof gsap !== 'undefined') {
     const IRIS_DELAY = 0.6;
@@ -459,7 +471,7 @@ export function initYTCard() {
     gsap.to(ytCard, { clipPath: 'circle(50% at 50% 50%)', duration: DUR.slow, ease: EASE.enter, delay: IRIS_DELAY });
     gsap.delayedCall(IRIS_DELAY + DUR.slow * 0.85, () => {
       if (!ytCharsEl) return;
-      if (ytCharsEl.__charsReady && ytCharsEl.__fadeInWatch) ytCharsEl.__fadeInWatch({ stagger: ytCharsEl.__entranceStagger });
+      if (ytCharsEl.__charsReady && ytCharsEl.__clipRevealWatch) ytCharsEl.__clipRevealWatch();
       else ytCharsEl.__entranceRequested = true; // chars 還沒 ready（font 載入/layout 計算晚於 iris）→ setup 完成補播
     });
   }

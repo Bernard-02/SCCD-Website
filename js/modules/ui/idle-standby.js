@@ -59,7 +59,7 @@ const ATLAS_MAIN_HTML = `
     </aside>
     <div id="atlas-filter" aria-label="Atlas filter">
       <button class="atlas-filter-btn w-fit text-left" data-filter="faculty">
-        <span class="anchor-nav-inner">Professors 歷屆教師</span>
+        <span class="anchor-nav-inner">Professors 教師</span>
       </button>
       <button class="atlas-filter-btn w-fit text-left" data-filter="alumni">
         <span class="anchor-nav-inner">Alumni 系友</span>

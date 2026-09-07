@@ -33,9 +33,9 @@
     color: var(--footer-fg, #fff);
   }
 
-  /* 學系/關聯單位 tabs：只在桌面散佈（≥1200）顯示（見下方 media query），其餘 viewport 隱藏。
-   * radio 切換只存在於桌面散佈；<1200 無 tabs、兩群組全部線性顯示。
-   * .footer-tab-reserve＝JS 建的隱形滿寬「頂部保留條」obstacle，同樣只 ≥1200 生效。 */
+  /* 學系/關聯單位 tabs：base 藏、各 viewport 自開——手機 <768 in-flow（2026-09-05 起）／平板 768-1199
+   * absolute 疊頂／桌面 ≥1200 absolute + scatter obstacle；只有矮橫向一律隱藏（全群組線性）。
+   * .footer-tab-reserve＝JS 建的隱形滿寬「頂部保留條」obstacle，只 ≥1200 生效。 */
   .footer-tabs,
   .footer-tab-reserve {
     display: none;
@@ -330,61 +330,105 @@
     }
   }
 
-  /* ===== tab 按鈕外觀（≥768 共用：平板 768-1199 in-flow + 桌面 ≥1200 absolute 都用同一套 button 樣式）=====
-   * 容器定位/顯示各 viewport 自訂（tablet grid item / desktop absolute），這裡只管單顆 tab 外觀。
-   * --tab-mark-w / --tab-mark-h 由各自的 .footer-tabs 容器規則定義（tablet / ≥1200 段各設一份）。 */
+  /* ===== tab 按鈕外觀（全 viewport 共用：手機 <768 in-flow + 平板 768-1199 / 桌面 ≥1200 absolute 同一套）=====
+   * 容器定位/顯示各 viewport 自訂（mobile in-flow / tablet+desktop absolute），這裡只管單顆 tab 外觀。
+   * --tab-mark-w / --tab-mark-h 由各自的 .footer-tabs 容器規則定義（mobile / tablet / ≥1200 段各設一份）。
+   * 2026-09-05 由 @media ≥768 解開到 base（手機開 tab 分頁）；hover 依規範仍包 ≥768。 */
+  /* 單顆 tab（radio）：無底色；active = --footer-fg 全亮、非 active dim。SCCD/SCCDAA 有 wordmark mark，units 只 EN/ZH 兩行。 */
+  .footer-tab {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-family: inherit;
+    line-height: var(--line-height-s);   /* text-s → 照字級 tier（原硬寫 1.2，user 08-13 統一） */
+    text-align: left;
+    color: var(--footer-fg, #fff);
+    transition: opacity var(--dur-fast) ease;
+  }
+  .footer-tab:not(.is-active) { opacity: 0.4; }
+  /* hover 提亮到 active 樣（radio 未選態的 hover 回饋）：opacity → 1 回 --footer-fg 全亮（standard=白 / inverse=黑）。 */
   @media (min-width: 768px) {
-    /* 單顆 tab（radio）：無底色；active = --footer-fg 全亮、非 active dim。SCCD/SCCDAA 有 wordmark mark，units 只 EN/ZH 兩行。 */
-    .footer-tab {
-      display: inline-flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 0;
-      padding: 0;
-      border: none;
-      background: none;
-      cursor: pointer;
-      font-family: inherit;
-      line-height: var(--line-height-s);   /* text-s → 照字級 tier（原硬寫 1.2，user 08-13 統一） */
-      text-align: left;
-      color: var(--footer-fg, #fff);
-      transition: opacity var(--dur-fast) ease;
-    }
-    .footer-tab:not(.is-active) { opacity: 0.4; }
-    /* hover 提亮到 active 樣（radio 未選態的 hover 回饋）：opacity → 1 回 --footer-fg 全亮（standard=白 / inverse=黑）。 */
     .footer-tab:hover { opacity: 1; }
-    /* mark＝wordmark 純黑 SVG，mask + background-color 上 --footer-fg 色（三 mode 自動反相）。1135×320 比例。 */
-    /* mark＝CMS「Site Icons」資料夾的 wordmark SVG（2026-08-11）：mask 圖 + aspect-ratio 由 renderer 依 SVG viewBox
-     * 量出後 inline 設（`--tab-mark-src` / `style.aspectRatio`）；統一用 height=--tab-mark-h、width:auto
-     * → 不同比例的 wordmark 都同高、說明文字同基線。上色走 background-color:--footer-fg（三 mode 自動反相）。 */
-    .footer-tab-mark {
-      display: block;
-      height: var(--tab-mark-h);
-      width: auto;
-      margin-bottom: var(--spacing-xs);
-      background-color: var(--footer-fg, #fff);
-      -webkit-mask: var(--tab-mark-src) no-repeat center / contain;
-              mask: var(--tab-mark-src) no-repeat center / contain;
+  }
+  /* mark＝wordmark 純黑 SVG，mask + background-color 上 --footer-fg 色（三 mode 自動反相）。1135×320 比例。 */
+  /* mark＝CMS「Site Icons」資料夾的 wordmark SVG（2026-08-11）：mask 圖 + aspect-ratio 由 renderer 依 SVG viewBox
+   * 量出後 inline 設（`--tab-mark-src` / `style.aspectRatio`）；統一用 height=--tab-mark-h、width:auto
+   * → 不同比例的 wordmark 都同高、說明文字同基線。上色走 background-color:--footer-fg（三 mode 自動反相）。 */
+  .footer-tab-mark {
+    display: block;
+    height: var(--tab-mark-h);
+    width: auto;
+    margin-bottom: var(--spacing-xs);
+    background-color: var(--footer-fg, #fff);
+    -webkit-mask: var(--tab-mark-src) no-repeat center / contain;
+            mask: var(--tab-mark-src) no-repeat center / contain;
+  }
+  /* 無圖 mark 的 units tab：首行往下墊 = mark 高 + margin-bottom → 對齊有 mark tab 的說明文字。 */
+  .footer-tab:not(:has(.footer-tab-mark)) {
+    padding-top: calc(var(--tab-mark-h) + var(--spacing-xs));
+  }
+  .footer-tab .footer-tab-en,
+  .footer-tab .footer-tab-zh {
+    font-size: var(--font-size-s);
+    font-weight: 700;   /* tab 中英都 bold */
+    white-space: nowrap;
+    color: var(--footer-fg, #fff);
+  }
+  /* 英文全名過長（如 Department of Communications Design）設上限自動換行；中文短維持 nowrap */
+  .footer-tab .footer-tab-en {
+    white-space: normal;
+    max-width: 12rem;
+  }
+  .footer-tab .footer-tab-zh {
+    margin-top: var(--space-en-zh-s);   /* text-s EN→ZH gap 收進 tier token（值同 2px） */
+  }
+
+  /* ===== 手機 <768：tab 分頁（2026-09-05）＝tabs in-flow 橫排（.footer-random flex column 首子＝
+   * logo 下、資訊卡上），非平板 absolute 疊頂。溢出靠 base overflow-x:auto 觸控原生 pan（無 scrollbar）。
+   * 群組顯隱同平板走 JS applyGroupVisibility（<768 gate 已拿掉）；矮橫向不變（後方 gate display:none 勝）。 */
+  @media (max-width: 767px) and (orientation: portrait) {
+    /* portrait 限定：橫向寬也可能 <768，footer 版型歸矮橫向 gate／landscape.css 管（全群組線性、無 tab），
+     * 這整段 tabs/密度規則都不該漏過去。 */
+    /* 間距收密（2026-09-05 配合 footer 一屏化；xl 時 dept 群組在 844 高也塞不下）：
+     * 資訊卡間 md、資訊區↔legal 間 lg——實測 390×844 餘裕 ~50、360×800 最擠也只吃進 gap ~11px 不疊字 */
+    .footer-right { gap: var(--spacing-lg); }
+    .footer-random { gap: var(--spacing-md); }
+    .footer-random > .footer-tabs {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: var(--spacing-md);
+      --tab-mark-w: 64px;   /* user 2026-09-05「SCCD 小一點」（平板 110） */
+      --tab-mark-h: calc(var(--tab-mark-w) * 320 / 1135);
     }
-    /* 無圖 mark 的 units tab：首行往下墊 = mark 高 + margin-bottom → 對齊有 mark tab 的說明文字。 */
-    .footer-tab:not(:has(.footer-tab-mark)) {
-      padding-top: calc(var(--tab-mark-h) + var(--spacing-xs));
-    }
-    .footer-tab .footer-tab-en,
-    .footer-tab .footer-tab-zh {
-      font-size: var(--font-size-s);
-      font-weight: 700;   /* tab 中英都 bold */
-      white-space: nowrap;
-      color: var(--footer-fg, #fff);
-    }
-    /* 英文全名過長（如 Department of Communications Design）設上限自動換行；中文短維持 nowrap */
-    .footer-tab .footer-tab-en {
-      white-space: normal;
-      max-width: 12rem;
-    }
-    .footer-tab .footer-tab-zh {
-      margin-top: var(--space-en-zh-s);   /* text-s EN→ZH gap 收進 tier token（值同 2px） */
-    }
+    /* 線性版不旋轉（同平板）：!important 蓋掉 bindFooterTabs 的 inline rotate */
+    .footer-random > .footer-tabs .footer-tab { transform: none !important; }
+    /* tab 寬度貼內容＋等距 gap（user 2026-09-06：gap 一致，第三顆才會在右緣露出讓人知道還有）。
+     * 固定寬會留框內空白＝視覺 gap 忽大忽小、第三顆整顆掉出畫面（09-05 版已翻案）。
+     * EN cap＝讓長名折兩行仍 hug：dept「Communications Design」167px、aa「Association」90px（@14px bold）
+     * → 第三顆起點 ~310px、375 寬起入鏡。⚠️cap 綁 CMS 文案（footer_tabs），後台改字要重校。 */
+    .footer-random > .footer-tabs .footer-tab { flex: 0 0 auto; }
+    .footer-random > .footer-tabs .footer-tab-en { max-width: 10.5rem; }
+    .footer-random > .footer-tabs .footer-tab[data-fgroup="aa"] .footer-tab-en { max-width: 6rem; }
+  }
+
+  /* footer 固定一屏（user 2026-09-05「footer 是 100vh」；svh 照專案規範——手機工具列 vh 高估溢出）：
+   * 只在標準高度手機（≥780，現代機 800+）啟用；矮機（SE 667 級）dept 群組怎麼收密都塞不進一屏（gap md 仍差
+   * ~145px 實測）→ 維持原本長高捲動（檔尾 unlayered 規則涵蓋）。
+   * 右欄/資訊區 flex:1 → legal 貼底不隨 tab 內容變（同平板邏輯）。 */
+  @media (max-width: 767px) and (orientation: portrait) and (min-height: 780px) {
+    .footer-shell { height: 100svh; }
+    .footer-right { flex: 1 1 0; min-height: 0; }
+    .footer-random { flex: 1 1 0; min-height: 0; }
+    /* 固定高下 flex 子預設可縮＝內容擠時 tabs 被壓 0 高、privacy 被壓縮吸掉溢出（headless 實測）——一律禁縮，
+     * 塞不下就顯性溢出（量測才看得到真實高度，靠 780 門檻擋掉塞不下的矮機） */
+    .footer-random > * { flex-shrink: 0; }
+    .footer-privacy { flex-shrink: 0; }
   }
 
   /* ===== Desktop scatter (≥ 1200px)：logo 左、右欄隨機散佈 ===== */
@@ -551,12 +595,12 @@
   }
 }
 
-/* 手機 <768 與矮橫向：footer 線性堆疊內容超過一屏 → 讓 footer 長高、內容不被 100vh + overflow:hidden 裁掉
- * （否則規章/copyright 被切）。必須 unlayered 才蓋得過 HTML 的 `overflow-hidden` utility（@layer utilities）
- * 與 @layer components 的 height:100vh。
- * ⚠️ 平板 768-1199 已排除（2026-08-11 改 tab 切換版型）：固定一屏高 100svh（tablet 段設）＋ overflow-hidden，
- *    資訊區 flex:1 固定高、legal 貼底不隨 tab 內容變動。≥1200 scatter 亦不受影響（base height:100vh）。 */
-@media (max-width: 767px), (orientation: landscape) and (max-height: 500px) {
+/* 矮機直向（<780 高，SE 667 級——一屏塞不下 dept 群組）與橫向（矮橫向 gate＋寬 <768 的橫向視窗）：
+ * footer 線性堆疊內容超過一屏 → 讓 footer 長高、內容不被 100vh + overflow:hidden 裁掉（否則規章/copyright 被切）。
+ * 必須 unlayered 才蓋得過 HTML 的 `overflow-hidden` utility（@layer utilities）與 @layer components 的 height。
+ * ⚠️ 平板 768-1199（2026-08-11）與標準高度直向手機（2026-09-05 tab 分頁、≥780）已排除＝固定一屏高 100svh
+ *    （各自段落設），資訊區 flex:1、legal 貼底不隨 tab 內容變。≥1200 scatter 亦不受影響。 */
+@media (max-width: 767px) and (max-height: 779px), (orientation: landscape) and (max-height: 500px) {
   footer.footer-shell,
   footer#site-footer-static {
     height: auto;

@@ -7,6 +7,7 @@ import { ensureIconClipWrap, navChipHidden, NAV_CHIP_SHOWN } from '../ui/scroll-
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { loadAtlasData } from './atlas-source.js';
 import { countryName } from '../../data/country-names.js';
+import { guestOrgs } from './guest-orgs.js';
 import { sitePath } from '../ui/site-base.js';
 import { loadUiLabels, applyUiLabels } from '../ui/ui-labels.js';
 
@@ -228,6 +229,10 @@ export async function initAtlas(options = {}) {
   // root 預設為 document（atlas 頁正常 init）；idle-standby 可傳入 overlay 內的 container
   // 讓同份 atlas 模組在多個 root 上同時運作
   const root = options.root || document;
+  // 老師 hover 說明box 的 type label「Professor 教師」走後台 ui_labels（key=atlas.faculty.type）；說明box 是 hover 時
+  // 動態建、main-modular 的 applyUiLabels 早跑抓不到 → 這裡快取 map 供 fillDetailContent 用（key 缺/離線時 fallback 硬編）。
+  let atlasUiLabels = null;
+  loadUiLabels().then(m => { atlasUiLabels = m; }).catch(() => {});
   // 手機（<768）無星雲（map）模式：直接以 list view 呈現，三顆 filter btn 變成底部單選分類 tab
   // （init 時決定一次，沿站內慣例不跟 resize；跨斷點要 reload）
   // 橫向手機（landscape gate，同 landscape.css）：星雲＝圓點模式（2026-07-06：文字/尺寸/線反向縮放、
@@ -294,10 +299,21 @@ export async function initAtlas(options = {}) {
   // 來源 = 帶 country 的 item：系友就職 em + 工作營/產學夥伴 guest。ISO(大寫) 當 key、countryName 取顯示名。
   // 好處：① 沒人在的國家不會變孤兒節點 ② 不限 9 國 ③ Directus 一更新 country 就自動長出/連上節點。
   const collectIso = (set, code) => { if (code) set.add(String(code).toUpperCase()); };
+  // guest → 「單位」清單（多 org 展開）：有 org（新 orgs[] 多單位，或 legacy 單欄）→ 每個 org 一個單位（名=org、
+  //   國=orgCountry）；無 org（機構本身當 guest，含本地 name shape）→ 一個單位（名=guest 名、國=guest country）。
+  //   取代舊 guestEn/guestZh/guestUnitIso 單一版；node 顯示的是「單位」，藝術家（orgEn 是職稱、無 orgCountry、無 orgs）
+  //   → 單位國碼 null → 下方 canon 過濾掉（user 2026-09-07：只抓有單位國碼者，個人 country 保留於資料但不進圖譜）。
+  const guestUnits = (g) => {
+    const orgs = guestOrgs(g);
+    if (orgs.length) return orgs.map(o => ({ en: o.en || o.zh, zh: o.zh || o.en, iso: o.country }));
+    const en = g.name || g.nameEn || g.affiliation || '';
+    const zh = g.name_zh || g.nameZh || g.affiliation_zh || '';
+    return (en || zh) ? [{ en, zh, iso: g.country }] : [];
+  };
   const usedIsos = new Set();
   (employment || []).forEach(em => collectIso(usedIsos, em.country));
-  (workshops || []).forEach(yg => (yg.items || []).forEach(ws => (ws.guests || []).forEach(g => collectIso(usedIsos, g.country))));
-  (industry  || []).forEach(yg => (yg.items || []).forEach(ind => (ind.guests || []).forEach(g => collectIso(usedIsos, g.country))));
+  (workshops || []).forEach(yg => (yg.items || []).forEach(ws => (ws.guests || []).forEach(g => guestUnits(g).forEach(u => collectIso(usedIsos, u.iso)))));
+  (industry  || []).forEach(yg => (yg.items || []).forEach(ind => (ind.guests || []).forEach(g => guestUnits(g).forEach(u => collectIso(usedIsos, u.iso)))));
   usedIsos.forEach(iso => {
     const it = {
       id: uid('country'), category: 'D',
@@ -348,13 +364,9 @@ export async function initAtlas(options = {}) {
   // 目前無 ec 節點，partners filter 實質顯示 工作營 + 產學。
 
   // C: 工作營合作單位（國家 = 該單位自己的 country，不是工作營舉辦地點）
-  // guest 欄名雙 shape：本地 workshops.json＝name/name_zh（name 即單位名）；
-  // Directus activities guests repeater＝nameEn/Zh（人名）+ orgEn/Zh（單位）→ 單位優先、無單位退人名
+  // guest 欄名雙 shape 與多 org 展開都收斂在 guestUnits(g)（見上）：本地 workshops.json＝name/name_zh（name 即單位名）；
+  // Directus activities guests repeater＝nameEn/Zh（人名）+ orgs[]（多單位，或 legacy orgEn/Zh）→ 每個 org 一顆 chip。
   // （08-26 踩坑：只讀 name/affiliation → 後台一有樣本資料就整類 0 顆、partners 欄整欄消失）
-  /** @param {any} g */
-  const guestEn = (g) => g.name || g.orgEn || g.nameEn || g.affiliation || '';
-  /** @param {any} g */
-  const guestZh = (g) => g.name_zh || g.orgZh || g.nameZh || g.affiliation_zh || '';
   // 同一單位跨多場次（Directus 真資料常見）→ 共用同一顆 chip、只把 id 加進各場次 group。
   // ⚠️ key 正規化（trim＋收合空白＋小寫）＋**不含來源前綴**＝工作營/產學跨類同單位也只渲一顆（user 09-04：partners 重複機構只留一個）
   const normPart = (/** @type {string} */ s) => (s || '').trim().replace(/\s+/g, ' ').toLowerCase();
@@ -367,25 +379,26 @@ export async function initAtlas(options = {}) {
                  '本系與外部單位合作之工作營。';
       const memberIds = [];
 
-      (ws.guests || []).forEach(g => {
-        const en = guestEn(g);
-        const zh = guestZh(g);
+      (ws.guests || []).forEach(g => guestUnits(g).forEach(u => {
+        const en = u.en, zh = u.zh;
         if (!en && !zh) return;
+        // cityKey = 該「單位」國碼(ISO 大寫)＝org 的 orgCountry、機構本身當 guest 用 country（見 guestUnits），連到同 ISO 的 D 節點；
+        //   非單位（藝術家：無 orgCountry / 無 orgs）→ canon null → 不進 pool。_countryCode 同源給 list 副標。
+        const canon = u.iso ? String(u.iso).toUpperCase() : null;
+        if (!canon) return;   // 只抓有「單位國碼」的合作單位（user 2026-09-07：只抓單位；node + list 欄同源一起排除）
         const dupKey = `${normPart(en)}|${normPart(zh)}`;
         const dup = seenPartnerChip.get(dupKey);
-        if (dup) { dup.groups.push(wsGroupId); memberIds.push(dup.id); return; }
-        // cityKey = 該單位 country(ISO 大寫)，連到同 ISO 的 D 節點；_countryCode 留真實國碼給 list 副標
-        const canon = g.country ? String(g.country).toUpperCase() : null;
+        if (dup) { if (!dup.groups.includes(wsGroupId)) dup.groups.push(wsGroupId); if (!memberIds.includes(dup.id)) memberIds.push(dup.id); return; }
         const it = {
           id: uid('wsg'), category: 'C',
           textEn: en, textZh: zh,
           labelEn: 'Workshop Partner', labelZh: '工作營合作單位',
-          detail: dt, groups: [wsGroupId], cityKey: canon, _countryCode: g.country || '',
+          detail: dt, groups: [wsGroupId], cityKey: canon, _countryCode: u.iso || '',
         };
         items.push(it);
         memberIds.push(it.id);
         seenPartnerChip.set(dupKey, it);
-      });
+      }));
 
       // 國家節點「不」掛進工作營 group（2026-08-10 拆除舊跨國連結）：多國工作營會讓 hover 台灣
       // 列出/高亮新加坡的 guest（「item 有兩個國家」，user 打回）。國家與 item 的關聯只走
@@ -402,24 +415,24 @@ export async function initAtlas(options = {}) {
       if (!indGroupId) return;
       const dt = '本系產學合作計畫，與業界共同推動實務研究與創新設計。';
       const memberIds = [];
-      (ind.guests || []).forEach(g => {
-        const en = guestEn(g);   // 雙 shape（見 workshops 段註解）
-        const zh = guestZh(g);
+      (ind.guests || []).forEach(g => guestUnits(g).forEach(u => {   // 多 org 展開（見 workshops 段註解）
+        const en = u.en, zh = u.zh;
         if (!en && !zh) return;
+        const canon = u.iso ? String(u.iso).toUpperCase() : null;
+        if (!canon) return;   // 只抓有「單位國碼」的合作單位（user 2026-09-07：只抓單位；node + list 欄同源一起排除）
         const dupKey = `${normPart(en)}|${normPart(zh)}`;
         const dup = seenPartnerChip.get(dupKey);
-        if (dup) { dup.groups.push(indGroupId); memberIds.push(dup.id); return; }
-        const canon = g.country ? String(g.country).toUpperCase() : null;
+        if (dup) { if (!dup.groups.includes(indGroupId)) dup.groups.push(indGroupId); if (!memberIds.includes(dup.id)) memberIds.push(dup.id); return; }
         const it = {
           id: uid('ind'), category: 'C',
           textEn: en, textZh: zh,
           labelEn: 'Industry Partner', labelZh: '產學合作公司',
-          detail: dt, groups: [indGroupId], cityKey: canon, _countryCode: g.country || '',
+          detail: dt, groups: [indGroupId], cityKey: canon, _countryCode: u.iso || '',
         };
         items.push(it);
         memberIds.push(it.id);
         seenPartnerChip.set(dupKey, it);
-      });
+      }));
       // 同 workshops：國家節點不掛進 group（見上方 2026-08-10 註解）
       if (memberIds.length > 0) groups.set(indGroupId, { detail: dt, members: memberIds });
     });
@@ -2104,6 +2117,7 @@ export async function initAtlas(options = {}) {
         const subEn = isFaculty ? item._listSubEn : (isPartner ? item._listTypeEn : null);
         const subZh = isFaculty ? item._listSubZh : (isPartner ? item._listTypeZh : null);
         if (subEn || subZh) {
+          if (isFaculty && nameEl) nameEl.style.marginBottom = 'var(--space-en-zh-s)';   // 職稱貼緊名字（比照 co/em 國家）
           if (subEn) {
             const en = document.createElement('div');
             en.textContent = subEn;
@@ -2117,6 +2131,17 @@ export async function initAtlas(options = {}) {
           }
         } else {
           descEl.textContent = item.detail || '';
+        }
+        if (isFaculty) {                                   // 老師節點：職稱後接 type label「Professor 教師」，gap 分開＝hosting chip 排法（後台 ui_labels 可改，key=atlas.faculty.type）
+          const row = atlasUiLabels && atlasUiLabels['atlas.faculty.type'];
+          const en = document.createElement('div');
+          en.textContent = (row && row.en) || 'Professor';
+          if (subEn || subZh) en.style.marginTop = '10px';   // gap：type label 跟上方職稱隔開（比照 Hosted by Alumni 的 10px）
+          descEl.appendChild(en);
+          const zh = document.createElement('div');
+          zh.textContent = (row && row.zh) || '教師';
+          zh.style.marginTop = 'var(--space-en-zh-xs)';    // 英中距 1px token
+          descEl.appendChild(zh);
         }
       }
     }
@@ -4347,7 +4372,7 @@ export async function initAtlas(options = {}) {
     // 不再需要這裡額外 push placeholder（之前繞 items 陣列直接餵 listGrouped 的 pattern 已 deprecate）
 
     const CAT_LABELS = {
-      faculty:  { en: 'Professors', zh: '歷屆教師' },
+      faculty:  { en: 'Professors', zh: '教師' },
       host:     { en: 'Hosting',    zh: '主持'     },
       employ:   { en: 'Employment', zh: '就職'     },
       partners: { en: 'Partners',   zh: '合作單位' },

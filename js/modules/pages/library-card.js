@@ -156,16 +156,6 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
 
   // ── 邊緣偵測 ──────────────────────────────────────────────────
 
-  function rectWorldCorners(cfg) {
-    const rad = cfg.rot * Math.PI / 180;
-    const cos = Math.cos(rad), sin = Math.sin(rad);
-    const hw = cfg.w / 2, hh = cfg.h / 2;
-    return [[-hw,-hh],[hw,-hh],[hw,hh],[-hw,hh]].map(([lx,ly]) => ({
-      x: cfg.cx + lx*cos - ly*sin,
-      y: cfg.cy + lx*sin + ly*cos,
-    }));
-  }
-
   function pointInRect(px, py, cfg) {
     const rad = cfg.rot * Math.PI / 180;
     const cos = Math.cos(rad), sin = Math.sin(rad);
@@ -175,26 +165,38 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
     return Math.abs(lx) < cfg.w/2 && Math.abs(ly) < cfg.h/2;
   }
 
-  function isCornerOccluded(corner, occluders) {
-    return occluders.some(occ => pointInRect(corner.x, corner.y, occ));
+  // §13.3：沿某邊「marquee 字條實際所在的帶」採樣 5 世界座標點（沿軸兩端縮 axisPad ＋ 1/4 1/2 3/4；垂直方向內縮 PAD 到字條帶）。
+  //   取代 corner-only 檢查——遮擋物蓋住邊中段/字條帶時兩角仍 free（漏判）、貼齊相鄰時角落落在遮擋邊界上被嚴格不等式判 free（誤判）。
+  function edgeBandPoints(cfg, edge) {
+    const rad = cfg.rot * Math.PI / 180, cos = Math.cos(rad), sin = Math.sin(rad);
+    const hw = cfg.w / 2, hh = cfg.h / 2;
+    const isVertical = edge === 'left' || edge === 'right';
+    const axisLen = isVertical ? cfg.h : cfg.w;
+    const ap = Math.min(AXIS_PAD, Math.floor(axisLen / 4));                 // 同 renderMarquee axisPad
+    const a0 = -axisLen / 2 + ap, a1 = axisLen / 2 - ap;                    // 沿軸兩端縮 axisPad
+    // 垂直軸 local 位移：內縮 PAD 到字條帶（bottom 靠下正、top 靠上負、right 靠右正、left 靠左負）
+    const perp = edge === 'bottom' ? (hh - PAD) : edge === 'top' ? (-hh + PAD)
+               : edge === 'right'  ? (hw - PAD) : (-hw + PAD);
+    return [0, 0.25, 0.5, 0.75, 1].map(f => {
+      const t = a0 + (a1 - a0) * f;
+      const lx = isVertical ? perp : t, ly = isVertical ? t : perp;
+      return { x: cfg.cx + lx * cos - ly * sin, y: cfg.cy + lx * sin + ly * cos };
+    });
   }
 
-  // 回傳 'top'|'right'|'bottom'|'left'：marquee **只放「朝外」的兩條邊**（背對版面中心＝背對灰卡/其他卡，
-  // 被遮機率最低）——依卡片相對中心 (cx0,cy0) 的象限選：左上卡→top/left、右上→top/right、
-  // 左下→bottom/left、右下→bottom/right（user 2026-08-24：舊版四邊全找、常挑到朝中心的被遮邊）。
-  // 兩條朝外邊再依長短排：寬卡先水平邊（長=w、marquee 空間大）、高卡先垂直邊（長=h）；
-  // 先取「兩端點都沒被遮」那條，兩條都有角被遮→退取長邊那條（仍是曝露側，絕不回落到朝中心的邊）。
-  /** @returns {'top'|'right'|'bottom'|'left'} */
+  // 回傳 'bottom'|'left'|'right'（v3.1 §10.1，永不 top）：候選序＝①底邊→②朝外垂直邊→③另側垂直邊；
+  //   §13.3 改沿字條帶 5 點採樣，任一點被更高 z occluder 蓋住＝該邊不可用。灰卡 marquee 在底部 → 色塊底邊型飛行零旋轉貼底邊長大（最連貫、首選）。
+  /** @returns {'bottom'|'left'|'right'} */
   function findFreeEdge(cfg, occluders, cx0, cy0) {
-    const c = rectWorldCorners(cfg);
-    const free = (ai, bi) => !isCornerOccluded(c[ai], occluders) && !isCornerOccluded(c[bi], occluders);
-    /** @type {['top'|'right'|'bottom'|'left', number, number]} */
-    const outH = cfg.cy < cy0 ? ['top', 0, 1] : ['bottom', 2, 3];   // 朝外的水平邊（長=w）
-    /** @type {['top'|'right'|'bottom'|'left', number, number]} */
-    const outV = cfg.cx < cx0 ? ['left', 3, 0] : ['right', 1, 2];   // 朝外的垂直邊（長=h）
-    const ordered = cfg.w >= cfg.h ? [outH, outV] : [outV, outH];
-    for (const [name, ai, bi] of ordered) if (free(ai, bi)) return name;
-    return ordered[0][0];
+    const bandFree = (edge) => edgeBandPoints(cfg, edge).every(p => !occluders.some(occ => pointInRect(p.x, p.y, occ)));
+    /** @type {Array<'bottom'|'left'|'right'>} */
+    const candidates = [
+      'bottom',
+      cfg.cx < cx0 ? 'left' : 'right',   // 朝外垂直邊
+      cfg.cx < cx0 ? 'right' : 'left',   // 另側垂直邊
+    ];
+    for (const edge of candidates) if (bandFree(edge)) return edge;
+    return candidates[1];   // 全被遮 → 退朝外垂直邊（永不 top）
   }
 
   // ── 矩形樣式設定 ─────────────────────────────────────────────
@@ -296,6 +298,7 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
     probe.textContent   = unit;
     document.body.appendChild(probe);
     const unitPx = probe.offsetWidth || 1;
+    const lineH  = probe.offsetHeight || 0;   // 行高＝旋轉後文字條的厚度；朝外定位要用它把外長的一條補回色塊內側
     document.body.removeChild(probe);
 
     const rectPx  = Math.round(isVertical ? cfg.h : cfg.w);  // 捲動軸方向的可用長度
@@ -325,13 +328,17 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
       titleEl.style.left = `${axisPad}px`;
       titleEl.style.bottom = `${PAD}px`;
     } else if (edge === 'left') {
-      titleEl.style.left = `${PAD}px`; titleEl.style.top = `${rectPx - axisPad}px`;
-      titleEl.style.transformOrigin = 'left top';
-      titleEl.style.transform = 'rotate(-90deg)';
-    } else {
-      titleEl.style.left = `${perpPx - PAD}px`; titleEl.style.top = `${axisPad}px`;
+      // 文字「朝外」（user 2026-09-04，原朝內是 rotate(-90) 讀下→上）：改 rotate(90) 讀上→下、字向翻 180°。
+      // rotate(90) 於左緣自然把文字條往「外(左)」長出 lineH → left 補 +lineH 讓條貼在左緣內側（否則溢出被
+      // 色塊 overflow:hidden 裁掉）；top 由 rectPx-axisPad 改 axisPad（讀向反轉，起點端對調）。
+      titleEl.style.left = `${PAD + lineH}px`; titleEl.style.top = `${axisPad}px`;
       titleEl.style.transformOrigin = 'left top';
       titleEl.style.transform = 'rotate(90deg)';
+    } else {
+      // 文字「朝外」：改 rotate(-90) 讀下→上、字向翻 180°；rotate(-90) 於右緣往外(右)長 lineH → left 補 -lineH 貼右緣內側。
+      titleEl.style.left = `${perpPx - PAD - lineH}px`; titleEl.style.top = `${rectPx - axisPad}px`;
+      titleEl.style.transformOrigin = 'left top';
+      titleEl.style.transform = 'rotate(-90deg)';
     }
 
     titleEl.innerHTML = `<span class="color-rect-title-inner" style="--marquee-shift-x:-${unitPx}px;--marquee-shift-y:0">${repeated}</span>`;
@@ -376,18 +383,30 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
   // 沿用 switchTab 既有 `if (isSwitching) return` guard 擋住；進場 playEntranceAnimation 收尾才解鎖。
   let isSwitching = true;
 
+  // hover 樣式（inverse mode 反轉：白底黑字，standard 黑底白字）——抽成可重用（§15.4 解鎖補發也呼叫）
+  function applyCardHover(el) {
+    const titleEl = /** @type {HTMLElement|null} */ (el.querySelector('.color-rect-title'));
+    const isInverse = document.body.classList.contains('mode-inverse');
+    el.style.background = isInverse ? '#fff' : '#000';
+    el.style.zIndex     = '11';
+    if (titleEl) titleEl.style.color = isInverse ? '#000' : '#fff';
+  }
+  // §15.4：isSwitching 解鎖那刻補一輪——切換期間新色塊滑到**靜止游標**下，瀏覽器不（可靠）補發 mouseenter、就算 fire 也被
+  //   `if (isSwitching) return` 吞掉（點擊不經 hover 所以可點）。解鎖對每張 :hover 的非 active 卡合成套 hover；mouseleave 既有 handler 復原。
+  function syncHoverAfterUnlock() {
+    allEls.forEach(el => { if (el !== activeEl && !el.dataset.cardPending && el.querySelector('.color-rect-title') && el.matches(':hover')) applyCardHover(el); });
+  }
+
   function attachHover(el) {
     const titleEl = document.createElement('div');
     titleEl.className = 'color-rect-title';
     el.appendChild(titleEl);
 
     el.addEventListener('mouseenter', () => {
-      if (isSwitching || el === activeEl) return;
-      // inverse mode 反轉：白底黑字（standard 是黑底白字）
-      const isInverse = document.body.classList.contains('mode-inverse');
-      el.style.background    = isInverse ? '#fff' : '#000';
-      el.style.zIndex        = '11';
-      titleEl.style.color    = isInverse ? '#000' : '#fff';
+      // §17.3 hover ready gate（user 2026-09-06「色塊 ready 前 hover 無效」）：反向上色未擦完前 dataset.cardPending 擋 hover——
+      //   否則 mouseenter 寫 bg 黑（被灰 overlay 蓋住看不見）＋ title 色（在 overlay 之上立刻變）＝「marquee 變了、顏色沒變」。點擊照舊可點。
+      if (isSwitching || el === activeEl || el.dataset.cardPending) return;
+      applyCardHover(el);
     });
     el.addEventListener('mouseleave', () => {
       if (el === activeEl) return;
@@ -540,6 +559,15 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
   // panel 切換時色塊/灰卡的 bg 全在 transition:none 下設好（見 switchTab），套回時 bg 已定型 → 只影響穩態翻色。
   const TRANSITION = 'transform 0.6s cubic-bezier(0.4,0,0.2,1), width 0.6s cubic-bezier(0.4,0,0.2,1), height 0.6s cubic-bezier(0.4,0,0.2,1), left 0.6s cubic-bezier(0.4,0,0.2,1), top 0.6s cubic-bezier(0.4,0,0.2,1)';
   const TRANSITION_GRAY = TRANSITION + ', background-color 0.4s ease';
+  // v3「同一物件雙形態」morph 時窗用：幾何＋背景色同拍 0.6s（兩卡都套：被點卡 RGB→灰、舊灰卡 灰→RGB）。
+  // ⚠️mode3 靠 color.css `[style*="--lib-bg"]` 選擇器切黑白：setAsGray 寫 background:var(--lib-bg)（含此標記→neutral gray）、
+  //   setAsColor 寫 #RGB（無標記→theme-fg strict）；切換瞬間規則翻面但 CSS transition 補間 computed 值照樣平滑（若 snap→過場 class fallback）。
+  const TRANSITION_MORPH = TRANSITION + ', background-color 0.6s cubic-bezier(0.4,0,0.2,1)';
+  // §18.1（user 2026-09-06「還是原地旋轉」）：撤 §16.1「transform 早收」＋§17.4 獨立急起曲線——那讓 rotate 在位移可感知前就跑完＝知覺「先原地轉再滑」。
+  //   改 transform 與 width/height/left/top 完全同時長(MORPH_DUR)同曲線(CB)＝三變化綁成**單一剛體動作**，任一時刻同時位移+放大+旋轉（垂直型 transition 即等同 TRANSITION）。
+  //   §15.3「從灰卡角落長出」顧慮：疑為當年「transition 掛在寫終點之後」的 commit 順序 bug，§16.1 起順序鏈已固定 → 可安全全同步重試；復發退 transform dur 0.45 為下限（不回 0.35）。
+  const CB = 'cubic-bezier(0.4,0,0.2,1)';
+  // §22（v4.3）：adopt/flight 整套退役 → WINDOW_DUR/EXIT_DRAIN/ENTRANCE_DUR 窗長/字流鈕全刪；marquee 換手改「對稱 wipe」（見 marqueeWipeExit/Enter）。
   // 穩態 transition 依角色套用；三個套用點（進場×2＋切 tab 收尾）呼叫時 activeEl 都已是正確角色
   const applyIdleTransition = (el) => { el.style.transition = (el === activeEl) ? TRANSITION_GRAY : TRANSITION; };
 
@@ -556,55 +584,147 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
       }
     });
 
-    // 出場：先讓當前 panel 的 chip + 內容 clip 擦出再切（對齊離頁 playExitAnimation 的 panel 退場）。
-    // 舊作法 toggle `.content-visible` class 想做淡出，但該 class 在 CSS 沒有任何對應規則 = 完全無效，
-    // 切分頁時舊內容沒退場、被 _doSwitchTab → onTabSwitchPre 直接 display:none → 視覺上「跳過出場、
-    // 直接播下一分頁的進場 wipe」（user 2026-06-07 反饋）。改用現成的 panel 退場 helper 補上出場。
-    const EXIT_DUR = DUR.fast;
-    const PANEL_IDS = ['lib-panel-awards', 'lib-panel-press', 'lib-panel-files', 'lib-panel-album'];
-    const outgoingPanel = /** @type {HTMLElement | null} */ (
-      PANEL_IDS.map(id => document.getElementById(id)).find(p => p && getComputedStyle(p).display !== 'none') || null
-    );
-    if (outgoingPanel) {
-      playPanelTitleExit(outgoingPanel, EXIT_DUR);
-      playPanelBodyExit(outgoingPanel, EXIT_DUR);
-    }
-
-    // 等出場 wipe 跑完才換卡（_doSwitchTab 內 onTabSwitchPre 會 display:none 舊 panel + 切到新 panel）
-    setTimeout(() => {
-      _doSwitchTab(clickedEl, () => {
-        // instant：內容在色塊 veil 底下直接渲染就位（veil 掀開即見；視窗下方 items 保留 scroll-gate）
-        if (onTabSwitch) onTabSwitch(tabOf.get(activeEl), { instant: true });
-        isSwitching = false;
-      });
-    }, EXIT_DUR * 1000);
+    // 不做內容擦除（原 playPanelBodyExit/TitleExit）：那條 clip-path 大動畫（整條清單）跟卡片幾何 morph 同時跑
+    // ＝主執行緒兩條重動畫互搶＝卡頓（user 2026-09-04）；且色塊放大會蓋住灰卡、擦除是白工。改成 _doSwitchTab 內
+    // onTabSwitchPre 即刻 display:none 舊 panel＝灰卡內容瞬間隱藏「直接變純灰」，卡片只剩幾何 morph 一條動畫、順很多。
+    _doSwitchTab(clickedEl, () => {
+      // §14.1（user 2026-09-06）：褪灰改「色彩 overlay clip 擦除」→ 內容在 overlay 下 **instant** 渲染就位（overlay 掀開負責 reveal，
+      //   list 走 VEIL_REVEAL_DELAY 等擦開才滑列）。取代 v3 的非 instant 四向 wipe。
+      if (onTabSwitch) onTabSwitch(tabOf.get(activeEl), { instant: true });
+      isSwitching = false;
+      syncHoverAfterUnlock();   // §15.4：新色塊若停在靜止游標下，補發 hover
+    });
   }
 
-  // 切分頁的卡片動畫＝不對稱角色互換（user 2026-08-23 定案）：
-  //   點到的色卡「放大滑進」灰卡版位（morph：幾何 + 底色同步過渡成灰）；舊灰卡則**不縮小**——
-  //   hero clip-reveal 收場完整消失（位移+揭露），再從隨機方向 hero clip-reveal 進場成一張
-  //   **隨機新版位/尺寸**的色卡（genColorConfig 重擲，接手被點卡的顏色、z 插到最底層）。
-  //   其餘兩張色卡完全不動（不重新隨機佈局，marquee 不重建不跳動）。
-  //   整體序列＝擦內容（switchTab）→ 灰卡 hero 收 + 色卡 morph 成灰（並行）→ 新色卡 reveal ＋
-  //   展內容（onTabSwitch，內容進場動畫不變）。
-  // 舊版「全卡 clip 收起→隱藏態重排→全卡展開」已退場；隨機重佈局仍保留在進場與 resize relayout。
-  // ⚠️ background-color transition 只限 morph 時窗（色卡穩態不帶 bg fade，user 2026-08-11 hover/mode 要 snap），
-  //    收尾 applyIdleTransition 還原。
+  // 切分頁的卡片動畫＝v3「同一物件雙形態」對稱 morph 互換（user 2026-09-05 定案，取代 veil 語言）：
+  //   點到的色卡本體「色塊形態→灰卡形態」一條 morph（幾何放大+轉正 ＋ 底色 RGB→灰 ＋ marquee 卡內飛，全同拍）；
+  //   舊灰卡「同時反向 morph」縮小滑到 genColorConfig 重擲的隨機新版位/尺寸色卡（接手被點卡顏色、z 插最底、底色 灰→RGB）。
+  //   兩卡幾何+底色 glide 同 MORPH_DUR、方向相反＝互換。其餘兩張色卡完全不動（不重佈局、marquee 不重建）。
+  //   ⚠️veil「蓋住再掀開」整套已刪（user「怎麼看都兩個東西」的唯一來源）；內容 t=0.6 走現成 playPanelReveal 四向 wipe。
+  //   ⚠️background-color transition 只限 morph 時窗（TRANSITION_MORPH；穩態不帶 bg fade，hover/mode 要 snap），收尾 applyIdleTransition 還原。
+
+  // ── §22（v4.3，user 2026-09-06）：marquee 換手改「對稱 wipe」——整套 adopt/flight 機構退役 ────────────
+  //   t=0 色塊 marquee wipe 出場（螢幕上下二選一、不隨字條 rotate 轉軸）→ morph 期間卡上無 marquee → 落定灰卡底部 marquee wipe 進場（方向配對相反）。
+  //   連貫性由方向配對承載、不搬 DOM 不接相位（各 marquee 各跑各的 loop）。§15.5-② 正式作廢（無 flight 可鏡像）。
+  // §12.1：t=0.6 後的 HOLD setTimeout 存這裡，下一輪 _doSwitchTab／離頁 cleanup 開頭作廢（同 morph timer 紀律）。
+  let switchColorTimers = [];
+
+  const MARQ_EXIT = 0.35, MARQ_ENTER = 0.35;                 // 出場/進場 wipe 時長（§23.1：出場 0.2→0.35 才看得到，仍 t=0 同起、與放大重疊；仍快再 0.4）
+  const MARQ_DIR_MAP = { up: 'up', down: 'down' };           // 出場→進場方向：同軸鏡像（收走朝上→浮入朝上）；實機若要字面相反改 {up:'down',down:'up'}
+
+  function parseRotDeg(transform) {
+    const m = /rotate\((-?[\d.]+)deg\)/.exec(transform || '');
+    return m ? parseFloat(m[1]) : 0;
+  }
+  // §22.1 出場 clip：把「螢幕上下」依 src 的 rot 換算成 local 收合方向（終態＝該邊 100% 收合）。dir='up'|'down'。
+  //   rot 0 底邊：up=收到上緣 inset(0 0 100% 0)／down=inset(100% 0 0 0)；左邊型(+90) screen-up=local-left；右邊型(−90) 鏡像。
+  function marqueeExitClip(rot, dir) {
+    if (rot === 0) return dir === 'up' ? 'inset(0 0 100% 0)' : 'inset(100% 0 0 0)';
+    if (rot > 0)   return dir === 'up' ? 'inset(0 100% 0 0)' : 'inset(0 0 0 100%)';
+    return           dir === 'up' ? 'inset(0 0 0 100%)' : 'inset(0 100% 0 0)';
+  }
+  // §22.1 進場起點 clip（灰卡底部 title box，rot 0）：up=從下緣長上來 inset(100% 0 0 0)／down=從上緣長下來 inset(0 0 100% 0)；終態 inset(0)。
+  function marqueeEnterStartClip(dir) {
+    return dir === 'up' ? 'inset(100% 0 0 0)' : 'inset(0 0 100% 0)';
+  }
+  // §22.3/§23.3 色彩滑板方向配對：去色 d（top/bottom/left/right）→ 上色 pair＝**所有型都「字面相反 → 再轉 90°」**。
+  //   左右邊型：左+90 順時針 CW／右−90 逆時針 CCW。底邊型(rot 0)：也轉 90°、旋向預設 BOTTOM_SPIN=CW（§23.3；實機看反改 SLAB_CCW）。
+  const SLAB_OPP = { top: 'bottom', bottom: 'top', left: 'right', right: 'left' };
+  const SLAB_CW  = { top: 'right', right: 'bottom', bottom: 'left', left: 'top' };
+  const SLAB_CCW = { top: 'left', left: 'bottom', bottom: 'right', right: 'top' };
+  const BOTTOM_SPIN = SLAB_CW;   // 底邊型旋向鈕
+  function pairSlabDir(d, outRot) {
+    const p = SLAB_OPP[d];
+    if (outRot === 0) return BOTTOM_SPIN[p];       // §23.3：底邊型也轉 90°（不再只取相反）
+    return outRot > 0 ? SLAB_CW[p] : SLAB_CCW[p];
+  }
+  // §22.1 marquee wipe 出場：src（色塊 marquee）沿**螢幕上下**收合 MARQ_EXIT 後隱藏；回傳 exitDir 供進場配對（無 src 回 null＝不換手）。
+  function marqueeWipeExit(cardEl) {
+    const src = /** @type {HTMLElement|null} */ (cardEl.querySelector('.color-rect-title'));
+    if (!src || !src.innerHTML || window.innerWidth < 768) return null;
+    const dir = Math.random() < 0.5 ? 'up' : 'down';
+    const rot = parseRotDeg(src.style.transform);           // 依 rot 把螢幕上下換算成 local 收合方向
+    src.style.transition = 'none';
+    src.style.clipPath = 'inset(0 0 0 0)';
+    void src.offsetHeight;                                   // §8.1 commit 起點才掛 transition
+    src.style.transition = `clip-path ${MARQ_EXIT}s ${CB}`;
+    src.style.clipPath = marqueeExitClip(rot, dir);
+    switchColorTimers.push(setTimeout(() => { src.style.visibility = 'hidden'; src.style.transition = ''; src.style.clipPath = ''; }, MARQ_EXIT * 1000));
+    return dir;
+  }
+  // §22.1 marquee wipe 進場：灰卡底部 title box 從配對方向的起點 clip 長到 inset(0)（MARQ_ENTER）。box 各自跑自己的 loop、相位不續接。
+  // §23.2：進場窗內 inline **z≥70 高於色彩滑板 z:60**（marquee 永遠最上層）＝「灰卡 marquee 浮在還沒擦完的色彩上出現」；finish 後清回。
+  function marqueeWipeEnter(cardEl, exitDir) {
+    if (!exitDir) return;
+    const titleBar = [...cardEl.querySelectorAll('.lib-panel-title')].find(t => t.offsetParent !== null);
+    const box = /** @type {HTMLElement|null} */ (titleBar && titleBar.querySelector('.lib-title-box'));
+    if (!box) return;
+    const dir = MARQ_DIR_MAP[exitDir] || exitDir;           // 同軸鏡像（MARQ_DIR_MAP）
+    const prevPos = box.style.position, prevZ = box.style.zIndex;
+    box.style.position = 'relative';                         // z-index 生效需 positioned
+    box.style.zIndex = '70';                                 // §23.2：高於滑板 z:60
+    box.style.transition = 'none';
+    box.style.clipPath = marqueeEnterStartClip(dir);
+    void box.offsetHeight;
+    box.style.transition = `clip-path ${MARQ_ENTER}s ${CB}`;
+    box.style.clipPath = 'inset(0 0 0 0)';
+    // z 清回等**滑板確定移除後**（滑板 finish fallback＝WIPE_DUR*1000+80≈480ms；取 600 留足餘裕吸收 transitionend 變異）＝進場+擦除全程 box 都在滑板之上（無尾端掉層）
+    switchColorTimers.push(setTimeout(() => {
+      box.style.transition = ''; box.style.clipPath = '';
+      box.style.position = prevPos; box.style.zIndex = prevZ;
+    }, 600));
+  }
+
+  // §21.1（user 2026-09-06）：色 overlay 改「wrapper(overflow:hidden)+內層純色滑板 transform CSS transition」——compositor 接管，
+  //   主執行緒卡（HOLD 幀清單同步渲染）它照滑，取代 gsap 逐幀改 clipPath（主執行緒、一卡就掉幀＝卡感一部分）。純色滑動 vs 遮罩掃過視覺 100% 等價（「位移感來自紋理」反向應用）。
+  //   slideIn=false 去色滑出（露底）、true 上色滑入（蓋色）；隨機四向。onDone(wrap) 由 caller 收尾（remove wrap + restore/bg 等）。⚠️單屬性單管線＝無 heroRevealCard 的 translate+clip 雙管線鎖步問題。
+  const WIPE_SLABS = { top: 'translate(0,-100%)', bottom: 'translate(0,100%)', left: 'translate(-100%,0)', right: 'translate(100%,0)' };
+  function slideColorWipe(host, color, { inset, z, pe, slideIn, dir, dur, onDone }) {
+    const off = WIPE_SLABS[dir || ['top', 'bottom', 'left', 'right'][Math.floor(Math.random() * 4)]];   // §22.3：dir 給定用配對方向、否則隨機
+    const wrap = document.createElement('div');
+    wrap.className = 'lib-color-wipe';
+    Object.assign(wrap.style, { position: 'absolute', inset, zIndex: z, pointerEvents: pe, overflow: 'hidden' });
+    const slab = document.createElement('div');
+    Object.assign(slab.style, { position: 'absolute', inset: '0', background: color, transition: 'none',
+      transform: slideIn ? off : 'translate(0,0)' });
+    wrap.appendChild(slab);
+    host.appendChild(wrap);
+    void slab.offsetHeight;                                    // §8.1：commit 起點才掛 transition（否則無位移）
+    slab.style.transition = `transform ${dur}s cubic-bezier(0.55,0.055,0.675,0.19)`;   // ≈ EASE.exit(power3.in)
+    slab.style.transform = slideIn ? 'translate(0,0)' : off;
+    let fired = false;
+    const fin = () => { if (fired) return; fired = true; onDone(wrap); };
+    slab.addEventListener('transitionend', fin, { once: true });
+    setTimeout(fin, dur * 1000 + 80);                         // 兜底：節點被打斷移除時 transitionend 隨之消失
+  }
+
   function _doSwitchTab(clickedEl, onDone) {
     const sec  = grayEl.closest('section');
     const sw   = sec.offsetWidth, sh = sec.offsetHeight;
 
     const MORPH_DUR = 0.6;  // 與 TRANSITION 幾何 glide 同時長
+    // §12.1 morph 保持 RGB → 落定共存 COLOR_HOLD 一瞬；§14.1（user 2026-09-06）褪灰改「色彩 overlay clip 擦除」WIPE_DUR（取代 bg-only fade）。皆調整鈕。
+    const COLOR_HOLD = 0.2, WIPE_DUR = 0.4;
 
     // 殺掉可能殘留的進場/退場 tween（translate/clipPath），避免和 morph 的 CSS transition 打架
     if (typeof gsap !== 'undefined') gsap.killTweensOf(allEls);
-    // 清掉上一輪切換被打斷時殘留的色塊 veil
-    sec.querySelectorAll('.lib-card-veil').forEach(v => {
+    // 清掉上一輪切換被打斷時殘留的色塊 veil ＋ §14.1 色彩 overlay（連點打斷兜底）
+    sec.querySelectorAll('.lib-color-wipe').forEach(v => {
       if (typeof gsap !== 'undefined') gsap.killTweensOf(v);
+      // §17.1 打斷兜底：反向上色 overlay（host≠activeEl＝擦色中被打斷的色塊、本體此刻還是灰）→ 直寫最終色；
+      //   正向去色 overlay（host＝大灰卡）bg 已是灰、不動。
+      const host = /** @type {HTMLElement|null} */ (v.parentElement);
+      if (host && host !== activeEl) { host.style.transition = 'none'; host.style.background = colorOf.get(host); host.style.overflow = ''; }
       v.remove();
     });
+    sec.querySelectorAll('.lib-card-veil').forEach(v => { if (typeof gsap !== 'undefined') gsap.killTweensOf(v); v.remove(); });
+    // §17.3 兜底：連點時舊 outgoing 的 cardPending 別殘留卡死 hover
+    allEls.forEach(el => delete el.dataset.cardPending);
+    // §12.1：作廢上一輪未觸發的 HOLD timer（isSwitching 通常已擋住連點、此為兜底＋防離頁後殘觸）；§22 wipe 出/進場的隱藏/清 clip timer 也存這裡一併作廢
+    switchColorTimers.forEach(clearTimeout); switchColorTimers = [];
 
     const outgoingEl   = activeEl;
+    outgoingEl.dataset.cardPending = '1';   // §17.3：反向上色擦完(finish2)前 hover 無效；finish2 delete + 補 syncHoverAfterUnlock
     const clickedCfg   = cfgCache.get(clickedEl);
     const clickedColor = colorOf.get(clickedEl);
     const incomingTab  = tabOf.get(clickedEl);
@@ -613,10 +733,18 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
     activeEl = clickedEl;
     colorOf.set(outgoingEl, clickedColor);
 
-    // pre-swap：切 panel display + hide children（morph 期間灰卡是素面，收尾 onTabSwitch 才 reveal 內容）
+    // pre-swap：切 panel display + hide children（即刻＝舊 panel display:none＝灰卡內容瞬間隱藏「直接變純灰」）。
+    // morph 期間兩卡皆素面（內容 display:none）；t=0.6 落定才 onTabSwitch 渲染＋playPanelReveal 四向 wipe 進場。
     if (onTabSwitchPre) onTabSwitchPre(incomingTab);
     const contentEl = document.getElementById('library-card-content');
-    if (contentEl) clickedEl.appendChild(contentEl);
+    // display='' 兜底：上一輪 morph 的 display:none 若被連點打斷、還沒還原（t=0.6 前）先復原，否則新卡拿到空內容
+    if (contentEl) { contentEl.style.display = ''; clickedEl.appendChild(contentEl); }
+
+    // §22.1 marquee 換手：t=0 色塊 marquee wipe 出場（螢幕上下二選一、不隨字條 rotate 轉軸）；存 exitDir 供落定灰卡 marquee wipe 進場配對（不搬 DOM、不接相位）。
+    const exitDir = marqueeWipeExit(clickedEl);
+    // 效能：morph 期間內容 display:none＝空盒，幾何 TRANSITION 每幀 layout 趨零。t=0.6 onDone 前還原。
+    //   （exit wipe 作用於 src=color-rect-title＝卡片直屬子、非 contentEl 內，不受此影響。）
+    if (contentEl) contentEl.style.display = 'none';
 
     // clickedEl → 中央灰卡；舊灰卡 → 隨機重擲新版位/尺寸（user 2026-08-23：不接手空位，每次切換要有變化）。
     // 新卡固定插到色卡堆疊「最底層」（其餘兩卡 z 相對序不變往上遞補）→ 物理上不可能遮住既有卡的可點區；
@@ -642,100 +770,85 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
     cfgCache.set(outgoingEl, newCfg);
     baseZOf.set(outgoingEl, 1);
 
-    // 被點色卡：morph 放大成灰卡。色塊「保持原色」放大到完全蓋住灰卡版位，落定後才四向 clip 掀開
-    // 露出底下已渲染好的內容（user 2026-08-23）——做法＝卡內鋪一層同色 veil（inset:0 跟著幾何長大、
-    // z 蓋過內容），卡本體底色直接 snap 成灰（藏在 veil 下看不見）；MORPH_DUR 後 veil 掀開。
-    // mode3：色卡實際被 color.css !important 蓋成 strict B/W（var(--theme-fg)）；veil 是卡的子元素、蓋不到那條規則，
-    // 用 RGB clickedColor 會在放大時冒出三原色閃一下（user 2026-09-02：mode3 應該黑色變大、黑色去掉才露灰、不保持 rgb）。
-    // 改用 var(--theme-fg)＝跟卡片實色一致（隨 hue loop 每幀翻黑白）。mode1/2 仍用 clickedColor。
-    const veilColor = document.body.classList.contains('mode-color') ? 'var(--theme-fg)' : clickedColor;
-    const veil = document.createElement('div');
-    veil.className = 'lib-card-veil';
-    // pointer-events:auto（非 none）：色塊蓋住期間攔截點擊 → 底下已渲染就位的內容不可點；clipAway 掀開＋移除後才可點
-    // （user 2026-08-25：色塊消失前內容不給點、離開時才點得到）。clip-path 連 pointer 一起裁 → 掀開處漸次恢復可點。
-    veil.style.cssText = `position:absolute;inset:0;z-index:60;background:${veilColor};pointer-events:auto;`;
-    clickedEl.appendChild(veil);
-    // 補清 clipPath：前一輪 reveal 若被打斷會殘留部分 clip
+    // v3「同一物件雙形態」（user 2026-09-05，取代 veil 語言）：被點卡本體「色塊形態→灰卡形態」一條 morph——
+    // 幾何(放大+轉正) ＋ 底色 RGB→灰 ＋ marquee 卡內飛（§9.4）全同拍。veil「蓋住再掀開」整套刪除＝「兩個東西」感的唯一來源。
+    // §12.1 修正 A：morph 期間**只**幾何動、背景維持 RGB 原色（不再同拍變灰）。transition 用幾何-only TRANSITION；
+    //   setAsGray 寫的 background:var(--lib-bg) 立即被覆寫回 RGB——同幀、且 TRANSITION 無 background-color 軌＝中間灰不 paint。
+    //   褪灰延到 t=0.6+HOLD 才單獨掛 bg-only transition 做（見下 setTimeout），達成「共存一瞬才褪灰」。
+    // §19.1（撤整卡 ±90 旋轉、§11 退役）：兩型統一**純幾何 morph**（不對調尺寸/不寫 rotate）；§22：marquee 換手由 wipe 出/進場承載（見 marqueeWipeExit/Enter），卡片只管幾何。
     clickedEl.style.transition = TRANSITION;
-    setAsGray(clickedEl, sw, sh);                       // 目標樣式；transition 讓它滑放大過去（z:10 立即置頂）
+    setAsGray(clickedEl, sw, sh);                       // 幾何目標（放大轉正）；bg 隨即覆寫回 RGB
+    clickedEl.style.background = clickedColor;          // ⚠️點擊當下 hover inline bg 可能是 #000/#fff，顯式寫回 RGB 原色（不能沿用現值）
+    // §10.3：morph 期間卡片 overflow:hidden（覆蓋 setAsGray 的 visible）＝保險絲裁掉 box 自轉時掃出卡外的字條；t=0.6 還原 visible。
+    clickedEl.style.overflow = 'hidden';
+    // morph 期間 z:15 壓在其他卡(z:1~3)＋hover(z:11) 之上（低於 next-btn z:20）＝放大時蓋住舊灰卡；t=0.6 還原標準 z:10。
+    clickedEl.style.zIndex = '15';
     clickedEl.style.clipPath = '';
 
-    // 舊灰卡（user 2026-08-23 定案不對稱）：不 morph 縮小，而是 hero clip-reveal 收場完整消失
-    // （位移+揭露 heroExitCard，同色卡離場語彙）→ 隱藏態跳到新版位/新色/z 底層 → 隨機方向 hero clip-reveal 進場
-    outgoingEl.style.transition = 'none';
-    const EXIT_DUR = 0.3;  // 舊灰卡「離開那一下」滑出時長（user 2026-08-24，獨立可調）；下方 setTimeout 必須同步等它跑完
-    heroExitCard(outgoingEl, revealDir(outgoingEl), EXIT_DUR);
-    setTimeout(() => {
-      outgoingEl.style.transition = 'none';
-      setAsColor(outgoingEl, clickedColor, newCfg);
-      // 新色卡「先灰後色」：本體先設灰（--lib-bg），RGB 只放在一層起始全遮的 veil 上。
-      // ⚠️為何不是「灰 veil 蓋 RGB 本體」（前一版）：色卡帶 rotate，RGB 本體會從灰 veil 的旋轉邊緣反鋸齒
-      // 溢出＝user 2026-08-24「小灰卡四周見 RGB 細邊」。改「灰本體＋RGB veil clip 掀入」→ 灰卡停留期單層純灰、
-      // 零溢出；VEIL_HOLD 到才把 RGB 掀入蓋灰（與中央色 veil 掀開同刻），收尾本體轉正 RGB＋移除 veil（回單層）。
-      outgoingEl.style.background = 'var(--lib-bg)';
-      outgoingEl.style.zIndex = '1';
-      const colorVeil = document.createElement('div');
-      colorVeil.className = 'lib-card-veil';
-      colorVeil.style.cssText = `position:absolute;inset:0;z-index:60;background:${veilColor};pointer-events:none;`;
-      colorVeil.style.clipPath = 'inset(0% 0% 100% 0%)';  // 起始全遮：gray hold 期間隱形，clipIn 才掀入
-      outgoingEl.appendChild(colorVeil);
-      heroRevealCard(outgoingEl, revealDir(outgoingEl), DUR.medium, () => {
-        applyIdleTransition(outgoingEl);
-        outgoingEl.style.clipPath = '';
-        // 新卡 marquee 延到 RGB veil 掀入收尾才 render+reveal（灰卡停留期不顯標題＝維持「純灰卡」）
-        // 補救：上一輪 reveal 中被切換打斷的卡（killTweensOf 凍結）marquee 沒 render 到，這裡補上
-        others.forEach(o => {
-          const t = o.querySelector('.color-rect-title');
-          if (t && !t.innerHTML) { renderMarquee(o); revealMarqueeTitle(o); }
-        });
-      });
-    }, EXIT_DUR * 1000);
+    // §16.2 反向鏡像（user 2026-09-06，撤 §12.1 的 灰→RGB fade）：縮小段**全程維持灰**——setAsColor 後同 tick 把 bg 覆寫回 var(--lib-bg)
+    //   （起灰終灰＝無 bg 補間、幾何照 glide）。⚠️此「維持純灰」覆寫是**刻意重新引入**（用途換成配 t=0.6+HOLD 的灰 overlay 擦除露色，鏡像 14.1），勿當回歸。
+    outgoingEl.style.transition = TRANSITION_MORPH;
+    setAsColor(outgoingEl, clickedColor, newCfg);      // 縮到新色卡版位/尺寸（left/top/w/h/rotate glide）
+    outgoingEl.style.background = 'var(--lib-bg)';     // ← 覆寫回灰（縮小全程灰；落定+HOLD 才 overlay 擦除露 RGB）
+    outgoingEl.style.zIndex = '1';                     // 沉到最底＝被點卡(z:15)放大時蓋在它上面
 
-    setTimeout(() => {
-      allEls.forEach(el => { if (el !== outgoingEl) { applyIdleTransition(el); el.style.clipPath = ''; } });
-      // 先在 veil 底下把內容「直接渲染就位」（onTabSwitch {instant:true}；此刻卡片幾何已落定，
-      // scroll-gate 的視窗判定量到的是最終尺寸），同 tick 完成 → veil 掀開時內容已在
-      if (onDone) onDone();
-      // 中央灰卡＝色 veil clip 掀「開」（inset0→全遮，露灰卡＋內容）；新色卡＝RGB veil clip 掀「入」
-      // （全遮→inset0，蓋灰卡露 RGB）。兩者同 VEIL_HOLD 延遲＋同 DUR.medium → 同一刻「小灰卡消失、
-      // 露出 RGB」（user 2026-08-24）。新卡走掀入而非掀開＝灰卡停留期無 RGB 底層、免旋轉邊緣溢出。
-      const VEIL_HOLD = 0.5;
-      const DIRS = ['inset(0% 0% 0% 100%)', 'inset(0% 100% 0% 0%)', 'inset(100% 0% 0% 0%)', 'inset(0% 0% 100% 0%)'];
-      const randDir = () => DIRS[Math.floor(Math.random() * DIRS.length)];
-      // 中央色 veil「掀開」與新卡 RGB veil「掀入」**共用同一方向 dir**：clipAway 是 inset0→dir、clipIn 是 dir→inset0，
-      // 同一個 dir 下兩者的掃描邊剛好反向 → 兩張卡的 reveal 往相反方向前進（user 2026-08-24：避免兩卡同向）。
-      const dir = randDir();
-      const clipAway = (v, d, onDone, onStart) => {
-        if (!v) { if (onStart) onStart(); if (onDone) onDone(); return; }
-        if (typeof gsap === 'undefined') { v.remove(); if (onStart) onStart(); if (onDone) onDone(); return; }
-        gsap.fromTo(v,
-          { clipPath: 'inset(0% 0% 0% 0%)' },
-          { clipPath: d, duration: DUR.medium, ease: EASE.enter,
-            delay: VEIL_HOLD, onStart: onStart || undefined, onComplete: () => { v.remove(); if (onDone) onDone(); } });
-      };
-      const clipIn = (v, d, onDone) => {
-        if (!v) { if (onDone) onDone(); return; }
-        if (typeof gsap === 'undefined') { v.style.clipPath = 'inset(0% 0% 0% 0%)'; if (onDone) onDone(); return; }
-        gsap.fromTo(v,
-          { clipPath: d },
-          { clipPath: 'inset(0% 0% 0% 0%)', duration: DUR.medium, ease: EASE.enter,
-            delay: VEIL_HOLD, onComplete: onDone });
-      };
-      // 標題「不進場動畫」（user 2026-08-26）：onDone(→playPanelReveal)已把標題 clipPath 清掉、就位於
-      // 中央色 veil 底下（z 低於 veil），此處 veil 掀開就把它連同內容一起露出＝「色塊離開就直接出現」。
-      // 不再於 onStart 特別 reveal 標題（原 z:70 疊 veil 上同步揭的做法已退場）。
-      clipAway(veil, dir, null);
-      // 新色卡 RGB veil 掀入：收尾把本體轉正 RGB（先設色再移 veil＝同色無閃）＋標題壓軸 reveal。
-      // 中途被連點打斷時 killTweensOf 不觸發 onComplete → 本體留灰，靠下一輪 switchTab 開頭 allEls
-      // 重設 background=colorOf 自癒（relayout 走 initColorEls 亦然）。
-      const newCardVeil = outgoingEl.querySelector('.lib-card-veil');
-      clipIn(newCardVeil, dir, () => {
-        outgoingEl.style.background = clickedColor;
-        if (newCardVeil) newCardVeil.remove();
+    switchColorTimers.push(setTimeout(() => {
+      // §22：flight 退役 → 無 resumeScroll；灰卡底部 marquee 各跑自己 loop、進場在 onDone 後 marqueeWipeEnter。
+      // 舊灰卡＋others 還原 idle transition＋清殘留 clip（被點卡 clickedEl 留給下方 fade 段控制）。
+      allEls.forEach(el => { if (el !== clickedEl) applyIdleTransition(el); el.style.clipPath = ''; });
+      // 補救：上一輪 reveal 被本次切換打斷的 others 卡 marquee 沒 render 到（killTweensOf 凍結）→ 補上
+      others.forEach(o => {
+        const t = o.querySelector('.color-rect-title');
+        if (t && !t.innerHTML) { renderMarquee(o); revealMarqueeTitle(o); }
+      });
+      clickedEl.style.zIndex = '10';   // 放大期間暫置 15 → 還原灰卡標準 z:10
+      clickedEl.style.overflow = 'visible';   // §10.3：還原灰卡 steady state（morph 期間暫 hidden 裁旋轉字條）
+      // §23.2：outgoing 色塊 marquee 的 render+reveal 移到 HOLD 幀（與灰卡進場＋兩滑板同拍），不再在 settle。
+
+      // §14.1（user 2026-09-06）：此刻＝全尺寸 RGB 大卡＋底部 marquee 共存一瞬 → HOLD 後「色彩 overlay clip 擦除」去色（取代 §12.1 bg-fade）。
+      switchColorTimers.push(setTimeout(() => {
+        // §23.2 timing 統一 HOLD 幀：outgoing 色塊 marquee render+reveal（原 settle 幀）挪這＝與灰卡 marqueeWipeEnter＋去色/上色兩滑板**四件事同拍**。
+        //   必在 dBack 之前（dBack 讀 outgoing 剛 render 的 .color-rect-title rot）。marquee z:1 > 上色滑板 z:0＝浮其上。
         renderMarquee(outgoingEl);
         revealMarqueeTitle(outgoingEl);
-      });
-    }, MORPH_DUR * 1000);
+        // (a) 卡本體 bg 直寫 var(--lib-bg)（transition:none；藏在 overlay 下不 paint 中間態）＝順帶消 mode3 bg 補間疑慮（selector 翻面發生在 overlay 底下不可見）
+        clickedEl.style.transition = 'none';
+        clickedEl.style.background = 'var(--lib-bg)';
+        void clickedEl.offsetHeight;                     // §15.1：強制 commit bg（transition:none 下瞬間定型）**才**掛回 idle transition；否則 bg 改變延到下次 recalc、彼時 TRANSITION_GRAY 的 bg 0.4s 已掛回→overlay 底下偷偷 RGB→灰 fade、擦過處露半褪色卡＝視覺 opacity 感（§8.1 教訓再犯）
+        applyIdleTransition(clickedEl);                  // 還原灰卡 idle transition（bg 已定型、僅影響日後 hover/mode 翻色）
+        // (b) 色彩 wipe 顏色（mode3=theme-fg 沿用舊 veilColor 邏輯）
+        const isMode3 = document.body.classList.contains('mode-color');
+        const wipeColor = isMode3 ? 'var(--theme-fg)' : clickedColor;
+        // §22.3 方向配對：去色 dGo 隨機四向；上色 dBack=pairSlabDir(dGo, outgoing 新 marquee 邊型 rot)（字面相反＋左右邊再 ±90 旋轉）
+        const dGo = ['top', 'bottom', 'left', 'right'][Math.floor(Math.random() * 4)];
+        const outSrc = /** @type {HTMLElement|null} */ (outgoingEl.querySelector('.color-rect-title'));
+        const dBack = pairSlabDir(dGo, outSrc ? parseRotDeg(outSrc.style.transform) : 0);
+        // (c) 內容 overlay 下 instant 渲染就位＋onDone 提前到這幀（playPanelReveal instant 路徑：list 走 VEIL_REVEAL_DELAY 等擦開才滑列）
+        if (contentEl) contentEl.style.display = '';
+        if (onDone) onDone();
+        // §22.1 marquee wipe 進場：灰卡底部 marquee 此刻已 render（onDone→showPanel），依 exitDir 配對方向 clip-reveal（相反）
+        marqueeWipeEnter(clickedEl, exitDir);
+        // 正向去色（§21.1 wrapper+滑板 transform）：滑板滑出（露灰）；wrapper z:60(<內容上方)、pe:auto 擋點擊到擦完；擦完 remove wrapper
+        slideColorWipe(clickedEl, wipeColor, { inset: '0', z: '60', pe: 'auto', slideIn: false, dir: dGo, dur: WIPE_DUR,
+          onDone: (wrap) => { if (wrap.parentNode) wrap.remove(); } });
+
+        // §17.1 反向上色（與正向去色**同一刻**＝一邊擦掉色、一邊蓋上色）＝翻轉圖層：本體恆灰、色只在 overlay 滑入（修 §16.2 旋轉元素 inset:0 子層蓋不住父 bg 抗鋸齒邊的色滲）。
+        //   §21.1：wrapper inset:-2px oversize 由 host overflow:hidden 裁齊（滑板滑入時色到邊乾淨、父 bg 全程無 RGB）；z:0 低於 .color-rect-title z:1＝marquee 浮其上照捲。
+        //   滑板滑入到位→本體直寫 RGB（§15.1 reflow commit 後掛回 idle transition）＋同 tick 移 wrapper（同色換手無閃）。
+        outgoingEl.style.overflow = 'hidden';            // 裁掉 wrapper 的 -2px oversize 溢出；finish 還原
+        slideColorWipe(outgoingEl, wipeColor, { inset: '-2px', z: '0', pe: 'none', slideIn: true, dir: dBack, dur: WIPE_DUR,
+          onDone: (wrap) => {
+            outgoingEl.style.transition = 'none';
+            outgoingEl.style.background = clickedColor;
+            void outgoingEl.offsetHeight;
+            applyIdleTransition(outgoingEl);
+            outgoingEl.style.overflow = '';
+            if (wrap.parentNode) wrap.remove();
+            delete outgoingEl.dataset.cardPending;         // §17.3：色塊 ready → hover 生效
+            syncHoverAfterUnlock();                        // 游標若正停其上、ready 即刻套 hover（§15.4 合成補發覆蓋靜止游標）
+          } });
+      }, COLOR_HOLD * 1000));
+    }, MORPH_DUR * 1000));
   }
 
   // ── 進場動畫 ──────────────────────────────────────────────────
@@ -753,6 +866,7 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
       if (contentEl) contentEl.classList.add('content-visible');
       if (nextBtnEl) nextBtnEl.style.clipPath = '';
       isSwitching = false;  // 進場完成 → 解鎖 switchTab
+      syncHoverAfterUnlock();   // §15.4
       if (onEntranceDoneCb) onEntranceDoneCb();
       document.fonts.ready.then(() => refreshMarquees());
       return;
@@ -776,6 +890,7 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
         requestAnimationFrame(() => {
           allEls.forEach(el => { applyIdleTransition(el); });
           isSwitching = false;  // 進場完成 → 解鎖 switchTab（之前進場期間 switchTab 會跟進場並行弄亂卡片幾何）
+          syncHoverAfterUnlock();   // §15.4
           const contentEl = document.getElementById('library-card-content');
           if (onTabSwitch) onTabSwitch(tabOf.get(grayEl));
           contentEl.classList.add('content-visible');
@@ -936,6 +1051,12 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
   ro.observe(grayEl.closest('section'));
   // SPA 離開 library 時 disconnect，避免 RO 持有 detached section + 每訪累積
   registerPageCleanup(() => { clearTimeout(roResizeTimer); ro.disconnect(); });
+  // 離頁時把還在飛的 marquee box 歸巢（真節點掛 body、不能 remove；restore 移回 panel 內 → 隨 page-content swap 清掉）
+  //   ＋作廢未觸發的 HOLD/FADE timer（§12.1，防離頁後殘觸改 detached 卡片樣式）
+  registerPageCleanup(() => {
+    switchColorTimers.forEach(clearTimeout); switchColorTimers = [];
+    document.querySelectorAll('.lib-color-wipe').forEach(w => { if (typeof gsap !== 'undefined') gsap.killTweensOf(w); w.remove(); });  // §14.1 overlay 兜底
+  });
 
   // 點擊事件
   colorEls.forEach(el => {

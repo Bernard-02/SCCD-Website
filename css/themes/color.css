@@ -292,6 +292,12 @@ body.mode-color .timeline-card-inner.bg-black * {
   color: var(--theme-fg) !important;
 }
 
+/* about history list view era 標頭：bg 由 JS renderListEra 設三原色 inline → mode3 去色改 strict B/W，
+   同主卡（theme-fg 底、text 已由上方 .timeline-card-inner * 翻 fg-inverse）。桌機 + 手機通用。 */
+body.mode-color .tl-list-era-head {
+  background-color: var(--theme-fg) !important;
+}
+
 /* ===== Borders ===== */
 body.mode-color .border-black {
   border-color: var(--theme-fg) !important;
@@ -841,6 +847,23 @@ body.mode-color .atlas-cat-b .atlas-name {
   color: var(--theme-fg-inverse) !important;
 }
 
+/* B host 退場（色塊 clip-out 期間）：上方白底(theme-fg)＋黑字(theme-fg-inverse)都是 !important、
+ * JS inline 壓不掉＝①本體白底蓋住 clip-out 的 ghost 色塊（clip 動畫看不到）②字卡在黑色→色塊消失時黑字露在彩底＝突兀。
+ * .atlas-b-exit 覆寫成 透明底 + theme-fg 白字＝ghost 色塊 clip 掉時同步露出白字（user 09-04）。
+ * forward exit（paired switchToList／unpaired buildMapExitTl）加、switchToMap 回程清。*/
+body.mode-color .atlas-cat-b .atlas-name.atlas-b-exit {
+  background-color: transparent !important;
+  color: var(--theme-fg) !important;
+}
+
+/* B host 回程 bloom（色塊 clip-in 期間）：透明底讓 ghost 演色塊；文字走 --atlas-b-ink＝gsap 由 theme-fg(頁對比白)
+ * tween 到 theme-fg-inverse(色塊對比黑)＝色塊出來時「一起」變色（!important 直接改 color 被 base 擋→靠 var 繞過，
+ * 同 flight 的 --atlas-fly-c 手法）。clip-in 到位(onComplete)移 class＝恢復上方 base 白底黑字、與 tween 終態無縫（user 09-04）*/
+body.mode-color .atlas-cat-b .atlas-name.atlas-b-bloom {
+  background-color: transparent !important;
+  color: var(--atlas-b-ink, var(--theme-fg-inverse)) !important;
+}
+
 /* View 切換 cover 層：bg primary → fg；
  * 非 D items cover = fg 與 fg text 同色（覆蓋時文字「同色融入」消失），
  * D items cover = fg 與 chip bg (fg) 同色（覆蓋時整塊維持 fg bg），兩種情境視覺都連續 */
@@ -931,6 +954,19 @@ body.mode-color .atlas-list-col[data-category="host"] > .atlas-list-col-titleblo
 body.mode-color .atlas-list-col[data-category="employ"] > .atlas-list-col-titleblock .atlas-list-col-title {
   /* mode3 用 --list-zebra-strip 固定白淡疊（user 2026-06-23：同 curriculum courses-grid-card / activities 斑馬；
      theme-toggle.js 依 hue set rgba(255,255,255, 亮 0.4/暗 0.15)）。⚠️不可用 rgba(theme-fg)——那會吃 hue、亮 hue 變黑疊，user 不要 */
+  background: var(--list-zebra-strip, rgba(255, 255, 255, 0.15)) !important;
+  color: var(--lib-fg) !important;
+}
+
+/* 右箭頭 nav-btn 跟其欄標 title chip 同款 mode-color 處理（user 09-04「看 title tab 怎麽做」）：
+ *   主欄(faculty/partners)：strict B/W（theme-fg 底 + 反色 chevron），對齊上方主 col title
+ *   host/employ：半透明白疊（--list-zebra-strip），對齊上方 host/employ 欄標 */
+body.mode-color .atlas-list-col:not([data-category="host"]):not([data-category="employ"]) .atlas-list-nav-btn {
+  background: var(--theme-fg) !important;
+  color: var(--theme-fg-inverse) !important;
+}
+body.mode-color .atlas-list-col[data-category="host"] .atlas-list-nav-btn,
+body.mode-color .atlas-list-col[data-category="employ"] .atlas-list-nav-btn {
   background: var(--list-zebra-strip, rgba(255, 255, 255, 0.15)) !important;
   color: var(--lib-fg) !important;
 }

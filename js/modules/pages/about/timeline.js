@@ -9,7 +9,6 @@
 import { registerPageExit } from '../../ui/page-exit.js';
 import { clipRevealIconSwap } from '../../ui/scroll-animate.js';
 import { registerPageCleanup } from '../../ui/page-cleanup.js';
-import { createClassImagesSlideshow } from './class-images-slideshow.js';
 import { loadHistory } from './history-source.js';
 
 export function initTimeline() {
@@ -195,366 +194,37 @@ export function initTimeline() {
     .then(({ eras, images }) => {
       const items = buildYearItems(eras);
       if (items.length > 0 && images.length > 0) {
-        // 手機與矮橫向（landscape gate，同 landscape.css）走簡化視圖（卡片 + slideshow + 箭頭切年 + list 鈕），
-        // 桌面 strip 整套不建構；矮橫向的四欄 grid 佈局由 landscape.css 5i++ 覆蓋（user 2026-07-07）
-        if (window.innerWidth < 768 || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) buildMobile(items, images);
-        else buildStrip(items, images);
+        // 全視口單一版本（2026-09-05：手機/矮橫向的 buildMobile 退役）：照片 marquee + list view
+        // popup，手機開文字卡遮住 marquee、圖片照跑（buildStrip 本來就不暫停 marquee）。
+        buildStrip(items, images);
       }
     })
     .catch(err => console.error('Timeline error:', err));
-
-  // ── 手機版（user 2026-06-11）─────────────────────────────────────
-  // 排列參考 class slideshow：era chip + 年份說明卡在「圖片上方」、圖片用 3-slot slideshow 排列；
-  // 右箭頭（或點圖片區）切下一年 = 文字卡 clip 換內容 + slideshow tick 同步左移；
-  // list 鈕切換 era 清單視圖（沿用桌面 #timeline-list-view 結構/CSS，行為簡化版）。
-  function buildMobile(items, images) {
-    area.style.height = 'auto';
-    navLeft.style.display = 'none';
-    navRight.style.display = 'none';
-
-    // era 分組（list view 用；同 buildStrip 的分組邏輯）
-    const eraGroups = [];
-    const eraIndexByKey = {};
-    items.forEach(it => {
-      const key = `${it.eraTitle}|${it.eraLabel}`;
-      if (eraIndexByKey[key] === undefined) {
-        eraIndexByKey[key] = eraGroups.length;
-        eraGroups.push({ title: it.eraTitle, label: it.eraLabel, years: [] });
-      }
-      eraGroups[eraIndexByKey[key]].years.push(it);
-    });
-
-    const wrap = document.createElement('div');
-    wrap.id = 'timeline-mobile';
-    // 順序：圖片在上、文字（era chip + 年份卡）在下（user 2026-07-07 改版；原文字上圖下）
-    wrap.innerHTML =
-      '<div class="tl-m-images"></div>' +
-      // 直式：era 左（EN/ZH 兩行）、年份卡右（user 2026-07-09）；矮橫向 wrapper display:contents 拆回 grid items
-      '<div class="tl-m-text-row">' +
-        '<div class="tl-m-era timeline-card-inner bg-black text-white"><div class="text-s font-bold"></div></div>' +
-        '<div class="tl-m-card timeline-card-inner"><div class="tl-m-card-body text-s font-bold"></div></div>' +
-      '</div>' +
-      '<div class="tl-m-controls">' +
-        '<button class="tl-m-list-btn" aria-label="切換清單視圖"><span class="tl-icon-btn-inner"><span class="icon icon-atlas-list"></span></span></button>' +
-        '<button class="tl-m-next-btn" aria-label="下一年"><span class="tl-icon-btn-inner"><span class="icon icon-arrow-right"></span></span></button>' +
-      '</div>';
-    area.appendChild(wrap);
-
-    const eraEl = wrap.querySelector('.tl-m-era');
-    const eraText = eraEl.querySelector('div');
-    const cardEl = wrap.querySelector('.tl-m-card');
-    const cardBody = cardEl.querySelector('.tl-m-card-body');
-    const imagesEl = wrap.querySelector('.tl-m-images');
-    const listBtn = wrap.querySelector('.tl-m-list-btn');
-    const nextBtn = wrap.querySelector('.tl-m-next-btn');
-    const listIcon = listBtn.querySelector('.icon');
-
-    let mIdx = 0;
-    let switching = false;
-    let listMode = false;
-    let listAnimating = false;
-
-    // skipEra（user 2026-07-13）：下一年同 era 時 chip 內容/旋轉不動（nextYear 也不 clip 它）
-    function renderYear(i, skipEra = false) {
-      const it = items[i];
-      // 兩個 span＋空白：直式 CSS 轉 block 成 EN/ZH 兩行，矮橫向維持 inline 單行（空白節點在 block 間不渲染）
-      if (!skipEra) {
-        eraText.innerHTML = `<span class="tl-m-era-en">${it.eraTitle}</span> <span class="tl-m-era-zh">${it.eraLabel}</span>`;
-      }
-      const descs = it.descriptions || (it.description ? [it.description] : []);
-      // .tl-m-descs wrapper：直式卡內兩欄 grid 用（年份左欄 / 文字右欄，user 2026-07-13）；
-      // 矮橫向不吃 grid、wrapper 是透明 block 無影響。
-      // section 分組（user 2026-07-13 二改）：h5 小標 hoist 成 .tl-m-desc-group 直接子層——
-      // sticky 的 containing block 從單一 .tl-m-desc 擴大到整組（含後續無標題段落），
-      // BFA/MDES 標題釘到下一個 h5 接棒或整卡結束，不再在自己段落結尾被收走一半。
-      const parser = document.createElement('div');
-      const groups = [];
-      descs.forEach(d => {
-        parser.innerHTML = d;
-        const h5 = parser.querySelector('h5');
-        if (h5 || !groups.length) groups.push({ head: h5 ? h5.outerHTML : '', body: [] });
-        if (h5) h5.remove();
-        groups[groups.length - 1].body.push(`<div class="tl-m-desc">${parser.innerHTML}</div>`);
-      });
-      cardBody.innerHTML =
-        `<h3 class="font-bold tl-m-year">${it.year}</h3>` +
-        `<div class="tl-m-descs">` +
-        groups.map(g => `<div class="tl-m-desc-group">${g.head}${g.body.join('')}</div>`).join('') +
-        `</div>`;
-      cardEl.style.background = randomColor();
-      // 字卡寬 = 文字實際寬（user 2026-07-04）：長文在 max-width 內換行後，max-content 會把卡撐滿容器寬、
-      // 右側留大片空底色 → 逐「文字節點」用 Range 量每一行 rect 的右緣，卡寬收到 最寬行 + 左右 padding。
-      // ⚠️ 不能對整個 cardBody selectNodeContents 一次量：Range 對完整包含的區塊元素（.tl-m-desc div）
-      //   回傳元素 border box（= 撐滿容器的寬），量到的永遠是容器寬。只有 text node 的 rects 才是真的逐行字寬。
-      // 先清 inline width/transform 讓文字自然換行再量（旋轉會虛增 rect 寬，量完才設新角度）；+1px 防 sub-pixel 再折行。
-      cardEl.style.width = '';
-      cardEl.style.transform = 'none';
-      // 量寬只給矮橫向（grid 第 3 欄卡片貼文字寬）；直式 2026-07-09 改 era 上/卡下、卡片吃滿容器寬，
-      // inline 定寬會擋住 CSS width:100% → 直式跳過量測。
-      if (window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) {
-        const baseL = cardBody.getBoundingClientRect().left;
-        const walker = document.createTreeWalker(cardBody, NodeFilter.SHOW_TEXT);
-        let maxLine = 0;
-        for (let n; (n = walker.nextNode()); ) {
-          const rg = document.createRange();
-          rg.selectNodeContents(n);
-          for (const r of rg.getClientRects()) maxLine = Math.max(maxLine, r.right - baseL);
-        }
-        if (maxLine) {
-          const cs = getComputedStyle(cardEl);
-          cardEl.style.width = `${Math.ceil(maxLine + parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight)) + 1}px`;
-        }
-      }
-      if (!skipEra) eraEl.style.transform = `rotate(${pickUniqueRotations(1, -4, 4)[0]}deg)`;
-      cardEl.style.transform = `rotate(${pickUniqueRotations(1, -2, 2)[0]}deg)`;
-      cardEl.scrollTop = 0; // 切年份時捲回頂部（上一年捲到中段，新年份要頂對齊；同 list view renderListEra）
-      cardBody.scrollTop = 0; // 直式內捲層（padding 留外盒）也歸零
-      // 直式：末段 h5 區塊（如 2004 MDES）不足一屏時，捲到底 h5 會卡在半途頂不到年份列（user 2026-07-13）
-      // → .tl-m-descs 補 padding-bottom = 盒高 − 末段高，捲到底恰好末段頂 = 盒頂、h5 與年份同列釘住。
-      // 只在「內容本來就超框」時補（內容整卡放得下就不製造多餘捲動）；矮橫向無 grid/sticky 不適用。
-      if (!window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) {
-        const descsWrap = cardBody.querySelector('.tl-m-descs');
-        if (descsWrap) {
-          descsWrap.style.paddingBottom = '';
-          const lastDesc = descsWrap.lastElementChild;
-          if (lastDesc && lastDesc.querySelector('h5') && cardBody.scrollHeight > cardBody.clientHeight) {
-            const pad = cardBody.clientHeight - lastDesc.offsetHeight;
-            if (pad > 0) descsWrap.style.paddingBottom = `${pad}px`;
-          }
-        }
-      }
-    }
-    renderYear(0);
-
-    // slideshow：單格置中一次一張（user 2026-07-07 改版，原 3-slot collage）；manual 模式
-    //（內建點擊/hover 不綁），tick 由「自動輪播計時」與「箭頭切年」共同驅動——同一 tick、
-    // isShifting 自帶互斥。舊圖 clip-out + 新圖隨機 4 向 clip-in 同格交疊＝clip-path 切換。
-    // 照片與年份脫鉤（2026-08-11 後台重構）：輪播吃 about_history_images 的 sort 順序
-    const slide = createClassImagesSlideshow(imagesEl, images, {
-      textHlEl: null, manual: true, slotLefts: ['50%'], slotXPercent: -50,
-    });
-    if (slide) slide.renderFresh(true); // 先隱藏，等 ScrollTrigger reveal
-
-    // 自動輪播：3.5s 一張；list view 開著時跳過（tick 會把新圖 reveal 進被 hideAll 的區域）。
-    // SPA 換頁 interval 要清（page-cleanup registry）。
-    let autoTimer = null;
-    function startAuto() {
-      if (autoTimer || !slide) return;
-      autoTimer = setInterval(() => { if (!listMode && !document.hidden) slide.tick(); }, 3500);
-    }
-    registerPageCleanup(() => { if (autoTimer) { clearInterval(autoTimer); autoTimer = null; } });
-
-    const textEls = [eraEl, cardEl];
-
-    function nextYear() {
-      if (switching || listMode || listAnimating || !slide) return;
-      switching = true;
-      slide.tick(); // 圖片左移一格 + 下一年圖片進場，與文字卡換頁同時跑
-      // 同 era 的下一年：era chip 不參與 clip 進退場、內容/旋轉不動（user 2026-07-13）
-      const nextIdx = (mIdx + 1) % items.length;
-      const sameEra = items[nextIdx].eraTitle === items[mIdx].eraTitle
-        && items[nextIdx].eraLabel === items[mIdx].eraLabel;
-      const els = sameEra ? [cardEl] : textEls;
-      gsap.to(els, {
-        clipPath: getClipStart(randomDirLR()), duration: TIMING.exitDuration, ease: TIMING.exitEase,
-        onComplete: () => {
-          mIdx = nextIdx;
-          renderYear(mIdx, sameEra);
-          gsap.set(els, { clipPath: getClipStart(randomDirLR()) });
-          gsap.to(els, {
-            clipPath: CLIP_END, duration: TIMING.cardRevealDuration, ease: TIMING.revealEase, stagger: TIMING.stagger,
-            onComplete: () => { switching = false; },
-          });
-        },
-      });
-    }
-    nextBtn.addEventListener('click', nextYear);
-    imagesEl.addEventListener('click', nextYear); // 點圖片區也切年（對應桌面 slot 點擊往前）
-
-    // ── list view（結構/class 同桌面版，mobile CSS 覆蓋佈局）──
-    const listView = document.createElement('div');
-    listView.id = 'timeline-list-view';
-    listView.style.display = 'none';
-    listView.innerHTML =
-      '<div class="tl-list-grid"><div class="tl-list-cell">' +
-        '<div class="tl-list-rect timeline-card-inner"><div class="tl-list-content list-scroll"></div></div>' +
-        '<div class="tl-list-chip timeline-card-inner bg-black text-white"><div class="text-s font-bold"></div></div>' +
-        '<button class="tl-list-next-btn" aria-label="下一個時期"><span class="tl-icon-btn-inner"><span class="icon icon-arrow-right"></span></span></button>' +
-      '</div></div>';
-    area.appendChild(listView);
-
-    const listChip = listView.querySelector('.tl-list-chip');
-    const listChipText = listChip.querySelector('div');
-    const listRect = listView.querySelector('.tl-list-rect');
-    const listContent = listView.querySelector('.tl-list-content');
-    const listNextBtn = listView.querySelector('.tl-list-next-btn');
-    const rectEls = [listRect]; // chip 獨立走 revealChip/exitChip（hero clip-reveal，同 library 左上角黑卡）
-
-    let listEraIndex = 0;
-    let listEraColors = [];
-
-    // 同 buildStrip 的 splitDesc / renderListEra（手機自帶一份；桌面那份在 buildStrip closure 內）
-    const descParser = document.createElement('div');
-    function splitDesc(d) {
-      descParser.innerHTML = d;
-      let heading = '';
-      const divs = [];
-      [...descParser.children].forEach(ch => {
-        if (ch.tagName === 'H5') heading += ch.outerHTML;
-        else divs.push(ch);
-      });
-      const en = divs[0] ? divs[0].innerHTML : '';
-      const zh = divs.length > 1 ? divs.slice(1).map(x => x.innerHTML).join('<br>') : '';
-      return { heading, en, zh };
-    }
-
-    function renderListEra(idx) {
-      const era = eraGroups[idx];
-      // 兩 span＋空白：直式手機 CSS 轉 block 成 EN/ZH 兩行（左欄），桌面/矮橫向維持 inline 單行
-      listChipText.innerHTML = `<span class="tl-list-era-en">${era.title}</span> <span class="tl-list-era-zh">${era.label}</span>`;
-      listRect.style.background = listEraColors[idx];
-      listContent.innerHTML = era.years.map(y => {
-        const descs = y.descriptions || (y.description ? [y.description] : []);
-        const blocks = descs.map(d => {
-          const { heading, en, zh } = splitDesc(d);
-          return '<div class="tl-list-block">' + heading +
-            '<div class="tl-list-cols">' +
-              `<div class="tl-list-en">${en}</div>` +
-              `<div class="tl-list-zh" lang="zh-Hant">${zh}</div>` +
-            '</div></div>';
-        }).join('');
-        return '<div class="tl-list-year-row">' +
-          `<div class="tl-list-year text-s font-bold">${y.year}</div>` +
-          `<div class="tl-list-year-body text-s font-regular">${blocks}</div>` +
-        '</div>';
-      }).join('');
-      listContent.scrollTop = 0;
-    }
-
-    // icon 切換走 clip-reveal（同桌面 wipeToggleIcon）
-    const wipeListIcon = (newClass) => clipRevealIconSwap(listIcon, newClass);
-
-    function showList() {
-      if (listAnimating || switching || listMode) return;
-      listAnimating = true;
-      listMode = true;
-      wipeListIcon('icon icon-atlas-view');
-      nextBtn.style.visibility = 'hidden'; // list 模式下年份箭頭無作用，先藏
-      const pool = shuffle(ACCENT_COLORS);
-      listEraColors = eraGroups.map((_, i) => pool[i % pool.length]);
-      listEraIndex = eraIndexByKey[`${items[mIdx].eraTitle}|${items[mIdx].eraLabel}`] ?? 0;
-      if (slide) slide.hideAll();
-      gsap.to(textEls, { clipPath: getClipStart(randomDir4()), duration: TIMING.exitDuration, ease: TIMING.exitEase });
-      gsap.delayedCall(TIMING.exitDuration, () => {
-        renderListEra(listEraIndex);
-        listView.style.display = 'block';
-        gsap.set(rectEls, { clipPath: getClipStart(randomDirLR()) });
-        gsap.to(rectEls, {
-          clipPath: CLIP_END, duration: TIMING.cardRevealDuration, ease: TIMING.revealEase, stagger: TIMING.stagger,
-          onComplete: () => { listAnimating = false; },
-        });
-        revealChip(listChip, TIMING.cardRevealDuration, TIMING.revealEase);
-        revealChip(listNextBtn.querySelector('.tl-icon-btn-inner'), TIMING.cardRevealDuration, TIMING.revealEase);
-      });
-    }
-
-    function hideList() {
-      if (listAnimating || !listMode) return;
-      listAnimating = true;
-      wipeListIcon('icon icon-atlas-list');
-      gsap.to(rectEls, {
-        clipPath: getClipStart(randomDirLR()), duration: TIMING.exitDuration, ease: TIMING.exitEase, stagger: TIMING.stagger,
-        onComplete: () => {
-          listView.style.display = 'none';
-          listMode = false;
-          nextBtn.style.visibility = '';
-          if (slide) slide.showAll();
-          gsap.to(textEls, {
-            clipPath: CLIP_END, duration: TIMING.cardRevealDuration, ease: TIMING.revealEase, stagger: TIMING.stagger,
-            onComplete: () => { listAnimating = false; },
-          });
-        },
-      });
-      exitChip(listChip, TIMING.exitDuration, TIMING.exitEase);
-      // 右箭頭鈕跟著 clip 收起（user 2026-08-11）
-      exitChip(listNextBtn.querySelector('.tl-icon-btn-inner'), TIMING.exitDuration, TIMING.exitEase);
-    }
-
-    function nextListEra() {
-      if (listAnimating || eraGroups.length <= 1) return;
-      listAnimating = true;
-      gsap.to(rectEls, {
-        clipPath: getClipStart(randomDir4()), duration: TIMING.exitDuration, ease: TIMING.exitEase, stagger: TIMING.stagger,
-        onComplete: () => {
-          listEraIndex = (listEraIndex + 1) % eraGroups.length;
-          renderListEra(listEraIndex);
-          gsap.set(rectEls, { clipPath: getClipStart(randomDirLR()) });
-          gsap.to(rectEls, {
-            clipPath: CLIP_END, duration: TIMING.cardRevealDuration, ease: TIMING.revealEase, stagger: TIMING.stagger,
-            onComplete: () => { listAnimating = false; },
-          });
-          revealChip(listChip, TIMING.cardRevealDuration, TIMING.revealEase);
-        },
-      });
-      exitChip(listChip, TIMING.exitDuration, TIMING.exitEase);
-    }
-
-    listBtn.addEventListener('click', () => { if (listMode) hideList(); else showList(); });
-    listNextBtn.addEventListener('click', nextListEra);
-
-    // ── 初始 reveal（文字卡 + slideshow 一起 clip-in）──
-    gsap.set(textEls, { clipPath: getClipStart(randomDirLR()) });
-    const revealMobile = () => {
-      gsap.to(textEls, { clipPath: CLIP_END, duration: TIMING.revealDuration, ease: TIMING.revealEase, stagger: TIMING.stagger });
-      if (slide) slide.showAll();
-      startAuto(); // 進場後才起自動輪播（藏著空轉沒意義）
-    };
-    if (typeof ScrollTrigger !== 'undefined') {
-      ScrollTrigger.create({ trigger: area, start: 'top 80%', once: true, onEnter: revealMobile });
-    } else {
-      revealMobile();
-    }
-
-    // 離頁退場：依模式收掉可見元素（同桌面語義的簡化版）
-    registerPageExit(() => new Promise(resolve => {
-      if (typeof gsap === 'undefined') { resolve(); return; }
-      const r = area.getBoundingClientRect();
-      if (!(r.width > 0 && r.bottom > 0 && r.top < window.innerHeight)) { resolve(); return; }
-      const slots = Array.from(imagesEl.querySelectorAll('.class-img'));
-      const exitEls = listMode ? rectEls : [...textEls, ...slots];
-      const total = exitEls.length + (listMode ? 1 : 0); // list 模式下黑卡另外走 exitChip，算一份
-      if (!total) { resolve(); return; }
-      gsap.killTweensOf(exitEls);
-      let done = 0;
-      const onOne = () => { if (++done >= total) resolve(); };
-      exitEls.forEach(el => {
-        gsap.to(el, { clipPath: getClipStart(randomDir4()), duration: TIMING.exitDuration, ease: TIMING.exitEase, overwrite: true, onComplete: onOne });
-      });
-      if (listMode) { gsap.killTweensOf(listChip); exitChip(listChip, TIMING.exitDuration, TIMING.exitEase, onOne); }
-    }));
-
-    // 離頁退場：手機 list 鈕（把說明叫出來的 btn）+ 下一年鈕 + list view 下一時期鈕的黑方塊 inner 也做出場
-    //（hero clip-reveal，同 .tl-list-chip；exitChip 讀 CSS rotate 算沿自身軸位移）。
-    registerPageExit(() => new Promise(resolve => {
-      if (typeof gsap === 'undefined') { resolve(); return; }
-      const inners = [listBtn, nextBtn, listNextBtn]
-        .map(b => b && b.querySelector('.tl-icon-btn-inner'))
-        .filter(el => el && el.offsetParent !== null);
-      if (!inners.length) { resolve(); return; }
-      let done = 0;
-      const onOne = () => { if (++done >= inners.length) resolve(); };
-      inners.forEach(el => { gsap.killTweensOf(el); exitChip(el, TIMING.exitDuration, TIMING.exitEase, onOne); });
-    }));
-  }
 
   // 桌面版：照片自動捲動 marquee（user 2026-08-06 改版）
   // 舊版是「左右分頁導航 + 疊加 era/年份字卡 + slot4 半透明預覽 + hover 抬升」，全部移除；
   // 現在照片無縫由右往左自動捲（速度對齊 awards ticker 80px/s），字卡改成左下角鈕開關的 list view popup。
   function buildStrip(items, images) {
+    // 手機/矮橫向：整段塞進「anchor strip 落點(178) 以下的一屏」。178 = #history scroll-margin-top
+    //（scroll-snap.css，讓出 sticky strip 底 179）；配 portrait #history padding 歸零（lists.css），
+    // section=area 剛好 landing→viewport 底、控制鈕不出畫面。svh 免手機工具列高估溢出。
+    // 矮橫向此值只當 flex-basis（landscape.css #history/#timeline-area flex 撐滿覆寫）。
+    // ⚠️ 必須在讀 area.offsetHeight（下方 pageH）之前設，否則照片以舊高度算佈局。
+    if (window.innerWidth < 768 || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) {
+      area.style.height = 'calc(100svh - 178px)';
+    }
     const pageW = area.offsetWidth;
     const pageH = area.offsetHeight;
-    const totalW = items.length * pageW;
     const vw = pageW / 100;
+    // 直向手機（<768）：照片放大近全幅（60~85vw、一屏至少一張）；垂直改「兩行」交替上下排（見下方
+    // photoTopsVH），用滿高螢幕的上下空間（user 2026-09-06）。橫向鋪排「跨幅」SPAN 200vw（桌面 100）——
+    // 兩行有垂直分離、可比一行密些而不疊成一坨。桌面（5-bar collage）原樣。
+    const bigPhoto = window.innerWidth < 768;
+    const SPAN = bigPhoto ? 200 : 100;      // 每個 item 的橫向鋪排跨幅（vw 單位）
+    const itemW = pageW * SPAN / 100;       // 每 item 佔 px 寬＝marquee 步距（桌面 = pageW）
+    const PHOTO_MIN_VW = bigPhoto ? 60 : 30;
+    const PHOTO_MAX_VW = bigPhoto ? 85 : 50;
+    const totalW = items.length * itemW;
 
     // 自動捲動取代分頁導航：nav zones 停用
     navLeft.style.display = 'none';
@@ -562,10 +232,6 @@ export function initTimeline() {
 
     strip.style.width = `${totalW}px`;
     strip.style.height = '100%';
-
-    // 照片大小 range（vw）
-    const PHOTO_MIN_VW = 30;
-    const PHOTO_MAX_VW = 50;
 
     const yPadVH = 8;
     const usableH_VH = 100 - yPadVH * 2;
@@ -575,7 +241,7 @@ export function initTimeline() {
     let imgIdx = 0; // 照片與年份脫鉤（2026-08-11）：每個 slot 依序取 about_history_images，不足循環
 
     items.forEach((item, index) => {
-      const ox = index * pageW;
+      const ox = index * itemW;
       const isFirst = index === 0;
       const isLast = index === items.length - 1;
 
@@ -603,7 +269,7 @@ export function initTimeline() {
       const photoHsVH = photoSizes.map(w => (w * 9 / 16) * (pageW / pageH));
 
       const s0Left = -(photoSizes[0] * (0.3 + Math.random() * 0.3));
-      const s4Right = 100 + photoSizes[4] * (0.3 + Math.random() * 0.3);
+      const s4Right = SPAN + photoSizes[4] * (0.3 + Math.random() * 0.3);
 
       const chainSpan = s4Right - s0Left;
       const totalPhotoW = photoSizes.reduce((a, b) => a + b, 0);
@@ -646,36 +312,49 @@ export function initTimeline() {
 
       for (let p = 1; p <= 3; p++) {
         const minLeft = 5;
-        const maxLeft = 95 - photoSizes[p];
+        const maxLeft = SPAN - 5 - photoSizes[p];
         photoLeftsVW[p] = Math.max(minLeft, Math.min(photoLeftsVW[p], maxLeft));
       }
 
       const photoTopsVH = [];
-      for (let p = 0; p < 5; p++) {
-        const bar = barAssign[p];
-        const barCenterVH = yPadVH + (bar + 0.5) * BAR_H_VH;
-        const h = photoHsVH[p];
-        const jitter = (Math.random() - 0.5) * BAR_H_VH * 0.6;
-        let top = barCenterVH - h / 2 + jitter;
-        top = Math.max(-0.7 * h, Math.min(top, 100 - h));
-        photoTopsVH[p] = top;
-      }
-
-      for (let p = 1; p < 5; p++) {
-        const prevTop = photoTopsVH[p - 1];
-        const prevBottom = prevTop + photoHsVH[p - 1];
-        const currTop = photoTopsVH[p];
-        const currBottom = currTop + photoHsVH[p];
-        const yOverlap = Math.min(prevBottom, currBottom) - Math.max(prevTop, currTop);
-        if (yOverlap < 0) {
-          const touchOverlap = 1 + Math.random() * 3;
-          if (currTop > prevBottom) {
-            photoTopsVH[p] = prevBottom - touchOverlap;
-          } else {
-            photoTopsVH[p] = prevTop - photoHsVH[p] + touchOverlap;
-          }
+      if (bigPhoto) {
+        // 手機兩行：照片交替上/下排、用滿高螢幕的上下空間（user 2026-09-06）。
+        // 不跑下方桌面的「垂直觸碰連接」——那是把 collage 照片黏成一片，兩行要保持上下分離。
+        const ROW_CENTER_VH = [26, 74];   // 上排 / 下排中心
+        for (let p = 0; p < 5; p++) {
           const h = photoHsVH[p];
-          photoTopsVH[p] = Math.max(-0.7 * h, Math.min(photoTopsVH[p], 100 - h));
+          const jitter = (Math.random() - 0.5) * 8;
+          let top = ROW_CENTER_VH[p % 2] - h / 2 + jitter;
+          top = Math.max(2, Math.min(top, 98 - h));
+          photoTopsVH[p] = top;
+        }
+      } else {
+        for (let p = 0; p < 5; p++) {
+          const bar = barAssign[p];
+          const barCenterVH = yPadVH + (bar + 0.5) * BAR_H_VH;
+          const h = photoHsVH[p];
+          const jitter = (Math.random() - 0.5) * BAR_H_VH * 0.6;
+          let top = barCenterVH - h / 2 + jitter;
+          top = Math.max(-0.7 * h, Math.min(top, 100 - h));
+          photoTopsVH[p] = top;
+        }
+
+        for (let p = 1; p < 5; p++) {
+          const prevTop = photoTopsVH[p - 1];
+          const prevBottom = prevTop + photoHsVH[p - 1];
+          const currTop = photoTopsVH[p];
+          const currBottom = currTop + photoHsVH[p];
+          const yOverlap = Math.min(prevBottom, currBottom) - Math.max(prevTop, currTop);
+          if (yOverlap < 0) {
+            const touchOverlap = 1 + Math.random() * 3;
+            if (currTop > prevBottom) {
+              photoTopsVH[p] = prevBottom - touchOverlap;
+            } else {
+              photoTopsVH[p] = prevTop - photoHsVH[p] + touchOverlap;
+            }
+            const h = photoHsVH[p];
+            photoTopsVH[p] = Math.max(-0.7 * h, Math.min(photoTopsVH[p], 100 - h));
+          }
         }
       }
 

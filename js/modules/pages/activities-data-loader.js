@@ -12,6 +12,7 @@ import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { makeActivatable } from '../ui/a11y.js';
 import { ensureFlagIconsCss } from '../ui/ensure-flag-icons.js';
 import { countryName } from '../../data/country-names.js';
+import { guestOrgs } from './guest-orgs.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { refreshStickyPinObservers, isAccordionBusy } from '../accordions/list-accordion.js';
 import { buildSyncedMarqueeTimeline } from '../ui/marquee-overflow.js';
@@ -20,6 +21,60 @@ import { loadActivityCollection, loadPermanentExhibitions } from './activities-s
 // '/data/x.json' 字串同時是 fetch URL 與 map key / 比對識別字（deriveHostSection / _panelSelectorMap 等），
 // 識別字保持原樣，只在真正 fetch 的點包 sitePath()（子路徑部署時換算成站台根絕對 URL）
 import { sitePath } from '../ui/site-base.js';
+
+// ── Marquee/chevron 量測合批佇列（2026-09-05 開/關卡頓修）─────────────────────
+// 開/關 item 時 content 內所有 marquee wrap 的 per-wrap ResizeObserver 同一批直發 fire，逐 wrap
+// 讀（clientWidth/scrollWidth 簽名）寫（data-marquee-paired/is-overflow/gsap.set）交錯＝逐對 forced reflow
+// 全落在動畫幀（lectures 講者多段 EN/ZH 最重；CDP 歸因 reconcileChunk 93 取樣、long task 53-75ms×4）。
+// gallery:check 九輪已改 idle 派發（list-accordion dispatchGalleryCheckWhenIdle），RO 直發是漏網——同哲學
+// 「不重構 checkOverflow、只挪派發時機」：RO / fonts.ready / resize fallback / chevron RO 一律進佇列，flush：
+//   ① accordion 還在動（isAccordionBusy＋.list-opening reveal 期；純 class/時戳查、零 layout 讀）→ 延下一幀，
+//      1.5s 兜底強制跑（防旗標卡死餓死量測）
+//   ② 8ms/幀預算分幀（同 initMarquees 初建 step pattern）
+//   ③ pair 去重：EN/ZH 兩顆 RO 各 fire 一次、同輪只處理一次（partner 用 DOM 兄弟找、零 layout 讀）
+// 佇列 key=元素、value=該元素的 check 閉包（Map 天然去重重複 fire）。
+const _mqPending = new Map();
+let _mqArmed = false;
+let _mqDeferStart = 0;
+let _mqCleanupHooked = false;
+function _mqAnimBusy() {
+  return isAccordionBusy() || !!document.querySelector('.list-opening');
+}
+function _mqPartnerOf(el) {
+  if (!el.classList.contains('list-title-marquee')) return null;
+  const parent = el.parentElement;
+  if (!parent) return null;
+  const sib = [...parent.querySelectorAll(':scope > .list-title-marquee')];
+  const i = sib.indexOf(el);
+  if (i === -1) return null;
+  return sib[i % 2 === 0 ? i + 1 : i - 1] || null;
+}
+function _mqFlush() {
+  if (_mqPending.size === 0) { _mqArmed = false; return; }
+  if (_mqAnimBusy() && performance.now() - _mqDeferStart < 1500) { requestAnimationFrame(_mqFlush); return; }
+  const covered = new Set();
+  const budget = performance.now() + 8;
+  for (const [el, fn] of _mqPending) {
+    _mqPending.delete(el);
+    if (covered.has(el)) continue;
+    if (el.isConnected) {
+      const partner = _mqPartnerOf(el);
+      if (partner) covered.add(partner);
+      fn();
+    }
+    if (performance.now() >= budget) break;
+  }
+  if (_mqPending.size) requestAnimationFrame(_mqFlush);
+  else _mqArmed = false;
+}
+function queueMarqueeCheck(el, fn) {
+  _mqPending.set(el, fn);
+  if (!_mqCleanupHooked) {
+    _mqCleanupHooked = true;
+    registerPageCleanup(() => { _mqPending.clear(); _mqArmed = false; _mqCleanupHooked = false; });
+  }
+  if (!_mqArmed) { _mqArmed = true; _mqDeferStart = performance.now(); requestAnimationFrame(_mqFlush); }
+}
 
 // ── Reference label lookup ────────────────────────────────────────────────────
 // P1-5：ref title 由 activities-source remapRef 的 M2A deep-fetch 直接帶（Directus 單一來源）；本地 JSON id 是人工碼、
@@ -133,7 +188,10 @@ export function bindMediaHover(container) {
       const img = wrapper.querySelector('img');
       if (!img) return;
       // overflow:visible 避免 wrapper 上 .overflow-hidden（poster）裁掉旋轉後的角
-      wrapper.style.overflow = 'visible';
+      // ⚠️ 但「未揭（pending）的海報」還停在出生的畫外 translate 起點：此時 unmask＝直接露出「錯位的海報」
+      //    （user 2026-09-04：list 點開時海報在錯位置生成再回正）。故只在「已揭」才 unmask；未揭維持出生的
+      //    overflow-hidden 當遮罩，revealPoster 揭露途中自補 overflow:clip、揭完自己還原 visible。
+      if (!img.dataset.pendingReveal) wrapper.style.overflow = 'visible';
       // 旋轉幅度刻意小（0.5°~1.5°），避免外溢過多影響 layout
       const initDeg = (Math.random() < 0.5 ? -1 : 1) * (0.5 + Math.random() * 1);
       img.dataset.initDeg = String(initDeg);
@@ -434,9 +492,7 @@ export function buildGuestHtml(g, { showGuestCountry = true, showGuestAffiliatio
   const gAkaEn = g.akaEn || '';
   const gAkaZh = g.akaZh || '';
   const gCountry = g.country || ''; // ISO code（fallback JSON 大寫 / Directus 小寫）；舊 shape 才是顯示字串
-  const gOrgCountry = g.orgCountry || ''; // 單位自己的國家（Directus 獨立欄，跟 guest 個人國家分開填）
-  const gOrgEn = g.orgEn || g.affiliation || '';
-  const gOrgZh = g.orgZh || g.affiliation_zh || '';
+  const gOrgs = guestOrgs(g); // 單位清單（多 org repeater 優先、退 legacy 單欄；見 guest-orgs.js）；每筆各自一排 org + 國家
   const gIsAlumni = g.isAlumni === 'on' || g.isAlumni === true || g.isAlumni;
   // user 2026-06-10 #2：title 與「國家」用 grid 2 欄分開對齊（國家欄固定寬 → 所有 row 的國家落在同一起始 x）；
   //   國家包進 .list-title-marquee，太長超出欄寬就 marquee（不換行不擠壓 title 欄）。
@@ -459,10 +515,10 @@ export function buildGuestHtml(g, { showGuestCountry = true, showGuestAffiliatio
       </div>
       ${showGuestCountry ? `<div class="min-w-0">${countryCell('text-s', gCountry, g.country_zh)}</div>` : ''}
     </div>
-    ${showGuestAffiliation && gOrgEn ? `<div class="grid gap-md items-start guest-row-grid">
-      <div class="text-xs min-w-0">${gOrgEn}${gOrgZh ? `<div class="text-xs" lang="zh-Hant" style="margin-top: var(--space-en-zh-xs)">${gOrgZh}</div>` : ''}</div>
-      ${showGuestCountry ? countryCell('text-xs', gOrgCountry) : ''}
-    </div>` : ''}
+    ${showGuestAffiliation ? gOrgs.map(o => (o.en || o.zh) ? `<div class="grid gap-md items-start guest-row-grid">
+      <div class="text-xs min-w-0">${o.en}${o.zh ? `<div class="text-xs" lang="zh-Hant" style="margin-top: var(--space-en-zh-xs)">${o.zh}</div>` : ''}</div>
+      ${showGuestCountry ? countryCell('text-xs', o.country) : ''}
+    </div>` : '').join('') : ''}
   </div>`;
 }
 
@@ -535,23 +591,85 @@ function getLightboxMeta(elem) {
 }
 
 // 縮圖橫向 strip（album / gallery）：w-auto 縮圖 decode 後才撐寬，逐張載入會把右側縮圖往右推＝展開時「往右移」
-// （user 2026-08-28）。先藏整條 strip、全部圖 decode 完才一次淡入 → 保留原比例又零可見位移（reflow 藏在隱藏態）；
-// 已 complete（cached）全跳過、不多閃一幀；onReveal 淡入後補跑（updateChevrons：載完前就展開時 scrollWidth 偏小、chevron 會漏顯）。
+// （user 2026-08-28）。先藏整條 strip、全部圖 decode 完才一次揭 → 保留原比例又零可見位移（reflow 藏在隱藏態）；
+// 已 complete（cached）全跳過、不多閃一幀；onReveal 揭後補跑（updateChevrons：載完前就展開時 scrollWidth 偏小、chevron 會漏顯）。
+// user 2026-09-04：揭露改「clip-reveal 位移」取代原 opacity fade，對齊 poster（revealPoster）／library album strip 語彙——
+//   整條 strip 起點 translateY(110%) 藏到 track 下緣外（track overflow-y 暫 clip 當遮罩），ready 才滑入；translateY 是
+//   垂直軸、與 paging 的 translateX 不同時作用（揭完清 transform，paging 才接手），且 % 相對「自身高度」＝位移量小可控
+//   （橫向 translateX% 會相對整條 scrollWidth＝失控）。⚠️ reduced-motion 走回 opacity fade（不位移）。
 // ⚠️ 只認「有 src」的 img：gallery 的 HLS 影片 tile 佔位 img 無 src（complete=true naturalWidth=0、之後才 hydrate），
-//    納入會永遠等不到 load/error → strip 卡死在 opacity:0。poster 在 .gallery-section 外、不在此 inner，天生不受影響。
+//    納入會永遠等不到 load/error → strip 卡死在隱藏態。poster 在 .gallery-section 外、不在此 inner，天生不受影響。
+// 單張縮圖 bottom-up clip-reveal：gallery/album strip 逾時先揭後才載完的「慢圖」補進場（見 gateStripRevealOnLoad）。
+//   方向對齊整條 strip 的 translateY(110%→0)＝由下緣往上長出；EASE.enter 同 poster/strip。
+//   ⚠️ void offsetHeight 先 commit 隱藏態，否則同幀 hide→reveal 會 snap 不 transition（CLAUDE.md 效能）。
+function clipRevealImg(im) {
+  im.style.transition = 'none';
+  im.style.clipPath = 'inset(100% 0 0 0)';
+  void im.offsetHeight;
+  im.style.transition = 'clip-path 0.6s cubic-bezier(0.25, 0, 0, 1)';
+  im.style.clipPath = 'inset(0 0 0 0)';
+  const clr = (/** @type {TransitionEvent} */ e) => {
+    if (e.target !== im || e.propertyName !== 'clip-path') return;
+    im.style.transition = ''; im.style.clipPath = '';
+    im.removeEventListener('transitionend', clr);
+  };
+  im.addEventListener('transitionend', clr);
+}
+
 function gateStripRevealOnLoad(inner, onReveal) {
   const imgs = [...inner.querySelectorAll('img')].filter(im => im.getAttribute('src'));
   if (!imgs.length || imgs.every(im => im.complete && im.naturalWidth)) return;
-  inner.style.opacity = '0';
+  const reduced = prefersReducedMotion();
+  const track = /** @type {HTMLElement | null} */ (inner.closest('.gallery-track, .album-track'));
+  let prevOY = '';
+  let prevTransition = '';
+  if (reduced) {
+    inner.style.opacity = '0';
+  } else {
+    if (track) { prevOY = track.style.overflowY; track.style.overflowY = 'clip'; }  // 遮罩：暫 clip 垂直（原 visible），揭完還原
+    prevTransition = inner.style.transition;   // ⚠️保存原 inline paging transition（inner 自帶 'transform .3s ease…'＝chevron 翻頁的滑動來源，無 CSS 備援）；揭完還原、別 blank
+    inner.style.transition = 'none';           // 先直寫隱藏態、不讓它自己 transition（起點 commit 靠圖載入的 async 延遲）
+    inner.style.transform = 'translateY(110%)';
+  }
   let revealed = false;
-  const reveal = () => { if (revealed) return; revealed = true; inner.style.opacity = '1'; onReveal?.(); };
+  const reveal = () => {
+    if (revealed) return; revealed = true;
+    if (reduced) { inner.style.opacity = '1'; onReveal?.(); return; }
+    inner.style.transition = 'transform 0.6s cubic-bezier(0.25, 0, 0, 1)';  // EASE.enter，同 poster revealPoster
+    inner.style.transform = 'translateY(0)';
+    let settled = false;
+    const settle = () => {
+      if (settled) return; settled = true;
+      inner.style.transition = prevTransition;   // 還原原 paging transition（非 blank，否則 chevron 翻頁瞬跳）
+      inner.style.transform = '';                // 收斂→清掉，paging 的 translateX 可接手
+      if (track) track.style.overflowY = prevOY; // 還原 track overflow-y（原 visible）
+      inner.removeEventListener('transitionend', clr);
+      clearTimeout(safety);
+    };
+    const clr = (e) => { if (e.target !== inner || e.propertyName !== 'transform') return; settle(); };
+    inner.addEventListener('transitionend', clr);
+    // 兜底：揭露途中 panel 被切成 display:none → transitionend 不 fire，track 會卡 overflow-y:clip（hover 縮放縱向被裁）＋
+    //   殘留 clr 於下次翻頁誤觸 snapback。逾時（>0.6s reveal）強制 settle（idempotent、settled 守衛）。
+    const safety = setTimeout(settle, 750);
+    onReveal?.();
+  };
+  // 逾時(1.5s)先揭之後才載完的「慢圖」：整條 strip 已 translateY 揭出、它們原本 0 寬會直接 pop 進來（無動畫）→
+  //   各自補一段 bottom-up clip-reveal（user 2026-09-06）。早於 strip 揭露就載完的屬同批、由 strip 一次揭、不個別補
+  //   （revealed 旗標守衛：reveal() 在 .then/​setTimeout 才置 true，批圖的同步 load 回呼看到的仍是 false）。
+  //   reduced-motion 不補（strip 走 opacity fade、慢圖直接顯示）；HLS 佔位 img 無 src 已排除在 imgs 外。
+  if (!reduced) {
+    imgs.forEach(im => {
+      if (im.complete && im.naturalWidth) return;
+      im.addEventListener('load', () => { if (revealed) clipRevealImg(im); }, { once: true });
+    });
+  }
   Promise.all(imgs.map(im => (im.complete && im.naturalWidth)
     ? Promise.resolve()
     : new Promise(res => { im.addEventListener('load', res, { once: true }); im.addEventListener('error', res, { once: true }); })))
     .then(reveal);
   // ⚠️逾時兜底（user 2026-08-28，隕石濃湯 exhibition 15 張圖實測）：Directus /assets 慢（TTFB~2s×多張、6 連線上限）
-  //    或某張永遠不 fire load/error 時，「等全部載完才淡入」會讓整條相簿永遠卡 opacity:0＝有圖但看不見。1.5s 到就
-  //    先淡入，未載完的圖之後自然到位（頂多輕微往右移，遠比整條不見好；同 reference_lightbox_probe_all_images_blocks_open
+  //    或某張永遠不 fire load/error 時，「等全部載完才揭」會讓整條相簿永遠卡隱藏態＝有圖但看不見。1.5s 到就
+  //    先揭，未載完的圖之後自然到位（頂多輕微往右移，遠比整條不見好；同 reference_lightbox_probe_all_images_blocks_open
   //    的逾時取捨）。track 的 ResizeObserver 會在圖載入撐寬時重算 chevron → onReveal 早跑不影響最終 chevron。
   setTimeout(reveal, 1500);
 }
@@ -625,10 +743,12 @@ export function bindInteractions(container, { autoReveal = true, incremental = f
       if (nextBtn) { nextBtn.style.opacity = atEnd ? '0.5' : ''; nextBtn.style.cursor = atEnd ? 'var(--cursor-not-allowed)' : ''; }
     };
     // list-item 展開後 dispatch 'gallery:check'，這時 inner.scrollWidth 才是真實值
-    gallery.closest('.list-item')?.addEventListener('gallery:check', updateChevrons);
+    // 反應式重算走合批佇列（同 marquee，見檔頭）：開/關動畫中 RO 直發讀寫交錯砸動畫幀
+    const queuedChevrons = () => queueMarqueeCheck(track, updateChevrons);
+    gallery.closest('.list-item')?.addEventListener('gallery:check', queuedChevrons);
     // 額外 ResizeObserver：track width 變化（grid layout reflow / window resize）時重算 chevron 顯隱
     if (typeof ResizeObserver !== 'undefined') {
-      new ResizeObserver(updateChevrons).observe(track);
+      new ResizeObserver(queuedChevrons).observe(track);
     }
     // 縮圖 w-auto：decode 後才撐寬、逐張載入把右側往右推＝展開「往右移」→ 先藏整條、全載完才一次淡入
     gateStripRevealOnLoad(inner, updateChevrons);
@@ -673,12 +793,14 @@ export function bindInteractions(container, { autoReveal = true, incremental = f
       if (prevBtn) { prevBtn.style.opacity = atStart ? '0.5' : ''; prevBtn.style.cursor = atStart ? 'var(--cursor-not-allowed)' : ''; }
       if (nextBtn) { nextBtn.style.opacity = atEnd ? '0.5' : ''; nextBtn.style.cursor = atEnd ? 'var(--cursor-not-allowed)' : ''; }
     };
-    gallery.closest('.list-item')?.addEventListener('gallery:check', updateChevrons);
+    // 反應式重算走合批佇列（同 marquee，見檔頭）：開/關動畫中 RO 直發讀寫交錯砸動畫幀
+    const queuedChevrons = () => queueMarqueeCheck(track, updateChevrons);
+    gallery.closest('.list-item')?.addEventListener('gallery:check', queuedChevrons);
     // ResizeObserver：list-item 展開時 list-content height:0 → auto 過程中 track 寬度從 0 變實際值，
     // 單純 gallery:check (展開瞬間 dispatch) 算到的 track.clientWidth 還是 0 → chevron 永遠 invisible
     // 對齊 album-gallery 同 pattern (line 467-469)，跟著 track resize 重算
     if (typeof ResizeObserver !== 'undefined') {
-      new ResizeObserver(updateChevrons).observe(track);
+      new ResizeObserver(queuedChevrons).observe(track);
     }
     // 縮圖 w-auto：同 album strip 的展開「往右移」→ 先藏整條、全載完才一次淡入（排除無 src 的 HLS 佔位 img）
     gateStripRevealOnLoad(inner, updateChevrons);
@@ -914,29 +1036,32 @@ export function bindInteractions(container, { autoReveal = true, incremental = f
         }
       };
       checkOverflow();
+      // 反應式重量（RO / fonts / gallery:check / resize）一律走合批佇列（見檔頭 queueMarqueeCheck）：
+      // 開/關動畫中同批直發＝逐對 forced reflow 砸動畫幀（09-05 lectures 卡頓根因），佇列延到動畫後分幀跑。
+      const queuedCheck = () => queueMarqueeCheck(wrap, checkOverflow);
       // 字體 async 載入後文字實寬會變 → 再量一次，確保「一進來就 marquee」不用等 hover / 展開才 re-check。
       // （rAF 首量時 web font(Inter/Noto)常還沒載完、用 fallback 字寬偏窄會誤判「沒 overflow」→ 漏設 is-overflow）
-      if (document.fonts && document.fonts.ready) document.fonts.ready.then(checkOverflow);
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(queuedCheck);
       // 在 list-content 內的（location marquee）等 accordion 展開後再量
       if (wrap.closest('.list-content')) {
-        wrap.closest('.list-item')?.addEventListener('gallery:check', checkOverflow);
+        wrap.closest('.list-item')?.addEventListener('gallery:check', queuedCheck);
       }
       // 在 list-header 內的（title marquee）accordion 展開時 title 向右 translateX 縮小可用寬度，
       // 需要 re-check 以重設 marquee offset；展開動畫 0.5s 結束後 dispatch gallery:check 重量
       if (wrap.closest('.list-header')) {
-        wrap.closest('.list-item')?.addEventListener('gallery:check', checkOverflow);
+        wrap.closest('.list-item')?.addEventListener('gallery:check', queuedCheck);
       }
       // ResizeObserver 取代 window resize：除了視窗縮放，更重要是涵蓋「section 切換時 panel 由 display:none→顯示」。
       // 非當前 section 的 panel 是 .hidden(display:none)，render 當下 title wrap clientWidth=0 量不到 overflow；
       // 切到該 section 時 wrap 0→實寬，ResizeObserver 自動 fire → re-check → 載入即 marquee（不用展開 accordion）。
       // 也順帶涵蓋展開時 active margin-right 讓 wrap 變窄的 re-check。
       if (typeof ResizeObserver !== 'undefined') {
-        const ro = new ResizeObserver(checkOverflow);
+        const ro = new ResizeObserver(queuedCheck);
         ro.observe(wrap);
         registerPageCleanup(() => ro.disconnect());
       } else {
-        window.addEventListener('resize', checkOverflow);
-        registerPageCleanup(() => window.removeEventListener('resize', checkOverflow));
+        window.addEventListener('resize', queuedCheck);
+        registerPageCleanup(() => window.removeEventListener('resize', queuedCheck));
       }
     };
     // 分幀處理：逐 wrap 讀 scrollWidth＝forced reflow，整批一次量＝單一 ~250ms long task（捲近 list 時卡一下）。
@@ -1008,12 +1133,20 @@ export function bindInteractions(container, { autoReveal = true, incremental = f
         if (grid) grid.style.gridTemplateColumns = '8.5fr 3.5fr';
       }
     };
-    if (img.complete && img.naturalWidth) { apply(); revealPoster(img); return; }
+    // 統一「安全揭露」：仍 pending＋wrapper 未被 onerror 藏（display:none）才 revealPoster。
+    //   ⚠️不要求「展開中」：pending 海報已被遮罩（applyHover 未揭不 unmask）→ 收合中揭＝遮罩內瞬歸位（看不到、開起即在正位），
+    //   不會像「收合不揭」那樣延到 gallery:check 才揭留空窗、也不會停在畫外 translate 被 unmask 露錯位。display:none（破圖）
+    //   才跳過＝免在其上跑不會 fire 的 transition（殘留 transitionend/inline styles，審查 2026-09-04 low ②）。
+    const listItem = img.closest('.list-item');
+    const isExpanded = () => !!listItem?.querySelector('.list-header')?.classList.contains('active');
+    const isHidden = () => { const w = /** @type {HTMLElement|null} */ (img.closest('[data-lightbox-open]')); return !!(w && w.style.display === 'none'); };
+    const tryReveal = () => { if (img.dataset.pendingReveal && img.isConnected && !isHidden()) revealPoster(img); };
+    if (img.complete && img.naturalWidth) { apply(); revealPoster(img); return; }   // 已 cached：維持原「bind 當下立即揭」（不變）
     // poster 未載入：poster-img w-full 沒預留高度，手機慢載時「item 已展開後才載入」會瞬間把下方內容頂下去（user 2026-06-15「內容跳動」）。
     // 修：load 時若 item 已展開且開啟動畫已收尾，用外框（本就 overflow-hidden）把海報高度 0→自然高 平滑揭露，下方內容隨之緩降，取代瞬跳。
     img.addEventListener('load', () => {
       apply();
-      revealPoster(img);   // 七輪：載好才滑入（AR 佔位＝乾淨白框；此時才 clip-reveal）
+      tryReveal();   // 七輪：載好才滑入（AR 佔位＝乾淨白框）；⚠️只在展開中揭＝收合中載完的先留 pending，下次展開再 clip-reveal
       const wrap    = /** @type {HTMLElement|null} */ (img.closest('[data-lightbox-open]'));
       const content = /** @type {HTMLElement|null} */ (img.closest('.list-content'));
       const header  = img.closest('.list-item')?.querySelector('.list-header');
@@ -1027,6 +1160,22 @@ export function bindInteractions(container, { autoReveal = true, incremental = f
         }
       }
     }, { once: true });
+    // ⚠️兜底：海報 loading="lazy"（有 AR 佔位時）在巢狀捲動框內偶爾不觸發載入 → load 永不 fire → 海報卡 pending 隱藏態
+    //   （外層沒圖、卻能點開 lightbox＝user 2026-09-04 回報）。gallery 縮圖是 eager 故有 1.5s 盲兜底、海報不能盲兜（會在收合態
+    //   清 pending＝毀 clip-reveal）。改聽 'gallery:check'（accordion 展開序列完派發、收合也派但 .active 已移除、tryReveal 守衛
+    //   可區分）：展開當下仍 pending → ①已載就 tryReveal 立刻揭（含「曾收合中載完」補揭）②未載就 nudge lazy→eager 逼載（load
+    //   回來 tryReveal）③grace 1.5s 再 tryReveal（真載不到的最終保險；tryReveal 自帶展開/可見/pending 守衛）。
+    if (listItem) {
+      const onExpand = () => {
+        if (!img.dataset.pendingReveal || !isExpanded()) return;   // 收合派發 / 已揭 → 跳過
+        if (!img.complete && img.loading === 'lazy') img.loading = 'eager';  // nudge：逼巢狀框內沒觸發的 lazy 載入（errored 已 complete→不重抓）
+        tryReveal();                                               // 已載但仍 pending（曾收合中載完）→ 展開當下立刻揭
+        const g = setTimeout(tryReveal, 1500);                     // grace：真載不到的最終保險
+        registerPageCleanup(() => clearTimeout(g));
+      };
+      listItem.addEventListener('gallery:check', onExpand);
+      registerPageCleanup(() => listItem.removeEventListener('gallery:check', onExpand));
+    }
   });
 
   // Reference 按鈕（舊 workshop-ref-btn / industry-ref-btn 已統一為 list-ref-btn，此處保留相容）
@@ -1109,12 +1258,20 @@ function formatDatesFromGroups(datesArr, { includeStartYear = false } = {}) {
 function formatSingleDateGroup(d, includeStartYear = false) {
   if (!d) return '';
   const sY = d.startYear, sM = d.startMonth, sD = d.startDay;
-  // 後台 dates repeater 勾「只到月」→ 只渲染月份（英全名 + 中文），忽略日與 range
-  // ponytail: 只做單月；要跨月 range（May 五月 - June 六月）之後再加
+  // 後台 dates repeater 勾「只到月」→ 只渲染起始月份（英全名 + 中文），忽略日與 range
   if (d.monthOnly) {
     if (!sM) return '';
     const mo = `${EN_MONTHS[sM - 1]} ${ZH_MONTHS[sM - 1]}`;
     return includeStartYear ? `${sY} ${mo}` : mo;
+  }
+  // 後台 dates repeater 勾「月到月」＋ date 有 pick range → 渲染跨月（May 五月 - June 六月），忽略日
+  // 沒 pick range（起訖同月同年）→ 退回單月顯示；跨年才在端點帶年份
+  if (d.monthRange && sM) {
+    const eM = d.endMonth || sM, eY = d.endYear || sY;
+    const moName = m => `${EN_MONTHS[m - 1]} ${ZH_MONTHS[m - 1]}`;
+    const startMo = includeStartYear ? `${sY} ${moName(sM)}` : moName(sM);
+    if (eM === sM && eY === sY) return startMo;
+    return `${startMo} - ${eY !== sY ? `${eY} ${moName(eM)}` : moName(eM)}`;
   }
   const eY = d.endYear || sY, eM = d.endMonth || sM, eD = d.endDay || sD;
   if (!sM || !sD) return '';
@@ -1223,6 +1380,10 @@ export async function loadListInto(containerId, url, options = {}) {
   }
   if (!data?.length) return;
 
+  // 重入世代（revalidate 對同 container 重跑本函式）：舊 render 的 idleBuild/fill 計時鏈持有舊閉包
+  // （cursor/flat/sentinel/openYears），container 仍 connected、isConnected guard 擋不住 → 會對 detached
+  // sentinel insertAdjacentHTML 拋錯＋遞增共用 _zebraIdx 弄錯新清單斑馬 parity。各循環閉包開頭比對世代即停。
+  /** @type {any} */ (container)._listGen = (/** @type {any} */ (container)._listGen || 0) + 1;
   container.innerHTML = '';
 
   // flatList=true：把 flat array 包成單一 virtual yearGroup（year:'' + items:data）
@@ -1391,7 +1552,8 @@ export async function loadListInto(containerId, url, options = {}) {
       // 標題國旗＋校友 icon 來源 = 所有講者：item-level guests ＋ conference sessions[].guests（去重）。
       // conference 慣例＝講者填在 sessions 裡、parent guests 留空；舊版國旗只讀 item.guests → session-only forum
       //   右上無旗（校友帽卻有算 session＝不一致）。統一聚合成一份 allGuests，旗子/帽子同源。
-      // 「地點的國家」(item.flag / locations[].country) 暫不納入 — user 2026-06-03：等後台處理 location-country 機制再加進來。
+      // 「地點的國家」(locations[].country)：workshop / visits-outbound 後台 location 選了國家 → 併入標題國旗
+      //   （2026-06-03 曾暫緩、等後台 location-country 機制；機制已上，於下方 countryCodes 接進來）。
       const allGuests = [...(item.guests || []), ...((item.sessions || []).flatMap(s => Array.isArray(s.guests) ? s.guests : []))];
 
       // 搜尋索引（3-1）：舊 JSON shape + Directus shape 全納入（否則 Directus 標題/講者/地點/城市/場次搜不到＝功能 bug）。
@@ -1405,14 +1567,17 @@ export async function loadListInto(containerId, url, options = {}) {
         item.location, item.location_zh,
         ...locationRows.flatMap(l => [l.en, l.zh]),                                  // Directus locations[] venue
         cityEn, cityZh,                                                              // conference 城市
-        ...allGuests.flatMap(g => [g.name, g.name_zh, g.affiliation, g.affiliation_zh, g.akaEn, g.akaZh, g.nameEn, g.nameZh, g.orgEn, g.orgZh]),  // 講者名/單位（舊+Directus、含 session 講者）
+        ...allGuests.flatMap(g => [g.name, g.name_zh, g.affiliation, g.affiliation_zh, g.akaEn, g.akaZh, g.nameEn, g.nameZh, ...guestOrgs(g).flatMap(o => [o.en, o.zh])]),  // 講者名/單位（舊+Directus、含 session 講者、多 org）
         ...(item.sessions || []).flatMap(s => [s.titleEn, s.title_en, s.titleZh, s.title_zh, s.title]),  // 場次標題
       ].filter(Boolean).join(' ').toLowerCase().replace(/"/g, '&quot;');
 
       // uk→gb：flag-icons 只認 ISO 3166 的 gb，編輯常填 UK（2026-07-04 實例）→ fi-uk 不存在渲染成空盒
-      // guest 個人國家 + 所屬單位國家（orgCountry）都納入（expand 兩排各有旗、標題也要一併抓；2026-09-01）
+      // guest 個人國家 + 所屬單位國家（每個 org 各自的 country，多 org 全納入）都納入（expand 各排有旗、標題也要一併抓；2026-09-01）
       const _normCode = c => (c || '').toLowerCase().trim().replace(/^uk$/, 'gb');
-      const countryCodes = [...new Set(allGuests.flatMap(g => [_normCode(g.country), _normCode(g.orgCountry)]).filter(Boolean))];
+      const countryCodes = [...new Set([
+        ...allGuests.flatMap(g => [_normCode(g.country), ...guestOrgs(g).map(o => _normCode(o.country))]),
+        ...locationRows.map(l => _normCode(l.country)),   // 地點國家（見上）
+      ].filter(Boolean))];
 
       const itemFlags = alwaysExpanded ? 'data-no-accordion' : 'data-pre-reveal';
       // meta-icons inner（alumni + 全部國旗）共用內容：桌面 render 在右上 group、手機另 render 一份在副標下方 in-flow 區塊
@@ -1702,10 +1867,25 @@ export async function loadListInto(containerId, url, options = {}) {
   // ── lazy 路徑：只建第一批，其餘靠尾端 sentinel 的 IntersectionObserver 捲近才續建 ──
   // 每次切換/reveal/exit 的工作量恆定在「已渲染的那批」而非整份(exhibitions 535 row) → 切換不再正比 row 數。
   const scroller = /** @type {HTMLElement | null} */ (container.closest('.inner-scroll-scroll-col'));
+  // user 2026-09-04：hover-dim 半透明只作用於「視窗內」item——大清單(exhibitions 500+)hover 一次對全清單切 opacity＝白費
+  //   (off-screen 看不到；⚠️.list-item 無 content-visibility＝off-screen dim 是真成本、09-01 撤回)。反向標記：離開視窗
+  //   (+400px buffer)的 .list-item 加 .dim-off，CSS `:where(:not(.dim-off))` 排除。只此 lazy 路徑做(小清單非 lazy 維持
+  //   「全部可 dim」＝.dim-off 從不出現故不受影響)；只 activities/admission section(hover-dim 只這兩頁)。
+  const dimHost = /** @type {HTMLElement | null} */ (container.closest('#activities-content-section, #admission-content-section'));
+  /** @type {any} */ (container)._dimOffIo?.disconnect();   // 重入(revalidate 重渲染同 container)先斷舊 IO 免疊觀察
+  const dimOffIo = (dimHost && typeof IntersectionObserver !== 'undefined')
+    ? new IntersectionObserver((entries) => {
+        entries.forEach(e => /** @type {HTMLElement} */ (e.target).classList.toggle('dim-off', !e.isIntersecting));
+      }, { root: scroller || null, rootMargin: '400px 0px 400px 0px' })
+    : null;
+  /** @type {any} */ (container)._dimOffIo = dimOffIo;
+  if (dimOffIo) registerPageCleanup(() => dimOffIo.disconnect());
+  const observeDimOff = /** @param {Element} it */ (it) => { if (dimOffIo) dimOffIo.observe(it); };
   const flat = filteredData.flatMap((yg, index) =>
     yg.items.map((item, itemIdx) => ({ item, itemIdx, total: yg.items.length, yg, index, isLast: index === filteredData.length - 1 })));
   const openYears = new Map();
   container._zebraIdx = 0;
+  const myGen = /** @type {any} */ (container)._listGen;   // 本輪 render 的世代（見 innerHTML='' 處註解）
   let cursor = 0;
 
   // 尾端 sentinel（1px、永不隱藏）：新年份組一律插在它之前，它恆在最底 → IO 觀察它，避開「第一批被 reveal
@@ -1732,6 +1912,7 @@ export async function loadListInto(containerId, url, options = {}) {
   // 先解「首批」的 ref → 建首批 → 其餘 ref 背景解（P1-5 後 resolveRef 同步純填 label、即時；保留分批結構與 render 呼叫相容）。
   await resolveRefsFor(flat.slice(0, FIRST_BATCH).map(e => e.item));
   renderBatch(FIRST_BATCH);
+  container.querySelectorAll('.list-item').forEach(observeDimOff);   // 首批 dim-off 視窗觀察
   installStickyObserver();
   bindFlagCycles(container);
   const ret = bindInteractions(container, { autoReveal, deferBinds: true });
@@ -1776,6 +1957,7 @@ export async function loadListInto(containerId, url, options = {}) {
         // ⚠️斑馬底色也要一起藏(clip inset 100%)：否則「文字藏起但底色塊還在」→ 退場/切換時殘留色塊(user 2026-08-31)
         if (revealIo && it.classList.contains('list-item-zebra') && typeof gsap !== 'undefined' && !prefersReducedMotion()) { it.dataset.zbGen = 'a' + (++_zbGen); it.style.transition = 'none'; it.style.clipPath = 'inset(100% 0% 0% 0%)'; }  // B-1：transition:none 直寫，揭時 revealIo 才設 CSS transition（六輪：hide 也換代）
         if (revealIo) revealIo.observe(it); else it.removeAttribute('data-pre-reveal');
+        observeDimOff(it);   // dim-off 視窗觀察（新 lazy item 天生 off-screen → IO 首次 fire 即加 .dim-off）
       });
       updateStickyTop();                                                        // 新年份組的 sticky top
       if (typeof onLazyBatch === 'function') onLazyBatch();                     // 重跑 accordion / year-toggle init（idempotent）
@@ -1784,7 +1966,7 @@ export async function loadListInto(containerId, url, options = {}) {
     //（單次 IO fire 只補一批，內容仍短時 sentinel 還在框內卻不會再 fire → 用 loop 一次補足視窗餘量）。
     let fillDeferred = false;
     const fill = (retries = 0) => {
-      if (!container.isConnected) return;
+      if (!container.isConnected || /** @type {any} */ (container)._listGen !== myGen) return;
       // 九輪 Part 2：開合動畫中讓路（idleBuild 已有同 gate、fill 漏了——align 捲動把 sentinel 拉進 600px 邊界就同步連建 2 批
       //   685ms 砸動畫窗）。spacer 已撐住捲動空間＝晚建不跳版；建出的 item 仍 born-hidden + reveal-IO 進場（非 pop）。
       //   ⚠️不 gate 切換窗（__sccdActSwitchBusyUntil）：切入新 section 首屏不足時 fill 必須立刻補＝正確性。
@@ -1820,7 +2002,7 @@ export async function loadListInto(containerId, url, options = {}) {
       const buildOne = () => {
         const ni = renderBatch(LAZY_BATCH);
         bindInteractions(container, { autoReveal: false, incremental: true });
-        ni.forEach(it => it.removeAttribute('data-pre-reveal'));
+        ni.forEach(it => { it.removeAttribute('data-pre-reveal'); observeDimOff(it); });   // 也要 dim-off 觀察，否則 search/deep-link 全建的 row 永遠不標＝hover 時 off-screen 全 dim（回退 C 的優化）
       };
       const finish = () => {
         updateStickyTop();
@@ -1828,13 +2010,13 @@ export async function loadListInto(containerId, url, options = {}) {
         if (cursor >= flat.length && io) io.disconnect();
       };
       if (!targetDomId) {   // search／ensureFullyRendered：同步全建（語意不變）
-        while (cursor < flat.length && container.isConnected) buildOne();
+        while (cursor < flat.length && container.isConnected && /** @type {any} */ (container)._listGen === myGen) buildOne();
         finish();
         return Promise.resolve(true);
       }
       return new Promise(resolve => {   // deep-link：分幀建到目標
         const step = () => {
-          if (!container.isConnected) { resolve(false); return; }
+          if (!container.isConnected || /** @type {any} */ (container)._listGen !== myGen) { resolve(false); return; }
           const budget = performance.now() + 8;
           while (cursor < flat.length && performance.now() < budget) {
             buildOne();
@@ -1863,7 +2045,7 @@ export async function loadListInto(containerId, url, options = {}) {
     }
     let idleHandle = /** @type {any} */ (0);
     const idleBuild = () => {
-      if (!container.isConnected) return;                                        // 離頁停
+      if (!container.isConnected || /** @type {any} */ (container)._listGen !== myGen) return;        // 離頁停／revalidate 換代停
       if (cursor >= flat.length) { if (io) { io.disconnect(); sentinel.remove(); } return; }  // 全建完 → 收尾（同 fill）
       if (container.offsetParent === null) { idleHandle = setTimeout(idleBuild, 400); return; }  // panel 隱藏 → 稍後重試
       if (performance.now() - lastScrollTs < 400) { idleHandle = setTimeout(idleBuild, 450); return; }  // Part 2：捲動中讓路，等停手再建

@@ -1210,6 +1210,9 @@
     flex-direction: column;
     justify-content: center;
     scroll-margin-top: 0;
+    /* 矮橫向 timeline 頂對齊（中和 inline padding-top:100）：原由 lists.css 共用 block 的
+       `#history { padding-top:0 }` 提供，2026-09-05 buildStrip 統一後那條移除、改在此保留矮橫向專屬 */
+    padding-top: 0;
     padding-bottom: var(--spacing-sm);  /* pb-2xl(64) 收 16：圖高預算變大＋箭頭更貼畫面底 */
   }
   /* timeline-area 撐滿 section 剩餘高（inline padding-top:100 之下到 pb 之上）：
@@ -1221,107 +1224,14 @@
     display: flex;
     flex-direction: column;
   }
-  #timeline-mobile {
-    display: grid;
-    /* 圖欄 1.7fr 加大、文字欄 0.9fr 瘦長靠右（user 2026-07-10）；單條 1fr row 吃滿高：
-       images stretch、箭頭 align-self:end 貼底、文字群組 align-self:start 頂對齊 */
-    grid-template-columns: auto minmax(0, 1.7fr) minmax(0, 0.9fr) auto;
-    grid-template-rows: 1fr;
-    align-items: center;
-    flex: 1 0 auto;
-    column-gap: var(--spacing-lg);
-    row-gap: var(--spacing-sm);
-    padding: var(--spacing-sm) var(--container-padding) 0;
-  }
-  /* era + 年份卡合成「頂對齊、整組靠右、組內靠左」群組（user 2026-07-10 三修：文字組回頂部對齊、
-     era tag 與卡片左緣對齊）：wrapper 從 display:contents 收回實盒當 grid item，flex 直欄
-     align-items:flex-start＝era/卡左緣同線；margin-top 80 + grid pad 16 ＝ 96 落在 header 帶下。 */
-  #timeline-mobile .tl-m-text-row {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    row-gap: var(--spacing-sm);
-    grid-column: 3;
-    grid-row: 1;
-    align-self: start;
-    justify-self: end;
-    /* + grid pad 16 ＝ era 盒頂 106：era 旋轉軸在 bottom-left、±4° 讓遠端角最多抬 ~13px（193 寬 chip），
-       bbox 頂 ~93 仍在 header 帶(92)下 */
-    margin-top: 90px;
-    min-width: 0;
-    max-width: 100%;
-  }
-  #timeline-mobile .tl-m-images {
-    grid-column: 2;
-    grid-row: 1 / -1;
-    align-self: stretch;
-    min-height: calc(100svh - 230px);
-    /* 圖片（含換 era 進出場中途態）一律關在圖欄內、且欄框不進 header 帶（user 2026-07-10 截圖：
-       進場動畫把大圖推進 header/標題區）：
-       ① overflow:clip 硬保證不出欄（.tl-m-images 是 .class-img 的 position:relative 定位容器，
-          絕對定位子項也被裁；動畫照跑、出欄部分裁掉）
-       ② margin-top 88 把欄頂壓到 header 帶下（grid pad 16 + 88 = 104，同 text-row 的 90 讓位邏輯）
-          ——grid stretch 的欄框原本從 y=16 起、clip 邊界本身就在 header 內，光裁切擋不住。
-       直向手機的上溢蓋封鎖線是核准行為（lists.css 註記）、不在此列。 */
-    overflow: clip;
-    margin-top: 88px;
-  }
-  /* 圖片等比縮放（user 2026-07-10「不要被切到、抓縮放比例」）：max-height 必須下在 <img> 本體——
-     .class-img wrapper 只是 clip-path reveal 的框，對 wrapper 限高只會「裁切」不會縮放
-     （img 是 width:100% 寬度驅動、高度照原始比例長）；replaced element 的 max-height 才會等比收斂。
-     wrapper 寬 cap 放大用滿 1.7fr 圖欄；margin auto 讓縮窄後的 img 在 wrapper 內置中。 */
-  #timeline-mobile .tl-m-images .class-img {
-    top: 50% !important;
-    max-width: 300px;
-    max-height: none;
-  }
-  #timeline-mobile .tl-m-images .class-img.class-img--landscape {
-    max-width: 400px;
-  }
-  #timeline-mobile .tl-m-images .class-img img {
-    /* width 必須翻回 auto（蓋 slideshow inline width:100%）：「指定寬」配 max-height 只會壓高度
-       ＝拉扯變形；只有 auto 尺寸才走 replaced element 的等比 max- 約束（user 2026-07-10「比例跑掉」） */
-    width: auto !important;
-    max-width: 100%;
-    max-height: calc(100svh - 150px);  /* box 實高 ~270（390 窗、欄頂讓位 header 後）：留旋轉 + 上下呼吸 */
-    margin: 0 auto;
-  }
-  /* era/卡片是 .tl-m-text-row flex 直欄子項：flex-start＝與 wrapper 左緣對齊 */
-  #timeline-mobile .tl-m-era {
-    align-self: flex-start;
-  }
-  #timeline-mobile .tl-m-card {
-    align-self: flex-start;
-    /* 178 ＝ 卡頂 162（era 盒頂 106 + era ~40 + gap 16）到箭頭底線（100svh−16）：
-       長文長到箭頭線才內捲（user 2026-07-10「對齊頂部、max height 再長一點」） */
-    max-height: calc(100svh - 178px);
-    padding: 0.7em;    /* 上下對齊左右（user 2026-07-10「pt 好像比較小」；共用 block 是 0.4em 0.7em） */
-  }
-  /* 控制鈕拆出 controls 盒（display:contents）；z-index 移到鈕自身——contents 盒的 z 失效，
-     list view overlay(z-25) 之上仍要可點 */
-  #timeline-mobile .tl-m-controls {
-    display: contents;
-  }
-  #timeline-mobile .tl-m-next-btn {
-    position: relative;
-    z-index: 30;
-    align-self: end;   /* 箭頭貼畫面底（user 2026-07-10）；grid 已撐滿 section 剩餘高 */
-    grid-column: 4;
-    grid-row: 1 / -1;
-  }
-  /* list 切換鈕留在左下原位、水平對齊 Vision btn 左緣（user 2026-07-10 五修澄清：不是移進 header）：
-     104 = nav left 92 + nav padding 12；absolute 脫離 grid（左欄塌 0、圖欄變寬），bottom 0 同箭頭底線。 */
-  #timeline-mobile .tl-m-list-btn {
-    position: absolute;
-    bottom: 0;
-    left: 104px;
-    z-index: 30;
-  }
   /* list view 矮橫向重排（user 2026-07-10）：textbox 移到左右兩顆鈕之間、頂緣讓出 header 帶
      （lists.css 共用 block 的 top:36 直接頂進透明 header 被蓋住）；「下一時期」箭頭釘回一般模式
      next 鈕原位＝切換 list 視圖時箭頭位置不動。 */
   .tl-list-grid {
-    top: 128px;                /* rect 頂 128 → era chip(top:-28) 含旋轉 bbox 頂 ~94，落在 header 帶(92)下 */
+    /* display:block 讓 .tl-list-cell 脫離桌面 20-col grid（cell grid-column:5/12 在此無效）、
+       填滿 top/bottom/left/right 框；原由 lists.css 共用 block 提供，2026-09-05 統一後改各自宣告 */
+    display: block;
+    top: 128px;                /* rect 頂落在 header 帶(92)下（buildStrip era-head 在卡內、不再有凸出黑 chip）*/
     bottom: 0;                 /* rect 底 = grid 底 = 一般模式箭頭底 */
     left: 192px;               /* list 鈕右緣 152 + 40 gap（user 2026-07-10「跟兩顆鈕的 gap 再大一點」） */
     right: 112px;              /* next 鈕左緣（右緣起 72）+ 40 gap */
@@ -1334,7 +1244,7 @@
     right: -88px;              /* 鈕(48)右緣 = cell 右緣(844−112) + 88 = 820 → 與一般模式 next 鈕同座標 */
     bottom: 0;
   }
-  /* 字卡 padding 對齊一般模式 .tl-m-card 的 0.7em 四邊（user 2026-07-10；蓋共用 block 的 md） */
+  /* 字卡四邊 padding 0.7em（矮橫向 list view；portrait 走 lists.css 的 md）*/
   .tl-list-content {
     inset: 0.7em;
     padding-right: var(--spacing-sm);

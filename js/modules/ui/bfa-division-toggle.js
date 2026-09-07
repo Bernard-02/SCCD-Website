@@ -542,6 +542,30 @@ export function initBFADivisionToggle() {
     }
   }
 
+  // 手機 division tab：sticky 釘住後才加底色（user 2026-09-06 二輪）——自然 flow 時透明疊 polygons，
+  // pinned 後下方圖文會捲到 pill 上、要底色遮。sentinel + IntersectionObserver 偵測 pinned，免 scroll listener。
+  // 桌面 tab 疊在 item 上不需白底 → <768 才綁。
+  if (window.innerWidth < 768 && 'IntersectionObserver' in window) {
+    const wrap = document.getElementById('mobile-division-nav')?.parentElement;
+    if (wrap) {
+      const sentinel = document.createElement('div');
+      sentinel.setAttribute('aria-hidden', 'true');
+      sentinel.style.height = '0';
+      wrap.parentNode.insertBefore(sentinel, wrap);
+      // pin 線 = sticky top − sentinel↔wrap 的 margin gap（wrap 的 mt-3xl）：sentinel 抵此線＝wrap 剛 pinned。
+      const stickyTop = parseFloat(getComputedStyle(wrap).top) || 168;
+      const line = Math.max(1, stickyTop - Math.max(0, wrap.offsetTop - sentinel.offsetTop) + 1);
+      // 只認 sentinel 捲到 line「之上」(top < line)＝已 pinned；純 !isIntersecting 會把「sentinel 還在
+      // 畫面下方、根本沒捲到」也判 stuck（初始態誤加白底）。boundingClientRect 不受 rootMargin 影響。
+      const io = new IntersectionObserver(
+        ([e]) => wrap.classList.toggle('is-stuck', e.boundingClientRect.top < line),
+        { rootMargin: `-${line}px 0px 0px 0px`, threshold: 0 }
+      );
+      io.observe(sentinel);
+      registerPageCleanup(() => { io.disconnect(); sentinel.remove(); });
+    }
+  }
+
   // ─── 暴露給其他模組的 helper ─────────────────────────────────
   // class-buttons-sticky.js 在離開 works context 時若 active=bfa 會呼叫此 helper 切回 animation
   // 第二參數 animate=false 時：works ctx 也用 instant toggle，避免使用者第一次進 works

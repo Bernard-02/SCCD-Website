@@ -67,7 +67,7 @@
           <!-- Filter Buttons (Left side - 桌面占 col 1-2)
                手機：水平 scroll（user 2026-05-25 不要 wrap 往下排）
                桌面：sticky vertical column；窄側欄讓長英文 label 折行（buttons.css faculty 規則） -->
-          <div class="w-full md:col-span-4 inner-scroll-nav-col">
+          <div class="w-full md:col-span-3 inner-scroll-nav-col">
             <!-- 手機：水平 scroll bar；scrollbar 隱藏走 no-scrollbar（faculty.html 已內嵌規則）
                  padding-y 給 btn 旋轉 clearance（rotate 後突角不被 overflow 裁切），桌面 md:py-0 還原
                  桌面 inner-scroll frame：nav-col padding-top 把 nav 推到 content 區頂、頂部對齊（取代舊 md:sticky md:top-[200px]） -->
@@ -78,7 +78,7 @@
             </div>
           </div>
 
-          <!-- Faculty Cards (桌面占 col 5-20，第一張卡對齊 col-5、末張貼齊 col-20 右緣；nav 緩衝 cols 3-4；卡片牆內部 space-between 自動分配 gap) -->
+          <!-- Faculty Cards (桌面占 col 5-20，第一張卡對齊 col-5、末張貼齊 col-20 右緣；nav 占 cols 1-3、col 4 留白＝全站 nav 欄界統一（user 2026-09-05）；卡片牆內部 space-between 自動分配 gap) -->
           <div class="w-full md:col-start-5 md:col-span-16 inner-scroll-scroll-col no-scrollbar">
             <!-- 分類 filter（專任/兼任/行政）；右內容區頂端橫向、桌面 sticky 釘頂（比照 activities Temporary/Permanent tag）。
                  2026-08-24 與左欄系所鈕（DCD）調換位置：分類鈕移到此上方橫向 bar、系所鈕移到左側直欄。
@@ -98,11 +98,15 @@
               <button class="faculty-filter-btn shrink-0 text-left" data-filter="admin">
                 <span class="anchor-nav-inner"><span data-label-key="faculty.admin" data-label-part="en">Administrators</span><span data-label-key="faculty.admin" data-label-part="zh">行政管理</span></span>
               </button>
+              <button class="faculty-filter-btn shrink-0 text-left" data-filter="founder">
+                <span class="anchor-nav-inner"><span data-label-key="faculty.founder" data-label-part="en">Founder</span><span data-label-key="faculty.founder" data-label-part="zh">創辦人</span></span>
+              </button>
             </div>
             <!-- Containers for dynamic data -->
             <div id="faculty-fulltime-list" class="faculty-card-wall"></div>
             <div id="faculty-parttime-list" class="faculty-card-wall"></div>
             <div id="faculty-admin-list" class="faculty-card-wall"></div>
+            <div id="faculty-founder-list" class="faculty-card-wall"></div>
           </div>
         </div>
       </div>
