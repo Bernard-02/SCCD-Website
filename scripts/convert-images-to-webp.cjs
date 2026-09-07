@@ -1,7 +1,7 @@
 // 批次把 Directus 檔案庫的 raster 圖（jpeg/png）「原地」轉成 webp：同 UUID → /assets/{uuid} 直接吐 webp、前台零改。
 // 為何離線轉檔而非伺服器 on-the-fly transform：這台弱 Lightsail 扛不住現場轉檔（多圖頁首訪冷生成 504、連 pre-warm 都把
 //   /assets 打到 403，見 2026-08-20 session）。存回成品後伺服器只是「serve 靜態檔」＝零轉檔負載、且檔更小 → 更快。
-// ⚠️ 破壞性且不可復原：原檔被 1600px webp 蓋掉、不留備份（user 2026-08-28 定案不需備份，高解析 source 檔另存他處）。
+// ⚠️ 破壞性且不可復原：原檔被 webp 蓋掉、不留備份（user 2026-08-28 定案不需備份，高解析 source 檔另存他處）。
 // idempotent：轉過的已是 image/webp，type filter 不會再選到 → 中斷可重跑接續；每天由 GitHub Actions 自動補轉新上傳的圖。
 //
 // 跑（repo 根目錄，需 scripts/.directus-token；平時掛在 .github/workflows/generate-covers.yml 每日自動跑）：
@@ -16,7 +16,8 @@ const token = (process.env.DIRECTUS_TOKEN || fs.readFileSync('scripts/.directus-
 const H = { Authorization: 'Bearer ' + token };
 const BASE = 'https://sccdtest.usc.edu.tw';
 const ASSETS = BASE + '/assets';
-const MAX_EDGE = 1600;   // 前台最大顯示寬（對齊舊 dsd transform width=1600）；小圖不放大
+const MAX_EDGE = 2000;   // 長邊上限：原 1600 對「點開的大圖」在 Retina/高 DPI 上偏糊（等於半解析度撐大）；
+                         //   2000 平衡清晰度與檔案（avg 94KB→~145KB）。要更清可調 2400（avg ~210KB、grid 較重）。小圖不放大。
 const QUALITY = 0.8;
 
 const argN = (f) => { const i = process.argv.indexOf(f); return i >= 0 ? process.argv[i + 1] : null; };
@@ -51,7 +52,9 @@ const DRY = process.argv.includes('--dry');
         const w = Math.round(img.naturalWidth * scale), h = Math.round(img.naturalHeight * scale);
         const c = document.createElement('canvas');
         c.width = w; c.height = h;
-        c.getContext('2d').drawImage(img, 0, 0, w, h);   // 不填白底：保留 PNG 透明（webp 支援 alpha）
+        const ctx = c.getContext('2d');
+        ctx.imageSmoothingQuality = 'high';   // 預設 'low' 對 >2x 縮小＝單抽頭雙線性、發軟；'high' 用多抽頭濾波、縮圖明顯銳利
+        ctx.drawImage(img, 0, 0, w, h);   // 不填白底：保留 PNG 透明（webp 支援 alpha）
         return c.toDataURL('image/webp', quality).split(',')[1];
       }, { dataUrl, maxEdge: MAX_EDGE, quality: QUALITY });
       const webpBuf = Buffer.from(b64, 'base64');
