@@ -107,18 +107,32 @@ export function applyMarqueeOverflow(scope, rowSelector, innerSelector, opts = {
 }
 
 /**
- * 建一個「配對同步」的 GSAP marquee timeline（2026-08-04，user 規格 v3 定案）：EN/ZH 等多條文字放在同一個
- * group 時，全部用**同一個速度**（px/s）各自跑自己的距離——距離長的自然跑比較久，距離短的先跑完；
- * 不是套同一個 duration（那樣短的會被拖慢，v2 誤解，已推翻）。
- * 短的跑完後 GSAP 預設停在終值不動（不用手寫 hold），等最長那條也跑完，整個 timeline 才進入 `gap` 秒的
- * 停頓（GSAP repeatDelay），停頓結束後**全部同時**歸零重播——下一輪一定是所有行對齊左邊（起點）一起出發，
- * 不會有人先偷跑。timeline 預設 paused，由呼叫端自己接 hover/其他觸發時機播放/暫停。
- * @param {{el: Element, distance: number}[]} items 這一組要同步的元素 + 各自要捲動的距離（正數 px）
- * @param {{speed?: number, minDuration?: number, gap?: number}} [opts]
+ * GSAP marquee 驅動，兩種模式（都預設 paused，呼叫端接 hover 時機 play/pause）：
+ *
+ * **seamless（opts.seamless=true，2026-09-07 user 定案「hover 一直捲到底、放開平滑回彈」）**：每條文字各自一條
+ * 獨立無限循環 tween（同速 80px/s、無 repeatDelay），捲到 -distance 立刻無縫接回 0。⚠️呼叫端內容必須是
+ * **dual-copy**（distance = 單份 copyWidth），否則回捲露白＝硬跳。各行獨立故短的不會停在接縫等長的（不共用單一
+ * timeline，避開 timeline-with-infinite-child 的 progress 語義坑）。回傳 duck-type {play,pause,progress,kill}。
+ *
+ * **reset（預設）**：EN/ZH 放同一 timeline（全插 position 0、同速各跑各距離），最長那條跑完→停 gap 秒→全部
+ * 歸零重播（「捲一輪→停→對齊重來」）。單-copy（distance = 溢出量 scrollWidth-clientWidth）用這條（如 award-ref）。
+ *
+ * @param {{el: Element|Element[], distance: number}[]} items 元素（或多份 copy 陣列）+ 捲動距離（正數 px）
+ * @param {{speed?: number, minDuration?: number, gap?: number, seamless?: boolean}} [opts]
  */
 export function buildSyncedMarqueeTimeline(items, opts = {}) {
   const speed = opts.speed ?? 80;
   const minDuration = opts.minDuration ?? 3;
+  if (opts.seamless) {
+    const tweens = items.map(({ el, distance }) => gsap.fromTo(el, { x: 0 },
+      { x: -distance, duration: Math.max(minDuration, distance / speed), ease: 'none', repeat: -1, paused: true }));
+    return {
+      play() { tweens.forEach((t) => t.play()); },
+      pause(t) { tweens.forEach((x) => x.pause(t)); },
+      progress(v) { tweens.forEach((x) => x.progress(v)); },
+      kill() { tweens.forEach((x) => x.kill()); },
+    };
+  }
   const gap = opts.gap ?? 0.6;
   const tl = gsap.timeline({ repeat: -1, paused: true, repeatDelay: gap });
   items.forEach(({ el, distance }) => {
@@ -169,7 +183,9 @@ export function bindMarqueeReturn(hoverEl, innerSelector, lineSelector, opts = {
       if (inner && dist) items.push({ el: inner, distance: dist });
     });
     inners = items.map((i) => i.el);
-    tl = items.length ? buildSyncedMarqueeTimeline(items) : null;
+    // seamless：內容是 applyMarqueeOverflow 建好的 dual-copy（--marquee-distance = copyWidth）→ 捲 -copyWidth 無縫接回，
+    // hover 一直捲不停頓；放開 leave() 從當下平滑回 0（user 2026-09-07）。
+    tl = items.length ? buildSyncedMarqueeTimeline(items, { seamless: true }) : null;
   };
   const enter = () => {
     if (returnTween) { returnTween.kill(); returnTween = null; }

@@ -88,7 +88,8 @@ function bindFacultyMarqueeReturn(scope) {
       return inner && dist ? { el: inner, distance: dist } : null;
     }).filter(Boolean);
     if (!items.length) return;
-    const tl = buildSyncedMarqueeTimeline(items);
+    // seamless（user 2026-09-07）：dual-copy（--marquee-distance = copyWidth）→ 捲 -copyWidth 無縫接回、hover 不停頓，放開回 0。
+    const tl = buildSyncedMarqueeTimeline(items, { seamless: true });
 
     // ⚠️ 不能用 gsap.killTweensOf(inners) 清場——inners 同時也是 tl 自己 child tween 的 target，
     // 連自己都殺掉會讓 tl.play() 後沒有任何 tween 在跑（實測踩到：hover 完全不動）。

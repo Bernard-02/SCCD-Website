@@ -349,16 +349,19 @@ function bindAwardRefTitleReturn(row) {
   let tl = null, returnTween = null, els = [];
   const build = () => {
     if (tl) { tl.kill(); tl = null; }
+    // seamless（user 2026-09-07）：initAwardRefTitleMarquees 已建 dual-copy（clone + 3rem gap、--marquee-offset）→
+    // 捲兩份 -copyWidth（= 首份 offsetWidth）無縫接回、hover 一直捲不停頓，放開下方 leave() 從當下回 0。
     const items = [];
+    els = [];
     row.querySelectorAll('.list-title-marquee.is-overflow').forEach(wrap => {
       const p = /** @type {HTMLElement|null} */ (wrap.querySelector('p'));
       if (!p) return;
-      wrap.querySelectorAll('p').forEach(pp => { /** @type {HTMLElement} */ (pp).style.animation = 'none'; });  // 關掉 CSS keyframe（含 clone）
-      const dist = p.scrollWidth - wrap.clientWidth;
-      if (dist > 1) items.push({ el: p, distance: dist });
+      const ps = /** @type {HTMLElement[]} */ ([...wrap.querySelectorAll('p')]);
+      ps.forEach(pp => { pp.style.animation = 'none'; gsap.set(pp, { x: 0 }); });  // 關掉 CSS keyframe（含 clone）+ 歸零
+      const copyWidth = p.offsetWidth;
+      if (copyWidth > 1) { items.push({ el: ps, distance: copyWidth }); els.push(...ps); }
     });
-    els = items.map(i => i.el);
-    tl = items.length ? buildSyncedMarqueeTimeline(items) : null;
+    tl = items.length ? buildSyncedMarqueeTimeline(items, { seamless: true }) : null;
   };
   const enter = () => { if (returnTween) { returnTween.kill(); returnTween = null; } build(); if (tl) tl.play(); };
   const leave = () => {

@@ -28,7 +28,7 @@ function bindFacultyCardMarquee(container) {
         const dist = Math.abs(parseFloat(getComputedStyle(line).getPropertyValue('--marquee-distance'))) || 0;
         return inner && dist ? { el: inner, distance: dist } : null;
       }).filter(Boolean);
-      return items.length ? { tl: buildSyncedMarqueeTimeline(items), els: items.map((i) => i.el) } : null;
+      return items.length ? { tl: buildSyncedMarqueeTimeline(items, { seamless: true }), els: items.map((i) => i.el) } : null;
     }).filter(Boolean);
     if (!groups.length) return;
     card._marqueeBound = true;

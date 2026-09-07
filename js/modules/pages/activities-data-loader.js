@@ -753,6 +753,25 @@ export function bindInteractions(container, { autoReveal = true, incremental = f
   // marquee 完全沒配對、退化成各自獨立 CSS 迴圈（就是 user 回報「中文比較快進下一輪」的成因）。
   // 改法＝依 DOM 順序兩兩配對（每個 wrap 用自己在同層 .list-title-marquee 清單中的 index 找 partner：
   // 偶數 index 配下一個、奇數 index 配上一個），落單尾巴（該段只有 en 沒有 zh）維持原本單條 CSS 邏輯。
+
+  // 無縫 dual-copy（user 2026-09-07「hover 一直捲到底、放開平滑回彈」）：對齊 checkOverflow 的 clone 手法——
+  // append aria-hidden 第二份 <p> + 3rem gap，copyWidth = 首份 offsetWidth（含 gap）；GSAP 捲 -copyWidth 時
+  // 第二份補到首份原位＝無縫接回（單 <p> 捲到底只會露白＝硬跳，故必須 dual-copy）。dataset.marqueeInit 與
+  // checkOverflow 共用：paired 走這裡設好，checkOverflow 對 paired 早退（reconcilePair 攔截）不會重 clone。
+  function ensureListDualCopy(wrap) {
+    const p = /** @type {HTMLElement|null} */ (wrap.querySelector('p'));
+    if (!p) return null;
+    if (!wrap.dataset.marqueeInit) {
+      wrap.dataset.marqueeInit = '1';
+      const clone = /** @type {HTMLElement} */ (p.cloneNode(true));
+      clone.setAttribute('aria-hidden', 'true');
+      p.style.paddingRight = '3rem';
+      clone.style.paddingRight = '3rem';
+      wrap.appendChild(clone);
+    }
+    return { ps: /** @type {HTMLElement[]} */ ([...wrap.querySelectorAll('p')]), copyWidth: p.offsetWidth };
+  }
+
   function reconcilePair(wrap) {
     const parent = wrap.parentElement;
     if (!parent) return false; // detached（re-render 後仍排隊的 ResizeObserver callback）→ no-op 不炸
@@ -809,8 +828,19 @@ export function bindInteractions(container, { autoReveal = true, incremental = f
 
     if (!overflowing.length) { wraps.forEach(w => w._pairGroup = null); return true; }
 
-    const tl = buildSyncedMarqueeTimeline(overflowing.map(({ p, distance }) => ({ el: p, distance })));
-    const group = { tl, els: overflowing.map(o => o.p) };
+    // 無縫連續（user 2026-09-07）：每條建 dual-copy、捲 -copyWidth 無縫接回，取代舊「捲溢出量→停 0.6s→跳回」；
+    // 各行獨立 seamless loop，放開由下方 easeAll 從當下平滑回原點。els 含兩份 copy（回彈要一起倒帶）。
+    const items = [], els = [];
+    overflowing.forEach(({ wrap }) => {
+      const dc = ensureListDualCopy(wrap);
+      if (!dc || !dc.copyWidth) return;
+      dc.ps.forEach(pp => gsap.set(pp, { x: 0 }));
+      items.push({ el: dc.ps, distance: dc.copyWidth });
+      els.push(...dc.ps);
+    });
+    if (!items.length) { wraps.forEach(w => w._pairGroup = null); return true; }
+    const tl = buildSyncedMarqueeTimeline(items, { seamless: true });
+    const group = { tl, els };
     wraps.forEach(w => w._pairGroup = group);
 
     // 播放 gate（對齊 lists.css / dsd 慣例）：
