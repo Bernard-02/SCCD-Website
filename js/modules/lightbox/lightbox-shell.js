@@ -3,8 +3,9 @@ import { DUR, EASE } from '../ui/motion.js';
  * Lightbox Shell（共用 utility）
  * 提供所有全螢幕 lightbox/modal 統一的 enter/exit 行為：
  *   - body.lightbox-open class + overflow:hidden
- *   - header bars clip-path 退場/進場動畫（logo 不動）
- *   - 拉高 header z (10000) 讓 logo 浮在 lightbox z-[9999] 上
+ *   - header bars clip-reveal 退場/進場動畫（logo 不動）
+ *   - 把 logo <a> portal 出 header 到 #site-header 頂層、z=10000 浮在 overlay z-[9999] 上；header 本體（含 bars）
+ *     留在原 z-50 沉在 overlay 底下 → bars 在 overlay 底下收起（user 2026-09-08，見 portalLogoAboveOverlay）
  *
  * **原則：lightbox 不 mutate 底下 page 渲染**
  *   - 不染 html bg / 不碰 body bg / 不 toggle scrollbar-gutter（會讓 page/header 抖 10px）
@@ -12,7 +13,7 @@ import { DUR, EASE } from '../ui/motion.js';
  *
  * **header 區域處理**：
  *   - lightbox `fixed inset-0` 從 top:0 蓋滿 viewport（含 header 區）
- *   - header bars 由 clip-path 收掉、logo z=10000 浮在 lightbox 之上 → 視覺只剩 logo + X 浮在黑底
+ *   - header bars 由 clip-reveal 收掉且沉在 overlay 底下（dim 蓋住）、只有 portal 出來的 logo z=10000 浮在上 + X → 視覺只剩 logo + X 浮在黑底
  *   - 容器加 inline `padding-top: 1.5rem` 把內部 flex 子元素（image / canvas / thumbs）下推一點，避免貼到浮在上方的 logo / X；數值對齊內部 main `py-xl`(3rem) + thumbs `py-md`(1.5rem) → 上方 gap ≈ poster 到 thumbnail gap 都 4.5rem 對稱；X 按鈕 absolute 相對 padding box top edge → padding 不影響 X 位置
  *   - （舊版曾把 lightbox top 偏移 header-height 露出 page bg，2026-05-17 移除：mode-color 下 page bg 跟 lightbox 黑底色差太大、使用者覺得「沒蓋到 header」）
  *
@@ -65,36 +66,56 @@ export function animateHeaderShow(targets, { duration = DUR.slow, ease = EASE.en
 
 // 多個 lightbox 同時/連續開關時保持 body state 一致
 let openCount = 0;
-let savedHeaderZ = null;
+// 開啟 overlay 期間被搬到 #site-header 頂層的 logo <a>（見 portalLogoAboveOverlay）；null＝未搬
+let portaledLogos = null;
 // 無障礙：記住開啟 lightbox 前的焦點元素，關閉時還原（WCAG 2.4.3 焦點順序）
 let savedFocusEl = null;
 // 底層 scroll freeze 的解除函式（見 installScrollLock）
 let scrollLockCleanup = null;
 
-// lightbox 容器 z-[9999] + 後 append 到 body → DOM order 比 header 後 → 同 z 下 lightbox 蓋過 header
-// 要 logo 浮在 lightbox 上必須把 header z 拉到 > 9999；bars 由 clip-path 收掉所以拉高不會視覺穿幫
-// 10000 留給 lightbox 用，idle-standby 用 10001 仍在最上
-const HEADER_Z_ABOVE_LIGHTBOX = 10000;
+// overlay 容器 z-[9999]。**只把 logo 浮到 overlay 之上，header 本體（含 bars）留在原 z-50 沉在 overlay 底下**
+// → bars 在 overlay 底下收起（clip-reveal 被 dim 蓋住），不再亮白疊在 overlay 上（user 2026-09-08，翻掉舊
+//   raiseHeaderZ 把整條 header 拉到 10000 蓋 overlay 的做法——那會讓 bars 收起時亮白閃現）。
+// 做法：把「當前顯示中的 logo <a>」搬出 fixed header（脫離其 stacking context）到 #site-header（static＝root
+//   stacking context），fixed 釘回原視覺位置、z 高過 overlay。idle-standby 用 10001 仍在最上。
+const LOGO_Z_ABOVE_OVERLAY = 10000;
 
-function raiseHeaderZ() {
-  const header = /** @type {HTMLElement | null} */ (document.querySelector('#site-header header'));
-  if (!header) return;
-  savedHeaderZ = header.style.zIndex || '';
-  header.style.setProperty('z-index', String(HEADER_Z_ABOVE_LIGHTBOX), 'important');
+function portalLogoAboveOverlay() {
+  const siteHeader = document.getElementById('site-header');
+  if (!siteHeader || portaledLogos) return;
+  // 只搬顯示中的 logo（桌面 #header-logo 或手機 #header-logo-mobile / SCCD anchor）：display:none 的 getClientRects() 空
+  const anchors = /** @type {HTMLElement[]} */ ([
+    document.querySelector('#header-logo')?.closest('a'),
+    document.querySelector('#header-logo-mobile')?.closest('a'),
+    document.getElementById('header-logo-mobile-sccd'),
+  ].filter(Boolean).filter((a) => a.getClientRects().length > 0));
+  portaledLogos = anchors.map((a) => {
+    const rect = a.getBoundingClientRect();
+    const saved = { el: a, parent: a.parentNode, next: a.nextSibling, cssText: a.style.cssText };
+    // fixed 釘回目前視覺位置（overlay 期間頁面 scroll 凍結、fixed header 不動 → rect 不會失效）
+    a.style.position = 'fixed';
+    a.style.top = `${rect.top}px`;
+    a.style.left = `${rect.left}px`;
+    a.style.margin = '0';
+    a.style.zIndex = String(LOGO_Z_ABOVE_OVERLAY);
+    // #site-header 開 pe:none（navigation.css 134）會繼承給搬進來的 logo → 補回 auto，維持「logo 接住點擊、不
+    // 穿透誤關 panel」（同 disableLogoLinks 原意；href 已被 disableLogoLinks 拔掉＝點了無動作、無 pointer cursor）
+    a.style.pointerEvents = 'auto';
+    siteHeader.appendChild(a);
+    return saved;
+  });
 }
 
-function restoreHeaderZ() {
-  const header = /** @type {HTMLElement | null} */ (document.querySelector('#site-header header'));
-  if (!header) return;
-  if (savedHeaderZ) {
-    header.style.setProperty('z-index', savedHeaderZ);
-  } else {
-    header.style.removeProperty('z-index');
-  }
-  savedHeaderZ = null;
+function restoreLogoDown() {
+  if (!portaledLogos) return;
+  portaledLogos.forEach(({ el, parent, next, cssText }) => {
+    el.style.cssText = cssText;   // 還原 inline（清掉 fixed/top/left/z/pe）→ 回 Tailwind class 原位
+    if (parent) parent.insertBefore(el, next);
+  });
+  portaledLogos = null;
 }
 
-// modal 開著時，logo（raiseHeaderZ 後浮在 modal 之上）要「完全不是連結」，不只是擋 click：
+// modal 開著時，logo（portalLogoAboveOverlay 後浮在 modal 之上）要「完全不是連結」，不只是擋 click：
 // 拔掉 href → ① 不導航 ② 無 pointer 游標（cursor.css 規則是 `body a[href]`，無 href 即回 default）
 // ③ 無瀏覽器連結預覽 tooltip。<a> 仍 pointer-events:auto 接住點擊 → 不會穿透到 overlay 誤關面板。
 // （user 2026-06-07：「不能點擊」要連 hover 游標 + 左下角連結預覽都沒有；router.js 另有 header 連結 guard 兜底）
@@ -260,7 +281,7 @@ export function enterLightboxMode() {
     // add → switchHeaderLogo(wireframe-inverse 白色 wireframe)；remove → switchHeaderLogo(standard/inverse/wireframe)
     // caller 不應自己 call switchHeaderLogo，否則跟 Observer 撞 race（logoLoadGeneration +2 → 第一次 load stale）
     document.body.classList.add('lightbox-open');
-    raiseHeaderZ();
+    portalLogoAboveOverlay();
     disableLogoLinks();
     padLightboxTops();
     animateHeaderHide(getHeaderTargets());
@@ -282,12 +303,12 @@ export function exitLightboxMode({ deferHeaderShow = false } = {}) {
     //   （user 2026-07-09「header 先變白，slide-in 在 header 下方離開」；桌面 about-bar 最明顯，clip 隨機方向＝「有時候不會」）。
     //   全螢幕 lightbox（fade out）傳 false＝立即，維持「header 與 lightbox 同步淡回」的原設計。
     const revealHeader = () => {
-      if (openCount !== 0) return;  // 延後窗口內又開了新 lightbox（enter 已 raiseHeaderZ + hide）→ 放棄還原
+      if (openCount !== 0) return;  // 延後窗口內又開了新 lightbox（enter 已 portal logo + hide）→ 放棄還原
       animateHeaderShow(getHeaderTargets());
-      // z 還原延後到 overlay 300ms 淡出結束：header 預設 z=9999 與 lightbox overlay 同層、overlay 後 append DOM →
-      //   立即降回會讓「仍在淡出中的 overlay」重新蓋住浮在最上的 logo → 關閉時 logo 閃一下（user 2026-09-07）。
-      //   保持 logo 於 overlay 之上整段淡出期間，待 overlay display:none 後才降回（openCount 再守衛：延後窗口內又開新 lightbox 則不還原）。
-      setTimeout(() => { if (openCount === 0) restoreHeaderZ(); }, 300);
+      // logo 搬回 header 延到 overlay 300ms 淡出結束：logo portal 期間浮在 overlay 之上，overlay 仍在淡出時就把
+      //   logo 搬回 header（沉回 overlay 底下）會讓 logo 閃一下（同 2026-09-07 z 還原太早的問題）。待 overlay
+      //   淡完再搬回（openCount 再守衛：延後窗口內又開新 lightbox 則不還原）。
+      setTimeout(() => { if (openCount === 0) restoreLogoDown(); }, 300);
     };
     if (deferHeaderShow) setTimeout(revealHeader, DUR.medium * 1000);
     else revealHeader();
@@ -304,7 +325,7 @@ export function resetLightboxMode() {
   openCount = 0;
   savedFocusEl = null; // SPA 換頁清掉，不把焦點還到舊頁元素
   restoreLightboxTops();
-  restoreHeaderZ();
+  restoreLogoDown();   // 把 portal 到 #site-header 的 logo 搬回 header 原位（SPA 換頁時 modal 還開著兜底）
   restoreLogoLinks();  // SPA 換頁時 modal 還開著（如返回鍵）→ 把 logo href 還回去，否則下一頁 logo 變死連結
   // 解除底層 scroll freeze（若 lightbox 沒走正規 exit 流程退出時兜底）
   if (scrollLockCleanup) { scrollLockCleanup(); scrollLockCleanup = null; }

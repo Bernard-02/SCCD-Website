@@ -970,9 +970,9 @@ export function initHeader() {
     const generateBar = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="generate"]'));
     const alumniBar   = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="alumni"]'));
 
-    // about bar hover：底色隨機三原色
+    // about bar hover：底色隨機三原色（時長走共用 token --dur-base，同 header.html inline）
     if (aboutBar) {
-      aboutBar.style.transition = 'background 0.4s ease';
+      aboutBar.style.transition = 'background var(--dur-base) ease';
       aboutBar.addEventListener('mouseenter', () => {
         aboutBar.style.background = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
       });
@@ -1089,6 +1089,16 @@ export function initHeader() {
       const logoPath = sitePath(`data/${logoFile}`);
       // 標記目前 logo type，讓 theme-toggle 的 switchHeaderLogo guard 能識別已載入的 logo
       logo.dataset.logoType = logoTypeTag;
+      // mode3 filter 初值（避免 applyColorVars 首拍前露黑線）；先設好再掛 transition → 載入當下不 transition，
+      // 之後 overlay 開關/hue 翻轉才平滑淡（user 2026-09-08）。此初始 load 路徑 switchHeaderLogo 會 skip（同 type），
+      // transition 得在這掛，否則 mode3 進頁後首次開 overlay 的 filter 翻白會硬跳。
+      if (isColor) {
+        const overlayOpen = document.body.classList.contains('lightbox-open')
+          || document.documentElement.classList.contains('has-slide-in');
+        const fgNow = getComputedStyle(document.documentElement).getPropertyValue('--theme-fg').trim().toLowerCase();
+        logo.style.filter = (overlayOpen || fgNow === '#ffffff' || fgNow === '#fff') ? 'invert(1)' : 'none';
+      }
+      logo.style.transition = 'filter var(--dur-base) ease';
       const logoAnim = lottie.loadAnimation({
         container: logo,
         renderer: 'svg',
@@ -1151,6 +1161,8 @@ export function initHeader() {
           filterM = getComputedStyle(document.documentElement).getPropertyValue('--theme-fg').trim() === '#ffffff' ? 'invert(1)' : 'none';
         }
         mobileLogo.style.filter = filterM;
+        // mode3 手機 logo filter 逐幀翻黑白（applyColorVars）+ overlay 開關翻白 走 CSS transition 平滑，不硬跳（user 2026-09-08）
+        mobileLogo.style.transition = 'filter var(--dur-base) ease';
         mobileLogo.dataset.logoContrast = contrastM;
         const logoPathM = sitePath(`data/${logoFileM}`);
         const mobileLogoAnim = lottie.loadAnimation({

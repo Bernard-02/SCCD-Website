@@ -25,8 +25,9 @@ const STORAGE_KEY = 'sccd-theme-mode';
 // Mode 切換 fade：applyMode 在 body/html 加 .mode-switching class（typography.css 規則套 0.4s transition 到全 subtree），
 //   0.4s 後移除 → 穩態下無 transition，避免 mode-color RAF 高頻更新 --theme-bg 跟 transition 衝突 lag
 // 首次 apply（page load）跳過 fade，避免 default 白底 → 目標 mode 的閃爍
-// 速度 0.4s：全域 mode 切換用同一節奏
-const MODE_FADE_MS = 400;
+// 速度＝共用 token --dur-base（motion.js DUR.base 開機讀）：class 存活時窗必須＝CSS fade 時長，
+// 改 variables.css 的 --dur-base 這裡自動跟上（user 09-08：變色 transition 一律走共用值）
+const MODE_FADE_MS = DUR.base * 1000;
 let hasAppliedModeOnce = false;
 let modeSwitchTimer = null;
 let antiJitterStyle = null;
@@ -162,11 +163,13 @@ function applyColorVars() {
   const logo = document.getElementById('header-logo');
   if (logo) {
     if (logo.dataset.logoType === 'wireframe') {
-      // 全螢幕黑底 lightbox（非 slide-in）開啟時 wireframe 一律翻白：黑底恆需白 logo，不受 page hue 影響
-      //（否則亮 hue 下 filter:none 黑線落在 bg-black/90 上看不見）。slide-in（panel=theme-bg 同 hue）仍走 hue 對比、零跳動。
-      const fullBlackLightbox = document.body.classList.contains('lightbox-open')
-        && !document.documentElement.classList.contains('has-slide-in');
-      const desired = fullBlackLightbox ? 'invert(1)' : (isLightBg ? 'none' : 'invert(1)');
+      // overlay（slide-in / 全螢幕 lightbox）開啟時 wireframe 一律翻白：桌面 logo 浮在 #faculty-overlay 黑底 dim
+      // 上（panel 在右 79%、logo 落在左側黑 dim），恆需白 logo（user 2026-09-08：mode3 slide-in 也要白線框，對齊
+      // overlay 一律白 wireframe 慣例；翻掉 06-24「slide-in 走 hue 對比」＝亮 hue 下黑線落在黑 dim 上看不見的 bug）。
+      // 純 mode3（無 overlay）維持 hue 對比：亮 hue → 黑線 / 暗 hue → 白線。
+      // 用 overlayLogoActive 旗標（非直接讀 class）：checkSlideInState 開啟設 true、slide-in 關閉延到 ~0.7s 設 false。
+      // → 白 logo 撐到 overlay 快淡完才隨底變亮翻回 hue 對比（user 2026-09-08），配 CSS transition:filter 平滑。
+      const desired = overlayLogoActive ? 'invert(1)' : (isLightBg ? 'none' : 'invert(1)');
       if (logo.style.filter !== desired) logo.style.filter = desired;
     } else if (logo.dataset.logoType === 'wireframe-inverse') {
       if (logo.style.filter !== 'none') logo.style.filter = 'none';
@@ -257,61 +260,83 @@ function getCurrentPage() {
 let isSlideInOpen = false;
 // 手機 slide-in 開場 logo 延後切換 timer（見下方說明）
 let mobileSlideInLogoTimer = null;
+// overlay logo「該不該套白線框」的唯一旗標（取代直接讀 class）：mode3 filter 由 applyColorVars 依此翻，
+// 且 slide-in 關閉要延到 ~0.7s 才還原——class 的兩個時間點（lightbox-open t=0 消、has-slide-in t=0.8 消）都不合用。
+let overlayLogoActive = false;
+let overlayRestoreTimer = null;
 // 手機 slide-in 開場：panel 在 t=0.3 開始滑入、歷時 DUR.medium（power3.out）。延到 panel 蓋住「左上 logo
 // 左緣」才切手機 logo wireframe，否則 panel 還沒蓋到時 logo 在 dim 暗 overlay 上先變 wireframe 很怪（user 2026-06-10）。
 // 實測（faculty/courses 同 timeline）：power3.out 前段快，panel.left 在 ~570ms（≈ 0.3 + DUR.medium×0.55，slide 約 55%）
 // 就降到 logo 左緣(24px) 以下＝已蓋住。用此值不用 nominal 末端 0.8s（user 2026-06-10「再快點」），仍不露暗底線條 logo。
 const MOBILE_SLIDEIN_LOGO_DELAY_MS = Math.round((0.3 + DUR.medium * 0.55) * 1000);
+// slide-in 關閉：面板滑出(0~0.5s)+overlay 淡出(0.5~0.8s)。logo 延到 ~0.7s（overlay 快淡完、底變亮）才 crossfade
+// 回原本 logo，隨 overlay 變亮浮現（user 2026-09-08：白 logo 不停到最後才換、又不會黑 logo 硬疊在還暗的 overlay 上）。可調。
+const SLIDEIN_LOGO_RESTORE_MS = 550;
 
 function checkSlideInState() {
-  // 「overlay 正在覆蓋」訊號＝body.lightbox-open（slide-in faculty/courses 與 full lightbox activities/library-viewer
-  // 開啟時 enterLightboxMode 都設它、退場一開始 exitLightboxMode 立即移除）。
-  // ⚠️ 不再 OR html.has-slide-in：has-slide-in 會殘留到 slide-in close 動畫尾(~1s cleanup)，用它會讓退場時 logo
-  //    拖到最後才還原；改用 lightbox-open → slide-in 一退場就還原原本 logo（user 2026-06-10）。
-  const hasSlideIn = document.body.classList.contains('lightbox-open');
+  // 主訊號＝body.lightbox-open（overlay 是否覆蓋；enterLightboxMode 設、exitLightboxMode t=0 立即移除）。
+  //   - 開啟 → 立刻切白 wireframe logo。
+  //   - slide-in 關閉（有 html.has-slide-in 面板）：面板滑出+overlay 淡出約 0.8s；logo 延到 ~0.7s
+  //     （SLIDEIN_LOGO_RESTORE_MS，overlay 快淡完、底變亮）才 crossfade 回原本，隨 overlay 變亮浮現（user 2026-09-08）。
+  //   - full lightbox 關閉（無 panel、overlay 直接淡出）：立即還原。
+  // ⚠️ 白線框「該不該套」不再直接讀 class，改由 overlayLogoActive 旗標控制（mode3 filter 由 applyColorVars 依它翻、
+  //    且關閉要延到 0.7s；class 的 t=0/t=0.8 兩個時間點都不合用）。翻掉 06-10「一退場就還原」與 09-08「等全消瞬間換」。
+  const overlayNow = document.body.classList.contains('lightbox-open');
+  if (isSlideInOpen === overlayNow) return;
+  isSlideInOpen = overlayNow;
 
-  if (isSlideInOpen !== hasSlideIn) {
-    isSlideInOpen = hasSlideIn;
-    const mode = getStoredMode();
-    
-    // overlay（slide-in / lightbox）開啟：mode1/2 換白 wireframe-inverse（本就會變、user 接受）；
-    // mode3 維持 wireframe 不換 JSON——換 wireframe-inverse 會 Lottie reload 跳動一下（user 2026-06-24 報），
-    // logo 黑/白由 applyColorVars 依 hue 對比每幀決定（slide-in 不強制白；hue 不因 slide-in 改 → 開啟當下不翻＝零跳動）。
-    // 關閉 → 依 mode 還原（color=wireframe / inverse=inverse / standard=standard）
-    // 全螢幕黑底 lightbox 與 slide-in 面板一律白線框：mode1/2 換 wireframe-inverse（白線框 JSON）、mode3 維持
-    //   wireframe（白由 applyColorVars 依 fullBlackLightbox 強制 invert(1)；user 2026-09-07 統一白 wireframe）。
-    let logoType;
-    if (mode === 'color') logoType = 'wireframe';            // mode3 恆 wireframe（switchHeaderLogo 同 type → skip reload）
-    else if (isSlideInOpen) logoType = 'wireframe-inverse';  // slide-in / lightbox：白線框
-    else if (mode === 'inverse') logoType = 'inverse';
-    else logoType = 'standard';
+  const isSlideInPanel = document.documentElement.classList.contains('has-slide-in');
+  clearTimeout(overlayRestoreTimer);
 
-    // /create 頁是 typewriter logo，slide-in 狀態變化不該切回 Lottie（同 applyMode 的 guard）
-    const _page = getCurrentPage();
-    if (_page !== 'create' && _page !== 'generate' && document.getElementById('header-logo')) {
-      switchHeaderLogo(logoType);   // mode3='wireframe' 已載入 → skip（無跳動）；mode1/2 換白 wireframe-inverse
-      // 手機 logo 不走 switchHeaderLogo（那支只動桌面 #header-logo）；用 header.js 暴露的 hook 同步重載。
-      // mode3 手機 logo 也已是 wireframe-standard + contrast='auto'，開關 overlay 不需 reload（白由 applyColorVars pin）→
-      // 只 mode1/2 才 reload（standard/inverse → 白 wireframe），避免 mode3 手機也跳一下。
-      if (mode !== 'color' && typeof window.__sccdReloadMobileLogo === 'function') {
-        clearTimeout(mobileSlideInLogoTimer);
-        const isSlideInPanel = document.documentElement.classList.contains('has-slide-in'); // slide-in（非 full lightbox）
-        if (isSlideInOpen && isSlideInPanel && window.innerWidth < 768) {
-          // 手機 slide-in 開啟：延到 panel 蓋滿 logo 區才切（見 MOBILE_SLIDEIN_LOGO_DELAY_MS）；
-          // fire 時再確認仍是 slide-in（快速關閉時不殘留切換）
-          mobileSlideInLogoTimer = setTimeout(() => {
-            if (document.documentElement.classList.contains('has-slide-in')) window.__sccdReloadMobileLogo();
-          }, MOBILE_SLIDEIN_LOGO_DELAY_MS);
-        } else {
-          // full lightbox 開（黑底，白 logo 立即可見）／任何關閉（要立即還原）→ 不延遲
-          window.__sccdReloadMobileLogo();
-        }
-      }
+  if (overlayNow) {
+    overlayLogoActive = true;
+    applyOverlayLogo(true, isSlideInPanel, /*fade*/true);
+  } else if (isSlideInPanel) {
+    // slide-in 關閉：延到 ~0.7s 才 crossfade 還原（隨 overlay 變亮浮現）
+    overlayRestoreTimer = setTimeout(() => {
+      if (isSlideInOpen) return;   // 延遲窗口內又開了新 overlay → 放棄還原
+      overlayLogoActive = false;
+      applyOverlayLogo(false, true, /*fade*/true);
+    }, SLIDEIN_LOGO_RESTORE_MS);
+  } else {
+    // full lightbox 關閉：立即還原（無 panel、overlay 已在淡出；黑底 instant 不突兀）
+    overlayLogoActive = false;
+    applyOverlayLogo(false, false, /*fade*/false);
+  }
+}
+
+// 套用 overlay logo 狀態（開啟/還原共用）。open＝overlay 覆蓋中；isSlideInPanel 供手機延遲；fade＝桌面 logo 換檔是否 crossfade。
+// overlay 開啟：mode3 恆 wireframe（白由 applyColorVars 依 overlayLogoActive 強制 invert）；mode1/2 換白 wireframe-inverse。
+// 還原：依 mode 回 color=wireframe / inverse=inverse / standard=standard。
+function applyOverlayLogo(open, isSlideInPanel, fade) {
+  const mode = getStoredMode();
+  let logoType;
+  if (mode === 'color') logoType = 'wireframe';
+  else if (open) logoType = 'wireframe-inverse';
+  else if (mode === 'inverse') logoType = 'inverse';
+  else logoType = 'standard';
+
+  const _page = getCurrentPage();   // /create 是 typewriter logo，不切 Lottie（同 applyMode guard）
+  if (_page === 'create' || _page === 'generate' || !document.getElementById('header-logo')) return;
+
+  // mode3 同 type → switchHeaderLogo skip（filter 走下面 applyColorVars + CSS transition:filter 平滑）；
+  // mode1/2 換檔＝實心↔線框不同 JSON，fade 時走 opacity crossfade（filter 補不了形狀變）。
+  switchHeaderLogo(logoType, { fade });
+  // ⚠️ mode3 桌面 logo 白/黑 filter 只在 colorTick RAF 由 applyColorVars 翻；色輪暫停(pauseColorLoop)時迴圈停 →
+  //   這裡（observer/timer 驅動）補呼一次同步 filter（讀 overlayLogoActive）（user 2026-09-08 色輪暫停 bug）。
+  if (mode === 'color') applyColorVars();
+
+  // 手機 logo（mode1/2 才 reload；mode3 手機恆 wireframe-standard + contrast='auto'、開關不 reload，白由 applyColorVars pin）
+  if (mode !== 'color' && typeof window.__sccdReloadMobileLogo === 'function') {
+    clearTimeout(mobileSlideInLogoTimer);
+    if (open && isSlideInPanel && window.innerWidth < 768) {
+      // 手機 slide-in 開啟：延到 panel 蓋滿 logo 區才切（見 MOBILE_SLIDEIN_LOGO_DELAY_MS）；fire 時再確認仍 slide-in
+      mobileSlideInLogoTimer = setTimeout(() => {
+        if (document.documentElement.classList.contains('has-slide-in')) window.__sccdReloadMobileLogo();
+      }, MOBILE_SLIDEIN_LOGO_DELAY_MS);
+    } else {
+      window.__sccdReloadMobileLogo();   // full lightbox 開／任何關閉 → 不延遲
     }
-
-        // 舊版 .theme-toggle-circle 圓點+圓邊框已拆掉（改 .icon mode_1/2/3）；
-        // slide-in / lightbox 開時 icon 翻白由 CSS（html.has-slide-in .theme-toggle-btn { color:#fff }）handle，
-        // .theme-toggle-btn 有 `transition: color var(--transition-fast)` 自動平滑變色，不需 gsap 手動 inline
   }
 }
 
@@ -590,7 +615,7 @@ function runHeaderLogoReveal(logo) {
 // 舊 'inverse' Lottie 的 JSON fetch 若慢於 'standard' 完成，DOMLoaded 後到的 SVG 會覆蓋掉新 'standard' SVG。
 let logoLoadGeneration = 0;
 
-export function switchHeaderLogo(type) {
+export function switchHeaderLogo(type, { fade = false } = {}) {
   const logo = document.getElementById('header-logo');
   if (!logo || typeof lottie === 'undefined') return;
 
@@ -607,58 +632,80 @@ export function switchHeaderLogo(type) {
     return;
   }
 
-  // Frame 同步：destroy 前抓正在跑的 logo 當前 frame，新 logo 接同一 frame 繼續轉。
-  // 三個會 swap 的 logo JSON（Standard/WireframeStandard/WireframeInverse）時間軸完全相同
-  // （ip:0 / op:3600 / fr:60），frame number 1:1 對應同一旋轉角度；不接的話新 anim 從 frame 0
-  // 重起 → 環的旋轉角度 snap 回起點看起來「jump」（viewer 開/關切 wireframe 時最明顯）。
-  let resumeFrame = 0;
-  if (typeof lottie.getRegisteredAnimations === 'function') {
-    const prevAnim = lottie.getRegisteredAnimations().find((a) => a.name === 'header-logo-anim');
-    if (prevAnim) resumeFrame = prevAnim.currentFrame || 0;
-  }
+  // fade（overlay 開關傳入）：換檔前先把舊 logo 淡出、doSwap 內 DOMLoaded 再淡入 → 換檔不硬跳（user 2026-09-08）。
+  // 只在「有既有 svg 可淡 + 非 /create reveal + gsap 在」時啟用；mode3 同 type 走上面 skip 不到這（其 filter 翻白
+  // 由 CSS transition:filter 平滑）；mode1/2 換的是 filled↔outline 不同 JSON（形狀變），filter 補不了硬跳，靠 opacity crossfade。
+  const fading = fade && !needsReveal && typeof gsap !== 'undefined' && !!logo.querySelector('svg');
 
-  // doSwap：destroy 舊 Lottie + 載新 Lottie；DOMLoaded 後依 needsReveal 決定要不要 reveal
-  const myGeneration = ++logoLoadGeneration;
-  lottie.destroy('header-logo-anim');
-  logo.innerHTML = '';
-  logo.dataset.logoType = type;
-
-  let file;
-  if (type === 'wireframe') file = 'SCCDLogoWireframeStandard.json';
-  else if (type === 'wireframe-inverse') file = 'SCCDLogoWireframeInverse.json';
-  else if (type === 'inverse') file = 'SCCDLogoInverse.json';
-  else file = 'SCCDLogoStandard.json';
-
-  const anim = lottie.loadAnimation({
-    container: logo,
-    renderer: 'svg',
-    loop: true,
-    autoplay: true,
-    name: 'header-logo-anim',
-    path: sitePath('data/' + file),
-    rendererSettings: { preserveAspectRatio: 'xMidYMid meet' },
-  });
-
-  anim.addEventListener('DOMLoaded', () => {
-    // Stale load guard：若 generation 對不上，這次 DOMLoaded 是被 supersede 的舊請求 — 直接 return
-    // 不要 destroy 因為 lottie.destroy 會把這支 anim 的 SVG 從 container 拿走，而 newer load 可能
-    // 還沒 inject 它的 SVG，會留下空 container；新 load 自己會處理自己的 lifecycle
-    if (myGeneration !== logoLoadGeneration) return;
-    const svg = logo.querySelector('svg');
-    if (svg) {
-      svg.style.overflow = 'visible';
-      svg.setAttribute('viewBox', '0 0 1080 1080');
+  const doSwap = () => {
+    // Frame 同步：destroy 前抓正在跑的 logo 當前 frame，新 logo 接同一 frame 繼續轉（fade-out 期間舊 anim 仍在轉，
+    // 此刻抓＝接得上）。三個 swap 的 logo JSON（Standard/WireframeStandard/WireframeInverse）時間軸完全相同
+    // （ip:0 / op:3600 / fr:60），frame 1:1 對應同一旋轉角度；不接的話新 anim 從 0 重起 → 環角度 snap 回起點「jump」。
+    let resumeFrame = 0;
+    if (typeof lottie.getRegisteredAnimations === 'function') {
+      const prevAnim = lottie.getRegisteredAnimations().find((a) => a.name === 'header-logo-anim');
+      if (prevAnim) resumeFrame = prevAnim.currentFrame || 0;
     }
-    // 防 autoplay 在 race 情境下未真正啟動（symptom：Lottie 卡 frame 0 看不到 central circle）
-    if (typeof anim.play === 'function' && anim.isPaused) anim.play();
-    // Frame 同步（見上方 resumeFrame）：接上 destroy 前那支 logo 的旋轉角度繼續轉，消除 swap 的 jump。
-    // 在 DOMLoaded 同步設定，趕在首次 paint 前，不會閃 frame 0。
-    if (resumeFrame > 0 && typeof anim.goToAndPlay === 'function') anim.goToAndPlay(resumeFrame, true);
-    // **不能用 gsap.killTweensOf(logo)**：會把 header.js 的 scroll-shrink ScrollTrigger
-    // (180→100 scrub) 一起殺掉，logo 卡在 180 永遠不收縮
-    if (needsReveal) runHeaderLogoReveal(logo);
-    else logo.style.opacity = '1';
-  });
+
+    const myGeneration = ++logoLoadGeneration;
+    lottie.destroy('header-logo-anim');
+    logo.innerHTML = '';
+    logo.dataset.logoType = type;
+    // wireframe（mode3）filter 初值＝當前 --theme-fg 對比（同手機 logo「初值讀當前 --theme-fg」招式）：
+    // applyMode 的 sync applyColorVars 跑在 switchHeaderLogo 之前（那刻 logoType 還是舊值、filter 分支跳過），
+    // 下一次 apply 要等 MODE_FADE_MS 後 RAF 首拍 → 暗 hue 會先露 ~0.4s 黑線框再跳白（user 09-08）。
+    // 這裡在 JSON 掛上前就把 filter 定調在容器上；後續逐幀翻轉仍交 applyColorVars。
+    if (type === 'wireframe') {
+      const fgNow = getComputedStyle(document.documentElement).getPropertyValue('--theme-fg').trim().toLowerCase();
+      logo.style.filter = (overlayLogoActive || fgNow === '#ffffff' || fgNow === '#fff') ? 'invert(1)' : 'none';   // 條件同 applyColorVars wireframe 分支
+    }
+    // filter 翻黑白走 CSS transition 平滑（mode3 overlay 開關 + hue 過門檻）；先設好初值(上面)再掛 transition →
+    // 載入當下不 transition（filter 在 svg 進場前就定好、不觸發），之後改值才淡（user 2026-09-08）
+    logo.style.transition = 'filter var(--dur-base) ease';
+
+    let file;
+    if (type === 'wireframe') file = 'SCCDLogoWireframeStandard.json';
+    else if (type === 'wireframe-inverse') file = 'SCCDLogoWireframeInverse.json';
+    else if (type === 'inverse') file = 'SCCDLogoInverse.json';
+    else file = 'SCCDLogoStandard.json';
+
+    const anim = lottie.loadAnimation({
+      container: logo,
+      renderer: 'svg',
+      loop: true,
+      autoplay: true,
+      name: 'header-logo-anim',
+      path: sitePath('data/' + file),
+      rendererSettings: { preserveAspectRatio: 'xMidYMid meet' },
+    });
+
+    anim.addEventListener('DOMLoaded', () => {
+      // Stale load guard：若 generation 對不上，這次 DOMLoaded 是被 supersede 的舊請求 — 直接 return
+      // 不要 destroy 因為 lottie.destroy 會把這支 anim 的 SVG 從 container 拿走，而 newer load 可能
+      // 還沒 inject 它的 SVG，會留下空 container；新 load 自己會處理自己的 lifecycle
+      if (myGeneration !== logoLoadGeneration) return;
+      const svg = logo.querySelector('svg');
+      if (svg) {
+        svg.style.overflow = 'visible';
+        svg.setAttribute('viewBox', '0 0 1080 1080');
+      }
+      // 防 autoplay 在 race 情境下未真正啟動（symptom：Lottie 卡 frame 0 看不到 central circle）
+      if (typeof anim.play === 'function' && anim.isPaused) anim.play();
+      // Frame 同步（見上方 resumeFrame）：接上 destroy 前那支 logo 的旋轉角度繼續轉，消除 swap 的 jump。
+      // 在 DOMLoaded 同步設定，趕在首次 paint 前，不會閃 frame 0。
+      if (resumeFrame > 0 && typeof anim.goToAndPlay === 'function') anim.goToAndPlay(resumeFrame, true);
+      // **不能用 gsap.killTweensOf(logo)**：會把 header.js 的 scroll-shrink ScrollTrigger
+      // (180→100 scrub) 一起殺掉，logo 卡在 180 永遠不收縮
+      if (needsReveal) runHeaderLogoReveal(logo);
+      else if (fading) gsap.to(logo, { opacity: 1, duration: DUR.micro / 2, ease: EASE.enterSoft, overwrite: 'auto' });
+      else logo.style.opacity = '1';
+    });
+  };
+
+  // fade：先淡出（0.1s）→ onComplete 換檔＋淡入（0.1s）＝crossfade 共 ~0.2s（user 2026-09-08「切換再快一點」，原 DUR.base/2
+  // 各 0.2s 覺得慢）。淡出期間舊 anim 仍轉，doSwap 抓當下 frame 接得上。overwrite:'auto' 只殺 logo opacity tween（scroll-shrink 動 width、不受影響）。
+  if (fading) gsap.to(logo, { opacity: 0, duration: DUR.micro / 2, ease: EASE.exitSoft, overwrite: 'auto', onComplete: doSwap });
+  else doSwap();
 }
 
 // 對 main-modular.js 暴露：進入 /create 時讀當前 site mode + colorHue，帶進 iframe URL params
