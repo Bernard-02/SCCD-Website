@@ -560,7 +560,7 @@ export function initLibraryCard({ onTabSwitch, onTabSwitchPre, onEntranceDone: o
   // 舊版把 background-color 塞進共用 TRANSITION 害色卡也 fade＝副作用，已拆開）。
   // panel 切換時色塊/灰卡的 bg 全在 transition:none 下設好（見 switchTab），套回時 bg 已定型 → 只影響穩態翻色。
   const TRANSITION = 'transform 0.6s cubic-bezier(0.4,0,0.2,1), width 0.6s cubic-bezier(0.4,0,0.2,1), height 0.6s cubic-bezier(0.4,0,0.2,1), left 0.6s cubic-bezier(0.4,0,0.2,1), top 0.6s cubic-bezier(0.4,0,0.2,1)';
-  const TRANSITION_GRAY = TRANSITION + ', background-color 0.4s ease';
+  const TRANSITION_GRAY = TRANSITION + ', background-color var(--dur-base) ease';   // 灰卡 mode fade＝共用 token（typography.css 年份 bar 靠同值同步）
   // v3「同一物件雙形態」morph 時窗用：幾何＋背景色同拍 0.6s（兩卡都套：被點卡 RGB→灰、舊灰卡 灰→RGB）。
   // ⚠️mode3 靠 color.css `[style*="--lib-bg"]` 選擇器切黑白：setAsGray 寫 background:var(--lib-bg)（含此標記→neutral gray）、
   //   setAsColor 寫 #RGB（無標記→theme-fg strict）；切換瞬間規則翻面但 CSS transition 補間 computed 值照樣平滑（若 snap→過場 class fallback）。
