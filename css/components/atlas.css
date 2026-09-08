@@ -112,6 +112,12 @@ body.mode-color #atlas-main { background-color: var(--theme-bg); }
 /* A/B/C 統一 z:1（上方 .atlas-anchor 預設）；D z-index 由 atlas.js tickFloat 動態管理（過分割綫 cy → 0 或 2）
    B 不再寫死 z:20 — 與 A/C 同層平等，避免 chip 永遠蓋住純文字 item */
 
+/* 進頁流暢度（2026-09-08）：桌面 map 形態把每個 span 提為合成層 → tickFloat 每 tick 對 anchor 寫 transform
+   只更新 property tree、零 CPU raster（anchor 本身無繪製內容，可見內容全在 span 子樹）。
+   :not(.atlas-as-list) 排除 list 形態（排版靠 layout、不參與漂浮）；手機圓點模式由 JS 不加 .atlas-layered 排除。
+   高 zoom 清晰：markZoomActive idle 後 demote→rAF re-promote 以當前 scale 重 raster。 */
+#atlas-stage.atlas-layered .atlas-name:not(.atlas-as-list) { will-change: transform; }
+
 /* 預設：label 在 line 端點的右側（line 接到字的起點）
    side-left：label 在 line 端點的左側（line 接到字的終點） */
 .atlas-name {

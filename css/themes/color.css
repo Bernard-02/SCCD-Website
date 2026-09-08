@@ -877,6 +877,14 @@ body.mode-color .atlas-view-mask {
   background-color: var(--theme-fg) !important;
 }
 
+/* mode3 nav btn（host/employ subchip ⇄ 欄標題）chrome 飛行色塊：半透明白、不轉實心黑/白（user 09-08 只點名
+ * 這兩顆 nav btn；其餘 chrome＝3 主 btn／alumni master 維持上方恆 fg）。class 由 maskFlyChrome opts.maskClass 掛。
+ * 值＝subchip active 態底色同源（--list-zebra-strip，見下方 subchip 規則）＝色塊從鈕上起飛像素無縫；
+ * ⚠️同 subchip 規則：不可用 rgba(theme-fg)——亮 hue 會翻黑、非白 */
+body.mode-color .atlas-view-mask.atlas-mask-ghost {
+  background-color: var(--list-zebra-strip, rgba(255, 255, 255, 0.15)) !important;
+}
+
 /* SVG 連線：stroke primary / gradient → 純 fg（CSS !important 蓋過 path 的 stroke 屬性與 url(#grad) 引用）
    .atlas-company-ring-shape (B 企業環 outline) 排除 — user 要求拿掉橢圓的綫，三 mode 都不顯示 */
 body.mode-color .atlas-line,
@@ -1041,6 +1049,17 @@ body.mode-color [data-bar="about"] .nav-link {
 /* has-active 時非 active link 50% alpha（強調 active link） */
 body.mode-color [data-bar="about"].has-active .nav-link:not(.active) {
   color: color-mix(in srgb, var(--theme-fg), transparent 50%) !important;
+}
+
+/* mode3 換色 header 與 body 同幀（user 09-08：color wheel 換色時 header 變色有延遲感）：
+ * .nav-link 基底 transition-all(--dur-fast 0.3s) 會讓 --theme-fg 黑白翻轉在「字」上拖 0.3s 尾
+ * （bars bg / logo 都同幀翻、唯獨字慢半拍＝header 看起來慢）。mode3 穩態把 header 內字與 bars 的
+ * transition 全收（hover alpha 變化同步變 snap；mode1/2 不受影響）。
+ * `html:not(.mode-switching)` gate＝mode 切換 0.4s fade window 本條不匹配、typography.css whitelist 照常接手。
+ * ⚠️ nav-link-cn 中文揭露動畫掛在 .nav-link-cn / -cn-i 子元素、不在此列＝不受影響。 */
+html:not(.mode-switching) body.mode-color #site-header .nav-link,
+html:not(.mode-switching) body.mode-color #site-header [data-bar] {
+  transition: none !important;
 }
 
 /* Hover：inactive link 升回 100% */
