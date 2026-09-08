@@ -168,12 +168,9 @@ body.mode-inverse .courses-program-btn.active .anchor-nav-inner {
     color: white !important;
   }
 
-  /* courses-program-btn 在 inverse 模式下 hover 行為跟 faculty/activities 不同：
-   *   - 不覆寫 background → JS mouseenter 設的 inline accent bg（綠/粉/藍）保留顯示
-   *   - 文字 → 100% 白（蓋掉 inactive 的 50% 白 + active rule 的 #000 黑字）
-   *   - active 也參與（用 :hover 不加 :not(.active)）→ active btn hover 也會有 100% 白字反饋
-   * 鏡像 standard mode 的「accent + 黑字」→ inverse 變「accent + 白字」 */
-  body.mode-inverse .courses-program-btn:hover .anchor-nav-inner {
+  /* courses-program-btn hover：黑底不變、inactive 文字升到 100% 白（鏡像 standard 的白底不變 + 文字轉黑）。
+   * ⚠️ 必須 :not(.active)——active（accent 底 + 黑字）hover 不可翻白，否則白字疊亮三原色對比不足。 */
+  body.mode-inverse .courses-program-btn:not(.active):hover .anchor-nav-inner {
     color: white !important;
   }
 }
