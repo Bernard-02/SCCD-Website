@@ -61,6 +61,16 @@ export function initProgramStructure() {
 
   // 色塊改黑（user 2026-09-04「原本 rgb 改成黑色」）：不再隨機三原色，chip 底色由 CSS 走 var(--theme-fg)。
 
+  // 點擊 division chip（animation / creative-media / mdes）→ 切換該 division + 捲到內容區（user 2026-09-08）。
+  // 元素在 #page-content 內，SPA 換頁 innerHTML swap 掉即解綁，不需另註冊 cleanup。
+  root.querySelectorAll('.prog-box[data-division]').forEach((box) => {
+    box.addEventListener('click', () => {
+      const id = box.dataset.division;
+      if (typeof window.SCCD_setDivisionActive === 'function') window.SCCD_setDivisionActive(id);
+      document.getElementById('class-info-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+
   // 分層（cascade 順序 + 連綫父/子對應）
   const tier0 = [...root.querySelectorAll('.prog-top .prog-tilt')];                                                // DCD / BPAIDC
   const tier1 = [...root.querySelectorAll('.prog-children--root > .prog-node > .prog-row > .prog-box.prog-tilt')]; // BFA / MDES

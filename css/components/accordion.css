@@ -28,6 +28,16 @@
     overflow: visible !important;
   }
 
+  /* 桌面旋轉手風琴高度（取代 horizontal-accordion.js 舊 inline 650）：正常 650，矮螢幕用 min() 封頂
+     → 手風琴＋區塊上下 padding(240) 收在一屏內、頂部維持與 header 的距離、不必把卡片頂捲到 header 底下
+     （user 2026-09-08，同 history 卡短螢幕封頂）。gate=(min-width:768 and min-height:501)＝桌面旋轉版範圍，
+     排除矮橫向 gate(≤500 走 carousel、另有高度)＋手機(carousel)。 */
+  @media (min-width: 768px) and (min-height: 501px) {
+    .colored-accordion {
+      height: min(650px, calc(100svh - 248px));
+    }
+  }
+
   @media (min-width: 768px) {
     .accordion-wrapper {
       flex-direction: row;

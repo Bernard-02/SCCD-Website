@@ -1085,11 +1085,14 @@ body.mode-color .tl-icon-btn-inner {
 .tl-list-cell {
   grid-column: 5 / 12;   /* col-5 ~ col-11＝7 欄總寬（user 2026-08-13 由 6 欄改回）；toggle 鈕在 col-4 */
   position: relative;
-  /* 正方形：高 = 可見矩形寬（7 欄寬 − 24px 讓鈕位，同 .tl-list-rect right:24）。
-     calc 重算 20-col 欄寬（欄數改動要同步 grid-column 與這裡的 7/6）。
-     純以欄寬決定、不再 min() clamp 進視窗（user 2026-08-16：正方形優先於極寬矮螢幕的保險）。
+  /* 高度：正方形（= 7 欄寬；next 鈕移除後卡片填滿整格，不再 −24），但用 min() 封頂在視窗高內——
+     矮螢幕卡片變矮、內容往內捲多一點，卡片頂不會頂到 header（user 2026-09-08）。
+     220 ≈ area padding-top(100) + grid bottom(32) + header/呼吸餘裕；calc 重算 20-col 欄寬（欄數改動要同步 grid-column）。
      手機/矮橫向由下方共用 block 的 height:100% 覆寫，不吃這條。 */
-  height: calc((100vw - 2 * var(--container-padding) - 19 * var(--spacing-gutter)) / 20 * 7 + 6 * var(--spacing-gutter) - 24px);
+  height: min(
+    calc((100vw - 2 * var(--container-padding) - 19 * var(--spacing-gutter)) / 20 * 7 + 6 * var(--spacing-gutter)),
+    calc(100vh - 220px)
+  );
 }
 
 .tl-list-rect {
@@ -1132,6 +1135,32 @@ body.mode-color .tl-icon-btn-inner {
   min-height: 0;                 /* 允許收縮 → 內部捲動 */
   overflow-y: auto;
   padding-right: var(--spacing-md);   /* 右欄文字 ↔ scrollbar gap（原在 .tl-list-content）*/
+}
+
+/* 連續清單（2026-09-08）：每個 era 一組＝左欄 era 標籤 + 右側年份列 → 全表「era｜年份｜說明」三欄。
+   era 標籤固定寬 → 跨 era 的年份/說明欄逐列對齊；align-items:start 讓 era 標籤貼首列頂。 */
+.tl-era-group {
+  display: flex;
+  gap: var(--spacing-md);
+  align-items: flex-start;
+}
+.tl-era-group + .tl-era-group { margin-top: var(--spacing-2xl); }
+.tl-era-label {
+  flex: 0 0 8rem;             /* era 更寬、壓縮右側說明（user 2026-09-08） */
+  position: sticky;          /* era 捲動時釘在該時期組頂（左欄，該欄無捲動內容→免底色遮擋）*/
+  top: 0;
+  align-self: flex-start;    /* 不被拉伸滿高才有 sticky 移動空間（配合 group align-items:flex-start）*/
+}
+.tl-era-en,
+.tl-era-zh { display: block; }
+.tl-era-en { margin-bottom: var(--space-en-zh-s); }
+.tl-era-body { flex: 1 1 auto; min-width: 0; }
+/* 年份也 sticky：釘在該年份列頂（中欄；右側說明捲、年份留住）。era 左欄／年份中欄／說明右欄各自成欄，
+   同 top:0 不會重疊，故不需遮擋底色——顏色（含 mode 切換 fade）由 typography.css .timeline-card-inner * 白名單處理。 */
+.tl-list-year {
+  position: sticky;
+  top: 0;
+  align-self: start;
 }
 
 .tl-list-year-row {
@@ -1210,6 +1239,13 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
     grid-column: auto;
     height: 100%;
   }
+  /* 窄屏：era 標籤改堆疊在該組上方（左欄在窄屏太擠）；改堆疊後 era/年份同欄→關 sticky 免 top:0 疊在一起 */
+  .tl-era-group {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+  .tl-era-label { flex: none; position: static; }
+  .tl-list-year { position: static; }
   /* 年份改堆疊在說明上方（桌面 2.75rem 左欄在窄屏太擠）*/
   .tl-list-year-row {
     grid-template-columns: 1fr;

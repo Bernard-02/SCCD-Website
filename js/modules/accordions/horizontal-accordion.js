@@ -51,7 +51,7 @@ export function initHorizontalAccordion() {
 // 收合：只露 label 條，展開：整張卡片顯示
 // z-index 由 index 決定（遞增）；顏色 nth-child(3n+1/2/3) 循環粉/綠/藍
 // Hover 時非展開的卡片換成循環 HOVER_COLORS
-export function initRotatedAccordion(wrapper, { height = 600, animateEntry = false } = {}) {
+export function initRotatedAccordion(wrapper, { animateEntry = false } = {}) {
   if (window.innerWidth < 768) {
     initColoredCardAccordion(wrapper);
     return;
@@ -67,10 +67,10 @@ export function initRotatedAccordion(wrapper, { height = 600, animateEntry = fal
     return parseFloat(r.toFixed(2));
   });
 
-  // wrapper：相對定位容器
+  // wrapper：相對定位容器（高度改由 accordion.css `.colored-accordion` min() 控制＝矮螢幕自動封頂、
+  // resize 免重算；items height:100% 依 CSS 定高撐開）
   wrapper.style.position = 'relative';
   wrapper.style.overflow = 'visible';
-  wrapper.style.height = `${height}px`;
 
   // 進場動畫模式：所有 item 初始收合，進場完成後才打開 index 0
   let openIndex = animateEntry ? -1 : 0;

@@ -466,8 +466,6 @@ export function initTimeline() {
 
     let listMode = false;
     let listAnimating = false;
-    let listEraIndex = 0;
-    let listEraColors = [];
 
     const listBtn = document.createElement('button');
     listBtn.id = 'timeline-list-btn';
@@ -486,28 +484,25 @@ export function initTimeline() {
     const listView = document.createElement('div');
     listView.id = 'timeline-list-view';
     listView.style.display = 'none';
-    // era 名稱從「左上角黑 chip」搬進色塊卡片內、當 sticky 標頭（user 2026-09-04；text-s bold、捲動時釘頂）
+    // 連續清單（2026-09-08 user 改版）：所有時期一路往下捲、無切換箭頭；era 移到左欄（.tl-era-label）＝
+    // 「era｜年份｜說明」三欄，取代舊的「單一 era 標頭 + 右箭頭 loop」。
     listView.innerHTML =
       '<div class="tl-list-grid"><div class="tl-list-cell">' +
         '<div class="tl-list-rect timeline-card-inner"><div class="tl-list-content">' +
-          '<div class="tl-list-era-head text-s font-bold"></div>' +
-          '<div class="tl-list-years list-scroll"></div>' +   /* 捲動在年份列，標頭固定→scrollbar 不含標頭 */
+          '<div class="tl-list-years list-scroll"></div>' +
         '</div></div>' +
-        '<button class="tl-list-next-btn" aria-label="下一個時期"><span class="tl-icon-btn-inner"><span class="icon icon-arrow-right"></span></span></button>' +
       '</div></div>';
     area.appendChild(listView);
 
     const listRect = listView.querySelector('.tl-list-rect');
     const listContent = listView.querySelector('.tl-list-content');
-    const eraHead = listView.querySelector('.tl-list-era-head');
     const listYears = listView.querySelector('.tl-list-years');
-    const listNextBtn = listView.querySelector('.tl-list-next-btn');
     const rectEls = [listRect];
 
-    // 矩形 clip-reveal 用外層遮罩：吃 rect 桌面定位（right:24 給 next 鈕留位）+ overflow:clip；
-    // rect 填滿遮罩內部、退進場純位移滑動（chip/next 鈕是遮罩外 sibling，不被裁）。桌面 buildStrip only。
+    // 矩形 clip-reveal 用外層遮罩：吃 rect 桌面定位 + overflow:clip；rect 填滿遮罩內部、退進場純位移滑動。
+    // 桌面 buildStrip only。（next 鈕已移除 → 不再留 right:24 空位，卡片填滿整格）
     const rectMask = document.createElement('div');
-    rectMask.style.cssText = 'position:absolute; top:0; bottom:0; left:0; right:24px; overflow:clip;';
+    rectMask.style.cssText = 'position:absolute; top:0; bottom:0; left:0; right:0; overflow:clip;';
     listRect.parentNode.insertBefore(rectMask, listRect);
     rectMask.appendChild(listRect);
     listRect.style.cssText += ';top:0; bottom:0; left:0; right:0;'; // 填滿遮罩（蓋掉 CSS right:24px）
@@ -526,27 +521,30 @@ export function initTimeline() {
       return { heading, en, zh };
     }
 
-    function renderListEra(idx) {
-      const era = eraGroups[idx];
-      eraHead.innerHTML = `<span class="tl-list-era-en">${era.title}</span> <span class="tl-list-era-zh">${era.label}</span>`;
-      eraHead.style.background = listEraColors[idx];   // 標頭底色＝卡片色（固定在捲動區上方、scrollbar 不含它）
-      listRect.style.background = listEraColors[idx];
-      listYears.innerHTML = era.years.map(y => {
-        const descs = y.descriptions || (y.description ? [y.description] : []);
-        const blocks = descs.map(d => {
-          const { heading, en, zh } = splitDesc(d);
-          return '<div class="tl-list-block">' + heading +
-            '<div class="tl-list-cols">' +
-              `<div class="tl-list-en">${en}</div>` +
-              `<div class="tl-list-zh" lang="zh-Hant">${zh}</div>` +
-            '</div></div>';
+    // 全時期連續渲染：每個 era 一組（左欄 era 標籤 + 右側年份列）；年份不再 bold（user 2026-09-08）。
+    function renderAllEras() {
+      listYears.innerHTML = eraGroups.map(era => {
+        const rows = era.years.map(y => {
+          const descs = y.descriptions || (y.description ? [y.description] : []);
+          const blocks = descs.map(d => {
+            const { heading, en, zh } = splitDesc(d);
+            return '<div class="tl-list-block">' + heading +
+              '<div class="tl-list-cols">' +
+                `<div class="tl-list-en">${en}</div>` +
+                `<div class="tl-list-zh" lang="zh-Hant">${zh}</div>` +
+              '</div></div>';
+          }).join('');
+          return '<div class="tl-list-year-row">' +
+            `<div class="tl-list-year text-s font-regular">${y.year}</div>` +
+            `<div class="tl-list-year-body text-s font-regular">${blocks}</div>` +
+          '</div>';
         }).join('');
-        return '<div class="tl-list-year-row">' +
-          `<div class="tl-list-year text-s font-bold">${y.year}</div>` +
-          `<div class="tl-list-year-body text-s font-regular">${blocks}</div>` +
+        return '<div class="tl-era-group">' +
+          `<div class="tl-era-label text-s font-bold"><span class="tl-era-en">${era.title}</span><span class="tl-era-zh" lang="zh-Hant">${era.label}</span></div>` +
+          `<div class="tl-era-body">${rows}</div>` +
         '</div>';
       }).join('');
-      listYears.scrollTop = 0;   // 捲回頂（捲動容器改成 .tl-list-years）
+      listYears.scrollTop = 0;
     }
 
     function showListView(skipIconWipe = false) {
@@ -555,16 +553,14 @@ export function initTimeline() {
       listMode = true;
       if (skipIconWipe) listIcon.className = 'icon icon-atlas-view';
       else wipeToggleIcon('icon icon-atlas-view');
-      const pool = shuffle(ACCENT_COLORS);
-      listEraColors = eraGroups.map((_, i) => pool[i % pool.length]);
-      renderListEra(listEraIndex);
+      listRect.style.background = randomColor();   // 整卡單一 accent（mode3 由 color.css 覆成 strict B/W）
+      renderAllEras();
       listView.style.display = 'block';
       gsap.set(rectEls, rslideHidden(randRslideDir()));
       gsap.to(rectEls, {
         ...rslideShown, duration: TIMING.cardRevealDuration, ease: TIMING.revealEase,
         onComplete: () => { listAnimating = false; },
       });
-      revealChip(listNextBtn.querySelector('.tl-icon-btn-inner'), TIMING.cardRevealDuration, TIMING.revealEase);
     }
 
     function hideListView() {
@@ -575,43 +571,22 @@ export function initTimeline() {
         ...rslideHidden(randRslideDir()), duration: TIMING.exitDuration, ease: TIMING.exitEase,
         onComplete: () => { listView.style.display = 'none'; listMode = false; listAnimating = false; },
       });
-      // 右箭頭鈕跟著 clip 收起（user 2026-08-11：關閉說明時箭頭不能原地消失）
-      exitChip(listNextBtn.querySelector('.tl-icon-btn-inner'), TIMING.exitDuration, TIMING.exitEase);
-    }
-
-    function nextListEra() {
-      if (listAnimating || !listMode || eraGroups.length <= 1) return;
-      listAnimating = true;
-      // 箭頭 icon 不做 glyph wipe（user 2026-08-11：點擊時箭頭不要 clip 動畫），鈕本身不動
-      gsap.to(rectEls, {
-        ...rslideHidden(randRslideDir()), duration: TIMING.exitDuration, ease: TIMING.exitEase,
-        onComplete: () => {
-          listEraIndex = (listEraIndex + 1) % eraGroups.length;
-          renderListEra(listEraIndex);
-          gsap.set(rectEls, rslideHidden(randRslideDir()));
-          gsap.to(rectEls, {
-            ...rslideShown, duration: TIMING.cardRevealDuration, ease: TIMING.revealEase,
-            onComplete: () => { listAnimating = false; },
-          });
-        },
-      });
     }
 
     listBtn.addEventListener('click', () => { if (listMode) hideListView(); else showListView(); });
-    listNextBtn.addEventListener('click', nextListEra);
 
-    // 離頁退場：list view 開著時收掉矩形（era 標頭在矩形內、隨矩形一起收）；否則直接放行（背景照片隨換頁 swap 掉）
+    // 離頁退場：list view 開著時收掉矩形（era 標籤/年份都在矩形內、隨矩形一起收）；否則直接放行（背景照片隨換頁 swap 掉）
     registerPageExit(() => new Promise(resolve => {
       if (typeof gsap === 'undefined' || !listMode) { resolve(); return; }
       gsap.killTweensOf(rectEls);
       gsap.to(listRect, { ...rslideHidden(randRslideDir()), duration: TIMING.exitDuration, ease: TIMING.exitEase, overwrite: true, onComplete: resolve });
     }));
 
-    // 離頁退場：桌面 list 切換鈕（把說明叫出來的 btn）+ list view 內「下一時期」鈕的黑方塊 inner 也做出場
-    //（hero clip-reveal，同 .tl-list-chip / library 黑卡；exitChip 讀 CSS rotate(-8deg) 算沿自身軸位移）。
+    // 離頁退場：桌面 list 切換鈕（把說明叫出來的 btn）的黑方塊 inner 做出場
+    //（hero clip-reveal，同 library 黑卡；exitChip 讀 CSS rotate 算沿自身軸位移）。
     registerPageExit(() => new Promise(resolve => {
       if (typeof gsap === 'undefined') { resolve(); return; }
-      const inners = [listBtn, listNextBtn]
+      const inners = [listBtn]
         .map(b => b && b.querySelector('.tl-icon-btn-inner'))
         .filter(el => el && el.offsetParent !== null);
       if (!inners.length) { resolve(); return; }

@@ -24,7 +24,9 @@ export function initResourcesCycling() {
 function renderResourcesAccordion(data, container) {
   // 建立 Accordion Wrapper
   const wrapper = document.createElement('div');
-  wrapper.className = 'accordion-wrapper colored-accordion h-auto';
+  // 不加 h-auto：桌面高度改由 accordion.css `.colored-accordion` min() 控制（h-auto 是 unlayered utility
+  // 會蓋掉 layered 高度、讓 wrapper 塌成 0）；手機/矮橫向 carousel 本就 auto 高（預設），無需此 class。
+  wrapper.className = 'accordion-wrapper colored-accordion';
 
   // 生成 HTML
   const html = data.map((item, index) => {
@@ -71,7 +73,7 @@ function renderResourcesAccordion(data, container) {
   const entry = !prefersReducedMotion();
   const shortLandscape = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
   if (window.innerWidth >= 768 && !shortLandscape) {
-    initRotatedAccordion(wrapper, { height: 650, animateEntry: entry });
+    initRotatedAccordion(wrapper, { animateEntry: entry });
   } else {
     const items = Array.from(wrapper.querySelectorAll('.accordion-item'));
     if (entry && typeof ScrollTrigger !== 'undefined') {

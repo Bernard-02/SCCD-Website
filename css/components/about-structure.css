@@ -67,6 +67,9 @@
   .prog-box--animation { max-width: 274px; }   /* 首行 "Division of Animation &"(254)＝於 & 後折 */
   .prog-box--cm        { max-width: 234px; }   /* 首行 "Division of Creative"(214)＝於 Creative 後折 */
 
+  /* 可點的 division chip（animation / creative-media / mdes）→ 捲到對應內容區（about-structure.js） */
+  .prog-box[data-division] { cursor: var(--cursor-pointer); }
+
   /* 頂層單位：黑底標準字塊 + 學系色塊 併排，整塊為傾斜/hover 單位 */
   .prog-titled { display: inline-flex; align-items: stretch; width: fit-content; }
   .prog-acronym {
