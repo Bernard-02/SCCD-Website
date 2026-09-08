@@ -1,6 +1,6 @@
 # Library 切分頁 marquee「單一物件飛行」實作規格
 
-> ⚠️ **最新輪次＝§24（v4.5，2026-09-06 第十八輪；§23 驗收四點）**——24.1 兩色彩滑板 dur/ease **單一常數統一**；24.2 marquee 進出場改 **clip-reveal（位移版：inner translateY＋外層裁切）**取代純 clip 收合；24.3 色塊 marquee pop＝隱藏態未 commit 就 reveal（§8.1 再現）＋ `MARQ_ENTER` 放慢；24.4 時序改**兩拍**：marquee 先進場（見 z 最前）→ 滑板才起跑。其前提＝§23（v4.4，第十七輪；§22 調校）——23.1 `MARQ_EXIT` 0.2 太快看不到→0.35~0.4；23.2 灰卡 marquee 進場 **z 最高（浮在色彩滑板之上）**＋與色塊 marquee 出現**同一刻**（統一在 HOLD 幀）；23.3 `pairSlabDir` **底邊型也要轉 90°**（不再只取相反）。其前提＝§22（v4.3，第十六輪；user 三點決策）——**marquee 換手改「對稱 wipe」**：色塊 marquee 先以上下隨機方向 wipe 出場、灰卡 marquee 以**剛好相反**方向 wipe 進場（§20 字流＋整套 adopt 飛行/px 相位交棒機構退役、**15.5-② 正式作廢**）；色彩滑板（§21 機制不變）加**方向配對**：上色與去色相反、色塊 marquee 在左右時相反再轉 90°。卡片純幾何 morph（§19.1）與 §21 滑板機制不變。⚠️§11／§19.2／§20 皆為歷史紀錄、勿再照做。基底＝§11（整卡 ±90°）＋§10（底邊優先）＋§9（同一物件、veil 全刪、卡內飛）；§8 修正除 8.3 外仍有效。
+> ⚠️ **最新輪次＝§26（v4.12，2026-09-08；Fable 直改）**——v4.12 **mode2 字色編排**：灰卡 marquee 進場先黑（踩在 RGB 去色滑板上）、去色窗過渡回白；色塊端鏡像（深灰上先白、上色窗回黑）；mode1/3 不編排；打斷兜底統一清 title inline。v4.11 節奏終值＝節奏終值：`COLOR_HOLD` **0.1**（marquee 再早 0.1s）＋`MARQ_ENTER` 0.3＋`SLAB_DELAY` 0.4＋`SLAB_DUR` 0.5（色塊端 durBack 行程比）。v4.10＝v4.10：灰卡 marquee 在去色未完時掉層＝v4.8 durBack 個別化後「z:70 清回綁上色 onDone（先完成者）」失效 → 改 `slabsLeft` latch **兩滑板都完成才清 z**。v4.9 兩鈕＝`SLAB_DUR` 0.5＋`SLAB_DELAY` 0.4。v4.9 兩鈕：`SLAB_DUR` 0.4→**0.5**（同步後嫌快、durBack 隨行程比跟慢）＋`SLAB_DELAY` 0.3→**0.4**（marquee 再早 0.1s）。v4.8 兩修＝v4.8 兩修：①**自動填色真 bug**＝mouseleave 無 pending gate（colorOf 起手已是新色、游標滑出縮小中色塊直寫 RGB）→ 加 `cardPending` guard；②「色塊 delay 進場顏色」＝等比例同步≠知覺同步（同 dur 下大卡鋒面快 5 倍）→ 上色滑板**等鋒面速度**（`durBack=max(0.15, SLAB_DUR×行程比)`、同起跑同掃速小塊早收）。v4.7＝三顆鈕定案：`SLAB_DELAY` 0→**0.3**（marquee 先出現、過一下色彩才動）＋`MARQ_ENTER` 0.5→**0.3**（marquee 進場比色彩 0.4 快、滑板起跑前剛好收完）＋兩滑板**鎖步同一條 ease-out**（user 定案「灰卡顏色及色塊顏色同時進出場」——`SLAB_EASE`=bezier(0.215,0.61,0.355,1)≈power3.out 起步即見；舊 ease-in 短行程起步不動＝「填色晚」錯覺、鏡像雙曲線輪廓不同也棄）。其前提＝§25（v4.6，第十九輪）——25.1 `SLAB_DELAY` 歸零＝色彩與 marquee 進場**同刻起跑**（撤 §24.4 的「marquee 完整進場後才動色」，marquee 邊進場邊在最上層、色彩同時動）；25.2 色塊與灰卡的 marquee **進場方向相反**（灰卡 enter＝配對 exit、色塊 enter＝灰卡 enter 的相反）。其前提＝§24（v4.5，第十八輪；§23 驗收四點）——24.1 兩色彩滑板 dur/ease **單一常數統一**；24.2 marquee 進出場改 **clip-reveal（位移版：inner translateY＋外層裁切）**取代純 clip 收合；24.3 色塊 marquee pop＝隱藏態未 commit 就 reveal（§8.1 再現）＋ `MARQ_ENTER` 放慢；24.4 時序改**兩拍**：marquee 先進場（見 z 最前）→ 滑板才起跑。其前提＝§23（v4.4，第十七輪；§22 調校）——23.1 `MARQ_EXIT` 0.2 太快看不到→0.35~0.4；23.2 灰卡 marquee 進場 **z 最高（浮在色彩滑板之上）**＋與色塊 marquee 出現**同一刻**（統一在 HOLD 幀）；23.3 `pairSlabDir` **底邊型也要轉 90°**（不再只取相反）。其前提＝§22（v4.3，第十六輪；user 三點決策）——**marquee 換手改「對稱 wipe」**：色塊 marquee 先以上下隨機方向 wipe 出場、灰卡 marquee 以**剛好相反**方向 wipe 進場（§20 字流＋整套 adopt 飛行/px 相位交棒機構退役、**15.5-② 正式作廢**）；色彩滑板（§21 機制不變）加**方向配對**：上色與去色相反、色塊 marquee 在左右時相反再轉 90°。卡片純幾何 morph（§19.1）與 §21 滑板機制不變。⚠️§11／§19.2／§20 皆為歷史紀錄、勿再照做。基底＝§11（整卡 ±90°）＋§10（底邊優先）＋§9（同一物件、veil 全刪、卡內飛）；§8 修正除 8.3 外仍有效。
 >
 > 2026-09-05 初版定案。目標：點色塊切分頁時，marquee 從色塊邊緣「連貫飛到」灰卡底部標題列——**全程單一物件、捲動不凍結**，取代現行 clone 飛行體＋交棒的做法。
 > 本 md 為可行性實作（user：「先做看看，到時候再調整」）。Phase 1 = 放大方向＋效能主修；Phase 2 = 縮小方向鏡像（**gated**）。
@@ -837,4 +837,30 @@ HOLD 幀     兩個 marquee 同拍進場（灰卡 enter＋色塊 enter；z 最�
 
 - headless：兩滑板 computed transition dur/ease 完全相同；marquee 進出場有 inner translateY 中間幀（位移非純 clip）；色塊 marquee 進場首兩幀非終態（無 snap）；時序＝marquee 進場起點在滑板起點之前 `SLAB_DELAY`±1 幀；z:70 貫穿至上色 finish；回歸（連點/離頁/0 pageerror）。
 - 實機：①速度一致感（不一致→鏡像曲線鈕）③pop 消失＋0.5 進場速度感 ④兩拍節奏觀感、mode1/2/3。
+
+---
+
+## 25. v4.6 第十九輪（2026-09-08，§24 驗收兩點）
+
+> user 兩點：①色塊與灰卡「上色/去色」timing 統一——**在彼此的 marquee 出現時就要做**，目前色塊的有 delay ②色塊與灰卡的 marquee **出現方向應該相反**。
+
+### 25.1 色彩與 marquee 同刻起跑（回饋①；撤 §24.4 的延遲拍）
+
+`SLAB_DELAY` **歸零**（常數留著當鈕）：HOLD 幀＝兩個 marquee 進場**與**兩個色彩滑板**同一刻**全部起跑。§24.4 的「marquee 完整進場後色彩才動」被打回——marquee 邊進場邊浮在最上層（z:70 照舊、清回仍綁上色滑板 onDone），色彩底下同時動。等於回到 §23.2「四件事同拍」、但保留 §24 的 clip-reveal 位移版與統一 dur/ease。
+
+### 25.2 兩個 marquee 進場方向相反（回饋②）
+
+方向鏈補最後一環：
+```
+exit（色塊 marquee 出場）      ＝ 上下隨機
+灰卡 marquee enter            ＝ MARQ_DIR_MAP(exit)（§22.1 配對、照舊）
+色塊 marquee enter            ＝ 灰卡 enter 的相反（上↔下）   ← 本輪新增
+```
+- 色塊 marquee 在側邊時，「上下」照舊以**螢幕方向**為準、依 rot 換算 local 位移軸（§22 既有換算沿用）。
+- 實作＝`marqueeEnterShift` 呼叫端把灰卡 enter 方向取反後傳給 outgoing 那次呼叫；無新機構。
+
+### 25.3 驗證
+
+- headless：HOLD 幀四件事（兩 marquee enter＋兩滑板）時間戳同幀（SLAB_DELAY=0）；兩 marquee 的 enter translateY 方向相反（全 exit case 配對表）；z:70 貫穿滑板存續期；回歸 0 pageerror。
+- 實機：同刻起跑後色塊是否還有 delay 感、兩 marquee 對向進場觀感、mode1/2/3。
 - 15.5：反向縮小全程灰、上色擦除有中間 clip 幀非 fade；底部列 marquee 全程單一物件過渡到色塊邊、交棒無跳相；連點/離頁無殘留（兩 handle 都歸巢）。
