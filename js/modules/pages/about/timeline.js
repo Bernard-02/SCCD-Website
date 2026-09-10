@@ -7,8 +7,8 @@
  */
 
 import { registerPageExit } from '../../ui/page-exit.js';
-import { clipRevealIconSwap } from '../../ui/scroll-animate.js';
 import { registerPageCleanup } from '../../ui/page-cleanup.js';
+import { bindArrowSpin } from '../../ui/arrow-spin.js';
 import { loadHistory } from './history-source.js';
 
 export function initTimeline() {
@@ -222,8 +222,10 @@ export function initTimeline() {
     const bigPhoto = window.innerWidth < 768;
     const SPAN = bigPhoto ? 200 : 100;      // 每個 item 的橫向鋪排跨幅（vw 單位）
     const itemW = pageW * SPAN / 100;       // 每 item 佔 px 寬＝marquee 步距（桌面 = pageW）
-    const PHOTO_MIN_VW = bigPhoto ? 60 : 30;
-    const PHOTO_MAX_VW = bigPhoto ? 85 : 50;
+    // 手機 55~72：一輪 45~62 被 user 嫌太小（09-10 二輪「再大一點」）、原 60~85 又疊成坨——
+    // 取中間值：夠大、相鄰仍只輕度交疊不成坨
+    const PHOTO_MIN_VW = bigPhoto ? 55 : 30;
+    const PHOTO_MAX_VW = bigPhoto ? 72 : 50;
     const totalW = items.length * itemW;
 
     // 自動捲動取代分頁導航：nav zones 停用
@@ -318,9 +320,10 @@ export function initTimeline() {
 
       const photoTopsVH = [];
       if (bigPhoto) {
-        // 手機兩行：照片交替上/下排、用滿高螢幕的上下空間（user 2026-09-06）。
+        // 手機兩行：照片交替上/下排。行心收攏 40/60（原 26/74 貼上下緣）＝整體集中在畫面中段、
+        // 兩行偶爾輕碰（user 2026-09-10「兩 row 集中在畫面中間、可互相交曡」）。
         // 不跑下方桌面的「垂直觸碰連接」——那是把 collage 照片黏成一片，兩行要保持上下分離。
-        const ROW_CENTER_VH = [26, 74];   // 上排 / 下排中心
+        const ROW_CENTER_VH = [40, 60];   // 上排 / 下排中心
         for (let p = 0; p < 5; p++) {
           const h = photoHsVH[p];
           const jitter = (Math.random() - 0.5) * 8;
@@ -476,10 +479,11 @@ export function initTimeline() {
     btnGrid.className = 'tl-list-btn-grid';
     btnGrid.appendChild(listBtn);
     area.appendChild(btnGrid);
-    const listIcon = listBtn.querySelector('.icon');
-
-    // icon glyph 切換走 clip-reveal（滑出遮罩→換 class→同向滑入），取代原 clip-path inset wipe
-    const wipeToggleIcon = (newClass) => clipRevealIconSwap(listIcon, newClass);
+    // icon 固定三條線 icon-atlas-list、開/關不換 glyph（user 2026-09-10；舊 icon-atlas-view 互換＋clip-reveal swap 已撤）
+    // hover/click 隨機角度（arrow-spin，全站箭頭統一 −4~+6；取代 lists.css 舊 :hover +8° 固定角）。
+    // 轉 inner 黑方塊；鈕跨開合共用同一顆→定案角自然留住
+    const listBtnInner = /** @type {HTMLElement|null} */ (listBtn.querySelector('.tl-icon-btn-inner'));
+    if (listBtnInner) bindArrowSpin(listBtn, (/** @type {number} */ d) => { listBtnInner.style.transform = `rotate(${d}deg)`; });
 
     const listView = document.createElement('div');
     listView.id = 'timeline-list-view';
@@ -547,15 +551,29 @@ export function initTimeline() {
       listYears.scrollTop = 0;
     }
 
-    function showListView(skipIconWipe = false) {
+    // 手機兩層 sticky（era 標籤釘頂 + 年份釘標籤下方）：量每個 era 的標籤實高寫進該組 --tl-era-label-h，
+    // 年份的 sticky top 用它 → 標籤長短不一時年份接得剛好（房規：多層 sticky offset 量高寫 var）。
+    // 桌機清掉（era/年份各自成欄，走 CSS top:0）。需 display:block 後才量得到高度。
+    function measureStickyOffsets() {
+      const mobile = window.innerWidth < 768 || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+      listView.querySelectorAll('.tl-era-group').forEach(g => {
+        if (!mobile) { g.style.removeProperty('--tl-era-label-h'); return; }
+        const label = g.querySelector('.tl-era-label');
+        if (label) g.style.setProperty('--tl-era-label-h', `${Math.ceil(label.getBoundingClientRect().height)}px`);
+      });
+    }
+
+    function showListView() {
       if (listAnimating || listMode || typeof gsap === 'undefined') return;
       listAnimating = true;
       listMode = true;
-      if (skipIconWipe) listIcon.className = 'icon icon-atlas-view';
-      else wipeToggleIcon('icon icon-atlas-view');
-      listRect.style.background = randomColor();   // 整卡單一 accent（mode3 由 color.css 覆成 strict B/W）
+      const cardColor = randomColor();              // 整卡單一 accent（mode3 由 color.css 覆成 strict B/W）
+      listRect.style.background = cardColor;
+      listRect.style.setProperty('--tl-card-bg', cardColor);  // 手機 sticky 頭（era 標籤/年份）的不透明底（見 lists.css）
       renderAllEras();
       listView.style.display = 'block';
+      requestAnimationFrame(measureStickyOffsets);            // 等 layout flush 才量得到標籤高
+      if (document.fonts?.ready) document.fonts.ready.then(measureStickyOffsets);  // 中文字體晚載入會改高 → 重量
       gsap.set(rectEls, rslideHidden(randRslideDir()));
       gsap.to(rectEls, {
         ...rslideShown, duration: TIMING.cardRevealDuration, ease: TIMING.revealEase,
@@ -566,7 +584,6 @@ export function initTimeline() {
     function hideListView() {
       if (listAnimating || !listMode) return;
       listAnimating = true;
-      wipeToggleIcon('icon icon-atlas-list');
       gsap.to(rectEls, {
         ...rslideHidden(randRslideDir()), duration: TIMING.exitDuration, ease: TIMING.exitEase,
         onComplete: () => { listView.style.display = 'none'; listMode = false; listAnimating = false; },
@@ -595,7 +612,7 @@ export function initTimeline() {
       inners.forEach(el => { gsap.killTweensOf(el); exitChip(el, TIMING.exitDuration, TIMING.exitEase, onOne); });
     }));
 
-    // 預設展開左側 list（about history 一進頁即開，非等點擊）；skipIconWipe=true 因無「切換」動作
-    showListView(true);
+    // 預設展開左側 list（about history 一進頁即開，非等點擊）
+    showListView();
   }
 }

@@ -212,7 +212,7 @@
     display: inline-block;
     width: fit-content;
     cursor: var(--cursor-pointer); /* label 可點＝轉發給隔壁 division btn（bfa-division-toggle.js） */
-    padding: 4px 6px 3px;
+    padding: 6px 8px 5px;   /* = 全站 nav btn 標準（原 4/6/3 → 統一，user 2026-09-09；之後再逐一微調）*/
     position: absolute;
     bottom: calc(100% + var(--spacing-xs));
     left: -12px;
@@ -284,8 +284,9 @@
     max-width: 0;
     overflow: visible;
     pointer-events: none;
-    /* 抵消 flex gap（xl = 3rem），收起時不佔 gap */
-    margin-right: calc(-1 * var(--spacing-xl));
+    /* 抵消 flex gap（容器 gap-lg，about.html #class-buttons-sticky row）；⚠️gap token 改動要同步這裡，
+       否則收起時淨差＝整排左/右偏（2026-09-10：gap xl→lg 沒同步、xl 多扣 16px 整排左偏 16 修正） */
+    margin-right: calc(-1 * var(--spacing-lg));
     /* right 用 calc(100% + 40px) 確保左側 -40px 的 clearance 也被裁掉
        避免 max-width:0 時左邊殘留一條可見區 */
     clip-path: inset(-40px calc(100% + 40px) -40px -40px);

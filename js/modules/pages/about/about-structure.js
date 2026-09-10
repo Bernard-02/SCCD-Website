@@ -12,7 +12,9 @@
 import { registerPageCleanup } from '../../ui/page-cleanup.js';
 import { registerPageExit } from '../../ui/page-exit.js';
 import { prefersReducedMotion } from '../../ui/reduce-motion.js';
-import { navChipHidden, NAV_CHIP_SHOWN } from '../../ui/scroll-animate.js';
+import { navChipHidden, NAV_CHIP_SHOWN, pickNavDir } from '../../ui/scroll-animate.js';
+import { loadProgramNodes } from './program-nodes-source.js';
+import { loadUiLabels } from '../../ui/ui-labels.js';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
 const TAU = Math.PI * 2;
@@ -23,32 +25,97 @@ const parseTranslate = (el) => {
   const m = (el?.style.translate || '').match(/(-?[\d.]+)px\s+(-?[\d.]+)px/);
   return m ? [+m[1], +m[2]] : [0, 0];
 };
+const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-export function initProgramStructure() {
+// labelKey → 每盒 max-width 微調 class（CSS 對特定文字長度調斷行寬，見 about-structure.css）；
+// 純視覺 tuning、與文字綁定；新節點無對應 class＝吃預設 --prog-chip-max。
+const BOX_MOD = {
+  'about.program.dcd': 'prog-box--dcd',
+  'about.program.bpaidc': 'prog-box--bpaidc',
+  'about.group.bfa': 'prog-box--bfa',   // 手機斷行用（09-10「Art (BFA) 整組下第二行」）；桌面無對應規則零影響
+  'about.program.animation': 'prog-box--animation',
+  'about.program.creative-media': 'prog-box--cm',
+};
+
+// ── 從後台 program_nodes（自我參照 parent 表層級）+ ui_labels（文字）render tree HTML（結構同原硬編、供既有互動邏輯沿用）──
+function boxHtml(node, labels, tilt, extra = '') {
+  const row = labels[node.labelKey] || {};
+  const mod = BOX_MOD[node.labelKey] ? ' ' + BOX_MOD[node.labelKey] : '';
+  const div = node.divisionKey ? ` data-division="${esc(node.divisionKey)}"` : '';
+  return `<div class="prog-box${tilt ? ' prog-tilt' : ''}${extra ? ' ' + extra : ''}${mod}" data-node-id="${esc(node.id)}"${div}>`
+    + `<span class="prog-box-en" data-label-key="${esc(node.labelKey)}" data-label-part="en">${esc(row.en || '')}</span>`
+    + `<span class="prog-box-zh" data-label-key="${esc(node.labelKey)}" data-label-part="zh" lang="zh-Hant">${esc(row.zh || '')}</span>`
+    + `</div>`;
+}
+function nodeHtml(node, childrenOf, labels) {
+  const kids = childrenOf(node.id);
+  const kidsHtml = kids.length ? `<div class="prog-children">${kids.map((k) => nodeHtml(k, childrenOf, labels)).join('')}</div>` : '';
+  return `<div class="prog-node"><div class="prog-row">${boxHtml(node, labels, true)}</div>${kidsHtml}</div>`;
+}
+// 頂層黑底標準字塊：wordmark（enum）決定顯不顯示；wordmarkUrl（後台上傳檔）有值＝inline 換 mask 圖，無值退 CSS 預設 SCCD mask
+function acronymHtml(node) {
+  if (!node.wordmark) return '';
+  const style = node.wordmarkUrl
+    ? ` style="-webkit-mask-image:url('${esc(node.wordmarkUrl)}');mask-image:url('${esc(node.wordmarkUrl)}')"`
+    : '';
+  return `<span class="prog-acronym"><span class="prog-acronym-mark"${style}></span></span>`;
+}
+function renderTree(nodes, labels) {
+  const byParent = new Map();
+  nodes.forEach((n) => { const p = n.parent || null; if (!byParent.has(p)) byParent.set(p, []); byParent.get(p).push(n); });
+  const childrenOf = (id) => (byParent.get(id) || []).slice().sort((a, b) => (a.sort || 0) - (b.sort || 0));
+  const roots = childrenOf(null);
+  // 頂列：各 root 一條 .prog-titled（有 wordmark 才加黑底標準字塊）；root 之間插 .prog-seg--link
+  // 頂 chip 色塊掛 .seam-guard：titled 黑 backstop 在 hover 上色時會漏 1px 暗縫（房規，見 input.css utilities）
+  const top = roots.map((r) => `<div class="prog-titled prog-tilt">${acronymHtml(r)}${boxHtml(r, labels, false, 'seam-guard')}</div>`)
+    .join('<div class="prog-seg prog-seg--link"></div>');
+  // 子樹掛在「有子的第一個 root」下方（現況 DCD；BPAIDC 無子）＝.prog-children--root 的定位對象
+  const rootWithKids = roots.find((r) => childrenOf(r.id).length);
+  const rootChildrenHtml = rootWithKids
+    ? `<div class="prog-children prog-children--root">${childrenOf(rootWithKids.id).map((k) => nodeHtml(k, childrenOf, labels)).join('')}</div>`
+    : '';
+  return '<svg class="prog-lines" aria-hidden="true"></svg>'
+    + `<div class="prog-top">${top}</div>`
+    + rootChildrenHtml;
+}
+
+export async function initProgramStructure() {
   const root = document.getElementById('program-structure');
   if (!root) return;
   const roots = root.querySelector('.prog-roots');
-  const svg = root.querySelector('.prog-lines');
   const progTree = root.querySelector('.prog-tree');
+  if (!roots) return;
+
+  // 不吃硬編：從後台 program_nodes（自我參照 parent 表層級）+ ui_labels（文字）動態 render tree
+  const [nodeList, labels] = await Promise.all([loadProgramNodes(), loadUiLabels()]);
+  if (!root.isConnected || !Array.isArray(nodeList) || !nodeList.length) return;   // await 期間離頁 / 無資料則不動
+  roots.innerHTML = renderTree(nodeList, labels);
+
+  const svg = root.querySelector('.prog-lines');
   const rootChildren = root.querySelector('.prog-children--root');
   const desktop = window.innerWidth >= 768;
   const hasGsap = typeof gsap !== 'undefined';
   const reduce = prefersReducedMotion();
   const willAnimate = hasGsap && !reduce;
 
-  // ── 連結橫綫：隨機微旋轉（個別 rotate，讓 scaleX 用 transform 疊加）＋進場前藏 ──
+  // ── 連結橫綫：隨機微旋轉（個別 rotate，讓 scale 用 transform 疊加）＋進場前藏 ──
+  // 手機（2026-09-10 mockup）連結段是直向短棒 → 進退場軸改 scaleY 從頂端拉長；桌面維持 scaleX。
   const links = [...root.querySelectorAll('.prog-seg--link')];
+  const linkHidden = desktop ? { scaleX: 0, transformOrigin: '0% 50%' } : { scaleY: 0, transformOrigin: '50% 0%' };
+  const linkShown = desktop ? { scaleX: 1, transformOrigin: '0% 50%' } : { scaleY: 1, transformOrigin: '50% 0%' };
   root.querySelectorAll('.prog-seg').forEach((seg) => {
+    // 手機連結段＝左側長直綫（layoutMobileLink 量測）：不轉——±2.5° 在 ~500px 長度上位移 20px+ 會壓到卡
+    if (!desktop && seg.classList.contains('prog-seg--link')) { seg.style.rotate = '0deg'; return; }
     seg.style.rotate = `${((Math.random() * 2 - 1) * 2.5).toFixed(2)}deg`;
   });
-  if (willAnimate && desktop && links.length) gsap.set(links, { scaleX: 0, transformOrigin: '0% 50%' });
+  if (willAnimate && links.length) gsap.set(links, linkHidden);
 
   // ── chips：旋轉走 transform:rotate（navChipHidden 讀它）＋各自隨機進場方向 + atlas 式浮動設定 ──
   const chips = [...root.querySelectorAll('.prog-tilt')];
   chips.forEach((box) => {
     box._baseRot = rndRot();
     box.style.transform = `rotate(${box._baseRot}deg)`;
-    box._inDir = rndDir();
+    box._inDir = pickNavDir(box);   // 沿短邊（寬卡取 top/bottom）：4 向 random 抽到 left/right 會滑整個寬度「從左飛進來」（MDES 最明顯，user 2026-09-10；同 legend/pickNavDir 既有慣例）
     // 浮動：x/y 各自獨立正弦（不同週期/相位）→ 連續 2D 環繞漂移（Lissajous），非單軸往返
     //（原 ping-pong 到極點又折返、感覺只往一個方向）。幅度 ±7 對齊 atlas A/C float（tx/ty srand()*14-7）、rot ±3。
     box._float = {
@@ -60,21 +127,200 @@ export function initProgramStructure() {
   });
 
   // 色塊改黑（user 2026-09-04「原本 rgb 改成黑色」）：不再隨機三原色，chip 底色由 CSS 走 var(--theme-fg)。
+  // 點擊 tree 捲到 division 內容的效果已移除（user 2026-09-09）：chip 純 hover 互動、不再導覽。
 
-  // 點擊 division chip（animation / creative-media / mdes）→ 切換該 division + 捲到內容區（user 2026-09-08）。
-  // 元素在 #page-content 內，SPA 換頁 innerHTML swap 掉即解綁，不需另註冊 cleanup。
-  root.querySelectorAll('.prog-box[data-division]').forEach((box) => {
-    box.addEventListener('click', () => {
-      const id = box.dataset.division;
-      if (typeof window.SCCD_setDivisionActive === 'function') window.SCCD_setDivisionActive(id);
-      document.getElementById('class-info-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
+  // ── hover 上色（lineage 模型）：hover 一顆 chip → 該 chip + **所有母層(祖先)＋所有子層(子孫)** 同色，並點亮左下 Degree 說明卡對應 bar。
+  //   顏色由「該 chip 所屬 degree」決定（bfa 綠 / mdes 粉 / bpaidc(bdes) 藍），tree 與說明卡 bar 同色（user 2026-09-09）；
+  //   degree 走 labelKey 對照往上找第一個 degree 祖先（CMS id 是 UUID、labelKey 才跨 CMS/fallback 穩定）。
+  //   hover 動畫/創媒/BFA → BFA bar；碩士 → MDes bar；BPAIDC → BDes bar；SCCD(dcd，無 degree) → tree 仍上色（隨機、原邏輯）但不點任何 bar（req6）。
+  //   層級由 NODES 的 parent 定義（後台 program_nodes 的 parent，非硬編）；desktop-only（觸控裝置略過）。
+  const ACCENT = ['#00FF80', '#FF448A', '#26BCFF'];
+  const rndAccent = () => ACCENT[Math.floor(Math.random() * ACCENT.length)];
+  const DEGREE_BY_LABELKEY = { 'about.group.bfa': 'bfa', 'about.program.mdes': 'mdes', 'about.program.bpaidc': 'bdes' };
+  // degree↔色不固定 rgb 順序、每次進頁洗牌（user 09-10）；同一次瀏覽內三 degree 仍各自穩定一色（hover/tap/legend 共用此 map）
+  const shuffledAccent = [...ACCENT].sort(() => Math.random() - 0.5);
+  const DEGREE_COLOR = { bfa: shuffledAccent[0], mdes: shuffledAccent[1], bdes: shuffledAccent[2] };
+  const legendBars = {};
+  root.querySelectorAll('.prog-legend-bar').forEach((el) => { legendBars[el.dataset.degree] = el; });
+  const legendEl = root.querySelector('.prog-legend');
+  // 旋轉走 transform:rotate（navChipHidden 讀它算旋轉後位移向量），非個別 rotate 屬性——否則 clip-reveal 位移不跟角度轉
+  // 手機一行式說明列不轉（user 09-10 mockup 是水平整條、可 pan 的長條轉著怪）；桌面卡維持隨機微旋轉
+  if (legendEl) legendEl.style.transform = `rotate(${desktop ? rndRot() : 0}deg)`;
+  // ── 說明卡 clip-reveal（比照 tree chip）：卡改 absolute 掛在 section 內＝往下捲跟頁面 flow 一起離開
+  //    （user 2026-09-09，取代 fixed＋io 顯隱＝免調離場 timing）；進場排在 cascade 尾端（playEntrance）、
+  //    SPA 離頁跟 chips 同拍 clip 收（registerPageExit）。──
+  const legendDir = legendEl ? pickNavDir(legendEl) : 'bottom';   // 進場方向固定一次（沿短邊）
+  function hideLegendInit() {   // init：藏成 clip-reveal 起態（可見但被 clip 裁掉），避免 async render 後、進場前閃現
+    if (!legendEl) return;
+    if (willAnimate) {
+      const h = navChipHidden(legendEl, legendDir);
+      legendEl.style.clipPath = h.clipPath; legendEl.style.translate = h.translate;
+    }
+    legendEl.style.visibility = 'visible';   // reduce/無 gsap：in-flow 靜態直接可見（捲動物理帶走，無 fixed 外溢問題）
+  }
+  // NODES 由後台資料建（id → {parent, labelKey, el}）：層級全走 program_nodes 的 parent，不再硬編選擇器
+  const NODES = {};
+  nodeList.forEach((n) => { NODES[n.id] = { parent: n.parent || null, labelKey: n.labelKey, el: null }; });
+  roots.querySelectorAll('.prog-box[data-node-id]').forEach((el) => {
+    const id = el.getAttribute('data-node-id');
+    if (NODES[id]) NODES[id].el = el;
   });
+  // degree → 代表 tree 節點 id（＝該 degree 的 degree 節點本身）：供「反向 hover 說明卡 row → 點亮 tree」用
+  const degreeNode = {};
+  Object.keys(NODES).forEach((id) => { const d = DEGREE_BY_LABELKEY[NODES[id].labelKey]; if (d) degreeNode[d] = id; });
+  // 往上（含自身）找第一個 degree 節點；dcd/SCCD 找不到＝null（→ 不點 bar）
+  function degreeOf(id) {
+    for (let p = id; p && NODES[p]; p = NODES[p].parent) {
+      const d = DEGREE_BY_LABELKEY[NODES[p].labelKey];
+      if (d) return d;
+    }
+    return null;
+  }
+  // hover 上色：mode3 無 rgb（user 2026-09-10）→ 改翻反色（fg-inverse 底＋fg 字，strict B/W）；mode1/2 用 degree 色。
+  //   inline setProperty('important') 是必要的：mode3 rest 規則 `#program-structure .prog-box{background:var(--theme-fg)!important}`
+  //   會壓死一般 inline（inline important > stylesheet important；var() 值照樣跟 hue 亮暗即時翻）
+  const paint = (el, color) => {
+    const bw = document.body.classList.contains('mode-color');
+    el.style.setProperty('background', bw ? 'var(--theme-fg-inverse)' : color, 'important');
+    el.style.setProperty('color', bw ? 'var(--theme-fg)' : '#000', 'important');
+  };
+  const unpaint = (el) => { el.style.removeProperty('background'); el.style.removeProperty('color'); };
+  function setBar(deg, color) {
+    const el = deg && legendBars[deg];
+    if (!el) return;
+    if (color) paint(el, color); else unpaint(el);   // color='' 還原
+  }
+  function lineage(id) {
+    const ids = new Set([id]);
+    for (let p = NODES[id].parent; p && NODES[p]; p = NODES[p].parent) ids.add(p);          // 祖先鏈（NODES[p] 守衛防 stale parent）
+    const stack = [id];
+    while (stack.length) {
+      const n = stack.pop();
+      Object.keys(NODES).forEach((k) => { if (NODES[k].parent === n && !ids.has(k)) { ids.add(k); stack.push(k); } });  // 子孫
+    }
+    return [...ids].map((k) => NODES[k].el).filter(Boolean);
+  }
+  // hover 定住（像 atlas）：_hold 0→1 平滑 tween，floatTick 每幀乘 (1-_hold)＝角度回正＋位移停在 rest；
+  //   放開 tween 回 0＝float 續飄（時間軸沒停＝無相位跳）。目標＝該色塊所屬 .prog-tilt（頂層＝整條 .prog-titled）。
+  function setHold(chip, target) {
+    if (!chip || typeof gsap === 'undefined') return;
+    const proxy = chip._holdProxy || (chip._holdProxy = { v: chip._hold || 0 });
+    gsap.killTweensOf(proxy);
+    gsap.to(proxy, { v: target, duration: 0.32, ease: 'power2.out', onUpdate: () => { chip._hold = proxy.v; } });
+  }
+  if (window.matchMedia('(hover: hover)').matches) {
+    Object.entries(NODES).forEach(([id, node]) => {
+      if (!node.el) return;
+      // 頂層 DCD/BPAIDC 的 hover 目標＝整條 .prog-titled（含 SCCD 標準字皆可觸發）；子層＝色塊本身
+      const unit = node.parent === null ? (node.el.closest('.prog-titled') || node.el) : node.el;
+      const deg = degreeOf(id);
+      unit.addEventListener('mouseenter', () => {
+        const color = deg ? DEGREE_COLOR[deg] : rndAccent();   // degree 決定色；SCCD 無 degree→隨機（原邏輯）
+        lineage(id).forEach((b) => paint(b, color));   // 整條 lineage 只變色（照舊續飄）
+        setBar(deg, color);                            // tree 與說明卡 bar 同色；deg=null(SCCD)→no-op（req6 不點 bar）
+        setHold(node.el.closest('.prog-tilt'), 1);   // 只有當下 hover 那顆回正＋停飄（user 2026-09-09）
+      });
+      unit.addEventListener('mouseleave', () => {
+        lineage(id).forEach(unpaint);
+        setBar(deg, '');
+        setHold(node.el.closest('.prog-tilt'), 0);
+      });
+    });
+    // 反向 hover：hover 說明卡 row → 對應 degree 的 tree lineage 上色（＝同 hover 該 degree 節點）＋ row 自身上色（user 2026-09-09）
+    Object.entries(legendBars).forEach(([deg, bar]) => {
+      const nodeId = degreeNode[deg];
+      if (!nodeId) return;
+      const color = DEGREE_COLOR[deg];
+      bar.addEventListener('mouseenter', () => {
+        lineage(nodeId).forEach((b) => paint(b, color));
+        setBar(deg, color);
+      });
+      bar.addEventListener('mouseleave', () => {
+        lineage(nodeId).forEach(unpaint);
+        setBar(deg, '');
+      });
+    });
+  } else {
+    // 觸控（無 hover）：tap toggle 高亮（user 2026-09-10「點擊對應的 box 時 highlight 顏色」）——
+    // 點 chip＝lineage 上 degree 色＋點亮說明列 bar；點別顆＝切換、再點同顆＝還原。說明列 bar 反向同理。
+    // 元素在 #page-content 內、SPA swap 即解綁（theme:changed 是 window 級、例外走 registerPageCleanup）。
+    let tapped = null;   // { key, id, deg, color }
+    // tap 對應 degree 時把該 bar 捲到第一位（head 右緣）：bars viewport overflow 裁掉滑出的＝天然遮罩（user 09-10 三輪）
+    const barsBox = root.querySelector('.prog-legend-bars');
+    // 無對應 bar（SCCD/還原）→ 捲回起點：pan/點擊殘留的捲動位置會讓 rest 態切在 tab 中間（user 09-10 五輪「露餡」）
+    const focusBar = (deg) => {
+      if (!barsBox) return;
+      const el = deg && legendBars[deg];
+      barsBox.scrollTo({ left: el ? el.offsetLeft : 0, behavior: 'smooth' });
+    };
+    const clearTap = () => {
+      if (!tapped) return;
+      lineage(tapped.id).forEach(unpaint);
+      setBar(tapped.deg, '');
+      tapped = null;
+      focusBar(null);
+    };
+    const bindTap = (el, key, id, deg, colorOf) => {
+      el.addEventListener('click', () => {
+        const same = tapped && tapped.key === key;
+        clearTap();
+        if (same) return;
+        const color = colorOf();
+        lineage(id).forEach((b) => paint(b, color));
+        setBar(deg, color);
+        focusBar(deg);
+        tapped = { key, id, deg, color };
+      });
+    };
+    // tap 後切 mode 的殘留修（user 09-10）：tap 上色是 inline !important（壓 mode3 rest 規則的必要之惡）、
+    // color.css 蓋不掉 → 切到 mode3 會殘留 accent。theme:changed 時用 paint() 依「當下 mode」重畫
+    // tapped 狀態（mode3 翻反色、mode1/2 還原存的 degree 色）；mode3 hue loop 也發此事件（200ms throttle）、重畫冪等便宜。
+    const onThemeChanged = () => {
+      if (!tapped) return;
+      lineage(tapped.id).forEach((b) => paint(b, tapped.color));
+      setBar(tapped.deg, tapped.color);
+    };
+    window.addEventListener('theme:changed', onThemeChanged);
+    registerPageCleanup(() => window.removeEventListener('theme:changed', onThemeChanged));
+    Object.entries(NODES).forEach(([id, node]) => {
+      if (!node.el) return;
+      const unit = node.parent === null ? (node.el.closest('.prog-titled') || node.el) : node.el;
+      const deg = degreeOf(id);
+      bindTap(unit, `n:${id}`, id, deg, () => (deg ? DEGREE_COLOR[deg] : rndAccent()));
+    });
+    Object.entries(legendBars).forEach(([deg, bar]) => {
+      const nodeId = degreeNode[deg];
+      if (!nodeId) return;
+      bindTap(bar, `b:${deg}`, nodeId, deg, () => DEGREE_COLOR[deg]);
+    });
+  }
 
   // 分層（cascade 順序 + 連綫父/子對應）
   const tier0 = [...root.querySelectorAll('.prog-top .prog-tilt')];                                                // DCD / BPAIDC
   const tier1 = [...root.querySelectorAll('.prog-children--root > .prog-node > .prog-row > .prog-box.prog-tilt')]; // BFA / MDES
   const tier2 = [...root.querySelectorAll('.prog-children--root .prog-children .prog-box.prog-tilt')];             // 動畫 / 創媒
+
+  // ── 手機：chip 收到「實際文字最長行」寬（user 09-10 三輪「卡片寬度以文字寬度為主」）——
+  //    inline-flex 盒折行後會撐到 max-width 不 hug（房規，同桌面逐 chip px 調法），手機文字後台可編、
+  //    改用 Range 量 wrapped lines 取最長行寫回 width（同 hero tightenParagraphWidths）。旋轉 ±3° 的
+  //    client rect 誤差 ~1px 可忽略。桌面不動（有各自 px max-width tuning）。──
+  function hugChipWidths() {
+    if (window.innerWidth >= 768) return;
+    const range = document.createRange();
+    root.querySelectorAll('.prog-box').forEach((box) => {
+      box.style.width = '';   // 先清上一輪，量測回 max-width 自然 wrap（idempotent）
+      let widest = 0;
+      box.querySelectorAll('.prog-box-en, .prog-box-zh').forEach((span) => {
+        range.selectNodeContents(span);
+        const rects = range.getClientRects();
+        for (let i = 0; i < rects.length; i++) if (rects[i].width > widest) widest = rects[i].width;
+      });
+      if (widest > 0) {
+        const cs = getComputedStyle(box);
+        box.style.width = `${Math.ceil(widest + (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0)) + 1}px`;
+      }
+    });
+  }
 
   // ── 桌面：巢狀子列 absolute 脫流程 → 量子列高補回父節點 margin-bottom 撐開列高。手機清掉。──
   const nodesWithKids = [...root.querySelectorAll('.prog-node')].filter((n) => n.querySelector(':scope > .prog-children'));
@@ -172,6 +418,24 @@ export function initProgramStructure() {
   }
   const drawAll = () => lines.forEach(drawLine);
 
+  // ── 手機：連結段＝左側直綫 SCCD 底→SCAIDC 頂（user 09-10 三輪「sccd 連接到下面、從上 link 下去」）。
+  //    absolute 掛 .prog-roots，top/height 量測寫入（CSS 只給 left/width）；chip hug 後左欄才有它的位置。──
+  function layoutMobileLink() {
+    const linkEl = links[0];
+    if (!linkEl || desktop || !roots) return;
+    const titled = roots.querySelectorAll('.prog-top .prog-titled');
+    if (titled.length < 2) return;
+    const base = roots.getBoundingClientRect();
+    const a = restRect(titled[0]);       // SCCD/DCD
+    const b = restRect(titled[titled.length - 1]);   // SCAIDC/BPAIDC
+    const PAD = 10;                      // 綫端離卡的留白
+    const top = a.bottom - base.top + PAD;
+    const h = (b.top - base.top - PAD) - top;
+    if (h <= 0) return;
+    linkEl.style.top = `${top.toFixed(1)}px`;
+    linkEl.style.height = `${h.toFixed(1)}px`;
+  }
+
   // ── 進場後 floating：atlas 式 wobble（translate 由 rest 往外漂再回 + rotate 微擺）；連綫端點跟漂移偏移 ──
   // ponytail: 連續 rAF、不做離開視窗 pause（gate 會讓相位時鐘空轉→回捲時位置跳；~7 個合成元素成本可忽略、
   //           tab 隱藏 rAF 本就停、離頁 cleanup 停）。真要省電才上 atlas 的 tOffset 暫停補償。
@@ -195,11 +459,12 @@ export function initProgramStructure() {
       const t = now - box._floatReadyAt;
       const ramp = Math.min(1, t / RAMP);
       const f = box._float;
-      const dx = f.ax * Math.sin(f.wx * t + f.phx) * ramp;
-      const dy = f.ay * Math.sin(f.wy * t + f.phy) * ramp;
+      const k = 1 - (box._hold || 0);   // hover 定住（同 atlas _straight）：1→0 回正並停在 rest；乘位移與角度
+      const dx = f.ax * Math.sin(f.wx * t + f.phx) * ramp * k;
+      const dy = f.ay * Math.sin(f.wy * t + f.phy) * ramp * k;
       box._fdx = dx; box._fdy = dy;
       box.style.translate = `${dx.toFixed(2)}px ${dy.toFixed(2)}px`;
-      box.style.transform = `rotate(${(box._baseRot + f.rotAmp * Math.sin(f.wr * t + f.phr) * ramp).toFixed(2)}deg)`;
+      box.style.transform = `rotate(${((box._baseRot + f.rotAmp * Math.sin(f.wr * t + f.phr) * ramp) * k).toFixed(2)}deg)`;
     });
     if (desktop && links.length && linksReady) {   // 連結橫綫跟兩頂 chip 平均漂移（維持置中）
       const rdy = tier0.filter((c) => c._floatReadyAt);
@@ -215,8 +480,31 @@ export function initProgramStructure() {
   }
   function stopFloat() { cancelAnimationFrame(floatRaf); floatRaf = 0; }
 
+  // ── chip clip-reveal tween＝數字 proxy 自組字串 ──
+  // ⚠️ 勿改回 gsap fromTo 直接 tween `translate`/`clipPath` 字串：頁內情境偶發誤 parse（fromTo 起點被放大
+  //    ~10 倍＝chip「從畫面外飛進來」，2026-09-10 MDES 實錄；隔離頁重現不出）。proxy 版起訖顯式、零字串 parse。
+  const xyNums = (s) => { const n = (String(s).match(/-?[\d.]+/g) || []).map(Number); return [n[0] || 0, n[1] || 0]; };
+  const insetNums = (s) => {   // inset 縮寫展開成 [top right bottom left]
+    const n = (String(s).match(/-?[\d.]+/g) || [0]).map(Number);
+    return n.length === 1 ? [n[0], n[0], n[0], n[0]] : n.length === 2 ? [n[0], n[1], n[0], n[1]] : n.length === 3 ? [n[0], n[1], n[2], n[1]] : n.slice(0, 4);
+  };
+  function navClipTween(tl, el, from, to, vars, pos) {
+    const ft = xyNums(from.translate), tt = xyNums(to.translate);
+    const fc = insetNums(from.clipPath), tc = insetNums(to.clipPath);
+    const proxy = { p: 0 };
+    tl.to(proxy, {
+      p: 1, duration: vars.duration, ease: vars.ease, onComplete: vars.onComplete,
+      onUpdate: () => {
+        const p = proxy.p;
+        el.style.translate = `${(ft[0] + (tt[0] - ft[0]) * p).toFixed(2)}px ${(ft[1] + (tt[1] - ft[1]) * p).toFixed(2)}px`;
+        el.style.clipPath = `inset(${fc.map((n, i) => (n + (tc[i] - n) * p).toFixed(3) + '%').join(' ')})`;
+      },
+    }, pos);
+  }
+
   // ── 進場：cascade（父 chip → 連結/連綫 → 子 chip → …）──
   let entered = false;
+  let entranceTl = null;   // proxy tween 不在 DOM 上，cleanup 的 killTweensOf(elements) 殺不到 → 離頁前顯式 kill
   function playEntrance() {
     if (entered) return;
     entered = true;
@@ -224,24 +512,26 @@ export function initProgramStructure() {
     startFloat();   // 迴圈先跑；各元素 reveal 完（下方 onComplete）才各自被接管漂移
     const lvl1 = lines.filter((l) => l.level === 1);
     const lvl2 = lines.filter((l) => l.level === 2);
-    const tl = gsap.timeline();
+    const tl = entranceTl = gsap.timeline();
     const revealTier = (tierChips, at) => tierChips.forEach((box, i) => {
-      const from = navChipHidden(box, box._inDir);
-      tl.fromTo(box,
-        { clipPath: from.clipPath, translate: from.translate },
-        { clipPath: NAV_CHIP_SHOWN.clipPath, translate: NAV_CHIP_SHOWN.translate, duration: 0.6, ease: 'power3.out',
-          onComplete: () => { box._floatReadyAt = performance.now() / 1000; } },
+      navClipTween(tl, box, navChipHidden(box, box._inDir), NAV_CHIP_SHOWN,
+        { duration: 0.6, ease: 'power3.out', onComplete: () => { box._floatReadyAt = performance.now() / 1000; } },
         at + i * 0.12);
     });
     const drawLevel = (lvl, at) => lvl.forEach((le, i) =>
       tl.to(le, { draw: 1, duration: 0.55, ease: 'power2.out', onUpdate: () => drawLine(le), onComplete: () => { le._floatReady = true; } }, at + i * 0.1));
 
     revealTier(tier0, 0);
-    if (desktop && links.length) tl.to(links, { scaleX: 1, transformOrigin: '0% 50%', duration: 0.6, ease: 'power3.out', onComplete: () => { linksReady = true; } }, 0.25);
+    if (links.length) tl.to(links, { ...linkShown, duration: 0.6, ease: 'power3.out', onComplete: () => { linksReady = true; } }, 0.25);
     drawLevel(lvl1, 0.5);
     revealTier(tier1, 0.75);
     drawLevel(lvl2, 1.05);
     revealTier(tier2, 1.3);
+    // 說明卡最後進場（user 2026-09-09「等 tree 長出來再進」）＝tier2 尾（1.3 + stagger 0.12 + 0.6 ≈ 2.0）
+    if (legendEl) {
+      navClipTween(tl, legendEl, navChipHidden(legendEl, legendDir), NAV_CHIP_SHOWN,
+        { duration: 0.6, ease: 'power3.out' }, 2.0);
+    }
   }
 
   // ── 退場（離頁）：全部一起消失（不分梯次）；回傳 Promise 讓 router await ──
@@ -251,44 +541,65 @@ export function initProgramStructure() {
   }
   registerPageExit(() => {
     stopFloat();   // 交還 translate/transform 給退場 tween，避免逐幀 loop 打架
+    if (entranceTl) { entranceTl.kill(); entranceTl = null; }   // 進場未完就離頁：殺掉 proxy tween 免跟退場搶寫
     if (!willAnimate || !inView()) return Promise.resolve();
     return new Promise((resolve) => {
       const tl = gsap.timeline({ onComplete: resolve });
-      chips.forEach((box) => {
-        const to = navChipHidden(box, rndDir());   // 方向仍各自隨機、但同時起收
-        tl.to(box, { clipPath: to.clipPath, translate: to.translate, duration: 0.4, ease: 'power2.in' }, 0);
+      chips.forEach((box) => {   // 方向仍各自隨機、但同時起收；from=SHOWN（float 殘位移 ±數px 首幀歸零，0.4s 全體同拍無感）
+        navClipTween(tl, box, NAV_CHIP_SHOWN, navChipHidden(box, rndDir()), { duration: 0.4, ease: 'power2.in' }, 0);
       });
       lines.forEach((le) => tl.to(le, { draw: 0, duration: 0.4, ease: 'power2.in', onUpdate: () => drawLine(le) }, 0));
-      if (desktop && links.length) tl.to(links, { scaleX: 0, transformOrigin: '0% 50%', duration: 0.4, ease: 'power2.in' }, 0);
+      if (links.length) tl.to(links, { ...linkHidden, duration: 0.4, ease: 'power2.in' }, 0);
+      if (legendEl) {   // 說明卡跟 chips 同拍 clip 收（user 2026-09-09 離頁也要出場動畫）
+        navClipTween(tl, legendEl, NAV_CHIP_SHOWN, navChipHidden(legendEl, rndDir()), { duration: 0.4, ease: 'power2.in' }, 0);
+      }
     });
   });
 
   // ── 量測 + 建綫（layout 就緒後）；藏起初態；字體 / resize 重量重畫 ──
+  // hug 在最前（寬度變了其餘量測才準）；layoutMobileLink 在 cacheEndpoints 後（吃落定位置）
+  const remeasure = () => { hugChipWidths(); reserveHeights(); layoutFan(); cacheEndpoints(); layoutMobileLink(); drawAll(); };
   readGap();
+  hugChipWidths();
   reserveHeights();
   layoutFan();
   buildLines();
   cacheEndpoints();
+  layoutMobileLink();
   if (willAnimate) {
     chips.forEach((box) => { const h = navChipHidden(box, box._inDir); box.style.clipPath = h.clipPath; box.style.translate = h.translate; });
   }
+  hideLegendInit();   // 說明卡藏成 clip-reveal 起態（layout 就緒後量，navChipHidden 需 offsetWidth）
   drawAll();
-  requestAnimationFrame(() => { reserveHeights(); layoutFan(); cacheEndpoints(); drawAll(); });
-  if (document.fonts?.ready) document.fonts.ready.then(() => { reserveHeights(); layoutFan(); cacheEndpoints(); drawAll(); });
+  requestAnimationFrame(remeasure);
+  if (document.fonts?.ready) document.fonts.ready.then(remeasure);
   let raf = 0;
-  const onResize = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => { readGap(); reserveHeights(); layoutFan(); cacheEndpoints(); drawAll(); }); };
+  const onResize = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => { readGap(); remeasure(); }); };
   window.addEventListener('resize', onResize);
 
-  // 進入視窗才觸發進場（once）
+  // 進入視窗才觸發進場（once；說明卡排在 cascade 尾端，見 playEntrance）
   const io = new IntersectionObserver((entries) => {
     if (entries.some((e) => e.isIntersecting)) playEntrance();
   }, { threshold: 0.15 });
   io.observe(root);
+
+  // tree↔program 過場：跨越 program 內容區邊界時觸發背景三多邊形換形（user 2026-09-08 tree→program；09-09 加回程）。
+  // onEnter＝往下（tree→program）、onLeaveBack＝往上回捲越過 start（program→tree）；SCCD_morphAboutPolys 內建 800ms 節流防抖。
+  // ST trigger 在 #page-content 內、換頁自動 kill。
+  if (typeof ScrollTrigger !== 'undefined') {
+    const programArea = document.getElementById('class-info-area');
+    if (programArea) ScrollTrigger.create({
+      trigger: programArea, start: 'top 80%',
+      onEnter: () => window.SCCD_morphAboutPolys?.(),
+      onLeaveBack: () => window.SCCD_morphAboutPolys?.(),
+    });
+  }
 
   registerPageCleanup(() => {
     io.disconnect();
     window.removeEventListener('resize', onResize);
     cancelAnimationFrame(raf);
     stopFloat();
+    if (entranceTl) { entranceTl.kill(); entranceTl = null; }   // proxy tween 不在 DOM 上、cleanup killTweensOf 殺不到
   });
 }

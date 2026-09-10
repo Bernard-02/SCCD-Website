@@ -78,4 +78,18 @@
   .pt-7xl {
     padding-top: var(--spacing-7xl);
   }
+
+  /* 縫衛（seam-guard）房規：「會變色的子塊」疊在「同形不同色底」（backstop／黑卡）上、又在旋轉盒內時掛上——
+   * 旋轉抗鋸齒的邊緣像素＝上層色混底層色，兩層邊緣重合就漏出 1px 底色 rim（rest 同色無感、變色即現）。
+   * 解＝自己往外多畫 1px，AA 邊緣混到自己的顏色。background:inherit 跟著 inline hover 色（含 transition）走。
+   * 前提：自身或祖先有 transform（stacking context），z-index:-1 才沉到內容下、仍蓋過底層。
+   * 已掛：about Programs 頂 chip 色塊（.prog-titled 黑 backstop）、Degree 說明卡 row（黑卡底）。 */
+  .seam-guard { position: relative; }
+  .seam-guard::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    background: inherit;
+    z-index: -1;
+  }
 }

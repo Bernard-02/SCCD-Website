@@ -177,6 +177,10 @@ export function initAboutPolygons() {
   //   ⚠️ 上行收合改「綁位置 scrub」不用固定時長 tween（見下 updateGate）——固定 0.9s 追不上快速/snap 上滑會疊 hero SCCD
   // ⚠️ 方向只讀 wheel/touch（不從 scrollY 差分推——proximity snap 停手回拉會翻假方向，踩過）
   const overview = document.getElementById('overview');
+  // 手機直向（strip 顯示中）改以「anchor strip 釘到 sticky top」為顯示門檻（user 2026-09-10
+  // 「nav btn 對齊到頂才出現」）：釘頂即出、未釘頂一律藏；strip 不存在/桌面/矮橫向走原 overview 邏輯。
+  const mobileStrip = document.querySelector('.mobile-anchor-strip-wrap');
+  let mobileStripTop = 0;   // sticky top（inline 88px），首次進手機分支時讀一次
   let gateShown = false;
   let exiting = false; // 頁面退場中：updateGate 停手，收起動畫不被判定翻回來
   let lastDir = 1;
@@ -202,6 +206,26 @@ export function initAboutPolygons() {
   let scrubbing = false;
   const updateGate = () => {
     if (exiting) return;
+    // 手機分支：strip 可見（<768 直向）→ 門檻＝strip 釘頂（t=0）。上行離頂沿用位置 scrub（任何捲速零重疊）。
+    if (mobileStrip && mobileStrip.offsetParent !== null) {
+      if (!mobileStripTop) mobileStripTop = parseFloat(getComputedStyle(mobileStrip).top) || 88;
+      const st = mobileStrip.getBoundingClientRect().top - mobileStripTop;   // 0＝已釘頂
+      // 容差 12：snap 停 vision 時 strip 實測停在釘頂前 ~11px（proximity 落點），嚴判 0 會「落定了卻不出」
+      const DOCK_TOL = 12;
+      const svh = window.innerHeight;
+      if (st > DOCK_TOL && lastDir < 0) {
+        if (!scrubbing) { scrubbing = true; if (gateTl) { gateTl.kill(); gateTl = null; } }
+        const end = HIDE_SCRUB_END * svh;
+        const g = Math.min(Math.max((end - st) / end, 0), 1);
+        shapes.forEach(s => { s.gate = g; });
+        gateShown = false;
+        return;
+      }
+      scrubbing = false;
+      const want = st <= DOCK_TOL;   // 未釘頂（含下行途中）一律不顯示；貼頂（±12px）即長出
+      if (want !== gateShown) { gateShown = want; want ? show() : hide(); }
+      return;
+    }
     if (!overview) { if (!gateShown) { gateShown = true; show(); } return; }
     const t = overview.getBoundingClientRect().top;
     const vh = window.innerHeight;
@@ -263,9 +287,12 @@ export function initAboutPolygons() {
     // （快速捲過多個 section）1.2s 內只變形一次
     if (!isClick && now - lastMorphTs < 1200) return;
     lastMorphTs = now;
-    // 換形＝直接 d 漸變（1.0s；user：不要縮小再放大）。純多邊形間的線性漸變全程保直邊
-    // （直邊控制點是端點的仿射組合，lerp 後仍在弦上）；只有圓參與的過渡會出現弧線——
-    // 那是「正在變成圓」本身。大小同步單向 tween 到新目標，無縮放低谷
+    morphShapes();
+  };
+  // 換形＝直接 d 漸變（1.0s；user：不要縮小再放大）。純多邊形間的線性漸變全程保直邊
+  // （直邊控制點是端點的仿射組合，lerp 後仍在弦上）；只有圓參與的過渡會出現弧線——
+  // 那是「正在變成圓」本身。大小同步單向 tween 到新目標，無縮放低谷
+  function morphShapes() {
     const nextSides = drawShapes();
     shapes.forEach((s, i) => {
       s.sides = nextSides[i];
@@ -274,9 +301,18 @@ export function initAboutPolygons() {
       s.heading = Math.random() * Math.PI * 2; // 方向隨機重擲（user 2026-08-10）
       s.speed = 18 + Math.random() * 14;
     });
-  };
+  }
   document.addEventListener('anchornav:active', onAnchor);
   registerPageCleanup(() => document.removeEventListener('anchornav:active', onAnchor));
+
+  // 外部觸發換形（about-structure tree→program 過場捲到 program 時 call）：形狀已顯示才換，
+  // 且與內部 morph 共用 lastMorphTs 節流（點 tree chip 剛 morph 完 + 隨即捲進 program 不重複變形）。user 2026-09-08
+  window.SCCD_morphAboutPolys = () => {
+    const now = performance.now();
+    if (!gateShown || now - lastMorphTs < 800) return;
+    lastMorphTs = now;
+    morphShapes();
+  };
 
   // --- SPA 換頁：先播收起動畫再讓 router 換內容（user 2026-08-10）。
   // exiting 旗標擋住 updateGate（gateShown 翻 false 後深區判定會馬上又 show 回來）---

@@ -135,80 +135,28 @@
         <!-- Programs 結構圖：DCD 學制樹狀圖，出現在既有 division 內容之前。
              綫段(.prog-seg)的 rgb 隨機底色＋旋轉由 about-structure.js 上；內容暫硬編（mockup 為準），之後接 Directus。
              左緣對齊 col-5（md:col-start-5），比照其他 section。樣式在 components/about-structure.css。 -->
-        <div id="program-structure" class="site-container pt-3xl md:pt-[160px] pb-2xl relative z-10">
+        <!-- 手機 pt-3xl→pt-md：SCCD 卡貼上去到 nav strip 下（user 2026-09-10 二輪）；桌面 160 不動 -->
+        <div id="program-structure" class="site-container pt-md md:pt-[160px] pb-2xl relative z-10">
           <div class="grid-20">
             <div class="col-span-full md:col-start-6 md:col-span-15">
               <div class="prog-tree">
-                <div class="prog-roots">
-                  <!-- 父→子斜連綫：SVG overlay，端點由 about-structure.js 依 box 位置量測後畫（不用垂直立柱/短綫）。 -->
-                  <svg class="prog-lines" aria-hidden="true"></svg>
-
-                  <!-- 頂列：SCCD·DCD ── 連結橫綫 ── SCAIDC·BPAIDC。
-                       每個頂層 = 黑底標準字塊(.prog-acronym：wordmark SVG mask) + 學系色塊(.prog-box)，整個 .prog-titled 為傾斜/hover 單位。 -->
-                  <div class="prog-top">
-                    <div class="prog-titled prog-tilt">
-                      <span class="prog-acronym"><span class="prog-acronym-mark"></span></span>
-                      <div class="prog-box prog-box--dcd">
-                        <span class="prog-box-en">Department of Communications Design (DCD)</span>
-                        <span class="prog-box-zh" lang="zh-Hant">媒體傳達設計學系</span>
-                      </div>
-                    </div>
-                    <div class="prog-seg prog-seg--link"></div>
-                    <div class="prog-titled prog-tilt">
-                      <!-- ponytail: SCAIDC 標準字未定，暫用 SCCD wordmark 佔位（user 指示） -->
-                      <span class="prog-acronym"><span class="prog-acronym-mark"></span></span>
-                      <div class="prog-box prog-box--bpaidc">
-                        <span class="prog-box-en">Bachelor Program of AI Design Craftsmentship (BPAIDC)</span>
-                        <span class="prog-box-zh" lang="zh-Hant">AI 設計職人學位學程</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- DCD 子樹（頂下橫向 fan；父→子斜綫由 SVG 畫） -->
-                  <div class="prog-children prog-children--root">
-
-                      <!-- BFA ＋ 兩組 -->
-                      <div class="prog-node">
-                        <div class="prog-row">
-                          <div class="prog-box prog-tilt">
-                            <span class="prog-box-en">Bachelor of Fine Art (BFA)</span>
-                            <span class="prog-box-zh" lang="zh-Hant">學士班</span>
-                          </div>
-                        </div>
-
-                        <div class="prog-children">
-                          <div class="prog-node">
-                            <div class="prog-row">
-                              <div class="prog-box prog-tilt prog-box--animation" data-division="animation">
-                                <span class="prog-box-en">Division of Animation &amp; Moving Image</span>
-                                <span class="prog-box-zh" lang="zh-Hant">動畫影像設計組</span>
-                              </div>
-                            </div>
-                          </div>
-                          <div class="prog-node">
-                            <div class="prog-row">
-                              <div class="prog-box prog-tilt prog-box--cm" data-division="creative-media">
-                                <span class="prog-box-en">Division of Creative Media Design</span>
-                                <span class="prog-box-zh" lang="zh-Hant">創意媒體設計組</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <!-- MDES -->
-                      <div class="prog-node">
-                        <div class="prog-row">
-                          <div class="prog-box prog-tilt" data-division="mdes">
-                            <span class="prog-box-en">Master of Design (MDES)</span>
-                            <span class="prog-box-zh" lang="zh-Hant">碩士班</span>
-                          </div>
-                        </div>
-                      </div>
-                  </div><!-- end .prog-children--root -->
-
-                </div>
+                <!-- 學制樹由 about-structure.js 從後台 program_nodes（自我參照 parent 表層級）+ ui_labels（文字）動態 render；
+                     結構＝svg.prog-lines + .prog-top（各 root .prog-titled，有 wordmark 加 .prog-acronym）+ .prog-children--root。
+                     不吃硬編（斷線退 data/program-nodes.json + data/ui-labels.json）。 -->
+                <div class="prog-roots"></div>
               </div>
+            </div>
+          </div>
+          <!-- Degree 常駐說明卡（桌面左下角，比照 atlas legend 但不靠 hover 開）：hover tree chip → 對應 degree bar 同色點亮（about-structure.js setBar）。
+               文字為固定學位分類（bfa/mdes/bdes；bdes=BPAIDC）＝硬編；要 CMS 化再接 ui_labels。 -->
+          <!-- 手機也顯示（2026-09-10 mockup：樹底 in-flow 橫排；桌面維持 absolute 右下）→ 拿掉 hidden md:flex -->
+          <!-- .prog-legend-bars：手機橫向滑動 viewport（tap 對應 degree 捲到第一位、head 鎖左）；桌面 display:contents 零影響 -->
+          <div class="prog-legend flex" data-degree-legend>
+            <div class="prog-legend-head"><span>Degree</span><span lang="zh-Hant">學位</span></div>
+            <div class="prog-legend-bars">
+              <div class="prog-legend-bar seam-guard" data-degree="bfa"><span class="prog-legend-en">Bachelor of Fine Arts (B.F.A.)</span><span class="prog-legend-zh" lang="zh-Hant">設計學士</span></div>
+              <div class="prog-legend-bar seam-guard" data-degree="mdes"><span class="prog-legend-en">Master of Design (M.Des.)</span><span class="prog-legend-zh" lang="zh-Hant">設計碩士</span></div>
+              <div class="prog-legend-bar seam-guard" data-degree="bdes"><span class="prog-legend-en">Bachelor of Design (B.Des.)</span><span class="prog-legend-zh" lang="zh-Hant">設計學士</span></div>
             </div>
           </div>
         </div>

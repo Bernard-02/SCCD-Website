@@ -55,12 +55,8 @@ export function initClassButtonsSticky() {
   }
 
   // ─── ScrollTrigger：btn 滑出（在 100px sticky 線被裁切、像滑進隱藏窗）──────
-  // 高視窗（100vh sections 模式，門檻同 scroll-snap.css 的 min-height:900px）：
-  //   btn 全程 sticky 到 works 視圖結尾；位移交給 CSS sticky 自然釋放（wrapper 底把 btn 推走），
-  //   這裡只補 clip 同步裁切（釋放起點 = wrapper 底到達 100px 線 + btn 高，與釋放 1:1 同速）→
-  //   落到 works 時 btn 完整停在 100px 線（鏡像 class 佈局），離開 works 才滑出（user 2026-07-03）。
-  // 矮視窗 fallback：維持舊邏輯（works anchor 過 100px 線 → y+clip 一起滑出）。
-  // 門檻以 init 當下為準，跨頁重 init 會重新判定；同頁 resize 跨門檻不重算（可接受）。
+  // 門檻以 init 當下為準（同 scroll-snap.css min-height:900px），跨頁重 init 會重新判定；
+  // 同頁 resize 跨門檻不重算（可接受）。
   gsap.set(classButtonsEl, { clipPath: 'inset(0px 0px 0px 0px)' });
 
   // 矮橫向手機：不掛滑出 scrub——works 落點 92 在 start(top 100px) 之後，一到 works tabs 就被
@@ -68,28 +64,19 @@ export function initClassButtonsSticky() {
   // #works min-height 讓 CSS sticky 全程涵蓋 works）。works context 切換的 ST 照常掛。
   const isLandscapeMobile = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
 
+  // 高矮視窗同一條 scrub：works 過「落點」後 btn y+clip 跟捲動 1:1 滑出（跟著內容一起上去、不再 sticky）。
+  // 差別只在落點線：高視窗 100vh sections 的 works 落點 = top 0（'top top'），矮視窗 = 100px marker。
+  // 高視窗 start 在落點而非更早 → class→works 過渡仍全程釘住（保留 2026-07-03「落到 works 完整停 100px 線」）。
+  // 2026-09-10 user：原高視窗「綁 wrapper 底（works 結尾）」釋放太晚——離開 works 的前 ~70% 行程 btn 凍住、
+  // 內容自己走，看起來 sticky 不放 → 改回矮視窗同款「過落點即 1:1 跟內容滑出」。
   const tallViewport = window.matchMedia('(min-height: 900px)').matches;
   if (isLandscapeMobile) {
     /* CSS sticky 全權處理，這裡不做事 */
-  } else if (tallViewport) {
-    gsap.timeline({
-      scrollTrigger: {
-        trigger: stickyWrapper,
-        start: () => `bottom ${100 + classButtonsEl.offsetHeight}px`,
-        end: () => `+=${classButtonsEl.offsetHeight}`,
-        scrub: true,
-        invalidateOnRefresh: true
-      }
-    })
-    .to(classButtonsEl, {
-      clipPath: () => `inset(${classButtonsEl.offsetHeight}px 0px 0px 0px)`,
-      ease: 'none'
-    }, 0);
   } else {
     gsap.timeline({
       scrollTrigger: {
         trigger: worksAnchor,
-        start: 'top 100px',
+        start: tallViewport ? 'top top' : 'top 100px',
         end: () => `+=${classButtonsEl.offsetHeight}`,
         scrub: true,
         invalidateOnRefresh: true

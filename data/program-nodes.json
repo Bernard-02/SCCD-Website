@@ -1,0 +1,8 @@
+[
+  { "id": "dcd",       "parent": null,  "sort": 1, "labelKey": "about.program.dcd",            "divisionKey": "animation",      "wordmark": "sccd" },
+  { "id": "bpaidc",    "parent": null,  "sort": 2, "labelKey": "about.program.bpaidc",         "divisionKey": null,             "wordmark": "scaidc" },
+  { "id": "bfa",       "parent": "dcd", "sort": 1, "labelKey": "about.group.bfa",              "divisionKey": "animation",      "wordmark": null },
+  { "id": "mdes",      "parent": "dcd", "sort": 2, "labelKey": "about.program.mdes",           "divisionKey": "mdes",           "wordmark": null },
+  { "id": "animation", "parent": "bfa", "sort": 1, "labelKey": "about.program.animation",      "divisionKey": "animation",      "wordmark": null },
+  { "id": "cm",        "parent": "bfa", "sort": 2, "labelKey": "about.program.creative-media", "divisionKey": "creative-media", "wordmark": null }
+]

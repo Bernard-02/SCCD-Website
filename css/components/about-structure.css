@@ -56,6 +56,7 @@
     padding: 6px 8px 5px;                     /* = .class-division-btn */
     color: var(--theme-bg);                    /* 黑底白字（inverse 白底黑字）；user 2026-09-04 由 rgb 改黑 */
     background: var(--theme-fg);               /* 色塊改黑（跟 mode 走，同 .prog-acronym）；不再隨機三原色 */
+    transition: background-color var(--dur-fast) ease, color var(--dur-fast) ease;  /* hover 上色平滑（about-structure.js） */
   }
   .prog-top .prog-box { max-width: var(--prog-top-chip-max); }   /* 頂 chip：與子 chip 同寬同字級 lg；DCD 英文兩行、自然換行 */
   /* 頂 chip 各自貼文字：max-width＝最長行(lg)＋16 padding＋~3 餘裕（同 tier2 邏輯，inline-flex 盒撐到 max-width 不 hug）。
@@ -67,11 +68,13 @@
   .prog-box--animation { max-width: 274px; }   /* 首行 "Division of Animation &"(254)＝於 & 後折 */
   .prog-box--cm        { max-width: 234px; }   /* 首行 "Division of Creative"(214)＝於 Creative 後折 */
 
-  /* 可點的 division chip（animation / creative-media / mdes）→ 捲到對應內容區（about-structure.js） */
-  .prog-box[data-division] { cursor: var(--cursor-pointer); }
+  /* 點擊導覽已移除（user 2026-09-09）：chip 純 hover、不再是 pointer */
 
-  /* 頂層單位：黑底標準字塊 + 學系色塊 併排，整塊為傾斜/hover 單位 */
-  .prog-titled { display: inline-flex; align-items: stretch; width: fit-content; }
+  /* 頂層單位：黑底標準字塊 + 學系色塊 併排，整塊為傾斜/hover 單位。
+     父層帶同色底＝旋轉抗鋸齒下兩子塊共享邊漏的是父層黑非頁面背景 → 視覺一整體無縫；
+     子塊照畫自己的底（hover box 上色、acronym 維持黑的兩色能力不受影響） */
+  .prog-titled { display: inline-flex; align-items: stretch; width: fit-content; background: var(--theme-fg); }
+  /* hover 上色時父層黑 backstop 反漏 1px 暗縫 → 頂 chip 色塊掛 .seam-guard（定義見 input.css utilities，房規）。 */
   .prog-acronym {
     flex-shrink: 0;
     display: flex;
@@ -91,10 +94,9 @@
   }
 
   /* 傾斜/hover 單位（頂層 .prog-titled 與各子 .prog-box 共用；角度由 about-structure.js 上） */
-  .prog-tilt {
-    transform-origin: center;
-    transition: transform var(--dur-fast) cubic-bezier(0.25, 0, 0, 1);  /* hover 換角度平滑 */
-  }
+  /* ⚠️ 不加 transition:transform：floatTick 每幀寫 transform=rotate()，CSS transition 會低通濾波每次寫入
+     → hover 回正時角度落後 ~dur-fast 才轉正（user 2026-09-09「要等一下才回正」）。回正平滑改由 JS setHold 的 _hold tween 提供。 */
+  .prog-tilt { transform-origin: center; }
   .prog-box-en { margin-bottom: var(--space-en-zh-lg); }   /* 英中距 = btn */
   .prog-box-en,
   .prog-box-zh {
@@ -136,20 +138,157 @@
      讓 chip 縮（DCD 退 3 行 graceful、不裁切）。要更低斷點得縮 chip/acronym/link 或改頂列直向堆疊。 */
   @media (min-width: 1800px) { .prog-top { width: max-content; } }
 
+  /* ── Degree 常駐說明卡：比照 atlas 說明卡（#atlas-detail-mask）＝fixed 貼視窗右下角、無框無圓角、隨機微旋轉。
+       row 佈局比照 lightbox ref card（.lightbox-ref-card）：整張卡黑底、row 間無縫（row-gap:0）、row 透明疊上
+       → 旋轉也不漏 1px 縫、hover 上色整條到邊。「Degree 學位」粗體、degree 名 regular；英中距走 s 級 token。
+       進場＝tree cascade 尾端 clip-reveal；往下捲＝absolute 掛在 section 內、跟頁面 flow 一起離開（同 tree chip）；
+       SPA 離頁＝跟 chips 同拍 clip 收（皆 about-structure.js）。hover 雙向：tree chip ↔ 對應 row 同色。 ── */
+  .prog-legend {
+    position: absolute;                        /* 掛在 #program-structure（relative；min-height:100svh+snap → 在屏時視覺同 fixed 32/32），捲動物理帶走＝免調離場 timing */
+    right: 32px;                               /* 右下角（user 2026-09-09），同 atlas 說明卡 32/32 */
+    bottom: 32px;
+    z-index: 30;                               /* 蓋過 tree 內容（.prog-lines z-0 等） */
+    flex-direction: column;
+    gap: 0;                                    /* row 緊貼無縫（比照 lightbox ref card：gap 會切出底色條） */
+    width: max-content;
+    max-width: 24rem;
+    background: var(--theme-fg);               /* 整張卡黑底（row 透明疊上、旋轉不漏縫，同 lightbox ref card） */
+    visibility: hidden;                        /* 預設藏（避免 async render 前後閃現）；JS clip-reveal / reduce 各自接管 visibility＋clipPath */
+    /* 旋轉走 transform:rotate（about-structure.js，navChipHidden 讀它）；進退場 clip-path/translate 由 GSAP inline 驅動；無 border/radius */
+  }
+  /* mode3：右下角有全域 mode-color-panel 浮鈕（鉛筆 48 / 色輪 104），說明卡左移避讓（比照 atlas.css #atlas-detail-mask）。
+     --mcp-footprint-x 由 mode-color-panel.js 發佈（init 即有值）；桌面 only（卡本就 hidden md:flex）。 */
+  @media (min-width: 768px) {
+    body.mode-color .prog-legend {
+      right: calc(var(--mcp-footprint-x, 48px) + 16px);
+      transition: right var(--dur-base) ease;   /* 色輪開合時位置平移；clip-path/translate 走 GSAP 不掛 transition */
+    }
+  }
+  /* bars wrapper：桌面 contents＝零影響（bar 仍是 .prog-legend column 直接子）；手機改滑動 viewport（見 mobile block） */
+  .prog-legend-bars { display: contents; }
+  .prog-legend-head,
+  .prog-legend-bar {
+    padding: 6px 8px 5px;                      /* = 全站 nav btn / atlas 說明卡標準 padding */
+    background: transparent;                   /* rest 透出卡黑底；hover 才由 setBar 上 degree 色 */
+    color: var(--theme-fg-inverse);            /* 對卡底 strict 對比字（勿用 --theme-bg：mode3 是流動 hue、字會跟頁面背景同色） */
+    font-size: var(--font-size-s);
+    line-height: var(--line-height-s);
+  }
+  .prog-legend-head {
+    display: flex; gap: 0.4em; align-items: baseline;
+    font-weight: var(--font-weight-bold);      /* 「Degree 學位」粗體（user 2026-09-09） */
+  }
+  .prog-legend-bar {
+    display: flex;
+    flex-direction: column;
+    font-weight: var(--font-weight-bold);      /* degree 名 bold（user 2026-09-09 二改，撤 regular） */
+    transition: background-color var(--dur-fast) ease, color var(--dur-fast) ease;  /* hover 上色平滑，同 chip */
+  }
+  .prog-legend-bar .prog-legend-en { margin-bottom: var(--space-en-zh-s); }   /* 英中距＝s 字級 token（同 atlas name） */
+
+  /* ── 手機 <768（2026-09-10 依 user mockup 改版）：比照桌面 fan——BFA/MDES 一列、兩組一列、
+       SVG 斜綫照畫；字級小一號（lg→md）；SCAIDC 移到子樹之後（display:contents + order 重排）；
+       Degree 說明列改 in-flow 橫排在樹底。舊「直向堆疊＋縮排、無綫」版退役。 ── */
   @media (max-width: 767px) {
-    #program-structure { --prog-gap: var(--spacing-md); --prog-chip-max: 17rem; --prog-mark-h: 1.4rem; }
-    .prog-top { flex-direction: column; align-items: flex-start; }
-    .prog-seg--link { display: none; }                       /* 手機直向堆疊，不要橫向連結線 */
-    /* 手機：fan 三顆塞不下 → 改直向堆疊，層級用縮排表達（斜連綫在窄欄會全高交錯、太亂 → 收起） */
-    .prog-lines { display: none; }
-    .prog-node { align-items: flex-start; }
-    .prog-children {
+    #program-structure {
+      --prog-gap: var(--spacing-md);
+      --prog-chip-max: 10rem;                /* md 字級下兩顆並排：2×160 + gap 16 = 336 ≤ 342（390 − container padding） */
+      --prog-top-chip-max: 14rem;            /* 頂 chip 說明字塊 md 字級自然兩行 */
+      --prog-mark-h: 1.4rem;
+      --prog-level-gap: var(--spacing-3xl);  /* 96px：user 09-10 四輪「有 100vh 可用、卡別貼到」——三層 gap 鋪滿一屏 */
+      --prog-line-gap: 20px;
+    }
+    .prog-box-en,
+    .prog-box-zh { font-size: var(--font-size-s); line-height: var(--line-height-s); }   /* 手機改 s（user 2026-09-10 二輪；一輪 md 仍嫌大） */
+    .prog-box-en { margin-bottom: var(--space-en-zh-s); }
+    /* 桌面逐 chip px max-width 是 lg 字級量的 → 手機各自重定（斷行位置 user 09-10 四輪指定）：
+       DCD＝(DCD) 跟在 Design 後不獨立一行（content 232 ≥ "Communications Design (DCD)"）；
+       BFA＝"Art (BFA)" 整組下去第二行（content 120 < "Bachelor of Fine Art"、≥ "Bachelor of Fine"）。 */
+    .prog-top .prog-box--dcd { max-width: 15.5rem; }
+    .prog-top .prog-box--bpaidc { max-width: var(--prog-top-chip-max); }
+    .prog-box--bfa { max-width: 8.5rem; }
+    .prog-box--animation,
+    .prog-box--cm { max-width: var(--prog-chip-max); }
+
+    /* 頂列拆平：DCD／連結段／BPAIDC 直接成 .prog-roots(column) 的 flex item，order 把子樹夾中間
+       → SCCD → BFA/MDES → 兩組 → 連結段 → SCAIDC（mockup 順序）。z 補回（flatten 後 .prog-top 的 z 失效）。 */
+    .prog-top { display: contents; }
+    .prog-titled { position: relative; z-index: 1; }
+    /* SCAIDC 與上方兩組列的距離（連結段改 absolute 後 in-flow gap 曾消失＝卡貼卡；此 margin 同時是左直綫的可見長度） */
+    .prog-top > .prog-titled:last-child { order: 3; margin-top: var(--prog-level-gap); }
+    /* 連結段＝左側直綫（SCCD 底→SCAIDC 頂，user 09-10 三輪「從上 link 下去」）：
+       absolute、top/height 由 JS layoutMobileLink 量測；chip hug 文字寬後左欄騰出的位置。進退場 scaleY 從頂端長下去。 */
+    .prog-seg--link {
+      position: absolute;
+      left: -2px;                 /* 五輪：貼內容左緣（gutter 太邊「看不出關聯」）；中層卡改靠右對齊騰出這條 lane */
+      width: var(--prog-seg-w);
+    }
+
+    /* 子樹：BFA/MDES 一列置中；第三層（兩組）flex-basis 100% 強制換行、自成一列置中。
+       .prog-node/.prog-row 拆平 → box 直接當 flex item（SVG 斜綫端點照 box 量、不受影響）。 */
+    .prog-children--root {
+      order: 1;
+      align-self: stretch;
+      flex-direction: row;
+      flex-wrap: wrap;
+      justify-content: flex-end;             /* 五輪：中層四卡靠右（user「往右邊靠近」）→ 左側讓給 SCCD↔SCAIDC 直綫 */
+      gap: 0 var(--spacing-sm);              /* 16px：2×160+16=336 ≤ 342 兩顆才同列（md 24 會 344 擠爆折行）；垂直間距走子列 margin-top */
+      width: auto;
+      margin-top: var(--prog-level-gap);
+    }
+    .prog-children--root > .prog-node,
+    .prog-children--root > .prog-node > .prog-row { display: contents; }
+    .prog-children--root .prog-box { position: relative; z-index: 1; }
+    .prog-children--root .prog-children {
+      order: 5;
+      flex-basis: 100%;
+      flex-direction: row;
+      align-items: flex-start;
+      justify-content: flex-end;             /* 同上：靠右讓出左側直綫 lane */
+      gap: var(--spacing-sm);                /* 同上：兩組 160 cap 併排要 16 才穩 */
+      width: auto;
+      margin-top: var(--prog-level-gap);
+    }
+    .prog-acronym { padding: 0 var(--spacing-xs); }   /* sm→xs：DCD 斷行加寬後 titled 總寬才收進 342 */
+
+    /* Degree 說明列（user 09-10 三輪）：head「Degree 學位」鎖左不動；三 bar（英中上下疊、撤同行）
+       放進 .prog-legend-bars 橫向滑動 viewport——tap 對應 degree 時 JS scrollTo 把該 bar 捲到第一位，
+       超出部分被 viewport 左緣裁掉＝天然「head 右側遮罩」（bar 不會滑到 head 下面）。可手動 pan、藏捲軸。
+       四輪：右緣負 margin 出血到 viewport 邊（tab 被右邊緣切掉＝nav btn strip 慣例）；head 也英中上下疊。 */
+    .prog-legend {
+      position: static;
+      flex-direction: row;
+      flex-wrap: nowrap;
+      align-items: stretch;
+      background: transparent;               /* 六輪：黑底改畫在 head/bar 自身——spacer 空尾段才不會透出整條黑 box */
+      width: auto;
+      max-width: none;
+      margin-top: var(--spacing-xl);
+      margin-right: calc(var(--container-padding) * -1);
+    }
+    .prog-legend-head {
       flex-direction: column;
       align-items: flex-start;
-      width: auto;
-      margin-top: var(--spacing-md);
-      padding-left: var(--spacing-lg);                       /* 每層縮排 → 巢狀累加 */
+      gap: var(--space-en-zh-s);
     }
-    .prog-acronym { padding: 0 var(--spacing-sm); }
+    .prog-legend-head,
+    .prog-legend-bar { background: var(--theme-fg); }   /* 承接卡底（rest 黑）；tap 上色仍走 inline setProperty 蓋過 */
+    .prog-legend-head { flex-shrink: 0; white-space: nowrap; }
+    .prog-legend-bars {
+      position: relative;               /* bar.offsetLeft 以此為基準（JS scrollTo 用） */
+      display: flex;
+      flex-direction: row;
+      flex: 1;
+      min-width: 0;
+      overflow-x: auto;
+      scroll-behavior: smooth;
+      scrollbar-width: none;
+      scroll-snap-type: x mandatory;    /* 五輪：手動 pan 也永遠貼齊 tab 邊界（不齊會「切在字中間、第三個露餡」） */
+    }
+    .prog-legend-bars::-webkit-scrollbar { display: none; }
+    .prog-legend-bar { flex-shrink: 0; white-space: nowrap; scroll-snap-align: start; }
+    /* 六輪：尾端 spacer 讓「最後一個 bar」也捲得到 head 右緣（否則 scrollTo 被 maxScroll clamp、
+       第三 bar 只能貼右邊界）；snap mandatory 擋住停在空白尾段 */
+    .prog-legend-bars::after { content: ''; flex: 0 0 100%; }
   }
 }
