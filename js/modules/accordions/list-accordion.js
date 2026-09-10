@@ -664,6 +664,13 @@ function initListHeaderAccordion() {
         const skipOpenScroll = this.dataset.skipOpenScroll === '1';
         delete this.dataset.skipOpenScroll;
 
+        // navigateToItem 的 box 路徑（deep-link / ref 按鈕）：①對齊捲動完成才展開——原本無 others 時
+        //   展開與對齊並行，deep-link 從 section 頂捲一大段、title 區（share btn/國旗）殘影疊在展開內容上
+        //   （user 2026-09-10）；改走與「開新關舊」相同的兩段式。②自關時留在原位（header 保持 pin 線）——
+        //   deep-link 的「打開前位置」＝section 頂，restore 會整段捲回頂部；改記對齊後位置＝自關不位移。
+        const deepOpen = this.dataset.deepOpen === '1';
+        delete this.dataset.deepOpen;
+
         // === 開 item 對齊 + search bar 處理（2026-06-09 重構）===
         // 兩段式：先「動畫收回」其他已展開 item → 收完才量 header 落點 → 捲到 pin 線 + 平滑收 search bar + 展開。
         //
@@ -682,8 +689,13 @@ function initListHeaderAccordion() {
           markAccordionBusy(1500);   // 六輪 2-A：對齊捲動＋展開段再刷新一次讓路窗口
           // 真正展開才轉 .active：副標收合（lectures .active 即收）與內容展開同時發生＝連貫，
           // 避免「先 active 收副標縮短 → 等收舊的 0.4s → 才展開」中間露出矮的彩色短條（見 click 處註解）。
-          self.classList.add('active');
-          content.removeAttribute('inert'); // 無障礙：展開 → 內容回到 tab 順序（gallery/ref 可聚焦）
+          // deepOpen 例外：.active 延到「捲到位、補差完」才加——起跑就加的話，副標收合/title 位移的 CSS
+          // transition 在畫面外播掉，捲到 item 時早收完＝user 看不到收合動畫（user 2026-09-10「講座 deep link
+          // 也要先讓 title 的副標收起」）。落地後才加 .active → 收合可見地播 0.3s → 再展開（見下 deepOpen 序列）。
+          if (!deepOpen) {
+            self.classList.add('active');
+            content.removeAttribute('inert'); // 無障礙：展開 → 內容回到 tab 順序（gallery/ref 可聚焦）
+          }
           delete self.dataset.opening;
           // point 3 修：已收回的 others 副標剛移除 .active 正走 0.3s 重新展開 → snap 定高，否則量測差一個副標高
           others.forEach(snapSubtitleHeight);
@@ -698,7 +710,10 @@ function initListHeaderAccordion() {
           //   記錄點在 proceedOpen（不在 click 當下）：開 A→直接點開 B 的鏈式操作，click 時 A 還展開著、
           //   記到的位置含 A 內容高 → 自關 B 還原會落錯位＋超出收合後 maxScroll。等 close-others 收完
           //   （全收合座標系）才記，正是自關後版面的座標、恆合法。無其他展開項時 proceedOpen 同步跑＝與 click 當下等值。
-          /** @type {any} */ (self)._preOpenScroll = innerScroller ? innerScroller.scrollTop : window.scrollY;
+          //   deepOpen 不記（null → 自關走 scrollFollow＝原地收合、僅防靠底 clamp 跳）：deep-link 的打開前位置
+          //   ＝section 頂（restore 會整段捲回頂）；且 cv:auto 下記任何「絕對捲動值」都會因上方 item
+          //   估高→實高的版面位移變 stale（user 2026-09-10「關閉時卡片頂上去、沒跟年份對齊」）。
+          /** @type {any} */ (self)._preOpenScroll = deepOpen ? null : (innerScroller ? innerScroller.scrollTop : window.scrollY);
           let openBoxTarget = null;  // 桌面：開合捲動目標，給 content 展開 onComplete 收齊對位（見下）用
 
           // Open - header / content 都保留 100% accent；ref 用對應 deep 色。**先上色**（兩段式 staged 捲動期間 header 已是
@@ -770,11 +785,16 @@ function initListHeaderAccordion() {
               onComplete: () => {
                 content.style.overflow = 'visible';
                 // 桌面 inner-scroll：content 展開完 maxScroll 才定案 → 把寬鬆 spacer 修剪成「剛好」(長 list=0) 並收齊對位。
+                // 收齊目標「當下重量」不用 openBoxTarget：cv:auto 下對齊捲動途中上方 item 估高→實高版面位移，
+                // 開跑前算的值會 stale（deep-link 長距離明顯＝header 沒貼 pin 線，user 2026-09-10）。錨點用
+                // .list-item（header .active 已 sticky、pinned 時 rect.top 被 clamp 量不準；item 盒不 pin、頂＝header 自然位）。
                 if (innerScroller && openBoxTarget !== null) {
+                  const anchor = workshopItem || self;
+                  const target = Math.max(0, Math.round(anchor.getBoundingClientRect().top - innerScroller.getBoundingClientRect().top + innerScroller.scrollTop - getListStickyTop(self)));
                   const sp = getBoxSpacer(innerScroller);
                   const maxNoSpacer = innerScroller.scrollHeight - sp.getBoundingClientRect().height - innerScroller.clientHeight;
-                  sp.style.height = Math.max(0, Math.round(openBoxTarget - maxNoSpacer)) + 'px';
-                  innerScroller.scrollTop = openBoxTarget;
+                  sp.style.height = Math.max(0, Math.round(target - maxNoSpacer)) + 'px';
+                  innerScroller.scrollTop = target;
                 }
                 dispatchGalleryCheckWhenIdle(workshopItem);   // 九輪 Part 3：延到序列完＋DOM 乾淨才派發
                 listAnimating = false;  // 序列完成解鎖
@@ -789,10 +809,36 @@ function initListHeaderAccordion() {
           const subtitleFirst = self.closest('#panel-lectures') && self.querySelector('.list-subtitles');
           const subtitleDone = subtitleFirst ? new Promise(res => setTimeout(res, DUR.fast * 1000 + 30)) : Promise.resolve();
 
+          // deepOpen 對齊補差 pass：長距離對齊捲動途中，cv:auto 上方 item 估高→實高版面位移 → 捲到的
+          //   targetTop 已 stale（header 沒貼 pin 線就展開，user 2026-09-10「展開的還是有差」）。捲完重量一次、
+          //   短 tween 補差後才展開；錨點用 .list-item（同 onComplete 收齊，pin-safe）。手動開啟捲距短（目標
+          //   在視窗內＝周邊 item 已渲染）無此漂移，不加 pass。
+          const settleAlignFresh = () => new Promise((res) => {
+            if (!innerScroller || openBoxTarget === null) { res(undefined); return; }
+            const anchor = workshopItem || self;
+            const fresh = Math.max(0, Math.round(anchor.getBoundingClientRect().top - innerScroller.getBoundingClientRect().top + innerScroller.scrollTop - getListStickyTop(self)));
+            openBoxTarget = fresh;
+            if (Math.abs(fresh - innerScroller.scrollTop) <= 1) { res(undefined); return; }
+            const spacer = getBoxSpacer(innerScroller);
+            const need = fresh + innerScroller.clientHeight;
+            if ((parseFloat(spacer.style.height) || 0) < need) spacer.style.height = need + 'px';
+            gsap.to(innerScroller, { scrollTop: fresh, duration: DUR.fast, ease: EASE.enterSoft, overwrite: true, onComplete: () => res(undefined) });
+          });
+
           // 兩段式（user 2026-06-30）：開新 item（剛動畫收回其他展開項）時「先捲對齊 → 捲完才展開」，不那麼 rush、較順；
           //   無其他展開項（自開 / 同一筆 re-open）維持「對齊捲動與展開並行」（原行為、較即時）。
-          if (others.length) Promise.all([alignDone, subtitleDone]).then(doExpand);
-          else subtitleDone.then(doExpand);
+          //   deepOpen（deep-link/ref）：對齊 → 補差 → 才加 .active（副標收合/title 位移在視窗內可見地播，
+          //   見上 .active 處註解）→ 等收合（lectures 0.3s）→ 展開。
+          if (deepOpen) {
+            alignDone.then(settleAlignFresh).then(() => {
+              markAccordionBusy(1200);   // 序列比一般開啟長（align+收合+展開），續讓 idle builder 讓路
+              self.classList.add('active');
+              content.removeAttribute('inert');
+              setTimeout(doExpand, subtitleFirst ? DUR.fast * 1000 + 30 : 0);
+            });
+          } else if (others.length) {
+            Promise.all([alignDone, subtitleDone]).then(doExpand);
+          } else subtitleDone.then(doExpand);
         };
 
         // 先「動畫收回」其他已展開 item（DUR.base，比自關 DUR.medium 短，序列不拖）→ 全部收完才 proceedOpen。

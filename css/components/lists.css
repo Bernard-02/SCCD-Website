@@ -608,11 +608,19 @@
   padding-bottom: 4px;
 }
 
-/* ⚠️ 2026-09-01 曾對 .list-item 套 content-visibility:auto，實測後**撤回、勿再加**：
- * 這套代碼在切換/離頁/捲動路徑到處讀幾何（gBCR/clientWidth 全清單 sweep），對被 c-v 跳過的
- * 子樹讀幾何＝強制重渲染它 → 全清單掃描變成「強制渲染整個世界」，實測離頁 137→3299ms、
- * 切換 927→4757ms、開頁掉幀 5→43，全面反噬。要重新引入必須先把所有全清單幾何讀取消滅
- * （見 memory reference_activities_switch_ro_recalc_storm）。 */
+/* content-visibility:auto（2026-09-10 重接；09-01 曾撤回）：
+ * 09-01 反噬原因＝當時到處有「全清單掃描讀子樹幾何」（marquee clientWidth/scrollWidth sweep 等），
+ * 讀被 c-v 跳過的子樹幾何＝強制渲染它 → 省略全數吐回還倒貼。deep-link 卡頓戰役已把這些全部視口化：
+ * marquee per-item IO＋量測安靜窗、chevron chevArmed（開啟才量）、exit cull 只讀 .list-item 自身 box
+ * （size containment 有 placeholder box、不觸子樹）、setupClipReveal pass-1 只 getComputedStyle（style 讀
+ * 不觸發 c-v 渲染）→ 前提成立。效果＝畫面外 item 完全退出 recalc/layout，互動成本從 O(全清單) 降 O(一屏)。
+ * contain-intrinsic-size auto 144px：未渲染 item 的估高（headless 實測閉合 item p25~p75=144px）；
+ * `auto` = 渲染過就記住實高，估值只影響「從未進過視窗」的 item 的捲距/落點（誤差一次性、渲染後自癒）。
+ * 只掛 loadListInto 清單（activities/admission）——legal 等小清單不需要。 */
+[data-lazy-list] .list-item {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 144px;
+}
 /* divider 進場時被 setupClipReveal 包進 .clip-reveal-wrapper → wrap 前後兩種結構都 target */
 .list-item > .list-item-divider,
 .list-item > .clip-reveal-wrapper:has(> .list-item-divider) {
@@ -1587,8 +1595,8 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
         瀏覽器 re-eval :hover 命中下方別的 item 誤觸半透明；section-switch-helpers.initHoverDimMoveGuard 捲動掛
         .hover-dim-suppress、下次真 pointermove 才解除（user 2026-09-04）。
      ③ :where(:not(.dim-off))：只 dim「視窗內」item——大清單 hover 一次對全清單切 opacity＝白費（off-screen 看不到）；
-        loadListInto 的 IO 把離開視窗的 .list-item 標 .dim-off 排除（user 2026-09-04；⚠️.list-item 無 content-visibility
-        ＝off-screen dim 是真成本）。年份標籤不標 .dim-off（數量少、成本可忽略）＝一律可 dim。 */
+        loadListInto 的 IO 把離開視窗的 .list-item 標 .dim-off 排除（user 2026-09-04；09-10 起 .list-item 已有
+        content-visibility:auto，.dim-off 仍留＝skip 邊界外~50%vh 區的 item 靠它排除）。年份標籤不標 .dim-off（數量少、成本可忽略）＝一律可 dim。 */
   :is(#activities-content-section, #admission-content-section):where(:not(.list-opening)):where(:not(.hover-dim-suppress)):has(.list-item:hover, .list-year-label:hover)
     :is(.list-item, .list-year-label):not(:hover):where(:not(.dim-off)) {
     opacity: 0.25;

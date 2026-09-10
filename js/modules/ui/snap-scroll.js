@@ -84,6 +84,9 @@ export function clampBelowFooter(targetY, footerShiftPx = 0) {
 export function scrollWindowNoSnap(targetY, { duration = DUR.medium, ease = EASE.move, onComplete } = {}) {
   const html = document.documentElement;
   cancelHeldRestore();                 // 上一次捲動若還在 hold，先清掉它的 pending restore（避免兩者打架）
+  // 前一條 window scroll tween 未跑完又叫新的（deep-link 兩段式：先 section 頂、建完再對 item）→ 先殺舊的，
+  // 避免兩條並存每幀搶寫 scrollTop；舊 onInterrupt 清 snapType 後下一行立即重設 'none'，順序安全
+  if (typeof gsap !== 'undefined') gsap.killTweensOf(window);
   html.style.scrollSnapType = 'none';
   if (typeof gsap !== 'undefined' && typeof window.ScrollToPlugin !== 'undefined') {
     gsap.to(window, {

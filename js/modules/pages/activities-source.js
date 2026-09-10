@@ -104,6 +104,18 @@ function normalizeFiles(arr) {
   }).filter(Boolean);
 }
 
+// 同 normalizeFiles 但保留原圖尺寸（deep-fetch width/height）→ [{src,w,h}]，與 normalizeFiles 同過濾＝索引對齊。
+// gallery 縮圖 w-auto 載入前 0 寬：有尺寸就能 aspect-ratio 預留寬度（逐張 clip-reveal 進場不推擠鄰居，2026-09-10）。
+function normalizeFilePairs(arr) {
+  if (!Array.isArray(arr)) return [];
+  return arr.map(x => {
+    if (isUrlish(x)) return { src: x, w: 0, h: 0 };
+    const f = x?.directus_files_id ?? x;
+    const src = cdnUrl(typeof f === 'string' ? f : f?.filename_disk);
+    return src ? { src, w: (f && typeof f === 'object' && f.width) || 0, h: (f && typeof f === 'object' && f.height) || 0 } : null;
+  }).filter(Boolean);
+}
+
 // '2025-01-15' (+'2025-01-18') → [{startYear,startMonth,startDay,endYear,endMonth,endDay}]
 function buildDates(s, e) {
   // slice(0,10)：date 欄有時回 'YYYY-MM-DDT..'（repeater），只取日期段免 split NaN
@@ -116,7 +128,7 @@ function buildDates(s, e) {
 // monthDay 缺就當該年 1/1（只用年份排序）。只 industry 有 year 欄，其他 collection 不受影響。
 function buildDateGroups(reps, s, e, year, monthDay) {
   if (Array.isArray(reps) && reps.length)
-    return reps.filter(d => d?.start).map(d => ({ ...buildDates(d.start, d.end)[0], monthOnly: !!d.monthOnly, monthRange: !!d.monthRange }));
+    return reps.filter(d => d?.start).map(d => ({ ...buildDates(d.start, d.end)[0], monthOnly: !!d.monthOnly, monthRange: !!d.monthRange, yearOnly: !!d.yearOnly }));
   if (s) return buildDates(s, e);
   if (year) {
     const m = String(monthDay || '').match(/(\d{1,2})\D+(\d{1,2})/);
@@ -154,6 +166,7 @@ function mapRow(r, category, stamp) {
     posterW: (r.poster && typeof r.poster === 'object') ? (r.poster.width || 0) : 0,
     posterH: (r.poster && typeof r.poster === 'object') ? (r.poster.height || 0) : 0,
     images: normalizeFiles(r.images),
+    imageDims: normalizeFilePairs(r.images).map(p => ({ w: p.w, h: p.h })),   // 與 images 同過濾＝索引對齊
     videos: ytUrls(r.videoLinks),
     videoLinks: undefined,                       // videoLinks 已折進 videos；清掉原欄，否則 getAllVideos 同一支影片會從兩個來源各算一次＝雙 tile（不是去重內容，是移除重複來源欄；後台真填兩支不同影片仍照數）
     references: remapRefs(r.references),
@@ -165,7 +178,8 @@ function mapRow(r, category, stamp) {
 // loadListInto 吃的活動類 data 是 year-grouped [{year, items}]（見 activities-data-loader.js loadListInto 註解）。
 // 依 dates[0].startYear 分組、新→舊；無日期歸到 '—' 排最後。
 // 組內再依「月/日新→舊」排序（user 2026-08-28：清單一律 12→1 月，不吃後台手動 sort；無日期者排最後、同日期保留原 sort 當 tiebreaker）。
-const monthDayKey = it => { const d = it.dates?.[0]; return d ? (d.startMonth || 0) * 100 + (d.startDay || 0) : -Infinity; };
+// yearOnly（只到年）→ -Infinity 排到該年最後（與無日期同待遇）
+const monthDayKey = it => { const d = it.dates?.[0]; return d && !d.yearOnly ? (d.startMonth || 0) * 100 + (d.startDay || 0) : -Infinity; };
 function groupByYear(items) {
   const byYear = new Map();
   items.forEach(it => {
@@ -231,7 +245,7 @@ async function _loadActivityCollection(collection, fallbackUrl, opts = {}) {
     // sessions（conference 每日場次 o2m）：fields=* 只回 session id 陣列 → 必須 sessions.* 深取才拿到 titleEn/guests；
     //   只有 activities_conferences 有此欄，其他 collection 帶上會 400（未知欄）整包 fetch fail → 只對 conferences 加。
     const sessionsField = collection === 'activities_conferences' ? ',sessions.*' : '';
-    const rows = await fetchJsonWithTimeout(`${CMS_API_BASE}/${collection}?limit=-1&sort=sort&fields=*,poster.filename_disk,poster.width,poster.height,images.directus_files_id.filename_disk${sessionsField},${REF_FIELDS}`);
+    const rows = await fetchJsonWithTimeout(`${CMS_API_BASE}/${collection}?limit=-1&sort=sort&fields=*,poster.filename_disk,poster.width,poster.height,images.directus_files_id.filename_disk,images.directus_files_id.width,images.directus_files_id.height${sessionsField},${REF_FIELDS}`);
     if (!Array.isArray(rows) || !rows.length) throw new Error('empty');
     const mapped = rows.map(r => mapRow(r, opts.category, opts.stamp));
     // industry：前台依單一日期排序（新→舊），不吃後台 sort 欄。groupByYear 保留組內順序＝月日新→舊。
@@ -258,14 +272,15 @@ function mapPermanentEvent(e) {
   const s = String(e.startDate || '').slice(0, 10).split('-').map(Number);
   const en = String(e.endDate || e.startDate || '').slice(0, 10).split('-').map(Number);
   const date = s[1] ? `${pad2(s[1])}/${pad2(s[2])} - ${pad2(en[1])}/${pad2(en[2])}` : '';
-  return { year: s[0] || '', date, location: e.nameEn || '', location_zh: e.nameZh || '', images: normalizeFiles(e.albumImages) };
+  const pairs = normalizeFilePairs(e.albumImages);
+  return { year: s[0] || '', date, location: e.nameEn || '', location_zh: e.nameZh || '', images: pairs.map(p => p.src), imageDims: pairs.map(p => ({ w: p.w, h: p.h })) };
 }
 export function loadPermanentExhibitions(fallbackUrl) {
   return flight('perm-exhibitions', () => _loadPermanentExhibitions(fallbackUrl));
 }
 async function _loadPermanentExhibitions(fallbackUrl) {
   try {
-    const rows = await fetchJsonWithTimeout(`${CMS_API_BASE}/activities_exhibitions_permanent?limit=-1&sort=sort&fields=*,mainImage.filename_disk,events.*,events.albumImages.directus_files_id.filename_disk`);
+    const rows = await fetchJsonWithTimeout(`${CMS_API_BASE}/activities_exhibitions_permanent?limit=-1&sort=sort&fields=*,mainImage.filename_disk,events.*,events.albumImages.directus_files_id.filename_disk,events.albumImages.directus_files_id.width,events.albumImages.directus_files_id.height`);
     if (!Array.isArray(rows) || !rows.length) throw new Error('empty');
     const items = rows.map(r => ({
       id: r.id,
@@ -301,7 +316,7 @@ const MOMENT_COLLECTIONS = [
 export async function loadGeneralActivitiesAlbum() {
   try {
     const perCol = await Promise.all(MOMENT_COLLECTIONS.map(async ([col, cat]) => {
-      const rows = await fetchJsonWithTimeout(`${CMS_API_BASE}/${col}?limit=-1&sort=sort&fields=*,poster.filename_disk,images.directus_files_id.filename_disk`)
+      const rows = await fetchJsonWithTimeout(`${CMS_API_BASE}/${col}?limit=-1&sort=sort&fields=*,poster.filename_disk,images.directus_files_id.filename_disk,images.directus_files_id.width,images.directus_files_id.height`)
         .catch(e => { throw new Error(`${col} ${e.message}`); });
       // 5 支 collection 後台都有既有內容，200＋空＝權限壞/CMS 異常而非真空 → 逐支 throw，
       // 否則單支殘缺的合併結果會 saveLKG 蓋掉完好的 last-known-good（A 策略「200 但空也要 throw」逐源適用）

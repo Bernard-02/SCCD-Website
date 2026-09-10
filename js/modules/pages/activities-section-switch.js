@@ -4,7 +4,7 @@
  * 同時負責載入各區塊資料
  */
 
-import { loadExhibitionsInto, loadGeneralActivitiesInto, loadLecturesInto, loadIndustryInto, loadWorkshopsInto, loadSummerCampInto, loadVisitsInto, prefetchExhibitionsData, prefetchOtherActivitiesData } from './activities-data-loader.js';
+import { loadExhibitionsInto, loadGeneralActivitiesInto, loadLecturesInto, loadIndustryInto, loadWorkshopsInto, loadSummerCampInto, loadVisitsInto, prefetchExhibitionsData, prefetchOtherActivitiesData, deferListWorkUntil } from './activities-data-loader.js';
 import { revalidateActivitiesData, beginActivitiesVisit } from './activities-source.js';
 import { loadDegreeShowListInto } from './degree-show-data-loader.js';
 import { applyMarqueeOverflow, bindMarqueeReturn } from '../ui/marquee-overflow.js';
@@ -182,6 +182,15 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
   // 等 fetch + DOM render 完成後再 scroll。Part 4-2：await switchToSection 現真正涵蓋 fetch+render（非 guard 情況）→ 刪 150ms sleep，只留 rAF 一幀等 layout。
   await new Promise(r => requestAnimationFrame(r));
 
+  // 2026-09-10 兩段式（user「hero 停留比 loading 久」）：深目標「分幀建到目標」隨 DOM 變大要 1~4s（成本＝
+  // style recalc/layout 管線、排程消不掉）。不再「建完才離開 hero」——smooth 路徑先立刻平滑捲到 section 頂
+  // （首屏早已建好），建構在內容畫面下方背景繼續；建到目標後下方 boxScroller/finalTop 邏輯照舊對齊 item
+  // （box 路徑的 scrollWindowNoSnap 再呼叫時已在原地＝tween 立即 complete、開啟時序不變）。
+  if (smooth) {
+    const sectionEl = document.getElementById('activities-content-section');
+    if (sectionEl) scrollSectionIntoView(sectionEl, 'smooth');
+  }
+
   // Directus 慢時 panel 可能還沒 render 完：navigateToItem 開頭的 await switchToSection 會被 switching guard
   // 短路（deep-link 時 init 那次 switch 還在跑、switching===true）→ 不真的等載入；加上 deep-link hero wait 封頂
   // 0.9s 縮短緩衝 → 單次 getElementById 常撈不到 target → 舊版直接 return = 永遠卡在 hero（user 2026-06-28）。
@@ -257,6 +266,8 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
       if (header && !header.classList.contains('active')) {
         header.dataset.accentHex = boxFlashColor;  // 開啟即帶 section 色（= highlight，同 smooth 路徑慣例）
         header.style.background = boxFlashColor;
+        // deepOpen：proceedOpen ①對齊捲完才展開（不並行＝無 title 殘影）②自關留在對齊位不回 section 頂（user 2026-09-10）
+        header.dataset.deepOpen = '1';
         header.click();  // 不設 skipOpenScroll → proceedOpen 捲 box 精準對齊
       }
     };
@@ -686,6 +697,24 @@ function initMobileStickyBars() {
 // 改為 bindFrameScrollSplit 空間分區模型——col 1-3 nav 欄捲 window（去 footer/hero）、col 4 起一律內部捲
 // （box 到邊界不外溢＝lists.css overscroll-behavior: contain）。短 panel 放行給 window 的守衛沿用。
 
+// 進場 render 的起跑時機：「hero 播完」或「使用者往下捲向內容區」兩者先到就 resolve（只一次）。
+// 原本只等 hero 播完(~1.7s)才建 exhibitions list DOM → hero loading 期間就往下捲會撞到「list 還沒建」的空 panel
+// （user 2026-09-09）。改成 race：沒捲（看 hero）→ 照舊等 waitForHeroAnimDone、不搶 hero 主執行緒；hero 期間往下捲
+// → 立即起跑 render（此時 hero 已捲離視窗、就算 render 搶幀也看不到 hero 卡頓）＝list 以最快速度跑出來。listener 進 cleanup。
+function whenHeroDoneOrScrolledToward() {
+  return new Promise(resolve => {
+    let done = false;
+    const sectionEl = document.getElementById('activities-content-section');
+    const finish = () => { if (done) return; done = true; window.removeEventListener('scroll', onScroll); resolve(); };
+    // section 頂進入視窗 ~0.9 屏內（scrollY≳10vh，避開 jitter）＝使用者明確往下要看內容 → 起跑
+    const onScroll = () => { if (sectionEl && sectionEl.getBoundingClientRect().top < window.innerHeight * 0.9) finish(); };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    registerPageCleanup(() => window.removeEventListener('scroll', onScroll));
+    waitForHeroAnimDone().then(finish);
+    onScroll();  // 初查：極短 hero / restore-scroll 已在視窗內即刻起跑
+  });
+}
+
 // fromUserNav：true=使用者點連結的 SPA 導航（首頁 floating 活動海報）；false=初始載入 / refresh / 上一頁下一頁。
 // 只有 fromUserNav 才播 ?item= 的「捲到 item + flash + 展開 accordion」導航動畫，refresh 視為全新頁面（只套 ?section= 分頁，不重播）。
 export function initActivitiesSectionSwitch(defaultSection = 'general', fromUserNav = false) {
@@ -759,9 +788,46 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
         panel.querySelectorAll('.list-item[data-pre-reveal]').forEach(it => it.removeAttribute('data-pre-reveal'));
         const filterBar = /** @type {HTMLElement | null} */ (panel.querySelector('.activities-filter-bar'));
         if (window.innerWidth < 768 && filterBar) filterBar.classList.add('bar-hidden');
+        // 2026-09-10：「建到目標」提前到 hero 播放期間並行——原本在 navigateToItem（hero 播完才開始建），
+        // 深目標要再建 1~3s 才起捲＝user「在 hero 停留比 loading 久」。binds 已 defer（建批只 render）＝
+        // 分幀建構不再産生 150~250ms 長幀、不砸 hero。同目標 promise 共用、navigateToItem 直接接手等同一份。
+        // hero 平滑（user 2026-09-10「deep-link 的 hero 沒單獨進頁 smooth」）：建構期間清單容器設
+        // content-visibility:hidden＝插入不觸發 recalc/layout（渲染管線整棵跳過），hero 零建構成本；
+        // heroDone 才解除、一次付清全量 recalc（在捲動起跑前，單次 ~百 ms 級）。⚠️與 09-01 撤回的 cv:auto
+        // 不同：hidden 讀幾何不強制渲染（回 0，marquee 0 寬 bail 本就處理）、且只活在 deep-link hero 窗口。
+        // contain-intrinsic-size 釘住現高＝隱藏期間 fold 下方不塌（scrollbar 長度不跳）。
+        panel.querySelectorAll('[data-lazy-list]').forEach(c => {
+          const el = /** @type {HTMLElement} */ (c);
+          el.style.containIntrinsicSize = `auto ${el.offsetHeight}px`;
+          el.style.contentVisibility = 'hidden';
+          const fn = /** @type {any} */ (el)._lazyRenderAll;
+          if (typeof fn === 'function') fn(`item-${initialItem}`);
+        });
+      });
+      // deep-link 導航序列（hero wait＋平滑捲＋展開）比 1.6s 長 → gate 住 data-loader 的 deferred 量測/綁定，
+      // settle（navigateToItem resolve 後再等捲動+展開+reveal ~2.5s）才放行，量測不撞可視動畫窗口。
+      // navigateToItem 的 smooth 路徑在排程 scrollWindowNoSnap 後即 resolve，所以要補固定緩衝。
+      let settleListWork;
+      deferListWorkUntil(new Promise(r => { settleListWork = r; }));
+      // 解除清單 content-visibility:hidden（見上 hide 處）：①heroDone（navigateToItem 要讀目標位置，必須先回
+      // 渲染樹）②hero 期間使用者主動互動（wheel/touch/key）＝可能往下看清單，立即解除免看到空白（idempotent）
+      const unhideLazyLists = () => {
+        document.querySelectorAll(`#panel-${initialSection} [data-lazy-list]`).forEach(c => {
+          const el = /** @type {HTMLElement} */ (c);
+          el.style.contentVisibility = '';
+          el.style.containIntrinsicSize = '';
+        });
+      };
+      ['wheel', 'touchstart', 'keydown'].forEach(ev => {
+        window.addEventListener(ev, unhideLazyLists, { once: true, passive: true, capture: true });
+        registerPageCleanup(() => window.removeEventListener(ev, unhideLazyLists, { capture: true }));
       });
       // 有 ?item= → navigateToItem smooth:true：平滑捲到該項目 → 捲到位 delay 才展開 accordion
-      waitForHeroAnimDone().then(() => navigateToItem(initialSection, initialItem, { smooth: true }));
+      waitForHeroAnimDone().then(() => {
+        unhideLazyLists();
+        return navigateToItem(initialSection, initialItem, { smooth: true });
+      })
+        .finally(() => setTimeout(settleListWork, 2500));
     } else {
       // 沒指定 item → 只平滑捲到 list section，不做 highlight
       waitForHeroAnimDone().then(() => {
@@ -776,14 +842,14 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
     // ⭐fetch 提前：hero 進場時就先抓 exhibitions 資料填快取（跟 hero 並行、fetch 不搶主執行緒），
     // 這樣下面 hero 播完 switchToSection→render 時直接命中快取，不必再等 ~1.1s fetch（原本 fetch 也被 defer 在 gate 後）。
     prefetchExhibitionsData();
-    // 初載 list 的 fetch+render+setup 延到 hero 進場動畫跑完才做（user 2026-08-28）：activities 是唯一在 init 就
+    // 初載 list 的 fetch+render+setup 預設延到 hero 進場動畫跑完才做（user 2026-08-28）：activities 是唯一在 init 就
     // 同步 render 整個 section 清單的 .hero-rand-grid 頁，這坨跟 hero 的 randomizeHeroLayout live build（cache
     // 是 in-memory Map、reload 必重建）疊在同一主執行緒窗口 → hero 卡片/文字進場卡頓（其他頁沒這個並發）。
-    // list 在 fold 外、reveal 已 scroll-gated → 晚 ~1.7s load 不可見無感。用預設 cap（等真正 hero:animation-done
-    // event ~1.7s；4000ms 只是 hero 壞掉時的兜底，同 deep-link 用法）——別給短 cap，會在 hero 還沒播完就 render 回來搶主
-    // 執行緒。deep-link 路徑（上面 branch）維持即時 render＝要在 hero 期間於畫面外把目標 item 定位好。
-    waitForHeroAnimDone()
-      // 使用者已在 hero 期間手動切換 → init switch 讓路（否則 1.7s 後硬切回 default 覆蓋使用者選擇）
+    // list 在 fold 外、reveal 已 scroll-gated → 晚 ~1.7s load 不可見無感。⭐但 hero loading 期間就往下捲的人會撞到
+    // 「list 還沒 render」的空 panel（user 2026-09-09）→ 改用 whenHeroDoneOrScrolledToward：hero 播完 OR 使用者
+    // 往下捲向內容區 兩者先到就起跑（沒捲＝維持不搶 hero；捲了＝hero 已離視窗、render 搶幀看不到）＝空窗人立即補上。
+    whenHeroDoneOrScrolledToward()
+      // 使用者已在 hero 期間手動切換 → init switch 讓路（否則之後硬切回 default 覆蓋使用者選擇）
       .then(() => userSwitchedSection ? undefined : switchToSection(defaultSection, btns, false, true))
       // 預設分頁進場後，閒置序列預暖其餘分頁資料（見 prefetchOtherActivitiesData）→ 之後切換免等網路
       .then(() => prefetchOtherActivitiesData())
@@ -967,13 +1033,19 @@ async function _switchToSection(section, btns, shouldScroll, isInitial = false) 
         //   #page-content 內，離頁時 router cleanup 會 kill 此 trigger。
         revealWhenListRowsSettled(target, () => {
           const sectionEl = document.getElementById('activities-content-section');
-          if (typeof ScrollTrigger !== 'undefined' && sectionEl) {
+          // ⚠️ trigger 建立被 defer 到 hero 播完(~1.7s)＋row-settle(~1s)後：這段空窗使用者常已捲到內容區
+          //    → section 頂已越過 start('top 80%')，once trigger 建立當下就在 active zone、onEnter 不對「已在
+          //    視窗內」補觸發（同 isInitial:false 分支 942-944 警告的坑）→ rows 永遠卡 yPercent:110（chrome 在、
+          //    list 空白＝user 2026-09-09 報的進場空面板）。建立前先量幾何：已過線就直接 revealNow（master-timeline
+          //    一次全揭、不漏 fold 下 group）；仍在 fold 外才掛 scroll-gated trigger＝行為與原本相同（等捲到才播）。
+          const inView = sectionEl && sectionEl.getBoundingClientRect().top < window.innerHeight * 0.8;
+          if (typeof ScrollTrigger !== 'undefined' && sectionEl && !inView) {
             ScrollTrigger.create({
               trigger: sectionEl, start: 'top 80%', once: true,
               // guard：若使用者已切到別的 section（target 被 showPanel 加上 .hidden）就別對隱藏 panel 播
               onEnter: () => { if (!target.classList.contains('hidden')) revealNow(); },
             });
-          } else {
+          } else if (!target.classList.contains('hidden')) {
             revealNow();
           }
         });

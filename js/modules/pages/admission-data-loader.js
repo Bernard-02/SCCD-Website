@@ -104,7 +104,15 @@ export function setupAdmissionReveal(container, { hide = true, limit = 0 } = {})
     rows.forEach(r => { const it = r.closest('.list-item'); if (it) limitedItems.add(it); });
   }
   setupClipReveal(rows, { hide: false });  // 四輪 Part 1：只 wrap 遮罩、不 GSAP 藏（hide 改走 CSS hideRows，除冷觸 recalc storm）
-  if (hide) hideRows(rows, false);         // 全部先藏（從下 translateY(110%)），下面的 flip 再把部分改從上
+  if (hide) {
+    hideRows(rows, false);                 // 全部先藏（從下 translateY(110%)），下面的 flip 再把部分改從上
+    // cv:auto（09-10）：被藏的 item 先 inline visible——①切換 reveal 的 cull 分類（offsetParent/gBCR）跑在
+    //   panel 剛顯示、cv 幾何未定的同步時刻，skipped 態會把首屏 group 誤判框外 → rows 不藏直接終態
+    //   （實測 A/B：cv:auto 首 group ty 全程 0、cv:visible 正常 30→0）②CSS transition 須從已渲染的隱藏態
+    //   起跑。範圍只及被藏集合（≤limit＝首屏帶）＝首屏渲染成本；unlockGroup（snap 或 reveal 完）還原 auto。
+    (limitedItems ? [...limitedItems] : [...new Set(rows.map(r => /** @type {HTMLElement | null} */ (r.closest('.list-item'))).filter(Boolean))])
+      .forEach(it => { /** @type {HTMLElement} */ (it).style.contentVisibility = 'visible'; });
+  }
   // 進場方向 per-item 隨機，但**整筆一致**：一半從上滑入（文字 translateY(-110%) ＋ 斑馬底色 box 由上往下揭），
   // 一半維持從下（hideRows 預設 110% ＋ box 由下往上揭）。
   // ⚠️ 之前只翻「文字」列、box 恆由下 → 翻上的那筆變成「文字往下、底色 box 往上」一筆內兩個方向打架；
@@ -207,7 +215,7 @@ export function playAdmissionPanelReveal(panel, { useScrollTrigger = false, view
   if (prefersReducedMotion()) {
     snapRowsShown(panel.querySelectorAll('.list-reveal-row'));  // 四輪 Part 1：直接到終態（清 inline transform）
     panel.querySelectorAll('.list-item.list-item-zebra').forEach(item => { /** @type {HTMLElement} */ (item).style.transition = 'none'; /** @type {HTMLElement} */ (item).style.clipPath = ''; });  // B-1：transition:none 免直寫觸發 transition
-    panel.querySelectorAll('.list-item[data-pre-reveal]').forEach(it => it.removeAttribute('data-pre-reveal'));
+    panel.querySelectorAll('.list-item[data-pre-reveal]').forEach(it => { /** @type {HTMLElement} */ (it).style.contentVisibility = ''; it.removeAttribute('data-pre-reveal'); });  // cv:auto：此路徑不走 unlockGroup，setup 的 inline visible 在此還原
     return;
   }
 
@@ -237,11 +245,11 @@ export function playAdmissionPanelReveal(panel, { useScrollTrigger = false, view
   }
   if (current.length) groups.push(current);
 
-  // 解鎖 group 內所有 list-item 的 pointer-events（rows 動畫完成後）
+  // 解鎖 group 內所有 list-item 的 pointer-events（rows 動畫完成後）＋還原 cv:auto（setup/onEnter 的 inline visible）
   const unlockGroup = /** @param {HTMLElement[]} groupRows */ (groupRows) => {
     groupRows.forEach(r => {
-      const item = r.closest('.list-item');
-      if (item) item.removeAttribute('data-pre-reveal');
+      const item = /** @type {HTMLElement | null} */ (r.closest('.list-item'));
+      if (item) { item.style.contentVisibility = ''; item.removeAttribute('data-pre-reveal'); }
     });
   };
 
@@ -260,6 +268,11 @@ export function playAdmissionPanelReveal(panel, { useScrollTrigger = false, view
       _panelRevealSTs.push(ScrollTrigger.create({
         trigger: triggerEl, start: 'top 90%', once: true,
         onEnter: () => {
+          // cv:auto（09-10）：onEnter 當幀 item 可能才剛脫離 skipped → 隱藏態沒 commit＝transition snap；
+          // inline visible＋單次 reflow 先 commit（同 activities revealIo 處），unlockGroup 還原
+          const owners = [...new Set(groupRows.map(r => /** @type {HTMLElement | null} */ (r.closest('.list-item'))).filter(Boolean))];
+          owners.forEach(it => { /** @type {HTMLElement} */ (it).style.contentVisibility = 'visible'; });
+          if (owners[0]) void (/** @type {HTMLElement} */ (owners[0])).offsetHeight;
           if (bgItem) revealZebraBg(bgItem);          // 底色先 clip-reveal
           revealRows(groupRows, {                      // 文字晚底色 0.2s 進
             dur: DUR.slow, delay: bgItem ? 0.2 : 0, stagger: 0.06,
