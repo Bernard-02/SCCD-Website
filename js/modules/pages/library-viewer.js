@@ -1052,6 +1052,9 @@ export function initPdfViewer() {
       const dx = e.changedTouches[0].clientX - swipeStartX;
       // 垂直為主且超過門檻才換頁：上滑(dy<0)下一頁、下滑(dy>0)上一頁（同捲動方向，往下讀=往上滑）
       if (Math.abs(dy) > SWIPE_THRESHOLD && Math.abs(dy) > Math.abs(dx)) turnPage(dy < 0 ? 1 : -1);
+      // 水平也收（user 2026-09-10 查業界：垂直捲動＝Acrobat/Drive/瀏覽器連續閱讀預設、水平翻頁＝Books/相片
+      // 檢視慣例——單頁式 viewer 兩向都收最穩）：左滑(dx<0)下一頁、右滑上一頁（同 media lightbox 左滑下一張）
+      else if (Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy)) turnPage(dx < 0 ? 1 : -1);
     }
     if (e.touches.length === 0) touchMode = null;
     else if (touchMode === 'pinch' && e.touches.length === 1) touchMode = null;  // 雙指剩一指→結束 pinch（不接 pan 免跳動）
@@ -1080,7 +1083,9 @@ export function initPdfViewer() {
       setTimeout(() => {
         modal.style.display = 'none';
         touchMode = null;        // 清手機觸控手勢狀態
-        if (pdfDoc) { pdfDoc.destroy(); pdfDoc = null; }
+        // pdf.js 6.x：doc proxy 沒有 destroy（headless 實測 undefined、每次關檔 throw 中斷後續 reset）
+        // → 清理走 loadingTask.destroy()（官方 cleanup API）
+        if (pdfDoc) { pdfDoc.loadingTask?.destroy?.(); pdfDoc = null; }
         rendering = false;               // 防「render 卡在 in-flight 就關閉」→ rendering 殘留 true 讓下次開檔 render 被 guard 擋掉
         clearTimeout(sharpenTimer);      // 停還沒跑的 sharpen 重渲
         sharpenedQuality = RENDER_QUALITY;
@@ -1208,7 +1213,7 @@ export function initPdfViewer() {
       const doc = await pdfjsLib.getDocument({ url: bustUrl, disableAutoFetch: true, disableStream: true, rangeChunkSize: 16384, cMapUrl: PDFJS_CMAPS, cMapPacked: true, standardFontDataUrl: PDFJS_STD_FONTS, wasmUrl: PDFJS_WASM }).promise;
       // 慢載大本時 user 可能已改開別本：這次開場過期就整段放棄——別讓晚到的 doc 覆寫共用 pdfDoc、
       // 也別 render 進共用 canvas，否則畫面變成「開到別的書」（user 2026-08-11）。
-      if (myToken !== openToken) { doc.destroy?.(); return; }
+      if (myToken !== openToken) { doc.loadingTask?.destroy?.(); return; }   // 同上：6.x destroy 在 loadingTask
       pdfDoc = doc;
       pageInfo.textContent = `${curPage} / ${pdfDoc.numPages}`;   // 總頁數已確定，一次到位
       // 桌面/手機同走單頁引擎（手機多 touch 手勢層：swipe 換頁 / pinch 縮放）

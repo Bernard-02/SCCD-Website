@@ -21,7 +21,7 @@ import { initIdleStandby } from './modules/ui/idle-standby.js';
 import { initOrientationReload } from './modules/ui/orientation-reload.js';
 import { initCustomScrollbar } from './modules/ui/custom-scrollbar.js';
 import { initModeColorPanel } from './modules/ui/mode-color-panel.js';
-import { installReducedMotionGsap } from './modules/ui/reduce-motion.js';
+import { installReducedMotionGsap, prefersReducedMotion } from './modules/ui/reduce-motion.js';
 import { loadUiLabels, applyUiLabels } from './modules/ui/ui-labels.js';
 
 // Import About Page Modules
@@ -480,20 +480,42 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
       const tabBtns = tabsRoot?.querySelectorAll('.activities-section-btn') ?? [];
       setActiveNavBtn(tabBtns, initialTab, 'data-tab');
 
+      // 切 tab 出場動畫（user 2026-09-10「灰卡內容要跟桌面一樣做出場」）：沿用桌面 _doSwitchTab 同款
+      // playPanelBodyExit（chrome 即刻藏＋視窗內 rows 全同時收合下沉），出場窗（同桌面 CONTENT_EXIT 0.5s）
+      // 走完才 swap＋reveal。連點＝序號作廢 latest-wins；出場只起跑一次（舊 panel 出場中重跑會閃回起點）；
+      // 殘值由 playPanelReveal 開頭統一清（§38），下次開該 panel 自復原。
+      const LIB_TAB_EXIT = 0.5;
+      const LIB_PANEL_IDS = ['lib-panel-awards', 'lib-panel-press', 'lib-panel-files', 'lib-panel-album'];
+      let libTabSeq = 0;
+      let libTabCur = initialTab;
+      let libTabExiting = false;
       tabsRoot?.addEventListener('click', (e) => {
         const target = /** @type {HTMLElement} */ (e.target);
         const btn = target.closest('.activities-section-btn');
         if (!btn) return;
         const tab = btn.getAttribute('data-tab');
-        if (!tab) return;
-        panels.showPanel(tab, { reveal: true });
+        if (!tab || tab === libTabCur) return;
+        libTabCur = tab;
+        const mySeq = ++libTabSeq;
         setActiveNavBtn(tabBtns, tab, 'data-tab');
-        // 切 tab 後 scroll 回頁面頂讓 user 從 search bar 看起
-        window.scrollTo({ top: 0, behavior: 'instant' });
         const currentHash = window.location.hash.slice(1);
         if (currentHash !== tab) {
           history.replaceState(null, '', window.location.pathname + '#' + tab);
         }
+        const doSwap = () => {
+          libTabExiting = false;
+          panels.showPanel(tab, { reveal: true });
+          // 切 tab 後 scroll 回頁面頂讓 user 從 search bar 看起
+          window.scrollTo({ top: 0, behavior: 'instant' });
+        };
+        if (prefersReducedMotion()) { doSwap(); return; }
+        if (!libTabExiting) {
+          libTabExiting = true;
+          const oldPanel = LIB_PANEL_IDS.map(id => document.getElementById(id))
+            .find(p => p && getComputedStyle(p).display !== 'none');
+          if (oldPanel) panelsMod.playPanelBodyExit(oldPanel, LIB_TAB_EXIT);
+        }
+        setTimeout(() => { if (mySeq === libTabSeq) doSwap(); }, LIB_TAB_EXIT * 1000);
       });
       return;
     }

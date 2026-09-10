@@ -9,6 +9,7 @@ import { playPanelTitleExit, playPanelBodyExit, hidePanelTitleInstant, isPanelRe
 import { DUR, EASE } from '../ui/motion.js';
 import { sitePath } from '../ui/site-base.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
+import { bindArrowSpin } from '../ui/arrow-spin.js';
 
 export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb, initialTab = 'awards' }) {
 
@@ -547,23 +548,44 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     return `${v[0].toFixed(2)}px ${v[1].toFixed(2)}px`;
   }
 
-  // 位移+揭露 進/退場：GSAP 同 tick 寫 translate+clipPath。⚠️不用 CSS transition：translate 走 compositor、
-  // clip-path 走主執行緒，兩管線逐幀微差＝clip 窗緣抖動（見 reference_gsap_translate_string_needs_matching_units
-  // v3 註）。translate 與 transform:translate(-50%,-50%)rotate() 疊加共存；rot 由 hiddenTranslate 從 transform 讀。
+  // 位移+揭露 進/退場：⚠️勿改回 gsap fromTo 直接 tween `translate`/`clipPath` 字串——偶發把 translate 起點誤放大
+  //   ~10 倍＝色塊「從畫面外飛進來、clip reveal 沒做到」（09-10 about tree MDES 同病實錄；§46 26 輪獵捕陰性＝當時
+  //   偵測器要求「clip 精確全開」才算飛、誤 parse 的飛行 clip 一直在半途插值中所以全漏判）。改 tween {p:0→1} 數字
+  //   proxy、每幀自組字串（同 about-structure navClipTween；見 reference_gsap_translate_fromto_misparse_flight）。
+  //   也不用 CSS transition：translate 走 compositor、clip-path 走主執行緒，兩管線逐幀微差＝clip 窗緣抖動。
+  //   translate 與 transform:translate(-50%,-50%)rotate() 疊加共存；rot 由 hiddenTranslate 從 transform 讀。
+  const heroNums = (s) => (String(s).match(/-?[\d.]+/g) || []).map(Number);
+  // proxy tween 不在 DOM 元素上：killTweensOf(el) 殺不到 → 存 el._heroTween、打斷點顯式 kill（原 overwrite:true 職責）
+  function killHeroTween(el) { if (el && el._heroTween) { el._heroTween.kill(); el._heroTween = null; } }
+  function heroClipTween(el, from, to, dur, ease, onComplete) {
+    killHeroTween(el);
+    const ft = heroNums(from.translate), tt = heroNums(to.translate);
+    const fc = heroNums(from.clipPath), tc = heroNums(to.clipPath);
+    const proxy = { p: 0 };
+    el._heroTween = gsap.to(proxy, {
+      p: 1, duration: dur, ease,
+      onUpdate: () => {
+        const p = proxy.p;
+        el.style.translate = `${(ft[0] + (tt[0] - ft[0]) * p).toFixed(2)}px ${(ft[1] + (tt[1] - ft[1]) * p).toFixed(2)}px`;
+        el.style.clipPath = `inset(${fc.map((n, i) => (n + (tc[i] - n) * p).toFixed(3) + '%').join(' ')})`;
+      },
+      onComplete: () => { el._heroTween = null; if (onComplete) onComplete(); },
+    });
+  }
   function heroRevealCard(el, dir, dur, onDone) {
     if (typeof gsap === 'undefined') { el.style.clipPath = 'inset(0% 0% 0% 0%)'; el.style.translate = ''; if (onDone) onDone(); return; }
-    gsap.fromTo(el,
+    heroClipTween(el,
       { clipPath: ENTER_CLIP[dir], translate: hiddenTranslate(el, dir) },
-      { clipPath: 'inset(0% 0% 0% 0%)', translate: '0px 0px', duration: dur, ease: EASE.enter, overwrite: true,
-        onComplete: () => { el.style.translate = ''; if (onDone) onDone(); } });
+      { clipPath: 'inset(0% 0% 0% 0%)', translate: '0px 0px' },
+      dur, EASE.enter, () => { el.style.translate = ''; if (onDone) onDone(); });
   }
   function heroExitCard(el, dir, dur, onDone) {
     if (typeof gsap === 'undefined') { el.style.clipPath = ENTER_CLIP[dir]; el.style.translate = hiddenTranslate(el, dir); if (onDone) onDone(); return; }
-    // fromTo 顯式起點 inset(0)/0px：clipPath 曾被 clearProps→computed none 時，gsap.to 從 none 補間會 snap
-    gsap.fromTo(el,
+    // 起訖顯式（沿用舊註：clipPath 曾被 clearProps→computed none，從 none 補間會 snap）
+    heroClipTween(el,
       { clipPath: 'inset(0% 0% 0% 0%)', translate: '0px 0px' },
-      { clipPath: ENTER_CLIP[dir], translate: hiddenTranslate(el, dir), duration: dur, ease: EASE.exit, overwrite: true,
-        onComplete: onDone || undefined });
+      { clipPath: ENTER_CLIP[dir], translate: hiddenTranslate(el, dir) },
+      dur, EASE.exit, onDone);
   }
 
   // ── 分頁切換 ──────────────────────────────────────────────────
@@ -728,6 +750,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
 
     // 殺掉可能殘留的進場/退場 tween（translate/clipPath），避免和 morph 的 CSS transition 打架
     if (typeof gsap !== 'undefined') gsap.killTweensOf(allEls);
+    allEls.forEach(killHeroTween);   // hero proxy tween 不在 DOM 上、killTweensOf 殺不到
     // 清掉上一輪切換被打斷時殘留的色塊 veil ＋ §14.1 色彩 overlay（連點打斷兜底）
     sec.querySelectorAll('.lib-color-wipe').forEach(v => {
       if (typeof gsap !== 'undefined') gsap.killTweensOf(v);
@@ -1111,6 +1134,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
         nonActive.forEach(el => { el.style.transition = 'none'; heroExitCard(el, revealDir(el), DUR.fast); });
         setTimeout(() => {
           if (typeof gsap !== 'undefined') gsap.killTweensOf(nonActive);
+          nonActive.forEach(killHeroTween);   // 同上：hero proxy 顯式 kill
           MAIN_W = Math.round(sw * 0.84);
           MAIN_H = Math.max(240, sh - TOP_GAP - BOTTOM_GAP);  // 同 RO init（上下錨定撐滿，見上方註解）
           setAsGray(activeEl, sw, sh);
@@ -1136,6 +1160,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   registerPageCleanup(() => {
     switchColorTimers.forEach(clearTimeout); switchColorTimers = [];
     document.querySelectorAll('.lib-color-wipe').forEach(w => { if (typeof gsap !== 'undefined') gsap.killTweensOf(w); w.remove(); });  // §14.1 overlay 兜底
+    allEls.forEach(killHeroTween); killHeroTween(nextBtnEl);   // hero proxy 不被 router killTweensOf 涵蓋、離頁顯式殺
   });
 
   // 點擊事件
@@ -1169,6 +1194,33 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
       // 自己也會變成色卡持有某 tab，只找 colorEls 會漏掉它（回到 awards 時 target=undefined 而卡住）
       const target = allEls.find(el => el !== activeEl && tabOf.get(el) === next);
       if (target) switchTab(target);
+    });
+    // hover/click 隨機角度（arrow-spin，同 library sort 箭頭；取代舊 CSS :hover +8° 固定角——純 CSS
+    // 版 hover 一解除就彈回 0，user 2026-09-10 要「點擊定案、切卡後留住」）。轉 inner：外層是
+    // clip 遮罩＋translate 置中不能動；−4~+6 range 在 -12px clip buffer 內（buffer 原為 ±8 設計）
+    const nextInner = /** @type {HTMLElement|null} */ (nextBtnEl.querySelector('.tl-icon-btn-inner'));
+    if (nextInner) bindArrowSpin(nextBtnEl, (/** @type {number} */ d) => { nextInner.style.transform = `rotate(${d}deg)`; });
+
+    // hover 箭頭＝預覽將切往的色塊：對目標卡套與直接 hover 相同的樣式（黑底＋置頂），離開還原。
+    // 點擊後 target 變 activeEl / pending → mouseleave 的 guard 同色塊本身的 handler，不會誤還原。
+    let btnHoverTarget = null;
+    nextBtnEl.addEventListener('mouseenter', () => {
+      if (isSwitching) return;
+      const cur  = tabOf.get(activeEl);
+      const next = TAB_ORDER[(TAB_ORDER.indexOf(cur) + 1) % TAB_ORDER.length];
+      const target = allEls.find(el => el !== activeEl && tabOf.get(el) === next);
+      if (!target || target.dataset.cardPending) return;
+      btnHoverTarget = target;
+      applyCardHover(target);
+    });
+    nextBtnEl.addEventListener('mouseleave', () => {
+      const el = btnHoverTarget;
+      btnHoverTarget = null;
+      if (!el || el === activeEl || el.dataset.cardPending) return;
+      el.style.background = colorOf.get(el);
+      el.style.zIndex     = String(baseZOf.get(el) ?? 1);
+      const t = /** @type {HTMLElement|null} */ (el.querySelector('.color-rect-title'));
+      if (t) t.style.color = '#000';
     });
   }
 

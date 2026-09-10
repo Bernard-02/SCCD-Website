@@ -134,9 +134,7 @@
   background: none;
   cursor: var(--cursor-pointer);
 }
-@media (min-width: 768px) {
-  .lib-card-next-btn:hover .tl-icon-btn-inner { transform: rotate(8deg); }
-}
+/* 09-10：hover 固定 +8° 改由 JS arrow-spin 隨機角度接手（inline transform 寫 inner，transition 沿用 lists.css .tl-icon-btn-inner） */
 
 /* ── Search placeholder ────────────────────────────────────── */
 #library-awards-search::placeholder {
@@ -1160,10 +1158,11 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
     background: var(--theme-bg);
   }
 
-  /* press-year-label v5：list 改在 *-scroll 容器內部 scroll → 年份標題 sticky 黏容器頂（同桌面）*/
+  /* press-year-label v5：list 改在 *-scroll 容器內部 scroll → 年份標題 sticky 黏容器頂（同桌面）。
+     top:-1px（同桌面）：top:0 在非整數 DPR 手機會留 1px 縫、上方列內容透出（user 2026-09-10 四分頁都有）*/
   .press-year-label {
     position: sticky !important;
-    top: 0 !important;
+    top: -1px !important;
     z-index: 5 !important;
     margin-top: 0 !important;
   }
@@ -1260,14 +1259,13 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
     align-items: start !important;
   }
   #library-awards-list .award-row > :first-child { padding-top: 0.15em !important; }  /* 國旗對齊第一行文字頂 */
-  /* awards ref 列：手機收成單欄 stack（label 上 / title 下），蓋掉共用 AWARD_GRID 與 col 起點 */
+  /* awards ref 列：手機兩欄 [↳icon][文字]，欄寬/欄距對齊 .award-row 的 1.5em + md
+     → ref 文字起點＝主表第二欄（競賽名稱）起點（user 2026-09-10「ref 的文字對齊第二個 col」）。
+     icon/文字各落 col 1 / col 2 沿用 inline grid-column（1、2/-2 在兩欄下收斂成 col 2）。 */
   #library-awards-list .award-ref-row {
-    grid-template-columns: minmax(0, 1fr) !important;
-    gap: 2px 0 !important;
+    grid-template-columns: 1.5em minmax(0, 1fr) !important;
+    gap: 2px var(--spacing-md) !important;
     padding: var(--spacing-sm) !important;
-  }
-  #library-awards-list .award-ref-row > div {
-    grid-column: 1 / -1 !important;
   }
   #library-awards-list .award-mid {
     display: flex !important;
@@ -1604,6 +1602,10 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
     flex-shrink: 0 !important;
     padding-top: 0 !important;          /* 手機 award logo 不留 pt（user 2026-06-12） */
     padding-bottom: var(--spacing-sm) !important;
+    /* 左右 follow 手機灰卡內容 padding（panel grid = sm），不吃桌面 inline lg（user 2026-09-10）；
+       mask（.awards-ticker-wrapper overflow:hidden）裁在 padding 內緣 → logo 與內容同起點 */
+    padding-left: var(--spacing-sm) !important;
+    padding-right: var(--spacing-sm) !important;
   }
   #library-awards-ticker img {
     height: 40px !important;
@@ -1642,10 +1644,13 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
     animation: press-marquee var(--marquee-duration, 8s) linear infinite;
   }
 
-  /* files (documents) item 手機自動 marquee（無 hover），同 press pattern：標題 EN/ZH + cat-tag 過長就跑
-     （桌面 hover 規則維持 line 605-635；keyframe 共用 press-marquee）（user 2026-06-10）*/
+  /* files (documents) item 手機自動 marquee（無 hover），同 press pattern：標題 EN/ZH + 副標 EN/ZH + cat-tag
+     過長就跑（桌面 hover 規則維持 line 605-635；keyframe 共用 press-marquee）（user 2026-06-10；
+     副標 .files-item-subtitle-en/zh 原漏掛＝量測加了 .is-overflow 但沒動畫，user 2026-09-10 補）*/
   .files-item .files-item-title-en.is-overflow .files-marquee-inner,
   .files-item .files-item-title-zh.is-overflow .files-marquee-inner,
+  .files-item .files-item-subtitle-en.is-overflow .files-marquee-inner,
+  .files-item .files-item-subtitle-zh.is-overflow .files-marquee-inner,
   #library-files-list .files-item .files-item-subtitle-tag.is-overflow .files-marquee-inner {
     animation: press-marquee var(--marquee-duration, 8s) linear infinite;
   }
@@ -1654,6 +1659,17 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
      維持桌面 grid 1fr auto（媒體 icon 在 title 右側、頂端對齊），只縮小欄距適配手機 */
   .press-item-row {
     column-gap: var(--spacing-sm) !important;
+  }
+  /* 文字區統一寬度（user 2026-09-10「每個文字的寬度都不一樣、視覺上不對齊」）：縮圖欄本是 auto、
+     寬度隨封面比例變（PDF 直式 ~3.4rem vs 影片 8rem）→ 每列文字欄寬不同、marquee 裁切點不齊。
+     改縮圖 slot 固定 8rem（= .press-item-thumb max-width）、縮圖靠右 → 文字欄全列同寬。 */
+  .press-item-thumb-wrap {
+    width: 8rem;
+    justify-content: flex-end;
+  }
+  /* 無縮圖列：文字 cap 到與有縮圖列相同寬（100% − slot 8rem − 欄距 sm）＝全 list 對齊 */
+  .press-item-row:not(:has(.press-item-thumb-wrap)) .press-item-titles {
+    max-width: calc(100% - 8rem - var(--spacing-sm)) !important;
   }
   .press-item-titles {
     max-width: 100% !important;

@@ -24,6 +24,7 @@ import { getAwardRecords, findAwardById } from './activities-data-loader.js';
 import { renderPdfCover } from '../ui/pdf-cover.js';
 import { loadUiLabels } from '../ui/ui-labels.js';
 import { shortLibId } from './library-deeplink.js';
+import { bindArrowSpin } from '../ui/arrow-spin.js';
 
 // 文件分類 dropdown（後台 library_documents.docType）→ 顯示文字。fallback 用；實際文字優先讀 ui_labels（可後台改）
 const DOCTYPE_FALLBACK = {
@@ -38,6 +39,15 @@ const DOCTYPE_FALLBACK = {
 // 矮橫向（橫向手機）：手機式行為的第二個入口，gate 同 landscape.css / main-modular library init
 const isShortLandscape = () =>
   window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+
+// 排序箭頭隨機角度（user 2026-09-10）：互動邏輯見 arrow-spin.js；四個 panel 的 sort 箭頭共用。
+// 既有 click handler 只換 .sort-arrow 的 className，inline transform 不受影響。
+function bindSortArrowSpin(btn) {
+  const arrow = btn.querySelector('.sort-arrow');
+  if (!arrow) return;
+  arrow.style.transition = 'transform 0.3s ease';
+  bindArrowSpin(btn, deg => { arrow.style.transform = `rotate(${deg}deg)`; });
+}
 
 const CAT_LABELS = {
   'degree-show':      'Degree Shows 畢業展',
@@ -1279,6 +1289,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     // Sort
     const sortBtn = document.getElementById('library-awards-sort-btn');
     if (sortBtn) {
+      bindSortArrowSpin(sortBtn);
       sortBtn.addEventListener('click', () => {
         latestFirst = !latestFirst;
         sortBtn.querySelector('.sort-arrow').className = `icon ${latestFirst ? 'icon-arrow-down' : 'icon-arrow-up'} sort-arrow text-xs`;
@@ -1646,6 +1657,7 @@ async function initPressPanel() {
     // 排序
     const sortBtn = document.getElementById('library-press-sort-btn');
     if (sortBtn) {
+      bindSortArrowSpin(sortBtn);
       sortBtn.addEventListener('click', () => {
         latestFirst = !latestFirst;
         sortBtn.querySelector('.sort-arrow').className = `icon ${latestFirst ? 'icon-arrow-down' : 'icon-arrow-up'} sort-arrow text-xs`;
@@ -2090,6 +2102,7 @@ async function initFilesPanel() {
 
     const sortBtn = document.getElementById('library-files-sort-btn');
     if (sortBtn) {
+      bindSortArrowSpin(sortBtn);
       sortBtn.addEventListener('click', () => {
         latestFirst = !latestFirst;
         sortBtn.querySelector('.sort-arrow').className = `icon ${latestFirst ? 'icon-arrow-down' : 'icon-arrow-up'} sort-arrow text-xs`;
@@ -2485,6 +2498,7 @@ async function initAlbumPanel() {
 
     const sortBtn = document.getElementById('library-album-sort-btn');
     if (sortBtn) {
+      bindSortArrowSpin(sortBtn);
       sortBtn.addEventListener('click', () => {
         latestFirst = !latestFirst;
         sortBtn.querySelector('.sort-arrow').className = `icon ${latestFirst ? 'icon-arrow-down' : 'icon-arrow-up'} sort-arrow text-xs`;
@@ -2733,6 +2747,27 @@ function slideThumbIn(item) {
   const isAlbum = item.classList.contains('album-panel-item');
   const doSlide = () => {
     container.classList.remove('thumb-reveal-pending');
+    // 手機（<768，user 2026-09-10）：press/album 縮圖一律「box 內 clip reveal（帶位移）」由下往上揭——
+    // press 桌面那套畫外 translate 在手機窄版會飛越標題區／從灰卡右緣進來（穿幫）；album 純 clip-path
+    // 零位移也補位移對齊 clip-reveal 語彙。桌面兩型不動（§31 press translate／album 原地 clip 是桌面定案）。
+    // translate 個別屬性與 press 縮圖的 inline transform:rotate 疊加共存，揭完清殘值（旋轉凸角還原）。
+    if (window.innerWidth < 768) {
+      container.style.transition = 'none';
+      container.style.clipPath = 'inset(100% 0 0 0)';
+      container.style.translate = '0 0.5rem';
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        container.style.transition = `clip-path ${DUR.medium}s ease-out, translate ${DUR.medium}s ease-out`;
+        container.style.clipPath = 'inset(0 0 0 0)';
+        container.style.translate = '0 0';
+        const done = (e) => {
+          if (e.target !== container || e.propertyName !== 'clip-path') return;
+          container.style.transition = ''; container.style.clipPath = ''; container.style.translate = '';
+          container.removeEventListener('transitionend', done);
+        };
+        container.addEventListener('transitionend', done);
+      }));
+      return;
+    }
     if (isAlbum) {
       // §31（req1, user 2026-09-08）：album 縮圖改「strip box 內原地 clip-path 揭」＝不再從 zebra 外 translate 110% 飛入。
       //   由下往上（對齊色塊/年份 label 方向）；揭完清成 clipPath=''（非留 inset(0)）讓旋轉縮圖凸角還原（末端可能 ~2-4px 微 pop，同 box clip 既有取捨）。
