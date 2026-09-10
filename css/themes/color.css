@@ -583,15 +583,28 @@ body.mode-color .list-header[style*="background"] + .list-content .list-ref-btn:
   color: var(--theme-fg) !important;
 }
 
-/* legal 規章表 hover 色帶（.legal-reg-item:hover → name/unit 變 --item-color-deep）＝ref 同族：
+/* legal 規章表列＝ref 同族（user 2026-09-10 ref 化：rest deep 底＋hover 黑白）：
  * mode3 禁 accent，且卡片容器（active list-content）bg 已被上方規則翻成 theme-fg →
- * 色帶改 inverse neutral-gray + fg-inverse 字（鏡像上方「active list-content 內 ref」rest 規則）。
- * 只桌面（base 規則同 gate；手機無 hover）。 */
+ * rest 改 inverse neutral-gray + fg-inverse 字（鏡像上方「active list-content 內 ref」rest 規則）；
+ * hover 鏡像「active list-content 內 ref hover」＝跟容器反向對比（fg-inverse 底＋fg 字）。
+ * rest 不 gate viewport（user 2026-09-10 手機也 ref 化、legal.css 手機拔色帶已撤）；hover 仍桌面 only。 */
+body.mode-color .legal-reg-table {   /* 整張表 deep 底（含類別欄）＝ mode3 換 neutral-gray-inverse */
+  background: var(--theme-neutral-gray-inverse) !important;
+}
+body.mode-color .legal-reg-name,
+body.mode-color .legal-reg-unit {
+  background: var(--theme-neutral-gray-inverse) !important;
+  color: var(--theme-fg-inverse) !important;
+}
 @media (hover: hover) and (min-width: 768px) {
   body.mode-color .legal-reg-item:hover .legal-reg-name,
   body.mode-color .legal-reg-item:hover .legal-reg-unit {
-    background: var(--theme-neutral-gray-inverse) !important;
-    color: var(--theme-fg-inverse) !important;
+    background: var(--theme-fg-inverse) !important;
+    color: var(--theme-fg) !important;
+  }
+  body.mode-color .legal-reg-item:hover .legal-reg-name span,
+  body.mode-color .legal-reg-item:hover .legal-reg-unit span {
+    color: var(--theme-fg) !important;
   }
 }
 

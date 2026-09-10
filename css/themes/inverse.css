@@ -288,6 +288,18 @@ body.mode-inverse #library-awards-ticker .awards-ticker-wrapper img {
   body.mode-inverse .list-ref-btn:hover * {
     color: black !important;
   }
+
+  /* legal 規章表列＝ref 同族（user 2026-09-10 ref 化：rest deep 底走 base）→ hover 同 ref mode2 慣例翻白底黑字，
+   * 蓋過 base legal.css hover 的 `background:black/color:white !important`（本選擇器特異度較高）。 */
+  body.mode-inverse .legal-reg-item:hover .legal-reg-name,
+  body.mode-inverse .legal-reg-item:hover .legal-reg-unit {
+    background: white !important;
+    color: black !important;
+  }
+  body.mode-inverse .legal-reg-item:hover .legal-reg-name span,
+  body.mode-inverse .legal-reg-item:hover .legal-reg-unit span {
+    color: black !important;
+  }
 }
 
 /* ===== Library Files / Album / Press hover：亮三原色底文字一律反黑 ===== */

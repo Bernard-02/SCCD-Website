@@ -173,7 +173,7 @@ body.page-alumni .list-header.active {
 
 /* ===== Alumni-city-btn 微調（沿用 .class-division-btn 樣式） ===== */
 .alumni-city-btn {
-  padding: 6px 10px 5px;
+  padding: 6px 8px 5px;   /* = 全站 nav btn 標準（原 6/10/5 → 統一，user 2026-09-09）*/
 }
 
 /* ===== PDF Lightbox 微調 ===== */
