@@ -333,7 +333,7 @@ export async function loadDegreeShowDetail() {
                   <p class="dsd-mq-line text-s text-black font-bold" lang="zh-Hant"><span class="dsd-mq-inner">${ev.name || ''}</span></p>
                   ${guestsHtml ? `<div class="mt-xs">${guestsHtml}</div>` : ''}
                 </div>
-                <div class="dsd-mq-col">
+                <div class="dsd-mq-col dsd-mq-col--loc">
                   ${ev.locationEn ? `<p class="dsd-mq-line text-s text-black font-bold mb-en-zh-s"><span class="dsd-mq-inner">${ev.locationEn}</span></p>` : ''}
                   <p class="dsd-mq-line text-s text-black font-bold" lang="zh-Hant"><span class="dsd-mq-inner">${ev.location || ''}</span></p>
                   ${cityHtml}
@@ -1112,6 +1112,13 @@ function buildMobileEventStrip(root) {
   const centerBtn = (b) => {
     strip.scrollTo({ left: b.offsetLeft - (strip.clientWidth - b.offsetWidth) / 2, behavior: 'smooth' });
   };
+  // active tab「隨畫面往下自動對齊」（user 2026-09-10）：scroll-spy 切 active 時，若該 btn 已捲出可視範圍才平滑捲入置中。
+  // ⚠️只在「出界」才動 strip＝已可見就不捲，避開上方註解的 2026-07-09 回歸（捲動中 strip 自己滑走害點不到第一顆）。
+  const followActive = (b) => {
+    const bl = b.offsetLeft, br = bl + b.offsetWidth;
+    const vl = strip.scrollLeft, vr = vl + strip.clientWidth;
+    if (bl < vl || br > vr) centerBtn(b);
+  };
 
   // 點擊捲動期間暫停 spy（同 about clickScrolling）：不然捲往目標的路上經過的 section 會逐個
   // 搶 active，抵達前 tab 顏色閃好幾次
@@ -1145,8 +1152,8 @@ function buildMobileEventStrip(root) {
         trigger: sec,
         start: 'top center',
         end: 'bottom center',
-        onEnter: () => { if (!clickScrolling) setActive(i); },
-        onEnterBack: () => { if (!clickScrolling) setActive(i); },
+        onEnter: () => { if (!clickScrolling) { setActive(i); followActive(btns[i]); } },
+        onEnterBack: () => { if (!clickScrolling) { setActive(i); followActive(btns[i]); } },
       });
     });
   }
@@ -1226,7 +1233,9 @@ function appendExhibitionSection(root, index, pool, branchEn, branchZh) {
   // --degree-show class 原由 initDegreeShowGallery 加（手機容器高 350 的 CSS 錨點），這裡手動補。
   if (isMobileView()) {
     gallery.classList.add('division-images--degree-show');
-    const api = createClassImagesSlideshow(gallery, pool, { slotLefts: ['50%'], slotXPercent: -50, leaveRandom: true });
+    // 3-slot 主圖置中輪播（user 2026-09-10「像桌面版、主圖在中間、左右各露一點、從右往左切」）：slotXPercent -50 讓
+    // 每張圖以自己的 left% 為中心 → 中間 50% 是主圖、-16%/116% 是左右露邊 peek；tick 左移＝右邊 peek 遞補進中間。
+    const api = createClassImagesSlideshow(gallery, pool, { slotLefts: ['-16%', '50%', '116%'], slotXPercent: -50, leaveRandom: true });
     if (api) {
       api.renderFresh(false);
       api.start();

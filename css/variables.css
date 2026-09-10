@@ -377,7 +377,9 @@
   /* grid-20 手機 19 個 column-gap(20px=380px) 超過容器寬(~342px) → col-span-full 內容被撐爆
      溢出右緣（內容直接貼到 viewport 右邊、沒有右 padding）。column-gap 歸零 = 區塊回容器寬。
      同 about #about-content-wrapper 修法（event 區已無 grid-20，只剩 events 清單）。 */
-  #dsd-desc-section .grid-20 {
+  #dsd-desc-section .grid-20,
+  #video-outer-section .grid-20,
+  #documentary-outer-section .grid-20 {
     column-gap: 0;
   }
 
@@ -463,7 +465,7 @@
 
   /* Next Project 手機色塊卡（2026-07-09 取消 poster thumbnail）：左右並排 + 後卡 -6% overlap
      （配 JS 隨機旋轉 = 截圖那種 collage 感）；文字靠左（align-items/text-align:left）、年份與標題
-     同字級（HTML 統一 text-s）。#next-link-m margin-top 造高低落差（row items-start，故 margin 直接下推）。
+     同字級（HTML 統一 text-lg，2026-09-10 由 text-s 放大）。#next-link-m margin-top 造高低落差（row items-start，故 margin 直接下推）。
      黑字統一在這給（不掛 .text-black，inverse 會翻白）。內容多時自然長高。mode-color strict B/W 在 themes/color.css。 */
   .dsd-next-card-m {
     width: 53%;
@@ -472,11 +474,15 @@
     flex-direction: column;
     align-items: flex-start;
     justify-content: center;
-    gap: 0.25rem;
+    gap: 0;
     text-align: left;
     padding: var(--spacing-sm);
     color: #000;
   }
+  /* 年份↔標題拉開 gap；英↔中用字級全域 token（text-lg → --space-en-zh-lg，user 2026-09-10）。標題過長時
+     aspect-ratio 讓位給內容、卡片自然往下長高（父層 items-start → 向下延伸）。 */
+  .dsd-next-card-m > p:first-child { margin-bottom: var(--spacing-xs); }
+  .dsd-next-card-m .dshow-next-title + .dshow-next-title { margin-top: var(--space-en-zh-lg); }
   .dsd-next-card-m + .dsd-next-card-m {
     margin-left: -6%;
   }
@@ -597,7 +603,7 @@
     position: static;
     left: auto;
     bottom: auto;
-    padding: 7px 6px 6px;
+    padding: 6px 8px 5px;   /* = 全站 nav btn 標準（原 7/6/6 → 統一，user 2026-09-09）*/
     line-height: 1;
   }
 }

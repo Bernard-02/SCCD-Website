@@ -92,6 +92,20 @@
        title chip（#sticky-info-card top:200）。覆蓋容器 pt-6xl(192)→160；ID 特異度(1-1-0)勝 pt-6xl utility(0-1-0)。user 2026-09-07 */
     #dsd-desc-section > .site-container { padding-top: var(--spacing-5xl); }
   }
+  /* 手機：直式海報顯示在活動清單下方（user 2026-09-10「先文字、再海報」）。清單與海報在 grid-20 都 col-span-full
+     → DOM 順序＝清單先、海報後自然堆疊。桌面維持右側 KV（min-width:768 那條）。 */
+  @media (max-width: 767px) {
+    .dsd-events-kv.has-kv { display: block; margin-top: var(--spacing-2xl); }
+    .dsd-events-kv-img {
+      display: block;
+      width: auto;
+      height: auto;
+      max-width: 66vw;
+      max-height: 70svh;
+      object-fit: contain;
+      margin-right: auto;
+    }
+  }
 
   /* Events 標題/地點行 marquee：過長不換行、溢出才捲。桌面＝hover 該 event row 才捲（靜止截斷可接受，對齊
      atlas/courses/dshow 卡片行為）；手機＝無 hover → 偵測到即自動捲，否則長字永久截斷看不到（同 .dshow-title-line）。
@@ -121,6 +135,10 @@
     .dsd-mq-line.is-overflow .dsd-mq-inner {
       animation: dshow-title-marquee var(--marquee-duration, 8s) linear infinite;
     }
+    /* 地點/城市欄手機改換行、不 marquee（user 2026-09-10「少一點 marquee」）：white-space:normal 讓文字 wrap →
+       applyMarqueeOverflow 量不到溢出＝不加 .is-overflow、不建 marquee copy（標題/日期欄不受影響仍可 marquee）。 */
+    .dsd-mq-col--loc .dsd-mq-line { white-space: normal; overflow: visible; }
+    .dsd-mq-col--loc .dsd-mq-inner { white-space: normal; display: inline; }
   }
 
   /* Events 每列欄位配置（三個 .dsd-mq-col＝日期/標題/地點）：
