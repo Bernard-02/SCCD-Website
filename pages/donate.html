@@ -36,6 +36,11 @@
                support 無「最後更新」故不放 #legal-updated 區塊
                inner-scroll-scroll-col：同 regulations.html——box 捲動路徑、開 item 不關 window 磁吸 -->
           <div class="legal-content-col inner-scroll-scroll-col col-span-12 md:col-span-7">
+            <!-- 手機 header blocker（同 activities/admission）：透明 fixed site-header 下、sticky zebra title 上方
+                 透明帶會露出捲上來的展開內容 → sticky theme-bg 帶補實。放 col 內（非 section 第一子）：
+                 legal section 無 padding-top，margin-top:-8rem 會 parent-child margin collapse 整段上移；
+                 col 有 padding-top 擋住 collapse、寬度同 list＝蓋好蓋滿。詳見 lists.css .list-mobile-header-blocker -->
+            <div class="list-mobile-header-blocker md:hidden" aria-hidden="true"></div>
             <div id="legal-content"></div>
           </div>
 

@@ -385,7 +385,10 @@ function attachStickyPinObserver(header) {
     // sentinel 滾過 sticky-top 線之上 = isIntersecting false → header pinned
     // ⚠️ panel 被 section-switch 藏起（display:none）時 IO 也 fire（rect 變空 → isIntersecting false），
     // 不能誤判成 pinned：旗標殘留會讓手機 header blocker 一直蓋頂部、把捲回 band 的 nav btn 裁掉
-    const pinned = !entry.isIntersecting && header.offsetParent !== null;
+    // ⚠️ !isIntersecting 也可能是 sentinel 還在視窗「下方」（legal zebra 多列同開：下方列已 .active
+    // 但還沒捲到）——那不是釘住，誤判會讓 blocker 提早蓋頂／副標誤收。要求 sentinel 在釘線上方才算。
+    const lineTop = entry.rootBounds ? entry.rootBounds.top : stickyTop + 4;
+    const pinned = !entry.isIntersecting && entry.boundingClientRect.top < lineTop && header.offsetParent !== null;
     // is-pinned 驅動桌面副標 pinned-collapse；toggleSectionPinnedFlag 驅動手機 header blocker 顯隱（兩者同一 IO）
     header.classList.toggle('is-pinned', pinned);
     toggleSectionPinnedFlag(header, pinned);
@@ -441,10 +444,15 @@ export function refreshStickyPinObservers(container) {
 }
 
 // 在 header 所屬的 content section 上開關 .list-has-pinned-header（驅動手機 header blocker 顯隱）。
-// 只認 activities / admission 兩個 content section（其他 list 場景無透明 header 上方露出問題、無 blocker）。
+// 只認 activities / admission ＋ legal zebra 三種 content section（其他 list 場景無透明 header 上方露出問題、
+// 無 blocker）。legal（donate/regulations，2026-09-10）：zebra 多開 sticky title 上方同樣露出捲上來的展開內容
+// 與上一列 push-out 中的 header 尾巴，blocker 放在 .legal-content-col 內（見 donate.html 註解）。
 function toggleSectionPinnedFlag(header, on) {
-  const section = header.closest('#activities-content-section, #admission-content-section');
-  if (section) section.classList.toggle('list-has-pinned-header', on);
+  const section = header.closest('#activities-content-section, #admission-content-section, .legal-page-section');
+  if (!section) return;
+  // legal zebra 多列同開＝多個 pin-IO 回報同一 section：off 前先看還有沒有別列釘著（.is-pinned 在呼叫前
+  // 已同步更新），否則下方列的「未釘」回報會把上方釘住列剛設的旗標清掉＝blocker 時開時關。單開頁不受影響。
+  section.classList.toggle('list-has-pinned-header', on || !!section.querySelector('.list-header.is-pinned'));
 }
 
 // 收合單一 header（自關 + 「開新先關舊」共用）
@@ -714,6 +722,13 @@ function initListHeaderAccordion() {
           //   ＝section 頂（restore 會整段捲回頂）；且 cv:auto 下記任何「絕對捲動值」都會因上方 item
           //   估高→實高的版面位移變 stale（user 2026-09-10「關閉時卡片頂上去、沒跟年份對齊」）。
           /** @type {any} */ (self)._preOpenScroll = deepOpen ? null : (innerScroller ? innerScroller.scrollTop : window.scrollY);
+          // window path（手機/矮橫向）補記「記錄當下 bar 佔的 flow 高」：bar 在清單上方，顯隱切換＝下方內容
+          //   整段位移一個 searchInner 高 → 自關還原時若 bar 顯隱態與記錄時不同，落點差一個 bar 高
+          //   （user 2026-09-10「收起的時候應該要算上 search bar 的位置」）。自關側用差值補正（見 click 自關分支）。
+          /** @type {any} */ (self)._preOpenBar = innerScroller ? null : activeFilterBar;
+          /** @type {any} */ (self)._preOpenBarH = (!innerScroller && activeFilterBar && !activeFilterBar.classList.contains('bar-hidden'))
+            ? (/** @type {HTMLElement | null} */ (activeFilterBar.querySelector('.activities-search-inner'))?.offsetHeight || 0)
+            : 0;
           let openBoxTarget = null;  // 桌面：開合捲動目標，給 content 展開 onComplete 收齊對位（見下）用
 
           // Open - header / content 都保留 100% accent；ref 用對應 deep 色。**先上色**（兩段式 staged 捲動期間 header 已是
@@ -795,6 +810,20 @@ function initListHeaderAccordion() {
                   const maxNoSpacer = innerScroller.scrollHeight - sp.getBoundingClientRect().height - innerScroller.clientHeight;
                   sp.style.height = Math.max(0, Math.round(target - maxNoSpacer)) + 'px';
                   innerScroller.scrollTop = target;
+                } else if (!innerScroller && !self.closest('.legal-zebra')) {
+                  // window path（手機/矮橫向）收齊（2026-09-10 user 實機「上面的 list 露出國旗/一點灰 zebra」）：
+                  // cv:auto 估高→實高位移讓對齊落點差幾~幾十 px，沒貼到 pin 線 → sentinel 不判 pinned →
+                  // 手機 header blocker 不開、上一 item 尾巴露在 header 上方。展開完重量一次、差 >1px 短 tween
+                  // 補到 pin 線（鏡射上方 box 收齊；錨點同用 .list-item 盒 pin-safe）。
+                  // legal zebra 排除（user 2026-09-10「進場自動展開只要打開、不要捲」）：autoOpenZebra 的
+                  // skipOpenScroll 開啟沒對齊過，這裡收齊會反把頁面捲去對齊每列＝進場連捲兩次；且 legal
+                  // 無 data-lazy-list/cv:auto＝無估高漂移，手動開啟的對齊捲動本來就準、不需補。
+                  const anchor = workshopItem || self;
+                  const fresh = alignWithBottomSpacer(anchor, Math.max(0, Math.round(anchor.getBoundingClientRect().top + window.scrollY - getListStickyTop(self))));
+                  if (Math.abs(fresh - window.scrollY) > 1) {
+                    markAccordionBusy(800);   // 補差捲動不觸發方向式 bar 開合（activities-search busy gate）
+                    scrollWindowNoSnap(fresh, { duration: DUR.fast, ease: EASE.enterSoft });
+                  }
                 }
                 dispatchGalleryCheckWhenIdle(workshopItem);   // 九輪 Part 3：延到序列完＋DOM 乾淨才派發
                 listAnimating = false;  // 序列完成解鎖
@@ -852,8 +881,19 @@ function initListHeaderAccordion() {
         // 自關 item → unlockSnap 交回 mandatory。開新 item 走的是上面「close others → proceedOpen」路徑、不經這裡
         // （proceedOpen 會重新 lockSnapOff），故只有「使用者自己關掉」才在這裡解鎖。
         // 捲回打開前的位置（this._preOpenScroll，open branch 記）；極端邊界沒記到 → 退回 scrollFollow 防靠底跳。
-        const restoreTo = this._preOpenScroll;
-        delete this._preOpenScroll;
+        const selfAny = /** @type {any} */ (this);
+        let restoreTo = selfAny._preOpenScroll;
+        // window path bar flow 高差補正（見 proceedOpen _preOpenBarH 註解）：bar 現在的 flow 高 − 記錄時的 →
+        //   加進落點（bar 變矮＝內容整段上移＝同一內容點的 scrollY 變小）。顯隱態相同時差值 0＝不動。
+        const _bar = selfAny._preOpenBar;
+        if (restoreTo != null && _bar) {
+          const nowH = _bar.classList.contains('bar-hidden') ? 0
+            : (/** @type {HTMLElement | null} */ (_bar.querySelector('.activities-search-inner'))?.offsetHeight || 0);
+          restoreTo += nowH - (selfAny._preOpenBarH || 0);
+        }
+        delete selfAny._preOpenScroll;
+        delete selfAny._preOpenBar;
+        delete selfAny._preOpenBarH;
         closeListHeader(this, restoreTo != null ? { restoreScroll: restoreTo } : { scrollFollow: true })
           .then(() => { listAnimating = false; unlockSnap(); });
       }

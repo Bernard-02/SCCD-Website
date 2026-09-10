@@ -13,8 +13,9 @@ import { normalizeBodyHtml } from './activities-data-loader.js';  // 富文本�
 import { setupClipReveal, playClipReveal, playRevealExit, navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { registerPageExit } from '../ui/page-exit.js';
-import { initListAccordion, ACCENT_TO_DEEP } from '../accordions/list-accordion.js';  // zebra 手風琴（Regulations & Policy / Support 共用 admission 那套）
-import { revealRows, exitRows } from '../ui/list-row-reveal.js';  // zebra rows / sitemap 卡片進退場（CSS transition，同 activities）
+import { initListAccordion } from '../accordions/list-accordion.js';  // zebra 手風琴（Regulations & Policy / Support 共用 admission 那套）
+import { revealRows } from '../ui/list-row-reveal.js';  // title rows 進場（CSS transition，同 activities）
+import { playAdmissionPanelExit } from './admission-data-loader.js';  // 離頁退場整套沿用 activities（先收 accordion → zebra clip 收 + rows 滑出）
 import { loadUiLabels, applyUiLabels } from '../ui/ui-labels.js';  // sitemap 卡片名稱吃 ui_labels（後台改 nav 名稱如 Atlas→World 同步跟上）
 import { DUR, EASE } from '../ui/motion.js';
 import { sitePath } from '../ui/site-base.js';
@@ -68,35 +69,37 @@ function zebraSub(entry) {
 
 // 單一 zebra 手風琴列。idx 決定灰白 parity（連續跨區塊）。title col 是 header 第一子 → list-accordion
 // 開啟時對它 translateX（比照 admission）；右側只有 chevron toggle（無 share／國旗）。
-// 預設全開（user 2026-09-09f）：active 態直接烙 HTML string——accent 底＋deep var、chevron 朝上、content 展開
-//   （overflow: visible 帶空格＝legal.css sticky gate `[style*="overflow: visible"]` 命中；與 list-accordion
-//   proceedOpen 的 CSSOM 序列化一致）。initListAccordion 對 .active header 跳過強制收合；點擊照常可關/再開。
+// 出生「收合態」（user 2026-09-10）：無 .active、無 inline accent/height——initListAccordion 對非 active
+//   header 補 height:0+inert。進出場結構照 activities（user 2026-09-10「先渲染 zebra 再讓 title 出場」）＝
+//   兩層分拍：①item 自身 clip-path inset(100%) 藏 zebra 底（進場由下往上揭）②title/chevron 各包
+//   .legal-reveal 遮罩＋.list-reveal-row（translateY 110% 藏，revealRows 滑入）；.list-reveal-row class
+//   同時讓離頁退場直接吃 playAdmissionPanelExit（activities 同一套）。
 function zebraRow(entry, idx) {
   const zebra = idx % 2 === 0 ? ' list-item-zebra' : '';
-  const color = SCCDHelpers.getRandomAccentColor();
-  const deep = ACCENT_TO_DEEP[color] || color;
-  // 隱藏態同樣烙 HTML（出生自帶 translateY(110%)）→ mountZebra commit 後 revealRows 逐列揭
-  return `<div class="list-item${zebra}" style="transform: translateY(110%); background: ${color}; --item-color: ${color}; --item-color-deep: ${deep}">`
-    + `<div class="list-header active cursor-pointer group transition-colors duration-fast flex items-stretch justify-between gap-sm px-sm py-sm" data-accent-hex="${color}" style="background: ${color}">`
+  const row = (inner) => `<div class="legal-reveal"><div class="list-reveal-row" style="transform: translateY(110%)">${inner}</div></div>`;
+  return `<div class="list-item${zebra}" style="clip-path: inset(100% 0% 0% 0%)">`
+    + `<div class="list-header cursor-pointer group transition-colors duration-fast flex items-stretch justify-between gap-sm px-sm py-sm">`
     +   `<div class="legal-zebra-titlecol">`
-    +     `<h3 class="legal-zebra-title-en">${esc(entry.titleEn)}</h3>`
-    +     (entry.titleZh ? `<h3 class="legal-zebra-title-zh" lang="zh-Hant">${esc(entry.titleZh)}</h3>` : '')
-    +     zebraSub(entry)
+    +     row(
+            `<h3 class="legal-zebra-title-en">${esc(entry.titleEn)}</h3>`
+            + (entry.titleZh ? `<h3 class="legal-zebra-title-zh" lang="zh-Hant">${esc(entry.titleZh)}</h3>` : '')
+            + zebraSub(entry)
+          )
     +   `</div>`
     +   `<div class="legal-zebra-chevron flex items-center">`
-    +     `<button type="button" class="list-header-toggle flex-shrink-0 self-start" aria-expanded="true" aria-label="展開或收合詳情 Toggle details" style="overflow:clip;height:1.5em;width:1.5em;">`
-    +       `<span class="icon icon-chevron-list icon-s -rotate-90" style="transform: rotate(90deg)"></span>`
-    +     `</button>`
+    +     row(
+            `<button type="button" class="list-header-toggle flex-shrink-0 self-start" aria-expanded="false" aria-label="展開或收合詳情 Toggle details" style="overflow:clip;height:1.5em;width:1.5em;">`
+            + `<span class="icon icon-chevron-list icon-s -rotate-90"></span>`
+            + `</button>`
+          )
     +   `</div>`
     + `</div>`
-    + `<div class="list-content" style="height: auto; overflow: visible; background: ${color}"><div class="legal-zebra-card">${entry.bodyHtml}</div></div>`
+    + `<div class="list-content"><div class="legal-zebra-card">${entry.bodyHtml}</div></div>`
     + `</div>`;
 }
 
 function renderZebraRows(entries, startIdx = 0) {
-  // 每列包 .legal-reveal（overflow-y:clip 遮罩，同 setupClipReveal 慣例）→ translateY 被剪＝clip-reveal 位移感。
-  // ⚠️ clip（非 hidden）不產生 scroll container → 開啟後 .list-header.active sticky 照常釘 scroll box。
-  return entries.map((e, i) => `<div class="legal-reveal">${zebraRow(e, startIdx + i)}</div>`).join('');
+  return entries.map((e, i) => zebraRow(e, startIdx + i)).join('');
 }
 
 function mountZebra(contentEl, html) {
@@ -104,11 +107,58 @@ function mountZebra(contentEl, html) {
   contentEl.innerHTML = html;
   initListAccordion();
   requestAnimationFrame(() => setRegCatStickyTop(contentEl));
-  // 進退場（user 2026-09-09d：跟 activities 同款）＝list-row-reveal（CSS transition、compositor 接管）
-  const rows = Array.from(contentEl.querySelectorAll('.list-item'));
+  const items = Array.from(contentEl.querySelectorAll('.list-item'));
+  const rows = Array.from(contentEl.querySelectorAll('.list-reveal-row'));
   void contentEl.offsetHeight;  // 隱藏態 commit（painted）才會 transition 而非 snap
-  revealRows(rows, { stagger: 0.08 });
-  registerPageExit(() => exitRows(rows, { stagger: 0.05 }));
+  // 進場＝activities reveal-IO 那套（activities-data-loader revealIo body）：zebra 底 clip 由下往上揭
+  // （DUR.base ease-out、item 間 0.16s cascade、揭完 transitionend 清 inline→sticky/負 margin 不受 clip 影響）
+  // ＋ title rows 同拍 revealRows（DUR.reveal、stagger 0.12）＝底色先到位、title 隨後滑入。
+  if (!prefersReducedMotion()) {
+    items.forEach((it, i) => {
+      it.style.transition = `clip-path ${DUR.base}s ease-out ${(i * 0.16).toFixed(2)}s`;
+      it.style.clipPath = 'inset(0% 0% 0% 0%)';
+      const clr = (e) => {
+        if (e.target !== it || e.propertyName !== 'clip-path') return;
+        it.style.transition = ''; it.style.clipPath = '';
+        it.removeEventListener('transitionend', clr);
+      };
+      it.addEventListener('transitionend', clr);
+    });
+  } else {
+    items.forEach(it => { it.style.clipPath = ''; });
+  }
+  // 全部 title rows 揭完（onDone）才依序自動展開（user：list 完全 ready 再開，先第一個、再第二個）
+  revealRows(rows, { dur: DUR.reveal, stagger: 0.12, onDone: () => autoOpenZebra(items) });
+  // 離頁退場＝activities 同一套（admission-data-loader）：先收展開的 accordion → zebra 底 clip 收回 + rows 滑出
+  registerPageExit(() => playAdmissionPanelExit(contentEl));
+}
+
+// 依序自動展開 zebra 列：走 list-accordion 正常 click 路徑（上色/sticky observer/aria 全現成）。
+//   skipOpenScroll＝跳過 proceedOpen 的對齊捲動（進場不該捲頁）；點擊被 listAnimating 鎖吞掉
+//   （前一項還在展開/user 搶先點了別項）→ 短輪詢重試。legal-zebra 多開不互關 → 依序點開全部即「全開」。
+function autoOpenZebra(rows, firstDelay = 100) {
+  const headers = rows
+    .map(r => /** @type {HTMLElement|null} */ (r.querySelector('.list-header')))
+    .filter(Boolean);
+  let i = 0;
+  const tryOpen = () => {
+    if (i >= headers.length) return;
+    const h = /** @type {any} */ (headers[i]);
+    if (!h.isConnected) return;   // 已換頁 → 整串放棄
+    if (h.classList.contains('active') || h.dataset.opening) { i++; setTimeout(tryOpen, 300); return; }  // user 搶先開了
+    h.dataset.skipOpenScroll = '1';
+    h.click();
+    if (h.dataset.opening || h.classList.contains('active')) {
+      // _preOpenScroll（proceedOpen 同步記的進場頂位）保留：自關比照一般開關邏輯捲回「打開前位置」＝頁頂
+      //（user 2026-09-10「捲到 footer 點 title 關閉應回到頂部、不是留在 footer」；撤掉先前「原地收合」決策）
+      i++;
+      setTimeout(tryOpen, 300);
+    } else {
+      delete h.dataset.skipOpenScroll;   // 沒吃到 click（listAnimating 鎖中）→ 清旗標稍後重試
+      setTimeout(tryOpen, 150);
+    }
+  };
+  setTimeout(tryOpen, firstDelay);
 }
 
 // 規章卡類別欄 sticky offset ＝所屬 accordion header 高度（sticky header 釘捲動框 top:0，類別要釘它正下方）。
@@ -169,21 +219,27 @@ function regTableEntry(reg) {
       let uEn = item.unitEn, uZh = item.unitZh;
       if (!uEn && !uZh) { uEn = 'SCCD Office'; uZh = '系辦'; }  // 都預設 SCCD Office（後台 unit 欄填了才覆蓋）
       const nameInner = regSpans(item.titleEn, item.titleZh);
-      const name = item.url   // 後台有規章文件 URL → 規章名當連結（外開；hover 走下方 ref 深色規則）
-        ? `<a class="legal-reg-name legal-reg-link" href="${esc(item.url)}" target="_blank" rel="noopener">${nameInner}</a>`
-        : `<div class="legal-reg-name">${nameInner}</div>`;
+      // 後台有規章文件 URL → 名稱＋承辦單位兩欄都是連結（外開；hover 走下方 ref 深色規則）
+      const cell = (cls, inner) => item.url
+        ? `<a class="${cls} legal-reg-link" href="${esc(item.url)}" target="_blank" rel="noopener">${inner}</a>`
+        : `<div class="${cls}">${inner}</div>`;
       // .legal-reg-item = display:contents hover 單元（讓第二/三欄一起變色、類別欄不變）
-      return `<div class="legal-reg-item">${name}<div class="legal-reg-unit">${regSpans(uEn, uZh)}</div></div>`;
+      return `<div class="legal-reg-item">${cell('legal-reg-name', nameInner)}${cell('legal-reg-unit', regSpans(uEn, uZh))}</div>`;
     }).join('');
     return `<div class="legal-reg-group" style="--reg-rows:${items.length || 1}">`
       + `<div class="legal-reg-cat">${regSpans(cat.titleEn, cat.titleZh)}</div>`
       + rows + `</div>`;
   }).join('');
+  // 表格上方說明段（user 2026-09-10）：黑字直接坐在展開 accent 底上（同 ref 上方段落的定位）。
+  // 後台 overview 欄有填就用後台的；空（現況）→ 前台預設文案。
+  const ovEn = reg.overviewEn || 'Regulations and guidelines governing academic affairs and departmental administration. Click an item to view the full document.';
+  const ovZh = reg.overviewZh || '以下彙整學系與校方相關規章辦法，點擊項目可查看完整文件。';
   return {
     titleEn: reg.titleEn || 'Department Regulations',
     titleZh: reg.titleZh || '學系規章',
     subtitleEn: reg.lastUpdatedEn, subtitleZh: reg.lastUpdatedZh,  // req7：最後更新寫在副標
-    bodyHtml: `<div class="legal-reg-table">${groups}</div>`,
+    bodyHtml: `<div class="legal-zebra-overview"><p>${esc(ovEn)}</p><p lang="zh-Hant">${esc(ovZh)}</p></div>`
+      + `<div class="legal-reg-table">${groups}</div>`,
   };
 }
 
@@ -203,37 +259,43 @@ const MAP_HIDE_CLIP = {
   top: 'inset(100% 0% 0% 0%)', bottom: 'inset(0% 0% 100% 0%)',
   left: 'inset(0% 0% 0% 100%)', right: 'inset(0% 100% 0% 0%)',
 };
-function mapCardHtml(item, num, depth) {
+function mapCardHtml(item, num) {
   const rot = pickCardRot();
   const dir = pickNavDir();   // 無 el＝純 4 方向隨機（同 curriculum 卡片 pickCardDir：要多樣性）
   // 進場＝curriculum 卡同款（user 2026-09-10）：卡片「自身」clip-path＋translate 同步（navChipHidden，
   //   遮罩在旋轉後 local box 上跟著轉→旋轉角不被裁、也不需外層 .legal-reveal 遮罩＝不再「被切到再還原」；
   //   translate 用獨立屬性、與 inline rotate 共存）。出生先烙單邊 100% clip 全藏，reveal 前才量尺寸補 translate。
-  // 卡內兩欄：左＝編號（1. / 1-1. / 1-1-1.）｜右＝英中標題直排；子分頁依深度縮排。
+  // 卡內兩欄：左＝編號（1. / 1-1. / 1-1-1.）｜右＝英中標題直排；全部靠左對齊（user 2026-09-10 撤深度縮排）。
   // 名稱吃 ui_labels（labelKey 對應 row.key；json 文字＝最終 fallback），loadSitemap 渲染後 applyUiLabels 填入。
-  const indent = depth ? ` margin-left: ${depth * 24}px;` : '';
-  const keyEn = item.labelKey ? ` data-label-key="${esc(item.labelKey)}"` : '';
-  const keyZh = item.labelKey ? ` data-label-key="${esc(item.labelKey)}" data-label-part="zh"` : '';
+  // prefixKey（faculty 子項）＝前綴另一個 ui_labels key（如 faculty.dept.sccd「DCD」）：前綴與名稱各自
+  // 獨立 key span，applyUiLabels 逐 span 換字＝後台改任一邊都跟上、不 hardcode 組合字串。
+  const seg = (key, part, text) => key
+    ? `<span data-label-key="${esc(key)}" data-label-part="${part}">${esc(text)}</span>`
+    : esc(text);
+  const enInner = (item.prefixKey ? seg(item.prefixKey, 'en', item.prefixEn || '') + ' ' : '')
+    + seg(item.labelKey, 'en', item.labelEn);
+  const zhInner = (item.prefixKey ? seg(item.prefixKey, 'zh', item.prefixZh || '') + ' ' : '')
+    + seg(item.labelKey, 'zh', item.labelZh);
   return `<a class="courses-grid-card legal-map-card" href="${esc(item.url)}" data-base-rot="${rot}" data-reveal-dir="${dir}"`
-    + ` style="transform: rotate(${rot}deg); clip-path: ${MAP_HIDE_CLIP[dir]};${indent}">`
+    + ` style="transform: rotate(${rot}deg); clip-path: ${MAP_HIDE_CLIP[dir]};">`
     +   `<span class="legal-map-num">${num}.</span>`
     +   `<span class="legal-map-txt">`
-    +     `<span class="courses-grid-card-en"${keyEn}>${esc(item.labelEn)}</span>`
-    +     (item.labelZh ? `<span class="courses-grid-card-zh" lang="zh-Hant"${keyZh}>${esc(item.labelZh)}</span>` : '')
+    +     `<span class="courses-grid-card-en">${enInner}</span>`
+    +     (item.labelZh ? `<span class="courses-grid-card-zh" lang="zh-Hant">${zhInner}</span>` : '')
     +   `</span>`
     + `</a>`;
 }
 // 同一主頁自成一組（.legal-map-pgroup：主卡+其分頁卡直排一起，組間才有大距）；編號遞迴支援任意深度（1-1-1…）
 function mapGroupHtml(pg, n) {
-  let html = mapCardHtml(pg, String(n), 0);
-  const walk = (subs, prefix, depth) => {
+  let html = mapCardHtml(pg, String(n));
+  const walk = (subs, prefix) => {
     (subs || []).forEach((s, i) => {
       const num = `${prefix}-${i + 1}`;
-      html += mapCardHtml(s, num, depth);
-      walk(s.subs, num, depth + 1);
+      html += mapCardHtml(s, num);
+      walk(s.subs, num);
     });
   };
-  walk(pg.subs, String(n), 1);
+  walk(pg.subs, String(n));
   return `<div class="legal-map-pgroup">${html}</div>`;
 }
 function bindMapCardHover(root) {

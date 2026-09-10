@@ -4,57 +4,228 @@
   "mapIntroEn": "The site map lists every main page of the SCCD website together with its sub-sections. Selecting a sub-section opens that page directly on the chosen view.",
   "mapIntroZh": "本網站導覽列出媒傳系網站的每個主要頁面及其分頁，點選分頁即可直接開啟該頁面的對應內容。",
   "pages": [
-    { "labelEn": "Home", "labelZh": "首頁", "url": "../index.html", "subs": [] },
-    { "labelEn": "About", "labelZh": "關於", "labelKey": "nav.about", "url": "about.html", "subs": [] },
     {
-      "labelEn": "Faculty", "labelZh": "師資", "labelKey": "nav.faculty", "url": "faculty.html",
+      "labelEn": "Home",
+      "labelZh": "首頁",
+      "url": "../index.html",
+      "subs": []
+    },
+    {
+      "labelEn": "About",
+      "labelZh": "關於",
+      "labelKey": "nav.about",
+      "url": "about.html",
+      "subs": []
+    },
+    {
+      "labelEn": "Faculty",
+      "labelZh": "師資",
+      "labelKey": "nav.faculty",
+      "url": "faculty.html",
       "subs": [
-        { "labelEn": "Full-time Professors", "labelZh": "專任教師", "labelKey": "faculty.fulltime", "url": "faculty.html?section=fulltime" },
-        { "labelEn": "Part-time Professors", "labelZh": "兼任教師", "labelKey": "faculty.parttime", "url": "faculty.html?section=parttime" },
-        { "labelEn": "Administrators", "labelZh": "行政管理", "labelKey": "faculty.admin", "url": "faculty.html?section=admin" }
+        {
+          "labelEn": "Full-time Professors",
+          "labelZh": "專任教師",
+          "labelKey": "faculty.fulltime",
+          "url": "faculty.html?section=fulltime",
+          "prefixKey": "faculty.dept.sccd",
+          "prefixEn": "DCD",
+          "prefixZh": "媒體傳達設計學系"
+        },
+        {
+          "labelEn": "Part-time Professors",
+          "labelZh": "兼任教師",
+          "labelKey": "faculty.parttime",
+          "url": "faculty.html?section=parttime",
+          "prefixKey": "faculty.dept.sccd",
+          "prefixEn": "DCD",
+          "prefixZh": "媒體傳達設計學系"
+        },
+        {
+          "labelEn": "Administrators",
+          "labelZh": "行政管理",
+          "labelKey": "faculty.admin",
+          "url": "faculty.html?section=admin",
+          "prefixKey": "faculty.dept.sccd",
+          "prefixEn": "DCD",
+          "prefixZh": "媒體傳達設計學系"
+        },
+        {
+          "labelEn": "Founder",
+          "labelZh": "創辦人",
+          "labelKey": "faculty.founder",
+          "prefixKey": "faculty.dept.sccd",
+          "prefixEn": "DCD",
+          "prefixZh": "媒體傳達設計學系",
+          "url": "faculty.html?section=founder"
+        }
       ]
     },
     {
-      "labelEn": "Curriculum", "labelZh": "課程", "labelKey": "nav.curriculum", "url": "curriculum.html",
+      "labelEn": "Curriculum",
+      "labelZh": "課程",
+      "labelKey": "nav.curriculum",
+      "url": "curriculum.html",
       "subs": [
-        { "labelEn": "Division of Animation & Moving Image", "labelZh": "動畫影像設計組", "labelKey": "curriculum.program.animation", "url": "curriculum.html?program=bfa-animation" },
-        { "labelEn": "Division of Creative Media Design", "labelZh": "創意媒體設計組", "labelKey": "curriculum.program.creative-media", "url": "curriculum.html?program=bfa-cmd" },
-        { "labelEn": "Master of Design (MDES)", "labelZh": "碩士班", "labelKey": "curriculum.program.mdes", "url": "curriculum.html?program=mdes" }
+        {
+          "labelEn": "Division of Animation & Moving Image",
+          "labelZh": "動畫影像設計組",
+          "labelKey": "curriculum.program.animation",
+          "url": "curriculum.html?program=bfa-animation"
+        },
+        {
+          "labelEn": "Division of Creative Media Design",
+          "labelZh": "創意媒體設計組",
+          "labelKey": "curriculum.program.creative-media",
+          "url": "curriculum.html?program=bfa-cmd"
+        },
+        {
+          "labelEn": "Master of Design (MDES)",
+          "labelZh": "碩士班",
+          "labelKey": "curriculum.program.mdes",
+          "url": "curriculum.html?program=mdes"
+        }
       ]
     },
     {
-      "labelEn": "Activities", "labelZh": "動態", "labelKey": "nav.activities", "url": "activities.html",
+      "labelEn": "Activities",
+      "labelZh": "動態",
+      "labelKey": "nav.activities",
+      "url": "activities.html",
       "subs": [
-        { "labelEn": "Exhibitions", "labelZh": "展演", "labelKey": "act.exhibitions", "url": "activities.html?section=exhibitions" },
-        { "labelEn": "Workshops", "labelZh": "工作營", "labelKey": "act.workshop", "url": "activities.html?section=workshop" },
-        { "labelEn": "Degree Shows", "labelZh": "畢業展", "labelKey": "act.degree-show", "url": "activities.html?section=degree-show" },
-        { "labelEn": "Lectures", "labelZh": "講座", "labelKey": "act.lectures", "url": "activities.html?section=lectures" },
-        { "labelEn": "Visits", "labelZh": "參訪", "labelKey": "act.visits", "url": "activities.html?section=visits" },
-        { "labelEn": "Competitions", "labelZh": "競賽", "labelKey": "act.competitions", "url": "activities.html?section=competitions" },
-        { "labelEn": "Forums", "labelZh": "論壇", "labelKey": "act.conferences", "url": "activities.html?section=conferences" },
-        { "labelEn": "Students Present", "labelZh": "學生自主", "labelKey": "act.students-present", "url": "activities.html?section=students-present" },
-        { "labelEn": "Industry Partnerships", "labelZh": "產學合作", "labelKey": "act.industry", "url": "activities.html?section=industry" }
+        {
+          "labelEn": "Exhibitions",
+          "labelZh": "展演",
+          "labelKey": "act.exhibitions",
+          "url": "activities.html?section=exhibitions"
+        },
+        {
+          "labelEn": "Workshops",
+          "labelZh": "工作營",
+          "labelKey": "act.workshop",
+          "url": "activities.html?section=workshop"
+        },
+        {
+          "labelEn": "Degree Shows",
+          "labelZh": "畢業展",
+          "labelKey": "act.degree-show",
+          "url": "activities.html?section=degree-show"
+        },
+        {
+          "labelEn": "Lectures",
+          "labelZh": "講座",
+          "labelKey": "act.lectures",
+          "url": "activities.html?section=lectures"
+        },
+        {
+          "labelEn": "Visits",
+          "labelZh": "參訪",
+          "labelKey": "act.visits",
+          "url": "activities.html?section=visits"
+        },
+        {
+          "labelEn": "Competitions",
+          "labelZh": "競賽",
+          "labelKey": "act.competitions",
+          "url": "activities.html?section=competitions"
+        },
+        {
+          "labelEn": "Forums",
+          "labelZh": "論壇",
+          "labelKey": "act.conferences",
+          "url": "activities.html?section=conferences"
+        },
+        {
+          "labelEn": "Students Present",
+          "labelZh": "學生自主",
+          "labelKey": "act.students-present",
+          "url": "activities.html?section=students-present"
+        },
+        {
+          "labelEn": "Industry Partnerships",
+          "labelZh": "產學合作",
+          "labelKey": "act.industry",
+          "url": "activities.html?section=industry"
+        }
       ]
     },
     {
-      "labelEn": "Admissions", "labelZh": "入學", "labelKey": "nav.admission", "url": "admission.html",
+      "labelEn": "Admissions",
+      "labelZh": "入學",
+      "labelKey": "nav.admission",
+      "url": "admission.html",
       "subs": [
-        { "labelEn": "Announcements", "labelZh": "公告", "labelKey": "adm.news", "url": "admission.html?section=news" },
-        { "labelEn": "Camps", "labelZh": "體驗營", "labelKey": "adm.summer-camp", "url": "admission.html?section=summer-camp" }
+        {
+          "labelEn": "Announcements",
+          "labelZh": "公告",
+          "labelKey": "adm.news",
+          "url": "admission.html?section=news"
+        },
+        {
+          "labelEn": "Camps",
+          "labelZh": "體驗營",
+          "labelKey": "adm.summer-camp",
+          "url": "admission.html?section=summer-camp"
+        }
       ]
     },
     {
-      "labelEn": "Library", "labelZh": "檔案室", "labelKey": "nav.library", "url": "library.html",
+      "labelEn": "Library",
+      "labelZh": "檔案室",
+      "labelKey": "nav.library",
+      "url": "library.html",
       "subs": [
-        { "labelEn": "Awards", "labelZh": "榮譽", "labelKey": "lib.awards", "url": "library.html#awards" },
-        { "labelEn": "Press", "labelZh": "報導", "labelKey": "lib.press", "url": "library.html#press" },
-        { "labelEn": "Documents", "labelZh": "文件", "labelKey": "lib.files", "url": "library.html#files" },
-        { "labelEn": "Albums", "labelZh": "相簿", "labelKey": "lib.album", "url": "library.html#album" }
+        {
+          "labelEn": "Awards",
+          "labelZh": "榮譽",
+          "labelKey": "lib.awards",
+          "url": "library.html#awards"
+        },
+        {
+          "labelEn": "Press",
+          "labelZh": "報導",
+          "labelKey": "lib.press",
+          "url": "library.html#press"
+        },
+        {
+          "labelEn": "Documents",
+          "labelZh": "文件",
+          "labelKey": "lib.files",
+          "url": "library.html#files"
+        },
+        {
+          "labelEn": "Albums",
+          "labelZh": "相簿",
+          "labelKey": "lib.album",
+          "url": "library.html#album"
+        }
       ]
     },
-    { "labelEn": "Atlas", "labelZh": "圖譜", "labelKey": "nav.atlas", "url": "atlas.html", "subs": [] },
-    { "labelEn": "CREATE!", "labelZh": "創造！", "labelKey": "nav.create", "url": "create.html", "subs": [] },
-    { "labelEn": "Donate", "labelZh": "捐贈", "url": "donate.html", "subs": [] },
-    { "labelEn": "Regulations & Policy", "labelZh": "規章與政策", "url": "regulations.html", "subs": [] }
+    {
+      "labelEn": "Atlas",
+      "labelZh": "圖譜",
+      "labelKey": "nav.atlas",
+      "url": "atlas.html",
+      "subs": []
+    },
+    {
+      "labelEn": "CREATE!",
+      "labelZh": "創造！",
+      "labelKey": "nav.create",
+      "url": "create.html",
+      "subs": []
+    },
+    {
+      "labelEn": "Donate",
+      "labelZh": "捐贈",
+      "url": "donate.html",
+      "subs": []
+    },
+    {
+      "labelEn": "Regulations & Policy",
+      "labelZh": "規章與政策",
+      "url": "regulations.html",
+      "subs": []
+    }
   ]
 }

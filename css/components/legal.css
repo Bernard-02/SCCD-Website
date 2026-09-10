@@ -419,6 +419,13 @@
      交錯分列、不需 divider → 直接歸零。 */
   .legal-zebra .list-item { padding-bottom: 0; }
 
+  /* 真機 fractional DPR（Windows 125%/150% 縮放）下 header↔content 交界 1px 渲染縫：兩層同色 accent 在縫上
+     被 AA 混色、綠底互補偏紅褐＝user 2026-09-10 報「紅線」（headless DPR1/1.25 重現不出＝同 history 年份 sticky
+     縫家族）。lists.css 全站已有 `.list-header.active + .list-content{margin-top:-1px}`（0,2,1）但 user 機器
+     仍漏 → legal 加深 tuck 到 −2px（同色相疊不顯；同 curriculum/era 的 −2px 慣例）。selector 帶 .legal-zebra
+     提特異度（0,3,1）壓過全站 −1px。 */
+  .legal-zebra .list-header.active + .list-content { margin-top: -2px; }
+
   /* hover-dim（user 2026-09-09f）：hover 某列 → 其他列半透明凸顯當前列（值同 activities/admission 0.25）。
      legal 預設全開＋獨立開合（list-accordion .legal-zebra gate）：不走 JS 拔 accent 那套（多 active 會誤拔），
      純 CSS opacity。桌面 only（手機無 hover）。 */
@@ -498,10 +505,21 @@
      同類別只顯示一次＋sticky（比照 faculty 卡片）：每個 .legal-reg-group 一類，類別欄 grid-row 跨整組、
      sticky 釘在 accordion sticky header 正下方（top=--legal-reg-cat-top，值由 loader 量 header 高寫入）。
      欄寬（user 2026-09-09c）：規章名（col2）最寬、承辦單位（col3）最窄。 */
-  .legal-reg-table { display: flex; flex-direction: column; gap: var(--spacing-lg); }
+  /* user 2026-09-10：分組間無空格＋第一欄（類別）也進 deep 範圍＝整張表一塊 deep 底（含欄縫）。
+     比照 ref 做法（.list-ref-btn 整條無外圍 padding、行自帶 padding、貼齊 content 邊）：
+     表自身零直向 padding（首末行的 cell padding 8px 就是內部呼吸，hover 黑帶直接頂到表緣、不露 deep 條）；
+     負 margin 左右吃掉 .legal-zebra-card 的 --spacing-sm、底部吃掉 --spacing-lg → 深色塊貼齊卡底、不露卡色。 */
+  .legal-reg-table {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    background: var(--item-color-deep, transparent);
+    margin: 0 calc(-1 * var(--spacing-sm)) calc(-1 * var(--spacing-lg));
+    padding: 0 var(--spacing-sm);
+  }
   .legal-reg-group {
     display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) minmax(0, 1fr);   /* user 2026-09-09d：類別 2 ｜ 規章名 3 ｜ 承辦單位 1 */
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) minmax(0, 1fr);   /* user 2026-09-10 二修：1:4:1 類別被縮太多→回 2:3:1（類別 2 ｜ 規章名 3 ｜ 承辦單位 1） */
     grid-template-rows: repeat(var(--reg-rows, 1), auto);
     column-gap: var(--spacing-md);
     row-gap: 0;   /* ref 式排列（user 2026-09-09f）：列間無 gap、間距改由 cell 上下 padding 提供 → hover 色帶與鄰列相接 */
@@ -541,45 +559,72 @@
   .legal-reg-unit span:not(:last-child) { margin-bottom: var(--space-en-zh-s); }
   /* 規章名連結：與非連結名同樣式（繼承色/字重、無底線）→ 欄位一致；互動感由下方 hover ref box 提供。
      雙 class 提特異度蓋過 .legal-zebra-card a 的 bold(0,1,1)。 */
-  .legal-reg-name.legal-reg-link { color: inherit; font-weight: inherit; text-decoration: none; cursor: pointer; }
-  .legal-reg-name.legal-reg-link:hover { text-decoration: none; }
-  /* hover 一列 → 第二／三欄整格變 ref「deep」色 box（--item-color-deep＝該 accordion accent 的深色，
-     同 .list-ref-btn rest 態：deep 底＋黑字；user 2026-09-09e：非黑色）。類別欄不變。
-     ref 式排列（09-09f）：列間 row-gap 0、垂直間距全由 cell 上下 padding 8px 提供（進 hover 色帶＝鄰列相接無縫）；
+  .legal-reg-name.legal-reg-link,
+  .legal-reg-unit.legal-reg-link { color: inherit; font-weight: inherit; text-decoration: none; cursor: var(--cursor-pointer); }
+  .legal-reg-name.legal-reg-link:hover,
+  .legal-reg-unit.legal-reg-link:hover { text-decoration: none; }
+  /* 列＝完整 ref 設計（user 2026-09-10，取代 09-09e「hover 才 deep 色帶」）：
+     rest＝deep 底黑字（同 .list-ref-btn rest：--item-color-deep＝該 accordion accent 的深色）、
+     hover＝黑底白字（同 .list-ref-btn hover）。類別欄不變（展開 accent 底）。
+     ref 式排列（09-09f）：列間 row-gap 0、垂直間距全由 cell 上下 padding 8px 提供（進色帶＝鄰列相接無縫）；
      水平仍用負 margin 抵銷（box 往 column-gap 溢出、track 佈局不變）。 */
   .legal-reg-name,
   .legal-reg-unit {
     padding: 8px;
     margin: 0 -8px;
+    background: var(--item-color-deep, transparent);
+    color: black;
     transition: background var(--dur-micro) ease, color var(--dur-micro) ease;
   }
-  /* 第二欄 box 右緣延伸吃掉整個 column-gap 與第三欄 box 相接＝hover 一條連續色帶（user 2026-09-09e「整條過去」）：
+  /* 第二欄 box 右緣延伸吃掉整個 column-gap 與第三欄 box 相接＝一條連續色帶（user 2026-09-09e「整條過去」）：
      name 右伸 gap−8（unit 左已伸 8）→ 24px gap 剛好補滿；負 margin 同值抵銷、track 佈局不變。 */
   .legal-reg-name {
     padding-right: calc(var(--spacing-md) - 8px);
     margin-right: calc(8px - var(--spacing-md));
   }
+  /* 第三欄 box 右緣延伸到卡片右緣（user 2026-09-10「頂到最右邊」）：吃掉 .legal-zebra-card 右 padding(--spacing-sm) */
+  .legal-reg-unit {
+    padding-right: var(--spacing-sm);
+    margin-right: calc(-1 * var(--spacing-sm));
+  }
   @media (hover: hover) and (min-width: 768px) {
+    /* !important：蓋過 mode2 `.list-header[style*=background] + .list-content *{color:black!important}` 級的強制字色 */
     .legal-reg-item:hover .legal-reg-name,
     .legal-reg-item:hover .legal-reg-unit {
-      background: var(--item-color-deep, transparent);
-      color: black;   /* deep accent 底一律黑字（同 .list-ref-btn rest；inverse 白字在 deep 底上對比不足） */
+      background: black !important;
+      color: white !important;
+    }
+    .legal-reg-item:hover .legal-reg-name span,
+    .legal-reg-item:hover .legal-reg-unit span {
+      color: white !important;
     }
   }
   @media (max-width: 767px) {
-    /* 手機窄：類別當整列小標、規章名／承辦單位並排兩欄；不 sticky */
+    /* 手機窄：類別當整列小標、規章名／承辦單位並排兩欄；不 sticky。
+       ref 色帶手機也上（user 2026-09-10「regulation 這邊都要做 ref 的 layout」，撤掉先前「手機拔色帶」）：
+       整張表 deep 底＋rest deep 底黑字全走上方 base 規則；這裡只調幾何——
+       row-gap 0 同桌面 ref 排列（間距由 cell 上下 padding 8px 提供、文字節奏 16px ≈ 原 row-gap 值不變）。 */
     .legal-reg-group {
       grid-template-columns: minmax(0, 1fr) minmax(0, 0.7fr);
       grid-template-rows: none;
       column-gap: var(--spacing-sm);
-      row-gap: var(--spacing-sm);
+      row-gap: 0;
     }
-    .legal-reg-cat { grid-column: 1 / -1; grid-row: auto; position: static; }
-    .legal-reg-name { grid-column: 1; }
+    /* 類別直排成整列（桌面是側欄只需 padding-top 對齊首列）→ 自帶上下 8px 與鄰列 box 拉開 */
+    .legal-reg-cat { grid-column: 1 / -1; grid-row: auto; position: static; padding: 8px 0; }
+    /* name 右伸改補「手機的」column-gap(sm)：16 = name 右伸 8 + unit 左伸 8（桌面那組是照 md 24 算的） */
+    .legal-reg-name { grid-column: 1; padding-right: 8px; margin-right: -8px; }
     .legal-reg-unit { grid-column: 2; }
-    /* 手機無 hover box → 去掉 box padding/負 margin（避免負 margin 溢到卡片邊） */
-    .legal-reg-name,
-    .legal-reg-unit { padding: 0; margin: 0; }
+  }
+
+  /* 手機 header blocker 左右外擴（user 2026-09-10「往上滑左右有縫隙」）：blocker 放 .legal-content-col 內
+     （margin-collapse 因素，見 donate.html）＝container 寬非滿版；真機 fractional DPR 合成下，捲動中的
+     展開 accent 層會在 blocker 左右緣漏出細直線（同 activities filter bar／nav col 前例，headless 整數
+     DPR 測不到）→ box-shadow 左右各外擴一個 container padding 蓋到 viewport 緣（鏡像 lists.css:880 做法）。 */
+  @media (max-width: 767px) {
+    .legal-content-col > .list-mobile-header-blocker {
+      box-shadow: calc(var(--container-padding) * -1) 0 var(--theme-bg), var(--container-padding) 0 var(--theme-bg);
+    }
   }
 
   /* ── 網站導覽（user 2026-09-09d 改版）：聲明＝粗體純文字；地圖＝curriculum 卡片 2 欄 ── */
