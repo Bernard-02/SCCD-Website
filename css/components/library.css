@@ -39,7 +39,10 @@
   font-size: var(--font-size-xl);
   font-weight: 700;
   color: inherit;
-  line-height: 1.2;
+  /* §43（user 2026-09-09「box 比文字高、位移較多」）：1.2→1.05 貼字——實測 32px 字墨水高 31px（asc28+desc3），
+     1.2 的窗 38.4px＝上下 7.4px 死空間、marquee 進出場 translate ±100% 跟著多跑 24%。1.05＝33.6px 窗、留 2.6px 不裁字。
+     ⚠️與 library-card.js PROBE_CSS 的 line-height 同步（旋轉邊 lineH 厚度補償由 probe 量）。 */
+  line-height: 1.05;
 }
 
 @keyframes color-rect-marquee {
@@ -193,6 +196,11 @@
   /* 必須高於 album thumb 的 z-index（1/2/3），thumb 飄出 row 時才會被 header bg 蓋住，
      視覺上跟 row bg 一起在同一條線被切 */
   z-index: 5;
+}
+/* §45 進場改 marquee 式（label 當窗、span translate 滑入，library-panels.js hideYearLabel）：
+   span 是 inline 吃不到 translate → display:block（獨生子、佔滿一行，版面不變） */
+.year-label-text {
+  display: block;
 }
 
 /* ── Press list item ─────────────────────────────────────────── */
