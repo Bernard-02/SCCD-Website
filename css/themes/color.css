@@ -240,6 +240,10 @@ body.mode-color #program-structure .prog-box {
 body.mode-color #program-structure .prog-acronym {
   background: var(--theme-fg) !important;
 }
+/* 父層帶底（頂 chip 一整體無縫，同 components 註解）：mode3 也跟 theme-fg 走 */
+body.mode-color #program-structure .prog-titled {
+  background: var(--theme-fg) !important;
+}
 body.mode-color #program-structure .prog-acronym-mark {
   background-color: var(--theme-fg-inverse) !important;
 }
@@ -295,6 +299,14 @@ body.mode-color .timeline-card-inner.bg-black * {
 /* about history list view era 標頭：bg 由 JS renderListEra 設三原色 inline → mode3 去色改 strict B/W，
    同主卡（theme-fg 底、text 已由上方 .timeline-card-inner * 翻 fg-inverse）。桌機 + 手機通用。 */
 body.mode-color .tl-list-era-head {
+  background-color: var(--theme-fg) !important;
+}
+
+/* about history 手機兩層 sticky 頭（era 標籤 / 年份）：釘頂需不透明底遮下方捲過的內文。
+   mode1/2 走 var(--tl-card-bg)（JS 設的卡片色）；mode3 卡片翻 strict B/W(theme-fg)，sticky 頭同步覆蓋才不露 accent。
+   桌機通用（那裡 era/年份各自成欄不遮，theme-fg 底＝同卡色，隱形無害）。 */
+body.mode-color .tl-era-label,
+body.mode-color .tl-list-year {
   background-color: var(--theme-fg) !important;
 }
 
@@ -569,6 +581,18 @@ body.mode-color .list-header[style*="background"] + .list-content .list-ref-btn:
 
 body.mode-color .list-header[style*="background"] + .list-content .list-ref-btn:hover * {
   color: var(--theme-fg) !important;
+}
+
+/* legal 規章表 hover 色帶（.legal-reg-item:hover → name/unit 變 --item-color-deep）＝ref 同族：
+ * mode3 禁 accent，且卡片容器（active list-content）bg 已被上方規則翻成 theme-fg →
+ * 色帶改 inverse neutral-gray + fg-inverse 字（鏡像上方「active list-content 內 ref」rest 規則）。
+ * 只桌面（base 規則同 gate；手機無 hover）。 */
+@media (hover: hover) and (min-width: 768px) {
+  body.mode-color .legal-reg-item:hover .legal-reg-name,
+  body.mode-color .legal-reg-item:hover .legal-reg-unit {
+    background: var(--theme-neutral-gray-inverse) !important;
+    color: var(--theme-fg-inverse) !important;
+  }
 }
 
 /* ===== Courses Slide-in：mode-color 跟 hue 持續變色（非 strict B/W）=====
@@ -908,6 +932,16 @@ body.mode-color #atlas-detail {
   background-color: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
 }
+/* 黑頭區（兩區設計 2026-09-09）：與卡身（theme-fg 底）對翻＝fg-inverse 底＋fg 字，維持頭/身對比 */
+body.mode-color #atlas-detail .atlas-detail-head {
+  background-color: var(--theme-fg-inverse) !important;
+  color: var(--theme-fg) !important;
+}
+/* 底部類型帶（partner）：inline deep accent → 比照 .list-ref-btn mode3 走 neutral-gray（跟 page hue 同側） */
+body.mode-color #atlas-detail .atlas-detail-foot {
+  background-color: var(--theme-neutral-gray) !important;
+  color: var(--theme-fg) !important;
+}
 
 /* Career rotating chip（map + list 共用）mode3＝alumni chip 的「相反色」：bg var(--theme-fg-inverse)＋字 var(--theme-fg)
  * （alumni 主標 chip 是 theme-fg 底 → career 用 fg-inverse 底＝黑白對翻、一眼分主次）。
@@ -1013,6 +1047,15 @@ body.mode-color .homepage-marquee-clone {
 body.mode-color .hm-banner-num[style*="background"] {
   background: var(--theme-fg-inverse) !important;
   color: var(--theme-fg) !important;
+}
+
+/* watch-hover 遮蔽 overlay（hover WATCH 卡時蓋住 news bar 的抽象色塊）：inline 是 accent rgb / #000，
+ * mode3 不出現 rgb → 跟被蓋的元素同色（square=fg-inverse、bar=fg），維持「蓋回自己」的藏字設計 */
+body.mode-color .hm-banner-num-mask {
+  background: var(--theme-fg-inverse) !important;
+}
+body.mode-color .hm-banner-link-mask {
+  background: var(--theme-fg) !important;
 }
 
 /* ===== Header bars mode-color spec =====

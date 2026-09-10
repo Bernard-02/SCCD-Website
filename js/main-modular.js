@@ -6,6 +6,7 @@
 // Import Layout Modules
 import { initHeader } from './header.js';
 import { initFooter } from './footer.js';
+import { initFavicon } from './modules/ui/site-favicon.js';
 import { initThemeToggle, applyModeForPage, updateToggleBtnVisualState } from './modules/ui/theme-toggle.js';
 import { initRouter } from './router.js';
 
@@ -80,7 +81,7 @@ import { initAlumni } from './modules/pages/alumni.js';
 // Import Data Loaders
 import { loadFacultyData } from './modules/pages/faculty-data-loader.js';
 import { loadAdmissionData } from './modules/pages/admission-data-loader.js';
-import { loadLegalData, loadPolicyAndStatements } from './modules/pages/legal-data-loader.js';
+import { loadRegAndPolicy, loadSupport, loadSitemap, loadPolicyAndStatements } from './modules/pages/legal-data-loader.js';
 import { initLegalTitleRandom } from './modules/pages/legal-title-random.js';
 import { loadDegreeShowDetail } from './modules/pages/degree-show-data-loader.js';
 import { init404, cleanup404 } from './modules/pages/error-404.js';
@@ -306,8 +307,10 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
 
   // --- Faculty Pages ---
   if (page === 'faculty') {
+    // deep-link：site map 的 ?section=fulltime/parttime/admin 從 SPA 點擊（fromUserNav）落在該分類 active
+    const facultySection = fromUserNav ? searchParams.get('section') : null;
     loadFacultyData().then(() => {
-      initFacultyFilter();
+      initFacultyFilter(facultySection);
       initFacultySlideIn();
     });
   }
@@ -506,11 +509,8 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
     let entranceDone = false;
     cardMod.initLibraryCard({
       initialTab,
-      // tab swap 揭露前 pre-swap panel display + hide children，
-      // 避免 clip 揭露中看到舊 panel 的 chip 在左上角 visible
-      onTabSwitchPre: (tab) => {
-        panels.showPanel(tab, { reveal: false });
-      },
+      // onTabSwitchPre pre-swap 已退役（§37 req3）：切換的 panel swap 全在 onTabSwitch instant（滑板下渲染），
+      // 提早 swap 反而落在 morph 起跑幀＝可見重排跳動。
       onTabSwitch: (tab, opts) => {
         panels.showPanel(tab, opts);   // 分頁切換帶 {instant:true}（veil 下直接渲染）；進場不帶＝照舊 wipe
         if (!entranceDone) return; // 自動切換（進場動畫）→ 保留現有 hash
@@ -533,16 +533,21 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
     });  // end library 三模組動態載入 .then
   }
 
-  // --- Legal Pages ---
+  // --- Legal Pages（2026-09-09 全改 admission 那套 zebra 手風琴，見 legal-data-loader）---
+  // Regulations & Policy：規章（攤平）＋ 隱私政策合併一頁（policy_and_statements 去掉無障礙段）
   if (page === 'regulations') {
-    loadLegalData('regulations');
+    loadRegAndPolicy();
   }
-  // privacy-policy + accessibility 已合併為「政策及聲明」一頁（讀單一 collection policy_and_statements，每列一段）
+  // 政策及聲明舊頁 = 孤兒 route（footer 已移除入口）：保留舊渲染讓直連書籤不壞
   if (page === 'policy-and-statements') {
     loadPolicyAndStatements();
   }
   if (page === 'support') {
-    loadLegalData('support');
+    loadSupport();
+  }
+  // 網站導覽（無障礙頁）：無障礙聲明（policy_and_statements 的無障礙段）+ 網站地圖（data/accessibility.json）
+  if (page === 'accessibility') {
+    loadSitemap();
   }
 
   // --- 404 Page ---
@@ -560,6 +565,7 @@ document.addEventListener('DOMContentLoaded', function () {
   initHeader();
   initThemeToggle();
   initFooter();
+  initFavicon();             // 從後台 site_settings.favicon 注入 <link rel=icon>（未設則 no-op）
   initSmoothScroll();
   initIdleStandby();
   initCustomScrollbar();

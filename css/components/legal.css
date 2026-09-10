@@ -292,6 +292,10 @@
     font-weight: var(--font-weight-bold);
     text-decoration: none;
   }
+  /* 規章名帶 url → 可點跳轉，桌面 hover 補底線當可點提示（手機無 hover） */
+  @media (min-width: 768px) {
+    .legal-regulations .reg-line-link:hover { text-decoration: underline; }
+  }
 
   /* ── 政策及聲明（policy-and-statements）：privacy + accessibility 合併頁 ── */
   /* 兩大段標題（隱私權與資訊安全政策 / 無障礙聲明）＝原編號 section 標題大小（h4 粗體）。
@@ -374,4 +378,262 @@
       padding-left: 0;
     }
   }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     Zebra 手風琴（Regulations & Policy / Support / Site Map）— 2026-09-09
+     三頁改用 admission announcement 那套 list-item / list-header / list-content
+     （legal-data-loader.js mountZebra）＋ initListAccordion（hover accent、點開上色、
+     ref 深色）。斑馬底、accent 文字翻色、mode3 theme-fg 覆蓋、ref 深色全走 lists.css /
+     themes 既有「全域」規則（[style*=background] 等）——這裡只補 legal 專屬的：
+     ①斑馬底 scope 到 .legal-zebra ②標題/副標排版 ③三種卡片 body。
+     ══════════════════════════════════════════════════════════════════════ */
+
+  /* 桌面：opened header 釘在 inner-scroll box 頂（var 未設時 CSS 預設 200px 離頂太遠） */
+  @media (min-width: 768px) {
+    .legal-zebra { --list-header-sticky-top: 0px; }
+  }
+
+  /* 斑馬底＝複製 lists.css activities/admission 公式、改 scope 到 .legal-zebra。
+     open/hover 的 inline accent 與 mode3 theme-fg 覆蓋照吃全域 [style*=background] 規則。 */
+  .legal-zebra .list-item.list-item-zebra {
+    background-color: rgba(var(--theme-fg-rgb), var(--list-zebra-alpha, 0.05));
+  }
+  body.mode-color .legal-zebra .list-item.list-item-zebra {
+    background-color: var(--list-zebra-strip, rgba(255, 255, 255, 0.15));
+  }
+  /* 展開 item 被 hover-dim 清掉 inline accent 時補不透明斑馬底（同 admission，避免 sticky header 透出內容） */
+  .legal-zebra .list-item.list-item-zebra > .list-header.active,
+  .legal-zebra .list-item.list-item-zebra > .list-header.active + .list-content {
+    background: linear-gradient(rgba(var(--theme-fg-rgb), var(--list-zebra-alpha, 0.05)), rgba(var(--theme-fg-rgb), var(--list-zebra-alpha, 0.05))), var(--theme-bg);
+  }
+  .legal-zebra .list-item:not(.list-item-zebra) > .list-header.active,
+  .legal-zebra .list-item:not(.list-item-zebra) > .list-header.active + .list-content {
+    background: var(--theme-bg);
+  }
+  body.mode-color .legal-zebra .list-item.list-item-zebra > .list-header.active,
+  body.mode-color .legal-zebra .list-item.list-item-zebra > .list-header.active + .list-content {
+    background: linear-gradient(var(--list-zebra-strip, rgba(255, 255, 255, 0.15)), var(--list-zebra-strip, rgba(255, 255, 255, 0.15))), var(--theme-bg);
+  }
+  /* ⚠️ 灰色條修正（user 2026-09-09b）：activities/admission 的 `.list-item{padding-bottom:4px}` 是給 4px 黑
+     divider 用；legal 無 divider → 那 4px 露出 item 斑馬底＝hover 時 accent header 下方多一條灰。legal 用斑馬
+     交錯分列、不需 divider → 直接歸零。 */
+  .legal-zebra .list-item { padding-bottom: 0; }
+
+  /* hover-dim（user 2026-09-09f）：hover 某列 → 其他列半透明凸顯當前列（值同 activities/admission 0.25）。
+     legal 預設全開＋獨立開合（list-accordion .legal-zebra gate）：不走 JS 拔 accent 那套（多 active 會誤拔），
+     純 CSS opacity。桌面 only（手機無 hover）。 */
+  @media (min-width: 768px) {
+    .legal-zebra .list-item { transition: opacity 0.25s ease; }
+    .legal-zebra:has(.list-item:hover) .list-item:not(:hover) { opacity: 0.25; }
+  }
+
+  /* 標題欄（左，撐開）＋ chevron（右，不縮） */
+  .legal-zebra-titlecol {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .legal-zebra-chevron { flex-shrink: 0; }
+  .legal-zebra-title-en,
+  .legal-zebra-title-zh {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-bold);
+    line-height: 1.2;
+    margin: 0;
+  }
+  .legal-zebra-title-en { margin-bottom: var(--space-en-zh-s); }
+  .legal-zebra-title-zh { line-height: var(--line-height-zh-lg, 1.3); }
+  /* 副標＝最後更新（小字但不弱化：user 2026-09-09c 要 100% 前景色、不降 opacity）；無副標（地圖列）時不佔位 */
+  .legal-zebra-sub {
+    margin-top: var(--spacing-xs);
+  }
+  .legal-zebra-sub p:not(:last-child) { margin-bottom: var(--space-en-zh-s); }
+
+  /* 卡片外殼（list-content 內）：左右內距比照 admission bodyField，底部多留一點 */
+  .legal-zebra-card {
+    padding: var(--spacing-md) var(--spacing-sm) var(--spacing-lg);
+  }
+
+  /* ── 富文本卡片（policy 隱私 / support / 無障礙聲明）── */
+  .legal-zebra-overview { margin-bottom: var(--spacing-lg); }
+  .legal-zebra-overview p { font-size: var(--font-size-s); }
+  .legal-zebra-section { margin-bottom: var(--spacing-lg); }
+  .legal-zebra-section:last-child { margin-bottom: 0; }
+  .legal-zebra-sec-title-en,
+  .legal-zebra-sec-title-zh {
+    font-size: var(--font-size-s);
+    font-weight: var(--font-weight-bold);
+    line-height: var(--line-height-s);
+    margin: 0;
+  }
+  .legal-zebra-sec-title-en { margin-bottom: var(--space-en-zh-s); }
+  .legal-zebra-sec-title-zh { margin-bottom: var(--spacing-sm); }
+  .legal-zebra-subsection { margin-top: var(--spacing-md); }
+  .legal-zebra-subsection:first-child { margin-top: 0; }
+  .legal-zebra-sub-title-en,
+  .legal-zebra-sub-title-zh {
+    font-size: var(--font-size-s);
+    font-weight: var(--font-weight-bold);
+    line-height: var(--line-height-s);
+    margin: 0;
+  }
+  .legal-zebra-sub-title-en { margin-bottom: var(--space-en-zh-s); }
+  .legal-zebra-sub-title-zh { margin-bottom: var(--spacing-sm); }
+  /* 富文本 list / 段落（比照 .legal-section-body）*/
+  .legal-zebra-card ul,
+  .legal-zebra-card ol { padding-left: 1.25rem; margin-bottom: var(--spacing-md); }
+  .legal-zebra-card ul { list-style: disc; }
+  .legal-zebra-card ol { list-style: decimal; }
+  .legal-zebra-card ul:last-child,
+  .legal-zebra-card ol:last-child { margin-bottom: 0; }
+  .legal-zebra-card li { font-size: var(--font-size-s); }
+  .legal-zebra-card p { margin-bottom: 0; font-size: var(--font-size-s); }
+  .legal-zebra-card p[lang="zh-Hant"],
+  .legal-zebra-card li[lang="zh-Hant"] { line-height: var(--line-height-zh-s); }
+  .legal-zebra-card p:not([lang]):has(+ p[lang="zh-Hant"]) { margin-bottom: var(--space-en-zh-body); }
+  .legal-zebra-card a { font-weight: var(--font-weight-bold); }
+
+  /* ── 規章表格（一個 accordion 內全部規章；3 欄無小標：類別 ｜ 規章名 ｜ 承辦單位）──
+     同類別只顯示一次＋sticky（比照 faculty 卡片）：每個 .legal-reg-group 一類，類別欄 grid-row 跨整組、
+     sticky 釘在 accordion sticky header 正下方（top=--legal-reg-cat-top，值由 loader 量 header 高寫入）。
+     欄寬（user 2026-09-09c）：規章名（col2）最寬、承辦單位（col3）最窄。 */
+  .legal-reg-table { display: flex; flex-direction: column; gap: var(--spacing-lg); }
+  .legal-reg-group {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) minmax(0, 1fr);   /* user 2026-09-09d：類別 2 ｜ 規章名 3 ｜ 承辦單位 1 */
+    grid-template-rows: repeat(var(--reg-rows, 1), auto);
+    column-gap: var(--spacing-md);
+    row-gap: 0;   /* ref 式排列（user 2026-09-09f）：列間無 gap、間距改由 cell 上下 padding 提供 → hover 色帶與鄰列相接 */
+    align-items: stretch;   /* 同列 name/unit 等高 → hover ref box 齊高 */
+  }
+  .legal-reg-cat {
+    grid-column: 1;
+    grid-row: 1 / -1;
+    align-self: start;
+    font-weight: var(--font-weight-bold);
+    padding-top: 8px;   /* 對齊首列文字（cell 有上 padding 8px，見下） */
+  }
+  /* sticky 只在 list-content overflow:visible（開合動畫完）時生效（user 2026-09-09d bug1「類別會移動」）：
+     開/收動畫期間 content overflow:hidden＝content 變 scroll container → sticky 改對 content 定位、
+     類別被 top 值推離原位。gate 掉動畫窗（overflow:visible 由 list-accordion 展開 onComplete 設 inline）。 */
+  .legal-zebra .list-content[style*="overflow: visible"] .legal-reg-cat {
+    position: sticky;
+    top: var(--legal-reg-cat-top, 0px);
+  }
+  .legal-reg-item { display: contents; }   /* hover 單元：本身無盒、hover 沿子元素冒泡上來 → 恢復第二/三欄同時變色 */
+  .legal-reg-name { grid-column: 2; }
+  .legal-reg-unit { grid-column: 3; }
+  .legal-reg-cat,
+  .legal-reg-name,
+  .legal-reg-unit {
+    font-size: var(--font-size-s);
+    line-height: var(--line-height-s);
+  }
+  .legal-reg-cat span,
+  .legal-reg-name span,
+  .legal-reg-unit span { display: block; }
+  .legal-reg-cat span[lang="zh-Hant"],
+  .legal-reg-name span[lang="zh-Hant"],
+  .legal-reg-unit span[lang="zh-Hant"] { line-height: var(--line-height-zh-s); }
+  .legal-reg-cat span:not(:last-child),
+  .legal-reg-name span:not(:last-child),
+  .legal-reg-unit span:not(:last-child) { margin-bottom: var(--space-en-zh-s); }
+  /* 規章名連結：與非連結名同樣式（繼承色/字重、無底線）→ 欄位一致；互動感由下方 hover ref box 提供。
+     雙 class 提特異度蓋過 .legal-zebra-card a 的 bold(0,1,1)。 */
+  .legal-reg-name.legal-reg-link { color: inherit; font-weight: inherit; text-decoration: none; cursor: pointer; }
+  .legal-reg-name.legal-reg-link:hover { text-decoration: none; }
+  /* hover 一列 → 第二／三欄整格變 ref「deep」色 box（--item-color-deep＝該 accordion accent 的深色，
+     同 .list-ref-btn rest 態：deep 底＋黑字；user 2026-09-09e：非黑色）。類別欄不變。
+     ref 式排列（09-09f）：列間 row-gap 0、垂直間距全由 cell 上下 padding 8px 提供（進 hover 色帶＝鄰列相接無縫）；
+     水平仍用負 margin 抵銷（box 往 column-gap 溢出、track 佈局不變）。 */
+  .legal-reg-name,
+  .legal-reg-unit {
+    padding: 8px;
+    margin: 0 -8px;
+    transition: background var(--dur-micro) ease, color var(--dur-micro) ease;
+  }
+  /* 第二欄 box 右緣延伸吃掉整個 column-gap 與第三欄 box 相接＝hover 一條連續色帶（user 2026-09-09e「整條過去」）：
+     name 右伸 gap−8（unit 左已伸 8）→ 24px gap 剛好補滿；負 margin 同值抵銷、track 佈局不變。 */
+  .legal-reg-name {
+    padding-right: calc(var(--spacing-md) - 8px);
+    margin-right: calc(8px - var(--spacing-md));
+  }
+  @media (hover: hover) and (min-width: 768px) {
+    .legal-reg-item:hover .legal-reg-name,
+    .legal-reg-item:hover .legal-reg-unit {
+      background: var(--item-color-deep, transparent);
+      color: black;   /* deep accent 底一律黑字（同 .list-ref-btn rest；inverse 白字在 deep 底上對比不足） */
+    }
+  }
+  @media (max-width: 767px) {
+    /* 手機窄：類別當整列小標、規章名／承辦單位並排兩欄；不 sticky */
+    .legal-reg-group {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 0.7fr);
+      grid-template-rows: none;
+      column-gap: var(--spacing-sm);
+      row-gap: var(--spacing-sm);
+    }
+    .legal-reg-cat { grid-column: 1 / -1; grid-row: auto; position: static; }
+    .legal-reg-name { grid-column: 1; }
+    .legal-reg-unit { grid-column: 2; }
+    /* 手機無 hover box → 去掉 box padding/負 margin（避免負 margin 溢到卡片邊） */
+    .legal-reg-name,
+    .legal-reg-unit { padding: 0; margin: 0; }
+  }
+
+  /* ── 網站導覽（user 2026-09-09d 改版）：聲明＝粗體純文字；地圖＝curriculum 卡片 2 欄 ── */
+  /* 無障礙聲明（非 accordion）：只留說明段、英中兩段、粗體 */
+  .legal-map-desc { margin-bottom: var(--spacing-xl); }
+  .legal-map-desc p {
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-s);
+  }
+  .legal-map-desc p:not(:last-child) { margin-bottom: var(--space-en-zh-body); }
+  .legal-map-desc p[lang="zh-Hant"] { line-height: var(--line-height-zh-s); }
+  /* 卡片 2 欄 grid（user 2026-09-09f：同主頁自成一組 .legal-map-pgroup＝主卡+分頁卡直排，組間才有大距）；
+     卡片本體沿用 .courses-grid-card（courses.css 樣式＋三 mode 規則現成），此處只補 a 化細節 */
+  .legal-map-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--spacing-lg) var(--spacing-md);
+    align-items: start;
+  }
+  .legal-map-pgroup {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    align-items: flex-start;
+    min-width: 0;
+  }
+  @media (max-width: 767px) {
+    /* 手機窄：單欄（雙欄 ~160px 會把 nowrap 卡片標題裁掉） */
+    .legal-map-grid { grid-template-columns: minmax(0, 1fr); }
+  }
+  .legal-map-card { text-decoration: none; }
+  /* hover-dim（同 curriculum 課程卡 courses.css）：hover 某卡 → 其餘卡半透明凸顯當前卡。
+     opacity transition 由 .courses-grid-card base 自帶（opacity var(--dur-fast)）；只桌面（手機無 hover）。 */
+  @media (min-width: 768px) {
+    .legal-map-grid:has(.legal-map-card:hover) .legal-map-card:not(:hover) { opacity: 0.25; }
+  }
+  /* 卡內兩欄（user 2026-09-10）：左＝編號、右＝英中標題直排。base .courses-grid-card 是 column → 翻成 row */
+  .legal-map-card {
+    flex-direction: row;
+    align-items: flex-start;
+    column-gap: 8px;
+  }
+  .legal-map-num {
+    flex-shrink: 0;
+    font-weight: var(--font-weight-bold);
+    font-variant-numeric: tabular-nums;
+  }
+  .legal-map-txt {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-en-zh-s);   /* 英中距＝courses 卡原本的行距 token */
+    min-width: 0;
+  }
+  /* 沿用的 courses 卡標題是 nowrap＋hover marquee；sitemap 無 marquee → 長標題（如 4-1 BFA 組名）改直接折行不裁字 */
+  .legal-map-card .courses-grid-card-en,
+  .legal-map-card .courses-grid-card-zh { white-space: normal; }
 }

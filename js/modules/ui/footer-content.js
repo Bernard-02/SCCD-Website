@@ -21,11 +21,13 @@ const TAB_FIELDS = 'key,nameZh,nameEn,markIcon.filename_disk,items.type,items.it
   'items.textZh,items.textEn,items.phoneCountry,items.phoneNumber,items.phoneExt,items.iconFile.filename_disk,items.url';
 const DEEP = encodeURIComponent(JSON.stringify({ items: { _sort: ['sort'] } }));
 
-// 右下法務連結：固定 3 個站內頁、標籤固定 → 寫死（不進 CMS）。頁面內文在 Directus regulations/support/policy_and_statements。
+// 右下法務連結：固定站內頁、標籤固定 → 寫死（不進 CMS）。頁面內文在 Directus regulations/support/policy_and_statements。
+// 2026-09-09：regulations 與 policy 合併為「Regulations & Policy」一頁（隱私政策併入 regulations.html）；
+//   無障礙聲明移進 Site Map（accessibility.html），故 policy-and-statements 不再列於 footer（頁面本身保留為孤兒 route）。
 const LEGAL = [
   { labelEn: 'Donate', labelZh: '捐贈', url: 'donate.html' },
-  { labelEn: 'Regulations', labelZh: '學系規章', url: 'regulations.html' },
-  { labelEn: 'Policies & Statements', labelZh: '政策及聲明', url: 'policy-and-statements.html' },
+  { labelEn: 'Regulations & Policy', labelZh: '規章與政策', url: 'regulations.html' },
+  { labelEn: 'Site Map', labelZh: '網站導覽', url: 'accessibility.html' },
 ];
 
 let _dataPromise = null;

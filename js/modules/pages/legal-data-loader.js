@@ -10,8 +10,12 @@
 
 import { CMS_API_BASE } from '../../config/api.js';
 import { normalizeBodyHtml } from './activities-data-loader.js';  // 富文本比照 admission-body：自動補 lang="zh-Hant" → ZH 區塊吃 ZH 行距
-import { setupClipReveal, playClipReveal, playRevealExit } from '../ui/scroll-animate.js';
+import { setupClipReveal, playClipReveal, playRevealExit, navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
+import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { registerPageExit } from '../ui/page-exit.js';
+import { initListAccordion, ACCENT_TO_DEEP } from '../accordions/list-accordion.js';  // zebra 手風琴（Regulations & Policy / Support 共用 admission 那套）
+import { revealRows, exitRows } from '../ui/list-row-reveal.js';  // zebra rows / sitemap 卡片進退場（CSS transition，同 activities）
+import { loadUiLabels, applyUiLabels } from '../ui/ui-labels.js';  // sitemap 卡片名稱吃 ui_labels（後台改 nav 名稱如 Atlas→World 同步跟上）
 import { DUR, EASE } from '../ui/motion.js';
 import { sitePath } from '../ui/site-base.js';
 
@@ -23,10 +27,6 @@ const CMS_COLLECTIONS = {
   'regulations': 'regulations',
   'support': 'support',
 };
-
-// 這些頁的 points 是「分類」不是「編號條款」→ 不顯示前面的 1. 2.
-//   support：Funds / Others；regulations：學則 / 修業 / 資源 / 組織 / 法規（5 大類，每類列規章名當內文）
-const NO_NUMBER_PAGES = new Set(['support', 'regulations']);
 
 // CMS 優先；fetch 失敗（CORS / 斷網 / 5xx / 空資料）→ fallback 本地 /data/<page>.json，
 // 跟 degree-show-data-loader 同 pattern。CMS 掛掉時 legal 頁仍渲染（靜態 JSON 跟 CMS singleton 同 shape：
@@ -48,45 +48,310 @@ async function fetchLegalData(pageName) {
   return fetch(sitePath(`data/${pageName}.json`)).then(r => r.json());
 }
 
-export async function loadLegalData(pageName) {
+// ══════════════════════════════════════════════════════════════════════════
+// Zebra 手風琴（Regulations & Policy / Support / Site Map）— 2026-09-09
+//   三頁改成 admission announcement 那種「灰白斑馬 + 點開卡片」樣式：手工組最小
+//   list-item / list-header / list-content DOM，重用 initListAccordion（hover 隨機
+//   accent、點開上色、ref 用 --item-color-deep）＋ 斑馬底色（legal.css .legal-zebra 規則）。
+//   副標＝最後更新（user req 7），無國旗、無 share。樣式全走 lists.css 既有基底 + legal.css .legal-zebra。
+//
+//   entry = { titleEn, titleZh, subtitleEn?, subtitleZh?, bodyHtml }
+// ══════════════════════════════════════════════════════════════════════════
+
+function zebraSub(entry) {
+  if (!entry.subtitleEn && !entry.subtitleZh) return '';
+  return `<div class="legal-zebra-sub">`
+    + (entry.subtitleEn ? `<p class="text-s">${esc(entry.subtitleEn)}</p>` : '')
+    + (entry.subtitleZh ? `<p class="text-s" lang="zh-Hant">${esc(entry.subtitleZh)}</p>` : '')
+    + `</div>`;
+}
+
+// 單一 zebra 手風琴列。idx 決定灰白 parity（連續跨區塊）。title col 是 header 第一子 → list-accordion
+// 開啟時對它 translateX（比照 admission）；右側只有 chevron toggle（無 share／國旗）。
+// 預設全開（user 2026-09-09f）：active 態直接烙 HTML string——accent 底＋deep var、chevron 朝上、content 展開
+//   （overflow: visible 帶空格＝legal.css sticky gate `[style*="overflow: visible"]` 命中；與 list-accordion
+//   proceedOpen 的 CSSOM 序列化一致）。initListAccordion 對 .active header 跳過強制收合；點擊照常可關/再開。
+function zebraRow(entry, idx) {
+  const zebra = idx % 2 === 0 ? ' list-item-zebra' : '';
+  const color = SCCDHelpers.getRandomAccentColor();
+  const deep = ACCENT_TO_DEEP[color] || color;
+  // 隱藏態同樣烙 HTML（出生自帶 translateY(110%)）→ mountZebra commit 後 revealRows 逐列揭
+  return `<div class="list-item${zebra}" style="transform: translateY(110%); background: ${color}; --item-color: ${color}; --item-color-deep: ${deep}">`
+    + `<div class="list-header active cursor-pointer group transition-colors duration-fast flex items-stretch justify-between gap-sm px-sm py-sm" data-accent-hex="${color}" style="background: ${color}">`
+    +   `<div class="legal-zebra-titlecol">`
+    +     `<h3 class="legal-zebra-title-en">${esc(entry.titleEn)}</h3>`
+    +     (entry.titleZh ? `<h3 class="legal-zebra-title-zh" lang="zh-Hant">${esc(entry.titleZh)}</h3>` : '')
+    +     zebraSub(entry)
+    +   `</div>`
+    +   `<div class="legal-zebra-chevron flex items-center">`
+    +     `<button type="button" class="list-header-toggle flex-shrink-0 self-start" aria-expanded="true" aria-label="展開或收合詳情 Toggle details" style="overflow:clip;height:1.5em;width:1.5em;">`
+    +       `<span class="icon icon-chevron-list icon-s -rotate-90" style="transform: rotate(90deg)"></span>`
+    +     `</button>`
+    +   `</div>`
+    + `</div>`
+    + `<div class="list-content" style="height: auto; overflow: visible; background: ${color}"><div class="legal-zebra-card">${entry.bodyHtml}</div></div>`
+    + `</div>`;
+}
+
+function renderZebraRows(entries, startIdx = 0) {
+  // 每列包 .legal-reveal（overflow-y:clip 遮罩，同 setupClipReveal 慣例）→ translateY 被剪＝clip-reveal 位移感。
+  // ⚠️ clip（非 hidden）不產生 scroll container → 開啟後 .list-header.active sticky 照常釘 scroll box。
+  return entries.map((e, i) => `<div class="legal-reveal">${zebraRow(e, startIdx + i)}</div>`).join('');
+}
+
+function mountZebra(contentEl, html) {
+  contentEl.classList.add('legal-zebra');
+  contentEl.innerHTML = html;
+  initListAccordion();
+  requestAnimationFrame(() => setRegCatStickyTop(contentEl));
+  // 進退場（user 2026-09-09d：跟 activities 同款）＝list-row-reveal（CSS transition、compositor 接管）
+  const rows = Array.from(contentEl.querySelectorAll('.list-item'));
+  void contentEl.offsetHeight;  // 隱藏態 commit（painted）才會 transition 而非 snap
+  revealRows(rows, { stagger: 0.08 });
+  registerPageExit(() => exitRows(rows, { stagger: 0.05 }));
+}
+
+// 規章卡類別欄 sticky offset ＝所屬 accordion header 高度（sticky header 釘捲動框 top:0，類別要釘它正下方）。
+// ⚠️ 別硬編 px（header 高隨字級/字型變，見 curriculum sticky memory）→ 量高寫 var。
+// ponytail: 量一次即可——desktop resize header 高幾乎不變；跨 768 斷點手機無 sticky（reg 表轉 2 欄）故免 resize 監聽。
+function setRegCatStickyTop(root) {
+  root.querySelectorAll('.legal-reg-table').forEach(tbl => {
+    const header = tbl.closest('.list-item')?.querySelector(':scope > .list-header');
+    if (header) tbl.style.setProperty('--legal-reg-cat-top', header.offsetHeight + 'px');
+  });
+}
+
+// ── 富文本卡片 body（policy / support / 無障礙聲明共用）──────────────────────
+// 一個「點」的內文：可能有 sections（support Funds 的 Single/Regular）或 desEn/desZh 富文本。
+function pointBodyHtml(pt) {
+  let html = '';
+  (pt.sections || []).forEach(s => {
+    html += `<div class="legal-zebra-subsection">`
+      + `<h5 class="legal-zebra-sub-title-en">${esc(s.titleEn)}</h5>`
+      + `<h5 class="legal-zebra-sub-title-zh" lang="zh-Hant">${esc(s.titleZh)}</h5>`
+      + normalizeBodyHtml(s.desEn) + normalizeBodyHtml(s.desZh)
+      + `</div>`;
+  });
+  html += normalizeBodyHtml(pt.desEn) + normalizeBodyHtml(pt.desZh);
+  return html;
+}
+
+// 整個 group（policy 隱私 / 無障礙聲明）→ 一列：overview + 每個點（小標＋內文）都在同一張卡。
+function richGroupEntry(g) {
+  let body = '';
+  if (g.overviewEn || g.overviewZh) {
+    body += `<div class="legal-zebra-overview">`
+      + [para(g.overviewEn), para(g.overviewZh)].filter(Boolean).join('')
+      + `</div>`;
+  }
+  (g.points || []).forEach(pt => {
+    body += `<div class="legal-zebra-section">`;
+    if (pt.titleEn) body += `<h4 class="legal-zebra-sec-title-en">${esc(pt.titleEn)}</h4>`;
+    if (pt.titleZh) body += `<h4 class="legal-zebra-sec-title-zh" lang="zh-Hant">${esc(pt.titleZh)}</h4>`;
+    body += pointBodyHtml(pt) + `</div>`;
+  });
+  return { titleEn: g.titleEn, titleZh: g.titleZh, subtitleEn: g.lastUpdatedEn, subtitleZh: g.lastUpdatedZh, bodyHtml: body };
+}
+
+// ── 規章表格（一個 accordion 內含全部規章）──────────────────────────────────
+// user 2026-09-09b/c：reg 頁只兩個 accordion（全部規章一個、隱私政策一個）；規章卡＝3 欄無小標的表格。
+//   第一欄類別（學則）｜第二欄規章名（實踐大學學則）｜第三欄承辦單位（都預設 SCCD Office）。
+//   同類別只顯示一次＋sticky（比照 faculty 卡片）：一個 .legal-reg-group ＝一類，類別欄 grid-row 跨整組。
+//   規章名有 url 時當連結；hover 一列 → 第二／三欄變 ref 深色（--item-color-deep），非底線。
+function regSpans(en, zh) {
+  return (en ? `<span>${esc(en)}</span>` : '')
+    + (zh ? `<span lang="zh-Hant">${esc(zh)}</span>` : '');
+}
+function regTableEntry(reg) {
+  const groups = (reg.points || []).map(cat => {
+    const items = cat.items || [];
+    const rows = items.map(item => {
+      let uEn = item.unitEn, uZh = item.unitZh;
+      if (!uEn && !uZh) { uEn = 'SCCD Office'; uZh = '系辦'; }  // 都預設 SCCD Office（後台 unit 欄填了才覆蓋）
+      const nameInner = regSpans(item.titleEn, item.titleZh);
+      const name = item.url   // 後台有規章文件 URL → 規章名當連結（外開；hover 走下方 ref 深色規則）
+        ? `<a class="legal-reg-name legal-reg-link" href="${esc(item.url)}" target="_blank" rel="noopener">${nameInner}</a>`
+        : `<div class="legal-reg-name">${nameInner}</div>`;
+      // .legal-reg-item = display:contents hover 單元（讓第二/三欄一起變色、類別欄不變）
+      return `<div class="legal-reg-item">${name}<div class="legal-reg-unit">${regSpans(uEn, uZh)}</div></div>`;
+    }).join('');
+    return `<div class="legal-reg-group" style="--reg-rows:${items.length || 1}">`
+      + `<div class="legal-reg-cat">${regSpans(cat.titleEn, cat.titleZh)}</div>`
+      + rows + `</div>`;
+  }).join('');
+  return {
+    titleEn: reg.titleEn || 'Department Regulations',
+    titleZh: reg.titleZh || '學系規章',
+    subtitleEn: reg.lastUpdatedEn, subtitleZh: reg.lastUpdatedZh,  // req7：最後更新寫在副標
+    bodyHtml: `<div class="legal-reg-table">${groups}</div>`,
+  };
+}
+
+// ── 網站導覽卡片（user 2026-09-09d：捨 accordion outline、改 curriculum 卡片設計）──────
+// 沿用 .courses-grid-card class（courses.css 樣式 + inverse/color.css 三 mode 規則全現成）：
+//   2 欄 grid、每卡英中兩行、出生隨機小旋轉、hover 隨機 accent 底＋re-roll 角度（同 courses-map
+//   applyHoverColor/applyHoverRot）、點擊＝<a> 由 router 攔截 SPA 跳轉（分頁 deep-link fromUserNav 生效）。
+function pickCardRot() {
+  // ±2° 排除 ±0.5（同 courses-map pickRotation：小角度、卡片間不貼）
+  let r = 0;
+  while (Math.abs(r) < 0.5) r = parseFloat((Math.random() * 4 - 2).toFixed(2));
+  return r;
+}
+// 進場方向的完全隱藏 clip（單邊 100% inset＝不用量尺寸就能烙 HTML 出生即藏；translate 向量等 layout 好才由
+// navChipHidden 量寬高補上）。與 scroll-animate _NAV_SLIDE 的 clip 定義同步。
+const MAP_HIDE_CLIP = {
+  top: 'inset(100% 0% 0% 0%)', bottom: 'inset(0% 0% 100% 0%)',
+  left: 'inset(0% 0% 0% 100%)', right: 'inset(0% 100% 0% 0%)',
+};
+function mapCardHtml(item, num, depth) {
+  const rot = pickCardRot();
+  const dir = pickNavDir();   // 無 el＝純 4 方向隨機（同 curriculum 卡片 pickCardDir：要多樣性）
+  // 進場＝curriculum 卡同款（user 2026-09-10）：卡片「自身」clip-path＋translate 同步（navChipHidden，
+  //   遮罩在旋轉後 local box 上跟著轉→旋轉角不被裁、也不需外層 .legal-reveal 遮罩＝不再「被切到再還原」；
+  //   translate 用獨立屬性、與 inline rotate 共存）。出生先烙單邊 100% clip 全藏，reveal 前才量尺寸補 translate。
+  // 卡內兩欄：左＝編號（1. / 1-1. / 1-1-1.）｜右＝英中標題直排；子分頁依深度縮排。
+  // 名稱吃 ui_labels（labelKey 對應 row.key；json 文字＝最終 fallback），loadSitemap 渲染後 applyUiLabels 填入。
+  const indent = depth ? ` margin-left: ${depth * 24}px;` : '';
+  const keyEn = item.labelKey ? ` data-label-key="${esc(item.labelKey)}"` : '';
+  const keyZh = item.labelKey ? ` data-label-key="${esc(item.labelKey)}" data-label-part="zh"` : '';
+  return `<a class="courses-grid-card legal-map-card" href="${esc(item.url)}" data-base-rot="${rot}" data-reveal-dir="${dir}"`
+    + ` style="transform: rotate(${rot}deg); clip-path: ${MAP_HIDE_CLIP[dir]};${indent}">`
+    +   `<span class="legal-map-num">${num}.</span>`
+    +   `<span class="legal-map-txt">`
+    +     `<span class="courses-grid-card-en"${keyEn}>${esc(item.labelEn)}</span>`
+    +     (item.labelZh ? `<span class="courses-grid-card-zh" lang="zh-Hant"${keyZh}>${esc(item.labelZh)}</span>` : '')
+    +   `</span>`
+    + `</a>`;
+}
+// 同一主頁自成一組（.legal-map-pgroup：主卡+其分頁卡直排一起，組間才有大距）；編號遞迴支援任意深度（1-1-1…）
+function mapGroupHtml(pg, n) {
+  let html = mapCardHtml(pg, String(n), 0);
+  const walk = (subs, prefix, depth) => {
+    (subs || []).forEach((s, i) => {
+      const num = `${prefix}-${i + 1}`;
+      html += mapCardHtml(s, num, depth);
+      walk(s.subs, num, depth + 1);
+    });
+  };
+  walk(pg.subs, String(n), 1);
+  return `<div class="legal-map-pgroup">${html}</div>`;
+}
+function bindMapCardHover(root) {
+  root.querySelectorAll('.legal-map-card').forEach((card) => {
+    card.addEventListener('mouseenter', () => {
+      card.style.background = SCCDHelpers.getRandomAccentColor();
+      card.style.transform = `rotate(${pickCardRot()}deg)`;
+    });
+    card.addEventListener('mouseleave', () => {
+      card.style.background = '';
+      card.style.transform = `rotate(${card.dataset.baseRot || 0}deg)`;
+    });
+  });
+}
+
+// policy_and_statements 內的「無障礙聲明」段判定（合併頁去掉它、導覽頁只留它）。
+// ⚠️ 用標題比對（非 sort/index）＝後台重排也不會錯認；改標題文字才需同步。
+function isAccessibilityGroup(g) {
+  return /accessibility/i.test(g.titleEn || '') || (g.titleZh || '').includes('無障礙');
+}
+
+// ── Public loaders ─────────────────────────────────────────────────────────
+
+// Regulations & Policy（regulations.html）：兩個 accordion —— 全部規章（3 欄表格）＋ 隱私政策（policy_and_statements 去掉無障礙段）。
+export async function loadRegAndPolicy() {
+  const contentEl = document.getElementById('legal-content');
+  if (!contentEl) return;
   try {
-    const data = await fetchLegalData(pageName);
-
-    // regulations 頂部說明文字 placeholder（user 2026-07-15，比照 admission 頁的說明文字）：CMS overview 欄已存在但還沒填
-    //   → 給預設佔位文字，後台填 overviewEn/Zh 後自動覆蓋（同 unit placeholder 機制）。scope regulations、不影響 policy。
-    if (pageName === 'regulations' && !data.overviewEn && !data.overviewZh) {
-      data.overviewEn = "Below are the department's regulations and guidelines. The unit shown beside each entry is where you can obtain or enquire about the document.";
-      data.overviewZh = '以下為本系各項規章與辦法。每筆右側所示為其承辦單位，可前往索取或洽詢相關文件。';
-    }
-
-    // title 元素可能由頁面直接 hardcode（如 privacy-policy 為了 chip 樣式 + <br> 斷行），此時 ID 不存在 → null guard
-    const titleEn = document.getElementById('legal-title-en');
-    const titleZh = document.getElementById('legal-title-zh');
-    if (titleEn) titleEn.textContent = data.titleEn;
-    if (titleZh) titleZh.textContent = data.titleZh;
-
-    // 結構化（有 points）優先組裝；否則 fallback 舊的 content HTML blob
-    const contentEl = document.getElementById('legal-content');
-    if (contentEl) {
-      contentEl.innerHTML = data.points ? renderStructured(data, !NO_NUMBER_PAGES.has(pageName)) : (data.content || '');
-      if (pageName === 'regulations') decorateRegulationItems(contentEl);  // 每筆規章右邊加 share icon
-      setupLegalReveal(contentEl, pageName);  // 4 個 legal 頁共用；support 走專屬依序進場 + 一次過退場
-    }
-
-    const updatedEn = document.getElementById('legal-updated-en');
-    const updatedZh = document.getElementById('legal-updated-zh');
-    if (updatedEn) updatedEn.textContent = data.lastUpdatedEn;
-    if (updatedZh) updatedZh.textContent = data.lastUpdatedZh;
-
+    const [reg, policyGroups] = await Promise.all([
+      fetchLegalData('regulations'),
+      fetchPolicyGroups().catch(() => []),
+    ]);
+    const entries = [
+      regTableEntry(reg || {}),
+      ...(policyGroups || []).filter(Boolean).filter(g => !isAccessibilityGroup(g)).map(richGroupEntry),
+    ];
+    mountZebra(contentEl, renderZebraRows(entries));
   } catch (error) {
-    console.error(`Error loading ${pageName} data:`, error);
+    console.error('Error loading regulations & policy:', error);
   }
 }
 
-// regulations 專屬：每筆規章（.legal-section-desc 內每個 <p>，內容是「EN<br>ZH」）加粗（樣式在 legal.css `.reg-line`）。
-// （原本右側掛 share icon 當外部連結 hook，user 2026-07-14 要求全部移除。）
-function decorateRegulationItems(scope) {
-  scope.querySelectorAll('.legal-section-desc > p').forEach(p => p.classList.add('reg-line'));
+// Support / Donate（donate.html）：每個「點」一列 zebra（Funds / Others），卡片＝該點 sections/內文。
+export async function loadSupport() {
+  const contentEl = document.getElementById('legal-content');
+  if (!contentEl) return;
+  try {
+    const data = await fetchLegalData('support');
+    const entries = ((data && data.points) || []).map(pt => ({
+      titleEn: pt.titleEn, titleZh: pt.titleZh, bodyHtml: pointBodyHtml(pt),
+    }));
+    mountZebra(contentEl, renderZebraRows(entries));
+  } catch (error) {
+    console.error('Error loading support:', error);
+  }
+}
+
+// Site Map（accessibility.html，user 2026-09-09d 改版）：無 accordion ——
+//   ①無障礙聲明＝普通粗體文字（只留說明段 overview，英中兩段）②地圖＝curriculum 卡片 2 欄
+//   （全部主頁與分頁攤平，點擊 SPA 跳轉）。地圖資料＝本地 data/accessibility.json。
+export async function loadSitemap() {
+  const contentEl = document.getElementById('legal-content');
+  if (!contentEl) return;
+  try {
+    const [policyGroups, mapData, labels] = await Promise.all([
+      fetchPolicyGroups().catch(() => []),
+      fetch(sitePath('data/accessibility.json')).then(r => r.json()).catch(() => ({ pages: [] })),
+      loadUiLabels().catch(() => ({})),   // 卡片名稱來源（header 已載過＝single-flight cache，通常即時）
+    ]);
+    const a11y = (policyGroups || []).filter(Boolean).find(isAccessibilityGroup);
+    let html = '';
+    if (a11y && (a11y.overviewEn || a11y.overviewZh)) {
+      // 聲明段同走自遮罩 clip+translate（滿寬文字塊＝只挑上下短邊，同 pickNavDir 短邊邏輯）
+      const descDir = Math.random() < 0.5 ? 'top' : 'bottom';
+      html += `<div class="legal-map-desc" data-reveal-dir="${descDir}" style="clip-path: ${MAP_HIDE_CLIP[descDir]}">`
+        + (a11y.overviewEn ? `<p class="text-s">${esc(a11y.overviewEn)}</p>` : '')
+        + (a11y.overviewZh ? `<p class="text-s" lang="zh-Hant">${esc(a11y.overviewZh)}</p>` : '')
+        + `</div>`;
+    }
+    const groups = (mapData.pages || []).map((pg, i) => mapGroupHtml(pg, i + 1)).join('');
+    html += `<div class="legal-map-grid">${groups}</div>`;
+    contentEl.innerHTML = html;
+    applyUiLabels(labels, contentEl);   // 換上後台名稱（在 reveal 前＝不會揭到一半換字）
+    bindMapCardHover(contentEl);
+    // 進退場＝curriculum 卡片同款「自身 clip-path＋translate 同步」（user 2026-09-10：四方向隨機；
+    //   遮罩在卡片自己的 local box 上跟著旋轉走＝角不被裁、無外層遮罩＝不再「被切到再還原」；
+    //   translate 與 clip 抵消＝動畫全程不畫出最終框外、不掃到鄰卡）。
+    const targets = Array.from(contentEl.querySelectorAll('.legal-map-desc, .legal-map-card'));
+    if (typeof gsap !== 'undefined' && targets.length && !prefersReducedMotion()) {
+      // 出生已烙單邊 100% clip 全藏；layout 好才量寬高補 translate 向量（clip/translate 不動 layout → 迴圈讀寫不 thrash）
+      targets.forEach(el => gsap.set(el, navChipHidden(el, el.dataset.revealDir)));
+      gsap.to(targets, {
+        ...NAV_CHIP_SHOWN,
+        duration: DUR.base,
+        ease: 'cubic-bezier(0.25, 0, 0, 1)',   // 同 curriculum 灰卡
+        stagger: { amount: 0.25 },
+        overwrite: true,
+        clearProps: 'clipPath,translate',
+      });
+      registerPageExit(() => new Promise(res => {
+        const alive = targets.filter(el => el.isConnected);
+        if (!alive.length) { res(); return; }
+        // ⚠️ hidden 向量依「當下」尺寸/角度重算（navChipHidden 勿 cache）；fromTo 顯式起點：
+        //   reveal 收尾 clearProps 後 computed clipPath=none，用 to() 補間不動會 snap
+        const hid = alive.map(el => navChipHidden(el, el.dataset.revealDir));
+        gsap.fromTo(alive, NAV_CHIP_SHOWN, {
+          clipPath: (i) => hid[i].clipPath,
+          translate: (i) => hid[i].translate,
+          duration: DUR.base, ease: EASE.exit, overwrite: true, onComplete: res,
+        });
+        setTimeout(res, DUR.base * 1000 + 200);   // 保險：tween 被殺也不卡換頁
+      }));
+    } else {
+      targets.forEach(el => { el.style.clipPath = ''; });   // 無 gsap／減少動態：直接全顯
+    }
+  } catch (error) {
+    console.error('Error loading site map:', error);
+  }
 }
 
 // 政策及聲明（policy-and-statements）：讀單一 collection policy_and_statements（每列一段，sort 排序），
@@ -155,9 +420,13 @@ const revealSub = (inner) => `<div class="legal-reveal legal-sub-reveal">${inner
 //   左＝規章名（EN<br>ZH，缺一語不留空行、粗體）；右＝承辦單位（去哪裡找該規章，EN<br>ZH，如 SCCD Office / 系辦）。
 // 單位目前是 placeholder（本地 JSON 示意值），之後接後台 unit 欄位再由編輯者填真值（見 memory
 //   project_regulations_page_and_legal_page_recipe）。缺 unit 就只渲染左側規章名（graceful）。
-// （原 url 連結欄位與 <a>／share icon 已移除，user 2026-07-14/15：規章列不再是連結。）
+// （2026-09-08：url 選填欄回歸——有填則規章名變外部連結、無填維持純文字；share icon 仍不用。）
 function renderRegLine(it) {
-  const name = `<span class="reg-line-text">${[it.titleEn, it.titleZh].filter(Boolean).map(t => `<span>${esc(t)}</span>`).join('')}</span>`;
+  const nameSpans = [it.titleEn, it.titleZh].filter(Boolean).map(t => `<span>${esc(t)}</span>`).join('');
+  // 有 url（後台選填）→ 規章名變外部連結（新分頁；router 見 http/target=_blank 放行）；無 url 維持純文字。
+  const name = it.url
+    ? `<a class="reg-line-text reg-line-link" href="${esc(it.url)}" target="_blank" rel="noopener">${nameSpans}</a>`
+    : `<span class="reg-line-text">${nameSpans}</span>`;
   // 承辦單位（去哪裡找）：有值就用；後台 unit 欄尚未建（CMS 無此欄）時用預設 placeholder 文字佔位
   //   （user 2026-07-15：直接寫文字、不用 box），後台補 unitEn/unitZh 後自動改真值。EN<br>ZH，缺一語不留空行。
   let uEn = it.unitEn, uZh = it.unitZh;
@@ -166,7 +435,7 @@ function renderRegLine(it) {
   return `<div class="reg-line">${name}${unit}</div>`;
 }
 
-function renderStructured(data, numbered = true, titleTag = 'h2') {
+function renderStructured(data, numbered = true, titleTag = 'h2', lineRenderer = renderRegLine) {
   let html = '';
 
   // overview 是純文字（後台 Textarea）→ esc 後包 <p>，每段各自 reveal 遮罩
@@ -184,7 +453,7 @@ function renderStructured(data, numbered = true, titleTag = 'h2') {
     const pointDesc = normalizeBodyHtml(pt.desEn) + normalizeBodyHtml(pt.desZh);
     // regulations：點內 items（結構化規章清單 {titleEn,titleZh,unitEn,unitZh}）→ 組成 .reg-line（左規章名／右承辦單位）；其他頁無 items → 用 pointDesc
     const regItems = Array.isArray(pt.items) ? pt.items : null;
-    const descInner = regItems ? regItems.map(renderRegLine).join('') : pointDesc;
+    const descInner = regItems ? regItems.map(lineRenderer).join('') : pointDesc;
     const subRevealsHtml = sections.map(s =>
       revealSub(
         `<div class="legal-section-desc"><div class="legal-subsection">`

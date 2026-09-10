@@ -285,7 +285,8 @@ function exitFacultyCards(cards, onComplete) {
   if (onComplete) setTimeout(onComplete, Math.round(maxFinish * 1000) + 30);
 }
 
-export function initFacultyFilter() {
+// initialSection：site map deep-link 帶進來的 ?section（fulltime/parttime/admin）；無/不合法 → 預設 fulltime。
+export function initFacultyFilter(initialSection = null) {
   const filterButtons = document.querySelectorAll('.faculty-filter-btn');
   const facultyCards = document.querySelectorAll('.faculty-card');
 
@@ -584,12 +585,17 @@ export function initFacultyFilter() {
     }
   }
 
-  // Initialize: set random color on the default active button
-  const defaultBtn = [...filterButtons].find(b => b.getAttribute('data-filter') === 'fulltime');
-  if (defaultBtn) setActiveStyle(defaultBtn, SCCDHelpers.getRandomAccentColor());
+  // Initialize：預設 fulltime，或 site map deep-link 指定的分類（parttime/admin）。
+  const VALID_SECTIONS = new Set(['fulltime', 'parttime', 'admin']);
+  const initialFilter = (initialSection && VALID_SECTIONS.has(initialSection)) ? initialSection : 'fulltime';
+  const initBtn = [...filterButtons].find(b => b.getAttribute('data-filter') === initialFilter)
+    || [...filterButtons].find(b => b.getAttribute('data-filter') === 'fulltime');
+  if (initBtn) {
+    SCCDHelpers.setActive(initBtn, filterButtons);   // deep-link 到非預設分類時把 .active 移到該鈕
+    setActiveStyle(initBtn, SCCDHelpers.getRandomAccentColor());
+  }
 
-  // Initialize: show only fulltime cards on page load
-  const initialFilter = 'fulltime';
+  // Initialize: 只顯示 initialFilter 分類的卡片
   facultyCards.forEach(card => {
     const el = /** @type {HTMLElement} */ (card);
     el.style.display = el.getAttribute('data-category') === initialFilter ? 'block' : 'none';

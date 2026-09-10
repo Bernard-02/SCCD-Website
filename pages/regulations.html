@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Regulations - SCCD</title>
+  <title>Regulations & Policy - SCCD</title>
   <link rel="stylesheet" href="../css/variables.css">
   <link rel="stylesheet" href="../css/output.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -25,24 +25,23 @@
           <!-- 左欄：sticky title chip（左下角，比照 support / policy-and-statements） -->
           <div class="legal-title-col col-span-12 md:col-span-5">
             <div class="legal-title-block">
+              <!-- 兩行：最寬行＝REGULATIONS（≈舊單字標題寬）→ legal-title-random 的 chip 避位不會把右欄內文夾到 240px 下限 -->
               <h1 class="hero-title text-2xl text-black inline-block" data-hero-hl>
-                REGULATIONS
+                REGULATIONS<br>&amp; POLICY
               </h1>
               <h1 class="hero-title-cn text-2xl text-black inline-block" data-hero-hl>
-                學系規章
+                規章與政策
               </h1>
             </div>
           </div>
 
-          <!-- 右欄：內文（async 由 legal-data-loader 填入 #legal-content） -->
-          <div class="legal-content-col col-span-12 md:col-span-7">
+          <!-- 右欄：內文（async 由 legal-data-loader 的 loadRegAndPolicy 填入 #legal-content）
+               最後更新已改寫在每列 zebra 副標（user req 7）→ 頁尾 #legal-updated 區塊移除
+               inner-scroll-scroll-col：讓 list-accordion 認得此 box（getScrollableBox）→ 開 item 走 box 捲動
+               路徑、不 lockSnapOff ＝ window 磁吸不被關（user 2026-09-09d「開著往下滑沒 magnet」）。
+               樣式與 legal.css .legal-content-col 桌面規則同值、不衝突。 -->
+          <div class="legal-content-col inner-scroll-scroll-col col-span-12 md:col-span-7">
             <div id="legal-content"></div>
-
-            <!-- Last Updated -->
-            <div class="mt-3xl">
-              <p id="legal-updated-en" class="text-s text-black mb-en-zh-s"></p>
-              <p id="legal-updated-zh" class="text-s text-black"></p>
-            </div>
           </div>
 
         </div>

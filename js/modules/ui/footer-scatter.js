@@ -836,9 +836,10 @@ function playFooterMobileExit() {
   const footer = getMobileFooter();
   if (!footer || footer.offsetParent === null || !footerInViewport(footer)) return Promise.resolve();
   _footerExited = true;
-  // 平板 768-1199 tab 列同步 wipe 掉（<768 display:none 時 getFooterTabsBox 回 null 跳過）
-  const tabsBox = getFooterTabsBox(footer);
-  if (tabsBox) gsap.fromTo(tabsBox, { clipPath: TABS_WIPE_SHOWN }, { clipPath: TABS_WIPE_HIDDEN, duration: FOOTER_EXIT_DUR, ease: EASE.exit, overwrite: 'auto' });
+  // tab 列同步 clip-reveal 沉出（inner yPercent、box 當遮罩；矮橫向 display:none 時回 null 跳過）
+  // 110 非 100（同 CLIP_HIDE_YPERCENT 慣例）：tab 有 ±1~3° 旋轉、角凸出 inner 上緣 ~5px，100% 剛好貼齊遮罩底＝角殘留退不完
+  const tabsInner = getFooterTabsInner(footer);
+  if (tabsInner) gsap.to(tabsInner, { yPercent: CLIP_HIDE_YPERCENT, duration: FOOTER_EXIT_DUR, ease: EASE.exit, overwrite: 'auto' });
   // 全部 block 同時沉出（stagger 0）、0.5s，完全對齊桌面 footer exit（user 2026-06-11：要跟桌面一致）
   return playRevealExit(mobileBlocks, { stagger: 0, duration: FOOTER_EXIT_DUR });
 }
@@ -852,8 +853,8 @@ function resetFooterMobileAfterExit() {
   // footer 已 scrollToTop 捲離視窗 → 復位不被看到，純把 block 從沉出態 yPercent:100 升回
   gsap.fromTo(mobileBlocks, { yPercent: 100 },
     { yPercent: 0, duration: DUR.reveal, ease: EASE.enter, stagger: 0.08, overwrite: 'auto', clearProps: 'transform' });
-  const tabsBox = getFooterTabsBox(footer);
-  if (tabsBox) gsap.fromTo(tabsBox, { clipPath: TABS_WIPE_HIDDEN }, { clipPath: TABS_WIPE_SHOWN, duration: DUR.reveal, ease: EASE.enter, overwrite: 'auto', clearProps: 'clipPath' });
+  const tabsInner = getFooterTabsInner(footer);
+  if (tabsInner) gsap.fromTo(tabsInner, { yPercent: CLIP_HIDE_YPERCENT }, { yPercent: 0, duration: DUR.reveal, ease: EASE.enter, overwrite: 'auto', clearProps: 'transform' });
 }
 
 // 散佈 items 以外的 footer 元素：它們不在 scatter 系統內，退場時若不動會「凍在畫面上」顯得只散了一半。
@@ -881,15 +882,25 @@ function getFooterPrivacyLinks(area) {
   return Array.from(footerRoot.querySelectorAll('.footer-privacy a, .footer-a11y-badge, .footer-privacy .footer-copyright'));
 }
 
-// 分頁鈕列（.footer-tabs）：chrome/chip 語彙 → 離頁走 clip-path wipe（上→下擦除，方向對齊其餘元素下沉）。
-// 不用 per-tab yPercent 沉出：平板 CSS 對 .footer-tab 有 transform:none !important，會蓋掉 GSAP inline transform。
-// <768 手機與矮橫向 display:none（offsetParent null）自動跳過。
-function getFooterTabsBox(footerRoot) {
+// 分頁鈕列（.footer-tabs）：clip-reveal（user 2026-09-09f，由 clip-path wipe 改制、對齊全站進出場語彙）。
+// per-tab yPercent 不可行（平板 CSS `.footer-tab { transform:none !important }` 蓋掉 GSAP inline）→ 改動
+// 「整條 inner wrapper」：box 本身當遮罩（overflow-x:auto 連帶 y 裁切、scrollbar 已藏），children lazy 包進
+// `.footer-tabs-inner`（display/gap/align 全 inherit 自 box、排版不變）做 yPercent 沉出/升回。
+// 每次呼叫收編 box 直屬殘留子（renderFooterContent 重跑會 append 新 tab 到 box 尾）；unwrapFooterAnim 會剝掉
+// （跨 1200 重建重包）。矮橫向 display:none（offsetParent null）自動跳過。
+function getFooterTabsInner(footerRoot) {
   const box = footerRoot ? footerRoot.querySelector('.footer-tabs') : null;
-  return (box instanceof HTMLElement && box.offsetParent !== null) ? box : null;
+  if (!(box instanceof HTMLElement) || box.offsetParent === null) return null;
+  let inner = /** @type {HTMLElement | null} */ (box.querySelector(':scope > .footer-tabs-inner'));
+  if (!inner) {
+    inner = document.createElement('div');
+    inner.className = 'footer-tabs-inner';
+    inner.style.cssText = 'display:flex;flex-direction:inherit;align-items:inherit;gap:inherit;';
+    box.appendChild(inner);
+  }
+  Array.from(box.children).forEach((ch) => { if (ch !== inner) inner.appendChild(ch); });
+  return inner;
 }
-const TABS_WIPE_HIDDEN = 'inset(100% 0% 0% 0%)';
-const TABS_WIPE_SHOWN = 'inset(0% 0% 0% 0%)';
 
 export function playFooterExit() {
   if (typeof gsap === 'undefined') return Promise.resolve();
@@ -923,8 +934,9 @@ export function playFooterExit() {
     // 三組同在 0.5s 結束，用 items 的 onComplete resolve。
     if (logo) gsap.to(logo.inner, { yPercent: 100, duration: FOOTER_EXIT_DUR, ease: EASE.exit, overwrite: 'auto' });
     if (privacyLinks.length) gsap.to(privacyLinks, { yPercent: 100, duration: FOOTER_EXIT_DUR, ease: EASE.exit, stagger: 0, overwrite: 'auto' });
-    const tabsBox = getFooterTabsBox(area.closest('footer'));
-    if (tabsBox) gsap.fromTo(tabsBox, { clipPath: TABS_WIPE_SHOWN }, { clipPath: TABS_WIPE_HIDDEN, duration: FOOTER_EXIT_DUR, ease: EASE.exit, overwrite: 'auto' });
+    // 110 overshoot：旋轉 tab 角凸出 inner 上緣，100% 貼齊遮罩底會殘留（同上 mobile 路徑註）
+    const tabsInner = getFooterTabsInner(area.closest('footer'));
+    if (tabsInner) gsap.to(tabsInner, { yPercent: CLIP_HIDE_YPERCENT, duration: FOOTER_EXIT_DUR, ease: EASE.exit, overwrite: 'auto' });
     gsap.to(items, {
       yPercent: CLIP_HIDE_YPERCENT,
       duration: FOOTER_EXIT_DUR,
@@ -956,8 +968,8 @@ export function resetFooterAfterExit() {
   if (logo) gsap.fromTo(logo.inner, { yPercent: 100 }, { yPercent: 0, duration: DUR.reveal, ease: EASE.enter, overwrite: 'auto', clearProps: 'transform' });
   // 規章區 4 連結 clip-reveal 復位：從 yPercent:100（沉在遮罩下）一起升回 0（stagger 0）；fromTo 明確起點、clearProps 收乾淨
   if (privacyLinks.length) gsap.fromTo(privacyLinks, { yPercent: 100 }, { yPercent: 0, duration: DUR.reveal, ease: EASE.enter, stagger: 0, overwrite: 'auto', clearProps: 'transform' });
-  const tabsBox = getFooterTabsBox(area.closest('footer'));
-  if (tabsBox) gsap.fromTo(tabsBox, { clipPath: TABS_WIPE_HIDDEN }, { clipPath: TABS_WIPE_SHOWN, duration: DUR.reveal, ease: EASE.enter, overwrite: 'auto', clearProps: 'clipPath' });
+  const tabsInner = getFooterTabsInner(area.closest('footer'));
+  if (tabsInner) gsap.fromTo(tabsInner, { yPercent: CLIP_HIDE_YPERCENT }, { yPercent: 0, duration: DUR.reveal, ease: EASE.enter, overwrite: 'auto', clearProps: 'transform' });
   startShuffleLoop(area, anchors, obstacles, items, fallbackLayout);
 }
 
@@ -969,14 +981,14 @@ function unwrapFooterAnim(footer) {
   // 反覆剝掉 scatter(.footer-anchor) 與 mobile/線性(.clip-reveal-wrapper) 包層，把 item 還原成原本直接子
   // （兩者可能巢狀：clip-reveal-wrapper > footer-anchor > item），guard 防意外無限迴圈。
   let guard = 0;
-  let wrappers = footer.querySelectorAll('.footer-anchor, .clip-reveal-wrapper');
+  let wrappers = footer.querySelectorAll('.footer-anchor, .clip-reveal-wrapper, .footer-tabs-inner');
   while (wrappers.length && guard++ < 20) {
     wrappers.forEach((w) => {
-      const child = w.firstElementChild;
-      if (child && w.parentElement) w.parentElement.insertBefore(child, w);
+      // .footer-tabs-inner 可能含多個 tab → 全部搬回（其他 wrapper 單子、迴圈一次也搬完）
+      while (w.firstElementChild) { if (w.parentElement) w.parentElement.insertBefore(w.firstElementChild, w); else break; }
       w.remove();
     });
-    wrappers = footer.querySelectorAll('.footer-anchor, .clip-reveal-wrapper');
+    wrappers = footer.querySelectorAll('.footer-anchor, .clip-reveal-wrapper, .footer-tabs-inner');
   }
   // 清 item/logo/privacy 上的 inline 動畫殘留（scatter 的 transform/left/top/opacity、office snug width、reveal transform）
   const RESET = '.footer-social, .footer-social-icon, .footer-fax, .footer-tel, .footer-office, .footer-email, .footer-info, .footer-unit, .footer-logo-area, .footer-logo-inner, .footer-privacy, .footer-privacy a, .footer-a11y-badge, .footer-copyright';
@@ -986,7 +998,7 @@ function unwrapFooterAnim(footer) {
     s.width = ''; s.height = ''; s.marginLeft = ''; s.marginTop = ''; s.overflow = '';
     s.background = '';   // scatter 的三原色 accent 底色（applyAccentColors inline）→ 清掉，<1200 線性版跟手機一樣無底色
   });
-  // 分頁鈕列離頁 wipe 殘留（退場後進 footer 隱藏頁、又跨斷點 reinit 時 reset 沒機會跑）→ 清掉免 tabs 永久隱形
+  // 分頁鈕列舊版 clip-path wipe 殘留（改制前退場後進隱藏頁再跨斷點）→ 清掉免 tabs 永久隱形（新版 inner 已被上方 unwrap 剝掉）
   const tabsBox = footer.querySelector('.footer-tabs');
   if (tabsBox) /** @type {HTMLElement} */ (tabsBox).style.clipPath = '';
   delete footer.dataset.footerMobileInit;

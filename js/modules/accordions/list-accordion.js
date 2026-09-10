@@ -111,7 +111,8 @@ function initListYearToggle() {
 // accent → 對應的 ref deep color（ref bg 用 deep 版本，比三原色暗一階）
 // 為什麼用 map 而非 color-mix：要的是「特定指定深色」不是純 accent×black 數學混合
 // dataset.accentHex 保存 hex 字串，避免 element.style.background 讀出來的 'rgb(...)' 對不上 map
-const ACCENT_TO_DEEP = {
+// export 給 legal-data-loader（zebra 預設全開、accent 烙 HTML string 時要配對 deep）
+export const ACCENT_TO_DEEP = {
   '#FF448A': '#f52d78', '#ff448a': '#f52d78',
   '#00FF80': '#23eb7d', '#00ff80': '#23eb7d',
   '#26BCFF': '#23a5ff', '#26bcff': '#23a5ff',
@@ -130,6 +131,8 @@ function listContentOf(header) {
 // restore 從 dataset.accentHex（proceedOpen 存的）重建；rAF 去抖讓 hover A→B（mouseleave 先於 mouseenter）不閃。
 let dimRestoreRAF = 0;
 function dimOpenItemForHover(hoveredHeader) {
+  // legal（多 item 同時展開、hover-dim 走 CSS opacity）：不做「拔展開 item accent」——多 active 只會誤拔第一個
+  if (hoveredHeader.closest('.legal-zebra')) return;
   cancelAnimationFrame(dimRestoreRAF);
   const scope = hoveredHeader.closest('.activities-panel') || document;
   const active = /** @type {HTMLElement|null} */ (scope.querySelector('.list-header.active'));
@@ -585,10 +588,14 @@ function initListHeaderAccordion() {
       : header.closest('.list-item')?.querySelector('.list-content')) || header.nextElementSibling;
     // 八輪 Part 1-B：初始收合態直寫 inline（非 gsap.set）＝零 computed 讀、免逐 header 全頁 recalc（切分頁 build 窗省 task）；
     //   開合仍走 gsap.to(height) 讀 inline 起點接手。content 可能為 null（防禦）。
-    if (content) { const c = /** @type {HTMLElement} */ (content); c.style.height = '0px'; c.style.overflow = 'hidden'; }
-    // 無障礙：收合的 list-content 是 height:0 overflow:hidden（非 display:none）→ 內部 ref/share/gallery
-    // 仍在 Tab 順序＝收合時 Tab 會落到看不見的元素。inert 把收合內容移出 tab 與 a11y 樹，open 時移除。
-    if (content) content.setAttribute('inert', '');
+    // ⚠️ 出生即展開的 header（legal zebra 預設全開＝HTML 烙 .active + height:auto/overflow:visible）跳過：
+    //   別把它強制收回，也不 inert（內容可見要進 tab 順序）。
+    if (content && !header.classList.contains('active')) {
+      const c = /** @type {HTMLElement} */ (content); c.style.height = '0px'; c.style.overflow = 'hidden';
+      // 無障礙：收合的 list-content 是 height:0 overflow:hidden（非 display:none）→ 內部 ref/share/gallery
+      // 仍在 Tab 順序＝收合時 Tab 會落到看不見的元素。inert 把收合內容移出 tab 與 a11y 樹，open 時移除。
+      content.setAttribute('inert', '');
+    }
 
     // Hover: 未展開時顯示隨機色，展開後 hover 不改色
     // collapsing flag 防止收合動畫期間 cursor 離開時清掉 inline bg → 字色 flicker
@@ -646,8 +653,11 @@ function initListHeaderAccordion() {
         if (chevron) gsap.to(chevron, { rotation: 90, duration: DUR.fast });  // open → 朝上（90=上）
         // 預設一次只開一個：開啟前先關掉同 panel 內其他展開中的 accordion
         // 非 activities 頁面（如 admission detail）無 .activities-panel，fallback 到 document
+        // legal zebra（user 2026-09-09f）：多 item 可同時展開＝不關其他 → others 恆空
         const scope = this.closest('.activities-panel') || document;
-        const others = [...scope.querySelectorAll('.list-header.active')].filter(o => o !== this);
+        const others = this.closest('.legal-zebra')
+          ? []
+          : [...scope.querySelectorAll('.list-header.active')].filter(o => o !== this);
 
         // navigateToItem (ref/deep-link) 在 click 此 header 前已自己 scroll 對齊好 item → 標記 skipOpenScroll，
         // 跳過 proceedOpen 內的開啟捲動（deep-link 是全新 panel、上方無展開，已對齊好不要再動）。

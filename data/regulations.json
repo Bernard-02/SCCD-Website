@@ -8,39 +8,39 @@
       "titleEn": "Academic Regulations",
       "titleZh": "學則",
       "items": [
-        { "titleEn": "Shih Chien University Academic Regulations", "titleZh": "實踐大學學則", "unitEn": "Office of Academic Affairs", "unitZh": "教務處" }
+        { "titleEn": "Shih Chien University Academic Regulations", "titleZh": "實踐大學學則" }
       ]
     },
     {
       "titleEn": "Study",
       "titleZh": "修業",
       "items": [
-        { "titleEn": "Course Syllabus", "titleZh": "課程計畫表", "unitEn": "SCCD Office", "unitZh": "系辦" },
-        { "titleEn": "Regulation for Pursuing in Bachelor Courses", "titleZh": "修習學士班課程辦法", "unitEn": "Office of Academic Affairs", "unitZh": "教務處" },
-        { "titleEn": "Regulation for Semester Evaluation", "titleZh": "學習評鑑施行辦法", "unitEn": "Office of Academic Affairs", "unitZh": "教務處" },
-        { "titleEn": "Regulation for Qualifying Exam", "titleZh": "資格考試施行辦法", "unitEn": "Office of Academic Affairs", "unitZh": "教務處" },
-        { "titleEn": "Regulation for Degree Exam", "titleZh": "學位考試施行辦法", "unitEn": "Office of Academic Affairs", "unitZh": "教務處" }
+        { "titleEn": "Course Syllabus", "titleZh": "課程計畫表" },
+        { "titleEn": "Regulation for Pursuing in Bachelor Courses", "titleZh": "修習學士班課程辦法" },
+        { "titleEn": "Regulation for Semester Evaluation", "titleZh": "學習評鑑施行辦法" },
+        { "titleEn": "Regulation for Qualifying Exam", "titleZh": "資格考試施行辦法" },
+        { "titleEn": "Regulation for Degree Exam", "titleZh": "學位考試施行辦法" }
       ]
     },
     {
       "titleEn": "Resources",
       "titleZh": "資源",
       "items": [
-        { "titleEn": "Regulation of Space & Equipment", "titleZh": "空間與設備管理規章", "unitEn": "SCCD Office", "unitZh": "系辦" }
+        { "titleEn": "Regulation of Space & Equipment", "titleZh": "空間與設備管理規章" }
       ]
     },
     {
       "titleEn": "Organizations",
       "titleZh": "組織",
       "items": [
-        { "titleEn": "Constitution of the Student Association", "titleZh": "學生會組織章程", "unitEn": "Office of Student Affairs", "unitZh": "學務處" }
+        { "titleEn": "Constitution of the Student Association", "titleZh": "學生會組織章程" }
       ]
     },
     {
       "titleEn": "Legal",
       "titleZh": "法規",
       "items": [
-        { "titleEn": "Personal Information Collection Statement", "titleZh": "個人資料蒐集聲明", "unitEn": "SCCD Office", "unitZh": "系辦" }
+        { "titleEn": "Personal Information Collection Statement", "titleZh": "個人資料蒐集聲明" }
       ]
     }
   ],
