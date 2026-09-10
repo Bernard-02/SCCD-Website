@@ -40,6 +40,11 @@ const SPEED_MIN = 0.05;
 const SPEED_MAX = 0.25;
 const IMG_WIDTH = 140; // 所有圖片統一寬度，高度 auto follow 原比例（2026-05-28 從 200 減 30%）
 const MAX_TEXT_WIDTH = 210; // 2026-05-28 從 300 減 30%
+// 手機小一號（user 2026-09-10「大小不用太大、分佈平均」）：卡窄＋透視放大 cap 1.05（桌面 1.5）
+// → 12 張在 390 寬不互擠、留白分佈才平均。桌面全不受影響。
+function imgWidth() { return isMobileViewport() ? 100 : IMG_WIDTH; }
+function maxTextWidth() { return isMobileViewport() ? 170 : MAX_TEXT_WIDTH; }
+function scaleGain() { return isMobileViewport() ? 0.45 : 0.9; }
 
 // ── Pool 建立 ──────────────────────────────────────────────
 
@@ -398,6 +403,7 @@ function floatingLinkLabel(url) {
 }
 
 function createImageEl(src, url, interactive = true, preImg = null) {
+  const cardW = imgWidth();
   const wrapper = document.createElement(url ? 'a' : 'div');
   if (url) {
     /** @type {HTMLAnchorElement} */ (wrapper).href = url;
@@ -408,7 +414,7 @@ function createImageEl(src, url, interactive = true, preImg = null) {
     display: block;
     position: absolute;
     top: 0; left: 0;
-    width: ${IMG_WIDTH}px;
+    width: ${cardW}px;
     will-change: transform;
     pointer-events: ${url ? 'auto' : 'none'};
     overflow: hidden;
@@ -464,7 +470,7 @@ function createImageEl(src, url, interactive = true, preImg = null) {
 
   // slideTargets：進退場滑動對象（wrapper=遮罩；overlay 跟 img 同向滑、其自身 clip-path wipe 不受 transform 影響）
   const slideTargets = interactive ? [img, newsOverlay] : [img];
-  return { el: wrapper, w: IMG_WIDTH, h: IMG_WIDTH, slideTargets }; // h 暫用 IMG_WIDTH，實際由圖片決定
+  return { el: wrapper, w: cardW, h: cardW, slideTargets }; // h 暫用卡寬，實際由圖片決定
 }
 
 function createTextEl(textEn, textZh, url) {
@@ -568,7 +574,7 @@ function createTextEl(textEn, textZh, url) {
     });
   }
 
-  return { el, w: MAX_TEXT_WIDTH, h: 80 };
+  return { el, w: maxTextWidth(), h: 80 };
 }
 
 // IG 獨立模組，不在 floating pool 內
@@ -728,10 +734,11 @@ function spawnItem(container, poolEntry, fromEdge = false, preImg = null, initia
   el.style.visibility = 'hidden';
   el.style.position = 'absolute';
   container.appendChild(el);
-  if (el.offsetWidth > MAX_TEXT_WIDTH) {
+  const textCapW = maxTextWidth();
+  if (el.offsetWidth > textCapW) {
     el.style.whiteSpace = 'normal';
     el.style.wordBreak = 'break-word';
-    el.style.width = `${MAX_TEXT_WIDTH}px`;
+    el.style.width = `${textCapW}px`;
     // 換行後把卡片收到「實際最寬那一行」的寬度，避免固定 210px 在較短折行右側留白
     // （user 2026-06-04：floating 文字卡要 fit 文字本身寬度）。用 Range.getClientRects 量各行 box 取最大。
     let widest = 0;
@@ -771,6 +778,11 @@ function spawnItem(container, poolEntry, fromEdge = false, preImg = null, initia
     // 初始批：jittered-grid 中心點（見 scatterPositions）→ 開場均勻鋪滿視窗、不擠一角
     x = initialPos.x - realW / 2;
     y = initialPos.y - realH / 2;
+    // 手機：初始批整張夾進視窗（邊緣半出血會讓小螢幕分佈看起來缺角；桌面不動）
+    if (isMobileViewport()) {
+      x = Math.min(Math.max(x, 8), Math.max(8, cw - realW - 8));
+      y = Math.min(Math.max(y, 8), Math.max(8, ch - realH - 8));
+    }
   } else {
     x = rand(-realW * 0.5, cw - realW * 0.5);
     y = rand(-realH * 0.5, ch - realH * 0.5);
@@ -784,7 +796,7 @@ function spawnItem(container, poolEntry, fromEdge = false, preImg = null, initia
   // 初始 transform 就帶入透視 scale（跟 tick 同式）——否則第一幀 scale 從 1 跳到實際值（邊緣 ~1.5），
   // 卡片在畫面邊緣「閃大一下」。cw/ch 於 spawnItem 頂部已取得。
   const _md = Math.hypot(cw / 2, ch / 2) || 1;
-  const _iscale = 0.6 + Math.min(Math.hypot((x + realW / 2) - cw / 2, (y + realH / 2) - ch / 2) / _md, 1) * 0.9;
+  const _iscale = 0.6 + Math.min(Math.hypot((x + realW / 2) - cw / 2, (y + realH / 2) - ch / 2) / _md, 1) * scaleGain();
   mover.style.transform = `translate(${x}px, ${y}px) scale(${_iscale})`;
 
   // rotator：負責 rotateX/Y 搖擺（GSAP 控制）
@@ -999,6 +1011,7 @@ export async function initFloatingItems() {
     const centerX = cw / 2;
     const centerY = ch / 2;
     const maxDist = Math.sqrt(centerX * centerX + centerY * centerY);
+    const gain = scaleGain();   // 每幀取一次即可（手機 cap 1.05、桌面 1.5）
 
     for (let i = items.length - 1; i >= 0; i--) {
       const item = items[i];
@@ -1010,7 +1023,7 @@ export async function initFloatingItems() {
       const dx = (item.x + item.w / 2) - centerX;
       const dy = (item.y + item.h / 2) - centerY;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      const scale = 0.6 + Math.min(dist / maxDist, 1) * 0.9;
+      const scale = 0.6 + Math.min(dist / maxDist, 1) * gain;
 
       item.el.style.transform = `translate(${item.x}px, ${item.y}px) scale(${scale})`;
 

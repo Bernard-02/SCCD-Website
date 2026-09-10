@@ -476,14 +476,15 @@ export function initYTCard() {
     });
   }
 
-  // 離頁退場（對稱進場的反向）：文字先 stagger 收掉 → 光圈再 circle(50%→0%) 收回中心一點。
+  // 離頁退場：文字收掉與光圈 circle(50%→0%) 收回「並行」（user 2026-09-10：原本串行總長 ~1.1s 比其他
+  // 浮卡退場（DUR.medium＋小 delay）長一截，menu 關閉滑開後 WATCH 單獨留在畫面上收尾；並行後總長
+  // = DUR.medium 與其他 item 同拍。字母收到一半被光圈 clip 掉即可（點擊開影片那條路徑仍是串行、不受影響）。
   registerPageExit(() => new Promise(resolve => {
     if (typeof gsap === 'undefined') { resolve(); return; }
     const charsEl = document.getElementById('homepage-yt-chars');
     charsEl?.__pauseLayoutInterval?.(); // 停 3s reshuffle，避免退場時把已 fade 掉的字重畫回來（被收合的光圈裁住、但保險）
-    const closeIris = () => gsap.to(ytCard, { clipPath: 'circle(0% at 50% 50%)', duration: DUR.medium, ease: EASE.exit, overwrite: true, onComplete: resolve });
-    if (charsEl?.__fadeOutWatch) charsEl.__fadeOutWatch({ stagger: 0.03 }).then(closeIris);
-    else closeIris();
+    charsEl?.__fadeOutWatch?.({ stagger: 0.03 });
+    gsap.to(ytCard, { clipPath: 'circle(0% at 50% 50%)', duration: DUR.medium, ease: EASE.exit, overwrite: true, onComplete: resolve });
   }));
 
   // 立刻掛 click handler（不放在 fetch.then 內），player 用 mutable ref 後續 update

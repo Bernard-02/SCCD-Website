@@ -39,9 +39,9 @@ function isMobile() {
   if (window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) return true;
   return window.SCCDHelpers ? window.SCCDHelpers.isMobile() : window.innerWidth < 768;
 }
-// 數字方塊配色：專案三原色固定一輪（綠 / 粉 / 藍）；
+// 數字方塊配色：專案三原色固定一輪，順序＝全站「rgb」慣例 粉/綠/藍（同 helpers.js ACCENT_COLORS）；
 // cycle 時消失的 banner 顏色由新進場 banner 繼承 → 同時始終保有三色各一個
-const RGB_COLORS = ['#00FF80', '#FF448A', '#26BCFF'];
+const RGB_COLORS = ['#FF448A', '#00FF80', '#26BCFF'];
 // hover WATCH 卡時整條 news 被遮蔽：數字方塊蓋回自己的 rgb、黑條蓋黑 → 內容變抽象色塊（同浮卡池 news hover 語彙）。
 // clip-path wipe（跟浮卡 newsOverlay 同款 0.5s cubic-bezier）。四個藏起方向（上/下/右/左）；進場一律 wipe 到滿版，
 // 退場改抽一個新隨機方向 wipe 出去 → 下次進場自然從那個新方向進來，四方向輪替（user 2026-09-04）。
@@ -257,11 +257,14 @@ function createBanner(item, squareColor) {
   // 兩塊共用同一 wipe 方向；訂閱 subscribeWatchMask（只在 hover WATCH 卡時觸發，非 news 自身 hover）。
   square.style.position = 'relative';
   const squareMask = document.createElement('div');
+  // class 給 mode3 用：color.css 蓋掉 inline accent → strict B/W（mode3 不出現 rgb）
+  squareMask.className = 'hm-banner-num-mask';
   squareMask.style.cssText = `position:absolute; inset:0; background:${squareColor}; pointer-events:none; transition:clip-path 0.5s cubic-bezier(0.25,0,0,1);`;
   square.appendChild(squareMask);
 
   link.style.position = 'relative';
   const linkMask = document.createElement('div');
+  linkMask.className = 'hm-banner-link-mask';
   linkMask.style.cssText = `position:absolute; inset:0; background:#000; pointer-events:none; transition:clip-path 0.5s cubic-bezier(0.25,0,0,1);`;
   link.appendChild(linkMask);
 

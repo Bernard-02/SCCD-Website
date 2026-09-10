@@ -757,7 +757,7 @@ export function initHeroAnimation() {
   const isStale = () => mySeq !== _heroInitSeq;
 
   // Hero highlight：所有 [data-hero-hl] 套同一個隨機 accent 色 + 固定 padding
-  // padding 用 rem 而非 em，避免 h1（font-size 大）的 padding 被等比例放大成過大色塊
+  // padding 用 rem 而非 em：h1（3xl/128px）用 em 會放大成 64px 過大色塊（2026-09-09 試過 em＝user 嫌「好大」，維持 rem 手動微調）
   // 跑在 gsap 早返回之前，確保無 gsap 也會套色
   const heroHls = document.querySelectorAll('[data-hero-hl]');
   if (heroHls.length > 0) {
