@@ -23,6 +23,7 @@ import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { loadCourses } from './courses-source.js';
+import { bindArrowSpin } from '../ui/arrow-spin.js';
 
 const PRIMARY_COLORS = ['#00FF80', '#FF448A', '#26BCFF'];
 
@@ -384,14 +385,12 @@ function openCourseSlideIn(card) {
   const backBtn = document.getElementById('courses-back-btn-desktop');
   let backInner = null;
   if (backBtn) {
-    backBtn.style.transform = `rotate(${Math.random() * 30 - 15}deg)`;
-    // hover 重擲隨機角度（同 faculty-slide-in.js；guard 防每次開重綁）
+    // hover/click 隨機角度（arrow-spin，同 faculty-slide-in.js；guard 防每次開重綁）
     if (!backBtn.dataset.hoverRotBound) {
       backBtn.dataset.hoverRotBound = '1';
-      backBtn.addEventListener('mouseenter', () => {
-        backBtn.style.transform = `rotate(${Math.random() * 30 - 15}deg)`;
-      });
+      bindArrowSpin(backBtn, d => { backBtn.style.transform = `rotate(${d}deg)`; });
     }
+    /** @type {any} */ (backBtn)._arrowSpin.reroll();   // 每次開啟抽新微傾角（全站統一 −4~+6）
     if (typeof gsap !== 'undefined' && !prefersReducedMotion() && window.innerWidth >= 768) {
       backInner = backBtn.querySelector('.slide-in-back-square-inner');
       backHidden = BACK_DIRS[Math.floor(Math.random() * BACK_DIRS.length)];

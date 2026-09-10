@@ -166,12 +166,12 @@
    * - 預設**透明底 + 50% 灰字**（不要黑底，跟 about 不同）
    *     hover  = JS 設 accent 底 + 黑字（隨 btn 一起聯動）
    *     active = JS 設 accent 底 + 黑字（rotate 與 btn 各自獨立）
-   * - padding 4/6/3 對齊 about；font-size 保持 p1；transform transition 0.3s
+   * - padding 6/8/5＝全站 nav btn 標準（原 7/6/6 → 統一，user 2026-09-09）；font-size 保持 p1；transform transition 0.3s
    */
   .courses-bfa-label {
     display: inline-block;
     width: fit-content;
-    padding: 7px 6px 6px;
+    padding: 6px 8px 5px;
     position: absolute;
     bottom: calc(100% + 4px);
     left: -12px;
@@ -373,7 +373,7 @@
     gap: var(--space-en-zh-s);
     width: fit-content;
     max-width: 100%;
-    padding: 6px 10px 5px;
+    padding: 6px 8px 5px;   /* = 全站 nav btn 標準（原 6/10/5 → 統一，user 2026-09-09）*/
     background: rgba(0, 0, 0, 0.06);
     color: black;
     font-size: var(--font-size-s);
@@ -653,11 +653,15 @@
     /* label 下 padding 16 併掉 row gap（初始版面不變）：sticky 釘住時 bg 延伸到字下 16px，
        內容在 padding 邊消失、不貼字（user 2026-07-13「下面的內容直接貼到它」） */
     #courses-content-section .courses-mobile-row {
+      /* flex-column → block：label 是 sticky flex-item 時會繞自身高上下震盪（sticky-in-flex quirk）＝捲動時
+         required tag 位移（user 2026-09-08）。block 下 label 為乾淨 block sticky，配 rowlabelTop +16 與 grade
+         同拍 pin、恆保 16px 間距零位移。子項（label / cells）本來就直排堆疊，改 block 視覺不變。 */
+      display: block;
       gap: 0;
     }
     #courses-content-section .courses-mobile-row-label {
       position: sticky;
-      top: var(--courses-rowlabel-top, 287px);   /* = gradeTop + 年級 bar 實高 − 2；JS 量寫（courses-section-switch.js）*/
+      top: var(--courses-rowlabel-top, 285px);   /* = gradeTop + 年級 bar 實高 + 16(grade↔block 自然 gap)；label 隨 grade 同拍 pin 不追趕（消捲動位移）；JS 量寫（courses-section-switch.js）*/
       z-index: 3;
       align-self: stretch;
       padding-bottom: var(--spacing-sm);
@@ -665,14 +669,18 @@
       transform: translateZ(0);
     }
     /* 年級 bar ↔ label 之間 gap 的破口（有 overflow 的年級 bar 不能掛 ::before，蓋補掛在 label 上）；
-       高 24 = gap 20 + 4px tuck 進年級 bar 底 */
+       高度 = gap 20 + 4px tuck 進年級 bar 底 + 1px 壓進 label（消 sub-pixel 縫）。
+       ⚠️ bottom 由 100% 改 calc(100% - 1px)＝補丁下緣壓進 label 頂 1px：原本 bottom:100% 讓 ::before 下緣與
+       label 盒頂（=文字頂，label 無 padding-top）剛好對齊零重疊，sticky 釘在小數 px 時兩塊各自 round 露 1px 縫
+       → 後方捲動卡片透出（user 2026-09-10「Required 上方 1px 縫」）。同 nav/年級 bar 的 tuck 重疊手法。
+       height 隨之 +1（24→25）維持頂端 tuck 進年級 bar 底的量不變。 */
     #courses-content-section .courses-mobile-row-label::before {
       content: '';
       position: absolute;
-      bottom: 100%;
+      bottom: calc(100% - 1px);
       left: calc(var(--container-padding) * -1);
       right: calc(var(--container-padding) * -1);
-      height: 24px;
+      height: 25px;
       background: var(--theme-bg);
     }
     /* 卡片 ±2° 旋轉 corner 外溢 ~4-6px：cells 尾端墊 12px，row 收場時 label（sticky 到 row 內容底）
@@ -703,7 +711,7 @@
     /* 灰色卡片：mobile 字級 p1（學期/必修/選修 label 同步 p1，視覺統一） */
     .courses-grid-card {
       font-size: var(--font-size-s);
-      padding: 5px 8px 4px;
+      padding: 6px 8px 5px;   /* = 全站 nav btn 標準（原 5/8/4 → 統一，user 2026-09-09）*/
     }
   }
 

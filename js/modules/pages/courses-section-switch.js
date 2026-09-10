@@ -181,7 +181,11 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
   // 校準，group label 變兩行(高 ~53)後 → ①label 被 bar overflow 上緣裁（padding-top 40 不夠）②nav 實高(101)≠假設(108.6)
   // → 年級 bar(216) 與 nav 底(213) 差 3px 縫、下面內容漏出（user 2026-09-06 兩報）。改成**量實高寫 CSS var**：
   //   --courses-bar-padtop = 最高 group label 高 + gap 8 + buffer 8（label 絕對定位在 btn 上方，padTop 要容得下才不被裁）
-  //   --courses-grade-top  = 112 + nav 實高 − 2(tuck 消縫)；--courses-rowlabel-top = gradeTop + 年級 bar 實高 − 2
+  //   --courses-grade-top  = 112 + nav 實高 − 2(tuck 消縫，nav 帶蓋 grade 頂旋轉角)
+  //   --courses-rowlabel-top = gradeTop + 年級 bar 實高 + 16(grade↔block 自然 gap = grid gap sm)
+  //   ⚠️ label 用 +16（非 −2 tuck）：−2 讓 label pinned 貼齊 grade 底，但自然流中 label 在 grade 下方 16px
+  //      → 捲動時 label 要「追趕」16px 貼上 grade＝往上位移（user 2026-09-08 報 required tag 捲動跳動）。
+  //      改 +16＝label 與 grade 同拍 pin、恆保 16px 自然間距不追趕（gap 由 label ::before 24px 蓋住不露縫）。
   // 桌面/矮橫向清掉 var（走各自規則）。T1=112 仍是「貼 fixed header」錨定值，不量。
   const updateCoursesMobileSticky = () => {
     if (!sectionEl) return;
@@ -201,7 +205,7 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
     const gradeTop = T1 + navCol.offsetHeight - 2;   // offsetHeight 讀取強制 reflow → 已套上面新 padTop
     sectionEl.style.setProperty('--courses-grade-top', `${gradeTop}px`);
     const grade = [...sectionEl.querySelectorAll('.courses-mobile-grade-bar')].find(el => /** @type {HTMLElement} */ (el).offsetHeight > 0);
-    if (grade) sectionEl.style.setProperty('--courses-rowlabel-top', `${gradeTop + /** @type {HTMLElement} */ (grade).offsetHeight - 2}px`);
+    if (grade) sectionEl.style.setProperty('--courses-rowlabel-top', `${gradeTop + /** @type {HTMLElement} */ (grade).offsetHeight + 16}px`);
   };
   window.addEventListener('resize', updateCoursesMobileSticky);
   registerPageCleanup(() => window.removeEventListener('resize', updateCoursesMobileSticky));

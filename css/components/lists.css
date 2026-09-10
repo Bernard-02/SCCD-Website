@@ -40,10 +40,8 @@
     overflow-x: hidden;
     overflow-y: auto;
     box-sizing: border-box;
-    /* 滾輪分區（user 2026-09-05）：box 到頂/到底不外溢給 window（要去 footer/hero 用 col 1-3 nav 欄捲）。
-       只擋「box→window」的 chain；box 內巢狀 scroller 往 box 的 chain 不受影響。
-       ⚠️box 不可捲（短 panel）時瀏覽器 latch 會跳過 box、window 照捲＝刻意放行（bindFrameScrollSplit 同款守衛）。 */
-    overscroll-behavior: contain;
+    /* ⚠️勿加 overscroll-behavior:contain——邊界外溢由 bindFrameScrollSplit 三態守門（正常滾動鎖住、
+       fling/停頓後再滾放行去 footer/hero）；fling 手勢 latch 在 box 上，contain 會把放行的 chain 擋死。 */
   }
 
   /* ── activities 專屬：旋轉 chip clearance + filter bar/panel + 關 scroll anchoring ── */
@@ -132,6 +130,11 @@
     overflow-y: clip;
     padding-top: var(--spacing-sm);
     transform: translateZ(0);
+    /* 旋轉 active pill 的左緣被吃掉：overflow-x-auto（4 顆 pill 手機橫捲用）＋overflow-y:clip 會把 x 軸升成
+       clip/hidden → 旋轉首顆 pill 的左頂角越過 content-box 左緣被裁。負 margin + 等量 padding「出血」給左緣
+       clearance（同 DCD nav 列 -mx-md/px-md 與桌面 bar，faculty.html:74 / lists.css:96）；needsClipX 裁掉視窗外溢出。 */
+    margin-inline: calc(-1 * var(--spacing-md, 24px));
+    padding-inline: var(--spacing-md, 24px);
   }
 }
 
@@ -1028,8 +1031,8 @@
   transition: transform var(--dur-fast, 0.3s) var(--ease-standard, ease);
 }
 
+/* 09-10：#timeline-list-btn hover 固定 +8° 改由 JS arrow-spin 隨機角度接手（timeline.js 寫 inner inline transform） */
 @media (min-width: 768px) {
-  #timeline-list-btn:hover .tl-icon-btn-inner,
   .tl-list-next-btn:hover .tl-icon-btn-inner {
     transform: rotate(8deg);
   }
@@ -1091,12 +1094,15 @@ body.mode-color .tl-icon-btn-inner {
 }
 
 .tl-list-cell {
-  grid-column: 5 / 12;   /* col-5 ~ col-11＝7 欄總寬（user 2026-08-13 由 6 欄改回）；toggle 鈕在 col-4 */
+  grid-column: 5 / 21;   /* 佔位到右緣；實際寬度由 aspect-ratio 從高度推出（justify-self:start 不拉伸）*/
+  justify-self: start;
+  /* 比例＝resources「展開單卡」實測形狀（label+body ≈ 1072×650 @1920 headless 量測 2026-09-10，
+     user「以高度爲主、用 resources 卡比例推寬度」；整條手風琴 16:7 太寬已打回）：
+     高度維持原「7 欄寬」計算＋視窗封頂，寬 = 高 × 1.65。 */
+  aspect-ratio: 1.65;
   position: relative;
-  /* 高度：正方形（= 7 欄寬；next 鈕移除後卡片填滿整格，不再 −24），但用 min() 封頂在視窗高內——
-     矮螢幕卡片變矮、內容往內捲多一點，卡片頂不會頂到 header（user 2026-09-08）。
-     220 ≈ area padding-top(100) + grid bottom(32) + header/呼吸餘裕；calc 重算 20-col 欄寬（欄數改動要同步 grid-column）。
-     手機/矮橫向由下方共用 block 的 height:100% 覆寫，不吃這條。 */
+  /* 220 ≈ area padding-top(100) + grid bottom(32) + header/呼吸餘裕，矮螢幕卡片變矮、內容往內捲（user 2026-09-08）。
+     手機/矮橫向由下方共用 block 的 height:100% 覆寫（width 有 grid stretch 撐滿，aspect-ratio 自動失效）。 */
   height: min(
     calc((100vw - 2 * var(--container-padding) - 19 * var(--spacing-gutter)) / 20 * 7 + 6 * var(--spacing-gutter)),
     calc(100vh - 220px)
@@ -1154,7 +1160,7 @@ body.mode-color .tl-icon-btn-inner {
 }
 .tl-era-group + .tl-era-group { margin-top: var(--spacing-2xl); }
 .tl-era-label {
-  flex: 0 0 8rem;             /* era 更寬、壓縮右側說明（user 2026-09-08） */
+  flex: 0 0 7.5rem;           /* era 欄寬（user 2026-09-10 三調：8rem→6rem→新卡比例下加寬回 7.5rem） */
   position: sticky;          /* era 捲動時釘在該時期組頂（左欄，該欄無捲動內容→免底色遮擋）*/
   top: 0;
   align-self: flex-start;    /* 不被拉伸滿高才有 sticky 移動空間（配合 group align-items:flex-start）*/
@@ -1246,18 +1252,46 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
   .tl-list-cell {
     grid-column: auto;
     height: 100%;
+    aspect-ratio: auto;   /* 窄屏滿版、不吃桌面 16/7 比例 */
+    justify-self: auto;
   }
-  /* 窄屏：era 標籤改堆疊在該組上方（左欄在窄屏太擠）；改堆疊後 era/年份同欄→關 sticky 免 top:0 疊在一起 */
+  /* 窄屏：era 標籤改堆疊在該組上方（左欄在窄屏太擠）。**兩層 sticky**：era 標籤釘頂(top:0 z2)、
+     年份釘在標籤下方(top:量到的標籤實高 --tl-era-label-h，timeline.js showListView 每組量寫) z1（user 2026-09-08）。
+     both 要不透明底遮住下方捲過的內文：mode1/2 = JS 設在 .tl-list-rect 的卡片色 var(--tl-card-bg)、
+     mode3 由 color.css 覆 strict B/W。align-items:stretch + 標籤/年份 align-self:stretch 撐滿卡寬
+     （否則桌面 align-self:flex-start 滲進來→只有內容寬、右側捲過的內文露出來）；z-index 讓釘住的頭壓在
+     同層 DOM 較後的捲動內文之上。 */
   .tl-era-group {
     flex-direction: column;
-    gap: var(--spacing-sm);
+    gap: 0;                 /* 標籤↔年份留白移進 era-label padding-bottom（才能連同留白一起 sticky）；歸 0 免疊加 */
+    align-items: stretch;
   }
-  .tl-era-label { flex: none; position: static; }
-  .tl-list-year { position: static; }
-  /* 年份改堆疊在說明上方（桌面 2.75rem 左欄在窄屏太擠）*/
+  /* padding-bottom＝標籤↔年份留白（釘住時也在，因是 label 盒的一部分、量進 --tl-era-label-h）→ 年份不貼標題 */
+  .tl-era-label {
+    flex: none;
+    align-self: stretch;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--tl-card-bg);
+    padding-bottom: var(--spacing-sm);
+  }
+  /* ⭐年份 sticky 的關鍵＝padding-bottom 讓「年份↔說明的留白」一起被年份不透明底覆蓋、一起 sticky
+     → 說明捲到年份下方時從這段留白底邊乾淨冒出，不會貼著年份文字切半（user 2026-09-08「連同那個 padding 也要 sticky」）。
+     grid gap 不屬年份盒、無法隨 sticky 覆蓋→間距改由此 padding 提供（下方 row gap 歸 0）。
+     ⭐top 減 2px＝tuck：年份微疊到標籤底下 → 消掉兩個 sticky 盒之間的 1px 渲染縫（同色相疊不顯、擋掉後面捲動內容從縫露出，user 2026-09-09 報）。2px 落在年份文字 line-height 的 leading 內、不裁字。 */
+  .tl-list-year {
+    align-self: stretch;
+    position: sticky;
+    top: calc(var(--tl-era-label-h, 2.5rem) - 2px);
+    z-index: 1;
+    background: var(--tl-card-bg);
+    padding-bottom: var(--spacing-sm);
+  }
+  /* 年份改堆疊在說明上方（桌面 2.75rem 左欄在窄屏太擠）；年份↔說明間距移到年份 padding-bottom→row gap 歸 0 */
   .tl-list-year-row {
     grid-template-columns: 1fr;
-    gap: var(--spacing-sm);
+    gap: 0;
   }
   .tl-list-year-row + .tl-list-year-row {
     margin-top: var(--spacing-lg);

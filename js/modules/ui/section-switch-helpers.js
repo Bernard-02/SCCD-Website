@@ -101,11 +101,15 @@ export function bindNavBtnFit(btns) {
  * inner-scroll frame 桌面滾輪分區（user 2026-09-05「col 1-3 捲的是 window（可到 footer）、
  * col 4 之後都是內部捲動」；faculty/curriculum/activities/admission 四頁共用）：
  * - col 1-3（nav 欄）＝不攔 → window 原生捲（吃 mandatory snap → footer / hero）。
- * - box 本體＝原生捲；到頂/到底不外溢靠 CSS `overscroll-behavior: contain`（lists.css .inner-scroll-scroll-col）。
- * - col 4 留白帶（x > nav 欄右緣、target 不在 box 內）＝wheel 路由進 box（preventDefault，否則 chain 給
- *   window 被 mandatory snap 吃掉會抖/跳）。
- * - 短 panel（box 不可捲）＝整區放行給 window——沿用舊 activities initBoxSnapHandoff 的刻意設計：
- *   從 hero 進 section 當下 box 在底，不該被立刻帶去 footer。該 handoff（兩段手勢閘）已由本分區模型取代退役。
+ * - col 4 起（留白帶 ＋ box 本體）＝內容區三態（user 2026-09-09 二改「正常滾動留在 box、快滑或停頓後
+ *   再滾才去 footer/hero」，取代同日稍早的「一律鎖死」）：
+ *   · box 吸收得了（可捲、非邊界）→ box 本體放行原生捲；留白帶 preventDefault 路由進 box。
+ *   · 觸邊但慢（含 trackpad 慣性尾巴——密集事件不斷刷新 lastHit 冷卻，動量再大也衝不出去）→ 鎖住。
+ *   · 觸邊且「快」（近 FLING_WIN 累積位移 > FLING_PX＝抵達邊界那一刻還有勁）或「停頓 PAUSE_MS 後
+ *     再起手」＝刻意離開 → 放行 → 原生 chain 給 window → mandatory snap 去 footer/hero。
+ *     放行後同方向、短間隔的後續事件整段放行（releasedDir latch），免得 snap 飛到一半被自己鎖住。
+ * ⚠️box 不掛 CSS `overscroll-behavior:contain`（fling 手勢 latch 在 box 上，contain 會把放行的 chain
+ *   擋死）——邊界攔截全靠這裡的 preventDefault，JS 是唯一守門員。
  * 手機/矮橫向（frame 拆掉、window 捲）不介入。
  * @param {HTMLElement|null} section
  */
@@ -113,15 +117,40 @@ export function bindFrameScrollSplit(section) {
   const box = /** @type {HTMLElement|null} */ (section && section.querySelector('.inner-scroll-scroll-col'));
   const navCol = section && section.querySelector('.inner-scroll-nav-col');
   if (!section || !box || !navCol) return;
+  const PAUSE_MS = 500;                   // 邊界停頓多久後再滾＝刻意離開（手感鈕）
+  const FLING_WIN = 150, FLING_PX = 250;  // 近 150ms 累積 250px＝快速滑動（手感鈕：越大越難甩出去）
+  let lastHit = 0;                        // 上次「吸收或鎖住」的時間（停頓冷卻基準）
+  let recent = [];                        // 近 FLING_WIN 的事件位移
+  let releasedDir = 0, lastRelease = 0;
   const onWheel = (/** @type {WheelEvent} */ e) => {
     if (window.innerWidth < 768
       || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) return;
     if (e.ctrlKey) return;                                    // pinch / ctrl+wheel 縮放不攔
-    if (box.scrollHeight <= box.clientHeight + 1) return;     // 短 panel：交回 window（見上）
-    if (box.contains(/** @type {Node} */ (e.target))) return; // box 本體：原生捲＋CSS contain 擋外溢
-    if (e.clientX <= navCol.getBoundingClientRect().right) return; // col 1-3：window 捲
-    e.preventDefault();                                       // col 4 留白帶：路由進 box
-    box.scrollTop += (e.deltaMode === 1 ? 33 : 1) * e.deltaY;
+    if (e.clientX <= navCol.getBoundingClientRect().right) return; // col 1-3（nav 欄）：window 捲（去 footer/hero）
+    // frame 未對齊（在 hero/footer/過渡中）：不攔，讓 window 捲＋mandatory snap 收尾。缺這個 gate 時，
+    // hero→section 過渡中 section 一滑到游標下 delta 就被吃進 box → window 凍在半途＝「畫面沒 100vh」
+    // （user 2026-09-09；footer 側同機制鏡像）。2px 容差＝Win11 顯示縮放 sub-pixel（footer snap 同款坑）。
+    if (Math.abs(section.getBoundingClientRect().top) > 2) return;
+    const now = e.timeStamp;
+    const px = (e.deltaMode === 1 ? 33 : 1) * e.deltaY;       // Firefox 滾輪 line 制換算
+    const dir = Math.sign(px);
+    recent = recent.filter(r => now - r.t < FLING_WIN);
+    recent.push({ t: now, d: Math.abs(px) });
+    if (releasedDir !== 0 && releasedDir === dir && now - lastRelease < 250) { lastRelease = now; return; }
+    releasedDir = 0;
+    const canScroll = box.scrollHeight > box.clientHeight + 1;
+    const atTop = box.scrollTop <= 0;
+    const atBottom = box.scrollTop + box.clientHeight >= box.scrollHeight - 1;
+    if (canScroll && !((atTop && dir < 0) || (atBottom && dir > 0))) {
+      lastHit = now;                                          // box 吸收得了：內部捲
+      if (box.contains(/** @type {Node} */ (e.target))) return; // box 本體：原生捲
+      e.preventDefault();                                     // col 4 留白帶：路由進 box
+      box.scrollTop += px;
+      return;
+    }
+    const flung = recent.reduce((s, r) => s + r.d, 0) > FLING_PX;
+    if (flung || now - lastHit >= PAUSE_MS) { releasedDir = dir; lastRelease = now; return; } // 放行 → footer/hero
+    e.preventDefault(); lastHit = now;                        // 慢速觸邊：鎖住
   };
   section.addEventListener('wheel', onWheel, { passive: false });
   registerPageCleanup(() => section.removeEventListener('wheel', onWheel));
