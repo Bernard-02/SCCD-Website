@@ -34,14 +34,11 @@ export function initMobileMenu() {
   if (!btn || !nav) return;
 
   // ── 開啟 / 關閉 helper（給 btn click + nav link click 共用）──
-  // 進場 timing 比舊版縮 30%（user 2026-05-25），退場跟進場語義相反：items clip-out 倒序播完才 nav slide-out
-  // 進場節奏：nav slide-in (0.28) → delay (0.105) → items clip-reveal (0.63 + stagger 0.084)
-  // 退場節奏：items clip-out 倒序 (0.4 + stagger 0.05 from:end) → nav slide-out (0.28)
-  //
-  // ⚠️ Race 防護（user 2026-06-11 報「點太快下次打開 items 直接跳出來」）：
-  //   reveal 的 delayedCall 不殺的話，快速 close 後它照樣 fire，把收合中的 items 又翻回來（殭屍 reveal），
-  //   跑完 clearProps 留下「無 transform = 全顯」殘態。open/close 兩端都要 kill 它 + killTweensOf。
-  let revealCall = null;
+  // 進場節奏：nav slide-in (0.28) 完 → items clip-reveal (0.63 + stagger 0.084)；退場反向：items 倒序播完才 slide-out
+  // ⚠️ reveal 掛 slide-in 的 onComplete 而非 delayedCall(0.105)（2026-09-08）：點擊瞬間的長幀（全屏面板首繪
+  //   + 滑入 paint、剛換頁的主執行緒忙碌）原本落在 reveal tween 建立之後 → GSAP 補進度、前幾個 stagger 槽
+  //   被吃掉「沒完全 stagger」。fromTo 等面板停穩才建立，卡幀只延後起跑不吃 stagger。
+  //   pending 觸發器＝nav tween 本身，open/close 兩端的 killTweensOf(nav) 順帶取消（舊 revealCall 機制退役）。
 
   // ⚠️ 一勞永逸防 race（user 2026-06-22）：toggle btn 在「開合動畫進行中」一律不可點。
   //   過去 open/close 做成可中途反向（faculty 式），但每補一個中斷 edge 又冒新的殭屍殘態。
@@ -81,6 +78,9 @@ export function initMobileMenu() {
       gsap.set(menuItems, { yPercent: 100 });
     }
     nav.classList.add('open');
+    // footer 讓位：.footer-shell z-9999（贏 header 內的面板 z-40）→ 捲到 footer 再開 menu 時 footer
+    // 畫在面板上。開著時掛 class 壓掉（footer.css html.mobile-menu-open 規則），關閉滑出完才移除
+    document.documentElement.classList.add('mobile-menu-open');
     btn.setAttribute('aria-expanded', 'true');
     if (typeof gsap !== 'undefined') {
       busy = true; // reveal 完成前鎖住 toggle（onComplete 解鎖）
@@ -88,18 +88,17 @@ export function initMobileMenu() {
       // 不殺的話在 items 收合期間重開 menu，舊 tween 之後才 fire 會把開著的 menu 整個拉走，
       // state 卡在 open 但畫面上 menu 消失（user 2026-06-11 報「點箭頭後整個 menu 不見」）
       gsap.killTweensOf(nav);
-      gsap.to(nav, { x: '0%', duration: DUR.fast, ease: EASE.enterSoft });
-      if (revealCall) { revealCall.kill(); revealCall = null; }
       if (menuItems && menuItems.length) {
         setupClipReveal(menuItems);
         gsap.killTweensOf(menuItems);
-        // 一律：延遲 0.105s 後從「隱藏(100)」staggered reveal。busy(line 76) 已鎖住開合動畫中再點 toggle，
-        // open 必從完全關閉開始 → 不再用 `nav.getBoundingClientRect().right<=0` 分支（舊「中途可反向」殘留、busy 後已不可達）。
-        // ⚠️ 該 BCR 判斷對 sub-pixel 脆弱：nav 是 fixed inset-0 + translateX(-100%)、關閉時 right 恰好 ≈0，
-        //    偶爾捨入成 >0 → 走 else 立即 revealTween(無 delay) → 選項在 nav 還在滑入時就 reveal、看起來「沒 stagger」
-        //    （user 2026-06-24 報）。改用 fromTo 自帶起點 100：不依賴外部 set 撐過 delay，stagger 每次都確定從隱藏播。
-        revealCall = gsap.delayedCall(0.105, () => {
-          revealCall = null;
+      }
+      gsap.to(nav, {
+        x: '0%',
+        duration: DUR.fast,
+        ease: EASE.enterSoft,
+        onComplete: () => {
+          if (!menuItems || !menuItems.length) { busy = false; return; }
+          // fromTo 自帶起點 100：不依賴 open 前的外部 set 撐過滑入段，stagger 每次都確定從隱藏播（user 2026-06-24）
           gsap.fromTo(menuItems,
             { yPercent: 100 },
             {
@@ -112,8 +111,8 @@ export function initMobileMenu() {
               onComplete: () => { busy = false; }, // 選項全進場 → 解鎖 toggle
             }
           );
-        });
-      }
+        },
+      });
     } else {
       nav.style.transform = 'translateX(0%)';
     }
@@ -139,8 +138,7 @@ export function initMobileMenu() {
     return new Promise(resolve => {
       if (typeof gsap !== 'undefined') {
         busy = true; // nav 滑出完成前鎖住 toggle（onComplete 解鎖）
-        gsap.killTweensOf(nav); // 對稱保險：殺掉殘留的 open 滑入 tween
-        if (revealCall) { revealCall.kill(); revealCall = null; } // 殺掉 pending 的殭屍 reveal（見上）
+        gsap.killTweensOf(nav); // 對稱保險：殺掉殘留的 open 滑入 tween（含其 onComplete 掛的 pending reveal）
         const itemCount = menuItems?.length || 0;
         const itemDur = 0.4;
         const itemStagger = 0.05;
@@ -167,10 +165,14 @@ export function initMobileMenu() {
           ease: EASE.exitSoft,
           delay: itemsTotal,
           // resume 保險（itemCount 0 / items tween 被 kill 的殘局；重複 loop() 無害）；離頁場景 _p5 已移除 = no-op
-          onComplete: () => { busy = false; setPageLoopsPaused(false); resolve(); },
+          onComplete: () => {
+            document.documentElement.classList.remove('mobile-menu-open'); // 面板已滑出，footer z 復原
+            busy = false; setPageLoopsPaused(false); resolve();
+          },
         });
       } else {
         nav.style.transform = 'translateX(-100%)';
+        document.documentElement.classList.remove('mobile-menu-open');
         setPageLoopsPaused(false);
         resolve();
       }
@@ -208,6 +210,15 @@ export function initMobileMenu() {
       });
     });
   }
+
+  // 3. header logo（Lottie 圓圈 + SCCD 文字兩個 anchor，z-50 蓋在面板上、開著也點得到）：
+  // 點 logo 回首頁也是導航 → menu 同步收起。不 preventDefault，跳轉交給 router 的 click 攔截，
+  // close 與 page exit 並行（同 nav link 慣例）。
+  document.querySelectorAll('[data-mobile-logo-lottie-anchor], [data-mobile-logo-sccd-anchor]').forEach(a => {
+    a.addEventListener('click', () => {
+      if (nav.classList.contains('open')) closeMenu();
+    });
+  });
 
   // mount 時兩個 btn 都先給隨機角度
   applyRandomRotation(menuBtnBox);

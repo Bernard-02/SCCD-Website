@@ -29,6 +29,21 @@
     z-index: 9999;
   }
 
+  /* 手機 menu 開啟時 footer 讓位：面板(.mobile-nav z-40)在 header stacking context 內贏不了 9999 →
+   * 捲到 footer 再開 menu 時 footer 畫在面板上（user 2026-09-08）。開著時 footer 不需要壓過誰；
+   * class 由 mobile-menu.js 掛在 html、關閉滑出完成才移除（面板收完前 footer 不先跳回來）。 */
+  html.mobile-menu-open .footer-shell {
+    z-index: auto;
+  }
+
+  /* slide-in（faculty / courses，html.has-slide-in）開啟時 footer 讓位：footer z-9999 是為了收合時蓋過
+   * fixed header(9999)，但 slide-in 容器也是 z-[9999]（同層、footer DOM 在後 → 會蓋過覆蓋滿版的 slide-in
+   * 底部、露出黑 footer；手機捲到近 footer 才現）。開啟期間把 footer 沉到 40 讓 panel + portal logo 完整覆蓋；
+   * has-slide-in 撐到 close 動畫尾 → 退場全程不露 footer。ponytail: 讓位一條規則，勝過改全站 z 階梯 */
+  html.has-slide-in .footer-shell {
+    z-index: 40;
+  }
+
   .footer-link {
     color: var(--footer-fg, #fff);
   }
@@ -365,8 +380,10 @@
     width: auto;
     margin-bottom: var(--spacing-xs);
     background-color: var(--footer-fg, #fff);
-    -webkit-mask: var(--tab-mark-src) no-repeat center / contain;
-            mask: var(--tab-mark-src) no-repeat center / contain;
+    /* 錨 left top 非 center：比例正確時無視覺差；萬一 SVG 比例與 box 失配（快取舊圖/後台換圖），
+     * 字仍貼頂不往下掉（user 2026-09-10「tab 對齊頂部」） */
+    -webkit-mask: var(--tab-mark-src) no-repeat left top / contain;
+            mask: var(--tab-mark-src) no-repeat left top / contain;
   }
   /* 無圖 mark 的 units tab：首行往下墊 = mark 高 + margin-bottom → 對齊有 mark tab 的說明文字。 */
   .footer-tab:not(:has(.footer-tab-mark)) {

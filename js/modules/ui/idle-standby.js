@@ -25,7 +25,7 @@
  *   4. (非 atlas 頁) 空白底 fade in → initAtlas 分批點燈 intro（同 atlas 頁進場；user 2026-07-15）
  *
  * 離開順序：
- *   1. (非 atlas 頁) playOverlayAtlasExit（atlas 自己的退場動畫）→ 空白底 fade out → unmount atlas
+ *   1. (非 atlas 頁) 整個 atlas 單純 fade out（09-10 起；舊制 playOverlayAtlasExit 覆蓋色塊退場已撤）→ unmount atlas
  *   2. remove body.idle-standby
  *   3. logo 還原
  *   4. restoreLogoFromBody（logo 還回 header）
@@ -349,11 +349,9 @@ async function exitStandby() {
   // （frame-based tick 被主執行緒 block → 卡片「停一下才繼續跑」；user 2026-06-30）。
   const atlasFadeOutPromise = (async () => {
     if (isOnAtlas()) return;
-    // atlas 自己的退場（cover wipe + span 四方向 clip 收，同 atlas 頁離頁動畫；user 2026-07-15）
-    if (atlasMounted && atlasApi && typeof atlasApi.playOverlayAtlasExit === 'function') {
-      await atlasApi.playOverlayAtlasExit();
-    }
-    await fadeAtlasMain(0);     // 空白底再 fade out 露回原頁
+    // 09-10（user）：退場改單純 fade out——撤 playOverlayAtlasExit（cover wipe + span 四方向 clip 收，
+    // 07-15 舊制），整個 #atlas-main 連內容直接淡出露回原頁
+    await fadeAtlasMain(0);
   })();
 
   await Promise.all([logoRestorePromise, atlasFadeOutPromise]);

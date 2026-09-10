@@ -10,6 +10,8 @@
     { "key": "about.program.animation",         "en": "Division of Animation & Moving Image", "zh": "動畫影像設計組" },
     { "key": "about.program.creative-media",    "en": "Division of Creative Media Design",    "zh": "創意媒體設計組" },
     { "key": "about.program.mdes",              "en": "Master of Design (MDES)",              "zh": "碩士班" },
+    { "key": "about.program.dcd",               "en": "Department of Communications Design (DCD)", "zh": "媒體傳達設計學系" },
+    { "key": "about.program.bpaidc",            "en": "Bachelor Program of AI Design Craftsmentship (BPAIDC)", "zh": "AI 設計職人學位學程" },
 
     { "key": "nav.about",      "en": "About",              "zh": "關於" },
     { "key": "nav.faculty",    "en": "Faculty",            "zh": "師資" },
