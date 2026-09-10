@@ -10,6 +10,8 @@ import { countryName } from '../../data/country-names.js';
 import { guestOrgs } from './guest-orgs.js';
 import { sitePath } from '../ui/site-base.js';
 import { loadUiLabels, applyUiLabels } from '../ui/ui-labels.js';
+import { ACCENT_TO_DEEP } from '../accordions/list-accordion.js';
+import { bindArrowSpin } from '../ui/arrow-spin.js';
 
 /**
  * Atlas Page — SCCD-Centered Living Textile
@@ -334,6 +336,10 @@ export async function initAtlas(options = {}) {
   (facultyCurrent || []).forEach(f => {
     if (!f.nameEn && !f.nameZh) return;
     const t = (Array.isArray(f.titles) && f.titles[0]) || {};
+    // 兼任：titles 是職級(rank；且有 EN 公司/ZH 職級混填的髒資料)→ 改抓 occupations（真職稱/公司，user 2026-09-09）；
+    // 專任 occupations=null、fallback JSON 無 occupations → 照舊 titles[0]，graceful。
+    const o = (Array.isArray(f.occupations) && f.occupations[0]) || null;
+    const useOcc = f.type === 'parttime' && o && (o.occupationEn || o.occupationZh);
     items.push({
       id: uid('fc'), category: 'A',
       textEn: f.nameEn || '', textZh: f.nameZh || '',
@@ -341,19 +347,26 @@ export async function initAtlas(options = {}) {
       detail: '目前任職於本系，從事教學、研究與創作實務。',
       groups: [], cityKey: null,
       // country 2026-08-13 起掛 occupations（職稱/公司才有國家，職級沒有）；t.country 留舊資料 fallback
-      _titleEn: t.titleEn || '', _titleZh: t.titleZh || '',
+      _titleEn: useOcc ? (o.occupationEn || '') : (t.titleEn || ''),
+      _titleZh: useOcc ? (o.occupationZh || '') : (t.titleZh || ''),
       _countryCode: (Array.isArray(f.occupations) && f.occupations[0]?.country) || t.country || '',
     });
   });
 
-  // A: 離職教師
+  // A: 離職教師（別名 aka 以括號附在名字後：ZH 全形、EN 半形帶前導空格、單語 aka 兩行共用；同 guest 規則）
+  // 在職教師刻意不帶 aka（見 faculty-source 註）——別名只出現在 atlas 離職者。
+  const nameWithAka = (name, akaSame, akaOther, zh) => {
+    const aka = akaSame || akaOther;
+    if (!name || !aka) return name || '';
+    return zh ? `${name}（${aka}）` : `${name} (${aka})`;
+  };
   (facultyFormer || []).forEach(f => {
     if (!f.nameEn && !f.nameZh) return;
     const years = f.yearsActive ? `（${f.yearsActive}）` : '';
     const field = f.fieldZh || f.fieldEn || '';
     items.push({
       id: uid('ff'), category: 'A',
-      textEn: f.nameEn || '', textZh: f.nameZh || '',
+      textEn: nameWithAka(f.nameEn, f.akaEn, f.akaZh, false), textZh: nameWithAka(f.nameZh, f.akaZh, f.akaEn, true),
       labelEn: 'Former Faculty', labelZh: '離職教師',
       detail: `曾任職於本系${years}${field ? '，' + field + '領域' : ''}。`,
       groups: [], cityKey: null,
@@ -1482,7 +1495,11 @@ export async function initAtlas(options = {}) {
   // filter gate 後 cityLine 的靜止目標：在當前可見國家環上（syncCityCycle 寫的 _on）才畫。
   // hover/clearDetail 還原時不可無條件回 0——那會把 gate 縮掉的線重新畫進空氣（user 2026-08-11）。
   const cityLineRestT = (cl) => cl._on ? 0 : 1;
+  // 離頁退場旗標：退場 tween（playMapExit 的 retractT→1）起跑後，clip-out 補發的 mouseout →
+  // clearDetail → setCityLineRetract 會 killTweensOf 殺掉退場 tween 把線畫回來 → 這裡守門
+  let pageExiting = false;
   function setCityLineRetract(hoveredCity) {
+    if (pageExiting) return;
     cityLines.forEach(cl => {
       let targetT = cityLineRestT(cl);
       let isActive = false;
@@ -1842,6 +1859,22 @@ export async function initAtlas(options = {}) {
   // ── Hover 連動 + 細節面板 ────────────────────────────
   const nameEl = /** @type {HTMLElement} */ (detail.querySelector('[data-atlas-detail-name]'));
   const descEl = /** @type {HTMLElement} */ (detail.querySelector('[data-atlas-detail-desc]'));
+  const headEl = /** @type {HTMLElement|null} */ (detail.querySelector('[data-atlas-detail-head]'));
+  const footEl = /** @type {HTMLElement|null} */ (detail.querySelector('[data-atlas-detail-foot]'));
+  // 黑頭區（2026-09-09 兩區設計）：主行 bold（en+zh 併排）＋可選副行 regular；無內容＝display:none 整卡維持三原色
+  function setDetailHead(mainEn, mainZh, subEn, subZh) {
+    if (!headEl) return;
+    const row = (cls, en, zh) => {
+      const d = document.createElement('div');
+      d.className = cls;
+      if (en) { const s = document.createElement('span'); s.textContent = en; d.appendChild(s); }
+      if (zh) { const s = document.createElement('span'); s.lang = 'zh-Hant'; s.textContent = zh; d.appendChild(s); }
+      return d;
+    };
+    headEl.appendChild(row('atlas-detail-head-main', mainEn, mainZh));
+    if (subEn || subZh) headEl.appendChild(row('atlas-detail-head-sub', subEn, subZh));
+    headEl.classList.add('has-content');
+  }
   // mask（2026-08-16 卡片進場改 clip-reveal）：定位/旋轉/遮罩載體，卡片在內滑動（見 atlas.css #atlas-detail-mask）
   const detailMask = /** @type {HTMLElement|null} */ (document.getElementById('atlas-detail-mask'));
 
@@ -1880,7 +1913,8 @@ export async function initAtlas(options = {}) {
     const savedTransform = rotEl.style.transform;
     rotEl.style.transform = 'none';          // 量測時拿掉旋轉
     void detail.offsetWidth;                 // force reflow
-    const cs = getComputedStyle(detail);
+    // 兩區設計後 container padding=0、左右 padding 在 .atlas-detail-body（head 同值）→ 改讀 body 才量得到內縮
+    const cs = getComputedStyle(detail.querySelector('.atlas-detail-body') || detail);
     const padL = parseFloat(cs.paddingLeft) || 0;
     const padR = parseFloat(cs.paddingRight) || 0;
     const left = detail.getBoundingClientRect().left + padL;
@@ -2028,6 +2062,8 @@ export async function initAtlas(options = {}) {
     detail.style.color = '#000000';
     // 旋轉消費規則在 mask（clip 跟著旋轉角）→ var 設在 mask；無 mask fallback 設回 detail
     (detailMask || detail).style.setProperty('--atlas-detail-rot', `${rot}deg`);
+    if (headEl) { headEl.innerHTML = ''; headEl.classList.remove('has-content'); }   // 黑頭逐卡重填（國家卡無 head）
+    if (footEl) { footEl.innerHTML = ''; footEl.classList.remove('has-content'); footEl.style.backgroundColor = ''; }   // 底部類型帶逐卡重填（partner 才有）
     stopDetailBatchCycle();  // 切換 item / 重填內容先停掉上一個國家的輪播
 
     if (nameEl) {
@@ -2091,14 +2127,10 @@ export async function initAtlas(options = {}) {
         detail.style.setProperty('--atlas-cat-col', `${Math.ceil(catW)}px`);
         startDetailBatchCycle(related);
       } else if (String(item.id).split('-')[0] === 'co' || String(item.id).split('-')[0] === 'em') {
-        // 系友環：hover 說明一律統一（英中各一行），不用 item.detail（名稱保留企業名、說明統一即可）。
-        //   co-* 橢圓 ring 企業 = 系友主持 → Hosted by Alumni
-        //   em-* 橢圓外 floating chip = 系友就職 → Joined by Alumni
-        // 國家（有填才顯示，EN 顯示 ISO 碼、ZH 顯示中文全名，同 list 副標慣例）→ title 下方、Hosted/Joined 上方
-        //   gap 配置：title 緊貼國家（走 --space-en-zh-s，同 title 是 s 級、跟標題自己的 EN/ZH 行距連動）；
-        //   原本 title→desc 的 10px 大距挪到「國家→說明文字」之間
-        //   （user 2026-08-03：兩行國家視覺上要跟 title 同一組，跟 Hosted/Joined 那組隔開）
+        // 系友環（2026-09-09 兩區設計）：Hosted/Joined by Alumni 描述搬進黑頭（bold 白字）；
+        //   三原色身＝title＋國家（有填才顯示，EN ISO 碼、ZH 中文全名，同 list 副標慣例；title 緊貼國家走 s token）。
         const isHost = String(item.id).split('-')[0] === 'co';
+        setDetailHead(isHost ? 'Hosted by Alumni' : 'Joined by Alumni', isHost ? '系友主持' : '系友就職');
         if (item._countryCode) {
           nameEl.style.marginBottom = 'var(--space-en-zh-s)';   // title 是 s 級 → 跟 s token 連動（原寫死 2px）
           const countryEn = document.createElement('div');
@@ -2106,49 +2138,63 @@ export async function initAtlas(options = {}) {
           descEl.appendChild(countryEn);
           const countryZh = document.createElement('div');
           countryZh.textContent = countryName(item._countryCode, 'zh');
-          countryZh.style.marginTop = 'var(--space-en-zh-xs)';   // 英中距 1px token
+          countryZh.style.marginTop = 'var(--space-en-zh-s)';   // 英中距＝s token（卡內文字全 s，user 2026-09-09）
           descEl.appendChild(countryZh);
         }
-        const en = document.createElement('div');
-        en.textContent = isHost ? 'Hosted by Alumni' : 'Joined by Alumni';
-        if (item._countryCode) en.style.marginTop = '10px';
-        descEl.appendChild(en);
-        const zh = document.createElement('div');
-        zh.textContent = isHost ? '系友主持' : '系友就職';
-        zh.style.marginTop = 'var(--space-en-zh-xs)';   // 英中距 1px token
-        descEl.appendChild(zh);
       } else {
         const prefix = String(item.id).split('-')[0];
         const isFaculty = FILTER_PREFIXES.faculty.includes(prefix);
         const isPartner = FILTER_PREFIXES.partners.includes(prefix);
-        const subEn = isFaculty ? item._listSubEn : (isPartner ? item._listTypeEn : null);
-        const subZh = isFaculty ? item._listSubZh : (isPartner ? item._listTypeZh : null);
-        if (subEn || subZh) {
-          if (isFaculty && nameEl) nameEl.style.marginBottom = 'var(--space-en-zh-s)';   // 職稱貼緊名字（比照 co/em 國家）
-          if (subEn) {
-            const en = document.createElement('div');
-            en.textContent = subEn;
-            descEl.appendChild(en);
+        if (isPartner) {
+          // 合作單位（2026-09-09 兩區設計；同日二改）：黑頭＝Partners 合作單位（bold）；
+          //   三原色身＝單位 title＋國家（_listCountryEn/Zh，list 副標同源）；
+          //   類型（Workshop 工作營／產學合作）改「ref 式底部帶」＝deep accent 底黑字（同 .list-ref-btn），bg 配對卡片當前 accent。
+          setDetailHead('Partners', '合作單位');
+          if (footEl && (item._listTypeEn || item._listTypeZh)) {
+            const mk = (text, zh) => { const s = document.createElement('span'); if (zh) s.lang = 'zh-Hant'; s.textContent = text; return s; };
+            if (item._listTypeEn) footEl.appendChild(mk(item._listTypeEn, false));
+            if (item._listTypeZh) footEl.appendChild(mk(item._listTypeZh, true));
+            footEl.style.backgroundColor = ACCENT_TO_DEEP[bg] || '';
+            footEl.classList.add('has-content');
           }
-          if (subZh) {
-            const zh = document.createElement('div');
-            zh.textContent = subZh;
-            if (subEn) zh.style.marginTop = 'var(--space-en-zh-xs)';   // 英中距 1px token（EN 有才補）
-            descEl.appendChild(zh);
+          if (item._listCountryEn || item._listCountryZh) {
+            nameEl.style.marginBottom = 'var(--space-en-zh-s)';   // title 緊貼國家（比照 co/em）
+            if (item._listCountryEn) {
+              const en = document.createElement('div');
+              en.textContent = item._listCountryEn;
+              descEl.appendChild(en);
+            }
+            if (item._listCountryZh) {
+              const zh = document.createElement('div');
+              zh.textContent = item._listCountryZh;
+              if (item._listCountryEn) zh.style.marginTop = 'var(--space-en-zh-s)';   // 英中距＝s token（卡內文字全 s）
+              descEl.appendChild(zh);
+            }
+          }
+        } else if (isFaculty) {
+          // 老師（2026-09-09 兩區設計）：黑頭＝type label「Professor 教師」（原 descEl 尾兩行搬上去；後台 ui_labels 可改，key=atlas.faculty.type）；
+          //   三原色身＝名字＋職稱（無職稱退 detail 段落，原共用 fallback）。
+          const row = atlasUiLabels && atlasUiLabels['atlas.faculty.type'];
+          setDetailHead((row && row.en) || 'Professor', (row && row.zh) || '教師');
+          const subEn = item._listSubEn, subZh = item._listSubZh;
+          if (subEn || subZh) {
+            if (nameEl) nameEl.style.marginBottom = 'var(--space-en-zh-s)';   // 職稱貼緊名字（比照 co/em 國家）
+            if (subEn) {
+              const en = document.createElement('div');
+              en.textContent = subEn;
+              descEl.appendChild(en);
+            }
+            if (subZh) {
+              const zh = document.createElement('div');
+              zh.textContent = subZh;
+              if (subEn) zh.style.marginTop = 'var(--space-en-zh-s)';   // 英中距＝s token（卡內文字全 s）
+              descEl.appendChild(zh);
+            }
+          } else {
+            descEl.textContent = item.detail || '';
           }
         } else {
           descEl.textContent = item.detail || '';
-        }
-        if (isFaculty) {                                   // 老師節點：職稱後接 type label「Professor 教師」，gap 分開＝hosting chip 排法（後台 ui_labels 可改，key=atlas.faculty.type）
-          const row = atlasUiLabels && atlasUiLabels['atlas.faculty.type'];
-          const en = document.createElement('div');
-          en.textContent = (row && row.en) || 'Professor';
-          if (subEn || subZh) en.style.marginTop = '10px';   // gap：type label 跟上方職稱隔開（比照 Hosted by Alumni 的 10px）
-          descEl.appendChild(en);
-          const zh = document.createElement('div');
-          zh.textContent = (row && row.zh) || '教師';
-          zh.style.marginTop = 'var(--space-en-zh-xs)';    // 英中距 1px token
-          descEl.appendChild(zh);
         }
       }
     }
@@ -2430,7 +2476,7 @@ export async function initAtlas(options = {}) {
   }
 
   function onMouseOver(e) {
-    if (isIntroActive()) return;   // 進場動畫期間不響應 hover
+    if (isIntroActive() || pageExiting) return;   // 進場/離頁退場期間不響應 hover
     const span = e.target && e.target.closest && e.target.closest('.atlas-name');
     if (!span) return;
     const fromSpan = e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('.atlas-name');
@@ -3784,6 +3830,9 @@ export async function initAtlas(options = {}) {
     return (sign * (1 + Math.random() * 2)).toFixed(1);
   }
 
+  // 翻頁鈕點擊定案的角度（arrow-spin）：切頁 build 會重建新鈕，用這個變數把定案角帶過去
+  let listNavRot = null;
+
   function getItemCat(item) {
     const prefix = String(item.id).split('-')[0];
     for (const [cat, prefixes] of Object.entries(FILTER_PREFIXES)) {
@@ -4176,10 +4225,13 @@ export async function initAtlas(options = {}) {
       // icon 用 arrow-right 實心箭頭（非 chevron）。只有一頁時 disable。
       const nextBtn = document.createElement('button');
       nextBtn.className = 'atlas-list-nav-btn';
-      // 隨機微傾斜存成 CSS var（非直接寫 transform）→ CSS :hover 能用 calc(var + Δ) 疊加傾斜（inline transform 會蓋 CSS hover）
-      nextBtn.style.setProperty('--nav-rot', `${randDeg()}deg`);
+      // 隨機微傾斜存成 CSS var；hover/click 隨機角度改由 arrow-spin 接手（user 2026-09-10，取代舊 CSS :hover +8°）
+      const navRot = listNavRot ?? parseFloat(randDeg());
+      nextBtn.style.setProperty('--nav-rot', `${navRot}deg`);
       nextBtn.innerHTML = '<span class="icon icon-arrow-right"></span>';
       nextBtn.disabled = maxPage <= 0;
+      bindArrowSpin(nextBtn, d => nextBtn.style.setProperty('--nav-rot', `${d}deg`),
+        { initial: navRot, onCommit: d => { listNavRot = d; } });
       nextBtn.addEventListener('click', () => renderListPage(col, cat, safePage >= maxPage ? 0 : safePage + 1));
 
       navItem.appendChild(nextBtn);
@@ -4393,8 +4445,10 @@ export async function initAtlas(options = {}) {
     // faculty 欄（在職 fc + 離職 ff 併排）list view 依姓氏 A-Z（= nameEn 最後一字，對齊兼任老師後台排法）；
     // 桌機/手機共用 listGrouped[cat]，在此排完兩端一致。map（星雲）走 items 陣列不受影響。
     const surnameKey = (it) => {
-      const en = (it.textEn || '').trim();
-      return en ? en.split(/\s+/).pop().toLowerCase() : (it.textZh || '').trim();
+      // 去掉尾端別名括號（離職教師 textEn＝「Name (AKA)」）再取姓氏，否則會拿到「(AKA)」
+      const strip = s => (s || '').replace(/\s*[（(].*$/, '').trim();
+      const en = strip(it.textEn);
+      return en ? en.split(/\s+/).pop().toLowerCase() : strip(it.textZh);
     };
     listGrouped.faculty.sort((a, b) => surnameKey(a).localeCompare(surnameKey(b), 'en'));
 
@@ -5443,6 +5497,10 @@ export async function initAtlas(options = {}) {
       if (i._float) i._span.style.rotate = `${i._float.baseRot.toFixed(2)}deg`;
     });
     cityLines.forEach(cl => {
+      // ⚠️必先殺 in-flight tween：list 裡 hover/移開 item（含點 layout 鈕瞬間的 mouseout）→ clearDetail →
+      // setCityLineRetract(null) 起 retractT→0 的 draw 回 tween（DUR.medium）；下面只寫 retractT=1 不殺它，
+      // 舊 tween 繼續跑＝回 map 首幀線被畫回來「突然先出現」（R_CITY_START 的壓軸 tween 2.15s 後才 overwrite 得到）
+      gsap.killTweensOf(cl);
       cl.hoveredEnd = Math.random() < 0.5 ? 'a' : 'b';
       cl.retractT = 1;
       updateCityLineEndpoints(cl);
@@ -5961,6 +6019,10 @@ export async function initAtlas(options = {}) {
   }
 
   if (layoutBtn) {
+    // hover/click 隨機角度（arrow-spin，全站箭頭統一 −4~+6；取代舊 CSS :hover +15° 固定角）。
+    // 轉 inner：clip reveal 也跑在 inner 上，-12px buffer 原為 ±15 設計、−4~+6 綽綽有餘
+    const layoutInner = /** @type {HTMLElement|null} */ (layoutBtn.querySelector('.atlas-layout-inner'));
+    if (layoutInner) bindArrowSpin(layoutBtn, d => { layoutInner.style.transform = `rotate(${d}deg)`; });
     layoutBtn.addEventListener('click', () => {
       if (isMobileAtlas) {
         // 手機：list ↔ 星雲（星雲直式時顯示轉向提示、橫式才顯示內容）
@@ -6181,6 +6243,7 @@ export async function initAtlas(options = {}) {
 
   function playMapExit() {
     return new Promise(resolve => {
+      pageExiting = true;
       drainRevealTimers();
       // 手機星雲直式的轉向提示層：離頁即時收掉（覆蓋層無退場動畫需求）
       if (rotateHintEl) rotateHintEl.style.display = 'none';
@@ -6233,6 +6296,7 @@ export async function initAtlas(options = {}) {
 
   function playListExit() {
     return new Promise(resolve => {
+      pageExiting = true;
       if (listCareerCtrl) listCareerCtrl.hide();
       if (layoutBtn) layoutBtn.classList.remove('atlas-layout-revealed');
       hideLayoutIcon();

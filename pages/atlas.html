@@ -63,8 +63,15 @@
          mask（2026-08-16 進場由 clip-path 改 clip-reveal）：定位/旋轉/遮罩在 mask、卡片本體在內滑動 -->
     <div id="atlas-detail-mask">
       <aside id="atlas-detail" aria-live="polite">
-        <div class="atlas-detail-name" data-atlas-detail-name></div>
-        <div class="atlas-detail-desc" data-atlas-detail-desc></div>
+        <!-- 兩區設計（2026-09-09，比照 about Degree 說明卡）：黑頭（類別描述，co/em/partner 才有）＋三原色身（title＋國家）；
+             faculty / 國家卡 head 空＝維持整卡三原色（fillDetailContent 填/清） -->
+        <div class="atlas-detail-head" data-atlas-detail-head></div>
+        <div class="atlas-detail-body">
+          <div class="atlas-detail-name" data-atlas-detail-name></div>
+          <div class="atlas-detail-desc" data-atlas-detail-desc></div>
+        </div>
+        <!-- 底部類型帶（partner 才有）：ref 式 deep accent 底（同 .list-ref-btn），bg 由 JS 依卡片當前 accent 配對 -->
+        <div class="atlas-detail-foot" data-atlas-detail-foot></div>
       </aside>
     </div>
   </main>

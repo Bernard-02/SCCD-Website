@@ -307,8 +307,9 @@ body.mode-color #atlas-main { background-color: var(--theme-bg); }
 #atlas-detail {
   max-width: 380px;
   min-width: 240px;
-  /* padding 對齊全站 nav btn 標準（.anchor-nav-inner: 6px 8px 5px；user 2026-06-23） */
-  padding: 6px 8px 5px;
+  /* 兩區設計（2026-09-09）：container padding 歸零、由 head/body 各自帶（黑頭才能貼卡緣）；
+     ⚠️ snugDetailWidth 的 padding 改讀 .atlas-detail-body */
+  padding: 0;
   max-height: 70vh;
   overflow: hidden;
   /* bg / color 由 atlas.js 在 showDetail 設成 inline 三原色 + 黑字（每次隨機） */
@@ -319,6 +320,43 @@ body.mode-color #atlas-main { background-color: var(--theme-bg); }
   transform: translateY(110%);
   /* 不 transition bg-color：bg 切換發生在收合完成的 onComplete（panel 完全隱藏的瞬間），
      若加 transition 會在滑入期間看到 bg 還在過渡（藍→紅 中間色 = 紫色殘留） */
+}
+
+/* 黑頭區（2026-09-09，比照 about Degree 說明卡）：類別描述搬進黑底白字頭；主行 bold、副行（partner 類型）regular。
+   co/em＝Hosted/Joined by Alumni；partner＝Partners＋類型；faculty / 國家卡無 head（.has-content 才顯示）。
+   padding 同 body（6px 8px 5px＝nav btn 標準）；字級 s 同 title。mode3 反轉見 themes/color.css。 */
+.atlas-detail-head { display: none; }
+.atlas-detail-head.has-content {
+  display: block;
+  padding: 6px 8px 5px;
+  /* mode1 黑底白字、mode2 白底黑字（user 2026-09-10）＝theme-fg 底＋fg-inverse 字；mode3 另由 color.css 對翻 */
+  background: var(--theme-fg);
+  color: var(--theme-fg-inverse);
+  font-size: var(--font-size-s);
+  line-height: var(--line-height-s);
+}
+.atlas-detail-head-main,
+.atlas-detail-head-sub {
+  display: flex;
+  gap: 6px;                    /* EN＋ZH 同行間距＝全站慣例 6px（對齊 .atlas-list-col-title/-career；撤 ad-hoc 0.4em） */
+  align-items: baseline;
+}
+.atlas-detail-head-main { font-weight: 700; }
+.atlas-detail-head-sub  { font-weight: 400; margin-top: var(--space-en-zh-s); }   /* 兩行 gap＝s token，同 body title→國家距（user 2026-09-09） */
+
+.atlas-detail-body { padding: 6px 8px 5px; }
+
+/* 底部類型帶（partner 才有，2026-09-09）：ref 式＝deep accent 底＋黑字（同 .list-ref-btn 用 --item-color-deep 的視覺）；
+   bg 由 JS 依卡片當前 accent 配 ACCENT_TO_DEEP；EN＋ZH 同行 gap 8px＝.list-ref-label 慣例。mode3 走 neutral-gray 見 themes/color.css。 */
+.atlas-detail-foot { display: none; }
+.atlas-detail-foot.has-content {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 8px 5px;
+  font-size: var(--font-size-s);
+  line-height: var(--line-height-s);
+  font-weight: 400;            /* 類型＝regular（同原 head 副行） */
 }
 
 /* mode3：右下角有 mode-color-panel 浮鈕（收起=鉛筆 48 / 展開=色輪 104），hover 說明卡上移至其上方避讓。
@@ -341,7 +379,7 @@ body.mode-color #atlas-detail-mask {
   font-size: var(--font-size-s); /* 桌面 16px＝s；手機保留下方 @media 的 14px 局部 override（不動全域 s）*/
   font-weight: 700;
   line-height: var(--line-height-s);   /* s 標準行距 1.3（雙語疊放三件套：s + gap 2px + line-height-s） */
-  margin-bottom: 10px;
+  margin-bottom: var(--space-en-zh-s);   /* title→副標距＝英中 gap token（user 2026-09-10，原 10px） */
   word-break: break-word;
 }
 
@@ -352,11 +390,14 @@ body.mode-color #atlas-detail-mask {
 }
 
 .atlas-detail-desc {
-  font-size: var(--font-size-xs); /* 桌面 13.6px（原 14px）；手機保留下方 @media 的 13px 局部 override */
-  line-height: var(--line-height-xs);   /* xs 標準行距 1.3（rows/cat/co-em desc 全繼承此值統一） */
+  font-size: var(--font-size-s); /* 卡內文字統一 s、不用 xs（user 2026-09-09）；手機保留下方 @media 局部 override */
+  line-height: var(--line-height-s);   /* s 標準行距（rows/cat/co-em desc 全繼承此值統一） */
 }
 
 /* 國家 detail 每筆：左 title（英中各一行，過長 marquee）+ 右 類別（regular） */
+/* 有 rows 清單的卡（國家）：name→第一筆距改 8px＝對齊列距（user 2026-09-10「台灣→Solid Memory gap＝項目間 gap」）；
+   無 rows 的卡維持上方英中 2px token（09-10 稍早定案，title→副標）。 */
+#atlas-detail:has(.atlas-detail-row-clip) .atlas-detail-name { margin-bottom: 8px; }
 /* 外層 clip：切批時各列 yPercent reveal 用（overflow:hidden 遮住滑出/滑入的部分）；列距放這層 yPercent 才能完全藏住 */
 .atlas-detail-row-clip { overflow: hidden; }
 .atlas-detail-row-clip + .atlas-detail-row-clip { margin-top: 8px; }
@@ -375,8 +416,8 @@ body.mode-color #atlas-detail-mask {
   /* fit-content：遮罩寬貼齊文字（capped 欄寬）→ 切批時內層 cell xPercent 平移「只滑自己文字寬」在此邊被裁＝四向 contained */
   width: fit-content;
   max-width: 100%;
-  /* 主標字級對齊 list view .atlas-list-item-name（同 var，改一處兩邊同步）；之前是繼承 .atlas-detail-desc 14px */
-  font-size: var(--font-size-xs, 0.85rem);
+  /* 卡內文字統一 s、不用 xs（user 2026-09-09；⚠️不再跟 list .atlas-list-item-name 的 xs 同 var） */
+  font-size: var(--font-size-s, 1rem);
   font-weight: 700;
 }
 /* 切批動畫目標：block cell 寬＝遮罩寬，gsap 只動 cell 的 transform（marquee 動更內層 .atlas-marquee-inner，兩者不撞） */
@@ -392,18 +433,18 @@ body.mode-color #atlas-detail-mask {
   /* 統一欄寬：各列類別左緣對齊成一直欄（auto 會依字寬讓左緣參差、視覺像靠右，user 2026-08-11）
      --atlas-cat-col 由 atlas.js fillDetailContent 量該國最寬 label 後設在 #atlas-detail（內容為主）；
      fallback 148px ≳ 最長 label「Experience Camp Partner」@xs */
-  flex: 0 0 var(--atlas-cat-col, 148px);
+  flex: 0 0 var(--atlas-cat-col, 148px);   /* 實際欄寬由 JS 量 probe（隨 s 字級自動變寬）；148 只是無 JS fallback */
   text-align: left;       /* 類別靠左對齊（英中兩行左緣對齊） */
   font-weight: 400;       /* 類別 regular */
-  font-size: var(--font-size-xs); /* 詳情類別對齊 xs（原 0.75rem/12px） */
+  font-size: var(--font-size-s); /* 卡內文字統一 s、不用 xs（user 2026-09-09） */
   white-space: nowrap;
   padding-top: 1px;
 }
 .atlas-detail-row-cat .cat-zh { display: block; }
-/* 説明卡 xs 英中距 1px token：block 疊放，ZH 補 margin-top（ZH 只在有中文時才 render → 無尾距問題） */
+/* 説明卡英中距＝s 字級 token（字級 s ↔ space-en-zh-s 配對；block 疊放，ZH 只在有中文時 render → 無尾距問題） */
 .atlas-detail-row-zh,
 .atlas-detail-row-cat .cat-zh {
-  margin-top: var(--space-en-zh-xs);
+  margin-top: var(--space-en-zh-s);
 }
 /* 過長 title 自動 marquee（卡片本就是 hover 產物 → 不再 gate hover） */
 .atlas-detail-row-en.is-overflow .atlas-marquee-inner,
@@ -585,11 +626,7 @@ body.mode-color #atlas-detail-mask {
   pointer-events: none;
 }
 
-@media (min-width: 768px) {
-  #atlas-layout-btn:hover .atlas-layout-inner {
-    transform: rotate(15deg);
-  }
-}
+/* 09-10：hover 固定 +15° 改由 JS arrow-spin 隨機角度接手（inline transform 寫 inner，transition 沿用上方 var(--dur-fast)） */
 
 /* ── List view ───────────────────────────────────────────────────── */
 /* 9-col grid 嚴格等寬（minmax(0,1fr) 忽略 cell 內 min-content 撐寬問題）
@@ -616,7 +653,7 @@ body.mode-color #atlas-detail-mask {
   position: fixed;
   top: calc(var(--header-height, 80px) + 64px);
   bottom: 96px; /* above layout btn: 32px + 48px + 16px */
-  right: 32px;
+  right: var(--container-padding, 3.75rem);   /* 右緣對齊全站 container padding（user 2026-09-09；原 32px 比左緣 60 窄） */
   /* left: set dynamically by JS after measuring container padding */
   display: none;
   /* 09-01：4 欄之間 gap 一律 3xl 96（顯式 gap 軌、gap:0）：faculty | 96 | host | 96 | employ | 96 | partners
@@ -839,7 +876,7 @@ body.mode-color #atlas-detail-mask {
 .atlas-list-col-items {
   display: flex;
   flex-direction: row;
-  gap: var(--spacing-xs, 0.5rem);   /* 09-01：欄內兩子欄間距 16→8（user「每個分類內兩 col 之間 gap 減少」）；faculty/partners 等所有欄一致 */
+  gap: var(--spacing-sm, 1rem);   /* 09-09：欄內兩子欄間距 8→16（user「兩 list 間 gap 再大一倍」，翻掉 09-01 的 16→8）；所有欄一致 */
   flex: 1;
   min-width: 0;
   min-height: 0;
@@ -1024,7 +1061,7 @@ body.mode-color #atlas-detail-mask {
   opacity: 1;
   font-size: 15px;
   line-height: 1;
-  transform: rotate(var(--nav-rot, 0deg));   /* 隨機微傾斜（±1~3°）由 JS 存 --nav-rot；用 var 讓 hover 能 calc 疊加 */
+  transform: rotate(var(--nav-rot, 0deg));   /* 初始隨機微傾斜（±1~3°）由 JS 存 --nav-rot */
   transition: transform var(--dur-base, 0.3s) ease;
 }
 
@@ -1032,13 +1069,7 @@ body.mode-color #atlas-detail-mask {
   opacity: 0.35;
   cursor: var(--cursor-not-allowed);
 }
-/* 09-01：hover 疊加傾斜 +8°、不改不透明度（對齊全站黑方塊 icon 鈕 .tl-icon-btn-inner hover rotate 慣例）；
-   calc(var(--nav-rot) + 8deg) 疊在 JS 給的隨機底角上 */
-@media (min-width: 768px) {
-  .atlas-list-nav-btn:not(:disabled):hover {
-    transform: rotate(calc(var(--nav-rot, 0deg) + 8deg));
-  }
-}
+/* 09-10：hover/click 隨機角度改由 JS arrow-spin 接手（寫 --nav-rot），舊 09-01 :hover +8° 疊加規則移除 */
 
 .atlas-filter-btn {
   cursor: var(--cursor-pointer);
