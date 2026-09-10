@@ -29,13 +29,19 @@ const randCycleDir = () => CYCLE_DIRS[(Math.random() * CYCLE_DIRS.length) | 0];
 // 範圍 ±3~6 同 grid 卡圖（HTML 的 rotate(-4deg) 只是 JS 前的初始值）；標題文字另有 ±2~4 cap 別混用
 const randImgDeg = () => (Math.random() < 0.5 ? -1 : 1) * (3 + Math.random() * 3);
 let facultyImgCycleTimer = /** @type {ReturnType<typeof setInterval>|null} */ (null);
-function stopFacultyImgCycle() {
+// preserveVisual（關卡/離頁時傳 true）：只停 timer + 殺 tween、視覺凍在當下——關閉時剛好露線框就停在線框、
+// 線框旋轉角不歸 0（user 2026-09-10：不強制跳回照片、logo 不要突然回 0°）。換老師/重開才 reset 回「蓋住」起始態。
+function stopFacultyImgCycle(preserveVisual = false) {
   if (facultyImgCycleTimer) { clearInterval(facultyImgCycleTimer); facultyImgCycleTimer = null; }
-  // 關卡/換老師可能落在滑動中途 → 殺 tween + 清 transform，下一位照片從「蓋住」狀態開始
   const img = document.getElementById('faculty-detail-image');
+  const wf = document.getElementById('faculty-detail-wireframe');
   if (img) {
-    if (typeof gsap !== 'undefined') gsap.killTweensOf([img, img.parentElement]);
-    img.style.transform = '';
+    if (typeof gsap !== 'undefined') gsap.killTweensOf([img, img.parentElement, wf].filter(Boolean));
+    if (!preserveVisual) {
+      // clearProps 連 GSAP transform cache 一起歸零：外部清 style 不會同步 cache，下一輪 cycle 會從殘值起跳
+      if (typeof gsap !== 'undefined') gsap.set(img, { clearProps: 'transform' });
+      else img.style.transform = '';
+    }
     // 遮罩容器角度不歸位：中途殺掉停在當下角度即可，下次開卡會重擲
   }
 }
@@ -51,6 +57,7 @@ import { applyMarqueeOverflow, buildSyncedMarqueeTimeline } from '../ui/marquee-
 import { makeActivatable } from '../ui/a11y.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { loadUiLabels } from '../ui/ui-labels.js';
+import { bindArrowSpin } from '../ui/arrow-spin.js';
 
 // 系所全名（slide-in 名字上方 tag）＝Directus ui_labels，老師後台可改；載入後填入、開卡時讀。
 // key = `faculty.department.<department 欄值>`（dcd / bpaidc）；未載入 / 無此 row → 退下方 DEPT_FALLBACK。
@@ -121,12 +128,11 @@ export function initFacultySlideIn() {
     { xPercent: 100, yPercent: 0 }, { xPercent: -100, yPercent: 0 },
   ];
   let backHidden = BACK_DIRS[0];
-  // hover 重擲隨機角度（角度套外層遮罩、cards.css transition 補間；guard 防同頁重綁，SPA 換頁元素隨 main 換掉免解綁）
+  // hover/click 隨機角度（arrow-spin，同 library 排序箭頭；角度套外層遮罩、cards.css transition 補間；
+  // guard 防同頁重綁，SPA 換頁元素隨 main 換掉免解綁）；每次開啟由 _arrowSpin.reroll 重抽微傾底角
   if (closeBtn && !closeBtn.dataset.hoverRotBound) {
     closeBtn.dataset.hoverRotBound = '1';
-    closeBtn.addEventListener('mouseenter', () => {
-      closeBtn.style.transform = `rotate(${Math.random() * 30 - 15}deg)`;
-    });
+    bindArrowSpin(closeBtn, d => { closeBtn.style.transform = `rotate(${d}deg)`; });
   }
   const facultyCards = document.querySelectorAll('.faculty-card');
 
@@ -330,6 +336,14 @@ export function initFacultySlideIn() {
             }
           }, 5000);
         }
+
+        // 線框 logo 恆轉（user 2026-09-10）：速度比照 /create placeholder 基礎轉速
+        // （baseSpeeds 0.125°/frame @60fps ≈ 7.5°/s → 48s/圈，見 generate-app/js/variables.js）。
+        // 沒照片者轉主圖（＝線框）、有照片者轉墊底線框層；照片本身不轉。舊 tween 由 stopFacultyImgCycle 殺。
+        const wfSpinEl = phUrl ? imgElement : (wfUrl ? wfLayer : null);
+        if (wfSpinEl && typeof gsap !== 'undefined' && !prefersReducedMotion()) {
+          gsap.to(wfSpinEl, { rotation: '+=360', duration: 48, ease: 'none', repeat: -1 });
+        }
       }
 
       // 姓名 + titles 旋轉：fulltime/admin 桌面手機都套（2026-05-26 user 要求手機也旋轉；
@@ -512,7 +526,8 @@ export function initFacultySlideIn() {
             // 黑方塊返回鍵：每次開重隨機旋轉（角度套外層遮罩）+ inner 平移做 hero clip-reveal（比照 header bars：外層 overflow:clip 當遮罩、inner 隨機四方向滑入被剪裁）
             let backInner = null;
             if (closeBtn) {
-              closeBtn.style.transform = `rotate(${Math.random() * 30 - 15}deg)`;
+              const spin = /** @type {any} */ (closeBtn)._arrowSpin;
+              if (spin) spin.reroll();   // 每次開啟抽新微傾角（全站統一 −4~+6，arrow-spin 管）
               if (typeof gsap !== 'undefined' && !prefersReducedMotion() && window.innerWidth >= 768) {
                 backInner = closeBtn.querySelector('.slide-in-back-square-inner');
                 backHidden = BACK_DIRS[Math.floor(Math.random() * BACK_DIRS.length)];
@@ -549,7 +564,7 @@ export function initFacultySlideIn() {
     if (slideIn.classList.contains('invisible')) return;
 
     const mySeq = ++slideSeq; // close 也 ++（作廢更早的 pending close）；onComplete 過期則整段放棄
-    stopFacultyImgCycle();
+    stopFacultyImgCycle(true); // 凍在當下：露線框就停在線框、旋轉角不歸 0
 
     // deferHeaderShow：slide-in 往右滑出，header bars 立即揭露會白 bar 冒在頂部蓋住離場中的 panel → 延後到 panel 走完
     exitLightboxMode({ deferHeaderShow: true });
@@ -586,6 +601,6 @@ export function initFacultySlideIn() {
   document.addEventListener('keydown', onEsc);
   registerPageCleanup(() => {
     document.removeEventListener('keydown', onEsc);
-    stopFacultyImgCycle(); // slide-in 開著直接換頁時 interval 不殘留
+    stopFacultyImgCycle(true); // slide-in 開著直接換頁時 interval 不殘留（DOM 將整個換掉，視覺不用 reset）
   });
 }

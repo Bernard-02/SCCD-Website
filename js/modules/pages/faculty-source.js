@@ -73,7 +73,8 @@ async function _fetchFormerFacultyData() {
   if (!rows.length) throw new Error('empty');
   return rows.map(r => {
     const t = (Array.isArray(r.titles) && r.titles[0]) || {};
-    return { id: r.id, sort: r.sort, nameEn: r.nameEn || '', nameZh: r.nameZh || '', titleEn: t.titleEn || '', titleZh: t.titleZh || '', country: t.country || '' };
+    // akaEn/akaZh：離職教師別名（在職教師不帶進前台，只 atlas 離職者以括號顯示；同 guest aka 規則）
+    return { id: r.id, sort: r.sort, nameEn: r.nameEn || '', nameZh: r.nameZh || '', akaEn: r.akaEn || '', akaZh: r.akaZh || '', titleEn: t.titleEn || '', titleZh: t.titleZh || '', country: t.country || '' };
   });
 }
 

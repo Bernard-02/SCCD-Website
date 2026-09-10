@@ -489,7 +489,7 @@ export function triggerGenerateLogo() {
   genLogoTimeline = tl;
 
   tl.call(() => startBlink(cursor));
-  tl.to({}, { duration: 530 * 3 / 1000 });
+  tl.to({}, { duration: 530 / 1000 });
   tl.call(() => stopBlink(cursor));
   // Lottie 旋轉 logo 在這個瞬間「被 indicator 刪掉」
   // 之前在 triggerGenerateLogo 起頭就 destroy 是 bug → Lottie 完全沒機會出現
@@ -508,7 +508,7 @@ export function triggerGenerateLogo() {
   tl.to({}, { duration: DUR.medium });
   tl.set(cursorNew, { left: -GAP });
   tl.call(() => startBlink(cursorNew));
-  tl.to({}, { duration: 530 * 3 / 1000 });
+  tl.to({}, { duration: 530 / 1000 });
   tl.call(() => stopBlink(cursorNew));
   LETTER_X.forEach((rightX, i) => {
     tl.set(cursorNew, { left: rightX * scale + GAP });
@@ -516,7 +516,7 @@ export function triggerGenerateLogo() {
     tl.to({}, { duration: 0.12 });
   });
   tl.call(() => startBlink(cursorNew));
-  tl.to({}, { duration: 530 * 3 / 1000 });
+  tl.to({}, { duration: 530 / 1000 });
   tl.call(() => stopBlink(cursorNew));
   tl.set(cursorNew, { visibility: 'hidden' });
 
@@ -1122,7 +1122,8 @@ export function initHeader() {
     // /create 跳過（桌面 logo 也跳過）；mode 切換時 listener 重 load 保持 logo 跟 body mode 同步
     const mobileLogo = document.getElementById('header-logo-mobile');
     if (mobileLogo && typeof lottie !== 'undefined' && currentPage !== 'generate') {
-      function loadMobileLogo() {
+      function loadMobileLogo({ fade = false } = {}) {
+        if (!fade) mobileLogo.style.opacity = '';   // 硬載（init / mode 切換）確保可見；fade 版由 hook fade-out→fade-in 控制
         // overlay 開啟時手機 logo 用 wireframe 線條版，顏色依 overlay 類型分（user 2026-06-10）：
         //   - 全螢幕 lightbox（media/PDF，body.lightbox-open 但無 html.has-slide-in，黑底 overlay）→ 白線 invert(1)
         //   - slide-in（faculty/courses，html.has-slide-in；手機 panel 蓋滿含 logo 區，底=accent/theme-bg）：
@@ -1180,12 +1181,25 @@ export function initHeader() {
             svg.style.overflow = 'visible';
             svg.setAttribute('viewBox', '0 0 1080 1080');
           }
+          // fade 版：換檔後 fade-in（比照桌面 switchHeaderLogo，蓋掉 Lottie 換 JSON 的空白格）
+          if (fade && typeof gsap !== 'undefined') {
+            gsap.fromTo(mobileLogo, { opacity: 0 }, { opacity: 1, duration: DUR.micro / 2, ease: EASE.enterSoft, overwrite: 'auto' });
+          }
         });
       }
       loadMobileLogo();
       // 暴露給 theme-toggle checkSlideInState 在 lightbox / slide-in 開關時重載手機 logo（白 wireframe ↔ 還原）；
-      // 開關 lightbox 不改 mode、不會 dispatch theme:changed，故需這條獨立 hook（沿用 window.__sccd* 模式）
-      window.__sccdReloadMobileLogo = loadMobileLogo;
+      // 開關 lightbox 不改 mode、不會 dispatch theme:changed，故需這條獨立 hook（沿用 window.__sccd* 模式）。
+      // fade（slide-in/lightbox 開關才傳）：比照桌面 crossfade——fade-out 舊 logo → 換檔 → fade-in，
+      // 取代原本 destroy/reload 硬換（會閃一格空白）；init / mode 切換走 loadMobileLogo() 硬載不變（user 2026-09-08「手機比照桌面」）。
+      window.__sccdReloadMobileLogo = (opts) => {
+        const fade = !!(opts && opts.fade);
+        if (fade && typeof gsap !== 'undefined' && mobileLogo.querySelector('svg')) {
+          gsap.to(mobileLogo, { opacity: 0, duration: DUR.micro / 2, ease: EASE.exitSoft, overwrite: 'auto', onComplete: () => loadMobileLogo({ fade: true }) });
+        } else {
+          loadMobileLogo(opts);
+        }
+      };
       // mode 切換時重 load；mode-color 內每 ~200ms 也 dispatch 帶 hue 更新，用 lastMode short-circuit 避反覆載
       let lastMode = document.body.classList.contains('mode-color') ? 'color'
                    : document.body.classList.contains('mode-inverse') ? 'inverse' : 'standard';

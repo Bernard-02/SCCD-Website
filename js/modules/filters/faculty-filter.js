@@ -285,7 +285,7 @@ function exitFacultyCards(cards, onComplete) {
   if (onComplete) setTimeout(onComplete, Math.round(maxFinish * 1000) + 30);
 }
 
-// initialSection：site map deep-link 帶進來的 ?section（fulltime/parttime/admin）；無/不合法 → 預設 fulltime。
+// initialSection：site map deep-link 帶進來的 ?section（fulltime/parttime/admin/founder）；無/不合法 → 預設 fulltime。
 export function initFacultyFilter(initialSection = null) {
   const filterButtons = document.querySelectorAll('.faculty-filter-btn');
   const facultyCards = document.querySelectorAll('.faculty-card');
@@ -585,8 +585,8 @@ export function initFacultyFilter(initialSection = null) {
     }
   }
 
-  // Initialize：預設 fulltime，或 site map deep-link 指定的分類（parttime/admin）。
-  const VALID_SECTIONS = new Set(['fulltime', 'parttime', 'admin']);
+  // Initialize：預設 fulltime，或 site map deep-link 指定的分類（parttime/admin/founder）。
+  const VALID_SECTIONS = new Set(['fulltime', 'parttime', 'admin', 'founder']);
   const initialFilter = (initialSection && VALID_SECTIONS.has(initialSection)) ? initialSection : 'fulltime';
   const initBtn = [...filterButtons].find(b => b.getAttribute('data-filter') === initialFilter)
     || [...filterButtons].find(b => b.getAttribute('data-filter') === 'fulltime');

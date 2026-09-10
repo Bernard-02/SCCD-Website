@@ -265,8 +265,9 @@ function installScrollLock() {
   };
 }
 
-// slide-in（faculty / courses，z-[150]）與全螢幕 lightbox（activities / library / share，z-[9999]）
+// slide-in（faculty / courses，容器 z-[9999]）與全螢幕 lightbox（activities / library / share，z-[9999]）
 // 共用同一套行為：① freeze 底層捲動 ② 凍結在當下畫面、不跳頂部、頁內 sticky 不動 ③ 關閉還原。統一不分流。
+// （footer 也是 z-9999，slide-in 開啟時靠 css/layout/footer.css 的 html.has-slide-in .footer-shell{z-index:40} 讓位。）
 export function enterLightboxMode() {
   if (openCount === 0) {
     savedFocusEl = document.activeElement; // 無障礙：存開啟 lightbox 的觸發元素，exit 時還焦

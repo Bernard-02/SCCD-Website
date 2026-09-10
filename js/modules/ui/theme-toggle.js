@@ -268,7 +268,9 @@ let overlayRestoreTimer = null;
 // 左緣」才切手機 logo wireframe，否則 panel 還沒蓋到時 logo 在 dim 暗 overlay 上先變 wireframe 很怪（user 2026-06-10）。
 // 實測（faculty/courses 同 timeline）：power3.out 前段快，panel.left 在 ~570ms（≈ 0.3 + DUR.medium×0.55，slide 約 55%）
 // 就降到 logo 左緣(24px) 以下＝已蓋住。用此值不用 nominal 末端 0.8s（user 2026-06-10「再快點」），仍不露暗底線條 logo。
-const MOBILE_SLIDEIN_LOGO_DELAY_MS = Math.round((0.3 + DUR.medium * 0.55) * 1000);
+// 2026-09-10 user「可以快一點」：crossfade 先 fade-out（DUR.micro/2）＋Lottie 重載後 wireframe 才真正現身，
+// fire 提前這段 lead——新 logo 實際出現時間點不變早於「panel 已蓋住」，只是少等一拍。
+const MOBILE_SLIDEIN_LOGO_DELAY_MS = Math.round((0.3 + DUR.medium * 0.55 - DUR.micro / 2) * 1000);
 // slide-in 關閉：面板滑出(0~0.5s)+overlay 淡出(0.5~0.8s)。logo 延到 ~0.7s（overlay 快淡完、底變亮）才 crossfade
 // 回原本 logo，隨 overlay 變亮浮現（user 2026-09-08：白 logo 不停到最後才換、又不會黑 logo 硬疊在還暗的 overlay 上）。可調。
 const SLIDEIN_LOGO_RESTORE_MS = 550;
@@ -332,10 +334,10 @@ function applyOverlayLogo(open, isSlideInPanel, fade) {
     if (open && isSlideInPanel && window.innerWidth < 768) {
       // 手機 slide-in 開啟：延到 panel 蓋滿 logo 區才切（見 MOBILE_SLIDEIN_LOGO_DELAY_MS）；fire 時再確認仍 slide-in
       mobileSlideInLogoTimer = setTimeout(() => {
-        if (document.documentElement.classList.contains('has-slide-in')) window.__sccdReloadMobileLogo();
+        if (document.documentElement.classList.contains('has-slide-in')) window.__sccdReloadMobileLogo({ fade });
       }, MOBILE_SLIDEIN_LOGO_DELAY_MS);
     } else {
-      window.__sccdReloadMobileLogo();   // full lightbox 開／任何關閉 → 不延遲
+      window.__sccdReloadMobileLogo({ fade });   // full lightbox 開／任何關閉 → 不延遲（crossfade 比照桌面）
     }
   }
 }
