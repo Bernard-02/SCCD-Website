@@ -9,7 +9,7 @@ import { revalidateActivitiesData, beginActivitiesVisit } from './activities-sou
 import { loadDegreeShowListInto } from './degree-show-data-loader.js';
 import { applyMarqueeOverflow, bindMarqueeReturn } from '../ui/marquee-overflow.js';
 import { initListAccordion, resetListAccordionsInPanel, alignWithBottomSpacer } from '../accordions/list-accordion.js';
-import { reapplySearch } from '../ui/activities-search.js';
+import { reapplySearch, markProgrammaticScroll } from '../ui/activities-search.js';
 import { setActiveNavBtn, showPanel, initHoverDimMoveGuard, bindNavBtnFit, bindFrameScrollSplit } from '../ui/section-switch-helpers.js';
 import { playAdmissionPanelExit, playAdmissionPanelReveal, setupAdmissionReveal } from './admission-data-loader.js';
 import { playClipReveal, navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
@@ -264,6 +264,7 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
     const openViaAccordion = () => {
       const header = /** @type {HTMLElement | null} */ (target.querySelector('.list-header'));
       if (header && !header.classList.contains('active')) {
+        /** @type {any} */ (target.closest('[data-lazy-list]'))?._mqPrime?.(target);  // title marquee 即時量（目標豁免）
         header.dataset.accentHex = boxFlashColor;  // 開啟即帶 section 色（= highlight，同 smooth 路徑慣例）
         header.style.background = boxFlashColor;
         // deepOpen：proceedOpen ①對齊捲完才展開（不並行＝無 title 殘影）②自關留在對齊位不回 section 頂（user 2026-09-10）
@@ -357,6 +358,7 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
       target.style.transition = '';
       const header = /** @type {HTMLElement | null} */ (target.querySelector('.list-header'));
       if (header && !header.classList.contains('active')) {
+        /** @type {any} */ (target.closest('[data-lazy-list]'))?._mqPrime?.(target);  // title marquee 即時量（目標豁免）
         // 上面已 scroll 對齊好 item → 標記讓 accordion open 時不要再自己 scroll（否則對齊跑掉，user 2026-06-05）
         header.dataset.skipOpenScroll = '1';
         // highlight 色（= section 色，三原色之一）繼承成 accordion 打開後的 active 色（user 2026-06-09）：
@@ -381,14 +383,26 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
     await waitForItemRevealed(target);  // 確保 list 文字已 reveal（deep-link init 已清 pre-reveal → 立即 resolve）
     // 捲動全程關 mandatory snap。到位才展開：skipOpenScroll 讓 proceedOpen 只展開不再自己捲（已在落點）；
     // accentHex/bg 設成 section 色 → 開啟即帶 highlight 色（同桌面 openViaAccordion，無獨立 600ms flash）。
-    scrollWindowNoSnap(finalTop, { duration: scrollDur, ease: EASE.enterSoft, onComplete: () => {
+    const openAtPin = () => {
       const header = /** @type {HTMLElement | null} */ (target.querySelector('.list-header'));
       if (header && !header.classList.contains('active')) {
+        /** @type {any} */ (target.closest('[data-lazy-list]'))?._mqPrime?.(target);  // title marquee 即時量（目標豁免）
         header.dataset.skipOpenScroll = '1';
         header.dataset.accentHex = flashColor;
         header.style.background = flashColor;
         header.click();
       }
+    };
+    markProgrammaticScroll(scrollDur * 1000 + 400);   // 對齊捲動不觸發方向式 bar 開合（含補差的上捲）
+    scrollWindowNoSnap(finalTop, { duration: scrollDur, ease: EASE.enterSoft, onComplete: () => {
+      // 補差 pass（鏡射桌面 settleAlignFresh，2026-09-10）：cv:auto 下捲動途中上方 item 估高→實高
+      // 版面位移，開跑前算的 finalTop 已 stale（item 停畫面一半才展開）。落地時上方 item 都進過視窗
+      // ＝實高已定，重量一次、差 >1px 短 tween 補到 pin 線才展開。compensate 讀 sticky var/rem 不漂、沿用。
+      const fresh = alignWithBottomSpacer(target, target.getBoundingClientRect().top + window.scrollY - compensate);
+      if (Math.abs(fresh - window.scrollY) > 1) {
+        markProgrammaticScroll(DUR.fast * 1000 + 300);
+        scrollWindowNoSnap(fresh, { duration: DUR.fast, ease: EASE.enterSoft, onComplete: openAtPin });
+      } else openAtPin();
     } });
   } else {
     // ref 按鈕等頁內跳轉：用 instant 跳到位（smooth 會經過 hero 區造成「先回 hero 再展開」視覺），
@@ -771,6 +785,12 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
     // 手機也適用：hero-animation playMobileHeroEntrance 跑「看得見的」.hero-mobile-* 進場後才 signal
     // （2026-06-12 起；先前手機 hero 靜態、等的是隱藏桌面 timeline ＝ 白等，曾短暫改成跳過）。
     if (initialItem) {
+      // ⚠️ hide/unhide 順序反轉 race（2026-09-10 user 實機「早期 item deep-link 整片空白」）：下方 cv:hidden 要等
+      // initSwitchPromise（Directus fetch+render）才掛上，解除卻只有 heroDone 與首次互動兩個觸發——手機弱網
+      // fetch 比 hero 慢時變成「先 unhide（容器還沒 hide＝no-op）→ 後 hide」＝掛上後永遠沒人解除，清單
+      // cv:hidden＋釘高＝一整片空白。旗標：heroDone／互動已過就不再 hide（headless 本地快取 fetch 恆先完成，
+      // 重現不出來——實機弱網才會翻面）。
+      let lazyHideArmed = true;
       // deep-link 自動導航：rows 進場「init 即完成」不等 ScrollTrigger（比照 curriculum deepLinkAutoNav 通則）。
       // 否則目標 row 的 reveal 捲到才觸發，落地後 highlight 還要乾等 reveal ~0.6-0.8s（實測手機 618ms / 桌面 800ms）。
       // hero 期間於畫面外直接定位完成（清 inline transform 即 revealed 態）；之後 ScrollTrigger onEnter
@@ -798,8 +818,10 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
         // contain-intrinsic-size 釘住現高＝隱藏期間 fold 下方不塌（scrollbar 長度不跳）。
         panel.querySelectorAll('[data-lazy-list]').forEach(c => {
           const el = /** @type {HTMLElement} */ (c);
-          el.style.containIntrinsicSize = `auto ${el.offsetHeight}px`;
-          el.style.contentVisibility = 'hidden';
+          if (lazyHideArmed) {   // heroDone/互動已解除過就不再 hide（順序反轉 race，見上方旗標註解）
+            el.style.containIntrinsicSize = `auto ${el.offsetHeight}px`;
+            el.style.contentVisibility = 'hidden';
+          }
           const fn = /** @type {any} */ (el)._lazyRenderAll;
           if (typeof fn === 'function') fn(`item-${initialItem}`);
         });
@@ -812,6 +834,7 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
       // 解除清單 content-visibility:hidden（見上 hide 處）：①heroDone（navigateToItem 要讀目標位置，必須先回
       // 渲染樹）②hero 期間使用者主動互動（wheel/touch/key）＝可能往下看清單，立即解除免看到空白（idempotent）
       const unhideLazyLists = () => {
+        lazyHideArmed = false;   // 之後（慢 fetch 晚到）的 hide 一律跳過——沒有第二次解除機會
         document.querySelectorAll(`#panel-${initialSection} [data-lazy-list]`).forEach(c => {
           const el = /** @type {HTMLElement} */ (c);
           el.style.contentVisibility = '';

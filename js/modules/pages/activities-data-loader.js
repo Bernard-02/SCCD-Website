@@ -989,29 +989,34 @@ export function bindInteractions(container, { autoReveal = true, incremental = f
           fn(w._pairGroup);
         });
       };
-      // 放開 hover 平滑回彈（user 2026-08-19 B）：desktop mouseleave → easeAll（pause 凍在當下、補間回 0，同 faculty
-      // slide-in）；⚠️手機 accordion 收合（MutationObserver）維持 snapAll（手機不變、且收合中 ease 看不到）。
+      // 放開平滑回彈（user 2026-08-19 B）：leave → easeAll（pause 凍在當下、補間回 0，同 faculty slide-in）。
       // re-enter 先 kill 未完成回彈 tween 再 play。returnTween 存 group 上（_ret）。⚠️不用 overwrite（會殺 tl 自己的 child tween）。
       const playAll  = () => eachGroup(g => { if (g._ret) { g._ret.kill(); g._ret = null; } g.tl.play(); });
-      const snapAll  = () => eachGroup(g => { if (g._ret) { g._ret.kill(); g._ret = null; } g.tl.pause(0); gsap.set(g.els, { x: 0 }); });
       const easeAll  = () => eachGroup(g => {
         g.tl.pause();
         g._ret = gsap.to(g.els, { x: 0, duration: 0.45, ease: 'cubic-bezier(0.25,0,0,1)', onComplete: () => { g.tl.progress(0); g._ret = null; } });
       });
-      gate.addEventListener('mouseenter', playAll);
-      gate.addEventListener('mouseleave', easeAll);
-      // active（手機 accordion 展開）只對 header 有意義；摘要欄無 active 態，桌面純 hover
-      const mo = header ? new MutationObserver(() => (header.classList.contains('active') ? playAll() : snapAll())) : null;
-      if (mo) mo.observe(header, { attributes: true, attributeFilter: ['class'] });
-      registerPageCleanup(() => { gate.removeEventListener('mouseenter', playAll); gate.removeEventListener('mouseleave', easeAll); if (mo) mo.disconnect(); });
+      // ⭐區分桌面/手機（user 2026-09-10）：桌面純 hover 驅動（mouseenter→playAll／mouseleave→easeAll，header 與摘要欄同）；
+      //   手機無 hover，改由 accordion active 驅動（展開→playAll、收合→easeAll——header 不隨 content 收合、標題 marquee
+      //   收合後仍可見＝回彈看得到）。⚠️不能兩端都綁：桌面若讓 active-toggle 介入，收合時滑鼠仍在 header 會被迫回彈到 0
+      //   （該續捲）；手機若綁 hover，touch-scroll 的 emulated mouseleave 會誤停還開著的 marquee。摘要欄無 active 態＝
+      //   手機到不了這裡（gate=null 上面已 auto-play 早退），故此分支手機只會是 header。
+      const isMobileView = window.innerWidth < 768 || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+      if (header && isMobileView) {
+        const mo = new MutationObserver(() => (header.classList.contains('active') ? playAll() : easeAll()));
+        mo.observe(header, { attributes: true, attributeFilter: ['class'] });
+        registerPageCleanup(() => mo.disconnect());
+      } else {
+        gate.addEventListener('mouseenter', playAll);
+        gate.addEventListener('mouseleave', easeAll);
+        registerPageCleanup(() => { gate.removeEventListener('mouseenter', playAll); gate.removeEventListener('mouseleave', easeAll); });
+      }
     }
     if (gate.matches(':hover') || (header && header.classList.contains('active'))) tl.play();
     return true;
   }
 
-  const initMarquees = () => {
-    // 桌面手機都跑 — 手機 title 區窄更容易 overflow，user 要求收起時就要 marquee
-    const wraps = [...container.querySelectorAll('.list-title-marquee')];
+  // processWrap 提到 initMarquees 外（2026-09-10）：除分幀 pump 外，deep-link 豁免（_mqPrime，見下）也要直接呼叫
     const processWrap = (wrap) => {
       if (wrap.dataset.mqBound) return;   // 已量過（lazy 重跑）→ 跳過，避免重複 ResizeObserver 累積
       wrap.dataset.mqBound = '1';
@@ -1067,6 +1072,18 @@ export function bindInteractions(container, { autoReveal = true, incremental = f
         registerPageCleanup(() => window.removeEventListener('resize', queuedCheck));
       }
     };
+  // deep-link 目標 item 豁免（八輪通則「目標 item 必豁免」）：開啟當下同步量該 item 的 marquee——
+  // 一般路徑要等 1.6s timer＋settle gate＋安靜窗才量，deep-link 開的卡片 title 好幾秒不 marquee
+  // （user 2026-09-10）。mqSeen/mqBound 守衛讓之後 initMarquees 的 per-item IO 與 pump 自然跳過、
+  // 不重複綁；量測只碰單一 item＝一次 reflow，豁免成本可接受。
+  /** @type {any} */ (container)._mqPrime = (item) => {
+    if (typeof gsap === 'undefined' || !item) return;
+    [...item.querySelectorAll('.list-title-marquee')].forEach(w => { w.dataset.mqSeen = '1'; processWrap(w); });
+  };
+
+  const initMarquees = () => {
+    // 桌面手機都跑 — 手機 title 區窄更容易 overflow，user 要求收起時就要 marquee
+    const wraps = [...container.querySelectorAll('.list-title-marquee')];
     // 分幀處理：逐 wrap 讀 scrollWidth＝forced reflow，每幀 ~8ms 預算、其餘留給捲動 paint。
     // reconcilePair 靠 DOM 兄弟找 partner（非處理順序）→ 分幀不影響 EN/ZH 配對。離頁 container 斷開即自停。
     const pending = [];
@@ -1282,6 +1299,23 @@ export function bindInteractions(container, { autoReveal = true, incremental = f
     revealRows(items, { dur: DUR.reveal, stagger: 0.12 });  // Part 1：同上（無 ScrollTrigger fallback 路徑）
   }
   return null;
+}
+
+// dates group → 搜尋 token（2026-09-10 user「search 12/22 要搜得到、不用帶年份」）：年份之外補完整日期字串，
+// 補零與未補零並存——搜尋是 substring match，「12/22」「2025/12/22」「3/5」都命中對應寫法；
+// monthOnly/yearOnly/monthRange 無日可組，維持只給年份。
+function _dateSearchToks(d) {
+  if (!d) return [];
+  const toks = [d.startYear, d.endYear];   // 年份（輸入 2025 → 該年活動；跨年兩端都命中）
+  const pad2 = (n) => String(n).padStart(2, '0');
+  if (!d.yearOnly && !d.monthOnly && !d.monthRange && d.startMonth && d.startDay) {
+    toks.push(`${d.startYear}/${pad2(d.startMonth)}/${pad2(d.startDay)}`, `${d.startYear}/${d.startMonth}/${d.startDay}`);
+    const eY = d.endYear || d.startYear, eM = d.endMonth, eD = d.endDay;
+    if (eM && eD && (eM !== d.startMonth || eD !== d.startDay || eY !== d.startYear)) {
+      toks.push(`${eY}/${pad2(eM)}/${pad2(eD)}`, `${eY}/${eM}/${eD}`);
+    }
+  }
+  return toks;
 }
 
 // ── dates group repeater → display string（前端統一格式 / 寫死寬度的 source of truth）─
@@ -1630,7 +1664,8 @@ export async function loadListInto(containerId, url, options = {}) {
         cityEn, cityZh,                                                              // conference 城市
         ...allGuests.flatMap(g => [g.name, g.name_zh, g.affiliation, g.affiliation_zh, g.akaEn, g.akaZh, g.nameEn, g.nameZh, ...guestOrgs(g).flatMap(o => [o.en, o.zh])]),  // 講者名/單位（舊+Directus、含 session 講者、多 org）
         ...(item.sessions || []).flatMap(s => [s.titleEn, s.title_en, s.titleZh, s.title_zh, s.title]),  // 場次標題
-        ...(item.dates || []).flatMap(d => [d.startYear, d.endYear]),                // 年份（輸入 2025 → 列出該年活動；跨年兩端都命中）
+        ...(item.dates || []).flatMap(_dateSearchToks),                              // 年份＋完整日期（見 _dateSearchToks）
+        ...(item.sessions || []).flatMap(s => (s.dates || []).flatMap(_dateSearchToks)),  // 場次日期同納入
       ].filter(Boolean).join(' ').toLowerCase().replace(/"/g, '&quot;');
 
       // uk→gb：flag-icons 只認 ISO 3166 的 gb，編輯常填 UK（2026-07-04 實例）→ fi-uk 不存在渲染成空盒

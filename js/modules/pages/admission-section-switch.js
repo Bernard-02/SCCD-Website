@@ -79,6 +79,7 @@ async function navigateToAdmissionItem(itemId) {
       target.style.background = '';
       const header = /** @type {HTMLElement | null} */ (target.querySelector('.list-header'));
       if (header && !header.classList.contains('active')) {
+        /** @type {any} */ (target.closest('[data-lazy-list]'))?._mqPrime?.(target);  // title marquee 即時量（目標豁免）
         header.dataset.skipOpenScroll = '1';     // 已捲齊 → accordion open 不要再自己捲
         header.dataset.accentHex = flashColor;    // highlight 色繼承成 accordion active 色
         header.style.background = flashColor;
@@ -108,7 +109,14 @@ async function navigateToAdmissionItem(itemId) {
     return;
   }
   // 手機/窄：deep-link 捲動全程關 mandatory snap（否則 snap 搶捲動 → 速度被牽制 / 到不了目標），捲完才 flash+open。
-  scrollWindowNoSnap(finalTop, { onComplete: flashThenOpen });
+  scrollWindowNoSnap(finalTop, { onComplete: () => {
+    // 補差 pass（同 activities 手機路徑，2026-09-10）：cv:auto 下捲動途中上方 item 估高→實高版面位移，
+    // 開跑前的 finalTop 已 stale；落地時上方實高已定，重量一次補到位才 flash+open。
+    const fresh = Math.max(0, Math.round(target.getBoundingClientRect().top + window.scrollY - COMPENSATE));
+    if (Math.abs(fresh - window.scrollY) > 1) {
+      scrollWindowNoSnap(fresh, { duration: DUR.fast, ease: EASE.enterSoft, onComplete: flashThenOpen });
+    } else flashThenOpen();
+  } });
 }
 
 // scrollIntoView wrapper：捲到 section 頂端對齊 viewport 頂端（section.top=0），**不扣 header 高度**。

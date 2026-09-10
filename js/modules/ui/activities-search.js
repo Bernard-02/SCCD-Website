@@ -4,6 +4,7 @@
  * 各 panel 各自的 search input，對應各自 panel 內容
  */
 import { hideRows, revealRows, snapRowsShown } from './list-row-reveal.js';
+import { isAccordionBusy } from '../accordions/list-accordion.js';
 import { DUR } from './motion.js';
 
 // lazy 清單：搜尋前把所有 item 建出來（否則只搜得到已渲染的首批＋捲過的）＝search「無結果」根因。
@@ -200,7 +201,9 @@ function panelScroller(panel) {
 // 也會 fire scroll event，方向式 bar 開合 handler 會把「還原往下跳」誤判成使用者下捲＝自動收 bar。
 // 寫 scrollTop 前標記短窗，兩個 scroll handler 在窗內只同步基準值、不動 bar。
 let _progScrollUntil = 0;
-function markProgrammaticScroll() { _progScrollUntil = performance.now() + 250; }
+// export（2026-09-10）：deep-link 對齊/補差捲動（activities-section-switch）也要抑制——上捲補差會被
+// 方向式 handler 誤判成使用者上捲＝bar 彈出、版面位移。ms 依 tween 時長傳入。
+export function markProgrammaticScroll(ms = 250) { _progScrollUntil = performance.now() + ms; }
 
 function applyGenericSearch(panelId, query) {
   const panel = document.getElementById(panelId);
@@ -417,9 +420,12 @@ export function initActivitiesSearch() {
   scrollHandler = () => {
     // 桌面 inner-scroll：bar 收合由下方 box scroll 接管；window 不捲（snap 在 section），此處不插手免互搶 bar-hidden
     if (isDesktopInnerScroll()) return;
-    if (performance.now() < _progScrollUntil) { lastScrollY = window.scrollY; return; }  // 程式化捲動（搜尋捲頂/清空還原）不觸發 bar 開合
+    // 程式化捲動（搜尋捲頂/清空還原/deep-link 對齊補差）與 accordion 開合捲動（對齊/自關還原 tween）都不觸發 bar 開合：
+    // 自關的上捲還原若讓 bar 彈出＝上方 flow 位移一個 bar 高、還原落點跑掉（user 2026-09-10 #2）
+    if (performance.now() < _progScrollUntil || isAccordionBusy()) { lastScrollY = window.scrollY; return; }
     const currentY = window.scrollY;
     const goingDown = currentY > lastScrollY;
+    const goingUp = currentY < lastScrollY;
     lastScrollY = currentY;
 
     const activeBar = document.querySelector('.activities-panel:not(.hidden) .activities-filter-bar');
@@ -437,9 +443,13 @@ export function initActivitiesSearch() {
     const contentSection = document.getElementById('activities-content-section');
     const threshold = contentSection ? contentSection.offsetTop : 50;
 
+    // 嚴格「真上捲」才 show（2026-09-10，比照桌面 col handler 的方向式）：舊版 else 涵蓋「y 沒變的 scroll event」——
+    // bar 收合本身（sticky bar 高度變化）就會 fire 一顆無位移 scroll event → 下捲時 hide 完立刻被 else 翻回 show
+    // ＝振盪（headless 實測同 y hide→show 連發）；bar 反覆開合讓版面每次彈 ~80px，sticky 年份標籤與視窗底 item
+    // 跟著反覆位移＝user 看到「一直在做進場動畫」（#3/#4 同根因）。
     if (goingDown && currentY > threshold) {
       activeBar.classList.add('bar-hidden');
-    } else {
+    } else if (goingUp) {
       activeBar.classList.remove('bar-hidden');
     }
   };
