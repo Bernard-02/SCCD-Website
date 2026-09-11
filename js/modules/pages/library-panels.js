@@ -2596,33 +2596,21 @@ function buildTitleMarquee(titleEl) {
   track.querySelectorAll('.lib-title-unit:not(:first-child)').forEach(n => n.remove());  // 移除舊複製份
   const unitW = firstUnit.getBoundingClientRect().width;
   if (!unitW) return;  // 未 sized（display:none / 未 layout）→ 下次 showLibPanel 再試
-  const cs = getComputedStyle(titleEl);
-  const rowW = titleEl.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
-  // 2026-09-11 user 二修：灰卡標題只放「一份」但保留 marquee 行進（撤 2026-08-26「複製份填滿整行無縫捲」；
-  // 同日稍早「hug＋靜止」版也被打回）＝古典跑馬燈：整份從窗右緣外進場、橫越整行、左緣出、循環。
-  // 作法＝track margin-left:100%（起點在窗外右側）＋ shift = −(rowW+unitW)（終點整份出左緣），keyframe 沿用。
-  if (unitW <= rowW) {
-    box.style.width = '100%';
-    track.style.animation = '';                    // 還原 CSS keyframe（可能帶著早前版本的 none）
-    track.style.marginLeft = '100%';
-    const dist = rowW + unitW;
-    track.style.setProperty('--marquee-shift-x', `-${dist}px`);
-    track.style.animationDuration = `${dist / 45}s`;  // 同舊版 ~45px/s 可讀速
-    return;
-  }
-  const copies = Math.max(2, Math.ceil(rowW / unitW) + 1);        // 填滿整行 + 1 unit（捲一個 unit 無縫）
-  box.style.width = '100%';
-  track.style.animation = '';
-  track.style.marginLeft = '';                                    // 清單份模式殘值
-  track.style.setProperty('--marquee-shift-x', `-${unitW}px`);    // 捲一個完整 unit（title+間距）接回下一份、無縫
+  // 2026-09-11 user 定案：marquee 做在「title 字寬的 box 窗口內」——box 貼文字本體寬（非整行、
+  // 也**不含 unit 的 padding-right 2em 間隔**：含間隔＝起始畫面右側先露一截空白，user「間隔先出來」打回），
+  // 窗內兩份接尾無縫捲；位移仍捲整個 unit（含間隔）＝接縫的間隔在窗內流過、循環無縫。
+  // box 是 inline-block、不設寬會被 track（兩份）撐開 → 必須顯式鎖寬；溢出罕見、由 CSS max-width:100% 夾。
+  const gapW = parseFloat(getComputedStyle(firstUnit).paddingRight) || 0;
+  box.style.width = `${unitW - gapW}px`;
+  track.style.animation = '';                                     // 還原 CSS keyframe（可能帶著早前版本殘值）
+  track.style.marginLeft = '';                                    // 清「整行單份行進」版殘值
+  track.style.setProperty('--marquee-shift-x', `-${unitW}px`);    // 捲一個完整 unit 接回下一份、無縫
   track.style.animationDuration = `${Math.max(4, unitW / 45)}s`;  // ~45px/s 可讀
-  for (let i = 1; i < copies; i++) {                              // 補足複製份填滿整行
-    const clone = document.createElement('span');
-    clone.className = 'lib-title-unit';
-    clone.setAttribute('aria-hidden', 'true');
-    clone.textContent = label;
-    track.appendChild(clone);
-  }
+  const clone = document.createElement('span');                   // 第二份接尾（舊複製份已在上面清掉）
+  clone.className = 'lib-title-unit';
+  clone.setAttribute('aria-hidden', 'true');
+  clone.textContent = label;
+  track.appendChild(clone);
 }
 
 // 4 方向 clip-path 起點（終點統一 inset(0)）
