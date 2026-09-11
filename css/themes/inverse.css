@@ -302,6 +302,19 @@ body.mode-inverse #library-awards-ticker .awards-ticker-wrapper img {
   }
 }
 
+/* legal 規章表列手機按壓態（user 2026-09-11 :active＝hover 的觸控版）：mode2 同 hover 翻白底黑字 */
+@media (max-width: 767px) {
+  body.mode-inverse .legal-reg-item:active .legal-reg-name,
+  body.mode-inverse .legal-reg-item:active .legal-reg-unit {
+    background: white !important;
+    color: black !important;
+  }
+  body.mode-inverse .legal-reg-item:active .legal-reg-name span,
+  body.mode-inverse .legal-reg-item:active .legal-reg-unit span {
+    color: black !important;
+  }
+}
+
 /* ===== Library Files / Album / Press hover：亮三原色底文字一律反黑 ===== */
 /* bindListItemHover (library-panels.js) mouseenter 設 inline bg=accent，mouseleave 清掉
  * 用 [style*="background"] 偵測 hover 狀態 → 文字全部反黑（含半透明 0.5 白 → 0.5 黑）

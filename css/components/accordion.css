@@ -189,14 +189,48 @@
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
-    /* padding 當固定 frame：捲動下放內層 [data-resources-text]，上下留白不隨捲動、scrollbar 內縮不貼卡緣（user 2026-09-05） */
+    /* padding 當固定 frame：捲動下放內層兩欄、上下留白不隨捲動、scrollbar 內縮不貼卡緣（user 2026-09-05） */
     padding: var(--spacing-md);
     overflow: hidden;
+  }
+
+  /* 多圖輪播容器：slides 絕對疊放、overflow:hidden 裁切 yPercent 滑入（resources-cycling initResourceSwitchers） */
+  .res-switcher {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+  .res-slide {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* 說明文字英左／中右對半（user 2026-09-11）：兩欄各自可捲，min-width:0 防被長字撐爆 */
+  .accordion-text-cols {
+    display: flex;
+    flex-direction: row;
+    gap: var(--spacing-md);
+    width: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  .accordion-text-col {
+    flex: 1;
+    min-width: 0;
+    overflow-y: auto;
   }
 
   /* about resources（colored-accordion）桌面：title 與說明文字改頂端對齊（user）。
      base 是 label 靠底(align-items:flex-end)、text 靠底(justify-content:flex-end)。 */
   @media (min-width: 768px) {
+    /* 桌面版面（user 2026-09-11）：圖在上、文字在下，各佔一半（img-wrap / text-wrap 都 flex:1）；
+       原本是左右並排（body-inner row）。text-wrap 內兩欄英左中右由 .accordion-text-cols 處理。 */
+    .colored-accordion .accordion-body-inner {
+      flex-direction: column;
+    }
     .colored-accordion .accordion-label {
       align-items: flex-start;
     }

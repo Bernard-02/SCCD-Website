@@ -69,6 +69,11 @@
 .hero-title-cn, .hero-mobile-title-cn { line-height: var(--line-height-zh-3xl); }
 .hero-text-cn, .hero-mobile-text-cn { line-height: var(--line-height-zh-s); }
 
+/* sitemap（網站導覽）卡片沿用 curriculum 的 .courses-grid-card 排版；curriculum 的中文 span 沒標 lang＝吃
+ * --line-height-s(1.3)，sitemap 的中文 span 標了 lang="zh-Hant"（保 a11y/字型）＝被上面 [lang] 拉成 zh-s(1.4)、
+ * 卡片變高與 curriculum 不一致。拉回 1.3 對齊 curriculum；放這裡 unlayered 才蓋得過 [lang="zh-Hant"]。 */
+.legal-map-card .courses-grid-card-zh { line-height: var(--line-height-s); }
+
 /* Mode 切換 fade window：theme-toggle.js applyMode() 加 .mode-switching 0.4s 後移除
  * - 速度 0.4s ease：對齊 theme-toggle.js MODE_FADE_MS
  * - 早期版本用 `*` broad cover 讓所有 ::before/::after/border/fill 一起 fade，但 about 頁元素密度過高

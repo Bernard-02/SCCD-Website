@@ -33,6 +33,7 @@ import { initClassButtonsSticky } from './modules/pages/about/class-buttons-stic
 import { initClassImagesSlideshow } from './modules/pages/about/class-images-slideshow.js';
 import { loadAboutContent } from './modules/pages/about/about-data-loader.js';
 import { initProgramStructure } from './modules/pages/about/about-structure.js';
+import { pauseVideosOffscreen } from './modules/ui/pause-offscreen-video.js';
 import { initAnchorNav } from './modules/navigation/anchor-nav.js';
 import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from './modules/ui/scroll-animate.js';
 
@@ -215,6 +216,10 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
     // 在本函式稍後同步跑 → 若不先清，會讀到上一頁的 _heroDone=true 立刻 resolve＝沒等 hero 就 scroll/slide
     // （user 2026-06-28 bug 1/4）。在這同步清 → 消費者一定讀到 false、改等 hero:animation-done。
     resetHeroDone();
+    // hero 標題/副標/banner：Directus <page>_hero 為主、LKG/本地 json fallback（見 hero-source.js）。
+    // ⚠️ 必須在 initHeroAnimation 之前呼叫：loadHero 同步 prefix 會在 banner img 標 data-hero-wait
+    //（banner「以後台為主、單次揭露」，user 2026-09-11），timeline build 讀旗標才不把 img 排進進場。
+    loadHero(page);
     // hero-mobile-sync：4 頁共用 hero (faculty/courses/activities/admission) 手機 DOM 從桌面 clone 文案+banner src
     // 必須在 initHeroAnimation 之前跑：hero-animation.js 對 [data-hero-hl] 套色時手機 chip 要已注入內容
     // 其他頁無 .hero-mobile / .hero-rand-grid 結構 → sync 函式自身 early return 不影響
@@ -259,6 +264,9 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
       initClassImagesSlideshow();
       initProgramStructure();
 
+      // works 影片離開視窗/換學制隱藏時自動暫停（YouTube iframe，src 已由 fillWorks 設定）
+      pauseVideosOffscreen(document.querySelectorAll('.works-video-iframe'));
+
       const classImages = document.querySelector('[data-class-images]');
       if (classImages) {
         const imgs = classImages.querySelectorAll('img');
@@ -288,12 +296,6 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
   // degree-show list 已整合到 activities panel（loadDegreeShowListInto），舊獨立頁已刪
   if (page === 'degree-show-detail') {
     loadDegreeShowDetail();
-  }
-
-  // hero 標題/副標/banner：Directus <page>_hero 為主、本地 json fallback（見 hero-source.js）。
-  // 只改 textContent/img.src，不干擾 hero clip-reveal；後台 singleton 未填時 = 現狀。
-  if (['faculty', 'curriculum', 'activities', 'admission'].includes(page)) {
-    loadHero(page);
   }
 
   // --- Admission Page ---
@@ -520,6 +522,11 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
       return;
     }
 
+    // 桌面 deep-link：四 panel「首次」渲染延到進場動畫完成才 commit——pre-swap 成可見的目標 panel
+    // 資料到手就 render＝433ms 級 longtask 落在色塊 clip-reveal 窗口內、動畫掉幀成「直接出現」
+    // （user 2026-09-11）。refresh/直開的 item hash 已在上面清掉 → 這裡自然不 arm、行為不變。
+    if (panelsMod.isItemDeepLinkHash()) panelsMod.deferFirstRenderUntilEntrance();
+
     if (initialTab !== 'awards') {
       // 預先 swap panel display，讓 content 層 fade-in 時看到的就是目標 panel
       // reveal:false → 只切 display 不跑 wipe；等 grayEl 進場揭露完 onTabSwitch 才 reveal
@@ -534,7 +541,10 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
       // onTabSwitchPre pre-swap 已退役（§37 req3）：切換的 panel swap 全在 onTabSwitch instant（滑板下渲染），
       // 提早 swap 反而落在 morph 起跑幀＝可見重排跳動。
       onTabSwitch: (tab, opts) => {
-        panels.showPanel(tab, opts);   // 分頁切換帶 {instant:true}（veil 下直接渲染）；進場不帶＝照舊 wipe
+        // deep-link 首渲染閘 pending（entrance 那次自動切換）→ 先不 reveal：panel 還空、wipe 白播；
+        // 等 render commit 後由 maybeRevealDeferredPanel 補整組帶位移 clip-reveal（user 2026-09-11）
+        const deferReveal = !entranceDone && panelsMod.isFirstRenderDeferred();
+        panels.showPanel(tab, deferReveal ? { reveal: false } : opts);   // 分頁切換帶 {instant:true}（veil 下直接渲染）；進場不帶＝照舊 wipe
         if (!entranceDone) return; // 自動切換（進場動畫）→ 保留現有 hash
 
         // 使用者手動切換 tab → 更新 URL hash

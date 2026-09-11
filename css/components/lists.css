@@ -1662,6 +1662,24 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
   }
 }
 
+/* deep-link 落地 highlight 比照 hover dim（user 2026-09-11，對齊 library）：navigateToItem 落地 flash 時
+   對目標 .list-item 掛 .is-hovered ~1.2s（section-switch-helpers.flashDeepLinkDim）→ 其餘列＋他組年份標籤
+   半透明。class 版不吃 :hover 三 gate（落地窗口程式主導、無捲動誤觸問題），全 viewport 生效
+   （合成 mouseenter 觸不到 CSS :hover state，:hover 版接不到 deep-link）。.dim-off 視窗外排除照舊。 */
+@media (max-width: 767px) {
+  /* 手機也要淡入淡出（桌面 block 已有 opacity transition；此處只補手機、避免蓋掉桌面雙屬性 shorthand） */
+  :is(#activities-content-section, #admission-content-section) :is(.list-item, .list-year-label) {
+    transition: opacity 0.25s ease;
+  }
+}
+:is(#activities-content-section, #admission-content-section):has(.list-item.is-hovered)
+  :is(.list-item, .list-year-label):not(.is-hovered):where(:not(.dim-off)) {
+  opacity: 0.25;
+}
+:is(#activities-content-section, #admission-content-section) .list-year-group:has(.list-item.is-hovered) .list-year-label {
+  opacity: 1;
+}
+
 /* ===== Degree Show 清單卡片標題 marquee（過長不換行，溢出時捲動）=====
    結構由 degree-show-data-loader.js 產出：h5 > .dshow-title-line(overflow window)×1-2(EN/ZH)
    > .dshow-title-inner。applyMarqueeOverflow（activities-section-switch showPanel 後 rAF 觸發）偵測

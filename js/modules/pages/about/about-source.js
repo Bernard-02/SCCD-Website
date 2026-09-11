@@ -50,13 +50,15 @@ export async function loadAboutClasses() {
   try {
     // division 名字走 ui_labels（前台 data-label-key 渲染），這裡只需 divisionKey 對位＋圖文段落；
     // 舊 nameEn/nameZh 已停取（過去只灌進 SCCD_aboutClass 的死欄位、無渲染，2026-09-08 清）。
-    const res = await fetch(`${CMS_API_BASE}/about_class?limit=-1&sort=sort&fields=*,division.divisionKey`);
+    // images＝該學制圖片輪播池（files M2M，每學制各自；空則 slideshow 退本地共用 json）。
+    const res = await fetch(`${CMS_API_BASE}/about_class?limit=-1&sort=sort&fields=*,division.divisionKey,images.directus_files_id.filename_disk`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const rows = (await res.json()).data;
     if (!Array.isArray(rows) || !rows.length) throw new Error('empty');
     return rows.map(r => ({
       divisionKey: r.division?.divisionKey || '',
       descriptionEn: r.descriptionEn || '', descriptionZh: r.descriptionZh || '',
+      images: (r.images || []).map(x => cdnImage(x?.directus_files_id?.filename_disk)).filter(Boolean),
     }));
   } catch (err) {
     console.warn('[about] class CMS 失敗 → 本地:', err.message);
@@ -81,18 +83,24 @@ export async function loadAboutWorks() {
   }
 }
 
-// render 端（resources-cycling）吃 { title(合併), image, textEn, textZh }
+// render 端（resources-cycling）吃 { title(合併), image, images[], textEn, textZh }
+// images＝多圖 M2M（about_resources_files junction，sort 拖曳＝輪播先後）；空則 fallback 單張 image。
 export async function loadAboutResources() {
   try {
-    const res = await fetch(`${CMS_API_BASE}/about_resources?limit=-1&sort=sort&fields=*,image.filename_disk`);
+    const res = await fetch(`${CMS_API_BASE}/about_resources?limit=-1&sort=sort&fields=*,image.filename_disk,images.directus_files_id.filename_disk`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const rows = (await res.json()).data;
     if (!Array.isArray(rows) || !rows.length) throw new Error('empty');
-    return rows.map(r => ({
-      title: [r.titleEn, r.titleZh].filter(Boolean).join(' '),
-      image: cdnImage(r.image?.filename_disk),
-      textEn: r.descriptionEn || '', textZh: r.descriptionZh || '',
-    }));
+    return rows.map(r => {
+      const single = cdnImage(r.image?.filename_disk);
+      const multi = (r.images || []).map(x => cdnImage(x?.directus_files_id?.filename_disk)).filter(Boolean);
+      return {
+        title: [r.titleEn, r.titleZh].filter(Boolean).join(' '),
+        image: single,
+        images: multi.length ? multi : (single ? [single] : []),
+        textEn: r.descriptionEn || '', textZh: r.descriptionZh || '',
+      };
+    });
   } catch (err) {
     console.warn('[about] resources CMS 失敗 → 本地:', err.message);
     return local('/data/about-resources.json');

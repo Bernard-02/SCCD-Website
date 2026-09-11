@@ -57,11 +57,18 @@ function fillClasses(list) {
   });
 }
 
-// playlist 網址 → embed 網址（videoseries 播整個清單）
+// playlist 網址 → embed 網址。
+// ⚠️「播放清單選單／清單面板」是 YouTube 播放器自家 UI，沒有任何 embed 參數能強制開啟——videoseries 與 VIDEO_ID?list=
+//    兩種形式差在「有沒有初始影片」而非選單有無。實務上 watch 連結（VIDEO_ID?list=）較常見清單列出現，故編輯者貼
+//    watch URL（含 v= 或 youtu.be/）時保留 video id 用該形式；只貼純 playlist URL 才退回 videoseries（播整清單）。
 function playlistToEmbed(url) {
   if (!url) return '';
-  const m = url.match(/[?&]list=([^&]+)/);
-  return m ? `https://www.youtube.com/embed/videoseries?list=${m[1]}` : '';
+  const list = url.match(/[?&]list=([^&]+)/)?.[1];
+  if (!list) return '';
+  const vid = url.match(/[?&]v=([^&]+)/)?.[1] || url.match(/youtu\.be\/([^&?/]+)/)?.[1];
+  return vid
+    ? `https://www.youtube.com/embed/${vid}?list=${list}`
+    : `https://www.youtube.com/embed/videoseries?list=${list}`;
 }
 
 // ── Works（作品）：依 divisionKey 填說明段落（保留 .works-playlist-list）+ iframe src ──

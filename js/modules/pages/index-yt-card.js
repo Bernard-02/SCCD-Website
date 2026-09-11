@@ -242,7 +242,7 @@ function initWatchChars(ytCharsEl) {
           });
         }
         // 點擊開影片 / 離頁：逐字 clip-reveal 滑回框下離場（取代舊 _scale 瞬切 0）；回傳 Promise 供接續 clone/iris。
-        ytCharsEl.__fadeOutWatch = function(opts = {}) { return clipReveal(0, opts.stagger ?? 0.06, DUR.medium, EASE.exit); };
+        ytCharsEl.__fadeOutWatch = function(opts = {}) { return clipReveal(0, opts.stagger ?? 0.06, opts.dur ?? DUR.medium, EASE.exit); };
         ytCharsEl.__resetWatchAlpha = function() {
           if (!lastPlaced) return;
           lastPlaced.forEach(pos => { pos._scale = 1; pos._reveal = 1; });
@@ -478,12 +478,13 @@ export function initYTCard() {
 
   // 離頁退場：文字收掉與光圈 circle(50%→0%) 收回「並行」（user 2026-09-10：原本串行總長 ~1.1s 比其他
   // 浮卡退場（DUR.medium＋小 delay）長一截，menu 關閉滑開後 WATCH 單獨留在畫面上收尾；並行後總長
-  // = DUR.medium 與其他 item 同拍。字母收到一半被光圈 clip 掉即可（點擊開影片那條路徑仍是串行、不受影響）。
+  // = DUR.medium 與其他 item 同拍。文字走「快版」clip 收（user 2026-09-11：同長並行＝字母收到一半被
+  // 光圈邊緣卡住很醜 → 字先快收完、光圈維持 DUR.medium 原時長；點擊開影片那條路徑仍是串行原速、不受影響）。
   registerPageExit(() => new Promise(resolve => {
     if (typeof gsap === 'undefined') { resolve(); return; }
     const charsEl = document.getElementById('homepage-yt-chars');
     charsEl?.__pauseLayoutInterval?.(); // 停 3s reshuffle，避免退場時把已 fade 掉的字重畫回來（被收合的光圈裁住、但保險）
-    charsEl?.__fadeOutWatch?.({ stagger: 0.03 });
+    charsEl?.__fadeOutWatch?.({ stagger: 0.015, dur: 0.2 }); // 總長 ~0.28s：趕在光圈(0.5s power3.in)明顯縮小前收完
     gsap.to(ytCard, { clipPath: 'circle(0% at 50% 50%)', duration: DUR.medium, ease: EASE.exit, overwrite: true, onComplete: resolve });
   }));
 

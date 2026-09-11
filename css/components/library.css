@@ -639,6 +639,25 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   }
 }
 
+/* deep-link highlight 比照 hover dim（user 2026-09-11）：runHighlight 對目標列掛 .is-hovered 1s，
+   其餘列＋不相關年份標籤同樣半透明。class 版不經 :hover → 沒有手機 sticky-hover 問題，
+   全 viewport 生效（桌面 dispatch mouseenter 不會觸發 CSS :hover state，故 :hover 版接不到）。
+   transition 兩條與上方桌面 block 同值重複宣告＝讓手機也有淡入淡出（press/files 的 base transition 本就含 opacity）。 */
+.award-record-item,
+.year-label-text {
+  transition: opacity var(--dur-fast) ease;
+}
+#library-card-content:has(:is(.award-record-item, .press-item, .files-item).is-hovered)
+  :is(.award-record-item, .press-item, .files-item):not(.is-hovered) {
+  opacity: 0.25;
+}
+#library-card-content:has(:is(.award-record-item, .press-item, .files-item).is-hovered) .year-label-text {
+  opacity: 0.25;
+}
+#library-card-content [class$="year-block"]:has(:is(.award-record-item, .press-item, .files-item).is-hovered) .year-label-text {
+  opacity: 1;
+}
+
 /* ── Files Grid（card layout）────────────────────────────────── */
 .files-grid {
   display: grid;

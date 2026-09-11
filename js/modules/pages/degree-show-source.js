@@ -211,7 +211,8 @@ function buildTime(start, end, dates) {
   const s = md(start);
   return end && end !== start ? `${s} - ${md(end)}` : s;
 }
-function md(d) { const p = String(d).split('-'); return p.length >= 3 ? `${p[1]} / ${p[2]}` : String(d); }
+// 斜線前後不空格（對齊 activities：'12/12'、跨日 '12/12 - 12/20'，見 activities-data-loader formatDatesFromGroups）
+function md(d) { const p = String(d).split('-'); return p.length >= 3 ? `${p[1]}/${p[2]}` : String(d); }
 
 // 顯示用圖片：走 CloudFront（繞過弱機 /assets 常連不到 S3 的 5s 逾時 403，見 memory
 // reference_directus_s3_timeout_all_assets_down），從檔案即時 filename_disk 組 key（不寫死副檔名 →

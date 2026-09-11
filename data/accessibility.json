@@ -71,13 +71,19 @@
           "labelEn": "Division of Animation & Moving Image",
           "labelZh": "動畫影像設計組",
           "labelKey": "curriculum.program.animation",
-          "url": "curriculum.html?program=bfa-animation"
+          "url": "curriculum.html?program=bfa-animation",
+          "prefixKey": "curriculum.group.bfa",
+          "prefixEn": "BFA",
+          "prefixZh": "學士班"
         },
         {
           "labelEn": "Division of Creative Media Design",
           "labelZh": "創意媒體設計組",
           "labelKey": "curriculum.program.creative-media",
-          "url": "curriculum.html?program=bfa-cmd"
+          "url": "curriculum.html?program=bfa-cmd",
+          "prefixKey": "curriculum.group.bfa",
+          "prefixEn": "BFA",
+          "prefixZh": "學士班"
         },
         {
           "labelEn": "Master of Design (MDES)",

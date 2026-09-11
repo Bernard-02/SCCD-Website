@@ -504,7 +504,9 @@ export function initFacultySlideIn() {
 
     facultyCards.forEach(card => {
       const category = card.getAttribute('data-category');
-      if (category === 'fulltime' || category === 'admin' || category === 'parttime' || category === 'founder') {
+      // 兼任（parttime）slide-in 暫未支援（user 2026-09-11）：不綁點擊、不進 makeActivatable → 卡片不可開詳情。
+      // 卡片仍顯示、hover 效果保留；pointer 手勢由 cards.css `[data-category="parttime"]` 移除（免誤導可點）。
+      if (category === 'fulltime' || category === 'admin' || category === 'founder') {
         makeActivatable(card); // 無障礙：師資卡是 <div>，補可 Tab + Enter 開詳情（名字當可讀名）
         card.addEventListener('click', function(e) {
           e.preventDefault();

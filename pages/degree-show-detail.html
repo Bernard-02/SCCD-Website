@@ -69,7 +69,7 @@
         <!-- Events 區塊：桌面左半＝畢展 KV（直式 poster），右半＝活動清單（標題一 row → 日期:地點 1:1 → detail row，城市在地點下方）。
              無 events → 整塊 hidden；無 data.poster → KV 不渲染但 list 仍靠右（user 2026-08-17）。 -->
         <!-- 文字一律 p1；活動/地點/城市顯示中英雙語（時間僅顯示一行） -->
-        <div id="events-section" class="grid-20 mt-4xl md:mt-0 hidden">
+        <div id="events-section" class="grid-20 hidden">
           <!-- 清單：桌面左半（col 5-13，避開 col 1-4 sticky 資訊卡）；直式海報改靠右上角後清單再擴一欄（user 2026-08-18「poster 對齊右上角、讓 events 區更寬」）；桌面內捲＋右側 scrollbar -->
           <div class="col-span-full md:col-start-5 md:col-span-9">
             <!-- Data rows（JS render） -->
@@ -170,7 +170,7 @@
          每個 event 一個 <section data-event-gallery data-event-index="i">，內含 .division-images gallery
          section 高度由 gallery 撐起 + py 呼吸空間；sticky chip 依 scroll position 判定當前 event -->
     <!-- 手機 py-3xl：跟上方主影片 / 下方紀錄影片留呼吸空間（section 自身手機無 py，間距走 flex gap）；桌面歸零（section 各自 md:py-6xl） -->
-    <div id="event-galleries-root" class="bg-white flex flex-col gap-3xl py-3xl md:py-0 md:block"></div>
+    <div id="event-galleries-root" class="bg-white flex flex-col gap-6xl py-3xl md:py-0 md:block"></div>
 
     <!-- 紀錄影片 Section：同主影片——桌面一屏 snap、col-5 起點、header 下緣以下垂直置中 -->
     <section id="documentary-outer-section" class="snap-zone bg-white pb-3xl md:pb-0 md:pt-[92px] md:h-screen hidden">

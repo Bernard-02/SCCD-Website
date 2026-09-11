@@ -80,6 +80,18 @@ let scrollLockCleanup = null;
 //   stacking context），fixed 釘回原視覺位置、z 高過 overlay。idle-standby 用 10001 仍在最上。
 const LOGO_Z_ABOVE_OVERLAY = 10000;
 
+// 點 portal 到 overlay 之上的 logo＝關閉當前 slide-in/lightbox：補發一個 Escape keydown，沿用各 modal 既有的
+// document Esc 關閉邏輯（含 activities-lightbox 在 share 開啟時讓位＝堆疊時只關最上層）。不自建 close registry：
+// Esc 是每個 consumer 都已實作、且已內建堆疊紀律的關閉入口（user 2026-09-11 要 logo 可關閉 panel）。
+function onPortaledLogoClick(e) {
+  e.preventDefault();
+  // ⚠️ 必須 stopPropagation：下面 dispatch Escape 會「同步」關閉當前 panel → exitLightboxMode 同步還原 logo href
+  //    ＋移除 body.lightbox-open。若不擋，這個 click 隨後冒泡到 router（document 級 handler），此時 logo 已有 href
+  //    ＋lightbox-open guard 已失效 → router 誤判成正常導航、跳回首頁（user 2026-09-11 實測）。擋掉冒泡即只關 panel。
+  e.stopPropagation();
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+}
+
 function portalLogoAboveOverlay() {
   const siteHeader = document.getElementById('site-header');
   if (!siteHeader || portaledLogos) return;
@@ -98,9 +110,12 @@ function portalLogoAboveOverlay() {
     a.style.left = `${rect.left}px`;
     a.style.margin = '0';
     a.style.zIndex = String(LOGO_Z_ABOVE_OVERLAY);
-    // #site-header 開 pe:none（navigation.css 134）會繼承給搬進來的 logo → 補回 auto，維持「logo 接住點擊、不
-    // 穿透誤關 panel」（同 disableLogoLinks 原意；href 已被 disableLogoLinks 拔掉＝點了無動作、無 pointer cursor）
+    // #site-header 開 pe:none（navigation.css 134）會繼承給搬進來的 logo → 補回 auto，讓 logo 接住點擊。
     a.style.pointerEvents = 'auto';
+    // 點 logo = 關閉當前 panel（onPortaledLogoClick）；href 已被 disableLogoLinks 拔掉（無導航/無 tooltip），
+    // 故自製 pointer 游標改掛 .cursor-pointer class（cursor.css `body .cursor-pointer`）補回。
+    a.classList.add('cursor-pointer');
+    a.addEventListener('click', onPortaledLogoClick);
     siteHeader.appendChild(a);
     return saved;
   });
@@ -109,16 +124,18 @@ function portalLogoAboveOverlay() {
 function restoreLogoDown() {
   if (!portaledLogos) return;
   portaledLogos.forEach(({ el, parent, next, cssText }) => {
+    el.removeEventListener('click', onPortaledLogoClick);
+    el.classList.remove('cursor-pointer');
     el.style.cssText = cssText;   // 還原 inline（清掉 fixed/top/left/z/pe）→ 回 Tailwind class 原位
     if (parent) parent.insertBefore(el, next);
   });
   portaledLogos = null;
 }
 
-// modal 開著時，logo（portalLogoAboveOverlay 後浮在 modal 之上）要「完全不是連結」，不只是擋 click：
-// 拔掉 href → ① 不導航 ② 無 pointer 游標（cursor.css 規則是 `body a[href]`，無 href 即回 default）
-// ③ 無瀏覽器連結預覽 tooltip。<a> 仍 pointer-events:auto 接住點擊 → 不會穿透到 overlay 誤關面板。
-// （user 2026-06-07：「不能點擊」要連 hover 游標 + 左下角連結預覽都沒有；router.js 另有 header 連結 guard 兜底）
+// modal 開著時把 logo 的 href 拔掉：① 不導航（點 logo 改走 onPortaledLogoClick 關 panel、不是換頁）
+// ② 無瀏覽器連結預覽 tooltip。pointer 游標由 portalLogoAboveOverlay 掛的 .cursor-pointer 提供（不再靠 href）。
+// （2026-06-07 原意＝logo 完全惰性；2026-09-11 user 改要 logo 可關 panel＝改掛 click + pointer，href 仍拔）
+// router.js 另有 header 連結 guard 兜底（href null 時 early return，不會誤導航）。
 let savedLogoHrefs = null;
 function getLogoLinks() {
   return [

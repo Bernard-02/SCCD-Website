@@ -147,16 +147,24 @@
               </div>
             </div>
           </div>
-          <!-- Degree 常駐說明卡（桌面左下角，比照 atlas legend 但不靠 hover 開）：hover tree chip → 對應 degree bar 同色點亮（about-structure.js setBar）。
-               文字為固定學位分類（bfa/mdes/bdes；bdes=BPAIDC）＝硬編；要 CMS 化再接 ui_labels。 -->
-          <!-- 手機也顯示（2026-09-10 mockup：樹底 in-flow 橫排；桌面維持 absolute 右下）→ 拿掉 hidden md:flex -->
-          <!-- .prog-legend-bars：手機橫向滑動 viewport（tap 對應 degree 捲到第一位、head 鎖左）；桌面 display:contents 零影響 -->
-          <div class="prog-legend flex" data-degree-legend>
-            <div class="prog-legend-head"><span>Degree</span><span lang="zh-Hant">學位</span></div>
-            <div class="prog-legend-bars">
-              <div class="prog-legend-bar seam-guard" data-degree="bfa"><span class="prog-legend-en">Bachelor of Fine Arts (B.F.A.)</span><span class="prog-legend-zh" lang="zh-Hant">設計學士</span></div>
-              <div class="prog-legend-bar seam-guard" data-degree="mdes"><span class="prog-legend-en">Master of Design (M.Des.)</span><span class="prog-legend-zh" lang="zh-Hant">設計碩士</span></div>
-              <div class="prog-legend-bar seam-guard" data-degree="bdes"><span class="prog-legend-en">Bachelor of Design (B.Des.)</span><span class="prog-legend-zh" lang="zh-Hant">設計學士</span></div>
+          <!-- Term 期程（上）+ Degree 學位（下）＝兩個獨立說明卡（user 2026-09-11：各自旋轉、上下堆疊、卡內上下 layout）。
+               平常只留 title 殼，hover tree chip → 展開「對應 degree」的內容（about-structure.js setBar）。
+               Term bar 由後台 program_nodes.termEn/termZh 建（老師可客製）；Degree 名硬編（bfa/mdes/bdes，bdes=BPAIDC；要 CMS 化再接 ui_labels）。
+               stack 桌面 absolute 右下、手機 in-flow 樹底；兩卡各自隨機微旋轉（皆 about-structure.js / .css）。 -->
+          <div class="prog-legend-stack" data-degree-legend>
+            <!-- Term 期程（上）：bar 由 JS 從後台 term 建，依 degree（bfa/mdes/bdes） -->
+            <div class="prog-legend prog-legend--term flex">
+              <div class="prog-legend-head"><span>Term</span><span lang="zh-Hant">期程</span></div>
+              <div class="prog-legend-bars"></div>
+            </div>
+            <!-- Degree 學位（下） -->
+            <div class="prog-legend prog-legend--degree flex">
+              <div class="prog-legend-head"><span>Degree</span><span lang="zh-Hant">學位</span></div>
+              <div class="prog-legend-bars">
+                <div class="prog-legend-bar seam-guard" data-degree="bfa"><span class="prog-legend-en">Bachelor of Fine Arts (B.F.A.)</span><span class="prog-legend-zh" lang="zh-Hant">設計學士</span></div>
+                <div class="prog-legend-bar seam-guard" data-degree="mdes"><span class="prog-legend-en">Master of Design (M.Des.)</span><span class="prog-legend-zh" lang="zh-Hant">設計碩士</span></div>
+                <div class="prog-legend-bar seam-guard" data-degree="bdes"><span class="prog-legend-en">Bachelor of Design (B.Des.)</span><span class="prog-legend-zh" lang="zh-Hant">設計學士</span></div>
+              </div>
             </div>
           </div>
         </div>

@@ -7,7 +7,9 @@ import { initRotatedAccordion } from '../../accordions/horizontal-accordion.js';
 import { loadAboutResources } from './about-source.js';
 import { prefersReducedMotion } from '../../ui/reduce-motion.js';
 import { registerPageExit } from '../../ui/page-exit.js';
+import { registerPageCleanup } from '../../ui/page-cleanup.js';
 import { playClipPathExit } from '../../ui/scroll-animate.js';
+import { DUR, EASE } from '../../ui/motion.js';
 
 export function initResourcesCycling() {
   const container = document.getElementById('resources-accordion-container');
@@ -38,6 +40,14 @@ function renderResourcesAccordion(data, container) {
       ? `<span class="accordion-label-en">${titleEn}</span><span class="accordion-label-sep"> </span><span class="accordion-label-zh">${titleZh}</span>`
       : item.title;
 
+    // 圖片來源：多圖 images[]（後台可多張）優先，無則 fallback 單張 image
+    const imgs = (item.images && item.images.length) ? item.images : (item.image ? [item.image] : []);
+    const slides = imgs.map((url, i) =>
+      `<img src="${url}" alt="${item.title}" class="res-slide"${i === 0 ? '' : ' style="z-index:0"'} onerror="this.style.display='none'">`
+    ).join('');
+
+    // 版面（user 2026-09-11）：圖在上、下面英文左／中文右對半分。text-wrap 內兩欄各自可捲；
+    // 中英 <p> 仍在 .accordion-text-wrap 底下 → 沿用 accordion.css/color.css 既有的 `p` 上色與 mode3 規則。
     return `
     <div class="accordion-item" data-index="${index}">
       <!-- A: Label -->
@@ -48,13 +58,12 @@ function renderResourcesAccordion(data, container) {
       <div class="accordion-body">
         <div class="accordion-body-inner">
           <div class="accordion-img-wrap">
-            <img src="${item.image}" alt="${item.title}" class="w-full h-full object-cover" onerror="this.closest('.accordion-img-wrap').style.display='none'">
+            <div class="res-switcher">${slides}</div>
           </div>
           <div class="accordion-text-wrap">
-            <!-- data-resources-text：內捲層（桌面+手機皆此層捲動；padding 留在 text-wrap 當固定 frame、不隨捲動，同 vision/class/works pattern） -->
-            <div data-resources-text class="list-scroll">
-              <p class="text-white mb-en-zh-body">${item.textEn || item.descriptionEn}</p>
-              <p class="text-white" lang="zh-Hant">${item.textZh || item.descriptionZh}</p>
+            <div class="accordion-text-cols">
+              <div class="accordion-text-col list-scroll"><p class="text-white">${item.textEn || item.descriptionEn}</p></div>
+              <div class="accordion-text-col list-scroll"><p class="text-white" lang="zh-Hant">${item.textZh || item.descriptionZh}</p></div>
             </div>
           </div>
         </div>
@@ -65,6 +74,7 @@ function renderResourcesAccordion(data, container) {
 
   wrapper.innerHTML = html;
   container.appendChild(wrapper);
+  initResourceSwitchers(wrapper);
 
   // 桌面＝旋轉堆疊手風琴；手機與矮橫向＝水平 carousel（user 2026-07-06：取消堆疊 accordion 與旋轉，
   // 卡片恆展開、原生 scroll-snap 左右滑；2026-07-07 矮橫向同款、卡片並排 2 張）。
@@ -107,4 +117,37 @@ function renderResourcesAccordion(data, container) {
       strip.style.top = `${Math.round(top + offset)}px`;
     }
   }
+}
+
+// 多圖自動輪播（user 2026-09-11「用 works 的切換方式、自動輪播」）：下一張沿 yPercent 由下滑入蓋住當前
+// （＝全站 hero/works clip-reveal slide，外層 .res-switcher overflow:hidden 裁切），每 CYCLE_MS 換一張。
+// 單張 / reduced-motion → 不輪播。桌面 hover 暫停讓人看清；離頁 registerPageCleanup 清 interval + tween。
+function initResourceSwitchers(root) {
+  const CYCLE_MS = 4000;
+  const reduce = prefersReducedMotion();
+  root.querySelectorAll('.res-switcher').forEach(sw => {
+    const slides = Array.from(sw.querySelectorAll('.res-slide'));
+    if (slides.length < 2 || reduce || typeof gsap === 'undefined') return;
+
+    slides.forEach((s, i) => { s.style.position = 'absolute'; s.style.inset = '0'; s.style.zIndex = i === 0 ? '1' : '0'; });
+    let idx = 0, hovering = false;
+
+    function go(next) {
+      const incoming = slides[next];
+      incoming.style.zIndex = '2';
+      gsap.fromTo(incoming, { yPercent: 100 }, {
+        yPercent: 0, duration: DUR.slow, ease: EASE.enter, overwrite: true,
+        onComplete: () => { slides[idx].style.zIndex = '0'; incoming.style.zIndex = '1'; gsap.set(slides[idx], { yPercent: 0 }); idx = next; },
+      });
+    }
+    const timer = setInterval(() => { if (!hovering) go((idx + 1) % slides.length); }, CYCLE_MS);
+
+    // 桌面 hover 暫停（手機不綁；.accordion-item hover 才停，讓使用者看清當前那張）
+    const item = sw.closest('.accordion-item');
+    if (item && window.matchMedia('(min-width: 768px)').matches) {
+      item.addEventListener('mouseenter', () => { hovering = true; });
+      item.addEventListener('mouseleave', () => { hovering = false; });
+    }
+    registerPageCleanup(() => { clearInterval(timer); gsap.killTweensOf(slides); });
+  });
 }

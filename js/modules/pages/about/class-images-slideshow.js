@@ -20,6 +20,7 @@ import { registerPageCleanup } from '../../ui/page-cleanup.js';
 import { registerPageExit } from '../../ui/page-exit.js';
 import { sitePath } from '../../ui/site-base.js';
 import { ensureCardMask, fitCardToText } from '../../ui/scroll-animate.js';
+import { loadAboutClasses } from './about-source.js';
 
 // slot 間距：slot 0 起始貼左、slot 1/2 各往右平移 ~28%（從 32% 縮小）
 // 避免 slot 2 + landscape 圖寬度溢出 .division-images 容器右緣（container ~720px 在 1920w，slot2 64% + 462 = ~923 溢出 200px）
@@ -121,6 +122,9 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
   const textHlReveal = !!opts.textHlReveal;
   // 單格置中用（timeline 手機單圖輪播：slotLefts ['50%'] + xPercent -50）；預設 0 = 原行為
   const slotXPercent = opts.slotXPercent ?? 0;
+  // 依「位置」自訂 z-index（非預設 slotCount-idx 左高右低）：dshow 手機主圖置中要中間 slot 最高、左右 peek 低
+  //（user 2026-09-11）。長度須 = slotCount，否則忽略（about 不傳＝維持原行為）。
+  const slotZ = (Array.isArray(opts.slotZ) && opts.slotZ.length === slotLefts.length) ? opts.slotZ : null;
   // tick 離場方向：預設 'left'（與整列左移同向）；dshow-detail 子展覽傳 true → 隨機 4 向
   const leaveRandom = !!opts.leaveRandom;
 
@@ -211,6 +215,7 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
       placeInSlot(img, i, slotLefts, {
         rotation: randomRotation(),
         xPercent: slotXPercent,
+        ...(slotZ ? { zIndex: slotZ[i] } : {}),
       });
       // 圖片藏定位＝img 在 wrapper 遮罩內滑出畫面外（隨機 4 向）
       gsap.set(img.firstElementChild, startHidden ? revealHiddenT(randRevealDir()) : REVEAL_SHOWN);
@@ -254,7 +259,7 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
     nextIdx++;
     const newImg = buildImg(nextSrc, imgWidth);
     container.appendChild(newImg);
-    placeInSlot(newImg, slotCount - 1, slotLefts, { rotation: randomRotation(), xPercent: slotXPercent });
+    placeInSlot(newImg, slotCount - 1, slotLefts, { rotation: randomRotation(), xPercent: slotXPercent, ...(slotZ ? { zIndex: slotZ[slotCount - 1] } : {}) });
     gsap.fromTo(newImg.firstElementChild,
       revealHiddenT(randRevealDir()),
       { ...REVEAL_SHOWN, duration: ANIM_DUR, ease: ANIM_EASE,
@@ -268,7 +273,7 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
 
     slots.shift();
     slots.push(newImg);
-    slots.forEach((img, i) => gsap.set(img, { zIndex: slotCount - i }));
+    slots.forEach((img, i) => gsap.set(img, { zIndex: slotZ ? slotZ[i] : slotCount - i }));
     if (!manual) updateCursors();
   }
 
@@ -414,9 +419,15 @@ export async function initClassImagesSlideshow() {
   });
 
   try {
-    const res = await fetch(sitePath('data/about-class-images.json'));
-    const pool = await res.json();
-    if (!Array.isArray(pool) || pool.length === 0) return;
+    // 圖片池：每學制自己的 about_class.images（Directus）；某學制沒上圖 → 退本地共用 json（先填的佔位圖）。
+    const [classes, fallbackPool] = await Promise.all([
+      loadAboutClasses().catch(() => []),
+      fetch(sitePath('data/about-class-images.json')).then(r => r.json()).catch(() => []),
+    ]);
+    const imagesByDivision = {};
+    (classes || []).forEach(c => { if (c.divisionKey && c.images?.length) imagesByDivision[c.divisionKey] = c.images; });
+    const poolFor = (division) => (imagesByDivision[division]?.length ? imagesByDivision[division] : fallbackPool);
+    if (!fallbackPool.length && !Object.keys(imagesByDivision).length) return;
 
     // 手機＝單圖置中自動輪播（user 2026-07-07；同 timeline 手機單格 pattern）：單 slot 下 tick =
     // 舊圖 clip-out + 新圖隨機 4 向 clip-in 同格交疊，內建 INTERVAL timer 直接驅動反覆切換。
@@ -430,6 +441,8 @@ export async function initClassImagesSlideshow() {
     /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.division-images')).forEach(container => {
       const division = container.dataset.division;
       if (!division) return;
+      const pool = poolFor(division);
+      if (!pool.length) return;
       const api = createClassImagesSlideshow(container, pool, slotOpts);
       if (api) slideshowsByDivision.set(division, api);
     });

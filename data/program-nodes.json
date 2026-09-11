@@ -1,8 +1,8 @@
 [
-  { "id": "dcd",       "parent": null,  "sort": 1, "labelKey": "about.program.dcd",            "divisionKey": "animation",      "wordmark": "sccd" },
-  { "id": "bpaidc",    "parent": null,  "sort": 2, "labelKey": "about.program.bpaidc",         "divisionKey": null,             "wordmark": "scaidc" },
-  { "id": "bfa",       "parent": "dcd", "sort": 1, "labelKey": "about.group.bfa",              "divisionKey": "animation",      "wordmark": null },
-  { "id": "mdes",      "parent": "dcd", "sort": 2, "labelKey": "about.program.mdes",           "divisionKey": "mdes",           "wordmark": null },
-  { "id": "animation", "parent": "bfa", "sort": 1, "labelKey": "about.program.animation",      "divisionKey": "animation",      "wordmark": null },
-  { "id": "cm",        "parent": "bfa", "sort": 2, "labelKey": "about.program.creative-media", "divisionKey": "creative-media", "wordmark": null }
+  { "id": "dcd",       "parent": null,  "sort": 1, "labelKey": "about.program.dcd",            "divisionKey": "animation",      "wordmark": "sccd",   "nameEn": "Department of Communications Design (DCD)", "nameZh": "媒體傳達設計學系" },
+  { "id": "bpaidc",    "parent": null,  "sort": 2, "labelKey": "about.program.bpaidc",         "divisionKey": null,             "wordmark": "scaidc", "nameEn": "TBA", "nameZh": "籌備中" },
+  { "id": "bfa",       "parent": "dcd", "sort": 1, "labelKey": "about.group.bfa",              "divisionKey": "animation",      "wordmark": null,     "nameEn": "BFA", "nameZh": "學士班", "termEn": "4 Years", "termZh": "4 年" },
+  { "id": "mdes",      "parent": "dcd", "sort": 2, "labelKey": "about.program.mdes",           "divisionKey": "mdes",           "wordmark": null,     "nameEn": "MDES", "nameZh": "碩士班", "termEn": "2 Years", "termZh": "2 年" },
+  { "id": "animation", "parent": "bfa", "sort": 1, "labelKey": "about.program.animation",      "divisionKey": "animation",      "wordmark": null,     "nameEn": "Division of Animation & Moving Image", "nameZh": "動畫影像設計組" },
+  { "id": "cm",        "parent": "bfa", "sort": 2, "labelKey": "about.program.creative-media", "divisionKey": "creative-media", "wordmark": null,     "nameEn": "Division of Creative Media Design", "nameZh": "創意媒體設計組" }
 ]

@@ -163,7 +163,7 @@ function autoOpenZebra(rows, firstDelay = 100) {
 
 // 規章卡類別欄 sticky offset ＝所屬 accordion header 高度（sticky header 釘捲動框 top:0，類別要釘它正下方）。
 // ⚠️ 別硬編 px（header 高隨字級/字型變，見 curriculum sticky memory）→ 量高寫 var。
-// ponytail: 量一次即可——desktop resize header 高幾乎不變；跨 768 斷點手機無 sticky（reg 表轉 2 欄）故免 resize 監聽。
+// ponytail: 量一次即可——desktop resize header 高幾乎不變；跨 768 斷點手機無 sticky（reg 表轉直排）故免 resize 監聽。
 function setRegCatStickyTop(root) {
   root.querySelectorAll('.legal-reg-table').forEach(tbl => {
     const header = tbl.closest('.list-item')?.querySelector(':scope > .list-header');
@@ -204,10 +204,10 @@ function richGroupEntry(g) {
 }
 
 // ── 規章表格（一個 accordion 內含全部規章）──────────────────────────────────
-// user 2026-09-09b/c：reg 頁只兩個 accordion（全部規章一個、隱私政策一個）；規章卡＝3 欄無小標的表格。
-//   第一欄類別（學則）｜第二欄規章名（實踐大學學則）｜第三欄承辦單位（都預設 SCCD Office）。
-//   同類別只顯示一次＋sticky（比照 faculty 卡片）：一個 .legal-reg-group ＝一類，類別欄 grid-row 跨整組。
-//   規章名有 url 時當連結；hover 一列 → 第二／三欄變 ref 深色（--item-color-deep），非底線。
+// user 2026-09-09b/c：reg 頁只兩個 accordion（全部規章一個、隱私政策一個）。
+//   桌面＝3 欄（類別側欄 grid-row 跨組＋sticky ｜ 規章名 ｜ 承辦單位）；手機＝ref 式直排（類別整列小標、
+//   規章名上／承辦單位下；user 2026-09-11「桌面手機分開、手機看 ref 區的設定」）。排版全在 legal.css .legal-reg-*。
+//   規章名有 url 時當連結；列＝ref 色帶（deep 底黑字、hover/:active 黑底白字）。
 function regSpans(en, zh) {
   return (en ? `<span>${esc(en)}</span>` : '')
     + (zh ? `<span lang="zh-Hant">${esc(zh)}</span>` : '');
@@ -259,6 +259,10 @@ const MAP_HIDE_CLIP = {
   top: 'inset(100% 0% 0% 0%)', bottom: 'inset(0% 0% 100% 0%)',
   left: 'inset(0% 0% 0% 100%)', right: 'inset(0% 100% 0% 0%)',
 };
+// ui_labels 佔位 span（applyUiLabels 逐 span 換字；無 key＝純文字 fallback）
+const labelSeg = (key, part, text) => key
+  ? `<span data-label-key="${esc(key)}" data-label-part="${part}">${esc(text)}</span>`
+  : esc(text);
 function mapCardHtml(item, num) {
   const rot = pickCardRot();
   const dir = pickNavDir();   // 無 el＝純 4 方向隨機（同 curriculum 卡片 pickCardDir：要多樣性）
@@ -269,13 +273,10 @@ function mapCardHtml(item, num) {
   // 名稱吃 ui_labels（labelKey 對應 row.key；json 文字＝最終 fallback），loadSitemap 渲染後 applyUiLabels 填入。
   // prefixKey（faculty 子項）＝前綴另一個 ui_labels key（如 faculty.dept.sccd「DCD」）：前綴與名稱各自
   // 獨立 key span，applyUiLabels 逐 span 換字＝後台改任一邊都跟上、不 hardcode 組合字串。
-  const seg = (key, part, text) => key
-    ? `<span data-label-key="${esc(key)}" data-label-part="${part}">${esc(text)}</span>`
-    : esc(text);
-  const enInner = (item.prefixKey ? seg(item.prefixKey, 'en', item.prefixEn || '') + ' ' : '')
-    + seg(item.labelKey, 'en', item.labelEn);
-  const zhInner = (item.prefixKey ? seg(item.prefixKey, 'zh', item.prefixZh || '') + ' ' : '')
-    + seg(item.labelKey, 'zh', item.labelZh);
+  const enInner = (item.prefixKey ? labelSeg(item.prefixKey, 'en', item.prefixEn || '') + ' ' : '')
+    + labelSeg(item.labelKey, 'en', item.labelEn);
+  const zhInner = (item.prefixKey ? labelSeg(item.prefixKey, 'zh', item.prefixZh || '') + ' ' : '')
+    + labelSeg(item.labelKey, 'zh', item.labelZh);
   return `<a class="courses-grid-card legal-map-card" href="${esc(item.url)}" data-base-rot="${rot}" data-reveal-dir="${dir}"`
     + ` style="transform: rotate(${rot}deg); clip-path: ${MAP_HIDE_CLIP[dir]};">`
     +   `<span class="legal-map-num">${num}.</span>`
@@ -298,6 +299,31 @@ function mapGroupHtml(pg, n) {
   walk(pg.subs, String(n));
   return `<div class="legal-map-pgroup">${html}</div>`;
 }
+// 卡片貼字寬（user 2026-09-11「卡片根據文字寬度調整」，同 about 說明卡 hug 精神）：
+// 長標題折行後 box 仍佔滿欄寬＝右側留一段空底（hover 色帶特別明顯）→ 量實際 line boxes 的最寬右緣、
+// 把卡寬收到貼字。收窄不會重折行（既有每行寬 ≤ 最寬行 ≤ 新寬）＝單次量測即定案（勿迭代）。
+// ⚠️ 卡片出生帶 inline rotate：rects 會被旋轉失真 → 量測前暫清 transform、寫回時復原（讀寫分離批次）。
+function fitMapCardsToText(root) {
+  const cards = /** @type {HTMLElement[]} */ (Array.from(root.querySelectorAll('.legal-map-card')));
+  if (!cards.length) return;
+  const prevT = cards.map(c => { const t = c.style.transform; c.style.transform = 'none'; c.style.width = ''; return t; });
+  const widths = cards.map(card => {
+    const left = card.getBoundingClientRect().left;
+    let maxRight = -Infinity;
+    card.querySelectorAll('.legal-map-num, .courses-grid-card-en, .courses-grid-card-zh').forEach(el => {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      for (const r of range.getClientRects()) if (r.width && r.right > maxRight) maxRight = r.right;
+    });
+    if (maxRight === -Infinity) return 0;
+    return Math.ceil(maxRight - left + (parseFloat(getComputedStyle(card).paddingRight) || 0)) + 1;
+  });
+  cards.forEach((c, i) => {
+    if (widths[i]) c.style.width = widths[i] + 'px';   // border-box：含 padding；.legal-map-card max-width:100% 保險封頂
+    c.style.transform = prevT[i];
+  });
+}
+
 function bindMapCardHover(root) {
   root.querySelectorAll('.legal-map-card').forEach((card) => {
     card.addEventListener('mouseenter', () => {
@@ -379,6 +405,8 @@ export async function loadSitemap() {
     html += `<div class="legal-map-grid">${groups}</div>`;
     contentEl.innerHTML = html;
     applyUiLabels(labels, contentEl);   // 換上後台名稱（在 reveal 前＝不會揭到一半換字）
+    fitMapCardsToText(contentEl);       // 換完字才量＝量到最終文字
+    document.fonts?.ready?.then(() => fitMapCardsToText(contentEl));   // 冷載入字體晚到字寬會變 → 補量一次（函式自清 width 重量）
     bindMapCardHover(contentEl);
     // 進退場＝curriculum 卡片同款「自身 clip-path＋translate 同步」（user 2026-09-10：四方向隨機；
     //   遮罩在卡片自己的 local box 上跟著旋轉走＝角不被裁、無外層遮罩＝不再「被切到再還原」；

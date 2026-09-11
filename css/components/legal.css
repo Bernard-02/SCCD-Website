@@ -501,11 +501,12 @@
   .legal-zebra-card p:not([lang]):has(+ p[lang="zh-Hant"]) { margin-bottom: var(--space-en-zh-body); }
   .legal-zebra-card a { font-weight: var(--font-weight-bold); }
 
-  /* ── 規章表格（一個 accordion 內全部規章；3 欄無小標：類別 ｜ 規章名 ｜ 承辦單位）──
-     同類別只顯示一次＋sticky（比照 faculty 卡片）：每個 .legal-reg-group 一類，類別欄 grid-row 跨整組、
-     sticky 釘在 accordion sticky header 正下方（top=--legal-reg-cat-top，值由 loader 量 header 高寫入）。
-     欄寬（user 2026-09-09c）：規章名（col2）最寬、承辦單位（col3）最窄。 */
-  /* user 2026-09-10：分組間無空格＋第一欄（類別）也進 deep 範圍＝整張表一塊 deep 底（含欄縫）。
+  /* ── 規章表格（一個 accordion 內全部規章；桌面 3 欄無小標：類別 ｜ 規章名 ｜ 承辦單位）──
+     桌面＝09-09c 設計：同類別只顯示一次＋sticky（比照 faculty 卡片）——每個 .legal-reg-group 一類，
+     類別欄 grid-row 跨整組、sticky 釘在 accordion sticky header 正下方（top=--legal-reg-cat-top，
+     值由 loader 量 header 高寫入）。手機另走 ref 式直排（見下方 max-width 區塊；user 2026-09-11
+     「桌面手機要分開」——09-11 早上「桌面改手機同款」已撤回）。 */
+  /* user 2026-09-10：分組間無空格＋整張表一塊 deep 底（含欄縫）。
      比照 ref 做法（.list-ref-btn 整條無外圍 padding、行自帶 padding、貼齊 content 邊）：
      表自身零直向 padding（首末行的 cell padding 8px 就是內部呼吸，hover 黑帶直接頂到表緣、不露 deep 條）；
      負 margin 左右吃掉 .legal-zebra-card 的 --spacing-sm、底部吃掉 --spacing-lg → 深色塊貼齊卡底、不露卡色。 */
@@ -519,7 +520,7 @@
   }
   .legal-reg-group {
     display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) minmax(0, 1fr);   /* user 2026-09-10 二修：1:4:1 類別被縮太多→回 2:3:1（類別 2 ｜ 規章名 3 ｜ 承辦單位 1） */
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) minmax(0, 1fr);   /* user 2026-09-10 二修：類別 2 ｜ 規章名 3 ｜ 承辦單位 1 */
     grid-template-rows: repeat(var(--reg-rows, 1), auto);
     column-gap: var(--spacing-md);
     row-gap: 0;   /* ref 式排列（user 2026-09-09f）：列間無 gap、間距改由 cell 上下 padding 提供 → hover 色帶與鄰列相接 */
@@ -539,7 +540,7 @@
     position: sticky;
     top: var(--legal-reg-cat-top, 0px);
   }
-  .legal-reg-item { display: contents; }   /* hover 單元：本身無盒、hover 沿子元素冒泡上來 → 恢復第二/三欄同時變色 */
+  .legal-reg-item { display: contents; }   /* hover 單元：本身無盒、hover 沿子元素冒泡上來 → 欄位同時變色 */
   .legal-reg-name { grid-column: 2; }
   .legal-reg-unit { grid-column: 3; }
   .legal-reg-cat,
@@ -582,7 +583,7 @@
     padding-right: calc(var(--spacing-md) - 8px);
     margin-right: calc(8px - var(--spacing-md));
   }
-  /* 第三欄 box 右緣延伸到卡片右緣（user 2026-09-10「頂到最右邊」）：吃掉 .legal-zebra-card 右 padding(--spacing-sm) */
+  /* 末欄 box 右緣延伸到卡片右緣（user 2026-09-10「頂到最右邊」）：吃掉 .legal-zebra-card 右 padding(--spacing-sm) */
   .legal-reg-unit {
     padding-right: var(--spacing-sm);
     margin-right: calc(-1 * var(--spacing-sm));
@@ -599,22 +600,42 @@
       color: white !important;
     }
   }
+  /* 手機按壓態（user 2026-09-11「長按黑底白字類似 hover」）：業界慣例＝按住當下的 :active pressed 態
+     （長按會撞系統行為：iOS 連結預覽／文字選取，沒人拿長按當 hover）→ 按住即黑底白字、放開恢復，
+     同 create 頁手機 :active 觸摸反饋慣例。inverse/color.css 有對應 mode 覆蓋（同 hover 那組）。 */
   @media (max-width: 767px) {
-    /* 手機窄：類別當整列小標、規章名／承辦單位並排兩欄；不 sticky。
-       ref 色帶手機也上（user 2026-09-10「regulation 這邊都要做 ref 的 layout」，撤掉先前「手機拔色帶」）：
-       整張表 deep 底＋rest deep 底黑字全走上方 base 規則；這裡只調幾何——
-       row-gap 0 同桌面 ref 排列（間距由 cell 上下 padding 8px 提供、文字節奏 16px ≈ 原 row-gap 值不變）。 */
+    .legal-reg-item:active .legal-reg-name,
+    .legal-reg-item:active .legal-reg-unit {
+      background: black !important;
+      color: white !important;
+    }
+    .legal-reg-item:active .legal-reg-name span,
+    .legal-reg-item:active .legal-reg-unit span {
+      color: white !important;
+    }
+  }
+  @media (max-width: 767px) {
+    /* 手機照 ref 區的設定（user 2026-09-11「手機上你應該要看 ref 區是怎麼設定的」）：
+       ref 手機＝桌面 12-col 收成單文字欄直排（label 上、title 下，pair 內貼緊）→ 規章列同款：
+       規章名在上、承辦單位貼在下（pair 內 2px），列與列 16（8+8）。類別副標＝貼近自己內容
+       （下 0＋行上 8＝8）、類別彼此拉開（上 md＋行下 8＝32）（user 2026-09-10「title 更靠近內容、
+       title 彼此距離多一點」）。色帶／:active 按壓走 base。 */
     .legal-reg-group {
-      grid-template-columns: minmax(0, 1fr) minmax(0, 0.7fr);
+      grid-template-columns: minmax(0, 1fr);
       grid-template-rows: none;
-      column-gap: var(--spacing-sm);
       row-gap: 0;
     }
-    /* 類別直排成整列（桌面是側欄只需 padding-top 對齊首列）→ 自帶上下 8px 與鄰列 box 拉開 */
-    .legal-reg-cat { grid-column: 1 / -1; grid-row: auto; position: static; padding: 8px 0; }
-    /* name 右伸改補「手機的」column-gap(sm)：16 = name 右伸 8 + unit 左伸 8（桌面那組是照 md 24 算的） */
-    .legal-reg-name { grid-column: 1; padding-right: 8px; margin-right: -8px; }
-    .legal-reg-unit { grid-column: 2; }
+    .legal-reg-cat { grid-column: 1; grid-row: auto; position: static; padding: var(--spacing-md) 0 0; }
+    .legal-reg-group:first-child .legal-reg-cat { padding-top: 0; }   /* 首組上方距離交給 overview margin，不疊加 */
+    /* name/unit 同寬直排、右緣一致延伸到卡片右緣（:active 黑帶兩行才不會右緣錯位）；
+       name 桌面的 gap 補滿負 margin 在單欄無 gap → 重設 */
+    .legal-reg-name {
+      grid-column: 1;
+      padding-right: var(--spacing-sm);
+      margin-right: calc(-1 * var(--spacing-sm));
+      padding-bottom: 0;
+    }
+    .legal-reg-unit { grid-column: 1; padding-top: 2px; }
   }
 
   /* 手機 header blocker 左右外擴（user 2026-09-10「往上滑左右有縫隙」）：blocker 放 .legal-content-col 內
@@ -655,7 +676,8 @@
     /* 手機窄：單欄（雙欄 ~160px 會把 nowrap 卡片標題裁掉） */
     .legal-map-grid { grid-template-columns: minmax(0, 1fr); }
   }
-  .legal-map-card { text-decoration: none; }
+  /* max-width：JS 貼字寬（fitMapCardsToText 設固定 px）後視窗縮窄不外溢欄寬（超出就重折行） */
+  .legal-map-card { text-decoration: none; max-width: 100%; }
   /* hover-dim（同 curriculum 課程卡 courses.css）：hover 某卡 → 其餘卡半透明凸顯當前卡。
      opacity transition 由 .courses-grid-card base 自帶（opacity var(--dur-fast)）；只桌面（手機無 hover）。 */
   @media (min-width: 768px) {

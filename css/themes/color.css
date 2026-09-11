@@ -607,6 +607,18 @@ body.mode-color .legal-reg-unit {
     color: var(--theme-fg) !important;
   }
 }
+/* 手機按壓態（user 2026-09-11 :active＝hover 的觸控版）：mode3 同 hover 翻 fg-inverse 底＋fg 字 */
+@media (max-width: 767px) {
+  body.mode-color .legal-reg-item:active .legal-reg-name,
+  body.mode-color .legal-reg-item:active .legal-reg-unit {
+    background: var(--theme-fg-inverse) !important;
+    color: var(--theme-fg) !important;
+  }
+  body.mode-color .legal-reg-item:active .legal-reg-name span,
+  body.mode-color .legal-reg-item:active .legal-reg-unit span {
+    color: var(--theme-fg) !important;
+  }
+}
 
 /* ===== Courses Slide-in：mode-color 跟 hue 持續變色（非 strict B/W）=====
  * 使用者明示 panel bg 要跟 body hue 一起 cycle，文字才走對比：

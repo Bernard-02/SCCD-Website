@@ -10,7 +10,7 @@ import { loadDegreeShowListInto } from './degree-show-data-loader.js';
 import { applyMarqueeOverflow, bindMarqueeReturn } from '../ui/marquee-overflow.js';
 import { initListAccordion, resetListAccordionsInPanel, alignWithBottomSpacer } from '../accordions/list-accordion.js';
 import { reapplySearch, markProgrammaticScroll } from '../ui/activities-search.js';
-import { setActiveNavBtn, showPanel, initHoverDimMoveGuard, bindNavBtnFit, bindFrameScrollSplit } from '../ui/section-switch-helpers.js';
+import { setActiveNavBtn, showPanel, initHoverDimMoveGuard, bindNavBtnFit, bindFrameScrollSplit, flashDeepLinkDim } from '../ui/section-switch-helpers.js';
 import { playAdmissionPanelExit, playAdmissionPanelReveal, setupAdmissionReveal } from './admission-data-loader.js';
 import { playClipReveal, navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
 import { snapRowsShown } from '../ui/list-row-reveal.js';
@@ -265,6 +265,7 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
       const header = /** @type {HTMLElement | null} */ (target.querySelector('.list-header'));
       if (header && !header.classList.contains('active')) {
         /** @type {any} */ (target.closest('[data-lazy-list]'))?._mqPrime?.(target);  // title marquee 即時量（目標豁免）
+        flashDeepLinkDim(target);                  // 落地窗口其餘列半透明（比照 library deep-link dim）
         header.dataset.accentHex = boxFlashColor;  // 開啟即帶 section 色（= highlight，同 smooth 路徑慣例）
         header.style.background = boxFlashColor;
         // deepOpen：proceedOpen ①對齊捲完才展開（不並行＝無 title 殘影）②自關留在對齊位不回 section 頂（user 2026-09-10）
@@ -285,6 +286,7 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
       const itemInBox = target.getBoundingClientRect().top - boxScroller.getBoundingClientRect().top + boxScroller.scrollTop;
       boxScroller.scrollTop = Math.max(0, Math.round(itemInBox - (Number.isNaN(stickyTopVal) ? 0 : stickyTopVal)));
       await waitForItemRevealed(target);
+      flashDeepLinkDim(target);  // flash 期間其餘列半透明（比照 library deep-link dim）
       target.style.transition = 'background 0.3s';
       target.style.background = boxFlashColor;
       setTimeout(() => {
@@ -349,6 +351,7 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
   const flashColor = currentSectionColor || '#00FF80';
   const flashThenOpenAccordion = async () => {
     await waitForItemRevealed(target);
+    flashDeepLinkDim(target);  // flash 期間其餘列半透明（比照 library deep-link dim）
     target.style.transition = 'background 0.3s';
     target.style.background = flashColor;
     setTimeout(() => {
@@ -387,6 +390,7 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
       const header = /** @type {HTMLElement | null} */ (target.querySelector('.list-header'));
       if (header && !header.classList.contains('active')) {
         /** @type {any} */ (target.closest('[data-lazy-list]'))?._mqPrime?.(target);  // title marquee 即時量（目標豁免）
+        flashDeepLinkDim(target);  // 落地窗口其餘列半透明（比照 library deep-link dim）
         header.dataset.skipOpenScroll = '1';
         header.dataset.accentHex = flashColor;
         header.style.background = flashColor;

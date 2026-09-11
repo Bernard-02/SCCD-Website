@@ -20,6 +20,8 @@ import { isHlsUrl, isDirectVideoUrl } from '../ui/video-player.js';
 import { createLightboxVideo } from '../lightbox/lightbox-video.js';
 import { loadDegreeShow } from './degree-show-source.js';
 import { sitePath } from '../ui/site-base.js';
+import { pauseVideosOffscreen } from '../ui/pause-offscreen-video.js';
+import { countryName } from '../../data/country-names.js';
 
 // 七輪：分頁封面「載好才滑入」的隨機四向（同 activities POSTER_SLIDE_DIRS / library COVER_SLIDE_DIRS 語彙）
 const POSTER_SLIDE_DIRS = ['0%, 110%', '0%, -110%', '110%, 0%', '-110%, 0%'];
@@ -325,15 +327,18 @@ export async function loadDegreeShowDetail() {
             return `
             <div class="dsd-event-row flex flex-col">
               <div class="dsd-event-grid grid gap-sm md:gap-md">
-                <div class="dsd-mq-col">
+                <div class="dsd-mq-col dsd-mq-hover">
                   <p class="dsd-mq-line text-s text-black font-bold"><span class="dsd-mq-inner">${ev.time || ''}</span></p>
                 </div>
+                <!-- 名稱欄不整欄當 hover 單元：標題自成一個 .dsd-mq-hover、每位講者各自一個 → hover 誰只捲誰（user 2026-09-11）。 -->
                 <div class="dsd-mq-col">
-                  ${ev.nameEn ? `<p class="dsd-mq-line text-s text-black font-bold mb-en-zh-s"><span class="dsd-mq-inner">${ev.nameEn}</span></p>` : ''}
-                  <p class="dsd-mq-line text-s text-black font-bold" lang="zh-Hant"><span class="dsd-mq-inner">${ev.name || ''}</span></p>
+                  <div class="dsd-mq-hover">
+                    ${ev.nameEn ? `<p class="dsd-mq-line text-s text-black font-bold mb-en-zh-s"><span class="dsd-mq-inner">${ev.nameEn}</span></p>` : ''}
+                    <p class="dsd-mq-line text-s text-black font-bold" lang="zh-Hant"><span class="dsd-mq-inner">${ev.name || ''}</span></p>
+                  </div>
                   ${guestsHtml ? `<div class="mt-xs">${guestsHtml}</div>` : ''}
                 </div>
-                <div class="dsd-mq-col dsd-mq-col--loc">
+                <div class="dsd-mq-col dsd-mq-col--loc dsd-mq-hover">
                   ${ev.locationEn ? `<p class="dsd-mq-line text-s text-black font-bold mb-en-zh-s"><span class="dsd-mq-inner">${ev.locationEn}</span></p>` : ''}
                   <p class="dsd-mq-line text-s text-black font-bold" lang="zh-Hant"><span class="dsd-mq-inner">${ev.location || ''}</span></p>
                   ${cityHtml}
@@ -368,8 +373,11 @@ export async function loadDegreeShowDetail() {
           // bindMarqueeReturn（GSAP 接手、蓋掉 cards.css 的 :hover keyframe）；手機不綁＝維持 CSS 自動循環。
           document.fonts.ready.then(() => requestAnimationFrame(() => {
             applyMarqueeOverflow(eventsList, '.dsd-mq-line', '.dsd-mq-inner');
-            eventsList.querySelectorAll('.dsd-mq-col').forEach((col) => {
-              registerPageCleanup(bindMarqueeReturn(/** @type {HTMLElement} */ (col), '.dsd-mq-inner', '.dsd-mq-line'));
+            // hover 回彈綁在 .dsd-mq-hover 單元（日期欄/地點欄整欄一個、名稱欄拆標題+每位講者各一個），
+            // 非整個 .dsd-mq-col：名稱欄多位長名講者時只捲 hover 的那位。bindMarqueeReturn 對各單元 inner 設
+            // inline animation:none → 壓過 cards.css `.dsd-mq-col:hover` 的 CSS keyframe（否則整欄仍會一起捲）。
+            eventsList.querySelectorAll('.dsd-mq-hover').forEach((unit) => {
+              registerPageCleanup(bindMarqueeReturn(/** @type {HTMLElement} */ (unit), '.dsd-mq-inner', '.dsd-mq-line'));
             });
           }));
         } else {
@@ -482,6 +490,13 @@ export async function loadDegreeShowDetail() {
           docWrapper.innerHTML = '';
         }
       }
+
+      // 影片捲出視窗即暫停（同 about works 的 pauseVideosOffscreen）：createLightboxVideo 回傳的 el 是外層
+      // wrapper div，真正要 observe 的是裡面的 <video>；YouTube 分支則是 <iframe>。此刻 renderVideoInto 已填好內容。
+      pauseVideosOffscreen(
+        [videoWrapper, docWrapper].filter(Boolean)
+          .map(w => w.querySelector('video, iframe')).filter(Boolean)
+      );
 
       // 影片區離頁退場：對已 wrap 的 wrapper 只做 yPercent 反向沉出（playRevealExit 不 reparent → 不 reload iframe）；
       // viewportOnly + display:none(.hidden) 過濾會自動略過未顯示 / 不在視窗的影片區
@@ -688,7 +703,27 @@ function setupNextProject(prev, next) {
 
   // 上下屆標題過長 → 換行（不再 marquee，user 2026-08-17）；wrap 規則在 lists.css .dshow-next-title
 
-  if (isMobileView()) return;
+  if (isMobileView()) {
+    // 手機點擊 next/prev 離頁：色塊卡 clip-reveal 收出（user 2026-09-11「手機點 next/prev 也要 clip-reveal 出場」）。
+    // clip-path inset 收（不 wrap DOM、不動兩卡 overlap/stagger 佈局）；隨機四方向、只收視窗內的卡。inset(0) 起點供 gsap interpolate。
+    const mCards = /** @type {HTMLElement[]} */ ([document.getElementById('prev-link-m'), document.getElementById('next-link-m')].filter(Boolean));
+    mCards.forEach(c => { c.style.clipPath = 'inset(0 0 0 0)'; });
+    const HIDE = ['inset(0 0 100% 0)', 'inset(100% 0 0 0)', 'inset(0 100% 0 0)', 'inset(0 0 0 100%)'];
+    registerPageExit(() => {
+      if (typeof gsap === 'undefined' || prefersReducedMotion()) return Promise.resolve();
+      const live = mCards.filter(c => { const r = c.getBoundingClientRect(); return r.bottom > 0 && r.top < window.innerHeight; });
+      if (!live.length) return Promise.resolve();
+      return new Promise(res => {
+        let n = live.length;
+        live.forEach((c, i) => gsap.to(c, {
+          clipPath: HIDE[Math.floor(Math.random() * HIDE.length)],
+          duration: 0.5, ease: EASE.exit, delay: i * 0.06, overwrite: true,
+          onComplete: () => { if (--n <= 0) res(); },
+        }));
+      });
+    });
+    return;
+  }
 
   // 桌面 desktop
   const setDesktop = (key, year, data) => {
@@ -864,6 +899,8 @@ function setupNextProject(prev, next) {
     createRevealTriggers();
   });
 
+  // 追蹤目前顯示中的 label group（hover 中那組），供離頁退場收回（user 2026-09-11）。
+  let shownLabelsKey = null;
   // Hover：被 hover 的 card → z 提高 + 移除 dim + 顯示 labels group；另一張 → clip-path 掃入隨機色
   const setupHover = (myKey, otherKey) => {
     const myLink = /** @type {HTMLElement | null} */ (document.getElementById(`${myKey}-link`));
@@ -882,6 +919,7 @@ function setupNextProject(prev, next) {
       myLink.style.zIndex = '3';
       if (otherLink) otherLink.style.zIndex = '1';
       myDim.style.opacity = '0';
+      shownLabelsKey = myKey;
 
       // 每次 hover 重新挑 cardColor（不一定每次都一樣），同步套到 3 個 chip
       // 同時每次 hover 重新 random 旋轉角度（chip 此時 clip-path 還是 hidden，新角度會在 reveal 時直接呈現）
@@ -943,6 +981,7 @@ function setupNextProject(prev, next) {
 
     myLink.addEventListener('mouseleave', () => {
       myDim.style.opacity = '0.5';
+      if (shownLabelsKey === myKey) shownLabelsKey = null;
       if (myLabels) {
         const chips = /** @type {NodeListOf<HTMLElement>} */ (myLabels.querySelectorAll('p'));
         chips.forEach((chip) => {
@@ -991,7 +1030,23 @@ function setupNextProject(prev, next) {
     if (r.bottom <= 0 || r.top >= window.innerHeight) return null;
     return new Promise(res => gsap.to(card, { xPercent: outX, duration: 0.5, ease: EASE.exit, overwrite: true, onComplete: res }));
   };
-  registerPageExit(() => Promise.all([exitCard(prevCard, -110), exitCard(nextCard, 110)].filter(Boolean)));
+  // 離頁退場：正在顯示（hover 中）的 title 字卡也 clip-reveal 收回（user 2026-09-11「桌面 title 字卡少了 reveal 出場」）。
+  // 沿用 mouseleave 收法（clip-path hidden + translate navChipHidden，走 LABEL_TRANSITION CSS 0.5s）；只有真的在顯示才收+await。
+  const exitLabels = () => {
+    if (!shownLabelsKey || typeof gsap === 'undefined' || prefersReducedMotion()) return null;
+    const labels = document.getElementById(`${shownLabelsKey}-labels`);
+    if (!labels) return null;
+    const chips = /** @type {NodeListOf<HTMLElement>} */ (labels.querySelectorAll('p'));
+    if (!chips.length) return null;
+    chips.forEach(chip => {
+      chip.style.transitionDelay = '0s';
+      const hid = navChipHidden(chip, pickNavDir(chip));
+      chip.style.clipPath = hid.clipPath;
+      chip.style.translate = hid.translate;
+    });
+    return new Promise(res => setTimeout(res, 500));   // 同 LABEL_TRANSITION 0.5s
+  };
+  registerPageExit(() => Promise.all([exitCard(prevCard, -110), exitCard(nextCard, 110), exitLabels()].filter(Boolean)));
 }
 
 // ── Per-event section rendering ────────────────────────────────────────────
@@ -1235,7 +1290,7 @@ function appendExhibitionSection(root, index, pool, branchEn, branchZh) {
     gallery.classList.add('division-images--degree-show');
     // 3-slot 主圖置中輪播（user 2026-09-10「像桌面版、主圖在中間、左右各露一點、從右往左切」）：slotXPercent -50 讓
     // 每張圖以自己的 left% 為中心 → 中間 50% 是主圖、-16%/116% 是左右露邊 peek；tick 左移＝右邊 peek 遞補進中間。
-    const api = createClassImagesSlideshow(gallery, pool, { slotLefts: ['-16%', '50%', '116%'], slotXPercent: -50, leaveRandom: true });
+    const api = createClassImagesSlideshow(gallery, pool, { slotLefts: ['-16%', '50%', '116%'], slotXPercent: -50, slotZ: [1, 3, 2], leaveRandom: true });
     if (api) {
       api.renderFresh(false);
       api.start();
@@ -1325,13 +1380,24 @@ function escapeHtml(s) {
 }
 
 // event 名稱下方的 guests 清單（self 手填 / linked 從活動拉、含論壇 session 講者）：每人 EN/ZH 雙行、只顯示姓名（不含單位，user 2026-08-17）、s regular；名字過長也 marquee（在標題欄 .dsd-mq-col 內，隨標題欄 hover）
+// 統一格式「人名（AKA）（國家）」：self 型 guests（後台手填 nameZh/nameEn/akaZh/akaEn/country）與
+// linked 型（從被連活動 guests 拉、含 aka/country）共用。country 是 ISO code → countryName 轉當語名稱。
+function fmtGuestLine(name, aka, country, zh) {
+  if (!name) return '';
+  let s = escapeHtml(name);
+  if (aka) s += zh ? `（${escapeHtml(aka)}）` : ` (${escapeHtml(aka)})`;
+  const cn = country ? countryName(country, zh ? 'zh' : 'en') : '';
+  if (cn) s += zh ? `（${escapeHtml(cn)}）` : ` (${escapeHtml(cn)})`;
+  return s;
+}
 function renderEventGuests(guests) {
   if (!Array.isArray(guests) || guests.length === 0) return '';
   const rows = guests.map(g => {
-    const en = g.nameEn ? escapeHtml(g.nameEn) : '';
-    const zh = g.nameZh ? escapeHtml(g.nameZh) : '';
+    const en = fmtGuestLine(g.nameEn, g.akaEn || g.akaZh, g.country, false);
+    const zh = fmtGuestLine(g.nameZh, g.akaZh || g.akaEn, g.country, true);
     if (!en && !zh) return '';
-    return `<div>${en ? `<p class="dsd-mq-line text-s text-black font-regular mb-en-zh-s"><span class="dsd-mq-inner">${en}</span></p>` : ''}${zh ? `<p class="dsd-mq-line text-s text-black font-regular" lang="zh-Hant"><span class="dsd-mq-inner">${zh}</span></p>` : ''}</div>`;
+    // .dsd-mq-hover＝每位講者各自一個 hover marquee 單元（見下 bindMarqueeReturn）：多位長名講者時只捲 hover 的那位。
+    return `<div class="dsd-mq-hover">${en ? `<p class="dsd-mq-line text-s text-black font-regular mb-en-zh-s"><span class="dsd-mq-inner">${en}</span></p>` : ''}${zh ? `<p class="dsd-mq-line text-s text-black font-regular" lang="zh-Hant"><span class="dsd-mq-inner">${zh}</span></p>` : ''}</div>`;
   }).join('');
   return `<div class="dsd-event-guests flex flex-col gap-[0.25rem]">${rows}</div>`;
 }

@@ -96,14 +96,12 @@
      → DOM 順序＝清單先、海報後自然堆疊。桌面維持右側 KV（min-width:768 那條）。 */
   @media (max-width: 767px) {
     .dsd-events-kv.has-kv { display: block; margin-top: var(--spacing-2xl); }
+    /* 海報 full-width 頂到右緣（user 2026-09-11）：site-container 已給左右 padding，width:100% 即填滿內容寬、右緣貼齊。 */
     .dsd-events-kv-img {
       display: block;
-      width: auto;
+      width: 100%;
       height: auto;
-      max-width: 66vw;
-      max-height: 70svh;
-      object-fit: contain;
-      margin-right: auto;
+      max-width: 100%;
     }
   }
 
@@ -194,8 +192,11 @@
     }
   }
 
-  /* Faculty 特定：fulltime/parttime/admin 皆可點擊開 slide-in（2026-08-04 起 parttime 加入） */
+  /* Faculty 特定：fulltime/admin/founder 可點擊開 slide-in */
   .faculty-card-image-wrapper { cursor: var(--cursor-pointer); }
+  /* 兼任（parttime）slide-in 暫未支援（user 2026-09-11）：卡片不可點 → 移除 pointer 手勢（蓋掉卡片 .cursor-pointer 與上面 image-wrapper 規則） */
+  .faculty-card[data-category="parttime"],
+  .faculty-card[data-category="parttime"] .faculty-card-image-wrapper { cursor: var(--cursor-default); }
 
   /* slide-in panel 桌面右緣補償：延伸 10px 蓋過 scrollbar-gutter:stable 保留的 10px gutter，
    * 視覺上 panel 直接接到 viewport 右邊緣。

@@ -157,6 +157,18 @@ export function bindFrameScrollSplit(section) {
 }
 
 /**
+ * deep-link 落地 highlight 期間其餘列半透明（user 2026-09-11，對齊 library deep-link dim）：
+ * 對目標 .list-item 掛 .is-hovered、lists.css 的 class 版 dim 規則接手（全 viewport；
+ * 合成 mouseenter/inline flash 觸不到 CSS :hover state，故 :hover 版 dim 接不到 deep-link）。
+ * @param {HTMLElement|null} itemEl
+ */
+export function flashDeepLinkDim(itemEl, ms = 1200) {
+  if (!itemEl) return;
+  itemEl.classList.add('is-hovered');
+  setTimeout(() => itemEl.classList.remove('is-hovered'), ms);
+}
+
+/**
  * hover-dim「只在滑鼠真的移動後才 dim」guard（activities/admission 共用）。
  * 短 list 在下方時打開 accordion 會捲到頂 → 內容在靜止 cursor 底下位移 → 瀏覽器 re-eval :hover 命中下方
  * 別的 item → 誤觸半透明（user 2026-09-04）。解：捲動（含程式捲）一律先在 host 掛 .hover-dim-suppress，

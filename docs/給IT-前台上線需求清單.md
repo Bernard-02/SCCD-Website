@@ -8,8 +8,9 @@
 
 ## 一、需要 IT 提供的資訊／權限（4 項）
 
-1. **S3 bucket 名稱**
-   - 現行 `sccd.usc.edu.tw` 背後那個 bucket 的名稱；或若希望新站另開一個新 bucket 也可以（見第二節第 2 點）。
+1. **請新建一個 S3 bucket 給新站**（並告知 bucket 名稱）
+   - 系上決定：新站放**新開的 bucket**，不覆蓋舊站的 bucket——舊站檔案原封保留，上線初期若有問題可立即把 origin 切回舊 bucket 回復舊站。
+   - 新站穩定運行一段時間（約數月）後，會再請 IT 刪除舊 bucket。
 
 2. **CloudFront distribution ID**
    - `sccd.usc.edu.tw` 對應的那個 distribution。
@@ -50,9 +51,9 @@
      }
      ```
 
-2. **（僅在開新 bucket 時）把 CloudFront origin 指向新 bucket**
-   - 若決定新站放新的 bucket 而非覆蓋舊站的 bucket，需把該 distribution 的 Origin 改指向新 bucket，網域才會吃到新站內容。
-   - 好處：舊站檔案原封不動保留，隨時可切回。
+2. **把 CloudFront origin 指向新 bucket**
+   - 系上把新站檔案上傳到新 bucket 完成後，請把該 distribution 的 Origin 改指向新 bucket，`sccd.usc.edu.tw` 即切換為新站。
+   - 舊 bucket 原封保留當回復保險：若新站有重大問題，把 Origin 改回舊 bucket 即可立即回復舊站。
 
 3. **設定完成後建立一次 invalidation**（paths：`/*`），讓設定即刻生效。
 

@@ -734,7 +734,15 @@ function initListHeaderAccordion() {
           // Open - header / content 都保留 100% accent；ref 用對應 deep 色。**先上色**（兩段式 staged 捲動期間 header 已是
           // accent，不會「對齊捲動時還透明/hover、捲完才上色」閃一下）。content height:0 不可見，content/item 底色一起設無妨。
           // workshopItem 也染同色：sticky header 與 content 在 fractional pixel 位置會出現 1-2px paint 縫，父層 .list-item 連續底色蓋縫。
-          const color = self.dataset.accentHex || SCCDHelpers.getRandomAccentColor();
+          let color = self.dataset.accentHex || SCCDHelpers.getRandomAccentColor();
+          // legal zebra 多開（user 2026-09-11）：相鄰展開列不可同色 → 撞到鄰居就重抽（3 色、鄰居最多 2 個必有解；
+          // hover 預選色撞色時開啟瞬間換色＝可接受）。單開頁鄰居無 accentHex → no-op。
+          if (self.closest('.legal-zebra') && workshopItem) {
+            const near = [workshopItem.previousElementSibling, workshopItem.nextElementSibling]
+              .map(el => /** @type {any} */ (el?.querySelector?.('.list-header'))?.dataset?.accentHex)
+              .filter(Boolean);
+            for (let t = 0; near.includes(color) && t < 9; t++) color = SCCDHelpers.getRandomAccentColor();
+          }
           self.dataset.accentHex = color;
           self.style.background = color;
           content.style.background = color;

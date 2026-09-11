@@ -37,14 +37,18 @@ const BOX_MOD = {
   'about.program.creative-media': 'prog-box--cm',
 };
 
-// ── 從後台 program_nodes（自我參照 parent 表層級）+ ui_labels（文字）render tree HTML（結構同原硬編、供既有互動邏輯沿用）──
+// ── 從後台 program_nodes render tree HTML（結構同原硬編、供既有互動邏輯沿用）──
+// 樹名走 program_nodes.nameEn/nameZh（獨立於下方 division nav 的 ui_labels，2026-09-11 解耦）；空才退回 ui_labels。
+// ⚠️ 不掛 data-label-key＝applyUiLabels 不會覆寫樹名（decouple 的關鍵）；labelKey 只在 JS 端用於 degree/BOX_MOD 對照。
 function boxHtml(node, labels, tilt, extra = '') {
   const row = labels[node.labelKey] || {};
+  const en = node.nameEn || row.en || '';
+  const zh = node.nameZh || row.zh || '';
   const mod = BOX_MOD[node.labelKey] ? ' ' + BOX_MOD[node.labelKey] : '';
   const div = node.divisionKey ? ` data-division="${esc(node.divisionKey)}"` : '';
   return `<div class="prog-box${tilt ? ' prog-tilt' : ''}${extra ? ' ' + extra : ''}${mod}" data-node-id="${esc(node.id)}"${div}>`
-    + `<span class="prog-box-en" data-label-key="${esc(node.labelKey)}" data-label-part="en">${esc(row.en || '')}</span>`
-    + `<span class="prog-box-zh" data-label-key="${esc(node.labelKey)}" data-label-part="zh" lang="zh-Hant">${esc(row.zh || '')}</span>`
+    + `<span class="prog-box-en">${esc(en)}</span>`
+    + `<span class="prog-box-zh" lang="zh-Hant">${esc(zh)}</span>`
     + `</div>`;
 }
 function nodeHtml(node, childrenOf, labels) {
@@ -52,9 +56,10 @@ function nodeHtml(node, childrenOf, labels) {
   const kidsHtml = kids.length ? `<div class="prog-children">${kids.map((k) => nodeHtml(k, childrenOf, labels)).join('')}</div>` : '';
   return `<div class="prog-node"><div class="prog-row">${boxHtml(node, labels, true)}</div>${kidsHtml}</div>`;
 }
-// 頂層黑底標準字塊：wordmark（enum）決定顯不顯示；wordmarkUrl（後台上傳檔）有值＝inline 換 mask 圖，無值退 CSS 預設 SCCD mask
+// 頂層黑底標準字塊：只在「有實際 wordmark 圖」時畫——上傳檔優先；無檔但 wordmark=sccd → 本地 SCCD svg（CSS 預設 mask）。
+// 其餘（如 scaidc 尚無真 logo）整塊不畫（user 2026-09-11：沒上傳 logo 就不渲染那區塊，別借 SCCD 占位）。
 function acronymHtml(node) {
-  if (!node.wordmark) return '';
+  if (!node.wordmarkUrl && node.wordmark !== 'sccd') return '';
   const style = node.wordmarkUrl
     ? ` style="-webkit-mask-image:url('${esc(node.wordmarkUrl)}');mask-image:url('${esc(node.wordmarkUrl)}')"`
     : '';
@@ -129,34 +134,45 @@ export async function initProgramStructure() {
   // 色塊改黑（user 2026-09-04「原本 rgb 改成黑色」）：不再隨機三原色，chip 底色由 CSS 走 var(--theme-fg)。
   // 點擊 tree 捲到 division 內容的效果已移除（user 2026-09-09）：chip 純 hover 互動、不再導覽。
 
-  // ── hover 上色（lineage 模型）：hover 一顆 chip → 該 chip + **所有母層(祖先)＋所有子層(子孫)** 同色，並點亮左下 Degree 說明卡對應 bar。
-  //   顏色由「該 chip 所屬 degree」決定（bfa 綠 / mdes 粉 / bpaidc(bdes) 藍），tree 與說明卡 bar 同色（user 2026-09-09）；
+  // ── hover 上色（lineage 模型）：hover 一顆 chip → 該 chip + **所有母層(祖先)＋所有子層(子孫)** 同色，並展開右下說明卡「對應 degree」的 Term+Degree bar。
+  //   顏色由「該 chip 所屬 degree」決定（bfa/mdes/bdes 各一色，每次進頁洗牌），tree 與說明卡 bar 同色；
   //   degree 走 labelKey 對照往上找第一個 degree 祖先（CMS id 是 UUID、labelKey 才跨 CMS/fallback 穩定）。
-  //   hover 動畫/創媒/BFA → BFA bar；碩士 → MDes bar；BPAIDC → BDes bar；SCCD(dcd，無 degree) → tree 仍上色（隨機、原邏輯）但不點任何 bar（req6）。
-  //   層級由 NODES 的 parent 定義（後台 program_nodes 的 parent，非硬編）；desktop-only（觸控裝置略過）。
+  //   hover 動畫/創媒/BFA → 展開 BFA 期程+學位；碩士 → MDes；BPAIDC → BDes；SCCD(dcd，無 degree) → tree 仍上色（隨機）但不展開任何 bar。
+  //   說明卡平常只留 title 殼（Term 期程 / Degree 學位），hover 才展開內容（user 2026-09-11）；層級由 NODES 的 parent 定義（後台 program_nodes）。
   const ACCENT = ['#00FF80', '#FF448A', '#26BCFF'];
   const rndAccent = () => ACCENT[Math.floor(Math.random() * ACCENT.length)];
   const DEGREE_BY_LABELKEY = { 'about.group.bfa': 'bfa', 'about.program.mdes': 'mdes', 'about.program.bpaidc': 'bdes' };
   // degree↔色不固定 rgb 順序、每次進頁洗牌（user 09-10）；同一次瀏覽內三 degree 仍各自穩定一色（hover/tap/legend 共用此 map）
   const shuffledAccent = [...ACCENT].sort(() => Math.random() - 0.5);
   const DEGREE_COLOR = { bfa: shuffledAccent[0], mdes: shuffledAccent[1], bdes: shuffledAccent[2] };
+  // Term 期程 bar：從 program_nodes 的 termEn/termZh（掛在 degree 節點）建，依 degree key（bfa/mdes/bdes）；
+  // 空＝不建（該 degree hover 時只展開 Degree bar）。degree 名硬編在 about.html（要 CMS 化再接 ui_labels）。
+  const termBox = root.querySelector('.prog-legend--term .prog-legend-bars');
+  if (termBox) {
+    const termByDeg = {};
+    nodeList.forEach((n) => { const d = DEGREE_BY_LABELKEY[n.labelKey]; if (d && (n.termEn || n.termZh)) termByDeg[d] = { en: n.termEn || '', zh: n.termZh || '' }; });
+    termBox.innerHTML = ['bfa', 'mdes', 'bdes'].filter((d) => termByDeg[d]).map((d) =>
+      `<div class="prog-legend-bar seam-guard" data-degree="${d}"><span class="prog-legend-en">${esc(termByDeg[d].en)}</span><span class="prog-legend-zh" lang="zh-Hant">${esc(termByDeg[d].zh)}</span></div>`
+    ).join('');
+  }
+  // legendBars[deg] = 該 degree 的所有 bar（term 段 + degree 段各一）：hover/tap 對應 degree 時一起展開＋上色
   const legendBars = {};
-  root.querySelectorAll('.prog-legend-bar').forEach((el) => { legendBars[el.dataset.degree] = el; });
-  const legendEl = root.querySelector('.prog-legend');
-  // 旋轉走 transform:rotate（navChipHidden 讀它算旋轉後位移向量），非個別 rotate 屬性——否則 clip-reveal 位移不跟角度轉
-  // 手機一行式說明列不轉（user 09-10 mockup 是水平整條、可 pan 的長條轉著怪）；桌面卡維持隨機微旋轉
-  if (legendEl) legendEl.style.transform = `rotate(${desktop ? rndRot() : 0}deg)`;
-  // ── 說明卡 clip-reveal（比照 tree chip）：卡改 absolute 掛在 section 內＝往下捲跟頁面 flow 一起離開
-  //    （user 2026-09-09，取代 fixed＋io 顯隱＝免調離場 timing）；進場排在 cascade 尾端（playEntrance）、
-  //    SPA 離頁跟 chips 同拍 clip 收（registerPageExit）。──
-  const legendDir = legendEl ? pickNavDir(legendEl) : 'bottom';   // 進場方向固定一次（沿短邊）
+  root.querySelectorAll('.prog-legend-bar').forEach((el) => { (legendBars[el.dataset.degree] = legendBars[el.dataset.degree] || []).push(el); });
+  // Term / Degree 是兩張獨立說明卡（user 2026-09-11：各自旋轉、桌面上下堆疊）；各自 clip-reveal + rndRot。
+  const legendEls = [...root.querySelectorAll('.prog-legend')];
+  // 旋轉走 transform:rotate（navChipHidden 讀它算旋轉後位移向量），非個別 rotate 屬性——否則 clip-reveal 位移不跟角度轉；
+  // 手機不轉（mockup 是水平整條）。各卡記自己的進場方向 _dir（沿短邊）。
+  legendEls.forEach((el) => {
+    el.style.transform = `rotate(${desktop ? rndRot() : 0}deg)`;
+    el._dir = pickNavDir(el);
+  });
+  // ── 說明卡 clip-reveal（比照 tree chip）：absolute stack 掛在 section 內＝往下捲跟頁面 flow 一起離開；
+  //    進場排在 cascade 尾端（playEntrance）、SPA 離頁跟 chips 同拍 clip 收（registerPageExit）。──
   function hideLegendInit() {   // init：藏成 clip-reveal 起態（可見但被 clip 裁掉），避免 async render 後、進場前閃現
-    if (!legendEl) return;
-    if (willAnimate) {
-      const h = navChipHidden(legendEl, legendDir);
-      legendEl.style.clipPath = h.clipPath; legendEl.style.translate = h.translate;
-    }
-    legendEl.style.visibility = 'visible';   // reduce/無 gsap：in-flow 靜態直接可見（捲動物理帶走，無 fixed 外溢問題）
+    legendEls.forEach((el) => {
+      if (willAnimate) { const h = navChipHidden(el, el._dir); el.style.clipPath = h.clipPath; el.style.translate = h.translate; }
+      el.style.visibility = 'visible';   // reduce/無 gsap：in-flow 靜態直接可見（捲動物理帶走，無 fixed 外溢問題）
+    });
   }
   // NODES 由後台資料建（id → {parent, labelKey, el}）：層級全走 program_nodes 的 parent，不再硬編選擇器
   const NODES = {};
@@ -165,10 +181,7 @@ export async function initProgramStructure() {
     const id = el.getAttribute('data-node-id');
     if (NODES[id]) NODES[id].el = el;
   });
-  // degree → 代表 tree 節點 id（＝該 degree 的 degree 節點本身）：供「反向 hover 說明卡 row → 點亮 tree」用
-  const degreeNode = {};
-  Object.keys(NODES).forEach((id) => { const d = DEGREE_BY_LABELKEY[NODES[id].labelKey]; if (d) degreeNode[d] = id; });
-  // 往上（含自身）找第一個 degree 節點；dcd/SCCD 找不到＝null（→ 不點 bar）
+  // 往上（含自身）找第一個 degree 節點；dcd/SCCD 找不到＝null（→ 不展開任何 bar）
   function degreeOf(id) {
     for (let p = id; p && NODES[p]; p = NODES[p].parent) {
       const d = DEGREE_BY_LABELKEY[NODES[p].labelKey];
@@ -185,11 +198,45 @@ export async function initProgramStructure() {
     el.style.setProperty('color', bw ? 'var(--theme-fg)' : '#000', 'important');
   };
   const unpaint = (el) => { el.style.removeProperty('background'); el.style.removeProperty('color'); };
-  function setBar(deg, color) {
-    const el = deg && legendBars[deg];
-    if (!el) return;
-    if (color) paint(el, color); else unpaint(el);   // color='' 還原
+  // 展開/收起「對應 degree」的 term+degree bar：由上往下推出＝GSAP 開合 height 0↔auto（overflow:hidden，
+  //   比照 activities accordion，user 2026-09-11）。平常 bar display:none（不占寬、卡貼 title 殼），
+  //   hover/tap 該 degree 才展開內容。⚠️ height 由 GSAP 每幀寫、CSS 不掛 transition:height（免雙重平滑 lag）。
+  const LEG_DUR = 0.42;   // ≈ --dur-base，對齊 accordion 開合手感
+  function openBar(el, color) {
+    el.classList.add('is-open');
+    paint(el, color);
+    el.style.display = 'flex';
+    if (!willAnimate) { el.style.height = ''; return; }
+    gsap.killTweensOf(el);
+    gsap.fromTo(el, { height: 0 }, { height: 'auto', duration: LEG_DUR, ease: 'power2.out', onComplete: () => { el.style.height = ''; } });
   }
+  function closeBar(el, onDone) {
+    el.classList.remove('is-open');
+    if (!willAnimate) { el.style.display = 'none'; unpaint(el); if (onDone) onDone(); return; }
+    gsap.killTweensOf(el);
+    gsap.to(el, { height: 0, duration: LEG_DUR, ease: 'power2.in', onComplete: () => { el.style.display = 'none'; el.style.height = ''; unpaint(el); if (onDone) onDone(); } });
+  }
+  // ── 說明卡顯示協調（user 2026-09-11，比照 atlas hover 卡判斷）──
+  //  ① 連續 hover「同一 degree」（＝同內容）→ 不收不開（legendDeg 相同 no-op），免收起再打開的閃爍。
+  //  ② hover「不同 degree」→ 先收上一個、收完才開下一個（避免兩卡寬度不同時同時開合＝跳兩次）。
+  //  legend 只顯示真 degree（bfa/mdes/bdes）；SCCD 無 degree → showLegend(null)＝收起。
+  let legendDeg = null;   // 目前顯示的 degree（null＝收起）
+  function openDeg(deg) { if (deg) (legendBars[deg] || []).forEach((el) => openBar(el, DEGREE_COLOR[deg])); }
+  function closeDeg(deg, onDone) {
+    const els = (deg && legendBars[deg]) || [];
+    if (!els.length) { if (onDone) onDone(); return; }
+    let n = els.length;
+    els.forEach((el) => closeBar(el, () => { if (--n === 0 && onDone) onDone(); }));
+  }
+  function showLegend(deg) {
+    if (deg === legendDeg) return;              // 同內容：不收不開
+    const prev = legendDeg;
+    legendDeg = deg;
+    if (!prev) { openDeg(deg); return; }        // 沒開過 → 直接開（deg=null 則 no-op）
+    closeDeg(prev, () => { if (legendDeg === deg) openDeg(deg); });  // 先收前一個、收完開下一個（期間又切走則不開）
+  }
+  // 只重畫已展開 bar 的顏色（不重播開合動畫）：給 mode 切換重畫用（見 onThemeChanged）
+  const repaintBars = (deg, color) => (legendBars[deg] || []).forEach((el) => { if (el.classList.contains('is-open')) paint(el, color); });
   function lineage(id) {
     const ids = new Set([id]);
     for (let p = NODES[id].parent; p && NODES[p]; p = NODES[p].parent) ids.add(p);          // 祖先鏈（NODES[p] 守衛防 stale parent）
@@ -209,6 +256,9 @@ export async function initProgramStructure() {
     gsap.to(proxy, { v: target, duration: 0.32, ease: 'power2.out', onUpdate: () => { chip._hold = proxy.v; } });
   }
   if (window.matchMedia('(hover: hover)').matches) {
+    // 說明卡收起排 grace timer（③）：移到別顆 chip 會被下個 mouseenter 取消 → 同 degree 不收（①）、不同 degree 走 showLegend 先收後開（②）。
+    // tree lineage 上色與 setHold 仍每顆即時（各節點 lineage 不同、視覺照舊）；只有右下說明卡走 degree 協調。
+    let legLeaveTimer = 0;
     Object.entries(NODES).forEach(([id, node]) => {
       if (!node.el) return;
       // 頂層 DCD/BPAIDC 的 hover 目標＝整條 .prog-titled（含 SCCD 標準字皆可觸發）；子層＝色塊本身
@@ -217,59 +267,36 @@ export async function initProgramStructure() {
       unit.addEventListener('mouseenter', () => {
         const color = deg ? DEGREE_COLOR[deg] : rndAccent();   // degree 決定色；SCCD 無 degree→隨機（原邏輯）
         lineage(id).forEach((b) => paint(b, color));   // 整條 lineage 只變色（照舊續飄）
-        setBar(deg, color);                            // tree 與說明卡 bar 同色；deg=null(SCCD)→no-op（req6 不點 bar）
+        clearTimeout(legLeaveTimer);
+        showLegend(deg);                               // 同 degree no-op、不同 degree 先收後開（不再收起再打開）
         setHold(node.el.closest('.prog-tilt'), 1);   // 只有當下 hover 那顆回正＋停飄（user 2026-09-09）
       });
       unit.addEventListener('mouseleave', () => {
         lineage(id).forEach(unpaint);
-        setBar(deg, '');
         setHold(node.el.closest('.prog-tilt'), 0);
+        clearTimeout(legLeaveTimer);
+        legLeaveTimer = setTimeout(() => showLegend(null), 80);   // 離 tree 才收；移到別顆會被其 mouseenter 取消
       });
     });
-    // 反向 hover：hover 說明卡 row → 對應 degree 的 tree lineage 上色（＝同 hover 該 degree 節點）＋ row 自身上色（user 2026-09-09）
-    Object.entries(legendBars).forEach(([deg, bar]) => {
-      const nodeId = degreeNode[deg];
-      if (!nodeId) return;
-      const color = DEGREE_COLOR[deg];
-      bar.addEventListener('mouseenter', () => {
-        lineage(nodeId).forEach((b) => paint(b, color));
-        setBar(deg, color);
-      });
-      bar.addEventListener('mouseleave', () => {
-        lineage(nodeId).forEach(unpaint);
-        setBar(deg, '');
-      });
-    });
+    // 反向 hover（說明卡 row → tree）已移除（user 2026-09-11：有 term 就不做反向 hover）。
   } else {
-    // 觸控（無 hover）：tap toggle 高亮（user 2026-09-10「點擊對應的 box 時 highlight 顏色」）——
-    // 點 chip＝lineage 上 degree 色＋點亮說明列 bar；點別顆＝切換、再點同顆＝還原。說明列 bar 反向同理。
+    // 觸控（無 hover）：tap tree chip → 展開對應 degree 的 term+degree bar＋lineage 上色；點別顆＝切換、再點同顆＝還原。
     // 元素在 #page-content 內、SPA swap 即解綁（theme:changed 是 window 級、例外走 registerPageCleanup）。
     let tapped = null;   // { key, id, deg, color }
-    // tap 對應 degree 時把該 bar 捲到第一位（head 右緣）：bars viewport overflow 裁掉滑出的＝天然遮罩（user 09-10 三輪）
-    const barsBox = root.querySelector('.prog-legend-bars');
-    // 無對應 bar（SCCD/還原）→ 捲回起點：pan/點擊殘留的捲動位置會讓 rest 態切在 tab 中間（user 09-10 五輪「露餡」）
-    const focusBar = (deg) => {
-      if (!barsBox) return;
-      const el = deg && legendBars[deg];
-      barsBox.scrollTo({ left: el ? el.offsetLeft : 0, behavior: 'smooth' });
-    };
     const clearTap = () => {
       if (!tapped) return;
       lineage(tapped.id).forEach(unpaint);
-      setBar(tapped.deg, '');
       tapped = null;
-      focusBar(null);
     };
     const bindTap = (el, key, id, deg, colorOf) => {
       el.addEventListener('click', () => {
         const same = tapped && tapped.key === key;
-        clearTap();
-        if (same) return;
+        clearTap();                              // 清前一顆 tree 上色
+        if (same) { showLegend(null); return; }  // 再點同顆＝收起
         const color = colorOf();
         lineage(id).forEach((b) => paint(b, color));
-        setBar(deg, color);
-        focusBar(deg);
         tapped = { key, id, deg, color };
+        showLegend(deg);                         // 不同 degree 自動先收後開（同 degree no-op）；SCCD(deg=null)＝收起
       });
     };
     // tap 後切 mode 的殘留修（user 09-10）：tap 上色是 inline !important（壓 mode3 rest 規則的必要之惡）、
@@ -278,7 +305,7 @@ export async function initProgramStructure() {
     const onThemeChanged = () => {
       if (!tapped) return;
       lineage(tapped.id).forEach((b) => paint(b, tapped.color));
-      setBar(tapped.deg, tapped.color);
+      repaintBars(tapped.deg, tapped.color);   // 只重畫色、不重播開合（mode3 hue loop 200ms 也發此事件）
     };
     window.addEventListener('theme:changed', onThemeChanged);
     registerPageCleanup(() => window.removeEventListener('theme:changed', onThemeChanged));
@@ -288,11 +315,7 @@ export async function initProgramStructure() {
       const deg = degreeOf(id);
       bindTap(unit, `n:${id}`, id, deg, () => (deg ? DEGREE_COLOR[deg] : rndAccent()));
     });
-    Object.entries(legendBars).forEach(([deg, bar]) => {
-      const nodeId = degreeNode[deg];
-      if (!nodeId) return;
-      bindTap(bar, `b:${deg}`, nodeId, deg, () => DEGREE_COLOR[deg]);
-    });
+    // 反向 tap（說明卡 row → tree）已移除（同上：有 term 就不做反向）。
   }
 
   // 分層（cascade 順序 + 連綫父/子對應）
@@ -527,11 +550,11 @@ export async function initProgramStructure() {
     revealTier(tier1, 0.75);
     drawLevel(lvl2, 1.05);
     revealTier(tier2, 1.3);
-    // 說明卡最後進場（user 2026-09-09「等 tree 長出來再進」）＝tier2 尾（1.3 + stagger 0.12 + 0.6 ≈ 2.0）
-    if (legendEl) {
-      navClipTween(tl, legendEl, navChipHidden(legendEl, legendDir), NAV_CHIP_SHOWN,
-        { duration: 0.6, ease: 'power3.out' }, 2.0);
-    }
+    // 兩張說明卡最後進場（user 2026-09-09「等 tree 長出來再進」）＝tier2 尾（≈2.0），各自 clip-reveal、微 stagger
+    legendEls.forEach((el, i) => {
+      navClipTween(tl, el, navChipHidden(el, el._dir), NAV_CHIP_SHOWN,
+        { duration: 0.6, ease: 'power3.out' }, 2.0 + i * 0.1);
+    });
   }
 
   // ── 退場（離頁）：全部一起消失（不分梯次）；回傳 Promise 讓 router await ──
@@ -550,9 +573,9 @@ export async function initProgramStructure() {
       });
       lines.forEach((le) => tl.to(le, { draw: 0, duration: 0.4, ease: 'power2.in', onUpdate: () => drawLine(le) }, 0));
       if (links.length) tl.to(links, { ...linkHidden, duration: 0.4, ease: 'power2.in' }, 0);
-      if (legendEl) {   // 說明卡跟 chips 同拍 clip 收（user 2026-09-09 離頁也要出場動畫）
-        navClipTween(tl, legendEl, NAV_CHIP_SHOWN, navChipHidden(legendEl, rndDir()), { duration: 0.4, ease: 'power2.in' }, 0);
-      }
+      legendEls.forEach((el) => {   // 兩張說明卡跟 chips 同拍 clip 收（user 2026-09-09 離頁也要出場動畫）
+        navClipTween(tl, el, NAV_CHIP_SHOWN, navChipHidden(el, rndDir()), { duration: 0.4, ease: 'power2.in' }, 0);
+      });
     });
   });
 

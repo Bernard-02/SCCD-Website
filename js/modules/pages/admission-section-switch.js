@@ -3,7 +3,7 @@
  * admission.html 左側 section 切換邏輯：當前 panel 統一往下退場 → 切換 → 新 panel per-item 進場
  */
 
-import { setActiveNavBtn, showPanel, initHoverDimMoveGuard, bindNavBtnFit, bindFrameScrollSplit } from '../ui/section-switch-helpers.js';
+import { setActiveNavBtn, showPanel, initHoverDimMoveGuard, bindNavBtnFit, bindFrameScrollSplit, flashDeepLinkDim } from '../ui/section-switch-helpers.js';
 import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
 import {
   playAdmissionPanelExit,
@@ -73,6 +73,7 @@ async function navigateToAdmissionItem(itemId) {
   // 順序：list 文字 render → highlight → 600ms → 展開（同 activities）
   const flashThenOpen = async () => {
     await waitForItemRevealed(target);
+    flashDeepLinkDim(target);  // flash 期間其餘列半透明（比照 library deep-link dim）
     target.style.transition = 'background 0.3s';
     target.style.background = flashColor;
     setTimeout(() => {

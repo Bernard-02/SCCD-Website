@@ -586,6 +586,7 @@ function exitHeroChips(tl, chips, banner) {
 }
 
 async function playHeroExit() {
+  _heroExiting = true;   // 退場旗標：banner 延後揭露在退場窗口才 resolve 時不准再滑入
   if (typeof gsap === 'undefined') return;
 
   const texts = Array.from(document.querySelectorAll(
@@ -724,7 +725,10 @@ function playMobileHeroEntrance() {
   const bgImg = /** @type {HTMLElement|null} */ (bg ? bg.querySelector('img') : null);
   if (bgImg) {
     gsap.set(bgImg, bannerOffsetFor(pickHeroDir()));
-    tl.to(bgImg, { xPercent: 0, yPercent: 0, duration: DUR.reveal, clearProps: 'transform' }, 0);
+    // data-hero-wait＝以後台為主：不排滑入，等 hero-source revealHeroBannerImg（同桌面 banner gate）
+    if (!(/** @type {any} */ (bgImg).dataset?.heroWait)) {
+      tl.to(bgImg, { xPercent: 0, yPercent: 0, duration: DUR.reveal, clearProps: 'transform' }, 0);
+    }
   }
   const ENTER_STAGGER = 0.15;
   const ENTER_DURATION = 0.9;
@@ -738,6 +742,7 @@ function playMobileHeroEntrance() {
   requestAnimationFrame(() => requestAnimationFrame(() => tl.play()));
 
   registerPageExit(() => {
+    _heroExiting = true;   // 同桌面 playHeroExit：退場中不准 banner 延後揭露再滑入
     if (typeof gsap === 'undefined') return Promise.resolve();
     return new Promise(resolve => {
       const out = gsap.timeline({ onComplete: resolve });
@@ -750,9 +755,24 @@ function playMobileHeroEntrance() {
 // 上一頁的 rAF 在新頁 DOM 上跑出錯位 wrap）
 let _heroInitSeq = 0;
 
+// hero 退場中旗標（通則：退場動畫必立 exiting 旗標）：banner「以後台為主」的延後揭露（hero-source
+// revealHeroBannerImg）若在退場窗口才 resolve，不准再滑入＝反殺退場。initHeroAnimation 重置。
+let _heroExiting = false;
+
+// Banner img「以後台為主」延後揭露（hero-source 2026-09-11）：loadHero 同步在 img 標 data-hero-wait →
+// 進場 timeline（桌面 buildHeroTimeline／手機 initHeroMobile）只把 img gsap.set 到遮罩外、不排滑入 tween；
+// hero-source 資料落定＋decode 完呼叫本函式播同款滑入。若 reveal 先於 timeline build（快取快、fonts 慢）＝
+// 旗標已清，timeline 走原本路徑自己排 tween，此處 0→0 no-op 不衝突。
+export function revealHeroBannerImg(img) {
+  if (!img || !img.isConnected || _heroExiting) return;
+  if (typeof gsap === 'undefined') { img.style.visibility = 'visible'; return; }
+  gsap.to(img, { xPercent: 0, yPercent: 0, duration: DUR.reveal, ease: EASE.enter, clearProps: 'transform', overwrite: true });
+}
+
 export function initHeroAnimation() {
   // SPA 每頁重置：上頁殘留 `_heroDone=true` 會讓本頁 deep-link 不等動畫直接 scroll
   _heroDone = false;
+  _heroExiting = false;   // 新頁進場 → 解除退場旗標（banner 延後揭露恢復可播）
   const mySeq = ++_heroInitSeq;
   const isStale = () => mySeq !== _heroInitSeq;
 
@@ -817,6 +837,9 @@ export function initHeroAnimation() {
     let rescued = 0;
     els.forEach(el => {
       const h = /** @type {HTMLElement} */ (el);
+      // banner「以後台為主」等待中（弱網可 >4s；hero-source 自帶 fetch/decode timeout＋finally 保證必揭）
+      // → 別被 watchdog 提前救成可見＝揭到靜態圖、之後又換圖
+      if (h.dataset.heroWait) return;
       if (gsap.isTweening(h)) return;
       // offsetParent null＝自身或祖先 display:none（桌面/手機互斥 DOM 的另一份）——getComputedStyle
       // 對祖先 display:none 的子孫回傳的 display 不是 none，必須用 offsetParent 判「實際沒被 render」
@@ -959,13 +982,15 @@ export function initHeroAnimation() {
   const grid = document.querySelector('.hero-rand-grid');
   if (grid) applyOrBuildLayout(grid);
 
-  // Banner 圖 clip-reveal（4 方向 random，與 faculty card 圖片進場一致風格）：img 在 banner 遮罩內滑入
+  // Banner 圖 clip-reveal（4 方向 random，與 faculty card 圖片進場一致風格）：img 在 banner 遮罩內滑入。
+  // data-hero-wait（hero-source「以後台為主」）＝不排滑入 tween、留在遮罩外（容器透明看不到），
+  // 等 hero-source 落定 src 後 revealHeroBannerImg 播同款滑入。
   const heroBanner = /** @type {HTMLElement | null} */ (document.querySelector('.hero-banner'));
   if (heroBanner) {
     const heroBannerImg = /** @type {HTMLElement | null} */ (heroBanner.querySelector('img'));
     if (heroBannerImg) gsap.set(heroBannerImg, bannerOffsetFor(pickHeroDir()));
     tl.set(heroBanner, { visibility: 'visible' }, 0);
-    if (heroBannerImg) {
+    if (heroBannerImg && !heroBannerImg.dataset.heroWait) {
       tl.to(heroBannerImg, {
         xPercent: 0,
         yPercent: 0,

@@ -289,6 +289,9 @@ function bindListItemHover(containerEl, itemSelector, overlaySelector = null) {
   if (window.innerWidth < 768 || isShortLandscape()) return;
   containerEl.querySelectorAll(itemSelector).forEach(item => {
     item.addEventListener('mouseenter', () => {
+      // 封面還沒載好的卡不上色（user 2026-09-11：deep-link 剛落地鄰卡封面未到，accent 疊空封面＝裸色塊）；
+      // coverPending 只有 files 卡會設（build 時標、封面 ready/失敗清），press/album 恆 undefined 不受影響
+      if (item.dataset.coverPending) return;
       const color = SCCDHelpers.getRandomAccentColor();
       item.style.background = color;
       if (overlaySelector) {
@@ -837,6 +840,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
   try {
     ensureFlagIconsCss();
     const { records, awardsImages } = await loadAwardsDataCached();
+    await firstLibRenderReady(); // deep-link 進場時延到 entrance-done 才 render（未 arm＝即刻過）
 
     const listEl = document.getElementById('library-awards-list');
     if (!listEl) return;
@@ -1195,6 +1199,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     }
 
     renderItems(getSorted());
+    maybeRevealDeferredPanel('lib-panel-awards');  // deep-link 遞延首渲染：commit 完才整組 clip-reveal（未遞延＝no-op）
 
     // 年份＋search 複合篩選單一入口（user 2026-08-10：任何篩選歸零都要 No Result）。
     // 原本 search handler 只看 q、年份 updateList 只看年份，兩邊互蓋顯隱、複合零結果判不出來。
@@ -1454,6 +1459,7 @@ async function initPressPanel() {
       console.warn('[press] Directus 抓取失敗/無資料，fallback 本地 press.json：', cmsErr.message);
       pressData = await fetch(sitePath('data/press.json')).then(r => r.json());
     }
+    await firstLibRenderReady(); // deep-link 進場時延到 entrance-done 才 render（未 arm＝即刻過）
 
     const listEl      = document.getElementById('library-press-list');
     const yearPickerEl = document.getElementById('library-press-year-picker');
@@ -1628,6 +1634,7 @@ async function initPressPanel() {
     }
 
     renderItems(getSorted());
+    maybeRevealDeferredPanel('lib-panel-press');  // deep-link 遞延首渲染：commit 完才整組 clip-reveal（未遞延＝no-op）
 
     const pressEmptyState = ensureEmptyState(listEl);
 
@@ -1750,7 +1757,7 @@ function maybeSlideCover(card) {
 function applyPdfCoverTo(card, pdfUrl) {
   return renderPdfCover(pdfUrl).then(dataUrl => {
     const ph = card.querySelector('.files-item-cover--empty');
-    if (!dataUrl || !ph) return;
+    if (!dataUrl || !ph) { delete card.dataset.coverPending; return; }  // render 失敗也解 hover 上色閘
     const probe = new Image();
     probe.onload = () => {
       // 照 PDF 頁面實際比例撐 mask（ph 本體恆填滿 mask，比例統一由 mask 的 --cover-ratio 管）
@@ -1759,6 +1766,7 @@ function applyPdfCoverTo(card, pdfUrl) {
       ph.style.backgroundImage = `url(${dataUrl})`;
       ph.style.backgroundSize = 'cover';
       card.dataset.coverReady = '1';
+      delete card.dataset.coverPending;
       maybeSlideCover(card);   // ready＋可見才滑入（畫外預載的直接就位）
     };
     probe.src = dataUrl;
@@ -1782,6 +1790,7 @@ async function initFilesPanel() {
       console.warn('[files] Directus 抓取失敗/無資料，fallback 本地 library.json：', cmsErr.message);
       filesData = await fetch(sitePath('data/library.json')).then(r => r.json());
     }
+    await firstLibRenderReady(); // deep-link 進場時延到 entrance-done 才 render（未 arm＝即刻過）
 
     const listEl       = document.getElementById('library-files-list');
     const yearPickerEl = document.getElementById('library-files-year-picker');
@@ -1815,12 +1824,29 @@ async function initFilesPanel() {
     // 同一個 IO 兼管兩種：card 上有 lazyPdfCover → 現畫；card 內有 img[data-lazy-src] → 補 src。
     function scheduleCovers(needCover, lazyImgCards = []) {
       if (_coverIO) { _coverIO.disconnect(); _coverIO = null; }
-      needCover.slice(0, EAGER_COVERS).forEach(c => coverPromises.push(applyPdfCoverTo(c.card, c.pdfUrl)));
-      const lazy = needCover.slice(EAGER_COVERS);
       const loadLazyImg = (card) => {
         const img = card.querySelector('img[data-lazy-src]');
         if (img) { img.src = img.dataset.lazySrc; delete img.dataset.lazySrc; }
       };
+      // deep-link 落點窗口優先（user 2026-09-11「只有點的那本書有封面、其他沒有」）：目標「同年份 block」的
+      // 封面全數升級 eager、搶在網路佇列最前——否則長距捲動途中 IO 會把上方幾百張全排進佇列，落點鄰卡
+      // 反而最後才輪到。target 本體的 eager 在 render 時已短路處理（見 eagerImg）。
+      const dlHash = (window.location.hash || '').slice(1);
+      if (dlHash.startsWith('f-')) {
+        const safeDl = dlHash.replace(/["\\]/g, '\\$&');
+        const tEl = document.getElementById(dlHash) || listEl.querySelector(`[id^="${safeDl}"]`);
+        const blk = tEl && tEl.closest('.files-year-block');
+        if (blk) {
+          for (let i = needCover.length - 1; i >= 0; i--) {
+            if (blk.contains(needCover[i].card)) { coverPromises.push(applyPdfCoverTo(needCover[i].card, needCover[i].pdfUrl)); needCover.splice(i, 1); }
+          }
+          for (let i = lazyImgCards.length - 1; i >= 0; i--) {
+            if (blk.contains(lazyImgCards[i])) { loadLazyImg(lazyImgCards[i]); lazyImgCards.splice(i, 1); }
+          }
+        }
+      }
+      needCover.slice(0, EAGER_COVERS).forEach(c => coverPromises.push(applyPdfCoverTo(c.card, c.pdfUrl)));
+      const lazy = needCover.slice(EAGER_COVERS);
       if (!lazy.length && !lazyImgCards.length) return;
       const scroller = document.getElementById('library-files-scroll');
       if (!('IntersectionObserver' in window) || !scroller) {   // 無 IO 保底：全部直接載
@@ -1916,6 +1942,10 @@ async function initFilesPanel() {
               ${catTag}
             </div>`;
 
+          // 會有封面但還沒 ready 的卡標 coverPending：hover/highlight 不上色（accent 疊空封面＝裸色塊，
+          // user 2026-09-11）；封面 ready 或載入失敗時清掉
+          if (coverUrl || item.pdfUrl) div.dataset.coverPending = '1';
+
           // <img> 封面載入後把實際比例寫進 mask 的 --cover-ratio（載入前/placeholder 用預設 4/5）
           const coverImg = /** @type {HTMLImageElement|null} */ (div.querySelector('img.files-item-cover'));
           if (coverImg) {
@@ -1925,11 +1955,13 @@ async function initFilesPanel() {
                 maskEl.style.setProperty('--cover-ratio', String(coverImg.naturalWidth / coverImg.naturalHeight));
               }
               div.dataset.coverReady = '1';
+              delete div.dataset.coverPending;
               maybeSlideCover(div);   // ready＋可見才 clip-reveal 進場（畫外預載直接就位）
             };
             // 沒 src 的 img「complete=true 但 naturalWidth=0」→ 懶載的也要掛 load listener 等日後補 src
             if (coverImg.complete && coverImg.naturalWidth) onReady();
             else coverImg.addEventListener('load', onReady, { once: true });
+            coverImg.addEventListener('error', () => { delete div.dataset.coverPending; }, { once: true });
             if (!eagerImg) { coverImg.dataset.lazySrc = coverUrl; lazyImgCards.push(div); }
           }
 
@@ -2010,6 +2042,7 @@ async function initFilesPanel() {
     }
 
     renderItems(getSorted());
+    maybeRevealDeferredPanel('lib-panel-files');  // deep-link 遞延首渲染：commit 完才整組 clip-reveal（未遞延＝no-op）
 
     // 首載揭卡：預產封面 <img> 不等載入、直接揭（user 2026-08-18「點 documents 直接出內容」；
     // 快取時瞬顯、未快取灰底先滑入、圖到自動補）。只剩 pdf.js fallback 現畫的（沒 cover 的新書）
@@ -2219,6 +2252,7 @@ async function initAlbumPanel() {
     const sorted = await loadAlbumItemsCached();
     // 分類 tag / ref chip 顯示文字改吃 ui_labels（可後台改，與篩選鈕同源）；填模組級 _catUiMap 供 catLabel* 用
     _catUiMap = await loadUiLabels().catch(() => null);
+    await firstLibRenderReady(); // deep-link 進場時延到 entrance-done 才 render（未 arm＝即刻過）
 
     const listEl       = document.getElementById('library-album-list');
     const yearPickerEl = document.getElementById('library-album-year-picker');
@@ -2428,6 +2462,7 @@ async function initAlbumPanel() {
     }
 
     renderItems(getSorted());
+    maybeRevealDeferredPanel('lib-panel-album');  // deep-link 遞延首渲染：commit 完才整組 clip-reveal（未遞延＝no-op）
 
     const albumEmptyState = ensureEmptyState(listEl);
 
@@ -2556,8 +2591,17 @@ function buildTitleMarquee(titleEl) {
   if (!unitW) return;  // 未 sized（display:none / 未 layout）→ 下次 showLibPanel 再試
   const cs = getComputedStyle(titleEl);
   const rowW = titleEl.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+  // 2026-09-11 user：灰卡標題只放「一份」、box hug 字寬（撤 2026-08-26「box 吃整行寬＋複製份填滿無縫捲」整行版，
+  // 對齊 lightbox title pill hug 方向）。四個 tab 標題都短、正常不會溢出；萬一 rowW 塞不下一份才 fallback 舊 marquee。
+  if (unitW <= rowW) {
+    box.style.width = 'auto';
+    track.style.animation = 'none';                // 蓋掉 CSS keyframe（單份無需捲動）
+    track.style.removeProperty('--marquee-shift-x');
+    return;
+  }
   const copies = Math.max(2, Math.ceil(rowW / unitW) + 1);        // 填滿整行 + 1 unit（捲一個 unit 無縫）
-  box.style.width = '100%';                                        // box 吃整行寬（user 2026-08-26 改回整行）
+  box.style.width = '100%';
+  track.style.animation = '';                                     // 還原 CSS keyframe（可能帶著上面 hug 分支的 none）
   track.style.setProperty('--marquee-shift-x', `-${unitW}px`);    // 捲一個完整 unit（title+間距）接回下一份、無縫
   track.style.animationDuration = `${Math.max(4, unitW / 45)}s`;  // ~45px/s 可讀
   for (let i = 1; i < copies; i++) {                              // 補足複製份填滿整行
@@ -3494,6 +3538,41 @@ function showLibPanel(tab, { reveal = true, instant = false } = {}) {
 
 // ── 主要 export ───────────────────────────────────────────────────────────────
 
+// ── 桌面 deep-link 首渲染閘（user 2026-09-11「色塊出來不是 clip reveal」）──────────────
+// deep-link 進場時目標 panel 已 pre-swap 成可見（避免 awards 一閃），資料到手就 render＝幾百張卡的
+// layout/paint（實測 433ms longtask）落在色塊 clip-reveal 動畫窗口正中 → 掉幀成「直接出現」。
+// 解法：deep-link 場景四個 panel 的「首次」render 都等 entrance-done 才 commit（display:none 的其他
+// panel render 本來就便宜、一併等只是順路）；進場收完才輪 panel 內容 wipe、再輪 handleHash 捲動＝
+// user 要的「等 ready 再做 deep-link 動畫」。非 deep-link／手機不 arm ＝行為完全不變。
+let _firstRenderGate = /** @type {Promise<void>|null} */ (null);
+let _firstRenderRelease = /** @type {(() => void)|null} */ (null);
+let _deferredRevealPending = false;
+export function deferFirstRenderUntilEntrance() {
+  if (_firstRenderGate) return;
+  _firstRenderGate = new Promise(r => { _firstRenderRelease = r; });
+  _deferredRevealPending = true;
+  // 兜底：進場沒跑完（中途離頁等）也放行；render 全滅（CMS＋fallback 都失敗＝沒人呼叫 maybeReveal）
+  // 時把可見 panel 的 chrome 揭出來，別讓灰卡永久空白
+  setTimeout(() => {
+    _releaseFirstRender();
+    Object.values(PANEL_MAP).forEach(id => maybeRevealDeferredPanel(id));
+  }, 8000);
+}
+function _releaseFirstRender() { if (_firstRenderRelease) { _firstRenderRelease(); _firstRenderRelease = null; } }
+const firstLibRenderReady = () => _firstRenderGate || Promise.resolve();
+// 閘 armed 且尚未放行＝entrance 那次 onTabSwitch 應先「不 reveal」（panel 還空、wipe 白播）；
+// main-modular 據此傳 reveal:false，等 render commit 後由 maybeRevealDeferredPanel 補整組 clip-reveal
+export function isFirstRenderDeferred() { return !!_firstRenderRelease; }
+// 遞延首渲染 commit 完 → 對「當前可見」的目標 panel 補跑首開 reveal（chrome＋title＋rows 帶位移 clip-reveal，
+// 與正常首開同一條 playPanelReveal 路徑）；其他 display:none panel 的首渲染不搶（等使用者切過去照常首開）
+function maybeRevealDeferredPanel(panelId) {
+  if (!_deferredRevealPending) return;
+  const el = document.getElementById(panelId);
+  if (!el || el.style.display === 'none') return;
+  _deferredRevealPending = false;
+  playPanelReveal(el);
+}
+
 /**
  * 初始化所有 library panels
  * @returns {{
@@ -3505,6 +3584,11 @@ function showLibPanel(tab, { reveal = true, instant = false } = {}) {
 export function initLibraryPanels() {
   let _entranceDoneCb = null;
   let _entranceDoneFired = false;
+  // 每次進頁重置渲染閘（上次殘留的 armed gate 不跨頁；main-modular 桌面 deep-link 分支會在同一個
+  // 同步流程內重新 arm——init*Panel 的 render 都在 await fetch 之後，晚於 arm，順序安全）
+  _firstRenderGate = null;
+  _firstRenderRelease = null;
+  _deferredRevealPending = false;
 
   // Awards 需要在進場動畫完成後啟動 ticker，透過 registerEntranceDone 注入回呼。
   // ⚠️ initAwardsPanel 是 async：cb（ticker 動畫）在 await fetch+render 後才設。手機路徑（main-modular）
@@ -3538,6 +3622,7 @@ export function initLibraryPanels() {
     onEntranceDone: () => {
       if (_entranceDoneFired) return;
       _entranceDoneFired = true;
+      _releaseFirstRender(); // deep-link 首渲染閘：進場收完 → 放行四 panel 首次 render
       if (typeof _entranceDoneCb === 'function') _entranceDoneCb();
     },
     handleHash: handleLibraryHash,
@@ -3629,6 +3714,11 @@ function handleLibraryHash() {
     if (!panelEl) return;
     const tab = panelEl.id.replace('lib-panel-', '');
 
+    // 遞延首渲染（deep-link 閘）時內容 reveal 比 entrance-done 晚起跑：等 reveal 忙碌窗收完才對齊捲動
+    //（維持 2026-06-28「內容出齊才捲」語意；正常路徑 SCROLL_DELAY 已涵蓋、busy 多半已過＝零等待）
+    const revealBusy = revealBusyRemaining();
+    if (revealBusy > 60) { setTimeout(tryFindAndHandle, Math.min(1500, revealBusy + 50)); return; }
+
     // 只在目標 panel 還沒顯示時才切換 + reveal。
     // deep-link 常態：initialTab 由同一個 hash 推出 → 卡片進場 onTabSwitch 時就已 showLibPanel + reveal 過該 panel；
     // 若這裡再無條件 showLibPanel(tab)，playPanelReveal 會**重播一次 wipe 揭露** = user 看到的「像 refresh 一次再 scroll」。
@@ -3680,36 +3770,48 @@ function handleLibraryHash() {
         const target = el.getBoundingClientRect().top - scroller.getBoundingClientRect().top - computeMargin();
         // 已對齊（不需捲）：捲動完成＝立即 → 等 HIGHLIGHT_DELAY(0.4s) 才 highlight（user 2026-06-28：no-scroll 只等 0.4s）。
         if (Math.abs(target) <= 2) { setTimeout(runHighlight, HIGHLIGHT_DELAY); return; }
-        scroller.scrollBy({ top: target, behavior: 'smooth' });
-
-        // 捲動量是「捲動當下」一次算好的，但 album/files 縮圖 loading=lazy + load 後才 applyRatio 設尺寸；
-        // 手機縮圖 flex-wrap 自然排版佔 layout 高度（桌面 absolute stack 不佔 → 桌面一次就準），
-        // smooth scroll 途中上方圖片陸續載入撐高內容、目標被推走 ~870px = 「捲了但沒捲到」（user 2026-06-12 手機 album）。
-        // → 等 scrollTop 停穩後重量誤差、補捲（最多 3 次），對齊完成才閃 highlight（保證 item 在畫面內才看得到）。
-        // highlight 與「補捲對齊」解耦（user 2026-06-28）：捲動「第一次停穩」(≈ 視覺捲完) 就排程 highlight＝捲完
-        // + HIGHLIGHT_DELAY(0.4s)，不被 album/files 後續多次補捲拖到 ~3s。補捲仍照跑、只負責把 item 對齊到位
-        // （在 highlight flash 持續 1s 內完成；桌面 album absolute stack 不撐高、第一次就準，幾乎不補捲）。
-        let lastTop = /** @type {number|null} */ (null);
-        let corrections = 0;
-        let ticks = 0;
+        // 一步到位（user 2026-09-11「過頭了再回到對齊點」）：原本 scrollBy(smooth) 的捲動量是起跑那刻一次算死的，
+        // files/album 封面 lazy load 途中把上方內容高度改掉（--cover-ratio / applyRatio 晚到）→ 落點 stale，
+        // 只能靠事後補捲拉回＝視覺「過頭再回」、補捲上限用完就停在沒對齊。改自製 rAF 捲動「每幀重算目標」
+        // （activities「捲完當下重量」教訓的連續版）：層高途中怎麼變都收斂到正確對齊點，落地即對齊。
+        const liveTarget = () =>
+          scroller.scrollTop + el.getBoundingClientRect().top - scroller.getBoundingClientRect().top - computeMargin();
         let highlightScheduled = false;
         const scheduleHighlight = () => { if (!highlightScheduled) { highlightScheduled = true; setTimeout(runHighlight, HIGHLIGHT_DELAY); } };
-        const settleTimer = setInterval(() => {
-          if (!el.isConnected || ++ticks > 40) { clearInterval(settleTimer); scheduleHighlight(); return; }
-          const cur = scroller.scrollTop;
-          const stable = lastTop !== null && Math.abs(cur - lastTop) < 1;
-          lastTop = cur;
-          if (!stable) return;
-          scheduleHighlight(); // 第一次停穩即排程 highlight（捲完 + 0.4s）；後續補捲不再延後 highlight
-          const err = el.getBoundingClientRect().top - scroller.getBoundingClientRect().top - computeMargin();
-          if (Math.abs(err) <= 2 || corrections >= 3) {
-            clearInterval(settleTimer);
-            return;
-          }
-          corrections++;
-          lastTop = null; // 補捲後重新等停穩
-          scroller.scrollBy({ top: err, behavior: 'smooth' });
-        }, 150);
+        // 使用者中途接手（滾輪/觸控/scrollbar 按下）→ 立即棄權不搶捲（native smooth 本會被打斷，補回同語意）
+        let cancelled = false;
+        const cancel = () => { cancelled = true; scheduleHighlight(); };
+        ['wheel', 'touchstart', 'pointerdown'].forEach(t => scroller.addEventListener(t, cancel, { once: true, passive: true }));
+        const animateAlign = (/** @type {number} */ dur, /** @type {(() => void)|null} */ onDone) => {
+          const from = scroller.scrollTop;
+          const t0 = performance.now();
+          // ease-in-out：起步緩收尾緩（user 2026-09-11「不需要那麼急著到位」——原 ease-out 起步即全速）
+          const easeInOut = (/** @type {number} */ t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+          const step = (/** @type {number} */ now) => {
+            if (cancelled || !el.isConnected) return;
+            const p = dur <= 0 ? 1 : Math.min(1, (now - t0) / dur);
+            scroller.scrollTop = from + (liveTarget() - from) * easeInOut(p);
+            if (p < 1) requestAnimationFrame(step);
+            else if (onDone) onDone();
+          };
+          requestAnimationFrame(step);
+        };
+        // 時長（user 2026-09-11 放慢版）：近距 ~0.6s、距離越遠越久、封頂 1.5s；reduced-motion 直接 snap
+        const mainDur = prefersReducedMotion() ? 0 : Math.min(1500, 500 + Math.abs(target) * 0.5);
+        animateAlign(mainDur, () => {
+          scheduleHighlight(); // 視覺捲完即排程 highlight（2026-06-28 決策不變：兜底補捲不拖 highlight）
+          // 落地「之後」才載完的圖仍可能推走目標（機率低）→ 盯 3s，跑掉就小幅補齊（原補捲的兜底角色）
+          let ticks = 0;
+          let aligning = false;
+          const settleTimer = setInterval(() => {
+            if (cancelled || !el.isConnected || ++ticks > 20) { clearInterval(settleTimer); return; }
+            if (aligning) return;
+            const err = liveTarget() - scroller.scrollTop;
+            if (Math.abs(err) <= 2) return;
+            aligning = true;
+            animateAlign(250, () => { aligning = false; });
+          }, 150);
+        });
       } else {
         // 理論上四個 panel 都有內層 scroller；萬一沒有，退回 nearest（不對齊頂端 → 不會大幅捲 body）
         el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -3720,9 +3822,7 @@ function handleLibraryHash() {
       // - 桌面：只 dispatch mouseenter（原生 hover listener = 唯一顏色來源）。inline 不另套色——
       //   listener 自己會隨機抽色，inline 再抽一套會雙色（ring A + 底色 B，user 2026-06-13）
       // - 手機：hover listener 沒綁（tap 不該變色的設計）、dispatch 沒人接 → inline 套色替代：
-      //   awards 文字變色（mode-color 用 var(--theme-bg) 跟 hue 流動、否則隨機 accent）；
-      //   press/files/album 用 accent 底色 + 4px ring 一起閃（縮圖蓋滿 element 時底色看不到，
-      //   ring（box-shadow 不佔 layout）才看得見，兩者並用）
+      //   四 panel 統一「整列 accent 底色」單層（2026-09-11 user：hover/highlight 一律一層，撤 ring——見 runHighlight 內註）
       // - is-hovered class + mouseenter/leave 兩邊照舊 dispatch：桌面的 CSS :hover 樣式與 JS listener
       //   （files 封面轉正等）仍吃得到
       function runHighlight() {
@@ -3734,30 +3834,19 @@ function handleLibraryHash() {
         // 橫向手機寬 ≥768 但 listener 沒綁，只看寬度會 dispatch 給沒人接＝無 highlight（user 2026-07-10）。
         const desktopHover = window.innerWidth >= 768 && !isShortLandscape();
         const prevTransition = el.style.transition;
-        if (!desktopHover) {
-          if (tab === 'awards') {
-            // 手機 awards 改 zebra 底後（2026-07-03），highlight 對齊桌面 hover＝整列 accent 底色
-            // （不再文字變色）；mode-color 由 library.css [style*=background] 規則翻色，不必分支。
-            el.style.transition = 'background 0.3s';
-            el.style.background = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
-          } else {
-            const accent = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
-            el.style.transition = 'background 0.3s, box-shadow 0.3s';
-            el.style.background = accent;
-            el.style.boxShadow = `0 0 0 4px ${accent}`;
-          }
+        if (!desktopHover && !el.dataset.coverPending) {
+          // 四 panel 統一整列 accent 底色「單層」（2026-09-11 user：hover/highlight 都一層——撤 press/files/album
+          // 的 4px box-shadow ring）：ring 畫在 box 外＝視覺第二層；且 mode3 翻色只攔 background 不攔 box-shadow
+          // → 黑白底＋RGB 圈失配穿幫。當年 ring 是「縮圖蓋滿看不到底色」的保險，現 zebra 滿版底色恆可見、不需要。
+          // mode-color 由 color.css [style*=background] 規則翻色，不必分支。
+          // coverPending（files 封面未 ready）不上色＝同 hover 閘（accent 疊空封面裸色塊）；dim class 照掛。
+          el.style.transition = 'background 0.3s';
+          el.style.background = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
         }
         el.classList.add('is-hovered');
         el.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
         setTimeout(() => {
-          if (!desktopHover) {
-            if (tab === 'awards') {
-              el.style.background = '';
-            } else {
-              el.style.background = '';
-              el.style.boxShadow = '';
-            }
-          }
+          if (!desktopHover) el.style.background = '';
           el.classList.remove('is-hovered');
           el.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
           // transition 等淡出跑完才還原（0.3s），避免殘留 inline transition 干擾之後的 hover
