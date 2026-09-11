@@ -39,8 +39,18 @@ const _ck = (u) => `${_CACHE_VER}:${u}`;
 const MAX_CONCURRENT = 3;
 let _active = 0;
 const _waiters = [];
-function _acquire() {
-  if (_active < MAX_CONCURRENT) { _active++; return Promise.resolve(); }
+// 對齊捲動窗口暫緩主執行緒 raster（library deep-link 捲動時 page.render/canvas 畫掃描頁 ~100-450ms
+// 落在逐幀捲動中＝掉幀，user 2026-09-11「run 起來很卡」）：窗口內不發新名額，網路/worker 部分照舊
+// 已在跑的不中斷；窗口過後（≈落地）立刻續渲。caller：library-panels holdLazyCovers 同步設。
+let _rasterHoldUntil = 0;
+export function holdPdfCoverRaster(/** @type {number} */ ms) {
+  _rasterHoldUntil = Math.max(_rasterHoldUntil, performance.now() + ms);
+}
+async function _acquire() {
+  while (performance.now() < _rasterHoldUntil) {
+    await new Promise(r => setTimeout(r, Math.max(120, _rasterHoldUntil - performance.now() + 60)));
+  }
+  if (_active < MAX_CONCURRENT) { _active++; return; }
   return new Promise(r => _waiters.push(r));
 }
 function _release() {
@@ -137,6 +147,12 @@ export function renderPdfCover(pdfUrl, targetWidth = 280, maxAspectRatio = 0) {
       const bustUrl = pdfUrl + (pdfUrl.includes('?') ? '&' : '?') + '_r=' + Date.now();
       const doc  = await pdfjsLib.getDocument({ url: bustUrl, disableAutoFetch: true, disableStream: true, rangeChunkSize: 16384, cMapUrl: PDFJS_CMAPS, cMapPacked: true, standardFontDataUrl: PDFJS_STD_FONTS, wasmUrl: PDFJS_WASM }).promise;
       const page = await doc.getPage(1);
+      // raster 前再等一次 hold：_acquire 可能在 hold 設定「前」就過了（網路/worker 段跑完剛好落在
+      // deep-link 捲動窗口）——page.render 是主執行緒 drawImage 掃描頁點陣、單次可達數百 ms，
+      // 落在逐幀捲動中＝實測 887ms longtask（2026-09-11 CDP profile）。
+      while (performance.now() < _rasterHoldUntil) {
+        await new Promise(r => setTimeout(r, Math.max(120, _rasterHoldUntil - performance.now() + 60)));
+      }
       const base = page.getViewport({ scale: 1 });
       const vp   = page.getViewport({ scale: targetWidth / base.width });
 

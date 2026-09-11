@@ -447,6 +447,24 @@
     }
   }
 
+  /* deep-link 落地 highlight 比照 hover dim（user 2026-09-11，同 lists.css activities 版）：
+     courses-section-switch 的 openCard 對目標卡掛 .is-hovered（flashDeepLinkDim，到 slide-in 開啟即除）
+     → 其餘卡/row label/col header 半透明。class 版不吃 :hover → 全 viewport（手機 dim 同 grade block 內其他卡）。
+     re-highlight 兩組必須跟著補：目標卡自己的 row label／年級 header 不該跟著淡（鏡射上方 :hover 版）。 */
+  #courses-content-section:has(.courses-grid-card.is-hovered)
+    :is(.courses-grid-card, .courses-grid-type-label, .courses-grid-col-header):not(.is-hovered) {
+    opacity: 0.25;
+  }
+  #courses-content-section :is(.courses-required-row, .courses-elective-row):has(.courses-grid-card.is-hovered) .courses-grid-type-label {
+    opacity: 1;
+  }
+  #courses-content-section:has(.courses-grid-col-year-1 .courses-grid-card.is-hovered) .courses-grid-col-header.courses-grid-col-year-1,
+  #courses-content-section:has(.courses-grid-col-year-2 .courses-grid-card.is-hovered) .courses-grid-col-header.courses-grid-col-year-2,
+  #courses-content-section:has(.courses-grid-col-year-3 .courses-grid-card.is-hovered) .courses-grid-col-header.courses-grid-col-year-3,
+  #courses-content-section:has(.courses-grid-col-year-4 .courses-grid-card.is-hovered) .courses-grid-col-header.courses-grid-col-year-4 {
+    opacity: 1;
+  }
+
   /* ===== Slide-in modal（v9 取代 desc-column）=====
    * 點卡片時從右滑入，比照 #faculty-slide-in pattern：
    *   - container 預設 invisible + pointer-events:none

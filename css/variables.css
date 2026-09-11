@@ -253,7 +253,7 @@
 }
 /* 橫圖（ratio > 1）放寬 */
 .class-img.class-img--landscape {
-  max-width: 462px; /* +5% from 440 */
+  max-width: 520px; /* 橫向放大 462→520（user 2026-09-11）；須與 class-images-slideshow.js maxW 同步 */
 }
 
 /* ===== Degree Show Detail — event strip tab 標題 marquee =====

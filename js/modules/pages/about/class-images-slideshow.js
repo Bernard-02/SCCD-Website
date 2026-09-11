@@ -58,6 +58,26 @@ function revealHiddenT(dir) {
 function randRevealDir() { return REVEAL_DIRS4[Math.floor(Math.random() * REVEAL_DIRS4.length)]; }
 function randomRotation() { return parseFloat(((Math.random() * 2 - 1) * 4).toFixed(2)); }
 
+// 洗牌圖池順序（Fisher-Yates；user 2026-09-11「program 圖片每次都 shuffle、三組不要同序」）。
+// 傳入前先 copy（[...pool]）避免就地打亂共用的 fallback 陣列。
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
+  return arr;
+}
+
+// 等 <img> 可繪製（decode 完）才 resolve；慢網/壞圖 3s 保險放行，免動畫/promise 卡住。
+// 用途：進場/切換 reveal 前 gate → 滑入的是「已載好的圖」，不是空框先滑進來、內容才閃出（user 2026-09-11）。
+function whenImgReady(imgEl) {
+  return new Promise(resolve => {
+    let done = false;
+    const finish = () => { if (!done) { done = true; resolve(); } };
+    const decode = () => (imgEl.decode ? imgEl.decode().then(finish, finish) : finish());
+    if (imgEl.complete && imgEl.naturalWidth) decode();
+    else { imgEl.addEventListener('load', decode, { once: true }); imgEl.addEventListener('error', finish, { once: true }); }
+    setTimeout(finish, 3000);
+  });
+}
+
 // wrapper 寬度在 img 載入後依 natural 尺寸（capped at max-width）明確設定，
 // 避免 wrapper width:auto + img max-width:100% 的循環依賴造成尺寸不對
 // fixedWidth（可選）：統一 wrapper 寬（degree-show 全寬 slot 幾何用，pair overlap 要靠統一寬度保證）
@@ -68,6 +88,7 @@ function buildImg(src, fixedWidth) {
   wrapper.style.overflow = 'clip';
 
   const img = document.createElement('img');
+  img.decoding = 'async';
   img.src = src;
   img.alt = '';
   img.style.cssText = 'display:block; width:100%; height:auto;';
@@ -80,7 +101,7 @@ function buildImg(src, fixedWidth) {
     const isLandscape = img.naturalWidth > img.naturalHeight;
     if (isLandscape) wrapper.classList.add('class-img--landscape');
     if (fixedWidth) { wrapper.style.width = fixedWidth; return; }
-    const maxW = isLandscape ? 462 : 336; // 直立 320→336、橫向 440→462（+5%）
+    const maxW = isLandscape ? 520 : 336; // 直立 336；橫向放大 462→520（user 2026-09-11「橫式圖放大一點」）
     wrapper.style.width = Math.min(img.naturalWidth, maxW) + 'px';
   };
   if (img.complete && img.naturalWidth) sizeWrapper();
@@ -260,15 +281,11 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
     const newImg = buildImg(nextSrc, imgWidth);
     container.appendChild(newImg);
     placeInSlot(newImg, slotCount - 1, slotLefts, { rotation: randomRotation(), xPercent: slotXPercent, ...(slotZ ? { zIndex: slotZ[slotCount - 1] } : {}) });
-    gsap.fromTo(newImg.firstElementChild,
-      revealHiddenT(randRevealDir()),
-      { ...REVEAL_SHOWN, duration: ANIM_DUR, ease: ANIM_EASE,
-        onComplete: () => {
-          isShifting = false;
-          if (!manual) reapplyHoverIfPointerInside();
-        }
-      }
-    );
+    // 新圖先藏定位、等 decode 完才滑入（同進場 gate）；壞/慢圖 3s 保險放行（whenImgReady）
+    const inNew = newImg.firstElementChild;
+    gsap.set(inNew, revealHiddenT(randRevealDir()));
+    whenImgReady(inNew).then(() => gsap.to(inNew, { ...REVEAL_SHOWN, duration: ANIM_DUR, ease: ANIM_EASE,
+      onComplete: () => { isShifting = false; if (!manual) reapplyHoverIfPointerInside(); } }));
     if (!manual) attachInteractions(newImg);
 
     slots.shift();
@@ -305,8 +322,13 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
       if (total === 0) { resolve(); return; }
       let done = 0;
       const onOne = () => { if (++done >= total) resolve(); };
-      // 圖片：img 在 wrapper 遮罩內滑動。hide=每張獨立隨機 4 向、show=歸位
-      imgWrappers.forEach(el => gsap.to(el.firstElementChild, { ...(mode === 'hide' ? revealHiddenT(randRevealDir()) : REVEAL_SHOWN), duration: ANIM_DUR, ease: ANIM_EASE, overwrite: 'auto', onComplete: onOne }));
+      // 圖片：img 在 wrapper 遮罩內滑動。hide=每張獨立隨機 4 向、show=歸位。
+      // show 先 gate 到 decode 完才滑入（whenImgReady），避免還沒載完就滑進空框、圖再閃出（user 2026-09-11）。
+      imgWrappers.forEach(el => {
+        const inner = el.firstElementChild;
+        const run = () => gsap.to(inner, { ...(mode === 'hide' ? revealHiddenT(randRevealDir()) : REVEAL_SHOWN), duration: ANIM_DUR, ease: ANIM_EASE, overwrite: 'auto', onComplete: onOne });
+        if (mode === 'show') whenImgReady(inner).then(run); else run();
+      });
       if (clipText) gsap.to(clipText, { clipPath: mode === 'hide' ? randomHideClip() : SHOW_CLIP, duration: ANIM_DUR, ease: ANIM_EASE, onComplete: onOne });
       // reveal text 卡：clip-reveal 隨機 4 向（整塊色卡在貼身遮罩內純位移，無 clip-path）
       if (revealText) {
@@ -441,7 +463,7 @@ export async function initClassImagesSlideshow() {
     /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.division-images')).forEach(container => {
       const division = container.dataset.division;
       if (!division) return;
-      const pool = poolFor(division);
+      const pool = shuffle([...poolFor(division)]);   // 每組獨立洗牌（三組共用 fallback 也不同序），每次進頁重洗
       if (!pool.length) return;
       const api = createClassImagesSlideshow(container, pool, slotOpts);
       if (api) slideshowsByDivision.set(division, api);

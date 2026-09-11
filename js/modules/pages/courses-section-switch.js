@@ -13,7 +13,7 @@
 
 import { renderCoursesGrid, deselectActiveCard, resetCoursesMapState, selectCardBySlugInPanel, highlightCardBySlugInPanel, ensureMobileGradeForSlug } from './courses-map.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
-import { setActiveNavBtn, bindNavBtnFit, bindFrameScrollSplit } from '../ui/section-switch-helpers.js';
+import { setActiveNavBtn, bindNavBtnFit, bindFrameScrollSplit, flashDeepLinkDim } from '../ui/section-switch-helpers.js';
 import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
 
 // 卡片維持四方向隨機（要多樣性）；滿寬 row-label 抽到 left/right 會滑整個 box 寬
@@ -286,7 +286,10 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
       // 順序：reveal 完 → highlight 卡片(套 accent 底色) → OPEN_DELAY 才開 slide-in（同 activities flash→delay→open 節奏）。
       const openCard = () => {
         waitForGridRevealed(panel).then(() => {
-          highlightCardBySlugInPanel(initialProgram, itemSlug);
+          const card = highlightCardBySlugInPanel(initialProgram, itemSlug);
+          // highlight 窗口其餘卡/label 半透明（比照 activities deep-link dim，courses.css .is-hovered 版）；
+          // 時長取 OPEN_DELAY＝slide-in 開啟那刻結束，不跟 slide-in 自己的 overlay 變暗疊加
+          flashDeepLinkDim(card, OPEN_DELAY_MS);
           setTimeout(() => selectCardBySlugInPanel(initialProgram, itemSlug), OPEN_DELAY_MS);
         });
       };

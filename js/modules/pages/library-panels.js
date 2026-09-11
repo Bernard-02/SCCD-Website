@@ -21,7 +21,7 @@ import { loadActivityCollection, loadGeneralActivitiesAlbum } from './activities
 import { loadDegreeShowAlbum } from './degree-show-source.js';
 import { loadOthersAlbum } from './library-album-source.js';
 import { getAwardRecords, findAwardById } from './activities-data-loader.js';
-import { renderPdfCover } from '../ui/pdf-cover.js';
+import { renderPdfCover, holdPdfCoverRaster } from '../ui/pdf-cover.js';
 import { loadUiLabels } from '../ui/ui-labels.js';
 import { shortLibId } from './library-deeplink.js';
 import { bindArrowSpin } from '../ui/arrow-spin.js';
@@ -1482,6 +1482,7 @@ async function initPressPanel() {
     const thumbIO = new IntersectionObserver((entries) => {
       entries.forEach(e => {
         if (!e.isIntersecting) return;
+        if (lazyCoversHeld()) { deferCoverTarget(thumbIO, e.target); return; }  // deep-link 對齊捲動窗口：擱置、過後 re-observe
         const el = /** @type {HTMLElement} */ (e.target);
         thumbIO.unobserve(el);
         const img = /** @type {HTMLImageElement | null} */ (el.querySelector('.press-thumb-img'));
@@ -1760,6 +1761,8 @@ function applyPdfCoverTo(card, pdfUrl) {
     if (!dataUrl || !ph) { delete card.dataset.coverPending; return; }  // render 失敗也解 hover 上色閘
     const probe = new Image();
     probe.onload = () => {
+      // 同 onReady：對齊捲動窗口內延後套用（layout 寫入＋reveal 不落在逐幀捲動中）
+      if (lazyCoversHeld()) { setTimeout(() => probe.onload(null), 250); return; }
       // 照 PDF 頁面實際比例撐 mask（ph 本體恆填滿 mask，比例統一由 mask 的 --cover-ratio 管）
       const mask = /** @type {HTMLElement|null} */ (ph.closest('.files-item-cover-mask'));
       if (mask) mask.style.setProperty('--cover-ratio', String(probe.naturalWidth / probe.naturalHeight));
@@ -1857,6 +1860,7 @@ async function initFilesPanel() {
       _coverIO = new IntersectionObserver((entries, obs) => {
         entries.forEach(e => {
           if (!e.isIntersecting) return;
+          if (lazyCoversHeld()) { deferCoverTarget(obs, e.target); return; }  // deep-link 對齊捲動窗口：擱置、過後 re-observe
           obs.unobserve(e.target);
           const url = e.target.dataset.lazyPdfCover;
           if (url) applyPdfCoverTo(e.target, url);
@@ -1914,7 +1918,7 @@ async function initFilesPanel() {
           // deep-link 目標卡先判（短路 → 不佔 eager 名額）；否則照首批 EAGER_COVERS
           const eagerImg = coverUrl && (div.id.startsWith(deepLinkTargetId) || eagerImgs++ < EAGER_COVERS);
           const coverContent = coverUrl
-            ? `<img class="files-item-cover"${eagerImg ? ` src="${coverUrl}"` : ''} alt="">`
+            ? `<img class="files-item-cover" decoding="async"${eagerImg ? ` src="${coverUrl}"` : ''} alt="">`
             : `<div class="files-item-cover files-item-cover--empty"></div>`;
           const coverHtml = `
             <div class="files-card-cover-wrap">
@@ -1951,6 +1955,9 @@ async function initFilesPanel() {
           if (coverImg) {
             const maskEl = coverImg.parentElement;
             const onReady = () => {
+              // deep-link 對齊捲動窗口內延後套用：--cover-ratio 寫入＝改 layout、slideCover＝style recalc，
+              // 落在逐幀捲動中會掉幀（block eager 封面 decode 完剛好在捲動中）；窗口過後（≈落地）才一次套
+              if (lazyCoversHeld()) { setTimeout(onReady, 250); return; }
               if (coverImg.naturalWidth && coverImg.naturalHeight && maskEl) {
                 maskEl.style.setProperty('--cover-ratio', String(coverImg.naturalWidth / coverImg.naturalHeight));
               }
@@ -2591,17 +2598,22 @@ function buildTitleMarquee(titleEl) {
   if (!unitW) return;  // 未 sized（display:none / 未 layout）→ 下次 showLibPanel 再試
   const cs = getComputedStyle(titleEl);
   const rowW = titleEl.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
-  // 2026-09-11 user：灰卡標題只放「一份」、box hug 字寬（撤 2026-08-26「box 吃整行寬＋複製份填滿無縫捲」整行版，
-  // 對齊 lightbox title pill hug 方向）。四個 tab 標題都短、正常不會溢出；萬一 rowW 塞不下一份才 fallback 舊 marquee。
+  // 2026-09-11 user 二修：灰卡標題只放「一份」但保留 marquee 行進（撤 2026-08-26「複製份填滿整行無縫捲」；
+  // 同日稍早「hug＋靜止」版也被打回）＝古典跑馬燈：整份從窗右緣外進場、橫越整行、左緣出、循環。
+  // 作法＝track margin-left:100%（起點在窗外右側）＋ shift = −(rowW+unitW)（終點整份出左緣），keyframe 沿用。
   if (unitW <= rowW) {
-    box.style.width = 'auto';
-    track.style.animation = 'none';                // 蓋掉 CSS keyframe（單份無需捲動）
-    track.style.removeProperty('--marquee-shift-x');
+    box.style.width = '100%';
+    track.style.animation = '';                    // 還原 CSS keyframe（可能帶著早前版本的 none）
+    track.style.marginLeft = '100%';
+    const dist = rowW + unitW;
+    track.style.setProperty('--marquee-shift-x', `-${dist}px`);
+    track.style.animationDuration = `${dist / 45}s`;  // 同舊版 ~45px/s 可讀速
     return;
   }
   const copies = Math.max(2, Math.ceil(rowW / unitW) + 1);        // 填滿整行 + 1 unit（捲一個 unit 無縫）
   box.style.width = '100%';
-  track.style.animation = '';                                     // 還原 CSS keyframe（可能帶著上面 hug 分支的 none）
+  track.style.animation = '';
+  track.style.marginLeft = '';                                    // 清單份模式殘值
   track.style.setProperty('--marquee-shift-x', `-${unitW}px`);    // 捲一個完整 unit（title+間距）接回下一份、無縫
   track.style.animationDuration = `${Math.max(4, unitW / 45)}s`;  // ~45px/s 可讀
   for (let i = 1; i < copies; i++) {                              // 補足複製份填滿整行
@@ -3560,6 +3572,28 @@ export function deferFirstRenderUntilEntrance() {
 }
 function _releaseFirstRender() { if (_firstRenderRelease) { _firstRenderRelease(); _firstRenderRelease = null; } }
 const firstLibRenderReady = () => _firstRenderGate || Promise.resolve();
+
+// ── deep-link 對齊捲動期間暫停懶載封面（user 2026-09-11「deep-link run 起來很卡」）──────────
+// 長距 rAF 捲動途中 IO 觸發的封面工作（renderPdfCover 主執行緒 render／圖片 decode＋--cover-ratio 重排）
+// 跟逐幀捲動搶主執行緒＝掉幀。捲動窗口內 IO 命中的目標先擱置（unobserve＋記下），窗口過後 re-observe：
+// 只有「仍在視窗附近」的才會再 fire＝捲過就算了的中途卡自然不載、順帶治網路佇列塞爆。
+let _coverHoldUntil = 0;
+let _heldCoverTargets = /** @type {{obs: IntersectionObserver, el: Element}[]} */ ([]);
+let _heldReleaseTimer = /** @type {any} */ (null);
+function holdLazyCovers(/** @type {number} */ ms) { _coverHoldUntil = Math.max(_coverHoldUntil, performance.now() + ms); }
+function lazyCoversHeld() { return performance.now() < _coverHoldUntil; }
+function deferCoverTarget(/** @type {IntersectionObserver} */ obs, /** @type {Element} */ el) {
+  obs.unobserve(el);
+  _heldCoverTargets.push({ obs, el });
+  if (_heldReleaseTimer) return;
+  const tick = () => {
+    _heldReleaseTimer = null;
+    if (lazyCoversHeld()) { _heldReleaseTimer = setTimeout(tick, Math.max(100, _coverHoldUntil - performance.now() + 100)); return; }
+    _heldCoverTargets.forEach(({ obs: o, el: e }) => { try { o.observe(e); } catch (_) {} });
+    _heldCoverTargets = [];
+  };
+  _heldReleaseTimer = setTimeout(tick, Math.max(100, _coverHoldUntil - performance.now() + 100));
+}
 // 閘 armed 且尚未放行＝entrance 那次 onTabSwitch 應先「不 reveal」（panel 還空、wipe 白播）；
 // main-modular 據此傳 reveal:false，等 render commit 後由 maybeRevealDeferredPanel 補整組 clip-reveal
 export function isFirstRenderDeferred() { return !!_firstRenderRelease; }
@@ -3589,6 +3623,10 @@ export function initLibraryPanels() {
   _firstRenderGate = null;
   _firstRenderRelease = null;
   _deferredRevealPending = false;
+  // 懶載封面擱置窗口重置（跨頁殘留的 held 目標已隨 DOM swap 失效）
+  _coverHoldUntil = 0;
+  _heldCoverTargets = [];
+  if (_heldReleaseTimer) { clearTimeout(_heldReleaseTimer); _heldReleaseTimer = null; }
 
   // Awards 需要在進場動畫完成後啟動 ticker，透過 registerEntranceDone 注入回呼。
   // ⚠️ initAwardsPanel 是 async：cb（ticker 動畫）在 await fetch+render 後才設。手機路徑（main-modular）
@@ -3787,10 +3825,15 @@ function handleLibraryHash() {
           const t0 = performance.now();
           // ease-in-out：起步緩收尾緩（user 2026-09-11「不需要那麼急著到位」——原 ease-out 起步即全速）
           const easeInOut = (/** @type {number} */ t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+          // 逐幀讀 rect 會在「途中封面載入弄髒 layout」時逐幀強制 reflow＝rAF 捲動最大卡源
+          //（user 2026-09-11「run 起來很卡」）：目標值改 ~120ms 才重量一次、尾段（p>0.9）逐幀精算保落點
+          let cachedTarget = liveTarget();
+          let lastMeasure = t0;
           const step = (/** @type {number} */ now) => {
             if (cancelled || !el.isConnected) return;
             const p = dur <= 0 ? 1 : Math.min(1, (now - t0) / dur);
-            scroller.scrollTop = from + (liveTarget() - from) * easeInOut(p);
+            if (p > 0.9 || now - lastMeasure > 120) { cachedTarget = liveTarget(); lastMeasure = now; }
+            scroller.scrollTop = from + (cachedTarget - from) * easeInOut(p);
             if (p < 1) requestAnimationFrame(step);
             else if (onDone) onDone();
           };
@@ -3798,6 +3841,8 @@ function handleLibraryHash() {
         };
         // 時長（user 2026-09-11 放慢版）：近距 ~0.6s、距離越遠越久、封頂 1.5s；reduced-motion 直接 snap
         const mainDur = prefersReducedMotion() ? 0 : Math.min(1500, 500 + Math.abs(target) * 0.5);
+        holdLazyCovers(mainDur + 1200);   // 捲動＋落地緩衝窗口內暫停 IO 封面工作（見 deferCoverTarget）
+        holdPdfCoverRaster(mainDur + 100); // pdf.js 主執行緒 raster 只擋捲動本體——落地即續渲（block eager 封面落地就出）
         animateAlign(mainDur, () => {
           scheduleHighlight(); // 視覺捲完即排程 highlight（2026-06-28 決策不變：兜底補捲不拖 highlight）
           // 落地「之後」才載完的圖仍可能推走目標（機率低）→ 盯 3s，跑掉就小幅補齊（原補捲的兜底角色）
@@ -3809,6 +3854,7 @@ function handleLibraryHash() {
             const err = liveTarget() - scroller.scrollTop;
             if (Math.abs(err) <= 2) return;
             aligning = true;
+            holdLazyCovers(500);  // 補捲期間同樣擱置封面 IO
             animateAlign(250, () => { aligning = false; });
           }, 150);
         });

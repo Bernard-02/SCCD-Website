@@ -2156,20 +2156,28 @@ export async function loadListInto(containerId, url, options = {}) {
         finish();
         return Promise.resolve(true);
       }
-      const p = new Promise(resolve => {   // deep-link：分幀建到目標
+      const p = new Promise(resolve => {   // deep-link：分幀建到目標＋目標後再建 ~10 項（落點下方視窗不留白）
+        // 原本命中目標即 return（最多多 3 項批餘）→ 落地時目標下方空蕩、highlight dim 沒東西可 dim
+        //（user 2026-09-11「其他的 list 還沒 load 完」；fill/idleBuild 都被捲動 gate 壓著不會及時補）。
+        // stopAt＝命中當時 cursor+10（批進位、實得 10~13 項＝約一個視窗）；同一條 8ms 預算 rAF loop 續建，
+        // 多 1~3 幀、resolve 最多晚 ~50ms；窗口項走 buildOne＝出生即可見（data-pre-reveal 已剝、_bornShown 仍真）。
+        let stopAt = Infinity;
         const step = () => {
           if (!container.isConnected || /** @type {any} */ (container)._listGen !== myGen) { resolve(false); return; }
           const budget = performance.now() + 8;
           while (cursor < flat.length && performance.now() < budget) {
             buildOne();
-            const targetEl = document.getElementById(targetDomId);
-            if (targetEl) {
-              // 目標 item 自己的 rows 立刻包遮罩（單 item＝一次 recalc，不吃 bornShown 跳過）：lectures 副標
-              // 收合的 CSS 目標是 `.clip-reveal-wrapper:has(.list-subtitles)`，沒包＝selector 不匹配 → 開啟時
-              // 副標收不掉、等 settle 批補時才無動畫瞬收（user 2026-09-10「deep link 也要副標收起動畫」）。
-              if (typeof gsap !== 'undefined') setupClipReveal([...targetEl.querySelectorAll('.list-reveal-row:not([data-clip-wrapped])')], { hide: false });
-              finish(); resolve(true); return;
+            if (stopAt === Infinity) {
+              const targetEl = document.getElementById(targetDomId);
+              if (targetEl) {
+                // 目標 item 自己的 rows 立刻包遮罩（單 item＝一次 recalc，不吃 bornShown 跳過）：lectures 副標
+                // 收合的 CSS 目標是 `.clip-reveal-wrapper:has(.list-subtitles)`，沒包＝selector 不匹配 → 開啟時
+                // 副標收不掉、等 settle 批補時才無動畫瞬收（user 2026-09-10「deep link 也要副標收起動畫」）。
+                if (typeof gsap !== 'undefined') setupClipReveal([...targetEl.querySelectorAll('.list-reveal-row:not([data-clip-wrapped])')], { hide: false });
+                stopAt = Math.min(cursor + 10, flat.length);
+              }
             }
+            if (cursor >= stopAt) { finish(); resolve(true); return; }
           }
           if (cursor >= flat.length) { finish(); resolve(true); return; }
           requestAnimationFrame(step);

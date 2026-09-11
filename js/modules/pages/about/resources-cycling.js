@@ -46,8 +46,8 @@ function renderResourcesAccordion(data, container) {
       `<img src="${url}" alt="${item.title}" class="res-slide"${i === 0 ? '' : ' style="z-index:0"'} onerror="this.style.display='none'">`
     ).join('');
 
-    // 版面（user 2026-09-11）：圖在上、下面英文左／中文右對半分。text-wrap 內兩欄各自可捲；
-    // 中英 <p> 仍在 .accordion-text-wrap 底下 → 沿用 accordion.css/color.css 既有的 `p` 上色與 mode3 規則。
+    // 版面（user 2026-09-11 二版）：圖在上(6)、文字在下(4)；中英「上下堆疊在同一個可捲 box」、靠左、max-width 80%。
+    // 中英 <p> 在 .accordion-text-wrap 底下 → 沿用 accordion.css/color.css 既有的 `p` 上色與 mode3 規則。
     return `
     <div class="accordion-item" data-index="${index}">
       <!-- A: Label -->
@@ -61,9 +61,10 @@ function renderResourcesAccordion(data, container) {
             <div class="res-switcher">${slides}</div>
           </div>
           <div class="accordion-text-wrap">
-            <div class="accordion-text-cols">
-              <div class="accordion-text-col list-scroll"><p class="text-white">${item.textEn || item.descriptionEn}</p></div>
-              <div class="accordion-text-col list-scroll"><p class="text-white" lang="zh-Hant">${item.textZh || item.descriptionZh}</p></div>
+            <!-- 英中上下堆疊在同一個可捲 box（data-resources-text＝沿用既有內捲 + .list-scroll 全站細黑 scrollbar） -->
+            <div data-resources-text class="list-scroll">
+              <p class="text-white mb-en-zh-body">${item.textEn || item.descriptionEn}</p>
+              <p class="text-white" lang="zh-Hant">${item.textZh || item.descriptionZh}</p>
             </div>
           </div>
         </div>

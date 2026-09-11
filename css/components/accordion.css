@@ -208,41 +208,33 @@
     display: block;
   }
 
-  /* 說明文字英左／中右對半（user 2026-09-11）：兩欄各自可捲，min-width:0 防被長字撐爆 */
-  .accordion-text-cols {
-    display: flex;
-    flex-direction: row;
-    gap: var(--spacing-md);
-    width: 100%;
-    flex: 1 1 auto;
-    min-height: 0;
-  }
-  .accordion-text-col {
-    flex: 1;
-    min-width: 0;
-    overflow-y: auto;
-  }
-
   /* about resources（colored-accordion）桌面：title 與說明文字改頂端對齊（user）。
      base 是 label 靠底(align-items:flex-end)、text 靠底(justify-content:flex-end)。 */
   @media (min-width: 768px) {
-    /* 桌面版面（user 2026-09-11）：圖在上、文字在下，各佔一半（img-wrap / text-wrap 都 flex:1）；
-       原本是左右並排（body-inner row）。text-wrap 內兩欄英左中右由 .accordion-text-cols 處理。 */
+    /* 桌面版面（user 2026-09-11 二版）：圖在上、文字在下，比例 6:4；body-inner 由左右並排改直向。 */
     .colored-accordion .accordion-body-inner {
       flex-direction: column;
+    }
+    .colored-accordion .accordion-img-wrap {
+      flex: 6;
+      /* 圖左右+上用全站 md padding（與卡片一致、含右側）；下 padding 縮成 sm＝圖文距離減少（user 2026-09-11） */
+      padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm);
+    }
+    .colored-accordion .accordion-text-wrap {
+      flex: 4;
+      justify-content: flex-start;
+      /* 上 padding 縮成 sm＝貼近圖片（圖文距離減少）；左右下維持 md frame */
+      padding-top: var(--spacing-sm);
     }
     .colored-accordion .accordion-label {
       align-items: flex-start;
     }
-    .colored-accordion .accordion-text-wrap {
-      justify-content: flex-start;
-    }
-    /* 桌面說明文字捲動下放內層（wrap padding 當固定 frame）：上下留白不隨捲動、scrollbar 內縮不貼卡緣，
-       同 about vision/programs/works（user 2026-09-05）。inner pr = 文字與自身 scrollbar 的呼吸 gap。 */
+    /* 說明文字內捲 box：靠左、最寬 80%（不全寬）；padding-right = 文字與 .list-scroll scrollbar 的呼吸 gap。 */
     .colored-accordion .accordion-text-wrap > [data-resources-text] {
       flex: 1 1 auto;
       min-height: 0;
       overflow-y: auto;
+      max-width: 80%;
       padding-right: var(--spacing-sm);
     }
     /* 中英間距只交給 -sep 空格管；拿掉 base 137 的 0.4em（否則 sep + margin 疊加、EN/ZH 看起來太遠） */
