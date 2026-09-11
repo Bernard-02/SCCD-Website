@@ -77,79 +77,79 @@
       "entries": [
         {
           "year": 1997,
-          "division": "BFA 學士班",
+          "division": "history.division.bfa",
           "en": "Shih Chien College of Design and Management renamed as Shih Chien University",
           "zh": "實踐設計管理學院 更名為 實踐大學"
         },
         {
           "year": 1997,
-          "division": "BFA 學士班",
+          "division": "history.division.bfa",
           "en": "College of Design established",
           "zh": "設立 設計學院"
         },
         {
           "year": 1997,
-          "division": "BFA 學士班",
+          "division": "history.division.bfa",
           "en": "Department of Visual Communication Design established",
           "zh": "設立 視覺傳達設計學系"
         },
         {
           "year": 2000,
-          "division": "BFA 學士班",
+          "division": "history.division.bfa",
           "en": "Department of Visual Communication Design renamed as Department of Communications Design",
           "zh": "視覺傳達設計學系 更名為 媒體傳達設計學系"
         },
         {
           "year": 2004,
-          "division": "BFA 學士班",
+          "division": "history.division.bfa",
           "en": "Division of Digital 3D Animation Design established",
           "zh": "設立 數位 3D 動畫設計組"
         },
         {
           "year": 2004,
-          "division": "BFA 學士班",
+          "division": "history.division.bfa",
           "en": "Division of Digital Creative Game Design established",
           "zh": "設立 數位遊戲創意設計組"
         },
         {
           "year": 2004,
-          "division": "MDES 碩士班",
+          "division": "history.division.mdes",
           "en": "Institute of Fashion and Communications Design established (with Institute of Fashion Design)",
           "zh": "設立 時尚與媒體設計研究所（與服裝設計研究所）"
         },
         {
           "year": 2009,
-          "division": "MDES 碩士班",
+          "division": "history.division.mdes",
           "en": "Division of Digital Media Design established",
           "zh": "設立 數位媒體設計組"
         },
         {
           "year": 2011,
-          "division": "MDES 碩士班",
+          "division": "history.division.mdes",
           "en": "Division of Digital Media Design, IFCD merged into (Merge Department and Institute Into One) Master Class &amp; Master Class for Working Professionals, SCCD",
           "zh": "時尚與媒體設計研究所數位媒體設計組 整併（系所合一）為 媒體傳達設計學系碩士班與碩士在職專班"
         },
         {
           "year": 2012,
-          "division": "BFA 學士班",
+          "division": "history.division.bfa",
           "en": "Division of Digital Creative Game Design renamed as Division of Innovative Media Design",
           "zh": "數位遊戲創意設計組 更名為 創新媒體設計組"
         },
         {
           "year": 2013,
-          "division": "MDES 碩士班",
+          "division": "history.division.mdes",
           "en": "Master Class for Working Professionals stop enrollment",
           "zh": "碩士在職專班 停招"
         },
         {
           "year": 2017,
-          "division": "BFA 學士班",
+          "division": "history.division.bfa",
           "en": "Division of Innovative Media Design renamed as Division of Creative Media Design",
           "zh": "創新媒體設計組 更名為 創意媒體設計組"
         },
         {
           "year": 2023,
-          "division": "BFA 學士班",
+          "division": "history.division.bfa",
           "en": "Division of Digital 3D Animation Design renamed as Division of Animation &amp; Moving Image",
           "zh": "數位 3D 動畫設計組 更名為 動畫影像設計組"
         }

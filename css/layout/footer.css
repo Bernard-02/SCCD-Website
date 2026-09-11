@@ -454,18 +454,19 @@
       gap: var(--container-padding);
     }
 
-    /* logo 區＝正方形，尺寸取「滿高」與「右欄留足 min 後的剩餘寬」較小者，讓右欄 scatter 永遠有足夠寬不重疊：
-     * flex-basis = 滿高正方形（footer 可用高 = 100vh - 上下 padding）當偏好寬；flex-shrink:1 → 空間不足時「只縮 logo」
-     *   （footer-right flex-shrink:0 不縮、min-width 守住 scatter 需要的最小寬）。
-     * aspect-ratio:1 + height:auto → 寬被 shrink 縮時高同步跟縮、維持正方形（不像 height:100% 會變長方形讓 Lottie letterbox）。
-     * align-self:flex-start + 左側 flex item → 縮小時上邊/左邊固定＝往左上角縮（user 2026-08-08）。max-height 防 basis rounding 溢出。
-     * 寬螢幕（右欄本就寬鬆）logo 自然 = 滿高正方形，與舊 align-self:stretch 同視覺、連續不跳。整段隨視窗即時重排、不需 JS/reload。 */
+    /* logo 區＝正方形，固定寬取「畫面 35%」與「滿高正方形（footer 可用高 = 100vh - 上下 padding）」較小者：
+     * 35vw cap → logo 不超過畫面 35%、也不無限放大（user 2026-09-11）；100vh 項防短視窗直向溢出。
+     * ⚠️ flex:0 0 auto + 固定 width（不再 flex:0 1 basis 縮放）＝logo 尺寸只吃 viewport、與 --footer-min-scatter 脫鉤。
+     *   舊版 logo 會為滿足右欄 min-width 而縮，而 min-scatter 每次切 tab 依群組卡數重算 → 各 tab 的 logo 大小不同、
+     *   窄螢幕來回切 tab 版面跳（user 2026-09-11「切 tab 時 logo 縮小、版面跑掉」）。固定後切 tab 不動 logo。
+     * 剩餘寬全給 .footer-right（flex-grow:1 吃滿）。aspect-ratio:1 + height:auto 維持正方形、max-height 防溢出。 */
     .footer-logo-area {
       aspect-ratio: 1 / 1;
+      width: min(35vw, 100vh - 2 * var(--container-padding));
       height: auto;
       max-height: 100%;
       align-self: flex-start;
-      flex: 0 1 calc(100vh - 2 * var(--container-padding));
+      flex: 0 0 auto;
       min-width: 0;
     }
 

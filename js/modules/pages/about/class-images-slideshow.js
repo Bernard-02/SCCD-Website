@@ -20,6 +20,7 @@ import { registerPageCleanup } from '../../ui/page-cleanup.js';
 import { registerPageExit } from '../../ui/page-exit.js';
 import { sitePath } from '../../ui/site-base.js';
 import { ensureCardMask, fitCardToText } from '../../ui/scroll-animate.js';
+import { whenImgReady } from '../../ui/img-ready.js';
 import { loadAboutClasses } from './about-source.js';
 
 // slot 間距：slot 0 起始貼左、slot 1/2 各往右平移 ~28%（從 32% 縮小）
@@ -63,19 +64,6 @@ function randomRotation() { return parseFloat(((Math.random() * 2 - 1) * 4).toFi
 function shuffle(arr) {
   for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
   return arr;
-}
-
-// 等 <img> 可繪製（decode 完）才 resolve；慢網/壞圖 3s 保險放行，免動畫/promise 卡住。
-// 用途：進場/切換 reveal 前 gate → 滑入的是「已載好的圖」，不是空框先滑進來、內容才閃出（user 2026-09-11）。
-function whenImgReady(imgEl) {
-  return new Promise(resolve => {
-    let done = false;
-    const finish = () => { if (!done) { done = true; resolve(); } };
-    const decode = () => (imgEl.decode ? imgEl.decode().then(finish, finish) : finish());
-    if (imgEl.complete && imgEl.naturalWidth) decode();
-    else { imgEl.addEventListener('load', decode, { once: true }); imgEl.addEventListener('error', finish, { once: true }); }
-    setTimeout(finish, 3000);
-  });
 }
 
 // wrapper 寬度在 img 載入後依 natural 尺寸（capped at max-width）明確設定，

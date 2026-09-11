@@ -13,6 +13,9 @@
     { "key": "about.program.dcd",               "en": "Department of Communications Design (DCD)", "zh": "媒體傳達設計學系" },
     { "key": "about.program.bpaidc",            "en": "Bachelor Program of AI Design Craftsmentship (BPAIDC)", "zh": "AI 設計職人學位學程" },
 
+    { "key": "history.division.bfa",  "en": "BFA",  "zh": "學士班" },
+    { "key": "history.division.mdes", "en": "MDES", "zh": "碩士班" },
+
     { "key": "nav.about",      "en": "About",              "zh": "關於" },
     { "key": "nav.faculty",    "en": "Faculty",            "zh": "師資" },
     { "key": "nav.curriculum", "en": "Curriculum",         "zh": "課程" },

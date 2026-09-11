@@ -3009,7 +3009,7 @@ function revealAwardItems(items, dur = DUR.medium, { skipInitial = false, oneSho
     const shownLabels = new Set(preShown);
     // sequential=true：依 year-block 分組逐年（組內 stagger、組間等前組揭完）；false：捲入視窗即揭（delay 0）
     // 讀所有 rect（讀相）→ 再一次 play（寫相），避免 loop 內讀寫交錯 forced reflow
-    const flush = (sequential) => {
+    const flush = (sequential, snap = false) => {
       const rbRaw = scroller ? scroller.getBoundingClientRect().bottom : Infinity;
       // 非初始批：觸發線往上提 AWARD_REVEAL_LEAD → item 進到可視區內才揭（看得見進場），而非在 fold 以下播完。
       // ⚠️ 底部 clamp：清單末尾距捲動終點不足 LEAD 的 item 頂邊永遠越不過 rb−LEAD → 不 clamp 會永久隱形。
@@ -3017,25 +3017,62 @@ function revealAwardItems(items, dur = DUR.medium, { skipInitial = false, oneSho
       const rb = sequential ? rbRaw : rbRaw - Math.min(AWARD_REVEAL_LEAD, remain);
       const due = [...pending].filter(el => el.getBoundingClientRect().top < rb);
       let delay = sequential ? startDelay : 0, lastBlock = null;  // sequential（初始批）從 startDelay 起跑＝等 veil 掀開；scroll-gate 補揭一律即時
+      // snap＝deep-link 飛行窗口：12k px/s 沒人看得到 0.4s 進場、省整波 transition/gsap。
+      // ⚠️不能走 playAwardItem(dur 0)：0s transition 不 fire transitionend → inline clip/transform 殘留
+      //（album 旋轉縮圖被 inset(0) 裁角的老坑）。直接寫「已揭終態」、下一幀批清 inline transition
+      //（保留 stylesheet base transition 給 hover/dim）。
+      const snapClear = /** @type {HTMLElement[]} */ ([]);
       due.forEach(el => {
         const block = blockOf(el);
         if (sequential && block !== lastBlock && lastBlock !== null) delay += dur; // 等前一年份揭完才接下一組
         lastBlock = block;
         const d = sequential ? delay : 0;
-        if (block && !shownLabels.has(block)) { shownLabels.add(block); playYearLabel(block, dur, d); }
-        playAwardItem(el, dur, d);
-        if (sequential) delay += AWARD_REVEAL_STAGGER;
+        if (snap) {
+          if (block && !shownLabels.has(block)) {
+            shownLabels.add(block);
+            const p = yearLabelParts(block);
+            if (p) { p.text.style.transition = 'none'; p.text.style.translate = ''; p.label.style.overflow = ''; snapClear.push(p.text); }
+          }
+          /** @type {HTMLElement} */ (el).dataset.libRevealed = '1';
+          el.style.transition = 'none'; el.style.clipPath = '';
+          const row = awardMainTextEl(el), sub = awardSubtitleEl(el);
+          if (row) { row.style.transition = 'none'; row.style.transform = ''; snapClear.push(row); }
+          if (sub) { sub.style.transition = 'none'; sub.style.transform = ''; snapClear.push(sub); }
+          snapClear.push(el);
+        } else {
+          if (block && !shownLabels.has(block)) { shownLabels.add(block); playYearLabel(block, dur, d); }
+          playAwardItem(el, dur, d);
+          if (sequential) delay += AWARD_REVEAL_STAGGER;
+        }
         pending.delete(el);
       });
+      if (snapClear.length) requestAnimationFrame(() => snapClear.forEach(n => { n.style.transition = ''; }));
     };
     flush(true); // 初始可見的逐年 stagger
     if (pending.size && scroller) {
       let ticking = false;
+      let heldFlush = /** @type {any} */ (null);
+      let lastHeldFlushTs = 0;
       const onScroll = () => {
         if (ticking) return;
         ticking = true;
         requestAnimationFrame(() => {
           ticking = false;
+          // deep-link 對齊捲動窗口內「節流」而非逐幀：每幀對全 pending 列 gBCR＋播放＝掉幀主因
+          //（2026-09-11 CDP profile：gBCR 1.06s＋gsap 0.7s 全在此）。~180ms 掃一次＝沿途照樣揭（視覺不變）、
+          // 成本砍 ~10×；另排 trailing flush 在窗口結束補收齊（最後一個 scroll event 可能落在節流間隙）。
+          if (lazyCoversHeld()) {
+            const now = performance.now();
+            clearTimeout(heldFlush);
+            heldFlush = setTimeout(() => {
+              flush(false);
+              if (!pending.size && _awardRevealCleanup) { _awardRevealCleanup(); _awardRevealCleanup = null; }
+            }, Math.max(200, _coverHoldUntil - now + 120));
+            if (now - lastHeldFlushTs < 180) return;
+            lastHeldFlushTs = now;
+            flush(false, true);  // 窗口內 snap 揭（不播 transition）
+            return;
+          }
           flush(false);
           if (!pending.size && _awardRevealCleanup) { _awardRevealCleanup(); _awardRevealCleanup = null; }
         });
@@ -3064,7 +3101,7 @@ function setupFilesScrollReveal(listEl) {
   if (!scroller) return;
   if (_filesRevealCleanup) { _filesRevealCleanup(); _filesRevealCleanup = null; }
   if (!listEl.querySelector('.files-item-card.files-card-pending')) return;   // 全揭完＝不綁 listener
-  const flush = () => {
+  const flush = (snap = false) => {
     const pending = [...listEl.querySelectorAll('.files-item-card.files-card-pending')]
       .filter(el => /** @type {HTMLElement} */ (el).offsetParent !== null);
     if (!pending.length) { if (_filesRevealCleanup) { _filesRevealCleanup(); _filesRevealCleanup = null; } return; }
@@ -3076,16 +3113,33 @@ function setupFilesScrollReveal(listEl) {
     pending.forEach(el => {
       const top = el.getBoundingClientRect().top;
       if (top >= rb) return;                                  // 還沒到觸發線
-      if (top < st - 100) el.classList.remove('files-card-pending');  // 已捲過（視窗上方）→ 直接就位不動畫（大跳/deep-link 不一次性全量 wrap）
+      // snap＝deep-link 飛行窗口（沿途看不清進場動畫、省整波 wrap/transition）；已捲過（視窗上方）本就 snap
+      if (snap || top < st - 100) el.classList.remove('files-card-pending');
       else animate.push(el);
     });
     if (animate.length) revealFilesCards(/** @type {HTMLElement[]} */ (animate));  // revealFilesCards 內移除 pending
   };
   let ticking = false;
+  let heldFlush = /** @type {any} */ (null);
+  let lastHeldFlushTs = 0;
   const onScroll = () => {
     if (ticking) return;
     ticking = true;
-    requestAnimationFrame(() => { ticking = false; flush(); });
+    requestAnimationFrame(() => {
+      ticking = false;
+      // 同 revealAwardItems 的 scroll-gate：deep-link 對齊捲動窗口內節流（~180ms 掃一次、非逐幀），
+      // trailing flush 在窗口結束補收齊（flush 自帶「已捲過→直接就位不動畫」＝落地只動畫視窗內卡）
+      if (lazyCoversHeld()) {
+        const now = performance.now();
+        clearTimeout(heldFlush);
+        heldFlush = setTimeout(() => flush(), Math.max(200, _coverHoldUntil - now + 120));
+        if (now - lastHeldFlushTs < 180) return;
+        lastHeldFlushTs = now;
+        flush(true);  // 窗口內 snap 揭
+        return;
+      }
+      flush();
+    });
   };
   scroller.addEventListener('scroll', onScroll, { passive: true });
   _filesRevealCleanup = () => scroller.removeEventListener('scroll', onScroll);

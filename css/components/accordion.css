@@ -217,14 +217,15 @@
     }
     .colored-accordion .accordion-img-wrap {
       flex: 6;
-      /* 圖左右+上用全站 md padding（與卡片一致、含右側）；下 padding 縮成 sm＝圖文距離減少（user 2026-09-11） */
-      padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm);
+      /* 上下一致 md、右 md，左＝0（user 2026-09-11 二版：左不要 padding、圖貼卡片左緣） */
+      padding: var(--spacing-md) var(--spacing-md) var(--spacing-md) 0;
     }
     .colored-accordion .accordion-text-wrap {
       flex: 4;
       justify-content: flex-start;
-      /* 上 padding 縮成 sm＝貼近圖片（圖文距離減少）；左右下維持 md frame */
-      padding-top: var(--spacing-sm);
+      /* 文字去掉上＋左 padding＝貼齊圖片底、且左緣對齊貼左的圖（user 2026-09-11 二版）；右下維持 md frame */
+      padding-top: 0;
+      padding-left: 0;
     }
     .colored-accordion .accordion-label {
       align-items: flex-start;
