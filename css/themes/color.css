@@ -212,6 +212,7 @@ body.mode-color .colored-accordion .accordion-text-wrap p {
   color: var(--theme-fg-inverse) !important;
 }
 
+body.mode-color .colored-accordion .accordion-item[style*="background"],
 body.mode-color .colored-accordion .accordion-label[style*="background"],
 body.mode-color .colored-accordion .accordion-text-wrap[style*="background"],
 body.mode-color .colored-accordion .accordion-img-wrap[style*="background"] {
@@ -735,6 +736,23 @@ body.mode-color .colored-accordion .accordion-text-wrap > [data-resources-text].
   body.mode-color .colored-accordion .accordion-text-wrap > [data-resources-text].list-scroll {
     scrollbar-color: var(--theme-fg-inverse) transparent;
   }
+}
+
+/* about/works 自建 playlist 縮圖欄：底色＝JS inline 隨機三原色 → mode3 strict B/W（!important 蓋 inline）；
+ * thumb / active outline 用 var(--theme-fg-inverse) 保證對比（同上方 activities 展開列 pattern）。 */
+body.mode-color .works-playlist-scroll {
+  background: var(--theme-fg) !important;
+}
+body.mode-color .works-playlist-inner::-webkit-scrollbar-thumb {
+  background: var(--theme-fg-inverse) !important;
+}
+@supports (-moz-appearance: none) {
+  body.mode-color .works-playlist-inner {
+    scrollbar-color: var(--theme-fg-inverse) transparent;
+  }
+}
+body.mode-color .works-playlist-item.is-active {
+  outline-color: var(--theme-fg-inverse) !important;
 }
 
 /* （sticky section title col + 年份/獲獎 sticky 首欄遮罩底原本各自 background:var(--theme-bg)!important，

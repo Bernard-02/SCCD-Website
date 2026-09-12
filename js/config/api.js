@@ -17,3 +17,8 @@ export const CMS_ASSETS_BASE = 'https://sccdtest.usc.edu.tw/assets';
 // CMS_ASSETS_BASE 現只剩「下載附件」在用（如 admission attachments）——刻意保留 /assets 讓下載檔名漂亮（Content-Disposition）；
 // 影片不經 /assets（貼 HLS CloudFront 網址）。
 export const CMS_CDN_BASE = 'https://d2df28pyzslt2v.cloudfront.net/Directus';
+
+// YouTube Data API v3（about/works 用 playlistItems.list 抓清單影片 title+id，1 unit/次）。
+// key 走 GCP HTTP-referrer 限制（已放行 github.io / sccd.usc.edu.tw / localhost）→ 曝在前端無妨，
+// 限制網域才是防線；server 端無 referer 反被擋，故只能瀏覽器用。編輯照舊只在後台貼 playlist URL，不碰 key。
+export const YT_API_KEY = 'AIzaSyBU-muAPWSpX6hn4gKw4fec6yM1Yqd4lFA';

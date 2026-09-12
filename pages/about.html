@@ -157,14 +157,10 @@
               <div class="prog-legend-head"><span>Term</span><span lang="zh-Hant">期程</span></div>
               <div class="prog-legend-bars"></div>
             </div>
-            <!-- Degree 學位（下） -->
+            <!-- Degree 學位（下）：bar 由 JS 從後台 program_nodes.degreeEn/degreeZh 建（老師可編，同 Term） -->
             <div class="prog-legend prog-legend--degree flex">
               <div class="prog-legend-head"><span>Degree</span><span lang="zh-Hant">學位</span></div>
-              <div class="prog-legend-bars">
-                <div class="prog-legend-bar seam-guard" data-degree="bfa"><span class="prog-legend-en">Bachelor of Fine Arts (B.F.A.)</span><span class="prog-legend-zh" lang="zh-Hant">設計學士</span></div>
-                <div class="prog-legend-bar seam-guard" data-degree="mdes"><span class="prog-legend-en">Master of Design (M.Des.)</span><span class="prog-legend-zh" lang="zh-Hant">設計碩士</span></div>
-                <div class="prog-legend-bar seam-guard" data-degree="bdes"><span class="prog-legend-en">Bachelor of Design (B.Des.)</span><span class="prog-legend-zh" lang="zh-Hant">設計學士</span></div>
-              </div>
+              <div class="prog-legend-bars"></div>
             </div>
           </div>
         </div>
@@ -334,13 +330,15 @@
                   <div data-works-text class="list-scroll">
                   <p class="text-s mb-en-zh-body font-regular">Foundation courses that develop core design principles, visual literacy, and technical skills essential for creative media practice.</p>
                   <p class="text-s font-regular" lang="zh-Hant">培養核心設計原則、視覺素養與技術能力的基礎課程，為創意媒體實踐奠定根基。</p>
-                  <div class="works-playlist-list" data-division="bfa"></div>
                   </div>
                 </div>
               </div>
               <div class="col-span-full order-1 md:order-2 md:col-start-9 md:col-span-12 md:ml-xl">
-                <div class="aspect-video w-full overflow-hidden">
-                  <iframe class="works-video-iframe w-full h-full border-0" data-division="bfa" title="BFA 學士班 作品影片" src="https://www.youtube.com/embed/JBRReuUk4dE?list=PLG0DnOKlL-lko5mBve7UjN2itLz4KwxUF" allowfullscreen></iframe>
+                <div class="works-video-row">
+                  <div class="aspect-video works-player-box overflow-hidden">
+                    <iframe class="works-video-iframe w-full h-full border-0" data-division="bfa" title="BFA 學士班 作品影片" src="https://www.youtube.com/embed/JBRReuUk4dE?list=PLG0DnOKlL-lko5mBve7UjN2itLz4KwxUF" allowfullscreen></iframe>
+                  </div>
+                  <div class="works-playlist-list" data-division="bfa"></div>
                 </div>
               </div>
             </div>
@@ -354,13 +352,15 @@
                   <div data-works-text class="list-scroll">
                   <p class="text-s mb-en-zh-body font-regular">Animated works that explore storytelling, motion design, and experimental animation techniques.</p>
                   <p class="text-s font-regular" lang="zh-Hant">探索敘事、動態設計與實驗動畫技術的動畫作品。</p>
-                  <div class="works-playlist-list" data-division="animation"></div>
                   </div>
                 </div>
               </div>
               <div class="col-span-full order-1 md:order-2 md:col-start-9 md:col-span-12 md:ml-xl">
-                <div class="aspect-video w-full overflow-hidden">
-                  <iframe class="works-video-iframe w-full h-full border-0" data-division="animation" title="Animation & Moving Image 動畫影像設計組 作品影片" src="https://www.youtube.com/embed/qklohUskSX4?list=PLG0DnOKlL-llBG3d2yiQeQnhN6MK95pM4" allowfullscreen></iframe>
+                <div class="works-video-row">
+                  <div class="aspect-video works-player-box overflow-hidden">
+                    <iframe class="works-video-iframe w-full h-full border-0" data-division="animation" title="Animation & Moving Image 動畫影像設計組 作品影片" src="https://www.youtube.com/embed/qklohUskSX4?list=PLG0DnOKlL-llBG3d2yiQeQnhN6MK95pM4" allowfullscreen></iframe>
+                  </div>
+                  <div class="works-playlist-list" data-division="animation"></div>
                 </div>
               </div>
             </div>
@@ -374,13 +374,15 @@
                   <div data-works-text class="list-scroll">
                   <p class="text-s mb-en-zh-body font-regular">Innovative media projects that integrate technology, interactivity, and creative storytelling.</p>
                   <p class="text-s font-regular" lang="zh-Hant">融合技術、互動與創意敘事的創新媒體專案。</p>
-                  <div class="works-playlist-list" data-division="creative-media"></div>
                   </div>
                 </div>
               </div>
               <div class="col-span-full order-1 md:order-2 md:col-start-9 md:col-span-12 md:ml-xl">
-                <div class="aspect-video w-full overflow-hidden">
-                  <iframe class="works-video-iframe w-full h-full border-0" data-division="creative-media" title="Creative Media Design 創意媒體設計組 作品影片" src="https://www.youtube.com/embed/hIbasPs5gho?list=PLG0DnOKlL-lm5Vdc2x-ULMdlo6fsM-pQn" allowfullscreen></iframe>
+                <div class="works-video-row">
+                  <div class="aspect-video works-player-box overflow-hidden">
+                    <iframe class="works-video-iframe w-full h-full border-0" data-division="creative-media" title="Creative Media Design 創意媒體設計組 作品影片" src="https://www.youtube.com/embed/hIbasPs5gho?list=PLG0DnOKlL-lm5Vdc2x-ULMdlo6fsM-pQn" allowfullscreen></iframe>
+                  </div>
+                  <div class="works-playlist-list" data-division="creative-media"></div>
                 </div>
               </div>
             </div>
@@ -394,13 +396,15 @@
                   <div data-works-text class="list-scroll">
                   <p class="text-s mb-en-zh-body font-regular">Advanced research and creative practice fostering innovation in communications design.</p>
                   <p class="text-s font-regular" lang="zh-Hant">碩士班提供進階研究與創作實踐機會，培養媒體傳達設計的創新能力。</p>
-                  <div class="works-playlist-list" data-division="mdes"></div>
                   </div>
                 </div>
               </div>
               <div class="col-span-full order-1 md:order-2 md:col-start-9 md:col-span-12 md:ml-xl">
-                <div class="aspect-video w-full overflow-hidden">
-                  <iframe class="works-video-iframe w-full h-full border-0" data-division="mdes" title="MDES Class 碩士班 作品影片" src="" allowfullscreen></iframe>
+                <div class="works-video-row">
+                  <div class="aspect-video works-player-box overflow-hidden">
+                    <iframe class="works-video-iframe w-full h-full border-0" data-division="mdes" title="MDES Class 碩士班 作品影片" src="" allowfullscreen></iframe>
+                  </div>
+                  <div class="works-playlist-list" data-division="mdes"></div>
                 </div>
               </div>
             </div>

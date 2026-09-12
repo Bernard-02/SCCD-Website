@@ -142,10 +142,16 @@ export function initBFADivisionToggle() {
     });
   }
 
+  // 影片滑動的共同 target：iframe + playlist 縮圖層（.works-playlist-scroll 由 data-loader 晚建，
+  // 出生時自行同步 iframe 當前 x/yPercent，見 about-data-loader renderPlaylist；尚未建時 NodeList 只含 iframe）
+  function worksVideoParts(panel) {
+    return panel.querySelectorAll('iframe, .works-playlist-scroll');
+  }
+
   // 設置 panel 為 active（顯示）或 inactive（隱藏在下方等待）；無動畫
   function setWorksPanelState(panel, active) {
     const text = panel.querySelector('[data-works-hl]');
-    const video = panel.querySelector('iframe');
+    const video = worksVideoParts(panel);
     if (text) ensureCardMask(text); // 貼身靜止遮罩（idempotent）
     if (active) {
       panel.style.pointerEvents = '';
@@ -200,8 +206,8 @@ export function initBFADivisionToggle() {
 
     const oldText  = oldPanel.querySelector('[data-works-hl]');
     const newText  = newPanel.querySelector('[data-works-hl]');
-    const oldVideo = oldPanel.querySelector('iframe');
-    const newVideo = newPanel.querySelector('iframe');
+    const oldVideo = worksVideoParts(oldPanel);
+    const newVideo = worksVideoParts(newPanel);
 
     // 隨機挑一個方向：new 從該方向滑入，old 往同方向滑出
     const dir = pickWorksVideoDir();
@@ -605,7 +611,7 @@ export function initBFADivisionToggle() {
     const panel = activeWorksPanel();
     if (!panel) return;
     const text  = panel.querySelector('[data-works-hl]');
-    const video = panel.querySelector('iframe');
+    const video = worksVideoParts(panel);
     if (text)  { ensureCardMask(text); fitCardToText(text); gsap.set(text, revealHiddenT(randRevealDir())); }
     if (video) gsap.set(video, { yPercent: 100, xPercent: 0 });
   };
@@ -614,7 +620,7 @@ export function initBFADivisionToggle() {
     const panel = activeWorksPanel();
     if (!panel) return;
     const text  = panel.querySelector('[data-works-hl]');
-    const video = panel.querySelector('iframe');
+    const video = worksVideoParts(panel);
     if (video) gsap.to(video, { yPercent: 0, xPercent: 0, duration: WORKS_ANIM_DUR, ease: WORKS_VIDEO_EASE, overwrite: true });
     if (text)  { ensureCardMask(text); fitCardToText(text); gsap.to(text, { ...REVEAL_SHOWN, duration: WORKS_ANIM_DUR, ease: WORKS_ANIM_EASE, overwrite: true }); }
   };
@@ -647,10 +653,10 @@ export function initBFADivisionToggle() {
     const activePanel = Array.from(classWorksPanels).find(p => p.style.zIndex === '1');
     if (!activePanel) { resolve(); return; }
     const text  = activePanel.querySelector('[data-works-hl]');
-    const video = activePanel.querySelector('iframe');
+    const video = worksVideoParts(activePanel);
     const tweens = [];
     if (text)  { ensureCardMask(text); tweens.push(gsap.to(text, { ...revealHiddenT(randRevealDir()), duration: WORKS_ANIM_DUR, ease: WORKS_ANIM_EASE, overwrite: true })); }
-    if (video) tweens.push(gsap.to(video, { xPercent: -100, duration: WORKS_ANIM_DUR, ease: WORKS_VIDEO_EASE, overwrite: true }));
+    if (video && video.length) tweens.push(gsap.to(video, { xPercent: -100, duration: WORKS_ANIM_DUR, ease: WORKS_VIDEO_EASE, overwrite: true }));
     if (!tweens.length) { resolve(); return; }
     let done = 0;
     tweens.forEach(t => t.eventCallback('onComplete', () => { if (++done >= tweens.length) resolve(); }));

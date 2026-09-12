@@ -145,19 +145,29 @@ export async function initProgramStructure() {
   // degree↔色不固定 rgb 順序、每次進頁洗牌（user 09-10）；同一次瀏覽內三 degree 仍各自穩定一色（hover/tap/legend 共用此 map）
   const shuffledAccent = [...ACCENT].sort(() => Math.random() - 0.5);
   const DEGREE_COLOR = { bfa: shuffledAccent[0], mdes: shuffledAccent[1], bdes: shuffledAccent[2] };
-  // Term 期程 bar：從 program_nodes 的 termEn/termZh（掛在 degree 節點）建，依 degree key（bfa/mdes/bdes）；
-  // 空＝不建（該 degree hover 時只展開 Degree bar）。degree 名硬編在 about.html（要 CMS 化再接 ui_labels）。
-  const termBox = root.querySelector('.prog-legend--term .prog-legend-bars');
-  if (termBox) {
-    const termByDeg = {};
-    nodeList.forEach((n) => { const d = DEGREE_BY_LABELKEY[n.labelKey]; if (d && (n.termEn || n.termZh)) termByDeg[d] = { en: n.termEn || '', zh: n.termZh || '' }; });
-    termBox.innerHTML = ['bfa', 'mdes', 'bdes'].filter((d) => termByDeg[d]).map((d) =>
-      `<div class="prog-legend-bar seam-guard" data-degree="${d}"><span class="prog-legend-en">${esc(termByDeg[d].en)}</span><span class="prog-legend-zh" lang="zh-Hant">${esc(termByDeg[d].zh)}</span></div>`
+  // Term 期程 / Degree 學位 bar 都從後台建（掛在 degree 節點的 termEn/termZh、degreeEn/degreeZh），依 degree
+  //   key（bfa/mdes/bdes）；空＝不建該 bar。head「Term 期程 / Degree 學位」殼仍硬編在 about.html。
+  //   （2026-09-11：degree 名原硬編、現改吃後台＝老師可編，同 term 手法；bdes 掛在 bpaidc 節點。）
+  const buildLegendBars = (cardSel, enField, zhField) => {
+    const box = root.querySelector(`${cardSel} .prog-legend-bars`);
+    if (!box) return;
+    const byDeg = {};
+    nodeList.forEach((n) => { const d = DEGREE_BY_LABELKEY[n.labelKey]; if (d && (n[enField] || n[zhField])) byDeg[d] = { en: n[enField] || '', zh: n[zhField] || '' }; });
+    box.innerHTML = ['bfa', 'mdes', 'bdes'].filter((d) => byDeg[d]).map((d) =>
+      `<div class="prog-legend-bar seam-guard" data-degree="${d}"><span class="prog-legend-en">${esc(byDeg[d].en)}</span><span class="prog-legend-zh" lang="zh-Hant">${esc(byDeg[d].zh)}</span></div>`
     ).join('');
-  }
-  // legendBars[deg] = 該 degree 的所有 bar（term 段 + degree 段各一）：hover/tap 對應 degree 時一起展開＋上色
+  };
+  buildLegendBars('.prog-legend--term', 'termEn', 'termZh');
+  buildLegendBars('.prog-legend--degree', 'degreeEn', 'degreeZh');
+  // legendBars[deg] = { degree, term }：hover/tap 對應 degree 時展開＋上色。
+  // ⚠️ 展開/收起順序＝degree 先、term 後（user 2026-09-11）；DOM 順序 term 卡在上會先被選到，
+  //    故用 closest 判卡別分 slot、由 barsOf() 顯式排成 [degree, term]，不靠 querySelectorAll 順序。
   const legendBars = {};
-  root.querySelectorAll('.prog-legend-bar').forEach((el) => { (legendBars[el.dataset.degree] = legendBars[el.dataset.degree] || []).push(el); });
+  root.querySelectorAll('.prog-legend-bar').forEach((el) => {
+    const slot = legendBars[el.dataset.degree] || (legendBars[el.dataset.degree] = { degree: null, term: null });
+    slot[el.closest('.prog-legend--term') ? 'term' : 'degree'] = el;
+  });
+  const barsOf = (deg) => { const s = legendBars[deg]; return s ? [s.degree, s.term].filter(Boolean) : []; };
   // Term / Degree 是兩張獨立說明卡（user 2026-09-11：各自旋轉、桌面上下堆疊）；各自 clip-reveal + rndRot。
   const legendEls = [...root.querySelectorAll('.prog-legend')];
   // 旋轉走 transform:rotate（navChipHidden 讀它算旋轉後位移向量），非個別 rotate 屬性——否則 clip-reveal 位移不跟角度轉；
@@ -201,33 +211,55 @@ export async function initProgramStructure() {
   // 展開/收起「對應 degree」的 term+degree bar：由上往下推出＝GSAP 開合 height 0↔auto（overflow:hidden，
   //   比照 activities accordion，user 2026-09-11）。平常 bar display:none（不占寬、卡貼 title 殼），
   //   hover/tap 該 degree 才展開內容。⚠️ height 由 GSAP 每幀寫、CSS 不掛 transition:height（免雙重平滑 lag）。
+  // ⭐卡「長度」也 ease（user 2026-09-11：degree title 展開/收起別硬縮）：卡右緣固定（stack flex-end）、
+  //   左緣隨長度平滑。root cause＝`.prog-legend` width:max-content，bar display:none↔flex 當下寬度瞬跳
+  //   （收起＝只 head 短、展開＝含長 degree 名）→ 對卡本身顯式 tween width 與 height 同拍。
+  //   Wc＝收起寬（只 head）＝head.offsetWidth；We＝展開寬（含 bar）＝display:flex 後 card.offsetWidth。
   const LEG_DUR = 0.42;   // ≈ --dur-base，對齊 accordion 開合手感
-  function openBar(el, color) {
+  function widthTween(card, head, from, to, ease) {
+    if (!card || !head || Math.abs(to - from) < 0.5) return;   // 差 <0.5px（bar 比 head 窄）＝免動
+    gsap.killTweensOf(card);
+    gsap.fromTo(card, { width: from }, { width: to, duration: LEG_DUR, ease, onComplete: () => { card.style.width = ''; } });
+  }
+  function openBar(el, color, onDone) {
+    const card = el.closest('.prog-legend');
+    const head = card && card.querySelector('.prog-legend-head');
     el.classList.add('is-open');
     paint(el, color);
     el.style.display = 'flex';
-    if (!willAnimate) { el.style.height = ''; return; }
+    const we = card ? card.offsetWidth : 0;    // display:flex 已套→展開寬（含 bar）
+    const wc = head ? head.offsetWidth : we;   // 收起寬（只 title 殼）
+    if (!willAnimate) { el.style.height = ''; if (card) card.style.width = ''; if (onDone) onDone(); return; }
     gsap.killTweensOf(el);
-    gsap.fromTo(el, { height: 0 }, { height: 'auto', duration: LEG_DUR, ease: 'power2.out', onComplete: () => { el.style.height = ''; } });
+    gsap.fromTo(el, { height: 0 }, { height: 'auto', duration: LEG_DUR, ease: 'power2.out', onComplete: () => { el.style.height = ''; if (onDone) onDone(); } });
+    widthTween(card, head, wc, we, 'power2.out');   // 收起寬→展開寬（fromTo 先套 wc＝同 tick 不閃）
   }
   function closeBar(el, onDone) {
+    const card = el.closest('.prog-legend');
+    const head = card && card.querySelector('.prog-legend-head');
+    const we = card ? card.offsetWidth : 0;    // 當前寬（bar 仍 display:flex）
+    const wc = head ? head.offsetWidth : we;
     el.classList.remove('is-open');
-    if (!willAnimate) { el.style.display = 'none'; unpaint(el); if (onDone) onDone(); return; }
+    if (!willAnimate) { el.style.display = 'none'; if (card) card.style.width = ''; unpaint(el); if (onDone) onDone(); return; }
     gsap.killTweensOf(el);
     gsap.to(el, { height: 0, duration: LEG_DUR, ease: 'power2.in', onComplete: () => { el.style.display = 'none'; el.style.height = ''; unpaint(el); if (onDone) onDone(); } });
+    widthTween(card, head, we, wc, 'power2.in');    // 展開寬→收起寬（bar 收完 display:none 前寬度已到 head＝無末端瞬縮）
   }
   // ── 說明卡顯示協調（user 2026-09-11，比照 atlas hover 卡判斷）──
   //  ① 連續 hover「同一 degree」（＝同內容）→ 不收不開（legendDeg 相同 no-op），免收起再打開的閃爍。
   //  ② hover「不同 degree」→ 先收上一個、收完才開下一個（避免兩卡寬度不同時同時開合＝跳兩次）。
   //  legend 只顯示真 degree（bfa/mdes/bdes）；SCCD 無 degree → showLegend(null)＝收起。
   let legendDeg = null;   // 目前顯示的 degree（null＝收起）
-  function openDeg(deg) { if (deg) (legendBars[deg] || []).forEach((el) => openBar(el, DEGREE_COLOR[deg])); }
-  function closeDeg(deg, onDone) {
-    const els = (deg && legendBars[deg]) || [];
-    if (!els.length) { if (onDone) onDone(); return; }
-    let n = els.length;
-    els.forEach((el) => closeBar(el, () => { if (--n === 0 && onDone) onDone(); }));
+  // 依序跑：前一個 onComplete 才觸發下一個＝「degree 先、term 後」展開/收起（user 2026-09-11，barsOf 已排序）
+  function runSeq(els, action, onDone) {
+    let i = 0;
+    (function step() {
+      if (i >= els.length) { if (onDone) onDone(); return; }
+      action(els[i++], step);
+    })();
   }
+  function openDeg(deg) { if (deg) runSeq(barsOf(deg), (el, next) => openBar(el, DEGREE_COLOR[deg], next)); }
+  function closeDeg(deg, onDone) { runSeq(barsOf(deg), (el, next) => closeBar(el, next), onDone); }
   function showLegend(deg) {
     if (deg === legendDeg) return;              // 同內容：不收不開
     const prev = legendDeg;
@@ -236,7 +268,7 @@ export async function initProgramStructure() {
     closeDeg(prev, () => { if (legendDeg === deg) openDeg(deg); });  // 先收前一個、收完開下一個（期間又切走則不開）
   }
   // 只重畫已展開 bar 的顏色（不重播開合動畫）：給 mode 切換重畫用（見 onThemeChanged）
-  const repaintBars = (deg, color) => (legendBars[deg] || []).forEach((el) => { if (el.classList.contains('is-open')) paint(el, color); });
+  const repaintBars = (deg, color) => barsOf(deg).forEach((el) => { if (el.classList.contains('is-open')) paint(el, color); });
   function lineage(id) {
     const ids = new Set([id]);
     for (let p = NODES[id].parent; p && NODES[p]; p = NODES[p].parent) ids.add(p);          // 祖先鏈（NODES[p] 守衛防 stale parent）
@@ -460,10 +492,12 @@ export async function initProgramStructure() {
   }
 
   // ── 進場後 floating：atlas 式 wobble（translate 由 rest 往外漂再回 + rotate 微擺）；連綫端點跟漂移偏移 ──
-  // ponytail: 連續 rAF、不做離開視窗 pause（gate 會讓相位時鐘空轉→回捲時位置跳；~7 個合成元素成本可忽略、
-  //           tab 隱藏 rAF 本就停、離頁 cleanup 停）。真要省電才上 atlas 的 tOffset 暫停補償。
+  // 樹捲出視窗就暫停這條 rAF（user 2026-09-11：看不到就別做動畫——它每幀重寫 ~7 chip transform + SVG 連線座標，
+  //   常駐會跟其他頁面互動搶主執行緒，profiler 實測是 about 閒置時最大宗 about-specific 成本）。相位是絕對時間
+  //   的函數（t = now − _floatReadyAt），暫停期間 chip 凍在最後位置、恢復當幀會跳到「當下時間」的正弦值 → 恢復時
+  //   把暫停時長加回 _floatReadyAt（tOffset 補償）＝t 不變、無跳動。tab 隱藏 rAF 本就停、離頁 cleanup 停。
   // 各元素 reveal 完各自接管 floating（不等整條 cascade）：chip 記 _floatReadyAt(秒)、綫記 _floatReady、link 用 linksReady。
-  let floatRaf = 0, linksReady = false;
+  let floatRaf = 0, linksReady = false, floatPausedAt = 0;
   const RAMP = 0.8;   // 漂移淡入秒數，避免接管瞬間（translate 0）跳到隨機相位
   function drawLineFloat(le) {
     if (le.sx == null) return;
@@ -499,9 +533,18 @@ export async function initProgramStructure() {
   }
   function startFloat() {
     if (reduce || floatRaf) return;
+    if (floatPausedAt) {   // 恢復：暫停時長加回每顆 chip 的相位時鐘 → t 不變、恢復當幀不跳（見上方 tOffset 補償）
+      const shift = performance.now() / 1000 - floatPausedAt;
+      chips.forEach((b) => { if (b._floatReadyAt) b._floatReadyAt += shift; });
+      floatPausedAt = 0;
+    }
     floatRaf = requestAnimationFrame(floatTick);
   }
-  function stopFloat() { cancelAnimationFrame(floatRaf); floatRaf = 0; }
+  function stopFloat() {
+    if (!floatRaf) return;
+    cancelAnimationFrame(floatRaf); floatRaf = 0;
+    floatPausedAt = performance.now() / 1000;   // 記暫停時刻，供 startFloat 補償（離頁 cleanup 也會呼叫、無害）
+  }
 
   // ── chip clip-reveal tween＝數字 proxy 自組字串 ──
   // ⚠️ 勿改回 gsap fromTo 直接 tween `translate`/`clipPath` 字串：頁內情境偶發誤 parse（fromTo 起點被放大
@@ -600,9 +643,10 @@ export async function initProgramStructure() {
   const onResize = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => { readGap(); remeasure(); }); };
   window.addEventListener('resize', onResize);
 
-  // 進入視窗才觸發進場（once；說明卡排在 cascade 尾端，見 playEntrance）
+  // 進入視窗才觸發進場（once；說明卡排在 cascade 尾端，見 playEntrance）＋視窗閘：可見才跑 float、捲出就暫停。
   const io = new IntersectionObserver((entries) => {
-    if (entries.some((e) => e.isIntersecting)) playEntrance();
+    if (entries.some((e) => e.isIntersecting)) { playEntrance(); if (entered) startFloat(); }  // 首次 playEntrance 自己 startFloat；之後＝恢復
+    else stopFloat();   // 樹捲出視窗＝暫停浮動 rAF（看不到不做動畫）
   }, { threshold: 0.15 });
   io.observe(root);
 

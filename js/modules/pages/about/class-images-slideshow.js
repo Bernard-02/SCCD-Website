@@ -171,12 +171,11 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
     });
   }
 
-  // 依目前 slot 位置更新 cursor：slot 0 = default（不可點），其餘 = pointer
+  // 全部 slot 一律 pointer：click 是「含 slot 0」都觸發 shift（見 attachInteractions），
+  // 舊版 slot 0 = default 是「第一張不可點」時代的殘留（user 2026-09-12 指正）
   function updateCursors() {
-    slots.forEach((s, i) => {
-      s.style.cursor = i === 0
-        ? `url('${sitePath('custom-cursor/default.svg')}') 6 1, default`
-        : `url('${sitePath('custom-cursor/pointer.svg')}') 9 1, pointer`;
+    slots.forEach(s => {
+      s.style.cursor = `url('${sitePath('custom-cursor/pointer.svg')}') 9 1, pointer`;
     });
   }
 

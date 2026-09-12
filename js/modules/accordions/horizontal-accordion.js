@@ -216,7 +216,10 @@ export function initRotatedAccordion(wrapper, { animateEntry = false } = {}) {
       const lb = it.querySelector('.accordion-label');
       const tw = it.querySelector('.accordion-text-wrap');
       const iw = it.querySelector('.accordion-img-wrap');
-      // 清除 inline style，讓 CSS nth-child 規則接管
+      // 清除 inline style，讓 CSS nth-child 規則接管。
+      // ⚠️ item 也要清：hover 中點開卡片後 mouseleave 被 openIndex guard 短路，
+      // 母層黑 backstop 殘留 → 展開卡 AA 縫漏黑
+      it.style.background = '';
       if (lb) lb.style.background = '';
       if (tw) tw.style.background = '';
       if (iw) iw.style.background = '';
@@ -231,12 +234,16 @@ export function initRotatedAccordion(wrapper, { animateEntry = false } = {}) {
 
     item.addEventListener('mouseenter', () => {
       if (i === openIndex) return;
+      // 母層 backstop 同步變色（同 about tree .prog-titled 一整體思路）：只變子盒時
+      // 旋轉抗鋸齒邊緣會反漏 1px 母層 accent 縫；mode3 對應 color.css [style*="background"] 翻色規則
+      item.style.background = 'var(--theme-fg)';
       label.style.background = 'var(--theme-fg)';
       if (textWrap) textWrap.style.background = 'var(--theme-fg)';
       if (imgWrap) imgWrap.style.background = 'var(--theme-fg)';
     });
     item.addEventListener('mouseleave', () => {
       if (i === openIndex) return;
+      item.style.background = '';
       label.style.background = '';
       if (textWrap) textWrap.style.background = '';
       if (imgWrap) imgWrap.style.background = '';

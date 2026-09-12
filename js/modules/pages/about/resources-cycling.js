@@ -132,6 +132,16 @@ function initResourceSwitchers(root) {
 
     slides.forEach((s, i) => { s.style.position = 'absolute'; s.style.inset = '0'; s.style.zIndex = i === 0 ? '1' : '0'; });
     let idx = 0, hovering = false;
+    const item = sw.closest('.accordion-item');
+    const body = item?.querySelector('.accordion-body');
+
+    // 只在卡片「完全展開且靜止」時輪播（user 2026-09-11：打開/收合的過場當下 freeze、收合態不播）。
+    // 開合動畫的 tween 掛在 item(right)/body(width|height) 上（horizontal-accordion.js）→ isTweening 為真＝過場中；
+    // .active 由 applyLayout/openCard 在收合「開始」就移除＝一收即凍。（switcher 自己的 tween 掛在 .res-slide 子元素、不誤判）
+    function settledOpen() {
+      return !!item && item.classList.contains('active')
+        && !gsap.isTweening(item) && (!body || !gsap.isTweening(body));
+    }
 
     function go(next) {
       const incoming = slides[next];
@@ -141,10 +151,9 @@ function initResourceSwitchers(root) {
         onComplete: () => { slides[idx].style.zIndex = '0'; incoming.style.zIndex = '1'; gsap.set(slides[idx], { yPercent: 0 }); idx = next; },
       });
     }
-    const timer = setInterval(() => { if (!hovering) go((idx + 1) % slides.length); }, CYCLE_MS);
+    const timer = setInterval(() => { if (!hovering && settledOpen()) go((idx + 1) % slides.length); }, CYCLE_MS);
 
     // 桌面 hover 暫停（手機不綁；.accordion-item hover 才停，讓使用者看清當前那張）
-    const item = sw.closest('.accordion-item');
     if (item && window.matchMedia('(min-width: 768px)').matches) {
       item.addEventListener('mouseenter', () => { hovering = true; });
       item.addEventListener('mouseleave', () => { hovering = false; });

@@ -1767,3 +1767,51 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
 @media (max-width: 767px) {
   .dshow-hero-title { max-width: 86vw; }
 }
+
+/* About/Works 自製 playlist（about-data-loader.js renderPlaylist 產）：
+   播放器縮小、右側貼隨機三原色底的 16:9 縮圖清單（YouTube embed 開不出自家清單選單 → Data API 自建）。
+   結構：.works-video-row flex → player（aspect-video 定高）+ .works-playlist-list（stretch 跟播放器同高、
+   overflow:hidden 兼作 works cross-slide 動畫遮罩）→ 內層 .works-playlist-scroll absolute inset-0 內捲
+   （absolute＝不撐 row 高度，清單再長高度永遠跟播放器）。accent 底色設在 scroll 層（JS inline）：
+   它是動畫共同 target，色塊跟縮圖一起滑、外盒保持透明不留殘色。
+   :empty＝清單未渲染/無清單（MDES、API 失敗無 LKG）整欄收掉、播放器回滿寬。
+   scrollbar：scroll 層掛共用 .list-scroll hook（細黑 10px thumb，accent 底上對比 OK）；mode3 見 color.css。 */
+.works-video-row { display: flex; align-items: stretch; }
+.works-video-row .works-player-box { flex: 1 1 auto; min-width: 0; }
+/* margin-left:-1px＝蓋掉 flex sub-pixel rounding 在 player 右緣露出的 1px 底色縫（色塊往左多畫 1px，
+   蓋到影片邊緣無感；同 seam-guard 思路但這裡非旋轉盒、單邊 margin 即可） */
+.works-playlist-list { flex: 0 0 20%; position: relative; overflow: hidden; margin-left: -1px; }
+.works-playlist-list:empty { display: none; }
+/* 滑動層＝色底＋works cross-slide 動畫 target（捲動不在這層）。
+   捲動在內層 .works-playlist-inner、inset 退縮在色塊內＝scrollbar 貼內層右緣、離色塊邊緣 16px
+   不貼邊（同 vision 說明卡：捲動容器是內層盒非色卡本身）；縮圖右緣與 thumb 間再留 8px。 */
+.works-playlist-scroll {
+  position: absolute;
+  inset: 0;
+}
+.works-playlist-inner {
+  position: absolute;
+  inset: var(--spacing-sm);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  padding-right: var(--spacing-sm);   /* thumb↔縮圖距離＝縮圖間 gap 同寬（user 2026-09-12） */
+}
+.works-playlist-item {
+  display: block;
+  flex: 0 0 auto;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.works-playlist-item img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.works-playlist-item.is-active { outline: 2px solid #000; outline-offset: -2px; }
