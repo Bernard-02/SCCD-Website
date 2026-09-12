@@ -776,7 +776,7 @@ function mapDirectusAwardRow(row) {
     // 主辦單位／獎項類別／名次 2026-08-25 起改 repeater（可多筆 {en,zh}）；scalar 欄保留作舊資料 / records.json fallback。
     categories: Array.isArray(row.categories) ? row.categories.map(o => ({ en: o.en || '', zh: o.zh || '' })) : [],
     ranks: Array.isArray(row.ranks) ? row.ranks.map(o => ({ en: o.en || '', zh: o.zh || '' })) : [],
-    organizers: Array.isArray(row.organizers) ? row.organizers.map(o => ({ en: o.en || '', zh: o.zh || '' })) : [],
+    organizers: Array.isArray(row.organizers) ? row.organizers.map(o => ({ en: o.en || '', zh: o.zh || '', country: o.country || '' })) : [],
     award_en: row.categoryEn || '', award: row.categoryZh || '',
     rank_en: row.rankEn || '', rank: row.rankZh || '',
     // winners repeater（可多人）→ normalizeWinners 認得的 {en,zh} 陣列；沒填時給空陣列，
@@ -964,10 +964,10 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     }
 
     // award row 與 ref 列共用同一組欄位模板，確保「ref label 對齊競賽名稱欄、ref title 對齊主辦單位欄」（user 2026-06-13 六輪）。
-    // 7 欄：flag(1.5em) 競賽名稱(2.5fr) 主辦單位(2fr) 獎項(1.5fr) 名次(1fr) 得獎人(1fr) ref鈕(1.5em)
-    // 主辦單位欄是把原 4.5fr 競賽欄拆成 2.5+2，其餘欄位比例不變。
-    // cell gap 矮橫向縮 1rem（窄卡 2rem×6 吃掉太多欄寬）；gate 每次 init 判一次、跨 gate 轉向靠 orientation-reload
-    const AWARD_GRID = `grid-template-columns: 1.5em 2.5fr 2.5fr 1.3fr 1fr 1fr 1.5em; gap: 0 ${isShortLandscape() ? '1rem' : '2rem'};`;
+    // 6 欄（user 2026-09-12 移除「獎項／分類」欄，把它的 1.3fr 併給競賽名稱→加寬 title）：
+    //   flag(1.5em) 競賽名稱(3.8fr) 主辦單位(2.5fr) 名次(1fr) 得獎人(1fr) ref鈕(1.5em)
+    // cell gap 矮橫向縮 1rem（窄卡吃太多欄寬）；gate 每次 init 判一次、跨 gate 轉向靠 orientation-reload
+    const AWARD_GRID = `grid-template-columns: 1.5em 3.8fr 2.5fr 1fr 1fr 1.5em; gap: 0 ${isShortLandscape() ? '1rem' : '2rem'};`;
     // ref 展開列：版型沿用 list-ref-btn（hover 黑底），但 grid 改用 AWARD_GRID 對齊主表 —
     // 箭頭 icon 落國旗欄(col 1)、label/title 從「競賽名稱」欄(col 2)起算往右展開對齊 award 名稱。
     const escAttr = s => String(s || '').replace(/"/g, '&quot;');
@@ -1035,6 +1035,13 @@ async function initAwardsPanel(onEntranceDoneCallback) {
           // 主辦單位／獎項類別／名次：repeater（可多筆）→ 統一成陣列（scalar 舊資料當單筆）。
           // 空資料也渲染空 cell 保持欄位結構（auto-flow 不錯位、各列對齊點一致）。user 2026-06-13 六輪。
           const organizers = toBiList(item.organizers, item.organizer_en, item.organizer);
+          // 主辦方（國家）：每個主辦方後綴自己的國家（organizers repeater 子欄 country，存 ISO code）——
+          // ZH 全形「（國家名）」、EN 半形「 (CODE)」，對齊 press 面板 formatMediaWithCountry 慣例（user 2026-09-12）。
+          // 無 country（含 records.json 舊 scalar fallback）則不加尾綴。
+          const organizersDisplay = organizers.map(o => ({
+            en: o.en ? `${o.en}${o.country ? `&ensp;(${String(o.country).toUpperCase()})` : ''}` : '',
+            zh: o.zh ? `${o.zh}${o.country ? `（${countryName(o.country, 'zh')}）` : ''}` : '',
+          }));
           const categories = toBiList(item.categories, item.award_en, item.award);
           const ranks = toBiList(item.ranks, item.rank_en, item.rank);
           const flat = (arr) => arr.map(o => `${o.en} ${o.zh}`).join(' ');
@@ -1076,8 +1083,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
                 <div style="padding-top: 0.1em;">${item.flag ? `<span class="fi fi-${item.flag}" style="width:1.5em;height:1em;display:inline-block;"></span>` : ''}</div>
                 <div class="award-mid">
                   <div class="truncate flex flex-col" role="heading" aria-level="3">${bilingualBold(item.competition_en, item.competition)}</div>
-                  ${hmarqueeCell(organizers)}
-                  ${hmarqueeCell(categories)}
+                  ${hmarqueeCell(organizersDisplay)}
                   ${hmarqueeCell(ranks)}
                 </div>
                 <div class="award-winners flex flex-col" style="min-width:0;">${buildWinnersHtml(winners)}</div>
@@ -1361,12 +1367,14 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         tickerStarted = true;
         setTimeout(tickerSlideIn, chromeStartRemaining());  // §46：ready 即滑入、只等 chrome 起跑那刻（撤 §42 等整個 busy 窗＝看起來在等 list）
         if (typeof gsap !== 'undefined') {
-          gsap.to([t1, t2], { x: `-=${trackW}`, ease: 'none', duration: trackW / 80, repeat: -1 });
+          // 往右捲（user 2026-09-12）：dual-copy 先整體左移一個 track（t2 填滿視窗）再滑回 0＝內容往右、t1 由左緣無縫接入。
+          // ⚠️ 直接把 -= 改 += 會在左緣露空白（左邊沒副本可補）；改用 fromTo(-trackW → 0) 讓另一份副本永遠覆蓋左緣。
+          gsap.fromTo([t1, t2], { x: -trackW }, { x: 0, ease: 'none', duration: trackW / 80, repeat: -1 });
           // ticker 單純等速跑、無 hover 互動（user 2026-06-09 移除：hover 減速 + hover 圖片 dim 兩效果）
         } else {
-          // Fallback: 環境沒讀到 GSAP 用 CSS 動畫
+          // Fallback: 環境沒讀到 GSAP 用 CSS 動畫（同往右：from -trackW → to 0）
           const style = document.createElement('style');
-          style.textContent = `@keyframes awards-ticker { from { transform: translateX(0); } to { transform: translateX(-${trackW}px); } }`;
+          style.textContent = `@keyframes awards-ticker { from { transform: translateX(-${trackW}px); } to { transform: translateX(0); } }`;
           document.head.appendChild(style);
           tickerWrapper.style.animation = `awards-ticker ${Math.round(trackW / 80)}s linear infinite`;
         }

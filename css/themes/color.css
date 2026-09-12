@@ -498,7 +498,7 @@ body.mode-color .list-header[style*="background"] + .list-content .border-black 
  *   theme-toggle.js 依 hue 設 rgba(255,255,255, 亮 hue 0.4 / 暗 hue 0.15)）→ 透出 page hue 但仍是「看得見的卡片面」，
  *   跟 activities list 視覺一致。**先前試 `background: transparent`（全透明）user 反映「卡片都沒顏色了」＝卡片消失，故改淡疊色**。
  *   不做 zebra 交叉（卡片是分離方塊，uniform 一律同一淡疊色）。**只動 mode3**——mode1/2 維持原本灰卡（base courses.css
- *   rgba(0,0,0,0.06) / inverse.css 灰底，不在此檔、未動）。
+ *   var(--light-gray) #f2f2f2（2026-09-12 全站淺灰統一，原 rgba(0,0,0,0.06)）/ inverse.css 灰底，不在此檔、未動）。
  *   下面舊註解講的 neutral-gray 已不適用 mode-color rest（保留說明 hover/active 與 mode1/2 脈絡）：
  * 預設 bg：var(--theme-neutral-gray)（theme-toggle.js 依 page bg luminance 設）
  *   - 亮 hue → var(--gray-9) #E6E6E6（最淺灰，對齊 mode1 標準色 rgba(0,0,0,0.06) on white ≈ #F0F0F0 視覺）
@@ -517,6 +517,17 @@ body.mode-color .courses-grid-card:not([style*="background"]) {
 body.mode-color .courses-grid-card[style*="background"] {
   background: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
+}
+
+/* Sitemap 卡編號 box（user 2026-09-12「mode3 不要分灰色，直接都是半透明白」）：
+ * box 同卡片 rest 的半透明白（疊在卡上自然亮一階＝mode3 zebra 慣例），數字跟卡片字色走 theme-fg；
+ * hover 卡翻黑（theme-fg）時數字翻白（theme-fg-inverse）維持可讀。 */
+body.mode-color .legal-map-num {
+  background: var(--list-zebra-strip, rgba(255, 255, 255, 0.15));
+  color: var(--theme-fg);
+}
+body.mode-color .legal-map-card[style*="background"] .legal-map-num {
+  color: var(--theme-fg-inverse);
 }
 
 /* Alumni sponsor 卡片 — 對齊 courses-grid-card mode-color pattern：

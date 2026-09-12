@@ -439,9 +439,9 @@
   row-gap: var(--space-en-zh-xs);
 }
 
-/* award item 中間欄 wrapper（競賽+主辦單位+獎項+名次）：桌面 display:contents 透明 →
-   四 cell 直接落進 7 欄 grid（flag|競賽|主辦單位|獎項|名次|得獎人|ref鈕）；
-   手機（max-width:767）改 flex column 讓四項獨立 stack、不被得獎人多列高撐開（見 mobile 區，2026-06-10 #2）*/
+/* award item 中間欄 wrapper（競賽+主辦單位+名次；獎項/分類欄 2026-09-12 已移除）：桌面 display:contents 透明 →
+   三 cell 直接落進 6 欄 grid（flag|競賽|主辦單位|名次|得獎人|ref鈕）；
+   手機（max-width:767）改 flex column 讓三項獨立 stack、不被得獎人多列高撐開（見 mobile 區，2026-06-10 #2）*/
 #library-awards-list .award-mid {
   display: contents;
 }

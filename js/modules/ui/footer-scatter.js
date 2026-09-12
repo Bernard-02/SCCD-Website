@@ -21,6 +21,7 @@ import { setupClipReveal, playClipReveal, playRevealExit } from './scroll-animat
 import { awaitLayoutReady } from './await-layout-ready.js';
 import { DUR, EASE } from './motion.js';
 import { prefersReducedMotion } from './reduce-motion.js';
+import { bindArrowSpin } from './arrow-spin.js';   // footer 分類 tab hover 隨機轉、離開再抽新角
 // footer logo 退場 2026-07-15 改 hero clip-reveal（area 遮罩＋inner yPercent），不再用 header bars 的
 // clip-path wipe（原 user 2026-06-07「同 header logo 法」；header logo 同日也改滑動，兩邊仍一致）
 
@@ -605,15 +606,23 @@ async function switchFooterGroup(footer, group) {
   }
 }
 
-// 綁 tab click（persistent，dataset guard 防 reinit 重綁）+ 一次性隨機微旋轉 ±3°（排除 0，呼應散佈卡傾斜）。
-// 旋轉一次性（不在每次 tab 切換重抽，免點擊時角度跳動）；跨 tab 切換 unwrapFooterAnim 不清 .footer-tab 故持久。
+// 綁 tab click（persistent，dataset guard 防 reinit 重綁）+ 隨機微旋轉（呼應散佈卡傾斜）。
+// hover 抽隨機角、離開直接定案該角（user 2026-09-12：一次 hover 只轉一次，撤「離開再抽新角」）——走全站 arrow-spin
+// （桌面 only gate 內建，手機/平板不觸發＝維持原「不旋轉」）；transform transition 由 footer.css .footer-tab 備妥。
+// 初始一次性 ±[1,3]° 當 committed 起點；跨 tab 切換 unwrapFooterAnim 不清 .footer-tab 故持久。
 function bindFooterTabs(footer) {
   footer.querySelectorAll('.footer-tab').forEach((t) => {
     const el = /** @type {HTMLElement} */ (t);
     if (el.dataset.tabBound) return;
     el.dataset.tabBound = '1';
-    const deg = (Math.random() < 0.5 ? -1 : 1) * rand(1, 3);   // ±[1,3]°，保證非 0
-    el.style.transform = `rotate(${deg.toFixed(2)}deg)`;
+    const initial = (Math.random() < 0.5 ? -1 : 1) * rand(1, 3);   // ±[1,3]°，保證非 0
+    el.style.transform = `rotate(${initial.toFixed(2)}deg)`;   // 靜止傾斜（arrow-spin 只在 hover/leave 才重繪，需先畫出起始角）
+    let lastDeg = initial, hoverDeg = initial;
+    const spin = bindArrowSpin(el, (d) => { lastDeg = d; el.style.transform = `rotate(${d}deg)`; }, { initial });
+    // 這兩個 listener 綁在 arrow-spin 之後：enter 時 lastDeg 已被 arrow-spin 寫成預覽角；
+    // leave 時 arrow-spin 先回寫舊定案角，同幀再 commit(hoverDeg) 蓋回 → 視覺停在 hover 角、離開不再轉
+    el.addEventListener('mouseenter', () => { hoverDeg = lastDeg; });
+    el.addEventListener('mouseleave', () => spin.commit(hoverDeg));
     el.addEventListener('click', () => switchFooterGroup(footer, el.dataset.fgroup || 'dept'));
   });
 }

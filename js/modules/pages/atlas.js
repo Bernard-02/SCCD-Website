@@ -2024,7 +2024,8 @@ export async function initAtlas(options = {}) {
       //   ⚠️ 只動 transform 走 compositor；禁用 clip-path（每幀 full repaint＝卡頓源，memory 明令勿回退）。
       //   ⚠️ marquee 動更內層 .atlas-marquee-inner，與 cell 不同元素、不撞（memory gsap_nullifies_css_individual_transform）。
       //   ⚠️ 方向每列只抽一次、同列 3 cell 共用（列讀作一個 item 不撕裂）；分開對 x/y 抽會湊出對角線。
-      const pickDir = () => DETAIL_HIDDEN_OFFSETS[Math.floor(Math.random() * DETAIL_HIDDEN_OFFSETS.length)];
+      // user 2026-09-12：城市卡內容切批只上下進場（前兩個 offset＝yPercent ±110），不要左右
+      const pickDir = () => DETAIL_HIDDEN_OFFSETS[Math.floor(Math.random() * 2)];
       const rowCells = () => [...descEl.querySelectorAll('.atlas-detail-row')]
         .map(rowEl => [...rowEl.querySelectorAll('.atlas-detail-cell')])
         .filter(cells => cells.length);
@@ -2130,7 +2131,9 @@ export async function initAtlas(options = {}) {
         // 系友環（2026-09-09 兩區設計）：Hosted/Joined by Alumni 描述搬進黑頭（bold 白字）；
         //   三原色身＝title＋國家（有填才顯示，EN ISO 碼、ZH 中文全名，同 list 副標慣例；title 緊貼國家走 s token）。
         const isHost = String(item.id).split('-')[0] === 'co';
-        setDetailHead(isHost ? 'Hosted by Alumni' : 'Joined by Alumni', isHost ? '系友主持' : '系友就職');
+        // 關係類別文字走後台 ui_labels（key=atlas.detail.host / atlas.detail.employ）；缺/離線 fallback 硬編（同 faculty.type）
+        const hk = atlasUiLabels && atlasUiLabels[isHost ? 'atlas.detail.host' : 'atlas.detail.employ'];
+        setDetailHead((hk && hk.en) || (isHost ? 'Hosted by Alumni' : 'Joined by Alumni'), (hk && hk.zh) || (isHost ? '系友主持' : '系友就職'));
         if (item._countryCode) {
           nameEl.style.marginBottom = 'var(--space-en-zh-s)';   // title 是 s 級 → 跟 s token 連動（原寫死 2px）
           const countryEn = document.createElement('div');
@@ -2149,7 +2152,8 @@ export async function initAtlas(options = {}) {
           // 合作單位（2026-09-09 兩區設計；同日二改）：黑頭＝Partners 合作單位（bold）；
           //   三原色身＝單位 title＋國家（_listCountryEn/Zh，list 副標同源）；
           //   類型（Workshop 工作營／產學合作）改「ref 式底部帶」＝deep accent 底黑字（同 .list-ref-btn），bg 配對卡片當前 accent。
-          setDetailHead('Partners', '合作單位');
+          const pk = atlasUiLabels && atlasUiLabels['atlas.partners'];
+          setDetailHead((pk && pk.en) || 'Partners', (pk && pk.zh) || '合作單位');
           if (footEl && (item._listTypeEn || item._listTypeZh)) {
             const mk = (text, zh) => { const s = document.createElement('span'); if (zh) s.lang = 'zh-Hant'; s.textContent = text; return s; };
             if (item._listTypeEn) footEl.appendChild(mk(item._listTypeEn, false));
@@ -4766,7 +4770,7 @@ export async function initAtlas(options = {}) {
     });
   }
 
-  function applyMapFilter(animate = false) {
+  function applyMapFilter(animate = false, slideReveal = false) {
     const allowed = new Set();
     selected.forEach(k => (FILTER_PREFIXES[k] || []).forEach(p => allowed.add(p)));
 
@@ -4847,11 +4851,21 @@ export async function initAtlas(options = {}) {
         },
       });
     });
+    // 先一次 un-hide 全部（純寫）→ 再建 tween；slideReveal 分支要讀 offsetWidth（bChipHidden），
+    // 讀寫分離免「移除 display:none→立刻讀」的逐項 forced-reflow thrash（memory activities 效能戰役）。
     toShow.forEach(item => {
       item._anchor.classList.remove('atlas-filtered-out');
       (itemLines.get(item.id) || []).forEach(syncLineDisplay);
-      gsap.set(item._span, { clipPath: randomHiddenInset() });
+    });
+    toShow.forEach(item => {
       const d = Math.random() * RANGE;
+      // slideReveal（篩選後切 list 的 restore-first）：item 位移滑入＝clip-reveal「飛回星雲」
+      //   （user 2026-09-12：不要原地 clip-path 擦除）；沿用 co 環 hero clip-reveal helper（translate+clip 同步）。
+      if (slideReveal) {
+        bChipRevealTween(item._span, randomBDir(), 'show', { duration: TOTAL - d, delay: d, ease: EASE.enterSoft });
+        return;
+      }
+      gsap.set(item._span, { clipPath: randomHiddenInset() });
       gsap.to(item._span, {
         clipPath: 'inset(0% 0% 0% 0%)',
         duration: TOTAL - d,
@@ -5589,9 +5603,10 @@ export async function initAtlas(options = {}) {
       subchipActive.employ = true;
       Object.values(subchipMap).forEach(c => c && c.classList.remove('subchip-inactive'));
       // currentView 已在函式開頭設 'list' → apply(true) 會分流到 applyListFilter、星雲 chip 永遠不會還原
-      // （被篩掉的 chip 直接在 list 端憑空出現）→ 直呼 map 版：既有 clip 四向 show 動畫＝restore 視覺
+      // （被篩掉的 chip 直接在 list 端憑空出現）→ 直呼 map 版做 restore 視覺；
+      // slideReveal=true：restore 的 item 用 clip-reveal 位移滑入「飛回星雲」（user 2026-09-12），不用 clip-path 原地擦除
       btns.forEach(b => b.classList.toggle('active', selected.has(b.dataset.filter)));
-      applyMapFilter(true);
+      applyMapFilter(true, true);
       updateFilterBtnColors();
       syncCareer();
       restoreDelay = RESTORE_DUR;

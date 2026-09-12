@@ -26,8 +26,8 @@
     display: inline-block;
     max-width: 0;
     overflow: hidden;
-    margin-left: 0.5rem;    /* 離英文約兩個空格（靜態＝揭露起點） */
-    margin-right: -0.5rem;  /* 收合態抵銷上行、不佔位 */
+    margin-left: 0.25rem;    /* 離英文一個空格（靜態＝揭露起點） */
+    margin-right: -0.25rem;  /* 收合態抵銷上行、不佔位 */
     vertical-align: middle;
     white-space: nowrap;
     transition: max-width var(--dur-fast) var(--ease-wipe),

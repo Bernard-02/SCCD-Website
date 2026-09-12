@@ -341,6 +341,11 @@ async function exitStandby() {
   if (!isStandby || isTransitioning) return;
   isTransitioning = true;
 
+  // 待機離場時原頁內容也 fade in（user 2026-09-12）：此刻仍被不透明 overlay 蓋住 → 同步壓 opacity:0
+  // 不會閃，再與 overlay fade out 同時 crossfade 回來（背景色都是 --theme-bg → 底不破）。
+  const pageContent = /** @type {HTMLElement|null} */ (document.getElementById('page-content'));
+  if (!isOnAtlas() && pageContent) pageContent.style.opacity = '0';
+
   // logo 還原 size + atlas fade out 並行
   const logoRestorePromise = tweenLogoRestore();
 
@@ -354,7 +359,14 @@ async function exitStandby() {
     await fadeAtlasMain(0);
   })();
 
-  await Promise.all([logoRestorePromise, atlasFadeOutPromise]);
+  // 原頁內容 0→1，與 overlay 1→0 同步 crossfade（fadeEl 同 DUR.reveal / ease）
+  const pageFadeInPromise = (async () => {
+    if (isOnAtlas() || !pageContent) return;
+    await fadeEl(pageContent, 1);
+  })();
+
+  await Promise.all([logoRestorePromise, atlasFadeOutPromise, pageFadeInPromise]);
+  if (pageContent) pageContent.style.opacity = '';   // 清掉 inline opacity，不殘留干擾後續換頁/主題過場
 
   // ── 先「露出 index」：移除 body class + 還原 logo（同步：使用者碰 header 前 logo 要就位）──
   document.body.classList.remove('idle-standby');

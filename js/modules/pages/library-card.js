@@ -405,7 +405,27 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   //   `if (isSwitching) return` 吞掉（點擊不經 hover 所以可點）。解鎖對每張 :hover 的非 active 卡合成套 hover；mouseleave 既有 handler 復原。
   function syncHoverAfterUnlock() {
     allEls.forEach(el => { if (el !== activeEl && !el.dataset.cardPending && el.querySelector('.color-rect-title') && el.matches(':hover')) applyCardHover(el); });
+    // #3 (user 2026-09-12)：色塊變小的切分頁動畫完成後，游標若仍停在「下一分頁」箭頭上，補套下一目標色塊的黑底白字預覽
+    //   （靜止游標下 mouseenter 不會重 fire；:hover pseudo-class 仍準，同上面 allEls 的判法）。
+    if (nextBtnEl && !isSwitching && nextBtnEl.matches(':hover')) previewNextTarget();
   }
+
+  // #4 (user 2026-09-12)：色塊 hover 隨機轉一個角度。
+  //   ⚠️ user 二輪修正：①幅度不要相差太大→範圍收窄成 ±3（原 −4~+6 的 10° 擺幅太誇張）；
+  //   ②「有時候旋轉兩次」＝原本 enter+leave 各轉一次＝一次 hover 兩轉（放開那次還會讓卡邊移出游標、再觸發 enter 抖動）
+  //     → 改成**只在 mouseenter 轉一次**（leave 不再轉），每次 hover 吃一個新角、不重複。
+  //   必須寫回**完整 transform 字串**保留 `translate(-50%, -50%)` 前綴 + 單一 rotate()——morph 的 hiddenTranslate /
+  //   parseRotDeg 靠 regex `/rotate\((-?[\d.]+)deg\)/` 讀當前角，破壞前綴會讓 morph 幾何算錯。
+  //   角度規範：範圍 ±3（收窄自 −4~+6），且跟「當前角」至少差 1.5°——保證每次 hover 都看得到轉、又不會忽大忽小亂跳。
+  const cardSpinRand = (/** @type {number} */ cur) => {
+    let r = cur, guard = 0;
+    while ((Math.abs(r - cur) < 1.5 || Math.abs(r) > 3) && guard++ < 30) r = +(Math.random() * 6 - 3).toFixed(2);
+    return r;
+  };
+  const spinCard = (/** @type {HTMLElement} */ el) => {
+    const cur = parseFloat((el.style.transform.match(/rotate\(([-\d.]+)deg\)/) || [])[1]) || 0;
+    el.style.transform = `translate(-50%, -50%) rotate(${cardSpinRand(cur)}deg)`;
+  };
 
   function attachHover(el) {
     const titleEl = document.createElement('div');
@@ -417,6 +437,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
       //   否則 mouseenter 寫 bg 黑（被灰 overlay 蓋住看不見）＋ title 色（在 overlay 之上立刻變）＝「marquee 變了、顏色沒變」。點擊照舊可點。
       if (isSwitching || el === activeEl || el.dataset.cardPending) return;
       applyCardHover(el);
+      spinCard(el);   // #4：hover 進來抽一個新角度
     });
     el.addEventListener('mouseleave', () => {
       // §26 bug 修：pending（縮小中/上色擦除前）的色塊必須維持灰——colorOf 在切換起手就已是新色，
@@ -425,6 +446,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
       el.style.background = colorOf.get(el);
       el.style.zIndex     = String(baseZOf.get(el) ?? 1);
       titleEl.style.color = '#000';
+      // #4：離開「不」再轉（user 二輪：避免一次 hover 轉兩次）——只 enter 轉；卡片維持 hover 那次的角度到下次 hover。
     });
   }
 
@@ -1178,6 +1200,18 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   // playExitAnimation heroExitCard 收；user 2026-08-23 指定非 fade）。
   const TAB_ORDER = ['awards', 'files', 'press', 'album'];  // award → document → press → album
   let nextBtnEl = null;
+  // #3 (user 2026-09-12)：箭頭 hover＝預覽下一分頁色塊（applyCardHover 黑底白字）。抽成 function-scope helper，
+  //   讓「色塊變小的切分頁動畫完成後、游標仍停在箭頭上」時由 syncHoverAfterUnlock 補套（靜止游標下 mouseenter 不會重 fire）。
+  let btnHoverTarget = null;
+  function previewNextTarget() {
+    if (!nextBtnEl || isSwitching) return;
+    const cur  = tabOf.get(activeEl);
+    const next = TAB_ORDER[(TAB_ORDER.indexOf(cur) + 1) % TAB_ORDER.length];
+    const target = allEls.find(el => el !== activeEl && tabOf.get(el) === next);
+    if (!target || target.dataset.cardPending) return;
+    btnHoverTarget = target;
+    applyCardHover(target);
+  }
   {
     const sectionEl = stack.closest('section');
     nextBtnEl = document.createElement('button');
@@ -1201,18 +1235,10 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     const nextInner = /** @type {HTMLElement|null} */ (nextBtnEl.querySelector('.tl-icon-btn-inner'));
     if (nextInner) bindArrowSpin(nextBtnEl, (/** @type {number} */ d) => { nextInner.style.transform = `rotate(${d}deg)`; });
 
-    // hover 箭頭＝預覽將切往的色塊：對目標卡套與直接 hover 相同的樣式（黑底＋置頂），離開還原。
+    // hover 箭頭＝預覽將切往的色塊（previewNextTarget，見上）；離開還原。
+    // btnHoverTarget 已提升到 function scope（供 syncHoverAfterUnlock 在切分頁動畫完成後補套預覽）。
     // 點擊後 target 變 activeEl / pending → mouseleave 的 guard 同色塊本身的 handler，不會誤還原。
-    let btnHoverTarget = null;
-    nextBtnEl.addEventListener('mouseenter', () => {
-      if (isSwitching) return;
-      const cur  = tabOf.get(activeEl);
-      const next = TAB_ORDER[(TAB_ORDER.indexOf(cur) + 1) % TAB_ORDER.length];
-      const target = allEls.find(el => el !== activeEl && tabOf.get(el) === next);
-      if (!target || target.dataset.cardPending) return;
-      btnHoverTarget = target;
-      applyCardHover(target);
-    });
+    nextBtnEl.addEventListener('mouseenter', previewNextTarget);
     nextBtnEl.addEventListener('mouseleave', () => {
       const el = btnHoverTarget;
       btnHoverTarget = null;

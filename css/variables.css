@@ -38,6 +38,11 @@
   --gray-9: #E6E6E6;   /* 最淺灰 */
   --gray-10: #FFFFFF;  /* 白色 */
 
+  /* 「淺灰色」／「深灰色」（user 語彙，2026-09-12 拍板）＝全站淺灰卡／深灰卡統一色（library 灰卡兩階同源）。
+     新灰底元件一律用這兩個，勿再用 rgba(0,0,0,0.06) 透明黑或散用 gray-N。 */
+  --light-gray: #f2f2f2;
+  --dark-gray: #333333;
+
 
   /* ===== Typography ===== */
 
@@ -189,7 +194,7 @@
    * inverse mode 在 themes/inverse.css 蓋成深灰底（#434343）+ 白字
    * --lib-fg-rgb 是 RGB 三元組，給半透明文字 rgba(var(--lib-fg-rgb), X) 用
    */
-  --lib-bg: #f2f2f2;
+  --lib-bg: var(--light-gray);
   --lib-fg: #000000;
   --lib-fg-rgb: 0, 0, 0;
 }

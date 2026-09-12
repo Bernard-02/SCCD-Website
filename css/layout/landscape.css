@@ -1543,10 +1543,10 @@
   body .footer-privacy .footer-copyright {
     margin-top: auto;
   }
-  /* 無障礙標章 placeholder：矮橫向跟手機直向一樣顯示（footer.css base 是 display:none、只在 max-width:767 開，
-     844 寬橫向機吃不到 → 這裡補開） */
+  /* 無障礙標章 placeholder：正式標章拿到前全域隱藏（user 2026-09-12「先 hide」，footer.css base 已 display:none）；
+     矮橫向也維持隱藏，拿到標章要重開時三處一起（footer.css base + 此處）。 */
   body .footer-a11y-badge {
-    display: block;
+    display: none;
   }
   /* 桌面 accent 卡黑字是配 JS 設的亮底色；手機路徑 JS 不設 bg → 黑底上黑字看不到 → 還原白字、拔 padding */
   body .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-unit) {

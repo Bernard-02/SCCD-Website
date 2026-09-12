@@ -391,6 +391,7 @@ function openCourseSlideIn(card) {
       bindArrowSpin(backBtn, d => { backBtn.style.transform = `rotate(${d}deg)`; });
     }
     /** @type {any} */ (backBtn)._arrowSpin.reroll();   // 每次開啟抽新微傾角（全站統一 −4~+6）
+    backBtn.style.transition = '';   // 還原 hover 旋轉的 CSS transition（close 時暫設 none 讓返回鍵追平 panel 平移）
     if (typeof gsap !== 'undefined' && !prefersReducedMotion() && window.innerWidth >= 768) {
       backInner = backBtn.querySelector('.slide-in-back-square-inner');
       backHidden = BACK_DIRS[Math.floor(Math.random() * BACK_DIRS.length)];
@@ -467,16 +468,20 @@ export function closeCourseSlideIn() {
   const dimBg = htmlEl.classList.contains('mode-inverse') ? '#000000' : '#333333';
   htmlEl.classList.add('has-slide-in');
 
-  const backInner = document.querySelector('#courses-back-btn-desktop .slide-in-back-square-inner');
+  const backBtn = document.getElementById('courses-back-btn-desktop');
   if (typeof gsap !== 'undefined') {
     const tl = gsap.timeline()
       .to(panel, { x: '110%', duration: DUR.medium, ease: EASE.exit }, 0)
       .to(htmlEl, { '--slide-bg-color': dimBg, duration: DUR.medium, ease: EASE.exit }, 0)
       .to(overlay, { opacity: 0, duration: DUR.fast }, 0.5)
       .to(htmlEl, { '--slide-bg-color': targetBg, duration: DUR.fast }, 0.5);
-    // 返回鍵跟 panel 同步 clip-reveal 退場（inner 沿進場方向滑回被遮罩剪掉；panel 退場 offset 0）
-    if (backInner && !prefersReducedMotion() && window.innerWidth >= 768) {
-      tl.to(backInner, { ...backHidden, duration: DUR.medium, ease: EASE.exit }, 0);
+    // 返回鍵跟 panel 一起往右滑出（user 2026-09-12：不自己做方向 clip-reveal 退場，改跟卡片同步平移收起）。
+    // 平移外層 .slide-in-back-square（非 inner——inner 會被 overflow:clip 剪掉、只消失不跟卡片走）；距離＝panel x:110% 的像素量（用 panel 寬）；
+    // transition 暫關避免追不上 GSAP 逐幀寫入；fromTo 明寫 x:0 起點避開 arrow-spin inline transform 造成的 cache 失準。
+    if (backBtn && !prefersReducedMotion() && window.innerWidth >= 768) {
+      backBtn.style.transition = 'none';
+      const travel = panel.getBoundingClientRect().width * 1.1;
+      tl.fromTo(backBtn, { x: 0 }, { x: travel, duration: DUR.medium, ease: EASE.exit }, 0);
     }
     tl.call(() => {
         slideIn.classList.add('invisible', 'pointer-events-none');

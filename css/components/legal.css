@@ -531,7 +531,7 @@
     grid-row: 1 / -1;
     align-self: start;
     font-weight: var(--font-weight-bold);
-    padding-top: 8px;   /* 對齊首列文字（cell 有上 padding 8px，見下） */
+    padding-top: var(--spacing-sm);   /* 對齊首列文字（cell 上 padding 已改 --spacing-sm，跟著走） */
   }
   /* sticky 只在 list-content overflow:visible（開合動畫完）時生效（user 2026-09-09d bug1「類別會移動」）：
      開/收動畫期間 content overflow:hidden＝content 變 scroll container → sticky 改對 content 定位、
@@ -567,11 +567,12 @@
   /* 列＝完整 ref 設計（user 2026-09-10，取代 09-09e「hover 才 deep 色帶」）：
      rest＝deep 底黑字（同 .list-ref-btn rest：--item-color-deep＝該 accordion accent 的深色）、
      hover＝黑底白字（同 .list-ref-btn hover）。類別欄不變（展開 accent 底）。
-     ref 式排列（09-09f）：列間 row-gap 0、垂直間距全由 cell 上下 padding 8px 提供（進色帶＝鄰列相接無縫）；
-     水平仍用負 margin 抵銷（box 往 column-gap 溢出、track 佈局不變）。 */
+     ref 式排列（09-09f）：列間 row-gap 0、垂直間距全由 cell 上下 padding 提供（進色帶＝鄰列相接無縫）；
+     水平仍用負 margin 抵銷（box 往 column-gap 溢出、track 佈局不變）。
+     上下 padding＝--spacing-sm（16px）＝跟 activities .list-ref-btn 的 py-sm 對齊（user 2026-09-12「做跟 activities 一樣」）；左右仍 8px 基底。 */
   .legal-reg-name,
   .legal-reg-unit {
-    padding: 8px;
+    padding: var(--spacing-sm) 8px;
     margin: 0 -8px;
     background: var(--item-color-deep, transparent);
     color: black;
@@ -689,10 +690,24 @@
     align-items: flex-start;
     column-gap: 8px;
   }
+  /* 編號（1 / 1-1 / 1-1-1…，user 2026-09-12 去掉尾點）：白字坐在**深灰小 box**（「烟頭」）上——box 深灰、
+     數字維持白（user 2026-09-12：不是數字變深灰、是 box 變深灰）。width 由 JS equalizeMapNumWidth 量最寬者回寫
+     （box-sizing:border-box → 等寬含 padding、標題左緣對齊）；text-align:center 讓短號在 box 內置中。
+     烟頭幾何（user 2026-09-12 三修）：box 貼齊卡片左緣並「直接到底」＝stretch 撐滿卡高（負 margin 吃掉
+     卡 6/8/5 padding）、自帶卡片同款 padding 6/8/5 → 數字行與右側 EN 標題行同高對齊；數字一律靠左。
+     灰階（user 2026-09-12 五修定案，語彙 token 化）：mode1＝淺灰卡＋深灰 box 白字；mode2 鏡像＝
+     深灰卡＋淺灰 box 黑字（見 inverse.css）；mode3 不分灰、box 同卡片半透明白（見 color.css）。 */
   .legal-map-num {
     flex-shrink: 0;
+    box-sizing: border-box;
+    align-self: stretch;
     font-weight: var(--font-weight-bold);
     font-variant-numeric: tabular-nums;
+    background: var(--dark-gray);
+    color: #fff;
+    padding: 6px 8px 5px;
+    margin: -6px 0 -5px -8px;
+    text-align: left;
   }
   .legal-map-txt {
     display: flex;

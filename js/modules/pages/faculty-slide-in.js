@@ -530,6 +530,7 @@ export function initFacultySlideIn() {
             if (closeBtn) {
               const spin = /** @type {any} */ (closeBtn)._arrowSpin;
               if (spin) spin.reroll();   // 每次開啟抽新微傾角（全站統一 −4~+6，arrow-spin 管）
+              closeBtn.style.transition = '';   // 還原 hover 旋轉的 CSS transition（close 時暫設 none 讓返回鍵追平 panel 平移）
               if (typeof gsap !== 'undefined' && !prefersReducedMotion() && window.innerWidth >= 768) {
                 backInner = closeBtn.querySelector('.slide-in-back-square-inner');
                 backHidden = BACK_DIRS[Math.floor(Math.random() * BACK_DIRS.length)];
@@ -582,10 +583,14 @@ export function initFacultySlideIn() {
         if (facultyReturnFocus) { facultyReturnFocus.focus({ preventScroll: true }); facultyReturnFocus = null; }
       },
     });
-    // 返回鍵跟 panel 同步 clip-reveal 退場（inner 沿進場方向滑回被遮罩剪掉；panel 退場 offset 0）
-    const backInner = closeBtn && closeBtn.querySelector('.slide-in-back-square-inner');
-    if (closeTl && backInner && typeof gsap !== 'undefined' && !prefersReducedMotion() && window.innerWidth >= 768) {
-      closeTl.to(backInner, { ...backHidden, duration: DUR.medium, ease: EASE.exit }, 0);
+    // 返回鍵跟 panel 一起往右滑出（user 2026-09-12：不再自己做方向 clip-reveal 退場，改跟卡片同步平移收起）。
+    // 平移外層 .slide-in-back-square（非 inner——inner 會被外層 overflow:clip 剪掉、只會消失不會跟卡片走）＝整顆隨 panel 往右；
+    // 距離＝panel 退場 x:110% 的像素量（panel 寬≠鈕寬，用 panel 寬算）。CSS transition 暫關否則追不上 GSAP 逐幀寫入。
+    // fromTo 明寫 x:0 起點：arrow-spin 直接寫 inline transform 會讓 GSAP transform cache 失準，強制從 0 起才不跳。
+    if (closeTl && closeBtn && typeof gsap !== 'undefined' && !prefersReducedMotion() && window.innerWidth >= 768) {
+      closeBtn.style.transition = 'none';
+      const travel = slideInPanel.getBoundingClientRect().width * 1.1;
+      closeTl.fromTo(closeBtn, { x: 0 }, { x: travel, duration: DUR.medium, ease: EASE.exit }, 0);
     }
   }
 

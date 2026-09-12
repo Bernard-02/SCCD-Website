@@ -14,7 +14,7 @@ import { setupClipReveal, playClipReveal, playRevealExit, navChipHidden, pickNav
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { initListAccordion } from '../accordions/list-accordion.js';  // zebra 手風琴（Regulations & Policy / Support 共用 admission 那套）
-import { revealRows } from '../ui/list-row-reveal.js';  // title rows 進場（CSS transition，同 activities）
+import { revealRows, hideRow } from '../ui/list-row-reveal.js';  // rows 進場（CSS transition，同 activities）；hideRow＝per-item 翻上
 import { playAdmissionPanelExit } from './admission-data-loader.js';  // 離頁退場整套沿用 activities（先收 accordion → zebra clip 收 + rows 滑出）
 import { loadUiLabels, applyUiLabels } from '../ui/ui-labels.js';  // sitemap 卡片名稱吃 ui_labels（後台改 nav 名稱如 Atlas→World 同步跟上）
 import { DUR, EASE } from '../ui/motion.js';
@@ -76,20 +76,24 @@ function zebraSub(entry) {
 //   同時讓離頁退場直接吃 playAdmissionPanelExit（activities 同一套）。
 function zebraRow(entry, idx) {
   const zebra = idx % 2 === 0 ? ' list-item-zebra' : '';
+  // 進場＝完全比照 activities/admission（user 2026-09-12「直接參考 activities 的、別再自己做」）：title 與副標
+  //   拆成各自 reveal row（可分拍 stagger），出生都由下（translateY 110%）；per-item 交替方向由 mountZebra 翻
+  //   （整筆一致：半數 title+副標一起由上滑入＋底色 box 由上往下揭，半數維持由下）。chevron 結構列維持由下。
   const row = (inner) => `<div class="legal-reveal"><div class="list-reveal-row" style="transform: translateY(110%)">${inner}</div></div>`;
+  const sub = zebraSub(entry);
   return `<div class="list-item${zebra}" style="clip-path: inset(100% 0% 0% 0%)">`
     + `<div class="list-header cursor-pointer group transition-colors duration-fast flex items-stretch justify-between gap-sm px-sm py-sm">`
     +   `<div class="legal-zebra-titlecol">`
     +     row(
             `<h3 class="legal-zebra-title-en">${esc(entry.titleEn)}</h3>`
             + (entry.titleZh ? `<h3 class="legal-zebra-title-zh" lang="zh-Hant">${esc(entry.titleZh)}</h3>` : '')
-            + zebraSub(entry)
           )
+    +     (sub ? row(sub) : '')
     +   `</div>`
-    +   `<div class="legal-zebra-chevron flex items-center">`
+    +   `<div class="legal-zebra-chevron flex items-start pt-[0.25rem] md:pt-[0.55rem]">`  // chevron 貼英文標題那行（同 activities 右上 icon 群組）
     +     row(
             `<button type="button" class="list-header-toggle flex-shrink-0 self-start" aria-expanded="false" aria-label="展開或收合詳情 Toggle details" style="overflow:clip;height:1.5em;width:1.5em;">`
-            + `<span class="icon icon-chevron-list icon-s -rotate-90"></span>`
+            + `<div class="flex justify-center items-start w-full h-full"><span class="icon icon-chevron-list icon-s -rotate-90"></span></div>`
             + `</button>`
           )
     +   `</div>`
@@ -109,8 +113,18 @@ function mountZebra(contentEl, html) {
   requestAnimationFrame(() => setRegCatStickyTop(contentEl));
   const items = Array.from(contentEl.querySelectorAll('.list-item'));
   const rows = Array.from(contentEl.querySelectorAll('.list-reveal-row'));
-  void contentEl.offsetHeight;  // 隱藏態 commit（painted）才會 transition 而非 snap
-  // 進場＝activities reveal-IO 那套（activities-data-loader revealIo body）：zebra 底 clip 由下往上揭
+  // per-item 交替方向（比照 admission-data-loader）：整筆一致——半數 title+副標由上滑入（translateY -110%）＋
+  //   底色 box 由上往下揭（clip inset 底 100%），半數維持由下。chevron 結構列不翻（維持由下、admission 同）。
+  const canFlip = !prefersReducedMotion();
+  items.forEach(it => {
+    if (canFlip && Math.random() < 0.5) {
+      it.dataset.fromTop = '1';
+      it.querySelectorAll('.legal-zebra-titlecol .list-reveal-row').forEach(r => hideRow(/** @type {HTMLElement} */ (r), true));
+      it.style.clipPath = 'inset(0% 0% 100% 0%)';   // 底色 box 由上往下揭（跟文字同向）
+    }
+  });
+  void contentEl.offsetHeight;  // 隱藏態 commit（painted，含剛翻上的 -110%）才會 transition 而非 snap
+  // 進場＝activities reveal-IO 那套（activities-data-loader revealIo body）：zebra 底 clip 揭（跟該筆文字同向）
   // （DUR.base ease-out、item 間 0.16s cascade、揭完 transitionend 清 inline→sticky/負 margin 不受 clip 影響）
   // ＋ title rows 同拍 revealRows（DUR.reveal、stagger 0.12）＝底色先到位、title 隨後滑入。
   if (!prefersReducedMotion()) {
@@ -279,7 +293,7 @@ function mapCardHtml(item, num) {
     + labelSeg(item.labelKey, 'zh', item.labelZh);
   return `<a class="courses-grid-card legal-map-card" href="${esc(item.url)}" data-base-rot="${rot}" data-reveal-dir="${dir}"`
     + ` style="transform: rotate(${rot}deg); clip-path: ${MAP_HIDE_CLIP[dir]};">`
-    +   `<span class="legal-map-num">${num}.</span>`
+    +   `<span class="legal-map-num">${num}</span>`
     +   `<span class="legal-map-txt">`
     +     `<span class="courses-grid-card-en">${enInner}</span>`
     +     (item.labelZh ? `<span class="courses-grid-card-zh" lang="zh-Hant">${zhInner}</span>` : '')
@@ -324,6 +338,8 @@ function fitMapCardsToText(root) {
   });
 }
 
+// hover（user 2026-09-12）：卡片淺灰底換成 rgb 三原色（「改變它淺灰色的顏色」）＋角度重抽；
+//   數字 box 維持深灰白字不動。mode3 下 inline bg=accent 由 color.css .courses-grid-card[style*="background"] 翻 strict B/W。
 function bindMapCardHover(root) {
   root.querySelectorAll('.legal-map-card').forEach((card) => {
     card.addEventListener('mouseenter', () => {
@@ -335,6 +351,18 @@ function bindMapCardHover(root) {
       card.style.transform = `rotate(${card.dataset.baseRot || 0}deg)`;
     });
   });
+}
+
+// 編號欄等寬（user 2026-09-12「以最寬的那個為主」）：量所有 .legal-map-num 最寬者，回寫成統一 width →
+//   各卡編號欄同寬、標題左緣對齊。⚠️ 在 fitMapCardsToText 之前跑（卡寬量測含 num 欄）；卡片出生帶 inline
+//   rotate 不影響水平量寬（getBoundingClientRect width 在小角度誤差可忽略，且量的是同一批一致偏差）。
+function equalizeMapNumWidth(root) {
+  const nums = /** @type {HTMLElement[]} */ (Array.from(root.querySelectorAll('.legal-map-num')));
+  if (!nums.length) return;
+  nums.forEach(n => { n.style.width = ''; });   // 先清（重量）
+  let max = 0;
+  nums.forEach(n => { const w = n.getBoundingClientRect().width; if (w > max) max = w; });
+  if (max > 0) nums.forEach(n => { n.style.width = Math.ceil(max) + 'px'; });
 }
 
 // policy_and_statements 內的「無障礙聲明」段判定（合併頁去掉它、導覽頁只留它）。
@@ -405,8 +433,9 @@ export async function loadSitemap() {
     html += `<div class="legal-map-grid">${groups}</div>`;
     contentEl.innerHTML = html;
     applyUiLabels(labels, contentEl);   // 換上後台名稱（在 reveal 前＝不會揭到一半換字）
+    equalizeMapNumWidth(contentEl);     // 編號欄等寬（以最寬者為主）→ 標題左緣對齊；須在 fitMapCardsToText 前
     fitMapCardsToText(contentEl);       // 換完字才量＝量到最終文字
-    document.fonts?.ready?.then(() => fitMapCardsToText(contentEl));   // 冷載入字體晚到字寬會變 → 補量一次（函式自清 width 重量）
+    document.fonts?.ready?.then(() => { equalizeMapNumWidth(contentEl); fitMapCardsToText(contentEl); });   // 冷載入字體晚到字寬會變 → 補量一次（函式自清 width 重量）
     bindMapCardHover(contentEl);
     // 進退場＝curriculum 卡片同款「自身 clip-path＋translate 同步」（user 2026-09-10：四方向隨機；
     //   遮罩在卡片自己的 local box 上跟著旋轉走＝角不被裁、無外層遮罩＝不再「被切到再還原」；

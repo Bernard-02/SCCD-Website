@@ -425,17 +425,18 @@ export function triggerGenerateLogo() {
   // currentColor 讓 fill / background 跟著 body.mode-* 設的 color 動態走（mode 切換時自動更新）
   const fillColor = 'currentColor';
 
-  // 進場敘事（2026-07-15 改：logo 保持「當下大小」不先縮）：indicator cursor 出現在大 Lottie
-  // 右邊 → 短閃 → 摧毀 Lottie（cursor 切過把它刪掉）→ cursor 跳左、type 出 SCCD。
-  // 之前會先 shrink 180→100 再刪，user：「點進去應該是大 logo 直接做刪除」→ shrink 退役；
-  // cursor 的 left/height 對齊當下 logo 尺寸（從 library/atlas 進來時本來就是 100，通用）。
-  const currentLogoSize = logo.offsetWidth || 180;
+  // 進場敘事（2026-09-12 改：統一版）：不論從哪頁進來，一律先 shrink 到小尺寸（100）→
+  // indicator cursor 出現在小 logo 右邊 → 短閃 → 摧毀 Lottie → cursor 跳左、type 出 SCCD。
+  // 從 library/atlas 進來本來就是 100，shrink 是 no-op；刪除動畫只剩「小 logo」一種，不再分大小。
+  // （2026-07-15 的「大 logo 直接刪」已被 user 推翻）
+  const SMALL_LOGO = 100;
+  gsap.to(logo, { width: SMALL_LOGO, height: SMALL_LOGO, duration: DUR.slow, ease: EASE.move, overwrite: 'auto' });
 
   const cursor = document.createElement('div');
   cursor.dataset.genCursor = '1';
   cursor.dataset.genCursorRole = 'indicator';
-  // 貼齊 logo box（top:0 / height=logo）：舊值 top:8+height+16 底部凸出 24px，小 logo 時比 logo 明顯長
-  cursor.style.cssText = `position:absolute;top:0;left:${currentLogoSize}px;width:1px;height:${currentLogoSize}px;background:${fillColor};z-index:10;visibility:hidden;`;
+  // 貼齊 shrink 後的 logo box（top:0 / height=100）：timeline delay 2s > shrink DUR.slow，cursor 出現時已縮完
+  cursor.style.cssText = `position:absolute;top:0;left:${SMALL_LOGO}px;width:1px;height:${SMALL_LOGO}px;background:${fillColor};z-index:10;visibility:hidden;`;
   logoContainer.appendChild(cursor);
 
   // blink interval ref 上提到 module-scope（genBlinkInterval），讓 killGenerateLogoTimeline
@@ -481,7 +482,7 @@ export function triggerGenerateLogo() {
   logoContainer.appendChild(cursorNew);
   cursor.style.zIndex = '3';
 
-  // （shrink 180→100 已退役：logo 保持大尺寸直到被 cursor 刪掉；空 box 尺寸不影響後面
+  // （shrink 100 的 tween 在上面 timeline 外先跑；空 box 尺寸不影響後面
   //   absolute 定位的 SCCD svg，timeline 尾段會把 <a> click target 設成 SCCD bbox）
 
   // delay:2 保留原本節奏 — user 要求 indicator 「慢一點再出現」，跟改造前一致
@@ -502,7 +503,7 @@ export function triggerGenerateLogo() {
   });
   tl.set(cursor, { left: -GAP });
   // 不再 display:none #header-logo，否則父層 <a> 會 collapse 成 0x0 失去可點擊區域
-  // logo 內容已在開頭 innerHTML='' 清空，display:block 的 180x180 空 div 維持父層 <a> 的 click target
+  // logo 內容已在開頭 innerHTML='' 清空，display:block 的 100x100 空 div 維持父層 <a> 的 click target
   tl.to({}, { duration: 0.15 });
   tl.set(cursor, { visibility: 'hidden' });
   tl.to({}, { duration: DUR.medium });

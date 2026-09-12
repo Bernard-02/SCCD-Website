@@ -187,10 +187,11 @@
     line-height: var(--line-height-s);
   }
 
-  /* 無障礙標章 placeholder（88×31 硬尺寸＝標章規格）：桌面/手機/矮橫向皆顯示（user 2026-07-15 桌面也要，跟手機一樣）。
-     正式標章拿到後把此 div 換成 <a><img></a>。已進 footer-scatter.js getFooterPrivacyLinks 的桌面 clip-reveal selector。 */
+  /* 無障礙標章 placeholder（88×31 硬尺寸＝標章規格）：正式標章拿到前先隱藏（user 2026-09-12「先 hide」）。
+     拿到標章後把此 div 換成 <a><img></a> 並改回 display:block。已進 footer-scatter.js getFooterPrivacyLinks
+     的桌面 clip-reveal selector（display:none 無 layout box → reveal 為無害 no-op）。 */
   .footer-a11y-badge {
-    display: block;
+    display: none;
     width: 88px;
     height: 31px;
     border: 1px dashed var(--footer-fg, #fff);
@@ -363,7 +364,8 @@
     line-height: var(--line-height-s);   /* text-s → 照字級 tier（原硬寫 1.2，user 08-13 統一） */
     text-align: left;
     color: var(--footer-fg, #fff);
-    transition: opacity var(--dur-fast) ease;
+    /* transform：hover 隨機旋轉（arrow-spin）需要 transition 才 ease 不 snap（見 footer-scatter bindFooterTabs） */
+    transition: opacity var(--dur-fast) ease, transform var(--dur-fast) ease;
   }
   .footer-tab:not(.is-active) { opacity: 0.4; }
   /* hover 提亮到 active 樣（radio 未選態的 hover 回饋）：opacity → 1 回 --footer-fg 全亮（standard=白 / inverse=黑）。 */

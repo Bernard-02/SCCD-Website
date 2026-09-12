@@ -21,7 +21,7 @@ body.mode-inverse {
   --list-zebra-alpha: 0.15;  /* 白疊色(fg=白) 15%（user 2026-06-22） */
 
   /* Library 主矩形：淺灰 → 深灰，文字黑 → 白；半透明文字同 alpha 但反成 rgba(255,...) */
-  --lib-bg: #333333;
+  --lib-bg: var(--dark-gray);
   --lib-fg: #ffffff;
   --lib-fg-rgb: 255, 255, 255;
 
@@ -345,12 +345,18 @@ body.mode-inverse #library-awards-ticker .awards-ticker-wrapper img {
  *   JS inline accent bg（inline 不帶 !important，CSS !important 勝），inverse hover 變成
  *   深灰底而非三原色底 — 跟 standard hover (accent + black 字) 視覺不一致 */
 body.mode-inverse .courses-grid-card:not([style*="background"]) {
-  background: var(--gray-2) !important;
+  background: var(--dark-gray) !important;
   color: white !important;
 }
 
 body.mode-inverse .courses-grid-card[style*="background"] {
   color: black !important;
+}
+/* Sitemap 卡編號 box（user 2026-09-12 五修定案）：mode1 的鏡像——深灰卡上「淺灰 box＋黑數字」
+ * （mode1＝淺灰卡上深灰 box 白數字）。 */
+body.mode-inverse .legal-map-num {
+  background: var(--light-gray);
+  color: #000;
 }
 
 /* ===== About Anchor Nav ===== */

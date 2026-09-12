@@ -16,118 +16,22 @@
 
   <!-- Main Content -->
   <main id="page-content">
-    <!-- Admission Hero Section
-         桌面 .hero-rand-grid：4 元素隨機 corner 排版（hero-animation.js）
-         手機 .hero-mobile：圖墊底 + 文字 stack 疊在圖上（hero-mobile-sync.js 從桌面 clone） -->
+    <!-- 即將上線 Coming Soon（2026-09-12，user 定案：直接沿用 hero title 那套＝散佈/旋轉/位置/字級全走 initHeroAnimation，
+         只把文字換成 COMING SOON / 即將上線）。整段就是一個標準 hero（.hero-rand-grid 桌面 + .hero-mobile 手機），
+         但只留兩個標題、拿掉 banner + 說明段（randomizeHeroLayout / hero-mobile-sync 對缺席元素皆有 guard）。
+         原內容（nav/panels）暫移除、git 保留；還原＝git revert 本檔。頁面其餘 init（loader/section-switch/search）皆 null-safe 早退。 -->
     <section class="snap-zone min-h-screen md:h-screen relative overflow-x-clip md:overflow-hidden">
       <!-- 手機版 -->
       <div class="hero-mobile">
-        <div class="hero-mobile-bg">
-          <img src="" alt="">
-        </div>
         <div class="hero-mobile-text">
           <h1 class="text-black hero-mobile-title" data-hero-hl></h1>
           <h1 class="text-black hero-mobile-title-cn" data-hero-hl></h1>
-          <p class="text-black hero-mobile-text-en" data-hero-hl></p>
-          <p class="text-black hero-mobile-text-cn" data-hero-hl></p>
         </div>
       </div>
       <!-- 桌面版 -->
       <div class="hero-rand-grid">
-        <h1 class="hero-title text-black inline-block" data-hero-hl>ADMISSIONS</h1>
-        <h1 class="hero-title-cn text-black inline-block" data-hero-hl>入學</h1>
-        <div class="hero-banner">
-          <img src="../images/SCCD-1-4-0.jpg" alt="Admission">
-        </div>
-        <p class="hero-text-en text-black text-s" data-hero-hl>
-          Welcome to SCCD. We invite passionate and creative individuals to join our program and explore the world of communications design.
-        </p>
-        <p class="hero-text-cn text-black text-s" data-hero-hl>
-          歡迎對媒體傳達設計充滿熱情的朋友們，報考實踐大學媒體傳達設計學系，一起探索設計的無限可能。
-        </p>
-      </div>
-    </section>
-
-    <!-- Admission Content Section -->
-    <!-- 桌面 inner-scroll frame（2026-06-30）：section = 100vh frame（md:h-screen + md:overflow-hidden）；左 nav 在 content
-         區頂部對齊、右 panels 在 .inner-scroll-scroll-col 內捲（取代原 sticky nav + scroll-mask）。手機完全不套
-         （pt-4xl + window 捲照舊；無 overflow:clip，比照 activities）。 -->
-    <!-- min-h-screen：list 還在 fetch 後台資料（panel 空）時撐住整段高度，避免下方 footer 露出 -->
-    <!-- 手機 pt-4xl(80)：四頁 nav btn section 統一（faculty/activities/admission/curriculum，user 2026-07-10 從 6xl 收上來） -->
-    <section class="snap-zone bg-white pt-4xl pb-2xl md:pt-0 md:pb-0 md:h-screen md:overflow-hidden min-h-screen" id="admission-content-section">
-      <!-- 手機 header blocker（同 activities）：透明 fixed header 下 sticky title 上方透明帶用一條 sticky theme-bg 帶補實。
-           桌面用 .admission-scroll-mask（hidden md:block）故此條 md:hidden。詳見 lists.css .list-mobile-header-blocker -->
-      <div class="list-mobile-header-blocker md:hidden" aria-hidden="true"></div>
-      <div class="site-container">
-        <!-- grid-20：桌面 nav 占 cols 1-3（col 4 留白＝全站 nav 欄界統一，user 2026-09-05）、內容 cols 5-20（對齊 faculty/about/curriculum col-5）；手機 flex-col 堆疊 -->
-        <div class="flex flex-col gap-gutter md:grid md:grid-cols-20 inner-scroll-frame-grid">
-
-          <!-- Left Nav（桌面 cols 1-3；mobile flex-col 自然流）
-               桌面 inner-scroll frame：nav-col padding-top 把 nav 推到 content 區頂、頂部對齊（取代舊 md:sticky md:top-[200px]） -->
-          <div class="w-full md:col-span-3 inner-scroll-nav-col">
-            <!-- 手機 pt-md：section pt-4xl(80) < fixed header(92)，btn 自己補 24 clearance → 視覺頂 104 對齊 faculty -->
-            <div class="flex flex-row flex-wrap md:flex-col gap-xs mb-xl md:mb-0 pt-md md:pt-0">
-              <button class="activities-section-btn w-fit active text-left" data-section="news">
-                <span class="anchor-nav-inner"><span data-label-key="adm.news" data-label-part="en">Announcements</span><span data-label-key="adm.news" data-label-part="zh">公告</span></span>
-              </button>
-              <button class="activities-section-btn w-fit text-left" data-section="summer-camp">
-                <span class="anchor-nav-inner"><span data-label-key="adm.summer-camp" data-label-part="en">Camps</span><span data-label-key="adm.summer-camp" data-label-part="zh">體驗營</span></span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Right Content Panels（桌面占 cols 5-20；桌面 inner-scroll = 唯一捲動的 box） -->
-          <div class="min-w-0 md:col-start-5 md:col-span-16 inner-scroll-scroll-col no-scrollbar">
-
-            <!-- （原桌面 .admission-scroll-mask sticky top:200 已移除：inner-scroll box 的 overflow 於 box 上緣自然裁切
-                 捲過的內容，不再需要遮罩；且 frame 下 top:200 會錯位。手機 header blocker 仍在 section 開頭。） -->
-
-            <!-- News Panel (原 Admission list) -->
-            <div class="activities-panel" id="panel-news">
-              <!-- relative z-20：描述滾動時要蓋過 sticky 遮罩（z-10），與 summer-camp 模式一致 -->
-              <div class="grid-12 mb-xl relative z-20">
-                <div class="col-span-12 md:col-span-7 md:col-start-6">
-                  <!-- list-reveal-row：panel 切換時與 items 一起參與 reveal/exit；DOM 順序在 list 前 → 先進場 -->
-                  <div class="list-reveal-row">
-                    <p class="text-s font-bold mb-en-zh-body">Stay informed with SCCD admission updates — application deadlines, special programs, and important announcements for prospective students.</p>
-                    <p class="text-s font-bold" lang="zh-Hant">掌握 SCCD 最新招生資訊，包括申請截止日期、特別招生計畫，以及給未來新生的重要公告。</p>
-                  </div>
-                </div>
-              </div>
-              <div id="admission-list" class="flex flex-col"></div>
-            </div>
-
-            <!-- Summer Camp Panel -->
-            <div class="activities-panel hidden" id="panel-summer-camp">
-              <!-- relative z-20：描述滾動時要蓋過 sticky 遮罩（z-10），仿 activities workshop 模式 -->
-              <div class="grid-12 mb-xl relative z-20">
-                <div class="col-span-12 md:col-span-7 md:col-start-6">
-                  <!-- list-reveal-row：panel 切換時與年份/items 一起參與 reveal/exit；DOM 順序在 list 前 → 先進場 -->
-                  <div class="list-reveal-row">
-                    <p class="text-s font-bold mb-en-zh-body">SCCD Summer Camp offers high school students an immersive introduction to communications design, blending creative workshops, studio visits, and hands-on projects.</p>
-                    <p class="text-s font-bold" lang="zh-Hant">暑期設計體驗營為高中生提供沉浸式的媒體傳達設計入門體驗，結合創意工作坊、工作室參訪與實作專題，讓學生提前感受設計學習的樣貌。</p>
-                  </div>
-                </div>
-              </div>
-              <!-- 搜尋：比照 activities filter bar（桌面 inner-scroll 內 sticky 頂、往下捲收合往上還原；see activities-search.js
-                   scrollHandler/colScrollHandler）。z-20 蓋過上方描述塊（同 z-20）＝釘住時描述 tuck 進 bar 下（DOM 序後 → 在上）。
-                   md:sticky 只桌面套＝手機版維持隨內容捲動（scrollHandler 的 sticky guard 手機自動跳過收合）。 -->
-              <div class="activities-filter-bar md:sticky md:top-0 bg-white z-20">
-                <div class="grid-12 pb-lg">
-                  <div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px]">
-                    <!-- list-reveal-row：panel 切換時與描述塊/items 一起參與 reveal/exit（比照 activities 各 panel 的 search bar） -->
-                    <div class="activities-search-inner list-reveal-row flex items-center gap-sm pb-xs">
-                      <span class="icon icon-search icon-m activities-search-icon"></span>
-                      <input type="text" placeholder="Search 搜尋" aria-label="搜尋 Search" class="activities-search-input flex-1 bg-transparent outline-none text-s font-bold" data-panel="panel-summer-camp" autocomplete="off">
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div id="summer-camp-list"></div>
-            </div>
-
-          </div>
-        </div>
+        <h1 class="hero-title text-black inline-block" data-hero-hl>COMING SOON</h1>
+        <h1 class="hero-title-cn text-black inline-block" data-hero-hl>即將上線</h1>
       </div>
     </section>
   </main>

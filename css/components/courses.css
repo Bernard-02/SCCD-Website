@@ -374,7 +374,7 @@
     width: fit-content;
     max-width: 100%;
     padding: 6px 8px 5px;   /* = 全站 nav btn 標準（原 6/10/5 → 統一，user 2026-09-09）*/
-    background: rgba(0, 0, 0, 0.06);
+    background: var(--light-gray);   /* 2026-09-12 全站淺灰統一：原 rgba(0,0,0,0.06)≈#F0F0F0 → 實色 #f2f2f2 */
     color: black;
     font-size: var(--font-size-s);
     line-height: var(--line-height-s);   /* text-s 行距 1.3，跟 courses-program-btn nav 同步 */

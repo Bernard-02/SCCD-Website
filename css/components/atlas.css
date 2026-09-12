@@ -293,7 +293,8 @@ body.mode-color #atlas-main { background-color: var(--theme-bg); }
    fixed + width auto = shrink-to-fit 貼卡片尺寸（卡片自帶 min/max-width/height），免明算尺寸。 */
 #atlas-detail-mask {
   position: fixed;
-  right: 32px;
+  /* 右緣對齊 header mode 鈕（= .site-container 右 padding；user 2026-09-12），不要貼死畫面邊 */
+  right: var(--container-padding, 60px);
   bottom: 32px;
   overflow: clip;
   pointer-events: none; /* 繼承給卡片 */
