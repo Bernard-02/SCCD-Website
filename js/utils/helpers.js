@@ -14,14 +14,18 @@ window.SCCDHelpers = window.SCCDHelpers || /** @type {SCCDHelpersAPI} */ ({});
   Helpers.siteBase = new URL('../../', document.currentScript.src).href;
 
   Helpers.sitePath = function(path) {
-    return new URL(String(path).replace(/^\//, ''), Helpers.siteBase).href;
+    var key = String(path).replace(/^\//, '');
+    // site-assets.js 填的後台覆蓋（icon/cursor 後台換檔改走 CDN）；未載入或沒對到＝本地檔
+    var ov = window.__SCCD_ASSET_OVERRIDES;
+    if (ov && ov[key]) return ov[key];
+    return new URL(key, Helpers.siteBase).href;
   };
 
   // --cursor-* 變數內的相對 url() 由「使用 var() 的 stylesheet」基準解析（Chromium 行為）：
   // variables.css 寫 '../custom-cursor/' 以 css/ 為基準正確，但被直接載入的頁面 CSS
   // （css/components/create.css 等，loadPageCSS）引用時基準變 css/components/ → 差一層 404。
   // 啟動時以絕對 URL 覆寫整批變數，消除基準歧義（值對齊 variables.css 的 hotspot / fallback）。
-  (function setCursorVars() {
+  function setCursorVars() {
     var cursors = {
       'default':     ['default.svg',  '9 2',   'default'],
       'pointer':     ['pointer.svg',  '14 1',  'pointer'],
@@ -42,7 +46,10 @@ window.SCCDHelpers = window.SCCDHelpers || /** @type {SCCDHelpersAPI} */ ({});
         "url('" + Helpers.sitePath('custom-cursor/' + c[0]) + "') " + c[1] + ', ' + c[2]
       );
     });
-  })();
+  }
+  setCursorVars();
+  // site-assets.js 拿到後台 cursor 覆蓋後重建一次（經 sitePath 換 CDN URL）
+  Helpers.refreshCursorVars = setCursorVars;
 
   Helpers.isMobile = function() {
     return window.innerWidth < 768;

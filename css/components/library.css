@@ -429,9 +429,9 @@
   flex-shrink: 0;
   /* 寬度由 JS 動態設 = viewport 寬（grid col），讓每位獲獎者整位對齊 col */
 }
-/* 得獎人全員只有中文（批量匯入 EN 待補）：cell 整體垂直置中對齊列高、不貼頂（user 2026-09-13）。
+/* 得獎人「單人」或「全員只有中文」：cell 整體垂直置中對齊列高、不貼頂（user 2026-09-13 兩次擴充）。
    用 align-self（grid item 級）而非 justify-content——cell 高未必 stretch 滿列（手機 3 欄版型），
-   justify-content 在 fit-content 高度下無作用（首版踩過）。 */
+   justify-content 在 fit-content 高度下無作用（首版踩過）。多人多語維持貼頂直排。 */
 #library-awards-list .award-winners-zh-only {
   align-self: center;
 }
@@ -515,6 +515,21 @@
   #library-awards-list .award-winners:not(.is-hmarquee) .award-marquee-inner > .marquee-copy {
     display: inline-block;
     padding-right: var(--marquee-copy-gap);
+  }
+  /* 得獎人欄（.award-winners-col）桌面改「全員直排」（user 2026-09-13）：多得獎人不再整位橫捲、
+     列高由本欄自然撐高；長名字走上面 :not(.is-hmarquee) 行級 hover marquee（JS 已跳過 hmarquee）。 */
+  #library-awards-list .award-winners-col .award-winners-track {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    /* 得獎人之間行距＝EN→ZH 行距 token（user 2026-09-13「行距使用英中的那個」），與 pair 內 row-gap 一致 */
+    row-gap: var(--space-en-zh-xs);
+    width: 100%;
+  }
+  #library-awards-list .award-winners-col .award-winner-pair {
+    width: 100%;
+    min-width: 0;
+    padding-right: 0;
   }
 }
 
@@ -1688,7 +1703,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
     padding-right: var(--spacing-sm) !important;
   }
   #library-awards-ticker img {
-    height: 40px !important;
+    height: 30px !important;  /* user 2026-09-13 終版：ticker icon 手機 30px、桌面 40px（JS inline） */
     /* logo 全部是 Directus ?key=web 預設的 300×117（27 張實測同尺寸）→ 用 aspect-ratio 預留 box 寬度，
        讓 layout 在圖片載入「之前」就穩定 → trackW 可立即量到、ticker 一渲染就開始捲（圖載好再填進預留位，
        不會「靜止 logo 卡一下才動」）。配 width:auto，box = 40 × 300/117 ≈ 102px。user 2026-06-10 */

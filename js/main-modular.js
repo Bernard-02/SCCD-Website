@@ -7,6 +7,7 @@
 import { initHeader } from './header.js';
 import { initFooter } from './footer.js';
 import { initFavicon } from './modules/ui/site-favicon.js';
+import { initSiteAssets } from './modules/ui/site-assets.js';
 import { initThemeToggle, applyModeForPage, updateToggleBtnVisualState } from './modules/ui/theme-toggle.js';
 import { initRouter } from './router.js';
 
@@ -597,6 +598,7 @@ document.addEventListener('DOMContentLoaded', function () {
   initThemeToggle();
   initFooter();
   initFavicon();             // 從後台 site_settings.favicon 注入 <link rel=icon>（未設則 no-op）
+  initSiteAssets();          // 從後台 site_icons/site_cursors 覆蓋全站圖示與游標（失敗＝本地檔 fallback）
   initSmoothScroll();
   initIdleStandby();
   initCustomScrollbar();

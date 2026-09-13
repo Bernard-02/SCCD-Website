@@ -22,6 +22,11 @@ interface SCCDHelpersAPI {
   // 隨機樣式
   getRandomAccentColor(): string;
   getRandomRotation(): number;
+
+  // 站台路徑
+  siteBase: string;
+  sitePath(path: string): string;
+  refreshCursorVars(): void;
 }
 
 // ===== 全域變數 =====
@@ -35,6 +40,8 @@ interface Window {
   _filesMarqueeInit?: () => void;
   _albumMarqueeInit?: () => void;
   SCCD_classSlideshow?: any;
+  // site-assets.js 填的後台 icon/cursor 覆蓋（localPath → CDN URL），sitePath 消費
+  __SCCD_ASSET_OVERRIDES?: Record<string, string>;
 }
 
 // ===== DOM 擴充（散在多處 element 上掛 callback / cached state）=====

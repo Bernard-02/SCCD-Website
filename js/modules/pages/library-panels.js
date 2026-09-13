@@ -943,6 +943,10 @@ async function initAwardsPanel(onEntranceDoneCallback) {
       const SECONDS_PER_WINNER = isMobile ? 3 : 2.5;
       scope.querySelectorAll('.award-winners').forEach(viewport => {
         const view = /** @type {HTMLElement} */ (viewport);
+        // 得獎人欄 2026-09-13 改「全員從上到下直排、列高自然撐高」（user）：不再整位橫捲。
+        // 長名字由 applyAwardMarquees 的 :not(.is-hmarquee) 行級 hover marquee 接手；
+        // 主辦/名次 cell（hmarqueeCell）維持原整位橫捲行為不動。
+        if (view.classList.contains('award-winners-col')) return;
         const track = /** @type {HTMLElement | null} */ (view.querySelector('.award-winners-track'));
         if (!track) return;
 
@@ -1127,7 +1131,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
                   ${hmarqueeCell(organizersDisplay)}
                   ${hmarqueeCell(ranks, isSingleLangList(ranks) ? ' award-cell-center' : '')}
                 </div>
-                <div class="award-winners flex flex-col${winners.every(w => w.zh && !w.en) ? ' award-winners-zh-only' : ''}" style="min-width:0;">${buildWinnersHtml(winners)}</div>
+                <div class="award-winners award-winners-col flex flex-col${(winners.length === 1 || winners.every(w => w.zh && !w.en)) ? ' award-winners-zh-only' : ''}" style="min-width:0;">${buildWinnersHtml(winners)}</div>
                 <div class="award-ref-cell" style="display:flex;justify-content:flex-end;">${refBtnHtml}</div>
               </div>
               ${refWrapHtml}
@@ -1346,6 +1350,26 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     // offsetWidth=0 → 多名得獎者擠成一團）。對齊 press/files/album 的 _XMarqueeInit 重觸發 pattern。
     window._awardsMarqueeInit = () => applyAwardMarquees(listEl);
 
+    // 視窗 resize 後欄寬變了、但 is-overflow / dual-copy / inline 寬全是舊視窗的量測快照 →
+    // 字其實塞得下時第二份 copy 從窗內「提早露出」（user 2026-09-13 截圖 Red Dot）。
+    // debounce 全表重量一次即自癒：applyMarqueeOverflow ①段自帶「還原單份再重判」、
+    // applyWinnersHMarquee 有 _hmOrig 還原、bindMarqueeReturn 有 _mqReturnBound guard＝全程 idempotent。
+    // 字體晚載同理（fonts.ready 前量到 fallback 字寬）→ ready 後補量一次。
+    // ⚠️必須多輪：applyWinnersHMarquee/applyMarqueeOverflow 跨 cell 讀寫交錯——量 A 欄時其他欄還掛
+    // 舊視窗的 inline 寬（pair px / dual-copy），fr 欄寬被舊狀態撐歪＝單輪照歪版面重標（定點迭代
+    // 107→31→29 實測）；且同幀補跑第二輪量到同一鍋歪版面（rAF 版實測無效）→ 輪與輪之間要隔
+    // 一段時間讓版面鬆開再量。三輪 spaced 收斂；全程 idempotent、只掃已建 rows。
+    let mqPassTimers = [];
+    const remeasureAwardMarquees = () => {
+      mqPassTimers.forEach(clearTimeout);
+      mqPassTimers = [0, 350, 700].map(d => setTimeout(() => { if (listEl.isConnected) applyAwardMarquees(listEl); }, d));
+    };
+    let mqResizeTimer;
+    const onMqResize = () => { clearTimeout(mqResizeTimer); mqResizeTimer = setTimeout(remeasureAwardMarquees, 250); };
+    window.addEventListener('resize', onMqResize);
+    registerPageCleanup(() => { window.removeEventListener('resize', onMqResize); clearTimeout(mqResizeTimer); mqPassTimers.forEach(clearTimeout); });
+    document.fonts?.ready?.then(remeasureAwardMarquees);
+
     // showLibPanel 切走 awards 時呼叫：瞬間收合所有展開的 ref 手風琴，回到 awards 不殘留展開態
     window._awardsResetAccordions = () => {
       listEl.querySelectorAll('.award-record-item').forEach(item => collapseAwardItem(item, { instant: true }));
@@ -1450,7 +1474,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         shuffled.forEach(src => {
           const img = document.createElement('img');
           img.src = src; img.alt = 'Award';
-          img.style.cssText = 'height:60px;width:auto;object-fit:contain;filter:grayscale(1);flex-shrink:0;';
+          img.style.cssText = 'height:40px;width:auto;object-fit:contain;filter:grayscale(1);flex-shrink:0;'; // ticker logo 桌面 40px（user 2026-09-13 終版；手機 30px 在 library.css）
           img.onerror = () => { img.style.display = 'none'; };
           track.appendChild(img);
         });

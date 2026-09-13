@@ -176,7 +176,7 @@ const TYPED_LABELS = {
 
 // Partner 類型對應（wsg/ind/ec 各自映射；lec 已移除 2026-06-07）
 const PARTNER_TYPES = {
-  wsg: { en: 'Workshop',                       zh: '工作營'   },
+  wsg: { en: 'Workshops',                      zh: '工作營'   },   // 離線 fallback 對齊 act.workshop（render 時優先吃 ui_labels，見 typeLabel）
   ind: { en: 'Industry Partnerships',          zh: '產學合作' },
   ec:  { en: 'Experience Camp',                zh: '體驗營'   },
 };
@@ -409,7 +409,7 @@ export async function initAtlas(options = {}) {
         const it = {
           id: uid('wsg'), category: 'C',
           textEn: en, textZh: zh,
-          labelEn: 'Workshop Partner', labelZh: '工作營合作單位',
+          labelEn: 'Workshops', labelZh: '工作營',   // 離線 fallback 對齊 act.workshop（D 卡列與 activities 同源）
           detail: dt, groups: [wsGroupId], cityKey: canon, _countryCode: u.iso || '',
         };
         items.push(it);
@@ -443,7 +443,7 @@ export async function initAtlas(options = {}) {
         const it = {
           id: uid('ind'), category: 'C',
           textEn: en, textZh: zh,
-          labelEn: 'Industry Partner', labelZh: '產學合作公司',
+          labelEn: 'Industry Partnerships', labelZh: '產學合作',   // 離線 fallback 對齊 act.industry
           detail: dt, groups: [indGroupId], cityKey: canon, _countryCode: u.iso || '',
         };
         items.push(it);
@@ -1190,7 +1190,7 @@ export async function initAtlas(options = {}) {
       const listCat = getItemCat(item);
       if (listCat === 'partners') {
         addSub(item._listCountryEn, item._listCountryZh);   // 先國家、後類型（user 2026-06-23 對調）
-        addSub(item._listTypeEn, item._listTypeZh);
+        { const tl = typeLabel(item); addSub(tl.en, tl.zh); }
       } else {
         addSub(item._listSubEn, item._listSubZh);   // faculty: 職稱(＋國家)；host/employ: 國家
       }
@@ -1948,6 +1948,21 @@ export async function initAtlas(options = {}) {
   // 直向 3 筆：row 直排（企業上/類別下＝每筆 4 行變高）+ 卡片限高半屏（50vh-16），5 筆會被底裁
   const DETAIL_BATCH_SIZE = isLandscapeGateAtlas ? 3 : (isPortraitDotAtlas ? 3 : 8);  // 橫向矮 3 / 直向 3 / 桌面 8
 
+  // D 卡列右欄關係文字：wsg/ind 直接吃 activities 分頁同一組 ui_labels（act.workshop / act.industry），
+  //   後台改 activities 叫法這裡自動跟（user 2026-09-13 拍板同源，撤回獨立 atlas.rel.* key）；
+  //   缺 key/離線 fallback buildAtlas 硬編 labelEn/Zh。渲染與卡寬量測 probe 共用，後台改字卡寬才一致。
+  const REL_LABEL_KEYS = { wsg: 'act.workshop', ind: 'act.industry' };
+  function relLabel(rel) {
+    const o = atlasUiLabels && atlasUiLabels[REL_LABEL_KEYS[String(rel.id).split('-')[0]]];
+    return { en: (o && o.en) || rel.labelEn, zh: (o && o.zh) || rel.labelZh };
+  }
+  // 單位「類型」文字（hover 卡底部類型帶＋list 副標，seed 自 PARTNER_TYPES）同樣吃 act.*（user 2026-09-13 統一）；
+  //   ec（體驗營）無對應 act key、維持硬編
+  function typeLabel(item) {
+    const o = atlasUiLabels && atlasUiLabels[REL_LABEL_KEYS[String(item.id).split('-')[0]]];
+    return { en: (o && o.en) || item._listTypeEn, zh: (o && o.zh) || item._listTypeZh };
+  }
+
   // 一筆 = 左 title（英中各一行，過長 marquee）+ 右 類別（regular）
   // 外層 .atlas-detail-row-clip（overflow:hidden）給切批時的 yPercent clip-reveal（同 list view 切換）
   function buildDetailRow(rel) {
@@ -1980,8 +1995,9 @@ export async function initAtlas(options = {}) {
     catClip.className = 'atlas-detail-cat-clip';
     const catCell = document.createElement('span');
     catCell.className = 'atlas-detail-cell';
-    if (rel.labelEn) { const e = document.createElement('span'); e.textContent = rel.labelEn; catCell.appendChild(e); }
-    if (rel.labelZh) { const z = document.createElement('span'); z.className = 'cat-zh'; z.textContent = rel.labelZh; catCell.appendChild(z); }
+    const rl = relLabel(rel);
+    if (rl.en) { const e = document.createElement('span'); e.textContent = rl.en; catCell.appendChild(e); }
+    if (rl.zh) { const z = document.createElement('span'); z.className = 'cat-zh'; z.textContent = rl.zh; catCell.appendChild(z); }
     catClip.appendChild(catCell);
     cat.appendChild(catClip);
     row.appendChild(cat);
@@ -2115,8 +2131,9 @@ export async function initAtlas(options = {}) {
         related.forEach(rel => {
           if (rel.textEn) titleProbes.push(mkProbe('atlas-detail-row-en', rel.textEn));
           if (rel.textZh && rel.textZh !== rel.textEn) titleProbes.push(mkProbe('atlas-detail-row-en', rel.textZh));
-          if (rel.labelEn) catProbes.push(mkProbe('atlas-detail-row-cat', rel.labelEn));
-          if (rel.labelZh) catProbes.push(mkProbe('atlas-detail-row-cat', rel.labelZh));
+          const rl = relLabel(rel);
+          if (rl.en) catProbes.push(mkProbe('atlas-detail-row-cat', rl.en));
+          if (rl.zh) catProbes.push(mkProbe('atlas-detail-row-cat', rl.zh));
         });
         detail.appendChild(meas);   // 一次 append 完才讀 → 讀第一個 offsetWidth 觸發單次 layout、其餘走快取
         let titleW = 0;
@@ -2158,10 +2175,11 @@ export async function initAtlas(options = {}) {
           //   類型（Workshop 工作營／產學合作）改「ref 式底部帶」＝deep accent 底黑字（同 .list-ref-btn），bg 配對卡片當前 accent。
           const pk = atlasUiLabels && atlasUiLabels['atlas.partners'];
           setDetailHead((pk && pk.en) || 'Partners', (pk && pk.zh) || '合作單位');
-          if (footEl && (item._listTypeEn || item._listTypeZh)) {
+          const tl = typeLabel(item);
+          if (footEl && (tl.en || tl.zh)) {
             const mk = (text, zh) => { const s = document.createElement('span'); if (zh) s.lang = 'zh-Hant'; s.textContent = text; return s; };
-            if (item._listTypeEn) footEl.appendChild(mk(item._listTypeEn, false));
-            if (item._listTypeZh) footEl.appendChild(mk(item._listTypeZh, true));
+            if (tl.en) footEl.appendChild(mk(tl.en, false));
+            if (tl.zh) footEl.appendChild(mk(tl.zh, true));
             footEl.style.backgroundColor = ACCENT_TO_DEEP[bg] || '';
             footEl.classList.add('has-content');
           }
@@ -4147,7 +4165,7 @@ export async function initAtlas(options = {}) {
     } else if (cat === 'partners') {
       // 先國家、後類型（user 2026-06-23 對調）
       appendSub(item._listCountryEn, item._listCountryZh);
-      appendSub(item._listTypeEn, item._listTypeZh);
+      { const tl = typeLabel(item); appendSub(tl.en, tl.zh); }
     }
     wrapper.appendChild(el);
     return wrapper;

@@ -15,5 +15,9 @@ export const SITE_BASE_PATHNAME = new URL(SITE_BASE).pathname;
 
 /** @param {string} path 站內路徑，開頭有無 '/' 皆可（'data/x.json' 或 '/data/x.json'） */
 export function sitePath(path) {
-  return new URL(String(path).replace(/^\//, ''), SITE_BASE).href;
+  const key = String(path).replace(/^\//, '');
+  // site-assets.js 填的後台覆蓋（icon/cursor 後台換檔改走 CDN）；未載入或沒對到＝本地檔
+  const ov = window.__SCCD_ASSET_OVERRIDES;
+  if (ov && ov[key]) return ov[key];
+  return new URL(key, SITE_BASE).href;
 }
