@@ -261,16 +261,23 @@ function randomizeHeroLayout() {
   // LOGO_VISUAL_PAD = 視覺溢出緩衝（涵蓋 lottie 三色齒輪外圈 + 視覺呼吸空間），
   // 加太小（如 8）chip 雖在 bbox 外但仍會被齒輪尾蓋住。
   const LOGO_VISUAL_PAD = 60;
+  // 固定保底 zone（user 2026-09-13「明確規定字卡不可生成的範圍」）：桌面 logo 恆在左上
+  // （left=--container-padding 60、top=24、180×180）。純靠量測有兩個洞會讓撞 logo 的版面
+  // 進 layoutPool 快取整個 session：①首載 header.html async fetch 未完成 → 量不到＝整輪不迴避
+  // ②SPA 換頁 logo shrink/grow 動畫中間態 → zone 比最終視覺小。固定值與量測值取聯集兩者都兜住。
+  // 矮橫向不套（該 gate 走手機式 header，桌面 logo display:none，固定 264 高會白吃掉半個矮視窗）。
+  const FIXED_LOGO_ZONE = isShort ? null
+    : { left: 0, top: 0, right: 60 + 180 + LOGO_VISUAL_PAD, bottom: 24 + 180 + LOGO_VISUAL_PAD };
   const logoEl = /** @type {HTMLElement|null} */ (document.querySelector('#header-logo'));
-  let logoRect = null;
+  let logoRect = FIXED_LOGO_ZONE;
   if (logoEl) {
     const r = logoEl.getBoundingClientRect();
     if (r.width > 0 && r.height > 0) {
       logoRect = {
-        left: r.left - LOGO_VISUAL_PAD,
-        top: r.top - LOGO_VISUAL_PAD,
-        right: r.right + LOGO_VISUAL_PAD,
-        bottom: r.bottom + LOGO_VISUAL_PAD,
+        left: Math.min(logoRect ? logoRect.left : Infinity, r.left - LOGO_VISUAL_PAD),
+        top: Math.min(logoRect ? logoRect.top : Infinity, r.top - LOGO_VISUAL_PAD),
+        right: Math.max(logoRect ? logoRect.right : -Infinity, r.right + LOGO_VISUAL_PAD),
+        bottom: Math.max(logoRect ? logoRect.bottom : -Infinity, r.bottom + LOGO_VISUAL_PAD),
       };
     }
   }
@@ -590,7 +597,7 @@ async function playHeroExit() {
   if (typeof gsap === 'undefined') return;
 
   const texts = Array.from(document.querySelectorAll(
-    '.hero-title, .hero-title-cn, .hero-text-en, .hero-text-cn'
+    '.hero-title, .hero-title-cn, .hero-text-en, .hero-text-cn, .coming-soon-title, .coming-soon-title-cn'
   )).filter(el => /** @type {HTMLElement} */ (el).offsetParent !== null);
   const banner = /** @type {HTMLElement | null} */ (document.querySelector('.hero-banner'));
   // Logo-only hero（about 頁）：進場是 [data-hero-logo] 的 yPercent clip-reveal，退場在下方反向沉出
@@ -1100,6 +1107,34 @@ export function initHeroAnimation() {
       },
     }));
     registerPageCleanup(() => triggers.forEach(t => t && t.kill()));
+  }
+
+  // Coming Soon 佔位屏標題（activities/admission，hero 下一屏）：hero chip 同款 4 方向 clip 滑入，
+  // 捲進視窗才播（同上方手機段落 pattern；trigger 用 wrapper——el 自帶 ±100% 位移，gBCR 含 transform 會偏）。
+  // 退場由 playHeroExit 一併收（texts selector 已含 .coming-soon-title*；未進場的走 heroRevealStarted 守衛維持隱藏）
+  const comingChips = /** @type {HTMLElement[]} */ (Array.from(
+    document.querySelectorAll('.coming-soon-title, .coming-soon-title-cn')));
+  if (comingChips.length > 0 && typeof ScrollTrigger !== 'undefined') {
+    const comingTriggers = comingChips.map((el, i) => {
+      gsap.set(el, { ...offsetFor(pickHeroDir()), visibility: 'visible' });
+      return ScrollTrigger.create({
+        trigger: el.parentElement,
+        start: 'top 85%',
+        once: true,
+        onEnter: () => {
+          gsap.to(el, {
+            xPercent: 0,
+            yPercent: 0,
+            duration: ENTER_DURATION,
+            ease: EASE.enter,
+            delay: i * 0.1,
+            clearProps: 'transform',
+            onStart: () => { el.dataset.heroRevealStarted = '1'; },
+          });
+        },
+      });
+    });
+    registerPageCleanup(() => comingTriggers.forEach(t => t && t.kill()));
   }
 
   // （playHeroExit 已在上層 init 早段註冊，含 logo-only 頁；此處不再重複註冊）

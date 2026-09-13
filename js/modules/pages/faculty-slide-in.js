@@ -549,7 +549,6 @@ export function initFacultySlideIn() {
             const openTl = openSlideInBg({
               overlay: slideInOverlay,
               panel: slideInPanel,
-              panelBg: cardColor,
             });
             // 返回鍵跟 panel 同步 clip-reveal（openSlideInBg panel 進場 offset 0.3 / DUR.medium）
             if (openTl && backInner) {

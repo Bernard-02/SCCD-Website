@@ -16,22 +16,49 @@
 
   <!-- Main Content -->
   <main id="page-content">
-    <!-- 即將上線 Coming Soon（2026-09-12，user 定案：直接沿用 hero title 那套＝散佈/旋轉/位置/字級全走 initHeroAnimation，
-         只把文字換成 COMING SOON / 即將上線）。整段就是一個標準 hero（.hero-rand-grid 桌面 + .hero-mobile 手機），
-         但只留兩個標題、拿掉 banner + 說明段（randomizeHeroLayout / hero-mobile-sync 對缺席元素皆有 guard）。
-         原內容（nav/panels）暫移除、git 保留；還原＝git revert 本檔。頁面其餘 init（loader/section-switch/search）皆 null-safe 早退。 -->
+    <!-- Admission Hero Section（原樣保留，user 2026-09-13：coming soon 不動 hero）
+         桌面 .hero-rand-grid：4 元素隨機 corner 排版（hero-animation.js）
+         手機 .hero-mobile：圖墊底 + 文字 stack 疊在圖上（hero-mobile-sync.js 從桌面 clone） -->
     <section class="snap-zone min-h-screen md:h-screen relative overflow-x-clip md:overflow-hidden">
       <!-- 手機版 -->
       <div class="hero-mobile">
+        <div class="hero-mobile-bg">
+          <img src="" alt="">
+        </div>
         <div class="hero-mobile-text">
           <h1 class="text-black hero-mobile-title" data-hero-hl></h1>
           <h1 class="text-black hero-mobile-title-cn" data-hero-hl></h1>
+          <p class="text-black hero-mobile-text-en" data-hero-hl></p>
+          <p class="text-black hero-mobile-text-cn" data-hero-hl></p>
         </div>
       </div>
       <!-- 桌面版 -->
       <div class="hero-rand-grid">
-        <h1 class="hero-title text-black inline-block" data-hero-hl>COMING SOON</h1>
-        <h1 class="hero-title-cn text-black inline-block" data-hero-hl>即將上線</h1>
+        <h1 class="hero-title text-black inline-block" data-hero-hl>ADMISSIONS</h1>
+        <h1 class="hero-title-cn text-black inline-block" data-hero-hl>入學</h1>
+        <div class="hero-banner">
+          <img src="../images/SCCD-1-4-0.jpg" alt="Admission">
+        </div>
+        <p class="hero-text-en text-black text-s" data-hero-hl>
+          Welcome to SCCD. We invite passionate and creative individuals to join our program and explore the world of communications design.
+        </p>
+        <p class="hero-text-cn text-black text-s" data-hero-hl>
+          歡迎對媒體傳達設計充滿熱情的朋友們，報考實踐大學媒體傳達設計學系，一起探索設計的無限可能。
+        </p>
+      </div>
+    </section>
+
+    <!-- Coming Soon 區（2026-09-13 user 拍板：hero 保留、只把原內容區換成 COMING SOON 標題）。
+         標題掛 [data-hero-hl] 吃 initHeroAnimation 的同顆隨機 accent（document 級掃描，不限 hero grid 內）；
+         hero engine 只認單一 .hero-rand-grid → 此區靜態對角散佈＋小旋轉（樣式在 hero.css）。
+         原內容（nav/panels）仍在 git（d833aa2），還原＝整段換回。 -->
+    <section class="snap-zone coming-soon-section">
+      <!-- wrapper＝定位+旋轉+overflow clip 遮罩；h1 從 wrapper 外 4 方向滑入（hero chip 同款，hero-animation.js 驅動） -->
+      <div class="coming-soon-title-wrapper">
+        <h1 class="coming-soon-title text-black" data-hero-hl>COMING SOON</h1>
+      </div>
+      <div class="coming-soon-title-cn-wrapper">
+        <h1 class="coming-soon-title-cn text-black" data-hero-hl>即將上線</h1>
       </div>
     </section>
   </main>

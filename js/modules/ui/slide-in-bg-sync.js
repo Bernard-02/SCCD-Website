@@ -1,53 +1,32 @@
 import { DUR, EASE } from './motion.js';
 /**
- * Slide-in 背景染色 GSAP timeline 共用模組
+ * Slide-in 開關 GSAP timeline 共用模組（faculty / courses）
  *
- * faculty / courses slide-in 開關時，html 背景透過 --slide-bg-color CSS var
- * 從 page bg → dim grey → panel 色（開），或反向（關）。
- *
- * 此模組只處理「bg 染色 timeline + has-slide-in class + --slide-bg-color lifecycle」。
+ * 處理「overlay fade + panel 平移 + has-slide-in class lifecycle」。
  * lightbox-shell（header bars / body lock）、panel.style.bg、panel 可見性 class
  * 由 caller 自行管理。
+ *
+ * 2026-09-13：原本還有 --slide-bg-color 背景染色 timeline（page bg → dim → panel 色），
+ * 但消費該 var 的 CSS 規則早已不存在＝視覺 no-op，整段刪除（檔名沿用不改、免動 import）。
  */
-
-function readBg(htmlEl) {
-  let bg = getComputedStyle(htmlEl).backgroundColor;
-  if (bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent') {
-    bg = htmlEl.classList.contains('mode-inverse') ? '#000000' : '#ffffff';
-  }
-  return bg;
-}
-
-function dimColor(htmlEl) {
-  return htmlEl.classList.contains('mode-inverse') ? '#000000' : '#333333';
-}
 
 /**
  * @param {object} args
  * @param {HTMLElement} args.overlay   slide-in 黑色 overlay（fade 到 0.8）
  * @param {HTMLElement} args.panel     滑入面板（x: 0%）
- * @param {string}      args.panelBg   面板色，html bg 最終目標色
  */
-export function openSlideInBg({ overlay, panel, panelBg }) {
-  const htmlEl = document.documentElement;
-  const startBg = readBg(htmlEl);
-  const dimBg = dimColor(htmlEl);
-
-  htmlEl.style.setProperty('--slide-bg-color', startBg);
-  htmlEl.classList.add('has-slide-in');
+export function openSlideInBg({ overlay, panel }) {
+  document.documentElement.classList.add('has-slide-in');
 
   if (typeof gsap === 'undefined') {
     overlay.style.opacity = '0.8';
-    htmlEl.style.setProperty('--slide-bg-color', panelBg);
     panel.style.transform = 'translateX(0%)';
     return null;
   }
 
   return gsap.timeline()
     .to(overlay, { opacity: 0.8, duration: DUR.fast }, 0)
-    .to(htmlEl,  { '--slide-bg-color': dimBg, duration: DUR.fast }, 0)
-    .to(panel,   { x: '0%', duration: DUR.medium, ease: EASE.enter }, 0.3)
-    .to(htmlEl,  { '--slide-bg-color': panelBg, duration: DUR.medium, ease: EASE.enter }, 0.3);
+    .to(panel,   { x: '0%', duration: DUR.medium, ease: EASE.enter }, 0.3);
 }
 
 /**
@@ -59,15 +38,8 @@ export function openSlideInBg({ overlay, panel, panelBg }) {
 export function closeSlideInBg({ overlay, panel, onComplete }) {
   const htmlEl = document.documentElement;
 
-  // 先暫時拿掉 has-slide-in 才能讀到「還原後」的 page bg（否則 computed bg 是 --slide-bg-color 當下值）
-  htmlEl.classList.remove('has-slide-in');
-  const targetBg = readBg(htmlEl);
-  const dimBg = dimColor(htmlEl);
-  htmlEl.classList.add('has-slide-in');
-
   const cleanup = () => {
     htmlEl.classList.remove('has-slide-in');
-    htmlEl.style.removeProperty('--slide-bg-color');
     if (onComplete) onComplete();
   };
 
@@ -80,8 +52,6 @@ export function closeSlideInBg({ overlay, panel, onComplete }) {
 
   return gsap.timeline()
     .to(panel,   { x: '110%', duration: DUR.medium, ease: EASE.exit }, 0)
-    .to(htmlEl,  { '--slide-bg-color': dimBg, duration: DUR.medium, ease: EASE.exit }, 0)
     .to(overlay, { opacity: 0, duration: DUR.fast }, 0.5)
-    .to(htmlEl,  { '--slide-bg-color': targetBg, duration: DUR.fast }, 0.5)
     .call(cleanup);
 }

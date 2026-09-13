@@ -7,7 +7,7 @@ import { DUR, EASE } from '../../ui/motion.js';
  *
  * - 三個形狀一色一個（綠/粉/藍），滿版 fixed SVG 疊層；形狀=3~8 邊多邊形或圓（1/4 機率）
  * - mode1 multiply / mode2 screen：交疊處自然混色（pathfinder 觀感）——blend 規則在 input.css
- * - mode3 XOR 填色（2026-08-11 由 stroke 線框改）：每形實心填 --theme-fg（依 bg 亮度翻黑白），
+ * - mode3 XOR 填色（2026-08-11 由 stroke 線框改）：每形實心填 --theme-fg-inverse（與內文反色，突出主色元件），
  *   mask 減去另外兩形 → 交疊區透明、透出背景色；分開即還原
  * - 漂浮：heading 隨 sin 緩慢轉向 → 曲線路徑
  * - 反彈：形狀「中點」碰到視窗邊界就反射 heading 彈回（不 wrap、不從對側進來）

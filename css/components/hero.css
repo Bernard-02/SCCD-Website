@@ -92,12 +92,12 @@
     max-width: clamp(220px, 28vw, 420px);
   }
 
-  /* Banner：85vw 16:9；JS 設 transform: rotate(N deg) 隨機；transform-origin 用 center 旋轉視覺平衡
+  /* Banner：88vw 16:9；JS 設 transform: rotate(N deg) 隨機；transform-origin 用 center 旋轉視覺平衡
      文字可疊在 banner 上 → 文字 z-index 高於 banner
      width min() cap：在 viewport 高度有限時自動縮小（多項式 1.6 = 旋轉 ±3° 下 bbH/bannerWidth 反比近似），
      確保旋轉後 bbox 完整落在 [BANNER_TOP_BOUND=90, 100vh-BOTTOM_MARGIN=30] 範圍內，不被下一 section 切 */
   .hero-banner {
-    width: min(85vw, calc((100vh - 120px) * 1.6));
+    width: min(88vw, calc((100vh - 120px) * 1.6));
     aspect-ratio: 16 / 9;
     overflow: hidden;
     visibility: hidden;
@@ -434,3 +434,47 @@
 
 /* sub-event tab btn 已遷移到 about .class-division-btn / .class-group-label（重用全站樣式 + JS 套色旋轉），
    原 .event-extra-tab-btn 規則已刪除 */
+
+/* ===== Coming Soon 區（activities / admission 暫用，2026-09-13）=====
+   user 拍板：原 hero 保留、原內容區換成 COMING SOON / 即將上線 標題屏。
+   標題字級走全域 h1（text-3xl bold）；accent 底色由 hero-animation initHeroAnimation 的
+   [data-hero-hl] document 級掃描統一上色（跟 hero 同一顆隨機三原色）。
+   散佈＝靜態對角＋小旋轉仿 hero 語彙——engine 只認單一 .hero-rand-grid，此區不掛第二個。 */
+.coming-soon-section {
+  min-height: 100svh;
+  position: relative;
+  /* 旋轉標題貼邊出血不撐出橫向捲軸 */
+  overflow: hidden;
+}
+/* wrapper＝定位＋旋轉＋overflow clip 遮罩（同 .hero-title-wrapper 職責分工）；
+   h1 由 hero-animation.js 從 wrapper 外 4 方向滑入，進場前 visibility:hidden 防閃現 */
+.coming-soon-title-wrapper,
+.coming-soon-title-cn-wrapper {
+  position: absolute;
+  width: fit-content;
+  overflow: hidden;
+  transform-origin: left center;
+}
+.coming-soon-title-cn-wrapper {
+  top: 14vh;
+  right: var(--container-padding);
+  transform: rotate(2deg);
+}
+.coming-soon-title-wrapper {
+  bottom: 18vh;
+  left: var(--container-padding);
+  transform: rotate(-3deg);
+}
+.coming-soon-title,
+.coming-soon-title-cn {
+  width: fit-content;
+  white-space: nowrap;
+  visibility: hidden;
+}
+@media (max-width: 767px) {
+  .coming-soon-title,
+  .coming-soon-title-cn {
+    font-size: clamp(2.25rem, 10vw, 3.5rem);
+    line-height: 1.15;
+  }
+}

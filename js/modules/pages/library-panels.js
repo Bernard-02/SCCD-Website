@@ -770,7 +770,9 @@ const remapAwardRefs = (arr) => Array.isArray(arr) ? arr.map(remapAwardRef).filt
 function mapDirectusAwardRow(row) {
   return {
     id: row.id != null ? `a-${row.id}` : undefined,
-    flag: row.country || '',
+    // country 2026-09-13 起 csv 多選（API 回陣列、多國＝多面國旗）；舊 localStorage 快取／records.json 可能還是 'tw' 字串
+    flag: Array.isArray(row.country) ? row.country.filter(Boolean)
+        : row.country ? String(row.country).split(',').map(s => s.trim()).filter(Boolean) : [],
     year: row.year,
     competition_en: row.competitionEn || '', competition: row.competitionZh || '',
     // 主辦單位／獎項類別／名次 2026-08-25 起改 repeater（可多筆 {en,zh}）；scalar 欄保留作舊資料 / records.json fallback。
@@ -803,6 +805,19 @@ function groupAwardsByYear(items) {
 // fetch + resolve 一次，之後切 panel / 跨 SPA 換頁回 library 都重用（原本每次 initAwardsPanel 都重 fetch）。
 // 2026-08-03 起 Directus 優先（library_awards）、失敗/空 fallback 本地 records.json（同 press/summer-camp pattern）。
 let _awardsDataPromise = null;
+// localStorage 快取（user 2026-09-13）：真資料 670 筆、變動頻率低 → 有快取就先渲染（零等待），背景 fetch
+// revalidate、資料真的變了才更新快取＋latest-wins 重渲染（_awardsRerender）＝「後台編輯硬重整即生效」不破。
+// 存 raw Directus rows（含 deep references）而非 mapped shape：map/group 便宜，前台 mapping 演進時舊快取自動吃新版。
+const AWARDS_LS_KEY = 'sccdAwardsCacheV1';
+const readAwardsCache = () => {
+  try { const rows = JSON.parse(localStorage.getItem(AWARDS_LS_KEY) || 'null'); return Array.isArray(rows) && rows.length ? rows : null; }
+  catch { return null; }
+};
+const writeAwardsCache = (rows) => { try { localStorage.setItem(AWARDS_LS_KEY, JSON.stringify(rows)); } catch { /* quota / 私隱模式：略過，退回每次 fetch */ } };
+const rowsToRecords = (rows) => groupAwardsByYear(rows.map(mapDirectusAwardRow));
+// 背景 revalidate 可能比 initAwardsPanel 定義 _awardsRerender 更早回來 → 暫存，panel init 尾端補收
+let _awardsFreshRecords = null;
+
 function loadAwardsDataCached() {
   if (_awardsDataPromise) return _awardsDataPromise;
   _awardsDataPromise = (async () => {
@@ -812,14 +827,34 @@ function loadAwardsDataCached() {
     const localLogos   = Array.isArray(localData) ? [] : (localData.awardsImages || []);
     const awardsImages = await fetchAwardLogos(localLogos);
 
-    let realRecords;
-    try {
+    const fetchRows = async () => {
       const url = `${CMS_API_BASE}/library_awards?fields=*,${AWARD_REF_FIELDS}&sort=-year,sort&limit=-1`;
       const res = await fetch(url);
       if (!res.ok) throw new Error('CMS ' + res.status);
       const rows = (await res.json())?.data;
       if (!Array.isArray(rows) || rows.length === 0) throw new Error('CMS empty');
-      realRecords = groupAwardsByYear(rows.map(mapDirectusAwardRow));
+      return rows;
+    };
+
+    const cachedRows = readAwardsCache();
+    if (cachedRows) {
+      // 快取先行；背景 revalidate（失敗靜默留快取——快取本身就是上次成功真資料）
+      fetchRows().then(rows => {
+        if (JSON.stringify(rows) === JSON.stringify(cachedRows)) return;
+        writeAwardsCache(rows);
+        const records = rowsToRecords(rows);
+        _awardsDataPromise = Promise.resolve({ records, awardsImages });
+        _awardsFreshRecords = records;
+        if (typeof window._awardsRerender === 'function') window._awardsRerender(records);
+      }).catch(() => {});
+      return { records: rowsToRecords(cachedRows), awardsImages };
+    }
+
+    let realRecords;
+    try {
+      const rows = await fetchRows();
+      writeAwardsCache(rows);
+      realRecords = rowsToRecords(rows);
     } catch (cmsErr) {
       console.warn('[awards] Directus 抓取失敗/無資料，fallback 本地 records.json：', cmsErr.message);
       realRecords = Array.isArray(localData) ? localData : localData.records;
@@ -828,10 +863,9 @@ function loadAwardsDataCached() {
         const refs = Array.isArray(item.references) ? item.references : [];
         item._resolvedRefs = refs.length ? (await Promise.all(refs.map(resolveAwardRef))).filter(Boolean) : [];
       })));
+      realRecords = [...realRecords].sort((a, b) => b.year - a.year);
     }
-
-    const records = [...realRecords].sort((a, b) => b.year - a.year).slice(0, 20);
-    return { records, awardsImages };
+    return { records: realRecords, awardsImages };
   })();
   return _awardsDataPromise;
 }
@@ -859,10 +893,9 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     //（applyMarqueeOverflow row/inner 結構；桌面/直向無對應 CSS＝純多一層 span 零視覺差）
     const cellLine = (txt, weight) =>
       `<span class="award-cell-line"${weight ? ` style="font-weight:${weight};"` : ''}><span class="award-cell-inner">${txt}</span></span>`;
-    const bilingual     = (en, zh) => en ? cellLine(en) + cellLine(zh) : cellLine(zh);
-    const bilingualBold = (en, zh) => en
-      ? cellLine(en, 700) + cellLine(zh, 700)
-      : cellLine(zh, 700);
+    // 缺語言不輸出空行——空 cellLine 仍佔一個 line-height，會把單語 cell 撐滿列高、align-self 置中失效
+    const bilingual     = (en, zh) => (en ? cellLine(en) : '') + (zh ? cellLine(zh) : '');
+    const bilingualBold = (en, zh) => (en ? cellLine(en, 700) : '') + (zh ? cellLine(zh, 700) : '');
     // 主辦單位／獎項類別／名次可為 repeater 陣列 [{en,zh}]（Directus）或舊 scalar（records.json）；
     // 統一成陣列，每筆各自 bilingual 疊放在同一 cell（獨立 repeater、不跟隔壁欄配對對齊，user 2026-08-25 定案）。
     const toBiList = (arr, en, zh) =>
@@ -895,7 +928,9 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     };
     const buildWinnersHtml = (winners) => buildHMarqueeTrack(winners, true);
     // 主表 marquee cell（主辦/類別/名次）：套 .award-winners viewport → 跟得獎人欄一模一樣的 marquee 行為
-    const hmarqueeCell = (list) => `<div class="award-winners flex flex-col" style="min-width:0;">${buildHMarqueeTrack(list, false)}</div>`;
+    const hmarqueeCell = (list, extraCls = '') => `<div class="award-winners flex flex-col${extraCls}" style="min-width:0;">${buildHMarqueeTrack(list, false)}</div>`;
+    // 單語清單（每筆都缺中或缺英＝單行）→ cell 垂直置中（同得獎人 zh-only 規則，user 2026-09-13）
+    const isSingleLangList = (list) => list.length > 0 && list.every(o => !!o.en !== !!o.zh);
 
     // 多獲獎者水平 marquee：每位獲獎者佔滿整個 col 寬，整位整位滾（不會卡到一半）
     // viewport = grid col 寬 → 量 view.offsetWidth 當作 pair 寬，強制 set 到每個 pair
@@ -1023,11 +1058,16 @@ async function initAwardsPanel(onEntranceDoneCallback) {
       }
     }
 
-    function renderItems(data) {
-      listEl.innerHTML = '';
-      let rowIdx = 0; // 跨 year-block 連續編號，給斑馬列交替（第一個=深格）
-      data.forEach(yearGroup => {
-        const itemsHtml = (yearGroup.items || []).map((item) => {
+    // ── viewport lazy render（2026-09-13，670 筆真資料後對齊 activities 鐵則：首批建滿一屏、
+    //    sentinel IO 續建；搜尋／年份篩選／deep-link 需要整份 DOM 時 buildAllRemaining 兜底）──
+    const LAZY_FIRST_ITEMS = 30;   // 首批 rows 下限（year group 為單位湊滿）
+    const LAZY_BATCH_ITEMS = 30;   // sentinel 每次觸發續建 rows 下限
+    let lazyQueue = [];            // 尚未建 DOM 的 year groups（renderItems 重灌）
+    let lazySentinel = null;
+    let lazyIO = null;
+    let rowIdx = 0;                // 跨 year-block 連續編號，給斑馬列交替（第一個=深格）
+
+    const buildAwardItemHtml = (item) => {
           const zebra = (rowIdx++ % 2 === 0) ? ' list-item-zebra' : ''; // 偶數序(0,2,4…)=深格，第一列即深（class 對齊 activities）
           const winners = normalizeWinners(item);
           const refs = item._resolvedRefs || [];
@@ -1040,7 +1080,8 @@ async function initAwardsPanel(onEntranceDoneCallback) {
           // 無 country（含 records.json 舊 scalar fallback）則不加尾綴。
           const organizersDisplay = organizers.map(o => ({
             en: o.en ? `${o.en}${o.country ? `&ensp;(${String(o.country).toUpperCase()})` : ''}` : '',
-            zh: o.zh ? `${o.zh}${o.country ? `（${countryName(o.country, 'zh')}）` : ''}` : '',
+            // 主辦方只有英文（外國主辦無中文名）→ 中文行不留空、補「英文名（中文國名）」（user 2026-09-13）
+            zh: (o.zh || o.en) ? `${o.zh || o.en}${o.country ? `（${countryName(o.country, 'zh')}）` : ''}` : '',
           }));
           const categories = toBiList(item.categories, item.award_en, item.award);
           const ranks = toBiList(item.ranks, item.rank_en, item.rank);
@@ -1080,32 +1121,79 @@ async function initAwardsPanel(onEntranceDoneCallback) {
                  style="font-size: var(--font-size-xs);${cursorStyle}"
                  data-search="${searchText}"${item.id ? ` id="${item.id}"` : ''}>
               <div class="award-row" style="display:grid;${AWARD_GRID} align-items: start;">
-                <div style="padding-top: 0.1em;">${item.flag ? `<span class="fi fi-${item.flag}" style="width:1.5em;height:1em;display:inline-block;"></span>` : ''}</div>
+                <div style="padding-top: 0.1em; display: flex; flex-direction: column; row-gap: 0.25em;">${(Array.isArray(item.flag) ? item.flag : item.flag ? [item.flag] : []).map(f => `<span class="fi fi-${f}" style="width:1.5em;height:1em;display:block;"></span>`).join('')}</div>
                 <div class="award-mid">
-                  <div class="truncate flex flex-col" role="heading" aria-level="3">${bilingualBold(item.competition_en, item.competition)}</div>
+                  <div class="truncate flex flex-col award-cell-hover${(item.competition_en && item.competition) ? '' : ' award-cell-center'}" role="heading" aria-level="3">${bilingualBold(item.competition_en, item.competition)}</div>
                   ${hmarqueeCell(organizersDisplay)}
-                  ${hmarqueeCell(ranks)}
+                  ${hmarqueeCell(ranks, isSingleLangList(ranks) ? ' award-cell-center' : '')}
                 </div>
-                <div class="award-winners flex flex-col" style="min-width:0;">${buildWinnersHtml(winners)}</div>
+                <div class="award-winners flex flex-col${winners.every(w => w.zh && !w.en) ? ' award-winners-zh-only' : ''}" style="min-width:0;">${buildWinnersHtml(winners)}</div>
                 <div class="award-ref-cell" style="display:flex;justify-content:flex-end;">${refBtnHtml}</div>
               </div>
               ${refWrapHtml}
             </div>`;
-        }).join('');
+    };
 
-        listEl.insertAdjacentHTML('beforeend', `
+    function buildYearBlock(yearGroup, withMarquee = true) {
+      const itemsHtml = (yearGroup.items || []).map(buildAwardItemHtml).join('');
+      const html = `
           <div class="year-block" data-year="${yearGroup.year}">
             <div class="press-year-label" style="font-size: var(--font-size-xs); font-weight: 700; padding: 0 0 0.25rem; position: sticky; top: -1px; background: var(--lib-bg); z-index: 2;"><span class="year-label-text">${yearGroup.year}</span></div>
             <div class="flex flex-col">${itemsHtml}</div>
-          </div>`);
-      });
+          </div>`;
+      if (lazySentinel) lazySentinel.insertAdjacentHTML('beforebegin', html);
+      else listEl.insertAdjacentHTML('beforeend', html);
+      const block = /** @type {HTMLElement} */ (lazySentinel ? lazySentinel.previousElementSibling : listEl.lastElementChild);
+      bindAwardScope(block, withMarquee);
+    }
+
+    function buildNextGroups(minItems, withMarquee = true) {
+      let built = 0;
+      while (lazyQueue.length && built < minItems) {
+        built += (lazyQueue[0].items || []).length;
+        buildYearBlock(lazyQueue.shift(), withMarquee);
+      }
+    }
+
+    // 搜尋（掃全資料）／年份篩選（目標年可能未建）／deep-link（#a-* 目標列要在 DOM）→ 一次補完。
+    // 建 DOM 時不逐批量 marquee（讀寫交錯 thrash）、全建完後對整份量一次。
+    function buildAllRemaining() {
+      if (!lazyQueue.length) return;
+      buildNextGroups(Infinity, false);
+      disarmLazySentinel();
+      applyAwardMarquees(listEl);
+    }
+
+    function disarmLazySentinel() {
+      if (lazyIO) { lazyIO.disconnect(); lazyIO = null; }
+      if (lazySentinel) { lazySentinel.remove(); lazySentinel = null; }
+    }
+
+    function armLazySentinel() {
+      disarmLazySentinel();
+      if (!lazyQueue.length) return;
+      lazySentinel = document.createElement('div');
+      lazySentinel.style.height = '1px';
+      listEl.appendChild(lazySentinel);
+      // root＝inner-scroll 框（#library-awards-scroll 固定高內捲）；rootMargin 提前 800px 續建＝
+      // 捲到之前 DOM 已就緒（entrance reveal 只涵蓋首批；續建批天然在 fold 下、出生即可見免動畫）
+      lazyIO = new IntersectionObserver((entries) => {
+        if (!entries.some(e => e.isIntersecting)) return;
+        buildNextGroups(LAZY_BATCH_ITEMS);
+        if (!lazyQueue.length) disarmLazySentinel();
+      }, { root: listEl.closest('#library-awards-scroll'), rootMargin: '800px 0px' });
+      lazyIO.observe(lazySentinel);
+    }
+    registerPageCleanup(() => disarmLazySentinel());
+
+    function bindAwardScope(scope, withMarquee = true) {
 
       // hover：整列 accent 底色（user 2026-06-22 改：對齊 activities list-item；原本是文字變色 highlight）。
       // standard/inverse 隨機三原色 inline bg、mode-color 由 library.css [style*=background] 規則翻 theme-fg。
       // ⚠️ 只在桌面綁：手機 tap 會觸發 emulated mouseenter → 底色殘留（user 2026-06-10 #2：手機點 award 不變色）。
       // ref 展開中（data-ref-open）鎖定當下色：不重 roll、離開不清。
       if (window.innerWidth >= 768 && !isShortLandscape()) {
-        listEl.querySelectorAll('.award-record-item').forEach(item => {
+        scope.querySelectorAll('.award-record-item').forEach(item => {
           item.addEventListener('mouseenter', () => {
             if (item.dataset.refOpen) return;
             const color = SCCDHelpers.getRandomAccentColor();
@@ -1123,7 +1211,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
       // 整列可點開合（user 2026-06-22：不必點 chevron）+ ref row 點擊分派。
       // 開合對齊 activities：開啟時整列鎖 accent 底 + set --item-color-deep → ref 列底色＝deep accent
       // （共用 .list-ref-btn 規則接手，見 library.css 改後註解）。accordion height 0↔auto 手感不變。
-      listEl.querySelectorAll('.award-record-item').forEach(item => {
+      scope.querySelectorAll('.award-record-item').forEach(item => {
         const wrap = /** @type {HTMLElement | null} */ (item.querySelector('.award-ref-wrap'));
         if (!wrap) return;  // 無 ref → 不可展開、不綁點擊（hover 底色仍套，但無內容可開）
         item.style.cursor = `url('${sitePath('custom-cursor/pointer.svg')}') 14 1, pointer`;
@@ -1192,19 +1280,39 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         wrap.querySelectorAll('.award-ref-row').forEach(row => bindAwardRefRowClick(/** @type {HTMLElement} */ (row)));
       });
 
-      // 多獲獎者自動水平 marquee（桌面，不需 hover）
-      applyWinnersHMarquee(listEl);
-      // 手機／矮橫向：得獎人名字太長 → 個別 marquee（固定欄寬下溢出才跑；桌面是整位橫排 marquee 不需這個）
-      if (window.innerWidth < 768 || isShortLandscape()) runMarqueeOverflow(listEl, '.award-winner-en, .award-winner-zh', '.award-marquee-inner');
-      // 矮橫向：主表 cell（競賽/主辦/獎項/名次）被窄欄 crop → 逐行 marquee（.award-cell-line 由 render 包好；
-      // 動畫 CSS 只在 landscape gate）。直向也要跑：applyMarqueeOverflow 自帶 reset——轉向後把橫向留下的
-      // 兩份 .marquee-copy 還原單份（直向 cell 換行不溢出＝重判後維持單份），否則文字顯示兩次。
-      if (window.innerWidth < 768 || isShortLandscape()) runMarqueeOverflow(listEl, '.award-cell-line', '.award-cell-inner');
+      if (withMarquee) applyAwardMarquees(scope);
+    }
+
+    // marquee 量測統一入口（bindAwardScope 逐批＋showLibPanel 重量＋buildAllRemaining 收尾共用）
+    function applyAwardMarquees(scope) {
+      // 多獲獎者水平 marquee（桌面 hover 才捲；量測需 panel 可見、隱藏時 offsetWidth=0 自動略過）
+      applyWinnersHMarquee(scope);
+      if (window.innerWidth < 768 || isShortLandscape()) {
+        // 手機／矮橫向照舊：溢出自動循環（applyMarqueeOverflow 自帶 reset——轉向殘留的兩份 copy 自癒）
+        runMarqueeOverflow(scope, '.award-winner-en, .award-winner-zh', '.award-marquee-inner');
+        runMarqueeOverflow(scope, '.award-cell-line', '.award-cell-inner');
+      } else {
+        // 桌面（user 2026-09-13）：col 內容溢出 → hover 才捲＋放開平滑回彈（全站慣例 B、hover 單元＝各 cell）。
+        // :not(.is-hmarquee) 排除多得獎人橫捲 track（那套自有 hover 行為）→ 必在 applyWinnersHMarquee 之後掃。
+        runMarqueeOverflow(scope, '.award-mid .award-cell-line', '.award-cell-inner', '.award-cell-hover');
+        runMarqueeOverflow(scope, '.award-winners:not(.is-hmarquee) .award-winner-en, .award-winners:not(.is-hmarquee) .award-winner-zh', '.award-marquee-inner', '.award-winners:not(.is-hmarquee)');
+      }
       // ref 展開列標題過長 → marquee（桌面 hover 才跑、手機沿用全站 .list-title-marquee 自動跑慣例；量測見上）
-      initAwardRefTitleMarquees(listEl);
+      initAwardRefTitleMarquees(scope);
+    }
+
+    function renderItems(data) {
+      disarmLazySentinel();
+      listEl.innerHTML = '';
+      rowIdx = 0;
+      lazyQueue = [...data];
+      buildNextGroups(LAZY_FIRST_ITEMS);
+      armLazySentinel();
     }
 
     renderItems(getSorted());
+    // deep-link #a-*：目標列可能在未建批次 → 直接補完整份（捲動途中的成本由 scroll-gate 節流機制吸收）
+    if ((location.hash || '').startsWith('#a-')) buildAllRemaining();
     maybeRevealDeferredPanel('lib-panel-awards');  // deep-link 遞延首渲染：commit 完才整組 clip-reveal（未遞延＝no-op）
 
     // 年份＋search 複合篩選單一入口（user 2026-08-10：任何篩選歸零都要 No Result）。
@@ -1214,6 +1322,8 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     const searchInput = document.getElementById('library-awards-search');
     const applyAwardsFilters = () => {
       const q = searchInput ? searchInput.value.trim().toLowerCase() : '';
+      // 篩選要掃「全部」資料 → lazy 未建完就先補完（一次性；歸零後不重觸發）
+      if (q || selectedYears.size) buildAllRemaining();
       listEl.querySelectorAll('.year-block').forEach(block => {
         const yearMatch = selectedYears.size === 0 || selectedYears.has(block.dataset.year);
         let blockVisible = false;
@@ -1234,25 +1344,38 @@ async function initAwardsPanel(onEntranceDoneCallback) {
 
     // showLibPanel('awards') 顯示 panel 後重量一次 winners marquee（首次 render 時卡片可能尚未 sized →
     // offsetWidth=0 → 多名得獎者擠成一團）。對齊 press/files/album 的 _XMarqueeInit 重觸發 pattern。
-    window._awardsMarqueeInit = () => {
-      applyWinnersHMarquee(listEl);
-      if (window.innerWidth < 768 || isShortLandscape()) runMarqueeOverflow(listEl, '.award-winner-en, .award-winner-zh', '.award-marquee-inner');
-      if (window.innerWidth < 768 || isShortLandscape()) runMarqueeOverflow(listEl, '.award-cell-line', '.award-cell-inner');
-      initAwardRefTitleMarquees(listEl);
-    };
+    window._awardsMarqueeInit = () => applyAwardMarquees(listEl);
 
     // showLibPanel 切走 awards 時呼叫：瞬間收合所有展開的 ref 手風琴，回到 awards 不殘留展開態
     window._awardsResetAccordions = () => {
       listEl.querySelectorAll('.award-record-item').forEach(item => collapseAwardItem(item, { instant: true }));
     };
 
+    // localStorage 快取背景 revalidate 發現後台資料變了 → latest-wins 就地重渲染（罕見：真的有編輯才觸發）。
+    // records 就地替換（getSorted 等 closure 引用同一 array）；年份鈕不重建（年份集合變動更罕見，下次進頁補上）。
+    // 進場動畫窗口內不 commit 大 innerHTML（2026-09-11 首渲染閘教訓）→ reveal busy 時改期到收完再換。
+    window._awardsRerender = (newRecords) => {
+      if (!listEl.isConnected) return; // SPA 已離頁：快取已更新、下次進頁生效
+      const busy = revealBusyRemaining();
+      if (busy > 60) { setTimeout(() => window._awardsRerender(newRecords), busy + 150); return; }
+      records.length = 0;
+      records.push(...newRecords);
+      renderItems(getSorted());
+      applyAwardsFilters();
+    };
+    // 背景 revalidate 若比本 init 先回來（hook 還沒掛）→ 這裡補收
+    if (_awardsFreshRecords) { const fresh = _awardsFreshRecords; _awardsFreshRecords = null; window._awardsRerender(fresh); }
+
     // 年份 Picker
     const yearPickerEl = document.getElementById('library-year-picker');
     if (yearPickerEl) {
       const dataYears   = new Set(records.map(g => String(g.year)));
       const currentYear = new Date().getFullYear();
+      // 下限跟資料走（2026-09-13 匯入含 1992/1994 早期得獎；原寫死 1997 當保底上限）
+      const numYears = [...dataYears].map(Number).filter(Number.isFinite);
+      const minYear  = numYears.length ? Math.min(1997, ...numYears) : 1997;
       const allYears    = [];
-      for (let y = currentYear; y >= 1997; y--) allYears.push(y);
+      for (let y = currentYear; y >= minYear; y--) allYears.push(y);
 
       // selectedYears 宣告在 panel 層（applyAwardsFilters 共用）；年份顯隱走複合篩選單一入口
       const updateList = applyAwardsFilters;

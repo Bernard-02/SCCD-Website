@@ -64,9 +64,20 @@ html {
 /* Programs 結構圖自成一屏（#class snap 落點）→ 下方 division 內容不擠進 tree 視窗（2026-09-01 #10） */
 #program-structure { min-height: 100svh; }
 /* 短桌面(<900h)tree 也頂對齊：#program-structure 的 pt-4xl 已當框景，免再疊 #class 的 100px marker 落點
-   （否則 100+128=228 → tree 偏下、與高視窗 128 不一致）。min-height:501 排除橫向手機 gate（那走手機值）。 */
+   （否則 100+128=228 → tree 偏下、與高視窗 128 不一致）。min-height:501 排除橫向手機 gate（那走手機值）。
+   #class-info-anchor 也歸 0（2026-09-13）：留 100px 會在 division 視圖頂露出 tree 尾端 100px，
+   右下 Term/Degree 說明卡（bottom:32、高 ~83）正好卡在帶內；頂對齊＝與 ≥900 行為一致、卡片不進下一屏。 */
 @media (min-width: 768px) and (min-height: 501px) and (max-height: 899px) {
-  #class { scroll-margin-top: 0; }
+  #class, #class-info-anchor { scroll-margin-top: 0; }
+  /* division 視圖頂對齊後（上行）文字盒起點少了 100px 落點緩衝、鑽進 sticky btn（底 298）
+     → 同 100vh gate 把緩衝補進 padding（文字頂回 362、btn 下留 2xl 呼吸）；
+     說明文字改內捲壓縮盒高（公式同 100vh gate；max() 保底防極矮視窗盒縮到不可讀）。 */
+  #class-info-area { padding-top: calc(var(--spacing-2xl, 64px) + 100px); }
+  .class-info-panel [data-class-text] {
+    overflow-y: auto;
+    max-height: max(8rem, calc(100svh - 440px));
+  }
+  .class-info-panel [data-class-text].has-scroll-pr { padding-right: var(--spacing-sm); }
 }
 
 /* 手機（2026-07-07）：anchor strip 改全程 sticky（釘 88、高 91 → 底 179，2026-07-13 從 96 收上來）後，

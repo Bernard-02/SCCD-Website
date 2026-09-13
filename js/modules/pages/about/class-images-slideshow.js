@@ -136,6 +136,9 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
   const slotZ = (Array.isArray(opts.slotZ) && opts.slotZ.length === slotLefts.length) ? opts.slotZ : null;
   // tick 離場方向：預設 'left'（與整列左移同向）；dshow-detail 子展覽傳 true → 隨機 4 向
   const leaveRandom = !!opts.leaveRandom;
+  // hover 行為（user 2026-09-13，about class 圖用）：true＝hover 抽新隨機角並「吃住」（_rotation 一併更新、
+  // 離開不彈回，含 slot 0）；false＝原行為（hover 轉正 0°、離開還原、slot 0 不轉——degree-show 維持）
+  const hoverSpin = !!opts.hoverSpin;
 
   // 同一個 panel 內的 text highlight 區塊（含底色），和 imgs 一起做 clip-path
   // about 場景自動從 .class-info-panel 找 [data-class-hl]；degree-show 場景可顯式傳入 textHlEl
@@ -162,12 +165,22 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
     gsap.to(wrapper, { rotation: 0, duration: HOVER_DUR, overwrite: 'auto' });
   }
 
+  // hoverSpin：抽一個跟現角至少差 2° 的新隨機角（±4，同出生 randomRotation），寫回 _rotation＝定案
+  //（之後 shift/leave 都用新角）；再 hover 再抽。
+  function spinHover(wrapper) {
+    const cur = wrapper._rotation ?? 0;
+    let r = cur;
+    while (Math.abs(r - cur) < 2) r = randomRotation();
+    wrapper._rotation = r;
+    gsap.to(wrapper, { rotation: r, duration: HOVER_DUR, overwrite: 'auto' });
+  }
+
   // shift 完成後呼叫：若游標仍停在某 slot 上（slot 1 或 2），立刻啟用 hover；
   // 不需要使用者移開再進入才觸發。
   function reapplyHoverIfPointerInside() {
     slots.forEach((s, i) => {
-      if (i === 0) return; // slot 0 不 hover
-      if (s.matches(':hover')) activateHover(s);
+      if (!hoverSpin && i === 0) return; // 原行為：slot 0 不 hover（spin 模式全 slot 都轉）
+      if (s.matches(':hover')) (hoverSpin ? spinHover : activateHover)(s);
     });
   }
 
@@ -203,11 +216,12 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
     wrapper.addEventListener('mouseenter', () => {
       pauseAutoplay();
       if (isShifting) return;
+      if (hoverSpin) { spinHover(wrapper); return; }   // spin 模式：含 slot 0、離開不還原（_rotation 已更新）
       if (slots.indexOf(wrapper) === 0) return; // slot 0（第 1 張）不做旋轉 hover
       activateHover(wrapper);
     });
     wrapper.addEventListener('mouseleave', () => {
-      clearHoverState(wrapper);
+      if (!hoverSpin) clearHoverState(wrapper);
       if (!slots.some(s => s.matches(':hover'))) resumeAutoplay();
     });
   }
@@ -446,7 +460,7 @@ export async function initClassImagesSlideshow() {
     // about program 文字說明卡（[data-class-hl]）走 clip-reveal、圖片維持 clip-path（user 2026-08-10）
     const slotOpts = isMobileSlots
       ? { slotLefts: ['50%'], slotXPercent: -50, textHlReveal: true }
-      : { textHlReveal: true };
+      : { textHlReveal: true, hoverSpin: true };   // 桌面 hover 抽新角吃住（user 2026-09-13；手機無 hover 不帶）
     /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.division-images')).forEach(container => {
       const division = container.dataset.division;
       if (!division) return;

@@ -1499,7 +1499,11 @@ export async function initAtlas(options = {}) {
   // clearDetail → setCityLineRetract 會 killTweensOf 殺掉退場 tween 把線畫回來 → 這裡守門
   let pageExiting = false;
   function setCityLineRetract(hoveredCity) {
-    if (pageExiting) return;
+    // viewMorphing 也守門：morph 中線由 exit/enter timeline 全權接管，此處若被 morph 中的
+    // hover/mouseout（飛行節點掃過游標、點鈕後 queued mouseout 晚到）觸發，會在 buildMapEnterTl
+    // init 的 killTweensOf 之後才生 retractT→0 tween＝殺不到；float loop 又在回程 t=0.05 提前
+    // 解凍逐幀重畫 → 線比 R_CITY_START/bloom 早出現在還沒變色的星雲上
+    if (pageExiting || viewMorphing) return;
     cityLines.forEach(cl => {
       let targetT = cityLineRestT(cl);
       let isActive = false;
@@ -2480,7 +2484,7 @@ export async function initAtlas(options = {}) {
   }
 
   function onMouseOver(e) {
-    if (isIntroActive() || pageExiting) return;   // 進場/離頁退場期間不響應 hover
+    if (isIntroActive() || pageExiting || viewMorphing) return;   // 進場/離頁退場/morph 期間不響應 hover（morph 中飛行節點掃過游標會開 detail＋畫殘線）
     const span = e.target && e.target.closest && e.target.closest('.atlas-name');
     if (!span) return;
     const fromSpan = e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('.atlas-name');
@@ -3140,7 +3144,10 @@ export async function initAtlas(options = {}) {
           fill(careersList[idx]);
           // chip 滑出隱藏期間調整寬度，視覺上看不到 box 變動
           fitWidth();
-          gsap.set(el, hideTo);
+          // map（clip+translate）版必須在 fitWidth 之後「重新評估」hidden 態：hideTo 是滑出前算的、
+          // translate 用舊寬 w₁，但 clip inset % 按新寬 w₂ 換算 → 滑入起點窗左緣偏 (w₂−w₁)，
+          // 新職業較寬時 chip 與 alumni btn 之間閃現縫隙（user 2026-09-13）。rand4（list）用 xPercent 相對自寬、無此問題。
+          gsap.set(el, rand4 ? hideTo : slideHidden());
           tween = gsap.to(el, {
             ...showTo,
             duration: DUR.base,
@@ -4766,7 +4773,9 @@ export async function initAtlas(options = {}) {
       const t = cityLineRestT(cl);
       if (t === 1 && cl.retractT !== t) cl.hoveredEnd = Math.random() < 0.5 ? 'a' : 'b';
       // 不早退：即使 retractT 已在目標值，也要用 overwrite 蓋掉 clearDetail 剛排的「回 0」tween
-      gsap.to(cl, { retractT: t, duration: 0.5, ease: t === 0 ? EASE.enterSoft : EASE.exitSoft, overwrite: true });
+      // onUpdate 必帶：switchToList restore-first 期間 float loop 已凍結（viewMorphing）＝Phase 3b 不重畫，
+      // 沒有 onUpdate 線只動值不動畫面（map view 正常篩選時與 Phase 3b 重複寫入、無害）
+      gsap.to(cl, { retractT: t, duration: 0.5, ease: t === 0 ? EASE.enterSoft : EASE.exitSoft, overwrite: true, onUpdate: () => updateCityLineEndpoints(cl) });
     });
   }
 
@@ -5412,7 +5421,10 @@ export async function initAtlas(options = {}) {
         retractT: 1,
         duration: M_CITY_DUR + 0.2,
         ease: EASE.enterSoft,
-        overwrite: true,
+        // 'auto' 不能改回 true：true 是「建立當下」殺同 target 全部 tween，會把 restore-first
+        // （applyCountriesGate）剛排的還原 tween 秒殺在半路（線停在殘值、切 list 時「還沒回復就被收起」）；
+        // 'auto' 等 timeline 播到 restoreDelay 首次 render 才清衝突 tween，還原早已跑完、clearDetail 反向 tween 也照樣被清
+        overwrite: 'auto',
         onUpdate: () => updateCityLineEndpoints(cl),
       }, 0);
     });

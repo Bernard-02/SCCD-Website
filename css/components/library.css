@@ -429,6 +429,19 @@
   flex-shrink: 0;
   /* 寬度由 JS 動態設 = viewport 寬（grid col），讓每位獲獎者整位對齊 col */
 }
+/* 得獎人全員只有中文（批量匯入 EN 待補）：cell 整體垂直置中對齊列高、不貼頂（user 2026-09-13）。
+   用 align-self（grid item 級）而非 justify-content——cell 高未必 stretch 滿列（手機 3 欄版型），
+   justify-content 在 fit-content 高度下無作用（首版踩過）。 */
+#library-awards-list .award-winners-zh-only {
+  align-self: center;
+}
+/* 獎名／獎別單語（缺中或缺英＝單行）同樣置中（user 2026-09-13）。⚠️只限桌面——
+   手機 .award-mid 是 flex-col（align-self 變水平置中會歪版）；矮橫向以手機版為準也排除（min-height gate）。 */
+@media (min-width: 768px) and (min-height: 501px) {
+  #library-awards-list .award-cell-center {
+    align-self: center;
+  }
+}
 
 /* Award 全表雙語 EN→ZH 間距（user 2026-08-13）：award 文字全 text-xs → 吃 xs 字級 token（1px），跟字級對齊。
    涵蓋中間欄各 cell（競賽/主辦/獎項/名次）、得獎人 pair、以及展開的 ref 列（label + title 兩欄各自的 EN/ZH）。
@@ -455,6 +468,54 @@
 @keyframes award-winners-hmarquee {
   0%   { transform: translateX(0); }
   100% { transform: translateX(var(--hmarquee-distance, -50%)); }
+}
+
+/* ── 桌面 col 溢出 hover marquee（user 2026-09-13）──
+   結構同矮橫向④（行＝window、inner＝捲動體、dual-copy），但**無 CSS 自動 keyframe**：
+   桌面由 bindMarqueeReturn（GSAP）hover 驅動＋放開平滑回彈（全站慣例 B）。
+   :not(.is-hmarquee) 排除多得獎人橫捲 track（整位橫捲那套照舊）；
+   pair 桌面 base flex-shrink:0 是為 hmarquee 整位寬鎖定——單筆時要能縮進 cell 寬，行才量得出溢出。 */
+@media (min-width: 768px) {
+  #library-awards-list .award-mid .award-cell-line {
+    display: block;
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  #library-awards-list .award-mid .award-cell-inner {
+    display: inline-block;
+    white-space: nowrap;
+  }
+  #library-awards-list .award-mid .award-cell-inner > .marquee-copy {
+    display: inline-block;
+    padding-right: var(--marquee-copy-gap);
+  }
+  #library-awards-list .award-winners:not(.is-hmarquee),
+  #library-awards-list .award-winners:not(.is-hmarquee) .award-winners-track {
+    max-width: 100%;
+    min-width: 0;
+  }
+  #library-awards-list .award-winners:not(.is-hmarquee) .award-winner-pair {
+    flex-shrink: 1;
+    min-width: 0;
+    max-width: 100%;
+  }
+  #library-awards-list .award-winners:not(.is-hmarquee) .award-winner-en,
+  #library-awards-list .award-winners:not(.is-hmarquee) .award-winner-zh {
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  #library-awards-list .award-winners:not(.is-hmarquee) .award-marquee-inner {
+    display: inline-block;
+    white-space: nowrap;
+  }
+  #library-awards-list .award-winners:not(.is-hmarquee) .award-marquee-inner > .marquee-copy {
+    display: inline-block;
+    padding-right: var(--marquee-copy-gap);
+  }
 }
 
 /* ── Awards row hover/open 整列底色 + ref 展開列（user 2026-06-22 改：對齊 activities list）──

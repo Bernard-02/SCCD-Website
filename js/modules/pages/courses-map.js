@@ -406,23 +406,12 @@ function openCourseSlideIn(card) {
   //   導致的 scroll reset；slide-in 與全螢幕 lightbox 共用同一套，不分流）
   enterLightboxMode();
   const htmlEl = document.documentElement;
-
-  // 取得初始背景色與暗化目標色，讓 GSAP 分段接管 --slide-bg-color 的漸變
-  let startBg = getComputedStyle(htmlEl).backgroundColor;
-  if (startBg === 'rgba(0, 0, 0, 0)' || startBg === 'transparent') {
-    startBg = htmlEl.classList.contains('mode-inverse') ? '#000000' : '#ffffff';
-  }
-  const dimBg = htmlEl.classList.contains('mode-inverse') ? '#000000' : '#333333';
-
-  htmlEl.style.setProperty('--slide-bg-color', startBg);
   htmlEl.classList.add('has-slide-in');
 
   if (typeof gsap !== 'undefined') {
     const tl = gsap.timeline()
       .to(overlay, { opacity: 0.8, duration: DUR.fast }, 0)
-      .to(htmlEl, { '--slide-bg-color': dimBg, duration: DUR.fast }, 0)
-      .to(panel, { x: '0%', duration: DUR.medium, ease: EASE.enter }, 0.3)
-      .to(htmlEl, { '--slide-bg-color': panelBg, duration: DUR.medium, ease: EASE.enter }, 0.3);
+      .to(panel, { x: '0%', duration: DUR.medium, ease: EASE.enter }, 0.3);
     // 返回鍵跟 panel 同步 clip-reveal
     if (backInner) {
       tl.fromTo(backInner, backHidden,
@@ -430,7 +419,6 @@ function openCourseSlideIn(card) {
     }
   } else {
     overlay.style.opacity = '0.8';
-    htmlEl.style.setProperty('--slide-bg-color', panelBg);
     panel.style.transform = 'translateX(0%)';
   }
 }
@@ -458,23 +446,12 @@ export function closeCourseSlideIn() {
   exitLightboxMode({ deferHeaderShow: true });
 
   const htmlEl = document.documentElement;
-  
-  // 預先取得還原後的目標背景色
-  htmlEl.classList.remove('has-slide-in');
-  let targetBg = getComputedStyle(htmlEl).backgroundColor;
-  if (targetBg === 'rgba(0, 0, 0, 0)' || targetBg === 'transparent') {
-    targetBg = htmlEl.classList.contains('mode-inverse') ? '#000000' : '#ffffff';
-  }
-  const dimBg = htmlEl.classList.contains('mode-inverse') ? '#000000' : '#333333';
-  htmlEl.classList.add('has-slide-in');
 
   const backBtn = document.getElementById('courses-back-btn-desktop');
   if (typeof gsap !== 'undefined') {
     const tl = gsap.timeline()
       .to(panel, { x: '110%', duration: DUR.medium, ease: EASE.exit }, 0)
-      .to(htmlEl, { '--slide-bg-color': dimBg, duration: DUR.medium, ease: EASE.exit }, 0)
-      .to(overlay, { opacity: 0, duration: DUR.fast }, 0.5)
-      .to(htmlEl, { '--slide-bg-color': targetBg, duration: DUR.fast }, 0.5);
+      .to(overlay, { opacity: 0, duration: DUR.fast }, 0.5);
     // 返回鍵跟 panel 一起往右滑出（user 2026-09-12：不自己做方向 clip-reveal 退場，改跟卡片同步平移收起）。
     // 平移外層 .slide-in-back-square（非 inner——inner 會被 overflow:clip 剪掉、只消失不跟卡片走）；距離＝panel x:110% 的像素量（用 panel 寬）；
     // transition 暫關避免追不上 GSAP 逐幀寫入；fromTo 明寫 x:0 起點避開 arrow-spin inline transform 造成的 cache 失準。
@@ -488,7 +465,6 @@ export function closeCourseSlideIn() {
         slideIn.classList.remove('pointer-events-auto');
         panel.style.backgroundColor = '';
         htmlEl.classList.remove('has-slide-in');
-        htmlEl.style.removeProperty('--slide-bg-color');
         if (coursesReturnFocus) { coursesReturnFocus.focus({ preventScroll: true }); coursesReturnFocus = null; }
       });
   } else {
@@ -499,7 +475,6 @@ export function closeCourseSlideIn() {
       slideIn.classList.remove('pointer-events-auto');
       panel.style.backgroundColor = '';
       htmlEl.classList.remove('has-slide-in');
-      htmlEl.style.removeProperty('--slide-bg-color');
     }, 500);
   }
 }
