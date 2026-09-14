@@ -279,7 +279,8 @@ function build() {
   root.innerHTML = `
     <div class="mcp-pencil-mask">
       <button class="mcp-pencil" type="button" aria-label="編輯背景色 Edit background colour" title="背景色 Colour">
-        <i class="fa-solid fa-pencil" aria-hidden="true"></i>
+        <!-- 鉛筆 icon 走後台 site_icons（key: pencil）；未上傳 SVG 前 .icon-pencil 隱藏＝空鈕（user 2026-09-15） -->
+        <span class="icon icon-pencil" aria-hidden="true"></span>
       </button>
     </div>
     <div class="mcp-panel-mask">

@@ -59,13 +59,16 @@ const PUSH_EASE = 'power2.inOut';
 //   配合 WIDTH_MOBILE=innerWidth-2*padding 讓 banner 在 viewport 內居中對稱貼邊）
 const SLOT_X_DESKTOP = 60;
 const SLOT_X_MOBILE = MOBILE_PADDING_X;
+// bar 實高（中英兩行後 > BAR_HEIGHT）：首個 banner 進 DOM 後量一次覆蓋（runMarqueeStack），
+// slot y 差 = 實高 + 10px 視覺 gap；最底 slot 底邊維持原 -70（單行時代 bar 40 + 底邊距 30）
+let measuredBarH = BAR_HEIGHT;
 function slotConfigs() {
   const x = isMobile() ? SLOT_X_MOBILE : SLOT_X_DESKTOP;
-  // 相鄰 slot y 差 50px = BAR_HEIGHT(40) + 10px 視覺 gap
+  const step = measuredBarH + 10;
   return [
-    { x, y: -170 },
-    { x, y: -120 },
-    { x, y:  -70 },
+    { x, y: -70 - step * 2 },
+    { x, y: -70 - step },
+    { x, y: -70 },
   ];
 }
 
@@ -97,9 +100,10 @@ export function initMarquee() {
       .then(j => {
         const rows = Array.isArray(j.data) ? j.data : [];
         const items = rows.map(row => ({
-          // EN 與 ZH 之間、以及無縫 loop 接縫處（ZH 接下一份 EN）都用 em space 分隔（textContent 渲染，
+          // 中英分兩行（user 2026-09-15，英上中下）；各行行尾 em space＝無縫 loop 接縫分隔（textContent 渲染，
           // 只能用 U+2003 字元，不能用 &emsp; 實體；不用破折號）
-          text: [row.titleEn, row.titleZh].filter(Boolean).join('  ') + '  ',
+          textEn: row.titleEn ? row.titleEn + '  ' : '',
+          textZh: row.titleZh ? row.titleZh + '  ' : '',
           url: row.url || '#',
           poster: resolvePoster(row.poster?.filename_disk),
         }));
@@ -115,7 +119,7 @@ export function initMarquee() {
 
   fetchNews()
     .then(async data => {
-      const items = Array.isArray(data?.items) ? data.items.filter(it => it && it.text) : [];
+      const items = Array.isArray(data?.items) ? data.items.filter(it => it && (it.textEn || it.textZh || it.text)) : [];
       if (items.length === 0) return;
       // 後臺順序 → item._num（1-based）；item-bound，cycle 時跟著走
       items.forEach((item, i) => { item._num = i + 1; });
@@ -195,7 +199,8 @@ function createBanner(item, squareColor) {
     will-change: transform;
   `;
 
-  // 數字方塊（隨機 accent bg，後臺順序）
+  // 數字方塊（隨機 accent bg，後臺順序）；中英兩行後 bar 變高、方塊隨 row stretch 撐滿，
+  // 數字靠頂（user 2026-09-15）：padding-top 對齊 link 的 0.35rem 上內距
   const square = document.createElement('div');
   square.className = 'hm-banner-num';
   square.textContent = String(item._num);
@@ -205,8 +210,9 @@ function createBanner(item, squareColor) {
     background: ${squareColor};
     color: #000;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
+    padding-top: 0.35rem;
     font-size: 1.75rem;
     font-weight: 700;
     line-height: 1;
@@ -229,29 +235,32 @@ function createBanner(item, squareColor) {
 
   // marquee viewport：overflow:hidden 掛在這層（不在 link）→ 裁切邊 = link 內容框 = 左右各縮 BAR_PADDING_X，
   // 對齊 library 色塊 marquee 的 axisPad inset（padding 直接放 link 會被 overflow 的 padding-box 裁切邊漏出文字）
-  const viewport = document.createElement('div');
-  viewport.style.cssText = 'overflow: hidden;';
-
-  const inner = document.createElement('div');
-  inner.className = 'homepage-marquee-inner';
-
-  const text = document.createElement('span');
-  text.className = 'homepage-marquee-text text-lg';
-  text.style.cssText = 'color: #fff; font-weight: 700; font-size: var(--font-size-lg);';
-  text.textContent = item.text;
-
-  const clone = document.createElement('span');
-  clone.className = 'homepage-marquee-clone text-lg';
-  clone.style.cssText = 'color: #fff; font-weight: 700; font-size: var(--font-size-lg);';
-  clone.textContent = item.text;
-
-  const duration = Math.max(16, item.text.length * 0.36);
-  inner.style.animationDuration = `${duration}s`;
-
-  inner.appendChild(text);
-  inner.appendChild(clone);
-  viewport.appendChild(inner);
-  link.appendChild(viewport);
+  // 中英各一行堆疊（英上中下；fallback news.json 舊單行 text 照渲染單行）；
+  // 兩行共用同一 duration（取較長行）＝同拍循環、loop 接縫不脫節
+  const lineTexts = [item.textEn, item.textZh].filter(Boolean);
+  if (!lineTexts.length && item.text) lineTexts.push(item.text);
+  const duration = Math.max(16, Math.max(0, ...lineTexts.map(t => t.length)) * 0.36);
+  const lines = lineTexts.map(txt => {
+    const viewport = document.createElement('div');
+    viewport.style.cssText = 'overflow: hidden;';
+    const inner = document.createElement('div');
+    inner.className = 'homepage-marquee-inner';
+    inner.style.animationDuration = `${duration}s`;
+    const mkSpan = (cls) => {
+      const s = document.createElement('span');
+      s.className = `${cls} text-lg`;
+      s.style.cssText = 'color: #fff; font-weight: 700; font-size: var(--font-size-lg);';
+      s.textContent = txt;
+      return s;
+    };
+    const textEl = mkSpan('homepage-marquee-text');
+    const cloneEl = mkSpan('homepage-marquee-clone');
+    inner.appendChild(textEl);
+    inner.appendChild(cloneEl);
+    viewport.appendChild(inner);
+    link.appendChild(viewport);
+    return { viewport, inner, textEl, cloneEl };
+  });
 
   // watch-hover 遮蔽 overlay：方塊蓋回自己的 rgb（藏數字）、黑條蓋黑（藏文字）→ 整條變抽象色塊。
   // 兩塊共用同一 wipe 方向；訂閱 subscribeWatchMask（只在 hover WATCH 卡時觸發，非 news 自身 hover）。
@@ -313,16 +322,17 @@ function createBanner(item, squareColor) {
     posterEl.addEventListener('click', () => window.open(item.url || '#', '_blank'));
   }
 
-  return { el: wrap, row, link, viewport, inner, textEl: text, cloneEl: clone, posterEl, item, rotation, width: totalWidth, color: squareColor, _posterH: 0 };
+  return { el: wrap, row, link, lines, posterEl, item, rotation, width: totalWidth, color: squareColor, _posterH: 0 };
 }
 
 // 文字放得下 banner 時停掉橫向捲動（否則單則短 news 也一直滑，看起來像一直刷新）；
-// 需 banner 已進 DOM 才能量寬。clone 是為無縫 loop 準備的第二份，靜態時藏起來避免看到兩份。
+// 需 banner 已進 DOM 才能量寬。clone 是為無縫 loop 準備的第二份，靜態時藏起來避免看到兩份。逐行獨立 gate。
 function gateMarqueeScroll(b) {
-  if (!b.textEl || !b.viewport || !b.inner) return;
-  const fits = b.textEl.getBoundingClientRect().width <= b.viewport.clientWidth;
-  b.inner.style.animationName = fits ? 'none' : '';
-  if (b.cloneEl) b.cloneEl.style.display = fits ? 'none' : '';
+  (b.lines || []).forEach(line => {
+    const fits = line.textEl.getBoundingClientRect().width <= line.viewport.clientWidth;
+    line.inner.style.animationName = fits ? 'none' : '';
+    line.cloneEl.style.display = fits ? 'none' : '';
+  });
 }
 
 function applySlotTransform(b, slotIndex, animate) {
@@ -521,6 +531,8 @@ function runMarqueeStack(stack, items) {
     // 顏色仍依 item 順序 R/G/B（不足 3 個用前 N 個顏色）
     const b = createBanner(items[i], RGB_COLORS[i % RGB_COLORS.length]);
     stack.appendChild(b.el);
+    // 首個 banner 進 DOM 後量 bar 實高（中英兩行 > 舊常數 40）→ slotConfigs 以實高排 slot 間距
+    if (i === 0) measuredBarH = b.el.offsetHeight || BAR_HEIGHT;
     gateMarqueeScroll(b);
     applySlotTransform(b, slotOffset + i, false);
     bindBannerInteraction(b, onEnter, onLeave, pushAbove, restoreAbove);

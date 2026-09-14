@@ -1023,11 +1023,7 @@ body.mode-color .control-box {
   transition: opacity var(--dur-micro) ease;
 }
 
-@media (min-width: 768px) {
-  .colorwheel-play-button:hover {
-    opacity: 0.7;
-  }
-}
+/* 2026-09-15 user：hover 不變透明度（原 :hover opacity 0.7 已刪） */
 
 /* 滑鼠點擊/active 不顯 outline；鍵盤聚焦（:focus-visible）顯可見外框（無障礙 Phase 1，2026-06-24）。
  * :focus-visible 規則排在 :focus 之後、同特異度由源順序勝出 → 鍵盤才顯、滑鼠不顯。 */

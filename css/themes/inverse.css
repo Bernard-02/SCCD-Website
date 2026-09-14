@@ -458,6 +458,12 @@ body.mode-inverse .homepage-marquee-clone {
   color: black !important;
 }
 
+/* watch-hover 遮蔽 overlay（hover WATCH 卡時蓋住 news bar 藏文字）：inline 寫死 #000、
+ * inverse bar 是白底 → 蓋黑會露餡，改跟 bar 同色蓋白（「蓋回自己」設計；數字方塊 mask 是 accent rgb 照舊） */
+body.mode-inverse .hm-banner-link-mask {
+  background: white !important;
+}
+
 body.mode-inverse #homepage-yt-card {
   background: white !important;
 }

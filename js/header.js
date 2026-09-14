@@ -238,6 +238,10 @@ export const GEN_LOGO_LAYOUT = {
 // 若不 kill timeline 會在新頁面繼續觸發 destroy → Lottie 被砸 + switchHeaderLogo 已 skip 不會重建
 let genLogoTimeline = null;
 
+// /create SCCD 完成態旗標（2026-09-15 user：typewriter 打完後硬 reload 保持 SCCD 不重跑）。
+// typewriter 完成時寫入；restoreHeaderLogo（離開 create）清除 → 只影響「create 頁上 reload」情境
+const GEN_DONE_KEY = 'sccdGenLogoDone';
+
 // blink interval ref 拉到 module-scope，讓 killGenerateLogoTimeline 也能清掉。
 // 之前 blinkInterval 是 triggerGenerateLogo 內 local closure，timeline 被 kill 時 setInterval
 // 還是持續修改 cursor.style.visibility — 對 detached cursor 沒視覺影響但會跟退場 anim 的
@@ -425,12 +429,18 @@ export function triggerGenerateLogo() {
   // currentColor 讓 fill / background 跟著 body.mode-* 設的 color 動態走（mode 切換時自動更新）
   const fillColor = 'currentColor';
 
+  // 硬 reload 且上一輪 typewriter 已完成 → 直接建完成態（不跑 shrink/indicator/typewriter）
+  let instantDone = false;
+  try { instantDone = sessionStorage.getItem(GEN_DONE_KEY) === '1'; } catch (e) { /* ignore */ }
+
   // 進場敘事（2026-09-12 改：統一版）：不論從哪頁進來，一律先 shrink 到小尺寸（100）→
   // indicator cursor 出現在小 logo 右邊 → 短閃 → 摧毀 Lottie → cursor 跳左、type 出 SCCD。
   // 從 library/atlas 進來本來就是 100，shrink 是 no-op；刪除動畫只剩「小 logo」一種，不再分大小。
   // （2026-07-15 的「大 logo 直接刪」已被 user 推翻）
   const SMALL_LOGO = 100;
-  gsap.to(logo, { width: SMALL_LOGO, height: SMALL_LOGO, duration: DUR.slow, ease: EASE.move, overwrite: 'auto' });
+  // 完成態直入：logo 直接 set 小尺寸；已是小尺寸（library/atlas/legal/scroll-shrink 過來）時 to() 本就是視覺 no-op
+  if (instantDone) gsap.set(logo, { width: SMALL_LOGO, height: SMALL_LOGO });
+  else gsap.to(logo, { width: SMALL_LOGO, height: SMALL_LOGO, duration: DUR.slow, ease: EASE.move, overwrite: 'auto' });
 
   const cursor = document.createElement('div');
   cursor.dataset.genCursor = '1';
@@ -470,10 +480,21 @@ export function triggerGenerateLogo() {
 
   const pathEls = PATHS.map(d => {
     const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    p.setAttribute('d', d); p.setAttribute('fill', fillColor); p.style.opacity = '0';
+    p.setAttribute('d', d); p.setAttribute('fill', fillColor); p.style.opacity = instantDone ? '1' : '0';
     svgEl.appendChild(p); return p;
   });
   logoContainer.appendChild(svgEl);
+
+  // 完成態直入：Lottie 即刻拆除、SCCD 全字現形、click target 撐到 SCCD bbox（同 timeline 尾段），不建 timeline
+  if (instantDone) {
+    if (typeof lottie !== 'undefined') {
+      try { lottie.destroy('header-logo-anim'); } catch (e) { /* 沒 Lottie 就略過 */ }
+    }
+    logo.innerHTML = '';
+    cursor.remove();   // indicator cursor 用不到
+    gsap.set(logoContainer, { width: 220, height: 80 });
+    return;
+  }
 
   const cursorNew = document.createElement('div');
   cursorNew.dataset.genCursor = '1';
@@ -486,7 +507,11 @@ export function triggerGenerateLogo() {
   //   absolute 定位的 SCCD svg，timeline 尾段會把 <a> click target 設成 SCCD bbox）
 
   // delay:2 保留原本節奏 — user 要求 indicator 「慢一點再出現」，跟改造前一致
-  const tl = gsap.timeline({ delay: 2, onComplete: () => { genLogoTimeline = null; } });
+  const tl = gsap.timeline({ delay: 2, onComplete: () => {
+    genLogoTimeline = null;
+    // 完成態落袋：此後同頁硬 reload 直接保持 SCCD（restoreHeaderLogo 離頁時清）
+    try { sessionStorage.setItem(GEN_DONE_KEY, '1'); } catch (e) { /* ignore */ }
+  } });
   genLogoTimeline = tl;
 
   tl.call(() => startBlink(cursor));
@@ -590,6 +615,8 @@ export function animateHeaderModeBtnShow() {
 }
 
 export function restoreHeaderLogo() {
+  // 離開 /create → SCCD 完成態旗標作廢（下次 SPA 進 create 照常跑 typewriter；旗標只服務「同頁硬 reload 保持 SCCD」）
+  try { sessionStorage.removeItem(GEN_DONE_KEY); } catch (e) { /* private mode 等 */ }
   // 手機：清 SCCD svg 並重 init Lottie（dataset.logoType guard 內，不影響非 /create 流程）
   restoreMobileGenerateLogo();
   // 必須在清 DOM 前 kill timeline：用戶在 typewriter 完成前離開 /create 時，
@@ -759,6 +786,8 @@ export function updateNavActive(page) {
   const isAtlasActive    = activePage === 'atlas';
   const isGenerateActive = activePage === 'generate';
   const isAlumniActive   = activePage === 'alumni';
+  // legal 區（2026-09-15 user：logo 一律小的、邏輯同 library）。含 SPA route 名與冷載入檔名（donate.html → page 'support'）
+  const isLegalActive    = ['regulations', 'accessibility', 'policy-and-statements', 'support', 'donate'].includes(activePage);
 
   // Alumni 頁面：alumni-full bar 取代 about-bar 位置，其他 bars 全部隱藏
   // 設 display:none 而非 clip-path：navigation 完成後的最終狀態（直接訪問 URL / SPA 切回都正確）
@@ -837,8 +866,13 @@ export function updateNavActive(page) {
     }
     gsap.killTweensOf(logoEl);
 
-    // /create：清完就交棒給 triggerGenerateLogo，不在這裡 set 新 tween 否則跟 shrink 競爭
-    if (!isGenerateActive) {
+    // /create：清完就交棒給 triggerGenerateLogo，不在這裡 set 新 tween 否則跟 shrink 競爭。
+    // ⚠️但 st.kill() 會 revert 掉 scroll-shrink 寫的 inline width → logo 瞬跳回 CSS 預設 180，
+    // triggerGenerateLogo 的 shrink 再從 180 跑＝「大變小」（user 2026-09-15：從捲下的頁進 create 應直接小）。
+    // 解＝kill 完回寫剛捕捉的 currentSize：小進小＝shrink no-op；大（頁頂 180）進來維持原 shrink 敘事。
+    if (isGenerateActive) {
+      gsap.set(logoEl, { width: currentSize, height: currentSize });
+    } else {
       const SCROLL_END = 300;
       // SPA 切頁邏輯上應該起點 = page top（router scrollToTop 會在切頁時呼叫多次），
       // 一般頁直接給 180 不從 window.scrollY 推算 — 否則 router scrollToTop 還沒收斂時
@@ -846,7 +880,7 @@ export function updateNavActive(page) {
       // 這裡會讀到舊的高 scrollY → logo 直接 snap 到小尺寸，但 about-bar marginLeft
       // 不讀 scroll 仍是 64 → 大 about-bar + 小 logo 不匹配。
       // 後續 user 真的開始 scroll 由 onComplete 裡建的 ScrollTrigger 負責 shrink。
-      const targetSize = (isLibraryActive || isAtlasActive) ? 100 : 180;
+      const targetSize = (isLibraryActive || isAtlasActive || isLegalActive) ? 100 : 180;
 
       // 用 fromTo 強制指定起點尺寸（避免 GSAP 讀到不一致的狀態）
       // lottie SVG 內部動畫不受 width/height 變化影響，持續旋轉
@@ -858,7 +892,7 @@ export function updateNavActive(page) {
           duration: DUR.slow,
           ease: EASE.move,
           onComplete: () => {
-            if (!isLibraryActive && !isAtlasActive && typeof ScrollTrigger !== 'undefined') {
+            if (!isLibraryActive && !isAtlasActive && !isLegalActive && typeof ScrollTrigger !== 'undefined') {
               gsap.fromTo(logoEl,
                 { width: 180, height: 180 },
                 {
@@ -895,14 +929,14 @@ export function updateNavActive(page) {
     // （alumni-full bar 同時在 leftBarEls 陣列裡，全 kill 會卡在 inset(0% 100% 0% 0%) 完全不可見）
     gsap.killTweensOf(leftBarEls, 'marginLeft');
 
-    const targetML = (isLibraryActive || isAtlasActive) ? ML_END : ML_START;
+    const targetML = (isLibraryActive || isAtlasActive || isLegalActive) ? ML_END : ML_START;
     gsap.to(leftBarEls, {
       marginLeft: targetML,
       duration: DUR.slow,
       ease: EASE.move,
       onComplete: () => {
         // 動畫完成後，一般頁面重建 scroll shrink
-        if (!isLibraryActive && !isAtlasActive && !isGenerateActive && typeof ScrollTrigger !== 'undefined') {
+        if (!isLibraryActive && !isAtlasActive && !isLegalActive && !isGenerateActive && typeof ScrollTrigger !== 'undefined') {
           ScrollTrigger.create({
             trigger: 'body',
             start: 'top top',
@@ -1221,14 +1255,19 @@ export function initHeader() {
       const isDesktop = window.matchMedia('(min-width: 768px)');
       const isLibrary = currentPage === 'library';
       const isAtlas   = currentPage === 'atlas';
+      // legal 區冷載入也走小 logo（同 updateNavActive 的 isLegalActive 清單）
+      const isLegal   = ['regulations', 'accessibility', 'policy-and-statements', 'support', 'donate'].includes(currentPage);
       // /create 直接訪問 URL 是 'create'，SPA 內 routed page 名是 'generate'，兩個都要 catch
       // 否則直接訪問會走 else 分支裝上 scroll-shrink ScrollTrigger，跟 triggerGenerateLogo 的 shrink tween 競爭同個 width prop
       const isGenerate = currentPage === 'generate' || currentPage === 'create';
       if (isDesktop.matches) {
-        if (isLibrary || isAtlas) {
+        if (isLibrary || isAtlas || isLegal) {
           gsap.set(logo, { width: 100, height: 100 });
         } else if (isGenerate) {
-          gsap.set(logo, { width: 180, height: 180 });
+          // SCCD 完成態旗標在（打完字後 reload）→ 直接 100，避免 fireGenLogo instant 路徑接手前閃一幀 180 大 Lottie
+          let genDone = false;
+          try { genDone = sessionStorage.getItem(GEN_DONE_KEY) === '1'; } catch (e) { /* ignore */ }
+          gsap.set(logo, genDone ? { width: 100, height: 100 } : { width: 180, height: 180 });
         } else {
           gsap.set(logo, { width: 180, height: 180 });
           gsap.to(logo, {

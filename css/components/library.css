@@ -330,6 +330,15 @@
   align-items: center;
   align-self: start;         /* 對齊標題頂端（同舊 icon 靠上） */
   min-height: 4.5rem;
+  /* 2026-09-15 user：桌面縮圖 slot 固定 8rem＋縮圖靠左（flex 預設）→ 文字欄（1fr）全列同寬。
+     手機版另有 justify-content: flex-end 覆蓋（09-10 拍板縮圖靠右、維持不動）。 */
+  width: 8rem;
+}
+/* 無縮圖列：文字 cap 到與有縮圖列相同寬（100% − slot 8rem − 桌面欄距 xl）＝全 list 對齊（同手機版既有做法） */
+@media (min-width: 768px) {
+  .press-item-row:not(:has(.press-item-thumb-wrap)) .press-item-titles {
+    max-width: calc(100% - 8rem - var(--spacing-xl));
+  }
 }
 .press-item-thumb {
   position: relative;
@@ -429,19 +438,9 @@
   flex-shrink: 0;
   /* 寬度由 JS 動態設 = viewport 寬（grid col），讓每位獲獎者整位對齊 col */
 }
-/* 得獎人「單人」或「全員只有中文」：cell 整體垂直置中對齊列高、不貼頂（user 2026-09-13 兩次擴充）。
-   用 align-self（grid item 級）而非 justify-content——cell 高未必 stretch 滿列（手機 3 欄版型），
-   justify-content 在 fit-content 高度下無作用（首版踩過）。多人多語維持貼頂直排。 */
-#library-awards-list .award-winners-zh-only {
-  align-self: center;
-}
-/* 獎名／獎別單語（缺中或缺英＝單行）同樣置中（user 2026-09-13）。⚠️只限桌面——
-   手機 .award-mid 是 flex-col（align-self 變水平置中會歪版）；矮橫向以手機版為準也排除（min-height gate）。 */
-@media (min-width: 768px) and (min-height: 501px) {
-  #library-awards-list .award-cell-center {
-    align-self: center;
-  }
-}
+/* 2026-09-15 user 拍板：awards 全部 cell 一律貼頂（撤 09-13 的單人/單語置中）。
+   .award-row 本身 align-items:start，這裡不再覆蓋；.award-winners-zh-only / .award-cell-center
+   class 仍由 JS 加（語義保留），目前無樣式。 */
 
 /* Award 全表雙語 EN→ZH 間距（user 2026-08-13）：award 文字全 text-xs → 吃 xs 字級 token（1px），跟字級對齊。
    涵蓋中間欄各 cell（競賽/主辦/獎項/名次）、得獎人 pair、以及展開的 ref 列（label + title 兩欄各自的 EN/ZH）。

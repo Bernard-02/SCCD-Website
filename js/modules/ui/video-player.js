@@ -619,19 +619,8 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete, fr
     showControls();
   });
 
-  document.addEventListener('fullscreenchange', () => {
-    const icon = /** @type {HTMLElement | null | undefined} */ (fullscreenBtn?.firstElementChild);
-    if (!icon) return;
-    // expand 用自製 SVG；compress SVG 尚未做，先用 FA fallback
-    // expand 走 .icon-l，FA compress fallback 用 inline 1.5rem 對齊
-    if (document.fullscreenElement) {
-      icon.className = 'fa-solid fa-compress';
-      icon.style.fontSize = '1.5rem';
-    } else {
-      icon.className = 'icon icon-full-screen icon-l';
-      icon.style.fontSize = '';
-    }
-  });
+  // （原本 fullscreenchange 會把鈕換成 FA compress icon——但全螢幕的是 video 元素本身、
+  //   顯示瀏覽器原生 UI，自製控制列不在全螢幕層裡，換圖永遠沒人看得到 → 2026-09-15 拆除，鈕恆為 expand）
 
   // ── 關閉 ───────────────────────────────────────────────
   closeBtn?.addEventListener('click', (e) => { e.stopPropagation(); closePlayer(); });

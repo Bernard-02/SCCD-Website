@@ -27,14 +27,27 @@ export async function initSiteAssets() {
     icons.forEach((i) => {
       if (i.file?.filename_disk) map[`website-icons/${i.key}.svg`] = `${CMS_CDN_BASE}/${i.file.filename_disk}`;
     });
-    cursors.forEach((c) => {
+    // cursor SVG 尺寸統一：上傳檔若沒寫 width/height（Illustrator「響應式」匯出只留 viewBox），
+    // 瀏覽器對 cursor 會用預設圖尺寸渲染＝比其他游標大一號。custom-cursor 組本地規格全是 30×30
+    // （hotspot 座標也以 30px 為準）→ 抓文字強制 width/height=30 轉 blob URL；抓失敗退回 CDN 原檔。
+    // award_cursor 組本地檔本來就只有 viewBox（刻意），不動。
+    await Promise.all(cursors.map(async (c) => {
       if (!c.file?.filename_disk) return;
       // award 游標實體放 website-icons/Award_Icons/，其餘 cursor 都在 custom-cursor/
-      const local = c.key.startsWith('award_cursor')
+      const isAward = c.key.startsWith('award_cursor');
+      const local = isAward
         ? `website-icons/Award_Icons/${c.key}.svg`
         : `custom-cursor/${c.key}.svg`;
-      map[local] = `${CMS_CDN_BASE}/${c.file.filename_disk}`;
-    });
+      const cdn = `${CMS_CDN_BASE}/${c.file.filename_disk}`;
+      map[local] = cdn;
+      if (isAward) return;
+      try {
+        const text = await fetch(cdn).then((r) => (r.ok ? r.text() : Promise.reject(new Error('' + r.status))));
+        const fixed = text.replace(/<svg([^>]*)>/, (m, attrs) =>
+          `<svg${attrs.replace(/\s(?:width|height)="[^"]*"/g, '')} width="30" height="30">`);
+        map[local] = URL.createObjectURL(new Blob([fixed], { type: 'image/svg+xml' }));
+      } catch { /* 退回 CDN 原檔＝頂多尺寸不一，不缺游標 */ }
+    }));
     if (!Object.keys(map).length) return;
     window.__SCCD_ASSET_OVERRIDES = map;
 
@@ -47,7 +60,10 @@ export async function initSiteAssets() {
         const v = r.style.getPropertyValue('--icon');
         const m = v && v.match(/website-icons\/([^'")]+)/);
         const cdn = m && map[`website-icons/${m[1]}`];
-        if (cdn) rules += `${r.selectorText}{--icon:url('${cdn}')}`;
+        if (!cdn) continue;
+        // 待上傳類（icon.css 該規則帶 display:none＝本地無檔）：後台有檔了才現身
+        const show = r.style.getPropertyValue('display').trim() === 'none' ? ';display:inline-block' : '';
+        rules += `${r.selectorText}{--icon:url('${cdn}')${show}}`;
       }
     }
     if (rules) {

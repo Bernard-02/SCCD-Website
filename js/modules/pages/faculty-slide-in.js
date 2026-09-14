@@ -425,8 +425,9 @@ export function initFacultySlideIn() {
           leadContainer.innerHTML = '';   // 矮橫向：dept/rank 在 profile 左欄（旋轉），lead 留空
         } else {
           // 桌機＋直向手機同款：系所全名 + 職級 + 職稱（occupation）進 lead，不旋轉。
-          // 2026-09-13 起 occupation 四種類型皆可填（後台已開放），空＝不渲染，維持舊資料原樣。
-          const lead = buildRank(data.titles) + buildOccupation(data.occupations);
+          // 2026-09-15 user：occupation 只給 atlas 用，slide-in 只有 parttime 渲染
+          //（fulltime/admin/founder 不渲染；parttime 卡目前不開 slide-in，等同 slide-in 全不出）。
+          const lead = buildRank(data.titles) + (data.type === 'parttime' ? buildOccupation(data.occupations) : '');
           // .faculty-rows 讓 rank↔occupation／多筆間距＝list 內容 gap（16px）
           const leadRows = lead ? `<div class="faculty-rows faculty-lead-rows">${lead}</div>` : '';
           leadContainer.innerHTML = deptHtml + leadRows;   // 系所全名墊在職級(Founder 等)上方
@@ -435,7 +436,8 @@ export function initFacultySlideIn() {
       if (sectionsContainer) {
         let html = '';
         // 矮橫向的 occupation 排 sections 最上（lead 在該版位留空）；桌機/直向手機已隨 lead 一起渲染
-        if (isLandscapeGate) html += buildOccupation(data.occupations);
+        // 2026-09-15 user：同 lead——occupation 只給 atlas 用，slide-in 限 parttime
+        if (isLandscapeGate && data.type === 'parttime') html += buildOccupation(data.occupations);
 
         if (data.type === 'admin') {
           html += buildContactSection(data.contact);

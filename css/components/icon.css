@@ -118,3 +118,9 @@ body.mode-color .icon.footer-social-glyph { filter: var(--footer-invert-filter, 
 .icon-mode-1 { --icon: url('../website-icons/mode_1.svg'); }
 .icon-mode-2 { --icon: url('../website-icons/mode_2.svg'); }
 .icon-mode-3 { --icon: url('../website-icons/mode_3.svg'); }
+
+/* 後台上傳制 icon（本地尚無 SVG，user 2026-09-15）：未上傳前整顆隱藏——--icon 缺省時 mask=none
+   會讓 .icon 的 background-color 露成實心色塊，不能見人。site-assets.js 掃到「本地規則帶 display:none」
+   ＝待上傳類，後台有檔時注入的覆蓋規則會補 display:inline-block 蓋回。上傳後若想補本地 fallback：
+   把 SVG 放進 website-icons/ 並刪掉這裡的 display:none 即可。 */
+.icon-pencil { --icon: url('../website-icons/pencil.svg'); display: none; }

@@ -143,9 +143,9 @@
        每卡＝column（title 殼在上、bar 在下）；整卡黑底、bar 透明疊上（旋轉不漏 1px 縫，同 lightbox ref card）。
        stack 定位右下角；進場＝cascade 尾端 clip-reveal、往下捲跟 flow 離開、SPA 離頁 clip 收（皆 about-structure.js）。 ── */
   .prog-legend-stack {
-    position: absolute;                        /* 掛在 #program-structure（relative；在屏時視覺同 fixed 32/32），捲動物理帶走＝免調離場 timing */
+    position: absolute;                        /* 掛在 #program-structure（relative），捲動物理帶走＝免調離場 timing */
     right: var(--container-padding, 60px);     /* 右緣對齊畫面最外層右 padding（user 2026-09-13，同 atlas #atlas-detail-mask） */
-    bottom: 32px;
+    top: 192px;                                /* 對齊 resources 卡片頂＝#resources pt-3xl 96 + container pt-3xl 96（user 2026-09-15「以 resources 卡位置為主」整體上移；bar 改往下長） */
     z-index: 30;                               /* 蓋過 tree 內容（.prog-lines z-0 等） */
     display: flex;
     flex-direction: column;

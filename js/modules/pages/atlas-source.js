@@ -12,14 +12,15 @@
  *   careers        ← alumni_careers      （filter 下方職業輪播）
  *
  * ── workshops / industry ──
- *   接 activities_workshops / activities_industry（＝activities 頁同源）。loadActivityCollection
- *   已 groupByYear + 保留 guests(含 country)＝正好是 atlas 要的「年份 → items → guests」巢狀 shape，
- *   直接沿用（Directus 優先、失敗/空 fallback 本地 workshops.json / industry.json）。
+ *   2026-09-15 user：改接 atlas 專用扁平名單 atlas_workshops / atlas_industry（partnership.xlsx 匯入，
+ *   scripts/build-atlas-partnership.cjs）；原 activities_workshops/industry 來源退場＝原資料先隱藏。
+ *   扁平 rows（nameEn/nameZh/country ISO）→ flatToNested 映射成 atlas.js 既有的
+ *   「年份 → items → guests」巢狀 shape（每單位一個 item＝hover 只亮自己＋國家線，同舊行為）。
+ *   fallback＝data/atlas-partnership-*.json（build script 同步輸出的快照）。
  */
 
 import { CMS_API_BASE } from '../../config/api.js';
 import { getFacultyData, getFormerFacultyData } from './faculty-source.js';
-import { loadActivityCollection } from './activities-source.js';
 import { sitePath } from '../ui/site-base.js';
 
 // 抓 collection 全部 rows（依後台 sort）；空陣列視為「沒資料」往 fallback 走
@@ -65,10 +66,29 @@ export async function loadAtlasData() {
       // 職業輪播；無 fallback → 失敗時用內建 ALUMNI_CAREERS
       withFallback('alumni_careers', 'alumni_careers', null,
         r => ({ en: r.careerEn || '', zh: r.careerZh || '' })),
-      // 工作營 / 產學：接 activities collection（同 activities 頁；含本地 fallback，見檔頭說明）
-      loadActivityCollection('activities_workshops', '/data/workshops.json').catch(() => null),
-      loadActivityCollection('activities_industry', '/data/industry.json').catch(() => null),
+      // 工作營 / 產學：atlas 專用扁平名單（見檔頭說明）；guest shape 走本地欄名（name/name_zh/country）
+      withFallback('atlas_workshops', 'atlas_workshops', '/data/atlas-partnership-workshops.json',
+        r => ({ nameEn: r.nameEn || '', nameZh: r.nameZh || '', country: r.country || '' }))
+        .then(rows => flatToNested(rows, 'atlas-wsg')),
+      withFallback('atlas_industry', 'atlas_industry', '/data/atlas-partnership-industry.json',
+        r => ({ nameEn: r.nameEn || '', nameZh: r.nameZh || '', country: r.country || '' }))
+        .then(rows => flatToNested(rows, 'atlas-ind')),
     ]);
 
   return { facultyCurrent, facultyFormer, companies, employment, careers, workshops, industry };
+}
+
+// 扁平單位 rows → atlas.js 期望的「年份 → items → guests」巢狀 shape。
+// 每個單位自成一個 item（一單位一 guest 一 group）＝hover 只高亮自己＋自己的國家線；
+// guest 欄名用本地 shape（name/name_zh/country）→ atlas.js guestUnits() 原樣吃。
+function flatToNested(rows, idPrefix) {
+  if (!Array.isArray(rows) || !rows.length) return null;
+  return [{
+    year: 0,
+    // any：atlas.js 消費端還會讀 descriptionZh/intro 等選填欄（此處不帶＝走預設文案），別讓 TS 推成窄型別
+    items: rows.map((r, i) => /** @type {any} */ ({
+      id: `${idPrefix}-${i + 1}`,
+      guests: [{ name: r.nameEn || '', name_zh: r.nameZh || '', country: r.country || '' }],
+    })),
+  }];
 }

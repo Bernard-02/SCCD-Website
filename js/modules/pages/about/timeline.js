@@ -11,7 +11,6 @@ import { registerPageCleanup } from '../../ui/page-cleanup.js';
 import { bindArrowSpin } from '../../ui/arrow-spin.js';
 import { whenImgReady } from '../../ui/img-ready.js';
 import { loadHistory } from './history-source.js';
-import { loadUiLabels, applyUiLabels } from '../../ui/ui-labels.js';
 
 export function initTimeline() {
   const area = document.getElementById('timeline-area');
@@ -169,15 +168,9 @@ export function initTimeline() {
   const randRslideDir = () => RSLIDE_DIRS[Math.floor(Math.random() * RSLIDE_DIRS.length)];
 
   // --- Fetch & Build ---
-  // division 值＝ui_labels key（如 history.division.bfa，2026-09-11 由字面改成集中名稱）→ 渲染 en/zh 兩 span，
-  // 由 applyUiLabels 填字＝改一個 ui_labels row 全年表跟著變（斷線退本地 ui-labels.json）；
-  // 舊資料若還是字面（無 '.'）→ 原樣顯示，兼容未遷移狀態。
-  function divisionHtml(div) {
-    if (!div.includes('.')) return div;
-    return `<span data-label-key="${div}" data-label-part="en"></span> <span data-label-key="${div}" data-label-part="zh"></span>`;
-  }
-
   // 結構化資料（era → entries）→ 舊 per-year shape（descriptions HTML 陣列）：timeline 內部渲染沿用。
+  // 學制標題（division）＝後台直接填的顯示文字（2026-09-14 user 拍板從 ui_labels key lookup 改回純文字：
+  // 每筆自己填、吃裡面的文字、留空不渲染；同文字連續年份歸同一標題）。
   // 中英說明一律 regular（h5 小標/年份維持粗體）
   function buildYearItems(eras) {
     const items = [];
@@ -191,7 +184,7 @@ export function initTimeline() {
           items.push(cur);
         }
         const head = en.division && en.division !== curDivision
-          ? `<h5 class="mb-sm">${divisionHtml(en.division)}</h5>` : '';
+          ? `<h5 class="mb-sm">${en.division}</h5>` : '';
         if (en.division) curDivision = en.division;
         cur.descriptions.push(`${head}<div class="font-regular mb-en-zh-body">${en.en}</div><div class="font-regular" lang="zh-Hant">${en.zh}</div>`);
       });
@@ -565,9 +558,6 @@ export function initTimeline() {
         '</div>';
       }).join('');
       listYears.scrollTop = 0;
-      // 學制 h5 的 data-label-key span 是這裡才建（async）→ page-init 的 applyUiLabels 抓不到，這裡補跑一次
-      //（loadUiLabels single-flight 快取，共用頁面已載的 map；斷線退本地 ui-labels.json）
-      loadUiLabels().then(map => applyUiLabels(map, listView));
     }
 
     // 手機兩層 sticky（era 標籤釘頂 + 年份釘標籤下方）：量每個 era 的標籤實高寫進該組 --tl-era-label-h，

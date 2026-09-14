@@ -160,8 +160,8 @@ export async function initProgramStructure() {
   buildLegendBars('.prog-legend--term', 'termEn', 'termZh');
   buildLegendBars('.prog-legend--degree', 'degreeEn', 'degreeZh');
   // legendBars[deg] = { degree, term }：hover/tap 對應 degree 時展開＋上色。
-  // ⚠️ 展開/收起順序＝degree 先、term 後（user 2026-09-11）；DOM 順序 term 卡在上會先被選到，
-  //    故用 closest 判卡別分 slot、由 barsOf() 顯式排成 [degree, term]，不靠 querySelectorAll 順序。
+  // 兩卡「同時」展開/收起（user 2026-09-15，推翻 09-11 的 degree 先 term 後 sequential）；
+  //    barsOf() 仍顯式排 [degree, term]（closest 判卡別分 slot，不靠 querySelectorAll 順序）。
   const legendBars = {};
   root.querySelectorAll('.prog-legend-bar').forEach((el) => {
     const slot = legendBars[el.dataset.degree] || (legendBars[el.dataset.degree] = { degree: null, term: null });
@@ -217,8 +217,9 @@ export async function initProgramStructure() {
   //   Wc＝收起寬（只 head）＝head.offsetWidth；We＝展開寬（含 bar）＝display:flex 後 card.offsetWidth。
   const LEG_DUR = 0.42;   // ≈ --dur-base，對齊 accordion 開合手感
   function widthTween(card, head, from, to, ease) {
-    if (!card || !head || Math.abs(to - from) < 0.5) return;   // 差 <0.5px（bar 比 head 窄）＝免動
-    gsap.killTweensOf(card);
+    if (!card || !head) return;
+    gsap.killTweensOf(card);   // 先殺舊 tween 再 bail：否則舊 tween 之後 onComplete 清 width＝瞬跳
+    if (Math.abs(to - from) < 0.5) { card.style.width = ''; return; }   // 差 <0.5px（bar 比 head 窄）＝免動
     gsap.fromTo(card, { width: from }, { width: to, duration: LEG_DUR, ease, onComplete: () => { card.style.width = ''; } });
   }
   function openBar(el, color, onDone) {
@@ -226,13 +227,17 @@ export async function initProgramStructure() {
     const head = card && card.querySelector('.prog-legend-head');
     el.classList.add('is-open');
     paint(el, color);
+    // 切 degree（收前一個→開下一個）時，前一輪 width tween 可能還掛著 inline width：不先清掉，
+    // 下面 We 會量到 stale 中間寬、且舊 tween onComplete 清 width 時卡片瞬跳到自然寬（「寬度很硬」根因，
+    // user 2026-09-15）。→ 先記「當下視覺寬」當起點，殺舊 tween＋清 inline，再量真展開寬。
+    const w0 = card ? card.offsetWidth : 0;    // 當下視覺寬（可能是前一輪 tween 中間值）＝tween 起點
+    if (card && willAnimate) { gsap.killTweensOf(card); card.style.width = ''; }
     el.style.display = 'flex';
-    const we = card ? card.offsetWidth : 0;    // display:flex 已套→展開寬（含 bar）
-    const wc = head ? head.offsetWidth : we;   // 收起寬（只 title 殼）
+    const we = card ? card.offsetWidth : 0;    // display:flex 已套＋inline 已清→真展開寬（含 bar）
     if (!willAnimate) { el.style.height = ''; if (card) card.style.width = ''; if (onDone) onDone(); return; }
     gsap.killTweensOf(el);
     gsap.fromTo(el, { height: 0 }, { height: 'auto', duration: LEG_DUR, ease: 'power2.out', onComplete: () => { el.style.height = ''; if (onDone) onDone(); } });
-    widthTween(card, head, wc, we, 'power2.out');   // 收起寬→展開寬（fromTo 先套 wc＝同 tick 不閃）
+    widthTween(card, head, w0, we, 'power2.out');   // 當下視覺寬→展開寬（fromTo 先套 w0＝同 tick 不閃）
   }
   function closeBar(el, onDone) {
     const card = el.closest('.prog-legend');
@@ -250,16 +255,14 @@ export async function initProgramStructure() {
   //  ② hover「不同 degree」→ 先收上一個、收完才開下一個（避免兩卡寬度不同時同時開合＝跳兩次）。
   //  legend 只顯示真 degree（bfa/mdes/bdes）；SCCD 無 degree → showLegend(null)＝收起。
   let legendDeg = null;   // 目前顯示的 degree（null＝收起）
-  // 依序跑：前一個 onComplete 才觸發下一個＝「degree 先、term 後」展開/收起（user 2026-09-11，barsOf 已排序）
-  function runSeq(els, action, onDone) {
-    let i = 0;
-    (function step() {
-      if (i >= els.length) { if (onDone) onDone(); return; }
-      action(els[i++], step);
-    })();
+  // 兩卡並行：全部同時開/收，全數 onComplete 才算完（user 2026-09-15「term 跟 degree 同時展開」）
+  function runAll(els, action, onDone) {
+    let n = els.length;
+    if (!n) { if (onDone) onDone(); return; }
+    els.forEach((el) => action(el, () => { if (!--n && onDone) onDone(); }));
   }
-  function openDeg(deg) { if (deg) runSeq(barsOf(deg), (el, next) => openBar(el, DEGREE_COLOR[deg], next)); }
-  function closeDeg(deg, onDone) { runSeq(barsOf(deg), (el, next) => closeBar(el, next), onDone); }
+  function openDeg(deg) { if (deg) runAll(barsOf(deg), (el, next) => openBar(el, DEGREE_COLOR[deg], next)); }
+  function closeDeg(deg, onDone) { runAll(barsOf(deg), (el, next) => closeBar(el, next), onDone); }
   function showLegend(deg) {
     if (deg === legendDeg) return;              // 同內容：不收不開
     const prev = legendDeg;

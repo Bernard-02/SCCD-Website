@@ -453,7 +453,7 @@
   /* ===== Desktop scatter (≥ 1200px)：logo 左、右欄隨機散佈 ===== */
   @media (min-width: 1200px) {
     .footer-inner {
-      gap: var(--spacing-5xl);   /* logo↔右欄間距（user 2026-09-11「再大一點」，container-padding 60→3xl 96→4xl 128→5xl 160px） */
+      gap: calc(var(--spacing-5xl) * 2);   /* logo↔右欄間距（09-11 定 5xl 160px；user 2026-09-15「再加大一倍」→ 320px） */
     }
 
     /* logo 區＝正方形，固定寬取「畫面 35%」與「滿高正方形（footer 可用高 = 100vh - 上下 padding）」較小者：

@@ -1211,6 +1211,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     if (!target || target.dataset.cardPending) return;
     btnHoverTarget = target;
     applyCardHover(target);
+    spinCard(target);   // user 2026-09-15：箭頭 hover 預覽的色塊也吃一個新隨機角（同直接 hover 色塊行為）
   }
   {
     const sectionEl = stack.closest('section');

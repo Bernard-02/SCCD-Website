@@ -1139,6 +1139,7 @@ body.mode-color .tl-icon-btn-inner {
   flex-direction: column;
   overflow: hidden;              /* 捲動移到 .tl-list-years */
   padding-right: 0;              /* padding-right 移到 .tl-list-years */
+  right: 12px;                   /* scrollbar↔卡片右緣收窄＝vision 卡 0.6em@text-md(20px)（user 2026-09-15 同步 playlist） */
 }
 .tl-list-era-head {
   flex: 0 0 auto;                /* 固定在頂、不參與捲動 */
@@ -1792,10 +1793,13 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
 .works-playlist-inner {
   position: absolute;
   inset: var(--spacing-sm);
+  right: 12px;                        /* scrollbar↔色塊右緣＝vision 卡 0.6em@text-md(20px)（user 2026-09-15 對齊） */
   overflow-y: auto;
+  overflow-x: hidden;                 /* 縮圖旋轉溢寬不生水平軸（旋角投影靠下方 padding-left 容納） */
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm);
+  padding-left: 10px;                 /* 旋轉 ±6° 的水平投影 clearance（overflow-x:hidden 不裁角） */
   padding-right: var(--spacing-sm);   /* thumb↔縮圖距離＝縮圖間 gap 同寬（user 2026-09-12） */
 }
 .works-playlist-item {
@@ -1807,6 +1811,12 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
   border: 0;
   background: transparent;
   cursor: pointer;
+  /* default 隨機角（JS 設 --pl-rot，全站 -4~+6 排除 0）；桌面 hover 回正（user 2026-09-15） */
+  transform: rotate(var(--pl-rot, 0deg));
+  transition: transform var(--dur-fast) ease;
+}
+@media (min-width: 768px) {
+  .works-playlist-item:hover { transform: rotate(0deg); }
 }
 .works-playlist-item img {
   display: block;

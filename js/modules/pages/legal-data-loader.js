@@ -205,7 +205,7 @@ function richGroupEntry(g) {
   let body = '';
   if (g.overviewEn || g.overviewZh) {
     body += `<div class="legal-zebra-overview">`
-      + [para(g.overviewEn), para(g.overviewZh)].filter(Boolean).join('')
+      + [para(g.overviewEn), para(g.overviewZh, 'zh-Hant')].filter(Boolean).join('')
       + `</div>`;
   }
   (g.points || []).forEach(pt => {
@@ -414,12 +414,15 @@ export async function loadSitemap() {
   const contentEl = document.getElementById('legal-content');
   if (!contentEl) return;
   try {
-    const [policyGroups, mapData, labels] = await Promise.all([
-      fetchPolicyGroups().catch(() => []),
+    const [a11yStmt, mapData, labels] = await Promise.all([
+      // 2026-09-15 後台重整：無障礙聲明拆成獨立 singleton accessibility_statement（Legal folder）。
+      // 失敗（未部署/斷線）→ 退回舊路徑：policy_and_statements filter（其 fallback JSON 仍保留無障礙段）
+      fetchAccessibilityStatement().catch(() => null),
       fetch(sitePath('data/accessibility.json')).then(r => r.json()).catch(() => ({ pages: [] })),
       loadUiLabels().catch(() => ({})),   // 卡片名稱來源（header 已載過＝single-flight cache，通常即時）
     ]);
-    const a11y = (policyGroups || []).filter(Boolean).find(isAccessibilityGroup);
+    const a11y = a11yStmt
+      || (await fetchPolicyGroups().catch(() => [])).filter(Boolean).find(isAccessibilityGroup);
     let html = '';
     if (a11y && (a11y.overviewEn || a11y.overviewZh)) {
       // 聲明段同走自遮罩 clip+translate（滿寬文字塊＝只挑上下短邊，同 pickNavDir 短邊邏輯）
@@ -478,6 +481,16 @@ export async function loadSitemap() {
 // 每段（隱私 / 無障礙）開頭放 .legal-group-title（＝原編號 section 標題大小），下接該段的 overview + 編號條款；
 // 編號條款標題在 .legal-combined 變體下縮到內文大小（樣式見 legal.css）。
 // CMS 優先、fail → fallback 本地 /data/policy-and-statements.json（同 shape：陣列，每段 titleEn/Zh + overview + points）。
+// 無障礙聲明 singleton（2026-09-15 拆自 policy_and_statements）：回傳 {titleEn/Zh, overviewEn/Zh, points, ...}；
+// 空（尚未填）→ throw 讓 caller 走 fallback。singleton → .data 是物件非陣列。
+async function fetchAccessibilityStatement() {
+  const res = await fetch(`${CMS_API_BASE}/accessibility_statement`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = (await res.json()).data;
+  if (!data || (!data.overviewEn && !data.overviewZh)) throw new Error('empty');
+  return data;
+}
+
 async function fetchPolicyGroups() {
   try {
     const res = await fetch(`${CMS_API_BASE}/policy_and_statements?sort=sort`);
@@ -559,7 +572,7 @@ function renderStructured(data, numbered = true, titleTag = 'h2', lineRenderer =
 
   // overview 是純文字（後台 Textarea）→ esc 後包 <p>，每段各自 reveal 遮罩
   if (data.overviewEn || data.overviewZh) {
-    const ps = [para(data.overviewEn), para(data.overviewZh)].filter(Boolean).map(reveal).join('');
+    const ps = [para(data.overviewEn), para(data.overviewZh, 'zh-Hant')].filter(Boolean).map(reveal).join('');
     html += `<div class="legal-intro">${ps}</div>`;
   }
 
@@ -744,8 +757,10 @@ function buildPolicyAccordions(contentEl) {
 }
 
 // 純文字 → 包成段落（標題用同樣 esc 邏輯避免 < > & 破版）
-function para(text) {
-  return text ? `<p>${esc(text)}</p>` : '';
+// lang：中文段傳 'zh-Hant' → legal.css 的 p:not([lang]):has(+ p[lang="zh-Hant"]) 英中距規則才會 match
+//（2026-09-15 user：privacy overview 英中之間沒空行＝這裡沒帶 lang）
+function para(text, lang) {
+  return text ? `<p${lang ? ` lang="${lang}"` : ''}>${esc(text)}</p>` : '';
 }
 
 function esc(s) {

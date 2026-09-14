@@ -63,7 +63,7 @@ export async function initBrandTrail() {
   });
   await loadTrailImages();
   initDesktopTrail();
-  initOverviewTrail();
+  // initOverviewTrail();   // vision hover 拖尾圖暫時遮蔽、前台不渲染（user 2026-09-15；要恢復解開這行）
   initMobileSlideshow();
 }
 

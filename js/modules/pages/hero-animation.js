@@ -801,6 +801,28 @@ export function initHeroAnimation() {
     });
   }
 
+  // Coming-soon 標題卡隨機散佈（user 2026-09-15：「位置每次都一樣」→ 仿 hero title 每次進頁抽新位置）。
+  // placement engine 只認單一 .hero-rand-grid（v7 定案此區不掛第二個）→ 用輕量 jitter：
+  // 維持 CSS 的對角構圖錨點（ZH 右上 / EN 左下），位置與角度各自加隨機偏移；對角分區天然不重疊。
+  {
+    const csCn = /** @type {HTMLElement|null} */ (document.querySelector('.coming-soon-title-cn-wrapper'));
+    const csEn = /** @type {HTMLElement|null} */ (document.querySelector('.coming-soon-title-wrapper'));
+    if (csCn || csEn) {
+      const jitVw = window.innerWidth < 768 ? 4 : 10;   // 手機標題寬、jitter 收小免推出畫面
+      const rot = (min, max) => +(min + Math.random() * (max - min)).toFixed(2);
+      if (csCn) {
+        csCn.style.top = (8 + Math.random() * 16).toFixed(1) + 'vh';
+        csCn.style.right = `calc(var(--container-padding) + ${(Math.random() * jitVw).toFixed(1)}vw)`;
+        csCn.style.transform = `rotate(${rot(1, 3.5)}deg)`;   // ZH 維持正角族
+      }
+      if (csEn) {
+        csEn.style.bottom = (12 + Math.random() * 16).toFixed(1) + 'vh';
+        csEn.style.left = `calc(var(--container-padding) + ${(Math.random() * jitVw).toFixed(1)}vw)`;
+        csEn.style.transform = `rotate(${-rot(1, 3.5)}deg)`;  // EN 維持負角族
+      }
+    }
+  }
+
   // hero-text-en / hero-text-cn 之間的 gap：兩個段落各自旋轉，bbox 高度會增加 = width × sin(angle)
   // 參考 history desc 的算法：gap = 兩 paragraph 的 rotation excursion 加總 + buffer
   // 動態算 because 寬度依 viewport 而變；只算一次，resize 不重算（避免 SPA listener 累積）

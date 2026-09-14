@@ -58,6 +58,9 @@ function normalizeImagePath(src) {
 
 // 活動海報 + summer-camp + library 文件/相簿封面：分四個 category 各自回傳（floating 依 category 均分、不再混為一池）。
 // 不洗牌/不截斷/不重複填充——均分與去重交給 initFloatingItems 的 category 輪替邏輯。
+// 2026-09-15 user 指示：首頁暫時隱藏 activities / admission(summer-camp) / album 三類浮卡——連 fetch 都不發；
+// files / curriculum / awards 不受影響。要恢復把 SHOW_ACT_CAMP_ALBUM 改回 true。
+const SHOW_ACT_CAMP_ALBUM = false;
 async function fetchActivityPosters() {
   const activities = [];
   const summerCamp = [];
@@ -66,7 +69,7 @@ async function fetchActivityPosters() {
 
   // permanent-exhibitions：改用共用 loadPermanentExhibitions（Directus activities_exhibitions_permanent 優先、失敗 fallback 本地）
   // → id/poster 跟 activities 頁渲染同源，deep-link item id 才對得上（同 workshop/lecture 慣例）。
-  try {
+  if (SHOW_ACT_CAMP_ALBUM) try {
     const data = await loadPermanentExhibitions('/data/permanent-exhibitions.json');
     const groups = Array.isArray(data) ? data : (data.items || data.records || []);
     groups.forEach(group => {
@@ -89,7 +92,7 @@ async function fetchActivityPosters() {
     { collection: 'activities_lectures',         fallback: '/data/lectures.json',         section: 'lectures' },
     { collection: 'activities_students_present', fallback: '/data/students-present.json', section: 'students-present' },
   ];
-  await Promise.all(flatSources.map(async (src) => {
+  if (SHOW_ACT_CAMP_ALBUM) await Promise.all(flatSources.map(async (src) => {
     try {
       const data = await loadActivityCollection(src.collection, src.fallback);
       const groups = Array.isArray(data) ? data : (data.items || data.records || []);
@@ -120,7 +123,7 @@ async function fetchActivityPosters() {
     { collection: 'activities_visits_outbound',     category: 'visits' },
     { collection: 'activities_visits_inbound',      category: 'visits' },
   ];
-  await Promise.all(generalCats.map(async ({ collection, category }) => {
+  if (SHOW_ACT_CAMP_ALBUM) await Promise.all(generalCats.map(async ({ collection, category }) => {
     try {
       const data = await loadActivityCollection(collection, '/data/general-activities.json', { category });
       const groups = Array.isArray(data) ? data : (data.items || data.records || []);
@@ -140,7 +143,7 @@ async function fetchActivityPosters() {
   }));
 
   // Workshop → activities.html?section=workshop&item={id}（同源 loadActivityCollection，id 跟 activities 頁渲染一致）
-  try {
+  if (SHOW_ACT_CAMP_ALBUM) try {
     const wsData = await loadActivityCollection('activities_workshops', '/data/workshops.json');
     const wsGroups = Array.isArray(wsData) ? wsData : (wsData.items || wsData.records || []);
     wsGroups.forEach(group => {
@@ -160,7 +163,7 @@ async function fetchActivityPosters() {
   // Summer camp → admission.html?section=summer-camp&item={id}（camp 已搬到 admission）。
   // 用 loadSummerCamp()（Directus-only + sessionStorage last-known-good）：id/poster 跟 admission 渲染一致，
   // deep-link id 才對得上（本地 json 的 SC-YYYY-NN 對不上 Directus UUID）。全失敗 throw → 下方 catch 吞、該類浮卡缺席。
-  try {
+  if (SHOW_ACT_CAMP_ALBUM) try {
     const campGroups = await loadSummerCamp();   // [{ year, items:[{ id, poster, ... }] }]
     campGroups.forEach(group => {
       (group.items || []).forEach(item => {
@@ -206,7 +209,7 @@ async function fetchActivityPosters() {
   // Album → library.html#album-{id}（無 id 則只到 album panel）
   // 改用共用 loadOthersAlbum（Directus library_album 優先、失敗 fallback 本地 album-others.json）→ id 跟 album 面板同源。
   // Directus row 無 cover 欄（用 images[]），fallback 本地才有 cover → 兩者相容取 cover || images[0]。
-  try {
+  if (SHOW_ACT_CAMP_ALBUM) try {
     const albumGroups = await loadOthersAlbum();
     albumGroups.forEach(group => {
       (group.items || []).forEach(item => {

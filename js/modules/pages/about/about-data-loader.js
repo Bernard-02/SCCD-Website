@@ -124,6 +124,8 @@ function renderPlaylist(box, iframe, listId, vids) {
     b.type = 'button';
     b.className = 'works-playlist-item';
     b.dataset.vid = v.id;
+    // default 隨機旋轉（全站 -4~+6° 排除 0）、桌面 hover 回正（CSS var + lists.css :hover 規則；user 2026-09-15）
+    b.style.setProperty('--pl-rot', `${window.SCCDHelpers?.getRandomRotation?.() ?? 2}deg`);
     const img = document.createElement('img');
     img.src = `https://i.ytimg.com/vi/${v.id}/mqdefault.jpg`;   // 320×180 真 16:9（hqdefault 是 4:3 帶黑邊）
     img.alt = v.title;

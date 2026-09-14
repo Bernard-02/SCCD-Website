@@ -2504,7 +2504,9 @@ export async function initAtlas(options = {}) {
   }
 
   function onMouseOver(e) {
-    if (isIntroActive() || pageExiting || viewMorphing) return;   // 進場/離頁退場/morph 期間不響應 hover（morph 中飛行節點掃過游標會開 detail＋畫殘線）
+    // 2026-09-15 user：intro 沒跑完前 detail box 完全不出——introDone 旗標補 isIntroActive() 的縫
+    //（timeline 建立前/被跳過中斷等 isActive() 讀 false 的窗口）；無 intro 路徑（手機/instant/reduced-motion）init 即 true
+    if (!introDone || isIntroActive() || pageExiting || viewMorphing) return;   // 進場/離頁退場/morph 期間不響應 hover（morph 中飛行節點掃過游標會開 detail＋畫殘線）
     const span = e.target && e.target.closest && e.target.closest('.atlas-name');
     if (!span) return;
     const fromSpan = e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('.atlas-name');
@@ -2559,6 +2561,7 @@ export async function initAtlas(options = {}) {
   let scale = defaultScaleAtlas;   // 進場拿掉 zoom（2026-07-14）→ 直接定態，改分批 fade in
   let tx = 0, ty = 0;
   let introTween = null;
+  let introDone = false;   // 初始 intro 完成才允許 hover detail（onMouseOver gate）；無 intro 路徑立即 true
 
   // 橫向手機圓點模式：zoom 過門檻 → stage 加 .atlas-text-zoom（CSS 圓點淡出、文字淡入）
   // 放在 applyTransform 內＝所有改 scale 的路徑（wheel / pinch / tap tween / intro / 重置）單一同步點
@@ -2686,6 +2689,7 @@ export async function initAtlas(options = {}) {
     // 進場收尾兜底（onComplete 與 progress(1) 都會到這）：全 item 恢復 tickFloat 寫入 + FPS cap 還原（修改 2/3）
     items.forEach(it => { it._introOn = true; });
     FLOAT_MIN_DT = 1000 / FLOAT_FPS_CAP;
+    introDone = true;   // hover detail 解禁
   };
   // 進場點燈期間，未亮 wave 的 item 跳過 tickFloat transform/z 寫入（省 style recalc/paint）。預設全亮，
   // 只有下方 intro 分支會先全熄再逐 wave 點回；手機/instant/reduced-motion 不進分支＝維持全亮、行為零變化。
@@ -2735,6 +2739,7 @@ export async function initAtlas(options = {}) {
     cleanupFns.push(() => introTween && introTween.kill());
   } else {
     applyTransform();
+    introDone = true;   // 無 intro（手機/instant/reduced-motion）→ hover 即刻可用
   }
 
   function onWheel(e) {

@@ -139,6 +139,9 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
   // hover 行為（user 2026-09-13，about class 圖用）：true＝hover 抽新隨機角並「吃住」（_rotation 一併更新、
   // 離開不彈回，含 slot 0）；false＝原行為（hover 轉正 0°、離開還原、slot 0 不轉——degree-show 維持）
   const hoverSpin = !!opts.hoverSpin;
+  // alignTop（user 2026-09-15，about 桌面用）：圖頂對齊容器頂＝說明 box 頂（grid items-start 同列同頂）；
+  // 預設維持 top:70% + yPercent:-50 垂直置中（degree-show / timeline 等共用者不變）
+  const slotPos = opts.alignTop ? { top: 0, yPercent: 0 } : {};
 
   // 同一個 panel 內的 text highlight 區塊（含底色），和 imgs 一起做 clip-path
   // about 場景自動從 .class-info-panel 找 [data-class-hl]；degree-show 場景可顯式傳入 textHlEl
@@ -237,6 +240,7 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
       placeInSlot(img, i, slotLefts, {
         rotation: randomRotation(),
         xPercent: slotXPercent,
+        ...slotPos,
         ...(slotZ ? { zIndex: slotZ[i] } : {}),
       });
       // 圖片藏定位＝img 在 wrapper 遮罩內滑出畫面外（隨機 4 向）
@@ -281,7 +285,7 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
     nextIdx++;
     const newImg = buildImg(nextSrc, imgWidth);
     container.appendChild(newImg);
-    placeInSlot(newImg, slotCount - 1, slotLefts, { rotation: randomRotation(), xPercent: slotXPercent, ...(slotZ ? { zIndex: slotZ[slotCount - 1] } : {}) });
+    placeInSlot(newImg, slotCount - 1, slotLefts, { rotation: randomRotation(), xPercent: slotXPercent, ...slotPos, ...(slotZ ? { zIndex: slotZ[slotCount - 1] } : {}) });
     // 新圖先藏定位、等 decode 完才滑入（同進場 gate）；壞/慢圖 3s 保險放行（whenImgReady）
     const inNew = newImg.firstElementChild;
     gsap.set(inNew, revealHiddenT(randRevealDir()));
@@ -460,7 +464,7 @@ export async function initClassImagesSlideshow() {
     // about program 文字說明卡（[data-class-hl]）走 clip-reveal、圖片維持 clip-path（user 2026-08-10）
     const slotOpts = isMobileSlots
       ? { slotLefts: ['50%'], slotXPercent: -50, textHlReveal: true }
-      : { textHlReveal: true, hoverSpin: true };   // 桌面 hover 抽新角吃住（user 2026-09-13；手機無 hover 不帶）
+      : { textHlReveal: true, hoverSpin: true, alignTop: true };   // 桌面 hover 抽新角吃住（09-13）＋圖頂對齊說明 box 頂（09-15）；手機置中不帶
     /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.division-images')).forEach(container => {
       const division = container.dataset.division;
       if (!division) return;

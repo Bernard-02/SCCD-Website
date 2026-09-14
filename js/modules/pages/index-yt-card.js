@@ -207,9 +207,9 @@ function initWatchChars(ytCharsEl) {
           }
         }
         drawLayout();
-        // 每 3 秒重新洗牌 layout — 暴露 pause/resume 給 click 動畫期間用，
-        // 否則 reshuffle 會把已 fade 的字母 reset _scale=1 重新畫出來，造成「卡畫面」
-        let layoutInterval = setInterval(() => drawLayout(false), 3000);
+        // 每 3 秒換組 layout（cycleLayout：舊組 clip 收回→新組 clip-reveal，非瞬切）—
+        // 暴露 pause/resume 給 click 動畫期間用，否則 reshuffle 會把已 fade 的字母 reset 重新畫出來，造成「卡畫面」
+        let layoutInterval = setInterval(cycleLayout, 3000);
         // theme 切換時即時重繪（保持當前 layout 不洗牌）— named ref 給 cleanup remove 用
         const onThemeChanged = () => drawLayout(true);
         window.addEventListener('theme:changed', onThemeChanged);
@@ -221,8 +221,11 @@ function initWatchChars(ytCharsEl) {
 
         // 逐字 clip-reveal 引擎（in：_reveal 0→1 由定格框下方滑入；out：1→0 滑回框下離場），一個個 stagger、回傳 Promise。
         // 首頁進場 / 點擊開影片離場 / 影片關閉回來 全走這套（user 2026-09-04：點擊動畫也改 clip-reveal 離開＋回來）。
+        let activeClipTl = null;   // 上一段 clip timeline；被插隊時連 onComplete 一起殺（否則舊段完成會偷重啟 interval）
         function clipReveal(target, stagger, dur, ease) {
           if (!lastPlaced || typeof gsap === 'undefined') return Promise.resolve();
+          activeClipTl?.kill();
+          activeClipTl = null;
           // reveal-in（target=1）期間停掉 3s reshuffle：①別中途換 layout 蓋掉正在揭露的這組 ②揭露完才重啟計時器＝
           // 剛揭露的這組完整撐一個 interval 才換（修 user 報「影片關閉回來、揭露動畫一結束就立刻跳成另一組 watch」——
           // 原因：影片播放期間 interval 一直在跑、關閉揭露完常碰上殘餘半拍立即 fire）。
@@ -234,15 +237,30 @@ function initWatchChars(ytCharsEl) {
             const tl = gsap.timeline({
               onUpdate: () => drawLayout(true),
               onComplete: () => {
-                if (target === 1 && !layoutInterval) layoutInterval = setInterval(() => drawLayout(false), 3000);
+                activeClipTl = null;
+                if (target === 1 && !layoutInterval) layoutInterval = setInterval(cycleLayout, 3000);
                 resolve();
               },
             });
+            activeClipTl = tl;
             lastPlaced.forEach((pos, i) => tl.to(pos, { _reveal: target, duration: dur, ease }, i * stagger));
           });
         }
+        // 3s 換組（user 2026-09-15：切換不再瞬切 pop、改 clip-reveal 同速）：舊組逐字 clip 收回 → 換 layout →
+        // 新組逐字 clip-reveal 進場（onComplete 自動重啟 3s interval）。
+        // cycleGen：pause（點擊開影片/離頁）時 ++ 作廢 in-flight 的換組後半段，避免影片動畫期間補播 reveal＋interval 復活。
+        let cycleGen = 0;
+        function cycleLayout() {
+          const myGen = ++cycleGen;
+          if (layoutInterval) { clearInterval(layoutInterval); layoutInterval = null; }
+          clipReveal(0, 0.06, DUR.medium, EASE.exit).then(() => {
+            if (myGen !== cycleGen) return;
+            drawLayout(false);   // 換新 layout；同步 task 內接 clipReveal(1) 設 _reveal=0，paint 前不閃
+            clipReveal(1, 0.06, DUR.slow, EASE.enter);
+          });
+        }
         // 點擊開影片 / 離頁：逐字 clip-reveal 滑回框下離場（取代舊 _scale 瞬切 0）；回傳 Promise 供接續 clone/iris。
-        ytCharsEl.__fadeOutWatch = function(opts = {}) { return clipReveal(0, opts.stagger ?? 0.06, opts.dur ?? DUR.medium, EASE.exit); };
+        ytCharsEl.__fadeOutWatch = function(opts = {}) { cycleGen++; return clipReveal(0, opts.stagger ?? 0.06, opts.dur ?? DUR.medium, EASE.exit); };
         ytCharsEl.__resetWatchAlpha = function() {
           if (!lastPlaced) return;
           lastPlaced.forEach(pos => { pos._scale = 1; pos._reveal = 1; });
@@ -255,10 +273,11 @@ function initWatchChars(ytCharsEl) {
         ytCharsEl.__fadeInWatch = function(opts = {}) { clipReveal(1, opts.stagger ?? 0.06, DUR.slow, EASE.enter); };
         // click 動畫期間暫停 reshuffle interval，避免 fade 完的字母被 reshuffle reset _scale=1 重畫
         ytCharsEl.__pauseLayoutInterval = function() {
+          cycleGen++;   // 作廢 in-flight 換組（否則其 clipReveal(1) onComplete 會在暫停期間偷重啟 interval）
           if (layoutInterval) { clearInterval(layoutInterval); layoutInterval = null; }
         };
         ytCharsEl.__resumeLayoutInterval = function() {
-          if (!layoutInterval) layoutInterval = setInterval(() => drawLayout(false), 3000);
+          if (!layoutInterval) layoutInterval = setInterval(cycleLayout, 3000);
         };
         // 總時長供 click handler 參考（不再對齊圓圈，圓圈獨立 0.8s）
         ytCharsEl.__getWatchFadeDuration = function(opts = {}) {

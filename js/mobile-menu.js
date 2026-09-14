@@ -23,7 +23,6 @@ export function initMobileMenu() {
   // 用 inline style.display 切換，避 Tailwind .hidden 跟 icon display:inline-block 的 cascade 競爭
   const iconOpen = btn?.querySelector('[data-mobile-menu-icon="open"]');
   const iconClose = btn?.querySelector('[data-mobile-menu-icon="close"]');
-  const toggles = document.querySelectorAll('.mobile-submenu-toggle');
   // 含 nav links + 底部 CREATE! link，整個面板所有 link 都進 stagger
   const menuItems = nav?.querySelectorAll('.mobile-nav-link');
 
@@ -224,88 +223,4 @@ export function initMobileMenu() {
   applyRandomRotation(menuBtnBox);
   applyRandomRotation(modeBtnBox);
 
-  // 2. Accordion Logic (Submenu)
-  toggles.forEach(toggle => {
-    toggle.addEventListener('click', (e) => {
-      e.preventDefault();
-      const submenu = toggle.nextElementSibling;
-      const chevron = toggle.querySelector('.fa-chevron-down');
-      const isClosed = submenu.classList.contains('hidden');
-
-      // 先關閉所有其他的子選單
-      toggles.forEach(otherToggle => {
-        if (otherToggle !== toggle) {
-          const otherSubmenu = otherToggle.nextElementSibling;
-          const otherChevron = otherToggle.querySelector('.fa-chevron-down');
-          
-          if (!otherSubmenu.classList.contains('hidden')) {
-            if (typeof gsap !== 'undefined') {
-              otherSubmenu.style.overflow = 'hidden';
-              gsap.to(otherSubmenu, { 
-                height: 0, 
-                opacity: 0,
-                duration: DUR.fast, 
-                ease: EASE.enterSoft, 
-                onComplete: () => {
-                  otherSubmenu.classList.add('hidden');
-                  otherSubmenu.style.height = '';
-                  otherSubmenu.style.opacity = '';
-                  otherSubmenu.style.overflow = '';
-                }
-              });
-              gsap.to(otherChevron, { rotation: 0, duration: DUR.fast });
-            } else {
-              otherSubmenu.classList.add('hidden');
-              otherChevron.style.transform = 'rotate(0deg)';
-            }
-          }
-        }
-      });
-
-      // 切換當前子選單
-      if (isClosed) {
-        if (typeof gsap !== 'undefined') {
-          submenu.classList.remove('hidden');
-          submenu.style.overflow = 'hidden';
-          gsap.fromTo(submenu, 
-            { height: 0, opacity: 0 }, 
-            { 
-              height: 'auto', 
-              opacity: 1, 
-              duration: DUR.base, 
-              ease: EASE.enterSoft,
-              onComplete: () => {
-                submenu.style.overflow = '';
-                submenu.style.height = '';
-              }
-            }
-          );
-          gsap.to(chevron, { rotation: 180, duration: DUR.fast });
-        } else {
-          submenu.classList.remove('hidden');
-          chevron.style.transform = 'rotate(180deg)';
-        }
-      } else {
-        if (typeof gsap !== 'undefined') {
-          submenu.style.overflow = 'hidden';
-          gsap.to(submenu, { 
-            height: 0, 
-            opacity: 0,
-            duration: DUR.fast, 
-            ease: EASE.enterSoft, 
-            onComplete: () => {
-              submenu.classList.add('hidden');
-              submenu.style.height = '';
-              submenu.style.opacity = '';
-              submenu.style.overflow = '';
-            }
-          });
-          gsap.to(chevron, { rotation: 0, duration: DUR.fast });
-        } else {
-          submenu.classList.add('hidden');
-          chevron.style.transform = 'rotate(0deg)';
-        }
-      }
-    });
-  });
 }
