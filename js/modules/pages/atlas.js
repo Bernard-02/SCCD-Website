@@ -1107,6 +1107,8 @@ export async function initAtlas(options = {}) {
   content.style.height = '100%';
 
   // 1) HTML labels 先渲染（必須先 layout 才能量 offsetWidth/Height）
+  // wsg/ind → activities 同源 ui_labels key（relLabel/typeLabel 用；宣告在此因 typeLabel 被下方 forEach 同步呼叫，放後面會 TDZ）
+  const REL_LABEL_KEYS = { wsg: 'act.workshop', ind: 'act.industry' };
   const fragment = document.createDocumentFragment();
   items.forEach(item => {
     const anchor = document.createElement('div');
@@ -1951,7 +1953,7 @@ export async function initAtlas(options = {}) {
   // D 卡列右欄關係文字：wsg/ind 直接吃 activities 分頁同一組 ui_labels（act.workshop / act.industry），
   //   後台改 activities 叫法這裡自動跟（user 2026-09-13 拍板同源，撤回獨立 atlas.rel.* key）；
   //   缺 key/離線 fallback buildAtlas 硬編 labelEn/Zh。渲染與卡寬量測 probe 共用，後台改字卡寬才一致。
-  const REL_LABEL_KEYS = { wsg: 'act.workshop', ind: 'act.industry' };
+  //   REL_LABEL_KEYS 宣告在上方 labels 渲染區（避免 TDZ）。
   function relLabel(rel) {
     const o = atlasUiLabels && atlasUiLabels[REL_LABEL_KEYS[String(rel.id).split('-')[0]]];
     return { en: (o && o.en) || rel.labelEn, zh: (o && o.zh) || rel.labelZh };
