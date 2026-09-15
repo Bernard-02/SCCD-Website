@@ -383,14 +383,13 @@ export function initBFADivisionToggle() {
         target.style.background = BTN_DEFAULT_BG;
         delete target.dataset.accentHex;
         target.style.color = BTN_DEFAULT_TEXT;
-        target.style.transform = `rotate(${target._baseRot}deg)`;
+        // transform 不動：角度常駐（hover 抽角後保持，回寫 _baseRot 會退角）
         if (label) {
           // mobile pill 列的 label 清 inline → 回 CSS 黑 chip（比照桌面；mode-color 靠
           // [style*="background"] 偵測 active，inactive 不能留 inline bg）
           const isMobileLabel = !!label.closest('#mobile-division-nav');
           label.style.background = isMobileLabel ? '' : BTN_DEFAULT_BG;
           label.style.color = isMobileLabel ? '' : BTN_DEFAULT_TEXT;
-          label.style.transform = `rotate(${label._baseRot}deg)`;
         }
         btn._activeColor = null;
       }
@@ -408,42 +407,43 @@ export function initBFADivisionToggle() {
 
   divisionBtns.forEach(btn => {
     const target = paintTargetOf(btn);
+    // hover 抽新角（含 active；離開保持不還原——user 2026-09-15 全站定案）；色彩預覽維持只給 non-active
     btn.addEventListener('mouseenter', () => {
-      if (btn.classList.contains('active')) return;
-      const color = randomColor(getCurrentStripColor());
+      const isActive = btn.classList.contains('active');
       const rot   = randomRotation();
       const label = btn.previousElementSibling?.classList.contains('class-group-label')
         ? btn.previousElementSibling : null;
-      target.style.background = color;
-      target.style.color = '#000000';
       target.style.transform = `rotate(${rot}deg)`;
+      btn._pendingRot = rot;
       if (label) {
         const labelRot = randomRotation();
-        label.style.background = color;
-        label.style.color = '#000000';
         label.style.transform = `rotate(${labelRot}deg)`;
         label._pendingRot = labelRot;
       }
+      if (isActive) return;   // active 只動角不動色（色 = 定案 accent，hover 不換）
+      const color = randomColor(getCurrentStripColor());
+      target.style.background = color;
+      target.style.color = '#000000';
+      if (label) {
+        label.style.background = color;
+        label.style.color = '#000000';
+      }
       btn._pendingColor = color;
-      btn._pendingRot   = rot;
     });
 
+    // mouseleave 只還原色（角度保持）；_pendingRot 不清＝當前可見角，click / setActive 沿用
     btn.addEventListener('mouseleave', () => {
       if (btn.classList.contains('active')) return;
       const label = btn.previousElementSibling?.classList.contains('class-group-label')
         ? btn.previousElementSibling : null;
       target.style.background = BTN_DEFAULT_BG;
       target.style.color = BTN_DEFAULT_TEXT;
-      target.style.transform = `rotate(${target._baseRot}deg)`;
       if (label) {
         const isMobileLabel = !!label.closest('#mobile-division-nav');
         label.style.background = isMobileLabel ? '' : BTN_DEFAULT_BG;
         label.style.color = isMobileLabel ? '' : BTN_DEFAULT_TEXT;
-        label.style.transform = `rotate(${label._baseRot}deg)`;
-        label._pendingRot = null;
       }
       btn._pendingColor = null;
-      btn._pendingRot   = null;
     });
 
     btn.addEventListener('click', function () {

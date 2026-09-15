@@ -1,6 +1,6 @@
-// 箭頭隨機角度互動（user 2026-09-10；互動範式參考 about program division tab＝bfa-division-toggle.js：
-// hover 抽角當預覽、click 把預覽角定案）。角度全站統一抽 −4°~+6°（user 09-10 拍板，各處不再帶自己的 range）。
-// hover＝抽隨機角度預覽；mouseleave＝回定案角；click＝定案「hover 預覽的那個角」（沒有預覽時──手機、
+// 箭頭隨機角度互動（user 2026-09-10；2026-09-15 改「離開保持」全站定案）。
+// 角度全站統一抽 −4°~+6°（user 09-10 拍板，各處不再帶自己的 range）。
+// hover＝抽隨機新角；mouseleave＝保持新角（轉正定案、不彈回）；click＝沿用 hover 角（沒有 hover 時──手機、
 // 或同一次 hover 內連點──就重抽一個保證跟現角差 SPAN/4 以上的新角，連點才看得出變）。
 // setAngle(deg) 由 caller 決定寫法（inline transform / CSS var）；rotate 的 transition 也由 caller 備妥。
 const MIN = -4, MAX = 6;
@@ -20,7 +20,8 @@ export function bindArrowSpin(el, setAngle, { initial = 0, onCommit } = {}) {
   // hover 只綁桌面（矮橫向 gate 同 landscape.css）
   if (window.innerWidth >= 768 && !window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) {
     el.addEventListener('mouseenter', () => { pending = rand(); setAngle(pending); });
-    el.addEventListener('mouseleave', () => { pending = null; setAngle(committed); });
+    // 離開保持新角＝直接轉正定案（角度已顯示、不需 setAngle）
+    el.addEventListener('mouseleave', () => { if (pending != null) committed = pending; pending = null; });
   }
   el.addEventListener('click', () => {
     committed = pending ?? rand();

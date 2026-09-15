@@ -10,7 +10,7 @@ import { loadDegreeShowListInto } from './degree-show-data-loader.js';
 import { applyMarqueeOverflow, bindMarqueeReturn } from '../ui/marquee-overflow.js';
 import { initListAccordion, resetListAccordionsInPanel, alignWithBottomSpacer } from '../accordions/list-accordion.js';
 import { reapplySearch, markProgrammaticScroll } from '../ui/activities-search.js';
-import { setActiveNavBtn, showPanel, initHoverDimMoveGuard, bindNavBtnFit, bindFrameScrollSplit, flashDeepLinkDim } from '../ui/section-switch-helpers.js';
+import { setActiveNavBtn, showPanel, initHoverDimMoveGuard, bindNavBtnFit, bindNavBtnSpin, isNavSpinDesktop, bindFrameScrollSplit, flashDeepLinkDim } from '../ui/section-switch-helpers.js';
 import { playAdmissionPanelExit, playAdmissionPanelReveal, setupAdmissionReveal } from './admission-data-loader.js';
 import { playClipReveal, navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
 import { snapRowsShown } from '../ui/list-row-reveal.js';
@@ -741,6 +741,8 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
 
   // btn 色塊貼文字寬（CMS label 折行時盒不 hug 最長行）＝四頁共用 helper，見 section-switch-helpers
   bindNavBtnFit(btns);
+  // 初始隨機角＋桌面 hover 抽新角（離開保持；click 由 setActiveNavBtn 桌面沿用當前角）
+  bindNavBtnSpin(btns);
 
   registerPageExit(playActivitiesExit);
 
@@ -1190,6 +1192,7 @@ async function setPanelDescActive(panelId, descType) {
 function initExhibitionsTypeFilter() {
   const btns = document.querySelectorAll('#exhibitions-type-filter .exhibitions-type-btn');
   if (!btns.length) return;
+  bindNavBtnSpin(btns);   // 初始隨機角＋桌面 hover 抽角（離開保持）
 
   const activeInner = /** @type {HTMLElement | null} */ (document.querySelector('#exhibitions-type-filter .exhibitions-type-btn.active .anchor-nav-inner'));
   if (activeInner) {
@@ -1207,11 +1210,15 @@ function initExhibitionsTypeFilter() {
         const b = /** @type {HTMLElement} */ (bEl);
         b.classList.remove('active');
         const inner = /** @type {HTMLElement | null} */ (b.querySelector('.anchor-nav-inner'));
-        if (inner) { inner.style.background = ''; inner.style.transform = ''; }
+        if (inner) inner.style.background = '';   // transform 不清：角度常駐（hover 抽角後保持）
       });
       btn.classList.add('active');
       const inner = /** @type {HTMLElement | null} */ (btn.querySelector('.anchor-nav-inner'));
-      if (inner) { inner.style.background = currentSectionColor || '#00FF80'; inner.style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`; }
+      if (inner) {
+        inner.style.background = currentSectionColor || '#00FF80';
+        // 桌面沿用 hover 當前角（click 不另抽）；手機/矮橫向無 hover → click 現抽
+        if (!isNavSpinDesktop()) inner.style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`;
+      }
 
       const targetType = btn.dataset.type || '';
       // desc 與 list 並行 exit/reveal，視覺同時退場同時進場
@@ -1231,6 +1238,7 @@ function initExhibitionsTypeFilter() {
 function initVisitsTypeFilter() {
   const btns = document.querySelectorAll('#visits-type-filter .visits-type-btn');
   if (!btns.length) return;
+  bindNavBtnSpin(btns);   // 初始隨機角＋桌面 hover 抽角（離開保持）
 
   // 初始化 active btn 樣式（預設 outbound 已在 HTML 標記 active）
   const activeInner = /** @type {HTMLElement | null} */ (document.querySelector('#visits-type-filter .visits-type-btn.active .anchor-nav-inner'));
@@ -1249,11 +1257,15 @@ function initVisitsTypeFilter() {
         const b = /** @type {HTMLElement} */ (bEl);
         b.classList.remove('active');
         const inner = /** @type {HTMLElement | null} */ (b.querySelector('.anchor-nav-inner'));
-        if (inner) { inner.style.background = ''; inner.style.transform = ''; }
+        if (inner) inner.style.background = '';   // transform 不清：角度常駐（hover 抽角後保持）
       });
       btn.classList.add('active');
       const inner = /** @type {HTMLElement | null} */ (btn.querySelector('.anchor-nav-inner'));
-      if (inner) { inner.style.background = currentSectionColor || '#00FF80'; inner.style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`; }
+      if (inner) {
+        inner.style.background = currentSectionColor || '#00FF80';
+        // 桌面沿用 hover 當前角（click 不另抽）；手機/矮橫向無 hover → click 現抽
+        if (!isNavSpinDesktop()) inner.style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`;
+      }
 
       const targetType = btn.dataset.type || '';
       // desc 與 list 並行 exit/reveal，視覺同時退場同時進場

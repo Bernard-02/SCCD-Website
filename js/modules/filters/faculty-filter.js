@@ -6,7 +6,7 @@
 import { setupClipReveal, navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
-import { bindNavBtnFit, bindFrameScrollSplit } from '../ui/section-switch-helpers.js';
+import { bindNavBtnFit, bindNavBtnSpin, isNavSpinDesktop, bindFrameScrollSplit } from '../ui/section-switch-helpers.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 
@@ -425,20 +425,20 @@ export function initFacultyFilter(initialSection = null) {
   }));
 
   function setActiveStyle(activeBtn, color) {
-    const rot = SCCDHelpers.getRandomRotation();
     filterButtons.forEach(btn => {
       const inner = /** @type {HTMLElement|null} */ (btn.querySelector('.anchor-nav-inner'));
-      if (inner) {
-        inner.style.background = '';
-        inner.style.transform = '';
-      }
+      if (inner) inner.style.background = '';   // transform 不清：角度常駐（hover 抽角後保持）
     });
     const activeInner = /** @type {HTMLElement|null} */ (activeBtn.querySelector('.anchor-nav-inner'));
     if (activeInner) {
       activeInner.style.background = color;
-      activeInner.style.transform = `rotate(${rot}deg)`;
+      // 桌面沿用 hover 當前角（click 不另抽）；手機/矮橫向無 hover → click 現抽
+      if (!isNavSpinDesktop()) activeInner.style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`;
     }
   }
+
+  // 初始隨機角＋桌面 hover 抽新角（離開保持），見 section-switch-helpers
+  bindNavBtnSpin(filterButtons);
 
   // Filter button click event
   filterButtons.forEach(button => {
@@ -521,13 +521,18 @@ export function initFacultyFilter(initialSection = null) {
   if (deptButtons.length) {
     // btn 色塊貼文字寬（CMS label 折行時盒不 hug 最長行）＝四頁共用 helper，見 section-switch-helpers
     bindNavBtnFit(deptButtons);
+    bindNavBtnSpin(deptButtons);   // 初始隨機角＋桌面 hover 抽角（離開保持）
     const setDeptActiveStyle = (activeBtn, color) => {
       deptButtons.forEach(b => {
         const inner = /** @type {HTMLElement|null} */ (b.querySelector('.anchor-nav-inner'));
-        if (inner) { inner.style.background = ''; inner.style.transform = ''; }
+        if (inner) inner.style.background = '';   // transform 不清：角度常駐（hover 抽角後保持）
       });
       const inner = /** @type {HTMLElement|null} */ (activeBtn.querySelector('.anchor-nav-inner'));
-      if (inner) { inner.style.background = color; inner.style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`; }
+      if (inner) {
+        inner.style.background = color;
+        // 桌面沿用 hover 當前角；手機/矮橫向 click 現抽
+        if (!isNavSpinDesktop()) inner.style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`;
+      }
     };
     deptButtons.forEach(button => {
       button.addEventListener('click', function() {

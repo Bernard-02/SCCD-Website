@@ -139,17 +139,12 @@ export function initAnchorNav({ reveal = false } = {}) {
     const inner = btn.querySelector('.anchor-nav-inner');
     if (inner) inner.style.transform = `rotate(${btn._baseRot}deg)`;
 
-    // Hover：記錄新角度
+    // Hover：抽新角（含 active）、離開保持不還原（user 2026-09-15 全站定案）；
+    // _pendingRot 留給 setActiveBtn（active 沿用 hover 當下角）
     inner && inner.addEventListener('mouseenter', () => {
-      if (btn.classList.contains('active')) return;
       const rot = getNavRotation();
       btn._pendingRot = rot;
       inner.style.transform = `rotate(${rot}deg)`;
-    });
-    inner && inner.addEventListener('mouseleave', () => {
-      if (btn.classList.contains('active')) return;
-      inner.style.transform = `rotate(${btn._baseRot}deg)`;
-      btn._pendingRot = null;
     });
   });
 
@@ -225,8 +220,7 @@ export function initAnchorNav({ reveal = false } = {}) {
         }
       } else {
         inner.style.background = '';
-        // 保持各自 base rot，不歸零
-        inner.style.transform = `rotate(${btn._baseRot}deg)`;
+        // transform 不動：角度常駐 inline（hover 抽角後保持，寫 _baseRot 會回退 hover 留下的角）
       }
     });
 

@@ -6,8 +6,8 @@
  *   - 三個按鈕橫排於頂部，BFA 兩 btn 各自上方有 .courses-bfa-label「BFA Class 學士班」
  *     （仿 about.html class section 的 class-group-label 結構，每 BFA btn 各自一個 label）
  *   - 點 bfa-* btn → 該 btn 上方的 label 同步套 active 色 + 新隨機旋轉
- *   - 旋轉/位移/hover 比照 about/bfa-division-toggle.js：所有 btn-inner 與 label 都有
- *     _baseRot；hover 時隨機切換 rotation+accent，mouseleave 還原 _baseRot
+ *   - 旋轉/hover 走全站定案（2026-09-15）：初始隨機角、hover（含 active）抽新角、
+ *     離開保持不還原、click 沿用 hover 角（_pendingRot → setActiveNavBtn opts.rotation）
  *   - 內容改 grid（學期×必修/選修×年級）+ 右下 sticky desc panel
  */
 
@@ -86,69 +86,42 @@ function getRot() {
   return r;
 }
 
-// 替每個 .courses-bfa-label 與 inactive btn-inner 寫入 _baseRot 並套 transform，
-// 同時清掉 inactive btn-inner 的殘留 inline bg/color（避免上次 active 期間設過 inline
-// color: #000000，切換 active 後 .active 被移除但 inline color 還在 → 文字還是黑色）
-// setActiveNavBtn 只清 bg 與 transform，不清 color，所以 color 要在這手動清
-// 註：hover 已不再 inline 設 bg/color（user spec：hover 只變文字 opacity，由 CSS 處理），故只需處理 active 殘留
+// 種初始角（label 與 btn-inner 沒有 inline rotate 才寫；已有＝hover/active 留下的角，保持不回退——
+// user 2026-09-15 全站定案「hover 抽新角、離開保持」），並清掉 inactive btn-inner 的殘留 inline bg/color
+// （避免上次 active 期間設過 inline color: #000000，切換 active 後 .active 被移除但 inline color 還在 → 文字還是黑色）
+// setActiveNavBtn 不清 transform、也不清 color，所以 color 要在這手動清
 function applyBaseRotations() {
-  document.querySelectorAll('.courses-bfa-label').forEach(label => {
-    const el = /** @type {HTMLElement & { _baseRot?: number }} */ (label);
-    if (el._baseRot == null) el._baseRot = getRot();
-    el.style.transform = `rotate(${el._baseRot}deg)`;
-  });
+  const seed = (el) => {
+    if (!/rotate\(/.test(el.style.transform)) el.style.transform = `rotate(${getRot()}deg)`;
+  };
+  document.querySelectorAll('.courses-bfa-label').forEach(seed);
   document.querySelectorAll('.courses-program-btn:not(.active) .anchor-nav-inner').forEach(inner => {
-    const el = /** @type {HTMLElement & { _baseRot?: number }} */ (inner);
-    if (el._baseRot == null) el._baseRot = getRot();
-    el.style.transform = `rotate(${el._baseRot}deg)`;
+    const el = /** @type {HTMLElement} */ (inner);
+    seed(el);
     el.style.background = '';
     el.style.color = '';
   });
 }
 
-// 替 active btn-inner 把當下 inline transform 取出記到 _baseRot，方便日後 mouseleave 還原
-/** @param {HTMLElement|null} activeBtn */
-function syncActiveBaseRot(activeBtn) {
-  if (!activeBtn) return;
-  activeBtn.querySelectorAll('.anchor-nav-inner').forEach(inner => {
-    const el = /** @type {HTMLElement & { _baseRot?: number }} */ (inner);
-    const m = el.style.transform.match(/rotate\(([-\d.]+)deg\)/);
-    if (m) el._baseRot = parseFloat(m[1]);
-  });
-}
-
-// hover handler：mouseenter 給 btn-inner 與同 group 的 label 一個臨時隨機 rotation + accent；
-// mouseleave 還原到各自的 _baseRot 並清 inline bg/color
+// hover handler：mouseenter 給 btn-inner 與同 group 的 label 抽新隨機 rotation（含 active；
+// 離開保持不還原——user 2026-09-15 全站定案）。bg/color 不動（hover 只變文字 opacity，由 CSS 處理）
 /** @param {HTMLElement} btn */
 function bindHover(btn) {
   if (btn.dataset.hoverBound) return;
   btn.dataset.hoverBound = '1';
 
-  const inner = /** @type {HTMLElement & { _baseRot?: number } | null} */ (btn.querySelector('.anchor-nav-inner'));
+  const inner = /** @type {HTMLElement | null} */ (btn.querySelector('.anchor-nav-inner'));
   const group = btn.closest('.courses-program-group');
-  const label = /** @type {(HTMLElement & { _baseRot?: number }) | null} */ (group?.querySelector('.courses-bfa-label') || null);
+  const label = /** @type {HTMLElement | null} */ (group?.querySelector('.courses-bfa-label') || null);
 
   btn.addEventListener('mouseenter', () => {
-    if (btn.classList.contains('active')) return;
-    // hover 不換底色（user spec：bg 不變，僅文字 100%，由 CSS hover rule 控制；不再 JS inline 設 accent bg / color）
-    // 仍保留 rotation 變化作為 hover 視覺回饋
     const rot = getRot();
     const labelRot = getRot();
     if (inner) inner.style.transform = `rotate(${rot}deg)`;
     if (label) label.style.transform = `rotate(${labelRot}deg)`;
-    // _pendingRot / _pendingLabelRot 給 click 用：點下去保留剛剛 hover 看到的角度（仿 about/bfa-division-toggle.js）
-    // _pendingColor 不再儲存（hover 無 color 預覽）→ click 時 getColor() 自動 roll 新色
+    // _pendingRot / _pendingLabelRot 給 click 用：點下去沿用剛剛 hover 看到的角度（＝當前可見角）
     /** @type {any} */ (btn)._pendingRot = rot;
     /** @type {any} */ (btn)._pendingLabelRot = labelRot;
-  });
-
-  btn.addEventListener('mouseleave', () => {
-    if (btn.classList.contains('active')) return;
-    // hover 沒設 inline bg/color，mouseleave 只還原 rotation
-    if (inner) inner.style.transform = `rotate(${inner._baseRot || 0}deg)`;
-    if (label) label.style.transform = `rotate(${label._baseRot || 0}deg)`;
-    /** @type {any} */ (btn)._pendingRot = null;
-    /** @type {any} */ (btn)._pendingLabelRot = null;
   });
 }
 
@@ -609,15 +582,12 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
     // 切 program 時 reset 卡片選取狀態（避免 active card / slide-in 殘留）
     deselectActiveCard();
 
-    // setActiveNavBtn 清掉 inactive btn-inner 的 inline transform，需 re-apply _baseRot
+    // 清 inactive btn-inner 殘留 inline color＋補種沒角度的（角度本身常駐、不回退）
     applyBaseRotations();
 
     const activeBtn = /** @type {HTMLElement|null} */ (document.querySelector(
       `.courses-program-btn.active[data-program="${program}"]`
     ));
-
-    // 把 active btn-inner 的 inline rotation 同步到 _baseRot（供之後 mouseleave 還原用）
-    syncActiveBaseRot(activeBtn);
 
     // active group label = accent + 新 rotation；其他 group label = 清 inline bg/color 回 CSS 預設
     // label rotation 優先用 hover pending，無 pending 才隨機（避免 click 後 label 角度突然亂跳）

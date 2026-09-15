@@ -3,7 +3,7 @@
  * admission.html 左側 section 切換邏輯：當前 panel 統一往下退場 → 切換 → 新 panel per-item 進場
  */
 
-import { setActiveNavBtn, showPanel, initHoverDimMoveGuard, bindNavBtnFit, bindFrameScrollSplit, flashDeepLinkDim } from '../ui/section-switch-helpers.js';
+import { setActiveNavBtn, showPanel, initHoverDimMoveGuard, bindNavBtnFit, bindNavBtnSpin, bindFrameScrollSplit, flashDeepLinkDim } from '../ui/section-switch-helpers.js';
 import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
 import {
   playAdmissionPanelExit,
@@ -274,6 +274,8 @@ export function initAdmissionSectionSwitch(fromUserNav = false) {
 
   // btn 色塊貼文字寬（CMS label 折行時盒不 hug 最長行）＝四頁共用 helper，見 section-switch-helpers
   bindNavBtnFit(btns);
+  // 初始隨機角＋桌面 hover 抽新角（離開保持；click 由 setActiveNavBtn 桌面沿用當前角）
+  bindNavBtnSpin(btns);
 
   // 滾輪分區：col 1-3 捲 window（去 footer/hero）、col 4 起內部捲（box 邊界不外溢），見 section-switch-helpers
   bindFrameScrollSplit(document.getElementById('admission-content-section'));

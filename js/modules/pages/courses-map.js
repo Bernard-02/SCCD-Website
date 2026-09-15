@@ -18,7 +18,7 @@
 import { enterLightboxMode, exitLightboxMode } from '../lightbox/lightbox-shell.js';
 import { applyMarqueeOverflow, bindMarqueeReturn } from '../ui/marquee-overflow.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
-import { setActiveNavBtn } from '../ui/section-switch-helpers.js';
+import { setActiveNavBtn, bindNavBtnSpin } from '../ui/section-switch-helpers.js';
 import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { DUR, EASE } from '../ui/motion.js';
@@ -205,6 +205,7 @@ async function activateGrade(mobileGrid, gradeKey, { animate = true } = {}) {
     }
   }
 
+  bindNavBtnSpin(mobileGrid.querySelectorAll('.courses-mobile-grade-btn'));   // 初始隨機角（dataset 守衛、重呼叫 no-op；手機 UI：click 由 setActiveNavBtn 現抽）
   setActiveNavBtn(mobileGrid.querySelectorAll('.courses-mobile-grade-btn'), gradeKey, 'data-grade');
   /** @type {HTMLElement|null} */ let shown = null;
   mobileGrid.querySelectorAll('.courses-mobile-grade-block').forEach(b => {

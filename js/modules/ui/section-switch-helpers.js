@@ -12,22 +12,37 @@ import { fitCardToText } from './scroll-animate.js';
 import { loadUiLabels } from './ui-labels.js';
 import { isAccordionBusy } from '../accordions/list-accordion.js';
 
+// nav btn 隨機角互動的桌面 gate（同 arrow-spin：桌面且非矮橫向才有 hover）
+export function isNavSpinDesktop() {
+  return window.innerWidth >= 768
+    && !window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+}
+
+const readInlineRot = (el) => {
+  const m = el.style.transform.match(/rotate\((-?[\d.]+)deg\)/);
+  return m ? parseFloat(m[1]) : null;
+};
+
 /**
  * 更新 nav 按鈕的 active 狀態和樣式
- * - 清除所有按鈕的 .active 和 inner 背景/旋轉
- * - 對匹配的按鈕（可能多個，如桌面+手機版）加 .active 並套用隨機色/旋轉
+ * - 清除所有按鈕的 .active 和 inner 背景（⚠️ 不清旋轉：角度常駐 inline，hover 抽角後保持，
+ *   user 2026-09-15 全站定案「hover 抽新角、離開保持、click 沿用」）
+ * - 對匹配的按鈕（可能多個，如桌面+手機版）加 .active 並套用隨機色；旋轉桌面沿用 inline 當前角
+ *   （＝hover 預覽角），手機/矮橫向無 hover → 現抽新角
  *
  * @param {NodeList|Array} btns - 所有按鈕
  * @param {string} activeKey - 當前 active 的 key
  * @param {string} attrName - 識別用的 attribute（如 'data-section'）
  * @param {Object} [opts] - 選項
  * @param {string} [opts.color] - 指定顏色（否則隨機）
- * @param {number} [opts.rotation] - 指定旋轉（否則隨機）
+ * @param {number} [opts.rotation] - 指定旋轉（否則桌面沿用當前角／手機隨機）
  * @returns {{color: string, rotation: number}} 使用的顏色和旋轉角度
  */
 export function setActiveNavBtn(btns, activeKey, attrName, opts = {}) {
   const color = opts.color || SCCDHelpers.getRandomAccentColor();
-  const rotation = opts.rotation != null ? opts.rotation : SCCDHelpers.getRandomRotation();
+  const keepCurrent = isNavSpinDesktop();
+  const pickRot = (inner) => (keepCurrent ? readInlineRot(inner) : null) ?? SCCDHelpers.getRandomRotation();
+  let rotation = opts.rotation != null ? opts.rotation : null;
 
   btns.forEach(b => {
     b.classList.remove('active');
@@ -35,7 +50,6 @@ export function setActiveNavBtn(btns, activeKey, attrName, opts = {}) {
     // 支援單 pill 或多 pill 結構（如 courses-program-btn--stacked）
     b.querySelectorAll('.anchor-nav-inner').forEach(inner => {
       inner.style.background = '';
-      inner.style.transform = '';
     });
   });
 
@@ -45,14 +59,37 @@ export function setActiveNavBtn(btns, activeKey, attrName, opts = {}) {
     const inners = b.querySelectorAll('.anchor-nav-inner');
     inners.forEach((inner, idx) => {
       inner.style.background = color;
-      // 多 pill 時每個 pill 各自隨機 rotation（仿 about division btn 視覺）；
-      // 第一個沿用 caller 指定（或既有）rotation 確保 returned 值與實際一致
-      const r = idx === 0 ? rotation : SCCDHelpers.getRandomRotation();
+      // 多 pill 時每個 pill 各自處理；第一個沿用 caller 指定（或解析出的）rotation 確保 returned 值與實際一致
+      const r = idx === 0 ? (rotation = rotation ?? pickRot(inner)) : pickRot(inner);
       inner.style.transform = `rotate(${r}deg)`;
     });
   });
 
   return { color, rotation };
+}
+
+/**
+ * nav btn 隨機角互動（user 2026-09-15 全站定案）：初始各自隨機角；桌面 hover（含 active）抽新角、
+ * 離開保持不還原；click 不再另抽——setActiveNavBtn 桌面沿用 inline 當前角、手機/矮橫向 click 才現抽。
+ * 排除：atlas（maskFlyChrome 吃顯式 srcRot/dstRot，外掛亂角會 desync）與已自帶同款互動的組
+ * （anchor-nav / courses program / bfa-division / DSD event chips——各自維持自家 range）。
+ * 元素級 listener 隨 #page-content swap 一起消失，不需 registerPageCleanup。
+ * @param {NodeList|Element[]} btns
+ */
+export function bindNavBtnSpin(btns) {
+  const hoverOn = isNavSpinDesktop();
+  [...btns].forEach(btn => {
+    const b = /** @type {HTMLElement} */ (btn);
+    if (b.dataset.spinBound) return;
+    b.dataset.spinBound = '1';
+    const inners = /** @type {NodeListOf<HTMLElement>} */ (b.querySelectorAll('.anchor-nav-inner'));
+    inners.forEach(inner => {
+      if (readInlineRot(inner) == null) inner.style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`;
+    });
+    if (hoverOn) b.addEventListener('mouseenter', () => {
+      inners.forEach(inner => { inner.style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`; });
+    });
+  });
 }
 
 /**

@@ -60,7 +60,7 @@ import { initAdmissionSectionSwitch } from './modules/pages/admission-section-sw
 // Library 三模組（panels 118KB + viewer 45KB + card 34KB）改動態載入：進 library 頁才 import。
 // viewer 例外：activities / alumni 的共用 PDF viewer 也用它 → 各自呼叫點同樣 dynamic import
 // （module cache 共用一份；viewer 的 modal 是單例 guard，多次 initPdfViewer 安全）。
-import { setActiveNavBtn } from './modules/ui/section-switch-helpers.js';
+import { setActiveNavBtn, bindNavBtnSpin } from './modules/ui/section-switch-helpers.js';
 
 // Import Lightbox Shell（共用 enter/exit 行為；SPA cleanup 需 reset openCount）
 import { resetLightboxMode, getHeaderTargets } from './modules/lightbox/lightbox-shell.js';
@@ -480,6 +480,7 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
       });
 
       const tabBtns = tabsRoot?.querySelectorAll('.activities-section-btn') ?? [];
+      bindNavBtnSpin(tabBtns);   // 初始隨機角（此路徑只在手機/矮橫向：無 hover、click 由 setActiveNavBtn 現抽）
       setActiveNavBtn(tabBtns, initialTab, 'data-tab');
 
       // 切 tab 出場動畫（user 2026-09-10「灰卡內容要跟桌面一樣做出場」）：沿用桌面 _doSwitchTab 同款

@@ -1837,18 +1837,13 @@ function setupStickyAndHeroChips(data, year) {
       // anchor-nav-btn/-inner＝直接吃 about nav btn 的三 mode 規則（buttons/inverse/color.css 整組 selector，
       // 含 mode3 inactive bg=var(--theme-bg) 跟 body hue 同步、active strict B/W、hover 升對比；user 2026-08-18）
       wrap.className = 'sticky-event-chip anchor-nav-btn';
-      // hover 旋轉（比照 about anchor-nav.js）：base rot 常駐；hover 換新角、離開還原；active 繼承 hover 角（見 setActiveEvent）。
+      // hover 旋轉（全站定案 2026-09-15）：初始隨機角；hover（含 active）抽新角、離開保持不還原；
+      // active 沿用 hover 當下角（見 setActiveEvent）。
       wrap._baseRot = randRot();
       wrap.style.transform = `rotate(${wrap._baseRot}deg)`;
       wrap.addEventListener('mouseenter', () => {
-        if (wrap.classList.contains('active')) return;
         wrap._pendingRot = randRot();
         wrap.style.transform = `rotate(${wrap._pendingRot}deg)`;
-      });
-      wrap.addEventListener('mouseleave', () => {
-        if (wrap.classList.contains('active')) return;
-        wrap.style.transform = `rotate(${wrap._baseRot}deg)`;
-        wrap._pendingRot = null;
       });
       // 每顆各自的 reveal 方向（固定、reveal/hide 來回一致）＝進出場用自己的尺寸滑入不再走整條 track 全高
       const dir = BRANCH_DIR_KEYS[Math.floor(Math.random() * BRANCH_DIR_KEYS.length)];
@@ -1877,14 +1872,13 @@ function setupStickyAndHeroChips(data, year) {
     eventChips.forEach(ec => {
       const active = ec.navIdx === idx;
       ec.wrap.classList.toggle('active', active);
-      // active 繼承「hover 當下的角度」（有 hover 過就用 _pendingRot，否則保留 base rot 不亂跳）＝比照 about 的 hover→active 銜接
+      // active 繼承「hover 當下的角度」（有 hover 過就用 _pendingRot，否則保留 base rot 不亂跳）；
+      // inactive transform 不動＝角度常駐（hover 抽角後保持，回寫 _baseRot 會退角）
       if (active) {
         const rot = ec.wrap._pendingRot ?? ec.wrap._baseRot;
         ec.wrap._baseRot = rot;
         ec.wrap._pendingRot = null;
         ec.wrap.style.transform = `rotate(${rot}deg)`;
-      } else {
-        ec.wrap.style.transform = `rotate(${ec.wrap._baseRot}deg)`;
       }
       /** @type {HTMLElement} */ (ec.wrap.querySelector('.sticky-chip-inner')).style.background = active ? branchColor : '';
     });
