@@ -183,8 +183,17 @@ export function initTimeline() {
           curDivision = null;
           items.push(cur);
         }
+        // 學制標題手機英中兩行、桌面單行（user 2026-09-15）：後台是單一純文字（英中同串）→ 以首個 CJK
+        // 字元切分；切不出（純英/純中）維持原樣。span 間留空白＝桌面 inline 單行有間隔、
+        // 手機 display:block 時 inter-block 空白不渲染（免 sep span）
+        const splitDivision = (txt) => {
+          const m = /^(.*?)\s*([⺀-鿿豈-﫿].*)$/.exec(txt || '');
+          return m && m[1]
+            ? `<span class="tl-division-en">${m[1]}</span> <span class="tl-division-zh" lang="zh-Hant">${m[2]}</span>`
+            : txt;
+        };
         const head = en.division && en.division !== curDivision
-          ? `<h5 class="mb-sm">${en.division}</h5>` : '';
+          ? `<h5 class="mb-sm tl-division-head">${splitDivision(en.division)}</h5>` : '';
         if (en.division) curDivision = en.division;
         cur.descriptions.push(`${head}<div class="font-regular mb-en-zh-body">${en.en}</div><div class="font-regular" lang="zh-Hant">${en.zh}</div>`);
       });

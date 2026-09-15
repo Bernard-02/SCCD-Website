@@ -18,6 +18,8 @@ import { revealRows, hideRow } from '../ui/list-row-reveal.js';  // rows 進場�
 import { playAdmissionPanelExit } from './admission-data-loader.js';  // 離頁退場整套沿用 activities（先收 accordion → zebra clip 收 + rows 滑出）
 import { loadUiLabels, applyUiLabels } from '../ui/ui-labels.js';  // sitemap 卡片名稱吃 ui_labels（後台改 nav 名稱如 Atlas→World 同步跟上）
 import { DUR, EASE } from '../ui/motion.js';
+import { applyMarqueeOverflow, bindMarqueeReturn } from '../ui/marquee-overflow.js';  // reg 列英中單行過長 marquee（桌面 hover 回彈）
+import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { sitePath } from '../ui/site-base.js';
 
 // 已遷移到 Directus 的頁面 → collection 名；未列入的讀本地 /data/*.json。
@@ -111,6 +113,20 @@ function mountZebra(contentEl, html) {
   contentEl.innerHTML = html;
   initListAccordion();
   requestAnimationFrame(() => setRegCatStickyTop(contentEl));
+  // reg 列 marquee：量寬＋dual-copy（收合態 height 0 但寬已排版、量得到；fonts swap 後寬會變 → ready 再重量，
+  // helper 自帶 reset 可重跑）；桌面逐 hover 單元（.legal-reg-item）綁放開回彈，只綁一次（重量不重綁）。
+  const measureRegMarquee = () => {
+    const table = contentEl.querySelector('.legal-reg-table');
+    if (table) applyMarqueeOverflow(table, '.legal-reg-line', '.legal-reg-mq-inner');
+  };
+  requestAnimationFrame(() => {
+    measureRegMarquee();
+    // hover 單元＝逐欄（name/unit 各自），hover 誰只捲誰（user 2026-09-15；同 marquee 單元粒度慣例）
+    contentEl.querySelectorAll('.legal-reg-name, .legal-reg-unit').forEach((cellEl) => {
+      registerPageCleanup(bindMarqueeReturn(/** @type {HTMLElement} */ (cellEl), '.legal-reg-mq-inner', '.legal-reg-line'));
+    });
+  });
+  if (document.fonts?.ready) document.fonts.ready.then(() => { if (contentEl.isConnected) measureRegMarquee(); });
   const items = Array.from(contentEl.querySelectorAll('.list-item'));
   const rows = Array.from(contentEl.querySelectorAll('.list-reveal-row'));
   // per-item 交替方向（比照 admission-data-loader）：整筆一致——半數 title+副標由上滑入（translateY -110%）＋
@@ -226,19 +242,27 @@ function regSpans(en, zh) {
   return (en ? `<span>${esc(en)}</span>` : '')
     + (zh ? `<span lang="zh-Hant">${esc(zh)}</span>` : '');
 }
+// name/unit 版：英中各一行（nowrap），過長 marquee（user 2026-09-15）——行＋inner 結構同 courses 卡，
+// 量測/dual-copy 由 mountZebra 的 applyMarqueeOverflow 跑。類別欄仍用 regSpans（自然折行）。
+function regMqSpans(en, zh) {
+  const line = (txt, isZh) => txt
+    ? `<span class="legal-reg-line"${isZh ? ' lang="zh-Hant"' : ''}><span class="legal-reg-mq-inner">${esc(txt)}</span></span>`
+    : '';
+  return line(en, false) + line(zh, true);
+}
 function regTableEntry(reg) {
   const groups = (reg.points || []).map(cat => {
     const items = cat.items || [];
     const rows = items.map(item => {
       let uEn = item.unitEn, uZh = item.unitZh;
       if (!uEn && !uZh) { uEn = 'SCCD Office'; uZh = '系辦'; }  // 都預設 SCCD Office（後台 unit 欄填了才覆蓋）
-      const nameInner = regSpans(item.titleEn, item.titleZh);
+      const nameInner = regMqSpans(item.titleEn, item.titleZh);
       // 後台有規章文件 URL → 名稱＋承辦單位兩欄都是連結（外開；hover 走下方 ref 深色規則）
       const cell = (cls, inner) => item.url
         ? `<a class="${cls} legal-reg-link" href="${esc(item.url)}" target="_blank" rel="noopener">${inner}</a>`
         : `<div class="${cls}">${inner}</div>`;
       // .legal-reg-item = display:contents hover 單元（讓第二/三欄一起變色、類別欄不變）
-      return `<div class="legal-reg-item">${cell('legal-reg-name', nameInner)}${cell('legal-reg-unit', regSpans(uEn, uZh))}</div>`;
+      return `<div class="legal-reg-item">${cell('legal-reg-name', nameInner)}${cell('legal-reg-unit', regMqSpans(uEn, uZh))}</div>`;
     }).join('');
     return `<div class="legal-reg-group" style="--reg-rows:${items.length || 1}">`
       + `<div class="legal-reg-cat">${regSpans(cat.titleEn, cat.titleZh)}</div>`
@@ -304,7 +328,8 @@ function mapCardHtml(item, num) {
 function mapGroupHtml(pg, n) {
   let html = mapCardHtml(pg, String(n));
   const walk = (subs, prefix) => {
-    (subs || []).forEach((s, i) => {
+    // hidden＝這版還沒上線的分頁（coming soon）先不列卡；恢復＝拿掉 json 的 hidden
+    (subs || []).filter(s => !s.hidden).forEach((s, i) => {
       const num = `${prefix}-${i + 1}`;
       html += mapCardHtml(s, num);
       walk(s.subs, num);
@@ -432,7 +457,8 @@ export async function loadSitemap() {
         + (a11y.overviewZh ? `<p class="text-s" lang="zh-Hant">${esc(a11y.overviewZh)}</p>` : '')
         + `</div>`;
     }
-    const groups = (mapData.pages || []).map((pg, i) => mapGroupHtml(pg, i + 1)).join('');
+    // hidden 過濾在編號前＝序號連續不跳號（這版沒上線的頁面卡先藏，恢復拿掉 json 的 hidden 即可）
+    const groups = (mapData.pages || []).filter(pg => !pg.hidden).map((pg, i) => mapGroupHtml(pg, i + 1)).join('');
     html += `<div class="legal-map-grid">${groups}</div>`;
     contentEl.innerHTML = html;
     applyUiLabels(labels, contentEl);   // 換上後台名稱（在 reveal 前＝不會揭到一半換字）
@@ -493,11 +519,14 @@ async function fetchAccessibilityStatement() {
 
 async function fetchPolicyGroups() {
   try {
-    const res = await fetch(`${CMS_API_BASE}/policy_and_statements?sort=sort`);
+    const res = await fetch(`${CMS_API_BASE}/policy_and_statements`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = (await res.json()).data;   // 非 singleton → .data 是陣列（每列一段）
-    if (!Array.isArray(data) || !data.length) throw new Error('empty data');
-    return data;
+    // 2026-09-15 轉 singleton（無障礙拆出後只剩隱私一段，後台免點進列表）→ .data 是物件；
+    // 包成陣列沿用群組渲染，fallback JSON 仍是陣列 shape 兩者通吃
+    const data = (await res.json()).data;
+    const groups = Array.isArray(data) ? data : (data ? [data] : []);
+    if (!groups.length || !(groups[0].titleEn || groups[0].titleZh)) throw new Error('empty data');
+    return groups;
   } catch (err) {
     console.warn('[legal] CMS fetch failed for policy_and_statements, fallback to local:', err.message);
     return fetch(sitePath('data/policy-and-statements.json')).then(r => r.json());

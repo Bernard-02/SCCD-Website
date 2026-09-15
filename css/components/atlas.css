@@ -112,10 +112,10 @@ body.mode-color #atlas-main { background-color: var(--theme-bg); }
 /* A/B/C 統一 z:1（上方 .atlas-anchor 預設）；D z-index 由 atlas.js tickFloat 動態管理（過分割綫 cy → 0 或 2）
    B 不再寫死 z:20 — 與 A/C 同層平等，避免 chip 永遠蓋住純文字 item */
 
-/* 進頁流暢度（2026-09-08）：桌面 map 形態把每個 span 提為合成層 → tickFloat 每 tick 對 anchor 寫 transform
-   只更新 property tree、零 CPU raster（anchor 本身無繪製內容，可見內容全在 span 子樹）。
-   :not(.atlas-as-list) 排除 list 形態（排版靠 layout、不參與漂浮）；手機圓點模式由 JS 不加 .atlas-layered 排除。
-   高 zoom 清晰：markZoomActive idle 後 demote→rAF re-promote 以當前 scale 重 raster。 */
+/* 進頁流暢度（2026-09-08 桌面；2026-09-15 手機跟進）：map 形態把每個 span 提為合成層 → tickFloat 每 tick
+   對 anchor 寫 transform 只更新 property tree、零 CPU raster（anchor 本身無繪製內容，可見內容全在 span 子樹）。
+   :not(.atlas-as-list) 排除 list 形態（排版靠 layout、不參與漂浮）。
+   高 zoom 清晰：markZoomActive idle 後 demote→double-rAF re-promote 以當前 scale 重 raster。 */
 #atlas-stage.atlas-layered .atlas-name:not(.atlas-as-list) { will-change: transform; }
 
 /* 預設：label 在 line 端點的右側（line 接到字的起點）
@@ -1187,7 +1187,8 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   }
   #atlas-detail {
     max-width: 70vw;         /* 手機右下角限寬，不佔滿整列 */
-    padding: 10px 12px;
+    /* padding 不另設（沿用 base 0）：兩區改版（09-09）後由 head/body 各帶 6 8 5，
+       舊 10px 12px 殘留會外內雙層疊加＝卡特別肥、黑頭貼不到卡緣（user 2026-09-15） */
   }
   /* 直向手機（橫向 gate 維持現行）：
      ① 卡片左緣讓開左下 layout btn（24 + 48 btn + 8 呼吸 + ~15 卡片 ±3° 旋轉 bbox 外擴；
@@ -1245,16 +1246,28 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
     flex-direction: row;
     align-items: flex-end;
     gap: 0.5rem;
+    /* list view 標籤（All-time Faculty 歷任教職 等）較長、三顆加總可能超出 bar 寬 → 允許左右滑
+       （user 2026-09-15「撞到了」）；scrollbar 藏；上下 4px 免旋轉 active chip 被 scroll container 裁邊 */
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 4px 0;
+  }
+  #atlas-filter::-webkit-scrollbar { display: none; }
+  /* 過寬時行內文字不得折行（折行會把鈕壓窄、失去「滑動看全部」的意義） */
+  #atlas-filter .atlas-filter-en,
+  #atlas-filter .atlas-filter-zh {
+    white-space: nowrap;
   }
   /* 桌面 column 排列的 margin-top 階梯在 row 排列會變成垂直錯位 → 歸零 */
   #atlas-filter > * {
     margin-top: 0 !important;
   }
-  /* 三顆 tab 三等分 row 寬（alumni 包在 .atlas-alumni-row wrapper 內，兩種結構都接） */
+  /* 三顆 tab：放得下＝grow 均分；放不下＝維持內容寬不縮 → 容器左右滑（user 2026-09-15 撞到修，
+     取代原 flex:1 1 0 三等分——list view 長標籤在 1/3 欄會互疊） */
   #atlas-filter > .atlas-filter-btn,
   #atlas-filter > .atlas-alumni-row {
-    flex: 1 1 0;
-    min-width: 0;
+    flex: 1 0 auto;
+    min-width: max-content;
   }
   .atlas-alumni-row .atlas-filter-btn {
     width: 100%;

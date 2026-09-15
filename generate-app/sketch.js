@@ -1834,6 +1834,12 @@ function cleanupCreateApp() {
   document.removeEventListener('mouseup', handleColorPickerMouseUp);
   document.removeEventListener('touchend', handleColorPickerMouseUp);
 
+  // mobile.js 的 logo 容器 ResizeObserver（跨 SPA 重進會在 initMobileUI 重建，這裡斷掉舊的）
+  if (typeof logoResizeObserver !== 'undefined' && logoResizeObserver) {
+    logoResizeObserver.disconnect();
+    logoResizeObserver = null;
+  }
+
   // Special easter egg DOM 容器 + 它自帶的 window resize/orientationchange listeners
   // （easter-eggs.js 內 createSpecialEasterEggContainer 每次 setup 都 append 新 div 到 body 不清舊的）
   if (typeof destroySpecialEasterEggContainer === 'function') {

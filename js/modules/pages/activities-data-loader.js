@@ -15,7 +15,7 @@ import { countryName } from '../../data/country-names.js';
 import { guestOrgs } from './guest-orgs.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { refreshStickyPinObservers, isAccordionBusy } from '../accordions/list-accordion.js';
-import { buildSyncedMarqueeTimeline } from '../ui/marquee-overflow.js';
+import { buildSyncedMarqueeTimeline, marqueeSpeed } from '../ui/marquee-overflow.js';
 import { loadSummerCamp } from './summer-camp-source.js';
 import { loadActivityCollection, loadPermanentExhibitions } from './activities-source.js';
 // '/data/x.json' 字串同時是 fetch URL 與 map key / 比對識別字（deriveHostSection / _panelSelectorMap 等），
@@ -1037,7 +1037,7 @@ export function bindInteractions(container, { autoReveal = true, incremental = f
           }
           const offset = p.offsetWidth;
           wrap.style.setProperty('--marquee-offset', `-${offset}px`);
-          const speed = Math.max(3, offset / 80);
+          const speed = Math.max(3, offset / marqueeSpeed());
           wrap.style.setProperty('--marquee-duration', `${speed}s`);
         } else {
           wrap.classList.remove('is-overflow');

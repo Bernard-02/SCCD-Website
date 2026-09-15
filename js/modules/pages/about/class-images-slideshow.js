@@ -89,7 +89,20 @@ function buildImg(src, fixedWidth) {
     const isLandscape = img.naturalWidth > img.naturalHeight;
     if (isLandscape) wrapper.classList.add('class-img--landscape');
     if (fixedWidth) { wrapper.style.width = fixedWidth; return; }
-    const maxW = isLandscape ? 520 : 336; // 直立 336；橫向放大 462→520（user 2026-09-11「橫式圖放大一點」）
+    let maxW = isLandscape ? 520 : 336; // 直立 336；橫向放大 462→520（user 2026-09-11「橫式圖放大一點」）
+    // about 手機（<768、class 面板）：圖高不得超出容器（圖/文對半分後容器高隨 svh 縮，user 2026-09-15
+    // 「圖片不能被切」）——寬另受「容器高 × 圖比例」cap ＝ 等比縮小到剛好塞進半屏、不裁切不溢出。
+    // CSS 的 170/250 max-width 仍生效（此處只會更小不會更大）。
+    const panel = wrapper.closest ? wrapper.closest('.class-info-panel') : null;
+    if (panel && window.innerWidth < 768) {
+      const box = wrapper.parentElement;
+      const availH = box ? box.clientHeight : 0;
+      // 含 ±4° 隨機旋轉的 bbox 高：W·sinθ + (W/ratio)·cosθ ≤ availH → 解 W（純用圖比例會差 ~9px 旋角外溢）
+      if (availH > 0) {
+        const SIN4 = Math.sin(4 * Math.PI / 180), COS4 = Math.cos(4 * Math.PI / 180);
+        maxW = Math.min(maxW, Math.floor(availH / (SIN4 + COS4 * img.naturalHeight / img.naturalWidth)));
+      }
+    }
     wrapper.style.width = Math.min(img.naturalWidth, maxW) + 'px';
   };
   if (img.complete && img.naturalWidth) sizeWrapper();

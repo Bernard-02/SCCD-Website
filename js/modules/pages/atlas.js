@@ -266,9 +266,11 @@ export async function initAtlas(options = {}) {
   const detail  = $('#atlas-detail');
   if (!stage || !zoomEl || !content || !detail) return;
 
-  // 進頁流暢度（2026-09-08）：桌面把 span 提為合成層（見 atlas.css #atlas-stage.atlas-layered）→ tickFloat
-  // 每 tick 對 ~430 個 label 寫 transform 只更新 property tree、零 CPU raster。手機圓點模式另有反向縮放、不 promote。
-  if (!isMobileAtlas) stage.classList.add('atlas-layered');
+  // 進頁流暢度（2026-09-08 桌面；2026-09-15 手機跟進）：把 span 提為合成層（見 atlas.css
+  // #atlas-stage.atlas-layered）→ tickFloat 每 tick 對 ~430 個 label 寫 transform 只更新 property tree、
+  // 零 CPU raster。手機 CDP 實測（6x throttle）不 promote 時 94% 主執行緒在重繪、p50 幀 ~510ms＝同根因。
+  // zoom 後文字清晰由 markZoomActive 的 demote→double-rAF re-promote 重 raster 負責（桌面手機同套）。
+  stage.classList.add('atlas-layered');
 
   // 渲染完成前擋 header mode btn（user 2026-08-10）：資料載入＋build＋intro 點燈期間切 mode
   // 會對半成品節點跑主題重繪。intro 完成（revealFilters）解鎖；提早離頁由 cleanup 解鎖。
@@ -1557,9 +1559,10 @@ export async function initAtlas(options = {}) {
   let floatPausedAt = null;          // 暫停起點 ms；恢復時補回 floatStart 讓 ambient 漂移接續不跳
   let menuPausedAtlas = false;       // 手機 menu 全屏 overlay 開著 → 暫停（window.setAtlasFloatPaused 切換）
 
-  // FPS 節流：全裝置 30fps（2026-07-10 user 拍板：筆電拔電源跑 60 會超卡，30 視覺可接受）。
+  // FPS 節流：桌面 30fps（2026-07-10 user 拍板：筆電拔電源跑 60 會超卡，30 視覺可接受）；
+  //   手機 20fps（2026-09-15：圓點漂移不需要 30、弱機省 1/3 重活）。
   //   位置由 performance.now() 絕對時間算 → 跳幀不影響速度。
-  const FLOAT_FPS_CAP = 30;
+  const FLOAT_FPS_CAP = isMobileAtlas ? 20 : 30;
   let   FLOAT_MIN_DT  = 1000 / FLOAT_FPS_CAP;   // intro 期降到 1000/20（修改 3），finishIntroVisuals 還原
   let   lastFloatTick = 0;
 
@@ -2633,8 +2636,7 @@ export async function initAtlas(options = {}) {
       // 同一次 style 更新＝demote 從未 commit、層不重建、raster 卡在初始 0.78 → 高 zoom 糊字（09-08 實測）。
       // double rAF＝第一幀以 demoted 狀態真正繪製（labels 以當前 scale 重繪入父層），第二幀 re-promote
       // ＝層以當前累積 scale 重建 raster。純 pan（scale 沒變）跳過＝免付兩次全量 re-raster。
-      // 手機圓點模式沒加 .atlas-layered、不 toggle（否則會誤 promote）。
-      if (!isMobileAtlas && Math.abs(scale - layerRasterScale) > 0.01) {
+      if (Math.abs(scale - layerRasterScale) > 0.01) {
         layerRasterScale = scale;
         stage.classList.remove('atlas-layered');
         requestAnimationFrame(() => requestAnimationFrame(() => stage.classList.add('atlas-layered')));
@@ -2896,6 +2898,24 @@ export async function initAtlas(options = {}) {
         }
         // 沒點到 D：先收掉已展開的國家（點空白 or 點圓點都不該殘留）
         closeOpenCountry();
+        // A/B/C label tap＝置中＋直接開右下說明卡（2026-09-15 user：portrait 預設就顯示 label、點 item
+        // 卡卻不出）。此分支 touchstart 有 preventDefault（!textZoomOn）＝瀏覽器不會發 emulated mouseover，
+        // 不能像 text 模式靠桌面 hover 同路 → 直呼 showDetail；點空白走下方 clearDetail 收卡。
+        {
+          const tappedEl = document.elementFromPoint(tapX, tapY);
+          const tappedSpan = tappedEl && tappedEl.closest && tappedEl.closest('.atlas-name');
+          if (tappedSpan && !tappedSpan.closest('.atlas-filtered-out')) {
+            const tappedItem = itemMap.get(tappedSpan.dataset.itemId);
+            if (tappedItem && !isFilteredOutItem(tappedItem)) {
+              centerToItem(tappedItem);
+              const { ids, lineSet } = hoverSetsFor(tappedItem);
+              showDetail(tappedItem, ids, lineSet);
+              if (tappedItem.category === 'B') pauseRingFlow();
+              return;
+            }
+          }
+          clearDetail();   // 點空白＝收卡（touch 沒有 mouseout，不收會黏住；同 text 模式慣例）
+        }
       }
       // 圓點畫在 anchor 端（CSS gate 同步：default=box 左緣、side-left=右緣）→ 命中判定用同一點
       /** @param {any} item */
@@ -6280,7 +6300,9 @@ export async function initAtlas(options = {}) {
   // idle-standby root 不是 document，不走 registerPageExit（overlay 非 routed page）——
   // 改掛到 module-level _overlayExit，由 idle-standby exitStandby 呼叫 playOverlayAtlasExit()
   if (options.root === undefined || options.root === document) {
-    registerPageExit(() => {
+    // 手機不註冊（user 2026-09-15）：換頁都走全屏 menu、退場動畫整段被蓋住看不見，
+    // 只是延遲 swap + 弱機多燒一輪 CPU → 直接讓 router cleanup 接手即切
+    if (!isMobileAtlas) registerPageExit(() => {
       if (typeof gsap === 'undefined') return Promise.resolve();
       if (currentView === 'list') return playListExit();
       return playMapExit();

@@ -631,6 +631,37 @@ async function playHeroExit() {
   });
 }
 
+// Coming Soon 佔位屏標題（activities/admission，hero 下一屏）：hero chip 同款 4 方向 clip 滑入，
+// 捲進視窗才播（trigger 用 wrapper——el 自帶 ±100% 位移，gBCR 含 transform 會偏）。
+// 桌面由 buildHeroTimeline 呼叫；手機 hero-mobile 分支 early return 不進 buildHeroTimeline → 該分支自行呼叫
+//（2026-09-15 修：v7 只接桌面、手機標題永久 visibility:hidden）。
+// 退場由 playHeroExit 一併收（texts selector 已含 .coming-soon-title*；未進場的走 heroRevealStarted 守衛維持隱藏）
+function setupComingSoonReveal() {
+  const comingChips = /** @type {HTMLElement[]} */ (Array.from(
+    document.querySelectorAll('.coming-soon-title, .coming-soon-title-cn')));
+  if (comingChips.length === 0 || typeof ScrollTrigger === 'undefined') return;
+  const comingTriggers = comingChips.map((el, i) => {
+    gsap.set(el, { ...offsetFor(pickHeroDir()), visibility: 'visible' });
+    return ScrollTrigger.create({
+      trigger: el.parentElement,
+      start: 'top 85%',
+      once: true,
+      onEnter: () => {
+        gsap.to(el, {
+          xPercent: 0,
+          yPercent: 0,
+          duration: 0.9,
+          ease: EASE.enter,
+          delay: i * 0.1,
+          clearProps: 'transform',
+          onStart: () => { el.dataset.heroRevealStarted = '1'; },
+        });
+      },
+    });
+  });
+  registerPageCleanup(() => comingTriggers.forEach(t => t && t.kill()));
+}
+
 // Hero 進場動畫完成信號：SPA 換頁時 deep-link 邏輯（如 courses ?item= scroll + slide-in）
 // 必須等 hero 動畫跑完才能 scroll，否則使用者看到動畫被向下捲走。
 // - `_heroDone` flag：給「監聽器晚於 dispatch 註冊」的呼叫端做 fast-path return
@@ -801,25 +832,35 @@ export function initHeroAnimation() {
     });
   }
 
-  // Coming-soon 標題卡隨機散佈（user 2026-09-15：「位置每次都一樣」→ 仿 hero title 每次進頁抽新位置）。
-  // placement engine 只認單一 .hero-rand-grid（v7 定案此區不掛第二個）→ 用輕量 jitter：
-  // 維持 CSS 的對角構圖錨點（ZH 右上 / EN 左下），位置與角度各自加隨機偏移；對角分區天然不重疊。
+  // Coming-soon 標題卡隨機散佈（user 2026-09-15：「位置每次都一樣」→ 仿 hero title 每次進頁抽新位置；
+  // 三輪：連「誰在哪個角」也要隨機，不能固定 EN 左 ZH 右）。
+  // placement engine 只認單一 .hero-rand-grid（v7 定案此區不掛第二個）→ 對角兩格（右上／左下）每次
+  // 隨機分給兩語言，格內再 jitter 位置與角度（角度族跟格走：右上正角、左下負角）；對角分區天然不重疊。
+  // CSS 的靜態定位只當 no-JS fallback——換格時被 CSS 定過的另一側要顯式寫 'auto' 蓋掉（top+bottom 同時
+  // 生效會把 absolute 盒拉伸）。
   {
     const csCn = /** @type {HTMLElement|null} */ (document.querySelector('.coming-soon-title-cn-wrapper'));
     const csEn = /** @type {HTMLElement|null} */ (document.querySelector('.coming-soon-title-wrapper'));
     if (csCn || csEn) {
       const jitVw = window.innerWidth < 768 ? 4 : 10;   // 手機標題寬、jitter 收小免推出畫面
       const rot = (min, max) => +(min + Math.random() * (max - min)).toFixed(2);
-      if (csCn) {
-        csCn.style.top = (8 + Math.random() * 16).toFixed(1) + 'vh';
-        csCn.style.right = `calc(var(--container-padding) + ${(Math.random() * jitVw).toFixed(1)}vw)`;
-        csCn.style.transform = `rotate(${rot(1, 3.5)}deg)`;   // ZH 維持正角族
-      }
-      if (csEn) {
-        csEn.style.bottom = (12 + Math.random() * 16).toFixed(1) + 'vh';
-        csEn.style.left = `calc(var(--container-padding) + ${(Math.random() * jitVw).toFixed(1)}vw)`;
-        csEn.style.transform = `rotate(${-rot(1, 3.5)}deg)`;  // EN 維持負角族
-      }
+      const corners = [
+        (/** @type {HTMLElement} */ el) => {   // 右上格
+          el.style.bottom = 'auto'; el.style.left = 'auto';
+          el.style.top = (8 + Math.random() * 16).toFixed(1) + 'vh';
+          el.style.right = `calc(var(--container-padding) + ${(Math.random() * jitVw).toFixed(1)}vw)`;
+          el.style.transform = `rotate(${rot(1, 3.5)}deg)`;
+        },
+        (/** @type {HTMLElement} */ el) => {   // 左下格
+          el.style.top = 'auto'; el.style.right = 'auto';
+          el.style.bottom = (12 + Math.random() * 16).toFixed(1) + 'vh';
+          el.style.left = `calc(var(--container-padding) + ${(Math.random() * jitVw).toFixed(1)}vw)`;
+          el.style.transform = `rotate(${-rot(1, 3.5)}deg)`;
+        },
+      ];
+      if (Math.random() < 0.5) corners.reverse();   // 兩格隨機換手
+      if (csCn) corners[0](csCn);
+      if (csEn) corners[1](csEn);
     }
   }
 
@@ -910,6 +951,7 @@ export function initHeroAnimation() {
   // <768 窄橫向（SE 等）base CSS 本就顯 .hero-mobile，跟直向同路徑。跨 gate 轉向由 orientation-reload 重載。
   if (window.innerWidth < 768 && document.querySelector('.hero-mobile')) {
     playMobileHeroEntrance();
+    setupComingSoonReveal();   // coming-soon 佔位屏：此分支不進 buildHeroTimeline，這裡補註冊
     return;
   }
 
@@ -1131,33 +1173,8 @@ export function initHeroAnimation() {
     registerPageCleanup(() => triggers.forEach(t => t && t.kill()));
   }
 
-  // Coming Soon 佔位屏標題（activities/admission，hero 下一屏）：hero chip 同款 4 方向 clip 滑入，
-  // 捲進視窗才播（同上方手機段落 pattern；trigger 用 wrapper——el 自帶 ±100% 位移，gBCR 含 transform 會偏）。
-  // 退場由 playHeroExit 一併收（texts selector 已含 .coming-soon-title*；未進場的走 heroRevealStarted 守衛維持隱藏）
-  const comingChips = /** @type {HTMLElement[]} */ (Array.from(
-    document.querySelectorAll('.coming-soon-title, .coming-soon-title-cn')));
-  if (comingChips.length > 0 && typeof ScrollTrigger !== 'undefined') {
-    const comingTriggers = comingChips.map((el, i) => {
-      gsap.set(el, { ...offsetFor(pickHeroDir()), visibility: 'visible' });
-      return ScrollTrigger.create({
-        trigger: el.parentElement,
-        start: 'top 85%',
-        once: true,
-        onEnter: () => {
-          gsap.to(el, {
-            xPercent: 0,
-            yPercent: 0,
-            duration: ENTER_DURATION,
-            ease: EASE.enter,
-            delay: i * 0.1,
-            clearProps: 'transform',
-            onStart: () => { el.dataset.heroRevealStarted = '1'; },
-          });
-        },
-      });
-    });
-    registerPageCleanup(() => comingTriggers.forEach(t => t && t.kill()));
-  }
+  // Coming Soon 佔位屏（activities/admission）：抽出共用（手機分支也要，見 setupComingSoonReveal）
+  setupComingSoonReveal();
 
   // （playHeroExit 已在上層 init 早段註冊，含 logo-only 頁；此處不再重複註冊）
 

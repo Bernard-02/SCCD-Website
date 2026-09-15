@@ -201,6 +201,12 @@
     height: 100%;
     overflow: hidden;
   }
+  /* 旋轉卡內圖片邊緣鋸齒（user 2026-09-15，同批 tree 說明卡 clip-path 案）：paint 路徑對「旋轉祖先內的
+     overflow 裁切圖」邊緣不做 AA → 把圖片容器切成永久 layer，邊緣交給 compositor edge-AA（強 hint 慣例
+     同 input.css [data-section-title]）。桌面限定：手機 carousel 卡不旋轉、不用多付 layer 記憶體。 */
+  @media (min-width: 768px) {
+    .colored-accordion .res-switcher { will-change: transform; }
+  }
   .res-slide {
     width: 100%;
     height: 100%;

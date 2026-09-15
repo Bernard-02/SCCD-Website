@@ -14,6 +14,7 @@
 
 import { loadAboutVision, loadAboutClasses, loadAboutWorks } from './about-source.js';
 import { YT_API_KEY } from '../../../config/api.js';
+import { isNavSpinDesktop } from '../../ui/section-switch-helpers.js';
 
 // ── Vision（理念）：兩個 [data-overview-hl] span，DOM 順序 = EN、ZH ──
 // 文字寫進內層 [data-overview-text]（手機內捲層，padding 留在外盒）；無內層時退回外盒
@@ -119,13 +120,16 @@ function renderPlaylist(box, iframe, listId, vids) {
   const inner = document.createElement('div');
   inner.className = 'works-playlist-inner list-scroll';
   scroll.appendChild(inner);
+  const spinOn = isNavSpinDesktop();
   vids.forEach(v => {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'works-playlist-item';
     b.dataset.vid = v.id;
-    // default 隨機旋轉（全站 -4~+6° 排除 0）、桌面 hover 回正（CSS var + lists.css :hover 規則；user 2026-09-15）
-    b.style.setProperty('--pl-rot', `${window.SCCDHelpers?.getRandomRotation?.() ?? 2}deg`);
+    // default 隨機旋轉（全站 -4~+6° 排除 0）；桌面 hover 抽新角、離開保持（全站 nav btn 同模型；user 2026-09-15）
+    const setRot = () => b.style.setProperty('--pl-rot', `${window.SCCDHelpers?.getRandomRotation?.() ?? 2}deg`);
+    setRot();
+    if (spinOn) b.addEventListener('mouseenter', setRot);
     const img = document.createElement('img');
     img.src = `https://i.ytimg.com/vi/${v.id}/mqdefault.jpg`;   // 320×180 真 16:9（hqdefault 是 4:3 帶黑邊）
     img.alt = v.title;

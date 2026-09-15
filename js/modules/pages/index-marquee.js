@@ -16,6 +16,7 @@ import { registerPageExit } from '../ui/page-exit.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { CMS_API_BASE, CMS_CDN_BASE } from '../../config/api.js';
 import { sitePath } from '../ui/site-base.js';
+import { marqueeSpeed } from '../ui/marquee-overflow.js';
 
 const SLOT_COUNT = 3;
 const CYCLE_INTERVAL = 5000;
@@ -236,16 +237,15 @@ function createBanner(item, squareColor) {
   // marquee viewport：overflow:hidden 掛在這層（不在 link）→ 裁切邊 = link 內容框 = 左右各縮 BAR_PADDING_X，
   // 對齊 library 色塊 marquee 的 axisPad inset（padding 直接放 link 會被 overflow 的 padding-box 裁切邊漏出文字）
   // 中英各一行堆疊（英上中下；fallback news.json 舊單行 text 照渲染單行）；
-  // 兩行共用同一 duration（取較長行）＝同拍循環、loop 接縫不脫節
+  // duration 不在此設（需量寬）——掛載後 gateMarqueeScroll 依全域 marqueeSpeed() 像素制計算
   const lineTexts = [item.textEn, item.textZh].filter(Boolean);
   if (!lineTexts.length && item.text) lineTexts.push(item.text);
-  const duration = Math.max(16, Math.max(0, ...lineTexts.map(t => t.length)) * 0.36);
-  const lines = lineTexts.map(txt => {
+  const lines = lineTexts.map((txt, i) => {
     const viewport = document.createElement('div');
-    viewport.style.cssText = 'overflow: hidden;';
+    // 英中距＝lg 字級全域 token（text-lg → --space-en-zh-lg，同 faculty/alumni 卡人名慣例）
+    viewport.style.cssText = `overflow: hidden;${i > 0 ? ' margin-top: var(--space-en-zh-lg);' : ''}`;
     const inner = document.createElement('div');
     inner.className = 'homepage-marquee-inner';
-    inner.style.animationDuration = `${duration}s`;
     const mkSpan = (cls) => {
       const s = document.createElement('span');
       s.className = `${cls} text-lg`;
@@ -328,10 +328,15 @@ function createBanner(item, squareColor) {
 // 文字放得下 banner 時停掉橫向捲動（否則單則短 news 也一直滑，看起來像一直刷新）；
 // 需 banner 已進 DOM 才能量寬。clone 是為無縫 loop 準備的第二份，靜態時藏起來避免看到兩份。逐行獨立 gate。
 function gateMarqueeScroll(b) {
-  (b.lines || []).forEach(line => {
-    const fits = line.textEl.getBoundingClientRect().width <= line.viewport.clientWidth;
+  // duration＝像素制（全域 marqueeSpeed()，桌面 80/手機 60）；loop 一輪位移 = -50% = 一份 copy 寬。
+  // 兩行共用同一 duration（取較長行）＝同拍循環、loop 接縫不脫節（短行等比慢，同 buildSyncedMarqueeTimeline 慣例）
+  const widths = (b.lines || []).map(line => line.textEl.getBoundingClientRect().width);
+  const duration = Math.max(3, Math.max(0, ...widths) / marqueeSpeed());
+  (b.lines || []).forEach((line, i) => {
+    const fits = widths[i] <= line.viewport.clientWidth;
     line.inner.style.animationName = fits ? 'none' : '';
     line.cloneEl.style.display = fits ? 'none' : '';
+    line.inner.style.animationDuration = `${duration}s`;
   });
 }
 

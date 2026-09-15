@@ -344,10 +344,16 @@
         works-container 規則套上 display:flex + overflow:auto → 旋轉圖被裁切；這裡還原 block + overflow:visible。
      2. 圖片垂直置中（原 JS 設 top:70% 偏下；!important 蓋過 gsap inline）。
      3. 尺寸對齊 timeline 手機單圖（直式 220 / 橫式 320、容器 320 收納 ±4° 旋轉投影）。 */
+  /* 圖/文對半分（user 2026-09-15「nav btn 之後剩下的空間圖片及文字卡片對半分」，取代固定 240 圖高）：
+     386 = 626 預算扣掉圖 240 ＝ nav 以上 chrome(180+126+24) + row-gap 20 + 底呼吸 24 + 校正 12；
+     100svh − 386 ＝ nav 下方可用空間 → 圖容器/文字盒各半。120 floor 保極矮視窗可讀。
+     圖片本身另在 class-images-slideshow.js 依容器高等比 cap（不裁切、不溢出蓋到 nav/文字）。 */
   .class-info-panel .division-images {
     display: block !important;
     overflow: visible !important;
-    min-height: 240px;
+    height: max(calc((100svh - 386px) / 2), 120px) !important;   /* !important＋較高特異度＝蓋 cards.css 手機 .works-container height:auto!important */
+    min-height: 0;
+    padding-bottom: 0 !important;   /* cards.css 手機 works-container 的 1rem 預留不適用此容器 */
   }
   .class-info-panel .class-img {
     top: 50% !important;
@@ -370,7 +376,8 @@
      內層維持固定 height（非 max-height）：三個 division 面板等高、切換不跳版。
      −1em＝外盒上下 padding 0.5em×2，內層 + padding 加總 = 外盒高。 */
   .class-info-panel [data-class-text] {
-    height: max(calc(100svh - 626px - 1em), 150px);
+    /* 對半分（同上 .division-images 註解）；−1em＝外盒 [data-class-hl] 上下 padding 0.5em×2 */
+    height: max(calc((100svh - 386px) / 2 - 1em), 120px);
     overflow-y: auto;
     scrollbar-width: none;
   }

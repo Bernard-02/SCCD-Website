@@ -549,15 +549,47 @@
     font-size: var(--font-size-s);
     line-height: var(--line-height-s);
   }
-  .legal-reg-cat span,
-  .legal-reg-name span,
-  .legal-reg-unit span { display: block; }
-  .legal-reg-cat span[lang="zh-Hant"],
-  .legal-reg-name span[lang="zh-Hant"],
-  .legal-reg-unit span[lang="zh-Hant"] { line-height: var(--line-height-zh-s); }
-  .legal-reg-cat span:not(:last-child),
-  .legal-reg-name span:not(:last-child),
-  .legal-reg-unit span:not(:last-child) { margin-bottom: var(--space-en-zh-s); }
+  /* ⚠️ 限定直接子層：name/unit 的行內還有 marquee inner / dual-copy span（見下），吃到 display:block 會斷行 */
+  .legal-reg-cat > span,
+  .legal-reg-name > span,
+  .legal-reg-unit > span { display: block; }
+  .legal-reg-cat > span[lang="zh-Hant"],
+  .legal-reg-name > span[lang="zh-Hant"],
+  .legal-reg-unit > span[lang="zh-Hant"] { line-height: var(--line-height-zh-s); }
+  .legal-reg-cat > span:not(:last-child),
+  .legal-reg-name > span:not(:last-child),
+  .legal-reg-unit > span:not(:last-child) { margin-bottom: var(--space-en-zh-s); }
+  /* reg 列英中各一行（user 2026-09-15）：過長不折行改 marquee——桌面 hover 才捲（bindMarqueeReturn 放開回彈）、
+     手機無 hover 自動循環；結構/keyframe 同 courses 卡（applyMarqueeOverflow dual-copy + --marquee-* vars）。 */
+  .legal-reg-line {
+    overflow: hidden;
+    white-space: nowrap;
+    max-width: 100%;
+  }
+  .legal-reg-mq-inner {
+    display: inline-block;
+    white-space: nowrap;
+  }
+  .legal-reg-mq-inner > .marquee-copy {
+    display: inline-block;
+    padding-right: var(--marquee-copy-gap);
+  }
+  @media (hover: hover) and (min-width: 768px) {
+    /* hover 哪一欄只捲那一欄（user 2026-09-15；列變色仍整列）——hover 單元=cell 非 item */
+    .legal-reg-name:hover .legal-reg-line.is-overflow .legal-reg-mq-inner,
+    .legal-reg-unit:hover .legal-reg-line.is-overflow .legal-reg-mq-inner {
+      animation: legal-reg-marquee var(--marquee-duration, 8s) linear infinite;
+    }
+  }
+  @media (max-width: 767px) {
+    .legal-reg-line.is-overflow .legal-reg-mq-inner {
+      animation: legal-reg-marquee var(--marquee-duration, 8s) linear infinite;
+    }
+  }
+  @keyframes legal-reg-marquee {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(var(--marquee-distance, -50%)); }
+  }
   /* 規章名連結：與非連結名同樣式（繼承色/字重、無底線）→ 欄位一致；互動感由下方 hover ref box 提供。
      雙 class 提特異度蓋過 .legal-zebra-card a 的 bold(0,1,1)。 */
   .legal-reg-name.legal-reg-link,
@@ -627,7 +659,9 @@
       row-gap: 0;
     }
     .legal-reg-cat { grid-column: 1; grid-row: auto; position: static; padding: var(--spacing-md) 0 0; }
-    .legal-reg-group:first-child .legal-reg-cat { padding-top: 0; }   /* 首組上方距離交給 overview margin，不疊加 */
+    /* 首組頂距 16＝activities ref 色帶 py-sm（user 2026-09-15「上面 padding 不夠、以 activities 為主」；
+       撤「交給 overview margin」——deep 色帶頂原本貼死類別文字）。桌面另走 base padding-top:sm 不受影響 */
+    .legal-reg-group:first-child .legal-reg-cat { padding-top: var(--spacing-sm); }
     /* name/unit 同寬直排、右緣一致延伸到卡片右緣（:active 黑帶兩行才不會右緣錯位）；
        name 桌面的 gap 補滿負 margin 在單欄無 gap → 重設 */
     .legal-reg-name {

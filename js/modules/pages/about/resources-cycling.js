@@ -8,7 +8,7 @@ import { loadAboutResources } from './about-source.js';
 import { prefersReducedMotion } from '../../ui/reduce-motion.js';
 import { registerPageExit } from '../../ui/page-exit.js';
 import { registerPageCleanup } from '../../ui/page-cleanup.js';
-import { playClipPathExit } from '../../ui/scroll-animate.js';
+import { setupClipReveal, playClipReveal, playRevealExit } from '../../ui/scroll-animate.js';
 import { DUR, EASE } from '../../ui/motion.js';
 
 export function initResourcesCycling() {
@@ -88,7 +88,9 @@ function renderResourcesAccordion(data, container) {
   } else {
     const items = Array.from(wrapper.querySelectorAll('.accordion-item'));
     if (entry && typeof ScrollTrigger !== 'undefined') {
-      gsap.set(items, { clipPath: 'inset(0% 100% 0% 0%)' });
+      // clip-reveal 進出場（user 2026-09-15 撤 clip-path inset wipe）：.colored-accordion 本身
+      // overflow-y:clip＝現成遮罩，setupClipReveal 偵測父層已 clip 不另 wrap（wrap 會破壞 flex/snap 軌道）
+      setupClipReveal(items);
       ScrollTrigger.create({
         trigger: wrapper,
         start: 'top 80%',
@@ -96,13 +98,13 @@ function renderResourcesAccordion(data, container) {
         onEnter: () => {
           // anchor 跳轉飛掠中：直接就定位不播（同桌面 rotated accordion）；目的地是 resources 本身照常播
           if (document.body.classList.contains('anchor-jumping') && document.body.dataset.anchorTarget !== wrapper.closest('section[id]')?.id) {
-            gsap.set(items, { clipPath: 'inset(0% 0% 0% 0%)' });
+            gsap.set(items, { yPercent: 0, clearProps: 'transform' });
             return;
           }
-          gsap.to(items, { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.9, ease: 'power3.out', stagger: 0.1 });
+          playClipReveal(items, { stagger: { each: 0.08 } });
         },
       });
-      registerPageExit(() => playClipPathExit(items));
+      registerPageExit(() => playRevealExit(items));
     }
 
     // 封鎖綫不佔 flow（section 層 z-0 < site-container z-30，色帶從卡片後左右探出）：

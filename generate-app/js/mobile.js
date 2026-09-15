@@ -10,6 +10,8 @@ let pendingCanvasResize = false; // 標記是否有待處理的 resize
 let resizeTransitionListener = null; // transitionend 監聽器引用
 let lastResizeTime = 0; // 上次 resize 的時間戳
 let resizeDebounceTimer = null; // 防抖計時器
+let logoResizeObserver = null; // 容器 ResizeObserver（見 initMobileUI 內註解）
+let lastLogoObservedW = 0, lastLogoObservedH = 0; // RO bail 守衛：尺寸沒變不重算
 
 /**
  * 請求 canvas resize（統一入口）
@@ -160,6 +162,22 @@ function initMobileUI() {
 
   mobileElements.inputBox = _p5.select('#mobile-input-box');
   mobileElements.modeIcon = _p5.select('#mobile-mode-icon');
+
+  // 容器「高度」被鄰居擠壓（面板出現吃掉 flex 空間、真機 iOS dvh 收斂）時沒有 width transition
+  // 可等、也沒有任何事件會呼叫 requestCanvasResize → canvas 停在舊大尺寸置中溢出容器，
+  // mode3 全面板時疊到輸入文字上。ResizeObserver 兜底：容器怎麼變就重算；防抖走 requestCanvasResize 內建
+  const logoEl = document.querySelector('.mobile-logo-container');
+  if (logoEl && typeof ResizeObserver !== 'undefined') {
+    if (logoResizeObserver) logoResizeObserver.disconnect();
+    logoResizeObserver = new ResizeObserver((entries) => {
+      const r = entries[entries.length - 1].contentRect;
+      if (Math.abs(r.width - lastLogoObservedW) < 1 && Math.abs(r.height - lastLogoObservedH) < 1) return;
+      lastLogoObservedW = r.width;
+      lastLogoObservedH = r.height;
+      requestCanvasResize(true);
+    });
+    logoResizeObserver.observe(logoEl);
+  }
 
   // 創建隱藏的 div 用於測量文字高度（用於垂直置中）
   if (mobileElements.inputBox) {

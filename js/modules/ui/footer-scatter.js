@@ -887,8 +887,11 @@ function getFooterLogo(area) {
 function getFooterPrivacyLinks(area) {
   const footerRoot = area.closest('footer');
   if (!footerRoot) return [];
-  // 含 a11y 標章 placeholder 與 copyright <p>：跟連結一起 clip-reveal，否則退場時它們會凍住不動（其餘沉出）
-  return Array.from(footerRoot.querySelectorAll('.footer-privacy a, .footer-a11y-badge, .footer-privacy .footer-copyright'));
+  // 含 a11y 標章 placeholder 與 copyright <p>：跟連結一起 clip-reveal，否則退場時它們會凍住不動（其餘沉出）。
+  // ⚠️ display:none 的要濾掉（現況＝標章 placeholder 全域 hide）：元素本身無 layout box，但 setupClipReveal
+  //    包的 wrapper 是可見空 div、在 flex column 多佔一個 gap 槽（8px）→ 欄變高、底部錨定 → 點擊瞬間整欄上跳
+  return Array.from(footerRoot.querySelectorAll('.footer-privacy a, .footer-a11y-badge, .footer-privacy .footer-copyright'))
+    .filter((el) => getComputedStyle(el).display !== 'none');
 }
 
 // 分頁鈕列（.footer-tabs）：clip-reveal（user 2026-09-09f，由 clip-path wipe 改制、對齊全站進出場語彙）。

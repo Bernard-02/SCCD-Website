@@ -22,10 +22,19 @@
  * 用法：
  *   applyMarqueeOverflow(scope, '.row-selector', '.inner-selector');
  *
- * 動畫常數：speed=80px/s, minDuration=3s（與三檔原值一致）
+ * 動畫常數：speed=marqueeSpeed()（桌面 80px/s、手機 60），minDuration=3s
  */
 import { prefersReducedMotion } from './reduce-motion.js';
 import { registerPageCleanup } from './page-cleanup.js';
+
+/**
+ * 全站 marquee 速度單一來源（user 2026-09-15）：手機字級較小＋容器窄，同 80px/s 每秒滑過字數多、
+ * 相對容器速度快 2~3 倍＝「感覺比桌面快」→ 手機（含矮橫向）降到 60 讓體感一致。桌面維持 80 不動。
+ * 各檔自算 duration 的 text marquee 一律呼叫這裡，勿再硬編 80。
+ */
+export function marqueeSpeed() {
+  return (window.innerWidth < 768 || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) ? 60 : 80;
+}
 
 // 離屏暫停 observer：全 util 共用一顆，SPA 換頁 drain 時 disconnect（row 隨 #page-content 銷毀，
 // 不 disconnect 會 strong-ref 整批舊 DOM）。row 進出 viewport → 切 inner 的 animation-play-state。
@@ -49,7 +58,7 @@ function viewIO() {
  * @param {{speed?: number, minDuration?: number, tolerance?: number}} [opts]
  */
 export function applyMarqueeOverflow(scope, rowSelector, innerSelector, opts = {}) {
-  const speed = opts.speed ?? 80;
+  const speed = opts.speed ?? marqueeSpeed();
   const minDuration = opts.minDuration ?? 3;
   const tolerance = opts.tolerance ?? 0;  // fit-content 遮罩貼齊時吸掉 subpixel 假溢出；預設 0 不影響其他 caller
 
@@ -121,7 +130,7 @@ export function applyMarqueeOverflow(scope, rowSelector, innerSelector, opts = {
  * @param {{speed?: number, minDuration?: number, gap?: number, seamless?: boolean}} [opts]
  */
 export function buildSyncedMarqueeTimeline(items, opts = {}) {
-  const speed = opts.speed ?? 80;
+  const speed = opts.speed ?? marqueeSpeed();
   const minDuration = opts.minDuration ?? 3;
   if (opts.seamless) {
     const tweens = items.map(({ el, distance }) => gsap.fromTo(el, { x: 0 },

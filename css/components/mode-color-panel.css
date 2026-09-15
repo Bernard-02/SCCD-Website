@@ -41,7 +41,7 @@ html.has-slide-in #mode-color-panel { display: none !important; }
   color: var(--theme-fg-inverse, #fff);
   border: none;
   cursor: pointer;
-  font-size: 20px;
+  font-size: 32px;   /* 20→32：glyph 對齊 atlas 左下 .atlas-layout-inner（48 盒 32 glyph；user 2026-09-15） */
 }
 
 /* 展開面板：compact 方形（16 padding + 72 wheel = 104） */

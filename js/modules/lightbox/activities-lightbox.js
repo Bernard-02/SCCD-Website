@@ -10,6 +10,7 @@ import { createLightboxVideo } from './lightbox-video.js';
 import { applyScreenWatermark, clearScreenWatermark, repositionScreenWatermark } from './screen-watermark.js';
 import { grabHlsFrame, isSelfHostedVideo } from '../ui/video-player.js';
 import { sitePath } from '../ui/site-base.js';
+import { marqueeSpeed } from '../ui/marquee-overflow.js';
 
 let lightboxEl = null;
 // 防 double-open（user 2026-06-22 報「打開 press lightbox 有時 header 整個消失」）：openLightbox 是 async，
@@ -882,7 +883,7 @@ function setupTitleMarquee() {
   const distance = unitWidth + 24;
   if (typeof gsap !== 'undefined') {
     gsap.fromTo(track, { x: 0 }, {
-      x: -distance, duration: Math.max(3, distance / 80), ease: 'none', repeat: -1,
+      x: -distance, duration: Math.max(3, distance / marqueeSpeed()), ease: 'none', repeat: -1,
     });
   }
 }

@@ -9,6 +9,8 @@ import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { bindNavBtnFit, bindNavBtnSpin, isNavSpinDesktop, bindFrameScrollSplit } from '../ui/section-switch-helpers.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
+import { waitForHeroAnimDone } from '../pages/hero-animation.js';
+import { scrollWindowNoSnap } from '../ui/snap-scroll.js';
 
 // 卡片進場動畫（2026-08-16 圖片由 clip-path 擦除改 clip-reveal 滑入，user 指定全卡統一 clip-reveal 語彙）：
 //   圖片 → wrapper 整塊（灰底+照片+overlay）在 .faculty-card-image-mask（overflow:clip，template 內建
@@ -609,4 +611,14 @@ export function initFacultyFilter(initialSection = null) {
   // Animate initial cards（全部一次性排好整段序列，無 ScrollTrigger）
   const initialCards = Array.from(facultyCards).filter(c => c.getAttribute('data-category') === initialFilter);
   animateFacultyCards(initialCards);
+
+  // site map ?section= deep-link：套好分類後等 hero 進場、平滑捲到卡片區——router 對 deep-link 導航
+  // 跳過 scrollToTop（由目標頁自行捲），faculty 原本只切 active 沒捲＝停在 hero（user 2026-09-15）。
+  // 作法對齊 activities/curriculum 的 section-only deep-link（waitForHeroAnimDone → 捲 section 頂）。
+  if (initialSection && VALID_SECTIONS.has(initialSection)) {
+    waitForHeroAnimDone().then(() => {
+      const sec = document.getElementById('faculty-cards');
+      if (sec) scrollWindowNoSnap(sec.getBoundingClientRect().top + window.scrollY);
+    });
+  }
 }

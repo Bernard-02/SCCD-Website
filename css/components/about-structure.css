@@ -71,10 +71,10 @@
   /* 點擊導覽已移除（user 2026-09-09）：chip 純 hover、不再是 pointer */
 
   /* 頂層單位：黑底標準字塊 + 學系色塊 併排，整塊為傾斜/hover 單位。
-     父層帶同色底＝旋轉抗鋸齒下兩子塊共享邊漏的是父層黑非頁面背景 → 視覺一整體無縫；
-     子塊照畫自己的底（hover box 上色、acronym 維持黑的兩色能力不受影響） */
-  .prog-titled { display: inline-flex; align-items: stretch; width: fit-content; background: var(--theme-fg); }
-  /* hover 上色時父層黑 backstop 反漏 1px 暗縫 → 頂 chip 色塊掛 .seam-guard（定義見 input.css utilities，房規）。 */
+     ⭐hover 上色根解（2026-09-15）：色直接畫在本層（JS paint 寫 titled、色塊轉透明）＝單一畫布，
+     黑字標盒疊在連續色面上、無「兩色盒拼接邊」可漏縫；seam-guard 補丁已退場勿加回。
+     transition 對齊 .prog-box 的 hover 變色平滑。 */
+  .prog-titled { display: inline-flex; align-items: stretch; width: fit-content; background: var(--theme-fg); transition: background-color var(--dur-fast) ease; }
   .prog-acronym {
     flex-shrink: 0;
     display: flex;
@@ -145,7 +145,8 @@
   .prog-legend-stack {
     position: absolute;                        /* 掛在 #program-structure（relative），捲動物理帶走＝免調離場 timing */
     right: var(--container-padding, 60px);     /* 右緣對齊畫面最外層右 padding（user 2026-09-13，同 atlas #atlas-detail-mask） */
-    top: 192px;                                /* 對齊 resources 卡片頂＝#resources pt-3xl 96 + container pt-3xl 96（user 2026-09-15「以 resources 卡位置為主」整體上移；bar 改往下長） */
+    top: 843px;                                /* 說明卡「底部」對齊 resources 卡底＝192（pt-3xl+pt-3xl）+ 卡高 651（user 2026-09-15 二輪：底部對齊、非頂部） */
+    transform: translateY(-100%);              /* 底緣釘在 843：bar 展開時卡往上長（height 每幀變、-100% 跟著算） */
     z-index: 30;                               /* 蓋過 tree 內容（.prog-lines z-0 等） */
     display: flex;
     flex-direction: column;
@@ -165,6 +166,7 @@
     width: max-content;
     max-width: 28rem;
     background: var(--theme-fg);               /* 整卡黑底（bar 透明疊上、旋轉不漏縫，同 lightbox ref card） */
+    overflow: hidden;                          /* 開合 width tween 改 inOut（09-15）後中途卡窄於 bar 內容→卡緣裁掉（平滑 wipe） */
     visibility: hidden;                        /* 預設藏（避免 async render 前後閃現）；JS clip-reveal / reduce 各自接管 */
     /* 旋轉走 transform:rotate（about-structure.js，navChipHidden 讀它）；clip-path/translate 由 GSAP inline 驅動；無 border/radius */
   }
@@ -263,8 +265,21 @@
        無 hover → tap tree chip 才展開對應 degree 的 bar（about-structure.js bindTap）。不旋轉（JS 手機給 rotate 0）。 */
     .prog-legend-stack {
       position: static;
+      transform: none;                     /* 桌面 translateY(-100%) 底部釘點不帶進手機 in-flow */
       align-items: flex-start;             /* 手機靠左 */
       margin-top: var(--spacing-xl);
     }
+    /* 卡頭「Term 期程 / Degree 學位」手機改英上中下（桌面維持橫排）；英中距同 bar 的 en/zh token */
+    .prog-legend-head {
+      flex-direction: column;
+      gap: 0;
+      align-items: flex-start;
+      flex-shrink: 0;                      /* 橫排下 bar 長也不擠壓 head */
+    }
+    .prog-legend-head > span:first-child { margin-bottom: var(--space-en-zh-s); }
+    /* 展開改「向右延伸」（user 09-15）：卡內橫排（head 左、bar 右）；開合＝clip-reveal（bar xPercent
+       從 head 後緣滑出、bars 容器當遮罩）＋卡寬 tween 同拍（about-structure.js openBar/closeBar 手機分支） */
+    .prog-legend { flex-direction: row; }
+    .prog-legend-bars { overflow: hidden; }   /* bar 滑出/滑回的 clip 遮罩（防滑行時蓋到 head） */
   }
 }

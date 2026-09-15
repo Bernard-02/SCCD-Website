@@ -13,7 +13,7 @@ import { SECTION_LABELS } from './activities-data-loader.js';
 import { CMS_API_BASE, CMS_CDN_BASE } from '../../config/api.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { registerPageExit } from '../ui/page-exit.js';
-import { applyMarqueeOverflow, bindMarqueeReturn } from '../ui/marquee-overflow.js';
+import { applyMarqueeOverflow, bindMarqueeReturn, marqueeSpeed } from '../ui/marquee-overflow.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { isHlsUrl, isDirectVideoUrl } from '../ui/video-player.js';
@@ -1639,7 +1639,7 @@ function playRefChipMarquee(chip) {
   track.appendChild(clone);
   const distance = unitWidth + 24;
   if (typeof gsap !== 'undefined') {
-    gsap.fromTo(track, { x: 0 }, { x: -distance, duration: Math.max(3, distance / 80), ease: 'none', repeat: -1 });
+    gsap.fromTo(track, { x: 0 }, { x: -distance, duration: Math.max(3, distance / marqueeSpeed()), ease: 'none', repeat: -1 });
   }
 }
 // 還原成靜態截斷單份（桌面 resting / hover 離開 snap 回原點）

@@ -106,9 +106,10 @@ export function initBFADivisionToggle() {
     : { xPercent: 110, yPercent: 0 }; // right
   const randRevealDir = () => REVEAL_DIRS4[Math.floor(Math.random() * REVEAL_DIRS4.length)];
 
-  // 路由：MDES 預設顯示 animation 組的 works playlist
+  // 路由：2026-09-15 起 MDES 有自己的 playlist（後台 about_works 已填）→ 撤掉舊「MDES 轉向 animation」硬編
+  //（該轉向是 MDES 後台還沒清單時的佔位；留著會讓 MDES tab 永遠顯示動畫組內容）
   function resolveWorksPanelId(divisionId) {
-    return divisionId === 'mdes' ? 'animation' : divisionId;
+    return divisionId;
   }
 
   // 隨機 4 方向 cross slide 設定

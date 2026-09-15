@@ -1800,6 +1800,8 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
   flex-direction: column;
   gap: var(--spacing-sm);
   padding-left: 10px;                 /* 旋轉 ±6° 的水平投影 clearance（overflow-x:hidden 不裁角） */
+  padding-top: 10px;                  /* 首/末張旋轉的垂直投影 clearance：捲動容器上下緣是裁切線，*/
+  padding-bottom: 10px;               /* 沒留白旋角會被 crop（user 2026-09-15） */
   padding-right: var(--spacing-sm);   /* thumb↔縮圖距離＝縮圖間 gap 同寬（user 2026-09-12） */
 }
 .works-playlist-item {
@@ -1811,12 +1813,9 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
   border: 0;
   background: transparent;
   cursor: pointer;
-  /* default 隨機角（JS 設 --pl-rot，全站 -4~+6 排除 0）；桌面 hover 回正（user 2026-09-15） */
+  /* default 隨機角（JS 設 --pl-rot，全站 -4~+6 排除 0）；桌面 hover 抽新角吃住（JS 換 var；user 2026-09-15） */
   transform: rotate(var(--pl-rot, 0deg));
   transition: transform var(--dur-fast) ease;
-}
-@media (min-width: 768px) {
-  .works-playlist-item:hover { transform: rotate(0deg); }
 }
 .works-playlist-item img {
   display: block;
@@ -1825,3 +1824,36 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
   object-fit: cover;
 }
 .works-playlist-item.is-active { outline: 2px solid #000; outline-offset: -2px; }
+
+/* History box 學制小標：手機英中兩行、桌面維持單行（user 2026-09-15；timeline.js splitDivision 以首個
+   CJK 切分產出 span）。gap 依字級 token 規範：h5=text-lg → --space-en-zh-lg。 */
+@media (max-width: 767px) {
+  .tl-division-head .tl-division-en,
+  .tl-division-head .tl-division-zh { display: block; }
+  .tl-division-head .tl-division-en { margin-bottom: var(--space-en-zh-lg); }
+}
+/* 手機（user 2026-09-15）：縮圖列移到播放器下方、橫向排列捲動；縮圖 72px 高（16:9 ≈ 128 寬）
+   ＝手指點得到（>44）也看得清。桌面右欄佈局不動。 */
+@media (max-width: 767px) {
+  .works-video-row { flex-direction: column; }
+  .works-playlist-list {
+    flex: 0 0 auto;
+    margin-left: 0;
+    margin-top: -1px;                 /* 蓋 player 底緣 sub-pixel 縫（同桌面左緣 -1px 思路） */
+    height: 124px;                    /* inner inset 16×2 + 上下 clearance 10×2 + 縮圖 72 */
+  }
+  .works-playlist-inner {
+    flex-direction: row;
+    align-items: center;
+    overflow-x: auto;
+    overflow-y: hidden;               /* 旋角垂直投影靠上下 padding 容納，不生直向軸 */
+    scrollbar-width: none;            /* 手機橫捲藏 bar、手指滑 */
+    padding: 10px var(--spacing-sm);
+    right: var(--spacing-sm);         /* 還原桌面 scrollbar 12px 保留位（手機無 thumb） */
+  }
+  .works-playlist-inner::-webkit-scrollbar { display: none; }
+  .works-playlist-item {
+    width: auto;
+    height: 100%;                     /* 72px（aspect-ratio 撐出 128 寬） */
+  }
+}

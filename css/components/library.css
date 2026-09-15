@@ -330,30 +330,36 @@
   align-items: center;
   align-self: start;         /* 對齊標題頂端（同舊 icon 靠上） */
   min-height: 4.5rem;
-  /* 2026-09-15 user：桌面縮圖 slot 固定 8rem＋縮圖靠左（flex 預設）→ 文字欄（1fr）全列同寬。
-     手機版另有 justify-content: flex-end 覆蓋（09-10 拍板縮圖靠右、維持不動）。 */
-  width: 8rem;
+  /* 2026-09-15 user：縮圖 slot 固定寬＋縮圖靠左（flex 預設）→ 文字欄（1fr）全列同寬、縮圖左緣全列切齊。
+     slot 8rem→5rem（user 同日「col 分配寬度減少」）：實測線上 213 筆 press 212 筆是直式 PDF 封面
+     （~3.2rem 寬）、僅 1 筆影片，8rem 是為 16:9 影片幀留的、其他列全空著 → 縮到 5rem 還文字欄，
+     影片幀由 img max-width 等比縮進來（見下）。桌面手機同值。 */
+  width: 5rem;
 }
-/* 無縮圖列：文字 cap 到與有縮圖列相同寬（100% − slot 8rem − 桌面欄距 xl）＝全 list 對齊（同手機版既有做法） */
+/* 無縮圖列：文字 cap 到與有縮圖列相同寬（100% − slot 5rem − 桌面欄距 xl）＝全 list 對齊（同手機版既有做法） */
 @media (min-width: 768px) {
   .press-item-row:not(:has(.press-item-thumb-wrap)) .press-item-titles {
-    max-width: calc(100% - 8rem - var(--spacing-xl));
+    max-width: calc(100% - 5rem - var(--spacing-xl));
   }
 }
+/* 縮圖尺寸邏輯（2026-09-15 user 終案）：不裁切、依原始比例，max 寬高雙約束等比縮——直式 PDF 封面
+   吃 max-height 4.5rem（跟舊「高鎖 4.5rem」結果一致、~3.2rem 寬）；16:9 影片幀吃 max-width 5rem
+   （等比縮高 ~2.8rem，slot 縮 5rem 後唯一超寬的來源）。曾試統一 8rem×4.5rem cover 裁頂，user 打回
+   「會被 cropped」勿再提。桌面手機同套；等寬對齊交給外層 slot（wrap 固定 5rem + 縮圖靠左）。 */
 .press-item-thumb {
   position: relative;
-  height: 4.5rem;
-  max-width: 8rem;
+  max-width: 5rem;
   background: var(--gray-8);
   overflow: visible;         /* 讓微旋轉的角超出不被裁 */
   transform-origin: center center;
   flex-shrink: 0;
   line-height: 0;            /* 去 inline img 底部空隙 */
 }
-/* min-width 只在封面/抓幀 async 載入前當佔位；載入後容器貼齊圖片實寬，
-   避免窄封面（長頁 PDF 裁頂後 ~3rem 寬）右側露出灰底。 */
+/* 封面/抓幀 async 載入前的灰塊佔位尺寸（容器高已改 auto 貼齊 img，無 src 時要自撐）；
+   載入後容器貼齊圖片實寬，避免窄封面右側露出灰底。 */
 .press-item-thumb:not(:has(.press-thumb-img[src])) {
   min-width: 3.4rem;
+  height: 4.5rem;
 }
 /* 影格/封面未載入前（img 無 src）＝只出灰色塊佔位，不出 play 三角（user 2026-08-23：
    play icon 疊在空色塊上像壞圖）；grabHlsFrame 回寫 src 後 :has 轉真 → play 才顯示。 */
@@ -362,9 +368,10 @@
 }
 .press-item-thumb img {
   display: block;
-  height: 4.5rem;            /* 高鎖 4.5rem、寬依比例（PDF 直式 ~3.4rem、影片 16:9 撐到 8rem） */
-  max-width: 8rem;
+  max-height: 4.5rem;        /* 直式封面等同舊「高鎖 4.5rem」 */
+  max-width: 5rem;           /* 影片 16:9 幀由此等比縮進 slot */
   width: auto;
+  height: auto;
 }
 
 /* ── Press category filter buttons ──────────────────────────── */
@@ -1208,7 +1215,9 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   body.overflow-hidden main#page-content > section {
     display: flex !important;
     flex-direction: column !important;
+    /* svh：鎖捲動頁 iOS 工具列永不收，100vh＝大視口會把底部 tab bar 壓到工具列後面點不到 */
     height: calc(100vh - var(--header-height)) !important;
+    height: calc(100svh - var(--header-height)) !important;
     min-height: 0 !important;
     overflow: hidden !important;
   }
@@ -1342,8 +1351,11 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   }
   #library-awards-list .award-row {
     /* 得獎人欄改固定比例（非 auto）→ 每列得獎人欄左緣對齊同一點（#1 2026-06-10）；auto 會隨名字長短變寬害對齊點跑掉 */
-    grid-template-columns: 1.5em minmax(0, 1.8fr) minmax(0, 1fr) 1.5em !important;
-    column-gap: var(--spacing-md) !important;
+    /* 2026-09-15 user 定案：chevron 欄 1.5em＋欄間距 sm＝對齊 activities list（.list-header-toggle 1.5em + gap-sm）；
+       比例 2.1:0.9（原 1.8:1）＝名字欄讓寬給競賽 title；0.9 下限＝375px 時名字欄 ~61px，
+       四字中文名（56px @ 手機 s 14px）不被裁，再窄就會切名 */
+    grid-template-columns: 1.5em minmax(0, 2.1fr) minmax(0, 0.9fr) 1.5em !important;
+    column-gap: var(--spacing-sm) !important;
     row-gap: 0 !important;
     /* sm 內縮：list scroll 滿版後（下方 full-bleed 規則）主列文字與 ref-row（padding:sm）/ search 同 sm 起點對齊 */
     padding-left: var(--spacing-sm) !important;
@@ -1358,7 +1370,8 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
      icon/文字各落 col 1 / col 2 沿用 inline grid-column（1、2/-2 在兩欄下收斂成 col 2）。 */
   #library-awards-list .award-ref-row {
     grid-template-columns: 1.5em minmax(0, 1fr) !important;
-    gap: 2px var(--spacing-md) !important;
+    /* 欄距同步主表 sm：維持「ref 文字起點＝主表 col2（競賽名稱）起點」（1.5em + 同 gap） */
+    gap: 2px var(--spacing-sm) !important;
     padding: var(--spacing-sm) !important;
   }
   #library-awards-list .award-mid {
@@ -1396,7 +1409,8 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
     display: flex !important;
     flex-direction: column !important;
     align-items: flex-start !important;
-    gap: var(--spacing-xs) !important;
+    /* 得獎人之間行距＝英中 gap token（user 2026-09-15「跟英中一樣」，同桌面直排 row-gap） */
+    gap: var(--space-en-zh-xs) !important;
     width: 100% !important;
     animation: none !important;
     transform: none !important;
@@ -1754,16 +1768,11 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   .press-item-row {
     column-gap: var(--spacing-sm) !important;
   }
-  /* 文字區統一寬度（user 2026-09-10「每個文字的寬度都不一樣、視覺上不對齊」）：縮圖欄本是 auto、
-     寬度隨封面比例變（PDF 直式 ~3.4rem vs 影片 8rem）→ 每列文字欄寬不同、marquee 裁切點不齊。
-     改縮圖 slot 固定 8rem（= .press-item-thumb max-width）、縮圖靠右 → 文字欄全列同寬。 */
-  .press-item-thumb-wrap {
-    width: 8rem;
-    justify-content: flex-end;
-  }
-  /* 無縮圖列：文字 cap 到與有縮圖列相同寬（100% − slot 8rem − 欄距 sm）＝全 list 對齊 */
+  /* 縮圖 slot／尺寸手機同全域（5rem slot＋max 等比，見上方非 media 區塊；09-10 flex-end 靠右與
+     09-15 中間的手機縮圖 6rem 縮小版皆已撤——user 拍板「縮的是 col 分配寬度、不是縮圖本身」）。 */
+  /* 無縮圖列：文字 cap 到與有縮圖列相同寬（100% − slot 5rem − 欄距 sm）＝全 list 對齊 */
   .press-item-row:not(:has(.press-item-thumb-wrap)) .press-item-titles {
-    max-width: calc(100% - 8rem - var(--spacing-sm)) !important;
+    max-width: calc(100% - 5rem - var(--spacing-sm)) !important;
   }
   .press-item-titles {
     max-width: 100% !important;

@@ -63,6 +63,8 @@ function acronymHtml(node) {
   const style = node.wordmarkUrl
     ? ` style="-webkit-mask-image:url('${esc(node.wordmarkUrl)}');mask-image:url('${esc(node.wordmarkUrl)}')"`
     : '';
+  // seam-guard 補丁已退場（2026-09-15 根解）：hover 上色改畫整條 .prog-titled 單一畫布（見 paint()），
+  // 無拼接邊＝無縫可衛；外擴 ring 反而在接縫處造成上下緣一階，勿加回
   return `<span class="prog-acronym"><span class="prog-acronym-mark"${style}></span></span>`;
 }
 function renderTree(nodes, labels) {
@@ -71,8 +73,8 @@ function renderTree(nodes, labels) {
   const childrenOf = (id) => (byParent.get(id) || []).slice().sort((a, b) => (a.sort || 0) - (b.sort || 0));
   const roots = childrenOf(null);
   // 頂列：各 root 一條 .prog-titled（有 wordmark 才加黑底標準字塊）；root 之間插 .prog-seg--link
-  // 頂 chip 色塊掛 .seam-guard：titled 黑 backstop 在 hover 上色時會漏 1px 暗縫（房規，見 input.css utilities）
-  const top = roots.map((r) => `<div class="prog-titled prog-tilt">${acronymHtml(r)}${boxHtml(r, labels, false, 'seam-guard')}</div>`)
+  // 頂 chip 不再掛 .seam-guard（2026-09-15 根解：hover 色畫在 titled 整條、色塊透明，無縫可衛）
+  const top = roots.map((r) => `<div class="prog-titled prog-tilt">${acronymHtml(r)}${boxHtml(r, labels, false)}</div>`)
     .join('<div class="prog-seg prog-seg--link"></div>');
   // 子樹掛在「有子的第一個 root」下方（現況 DCD；BPAIDC 無子）＝.prog-children--root 的定位對象
   const rootWithKids = roots.find((r) => childrenOf(r.id).length);
@@ -202,12 +204,23 @@ export async function initProgramStructure() {
   // hover 上色：mode3 無 rgb（user 2026-09-10）→ 改翻反色（fg-inverse 底＋fg 字，strict B/W）；mode1/2 用 degree 色。
   //   inline setProperty('important') 是必要的：mode3 rest 規則 `#program-structure .prog-box{background:var(--theme-fg)!important}`
   //   會壓死一般 inline（inline important > stylesheet important；var() 值照樣跟 hue 亮暗即時翻）
+  // ⭐頂 chip 上色根解（user 2026-09-15「接縫處會有問題，沒有根解嗎」）：色畫在整條 .prog-titled 單一畫布、
+  //   色塊自身轉透明（inline important 蓋 color.css mode3 的 stylesheet !important）——「兩個不同色盒相鄰拼接」
+  //   在旋轉 AA 下必有 1px 縫或一階（seam-guard 外擴只是補丁、mode3 反而露一階），改成「黑字標盒疊在連續
+  //   色面上」＝沒有拼接邊可漏。非頂層 chip host===自身、行為不變。
   const paint = (el, color) => {
     const bw = document.body.classList.contains('mode-color');
-    el.style.setProperty('background', bw ? 'var(--theme-fg-inverse)' : color, 'important');
+    const host = el.closest('.prog-titled') || el;
+    host.style.setProperty('background', bw ? 'var(--theme-fg-inverse)' : color, 'important');
+    if (host !== el) el.style.setProperty('background', 'transparent', 'important');
     el.style.setProperty('color', bw ? 'var(--theme-fg)' : '#000', 'important');
   };
-  const unpaint = (el) => { el.style.removeProperty('background'); el.style.removeProperty('color'); };
+  const unpaint = (el) => {
+    const host = el.closest('.prog-titled') || el;
+    host.style.removeProperty('background');
+    el.style.removeProperty('background');
+    el.style.removeProperty('color');
+  };
   // 展開/收起「對應 degree」的 term+degree bar：由上往下推出＝GSAP 開合 height 0↔auto（overflow:hidden，
   //   比照 activities accordion，user 2026-09-11）。平常 bar display:none（不占寬、卡貼 title 殼），
   //   hover/tap 該 degree 才展開內容。⚠️ height 由 GSAP 每幀寫、CSS 不掛 transition:height（免雙重平滑 lag）。
@@ -215,13 +228,18 @@ export async function initProgramStructure() {
   //   左緣隨長度平滑。root cause＝`.prog-legend` width:max-content，bar display:none↔flex 當下寬度瞬跳
   //   （收起＝只 head 短、展開＝含長 degree 名）→ 對卡本身顯式 tween width 與 height 同拍。
   //   Wc＝收起寬（只 head）＝head.offsetWidth；We＝展開寬（含 bar）＝display:flex 後 card.offsetWidth。
-  const LEG_DUR = 0.42;   // ≈ --dur-base，對齊 accordion 開合手感
-  function widthTween(card, head, from, to, ease) {
-    if (!card || !head) return;
+  const LEG_DUR = 0.42;         // 開啟：≈ --dur-base，對齊 accordion 開合手感
+  const LEG_DUR_CLOSE = 0.3;    // 收合：較短（user 2026-09-15「離開 hover 直接收」）——out ease 減速尾在 0.42s 下
+                                // 末段 ~7px 色條爬行 ~150ms 像殘影；0.3s 尾巴縮到無感、仍平滑非 snap
+  function widthTween(card, head, from, to, ease, dur = LEG_DUR, onDone) {
+    if (!card || !head) { if (onDone) onDone(); return; }
     gsap.killTweensOf(card);   // 先殺舊 tween 再 bail：否則舊 tween 之後 onComplete 清 width＝瞬跳
-    if (Math.abs(to - from) < 0.5) { card.style.width = ''; return; }   // 差 <0.5px（bar 比 head 窄）＝免動
-    gsap.fromTo(card, { width: from }, { width: to, duration: LEG_DUR, ease, onComplete: () => { card.style.width = ''; } });
+    if (Math.abs(to - from) < 0.5) { card.style.width = ''; if (onDone) onDone(); return; }   // 差 <0.5px（bar 比 head 窄）＝免動
+    gsap.fromTo(card, { width: from }, { width: to, duration: dur, ease, onComplete: () => { card.style.width = ''; if (onDone) onDone(); } });
   }
+  // 手機（<768）：卡內橫排（CSS），展開＝向右延伸——不跑 bar 高度 accordion，只 tween 卡寬，
+  // bar 全高直接進場、由卡 overflow:hidden 從左往右揭（user 2026-09-15）。跨 gate 轉向靠 orientation-reload。
+  const isLegendMobile = () => window.matchMedia('(max-width: 767px)').matches;
   function openBar(el, color, onDone) {
     const card = el.closest('.prog-legend');
     const head = card && card.querySelector('.prog-legend-head');
@@ -235,20 +253,76 @@ export async function initProgramStructure() {
     el.style.display = 'flex';
     const we = card ? card.offsetWidth : 0;    // display:flex 已套＋inline 已清→真展開寬（含 bar）
     if (!willAnimate) { el.style.height = ''; if (card) card.style.width = ''; if (onDone) onDone(); return; }
+    if (isLegendMobile()) {   // 手機：兩段式（user 2026-09-15「參考桌面 atlas 職業 chip」）——
+      // phase 1 卡寬先撐開（遮罩窗就位、bar 藏在 xPercent:-100）→ phase 2 bar 延遲 0.3s 滑入。
+      // 同拍版（寬與滑入同動）被打回：窗緣與 bar 同時動＝看不出「揭露」。時序抄 atlas show dir='top'。
+      gsap.killTweensOf(el);
+      if (card) gsap.killTweensOf(card);
+      const tl = gsap.timeline({ onComplete: onDone || undefined });
+      tl.set(el, { xPercent: -100 }, 0);
+      if (card && Math.abs(we - w0) >= 0.5) {
+        tl.fromTo(card, { width: w0 }, { width: we, duration: 0.3, ease: 'power2.out',
+          onComplete: () => { card.style.width = ''; } }, 0);
+      } else if (card) { card.style.width = ''; }
+      tl.to(el, { xPercent: 0, duration: 0.4, ease: 'power2.out', clearProps: 'transform' }, 0.3);
+      return;
+    }
     gsap.killTweensOf(el);
-    gsap.fromTo(el, { height: 0 }, { height: 'auto', duration: LEG_DUR, ease: 'power2.out', onComplete: () => { el.style.height = ''; if (onDone) onDone(); } });
+    // padding 跟 height 一起 tween（user 2026-09-15「收起分兩段」對稱側）：border-box 下 height:0 只能縮到剩
+    // padding 高（6+5 色條）→ open 從 0 padding 長出、close 收到全 0，onComplete 清 inline 回 CSS 值。
+    // ⚠️目標高在「padding 還是 CSS 自然值」的此刻先量死（offsetHeight 含 padding）——不能用 height:'auto'：
+    //   GSAP 解析 auto 時 fromTo 起手已把 padding 設 0，量到的 auto 少 11px → tween 停在矮 11px、
+    //   onComplete 清 inline 才彈到全高（user「沒有完全撐起、下一刻才完全打開」）
+    const cs = getComputedStyle(el);
+    const PT = parseFloat(cs.paddingTop) || 0, PB = parseFloat(cs.paddingBottom) || 0;
+    const H = el.offsetHeight;   // display:flex 已套、padding 未動＝真展開全高
+    gsap.fromTo(el, { height: 0, paddingTop: 0, paddingBottom: 0 },
+      { height: H, paddingTop: PT, paddingBottom: PB, duration: LEG_DUR, ease: 'power2.out',
+        onComplete: () => { el.style.height = ''; el.style.paddingTop = ''; el.style.paddingBottom = ''; if (onDone) onDone(); } });
     widthTween(card, head, w0, we, 'power2.out');   // 當下視覺寬→展開寬（fromTo 先套 w0＝同 tick 不閃）
   }
   function closeBar(el, onDone) {
     const card = el.closest('.prog-legend');
     const head = card && card.querySelector('.prog-legend-head');
     const we = card ? card.offsetWidth : 0;    // 當前寬（bar 仍 display:flex）
-    const wc = head ? head.offsetWidth : we;
+    // ⚠️收起寬不能量 head.offsetWidth：卡是 flex column、head 被拉伸到展開卡寬（=we）→ bail「免動」
+    //   ＝收合從來沒建 width tween、高度收完 display:none 瞬跳（user 2026-09-15「還是很硬」真根因）。
+    //   改「暫藏 bar 量卡自然寬再還原」——同步翻轉、無中間 paint，量到真收起寬。
+    let wc = we;
+    if (card) {
+      const prevDisp = el.style.display;
+      const prevW = card.style.width;
+      el.style.display = 'none';
+      card.style.width = '';
+      wc = card.offsetWidth;
+      el.style.display = prevDisp || 'flex';
+      card.style.width = prevW;
+    }
     el.classList.remove('is-open');
     if (!willAnimate) { el.style.display = 'none'; if (card) card.style.width = ''; unpaint(el); if (onDone) onDone(); return; }
+    if (isLegendMobile()) {   // 手機：兩段式反向（atlas hide dir='top'）——bar 先滑出（0.4s power2.in）、
+      // 0.4s 起卡寬再收回（0.3s）；全收完才 display:none + 清 transform（中途 hide 會讓滑出被截斷）。
+      gsap.killTweensOf(el);
+      if (card) gsap.killTweensOf(card);
+      const tl = gsap.timeline({ onComplete: () => {
+        el.style.display = 'none'; gsap.set(el, { clearProps: 'transform' }); unpaint(el);
+        if (card) card.style.width = '';
+        if (onDone) onDone();
+      } });
+      tl.to(el, { xPercent: -100, duration: 0.4, ease: 'power2.in' }, 0);
+      if (card && Math.abs(we - wc) >= 0.5) {
+        tl.fromTo(card, { width: we }, { width: wc, duration: 0.3, ease: 'power2.in' }, 0.4);
+      }
+      return;
+    }
     gsap.killTweensOf(el);
-    gsap.to(el, { height: 0, duration: LEG_DUR, ease: 'power2.in', onComplete: () => { el.style.display = 'none'; el.style.height = ''; unpaint(el); if (onDone) onDone(); } });
-    widthTween(card, head, we, wc, 'power2.in');    // 展開寬→收起寬（bar 收完 display:none 前寬度已到 head＝無末端瞬縮）
+    // ease 三輪（user 2026-09-15）：power2.in＝變化全擠末幀（感知 snap）→ inOut＝開頭慢（「卡在畫面上慢一點」才動）
+    // → 定案 power2.out＝一移開立刻收、平滑落地；中途卡窄於 bar 的溢出交給 .prog-legend overflow:hidden 裁。
+    // padding 一起收到 0（user「收起分兩段、剩一點色塊」＝border-box height:0 殘留 6+5 padding 色條，
+    // 高度早到底、色條掛到 tween 完 display:none 才消失）；onComplete 清 inline 回 CSS 值
+    gsap.to(el, { height: 0, paddingTop: 0, paddingBottom: 0, duration: LEG_DUR_CLOSE, ease: 'power2.out',
+      onComplete: () => { el.style.display = 'none'; el.style.height = ''; el.style.paddingTop = ''; el.style.paddingBottom = ''; unpaint(el); if (onDone) onDone(); } });
+    widthTween(card, head, we, wc, 'power2.out', LEG_DUR_CLOSE);   // 展開寬→收起寬，與高度同 ease 同拍
   }
   // ── 說明卡顯示協調（user 2026-09-11，比照 atlas hover 卡判斷）──
   //  ① 連續 hover「同一 degree」（＝同內容）→ 不收不開（legendDeg 相同 no-op），免收起再打開的閃爍。
@@ -582,9 +656,10 @@ export async function initProgramStructure() {
     const lvl1 = lines.filter((l) => l.level === 1);
     const lvl2 = lines.filter((l) => l.level === 2);
     const tl = entranceTl = gsap.timeline();
+    // reveal 完清掉殘留 clip-path：留著 inset(0%…) 會讓旋轉元素邊緣失去抗鋸齒＝鋸齒邊（user 2026-09-15）
     const revealTier = (tierChips, at) => tierChips.forEach((box, i) => {
       navClipTween(tl, box, navChipHidden(box, box._inDir), NAV_CHIP_SHOWN,
-        { duration: 0.6, ease: 'power3.out', onComplete: () => { box._floatReadyAt = performance.now() / 1000; } },
+        { duration: 0.6, ease: 'power3.out', onComplete: () => { box.style.clipPath = ''; box._floatReadyAt = performance.now() / 1000; } },
         at + i * 0.12);
     });
     const drawLevel = (lvl, at) => lvl.forEach((le, i) =>
@@ -599,7 +674,8 @@ export async function initProgramStructure() {
     // 兩張說明卡最後進場（user 2026-09-09「等 tree 長出來再進」）＝tier2 尾（≈2.0），各自 clip-reveal、微 stagger
     legendEls.forEach((el, i) => {
       navClipTween(tl, el, navChipHidden(el, el._dir), NAV_CHIP_SHOWN,
-        { duration: 0.6, ease: 'power3.out' }, 2.0 + i * 0.1);
+        { duration: 0.6, ease: 'power3.out', onComplete: () => { el.style.clipPath = ''; } },   // 清殘留 clip＝旋轉邊緣回復抗鋸齒
+        2.0 + i * 0.1);
     });
   }
 

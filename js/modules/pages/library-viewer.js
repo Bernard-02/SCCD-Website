@@ -11,6 +11,7 @@ import { applyScreenWatermark, repositionScreenWatermark } from '../lightbox/scr
 import { sitePath } from '../ui/site-base.js';
 import { peekPdfCover } from '../ui/pdf-cover.js';
 import { DUR, EASE } from '../ui/motion.js';
+import { marqueeSpeed } from '../ui/marquee-overflow.js';
 
 // ── Lightbox ──────────────────────────────────────────────────────────────────
 
@@ -888,7 +889,7 @@ export function initPdfViewer() {
     const distance = unitWidth + 24;
     if (typeof gsap !== 'undefined') {
       gsap.fromTo(track, { x: 0 }, {
-        x: -distance, duration: Math.max(3, distance / 80), ease: 'none', repeat: -1,
+        x: -distance, duration: Math.max(3, distance / marqueeSpeed()), ease: 'none', repeat: -1,
       });
     }
   }

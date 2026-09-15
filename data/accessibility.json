@@ -103,55 +103,64 @@
           "labelEn": "Exhibitions",
           "labelZh": "展演",
           "labelKey": "act.exhibitions",
-          "url": "activities.html?section=exhibitions"
+          "url": "activities.html?section=exhibitions",
+          "hidden": true
         },
         {
           "labelEn": "Workshops",
           "labelZh": "工作營",
           "labelKey": "act.workshop",
-          "url": "activities.html?section=workshop"
+          "url": "activities.html?section=workshop",
+          "hidden": true
         },
         {
           "labelEn": "Degree Shows",
           "labelZh": "畢業展",
           "labelKey": "act.degree-show",
-          "url": "activities.html?section=degree-show"
+          "url": "activities.html?section=degree-show",
+          "hidden": true
         },
         {
           "labelEn": "Lectures",
           "labelZh": "講座",
           "labelKey": "act.lectures",
-          "url": "activities.html?section=lectures"
+          "url": "activities.html?section=lectures",
+          "hidden": true
         },
         {
           "labelEn": "Visits",
           "labelZh": "參訪",
           "labelKey": "act.visits",
-          "url": "activities.html?section=visits"
+          "url": "activities.html?section=visits",
+          "hidden": true
         },
         {
           "labelEn": "Competitions",
           "labelZh": "競賽",
           "labelKey": "act.competitions",
-          "url": "activities.html?section=competitions"
+          "url": "activities.html?section=competitions",
+          "hidden": true
         },
         {
           "labelEn": "Forums",
           "labelZh": "論壇",
           "labelKey": "act.conferences",
-          "url": "activities.html?section=conferences"
+          "url": "activities.html?section=conferences",
+          "hidden": true
         },
         {
           "labelEn": "Students Present",
           "labelZh": "學生自主",
           "labelKey": "act.students-present",
-          "url": "activities.html?section=students-present"
+          "url": "activities.html?section=students-present",
+          "hidden": true
         },
         {
           "labelEn": "Industry Partnerships",
           "labelZh": "產學合作",
           "labelKey": "act.industry",
-          "url": "activities.html?section=industry"
+          "url": "activities.html?section=industry",
+          "hidden": true
         }
       ]
     },
@@ -165,13 +174,15 @@
           "labelEn": "Announcements",
           "labelZh": "公告",
           "labelKey": "adm.news",
-          "url": "admission.html?section=news"
+          "url": "admission.html?section=news",
+          "hidden": true
         },
         {
           "labelEn": "Camps",
           "labelZh": "體驗營",
           "labelKey": "adm.summer-camp",
-          "url": "admission.html?section=summer-camp"
+          "url": "admission.html?section=summer-camp",
+          "hidden": true
         }
       ]
     },
@@ -198,12 +209,6 @@
           "labelZh": "文件",
           "labelKey": "lib.files",
           "url": "library.html#files"
-        },
-        {
-          "labelEn": "Albums",
-          "labelZh": "相簿",
-          "labelKey": "lib.album",
-          "url": "library.html#album"
         }
       ]
     },

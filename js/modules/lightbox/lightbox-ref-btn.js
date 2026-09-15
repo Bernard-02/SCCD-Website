@@ -22,6 +22,7 @@
 import { setupClipReveal } from '../ui/scroll-animate.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { SITE_BASE_PATHNAME } from '../ui/site-base.js';
+import { marqueeSpeed } from '../ui/marquee-overflow.js';
 
 // ⚠️ pathname 形式 + SITE_BASE_PATHNAME 前綴（同 library-panels ref row）：完整 http URL 會被 router
 // 當外部連結整頁重載；無前綴的根路徑在子路徑部署（GitHub Pages）會 404
@@ -174,7 +175,7 @@ export function createRefBtn(initialColor, onCloseLightbox) {
     clone.style.marginLeft = '24px';
     track.appendChild(clone);
     const distance = unitWidth + 24;
-    return { track, distance, duration: Math.max(3, distance / 80) };
+    return { track, distance, duration: Math.max(3, distance / marqueeSpeed()) };
   }
   function playRow(prep) {
     if (!prep || typeof gsap === 'undefined') return;
