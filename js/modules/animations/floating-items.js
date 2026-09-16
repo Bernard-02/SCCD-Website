@@ -272,7 +272,10 @@ async function fetchAwardTexts() {
     if (!Array.isArray(rows) || rows.length === 0) throw new Error('CMS empty');
     rows.forEach(r => {
       if (!r.competitionZh && !r.competitionEn) return;
-      if (r.country === 'tw') return; // 只顯示台灣以外的獎項
+      // 只顯示台灣以外的獎項。Directus country 是多選陣列（['tw']），舊 === 'tw' 對陣列永不成立
+      // → 過濾靜默失效、台灣獎全進池（2026-09-16 發現）。純台灣獎排除；國際＋tw 共列的保留。
+      const countries = Array.isArray(r.country) ? r.country : [r.country].filter(Boolean);
+      if (countries.length && countries.every(c => c === 'tw')) return;
       const rank = r.rankZh || r.ranks?.[0]?.zh || '';
       const rankEn = r.rankEn || r.ranks?.[0]?.en || '';
       const { zh, en } = buildAwardText(r.competitionZh, rank, r.competitionEn, rankEn);

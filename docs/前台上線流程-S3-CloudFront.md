@@ -46,38 +46,14 @@ export const CMS_ASSETS_BASE = 'https://<正式CMS子網域>/assets';
 ```
 > 這是唯一注入點，全站 fetch 都吃這兩個常數。憑證是 `*.usc.edu.tw` 萬用憑證，用子網域不用裸 IP。
 
-### ② 去掉 `/pages/` — `js/router.js` 的 pushState
-現在 pushState 用「真實檔案路徑」`/pages/about.html`（本地 dev server 沒 SPA fallback，這樣 refresh 才不 404）。改成：**本地保留 `/pages/`、正式站用乾淨 URL**。
-
-把 `navigateTo` 裡這段（約 router.js:380）：
+### ② 去掉 `/pages/` — `js/router.js` 的 `CLEAN_URL_HOSTS`
+機制已內建（`pushPath` helper + host 白名單），**只要改一行**。router.js 上方：
 ```js
-const realPath = route.htmlFile === 'index.html'
-  ? SITE_BASE_PATHNAME
-  : SITE_BASE_PATHNAME + route.htmlFile;
+const CLEAN_URL_HOSTS = ['sccd.usc.edu.tw'];   // 空 [] = 全部用 /pages/X.html；列名 host = 乾淨 URL
 ```
-改成呼叫一個小 helper：
-```js
-const realPath = pushPath(route);
-```
-並在檔案上方加：
-```js
-// 乾淨 URL：正式站（S3+CloudFront 有 SPA fallback）用 /about；
-// 本地 dev server 無 fallback → 保留 /pages/X.html，refresh 才不 404。
-function pushPath(route) {
-  const host = window.location.hostname;
-  const isLocalDev = host === 'localhost' || host === '127.0.0.1' || host === ''
-    || window.location.protocol === 'file:';
-  if (isLocalDev) {
-    return route.htmlFile === 'index.html'
-      ? SITE_BASE_PATHNAME
-      : SITE_BASE_PATHNAME + route.htmlFile;                 // 本地：/pages/about.html
-  }
-  if (route.htmlFile === 'index.html') return SITE_BASE_PATHNAME;               // 正式：/
-  return SITE_BASE_PATHNAME + route.htmlFile
-    .replace(/^pages\//, '').replace(/\.html$/, '');          // 正式：/about
-}
-```
-> `resolveRoute` **不用改**——它本來就同時吃 `/about`、`/about.html`、`/pages/about.html` 三種寫法（路由表裡 `/about` 跟 `/about.html` 都指向同一頁）。所以直接輸入 `sccd.usc.edu.tw/about` 進來也能正確載入。
+- 白名單內的 host（正式站）→ pushState 輸出 `/about`；其餘（本地 dev、GitHub Pages 預覽 `bernard-02.github.io`）→ 保留 `/pages/about.html`，任何 server 都找得到實體檔、refresh 不 404。
+- ⚠️ **順序鐵則**：把正式網域加進白名單「之前」，CloudFront SPA fallback（§2）必須**先設好並驗證通過**，否則乾淨 URL refresh 直接 404。
+> `resolveRoute` 本來就同時吃 `/about`、`/about.html`、`/pages/about.html` 三種寫法，所以直接輸入 `sccd.usc.edu.tw/about` 進來也能正確載入。
 
 ---
 
@@ -96,6 +72,8 @@ function pushPath(route) {
 | 404 | `/index.html` | 200 |
 
 - 任何非實體檔的路徑都回 `index.html`（200）→ JS router 用 `location.pathname` 解析 → 找不到的路徑會走本站自己的 `/404` 頁。
+- ⚠️ **403 那條才是關鍵，別只加 404**：S3 REST origin 對「找不到的物件」回的是 **403 AccessDenied**（不是 404）。只設 404 → 乾淨路徑會直接穿透回 S3 的 403 錯誤 XML，fallback 形同沒設（2026-09-16 IT 就漏了這條）。
+- 驗證：`curl -s https://sccd.usc.edu.tw/curriculum | head` → body 應該是 SPA 的 HTML，不是 `<Error><Code>AccessDenied`。
 - 缺點：S3 website endpoint 對 `/about`（無尾斜線）會先 `302 → /about/` 再 fallback，網址列會多一個尾斜線。可接受。
 
 ### 做法 B（最乾淨、免尾斜線）：CloudFront Function

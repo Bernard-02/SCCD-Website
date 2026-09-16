@@ -1356,8 +1356,38 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     registerPageCleanup(cancelPrebuild);
 
     renderItems(getSorted());
-    // deep-link #a-*：目標列可能在未建批次 → 直接補完整份（捲動途中的成本由 scroll-gate 節流機制吸收）
-    if ((location.hash || '').startsWith('#a-')) buildAllRemaining();
+    // deep-link #a-*：目標列可能在未建批次 → 分幀建到目標出現就停（2026-09-16，抄 activities _lazyRenderAll
+    // 「rAF 續跑建到目標」）。舊「同步 buildAllRemaining 全建 655 列」剛好落在 entrance-done＝panel 揭露前
+    // 一刻，整塊主執行緒把揭露/起捲砸出掉幀（user 實測「到 award 頁面先卡頓、然後才 run deep link」）。
+    // handleLibraryHash 本就每 100ms retry 找目標（MAX_WAIT 3s）＝分幀完全相容；目標後的組交 lazy
+    // sentinel＋idle 預建收尾；短 uuid 前綴連結比照 handleLibraryHash 的 [id^=] fallback。
+    if ((location.hash || '').startsWith('#a-')) {
+      const domId = location.hash.slice(1);
+      const safeId = domId.replace(/["\\]/g, '\\$&');
+      const targetInDom = () => document.getElementById(domId) || document.querySelector(`[id^="${safeId}"]`);
+      // ⚠️兩個反例都實測過（headless timeline），別走回頭路：
+      //   ①同步 buildAllRemaining＋全表量測＝一整塊卡在 entrance-done、揭露/起捲掉幀（user 報「先卡頓才 run deep link」）；
+      //   ②rAF 分幀建（含零量測版）＝每幀 append 後都要重排「越長越大」的整個 grid（200~380ms/幀 × ~15 幀）
+      //     → 總時長 5.5s+，超過 handleLibraryHash 3s retry 窗＝捲動整個沒跑。
+      // 終案＝「延後 450ms（讓 panel clip-reveal 0.3s 先跑完）→ 同步零量測建到目標（DOM append 只付一次
+      // layout）→ 只量目標年份組（落點視覺正確；全表 hmarquee cell 僅 ~33 個、未量測的擠排在 12k px/s
+      // 飛行中看不見）→ 飛行窗（lazyCoversHeld）過後才補全表量測」。3s retry 窗綽綽有餘。
+      const buildToTarget = () => {
+        if (!listEl.isConnected || targetInDom() || !lazyQueue.length) return;
+        while (lazyQueue.length && !targetInDom()) buildNextGroups(LAZY_BATCH_ITEMS, false);
+        if (!lazyQueue.length) disarmLazySentinel();
+        const el = targetInDom();
+        const block = el && el.closest('.year-block');
+        if (block) applyAwardMarquees(block);
+        const finishMeasure = () => {
+          if (!listEl.isConnected) return;
+          if (lazyCoversHeld()) { setTimeout(finishMeasure, 300); return; }
+          applyAwardMarquees(listEl);
+        };
+        setTimeout(finishMeasure, 1200);
+      };
+      setTimeout(buildToTarget, 450);
+    }
     maybeRevealDeferredPanel('lib-panel-awards');  // deep-link 遞延首渲染：commit 完才整組 clip-reveal（未遞延＝no-op）
 
     // 年份＋search 複合篩選單一入口（user 2026-08-10：任何篩選歸零都要 No Result）。
@@ -4095,8 +4125,21 @@ function handleLibraryHash() {
           };
           requestAnimationFrame(step);
         };
-        // 時長（user 2026-09-11 放慢版）：近距 ~0.6s、距離越遠越久、封頂 1.5s；reduced-motion 直接 snap
-        const mainDur = prefersReducedMotion() ? 0 : Math.min(1500, 500 + Math.abs(target) * 0.5);
+        // 遠距不逐幀捲穿整表（user 2026-09-16「scroll 不 smooth＋ticker 整個卡住」）：平滑捲到第 N 列＝瀏覽器
+        // 得逐幀重繪沿途幾百列（清單未視口化），主緒被 paint 灌爆、連合成層的 ticker 也被餓死。改「先瞬跳到離
+        // 目標約一屏、只平滑捲最後一屏」：瞬跳 scrollTop 只重繪落點那一屏（中間列一次都不畫），最後一屏才平滑
+        // 滑入＝看得到滑入定位、但主緒工作恆定＝一屏量、與目標多深無關。reduced-motion 直接 snap。
+        if (!prefersReducedMotion()) {
+          const finalTop = liveTarget();
+          const dir = Math.sign(finalTop - scroller.scrollTop) || 1;
+          const nearGap = Math.max(1, scroller.clientHeight * 0.85);
+          if (Math.abs(finalTop - scroller.scrollTop) > nearGap * 1.25) {
+            scroller.scrollTop = Math.max(0, finalTop - dir * nearGap);  // 瞬跳到離目標一屏（只此屏重繪）
+          }
+        }
+        // 時長吃「瞬跳後的剩餘距離」（≈一屏），非目標總深度 → 恆定 ~300ms 平滑滑入。
+        const remain = Math.abs(liveTarget() - scroller.scrollTop);
+        const mainDur = prefersReducedMotion() ? 0 : Math.min(350, 150 + remain * 0.4);
         holdLazyCovers(mainDur + 1200);   // 捲動＋落地緩衝窗口內暫停 IO 封面工作（見 deferCoverTarget）
         holdPdfCoverRaster(mainDur + 100); // pdf.js 主執行緒 raster 只擋捲動本體——落地即續渲（block eager 封面落地就出）
         animateAlign(mainDur, () => {

@@ -166,6 +166,9 @@
    不露進左右留白。overflow 放 CSS 不放 inline：JS 建 track 時會 cssText 重設 wrapper inline 樣式。 */
 #library-awards-ticker .awards-ticker-wrapper {
   overflow: hidden;
+  /* ticker 是常駐 transform 動畫：明確掛合成層，讓 compositor 獨立跑——hover award 列會觸發整張大表
+     style recalc 卡主執行緒（user 2026-09-16），合成層下 ticker 不跟著頓。 */
+  will-change: transform;
 }
 
 /* ── Press list container ─────────────────────────────────────── */

@@ -1109,7 +1109,7 @@ function buildMobileEventStrip(root) {
 
   const ACCENT_COLORS = ['#00FF80', '#FF448A', '#26BCFF'];
   const randAccent = () => ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
-  const randRot = () => { let r = 0; while (Math.abs(r) < 0.5) r = parseFloat((Math.random() * 6 - 3).toFixed(2)); return r; };
+  const randRot = () => window.SCCDHelpers.getRandomRotation();   // −4~+6 全站統一（2026-09-16；原 −3~+3）
 
   // 矮橫向：tab 改進 header 帶（user 2026-07-11「比照 activities 放 header、可左右滑」）——
   // fixed 定位 + 全寬 blocker + hero gate 由 landscape.css .dsd-event-strip-header + setupStripHeaderGate 接管；
@@ -1142,6 +1142,25 @@ function buildMobileEventStrip(root) {
     btns.push(btn);
   });
 
+  // 離頁退場（user 2026-09-16 全站手機 nav strip 補齊，同 about #mobile-anchor-strip）：chip 本體
+  // navChipHidden 滑出（translate 獨立屬性與 inline rotate 共存、clip 跟著角度）；wrap 桌面 md:hidden
+  // → offsetParent null 全過濾＝desktop no-op；不在視窗（停在 hero、strip 未現身）也直接放行。
+  registerPageExit(() => new Promise(resolve => {
+    if (typeof gsap === 'undefined') { resolve(); return; }
+    const vis = btns.filter(b => {
+      if (b.offsetParent === null) return false;
+      const r = b.getBoundingClientRect();
+      return r.bottom > 0 && r.top < window.innerHeight && r.width > 0;
+    });
+    if (!vis.length) { resolve(); return; }
+    gsap.killTweensOf(vis);
+    vis.forEach(b => { b.style.transition = 'none'; });   // 停掉 .transition-all，免 CSS 追 GSAP 每幀寫入卡頓
+    const hid = vis.map(b => navChipHidden(b, pickNavDir(b)));
+    gsap.fromTo(vis,
+      { ...NAV_CHIP_SHOWN },
+      { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate, duration: DUR.base, ease: 'cubic-bezier(0.25, 0, 0, 1)', stagger: { each: 0.05, from: 'end' }, overwrite: true, onComplete: resolve });
+  }));
+
   let activeIdx = -1;
   function setActive(idx) {
     if (idx === activeIdx) return;
@@ -1151,7 +1170,8 @@ function buildMobileEventStrip(root) {
         b.classList.add('active');
         b.style.background = randAccent();
         b.style.color = '#000000';
-        b.style.transform = `rotate(${randRot()}deg)`;
+        // active 保持初始隨機角、不重抽（user 2026-09-16「不要 click/捲之後又換角度」）；只換色
+        b.style.transform = `rotate(${baseRots[i]}deg)`;
       } else {
         b.classList.remove('active');
         b.style.background = '';
@@ -1764,7 +1784,7 @@ function setupStickyAndHeroChips(data, year) {
   const cardColor = ACCENT[Math.floor(Math.random() * ACCENT.length)];
   const branchPool = ACCENT.filter(c => c !== cardColor);
   const branchColor = branchPool[Math.floor(Math.random() * branchPool.length)]; // active event chip 底色（跟 title 錯開）
-  const randRot = () => { let d; do { d = Math.round((Math.random() * 6 - 3) * 10) / 10; } while (Math.abs(d) < 0.5); return d; };
+  const randRot = () => window.SCCDHelpers.getRandomRotation();   // −4~+6 全站統一（2026-09-16；原 −3~+3）
 
   const titleInner = titleChip.querySelector('.sticky-chip-inner');
   const yearInner = yearChip ? yearChip.querySelector('.sticky-chip-inner') : null;

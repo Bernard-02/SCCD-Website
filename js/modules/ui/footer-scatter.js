@@ -564,11 +564,15 @@ function applyGroupVisibility(area) {
 
 // _footerSwitching 閘門防連點兩個 tab 動畫互相打斷。
 let _footerSwitching = false;
+// 切群組期間會 re-parent tab（unwrapFooterAnim / getFooterTabsInner 搬 DOM）→ 瀏覽器對游標下的 tab 補發
+// 假 mouseenter，arrow-spin 會誤抽新角＝「點完又自己轉一次」。整段切換期間豎旗，arrow-spin ignoreEnter 略過。
+let _footerReparenting = false;
 async function switchFooterGroup(footer, group) {
   if (_footerSwitching) return;
   const area = footer.querySelector('.footer-random');
   if (!area || !(area instanceof HTMLElement) || area.dataset.fgroup === group) return;
   _footerSwitching = true;
+  _footerReparenting = true;
   try {
     footer.querySelectorAll('.footer-tab').forEach((t) => {
       const on = /** @type {HTMLElement} */ (t).dataset.fgroup === group;
@@ -603,6 +607,8 @@ async function switchFooterGroup(footer, group) {
     await initFooterScatter(footer, { animate: true });   // phase 2：新群組進場
   } finally {
     _footerSwitching = false;
+    // 延一個 macrotask 才落旗：re-parent 的假 mouseenter 是 async 補發、可能還在佇列
+    setTimeout(() => { _footerReparenting = false; }, 0);
   }
 }
 
@@ -618,12 +624,25 @@ function bindFooterTabs(footer) {
     const initial = (Math.random() < 0.5 ? -1 : 1) * rand(1, 3);   // ±[1,3]°，保證非 0
     el.style.transform = `rotate(${initial.toFixed(2)}deg)`;   // 靜止傾斜（arrow-spin 只在 hover/leave 才重繪，需先畫出起始角）
     let lastDeg = initial, hoverDeg = initial;
-    const spin = bindArrowSpin(el, (d) => { lastDeg = d; el.style.transform = `rotate(${d}deg)`; }, { initial });
+    const spin = bindArrowSpin(el, (d) => { lastDeg = d; el.style.transform = `rotate(${d}deg)`; },
+      { initial, ignoreEnter: () => _footerReparenting });
     // 這兩個 listener 綁在 arrow-spin 之後：enter 時 lastDeg 已被 arrow-spin 寫成預覽角；
     // leave 時 arrow-spin 先回寫舊定案角，同幀再 commit(hoverDeg) 蓋回 → 視覺停在 hover 角、離開不再轉
     el.addEventListener('mouseenter', () => { hoverDeg = lastDeg; });
     el.addEventListener('mouseleave', () => spin.commit(hoverDeg));
-    el.addEventListener('click', () => switchFooterGroup(footer, el.dataset.fgroup || 'dept'));
+    el.addEventListener('click', () => {
+      // 手機 tab 列是水平 scroll strip：點到的 tab 捲回靠左對齊列左緣（同 faculty/curriculum nav btn
+      // 慣例，user 2026-09-16）。只動 bar 自己 scrollLeft；平板/桌面 absolute tabs 不套。
+      if (window.innerWidth < 768) {
+        const bar = /** @type {HTMLElement | null} */ (el.closest('.footer-tabs'));
+        if (bar) {
+          const pad = parseFloat(getComputedStyle(bar).paddingLeft) || 0;
+          const delta = el.getBoundingClientRect().left - (bar.getBoundingClientRect().left + pad);
+          bar.scrollTo({ left: bar.scrollLeft + delta, behavior: 'smooth' });
+        }
+      }
+      switchFooterGroup(footer, el.dataset.fgroup || 'dept');
+    });
   });
 }
 

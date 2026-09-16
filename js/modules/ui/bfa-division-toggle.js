@@ -294,10 +294,9 @@ export function initBFADivisionToggle() {
     const list = pool.length ? pool : ACCENT_COLORS;
     return list[Math.floor(Math.random() * list.length)];
   }
+  // 全站 nav btn 統一 −4~+6（2026-09-16 併入，走 SCCDHelpers.getRandomRotation 單一來源；原 −3~+3 無「必須小」理由）
   function randomRotation() {
-    let r = 0;
-    while (Math.abs(r) < 0.5) r = parseFloat((Math.random() * 6 - 3).toFixed(2));
-    return r;
+    return window.SCCDHelpers.getRandomRotation();
   }
 
   // ─── 初始化每個 btn/label 的固定角度 ─────────────────────────

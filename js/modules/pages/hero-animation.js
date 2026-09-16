@@ -124,14 +124,38 @@ function applyLayoutSnapshot(grid, snapshot) {
   }
   // 直接套用該組 build 時量好的 tighten px 寬（不 live re-tighten）：re-tighten 會在別組殘留的 width/maxWidth
   // 下量到不同值 → chip 寬度進場後跳（user 2026-06-07）。同 session 字型/viewport 不變 → 存的 px 寬有效。
-  if (snapshot.paragraphTightWidths) {
+  // ⚠️前提＝「文字沒變」：hero-source loadHero 會在 build 後把段落換成後台文案（首訪 3s 內），此後
+  // stored 寬是舊文字量的——尤其後台文案較短時 box 比字寬一大截（user 2026-09-16 activities slack ~500px），
+  // 且 cache-miss 的閒置補池每輪 restore pool[0] 都會把 stale 寬再寫回、蓋掉 loadHero 的 retighten。
+  // → snapshot 記 build 當時的段落文字簽章，對不上就 live tighten（tighten 內部已先清 width＋reflow，
+  //   06-07 的殘留誤量問題不存在；maxWidth 已在上面套回該組值＝量測基準正確）。
+  const curSig = paragraphSig(grid);
+  if (snapshot.paragraphTightWidths && snapshot.textSig === curSig) {
     snapshot.paragraphTightWidths.forEach((w, i) => {
       if (paragraphs[i] && w) paragraphs[i].style.width = w;
     });
   } else {
-    tightenParagraphWidths(grid);  // 舊格式 snapshot fallback（同次 build 的 pool 一定有新欄位，正常不會走到）
+    tightenParagraphWidths(grid);  // 文字已被資料源替換／舊格式 snapshot → 以當前文字實寬收緊
   }
   clampHeroItemsIntoSection(grid);  // 結構保證：cached 位置在某環境被算到界外時拉回（見函式註解）
+}
+
+// 段落文字簽章：snapshot 的 stored tighten 寬只在「文字沒變」時有效（applyLayoutSnapshot 用來判斷）
+function paragraphSig(grid) {
+  return ['hero-text-en', 'hero-text-cn']
+    .map(cls => grid.querySelector(`.${cls}`)?.textContent || '')
+    .join('|');
+}
+
+// hero 說明文字被資料源「事後」替換時重收 chip 寬（hero-source loadHero：Directus 3s 內回來、
+// 比 layout build 晚）：tighten 的 inline width 是換字前文字量的，後台文案較短時 box 比字寬一大截
+// （user 2026-09-16，activities 首訪實測 slack ~500px；LKG 回訪文字 build 前已正確＝量不到）。
+// 只重收寬、不重派位置：縮寬只讓 bbox 變小、不會引入重疊（同 randomizeHeroLayout 結尾 tighten 的論證）；
+// pool key 含文字內容 → 換字後之後的 build 自然是新 key；閒置補池 restore 的 stale 寬由
+// applyLayoutSnapshot 的 textSig 檢查擋掉（見該處註解）。
+export function retightenHeroParagraphs() {
+  const grid = document.querySelector('.hero-rand-grid');
+  if (grid) tightenParagraphWidths(grid);
 }
 
 function tightenParagraphWidths(grid) {
@@ -469,7 +493,8 @@ function runPlacementAndBannerForCache(grid) {
     transform: banner.style.transform,
   } : null;
 
-  return { textPositions, paragraphWidths, paragraphTightWidths, banner: bannerSnap };
+  // textSig：stored tighten 寬的有效前提＝文字沒被資料源換掉（applyLayoutSnapshot 檢查用）
+  return { textPositions, paragraphWidths, paragraphTightWidths, banner: bannerSnap, textSig: paragraphSig(grid) };
 }
 
 // 4 個 text wrapper 兩兩是否互疊（超過容忍量）——只查 text-vs-text（text 疊 banner 是刻意設計）。

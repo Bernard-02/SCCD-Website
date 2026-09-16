@@ -123,4 +123,6 @@ body.mode-color .icon.footer-social-glyph { filter: var(--footer-invert-filter, 
    會讓 .icon 的 background-color 露成實心色塊，不能見人。site-assets.js 掃到「本地規則帶 display:none」
    ＝待上傳類，後台有檔時注入的覆蓋規則會補 display:inline-block 蓋回。上傳後若想補本地 fallback：
    把 SVG 放進 website-icons/ 並刪掉這裡的 display:none 即可。 */
-.icon-pencil { --icon: url('../website-icons/pencil.svg'); display: none; }
+/* pencil：本地 fallback＝Edit 2.svg 複本（user 2026-09-16）——CMS fetch 失敗（弱網）時全站唯一沒本地檔
+   的 icon 會變空鈕，正式站 4G 實測中招；有本地檔後 display:none「待上傳」機制對此 icon 退場 */
+.icon-pencil { --icon: url('../website-icons/pencil.svg'); }

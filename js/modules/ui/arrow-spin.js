@@ -6,7 +6,7 @@
 const MIN = -4, MAX = 6;
 const SPAN = MAX - MIN;
 
-export function bindArrowSpin(el, setAngle, { initial = 0, onCommit } = {}) {
+export function bindArrowSpin(el, setAngle, { initial = 0, onCommit, ignoreEnter } = {}) {
   let committed = initial;
   let pending = null;   // hover 預覽角（about tab 的 _pendingRot）
   const rand = () => {
@@ -19,7 +19,10 @@ export function bindArrowSpin(el, setAngle, { initial = 0, onCommit } = {}) {
   };
   // hover 只綁桌面（矮橫向 gate 同 landscape.css）
   if (window.innerWidth >= 768 && !window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) {
-    el.addEventListener('mouseenter', () => { pending = rand(); setAngle(pending); });
+    el.addEventListener('mouseenter', () => {
+      if (ignoreEnter && ignoreEnter()) return;   // re-parent 補發的假 mouseenter（元素被搬 DOM）→ 別抽新角
+      pending = rand(); setAngle(pending);
+    });
     // 離開保持新角＝直接轉正定案（角度已顯示、不需 setAngle）
     el.addEventListener('mouseleave', () => { if (pending != null) committed = pending; pending = null; });
   }

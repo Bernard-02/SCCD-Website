@@ -127,10 +127,9 @@ export function initAnchorNav({ reveal = false } = {}) {
     return NAV_COLORS[index];
   }
 
+  // 全站 nav btn 統一 −4~+6（2026-09-16 併入，走 SCCDHelpers.getRandomRotation 單一來源；原 −3~+3 無「必須小」理由）
   function getNavRotation() {
-    let deg;
-    do { deg = Math.round(Math.random() * 6) - 3; } while (Math.abs(deg) < 0.5);
-    return deg;
+    return window.SCCDHelpers.getRandomRotation();
   }
 
   // 初始化每個 btn 的 base rotation
@@ -185,6 +184,32 @@ export function initAnchorNav({ reveal = false } = {}) {
         inners.forEach(el => { el.style.transition = 'none'; });
         const hid = inners.map(el => navChipHidden(el, navDir.get(el)));
         gsap.fromTo(inners,
+          { ...NAV_CHIP_SHOWN },
+          { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate, duration: DUR.base, ease: NAV_EASE, stagger: { each: 0.05, from: 'end' }, overwrite: true, onComplete: resolve });
+      }));
+    }
+  }
+
+  // 直向手機 nav chips 離頁退場（user 2026-09-16「about 手機點 logo 沒出場動畫」）：
+  // about＝#mobile-anchor-strip（獨立 DOM、桌面 #anchor-nav 手機隱藏）；alumni＝同一顆 #anchor-nav
+  // 手機轉 flex-row——桌面退場 branch gate ≥768，手機兩者都吃不到 → 這裡統一補。
+  // 語彙同 faculty/桌面 nav（navChipHidden 滑出、from:'end'）；退場當下逐顆過濾「可見且在視窗內」，
+  // 不可見（display:none 的另一版 nav／捲離視窗）直接跳過不白等 0.4s。
+  if (typeof gsap !== 'undefined' && window.innerWidth < 768 && !isLandscapeGate) {
+    const mobInners = Array.from(document.querySelectorAll('#mobile-anchor-strip .anchor-nav-inner, #anchor-nav .anchor-nav-inner'));
+    if (mobInners.length) {
+      const mobDir = new Map(mobInners.map(el => [el, pickNavDir(el)]));
+      registerPageExit(() => new Promise(resolve => {
+        const vis = mobInners.filter(el => {
+          if (el.offsetParent === null) return false;
+          const r = el.getBoundingClientRect();
+          return r.bottom > 0 && r.top < window.innerHeight && r.width > 0;
+        });
+        if (!vis.length) { resolve(); return; }
+        gsap.killTweensOf(vis);
+        vis.forEach(el => { el.style.transition = 'none'; });
+        const hid = vis.map(el => navChipHidden(el, mobDir.get(el)));
+        gsap.fromTo(vis,
           { ...NAV_CHIP_SHOWN },
           { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate, duration: DUR.base, ease: NAV_EASE, stagger: { each: 0.05, from: 'end' }, overwrite: true, onComplete: resolve });
       }));

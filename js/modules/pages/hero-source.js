@@ -11,7 +11,7 @@
  */
 import { CMS_API_BASE, CMS_CDN_BASE } from '../../config/api.js';
 import { sitePath } from '../ui/site-base.js';
-import { revealHeroBannerImg } from './hero-animation.js';
+import { revealHeroBannerImg, retightenHeroParagraphs } from './hero-animation.js';
 
 const HERO_MAP = {
   faculty:    { collection: 'faculty_hero',    json: '/data/faculty-hero.json' },
@@ -24,15 +24,22 @@ const FETCH_TIMEOUT = 3000;   // 後台等太久不無限扣住 banner：逾時�
 const DECODE_TIMEOUT = 4000;  // 弱網大圖 decode 上限：到點就揭（src 已設，圖到了由瀏覽器補畫，非換圖）
 
 function setText(sel, val) {
-  if (val == null || val === '') return;
-  document.querySelectorAll(sel).forEach(el => { if (el.textContent !== val) el.textContent = val; });
+  if (val == null || val === '') return false;
+  let changed = false;
+  document.querySelectorAll(sel).forEach(el => {
+    if (el.textContent !== val) { el.textContent = val; changed = true; }
+  });
+  return changed;
 }
 
+// 回傳「有沒有真的改到字」：layout build 後才改到 → caller 要重收 chip 寬（見 loadHero 內註解）
 function applyHeroText(d) {
-  setText('.hero-title', d.titleEn);
-  setText('.hero-title-cn', d.titleZh);
-  setText('.hero-text-en', d.subtitleEn);
-  setText('.hero-text-cn', d.subtitleZh);
+  let changed = false;
+  changed = setText('.hero-title', d.titleEn) || changed;
+  changed = setText('.hero-title-cn', d.titleZh) || changed;
+  changed = setText('.hero-text-en', d.subtitleEn) || changed;
+  changed = setText('.hero-text-cn', d.subtitleZh) || changed;
+  return changed;
 }
 
 // bannerImage：Directus 深取成 { filename_disk }（<uuid>.<副檔名>）→ 組 CloudFront URL 走 CDN 繞過弱機 /assets
@@ -105,7 +112,10 @@ export async function loadHero(pageKey) {
   if (!data && !lkg) {
     try { fallback = await fetch(sitePath(m.json)).then(r => (r.ok ? r.json() : null)); } catch { /* 本地也沒 → 保留靜態 */ }
   }
-  if (data || fallback) applyHeroText(data || fallback);
+  // 換到字＝hero layout 多半已 build（tighten 用舊文字量的 inline width 已鎖死）→ 重收 chip 寬到新文字實寬。
+  // 後台文案比 HTML 靜態佔位短時（activities 首訪實測差 ~500px）box 才不會比字寬一大截（user 2026-09-16）。
+  // LKG 回訪（上面已套同字）→ changed=false 不重收；標題 h1 inline-block 本就 hug、只有段落需要。
+  if ((data || fallback) && applyHeroText(data || fallback)) retightenHeroParagraphs();
 
   // 圖：以後台為主，退而求其次 LKG → json fallback；全沒有＝null（揭 HTML 靜態圖）
   const src = [data, lkg, fallback].filter(Boolean).map(d => resolveBanner(d.bannerImage)).find(Boolean) || null;

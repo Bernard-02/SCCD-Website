@@ -194,9 +194,12 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
   // shift 完成後呼叫：若游標仍停在某 slot 上（slot 1 或 2），立刻啟用 hover；
   // 不需要使用者移開再進入才觸發。
   function reapplyHoverIfPointerInside() {
+    // spin 模式：shift/click 後不主動補抽角——移位後停在游標下的圖已帶自己定案的 _rotation，
+    // 這裡再 spinHover 會變「點一下就自己轉到新角度」（user 不要）；真的 hover（移入）仍會經 mouseenter 抽新角。
+    if (hoverSpin) return;
     slots.forEach((s, i) => {
-      if (!hoverSpin && i === 0) return; // 原行為：slot 0 不 hover（spin 模式全 slot 都轉）
-      if (s.matches(':hover')) (hoverSpin ? spinHover : activateHover)(s);
+      if (i === 0) return; // 原行為：slot 0 不 hover
+      if (s.matches(':hover')) activateHover(s);
     });
   }
 

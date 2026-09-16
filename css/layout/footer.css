@@ -434,6 +434,8 @@
     .footer-random > .footer-tabs .footer-tab { flex: 0 0 auto; }
     .footer-random > .footer-tabs .footer-tab-en { max-width: 10.5rem; }
     .footer-random > .footer-tabs .footer-tab[data-fgroup="aa"] .footer-tab-en { max-width: 6rem; }
+    /* ⚠️不加列尾 spacer（user 2026-09-16 拍板，撤回同日 spacer 版）：faculty/activities 的 nav 列都沒有——
+     * 點擊靠左對齊由 bindFooterTabs scrollTo 做，捲程不足時原生 clamp＝最右顆自然停在右側，非硬拉到左緣留白。 */
   }
 
   /* footer 固定一屏（user 2026-09-05「footer 是 100vh」；svh 照專案規範——手機工具列 vh 高估溢出）：

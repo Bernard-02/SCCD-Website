@@ -62,6 +62,23 @@
   text-align: left;
 }
 
+/* 矮橫向硬 gate（2026-09-16 user：橫向手機只留 header＋旋轉提示）：
+   顯隱原本全靠 handleOrientationChange 的 inline display——iOS rotate 的 resize/orientationchange
+   時序不穩、首次載入就橫向等 race 會漏（實機截圖：提示跟手機控制面板疊在一起）。
+   這裡用 CSS 把狀態釘死、JS 只負責 bg/text 變數與 portrait 還原；
+   !important 蓋 JS inline display（inline 非 important 輸 stylesheet important）。
+   z-index 壓 40＝低於 header 的 z-50 → header 照常可見可點（app UI 已整塊 display:none、
+   不需要 99999 去蓋）；gate 外（平板橫向等）維持 JS 原行為不受影響。 */
+@media (orientation: landscape) and (max-height: 500px) {
+  #create-app .main-container {
+    display: none !important;
+  }
+  #create-app #landscape-overlay {
+    display: flex !important;
+    z-index: 40;
+  }
+}
+
 /* generate-app 專屬變數 scope 到 #create-app（之前注入 :root 會洩漏到全站，
    --font-family 跟 variables.css 的 --font-default/--font-en 命名空間衝突；
    --r-color/--g-color/--b-color/--disabled-color 也是 generate-app 內部術語，

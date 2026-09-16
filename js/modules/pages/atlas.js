@@ -3888,6 +3888,7 @@ export async function initAtlas(options = {}) {
 
   // 翻頁鈕點擊定案的角度（arrow-spin）：切頁 build 會重建新鈕，用這個變數把定案角帶過去
   let listNavRot = null;
+  let listNavReparenting = false;   // build 重造 nav 箭頭鈕時豎旗，壓下 re-parent 補發的假 mouseenter（同 footer tab）
 
   function getItemCat(item) {
     const prefix = String(item.id).split('-')[0];
@@ -4245,6 +4246,7 @@ export async function initAtlas(options = {}) {
     // chevron 切頁時保持不動（使用者要求：只在 view 切換時動，分頁切換不動）
     /** @param {(number|undefined)[]|null} enterDirsHint */
     function build(enterDirsHint) {
+      listNavReparenting = true;   // 舊 nav 鈕被 innerHTML='' 銷毀、新鈕在原位（游標下）重生 → 假 mouseenter 別抽新角
       evacuateListNodes(itemsEl);   // 單一節點：先撤回星雲 anchor，innerHTML='' 才不會炸掉節點
       itemsEl.innerHTML = ''; // clears both sub-cols
 
@@ -4287,7 +4289,7 @@ export async function initAtlas(options = {}) {
       nextBtn.innerHTML = '<span class="icon icon-arrow-right"></span>';
       nextBtn.disabled = maxPage <= 0;
       bindArrowSpin(nextBtn, d => nextBtn.style.setProperty('--nav-rot', `${d}deg`),
-        { initial: navRot, onCommit: d => { listNavRot = d; } });
+        { initial: navRot, onCommit: d => { listNavRot = d; }, ignoreEnter: () => listNavReparenting });
       nextBtn.addEventListener('click', () => renderListPage(col, cat, safePage >= maxPage ? 0 : safePage + 1));
 
       navItem.appendChild(nextBtn);
@@ -4302,6 +4304,8 @@ export async function initAtlas(options = {}) {
       subCols.forEach(sc => itemsEl.appendChild(sc));
       // nav append 到 .atlas-list-col-items（position:relative）→ 跨整欄、< 頂左緣 / > 頂右緣（CSS space-between）
       itemsEl.appendChild(navItem);
+      // 新鈕已就位於游標下：等假 mouseenter 補發過去（次幀）才落旗
+      requestAnimationFrame(() => requestAnimationFrame(() => { listNavReparenting = false; }));
 
       // 主標 marquee：DOM 進入 layout 後（次幀）量寬決定是否需要 marquee
       requestAnimationFrame(() => applyListMarquee(itemsEl));
