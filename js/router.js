@@ -138,7 +138,7 @@ function resolveRoute(pathname) {
 // 所以只有「網址列長相」不同，載入邏輯完全不受影響。
 // ⚠️ 把網域加進 CLEAN_URL_HOSTS「之前」，該站的 server fallback 必須先設好，否則乾淨 URL refresh 會 404。
 //    CloudFront fallback 設好後 → const CLEAN_URL_HOSTS = ['sccd.usc.edu.tw'];（細節見 docs/前台上線流程-S3-CloudFront.md）
-const CLEAN_URL_HOSTS = [];
+const CLEAN_URL_HOSTS = ['sccd.usc.edu.tw'];
 
 function pushPath(route) {
   if (route.htmlFile === 'index.html') return SITE_BASE_PATHNAME; // 首頁兩種模式都是站台根
