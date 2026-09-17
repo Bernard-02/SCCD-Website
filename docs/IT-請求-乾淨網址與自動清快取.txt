@@ -1,0 +1,143 @@
+【IT 協助請求】兩項 CloudFront 設定：① 乾淨網址（去 /pages）② 更新後自動清快取
+提出單位：媒體傳達設計學系（SCCD）
+日期：2026-09-17
+
+前言：
+・新站（純靜態 SPA）已上傳到 S3、sccd.usc.edu.tw 已可正常瀏覽，上線主體完成。
+・目前還需要 IT 協助的就是下面「兩項一次性設定」，設好之後系上日常更新不需再麻煩 IT。
+・完整上線背景與帳號／權限清單見另一份〈給IT-前台上線需求清單.md〉；本文件只聚焦這兩項待辦。
+
+
+════════════════════════════════════════════════
+請求一：乾淨網址（網址去掉 /pages/）的 SPA fallback 設定
+════════════════════════════════════════════════
+
+目的：
+  讓網址呈現為 sccd.usc.edu.tw/about 這種乾淨形式（而非 /pages/about.html）。
+  新站是單頁應用（SPA），像 /about、/library 這種路徑在 S3 裡沒有對應的實體檔，
+  需要 CloudFront 把「找不到實體檔的路徑」導回 /index.html，交由前端 JavaScript 處理頁面路由。
+
+做法（二擇一，建議做法 A）：
+
+  ── 做法 A（較簡單）──
+  該 distribution → Error pages（錯誤頁）→ 新增兩條 Custom Error Response：
+
+      HTTP Error Code : 403 → Response page path: /index.html → HTTP Response code: 200
+      HTTP Error Code : 404 → Response page path: /index.html → HTTP Response code: 200
+
+  ⚠️⚠️ 關鍵：「403」那條「一定」要加，不能只加 404。
+     原因：這個 bucket 是私有 + S3 REST origin，對「找不到的路徑」回的是 403 AccessDenied（不是 404）。
+     只加 404、漏掉 403 的話，乾淨網址仍會露出 S3 的錯誤頁（AccessDenied XML）。403 與 404 兩條都要加。
+     （先前曾設定過一次，實測 /about、/library 等仍回 403 AccessDenied，即是漏了 403 這條、
+      或 distribution 尚未 Deployed。）
+
+  ── 做法 B（較乾淨）──
+  CloudFront → Functions → 建立一個 viewer-request function，綁到該 distribution：
+
+      function handler(event) {
+        var req = event.request;
+        if (req.uri.includes('.')) return req;  // 有副檔名＝實體檔，放行
+        req.uri = '/index.html';                // 乾淨路徑交給前端 SPA router
+        return req;
+      }
+
+順序（重要）：
+  請「先設好 CloudFront 這條、並確認 distribution 為 Deployed、驗證通過」後，再通知我們；
+  我們才會同步在前端打開「乾淨網址」模式。兩邊必須一起、且順序是「先 CloudFront、再前端」，
+  否則直接輸入乾淨網址或重新整理內頁會出現 404。
+
+驗證方式：
+  curl -sI https://sccd.usc.edu.tw/library          （看 HTTP 狀態碼）
+  curl -s  https://sccd.usc.edu.tw/library | head   （body 應是 index.html 的 HTML，
+                                                      而非 <Error><Code>AccessDenied</Code>）
+  設定完成後清一次 invalidation（paths: /*）讓設定即刻生效。
+
+
+════════════════════════════════════════════════
+請求二：更新後「自動清快取」（免每次手動 invalidation）
+════════════════════════════════════════════════
+
+背景與目標：
+  目前流程是「上傳新版到 S3 → 手動清一次 CloudFront 快取（invalidation /*）」才會生效。
+  希望把「清快取」自動化：系上上傳完，系統自動清，不用每次手動、也不用每次麻煩 IT。
+  順便解決一個已遇到的狀況——上傳覆蓋檔案的那幾秒，S3 對正在替換的路徑會短暫回 403，
+  CloudFront 把該 403 也快取起來，導致上傳後短時間內整站看到 AccessDenied，要等快取過期才恢復。
+
+【設定 1：S3 上傳 → 自動清 CloudFront 快取（主要）】
+
+  原理：在該 S3 bucket 加一個「事件通知」，只要偵測到 index.html 被更新，
+        就觸發一個小程式（Lambda）自動對該 distribution 清 /* 快取。
+        （用 index.html 當觸發點＝每次部署只清一次；系上上傳整包時一定包含 index.html。）
+
+  (1) 建立 Lambda 函式（Runtime：Python 3.12 或相近），程式碼如下
+      （只需把 DISTRIBUTION_ID 換成該 distribution 的 ID）：
+
+      import boto3, time
+      cf = boto3.client('cloudfront')
+      DISTRIBUTION_ID = '在此填入該 CloudFront distribution ID'
+
+      def lambda_handler(event, context):
+          cf.create_invalidation(
+              DistributionId=DISTRIBUTION_ID,
+              InvalidationBatch={
+                  'Paths': {'Quantity': 1, 'Items': ['/*']},
+                  'CallerReference': str(time.time())
+              }
+          )
+          return {'ok': True}
+
+  (2) 給該 Lambda 的執行角色（IAM role）加上最小權限政策
+      （把 <帳號ID>、<distribution ID> 換成實際值）：
+
+      {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": "cloudfront:CreateInvalidation",
+            "Resource": "arn:aws:cloudfront::<帳號ID>:distribution/<distribution ID>"
+          }
+        ]
+      }
+
+      （另保留 AWS 內建的 AWSLambdaBasicExecutionRole，讓它能寫 CloudWatch Logs 便於查錯。）
+
+  (3) 該 S3 bucket → Properties（屬性）→ Event notifications（事件通知）→ 建立一條：
+        ・Event types：All object create events（s3:ObjectCreated:*）
+        ・Suffix（後綴過濾）：index.html
+        ・Destination（目標）：上面那個 Lambda 函式
+
+  完成後：系上每次上傳新版（含 index.html）→ S3 自動觸發 Lambda → 自動清 /* → 幾十秒後全站生效。
+  （備註：若某次只單獨改一支檔、沒一起上傳 index.html，那次不會自動觸發；正常整包部署一定含 index.html。）
+
+【設定 2：縮短「錯誤」的快取時間（解決上傳當下的短暫 403）】
+
+  ・請把該 distribution 對 4xx（尤其 403 / 404）的「錯誤快取最短時間」
+    （Custom Error Responses 的 Error Caching Minimum TTL，或對應 cache policy 的 Minimum TTL）
+    設為 0 或很短（如 5 秒）。
+  ・註：若已依「請求一」做了 SPA fallback（403/404 → /index.html, 200），403/404 已被轉成 200、
+    影響較小；但仍建議設短，避免其他 4xx 被長時間快取。
+
+
+════════════════════════════════════════════════
+費用說明（幾乎為零）
+════════════════════════════════════════════════
+・CloudFront invalidation：每月前 1000 條免費；每次部署只清一次 /*（算 1 條）→ 一天更新數十次也免費。
+・Lambda：此用量遠低於免費額度，實質不計費。
+
+
+════════════════════════════════════════════════
+若不方便設 Lambda（請求二的退路）
+════════════════════════════════════════════════
+只要確保〈給IT-前台上線需求清單〉提到的「CloudFront 建立 invalidation」權限，
+有確實給到系上那組金鑰帳號，系上就能自己在 Cyberduck（Info → Distribution / CloudFront）
+或用指令清快取——一樣不必每次麻煩 IT，只是需要系上手動按一下。
+
+
+════════════════════════════════════════════════
+需要 IT 回覆／提供
+════════════════════════════════════════════════
+1. 該 CloudFront distribution ID（若〈給IT-前台上線需求清單〉已提供則免）。
+2. 兩項設定完成、且 distribution 為 Deployed 後告知我們，我們會實際上傳一次、驗證是否生效。
+
+聯絡窗口：媒體傳達設計學系網站負責人（此文件由系上提供）。
