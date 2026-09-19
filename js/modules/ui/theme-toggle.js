@@ -104,7 +104,11 @@ function applyColorVars() {
   root.style.setProperty('--theme-overlay-25', `rgba(${fgRgb}, 0.25)`);
   // list 斑馬 strip（mode3）：顏色固定白、只 alpha 依 hue 亮暗——亮 hue 白較不顯需更濃(0.4)、暗 hue(0.15)。
   // lists.css body.mode-color 用 var(--list-zebra-strip)。user 2026-06-22。
-  root.style.setProperty('--list-zebra-strip', `rgba(255, 255, 255, ${isLightBg ? 0.4 : 0.15})`);
+  // 2026-09-18 起直接算成「白疊 bg」的實色 rgb（同 alpha 合成數學、視覺不變）：半透明白會透出
+  // 後方內容（atlas host/employ subchip 透星雲、create control-box），實色化杜絕。
+  const stripA = isLightBg ? 0.4 : 0.15;
+  const stripMix = (c) => Math.round(255 * stripA + c * (1 - stripA));
+  root.style.setProperty('--list-zebra-strip', `rgb(${stripMix(r)}, ${stripMix(g)}, ${stripMix(b)})`);
 
   // 互補 hue（hue + 180°）：footer 用，跟 body bg 永遠互補
   // 對應的對比文字色獨立算（互補色亮度跟原色不同，可能在 luminance threshold 兩側）

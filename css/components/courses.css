@@ -179,7 +179,7 @@
     font-size: var(--font-size-s);
     font-weight: 700;
     line-height: var(--line-height-s);   /* 照字級：text-s → 1.3（單行 pill 也跟 tier，對齊 about .class-group-label；user 08-13） */
-    color: rgba(0, 0, 0, 0.5);
+    color: #808080; /* 原 rgba(0,0,0,.5) 疊 mode1 白頁實色（inverse/color 由 themes 蓋）；legacy hex 保 sRGB 過渡 pacing */
     background: transparent;
     white-space: nowrap;
     cursor: pointer;   /* 可點＝點同 group 的 program btn（courses-section-switch.js） */

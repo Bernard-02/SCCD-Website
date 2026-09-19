@@ -150,7 +150,7 @@ body.mode-inverse .faculty-filter-btn:not(.active) .anchor-nav-inner,
 body.mode-inverse .activities-section-btn:not(.active) .anchor-nav-inner,
 body.mode-inverse .courses-program-btn:not(.active) .anchor-nav-inner {
   background-color: rgba(0, 0, 0, 1) !important;
-  color: rgba(255, 255, 255, 0.5) !important;
+  color: #808080 !important; /* 原 rgba(255,255,255,.5) 疊黑底實色。⚠️用 legacy hex 不用 color-mix：非 legacy 色過渡走 Oklab、hover fade 感覺拖長 */
 }
 
 body.mode-inverse .section-nav-btn.active .anchor-nav-inner,
@@ -183,7 +183,7 @@ body.mode-inverse .courses-program-btn.active .anchor-nav-inner {
  *     用 [style*="background"] 偵測 JS-set inline bg；inline color: #000000 已是 JS 設好的不需 CSS override
  *     :not([style*="background"]) 鎖 inactive default 避免 !important 蓋過 JS inline color */
 body.mode-inverse .courses-bfa-label:not([style*="background"]) {
-  color: rgba(255, 255, 255, 0.5) !important;
+  color: #808080 !important; /* 原 0.5 白疊黑頁實色；legacy hex 保 sRGB 過渡 pacing */
 }
 
 /* Hover override：inactive btn hover 時同 group 內 label 文字升到 100% 白
@@ -200,7 +200,7 @@ body.mode-inverse .courses-bfa-label:not([style*="background"]) {
 body.mode-inverse .activities-filter-btn:not(.active) .anchor-nav-inner,
 body.mode-inverse .courses-filter-btn:not(.active) .anchor-nav-inner {
   background-color: rgba(0, 0, 0, 1) !important;
-  color: rgba(255, 255, 255, 0.5) !important;
+  color: #808080 !important; /* 原 0.5 白疊黑底實色；legacy hex 保 sRGB 過渡 pacing */
 }
 
 body.mode-inverse .activities-filter-btn.active .anchor-nav-inner,
@@ -362,8 +362,8 @@ body.mode-inverse .legal-map-num {
 /* ===== About Anchor Nav ===== */
 /* inactive 字色用半透明白（0.5），對稱 standard 的半透明黑；hover 才升到 1.0 對比 */
 body.mode-inverse .anchor-nav-btn:not(.active) .anchor-nav-inner {
-  background-color: rgba(0, 0, 0, 0.5) !important;
-  color: rgba(255, 255, 255, 0.5) !important;
+  background-color: #000 !important; /* 原 rgba(0,0,0,.5)，實色化防透出後方內容（inverse 頁底=黑） */
+  color: #808080 !important; /* 原 0.5 白疊黑底實色；legacy hex 保 sRGB 過渡 pacing */
 }
 
 /* About 頁專用 override：底色不透明、文字半透明 theme-fg（對齊 standard mode 的 about 處理）
@@ -372,7 +372,7 @@ body.mode-inverse #anchor-nav .anchor-nav-btn:not(.active) .anchor-nav-inner,
 body.mode-inverse #mobile-anchor-strip .anchor-nav-btn:not(.active) .anchor-nav-inner,
 body.mode-inverse #sticky-events-nav .anchor-nav-btn:not(.active) .anchor-nav-inner {
   background-color: rgba(0, 0, 0, 1) !important;
-  color: rgba(255, 255, 255, 0.5) !important;
+  color: #808080 !important; /* 原 0.5 白疊黑底實色；legacy hex 保 sRGB 過渡 pacing */
 }
 
 body.mode-inverse .anchor-nav-btn.active .anchor-nav-inner {

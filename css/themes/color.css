@@ -396,6 +396,8 @@ body.mode-color .activities-filter-btn:not(.active) .anchor-nav-inner,
 body.mode-color .courses-filter-btn:not(.active) .anchor-nav-inner,
 body.mode-color .atlas-filter-btn:not(.active) .anchor-nav-inner {
   background-color: var(--theme-bg) !important;
+  /* 刻意留 rgba 半透明不實色化：btn 底=不透明 theme-bg、字不會透內容；且 flatten（color-mix 含 var(--theme-bg)）
+     會跟 hue loop 每 tick 變 → 上方保留的 transition:color 持續追目標、hover 回彈拖糊 */
   color: rgba(var(--theme-fg-rgb), 0.5) !important;
   opacity: 1;
   transition: color var(--dur-fast) var(--ease-standard),

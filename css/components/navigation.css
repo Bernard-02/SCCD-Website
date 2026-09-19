@@ -73,6 +73,8 @@
   @media (min-width: 768px) {
     /* === 內頁（有 has-active）：預設非 active 為半透明（沒 hover 時，跟 mode）=== */
     [data-bar="about"].has-active .nav-link:not(.active) {
+      /* 刻意留 rgba 半透明不實色化：bar 底不透明、字不會透內容；此條三 mode 共用（flatten 需逐 mode 拆，
+         且 mode3 含 var(--theme-bg) 會跟 hue loop 每 tick 變 → transition 持續追目標、hover 回彈拖糊） */
       color: rgba(var(--theme-fg-rgb), 0.5);
     }
 
@@ -227,9 +229,10 @@
        （Temporary 特設 / 年份）no-op；chip 被排除在 mb-en-zh utility 外（緊湊元件），改用 gap 補回間距免逐檔改 HTML/JS。
        用「text-s 字級」的英中距 token --space-en-zh-s（2px，獨立於 mb-en-zh 的 --space-en-zh 8px；調整點在 variables.css） */
     gap: var(--space-en-zh-s);
-    background: rgba(255, 255, 255, 0.5);
+    background: #fff; /* 原 rgba(255,255,255,.5)，實色化防透出後方內容（mode1 頁底=白；inverse/color 由 themes 蓋） */
     padding: 6px 8px 5px;
-    color: rgba(0, 0, 0, 0.5);
+    color: #808080; /* 原 rgba(0,0,0,.5) 疊白底的實色。⚠️必須用 legacy hex 不用 color-mix：color-mix 產非 legacy 色、
+                       hover 過渡會改走 Oklab 插值（前段停留深色、fade 感覺拖長），legacy hex 維持 sRGB 插值同舊 pacing */
     transition: all var(--dur-fast) var(--ease-standard);
   }
 
@@ -251,7 +254,7 @@
   #mobile-anchor-strip .anchor-nav-btn:not(.active) .anchor-nav-inner,
   #sticky-events-nav .anchor-nav-btn:not(.active) .anchor-nav-inner {
     background: rgba(255, 255, 255, 1);
-    color: rgba(var(--theme-fg-rgb), 0.55); /* 無障礙：0.5(3.5:1)→0.55(4.7:1) 剛過 WCAG AA 4.5:1 */
+    color: #737373; /* 原 rgba(theme-fg,.55) 疊白底實色（4.75:1 過 WCAG AA 4.5:1）；legacy hex 保 sRGB 過渡 pacing（color-mix 會走 Oklab） */
   }
 
   /* Hover 效果：僅桌面版 */
