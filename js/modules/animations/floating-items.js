@@ -58,9 +58,9 @@ function normalizeImagePath(src) {
 
 // 活動海報 + summer-camp + library 文件/相簿封面：分四個 category 各自回傳（floating 依 category 均分、不再混為一池）。
 // 不洗牌/不截斷/不重複填充——均分與去重交給 initFloatingItems 的 category 輪替邏輯。
-// 2026-09-15 user 指示：首頁暫時隱藏 activities / admission(summer-camp) / album 三類浮卡——連 fetch 都不發；
-// files / curriculum / awards 不受影響。要恢復把 SHOW_ACT_CAMP_ALBUM 改回 true。
-const SHOW_ACT_CAMP_ALBUM = false;
+// 2026-09-19 coming soon 拆除、恢復顯示（原 09-15 暫時隱藏 activities / admission(summer-camp) / album 三類浮卡）；
+// 要再隱藏把 SHOW_ACT_CAMP_ALBUM 改 false（false 時連 fetch 都不發，files / curriculum / awards 不受影響）。
+const SHOW_ACT_CAMP_ALBUM = true;
 async function fetchActivityPosters() {
   const activities = [];
   const summerCamp = [];
