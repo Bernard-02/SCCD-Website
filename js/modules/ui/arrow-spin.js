@@ -6,17 +6,20 @@
 const MIN = -4, MAX = 6;
 const SPAN = MAX - MIN;
 
+// 抽新角：避開近 0（看起來像沒轉）＋跟現角至少差 SPAN/4（否則抽到相近角＝視覺無變化）。
+// 角度由別的系統持有的元素（footer 散佈卡＝GSAP rotation）直接拿現角來抽
+export function randomSpinAngle(from) {
+  let r = from;
+  while (Math.abs(r) < 0.5 || Math.abs(r - from) < SPAN / 4) {
+    r = +(Math.random() * SPAN + MIN).toFixed(2);
+  }
+  return r;
+}
+
 export function bindArrowSpin(el, setAngle, { initial = 0, onCommit, ignoreEnter } = {}) {
   let committed = initial;
   let pending = null;   // hover 預覽角（about tab 的 _pendingRot）
-  const rand = () => {
-    // 避開近 0（看起來像沒轉）＋跟現角至少差 SPAN/4（否則抽到相近角＝視覺無變化）
-    let r = committed;
-    while (Math.abs(r) < 0.5 || Math.abs(r - committed) < SPAN / 4) {
-      r = +(Math.random() * SPAN + MIN).toFixed(2);
-    }
-    return r;
-  };
+  const rand = () => randomSpinAngle(committed);
   // hover 只綁桌面（矮橫向 gate 同 landscape.css）
   if (window.innerWidth >= 768 && !window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) {
     el.addEventListener('mouseenter', () => {

@@ -81,6 +81,8 @@ let isStandby = false;
 let isTransitioning = false;
 let initialized = false;
 let atlasMounted = false;
+/** @type {(() => void) | null} 背景分頁進待機時掛的一次性 visibilitychange listener（見 armMountOnVisible） */
+let pendingMountOnVisible = null;
 let savedLogoSize = null;
 /** @type {{ el: HTMLElement, parent: Node | null, nextSibling: Node | null, style: string } | null} */
 let liftedLogoData = null;
@@ -166,6 +168,9 @@ async function mountStandbyAtlas(instant) {
   const overlay = ensureOverlay();
   overlay.innerHTML = ATLAS_MAIN_HTML;
   overlay.style.pointerEvents = 'auto';
+  // 上一輪退場切片把 overlay 設了 display:none；若新一輪在 idle 收尾跑完前進場（收尾有 isStandby guard
+  // 會跳過還原）display 會殘留 none＝待機隱形 → mount 時一律重置（09-25 切片收尾的配套）
+  overlay.style.display = '';
 
   const main = /** @type {HTMLElement|null} */ (overlay.querySelector('#atlas-main'));
   if (main) main.style.opacity = '0';
@@ -217,6 +222,31 @@ function fadeAtlasMain(to) {
 function setStandbyAtlasVisible() {
   const main = /** @type {HTMLElement|null} */ (document.querySelector('#idle-standby-overlay #atlas-main'));
   if (main) main.style.opacity = '1';
+}
+
+// 背景分頁進待機（09-25）：不在隱藏期間真 mount——隱藏分頁不跑 rendering pipeline，
+// ~7500 節點＋431 顆 will-change 合成層的首繪/光柵化/GPU 上傳會全欠到「切回分頁的第一幀」一次付清
+// ＝user 報「回到畫面非常卡」的主因。改成：立旗標，切回可見的**下一幀**才 mount（instant 定態、
+// 無 fade/intro）——底頁先便宜地畫出來、standby 首繪落在後續幀，「切回來已是待機」體驗幾乎不變。
+function armMountOnVisible() {
+  if (pendingMountOnVisible) return;
+  const onVisible = () => {
+    if (document.hidden) return;   // 只認 hidden→visible
+    disarmMountOnVisible();
+    requestAnimationFrame(async () => {
+      if (!isStandby || isTransitioning || atlasMounted || isOnAtlas()) return;
+      await mountStandbyAtlas(true);
+      setStandbyAtlasVisible();
+    });
+  };
+  pendingMountOnVisible = onVisible;
+  document.addEventListener('visibilitychange', onVisible);
+}
+
+function disarmMountOnVisible() {
+  if (!pendingMountOnVisible) return;
+  document.removeEventListener('visibilitychange', pendingMountOnVisible);
+  pendingMountOnVisible = null;
 }
 
 function tweenLogoShrink(instant) {
@@ -329,9 +359,13 @@ async function enterStandby() {
   document.body.classList.add('idle-standby');
 
   if (!isOnAtlas()) {
-    // 5. mount overlay atlas：非 instant＝先空白底 fade in、內容走 atlas 分批點燈 intro（mount 內處理）
-    await mountStandbyAtlas(instant);
-    if (instant) setStandbyAtlasVisible();   // 背景分頁：直接定態，不動畫
+    if (instant) {
+      // 背景分頁：不真 mount，切回可見的下一幀才掛（09-25，見 armMountOnVisible 註解）
+      armMountOnVisible();
+    } else {
+      // 5. mount overlay atlas：先空白底 fade in、內容走 atlas 分批點燈 intro（mount 內處理）
+      await mountStandbyAtlas(false);
+    }
   }
 
   isTransitioning = false;
@@ -340,6 +374,7 @@ async function enterStandby() {
 async function exitStandby() {
   if (!isStandby || isTransitioning) return;
   isTransitioning = true;
+  disarmMountOnVisible();   // 背景進待機、還沒切回就退出（防禦）：撤掉待掛的 mount
 
   // 待機離場時原頁內容也 fade in（user 2026-09-12）：此刻仍被不透明 overlay 蓋住 → 同步壓 opacity:0
   // 不會閃，再與 overlay fade out 同時 crossfade 回來（背景色都是 --theme-bg → 底不破）。
@@ -368,28 +403,51 @@ async function exitStandby() {
   await Promise.all([logoRestorePromise, atlasFadeOutPromise, pageFadeInPromise]);
   if (pageContent) pageContent.style.opacity = '';   // 清掉 inline opacity，不殘留干擾後續換頁/主題過場
 
-  // ── 先「露出 index」：移除 body class + 還原 logo（同步：使用者碰 header 前 logo 要就位）──
+  // ── overlay 先脫離 render tree（09-25）：已 opacity:0，display:none 是最便宜的一步——
+  // 讓下一步摘 body class 的全文件 style recalc 不再掃 7500 節點的 atlas 子樹，
+  // 殘留 DOM 也保證不吃點擊、不被看到。
+  const overlay = document.getElementById('idle-standby-overlay');
+  if (overlay) {
+    overlay.style.pointerEvents = 'none';
+    overlay.style.display = 'none';
+  }
+
+  // ── 露出原頁：移除 body class + 還原 logo（同步：使用者碰 header 前 logo 要就位）──
   document.body.classList.remove('idle-standby');
   restoreInverseLogo();   // 條件式：savedLogoType===null 時 no-op
   restoreLogoFromBody();  // logo DOM 還回 header（lifted 期間浮在 body root z:10001）
-  // overlay 此時已 opacity:0；立刻設 pointer-events:none，讓殘留一兩幀的 atlas DOM 不吃點擊
-  const overlay = document.getElementById('idle-standby-overlay');
-  if (overlay) overlay.style.pointerEvents = 'none';
 
   isStandby = false;
   isTransitioning = false;
   // 過場期間 activity event 被 isTransitioning 擋掉沒重置 timer → 主動 reset 一次保證新一輪倒數從現在起算
   resetTimer();
 
-  // 重的收尾延到後一兩幀，避開 index reveal 幀：overlay 已 opacity:0 + pointer-events:none，
-  // 晚一拍拆 DOM / refresh 看不出，但 index 的 rAF 先拿到乾淨的幀、不掉格。
+  // 重收尾切片（09-25）：原本 cleanupAtlas＋innerHTML=''（拆 ~7500 節點）＋ScrollTrigger.refresh（全頁
+  // forced layout）擠在同一個 double-rAF callback＝喚醒後第 3 幀必吃一根長幀（06-30 只把這批「延後兩幀」、
+  // 沒切片）。拆成三個獨立 task：隔兩幀 cleanupAtlas（殺 tween/listener）→ idle 拆 DOM → 再 idle 跑 refresh。
+  // rIC 必帶 timeout：index 動畫（floating/lottie）恢復後每幀都忙＝無 timeout 的 idle callback 會餓死，
+  // 拆 DOM / ST.refresh 永遠不跑（headless 實測 +900ms 未執行）→ 500ms 保底、仍避開喚醒頭幾幀
+  const ric = /** @type {(fn: () => void) => void} */ (
+    window.requestIdleCallback
+      ? (fn) => window.requestIdleCallback(fn, { timeout: 500 })
+      : (fn) => setTimeout(fn, 200)
+  );
   requestAnimationFrame(() => requestAnimationFrame(() => {
-    unmountStandbyAtlas();  // cleanupAtlas + overlay.innerHTML=''（拆掉整個待機 atlas）
-    // ScrollTrigger.refresh：standby overlay (fixed z:10000) 進過 body 可能改變 layout → 不 refresh 的話
-    // degree-show-detail sticky title group / branch chip 會用過時 trigger 位置（延後不可刪）。
-    if (typeof window !== 'undefined' && /** @type {any} */ (window).ScrollTrigger) {
-      /** @type {any} */ (window).ScrollTrigger.refresh();
-    }
+    if (isStandby) return;   // 防禦：期間又進了待機（3 分鐘計時下理論不可能）
+    if (atlasMounted) atlasApi.cleanupAtlas();
+    ric(() => {
+      if (isStandby) return;
+      const ov = document.getElementById('idle-standby-overlay');
+      if (ov) { ov.innerHTML = ''; ov.style.display = ''; ov.style.pointerEvents = 'none'; }
+      atlasMounted = false;
+      ric(() => {
+        // ScrollTrigger.refresh：standby overlay (fixed z:10000) 進過 body 可能改變 layout → 不 refresh 的話
+        // degree-show-detail sticky title group / branch chip 會用過時 trigger 位置（延後可、刪不可）。
+        if (typeof window !== 'undefined' && /** @type {any} */ (window).ScrollTrigger) {
+          /** @type {any} */ (window).ScrollTrigger.refresh();
+        }
+      });
+    });
   }));
 }
 

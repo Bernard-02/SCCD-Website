@@ -95,9 +95,20 @@ export function scrollWindowNoSnap(targetY, { duration = DUR.medium, ease = EASE
       onInterrupt: () => { cancelHeldRestore(); html.style.scrollSnapType = ''; },  // 使用者中斷＝正在互動，立即交回磁吸
     });
   } else {
-    window.scrollTo({ top: targetY, behavior: 'smooth' });
-    // native smooth 無完成事件 → 依距離(px≈ms)估時，夾 0.4~1.2s
+    // 多數頁沒載 ScrollToPlugin（只 index 等 5 頁有）→ native smooth：scrollend 一到就收尾；
+    // 不支援 scrollend 的瀏覽器 / 距離 0 不捲動 → 依距離(px≈ms)估時兜底，夾 0.4~1.2s
     const ms = Math.min(1200, Math.max(400, Math.abs(targetY - window.scrollY)));
-    setTimeout(() => { holdSnapUntilInteract(html); onComplete && onComplete(); }, ms);
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      window.removeEventListener('scrollend', finish);
+      clearTimeout(timer);
+      holdSnapUntilInteract(html);
+      onComplete && onComplete();
+    };
+    const timer = setTimeout(finish, ms);
+    window.addEventListener('scrollend', finish);
+    window.scrollTo({ top: targetY, behavior: 'smooth' });
   }
 }

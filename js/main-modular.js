@@ -171,10 +171,11 @@ function revealHeaderWhenReady() {
     const header = /** @type {HTMLElement | null} */ (document.querySelector('#site-header header'));
     if (!header) return;
     header.style.opacity = '1';
-    // pointer-events:auto 只在「完全顯示後」才給：opacity 是淡入的（typography 白名單 transition）→ 淡入中隱形卻可點＝
-    // mode btn 有 pointer cursor＋可點（user 2026-09-04）。輪詢 opacity 至 ~1 才開互動（隱形時 CSS pe:none，見 index.html）
+    // 互動只在「完全顯示後」才開：opacity 是淡入的（typography 白名單 transition）→ 淡入中隱形卻可點＝
+    // mode btn 有 pointer cursor＋可點（user 2026-09-04）。輪詢 opacity 至 ~1 才開（隱形時 --header-pe:none，見 index.html）。
+    // 開的是 --header-pe 不是 header 本體 pe：本體恆 none 讓中間空白放行（navigation.css header 放行規則）
     const enablePE = () => {
-      if (parseFloat(getComputedStyle(header).opacity) >= 0.99) header.style.pointerEvents = 'auto';
+      if (parseFloat(getComputedStyle(header).opacity) >= 0.99) header.style.setProperty('--header-pe', 'auto');
       else requestAnimationFrame(enablePE);
     };
     requestAnimationFrame(enablePE);
@@ -200,6 +201,14 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
   if (labelRoot.querySelector('[data-label-key]')) {
     loadUiLabels().then(map => applyUiLabels(map, labelRoot));
   }
+
+  // 分頁標題跟後台 nav 名（HTML <title> 靜態值＝爬蟲 / 斷線 fallback；無 nav.* key 的頁不動）。
+  // header 已抓過 ui_labels → 吃 single-flight 快取不多打請求；回來時 title 已被 router 換掉＝使用者已離頁，不蓋
+  const staticTitle = document.title;
+  loadUiLabels().then(map => {
+    const en = map[`nav.${page === 'generate' ? 'create' : page}`]?.en;
+    if (en && document.title === staticTitle) document.title = `${en} - SCCD`;
+  });
 
   // Hero animation 所有頁面都跑（有 hero section 就會觸發）
   // 例外：degree-show-detail 的 hero 文字由 async fetch 填入，必須等 data loader 設好 textContent 後再呼叫，
@@ -604,6 +613,15 @@ document.addEventListener('DOMContentLoaded', function () {
   initShareModal();
   initModeColorPanel();      // mode3 背景色編輯浮動面板（右下鉛筆 → 展開色環）
   initOrientationReload();   // 手機轉向跨 landscape gate 自動 reload（/create 例外），免手動刷新
+
+  // Lottie 分頁隱藏凍結（09-25，user 報切回分頁時旋轉 logo 跳一下）：lottie-web 以 rAF 間的真實時間差推進，
+  // 分頁隱藏時 rAF 停、時鐘照走 → 切回首幀把整段隱藏時間一次推進（對 loop 取模）＝相位瞬跳；GSAP 有內建
+  // lagSmoothing、lottie 沒有。freeze 停排程、unfreeze 重啟走 first() 重置基準時鐘＝從原幀無縫續播。
+  // document 級一次性、蓋 header/footer/intro 全部 Lottie 實例；typeof 在事件當下判＝CDN defer 晚載也安全。
+  document.addEventListener('visibilitychange', () => {
+    if (typeof lottie === 'undefined') return;
+    if (document.hidden) lottie.freeze(); else lottie.unfreeze();
+  });
 
   // 全站禁右鍵下載 img / svg / video（嚇阻隨手「另存」；對齊 PDF viewer 的 contextmenu 防護）
   // document 級單一 listener：涵蓋 SPA 換頁後動態載入的圖／影片，免每頁重綁。

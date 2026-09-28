@@ -6,6 +6,13 @@ import { registerPageCleanup } from './page-cleanup.js';
  * IntersectionObserver isIntersecting=false 同時涵蓋「捲出視窗」與「display:none」兩種離開，一條解決。
  * SPA 換頁 innerHTML swap 已移除元素、再加 page-cleanup disconnect 兜底避免跨頁殘留。
  */
+// 單顆暫停（IO 離窗、about works 換 tab 皆用）：原生 <video> → pause()；YT iframe → postMessage（需 enablejsapi=1）
+export function pauseVideoEl(el) {
+  if (!el) return;
+  if (el.tagName === 'VIDEO') el.pause();
+  else el.contentWindow?.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+}
+
 export function pauseVideosOffscreen(els) {
   const list = Array.from(els || []).filter(Boolean);
   if (!list.length || !('IntersectionObserver' in window)) return;
@@ -20,9 +27,7 @@ export function pauseVideosOffscreen(els) {
   const io = new IntersectionObserver(entries => {
     entries.forEach(e => {
       if (e.isIntersecting) return;   // 只在完全離開視窗（或被 hidden）時暫停
-      const el = e.target;
-      if (el.tagName === 'VIDEO') el.pause();
-      else el.contentWindow?.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+      pauseVideoEl(e.target);
     });
   }, { threshold: 0 });
 
