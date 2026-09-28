@@ -2,90 +2,29 @@
   <!-- 無障礙 Phase 1：鍵盤 Tab 第一站，跳過導航直達主內容（#page-content 跨 SPA 換頁恆在） -->
   <a href="#page-content" class="skip-link">跳到主要內容 Skip to content</a>
   <div class="site-container">
-    <!-- 桌面版：整排 flex，1rem top padding -->
-    <div class="hidden md:flex items-center pt-[2.5rem]">
+    <!-- 桌面版：整排 flex，items-start＝logo 與 mode/menu 鈕頂對齊（pt 48）。
+         h-24 固定 96：logo（180/100）in-flow 但溢出列底，不撐高 header（--header-height 全站版面在用） -->
+    <div class="hidden md:flex items-start pt-[3rem] h-24 relative z-50">
 
-      <!-- Logo -->
-      <div class="relative flex-shrink-0 z-10">
-        <a href="../index.html" class="absolute -top-4 left-0 z-50" aria-label="SCCD 首頁 Home">
-          <div id="header-logo" class="w-[180px] h-[180px]"></div>
-        </a>
-        <!-- 佔位撐開 logo 寬度 -->
-        <div class="w-[180px] h-[56px]"></div>
-      </div>
-
-      <!-- About ~ Admission 組（矩形，左邊往 logo 後面延伸） -->
-      <div data-bar="about" class="flex-shrink-0 ml-2xl bg-white rounded-none">
-        <nav>
-          <ul class="flex items-center gap-xl px-xs py-xs">
-            <li><a href="about.html" class="nav-link"><span data-label-key="nav.about" data-label-part="en">About</span><span class="nav-link-cn"><span class="nav-link-cn-i" data-label-key="nav.about" data-label-part="zh">關於</span></span></a></li>
-            <li><a href="faculty.html" class="nav-link"><span data-label-key="nav.faculty" data-label-part="en">Faculty</span><span class="nav-link-cn"><span class="nav-link-cn-i" data-label-key="nav.faculty" data-label-part="zh">師資</span></span></a></li>
-            <li><a href="curriculum.html" class="nav-link"><span data-label-key="nav.curriculum" data-label-part="en">Curriculum</span><span class="nav-link-cn"><span class="nav-link-cn-i" data-label-key="nav.curriculum" data-label-part="zh">課程</span></span></a></li>
-            <li><a href="activities.html" class="nav-link"><span data-label-key="nav.activities" data-label-part="en">Activities</span><span class="nav-link-cn"><span class="nav-link-cn-i" data-label-key="nav.activities" data-label-part="zh">動態</span></span></a></li>
-            <li><a href="admission.html" class="nav-link"><span data-label-key="nav.admission" data-label-part="en">Admissions</span><span class="nav-link-cn"><span class="nav-link-cn-i" data-label-key="nav.admission" data-label-part="zh">入學</span></span></a></li>
-          </ul>
-        </nav>
-      </div>
-
-      <!-- Alumni Full Bar — 預設隱藏，body.page-alumni 時 clip-reveal 從左進場、padding 同 about-bar (px-xs py-xs)。
-           白底黑字（跟 about-bar 同款），單獨一個 bar 方便動畫獨立控制 -->
-      <div data-bar="alumni-full" class="flex-shrink-0 ml-2xl bg-white rounded-none" style="display: none;">
-        <nav>
-          <ul class="flex items-center gap-xl px-xs py-xs">
-            <li><a href="alumni.html" class="nav-link"><span data-label-key="nav.alumni" data-label-part="en">Alumni Association</span><span class="nav-link-cn"><span class="nav-link-cn-i" data-label-key="nav.alumni" data-label-part="zh">系友會</span></span></a></li>
-          </ul>
-        </nav>
-      </div>
+      <!-- Logo（2026-09-27 由 absolute -top-4 改 in-flow）：relative＝/create typewriter 的 absolute SCCD svg/cursor 定位框 -->
+      <a href="../index.html" class="relative flex-shrink-0 z-10" aria-label="SCCD 首頁 Home">
+        <div id="header-logo" class="w-[180px] h-[180px]"></div>
+      </a>
 
       <!-- 彈性空間，把右側組推到最右 -->
       <div class="flex-1"></div>
 
-      <!-- AA 小 bar（系友會入口）：hover 時 .nav-link-cn 展開「系友會」
-           點擊：JS 觸發 lightbox-style 收起所有 bars + alumni-full bar clip-reveal 從左進場（同一頁面 body.page-alumni 切換）
-           padding 對齊 about-bar inner items：px-xs py-xs -->
-      <!-- TEMP HIDDEN 2026-05-21：AA 頁面暫時隱藏，header 不渲染系友會入口
-      <div data-bar="alumni" class="flex-shrink-0 bg-black ml-lg" style="transition: background var(--dur-base) ease;">
-        <div class="px-xs py-xs">
-          <a href="alumni.html" class="nav-link text-white"><span>AA</span><span class="nav-link-cn">系友會</span></a>
-        </div>
-      </div>
-      -->
-
-
-      <!-- Library 組 -->
-      <div data-bar="library" class="flex-shrink-0 bg-black ml-lg" style="transition: background var(--dur-base) ease;">
-        <div class="px-xs py-xs">
-          <a href="library.html" class="nav-link text-white"><span data-label-key="nav.library" data-label-part="en">Library</span><span class="nav-link-cn"><span class="nav-link-cn-i" data-label-key="nav.library" data-label-part="zh">檔案室</span></span></a>
-        </div>
-      </div>
-
-      <!-- Atlas 組 -->
-      <div data-bar="atlas" class="flex-shrink-0 bg-black ml-lg" style="transition: background var(--dur-base) ease;">
-        <div class="px-xs py-xs">
-          <a href="atlas.html" class="nav-link text-white"><span data-label-key="nav.atlas" data-label-part="en">Atlas</span><span class="nav-link-cn"><span class="nav-link-cn-i" data-label-key="nav.atlas" data-label-part="zh">圖譜</span></span></a>
-        </div>
-      </div>
-
-      <!-- TEMP HIDDEN 2026-05-26：Alumni 頁暫時隱藏（user 要求），header 桌面不渲染系友會入口
-      <div data-bar="alumni" class="flex-shrink-0 bg-black ml-lg" style="transition: background var(--dur-base) ease;">
-        <div class="px-xs py-xs">
-          <a href="alumni.html" class="nav-link text-white"><span>A.A.</span><span class="nav-link-cn">系友會</span></a>
-        </div>
-      </div>
-      -->
-      <!-- /TEMP HIDDEN -->
-
-      <!-- Generate 組 -->
-      <div data-bar="generate" class="flex-shrink-0 bg-black ml-lg" style="transition: background var(--dur-base) ease;">
-        <div class="px-xs py-xs">
-          <a href="create.html" class="nav-link text-white"><span data-label-key="nav.create" data-label-part="en">CREATE!</span><span class="nav-link-cn"><span class="nav-link-cn-i" data-label-key="nav.create" data-label-part="zh">創造！</span></span></a>
-        </div>
-      </div>
-
-      <!-- Mode 按鈕（圓底）；ml-xl＝獨自離 CREATE! 遠一級（48px），其餘 bar 維持 ml-lg 32px 節奏（user 2026-09-13） -->
-      <div id="mode-btn" data-bar="mode" class="flex-shrink-0 flex items-center justify-center ml-xl rounded-full" style="transition: background var(--dur-base) ease;">
+      <!-- Mode 按鈕（圓底）＋漢堡（方底）：2026-09-27 桌面 nav bars 全拆、改漢堡開 .mobile-nav 面板（≥1200 樣式見 navigation.css）。
+           兩顆底色＝theme-fg 反色（mode1 黑底 / mode2 白底，buttons.css）；漢堡共用 .mobile-menu-btn → mobile-menu.js 一起綁。
+           兩顆間距 ml-md 24＝library 灰卡 next 鈕 → mode → 漢堡三顆等距（library-card.js DESK_RIGHT，user 2026-09-27） -->
+      <div id="mode-btn" data-bar="mode" class="flex-shrink-0 flex items-center justify-center rounded-full" style="transition: background var(--dur-base) ease;">
         <button class="theme-toggle-btn" aria-label="Toggle theme mode">
           <span class="icon icon-mode-1" data-header-mode-icon></span>
+        </button>
+      </div>
+      <div id="menu-btn" data-bar="menu" class="flex-shrink-0 flex items-center justify-center ml-md">
+        <button class="mobile-menu-btn w-full h-full flex items-center justify-center" aria-label="Toggle menu" aria-expanded="false" aria-controls="mobile-nav-panel">
+          <span class="icon icon-menu" data-menu-swap-icon></span>
         </button>
       </div>
 
@@ -159,6 +98,12 @@
     </div>
   </div>
 </header>
+
+<!-- 桌面（≥1200）左下「當前頁」卡：#page-indicator＝旋轉遮罩、內層＝卡（navigation.css 檔尾）；文字由 header.js updateNavActive 填。
+     跟著內容走＝原生 sticky（同 nav btn），所以放 fixed header 外：#page-indicator-track 是隱形軌道（absolute，
+     hero 底 → footer 頂，header.js layoutPageIndicatorTrack 寫 top/height），卡在軌道底端 sticky。z 同 header（50）→
+     slide-in / lightbox overlay 照樣蓋住；首頁不填字（:empty 藏） -->
+<div id="page-indicator-track" aria-hidden="true"><div id="page-indicator"><div class="page-indicator-card"></div></div></div>
 
 <!-- 全站手機 header 底色帶：header 三 mode 皆透明，手機時 logo/漢堡/mode 鈕後方會透出頁面內容。
      此 fixed 帶用 mode-aware var(--theme-bg) 補實頂部 92px。sibling of <header>（#site-header 是 static → root

@@ -97,18 +97,19 @@ export function ensureIconClipWrap(iconEl) {
 
 const _ICON_REVEAL_DIRS = [{ yPercent: -100 }, { yPercent: 100 }, { xPercent: -100 }, { xPercent: 100 }];
 // 隨機四向：滑出遮罩 → 換 icon class → 同向滑入（= hide 的時間反向，連續不跳）
-export function clipRevealIconSwap(iconEl, newClass) {
+// duration＝每半段秒數（總長 ×2）；預設 0.4（mcp cap 鈕）、桌面漢堡鈕傳 DUR.fast 讓總長貼齊選項收起
+export function clipRevealIconSwap(iconEl, newClass, { duration = 0.4 } = {}) {
   if (!iconEl) return;
   if (typeof gsap === 'undefined') { if (newClass) iconEl.className = newClass; return; }
   ensureIconClipWrap(iconEl);
   const dir = _ICON_REVEAL_DIRS[Math.floor(Math.random() * 4)];
   gsap.killTweensOf(iconEl);
   gsap.to(iconEl, {
-    ...dir, duration: 0.4, ease: 'power2.out', overwrite: true,
+    ...dir, duration, ease: 'power2.out', overwrite: true,
     onComplete: () => {
       if (newClass) iconEl.className = newClass;
       gsap.fromTo(iconEl, dir,
-        { xPercent: 0, yPercent: 0, duration: 0.4, ease: 'power2.out', clearProps: 'transform', overwrite: true });
+        { xPercent: 0, yPercent: 0, duration, ease: 'power2.out', clearProps: 'transform', overwrite: true });
     },
   });
 }
@@ -279,6 +280,22 @@ export function pickNavDir(el) {
   const w = el.offsetWidth || 0, h = el.offsetHeight || 0;
   const pair = w >= h ? ['top', 'bottom'] : ['left', 'right'];
   return pair[Math.random() < 0.5 ? 0 : 1];
+}
+
+// ── viewport-cull：大批元素同幀動畫前先切掉視窗外的（效能鐵則「切分頁 reveal/exit 加 viewport-cull」）──
+// clip-path+translate 模擬 clip-reveal 每幀逐張 repaint，幾十張同幀跑在降頻機（拔電筆電）單幀爆 33ms 預算＝整片卡死。
+// 視窗外的本來就看不到 → caller 對 off 組 snap 終態不動畫。margin 放寬邊界：捲動觸發的進場給 ~1 螢幕高
+// （緊接著捲入的下一屏仍看得到動畫），原地切換/退場給小值即可。只讀 rect 不寫 style，寫的部分留給 caller（讀寫分離）。
+/** @param {Element[]} els @param {number} [margin] @returns {{ on: Element[], off: Element[] }} */
+export function cullByViewport(els, margin = 200) {
+  const vh = window.innerHeight;
+  /** @type {Element[]} */ const on = [];
+  /** @type {Element[]} */ const off = [];
+  els.forEach(el => {
+    const r = el.getBoundingClientRect();
+    if (r.bottom < -margin || r.top > vh + margin) off.push(el); else on.push(el);
+  });
+  return { on, off };
 }
 
 // 隱藏態 { clipPath, translate }：dir 由 caller 傳（各頁用 pickNavDir + Map）；預設 'bottom' 只是保底。

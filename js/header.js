@@ -3,9 +3,10 @@
  * 處理導航列、手機選單、Logo 動畫與滾動隱藏
  */
 
-import { initMobileMenu } from './mobile-menu.js';
+import { initMobileMenu, closeMobileMenu } from './mobile-menu.js';
 import { getHeaderTargets } from './modules/lightbox/lightbox-shell.js';
 import { DUR, EASE } from './modules/ui/motion.js';
+import { prefersReducedMotion } from './modules/ui/reduce-motion.js';
 import { sitePath } from './modules/ui/site-base.js';
 import { loadUiLabels, applyUiLabels } from './modules/ui/ui-labels.js';
 
@@ -51,6 +52,9 @@ function footerHideLogo(opts = {}) {
   if (t.mask) {
     gsap.killTweensOf(t.mask, 'yPercent');
     t.mask.style.overflow = 'hidden';
+    // header 本體已放行（navigation.css），<a> 遮罩是自己吃事件的互動容器：logo 滑出後框還在原位，
+    // 會搶走底下內容的點擊（手機 about 錨點列點 Vision 跳回首頁，2026-09-28 驗出）→ 收起起就不可點，展開起才還原
+    t.mask.style.pointerEvents = 'none';
     gsap.to(t.mask, { yPercent: -100 * LOGO_HIDE_COUNTER, ...vars });
   }
   gsap.to(t.logo, { yPercent: 100, ...vars });
@@ -63,6 +67,8 @@ function footerShowLogo(opts = {}) {
   if (t.mask) {
     gsap.killTweensOf(t.mask, 'yPercent');
     t.mask.style.overflow = 'hidden';
+    // 展開起就還原可點（滑回視野中）：綁在 onComplete 會被 lightbox 存 cssText / 換頁 killTweensOf 跳過而卡 none
+    t.mask.style.pointerEvents = '';
     gsap.to(t.mask, { yPercent: 0, ...vars });
   }
   gsap.to(t.logo, {
@@ -83,6 +89,7 @@ function resetFooterLogoState() {
     gsap.killTweensOf(t.mask, 'yPercent');
     gsap.set(t.mask, { clearProps: 'transform' });
     t.mask.style.overflow = '';
+    t.mask.style.pointerEvents = '';
   }
 }
 
@@ -201,6 +208,45 @@ function resetFooterBarsState() {
   bars.forEach(clearBarMask);
 }
 
+// 左下「當前頁」卡不收、跟著內容走＝原生 sticky（user 2026-09-27「不需要收起，跟畫面一起上去，像 nav btn」；
+// 前一版在 scroll 事件寫 translate，永遠比合成器的捲動慢一幀＝「往下會抖」，已棄）。
+// 卡在 #page-indicator-track 底端 sticky bottom 48（navigation.css）；這裡只給軌道範圍＝hero 底 → footer 頂
+// （沒 hero 從頁頂；footer 藏起來的單屏頁 library / atlas / create 到視窗底）→ hero 還在時卡被軌道頂擋在畫面下、
+// 進主內容跟著升上來，footer 來時停在軌道底被帶著往上走。捲動零 JS；換頁 / resize / 內容長高（main ResizeObserver）才重算。
+// 座標＝文件座標（軌道 absolute、祖先皆 static → containing block 是文件原點）。⚠️不能拿 body 的 rect 當原點：
+// library 首個 section 的 margin-top 會穿透到 body、body 頂落在 96 → 卡整個高 96（實測）
+function layoutPageIndicatorTrack() {
+  const track = document.getElementById('page-indicator-track');
+  if (!track || getComputedStyle(track).display === 'none') return;   // <1200 / 矮橫向
+  const hero = document.querySelector('#page-content .hero-rand-grid, #page-content .hero-logo-wrapper')?.closest('section');
+  const footer = getVisibleFooter();
+  const top = hero ? hero.getBoundingClientRect().bottom + window.scrollY : 0;
+  const bottom = (footer ? footer.getBoundingClientRect().top : window.innerHeight) + window.scrollY;
+  track.style.top = `${Math.round(top)}px`;
+  track.style.height = `${Math.max(0, Math.round(bottom - top))}px`;
+}
+// 左下「當前頁」卡離頁退場（user 2026-09-28「當前頁卡也要同步出場」）：跟 hero / nav chips 同拍＝DUR.base + EASE.exit、
+// yPercent 沉入 #page-indicator 遮罩（進場的反向）；router loadPage 跟頁面退場並行 await。卡在畫面外（hero 頁起點、
+// <1200 軌道 display:none、空卡）不跑。同頁重點也會退 → 旗標讓 updateNavActive 同頁分支補揭露（否則卡就此消失）
+let _indCardExited = false;
+export function playPageIndicatorExit() {
+  const indCard = /** @type {HTMLElement | null} */ (document.querySelector('#page-indicator .page-indicator-card'));
+  if (!indCard || !indCard.innerHTML || typeof gsap === 'undefined' || prefersReducedMotion()) return Promise.resolve();
+  const r = /** @type {HTMLElement} */ (indCard.parentElement).getBoundingClientRect();
+  if (r.height === 0 || r.bottom <= 0 || r.top >= window.innerHeight) return Promise.resolve();
+  _indCardExited = true;
+  return new Promise(resolve => {
+    gsap.to(indCard, { yPercent: 110, duration: DUR.base, ease: EASE.exit, overwrite: true, onComplete: resolve });
+  });
+}
+// 第一個可見的 footer（index 同時有 #site-footer-static 跟空的 #site-footer container → 取 offsetHeight>0 的）
+function getVisibleFooter() {
+  for (const f of document.querySelectorAll('footer')) {
+    if (f.offsetHeight > 0) return f;
+  }
+  return null;
+}
+
 // lightbox / PDF viewer 開啟時要把 footer-near hide state 清零，否則 bars 仍卡 clip-path
 // （body lock scroll 期間 scroll listener 不 fire → barsHidden 殘留 true）
 // activities 頁可 scroll 才會中招，library 是 h-screen overflow-hidden 不會
@@ -230,7 +276,7 @@ export const GEN_LOGO_LAYOUT = {
   LETTER_X: [230, 545, 855, 1135],
   SCALE: 205 / 1135,
   GAP: 6,
-  SVG_TOP: 16,
+  SVG_TOP: 0,   // 字頂＝<a> 頂＝mode/menu 鈕頂（2026-09-27 logo in-flow 頂對齊；舊版 <a> 在 -16 故補 16）
 };
 
 // Typewriter timeline reference：供 restoreHeaderLogo 在 SPA 換頁時 kill
@@ -467,7 +513,7 @@ export function triggerGenerateLogo() {
   svgEl.id = 'gen-logo-svg';
   svgEl.setAttribute('viewBox', '0 0 1135 320');
   svgEl.setAttribute('preserveAspectRatio', 'xMinYMin meet');
-  svgEl.style.cssText = 'height:205px;width:205px;position:absolute;top:16px;left:0;overflow:visible;pointer-events:none;z-index:1;';
+  svgEl.style.cssText = `height:205px;width:205px;position:absolute;top:${GEN_LOGO_LAYOUT.SVG_TOP}px;left:0;overflow:visible;pointer-events:none;z-index:1;`;
 
   const PATHS = [
     'M120.05,320c-37.17,0-66.48-9.4-87.91-28.19C10.72,273.01,0,247.25,0,214.51h46.19c.14,20.39,6.69,36.34,19.66,47.85,12.97,11.52,31.03,17.27,54.2,17.27,21.08,0,37.97-4.47,50.66-13.42,12.69-8.95,19.04-20.98,19.04-36.1,0-11.93-4.54-21.6-13.63-29.02-9.09-7.42-24.38-13.7-45.88-18.83l-33.91-8.11c-31.35-7.49-54.2-17.93-68.56-31.31-14.36-13.38-21.53-30.83-21.53-52.33,0-18.17,4.58-34.05,13.73-47.65,9.15-13.59,22.02-24.14,38.6-31.63C75.14,3.75,94.53,0,116.72,0c33.43,0,60.03,8.74,79.79,26.22,19.77,17.48,30.13,41.34,31.11,71.57h-44.73c-1.11-17.89-7.63-31.94-19.56-42.13-11.93-10.19-27.67-15.29-47.23-15.29s-34.05,4.47-45.98,13.42c-11.93,8.95-17.89,20.43-17.89,34.43,0,11.24,4.58,20.36,13.73,27.36,9.15,7.01,24.34,13.08,45.57,18.21l33.5,7.91c31.07,7.35,53.99,17.96,68.76,31.83,14.77,13.87,22.16,31.91,22.16,54.1,0,18.59-4.79,34.82-14.36,48.69-9.57,13.87-23.03,24.62-40.36,32.25-17.34,7.63-37.73,11.44-61.17,11.44Z',
@@ -548,7 +594,7 @@ export function triggerGenerateLogo() {
 
   // typewriter 完成後撐開 <a> click target 到 SCCD letter bbox：
   // #header-logo shrink 到 100x100 後 <a> 也只剩 100x100（block child 撐父層），
-  // 但 SCCD svg 視覺占 0~205 x 16~74，右半邊（C/C/D）落在 click area 外 → 點不到。
+  // 但 SCCD svg 視覺占 0~205 x 0~58，右半邊（C/C/D）落在 click area 外 → 點不到。
   // 設 220x80 涵蓋 SCCD bbox + 視覺 padding；下次進 /create 由開頭清 inline 重置
   tl.set(logoContainer, { width: 220, height: 80 });
 }
@@ -560,7 +606,7 @@ export function triggerGenerateLogo() {
 // 桌面 desktop 的 #mode-btn 才動；手機版 .theme-toggle-btn 在 grid col 內，layout 不同，不處理
 // 用 GSAP 時間軸；caller 可 await Promise
 
-const MODE_BTN_ML = 32; // tailwind ml-lg = var(--spacing-lg) = 32px（CLAUDE.md 規範）
+const MODE_BTN_ML = 0; // 2026-09-27 桌面 bars 拆除後 mode 鈕是右群第一顆（左鄰 flex-1 spacer）→ 無 margin
 
 export function animateHeaderModeBtnHide() {
   if (typeof gsap === 'undefined') return Promise.resolve();
@@ -596,7 +642,7 @@ export function animateHeaderModeBtnShow() {
         clipPath: 'inset(0 0 0 100%)',
       },
       {
-        width: 40,
+        width: 48, // = buttons.css #mode-btn 寬，改尺寸要同步
         marginLeft: MODE_BTN_ML,
         clipPath: 'inset(0 0 0 0)',
         duration: DUR.medium,
@@ -641,9 +687,21 @@ export function restoreHeaderLogo() {
 // ── Active Nav State（Router 換頁時呼叫）──────────────────────
 // detail 頁對應到父層高亮（degree-show-detail 隸屬 activities.html 的 panel → 高亮 Activities）
 const NAV_PAGE_MAPPINGS = { 'degree-show-detail': 'activities' };
+// menu 沒有的頁 → 左下「當前頁」卡文字（legal 同 footer-content.js 法務連結標籤；policy-and-statements＝孤兒頁、用頁內標題）。
+// donate 兩個名：SPA route＝support、冷載入檔名＝donate。首頁不放卡（user 2026-09-27）＝不列
+/** @type {Record<string, [string, string]>} */
+const PAGE_CARD_LABELS = {
+  regulations: ['Regulations & Policy', '規章與政策'],
+  accessibility: ['Site Map', '網站導覽'],
+  'policy-and-statements': ['Policies & Statements', '政策及聲明'],
+  support: ['Donate', '捐贈'],
+  donate: ['Donate', '捐贈'],
+  // 404 不放卡（user 2026-09-28 改口；原先有「404 找不到頁面」）——查不到 label 又無 active nav link ＝ 留空、:empty 藏
+};
 // page → nav-link href（比對 href 屬性；index 沒 nav-link 故給 ''）
 function navActiveHref(page) {
   const activePage = NAV_PAGE_MAPPINGS[page] || page;
+  if (activePage === 'generate') return 'create.html'; // /create 的 route 名是 generate（歷史殘留）
   return activePage === 'index' ? '' : `${activePage}.html`;
 }
 
@@ -659,11 +717,11 @@ export function clearNavActive(exceptPage) {
   if (!header) return;
   if (exceptPage != null) {
     const keepHref = navActiveHref(exceptPage);
-    const alreadyActive = [...header.querySelectorAll('a.nav-link.active')]
+    const alreadyActive = [...header.querySelectorAll('a.nav-link.active, a.mobile-nav-link.active')]
       .some(l => (l.getAttribute('href') || '').split('/').pop() === keepHref);
     if (alreadyActive) return;
   }
-  header.querySelectorAll('a.nav-link.active').forEach(l => { l.classList.remove('active'); l.removeAttribute('aria-current'); });
+  header.querySelectorAll('a.nav-link.active, a.mobile-nav-link.active').forEach(l => { l.classList.remove('active'); l.removeAttribute('aria-current'); });
   header.querySelectorAll('[data-bar].has-active').forEach(el => el.classList.remove('has-active'));
 }
 
@@ -675,7 +733,9 @@ function applyNavLinkMarks(header, activeHref) {
 
   // About bar nav links
   header.querySelectorAll('nav > ul > li').forEach(li => {
-    const parentLink = li.querySelector(':scope > a.nav-link');
+    // mobile-nav-link＝漢堡面板（2026-09-27 起桌面也用它當主選單，active 上色見 navigation.css ≥1200 段）；
+    // 不用 :scope >——menu 開過一次後 link 被 clip-reveal wrapper 包住、不再是 li 直接子
+    const parentLink = li.querySelector('a.nav-link, a.mobile-nav-link');
 
     if (parentLink && parentLink.getAttribute('href') === activeHref) {
       setNavLinkActive(parentLink);
@@ -749,7 +809,8 @@ export function setNavActive(page) {
   });
 }
 
-export function updateNavActive(page) {
+// fromFooter：router 點 footer 連結換頁（見 router loadPage）→ 保留 footer-near 收起態
+export function updateNavActive(page, { fromFooter = false } = {}) {
   const header = document.querySelector('#site-header header');
   if (!header) return;
 
@@ -757,7 +818,10 @@ export function updateNavActive(page) {
   // 平移收起；SPA 切到新頁後 scroll listener 是 async，等它偵測「離開 footer」再 show
   // 期間 updateNavActive 的 logo/bar tween 已跑完 → user 看到「小 logo + ML=0」的中間態。
   // 這裡同步清 transform/遮罩 + reset state，讓 tween 在 header 已 visible 的乾淨狀態下跑。
-  if (barsHidden && typeof gsap !== 'undefined') {
+  // 例外：router fromFooter 換頁（footer 釘原位、上方換新頁）→ 不復位，否則 bars 瞬間冒出 → scroll 又收 →
+  // 往上捲再展＝閃一次；留給往上捲時 syncFooterHide 展開。⚠️不能改用「footer 此刻在視窗內」判斷：router 是
+  // updateNavActive 之後才把 atlas/library 的 footer 設 display:none → 冷載入 atlas 會卡在收起態（實測）
+  if (barsHidden && !fromFooter && typeof gsap !== 'undefined') {
     resetFooterBarsState();
     resetFooterLogoState();
     setBarsHidden(false);
@@ -773,6 +837,37 @@ export function updateNavActive(page) {
 
   clearNavActive();
   applyNavLinkMarks(header, activeHref);
+
+  // 左下「當前頁」卡（≥1200，navigation.css）：menu 頁複製 active 選項（帶 data-label-key → 後台 label 晚到也會被
+  // applyUiLabels(headerContainer) 一併填到）、其餘查 PAGE_CARD_LABELS；兩邊都沒有（首頁）＝留空（:empty 藏）。
+  // 換到別頁才重抽角＋clip-reveal（同頁重點不動，除非卡已被 playPageIndicatorExit 收掉＝要補揭露）；
+  // 位置＝sticky 軌道（layoutPageIndicatorTrack；新頁在 hero＝卡在畫面下方）
+  const indCard = /** @type {HTMLElement | null} */ (document.querySelector('#page-indicator .page-indicator-card'));
+  let revealCard = false;
+  if (indCard && (indCard.dataset.page !== activePage || _indCardExited)) {
+    _indCardExited = false;
+    indCard.dataset.page = activePage;
+    const label = PAGE_CARD_LABELS[activePage];
+    indCard.innerHTML = label ? `<span>${label[0]}</span> <span>${label[1]}</span>`
+      : header.querySelector('a.mobile-nav-link.active')?.innerHTML || '';
+    /** @type {HTMLElement} */ (indCard.parentElement).style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`;
+    revealCard = !!indCard.innerHTML && typeof gsap !== 'undefined';
+    if (revealCard) gsap.set(indCard, { yPercent: 110, overwrite: true });   // 先藏，下一幀看位置再決定
+  }
+  // 下一幀才量軌道：router 在 updateNavActive「之後」才把 atlas/library 的 footer 設 display:none，當下量會把
+  // 軌道底算到還沒藏的 footer（atlas 不能捲、之後沒機會重算＝卡消失，實測）。
+  // 換頁的 clip-reveal 只在卡落在畫面內時播（legal / library 等無 hero 頁）；在畫面外（hero 頁起點、footer 換頁）
+  // 直接就位，之後單純跟著內容捲進來——不疊「邊滑進畫面邊從遮罩升起」兩種動作
+  requestAnimationFrame(() => {
+    layoutPageIndicatorTrack();
+    if (!revealCard || !indCard) return;
+    const r = /** @type {HTMLElement} */ (indCard.parentElement).getBoundingClientRect();   // 量遮罩：卡本身此刻帶 yPercent 110 偏移
+    if (r.bottom > 0 && r.top < window.innerHeight) {
+      gsap.fromTo(indCard, { yPercent: 110 }, { yPercent: 0, duration: DUR.reveal, ease: EASE.enter, overwrite: true, clearProps: 'transform' });
+    } else {
+      gsap.set(indCard, { clearProps: 'transform' });
+    }
+  });
 
   // library / atlas / generate / alumni side bar 狀態
   const aboutBarEl      = header.querySelector('[data-bar="about"]');  // alumni 頁隱藏其他 bars 時要含它（applyNavLinkMarks 內另有本地變數，此處給下方 otherBarEls 用）
@@ -1149,7 +1244,9 @@ export function initHeader() {
         const svg = logo.querySelector('svg');
         if (svg) {
           svg.style.overflow = 'visible';
-          svg.setAttribute('viewBox', '0 0 1080 1080');
+          // y 起點 14＝Lottie 圖形頂的多幀包絡（1080 制，headless 量）→ 可見頂貼 box 頂＝mode/menu 鈕頂，
+          // 隨 180↔100 縮放等比。theme-toggle switchHeaderLogo 同值
+          svg.setAttribute('viewBox', '0 14 1080 1080');
         }
       });
     }
@@ -1303,11 +1400,7 @@ export function initHeader() {
       // SPA 換頁後 footer DOM 會替換（static index footer / SPA 注入 footer 切換），closure 捕捉到的舊 ref
       // offsetHeight 可能變 0 或 detached → 每次重抓最新的；多 footer 場景（index 同時有 #site-footer-static
       // 跟空的 #site-footer container）取第一個可見的（offsetHeight>0）
-      const footers = document.querySelectorAll('footer');
-      let footerEl = null;
-      for (const f of footers) {
-        if (f.offsetHeight > 0) { footerEl = f; break; }
-      }
+      const footerEl = getVisibleFooter();
       if (!footerEl) return;
       const footerTop = footerEl.getBoundingClientRect().top;
       // 全站手機 header 底色帶（.mobile-header-bg，navigation.css）：捲到「帶底 92」才收（遮罩不能像
@@ -1319,6 +1412,7 @@ export function initHeader() {
       if (typeof gsap === 'undefined') return;
       if (isNearFooter && !barsHidden) {
         setBarsHidden(true);
+        closeMobileMenu();      // 桌面 menu 開著可捲（不鎖）→ 捲到 footer 鈕要收了，menu 一起關（手機 menu 鎖捲動走不到這）
         const opts = instant ? { duration: 0 } : {};
         footerHideBars(opts);   // bars 平移滑出（每個隨機四方向）
         footerHideLogo(opts);   // logo 走 hero 滑動（同步、同節奏）
@@ -1346,6 +1440,24 @@ export function initHeader() {
         if (bindFooterScroll()) observer.disconnect();
       });
       observer.observe(document.body, { childList: true, subtree: true });
+    }
+
+    // 左下當前頁卡的 sticky 軌道範圍：內容長高（async 資料 / lazy 清單 / 字型）或視窗變動時重算（捲動本身不需要）。
+    // #page-content 跨 SPA 常駐（只換 innerHTML）→ 綁一次；footer 在 main 之後，main 高度變＝footer 頂跟著變
+    const pageContent = document.getElementById('page-content');
+    if (pageContent && typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(() => layoutPageIndicatorTrack()).observe(pageContent);
+    }
+    window.addEventListener('resize', layoutPageIndicatorTrack, { passive: true });
+    // 卡右緣（未旋轉 layout 盒）發佈成 --page-indicator-right：atlas 切換鈕排在卡右邊（atlas.css ≥1200 段）。
+    // 卡寬隨頁名 / 後台 label 晚到 / 字型變 → 盯卡本身；旋轉是 transform、不動 layout 盒＝不必重量。
+    // 軌道 left 0、卡 offsetLeft＝軌道 padding（container padding）→ offsetLeft + 寬＝視窗 x
+    const indicator = document.getElementById('page-indicator');
+    if (indicator && typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(() => {
+        if (!indicator.offsetWidth) return;   // <1200 / 首頁空卡：沒有卡可對，留上次值（atlas 規則也只在 ≥1200 生效）
+        document.documentElement.style.setProperty('--page-indicator-right', `${indicator.offsetLeft + indicator.offsetWidth}px`);
+      }).observe(indicator);
     }
   }
 

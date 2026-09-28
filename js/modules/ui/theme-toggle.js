@@ -693,7 +693,7 @@ export function switchHeaderLogo(type, { fade = false } = {}) {
       const svg = logo.querySelector('svg');
       if (svg) {
         svg.style.overflow = 'visible';
-        svg.setAttribute('viewBox', '0 0 1080 1080');
+        svg.setAttribute('viewBox', '0 14 1080 1080');   // 可見頂貼 box 頂（同 header.js 初載）
       }
       // 防 autoplay 在 race 情境下未真正啟動（symptom：Lottie 卡 frame 0 看不到 central circle）
       if (typeof anim.play === 'function' && anim.isPaused) anim.play();

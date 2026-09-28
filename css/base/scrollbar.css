@@ -47,6 +47,16 @@ html::-webkit-scrollbar {
  * → --footer-fg 永遠對比 footer bg，比 --theme-fg 更可靠 */
 #custom-scrollbar-thumb.is-over-footer {
   background: var(--footer-fg);
+  /* footer 為蓋過收起中的 header 抬到 9999（footer.css）→ thumb 9998 捲到 footer 就被蓋掉「消失」
+   * （user 2026-09-27）。只在 over-footer 時同層 9999、thumb DOM 在 footer 之後 → 勝。 */
+  z-index: 9999;
+}
+/* 選單開著時 footer 已讓位（z auto），thumb 若仍 9999 會畫在 header 內的選單面板上 → 退回 9998。
+   桌面 footer 不讓位（footer.css 同 gate）→ thumb 維持 9999 跟 footer 一起蓋在 menu 上 */
+@media not all and (min-width: 1200px) and (min-height: 501px) {
+  html.mobile-menu-open #custom-scrollbar-thumb.is-over-footer {
+    z-index: 9998;
+  }
 }
 
 /* slide-in 開啟時隱藏 thumb（panel 從 right 進場會擋到，視覺上重複） */

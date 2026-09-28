@@ -46,24 +46,66 @@
      委派 header.js footerHideBars，比照 footer-near hide）；桌面 #mode-btn / [data-bar] 才走 GSAP clip-path。
      這裡不額外寫 CSS clip-path / transform 動畫，避免跟 GSAP 撞 transition */
 
-  /* ===== Mode btn 圓底（桌面版 header）=====
-   * 底色 = page bg（融入頁面，不反色）：standard 白底黑 icon、
-   * inverse 黑底白 icon、mode-color 跟 page bg（規則在 themes/inverse.css + color.css）
-   * size 40×40 圓，icon 24 居中（= 8px padding）；
-   * width 寫死 40 是因為 header.js animateHeaderModeBtnShow fromTo width:0→40 需要對齊 */
-  #mode-btn {
-    width: 40px;
-    height: 40px;
-    background: #fff;
+  /* ===== Mode btn 圓底 + 漢堡方底（桌面版 header）=====
+   * 2026-09-27 起底色＝反色：theme-fg 底 + fg-inverse icon（mode1 黑底白 / mode2 白底黑 / mode3 跟 fg）。
+   * #site-header 提特異度＋!important 蓋 themes/inverse.css + color.css 的 [data-bar="mode"] page-bg 規則。
+   * size 48×48、icon 32＝對齊頁內黑方塊 icon 鈕（library next / about 時間軸 .tl-icon-btn-inner、atlas 切換鈕；user 2026-09-27）；
+   * width 寫死 48 是因為 header.js animateHeaderModeBtnShow fromTo width:0→48 需要對齊 */
+  #mode-btn,
+  #menu-btn {
+    width: 48px;
+    height: 48px;
+  }
+  #site-header #mode-btn,
+  #site-header #menu-btn {
+    background: var(--theme-fg) !important;
+  }
+  #site-header #mode-btn .theme-toggle-btn,
+  #site-header #menu-btn .mobile-menu-btn {
+    color: var(--theme-fg-inverse) !important;
+    font-size: 32px; /* .icon 1em → 32px */
+  }
+  /* 漢堡鈕 hover／menu 開著（user 2026-09-28）：mode1/2＝三原色底黑 icon（--menu-btn-accent 由 mobile-menu.js mouseenter 抽，
+     開著不重抽＝維持點下去那色）；mode3＝黑白互換（全站 mode3 hover/active 無 rgb 慣例）。
+     .is-open 由 mobile-menu.js setIcons 掛；:hover 限 (hover:hover)，≥1200 觸控平板不留 sticky hover。
+     hover/開關一律 instant（同 menu 選項，user 2026-09-28）：#menu-btn 不掛 transition（header.html 已拿掉 inline 那條）；
+     mode 切換 fade 照走 typography.css .mode-switching 白名單的 [data-bar] */
+  #site-header #menu-btn.is-open {
+    background: var(--menu-btn-accent, var(--color-pink)) !important;
+  }
+  #site-header #menu-btn.is-open .mobile-menu-btn {
+    color: #000 !important;
+  }
+  @media (hover: hover) {
+    #site-header #menu-btn:hover {
+      background: var(--menu-btn-accent, var(--color-pink)) !important;
+    }
+    #site-header #menu-btn:hover .mobile-menu-btn {
+      color: #000 !important;
+    }
+    body.mode-color #site-header #menu-btn:hover {
+      background: var(--theme-fg-inverse) !important;
+    }
+    body.mode-color #site-header #menu-btn:hover .mobile-menu-btn {
+      color: var(--theme-fg) !important;
+    }
+  }
+  body.mode-color #site-header #menu-btn.is-open {
+    background: var(--theme-fg-inverse) !important;
+  }
+  body.mode-color #site-header #menu-btn.is-open .mobile-menu-btn {
+    color: var(--theme-fg) !important;
+  }
+  /* toggle 鈕基底 24×24（手機 header 用）→ 桌面撐滿圓底：icon 32 放得下、整顆圓都可點（同漢堡 w-full h-full） */
+  #site-header #mode-btn .theme-toggle-btn {
+    width: 100%;
+    height: 100%;
   }
   /* 進退場動畫中（GSAP 寫 inline clip-path）或 /create 隱藏態（clip-path 殘留）＝「還沒渲染完」：
      不吃 hover/click（游標不變 pointer、點不到看不見的鈕）。各動畫 onComplete 都會清 inline
      clip-path → 自動恢復可互動（user 2026-07-16） */
   #mode-btn[style*="clip-path"] {
     pointer-events: none;
-  }
-  #mode-btn .theme-toggle-btn {
-    color: #000;
   }
 
   /* ===== Mobile Header Buttons（mode-btn + menu-btn 圓底）=====
@@ -108,17 +150,8 @@
     align-items: flex-start;
   }
 
-  /* Inactive 狀態：純白底 + 半透明 theme-fg（對齊 about #anchor-nav 的 pattern；
-     inverse 在 themes/inverse.css 翻成純黑底 + 半透明白字）*/
-  .section-nav-btn:not(.active) .anchor-nav-inner,
-  .faculty-filter-btn:not(.active) .anchor-nav-inner,
-  .activities-section-btn:not(.active) .anchor-nav-inner,
-  .courses-program-btn:not(.active) .anchor-nav-inner,
-  .activities-filter-btn:not(.active) .anchor-nav-inner,
-  .courses-filter-btn:not(.active) .anchor-nav-inner {
-    background: rgba(255, 255, 255, 1);
-    color: #737373; /* 原 rgba(theme-fg,.55) 疊白底實色（4.75:1 過 WCAG AA 4.5:1）；legacy hex 保 sRGB 過渡 pacing（color-mix 會走 Oklab） */
-  }
+  /* Inactive 狀態：白底黑字直接吃 navigation.css .anchor-nav-inner 基底（hover 隨機三原色見 navigation.css「nav btn hover」段）；
+     inverse 在 themes/inverse.css 翻成黑底白字 */
 
   /* Active 狀態（背景/旋轉由 JS 設定）*/
   .section-nav-btn.active .anchor-nav-inner,
@@ -128,20 +161,6 @@
   .activities-filter-btn.active .anchor-nav-inner,
   .courses-filter-btn.active .anchor-nav-inner {
     color: black;
-  }
-
-  @media (min-width: 768px) {
-    .section-nav-btn:not(.active):hover .anchor-nav-inner,
-    .activities-section-btn:not(.active):hover .anchor-nav-inner,
-    .courses-program-btn:not(.active):hover .anchor-nav-inner,
-    .activities-filter-btn:not(.active):hover .anchor-nav-inner,
-    .courses-filter-btn:not(.active):hover .anchor-nav-inner {
-      background: rgba(255, 255, 255, 1);
-      color: rgba(0, 0, 0, 1);
-    }
-    .faculty-filter-btn:hover .anchor-nav-inner {
-      color: rgba(0, 0, 0, 1);
-    }
   }
 
   /* faculty 分類 filter 2026-08-24 由左直欄移到內容區上方橫向 bar（與系所鈕 DCD 調換）：
@@ -268,6 +287,19 @@
   }
   /* 不設 flex-shrink:0：≥1500 內容+gap 有餘裕不 shrink＝斷點正確；<~1440 容器擠不下時讓 flex 自然
      shrink 折多行、留在畫面內（勝過 shrink:0 整排飛出）。program/works 共用 gap-lg(32px)＝gap 一致（user）。 */
+  /* MDES（沒有 BFA 小標題）對齊左邊兩組「小標題＋btn」整組的中線（user 2026-09-28 二輪：要含小 tab 高度，不是只對主鈕）：
+     整排 items-end＝btn 底對齊；小標題 absolute 不佔 flow → 排高＝最高那顆 btn → self-center 只會對到 btn 中線。
+     再用負 margin-top 把中心往上推：self-center 置中的是 margin box，負 margin X ＝ 盒子上移 X/2 →
+     X＝小標題塊高（padding 6+5 + text-s 兩行）＋ 與 btn 的 8px 間距（.class-group-label bottom: 100%+xs）＝上移剛好一半＝整組中線。
+     矮橫向直排（landscape.css）align-self 會變成水平置中、小標題也 display:none → min-height 501 排除。
+     works 模式才展開的 Design Fundamental（.class-division-bfa-wrap＝flex item 是 wrapper 不是 btn）同樣沒小標題 → 同規則（user 三輪） */
+  @media (min-width: 768px) and (min-height: 501px) {
+    #class-buttons-sticky .class-division-btn[data-division="mdes"],
+    #class-buttons-sticky .class-division-bfa-wrap {
+      align-self: center;
+      margin-top: calc(-1 * (11px + 2 * var(--font-size-s) * var(--line-height-s) + var(--spacing-xs)));
+    }
+  }
 
   /* ===== Class Buttons Sticky Container =====
      完全透明；不加貼頂白底，避免遮擋/裁掉經過的封鎖綫 */
