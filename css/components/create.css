@@ -264,8 +264,9 @@
   background-color: transparent;
 }
 
-/* 桌面版 desktop-canvas-container 規則 */
-@media (min-width: 768px) {
+/* 桌面版 desktop-canvas-container 規則
+   ⚠️ 桌面 gate＝「≥1024 或 768+ 橫向」：直放平板 768-1023 走手機版（見檔尾手機區塊，JS utils.js checkMobileMode 同式） */
+@media (min-width: 1024px), (min-width: 768px) and (orientation: landscape) {
   #desktop-canvas-container {
     /* 桌面版固定尺寸 - 432x540 */
     width: 432px;
@@ -787,8 +788,8 @@ body.mode-color .control-box {
 }
 
 /* 增加 :not(:disabled) 伪类，确保非 active 按钮在 hover 时有反馈 */
-/* 包 min-width:768px：hover 只在桌面，手機 tap 後不殘留 hover 變色 */
-@media (min-width: 768px) {
+/* hover 只在桌面版（gate 同 desktop-canvas-container），手機/直放平板 tap 後不殘留 hover 變色 */
+@media (min-width: 1024px), (min-width: 768px) and (orientation: landscape) {
   .custom-button:not(.active):not(:disabled):hover {
     color: #888; /* 一個比灰色稍深的顏色 */
   }
@@ -806,7 +807,7 @@ body.mode-color .control-box {
 .custom-button-custom:not(.active):not(:disabled) {
   border-color: transparent;
 }
-@media (min-width: 768px) {
+@media (min-width: 1024px), (min-width: 768px) and (orientation: landscape) {
   .control-box .custom-button-rotate:not(.active):not(:disabled):hover img,
   .control-box .custom-button-custom:not(.active):not(:disabled):hover img {
     opacity: 1;
@@ -1068,15 +1069,17 @@ body.mode-color .control-box {
   pointer-events: none;
 }
 /* ========================================
-   手機版樣式（max-width: 768px）
+   手機版樣式（手機 <768 ＋ 直放平板 768-1023）
    從 style.css 拆分出來以便維護
    ========================================
    含：mobile container / logo / control panels / sliders /
        color picker bar / input / bottom bar / bento / 動畫
    ======================================== */
 
-/* --- 響應式設計 (RWD) --- */
-@media (max-width: 767px) {
+/* --- 響應式設計 (RWD) ---
+   手機 gate 含直放平板 768-1023（桌面版在此區間左右出血、且 768 剛好曾踩 JS/CSS 差 1px 全白坑）；
+   ⚠️ 與 utils.js checkMobileMode 第一條 matchMedia 必須一字不差。矮橫向另走上方 max-height:500 區塊。 */
+@media (max-width: 767px), (min-width: 768px) and (max-width: 1023px) and (orientation: portrait) {
   /* 取消所有手機版的 hover 效果（但保留 :active 效果以提供觸摸反饋）*/
   /* 排除 save button icon，避免干擾動畫 */
   #create-app {

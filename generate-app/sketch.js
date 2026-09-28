@@ -656,8 +656,9 @@ function setup() {
   // 初始化響應式檢測
   checkMobileMode();
 
-  // 監聽媒體查詢變化，確保與CSS保持同步
-  const mediaQuery = window.matchMedia('(max-width: 768px)');
+  // 監聽媒體查詢變化，確保與CSS保持同步（gate 同 utils.js checkMobileMode 的手機式；
+  // 平板轉向會跨此界＝portrait 手機版 ↔ landscape 桌面版，變化時重判＋updateUI）
+  const mediaQuery = window.matchMedia('(max-width: 767px), (min-width: 768px) and (max-width: 1023px) and (orientation: portrait)');
   mediaQuery.addListener(() => {
     setTimeout(() => {
       checkMobileMode();
