@@ -10,6 +10,7 @@ import { DUR, EASE } from '../ui/motion.js';
 import { sitePath } from '../ui/site-base.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { bindArrowSpin } from '../ui/arrow-spin.js';
+import { bindNavBtnHover } from '../ui/section-switch-helpers.js';
 
 export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb, initialTab = 'awards' }) {
 
@@ -22,9 +23,39 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   // 灰卡「上下緣都錨定」：上緣距 section 頂 TOP_GAP（對齊 atlas #atlas-filter＝header+64）、下緣距底 BOTTOM_GAP，
   // 卡高 MAIN_H 撐滿中間、隨視窗高自適應（user 2026-08-24 approach 2：跨裝置留白一致、免有的裝置底距多有的少）。
   // centerY()=TOP_GAP+MAIN_H/2＝垂直中心（上下相等時＝sh/2）；色卡也以 centerY() 為 bias 中心＋上緣 clamp TOP_GAP（不貼 logo）。
-  const TOP_GAP = 48;     // 上緣留白（改這個 = 整組起點高度；user 2026-08-26 由 64 上移 16px、灰卡整個往上加高）
+  const BASE_TOP_GAP = 48; // 上緣留白（改這個 = 整組起點高度；user 2026-08-26 由 64 上移 16px、灰卡整個往上加高）
+  let TOP_GAP = BASE_TOP_GAP; // ≥1200 由 layoutMain 換成 DESK_TOP_GAP
   const BOTTOM_GAP = 64;  // 下緣留白（改這個 = 底部距離）
+  // ≥1200（同 desktop menu / 當前頁卡 gate）桌面版面（user 2026-09-27）：灰卡頂在 header 鈕半高、底對齊左下當前頁卡底、不置中——
+  //   DESK_TOP_GAP −24＝header 鈕垂直中線 72（列 pt 48 + 鈕 48/2）− section 頂 96：next 鈕中心釘灰卡右上角＝跟 mode/漢堡同高
+  //   （灰卡頂伸進 header 列；header 放行點擊見 library.css）；
+  //   DESK_BOTTOM_GAP 48＝當前頁卡底（navigation.css bottom 48）＝上下 padding 一致（上＝header 列 pt 48）；色卡底界也用它；
+  //   DESK_LEFT 192＝logo 右緣 160 + 32（左下當前頁卡同寬、同樣讓開 32）；
+  //   DESK_RIGHT 228＝next 鈕中心 sw−228 → 右緣 sw−204，跟 mode 鈕（左緣 sw−180）留 24＝mode↔漢堡 gap（header.html ml-md）＝三顆等距；
+  //   色卡上界＝全站 nav line（見 genColorConfig），左右到 container padding 60；只避開左下當前頁卡（見 indicatorZone）。
+  // ponytail: header 幾何寫死（列 pt / logo 尺寸 / 鈕寬），header 列改了要同步
+  const DESK_TOP_GAP = -24, DESK_BOTTOM_GAP = 48, DESK_LEFT = 192, DESK_RIGHT = 228, DESK_COLOR_PAD_X = 60;
+  const DESK_MIN_OVERLAP = 48; // 色塊至少伸進灰卡底下幾 px（見 genColorConfig minW）
+  const isDesk = () => window.matchMedia('(min-width: 1200px) and (min-height: 501px)').matches;
+  // 灰卡上緣/尺寸（RO init 與 resize relayout 共用）。高度＝上下錨定撐滿中間：不同高度裝置的上下留白都固定一致、卡高自適應
+  // （user 2026-08-24 approach 2，取代舊「寬度固定比」＝底距隨螢幕忽大忽小）。Math.max 保底＝極矮視窗不算出負高。
+  function layoutMain(sw, sh) {
+    const desk = isDesk();
+    TOP_GAP = desk ? DESK_TOP_GAP : BASE_TOP_GAP;
+    MAIN_W = desk ? sw - DESK_LEFT - DESK_RIGHT : Math.round(sw * 0.84);
+    MAIN_H = Math.max(240, sh - TOP_GAP - (desk ? DESK_BOTTOM_GAP : BOTTOM_GAP));
+  }
+  const grayCx = (sw) => (isDesk() ? DESK_LEFT + MAIN_W / 2 : sw / 2); // 灰卡水平中心（≥1200 不置中）
   const centerY = () => TOP_GAP + MAIN_H / 2;
+  // 左下「當前頁」卡佔的區（section 座標：x＝視窗 x、section 底＝視窗底；含 16 呼吸）：色卡不能被它蓋到（user 2026-09-27）。
+  // 卡頂讀 navigation.css --page-indicator-top（@property 註冊＝computed 是 px；≥1200 gate 外 0＝不避）；
+  // 卡寬量外層遮罩（含旋轉 bbox；冷載入 header 還沒到＝量不到 → 保守 200）
+  function indicatorZone(sh) {
+    const top = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--page-indicator-top')) || 0;
+    if (!top) return null;
+    const right = document.getElementById('page-indicator')?.getBoundingClientRect().right || 200;
+    return { r: right + 16, t: sh - top - 16 };
+  }
   let activeEl = null;
   const tabOf   = new Map();
   const colorOf = new Map();
@@ -121,9 +152,19 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     const MIN_VISIBLE = 0.20;
     const MAX_TRIES = 80;
     const minSide = Math.min(sw, sh) * 0.15;  // 下限跟 max 一樣以視窗為準（原本依灰卡 MAIN_W/H；user 2026-08-27）
-    // 色卡上緣不越過灰卡上緣（TOP_GAP、對齊 atlas＝不貼 logo）；下緣仍留 pad。bias 中心＝灰卡中心 centerY()
-    const maxBW = sw - pad * 2, maxBH = sh - TOP_GAP - pad;
-    const gCx = sw / 2, gCy = centerY();
+    // 色卡上緣：<1200 照原本 BASE_TOP_GAP；≥1200＝全站 nav line（variables.css --nav-line 184）換成 section 座標
+    // （section 頂＝header 高）＝色塊（含旋轉 bbox）最高只到頁內 nav 頂、不貼 logo（user 2026-09-27）。下緣仍留 pad。
+    // bias 中心＝灰卡中心（≥1200 不置中＝grayCx）
+    const desk = isDesk();
+    const padX = desk ? DESK_COLOR_PAD_X : pad;  // ≥1200 左右到 container padding（user 2026-09-27）
+    const padB = desk ? DESK_BOTTOM_GAP : pad;   // ≥1200 底界＝上下 padding 一致的 48（同灰卡底）
+    const rootCs = desk ? getComputedStyle(document.documentElement) : null;
+    const topY = rootCs
+      ? (parseFloat(rootCs.getPropertyValue('--nav-line')) || 184) - (parseFloat(rootCs.getPropertyValue('--header-height')) || 96)
+      : BASE_TOP_GAP;
+    const zone = desk ? indicatorZone(sh) : null;
+    const maxBW = sw - padX * 2, maxBH = sh - topY - padB;
+    const gCx = grayCx(sw), gCy = centerY();
     let best = null, bestRatio = -1;
 
     for (let t = 0; t < MAX_TRIES; t++) {
@@ -132,22 +173,35 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
       const rad = Math.abs(rot) * Math.PI / 180;
       const cosA = Math.cos(rad), sinA = Math.sin(rad);
 
-      let w = rand(minSide, maxBW), h = rand(minSide, maxBH);
+      // ≥1200 色塊貼 padding、灰卡不置中 → 太窄會構不到灰卡（user 2026-09-28「一定要被灰卡遮住」）：
+      // 旋轉後內側邊最淺點離外緣＝w·cos → w·cos ≥ padding 到灰卡邊的距離＋重疊量。取左右較遠那側（避當前頁卡時會換邊）
+      const minW = desk ? (Math.max(DESK_LEFT, DESK_RIGHT) - padX + DESK_MIN_OVERLAP) / cosA : 0;
+      let w = rand(Math.max(minSide, minW), maxBW), h = rand(minSide, maxBH);
       let bw = w*cosA + h*sinA, bh = w*sinA + h*cosA;
       if (bw > maxBW) { const f = maxBW/bw; w*=f; h*=f; }
       if (bh > maxBH) { const f = maxBH/bh; w*=f; h*=f; }
+      if (w < minW) { w = minW; h = Math.min(h, (maxBH - w*sinA) / cosA); } // 等比縮高度時把寬拉回下限
 
       const fBW = w*cosA + h*sinA, fBH = w*sinA + h*cosA;
-      const cxMin = pad + fBW/2, cxMax = sw - pad - fBW/2;
-      const cyMin = TOP_GAP + fBH/2, cyMax = sh - pad - fBH/2;
+      const cxMin = padX + fBW/2, cxMax = sw - padX - fBW/2;
+      const cyMin = topY + fBH/2, cyMax = sh - padB - fBH/2;
 
       const ef = rand(0.25, 0.45);
       const bx = corner.dx * (MAIN_W/2 + w*ef - w/2) + rand(-MAIN_W*0.08, MAIN_W*0.08);
       const by = corner.dy * (MAIN_H/2 + h*ef - h/2) + rand(-MAIN_H*0.08, MAIN_H*0.08);
-      const cx = Math.max(cxMin, Math.min(cxMax, gCx + bx));
-      const cy = Math.max(cyMin, Math.min(cyMax, gCy + by));
+      // ≥1200 色塊一定貼左右 padding（user 2026-09-27）：外緣對齊 container padding，左右依 corner.dx
+      let cx = desk ? (corner.dx < 0 ? cxMin : cxMax) : Math.max(cxMin, Math.min(cxMax, gCx + bx));
+      let cy = Math.max(cyMin, Math.min(cyMax, gCy + by));
+      // bbox 落進左下當前頁卡區 → 先抬到卡區上方；太高抬不上去就換貼右 padding（仍貼邊）
+      const inZone = () => zone && cx - fBW/2 < zone.r && cy + fBH/2 > zone.t;
+      if (zone && inZone()) {
+        if (zone.t - fBH/2 >= cyMin) cy = zone.t - fBH/2;
+        else cx = cxMax;
+      }
 
       const candidate = { cx, cy, w, h, rot };
+      // 還是避不開（極寬又極高）＝只當最後備胎，不參與可見度競選（全部都避不開才用它，避免回傳 null）
+      if (inZone()) { if (!best) best = candidate; continue; }
       const ratio = calcVisibleRatio(candidate, occluders);
       if (ratio >= MIN_VISIBLE) { best = candidate; break; }
       if (ratio > bestRatio) { bestRatio = ratio; best = candidate; }
@@ -208,7 +262,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     el.style.zIndex         = '10';
     el.style.width          = `${MAIN_W}px`;
     el.style.height         = `${MAIN_H}px`;
-    el.style.left           = `${Math.round(sw / 2)}px`;
+    el.style.left           = `${Math.round(grayCx(sw))}px`;
     el.style.top            = `${Math.round(centerY())}px`;
     el.style.transform      = 'translate(-50%, -50%) rotate(0deg)';
     el.style.translate      = '';  // 清掉「色塊→灰卡」時 heroExitCard 殘留的 translate（否則灰卡被位移甩出版位）
@@ -270,7 +324,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     // Occluders：灰色主矩形（用座標） + 其他顏色矩形（用 cfgCache） + panel title 標籤
     const sec = grayEl.closest('section');
     const sw  = sec.offsetWidth, sh = sec.offsetHeight;
-    const grayCfg = { cx: sw / 2, cy: centerY(), w: MAIN_W, h: MAIN_H, rot: 0 };
+    const grayCfg = { cx: grayCx(sw), cy: centerY(), w: MAIN_W, h: MAIN_H, rot: 0 };
     const myZ = parseInt(el.style.zIndex) || 1;
     const otherCfgs = allEls
       .filter(o => o !== el && o !== activeEl && (parseInt(o.style.zIndex) || 1) > myZ)
@@ -292,7 +346,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     const occluders = [grayCfg, ...otherCfgs, ...titleOccluders];
 
     let edge = 'top';
-    try { edge = findFreeEdge(cfg, occluders, sw / 2, centerY()); } catch(e) {}
+    try { edge = findFreeEdge(cfg, occluders, grayCx(sw), centerY()); } catch(e) {}
     const isVertical = (edge === 'left' || edge === 'right');
 
     // 量單位寬度
@@ -397,9 +451,12 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   function applyCardHover(el) {
     const titleEl = /** @type {HTMLElement|null} */ (el.querySelector('.color-rect-title'));
     const isInverse = document.body.classList.contains('mode-inverse');
-    el.style.background = isInverse ? '#fff' : '#000';
+    // mode3：色塊平時被 color.css 蓋成 strict B/W（theme-fg 底），hover＝互換（fg-inverse 底＋fg 字）。寫 inline var＝color.css
+    //   `:not([style*="--theme-fg-inverse"])` 放行 → 箭頭預覽／解鎖補發跟 mode1/2 同一套 JS 觸發（原 CSS :hover 版預覽被 !important 吃掉，user 2026-09-28）
+    const isMode3 = document.body.classList.contains('mode-color');
+    el.style.background = isMode3 ? 'var(--theme-fg-inverse)' : (isInverse ? '#fff' : '#000');
     el.style.zIndex     = '11';
-    if (titleEl) titleEl.style.color = isInverse ? '#000' : '#fff';
+    if (titleEl) titleEl.style.color = isMode3 ? 'var(--theme-fg)' : (isInverse ? '#000' : '#fff');
   }
   // §15.4：isSwitching 解鎖那刻補一輪——切換期間新色塊滑到**靜止游標**下，瀏覽器不（可靠）補發 mouseenter、就算 fire 也被
   //   `if (isSwitching) return` 吞掉（點擊不經 hover 所以可點）。解鎖對每張 :hover 的非 active 卡合成套 hover；mouseleave 既有 handler 復原。
@@ -480,7 +537,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   // ── 初始化顏色矩形位置 ────────────────────────────────────────
 
   function initColorEls(sw, sh) {
-    const gCx  = sw / 2, gCy = centerY();
+    const gCx  = grayCx(sw), gCy = centerY();
     const gray = { cx: gCx, cy: gCy, w: MAIN_W, h: MAIN_H, rot: 0 };
 
     const nonActiveEls = allEls.filter(el => el !== activeEl);
@@ -504,7 +561,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     });
 
     // 灰色矩形的 cfg 固定
-    cfgCache.set(activeEl, { cx: sw/2, cy: centerY(), w: MAIN_W, h: MAIN_H, rot: 0 });
+    cfgCache.set(activeEl, { cx: grayCx(sw), cy: centerY(), w: MAIN_W, h: MAIN_H, rot: 0 });
 
     // marquee 量測（probe offsetWidth）必須等字型載入完才準：字型未載入時用 fallback 寬 → 之後重量會
     // 「對位後再抖動一次」（user 2026-07-15）。gate 在 fonts.ready → 只 render 一次（字型已載入時即刻 resolve）。
@@ -619,6 +676,9 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   // panel 切換時色塊/灰卡的 bg 全在 transition:none 下設好（見 switchTab），套回時 bg 已定型 → 只影響穩態翻色。
   const TRANSITION = 'transform 0.6s cubic-bezier(0.4,0,0.2,1), width 0.6s cubic-bezier(0.4,0,0.2,1), height 0.6s cubic-bezier(0.4,0,0.2,1), left 0.6s cubic-bezier(0.4,0,0.2,1), top 0.6s cubic-bezier(0.4,0,0.2,1)';
   const TRANSITION_GRAY = TRANSITION + ', background-color var(--dur-base) ease';   // 灰卡 mode fade＝共用 token（typography.css 年份 bar 靠同值同步）
+  // 色塊穩態：transform 軌只剩 hover 抽角（spinCard）在用 → 對齊全站 nav btn .anchor-nav-inner（var(--dur-fast) ease-standard）；
+  //   共用 0.6s 會慢一倍（user 2026-09-28）。色塊穩態不 glide（resize＝hero 收/進、切 tab 各自顯式掛 TRANSITION/MORPH）＝不影響幾何同步
+  const TRANSITION_IDLE = TRANSITION.replace('transform 0.6s cubic-bezier(0.4,0,0.2,1)', 'transform var(--dur-fast) var(--ease-standard)');
   // v3「同一物件雙形態」morph 時窗用：幾何＋背景色同拍 0.6s（兩卡都套：被點卡 RGB→灰、舊灰卡 灰→RGB）。
   // ⚠️mode3 靠 color.css `[style*="--lib-bg"]` 選擇器切黑白：setAsGray 寫 background:var(--lib-bg)（含此標記→neutral gray）、
   //   setAsColor 寫 #RGB（無標記→theme-fg strict）；切換瞬間規則翻面但 CSS transition 補間 computed 值照樣平滑（若 snap→過場 class fallback）。
@@ -634,7 +694,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   // §41：CB 常數已刪——marquee 進/出場皆 linear（§40/§41）、卡片幾何各用 TRANSITION/CB_SHRINK。
   // §22（v4.3）：adopt/flight 整套退役 → WINDOW_DUR/EXIT_DRAIN/ENTRANCE_DUR 窗長/字流鈕全刪；marquee 換手改「對稱 wipe」（見 marqueeWipeExit/Enter）。
   // 穩態 transition 依角色套用；三個套用點（進場×2＋切 tab 收尾）呼叫時 activeEl 都已是正確角色
-  const applyIdleTransition = (el) => { el.style.transition = (el === activeEl) ? TRANSITION_GRAY : TRANSITION; };
+  const applyIdleTransition = (el) => { el.style.transition = (el === activeEl) ? TRANSITION_GRAY : TRANSITION_IDLE; };
 
   function switchTab(clickedEl) {
     if (isSwitching) return;
@@ -824,7 +884,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     //   任一 <20% 就換角重擲（同 best-effort fallback 精神）。
     //   ⚠️baseZOf 在 t=0 就寫好「計畫值」（連點中斷時 switchTab 開頭的 baseZOf 還原會直接套用＝不留 stale z:10）、
     //   inline z 到 morph 落定 settle 才套（縮小全程維持 10，§38 req3）。
-    const gray = { cx: sw / 2, cy: centerY(), w: MAIN_W, h: MAIN_H, rot: 0 };
+    const gray = { cx: grayCx(sw), cy: centerY(), w: MAIN_W, h: MAIN_H, rot: 0 };
     const others = allEls.filter(el => el !== clickedEl && el !== outgoingEl)
       .sort((a, b) => (baseZOf.get(a) ?? 1) - (baseZOf.get(b) ?? 1));
     others.forEach((el, i) => {
@@ -1125,14 +1185,10 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
 
     if (!roInitialized) {
       roInitialized = true;
-      MAIN_W = Math.round(sw * 0.84);
-      // 高度＝上下錨定撐滿中間（sh − TOP_GAP − BOTTOM_GAP）：不同高度裝置的上下留白都固定一致、卡高自適應
-      // （user 2026-08-24 approach 2，取代舊「寬度固定比」＝底距隨螢幕忽大忽小）。寬度 0.85 不動故高螢幕偏方、
-      // 寬螢幕偏扁。Math.max 保底＝極矮視窗不算出負高。要改留白改上方 TOP_GAP/BOTTOM_GAP。
-      MAIN_H = Math.max(240, sh - TOP_GAP - BOTTOM_GAP);
+      layoutMain(sw, sh);  // 灰卡上緣/寬高（見上方 layoutMain；要改留白改 TOP_GAP/BOTTOM_GAP/DESK_*）
       // ⚠️ 不設 cursor：inline `cursor:default` 是 keyword（系統箭頭），spec=1000 蓋掉全站自製 cursor 系統，
       //    害灰卡空白處變回系統游標（只有可點元素自套 pointer）。移除 → 繼承 html 的 var(--cursor-default) 自製圖。
-      grayEl.style.cssText = `position:absolute;background:var(--lib-bg);z-index:10;display:flex;flex-direction:column;overflow:visible;width:${MAIN_W}px;height:${MAIN_H}px;left:${Math.round(sw/2)}px;top:${Math.round(centerY())}px;transform:translate(-50%,-50%) rotate(0deg);opacity:0;`;
+      grayEl.style.cssText = `position:absolute;background:var(--lib-bg);z-index:10;display:flex;flex-direction:column;overflow:visible;width:${MAIN_W}px;height:${MAIN_H}px;left:${Math.round(grayCx(sw))}px;top:${Math.round(centerY())}px;transform:translate(-50%,-50%) rotate(0deg);opacity:0;`;
       initColorEls(sw, sh);
       positionNextBtn(sw, sh);
       colorEls.forEach(el => { el.style.opacity = '0'; });
@@ -1157,8 +1213,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
         setTimeout(() => {
           if (typeof gsap !== 'undefined') gsap.killTweensOf(nonActive);
           nonActive.forEach(killHeroTween);   // 同上：hero proxy 顯式 kill
-          MAIN_W = Math.round(sw * 0.84);
-          MAIN_H = Math.max(240, sh - TOP_GAP - BOTTOM_GAP);  // 同 RO init（上下錨定撐滿，見上方註解）
+          layoutMain(sw, sh);  // 同 RO init
           setAsGray(activeEl, sw, sh);
           initColorEls(sw, sh);
           positionNextBtn(sw, sh);
@@ -1235,6 +1290,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     // clip 遮罩＋translate 置中不能動；−4~+6 range 在 -12px clip buffer 內（buffer 原為 ±8 設計）
     const nextInner = /** @type {HTMLElement|null} */ (nextBtnEl.querySelector('.tl-icon-btn-inner'));
     if (nextInner) bindArrowSpin(nextBtnEl, (/** @type {number} */ d) => { nextInner.style.transform = `rotate(${d}deg)`; });
+    bindNavBtnHover(nextBtnEl);   // hover 隨機三原色（lists.css .tl-icon-btn-inner 段；user 2026-09-28 全站黑方塊鈕）
 
     // hover 箭頭＝預覽將切往的色塊（previewNextTarget，見上）；離開還原。
     // btnHoverTarget 已提升到 function scope（供 syncHoverAfterUnlock 在切分頁動畫完成後補套預覽）。
@@ -1254,7 +1310,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   // 鈕中心釘在灰卡右上角點（CSS translate(-50%,-50%) 置中）；RO init 與 resize relayout 時呼叫
   function positionNextBtn(sw, sh) {
     if (!nextBtnEl) return;
-    nextBtnEl.style.left = `${Math.round(sw / 2 + MAIN_W / 2)}px`;
+    nextBtnEl.style.left = `${Math.round(grayCx(sw) + MAIN_W / 2)}px`;
     nextBtnEl.style.top  = `${Math.round(centerY() - MAIN_H / 2)}px`;
   }
 

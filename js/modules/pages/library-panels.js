@@ -223,10 +223,12 @@ function attachYearReset(pickerEl, onReset) {
  * @param {HTMLElement} pickerEl  - 容器
  * @param {string[]} years        - 年份陣列（已排序）
  * @param {Function} onFilter     - 每次選取變化後呼叫
- * @returns {Set<string>} selectedYears - 外部可讀的選取狀態
+ * @returns {{ selected: Set<string>, setEnabled: (ok: Set<string>) => void }}
+ *   selected＝外部可讀的選取狀態；setEnabled＝原地標可點年份（不在內＝disabled 半透明、並退選），不重建鈕
  */
 function createYearPicker(pickerEl, years, onFilter) {
   const selected = new Set();
+  let enabledCount = years.length;
 
   // 無障礙：年份按鈕群組（WCAG 1.3.1 / 4.1.2）
   pickerEl.setAttribute('role', 'group');
@@ -237,8 +239,9 @@ function createYearPicker(pickerEl, years, onFilter) {
     resetBtn.style.display = hasSel ? '' : 'none';
     pickerEl.querySelectorAll('button[data-year]').forEach(b => {  // [data-year] 排除同在 picker 內的 reset 鈕（手機版位）
       const isSel = selected.has(b.dataset.year);
-      // 選取＝維持原色，未選＝dim 到 0.3（跟 album cat 選單同款，靠 cssText 的 transition 平滑淡入淡出）
-      b.style.color = (!hasSel || isSel) ? 'var(--lib-fg)' : 'rgba(var(--lib-fg-rgb),0.3)';
+      // 選取＝維持原色，未選＝dim 0.6、disabled＝0.3（兩者分開，user 2026-09-28；淡入淡出靠 library.css 的 color transition）
+      b.style.color = b.disabled ? 'rgba(var(--lib-fg-rgb),0.3)'
+        : (!hasSel || isSel) ? 'var(--lib-fg)' : 'rgba(var(--lib-fg-rgb),0.6)';
       b.setAttribute('aria-pressed', String(isSel)); // 無障礙：選取狀態靠 aria-pressed 報讀（取代視覺底線，不依賴顏色）
     });
   };
@@ -250,11 +253,11 @@ function createYearPicker(pickerEl, years, onFilter) {
     btn.textContent = year;
     btn.dataset.year = year;
     btn.setAttribute('aria-pressed', 'false');
-    btn.style.cssText = 'text-align:left;background:none;border:none;padding:0;font-family:inherit;font-size:var(--font-size-xs);cursor:var(--cursor-pointer);font-weight:700;color:var(--lib-fg);transition:color 0.3s ease;';
+    btn.style.cssText = 'text-align:left;background:none;border:none;padding:0;font-family:inherit;font-size:var(--font-size-xs);cursor:var(--cursor-pointer);font-weight:700;color:var(--lib-fg);';  // color transition 在 library.css（inline 會被 reveal 收尾清掉）
     btn.addEventListener('click', () => {
       const adding = !selected.has(year);
       if (selected.has(year)) { selected.delete(year); } else { selected.add(year); }
-      if (selected.size === years.length) selected.clear();
+      if (selected.size === enabledCount) selected.clear();
       updateStyles();
       onFilter(); // caller 自己 snapshot filter 前後可見年份、比對位置決定 wipe 哪些
       // 歸零（點掉最後一年/全選觸發 clear）＝全部顯示＝Reset 語義 → 回頂；加選＝跳到該年份組；取消後仍有選取＝維持原位
@@ -280,7 +283,18 @@ function createYearPicker(pickerEl, years, onFilter) {
     }));
   }
 
-  return selected;
+  // 分類篩選用（files/album，user 2026-09-28）：全年份常駐、當前分類沒有的 disabled＋0.3 淡色（updateStyles 讀 b.disabled）
+  const setEnabled = ok => {
+    pickerEl.querySelectorAll('button[data-year]').forEach(b => {
+      b.disabled = !ok.has(b.dataset.year);
+      b.style.cursor = b.disabled ? 'var(--cursor-default)' : 'var(--cursor-pointer)';
+      if (b.disabled) selected.delete(b.dataset.year);
+    });
+    enabledCount = ok.size;
+    updateStyles();
+  };
+
+  return { selected, setEnabled };
 }
 
 /** list item hover 底色 + overlay 顏色 follow */
@@ -974,7 +988,9 @@ async function initAwardsPanel(onEntranceDoneCallback) {
       views.forEach(({ view, track }) => {
         if (view._hmOrig == null) {
           view._hmOrig = track.innerHTML;
-        } else {
+        } else if (view.classList.contains('is-hmarquee')) {
+          // 只還原 ③ 改過的：非 hmarquee 的 track 重寫會換掉 .award-marquee-inner，hover 中的
+          // bindMarqueeReturn tween 還鎖著舊節點 → 載入後幾輪重量時跑馬燈「出現又停住」（2026-09-28）
           track.innerHTML = view._hmOrig;
           view.classList.remove('is-hmarquee');
           view.style.removeProperty('--hmarquee-distance');
@@ -1003,7 +1019,8 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         pairs.forEach(p => { p.style.width = `${pairW}px`; p.style.paddingRight = '0'; });
         // 滾動距離 = N 位獲獎者寬度（= 複製前的 track 寬）
         const distance = pairW * pairs.length;
-        const origHtml = track.innerHTML;
+        // 取乾淨單份：① 不再還原非 hmarquee 的 track，裡面可能帶 applyMarqueeOverflow 的雙份文字
+        const origHtml = view._hmOrig;
         track.innerHTML = origHtml + origHtml;
         // innerHTML reset 後新 pair 也要 set 寬（這次包含複製份）
         track.querySelectorAll('.award-winner-pair').forEach(p => {
@@ -1052,6 +1069,13 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         </button>`;
     }).join('');
 
+    // 觸控 dim 的容器旗標（library.css (hover:none) 規則吃 #library-awards-list[data-ref-open]＋.year-block.is-ref-open，
+    // 取代舊 :has() 版——:has 錨點失效會拖整表 style 重算）。一次只開一項，旗標直接 set/delete。
+    function setRefOpenFlag(item, on) {
+      if (on) listEl.dataset.refOpen = '1'; else delete listEl.dataset.refOpen;
+      item.closest('.year-block')?.classList.toggle('is-ref-open', on);
+    }
+
     // 收合單一 award ref 手風琴 + 清底色。instant=無動畫（切 panel reset 用）；動畫版＝開新項時先收其他項。
     function collapseAwardItem(item, { instant = false, matchOpen = false } = {}) {
       const wrap = /** @type {HTMLElement | null} */ (item.querySelector('.award-ref-wrap'));
@@ -1060,6 +1084,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
       const chevron = item.querySelector('.award-ref-toggle .icon');
       const cleanup = () => {
         delete item.dataset.refOpen;
+        setRefOpenFlag(item, false);
         item.style.removeProperty('--item-color');
         item.style.removeProperty('--item-color-deep');
         item.style.background = '';
@@ -1082,7 +1107,9 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     // ── viewport lazy render（2026-09-13，670 筆真資料後對齊 activities 鐵則：首批建滿一屏、
     //    sentinel IO 續建；搜尋／年份篩選／deep-link 需要整份 DOM 時 buildAllRemaining 兜底）──
     const LAZY_FIRST_ITEMS = 30;   // 首批 rows 下限（year group 為單位湊滿）
-    const LAZY_BATCH_ITEMS = 30;   // sentinel 每次觸發續建 rows 下限
+    // sentinel 每次觸發續建 rows 下限：手機減半（2026-09-20 捲動中一批 30 列的同步建構＝主線程長任務，
+    // 撞上捲動幀整頁掉幀、logo ticker 看起來卡）；配 armLazySentinel 的 rootMargin 加大＝每批更便宜、更早開建
+    const LAZY_BATCH_ITEMS = window.innerWidth < 768 ? 15 : 30;
     let lazyQueue = [];            // 尚未建 DOM 的 year groups（renderItems 重灌）
     let lazySentinel = null;
     let lazyIO = null;
@@ -1202,7 +1229,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         if (!entries.some(e => e.isIntersecting)) return;
         buildNextGroups(LAZY_BATCH_ITEMS);
         if (!lazyQueue.length) disarmLazySentinel();
-      }, { root: listEl.closest('#library-awards-scroll'), rootMargin: '800px 0px' });
+      }, { root: listEl.closest('#library-awards-scroll'), rootMargin: window.innerWidth < 768 ? '1200px 0px' : '800px 0px' });
       lazyIO.observe(lazySentinel);
     }
     registerPageCleanup(() => disarmLazySentinel());
@@ -1256,6 +1283,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
             });
             // 開：立刻鎖 accent 底 + deep ref（同 activities proceedOpen）
             item.dataset.refOpen = '1';
+            setRefOpenFlag(item, true);
             const color = item.dataset.accentHex || SCCDHelpers.getRandomAccentColor();
             item.dataset.accentHex = color;
             item.style.background = color;
@@ -1267,6 +1295,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
           // 期間 mouseleave 把底色清掉。
           const onCloseDone = () => {
             delete item.dataset.refOpen;
+            setRefOpenFlag(item, false);
             item.style.removeProperty('--item-color');
             item.style.removeProperty('--item-color-deep');
             if (window.innerWidth >= 768 && !isShortLandscape() && item.matches(':hover')) {
@@ -1301,11 +1330,59 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         wrap.querySelectorAll('.award-ref-row').forEach(row => bindAwardRefRowClick(/** @type {HTMLElement} */ (row)));
       });
 
-      if (withMarquee) applyAwardMarquees(scope);
+      // 捲動讓路（2026-09-27 CDP：捲動掉幀第二主因）：sentinel 批天生在捲動幀觸發，建列＋逐列 offsetWidth
+      // 量 marquee 同幀＝百 ms 級長任務。建列不能等（內容要出現）、量測可以等（桌面 marquee hover 才跑、
+      // 手機自動版晚幾百 ms 起跑無感）→ 捲動中入佇列、捲停後補量。閒置 pump（withMarquee=false）不走這裡。
+      if (withMarquee) {
+        if (scrollBusyRemaining() > 0) queueScopeMarquees(scope);
+        else applyAwardMarquees(scope);
+      }
     }
 
-    // marquee 量測統一入口（bindAwardScope 逐批＋showLibPanel 重量＋buildAllRemaining 收尾共用）
+    let mqDeferred = /** @type {HTMLElement[]} */ ([]);
+    let mqTimer = 0;
+    function queueScopeMarquees(scope) {
+      if (!mqDeferred.includes(scope)) mqDeferred.push(scope);  // c-v 逐列 statechange 會對同一組連推多次
+      const drain = () => {
+        if (!listEl.isConnected) { mqDeferred = []; return; }
+        const wait = scrollBusyRemaining();
+        if (wait > 0) { mqTimer = setTimeout(drain, wait + 100); return; }
+        const scopes = mqDeferred; mqDeferred = [];
+        scopes.forEach(s => { if (s.isConnected) applyAwardMarquees(s); });
+      };
+      clearTimeout(mqTimer);
+      mqTimer = setTimeout(drain, 300);
+    }
+    registerPageCleanup(() => clearTimeout(mqTimer));
+
+    // marquee 量測統一入口（bindAwardScope 逐批＋showLibPanel 重量＋buildAllRemaining 收尾共用）。
+    // content-visibility:auto 配套（見 library.css .award-record-item 註解）：量測讀子樹幾何會把「跳過中」的列強制
+    // 渲染 → 全表量測（pump finale／fonts.ready／resize／panel show）從 ~70ms 變 1.2s 單任務（headless 實測）。
+    // 改逐 year-block 分流：整組列都在跳過態（或整個 panel 隱藏、checkVisibility 同樣 false）→ 掛
+    // contentvisibilityautostatechange 等第一次進渲染範圍再量（仍走 queueScopeMarquees 對捲動讓路）；有列已渲染
+    // 的組直接量（讀寫分離維持在組內）。不支援 checkVisibility 的瀏覽器＝c-v 也不支援＝原路全量。
+    const CV_OPTS = { contentVisibilityAuto: true };
+    const mqCvListeners = new WeakMap();
     function applyAwardMarquees(scope) {
+      const blocks = scope.matches('.year-block') ? [scope] : [...scope.querySelectorAll('.year-block')];
+      if (!blocks.length) { applyAwardMarqueesNow(scope); return; }
+      blocks.forEach(block => {
+        const rows = [...block.querySelectorAll('.award-record-item')];
+        // ⚠️ 要探列的「子元素」：c-v auto 掛在列自身，列的 box 永遠算可見（checkVisibility 只看祖先是否跳過內容）
+        const skipped = rows.length > 0 && typeof rows[0].checkVisibility === 'function' && !rows.some(r => (r.firstElementChild || r).checkVisibility(CV_OPTS));
+        const bound = mqCvListeners.get(block);
+        if (!skipped) {
+          if (bound) { rows.forEach(r => r.removeEventListener('contentvisibilityautostatechange', bound)); mqCvListeners.delete(block); }
+          applyAwardMarqueesNow(block);
+          return;
+        }
+        if (bound) return;
+        const onCv = (e) => { if (!e.skipped) queueScopeMarquees(block); };
+        mqCvListeners.set(block, onCv);
+        rows.forEach(r => r.addEventListener('contentvisibilityautostatechange', onCv));
+      });
+    }
+    function applyAwardMarqueesNow(scope) {
       // 多獲獎者水平 marquee（桌面 hover 才捲；量測需 panel 可見、隱藏時 offsetWidth=0 自動略過）
       applyWinnersHMarquee(scope);
       if (window.innerWidth < 768 || isShortLandscape()) {
@@ -1339,17 +1416,35 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     // sort／背景 rerender 重建佇列＝renderItems 內重新排程；lazy IO 先建完也無妨（pump 見佇列空即收）。
     let prebuildTimer = 0, prebuildRaf = 0;
     function cancelPrebuild() { clearTimeout(prebuildTimer); cancelAnimationFrame(prebuildRaf); }
+    // 捲動讓路（2026-09-20 手機捲 awards 時 logo ticker 偶發卡頓）：pump「每幀建一批」的窗口撞上使用者
+    // 捲動＝每幀都有數十 ms 長任務、整頁掉幀（ticker 最顯眼）。捲動中（250ms 內有 scroll）pump 與收尾
+    // 全表量測一律改期；window capture 一支 passive listener 就涵蓋內捲框（scroll 不 bubble、capture 收得到）。
+    let lastScrollTs = 0;
+    const noteScroll = () => { lastScrollTs = performance.now(); };
+    window.addEventListener('scroll', noteScroll, { capture: true, passive: true });
+    registerPageCleanup(() => window.removeEventListener('scroll', noteScroll, { capture: true }));
+    const SCROLL_YIELD_MS = 250;
+    const scrollBusyRemaining = () => Math.max(0, SCROLL_YIELD_MS - (performance.now() - lastScrollTs));
     function schedulePrebuild() {
       cancelPrebuild();
       if (!lazyQueue.length) return;
       const pump = () => {
         if (!listEl.isConnected || !lazyQueue.length) return;
-        const busy = revealBusyRemaining();
+        // menu 開著（桌面面板透明、頁面看得到）也讓路：選項 clip-reveal 期間撞建批＝ticker/選項一起掉幀（user 2026-09-27）
+        if (document.documentElement.classList.contains('mobile-menu-open')) { prebuildTimer = setTimeout(pump, 300); return; }
+        const busy = Math.max(revealBusyRemaining(), scrollBusyRemaining());
         if (busy > 60) { prebuildTimer = setTimeout(pump, busy + 200); return; }
         buildNextGroups(LAZY_BATCH_ITEMS, false);
         if (lazyQueue.length) { prebuildRaf = requestAnimationFrame(pump); return; }
         disarmLazySentinel();
-        applyAwardMarquees(listEl);
+        // 收尾全表量測（670 列單次讀寫）在手機是可感知長任務 → 同樣等捲動停才做
+        const finale = () => {
+          if (!listEl.isConnected) return;
+          const wait = scrollBusyRemaining();
+          if (wait > 0) { prebuildTimer = setTimeout(finale, wait + 100); return; }
+          applyAwardMarquees(listEl);
+        };
+        finale();
       };
       prebuildTimer = setTimeout(pump, 2000);
     }
@@ -1378,7 +1473,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         if (!lazyQueue.length) disarmLazySentinel();
         const el = targetInDom();
         const block = el && el.closest('.year-block');
-        if (block) applyAwardMarquees(block);
+        if (block) applyAwardMarqueesNow(block);  // 目標組馬上要捲到、反正會渲染：直接量（不走 c-v 待命）
         const finishMeasure = () => {
           if (!listEl.isConnected) return;
           if (lazyCoversHeld()) { setTimeout(finishMeasure, 300); return; }
@@ -1478,7 +1573,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         const hasSel = selectedYears.size > 0;
         resetBtn.style.display = hasSel ? '' : 'none';
         yearPickerEl.querySelectorAll('button[data-year]').forEach(b => {  // [data-year] 排除同在 picker 內的 reset 鈕（手機版位）
-          b.style.color = (!hasSel || selectedYears.has(b.dataset.year)) ? 'var(--lib-fg)' : 'rgba(var(--lib-fg-rgb),0.3)';
+          b.style.color = (!hasSel || selectedYears.has(b.dataset.year)) ? 'var(--lib-fg)' : 'rgba(var(--lib-fg-rgb),0.6)';  // 未選 0.6＝同 createYearPicker
         });
       };
 
@@ -1886,7 +1981,7 @@ async function initPressPanel() {
 
     // 年份 Picker
     const years = [...new Set(sorted.map(p => String(p.year)))].sort((a, b) => Number(b) - Number(a));
-    const selectedYears = createYearPicker(yearPickerEl, years, () => { const before = snapshotVisibleYears(listEl); applyFiltersWithRef(); clipWipeChangedBlocks(listEl, before); });
+    const { selected: selectedYears } = createYearPicker(yearPickerEl, years, () => { const before = snapshotVisibleYears(listEl); applyFiltersWithRef(); clipWipeChangedBlocks(listEl, before); });
 
     // 排序
     const sortBtn = document.getElementById('library-press-sort-btn');
@@ -2298,20 +2393,16 @@ async function initFilesPanel() {
     // 分類篩選（多選 toggle，全不選＝全部；同 album panel）
     const selectedCats = new Set();
 
-    // 年份 picker「配合分類」（user 2026-08-26）：選了分類 → 只列出該分類 item 有的年份（切分類即重建、年份選取重置）。
+    // 年份 picker「配合分類」（user 2026-08-26）：選了分類 → 該分類沒有的年份 disabled 半透明（09-28 起全年份常駐、不重建）。
     const onYearFilter = () => { const before = snapshotVisibleYears(listEl); applyFilters(); clipWipeChangedBlocks(listEl, before); };  // 重播近視窗卡片進場＝對齊 album（user 2026-08-27；7s reflow thrash 根因已修故不卡）
-    const availYears = () => {
-      const isAll = selectedCats.size === 0;
+    const availYears = (ignoreCats = false) => {
+      const isAll = ignoreCats || selectedCats.size === 0;
       const set = new Set();
       listEl.querySelectorAll('.files-item').forEach(it => { if (isAll || selectedCats.has(it.dataset.cat)) set.add(it.dataset.year); });
       return [...set].sort((a, b) => Number(b) - Number(a));
     };
-    let selYears;
-    function rebuildYearPicker() {
-      yearPickerEl.querySelectorAll('button[data-year]').forEach(b => b.remove());  // 清舊年份鈕（reset 鈕由 createYearPicker 內部自清）
-      selYears = createYearPicker(yearPickerEl, availYears(), onYearFilter);
-    }
-    rebuildYearPicker();
+    // 全年份都列、切分類只原地標 disabled（user 2026-09-28，取代 08-26「只列該分類年份＋重建」）
+    const { selected: selYears, setEnabled: setYearsEnabled } = createYearPicker(yearPickerEl, availYears(true), onYearFilter);
 
     function applyFilters() {
       const q = searchInput ? searchInput.value.trim().toLowerCase() : '';
@@ -2360,7 +2451,7 @@ async function initFilesPanel() {
         const cat = btn.dataset.cat;
         if (selectedCats.has(cat)) { selectedCats.delete(cat); } else { selectedCats.add(cat); }
         if (selectedCats.size === filesCatBtns.length) selectedCats.clear();  // 全選＝全部（回到無篩選）
-        rebuildYearPicker();   // 年份 picker 重建成「當前分類的年份」（user 2026-08-26；年份選取重置）
+        setYearsEnabled(new Set(availYears()));   // 當前分類沒有的年份 disabled（已選的退選、其餘選取保留）
         applyFilters();
         clipWipeItems(visibleFilesCards(listEl));  // 重播近視窗卡片進場（含副標 clip-reveal）＝對齊 album（user 2026-08-27）
       });
@@ -2701,20 +2792,15 @@ async function initAlbumPanel() {
 
     const selectedCats = new Set();
 
-    // 年份 picker「配合分類」（user 2026-08-26，同 Documents）：選了分類 → 只列出該分類 item 有的年份（切分類即重建、年份選取重置）。
+    // 年份 picker「配合分類」（user 2026-08-26，同 Documents）：選了分類 → 該分類沒有的年份 disabled 半透明（09-28 起全年份常駐、不重建）。
     const onYearFilter = () => { const before = snapshotVisibleYears(listEl); applyFilters(); clipWipeChangedBlocks(listEl, before); };
-    const availYears = () => {
-      const isAll = selectedCats.size === 0;
+    const availYears = (ignoreCats = false) => {
+      const isAll = ignoreCats || selectedCats.size === 0;
       const set = new Set();
       listEl.querySelectorAll('.files-item').forEach(it => { if (isAll || selectedCats.has(it.dataset.cat)) set.add(it.dataset.year); });
       return [...set].sort((a, b) => Number(b) - Number(a));
     };
-    let selYears;
-    function rebuildYearPicker() {
-      yearPickerEl.querySelectorAll('button[data-year]').forEach(b => b.remove());
-      selYears = createYearPicker(yearPickerEl, availYears(), onYearFilter);
-    }
-    rebuildYearPicker();
+    const { selected: selYears, setEnabled: setYearsEnabled } = createYearPicker(yearPickerEl, availYears(true), onYearFilter);  // 同 Documents（user 2026-09-28）
 
     function applyFilters() {
       const q     = searchInput ? searchInput.value.trim().toLowerCase() : '';
@@ -2758,7 +2844,7 @@ async function initAlbumPanel() {
         const cat = btn.dataset.cat;
         if (selectedCats.has(cat)) { selectedCats.delete(cat); } else { selectedCats.add(cat); }
         if (selectedCats.size === albumCatBtns.length) selectedCats.clear();
-        rebuildYearPicker();   // 年份 picker 重建成「當前分類的年份」（user 2026-08-26）
+        setYearsEnabled(new Set(availYears()));   // 當前分類沒有的年份 disabled
         applyFilters();
         clipWipeItems(cullNearViewport(visibleListItems(listEl), listEl));   // 畫外重播沒人看（同 clipWipeChangedBlocks 的 cull 慣例）
       });
@@ -3039,16 +3125,28 @@ function slideThumbIn(item) {
       return;
     }
     if (isAlbum) {
-      // §31（req1, user 2026-09-08）：album 縮圖改「strip box 內原地 clip-path 揭」＝不再從 zebra 外 translate 110% 飛入。
-      //   由下往上（對齊色塊/年份 label 方向）；揭完清成 clipPath=''（非留 inset(0)）讓旋轉縮圖凸角還原（末端可能 ~2-4px 微 pop，同 box clip 既有取捨）。
+      // user 2026-09-20（翻掉 §31 原地 clip-path）：inset 掃邊會把旋轉縮圖「切一半→定位後才復原」＝視覺像 bug →
+      //   改真 clip-reveal（同 press/files 語彙）：wrap 當靜態窗、strip 整條由下往上滑入。
+      //   2026-09-24：窗不能用 overflow:clip——thumbs ±6° 旋轉凸角常態溢出 strip/wrap 框（overflow:visible
+      //   是設計），貼框剪裁＝滑動後段凸角被切、揭完才彈回（user 桌面實測抓包）。改 clip-path inset(-M)：
+      //   四邊外擴 M 蓋過凸角（實測凸出 <10px）、剪裁只剩外擴後的下緣＝揭露線；起點多沉 2M 保證含凸角全在線下。
+      //   位移量以 rect 算「wrap 底 − strip 頂」＝不論 wrap 被 row 撐多高，起點都完全在窗外；揭完清 inline。
+      //   translate 個別屬性、不碰 thumbs 的 rotate。
+      const M = 16;
+      const wrapEl = wrap || /** @type {HTMLElement|null} */ (container.parentElement);
+      const hiddenY = (wrapEl
+        ? Math.max(container.offsetHeight, Math.ceil(wrapEl.getBoundingClientRect().bottom - container.getBoundingClientRect().top))
+        : container.offsetHeight) + 2 * M;
+      if (wrapEl) wrapEl.style.clipPath = `inset(-${M}px)`;
       container.style.transition = 'none';
-      container.style.clipPath = 'inset(100% 0 0 0)';
+      container.style.translate = `0 ${hiddenY}px`;
       requestAnimationFrame(() => requestAnimationFrame(() => {
-        container.style.transition = `clip-path ${DUR.medium}s ease-out`;
-        container.style.clipPath = 'inset(0 0 0 0)';
+        container.style.transition = `translate ${DUR.medium}s ease-out`;
+        container.style.translate = '0 0';
         const done = (e) => {
-          if (e.target !== container || e.propertyName !== 'clip-path') return;
-          container.style.transition = ''; container.style.clipPath = '';
+          if (e.target !== container || e.propertyName !== 'translate') return;
+          container.style.transition = ''; container.style.translate = '';
+          if (wrapEl) wrapEl.style.clipPath = '';
           container.removeEventListener('transitionend', done);
         };
         container.addEventListener('transitionend', done);
@@ -3116,6 +3214,7 @@ function playAwardItem(el, dur, delay) {
   const clearBox = (e) => {
     if (e.target !== el || e.propertyName !== 'clip-path') return;
     el.style.transition = ''; el.style.clipPath = '';
+    el.style.contentVisibility = '';   // 還原 auto（revealAwardItems flush 揭前暫設 visible；同 activities：已在視窗內、清掉不影響進行中 transition）
     el.removeEventListener('transitionend', clearBox);
   };
   el.addEventListener('transitionend', clearBox);
@@ -3226,21 +3325,50 @@ function revealAwardItems(items, dur = DUR.medium, { skipInitial = false, oneSho
   requestAnimationFrame(() => requestAnimationFrame(() => {
     const pending = new Set(items);
     const shownLabels = new Set(preShown);
+    // 快取各列「捲動內容座標 top」＋有序前緣（2026-09-27 CDP：捲動掉幀主因＝原每幀對全 pending 逐列 gBCR，
+    // 撞上批次建構／hover 寫入的髒 layout＝幀幀 forced layout、100ms 級長任務、ticker 掉幀最顯眼）。
+    // 進場動畫全 clip/transform 不動版面 → top 執行期恆定；批次 append 只長在既有列下方不動舊列；
+    // ref 開合會把下方列推下＝快取偏小＝「提早揭」（畫面外播進場，無害）。resize 真的會變 → debounce 重量。
+    // flush 從此免逐列 gBCR：scrollTop 免 layout、clientHeight/scrollHeight 每次各讀一次。
+    let ordered = /** @type {any[]} */ ([]), frontier = 0;
+    const measureTops = () => {
+      if (!scroller) return;
+      const r = scroller.getBoundingClientRect();
+      const base = scroller.scrollTop;
+      pending.forEach(el => { /** @type {any} */ (el)._revTop = el.getBoundingClientRect().top - r.top + base; });
+      ordered = [...pending].sort((a, b) => /** @type {any} */ (a)._revTop - /** @type {any} */ (b)._revTop);
+      frontier = 0;   // 有序＋reveal 單向（揭了不回收）→ 前緣只進不退；重量測後歸零重掃（已揭者 pending 已刪、自動跳過）
+    };
+    measureTops();
     // sequential=true：依 year-block 分組逐年（組內 stagger、組間等前組揭完）；false：捲入視窗即揭（delay 0）
-    // 讀所有 rect（讀相）→ 再一次 play（寫相），避免 loop 內讀寫交錯 forced reflow
     const flush = (sequential, snap = false) => {
-      const rbRaw = scroller ? scroller.getBoundingClientRect().bottom : Infinity;
-      // 非初始批：觸發線往上提 AWARD_REVEAL_LEAD → item 進到可視區內才揭（看得見進場），而非在 fold 以下播完。
-      // ⚠️ 底部 clamp：清單末尾距捲動終點不足 LEAD 的 item 頂邊永遠越不過 rb−LEAD → 不 clamp 會永久隱形。
-      const remain = scroller ? Math.max(0, scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight) : 0;
-      const rb = sequential ? rbRaw : rbRaw - Math.min(AWARD_REVEAL_LEAD, remain);
-      const due = [...pending].filter(el => el.getBoundingClientRect().top < rb);
+      let due;
+      if (!scroller) due = [...pending];
+      else {
+        const st = scroller.scrollTop, ch = scroller.clientHeight;
+        // 非初始批：觸發線往上提 AWARD_REVEAL_LEAD → item 進到可視區內才揭（看得見進場），而非在 fold 以下播完。
+        // ⚠️ 底部 clamp：清單末尾距捲動終點不足 LEAD 的 item 頂邊永遠越不過 line → 不 clamp 會永久隱形。
+        const remain = Math.max(0, scroller.scrollHeight - st - ch);
+        const line = st + ch - (sequential ? 0 : Math.min(AWARD_REVEAL_LEAD, remain));
+        due = [];
+        while (frontier < ordered.length && /** @type {any} */ (ordered[frontier])._revTop < line) {
+          const el = ordered[frontier++];
+          if (pending.has(el)) due.push(el);
+        }
+      }
       let delay = sequential ? startDelay : 0, lastBlock = null;  // sequential（初始批）從 startDelay 起跑＝等 veil 掀開；scroll-gate 補揭一律即時
       // snap＝deep-link 飛行窗口：12k px/s 沒人看得到 0.4s 進場、省整波 transition/gsap。
       // ⚠️不能走 playAwardItem(dur 0)：0s transition 不 fire transitionend → inline clip/transform 殘留
       //（album 旋轉縮圖被 inset(0) 裁角的老坑）。直接寫「已揭終態」、下一幀批清 inline transition
       //（保留 stylesheet base transition 給 hover/dim）。
       const snapClear = /** @type {HTMLElement[]} */ ([]);
+      // content-visibility:auto（award 列，library.css）：列出生時 panel 還蓋著＝內容被跳過、隱藏態從未 commit →
+      // 同幀改樣式 transition 不啟動（文字不滑、色塊揭完才一次冒出，user 2026-09-28）。比照 activities reveal-IO：
+      // 先 inline visible＋單次 reflow 讓隱藏態 commit 才播；揭完 playAwardItem clearBox 還原 auto。snap 不播＝不需要。
+      if (!snap && due.length) {
+        due.forEach(el => { el.style.contentVisibility = 'visible'; });
+        void due[0].offsetHeight;
+      }
       due.forEach(el => {
         const block = blockOf(el);
         if (sequential && block !== lastBlock && lastBlock !== null) delay += dur; // 等前一年份揭完才接下一組
@@ -3296,8 +3424,11 @@ function revealAwardItems(items, dur = DUR.medium, { skipInitial = false, oneSho
           if (!pending.size && _awardRevealCleanup) { _awardRevealCleanup(); _awardRevealCleanup = null; }
         });
       };
+      let resizeT = 0;
+      const onResize = () => { if (!pending.size) return; clearTimeout(resizeT); resizeT = setTimeout(measureTops, 200); };
       scroller.addEventListener('scroll', onScroll, { passive: true });
-      _awardRevealCleanup = () => scroller.removeEventListener('scroll', onScroll);
+      window.addEventListener('resize', onResize);
+      _awardRevealCleanup = () => { scroller.removeEventListener('scroll', onScroll); window.removeEventListener('resize', onResize); clearTimeout(resizeT); };
       registerPageCleanup(() => { if (_awardRevealCleanup) { _awardRevealCleanup(); _awardRevealCleanup = null; } });
     }
   }));
@@ -3391,11 +3522,11 @@ function clearStaleReveal(el) {
     .forEach(c => { /** @type {HTMLElement} */ (c).style.transition = 'none'; /** @type {HTMLElement} */ (c).style.transform = ''; });
   // 縮圖回乾淨可見 rest：清 slid 旗標＋移 pending（visibility 恢復）；album strip 清 transform、press thumb 還原 rotate；wrap overflow 還原。
   h.dataset.thumbSlid = '';
-  const strip = /** @type {HTMLElement|null} */ (h.querySelector('.album-thumb-strip')); if (strip) { strip.style.transition = 'none'; strip.style.transform = ''; strip.style.clipPath = ''; strip.classList.remove('thumb-reveal-pending'); }  // §31：album 改 clip-path 揭→中斷善後也要清 clipPath（否則留 inset 永久隱形）
+  const strip = /** @type {HTMLElement|null} */ (h.querySelector('.album-thumb-strip')); if (strip) { strip.style.transition = 'none'; strip.style.transform = ''; strip.style.clipPath = ''; strip.style.translate = ''; strip.classList.remove('thumb-reveal-pending'); }  // 中斷善後：清 clipPath（§31 舊制殘留）＋translate（2026-09-20 窗＋位移制；手機分支同用）否則畫外殘留永久隱形/錯位
   const pth   = /** @type {HTMLElement|null} */ (h.querySelector('.press-item-thumb')); if (pth) { pth.style.transition = 'none'; pth.style.transform = `rotate(${pth.dataset.initDeg || 0}deg)`; pth.style.overflow = ''; pth.classList.remove('thumb-reveal-pending'); }
   // press 桌面滑動主體已改內部 img（容器當遮罩，2026-09-15）：mid-slide 打斷時 img 殘留畫外 transform → 一併清
   const pimg  = /** @type {HTMLElement|null} */ (h.querySelector('.press-thumb-img')); if (pimg) { pimg.style.transition = 'none'; pimg.style.transform = ''; }
-  const wrap  = /** @type {HTMLElement|null} */ (h.querySelector('.album-thumb-strip-wrap, .press-item-thumb-wrap')); if (wrap) wrap.style.overflow = '';
+  const wrap  = /** @type {HTMLElement|null} */ (h.querySelector('.album-thumb-strip-wrap, .press-item-thumb-wrap')); if (wrap) { wrap.style.overflow = ''; wrap.style.clipPath = ''; }  // clipPath＝album 窗（2026-09-24 inset(-M) 制）中斷殘留
 }
 
 // search 篩選後讓結果重播進場。⭐user 2026-09-02：search **不套 one-shot**——每次結果集有變就整批重播（不像 tab reveal 只播一次）；
@@ -3929,6 +4060,22 @@ export function initLibraryPanels() {
     hidePanelChildren(document.getElementById(id));
   });
 
+  // hover dim 旗標（取代 library.css 舊 `:has(...:hover)`，見該處註解）：一支 delegated listener 涵蓋四 panel，
+  // 容器 data-hovering＋所屬 year-block .is-hover-block。gate 同舊 CSS media（真 hover 裝置＋≥768）；
+  // deep-link runHighlight／touch setRefOpenFlag 另掛同組旗標。容器是 library.html 靜態節點、隨 SPA swap 消失、免 cleanup。
+  const content = document.getElementById('library-card-content');
+  if (content && window.matchMedia('(hover: hover) and (min-width: 768px)').matches) {
+    const ROW_SEL = '.award-record-item, .press-item, .files-item';
+    let hoverBlock = null;
+    const setHover = (row) => {
+      const block = row ? row.closest('[class$="year-block"]') : null;
+      if (block !== hoverBlock) { hoverBlock?.classList.remove('is-hover-block'); block?.classList.add('is-hover-block'); hoverBlock = block; }
+      content.toggleAttribute('data-hovering', !!row);
+    };
+    content.addEventListener('mouseover', e => setHover(/** @type {Element} */ (e.target).closest(ROW_SEL)));
+    content.addEventListener('mouseout', e => { if (!(/** @type {Element | null} */ (e.relatedTarget))?.closest?.(ROW_SEL)) setHover(null); });
+  }
+
   // 轉向（跨矮橫向 gate）時重量所有 marquee：橫向 runMarqueeOverflow 把文字換成兩份 .marquee-copy，
   // 轉直向後 cell 換行顯示 → 兩份全露出＝「文字出現兩次」；applyMarqueeOverflow 自帶 reset（重跑先還原
   // 單份再依當前寬度重判），四個 _XMarqueeInit 都 idempotent → 直接全部重觸發即自癒。
@@ -4189,10 +4336,14 @@ function handleLibraryHash() {
           el.style.background = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
         }
         el.classList.add('is-hovered');
+        // dim 旗標同 initLibraryPanels 的 hover delegated 版（library.css 已無 :has）
+        const content = el.closest('#library-card-content'), block = el.closest('[class$="year-block"]');
+        content?.setAttribute('data-hovering', ''); block?.classList.add('is-hover-block');
         el.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
         setTimeout(() => {
           if (!desktopHover) el.style.background = '';
           el.classList.remove('is-hovered');
+          content?.removeAttribute('data-hovering'); block?.classList.remove('is-hover-block');
           el.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
           // transition 等淡出跑完才還原（0.3s），避免殘留 inline transition 干擾之後的 hover
           setTimeout(() => { el.style.transition = prevTransition; }, 350);
