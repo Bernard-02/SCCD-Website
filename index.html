@@ -18,12 +18,13 @@
   <style>
     #intro-overlay { position: fixed; inset: 0; background: #ffffff; z-index: 10000; }
     /* 未渲染（reveal 前）＝隱形＋不可互動：opacity:0 不擋 pointer → mode btn 等會有 pointer cursor＋可點；
-       pointer-events:none 讓隱形 header 不吃 hover/click（showHeader reveal 時設 inline auto 恢復）。user 2026-09-04 */
-    #site-header header { opacity: 0; pointer-events: none; }
+       --header-pe:none 讓隱形 header 的 logo/鈕不吃 hover/click（showHeader reveal 時設 inline --header-pe:auto 恢復；
+       header 本體恆 none 放行中間空白，見 navigation.css）。user 2026-09-04 */
+    #site-header header { opacity: 0; pointer-events: none; --header-pe: none; }
   </style>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&family=Noto+Sans+SC:wght@400;500;700&family=Bitter:ital,wght@0,400;0,600;0,700;1,400&family=Noto+Serif+TC:wght@400;600;700&family=Noto+Serif+JP:wght@400;600;700&family=Noto+Serif+SC:wght@400;600;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&family=Noto+Sans+TC:wght@400..700&family=Noto+Sans+JP:wght@400..700&family=Noto+Sans+SC:wght@400..700&family=Bitter:ital,wght@0,400..700;1,400..700&family=Noto+Serif+TC:wght@400..700&family=Noto+Serif+JP:wght@400..700&family=Noto+Serif+SC:wght@400..700&display=swap">
   <link rel="stylesheet" href="css/output.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.2.3/css/flag-icons.min.css">
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
@@ -128,7 +129,7 @@
 
       <!-- Logo：桌面靠左貼齊 padding，正方形吃滿可用高度 -->
       <div class="footer-logo-area">
-        <div id="footer-logo" class="footer-logo-inner"></div>
+        <a href="../index.html" id="footer-logo" class="footer-logo-inner block" aria-label="SCCD 首頁 Home"></a>
       </div>
 
       <!-- 右側欄：桌面分上（隨機旋轉）下（privacy），手機線性堆疊 -->
