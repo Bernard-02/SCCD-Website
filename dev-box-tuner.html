@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>盒字 Padding Tuner（dev 工具，不上線）</title>
+<link rel="stylesheet" href="css/output.css">
+<style>
+  /* ponytail: dev 工具頁，樣式全 inline、不進設計系統 */
+  body { font-family: 'Inter', 'Noto Sans TC', sans-serif; background: #fff; color: #000; margin: 0; padding: 32px 48px 96px; }
+  .tuner-head { max-width: 860px; margin-bottom: 48px; }
+  .tuner-head h1 { font-size: 1.5rem; font-weight: 700; margin: 0 0 8px; }
+  .tuner-head p { font-size: 0.85rem; line-height: 1.5; color: #555; margin: 4px 0; }
+  .grp { margin: 56px 0 0; }
+  .grp > h2 { font-size: 1.1rem; font-weight: 700; border-bottom: 2px solid #000; padding-bottom: 6px; margin: 0 0 16px; }
+  .grp > h2 small { font-weight: 400; color: #777; margin-left: 8px; }
+  .card { display: flex; gap: 32px; align-items: flex-start; border: 1px solid #ddd; padding: 20px; margin-bottom: 16px; flex-wrap: wrap; }
+  .stage { flex: 1 1 420px; min-width: 320px; display: flex; flex-direction: column; gap: 12px; align-items: flex-start; padding: 24px; }
+  .stage.on-gray { background: #f2f2f2; }
+  .panel { flex: 0 0 320px; }
+  .panel h3 { font-size: 0.95rem; font-weight: 700; margin: 0 0 2px; }
+  .panel .tgt { font-size: 0.75rem; color: #888; margin: 0 0 12px; line-height: 1.5; }
+  .row { display: grid; grid-template-columns: 2.5em 1fr 5.5em; gap: 8px; align-items: center; margin-bottom: 6px; font-size: 0.8rem; }
+  .row input[type=range] { width: 100%; accent-color: #000; }
+  .row input[type=number] { width: 100%; font: inherit; padding: 2px 4px; border: 1px solid #bbb; }
+  .out { font-family: ui-monospace, Consolas, monospace; font-size: 0.78rem; background: #f5f5f5; padding: 8px 10px; margin-top: 10px; white-space: pre-wrap; word-break: break-all; }
+  .copy { margin-top: 8px; font: inherit; font-size: 0.8rem; font-weight: 700; padding: 6px 12px; background: #000; color: #fff; border: none; cursor: pointer; }
+  .copy:active { background: #26BCFF; color: #000; }
+
+  /* mock 元件：只複製「字級 token + 字重 + 行距 token + 底色」，padding 由 JS 控 */
+  .mk { display: inline-block; }
+  .mk-blue  { background: #26BCFF; color: #000; }
+  .mk-green { background: #00FF80; color: #000; }
+  .mk-pink  { background: #FF448A; color: #000; }
+  .mk-black { background: #000; color: #fff; }
+  .mk-gray  { background: #f2f2f2; color: #000; }
+  .mk-white { background: #fff; color: #000; }
+
+  .mk-3xl-en { font-size: var(--font-size-3xl); line-height: var(--line-height-3xl); font-weight: 700; }
+  .mk-3xl-zh { font-size: var(--font-size-3xl); line-height: var(--line-height-zh-3xl); font-weight: 700; }
+  .mk-2xl-en { font-size: var(--font-size-2xl); line-height: var(--line-height-2xl); font-weight: 700; }
+  .mk-2xl-zh { font-size: var(--font-size-2xl); line-height: var(--line-height-zh-2xl); font-weight: 700; }
+  .mk-xl-en  { font-size: var(--font-size-xl);  line-height: var(--line-height-xl);  font-weight: 700; }
+  .mk-lg-en  { font-size: var(--font-size-lg);  line-height: var(--line-height-lg);  font-weight: 700; }
+  .mk-lg-zh  { font-size: var(--font-size-lg);  line-height: var(--line-height-zh-lg); font-weight: 700; }
+  .mk-md-en  { font-size: var(--font-size-md);  line-height: var(--line-height-md);  font-weight: 700; }
+  .mk-s-en   { font-size: var(--font-size-s);   line-height: var(--line-height-s);   font-weight: 700; }
+  .mk-s-zh   { font-size: var(--font-size-s);   line-height: var(--line-height-zh-s); font-weight: 700; }
+  .mk-s-en-r { font-size: var(--font-size-s);   line-height: var(--line-height-s);   font-weight: 400; }
+  .mk-s-zh-r { font-size: var(--font-size-s);   line-height: var(--line-height-zh-s); font-weight: 400; }
+  .mk-xs-en  { font-size: var(--font-size-xs);  line-height: var(--line-height-xs);  font-weight: 700; }
+
+  .mk-desc { max-width: clamp(220px, 28vw, 420px); }
+</style>
+</head>
+<body>
+
+<div class="tuner-head">
+  <h1>盒字 Padding Tuner</h1>
+  <p>依「字級」分批列出全站有底色的文字盒卡。滑桿粗調、數字欄精調（可用鍵盤 ↑↓，步進 0.5px），調完按「複製 CSS」把值貼回右側標註的檔案位置。</p>
+  <p>⚠️ 數值以<strong>桌面</strong>為準（字級 token 手機另套值）；頁面請在 ≥768px 寬的視窗看。</p>
+  <p>⚠️ Hero 系四卡（3xl／2xl／xl／s 說明）目前<strong>共用同一行</strong> hero-animation.js:856 的 <code>padding: 0.5rem 0.6rem</code>——若調完各字級不同值，JS 要改成依元素分支。</p>
+</div>
+
+<div id="app"></div>
+
+<script>
+const MOCKS = [
+  { grp: '3xl（桌面 128px）', name: 'Hero 主標卡', tgt: 'hero-animation.js:856（inline，rem）', pad: [8, 9.6, 8, 9.6], rem: true,
+    html: `<span class="mk mk-blue mk-3xl-en">FACULTY</span><span class="mk mk-blue mk-3xl-zh">師資</span>` },
+
+  { grp: '2xl（桌面 96px）', name: 'DSD 詳情頁標題卡', tgt: 'hero-animation.js:856（同上共用）', pad: [8, 9.6, 8, 9.6], rem: true,
+    html: `<span class="mk mk-pink mk-2xl-en">SYNTOPIA</span><span class="mk mk-pink mk-2xl-zh">境象共構</span>` },
+
+  { grp: 'xl（桌面 32px）', name: 'DSD 年份卡（#text-year）', tgt: 'hero-animation.js:856（同上共用）', pad: [8, 9.6, 8, 9.6], rem: true,
+    html: `<span class="mk mk-green mk-xl-en">2025</span>` },
+
+  { grp: 'lg（桌面 22.4px）', name: 'About 學制樹 chip（.prog-box）', tgt: 'css/components/about-structure.css:56', pad: [6, 8, 5, 8],
+    html: `<span class="mk mk-black mk-lg-en">Communications Design</span><span class="mk mk-black mk-lg-zh">媒體傳達設計學系</span>` },
+
+  { grp: 'md（桌面 20px）', name: '分支切換鈕（.class-division-btn / BFA・MDES）', tgt: 'css/components/buttons.css:242', pad: [6, 8, 5, 8],
+    html: `<span class="mk mk-black" style="text-align:left"><span class="mk-md-en" style="display:block">BFA</span><span class="mk-s-zh" style="display:block">學士班</span></span>` },
+
+  { grp: 's（桌面 16px）', name: 'Hero 說明字卡（.hero-text-en/-cn）', tgt: 'hero-animation.js:856（同 hero 共用）', pad: [8, 9.6, 8, 9.6], rem: true,
+    html: `<span class="mk mk-blue mk-s-en-r mk-desc">The Department of Communications Design integrates media, technology and design thinking.</span>
+           <span class="mk mk-blue mk-s-zh-r mk-desc">媒體傳達設計學系整合媒體、科技與設計思維，培養跨域創作人才。</span>` },
+
+  { grp: 's（桌面 16px）', name: '全站 nav btn（anchor-nav／篩選鈕／program 切換）', tgt: 'css/components/navigation.css:233（全站標準 6px 8px 5px）', pad: [6, 8, 5, 8],
+    html: `<span class="mk mk-green" style="text-align:center"><span class="mk-s-en" style="display:block">ABOUT US</span><span class="mk-s-zh" style="display:block">關於我們</span></span>` },
+
+  { grp: 's（桌面 16px）', name: 'Courses 課程格卡（.courses-grid-card）', tgt: 'css/components/courses.css:377', pad: [6, 8, 5, 8],
+    html: `<span class="mk mk-gray" style="width:240px"><span class="mk-s-en" style="display:block">Visual Communication Design</span><span class="mk-s-zh" style="display:block">視覺傳達設計</span></span>` },
+
+  { grp: 's（桌面 16px）', name: 'Atlas 詳情卡黑頭（.atlas-detail-head）', tgt: 'css/components/atlas.css:332', pad: [6, 8, 5, 8],
+    html: `<span class="mk mk-black" style="width:260px"><span class="mk-s-en" style="display:block">王小明 Wang Xiao-Ming</span><span class="mk-s-en-r" style="display:block">副教授 Associate Professor</span></span>` },
+
+  { grp: 'xs（桌面 13.6px）', name: 'Atlas 橫向 gate 子鈕（.atlas-gate-sub-btn）', tgt: 'css/components/atlas.css:1571', pad: [6, 8, 5, 8], gray: false,
+    html: `<span class="mk mk-gray mk-xs-en">BACK TO HOME 回到首頁</span>` },
+];
+
+const SIDES = ['上', '右', '下', '左'];
+const app = document.getElementById('app');
+let lastGrp = null;
+
+MOCKS.forEach((m, i) => {
+  if (m.grp !== lastGrp) {
+    const h = document.createElement('div');
+    h.className = 'grp';
+    h.innerHTML = `<h2>${m.grp.split('（')[0]}<small>（${m.grp.split('（')[1]}</small></h2>`;
+    app.appendChild(h);
+    lastGrp = m.grp;
+  }
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = `
+    <div class="stage${m.gray ? ' on-gray' : ''}">${m.html}</div>
+    <div class="panel">
+      <h3>${m.name}</h3>
+      <p class="tgt">貼回：${m.tgt}</p>
+      ${SIDES.map((s, j) => `
+        <div class="row">
+          <span>${s}</span>
+          <input type="range" min="0" max="48" step="0.5" value="${m.pad[j]}" data-i="${i}" data-j="${j}">
+          <input type="number" min="0" max="96" step="0.5" value="${m.pad[j]}" data-i="${i}" data-j="${j}">
+        </div>`).join('')}
+      <div class="out" id="out-${i}"></div>
+      <button class="copy" data-i="${i}">複製 CSS</button>
+    </div>`;
+  app.appendChild(card);
+  m._boxes = card.querySelectorAll('.stage > .mk');
+  apply(i);
+});
+
+function shorthand(p) {
+  const [t, r, b, l] = p;
+  if (t === b && r === l) return t === r ? `${t}px` : `${t}px ${r}px`;
+  if (r === l) return `${t}px ${r}px ${b}px`;
+  return `${t}px ${r}px ${b}px ${l}px`;
+}
+function remOf(p) {
+  const f = v => String(Math.round(v / 16 * 10000) / 10000);
+  const [t, r, b, l] = p;
+  if (t === b && r === l) return t === r ? `${f(t)}rem` : `${f(t)}rem ${f(r)}rem`;
+  if (r === l) return `${f(t)}rem ${f(r)}rem ${f(b)}rem`;
+  return `${f(t)}rem ${f(r)}rem ${f(b)}rem ${f(l)}rem`;
+}
+function apply(i) {
+  const m = MOCKS[i];
+  m._boxes.forEach(el => el.style.padding = m.pad.map(v => v + 'px').join(' '));
+  document.getElementById('out-' + i).textContent =
+    `padding: ${shorthand(m.pad)};` + (m.rem ? `\n/* rem: ${remOf(m.pad)} */` : '');
+}
+
+app.addEventListener('input', e => {
+  const { i, j } = e.target.dataset;
+  if (i === undefined) return;
+  MOCKS[i].pad[j] = parseFloat(e.target.value) || 0;
+  // 同排 slider/number 互相同步
+  e.target.closest('.row').querySelectorAll('input').forEach(inp => inp.value = MOCKS[i].pad[j]);
+  apply(+i);
+});
+app.addEventListener('click', e => {
+  if (!e.target.classList.contains('copy')) return;
+  const i = +e.target.dataset.i;
+  const m = MOCKS[i];
+  navigator.clipboard.writeText(`padding: ${shorthand(m.pad)};` + (m.rem ? ` /* rem: ${remOf(m.pad)} */` : ''));
+  e.target.textContent = '已複製 ✓';
+  setTimeout(() => e.target.textContent = '複製 CSS', 1200);
+});
+</script>
+</body>
+</html>

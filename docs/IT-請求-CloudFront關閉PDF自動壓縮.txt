@@ -1,0 +1,58 @@
+【IT 協助請求】CloudFront 一項設定：關閉媒體 distribution 的「自動壓縮」，讓 PDF 可分段載入
+提出單位：媒體傳達設計學系（SCCD）
+日期：2026-09-27
+
+前言：
+・系網「圖書館」頁的線上閱讀器（pdf.js）設計上只下載「目前這一頁需要的位元組區段」（HTTP Range 請求），
+  不用整本下載就能看第一頁。
+・實測發現 CloudFront 對 10MB 以下的 PDF 自動套用 brotli 壓縮，導致 Range 機制失效，
+  瀏覽器被迫整本下載完才能顯示第一頁，開一本書要等 3 秒以上；檔案越大越久。
+・這是 CloudFront 的一項 distribution 設定，前端程式無法繞過（瀏覽器不允許網頁改 Accept-Encoding），
+  需要有 AWS Console 權限的人操作，只需改一次。
+
+
+════════════════════════════════════════════════
+請求：關閉 media distribution 的 Compress objects automatically
+════════════════════════════════════════════════
+
+對象 distribution：
+  d2df28pyzslt2v.cloudfront.net
+  （Directus 後台媒體用的那一個：路徑 /Directus/*、/- documents/*、/videos/* 等；
+   不是前台 sccd.usc.edu.tw 那個 distribution）
+
+現況（已用 curl 與瀏覽器實測）：
+  瀏覽器請求 https://d2df28pyzslt2v.cloudfront.net/Directus/xxxx.pdf 時會帶 Accept-Encoding: br，
+  CloudFront 對 10,000,000 bytes 以下的 PDF 回：
+      Content-Encoding: br
+      Transfer-Encoding: chunked
+      （沒有 Content-Length、沒有 Accept-Ranges；帶 Range 標頭也被忽略，回 200 整檔）
+  pdf.js 因此判定伺服器不支援分段下載，退回整本下載。
+  超過 10MB 的 PDF 因為超出 CloudFront 自動壓縮上限、沒被壓，反而是正常的（回 206 分段）。
+
+  這個 distribution 只出圖片（已是 webp）、影片、PDF，這三種內容本身都已壓縮，
+  CloudFront 再壓一次省不到 1%，卻讓 PDF 分段載入完全失效，關掉沒有任何副作用。
+
+做法（約 2 分鐘）：
+  1. AWS Console → CloudFront → Distributions → d2df28pyzslt2v → 分頁「Behaviors」
+  2. 選取會命中 /Directus/* 與 /- documents/* 的 behavior（若沒有另建，就是 Default (*)）→ Edit
+  3. 「Compress objects automatically」改成 No → Save changes
+     （若有多條 behavior，每一條都改 No）
+  4. 分頁「Invalidations」→ Create invalidation，路徑填：
+         /Directus/*.pdf
+         /- documents/*
+     目的：把已快取在邊緣節點的「壓縮版」PDF 清掉，否則舊快取在 TTL 內仍會回壓縮版。
+  5. 等 distribution 狀態回到 Deployed（通常數分鐘）。
+
+驗收（任一即可）：
+  A. 終端機：
+       curl -sI -H "Accept-Encoding: br, gzip" \
+         "https://d2df28pyzslt2v.cloudfront.net/Directus/65d2da02-38cd-4e0c-b96f-0b3ad69f7f79.pdf"
+     應看到 Content-Length 與 Accept-Ranges: bytes，且沒有 Content-Encoding。
+     再加 -H "Range: bytes=0-1023" 應回 HTTP 206 Partial Content。
+  B. 瀏覽器：打開系網 圖書館 → Press 任一本 10MB 以下的專訪 → DevTools Network，
+     應看到多個 206 的 .pdf 分段請求，而不是單一個 200 整檔下載；第一頁應在 1 秒內出現。
+
+備註：
+  ・不影響前台 sccd.usc.edu.tw 那個 distribution（HTML/CSS/JS 的壓縮維持原設定）。
+  ・不涉及 S3 bucket、權限或 CORS 設定，只有 CloudFront 這一個開關與一次清快取。
+  ・有任何問題請聯絡系上（媒傳系）承辦人。

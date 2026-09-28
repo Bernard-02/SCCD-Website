@@ -1,0 +1,69 @@
+SCCD 後台 CMS 正式網址 — 需要 IT 協助的事項（共 2 項）
+＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
+
+背景
+----
+- 系網前台 sccd.usc.edu.tw（S3 + CloudFront）已上線運行。
+- 後台 CMS（Directus）跑在學校提供的 Lightsail 主機上，目前暫用測試網域 sccdtest.usc.edu.tw。
+- 目標：給後台一個正式子網域 sccdadmin.usc.edu.tw，並讓 sccd.usc.edu.tw/admin
+  成為好記的入口（302 轉址過去）。老師只要記「系網網址加 /admin」。
+- 先前「前台上線需求清單」第一節第 4 點（正式 CMS 子網域確認）即為此事，現正式提出。
+
+
+需求 1：DNS 新增子網域 sccdadmin.usc.edu.tw
+------------------------------------------------
+- 請在 usc.edu.tw 的 DNS 新增 A 記錄：
+    sccdadmin.usc.edu.tw → 與現行 sccdtest.usc.edu.tw 同一台 Lightsail 主機（同一 IP）。
+- 名稱刻意取「單層」sccdadmin.usc.edu.tw（而非 admin.sccd.usc.edu.tw）：
+  學校的 *.usc.edu.tw 萬用憑證只涵蓋一層子網域，單層命名才在憑證範圍內。
+- 憑證：請提供可綁在該主機 Apache 上的 *.usc.edu.tw 憑證檔（憑證＋私鑰＋中繼鏈），
+  或告知學校簽發單網域憑證的申請流程；主機端的綁定設定由系上自行處理。
+
+
+需求 2：sccd.usc.edu.tw 的 CloudFront 加 /admin 轉址
+------------------------------------------------
+- 目的：sccd.usc.edu.tw/admin 只做「轉址入口」，實際後台在 sccdadmin 子網域；
+  不影響前台任何其他路徑（S3 上沒有 /admin 檔案，不會衝突）。
+- 做法：在 sccd.usc.edu.tw 對應的 CloudFront distribution 掛 viewer-request 的
+  CloudFront Function，內容：
+
+      function handler(event) {
+        var uri = event.request.uri;
+        if (uri === '/admin' || uri === '/admin/') {
+          return {
+            statusCode: 302,
+            statusDescription: 'Found',
+            headers: { location: { value: 'https://sccdadmin.usc.edu.tw/admin' } }
+          };
+        }
+        return event.request;
+      }
+
+- 注意：CloudFront 每個事件點（viewer request）只能綁「一支」function。
+  若該 distribution 先前設定乾淨網址時已掛 viewer-request function（做法 B），
+  請把上面的 if 區塊合併到該支 function 的最前面；
+  若當時是走 Error pages（403/404 → /index.html）做法，直接新建這支綁上即可。
+- 發布後建議建立一次 invalidation（path：/admin）讓轉址即刻生效。
+
+
+驗收方式
+--------
+1. nslookup sccdadmin.usc.edu.tw 回覆與 sccdtest.usc.edu.tw 相同的 IP。
+2. 瀏覽器打 https://sccd.usc.edu.tw/admin → 網址列自動跳轉為
+   https://sccdadmin.usc.edu.tw/admin。
+3. 兩項完成當下 sccdadmin 開頁可能仍是憑證警告或無回應——這是正常的：
+   主機端（vhost／憑證綁定／CMS 設定）由系上接手完成後才會出現後台登入畫面。
+   IT 完成上述兩項後請先告知系上即可。
+
+
+系上端後續（不需 IT 參與，僅供知悉分工邊界）
+--------
+- Lightsail Apache 新增 sccdadmin vhost ＋ 綁定憑證
+- Directus PUBLIC_URL 改為 https://sccdadmin.usc.edu.tw
+- 前台 API 位址由 sccdtest 切換至正式網址（前端設定檔單一處）
+- 過渡期 sccdtest 子網域暫時保留；穩定後會再請 IT 移除該 DNS 記錄
+
+
+聯絡窗口
+--------
+媒體傳達設計系網站負責人（此文件由系上提供）。
