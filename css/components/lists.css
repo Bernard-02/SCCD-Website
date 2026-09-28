@@ -96,6 +96,26 @@
     padding-inline: var(--spacing-md, 24px);
   }
 }
+/* ≥1200：nav＋content 區頂＝全站 nav line（variables.css --nav-line 184；logo 頂對齊鈕列後下移，2026-09-27）。
+   平板維持 header+inner-pad */
+@media (min-width: 1200px) and (min-height: 501px) {
+  .inner-scroll-frame-grid { --inner-box-top: var(--nav-line); }
+}
+/* faculty ≥1200：**卡片（看得到的內容）**左緣＝col 4 左緣、右緣＝col 18 右緣（user 2026-09-27；試過 18.5 欄後改回 4-18。
+   user 開 grid overlay 看的是卡片不是框）。框內左右各 24px 旋轉 clearance padding（上方 scroll-col padding）→
+   框本身兩側各外推 24px：margin-left −24、寬＝格線區（col 4-18，faculty.html min-[1200px]:col-start-4/col-span-15）＋48。 */
+@media (min-width: 1200px) {
+  #faculty-cards .inner-scroll-scroll-col {
+    margin-left: calc(-1 * var(--spacing-md, 24px));
+    width: calc(100% + 2 * var(--spacing-md, 24px));
+  }
+  /* 框左外推 24 會伸進 col 3 右緣：1200 寬時 dept bar（sticky z-10 白底）蓋到 DCD 鈕右側 ~5px →
+     nav 欄疊上層（桌面 nav 欄背景透明，只有 DCD 鈕不透明，不擋卡片） */
+  #faculty-cards .inner-scroll-nav-col {
+    position: relative;
+    z-index: 11;
+  }
+}
 /* 首列卡片 default 下移、不被 dept bar 切到（user 2026-08-24 晚定案，推翻同日稍早的「負 margin 塞進 bar 當
    遮罩露水平上緣」——實看後首列一開始就被切不能接受）：bar 的 sticky 白色遮罩只在「捲動中」蓋經過的卡片；
    靜止時首列含旋轉頂角要完整可見。正 margin 下限＝mask 頂角投影(238×sin6°/2≈12) − card padding 6 ≈ 6px
@@ -1012,7 +1032,7 @@
 /* ===== History List View（era 卡片切換；桌機 only）=====
  * 左下角 toggle 鈕切換 timeline ↔ list；list view 用一個 accent 矩形顯示單一 era：
  * 左上角 era chip、內容可捲動（EN 左 / ZH 右）、右下角 next 鈕在各 era 間 loop。
- * 矩形對齊內容 grid 的 col-5~20（避開左側 anchor nav）；矩形 + chip 套 .timeline-card-inner
+ * 矩形對齊內容 grid 的 col-4~18（避開左側 anchor nav＋右側桌面 menu，2026-09-27 由 col-5~20 改，全站 4-18 定案）；矩形 + chip 套 .timeline-card-inner
  * 取得三 mode 配色（standard/inverse accent+黑字、color strict B/W）。 */
 
 /* icon 鈕（toggle + next 共用 inner）：atlas layout-btn 同款，hover 旋轉 + clip wipe
@@ -1048,8 +1068,19 @@ body.mode-color .tl-icon-btn-inner {
   color: var(--theme-fg-inverse);
 }
 
+/* 黑方塊 icon 鈕 hover／active 上色（user 2026-09-28，同全站 nav btn；.tl-icon-btn-inner 家族＝about history 清單鈕、library 灰卡 next 鈕；
+   atlas layout 鈕／slide-in 返回鍵各自在 atlas.css／cards.css 寫同款）：hover 隨機三原色（各 JS 呼 bindNavBtnHover 掛 data-nav-hover +
+   --nav-hover，桌面才掛）、有開合態的鈕開著 .active 沿用點下去那個色（--nav-active，JS 寫）、關掉回黑。瞬切（inner 只 transition transform）。
+   mode3 無 rgb → 翻反色（fg-inverse 底 + fg icon；rest 已是 fg 底，不翻等於沒 hover）。(0,5,1) 壓上方 mode3 (0,2,1)。 */
+@media (hover: hover) and (min-width: 768px) {
+  body:not(.mode-color) [data-nav-hover]:not(.active):hover > .tl-icon-btn-inner { background: var(--nav-hover, var(--color-pink)); color: #000; }
+  body.mode-color [data-nav-hover]:not(.active):hover > .tl-icon-btn-inner { background: var(--theme-fg-inverse); color: var(--theme-fg); }
+}
+body:not(.mode-color) button.active > .tl-icon-btn-inner { background: var(--nav-active, var(--color-pink)); color: #000; }
+body.mode-color button.active > .tl-icon-btn-inner { background: var(--theme-fg-inverse); color: var(--theme-fg); }
+
 /* 桌機 only：手機隱藏切換鈕（list view 整套不在手機提供） */
-/* toggle 鈕放進與 list 卡同款 20-col grid → 對齊 col-5 左緣（list 卡從 col-6，見 .tl-list-cell）*/
+/* toggle 鈕放進與 list 卡同款 20-col grid → 落 col-3（list 卡從 col-4，見 .tl-list-cell）*/
 .tl-list-btn-grid {
   position: absolute;
   left: 0;
@@ -1063,8 +1094,8 @@ body.mode-color .tl-icon-btn-inner {
   pointer-events: none;      /* grid 只作定位、不吃點擊（鈕自己開 pointer-events）*/
 }
 #timeline-list-btn {
-  grid-column: 4;
-  justify-self: start;       /* 貼 col-4 左緣，icon 比一欄寬時往右溢出 */
+  grid-column: 3;
+  justify-self: start;       /* 貼 col-3 左緣，icon 比一欄寬時往右溢出 */
   pointer-events: auto;
   padding: 0;
   border: none;
@@ -1094,7 +1125,7 @@ body.mode-color .tl-icon-btn-inner {
 }
 
 .tl-list-cell {
-  grid-column: 5 / 21;   /* 佔位到右緣；實際寬度由 aspect-ratio 從高度推出（justify-self:start 不拉伸）*/
+  grid-column: 4 / 19;   /* 佔位到 col-18 右緣；實際寬度由 aspect-ratio 從高度推出（justify-self:start 不拉伸）*/
   justify-self: start;
   /* 比例＝resources「展開單卡」實測形狀（label+body ≈ 1072×650 @1920 headless 量測 2026-09-10，
      user「以高度爲主、用 resources 卡比例推寬度」；整條手風琴 16:7 太寬已打回）：

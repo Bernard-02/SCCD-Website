@@ -18,8 +18,8 @@
 import { enterLightboxMode, exitLightboxMode } from '../lightbox/lightbox-shell.js';
 import { applyMarqueeOverflow, bindMarqueeReturn } from '../ui/marquee-overflow.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
-import { setActiveNavBtn, bindNavBtnSpin } from '../ui/section-switch-helpers.js';
-import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
+import { setActiveNavBtn, bindNavBtnSpin, bindNavBtnHover } from '../ui/section-switch-helpers.js';
+import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN, cullByViewport } from '../ui/scroll-animate.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { loadCourses } from './courses-source.js';
@@ -193,10 +193,13 @@ async function activateGrade(mobileGrid, gradeKey, { animate = true } = {}) {
       mobileGrid.dataset.gradeSwitching = '1';
       await new Promise(resolve => {
         gsap.killTweensOf(prevItems);
+        // viewport-cull：視窗外的卡不陪跑（block 隨後 .hidden；enter 端 fromTo 自帶顯式起點，無殘留問題）
+        const { on: exitItems } = cullByViewport(prevItems, 200);
+        if (!exitItems.length) { resolve(); return; }
         // hero 式 clip-reveal 反向：fromTo 顯式起點 NAV_CHIP_SHOWN（reveal 後 translate/clip 已 none，直接 to 會 snap）
         // → 各自四方向隨機（pickNavDir() 無 el）滑出＋同步 clip
-        const hid = prevItems.map(el => navChipHidden(el, pickNavDir()));
-        gsap.fromTo(prevItems,
+        const hid = exitItems.map(el => navChipHidden(el, pickNavDir()));
+        gsap.fromTo(exitItems,
           { ...NAV_CHIP_SHOWN },
           { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate, duration: DUR.fast, ease: 'cubic-bezier(0.25, 0, 0, 1)', overwrite: true, onComplete: resolve }
         );
@@ -219,12 +222,17 @@ async function activateGrade(mobileGrid, gradeKey, { animate = true } = {}) {
     const items = [...shown.querySelectorAll('.courses-grid-card')];
     if (items.length) {
       gsap.killTweensOf(items);
-      // 同 program 切換 reveal：每張四方向隨機（pickNavDir() 無 el）的 hidden 態 → 無 stagger 同時收到 NAV_CHIP_SHOWN
-      const hid = items.map(el => navChipHidden(el, pickNavDir()));
-      gsap.fromTo(items,
-        { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate },
-        { ...NAV_CHIP_SHOWN, duration: DUR.base, ease: 'cubic-bezier(0.25, 0, 0, 1)', overwrite: true, clearProps: 'clipPath,translate' }
-      );
+      // viewport-cull：視窗外的卡 snap 終態（要清殘留——上次 exit wipe 留的 hidden inline 態，不清會隱形）
+      const { on: enterItems, off: enterOff } = cullByViewport(items, 200);
+      if (enterOff.length) gsap.set(enterOff, { clearProps: 'clipPath,translate' });
+      if (enterItems.length) {
+        // 同 program 切換 reveal：每張四方向隨機（pickNavDir() 無 el）的 hidden 態 → 無 stagger 同時收到 NAV_CHIP_SHOWN
+        const hid = enterItems.map(el => navChipHidden(el, pickNavDir()));
+        gsap.fromTo(enterItems,
+          { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate },
+          { ...NAV_CHIP_SHOWN, duration: DUR.base, ease: 'cubic-bezier(0.25, 0, 0, 1)', overwrite: true, clearProps: 'clipPath,translate' }
+        );
+      }
     }
   }
   const panel = mobileGrid.closest('.courses-panel');
@@ -390,6 +398,7 @@ function openCourseSlideIn(card) {
     if (!backBtn.dataset.hoverRotBound) {
       backBtn.dataset.hoverRotBound = '1';
       bindArrowSpin(backBtn, d => { backBtn.style.transform = `rotate(${d}deg)`; });
+      bindNavBtnHover(backBtn);   // hover 隨機三原色（cards.css .slide-in-back-square 段；user 2026-09-28 全站黑方塊鈕）
     }
     /** @type {any} */ (backBtn)._arrowSpin.reroll();   // 每次開啟抽新微傾角（全站統一 −4~+6）
     backBtn.style.transition = '';   // 還原 hover 旋轉的 CSS transition（close 時暫設 none 讓返回鍵追平 panel 平移）

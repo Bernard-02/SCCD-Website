@@ -16,7 +16,9 @@ function randAngle() {
 }
 
 export function initLegalTitleRandom() {
-  if (window.innerWidth < 768) return;
+  // 只在桌面版型（≥1024 或 矮橫向 frame）跑：手機與直放平板 768-1023 是 static stack，
+  // random 旋轉/位移與 chip 避位 padding 都不適用。gate 同 legal.css 桌面區塊（min-1024 / 768+短高）。
+  if (!window.matchMedia('(min-width: 1024px), (min-width: 768px) and (max-height: 500px)').matches) return;
 
   const block = document.querySelector('.legal-title-block');
   if (!block) return;

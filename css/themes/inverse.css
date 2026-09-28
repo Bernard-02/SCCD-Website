@@ -144,13 +144,13 @@ body.mode-inverse .timeline-card-inner.bg-black * {
 }
 
 /* ===== Nav Buttons (左側 section/program btn) ===== */
-/* inactive: 純黑底 + 半透明白字（對齊 about #anchor-nav）；active 彩色 background 由 JS inline 設定 */
+/* inactive: 純黑底 + 100% 白字（user 2026-09-28）；hover 隨機三原色見 navigation.css「nav btn hover」段；active 彩色 background 由 JS inline 設定 */
 body.mode-inverse .section-nav-btn:not(.active) .anchor-nav-inner,
 body.mode-inverse .faculty-filter-btn:not(.active) .anchor-nav-inner,
 body.mode-inverse .activities-section-btn:not(.active) .anchor-nav-inner,
 body.mode-inverse .courses-program-btn:not(.active) .anchor-nav-inner {
   background-color: rgba(0, 0, 0, 1) !important;
-  color: #808080 !important; /* 原 rgba(255,255,255,.5) 疊黑底實色。⚠️用 legacy hex 不用 color-mix：非 legacy 色過渡走 Oklab、hover fade 感覺拖長 */
+  color: white !important;
 }
 
 body.mode-inverse .section-nav-btn.active .anchor-nav-inner,
@@ -161,59 +161,19 @@ body.mode-inverse .courses-program-btn.active .anchor-nav-inner {
   color: black !important;
 }
 
-@media (min-width: 768px) {
-  body.mode-inverse .faculty-filter-btn:not(.active):hover .anchor-nav-inner,
-  body.mode-inverse .activities-section-btn:not(.active):hover .anchor-nav-inner {
-    background-color: rgba(0, 0, 0, 0.8) !important;
-    color: white !important;
-  }
-
-  /* courses-program-btn hover：黑底不變、inactive 文字升到 100% 白（鏡像 standard 的白底不變 + 文字轉黑）。
-   * ⚠️ 必須 :not(.active)——active（accent 底 + 黑字）hover 不可翻白，否則白字疊亮三原色對比不足。 */
-  body.mode-inverse .courses-program-btn:not(.active):hover .anchor-nav-inner {
-    color: white !important;
-  }
-}
-
-/* ===== Courses BFA Class label =====
- * courses.css base color 是 rgba(0, 0, 0, 0.5) — 在 inverse 黑底完全看不見（黑 on 黑）
- * 三狀態鏡像 mode-color 那套：
- *   - inactive label（無 inline bg）：透明底 + 50% 白文字
- *   - active group label / hover label（JS 設 inline accent bg + #000 字）：保留 JS inline 黑字，CSS 不蓋
- *     用 [style*="background"] 偵測 JS-set inline bg；inline color: #000000 已是 JS 設好的不需 CSS override
- *     :not([style*="background"]) 鎖 inactive default 避免 !important 蓋過 JS inline color */
-body.mode-inverse .courses-bfa-label:not([style*="background"]) {
-  color: #808080 !important; /* 原 0.5 白疊黑頁實色；legacy hex 保 sRGB 過渡 pacing */
-}
-
-/* Hover override：inactive btn hover 時同 group 內 label 文字升到 100% 白
- * （courses-section-switch.js bindHover spec：hover 不換底色、僅文字 100%，由 CSS 控制）
- * 用 :has(.courses-program-btn:not(.active):hover) 跨選 group → label；!important 蓋過 50% inactive 規則 */
-@media (min-width: 768px) {
-  body.mode-inverse .courses-program-group:has(.courses-program-btn:not(.active):hover) .courses-bfa-label {
-    color: white !important;
-  }
-}
+/* Courses BFA Class label：inactive 字吃 courses.css base var(--theme-fg)＝inverse 自動白，不另寫（user 2026-09-28 100% 不透明） */
 
 /* ===== Filter Buttons (右側 filter btn) ===== */
-/* inactive: 純黑底 + 半透明白字（對齊 about #anchor-nav）*/
+/* inactive: 純黑底 + 100% 白字（同上方 nav btn）*/
 body.mode-inverse .activities-filter-btn:not(.active) .anchor-nav-inner,
 body.mode-inverse .courses-filter-btn:not(.active) .anchor-nav-inner {
   background-color: rgba(0, 0, 0, 1) !important;
-  color: #808080 !important; /* 原 0.5 白疊黑底實色；legacy hex 保 sRGB 過渡 pacing */
+  color: white !important;
 }
 
 body.mode-inverse .activities-filter-btn.active .anchor-nav-inner,
 body.mode-inverse .courses-filter-btn.active .anchor-nav-inner {
   color: black !important;
-}
-
-@media (min-width: 768px) {
-  body.mode-inverse .activities-filter-btn:not(.active):hover .anchor-nav-inner,
-  body.mode-inverse .courses-filter-btn:not(.active):hover .anchor-nav-inner {
-    background-color: rgba(0, 0, 0, 0.8) !important;
-    color: white !important;
-  }
 }
 
 /* ===== Filter Bar 上方遮擋 ::before ===== */
@@ -360,31 +320,15 @@ body.mode-inverse .legal-map-num {
 }
 
 /* ===== About Anchor Nav ===== */
-/* inactive 字色用半透明白（0.5），對稱 standard 的半透明黑；hover 才升到 1.0 對比 */
+/* inactive 黑底 100% 白字（user 2026-09-28；hover 色見 navigation.css「nav btn hover」段）；#anchor-nav / #sticky-events-nav 同套 */
 body.mode-inverse .anchor-nav-btn:not(.active) .anchor-nav-inner {
   background-color: #000 !important; /* 原 rgba(0,0,0,.5)，實色化防透出後方內容（inverse 頁底=黑） */
-  color: #808080 !important; /* 原 0.5 白疊黑底實色；legacy hex 保 sRGB 過渡 pacing */
-}
-
-/* About 頁專用 override：底色不透明、文字半透明 theme-fg（對齊 standard mode 的 about 處理）
-   #sticky-events-nav = degree-show-detail events nav 同套（2026-08-18） */
-body.mode-inverse #anchor-nav .anchor-nav-btn:not(.active) .anchor-nav-inner,
-body.mode-inverse #mobile-anchor-strip .anchor-nav-btn:not(.active) .anchor-nav-inner,
-body.mode-inverse #sticky-events-nav .anchor-nav-btn:not(.active) .anchor-nav-inner {
-  background-color: rgba(0, 0, 0, 1) !important;
-  color: #808080 !important; /* 原 0.5 白疊黑底實色；legacy hex 保 sRGB 過渡 pacing */
+  color: white !important;
 }
 
 body.mode-inverse .anchor-nav-btn.active .anchor-nav-inner {
   /* background 由 JS 設定為隨機三原色 */
   color: black !important;
-}
-
-@media (min-width: 768px) {
-  body.mode-inverse .anchor-nav-btn:not(.active):hover .anchor-nav-inner {
-    background-color: rgba(0, 0, 0, 0.8) !important;
-    color: white !important;
-  }
 }
 
 /* ===== Faculty Card / Admission Item hover：inverse 下文字反黑（因 bg 變亮三原色）===== */

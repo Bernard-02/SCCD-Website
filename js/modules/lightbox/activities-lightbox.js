@@ -312,11 +312,13 @@ function syncWatermarkToRenderedContent() {
 
 // 同步 zoom % 顯示 + +/- 按鈕到極值時的 disabled 狀態 + fit-toggle 圖示
 // UI % = 相對原圖 natural pixel 的比例（zoom.scale × fitRatio × 100）— 仿 Windows Photos
-// load 前 naturalDims=0 用 fallback 顯示 internal scale*100（避免 0% 跳動）
 function updateZoomUI() {
   if (!zoomPctEl) return;
   const fitRatio = getFitRatio();
-  const displayPct = Math.round(zoom.scale * (fitRatio > 0 ? fitRatio : 1) * 100);
+  // 尺寸未知（新圖 load 前 naturalDims=0）不亂猜：舊 fallback 顯示 100% → load 後跳成真值＝「數字先 100 再跳」
+  // （user 2026-09-20）。改留空（min-width 佔位不跳版），快取圖走 renderMain 同步初始化＝第一幀就是正確值。
+  if (fitRatio <= 0) { zoomPctEl.textContent = ''; return; }
+  const displayPct = Math.round(zoom.scale * fitRatio * 100);
   zoomPctEl.textContent = `${displayPct}%`;
   // aria-disabled 不用原生 disabled：Chrome 對原生 disabled 強制預設箭頭、not-allowed 游標出不來
   // （同 chevron）；zoomAt/zoomToScale 有 no-op clamp，點擊本就無效果
@@ -483,6 +485,7 @@ function renderMain(index) {
     zoomStage.style.cssText = 'position:relative;width:100%;height:100%;overflow:hidden;display:flex;align-items:center;justify-content:center;';
 
     zoomImg = document.createElement('img');
+    zoomImg.decoding = 'async';   // 大圖同步 decode 會卡開場 fade / 換圖那一幀（user 2026-09-20「打開稍微卡頓」）
     zoomImg.src = item.src;
     zoomImg.alt = '';
     // transform-origin:center 配合 zoomAt 的數學（以 img 自身中心為旋轉基準）
@@ -498,7 +501,7 @@ function renderMain(index) {
     // 預設規則（仿 Windows Photos，user 2026-06-02）：
     //   原圖比 stage 大（fitRatio < 1）→ 套 fit（避免一打開就要拖曳找邊界）
     //   原圖比 stage 小或等於（fitRatio >= 1）→ 套 actual size 100%（避免小圖被拉糊或留大白邊）
-    zoomImg.addEventListener('load', () => {
+    const initZoomForLoadedImg = () => {
       fitDims = { w: zoomImg.offsetWidth, h: zoomImg.offsetHeight };
       naturalDims = { w: zoomImg.naturalWidth, h: zoomImg.naturalHeight };
       const r = getFitRatio();
@@ -510,9 +513,13 @@ function renderMain(index) {
       if (wantWatermark) requestAnimationFrame(() => {
         if (mediaList[index] === item) repositionScreenWatermark(watermarkClipEl?.querySelector('.alb-watermark'));
       });
-    });
+    };
+    zoomImg.addEventListener('load', initZoomForLoadedImg);
+    // 快取命中（chevron 換下一張最常見）：同步先初始化＝% 第一幀就是正確值、不閃（load 事件仍會補發，重跑冪等）。
+    // 首開 lightbox 還 display:none 時量不到 offset → 留給 load（display:flex 在本 sync block 之後、load 必晚於它）。
+    if (zoomImg.complete && zoomImg.naturalWidth > 0 && lightboxEl.style.display !== 'none') initZoomForLoadedImg();
 
-    // 切換到 image 時同步 zoom UI 到 100%（不靠 applyZoom；首次未動 transform）
+    // 切換到 image 時同步 zoom UI（尺寸未知＝顯示留空，不猜 100%）
     updateZoomUI();
 
     // 滾輪：游標中心縮放（仿 Windows Photos，不需 Ctrl）
@@ -667,6 +674,7 @@ export async function openLightbox(media, startIndex = 0, opts = {}) {
     const img = document.createElement('img');
     img.alt = '';
     img.draggable = false; // 防原生 image drag 干擾（拖選圖片）
+    img.decoding = 'async'; // N 張縮圖同幀 decode 疊在開場動畫上＝open 卡頓的一部分
     img.style.cssText = 'height:100%;width:auto;display:block;object-fit:contain;';
     if (item.thumb) img.src = item.thumb;
     if (isSelfHostedVideo(item.videoKind)) {

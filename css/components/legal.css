@@ -29,6 +29,13 @@
     padding-bottom: var(--spacing-3xl);
     /* 不加 padding-left：靠 site-container 的 gutter 對齊整頁基線 */
   }
+  /* ≥1200 左下「當前頁」卡（navigation.css #page-indicator）在 chip 下方 → chip 底抬到卡頂之上（user 2026-09-27）。
+     2xl 64＝CN chip 繞左中旋轉 ≤6° 在卡寬範圍內的下沉＋卡自身旋轉上翹（最壞 ~52）＋呼吸 */
+  @media (min-width: 1200px) and (min-height: 501px) {
+    .legal-title-col {
+      padding-bottom: calc(var(--page-indicator-top) + var(--spacing-2xl));
+    }
+  }
 
   .legal-title-block {
     display: flex;
@@ -45,8 +52,10 @@
 
   /* 桌面：section 收成剛好一屏的 frame，右欄內文在 box 內捲動（比照 activities / faculty 等 inner-scroll 頁）。
      左欄 sticky title chip 不變；只有 .legal-content-col 是捲動層。手機維持整頁 flow 捲動（見末段 max-width 區塊）。
-     三頁 loader 都 scrollGated:false（載入即全 reveal），不依賴 window 當捲動源，故轉 inner-scroll 安全。 */
-  @media (min-width: 768px) {
+     三頁 loader 都 scrollGated:false（載入即全 reveal），不依賴 window 當捲動源，故轉 inner-scroll 安全。
+     ⚠️ 桌面 gate＝「≥1024 或 矮橫向」：直放平板 768-1023 標題壓內容欄（右欄只剩 ~240px）→ 改走手機 stack flow
+     （見下方手機區塊 gate）；矮橫向用 max-height:500 續留 frame＝landscape.css 5f 調校的前提，勿改 orientation 判。 */
+  @media (min-width: 1024px), (min-width: 768px) and (max-height: 500px) {
     .legal-page-section {
       height: 100vh;
       overflow: hidden;
@@ -95,8 +104,9 @@
   /* 桌面：title chip 每次進頁隨機傾角 + 水平推右（值由 legal-title-random.js 設在 .legal-title-block 上）。
      fallback 用原本固定角度，JS 未跑時維持舊樣式；shift 用 margin-left 在左欄 flex 內推右。
      .legal-title-block 後代選擇器 (0,2,0) 蓋過 hero.css 全域 .hero-title-wrapper (0,1,0)。
-     只在桌面：手機 legal-title-col 是 static stack，沿用 hero.css 基礎角度，不 random（RWD 互不影響）。 */
-  @media (min-width: 768px) {
+     只在桌面：手機/直放平板 legal-title-col 是 static stack，沿用 hero.css 基礎角度，不 random（RWD 互不影響）。
+     gate 同上方 frame 區塊；legal-title-random.js 的 JS gate 同式。 */
+  @media (min-width: 1024px), (min-width: 768px) and (max-height: 500px) {
     .legal-title-block .hero-title-wrapper {
       transform: rotate(var(--legal-rot-en, -4deg));
       margin-left: var(--legal-shift-en, 0px);
@@ -357,8 +367,9 @@
      2026-07-15 大類標題改成 accordion（一行 EN+ZH + chevron，同 support）＋字級統一回 h4（拿掉原 h5 縮小、對齊 donate/policy 大標，user 要）。
      ＝不再有 regulations 專屬 title 覆寫，吃預設 .legal-section-body .legal-section-title h4。 */
 
-  /* 手機：取消 sticky，title 與內文 stack flow；高度回 auto */
-  @media (max-width: 767px) {
+  /* 手機＋直放平板 768-1023：取消 sticky，title 與內文 stack flow；高度回 auto。
+     平板段條件用 min-height:501 排除矮橫向（矮橫向續走桌面 frame），平板專屬補丁見下方獨立區塊 */
+  @media (max-width: 767px), (min-width: 768px) and (max-width: 1023px) and (min-height: 501px) {
     .legal-title-col {
       position: static;
       height: auto;
@@ -388,8 +399,9 @@
      ①斑馬底 scope 到 .legal-zebra ②標題/副標排版 ③三種卡片 body。
      ══════════════════════════════════════════════════════════════════════ */
 
-  /* 桌面：opened header 釘在 inner-scroll box 頂（var 未設時 CSS 預設 200px 離頂太遠） */
-  @media (min-width: 768px) {
+  /* 桌面：opened header 釘在 inner-scroll box 頂（var 未設時 CSS 預設 200px 離頂太遠）；gate 同 frame 區塊，
+     直放平板無 frame、釘點另走下方平板區塊的 96px */
+  @media (min-width: 1024px), (min-width: 768px) and (max-height: 500px) {
     .legal-zebra { --list-header-sticky-top: 0px; }
   }
 
@@ -752,4 +764,30 @@
   /* 沿用的 courses 卡標題是 nowrap＋hover marquee；sitemap 無 marquee → 長標題（如 4-1 BFA 組名）改直接折行不裁字 */
   .legal-map-card .courses-grid-card-en,
   .legal-map-card .courses-grid-card-zh { white-space: normal; }
+
+  /* ── 直放平板 768-1023（矮橫向除外）：stack flow 的平板專屬補丁 ──
+     上方「手機＋直放平板」區塊已給 static title / padding；這裡補手機版沒有、平板才需要的三件：
+     ① grid 欄佔滿：HTML 的 md:col-span-5/7 從 768 起跳，此區間要蓋回 12 欄滿版（(0,2,0) 贏 utility (0,1,0)）
+     ② 開啟的 list header sticky 釘 96px＝矮橫向拆 frame 慣例值——list-accordion.js getListStickyTop 偵測
+        box 不可捲自動回 96（:318 分支），兩處天然同步；0-92px 由 navigation.css 平板段 .mobile-header-bg
+        不透明白帶接住，不需手機 blocker（lists.css 桌面段 fallback 200px 太低故必須蓋）
+     ③ 規章表類別欄 sticky 取消：--legal-reg-cat-top 是「box 內偏移」語意，window flow 下釘點錯位；
+        表格本身照桌面 3 欄排（stack 後內容欄 ~700px 塞得下） */
+  @media (min-width: 768px) and (max-width: 1023px) and (min-height: 501px) {
+    .legal-page-section .legal-title-col,
+    .legal-page-section .legal-content-col {
+      grid-column: 1 / -1;
+    }
+    /* 中和 lists.css 通用 `.inner-scroll-scroll-col`（min-768 幀高+overflow:auto）：此區間無 frame、
+       整頁 window 捲。⚠️ overflow 兩軸都要回 visible（單軸 hidden 會把另軸 visible 算成 auto→
+       getScrollableBox 誤判 box 可捲、accordion 捲動走錯層）。 */
+    .legal-page-section .legal-content-col {
+      margin-top: 0;
+      height: auto;
+      overflow: visible;
+      padding-bottom: var(--spacing-3xl);
+    }
+    .legal-zebra .list-header.active { top: 96px; }
+    .legal-zebra .list-content[style*="overflow: visible"] .legal-reg-cat { position: static; }
+  }
 }

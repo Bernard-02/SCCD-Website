@@ -47,7 +47,10 @@
   /* ===== Typography ===== */
 
   /* Font Families */
-  --font-en: 'Inter', sans-serif;
+  /* ⚠️ --font-en 不可帶 generic（sans-serif）：atlas.css 以 var(--font-en), var(--font-zh) 組合雙語堆疊，
+     generic 卡在中間會讓中文字在 Noto 之前就命中系統字體（微軟正黑）＝字形比例跑掉（2026-09-20 career chip 案）。
+     各使用處尾端自帶 system-ui, sans-serif 兜底，這裡不需要 generic。 */
+  --font-en: 'Inter';
   --font-zh: 'Noto Sans TC', 'Noto Sans JP', 'Noto Sans SC', sans-serif;
 
   /* Font Sizes (rem) - Base: 16px */
@@ -124,6 +127,9 @@
 
   /* ===== Layout ===== */
   --container-padding: 3.75rem; /* 60px */
+  /* 全站 nav line：頁內 nav btn 釘住的頂線（about #anchor-nav / 四頁 inner-scroll nav＋內容頂 / atlas filter＋list /
+     DSD 年份 chip / 桌面 menu 第一顆 / library 色卡上界）。≥1200 見檔尾 184 */
+  --nav-line: 160px;
 
 
   /* ===== Transitions（legacy；buttons.css 等仍用，逐步遷移到下方 motion token） ===== */
@@ -197,6 +203,16 @@
   --lib-bg: var(--light-gray);
   --lib-fg: #000000;
   --lib-fg-rgb: 0, 0, 0;
+}
+
+/* 桌面 header（≥1200）logo 頂對齊鈕列（頂 48、縮小態 100 → 底 148）→ nav line 跟著下移 24，
+   維持 logo 底↔nav 36 間距（user 2026-08-24 定的距離；2026-09-27）。平板/矮橫向走手機 header，維持 160 */
+@media (min-width: 1200px) and (min-height: 501px) {
+  :root {
+    --nav-line: 184px;
+    /* 縮小態 logo 中線＝鈕列頂 48 + 100/2：about resources 卡的上下 padding 對齊此線（user 2026-09-28） */
+    --header-logo-mid: 98px;
+  }
 }
 
 /* ===== 手機版響應式設計 (Desktop-First) ===== */

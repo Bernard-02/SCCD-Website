@@ -88,9 +88,9 @@
     }
     /* Events 區桌面：清單欄與直式海報欄各自 hug 內容並頂對齊（grid 預設 stretch 會把較矮欄拉高到 row 高）。user 2026-09-07 */
     #events-section { align-items: start; }
-    /* Events 內容頂線對齊 sticky 年份 chip 頂（全站標準 nav line 160＝header 96＋inner-pad 64），不跟隨較高的
-       title chip（#sticky-info-card top:200）。覆蓋容器 pt-6xl(192)→160；ID 特異度(1-1-0)勝 pt-6xl utility(0-1-0)。user 2026-09-07 */
-    #dsd-desc-section > .site-container { padding-top: var(--spacing-5xl); }
+    /* Events 內容頂線對齊 sticky 年份 chip 頂（全站 nav line，variables.css --nav-line：160／≥1200 184），不跟隨較高的
+       title chip（#sticky-info-card top:nav line+40，年份 chip 疊其上 ~40）。覆蓋容器 pt-6xl(192)；ID 特異度(1-1-0)勝 pt-6xl utility(0-1-0)。user 2026-09-07 */
+    #dsd-desc-section > .site-container { padding-top: var(--nav-line); }
   }
   /* 手機：直式海報顯示在活動清單下方（user 2026-09-10「先文字、再海報」）。清單與海報在 grid-20 都 col-span-full
      → DOM 順序＝清單先、海報後自然堆疊。桌面維持右側 KV（min-width:768 那條）。 */
@@ -615,6 +615,15 @@
     width: 100%;
     height: 100%;
     background: #000;
+  }
+  /* hover 隨機三原色（user 2026-09-28，全站黑方塊 icon 鈕同款，見 lists.css .tl-icon-btn-inner 段）：faculty-slide-in.js／courses-map.js
+     呼 bindNavBtnHover 掛 data-nav-hover + --nav-hover。返回鍵無開合態、不做 active。mode3 翻反色。 */
+  @media (hover: hover) and (min-width: 768px) {
+    body:not(.mode-color) .slide-in-back-square[data-nav-hover]:hover > .slide-in-back-square-inner { background: var(--nav-hover, var(--color-pink)); }
+    /* icon 帶 text-white utility（faculty/curriculum.html）→ 要指名 .icon 才蓋得掉；hover＝三原色底黑 icon（user 2026-09-28「icon 不要變白」） */
+    body:not(.mode-color) .slide-in-back-square[data-nav-hover]:hover > .slide-in-back-square-inner .icon { color: #000; }
+    body.mode-color .slide-in-back-square[data-nav-hover]:hover > .slide-in-back-square-inner { background: var(--theme-fg-inverse); }
+    body.mode-color .slide-in-back-square[data-nav-hover]:hover > .slide-in-back-square-inner .icon { color: var(--theme-fg); }
   }
   @media (min-width: 768px) {
     .slide-in-back-square { display: block; }

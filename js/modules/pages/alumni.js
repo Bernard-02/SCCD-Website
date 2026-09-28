@@ -274,9 +274,11 @@ async function renderGatherings(data) {
       }
     });
     btn.addEventListener('click', () => {
+      // active＝點下去時的 hover 色（全站 nav btn 規則 user 2026-09-28，不重抽＝不跳色）；沒 hover 色才抽
+      const hoverColor = btn.style.background;
       tabs.forEach(b => { b.classList.remove('active'); resetCityTab(b); });
       btn.classList.add('active');
-      colorizeCityTab(btn, randAccent());
+      colorizeCityTab(btn, hoverColor || randAccent());
       const city = btn.getAttribute('data-city');
       showGatheringCity(city);
     });

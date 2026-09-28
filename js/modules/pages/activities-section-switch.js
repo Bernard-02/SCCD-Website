@@ -10,7 +10,7 @@ import { loadDegreeShowListInto } from './degree-show-data-loader.js';
 import { applyMarqueeOverflow, bindMarqueeReturn } from '../ui/marquee-overflow.js';
 import { initListAccordion, resetListAccordionsInPanel, alignWithBottomSpacer } from '../accordions/list-accordion.js';
 import { reapplySearch, markProgrammaticScroll } from '../ui/activities-search.js';
-import { setActiveNavBtn, showPanel, initHoverDimMoveGuard, bindNavBtnFit, bindNavBtnSpin, isNavSpinDesktop, bindFrameScrollSplit, flashDeepLinkDim } from '../ui/section-switch-helpers.js';
+import { setActiveNavBtn, showPanel, initHoverDimMoveGuard, bindNavBtnFit, bindNavBtnSpin, isNavSpinDesktop, bindFrameScrollSplit, flashDeepLinkDim, navHoverColor } from '../ui/section-switch-helpers.js';
 import { playAdmissionPanelExit, playAdmissionPanelReveal, setupAdmissionReveal } from './admission-data-loader.js';
 import { playClipReveal, navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
 import { snapRowsShown } from '../ui/list-row-reveal.js';
@@ -1215,7 +1215,9 @@ function initExhibitionsTypeFilter() {
       btn.classList.add('active');
       const inner = /** @type {HTMLElement | null} */ (btn.querySelector('.anchor-nav-inner'));
       if (inner) {
-        inner.style.background = currentSectionColor || '#00FF80';
+        // 點下去時的 hover 色（user 2026-09-28 沿用）；沒 hover（手機）才用 section 色
+        inner.style.background = navHoverColor(btn) || currentSectionColor || '#00FF80';
+        delete btn.dataset.navPicked;   // 用完即丟：之後程式觸發的 tabBtn.click()（深連）不吃舊色
         // 桌面沿用 hover 當前角（click 不另抽）；手機/矮橫向無 hover → click 現抽
         if (!isNavSpinDesktop()) inner.style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`;
       }
@@ -1262,7 +1264,9 @@ function initVisitsTypeFilter() {
       btn.classList.add('active');
       const inner = /** @type {HTMLElement | null} */ (btn.querySelector('.anchor-nav-inner'));
       if (inner) {
-        inner.style.background = currentSectionColor || '#00FF80';
+        // 點下去時的 hover 色（user 2026-09-28 沿用）；沒 hover（手機）才用 section 色
+        inner.style.background = navHoverColor(btn) || currentSectionColor || '#00FF80';
+        delete btn.dataset.navPicked;   // 用完即丟：之後程式觸發的 tabBtn.click()（深連）不吃舊色
         // 桌面沿用 hover 當前角（click 不另抽）；手機/矮橫向無 hover → click 現抽
         if (!isNavSpinDesktop()) inner.style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`;
       }

@@ -39,7 +39,10 @@ const readInlineRot = (el) => {
  * @returns {{color: string, rotation: number}} 使用的顏色和旋轉角度
  */
 export function setActiveNavBtn(btns, activeKey, attrName, opts = {}) {
-  const color = opts.color || SCCDHelpers.getRandomAccentColor();
+  const incoming = [...btns].filter(b => b.getAttribute(attrName) === activeKey);
+  // 點下去時的 hover 色＝active 色（user 2026-09-28「hover 預覽、click 定案」同 menu；退場動畫後才 activate 也沿用）
+  const color = opts.color || incoming.map(navHoverColor).find(Boolean) || SCCDHelpers.getRandomAccentColor();
+  incoming.forEach(b => { delete b.dataset.navPicked; });
   const keepCurrent = isNavSpinDesktop();
   const pickRot = (inner) => (keepCurrent ? readInlineRot(inner) : null) ?? SCCDHelpers.getRandomRotation();
   let rotation = opts.rotation != null ? opts.rotation : null;
@@ -53,7 +56,7 @@ export function setActiveNavBtn(btns, activeKey, attrName, opts = {}) {
     });
   });
 
-  [...btns].filter(b => b.getAttribute(attrName) === activeKey).forEach(b => {
+  incoming.forEach(b => {
     b.classList.add('active');
     b.setAttribute('aria-pressed', 'true');
     const inners = b.querySelectorAll('.anchor-nav-inner');
@@ -89,7 +92,38 @@ export function bindNavBtnSpin(btns) {
     if (hoverOn) b.addEventListener('mouseenter', () => {
       inners.forEach(inner => { inner.style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`; });
     });
+    bindNavBtnHover(b);
   });
+}
+
+/**
+ * nav btn hover＝隨機三原色（user 2026-09-28 全站規則）：桌面 mouseenter 抽色 → btn 掛 data-nav-hover（色值兼 CSS gate）
+ * ＋ --nav-hover（上色 var，掛 varHost：預設 btn；curriculum 掛 group 讓 sibling 的 BFA label 同吃）；mouseleave 即拆。
+ * 上色規則在 navigation.css（[data-nav-hover] … .anchor-nav-inner:hover，壓 mode2/3 的 !important；mode3 走黑白不吃此色）。
+ * 只在桌面綁（isNavSpinDesktop）＝手機/矮橫向 tap 不黏色。active 也照抽（CSS :not(.active) 不顯示；atlas 例外連 active 顯示）
+ * ——scroll-spy 在游標底下把 active 換走時才有色可顯。點「已 active」的鈕別沿用 hover 色（caller 判斷，見 anchor-nav / DSD）。
+ * click 當下的 hover 色記進 data-nav-picked：active 延到退場動畫後才寫、游標可能已離開，照樣沿用（見 navHoverColor）。
+ * 元素級 listener 隨 #page-content swap 一起消失，不需 registerPageCleanup。
+ * @param {HTMLElement} btn
+ * @param {{ varHost?: HTMLElement, hoverEl?: HTMLElement, pick?: () => string }} [opts]
+ *   hoverEl：進出哪個元素算 hover（curriculum＝group，hover BFA 小標題也算）；pick：自訂抽色（DSD 避開標題色）
+ */
+export function bindNavBtnHover(btn, { varHost = btn, hoverEl = btn, pick } = {}) {
+  if (!isNavSpinDesktop() || btn.dataset.navHoverBound) return;
+  btn.dataset.navHoverBound = '1';
+  hoverEl.addEventListener('mouseenter', () => {
+    const c = pick ? pick() : SCCDHelpers.getRandomAccentColor();
+    btn.dataset.navHover = c;
+    varHost.style.setProperty('--nav-hover', c);
+  });
+  hoverEl.addEventListener('mouseleave', () => { delete btn.dataset.navHover; });
+  btn.addEventListener('click', () => { if (btn.dataset.navHover) btn.dataset.navPicked = btn.dataset.navHover; });
+}
+
+/** 這顆 btn 被點時看到的 hover 色（還在 hover 或剛點過；都沒有＝''）：非 atlas 的 active 沿用它＝點下去不跳色
+ * @param {HTMLElement | null | undefined} btn */
+export function navHoverColor(btn) {
+  return (btn && (btn.dataset.navHover || btn.dataset.navPicked)) || '';
 }
 
 /**
@@ -113,7 +147,8 @@ export function showPanel(panelSelector, targetId) {
 
 /**
  * nav btn 色塊寬度貼合文字（faculty/curriculum/activities/admission 左欄 nav 共用；user 2026-09-05 統一
- * 「nav 佔 cols 1-3、col 4 留白、內容 col-5 起；文字沒欄寬時盒以文字為主」）。
+ * 「文字沒欄寬時盒以文字為主」；2026-09-27 起 ≥1200 nav 佔 cols 1-3、內容 col 4-18（平板維持 col 4 留白、內容 5-20）——curriculum ≥1200
+ * 另把 btn 收在 cols 1-2，courses.css）。
  * label 折行時 inline 盒會撐到欄軌寬、不 hug 折後最長行 → fitCardToText（Range 逐行量、寬=最寬行+padding）。
  * ⚠️fit 目標＝.anchor-nav-inner（視覺色塊、padding 在它；btn 本體 padding:0 會 shrink-wrap 跟縮），
  *   fit btn 本體會少算 inner padding 導致 rewrap。非桌面/矮橫向 helper 自動還原 fit-content（水平捲動列
@@ -138,7 +173,7 @@ export function bindNavBtnFit(btns) {
  * inner-scroll frame 桌面滾輪分區（user 2026-09-05「col 1-3 捲的是 window（可到 footer）、
  * col 4 之後都是內部捲動」；faculty/curriculum/activities/admission 四頁共用）：
  * - col 1-3（nav 欄）＝不攔 → window 原生捲（吃 mandatory snap → footer / hero）。
- * - col 4 起（留白帶 ＋ box 本體）＝內容區三態（user 2026-09-09 二改「正常滾動留在 box、快滑或停頓後
+ * - col 4 起（box 本體 ＋ box 外留白帶：nav 欄與 box 間的 gutter、col 20）＝內容區三態（user 2026-09-09 二改「正常滾動留在 box、快滑或停頓後
  *   再滾才去 footer/hero」，取代同日稍早的「一律鎖死」）：
  *   · box 吸收得了（可捲、非邊界）→ box 本體放行原生捲；留白帶 preventDefault 路由進 box。
  *   · 觸邊但慢（含 trackpad 慣性尾巴——密集事件不斷刷新 lastHit 冷卻，動量再大也衝不出去）→ 鎖住。
@@ -181,7 +216,7 @@ export function bindFrameScrollSplit(section) {
     if (canScroll && !((atTop && dir < 0) || (atBottom && dir > 0))) {
       lastHit = now;                                          // box 吸收得了：內部捲
       if (box.contains(/** @type {Node} */ (e.target))) return; // box 本體：原生捲
-      e.preventDefault();                                     // col 4 留白帶：路由進 box
+      e.preventDefault();                                     // box 外留白帶（gutter / col 20）：路由進 box
       box.scrollTop += px;
       return;
     }

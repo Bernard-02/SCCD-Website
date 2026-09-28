@@ -13,8 +13,8 @@
 
 import { renderCoursesGrid, deselectActiveCard, resetCoursesMapState, selectCardBySlugInPanel, highlightCardBySlugInPanel, ensureMobileGradeForSlug } from './courses-map.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
-import { setActiveNavBtn, bindNavBtnFit, bindFrameScrollSplit, flashDeepLinkDim } from '../ui/section-switch-helpers.js';
-import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
+import { setActiveNavBtn, bindNavBtnFit, bindFrameScrollSplit, flashDeepLinkDim, bindNavBtnHover } from '../ui/section-switch-helpers.js';
+import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN, cullByViewport } from '../ui/scroll-animate.js';
 
 // 卡片維持四方向隨機（要多樣性）；滿寬 row-label 抽到 left/right 會滑整個 box 寬
 // 「從螢幕邊飛進來」（user 2026-07-21）→ label 帶 el 走 pickNavDir 短邊邏輯（只剩 top/bottom）
@@ -104,15 +104,18 @@ function applyBaseRotations() {
 }
 
 // hover handler：mouseenter 給 btn-inner 與同 group 的 label 抽新隨機 rotation（含 active；
-// 離開保持不還原——user 2026-09-15 全站定案）。bg/color 不動（hover 只變文字 opacity，由 CSS 處理）
+// 離開保持不還原——user 2026-09-15 全站定案）。hover 色＝全站 bindNavBtnHover（var 掛 group＝BFA label 同色；
+// click 沿用由 setActiveNavBtn 讀 hover 色，label 跟著回傳的 color）
 /** @param {HTMLElement} btn */
 function bindHover(btn) {
   if (btn.dataset.hoverBound) return;
   btn.dataset.hoverBound = '1';
 
   const inner = /** @type {HTMLElement | null} */ (btn.querySelector('.anchor-nav-inner'));
-  const group = btn.closest('.courses-program-group');
+  const group = /** @type {HTMLElement | null} */ (btn.closest('.courses-program-group'));
   const label = /** @type {HTMLElement | null} */ (group?.querySelector('.courses-bfa-label') || null);
+  // BFA 小標題與 btn 同一組 hover（user 2026-09-28「hover 小標題也要變色」）：進出 group 才算
+  bindNavBtnHover(btn, { varHost: group || btn, hoverEl: group || btn });
 
   btn.addEventListener('mouseenter', () => {
     const rot = getRot();
@@ -427,15 +430,17 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
     let pending = 0;
     const done = () => { if (--pending <= 0) resolve(); };
 
-    if (clipTargets.length) {
+    // viewport-cull：離頁退場只收看得到的（換頁後整個 main 換掉，視窗外收不收沒差、不必陪跑）
+    const { on: clipOn } = cullByViewport(clipTargets, 200);
+    if (clipOn.length) {
       pending++;
-      clipTargets.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = 'none'; });  // mobile grade bar inner 有 transition:all，關掉免追 GSAP 卡頓
-      gsap.killTweensOf(clipTargets);
+      clipOn.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = 'none'; });  // mobile grade bar inner 有 transition:all，關掉免追 GSAP 卡頓
+      gsap.killTweensOf(clipOn);
       // hero 式 clip-reveal 反向（同下方 navExit）：fromTo 顯式起點 NAV_CHIP_SHOWN → 各自四方向隨機（label 挑短邊）滑出＋同步 clip。
       // stagger 用 amount（總時長固定 0.2s 攤給所有元素）不用 each：卡片多達 ~46 張，用 each:0.02 會拖到 ~0.9s
       // 跟 nav/表頭（元素少、~0.5s 收完）不同步 → 三者「不一起」。amount 讓不論幾張都在同一視窗收完（user 2026-06-07）。
-      const hid = clipTargets.map(el => navChipHidden(el, pickCardDir(el)));
-      gsap.fromTo(clipTargets,
+      const hid = clipOn.map(el => navChipHidden(el, pickCardDir(el)));
+      gsap.fromTo(clipOn,
         { ...NAV_CHIP_SHOWN },
         { clipPath: (/** @type {number} */ i) => hid[i].clipPath, translate: (/** @type {number} */ i) => hid[i].translate, duration: DUR.base, ease: NAV_EASE, stagger: { amount: 0.2, from: 'end' }, overwrite: true, onComplete: done }
       );
@@ -479,7 +484,7 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
     }
     // 找出將被 active 的 btn，把 hover 留下的 _pendingRot / _pendingLabelRot 拿出來
     // 達成「hover 看到什麼角度，click 就停在什麼角度」的記憶效果（仿 about）
-    // 注意：_pendingColor 已移除（hover 不再 preview accent 色），active 色由 setActiveNavBtn 內部 roll
+    // active 色＝點下去時的 hover 色（setActiveNavBtn 讀 data-nav-picked，退場動畫後才寫也沿用）
     const incomingBtn = /** @type {any} */ ([...btns].find(b => b.getAttribute('data-program') === program));
     const opts = {};
     if (incomingBtn?._pendingRot != null) opts.rotation = incomingBtn._pendingRot;
@@ -533,10 +538,17 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
       if (prevCards.length) {
         exitPromises.push(new Promise(resolve => {
           gsap.killTweensOf(prevCards);
+          // viewport-cull：視窗外的卡不陪跑（panel 隨後 hidden；回頭再進場時會重設全卡 hidden 態，無殘留）
+          const { on: exitCards } = cullByViewport(prevCards, 200);
+          const finishExit = () => {
+            prevGradeInners.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = ''; });
+            resolve();
+          };
+          if (!exitCards.length) { finishExit(); return; }
           // hero 式 clip-reveal 反向：fromTo 顯式起點 NAV_CHIP_SHOWN（reveal 後 translate/clip 已 clearProps＝none，
           // 直接 to 會 snap）→ 各自四方向隨機（label 挑短邊）滑出＋同步 clip
-          const hid = prevCards.map(el => navChipHidden(el, pickCardDir(el)));
-          gsap.fromTo(prevCards,
+          const hid = exitCards.map(el => navChipHidden(el, pickCardDir(el)));
+          gsap.fromTo(exitCards,
             { ...NAV_CHIP_SHOWN },
             {
               clipPath: (/** @type {number} */ i) => hid[i].clipPath,
@@ -544,10 +556,7 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
               duration: DUR.fast,
               ease: 'cubic-bezier(0.25, 0, 0, 1)',
               overwrite: true,
-              onComplete: () => {
-                prevGradeInners.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = ''; });
-                resolve();
-              },
+              onComplete: finishExit,
             }
           );
         }));
@@ -652,7 +661,15 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
 
         const playReveal = () => {
           if (prefersReducedMotion()) { gsap.set(allCards, { clearProps: 'clipPath,translate' }); restoreGradeTransitions(); return; }  // 減少動態：直接全顯
-          gsap.to(allCards, {
+          // viewport-cull：視窗外的卡 snap 終態不陪跑（~46 張同幀 clip-path repaint 在拔電降頻機爆幀預算）。
+          // 初次進場 margin 給一屏高（trigger 在 top 90% 就開播，跟著捲下來的下一屏仍看得到動畫）；
+          // deep-link 例外維持全播——slide-in 開啟時序（line ~257）等目標卡 reveal 完成，cull 會打亂節奏。
+          const { on, off } = deepLinkAutoNav
+            ? { on: allCards, off: /** @type {Element[]} */ ([]) }
+            : cullByViewport(allCards, isSwitch ? 200 : window.innerHeight);
+          if (off.length) gsap.set(off, { clearProps: 'clipPath,translate' });
+          if (!on.length) { restoreGradeTransitions(); return; }
+          gsap.to(on, {
             ...NAV_CHIP_SHOWN,
             duration: DUR.base,
             ease: 'cubic-bezier(0.25, 0, 0, 1)',

@@ -101,9 +101,8 @@
   @media (min-width: 768px) {
     .courses-program-bar {
       flex: 0 0 14rem;
-      /* 100% ＝ nav wrapper 軌寬（col-span-3；col 4 整欄留白、內容第 5 欄起＝user 2026-09-05 定案
-         「max 到欄界、文字沒那麼寬則以文字為主」）。文字寬由 courses-section-switch fitProgramBtns 貼合；
-         縮視窗軌變窄 → btn 換行在內、不疊右欄。舊 14rem 寫死值與 margin-right（flex row 時代殘留）已移除。 */
+      /* 100% ＝ nav wrapper 軌寬（col-span-3；「max 到欄界、文字沒那麼寬則以文字為主」user 2026-09-05）。
+         文字寬由 bindNavBtnFit 貼合；縮視窗軌變窄 → btn 換行在內、不疊右欄。≥1200 再收成前 2 欄（見下方）。 */
       width: 100%;
       align-self: flex-start;
       /* inner-scroll frame：bar 在 .inner-scroll-nav-col wrapper 內、由 wrapper padding-top 定位到 content 區頂、
@@ -111,12 +110,8 @@
       position: static;
       z-index: 3;
       background: var(--theme-bg);
-      /* padding-top = 下移整條 bar，讓 **BFA 小 tag 頂端**對齊右側年級表頭線（content 區頂 160）＝user 要的對齊基準
-         （user 2026-08-24 定案、2026-09-02 再次確認「對齊點是 BFA 小標題不是按鈕」）。tag 是 absolute（bottom:calc(100%+4px)）
-         浮在 btn 上方、不佔 flow → 下移量＝tag 突出量。⚠️tag 是**兩行**（EN+ZH block span），故 ×2；舊版誤用 ×1
-         → tag 落在表頭線上方 ~22px 沒真的對齊（headless 實測 delta+2，×2 才 delta≈0）。btn 隨之落到表頭下方（≈220，
-         約課程卡片列）＝正常、對齊基準是 tag。MDES btn 無 tag 隨整條同步、相對間距不變。改後要 build:css。 */
-      padding-top: calc(var(--font-size-s) * var(--line-height-s) * 2 + 18px);
+      /* **BFA 小 tag 頂端**對齊右側年級表頭線（content 區頂）＝user 對齊基準（2026-08-24 / 09-02「對齊點是 BFA 小標題不是按鈕」）：
+         2026-09-28 起桌面 tag 在 flow 裡（見下方 .courses-bfa-label 桌面段）＝bar 頂即 tag 頂，不再用 padding-top 估 tag 突出量 */
       padding-bottom: var(--spacing-md);
     }
   }
@@ -143,16 +138,35 @@
       white-space: normal;
     }
   }
+  /* 桌面 ≥1200（user 2026-09-27）：內容改 col-4 起、nav 與內容間只剩 gutter → btn 文字收在 cols 1-2 折行、
+     col 3 當呼吸空間。bar 寬＝nav wrapper（3 欄）裡的前 2 欄＝2×欄寬＋1 gutter。
+     中文 keep-all：不在字中間斷（免「動畫影像設計／組」孤字）；中文比 2 欄長時略凸進 gutter/col 3，同 faculty DCD 鈕。
+     平板 768-1199 不收：2 欄只剩 ~70px，中文會撞進內容。 */
+  @media (min-width: 1200px) and (min-height: 501px) {
+    .courses-program-bar {
+      width: calc((100% - 2 * var(--spacing-gutter)) * 2 / 3 + var(--spacing-gutter));
+    }
+    .courses-program-btn .anchor-nav-inner > span:last-child {
+      word-break: keep-all;
+    }
+    /* BFA 小標籤（CMS「BFA, DCD／媒體傳達設計學系 學士班」nowrap ~196px）同樣收窄：中文在空格斷成
+       「媒體傳達設計學系／學士班」＝3 行，1200 寬時才不伸進內容區、被年級表頭白底蓋掉。
+       group 前綴提特異度：基本規則 .courses-bfa-label（nowrap）寫在本段之後、同特異度會蓋回來 */
+    .courses-program-group .courses-bfa-label {
+      white-space: normal;
+      word-break: keep-all;
+    }
+  }
 
-  /* 桌面 nav 垂直間距模型（user 2026-09-02「間距要加上子標題，不然 Animation 跟 Creative Media 太靠近」）：
-     bar flex gap = --spacing-lg(32)＝**乾淨間距**（可見空白，全站一致；HTML md:gap-lg）。BFA group 的 label 是
-     absolute 浮在 btn 上方、不佔 flow → flex gap 看不到它、被它吃掉（實測 Animation btn→CreativeMedia label 只剩 3px）。
-     解＝給非首個 group 補 margin-top = label 兩行突出量（同 bar padding-top 那條 calc），把 32px 乾淨 gap 推到 label 上方。
-     首個 group（Animation）頂由 bar padding-top 定位（label 對齊年級表頭）→ :not(:first-child) 排除它。
-     MDES btn 無 label、直接吃 flex gap(32) 不需補（舊的 negative-margin 砍半 4rem→2rem hack 已移除，因 gap 本身就是 32）。 */
-  @media (min-width: 768px) {
-    .courses-program-group:not(:first-child) {
-      margin-top: calc(var(--font-size-s) * var(--line-height-s) * 2 + 18px);
+  /* 桌面 nav 垂直間距（user 2026-09-28「curriculum nav btn 之間的 gap 要跟其他 nav btn 一樣」）：BFA 小標題改在 flow 裡
+     （position relative、left -12px 保留原本往左凸的位置），每顆 chip（小標題 / btn）之間一律全站 nav btn 間距 gap-xs 8px
+     （bar HTML md:gap-xs、group gap-xs）。取代 09-02「absolute label＋margin-top 估突出量＋gap-lg 32」模型——估算隨斷點
+     行數漂移（實測 1440 btn→下一組標題 15、1024 34、→MDES 32，參差不齊）。矮橫向（landscape.css static 併排）／
+     直向手機（absolute、JS --courses-bar-padtop）各自另有規則，本段 min-height 501 排除矮橫向。 */
+  @media (min-width: 768px) and (min-height: 501px) {
+    .courses-program-group .courses-bfa-label {   /* group 前綴提特異度：基本規則 .courses-bfa-label（absolute）寫在後面 */
+      position: relative;
+      bottom: auto;
     }
   }
 
@@ -163,7 +177,7 @@
 
   /* BFA Class 學士班 小標籤（每個 BFA btn 上方一個）
    * - 位置/旋轉比照 about .class-group-label：absolute 在 btn 上方 + 隨機旋轉（JS 設）
-   * - 預設**透明底 + 50% 灰字**（不要黑底，跟 about 不同）
+   * - 預設**透明底 + 100% theme-fg 字**（不要黑底，跟 about 不同；hover 不改字色，user 2026-09-28 同全站 nav btn）
    *     hover  = JS 設 accent 底 + 黑字（隨 btn 一起聯動）
    *     active = JS 設 accent 底 + 黑字（rotate 與 btn 各自獨立）
    * - padding 6/8/5＝全站 nav btn 標準（原 7/6/6 → 統一，user 2026-09-09）；font-size 保持 p1；transform transition 0.3s
@@ -179,7 +193,7 @@
     font-size: var(--font-size-s);
     font-weight: 700;
     line-height: var(--line-height-s);   /* 照字級：text-s → 1.3（單行 pill 也跟 tier，對齊 about .class-group-label；user 08-13） */
-    color: #808080; /* 原 rgba(0,0,0,.5) 疊 mode1 白頁實色（inverse/color 由 themes 蓋）；legacy hex 保 sRGB 過渡 pacing */
+    color: var(--theme-fg);
     background: transparent;
     white-space: nowrap;
     cursor: pointer;   /* 可點＝點同 group 的 program btn（courses-section-switch.js） */
@@ -187,16 +201,6 @@
   }
   .courses-program-group:has(.courses-program-btn.active) .courses-bfa-label {
     color: black;
-  }
-
-  /* hover inactive btn → BFA label 文字 100% theme-fg（spec：bg 不變、僅文字加深）
-   * 用 var(--theme-fg-rgb) 而非 hard-coded 黑，讓 mode-color/inverse 自動翻色。
-   * 桌面限定：手機 tap 會觸發 :hover → 點擊瞬間 label 先變黑、色底 0.3s 後（exit 動畫完）才到
-   * ＝user 2026-07-13「先變黑色」；手機不該有 hover（CLAUDE.md RWD 規範 3） */
-  @media (min-width: 768px) {
-    .courses-program-group:has(.courses-program-btn:not(.active):hover) .courses-bfa-label {
-      color: rgba(var(--theme-fg-rgb), 1);
-    }
   }
 
   /* ===== Grid container =====

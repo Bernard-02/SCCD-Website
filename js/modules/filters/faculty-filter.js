@@ -6,7 +6,7 @@
 import { setupClipReveal, navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
-import { bindNavBtnFit, bindNavBtnSpin, isNavSpinDesktop, bindFrameScrollSplit } from '../ui/section-switch-helpers.js';
+import { bindNavBtnFit, bindNavBtnSpin, isNavSpinDesktop, bindFrameScrollSplit, navHoverColor } from '../ui/section-switch-helpers.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { waitForHeroAnimDone } from '../pages/hero-animation.js';
@@ -337,6 +337,7 @@ export function initFacultyFilter(initialSection = null) {
     .filter(Boolean);
   // 每顆固定一個隨機方向（reveal/hide 來回一致）；px 向量依當下寬高/角度、每次要藏重算
   const navDir = new Map(navInners.map(inner => [inner, pickNavDir(inner)]));
+  let exitInners = navInners;   // 離頁退場目標；矮橫向換成含 DCD 的 bandInners（見 landscape 分支）
   if (typeof gsap !== 'undefined' && navInners.length && !prefersReducedMotion()) {  // 減少動態：nav 維持靜態可見
     navInners.forEach(inner => { inner.style.transition = 'none'; gsap.set(inner, navChipHidden(inner, navDir.get(inner))); });
     const section = document.getElementById('faculty-cards');
@@ -347,21 +348,31 @@ export function initFacultyFilter(initialSection = null) {
       // 同時（stagger:0）clip-reveal / clip-hide。fixed nav 被 clip 掉時 btn 外框仍在 → pointer-events 一併切。
       const navCol = /** @type {HTMLElement|null} */ (section.querySelector('.inner-scroll-nav-col'));
       if (navCol) navCol.style.pointerEvents = 'none';
+      // DCD 系所鈕（2026-08-24 與分類對調後住進 header 帶）併入同一個 hero gate：hero 上不出現、回 hero
+      // 收起（user 2026-09-19「hero 時不要出現 nav btn」）。原走下方 once-reveal＝捲過一次永駐、回 hero 不收。
+      const bandInners = navInners.concat(Array.from(section.querySelectorAll('.faculty-dept-btn .anchor-nav-inner')));
+      bandInners.forEach(inner => {
+        if (navDir.has(inner)) return;
+        navDir.set(inner, pickNavDir(inner));
+        inner.style.transition = 'none';
+        gsap.set(inner, navChipHidden(inner, navDir.get(inner)));
+      });
+      exitInners = bandInners;
       const setNav = (reveal) => {
         if (navRevealed === reveal) return;
         navRevealed = reveal;
         // header 帶遮擋跟 nav 同 gate（landscape.css 消費此 class）：卡片捲過透明 header 會疊在
         // nav btn 後（user 2026-07-10 統一各頁 nav 遮擋）；hero 時不掛、不蓋 hero 圖
         section.classList.toggle('faculty-nav-revealed', reveal);
-        gsap.killTweensOf(navInners);
-        navInners.forEach(inner => { inner.style.transition = 'none'; });
+        gsap.killTweensOf(bandInners);
+        bandInners.forEach(inner => { inner.style.transition = 'none'; });
         if (navCol) navCol.style.pointerEvents = reveal ? '' : 'none';
-        const hid = reveal ? null : navInners.map(inner => navChipHidden(inner, navDir.get(inner)));
-        gsap.to(navInners, {
+        const hid = reveal ? null : bandInners.map(inner => navChipHidden(inner, navDir.get(inner)));
+        gsap.to(bandInners, {
           clipPath: reveal ? NAV_CHIP_SHOWN.clipPath : (i) => hid[i].clipPath,
           translate: reveal ? NAV_CHIP_SHOWN.translate : (i) => hid[i].translate,
           duration: DUR.base, ease: NAV_EASE, stagger: 0, overwrite: true,
-          onComplete: () => { if (reveal) navInners.forEach(inner => { inner.style.transition = ''; }); },
+          onComplete: () => { if (reveal) bandInners.forEach(inner => { inner.style.transition = ''; }); },
         });
       };
       // 嚴格 hero gate（user 2026-07-10「卡一半 nav 就出現」，同 admission/curriculum）：觀察 hero 本體，
@@ -408,11 +419,11 @@ export function initFacultyFilter(initialSection = null) {
   }
 
   registerPageExit(() => new Promise(resolve => {
-    if (typeof gsap === 'undefined' || !navRevealed || !navInners.length) { resolve(); return; }
-    gsap.killTweensOf(navInners);
-    navInners.forEach(inner => { inner.style.transition = 'none'; });  // 同進場：停掉 transition:all 免追 GSAP 每幀寫入卡頓
-    const hid = navInners.map(inner => navChipHidden(inner, navDir.get(inner)));
-    gsap.fromTo(navInners,
+    if (typeof gsap === 'undefined' || !navRevealed || !exitInners.length) { resolve(); return; }
+    gsap.killTweensOf(exitInners);
+    exitInners.forEach(inner => { inner.style.transition = 'none'; });  // 同進場：停掉 transition:all 免追 GSAP 每幀寫入卡頓
+    const hid = exitInners.map(inner => navChipHidden(inner, navDir.get(inner)));
+    gsap.fromTo(exitInners,
       { ...NAV_CHIP_SHOWN },
       {
         clipPath: (i) => hid[i].clipPath,
@@ -468,8 +479,8 @@ export function initFacultyFilter(initialSection = null) {
         return;
       }
 
-      // Reset color on all buttons, set random color on active
-      const color = SCCDHelpers.getRandomAccentColor();
+      // Reset color on all buttons；active＝點下去時的 hover 色（user 2026-09-28），沒 hover（手機）才隨機
+      const color = navHoverColor(this) || SCCDHelpers.getRandomAccentColor();
       setActiveStyle(this, color);
 
       // Set active state using helper
@@ -539,7 +550,7 @@ export function initFacultyFilter(initialSection = null) {
     deptButtons.forEach(button => {
       button.addEventListener('click', function() {
         if (this.classList.contains('active')) { SCCDHelpers.scrollToElement('#faculty-cards'); this.blur(); return; }
-        setDeptActiveStyle(this, SCCDHelpers.getRandomAccentColor());
+        setDeptActiveStyle(this, navHoverColor(this) || SCCDHelpers.getRandomAccentColor());
         SCCDHelpers.setActive(this, deptButtons);
         const dept = this.getAttribute('data-dept');
         const currentlyVisible = Array.from(facultyCards).filter(c => /** @type {HTMLElement} */ (c).style.display !== 'none');
@@ -562,9 +573,12 @@ export function initFacultyFilter(initialSection = null) {
     // Dept tag 進出場：比照 activities sub-filter chip 的 hero clip-reveal（純垂直由下滑入——不套 navChipHidden，
     // 免 active chip 的隨機 rotate 把位移向量轉斜；clip/translate 套在 .anchor-nav-inner 本身，旋轉角不被裁）。
     // 進場＝section 進視窗（同左 nav reveal 時機）；退場＝離頁。transition:'none' 解 navigation.css `transition:all` 衝突。
+    // 矮橫向不走這套：DCD 在 header 帶、已併入上方 hero gate setNav（once-reveal 會「捲過一次永駐、回 hero 不收」
+    // ＝hero 上冒出 nav btn，user 2026-09-19）；同一顆 inner 不能雙驅動。
     const deptInners = [...deptButtons].map(b => /** @type {HTMLElement|null} */ (b.querySelector('.anchor-nav-inner'))).filter(Boolean);
     const deptHidden = (el) => ({ clipPath: 'inset(0% 0% 100% 0%)', translate: `0px ${el.offsetHeight || 0}px` });
-    if (typeof gsap !== 'undefined' && deptInners.length && !prefersReducedMotion()) {
+    const deptInBand = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+    if (typeof gsap !== 'undefined' && deptInners.length && !prefersReducedMotion() && !deptInBand) {
       let deptRevealed = false;
       deptInners.forEach(el => { el.style.transition = 'none'; gsap.set(el, deptHidden(el)); });
       const playDeptReveal = () => {

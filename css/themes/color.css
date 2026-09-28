@@ -178,20 +178,11 @@ body.mode-color [data-hero-hl] {
 /* Courses BFA label (JS hover/active 時 inline 設 accent bg + 黑字 → mode-color 改 strict B/W)
  * Active group label：用 :has(.active) 捕捉
  * Hover label：JS 設 inline bg 但 group 沒 .active class → 用 [style*="background"] attribute selector 捕捉
- * Inactive label（兩條都不匹配）：透明底 + 50% theme-fg 文字（取代 courses.css base 寫死的 rgba(0,0,0,0.5) 黑色） */
+ * Inactive label（兩條都不匹配）：透明底 + 100% theme-fg 字＝吃 courses.css base，不另寫（user 2026-09-28） */
 body.mode-color .courses-program-group:has(.courses-program-btn.active) .courses-bfa-label,
 body.mode-color .courses-bfa-label[style*="background"] {
   background: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
-}
-
-body.mode-color .courses-bfa-label:not([style*="background"]) {
-  color: rgba(var(--theme-fg-rgb), 0.5) !important;
-}
-
-/* Hover override：inactive btn hover 時 label 文字 100% theme-fg（用 !important 蓋過上方 inactive 50% rule） */
-body.mode-color .courses-program-group:has(.courses-program-btn:not(.active):hover) .courses-bfa-label {
-  color: rgba(var(--theme-fg-rgb), 1) !important;
 }
 
 /* ===== About Resources colored-accordion：mode-color strict B/W =====
@@ -364,8 +355,7 @@ body.mode-color .theme-invert {
 
 /* ===== 統一所有 nav / filter btn 樣式（mode-color）=====
  * Active   = strict B/W chip：bg = var(--theme-fg)、color = var(--theme-fg-inverse)；hue luminance 自動翻黑/白底
- * Inactive = 跟 body bg 同步動態變色：bg = var(--theme-bg) vivid hue、color = rgba(fg, 0.5) 半透明對比文字
- * Inactive Hover = color → rgba(fg, 1)，opacity 強制 1
+ * Inactive = 跟 body bg 同步動態變色：bg = var(--theme-bg) vivid hue、color = theme-fg 100%（hover＝黑白翻 hue 亮度，見 navigation.css「nav btn hover」段，user 2026-09-28）
  * transition 排除 background：navigation.css 的 `.anchor-nav-inner` 是 `transition: all 0.3s`，
  * 會讓 bg 每幀 var 更新被 interpolate 300ms 而落後 body（body 沒 transition、每幀 instant 更新）→ 視覺上 btn 比 body 偏淡；
  * 只保留 color / opacity / transform transition 給 hover 效果用
@@ -386,7 +376,7 @@ body.mode-color .atlas-filter-btn.active .anchor-nav-inner {
   opacity: 1;
 }
 
-/* Inactive：跟 body bg 同色 + 半透明對比文字 + transition 排除 bg */
+/* Inactive：跟 body bg 同色 + 100% 對比文字 + transition 排除 bg */
 body.mode-color .anchor-nav-btn:not(.active) .anchor-nav-inner,
 body.mode-color .section-nav-btn:not(.active) .anchor-nav-inner,
 body.mode-color .faculty-filter-btn:not(.active) .anchor-nav-inner,
@@ -396,9 +386,7 @@ body.mode-color .activities-filter-btn:not(.active) .anchor-nav-inner,
 body.mode-color .courses-filter-btn:not(.active) .anchor-nav-inner,
 body.mode-color .atlas-filter-btn:not(.active) .anchor-nav-inner {
   background-color: var(--theme-bg) !important;
-  /* 刻意留 rgba 半透明不實色化：btn 底=不透明 theme-bg、字不會透內容；且 flatten（color-mix 含 var(--theme-bg)）
-     會跟 hue loop 每 tick 變 → 上方保留的 transition:color 持續追目標、hover 回彈拖糊 */
-  color: rgba(var(--theme-fg-rgb), 0.5) !important;
+  color: var(--theme-fg) !important;
   opacity: 1;
   transition: color var(--dur-fast) var(--ease-standard),
               opacity var(--dur-fast) var(--ease-standard),
@@ -421,21 +409,6 @@ body.mode-color.mode-switching .atlas-filter-btn:not(.active) .anchor-nav-inner 
   transition: background-color var(--dur-base) ease,
               color var(--dur-base) ease,
               opacity var(--dur-base) ease !important;
-}
-
-/* Inactive Hover：文字 100% 對比 */
-@media (min-width: 768px) {
-  body.mode-color .anchor-nav-btn:not(.active):hover .anchor-nav-inner,
-  body.mode-color .section-nav-btn:not(.active):hover .anchor-nav-inner,
-  body.mode-color .faculty-filter-btn:not(.active):hover .anchor-nav-inner,
-  body.mode-color .activities-section-btn:not(.active):hover .anchor-nav-inner,
-  body.mode-color .courses-program-btn:not(.active):hover .anchor-nav-inner,
-  body.mode-color .activities-filter-btn:not(.active):hover .anchor-nav-inner,
-  body.mode-color .courses-filter-btn:not(.active):hover .anchor-nav-inner,
-  body.mode-color .atlas-filter-btn:not(.active):hover .anchor-nav-inner {
-    color: rgba(var(--theme-fg-rgb), 1) !important;
-    opacity: 1;
-  }
 }
 
 /* ===== Filter Bar 上方遮擋 ===== */
@@ -829,34 +802,24 @@ body.mode-color #library-card-content {
  *   這時要走 lib-bg 翻 neutral-gray，不能被這條 strict B/W 規則蓋回 theme-fg
  * 桌面限定：手機跳過 initLibraryCard（main-modular.js < 768 分支），#library-card-main 沒有 inline --lib-bg
  *   可排除 → 會被這條蓋成純黑/白底（疊同色 --lib-fg 文字看不見）；手機底色走 library.css 的 var(--lib-bg) 兩階灰 */
+/* Hover：bg / title 互換到另一端 strict B/W（亮 hue 黑↔白翻轉，暗 hue 反之）——改由 JS applyCardHover 寫 inline
+ * `var(--theme-fg-inverse)` 底＋`var(--theme-fg)` 字（user 2026-09-28：原 CSS :hover 版只管直接 hover，箭頭預覽寫的 inline
+ * 被下面 !important 吃掉＝mode3 預覽不變色；改 JS 後觸發時機與 mode1/2 同一套）。下面兩條以該 inline 標記
+ * `[style*="--theme-fg-inverse"]` 放行 hover 中的卡。 */
 @media (min-width: 768px) {
-  body.mode-color #library-card-stack > div:not([style*="--lib-bg"]),
-  body.mode-color #library-card-main:not([style*="--lib-bg"]) {
+  body.mode-color #library-card-stack > div:not([style*="--lib-bg"]):not([style*="--theme-fg-inverse"]),
+  body.mode-color #library-card-main:not([style*="--lib-bg"]):not([style*="--theme-fg-inverse"]) {
     background: var(--theme-fg) !important;
   }
 }
 
 /* color-rect-title：JS inline 設 color='#000' inactive 或 '#000'/'#fff' hover；
- * mode-color 下 card bg 已強制 var(--theme-fg)，title 必須 var(--theme-fg-inverse) 才對比。
+ * mode-color 下 card bg 已強制 var(--theme-fg)，title 必須 var(--theme-fg-inverse) 才對比（hover 中的卡放行給 JS inline）。
  * #library-card-main 一併包進來：panel 切換後它會 demote 成 color rect（bg=theme-fg，sibling 不在 stack 內），
  * 漏掉的話 demote 主卡的 title 停在 inline #000 → 亮 hue（theme-fg=黑）時黑字疊黑底看不見（bg/hover 規則早就含它，這條之前漏） */
-body.mode-color #library-card-stack .color-rect-title,
-body.mode-color #library-card-main .color-rect-title {
+body.mode-color #library-card-stack > div:not([style*="--theme-fg-inverse"]) .color-rect-title,
+body.mode-color #library-card-main:not([style*="--theme-fg-inverse"]) .color-rect-title {
   color: var(--theme-fg-inverse) !important;
-}
-
-/* Hover：bg / title 互換到另一端 strict B/W 給視覺 feedback（亮 hue 黑↔白翻轉，暗 hue 反之）
- * :not([style*="--lib-bg"]) 排除已 promote 成主卡的元素，避免 hover 把主卡 lib-bg 蓋成 theme-fg-inverse
- * #library-card-main 一併包進來，cover panel 切換後 demote 成 color rect 的情境 */
-@media (min-width: 768px) {
-  body.mode-color #library-card-stack > div:not([style*="--lib-bg"]):hover,
-  body.mode-color #library-card-main:not([style*="--lib-bg"]):hover {
-    background: var(--theme-fg-inverse) !important;
-  }
-  body.mode-color #library-card-stack > div:not([style*="--lib-bg"]):hover .color-rect-title,
-  body.mode-color #library-card-main:not([style*="--lib-bg"]):hover .color-rect-title {
-    color: var(--theme-fg) !important;
-  }
 }
 
 /* files-item-title / press-year-label：text 跟著 --lib-fg 翻黑白

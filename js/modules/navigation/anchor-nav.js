@@ -8,6 +8,7 @@ import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
+import { bindNavBtnHover, navHoverColor } from '../ui/section-switch-helpers.js';
 
 /**
  * @param {{ reveal?: boolean }} [opts] reveal:true 啟用左側 nav 的 hero clip-reveal 進場/退場
@@ -20,10 +21,12 @@ export function initAnchorNav({ reveal = false } = {}) {
   // Observe section[id] + any non-section nav targets (e.g. div#works)
   // For zero-height anchor divs, observe their next sibling with content instead
   // OBSERVE_OVERRIDES：某些 anchor 的觀察對象不是 section/anchor 本身，而是該 anchor 的內容區
-  // - 'class' 觀察 class-info-area（Class 的內容區），否則整個 #class section 會一直 intersecting，蓋過 works 偵測
+  // - 'class'（2026-09-28 起＝學制樹 btn 的落點）觀察 #program-structure（樹自成一屏）
+  // - 'class-info-anchor'（Programs btn）觀察 class-info-area（division 圖文區），零高度 anchor 的下一個 sibling 不是它
   // - 'works' 觀察 class-works-panels（Works 的內容區），因為 #works 是零高度 wrapper
   const OBSERVE_OVERRIDES = {
-    'class': 'class-info-area',
+    'class': 'program-structure',
+    'class-info-anchor': 'class-info-area',
     'works': 'class-works-panels',
   };
   const sectionMap = new Map();
@@ -51,11 +54,6 @@ export function initAnchorNav({ reveal = false } = {}) {
     }
   });
 
-  // Programs(class) 的視覺起點是學制樹（#program-structure，排在 class-info-area 之前）；一併觀察
-  // → 中心線落在樹上就高亮 Programs（否則樹整屏還在時，中心線在 class-info-area 之前＝仍算 Vision）
-  const treeEl = document.getElementById('program-structure');
-  if (treeEl && treeEl.offsetHeight >= 2 && !sectionMap.has(treeEl)) sectionMap.set(treeEl, 'class');
-
   const sections = [...sectionMap.keys()];
 
   if (navButtons.length === 0 || sections.length === 0) return;
@@ -70,7 +68,8 @@ export function initAnchorNav({ reveal = false } = {}) {
         // 點擊時立即 active，並暫停 scroll spy 避免滾動過程中被覆蓋
         // force: true 讓即使已是 active 也會重新選色 + 重跑封鎖線動畫
         // 手機水平 strip 置中由 setActiveBtn 統一處理（點擊/scroll-spy 同一路徑）
-        setActiveBtn(targetId, { force: true });
+        // 重點已 active 的鈕：照 force 原意另抽色＋重播封鎖綫，不沿用 hover 色
+        setActiveBtn(targetId, { force: true, picked: btn.classList.contains('active') ? '' : navHoverColor(btn) });
         clickScrolling = true;
         // 外露給進場 ScrollTrigger（resources 飛入卡）判斷「anchor 跳轉飛掠中」→ 就定位不播動畫；
         // anchorTarget 讓目的地 section 自己例外（點 resources 直達仍要播進場）
@@ -144,6 +143,16 @@ export function initAnchorNav({ reveal = false } = {}) {
       const rot = getNavRotation();
       btn._pendingRot = rot;
       inner.style.transform = `rotate(${rot}deg)`;
+    });
+    // hover 隨機三原色（桌面）；click 沿用見 setActiveBtn picked。Programs/Works 的 hover 色先避開 active division 色
+    // （封鎖綫防撞色規則），否則點下去沿用不了、會跳成另抽的色
+    const target = btn.getAttribute('data-target');
+    bindNavBtnHover(btn, {
+      pick: (target === 'class-info-anchor' || target === 'works') ? () => {
+        const ex = getActiveDivisionColor();
+        const pool = NAV_COLORS.filter(c => c.toLowerCase() !== ex);
+        return pool[Math.floor(Math.random() * pool.length)];
+      } : undefined,
     });
   });
 
@@ -220,11 +229,20 @@ export function initAnchorNav({ reveal = false } = {}) {
   let clickScrolling = false; // 點擊導航時暫停 scroll spy
   let clickScrollTimer = null;
 
-  function setActiveBtn(id, { force = false } = {}) {
+  function setActiveBtn(id, { force = false, picked = '' } = {}) {
     if (!force && id === currentActiveId) return;
     currentActiveId = id;
-    // Programs(class) 與 Works 兩條封鎖綫都排除當前 active division tab 色（共用同排 sticky btn）；其他 anchor 不限
-    const color = getNavColor((id === 'class' || id === 'works') ? getActiveDivisionColor() : null);
+    // Programs(class-info-anchor) 與 Works 都排除當前 active division tab 色（共用同排 sticky btn）；其他 anchor 不限
+    const exclude = (id === 'class-info-anchor' || id === 'works') ? getActiveDivisionColor() : null;
+    // click 沿用 hover 色（user 2026-09-28）；撞 division 色才照舊另抽
+    const pickedIdx = picked ? NAV_COLORS.findIndex(c => c.toLowerCase() === picked.toLowerCase()) : -1;
+    let color;
+    if (pickedIdx >= 0 && NAV_COLORS[pickedIdx].toLowerCase() !== exclude) {
+      color = NAV_COLORS[pickedIdx];
+      lastNavColorIndex = pickedIdx;
+    } else {
+      color = getNavColor(exclude);
+    }
     navButtons.forEach(btn => {
       const isActive = btn.getAttribute('data-target') === id;
       const inner = btn.querySelector('.anchor-nav-inner');

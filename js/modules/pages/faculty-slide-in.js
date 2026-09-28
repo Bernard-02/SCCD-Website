@@ -58,6 +58,7 @@ import { makeActivatable } from '../ui/a11y.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { loadUiLabels } from '../ui/ui-labels.js';
 import { bindArrowSpin } from '../ui/arrow-spin.js';
+import { bindNavBtnHover } from '../ui/section-switch-helpers.js';
 
 // 系所全名（slide-in 名字上方 tag）＝Directus ui_labels，老師後台可改；載入後填入、開卡時讀。
 // key = `faculty.department.<department 欄值>`（dcd / bpaidc）；未載入 / 無此 row → 退下方 DEPT_FALLBACK。
@@ -133,6 +134,7 @@ export function initFacultySlideIn() {
   if (closeBtn && !closeBtn.dataset.hoverRotBound) {
     closeBtn.dataset.hoverRotBound = '1';
     bindArrowSpin(closeBtn, d => { closeBtn.style.transform = `rotate(${d}deg)`; });
+    bindNavBtnHover(closeBtn);   // hover 隨機三原色（cards.css .slide-in-back-square 段；user 2026-09-28 全站黑方塊鈕）
   }
   const facultyCards = document.querySelectorAll('.faculty-card');
 
@@ -356,10 +358,9 @@ export function initFacultySlideIn() {
       // 三型（fulltime/admin/parttime）都旋轉（user 2026-08-12：兼任 slide-in 也要旋轉標題）
       const rotateName = true;
       // ±2~4°（user 2026-08-12 由 ±2~5° 收斂：標題/職稱長時旋轉太多不好看）；排除近 0 免像沒轉
+      // （titles 的獨立角 2026-09-19 退場：矮橫向左欄職稱改同桌面 lead 不旋轉，只剩名字轉）
       const randDeg = () => (Math.random() < 0.5 ? -1 : 1) * (2 + Math.random() * 2);
       const nameDeg = randDeg();
-      let titlesDeg = randDeg();
-      if (Math.abs(nameDeg - titlesDeg) < 2) titlesDeg = -titlesDeg;
       const nameEnElement = document.getElementById('faculty-detail-name-en');
       const nameZhElement = document.getElementById('faculty-detail-name-zh');
       const nameDisplay = rotateName ? 'block' : '';
@@ -395,23 +396,23 @@ export function initFacultySlideIn() {
       // Titles（subtitle）：三種 type 共用 titles[] repeater，EN 上 ZH 下、多筆各自 stack、隨機旋轉一個角（跟名字不同角）。
       // 2026-08-12：兼任的 titles[] 語意＝「職級」（兼任講師等）→ 左欄 subtitle；公司/身份（職業/單位）改存
       // occupation 欄、顯示在右側（見下方 sections）。fulltime/admin 的 titles[] 維持學術職稱。
-      const rotateTitles = rotateName;
       const titlesContainer = document.getElementById('faculty-detail-titles');
       if (titlesContainer) {
-        // 矮橫向：職級/職稱旋轉塞在名字下方（左欄）；桌機＋直向手機：留空（dept/rank 改進 lead、不旋轉，見下方 leadContainer）
+        // 矮橫向：職級/職稱塞在名字下方（左欄）——樣式同桌面 lead：bold、不旋轉（user 2026-09-19；
+        // 原 font-regular＋整塊隨機旋轉版退場）。桌機＋直向手機：留空（dept/rank 進 lead，見下方 leadContainer）
         const pairs = isLandscapeGate ? (data.titles || []).map(t => ({ en: t.titleEn || '', zh: t.titleZh || '' })) : [];
         let html = '';
         pairs.forEach((p, i) => {
           const isLast = i === pairs.length - 1;
           html += `<div${isLast ? '' : ' class="mb-sm"'}>` +
-            `<p class="text-s font-regular text-black mb-en-zh-s">${p.en}</p>` +
-            `<p class="text-s font-regular text-black">${p.zh}</p>` +
+            `<p class="text-s font-bold text-black mb-en-zh-s">${p.en}</p>` +
+            `<p class="text-s font-bold text-black">${p.zh}</p>` +
             `</div>`;
         });
         titlesContainer.innerHTML = (isLandscapeGate ? deptHtml : '') + html;   // 矮橫向：系所全名墊在 titles 頂
-        titlesContainer.style.transform = rotateTitles ? `rotate(${titlesDeg}deg)` : '';
-        titlesContainer.style.transformOrigin = rotateTitles ? 'left top' : '';
-        titlesContainer.style.display = rotateTitles ? 'block' : '';
+        titlesContainer.style.transform = '';
+        titlesContainer.style.transformOrigin = '';
+        titlesContainer.style.display = '';
       }
 
       // Sections：依 type 組裝

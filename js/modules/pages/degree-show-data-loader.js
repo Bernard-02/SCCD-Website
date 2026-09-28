@@ -22,6 +22,7 @@ import { loadDegreeShow } from './degree-show-source.js';
 import { sitePath } from '../ui/site-base.js';
 import { pauseVideosOffscreen } from '../ui/pause-offscreen-video.js';
 import { countryName } from '../../data/country-names.js';
+import { bindNavBtnHover, navHoverColor } from '../ui/section-switch-helpers.js';
 
 // 七輪：分頁封面「載好才滑入」的隨機四向（同 activities POSTER_SLIDE_DIRS / library COVER_SLIDE_DIRS 語彙）
 const POSTER_SLIDE_DIRS = ['0%, 110%', '0%, -110%', '110%, 0%', '-110%, 0%'];
@@ -1783,7 +1784,7 @@ function setupStickyAndHeroChips(data, year) {
   const ACCENT = ['#00FF80', '#FF448A', '#26BCFF'];
   const cardColor = ACCENT[Math.floor(Math.random() * ACCENT.length)];
   const branchPool = ACCENT.filter(c => c !== cardColor);
-  const branchColor = branchPool[Math.floor(Math.random() * branchPool.length)]; // active event chip 底色（跟 title 錯開）
+  let branchColor = branchPool[Math.floor(Math.random() * branchPool.length)]; // active event chip 底色（跟 title 錯開；點 chip 時換成它的 hover 色）
   const randRot = () => window.SCCDHelpers.getRandomRotation();   // −4~+6 全站統一（2026-09-16；原 −3~+3）
 
   const titleInner = titleChip.querySelector('.sticky-chip-inner');
@@ -1873,8 +1874,15 @@ function setupStickyAndHeroChips(data, year) {
       const zhSpan = document.createElement('span'); zhSpan.className = 'block'; zhSpan.setAttribute('lang', 'zh-Hant'); zhSpan.textContent = zh; if (!zh) zhSpan.style.display = 'none';
       inner.append(enSpan, zhSpan);
       wrap.appendChild(inner);
-      // 可點：捲到該子展覽（真 nav btn；落點靠 section scroll-margin-top）
-      wrap.addEventListener('click', () => section.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+      // hover 隨機三原色（全站 nav btn 規則 2026-09-28）：從 branchPool 抽＝不撞 title 色
+      bindNavBtnHover(wrap, { pick: () => branchPool[Math.floor(Math.random() * branchPool.length)] });
+      // 可點：捲到該子展覽（真 nav btn；落點靠 section scroll-margin-top）。active 由 scroll-spy 決定，
+      // 點下去時的 hover 色改寫整頁 branchColor＝這顆 active 時沿用（user 2026-09-28「點擊沿用 hover 色」）
+      wrap.addEventListener('click', () => {
+        const picked = wrap.classList.contains('active') ? '' : navHoverColor(wrap);   // 點已 active 的不改色
+        if (picked) branchColor = picked;
+        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
       eventsTrack.appendChild(wrap);
       eventChips.push({ wrap, section, navIdx, dir });
     });
@@ -2013,10 +2021,10 @@ function setupStickyAndHeroChips(data, year) {
   if (descSection && nextProjectSection) {
     ScrollTrigger.create({
       trigger: descSection,
-      // 延後到 descSection top 捲到 viewport top+200（= sticky chip 的 top:200 位置）才出 sticky：
+      // 延後到 descSection top 捲到 sticky chip 的 top 位置（CSS nav line+40：200／≥1200 224，讀 computed）才出 sticky：
       // 此時 hero 文字（在 hero section 底、pb-2xl）已捲到 sticky 上方 → sticky 出現不跟 hero 重疊，
       // hero 得以「stay + 自然捲走」不必收（user 2026-06-08）。原 'top+=96 center' 太早、hero 還在 sticky 位置會疊。
-      start: 'top top+=200',
+      start: () => `top top+=${parseFloat(getComputedStyle(card).top) || 200}`,
       endTrigger: nextProjectSection,
       end: 'top center',        // next-project top 過 viewport center → sticky 全收
       onEnter: showCard,
