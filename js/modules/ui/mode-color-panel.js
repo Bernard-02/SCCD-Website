@@ -9,9 +9,17 @@
  * - 進退場＝hero clip-reveal：mask wrapper overflow:hidden + 本體 xPercent/yPercent 滑動（DUR.medium；
  *   進出同 EASE.enter——出場用 power3.in 起步慢會顯拖，見 feedback_trigger_hide_ease_out_not_in）
  * - 色環是 create 那顆的 Canvas2D 移植（create 版綁死 p5，為一顆小環載 p5 不划算）
+ * - 桌面 ≥1200（同 desktop menu gate）改版（user 2026-09-28）：鉛筆＝圓鈕、跟 menu btn 同欄（右 container padding、底 48）；
+ *   點開＝圓往左拉長成 capsule，內放 create 手機版同款長條色條（indicator 仍是直線）＋ play/pause，鉛筆換成 chevron（點它收回）。
+ *   色環/鉛筆方鈕只剩 <1200。兩套 DOM 都建、CSS 依 gate 顯示其一；open/close 呼叫當下判 isDesk()
  */
 import { DUR, EASE } from './motion.js';
+import { clipRevealIconSwap } from './scroll-animate.js';
 import { setColorHue, getColorHue, startSiteColorLoop, stopSiteColorLoop, isColorLoopRunning } from './theme-toggle.js';
+
+const isDesk = () => window.matchMedia('(min-width: 1200px) and (min-height: 501px)').matches;
+const CAP_H = 48;    // 圓鈕直徑＝capsule 高（同 header mode/menu 鈕 48）
+const CAP_W = 268;   // 展開寬＝左圓角留白 20 + 色條 160 + 間距 8 + play 32 + chevron 格 48（css .mcp-cap-row 同步）
 
 // 手機直向：整個面板白框以 faculty 卡片牆縮圖寬為基準再乘 PANEL_SCALE（每欄 = 50vw − 36，
 // container-padding 24 + gap 24；上限 200＝卡片上限）。白框 = 色環 + 2×16 padding，故色環 = 白框 − 32。
@@ -22,6 +30,8 @@ const WHEEL = window.innerWidth < 768
   : 72;   // 色環尺寸，桌面同 create
 
 let root, pencilBtn, panel, panelMask, canvas, playBtn, playIcon, svgEl, indEl;
+let cap, capToggle, capIcon, capPlay, bar, barTrack, barInd, playIcons = [];
+let openedDesk = false;   // 開啟時走哪套（close 用它、不重判 isDesk()：開著跨 1200 gate 也收對那套）
 let isOpen = false;
 let dragging = false;
 let redrawRAF = null;
@@ -54,6 +64,7 @@ function drawWheel() {
   const hue = getColorHue();
   svgEl.style.color = hueIsLight(hue) ? '#fff' : '#000';   // 內外圈 + indicator 描邊對比 panel 底
   indEl.setAttribute('transform', `rotate(${hue} 36 36)`);
+  barInd.style.left = `${(((hue % 360) + 360) % 360) / 3.6}%`;   // 色條直線 indicator（線性；wrap 時右端跳左端＝兩端同紅）
 }
 
 function redrawLoop() {
@@ -79,9 +90,16 @@ const DRAG_THRESHOLD = 3;   // px：超過才視為拖曳（觸控微抖不取�
 function killHueTween() {
   if (hueTween) { hueTween.kill(); hueTween = null; }
 }
-function tweenHueTo(target) {
+// 色條：中間 track（圓角兩端補紅之外）＝0~360（同 create 手機 bar 線性映射）；點到補紅端 clamp 成 0/360
+function barHue(e) {
+  const r = barTrack.getBoundingClientRect();
+  return Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) * 360;
+}
+let dragHue = pointerHue;   // 拖曳中用哪個換算（色環 / 色條）
+function tweenHueTo(target, linear = false) {
   const cur = ((getColorHue() % 360) + 360) % 360;
-  const delta = ((target - cur + 540) % 360) - 180;   // 最短路徑 (-180, 180]
+  // 色環走最短弧 (-180, 180]；色條線性直達（直線 indicator 跨 wrap 會兩端跳，同 create 手機 bar）
+  const delta = linear ? target - cur : ((target - cur + 540) % 360) - 180;
   const proxy = { h: cur };
   killHueTween();
   hueTween = gsap.to(proxy, {
@@ -100,9 +118,18 @@ function onCanvasDown(e) {
   const outer = WHEEL * 0.49, inner = outer * 0.54;
   if (dist < inner || dist > outer) return;   // 只在環帶上起 drag（中央讓給 play btn）
   dragging = true;
+  dragHue = pointerHue;
   downX = e.clientX; downY = e.clientY;
   if (typeof gsap !== 'undefined') tweenHueTo(pointerHue(e));
   else setColorHue(pointerHue(e));
+  e.preventDefault();
+}
+function onBarDown(e) {
+  dragging = true;
+  dragHue = barHue;
+  downX = e.clientX; downY = e.clientY;
+  if (typeof gsap !== 'undefined') tweenHueTo(barHue(e), true);
+  else setColorHue(barHue(e));
   e.preventDefault();
 }
 function onWinMove(e) {
@@ -110,7 +137,7 @@ function onWinMove(e) {
   // 還在 tween 中且位移未超過閾值 → 視為點擊的微抖，不打斷 tween
   if (hueTween && Math.hypot(e.clientX - downX, e.clientY - downY) < DRAG_THRESHOLD) return;
   killHueTween();
-  setColorHue(pointerHue(e));
+  setColorHue(dragHue(e));
 }
 function onWinUp() { dragging = false; }
 
@@ -118,6 +145,11 @@ function onWinUp() { dragging = false; }
 // footprint = mask 底距(32) + 元件高（收起鉛筆 48 / 展開色輪 = WHEEL + 2×16 padding）。
 const PANEL_BOTTOM = 32;   // .mcp-*-mask bottom（--spacing-lg）
 function publishFootprint() {
+  if (isDesk()) {   // 圓鈕/capsule：底 48 + 高 48；右 container padding + 寬（留 calc 給 CSS 解，免假設 1rem=16px）
+    document.body.style.setProperty('--mcp-footprint', (48 + CAP_H) + 'px');
+    document.body.style.setProperty('--mcp-footprint-x', `calc(var(--container-padding) + ${isOpen ? CAP_W : CAP_H}px)`);
+    return;
+  }
   const h = isOpen ? (WHEEL + 32) : 48;
   document.body.style.setProperty('--mcp-footprint', (PANEL_BOTTOM + h) + 'px');
   // 水平佔用（面板左緣距視窗右緣）：鉛筆貼右緣(right:0)寬 48；色輪 right:32 寬 WHEEL+32。
@@ -127,7 +159,7 @@ function publishFootprint() {
 
 function syncPlayIcon() {
   // running → 顯示 pause（點了會停）；paused → 顯示 play
-  playIcon.className = `icon ${isColorLoopRunning() ? 'icon-pause' : 'icon-play'}`;
+  playIcons.forEach(i => { i.className = `icon ${isColorLoopRunning() ? 'icon-pause' : 'icon-play'}`; });
 }
 function onPlayClick(e) {
   e.stopPropagation();
@@ -155,7 +187,16 @@ function open() {
   root.classList.add('mcp-open');
   syncPlayIcon();
   redrawLoop();
-  if (typeof gsap !== 'undefined') {
+  openedDesk = isDesk();
+  if (openedDesk) {
+    capPlay.tabIndex = 0;   // 展開才可 Tab 到（收起時 play 在圓外被裁、看不見）
+    // 圓往左拉長（mask right 錨定、row 靠右固定寬 → 長出來的部分由右往左露出色條/play）；鉛筆換 chevron
+    if (typeof gsap !== 'undefined') gsap.to(cap, { width: CAP_W, duration: DUR.medium, ease: EASE.enter, overwrite: 'auto' });
+    else cap.style.width = CAP_W + 'px';
+    cap.classList.add('is-active');   // 展開中＝反色（css .mcp-cap.is-active）
+    clipRevealIconSwap(capIcon, 'icon icon-chevron-right');
+    capToggle.setAttribute('aria-expanded', 'true');
+  } else if (typeof gsap !== 'undefined') {
     gsap.set(panelMask, { rotation: wheelRot });   // 微傾在 mask（drag 用 wheelRot 補償）
     gsap.fromTo(pencilBtn, { xPercent: 0 }, { xPercent: 100, duration: DUR.medium, ease: EASE.enter, overwrite: true });
     gsap.fromTo(panel, WHEEL_HIDDEN, { xPercent: 0, x: 0, yPercent: 0, duration: DUR.medium, ease: EASE.enter, overwrite: true, delay: HANDOFF_DELAY });
@@ -182,7 +223,7 @@ function close(instant, opts = {}) {
       // pencilReturn=true 時鉛筆由下面的 delay fromTo 自己收尾，這裡別碰——finish() 在 wheel
       // 完成(t=DUR.medium)先於鉛筆 tween 完成(t=HANDOFF_DELAY+DUR.medium)觸發，硬 set 會搶在
       // 鉛筆動畫跑完前把它瞬移到位、delay 一到 fromTo 又把它彈回 from 值重新滑入 → 閃兩次
-      if (!pencilReturn) gsap.set(pencilBtn, { xPercent: 100 });
+      if (!pencilReturn && !wasShown) gsap.set(pencilBtn, { xPercent: 100 });   // 收的途中又 show＝別把鉛筆停在遮罩外
       gsap.set(panel, WHEEL_HIDDEN);   // wheel 回藏起態（遮罩左側外）
     } else {
       panelMask.style.transform = '';
@@ -191,6 +232,25 @@ function close(instant, opts = {}) {
     }
     if (opts.onDone) opts.onDone();
   };
+  if (openedDesk) {
+    capToggle.setAttribute('aria-expanded', 'false');
+    capPlay.tabIndex = -1;
+    cap.classList.remove('is-active');   // 收起一開始就翻回（跟展開對稱：狀態變了色就變，不等寬度收完）
+    if (instant || typeof gsap === 'undefined') {
+      capIcon.className = 'icon icon-pencil';
+      if (typeof gsap !== 'undefined') gsap.set(cap, { width: CAP_H, xPercent: pencilReturn ? 0 : 100 });
+      else cap.style.width = '';
+      finish(); return;
+    }
+    clipRevealIconSwap(capIcon, 'icon icon-pencil');
+    // 收回圓；gate 藏起（pencilReturn=false）＝收完再整顆滑出遮罩
+    // 收完才判：收的 0.5s 內 gate 又翻回 show（捲到 footer 又立刻捲回）＝updateVisibility 已把圓滑回，別再把它送出遮罩
+    gsap.to(cap, { width: CAP_H, duration: DUR.medium, ease: EASE.enter, overwrite: 'auto', onComplete: () => {
+      if (pencilReturn || wasShown) finish();
+      else gsap.to(cap, { xPercent: 100, duration: DUR.medium, ease: EASE.enter, overwrite: 'auto', onComplete: finish });
+    } });
+    return;
+  }
   if (instant || typeof gsap === 'undefined') { finish(); return; }
   // 反向接力：wheel 先往左滑回、鉛筆延遲回來（pencilReturn=false 時不回）
   gsap.to(panel, { ...WHEEL_HIDDEN, duration: DUR.medium, ease: EASE.enter, overwrite: true, onComplete: finish });
@@ -199,7 +259,7 @@ function close(instant, opts = {}) {
   }
 }
 function onOutside(e) {
-  if (!panel.contains(e.target)) close(false);
+  if (!panel.contains(e.target) && !cap.contains(e.target)) close(false);
 }
 
 /* ── 可見性 gate ── */
@@ -216,6 +276,8 @@ function shouldShow() {
   const vid = document.getElementById('video-player-overlay');
   if (vid && vid.style.display === 'flex') return false;                // 自架 video player（無 class，看 inline display）
   if (overFooter) return false;
+  // 桌面圓鈕跟 menu 下組（CREATE! 等）同位：menu 開著讓位（html class 由 mobile-menu.js 掛，MutationObserver 觸發）
+  if (isDesk() && document.documentElement.classList.contains('mobile-menu-open')) return false;
   return true;
 }
 // 鉛筆顯隱（user 2026-07-15：footer 捲到也要收起動畫，不能直接跳不見）：所有 gate 轉換一律
@@ -231,10 +293,13 @@ function updateVisibility() {
 
   if (show) {
     root.style.display = 'block';
+    // 鉛筆方鈕與桌面圓鈕一起動（另一顆 CSS display:none 零成本）：跨 1200 resize 時兩顆狀態不脫鉤。
+    // 鉛筆維持 overwrite:true（殺 close 排的延遲回場 tween）；圓鈕 'auto'＝只接管 xPercent、不殺進行中的 width 收合
     if (typeof gsap !== 'undefined') {
       gsap.to(pencilBtn, { xPercent: 0, duration: DUR.medium, ease: EASE.enter, overwrite: true });
+      gsap.to(cap, { xPercent: 0, duration: DUR.medium, ease: EASE.enter, overwrite: 'auto' });
     } else {
-      pencilBtn.style.transform = '';
+      pencilBtn.style.transform = cap.style.transform = '';
     }
     return;
   }
@@ -248,6 +313,7 @@ function updateVisibility() {
     return;
   }
   if (typeof gsap !== 'undefined') {
+    gsap.to(cap, { xPercent: 100, duration: DUR.medium, ease: EASE.enter, overwrite: 'auto' });
     gsap.to(pencilBtn, {
       xPercent: 100, duration: DUR.medium, ease: EASE.enter, overwrite: true,
       // 動畫期間若又翻回 show（快速捲回），onComplete 別把剛 reveal 的層藏掉
@@ -298,6 +364,19 @@ function build() {
           </button>
         </div>
       </div>
+    </div>
+    <div class="mcp-cap-mask">
+      <div class="mcp-cap" role="group" aria-label="背景色 Background colour">
+        <div class="mcp-cap-row">
+          <div class="mcp-bar" aria-hidden="true"><div class="mcp-bar-track"><span class="mcp-bar-ind"></span></div></div>
+          <button class="mcp-cap-play" type="button" aria-label="播放 / 暫停 背景色循環 Play / pause">
+            <span class="icon icon-play" aria-hidden="true"></span>
+          </button>
+          <button class="mcp-cap-toggle" type="button" aria-label="編輯背景色 Edit background colour" aria-expanded="false">
+            <span class="icon icon-pencil" aria-hidden="true"></span>
+          </button>
+        </div>
+      </div>
     </div>`;
   document.body.appendChild(root);
 
@@ -309,6 +388,15 @@ function build() {
   indEl = root.querySelector('.mcp-ind');
   playBtn = root.querySelector('.mcp-play');
   playIcon = playBtn.querySelector('.icon');
+  cap = root.querySelector('.mcp-cap');
+  capToggle = root.querySelector('.mcp-cap-toggle');
+  capIcon = capToggle.querySelector('.icon');
+  bar = root.querySelector('.mcp-bar');
+  barTrack = root.querySelector('.mcp-bar-track');
+  barInd = root.querySelector('.mcp-bar-ind');
+  capPlay = root.querySelector('.mcp-cap-play');
+  capPlay.tabIndex = -1;
+  playIcons = [playIcon, capPlay.querySelector('.icon')];
 
   // 手機放大：CSS 顯示尺寸跟 WHEEL 走（panel = wheel + 2×16 padding）；桌面 72 由 CSS 顧，不覆蓋。
   // play/pause 鈕與 icon 依 WHEEL 等比放大（桌面 72→30/16），維持與色環同比例
@@ -326,13 +414,16 @@ function build() {
 
   // 面板初始藏起（滑出遮罩左側外）：必須用 gsap xPercent（同 tween 的分量）；CSS translate% 會被
   // gsap 解析成 px 的 x 分量、跟 xPercent 疊加 → 開場後殘留偏移（實測 x=104 卡死）
-  if (typeof gsap !== 'undefined') gsap.set(panel, WHEEL_HIDDEN);
+  if (typeof gsap !== 'undefined') { gsap.set(panel, WHEEL_HIDDEN); gsap.set(cap, { xPercent: 100 }); }
   else panel.style.transform = 'translateX(calc(100% + 48px))';
 
   publishFootprint();   // 初始＝收起鉛筆的 footprint（供 atlas 說明卡讓位）
 
   pencilBtn.addEventListener('click', open);
   playBtn.addEventListener('click', onPlayClick);
+  capPlay.addEventListener('click', onPlayClick);
+  capToggle.addEventListener('click', () => (isOpen ? close(false) : open()));
+  bar.addEventListener('pointerdown', onBarDown);
   canvas.addEventListener('pointerdown', onCanvasDown);
   window.addEventListener('pointermove', onWinMove);
   window.addEventListener('pointerup', onWinUp);
@@ -343,6 +434,23 @@ export function initModeColorPanel() {
 
   // gate 觸發：mode 切換 / overlay class / video 的 body|html style / footer 捲動 / header 載入
   window.addEventListener('theme:changed', updateVisibility);
+  // 跨 1200/501 gate（旋轉大平板、開關 DevTools）：開著就瞬收（close 走開啟時那套），兩套 DOM 都歸位到當前顯隱，
+  // footprint 重發（atlas/about 讀的位置跟著換）。gate 內外各自的動畫狀態不跨套延續
+  window.matchMedia('(min-width: 1200px) and (min-height: 501px)').addEventListener('change', () => {
+    if (isOpen) close(true);
+    if (typeof gsap !== 'undefined') {
+      gsap.killTweensOf([pencilBtn, cap, panel, capIcon]);
+      gsap.set([pencilBtn, cap], { xPercent: wasShown ? 0 : 100 });
+      gsap.set(cap, { width: CAP_H });
+      gsap.set(capIcon, { clearProps: 'transform' });
+      gsap.set(panel, WHEEL_HIDDEN);
+    }
+    cap.classList.remove('is-active');
+    capIcon.className = 'icon icon-pencil';
+    capToggle.setAttribute('aria-expanded', 'false');
+    capPlay.tabIndex = -1;
+    publishFootprint();
+  });
   const mo = new MutationObserver(updateVisibility);
   mo.observe(document.body, { attributes: true, attributeFilter: ['class', 'style'] });
   mo.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'style'] });

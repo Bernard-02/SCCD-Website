@@ -107,3 +107,128 @@ html.has-slide-in #mode-color-panel { display: none !important; }
   color: var(--theme-fg-inverse, #fff);   /* 對比 panel 底 */
 }
 .mcp-play .icon { font-size: 16px; }
+
+/* ── 桌面 ≥1200（同 desktop menu gate）：圓鈕 → capsule（user 2026-09-28）──
+   圓鈕跟 header menu btn 同欄（右＝container padding、底 48 鏡像 header 列 pt 48）；點開 JS tween .mcp-cap width 48→268
+   （mode-color-panel.js CAP_W），mask right 錨定＝往左長；row 固定寬靠右＝長出來的部分由右往左露出色條/play。
+   <1200 只有鉛筆方鈕＋色環（上面那套），桌面藏起。 */
+.mcp-cap-mask { display: none; }
+@media (min-width: 1200px) and (min-height: 501px) {
+  .mcp-pencil-mask,
+  .mcp-panel-mask { display: none; }
+  .mcp-cap-mask {
+    display: block;
+    position: absolute;
+    right: var(--container-padding);
+    bottom: 48px;
+    overflow: hidden;       /* 進退場：圓鈕 xPercent 滑出遮罩（同鉛筆） */
+    pointer-events: none;
+  }
+}
+.mcp-cap {
+  position: relative;
+  pointer-events: auto;
+  width: 48px;
+  height: 48px;
+  border-radius: 24px;
+  overflow: hidden;
+  background: var(--theme-fg, #000);          /* 同鉛筆/色環面板：純黑白對比底 */
+  color: var(--theme-fg-inverse, #fff);
+}
+/* active（展開中）＝反色（user 2026-09-28）：底 fg-inverse、內容（icon/色條框/indicator 皆 currentColor）fg。
+   hover 就先反色＝點開時已是 active 色、不用再變；hover/開關一律 instant 不 fade（同 menu 選項／漢堡鈕） */
+.mcp-cap.is-active {
+  background: var(--theme-fg-inverse, #fff);
+  color: var(--theme-fg, #000);
+}
+@media (hover: hover) {
+  .mcp-cap:hover {
+    background: var(--theme-fg-inverse, #fff);
+    color: var(--theme-fg, #000);
+  }
+}
+.mcp-cap-row {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 268px;             /* = CAP_W */
+  height: 48px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  padding-left: 20px;       /* 左端圓角內留白 */
+}
+/* 色條＝create 手機版長條：膠囊圓角（user 2026-09-28）；框線＋直線 indicator 走 currentColor＝色環圈線同色。
+   圓角兩端補紅（hue 0＝360）、可選範圍＝中間 track（左右各縮 8＝內高一半），同 create 手機 bar 的 circleRadius 補紅 */
+.mcp-bar {
+  position: relative;
+  flex: 0 0 160px;
+  height: 20px;
+  box-sizing: border-box;
+  border: 2px solid currentColor;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #f33;
+  cursor: var(--cursor-pointer);
+  touch-action: none;
+}
+/* HSB s80 v100 六分色（同上面 conic 色環）；barHue 以此 track 換算 0~360 */
+.mcp-bar-track {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 8px;
+  right: 8px;
+  background: linear-gradient(to right, #f33, #ff3, #3f3, #3ff, #33f, #f3f, #f33);
+  pointer-events: none;
+}
+.mcp-bar-ind {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: currentColor;
+  pointer-events: none;
+}
+.mcp-cap-play,
+.mcp-cap-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  height: 48px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: var(--cursor-pointer);
+}
+.mcp-cap-play { width: 32px; margin-left: 8px; font-size: 20px; }
+/* 鍵盤焦點：全站 :focus-visible 是 theme-fg 外框＋外推 2＝跟圓鈕底同色又被 overflow 裁 → 改 currentColor 內縮 */
+.mcp-cap button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: -4px;
+}
+.mcp-cap-toggle { width: 48px; font-size: 32px; }   /* 32 glyph 置中 48 格＝收起時就是圓鈕本身 */
+/* 朝右 chevron（展開時「往右收回」）：同一顆自訂 chevron（site_icons chevron_left_lightbox，本檔 --icon 規則
+   site-assets.js 會自動換成後台檔）、比鉛筆小一階 24（user 2026-09-28）。
+   ⚠️翻向畫在 ::before、本體不帶 rotate/scale：clipRevealIconSwap 用 GSAP tween 本體，GSAP 會把本體的獨立
+   rotate/scale 併進自己的 transform（inline 寫 rotate:none）→ chevron 先朝左滑入才跳右、換回鉛筆時殘留 180° 倒著滑入。 */
+.mcp-cap-toggle .icon-chevron-right {
+  --icon: url('../website-icons/chevron_left_lightbox.svg');
+  position: relative;
+  font-size: 24px;
+  background-color: transparent;
+  -webkit-mask-image: none;
+          mask-image: none;
+}
+.mcp-cap-toggle .icon-chevron-right::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-color: currentColor;
+  -webkit-mask: var(--icon) center / contain no-repeat;
+          mask: var(--icon) center / contain no-repeat;
+  transform: scaleX(-1);
+}
