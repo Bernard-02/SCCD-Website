@@ -141,7 +141,8 @@ function renderPlaylist(box, iframe, listId, vids) {
   scroll.addEventListener('click', e => {
     const btn = e.target.closest('.works-playlist-item');
     if (!btn) return;
-    iframe.src = `https://www.youtube.com/embed/${btn.dataset.vid}?list=${listId}&autoplay=1`;
+    // enablejsapi=1 必帶：換片重設 src 會丟掉 pauseVideosOffscreen 補的參數 → 之後捲走/換 tab 的 pauseVideo postMessage 全失效
+    iframe.src = `https://www.youtube.com/embed/${btn.dataset.vid}?list=${listId}&autoplay=1&enablejsapi=1`;
     scroll.querySelectorAll('.works-playlist-item').forEach(x => x.classList.toggle('is-active', x === btn));
   });
   if (typeof gsap !== 'undefined') {

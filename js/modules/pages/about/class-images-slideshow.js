@@ -69,7 +69,7 @@ function shuffle(arr) {
 // wrapper 寬度在 img 載入後依 natural 尺寸（capped at max-width）明確設定，
 // 避免 wrapper width:auto + img max-width:100% 的循環依賴造成尺寸不對
 // fixedWidth（可選）：統一 wrapper 寬（degree-show 全寬 slot 幾何用，pair overlap 要靠統一寬度保證）
-function buildImg(src, fixedWidth) {
+function buildImg(src, fixedWidth, onSized) {
   const wrapper = document.createElement('div');
   wrapper.className = 'class-img';
   // wrapper＝滑動遮罩（inline 不動共用 .class-img class；桌面 timeline 照片另有自己的 clip 路線不受影響）
@@ -104,6 +104,7 @@ function buildImg(src, fixedWidth) {
       }
     }
     wrapper.style.width = Math.min(img.naturalWidth, maxW) + 'px';
+    if (onSized) onSized();
   };
   if (img.complete && img.naturalWidth) sizeWrapper();
   else img.addEventListener('load', sizeWrapper, { once: true });
@@ -155,6 +156,11 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
   // alignTop（user 2026-09-15，about 桌面用）：圖頂對齊容器頂＝說明 box 頂（grid items-start 同列同頂）；
   // 預設維持 top:70% + yPercent:-50 垂直置中（degree-show / timeline 等共用者不變）
   const slotPos = opts.alignTop ? { top: 0, yPercent: 0 } : {};
+  // adaptiveSlots（about 桌面，user 2026-09-28）：左高右低疊放下，直式接在橫式後會被前一張整片蓋住（520 寬蓋過 336）
+  // → 每張再往右補「前一張比自己寬的差」，每張露出寬恆＝固定步距（24% 容器寬）；其他組合（直直/橫橫/直→橫）位置不變。
+  // 寬度要等 img 載入（sizeWrapper）才知道 → 載入後重排；tick 推移也照同規則算新位置。
+  const adaptive = !!opts.adaptiveSlots;
+  const stepRatio = parseFloat(SLOT_LEFTS[1]) / 100;
 
   // 同一個 panel 內的 text highlight 區塊（含底色），和 imgs 一起做 clip-path
   // about 場景自動從 .class-info-panel 找 [data-class-hl]；degree-show 場景可顯式傳入 textHlEl
@@ -171,6 +177,31 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
   let timer = null;
   let isShifting = false; // 移動中：禁用 hover、避免重複觸發
   let running = false;    // start()/stop() 的意圖狀態；hover 暫停不改它 → 未 reveal / 切 panel 停用中不被 resume 誤啟動
+
+  // adaptive 位置（px）：寬度未知（還沒載入）的那張不補差
+  function adaptiveLefts(list) {
+    const step = container.clientWidth * stepRatio;
+    const w = (el) => parseFloat(el.style.width) || 0;
+    let x = 0;
+    return list.map((el, i) => {
+      if (i > 0) {
+        const pw = w(list[i - 1]), cw = w(el);
+        x += step + (pw && cw ? Math.max(0, pw - cw) : 0);
+      }
+      return `${x.toFixed(1)}px`;
+    });
+  }
+  // 載入定寬 / resize 後重排；推移中不插手（tick 自己算好推移終點、新圖揭露前另定位）
+  function relayout() {
+    // 面板 display:none（switchTo 在切顯示前就 renderFresh）＝寬 0 量不準 → 跳過，顯示後 switchTo 再叫一次
+    if (!adaptive || isShifting || slots.length !== slotCount || !container.clientWidth) return;
+    const lefts = adaptiveLefts(slots);
+    slots.forEach((s, i) => gsap.set(s, { left: lefts[i] }));
+  }
+  if (adaptive) {
+    window.addEventListener('resize', relayout);
+    registerPageCleanup(() => window.removeEventListener('resize', relayout));
+  }
 
   function clearHoverState(wrapper) {
     if (wrapper._rotation === undefined) return;
@@ -251,7 +282,7 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
     for (let i = 0; i < slotCount; i++) {
       const src = pool[nextIdx % pool.length];
       nextIdx++;
-      const img = buildImg(src, imgWidth);
+      const img = buildImg(src, imgWidth, relayout);
       container.appendChild(img);
       placeInSlot(img, i, slotLefts, {
         rotation: randomRotation(),
@@ -264,6 +295,7 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
       slots.push(img);
       if (!manual) attachInteractions(img);
     }
+    relayout();   // 快取圖在 buildImg 內同步定寬（當下還沒進 slots＝被 guard 擋）→ 全員就位後補排一次
     if (!manual) updateCursors();
     // Text highlight 初始態：textHlReveal 走 clip-reveal（整塊色卡純位移，藏於貼身遮罩外/現），否則跟 imgs 一起 clip-path
     if (textHlReveal && textHlEl) {
@@ -291,22 +323,29 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
       onComplete: () => leaving.remove(),
     });
 
-    // 2/3. 其餘 slot 各往左移一格（保留各自旋轉）
-    for (let i = 1; i < slotCount; i++) {
-      gsap.to(slots[i], { left: slotLefts[i - 1], duration: ANIM_DUR, ease: ANIM_EASE });
-    }
-
-    // 4. 新圖在最後一個 slot 隨機 4 向滑入（與上面同時進行）
+    // 4. 新圖（先建：adaptive 推移終點要看新排列）
     const nextSrc = pool[nextIdx % pool.length];
     nextIdx++;
-    const newImg = buildImg(nextSrc, imgWidth);
+    const newImg = buildImg(nextSrc, imgWidth, relayout);
+    const shifted = adaptive ? adaptiveLefts([...slots.slice(1), newImg]) : null;
+
+    // 2/3. 其餘 slot 各往左移一格（保留各自旋轉）
+    for (let i = 1; i < slotCount; i++) {
+      gsap.to(slots[i], { left: shifted ? shifted[i - 1] : slotLefts[i - 1], duration: ANIM_DUR, ease: ANIM_EASE });
+    }
+
+    // 新圖在最後一個 slot 隨機 4 向滑入（與上面同時進行）
     container.appendChild(newImg);
-    placeInSlot(newImg, slotCount - 1, slotLefts, { rotation: randomRotation(), xPercent: slotXPercent, ...slotPos, ...(slotZ ? { zIndex: slotZ[slotCount - 1] } : {}) });
+    placeInSlot(newImg, slotCount - 1, slotLefts, { rotation: randomRotation(), xPercent: slotXPercent, ...slotPos, ...(slotZ ? { zIndex: slotZ[slotCount - 1] } : {}), ...(shifted ? { left: shifted[slotCount - 1] } : {}) });
     // 新圖先藏定位、等 decode 完才滑入（同進場 gate）；壞/慢圖 3s 保險放行（whenImgReady）
     const inNew = newImg.firstElementChild;
     gsap.set(inNew, revealHiddenT(randRevealDir()));
-    whenImgReady(inNew).then(() => gsap.to(inNew, { ...REVEAL_SHOWN, duration: ANIM_DUR, ease: ANIM_EASE,
-      onComplete: () => { isShifting = false; if (!manual) reapplyHoverIfPointerInside(); } }));
+    whenImgReady(inNew).then(() => {
+      // adaptive：寬度此時才定 → 揭露前（仍藏在遮罩外）補到正確位置
+      if (adaptive) gsap.set(newImg, { left: adaptiveLefts(slots)[slots.indexOf(newImg)] });
+      gsap.to(inNew, { ...REVEAL_SHOWN, duration: ANIM_DUR, ease: ANIM_EASE,
+        onComplete: () => { isShifting = false; if (!manual) reapplyHoverIfPointerInside(); } });
+    });
     if (!manual) attachInteractions(newImg);
 
     slots.shift();
@@ -369,7 +408,7 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
     start();
   }
 
-  return { renderFresh, start, stop, hideAll, showAll, reset, tick, fitText: fitTextCard };
+  return { renderFresh, start, stop, hideAll, showAll, reset, tick, fitText: fitTextCard, relayout };
 }
 
 // ── Module 全域：多個 division container 協調切換 ─────────────────────────────
@@ -416,6 +455,7 @@ async function switchTo(newDivision, animate = true) {
     allPanels.forEach(el => {
       el.classList.toggle('hidden', el.getAttribute('data-division') !== newDivision);
     });
+    if (newApi) newApi.relayout();   // 顯示後才量得到容器寬（adaptiveSlots 位置）
 
     // 4. 新 panel 的 imgs + text 一起 reveal 滑入，然後啟動 loop
     if (newApi) {
@@ -480,7 +520,7 @@ export async function initClassImagesSlideshow() {
     // about program 文字說明卡（[data-class-hl]）走 clip-reveal、圖片維持 clip-path（user 2026-08-10）
     const slotOpts = isMobileSlots
       ? { slotLefts: ['50%'], slotXPercent: -50, textHlReveal: true }
-      : { textHlReveal: true, hoverSpin: true, alignTop: true };   // 桌面 hover 抽新角吃住（09-13）＋圖頂對齊說明 box 頂（09-15）；手機置中不帶
+      : { textHlReveal: true, hoverSpin: true, alignTop: true, adaptiveSlots: true };   // 桌面 hover 抽新角吃住（09-13）＋圖頂對齊說明 box 頂（09-15）＋直式接橫式往右補（09-28）；手機置中不帶
     /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.division-images')).forEach(container => {
       const division = container.dataset.division;
       if (!division) return;

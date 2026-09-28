@@ -15,6 +15,7 @@
 import { registerPageExit } from './page-exit.js';
 import { registerPageCleanup } from './page-cleanup.js';
 import { ensureCardMask, fitCardToText } from './scroll-animate.js';
+import { pauseVideoEl } from './pause-offscreen-video.js';
 
 export function initBFADivisionToggle() {
   const classInfoPanels  = document.querySelectorAll('.class-info-panel');
@@ -165,6 +166,8 @@ export function initBFADivisionToggle() {
       panel.style.zIndex = '0';
       if (text && typeof gsap !== 'undefined') gsap.set(text, revealHiddenT(randRevealDir()));
       if (video && typeof gsap !== 'undefined') gsap.set(video, { yPercent: 100 });
+      // 換 tab 藏起的 panel 影片要停：panel 只是 transform 移走、沒 display:none → pauseVideosOffscreen 的 IO 不會觸發
+      pauseVideoEl(panel.querySelector('iframe'));
     }
   }
 
@@ -219,6 +222,7 @@ export function initBFADivisionToggle() {
     newPanel.style.zIndex = '2';
     oldPanel.style.zIndex = '1';
     oldPanel.style.pointerEvents = 'none';
+    pauseVideoEl(oldPanel.querySelector('iframe'));   // 動畫切 tab 不經 setWorksPanelState → 滑出起跑就停
 
     // 影片自己跑全程 cross slide（文字時序與影片脫鉤，見下）
     const VIDEO_DUR = WORKS_ANIM_DUR * 2;
@@ -407,8 +411,11 @@ export function initBFADivisionToggle() {
 
   divisionBtns.forEach(btn => {
     const target = paintTargetOf(btn);
+    // hover BFA 小標題也算（user 2026-09-28）：有小標題的 btn 以「小標題＋btn」的父層進出為準——
+    // 在兩者間移動不重抽色/角；小標題 click 本就轉發 btn.click()＝沿用這次 hover 色
+    const hoverHost = btn.previousElementSibling?.classList.contains('class-group-label') ? btn.parentElement : btn;
     // hover 抽新角（含 active；離開保持不還原——user 2026-09-15 全站定案）；色彩預覽維持只給 non-active
-    btn.addEventListener('mouseenter', () => {
+    hoverHost.addEventListener('mouseenter', () => {
       const isActive = btn.classList.contains('active');
       const rot   = randomRotation();
       const label = btn.previousElementSibling?.classList.contains('class-group-label')
@@ -432,7 +439,7 @@ export function initBFADivisionToggle() {
     });
 
     // mouseleave 只還原色（角度保持）；_pendingRot 不清＝當前可見角，click / setActive 沿用
-    btn.addEventListener('mouseleave', () => {
+    hoverHost.addEventListener('mouseleave', () => {
       if (btn.classList.contains('active')) return;
       const label = btn.previousElementSibling?.classList.contains('class-group-label')
         ? btn.previousElementSibling : null;

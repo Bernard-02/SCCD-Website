@@ -13,12 +13,17 @@ import { registerPageCleanup } from '../../ui/page-cleanup.js';
 import { registerPageExit } from '../../ui/page-exit.js';
 import { prefersReducedMotion } from '../../ui/reduce-motion.js';
 import { navChipHidden, NAV_CHIP_SHOWN, pickNavDir } from '../../ui/scroll-animate.js';
+import { randomSpinAngle } from '../../ui/arrow-spin.js';
+import { DUR, EASE } from '../../ui/motion.js';
 import { loadProgramNodes } from './program-nodes-source.js';
 import { loadUiLabels } from '../../ui/ui-labels.js';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
 const TAU = Math.PI * 2;
 const rndRot = () => (window.SCCDHelpers?.getRandomRotation?.() ?? ((Math.round(Math.random() * 6 - 3)) || 2));
+// 浮動（atlas 式 wobble）開關：user 2026-09-28 取消（歷史上 09-03 拆過又復原，故留旗標不刪碼）。
+// 關閉時 floatTick 不跑：chip transform 由 init 的 rotate(_baseRot) + hover spinChip 直寫、連綫停在 rest 端點。
+const FLOAT_ENABLED = false;
 const DIRS = ['top', 'bottom', 'left', 'right'];
 const rndDir = () => DIRS[Math.floor(Math.random() * 4)];
 const parseTranslate = (el) => {
@@ -364,6 +369,22 @@ export async function initProgramStructure() {
     gsap.killTweensOf(proxy);
     gsap.to(proxy, { v: target, duration: 0.32, ease: 'power2.out', onUpdate: () => { chip._hold = proxy.v; } });
   }
+  // hover 抽新角、離開保持（全站 nav btn 模型；user 2026-09-28，推翻 09-09「hover 回正到 0°」）：
+  // tween 的是 _baseRot（floatTick 每幀讀它寫 transform）→ 角度平滑由 JS 提供、.prog-tilt 仍不掛 CSS transition。
+  // float 迴圈沒在跑（reduce-motion / 尚未 reveal）才自己寫 transform。
+  function spinChip(chip) {
+    if (!chip || typeof gsap === 'undefined') return;
+    const proxy = chip._rotProxy || (chip._rotProxy = { v: 0 });
+    proxy.v = chip._baseRot;
+    gsap.killTweensOf(proxy);
+    gsap.to(proxy, {
+      v: randomSpinAngle(chip._baseRot), duration: DUR.fast, ease: EASE.enterSoft,
+      onUpdate: () => {
+        chip._baseRot = proxy.v;
+        if (!floatRaf) chip.style.transform = `rotate(${proxy.v.toFixed(2)}deg)`;
+      },
+    });
+  }
   if (window.matchMedia('(hover: hover)').matches) {
     // 說明卡收起排 grace timer（③）：移到別顆 chip 會被下個 mouseenter 取消 → 同 degree 不收（①）、不同 degree 走 showLegend 先收後開（②）。
     // tree lineage 上色與 setHold 仍每顆即時（各節點 lineage 不同、視覺照舊）；只有右下說明卡走 degree 協調。
@@ -378,7 +399,8 @@ export async function initProgramStructure() {
         lineage(id).forEach((b) => paint(b, color));   // 整條 lineage 只變色（照舊續飄）
         clearTimeout(legLeaveTimer);
         showLegend(deg);                               // 同 degree no-op、不同 degree 先收後開（不再收起再打開）
-        setHold(node.el.closest('.prog-tilt'), 1);   // 只有當下 hover 那顆回正＋停飄（user 2026-09-09）
+        setHold(node.el.closest('.prog-tilt'), 1);   // 只有當下 hover 那顆停飄（user 2026-09-09）；角度改抽新角（下行）
+        spinChip(node.el.closest('.prog-tilt'));
       });
       unit.addEventListener('mouseleave', () => {
         lineage(id).forEach(unpaint);
@@ -468,7 +490,7 @@ export async function initProgramStructure() {
 
   // ── 桌面：BFA/MDES 置中於 DCD chip 下方 → 兩條父→子斜綫等長（父點=DCD 中心、子點對稱）。
   //    fan 用 restRect 量中心（rotation 對 center 無感、扣掉進場/浮動位移）＝穩態落點。
-  //    置中後整棵樹右移：取「nav 閃避」與「大螢幕想右移」較大者，兩者皆用 room 封頂＝任何寬度 BPAIDC 都不出視窗。 ──
+  //    置中後整棵樹右移：取「左界(col-4/nav)閃避」與「大螢幕想右移」較大者；BPAIDC 永不出視窗。 ──
   const RIGHT_MARGIN = 64;   // BPAIDC 右緣至少離視窗右緣的留白
   const WANT_SHIFT = 200;    // 大螢幕(≥1600)想把整棵樹往右移的量（user：大螢幕才右移、窄螢幕維持不裁）
   function layoutFan() {
@@ -482,16 +504,21 @@ export async function initProgramStructure() {
     rootChildren.style.marginLeft = `${(cx(dcd) - (cx(bfa) + cx(mdes)) / 2).toFixed(2)}px`;
     const bpaidc = tier0[1];
     if (!progTree || !bpaidc) return;
-    // room＝BPAIDC 右緣還能往右移多少而不越過「視窗右緣−RIGHT_MARGIN」＝所有右移的封頂（保證不裁）
+    // 內容區＝樹容器（col-4~18，2026-09-27 由 col-6~20 改）
+    const box = progTree.parentElement.getBoundingClientRect();
     const br = restRect(bpaidc);
-    const room = Math.max(0, (window.innerWidth - RIGHT_MARGIN) - (br.left + br.width));
-    // ① nav 閃避：tier2 左緣貼到左側 sticky nav → 右移讓開（room 內盡量）
+    const bpaidcRight = br.left + br.width;
+    // viewRoom＝BPAIDC 還能右移多少不越過「視窗右緣−RIGHT_MARGIN」（保證不裁）；contentRoom＝不越過 col-18 右緣
+    const viewRoom = Math.max(0, (window.innerWidth - RIGHT_MARGIN) - bpaidcRight);
+    const contentRoom = Math.max(0, box.right - bpaidcRight);
+    // ① 左界：tier2 左緣至少到 col-4 左緣（窄視窗 col-4 比 nav 還左時仍保底閃 nav）。窄視窗樹比內容區寬 →
+    //    寧可右側吃進 col-19~20（viewRoom 封頂）也不壓左側 nav
     const nav = document.getElementById('anchor-nav');
-    const limit = (nav ? nav.getBoundingClientRect().right : 0) + 16;
+    const limit = Math.max(box.left, (nav ? nav.getBoundingClientRect().right : 0) + 16);
     const leftEdge = tier2.length ? Math.min(...tier2.map((b) => restRect(b).left)) : Infinity;
-    const navPush = leftEdge < limit ? Math.min(limit - leftEdge, room) : 0;
-    // ② 大螢幕才右移：≥1600 且有 room 才推（窄螢幕 room≈0 自動不動＝不裁）
-    const wantPush = window.innerWidth >= 1600 ? Math.min(WANT_SHIFT, room) : 0;
+    const navPush = leftEdge < limit ? Math.min(limit - leftEdge, viewRoom) : 0;
+    // ② 大螢幕才右移：≥1600 且右側還在 col-18 內才推
+    const wantPush = window.innerWidth >= 1600 ? Math.min(WANT_SHIFT, contentRoom) : 0;
     const push = Math.max(navPush, wantPush);
     if (push > 0) progTree.style.transform = `translateX(${push.toFixed(2)}px)`;
   }
@@ -593,12 +620,13 @@ export async function initProgramStructure() {
       const t = now - box._floatReadyAt;
       const ramp = Math.min(1, t / RAMP);
       const f = box._float;
-      const k = 1 - (box._hold || 0);   // hover 定住（同 atlas _straight）：1→0 回正並停在 rest；乘位移與角度
+      const k = 1 - (box._hold || 0);   // hover 定住（同 atlas _straight）：1→0 停在 rest；只乘位移與擺動、不乘 base 角
       const dx = f.ax * Math.sin(f.wx * t + f.phx) * ramp * k;
       const dy = f.ay * Math.sin(f.wy * t + f.phy) * ramp * k;
       box._fdx = dx; box._fdy = dy;
       box.style.translate = `${dx.toFixed(2)}px ${dy.toFixed(2)}px`;
-      box.style.transform = `rotate(${((box._baseRot + f.rotAmp * Math.sin(f.wr * t + f.phr) * ramp) * k).toFixed(2)}deg)`;
+      // base 角不乘 k：hover 時停在 spinChip 抽的新角（舊版 (base+擺)*k 會回正到 0°，user 2026-09-28 改抽角）
+      box.style.transform = `rotate(${(box._baseRot + f.rotAmp * Math.sin(f.wr * t + f.phr) * ramp * k).toFixed(2)}deg)`;
     });
     if (desktop && links.length && linksReady) {   // 連結橫綫跟兩頂 chip 平均漂移（維持置中）
       const rdy = tier0.filter((c) => c._floatReadyAt);
@@ -609,7 +637,7 @@ export async function initProgramStructure() {
     lines.forEach((le) => { if (le._floatReady) drawLineFloat(le); });
   }
   function startFloat() {
-    if (reduce || floatRaf) return;
+    if (!FLOAT_ENABLED || reduce || floatRaf) return;
     if (floatPausedAt) {   // 恢復：暫停時長加回每顆 chip 的相位時鐘 → t 不變、恢復當幀不跳（見上方 tOffset 補償）
       const shift = performance.now() / 1000 - floatPausedAt;
       chips.forEach((b) => { if (b._floatReadyAt) b._floatReadyAt += shift; });

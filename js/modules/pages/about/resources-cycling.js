@@ -122,11 +122,13 @@ function renderResourcesAccordion(data, container) {
   }
 }
 
-// 多圖自動輪播（user 2026-09-11「用 works 的切換方式、自動輪播」）：下一張沿 yPercent 由下滑入蓋住當前
-// （＝全站 hero/works clip-reveal slide，外層 .res-switcher overflow:hidden 裁切），每 CYCLE_MS 換一張。
+// 多圖自動輪播（user 2026-09-11「用 works 的切換方式、自動輪播」）：下一張從隨機一側（上下左右四向，user 2026-09-28
+// 「改成四周進場」，同 class 輪播 randRevealDir）滑入蓋住當前（＝全站 hero clip-reveal slide，外層 .res-switcher
+// overflow:hidden 裁切），滑入 DUR.slow 0.6s、每 CYCLE_MS 換一張（4s→3s，同 class 輪播 INTERVAL；user 09-28 嫌停太久）。
 // 單張 / reduced-motion → 不輪播。桌面 hover 暫停讓人看清；離頁 registerPageCleanup 清 interval + tween。
+const SLIDE_FROM = [{ xPercent: 0, yPercent: -100 }, { xPercent: 0, yPercent: 100 }, { xPercent: -100, yPercent: 0 }, { xPercent: 100, yPercent: 0 }];
 function initResourceSwitchers(root) {
-  const CYCLE_MS = 4000;
+  const CYCLE_MS = 3000;
   const reduce = prefersReducedMotion();
   root.querySelectorAll('.res-switcher').forEach(sw => {
     const slides = Array.from(sw.querySelectorAll('.res-slide'));
@@ -148,9 +150,9 @@ function initResourceSwitchers(root) {
     function go(next) {
       const incoming = slides[next];
       incoming.style.zIndex = '2';
-      gsap.fromTo(incoming, { yPercent: 100 }, {
-        yPercent: 0, duration: DUR.slow, ease: EASE.enter, overwrite: true,
-        onComplete: () => { slides[idx].style.zIndex = '0'; incoming.style.zIndex = '1'; gsap.set(slides[idx], { yPercent: 0 }); idx = next; },
+      gsap.fromTo(incoming, SLIDE_FROM[Math.floor(Math.random() * SLIDE_FROM.length)], {
+        xPercent: 0, yPercent: 0, duration: DUR.slow, ease: EASE.enter, overwrite: true,
+        onComplete: () => { slides[idx].style.zIndex = '0'; incoming.style.zIndex = '1'; gsap.set(slides[idx], { xPercent: 0, yPercent: 0 }); idx = next; },
       });
     }
     const timer = setInterval(() => { if (!hovering && settledOpen()) go((idx + 1) % slides.length); }, CYCLE_MS);

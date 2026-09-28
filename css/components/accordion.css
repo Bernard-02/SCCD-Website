@@ -37,6 +37,14 @@
       height: min(650px, calc(100svh - 248px));
     }
   }
+  /* ≥1200 桌面（user 2026-09-28）：卡上緣對齊縮小態 logo 中線（--header-logo-mid 98）、下緣留同一距離、
+     高度＝兩段 padding 之間 → 區塊剛好一屏 100svh（取代上面 650 封頂；平板 768-1199 走手機 header、維持舊值）。
+     section / container 的 pt-3xl / pb-xl 是 utilities layer，components 內要 !important 才蓋得掉 */
+  @media (min-width: 1200px) and (min-height: 501px) {
+    #resources { padding-top: var(--header-logo-mid) !important; }
+    #resources > .site-container { padding-top: 0 !important; padding-bottom: var(--header-logo-mid) !important; }
+    .colored-accordion { height: calc(100svh - 2 * var(--header-logo-mid)); }
+  }
 
   @media (min-width: 768px) {
     .accordion-wrapper {
@@ -248,6 +256,29 @@
     .colored-accordion .accordion-label-zh {
       margin-top: 0;
     }
+  }
+  /* 旋轉手風琴標籤直式改版（user 2026-09-28，gate＝旋轉版範圍、排除矮橫向 carousel）：英在上、中在下各自成段——
+     inner 不再整段 rotate(180)，改 column 疊放；EN vertical-rl + sideways＝字頭朝右、由上往下讀（＝原本反向旋 180°）；
+     ZH vertical-rl + upright＝直排字正；sep 空格退場、英中距吃 lg 字級 token。span 帶 writing-mode 會被 blockify、
+     寬＝1 行（line-height 1）＝跟原 inner 同寬 → getLabelWidth 量到的 label 寬不變 */
+  @media (min-width: 768px) and (min-height: 501px) {
+    .colored-accordion .accordion-label-inner {
+      writing-mode: horizontal-tb;
+      transform: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .colored-accordion .accordion-label-en,
+    .colored-accordion .accordion-label-zh {
+      writing-mode: vertical-rl;
+    }
+    /* 英文墨線對齊中文直排中線（user 2026-09-28「英文要再往右一點」）：sideways 拉丁字的 alphabetic baseline 落在
+       1em 行框左側 ~0.136em（Inter ascent .969/descent .242 置中後的位置），x-height 帶中心≈0.41em、比行框中心
+       偏左 ~0.09em；直立中文則正置中 → 英文右推 0.1em（3× 截圖比對 0/0.1/0.15，0.1 對齊、0.15 偏右） */
+    .colored-accordion .accordion-label-en { text-orientation: sideways; translate: 0.1em 0; }
+    .colored-accordion .accordion-label-zh { text-orientation: upright; margin-top: var(--space-en-zh-lg); }
+    .colored-accordion .accordion-label-sep { display: none; }
   }
 
   /* ===== Mobile: 垂直堆疊 ===== */

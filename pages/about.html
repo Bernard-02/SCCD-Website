@@ -56,7 +56,11 @@
           <button class="anchor-nav-btn shrink-0 text-left whitespace-nowrap" data-target="overview">
             <span class="anchor-nav-inner"><div data-label-key="about.vision" data-label-part="en">Vision</div><div data-label-key="about.vision" data-label-part="zh">理念</div></span>
           </button>
+          <!-- 學制樹獨立一顆 nav（user 2026-09-28，名稱先佔位）：沿用 #class 落點（樹本來就落這）；Programs 改指 #class-info-anchor（division 圖文） -->
           <button class="anchor-nav-btn shrink-0 text-left whitespace-nowrap" data-target="class">
+            <span class="anchor-nav-inner"><div data-label-key="about.structure" data-label-part="en">Structure</div><div data-label-key="about.structure" data-label-part="zh">架構</div></span>
+          </button>
+          <button class="anchor-nav-btn shrink-0 text-left whitespace-nowrap" data-target="class-info-anchor">
             <span class="anchor-nav-inner"><div data-label-key="about.programs" data-label-part="en">Programs</div><div data-label-key="about.programs" data-label-part="zh">學制</div></span>
           </button>
           <button class="anchor-nav-btn shrink-0 text-left whitespace-nowrap" data-target="works">
@@ -77,11 +81,15 @@
         <!-- Hidden track div: width 0, overflow visible, same height as sections via flex stretch -->
         <!-- Nav sticky inside here — doesn't affect sections layout -->
         <div class="hidden md:block flex-shrink-0 pointer-events-none z-[100] pb-6xl" style="width: 0; overflow: visible;">
-          <div id="anchor-nav" class="sticky flex flex-col gap-xs pointer-events-auto" style="top: 160px; margin-left: var(--container-padding); width: max-content;">
+          <div id="anchor-nav" class="sticky flex flex-col gap-xs pointer-events-auto" style="top: var(--nav-line); margin-left: var(--container-padding); width: max-content;">
             <button class="anchor-nav-btn text-left transition-all duration-fast whitespace-nowrap" data-target="overview">
               <span class="anchor-nav-inner"><div data-label-key="about.vision" data-label-part="en">Vision</div><div data-label-key="about.vision" data-label-part="zh">理念</div></span>
             </button>
+            <!-- 學制樹獨立一顆 nav（同上方手機 strip）：data-target=class＝樹的落點；Programs → class-info-anchor -->
             <button class="anchor-nav-btn text-left transition-all duration-fast whitespace-nowrap" data-target="class">
+              <span class="anchor-nav-inner"><div data-label-key="about.structure" data-label-part="en">Structure</div><div data-label-key="about.structure" data-label-part="zh">架構</div></span>
+            </button>
+            <button class="anchor-nav-btn text-left transition-all duration-fast whitespace-nowrap" data-target="class-info-anchor">
               <span class="anchor-nav-inner"><div data-label-key="about.programs" data-label-part="en">Programs</div><div data-label-key="about.programs" data-label-part="zh">學制</div></span>
             </button>
             <button class="anchor-nav-btn text-left transition-all duration-fast whitespace-nowrap" data-target="works">
@@ -111,14 +119,14 @@
           <div id="overview-trail-container" class="absolute inset-0 pointer-events-none z-20"></div>
           <div class="grid-20">
             <!-- English Text (左半，cols 4-12) -->
-            <div class="col-span-full md:col-start-5 md:col-span-8">
+            <div class="col-span-full md:col-start-4 md:col-span-8">
               <p class="text-md font-bold text-black">
                 <span data-overview-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;"><span data-overview-text class="list-scroll" style="display: block;">Department of Communications Design, Shih Chien University / SCCD is the first academic institution to establish the "Communications Design" department in the country. The teaching of the department takes design thinking, humanities, and aesthetics as the cornerstones, uses multidimensional platforms as the foundation, diverse media as the carrier, and integrates teaching experiments and design training such as animation, narrative video, interaction, performance, game, product, space. and environment. Supplemented by intensive international workshop and industry-academy cooperation in various fields, as well as overseas exchange opportunities. It aims to cultivate director-type creative talents who can integrate "media" as the vehicle, "design" as the method, emphasize "communications" as the core of human civilization, and adapt to the rapid changes of the era.</span></span>
               </p>
             </div>
 
             <!-- Chinese Text (右半，cols 13-20) -->
-            <div class="col-span-full md:col-start-13 md:col-span-8">
+            <div class="col-span-full md:col-start-12 md:col-span-7">
               <p class="text-md font-bold text-black" lang="zh-Hant">
                 <span data-overview-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;"><span data-overview-text class="list-scroll" style="display: block;">實踐大學媒體傳達設計學系為全國首創成立「媒體傳達設計」之學系。學系教學以設計思考、人文、美學為核心基石，運用多維度平台為基礎與多樣性媒材為載體，整合動畫、敘事影像、互動、展演、遊戲、商品、空間、環境等教學實驗與設計訓練，輔以密集舉辦之跨國工作與各領域產學合作，同時提供海外交換留學機會，旨在培育能整合「媒體」為乘載，「設計」為方法，強調「傳達」為人類文明之核心，得以適應時代快速變遷之總監型創作人才。</span></span>
               </p>
@@ -132,9 +140,11 @@
       <section class="relative z-20 overflow-visible">
 
       <!-- Class Anchor（零高度；scroll-margin 在 scroll-snap.css：矮視窗 100px / 高視窗 0 頂對齊。
-           封鎖綫已移除（改浮動多邊形層），標題留 sr-only 保 heading 語意）-->
+           封鎖綫已移除（改浮動多邊形層），標題留 sr-only 保 heading 語意）
+           ⚠️ 2026-09-28 起 #class 是「學制樹」nav btn 的落點（id 沿用、CSS/landscape 落點規則不動）；
+           Programs（division 圖文）btn 改指下方 #class-info-anchor。 -->
       <div id="class" class="snap-zone relative w-full pointer-events-none" style="height: 0;">
-        <h2 class="sr-only">Programs 學制</h2>
+        <h2 class="sr-only">Structure 架構</h2>
       </div>
 
       <!-- Class + Works Shared Area -->
@@ -144,11 +154,11 @@
 
         <!-- Programs 結構圖：DCD 學制樹狀圖，出現在既有 division 內容之前。
              綫段(.prog-seg)的 rgb 隨機底色＋旋轉由 about-structure.js 上；內容暫硬編（mockup 為準），之後接 Directus。
-             左緣對齊 col-5（md:col-start-5），比照其他 section。樣式在 components/about-structure.css。 -->
-        <!-- 手機 pt-3xl→pt-md：SCCD 卡貼上去到 nav strip 下（user 2026-09-10 二輪）；桌面 160 不動 -->
-        <div id="program-structure" class="site-container pt-md md:pt-[160px] pb-2xl relative z-10">
+             容器＝內容區 col-4~18（2026-09-27 由 col-6~20 改，user 定案全站 4-18）；樹實際左右落點由 about-structure.js layoutFan 夾在容器內。樣式在 components/about-structure.css。 -->
+        <!-- 手機 pt-3xl→pt-md：SCCD 卡貼上去到 nav strip 下（user 2026-09-10 二輪）；桌面＝nav line（160／≥1200 184，variables.css） -->
+        <div id="program-structure" class="site-container pt-md md:pt-[var(--nav-line)] pb-2xl relative z-10">
           <div class="grid-20">
-            <div class="col-span-full md:col-start-6 md:col-span-15">
+            <div class="col-span-full md:col-start-4 md:col-span-15">
               <div class="prog-tree">
                 <!-- 學制樹由 about-structure.js 從後台 program_nodes（自我參照 parent 表層級）+ ui_labels（文字）動態 render；
                      結構＝svg.prog-lines + .prog-top（各 root .prog-titled，有 wordmark 加 .prog-acronym）+ .prog-children--root。
@@ -215,7 +225,7 @@
         <!-- Programs division 圖文視圖的 snap 落點（零高度）：tree 佔了 #class 的 snap，division 視圖需自己的落點，
              否則往下捲會從 tree 直接吸到 #works、中間 division 視圖沒 frame 對齊 → 半屏錯位（2026-09-01 #7 修）。
              scroll-margin 規則在 scroll-snap.css（比照 #class）。 -->
-        <div id="class-info-anchor" class="snap-zone" style="height: 0;"></div>
+        <div id="class-info-anchor" class="snap-zone" style="height: 0;"><h2 class="sr-only">Programs 學制</h2></div>
 
         <!-- Sticky 範圍容器：btn 的 sticky 只在 info 結束前生效 -->
         <div id="class-info-sticky-wrapper" class="relative z-10">
@@ -224,7 +234,7 @@
         <div id="class-buttons-sticky" class="hidden md:block sticky z-40 pt-3xl pb-md" style="top: 100px;">
           <div class="site-container">
             <div class="grid-20">
-              <div class="md:col-start-5 md:col-span-16 flex items-end gap-lg">
+              <div class="md:col-start-4 md:col-span-15 flex items-end gap-lg">
                 <!-- BFA / Design Fundamental（works 模式才顯示，預設收起；樣式仿 MDES） -->
                 <div class="class-division-bfa-wrap">
                   <button class="class-division-btn font-bold transition-all duration-fast text-left" data-division="bfa">
@@ -265,7 +275,7 @@
           <!-- Animation -->
           <div class="class-info-panel pb-3xl relative z-10" data-division="animation">
             <div class="grid-20 md:items-start">
-              <div class="col-span-full order-2 md:col-start-5 md:col-span-6 md:order-1">
+              <div class="col-span-full order-2 md:col-start-4 md:col-span-6 md:order-1">
                 <div data-class-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
                   <div data-class-text class="list-scroll">
                   <p class="mb-en-zh-body division-text font-regular">Explore the relationship between self and the environment through animation creation, and then extend the care and reflection on culture, ecology and humanities.</p>
@@ -275,7 +285,7 @@
                   </div>
                 </div>
               </div>
-              <div class="col-span-full order-1 md:col-start-12 md:col-span-8 relative md:order-2 works-container division-images" data-division="animation">
+              <div class="col-span-full order-1 md:col-start-11 md:col-span-8 relative md:order-2 works-container division-images" data-division="animation">
                 <!-- JS 動態 render 3 張 .class-img，5s 輪播（class-images-slideshow.js） -->
               </div>
             </div>
@@ -284,7 +294,7 @@
           <!-- Creative Media -->
           <div class="class-info-panel pb-3xl hidden relative z-10" data-division="creative-media">
             <div class="grid-20 md:items-start">
-              <div class="col-span-full order-2 md:col-start-5 md:col-span-6 md:order-1">
+              <div class="col-span-full order-2 md:col-start-4 md:col-span-6 md:order-1">
                 <div data-class-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
                   <div data-class-text class="list-scroll">
                   <p class="mb-en-zh-body division-text font-regular">Explore the essence of new media interaction from multiple perspectives, furthermore, showing care and reflection on humanities, society, and the environment by these perspectives.</p>
@@ -294,7 +304,7 @@
                   </div>
                 </div>
               </div>
-              <div class="col-span-full order-1 md:col-start-12 md:col-span-8 relative md:order-2 works-container division-images" data-division="creative-media">
+              <div class="col-span-full order-1 md:col-start-11 md:col-span-8 relative md:order-2 works-container division-images" data-division="creative-media">
                 <!-- JS 動態 render 3 張 .class-img，5s 輪播 -->
               </div>
             </div>
@@ -303,7 +313,7 @@
           <!-- MDES -->
           <div class="class-info-panel pb-3xl hidden relative z-10" data-division="mdes">
             <div class="grid-20 md:items-start">
-              <div class="col-span-full order-2 md:col-start-5 md:col-span-6 md:order-1">
+              <div class="col-span-full order-2 md:col-start-4 md:col-span-6 md:order-1">
                 <div data-class-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
                   <div data-class-text class="list-scroll">
                   <p class="mb-en-zh-body division-text font-regular">The MDES program offers advanced research and creative practice opportunities, fostering innovation in communications design. Graduate students engage in cutting-edge projects that push the boundaries of design thinking and media expression.</p>
@@ -313,7 +323,7 @@
                   </div>
                 </div>
               </div>
-              <div class="col-span-full order-1 md:col-start-12 md:col-span-8 relative md:order-2 works-container division-images" data-division="mdes">
+              <div class="col-span-full order-1 md:col-start-11 md:col-span-8 relative md:order-2 works-container division-images" data-division="mdes">
                 <!-- JS 動態 render 3 張 .class-img，5s 輪播 -->
               </div>
             </div>
@@ -335,7 +345,7 @@
           <!-- BFA / Design Fundamental（學士班 btn 的預設內容） -->
           <div class="class-works-panel hidden" data-division="bfa">
             <div class="grid-20 md:items-start">
-              <div class="col-span-full order-2 md:order-1 md:col-start-5 md:col-span-4">
+              <div class="col-span-full order-2 md:order-1 md:col-start-4 md:col-span-4">
                 <div data-works-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
                   <div data-works-text class="list-scroll">
                   <p class="text-s mb-en-zh-body font-regular">Foundation courses that develop core design principles, visual literacy, and technical skills essential for creative media practice.</p>
@@ -343,7 +353,7 @@
                   </div>
                 </div>
               </div>
-              <div class="col-span-full order-1 md:order-2 md:col-start-9 md:col-span-12 md:ml-xl">
+              <div class="col-span-full order-1 md:order-2 md:col-start-8 md:col-span-11 md:ml-xl">
                 <div class="works-video-row">
                   <div class="aspect-video works-player-box overflow-hidden">
                     <iframe class="works-video-iframe w-full h-full border-0" data-division="bfa" title="BFA 學士班 作品影片" src="https://www.youtube.com/embed/JBRReuUk4dE?list=PLG0DnOKlL-lko5mBve7UjN2itLz4KwxUF" allowfullscreen></iframe>
@@ -357,7 +367,7 @@
           <!-- Animation -->
           <div class="class-works-panel" data-division="animation">
             <div class="grid-20 md:items-start">
-              <div class="col-span-full order-2 md:order-1 md:col-start-5 md:col-span-4">
+              <div class="col-span-full order-2 md:order-1 md:col-start-4 md:col-span-4">
                 <div data-works-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
                   <div data-works-text class="list-scroll">
                   <p class="text-s mb-en-zh-body font-regular">Animated works that explore storytelling, motion design, and experimental animation techniques.</p>
@@ -365,7 +375,7 @@
                   </div>
                 </div>
               </div>
-              <div class="col-span-full order-1 md:order-2 md:col-start-9 md:col-span-12 md:ml-xl">
+              <div class="col-span-full order-1 md:order-2 md:col-start-8 md:col-span-11 md:ml-xl">
                 <div class="works-video-row">
                   <div class="aspect-video works-player-box overflow-hidden">
                     <iframe class="works-video-iframe w-full h-full border-0" data-division="animation" title="Animation & Moving Image 動畫影像設計組 作品影片" src="https://www.youtube.com/embed/qklohUskSX4?list=PLG0DnOKlL-llBG3d2yiQeQnhN6MK95pM4" allowfullscreen></iframe>
@@ -379,7 +389,7 @@
           <!-- Creative Media -->
           <div class="class-works-panel hidden" data-division="creative-media">
             <div class="grid-20 md:items-start">
-              <div class="col-span-full order-2 md:order-1 md:col-start-5 md:col-span-4">
+              <div class="col-span-full order-2 md:order-1 md:col-start-4 md:col-span-4">
                 <div data-works-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
                   <div data-works-text class="list-scroll">
                   <p class="text-s mb-en-zh-body font-regular">Innovative media projects that integrate technology, interactivity, and creative storytelling.</p>
@@ -387,7 +397,7 @@
                   </div>
                 </div>
               </div>
-              <div class="col-span-full order-1 md:order-2 md:col-start-9 md:col-span-12 md:ml-xl">
+              <div class="col-span-full order-1 md:order-2 md:col-start-8 md:col-span-11 md:ml-xl">
                 <div class="works-video-row">
                   <div class="aspect-video works-player-box overflow-hidden">
                     <iframe class="works-video-iframe w-full h-full border-0" data-division="creative-media" title="Creative Media Design 創意媒體設計組 作品影片" src="https://www.youtube.com/embed/hIbasPs5gho?list=PLG0DnOKlL-lm5Vdc2x-ULMdlo6fsM-pQn" allowfullscreen></iframe>
@@ -401,7 +411,7 @@
           <!-- MDES -->
           <div class="class-works-panel hidden" data-division="mdes">
             <div class="grid-20 md:items-start">
-              <div class="col-span-full order-2 md:order-1 md:col-start-5 md:col-span-4">
+              <div class="col-span-full order-2 md:order-1 md:col-start-4 md:col-span-4">
                 <div data-works-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
                   <div data-works-text class="list-scroll">
                   <p class="text-s mb-en-zh-body font-regular">Advanced research and creative practice fostering innovation in communications design.</p>
@@ -409,7 +419,7 @@
                   </div>
                 </div>
               </div>
-              <div class="col-span-full order-1 md:order-2 md:col-start-9 md:col-span-12 md:ml-xl">
+              <div class="col-span-full order-1 md:order-2 md:col-start-8 md:col-span-11 md:ml-xl">
                 <div class="works-video-row">
                   <div class="aspect-video works-player-box overflow-hidden">
                     <iframe class="works-video-iframe w-full h-full border-0" data-division="mdes" title="MDES Class 碩士班 作品影片" src="" allowfullscreen></iframe>
@@ -438,7 +448,7 @@
 
         <div class="site-container pt-3xl pb-lg md:pb-xl relative z-30">
           <div class="grid-20 relative z-10">
-            <div id="resources-accordion-container" class="col-span-full md:col-start-5 md:col-span-16">
+            <div id="resources-accordion-container" class="col-span-full md:col-start-4 md:col-span-15">
               <!-- Accordion will be injected here by JS -->
             </div>
           </div>

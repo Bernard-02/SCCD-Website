@@ -9,6 +9,7 @@
 import { registerPageExit } from '../../ui/page-exit.js';
 import { registerPageCleanup } from '../../ui/page-cleanup.js';
 import { bindArrowSpin } from '../../ui/arrow-spin.js';
+import { bindNavBtnHover, navHoverColor } from '../../ui/section-switch-helpers.js';
 import { whenImgReady } from '../../ui/img-ready.js';
 import { loadHistory } from './history-source.js';
 
@@ -492,7 +493,7 @@ export function initTimeline() {
     listBtn.id = 'timeline-list-btn';
     listBtn.setAttribute('aria-label', '切換清單視圖');
     listBtn.innerHTML = '<span class="tl-icon-btn-inner"><span class="icon icon-atlas-list"></span></span>';
-    // 放進與 list 卡同款 20-col grid → 對齊 col-5 左緣（list 卡從 col-6，見 lists.css .tl-list-cell）
+    // 放進與 list 卡同款 20-col grid → 落 col-3（list 卡從 col-4，見 lists.css .tl-list-cell）
     const btnGrid = document.createElement('div');
     btnGrid.className = 'tl-list-btn-grid';
     btnGrid.appendChild(listBtn);
@@ -502,6 +503,9 @@ export function initTimeline() {
     // 轉 inner 黑方塊；鈕跨開合共用同一顆→定案角自然留住
     const listBtnInner = /** @type {HTMLElement|null} */ (listBtn.querySelector('.tl-icon-btn-inner'));
     if (listBtnInner) bindArrowSpin(listBtn, (/** @type {number} */ d) => { listBtnInner.style.transform = `rotate(${d}deg)`; });
+    // hover 隨機三原色（同全站 nav btn：data-nav-hover + --nav-hover，桌面 gate 在 helper）；開著（.active）沿用點下去的色、
+    // 關回黑（lists.css #timeline-list-btn 規則；user 2026-09-28）
+    bindNavBtnHover(listBtn);
 
     const listView = document.createElement('div');
     listView.id = 'timeline-list-view';
@@ -586,6 +590,9 @@ export function initTimeline() {
       listAnimating = true;
       listMode = true;
       const cardColor = randomColor();              // 整卡單一 accent（mode3 由 color.css 覆成 strict B/W）
+      // 鈕開著上色：click 沿用 hover 當下的色（全站 nav btn 規則）；進頁自動開（沒 hover）跟卡同色
+      listBtn.classList.add('active');
+      listBtn.style.setProperty('--nav-active', navHoverColor(listBtn) || cardColor);
       listRect.style.background = cardColor;
       listRect.style.setProperty('--tl-card-bg', cardColor);  // 手機 sticky 頭（era 標籤/年份）的不透明底（見 lists.css）
       renderAllEras();
@@ -602,6 +609,7 @@ export function initTimeline() {
     function hideListView() {
       if (listAnimating || !listMode) return;
       listAnimating = true;
+      listBtn.classList.remove('active');   // 關掉即回黑（不等矩形收完）
       gsap.to(rectEls, {
         ...rslideHidden(randRslideDir()), duration: TIMING.exitDuration, ease: TIMING.exitEase,
         onComplete: () => { listView.style.display = 'none'; listMode = false; listAnimating = false; },

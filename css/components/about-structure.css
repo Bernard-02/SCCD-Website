@@ -56,7 +56,7 @@
     padding: 6px 8px 5px;                     /* = .class-division-btn */
     color: var(--theme-bg);                    /* 黑底白字（inverse 白底黑字）；user 2026-09-04 由 rgb 改黑 */
     background: var(--theme-fg);               /* 色塊改黑（跟 mode 走，同 .prog-acronym）；不再隨機三原色 */
-    transition: background-color var(--dur-fast) ease, color var(--dur-fast) ease;  /* hover 上色平滑（about-structure.js） */
+    /* hover 上色不 fade、瞬切（user 2026-09-28，同 nav btn hover）；mode 切換的 fade 由 typography.css whitelist 給 */
   }
   .prog-top .prog-box { max-width: var(--prog-top-chip-max); }   /* 頂 chip：與子 chip 同寬同字級 lg；DCD 英文兩行、自然換行 */
   /* 頂 chip 各自貼文字：max-width＝最長行(lg)＋16 padding＋~3 餘裕（同 tier2 邏輯，inline-flex 盒撐到 max-width 不 hug）。
@@ -73,8 +73,8 @@
   /* 頂層單位：黑底標準字塊 + 學系色塊 併排，整塊為傾斜/hover 單位。
      ⭐hover 上色根解（2026-09-15）：色直接畫在本層（JS paint 寫 titled、色塊轉透明）＝單一畫布，
      黑字標盒疊在連續色面上、無「兩色盒拼接邊」可漏縫；seam-guard 補丁已退場勿加回。
-     transition 對齊 .prog-box 的 hover 變色平滑。 */
-  .prog-titled { display: inline-flex; align-items: stretch; width: fit-content; background: var(--theme-fg); transition: background-color var(--dur-fast) ease; }
+     hover 上色瞬切（同 .prog-box，user 2026-09-28）。 */
+  .prog-titled { display: inline-flex; align-items: stretch; width: fit-content; background: var(--theme-fg); }
   .prog-acronym {
     flex-shrink: 0;
     display: flex;
@@ -144,7 +144,8 @@
        stack 定位右下角；進場＝cascade 尾端 clip-reveal、往下捲跟 flow 離開、SPA 離頁 clip 收（皆 about-structure.js）。 ── */
   .prog-legend-stack {
     position: absolute;                        /* 掛在 #program-structure（relative），捲動物理帶走＝免調離場 timing */
-    right: var(--container-padding, 60px);     /* 右緣對齊畫面最外層右 padding（user 2026-09-13，同 atlas #atlas-detail-mask） */
+    /* 右緣對齊內容區 col-18 右緣（2026-09-27 全站內容 col-4~18 定案）＝padding + 2 欄 + 2 gutter */
+    right: calc(var(--container-padding) + (100vw - 2 * var(--container-padding) - 19 * var(--spacing-gutter)) / 10 + 2 * var(--spacing-gutter));
     top: 843px;                                /* 說明卡「底部」對齊 resources 卡底＝192（pt-3xl+pt-3xl）+ 卡高 651（user 2026-09-15 二輪：底部對齊、非頂部） */
     transform: translateY(-100%);              /* 底緣釘在 843：bar 展開時卡往上長（height 每幀變、-100% 跟著算） */
     z-index: 30;                               /* 蓋過 tree 內容（.prog-lines z-0 等） */
@@ -153,10 +154,19 @@
     align-items: flex-end;                     /* 兩卡靠右對齊（右緣貼右 margin；hover 變寬往左長） */
     gap: var(--spacing-sm);                    /* 兩卡間距（各自旋轉不相撞） */
   }
+  /* ≥1200 resources 卡底改為「視窗底 − logo 中線 98」（accordion.css，user 2026-09-28）→ 說明卡底跟著對齊；
+     樹頂也同 resources 卡：從縮小態 logo 中線開始（撤 nav line 160/184 對齊）。pt 是 utilities layer 的
+     md:pt-[var(--nav-line)]，components 內要 !important 才蓋得掉（同 accordion.css #resources）。平板 768-1199 維持 nav line。 */
+  @media (min-width: 1200px) and (min-height: 501px) {
+    .prog-legend-stack { top: calc(100svh - var(--header-logo-mid)); }
+    #program-structure { padding-top: var(--header-logo-mid) !important; }
+  }
   /* mode3：右下角有全域 mode-color-panel 浮鈕（鉛筆 48 / 色輪 104），stack 左移避讓（比照 atlas.css #atlas-detail-mask）。 */
   @media (min-width: 768px) {
     body.mode-color .prog-legend-stack {
-      right: calc(var(--mcp-footprint-x, 48px) + 16px);
+      /* col-18 右緣與色輪取較左者：色輪展開（104）時仍避讓 */
+      right: max(calc(var(--container-padding) + (100vw - 2 * var(--container-padding) - 19 * var(--spacing-gutter)) / 10 + 2 * var(--spacing-gutter)),
+                 calc(var(--mcp-footprint-x, 48px) + 16px));
       transition: right var(--dur-base) ease;   /* 色輪開合時位置平移；clip-path/translate 走 GSAP 不掛 transition */
     }
   }
@@ -192,7 +202,7 @@
     overflow: hidden;
     white-space: nowrap;
     font-weight: var(--font-weight-bold);
-    transition: background-color var(--dur-fast) ease, color var(--dur-fast) ease;  /* 上色平滑，同 chip */
+    /* 上色瞬切，同 chip（user 2026-09-28） */
   }
   .prog-legend-bar .prog-legend-en { margin-bottom: var(--space-en-zh-s); }   /* 英中距＝s 字級 token（同 atlas name） */
 
