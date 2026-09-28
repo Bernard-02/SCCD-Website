@@ -286,12 +286,12 @@ function randomizeHeroLayout() {
   // 加太小（如 8）chip 雖在 bbox 外但仍會被齒輪尾蓋住。
   const LOGO_VISUAL_PAD = 60;
   // 固定保底 zone（user 2026-09-13「明確規定字卡不可生成的範圍」）：桌面 logo 恆在左上
-  // （left=--container-padding 60、top=24、180×180）。純靠量測有兩個洞會讓撞 logo 的版面
+  // （left=--container-padding 60、top=48＝鈕頂、180×180）。純靠量測有兩個洞會讓撞 logo 的版面
   // 進 layoutPool 快取整個 session：①首載 header.html async fetch 未完成 → 量不到＝整輪不迴避
   // ②SPA 換頁 logo shrink/grow 動畫中間態 → zone 比最終視覺小。固定值與量測值取聯集兩者都兜住。
   // 矮橫向不套（該 gate 走手機式 header，桌面 logo display:none，固定 264 高會白吃掉半個矮視窗）。
   const FIXED_LOGO_ZONE = isShort ? null
-    : { left: 0, top: 0, right: 60 + 180 + LOGO_VISUAL_PAD, bottom: 24 + 180 + LOGO_VISUAL_PAD };
+    : { left: 0, top: 0, right: 60 + 180 + LOGO_VISUAL_PAD, bottom: 48 + 180 + LOGO_VISUAL_PAD };
   const logoEl = /** @type {HTMLElement|null} */ (document.querySelector('#header-logo'));
   let logoRect = FIXED_LOGO_ZONE;
   if (logoEl) {

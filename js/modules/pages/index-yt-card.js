@@ -251,6 +251,9 @@ function initWatchChars(ytCharsEl) {
         // cycleGen：pause（點擊開影片/離頁）時 ++ 作廢 in-flight 的換組後半段，避免影片動畫期間補播 reveal＋interval 復活。
         let cycleGen = 0;
         function cycleLayout() {
+          // 背景分頁 / 待機蓋住期間不換組（09-25：3s interval 無 guard＝切回瞬間補跑 canvas 重繪）；
+          // 早退不清 interval，下一拍自然再試
+          if (document.hidden || document.body.classList.contains('idle-standby')) return;
           const myGen = ++cycleGen;
           if (layoutInterval) { clearInterval(layoutInterval); layoutInterval = null; }
           clipReveal(0, 0.06, DUR.medium, EASE.exit).then(() => {

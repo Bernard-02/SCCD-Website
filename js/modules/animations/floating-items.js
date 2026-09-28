@@ -1008,6 +1008,12 @@ export async function initFloatingItems() {
 
   function tick() {
     if (!running) return;
+    // 待機 overlay（不透明）蓋住期間白跑 60fps、還跟待機退場的拆樹幀搶主執行緒（09-25）→
+    // skip 本幀重活、loop 保持存活，退出待機自動恢復（位置凍結，蓋住看不見）
+    if (document.body.classList.contains('idle-standby')) {
+      rafId = requestAnimationFrame(tick);
+      return;
+    }
 
     const cw = container.clientWidth;
     const ch = container.clientHeight;

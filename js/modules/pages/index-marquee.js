@@ -50,8 +50,10 @@ const MASK_HIDDEN = ['inset(100% 0 0 0)', 'inset(0 0 100% 0)', 'inset(0 100% 0 0
 const MASK_SHOWN = 'inset(0 0 0 0)';
 const randMaskHidden = () => MASK_HIDDEN[Math.floor(Math.random() * MASK_HIDDEN.length)];
 const ENTER_DELAY = 0.5;      // 新進場 banner 在 cycle 觸發後 delay 0.5s 才走 reveal
-const PUSH_DUR = 0.5;         // hover 時上方 banner 被推開的 GSAP duration（仿 about resources accordion 節奏）
-const PUSH_EASE = 'power2.inOut';
+// hover 時 poster 展開 與 上方 banner 被推開 共用同一組 duration/ease（同一 GSAP 時鐘）→ 看起來才是「被頂上去」；
+// 舊版 poster 走 CSS transition 0.4s cubic-bezier、push 走 0.5s power2.inOut，兩條曲線對不上（user 2026-09-28）
+const PUSH_DUR = DUR.base;
+const PUSH_EASE = EASE.enterSoft;
 
 // 全部 slot 同 x（左對齊），y 階梯排列；rotation 由 item 自帶
 // index 0 = 最上方（第一個 / 最舊），index 2 = 最下方（最後一個 / 最新）
@@ -61,11 +63,12 @@ const PUSH_EASE = 'power2.inOut';
 const SLOT_X_DESKTOP = 60;
 const SLOT_X_MOBILE = MOBILE_PADDING_X;
 // bar 實高（中英兩行後 > BAR_HEIGHT）：首個 banner 進 DOM 後量一次覆蓋（runMarqueeStack），
-// slot y 差 = 實高 + 10px 視覺 gap；最底 slot 底邊維持原 -70（單行時代 bar 40 + 底邊距 30）
+// slot y 差 = 實高 + SLOT_GAP 視覺 gap；最底 slot 底邊維持原 -70（單行時代 bar 40 + 底邊距 30）
+const SLOT_GAP = 20;          // 10 → 20（user 2026-09-28「gap 再大一點」）；順帶給 ±1° rotation 右緣 ~8px 位移更多餘裕
 let measuredBarH = BAR_HEIGHT;
 function slotConfigs() {
   const x = isMobile() ? SLOT_X_MOBILE : SLOT_X_DESKTOP;
-  const step = measuredBarH + 10;
+  const step = measuredBarH + SLOT_GAP;
   return [
     { x, y: -70 - step * 2 },
     { x, y: -70 - step },
@@ -73,8 +76,8 @@ function slotConfigs() {
   ];
 }
 
-// 旋轉角度刻意壓在 ±0.3° ~ ±1°：bar 寬 ~450px、transform-origin: left center 下，
-// 1° 右側邊緣垂直位移 ~7.85px ≈ slot gap (10px)；超過就會跟上下 banner 互相遮蓋
+// 旋轉角度刻意壓在 ±0.3° ~ ±1°：bar 寬 ~450px、中心旋轉下 1° 兩端各垂直位移 ~4px，
+// 上下相鄰反向時合計 ~8px < SLOT_GAP；超過就會跟上下 banner 互相遮蓋
 // 不沿用 SCCDHelpers.getRandomRotation（範圍到 ±6° 太大）
 function randomRotation() {
   const sign = Math.random() < 0.5 ? -1 : 1;
@@ -105,7 +108,7 @@ export function initMarquee() {
           // 只能用 U+2003 字元，不能用 &emsp; 實體；不用破折號）
           textEn: row.titleEn ? row.titleEn + '  ' : '',
           textZh: row.titleZh ? row.titleZh + '  ' : '',
-          url: row.url || '#',
+          url: row.url || '',
           poster: resolvePoster(row.poster?.filename_disk),
         }));
         return { items };
@@ -166,8 +169,8 @@ function createBanner(item, squareColor) {
     ? WIDTH_MOBILE() - BAR_HEIGHT
     : (item.orientation === 'portrait' ? WIDTH_PORTRAIT : WIDTH_LANDSCAPE);
   const totalWidth = BAR_HEIGHT + barWidth;
-  // rotation 樞紐 transform-origin: left center → 樞紐在左中，右側僅上下擺動 ~6px、水平凸 ≈ 0
-  // 手機加了 MOBILE_PADDING_X 後左右有 buffer，桌面手機都套隨機 rotation
+  // rotation 樞紐＝中心（同全站 nav btn；user 2026-09-28，原 left center 是錯的錨點）：兩端各擺 (w/2)·sinθ、
+  // 左緣在 1° 內只飄 ~4px。手機加了 MOBILE_PADDING_X 後左右有 buffer，桌面手機都套隨機 rotation
   const rotation = randomRotation();
 
   const wrap = document.createElement('div');
@@ -178,7 +181,6 @@ function createBanner(item, squareColor) {
     width: ${totalWidth}px;
     pointer-events: none;
     will-change: transform;
-    transform-origin: left center;
   `;
 
   // Clip wrapper 包覆 row → 提供 entry/exit 動畫的 overflow:clip
@@ -219,11 +221,15 @@ function createBanner(item, squareColor) {
     line-height: 1;
   `;
 
+  // 沒 url（或舊資料 '#'）＝純公告：不給 href、cursor 維持 default、不跳轉（user 2026-09-28）
+  const hasLink = !!item.url && item.url !== '#';
   const link = document.createElement('a');
   link.className = 'homepage-marquee-link';
-  link.href = item.url || '#';
-  link.target = '_blank';
-  link.rel = 'noopener noreferrer';
+  if (hasLink) {
+    link.href = item.url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+  }
   link.style.cssText = `
     display: block;
     flex: 1;
@@ -231,7 +237,7 @@ function createBanner(item, squareColor) {
     background: #000;
     padding: 0.35rem ${BAR_PADDING_X}px;
     text-decoration: none;
-    cursor: pointer;
+    cursor: ${hasLink ? 'pointer' : 'default'};
   `;
 
   // marquee viewport：overflow:hidden 掛在這層（不在 link）→ 裁切邊 = link 內容框 = 左右各縮 BAR_PADDING_X，
@@ -309,9 +315,8 @@ function createBanner(item, squareColor) {
       width: 100%;
       overflow: hidden;
       max-height: 0;
-      transition: max-height 0.4s cubic-bezier(0.25,0,0,1);
       pointer-events: auto;
-      cursor: pointer;
+      cursor: ${hasLink ? 'pointer' : 'default'};
     `;
     const img = document.createElement('img');
     img.src = item.poster;
@@ -319,7 +324,7 @@ function createBanner(item, squareColor) {
     img.style.cssText = 'display: block; width: 100%; height: auto;';
     posterEl.appendChild(img);
     wrap.appendChild(posterEl);
-    posterEl.addEventListener('click', () => window.open(item.url || '#', '_blank'));
+    if (hasLink) posterEl.addEventListener('click', () => window.open(item.url, '_blank'));
   }
 
   return { el: wrap, row, link, lines, posterEl, item, rotation, width: totalWidth, color: squareColor, _posterH: 0 };
@@ -366,6 +371,7 @@ function enterBanner(b) {
 function exitBanner(b) {
   // 退場期間 disable 互動
   if (b.posterEl) {
+    gsap.killTweensOf(b.posterEl);
     b.posterEl.style.maxHeight = '0';
     b.posterEl.style.pointerEvents = 'none';
   }
@@ -393,16 +399,18 @@ function bindBannerInteraction(b, onEnter, onLeave, pushAbove, restoreAbove) {
   }
 
   // ── 開展 / 收合 helper（hover 跟 click 共用）──
+  // poster 展收與 pushAbove/restoreAbove 同 PUSH_DUR/PUSH_EASE（同一 GSAP tick 推進）→ 兩者每幀等距
   const openPoster = () => {
     onEnter();
     if (b.posterEl && b._posterH) {
-      b.posterEl.style.maxHeight = `${b._posterH + 20}px`;
+      // 只長到圖高（舊 +20 是 max-height 超過內容高的空跑段、視覺不變，但 push 也 +20 → 海報上方多出 20px 假 gap）
+      gsap.to(b.posterEl, { maxHeight: b._posterH, duration: PUSH_DUR, ease: PUSH_EASE, overwrite: 'auto' });
       pushAbove(b);
     }
   };
   const closePoster = () => {
     if (b.posterEl) {
-      b.posterEl.style.maxHeight = '0';
+      gsap.to(b.posterEl, { maxHeight: 0, duration: PUSH_DUR, ease: PUSH_EASE, overwrite: 'auto' });
       restoreAbove(b);
     }
     onLeave();
@@ -427,8 +435,16 @@ function bindBannerInteraction(b, onEnter, onLeave, pushAbove, restoreAbove) {
       b.posterEl.addEventListener('click', (e) => e.stopPropagation());
     }
   } else {
-    // 桌面：hover 開展，離開收合（既有行為）
-    b.el.addEventListener('mouseenter', openPoster);
+    // 桌面：hover 開展 + 抽新角（全站卡片 hover 語彙），離開收合、角度保持（user 2026-09-28）。
+    // 角度仍走本檔小範圍 randomRotation（不用 arrow-spin 的 −4~+6：離開保持後大角會永久疊到上下 banner）；
+    // 翻到相反符號＝小範圍內最明顯的變化。寫回 b.rotation 讓之後 cycle 平移沿用新角、不彈回舊角。
+    b.el.addEventListener('mouseenter', () => {
+      openPoster();
+      let deg = randomRotation();
+      if (Math.sign(deg) === Math.sign(b.rotation)) deg = -deg;
+      b.rotation = deg;
+      gsap.to(b.el, { rotation: deg, duration: DUR.fast, ease: EASE.enterSoft, overwrite: 'auto' });
+    });
     b.el.addEventListener('mouseleave', closePoster);
   }
 }
@@ -504,7 +520,7 @@ function runMarqueeStack(stack, items) {
   function pushAbove(hovered) {
     const idx = banners.indexOf(hovered);
     if (idx <= 0) return; // 最上面 (slot 0) 沒有東西在上方
-    const pushAmount = (hovered._posterH || 0) + 20;
+    const pushAmount = hovered._posterH || 0;   // 推開量＝海報高 → 海報頂到上方 banner 的距離維持 SLOT_GAP
     for (let i = 0; i < idx; i++) {
       const above = banners[i];
       const cfg = slotConfigs()[slotOffset + i];
