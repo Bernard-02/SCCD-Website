@@ -26,6 +26,14 @@ body.mode-color #atlas-main { background-color: var(--theme-bg); }
   right: 0;
   bottom: 0;
 }
+/* 桌面/平板 stage 吃滿整個 viewport：佈局以 stage 中心對稱 → 從 header 底起算會讓上方多一截 header 留白，
+   城市/item 上下分佈不一致（user 2026-09-28「上下 padding 都一樣」）。header 已無實色 bar（09-27 漢堡化）可疊在星雲上。
+   矮橫向 gate 的 top:64 在本檔下方同權重後寫、照樣勝出。 */
+@media (min-width: 768px) {
+  #atlas-stage {
+    top: 0;
+  }
+}
 
 #atlas-zoom {
   position: absolute;
@@ -304,6 +312,18 @@ body.mode-color #atlas-main { background-color: var(--theme-bg); }
      （z-index:0 stacking context）外面此值才生效（見 pages/atlas.html） */
   z-index: 9999;
 }
+/* 選單開著時讓位（同 footer.css html.mobile-menu-open 做法）：面板 pe:none 開著仍可 hover 星雲 → 卡片 9999
+   畫在 header(50) 內的面板上（user 2026-09-27）。壓到 header 之下、仍高於 #atlas-main(0)。 */
+html.mobile-menu-open #atlas-detail-mask {
+  z-index: 1;
+}
+/* menu 開著星雲/清單 item 不吃 hover（user 2026-09-28：atlas 例外，其他頁 hover 照常）——收起才能 hover。
+   只關 item 層：滾輪縮放/拖曳綁在 #atlas-stage（落空白處照常）、點擊穿到 document 照樣關 menu（mobile-menu.js）。
+   .atlas-name / .atlas-alumni-subchip 自帶 pointer-events:auto（會蓋回父層 none）→ 要點名 */
+html.mobile-menu-open :is(#atlas-content, #atlas-list-view),
+html.mobile-menu-open :is(#atlas-content, #atlas-list-view) :is(.atlas-name, .atlas-alumni-subchip) {
+  pointer-events: none;
+}
 
 #atlas-detail {
   max-width: 380px;
@@ -375,6 +395,12 @@ body.mode-color #atlas-detail-mask {
     transition: right var(--dur-base) ease, bottom var(--dur-base) ease;
   }
 }
+/* ≥1200 桌面鉛筆改圓鈕、底 48（mode-color-panel.css .mcp-cap-mask，user 2026-09-28）→ 說明卡底對齊跟著 48 */
+@media (min-width: 1200px) and (min-height: 501px) {
+  body.mode-color #atlas-detail-mask {
+    bottom: 48px;
+  }
+}
 
 .atlas-detail-name {
   font-size: var(--font-size-s); /* 桌面 16px＝s；手機保留下方 @media 的 14px 局部 override（不動全域 s）*/
@@ -409,6 +435,11 @@ body.mode-color #atlas-detail-mask {
   gap: 12px;
 }
 .atlas-detail-row-main { flex: 1 1 auto; min-width: 0; }  /* min-width:0 才允許子欄 overflow→marquee */
+/* 單語 title（缺中或缺英＝一行）在列內垂直置中，對齊右欄類別英中兩行（同 list 單語名置中，user 2026-09-28）；
+   直向手機列改上下直排（column）時 align-self 會變水平置中 → gate 排除 */
+@media (min-width: 768px), (orientation: landscape) {
+  .atlas-detail-row-main:has(> :only-child) { align-self: center; }
+}
 .atlas-detail-row-en,
 .atlas-detail-row-zh {
   display: block;
@@ -628,6 +659,13 @@ body.mode-color #atlas-detail-mask {
 }
 
 /* 09-10：hover 固定 +15° 改由 JS arrow-spin 隨機角度接手（inline transform 寫 inner，transition 沿用上方 var(--dur-fast)） */
+/* hover 上色（user 2026-09-28，全站黑方塊 icon 鈕同款，見 lists.css .tl-icon-btn-inner 段）：hover 隨機三原色
+   （atlas.js bindNavBtnHover 掛 data-nav-hover + --nav-hover）、離開回黑。**只 hover、無 active**：切到 list view 這顆不上色
+   （user 同日拍板，跟 history 清單鈕不同）。mode3 翻反色；!important 壓 color.css (0,2,1)!important。桌面限定。 */
+@media (hover: hover) and (min-width: 768px) {
+  body:not(.mode-color) #atlas-layout-btn[data-nav-hover]:hover .atlas-layout-inner { background: var(--nav-hover, var(--color-pink)); color: #000; }
+  body.mode-color #atlas-layout-btn[data-nav-hover]:hover .atlas-layout-inner { background: var(--theme-fg-inverse) !important; color: var(--theme-fg) !important; }
+}
 
 /* ── List view ───────────────────────────────────────────────────── */
 /* 9-col grid 嚴格等寬（minmax(0,1fr) 忽略 cell 內 min-content 撐寬問題）
@@ -644,9 +682,13 @@ body.mode-color #atlas-detail-mask {
   z-index: 60;
 }
 
-/* morph 期間鎖互動：stage hover / list 點擊都停用，clone 落地收尾後移除 class 解鎖 */
+/* morph 期間鎖互動：stage hover / list 點擊都停用，clone 落地收尾後移除 class 解鎖。
+   filter btn / subchip 也鎖（09-28）：回程落地時 btn 已 revealed＝可點，但此時篩選會跟 map 進場時間軸搶 anchor opacity
+   （JS 端 viewMorphing 守門為主，這裡只是不給 pointer 游標/誤觸；鎖在 btn 本身——父層 pe:none 擋不住子層 pe:auto） */
 #atlas-main.atlas-morphing #atlas-stage,
-#atlas-main.atlas-morphing #atlas-list-view {
+#atlas-main.atlas-morphing #atlas-list-view,
+#atlas-main.atlas-morphing .atlas-filter-btn,
+#atlas-main.atlas-morphing .atlas-alumni-subchip {
   pointer-events: none;
 }
 
@@ -668,6 +710,24 @@ body.mode-color #atlas-detail-mask {
   z-index: 50;
   pointer-events: auto;
   user-select: none;
+}
+
+/* ≥1200 左下「當前頁」卡（navigation.css #page-indicator）佔了切換鈕原位 → 鈕排到卡右邊（user 2026-09-28；
+   09-27 版疊在卡上方 16）：左＝卡右緣（header.js 發佈 --page-indicator-right＝未旋轉盒）＋ md 24（同 header
+   mode↔漢堡鈕距）、底 48 同卡底。list 底線＝卡頂 + 16（卡比鈕高；分頁行數 calcListPageSize 讀 list 底）。gate 同 desktop menu */
+@media (min-width: 1200px) and (min-height: 501px) {
+  #atlas-layout-btn {
+    left: calc(var(--page-indicator-right, 120px) + var(--spacing-md, 24px));
+    bottom: 48px;
+  }
+  #atlas-list-view {
+    bottom: calc(var(--page-indicator-top) + 16px);
+  }
+  /* 頂＝全站 nav line（variables.css --nav-line 184＝logo 底 148＋36）；atlas.js calcListPageSize 讀 list computed top 同步 */
+  #atlas-filter,
+  #atlas-list-view {
+    top: var(--nav-line);
+  }
 }
 
 #atlas-list-view.visible {
@@ -956,11 +1016,11 @@ body.mode-color #atlas-detail-mask {
   font-weight: 700;
 }
 
-/* host（主持）無副標：只單語（EN 或 ZH 其一）的名稱撐成兩行高並垂直置中，
-   對齊雙語鄰項「兩行 box」的中線（雙語名本就 2 行、置中不變）。
+/* 單語（EN 或 ZH 其一）名稱撐成兩行高並垂直置中，對齊雙語鄰項「兩行 box」的中線（雙語名本就 2 行、置中不變）；
+   有副標的欄副標也因此跟雙語鄰項同高（user 2026-09-28 全欄套用，原只 host）。
    桌面 slot 制才有此 box；手機/矮橫向自然高，於各自 gate 內 reset。 */
 @media (min-width: 768px) {
-  .atlas-list-item[data-category="host"] .atlas-list-item-name {
+  .atlas-list-item .atlas-list-item-name {
     min-height: 2.6em; /* 2 行 × line-height 1.3 */
     justify-content: center;
   }
@@ -988,7 +1048,8 @@ body.mode-color #atlas-detail-mask {
     animation: atlas-marquee var(--marquee-duration, 8s) linear infinite;
   }
 }
-@media (max-width: 767px) {
+/* 矮橫向寬 ≥768 會誤落上面的桌面 hover 區、觸控又無 hover＝兩頭落空 → 併入自動捲（user 2026-09-24） */
+@media (max-width: 767px), (orientation: landscape) and (max-height: 500px) {
   .atlas-list-name-en.is-overflow .atlas-marquee-inner,
   .atlas-list-name-zh.is-overflow .atlas-marquee-inner,
   .atlas-list-item-label-en.is-overflow .atlas-marquee-inner,
@@ -1101,8 +1162,8 @@ body.mode-color #atlas-detail-mask {
   display: inline-flex;
   flex-direction: column;  /* EN/ZH 兩行垂直 stack */
   align-items: flex-start;
-  background: rgba(255, 255, 255, 1);  /* inactive 白底，對齊 about nav btn（navigation.css #anchor-nav inactive）；inverse/color mode 由下方 !important 覆蓋 */
-  color: #808080; /* 原 rgba(0,0,0,.5) 疊白底實色；legacy hex 保 sRGB 過渡 pacing */
+  background: rgba(255, 255, 255, 1);  /* inactive 白底黑字，對齊全站 nav btn（hover 色見 navigation.css「nav btn hover」段）；inverse/color mode 由下方 !important 覆蓋 */
+  color: #000;
   padding: 6px 8px 5px;
   /* 藏起＝滑出遮罩左緣外：-24px = 12（clip-margin 窗界）+ 12（active inner ±3° 旋轉角落外溢——
      只推到 -12px 時右緣貼在窗界上、旋轉角探回窗內露一小條，user 2026-07-15）。
@@ -1132,13 +1193,8 @@ body.mode-color #atlas-detail-mask {
   transform-origin: top right;
 }
 
-@media (min-width: 768px) {
-  .atlas-filter-btn:not(.active):hover .anchor-nav-inner {
-    color: rgba(0, 0, 0, 1);
-  }
-}
-
-/* Active 狀態：由 atlas.js updateFilterBtnColors 動態以三原色設置，此處不硬編碼 */
+/* Active 狀態：由 atlas.js updateFilterBtnColors 寫 inline 黑底白字（非三原色）；hover 隨機三原色見 navigation.css
+   「nav btn hover」段（atlas 連 active 也上色、點擊不繼承） */
 
 /* 被 filter 過濾掉的 anchor */
 .atlas-anchor.atlas-filtered-out {
@@ -1147,26 +1203,19 @@ body.mode-color #atlas-detail-mask {
 
 /* ── Inverse mode ───────── */
 /* 城市 chip 在兩 mode 下都是三原色底 + 黑字，bg 由 JS inline 設；不需 inverse 翻字色
- * filter btns（三個可點擊選項：Professors / Alumni / Partners）：user 明示 inverse 改成白底黑字 chip 化
- *   - inactive：白底 + 半透明黑字（對齊 standard inactive 透明底+rgba(0,0,0,0.5) 字的「dim」對比層級）
- *   - active：白底 + 100% 黑字（覆蓋 atlas.js updateFilterBtnColors 設的 #000000 bg + #FFFFFF 字 — 在 inverse 黑底會跟 body 融合）
- *   - hover (inactive)：白底 + 100% 黑字（brighten 文字）
+ * filter btns（三個可點擊選項：Professors / Alumni / Partners）：
+ *   - active：白底 + 黑字（覆蓋 atlas.js updateFilterBtnColors 設的 #000000 bg + #FFFFFF 字 — 在 inverse 黑底會跟 body 融合）
+ *   - inactive：黑底 + 100% 白字＝standard 的鏡像（2026-09-28 nav btn 字不再半透明後，原「白底半透明字」
+ *     跟 active 撞成同一款 → 改走全站 inverse nav btn 慣例，靠底色區分）
  * career chip (.atlas-alumni-career / .atlas-list-col-career) 不在此規則 — 保留 accent 三原色 */
 body.mode-inverse .atlas-filter-btn .anchor-nav-inner {
-  background: white !important;
-  color: #808080 !important; /* 原 rgba(0,0,0,.5) 疊白底實色；legacy hex 保 sRGB 過渡 pacing */
+  background: black !important;
+  color: white !important;
 }
 
 body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   background: white !important;
   color: black !important;
-}
-
-@media (min-width: 768px) {
-  body.mode-inverse .atlas-filter-btn:not(.active):hover .anchor-nav-inner {
-    background: white !important;
-    color: black !important;
-  }
 }
 
 /* ── 手機版 ──────────────────────────────────────────
@@ -1390,10 +1439,12 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
 #atlas-stage.atlas-dot-mode .atlas-anchor-co .atlas-name {
   font-size: calc(0.5rem / var(--atlas-zoom-scale, 1));
   padding: calc(2px / var(--atlas-zoom-scale, 1)) calc(3px / var(--atlas-zoom-scale, 1));
-  transition: font-size 0.25s ease;
+  transition: font-size 0.25s ease, padding 0.25s ease;
 }
 #atlas-stage.atlas-dot-mode.atlas-text-zoom .atlas-anchor-co .atlas-name {
   font-size: calc(0.75rem / var(--atlas-zoom-scale, 1));
+  /* 字升 0.75rem padding 也要跟＝對齊桌面 B chip 3px 5px 比例（overview 2/3 與 0.5rem 等比、維持；user 2026-09-24） */
+  padding: calc(3px / var(--atlas-zoom-scale, 1)) calc(5px / var(--atlas-zoom-scale, 1));
 }
 /* D 國家方塊反向縮放＝視覺封頂 20px */
 #atlas-stage.atlas-dot-mode .atlas-cat-d .atlas-name {
@@ -1470,6 +1521,12 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
    ③ 以下 media 只保留 list view 3-col 重排 + stage top（橫向專屬）
    觸控手勢（pan / pinch / tap zoom-in）在 atlas.js isMobileAtlas 分支 */
 @media (orientation: landscape) and (max-height: 500px) {
+  /* 橫向 overview 的 A/C/em label opacity:0 但 span 佔位且蓋在 co chip 上 → 偷走 elementFromPoint、
+     tap co 開不了卡（user 2026-09-24）。看不見＝不該可點：dot 態關 hit-test、text-zoom（可見）恢復。
+     直向不套（09-15 tap label 直開卡吃 hit-test）；A/C/em 圓點 tap-zoom 走幾何距離不走 hit-test、不受影響 */
+  #atlas-stage.atlas-dot-mode:not(.atlas-text-zoom) .atlas-anchor:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name {
+    pointer-events: none;
+  }
   /* ── list view 重排（user 2026-07-07）：三顆分頁 tab 進 header 列（logo 右側）、
      單分類內容 3 sub-col、chevron 跨全寬貼底、alumni 左欄 Hosting/Employment 子分頁鈕。
      tab 顯隱由 JS 控（map view 收起、list view 顯示，同直向手機流程）── */
@@ -1529,8 +1586,8 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   .atlas-list-item {
     padding-bottom: 0;
   }
-  /* 矮橫向寬 ≥768 會吃到桌面 host 名稱 min-height：自然高不套 box 置中 */
-  .atlas-list-item[data-category="host"] .atlas-list-item-name {
+  /* 矮橫向寬 ≥768 會吃到桌面單語名稱 min-height：自然高不套 box 置中 */
+  .atlas-list-item .atlas-list-item-name {
     min-height: 0;
   }
   /* 桌面 host/就職 items 頂端讓位 padding-top（給移欄底的標題）在橫向 gate 不需要（標題已 display:none）→ reset */
