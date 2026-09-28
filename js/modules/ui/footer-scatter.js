@@ -21,7 +21,8 @@ import { setupClipReveal, playClipReveal, playRevealExit } from './scroll-animat
 import { awaitLayoutReady } from './await-layout-ready.js';
 import { DUR, EASE } from './motion.js';
 import { prefersReducedMotion } from './reduce-motion.js';
-import { bindArrowSpin } from './arrow-spin.js';   // footer 分類 tab hover 隨機轉、離開再抽新角
+import { bindArrowSpin, randomSpinAngle } from './arrow-spin.js';   // footer 分類 tab／散佈卡 hover 抽新角、離開保持
+import { scrollWindowNoSnap } from './snap-scroll.js';
 // footer logo 退場 2026-07-15 改 hero clip-reveal（area 遮罩＋inner yPercent），不再用 header bars 的
 // clip-path wipe（原 user 2026-06-07「同 header logo 法」；header logo 同日也改滑動，兩邊仍一致）
 
@@ -86,13 +87,6 @@ function applyAccentColors(items) {
 
 const ROTATION_RANGE = 12;          // ±度數
 const CARD_GAP_PX = 24;             // 卡片間 + obstacle buffer（bbox 階段用）
-// scatter 右欄「不重疊最小寬」的餘裕：最寬卡塞得下之外再留一段，讓 collision 有位置排各張（非只塞得下最寬那張）。
-// 2026-08-10 由 96 提到 140：tab 分群後 dept 只 7 張且最寬卡（office 地址）主導 min-scatter，96 餘裕下
-// 7 張在 ~534 窄區偶爾塞不下走 partial fallback（卡留 0,0 疊到 tab reserve 上）→ 加寬給 collision 更多空間。
-const MIN_SCATTER_BUFFER_PX = 140;
-// 面積項 packing 係數：隨機散佈 + 30 次 verify 的實際填充效率遠低於 1（旋轉卡 + gap + 避 privacy）。
-// = 需要的最小面積相對「卡 bbox 面積總和」的倍率；經 headless 校準（矮視窗 h900 不重疊、寬鬆視窗 logo 不過縮）。
-const SCATTER_PACK = 1.9;
 const VERIFY_PADDING_PX = 8;        // actual-rect verify 階段 padding
 const MAX_PLACE_ATTEMPTS = 350;     // 單張卡找位置最多試幾次（分群後窄區塞卡較難，提高成功率）
 
@@ -119,15 +113,15 @@ const FOOTER_EXIT_DUR = DUR.medium;
 // MAX_REGEN=30 保留 verified 機制確保所有 items 可見無重疊，build 平均幾十毫秒
 // shuffle 0.6s exit 期間 user 感覺不到延遲。
 const TARGET_LAYOUTS = 1;
-const MAX_REGEN_PER_LAYOUT = 60;
+const MAX_REGEN_PER_LAYOUT = 120;   // 2026-09-27 上下兩區版面上區變矮（legal 整條 obstacle）→ 60 次偶發 1/25 疊卡，加倍保險（只在失敗路徑多花時間）
 
-// Shuffle 排程改用 setTimeout 鏈（取代 setInterval）以支援 hover pause/resume：
-// hover 任一 scatter item 凍結倒數，離開後從剩餘時間續跑（user 2026-06-06）。
+// Shuffle 排程＝setTimeout 鏈。hover 不再凍結倒數（06-06 版），改成 hover 中那張卡這輪原地不動（見 shuffleAll）
 let shuffleTimer = null;
 let shuffleCtx = null;          // { area, anchors, obstacles, items, fallbackLayout }
-let shuffleScheduledAt = 0;     // 本輪倒數起算時間（performance.now()）
-let shuffleRemainingMs = SHUFFLE_INTERVAL_MS;
-let shufflePaused = false;
+let hoveredAnchor = null;       // 游標下的散佈卡：shuffle 釘住它、其他卡避開（bindAnchorHover 維護）
+// 目前「該在」的 verified 版面（init 或最近一次 shuffle 的終點）。退場 kill 掉 glide 會把 anchor 凍在半路（互疊），
+// 復位時套回這個，不能沿用凍住的位置（user 2026-09-27：shuffle 中點 footer 連結，回來卡片疊在一起）
+let currentLayout = null;
 
 function rand(min, max) {
   return Math.random() * (max - min) + min;
@@ -182,28 +176,6 @@ function applyOfficeSnugWidth(office) {
     }
   }
   if (maxRight > 0) office.style.width = `${Math.ceil(maxRight) + padL + padR + 1}px`;
-}
-
-// scatter 右欄不重疊需要的最小寬＝下列兩項取大者：
-//   ① 最寬卡（含最大旋轉 bbox）+ 兩側 gap + 餘裕——保證最寬那張橫向放得下。
-//   ② 面積項 = SCATTER_PACK × Σ卡bbox面積 ÷ 可用高——矮視窗（可用高小）時 9 張無法單欄堆疊、要靠寬度補，
-//      故最小寬隨可用高反比升高；高視窗則 ① 主導、logo 不會被無謂縮小。
-// 寫進 --footer-min-scatter 給 footer.css（.footer-right min-width/basis + .footer-logo-area 縮）。
-function computeMinScatterWidth(anchors, area, reservedTopH = 0) {
-  let maxBBoxW = 0, totalArea = 0;
-  anchors.forEach((a) => {
-    const prev = /** @type {HTMLElement} */ (a).style.transform;
-    /** @type {HTMLElement} */ (a).style.transform = 'none';
-    const bb = rotatedBBox(a.offsetWidth, a.offsetHeight, ROTATION_RANGE);
-    /** @type {HTMLElement} */ (a).style.transform = prev;
-    if (bb.w > maxBBoxW) maxBBoxW = bb.w;
-    totalArea += (bb.w + CARD_GAP_PX) * (bb.h + CARD_GAP_PX);
-  });
-  // reservedTopH＝tab reserve 佔的頂部帶高，扣掉才是真正可排卡的高度（面積項據此反推所需寬）。
-  const availH = Math.max(1, area.getBoundingClientRect().height - reservedTopH);
-  const widestTerm = maxBBoxW + 2 * CARD_GAP_PX + MIN_SCATTER_BUFFER_PX;
-  const areaTerm = SCATTER_PACK * totalArea / availH;
-  return Math.ceil(Math.max(widestTerm, areaTerm));
 }
 
 function wrapItemsInAnchors(items) {
@@ -408,14 +380,22 @@ async function buildLayoutCache(area, anchors, obstacles) {
  */
 function shuffleAll(area, anchors, obstacles, items, fallbackLayout) {
   if (typeof gsap === 'undefined') return;
+  // 背景分頁 / 待機 overlay 蓋住期間不 shuffle（09-25：被節流的 timer 在切回/喚醒瞬間集中放行
+  // ＝「回來頭幾秒斷續卡」的一份子；跳過一拍即可，runShuffleTick 照常排下一輪）
+  if (document.hidden || document.body.classList.contains('idle-standby')) return;
   // generate / library / atlas 頁 router 把 footer 設 display:none，shuffleTimer 不清會繼續對隱藏
   // anchors 做 GSAP tween + apply layout（讀 area.getBoundingClientRect 為 0×0 → 數學運算閒置成本 + reflow）
   // offsetParent === null 是 display:none 最便宜的偵測（含任何 ancestor display:none）
   if (!area || area.offsetParent === null) return;
-  gsap.killTweensOf(anchors);
+  // hover 中的卡這輪原地不動、下一輪才散佈（user 2026-09-28）：拿出洗牌名單、當 obstacle 讓其他卡避開。
+  // 不 kill 它的 tween＝hover 抽角的轉動照跑完
+  const pinned = hoveredAnchor && anchors.includes(hoveredAnchor) ? hoveredAnchor : null;
+  const moving = pinned ? anchors.filter((a) => a !== pinned) : anchors;
+  const obs = pinned ? [...obstacles, pinned] : obstacles;
+  gsap.killTweensOf(moving);
 
   // 起點快照：目前 anchor 的 left/top/rotation（＝畫面上正在顯示的位置）
-  const from = anchors.map((a) => ({
+  const from = moving.map((a) => ({
     left: gsap.getProperty(a, 'left'),
     top: gsap.getProperty(a, 'top'),
     rotation: gsap.getProperty(a, 'rotation'),
@@ -425,28 +405,34 @@ function shuffleAll(area, anchors, obstacles, items, fallbackLayout) {
   // 迴圈結束 anchors 已在 target；下面讀 target 後 fromTo 先跳回 from(＝畫面現況、無視覺跳動) 再滑到 target。
   let fresh = null;
   for (let attempt = 0; attempt < MAX_REGEN_PER_LAYOUT; attempt++) {
-    const placement = generatePlacement(area, anchors, obstacles);
-    if (placement.length !== anchors.length) continue;
+    const placement = generatePlacement(area, moving, obs);
+    if (placement.length !== moving.length) continue;
     applyPlacement(placement);
-    if (verifyPlacement(area, anchors, obstacles)) {
+    if (verifyPlacement(area, moving, obs)) {
       fresh = placement;
       break;
     }
   }
+  if (!fresh && pinned) {
+    // 釘住時沒有保底版面（init 版面會跟釘住的卡撞）→ 這輪全員留在原地
+    moving.forEach((a, i) => gsap.set(a, from[i]));
+    return;
+  }
   if (!fresh) applyPlacement(fallbackLayout);
+  currentLayout = !fresh ? fallbackLayout : pinned
+    ? [...fresh, { anchor: pinned, cx: gsap.getProperty(pinned, 'left'), cy: gsap.getProperty(pinned, 'top'), rot: gsap.getProperty(pinned, 'rotation') }]
+    : fresh;
 
-  const to = anchors.map((a) => ({
+  const to = moving.map((a) => ({
     left: gsap.getProperty(a, 'left'),
     top: gsap.getProperty(a, 'top'),
     rotation: gsap.getProperty(a, 'rotation'),
   }));
 
-  // 每次 shuffle 重新隨機三原色底色。卡片現在全程可見（無 off-screen 空檔可藏換色），故換色在 glide 起點瞬間發生；
-  // 移動中換色比靜止時換色不明顯，可接受（user 若在意再改成不換或淡入）。
-  applyAccentColors(items);
+  // shuffle 不換底色（user 2026-09-27「換位置不需要改變卡片顏色」）：底色只在 init/切 tab 時 applyAccentColors 一次。
 
   // 直接位移：left/top/rotation 從 from → to，全程在散佈區內（兩端點都由 generatePlacement 限制在區內、直線內插不出界）
-  anchors.forEach((a, i) => {
+  moving.forEach((a, i) => {
     gsap.fromTo(a,
       { left: from[i].left, top: from[i].top, rotation: from[i].rotation, xPercent: -50, yPercent: -50 },
       {
@@ -465,15 +451,12 @@ function runShuffleTick() {
 
 function scheduleNextShuffle(delay) {
   if (shuffleTimer != null) clearTimeout(shuffleTimer);
-  shuffleRemainingMs = delay;
-  shuffleScheduledAt = performance.now();
   shuffleTimer = window.setTimeout(runShuffleTick, delay);
 }
 
 function startShuffleLoop(area, anchors, obstacles, items, fallbackLayout) {
   stopShuffleLoop();
   shuffleCtx = { area, anchors, obstacles, items, fallbackLayout };
-  shufflePaused = false;
   scheduleNextShuffle(SHUFFLE_INTERVAL_MS);
 }
 
@@ -482,35 +465,52 @@ function stopShuffleLoop() {
     clearTimeout(shuffleTimer);
     shuffleTimer = null;
   }
-  shufflePaused = false;
 }
 
-// Hover freeze：凍結倒數（記下剩餘時間）；離開後從剩餘時間續排下一次 shuffle。
-// 倒數剛好 fire 中（timer null）或已暫停則 no-op。
-function pauseShuffleLoop() {
-  if (shufflePaused || shuffleTimer == null) return;
-  shufflePaused = true;
-  clearTimeout(shuffleTimer);
-  shuffleTimer = null;
-  const elapsed = performance.now() - shuffleScheduledAt;
-  shuffleRemainingMs = Math.max(0, shuffleRemainingMs - elapsed);
-}
-
-function resumeShuffleLoop() {
-  if (!shufflePaused) return;
-  shufflePaused = false;
-  scheduleNextShuffle(shuffleRemainingMs);
-}
-
+// 散佈卡 hover（user 2026-09-28）：進入抽新角、離開保持（全站 arrow-spin 角度規則，從 GSAP 現角抽——
+// anchor 的 transform 由 GSAP 管 left/top/xPercent，不能直寫 style.transform）；游標下那張記成 hoveredAnchor
+// 給 shuffleAll 釘住。只綁桌面 hover（散佈本身只在 ≥1200 跑）；re-parent 補發的假 mouseenter 不抽角。
 // 綁在各 anchor（持久存在，跨 SPA 不重建）→ dataset flag 防 router recovery 重 init 重複綁。
 // footer 不在 #page-content 內，listener 隨 footer 持久存在不累積，毋須 page-cleanup registry。
-function bindHoverPause(anchors) {
+function bindAnchorHover(anchors) {
   anchors.forEach((anchor) => {
-    if (!anchor || anchor.dataset.hoverPauseBound) return;
-    anchor.dataset.hoverPauseBound = '1';
-    anchor.addEventListener('mouseenter', pauseShuffleLoop);
-    anchor.addEventListener('mouseleave', resumeShuffleLoop);
+    if (!anchor || anchor.dataset.hoverBound) return;
+    anchor.dataset.hoverBound = '1';
+    anchor.addEventListener('mouseenter', () => {
+      hoveredAnchor = anchor;
+      // 釘住的卡墊高：shuffle 時其他卡的滑行路徑可能穿過游標，從它下面過＝不搶 hover（否則 mouseleave/enter 連發、
+      // 它自己又轉一次，同 reference_click_respin_phantom_mouseenter 那類）
+      anchor.style.zIndex = '2';
+      // 自己在滑行中（卡片滑到靜止的游標底下）不算真 hover、不抽角
+      if (_footerReparenting || typeof gsap === 'undefined' || gsap.isTweening(anchor)) return;
+      gsap.to(anchor, { rotation: pickFreeSpinAngle(anchor), duration: DUR.fast, ease: EASE.enterSoft, overwrite: 'auto' });
+    });
+    anchor.addEventListener('mouseleave', () => {
+      anchor.style.zIndex = '';
+      if (hoveredAnchor === anchor) hoveredAnchor = null;
+    });
   });
+}
+
+// hover 新角先驗不撞鄰卡/障礙：放置時只驗了各卡的放置角，兩張相鄰卡各自 hover 轉過去的角度都會保留（09-28 審查）。
+// 以卡片現中心 + 新角的 AABB 對其他卡現 gBCR；試 8 次都撞＝取 |角| 最小那個（AABB 最小、最不易撞）。
+function pickFreeSpinAngle(anchor) {
+  const cur = /** @type {number} */ (gsap.getProperty(anchor, 'rotation'));
+  const r = anchor.getBoundingClientRect();
+  const cx = (r.left + r.right) / 2, cy = (r.top + r.bottom) / 2;
+  const w = anchor.offsetWidth, h = anchor.offsetHeight;
+  const ctx = shuffleCtx;
+  const others = ctx ? [...ctx.anchors.filter((a) => a !== anchor && a.offsetParent !== null), ...ctx.obstacles]
+    .map((el) => el.getBoundingClientRect()) : [];
+  let best = null;
+  for (let i = 0; i < 8; i++) {
+    const deg = randomSpinAngle(cur);
+    const bb = rotatedBBox(w, h, deg);
+    const me = { left: cx - bb.w / 2, right: cx + bb.w / 2, top: cy - bb.h / 2, bottom: cy + bb.h / 2 };
+    if (!others.some((o) => domRectsOverlap(me, o, VERIFY_PADDING_PX))) return deg;
+    if (best === null || Math.abs(deg) < Math.abs(best)) best = deg;
+  }
+  return best;
 }
 
 // ── 學系/關聯單位 子 tab（桌面散佈 ≥1200；固定散佈區左上）─────
@@ -546,12 +546,12 @@ const TABLET_GROUP_SELECTOR = '.footer-social, .footer-fax, .footer-tel, .footer
 // ── 群組顯隱（2026-08-11 CMS 化後由 CSS 三向互斥改 JS class）──
 // tab 改後台管理（footer_tabs）＝群組 key 任意，CSS 無法窮舉配對 → 改 JS 對非 active 群組
 // item（含其 clip-reveal wrapper——wrapper 不藏會留空佔 flex/grid 位）掛 .fgroup-off（footer.css display:none）。
-// gate：橫向「全群組線性顯示」→ 清光 class；直向（含 <768 手機，2026-09-05 開 tab 分頁）都分群。
-// 橫向＝矮橫向 gate ＋「寬 <768 的橫向視窗」（CSS tabs 只開 portrait，這裡不對齊會變成有分群卻沒 tab 可切）。
+// 2026-09-19 矮橫向也分群（tab 進 landscape 版型，見 landscape.css footer 區）。唯一剩的全顯情境＝
+// 「寬 <768 的橫向視窗但高 >500」（罕見桌面窗形：CSS tabs portrait/矮橫向都不開＝沒 tab 可切，不分群免卡死第一組）。
 function applyGroupVisibility(area) {
   if (!area) return;
-  const showAll = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches
-    || (window.innerWidth < 768 && window.matchMedia('(orientation: landscape)').matches);
+  const showAll = window.innerWidth < 768
+    && window.matchMedia('(orientation: landscape) and (min-height: 501px)').matches;
   const active = area.dataset.fgroup;
   area.querySelectorAll('[data-fgroup]').forEach((el) => {
     if (el.classList.contains('footer-tab') || el.closest('.footer-tabs')) return;   // tab 本體恆顯示
@@ -631,9 +631,9 @@ function bindFooterTabs(footer) {
     el.addEventListener('mouseenter', () => { hoverDeg = lastDeg; });
     el.addEventListener('mouseleave', () => spin.commit(hoverDeg));
     el.addEventListener('click', () => {
-      // 手機 tab 列是水平 scroll strip：點到的 tab 捲回靠左對齊列左緣（同 faculty/curriculum nav btn
-      // 慣例，user 2026-09-16）。只動 bar 自己 scrollLeft；平板/桌面 absolute tabs 不套。
-      if (window.innerWidth < 768) {
+      // 手機＋矮橫向 tab 列是水平 scroll strip：點到的 tab 捲回靠左對齊列左緣（同 faculty/curriculum nav btn
+      // 慣例，user 2026-09-16；矮橫向補 gate user 2026-09-24）。只動 bar 自己 scrollLeft；平板/桌面 absolute tabs 不套。
+      if (window.innerWidth < 768 || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) {
         const bar = /** @type {HTMLElement | null} */ (el.closest('.footer-tabs'));
         if (bar) {
           const pad = parseFloat(getComputedStyle(bar).paddingLeft) || 0;
@@ -746,24 +746,19 @@ export async function initFooterScatter(scope, opts = {}) {
   applyOfficeSnugWidth(footer.querySelector('.footer-office'));
 
   // 學系/關聯單位 tabs + 滿寬 reserve obstacle（涵蓋 tabs 整條）→ 卡片全排到 tab 下方、右邊整條淨空（user req2）。
-  // radio 切換散佈群組。先建好 reserve：下面 min-scatter 的面積項要扣掉 reserve 佔的頂部帶高，否則群組卡少/窄時
-  // （如 dept 只 7 張、area 較窄）估太寬鬆、塞不下走 partial fallback 把卡留在 0,0 疊到 reserve 上。
+  // radio 切換散佈群組。
   bindFooterTabs(footer);
   const tabs = footer.querySelector('.footer-tabs');
   makeTabsDraggable(tabs);
   const reserve = reserveTabRow(tabs, area);
-  const reservedTopH = reserve ? reserve.offsetHeight : 0;
-
-  // 量「右欄不重疊最小寬」寫進 CSS var → footer.css 據此縮 logo、守住 scatter 寬（見 .footer-logo-area / .footer-right）。
-  // 必須在 buildLayoutCache 之前設：讓首個 layout 就在「已加寬到 min」的區內排，避免窄視窗塞不下走 partial fallback 疊卡。
-  footer.style.setProperty('--footer-min-scatter', `${computeMinScatterWidth(anchors, area, reservedTopH)}px`);
-
-  // 文字 block 套初始三原色底色 + 綁 hover freeze（hover 凍結 shuffle 倒數、離開續跑）
+  // 文字 block 套初始三原色底色 + 綁 hover（抽新角、shuffle 時原地不動）
   applyAccentColors(items);
-  bindHoverPause(anchors);
+  bindAnchorHover(anchors);
 
+  // 2026-09-27 版面：上區散佈（tabs 左上、legal 右上整高、copyright 貼底）、下區 logo bar 不在 area 內。
+  // legal 整條（右側整高）當一個 obstacle：卡片不進 legal 區（user 2026-09-27「他們是一個整體」）。
   const privacy = footer.querySelector('.footer-privacy');
-  const obstacles = [privacy, reserve].filter(Boolean);
+  const obstacles = [reserve, privacy].filter(Boolean);
 
   // 初始：items 沉入 anchor 遮罩下（clip-reveal 起點；anchor opacity 從 CSS default 0 起）
   hideItemsClip(items);
@@ -775,6 +770,7 @@ export async function initFooterScatter(scope, opts = {}) {
 
   // 套 initial layout
   applyPlacement(fallbackLayout);
+  currentLayout = fallbackLayout;
 
   // 等 1 frame 讓 gsap.set 位置 settle 後再 reveal
   await new Promise((r) => requestAnimationFrame(r));
@@ -831,8 +827,8 @@ function footerInViewport(footer) {
 
 function initFooterMobileReveal(footer, animate = false) {
   if (typeof gsap === 'undefined') return;
-  // 平板 768-1199 與 <768 手機（2026-09-05 起）都是 tab 切換版型（radio；CSS 各自段）。綁 tab click + 可拖動。
-  // 矮橫向 tabs 由 CSS display:none 收（綁了也不觸發、全群組線性）。旋轉在平板/手機由 CSS transform:none 蓋掉。
+  // 平板 768-1199、<768 手機（2026-09-05 起）、矮橫向（2026-09-19 起）都是 tab 切換版型（radio；CSS 各自段）。
+  // 綁 tab click + 可拖動。旋轉在平板/手機/矮橫向由 CSS transform:none 蓋掉。
   bindFooterTabs(footer);
   const tabsEl = /** @type {HTMLElement | null} */ (footer.querySelector('.footer-tabs'));
   makeTabsDraggable(tabsEl);
@@ -989,7 +985,8 @@ export function resetFooterAfterExit() {
   if (!area || area.offsetParent === null) return;
   _footerExited = false;
   gsap.killTweensOf(items);
-  // 沿用現有 anchor 位置（exit 只動 item 的 xPercent/yPercent，anchor 位置沒變）→ 不重算 layout、直接重進場。
+  // anchor 套回 currentLayout（退場若撞上 shuffle glide，anchor 被凍在半路）→ 不重算 layout、直接重進場。
+  if (currentLayout) applyPlacement(currentLayout);
   hideItemsClip(items);
   playClipRevealScatter(items);
   const logo = getFooterLogo(area);
@@ -1002,6 +999,13 @@ export function resetFooterAfterExit() {
   const tabsInner = getFooterTabsInner(area.closest('footer'));
   if (tabsInner) gsap.fromTo(tabsInner, { yPercent: CLIP_HIDE_YPERCENT }, { yPercent: 0, duration: DUR.reveal, ease: EASE.enter, overwrite: 'auto', clearProps: 'transform' });
   startShuffleLoop(area, anchors, obstacles, items, fallbackLayout);
+}
+
+// 點 footer 連結且目標就是本頁（如首頁點 logo，user 2026-09-27）：不重載，footer 元素照離頁退場 clip-reveal 沉出 →
+// 快速捲回頂端（預設 0.5s，「像 snap 到頂」）→ 捲完 footer 已在視窗外才復位。換到別頁走 router loadPage fromFooter
+export async function exitFooterToTop() {
+  await playFooterExit();
+  scrollWindowNoSnap(0, { onComplete: resetFooterAfterExit });
 }
 
 // ── 跨 1200 邊界即時重建（scatter ↔ 線性）─────────────────────────
@@ -1058,7 +1062,9 @@ function bindFooterBreakpointReinit() {
   _footerLastNarrow = bpState();
   window.addEventListener('resize', () => {
     const now = bpState();
-    if (now === _footerLastNarrow) return;   // 沒跨斷點 → 純寬度變化交給 CSS（logo 縮/欄寬）
+    // 沒跨斷點：平板/手機是線性版、CSS 自己跟；桌面 scatter 是 px 絕對座標，散佈區縮了卡片不會跟 →
+    // 拖曳停 220ms 後也重建（重跑 scatter；user 2026-09-27「畫面跑掉後馬上重排」）。
+    if (now === _footerLastNarrow && now !== 'desktop') return;
     _footerLastNarrow = now;
     clearTimeout(_footerReinitTimer);
     _footerReinitTimer = window.setTimeout(reinitVisibleFooters, 220);  // debounce 等拖曳停

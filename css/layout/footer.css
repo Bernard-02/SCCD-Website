@@ -31,9 +31,13 @@
 
   /* 手機 menu 開啟時 footer 讓位：面板(.mobile-nav z-40)在 header stacking context 內贏不了 9999 →
    * 捲到 footer 再開 menu 時 footer 畫在面板上（user 2026-09-08）。開著時 footer 不需要壓過誰；
-   * class 由 mobile-menu.js 掛在 html、關閉滑出完成才移除（面板收完前 footer 不先跳回來）。 */
-  html.mobile-menu-open .footer-shell {
-    z-index: auto;
+   * class 由 mobile-menu.js 掛在 html、關閉滑出完成才移除（面板收完前 footer 不先跳回來）。
+   * 桌面 ≥1200（desktop menu gate）反過來不讓位（user 2026-09-28）：透明面板開著捲到 footer，footer 蓋在 menu 上，
+   * menu 在 footer 後面收（header.js 近 footer 呼叫 closeMobileMenu）。 */
+  @media not all and (min-width: 1200px) and (min-height: 501px) {
+    html.mobile-menu-open .footer-shell {
+      z-index: auto;
+    }
   }
 
   /* slide-in（faculty / courses，html.has-slide-in）開啟時 footer 讓位：footer z-9999 是為了收合時蓋過
@@ -346,6 +350,18 @@
     }
   }
 
+  /* 窄平板（768-899）：tabs 排在右欄（左邊被 footer logo 佔 ~280px），三顆原樣塞不下＝第三顆「Affiliated
+   * Units」被右緣切掉（iPad mini/9.7 直放 768 必中）。比照手機塊（下方 <768 portrait）：EN cap 換行 hug、
+   * gap 收 md；仍溢出時靠 base overflow-x:auto 觸控可捲保底。900+ 空間夠、恢復原樣。
+   * 矮橫向也落此寬區間但 tabs display:none（landscape gate），不受影響。⚠️ cap 綁 CMS 文案（footer_tabs），後台改字要重校。 */
+  @media (min-width: 768px) and (max-width: 899px) {
+    /* mark 同縮手機值 64（SCCDAA wordmark 比例寬、110 基準下 mark 就 ~155px＝EN cap 再小也塞不下） */
+    .footer-random > .footer-tabs { gap: var(--spacing-md); --tab-mark-w: 64px; }
+    .footer-random > .footer-tabs .footer-tab { flex: 0 0 auto; }
+    .footer-random > .footer-tabs .footer-tab-en { max-width: 10.5rem; }
+    .footer-random > .footer-tabs .footer-tab[data-fgroup="aa"] .footer-tab-en { max-width: 6rem; }
+  }
+
   /* ===== tab 按鈕外觀（全 viewport 共用：手機 <768 in-flow + 平板 768-1199 / 桌面 ≥1200 absolute 同一套）=====
    * 容器定位/顯示各 viewport 自訂（mobile in-flow / tablet+desktop absolute），這裡只管單顆 tab 外觀。
    * --tab-mark-w / --tab-mark-h 由各自的 .footer-tabs 容器規則定義（mobile / tablet / ≥1200 段各設一份）。
@@ -454,23 +470,32 @@
 
   /* ===== Desktop scatter (≥ 1200px)：logo 左、右欄隨機散佈 ===== */
   @media (min-width: 1200px) {
+    /* 2026-09-27 版面（user 截圖兩輪定案）：上下兩區——上區 = 散佈區（tabs 左上、legal 右上、copyright 貼上區底）、
+     * 下區 = 整條 logo bar（卡片不進來）。上區內 tab 列 + legal 各連結由 footer-scatter 當 obstacle 避開。
+     * 舊「logo 左欄 + 右欄 min-scatter 撐寬」機制（含 --footer-min-scatter）整組退場。 */
+    /* 矮視窗（1280×720 級）logo 縮到 floor 140 上區仍 <480 疊卡 → 讓 footer 長高：shell 改 auto + inner min-height 100vh
+     * （一般視窗仍剛好一屏、logo 貼底），上區 min-height 480 撐不下時才把 footer 推超過一屏（多捲一點）。 */
+    .footer-shell {
+      height: auto;
+    }
     .footer-inner {
-      gap: calc(var(--spacing-5xl) * 2);   /* logo↔右欄間距（09-11 定 5xl 160px；user 2026-09-15「再加大一倍」→ 320px） */
+      min-height: 100vh;
+      /* !important：蓋 HTML 的 md:flex-row utility（@layer utilities 在 components 之後；important 反轉層序才贏）。
+       * 平板 768-1199 仍靠 md:flex-row 左右分欄，故不改 HTML。 */
+      flex-direction: column !important;
+      gap: var(--container-padding);   /* logo bar 上緣留白 = inner 下 padding → logo 上下留白一致 */
     }
 
-    /* logo 區＝正方形，固定寬取「畫面 35%」與「滿高正方形（footer 可用高 = 100vh - 上下 padding）」較小者：
-     * 30vw cap → logo 不超過畫面 30%、也不無限放大（user 2026-09-11）；100vh 項防短視窗直向溢出。
-     * ⚠️ flex:0 0 auto + 固定 width（不再 flex:0 1 basis 縮放）＝logo 尺寸只吃 viewport、與 --footer-min-scatter 脫鉤。
-     *   舊版 logo 會為滿足右欄 min-width 而縮，而 min-scatter 每次切 tab 依群組卡數重算 → 各 tab 的 logo 大小不同、
-     *   窄螢幕來回切 tab 版面跳（user 2026-09-11「切 tab 時 logo 縮小、版面跑掉」）。固定後切 tab 不動 logo。
-     * 剩餘寬全給 .footer-right（flex-grow:1 吃滿）。aspect-ratio:1 + height:auto 維持正方形、max-height 防溢出。 */
+    /* logo bar：in-flow 排最後、整條給 logo。正方形邊長 = 30vw / 35vh / 「視窗扣三段 padding 後留 480 給上區」三者取小、
+     * floor 140：矮視窗（1200×800、1366×768）不讓位的話上區扣掉 tab 帶只剩 ~200px，7 張卡塞不下走 fallback 疊卡
+     * （headless 實測 1440×900 上區 405 過、1200×800 上區 340 炸）。要改 logo 大小動 30vw/35vh；480 是上區最低保證（legal 整條當 obstacle 後 420 在 1200×800 疊卡）。 */
     .footer-logo-area {
+      order: 2;
       aspect-ratio: 1 / 1;
-      width: min(30vw, 100vh - 2 * var(--container-padding));
+      width: max(140px, min(30vw, 35vh, 100vh - 3 * var(--container-padding) - 480px));
       height: auto;
-      max-height: 100%;
-      align-self: flex-start;
       flex: 0 0 auto;
+      align-self: flex-start;
       min-width: 0;
     }
 
@@ -479,16 +504,15 @@
       height: 100%;
     }
 
-    /* 右側欄：fill 剩餘寬度，flex-col 把 random（flex:1）跟 privacy（auto）分上下。
-     * grow:1 撐滿剩餘、**shrink:0 不縮**（空間不足時縮的是 logo、不是這裡）、basis+min-width = scatter 不重疊的最小寬。
-     * --footer-min-scatter 由 footer-scatter.js 依「最寬卡的旋轉 bbox + gap + 餘裕」量測後設；未設時 fallback 480。 */
+    /* 上區：吃滿 logo bar 以上的全部高度；privacy absolute 相對此區（右側整高、copyright 貼底）。 */
     .footer-right {
-      flex: 1 0 var(--footer-min-scatter, 480px);
-      min-width: var(--footer-min-scatter, 480px);
+      flex: 1 1 0;
+      min-width: 0;
+      min-height: 480px;   /* 上區最低保證（同 logo 公式的 480）；撐不下時 footer 長高（見 .footer-shell） */
+      position: relative;
       display: flex;
       flex-direction: column;
       gap: 0;
-      position: relative;
       /* reset 手機 margin-top:auto（手機 align-bottom 用，桌面 flex-row 不需要） */
       margin-top: 0;
     }
@@ -582,12 +606,22 @@
      * 推開算法會基於這個更大的 rect → items 不會貼到 privacy 文字。content 留在 bottom-right 不動
      * （絕對定位 + 內容 auto-size：padding-top 讓 border-box 變高、content 仍貼底 → 視覺上等於「在 privacy 上方/左邊保留一片空地」） */
     .footer-privacy {
+      /* 上區右側整高：連結貼頂、copyright margin-top:auto 貼上區底（user：copyright 對齊 random 區底部）。
+       * 整條當一個 obstacle（卡片不進來）；padding-left 把 rect 往左擴 → 卡片不貼著 legal 文字（內容位置不變）。 */
       position: absolute;
-      bottom: 0;
+      top: 0;
       right: 0;
-      padding-top: var(--container-padding);
-      padding-left: var(--container-padding);
+      bottom: 0;
+      padding-left: clamp(var(--container-padding), 10vw, var(--spacing-5xl));   /* random 區↔legal 文字最小間距：寬螢幕 160（user 2026-09-27「pl 再大一點」，原 60）；1200 寬只給 120——1200×800 上區 707×337 塞 7 張、160 時初載 1/3 疊卡 */
       text-align: left;
+    }
+    .footer-privacy > div {
+      height: 100%;
+    }
+    /* :is 涵蓋已包/未包兩態：離頁退場 setupClipReveal 會把 copyright 包進 .clip-reveal-wrapper，
+     * flex item 變成 wrapper → 只寫在 copyright 上的 margin-top:auto 失效、copyright 跳到連結正下方 */
+    .footer-privacy > div > :is(.footer-copyright, .clip-reveal-wrapper:has(> .footer-copyright)) {
+      margin-top: auto;
     }
 
     .footer-privacy > div {
@@ -603,11 +637,11 @@
     }
   }
 
-  /* 矮橫向（寬可能 ≥768/1200 但走手機路徑、不散佈）：tab 沒 obstacle 定位 → 一律隱藏（走手機 footer）。
-   * 特異度 (0,2,0) 對齊上方 `.footer-random > .footer-tabs`、且排在其後 → 同時 match 時本規則勝。
-   * padding-top 歸零：橫向手機寬落在 768-1199 會誤吃平板段「tabs 預留高」的 padding-top（tabs 已藏、預留變空洞）。 */
+  /* 矮橫向（寬可能 ≥768/1200 但走手機路徑、不散佈）：2026-09-19 起 tabs 改顯示（手機式 tab 分頁，
+   * 版型在 landscape.css footer 區——unlayered 蓋回本檔平板段的 absolute/none），這裡只收 desktop-only
+   * 的 .footer-tab-reserve obstacle。padding-top 歸零：橫向手機寬落在 768-1199 會誤吃平板段
+   * 「tabs 預留高」的 padding-top（landscape.css 另給自己的 1rem）。 */
   @media (orientation: landscape) and (max-height: 500px) {
-    .footer-random > .footer-tabs,
     .footer-random > .footer-tab-reserve {
       display: none;
     }
