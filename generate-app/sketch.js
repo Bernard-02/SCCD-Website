@@ -30,11 +30,8 @@ function preload() {
   // 載入必要的字體
   font = _p5.loadFont(asset("generate-app/Inter-Medium.ttf"));
 
-  // 預載入彩蛋顯示圖片（_2 版本），確保彩蛋激活時能即時顯示
-  sccdBlackImg_2 = _p5.loadImage(asset('generate-app/Easter Egg/sccd_black_2.png'));
-  sccdWhiteImg_2 = _p5.loadImage(asset('generate-app/Easter Egg/sccd_white_2.png'));
-  sccdBlackWireframeImg_2 = _p5.loadImage(asset('generate-app/Easter Egg/SCCD_Black Wireframe_2.png'));
-  sccdWhiteWireframeImg_2 = _p5.loadImage(asset('generate-app/Easter Egg/SCCD_White Wireframe_2.png'));
+  // 彩蛋顯示圖（_2，~650KB）不放 preload：preload 擋 setup＝首進頁畫面晚出；改 setup 內非阻塞載，
+  // user 打完 SCCD 前早已載完
 
   // Placeholder SVG：必須在 preload 載入（不在 draw 延遲載），否則 SPA 重進 /create 時
   // 舊 image obj 綁在已銷毀 p5 instance，新 p5 不會自動重 load → drawPlaceholder 對 dead-instance obj 不渲染
@@ -82,6 +79,13 @@ function setup() {
   let canvasSize = getCanvasSize();
   let canvas = _p5.createCanvas(canvasSize.width, canvasSize.height);
   canvas.parent(canvasContainerId);
+
+  // 彩蛋顯示圖非阻塞載入（見 preload 註解）
+  const asset = window.SCCDHelpers.sitePath;
+  sccdBlackImg_2 = _p5.loadImage(asset('generate-app/Easter Egg/sccd_black_2.png'));
+  sccdWhiteImg_2 = _p5.loadImage(asset('generate-app/Easter Egg/sccd_white_2.png'));
+  sccdBlackWireframeImg_2 = _p5.loadImage(asset('generate-app/Easter Egg/SCCD_Black Wireframe_2.png'));
+  sccdWhiteWireframeImg_2 = _p5.loadImage(asset('generate-app/Easter Egg/SCCD_White Wireframe_2.png'));
 
   // --- 承襲 site theme mode ---
   // 從 sessionStorage 'sccd-theme-mode' 讀（site theme-toggle 寫入），必須在 updateUI() / body class init
@@ -866,11 +870,8 @@ function draw() {
       inputBoxOpacity = 1;
     }
 
-    // 2. Logo 和 Control panel 在打字機動畫結束後 + fadeInDelay 延遲後同時 fade in
-    // 打字機動畫持續時間：typewriterDuration (1200ms)
-    // 延遲時間：fadeInDelay (400ms)
-    // Logo 和 Panel 同時開始時間：typewriterDuration + fadeInDelay (1600ms)
-    let logoAndPanelStartTime = typewriterDuration + fadeInDelay;
+    // 2. Logo 和 Control panel 跟輸入框同時 fade in（2026-09-29 user：進頁直接 run，不等打字機）
+    let logoAndPanelStartTime = 0;
 
     // Logo fade in
     if (timeSinceLoad >= logoAndPanelStartTime && timeSinceLoad < logoAndPanelStartTime + fadeInDuration) {
@@ -1697,15 +1698,17 @@ function keyPressed() {
     return; // 如果焦點不在主輸入框，不處理按鍵事件
   }
 
-  // 當按下 ENTER 鍵時
+  // 當按下 ENTER 鍵時：play / pause toggle（同 rotate 鈕）
   if (_p5.keyCode === _p5.ENTER) {
-    // 如果有字母且不在彩蛋模式，就觸發自動旋轉
     if (letters.length > 0 && !isEasterEggActive) {
-      isAutoRotateMode = true;
-      autoRotate = true;
-      resetRotationOffsets();
+      if (!isAutoRotateMode) {
+        isAutoRotateMode = true;
+        autoRotate = true;
+      } else {
+        autoRotate = !autoRotate;
+      }
+      if (autoRotate) resetRotationOffsets();
 
-      // 更新按鈕icon為 Pause
       updateRotateIcon();
 
       updateUI();
