@@ -304,10 +304,11 @@ export function navChipHidden(el, dir = 'bottom') {
   const m = /rotate\((-?[\d.]+)deg\)/.exec(el.style.transform || '');
   const th = m ? parseFloat(m[1]) * Math.PI / 180 : 0;
   const [dx, dy] = d.v(el.offsetWidth || 0, el.offsetHeight || 0);
-  return {
-    clipPath: d.clip,
-    translate: `${(dx * Math.cos(th) - dy * Math.sin(th)).toFixed(2)}px ${(dx * Math.sin(th) + dy * Math.cos(th)).toFixed(2)}px`,
-  };
+  // ⚠️ 數字要去尾零（+toFixed）：GSAP 3.14 補間 translate 的「終點」若含 "0.00px"/"30.00px" 這種尾零字串會整段不補、
+  //   最後一幀才跳（退場只剩 clip-path 原地擦除＝user 2026-09-29「atlas 箭頭出場是 path 不是 clip reveal」）；進場起點不受影響
+  const tx = +(dx * Math.cos(th) - dy * Math.sin(th)).toFixed(2);
+  const ty = +(dx * Math.sin(th) + dy * Math.cos(th)).toFixed(2);
+  return { clipPath: d.clip, translate: `${tx}px ${ty}px` };
 }
 
 const _EXIT_CLIP_DIRS = [
