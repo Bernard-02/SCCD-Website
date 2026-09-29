@@ -88,13 +88,6 @@
     padding: 0 var(--spacing-md, 24px);        /* 上 0、左右 24px 留側角 clearance */
     padding-bottom: var(--spacing-2xl, 64px);  /* 捲到底緩衝（同其他三頁） */
   }
-  /* dept bar 左右外擴＝上面 scroll-col 的側邊 clearance 寬：bar 是 scroll-col 子層，自身 box 不含側邊
-     24px padding 帶 → 捲動時第 1/4 欄卡片旋轉側角投影進 clearance 區、bar 白色蓋不到（user 2026-08-24 報露角）。
-     負 margin 外擴到 scrollport 全寬＋等量 padding 補回 chip 原位。 */
-  #faculty-cards .faculty-dept-bar {
-    margin-inline: calc(-1 * var(--spacing-md, 24px));
-    padding-inline: var(--spacing-md, 24px);
-  }
 }
 /* ≥1200：nav＋content 區頂＝全站 nav line（variables.css --nav-line 184；logo 頂對齊鈕列後下移，2026-09-27）。
    平板維持 header+inner-pad */
@@ -109,17 +102,14 @@
     margin-left: calc(-1 * var(--spacing-md, 24px));
     width: calc(100% + 2 * var(--spacing-md, 24px));
   }
-  /* 框左外推 24 會伸進 col 3 右緣：1200 寬時 dept bar（sticky z-10 白底）蓋到 DCD 鈕右側 ~5px →
-     nav 欄疊上層（桌面 nav 欄背景透明，只有 DCD 鈕不透明，不擋卡片） */
+  /* 框左外推 24 會伸進 col 3 右緣 → nav 欄疊上層（桌面 nav 欄背景透明，不擋卡片；長英文 btn 略凸進 col 3 時不被框蓋） */
   #faculty-cards .inner-scroll-nav-col {
     position: relative;
     z-index: 11;
   }
 }
-/* 首列卡片 default 下移、不被 dept bar 切到（user 2026-08-24 晚定案，推翻同日稍早的「負 margin 塞進 bar 當
-   遮罩露水平上緣」——實看後首列一開始就被切不能接受）：bar 的 sticky 白色遮罩只在「捲動中」蓋經過的卡片；
-   靜止時首列含旋轉頂角要完整可見。正 margin 下限＝mask 頂角投影(238×sin6°/2≈12) − card padding 6 ≈ 6px
-   （再小頂角會伸進 bar 的 pb 白色區被切），取 sm(16) 留 10px 呼吸距。 */
+/* 首列卡片下移＝旋轉頂角 clearance：scroll-col padding-top 0，首列 mask 頂角投影(238×sin6°/2≈12) − card padding 6 ≈ 6px
+   會被 box 上緣裁 → 取 sm(16)。（2026-09-29 上方分類 bar 撤掉、分類鈕回左欄後，此 margin 改只當裁切 clearance） */
 #faculty-cards .faculty-card-wall {
   margin-top: var(--spacing-sm);
 }
@@ -135,27 +125,7 @@
     margin-bottom: 0;
   }
 
-  /* filter bar（專任/兼任/行政）sticky，**疊在已 sticky 的 DCD nav（本檔下方 .inner-scroll-nav-col top:88）下方**
-     （user 2026-09-06「專任 row 也要 sticky」；原本 top:92 只比 nav 88 低 4px → 整條被 nav z-40 蓋住＝看似沒 sticky＋被裁）：
-     - top = 88 + DCD nav 高（JS 量寫 --faculty-filter-top，faculty-filter.js；DCD 內容固定但 padding 隨改版變）；-2 tuck 消縫
-     - z-5 < DCD nav z-40：兩者疊放不重疊（pt clearance 讓旋轉頂角落在 nav 底下方）→ nav 恆在上、乾淨
-     - overflow-x-auto 會把 overflow-y 逼成 auto/hidden → 裁 active chip 旋轉頂角（user 報「上下 crop」）；明寫
-       overflow-y:clip（不出捲軸）＋padding-top sm(16) 給 ±6° 旋轉頂角 clearance（投影 ~8px），同時讓頂角清開 DCD 底
-     - bar 白 bg 蓋住捲到下方的卡片；translateZ(0)：pinned sticky 自帶 layer 免逐幀重繪抖動 */
-  #faculty-cards .faculty-dept-bar {
-    position: sticky;
-    top: var(--faculty-filter-top, 178px);
-    z-index: 5;
-    background: #fff;
-    overflow-y: clip;
-    padding-top: var(--spacing-sm);
-    transform: translateZ(0);
-    /* 旋轉 active pill 的左緣被吃掉：overflow-x-auto（4 顆 pill 手機橫捲用）＋overflow-y:clip 會把 x 軸升成
-       clip/hidden → 旋轉首顆 pill 的左頂角越過 content-box 左緣被裁。負 margin + 等量 padding「出血」給左緣
-       clearance（同 DCD nav 列 -mx-md/px-md 與桌面 bar，faculty.html:74 / lists.css:96）；needsClipX 裁掉視窗外溢出。 */
-    margin-inline: calc(-1 * var(--spacing-md, 24px));
-    padding-inline: var(--spacing-md, 24px);
-  }
+  /* 2026-09-29：原 DCD nav 下方另一條 sticky 分類 bar（--faculty-filter-top）已撤——分類鈕回到這條 nav strip 本身 */
 }
 
 /* ===== Panel Description（exhibitions / visits 分頁切換對應文字） =====

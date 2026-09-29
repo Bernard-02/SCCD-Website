@@ -183,8 +183,8 @@
     color: black;
   }
 
-  /* faculty 分類 filter 2026-08-24 由左直欄移到內容區上方橫向 bar（與系所鈕 DCD 調換）：
-   * 橫向排列 → 各顆 content 寬（shrink-0），不再 width:100% 撐滿側欄；DCD 系所鈕現占左欄、單顆 content 寬即可。 */
+  /* faculty 分類 filter：2026-08-24 曾移到內容區上方橫向 bar（與 DCD 系所鈕對調），2026-09-29 撤 DCD、回左直欄
+   * （同其他三頁 nav；色塊貼文字寬＝faculty-filter.js bindNavBtnFit）。 */
 
   /* ===== Activities Section Bar（手機水平 scroll；桌面 sticky vertical stack） =====
    * 手機：force row + overflow-x:auto + 兩側負 margin 延伸到 viewport 邊（courses-program-bar 同 pattern）

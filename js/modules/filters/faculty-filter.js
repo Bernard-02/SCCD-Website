@@ -297,22 +297,6 @@ export function initFacultyFilter(initialSection = null) {
   // 滾輪分區：col 1-3 捲 window（去 footer/hero）、col 4 起內部捲（box 邊界不外溢），見 section-switch-helpers
   bindFrameScrollSplit(document.getElementById('faculty-cards'));
 
-  // 手機直向：filter bar（專任/兼任/行政）疊在已 sticky 的 DCD nav（top:88）下方（user 2026-09-06「專任 row 也要 sticky」）。
-  // DCD nav 內容固定但高度隨 padding 改版變 → 量 nav 實高寫 --faculty-filter-top = 88 + navH − 2(tuck 消縫)，
-  // lists.css `.faculty-dept-bar { top: var(--faculty-filter-top) }` 消費。桌面/矮橫向清掉 var（走各自 sticky 規則）。
-  const updateFacultyFilterTop = () => {
-    const section = document.getElementById('faculty-cards');
-    if (!section) return;
-    const navCol = /** @type {HTMLElement|null} */ (section.querySelector('.inner-scroll-nav-col'));
-    const portraitMobile = window.innerWidth < 768 && window.matchMedia('(orientation: portrait)').matches;
-    if (navCol && portraitMobile) section.style.setProperty('--faculty-filter-top', `${88 + navCol.offsetHeight - 2}px`);
-    else section.style.removeProperty('--faculty-filter-top');
-  };
-  updateFacultyFilterTop();
-  if (document.fonts && document.fonts.status !== 'loaded') document.fonts.ready.then(updateFacultyFilterTop);
-  window.addEventListener('resize', updateFacultyFilterTop);
-  registerPageCleanup(() => window.removeEventListener('resize', updateFacultyFilterTop));
-
   // （手機 header 底色帶 .mobile-header-bg 已提升為全站元素：放 header.html、footer-near hide 在 header.js
   //   bindFooterScroll，2026-07-17。原 faculty 專屬 .faculty-header-bg + 此處 scroll listener 已移除。）
 
@@ -337,7 +321,7 @@ export function initFacultyFilter(initialSection = null) {
     .filter(Boolean);
   // 每顆固定一個隨機方向（reveal/hide 來回一致）；px 向量依當下寬高/角度、每次要藏重算
   const navDir = new Map(navInners.map(inner => [inner, pickNavDir(inner)]));
-  let exitInners = navInners;   // 離頁退場目標；矮橫向換成含 DCD 的 bandInners（見 landscape 分支）
+  let exitInners = navInners;   // 離頁退場目標（矮橫向 bandInners 同一組）
   if (typeof gsap !== 'undefined' && navInners.length && !prefersReducedMotion()) {  // 減少動態：nav 維持靜態可見
     navInners.forEach(inner => { inner.style.transition = 'none'; gsap.set(inner, navChipHidden(inner, navDir.get(inner))); });
     const section = document.getElementById('faculty-cards');
@@ -348,9 +332,8 @@ export function initFacultyFilter(initialSection = null) {
       // 同時（stagger:0）clip-reveal / clip-hide。fixed nav 被 clip 掉時 btn 外框仍在 → pointer-events 一併切。
       const navCol = /** @type {HTMLElement|null} */ (section.querySelector('.inner-scroll-nav-col'));
       if (navCol) navCol.style.pointerEvents = 'none';
-      // DCD 系所鈕（2026-08-24 與分類對調後住進 header 帶）併入同一個 hero gate：hero 上不出現、回 hero
-      // 收起（user 2026-09-19「hero 時不要出現 nav btn」）。原走下方 once-reveal＝捲過一次永駐、回 hero 不收。
-      const bandInners = navInners.concat(Array.from(section.querySelectorAll('.faculty-dept-btn .anchor-nav-inner')));
+      // 2026-09-29 DCD 系所鈕撤掉、分類鈕回左欄 → header 帶只剩分類鈕（hero gate：hero 上不出現、回 hero 收起）
+      const bandInners = navInners;
       bandInners.forEach(inner => {
         if (navDir.has(inner)) return;
         navDir.set(inner, pickNavDir(inner));
@@ -452,6 +435,7 @@ export function initFacultyFilter(initialSection = null) {
 
   // 初始隨機角＋桌面 hover 抽新角（離開保持），見 section-switch-helpers
   bindNavBtnSpin(filterButtons);
+  bindNavBtnFit(filterButtons);   // 左欄窄、長英文折行 → 色塊貼文字寬（四頁 nav 共用 helper；2026-09-29 分類鈕回左欄）
 
   // Filter button click event
   filterButtons.forEach(button => {
@@ -527,84 +511,6 @@ export function initFacultyFilter(initialSection = null) {
     btn.addEventListener('pointerenter', warm);
     btn.addEventListener('focusin', warm);
   });
-
-  // ── Department tabs（老師分頁；第二系所暫無資料＝空 roster；user 2026-08-23 先確認位置）──
-  // 沿用 category filter 的 exit → 切換 → enter 流程；chip active accent 同 setActiveStyle 做法。
-  const deptButtons = document.querySelectorAll('.faculty-dept-btn');
-  if (deptButtons.length) {
-    // btn 色塊貼文字寬（CMS label 折行時盒不 hug 最長行）＝四頁共用 helper，見 section-switch-helpers
-    bindNavBtnFit(deptButtons);
-    bindNavBtnSpin(deptButtons);   // 初始隨機角＋桌面 hover 抽角（離開保持）
-    const setDeptActiveStyle = (activeBtn, color) => {
-      deptButtons.forEach(b => {
-        const inner = /** @type {HTMLElement|null} */ (b.querySelector('.anchor-nav-inner'));
-        if (inner) inner.style.background = '';   // transform 不清：角度常駐（hover 抽角後保持）
-      });
-      const inner = /** @type {HTMLElement|null} */ (activeBtn.querySelector('.anchor-nav-inner'));
-      if (inner) {
-        inner.style.background = color;
-        // 桌面沿用 hover 當前角；手機/矮橫向 click 現抽
-        if (!isNavSpinDesktop()) inner.style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`;
-      }
-    };
-    deptButtons.forEach(button => {
-      button.addEventListener('click', function() {
-        if (this.classList.contains('active')) { SCCDHelpers.scrollToElement('#faculty-cards'); this.blur(); return; }
-        setDeptActiveStyle(this, navHoverColor(this) || SCCDHelpers.getRandomAccentColor());
-        SCCDHelpers.setActive(this, deptButtons);
-        const dept = this.getAttribute('data-dept');
-        const currentlyVisible = Array.from(facultyCards).filter(c => /** @type {HTMLElement} */ (c).style.display !== 'none');
-        exitFacultyCards(currentlyVisible, () => {
-          if (dept === 'sccd') {
-            // 還原目前分類（fulltime/parttime/admin）的卡片並重播進場
-            const cat = document.querySelector('.faculty-filter-btn.active')?.getAttribute('data-filter') || 'fulltime';
-            SCCDHelpers.filterElements(facultyCards, cat);
-            animateFacultyCards(Array.from(facultyCards).filter(c => c.getAttribute('data-category') === cat));
-          } else {
-            facultyCards.forEach(c => { /** @type {HTMLElement} */ (c).style.display = 'none'; });
-          }
-        });
-        this.blur();
-      });
-    });
-    const defDept = [...deptButtons].find(b => b.getAttribute('data-dept') === 'sccd');
-    if (defDept) setDeptActiveStyle(defDept, SCCDHelpers.getRandomAccentColor());
-
-    // Dept tag 進出場：比照 activities sub-filter chip 的 hero clip-reveal（純垂直由下滑入——不套 navChipHidden，
-    // 免 active chip 的隨機 rotate 把位移向量轉斜；clip/translate 套在 .anchor-nav-inner 本身，旋轉角不被裁）。
-    // 進場＝section 進視窗（同左 nav reveal 時機）；退場＝離頁。transition:'none' 解 navigation.css `transition:all` 衝突。
-    // 矮橫向不走這套：DCD 在 header 帶、已併入上方 hero gate setNav（once-reveal 會「捲過一次永駐、回 hero 不收」
-    // ＝hero 上冒出 nav btn，user 2026-09-19）；同一顆 inner 不能雙驅動。
-    const deptInners = [...deptButtons].map(b => /** @type {HTMLElement|null} */ (b.querySelector('.anchor-nav-inner'))).filter(Boolean);
-    const deptHidden = (el) => ({ clipPath: 'inset(0% 0% 100% 0%)', translate: `0px ${el.offsetHeight || 0}px` });
-    const deptInBand = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
-    if (typeof gsap !== 'undefined' && deptInners.length && !prefersReducedMotion() && !deptInBand) {
-      let deptRevealed = false;
-      deptInners.forEach(el => { el.style.transition = 'none'; gsap.set(el, deptHidden(el)); });
-      const playDeptReveal = () => {
-        if (deptRevealed) return;
-        deptRevealed = true;
-        deptInners.forEach(el => { el.style.transition = 'none'; });
-        const hid = deptInners.map(deptHidden);
-        gsap.fromTo(deptInners,
-          { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate },
-          { ...NAV_CHIP_SHOWN, duration: DUR.slow, ease: EASE.enter, stagger: 0.08, clearProps: 'clipPath,transition,translate' });
-      };
-      const deptSection = document.getElementById('faculty-cards');
-      const deptInView = deptSection && deptSection.getBoundingClientRect().top < window.innerHeight * 0.9;
-      if (!deptSection || deptInView || typeof ScrollTrigger === 'undefined') playDeptReveal();
-      else ScrollTrigger.create({ trigger: deptSection, start: 'top 90%', once: true, onEnter: playDeptReveal });
-      registerPageExit(() => new Promise(resolve => {
-        if (!deptRevealed) { resolve(); return; }
-        gsap.killTweensOf(deptInners);
-        deptInners.forEach(el => { el.style.transition = 'none'; });
-        const hid = deptInners.map(deptHidden);
-        gsap.fromTo(deptInners,
-          { ...NAV_CHIP_SHOWN },
-          { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate, duration: DUR.base, ease: EASE.exit, stagger: 0.06, overwrite: true, onComplete: resolve });
-      }));
-    }
-  }
 
   // Initialize：預設 fulltime，或 site map deep-link 指定的分類（parttime/admin/founder）。
   const VALID_SECTIONS = new Set(['fulltime', 'parttime', 'admin', 'founder']);
