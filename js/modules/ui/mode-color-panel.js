@@ -14,12 +14,14 @@
  *   色環/鉛筆方鈕只剩 <1200。兩套 DOM 都建、CSS 依 gate 顯示其一；open/close 呼叫當下判 isDesk()
  */
 import { DUR, EASE } from './motion.js';
-import { clipRevealIconSwap } from './scroll-animate.js';
+import { clipRevealIconSwap, ensureIconClipWrap } from './scroll-animate.js';
+import { randomSpinAngle } from './arrow-spin.js';
 import { setColorHue, getColorHue, startSiteColorLoop, stopSiteColorLoop, isColorLoopRunning } from './theme-toggle.js';
 
 const isDesk = () => window.matchMedia('(min-width: 1200px) and (min-height: 501px)').matches;
 const CAP_H = 48;    // 圓鈕直徑＝capsule 高（同 header mode/menu 鈕 48）
 const CAP_W = 268;   // 展開寬＝左圓角留白 20 + 色條 160 + 間距 8 + play 32 + chevron 格 48（css .mcp-cap-row 同步）
+const ICON_SWAP = 0.4;   // chevron clipRevealIconSwap 每半段秒數；色條/play 進退場也用同長度
 
 // 手機直向：整個面板白框以 faculty 卡片牆縮圖寬為基準再乘 PANEL_SCALE（每欄 = 50vw − 36，
 // container-padding 24 + gap 24；上限 200＝卡片上限）。白框 = 色環 + 2×16 padding，故色環 = 白框 − 32。
@@ -30,7 +32,7 @@ const WHEEL = window.innerWidth < 768
   : 72;   // 色環尺寸，桌面同 create
 
 let root, pencilBtn, panel, panelMask, canvas, playBtn, playIcon, svgEl, indEl;
-let cap, capToggle, capIcon, capPlay, bar, barTrack, barInd, playIcons = [];
+let cap, capToggle, capIcon, capPlay, bar, barTrack, barInd, barIndWrap, capReveal, playIcons = [];
 let openedDesk = false;   // 開啟時走哪套（close 用它、不重判 isDesk()：開著跨 1200 gate 也收對那套）
 let isOpen = false;
 let dragging = false;
@@ -38,6 +40,7 @@ let redrawRAF = null;
 let overFooter = false;
 let scrollScheduled = false;
 let wheelRot = 0;   // box 隨機微傾角（deg），每次開啟重擲；掛 panel mask 的 CSS rotation，drag 角度要扣回
+let toggleDeg = 0;    // 鉛筆格目前的目標角（讀 GSAP 現值會拿到補間中間值）
 
 /* ── HSB→RGB（對齊 create / theme-toggle 的 color(hue,80,100) HSB）── */
 function hsbToRgb(h, s, v) {
@@ -64,7 +67,12 @@ function drawWheel() {
   const hue = getColorHue();
   svgEl.style.color = hueIsLight(hue) ? '#fff' : '#000';   // 內外圈 + indicator 描邊對比 panel 底
   indEl.setAttribute('transform', `rotate(${hue} 36 36)`);
-  barInd.style.left = `${(((hue % 360) + 360) % 360) / 3.6}%`;   // 色條直線 indicator（線性；wrap 時右端跳左端＝兩端同紅）
+  // 色條直線 indicator：hue 0~360 線性對到整條寬（含圓角端，0/360 都是紅）。wrap 走 create 手機 bar 的「循環繪製」：
+  // 主線滑出右緣多少、複本就從左緣進來多少（複本永遠在主線的另一側 ±100%），hue 359.9→0 那一幀主線位置＝複本位置
+  // ＝無縫接手，不再「到右邊直接跳回左邊」（user 2026-09-29）。.mcp-bar overflow:hidden 負責裁切出界部分。
+  const pct = (((hue % 360) + 360) % 360) / 3.6;
+  barInd.style.left = `${pct}%`;
+  barIndWrap.style.left = `${pct >= 50 ? pct - 100 : pct + 100}%`;
 }
 
 function redrawLoop() {
@@ -90,7 +98,7 @@ const DRAG_THRESHOLD = 3;   // px：超過才視為拖曳（觸控微抖不取�
 function killHueTween() {
   if (hueTween) { hueTween.kill(); hueTween = null; }
 }
-// 色條：中間 track（圓角兩端補紅之外）＝0~360（同 create 手機 bar 線性映射）；點到補紅端 clamp 成 0/360
+// 色條：整條寬（track 滿版，圓角只裁形狀）＝0~360 線性映射，與 indicator 同一座標；點到條外 clamp 成 0/360
 function barHue(e) {
   const r = barTrack.getBoundingClientRect();
   return Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) * 360;
@@ -191,10 +199,20 @@ function open() {
   if (openedDesk) {
     capPlay.tabIndex = 0;   // 展開才可 Tab 到（收起時 play 在圓外被裁、看不見）
     // 圓往左拉長（mask right 錨定、row 靠右固定寬 → 長出來的部分由右往左露出色條/play）；鉛筆換 chevron
-    if (typeof gsap !== 'undefined') gsap.to(cap, { width: CAP_W, duration: DUR.medium, ease: EASE.enter, overwrite: 'auto' });
+    // 先殺 width：收起那支帶 delay、還沒開跑的縮寬 tween 'auto' 抓不到，不殺＝收起 0.4s 內重開會被它縮回去
+    if (typeof gsap !== 'undefined') {
+      gsap.killTweensOf(cap, 'width');
+      gsap.to(cap, { width: CAP_W, duration: DUR.medium, ease: EASE.enter, overwrite: 'auto' });
+    }
     else cap.style.width = CAP_W + 'px';
     cap.classList.add('is-active');   // 展開中＝反色（css .mcp-cap.is-active）
-    clipRevealIconSwap(capIcon, 'icon icon-chevron-right');
+    clipRevealIconSwap(capIcon, 'icon icon-chevron-right', { duration: ICON_SWAP });
+    // 時序（user 2026-09-29）：capsule 長＋chevron 換入（0→2×ICON_SWAP）→ 之後色條＋play icon 才進場；
+    // fromTo 立即套起點＝前段期間兩者已藏在各自貼身遮罩下；色條上下隨機、play icon 固定由下（user 2026-09-29）
+    if (typeof gsap !== 'undefined') {
+      gsap.fromTo(capReveal, { yPercent: (i, el) => (el === bar && Math.random() < 0.5 ? -100 : 100) }, { yPercent: 0, duration: ICON_SWAP, ease: 'power2.out',
+        delay: ICON_SWAP * 2, overwrite: true, clearProps: 'transform' });
+    }
     capToggle.setAttribute('aria-expanded', 'true');
   } else if (typeof gsap !== 'undefined') {
     gsap.set(panelMask, { rotation: wheelRot });   // 微傾在 mask（drag 用 wheelRot 補償）
@@ -237,15 +255,18 @@ function close(instant, opts = {}) {
     capPlay.tabIndex = -1;
     cap.classList.remove('is-active');   // 收起一開始就翻回（跟展開對稱：狀態變了色就變，不等寬度收完）
     if (instant || typeof gsap === 'undefined') {
+      if (typeof gsap !== 'undefined') gsap.killTweensOf(capReveal);   // 還在等 delay 的 reveal 別在收合後升起
       capIcon.className = 'icon icon-pencil';
       if (typeof gsap !== 'undefined') gsap.set(cap, { width: CAP_H, xPercent: pencilReturn ? 0 : 100 });
       else cap.style.width = '';
       finish(); return;
     }
-    clipRevealIconSwap(capIcon, 'icon icon-pencil');
+    // 展開的反序（user 2026-09-29）：色條＋play icon 先收進遮罩（方向上下隨機）→ 收完 chevron 才換回鉛筆＋capsule 縮
+    gsap.to(capReveal, { yPercent: Math.random() < 0.5 ? 100 : -100, duration: ICON_SWAP, ease: 'power2.out', overwrite: true });
+    clipRevealIconSwap(capIcon, 'icon icon-pencil', { duration: ICON_SWAP, delay: ICON_SWAP });
     // 收回圓；gate 藏起（pencilReturn=false）＝收完再整顆滑出遮罩
-    // 收完才判：收的 0.5s 內 gate 又翻回 show（捲到 footer 又立刻捲回）＝updateVisibility 已把圓滑回，別再把它送出遮罩
-    gsap.to(cap, { width: CAP_H, duration: DUR.medium, ease: EASE.enter, overwrite: 'auto', onComplete: () => {
+    // 收完才判：收的途中 gate 又翻回 show（捲到 footer 又立刻捲回）＝updateVisibility 已把圓滑回，別再把它送出遮罩
+    gsap.to(cap, { width: CAP_H, duration: DUR.medium, ease: EASE.enter, delay: ICON_SWAP, overwrite: 'auto', onComplete: () => {
       if (pencilReturn || wasShown) finish();
       else gsap.to(cap, { xPercent: 100, duration: DUR.medium, ease: EASE.enter, overwrite: 'auto', onComplete: finish });
     } });
@@ -368,7 +389,7 @@ function build() {
     <div class="mcp-cap-mask">
       <div class="mcp-cap" role="group" aria-label="背景色 Background colour">
         <div class="mcp-cap-row">
-          <div class="mcp-bar" aria-hidden="true"><div class="mcp-bar-track"><span class="mcp-bar-ind"></span></div></div>
+          <div class="mcp-bar-mask"><div class="mcp-bar" aria-hidden="true"><div class="mcp-bar-track"><span class="mcp-bar-ind"></span><span class="mcp-bar-ind mcp-bar-ind--wrap"></span></div></div></div>
           <button class="mcp-cap-play" type="button" aria-label="播放 / 暫停 背景色循環 Play / pause">
             <span class="icon icon-play" aria-hidden="true"></span>
           </button>
@@ -393,10 +414,13 @@ function build() {
   capIcon = capToggle.querySelector('.icon');
   bar = root.querySelector('.mcp-bar');
   barTrack = root.querySelector('.mcp-bar-track');
-  barInd = root.querySelector('.mcp-bar-ind');
+  barInd = root.querySelector('.mcp-bar-ind:not(.mcp-bar-ind--wrap)');
+  barIndWrap = root.querySelector('.mcp-bar-ind--wrap');   // wrap 進場複本（drawWheel 定位）
   capPlay = root.querySelector('.mcp-cap-play');
   capPlay.tabIndex = -1;
   playIcons = [playIcon, capPlay.querySelector('.icon')];
+  ensureIconClipWrap(playIcons[1]);   // play icon 貼身遮罩（色條的在 HTML .mcp-bar-mask）
+  capReveal = [bar, playIcons[1]];
 
   // 手機放大：CSS 顯示尺寸跟 WHEEL 走（panel = wheel + 2×16 padding）；桌面 72 由 CSS 顧，不覆蓋。
   // play/pause 鈕與 icon 依 WHEEL 等比放大（桌面 72→30/16），維持與色環同比例
@@ -423,6 +447,16 @@ function build() {
   playBtn.addEventListener('click', onPlayClick);
   capPlay.addEventListener('click', onPlayClick);
   capToggle.addEventListener('click', () => (isOpen ? close(false) : open()));
+  // 鉛筆／chevron 格 hover 抽角（user 2026-09-29，全站 −4~+6、離開保持）：轉這一格（收起時＝圓鈕本身，圓轉了看不出＝轉 icon），
+  // 不轉整顆 .mcp-cap——展開成 268 寬 capsule 一歪兩端就被 .mcp-cap-mask 的 overflow 裁掉。GSAP rotation（mode3 下 CSS transition 不可靠）；
+  // 這格沒有別的 GSAP transform（icon 換裝動的是內層 .icon、進退場動的是 .mcp-cap）。
+  // 角度一路延續：開／關的 click 不重抽也不回退——icon 換裝的 clip-reveal 與收回後的鉛筆都停在點擊當下的角（user「不是 0°」：
+  // 用 bindArrowSpin 時沒 hover 的 click 會重抽、回退鉛筆角又常落在近 0°，看起來像歸零）
+  capToggle.addEventListener('mouseenter', () => {
+    toggleDeg = randomSpinAngle(toggleDeg);
+    if (typeof gsap === 'undefined') { capToggle.style.transform = `rotate(${toggleDeg}deg)`; return; }
+    gsap.to(capToggle, { rotation: toggleDeg, duration: DUR.fast, ease: EASE.enterSoft, overwrite: 'auto' });
+  });
   bar.addEventListener('pointerdown', onBarDown);
   canvas.addEventListener('pointerdown', onCanvasDown);
   window.addEventListener('pointermove', onWinMove);

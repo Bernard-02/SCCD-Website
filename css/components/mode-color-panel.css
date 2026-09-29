@@ -159,15 +159,23 @@ html.has-slide-in #mode-color-panel { display: none !important; }
   padding-left: 20px;       /* 左端圓角內留白 */
 }
 /* 色條＝create 手機版長條：膠囊圓角（user 2026-09-28）；框線＋直線 indicator 走 currentColor＝色環圈線同色。
-   圓角兩端補紅（hue 0＝360）、可選範圍＝中間 track（左右各縮 8＝內高一半），同 create 手機 bar 的 circleRadius 補紅 */
+   track 滿版（2026-09-29）：漸層兩端本來就是紅（hue 0＝360）、圓角只裁形狀，不再左右各留 8px 補紅——
+   indicator 才能真的滑到右緣、再從左緣進場（wrap 複本，見 mode-color-panel.js drawWheel），且 barHue 點擊
+   與 indicator 同一座標系。線 2px 進出圓角時被弧形逐漸裁掉＝自然的出場／進場。 */
+/* 色條 clip-reveal 的貼身遮罩（capsule 長完才升起，mode-color-panel.js open）；flex 寬掛這層，色條本體 block 撐滿 */
+.mcp-bar-mask {
+  flex: 0 0 160px;
+  overflow: clip;
+}
 .mcp-bar {
   position: relative;
-  flex: 0 0 160px;
   height: 20px;
   box-sizing: border-box;
   border: 2px solid currentColor;
   border-radius: 10px;
-  overflow: hidden;
+  /* clip＋margin 1：indicator 上下各伸 1px 疊進同色框線，補掉兩道 AA 邊緣相接的縫（user 2026-09-29「curve 那邊少 1px」） */
+  overflow: clip;
+  overflow-clip-margin: 1px;
   background: #f33;
   cursor: var(--cursor-pointer);
   touch-action: none;
@@ -177,15 +185,16 @@ html.has-slide-in #mode-color-panel { display: none !important; }
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 8px;
-  right: 8px;
+  left: 0;
+  right: 0;
+  border-radius: 8px;       /* ＝框內圓角（10 − 2）：clip 外推 1px 後，方角漸層會在兩端弧線吃掉框線，自己裁回 */
   background: linear-gradient(to right, #f33, #ff3, #3f3, #3ff, #33f, #f3f, #f33);
   pointer-events: none;
 }
 .mcp-bar-ind {
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: -1px;
+  bottom: -1px;
   width: 2px;
   margin-left: -1px;
   background: currentColor;

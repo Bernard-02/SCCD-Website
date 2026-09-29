@@ -98,14 +98,15 @@ export function ensureIconClipWrap(iconEl) {
 const _ICON_REVEAL_DIRS = [{ yPercent: -100 }, { yPercent: 100 }, { xPercent: -100 }, { xPercent: 100 }];
 // 隨機四向：滑出遮罩 → 換 icon class → 同向滑入（= hide 的時間反向，連續不跳）
 // duration＝每半段秒數（總長 ×2）；預設 0.4（mcp cap 鈕）、桌面漢堡鈕傳 DUR.fast 讓總長貼齊選項收起
-export function clipRevealIconSwap(iconEl, newClass, { duration = 0.4 } = {}) {
+// delay 掛在滑出 tween 上（非 delayedCall）＝下一次呼叫的 killTweensOf 殺得到還沒開跑的 swap
+export function clipRevealIconSwap(iconEl, newClass, { duration = 0.4, delay = 0 } = {}) {
   if (!iconEl) return;
   if (typeof gsap === 'undefined') { if (newClass) iconEl.className = newClass; return; }
   ensureIconClipWrap(iconEl);
   const dir = _ICON_REVEAL_DIRS[Math.floor(Math.random() * 4)];
   gsap.killTweensOf(iconEl);
   gsap.to(iconEl, {
-    ...dir, duration, ease: 'power2.out', overwrite: true,
+    ...dir, duration, delay, ease: 'power2.out', overwrite: true,
     onComplete: () => {
       if (newClass) iconEl.className = newClass;
       gsap.fromTo(iconEl, dir,
