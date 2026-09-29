@@ -355,6 +355,8 @@ function subscribeNewsHover(enterFn, leaveFn) {
   if (newsHoverActive) enterFn();
 }
 export function applyNewsHover() {
+  // 已在遮蔽態不重跑：點 WATCH 時 chars reparent 觸發 phantom mouseenter → 圖片卡色塊重抽變色（user 2026-09-29）
+  if (newsHoverActive) return;
   newsHoverActive = true;
   newsHoverListeners.enter.forEach(fn => fn());
 }

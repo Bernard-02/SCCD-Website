@@ -581,6 +581,15 @@
     .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-info, .footer-unit) :is(h6, p, a, span) {
       color: #000;
     }
+    /* 資訊卡整張可點（user 2026-09-29「hover item 的 box 就 pointer，不必滑到文字」）：卡內連結 ::after 撐滿整張卡＝
+     * 點框任何處＝點該連結（EN/ZH 兩行本就同網址），游標／新分頁／狀態列網址／鍵盤焦點都是原生 a 行為。無連結卡（tel/fax）不受影響。
+     * ⚠️卡片本身不加 position:relative：包 anchor 前卡是 `.footer-random > div` 的 absolute（shrink-to-fit 量自然寬給散佈用），
+     *   蓋成 relative 會變 in-flow 滿寬、散佈量錯 → 定位框直接用外層 absolute 的 .footer-anchor（未包時＝卡自己），兩者都貼卡緣。 */
+    .footer-random .footer-info a::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+    }
 
     /* footer-anchor (JS 動態包) = position: absolute + opacity: 0 預設；overflow:clip 由 JS 設（clip-reveal 遮罩）。
      * 內層 item 進出場做 yPercent clip-reveal（由遮罩底緣升起/沉入；user 2026-08-10 由 08-08「純位移不裁」改回 clip-reveal）；
