@@ -305,8 +305,12 @@
   #class-buttons-sticky .class-division-btn[data-division="creative-media"] {
     max-width: 211px;   /* 首行 "Division of Creative"(md 191)＝於 Creative 後折 */
   }
-  /* 不設 flex-shrink:0：≥1500 內容+gap 有餘裕不 shrink＝斷點正確；<~1440 容器擠不下時讓 flex 自然
-     shrink 折多行、留在畫面內（勝過 shrink:0 整排飛出）。program/works 共用 gap-lg(32px)＝gap 一致（user）。 */
+  /* ≥1200 不 shrink、整排往右延伸出欄（user 2026-09-29）：works 模式多展開 Design Fundamental，1440 擠不下 →
+     flex shrink 把各鈕壓到 max-width 以下多折 1~2 行，鈕高超過固定列高（--about-pill-row-h）被 sticky 的 clip-path 裁底。
+     平板 768-1199 維持 shrink（全排加總 ~1010 會出畫面）。program/works 共用 gap（gutter+sm＝36）＝gap 一致（user）。 */
+  @media (min-width: 1200px) and (min-height: 501px) {
+    #class-buttons-sticky .grid-20 > div > * { flex-shrink: 0; }
+  }
   /* MDES（沒有 BFA 小標題）對齊左邊兩組「小標題＋btn」整組的中線（user 2026-09-28 二輪：要含小 tab 高度，不是只對主鈕）：
      整排 items-end＝btn 底對齊；小標題 absolute 不佔 flow → 排高＝最高那顆 btn → self-center 只會對到 btn 中線。
      再用負 margin-top 把中心往上推：self-center 置中的是 margin box，負 margin X ＝ 盒子上移 X/2 →
@@ -336,9 +340,9 @@
     max-width: 0;
     overflow: visible;
     pointer-events: none;
-    /* 抵消 flex gap（容器 gap-lg，about.html #class-buttons-sticky row）；⚠️gap token 改動要同步這裡，
-       否則收起時淨差＝整排左/右偏（2026-09-10：gap xl→lg 沒同步、xl 多扣 16px 整排左偏 16 修正） */
-    margin-right: calc(-1 * var(--spacing-lg));
+    /* 抵消 flex gap（容器 gutter+sm＝36，同 works 文字↔影片 gap，user 2026-09-29；about.html #class-buttons-sticky row）；
+       ⚠️gap 改動要同步這裡，否則收起時淨差＝整排左/右偏（2026-09-10：gap xl→lg 沒同步、整排左偏 16 修正） */
+    margin-right: calc(-1 * (var(--spacing-gutter) + var(--spacing-sm)));
     /* right 用 calc(100% + 40px) 確保左側 -40px 的 clearance 也被裁掉
        避免 max-width:0 時左邊殘留一條可見區 */
     clip-path: inset(-40px calc(100% + 40px) -40px -40px);

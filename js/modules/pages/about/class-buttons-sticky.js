@@ -69,7 +69,9 @@ export function initClassButtonsSticky() {
   // 高視窗 start 在落點而非更早 → class→works 過渡仍全程釘住（保留 2026-07-03「落到 works 完整停 100px 線」）。
   // 2026-09-10 user：原高視窗「綁 wrapper 底（works 結尾）」釋放太晚——離開 works 的前 ~70% 行程 btn 凍住、
   // 內容自己走，看起來 sticky 不放 → 改回矮視窗同款「過落點即 1:1 跟內容滑出」。
-  const tallViewport = window.matchMedia('(min-height: 900px)').matches;
+  // ≥1200 桌面改「上下同錨」框（scroll-snap.css，2026-09-29）：不分高度 works 都落 top 0、鈕列 sticky 0 → 同高視窗路徑
+  const tallViewport = window.matchMedia('(min-height: 900px)').matches
+    || window.matchMedia('(min-width: 1200px) and (min-height: 501px)').matches;
   if (isLandscapeMobile) {
     /* CSS sticky 全權處理，這裡不做事 */
   } else {

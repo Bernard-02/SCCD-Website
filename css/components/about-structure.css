@@ -159,7 +159,11 @@
      md:pt-[var(--nav-line)]，components 內要 !important 才蓋得掉（同 accordion.css #resources）。平板 768-1199 維持 nav line。 */
   @media (min-width: 1200px) and (min-height: 501px) {
     .prog-legend-stack { top: calc(100svh - var(--header-logo-mid)); }
-    #program-structure { padding-top: var(--header-logo-mid) !important; }
+    #program-structure { padding-top: var(--header-logo-mid) !important; padding-bottom: var(--header-logo-mid) !important; }   /* 上下同錨（user 2026-09-29，見 scroll-snap.css about 框） */
+    /* 層距隨可用高收：樹本體（chip＋reserve，扣掉兩段層距）實測 ~280 固定，兩段層距分「框高 − 本體」；
+       高螢幕封頂原 128（4xl）、扁螢幕最低 64（2xl，再矮就讓 section 長高照舊往下捲）→ 樹不溢出 98 框。
+       內容尺寸（字級／chip）不縮，只縮宏觀留白（分桶原則）；連綫／fan 由 JS 量實際位置、自動跟上。 */
+    #program-structure { --prog-level-gap: clamp(var(--spacing-2xl), calc((100svh - 2 * var(--header-logo-mid) - 280px) / 2), var(--spacing-4xl)); }
   }
   /* mode3：右下角有全域 mode-color-panel 浮鈕（鉛筆 48 / 色輪 104），stack 左移避讓（比照 atlas.css #atlas-detail-mask）。 */
   @media (min-width: 768px) {
@@ -168,6 +172,13 @@
       right: max(calc(var(--container-padding) + (100vw - 2 * var(--container-padding) - 19 * var(--spacing-gutter)) / 10 + 2 * var(--spacing-gutter)),
                  calc(var(--mcp-footprint-x, 48px) + 16px));
       transition: right var(--dur-base) ease;   /* 色輪開合時位置平移；clip-path/translate 走 GSAP 不掛 transition */
+    }
+  }
+  /* ≥1200 capsule 展開（往左長到 268）不推卡（user 2026-09-29）：收起圓鈕本就在 col-18 右緣外、max() 恆取 col-18，
+     只剩展開那一下會推 → 直接釘 col-18 */
+  @media (min-width: 1200px) and (min-height: 501px) {
+    body.mode-color .prog-legend-stack {
+      right: calc(var(--container-padding) + (100vw - 2 * var(--container-padding) - 19 * var(--spacing-gutter)) / 10 + 2 * var(--spacing-gutter));
     }
   }
   /* 每張卡：column（title 殼在上、bar 在下）；整卡黑底、各自旋轉＋clip-reveal（about-structure.js） */

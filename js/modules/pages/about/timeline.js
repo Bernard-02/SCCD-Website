@@ -510,8 +510,8 @@ export function initTimeline() {
     const listView = document.createElement('div');
     listView.id = 'timeline-list-view';
     listView.style.display = 'none';
-    // 連續清單（2026-09-08 user 改版）：所有時期一路往下捲、無切換箭頭；era 移到左欄（.tl-era-label）＝
-    // 「era｜年份｜說明」三欄，取代舊的「單一 era 標頭 + 右箭頭 loop」。
+    // 連續清單（2026-09-08 user 改版）：所有時期一路往下捲、無切換箭頭，取代舊的「單一 era 標頭 + 右箭頭 loop」。
+    // era 標籤（.tl-era-label）一行壓在該組年份列上方 sticky、對齊年份（2026-09-29 由左欄搬過來；版面見 lists.css）。
     listView.innerHTML =
       '<div class="tl-list-grid"><div class="tl-list-cell">' +
         '<div class="tl-list-rect timeline-card-inner"><div class="tl-list-content">' +
@@ -547,7 +547,8 @@ export function initTimeline() {
       return { heading, en, zh };
     }
 
-    // 全時期連續渲染：每個 era 一組（左欄 era 標籤 + 右側年份列）；年份不再 bold（user 2026-09-08）。
+    // 全時期連續渲染：每個 era 一組（era 標籤列 + 年份列）；年份不再 bold（user 2026-09-08）。
+    // 標籤 EN/ZH 兩 span 之間留一個空白：桌面一行「EN ZH」靠它隔開；手機兩 span display:block 時空白不佔行。
     function renderAllEras() {
       listYears.innerHTML = eraGroups.map(era => {
         const rows = era.years.map(y => {
@@ -566,33 +567,36 @@ export function initTimeline() {
           '</div>';
         }).join('');
         return '<div class="tl-era-group">' +
-          `<div class="tl-era-label text-s font-bold"><span class="tl-era-en">${era.title}</span><span class="tl-era-zh" lang="zh-Hant">${era.label}</span></div>` +
+          `<div class="tl-era-label text-s font-bold"><span class="tl-era-en">${era.title}</span> <span class="tl-era-zh" lang="zh-Hant">${era.label}</span></div>` +
           `<div class="tl-era-body">${rows}</div>` +
         '</div>';
       }).join('');
       listYears.scrollTop = 0;
     }
 
-    // 手機兩層 sticky（era 標籤釘頂 + 年份釘標籤下方）：量每個 era 的標籤實高寫進該組 --tl-era-label-h，
-    // 年份的 sticky top 用它 → 標籤長短不一時年份接得剛好（房規：多層 sticky offset 量高寫 var）。
-    // 桌機清掉（era/年份各自成欄，走 CSS top:0）。需 display:block 後才量得到高度。
+    // 兩層 sticky（era 標籤釘頂 + 年份釘標籤下方；桌面手機同套）：量每個 era 的標籤實高寫進該組 --tl-era-label-h，
+    // 年份的 sticky top 用它 → 標籤高度不一（手機兩行／桌面一行）時年份接得剛好（房規：多層 sticky offset 量高寫 var）。
+    // 需 display:block 後才量得到高度。
     function measureStickyOffsets() {
-      const mobile = window.innerWidth < 768 || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
       listView.querySelectorAll('.tl-era-group').forEach(g => {
-        if (!mobile) { g.style.removeProperty('--tl-era-label-h'); return; }
         const label = g.querySelector('.tl-era-label');
         if (label) g.style.setProperty('--tl-era-label-h', `${Math.ceil(label.getBoundingClientRect().height)}px`);
       });
+      // 捲動容器也寫一份（首組標籤高）→ 桌面 scrollbar 軌道從第一個 item 起算（lists.css .tl-list-years track margin-top）
+      listYears.style.setProperty('--tl-era-label-h', listYears.firstElementChild?.style.getPropertyValue('--tl-era-label-h') || '0px');
     }
 
     function showListView() {
       if (listAnimating || listMode || typeof gsap === 'undefined') return;
       listAnimating = true;
       listMode = true;
-      const cardColor = randomColor();              // 整卡單一 accent（mode3 由 color.css 覆成 strict B/W）
-      // 鈕開著上色：click 沿用 hover 當下的色（全站 nav btn 規則）；進頁自動開（沒 hover）跟卡同色
+      // 整卡單一 accent（mode3 由 color.css 覆成 strict B/W）＝鈕開著的色（user 2026-09-29「btn 跟 box 同色」）：
+      // click 沿用 hover 當下的色（全站 nav btn 規則，點下去不跳色）→ 卡也用它；進頁自動開（沒 hover）才另抽
+      const hoverColor = navHoverColor(listBtn);
+      const cardColor = hoverColor || randomColor();
+      if (hoverColor) lastColorIndex = ACCENT_COLORS.findIndex(c => c.toLowerCase() === hoverColor.toLowerCase());
       listBtn.classList.add('active');
-      listBtn.style.setProperty('--nav-active', navHoverColor(listBtn) || cardColor);
+      listBtn.style.setProperty('--nav-active', cardColor);
       listRect.style.background = cardColor;
       listRect.style.setProperty('--tl-card-bg', cardColor);  // 手機 sticky 頭（era 標籤/年份）的不透明底（見 lists.css）
       renderAllEras();

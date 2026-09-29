@@ -165,3 +165,70 @@ html {
   .class-info-panel [data-class-text] { max-height: calc(100svh - 440px); }
   .class-works-panel [data-works-text] { max-height: calc(100svh - 400px); }
 }
+
+/* ===== about 桌面 ≥1200「上下同錨」框（user 2026-09-29）=====
+   每個一屏區塊上下都從縮小態 logo 中線（--header-logo-mid 98）起算：區塊高 100svh、框內可用高 100svh − 2×98，
+   扁／高螢幕上下留白恆等＝看起來一致。不做比例 padding：top 有 header chrome 地板（鈕列底 96），扁螢幕無處可縮。
+   例外：Vision 文字頂對齊左側 nav btn（nav line 184，user 2026-08-31），底仍 98。
+   不分高度（≥501）都套＝在 ≥1200 取代上面 ≥900 的 100vh gate 與 501–899 的舊落點；平板 768–1199 維持舊規則。
+   同框的另兩處在各自檔內：resources（accordion.css）、學制樹（about-structure.css）。
+   ⚠️ class-buttons-sticky.js 的 scrub 起點與此 gate 同步（'top top'）。 */
+@media (min-width: 1200px) and (min-height: 501px) {
+  #overview, #class, #class-info-anchor, #works { scroll-margin-top: 0; }
+
+  #overview {
+    height: 100svh;
+    padding-top: var(--nav-line);
+    padding-bottom: var(--header-logo-mid);
+    display: flex;
+    align-items: flex-start;
+  }
+  #overview > .site-container { width: 100%; }
+
+  /* Programs／Works 共用的 division 鈕列：sticky 貼頂 0（原 inline top:100 是舊 marker 落點）。
+     可見頂＝「BFA 學士班」小標題頂＝98 線：小標題 absolute 掛鈕上方、不佔 flow → pt 要加小標題塊高
+     （--about-pill-label，公式同 buttons.css MDES 置中那條：padding 6+5 + text-s 兩行 + xs 間距）。
+     列高＝pt + 鈕 91 + pb 24（鈕 91 實測＝最高那顆 3 行：後台標籤改「Division of …」後 Animation／Creative Media 折 3 行，
+     2026-09-29 由 78 同步；字級／行數改要同步——不同步＝鈕旋轉的角掉出列底、被 sticky 列 clip-path inset(0) 裁掉）；圖文區＝100svh − 列高。 */
+  :root {
+    --about-pill-label: calc(11px + 2 * var(--font-size-s) * var(--line-height-s) + var(--spacing-xs));
+    --about-pill-row-h: calc(var(--header-logo-mid) + var(--about-pill-label) + 91px + var(--spacing-md));
+  }
+  #class-buttons-sticky { top: 0 !important; padding-top: calc(var(--header-logo-mid) + var(--about-pill-label)); height: var(--about-pill-row-h); }
+  #class-info-area { height: calc(100svh - var(--about-pill-row-h)); min-height: 0; padding-top: var(--spacing-2xl); }
+  /* 圖容器吃滿框內剩餘高（原 min-height 440 在扁螢幕會戳出 98 線）；圖依容器高等比 cap 見 class-images-slideshow.js */
+  .class-info-panel .division-images { min-height: 0; height: calc(100svh - var(--about-pill-row-h) - var(--spacing-2xl) - var(--header-logo-mid)); }
+  #works { height: 100svh; padding-top: 0; }
+  #class-works-panels { padding-top: calc(var(--about-pill-row-h) + var(--spacing-2xl)); }
+  /* works 影片高＝欄寬 × 9/16，扁螢幕會戳出 98 線 → 寬度上限由「框內剩餘高 × 16/9」反推（媒體等比縮、不內捲）；
+     旁邊 playlist 欄 stretch 跟播放器同高、自動跟上。flex item 上直接 max-height 不會傳回寬度，故鎖寬 */
+  #class-works-panels .works-player-box {
+    max-width: calc((100svh - var(--about-pill-row-h) - var(--spacing-2xl) - var(--header-logo-mid)) * 16 / 9);
+  }
+  #class-works-area { padding-bottom: 0; }
+
+  /* 長文內捲，底收在 98 線（−1em＝外盒 0.5em×2 padding；8rem 保極矮可讀） */
+  #overview [data-overview-text],
+  .class-info-panel [data-class-text],
+  .class-works-panel [data-works-text] { overflow-y: auto; }
+  #overview [data-overview-text].has-scroll-pr,
+  .class-info-panel [data-class-text].has-scroll-pr,
+  .class-works-panel [data-works-text].has-scroll-pr { padding-right: var(--spacing-sm); }
+  #overview [data-overview-text] { max-height: max(8rem, calc(100svh - var(--nav-line) - var(--header-logo-mid) - 1em)); }
+  .class-info-panel [data-class-text],
+  .class-works-panel [data-works-text] { max-height: max(8rem, calc(100svh - var(--about-pill-row-h) - var(--spacing-2xl) - var(--header-logo-mid) - 1em)); }
+
+  /* History：上下 98。inline padding-top:100／timeline-area inline 高度要 !important 才蓋得掉；
+     list 卡與切換鈕底貼框底（原 bottom 32），卡高封頂＝框高 */
+  #history { padding-top: var(--header-logo-mid) !important; padding-bottom: var(--header-logo-mid); }
+  #history #timeline-area { height: calc(100svh - 2 * var(--header-logo-mid)) !important; }
+  #history .tl-list-grid,
+  #history .tl-list-btn-grid { bottom: 0; }
+  /* 寫 --tl-cell-h 不寫 height：lists.css .tl-list-cell 的 height 與 width（高×1.65−era 欄）都吃這個變數，寬才跟著封頂後的高走 */
+  #history .tl-list-cell {
+    --tl-cell-h: min(
+      calc((100vw - 2 * var(--container-padding) - 19 * var(--spacing-gutter)) / 20 * 7 + 6 * var(--spacing-gutter)),
+      calc(100svh - 2 * var(--header-logo-mid))
+    );
+  }
+}

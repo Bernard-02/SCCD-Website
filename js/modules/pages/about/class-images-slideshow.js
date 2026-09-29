@@ -94,7 +94,9 @@ function buildImg(src, fixedWidth, onSized) {
     // 「圖片不能被切」）——寬另受「容器高 × 圖比例」cap ＝ 等比縮小到剛好塞進半屏、不裁切不溢出。
     // CSS 的 170/250 max-width 仍生效（此處只會更小不會更大）。
     const panel = wrapper.closest ? wrapper.closest('.class-info-panel') : null;
-    if (panel && window.innerWidth < 768) {
+    // ≥1200 桌面同理：圖容器＝上下同錨框內剩餘高（scroll-snap.css，2026-09-29），扁螢幕圖等比縮、不戳出 98 線
+    const capByBox = window.innerWidth < 768 || window.matchMedia('(min-width: 1200px) and (min-height: 501px)').matches;
+    if (panel && capByBox) {
       const box = wrapper.parentElement;
       const availH = box ? box.clientHeight : 0;
       // 含 ±4° 隨機旋轉的 bbox 高：W·sinθ + (W/ratio)·cosθ ≤ availH → 解 W（純用圖比例會差 ~9px 旋角外溢）

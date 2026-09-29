@@ -1095,19 +1095,20 @@ body.mode-color button.active > .tl-icon-btn-inner { background: var(--theme-fg-
 }
 
 .tl-list-cell {
-  grid-column: 4 / 19;   /* 佔位到 col-18 右緣；實際寬度由 aspect-ratio 從高度推出（justify-self:start 不拉伸）*/
+  grid-column: 4 / 19;   /* 佔位到 col-18 右緣；實際寬度由高度推出（justify-self:start 不拉伸）*/
   justify-self: start;
-  /* 比例＝resources「展開單卡」實測形狀（label+body ≈ 1072×650 @1920 headless 量測 2026-09-10，
-     user「以高度爲主、用 resources 卡比例推寬度」；整條手風琴 16:7 太寬已打回）：
-     高度維持原「7 欄寬」計算＋視窗封頂，寬 = 高 × 1.65。 */
-  aspect-ratio: 1.65;
   position: relative;
-  /* 220 ≈ area padding-top(100) + grid bottom(32) + header/呼吸餘裕，矮螢幕卡片變矮、內容往內捲（user 2026-09-08）。
-     手機/矮橫向由下方共用 block 的 height:100% 覆寫（width 有 grid stretch 撐滿，aspect-ratio 自動失效）。 */
-  height: min(
+  /* 高度：220 ≈ area padding-top(100) + grid bottom(32) + header/呼吸餘裕，矮螢幕卡片變矮、內容往內捲（user 2026-09-08）。
+     寬度：比例＝resources「展開單卡」實測形狀（label+body ≈ 1072×650 @1920 headless 量測 2026-09-10，
+     user「以高度爲主、用 resources 卡比例推寬度」；整條手風琴 16:7 太寬已打回）＝高 × 1.65，
+     再扣掉原 era 左欄（7.5rem＋gap md；2026-09-29 era 標籤改一行壓在年份列上方，見 .tl-era-label）→ 卡片變窄、高度不變。
+     手機/矮橫向由下方共用 block 的 height:100% / width:auto 覆寫。 */
+  --tl-cell-h: min(
     calc((100vw - 2 * var(--container-padding) - 19 * var(--spacing-gutter)) / 20 * 7 + 6 * var(--spacing-gutter)),
     calc(100vh - 220px)
   );
+  height: var(--tl-cell-h);
+  width: calc(var(--tl-cell-h) * 1.65 - (7.5rem + var(--spacing-md)));
 }
 
 .tl-list-rect {
@@ -1153,29 +1154,29 @@ body.mode-color button.active > .tl-icon-btn-inner { background: var(--theme-fg-
   padding-right: var(--spacing-md);   /* 右欄文字 ↔ scrollbar gap（原在 .tl-list-content）*/
 }
 
-/* 連續清單（2026-09-08）：每個 era 一組＝左欄 era 標籤 + 右側年份列 → 全表「era｜年份｜說明」三欄。
-   era 標籤固定寬 → 跨 era 的年份/說明欄逐列對齊；align-items:start 讓 era 標籤貼首列頂。 */
-.tl-era-group {
-  display: flex;
-  gap: var(--spacing-md);
-  align-items: flex-start;
-}
+/* 連續清單（2026-09-08）：每個 era 一組、所有時期一路往下捲。
+   2026-09-29 user 改版：era 標籤不再佔左欄（原 7.5rem 固定欄＋gap，卡片寬度同步扣掉，見 .tl-list-cell），
+   改成一行「EN ZH」壓在該組年份列上方、文字左緣對齊年份（同日二輪 user：由對齊說明欄往左移到年份）。
+   **兩層 sticky**（原本只有手機這樣做、現桌面手機同套）：era 標籤釘頂(top:0 z2)、年份釘在標籤下方
+   (top:標籤實高 --tl-era-label-h，timeline.js showListView 每組量寫) z1。標籤要不透明底遮住下方捲過的
+   內文（含捲出去的年份）：mode1/2 = JS 設在 .tl-list-rect 的卡片色 var(--tl-card-bg)、mode3 由 color.css
+   覆 strict B/W。padding-bottom＝標籤↔首列留白（是 label 盒的一部分才能連同留白一起 sticky、且量進 --tl-era-label-h）。 */
 .tl-era-group + .tl-era-group { margin-top: var(--spacing-2xl); }
 .tl-era-label {
-  flex: 0 0 7.5rem;           /* era 欄寬（user 2026-09-10 三調：8rem→6rem→新卡比例下加寬回 7.5rem） */
-  position: sticky;          /* era 捲動時釘在該時期組頂（左欄，該欄無捲動內容→免底色遮擋）*/
-  top: 0;
-  align-self: flex-start;    /* 不被拉伸滿高才有 sticky 移動空間（配合 group align-items:flex-start）*/
-}
-.tl-era-en,
-.tl-era-zh { display: block; }
-.tl-era-en { margin-bottom: var(--space-en-zh-s); }
-.tl-era-body { flex: 1 1 auto; min-width: 0; }
-/* 年份也 sticky：釘在該年份列頂（中欄；右側說明捲、年份留住）。era 左欄／年份中欄／說明右欄各自成欄，
-   同 top:0 不會重疊，故不需遮擋底色——顏色（含 mode 切換 fade）由 typography.css .timeline-card-inner * 白名單處理。 */
-.tl-list-year {
   position: sticky;
   top: 0;
+  z-index: 2;
+  background: var(--tl-card-bg);
+  padding-bottom: var(--spacing-md);
+}
+/* 年份 sticky：釘在該年份列頂、標籤下方（右側說明捲、年份留住）。年份欄／說明欄各自成欄不重疊、免遮擋底色
+   ——顏色（含 mode 切換 fade）由 typography.css .timeline-card-inner * 白名單處理。
+   ⭐top 減 2px＝tuck：年份微疊到標籤底下 → 消掉兩個 sticky 盒之間的 1px 渲染縫（user 2026-09-09 報）；
+   2px 落在年份文字 line-height 的 leading 內、不裁字。 */
+.tl-list-year {
+  position: sticky;
+  top: calc(var(--tl-era-label-h, 2.5rem) - 2px);
+  z-index: 1;
   align-self: start;
 }
 
@@ -1254,39 +1255,23 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
   .tl-list-cell {
     grid-column: auto;
     height: 100%;
-    aspect-ratio: auto;   /* 窄屏滿版、不吃桌面 16/7 比例 */
+    width: auto;          /* 窄屏滿版、不吃桌面「高×1.65−era 欄」寬 */
     justify-self: auto;
   }
-  /* 窄屏：era 標籤改堆疊在該組上方（左欄在窄屏太擠）。**兩層 sticky**：era 標籤釘頂(top:0 z2)、
-     年份釘在標籤下方(top:量到的標籤實高 --tl-era-label-h，timeline.js showListView 每組量寫) z1（user 2026-09-08）。
-     both 要不透明底遮住下方捲過的內文：mode1/2 = JS 設在 .tl-list-rect 的卡片色 var(--tl-card-bg)、
-     mode3 由 color.css 覆 strict B/W。align-items:stretch + 標籤/年份 align-self:stretch 撐滿卡寬
-     （否則桌面 align-self:flex-start 滲進來→只有內容寬、右側捲過的內文露出來）；z-index 讓釘住的頭壓在
-     同層 DOM 較後的捲動內文之上。 */
-  .tl-era-group {
-    flex-direction: column;
-    gap: 0;                 /* 標籤↔年份留白移進 era-label padding-bottom（才能連同留白一起 sticky）；歸 0 免疊加 */
-    align-items: stretch;
-  }
-  /* padding-bottom＝標籤↔年份留白（釘住時也在，因是 label 盒的一部分、量進 --tl-era-label-h）→ 年份不貼標題 */
+  /* 窄屏：era 標籤 EN/ZH 上下兩行（桌面一行；兩層 sticky 機制見上方 base 說明）；
+     標籤↔年份留白收成 sm（user 2026-09-08）。 */
   .tl-era-label {
-    flex: none;
-    align-self: stretch;
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    background: var(--tl-card-bg);
     padding-bottom: var(--spacing-sm);
   }
-  /* ⭐年份 sticky 的關鍵＝padding-bottom 讓「年份↔說明的留白」一起被年份不透明底覆蓋、一起 sticky
-     → 說明捲到年份下方時從這段留白底邊乾淨冒出，不會貼著年份文字切半（user 2026-09-08「連同那個 padding 也要 sticky」）。
-     grid gap 不屬年份盒、無法隨 sticky 覆蓋→間距改由此 padding 提供（下方 row gap 歸 0）。
-     ⭐top 減 2px＝tuck：年份微疊到標籤底下 → 消掉兩個 sticky 盒之間的 1px 渲染縫（同色相疊不顯、擋掉後面捲動內容從縫露出，user 2026-09-09 報）。2px 落在年份文字 line-height 的 leading 內、不裁字。 */
+  .tl-era-en,
+  .tl-era-zh { display: block; }
+  .tl-era-en { margin-bottom: var(--space-en-zh-s); }
+  /* 年份改堆疊在說明上方（1 欄，下方 row 規則）→ 說明會捲到年份下方：年份也要不透明底＋align-self:stretch
+     撐滿卡寬（否則只有內容寬、右側捲過的內文露出來）。⭐關鍵＝padding-bottom 讓「年份↔說明的留白」一起被年份
+     不透明底覆蓋、一起 sticky → 說明捲到年份下方時從這段留白底邊乾淨冒出，不會貼著年份文字切半（user 2026-09-08
+     「連同那個 padding 也要 sticky」）。grid gap 不屬年份盒、無法隨 sticky 覆蓋→間距改由此 padding 提供（下方 row gap 歸 0）。 */
   .tl-list-year {
     align-self: stretch;
-    position: sticky;
-    top: calc(var(--tl-era-label-h, 2.5rem) - 2px);
-    z-index: 1;
     background: var(--tl-card-bg);
     padding-bottom: var(--spacing-sm);
   }
@@ -1395,6 +1380,15 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
 #faculty-panel .list-scroll::-webkit-scrollbar-track,
 .courses-detail-desc-wrapper::-webkit-scrollbar-track {
   margin-bottom: var(--spacing-2xl);
+}
+
+/* about history list（桌面）：scrollbar 從第一個 item 起（user 2026-09-29）——捲動區頂端一直釘著 sticky era 標籤，
+ * 軌道頂內縮＝標籤實高（timeline.js measureStickyOffsets 量寫到捲動容器的 --tl-era-label-h）；同上 webkit only。
+ * 矮橫向（標籤兩行、也釘頂）先不動（user 09-28 先專注桌面）；直式手機 scrollbar 本來就隱藏。 */
+@media (min-width: 768px) and (min-height: 501px) {
+  .tl-list-years::-webkit-scrollbar-track {
+    margin-top: var(--tl-era-label-h, 0px);
+  }
 }
 
 /* Firefox 專屬 fallback — 用 @supports + -moz- 隔離，避免 Chromium 121+/Safari 18+
