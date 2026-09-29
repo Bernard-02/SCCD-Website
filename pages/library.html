@@ -89,12 +89,12 @@
               <div style="min-width: 0; display: flex; flex-direction: column; min-height: 0;">
                 <div style="display: flex; align-items: flex-end; gap: var(--spacing-sm); flex-shrink: 0; margin-bottom: var(--spacing-sm);">
                   <div style="flex: 1; display: flex; align-items: center; gap: var(--spacing-sm); padding-bottom: 4px;">
-                    <span class="icon icon-search icon-xs"></span>
+                    <label for="library-awards-search" class="icon icon-search icon-xs"></label>
                     <input type="text" id="library-awards-search" placeholder="Search 搜尋" aria-label="搜尋 Search"
                       style="flex: 1; background: transparent; border: none; outline: none; font-family: 'Bitter', 'Noto Serif TC', 'Noto Serif JP', 'Noto Serif SC', serif; font-size: var(--font-size-xs); font-weight: 700; color: var(--lib-fg);"
                       autocomplete="off">
                   </div>
-                  <button id="library-awards-sort-btn" class="library-sort-btn">Date 時間<span class="icon icon-arrow-down sort-arrow icon-xs"></span></button>
+                  <button id="library-awards-sort-btn" class="library-sort-btn" aria-label="Date 時間"><span class="lib-sort-label">Date 時間</span><span class="icon icon-time lib-sort-time" aria-hidden="true"></span><span class="icon icon-arrow-down sort-arrow icon-xs"></span></button>
                 </div>
                 <div id="library-awards-scroll" style="min-width: 0; overflow-y: auto; padding-bottom: var(--spacing-sm); flex: 1; min-height: 0;" class="no-scrollbar">
                   <div id="library-awards-list"></div>
@@ -126,12 +126,12 @@
               <div style="min-width: 0; padding-bottom: var(--spacing-sm);">
                 <div style="display: flex; align-items: flex-end; gap: var(--spacing-sm);">
                   <div style="flex: 1; display: flex; align-items: center; gap: var(--spacing-sm); padding-bottom: 4px;">
-                    <span class="icon icon-search icon-xs"></span>
+                    <label for="library-press-search" class="icon icon-search icon-xs"></label>
                     <input type="text" id="library-press-search" placeholder="Search 搜尋" aria-label="搜尋 Search"
                       style="flex: 1; background: transparent; border: none; outline: none; font-family: 'Bitter', 'Noto Serif TC', 'Noto Serif JP', 'Noto Serif SC', serif; font-size: var(--font-size-xs); font-weight: 700; color: var(--lib-fg);"
                       autocomplete="off">
                   </div>
-                  <button id="library-press-sort-btn" class="library-sort-btn">Date 時間<span class="icon icon-arrow-down sort-arrow icon-xs"></span></button>
+                  <button id="library-press-sort-btn" class="library-sort-btn" aria-label="Date 時間"><span class="lib-sort-label">Date 時間</span><span class="icon icon-time lib-sort-time" aria-hidden="true"></span><span class="icon icon-arrow-down sort-arrow icon-xs"></span></button>
                 </div>
               </div>
 
@@ -166,12 +166,13 @@
               <div style="min-width: 0; padding-bottom: var(--spacing-sm);">
                 <div style="display: flex; align-items: flex-end; gap: var(--spacing-sm); margin-bottom: var(--spacing-sm);">
                   <div style="flex: 1; display: flex; align-items: center; gap: var(--spacing-sm); padding-bottom: 4px;">
-                    <span class="icon icon-search icon-xs"></span>
+                    <label for="library-files-search" class="icon icon-search icon-xs"></label>
                     <input type="text" id="library-files-search" placeholder="Search 搜尋" aria-label="搜尋 Search"
                       style="flex: 1; background: transparent; border: none; outline: none; font-family: 'Bitter', 'Noto Serif TC', 'Noto Serif JP', 'Noto Serif SC', serif; font-size: var(--font-size-xs); font-weight: 700; color: var(--lib-fg);"
                       autocomplete="off">
                   </div>
-                  <button id="library-files-sort-btn" class="library-sort-btn">Date 時間<span class="icon icon-arrow-down sort-arrow icon-xs"></span></button>
+                  <button type="button" class="lib-filter-btn" aria-label="篩選 Filter" aria-expanded="false"><span class="icon icon-filter" aria-hidden="true"></span></button>
+                  <button id="library-files-sort-btn" class="library-sort-btn" aria-label="Date 時間"><span class="lib-sort-label">Date 時間</span><span class="icon icon-time lib-sort-time" aria-hidden="true"></span><span class="icon icon-arrow-down sort-arrow icon-xs"></span></button>
                 </div>
                 <!-- 文件分類篩選（對應後台 library_documents.docType；文字走 ui_labels lib.doctype.* 可後台改） -->
                 <div id="library-files-cat-filter" style="display: flex; flex-wrap: wrap; gap: var(--spacing-sm) var(--spacing-lg); align-content: flex-start;">
@@ -213,12 +214,13 @@
               <div style="min-width: 0; padding-bottom: var(--spacing-sm);">
                 <div style="display: flex; align-items: flex-end; gap: var(--spacing-sm); margin-bottom: var(--spacing-sm);">
                   <div style="flex: 1; display: flex; align-items: center; gap: var(--spacing-sm); padding-bottom: 4px;">
-                    <span class="icon icon-search icon-xs"></span>
+                    <label for="library-album-search" class="icon icon-search icon-xs"></label>
                     <input type="text" id="library-album-search" placeholder="Search 搜尋" aria-label="搜尋 Search"
                       style="flex: 1; background: transparent; border: none; outline: none; font-family: 'Bitter', 'Noto Serif TC', 'Noto Serif JP', 'Noto Serif SC', serif; font-size: var(--font-size-xs); font-weight: 700; color: var(--lib-fg);"
                       autocomplete="off">
                   </div>
-                  <button id="library-album-sort-btn" class="library-sort-btn">Date 時間<span class="icon icon-arrow-down sort-arrow icon-xs"></span></button>
+                  <button type="button" class="lib-filter-btn" aria-label="篩選 Filter" aria-expanded="false"><span class="icon icon-filter" aria-hidden="true"></span></button>
+                  <button id="library-album-sort-btn" class="library-sort-btn" aria-label="Date 時間"><span class="lib-sort-label">Date 時間</span><span class="icon icon-time lib-sort-time" aria-hidden="true"></span><span class="icon icon-arrow-down sort-arrow icon-xs"></span></button>
                 </div>
                 <div id="library-album-cat-filter" style="display: flex; flex-wrap: wrap; gap: var(--spacing-sm) var(--spacing-lg); align-content: flex-start;">
                   <button class="lib-album-cat-btn" data-cat="degree-show"><span class="cat-btn-en" data-label-key="lib.cat.degree-show" data-label-part="en">Degree Shows</span><span class="cat-btn-zh" data-label-key="lib.cat.degree-show" data-label-part="zh">畢業展</span></button>

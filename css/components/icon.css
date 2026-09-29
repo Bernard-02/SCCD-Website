@@ -90,6 +90,10 @@ body.mode-color .icon.footer-social-glyph { filter: var(--footer-invert-filter, 
 .icon-atlas-view { --icon: url('../website-icons/atlas_view.svg'); }
 .icon-rotate-phone { --icon: url('../website-icons/rotate_phone.svg'); }
 .icon-search     { --icon: url('../website-icons/search.svg'); }
+/* library 桌面工具列（user 2026-09-29）：佔位 icon，後台 site_icons 同 key 換檔即生效 */
+.icon-filter        { --icon: url('../website-icons/filter.svg'); }
+.icon-filter-active { --icon: url('../website-icons/filter_active.svg'); }
+.icon-time          { --icon: url('../website-icons/time.svg'); }
 
 /* social */
 .icon-youtube   { --icon: url('../website-icons/youtube.svg'); }

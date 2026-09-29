@@ -155,6 +155,8 @@ html.mode-switching.mode-switching .files-item,
  * （user 2026-08-11：年份 bar 速度跟灰卡不一致）。灰卡自己走 library-card.js inline TRANSITION 的 background-color 0.4s。 */
 html.mode-switching.mode-switching .press-year-label,
 html.mode-switching.mode-switching #library-awards-ticker,
+html.mode-switching.mode-switching .lib-toolbar,
+html.mode-switching.mode-switching .lib-filter-btn,
 html.mode-switching.mode-switching .library-card-content {
   transition: background-color var(--dur-base) ease, color var(--dur-base) ease, border-color var(--dur-base) ease !important;
 }

@@ -349,13 +349,13 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     try { edge = findFreeEdge(cfg, occluders, grayCx(sw), centerY()); } catch(e) {}
     const isVertical = (edge === 'left' || edge === 'right');
 
-    // 量單位寬度
+    // 量單位長度：直向用同 writing-mode 量（英側躺＋中直立的實際沿軸長度）
     const probe = document.createElement('span');
-    probe.style.cssText = PROBE_CSS;
+    probe.style.cssText = PROBE_CSS + (isVertical ? 'writing-mode:vertical-rl;' : '');
     probe.textContent   = unit;
     document.body.appendChild(probe);
-    const unitPx = probe.offsetWidth || 1;
-    const lineH  = probe.offsetHeight || 0;   // 行高＝旋轉後文字條的厚度；朝外定位要用它把外長的一條補回色塊內側
+    const unitPx = (isVertical ? probe.offsetHeight : probe.offsetWidth) || 1;
+    const lineH  = (isVertical ? probe.offsetWidth : probe.offsetHeight) || 0;   // 直向字條厚度；右緣定位扣掉它貼內側
     document.body.removeChild(probe);
 
     const rectPx  = Math.round(isVertical ? cfg.h : cfg.w);  // 捲動軸方向的可用長度
@@ -367,15 +367,18 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     const copies  = Math.max(2, Math.ceil(rectPx * 2 / unitPx) + 1);
     const repeated = unit.repeat(copies);
 
-    // 重設 titleEl
+    // 重設 titleEl。左右邊＝直排（user 2026-09-29「中文也要垂直排列、跟 resources 一致」）：取代舊整條 rotate(±90)
+    //   （中文會躺著）→ writing-mode vertical-rl＋預設 text-orientation mixed＝英文自動側躺（上→下讀）、中文直立，
+    //   同 about resources 直式標籤；左右兩邊讀向一致（撤 09-04 右邊讀下→上的「朝外」）。字條不再旋轉。
     Object.assign(titleEl.style, {
       top: '', bottom: '', left: '', right: '',
-      width: `${viewportPx}px`, height: '', overflow: 'hidden',
-      transform: '', transformOrigin: '',
+      width: isVertical ? '' : `${viewportPx}px`, height: isVertical ? `${viewportPx}px` : '', overflow: 'hidden',
+      transform: '', transformOrigin: '', writingMode: isVertical ? 'vertical-rl' : '',
       visibility: 'visible', color: '#000', alignItems: 'center'
     });
+    titleEl.dataset.edge = edge;   // 切分頁上色滑板旋向讀這個（pairSlabDir；原讀字條 rotate 角）
 
-    // 旋轉 case 一律用 cfg 直接算絕對 px（perpPx/rectPx），不用 CSS calc(100%-Xpx)：
+    // 一律用 cfg 直接算絕對 px（perpPx/rectPx），不用 CSS calc(100%-Xpx)：
     // 那個 100% 是父層色塊「渲染當下實際尺寸」，動畫/resize 時序上可能還沒 = cfg.w/cfg.h，
     // 導致沿捲動軸的頂/底留白跑掉（user 2026-08-03：「Documents 距離頂部 padding」比「距離左邊 padding」大）
     if (edge === 'top') {
@@ -385,20 +388,17 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
       titleEl.style.left = `${axisPad}px`;
       titleEl.style.bottom = `${PAD}px`;
     } else if (edge === 'left') {
-      // 文字「朝外」（user 2026-09-04，原朝內是 rotate(-90) 讀下→上）：改 rotate(90) 讀上→下、字向翻 180°。
-      // rotate(90) 於左緣自然把文字條往「外(左)」長出 lineH → left 補 +lineH 讓條貼在左緣內側（否則溢出被
-      // 色塊 overflow:hidden 裁掉）；top 由 rectPx-axisPad 改 axisPad（讀向反轉，起點端對調）。
-      titleEl.style.left = `${PAD + lineH}px`; titleEl.style.top = `${axisPad}px`;
-      titleEl.style.transformOrigin = 'left top';
-      titleEl.style.transform = 'rotate(90deg)';
+      titleEl.style.left = `${PAD}px`; titleEl.style.top = `${axisPad}px`;
     } else {
-      // 文字「朝外」：改 rotate(-90) 讀下→上、字向翻 180°；rotate(-90) 於右緣往外(右)長 lineH → left 補 -lineH 貼右緣內側。
-      titleEl.style.left = `${perpPx - PAD - lineH}px`; titleEl.style.top = `${rectPx - axisPad}px`;
-      titleEl.style.transformOrigin = 'left top';
-      titleEl.style.transform = 'rotate(-90deg)';
+      titleEl.style.left = `${perpPx - PAD - lineH}px`; titleEl.style.top = `${axisPad}px`;
     }
 
-    titleEl.innerHTML = `<span class="color-rect-title-inner" style="--marquee-shift-x:-${unitPx}px;--marquee-shift-y:0">${repeated}</span>`;
+    const shift = isVertical ? `--marquee-shift-x:0px;--marquee-shift-y:-${unitPx}px` : `--marquee-shift-x:-${unitPx}px;--marquee-shift-y:0`;
+    // 直排英文右推 0.1em 對齊中文直排中線（同 accordion.css resources 標籤的量測結論；relative 位移不改沿軸長度＝unitPx 照舊）
+    const html = isVertical
+      ? repeated.replace(/[A-Za-z]+/g, w => `<span style="position:relative;left:0.1em">${w}</span>`)
+      : repeated;
+    titleEl.innerHTML = `<span class="color-rect-title-inner" style="${shift}">${html}</span>`;
   }
 
   function refreshMarquees() {
@@ -471,8 +471,8 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   //   ⚠️ user 二輪修正：①幅度不要相差太大→範圍收窄成 ±3（原 −4~+6 的 10° 擺幅太誇張）；
   //   ②「有時候旋轉兩次」＝原本 enter+leave 各轉一次＝一次 hover 兩轉（放開那次還會讓卡邊移出游標、再觸發 enter 抖動）
   //     → 改成**只在 mouseenter 轉一次**（leave 不再轉），每次 hover 吃一個新角、不重複。
-  //   必須寫回**完整 transform 字串**保留 `translate(-50%, -50%)` 前綴 + 單一 rotate()——morph 的 hiddenTranslate /
-  //   parseRotDeg 靠 regex `/rotate\((-?[\d.]+)deg\)/` 讀當前角，破壞前綴會讓 morph 幾何算錯。
+  //   必須寫回**完整 transform 字串**保留 `translate(-50%, -50%)` 前綴 + 單一 rotate()——morph 的 hiddenTranslate
+  //   靠 regex `/rotate\((-?[\d.]+)deg\)/` 讀當前角，破壞前綴會讓 morph 幾何算錯。
   //   角度規範：範圍 ±3（收窄自 −4~+6），且跟「當前角」至少差 1.5°——保證每次 hover 都看得到轉、又不會忽大忽小亂跳。
   const cardSpinRand = (/** @type {number} */ cur) => {
     let r = cur, guard = 0;
@@ -739,20 +739,18 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   //   MARQ_EXIT＝被點色塊 marquee 滑出時長——§38 req1 改在 morph 起跑那刻才滑出（不再一點下去就消失）；§44 再快一點 0.35→0.25
   const CONTENT_EXIT = 0.5, MARQ_EXIT = 0.25, MARQ_ENTER = 0.3;
 
-  function parseRotDeg(transform) {
-    const m = /rotate\((-?[\d.]+)deg\)/.exec(transform || '');
-    return m ? parseFloat(m[1]) : 0;
-  }
-  // §24.2 clip-reveal 位移版（取代 §22 純 clip 收合）：keyframe 元素用 CSS **個別 translate 屬性**沿 local-Y 滑動——
+  // §24.2 clip-reveal 位移版（取代 §22 純 clip 收合）：keyframe 元素用 CSS **個別 translate 屬性**沿「垂直字條」方向滑動——
   //   個別 translate 與 marquee keyframe 的 transform 各自獨立、不互踩（＝免加 wrapper DOM 也不踩「gsap 動 transform 清 CSS 動畫」坑），外層 overflow:hidden 裁切＝位移揭露。
   //   出場：'up' 滑出上緣(0 -100%)／'down' 滑出下緣(0 100%)。進場起點＝反向（'up' 從下方 0 100% 滑上、'down' 從上方 0 -100% 滑下），終點 0 0。
-  function marqueeExitShift(dir)       { return dir === 'up' ? '0 -100%' : '0 100%'; }
-  function marqueeEnterStartShift(dir) { return dir === 'up' ? '0 100%'  : '0 -100%'; }
+  //   直排字條（左右邊，vertical-rl 不旋轉）垂直於字條＝X 軸 → 同一套 ±100% 改寫在 X。
+  const isVertTitle = (/** @type {Element} */ el) => /** @type {HTMLElement|null} */ (el.closest('.color-rect-title'))?.style.writingMode === 'vertical-rl';
+  function marqueeExitShift(dir, vert)       { const d = dir === 'up' ? '-100%' : '100%'; return vert ? `${d} 0` : `0 ${d}`; }
+  function marqueeEnterStartShift(dir, vert) { const d = dir === 'up' ? '100%' : '-100%'; return vert ? `${d} 0` : `0 ${d}`; }
   // §24.2/§24.3 共用進場：shiftEl（.lib-title-track 或 .color-rect-title-inner）clip-reveal 滑入；隱藏態 void offset commit 才起跑＝無 pop（§8.1）。
   function marqueeEnterShift(shiftEl, dir, dur) {
     if (!shiftEl) return;
     shiftEl.style.transition = 'none';
-    shiftEl.style.translate = marqueeEnterStartShift(dir);
+    shiftEl.style.translate = marqueeEnterStartShift(dir, isVertTitle(shiftEl));
     void shiftEl.offsetHeight;
     shiftEl.style.transition = `translate ${dur}s linear`;   // §41：marquee 進場也去 ease（與 §40 退場 linear 對齊）
     shiftEl.style.translate = '0 0';
@@ -785,7 +783,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     inner.style.translate = '0 0';
     void inner.offsetHeight;                                 // §8.1 commit 起點才掛 transition
     inner.style.transition = `translate ${MARQ_EXIT}s ${CB_EXIT}`;
-    inner.style.translate = marqueeExitShift(dir);
+    inner.style.translate = marqueeExitShift(dir, isVertTitle(inner));
     switchColorTimers.push(setTimeout(() => { src.style.visibility = 'hidden'; inner.style.transition = ''; inner.style.translate = ''; }, MARQ_EXIT * 1000));
     return dir;
   }
@@ -985,7 +983,8 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
         const dGo = ['top', 'bottom', 'left', 'right'][Math.floor(Math.random() * 4)];
         const outSrc = /** @type {HTMLElement|null} */ (outgoingEl.querySelector('.color-rect-title'));
         const outInner = /** @type {HTMLElement|null} */ (outSrc && outSrc.querySelector('.color-rect-title-inner'));
-        const dBack = pairSlabDir(dGo, outSrc ? parseRotDeg(outSrc.style.transform) : 0);
+        const outEdge = outSrc ? outSrc.dataset.edge : '';
+        const dBack = pairSlabDir(dGo, outEdge === 'left' ? 90 : outEdge === 'right' ? -90 : 0);   // 旋向沿用舊字條 ±90 語義
         // §27①：灰卡底部 marquee 留在去色滑板**下方**（不抬 z:70、不獨立 clip-reveal）＝滑板滑走時自然露出。
         //   showPanel（onDone）build 的 .lib-panel-title 本就在滑板下、z 低於 z:60（見 library-panels.js「色塊離開就直接出現」）。
         // §27③：色塊 marquee 先藏，等上色收尾才揭。

@@ -35,7 +35,7 @@ import { loadAboutContent } from './modules/pages/about/about-data-loader.js';
 import { initProgramStructure } from './modules/pages/about/about-structure.js';
 import { pauseVideosOffscreen } from './modules/ui/pause-offscreen-video.js';
 import { initAnchorNav } from './modules/navigation/anchor-nav.js';
-import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from './modules/ui/scroll-animate.js';
+import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN, clipRevealIconSwap } from './modules/ui/scroll-animate.js';
 
 // Import Page Specific Modules
 import { initIntroAnimation } from './modules/pages/intro-animation.js';
@@ -65,7 +65,7 @@ import { setActiveNavBtn, bindNavBtnSpin } from './modules/ui/section-switch-hel
 import { resetLightboxMode, getHeaderTargets } from './modules/lightbox/lightbox-shell.js';
 
 // Import Page Cleanup Registry（各模組註冊離頁要解綁的 window/document listener，SPA 換頁統一 drain）
-import { runPageCleanups } from './modules/ui/page-cleanup.js';
+import { runPageCleanups, registerPageCleanup } from './modules/ui/page-cleanup.js';
 import { registerPageExit } from './modules/ui/page-exit.js';
 
 // 大型頁面模組（atlas 223KB / library 三檔 197KB / create-app 30KB）改動態載入：進該頁才
@@ -393,6 +393,40 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
     ]).then(([viewerMod, panelsMod, cardMod]) => {
     if (seq !== lazySeq) return;   // 下載期間已換頁（cleanup ++ 過）→ 頁面 DOM 已 swap，放棄 init
     viewerMod.initLibraryViewer();
+    // 桌面：search 列（search／filter／date sort）收成灰卡右下角 icon 工具列（user 2026-09-29；樣式 library.css .lib-toolbar）。
+    // 搬成 panel 直接子層：留在內容 grid 裡會被 grid 的進場 clip-path 裁掉（工具列定位在 grid 外的底部標題列）。
+    // 必須在 initLibraryPanels 前搬＝它結尾的 hidePanelChildren 才會把工具列一起藏進 phase 1。手機／矮橫向維持原 DOM。
+    if (window.innerWidth >= 768 && !window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) {
+      document.querySelectorAll('[id^="lib-panel-"]').forEach(panel => {
+        const row = panel.querySelector('[style*="align-items: flex-end"][style*="display: flex"]');
+        if (!row) return;
+        panel.classList.add('lib-desk-tools');
+        row.classList.add('lib-toolbar');
+        panel.appendChild(row);
+      });
+      // filter 鈕：開關右側分類滑板（.lib-filter-open）＋ icon 換 default/active；點滑板以外（年份區除外）即關
+      const setFilterOpen = (/** @type {HTMLElement} */ panel, /** @type {boolean} */ open) => {
+        if (panel.classList.contains('lib-filter-open') === open) return;
+        panel.classList.toggle('lib-filter-open', open);
+        const btn = panel.querySelector('.lib-filter-btn');
+        if (!btn) return;
+        btn.setAttribute('aria-expanded', String(open));
+        clipRevealIconSwap(btn.querySelector('.icon'), `icon ${open ? 'icon-filter-active' : 'icon-filter'}`);
+      };
+      document.querySelectorAll('.lib-filter-btn').forEach(btn => btn.addEventListener('click', () => {
+        const panel = /** @type {HTMLElement} */ (btn.closest('[id^="lib-panel-"]'));
+        setFilterOpen(panel, !panel.classList.contains('lib-filter-open'));
+      }));
+      const onOutsideFilter = (/** @type {PointerEvent} */ e) => {
+        const t = /** @type {HTMLElement} */ (e.target);
+        document.querySelectorAll('.lib-filter-open').forEach(panel => {
+          if (t.closest?.('[id$="cat-filter"], .lib-filter-btn, [id$="year-picker-wrap"]')) return;
+          setFilterOpen(/** @type {HTMLElement} */ (panel), false);
+        });
+      };
+      document.addEventListener('pointerdown', onOutsideFilter);
+      registerPageCleanup(() => document.removeEventListener('pointerdown', onOutsideFilter));
+    }
     const panels = panelsMod.initLibraryPanels();
 
     // refresh / 直接開 / 上一頁下一頁（fromUserNav=false）若帶 item 級 deep-link hash（award/album/document/press）

@@ -20,6 +20,94 @@
   gap: var(--spacing-xs);
 }
 
+/* ── 桌面灰卡右下角工具列（user 2026-09-29）──────────────────────
+ * main-modular.js 桌面分支把各 panel 的 search 列搬成 panel 直接子層、掛 .lib-toolbar（panel 掛 .lib-desk-tools）：
+ * search／filter／date sort 收成 icon 列，釘在底部標題列右端 → 頂部淨空、年份欄與 list 同頂。
+ * 手機／矮橫向不搬、不掛 class＝本段全不命中（inline style 要 !important 才蓋得掉）。 */
+.lib-toolbar {
+  position: absolute;
+  right: var(--spacing-lg);
+  bottom: 12px;                                   /* = .lib-panel-title 下 padding */
+  height: calc(var(--font-size-xl) * 1.2);        /* = 標題行高 → 與 marquee 字垂直置中 */
+  align-items: center !important;
+  gap: var(--spacing-md) !important;
+  margin: 0 !important;                           /* awards inline margin-bottom */
+  padding-left: var(--spacing-md);
+  background: var(--lib-bg);                      /* 標題 marquee 從底下跑過；search 展開往左長也蓋得住 */
+}
+.lib-toolbar > div { flex: none !important; gap: 0 !important; padding-bottom: 0 !important; }
+.lib-toolbar label.icon-search { cursor: var(--cursor-pointer); }
+/* 點 search icon（label for）＝focus input 展開到 max width；有字就維持展開（:placeholder-shown 判空） */
+.lib-toolbar input {
+  flex: none !important;
+  width: 0;
+  padding: 0;
+  transition: width var(--dur-medium) ease, margin-left var(--dur-medium) ease;
+}
+.lib-toolbar > div:focus-within input,
+.lib-toolbar > div:has(input:not(:placeholder-shown)) input {
+  width: 14rem;
+  margin-left: var(--spacing-xs);
+}
+.lib-toolbar .library-sort-btn { padding: 0; }
+/* date sort：桌面文字換時間 icon（後台 site_icons key: time），箭頭保留標方向；手機維持文字 */
+.lib-sort-time { display: none; }
+.lib-toolbar .lib-sort-label { display: none; }
+.lib-toolbar .lib-sort-time { display: inline-block; font-size: 20px; }
+/* filter 鈕（files／album）：手機不顯示（分類 chip 常駐）；開啟＝換 active icon（後台 key: filter / filter_active），無底色 */
+.lib-filter-btn { display: none; }
+.lib-toolbar .lib-filter-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--lib-fg);
+  font-size: 20px;
+  cursor: var(--cursor-pointer);
+}
+/* 內容 grid 收成單列：頂部 search cell 已空（press 全空、files/album 只剩分類）→ 年份欄與 list 同頂 */
+[id^="lib-panel-"].lib-desk-tools > div[style*="grid"] { grid-template-rows: 1fr !important; position: relative; }
+[id^="lib-panel-"].lib-desk-tools > div[style*="grid"] > div:first-child:empty,
+#lib-panel-press.lib-desk-tools > div[style*="grid"] > div:nth-child(2) { display: none; }
+/* awards：左欄的 spacer（對齊舊 search 列高）＋ 4px 一起拿掉 */
+#lib-panel-awards.lib-desk-tools > div[style*="grid"] > div:first-child { padding-top: 0 !important; }
+#lib-panel-awards.lib-desk-tools > div[style*="grid"] > div:first-child > p { display: none; }
+/* files／album 分類＝覆蓋在 list 右側的滑板（不推擠 list）：wrapper＝貼灰卡右緣的遮罩，分類本體從右滑入。
+   z 高過 sticky 年份標（5）；收起時遮罩不吃 pointer（本體滑出去也不會擋到 list） */
+#lib-panel-files.lib-desk-tools > div[style*="grid"] > div:nth-child(2),
+#lib-panel-album.lib-desk-tools > div[style*="grid"] > div:nth-child(2) {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  padding: 0 !important;
+  overflow: hidden;
+  pointer-events: none;
+}
+.lib-desk-tools [id$="cat-filter"] {
+  height: 100%;
+  box-sizing: border-box;
+  flex-direction: column !important;
+  flex-wrap: nowrap !important;
+  align-items: flex-start;                        /* 不讓選項鈕拉滿欄寬（button 字會置中） */
+  gap: var(--spacing-xs) !important;
+  padding: var(--spacing-lg);                     /* 左右同距；上＝grid padding-top → 第一個選項與年份／list 同頂 */
+  white-space: nowrap;
+  background: var(--lib-bg);
+  transform: translateX(100%);
+  transition: transform var(--dur-medium) var(--ease-standard), background-color var(--dur-base) ease;
+  pointer-events: auto;
+}
+.lib-filter-open [id$="cat-filter"] { transform: none; }
+/* filter 開著：list 不吃 hover／點擊（點 list＝只關 filter，main-modular.js 外點關閉）；捲動框本身仍吃滾輪照捲 */
+.lib-filter-open [id$="-list"] { pointer-events: none; }
+.lib-desk-tools [id$="cat-filter"] button:disabled { cursor: var(--cursor-default); }
+
 /* ── Color Rect Marquee ──────────────────────────────────────── */
 .color-rect-title {
   position: absolute;
@@ -133,6 +221,9 @@
   border: none;
   background: none;
   cursor: var(--cursor-pointer);
+  /* resize 重排時貼著灰卡滑（user 2026-09-29）：同 library-card.js TRANSITION 的 left/top 曲線——
+     灰卡 left/width 同曲線補間 → 右上角也走同曲線，鈕同拍就黏在角上。改那邊時長/曲線要同步 */
+  transition: left 0.6s cubic-bezier(0.4,0,0.2,1), top 0.6s cubic-bezier(0.4,0,0.2,1);
 }
 /* 09-10：hover 固定 +8° 改由 JS arrow-spin 隨機角度接手（inline transform 寫 inner，transition 沿用 lists.css .tl-icon-btn-inner） */
 
@@ -772,7 +863,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   min-width: 34px;
 }
 
-/* 年份鈕變淡（未選 0.6／disabled 0.3）＝同分類鈕 transition（user 2026-09-28）。寫 CSS 不寫 inline：
+/* 年份鈕變淡（未選 0.5／disabled 0.2）＝同分類鈕 transition（user 2026-09-28）。寫 CSS 不寫 inline：
    chrome clip-reveal（revealPanelChrome／createYearPicker §42）收尾會清 inline transition → 之後變色變 snap */
 [id$="-year-picker"] button {
   transition: color 0.3s ease;
@@ -881,6 +972,8 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
 /* Album 標題→分類標籤距離＝8px（user 2026-08-13，比照 press title→副標）。album 的 .files-item-titles 只有
    兩個 flex 子（標題 block + tag），改外層 gap 即 title→tag；標題內 EN→ZH 仍由 .files-item-titles-text 的
    inner gap(2px) 控。只 scope album，Files 卡（無 tag，同 class）的標題內距不受影響。 */
+/* 只選一個分類（tag 藏起、只剩標題）＝標題在 zebra 列垂直置中（user 2026-09-29；旗標 library-panels.js album applyFilters） */
+#library-album-list .files-item[data-hide-cat-tag="1"] .files-item-titles { justify-content: center; }
 #library-album-list .files-item-titles {
   gap: var(--spacing-xs);
 }
@@ -1008,9 +1101,6 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   font-weight: 700;
   color: var(--lib-fg);
 }
-.lib-album-cat-btn.dimmed {
-  color: rgba(var(--lib-fg-rgb), 0.3);
-}
 
 /* ── Files category filter buttons ──────────────────────────── */
 .lib-files-cat-btn {
@@ -1023,9 +1113,6 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   cursor: var(--cursor-pointer);
   font-weight: 700;
   color: var(--lib-fg);
-}
-.lib-files-cat-btn.dimmed {
-  color: rgba(var(--lib-fg-rgb), 0.3);
 }
 
 /* ── Search placeholder ──────────────────────────────────────── */
