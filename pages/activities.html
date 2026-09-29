@@ -86,9 +86,6 @@
               <button class="activities-section-btn w-fit text-left" data-section="workshop">
                 <span class="anchor-nav-inner"><span data-label-key="act.workshop" data-label-part="en">Workshops</span><span data-label-key="act.workshop" data-label-part="zh">工作營</span></span>
               </button>
-              <button class="activities-section-btn w-fit text-left" data-section="degree-show">
-                <span class="anchor-nav-inner"><span data-label-key="act.degree-show" data-label-part="en">Degree Shows</span><span data-label-key="act.degree-show" data-label-part="zh">畢業展</span></span>
-              </button>
               <button class="activities-section-btn w-fit text-left" data-section="lectures">
                 <span class="anchor-nav-inner"><span data-label-key="act.lectures" data-label-part="en">Lectures</span><span data-label-key="act.lectures" data-label-part="zh">講座</span></span>
               </button>
@@ -122,6 +119,8 @@
                   <div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px]">
                     <div id="exhibitions-type-filter" class="flex flex-wrap gap-lg pb-lg">
                       <button class="exhibitions-type-btn courses-filter-btn active whitespace-nowrap" data-type="special"><span class="anchor-nav-inner"><span data-label-key="act.type.special" data-label-part="en">Temporary</span><span data-label-key="act.type.special" data-label-part="zh">特設</span></span></button>
+                      <!-- 畢業展 2026-09-29 由左欄獨立分頁併入展演、排特設之後（user）；文字沿用原分頁 key act.degree-show -->
+                      <button class="exhibitions-type-btn courses-filter-btn whitespace-nowrap" data-type="degree-show"><span class="anchor-nav-inner"><span data-label-key="act.degree-show" data-label-part="en">Degree Shows</span><span data-label-key="act.degree-show" data-label-part="zh">畢業展</span></span></button>
                       <button class="exhibitions-type-btn courses-filter-btn whitespace-nowrap" data-type="permanent"><span class="anchor-nav-inner"><span data-label-key="act.type.permanent" data-label-part="en">Permanent</span><span data-label-key="act.type.permanent" data-label-part="zh">常設</span></span></button>
                     </div>
                     <div class="activities-search-inner list-reveal-row flex items-center gap-sm pb-xs">
@@ -133,6 +132,10 @@
               </div>
               <div id="activities-search-spacer"></div>
               <div id="exhibitions-list-special"></div>
+              <!-- 畢業展子清單（2026-09-29 併入展演；第一次切到才載入，activities-section-switch.js ensureDegreeShowLoaded）。
+                   統一斑馬紋（user 2026-08-17）：卡片相連無間距、box 貼齊 filter 下緣；年份 md:pt-sm、內容 .list-item px-sm py-sm
+                   在 loader 內對齊 loadListInto；斑馬灰白由 loader 全域標記 .list-item-zebra。 -->
+              <div id="degree-show-list" class="flex flex-col" style="display: none;"></div>
               <!-- Permanent list 是 hideYearHeader（loader 端 flush-left）；本 panel 要對齊 search bar
                    → 用 grid-12 wrapper 把 list 推到跟 search bar 同位置（col-start-2 + pl-[41px]）。
                    結構性對齊由 page 層處理，不污染 list component -->
@@ -154,24 +157,6 @@
                 </div>
               </div>
               <div id="workshop-list"></div>
-            </div>
-
-            <!-- Degree Show Panel -->
-            <div class="activities-panel hidden" id="panel-degree-show">
-              <div class="activities-filter-bar md:sticky md:top-[200px] bg-white z-10">
-                <div class="grid-12 pb-lg">
-                  <div class="col-span-12 md:col-span-11 md:col-start-2 md:pl-[41px]">
-                    <div class="activities-search-inner list-reveal-row flex items-center gap-sm pb-xs">
-                      <span class="icon icon-search icon-m activities-search-icon"></span>
-                      <input type="text" placeholder="Search 搜尋" aria-label="搜尋 Search" class="activities-search-input flex-1 bg-transparent outline-none text-s font-bold" data-panel="panel-degree-show" autocomplete="off">
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <!-- 畢業展 list 統一為斑馬紋（user 2026-08-17）：卡片相連無間距（移除 gap-3xl/pt）、box 貼齊 filter 下緣
-                   ＝第一列與其他分頁齊；年份 md:pt-sm、內容 .list-item px-sm py-sm 在 loader 內對齊 loadListInto。
-                   斑馬灰白交替由 loader 全域標記 .list-item-zebra（CSS 已 scope 在 #activities-content-section）。 -->
-              <div id="degree-show-list" class="flex flex-col"></div>
             </div>
 
             <!-- Lectures Panel -->

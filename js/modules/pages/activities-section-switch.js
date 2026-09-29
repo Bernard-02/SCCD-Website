@@ -760,6 +760,7 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
 
   // SPA 換頁後 DOM 重建，需重置 loaded 狀態讓資料重新載入（DOM 已換、但資料快取跨頁保留＝秒開）
   Object.keys(loaded).forEach(k => delete loaded[k]);
+  degreeShowLoad = null;   // 畢業展子清單同理（DOM 已換＝要重 render；資料快取在 source 層保留）
   // P1-4：進頁**不清** single-flight cache（回訪 render 吃舊值＝秒開）；只 ++visit epoch，讓 post-hero revalidate 只背景重抓「上次 visit」的 key。
   beginActivitiesVisit();
   // 模組級旗標跨 SPA 換頁不會自動清。若上次離頁時某 switch 被導航打斷（exit 動畫被 cleanup 殺、
@@ -782,9 +783,14 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
   const hasDeepLink = params.has('section');
 
   if (hasDeepLink && fromUserNav) {
-    const initialSection = params.get('section') || defaultSection;
+    let initialSection = params.get('section') || defaultSection;
+    // 畢業展 2026-09-29 併入展演子分頁：舊連結（DSD 詳細頁返回鈕、網站地圖 activities?section=degree-show）
+    // → 開展演、再切到畢業展子分頁
+    const toDegreeShowTab = initialSection === 'degree-show';
+    if (toDegreeShowTab) initialSection = 'exhibitions';
     const initialItem = params.get('item');
     const initSwitchPromise = switchToSection(initialSection, btns, false, true);
+    if (toDegreeShowTab) initSwitchPromise.then(() => selectExhibitionsType('degree-show'));
     // deep-link 進場後同樣預暖其餘分頁資料，讓後續手動切換免等網路
     initSwitchPromise.then(() => prefetchOtherActivitiesData()).then(() => revalidateActivitiesData());
     // 等 hero 進場才往下捲（waitForHeroAnimDone；封頂 ~0.9s = hero 多組時不等全播完免「卡在 hero 太久」，user 2026-06-27；對齊 curriculum）。
@@ -955,6 +961,11 @@ async function _switchToSection(section, btns, shouldScroll, isInitial = false) 
     //    改為退場跑完才 render，退場獨佔主執行緒；代價只有冷快取時多等 fetch 尾巴。
     if (!loaded[section]) prefetchOtherActivitiesData();
 
+    // 0b. 切按鈕 active 立即生效（隨機顏色 + 旋轉；user 2026-09-29，同 about：點下去 nav 就換，不等右欄退場）。
+    //     只動 nav 狀態、不碰 panel → 跟退場並行無干擾
+    const { color } = setActiveNavBtn(btns, section, 'data-section');
+    currentSectionColor = color;
+
     // 1. 退場（首次 init 跳過；切到同 panel 也跳過）
     //    degree-show cards 已加 .list-reveal-row，與其他 panel 統一走 playAdmissionPanelExit；
     //    sub-filter chip 不是 .list-reveal-row → 另用 playFilterChipsExit 讓舊 panel 的 chip 也一起收掉
@@ -968,10 +979,6 @@ async function _switchToSection(section, btns, shouldScroll, isInitial = false) 
       //   疊進 exit 尾幀＝收起動畫掉幀。想更舒緩只調 SWITCH_BEAT_MS。
       await new Promise(r => setTimeout(r, SWITCH_BEAT_MS));
     }
-
-    // 2. 切按鈕 active 狀態（隨機顏色 + 旋轉）
-    const { color } = setActiveNavBtn(btns, section, 'data-section');
-    currentSectionColor = color;
 
     // 3. 退場結束才 fetch(命中快取)+render（見 step 0 註解；已載入的 panel 此步為 no-op）
     await loadPanel(section);
@@ -1001,19 +1008,6 @@ async function _switchToSection(section, btns, shouldScroll, isInitial = false) 
         } else {
           btn.style.background = currentSectionColor;
         }
-      });
-    }
-
-    // 6.5 degree-show 卡片標題過長 → marquee：panel 在 hidden 態 render（offsetWidth=0 量不到），
-    //     showPanel 後 rAF 重量（比照 dsd-tab strip）；非 degree-show panel 無 .dshow-title-line = no-op
-    if (section === 'degree-show' && target) {
-      const dsPanel = target;
-      requestAnimationFrame(() => {
-        applyMarqueeOverflow(dsPanel, '.dshow-title-line', '.dshow-title-inner');
-        // 桌面 hover 放開平滑回彈（user 2026-08-19 B）：每張卡綁 bindMarqueeReturn（手機由 helper 自我 gate 跳過）
-        dsPanel.querySelectorAll('.degree-show-card').forEach((card) => {
-          registerPageCleanup(bindMarqueeReturn(/** @type {HTMLElement} */ (card), '.dshow-title-inner', '.dshow-title-line'));
-        });
       });
     }
 
@@ -1104,8 +1098,9 @@ let suppressSubFilterScroll = false;
  * @param {string} panelId
  * @param {Record<string, HTMLElement | null>} lists
  * @param {string} targetType
+ * @param {Promise<unknown> | null} [ready] 目標清單還要先載入（畢業展子分頁首次切到）：跟 exit 並行跑、exit 後才等它
  */
-async function animatedSubListSwitch(panelId, lists, targetType) {
+async function animatedSubListSwitch(panelId, lists, targetType, ready = null) {
   if (subFilterSwitching) return;
   subFilterSwitching = true;
   try {
@@ -1121,12 +1116,23 @@ async function animatedSubListSwitch(panelId, lists, targetType) {
     if (outgoing) {
       await playAdmissionPanelExit(outgoing, { viewportCull: true });
     }
+    if (ready) {
+      try { await ready; } catch (err) {
+        // 資料層全失敗（Directus 逾時且無 last-known-good）：顯示同 showPanelLoadError 的錯誤態；
+        // ensureDegreeShowLoaded 已把 single-flight 歸零 → 切走再切回自動重試
+        console.warn('[activities] 子清單載入失敗', err);
+        if (!incoming.children.length) {
+          incoming.insertAdjacentHTML('beforeend', '<div class="panel-load-error" style="min-height:60vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;"><p class="text-s">Failed to load</p><p class="text-s">載入失敗，請稍後再試</p></div>');
+        }
+      }
+    }
 
     for (const k of Object.keys(lists)) {
       const el = lists[k];
       if (el) el.style.display = k === targetType ? '' : 'none';
     }
     reapplySearch(panelId);
+    if (incoming.id === 'degree-show-list') bindDegreeShowMarquee(incoming);
 
     // 切 sub-filter 一律捲回 section 頂（對齊左側 section nav，user 2026-06-06「點 filter 也要回到 filter 頂部」）。
     // 取代舊「量 filter bar 前後 Y、scrollBy 維持 sticky 視覺位置」：切到短 list（如 permanent 僅 1 筆）時
@@ -1189,6 +1195,44 @@ async function setPanelDescActive(panelId, descType) {
   playClipReveal([target], { clear: false });  // P2-3：transform 常駐 GSAP
 }
 
+// ── 畢業展＝展演的子分頁（2026-09-29 user：由左欄獨立分頁併入、排特設之後）──
+// 清單第一次切到才載入（single-flight；卡片有縮圖，別在展演進場時就一起抓）；SPA 換頁 DOM 重建時歸零（initActivitiesSectionSwitch）。
+let degreeShowLoad = /** @type {Promise<unknown> | null} */ (null);
+function ensureDegreeShowLoaded() {
+  if (!degreeShowLoad) {
+    // 重試：清掉上次失敗留下的錯誤態（loader 是 beforeend append，不清會跟卡片疊在一起）
+    document.querySelector('#degree-show-list > .panel-load-error')?.remove();
+    // cards 已帶 .list-reveal-row → 由 animatedSubListSwitch 的 setupAdmissionReveal + playAdmissionPanelReveal 統一進場
+    degreeShowLoad = loadDegreeShowListInto('degree-show-list').catch(err => { degreeShowLoad = null; throw err; });
+  }
+  return degreeShowLoad;
+}
+// 標題過長 → marquee：清單在 display:none 態 render（offsetWidth=0 量不到），顯示後 rAF 重量（比照 dsd-tab strip）。
+// 每次切到都重量（寬度可能因 resize 變）；hover 放開回彈（user 2026-08-19 B）每張卡只綁一次（手機由 helper 自我 gate）。
+/** @param {HTMLElement} container */
+function bindDegreeShowMarquee(container) {
+  requestAnimationFrame(() => {
+    applyMarqueeOverflow(container, '.dshow-title-line', '.dshow-title-inner');
+    container.querySelectorAll('.degree-show-card').forEach((cardEl) => {
+      const card = /** @type {HTMLElement} */ (cardEl);
+      if (card.dataset.marqueeReturnBound) return;
+      card.dataset.marqueeReturnBound = '1';
+      registerPageCleanup(bindMarqueeReturn(card, '.dshow-title-inner', '.dshow-title-line'));
+    });
+  });
+}
+// 程式化切展演子分頁（舊連結 ?section=degree-show 導到這裡）：同 navigateToItem 的 sub-tab 切法——抑制自帶的
+// instant 捲回 section 頂（deep-link 自己會在 hero 後平滑捲），等整段 exit→swap→reveal 啟動完才還原旗標。
+/** @param {string} type */
+async function selectExhibitionsType(type) {
+  const chip = /** @type {HTMLElement | null} */ (document.querySelector(`#exhibitions-type-filter .exhibitions-type-btn[data-type="${type}"]`));
+  if (!chip || chip.classList.contains('active')) return;
+  suppressSubFilterScroll = true;
+  chip.click();
+  for (let i = 0; i < 60 && subFilterSwitching; i++) await new Promise(r => setTimeout(r, 50));
+  suppressSubFilterScroll = false;
+}
+
 function initExhibitionsTypeFilter() {
   const btns = document.querySelectorAll('#exhibitions-type-filter .exhibitions-type-btn');
   if (!btns.length) return;
@@ -1202,6 +1246,11 @@ function initExhibitionsTypeFilter() {
 
   btns.forEach(btnEl => {
     const btn = /** @type {HTMLElement} */ (btnEl);
+    // 畢業展深層查詢在弱機上 0.5–7s 不等 → 游標滑到 chip 就先開始載（hover intent 預暖，render 進 display:none 容器），
+    // 點下去時常已載好；ensureDegreeShowLoaded 是 single-flight，點擊沿用同一份
+    if (btn.dataset.type === 'degree-show') {
+      btn.addEventListener('pointerenter', () => { ensureDegreeShowLoaded().catch(() => {}); }, { once: true });
+    }
     btn.addEventListener('click', () => {
       // subFilterSwitching 前置：animatedSubListSwitch 的 guard 在 async 內、擋不住這裡先同步翻 active/desc
       // → 動畫中連點會「按鈕與 desc 已切、清單沒切」永久 desync（再點也被 active guard 擋）。動畫期間整顆點擊忽略。
@@ -1228,10 +1277,12 @@ function initExhibitionsTypeFilter() {
       animatedSubListSwitch(
         'panel-exhibitions',
         {
-          special:   document.getElementById('exhibitions-list-special'),
-          permanent: document.getElementById('exhibitions-list-permanent'),
+          special:       document.getElementById('exhibitions-list-special'),
+          'degree-show': document.getElementById('degree-show-list'),
+          permanent:     document.getElementById('exhibitions-list-permanent'),
         },
         targetType,
+        targetType === 'degree-show' ? ensureDegreeShowLoaded() : null,   // 首次切到才載，與舊清單 exit 並行
       );
     });
   });
@@ -1339,11 +1390,6 @@ async function loadPanel(section) {
     case 'workshop':
       await loadWorkshopsInto('/data/workshops.json', 'workshop-list', opts);
       initListAccordion();
-      return;
-
-    case 'degree-show':
-      // cards 已加 .list-reveal-row，與其他 panel 統一走 setupAdmissionReveal + playAdmissionPanelReveal
-      await loadDegreeShowListInto('degree-show-list');
       return;
 
     case 'summer-camp':

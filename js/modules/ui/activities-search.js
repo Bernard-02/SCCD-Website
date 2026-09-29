@@ -376,6 +376,13 @@ function applyDegreeShowSearch(query) {
   setEmptyState(container, query && !anyVisible);
 }
 
+// 畢業展 2026-09-29 併入展演子分頁：展演的搜尋框在「畢業展子清單可見」時改走卡片搜尋，其餘走一般清單搜尋
+function applyPanelSearch(panelId, query) {
+  const ds = document.getElementById('degree-show-list');
+  if (panelId === 'panel-exhibitions' && ds && ds.style.display !== 'none') applyDegreeShowSearch(query);
+  else applyGenericSearch(panelId, query);
+}
+
 // ── 給外部 type filter 用：切換 filter 後重新 apply 當前 query ─────────────
 
 export function reapplySearch(panelId) {
@@ -383,12 +390,7 @@ export function reapplySearch(panelId) {
   if (!panel) return;
   const input = /** @type {HTMLInputElement | null} */ (panel.querySelector(`.activities-search-input[data-panel="${panelId}"]`));
   if (!input) return;
-  const query = input.value.trim();
-  if (panelId === 'panel-degree-show') {
-    applyDegreeShowSearch(query);
-  } else {
-    applyGenericSearch(panelId, query);
-  }
+  applyPanelSearch(panelId, input.value.trim());
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────
@@ -511,10 +513,7 @@ export function initActivitiesSearch() {
     // debounce：lazy 全建 + 結果進場動畫較重，不必每次按鍵都跑；停鍵 ~140ms 才 apply（清空即時還原）
     let t = null;
     input.addEventListener('input', () => {
-      const run = () => {
-        if (panelId === 'panel-degree-show') applyDegreeShowSearch(input.value.trim());
-        else applyGenericSearch(panelId, input.value.trim());
-      };
+      const run = () => applyPanelSearch(panelId, input.value.trim());
       clearTimeout(t);
       if (!input.value.trim()) run();          // 清空即時還原、不 debounce
       else t = setTimeout(run, 140);
@@ -528,11 +527,7 @@ export function initActivitiesSearch() {
       setTimeout(() => {
         const panelInput = /** @type {HTMLInputElement | null} */ (document.querySelector(`.activities-search-input[data-panel="panel-${section}"]`));
         if (!panelInput) return;
-        if (section === 'degree-show') {
-          applyDegreeShowSearch(panelInput.value.trim());
-        } else {
-          applyGenericSearch(`panel-${section}`, panelInput.value.trim());
-        }
+        applyPanelSearch(`panel-${section}`, panelInput.value.trim());
       }, 300);
     });
   });
