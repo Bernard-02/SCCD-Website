@@ -972,19 +972,14 @@ body.mode-color .atlas-alumni-career:not(.atlas-alumni-subchip) {
   color: var(--theme-fg) !important;
 }
 /* host/employ subchip inactive（user 08-27）：底色對齊 .atlas-filter-btn inactive 的 mode3 規則
-   （theme-bg 底 + half-fg 字；active 維持 base 的 --lib-bg 灰底不蓋） */
+   （theme-bg 底；字 09-29 起實 fg、不再 half-fg；active 見下方半透明白底） */
 body.mode-color .atlas-alumni-subchip.subchip-inactive {
   background-color: var(--theme-bg) !important;
 }
+/* inactive 字不半透明（user 2026-09-29）：實 fg，inactive 只靠 theme-bg 底區分 */
 body.mode-color .atlas-alumni-subchip.subchip-inactive .atlas-alumni-career-en,
 body.mode-color .atlas-alumni-subchip.subchip-inactive .atlas-alumni-career-zh {
-  color: rgba(var(--theme-fg-rgb), 0.5) !important;
-}
-@media (min-width: 768px) {
-  body.mode-color .atlas-alumni-subchip.subchip-inactive:hover .atlas-alumni-career-en,
-  body.mode-color .atlas-alumni-subchip.subchip-inactive:hover .atlas-alumni-career-zh {
-    color: rgba(var(--theme-fg-rgb), 1) !important;
-  }
+  color: var(--theme-fg) !important;
 }
 /* host/employ subchip active（user 09-02）：mode3 改白色半透明（--list-zebra-strip，同 list host/employ 欄標）；
    原本 active 態無 mode3 規則 → 吃 base 的 --lib-bg 灰。⚠️不可用 rgba(theme-fg)：亮 hue 會變黑疊非白（同下方 903 註解）。

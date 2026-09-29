@@ -11,8 +11,8 @@ import { guestOrgs } from './guest-orgs.js';
 import { sitePath } from '../ui/site-base.js';
 import { loadUiLabels, applyUiLabels } from '../ui/ui-labels.js';
 import { ACCENT_TO_DEEP } from '../accordions/list-accordion.js';
-import { bindArrowSpin } from '../ui/arrow-spin.js';
-import { bindNavBtnHover } from '../ui/section-switch-helpers.js';
+import { bindArrowSpin, randomSpinAngle } from '../ui/arrow-spin.js';
+import { bindNavBtnHover, isNavSpinDesktop } from '../ui/section-switch-helpers.js';
 
 /**
  * Atlas Page — SCCD-Centered Living Textile
@@ -3680,7 +3680,14 @@ export async function initAtlas(options = {}) {
     // 不動 ring 方向 / orbit 位置（user 指定不要套 alumni inactive flow）
     Object.entries(subchipMap).forEach(([key, chip]) => {
       if (!chip) return;
+      bindNavBtnHover(chip);   // hover 隨機三原色（user 2026-09-29，同主 filter btn；CSS 在 atlas.css subchip 段，只 inactive 上色）
+      // inactive hover 抽新角、離開保持；active 不轉（全站 nav btn 規則 user 2026-09-29）
+      chip.addEventListener('mouseenter', () => {
+        if (!chip.classList.contains('subchip-inactive') || viewMorphing) return;
+        chip.style.transform = `rotate(${randomSpinAngle(inlineRotDeg(chip))}deg)`;
+      });
       chip.addEventListener('click', () => {
+        delete chip.dataset.navHover;   // 同主 filter btn：點擊後不繼承 hover 色、立刻顯示新狀態
         if (viewMorphing) return;   // 同 filter btn：morph 期間 anchor opacity 歸時間軸管
         const other = key === 'host' ? 'employ' : 'host';
         const changed = (subchipActive.host && subchipActive.employ) ? other   // 全開 → 聚焦：關另一顆
@@ -3773,11 +3780,17 @@ export async function initAtlas(options = {}) {
   function showCareer(opts) {
     if (!mapCareerCtrl || !careerEl) return;
     const stagger = (opts && opts.stagger) || 0;
-    // career chip 在 alumni 右側並排（gap:0 緊貼），rotation 跟 alumni inner 同角度 →
-    // 兩者 transform-origin 配對成接縫 pivot（alumni right edge / career left edge），旋轉後仍緊貼不脫節
+    // career chip 在 alumni 右側並排（gap:0 緊貼），rotation 跟 alumni inner 同角度；alumni 繞自己中心轉（全站旋轉繞中心，
+    // user 2026-09-29）→ career 的 pivot 設在「alumni 中心」（career 本地座標）＝兩塊當一體剛性旋轉、接縫不脫節。
+    // alumniBtn 與 careerEl 同 offsetParent(#atlas-filter)、inner 的 offsetParent＝btn；offset 不受 transform 影響
     if (alumniBtn) {
       const inner = /** @type {HTMLElement | null} */ (alumniBtn.querySelector('.anchor-nav-inner'));
       careerEl.style.transform = inner && inner.style.transform ? inner.style.transform : '';
+      if (inner) {
+        const ox = alumniBtn.offsetLeft + inner.offsetLeft + inner.offsetWidth / 2 - careerEl.offsetLeft;
+        const oy = alumniBtn.offsetTop + inner.offsetTop + inner.offsetHeight / 2 - careerEl.offsetTop;
+        careerEl.style.transformOrigin = `${ox}px ${oy}px`;
+      }
     }
     // 進場順序 career → host → employ（依 mapSubchipCtrls 順序），每個用 stagger 秒間隔
     mapCareerCtrl.show();
@@ -4279,6 +4292,8 @@ export async function initAtlas(options = {}) {
     /** @param {(number|undefined)[]|null} enterDirsHint */
     function build(enterDirsHint) {
       listNavReparenting = true;   // 舊 nav 鈕被 innerHTML='' 銷毀、新鈕在原位（游標下）重生 → 假 mouseenter 別抽新角
+      // 同理 hover 色：舊鈕 hover 中（點擊翻頁）→ 新鈕接手同色，不因重生換色
+      const prevHover = /** @type {HTMLElement|null} */ (itemsEl.querySelector('.atlas-list-nav-btn'))?.dataset.navHover;
       evacuateListNodes(itemsEl);   // 單一節點：先撤回星雲 anchor，innerHTML='' 才不會炸掉節點
       itemsEl.innerHTML = ''; // clears both sub-cols
 
@@ -4323,6 +4338,7 @@ export async function initAtlas(options = {}) {
       bindArrowSpin(nextBtn, d => nextBtn.style.setProperty('--nav-rot', `${d}deg`),
         { initial: navRot, onCommit: d => { listNavRot = d; }, ignoreEnter: () => listNavReparenting });
       nextBtn.addEventListener('click', () => renderListPage(col, cat, safePage >= maxPage ? 0 : safePage + 1));
+      if (prevHover) { nextBtn.dataset.navHover = prevHover; nextBtn.style.setProperty('--nav-hover', prevHover); }
 
       navItem.appendChild(nextBtn);
 
@@ -4337,7 +4353,8 @@ export async function initAtlas(options = {}) {
       // nav append 到 .atlas-list-col-items（position:relative）→ 跨整欄、< 頂左緣 / > 頂右緣（CSS space-between）
       itemsEl.appendChild(navItem);
       // 新鈕已就位於游標下：等假 mouseenter 補發過去（次幀）才落旗
-      requestAnimationFrame(() => requestAnimationFrame(() => { listNavReparenting = false; }));
+      // hover 隨機三原色（user 2026-09-29，同全站黑方塊鈕）也等假 mouseenter 過去才綁＝重生不抽新色
+      requestAnimationFrame(() => requestAnimationFrame(() => { listNavReparenting = false; bindNavBtnHover(nextBtn); }));
 
       // 主標 marquee：DOM 進入 layout 後（次幀）量寬決定是否需要 marquee
       requestAnimationFrame(() => applyListMarquee(itemsEl));
@@ -4466,7 +4483,7 @@ export async function initAtlas(options = {}) {
     // partners 3 行 / 其餘 (faculty/employ/host) 2 行
     const linesPerItem = cat === 'partners' ? 3 : 2;
     const lines = /** @type {HTMLElement[]} */ ([...col.querySelectorAll('.atlas-list-line-clip > *')]);
-    const navItem = /** @type {HTMLElement|null} */ (col.querySelector('.atlas-list-nav-item'));
+    const navBtn = /** @type {HTMLElement|null} */ (col.querySelector('.atlas-list-nav-item .atlas-list-nav-btn'));
     const numItems = lines.length ? Math.ceil(lines.length / linesPerItem) : 0;
     const itemStagger = numItems > 1
       ? Math.min(BASE_ITEM_STAGGER, STAGGER_WINDOW / (numItems - 1))
@@ -4482,20 +4499,17 @@ export async function initAtlas(options = {}) {
         }
       );
     }
-    // chevron 進場：clip-path inset 原地揭露（位置固定 / 不平移）；timing 接在最後 item 之後
-    // inset 四值必須統一用 % 單位，否則 GSAP 解析不到、直接跳終值（看起來像「跳進來」）
-    if (navItem) {
-      gsap.fromTo(navItem,
-        { clipPath: 'inset(0% 0% 100% 0%)' },
-        {
-          clipPath: 'inset(0% 0% 0% 0%)',
-          duration: DUR.reveal,
-          delay: delay + numItems * itemStagger,
-          ease: EASE.enter,
-          clearProps: 'clipPath',
-          overwrite: true,
-        }
-      );
+    // 右箭頭進場：hero clip-reveal「位移＋自遮罩」從下滑上（同 switchToList；user 09-01 不要 clip-path 原地擦除）；
+    // 動 btn 本體不動 wrapper。timing 接在最後 item 之後
+    if (navBtn) {
+      gsap.fromTo(navBtn, navChipHidden(navBtn, 'bottom'), {
+        ...NAV_CHIP_SHOWN,
+        duration: DUR.reveal,
+        delay: delay + numItems * itemStagger,
+        ease: EASE.enter,
+        clearProps: 'clipPath,translate',
+        overwrite: true,
+      });
     }
   }
 
@@ -4747,7 +4761,7 @@ export async function initAtlas(options = {}) {
         inner.style.background = '';
         inner.style.color = '';
         inner.style.opacity = '';
-        inner.style.transform = '';
+        // 角度不清：inactive hover 抽的角離開保持（全站 nav btn 規則，user 2026-09-29）
       }
     });
   }
@@ -4962,9 +4976,16 @@ export async function initAtlas(options = {}) {
     if (animate) syncCareer();
   }
 
-  // hover 隨機三原色（全站 nav btn 規則 user 2026-09-28）：atlas 連 active（黑）也上色（navigation.css 對 .atlas-filter-btn
-  // 不加 :not(.active)）；只變色不轉角（atlas 排除 hover spin：maskFlyChrome 吃 inline 角）
-  btns.forEach(b => bindNavBtnHover(b));
+  // hover＝全站 nav btn 規則（user 2026-09-29）：inactive 抽新角＋隨機三原色、離開保持角；active 不轉不變色。
+  // 角寫 inner inline（maskFlyChrome 起飛當下讀 inlineRotDeg＝照樣對位）；morph 期間不抽＝不動正在飛的 dstRot
+  btns.forEach(b => {
+    bindNavBtnHover(b);
+    const inner = /** @type {HTMLElement|null} */ (b.querySelector('.anchor-nav-inner'));
+    if (inner && isNavSpinDesktop()) b.addEventListener('mouseenter', () => {
+      if (b.classList.contains('active') || viewMorphing) return;
+      inner.style.transform = `rotate(${randomSpinAngle(inlineRotDeg(inner))}deg)`;
+    });
+  });
   btns.forEach(b => {
     b.addEventListener('click', () => {
       // 點擊後不繼承 hover 色（user 2026-09-28）：拆 hover gate＝立刻顯示新狀態的黑/白，下次 mouseenter 才再上色
@@ -5787,7 +5808,6 @@ export async function initAtlas(options = {}) {
         btns.forEach(b => b.classList.remove('atlas-filter-revealed'));
         if (filterEl) filterEl.style.display = 'none';
         updateFilterBtnColors();
-        revealLayoutIcon('icon icon-atlas-view');
         // 未配對標題（subchip 收合等少見情境）一般進場
         if (restTitles.length) {
           gsap.fromTo(restTitles, { yPercent: 100 },
@@ -5811,6 +5831,8 @@ export async function initAtlas(options = {}) {
     }, null, restoreDelay);
     const unpairedExitItems = items.filter(i => i._span && !i._asList && !pairedItems.has(i));
     master.add(buildMapExitTl(unpairedExitItems), restoreDelay);
+    // layout icon：buildMapExitTl 在 restoreDelay 收舊 icon → 收完立刻揭新 icon，不等 list 進場整段跑完（user 2026-09-29）
+    master.call(() => { if (!destroyed) revealLayoutIcon('icon icon-atlas-view'); }, null, restoreDelay + LAYOUT_ICON_DURATION);
     // Phase B（restoreDelay + M_CITY_LEAD）：城市走完才「全體變黑 + 擦色塊」。全 map item 文字統一漸變到 theme-fg
     // （黑／inverse 白／mode3 前景）；dur＝M_COLOR_FADE、ease exitSoft 對齊 host 色塊掃除（見 buildMapExitTl / paired 分支）。
     // ⚠️ gsap 不能 interp CSS var 目標 → 先用隱形 probe 把 var(--theme-fg) 解成 concrete 色。
@@ -5984,7 +6006,6 @@ export async function initAtlas(options = {}) {
         viewMorphing = false;
         refreshFloatRunning();   // 恢復 float（通常 floatThawEarly 已提前解凍＝no-op；補償在解凍當下做）
         floatThawEarly = false;
-        revealLayoutIcon('icon icon-atlas-list');
         // 收尾補 career chip + ring（subchip 已飛回且 ctrl 恆 visible → show() 冪等 no-op；
         // 僅 intro 被中斷、subchip 從未展開的邊角才會由此 fallback 展開）
         const subchipT = /** @type {any} */ (setTimeout(() => {
@@ -5996,6 +6017,8 @@ export async function initAtlas(options = {}) {
     });
     introTween = /** @type {any} */ (master);
     master.add(enterTl, 0);
+    // layout icon：開頭 hideLayoutIcon 收完立刻揭新 icon，不等星雲回程整段跑完（user 2026-09-29）
+    master.call(() => { if (!destroyed) revealLayoutIcon('icon icon-atlas-list'); }, null, LAYOUT_ICON_DURATION);
 
     // Stage 3 bloom（user 09-04）：非 host item 到位後，全體 recolor（黑→彩色）＋ host 色塊 clip-in「一起現身」
     // ＝正向 exit「decolorize + 色塊 clip-out」的鏡像倒放。bulk 在 R_BLOOM 同步；晚到的 paired straggler 各自 onLand 自補。
@@ -6219,7 +6242,7 @@ export async function initAtlas(options = {}) {
       ...listView.querySelectorAll('.atlas-list-line-clip > *'),
       ...listView.querySelectorAll('.atlas-list-col-title'),
     ]);
-    const exitNavs = /** @type {HTMLElement[]} */ ([...listView.querySelectorAll('.atlas-list-nav-item')]);
+    const exitNavs = /** @type {HTMLElement[]} */ ([...listView.querySelectorAll('.atlas-list-nav-item .atlas-list-nav-btn')]);
     if (exitLines.length === 0 && exitNavs.length === 0) { finalize(); return; }
     let done = 0;
     const total = (exitLines.length > 0 ? 1 : 0) + (exitNavs.length > 0 ? 1 : 0);
@@ -6231,10 +6254,12 @@ export async function initAtlas(options = {}) {
       });
     }
     if (exitNavs.length > 0) {
-      gsap.fromTo(exitNavs,
-        { clipPath: 'inset(0% 0% 0% 0%)' },
-        { clipPath: 'inset(0% 0% 100% 0%)', duration: DUR.slow, ease: EASE.exitSoft, overwrite: true, onComplete: onOne },
-      );
+      // 右箭頭退場＝hero clip-reveal 往下滑出（同 switchToMap 桌面；user 2026-09-29「出場應該是 clip reveal」）
+      gsap.fromTo(exitNavs, { ...NAV_CHIP_SHOWN }, {
+        clipPath: (/** @type {number} */ i, /** @type {HTMLElement} */ el) => navChipHidden(el, 'bottom').clipPath,
+        translate: (/** @type {number} */ i, /** @type {HTMLElement} */ el) => navChipHidden(el, 'bottom').translate,
+        duration: DUR.slow, ease: EASE.exitSoft, overwrite: true, onComplete: onOne,
+      });
     }
   }
 
@@ -6414,7 +6439,7 @@ export async function initAtlas(options = {}) {
         ...listView.querySelectorAll('.atlas-list-line-clip > *'),
         ...listView.querySelectorAll('.atlas-list-col-title'),
       ]);
-      const navExitTargets = /** @type {HTMLElement[]} */ ([...listView.querySelectorAll('.atlas-list-nav-item')]);
+      const navExitTargets = /** @type {HTMLElement[]} */ ([...listView.querySelectorAll('.atlas-list-nav-item .atlas-list-nav-btn')]);
       if (yPercentExitTargets.length === 0 && navExitTargets.length === 0) {
         gsap.delayedCall(0.2, resolve);
         return;
@@ -6429,10 +6454,12 @@ export async function initAtlas(options = {}) {
         });
       }
       if (navExitTargets.length > 0) {
-        gsap.fromTo(navExitTargets,
-          { clipPath: 'inset(0% 0% 0% 0%)' },
-          { clipPath: 'inset(0% 0% 100% 0%)', duration: DUR.slow, ease: EASE.exitSoft, overwrite: true, onComplete: onOne },
-        );
+        // 離頁右箭頭＝hero clip-reveal 往下滑出（同 switchToMap；user 2026-09-29「出場應該是 clip reveal」）
+        gsap.fromTo(navExitTargets, { ...NAV_CHIP_SHOWN }, {
+          clipPath: (/** @type {number} */ i, /** @type {HTMLElement} */ el) => navChipHidden(el, 'bottom').clipPath,
+          translate: (/** @type {number} */ i, /** @type {HTMLElement} */ el) => navChipHidden(el, 'bottom').translate,
+          duration: DUR.slow, ease: EASE.exitSoft, overwrite: true, onComplete: onOne,
+        });
       }
     });
   }

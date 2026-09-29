@@ -575,20 +575,33 @@ body.mode-color #atlas-detail-mask {
 .atlas-alumni-subchip {
   pointer-events: auto;
   cursor: var(--cursor-pointer);
-  transition: background-color var(--dur-micro) ease, color var(--dur-micro) ease;
+  /* 底/字色瞬切（user 2026-09-29 hover 不要 fade，同主 filter btn）；只留 hover 抽角的 transform 補間 */
+  transition: transform var(--dur-fast) var(--ease-standard);
+  transform-origin: 50% 50%;   /* 蓋 .atlas-alumni-career 的 top left：全站旋轉繞中心 */
 }
 .atlas-alumni-subchip.subchip-inactive {
   background: rgba(255, 255, 255, 1);
 }
+/* inactive 字不半透明（user 2026-09-29）：白底實黑；inactive 只靠底色區分。明寫 #000 不繼承（--lib-fg 在 mode2 是白） */
 .atlas-alumni-subchip.subchip-inactive .atlas-alumni-career-en,
 .atlas-alumni-subchip.subchip-inactive .atlas-alumni-career-zh {
-  color: #808080; /* 原 rgba(0,0,0,.5) 疊白底實色；legacy hex 保 sRGB 過渡 pacing（color-mix 會走 Oklab 拖長 fade 感） */
+  color: #000;
 }
-@media (min-width: 768px) {
-  .atlas-alumni-subchip.subchip-inactive:hover .atlas-alumni-career-en,
-  .atlas-alumni-subchip.subchip-inactive:hover .atlas-alumni-career-zh {
-    color: rgba(0, 0, 0, 1);
-  }
+/* mode2 inactive＝黑底白字（user 2026-09-29，同主 filter btn 的 mode2 inactive） */
+body.mode-inverse .atlas-alumni-subchip.subchip-inactive {
+  background: #000;
+}
+body.mode-inverse .atlas-alumni-subchip.subchip-inactive :is(.atlas-alumni-career-en, .atlas-alumni-career-zh) {
+  color: #fff;
+}
+/* hover 隨機三原色（user 2026-09-29，同主 filter btn navigation.css 段）：atlas.js bindNavBtnHover 掛 data-nav-hover + --nav-hover，
+   只 inactive 上色（active 不變色、不轉角）；點擊 JS 拆 gate＝立刻顯示新狀態。mode3 無 rgb＝翻 fg 底 fg-inverse 字（同主 filter btn）。
+   #atlas-filter 提特異度壓 color.css subchip 的 !important（最高 (0,5,1)） */
+@media (hover: hover) and (min-width: 768px) {
+  body:not(.mode-color) #atlas-filter .atlas-alumni-subchip.subchip-inactive[data-nav-hover]:hover { background: var(--nav-hover, var(--color-pink)) !important; }
+  body:not(.mode-color) #atlas-filter .atlas-alumni-subchip.subchip-inactive[data-nav-hover]:hover > span { color: #000 !important; }
+  body.mode-color #atlas-filter .atlas-alumni-subchip.subchip-inactive[data-nav-hover]:hover { background: var(--theme-fg) !important; }
+  body.mode-color #atlas-filter .atlas-alumni-subchip.subchip-inactive[data-nav-hover]:hover > span { color: var(--theme-fg-inverse) !important; }
 }
 
 /* ── 左上角 Filter（仿 activities-section-btn 樣式：anchor-nav-inner chip）
@@ -1132,6 +1145,14 @@ body.mode-color #atlas-detail-mask {
   cursor: var(--cursor-not-allowed);
 }
 /* 09-10：hover/click 隨機角度改由 JS arrow-spin 接手（寫 --nav-rot），舊 09-01 :hover +8° 疊加規則移除 */
+/* hover 隨機三原色（user 2026-09-29，同全站黑方塊鈕 lists.css .tl-icon-btn-inner 段）：atlas.js bindNavBtnHover；disabled（只一頁）不上色。
+   mode3 翻反色：一般欄 fg 底→fg-inverse 底；host/employ 欄靜態是淺色半透明＋fg 字→翻 fg 底。
+   #atlas-list-view 提特異度壓 inverse.css／color.css 的 !important（(0,5,1)） */
+@media (hover: hover) and (min-width: 768px) {
+  body:not(.mode-color) #atlas-list-view .atlas-list-nav-btn[data-nav-hover]:not(:disabled):hover { background: var(--nav-hover, var(--color-pink)) !important; color: #000 !important; }
+  body.mode-color #atlas-list-view .atlas-list-nav-btn[data-nav-hover]:not(:disabled):hover { background: var(--theme-fg-inverse) !important; color: var(--theme-fg) !important; }
+  body.mode-color #atlas-list-view :is([data-category="host"], [data-category="employ"]) .atlas-list-nav-btn[data-nav-hover]:not(:disabled):hover { background: var(--theme-fg) !important; color: var(--theme-fg-inverse) !important; }
+}
 
 .atlas-filter-btn {
   cursor: var(--cursor-pointer);
@@ -1185,16 +1206,11 @@ body.mode-color #atlas-detail-mask {
   line-height: var(--line-height-s);   /* s 標準行距 1.3（EN/ZH 同值；gap 2px 由 .anchor-nav-inner 提供） */
 }
 
-/* career chip 貼 alumni 右側（flex 流內 gap:0）→ 共用「右上接縫 pivot」：
-   alumni inner 繞 top-right、career 繞 top-left（已是 .atlas-alumni-career 預設 transform-origin）
-   兩個 pivot 是 layout 上同一點（alumni 的右上角 = career 的左上角）→ 旋轉同角度仍緊貼，
-   career 沿 alumni 右側 slope 往右下延伸（rotation 自帶下沉 slope，chip 頂部仍對齊 alumni 頂部） */
-.atlas-filter-btn[data-filter="alumni"] .anchor-nav-inner {
-  transform-origin: top right;
-}
+/* alumni inner 繞中心（全站旋轉繞中心，user 2026-09-29；舊 top-right 接縫 pivot 已撤）。貼右側的 career chip
+   由 atlas.js showCareer 把 pivot 設在 alumni 中心＝兩塊剛性同轉、仍緊貼 */
 
 /* Active 狀態：由 atlas.js updateFilterBtnColors 寫 inline 黑底白字（非三原色）；hover 隨機三原色見 navigation.css
-   「nav btn hover」段（atlas 連 active 也上色、點擊不繼承） */
+   「nav btn hover」段（只 inactive 上色、點擊不繼承） */
 
 /* 被 filter 過濾掉的 anchor */
 .atlas-anchor.atlas-filtered-out {
