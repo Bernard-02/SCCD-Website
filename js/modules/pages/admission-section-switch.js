@@ -324,6 +324,10 @@ export function initAdmissionSectionSwitch(fromUserNav = false) {
     // 關鍵＝setupAdmissionReveal 必須在 list 已在 DOM 後才跑，文字 row + zebra 灰底才會一次藏好；
     //   panel 全程 hidden 到 show 那步，lazy load 期間描述塊也不會 flash（不需先藏再補藏那套）。
     try {
+      // 0. 切 active btn 立即生效（user 2026-09-29，同 about：點下去 nav 就換，不等右欄退場／lazy load）；
+      //    capture 色給 deep-link highlight 用。只動 nav 狀態、不碰 panel → 跟退場並行無干擾
+      ({ color: currentSectionColor } = setActiveNavBtn(btns, section, 'data-section'));
+
       // 1. 退場（首次 init 跳過）
       if (!isInitial && currentPanel) {
         await playAdmissionPanelExit(currentPanel);
@@ -340,9 +344,6 @@ export function initAdmissionSectionSwitch(fromUserNav = false) {
         await loadSummerCampInto('summer-camp-list', { autoReveal: false });
         initListAccordion();
       }
-
-      // 3. 切 active btn（capture 色給 deep-link highlight 用）
-      ({ color: currentSectionColor } = setActiveNavBtn(btns, section, 'data-section'));
 
       // 4. setup（panel 仍 hidden）：list 已載入 → 文字 row 藏起 + zebra 灰底 clip 藏起一次到位。
       //    hide:!isInitial — 初次 init（hide:false）只 wrap 不隱藏描述塊（HTML 已可見免閃，但需 wrapper 讓首次 exit 乾淨剪裁）。

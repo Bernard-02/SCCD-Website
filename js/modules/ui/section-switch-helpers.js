@@ -72,9 +72,9 @@ export function setActiveNavBtn(btns, activeKey, attrName, opts = {}) {
 }
 
 /**
- * nav btn 隨機角互動（user 2026-09-15 全站定案）：初始各自隨機角；桌面 hover（含 active）抽新角、
+ * nav btn 隨機角互動（user 2026-09-15 全站定案；09-29 改 active 不轉）：初始各自隨機角；桌面 hover 抽新角（active 不轉不變色）、
  * 離開保持不還原；click 不再另抽——setActiveNavBtn 桌面沿用 inline 當前角、手機/矮橫向 click 才現抽。
- * 排除：atlas（maskFlyChrome 吃顯式 srcRot/dstRot，外掛亂角會 desync）與已自帶同款互動的組
+ * 排除：atlas（自綁，maskFlyChrome 吃顯式 srcRot/dstRot，morph 期間不能抽）與已自帶同款互動的組
  * （anchor-nav / courses program / bfa-division / DSD event chips——各自維持自家 range）。
  * 元素級 listener 隨 #page-content swap 一起消失，不需 registerPageCleanup。
  * @param {NodeList|Element[]} btns
@@ -90,6 +90,7 @@ export function bindNavBtnSpin(btns) {
       if (readInlineRot(inner) == null) inner.style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`;
     });
     if (hoverOn) b.addEventListener('mouseenter', () => {
+      if (b.classList.contains('active')) return;   // active 不轉（user 2026-09-29 全站）
       inners.forEach(inner => { inner.style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`; });
     });
     bindNavBtnHover(b);

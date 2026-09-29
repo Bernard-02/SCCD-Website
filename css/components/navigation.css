@@ -299,8 +299,8 @@
 
 /* ===== nav btn hover＝隨機三原色（user 2026-09-28 全站規則）=====
  * JS（section-switch-helpers.js bindNavBtnHover）桌面 mouseenter 抽色：btn 掛 data-nav-hover（gate）＋ --nav-hover（色），離開即拆
- * → 只在桌面 JS 標過的 btn 生效（手機/矮橫向 tap 不黏色）。active 自帶色不上（:not(.active)）；atlas filter 例外連 active（黑）
- * 也上，點擊時 JS 拆 gate＝立刻回黑/白、不繼承 hover 色。
+ * → 只在桌面 JS 標過的 btn 生效（手機/矮橫向 tap 不黏色）。active 不上色也不轉角（:not(.active)；user 2026-09-29 全站，
+ * atlas filter 舊「連 active 也上」例外已撤）；atlas 點擊時 JS 拆 gate＝立刻回黑/白、不繼承 hover 色。
  * 放 @layer 外、特異度 (0,5,1)＋!important：壓 inverse.css / color.css / atlas.css 的 !important（0,3,1~0,4,1）與 atlas active
  * 的 inline #000；mode 切換窗口的 transition 規則（color.css (0,5,1)、輸出在後）照樣勝＝0.4s mode fade 不受影響。
  * mode3：黑或白跟 hue 亮度翻（theme-fg 底＝active 同款，user 拍板）。
@@ -318,11 +318,11 @@
   .courses-program-group:has(> [data-nav-hover-bound]) .courses-bfa-label {
     transition: transform var(--dur-fast) var(--ease-standard);
   }
-  body:not(.mode-color) :is([data-nav-hover]:not(.active), .atlas-filter-btn[data-nav-hover]) .anchor-nav-inner:hover {
+  body:not(.mode-color) [data-nav-hover]:not(.active) .anchor-nav-inner:hover {
     background-color: var(--nav-hover, var(--color-pink)) !important;
     color: #000 !important;
   }
-  body.mode-color :is([data-nav-hover]:not(.active), .atlas-filter-btn[data-nav-hover]) .anchor-nav-inner:hover {
+  body.mode-color [data-nav-hover]:not(.active) .anchor-nav-inner:hover {
     background-color: var(--theme-fg) !important;
     color: var(--theme-fg-inverse) !important;
     transition: transform var(--dur-fast) var(--ease-standard) !important;

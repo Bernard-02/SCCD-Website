@@ -137,9 +137,10 @@ export function initAnchorNav({ reveal = false } = {}) {
     const inner = btn.querySelector('.anchor-nav-inner');
     if (inner) inner.style.transform = `rotate(${btn._baseRot}deg)`;
 
-    // Hover：抽新角（含 active）、離開保持不還原（user 2026-09-15 全站定案）；
+    // Hover：抽新角、離開保持不還原（user 2026-09-15 全站定案；09-29 改 active 不轉）；
     // _pendingRot 留給 setActiveBtn（active 沿用 hover 當下角）
     inner && inner.addEventListener('mouseenter', () => {
+      if (btn.classList.contains('active')) return;
       const rot = getNavRotation();
       btn._pendingRot = rot;
       inner.style.transform = `rotate(${rot}deg)`;

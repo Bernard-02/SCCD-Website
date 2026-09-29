@@ -168,6 +168,11 @@
       position: relative;
       bottom: auto;
     }
+    /* MDES 是跟「BFA 小標題」同層的第一層項目（BFA 底下兩顆組別才是第二層）→ 左緣對齊小標題的 -12（user 2026-09-29） */
+    .courses-program-bar > .courses-program-btn[data-program="mdes"] {
+      position: relative;
+      left: -12px;
+    }
   }
 
   /* Program group：relative，讓 label absolute 定位用 */

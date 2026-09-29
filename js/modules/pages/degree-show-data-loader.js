@@ -1858,11 +1858,12 @@ function setupStickyAndHeroChips(data, year) {
       // anchor-nav-btn/-inner＝直接吃 about nav btn 的三 mode 規則（buttons/inverse/color.css 整組 selector，
       // 含 mode3 inactive bg=var(--theme-bg) 跟 body hue 同步、active strict B/W、hover 升對比；user 2026-08-18）
       wrap.className = 'sticky-event-chip anchor-nav-btn';
-      // hover 旋轉（全站定案 2026-09-15）：初始隨機角；hover（含 active）抽新角、離開保持不還原；
+      // hover 旋轉（全站定案 2026-09-15）：初始隨機角；hover 抽新角（active 不轉——user 2026-09-29）、離開保持不還原；
       // active 沿用 hover 當下角（見 setActiveEvent）。
       wrap._baseRot = randRot();
       wrap.style.transform = `rotate(${wrap._baseRot}deg)`;
       wrap.addEventListener('mouseenter', () => {
+        if (wrap.classList.contains('active')) return;
         wrap._pendingRot = randRot();
         wrap.style.transform = `rotate(${wrap._pendingRot}deg)`;
       });

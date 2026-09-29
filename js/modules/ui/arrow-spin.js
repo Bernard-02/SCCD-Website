@@ -24,6 +24,8 @@ export function bindArrowSpin(el, setAngle, { initial = 0, onCommit, ignoreEnter
   if (window.innerWidth >= 768 && !window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) {
     el.addEventListener('mouseenter', () => {
       if (ignoreEnter && ignoreEnter()) return;   // re-parent 補發的假 mouseenter（元素被搬 DOM）→ 別抽新角
+      // active／開著的鈕 hover 不轉（user 2026-09-29 全站：history 清單鈕 .active、footer tab .is-active、header 漢堡鈕 .is-open）
+      if (el.classList.contains('active') || el.classList.contains('is-active') || el.classList.contains('is-open')) return;
       pending = rand(); setAngle(pending);
     });
     // 離開保持新角＝直接轉正定案（角度已顯示、不需 setAngle）

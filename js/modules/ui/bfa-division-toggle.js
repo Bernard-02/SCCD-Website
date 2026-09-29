@@ -414,9 +414,9 @@ export function initBFADivisionToggle() {
     // hover BFA 小標題也算（user 2026-09-28）：有小標題的 btn 以「小標題＋btn」的父層進出為準——
     // 在兩者間移動不重抽色/角；小標題 click 本就轉發 btn.click()＝沿用這次 hover 色
     const hoverHost = btn.previousElementSibling?.classList.contains('class-group-label') ? btn.parentElement : btn;
-    // hover 抽新角（含 active；離開保持不還原——user 2026-09-15 全站定案）；色彩預覽維持只給 non-active
+    // hover 抽新角＋色彩預覽，只給 non-active（active 不轉不變色——user 2026-09-29；離開保持角——09-15 全站定案）
     hoverHost.addEventListener('mouseenter', () => {
-      const isActive = btn.classList.contains('active');
+      if (btn.classList.contains('active')) return;
       const rot   = randomRotation();
       const label = btn.previousElementSibling?.classList.contains('class-group-label')
         ? btn.previousElementSibling : null;
@@ -427,7 +427,6 @@ export function initBFADivisionToggle() {
         label.style.transform = `rotate(${labelRot}deg)`;
         label._pendingRot = labelRot;
       }
-      if (isActive) return;   // active 只動角不動色（色 = 定案 accent，hover 不換）
       const color = randomColor(getCurrentStripColor());
       target.style.background = color;
       target.style.color = '#000000';

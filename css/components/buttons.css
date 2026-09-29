@@ -59,6 +59,8 @@
   #site-header #mode-btn,
   #site-header #menu-btn {
     background: var(--theme-fg) !important;
+    /* hover 抽角：header.js bindArrowSpin 用 GSAP 補間 --hdr-rot（不掛 CSS transition＝底色 hover／開關維持 instant） */
+    transform: rotate(var(--hdr-rot, 0deg));
   }
   #site-header #mode-btn .theme-toggle-btn,
   #site-header #menu-btn .mobile-menu-btn {
@@ -100,6 +102,24 @@
   #site-header #mode-btn .theme-toggle-btn {
     width: 100%;
     height: 100%;
+    transition: none;   /* hover instant（同漢堡 icon）；mode 切換的 fade 由 typography.css 白名單接手 */
+  }
+  /* mode 圓鈕 hover（user 2026-09-29，同漢堡鈕）：mode1/2＝三原色底黑 icon（--mode-btn-accent 由 header.js mouseenter 抽）、
+     mode3＝黑白互換；instant（header.html inline transition 只留 transform）。無 active 態。
+     atlas 還沒開放切 mode（body.atlas-mode-gate，按鈕 pe:none）時不上色，免得看起來可點。 */
+  @media (hover: hover) {
+    body:not(.atlas-mode-gate) #site-header #mode-btn:hover {
+      background: var(--mode-btn-accent, var(--color-pink)) !important;
+    }
+    body:not(.atlas-mode-gate) #site-header #mode-btn:hover .theme-toggle-btn {
+      color: #000 !important;
+    }
+    body.mode-color:not(.atlas-mode-gate) #site-header #mode-btn:hover {
+      background: var(--theme-fg-inverse) !important;
+    }
+    body.mode-color:not(.atlas-mode-gate) #site-header #mode-btn:hover .theme-toggle-btn {
+      color: var(--theme-fg) !important;
+    }
   }
   /* 進退場動畫中（GSAP 寫 inline clip-path）或 /create 隱藏態（clip-path 殘留）＝「還沒渲染完」：
      不吃 hover/click（游標不變 pointer、點不到看不見的鈕）。各動畫 onComplete 都會清 inline

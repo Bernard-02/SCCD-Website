@@ -8,6 +8,7 @@ import { getHeaderTargets } from './modules/lightbox/lightbox-shell.js';
 import { DUR, EASE } from './modules/ui/motion.js';
 import { prefersReducedMotion } from './modules/ui/reduce-motion.js';
 import { sitePath } from './modules/ui/site-base.js';
+import { bindArrowSpin } from './modules/ui/arrow-spin.js';
 import { loadUiLabels, applyUiLabels } from './modules/ui/ui-labels.js';
 
 // Footer-near hide state（module-scope 讓 updateNavActive 能在 SPA 換頁時同步 reset）：
@@ -844,6 +845,8 @@ export function updateNavActive(page, { fromFooter = false } = {}) {
   // 位置＝sticky 軌道（layoutPageIndicatorTrack；新頁在 hero＝卡在畫面下方）
   const indCard = /** @type {HTMLElement | null} */ (document.querySelector('#page-indicator .page-indicator-card'));
   let revealCard = false;
+  // 進場隨機四向（user 2026-09-29）；x/y 兩分量都寫＝蓋掉退場留下的 yPercent 110
+  const indDir = [{ xPercent: 0, yPercent: 110 }, { xPercent: 0, yPercent: -110 }, { xPercent: 110, yPercent: 0 }, { xPercent: -110, yPercent: 0 }][Math.floor(Math.random() * 4)];
   if (indCard && (indCard.dataset.page !== activePage || _indCardExited)) {
     _indCardExited = false;
     indCard.dataset.page = activePage;
@@ -852,7 +855,7 @@ export function updateNavActive(page, { fromFooter = false } = {}) {
       : header.querySelector('a.mobile-nav-link.active')?.innerHTML || '';
     /** @type {HTMLElement} */ (indCard.parentElement).style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`;
     revealCard = !!indCard.innerHTML && typeof gsap !== 'undefined';
-    if (revealCard) gsap.set(indCard, { yPercent: 110, overwrite: true });   // 先藏，下一幀看位置再決定
+    if (revealCard) gsap.set(indCard, { ...indDir, overwrite: true });   // 先藏，下一幀看位置再決定
   }
   // 下一幀才量軌道：router 在 updateNavActive「之後」才把 atlas/library 的 footer 設 display:none，當下量會把
   // 軌道底算到還沒藏的 footer（atlas 不能捲、之後沒機會重算＝卡消失，實測）。
@@ -861,9 +864,9 @@ export function updateNavActive(page, { fromFooter = false } = {}) {
   requestAnimationFrame(() => {
     layoutPageIndicatorTrack();
     if (!revealCard || !indCard) return;
-    const r = /** @type {HTMLElement} */ (indCard.parentElement).getBoundingClientRect();   // 量遮罩：卡本身此刻帶 yPercent 110 偏移
+    const r = /** @type {HTMLElement} */ (indCard.parentElement).getBoundingClientRect();   // 量遮罩：卡本身此刻帶 indDir 偏移
     if (r.bottom > 0 && r.top < window.innerHeight) {
-      gsap.fromTo(indCard, { yPercent: 110 }, { yPercent: 0, duration: DUR.reveal, ease: EASE.enter, overwrite: true, clearProps: 'transform' });
+      gsap.fromTo(indCard, indDir, { xPercent: 0, yPercent: 0, duration: DUR.reveal, ease: EASE.enter, overwrite: true, clearProps: 'transform' });
     } else {
       gsap.set(indCard, { clearProps: 'transform' });
     }
@@ -1091,6 +1094,24 @@ export function initHeader() {
         /** @type {HTMLElement} */ (el).style.transformOrigin = 'center center';
       });
     }
+
+    // 右上 mode／漢堡鈕 hover 抽角（user 2026-09-29「一樣的邏輯」＝全站 arrow-spin：hover 抽 −4~+6、離開保持、click 定案）。
+    // 角度寫 CSS var --hdr-rot、transform 在 buttons.css（不寫 inline）：footerHideBars 的 GSAP x/y 開跑時讀 computed 矩陣連角度帶走，
+    // 展開 clearProps 只清 inline → 樣式表角度自動回來、不 snap 0；ensureBarMask 只搬 inline transform，不受影響。
+    // 轉動用 GSAP 補間 var、不靠 CSS transition：mode3 的 color.css 對 header [data-bar] 下 transition:none !important（防每幀換色 lag），
+    // 反蓋回去又會壓掉 footerHideBars 的 inline transition:none、拖垮收展。
+    header.querySelectorAll('#mode-btn, #menu-btn').forEach(el => {
+      const btn = /** @type {HTMLElement} */ (el);
+      btn.style.setProperty('--hdr-rot', '0deg');   // GSAP 補間 var 要有帶單位的起點
+      bindArrowSpin(btn, (d) => {
+        if (typeof gsap === 'undefined') { btn.style.setProperty('--hdr-rot', `${d}deg`); return; }
+        gsap.to(btn, { '--hdr-rot': `${d}deg`, duration: DUR.fast, ease: EASE.enterSoft, overwrite: 'auto' });
+      });
+    });
+    // mode 圓鈕 hover 抽三原色（同漢堡鈕 mobile-menu.js；mode3 由 buttons.css 翻黑白）。無 active 態＝每次進入都重抽
+    header.querySelector('#mode-btn')?.addEventListener('mouseenter', (e) => {
+      /** @type {HTMLElement} */ (e.currentTarget).style.setProperty('--mode-btn-accent', SCCDHelpers.getRandomAccentColor());
+    });
 
     // about bar hover：整條 bar 底色變三原色，hover 單一 item 時字 100% 黑
     const ACCENT_COLORS = ['#00FF80', '#FF448A', '#26BCFF'];

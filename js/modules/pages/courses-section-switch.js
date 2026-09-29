@@ -103,7 +103,7 @@ function applyBaseRotations() {
   });
 }
 
-// hover handler：mouseenter 給 btn-inner 與同 group 的 label 抽新隨機 rotation（含 active；
+// hover handler：mouseenter 給 btn-inner 與同 group 的 label 抽新隨機 rotation（active 不轉——user 2026-09-29；
 // 離開保持不還原——user 2026-09-15 全站定案）。hover 色＝全站 bindNavBtnHover（var 掛 group＝BFA label 同色；
 // click 沿用由 setActiveNavBtn 讀 hover 色，label 跟著回傳的 color）
 /** @param {HTMLElement} btn */
@@ -117,7 +117,9 @@ function bindHover(btn) {
   // BFA 小標題與 btn 同一組 hover（user 2026-09-28「hover 小標題也要變色」）：進出 group 才算
   bindNavBtnHover(btn, { varHost: group || btn, hoverEl: group || btn });
 
-  btn.addEventListener('mouseenter', () => {
+  // 旋轉也以 group 進出為準（user 2026-09-29「hover BFA 小標題也讓 btn 旋轉」）：進組抽一次角、組內小標題↔btn 移動不重抽
+  (group || btn).addEventListener('mouseenter', () => {
+    if (btn.classList.contains('active')) return;
     const rot = getRot();
     const labelRot = getRot();
     if (inner) inner.style.transform = `rotate(${rot}deg)`;
@@ -484,11 +486,47 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
     }
     // 找出將被 active 的 btn，把 hover 留下的 _pendingRot / _pendingLabelRot 拿出來
     // 達成「hover 看到什麼角度，click 就停在什麼角度」的記憶效果（仿 about）
-    // active 色＝點下去時的 hover 色（setActiveNavBtn 讀 data-nav-picked，退場動畫後才寫也沿用）
+    // active 色＝點下去時的 hover 色（setActiveNavBtn 讀 data-nav-picked；2026-09-29 起點擊當下就寫）
     const incomingBtn = /** @type {any} */ ([...btns].find(b => b.getAttribute('data-program') === program));
     const opts = {};
     if (incomingBtn?._pendingRot != null) opts.rotation = incomingBtn._pendingRot;
     const pendingLabelRot = incomingBtn?._pendingLabelRot;
+
+    // active 立即切（user 2026-09-29，同 about anchor-nav：點下去 nav 就換色/轉角，不等右欄卡片退場動畫）。
+    // 只動 nav 狀態，不碰 panel/卡片 → 跟退場並行無干擾；panel 切換與 render 仍在退場之後。
+    const { color } = setActiveNavBtn(btns, program, 'data-program', opts);
+    // 清 inactive btn-inner 殘留 inline color＋補種沒角度的（角度本身常駐、不回退）
+    applyBaseRotations();
+
+    const activeBtn = /** @type {HTMLElement|null} */ (document.querySelector(
+      `.courses-program-btn.active[data-program="${program}"]`
+    ));
+
+    // active group label = accent + 新 rotation；其他 group label = 清 inline bg/color 回 CSS 預設
+    // label rotation 優先用 hover pending，無 pending 才隨機（避免 click 後 label 角度突然亂跳）
+    // ⚠️ 不要對 active group label 先清再套：transition 0.2s 會跑「accent → transparent → accent」中間態，
+    //    視覺上看到一瞬間透明底但因 .active group 的 CSS rule (color:black) 接管 → 黑字浮在頁面背景上
+    //    （user 截圖回報 BFA label 一瞬間變黑色）。對 active group 一律直接覆蓋 inline 值。
+    const activeLabel = activeBtn
+      ? /** @type {HTMLElement & { _baseRot?: number } | null} */ (activeBtn.closest('.courses-program-group')?.querySelector('.courses-bfa-label') || null)
+      : null;
+    document.querySelectorAll('.courses-bfa-label').forEach(l => {
+      if (l === activeLabel) return;
+      /** @type {HTMLElement} */ (l).style.background = '';
+      /** @type {HTMLElement} */ (l).style.color = '';
+    });
+    if (activeLabel) {
+      activeLabel._baseRot = pendingLabelRot != null ? pendingLabelRot : getRot();
+      activeLabel.style.background = color;
+      activeLabel.style.color = '#000000';
+      activeLabel.style.transform = `rotate(${activeLabel._baseRot}deg)`;
+    }
+
+    // click 後要清掉 _pending（避免下次無 hover 直接點時還沿用舊值）
+    if (incomingBtn) {
+      incomingBtn._pendingRot = null;
+      incomingBtn._pendingLabelRot = null;
+    }
 
     // 切換時（shouldScroll=true）先 exit 舊 panel 的卡片 +（涉及 MDES 時）年級表頭 inner，再 toggle hidden；初次 init 跳過 exit
     // 已隱藏的卡片（從未 reveal 過）的 clipPath 已是 CLIP_DIR，tween 到另一個 CLIP_DIR 視覺上無變化，無需特別 guard
@@ -585,44 +623,10 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
       await Promise.all(exitPromises);
     }
 
-    const { color } = setActiveNavBtn(btns, program, 'data-program', opts);
     panels.forEach(p => p.classList.toggle('hidden', p.id !== `panel-${program}`));
 
     // 切 program 時 reset 卡片選取狀態（避免 active card / slide-in 殘留）
     deselectActiveCard();
-
-    // 清 inactive btn-inner 殘留 inline color＋補種沒角度的（角度本身常駐、不回退）
-    applyBaseRotations();
-
-    const activeBtn = /** @type {HTMLElement|null} */ (document.querySelector(
-      `.courses-program-btn.active[data-program="${program}"]`
-    ));
-
-    // active group label = accent + 新 rotation；其他 group label = 清 inline bg/color 回 CSS 預設
-    // label rotation 優先用 hover pending，無 pending 才隨機（避免 click 後 label 角度突然亂跳）
-    // ⚠️ 不要對 active group label 先清再套：transition 0.2s 會跑「accent → transparent → accent」中間態，
-    //    視覺上看到一瞬間透明底但因 .active group 的 CSS rule (color:black) 接管 → 黑字浮在頁面背景上
-    //    （user 截圖回報 BFA label 一瞬間變黑色）。對 active group 一律直接覆蓋 inline 值。
-    const activeLabel = activeBtn
-      ? /** @type {HTMLElement & { _baseRot?: number } | null} */ (activeBtn.closest('.courses-program-group')?.querySelector('.courses-bfa-label') || null)
-      : null;
-    document.querySelectorAll('.courses-bfa-label').forEach(l => {
-      if (l === activeLabel) return;
-      /** @type {HTMLElement} */ (l).style.background = '';
-      /** @type {HTMLElement} */ (l).style.color = '';
-    });
-    if (activeLabel) {
-      activeLabel._baseRot = pendingLabelRot != null ? pendingLabelRot : getRot();
-      activeLabel.style.background = color;
-      activeLabel.style.color = '#000000';
-      activeLabel.style.transform = `rotate(${activeLabel._baseRot}deg)`;
-    }
-
-    // click 後要清掉 _pending（避免下次無 hover 直接點時還沿用舊值）
-    if (incomingBtn) {
-      incomingBtn._pendingRot = null;
-      incomingBtn._pendingLabelRot = null;
-    }
 
     await renderCoursesGrid(program);
     if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh();

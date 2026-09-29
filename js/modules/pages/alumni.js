@@ -261,8 +261,10 @@ async function renderGatherings(data) {
   if (firstActive) colorizeCityTab(firstActive, randAccent());
 
   tabs.forEach(btn => {
-    // Hover：所有 btn（包括 active）都會隨機換三原色，離開 active 保持原色、inactive 清回去
+    // Hover：inactive 抽新角＋隨機三原色（離開清色、角保持）；active 不轉不變色（user 2026-09-29 全站 btn 規則）
     btn.addEventListener('mouseenter', () => {
+      if (btn.classList.contains('active')) return;
+      /** @type {HTMLElement} */ (btn).style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`;
       colorizeCityTab(btn, randAccent());
     });
     btn.addEventListener('mouseleave', () => {

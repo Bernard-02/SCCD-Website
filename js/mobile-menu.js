@@ -68,6 +68,7 @@ export function initMobileMenu() {
   let activeAccentFor = null; // active 色跟著「哪一頁 active」走：換頁才重抽，同頁重開沿用
   // hover 色＝每次進入抽三原色（同舊 header bar hover），只在 :hover 時吃（navigation.css ≥1200 段）
   menuItems?.forEach(a => a.addEventListener('mouseenter', () => {
+    if (a.classList.contains('active')) return;   // 當前頁（active）hover 不轉不變色（user 2026-09-29 全站；色本就 :not(.active)）
     const w = a.parentElement;
     if (isDesktopMenu() && w?.classList.contains('clip-reveal-wrapper')) w.style.transform = randRot();
     a.style.setProperty('--menu-hover', SCCDHelpers.getRandomAccentColor());
