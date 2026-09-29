@@ -77,7 +77,7 @@ let scrollLockCleanup = null;
 // → bars 在 overlay 底下收起（clip-reveal 被 dim 蓋住），不再亮白疊在 overlay 上（user 2026-09-08，翻掉舊
 //   raiseHeaderZ 把整條 header 拉到 10000 蓋 overlay 的做法——那會讓 bars 收起時亮白閃現）。
 // 做法：把「當前顯示中的 logo <a>」搬出 fixed header（脫離其 stacking context）到 #site-header（static＝root
-//   stacking context），fixed 釘回原視覺位置、z 高過 overlay。idle-standby 用 10001 仍在最上。
+//   stacking context），fixed 釘回原視覺位置、z 高過 overlay。idle-standby overlay 同 z 10000、後插入 body＝蓋過它（待機不顯示 logo）。
 const LOGO_Z_ABOVE_OVERLAY = 10000;
 
 // 點 portal 到 overlay 之上的 logo＝關閉當前 slide-in/lightbox：補發一個 Escape keydown，沿用各 modal 既有的
