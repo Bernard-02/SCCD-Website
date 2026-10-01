@@ -1,5 +1,7 @@
 import { DUR, EASE } from './motion.js';
 import { sitePath } from './site-base.js';
+import { runLottieWhenVisible } from './lottie-visibility.js';
+import { prefersReducedMotion } from './reduce-motion.js';
 /**
  * Theme Toggle Module
  * 切換 standard / inverse / color 模式（影響整個網站的 body class）
@@ -242,9 +244,7 @@ function stopColorLoop() {
     '--theme-bg-contrast', '--theme-bg-contrast-rgb', '--theme-fg-contrast', '--theme-fg-inverse-contrast',
     '--footer-invert-filter', '--list-zebra-strip',
   ].forEach(p => root.style.removeProperty(p));
-  // 清 wireframe logo 的 invert filter
-  const logo = document.getElementById('header-logo');
-  if (logo) logo.style.filter = '';
+  // wireframe logo 的 invert filter 不在這清：新 logo 換上那刻才換（switchHeaderLogo），換檔期間舊線框照原色轉
 }
 
 /**
@@ -477,9 +477,16 @@ function applyMode(mode, opts) {
   const isSameMode = lastAppliedMode === mode;
   lastAppliedMode = mode;
 
-  // 非首次 + 真的會切換 mode 才加 fade class
-  // 首次 apply 跳過：避免從 default 白底 → 目標 mode 的閃爍
-  if (!isFirstApply && !isSameMode) {
+  // 非首次 + 真的會切換 mode 才過渡（首次 apply 跳過：避免從 default 白底 → 目標 mode 的閃爍）；
+  // reduced-motion＝瞬間切換（原本仍 fade 0.4s，2026-10-01 順修）
+  const animate = !isFirstApply && !isSameMode && !prefersReducedMotion();
+  // View Transition（user 2026-10-01 plan B）：整頁新舊快照在合成器交叉淡入，只做一次樣式重算——取代逐元素 CSS
+  //   transition（library/about/activities 實測每幀樣式重算 50–100ms＝0.4s 只剩幾格、header 帶與大背景脫節）
+  if (animate && canModeViewTransition()) {
+    runModeViewTransition(() => commitMode(mode, autoStartColorLoop));
+    return;
+  }
+  if (animate) {
     document.body.classList.add('mode-switching');
     document.documentElement.classList.add('mode-switching');
 
@@ -541,6 +548,13 @@ function applyMode(mode, opts) {
     }, MODE_FADE_MS);
   }
 
+  commitMode(mode, autoStartColorLoop);
+}
+
+/** 換 mode 的實際 DOM 更新（class／icon／color loop／theme:changed／header logo）。
+ *  View Transition 路徑在 update callback 內呼叫＝新快照含這些變更。
+ *  @param {string} mode @param {boolean} autoStartColorLoop */
+function commitMode(mode, autoStartColorLoop) {
   document.body.classList.remove('mode-standard', 'mode-inverse', 'mode-color');
   document.documentElement.classList.remove('mode-standard', 'mode-inverse', 'mode-color');
   document.body.classList.add(`mode-${mode}`);
@@ -591,6 +605,81 @@ function applyMode(mode, opts) {
   }
 }
 
+// ── mode 切換 View Transition（user 2026-10-01 plan B；樣式在 typography.css「mode 切換 View Transition」段）──
+// atlas：09-28 實測 VT 無收益；/create：p5 畫布自管 mode。不支援的瀏覽器退回舊的 .mode-switching CSS fade。
+function canModeViewTransition() {
+  if (typeof document.startViewTransition !== 'function') return false;
+  const page = getCurrentPage();
+  return page !== 'atlas' && page !== 'create' && page !== 'generate';
+}
+
+// 具名 group 各自擷取、畫在整頁快照之上（依原元素繪製順序排）：
+// - header logo、鉛筆（#mode-color-panel）全站命名，只顯示即時新畫面（typography.css）＝過渡中 logo 照轉、
+//   換檔不消失（舊 logo 一直轉到新的載好，見 switchHeaderLogo），鉛筆照常滑進滑出（user 2026-10-01）
+// - library 三原色卡切 mode 要 snap（user 2026-08-11）＝卡單獨成 group 不淡 → 平常疊在色卡上面的灰卡、next 鈕、header、
+//   左下當前頁卡、開著的 menu 也都要命名，否則被色卡 group 蓋掉。⚠️別命名 #site-header：0 高的 static 殼，
+//   擷取不含裡面的 fixed header／sticky 頁卡（10-01 實測過渡中整個消失）→ 逐一命名實際元素
+/** @returns {HTMLElement[]} 已命名元素（VT 結束後清） */
+function nameModeVtElements() {
+  /** @type {HTMLElement[]} */
+  const named = [];
+  const name = (/** @type {HTMLElement|null} */ el, /** @type {string} */ n) => {
+    if (!el) return;
+    el.style.viewTransitionName = n;
+    named.push(el);
+  };
+  name(document.getElementById('header-logo'), 'header-logo');
+  name(document.getElementById('mode-color-panel'), 'mcp');   // 此刻可能還 display:none、新畫面才出現（2→3）＝照樣命名
+  const stack = document.getElementById('library-card-stack');
+  if (!stack) return named;
+  let i = 0;
+  [document.getElementById('library-card-main'), ...stack.children].forEach(c => {
+    if (!(c instanceof HTMLElement)) return;
+    name(c, c.style.cssText.includes('--lib-bg') ? 'lib-gray' : `lib-snap-${++i}`);   // --lib-bg＝當前灰卡（setAsGray 標記）
+  });
+  name(document.querySelector('.lib-card-next-btn'), 'lib-next');
+  name(document.querySelector('#site-header > header'), 'site-header');
+  name(document.getElementById('page-indicator'), 'page-indicator');
+  if (document.documentElement.classList.contains('mobile-menu-open')) name(document.getElementById('mobile-nav-panel'), 'site-menu');
+  return named;
+}
+
+/** @type {any} */
+let modeVT = null;
+// mode 切換中新 logo 換上的時機＝大背景亮暗過中點（交叉淡入 ease 曲線約 30% 時間走到一半）：太早換＝新 logo 疊在
+// 還沒變的底色上（白 logo 壓白底＝看起來閃一下不見），太晚反之。switchHeaderLogo 載好後等它
+/** @type {Promise<void> | null} */
+let logoSwapGate = null;
+/** @param {() => void} update */
+function runModeViewTransition(update) {
+  const root = document.documentElement;
+  const named = nameModeVtElements();
+  root.classList.add('mode-vt');   // 期間殺全部 CSS transition＝新快照直接是終態（typography.css）
+  const vt = document.startViewTransition(update);
+  modeVT = vt;
+  const gate = logoSwapGate = vt.ready.then(() => new Promise(r => setTimeout(r, MODE_FADE_MS * 0.3)), () => {});
+  // VT 期間真人點擊的 target 一律是 <html>（Chrome 行為，09-28 實測）＝連點 mode 鈕循環會被吞 →
+  //   點擊座標落在 mode 鈕上就轉交（新的 VT 會自動中止舊的）
+  /** @param {MouseEvent} e */
+  const forwardModeClick = (e) => {
+    if (e.target !== root) return;
+    const btn = /** @type {HTMLElement[]} */ ([...document.querySelectorAll('.theme-toggle-btn')]).find(b => {
+      const r = b.getBoundingClientRect();
+      return r.width > 0 && e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+    });
+    if (btn) btn.click();
+  };
+  document.addEventListener('click', forwardModeClick, true);
+  vt.finished.finally(() => {
+    document.removeEventListener('click', forwardModeClick, true);
+    if (logoSwapGate === gate) logoSwapGate = null;
+    if (modeVT !== vt) return;   // 已被新的 VT 接手，收尾交給它
+    modeVT = null;
+    root.classList.remove('mode-vt');
+    named.forEach(el => { el.style.viewTransitionName = ''; });
+  });
+}
+
 /** Header logo 進場 reveal：hero clip-reveal（<a> 當遮罩 overflow:hidden、logo 本體 yPercent 100→0 滑入）+ 清 opacity。
  *  /create exit anim 把 logo.style.opacity:0；下一頁需要顯示時跑這個。
  *  抽出 helper 因為「需要 reveal」的判斷點有兩處（doSwap 後 + skip path 後）。
@@ -616,7 +705,7 @@ function runHeaderLogoReveal(logo) {
   );
 }
 
-// 每次 switchHeaderLogo 遞增；DOMLoaded callback 比對 generation，過期的 stale load 直接 ignore
+// 每次 switchHeaderLogo 遞增；DOMLoaded callback 比對 generation，過期的 stale load 直接丟掉
 // 防 race：lightbox 快速開→關時 switchHeaderLogo('inverse') 跟 ('standard') 連續觸發，
 // 舊 'inverse' Lottie 的 JSON fetch 若慢於 'standard' 完成，DOMLoaded 後到的 SVG 會覆蓋掉新 'standard' SVG。
 let logoLoadGeneration = 0;
@@ -632,8 +721,10 @@ export function switchHeaderLogo(type, { fade = false } = {}) {
   const prevOpacity = parseFloat(logo.style.opacity);
   const needsReveal = !isNaN(prevOpacity) && prevOpacity < 0.5;
 
-  // 已是相同 type 的 Lottie 在運行 → skip 大件事，但 opacity:0 仍要救
+  // 已是相同 type 的 Lottie 在運行 → skip 大件事，但 opacity:0 仍要救。
+  // logoType＝畫面上那支（雙緩衝換上才改，見 doSwap）→ 載入中又切回它＝作廢載入中的那支（generation 遞增）
   if (logo.dataset.logoType === type && logo.querySelector('svg')) {
+    logoLoadGeneration++;
     if (needsReveal) runHeaderLogoReveal(logo);
     return;
   }
@@ -644,39 +735,20 @@ export function switchHeaderLogo(type, { fade = false } = {}) {
   const fading = fade && !needsReveal && typeof gsap !== 'undefined' && !!logo.querySelector('svg');
 
   const doSwap = () => {
-    // Frame 同步：destroy 前抓正在跑的 logo 當前 frame，新 logo 接同一 frame 繼續轉（fade-out 期間舊 anim 仍在轉，
-    // 此刻抓＝接得上）。三個 swap 的 logo JSON（Standard/WireframeStandard/WireframeInverse）時間軸完全相同
-    // （ip:0 / op:3600 / fr:60），frame 1:1 對應同一旋轉角度；不接的話新 anim 從 0 重起 → 環角度 snap 回起點「jump」。
-    let resumeFrame = 0;
-    if (typeof lottie.getRegisteredAnimations === 'function') {
-      const prevAnim = lottie.getRegisteredAnimations().find((a) => a.name === 'header-logo-anim');
-      if (prevAnim) resumeFrame = prevAnim.currentFrame || 0;
-    }
-
     const myGeneration = ++logoLoadGeneration;
-    lottie.destroy('header-logo-anim');
-    logo.innerHTML = '';
-    logo.dataset.logoType = type;
-    // wireframe（mode3）filter 初值＝當前 --theme-fg 對比（同手機 logo「初值讀當前 --theme-fg」招式）：
-    // applyMode 的 sync applyColorVars 跑在 switchHeaderLogo 之前（那刻 logoType 還是舊值、filter 分支跳過），
-    // 下一次 apply 要等 MODE_FADE_MS 後 RAF 首拍 → 暗 hue 會先露 ~0.4s 黑線框再跳白（user 09-08）。
-    // 這裡在 JSON 掛上前就把 filter 定調在容器上；後續逐幀翻轉仍交 applyColorVars。
-    if (type === 'wireframe') {
-      const fgNow = getComputedStyle(document.documentElement).getPropertyValue('--theme-fg').trim().toLowerCase();
-      logo.style.filter = (overlayLogoActive || fgNow === '#ffffff' || fgNow === '#fff') ? 'invert(1)' : 'none';   // 條件同 applyColorVars wireframe 分支
-    }
-    // filter 翻黑白走 CSS transition 平滑（mode3 overlay 開關 + hue 過門檻）；先設好初值(上面)再掛 transition →
-    // 載入當下不 transition（filter 在 svg 進場前就定好、不觸發），之後改值才淡（user 2026-09-08）
-    logo.style.transition = 'filter var(--dur-base) ease';
-
     let file;
     if (type === 'wireframe') file = 'SCCDLogoWireframeStandard.json';
     else if (type === 'wireframe-inverse') file = 'SCCDLogoWireframeInverse.json';
     else if (type === 'inverse') file = 'SCCDLogoInverse.json';
     else file = 'SCCDLogoStandard.json';
 
+    // 雙緩衝（user 2026-10-01「logo 要在旋轉的時候切換樣式」）：新 logo 先載進隱形層、舊的照轉，DOMLoaded 才換上。
+    // 原本先清空再載＝載入那幾格 logo 是空的；mode 切換 View Transition 期間 logo 是即時畫面，空檔直接露成「閃一下不見」
+    const layer = document.createElement('div');
+    layer.style.cssText = 'position:absolute;inset:0;visibility:hidden';   // 定位框＝外層 <a>（relative、同 logo 尺寸）
+    logo.appendChild(layer);
     const anim = lottie.loadAnimation({
-      container: logo,
+      container: layer,
       renderer: 'svg',
       loop: true,
       autoplay: true,
@@ -685,27 +757,50 @@ export function switchHeaderLogo(type, { fade = false } = {}) {
       rendererSettings: { preserveAspectRatio: 'xMidYMid meet' },
     });
 
+    /** @returns {any[]} 畫面上那支＋其他載入中的舊請求（註冊序最早＝畫面上那支） */
+    const otherAnims = () => lottie.getRegisteredAnimations().filter((/** @type {any} */ a) => a.name === 'header-logo-anim' && a !== anim);
     anim.addEventListener('DOMLoaded', () => {
-      // Stale load guard：若 generation 對不上，這次 DOMLoaded 是被 supersede 的舊請求 — 直接 return
-      // 不要 destroy 因為 lottie.destroy 會把這支 anim 的 SVG 從 container 拿走，而 newer load 可能
-      // 還沒 inject 它的 SVG，會留下空 container；新 load 自己會處理自己的 lifecycle
-      if (myGeneration !== logoLoadGeneration) return;
-      const svg = logo.querySelector('svg');
+      // 被後來的換檔取代：丟掉自己就好，畫面上的舊 logo 不動
+      if (myGeneration !== logoLoadGeneration) { anim.destroy(); layer.remove(); return; }
+      const svg = layer.querySelector('svg');
       if (svg) {
         svg.style.overflow = 'visible';
         svg.setAttribute('viewBox', '0 14 1080 1080');   // 可見頂貼 box 頂（同 header.js 初載）
       }
       // 防 autoplay 在 race 情境下未真正啟動（symptom：Lottie 卡 frame 0 看不到 central circle）
       if (typeof anim.play === 'function' && anim.isPaused) anim.play();
-      // Frame 同步（見上方 resumeFrame）：接上 destroy 前那支 logo 的旋轉角度繼續轉，消除 swap 的 jump。
-      // 在 DOMLoaded 同步設定，趕在首次 paint 前，不會閃 frame 0。
-      if (resumeFrame > 0 && typeof anim.goToAndPlay === 'function') anim.goToAndPlay(resumeFrame, true);
+      // Frame 同步：接上舊 logo 此刻的旋轉角，之後兩支同速轉＝隱形層裡一路對齊。swap 的 logo JSON 時間軸完全相同
+      // （ip:0 / op:3600 / fr:60），frame 1:1 對應同一旋轉角度；不接的話新 anim 從 0 重起 → 環角度 snap 回起點「jump」。
+      const prev = otherAnims()[0];
+      if (prev && prev.currentFrame > 0 && typeof anim.goToAndPlay === 'function') anim.goToAndPlay(prev.currentFrame, true);
+      if (logoSwapGate) logoSwapGate.then(swap); else swap();
+    });
+    const swap = () => {
+      if (myGeneration !== logoLoadGeneration) { anim.destroy(); layer.remove(); return; }
+      layer.remove();   // 先拿出來：舊 anim destroy 會清空它的容器（header.js 初載那支的容器就是 logo 本身）
+      otherAnims().forEach((a) => a.destroy());
+      logo.dataset.logoType = type;
+      // wireframe（mode3）filter＝當前 --theme-fg 對比（同手機 logo「初值讀當前 --theme-fg」招式），後續逐幀翻轉交 applyColorVars；
+      // 其他 type 不帶 filter。換上這刻才設：載入期間畫面上還是舊 logo，提早設／清會先把舊的翻色（離開 mode3 白線框
+      // 先變黑線框）；wireframe 也不能等 applyColorVars（RAF 首拍在 MODE_FADE_MS 後 → 暗 hue 先露黑線框再跳白，user 09-08）
+      if (type === 'wireframe') {
+        const fgNow = getComputedStyle(document.documentElement).getPropertyValue('--theme-fg').trim().toLowerCase();
+        logo.style.filter = (overlayLogoActive || fgNow === '#ffffff' || fgNow === '#fff') ? 'invert(1)' : 'none';   // 條件同 applyColorVars wireframe 分支
+      } else {
+        logo.style.filter = '';
+      }
+      // filter 翻黑白走 CSS transition 平滑（mode3 overlay 開關 + hue 過門檻；user 2026-09-08）
+      logo.style.transition = 'filter var(--dur-base) ease';
+      layer.style.cssText = 'width:100%;height:100%';
+      logo.replaceChildren(layer);
       // **不能用 gsap.killTweensOf(logo)**：會把 header.js 的 scroll-shrink ScrollTrigger
       // (180→100 scrub) 一起殺掉，logo 卡在 180 永遠不收縮
       if (needsReveal) runHeaderLogoReveal(logo);
       else if (fading) gsap.to(logo, { opacity: 1, duration: DUR.micro / 2, ease: EASE.enterSoft, overwrite: 'auto' });
       else logo.style.opacity = '1';
-    });
+    };
+    // 必須在上面 DOMLoaded listener 之後註冊：上面會補 play／goToAndPlay，看不到的容器要由它再停回去
+    runLottieWhenVisible(anim);
   };
 
   // fade：先淡出（0.1s）→ onComplete 換檔＋淡入（0.1s）＝crossfade 共 ~0.2s（user 2026-09-08「切換再快一點」，原 DUR.base/2

@@ -91,6 +91,7 @@ html.mode-switching.mode-switching header,
 html.mode-switching.mode-switching .nav-link,
 html.mode-switching.mode-switching .mobile-nav-link,
 html.mode-switching.mode-switching .page-indicator-card,
+html.mode-switching.mode-switching .nav-more-btn,
 html.mode-switching.mode-switching [data-bar],
 html.mode-switching.mode-switching #mode-btn .theme-toggle-btn,
 html.mode-switching.mode-switching .mobile-header-btn,
@@ -169,6 +170,31 @@ html.mode-switching.mode-switching #library-card-stack > div:not([style*="--lib-
 html.mode-switching.mode-switching #library-card-main:not([style*="--lib-bg"]) {
   transition: none !important;
 }
+
+/* ── mode 切換 View Transition（user 2026-10-01 plan B；theme-toggle.js runModeViewTransition）──
+ * 支援 VT 的瀏覽器（atlas／create 除外）不再走上方 .mode-switching 逐元素 transition：整頁新舊快照在合成器交叉淡入
+ * --dur-base。VT 期間殺全部 transition＝新快照直接是終態（不再疊一層自己的 fade；09-28 實測 kill-all 優於逐項）。 */
+::view-transition-group(*) {
+  animation-duration: var(--dur-base);
+  animation-timing-function: ease;
+}
+html.mode-vt *,
+html.mode-vt *::before,
+html.mode-vt *::after {
+  transition: none !important;
+}
+/* 只顯示即時新畫面（舊圖直接消失、新圖不淡）：library 三原色卡 snap（同上 08-11 定案）；
+   header logo 過渡中照轉、換檔不消失，鉛筆（#mode-color-panel）照常滑進滑出（user 2026-10-01） */
+::view-transition-old(lib-snap-1),
+::view-transition-old(lib-snap-2),
+::view-transition-old(lib-snap-3),
+::view-transition-old(header-logo),
+::view-transition-old(mcp) { display: none; }
+::view-transition-new(lib-snap-1),
+::view-transition-new(lib-snap-2),
+::view-transition-new(lib-snap-3),
+::view-transition-new(header-logo),
+::view-transition-new(mcp) { animation: none; }
 
 /* curriculum / activities / admission：sticky 遮罩 + pseudo-element 遮罩。
  * 這些用 `background`/`background-color: var(--theme-bg|fg)` 上色，不在上方 whitelist → mode 切換時 snap，
