@@ -184,7 +184,7 @@
    * 全螢幕 app 頁（generate/atlas/library＝body.overflow-hidden，router.js:285）不要頂部遮罩 → display:none。
    * 矮橫向不套（orientation:portrait gate；landscape 走 nav 進 header 那套）。 */
   /* 平板 gate（768–1199）也用手機 header 排 → 底色帶一起套（第二段 query；display 覆蓋見檔尾平板 gate） */
-  @media (max-width: 767px) and (orientation: portrait), (min-width: 768px) and (max-width: 1199px) {
+  @media (max-width: 767px) and (orientation: portrait), (min-width: 768px) and (max-width: 1023px) {
     .mobile-header-bg {
       position: fixed;
       top: 0;
@@ -353,7 +353,7 @@
 /* about 分組鈕的 BFA 小標題 absolute 浮在 btn 上方、中間 8px 縫落在「小標題＋btn」父層盒外 → 游標從小標題滑到 btn
    會先觸發離開、再進入＝重抽色。補一條透明橋把縫併進父層（多蓋 6px 吃旋轉角）；小標題 z-index 2 疊在橋上、點擊不受影響。
    矮橫向小標題隱藏、直排時橋會蓋到上一顆 → min-height 501 排除 */
-@media (hover: hover) and (min-width: 768px) and (min-height: 501px) {
+@media (hover: hover) and (min-width: 1024px) and (min-height: 501px) {
   #class-buttons-sticky div:has(> .class-group-label)::before {
     content: '';
     position: absolute;
@@ -391,7 +391,7 @@
  * JS 端手機 header gate 同步加 <1200：lightbox-shell getHeaderTargets / header.js
  * getFooterHideLogo / triggerGenerateLogo；footer 版型不跟（usesMobileFooter 仍 768，
  * 平板 footer 照桌面 scatter）。#site-header 提特異度蓋 .hidden/md:flex/md:hidden utility。 */
-@media (min-width: 768px) and (max-width: 1199px) {
+@media (min-width: 768px) and (max-width: 1023px) {
   #site-header header .site-container > .md\:flex {
     display: none;
   }
@@ -428,7 +428,7 @@
   inherits: true;
   initial-value: 0px;
 }
-@media (min-width: 1200px) and (min-height: 501px) {
+@media (min-width: 1024px) and (min-height: 501px) {
   /* 面板不吃事件（user：menu 開著畫面仍可 scroll）→ 滾輪/hover/內捲盒直達底下頁面；只有選項本身可點。
      點外面關閉由 mobile-menu.js 掛 document 監聽。
      雙 id：color.css 的 .bg-white !important 帶 :not(#faculty-panel)＝1 id 權重，單 id 蓋不過 → mode3 面板變實色蓋掉內容 */
@@ -448,6 +448,7 @@
   }
   #site-header .mobile-nav ul {
     align-items: flex-end;
+    gap: var(--spacing-md); /* 選項間距 md（user 2026-10-01；HTML gap-sm 留給手機全屏 menu） */
   }
   #site-header .mobile-nav-link {
     pointer-events: auto;

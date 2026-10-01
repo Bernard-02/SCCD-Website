@@ -10,6 +10,7 @@ import { prefersReducedMotion } from './modules/ui/reduce-motion.js';
 import { sitePath } from './modules/ui/site-base.js';
 import { bindArrowSpin } from './modules/ui/arrow-spin.js';
 import { loadUiLabels, applyUiLabels } from './modules/ui/ui-labels.js';
+import { runLottieWhenVisible } from './modules/ui/lottie-visibility.js';
 
 // Footer-near hide state（module-scope 讓 updateNavActive 能在 SPA 換頁時同步 reset）：
 // scroll listener 內 closure 變數會跨換頁存活，但 updateNavActive 拿不到 → 提升到 module scope
@@ -23,7 +24,7 @@ function setBarsHidden(v) {
 }
 function getFooterHideTargets() {
   // bars only：logo 改走 hero clip-reveal 滑動（見 footerHideLogo/footerShowLogo），不再跟 bars 一起 clip-path wipe
-  return [...getHeaderTargets()].filter(Boolean);
+  return [...getHeaderTargets()].filter(el => el && !(modeBtnCreateHidden && el.id === 'mode-btn'));
 }
 
 // footer-near hide 的 logo：桌面 id=header-logo / 手機 id=header-logo-mobile。
@@ -31,8 +32,8 @@ function getFooterHideTargets() {
 // 不同於 footer 版型的 usesMobileFooter()（仍 768——平板 footer 照桌面 scatter）。
 // 回傳 { logo, mask }：mask = 外層 <a>（hero 慣例遮罩）。
 function getFooterHideLogo() {
-  const isMobile = window.innerWidth < 1200
-    || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+  const isMobile = window.innerWidth < 1024
+    || window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
   const logo = document.getElementById(isMobile ? 'header-logo-mobile' : 'header-logo');
   if (!logo) return null;
   return { logo, mask: /** @type {HTMLElement|null} */ (logo.parentElement) };
@@ -136,6 +137,8 @@ function ensureBarMask(bar) {
   const mask = document.createElement('div');
   mask.className = 'header-bar-clip';
   mask.style.flexShrink = '0';
+  // 遮罩＝鈕本身形狀（圓鈕圓遮罩）：滑出時不被方框直邊切（user 2026-10-01）
+  mask.style.borderRadius = getComputedStyle(bar).borderRadius;
   // marginLeft 搬到遮罩（僅靜態 margin 的 bar）：讓遮罩貼齊 bar、間距落遮罩外 → 收合不撞鄰居
   const originalML = parseFloat(getComputedStyle(bar).marginLeft) || 0;
   const transfer = BAR_MARGIN_TRANSFER.has(bar.getAttribute('data-bar'));
@@ -160,6 +163,21 @@ function ensureBarMask(bar) {
   mask.appendChild(bar);
   return mask;
 }
+// mode／menu 鈕的角度在樣式表（buttons.css rotate(var(--hdr-rot))，hover 抽角）不在 inline → ensureBarMask 搬不到：
+// 遮罩維持正的、overflow:clip 一開，斜鈕的角就被正遮罩切掉、滑出全程缺角（user 2026-10-01「開 share/lightbox 時
+// menu btn 出場先被 crop」，headless 3.6° 實拍上緣被切成水平線）。收起期間把角度借給遮罩、鈕本身 GSAP rotation 0
+// （inline 蓋過樣式表）→ 鈕在同角度遮罩內平移、剪裁貼齊鈕邊；clearBarMask 展開完還原（遮罩去角、清 inline → 樣式表角度回來）。
+// 遮罩含鈕的 marginLeft（mode/menu 不在 BAR_MARGIN_TRANSFER）→ 旋轉中心算到鈕中心（同 ensureBarMask 公式）。
+function lendCssRotToMask(bar, mask) {
+  const rot = parseFloat(getComputedStyle(bar).getPropertyValue('--hdr-rot'));
+  if (!rot) return;
+  const ml = parseFloat(getComputedStyle(bar).marginLeft) || 0;
+  const bw = /** @type {HTMLElement} */ (bar).offsetWidth || 1;
+  mask.style.transformOrigin = `${((ml + bw / 2) / (ml + bw)) * 100}% center`;
+  mask.style.transform = `rotate(${rot}deg)`;
+  mask.dataset.lentRot = '1';
+  gsap.set(bar, { rotation: 0 });
+}
 function footerHideBars(opts = {}) {
   if (typeof gsap === 'undefined') return;
   const bars = getFooterHideTargets();
@@ -167,11 +185,11 @@ function footerHideBars(opts = {}) {
   gsap.killTweensOf(bars);
   // <1200＝手機 header 排（mode + 漢堡兩顆鈕）：一致往上滑收，配 .mobile-header-bg 底色帶的上滑（乾淨的手機式收起）。
   // 桌面散佈版(≥1200) header bars 才用隨機四方向 scatter。user 2026-08-10：兩顆鈕隨機四方向收看起來很奇怪。
-  const mobileHeader = window.innerWidth < 1200
-    || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+  const mobileHeader = window.innerWidth < 1024
+    || window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
   const offsets = bars.map(bar => {
     const mask = ensureBarMask(bar);
-    if (mask) mask.style.overflow = 'clip';
+    if (mask) { mask.style.overflow = 'clip'; lendCssRotToMask(bar, mask); }
     // 停用 .mobile-header-btn 的 CSS `transition: transform`（buttons.css）：否則會跟 GSAP 的 x/y tween 互搶——
     // 每幀被 0.4s ease 重新平滑一次 → 拖影、又慢又「怪」（clip-path 版無此問題：它動 clip-path 不動 transform）。
     /** @type {HTMLElement} */ (bar).style.transition = 'none';
@@ -199,7 +217,11 @@ function clearBarMask(bar) {
   gsap.set(bar, { clearProps: 'transform' });
   /** @type {HTMLElement} */ (bar).style.transition = '';  // 還原（hide 時暫設 none；menu 旋轉平滑切換要用回）
   const mask = bar.parentElement;
-  if (mask && mask.classList.contains('header-bar-clip')) mask.style.overflow = '';
+  if (mask && mask.classList.contains('header-bar-clip')) {
+    mask.style.overflow = '';
+    // 借出的角度還給鈕（見 lendCssRotToMask）：同幀清掉遮罩角度，鈕的樣式表 rotate(var(--hdr-rot)) 已隨 clearProps 回來
+    if (mask.dataset.lentRot) { mask.style.transform = ''; delete mask.dataset.lentRot; }
+  }
 }
 // 即時復位（reset 路徑用，不跑動畫）
 function resetFooterBarsState() {
@@ -211,18 +233,22 @@ function resetFooterBarsState() {
 
 // 左下「當前頁」卡不收、跟著內容走＝原生 sticky（user 2026-09-27「不需要收起，跟畫面一起上去，像 nav btn」；
 // 前一版在 scroll 事件寫 translate，永遠比合成器的捲動慢一幀＝「往下會抖」，已棄）。
-// 卡在 #page-indicator-track 底端 sticky bottom 48（navigation.css）；這裡只給軌道範圍＝hero 底 → footer 頂
-// （沒 hero 從頁頂；footer 藏起來的單屏頁 library / atlas / create 到視窗底）→ hero 還在時卡被軌道頂擋在畫面下、
-// 進主內容跟著升上來，footer 來時停在軌道底被帶著往上走。捲動零 JS；換頁 / resize / 內容長高（main ResizeObserver）才重算。
+// 卡在 #page-indicator-track 底端 sticky bottom 48（navigation.css）；這裡只給軌道範圍＝hero 底 → main 底
+// （沒 hero 從頁頂）→ hero 還在時卡被軌道頂擋在畫面下、進主內容跟著升上來，footer 來時停在軌道底被帶著往上走。
+// 捲動零 JS；換頁 / resize / 內容長高（main ResizeObserver）才重算。
+// 底量 main 不量 footer（2026-10-01）：footer.html 是 async 載入，比這裡晚到時舊版退回視窗底＝跟 hero 底同點、
+// 軌道高 0 → 卡黏在 hero 底（矮視窗捲進 main 時卡在畫面頂），footer 晚到又不改 main 尺寸、RO 不補算。
+// atlas 內容全 fixed＝main 高 0 → 退回視窗底。
 // 座標＝文件座標（軌道 absolute、祖先皆 static → containing block 是文件原點）。⚠️不能拿 body 的 rect 當原點：
 // library 首個 section 的 margin-top 會穿透到 body、body 頂落在 96 → 卡整個高 96（實測）
 function layoutPageIndicatorTrack() {
   const track = document.getElementById('page-indicator-track');
-  if (!track || getComputedStyle(track).display === 'none') return;   // <1200 / 矮橫向
-  const hero = document.querySelector('#page-content .hero-rand-grid, #page-content .hero-logo-wrapper')?.closest('section');
-  const footer = getVisibleFooter();
+  const main = document.getElementById('page-content');
+  if (!track || !main || getComputedStyle(track).display === 'none') return;   // <1200 / 矮橫向
+  const hero = main.querySelector('.hero-rand-grid, .hero-logo-wrapper')?.closest('section');
   const top = hero ? hero.getBoundingClientRect().bottom + window.scrollY : 0;
-  const bottom = (footer ? footer.getBoundingClientRect().top : window.innerHeight) + window.scrollY;
+  const mainRect = main.getBoundingClientRect();
+  const bottom = (mainRect.height ? mainRect.bottom : window.innerHeight) + window.scrollY;
   track.style.top = `${Math.round(top)}px`;
   track.style.height = `${Math.max(0, Math.round(bottom - top))}px`;
 }
@@ -239,6 +265,25 @@ export function playPageIndicatorExit() {
   return new Promise(resolve => {
     gsap.to(indCard, { yPercent: 110, duration: DUR.base, ease: EASE.exit, overwrite: true, onComplete: resolve });
   });
+}
+// 進場隨機四向（user 2026-09-29）；x/y 兩分量都寫＝蓋掉退場留下的 yPercent 110
+const IND_REVEAL_DIRS = [{ xPercent: 0, yPercent: 110 }, { xPercent: 0, yPercent: -110 }, { xPercent: 110, yPercent: 0 }, { xPercent: -110, yPercent: 0 }];
+
+// atlas 頁待機（user 2026-10-01）：頁面本身當待機畫面，header logo＋鈕、左下頁卡跟 footer-near／離頁同一套 clip-reveal 收起，
+// 醒來展回（頁卡只在真的收了才揭回：畫面外／reduced-motion 時 playPageIndicatorExit 沒動它）
+export function hideHeaderChromeForStandby() {
+  footerHideBars();
+  footerHideLogo();
+  playPageIndicatorExit();
+}
+export function showHeaderChromeForStandby() {
+  footerShowBars();
+  footerShowLogo();
+  const indCard = /** @type {HTMLElement | null} */ (document.querySelector('#page-indicator .page-indicator-card'));
+  if (!_indCardExited || !indCard) return;
+  _indCardExited = false;
+  const dir = IND_REVEAL_DIRS[Math.floor(Math.random() * IND_REVEAL_DIRS.length)];
+  gsap.fromTo(indCard, dir, { xPercent: 0, yPercent: 0, duration: DUR.reveal, ease: EASE.enter, overwrite: true, clearProps: 'transform' });
 }
 // 第一個可見的 footer（index 同時有 #site-footer-static 跟空的 #site-footer container → 取 offsetHeight>0 的）
 function getVisibleFooter() {
@@ -403,6 +448,7 @@ function restoreMobileGenerateLogo() {
         svg.setAttribute('viewBox', '0 0 1080 1080');
       }
     });
+    runLottieWhenVisible(anim);
   };
 
   if (typeof gsap === 'undefined') { swap(); return; }
@@ -434,8 +480,8 @@ export function triggerGenerateLogo() {
   }
 
   // 手機走簡化版：靜態 SCCD svg，不跑 typewriter（平板 768–1199 與矮橫向 header 也是手機版 → 同路徑）
-  if (window.innerWidth < 1200
-    || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) {
+  if (window.innerWidth < 1024
+    || window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches) {
     applyMobileGenerateLogo();
     return;
   }
@@ -532,6 +578,13 @@ export function triggerGenerateLogo() {
   });
   logoContainer.appendChild(svgEl);
 
+  // typewriter cursor 完成態也要建（hidden）：/create 退場的反向刪字靠它，缺了會掉進 fade 分支
+  const cursorNew = document.createElement('div');
+  cursorNew.dataset.genCursor = '1';
+  cursorNew.dataset.genCursorRole = 'typewriter';
+  cursorNew.style.cssText = `position:absolute;top:${SVG_TOP - 6}px;left:0;width:1px;height:${letterHeight + 12}px;background:${fillColor};z-index:3;visibility:hidden;`;
+  logoContainer.appendChild(cursorNew);
+
   // 完成態直入：Lottie 即刻拆除、SCCD 全字現形、click target 撐到 SCCD bbox（同 timeline 尾段），不建 timeline
   if (instantDone) {
     if (typeof lottie !== 'undefined') {
@@ -543,11 +596,6 @@ export function triggerGenerateLogo() {
     return;
   }
 
-  const cursorNew = document.createElement('div');
-  cursorNew.dataset.genCursor = '1';
-  cursorNew.dataset.genCursorRole = 'typewriter';
-  cursorNew.style.cssText = `position:absolute;top:${SVG_TOP - 6}px;left:0;width:1px;height:${letterHeight + 12}px;background:${fillColor};z-index:3;visibility:hidden;`;
-  logoContainer.appendChild(cursorNew);
   cursor.style.zIndex = '3';
 
   // （shrink 100 的 tween 在上面 timeline 外先跑；空 box 尺寸不影響後面
@@ -601,63 +649,33 @@ export function triggerGenerateLogo() {
 }
 
 // ── Mode btn enter/exit anim for /create ──────────────────────
-// 進 /create 時 mode-btn 用 clip-reveal 消失（width+marginLeft → 0），
-// 同 flex row 內的右側 bars (AA/Library/Atlas/CREATE!) 自動往右 shift 填補（flex layout 自然行為）
-// 退場時反向
-// 桌面 desktop 的 #mode-btn 才動；手機版 .theme-toggle-btn 在 grid col 內，layout 不同，不處理
-// 用 GSAP 時間軸；caller 可 await Promise
-
-const MODE_BTN_ML = 0; // 2026-09-27 桌面 bars 拆除後 mode 鈕是右群第一顆（左鄰 flex-1 spacer）→ 無 margin
+// 桌面 #mode-btn 進 /create 收、離開放：走 footer-near 同一套 clip-reveal（ensureBarMask 圓形遮罩＋本體平移），
+// 不縮 width（圓鈕被擠扁）也不 clip-path wipe（user 2026-10-01）。左鄰是 flex-1 spacer，留空位不影響版面。
+// 收著期間 getFooterHideTargets 排除它：footer-near / lightbox 的 show 才不會在 /create 把鈕放出來。
+let modeBtnCreateHidden = false;
 
 export function animateHeaderModeBtnHide() {
-  if (typeof gsap === 'undefined') return Promise.resolve();
-  const modeBtn = document.querySelector('#mode-btn');
-  if (!modeBtn) return Promise.resolve();
+  const modeBtn = /** @type {HTMLElement | null} */ (document.querySelector('#mode-btn'));
+  if (typeof gsap === 'undefined' || !modeBtn) return Promise.resolve();
+  modeBtnCreateHidden = true;
+  const mask = ensureBarMask(modeBtn);
+  if (mask) mask.style.overflow = 'clip';
+  modeBtn.style.transition = 'none';
+  const off = barHideOffset(pickBarDir(modeBtn), modeBtn, mask || modeBtn);
   return new Promise(resolve => {
-    gsap.to(modeBtn, {
-      width: 0,
-      marginLeft: 0,
-      // 從左往右 wipe：visible window 縮到右邊緣（icon 從右側退場）
-      clipPath: 'inset(0 0 0 100%)',
-      duration: DUR.medium,
-      ease: EASE.move,
-      overwrite: 'auto',
-      onComplete: resolve,
-    });
+    gsap.to(modeBtn, { x: off.x, y: off.y, duration: DUR.medium, ease: EASE.exit, overwrite: 'auto', onComplete: resolve });
   });
 }
 
 export function animateHeaderModeBtnShow() {
-  if (typeof gsap === 'undefined') return Promise.resolve();
   const modeBtn = /** @type {HTMLElement | null} */ (document.querySelector('#mode-btn'));
-  if (!modeBtn) return Promise.resolve();
-  // 用 fromTo 明確指定 from-state（= animateHeaderModeBtnHide 的 end-state），確保是 hide 的精確反向動畫
-  // 不依賴「modeBtn 仍保有 hide 殘留 inline 屬性」這個假設 — updateNavActive (header.js:337) 會在 SPA 換頁時
-  // 無條件清掉 modeBtn.style.clipPath，導致純 gsap.to 起始的 clipPath 不是 inset(0 0 0 100%) 而是 '' →
-  // clipPath 動畫直接跳值，視覺從「反向 wipe」變成「容器拉開」
+  if (typeof gsap === 'undefined' || !modeBtn) return Promise.resolve();
+  modeBtnCreateHidden = false;
   return new Promise(resolve => {
-    gsap.fromTo(modeBtn,
-      {
-        width: 0,
-        marginLeft: 0,
-        clipPath: 'inset(0 0 0 100%)',
-      },
-      {
-        width: 48, // = buttons.css #mode-btn 寬，改尺寸要同步
-        marginLeft: MODE_BTN_ML,
-        clipPath: 'inset(0 0 0 0)',
-        duration: DUR.medium,
-        ease: EASE.move,
-        overwrite: 'auto',
-        onComplete: () => {
-          // 清 inline 讓 CSS 接管（恢復原生 auto width / margin / 無 clip-path）
-          modeBtn.style.width = '';
-          modeBtn.style.marginLeft = '';
-          modeBtn.style.clipPath = '';
-          resolve();
-        },
-      }
-    );
+    gsap.to(modeBtn, {
+      x: 0, y: 0, duration: DUR.medium, ease: EASE.enter, overwrite: 'auto',
+      onComplete: () => { clearBarMask(modeBtn); resolve(); },
+    });
   });
 }
 
@@ -775,7 +793,7 @@ function fitNavCnWidths() {
 }
 // Noto Sans TC 晚到會微改字寬；平板窗拉寬跨 1200 桌面排才首次可量
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitNavCnWidths);
-const cnDesktopMq = window.matchMedia('(min-width: 1200px)');
+const cnDesktopMq = window.matchMedia('(min-width: 1024px)');
 if (cnDesktopMq.addEventListener) cnDesktopMq.addEventListener('change', e => { if (e.matches) fitNavCnWidths(); });
 
 // 側 bar（library/atlas/generate/alumni 小 bar）的完整 active 樣式：黑底 box + bar-active(白字) class +
@@ -839,14 +857,22 @@ export function updateNavActive(page, { fromFooter = false } = {}) {
   clearNavActive();
   applyNavLinkMarks(header, activeHref);
 
+  // 首頁的 logo 改指 about（首頁點「回首頁」沒意義；user 2026-10-01）。每次換頁都重設＝離開首頁自動還原。
+  // 用 document 查（同 lightbox-shell getLogoLinks）：lightbox 時 logo 會被 portal 出 header
+  const logoToAbout = page === 'index';
+  [document.querySelector('#header-logo')?.closest('a'), ...document.querySelectorAll('[data-mobile-logo-lottie-anchor], [data-mobile-logo-sccd-anchor]')].forEach(a => {
+    if (!a) return;
+    a.setAttribute('href', logoToAbout ? 'about.html' : '../index.html');
+    a.setAttribute('aria-label', logoToAbout ? '關於 SCCD About' : 'SCCD 首頁 Home');
+  });
+
   // 左下「當前頁」卡（≥1200，navigation.css）：menu 頁複製 active 選項（帶 data-label-key → 後台 label 晚到也會被
   // applyUiLabels(headerContainer) 一併填到）、其餘查 PAGE_CARD_LABELS；兩邊都沒有（首頁）＝留空（:empty 藏）。
   // 換到別頁才重抽角＋clip-reveal（同頁重點不動，除非卡已被 playPageIndicatorExit 收掉＝要補揭露）；
   // 位置＝sticky 軌道（layoutPageIndicatorTrack；新頁在 hero＝卡在畫面下方）
   const indCard = /** @type {HTMLElement | null} */ (document.querySelector('#page-indicator .page-indicator-card'));
   let revealCard = false;
-  // 進場隨機四向（user 2026-09-29）；x/y 兩分量都寫＝蓋掉退場留下的 yPercent 110
-  const indDir = [{ xPercent: 0, yPercent: 110 }, { xPercent: 0, yPercent: -110 }, { xPercent: 110, yPercent: 0 }, { xPercent: -110, yPercent: 0 }][Math.floor(Math.random() * 4)];
+  const indDir = IND_REVEAL_DIRS[Math.floor(Math.random() * IND_REVEAL_DIRS.length)];
   if (indCard && (indCard.dataset.page !== activePage || _indCardExited)) {
     _indCardExited = false;
     indCard.dataset.page = activePage;
@@ -1096,8 +1122,8 @@ export function initHeader() {
     }
 
     // 右上 mode／漢堡鈕 hover 抽角（user 2026-09-29「一樣的邏輯」＝全站 arrow-spin：hover 抽 −4~+6、離開保持、click 定案）。
-    // 角度寫 CSS var --hdr-rot、transform 在 buttons.css（不寫 inline）：footerHideBars 的 GSAP x/y 開跑時讀 computed 矩陣連角度帶走，
-    // 展開 clearProps 只清 inline → 樣式表角度自動回來、不 snap 0；ensureBarMask 只搬 inline transform，不受影響。
+    // 角度寫 CSS var --hdr-rot、transform 在 buttons.css（不寫 inline）：footerHideBars 收起時 lendCssRotToMask 把角度暫借給遮罩
+    //（鈕歸 0、跟遮罩同角＝滑出不被切角），展開 clearBarMask 清 inline＋遮罩去角 → 樣式表角度自動回來、不 snap 0。
     // 轉動用 GSAP 補間 var、不靠 CSS transition：mode3 的 color.css 對 header [data-bar] 下 transition:none !important（防每幀換色 lag），
     // 反蓋回去又會壓掉 footerHideBars 的 inline transition:none、拖垮收展。
     header.querySelectorAll('#mode-btn, #menu-btn').forEach(el => {
@@ -1270,6 +1296,7 @@ export function initHeader() {
           svg.setAttribute('viewBox', '0 14 1080 1080');
         }
       });
+      runLottieWhenVisible(logoAnim);   // 手機版此容器 display:none → 停（只跑看得到的那份）
     }
     // 5b. Mobile Logo Lottie（複用桌面 logoFile 決策；用 helper 包好以便 theme:changed 重 load）
     // /create 跳過（桌面 logo 也跳過）；mode 切換時 listener 重 load 保持 logo 跟 body mode 同步
@@ -1304,7 +1331,7 @@ export function initHeader() {
         let filterM = '', contrastM = '';
         // 矮橫向的 slide-in 只蓋右側 ~60%（landscape gate），logo 留在左側「黑色半透明 dim」上 →
         // 黑線隱形，改走 full-lightbox 的白線邏輯（user 2026-07-04）。直向 slide-in 蓋滿含 logo 區（accent 底）→ 維持黑線。
-        const slideInLeavesLogoOnDim = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+        const slideInLeavesLogoOnDim = window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
         if (isFullLightbox) { filterM = 'invert(1)'; contrastM = 'white'; }  // WireframeStandard 黑線 → invert 白
         else if (isSlideIn && slideInLeavesLogoOnDim) { filterM = 'invert(1)'; contrastM = 'white'; }
         else if (isSlideIn)  { filterM = 'none'; contrastM = isColorM ? 'auto' : 'black'; }
@@ -1339,6 +1366,7 @@ export function initHeader() {
             gsap.fromTo(mobileLogo, { opacity: 0 }, { opacity: 1, duration: DUR.micro / 2, ease: EASE.enterSoft, overwrite: 'auto' });
           }
         });
+        runLottieWhenVisible(mobileLogoAnim);   // 桌面版此容器 display:none → 停（只跑看得到的那份）
       }
       loadMobileLogo();
       // 暴露給 theme-toggle checkSlideInState 在 lightbox / slide-in 開關時重載手機 logo（白 wireframe ↔ 還原）；
