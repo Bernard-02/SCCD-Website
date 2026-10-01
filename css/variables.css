@@ -130,6 +130,10 @@
   /* 全站 nav line：頁內 nav btn 釘住的頂線（about #anchor-nav / 四頁 inner-scroll nav＋內容頂 / atlas filter＋list /
      DSD 年份 chip / 桌面 menu 第一顆 / library 色卡上界）。≥1200 見檔尾 184 */
   --nav-line: 160px;
+  /* 全站桌面 nav btn 之間的垂直間距（about／alumni #anchor-nav、faculty、curriculum（含 BFA 小標）、activities、admission
+     ＝各頁 HTML md:gap-[var(--nav-btn-gap)]；atlas filter＝atlas.css 基礎 gap 0.5rem＋margin 補差）。
+     user 2026-10-01 從 8 調開並統一；矮橫向／手機各有自己的間距不吃這個 */
+  --nav-btn-gap: 0.75rem;   /* 12px */
 
 
   /* ===== Transitions（legacy；buttons.css 等仍用，逐步遷移到下方 motion token） ===== */
@@ -207,7 +211,7 @@
 
 /* 桌面 header（≥1200）logo 頂對齊鈕列（頂 48、縮小態 100 → 底 148）→ nav line 跟著下移 24，
    維持 logo 底↔nav 36 間距（user 2026-08-24 定的距離；2026-09-27）。平板/矮橫向走手機 header，維持 160 */
-@media (min-width: 1200px) and (min-height: 501px) {
+@media (min-width: 1024px) and (min-height: 501px) {
   :root {
     --nav-line: 184px;
     /* 縮小態 logo 中線＝鈕列頂 48 + 100/2：about resources 卡的上下 padding 對齊此線（user 2026-09-28） */

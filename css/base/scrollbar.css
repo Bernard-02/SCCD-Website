@@ -53,7 +53,7 @@ html::-webkit-scrollbar {
 }
 /* 選單開著時 footer 已讓位（z auto），thumb 若仍 9999 會畫在 header 內的選單面板上 → 退回 9998。
    桌面 footer 不讓位（footer.css 同 gate）→ thumb 維持 9999 跟 footer 一起蓋在 menu 上 */
-@media not all and (min-width: 1200px) and (min-height: 501px) {
+@media not all and (min-width: 1024px) and (min-height: 501px) {
   html.mobile-menu-open #custom-scrollbar-thumb.is-over-footer {
     z-index: 9998;
   }

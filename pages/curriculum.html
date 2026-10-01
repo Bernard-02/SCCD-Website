@@ -78,8 +78,8 @@
                桌面 inner-scroll frame：外層 nav-col wrapper（占 col-span-3）padding-top 把 bar 推到 content 區頂、頂部對齊；
                bar 寬 100%＝欄界（courses.css），btn 貼文字寬由 fitProgramBtns 量。 -->
           <div class="md:col-span-3 inner-scroll-nav-col">
-          <div class="courses-program-bar flex flex-col items-start gap-lg md:gap-xs mb-md md:mb-0">
-            <div class="courses-program-group flex flex-col items-start gap-xs">
+          <div class="courses-program-bar flex flex-col items-start gap-lg md:gap-[var(--nav-btn-gap)] mb-md md:mb-0">
+            <div class="courses-program-group flex flex-col items-start gap-xs md:gap-[var(--nav-btn-gap)]">
               <span class="courses-bfa-label"><span data-label-key="curriculum.group.bfa" data-label-part="en">BFA</span><span data-label-key="curriculum.group.bfa" data-label-part="zh">學士班</span></span>
               <button class="courses-program-btn active" data-program="bfa-animation">
                 <!-- br 後的空格：br 顯示時被行首 collapse（零視覺差）；橫向 gate 藏 br 後成為單行的字間空格。
@@ -87,7 +87,7 @@
                 <span class="anchor-nav-inner"><span data-label-key="curriculum.program.animation" data-label-part="en">Animation &amp; Moving<br> Image</span><span data-label-key="curriculum.program.animation" data-label-part="zh">動畫影像設計組</span></span>
               </button>
             </div>
-            <div class="courses-program-group flex flex-col items-start gap-xs">
+            <div class="courses-program-group flex flex-col items-start gap-xs md:gap-[var(--nav-btn-gap)]">
               <span class="courses-bfa-label"><span data-label-key="curriculum.group.bfa" data-label-part="en">BFA</span><span data-label-key="curriculum.group.bfa" data-label-part="zh">學士班</span></span>
               <button class="courses-program-btn" data-program="bfa-cmd">
                 <span class="anchor-nav-inner"><span data-label-key="curriculum.program.creative-media" data-label-part="en">Creative Media Design</span><span data-label-key="curriculum.program.creative-media" data-label-part="zh">創意媒體設計組</span></span>
@@ -100,7 +100,7 @@
           </div>
 
           <!-- Middle column: 三個 program panel（grid 由 JS 渲染）；≥1200 占 cols 4-18（平板 5-20）、桌面 inner-scroll = 唯一捲動的 box -->
-          <div class="min-w-0 md:col-start-5 min-[1200px]:col-start-4 md:col-span-16 min-[1200px]:col-span-15 inner-scroll-scroll-col no-scrollbar">
+          <div class="min-w-0 md:col-start-5 min-[1024px]:col-start-4 md:col-span-16 min-[1024px]:col-span-15 inner-scroll-scroll-col no-scrollbar">
             <div class="courses-panel" id="panel-bfa-animation">
               <div class="courses-grid"></div>
             </div>

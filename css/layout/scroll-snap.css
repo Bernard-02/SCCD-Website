@@ -67,7 +67,7 @@ html {
    （否則 100+128=228 → tree 偏下、與高視窗 128 不一致）。min-height:501 排除橫向手機 gate（那走手機值）。
    #class-info-anchor 也歸 0（2026-09-13）：留 100px 會在 division 視圖頂露出 tree 尾端 100px，
    右下 Term/Degree 說明卡（bottom:32、高 ~83）正好卡在帶內；頂對齊＝與 ≥900 行為一致、卡片不進下一屏。 */
-@media (min-width: 768px) and (min-height: 501px) and (max-height: 899px) {
+@media (min-width: 1024px) and (min-height: 501px) and (max-height: 899px) {
   #class, #class-info-anchor { scroll-margin-top: 0; }
   /* division 視圖頂對齊後（上行）文字盒起點少了 100px 落點緩衝、鑽進 sticky btn（底 298）
      → 同 100vh gate 把緩衝補進 padding（文字頂回 362、btn 下留 2xl 呼吸）；
@@ -173,7 +173,7 @@ html {
    不分高度（≥501）都套＝在 ≥1200 取代上面 ≥900 的 100vh gate 與 501–899 的舊落點；平板 768–1199 維持舊規則。
    同框的另兩處在各自檔內：resources（accordion.css）、學制樹（about-structure.css）。
    ⚠️ class-buttons-sticky.js 的 scrub 起點與此 gate 同步（'top top'）。 */
-@media (min-width: 1200px) and (min-height: 501px) {
+@media (min-width: 1024px) and (min-height: 501px) {
   #overview, #class, #class-info-anchor, #works { scroll-margin-top: 0; }
 
   #overview {

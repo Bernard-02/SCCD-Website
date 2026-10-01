@@ -308,7 +308,7 @@
   /* ≥1200 不 shrink、整排往右延伸出欄（user 2026-09-29）：works 模式多展開 Design Fundamental，1440 擠不下 →
      flex shrink 把各鈕壓到 max-width 以下多折 1~2 行，鈕高超過固定列高（--about-pill-row-h）被 sticky 的 clip-path 裁底。
      平板 768-1199 維持 shrink（全排加總 ~1010 會出畫面）。program/works 共用 gap（gutter+sm＝36）＝gap 一致（user）。 */
-  @media (min-width: 1200px) and (min-height: 501px) {
+  @media (min-width: 1024px) and (min-height: 501px) {
     #class-buttons-sticky .grid-20 > div > * { flex-shrink: 0; }
   }
   /* MDES（沒有 BFA 小標題）對齊左邊兩組「小標題＋btn」整組的中線（user 2026-09-28 二輪：要含小 tab 高度，不是只對主鈕）：
@@ -317,7 +317,7 @@
      X＝小標題塊高（padding 6+5 + text-s 兩行）＋ 與 btn 的 8px 間距（.class-group-label bottom: 100%+xs）＝上移剛好一半＝整組中線。
      矮橫向直排（landscape.css）align-self 會變成水平置中、小標題也 display:none → min-height 501 排除。
      works 模式才展開的 Design Fundamental（.class-division-bfa-wrap＝flex item 是 wrapper 不是 btn）同樣沒小標題 → 同規則（user 三輪） */
-  @media (min-width: 768px) and (min-height: 501px) {
+  @media (min-width: 1024px) and (min-height: 501px) {
     #class-buttons-sticky .class-division-btn[data-division="mdes"],
     #class-buttons-sticky .class-division-bfa-wrap {
       align-self: center;

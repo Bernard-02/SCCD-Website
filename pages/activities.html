@@ -79,7 +79,7 @@
                md:min-h：短分頁內容比 section(min-h:100vh) 矮時，左欄需填滿 section 內容區（100vh−pt6xl192−pb3xl96=288）
                否則 sticky nav 在內容底就 unstick 捲走、下面留白＋footer 卻沒 nav＝「還沒到底 nav 就不見」(user 2026-06-27) -->
           <div class="w-full md:col-span-3 activities-nav-col inner-scroll-nav-col">
-            <div class="activities-section-bar flex flex-row md:flex-col gap-xs md:gap-xs md:mb-0 no-scrollbar">
+            <div class="activities-section-bar flex flex-row md:flex-col gap-xs md:gap-[var(--nav-btn-gap)] md:mb-0 no-scrollbar">
               <button class="activities-section-btn w-fit active text-left" data-section="exhibitions">
                 <span class="anchor-nav-inner"><span data-label-key="act.exhibitions" data-label-part="en">Exhibitions</span><span data-label-key="act.exhibitions" data-label-part="zh">展演</span></span>
               </button>
@@ -110,7 +110,7 @@
           </div>
 
           <!-- Right Content Panels（桌面 cols 5-20；桌面 = 唯一捲動的 inner scroller、list 從 header 下 top-aligned） -->
-          <div class="min-w-0 md:col-start-5 min-[1200px]:col-start-4 md:col-span-16 min-[1200px]:col-span-15 activities-scroll-col inner-scroll-scroll-col no-scrollbar">
+          <div class="min-w-0 md:col-start-5 min-[1024px]:col-start-4 md:col-span-16 min-[1024px]:col-span-15 activities-scroll-col inner-scroll-scroll-col no-scrollbar">
 
             <!-- Exhibitions Panel -->
             <div class="activities-panel" id="panel-exhibitions">

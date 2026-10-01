@@ -17,7 +17,7 @@ function applyRandomRotation(el) {
 
 // 桌面 menu（≥1200，2026-09-27）：同一個 .mobile-nav 面板，CSS 改成透明底＋靠右旋轉 btn（navigation.css）。
 // gate 同 navigation.css ≥1200 段；min-height 排除矮橫向（走手機 header）
-const DESKTOP_MENU_MQ = '(min-width: 1200px) and (min-height: 501px)';
+const DESKTOP_MENU_MQ = '(min-width: 1024px) and (min-height: 501px)';
 const isDesktopMenu = () => window.matchMedia(DESKTOP_MENU_MQ).matches;
 // 桌面實色 btn 藏起時多滑的 px：剛好 yPercent 100 貼遮罩邊，旋轉遮罩的反鋸齒會留一條縫（同 header.js BAR_HIDE_BUFFER）
 const DESKTOP_HIDE_BUFFER = 12;

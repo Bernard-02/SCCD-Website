@@ -82,7 +82,7 @@
             <!-- 手機：水平 scroll bar；scrollbar 隱藏走 no-scrollbar（faculty.html 已內嵌規則）
                  padding-y 給 btn 旋轉 clearance（rotate 後突角不被 overflow 裁切），桌面 md:py-0 還原
                  桌面 inner-scroll frame：nav-col padding-top 把 nav 推到 content 區頂、頂部對齊（取代舊 md:sticky md:top-[200px]） -->
-            <div class="flex flex-row gap-md overflow-x-auto no-scrollbar md:overflow-x-visible md:flex-col md:gap-xs mb-xs md:mb-0 -mx-md px-md md:mx-0 md:px-0 py-md md:py-0">
+            <div class="flex flex-row gap-md overflow-x-auto no-scrollbar md:overflow-x-visible md:flex-col md:gap-[var(--nav-btn-gap)] mb-xs md:mb-0 -mx-md px-md md:mx-0 md:px-0 py-md md:py-0">
               <button class="faculty-filter-btn shrink-0 active text-left" data-filter="fulltime">
                 <span class="anchor-nav-inner"><span data-label-key="faculty.fulltime" data-label-part="en">Full-time Professors</span><span data-label-key="faculty.fulltime" data-label-part="zh">專任教師</span></span>
               </button>
@@ -99,7 +99,7 @@
           </div>
 
           <!-- Faculty Cards (≥1200 占 col 4-18，第一張卡對齊 col-4、末張貼齊 col-18 右緣；nav 占 cols 1-3、內容 col 4-18＝四頁＋about 統一（user 2026-09-27；平板 768-1199 維持 col 4 留白、內容 5-20）；卡片牆內部 space-between 自動分配 gap) -->
-          <div class="w-full md:col-start-5 min-[1200px]:col-start-4 md:col-span-16 min-[1200px]:col-span-15 inner-scroll-scroll-col no-scrollbar">
+          <div class="w-full md:col-start-5 min-[1024px]:col-start-4 md:col-span-16 min-[1024px]:col-span-15 inner-scroll-scroll-col no-scrollbar">
             <!-- Containers for dynamic data（分類鈕 2026-09-29 搬回左欄，上方橫向 bar 已撤） -->
             <div id="faculty-fulltime-list" class="faculty-card-wall"></div>
             <div id="faculty-parttime-list" class="faculty-card-wall"></div>

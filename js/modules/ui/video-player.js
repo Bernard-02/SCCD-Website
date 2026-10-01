@@ -303,7 +303,7 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete, fr
       // 矮橫向（user 2026-07-10）：保留 control bar + 全螢幕，但返回鍵改用常駐 mobileCloseBtn
       // （landscape.css 釘右上、箭頭轉 →，對齊全站 slide-in 返回鍵）、controls 內返回塊藏掉——
       // controls 3s 自動隱藏，返回鍵常駐才不用先喚出 bar 才能關。
-      const isShortLandscape = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+      const isShortLandscape = window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
       const closeBlock = document.getElementById('video-block-close');
       if (isShortLandscape) {
         if (closeBlock) closeBlock.style.display = 'none';

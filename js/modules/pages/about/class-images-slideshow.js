@@ -95,7 +95,7 @@ function buildImg(src, fixedWidth, onSized) {
     // CSS 的 170/250 max-width 仍生效（此處只會更小不會更大）。
     const panel = wrapper.closest ? wrapper.closest('.class-info-panel') : null;
     // ≥1200 桌面同理：圖容器＝上下同錨框內剩餘高（scroll-snap.css，2026-09-29），扁螢幕圖等比縮、不戳出 98 線
-    const capByBox = window.innerWidth < 768 || window.matchMedia('(min-width: 1200px) and (min-height: 501px)').matches;
+    const capByBox = window.innerWidth < 768 || window.matchMedia('(min-width: 1024px) and (min-height: 501px)').matches;
     if (panel && capByBox) {
       const box = wrapper.parentElement;
       const availH = box ? box.clientHeight : 0;
@@ -518,7 +518,7 @@ export async function initClassImagesSlideshow() {
     // 舊圖 clip-out + 新圖隨機 4 向 clip-in 同格交疊，內建 INTERVAL timer 直接驅動反覆切換。
     // 桌面維持 3-slot 左移輪播。矮橫向（landscape gate）同走單圖（user 2026-07-07 wireframe：圖左文右單圖輪播）。
     const isMobileSlots = window.innerWidth < 768
-      || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+      || window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
     // about program 文字說明卡（[data-class-hl]）走 clip-reveal、圖片維持 clip-path（user 2026-08-10）
     const slotOpts = isMobileSlots
       ? { slotLefts: ['50%'], slotXPercent: -50, textHlReveal: true }

@@ -222,7 +222,7 @@ export function initTimeline() {
     // section=area 剛好 landing→viewport 底、控制鈕不出畫面。svh 免手機工具列高估溢出。
     // 矮橫向此值只當 flex-basis（landscape.css #history/#timeline-area flex 撐滿覆寫）。
     // ⚠️ 必須在讀 area.offsetHeight（下方 pageH）之前設，否則照片以舊高度算佈局。
-    if (window.innerWidth < 768 || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) {
+    if (window.innerWidth < 768 || window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches) {
       area.style.height = 'calc(100svh - 178px)';
     }
     const pageW = area.offsetWidth;

@@ -18,7 +18,7 @@
  *   結構與 panel 高度算法各異，留待 Phase 2 個別處理（本檔的 main > section 選擇器不會誤觸它們）。
  */
 
-@media (orientation: landscape) and (max-height: 500px) {
+@media (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
   /* 1) 字級整套沿用「手機版」值（user 2026-07-04 拍板「一切以手機版為主」，取代原本只壓 H1/H2）：
         寬 ≥768 的橫向手機誤吃桌面版 Tailwind md: class，但那些 utility 都消費 --font-size-* 變數 →
         在這裡把整套變數覆寫成 variables.css @media(max-width:767px) 的同值，字就全面回到手機尺寸。
@@ -1664,11 +1664,8 @@
   /* base 的 scatter 用 nowrap（footer.css:47）在 1/3 欄寬會讓長字串（設計學院卡/地址）溢出欄位被裁 → 全部允許換行 */
   body .footer-random p,
   body .footer-random a,
-  body .footer-office-zh {
+  body .footer-text-zh {
     white-space: normal;
-  }
-  body .footer-office-zh-br {
-    display: none;
   }
   /* legal 連結矮橫向合一行：block span 改 inline（同手機；EN<br>ZH 已拆成 span） */
   body .footer-legal-en,

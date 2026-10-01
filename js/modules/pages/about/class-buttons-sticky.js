@@ -62,7 +62,7 @@ export function initClassButtonsSticky() {
   // 矮橫向手機：不掛滑出 scrub——works 落點 92 在 start(top 100px) 之後，一到 works tabs 就被
   // scrub 藏掉，但 works 視圖必須留著 tabs 切 playlist（landscape.css 用 grid-row 1/3 +
   // #works min-height 讓 CSS sticky 全程涵蓋 works）。works context 切換的 ST 照常掛。
-  const isLandscapeMobile = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+  const isLandscapeMobile = window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
 
   // 高矮視窗同一條 scrub：works 過「落點」後 btn y+clip 跟捲動 1:1 滑出（跟著內容一起上去、不再 sticky）。
   // 差別只在落點線：高視窗 100vh sections 的 works 落點 = top 0（'top top'），矮視窗 = 100px marker。
@@ -71,7 +71,7 @@ export function initClassButtonsSticky() {
   // 內容自己走，看起來 sticky 不放 → 改回矮視窗同款「過落點即 1:1 跟內容滑出」。
   // ≥1200 桌面改「上下同錨」框（scroll-snap.css，2026-09-29）：不分高度 works 都落 top 0、鈕列 sticky 0 → 同高視窗路徑
   const tallViewport = window.matchMedia('(min-height: 900px)').matches
-    || window.matchMedia('(min-width: 1200px) and (min-height: 501px)').matches;
+    || window.matchMedia('(min-width: 1024px) and (min-height: 501px)').matches;
   if (isLandscapeMobile) {
     /* CSS sticky 全權處理，這裡不做事 */
   } else {

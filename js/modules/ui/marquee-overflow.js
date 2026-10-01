@@ -33,7 +33,7 @@ import { registerPageCleanup } from './page-cleanup.js';
  * 各檔自算 duration 的 text marquee 一律呼叫這裡，勿再硬編 80。
  */
 export function marqueeSpeed() {
-  return (window.innerWidth < 768 || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) ? 60 : 80;
+  return (window.innerWidth < 768 || window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches) ? 60 : 80;
 }
 
 // 離屏暫停 observer：全 util 共用一顆，SPA 換頁 drain 時 disconnect（row 隨 #page-content 銷毀，
@@ -173,7 +173,7 @@ export function bindMarqueeReturn(hoverEl, innerSelector, lineSelector, opts = {
   if (typeof gsap === 'undefined' || !hoverEl || /** @type {any} */ (hoverEl)._mqReturnBound) return () => {};
   // 自我 gate 桌面（同 isMobileView）：手機 / 矮橫向無 hover，維持各元件 CSS 自動循環，本函式不介入。
   // caller 可無條件呼叫、不必各自重複判斷（init 時決定一次；跨 gate 轉向由全站 orientation-reload 自癒）。
-  if (window.innerWidth < 768 || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) return () => {};
+  if (window.innerWidth < 768 || window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches) return () => {};
   /** @type {any} */ (hoverEl)._mqReturnBound = true;
   const returnDur = opts.returnDur ?? 0.45;
   const ease = opts.ease ?? 'cubic-bezier(0.25,0,0,1)';

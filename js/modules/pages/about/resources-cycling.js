@@ -82,7 +82,7 @@ function renderResourcesAccordion(data, container) {
   // carousel 佈局在 accordion.css（手機 block + landscape gate block），
   // JS 只做 clip-reveal 進退場（卡片不開合、不設旋轉 → 舊 initColoredCardAccordion 不再用）。
   const entry = !prefersReducedMotion();
-  const shortLandscape = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+  const shortLandscape = window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
   if (window.innerWidth >= 768 && !shortLandscape) {
     initRotatedAccordion(wrapper, { animateEntry: entry });
   } else {

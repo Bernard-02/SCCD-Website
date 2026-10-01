@@ -179,7 +179,7 @@ xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96p
 
 **絕對原則：手機版的修改不能影響桌面版。**
 
-全站有**三個 viewport**：桌面（≥768）、直向手機（<768）、**矮橫向**（橫向手機 gate，見下）。
+全站有**三個 viewport**（2026-10-01 user 定案，沒有獨立的「平板版」）：桌面（≥1024）、直向手機（<768）、**矮橫向／iPad**（橫向手機 gate＋768–1023，同一套排版，見下）。
 
 ### 規範
 1. **CSS Variables**：預設值 = 桌面版（不可改），手機版用 `@media (max-width: 767px)` 覆蓋
@@ -190,13 +190,13 @@ xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96p
    function isMobile() { return window.innerWidth < 768; }
    function isDesktop() { return window.innerWidth >= 768; }
    ```
-5. **Breakpoint**：md (768) / lg (1024) / xl (1280) — **不用 sm**
+5. **Breakpoint**：md (768) / lg (1024) / xl (1280) — **不用 sm**。⚠️ `md:`／`min-width: 768px` 只是「底」：768–1023 會再被 landscape.css 蓋成矮橫向排版；**只給真桌面的規則要寫 `(min-width: 1024px) and (min-height: 501px)`**（HTML 用 `min-[1024px]:`；原 ≥1200 的 gate 已於 2026-10-01 全數下放到 1024）
 6. **一屏高度用 `svh` 不用 `vh`**（手機工具列會讓 vh 高估溢出）
 
 ### 矮橫向（landscape gate）
-- **Gate**：`@media (orientation: landscape) and (max-height: 500px)`（CSS）／`matchMedia` 同式（JS）——橫向手機寬 ≥768 會誤吃桌面 `md:` 樣式，必須用「高度」判，這是本專案最大的斷點陷阱（原理見《docs/橫向手機版最佳實踐.md》）
+- **Gate**：`@media (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)`（CSS）／`matchMedia` 同式（JS，逗號清單）——前半＝橫向手機（寬 ≥768 會誤吃桌面 `md:` 樣式，必須用「高度」判，這是本專案最大的斷點陷阱，原理見《docs/橫向手機版最佳實踐.md》）；後半＝iPad 直向／768–1023 的視窗（user 2026-10-01：iPad 沿用橫向手機排版、只是比較高）。兩半必須一起寫，新模組照抄整串。例外：/create 有自己的斷點（create.css／generate-app/js/utils.js），不吃後半
 - **原則**：「一切以手機版為主」——字級/spacing 變數、header、footer、menu 全套手機值；規則集中在 `css/layout/landscape.css`（分頁編號 5a~5j 區塊）；JS 端各模組的 isMobile 判斷要併入 gate
-- **跨 gate 轉向**：靠 orientation-reload 整頁重載自癒（init 時決定一次、不跟 resize）
+- **跨 gate 轉向**：靠 orientation-reload 整頁重載自癒（init 時決定一次、不跟 resize）；iPad 直↔橫（跨 1024）同樣走這條
 - ⚠️ landscape.css 是 unlayered：同特異度的純 class 蓋不掉 output.css 的 `md:` utility（source order 輸）→ 要用 `#id` 或多層 selector 提特異度；`!important` 也輸給 @layer 內的 `!important`
 - ⚠️ 動態載入的頁面 CSS（library/atlas/create/alumni）link 在 output.css 之後 = cascade 贏 landscape.css，改 <768 規則要 portrait 限定
 

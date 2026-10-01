@@ -76,7 +76,7 @@
                桌面 inner-scroll frame：nav-col padding-top 把 nav 推到 content 區頂、頂部對齊（取代舊 md:sticky md:top-[200px]） -->
           <div class="w-full md:col-span-3 inner-scroll-nav-col">
             <!-- 手機 pt-md：section pt-4xl(80) < fixed header(92)，btn 自己補 24 clearance → 視覺頂 104 對齊 faculty -->
-            <div class="flex flex-row flex-wrap md:flex-col gap-xs mb-xl md:mb-0 pt-md md:pt-0">
+            <div class="flex flex-row flex-wrap md:flex-col gap-xs md:gap-[var(--nav-btn-gap)] mb-xl md:mb-0 pt-md md:pt-0">
               <button class="activities-section-btn w-fit active text-left" data-section="news">
                 <span class="anchor-nav-inner"><span data-label-key="adm.news" data-label-part="en">Announcements</span><span data-label-key="adm.news" data-label-part="zh">公告</span></span>
               </button>
@@ -87,7 +87,7 @@
           </div>
 
           <!-- Right Content Panels（桌面占 cols 5-20；桌面 inner-scroll = 唯一捲動的 box） -->
-          <div class="min-w-0 md:col-start-5 min-[1200px]:col-start-4 md:col-span-16 min-[1200px]:col-span-15 inner-scroll-scroll-col no-scrollbar">
+          <div class="min-w-0 md:col-start-5 min-[1024px]:col-start-4 md:col-span-16 min-[1024px]:col-span-15 inner-scroll-scroll-col no-scrollbar">
 
             <!-- （原桌面 .admission-scroll-mask sticky top:200 已移除：inner-scroll box 的 overflow 於 box 上緣自然裁切
                  捲過的內容，不再需要遮罩；且 frame 下 top:200 會錯位。手機 header blocker 仍在 section 開頭。） -->

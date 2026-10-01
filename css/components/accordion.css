@@ -32,7 +32,7 @@
      → 手風琴＋區塊上下 padding(240) 收在一屏內、頂部維持與 header 的距離、不必把卡片頂捲到 header 底下
      （user 2026-09-08，同 history 卡短螢幕封頂）。gate=(min-width:768 and min-height:501)＝桌面旋轉版範圍，
      排除矮橫向 gate(≤500 走 carousel、另有高度)＋手機(carousel)。 */
-  @media (min-width: 768px) and (min-height: 501px) {
+  @media (min-width: 1024px) and (min-height: 501px) {
     .colored-accordion {
       height: min(650px, calc(100svh - 248px));
     }
@@ -40,7 +40,7 @@
   /* ≥1200 桌面（user 2026-09-28）：卡上緣對齊縮小態 logo 中線（--header-logo-mid 98）、下緣留同一距離、
      高度＝兩段 padding 之間 → 區塊剛好一屏 100svh（取代上面 650 封頂；平板 768-1199 走手機 header、維持舊值）。
      section / container 的 pt-3xl / pb-xl 是 utilities layer，components 內要 !important 才蓋得掉 */
-  @media (min-width: 1200px) and (min-height: 501px) {
+  @media (min-width: 1024px) and (min-height: 501px) {
     #resources { padding-top: var(--header-logo-mid) !important; }
     #resources > .site-container { padding-top: 0 !important; padding-bottom: var(--header-logo-mid) !important; }
     .colored-accordion { height: calc(100svh - 2 * var(--header-logo-mid)); }
@@ -261,7 +261,7 @@
      inner 不再整段 rotate(180)，改 column 疊放；EN vertical-rl + sideways＝字頭朝右、由上往下讀（＝原本反向旋 180°）；
      ZH vertical-rl + upright＝直排字正；sep 空格退場、英中距吃 lg 字級 token。span 帶 writing-mode 會被 blockify、
      寬＝1 行（line-height 1）＝跟原 inner 同寬 → getLabelWidth 量到的 label 寬不變 */
-  @media (min-width: 768px) and (min-height: 501px) {
+  @media (min-width: 1024px) and (min-height: 501px) {
     .colored-accordion .accordion-label-inner {
       writing-mode: horizontal-tb;
       transform: none;
@@ -421,7 +421,7 @@
      ⚠️ 本區塊必須留在本檔（@layer components 內）不能搬 landscape.css：
      unlayered 的 !important 反而輸給 layer 內 !important（cascade important 反轉），
      上方 .colored-accordion { overflow: visible !important } 只能在同 layer 內後出覆蓋。 */
-  @media (orientation: landscape) and (max-height: 500px) {
+  @media (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
     .colored-accordion {
       align-items: flex-start;
       gap: var(--spacing-md) !important;

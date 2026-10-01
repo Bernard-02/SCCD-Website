@@ -121,7 +121,7 @@ export function clipRevealIconSwap(iconEl, newClass, { duration = 0.4, delay = 0
 export function toggleScrollPr(scroller) {
   if (!scroller) return;
   const desktop = window.innerWidth >= 768
-    && !window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+    && !window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
   scroller.classList.toggle('has-scroll-pr', desktop && scroller.scrollHeight > scroller.clientHeight + 1);
 }
 
@@ -132,7 +132,7 @@ export function toggleScrollPr(scroller) {
 export function fitCardToText(box) {
   if (!box) return;
   const desktop = window.innerWidth >= 768
-    && !window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+    && !window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
   const scroller = box.querySelector('[data-class-text], [data-works-text], [data-overview-text]'); // 內層捲動盒（有才是 about 說明卡）
   if (!desktop) { box.style.width = 'fit-content'; toggleScrollPr(scroller); return; } // 手機色卡走內捲盒，維持原生 fit-content
   box.style.width = 'fit-content';   // 先回 fit-content 讓文字在 cell 寬內重新換行後再量
