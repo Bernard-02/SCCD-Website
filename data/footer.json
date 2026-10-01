@@ -21,25 +21,21 @@
           "iconUrl": "https://d2df28pyzslt2v.cloudfront.net/Directus/e851e301-cb16-421a-bb7a-85f848abb959.svg"
         },
         {
-          "type": "phone",
+          "type": "text",
           "itemKey": "tel",
           "labelZh": "電話",
           "labelEn": "TEL",
-          "phoneCountry": "+886",
-          "phoneNumber": "2 2538 1111",
-          "phoneExt": "7211"
+          "textEn": "+886 2 2538 1111 #7211"
         },
         {
-          "type": "phone",
+          "type": "text",
           "itemKey": "fax",
           "labelZh": "傳真",
           "labelEn": "FAX",
-          "phoneCountry": "+886",
-          "phoneNumber": "2 2538 1111",
-          "phoneExt": "7050"
+          "textEn": "+886 2 2538 1111 #7050"
         },
         {
-          "type": "info",
+          "type": "text",
           "itemKey": "email",
           "labelZh": "電子郵件",
           "labelEn": "E-Mail",
@@ -47,12 +43,13 @@
           "url": "mailto:sccd@g2.usc.edu.tw"
         },
         {
-          "type": "address",
+          "type": "text",
           "itemKey": "office",
-          "labelZh": "學系辦公室",
-          "labelEn": "Office",
+          "labelZh": "地址",
+          "labelEn": "Address",
+          "textEn": "5F, Building A, No.70, Dazhi Street, Zhongshan District, Taipei City 104336, Taiwan",
           "textZh": "104336 台灣台北市中山區大直街 70 號 A 棟 5 樓",
-          "textEn": "5F, Building A, No.70, Dazhi Street, Zhongshan District, Taipei City 104336, Taiwan"
+          "url": "https://www.google.com/maps/search/?api=1&query=5F%2C%20Building%20A%2C%20No.70%2C%20Dazhi%20Street%2C%20Zhongshan%20District%2C%20Taipei%20City%20104336%2C%20Taiwan"
         }
       ],
       "markIconUrl": "https://d2df28pyzslt2v.cloudfront.net/Directus/9a51fca5-c77d-4f08-b8d4-ace882a76852.svg"
@@ -76,37 +73,37 @@
       "nameEn": "Affiliated Units",
       "items": [
         {
-          "type": "link",
+          "type": "text",
           "labelZh": "建築職人學士學位學程",
           "labelEn": "Bachelor Program in Architectural Craftsmanship",
           "url": "https://www.arch.usc.edu.tw/"
         },
         {
-          "type": "link",
+          "type": "text",
           "labelZh": "建築設計學系",
           "labelEn": "Department of Architecture",
           "url": "https://www.arch.usc.edu.tw/"
         },
         {
-          "type": "link",
+          "type": "text",
           "labelZh": "服裝設計學系",
           "labelEn": "Department of Fashion Design",
           "url": "https://scfd.usc.edu.tw/"
         },
         {
-          "type": "link",
+          "type": "text",
           "labelZh": "工業設計學系",
           "labelEn": "Department of Industrial Design",
           "url": "https://scid.usc.edu.tw/"
         },
         {
-          "type": "link",
+          "type": "text",
           "labelZh": "設計學院",
           "labelEn": "College of Design",
           "url": "https://www.scdesign.usc.edu.tw/"
         },
         {
-          "type": "link",
+          "type": "text",
           "labelZh": "實踐大學",
           "labelEn": "Shih Chien University",
           "url": "https://www.usc.edu.tw/"
@@ -114,5 +111,9 @@
       ],
       "markIconUrl": null
     }
-  ]
+  ],
+  "copyright": {
+    "text": "SCCD",
+    "autoYear": false
+  }
 }

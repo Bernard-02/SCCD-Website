@@ -34,7 +34,7 @@
    * class 由 mobile-menu.js 掛在 html、關閉滑出完成才移除（面板收完前 footer 不先跳回來）。
    * 桌面 ≥1200（desktop menu gate）反過來不讓位（user 2026-09-28）：透明面板開著捲到 footer，footer 蓋在 menu 上，
    * menu 在 footer 後面收（header.js 近 footer 呼叫 closeMobileMenu）。 */
-  @media not all and (min-width: 1200px) and (min-height: 501px) {
+  @media not all and (min-width: 1024px) and (min-height: 501px) {
     html.mobile-menu-open .footer-shell {
       z-index: auto;
     }
@@ -112,8 +112,8 @@
 
   /* Office 英文地址在 <a> 內，被 `.footer-random a { nowrap }` 蓋掉 → 不換行 → 超出
    * anchor overflow:clip 被裁成「…Zhongsh」讀不到完整地址。讓英文 <a> 跟著 <p> wrap。
-   * 排除中文行（.footer-office-zh：有 <br> + 桌面 nowrap 維持「104336 / 台灣…」兩行）。 */
-  .footer-random :is(.footer-office, .footer-info) p:not(.footer-office-zh) a {
+   * 排除中文行（.footer-text-zh：桌面 nowrap 維持一整行，見下方 ≥1200）。 */
+  .footer-random :is(.footer-office, .footer-info) p:not(.footer-text-zh) a {
     white-space: normal;
   }
 
@@ -215,7 +215,7 @@
    * JS scatter 各別散佈，display:contents 對 selector `.footer-social > div` 仍生效（DOM tree 未變） */
   /* 手機 + 窄桌面 hybrid（<1200）共用：兩者右側都是線性堆疊（散佈只在 ≥1200），故這些「非散佈」樣式套到 1199。
      ⚠️ logo 貼頂 margin（上方 max-width:767 那條）不在此列——那是「logo 疊最上」的全手機專屬，hybrid logo 在左不適用。 */
-  @media (max-width: 1199px) {
+  @media (max-width: 1023px) {
     .footer-random .icon {
       /* 0.75 → 0.975（+30%）：4 個 icon 視覺份量加大跟 footer 文字呼應，user 2026-05-27 反饋 */
       font-size: calc(var(--icon-hero) * 0.975);
@@ -228,21 +228,17 @@
     .footer-privacy a {
       font-size: var(--font-size-s);
     }
-    /* 中文地址手機合為一段 p — 桌面為 scatter 視覺強制兩行（br + nowrap）
-     * 手機 viewport 較窄、又無 scatter 限制，br 換行造成「104336」獨佔一行很尷尬 → 拔 br + 讓 viewport 自然 wrap */
-    .footer-office-zh-br {
-      display: none;
-    }
     /* legal 連結手機合一行：block span 改回 inline（EN 尾空格當分隔；mb-en-zh-s 的 margin-bottom 對 inline 自動失效）。桌面維持兩行 block。 */
     .footer-legal-en,
     .footer-legal-zh {
       display: inline;
     }
   }
-  /* 散佈版（≥1200）才維持中文地址兩行 + nowrap（scatter 卡視覺要兩行）；<1200 線性列表讓它自然 wrap。
+  /* 散佈版（≥1200）中文地址 nowrap 一整行（user 2026-10-01「104336 不需要分行」＝撤掉郵遞區號後的換行）；卡寬由
+   * footer-scatter applyOfficeSnugWidth 量最長行鎖定、不會切到。<1200 線性列表讓它自然 wrap。
    * 特異度 (0,3,1) > 上面 .footer-info p normal 的 (0,2,1)——CMS 化後 office 卡同掛 .footer-info，要贏它 */
-  @media (min-width: 1200px) {
-    .footer-random .footer-office p.footer-office-zh {
+  @media (min-width: 1024px) {
+    .footer-random .footer-office p.footer-text-zh {
       white-space: nowrap;
     }
   }
@@ -252,7 +248,7 @@
    * （散佈規則已移到 ≥1200）。JS 端 usesMobileFooter() 改 <1200 → 走 initFooterMobileReveal（由上往下 clip-reveal、
    * 無 shuffle/無隨機方向）。這裡只補：logo 縮成適中正方形貼左上（手機 base 的 logo-inner 56px 太小、且全手機是 logo
    * 疊最上、不適用左右分欄）。:is 涵蓋「已被 clip-reveal 包進 wrapper / 未包」兩態（同手機 logo 慣例）。 */
-  @media (min-width: 768px) and (max-width: 1199px) {
+  @media (min-width: 768px) and (max-width: 1023px) {
     /* 為 header 留空間：<1200 header 是漢堡列、捲到 footer 不隱藏 → 內容(含 logo)整體下移到 header 帶之下
      * （參考橫向手機式「header 讓位」104px 慣例；user 2026-08-08）。取代 base 的 container-padding 上緣。 */
     .footer-inner {
@@ -469,7 +465,7 @@
   }
 
   /* ===== Desktop scatter (≥ 1200px)：logo 左、右欄隨機散佈 ===== */
-  @media (min-width: 1200px) {
+  @media (min-width: 1024px) {
     /* 2026-09-27 版面（user 截圖兩輪定案）：上下兩區——上區 = 散佈區（tabs 左上、legal 右上、copyright 貼上區底）、
      * 下區 = 整條 logo bar（卡片不進來）。上區內 tab 列 + legal 各連結由 footer-scatter 當 obstacle 避開。
      * 舊「logo 左欄 + 右欄 min-scatter 撐寬」機制（含 --footer-min-scatter）整組退場。 */
@@ -544,6 +540,10 @@
        * 再用等值負 margin 拉回、視覺左緣仍對齊 logo。 */
       padding-left: var(--spacing-md);
       margin-left: calc(-1 * var(--spacing-md));
+      /* 下／右同理（user 2026-10-01 回報旋轉被切）：hover 抽角 −4~+6° 時 tab 角實測超出底 9.8px、右 3.9px。
+       * absolute 不佔流＝補 padding 不推任何東西；只有 reserveTabRow 量 offsetHeight，那邊扣掉 padding-bottom。 */
+      padding-right: var(--spacing-sm);
+      padding-bottom: var(--spacing-sm);
       z-index: 1;
       opacity: 1;   /* ⚠️ 蓋掉下方 `.footer-random > div { opacity:0 }`（scatter anchor 預設）——tabs 是 div 會誤中 */
       padding-top: var(--spacing-sm);
@@ -650,7 +650,7 @@
    * 版型在 landscape.css footer 區——unlayered 蓋回本檔平板段的 absolute/none），這裡只收 desktop-only
    * 的 .footer-tab-reserve obstacle。padding-top 歸零：橫向手機寬落在 768-1199 會誤吃平板段
    * 「tabs 預留高」的 padding-top（landscape.css 另給自己的 1rem）。 */
-  @media (orientation: landscape) and (max-height: 500px) {
+  @media (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
     .footer-random > .footer-tab-reserve {
       display: none;
     }
@@ -665,7 +665,7 @@
  * 必須 unlayered 才蓋得過 HTML 的 `overflow-hidden` utility（@layer utilities）與 @layer components 的 height。
  * ⚠️ 平板 768-1199（2026-08-11）與標準高度直向手機（2026-09-05 tab 分頁、≥780）已排除＝固定一屏高 100svh
  *    （各自段落設），資訊區 flex:1、legal 貼底不隨 tab 內容變。≥1200 scatter 亦不受影響。 */
-@media (max-width: 767px) and (max-height: 779px), (orientation: landscape) and (max-height: 500px) {
+@media (max-width: 767px) and (max-height: 779px), (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
   footer.footer-shell,
   footer#site-footer-static {
     height: auto;

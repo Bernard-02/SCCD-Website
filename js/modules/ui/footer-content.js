@@ -2,8 +2,10 @@
  * Footer Content v2（Directus footer_tabs / footer_items / footer_legal → 渲染兩份 footer）
  *
  * 後台（footer 集合資料夾）：
- *   footer_tabs   — 分頁名/標誌(markIcon 檔)/順序（拖曳）
- *   footer_items  — 各分頁項目（tab-first：在分頁詳情內拖曳）；type = info/phone/address/link/social
+ *   footer_tabs     — 分頁名/標誌(markIcon 檔)/順序（拖曳）
+ *   footer_items    — 各分頁項目（tab-first：在分頁詳情內拖曳）；type = social（社群圖示）／text（文字：標題＋內文＋選填連結）
+ *                     （2026-10-01 由 info/phone/address/link/social 收斂；舊值仍相容＝當 text 渲染）。連結一律後台自填，前台不再自動生成
+ *   footer_settings — 單例：copyright＝自訂文字 或 自動年份（二選一；「Copyright ©」前綴固定）
  * 右下法務連結＝3 個固定站內頁（Donate/規章/政策），標籤固定 → 前台寫死 LEGAL const，不進 CMS
  *   （對應內容仍在 Directus regulations/support/policy_and_statements；那些是頁面內文，標題與 footer 標籤不同）。
  * 圖示（tab 標誌 + 社群 icon）＝Directus Files「Site Icons」資料夾的 SVG，前台以 CSS mask 依 mode 上色。
@@ -32,9 +34,22 @@ const LEGAL = [
 
 let _dataPromise = null;
 
+// copyright 設定（footer_settings 單例）：抓不到＝null（維持 HTML 靜態字），不拖累 tabs 主資料
+async function fetchCopyright() {
+  try {
+    const res = await fetch(`${CMS_API_BASE}/footer_settings?fields=copyright_text,copyright_auto_year`);
+    if (!res.ok) return null;
+    const s = (await res.json()).data;
+    return s ? { text: s.copyright_text, autoYear: !!s.copyright_auto_year } : null;
+  } catch (_) { return null; }
+}
+
 async function fetchFooterData() {
   try {
-    const res = await fetch(`${CMS_API_BASE}/footer_tabs?sort=sort&limit=-1&fields=${TAB_FIELDS}&deep=${DEEP}`);
+    const [res, copyright] = await Promise.all([
+      fetch(`${CMS_API_BASE}/footer_tabs?sort=sort&limit=-1&fields=${TAB_FIELDS}&deep=${DEEP}`),
+      fetchCopyright(),
+    ]);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const tabs = (await res.json()).data;
     if (!Array.isArray(tabs) || tabs.length === 0) throw new Error('empty data');
@@ -43,7 +58,7 @@ async function fetchFooterData() {
       t.markIconUrl = t.markIcon?.filename_disk ? `${CMS_CDN_BASE}/${t.markIcon.filename_disk}` : null;
       (t.items || []).forEach((it) => { it.iconUrl = it.iconFile?.filename_disk ? `${CMS_CDN_BASE}/${it.iconFile.filename_disk}` : null; });
     });
-    return { tabs };
+    return { tabs, copyright };
   } catch (err) {
     console.warn('[footer] CMS fetch failed, fallback /data/footer.json:', err && err.message);
     return (await fetch(sitePath('data/footer.json'))).json();
@@ -116,62 +131,45 @@ function infoShell(item, fgroup) {
   return card;
 }
 
-function buildPhone(item, fgroup) {
-  const card = infoShell(item, fgroup);
-  const num = `${item.phoneCountry || ''} ${item.phoneNumber || ''}`.trim() + (item.phoneExt ? ` #${item.phoneExt}` : '');
-  card.appendChild(el('p', null, num));
-  return card;
-}
+// 連結一律用後台填的 url（user 2026-10-01：地址等不再前台自動生成）；http(s) 開新分頁，mailto:/tel:/站內路徑原地
+const isExternalUrl = (url) => /^https?:/i.test(url);
 
-function buildAddress(item, fgroup) {
+// 文字項（標題＋內文＋選填連結）。只有標題沒內文＝兩行卡（如關聯單位，整卡可點）；有內文＝粗體標題＋內文行（連結掛內文）。
+// 舊類型 info/phone/address/link（後台遷移前資料）一律走這裡：phone 的國碼／號碼／分機併成英文內文。
+function buildText(item, fgroup) {
+  const phone = item.phoneNumber ? `${item.phoneCountry || ''} ${item.phoneNumber}`.trim() + (item.phoneExt ? ` #${item.phoneExt}` : '') : '';
+  const textEn = item.textEn || phone;
+  const textZh = item.textZh;
+  if (!textEn && !textZh) {
+    const card = item.url ? link(item.url, { className: 'footer-unit', external: isExternalUrl(item.url) }) : el('div', 'footer-unit');
+    card.dataset.fgroup = fgroup;
+    card.appendChild(el('span', 'footer-unit-en mb-en-zh-s', item.labelEn || ''));
+    const zh = el('span', 'footer-unit-zh', item.labelZh || '');
+    zh.lang = 'zh-Hant';
+    card.appendChild(zh);
+    return card;
+  }
   const card = infoShell(item, fgroup);
-  // 前台由地址自動生 Google 地圖連結（英文地址優先，較利於查詢）
-  const query = (item.textEn || item.textZh || '').trim();
-  const mapUrl = query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : null;
-  const addrLine = (text, cls) => {
+  const line = (text, cls) => {
     const p = el('p', cls);
-    if (mapUrl) { const a = link(mapUrl); a.textContent = text; p.appendChild(a); }
+    if (item.url) { const a = link(item.url, { external: isExternalUrl(item.url) }); a.textContent = text; p.appendChild(a); }
     else p.textContent = text;
+    card.appendChild(p);
     return p;
   };
-  if (item.textEn) card.appendChild(addrLine(item.textEn, 'max-w-sm' + (item.textZh ? ' mb-xs' : '')));
-  if (item.textZh) {
-    // 復刻「郵遞區號 <br> 其餘」：桌面散佈卡兩行、<1200 br 隱藏自然併行
-    const p = el('p', 'footer-office-zh');
-    p.lang = 'zh-Hant';
-    const idx = item.textZh.indexOf(' ');
-    if (mapUrl) {
-      const a = link(mapUrl);
-      if (idx > 0) { a.append(document.createTextNode(item.textZh.slice(0, idx) + ' '), el('br', 'footer-office-zh-br'), document.createTextNode(item.textZh.slice(idx + 1))); }
-      else a.textContent = item.textZh;
-      p.appendChild(a);
-    } else p.textContent = item.textZh;
-    card.appendChild(p);
-  }
+  if (textEn) line(textEn, 'max-w-sm' + (textZh ? ' mb-xs' : ''));
+  // 中文整行不拆（user 2026-10-01「104336 不需要分行」）：桌面散佈卡 nowrap 一行（footer.css .footer-text-zh）
+  if (textZh) line(textZh, 'footer-text-zh').lang = 'zh-Hant';
   return card;
 }
 
-function buildInfo(item, fgroup) {
-  const card = infoShell(item, fgroup);
-  const addText = (text) => {
-    const p = el('p');
-    if (item.url) { const isMail = /^(mailto:|tel:)/.test(item.url); const a = link(item.url, { external: !isMail }); a.textContent = text; p.appendChild(a); }
-    else p.textContent = text;
-    card.appendChild(p);
-  };
-  if (item.textEn) addText(item.textEn);
-  if (item.textZh) addText(item.textZh);
-  return card;
-}
-
-function buildLink(item, fgroup) {
-  const a = link(item.url || '#', { className: 'footer-unit' });
-  a.dataset.fgroup = fgroup;
-  a.appendChild(el('span', 'footer-unit-en mb-en-zh-s', item.labelEn || ''));
-  const zh = el('span', 'footer-unit-zh', item.labelZh || '');
-  zh.lang = 'zh-Hant';
-  a.appendChild(zh);
-  return a;
+// Copyright：「Copyright ©」固定，後面二選一（user 2026-10-01）：後台 footer_settings 開「自動年份」＝今年（每年自動換），
+// 否則＝後台文字。沒設定（後台未建／抓不到）＝維持 HTML 靜態「Copyright © SCCD」
+function renderCopyright(footerRoot, copyright) {
+  const p = footerRoot.querySelector('.footer-copyright');
+  if (!p || !copyright) return;
+  const tail = copyright.autoYear ? String(new Date().getFullYear()) : (copyright.text || '').trim();
+  if (tail) p.textContent = `Copyright © ${tail}`;
 }
 
 function buildTabButton(tab, active, markRatio) {
@@ -215,7 +213,7 @@ export async function renderFooterContent(footerRoot) {
   const tabsBox = footerRoot.querySelector('.footer-tabs');
   if (!area || !tabsBox) return;
 
-  const { tabs } = await getFooterData();
+  const { tabs, copyright } = await getFooterData();
   if (!tabs || !tabs.length) return;
 
   // tab 標誌 viewBox 比例先量好（wordmark 才需要；社群 icon 走方框）
@@ -239,17 +237,16 @@ export async function renderFooterContent(footerRoot) {
     items.forEach((item) => {
       if (!item) return;
       let node = null;
-      switch (item.type) {
-        case 'social': if (socialPlaced) return; node = buildSocialGroup(socials, tab.key); socialPlaced = true; break;
-        case 'phone': node = buildPhone(item, tab.key); break;
-        case 'address': node = buildAddress(item, tab.key); break;
-        case 'link': node = buildLink(item, tab.key); break;
-        default: node = buildInfo(item, tab.key);
-      }
+      if (item.type === 'social') {
+        if (socialPlaced) return;
+        node = buildSocialGroup(socials, tab.key);
+        socialPlaced = true;
+      } else node = buildText(item, tab.key);
       node.dataset.footerRendered = '1';
       frag.appendChild(node);
     });
   });
   area.appendChild(frag);
   renderLegal(footerRoot, LEGAL);
+  renderCopyright(footerRoot, copyright);
 }
