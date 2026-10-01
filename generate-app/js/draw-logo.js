@@ -111,7 +111,9 @@ function drawLogo(pg, alphaMultiplier = 255) {
 
   // --- 旋轉效果 ---
   // 開啟時立即開始，關閉時立即停止
-  if (autoRotate) {
+  // play 後 custom 偏移角 ease 歸零期間先不轉，到位才開轉（togglePlay，user 2026-10-01）。
+  // 門檻 1° 不等 lerp 收到 EASE_THRESHOLD：尾段肉眼看不到、卻要多等近 1 秒才開轉
+  if (autoRotate && rotationOffsets.every((o, i) => Math.abs(o - targetRotationOffsets[i]) < 1)) {
     rotationFactor = 1;
   } else {
     rotationFactor = 0;

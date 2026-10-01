@@ -85,9 +85,12 @@ ROTATE FOR BEST EXPERIENCE</div>
                     <!-- play 鈕移進 container：跟 wheel 一起被 container 的 translateX slide 帶動 + 置中對齊 wheel（非 box）。
                          canvas 由 JS append 進 container；play 是 position:absolute 永遠疊在 canvas 之上（user 2026-06-23）。 -->
                     <div id="colorpicker-container">
-                        <button id="colorwheel-play-button" class="colorwheel-play-button">
-                            <img id="colorwheel-play-icon" src="../website-icons/play_create.svg" alt="Play">
-                        </button>
+                        <!-- 色環 clip-reveal 位移層（canvas 由 JS 建在這層、play 鈕也在這層）：container 圓形當遮罩，只動這層 -->
+                        <div id="colorpicker-reveal" class="wheel-reveal">
+                            <button id="colorwheel-play-button" class="colorwheel-play-button">
+                                <img id="colorwheel-play-icon" src="../website-icons/play_create.svg" alt="Play">
+                            </button>
+                        </div>
                     </div>
                 </div>
 

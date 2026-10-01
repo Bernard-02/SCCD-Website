@@ -22,6 +22,16 @@ function _handleVisualViewportResize() {
     resetLayoutAfterKeyboard();
   }
 }
+// setup() 的手機斷點 matchMedia listener 同理（2026-10-01 補）：漏解綁＝離開 /create 後視窗跨 768（平板轉向／拖視窗）
+// 照樣觸發 → updateUI 讀已清成 null 的 _p5 → TypeError。延遲 10ms 期間剛好離頁也擋掉
+let _mobileMediaQuery = null;
+function _handleMobileMediaChange() {
+  setTimeout(() => {
+    if (!_p5) return;
+    checkMobileMode();
+    updateUI();
+  }, 10);
+}
 
 // --- p5.js 預載入 ---
 function preload() {
@@ -293,25 +303,7 @@ function setup() {
   
   // 參考 ref.js:123
   rotateButton.mousePressed(() => {
-    if (letters.length > 0 && !isEasterEggActive) {
-      // 從 Custom 模式切換到 Auto 模式
-      if (!isAutoRotateMode) {
-        isAutoRotateMode = true;
-        autoRotate = true;
-        resetRotationOffsets();
-      } else {
-        // 已經在 Auto 模式，只是 toggle
-        autoRotate = !autoRotate;
-        if (autoRotate) {
-          resetRotationOffsets();
-        }
-      }
-
-      // 更新桌面版按鈕icon
-      updateRotateIcon();
-
-      updateUI();
-    }
+    if (letters.length > 0 && !isEasterEggActive) togglePlay();
   });
 
   // 參考 ref.js:124
@@ -452,6 +444,54 @@ function setup() {
     });
   });
 
+  // 點 track：thumb 從原位 ease 到點擊處、拖過 3px 才 1:1 跟手（同 mode3 鉛筆色條 tweenHueTo：DUR.base＋EASE.enter，
+  // user 2026-10-01）。原生 pointerdown 會瞬跳 → 攔掉，拖曳改 pointer capture 自己換算值；鍵盤方向鍵仍走原生 input
+  let sliderThumbW = 0;
+  const sliderValueAt = (el, clientX) => {
+    if (!sliderThumbW) { // thumb 寬是 calc(var)，量一次實值（原生 range 的值域對應 track 扣掉半顆 thumb 的兩端）
+      const probe = document.createElement('div');
+      probe.style.width = 'var(--slider-thumb-size)';
+      el.parentElement.appendChild(probe);
+      sliderThumbW = probe.offsetWidth;
+      probe.remove();
+    }
+    const r = el.getBoundingClientRect();
+    const t = Math.min(1, Math.max(0, (clientX - r.left - sliderThumbW / 2) / (r.width - sliderThumbW)));
+    return +el.min + t * (el.max - el.min);
+  };
+  sliders.forEach((slider, i) => {
+    const el = slider.elt;
+    let tween = null, downX = 0, pressed = false, dragging = false;
+    const setValue = (v) => {
+      isEasingCustomRotation = false;
+      isEasingSlider = false;
+      slider.value(v);
+      rotationOffsets[i] = targetRotationOffsets[i] = currentSliderValues[i] = targetSliderValues[i] = v;
+      updateUI();
+    };
+    el.addEventListener('pointerdown', (e) => {
+      if (el.disabled || isEasterEggActive || isAutoRotateMode || typeof gsap === 'undefined') return;
+      e.preventDefault();
+      el.setPointerCapture(e.pointerId);
+      pressed = true; dragging = false; downX = e.clientX;
+      const proxy = { v: currentSliderValues[i] }; // thumb 現位（offset 可能差 360 倍數，視覺同角）
+      if (tween) tween.kill();
+      tween = gsap.to(proxy, {
+        v: sliderValueAt(el, e.clientX), duration: 0.4, ease: 'power3.out',
+        onUpdate: () => { if (el.isConnected) setValue(proxy.v); else tween.kill(); },
+      });
+    });
+    el.addEventListener('pointermove', (e) => {
+      if (!pressed || (!dragging && Math.abs(e.clientX - downX) < 3)) return;
+      dragging = true;
+      if (tween) { tween.kill(); tween = null; }
+      setValue(sliderValueAt(el, e.clientX));
+    });
+    const release = () => { pressed = false; };
+    el.addEventListener('pointerup', release);
+    el.addEventListener('pointercancel', release);
+  });
+
   // --- 為角度輸入框綁定事件 ---
   // 限制輸入只能是數字、- 和 +
   const filterAngleInput = function(e) {
@@ -525,20 +565,7 @@ function setup() {
 
   if (mobileRotateButton) {
     mobileRotateButton.mousePressed(() => {
-      if (letters.length > 0 && !isEasterEggActive) {
-        if (!isAutoRotateMode) {
-          isAutoRotateMode = true;
-          autoRotate = true;
-          resetRotationOffsets();
-        } else {
-          autoRotate = !autoRotate;
-          if (autoRotate) {
-            resetRotationOffsets();
-          }
-        }
-        updateRotateIcon();
-        updateUI();
-      }
+      if (letters.length > 0 && !isEasterEggActive) togglePlay();
     });
   }
 
@@ -662,13 +689,8 @@ function setup() {
 
   // 監聽媒體查詢變化，確保與CSS保持同步（gate 同 utils.js checkMobileMode 的手機式；
   // 平板轉向會跨此界＝portrait 手機版 ↔ landscape 桌面版，變化時重判＋updateUI）
-  const mediaQuery = window.matchMedia('(max-width: 767px), (min-width: 768px) and (max-width: 1023px) and (orientation: portrait)');
-  mediaQuery.addListener(() => {
-    setTimeout(() => {
-      checkMobileMode();
-      updateUI();
-    }, 10);
-  });
+  _mobileMediaQuery = window.matchMedia('(max-width: 767px), (min-width: 768px) and (max-width: 1023px) and (orientation: portrait)');
+  _mobileMediaQuery.addListener(_handleMobileMediaChange);
 
   // setup 內所有 DOM refs 已 select 完，可放行 handleSiteThemeChange 觸發 updateUI
   setupComplete = true;
@@ -1170,7 +1192,8 @@ function draw() {
     if (!colorPickerCanvas && colorPickerReady) {
       // 初始化色環（桌面版）或色條（手機版）
       // 根據設備選擇正確的 container
-      let containerId = isMobileMode ? 'mobile-colorpicker-container' : 'colorpicker-container';
+      // 桌面 canvas 建在 reveal 位移層（跟著色環 clip-reveal 動；層＝container 同尺寸）
+      let containerId = isMobileMode ? 'mobile-colorpicker-container' : 'colorpicker-reveal';
       let container = _p5.select('#' + containerId);
       if (container) {
         let containerWidth = container.elt.clientWidth;
@@ -1487,6 +1510,43 @@ function getShortestRotation(currentAngle, targetAngle) {
 }
 
 // --- 新增：重設角度偏移的輔助函數 ---
+// play / pause（rotate 鈕、手機 rotate 鈕、Enter 共用）。play 時 custom 偏移角先 ease 歸零、到位才開轉
+// （draw-logo 偏移角距 targetRotationOffsets <1° 才累積旋轉）。user 2026-10-01：原本 resetRotationOffsets 瞬間歸零；
+// 走最近的 0（±360 倍數，logo 與 thumb 同向）＋固定 0.4s（同 slider 點擊 ease），不用 0.08 lerp（大角度要等 ~1s）
+let playZeroTween = null;
+function togglePlay() {
+  if (!isAutoRotateMode) {
+    isAutoRotateMode = true;
+    autoRotate = true;
+  } else {
+    autoRotate = !autoRotate;
+  }
+  if (autoRotate) {
+    const from = rotationOffsets.slice();
+    const to = from.map(o => o + getShortestRotation(o, 0));
+    isEasingCustomRotation = false;
+    isEasingSlider = false;
+    if (playZeroTween) playZeroTween.kill();
+    const apply = (vals) => vals.forEach((v, i) => {
+      rotationOffsets[i] = currentSliderValues[i] = targetSliderValues[i] = v;
+      if (sliders[i]) sliders[i].value(v);
+      if (mobileSliders[i]) mobileSliders[i].value(v);
+    });
+    if (typeof gsap === 'undefined') { apply([0, 0, 0]); targetRotationOffsets = [0, 0, 0]; }
+    else {
+      targetRotationOffsets = to.slice();
+      const p = { t: 0 };
+      playZeroTween = gsap.to(p, {
+        t: 1, duration: 0.4, ease: 'power3.out',
+        onUpdate: () => apply(from.map((f, i) => f + (to[i] - f) * p.t)),
+        onComplete: () => { apply([0, 0, 0]); targetRotationOffsets = [0, 0, 0]; playZeroTween = null; },
+      });
+    }
+  }
+  updateRotateIcon();
+  updateUI();
+}
+
 function resetRotationOffsets() {
     // 使用陣列迴圈重置所有 sliders
     for (let i = 0; i < 3; i++) {
@@ -1700,19 +1760,7 @@ function keyPressed() {
 
   // 當按下 ENTER 鍵時：play / pause toggle（同 rotate 鈕）
   if (_p5.keyCode === _p5.ENTER) {
-    if (letters.length > 0 && !isEasterEggActive) {
-      if (!isAutoRotateMode) {
-        isAutoRotateMode = true;
-        autoRotate = true;
-      } else {
-        autoRotate = !autoRotate;
-      }
-      if (autoRotate) resetRotationOffsets();
-
-      updateRotateIcon();
-
-      updateUI();
-    }
+    if (letters.length > 0 && !isEasterEggActive) togglePlay();
     // 阻止瀏覽器預設行為 (例如在 textarea 中換行)
     return false;
   }
@@ -1832,6 +1880,7 @@ function cleanupCreateApp() {
   window.removeEventListener('orientationchange', handleOrientationChange);
   window.removeEventListener('resize', handleOrientationChange);
   window.visualViewport?.removeEventListener('resize', _handleVisualViewportResize);
+  _mobileMediaQuery?.removeListener(_handleMobileMediaChange);
   // color picker 拖曳追蹤：sketch.js:1247-1249 + ui-state.js:93-95 兩處都會綁同 fn ref，
   // addEventListener 同 ref 只註冊一次，這裡移除一次即清乾淨；user 沒進過 Wireframe 也安全（no-op）
   document.removeEventListener('mousemove', handleColorPickerMouseMove);

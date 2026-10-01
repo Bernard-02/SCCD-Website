@@ -28,7 +28,7 @@ import {
 } from '../ui/theme-toggle.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { setupClipReveal } from '../ui/scroll-animate.js';
-import { killGenerateLogoTimeline, GEN_LOGO_LAYOUT } from '../../header.js';
+import { killGenerateLogoTimeline, GEN_LOGO_LAYOUT, animateHeaderModeBtnShow } from '../../header.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { sitePath } from '../ui/site-base.js';
 
@@ -241,10 +241,27 @@ function playCreateExitAnimation(destinationRoute) {
     });
   }
 
-  // controlBar mask：parent overflow-y:clip 攔截 yPercent 移出 box 的部分
-  // overflow-x:visible 保留 rotation-group 等 x 軸 expand 元素（Custom 區展開橫向超出 control-box）
+  // 桌面 controlBar mask＝每個盒自己的形狀（尺寸＋圓角；圓 mode 鈕圓遮罩、mode3 膠囊兩半拼回膠囊），
+  // 盒在自己的形狀裡滑出、不撞 panel 的直邊（user 2026-10-01）。先全部量完再包（讀寫分離）；
+  // marginLeft（mode3 colorpicker 的負 margin）搬到遮罩，盒本身歸 0。SPA 隨即 innerHTML 替換 → 不需 restore
+  if (!isMobile && controlBarItems.length > 0) {
+    const shapes = controlBarItems.map(el => {
+      const r = el.getBoundingClientRect(), cs = getComputedStyle(el);
+      return { w: r.width, h: r.height, radius: cs.borderRadius, ml: cs.marginLeft };
+    });
+    controlBarItems.forEach((el, i) => {
+      const box = /** @type {HTMLElement} */ (el), s = shapes[i];
+      const mask = document.createElement('div');
+      mask.style.cssText = `width:${s.w}px;height:${s.h}px;flex-shrink:0;overflow:clip;border-radius:${s.radius};margin-left:${s.ml};`;
+      box.parentElement.insertBefore(mask, box);
+      mask.appendChild(box);
+      box.style.marginLeft = '0';
+    });
+  }
+  // 手機：parent overflow-y:clip 攔截 yPercent 移出 box 的部分
+  // overflow-x:visible 保留 rotation-group 等 x 軸 expand 元素
   // SPA 隨即 innerHTML 替換 → inline 樣式自動清掉，不需手動 restore
-  if (controlBarParent && controlBarItems.length > 0) {
+  else if (controlBarParent && controlBarItems.length > 0) {
     /** @type {HTMLElement} */ (controlBarParent).style.overflowY = 'clip';
     /** @type {HTMLElement} */ (controlBarParent).style.overflowX = 'visible';
   }
@@ -278,28 +295,10 @@ function playCreateExitAnimation(destinationRoute) {
     //   的對稱反向動作對齊。並行在 exit 階段才能讓 user 在 /create 退場過渡中看到推動，
     //   進新頁時 mode-btn 已就位。flag set 給 updateToggleBtnVisualState 跳過 fire 避免重播。
     // Same-page reentry (/create → /create) 跳過（mode-btn 維持 hide 狀態）
+    //   2026-10-01 改走 header.js 同一支 show（遮罩平移 clip-reveal），原本這裡寫死的 width/marginLeft 已過時（放完會跳位）
     if (!isSamePageReentry) {
-      const modeBtn = /** @type {HTMLElement | null} */ (document.querySelector('#mode-btn'));
-      if (modeBtn) {
-        window.__sccdModeBtnShowInExit = true;
-        tl.fromTo(modeBtn,
-          { width: 0, marginLeft: 0, clipPath: 'inset(0 0 0 100%)' },
-          {
-            width: 40,
-            marginLeft: 32,
-            clipPath: 'inset(0 0 0 0)',
-            duration: DUR.medium,
-            ease: EASE.move,
-            overwrite: 'auto',
-            onComplete: () => {
-              modeBtn.style.width = '';
-              modeBtn.style.marginLeft = '';
-              modeBtn.style.clipPath = '';
-            },
-          },
-          0
-        );
-      }
+      window.__sccdModeBtnShowInExit = true;
+      animateHeaderModeBtnShow();
     }
 
     // 1a. controlBarItems（control bar 拆元素）y-reveal pattern（與 hero title 同形）：

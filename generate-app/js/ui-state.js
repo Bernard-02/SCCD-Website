@@ -44,30 +44,21 @@ function updateUI() {
 
         // 淡入 color picker box（容器展開動畫 + 淡入）
         if (colorPickerBox) {
-            // 步驟 1：設置 display: flex，初始狀態為 max-width: 0, padding: 0, opacity: 0
+            // updateUI 每次呼叫都會跑到這裡 → 只有「剛進 mode3」才播色環 reveal，否則每打一字重播一次
+            const entering = colorPickerBox.elt.dataset.open !== '1';
+            colorPickerBox.elt.dataset.open = '1';
+            // 膠囊由 #colormode-box 自己長寬（CSS .wireframe-mode width transition）；本盒＝疊在膠囊右半的透明遮罩，
+            // 直接顯示即可（user 2026-10-01：不再自己 max-width 展開＋淡入）
             colorPickerBox.style('display', 'flex');
-            colorPickerBox.style('max-width', '0');
-            colorPickerBox.style('padding', '0');
-            colorPickerBox.style('opacity', '0');
 
-            // 步驟 2：強制 reflow，然後設置 max-width、padding 和 opacity（觸發容器展開動畫 + 淡入）
-            void colorPickerBox.elt.offsetHeight; // 強制瀏覽器重繪
-            // max-width 設成「實際盒寬 108」而非 500：min(108, max-width) 若 max-width 遠大於 108，收合時會「先停在 108、
-            // 等 max-width 降到 108 才突然塌」＝非線性 → panel 抖。設 108 → 展開/收合都線性。
-            // （user 2026-06-23；108 = mode3 #colorpicker-box 顯式寬 = wheel72 + 右 padding36，見 create.css）
-            colorPickerBox.style('max-width', 'calc(108px * var(--scale))');
-            colorPickerBox.style('padding', ''); // 恢復 CSS 中定義的 padding
-            colorPickerBox.style('opacity', '1'); // 容器淡入（包括 border 和背景）
-
-            // 步驟 3：建 wheel canvas + 啟動進場。
-            // desktop（user 2026-06-23）：#colorpicker-container 已 absolute 固定 72（CSS）→ clientWidth 恆 72、canvas 可即建，
-            //   不必等 box 展開 → 把「wheel slide」跟上面「box 展開」放同一 tick → 兩者同時 run（非先後）。
+            // 建 wheel canvas + 啟動進場。#colorpicker-container absolute 固定 72（CSS）→ canvas 可即建。
             // mobile：維持等 300ms（mobile bar 寬要等 layout 才量得到）。
             const buildAndRevealColorWheel = () => {
                 // 立即創建 canvas（不等 draw() 執行）
                 if (!colorPickerCanvas) {
                     // 根據設備選擇正確的 container
-                    let containerId = isMobileMode ? 'mobile-colorpicker-container' : 'colorpicker-container';
+                    // 桌面 canvas 建在 reveal 位移層（跟著 clip-reveal 動；層＝container 同尺寸）
+                    let containerId = isMobileMode ? 'mobile-colorpicker-container' : 'colorpicker-reveal';
                     let container = _p5.select('#' + containerId);
                     if (container) {
                         let containerWidth = container.elt.clientWidth;
@@ -120,17 +111,22 @@ function updateUI() {
                 // 允許創建 canvas 的標記（防止 draw() 重複創建）
                 colorPickerReady = true;
 
-                // wheel container 從 mode-btn 後面 translateX(-100%) 滑出到 0 + fade（pos slide）。
-                // play 鈕在 container 內 → 跟著滑、被 container opacity 蓋，不需自己設。
-                if (colorPickerContainer) {
-                    colorPickerContainer.style('opacity', '1');
-                    colorPickerContainer.style('transform', 'translateX(0)');
+                // 桌面（user 2026-10-01，比照 mode3 鉛筆）：mode 鈕膠囊先長完（dur-medium），
+                //   色環＋play 才在原位由上/下隨機 clip-reveal 升起。遮罩＝色環自己的圓（container 圓角＋overflow clip，
+                //   不被膠囊直邊切；clip 只在動畫期間掛，常駐會裁 play 鈕 focus 外框）
+                if (colorPickerContainer && entering && typeof gsap !== 'undefined') {
+                    const growDur = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--dur-medium')) || 0.5;
+                    const wheel = colorPickerContainer.elt, h = wheel.offsetHeight || 72;
+                    wheel.style.overflow = 'clip';
+                    gsap.fromTo(document.getElementById('colorpicker-reveal'), { y: Math.random() < 0.5 ? h : -h },
+                        { y: 0, duration: 0.4, ease: 'power2.out', delay: growDur, overwrite: true,
+                          onComplete: () => { wheel.style.overflow = ''; } });
                 }
             };
             if (isMobileMode) {
                 setTimeout(buildAndRevealColorWheel, 300);
             } else {
-                buildAndRevealColorWheel(); // 同一 tick → wheel slide 與底色展開同時跑
+                buildAndRevealColorWheel();
             }
         }
     } else {
@@ -144,20 +140,19 @@ function updateUI() {
         }
         // 平滑收起 color picker box（收起動畫）
         if (colorPickerBox) {
-            // 步驟 1：先收內容（container 往左滑回 mode-btn 後面 translateX(-100%) + fade，與進場反向；play 鈕跟著）
-            if (colorPickerContainer) {
-                colorPickerContainer.style('opacity', '0');
-                colorPickerContainer.style('transform', 'translateX(-100%)');
+            // 色環先上/下滑出（play 鈕跟著），膠囊收合由 CSS delay dur-micro 接在後面。只在「剛離開 mode3」跑一次
+            if (colorPickerContainer && colorPickerBox.elt.dataset.open === '1' && typeof gsap !== 'undefined') {
+                const wheel = colorPickerContainer.elt, h = wheel.offsetHeight || 72;
+                wheel.style.overflow = 'clip'; // 遮罩＝色環自己的圓（同進場）
+                gsap.to(document.getElementById('colorpicker-reveal'), { y: Math.random() < 0.5 ? h : -h, duration: 0.2, ease: 'power2.in', overwrite: true });
             }
+            colorPickerBox.elt.dataset.open = '0';
 
-            // 步驟 2：收起容器（縮小 max-width、padding、opacity）
-            colorPickerBox.style('max-width', '0');
-            colorPickerBox.style('padding', '0');
-            colorPickerBox.style('opacity', '0');
             colorPickerBox.removeClass('show'); // 移除 show class
 
-            // 步驟 3：等待動畫完成後再隱藏（200ms）
+            // 色環滑出完（200ms）再隱藏；期間又切回 mode3＝別藏
             setTimeout(() => {
+                if (colorPickerBox.elt.dataset.open === '1') return;
                 colorPickerBox.style('display', 'none');
 
                 // 重置標記
@@ -310,6 +305,10 @@ function updateUI() {
             let sliderEnabled = customControlsEnabled && letterCount > i;
 
             slider.elt.disabled = !sliderEnabled;
+            angleLabels[i].elt.disabled = !sliderEnabled; // disabled slider 的角度數字也不能輸入（user 2026-10-01）
+            // 面板收合中（按 play／刪光字）只鎖互動、不換外觀：原本一按 play 就掉進 disabled 樣式＝thumb 瞬間變黑（--lib-fg），
+            // 收起過程看得到（user 2026-10-01）。下次展開 customControlsEnabled 為真時再算
+            if (!customControlsEnabled) return;
             if (sliderEnabled) {
                 slider.addClass('enabled');
                 angleLabels[i].addClass('enabled');
@@ -364,6 +363,7 @@ function updateUI() {
                 if (slider && mobileAngleLabels[i]) {
                     let sliderEnabled = customControlsEnabled && letterCount > i;
                     slider.elt.disabled = !sliderEnabled;
+                    mobileAngleLabels[i].elt.disabled = !sliderEnabled;
 
                     if (sliderEnabled) {
                         slider.addClass('enabled');

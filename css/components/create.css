@@ -390,7 +390,6 @@ body.mode-color .control-box {
    ＊colormode 不再覆寫（沿用 base 120 方形）→ 也順帶消除 84↔120 寬度變化（無 width-transition 抖動）。
    ＊wheel 靠左(padding-left 0) → play 鈕已移進 container 故跟著 wheel 置中（非 box 置中），不會偏。 */
 #create-app.wireframe-mode #colorpicker-box {
-  margin-left: calc(-1 * var(--panel-gap)); /* 貼齊到 mode-btn 右側 */
   padding-left: 0;                           /* wheel 靠左、緊接 mode-btn 的右 padding */
   padding-right: calc(36px * var(--scale));  /* block 右端 36（與左端對稱）*/
   /* width 已移到 base #colorpicker-box（恆 108）→ 退場時不會因 .wireframe-mode 移除而 width:108→auto 瞬塌（見下）。
@@ -430,15 +429,17 @@ body.mode-color .control-box {
   --lib-fg-rgb: 255, 255, 255;
 }
 
-/* 盒內 icon 預設 100%（active），inactive 狀態統一 50%（user 2026-05-20）
-   inactive = (1) box 整個 disabled  (2) 個別 button:disabled  (3) rotate/custom 非 active
-   colormode 不在 inactive selector 內（它沒有 active/inactive 概念，永遠 100%） */
+/* 盒內 icon 三階灰度＝同 library 年份／分類鈕（user 2026-10-01）：active 100%／未選 50%／disabled 20%
+   disabled = box 整個 disabled 或個別 button:disabled；未選 = rotate/custom 可點但非 active
+   colormode 不在 selector 內（它沒有 active/inactive 概念，永遠 100%） */
 .control-box button img {
   opacity: 1;
 }
 .control-box.disabled button img,
 .control-box .custom-button:disabled img,
-.control-box .image-button:disabled img,
+.control-box .image-button:disabled img {
+  opacity: 0.2;
+}
 .control-box .custom-button-rotate:not(.active):not(:disabled) img,
 .control-box .custom-button-custom:not(.active):not(:disabled) img {
   opacity: 0.5;
@@ -463,7 +464,17 @@ body.mode-color .control-box {
      wheel translateX 滑出時會「蓋過」mode-btn → 看起來像 mode-btn 從 wheel 上方移動。把 mode-btn 提到上層 → wheel 從它「下方」滑出。 */
   position: relative;
   z-index: 1;
-  transition: width var(--dur-micro) ease, background-color var(--dur-base) ease;
+  /* 圓鈕；mode3 由「這顆圓本身」往右長成膠囊（user 2026-10-01，同 mode3 鉛筆）：寬 120→120+108、半徑固定＝自然膠囊。
+     icon 釘左 36（＝120 盒置中位）：膠囊變寬時 icon 不跟著跑去中間。
+     收合 delay dur-micro＝色環先滑出膠囊、膠囊才縮（展開的反序，展開那條見下方 .wireframe-mode 無 delay） */
+  border-radius: calc(var(--rotation-box-min-height) / 2);
+  align-items: flex-start;
+  padding-left: calc((var(--rotation-box-min-height) - var(--button-icon-size)) / 2);
+  transition: width var(--dur-medium) var(--ease-standard) var(--dur-micro), background-color var(--dur-base) ease;
+}
+#create-app.wireframe-mode #colormode-box {
+  width: calc(var(--rotation-box-min-height) + 108px * var(--scale));
+  transition: width var(--dur-medium) var(--ease-standard), background-color var(--dur-base) ease;
 }
 
 /* 色彩選擇器控制盒：預設隱藏。高度由 align-self:stretch + min-height(120) 給，不用 aspect-ratio。
@@ -475,33 +486,33 @@ body.mode-color .control-box {
   min-height: var(--rotation-box-min-height); /* 確保最小高度與 rotation-box 一致 */
   display: none; /* 由 JavaScript 控制顯示/隱藏 */
   position: relative;
+  z-index: 2; /* 疊在 mode 鈕膠囊（z 1）右半之上 */
   padding: calc(24px * var(--scale)); /* user 2026-05-20 五次調整：padding 8→16；2026-06-11 16→24 讓色環整體再小一點
      （wheel canvas = container = box120 - 2*padding，加 padding 縮容器→縮環；box 仍 120 故共用線 240px/版面不動）*/
-  opacity: 0; /* 預設透明（包括 border 和背景） */
-  overflow: hidden; /* 隱藏溢出內容，配合寬度動畫 */
-  /* margin-left 進 transition（user 2026-06-23）：mode3 的 margin-left:-panel-gap 在離開 mode3 時若「瞬間」歸 0，
-     整條 panel 會先往右跳 ~30px 再隨 max-width 收合往左滑＝抖動。改成跟 max-width 同步漸變（0.2s）→ 收合單向、不跳。 */
-  /* background-color 必須跟著一起列（user 2026-06-24）：本盒重定義 transition 會「整條取代」.control-box 的
-     `background-color var(--dur-base)` → 漏掉後 mode3 hue cycle 時本盒白底淡疊瞬切、mode-btn 卻 dur-base 漸變 = 兩盒不同步像分開。
-     補回同 dur-base → 四個 control-box 白底一起漸變、視覺一整塊。 */
-  transition: max-width var(--dur-micro) ease, padding var(--dur-micro) ease, opacity var(--dur-micro) ease, margin-left var(--dur-micro) ease, background-color var(--dur-base) ease;
-  /* width 恆 108（user 2026-06-24，原本只在 .wireframe-mode）：盒實際寬靠 width 給、max-width 只當開合的 clamp。
-     若 width 只在 .wireframe-mode，退場移除 class 時 width:108→auto（container 是 absolute=脫流→auto≈0）會「瞬塌」一幀，
-     max-width 的 0.2s 收合根本沒驅動到 → wheel 被瞬間裁掉（看起來壓縮）+ 盒子跳兩次。放 base 後 width 恆定、由 max-width 單獨收合＝順。 */
+  overflow: hidden; /* 色環 clip-reveal 遮罩 */
+  /* user 2026-10-01：本盒不再有底、不再自己長寬——膠囊由 #colormode-box 長出來，本盒只是疊在膠囊右半 108 的透明遮罩。
+     負 margin＝自身寬＋panel gap → 佔位淨 0、不推擠右側盒；右圓角＝膠囊右端，色環升起時沿膠囊形裁 */
+  margin-left: calc(-1 * (108px * var(--scale) + var(--panel-gap)));
+  border-radius: 0 calc(var(--rotation-box-min-height) / 2) calc(var(--rotation-box-min-height) / 2) 0;
+  /* width 恆 108（不隨 mode 變）：離開 mode3 時 class 一掉也不會瞬塌 */
   width: calc(108px * var(--scale));
-  max-width: 0; /* 預設收合（mode1/2 隱藏；mode3 由 JS 設 max-width 展開） */
+}
+#create-app #colorpicker-box {
+  background-color: transparent; /* 蓋掉 .control-box 各 mode 淡疊底（特異度 2 id） */
 }
 
-/* 色彩選擇器 reveal（user 2026-06-23：改 pos 位移 slide，不用 clip-path）：底色盒 max-width 展開後，
-   wheel container 從「藏在 mode-btn 後面」(translateX -100% = 往左一個 container 寬) 滑出到 translateX(0)，
-   靠 #colorpicker-box 的 overflow:hidden 在盒左緣(=mode-btn 右側)裁出「從 mode-btn 右邊滑出」的效果。
-   play 鈕已在 container 內 → 被 container 的 opacity 蓋 + 跟著 translateX 一起滑（不需自己 reveal）。退場反向（見 ui-state.js）。 */
-#colorpicker-box #colorpicker-container {
-  opacity: 0;
-  transform: translateX(-100%);
-  /* dur-micro（= box max-width 展開的時長）→ wheel slide 與底色展開同時開始、同時結束（user 2026-06-23「同時 run」）。
-     退場時也與 box 收合(0.2s)＋hide 的 200ms display:none 對齊。 */
-  transition: opacity var(--dur-micro) ease, transform var(--dur-micro) ease;
+/* 色彩選擇器 reveal（user 2026-10-01 改，比照 mode3 鉛筆）：膠囊（box max-width）先長完，wheel container 才由上/下
+   clip-reveal 升起，遮罩＝色環自己的圓（#colorpicker-container 圓角＋動畫期間 overflow:clip）。位移由 ui-state.js GSAP 驅動、這裡不掛 transition
+   （CSS transition 會跟 GSAP 逐幀寫的 transform 互搶）。play 鈕在 container 內，跟著升起。 */
+
+/* 色環 reveal 位移層（create.html #colorpicker-reveal，canvas＋play 鈕都在裡面；ui-state.js GSAP 只動這層）：幾何同 container（填滿＋canvas 置中、play 鈕 absolute 對它）。
+   不直接動 play 鈕：它靠 CSS transform 置中（.is-play 另有 3px 偏移），GSAP 寫 inline transform 會蓋掉 */
+#colorpicker-container > .wheel-reveal {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* 色彩選擇器容器 */
@@ -576,7 +587,7 @@ body.mode-color .control-box {
 }
 
 
-/* Save 控制盒：圓形外框，寬度與高度一致 */
+/* Save 控制盒：方形（user 2026-10-01 與 mode 鈕對調：mode 圓、download 方），寬度與高度一致 */
 #save-box {
   flex: 0 0 auto; /* 不擴展寬度，保持內容寬度 */
   justify-content: center;
@@ -585,8 +596,6 @@ body.mode-color .control-box {
   min-height: var(--rotation-box-min-height); /* 確保最小高度與 rotation-box 一致 */
   /* 使用 aspect-ratio 確保寬度 = 高度，形成正方形 */
   aspect-ratio: 1 / 1;
-  /* border-radius 設為 50% 形成完美圓形 */
-  border-radius: 50%;
 }
 
 /* 新增：單個 colormode 按鈕樣式 */
@@ -776,7 +785,7 @@ body.mode-color .control-box {
 }
 
 /* custom-button:disabled / image-button:disabled img 的舊 per-mode 0.25/0.5/wireframe-opacity
-   已被上面統一 .control-box ... img { opacity: 0.5 } 取代（user 2026-05-20） */
+   已被上面統一 .control-box ... img 三階規則取代（disabled 0.2，user 2026-10-01） */
 
 /* active 狀態的按鈕（只改變文字顏色，邊框由指示器處理）
    盒底改高對比黑/白後文字吃 --lib-fg 與盒底對比（mode1 黑底→白字 / mode2 白底→黑字，wireframe 另走下方 stroke 色） */
@@ -998,6 +1007,31 @@ body.mode-color .control-box {
    inactive 的 opacity:0.5 仍要在此 declare，覆蓋 .enabled 的預設 opacity:1 */
 #create-app.wireframe-mode .angle-input:not(.enabled) {
   opacity: 0.5;
+}
+/* 桌面 slider＋角度 label 未 enabled＝disabled（字數不足）→ 同 icon disabled 階 0.2（user 2026-10-01）；
+   手機 bottom bar 仍走上面 0.5（手機 icon 尚未改三階） */
+#create-app .control-box .custom-slider:not(.enabled),
+#create-app .control-box .angle-input:not(.enabled) {
+  opacity: 0.2;
+}
+/* 桌面 disabled slider hover 要看到 not-allowed（user 2026-10-01）：上面通用規則的 pointer-events:none 會讓游標穿透、
+   永遠顯示不出來 → 桌面開回 pe；input 本身已是 disabled 屬性，拖不動。thumb 另設（-moz 拆條，見上方 slider 註解） */
+#create-app .control-box .custom-slider:not(.enabled) {
+  pointer-events: auto;
+}
+/* 桌面 enabled slider 一律 hover 游標（user 2026-10-01）：range input 的 UA 預設 cursor:default＝系統原生游標、不是站內自製圖 */
+#create-app .control-box .custom-slider.enabled {
+  cursor: var(--cursor-pointer);
+}
+/* disabled 角度數字：不能輸入（ui-state.js 設 disabled），游標同 slider（user 2026-10-01） */
+#create-app .control-box .angle-input:not(.enabled) {
+  cursor: var(--cursor-not-allowed);
+}
+#create-app .control-box .custom-slider:not(.enabled)::-webkit-slider-thumb {
+  cursor: var(--cursor-not-allowed);
+}
+#create-app .control-box .custom-slider:not(.enabled)::-moz-range-thumb {
+  cursor: var(--cursor-not-allowed);
 }
 
 /* --- 通用 Class --- */
