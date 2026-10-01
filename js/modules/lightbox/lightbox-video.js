@@ -55,6 +55,13 @@ export function createLightboxVideo(url, accent = '#00FF80', { autoplay = true }
   // color/background 都寫 inline（mode1/2 = accent 塊 + 黑 ink）；mode3 由 .lb-video-* class 掛 color.css
   // body.mode-color 覆寫成 strict B/W（塊→theme-fg、ink→theme-fg-inverse，依 page hue 對比翻黑白），
   // 同 .sticky-chip-inner / .dsd-next-card-m 全站 mode3 accent→B/W pattern（CSS 自動吃 mode 切換 + hue cycle）。
+  // 軌道只有 4px 線、thumb 又 pointer-events:none：hover 在 thumb 凸出的上下 5px 打到的是色塊（預設箭頭）→
+  // 疊一層透明命中層撐到 thumb 高（14px）。不能用 padding＋background-clip：mode3 color.css 的 background 簡寫會把 clip 重設成整塊塗滿
+  const mkHitArea = () => {
+    const h = document.createElement('div');
+    h.style.cssText = 'position:absolute;left:0;right:0;top:-5px;bottom:-5px;';
+    return h;
+  };
   const mkIconBtn = (icon, label) => {
     const b = document.createElement('button');
     b.className = 'lb-video-ink';
@@ -79,7 +86,8 @@ export function createLightboxVideo(url, accent = '#00FF80', { autoplay = true }
   // 時間軸：track 全黑 + fill 全黑（連續黑線）；thumb = 4px 寬黑直線上下伸出 5px 標位置（同 WATCH）
   const progTrack = document.createElement('div');
   progTrack.className = 'lb-video-ink-bg';
-  progTrack.style.cssText = 'flex:1;height:4px;background:#000;position:relative;min-width:0;cursor:pointer;';
+  // cursor 用自製系統的 var：inline keyword `pointer` spec 1000 會壓掉 cursor.css、顯示系統手（user 2026-10-01 DSD 回報）
+  progTrack.style.cssText = 'flex:1;height:4px;background:#000;position:relative;min-width:0;cursor:var(--cursor-pointer);';
   const progFill = document.createElement('div');
   progFill.className = 'lb-video-ink-bg';
   progFill.style.cssText = 'height:100%;width:0%;pointer-events:none;position:relative;background:#000;';
@@ -88,6 +96,7 @@ export function createLightboxVideo(url, accent = '#00FF80', { autoplay = true }
   progThumb.style.cssText = 'position:absolute;right:-2px;top:50%;transform:translateY(-50%);width:4px;height:14px;background:#000;pointer-events:none;';
   progFill.appendChild(progThumb);
   progTrack.appendChild(progFill);
+  progTrack.appendChild(mkHitArea());
   centerBlock.appendChild(progTrack);
 
   const timeEl = document.createElement('span');
@@ -103,7 +112,7 @@ export function createLightboxVideo(url, accent = '#00FF80', { autoplay = true }
   volWrap.appendChild(muteBtn);
   const volTrack = document.createElement('div');
   volTrack.className = 'lb-video-ink-bg';
-  volTrack.style.cssText = 'width:0;overflow:visible;transition:width 0.25s cubic-bezier(0.25,0,0,1);height:4px;background:#000;position:relative;flex-shrink:0;cursor:pointer;';
+  volTrack.style.cssText = 'width:0;overflow:visible;transition:width 0.25s cubic-bezier(0.25,0,0,1);height:4px;background:#000;position:relative;flex-shrink:0;cursor:var(--cursor-pointer);';
   const volFill = document.createElement('div');
   volFill.className = 'lb-video-ink-bg';
   volFill.style.cssText = 'height:100%;width:100%;background:#000;pointer-events:none;position:relative;';
@@ -112,6 +121,7 @@ export function createLightboxVideo(url, accent = '#00FF80', { autoplay = true }
   volThumb.style.cssText = 'position:absolute;right:-2px;top:50%;transform:translateY(-50%);width:4px;height:14px;background:#000;pointer-events:none;opacity:0;transition:opacity 0.25s;';
   volFill.appendChild(volThumb);
   volTrack.appendChild(volFill);
+  volTrack.appendChild(mkHitArea());
   volWrap.appendChild(volTrack);
   centerBlock.appendChild(volWrap);
 

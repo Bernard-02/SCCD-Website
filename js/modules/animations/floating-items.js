@@ -28,16 +28,27 @@ const FLOAT_SLIDE_HIDES = [
 ];
 function randFloatSlideHide() { return FLOAT_SLIDE_HIDES[Math.floor(Math.random() * FLOAT_SLIDE_HIDES.length)]; }
 
-// 桌面 20、手機 12（< 768px）。手機減量是視覺優化，不影響桌面。
+// 桌面 16~32（依視窗面積，見 totalItems）、手機 10（< 768px）。手機減量是視覺優化，不影響桌面。
 // 手機與矮橫向（橫向手機）都用手機參數（user 2026-07-04「首頁也比照手機版」；gate 同 landscape.css）
 function isMobileViewport() {
   return window.innerWidth < 768
-    || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+    || window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
 }
 // 每次 init 時評估（原 module-load 時定案的 const：SPA 換頁不重載模組，直向載入後轉橫向會殘留桌面值）
-function totalItems() { return isMobileViewport() ? 12 : 20; }
-const SPEED_MIN = 0.05;
-const SPEED_MAX = 0.25;
+// 桌面依視窗面積給量（user 2026-10-01「盡量讓空間都有 item、像在宇宙觀看」；同日三修「數量減少一點」45000→60000）：
+// 每 ~60000px² 一張：1280×720→16、1440×900→22、1920×1080 以上封頂 32（每張 2 條常駐 3D tween，別無上限）。
+function totalItems() {
+  if (isMobileViewport()) return 10;
+  return Math.min(32, Math.max(16, Math.round(window.innerWidth * window.innerHeight / 60000)));
+}
+// 鏡頭平移（user 2026-10-01）：畫面像 camera 朝一個方向緩慢移動。卡在世界中靜止＝畫面上只隨鏡頭同速同向移動＝鏡頭等速；
+//   z＝原本的單點透視（越靠畫面邊越大，同日三修「加上原本的 z 位移」）；3D 擺動保留。
+// 依時間換算（px/秒）：逐幀定距會隨掉幀／高更新率螢幕忽快忽慢。隔一段時間平滑轉去新航向；單次轉幅 30°~120° → 永不掉頭。
+const CAM_SPEED = 36;                           // px/秒（同日三修「再快一點」，原 24）
+const CAM_TURN_SEC = [20, 40];                  // 轉向間隔（秒）
+const CAM_TURN_RAD = [Math.PI / 6, Math.PI * 2 / 3];
+const CAM_TURN_TAU = 2;                         // 航向指數逼近目標的時間常數（秒；≈6s 轉完，同原每幀 0.008）
+let camVX = 0, camVY = 0;                       // 當前鏡頭速度（px/秒；tick 寫、spawnItem 邊緣進場讀方向）
 const IMG_WIDTH = 140; // 所有圖片統一寬度，高度 auto follow 原比例（2026-05-28 從 200 減 30%）
 const MAX_TEXT_WIDTH = 210; // 2026-05-28 從 300 減 30%
 // 手機小一號（user 2026-09-10「大小不用太大、分佈平均」）：卡窄＋透視放大 cap 1.05（桌面 1.5）
@@ -45,6 +56,13 @@ const MAX_TEXT_WIDTH = 210; // 2026-05-28 從 300 減 30%
 function imgWidth() { return isMobileViewport() ? 100 : IMG_WIDTH; }
 function maxTextWidth() { return isMobileViewport() ? 170 : MAX_TEXT_WIDTH; }
 function scaleGain() { return isMobileViewport() ? 0.45 : 0.9; }
+// 單點透視（z 位移）：以畫面中心為消失點，卡中心越近中心越小（遠）、越四周越大（近）。tick 每幀與 spawn 初始共用
+function perspectiveScale(cx, cy, cw, ch, gain) {
+  const hx = cw / 2, hy = ch / 2;
+  return 0.6 + Math.min(Math.hypot(cx - hx, cy - hy) / (Math.hypot(hx, hy) || 1), 1) * gain;
+}
+// 當前畫面上的卡（initFloatingItems 指派）：邊緣進場挑位置要看現有卡在哪
+let liveItems = [];
 
 // ── Pool 建立 ──────────────────────────────────────────────
 
@@ -332,7 +350,6 @@ function mkCat(entries, name) {
 // ── Element 建立 ────────────────────────────────────────────
 
 function rand(min, max) { return Math.random() * (max - min) + min; }
-function randInt(min, max) { return Math.floor(rand(min, max + 1)); }
 
 // 避免中文寡字：用 word joiner (U+2060) 黏住最後兩字，break-word 換行時不讓末字落單一行
 function preventOrphan(text) {
@@ -559,30 +576,26 @@ function createTextEl(textEn, textZh, url) {
     newsOverlay.style.clipPath = wipe.hidden;
   });
 
-  if (url) {
-    el.addEventListener('mouseenter', () => {
-      el.dataset.hovering = '1';
-      // mode-color：hover 反色（default 黑底白字 → 白底黑字，跟著 hue 動態翻）
-      // inverse 模式：hover 變白底黑字
-      // standard：hover 變黑底白字（accent → 黑）
-      if (document.body.classList.contains('mode-color')) {
-        el.style.background = 'var(--theme-fg-inverse)';
-        el.style.color = 'var(--theme-fg)';
-      } else if (document.body.classList.contains('mode-inverse')) {
-        el.style.background = '#ffffff';
-        el.style.color = '#000000';
-      } else {
-        el.style.background = '#000';
-        el.style.color = '#fff';
-      }
-    });
-    el.addEventListener('mouseleave', () => {
-      el.dataset.hovering = '0';
-      setColors();
-    });
-  }
+  // hover 換色：由 spawnItem 的外框（mover）hover 呼叫——判定區＝未旋轉外框，跟停住／轉正同一個觸發點
+  const onHover = url ? (on) => {
+    el.dataset.hovering = on ? '1' : '0';
+    if (!on) { setColors(); return; }
+    // mode-color：hover 反色（default 黑底白字 → 白底黑字，跟著 hue 動態翻）
+    // inverse 模式：hover 變白底黑字
+    // standard：hover 變黑底白字（accent → 黑）
+    if (document.body.classList.contains('mode-color')) {
+      el.style.background = 'var(--theme-fg-inverse)';
+      el.style.color = 'var(--theme-fg)';
+    } else if (document.body.classList.contains('mode-inverse')) {
+      el.style.background = '#ffffff';
+      el.style.color = '#000000';
+    } else {
+      el.style.background = '#000';
+      el.style.color = '#fff';
+    }
+  } : null;
 
-  return { el, w: maxTextWidth(), h: 80 };
+  return { el, w: maxTextWidth(), h: 80, onHover };
 }
 
 // IG 獨立模組，不在 floating pool 內
@@ -731,11 +744,6 @@ function spawnItem(container, poolEntry, fromEdge = false, preImg = null, initia
 
   const { el, w, h, slideTargets = null } = elData;
 
-  const angle = rand(0, Math.PI * 2);
-  const speed = rand(SPEED_MIN, SPEED_MAX);
-  let vx = Math.cos(angle) * speed;
-  let vy = Math.sin(angle) * speed;
-
   let x = 0, y = 0;
 
   // 量真實尺寸：暫時 append 到 container
@@ -772,16 +780,26 @@ function spawnItem(container, poolEntry, fromEdge = false, preImg = null, initia
   el.style.position = 'static';
 
   // 計算位置
-  // 邊緣 spawn 要多推「透視縮放溢出量」：tick 的 scale 最大 1.5＝卡片以中心放大、單邊溢出
+  // 邊緣 spawn 要多推「縮放溢出量」：透視倍率最大 1.5＝卡片以中心放大、單邊溢出
   // (1.5-1)/2 = 0.25×尺寸。若只貼著邊（x=cw / y=-realH），第一幀 scale 一放大就露出 0.25×size 一角
   // ＝在畫面邊緣 pop（圖與文字卡都中招；user 2026-08-19 二報）。多推 OVER×尺寸讓縮放後仍完全在畫面外。
   const OVER = 0.25;
   if (fromEdge) {
-    const edge = randInt(0, 3);
-    if (edge === 0)      { x = rand(-realW, cw);    y = -realH * (1 + OVER); vy = Math.abs(vy) + SPEED_MIN; }
-    else if (edge === 1) { x = cw + realW * OVER;   y = rand(-realH, ch);    vx = -(Math.abs(vx) + SPEED_MIN); }
-    else if (edge === 2) { x = rand(-realW, cw);    y = ch + realH * OVER;   vy = -(Math.abs(vy) + SPEED_MIN); }
-    else                 { x = -realW * (1 + OVER); y = rand(-realH, ch);    vx = Math.abs(vx) + SPEED_MIN; }
+    // 進場邊＝鏡頭前方（卡在畫面上以 −鏡頭速度移動；通量加權：鏡頭橫向分量大→多從左右進）。
+    // 隨機挑邊會生在鏡頭後方、馬上被甩出去 cull → 空轉重生、鏡頭前方卻補不到卡。
+    const rx = -camVX, ry = -camVY;
+    const fluxX = Math.abs(rx) * ch, fluxY = Math.abs(ry) * cw;
+    const horiz = Math.random() * (fluxX + fluxY) < fluxX;
+    // 沿進場邊抽 8 個候選、取離現有卡中心最遠者＝補進空檔（user 2026-10-01「分佈可以更平均」）。卡之間已不相對移動
+    //   （只隨鏡頭平移）→ 進場時的間距一路保留；舊版卡各自漂、橫越途中又洗亂，這招才只少 15% 空格。
+    let bestD = -1;
+    for (let k = 0; k < 8; k++) {
+      const cx = horiz ? (rx > 0 ? -realW * (1 + OVER) : cw + realW * OVER) : rand(-realW, cw);
+      const cy = horiz ? rand(-realH, ch) : (ry > 0 ? -realH * (1 + OVER) : ch + realH * OVER);
+      let d = Infinity;
+      for (const o of liveItems) d = Math.min(d, Math.hypot(o.x + o.w / 2 - cx - realW / 2, o.y + o.h / 2 - cy - realH / 2));
+      if (d > bestD) { bestD = d; x = cx; y = cy; }
+    }
   } else if (initialPos) {
     // 初始批：jittered-grid 中心點（見 scatterPositions）→ 開場均勻鋪滿視窗、不擠一角
     x = initialPos.x - realW / 2;
@@ -801,11 +819,12 @@ function spawnItem(container, poolEntry, fromEdge = false, preImg = null, initia
   // mover：負責 translate（tick 控制，無 transition）
   const mover = document.createElement('div');
   mover.style.cssText = `position:absolute; top:0; left:0; will-change:transform;`;
-  // 初始 transform 就帶入透視 scale（跟 tick 同式）——否則第一幀 scale 從 1 跳到實際值（邊緣 ~1.5），
-  // 卡片在畫面邊緣「閃大一下」。cw/ch 於 spawnItem 頂部已取得。
-  const _md = Math.hypot(cw / 2, ch / 2) || 1;
-  const _iscale = 0.6 + Math.min(Math.hypot((x + realW / 2) - cw / 2, (y + realH / 2) - ch / 2) / _md, 1) * scaleGain();
-  mover.style.transform = `translate(${x}px, ${y}px) scale(${_iscale})`;
+  // 初始 transform 就帶透視倍率（跟 tick 同式）——否則第一幀 scale 從 1 跳到實際值（邊緣 ~1.5）＝畫面邊緣「閃大一下」
+  const scale0 = perspectiveScale(x + realW / 2, y + realH / 2, cw, ch, scaleGain());
+  mover.style.transform = `translate(${x}px, ${y}px) scale(${scale0})`;
+  // 深度排序：近（大）的蓋在遠（小）的上面（tick 隨倍率更新）——卡之間不相對移動，疊到的兩張會一路疊著走，順序錯＝遠近穿幫
+  const z0 = Math.round(scale0 * 100);
+  mover.style.zIndex = String(z0);
 
   // rotator：負責 rotateX/Y 搖擺（GSAP 控制）
   // perspective 必須設在父層才有透視效果
@@ -851,19 +870,41 @@ function spawnItem(container, poolEntry, fromEdge = false, preImg = null, initia
     resume: () => { gsapTweenY.resume(); gsapTweenX.resume(); },
   };
 
-  const item = { el: mover, x, y, vx, vy, w: realW, h: realH, rotation, hovered: false, gsapTween, rotator, card: el, slideTargets: itemSlideTargets, poolEntry };
+  // speed：鏡頭位移倍率（hover 停 0、離開漸進回 1）；z：目前寫上的深度 zIndex（tick 隨透視倍率更新）
+  const item = { el: mover, x, y, w: realW, h: realH, rotation, hovered: false, speed: 1, z: z0, gsapTween, rotator, card: el, slideTargets: itemSlideTargets, poolEntry };
 
-  el.addEventListener('mouseenter', () => {
-    item.hovered = true;
-    item.el.style.zIndex = '10';   // 疊到最上層，避免被相鄰卡片蓋住（同時只有一張被 hover）
-    gsapTween.pause();
-    gsap.to(rotator, { rotateY: 0, rotateX: 0, duration: DUR.fast, ease: EASE.enterSoft });
-  });
-  el.addEventListener('mouseleave', () => {
-    item.hovered = false;
-    item.el.style.zIndex = '';
-    gsapTween.resume();
-  });
+  if (el.tagName !== 'A') {
+    // 無連結卡不吃滑鼠（卡本身原就 pointer-events:none）：外框也不擋下面的卡、不觸發 hover
+    mover.style.pointerEvents = 'none';
+  } else {
+    // hover 判定掛 mover（未旋轉的 2D 外框）不掛卡片（user 2026-10-01「有時 hover 不到這個 item」）：3D 擺動側過去時
+    //   卡片投影變窄，游標落在外框內、卡片外＝打到透明的 perspectiveWrap → 卡片收不到 mouseenter。
+    let swayAt = null;   // hover 暫停當下的擺動角：離開時轉回這裡再續播＝反向動畫（原 resume 從 0 瞬跳回擺動角）
+    mover.addEventListener('mouseenter', () => {
+      item.hovered = true;
+      gsap.killTweensOf(item, 'speed');
+      item.speed = 0;                  // 立刻停住（user 2026-08-28：方便點擊）
+      mover.style.zIndex = '1000';     // 疊到最上層（高過所有深度 60~150；同時只有一張被 hover）
+      if (elData.onHover) elData.onHover(true);
+      if (!swayAt) {
+        gsapTween.pause();
+        swayAt = { x: gsap.getProperty(rotator, 'rotateX'), y: gsap.getProperty(rotator, 'rotateY') };
+      }
+      gsap.to(rotator, { rotateY: 0, rotateX: 0, duration: DUR.fast, ease: EASE.enterSoft, overwrite: 'auto' });
+    });
+    mover.addEventListener('mouseleave', () => {
+      item.hovered = false;
+      mover.style.zIndex = String(item.z);
+      if (elData.onHover) elData.onHover(false);
+      gsap.to(item, { speed: 1, duration: DUR.fast, ease: EASE.enterSoft });   // 移動也漸進接回、不瞬間起跑
+      gsap.to(rotator, {
+        rotateY: swayAt.y, rotateX: swayAt.x, duration: DUR.fast, ease: EASE.enterSoft, overwrite: 'auto',
+        onComplete: () => { swayAt = null; gsapTween.resume(); },
+      });
+    });
+    // 外框內、卡片外的點擊（還沒轉正就點）轉給卡片連結 → router 照常攔 a[href]
+    mover.addEventListener('click', (e) => { if (!el.contains(/** @type {Node} */ (e.target))) el.click(); });
+  }
 
   return item;
 }
@@ -946,6 +987,7 @@ export async function initFloatingItems() {
   }
 
   const items = [];
+  liveItems = items;   // spawnItem 邊緣進場挑空檔用（同一陣列、push/splice 即時反映）
 
   // 離頁後 cancelled 為 true，in-flight 的 edge-respawn 圖片預載完成時不再 spawn（避免動已棄置的 pool）
   let cancelled = false;
@@ -981,7 +1023,7 @@ export async function initFloatingItems() {
     for (let i = 0; i < n; i++) items.push(trackSpawn(nextEntry(), false, positions[i]));
     playFloatEntrance(0);
   }
-  const rotateGateMq = window.matchMedia('(orientation: landscape) and (max-height: 500px)');
+  const rotateGateMq = window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)');
   const onRotateGateChange = () => requestAnimationFrame(respawnAll);
   rotateGateMq.addEventListener('change', onRotateGateChange);
 
@@ -1008,8 +1050,17 @@ export async function initFloatingItems() {
   let running = true;
   let rafId = null;
 
-  function tick() {
+  // 鏡頭航向：用 tick 的 dt 倒數（非 setTimeout）→ 分頁隱藏／待機時跟 tick 一起自動暫停
+  let camAngle = rand(0, Math.PI * 2);
+  let camTarget = camAngle;
+  let camTurnIn = rand(...CAM_TURN_SEC);
+  let lastT = 0;   // 上一幀時間戳；0＝（重新）起跑，本幀不位移
+
+  function tick(now) {
     if (!running) return;
+    // dt 封頂 0.25s（≥4fps 都照實等速；低幀率寧可一次多走一點也不放慢）。分頁切回由 onVisibilityChange 歸零 lastT
+    const dt = lastT ? Math.min(0.25, (now - lastT) / 1000) : 0;
+    lastT = now;
     // 待機 overlay（不透明）蓋住期間白跑 60fps、還跟待機退場的拆樹幀搶主執行緒（09-25）→
     // skip 本幀重活、loop 保持存活，退出待機自動恢復（位置凍結，蓋住看不見）
     if (document.body.classList.contains('idle-standby')) {
@@ -1017,35 +1068,41 @@ export async function initFloatingItems() {
       return;
     }
 
+    // 新目標從「當前航向」偏 30°~120°（上一輪早已轉完）→ 不會累加成掉頭
+    if ((camTurnIn -= dt) <= 0) {
+      camTarget = camAngle + (Math.random() < 0.5 ? -1 : 1) * rand(...CAM_TURN_RAD);
+      camTurnIn = rand(...CAM_TURN_SEC);
+    }
+    camAngle += (camTarget - camAngle) * (1 - Math.exp(-dt / CAM_TURN_TAU));
+    camVX = Math.cos(camAngle) * CAM_SPEED;
+    camVY = Math.sin(camAngle) * CAM_SPEED;
+    const stepX = camVX * dt, stepY = camVY * dt;
+
     const cw = container.clientWidth;
     const ch = container.clientHeight;
-    const buffer = 250;
-
-    // 單點透視：以畫面中心為消失點，越中心越小（遠），越四周越大（近）
-    const centerX = cw / 2;
-    const centerY = ch / 2;
-    const maxDist = Math.sqrt(centerX * centerX + centerY * centerY);
     const gain = scaleGain();   // 每幀取一次即可（手機 cap 1.05、桌面 1.5）
 
     for (let i = items.length - 1; i >= 0; i--) {
       const item = items[i];
-      const speedMult = item.hovered ? 0 : 1;  // hover 完全停住（user 2026-08-28：原本 0.3 減速→改停下，方便點擊）
-      item.x += item.vx * speedMult;
-      item.y += item.vy * speedMult;
+      // 卡在世界中靜止＝畫面上只反向扣鏡頭位移；hover 停住、離開漸進接回（item.speed 0→1，見 spawnItem）
+      item.x -= stepX * item.speed;
+      item.y -= stepY * item.speed;
 
-      // scale：以 item 中心點距畫面中心的距離決定
-      const dx = (item.x + item.w / 2) - centerX;
-      const dy = (item.y + item.h / 2) - centerY;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      const scale = 0.6 + Math.min(dist / maxDist, 1) * gain;
-
+      const scale = perspectiveScale(item.x + item.w / 2, item.y + item.h / 2, cw, ch, gain);
       item.el.style.transform = `translate(${item.x}px, ${item.y}px) scale(${scale})`;
+      // 深度排序跟著透視倍率走（近＝大的蓋遠＝小的）；值變才寫、免每幀 restack；hover 中維持最上層
+      const z = Math.round(scale * 100);
+      if (z !== item.z) { item.z = z; if (!item.hovered) item.el.style.zIndex = String(z); }
 
+      // 完全出畫面就 cull（縮放溢出 0.25×尺寸同 spawn 的 OVER，＋20px 餘裕讓剛生在邊緣的卡不被當場收掉）。
+      // 舊的 250~500px 隱形緩衝在鏡頭平移下＝卡要多飄十幾秒才重生 → 鏡頭前方空出一整條沒卡的帶。
+      const ox = item.w * 0.25 + 20;
+      const oy = item.h * 0.25 + 20;
       if (
-        item.x > cw + buffer ||
-        item.x < -buffer * 2 ||
-        item.y > ch + buffer ||
-        item.y < -buffer * 2
+        item.x > cw + ox ||
+        item.x + item.w < -ox ||
+        item.y > ch + oy ||
+        item.y + item.h < -oy
       ) {
         // 釋放離場那筆（從畫面集合移除）→ 它的 category 數量 -1 → 下一筆均分時可再被選回（去重：離場才解禁）
         if (item.poolEntry) { onScreen.delete(item.poolEntry); liveCount[item.poolEntry._cat]--; }
@@ -1068,6 +1125,7 @@ export async function initFloatingItems() {
       if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
     } else {
       running = true;
+      lastT = 0;   // 藏著的這段不算進鏡頭位移（否則切回第一幀補跳一大段）
       if (!rafId) rafId = requestAnimationFrame(tick);
     }
   }
@@ -1099,6 +1157,7 @@ export async function initFloatingItems() {
   // （tick 對 detached DOM 空跑、visibilitychange 匿名 handler 複利、newsHoverListeners/themeListeners 無限增長）
   registerPageCleanup(() => {
     cancelled = true;
+    liveItems = [];   // 放掉離頁卡片（detached DOM）參照
     running = false;
     if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
     rotateGateMq.removeEventListener('change', onRotateGateChange);

@@ -10,6 +10,7 @@
 import { enterLightboxMode, exitLightboxMode } from './../lightbox/lightbox-shell.js';
 import { DUR, EASE } from './motion.js';
 import { ensureCardMask } from './scroll-animate.js';
+import { bindArrowSpin } from './arrow-spin.js';
 
 let initialized = false;
 let shareOpen = false;
@@ -27,14 +28,18 @@ function randomAccent() {
 
 // 4 向遮罩滑入：dir → 隱藏起點（xPercent/yPercent ±110，藏在該側遮罩外）
 // 進場 fromTo 從隱藏起點→0；退場 to 同 dir 反推（來去同一側）。卡片與 QR 共用當次方向。
+// ⚠️兩軸都要寫：只寫單軸時，上次左右退場留在 xPercent 的 ±110 不會被歸零 → 下次換上下進場從 (∓110, ±110)
+// 斜著滑入＝「卡片從角落進來」（user 2026-10-01 報，headless 重現 open#2 首幀 x=-85% y=85%）
 const REVEAL_DIRS = {
-  bottom: { yPercent: 110 },
-  top:    { yPercent: -110 },
-  right:  { xPercent: 110 },
-  left:   { xPercent: -110 },
+  bottom: { xPercent: 0,    yPercent: 110 },
+  top:    { xPercent: 0,    yPercent: -110 },
+  right:  { xPercent: 110,  yPercent: 0 },
+  left:   { xPercent: -110, yPercent: 0 },
 };
 const REVEAL_DIR_KEYS = Object.keys(REVEAL_DIRS);
 let revealDir = 'bottom';
+let backDir = 'bottom';   // 角上返回鍵自己的 clip-reveal 方向（同 slide-in 返回鍵：跟卡片各抽各的）
+
 
 function getQrEndpoint(url, size = 200) {
   return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(url)}`;
@@ -71,27 +76,40 @@ function prefetchQr(url) {
 // 卡片背景寫死白色，跟著 mode 變白字 = 白底白字消失
 const LIGHTBOX_HTML = `
   <div id="share-lightbox" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.9); align-items:center; justify-content:center;">
-    <div id="share-lightbox-card" style="background:#fff; color:#000; width:320px; padding: var(--spacing-md); display:flex; flex-direction:column; gap: var(--spacing-md);">
-      <!-- gap-sm + icon-m (20px) → title 起點 = 20+16 = 36px，對齊 QR (200px) 在內容寬 (320-48=272) 居中時的左 offset (272-200)/2=36px -->
-      <div style="display:flex; align-items:center; gap: var(--spacing-sm);">
-        <button id="share-lightbox-close" style="line-height:1; color:#000;" aria-label="關閉 Close">
-          <span class="icon icon-arrow-left-thin icon-m"></span>
-        </button>
-        <p class="font-bold" style="font-size: 1rem; color:#000;">Share 分享</p>
-      </div>
+    <!-- stage＝卡片（ensureCardMask 包遮罩）＋角上返回鍵共用的傾斜層：隨機傾角套這層（見 openShareLightbox），
+         返回鍵在卡片遮罩之外＝凸出卡片的半顆不被裁 -->
+    <div id="share-lightbox-stage" style="position:relative; display:flex;"><!-- flex：遮罩 inline-block 在 block 裡會多出基線空白、stage 比卡高、旋轉中心偏 -->
+    <!-- 版面（user 2026-10-01 截圖＋二改＋三改）：QR ／ 複製圖片・下載 ／ 網址＋小複製鈕（標題列已撤，返回鍵改騎卡片左上角）。
+         上下 padding＝各列間距＝同一個 lg 值（user「上下一致、內容 gap 也用這個 padding」）；
+         網址列寬＝QR 寬 200 置中＝左右緣對齊 QR，網址過長 CSS 省略號截斷 -->
+    <div id="share-lightbox-card" style="background:#fff; color:#000; width:320px; padding: var(--spacing-lg) var(--spacing-md); display:flex; flex-direction:column; gap: var(--spacing-lg);">
       <div class="flex justify-center">
         <!-- mix-blend-mode:multiply → 白底像素乘上卡片色 = 視覺透明；黑模組維持黑（白卡 mode3 也無害）。下載走 canvas 另存白底原圖，不受此影響 -->
         <img id="share-qr-img" src="" alt="QR Code" style="width:200px;height:200px;display:block;opacity:0;transition:opacity 0.25s ease;mix-blend-mode:multiply;">
       </div>
       <div style="display:flex; justify-content:center; gap: var(--spacing-xl);">
-        <button id="share-copy-btn" aria-label="複製連結 Copy Link" style="line-height:1; color:#000;">
+        <button id="share-copy-qr-btn" aria-label="複製 QR Code 圖片 Copy QR Code image" style="line-height:1; color:#000;">
           <span class="icon icon-copy icon-xl"></span>
         </button>
         <button id="share-download-btn" aria-label="下載 QR Code Download QR Code" style="line-height:1; color:#000;">
           <span class="icon icon-download icon-xl"></span>
         </button>
       </div>
-      <p id="share-url-text" style="display:none;"></p>
+      <div style="display:flex; align-items:center; gap: var(--spacing-sm); width:200px; margin: 0 auto;">
+        <p id="share-url-text" class="text-s" style="flex:1 1 auto; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#000;"></p>
+        <button id="share-url-copy-btn" aria-label="複製連結 Copy Link" style="flex:none; line-height:1; color:#000;">
+          <span class="icon icon-copy icon-l"></span>
+        </button>
+      </div>
+    </div>
+    <!-- 返回鍵（user 2026-10-01 三改）：全站黑方塊箭頭鈕（同 slide-in .slide-in-back-square）騎在卡片左上角——中心＝角
+         （margin 拉回半顆，不用 translate＝transform 留給 hover 抽角）。外層＝遮罩（overflow:clip）、內層 #share-back-inner
+         平移做四向 clip-reveal。黑底白箭頭＝同 slide-in 返回鍵（user 2026-10-01 四改；原反色白底黑箭頭已撤） -->
+    <button id="share-lightbox-close" aria-label="關閉 Close" style="position:absolute; top:0; left:0; width:48px; height:48px; margin:-24px 0 0 -24px; padding:0; border:0; background:none; overflow:clip; transition:transform var(--dur-fast) var(--ease-standard);">
+      <span id="share-back-inner" style="display:flex; align-items:center; justify-content:center; width:100%; height:100%; background:#000; color:#fff;">
+        <span class="icon icon-arrow-left icon-l"></span>
+      </span>
+    </button>
     </div>
   </div>
 `;
@@ -137,9 +155,9 @@ function openShareLightbox(url, bg) {
   } else if (typeof gsap !== 'undefined') {
     gsap.set(qrImg, { clearProps: 'transform' }); // 命中快取：清掉上次殘留 transform，維持原位直接顯示
   }
-  const MAX_URL_LEN = 50;
+  // 網址列：顯示去掉 https://（截圖版），過長交給 CSS 省略號；複製／下載一律讀 dataset.fullUrl 完整網址
   const urlEl = /** @type {HTMLElement} */ (document.getElementById('share-url-text'));
-  urlEl.textContent = url.length > MAX_URL_LEN ? url.slice(0, MAX_URL_LEN) : url;
+  urlEl.textContent = url.replace(/^https?:\/\//, '');
   urlEl.dataset.fullUrl = url;
 
   lightbox.style.display = 'flex';
@@ -150,13 +168,25 @@ function openShareLightbox(url, bg) {
       { backgroundColor: 'rgba(0,0,0,0)' },
       { backgroundColor: 'rgba(0,0,0,0.9)', duration: DUR.slow, ease: EASE.enter, overwrite: true });
   }
-  // 進場 clip-reveal：卡片沿當次隨機方向滑入貼身遮罩（4 向擇一）
+  // 卡片停定是斜的、進退場本身不轉（user 2026-10-01 二改「先旋轉再進場」）：先把 stage（卡片遮罩＋角上返回鍵的
+  // 共同外層）set 到隨機角（全站卡片角度 helper，同左下當前頁卡），卡片再沿當次方向滑入遮罩——遮罩跟著斜、卡角不被切。
   // fromTo 確保 from-state 強制套用（避 first-open 從殘留 transform 跳終值）
   if (typeof gsap !== 'undefined') {
     ensureCardMask(card);
+    const stage = document.getElementById('share-lightbox-stage');
+    if (stage) gsap.set(stage, { rotation: window.SCCDHelpers?.getRandomRotation?.() ?? 3 });
     gsap.fromTo(card,
       REVEAL_DIRS[revealDir],
       { xPercent: 0, yPercent: 0, duration: DUR.slow, ease: EASE.enter, overwrite: true }
+    );
+    // 角上返回鍵：每次開重抽微傾角＋隨機四向，卡片滑到一半（0.3s，同 slide-in 返回鍵跟 panel 的 offset）自己 clip-reveal 進場；
+    // fromTo 兩軸都寫＝洗掉上次退場殘留的另一軸
+    const closeBtn = document.getElementById('share-lightbox-close');
+    /** @type {any} */ (closeBtn)?._arrowSpin?.reroll();
+    backDir = REVEAL_DIR_KEYS[Math.floor(Math.random() * REVEAL_DIR_KEYS.length)];
+    gsap.fromTo('#share-back-inner',
+      REVEAL_DIRS[backDir],
+      { xPercent: 0, yPercent: 0, duration: DUR.medium, ease: EASE.enter, delay: 0.3, overwrite: true }
     );
   }
 
@@ -185,8 +215,9 @@ function closeShareLightbox() {
   // 退場 clip-reveal：卡片沿進場方向反向滑出遮罩（同 dir、來去同一側）
   if (typeof gsap !== 'undefined') {
     closing = true;
-    // 背景遮罩同步 fade out（對稱進場）
+    // 背景遮罩同步 fade out（對稱進場）；角上返回鍵沿自己的進場方向滑回
     gsap.to(lightbox, { backgroundColor: 'rgba(0,0,0,0)', duration: DUR.medium, ease: EASE.exit, overwrite: true });
+    gsap.to('#share-back-inner', { ...REVEAL_DIRS[backDir], duration: DUR.medium, ease: EASE.exit, overwrite: true });
     gsap.to(card, {
       ...REVEAL_DIRS[revealDir],
       duration: DUR.medium,
@@ -199,37 +230,44 @@ function closeShareLightbox() {
   }
 }
 
-// 下載原始白底黑碼 QR PNG（顯示用 multiply 去背只影響畫面，存檔一律白底原設計）
-// 跨網域直接 <a download> 不會強制存檔 → 走 canvas → blob 保留檔名與下載行為
-async function downloadTransparentQr() {
-  const img = /** @type {HTMLImageElement | null} */ (document.getElementById('share-qr-img'));
-  if (!img?.src) return;
-  // 顯示用 200×200，下載另抓 512×512 高解析版（同 URL data，不同 size 參數）
+// 原始白底黑碼 QR PNG（顯示用 multiply 去背只影響畫面，下載／複製一律白底原設計）：
+// 顯示用 200×200，這裡另抓 512×512 高解析版（同 URL data，不同 size 參數）→ canvas → blob。
+// 跨網域圖不能直接 <a download>／寫剪貼簿 → 經 canvas（crossOrigin anonymous，qrserver 有 CORS）
+function qrPngBlob() {
   const url = /** @type {HTMLElement | null} */ (document.getElementById('share-url-text'))?.dataset.fullUrl;
-  if (!url) return;
-  const imgEl = new Image();
-  imgEl.crossOrigin = 'anonymous';
-  await new Promise((resolve, reject) => {
-    imgEl.onload = resolve;
+  if (!url) return Promise.reject(new Error('share: no url'));
+  return new Promise((resolve, reject) => {
+    const imgEl = new Image();
+    imgEl.crossOrigin = 'anonymous';
+    imgEl.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = imgEl.naturalWidth;
+      canvas.height = imgEl.naturalHeight;
+      canvas.getContext('2d')?.drawImage(imgEl, 0, 0);
+      canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('share: toBlob failed'))), 'image/png');
+    };
     imgEl.onerror = reject;
     imgEl.src = getQrEndpoint(url, 512);
   });
-  const canvas = document.createElement('canvas');
-  canvas.width = imgEl.naturalWidth;
-  canvas.height = imgEl.naturalHeight;
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(imgEl, 0, 0);
-  canvas.toBlob((blob) => {
-    if (!blob) return;
-    const objUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = objUrl;
-    a.download = `sccd-qrcode-${Date.now()}.png`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(objUrl);
-  }, 'image/png');
+}
+
+async function downloadQr() {
+  const blob = await qrPngBlob();
+  const objUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = objUrl;
+  a.download = `sccd-qrcode-${Date.now()}.png`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(objUrl);
+}
+
+// 複製 QR 圖片（user 2026-10-01：QR 下方大複製鈕＝圖片、網址列小鈕＝連結）。
+// write() 必須在 click 當下同步呼叫、blob 以 Promise 傳入 ClipboardItem（Safari 的 user-activation 限制；Chrome 也吃）
+function copyQrImage() {
+  if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') return;
+  navigator.clipboard.write([new ClipboardItem({ 'image/png': qrPngBlob() })]).catch(() => {});
 }
 
 export function initShareModal() {
@@ -238,8 +276,22 @@ export function initShareModal() {
   initialized = true;
   injectHtml();
 
-  // 關閉：返回箭頭按鈕
-  document.getElementById('share-lightbox-close')?.addEventListener('click', closeShareLightbox);
+  // 關閉：角上返回鍵。hover 抽角（arrow-spin，同 slide-in 返回鍵；角度寫外層遮罩、HTML inline transition 補間）
+  // ＋ hover 隨機三原色底黑箭頭（同 slide-in 返回鍵 cards.css .slide-in-back-square 段；mode3 無 rgb → 同款翻 fg-inverse 底），桌面 hover 裝置才綁
+  const closeBtn = document.getElementById('share-lightbox-close');
+  const backInner = document.getElementById('share-back-inner');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', closeShareLightbox);
+    bindArrowSpin(closeBtn, (d) => { closeBtn.style.transform = `rotate(${d}deg)`; });
+    if (backInner && window.matchMedia('(hover: hover) and (min-width: 768px)').matches) {
+      closeBtn.addEventListener('mouseenter', () => {
+        const m3 = document.body.classList.contains('mode-color');
+        backInner.style.background = m3 ? 'var(--theme-fg-inverse)' : randomAccent();
+        backInner.style.color = m3 ? 'var(--theme-fg)' : '#000';
+      });
+      closeBtn.addEventListener('mouseleave', () => { backInner.style.background = '#000'; backInner.style.color = '#fff'; });
+    }
+  }
 
   // 關閉：點擊背景 overlay
   document.getElementById('share-lightbox')?.addEventListener('click', (e) => {
@@ -251,16 +303,15 @@ export function initShareModal() {
     if (e.key === 'Escape') closeShareLightbox();
   });
 
-  // 複製 URL 按鈕
-  document.getElementById('share-copy-btn')?.addEventListener('click', () => {
-    const urlEl = document.getElementById('share-url-text');
-    const url = urlEl?.dataset.fullUrl || urlEl?.textContent;
-    if (!url) return;
-    navigator.clipboard.writeText(url);
+  // QR 下方大鈕＝複製 QR 圖片；網址列小鈕＝複製連結
+  document.getElementById('share-copy-qr-btn')?.addEventListener('click', copyQrImage);
+  document.getElementById('share-url-copy-btn')?.addEventListener('click', () => {
+    const url = document.getElementById('share-url-text')?.dataset.fullUrl;
+    if (url) navigator.clipboard.writeText(url);
   });
 
-  // 下載按鈕 → 去背 QR PNG
-  document.getElementById('share-download-btn')?.addEventListener('click', downloadTransparentQr);
+  // 下載按鈕 → 白底 QR PNG
+  document.getElementById('share-download-btn')?.addEventListener('click', () => { downloadQr().catch(() => {}); });
 
   // Share btn delegation（支援任何頁面的 [data-share-btn]）
   document.addEventListener('click', (e) => {

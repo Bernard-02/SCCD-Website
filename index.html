@@ -88,11 +88,13 @@
           <span class="icon icon-play icon-l"></span>
         </button>
 
-        <!-- 時間軸（flex:1）— track 全黑 + fill 全黑（連續黑線）；thumb = 4px 寬黑色直線，靠上下伸出 5px 標位置 -->
+        <!-- 時間軸（flex:1）— track 全黑 + fill 全黑（連續黑線）；thumb = 4px 寬黑色直線，靠上下伸出 5px 標位置。
+             末子＝透明命中層撐到 thumb 高（14px）：只有 4px 線吃得到 hover/點擊，滑到 thumb 凸出處會變回箭頭（2026-10-01） -->
         <div id="video-progress-track" style="flex:1; height:4px; background:#000; position:relative; min-width:0;">
           <div id="video-progress-fill" style="height:100%; width:0%; pointer-events:none; position:relative; background:#000;">
             <div id="video-progress-thumb" style="position:absolute; right:-2px; top:50%; transform:translateY(-50%); width:4px; height:14px; background:#000; pointer-events:none;"></div>
           </div>
+          <div style="position:absolute; left:0; right:0; top:-5px; bottom:-5px;"></div>
         </div>
 
         <!-- 剩餘時間 -->
@@ -107,6 +109,7 @@
             <div id="video-volume-fill" style="height:100%; width:100%; background:#000; pointer-events:none; position:relative;">
               <div id="video-volume-thumb" style="position:absolute; right:-2px; top:50%; transform:translateY(-50%); width:4px; height:14px; background:#000; pointer-events:none; opacity:0; transition:opacity 0.25s;"></div>
             </div>
+            <div style="position:absolute; left:0; right:0; top:-5px; bottom:-5px;"></div>
           </div>
         </div>
 

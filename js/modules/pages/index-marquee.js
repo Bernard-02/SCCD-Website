@@ -37,7 +37,7 @@ const BAR_HEIGHT = 40;        // 數字方塊邊長 ≈ bar 高度（h5 font 1.4
 const BAR_PADDING_X = 12;     // bar 左右內縮：library 色塊 axisPad(24) 的一半，文字不貼邊
 function isMobile() {
   // 矮橫向也走手機參數（slot 座標 / banner 寬；user 2026-07-04「首頁比照手機版」，gate 同 landscape.css）
-  if (window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) return true;
+  if (window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches) return true;
   return window.SCCDHelpers ? window.SCCDHelpers.isMobile() : window.innerWidth < 768;
 }
 // 數字方塊配色：專案三原色固定一輪，順序＝全站「rgb」慣例 粉/綠/藍（同 helpers.js ACCENT_COLORS）；
@@ -132,7 +132,7 @@ export function initMarquee() {
       // 轉向（跨矮橫向 gate）重建 banner stack（user 2026-07-04「轉向重 run」）：
       // banner 寬 / slot 座標是 create 時以當時 viewport 算的（isMobile()/WIDTH_MOBILE()），
       // 轉向後不重建會殘留舊寬度與座標 → dispose（清 timer + 殺 tween + 拔 DOM）再以新參數重跑
-      const rotateGateMq = window.matchMedia('(orientation: landscape) and (max-height: 500px)');
+      const rotateGateMq = window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)');
       const onRotateGate = () => requestAnimationFrame(() => {
         if (!stack.isConnected) return;
         disposeStack?.();
@@ -268,40 +268,31 @@ function createBanner(item, squareColor) {
     return { viewport, inner, textEl, cloneEl };
   });
 
-  // watch-hover 遮蔽 overlay：方塊蓋回自己的 rgb（藏數字）、黑條蓋黑（藏文字）→ 整條變抽象色塊。
-  // 兩塊共用同一 wipe 方向；訂閱 subscribeWatchMask（只在 hover WATCH 卡時觸發，非 news 自身 hover）。
-  square.style.position = 'relative';
-  const squareMask = document.createElement('div');
-  // class 給 mode3 用：color.css 蓋掉 inline accent → strict B/W（mode3 不出現 rgb）
-  squareMask.className = 'hm-banner-num-mask';
-  squareMask.style.cssText = `position:absolute; inset:0; background:${squareColor}; pointer-events:none; transition:clip-path 0.5s cubic-bezier(0.25,0,0,1);`;
-  square.appendChild(squareMask);
-
-  link.style.position = 'relative';
-  const linkMask = document.createElement('div');
-  linkMask.className = 'hm-banner-link-mask';
-  linkMask.style.cssText = `position:absolute; inset:0; background:#000; pointer-events:none; transition:clip-path 0.5s cubic-bezier(0.25,0,0,1);`;
-  link.appendChild(linkMask);
+  // watch-hover 遮蔽 overlay：一層蓋住整列（數字方塊＋bar），顏色＝bar 色（標準黑／inverse 白／mode3 theme-fg，見 themes
+  //   .hm-banner-row-mask）→ 整條同步 wipe 成一條實色塊（user 2026-10-01；原方塊、bar 各一層各自 wipe，方塊蓋回自己的 rgb）。
+  // 訂閱 subscribeWatchMask（只在 hover WATCH 卡時觸發，非 news 自身 hover）。
+  row.style.position = 'relative';
+  const rowMask = document.createElement('div');
+  rowMask.className = 'hm-banner-row-mask';
+  rowMask.style.cssText = `position:absolute; inset:0; background:#000; pointer-events:none; transition:clip-path 0.5s cubic-bezier(0.25,0,0,1);`;
 
   let curHidden = randMaskHidden();
-  squareMask.style.clipPath = curHidden;
-  linkMask.style.clipPath = curHidden;
+  rowMask.style.clipPath = curHidden;
   subscribeWatchMask(
     () => {   // 進場：從當前藏起方向 wipe 到滿版
-      if (!squareMask.isConnected) return;
-      squareMask.style.clipPath = MASK_SHOWN;
-      linkMask.style.clipPath = MASK_SHOWN;
+      if (!rowMask.isConnected) return;
+      rowMask.style.clipPath = MASK_SHOWN;
     },
     () => {   // 退場：抽一個新方向 wipe 出去（＝下次進場的來向）→ 四方向輪替
-      if (!squareMask.isConnected) return;
+      if (!rowMask.isConnected) return;
       curHidden = randMaskHidden();
-      squareMask.style.clipPath = curHidden;
-      linkMask.style.clipPath = curHidden;
+      rowMask.style.clipPath = curHidden;
     }
   );
 
   row.appendChild(square);
   row.appendChild(link);
+  row.appendChild(rowMask);
   clipWrap.appendChild(row);
   wrap.appendChild(clipWrap);
 
