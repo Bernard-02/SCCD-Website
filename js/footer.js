@@ -15,6 +15,7 @@ import { initFooterScatter } from './modules/ui/footer-scatter.js';
 // footer 內容（tab + 散佈項目）走 Directus footer_tabs/footer_items（2026-08-11）；渲染完才 init 散佈
 import { renderFooterContent } from './modules/ui/footer-content.js';
 import { sitePath } from './modules/ui/site-base.js';
+import { runLottieWhenVisible } from './modules/ui/lottie-visibility.js';
 
 const STORAGE_KEY = 'sccd-theme-mode';
 let currentFooterAnim = null;
@@ -62,10 +63,7 @@ function loadFooterLogo(container) {
     const svg = container.querySelector('svg');
     if (svg) svg.style.overflow = 'visible';
   });
-}
-
-function setYear(el) {
-  if (el) el.textContent = String(new Date().getFullYear());
+  runLottieWhenVisible(anim);   // footer 捲在畫面外時停、捲進來才續播
 }
 
 export function initFooter() {
@@ -75,7 +73,6 @@ export function initFooter() {
   const staticFooter = document.getElementById('site-footer-static');
   if (staticFooter) {
     loadFooterLogo(staticFooter.querySelector('#footer-logo'));
-    setYear(document.getElementById('footer-year-static'));
     renderFooterContent(staticFooter)
       .catch((e) => console.warn('[footer] render failed', e))
       .then(() => initFooterScatter(staticFooter));
@@ -94,7 +91,6 @@ export function initFooter() {
       .then(html => {
         footerContainer.innerHTML = html;
         loadFooterLogo(footerContainer.querySelector('#footer-logo'));
-        setYear(footerContainer.querySelector('#footer-year'));
         const spaFooter = footerContainer.querySelector('footer.footer-shell');
         if (spaFooter) {
           renderFooterContent(spaFooter)

@@ -22,7 +22,6 @@ import { awaitLayoutReady } from './await-layout-ready.js';
 import { DUR, EASE } from './motion.js';
 import { prefersReducedMotion } from './reduce-motion.js';
 import { bindArrowSpin, randomSpinAngle } from './arrow-spin.js';   // footer 分類 tab／散佈卡 hover 抽新角、離開保持
-import { scrollWindowNoSnap } from './snap-scroll.js';
 // footer logo 退場 2026-07-15 改 hero clip-reveal（area 遮罩＋inner yPercent），不再用 header bars 的
 // clip-path wipe（原 user 2026-06-07「同 header logo 法」；header logo 同日也改滑動，兩邊仍一致）
 
@@ -387,6 +386,9 @@ function shuffleAll(area, anchors, obstacles, items, fallbackLayout) {
   // anchors 做 GSAP tween + apply layout（讀 area.getBoundingClientRect 為 0×0 → 數學運算閒置成本 + reflow）
   // offsetParent === null 是 display:none 最便宜的偵測（含任何 ancestor display:none）
   if (!area || area.offsetParent === null) return;
+  // footer 捲在畫面外（看內容區時）也跳過：看不到卻照算版面＋跑整段 glide，跟頁面進場搶幀（user 2026-10-01 faculty 掉幀診斷）。
+  // 只跳這一拍、排程照舊 → 捲到 footer 後 0–10s 內照常洗牌，節奏跟以前一樣
+  if (!footerInViewport(area)) return;
   // hover 中的卡這輪原地不動、下一輪才散佈（user 2026-09-28）：拿出洗牌名單、當 obstacle 讓其他卡避開。
   // 不 kill 它的 tween＝hover 抽角的轉動照跑完
   const pinned = hoveredAnchor && anchors.includes(hoveredAnchor) ? hoveredAnchor : null;
@@ -633,7 +635,7 @@ function bindFooterTabs(footer) {
     el.addEventListener('click', () => {
       // 手機＋矮橫向 tab 列是水平 scroll strip：點到的 tab 捲回靠左對齊列左緣（同 faculty/curriculum nav btn
       // 慣例，user 2026-09-16；矮橫向補 gate user 2026-09-24）。只動 bar 自己 scrollLeft；平板/桌面 absolute tabs 不套。
-      if (window.innerWidth < 768 || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) {
+      if (window.innerWidth < 768 || window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches) {
         const bar = /** @type {HTMLElement | null} */ (el.closest('.footer-tabs'));
         if (bar) {
           const pad = parseFloat(getComputedStyle(bar).paddingLeft) || 0;
@@ -691,7 +693,9 @@ function reserveTabRow(tabs, area) {
   res.style.left = '0';
   res.style.top = '0';
   res.style.width = '100%';
-  res.style.height = `${Math.ceil(tabs.offsetHeight + CARD_GAP_PX)}px`;
+  // 扣 padding-bottom：那段只是給旋轉 tab 角的裁切緩衝（footer.css），不算 tab 列高
+  const padB = parseFloat(getComputedStyle(tabs).paddingBottom) || 0;
+  res.style.height = `${Math.ceil(tabs.offsetHeight - padB + CARD_GAP_PX)}px`;
   res.style.pointerEvents = 'none';
   return res;
 }
@@ -702,7 +706,7 @@ function reserveTabRow(tabs, area) {
 //   兩者右側都是線性堆疊、都走 initFooterMobileReveal（無 shuffle/無隨機方向）；只有 ≥1200 才跑 scatter。
 // 矮橫向（橫向手機）不論寬度一律線性（user 2026-07-04「橫向一切以手機版為主」）。init/exit/reset 三處共用此判斷。
 function usesMobileFooter() {
-  return window.innerWidth < 1200 || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+  return window.innerWidth < 1024 || window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
 }
 
 export async function initFooterScatter(scope, opts = {}) {
@@ -1001,13 +1005,6 @@ export function resetFooterAfterExit() {
   startShuffleLoop(area, anchors, obstacles, items, fallbackLayout);
 }
 
-// 點 footer 連結且目標就是本頁（如首頁點 logo，user 2026-09-27）：不重載，footer 元素照離頁退場 clip-reveal 沉出 →
-// 快速捲回頂端（預設 0.5s，「像 snap 到頂」）→ 捲完 footer 已在視窗外才復位。換到別頁走 router loadPage fromFooter
-export async function exitFooterToTop() {
-  await playFooterExit();
-  scrollWindowNoSnap(0, { onComplete: resetFooterAfterExit });
-}
-
 // ── 跨 1200 邊界即時重建（scatter ↔ 線性）─────────────────────────
 // user 2026-08-08：擴大過 1200 時，散佈 items 若沒被 scatter JS 接管會停在 CSS 的 opacity:0 → 一片空白。
 // 靠 resize 偵測跨越 1200，剝掉舊包層 + 依新 mode 重跑 initFooterScatter，重播進場動畫（不整頁 reload）。
@@ -1058,7 +1055,7 @@ function bindFooterBreakpointReinit() {
   _footerReinitBound = true;
   // 兩個斷點都要重建：1200（scatter↔平板 tab 版）＋ 768（平板 tab 版↔手機全群組線性——
   // 群組顯隱 .fgroup-off 由 JS 掛，跨 768 不重跑會殘留錯誤顯隱；CMS 化前由 CSS media 自動）
-  const bpState = () => `${window.innerWidth < 768 ? 'phone' : window.innerWidth < 1200 ? 'tablet' : 'desktop'}`;
+  const bpState = () => `${window.innerWidth < 768 ? 'phone' : window.innerWidth < 1024 ? 'tablet' : 'desktop'}`;
   _footerLastNarrow = bpState();
   window.addEventListener('resize', () => {
     const now = bpState();

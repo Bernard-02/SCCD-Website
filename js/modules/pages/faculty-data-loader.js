@@ -248,6 +248,9 @@ function renderFacultyList(containerId, items, eagerCount = 0, highPriority = fa
     // （user 2026-06-24 報「前兩張一直先灰再變照片」＝它們 render 當下就要、但跟 ~50 張同優先序搶頻寬）
     const eager = index < eagerCount;       // 預載（display:none 也會下載進快取）
     const eagerHigh = eager && highPriority; // 只有 fulltime 上半屏給 high priority，parttime/admin 背景補載不搶頻寬
+    // 真實照片 decoding async：1600² 原圖單張解碼 15–18ms，同步解碼會卡住進場／捲動那幀（user 2026-10-01 掉幀診斷）。
+    // 代用 logo 不加：hover／切 mode 會換 src，async 可能先畫一格空白才出新圖
+    const asyncDecode = !isModePlaceholder(item);
     const color = CARD_COLORS[index % CARD_COLORS.length];
     const sign = Math.random() < 0.5 ? -1 : 1;
     const initDeg = (sign * (3 + Math.random() * 3)).toFixed(2);
@@ -256,7 +259,7 @@ function renderFacultyList(containerId, items, eagerCount = 0, highPriority = fa
     <div class="faculty-card group cursor-pointer p-[6px]" data-category="${item.type}" data-faculty-id="${item.id}" data-img-dir="${imgDir}" style="--card-color: ${color}; --init-deg: ${initDeg}deg">
       <div class="faculty-card-image-mask mb-md">
         <div class="faculty-card-image-wrapper overflow-hidden aspect-[4/5] relative">
-          <img src="${item.image}" alt="${item.nameEn}" loading="${eager ? 'eager' : 'lazy'}"${eagerHigh ? ' fetchpriority="high"' : ''} class="faculty-card-image w-full h-full object-cover">
+          <img src="${item.image}" alt="${item.nameEn}" loading="${eager ? 'eager' : 'lazy'}"${eagerHigh ? ' fetchpriority="high"' : ''}${asyncDecode ? ' decoding="async"' : ''} class="faculty-card-image w-full h-full object-cover">
         </div>
       </div>
       <div class="text-left">

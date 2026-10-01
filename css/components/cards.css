@@ -143,7 +143,7 @@
      ≥1200 三欄 2:3:3；768–1199 空間不夠 → 收成 2 欄、日期移到標題上方（date/title 同左欄堆疊、地點獨占右欄跨兩列）；<768 單欄堆疊。
      grid-template-columns 全寫這裡不用 Tailwind grid-cols utility＝避開 @layer utilities 蓋過 components 斷點覆寫。 */
   .dsd-event-grid { grid-template-columns: minmax(0, 1fr); }
-  @media (min-width: 768px) and (max-width: 1199px) {
+  @media (min-width: 768px) and (max-width: 1023px) {
     .dsd-event-grid {
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       grid-template-areas: "date location" "title location";
@@ -152,7 +152,7 @@
     .dsd-event-grid > :nth-child(2) { grid-area: title; }
     .dsd-event-grid > :nth-child(3) { grid-area: location; }
   }
-  @media (min-width: 1200px) {
+  @media (min-width: 1024px) {
     .dsd-event-grid {
       grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) minmax(0, 3fr);
     }
@@ -178,17 +178,6 @@
   @media (min-width: 768px) {
     .faculty-card:hover {
       background-color: var(--card-color, #26BCFF);
-    }
-  }
-
-  /* hover dim（同 admission/activities/curriculum 的 hover 聯動）— hover 某張卡片時其餘卡片
-     半透明凸顯當前項。:has() 純 CSS 免 JS；只桌面（手機無 hover）。
-     沒做分組高亮：fulltime/parttime/admin 各自是獨立 panel（同時只顯示一個，見 faculty.html
-     #faculty-fulltime-list 等三個容器），同一時間可 hover 到的卡片本來就只會是同一類別，
-     沒有 admission 年份 / curriculum 必選修×年級那種「同 panel 內還要再分組」的維度。 */
-  @media (min-width: 768px) {
-    #faculty-cards:has(.faculty-card:hover) .faculty-card:not(:hover) {
-      opacity: 0.25;
     }
   }
 
@@ -296,6 +285,39 @@
          >~1700px 圖片封頂後照舊由 space-between surplus 主導把 gap 撐更大。floor 2rem = 原 --spacing-lg，窄桌面不變。 */
       column-gap: clamp(2rem, 3.5vw, 5rem);
       row-gap: var(--spacing-4xl);   /* 桌面行距 128px */
+    }
+
+    /* faculty 桌面：同一列卡片的 圖／名字／副標 各抓同一條線（user 2026-10-01「副標對齊，抓同一行」）。
+       卡片 subgrid 跨牆的 3 條 row track（圖、名字、副標），每條高＝該列最高那張 → 名字折兩行、照片比例不同時
+       鄰卡副標不再高低不齊。.text-left 用 display:contents 讓 name/title（含進場包上的 .clip-reveal-wrapper）直接當卡片的 grid item。
+       ⚠️ 行距不能留在牆的 row-gap：gap 會插進卡片自己的 3 條 track 之間（subgrid 設 gap:0 也只是把格子撐進 gutter、名字與副標間多出空隙）
+       → 牆 row-gap 歸零、128 行距改掛卡片 margin-top，首列（桌面固定 4 欄 → 前 4 張）不加。改欄數要同步這個 4。
+       只套 faculty：alumni 會員牆共用 class 但沒要求。 */
+    #faculty-cards .faculty-card-wall {
+      row-gap: 0;
+    }
+    #faculty-cards .faculty-card {
+      display: grid;
+      /* 欄寬必鎖 minmax(0,1fr)：預設 auto 欄會被職稱 marquee 的 nowrap 長字（Associate Professor Rank Specialist）
+         min-content 撐到 ~270 > 卡寬 208 → 照片／文字溢出 hover 色底、名字也不折行 */
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: subgrid;
+      grid-row: span 3;
+      margin-top: var(--spacing-4xl);
+    }
+    #faculty-cards .faculty-card:nth-child(-n+4) {
+      margin-top: 0;
+    }
+    #faculty-cards .faculty-card > .text-left {
+      display: contents;
+    }
+    /* 不 stretch：mask 被拉高會讓旋轉軸心下移、圖片滑入的遮罩窗也跟著變大。
+       文字同理：進場 setupClipReveal 包的 .clip-reveal-wrapper（overflow-y:clip 遮罩窗）就是這裡的 grid item，
+       stretch 到整列最高那張的 track 高 → 短名字／短職稱的窗比字高，字推下 110% 仍在窗內＝輪到前就露出、
+       再從錯位處往上滑（user 2026-10-01「進場動畫錯了」）。> * 也涵蓋 wrap 之前的 name/title 本身 */
+    #faculty-cards .faculty-card-image-mask,
+    #faculty-cards .faculty-card > .text-left > * {
+      align-self: start;
     }
   }
 
@@ -629,7 +651,7 @@
     .slide-in-back-square { display: block; }
   }
   /* 矮橫向（landscape gate）走手機返回鍵 → 藏方塊；同 layer 後置規則、特異度相同 → gate 命中時勝 */
-  @media (orientation: landscape) and (max-height: 500px) {
+  @media (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
     .slide-in-back-square { display: none; }
   }
 
