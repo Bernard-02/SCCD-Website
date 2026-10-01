@@ -91,13 +91,81 @@
 }
 /* ≥1200：nav＋content 區頂＝全站 nav line（variables.css --nav-line 184；logo 頂對齊鈕列後下移，2026-09-27）。
    平板維持 header+inner-pad */
-@media (min-width: 1200px) and (min-height: 501px) {
+@media (min-width: 1024px) and (min-height: 501px) {
   .inner-scroll-frame-grid { --inner-box-top: var(--nav-line); }
 }
+/* ===== nav 清單太高（視窗矮）→ 可上下捲的盒＋底部 chevron（user 2026-10-01；JS＝section-switch-helpers bindNavOverflow）=====
+   host（JS 掛 .nav-overflow-host）＝限高的 flex column，底部讓出左下「當前頁」卡（≥1200 才有卡；gate 外
+   --page-indicator-top＝0）＋md 間距 → 清單（.nav-scroll-list）最多長到卡的上方，放不下才由 JS 掛 .nav-overflowing：
+   清單開 overflow、chevron 現身。沒溢出＝零視覺變化（清單只是可縮的 flex item、overflow 仍 visible）。
+   host 兩種：四頁 inner-scroll frame 的 .inner-scroll-nav-col（activities/curriculum/admission/faculty）＋ about 的
+   sticky #anchor-nav（清單是 JS 包的一層）。gate 排除矮橫向（那邊 nav 進 header 帶、清單是橫向 strip）。 */
+.nav-more-btn { display: none; }
+@media (min-width: 1024px) and (min-height: 501px) {
+  .inner-scroll-nav-col {
+    display: flex;
+    flex-direction: column;
+    /* 欄高釘死＝frame 高：不釘的話 grid 列是 auto、清單一長就把欄（與列）撐過視窗＝永遠「放得下」、判不出溢出 */
+    height: 100vh;
+    padding-bottom: calc(var(--page-indicator-top, 0px) + var(--spacing-md, 24px));
+  }
+  /* about：nav 黏在 nav line，最高長到當前頁卡上方 md；gap 歸零（清單↔chevron 間距由 chevron margin 給，同四頁） */
+  #anchor-nav.nav-overflow-host {
+    max-height: calc(100vh - var(--nav-line) - var(--page-indicator-top, 0px) - var(--spacing-md, 24px));
+    gap: 0;
+  }
+  #anchor-nav > .nav-scroll-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--nav-btn-gap);
+  }
+  .nav-overflow-host > .nav-scroll-list {
+    flex: 0 1 auto;
+    min-height: 0;
+  }
+  /* 溢出態：開捲動。overflow-y:auto 會連 x 軸一起裁 → 四邊留 sm(16) clearance 給旋轉角、hover 抽角、
+     curriculum 往左凸 12 的 BFA 小標題／MDES；等量負 margin 抵銷＝btn 位置不動。
+     右側再加 --nav-clip-extra（JS 量：清單比 host 窄多少；curriculum bar ≥1200 只佔 2 欄、長 label 會凸進第 3 欄）
+     → 裁切界一律在 host 右緣＋16，窄視窗長 label 不被切。
+     content-box：curriculum 的 bar 有明寫 width，border-box 下 padding 會吃掉內容寬＝label 重新折行。
+     捲動條藏起來（同全站 inline 捲動區）。 */
+  .nav-overflowing > .nav-scroll-list {
+    overflow-y: auto;
+    scrollbar-width: none;
+    box-sizing: content-box;
+    padding: var(--spacing-sm, 16px);
+    padding-right: calc(var(--spacing-sm, 16px) + var(--nav-clip-extra, 0px));
+    margin: calc(-1 * var(--spacing-sm, 16px));
+    margin-right: calc(-1 * (var(--spacing-sm, 16px) + var(--nav-clip-extra, 0px)));
+  }
+  .nav-overflowing > .nav-scroll-list::-webkit-scrollbar { display: none; }
+  /* chevron：清單盒下緣、水平置中於最寬那顆 btn（寬由 JS 寫 inline width；user 2026-10-01「chevron 置中 nav btn」）；
+     到底＝disabled（同 library .year-more-btn）。
+     margin-top 抵掉清單的負 margin-bottom：不抵的話 chevron 上半會疊進清單盒底的 clearance 帶（被捲過來的 btn 蓋住、
+     curriculum 的 bar 有底色＋z-index 還會擋掉點擊） */
+  .nav-overflowing > .nav-more-btn {
+    display: flex;
+    justify-content: center;
+    flex: none;
+    align-self: flex-start;
+    margin-top: var(--spacing-sm, 16px);
+    padding: var(--spacing-xs, 8px) 0 0;
+    border: none;
+    background: none;
+    color: var(--theme-fg);
+    cursor: var(--cursor-pointer);
+    transition: color 0.3s ease;
+  }
+  .nav-overflowing > .nav-more-btn:disabled {
+    color: rgba(var(--theme-fg-rgb), 0.2);
+    cursor: var(--cursor-not-allowed);
+  }
+}
+
 /* faculty ≥1200：**卡片（看得到的內容）**左緣＝col 4 左緣、右緣＝col 18 右緣（user 2026-09-27；試過 18.5 欄後改回 4-18。
    user 開 grid overlay 看的是卡片不是框）。框內左右各 24px 旋轉 clearance padding（上方 scroll-col padding）→
    框本身兩側各外推 24px：margin-left −24、寬＝格線區（col 4-18，faculty.html min-[1200px]:col-start-4/col-span-15）＋48。 */
-@media (min-width: 1200px) {
+@media (min-width: 1024px) {
   #faculty-cards .inner-scroll-scroll-col {
     margin-left: calc(-1 * var(--spacing-md, 24px));
     width: calc(100% + 2 * var(--spacing-md, 24px));
@@ -109,8 +177,9 @@
   }
 }
 /* 首列卡片下移＝旋轉頂角 clearance：scroll-col padding-top 0，首列 mask 頂角投影(238×sin6°/2≈12) − card padding 6 ≈ 6px
-   會被 box 上緣裁 → 取 sm(16)。（2026-09-29 上方分類 bar 撤掉、分類鈕回左欄後，此 margin 改只當裁切 clearance） */
-#faculty-cards .faculty-card-wall {
+   會被 box 上緣裁 → 取 sm(16)。（2026-09-29 上方分類 bar 撤掉、分類鈕回左欄後，此 margin 改只當裁切 clearance）
+   只給第一面牆：切分類只藏卡片、牆留著，空 grid 不 collapse-through → 每面牆都帶 margin 會逐分頁疊 16/32/48/64。 */
+#faculty-cards .faculty-card-wall:first-child {
   margin-top: var(--spacing-sm);
 }
 
@@ -627,11 +696,11 @@
 
 /* Sticky paint seam fix（往下 scroll 看到的 1-2px image / 底色細綫）：
  * sticky list-header 與相鄰 .list-content 即使 layout 上緊貼，paint 邊界在
- * device pixel 上 round 不一致仍會留 1-2px 縫；image 在縫底下直接露出。
- * 用 padding-top 4px 同色 buffer：list-item 父層 bg accent 色透過 list-content
- * 透明 padding 區露出，把 image 往下推 4px，縫底下見到的是 accent bg 而非 image。
+ * device pixel 上 round 不一致仍會留 1-2px 縫。
+ * （原另有 padding-top 4px 把 image 往下推的 buffer，user 2026-10-01 拿掉：content 已自帶同色 accent 底、
+ *  第一個子層本身有 pt-sm，image 不貼頂；那 4px 只在 DevTools 看起來像一條縫）
  *
- * margin-top:-1px：padding-top 只把「內層 image」下推，沒關掉 header 底邊 ↔ content 頂邊
+ * margin-top:-1px：關掉 header 底邊 ↔ content 頂邊
  * 之間那條 1px 縫。sticky header（z-index:5）被 GPU 提成獨立 composite layer 並 snap 到整數
  * device pixel，與 content layer 在 fractional 邊界對不齊時露出 hairline（user 2026-06-07
  * 「title 到展開有一條細綫、有機率出現」＝隨捲動 sub-pixel offset 時有時無）。讓 content 往上
@@ -640,7 +709,6 @@
  * 原本只在桌面 @media block；手機 list-header.active 也 sticky（2026-06-10 起）同樣會露縫
  * （user 2026-06-10「遮蓋的部分溢出細細的底色」）→ 移到共用層桌面手機同款。 */
 .list-header.active + .list-content {
-  padding-top: 4px;
   margin-top: -1px;
 }
 
@@ -1233,7 +1301,7 @@ body.mode-color button.active > .tl-icon-btn-inner { background: var(--theme-fg-
 /* 桌面：鈕中心壓在矩形右上角點（user 2026-08-16）：鈕 48px、right:0 時水平中心=cell右−24=矩形右緣，
    top:-24 垂直中心=矩形頂緣。min-height 排除矮橫向 gate（gate 走 landscape.css 自有定位
    right:-88/bottom:0，不能吃到 top）。 */
-@media (min-width: 768px) and (min-height: 501px) {
+@media (min-width: 1024px) and (min-height: 501px) {
   .tl-list-next-btn {
     top: -24px;
     bottom: auto;
@@ -1251,7 +1319,7 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
  * 桌面 buildStrip 的 list view 結構（.tl-list-era-head 標頭 + .tl-list-years 捲動 + JS rectMask）
  * 在窄屏共用：cell 脫離 20-col 方形、單欄滿版、年份改上下堆疊。
  * 直式佈局見下方 portrait block；矮橫向佈局見 landscape.css 5i++。 */
-@media (max-width: 767px), (orientation: landscape) and (max-height: 500px) {
+@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
   .tl-list-cell {
     grid-column: auto;
     height: 100%;
@@ -1385,7 +1453,7 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
 /* about history list（桌面）：scrollbar 從第一個 item 起（user 2026-09-29）——捲動區頂端一直釘著 sticky era 標籤，
  * 軌道頂內縮＝標籤實高（timeline.js measureStickyOffsets 量寫到捲動容器的 --tl-era-label-h）；同上 webkit only。
  * 矮橫向（標籤兩行、也釘頂）先不動（user 09-28 先專注桌面）；直式手機 scrollbar 本來就隱藏。 */
-@media (min-width: 768px) and (min-height: 501px) {
+@media (min-width: 1024px) and (min-height: 501px) {
   .tl-list-years::-webkit-scrollbar-track {
     margin-top: var(--tl-era-label-h, 0px);
   }
@@ -1596,9 +1664,8 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
   background: linear-gradient(var(--list-zebra-strip, rgba(255,255,255,0.15)), var(--list-zebra-strip, rgba(255,255,255,0.15))), var(--theme-bg);
 }
 
-/* hover dim（同 atlas hover 聯動）— hover 某 list-item 時其餘（含年份標籤）半透明凸顯當前項；
-   同年份 group 的標籤視為「active」不淡出。:has() 純 CSS 免 JS；只桌面（手機無 hover）。
-   admission 測試 OK 後 2026-08-04 擴到 activities；兩 section 共用同一份 loadListInto 結構。
+/* 列表 opacity／底色過渡（桌面）。opacity 只剩下方 deep-link 落地 dim（.is-hovered）在用：真 hover 不再 dim
+   （user 2026-10-01：除 atlas 外 hover 卡片不調不透明度；原 :has(:hover) 三條＋DSD 卡兩條已撤）。
    .list-year-label＝toggle/非 toggle 兩變體共用 hook（hideYearHeader 的 list 無此元素）。 */
 @media (min-width: 768px) {
   :is(#activities-content-section, #admission-content-section) .list-year-label {
@@ -1615,53 +1682,12 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
   :is(#activities-content-section, #admission-content-section) .list-content {
     transition: background-color 200ms cubic-bezier(0.4, 0, 0.2, 1);
   }
-  /* 兩個 gate 都用 :where()＝零 specificity，才不會打破下方年份標籤例外規則的 tie（例外靠「與本規則
-     specificity 打平（id+4 class）＋ source order 較後」取勝，見下註解）：普通 :not() 會墊高本規則 specificity
-     → 例外被壓過 → hover 時該年份標籤反而跟著淡。
-     ① :where(:not(.list-opening))：清單「打開」reveal 期間（host section 由 playAdmissionPanelReveal 掛 .list-opening）
-        關掉 hover-dim——先解鎖的 item 被 hover 不該把仍在 reveal 的後段 item 半透明化
-        （user 2026-09-04「打開時保持有顏色、打開完畢後 hover 才恢復正常」）。
-     ② :where(:not(.hover-dim-suppress))：捲動當下不 dim——打開短 list 捲到頂 → 內容在靜止 cursor 底下位移 →
-        瀏覽器 re-eval :hover 命中下方別的 item 誤觸半透明；section-switch-helpers.initHoverDimMoveGuard 捲動掛
-        .hover-dim-suppress、下次真 pointermove 才解除（user 2026-09-04）。
-     ③ :where(:not(.dim-off))：只 dim「視窗內」item——大清單 hover 一次對全清單切 opacity＝白費（off-screen 看不到）；
-        loadListInto 的 IO 把離開視窗的 .list-item 標 .dim-off 排除（user 2026-09-04；09-10 起 .list-item 已有
-        content-visibility:auto，.dim-off 仍留＝skip 邊界外~50%vh 區的 item 靠它排除）。年份標籤不標 .dim-off（數量少、成本可忽略）＝一律可 dim。 */
-  :is(#activities-content-section, #admission-content-section):where(:not(.list-opening)):where(:not(.hover-dim-suppress)):has(.list-item:hover, .list-year-label:hover)
-    :is(.list-item, .list-year-label):not(:hover):where(:not(.dim-off)) {
-    opacity: 0.25;
-  }
-  /* hover 的 item 所屬年份 group＝「active」，該年份標籤不用跟著淡出（其他年份才淡）。
-     跟上一條 specificity 打平（id+4 classes）靠 source order 蓋過，故必須排在後面。 */
-  :is(#activities-content-section, #admission-content-section) .list-year-group:has(.list-item:hover) .list-year-label {
-    opacity: 1;
-  }
-  /* 反向：hover 年份標籤時，該年份 group 內所有 list-item 都算 active（不淡）。 */
-  :is(#activities-content-section, #admission-content-section) .list-year-group:has(.list-year-label:hover) .list-item {
-    opacity: 1;
-  }
-  /* degree-show 卡：年份 <h5> 在 col-1、非 .list-item，上面規則抓不到 → 其卡內容淡但年份不淡。
-     補一條同 :has() 機制，hover 某卡時其餘卡的年份跟著淡出（對齊 admission）。
-     年份 h5 被 clip-reveal-wrapper 包住，故 dim col-1 wrapper（非 > h5 直系，會被 wrapper 打斷）。 */
-  #degree-show-list .degree-show-card > div:not(.degree-show-card-content) {
-    transition: opacity 0.25s ease;
-  }
-  #degree-show-list:has(.degree-show-card:hover)
-    .degree-show-card:not(:hover) > div:not(.degree-show-card-content) {
-    opacity: 0.25;
-  }
-  /* 同一年可能有多筆畢展，但年份標籤只在第一筆 DOM 中：hover 同年度任一筆時，
-     JS 將該年度卡片標為 active，讓共用的年份標籤保持不透明。 */
-  #degree-show-list:has(.degree-show-card:hover)
-    .degree-show-card.degree-show-year-active > .list-year-label {
-    opacity: 1;
-  }
 }
 
-/* deep-link 落地 highlight 比照 hover dim（user 2026-09-11，對齊 library）：navigateToItem 落地 flash 時
+/* deep-link 落地 highlight（user 2026-09-11，對齊 library）：navigateToItem 落地 flash 時
    對目標 .list-item 掛 .is-hovered ~1.2s（section-switch-helpers.flashDeepLinkDim）→ 其餘列＋他組年份標籤
-   半透明。class 版不吃 :hover 三 gate（落地窗口程式主導、無捲動誤觸問題），全 viewport 生效
-   （合成 mouseenter 觸不到 CSS :hover state，:hover 版接不到 deep-link）。.dim-off 視窗外排除照舊。 */
+   半透明（真 hover 已不 dim，見上方過渡註解）。全 viewport 生效；.dim-off＝視窗外 item 排除
+   （loadListInto 的 IO 標記，大清單一次切全清單 opacity＝白費）。 */
 @media (max-width: 767px) {
   /* 手機也要淡入淡出（桌面 block 已有 opacity transition；此處只補手機、避免蓋掉桌面雙屬性 shorthand） */
   :is(#activities-content-section, #admission-content-section) :is(.list-item, .list-year-label) {

@@ -195,7 +195,7 @@
 
     <!-- Next Project Section：
          桌面：兩張 poster overlap（左=prev/older 在上，右=next/newer 在下偏 50%），
-              預設 50% 黑 overlay，hover 取消 overlay + 顯示年份/英中標題（隨機色與旋轉，year 在上、名稱在下），
+              hover 顯示年份/英中標題（隨機色與旋轉，year 在上、名稱在下；原 50% 黑暗幕 2026-10-01 撤，user「hover 不調不透明度」），
               另一張同時 clip-path 掃入隨機色（仿首頁 newsOverlay）；
          手機：單純 stack。
          posters 隨機旋轉 -4°~6°（排除 0）。 -->
@@ -207,7 +207,6 @@
         <a id="prev-link" href="#" class="block absolute" aria-label="上一屆畢業展 Previous degree show" style="top: 0; left: -8vw; width: 66vw; z-index: 1;">
           <div id="prev-card" class="relative">
             <img id="prev-img" src="../images/Degree Show.jpg" alt="" class="block w-full h-auto pointer-events-none">
-            <div id="prev-dim" class="absolute inset-0 bg-black pointer-events-none" style="opacity: 0.5; transition: opacity 0.3s ease;"></div>
             <div id="prev-clip" class="absolute inset-0 pointer-events-none" style="clip-path: inset(100% 0 0 0); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></div>
           </div>
         </a>
@@ -215,7 +214,6 @@
         <a id="next-link" href="#" class="block absolute" aria-label="下一屆畢業展 Next degree show" style="right: -8vw; width: 66vw; z-index: 1;">
           <div id="next-card" class="relative">
             <img id="next-img" src="../images/Degree Show.jpg" alt="" class="block w-full h-auto pointer-events-none">
-            <div id="next-dim" class="absolute inset-0 bg-black pointer-events-none" style="opacity: 0.5; transition: opacity 0.3s ease;"></div>
             <div id="next-clip" class="absolute inset-0 pointer-events-none" style="clip-path: inset(100% 0 0 0); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></div>
           </div>
         </a>

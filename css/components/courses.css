@@ -133,7 +133,7 @@
   /* 桌面（含 iPad 直向；min-height 排除矮橫向 gate，同 lists.css 慣例）改回自然換行：
      CMS label 變長（Division of Animation & Moving Image）後 nowrap 單行衝出 14rem bar、疊到右欄內容
      （user 2026-09-05）；換行後寬度被 bar clamp、縮視窗自動調整。 */
-  @media (min-width: 768px) and (min-height: 501px) {
+  @media (min-width: 1024px) and (min-height: 501px) {
     .courses-program-btn .anchor-nav-inner > span:first-child {
       white-space: normal;
     }
@@ -142,7 +142,7 @@
      col 3 當呼吸空間。bar 寬＝nav wrapper（3 欄）裡的前 2 欄＝2×欄寬＋1 gutter。
      中文 keep-all：不在字中間斷（免「動畫影像設計／組」孤字）；中文比 2 欄長時略凸進 gutter/col 3，同 faculty DCD 鈕。
      平板 768-1199 不收：2 欄只剩 ~70px，中文會撞進內容。 */
-  @media (min-width: 1200px) and (min-height: 501px) {
+  @media (min-width: 1024px) and (min-height: 501px) {
     .courses-program-bar {
       width: calc((100% - 2 * var(--spacing-gutter)) * 2 / 3 + var(--spacing-gutter));
     }
@@ -159,11 +159,11 @@
   }
 
   /* 桌面 nav 垂直間距（user 2026-09-28「curriculum nav btn 之間的 gap 要跟其他 nav btn 一樣」）：BFA 小標題改在 flow 裡
-     （position relative、left -12px 保留原本往左凸的位置），每顆 chip（小標題 / btn）之間一律全站 nav btn 間距 gap-xs 8px
-     （bar HTML md:gap-xs、group gap-xs）。取代 09-02「absolute label＋margin-top 估突出量＋gap-lg 32」模型——估算隨斷點
+     （position relative、left -12px 保留原本往左凸的位置），每顆 chip（小標題 / btn）之間一律全站 nav btn 間距
+     --nav-btn-gap（variables.css；bar／group HTML 皆 md:gap-[var(--nav-btn-gap)]）。取代 09-02「absolute label＋margin-top 估突出量＋gap-lg 32」模型——估算隨斷點
      行數漂移（實測 1440 btn→下一組標題 15、1024 34、→MDES 32，參差不齊）。矮橫向（landscape.css static 併排）／
      直向手機（absolute、JS --courses-bar-padtop）各自另有規則，本段 min-height 501 排除矮橫向。 */
-  @media (min-width: 768px) and (min-height: 501px) {
+  @media (min-width: 1024px) and (min-height: 501px) {
     .courses-program-group .courses-bfa-label {   /* group 前綴提特異度：基本規則 .courses-bfa-label（absolute）寫在後面 */
       position: relative;
       bottom: auto;
@@ -430,36 +430,11 @@
     100% { transform: translateX(var(--marquee-distance, -50%)); }
   }
 
-  /* hover dim（同 admission/activities list 的 hover 聯動，見 lists.css）— hover 某課程卡片時
-     其餘卡片＋不相關的必修/選修 row label／年級 col header 半透明；卡片所在的那個 row（必修或選修）
-     與那個 col（年級）維持不透明＝分組高亮，判準是「hover 卡片的矩陣座標」（user 2026-08-04 指定）。
-     :has() 純 CSS 免 JS；只桌面（手機無 hover；手機一次只顯示一個年級 block，無「其他年級」可淡）。 */
-  @media (min-width: 768px) {
-    #courses-content-section:has(.courses-grid-card:hover)
-      :is(.courses-grid-card, .courses-grid-type-label, .courses-grid-col-header):not(:hover) {
-      opacity: 0.25;
-    }
-    /* row 分組高亮：hover 卡片所在的必修/選修 row，該 row 的 type-label 蓋回不透明。
-       跟上一條 dim 規則 specificity 打平（1 id+4 class/pseudo），靠 source order（寫後面）勝出，
-       同 lists.css 年份分組高亮的已知模式，見 memory feedback_specificity_tie_use_not_exclusion。 */
-    #courses-content-section :is(.courses-required-row, .courses-elective-row):has(.courses-grid-card:hover) .courses-grid-type-label {
-      opacity: 1;
-    }
-    /* col 分組高亮：TOTAL_YEAR_COLS 固定 4（courses-map.js），逐一枚舉 year-1~4——
-       col header 跟 cell 共用同一個 yearCls() class，用它當「同一欄」的配對依據，不用另加 data 屬性。
-       每條 :has() 引數含 .courses-grid-card:hover，specificity 天然高於 dim 規則，不靠 source order。 */
-    #courses-content-section:has(.courses-grid-col-year-1 .courses-grid-card:hover) .courses-grid-col-header.courses-grid-col-year-1,
-    #courses-content-section:has(.courses-grid-col-year-2 .courses-grid-card:hover) .courses-grid-col-header.courses-grid-col-year-2,
-    #courses-content-section:has(.courses-grid-col-year-3 .courses-grid-card:hover) .courses-grid-col-header.courses-grid-col-year-3,
-    #courses-content-section:has(.courses-grid-col-year-4 .courses-grid-card:hover) .courses-grid-col-header.courses-grid-col-year-4 {
-      opacity: 1;
-    }
-  }
-
-  /* deep-link 落地 highlight 比照 hover dim（user 2026-09-11，同 lists.css activities 版）：
+  /* deep-link 落地 highlight（user 2026-09-11，同 lists.css activities 版）：
      courses-section-switch 的 openCard 對目標卡掛 .is-hovered（flashDeepLinkDim，到 slide-in 開啟即除）
-     → 其餘卡/row label/col header 半透明。class 版不吃 :hover → 全 viewport（手機 dim 同 grade block 內其他卡）。
-     re-highlight 兩組必須跟著補：目標卡自己的 row label／年級 header 不該跟著淡（鏡射上方 :hover 版）。 */
+     → 其餘卡/row label/col header 半透明。全 viewport（手機 dim 同 grade block 內其他卡）。
+     re-highlight 兩組：目標卡自己的 row label／年級 header 不跟著淡（分組高亮＝卡片的矩陣座標，user 2026-08-04）。
+     真 hover 不再 dim（user 2026-10-01：除 atlas 外 hover 卡片不調不透明度）。 */
   #courses-content-section:has(.courses-grid-card.is-hovered)
     :is(.courses-grid-card, .courses-grid-type-label, .courses-grid-col-header):not(.is-hovered) {
     opacity: 0.25;

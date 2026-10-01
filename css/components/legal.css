@@ -29,11 +29,18 @@
     padding-bottom: var(--spacing-3xl);
     /* 不加 padding-left：靠 site-container 的 gutter 對齊整頁基線 */
   }
-  /* ≥1200 左下「當前頁」卡（navigation.css #page-indicator）在 chip 下方 → chip 底抬到卡頂之上（user 2026-09-27）。
-     2xl 64＝CN chip 繞左中旋轉 ≤6° 在卡寬範圍內的下沉＋卡自身旋轉上翹（最壞 ~52）＋呼吸 */
-  @media (min-width: 1200px) and (min-height: 501px) {
-    .legal-title-col {
-      padding-bottom: calc(var(--page-indicator-top) + var(--spacing-2xl));
+  /* ≥1200 左下「當前頁」卡（navigation.css #page-indicator）已顯示同一個頁名 → 標題 chip 不再顯示（user 2026-10-01；
+     取代 09-27 版「chip 底抬到卡頂之上」）。視覺隱藏而非 display:none：h1 留給讀屏／SEO；hero-animation 照常
+     對它建進退場（看不到、hero done 訊號照發）。手機／平板／1024–1199／矮橫向沒有當前頁卡 → chip 照舊當頁名。
+     gate 同 navigation.css 當前頁卡 */
+  @media (min-width: 1024px) and (min-height: 501px) {
+    .legal-title-block {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
     }
   }
 
@@ -438,14 +445,6 @@
      提特異度（0,3,1）壓過全站 −1px。 */
   .legal-zebra .list-header.active + .list-content { margin-top: -2px; }
 
-  /* hover-dim（user 2026-09-09f）：hover 某列 → 其他列半透明凸顯當前列（值同 activities/admission 0.25）。
-     legal 預設全開＋獨立開合（list-accordion .legal-zebra gate）：不走 JS 拔 accent 那套（多 active 會誤拔），
-     純 CSS opacity。桌面 only（手機無 hover）。 */
-  @media (min-width: 768px) {
-    .legal-zebra .list-item { transition: opacity 0.25s ease; }
-    .legal-zebra:has(.list-item:hover) .list-item:not(:hover) { opacity: 0.25; }
-  }
-
   /* 標題欄（左，撐開）＋ chevron（右，不縮） */
   .legal-zebra-titlecol {
     flex: 1 1 auto;
@@ -725,11 +724,6 @@
   }
   /* max-width：JS 貼字寬（fitMapCardsToText 設固定 px）後視窗縮窄不外溢欄寬（超出就重折行） */
   .legal-map-card { text-decoration: none; max-width: 100%; }
-  /* hover-dim（同 curriculum 課程卡 courses.css）：hover 某卡 → 其餘卡半透明凸顯當前卡。
-     opacity transition 由 .courses-grid-card base 自帶（opacity var(--dur-fast)）；只桌面（手機無 hover）。 */
-  @media (min-width: 768px) {
-    .legal-map-grid:has(.legal-map-card:hover) .legal-map-card:not(:hover) { opacity: 0.25; }
-  }
   /* 卡內兩欄（user 2026-09-10）：左＝編號、右＝英中標題直排。base .courses-grid-card 是 column → 翻成 row */
   .legal-map-card {
     flex-direction: row;

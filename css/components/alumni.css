@@ -64,12 +64,6 @@ body.page-alumni .list-header.active {
   opacity: 1;
   pointer-events: auto;
 }
-/* hover 包 desktop guard：手機 tap 後 0.85 opacity 殘留 */
-@media (min-width: 768px) {
-  .alumni-charter-sticky:hover {
-    opacity: 0.85;
-  }
-}
 /* charter EN + ZH 同字級、同色（都白色、無 opacity） */
 .alumni-charter-sticky .charter-en,
 .alumni-charter-sticky .charter-zh {
@@ -176,7 +170,3 @@ body.page-alumni .list-header.active {
   padding: 6px 8px 5px;   /* = 全站 nav btn 標準（原 6/10/5 → 統一，user 2026-09-09）*/
 }
 
-/* ===== PDF Lightbox 微調 ===== */
-#alumni-pdf-close:hover {
-  opacity: 0.7;
-}

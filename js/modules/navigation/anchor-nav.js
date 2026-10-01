@@ -8,7 +8,7 @@ import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
-import { bindNavBtnHover, navHoverColor } from '../ui/section-switch-helpers.js';
+import { bindNavBtnHover, navHoverColor, bindNavOverflow, isNavSpinDesktop } from '../ui/section-switch-helpers.js';
 
 /**
  * @param {{ reveal?: boolean }} [opts] reveal:true 啟用左側 nav 的 hero clip-reveal 進場/退場
@@ -57,6 +57,18 @@ export function initAnchorNav({ reveal = false } = {}) {
   const sections = [...sectionMap.keys()];
 
   if (navButtons.length === 0 || sections.length === 0) return;
+
+  // 桌面 about：視窗矮、nav 放不下時改成可捲清單＋chevron（同四頁 nav；user 2026-10-01，樣式 lists.css）。
+  // bindNavOverflow 要「限高 host > 可縮清單」兩層 → btn 包進一層清單 div（sticky 的 #anchor-nav 當 host）。
+  // 只在桌面包：矮橫向的 #anchor-nav 是橫向 strip（landscape.css 直接排 btn）、跨 gate 靠 reload 自癒。
+  // 只 about（有 #mobile-anchor-strip 的那頁）：alumni 共用 #anchor-nav 這個 id 但只有 4 顆、top 也不同，沒要求。
+  const deskNav = isNavSpinDesktop() && document.getElementById('mobile-anchor-strip') ? document.getElementById('anchor-nav') : null;
+  if (deskNav) {
+    const list = document.createElement('div');
+    list.append(...deskNav.children);
+    deskNav.appendChild(list);
+    bindNavOverflow(deskNav, list);
+  }
 
   // 1. 點擊滾動功能
   navButtons.forEach(btn => {
@@ -164,7 +176,7 @@ export function initAnchorNav({ reveal = false } = {}) {
   // `transition: all`（含 clip/translate）對 GSAP 每幀寫的接管卡頓，跑完還原。只取桌面 #anchor-nav（mobile 選單另一容器、不套）。
   // 矮橫向 gate 交給下方雙向分支接管（同一組 inner 不能雙驅動）。
   const NAV_EASE = 'cubic-bezier(0.25, 0, 0, 1)';
-  const isLandscapeGate = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+  const isLandscapeGate = window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
   if (reveal && typeof gsap !== 'undefined' && window.innerWidth >= 768 && !isLandscapeGate) {
     const inners = Array.from(document.querySelectorAll('#anchor-nav .anchor-nav-inner'));
     if (inners.length) {

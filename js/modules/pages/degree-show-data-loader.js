@@ -31,7 +31,7 @@ const POSTER_SLIDE_DIRS = ['0%, 110%', '0%, -110%', '110%, 0%', '-110%, 0%'];
 // + max-height:500）。矮橫向手機寬常 ≥768 會誤吃桌面分支 → 併進來，detail 頁 body/hero 全走手機路徑。
 function isMobileView() {
   return window.innerWidth < 768
-    || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+    || window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
 }
 
 // 標題色卡寬度 → 收到「換行後最寬一行 + 左右 padding」。inline-block + max-width 只把 max-width 當 wrap
@@ -110,7 +110,7 @@ export async function loadDegreeShowListInto(containerId) {
       // .list-reveal-group 留在外 <div>：年份 col-1 的 .list-reveal-row 沒 .list-item 祖先，靠此 hook 跟該卡內容
       //   同組併入 list phase（見 admission-data-loader playAdmissionPanelReveal 分組）。
       const html = `
-        <div class="grid-12 items-start degree-show-card list-reveal-group" data-degree-show-year="${year}" style="--card-color: ${color}">
+        <div class="grid-12 items-start degree-show-card list-reveal-group" style="--card-color: ${color}">
           <!-- 年份：桌面 md:pt-sm md:pl-xs 對齊 loadListInto 年份文字（filter 下 269）；
                手機 -8px 淨得 12px（card grid 20px row-gap − 8）、md:mb-0（年份與縮圖同排）。
                獨立 label 不進 <a>（比照 admission 年份欄非點擊）。 -->
@@ -192,26 +192,9 @@ export async function loadDegreeShowListInto(containerId) {
       container.querySelectorAll('.degree-show-card').forEach(card => {
         const content = /** @type {HTMLElement | null} */ (card.querySelector('.degree-show-card-content'));
         const color = getComputedStyle(card).getPropertyValue('--card-color').trim();
-        const setYearActive = (active) => {
-          const year = card.dataset.degreeShowYear;
-          container.querySelectorAll('.degree-show-card').forEach(yearCard => {
-            if (yearCard.dataset.degreeShowYear === year) {
-              yearCard.classList.toggle('degree-show-year-active', active);
-              yearCard.querySelectorAll('.list-year-label').forEach(label => {
-                label.style.opacity = active ? '1' : '';
-              });
-            }
-          });
-        };
         if (!content) return;
-        content.addEventListener('mouseenter', () => {
-          content.style.backgroundColor = color;
-          setYearActive(true);
-        });
-        content.addEventListener('mouseleave', () => {
-          content.style.backgroundColor = '';
-          setYearActive(false);
-        });
+        content.addEventListener('mouseenter', () => { content.style.backgroundColor = color; });
+        content.addEventListener('mouseleave', () => { content.style.backgroundColor = ''; });
       });
     }
 
@@ -902,14 +885,14 @@ function setupNextProject(prev, next) {
 
   // 追蹤目前顯示中的 label group（hover 中那組），供離頁退場收回（user 2026-09-11）。
   let shownLabelsKey = null;
-  // Hover：被 hover 的 card → z 提高 + 移除 dim + 顯示 labels group；另一張 → clip-path 掃入隨機色
+  // Hover：被 hover 的 card → z 提高 + 顯示 labels group；另一張 → clip-path 掃入隨機色
+  // （原「預設 50% 黑暗幕、hover 掀開」2026-10-01 撤：user「hover 不調不透明度」）
   const setupHover = (myKey, otherKey) => {
     const myLink = /** @type {HTMLElement | null} */ (document.getElementById(`${myKey}-link`));
     const otherLink = /** @type {HTMLElement | null} */ (document.getElementById(`${otherKey}-link`));
-    const myDim = /** @type {HTMLElement | null} */ (document.getElementById(`${myKey}-dim`));
     const myLabels = /** @type {HTMLElement | null} */ (document.getElementById(`${myKey}-labels`));
     const otherClip = /** @type {HTMLElement | null} */ (document.getElementById(`${otherKey}-clip`));
-    if (!myLink || !myDim || !otherClip) return;
+    if (!myLink || !otherClip) return;
 
     // chip hero 式 clip-reveal（clip 遮罩＋同步 translate 滑入）：進出場方向每次重擲（pickNavDir 沿短邊
     // 四方向隨機，同全站 nav chip；user 2026-08-19，原固定 prev 左/next 右）。HIDDEN_INSET 只當量測中繼藏定位。
@@ -919,7 +902,6 @@ function setupNextProject(prev, next) {
     myLink.addEventListener('mouseenter', () => {
       myLink.style.zIndex = '3';
       if (otherLink) otherLink.style.zIndex = '1';
-      myDim.style.opacity = '0';
       shownLabelsKey = myKey;
 
       // 每次 hover 重新挑 cardColor（不一定每次都一樣），同步套到 3 個 chip
@@ -981,7 +963,6 @@ function setupNextProject(prev, next) {
     });
 
     myLink.addEventListener('mouseleave', () => {
-      myDim.style.opacity = '0.5';
       if (shownLabelsKey === myKey) shownLabelsKey = null;
       if (myLabels) {
         const chips = /** @type {NodeListOf<HTMLElement>} */ (myLabels.querySelectorAll('p'));
@@ -1115,7 +1096,7 @@ function buildMobileEventStrip(root) {
   // 矮橫向：tab 改進 header 帶（user 2026-07-11「比照 activities 放 header、可左右滑」）——
   // fixed 定位 + 全寬 blocker + hero gate 由 landscape.css .dsd-event-strip-header + setupStripHeaderGate 接管；
   // 直向手機維持 sticky top:96 原樣。
-  const landscapeHeader = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+  const landscapeHeader = window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
   const wrap = document.createElement('div');
   wrap.className = 'md:hidden sticky z-40 dsd-event-strip-wrap';
   if (landscapeHeader) {
