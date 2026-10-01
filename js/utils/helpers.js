@@ -89,7 +89,7 @@ window.SCCDHelpers = window.SCCDHelpers || /** @type {SCCDHelpersAPI} */ ({});
   };
 
   Helpers.filterElements = function(elements, filterValue, displayStyle, dataAttribute) {
-    displayStyle = displayStyle || 'block';
+    displayStyle = displayStyle == null ? 'block' : displayStyle;   // '' ＝清掉 inline、display 交回 CSS
     dataAttribute = dataAttribute || 'data-category';
 
     elements.forEach(function(el) {

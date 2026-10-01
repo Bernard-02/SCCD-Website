@@ -4,6 +4,7 @@
  * 各 panel 各自的 search input，對應各自 panel 內容
  */
 import { hideRows, revealRows, snapRowsShown } from './list-row-reveal.js';
+import { setupClipReveal } from './scroll-animate.js';
 import { isAccordionBusy } from '../accordions/list-accordion.js';
 import { DUR } from './motion.js';
 
@@ -77,19 +78,25 @@ function animateMatches(panel) {
 //   與 activities 'a'／admission 'd' 跨檔不撞值）。judge 可見用 style.display（applyGenericSearch 自寫的 inline、零 layout 讀）。
 let _restripeZbGen = 0;
 function restripeVisibleZebra(panel) {
-  const visible = [...panel.querySelectorAll('.list-item')].filter(it => /** @type {HTMLElement} */ (it).style.display !== 'none');
-  visible.forEach((it, i) => {
-    const el = /** @type {HTMLElement} */ (it);
-    el.classList.toggle('list-item-zebra', i % 2 === 0);
-    if (el.style.clipPath) { el.style.transition = 'none'; el.style.clipPath = ''; }
-    el.dataset.zbGen = 's' + (++_restripeZbGen);
+  // 逐子清單各自從 0 起算（同 loader 逐 container 計數；子清單＝panel 直屬子，常設多包一層 grid-12）：整 panel 連號
+  //   會被前面子清單（含 display:none 的）筆數帶偏 → 清空搜尋還原的清單灰白跟沒搜過的對調
+  [...panel.children].forEach(box => {
+    const visible = [...box.querySelectorAll('.list-item')].filter(it => /** @type {HTMLElement} */ (it).style.display !== 'none');
+    visible.forEach((it, i) => {
+      const el = /** @type {HTMLElement} */ (it);
+      el.classList.toggle('list-item-zebra', i % 2 === 0);
+      if (el.style.clipPath) { el.style.transition = 'none'; el.style.clipPath = ''; }
+      el.dataset.zbGen = 's' + (++_restripeZbGen);
+    });
   });
 }
 
 // ── Empty State ──────────────────────────────────────────────────────────
 
 function getOrCreateEmptyState(panel) {
-  let el = panel.querySelector('.search-empty-state');
+  // :scope >：只認自己直屬的——畢業展引擎建在 #degree-show-list 內的那個 DOM 序在 panel 尾這個之前，
+  //   panel.querySelector 會抓成它（display:none 容器內）＝特設／常設無結果時一片空白
+  let el = panel.querySelector(':scope > .search-empty-state');
   if (!el) {
     el = document.createElement('div');
     el.className = 'search-empty-state';
@@ -98,6 +105,8 @@ function getOrCreateEmptyState(panel) {
     el.style.cssText = 'display:none; min-height:60vh; flex-direction:column; align-items:center; justify-content:center; text-align:center;';
     el.innerHTML = '<p class="text-s">No Result</p><p class="text-s">無結果</p>';
     panel.appendChild(el);
+    // 兩行各包 clip 遮罩：換子分頁淨空搜尋時跟 search 列同拍 clip-reveal 退場（activities-section-switch animatedSubListSwitch）
+    setupClipReveal(el.children, { hide: false });
   }
   return el;
 }
@@ -105,6 +114,7 @@ function getOrCreateEmptyState(panel) {
 function setEmptyState(panel, show) {
   const el = getOrCreateEmptyState(panel);
   el.style.display = show ? 'flex' : 'none';
+  if (show) snapRowsShown(el.querySelectorAll('p'));   // 上回被淨空退場留在藏起態 → 顯示時歸位
 }
 
 // setupClipReveal 把 .activities-separator（有 .list-reveal-row class）wrap 進 .clip-reveal-wrapper，
@@ -383,14 +393,20 @@ function applyPanelSearch(panelId, query) {
   else applyGenericSearch(panelId, query);
 }
 
-// ── 給外部 type filter 用：切換 filter 後重新 apply 當前 query ─────────────
-
-export function reapplySearch(panelId) {
+// ── 給 section / sub-filter 切換用：換子分頁＝搜尋清空（user 2026-10-01）─────────
+// ⚠️ caller 要在「舊清單仍 display、新內容還沒畫出來」的同步段呼叫：applyPanelSearch 依當下可見子清單選引擎
+//   （畢業展卡片 vs 一般清單），而還原會 snap 全部 rows 現形，之後同步被 display 切換／setupAdmissionReveal 蓋掉＝不閃。
+export function clearSearch(panelId) {
   const panel = document.getElementById(panelId);
-  if (!panel) return;
-  const input = /** @type {HTMLInputElement | null} */ (panel.querySelector(`.activities-search-input[data-panel="${panelId}"]`));
-  if (!input) return;
-  applyPanelSearch(panelId, input.value.trim());
+  const input = /** @type {HTMLInputElement | null} */ (panel?.querySelector(`.activities-search-input[data-panel="${panelId}"]`));
+  if (!panel || !input || !input.value) return;
+  input.value = '';
+  /** @type {any} */ (panel)._preSearchScroll = null;  // 不捲回搜尋前位置：切換流程自己會捲到 section 頂
+  // 還原的 revealAllInstant 會拔光 panel 的 data-pre-reveal，但 caller 接著就是 setup＋reveal（unlockGroup 揭完才解）
+  // → 鎖原樣放回：否則進場途中 item 可點、navigateToItem 的 waitForItemRevealed 立即放行＝highlight 比文字早（06-09 bug）
+  const locked = [...panel.querySelectorAll('.list-item[data-pre-reveal]')];
+  applyPanelSearch(panelId, '');
+  locked.forEach(it => it.setAttribute('data-pre-reveal', ''));
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────
@@ -520,7 +536,8 @@ export function initActivitiesSearch() {
     });
   });
 
-  // 切換左側 section 時重新 apply 對應 input 的搜尋
+  // 切換左側 section 時重新 apply 對應 input 的搜尋（admission camp 仍靠這條）。activities 的 _switchToSection
+  // 進場前改 clearSearch 目標 panel（換分頁＝清空，user 2026-10-01）；這裡先跑時 query 沒變＝命中 unchanged、無作用
   document.querySelectorAll('.activities-section-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const section = btn.getAttribute('data-section');

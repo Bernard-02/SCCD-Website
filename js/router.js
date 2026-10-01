@@ -7,9 +7,10 @@ import { initPageModules, cleanupPageModules } from './main-modular.js';
 import { updateNavActive, clearNavActive, setNavActive, playPageIndicatorExit } from './header.js';
 import { runPageExit } from './modules/ui/page-exit.js';
 import { initFooter } from './footer.js';
-import { playFooterExit, resetFooterAfterExit, exitFooterToTop } from './modules/ui/footer-scatter.js';
+import { playFooterExit, resetFooterAfterExit } from './modules/ui/footer-scatter.js';
 import { SITE_BASE, SITE_BASE_PATHNAME, sitePath } from './modules/ui/site-base.js';
 import { releaseSnapHold, scrollWindowNoSnap } from './modules/ui/snap-scroll.js';
+import { lockForDeepLink, unlockDeepLink } from './modules/ui/deeplink-lock.js';
 import { CMS_API_BASE } from './config/api.js';
 
 // ── 路由表 ────────────────────────────────────────────────────
@@ -212,6 +213,8 @@ let navSeq = 0;
 async function loadPage(route, search = '', fromUserNav = false, fromFooter = false) {
   const main = document.getElementById('page-content');
   if (!main) return;
+  // 非使用者點連結的載入（popstate／轉向重載／404 fallback）不播 deep-link 呈現 → 進行中的操作鎖一律解
+  if (!fromUserNav) unlockDeepLink();
 
   const mySeq = ++navSeq;
   // 內部 helper：在每個 await 後檢查是否還是最新 nav，不是就 abort
@@ -227,9 +230,10 @@ async function loadPage(route, search = '', fromUserNav = false, fromFooter = fa
     // fromFooter：人在 footer、本頁退場動畫都在視窗上方看不到 → 照跑（runPageExit 順便清空 handler 註冊表）但不等，
     // 只等 footer 退場（user 2026-09-27：faculty 點 logo 回 index 比同頁回頂慢＝多等卡片收場 ~0.4s）；
     // 頁內殘留 tween 由 cleanupPageModules killTweensOf 收掉。⚠️alumni 退場收 header bar，user 說之後再處理
+    // fromFooter 連 footer 卡片也不退場：換頁後整頁往上捲、footer 自然捲出畫面（user 2026-10-01「已經往上了，不需要讓 item 退場」）
     // playPageIndicatorExit：左下當前頁卡（header 內、不隨 main swap）在畫面內才跟頁面同拍沉出（user 2026-09-28）
     const pageExit = runPageExit(route);
-    const [_exit, _fexit, _iexit, res] = await Promise.all([fromFooter ? null : pageExit, playFooterExit(), playPageIndicatorExit(), fetch(fetchUrl)]);
+    const [_exit, _fexit, _iexit, res] = await Promise.all([fromFooter ? null : pageExit, fromFooter ? null : playFooterExit(), playPageIndicatorExit(), fetch(fetchUrl)]);
     if (isStale()) return; // 中途有新 nav，放棄這次（不 cleanup 不 swap，讓新 nav 接手）
     void _exit; void _fexit; void _iexit;
     if (!res.ok) throw new Error(`Failed to load ${route.htmlFile}`);
@@ -309,7 +313,7 @@ async function loadPage(route, search = '', fromUserNav = false, fromFooter = fa
 
     // footer 若在離頁時跑了退場（playFooterExit），此時已 scrollToTop、footer 捲離視窗 → 重新散佈進場復位
     //（不被看到，純把 items 從隱藏狀態還原 + 重啟 shuffle）。沒退場 / footer 隱藏頁則 no-op。
-    // fromFooter 時 footer 還在視窗內 → 等往上捲完才復位（見下方 rAF）
+    // fromFooter 本身不退場（上方 Promise.all）；下方 rAF 捲完仍呼叫一次＝保險（no-op）
     if (!fromFooter) resetFooterAfterExit();
 
     // 更新 body class（generate / atlas / library 鎖頁面 scroll，滿版單屏）
@@ -384,6 +388,7 @@ async function loadPage(route, search = '', fromUserNav = false, fromFooter = fa
 
   } catch (err) {
     console.error('[Router] Page load error:', err);
+    unlockDeepLink();
     // 載入失敗且不是在載入 404 本身 → 嘗試載入 404 頁
     if (route.page !== '404' && NOT_FOUND_ROUTE) {
       loadPage(NOT_FOUND_ROUTE, search);
@@ -420,9 +425,22 @@ export function reloadCurrentRoute() {
   loadPage(route, search);
 }
 
+// 會播 deep-link 呈現的頁與觸發條件（同各頁 init 判斷）：activities/admission/faculty 看 ?section、curriculum 看
+// ?program、library 看 item 級 hash（純分頁名只切分頁不呈現）。這些頁呈現完成（含 fallback）時自己 unlockDeepLink()
+const LIBRARY_TAB_HASHES = ['#awards', '#press', '#files', '#album'];
+function presentsDeepLink(page, search, hash) {
+  const sp = new URLSearchParams(search);
+  if (page === 'activities' || page === 'admission' || page === 'faculty') return sp.has('section');
+  if (page === 'curriculum') return sp.has('program');
+  if (page === 'library') return hash.length > 1 && !LIBRARY_TAB_HASHES.includes(hash);
+  return false;
+}
+
 export function navigateTo(url, { fromFooter = false } = {}) {
   const { pathname, search, hash } = new URL(url, window.location.origin);
   const route = resolveRoute(pathname) || NOT_FOUND_ROUTE;
+  // deep-link：點下去當下就擋使用者操作（本頁退場也蓋住），目標頁呈現完自己解鎖；一般換頁順手解掉殘留鎖
+  if (presentsDeepLink(route.page, search, hash)) lockForDeepLink(); else unlockDeepLink();
 
   // 點下連結的當下就把 nav active 切到目標頁：先收起舊 active 的中文（.nav-link-cn），再立刻標新頁 active
   // → 新頁中文立刻展開並 stay，不用等退場動畫 + swap 後的 updateNavActive（否則點完移開游標，靠 hover
@@ -444,6 +462,10 @@ export function navigateTo(url, { fromFooter = false } = {}) {
 
 // ── 事件綁定 ──────────────────────────────────────────────────
 export function initRouter() {
+  // head 的 icon 是相對路徑：pushState 換目錄後瀏覽器會重新解析（首頁 images/… → /pages/images/… 404）。
+  // 第一次換頁前先釘成絕對網址（站台根／GitHub Pages 子路徑都對）
+  /** @type {NodeListOf<HTMLLinkElement>} */ (document.querySelectorAll('link[rel~="icon"], link[rel="apple-touch-icon"]')).forEach(l => { l.href = l.href; });
+
   // 停用瀏覽器自動恢復 scroll（由 SPA 自行控制）
   if ('scrollRestoration' in history) {
     history.scrollRestoration = 'manual';
@@ -484,11 +506,11 @@ export function initRouter() {
     // 建立完整 URL 來解析
     const url = new URL(href, window.location.origin);
 
-    // footer 站內連結：footer 退場後往上捲——目標是本頁（如首頁點 logo）就只捲頂不重載（exitFooterToTop）；
-    // 別頁則 footer 不動、上方換成新頁再往上捲進去（loadPage fromFooter）
+    // footer 站內連結：footer 卡片不退場、直接往上捲（user 2026-10-01「已經往上了，不需要讓 item 退場」，logo 同）——
+    // 目標是本頁（如首頁點 logo）就只捲頂不重載；別頁則 footer 不動、上方換成新頁再往上捲進去（loadPage fromFooter）
     if (link.closest('#site-footer, #site-footer-static')) {
       e.preventDefault();
-      if (resolveRoute(url.pathname)?.page === resolveRoute(window.location.pathname)?.page) exitFooterToTop();
+      if (resolveRoute(url.pathname)?.page === resolveRoute(window.location.pathname)?.page) scrollWindowNoSnap(0);
       else navigateTo(url.href, { fromFooter: true });
       return;
     }

@@ -1,9 +1,37 @@
 import { DUR, EASE } from '../ui/motion.js';
 import { scrollWindowNoSnap, clampBelowFooter, lockSnapOff, unlockSnap } from '../ui/snap-scroll.js';
+// 循環 import（activities-search 也 import 本檔）安全：只在點擊時呼叫、不在模組頂層用；且 main-modular 已靜態載入該檔＝不擴大模組圖
+import { markProgrammaticScroll } from '../ui/activities-search.js';
 /**
  * Workshop Accordion Module
  * 工作營手風琴功能（包含 Year Toggle 和 Workshop Header）
  */
+
+// 年份組收合的捲動落點（user 2026-10-01「關 2025 應讓 2024 頂到 top，不是等量去算當前位置」）：
+//   下一個可見年份組頂貼釘線（＝年份標籤 sticky 的同一條線）；無下一組（最後一年／lazy 還沒建）退回本組標籤貼釘線。
+//   collapse＝本組之後還會縮掉的高（下一組屆時上移這麼多；收完重量傳 0）。夾在收合後 maxScroll 內，否則收完瀏覽器瞬間 clamp＝跳；
+//   spacer 不扣（年份收合不清 box-scroll-spacer，不同於 closeListHeader 收完會清）。
+function yearCollapseTarget(group, scroller, pinTop, collapse) {
+  let next = group.nextElementSibling;
+  while (next && !(next.classList.contains('list-year-group') && next.getClientRects().length)) next = next.nextElementSibling;  // 跳過分隔線／被搜尋藏起的組
+  const viewTop = scroller ? scroller.getBoundingClientRect().top : 0;
+  const cur = scroller ? scroller.scrollTop : window.scrollY;
+  const anchorTop = next ? next.getBoundingClientRect().top - collapse : group.getBoundingClientRect().top;
+  const max = scroller ? scroller.scrollHeight - scroller.clientHeight : document.documentElement.scrollHeight - window.innerHeight;
+  return Math.max(0, Math.min(Math.round(anchorTop - viewTop + cur - pinTop), max - collapse));
+}
+
+// 年份收合的跟捲／補差 tween：box＝gsap 捲 scroller；window＝掛在 window 上的空 tween、onUpdate 逐幀 scrollTo。
+//   不走 scrollWindowNoSnap：沒 ScrollToPlugin（只 5 頁 <head> 有、SPA 換頁不補載＝從 admission/faculty… 進站整個 session 都沒有）
+//   時它退 native smooth——不吃 duration/ease、onComplete 跟 scrollend 走 → 跟捲與收合脫鉤、settle 收合半途就量＝落點過頭再瞬跳回。
+//   target 仍掛 window＝別處 scrollWindowNoSnap 的 killTweensOf(window) 照樣接手（同 box 路徑被 overwrite）；window 路徑只在
+//   手機直向／矮橫向＝本來就無磁吸（scroll-snap.css min-width:768、landscape.css 5c），免 snap-none hold。
+function tweenYearScroll(scroller, y, vars) {
+  if (scroller) return gsap.to(scroller, { scrollTop: y, overwrite: true, ...vars });
+  const from = window.scrollY;
+  const tw = gsap.to(window, { overwrite: true, ...vars, onUpdate: () => window.scrollTo({ top: from + (y - from) * tw.ratio, behavior: 'instant' }) });
+  return tw;
+}
 
 /**
  * Initialize Workshop Year Toggle (年份展開/收合)
@@ -78,16 +106,61 @@ function initListYearToggle() {
         this.setAttribute('aria-expanded', String(!isOpen)); // 無障礙：報讀切換後狀態
 
         if (isOpen) {
+          // 捲進本組中段才收（組頂已越過釘線）→ 收合同時捲到下一年頂貼釘線（見 yearCollapseTarget）；原本 scrollTop 不動，
+          //   收掉的高全落在視窗上方＝畫面掉到下一年深處。整組從頭可見 → 原地收合（原行為）。量測在 tween 前（收合前版面）。
+          // item 開合序列進行中（listAnimating）也原地收合：跟捲的 overwrite 會殺掉它的對齊捲動 → alignDone 永不 resolve、
+          //   doExpand 不跑、鎖不解＝之後 item 點擊全被吞
+          const scroller = getScrollableBox(this);
+          const pinTop = getListStickyTop(this);
+          const groupRect = yearGrid.getBoundingClientRect();
+          const follow = !listAnimating && groupRect.top - (scroller ? scroller.getBoundingClientRect().top : 0) < pinTop - 1;
+          const collapse = follow ? groupRect.height - this.getBoundingClientRect().height : 0;
+          const target = follow ? yearCollapseTarget(yearGrid, scroller, pinTop, collapse) : 0;
+          // 清單高 / 組縮量：桌面年份欄與清單並排、組高＝max(標籤高, 清單高) → 清單縮到比標籤矮組就不再縮（k>1）；手機標籤疊在清單上 k＝1
+          const k = follow ? Math.max(1, itemsContainer.getBoundingClientRect().height / Math.max(1, collapse)) : 1;
           // Close = 展開的完美倒帶（user 2026-08-28）：duration 用 DUR.medium 對齊 open（原 DUR.base 快 100ms），
           // ease 維持 exitSoft(power2.in)＝enterSoft(power2.out) 的時間反向 → 收起就是展開反著播。
           gsap.to(itemsContainer, {
             height: 0,
             duration: DUR.medium,
             ease: EASE.exitSoft,
+            // 收合中再點＝再收一次（isOpen 看 inline 高）：殺掉前一條，否則它先跑完的 display:none 讓剩餘清單高瞬間消失＝整片跳
+            overwrite: true,
             onComplete: () => {
               itemsContainer.style.display = 'none';
             }
           });
+          if (follow && Math.abs(target - (scroller ? scroller.scrollTop : window.scrollY)) > 1) {
+            // 程式上捲別讓方向式 handler 彈出 search bar（bar 開合＝釘線位移一個 bar 高、落點跑掉）；busy＝lazy 補批讓路（補批改版面）
+            const ms = DUR.medium * 1000 + 300;
+            markProgrammaticScroll(ms);
+            markAccordionBusy(ms);
+            // 收完重量補差（同 open 收齊）：cv:auto 上方 item 估高→實高會讓預算落點差幾～幾十 px。收合途中就偏（畫面已看得到）→ 短 tween 平滑補；
+            //   收完那幀才進 c-v 邊界的 item 是 paint「之後」才換實高、下一幀整片位移（實測直接跳到深處再收：上方 3 筆估高 -37px）
+            //   → 再追 3 幀，在 rAF（paint 前）直接改 scrollTop＝與位移同幀抵銷、看不到跳；捲動位置被別人動過（使用者接手）就停
+            //   已重開（收完 height 0 即可再點開）就停：版面又長回來，再追會把捲動拉過剛展開的內容
+            const settle = (frames, last) => {
+              if (itemsContainer.style.display !== 'none') return;
+              const cur = scroller ? scroller.scrollTop : window.scrollY;
+              if (last != null && Math.abs(cur - last) > 1) return;
+              // 釘線重讀：點擊當下 search bar 若還在 0.3s 開合 transition，當時量的線已過時（收完時 bar 早定局）
+              const fresh = yearCollapseTarget(yearGrid, scroller, getListStickyTop(this), 0);
+              const off = Math.abs(fresh - cur) > 1;
+              if (off && frames == null) {
+                markProgrammaticScroll(DUR.fast * 1000 + 300);
+                tweenYearScroll(scroller, fresh, { duration: DUR.fast, ease: EASE.enterSoft, onComplete: () => settle(3) });
+                return;
+              }
+              if (off) { markProgrammaticScroll(250); if (scroller) scroller.scrollTop = fresh; else window.scrollTo({ top: fresh, behavior: 'instant' }); }
+              if (frames == null || frames > 1) requestAnimationFrame(() => settle(frames == null ? 3 : frames - 1, off ? fresh : cur));
+            };
+            // 捲動進度＝組「實際」縮掉的比例 min(1, exit(t)·k)，不直接套 exitSoft：並排版組先縮完、同 ease 的捲動還在走
+            //   → 下一年在最後 3~10% 時間衝過釘線 20~40px 再彈回。比例同步＝下一年單調滑到釘線、scrollTop 全程 ≤ 當下 maxScroll（不 clamp）。
+            //   同 duration、建在 height tween 之後＝同幀 onComplete 後跑、settle 量到 display:none 後版面（兩條都走 gsap 時鐘，見 tweenYearScroll）
+            const exitEase = gsap.parseEase(EASE.exitSoft);
+            const followEase = (t) => Math.min(1, exitEase(t) * k);
+            tweenYearScroll(scroller, target, { duration: DUR.medium, ease: followEase, onComplete: settle });
+          }
           if (chevron) gsap.to(chevron, { rotation: 180, duration: DUR.fast });  // close → 朝右
         } else {
           // Open with GSAP animation
@@ -131,7 +204,7 @@ function listContentOf(header) {
 // restore 從 dataset.accentHex（proceedOpen 存的）重建；rAF 去抖讓 hover A→B（mouseleave 先於 mouseenter）不閃。
 let dimRestoreRAF = 0;
 function dimOpenItemForHover(hoveredHeader) {
-  // legal（多 item 同時展開、hover-dim 走 CSS opacity）：不做「拔展開 item accent」——多 active 只會誤拔第一個
+  // legal（多 item 同時展開）：不做「拔展開 item accent」——多 active 只會誤拔第一個
   if (hoveredHeader.closest('.legal-zebra')) return;
   cancelAnimationFrame(dimRestoreRAF);
   const scope = hoveredHeader.closest('.activities-panel') || document;
@@ -803,10 +876,16 @@ function initListHeaderAccordion() {
 
           // 展開內容（height 0→auto）。抽成函式以支援兩段式：開新 item 時等對齊捲完才跑。
           const doExpand = () => {
+            // chevron 先於縮圖：展開前同步量本 item 的 gallery chevron（估寬 ≤1300 沒預渲染的漏網），
+            // 不等序列完 idle 的 gallery:check——縮圖收合時多半已載完，等它＝展開先見圖、chevron 晚 ~1s 才冒
+            workshopItem?.dispatchEvent(new Event('gallery:open'));
             gsap.to(content, {
               height: 'auto', duration: DUR.medium, ease: EASE.enterSoft,
               onComplete: () => {
                 content.style.overflow = 'visible';
+                // 開啟序列（含下方收齊補捲）整段跑完才發 list:opened：deep-link 導航等它解除操作鎖（deeplink-lock.js）
+                const opened = () => self.dispatchEvent(new Event('list:opened'));
+                let settling = false;
                 // 桌面 inner-scroll：content 展開完 maxScroll 才定案 → 把寬鬆 spacer 修剪成「剛好」(長 list=0) 並收齊對位。
                 // 收齊目標「當下重量」不用 openBoxTarget：cv:auto 下對齊捲動途中上方 item 估高→實高版面位移，
                 // 開跑前算的值會 stale（deep-link 長距離明顯＝header 沒貼 pin 線，user 2026-09-10）。錨點用
@@ -830,11 +909,13 @@ function initListHeaderAccordion() {
                   const fresh = alignWithBottomSpacer(anchor, Math.max(0, Math.round(anchor.getBoundingClientRect().top + window.scrollY - getListStickyTop(self))));
                   if (Math.abs(fresh - window.scrollY) > 1) {
                     markAccordionBusy(800);   // 補差捲動不觸發方向式 bar 開合（activities-search busy gate）
-                    scrollWindowNoSnap(fresh, { duration: DUR.fast, ease: EASE.enterSoft });
+                    settling = true;
+                    scrollWindowNoSnap(fresh, { duration: DUR.fast, ease: EASE.enterSoft, onComplete: opened });
                   }
                 }
                 dispatchGalleryCheckWhenIdle(workshopItem);   // 九輪 Part 3：延到序列完＋DOM 乾淨才派發
                 listAnimating = false;  // 序列完成解鎖
+                if (!settling) opened();
               }
             });
             // sticky-pin observer: 開展瞬間就 attach（header 在自然位置 ratio=1 → 不 pinned）；之後滾過 sticky 線 IO 才加 .is-pinned

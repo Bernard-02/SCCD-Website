@@ -234,11 +234,14 @@ export async function revalidateActivitiesData() {
   }
 }
 
+// key 必含 stamp：同一 collection 有人帶子類型 stamp（activities 頁 exhibitionType／visitType）、有人不帶（首頁浮卡）→
+//   共用 key 時先到的「無 stamp」結果被頁面拿去用、子類型 filter 篩成 0 筆（2026-10-01 實測：從首頁換到 activities 展演特設清單全空）
+const colKey = (collection, opts) => `col:${collection}:${opts.category || ''}:${opts.sortByDate ? 1 : 0}:${opts.stamp ? JSON.stringify(opts.stamp) : ''}`;
 export function loadActivityCollection(collection, fallbackUrl, opts = {}) {
-  return flight(`col:${collection}:${opts.category || ''}:${opts.sortByDate ? 1 : 0}`, () => _loadActivityCollection(collection, fallbackUrl, opts));
+  return flight(colKey(collection, opts), () => _loadActivityCollection(collection, fallbackUrl, opts));
 }
 async function _loadActivityCollection(collection, fallbackUrl, opts = {}) {
-  const lkgKey = `col:${collection}:${opts.category || ''}:${opts.sortByDate ? 1 : 0}`;  // 對齊 flight key
+  const lkgKey = colKey(collection, opts);  // 對齊 flight key
   try {
     // 圖片走 CloudFront（見 imageUrl / normalizeFiles）→ 要檔案的 filename_disk：poster.filename_disk（單檔）、
     // images 是 files M2M（fields=* 只回 junction id）→ 深取 images.directus_files_id.filename_disk。

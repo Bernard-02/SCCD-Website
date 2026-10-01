@@ -630,11 +630,15 @@ function buildSessionsHtml(item, dateColMinWidth, { showGuestCountry = true, sho
 // Lightbox title 改成 list-item 名稱（user 指定：不是 section 分類名稱），accent 底色仍從 active section 取
 // elem = 觸發 lightbox 的元素（album-thumb 或 [data-lightbox-open]），closest .list-item 即父層
 function getLightboxMeta(elem) {
+  const listItem = elem.closest('.list-item');
+  // 底色（lightbox 左下 title／返回／分享 pill 同色）＝這列打開時的 accent（list-accordion 存 header dataset.accentHex；
+  // user 2026-10-01「左下角 title box 顏色跟這個 list 打開的顏色一樣」）；不在 list 內／沒存色才退回 section 分頁鈕色。
+  // mode3 由 activities-lightbox resolvePillColor 統一換白，這裡不分支
+  const header = /** @type {HTMLElement | null | undefined} */ (listItem?.querySelector(':scope > .list-header'));
   const btn = document.querySelector('.activities-section-btn.active');
   const inner = /** @type {HTMLElement | null | undefined} */ (btn?.querySelector('.anchor-nav-inner'));
-  const color = inner?.style.background || '';
+  const color = header?.dataset.accentHex || inner?.style.background || '';
 
-  const listItem = elem.closest('.list-item');
   // marquee 溢出時會 append clone <p>，直接抓 :scope > .list-header 下「每個 marquee wrap 的第一個 p」才是真本文
   const marquees = listItem?.querySelectorAll(':scope > .list-header .list-title-marquee') || [];
   const title = {
@@ -746,6 +750,7 @@ export function bindInteractions(container, { autoReveal = true, incremental = f
     let chevArmed = !!ownerItem?.querySelector('.list-header.active');
     const queuedChevrons = () => { if (chevArmed) queueMarqueeCheck(track, updateChevrons); };
     ownerItem?.addEventListener('gallery:check', () => { chevArmed = true; queuedChevrons(); });
+    ownerItem?.addEventListener('gallery:open', () => { chevArmed = true; updateChevrons(); });   // 展開前同步量（list-accordion doExpand）
     // 額外 ResizeObserver：track width 變化（grid layout reflow / window resize）時重算 chevron 顯隱
     if (typeof ResizeObserver !== 'undefined') {
       new ResizeObserver(queuedChevrons).observe(track);
@@ -799,6 +804,7 @@ export function bindInteractions(container, { autoReveal = true, incremental = f
     let chevArmed = !!ownerItem?.querySelector('.list-header.active');
     const queuedChevrons = () => { if (chevArmed) queueMarqueeCheck(track, updateChevrons); };
     ownerItem?.addEventListener('gallery:check', () => { chevArmed = true; queuedChevrons(); });
+    ownerItem?.addEventListener('gallery:open', () => { chevArmed = true; updateChevrons(); });   // 展開前同步量（list-accordion doExpand）
     // ResizeObserver：list-item 展開時 list-content height:0 → auto 過程中 track 寬度從 0 變實際值，
     // 單純 gallery:check (展開瞬間 dispatch) 算到的 track.clientWidth 還是 0 → chevron 永遠 invisible
     // 對齊 album-gallery 同 pattern (line 467-469)，跟著 track resize 重算
@@ -1001,7 +1007,7 @@ export function bindInteractions(container, { autoReveal = true, incremental = f
       //   收合後仍可見＝回彈看得到）。⚠️不能兩端都綁：桌面若讓 active-toggle 介入，收合時滑鼠仍在 header 會被迫回彈到 0
       //   （該續捲）；手機若綁 hover，touch-scroll 的 emulated mouseleave 會誤停還開著的 marquee。摘要欄無 active 態＝
       //   手機到不了這裡（gate=null 上面已 auto-play 早退），故此分支手機只會是 header。
-      const isMobileView = window.innerWidth < 768 || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+      const isMobileView = window.innerWidth < 768 || window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
       if (header && isMobileView) {
         const mo = new MutationObserver(() => (header.classList.contains('active') ? playAll() : easeAll()));
         mo.observe(header, { attributes: true, attributeFilter: ['class'] });

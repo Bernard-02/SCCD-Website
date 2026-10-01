@@ -9,17 +9,18 @@ import { revalidateActivitiesData, beginActivitiesVisit } from './activities-sou
 import { loadDegreeShowListInto } from './degree-show-data-loader.js';
 import { applyMarqueeOverflow, bindMarqueeReturn } from '../ui/marquee-overflow.js';
 import { initListAccordion, resetListAccordionsInPanel, alignWithBottomSpacer } from '../accordions/list-accordion.js';
-import { reapplySearch, markProgrammaticScroll } from '../ui/activities-search.js';
+import { clearSearch, markProgrammaticScroll } from '../ui/activities-search.js';
 import { setActiveNavBtn, showPanel, initHoverDimMoveGuard, bindNavBtnFit, bindNavBtnSpin, isNavSpinDesktop, bindFrameScrollSplit, flashDeepLinkDim, navHoverColor } from '../ui/section-switch-helpers.js';
 import { playAdmissionPanelExit, playAdmissionPanelReveal, setupAdmissionReveal } from './admission-data-loader.js';
 import { playClipReveal, navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
-import { snapRowsShown } from '../ui/list-row-reveal.js';
+import { snapRowsShown, exitRows, hideRows, revealRows } from '../ui/list-row-reveal.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { waitForHeroAnimDone } from './hero-animation.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { scrollWindowNoSnap } from '../ui/snap-scroll.js';
+import { lockForDeepLink, deepLinkUnlocker } from '../ui/deeplink-lock.js';
 
 // 追蹤哪些 panel 已載入過資料
 const loaded = {};
@@ -38,6 +39,8 @@ let pendingSwitch = null;
 let userSwitchedSection = false;
 // Part 4-1：進行中那輪 switch 的 promise（guard 命中時回傳它，讓 navigateToItem 的 await 真正等到 render，不再靠 sleep+輪詢硬等）
 let currentSwitchPromise = null;
+// 離頁退場已開跑（playActivitiesExit）：子分頁淨空 wipe 的 search 列揭回段讓路（見 animatedSubListSwitch）
+let leavingPage = false;
 
 // box 是否「真的是捲動容器」：矮橫向 landscape gate 把 activities 的 100vh frame 拆掉（overflow 改 visible、
 // window 捲），但 class 還在 → 看 computed overflow-y 不看寬度（同 list-accordion getScrollableBox / admission）。
@@ -65,9 +68,10 @@ function getScrollableScrollCol(el) {
 /**
  * @param {HTMLElement | null} el
  * @param {'instant' | 'smooth'} [behavior]
+ * @param {() => void} [onDone] 捲到位才呼叫（deep-link 用它解除操作鎖）
  */
-function scrollSectionIntoView(el, behavior = 'instant') {
-  if (!el) return;
+function scrollSectionIntoView(el, behavior = 'instant', onDone) {
+  if (!el) { onDone?.(); return; }
   // 桌面 inner-scroll（2026-06-29）：捲動在右欄 .activities-scroll-col、section 是固定 frame。「回到 section 頂」＝
   //   window 停在 section（frame 填滿視窗，給 deep-link 從 hero 下來用）+ scroll-col.scrollTop=0（顯示 panel 頂）。
   //   手機（<768）與矮橫向拆 frame（box overflow 被 gate 改 visible）→ 走下面原 window 落點邏輯。
@@ -75,12 +79,12 @@ function scrollSectionIntoView(el, behavior = 'instant') {
   if (scroller) {
     const sectionTopDoc = el.getBoundingClientRect().top + window.scrollY;
     if (behavior === 'smooth') {
-      scrollWindowNoSnap(sectionTopDoc, { duration: DUR.medium, ease: EASE.move });
+      scrollWindowNoSnap(sectionTopDoc, { duration: DUR.medium, ease: EASE.move, onComplete: onDone });
       scroller.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
       window.scrollTo({ top: sectionTopDoc, behavior: 'instant' });
       scroller.scrollTop = 0;
-      requestAnimationFrame(() => { window.scrollTo({ top: sectionTopDoc, behavior: 'instant' }); scroller.scrollTop = 0; });
+      requestAnimationFrame(() => { window.scrollTo({ top: sectionTopDoc, behavior: 'instant' }); scroller.scrollTop = 0; onDone?.(); });
     }
     return;
   }
@@ -112,12 +116,12 @@ function scrollSectionIntoView(el, behavior = 'instant') {
     const dist = Math.abs(targetY - window.scrollY);
     const dur = window.innerWidth < 768 ? Math.min(1.1, Math.max(DUR.medium, dist / 1200)) : DUR.medium;
     // 捲動全程關 mandatory snap（否則從 footer snap 點起步會 onEnterBack↔onLeave 無限抖動卡住）→ 共用 scrollWindowNoSnap。
-    scrollWindowNoSnap(targetY, { duration: dur, ease: EASE.move });
+    scrollWindowNoSnap(targetY, { duration: dur, ease: EASE.move, onComplete: onDone });
     return;
   }
   // instant（分頁切換）
   window.scrollTo({ top: y(), behavior: 'instant' });
-  requestAnimationFrame(() => window.scrollTo({ top: y(), behavior: 'instant' }));
+  requestAnimationFrame(() => { window.scrollTo({ top: y(), behavior: 'instant' }); onDone?.(); });
 }
 
 let currentSectionColor = '';
@@ -158,7 +162,7 @@ function waitForItemRevealed(item, timeout = 8000) {
 function centerSectionNavBtn(section) {
   // 矮橫向 bar 也是水平 strip（landscape.css 5f 單行 scroll）→ 同樣要置中；真桌面 vertical sticky 不需要
   if (window.innerWidth >= 768
-    && !window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) return;
+    && !window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches) return;
   const btn = /** @type {HTMLElement | null} */ (document.querySelector(`.activities-section-btn[data-section="${section}"]`));
   const bar = /** @type {HTMLElement | null} */ (btn && btn.closest('.activities-section-bar'));
   if (!btn || !bar) return;
@@ -168,16 +172,27 @@ function centerSectionNavBtn(section) {
   bar.scrollTo({ left: bar.scrollLeft + delta, behavior: 'smooth' });
 }
 
+// deep-link 程式點開目標 item：開啟序列（對齊＋展開＋收齊）整段跑完（list-accordion 發 list:opened）才解除操作鎖
+/**
+ * @param {HTMLElement} header
+ * @param {() => void} unlock
+ */
+function clickOpenThenUnlock(header, unlock) {
+  header.addEventListener('list:opened', unlock, { once: true });
+  header.click();
+}
+
 // 從外部（如 industry reference 按鈕 / 首頁 floating 活動海報 deep-link）導航到指定 section 的指定 item
 // smooth=true（首頁 deep-link 用）：平滑捲到 item、捲到位後 delay 才展開 accordion（對齊 curriculum 節奏）；
 // smooth=false（預設，ref 按鈕等頁內跳轉）：instant 跳到位後立即 flash + 展開（維持原行為）
-export async function navigateToItem(section, itemId, { smooth = false } = {}) {
+// unlock：呈現完的解鎖鑰匙——init deep-link 傳 main-modular 換頁時取好的那支；頁內 ref 跳轉不傳＝上鎖後當下取（見 deeplink-lock.js）
+export async function navigateToItem(section, itemId, { smooth = false, unlock = deepLinkUnlocker() } = {}) {
   const btns = document.querySelectorAll('.activities-section-btn');
   await switchToSection(section, btns, false);
   // ref/deep-link 不經 nav btn click handler → strip 置中在此補（否則切到別的 section 後往上捲回 strip，
   // active btn 停在畫面外，user 2026-07-03 截圖）
   centerSectionNavBtn(section);
-  if (!itemId) return;
+  if (!itemId) { unlock(); return; }
 
   // 等 fetch + DOM render 完成後再 scroll。Part 4-2：await switchToSection 現真正涵蓋 fetch+render（非 guard 情況）→ 刪 150ms sleep，只留 rAF 一幀等 layout。
   await new Promise(r => requestAnimationFrame(r));
@@ -211,7 +226,7 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
   }
   if (!target) {
     const sectionEl = document.getElementById('activities-content-section');
-    if (sectionEl) scrollSectionIntoView(sectionEl, smooth ? 'smooth' : 'instant');
+    scrollSectionIntoView(sectionEl, smooth ? 'smooth' : 'instant', unlock);
     return;
   }
 
@@ -270,8 +285,8 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
         header.style.background = boxFlashColor;
         // deepOpen：proceedOpen ①對齊捲完才展開（不並行＝無 title 殘影）②自關留在對齊位不回 section 頂（user 2026-09-10）
         header.dataset.deepOpen = '1';
-        header.click();  // 不設 skipOpenScroll → proceedOpen 捲 box 精準對齊
-      }
+        clickOpenThenUnlock(header, unlock);  // 不設 skipOpenScroll → proceedOpen 捲 box 精準對齊
+      } else unlock();
     };
     if (smooth) {
       // 首頁 deep-link：window 平滑捲到 section（frame 填滿視窗）→ proceedOpen box 對齊 + 展開同時跑
@@ -369,8 +384,8 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
         // 會用這個色而非挑隨機，ACCENT_TO_DEEP 也對得上拿到對應 deep ref 色。
         header.dataset.accentHex = flashColor;
         header.style.background = flashColor;
-        header.click();
-      }
+        clickOpenThenUnlock(header, unlock);
+      } else unlock();
     }, 600);
   };
 
@@ -394,8 +409,8 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
         header.dataset.skipOpenScroll = '1';
         header.dataset.accentHex = flashColor;
         header.style.background = flashColor;
-        header.click();
-      }
+        clickOpenThenUnlock(header, unlock);
+      } else unlock();
     };
     markProgrammaticScroll(scrollDur * 1000 + 400);   // 對齊捲動不觸發方向式 bar 開合（含補差的上捲）
     scrollWindowNoSnap(finalTop, { duration: scrollDur, ease: EASE.enterSoft, onComplete: () => {
@@ -425,6 +440,7 @@ export async function navigateToItem(section, itemId, { smooth = false } = {}) {
  * 自動「不記住之前打開的 list」。
  */
 async function playActivitiesExit() {
+  leavingPage = true;
   const panel = /** @type {HTMLElement | null} */ (document.querySelector('.activities-panel:not(.hidden)'));
   if (!panel) return;
   // 三者並行退場（router runPageExit 會 await 整個 Promise.all 才換頁）：
@@ -548,7 +564,7 @@ function setupSectionNavReveal() {
   // 「hero 之後才 reveal、回 hero 出場隱藏」＝嚴格 hero gate（觀察 hero 本體底緣離開視窗頂 −8px；
   // 同 admission setNav，clip-path 非 opacity）。fixed nav 被 clip 掉時 btn 外框仍在 → pointer-events 一併切。
   const sectionEl = document.getElementById('activities-content-section');
-  const isLandscapeGate = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+  const isLandscapeGate = window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
   if (isLandscapeGate && 'IntersectionObserver' in window && sectionEl) {
     const navCol = /** @type {HTMLElement|null} */ (sectionEl.querySelector('.inner-scroll-nav-col'));
     if (navCol) navCol.style.pointerEvents = 'none';
@@ -735,7 +751,8 @@ function whenHeroDoneOrScrolledToward() {
 
 // fromUserNav：true=使用者點連結的 SPA 導航（首頁 floating 活動海報）；false=初始載入 / refresh / 上一頁下一頁。
 // 只有 fromUserNav 才播 ?item= 的「捲到 item + flash + 展開 accordion」導航動畫，refresh 視為全新頁面（只套 ?section= 分頁，不重播）。
-export function initActivitiesSectionSwitch(defaultSection = 'general', fromUserNav = false) {
+// unlock：deep-link 呈現完的解鎖鑰匙（main-modular 換頁 init 時取好傳入，見 deeplink-lock.js）
+export function initActivitiesSectionSwitch(defaultSection = 'general', fromUserNav = false, unlock) {
   const btns = document.querySelectorAll('.activities-section-btn');
   if (btns.length === 0) return;
 
@@ -774,9 +791,10 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
   // finally 消費會切去過期 section＋active 樣式寫到死節點 → 一併歸零
   pendingSwitch = null;
   currentSwitchPromise = null;
+  leavingPage = false;
 
-  // 暴露給 industry reference 按鈕使用（避免循環 import）
-  window.__sccdNavigateToItem = (section, itemId) => navigateToItem(section, itemId);
+  // 暴露給 industry reference 按鈕使用（避免循環 import）；頁內 ref 跳轉同樣是 deep-link 呈現 → 上鎖，navigateToItem 呈現完解
+  window.__sccdNavigateToItem = (section, itemId) => { lockForDeepLink(); return navigateToItem(section, itemId); };
 
   // ?section= / ?item= deep-link：只有從首頁 floating 卡片點進來的 SPA 導航（fromUserNav）才套指定 section + 跑導航動畫。
   const params = new URLSearchParams(window.location.search);
@@ -790,7 +808,7 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
     if (toDegreeShowTab) initialSection = 'exhibitions';
     const initialItem = params.get('item');
     const initSwitchPromise = switchToSection(initialSection, btns, false, true);
-    if (toDegreeShowTab) initSwitchPromise.then(() => selectExhibitionsType('degree-show'));
+    const degreeShowTabDone = toDegreeShowTab ? initSwitchPromise.then(() => selectExhibitionsType('degree-show')) : null;
     // deep-link 進場後同樣預暖其餘分頁資料，讓後續手動切換免等網路
     initSwitchPromise.then(() => prefetchOtherActivitiesData()).then(() => revalidateActivitiesData());
     // 等 hero 進場才往下捲（waitForHeroAnimDone；封頂 ~0.9s = hero 多組時不等全播完免「卡在 hero 太久」，user 2026-06-27；對齊 curriculum）。
@@ -860,15 +878,17 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
       // 有 ?item= → navigateToItem smooth:true：平滑捲到該項目 → 捲到位 delay 才展開 accordion
       waitForHeroAnimDone().then(() => {
         unhideLazyLists();
-        return navigateToItem(initialSection, initialItem, { smooth: true });
+        return navigateToItem(initialSection, initialItem, { smooth: true, unlock });
       })
         .finally(() => setTimeout(settleListWork, 2500));
     } else {
       // 沒指定 item → 只平滑捲到 list section，不做 highlight
-      waitForHeroAnimDone().then(() => {
+      const scrolled = waitForHeroAnimDone().then(() => new Promise(resolve => {
         const sectionEl = /** @type {HTMLElement | null} */ (document.getElementById('activities-content-section'));
-        scrollSectionIntoView(sectionEl, 'smooth');  // deep-link：hero 跑完平滑捲到 section（無併發 reveal）
-      });
+        scrollSectionIntoView(sectionEl, 'smooth', () => resolve(undefined));  // deep-link：hero 跑完平滑捲到 section（無併發 reveal）
+      }));
+      // 捲到位（舊 ?section=degree-show 連結再加切完畢業展子分頁）＝呈現完成 → 解除操作鎖
+      Promise.all([scrolled, degreeShowTabDone]).then(unlock);
     }
   } else {
     // refresh / 直接開連結 / 上一頁下一頁（fromUserNav=false）：清掉 deep-link query（URL 變乾淨）+ 停在 default section
@@ -989,6 +1009,8 @@ async function _switchToSection(section, btns, shouldScroll, isInitial = false) 
     // 5. 進場 setup：在 showPanel 前完成 yPercent:100 推送，避免 panel 顯示後才 set 造成 1 frame 閃爍
     //    .hidden 上的 element 仍可 wrap clip-reveal-wrapper + gsap.set（GSAP 不在乎 visibility）
     // limit 64 ≈ 一屏 row 數上限（~14 item×4 row）+ cull MARGIN 緩衝：大清單只藏會被看到的，見 setupAdmissionReveal
+    // 換子分頁＝搜尋清空（user 2026-10-01）；target 還 .hidden＝還原不會被畫出來，接著 setup 重新藏起
+    if (target) clearSearch(targetId);
     if (target) setupAdmissionReveal(target, { hide: true, limit: 64 });
     // filter chip（exhibitions/visits sub-tab）改 chip 自身 clip-path reveal，先收起
     if (target) hideFilterChips(target);
@@ -1112,9 +1134,25 @@ async function animatedSubListSwitch(panelId, lists, targetType, ready = null) {
       const el = lists[k];
       if (k !== targetType && el && el.style.display !== 'none') { outgoing = el; break; }
     }
+    // 同分頁換子清單＋搜尋框有字（user 2026-10-01）：整條 search 列跟舊清單同拍 clip-reveal 退場、藏著時清空、
+    // 隨新清單揭回＝「被擦掉」。section 切換不走這（整個 panel 含 search 列本來就一起退/進）；空框＝不動。
+    // 引擎/參數同 section 切換時這列（list-reveal-row，已被 setupAdmissionReveal 包 clip wrapper）的退/進場。
+    const searchRow = /** @type {HTMLElement | null} */ (document.querySelector(`#${panelId} .activities-search-inner`));
+    // trim 同搜尋引擎：只打空白＝清單沒被濾、框看起來是空的 → 照空框處理（不擦）
+    const wipeSearch = !!(/** @type {HTMLInputElement | null} */ (searchRow?.querySelector('.activities-search-input'))?.value.trim());
+    // 無結果的 No Result 也是這次搜尋的畫面 → 跟 search 列同拍擦掉（兩行各有 clip 遮罩，見 activities-search getOrCreateEmptyState）
+    const noResultRows = wipeSearch ? [...document.querySelectorAll(`#${panelId} .search-empty-state`)]
+      .filter(el => /** @type {HTMLElement} */ (el).style.display === 'flex').flatMap(el => [...el.querySelectorAll('p')]) : [];
 
-    if (outgoing) {
-      await playAdmissionPanelExit(outgoing, { viewportCull: true });
+    if (outgoing || wipeSearch) {
+      // 舊清單有展開 accordion：playAdmissionPanelExit 先收合（DUR.medium）才退 rows → search 列等收完再退＝同拍
+      // （同 section 切換：search 列是 panel rows 之一、收合後一起退）。展開中往上捲一下 bar 就會現形＝遇得到
+      const waitCollapse = wipeSearch && !prefersReducedMotion() && !!outgoing?.querySelector('.list-header.active');
+      await Promise.all([
+        outgoing && playAdmissionPanelExit(outgoing, { viewportCull: true }),
+        wipeSearch && (waitCollapse ? new Promise(r => setTimeout(r, DUR.medium * 1000)) : Promise.resolve())
+          .then(() => exitRows([searchRow, ...noResultRows], { dur: DUR.base })),
+      ]);
     }
     if (ready) {
       try { await ready; } catch (err) {
@@ -1127,11 +1165,13 @@ async function animatedSubListSwitch(panelId, lists, targetType, ready = null) {
       }
     }
 
+    clearSearch(panelId);   // 舊清單還 display 時清（選對搜尋引擎），下面 display 切換同步蓋掉、不閃
+    // clearSearch 的還原會 snapRowsShown 整個 panel 的 rows（含 search 列）→ 同一同步段藏回（無 paint＝不閃），下面揭
+    if (wipeSearch) hideRows([searchRow]);
     for (const k of Object.keys(lists)) {
       const el = lists[k];
       if (el) el.style.display = k === targetType ? '' : 'none';
     }
-    reapplySearch(panelId);
     if (incoming.id === 'degree-show-list') bindDegreeShowMarquee(incoming);
 
     // 切 sub-filter 一律捲回 section 頂（對齊左側 section nav，user 2026-06-06「點 filter 也要回到 filter 頂部」）。
@@ -1146,6 +1186,17 @@ async function animatedSubListSwitch(panelId, lists, targetType, ready = null) {
     // 進場 reveal：useScrollTrigger=false 立刻播（不等捲到 viewport）
     setupAdmissionReveal(incoming, { hide: true, limit: 64 });
     playAdmissionPanelReveal(incoming, { useScrollTrigger: false, viewportCull: true });
+    // 同 section 切換揭 intro（search 列）的參數；先單次 reflow commit 藏起態，否則 transition snap（list-row-reveal 檔頭）
+    // 揭回＝bar 要在畫面上（同 activities-search 清空／結果回頂的 bar 保留）：展開 accordion 收的 bar-hidden，box 已在頂時
+    // 捲回頂不產生 scroll event、不會被解除 → 擦完 bar 仍收著（短清單捲不動＝叫不回）。先解除再揭（內容此刻藏在遮罩下）
+    // panel 已在離場（退場途中點了左欄 section／站內連結、或等畢業展載入時已切走）＝退場接手這列 → 留在藏起態不揭
+    //   （下次 section 進場 setup/reveal 接回）；否則 search 列會在 panel 退場途中滑回畫面
+    const panelLeaving = switching || leavingPage || !!document.getElementById(panelId)?.classList.contains('hidden');
+    if (wipeSearch && !panelLeaving) {
+      searchRow.closest('.activities-filter-bar')?.classList.remove('bar-hidden');
+      void searchRow.offsetHeight;
+      revealRows([searchRow], { dur: DUR.medium });
+    }
   } finally {
     subFilterSwitching = false;
   }

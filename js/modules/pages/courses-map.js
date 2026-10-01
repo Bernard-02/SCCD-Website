@@ -329,11 +329,15 @@ function getSlideIn()      { return document.getElementById('courses-slide-in');
 function getSlidePanel()   { return document.getElementById('courses-detail-panel'); }
 function getSlideOverlay() { return document.getElementById('courses-overlay'); }
 
-function openCourseSlideIn(card) {
+/**
+ * @param {HTMLElement} card
+ * @param {() => void} [onOpened] 滑入動畫跑完才呼叫（deep-link 用它解除操作鎖）
+ */
+function openCourseSlideIn(card, onOpened) {
   const slideIn = getSlideIn();
   const panel = getSlidePanel();
   const overlay = getSlideOverlay();
-  if (!slideIn || !panel || !overlay) return;
+  if (!slideIn || !panel || !overlay) { onOpened?.(); return; }
 
   // Populate（從 marquee inner 讀 textContent，避免拿到雙 .marquee-copy 的串接版本）
   const titleEnSrc = card.querySelector('.courses-grid-card-en .courses-marquee-inner .marquee-copy')
@@ -373,7 +377,7 @@ function openCourseSlideIn(card) {
   const descWrap = panel.querySelector('.courses-detail-desc-wrapper');
   if (descWrap) {
     const isDesktopLayout = window.innerWidth >= 768
-      && !window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+      && !window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
     const sticky = zhT && zhT.closest('.courses-detail-title-sticky');
     if (isDesktopLayout && sticky) {
       const dip = zhT.getBoundingClientRect().bottom - sticky.getBoundingClientRect().bottom;
@@ -419,7 +423,7 @@ function openCourseSlideIn(card) {
   htmlEl.classList.add('has-slide-in');
 
   if (typeof gsap !== 'undefined') {
-    const tl = gsap.timeline()
+    const tl = gsap.timeline({ onComplete: onOpened })
       .to(overlay, { opacity: 0.8, duration: DUR.fast }, 0)
       .to(panel, { x: '0%', duration: DUR.medium, ease: EASE.enter }, 0.3);
     // 返回鍵跟 panel 同步 clip-reveal
@@ -430,6 +434,7 @@ function openCourseSlideIn(card) {
   } else {
     overlay.style.opacity = '0.8';
     panel.style.transform = 'translateX(0%)';
+    onOpened?.();
   }
 }
 
@@ -542,7 +547,11 @@ function restoreBaseRot(card) {
   delete card.dataset.hoverRot;
 }
 
-function selectCard(card) {
+/**
+ * @param {HTMLElement} card
+ * @param {() => void} [onOpened] 轉給 openCourseSlideIn
+ */
+function selectCard(card, onOpened) {
   if (activeCard && activeCard !== card) {
     activeCard.style.background = '';
     delete activeCard.dataset.currentColor;
@@ -559,7 +568,7 @@ function selectCard(card) {
   // promote hover-rot → baseRot：click 鎖在 hover 當下角度，deselect 後還原此角度
   card.dataset.baseRot = card.dataset.hoverRot;
   delete card.dataset.hoverRot;
-  openCourseSlideIn(card);
+  openCourseSlideIn(card, onOpened);
 }
 
 // SPA 離開 courses 時呼叫：清掉 activeCard ref（避免下次回 courses 時 ref 還指向已被
@@ -583,14 +592,14 @@ function visibleCardBySlug(panel, slug) {
 
 // 給 `?item=slug` deep-link 用：在指定 program panel 內找 data-slug 相符的卡片並 selectCard
 // 有 parts 的課程兩張卡共用 slug → 取可見 grid 內的第一張即可
-// 找不到回傳 false 讓呼叫端可 fallback（例如該 slug 在別的 program）
-export function selectCardBySlugInPanel(program, slug) {
+// 找不到回傳 false 讓呼叫端可 fallback（例如該 slug 在別的 program）；onOpened＝slide-in 滑入跑完（deep-link 解鎖用）
+export function selectCardBySlugInPanel(program, slug, onOpened) {
   if (!slug) return false;
   const panel = document.getElementById(`panel-${program}`);
   if (!panel) return false;
   const card = visibleCardBySlug(panel, slug);
   if (!card) return false;
-  selectCard(card);
+  selectCard(card, onOpened);
   return true;
 }
 
@@ -758,7 +767,7 @@ export async function renderCoursesGrid(program) {
   // 轉向重量（user 2026-07-04 轉向自癒）：桌面/手機兩套 grid 並存、只有 render 當下「可見」那套被量過
   // （隱藏套 row offsetWidth=0 → applyMarqueeOverflow bail）。轉向後換另一套顯示 → 沒 marquee 或帶舊 dual-copy
   // → 跨矮橫向 gate 時重跑（自帶 reset + 0 寬 bail，兩套各自收斂到正確態）。cleanup 由 page-cleanup 統一解綁。
-  const rotateGateMq = window.matchMedia('(orientation: landscape) and (max-height: 500px)');
+  const rotateGateMq = window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)');
   const onRotateGate = () => requestAnimationFrame(() => {
     if (!panel.isConnected) return;
     // 表頭 slide 殘留：直向時 program 切換動畫照樣對「隱藏的桌面表頭」跑，inner 停在 ±100%

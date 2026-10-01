@@ -288,11 +288,12 @@ function exitFacultyCards(cards, onComplete) {
 }
 
 // initialSection：site map deep-link 帶進來的 ?section（fulltime/parttime/admin/founder）；無/不合法 → 預設 fulltime。
-export function initFacultyFilter(initialSection = null) {
+// unlock：deep-link 呈現完的解鎖鑰匙（main-modular 傳入）
+export function initFacultyFilter(initialSection = null, unlock) {
   const filterButtons = document.querySelectorAll('.faculty-filter-btn');
   const facultyCards = document.querySelectorAll('.faculty-card');
 
-  if (filterButtons.length === 0 || facultyCards.length === 0) return;
+  if (filterButtons.length === 0 || facultyCards.length === 0) { unlock(); return; }  // 沒卡片＝deep-link 無從呈現
 
   // 滾輪分區：col 1-3 捲 window（去 footer/hero）、col 4 起內部捲（box 邊界不外溢），見 section-switch-helpers
   bindFrameScrollSplit(document.getElementById('faculty-cards'));
@@ -325,7 +326,7 @@ export function initFacultyFilter(initialSection = null) {
   if (typeof gsap !== 'undefined' && navInners.length && !prefersReducedMotion()) {  // 減少動態：nav 維持靜態可見
     navInners.forEach(inner => { inner.style.transition = 'none'; gsap.set(inner, navChipHidden(inner, navDir.get(inner))); });
     const section = document.getElementById('faculty-cards');
-    const isLandscapeGate = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+    const isLandscapeGate = window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
     if (isLandscapeGate && 'IntersectionObserver' in window && section) {
       // 矮橫向：nav 進 header fixed、hero 也浮著 →「hero 之後才 reveal、回 hero 出場隱藏」（user 2026-07-10
       // 指定 clip-path 非 opacity，同 curriculum）：IO 偵測 cards section 佔視窗中段 → 各 inner 個別方向、
@@ -445,7 +446,7 @@ export function initFacultyFilter(initialSection = null) {
       // 手機 filter bar 是水平 scroll strip：點到的 btn 捲回靠左對齊頁面內容左緣（同 curriculum program btn 做法）。
       // 只動 bar 自己 scrollLeft（rect delta），不用 scrollIntoView 以免連帶動垂直；桌面是 md:flex-col 無水平 scroll。
       // 矮橫向（landscape gate 拆 frame、nav 回水平 strip）同樣要對齊。
-      if (window.innerWidth < 768 || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) {
+      if (window.innerWidth < 768 || window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches) {
         const bar = this.parentElement;
         if (bar) {
           const pad = parseFloat(getComputedStyle(bar).paddingLeft) || 0;
@@ -476,7 +477,7 @@ export function initFacultyFilter(initialSection = null) {
       // 先 exit 當前 visible cards，等收場完才 swap + entrance
       const currentlyVisible = Array.from(facultyCards).filter(card => /** @type {HTMLElement} */ (card).style.display !== 'none');
       exitFacultyCards(currentlyVisible, () => {
-        SCCDHelpers.filterElements(facultyCards, filterValue);
+        SCCDHelpers.filterElements(facultyCards, filterValue, '');   // '' 非 'block'：桌面卡片是 CSS subgrid（cards.css），inline block 會蓋掉
         // 桌面 inner-scroll：切分類後右欄 box 回頂，新卡片從頭顯示（手機走 window 捲、無 scroll-col）
         const scrollCol = /** @type {HTMLElement | null} */ (document.querySelector('#faculty-cards .inner-scroll-scroll-col'));
         if (scrollCol && window.innerWidth >= 768) scrollCol.scrollTop = 0;
@@ -525,7 +526,7 @@ export function initFacultyFilter(initialSection = null) {
   // Initialize: 只顯示 initialFilter 分類的卡片
   facultyCards.forEach(card => {
     const el = /** @type {HTMLElement} */ (card);
-    el.style.display = el.getAttribute('data-category') === initialFilter ? 'block' : 'none';
+    el.style.display = el.getAttribute('data-category') === initialFilter ? '' : 'none';   // '' 理由同下方 filterElements
   });
 
   // Animate initial cards（全部一次性排好整段序列，無 ScrollTrigger）
@@ -535,10 +536,12 @@ export function initFacultyFilter(initialSection = null) {
   // site map ?section= deep-link：套好分類後等 hero 進場、平滑捲到卡片區——router 對 deep-link 導航
   // 跳過 scrollToTop（由目標頁自行捲），faculty 原本只切 active 沒捲＝停在 hero（user 2026-09-15）。
   // 作法對齊 activities/curriculum 的 section-only deep-link（waitForHeroAnimDone → 捲 section 頂）。
+  // 捲到位＝呈現完成 → 解除 deep-link 操作鎖（router 對 ?section 導航已上鎖；空值／不合法的 ?section 不呈現、直接解）
   if (initialSection && VALID_SECTIONS.has(initialSection)) {
     waitForHeroAnimDone().then(() => {
       const sec = document.getElementById('faculty-cards');
-      if (sec) scrollWindowNoSnap(sec.getBoundingClientRect().top + window.scrollY);
+      if (sec) scrollWindowNoSnap(sec.getBoundingClientRect().top + window.scrollY, { onComplete: unlock });
+      else unlock();
     });
-  }
+  } else if (initialSection != null) unlock();
 }

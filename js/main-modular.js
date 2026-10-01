@@ -35,7 +35,7 @@ import { loadAboutContent } from './modules/pages/about/about-data-loader.js';
 import { initProgramStructure } from './modules/pages/about/about-structure.js';
 import { pauseVideosOffscreen } from './modules/ui/pause-offscreen-video.js';
 import { initAnchorNav } from './modules/navigation/anchor-nav.js';
-import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN, clipRevealIconSwap } from './modules/ui/scroll-animate.js';
+import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from './modules/ui/scroll-animate.js';
 
 // Import Page Specific Modules
 import { initIntroAnimation } from './modules/pages/intro-animation.js';
@@ -63,6 +63,7 @@ import { setActiveNavBtn, bindNavBtnSpin } from './modules/ui/section-switch-hel
 
 // Import Lightbox Shell（共用 enter/exit 行為；SPA cleanup 需 reset openCount）
 import { resetLightboxMode, getHeaderTargets } from './modules/lightbox/lightbox-shell.js';
+import { deepLinkUnlocker } from './modules/ui/deeplink-lock.js';
 
 // Import Page Cleanup Registry（各模組註冊離頁要解綁的 window/document listener，SPA 換頁統一 drain）
 import { runPageCleanups, registerPageCleanup } from './modules/ui/page-cleanup.js';
@@ -114,8 +115,8 @@ export function cleanupPageModules(destPage) {
   resetLightboxMode();
   // lightbox header bars 殘留 inline clipPath → 切頁後 header bars 持續被 clip 隱藏；kill tween + 清 inline
   // selector 集中走 lightbox-shell.getHeaderTargets()（之前是 selector 雙寫，header 結構改一處會漏改另一處）
-  // 排除 #mode-btn：它的 inline clipPath 是 animateHeaderModeBtnHide 在 /create 頁刻意設的 hide 狀態，
-  // 不是 lightbox 殘留；清掉會讓 /create same-page reentry 時 mode-btn 視覺凍結現身
+  // 排除 #mode-btn：/create 收它的狀態由 header.js animateHeaderModeBtnHide 管（2026-10-01 起是遮罩平移、非 clipPath），
+  // 這裡別碰，免得 /create same-page reentry 時誤放出來
   if (typeof gsap !== 'undefined') {
     const lbHeaderTargets = getHeaderTargets().filter(el => el.id !== 'mode-btn');
     if (lbHeaderTargets.length) {
@@ -188,6 +189,10 @@ function revealHeaderWhenReady() {
 }
 
 export function initPageModules(page, searchParams = new URLSearchParams(), fromUserNav = false) {
+
+  // deep-link 呈現完的解鎖鑰匙：init 當下同步取（admission／faculty 的 init 要等資料、library 等進場，晚取會拿到
+  // 使用者離頁後才點的新 deep-link 序號）→ 傳給各頁，見 deeplink-lock.js deepLinkUnlocker
+  const unlock = deepLinkUnlocker();
 
   // Theme mode：每次切頁 re-evaluate
   // /generate 頁暫停 mode（移除 body class）+ 按鈕 disabled；其他頁恢復 sessionStorage 的 mode
@@ -310,7 +315,7 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
   if (page === 'admission') {
     // fromUserNav 傳入：首頁 floating camp 海報 deep-link（?section=summer-camp&item=）才跑導航動畫
     loadAdmissionData().then(() => {
-      initAdmissionSectionSwitch(fromUserNav);
+      initAdmissionSectionSwitch(fromUserNav, unlock);
       initActivitiesSearch();  // camp panel 共用 activities 的 search（input[data-panel="panel-summer-camp"]）
     });
   }
@@ -320,19 +325,19 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
     // deep-link：site map 的 ?section=fulltime/parttime/admin 從 SPA 點擊（fromUserNav）落在該分類 active
     const facultySection = fromUserNav ? searchParams.get('section') : null;
     loadFacultyData().then(() => {
-      initFacultyFilter(facultySection);
+      initFacultyFilter(facultySection, unlock);
       initFacultySlideIn();
     });
   }
 
   // --- Curriculum Page（route/file 改名 curriculum；內部模組/CSS class 仍叫 courses-*）---
   if (page === 'curriculum') {
-    initCoursesSectionSwitch(fromUserNav);
+    initCoursesSectionSwitch(fromUserNav, unlock);
   }
 
   // --- Activities Page ---
   if (page === 'activities') {
-    initActivitiesSectionSwitch('exhibitions', fromUserNav);
+    initActivitiesSectionSwitch('exhibitions', fromUserNav, unlock);
     initActivitiesSearch();
     // ref 內 pdfUrl 觸發共用 PDF viewer（與 library / alumni 共用 sccd:open-pdf）
     // viewer 動態載入：modal 單例 guard、重複 init 安全 → 不需 seq guard
@@ -396,13 +401,17 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
     // 桌面：search 列（search／filter／date sort）收成灰卡右下角 icon 工具列（user 2026-09-29；樣式 library.css .lib-toolbar）。
     // 搬成 panel 直接子層：留在內容 grid 裡會被 grid 的進場 clip-path 裁掉（工具列定位在 grid 外的底部標題列）。
     // 必須在 initLibraryPanels 前搬＝它結尾的 hidePanelChildren 才會把工具列一起藏進 phase 1。手機／矮橫向維持原 DOM。
-    if (window.innerWidth >= 768 && !window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) {
+    if (window.innerWidth >= 768 && !window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches) {
       document.querySelectorAll('[id^="lib-panel-"]').forEach(panel => {
         const row = panel.querySelector('[style*="align-items: flex-end"][style*="display: flex"]');
         if (!row) return;
         panel.classList.add('lib-desk-tools');
         row.classList.add('lib-toolbar');
         panel.appendChild(row);
+        // 有字＝維持展開（library.css .has-value；取代 CSS :has(:placeholder-shown)——切 mode 時每次重算都要判、實測 28ms）。
+        //   程式沒有直接改搜尋框值的地方，input 事件就涵蓋打字／刪字／貼上
+        const input = /** @type {HTMLInputElement|null} */ (row.querySelector('input'));
+        if (input) input.addEventListener('input', () => input.parentElement?.classList.toggle('has-value', input.value !== ''));
       });
       // filter 鈕：開關右側分類滑板（.lib-filter-open）＋ icon 換 default/active；點滑板以外（年份區除外）即關
       const setFilterOpen = (/** @type {HTMLElement} */ panel, /** @type {boolean} */ open) => {
@@ -411,7 +420,7 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
         const btn = panel.querySelector('.lib-filter-btn');
         if (!btn) return;
         btn.setAttribute('aria-expanded', String(open));
-        clipRevealIconSwap(btn.querySelector('.icon'), `icon ${open ? 'icon-filter-active' : 'icon-filter'}`);
+        btn.querySelector('.icon').className = `icon ${open ? 'icon-filter-active' : 'icon-filter'}`;   // 直接換、不做 clip reveal（user 2026-10-01）
       };
       document.querySelectorAll('.lib-filter-btn').forEach(btn => btn.addEventListener('click', () => {
         const panel = /** @type {HTMLElement} */ (btn.closest('[id^="lib-panel-"]'));
@@ -447,7 +456,7 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
     // tab bar 沿用 activities-section-bar pattern → 走 setActiveNavBtn 提供 active 隨機色 + 旋轉
     // 矮橫向（橫向手機）也走此路徑（user 2026-07-04）：landscape.css 5h 把 tabs 排左欄、灰卡佔右側
     if (window.innerWidth < 768
-      || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) {
+      || window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches) {
       const tabsRoot = document.getElementById('library-mobile-tabs');
 
       // 手機進場（user 2026-06-12：原本 showPanel+onEntranceDone 同步跑完＝完全沒進場動畫）：
@@ -464,7 +473,7 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
       const finishLibEntrance = () => {
         panels.showPanel(initialTab, { reveal: true }); // playPanelReveal：panel 內容 clip-reveal 進場
         panels.onEntranceDone();
-        panels.handleHash();
+        panels.handleHash(unlock);
       };
       if (typeof gsap !== 'undefined' && librarySection) {
         // ⚠️ section / 灰卡「整體」一律不做進場動畫（clip-path 或 opacity 都會把 section 升 GPU 合成層）：
@@ -601,7 +610,7 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
         // 進場動畫完成後處理 hash deep link（如 library.html#a-2024-01）
         // 已 pre-swap 到目標 panel；handleHash 內 showLibPanel 為 idempotent，
         // 主要工作變成 scroll-into-view + 該項目 hover flash
-        panels.handleHash();
+        panels.handleHash(unlock);
         entranceDone = true;
       },
     });

@@ -30,7 +30,7 @@ import { scrollWindowNoSnap, clampBelowFooter } from '../ui/snap-scroll.js';
 // frame 拆掉（section 自然高、box 不捲），gate 同 footer-scatter usesMobileFooter()
 function usesWindowScroll() {
   return window.innerWidth < 768
-    || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+    || window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
 }
 
 
@@ -66,16 +66,17 @@ function sectionScrollTop(el) {
 /**
  * @param {HTMLElement | null} el
  * @param {ScrollBehavior} [behavior]
+ * @param {() => void} [onDone] smooth 捲到位才呼叫（deep-link 用它解除操作鎖）
  */
-function scrollSectionIntoView(el, behavior = 'smooth') {
-  if (!el) return;
+function scrollSectionIntoView(el, behavior = 'smooth', onDone) {
+  if (!el) { onDone?.(); return; }
   // 桌面 inner-scroll：右欄 box 回頂（切 program / 點同分頁都讓新內容從頭顯示）；手機無 scroll-col（window 捲）。
   const scroller = /** @type {HTMLElement | null} */ (usesWindowScroll() ? null : el.querySelector('.inner-scroll-scroll-col'));
   if (scroller) scroller.scrollTop = 0;
   const top = sectionScrollTop(el);
   // smooth 程式捲動關 mandatory snap（否則被 snap 搶、落點錯，同 deep-link item 路徑）；instant 不需 tween。
-  if (behavior === 'smooth') scrollWindowNoSnap(top);
-  else window.scrollTo({ top, behavior });
+  if (behavior === 'smooth') scrollWindowNoSnap(top, { onComplete: onDone });
+  else { window.scrollTo({ top, behavior }); onDone?.(); }
 }
 
 // courses 專用旋轉幅度 ±2°（排除 ±0.5）— 比 SCCDHelpers.getRandomRotation(-4~6) 小，
@@ -131,11 +132,12 @@ function bindHover(btn) {
 }
 
 /**
- * @param {boolean} [fromUserNav] true=使用者點連結的 SPA 導航（首頁課程卡片）；
+ * @param {boolean} fromUserNav true=使用者點連結的 SPA 導航（首頁課程卡片）；
  *   false=初始載入 / refresh / 上一頁下一頁。只有 fromUserNav 才播 ?item= 的「捲到 section + 開 slide-in」
  *   導航動畫，refresh 視為全新頁面（只套 ?program= tab，不重播）。
+ * @param {() => void} unlock deep-link 呈現完的解鎖鑰匙（main-modular 換頁 init 時取好傳入，見 deeplink-lock.js）
  */
-export function initCoursesSectionSwitch(fromUserNav = false) {
+export function initCoursesSectionSwitch(fromUserNav = false, unlock) {
   const programBtns = document.querySelectorAll('.courses-program-btn');
   const panels = document.querySelectorAll('.courses-panel');
   const sectionEl = document.getElementById('courses-content-section');
@@ -229,8 +231,8 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
     const OPEN_DELAY_MS = 600;   // 捲到卡片後、開 slide-in 前的緩衝（同 activities navigateToItem 的 600）
     // 同時等 grid render（卡片存在才能 selectCardBySlugInPanel）+ hero 動畫播完才往下捲
     Promise.all([initSwitchPromise, waitForHeroAnimDone()]).then(async () => {
-      if (!sectionEl) return;
-      if (!itemSlug) { scrollSectionIntoView(sectionEl); return; }
+      if (!sectionEl) { unlock(); return; }
+      if (!itemSlug) { scrollSectionIntoView(sectionEl, 'smooth', unlock); return; }
       // 手機年級分頁：目標卡片可能在非 active 年級 block（隱藏）→ 先切到該年級，
       // 後面的 measureCardDelta / highlight / select 才找得到「可見」的卡
       ensureMobileGradeForSlug(initialProgram, itemSlug);
@@ -268,7 +270,8 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
           // highlight 窗口其餘卡/label 半透明（比照 activities deep-link dim，courses.css .is-hovered 版）；
           // 時長取 OPEN_DELAY＝slide-in 開啟那刻結束，不跟 slide-in 自己的 overlay 變暗疊加
           flashDeepLinkDim(card, OPEN_DELAY_MS);
-          setTimeout(() => selectCardBySlugInPanel(initialProgram, itemSlug), OPEN_DELAY_MS);
+          // slide-in 完全滑入才解除 deep-link 操作鎖；找不到卡（slug 對不上）＝不開，直接解
+          setTimeout(() => { if (!selectCardBySlugInPanel(initialProgram, itemSlug, unlock)) unlock(); }, OPEN_DELAY_MS);
         });
       };
       // 桌面 inner-scroll（卡片在右欄 box 內捲）：兩段式（同 admission navigateToAdmissionItem）——
@@ -294,7 +297,7 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
       // deep-link 捲動全程關 mandatory snap（否則 snap 搶捲動 → 速度被牽制 / 到不了第一排位置），捲完才開卡。
       const top = clampBelowFooter(sectionScrollTop(sectionEl) + measureCardDelta());
       scrollWindowNoSnap(top, { onComplete: openCard });
-    });
+    }).catch(err => { unlock(); throw err; });  // 課程資料載入失敗＝不會呈現 → 解除 deep-link 操作鎖（錯誤照舊拋出）
   }
 
   programBtns.forEach(btn => {
@@ -345,7 +348,7 @@ export function initCoursesSectionSwitch(fromUserNav = false) {
     // 嚴格 hero gate 只給矮橫向（nav fixed 進 header 帶、hero 屏要藏）。直向手機 nav 在 flow、
     // 緊接 hero 之下 → 走下面 once-reveal（section 進 90% 線就現），不能等 hero 完全捲出才出現
     // （user 2026-07-12「手機版 nav btn 應該在 hero 之下就出現、不是等 main section 到視窗」）。
-    const isLandscapeGate = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+    const isLandscapeGate = window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
     if (isLandscapeGate && 'IntersectionObserver' in window && sectionEl) {
       // 矮橫向：nav 進 header fixed、hero 也浮著 →「hero 之後才 run、hero 時出場隱藏」（user 2026-07-09）：
       // IO 偵測 content section 佔到視窗中段（捲過 hero）→ 每顆 btn 個別方向、同時（stagger:0）clip-reveal；

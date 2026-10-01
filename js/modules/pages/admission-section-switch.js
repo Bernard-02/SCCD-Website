@@ -16,6 +16,7 @@ import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { waitForHeroAnimDone } from './hero-animation.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { scrollWindowNoSnap } from '../ui/snap-scroll.js';
+import { snapRowsShown } from '../ui/list-row-reveal.js';
 
 // 當前 active section 的色（setActiveNavBtn 回傳）；給 deep-link highlight 用（= 該 section 色，三原色之一）
 let currentSectionColor = '';
@@ -46,14 +47,15 @@ function waitForItemRevealed(item, timeout = 8000) {
 // 首頁 floating camp 海報 deep-link 用：捲到指定 item → 等 reveal → flash highlight → 展開 accordion
 // （比照 activities navigateToItem smooth 版，但 admission summer-camp 結構簡單：無 sub-tab / sticky filter bar）。
 // 呼叫前 section 已切到 summer-camp 且 list 已載入（switchSection await 完）。
-async function navigateToAdmissionItem(itemId) {
+// unlock：deep-link 呈現完的解鎖鑰匙（見 initAdmissionSectionSwitch）
+async function navigateToAdmissionItem(itemId, unlock) {
   if (!itemId) return;
   // 等 DOM render settle
   await new Promise(r => setTimeout(r, 150));
   await new Promise(r => requestAnimationFrame(r));
 
   const target = /** @type {HTMLElement | null} */ (document.getElementById(`item-${itemId}`));
-  if (!target) return;
+  if (!target) { unlock(); return; }
 
   // year group 收合的先展開（summer-camp 若年份分組）
   const yearItems = /** @type {HTMLElement | null} */ (target.closest('.list-year-items'));
@@ -84,8 +86,9 @@ async function navigateToAdmissionItem(itemId) {
         header.dataset.skipOpenScroll = '1';     // 已捲齊 → accordion open 不要再自己捲
         header.dataset.accentHex = flashColor;    // highlight 色繼承成 accordion active 色
         header.style.background = flashColor;
+        header.addEventListener('list:opened', unlock, { once: true });  // 展開序列跑完才解除 deep-link 操作鎖
         header.click();
-      }
+      } else unlock();
     }, 600);
   };
 
@@ -128,16 +131,17 @@ async function navigateToAdmissionItem(itemId) {
 /**
  * @param {HTMLElement | null} el
  * @param {ScrollBehavior} [behavior]
+ * @param {() => void} [onDone] smooth 捲到位才呼叫（deep-link 用它解除操作鎖）
  */
-function scrollSectionIntoView(el, behavior = 'smooth') {
-  if (!el) return;
+function scrollSectionIntoView(el, behavior = 'smooth', onDone) {
+  if (!el) { onDone?.(); return; }
   // 桌面 inner-scroll：右欄 box 回頂（切 section 讓新 panel 從頭顯示）；手機/矮橫向拆 frame（window 捲）box 不可捲＝no-op 也安全。
   const scroller = getScrollableScrollCol(el.querySelector('.inner-scroll-scroll-col'));
   if (scroller) scroller.scrollTop = 0;
   const top = el.getBoundingClientRect().top + window.scrollY;
   // smooth 程式捲動關 mandatory snap（否則被 snap 搶、落點錯，同 deep-link item 路徑）；instant 不需 tween。
-  if (behavior === 'smooth') scrollWindowNoSnap(top);
-  else window.scrollTo({ top, behavior });
+  if (behavior === 'smooth') scrollWindowNoSnap(top, { onComplete: onDone });
+  else { window.scrollTo({ top, behavior }); onDone?.(); }
 }
 
 // ── 左側 section nav 進場/退場（比照 faculty/activities nav，user 2026-06-07）──
@@ -157,7 +161,7 @@ function setupSectionNavReveal() {
   inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = 'none'; gsap.set(inner, navChipHidden(inner, navDir.get(inner))); });
 
   const section = document.getElementById('admission-content-section');
-  const isLandscapeGate = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+  const isLandscapeGate = window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
   if (isLandscapeGate && 'IntersectionObserver' in window && section) {
     // 矮橫向：nav 進 header fixed、hero 也浮著 →「hero 之後才 reveal、回 hero 出場隱藏」，clip-path 非
     // opacity（user 2026-07-10 三反饋定為全站 nav btn 原則，同 curriculum/faculty setNav）：IO 偵測
@@ -268,7 +272,8 @@ function initAdmissionMobileSticky() {
 
 // fromUserNav：true=使用者點連結的 SPA 導航（首頁 floating camp 海報）；false=初始載入 / refresh / 上一頁下一頁。
 // 只有 fromUserNav 才套 ?section=/?item= deep-link 並跑導航動畫；refresh 視為全新頁面（清 query、停 default news）。
-export function initAdmissionSectionSwitch(fromUserNav = false) {
+// unlock：deep-link 呈現完的解鎖鑰匙（main-modular 換頁 init 時取好傳入；本函式要等資料載完才跑，不能在這裡才取）
+export function initAdmissionSectionSwitch(fromUserNav = false, unlock) {
   const btns = /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.activities-section-btn'));
   if (!btns.length) return;
 
@@ -381,11 +386,19 @@ export function initAdmissionSectionSwitch(fromUserNav = false) {
     // switchSection 為 async（summer-camp lazy load）→ await 完 list 才在 DOM，再等 hero 進場（waitForHeroAnimDone，封頂 ~0.9s）平滑導航/捲動。
     switchSection(initialSection, false, true).then(() => {
       if (initialItem) {
-        waitForHeroAnimDone().then(() => navigateToAdmissionItem(initialItem));
+        // rows 進場「init 即完成」（照搬 activities deep-link 同段）：揭露的 ScrollTrigger 綁 window，桌面 inner-scroll box
+        //   捲動驅動不到 → 後段 item 的列一直藏著，waitForItemRevealed 乾等 8s 逾時才開（2026-10-01 實測 12.6s 才展開）
+        const panel = document.getElementById(`panel-${initialSection}`);
+        if (panel) {
+          snapRowsShown(panel.querySelectorAll('.list-reveal-row'));
+          /** @type {NodeListOf<HTMLElement>} */ (panel.querySelectorAll('.list-item.list-item-zebra')).forEach(it => { it.style.clipPath = ''; });
+          panel.querySelectorAll('.list-item[data-pre-reveal]').forEach(it => it.removeAttribute('data-pre-reveal'));
+        }
+        waitForHeroAnimDone().then(() => navigateToAdmissionItem(initialItem, unlock));
       } else {
-        waitForHeroAnimDone().then(() => scrollSectionIntoView(document.getElementById('admission-content-section')));
+        waitForHeroAnimDone().then(() => scrollSectionIntoView(document.getElementById('admission-content-section'), 'smooth', unlock));
       }
-    });
+    }).catch(err => { unlock(); throw err; });  // 資料載入失敗＝不會呈現 → 解除 deep-link 操作鎖（錯誤照舊拋出）
   } else {
     // refresh / 直接開連結 / 上一頁下一頁：清掉 deep-link query（URL 變乾淨）+ 停在 default news（= 直接點 admission 的樣子）
     if (hasDeepLink) history.replaceState(history.state, '', window.location.pathname);
