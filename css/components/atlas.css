@@ -396,7 +396,7 @@ body.mode-color #atlas-detail-mask {
   }
 }
 /* ≥1200 桌面鉛筆改圓鈕、底 48（mode-color-panel.css .mcp-cap-mask，user 2026-09-28）→ 說明卡底對齊跟著 48 */
-@media (min-width: 1200px) and (min-height: 501px) {
+@media (min-width: 1024px) and (min-height: 501px) {
   body.mode-color #atlas-detail-mask {
     bottom: 48px;
   }
@@ -559,12 +559,7 @@ body.mode-color #atlas-detail-mask {
   display: inline;
   white-space: nowrap;
 }
-/* Hosting↔Employment 之間額外 +0.25rem（visible gap = 0.5 base + 0.25 = 0.75rem）
-   user 多次調整：原 0.15rem 太擠、原 negative margin 已拿掉
-   collapsed state 時 marginTop 由 createStaticChipCtrl animate 到 -0.5rem 抵消 gap */
-.atlas-alumni-subchip + .atlas-alumni-subchip {
-  margin-top: 0.25rem;
-}
+/* Hosting↔Employment 間距併入 #atlas-filter > * + *（全站 --nav-btn-gap，user 2026-10-01 統一） */
 
 /* Map view 下 subchip 可互動：cursor + 點擊由 atlas.js handle
    三態（user 08-27 三修：inactive 底色對齊 .atlas-filter-btn inactive 的「看 mode」邏輯——
@@ -613,23 +608,16 @@ body.mode-inverse .atlas-alumni-subchip.subchip-inactive :is(.atlas-alumni-caree
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.5rem;
+  gap: 0.5rem;   /* ⚠️基礎 gap 固定 0.5rem：subchip 收合時 JS 用 marginTop -0.5rem 抵銷（atlas.js COLLAPSED_MARGIN_TOP） */
   z-index: 50;
 }
 
-/* 主 filter btn (Faculty / Alumni-row / Partners) 之間額外 +0.5rem → 視覺 gap = 0.5 + 0.5 = 1rem
-   alumni-row 也視為主 btn；subchip 預設不套（保持 0.5rem 基礎 gap） */
-#atlas-filter > .atlas-filter-btn + .atlas-filter-btn,
-#atlas-filter > * + .atlas-alumni-row,
-#atlas-filter > .atlas-alumni-row + .atlas-filter-btn,
-#atlas-filter > .atlas-alumni-subchip + .atlas-filter-btn {
-  margin-top: 0.5rem;
-}
-
-/* AlumniRow → 第一個 subchip (Hosting) 之間額外 +0.5rem → 視覺 gap = 0.5 + 0.5 = 1rem
-   讓 Hosting 跟 alumni-row 之間有明顯區分（但比主 btn 間 gap 略大）*/
-#atlas-filter > .atlas-alumni-row + .atlas-alumni-subchip {
-  margin-top: 0.5rem;
+/* chip 之間（主 btn／alumni-row／Hosting・Employment subchip）視覺間距一律＝全站桌面 nav btn 間距 --nav-btn-gap
+   （user 2026-10-01「gap 統一，組成因功能不同 ok」；取代原「主 btn 16／subchip 間 12」兩層）。
+   組成＝基礎 gap 0.5rem＋這裡補差：subchip 展開時 JS 讀 computed margin-top 當自然值、收合歸 -0.5rem → 改值只動 token。
+   直向手機／矮橫向是橫排 tab，下方 media 以 margin-top:0 !important 歸零，不受影響。 */
+#atlas-filter > * + * {
+  margin-top: calc(var(--nav-btn-gap) - 0.5rem);
 }
 
 /* ── 左下角 Layout toggle button — 也對齊 logo 左緣 ───────────────── */
@@ -728,7 +716,7 @@ body.mode-inverse .atlas-alumni-subchip.subchip-inactive :is(.atlas-alumni-caree
 /* ≥1200 左下「當前頁」卡（navigation.css #page-indicator）佔了切換鈕原位 → 鈕排到卡右邊（user 2026-09-28；
    09-27 版疊在卡上方 16）：左＝卡右緣（header.js 發佈 --page-indicator-right＝未旋轉盒）＋ md 24（同 header
    mode↔漢堡鈕距）、底 48 同卡底。list 底線＝卡頂 + 16（卡比鈕高；分頁行數 calcListPageSize 讀 list 底）。gate 同 desktop menu */
-@media (min-width: 1200px) and (min-height: 501px) {
+@media (min-width: 1024px) and (min-height: 501px) {
   #atlas-layout-btn {
     left: calc(var(--page-indicator-right, 120px) + var(--spacing-md, 24px));
     bottom: 48px;
@@ -1062,7 +1050,7 @@ body.mode-inverse .atlas-alumni-subchip.subchip-inactive :is(.atlas-alumni-caree
   }
 }
 /* 矮橫向寬 ≥768 會誤落上面的桌面 hover 區、觸控又無 hover＝兩頭落空 → 併入自動捲（user 2026-09-24） */
-@media (max-width: 767px), (orientation: landscape) and (max-height: 500px) {
+@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
   .atlas-list-name-en.is-overflow .atlas-marquee-inner,
   .atlas-list-name-zh.is-overflow .atlas-marquee-inner,
   .atlas-list-item-label-en.is-overflow .atlas-marquee-inner,
@@ -1536,7 +1524,7 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
    ② A/B/C 文字 chip → 圓點（圓點/zoom 規則已上移到 .atlas-dot-mode class block，直向橫向共用）
    ③ 以下 media 只保留 list view 3-col 重排 + stage top（橫向專屬）
    觸控手勢（pan / pinch / tap zoom-in）在 atlas.js isMobileAtlas 分支 */
-@media (orientation: landscape) and (max-height: 500px) {
+@media (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
   /* 橫向 overview 的 A/C/em label opacity:0 但 span 佔位且蓋在 co chip 上 → 偷走 elementFromPoint、
      tap co 開不了卡（user 2026-09-24）。看不見＝不該可點：dot 態關 hit-test、text-zoom（可見）恢復。
      直向不套（09-15 tap label 直開卡吃 hit-test）；A/C/em 圓點 tap-zoom 走幾何距離不走 hit-test、不受影響 */
@@ -1663,18 +1651,13 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
 }
 
 /* ── Idle Standby Mode ──────────────────────────────────────────
- * 由 idle-standby.js 在 3 分鐘無操作後加上 body.idle-standby
- * Header / atlas-filter / atlas-layout-btn 由 idle-standby.js 用 clip-path 控制收起/展開
- *   （不在這裡 display:none 否則破壞動畫）
- * atlas-list-view / atlas-detail 待機時無需動畫，瞬間 display:none 即可
- * overlay 內那份 atlas（非 atlas 頁時 mount）的 filter / layout-btn 仍要 display:none
- *   — 因為非 atlas 頁時這兩個 btn 不該出現在待機畫面（不是 atlas 頁本身的 btn）
+ * 由 idle-standby.js 在 3 分鐘無操作後加上 body.idle-standby，蓋 #idle-standby-overlay 紙
+ *   （atlas 頁星雲例外：不蓋紙、非待機元素由 JS clip-reveal 收掉；list view 照蓋紙）
+ * 紙上那份 atlas 只留星雲：filter / layout-btn / list / detail 一律 display:none
+ *   ⚠️ 只限紙內：atlas 頁本身的 list 若一起藏，退場 crossfade 期間 list 不見、摘 class 才跳出來
  * atlas 元素 pointer-events: none → 無 hover 效果，但 window-level
  * mousemove 仍可觸發離開待機 */
-body.idle-standby #atlas-list-view,
-body.idle-standby #atlas-detail,
-body.idle-standby #idle-standby-overlay #atlas-filter,
-body.idle-standby #idle-standby-overlay #atlas-layout-btn {
+body.idle-standby #idle-standby-overlay :is(#atlas-list-view, #atlas-detail, #atlas-filter, #atlas-layout-btn) {
   display: none !important;
 }
 

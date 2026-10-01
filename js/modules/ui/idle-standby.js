@@ -11,14 +11,17 @@
  *   - body.idle-standby CSS 自帶 atlas 內部 UI 隱藏 + atlas 元素 pointer-events:none
  *   - 離開時 cleanupAtlas + 清空 overlay，底下原頁完整保留（無 SPA 切換）
  *
- * 邊界（2b）：使用者本來在 atlas 頁時不蓋 overlay，僅切 body.idle-standby class（header 照常可見）
+ * atlas 頁例外（user 2026-10-01）：星雲本身就是待機畫面＝不蓋紙（畫面上的 item 自然是當下篩選結果），
+ *   非待機元素 clip-reveal 收掉、醒來收回來：header logo/鈕＋左下頁卡（header.js）、篩選鈕/career/切換鈕/說明卡
+ *   （atlas.js enterAtlasPageStandby）、mode3 色盤鈕（body.idle-standby-inplace → mode-color-panel.js gate）。
+ *   list view 沒星雲可留 → 照其他頁蓋紙（紙上全部＝切 list 時篩選本就重設全開）。
  *
  * 進入順序：
  *   1. add body.idle-standby
- *   2. (非 atlas 頁) 空白底 fade in → initAtlas 分批點燈 intro（同 atlas 頁進場；user 2026-07-15）
+ *   2. 空白底 fade in → initAtlas 分批點燈 intro（同 atlas 頁進場；user 2026-07-15）
  *
  * 離開順序：
- *   1. (非 atlas 頁) 整個 atlas 單純 fade out（09-10 起；舊制 playOverlayAtlasExit 覆蓋色塊退場已撤）→ unmount atlas
+ *   1. 整個 atlas 單純 fade out（09-10 起；舊制 playOverlayAtlasExit 覆蓋色塊退場已撤）→ unmount atlas
  *   2. remove body.idle-standby
  *
  * 過場期間 isTransitioning flag 擋掉 activity reset 避免 race，結束後主動 reset 一次
@@ -28,6 +31,7 @@
 // module cache 與 atlas 頁共用同一份；atlasApi 存 namespace 供 unmount 的 cleanupAtlas 用。
 let atlasApi = null;
 import { DUR, EASE } from './motion.js';
+import { hideHeaderChromeForStandby, showHeaderChromeForStandby } from '../../header.js';
 
 const IDLE_TIMEOUT = 3 * 60 * 1000; // 3 分鐘
 const PHASE_DURATION = DUR.reveal;    // 星雲 / 背景 fade 每階段秒數
@@ -67,19 +71,10 @@ let isStandby = false;
 let isTransitioning = false;
 let initialized = false;
 let atlasMounted = false;
+let inPlace = false;        // atlas 頁星雲：頁面本身當待機畫面（不蓋紙）
+let chromeHidden = false;   // inPlace 且真的收了非待機元素（背景分頁不收，見 atlas.js enter 註解）
 /** @type {(() => void) | null} 背景分頁進待機時掛的一次性 visibilitychange listener（見 armMountOnVisible） */
 let pendingMountOnVisible = null;
-
-function getPageKey() {
-  const path = window.location.pathname.replace(/\/$/, '');
-  if (path === '' || path === '/index.html') return 'index';
-  const last = path.split('/').pop().replace('.html', '');
-  return last || 'index';
-}
-
-function isOnAtlas() {
-  return getPageKey() === 'atlas';
-}
 
 function ensureOverlay() {
   let overlay = document.getElementById('idle-standby-overlay');
@@ -121,8 +116,8 @@ async function mountStandbyAtlas(instant) {
 
 function unmountStandbyAtlas() {
   if (!atlasMounted) return;
-  atlasApi.cleanupAtlas();   // atlasMounted=true 必經 mount 的 await import → atlasApi 必已就緒
   const overlay = document.getElementById('idle-standby-overlay');
+  atlasApi.cleanupAtlas(overlay);   // atlasMounted=true 必經 mount 的 await import → atlasApi 必已就緒
   if (overlay) {
     overlay.innerHTML = '';
     overlay.style.pointerEvents = 'none';
@@ -167,7 +162,7 @@ function armMountOnVisible() {
     if (document.hidden) return;   // 只認 hidden→visible
     disarmMountOnVisible();
     requestAnimationFrame(async () => {
-      if (!isStandby || isTransitioning || atlasMounted || isOnAtlas()) return;
+      if (!isStandby || isTransitioning || atlasMounted) return;
       await mountStandbyAtlas(true);
       setStandbyAtlasVisible();
     });
@@ -188,7 +183,7 @@ async function enterStandby() {
   if (window.innerWidth < 768) return;
   // 矮橫向（橫向手機）也不進（user 2026-07-04「橫向自然不該有待機」）：atlas 星雲在 <500px 高是文字湯，
   // gate 同 landscape.css（orientation:landscape + max-height:500px）
-  if (window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) return;
+  if (window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches) return;
   // 背景分頁進待機：rAF 暫停＋沒人在看 → 直接定態（不 fade），使用者切回本 tab 時「已經是待機」，
   // 不是「當著面才 fade 進待機」。fade 只在停在本 tab 不動才跑。user 2026-06-24。
   const instant = document.hidden;
@@ -197,14 +192,24 @@ async function enterStandby() {
 
   document.body.classList.add('idle-standby');
 
-  if (!isOnAtlas()) {
-    if (instant) {
-      // 背景分頁：不真 mount，切回可見的下一幀才掛（09-25，見 armMountOnVisible 註解）
-      armMountOnVisible();
-    } else {
-      // mount overlay atlas：先空白底 fade in（header 連 logo 隨之被蓋掉）、內容走 atlas 分批點燈 intro（mount 內處理）
-      await mountStandbyAtlas(false);
+  // atlas 頁星雲：不蓋紙，非待機元素 clip-reveal 收掉（見檔頭）；不適用（list view 等）才往下走蓋紙。
+  // menu 開著也走紙：收了 menu 鈕、面板還攤在星雲上（紙整個蓋住＝menu 狀態原樣留著）
+  if (document.querySelector('#page-content #atlas-main') && !document.documentElement.classList.contains('mobile-menu-open')) {
+    atlasApi = await import('../pages/atlas.js');   // atlas 頁已載過＝module cache 秒回
+    inPlace = atlasApi.enterAtlasPageStandby(instant);
+  }
+  if (inPlace) {
+    chromeHidden = !instant;
+    if (chromeHidden) {
+      hideHeaderChromeForStandby();
+      document.body.classList.add('idle-standby-inplace');
     }
+  } else if (instant) {
+    // 背景分頁：不真 mount，切回可見的下一幀才掛（09-25，見 armMountOnVisible 註解）
+    armMountOnVisible();
+  } else {
+    // mount overlay atlas：先空白底 fade in（header 連 logo 隨之被蓋掉）、內容走 atlas 分批點燈 intro（mount 內處理）
+    await mountStandbyAtlas(false);
   }
 
   isTransitioning = false;
@@ -212,31 +217,32 @@ async function enterStandby() {
 
 async function exitStandby() {
   if (!isStandby || isTransitioning) return;
+  if (inPlace) {
+    // atlas 頁：沒有紙要撤、頁面一直都在 → 收掉的元素原路揭回即可（收到一半醒來＝各自 overwrite 從當下位置接回）
+    if (chromeHidden) {
+      atlasApi.exitAtlasPageStandby();
+      showHeaderChromeForStandby();
+    }
+    inPlace = chromeHidden = false;
+    document.body.classList.remove('idle-standby', 'idle-standby-inplace');
+    isStandby = false;
+    resetTimer();
+    return;
+  }
   isTransitioning = true;
   disarmMountOnVisible();   // 背景進待機、還沒切回就退出（防禦）：撤掉待掛的 mount
 
   // 待機離場時原頁內容也 fade in（user 2026-09-12）：此刻仍被不透明 overlay 蓋住 → 同步壓 opacity:0
   // 不會閃，再與 overlay fade out 同時 crossfade 回來（背景色都是 --theme-bg → 底不破）。
   const pageContent = /** @type {HTMLElement|null} */ (document.getElementById('page-content'));
-  if (!isOnAtlas() && pageContent) pageContent.style.opacity = '0';
+  if (pageContent) pageContent.style.opacity = '0';
 
   // 只 fade out，先不拆 atlas DOM。拆除（cleanupAtlas + overlay.innerHTML=''）跟 ScrollTrigger.refresh
   // 改到下方 reveal 之後 defer，否則它們全壓在 index 重新露出的那一幀同步跑、卡住 index 的漂浮 rAF
   // （frame-based tick 被主執行緒 block → 卡片「停一下才繼續跑」；user 2026-06-30）。
-  const atlasFadeOutPromise = (async () => {
-    if (isOnAtlas()) return;
-    // 09-10（user）：退場改單純 fade out——撤 playOverlayAtlasExit（cover wipe + span 四方向 clip 收，
-    // 07-15 舊制），整個 #atlas-main 連內容直接淡出露回原頁
-    await fadeAtlasMain(0);
-  })();
-
-  // 原頁內容 0→1，與 overlay 1→0 同步 crossfade（fadeEl 同 DUR.reveal / ease）
-  const pageFadeInPromise = (async () => {
-    if (isOnAtlas() || !pageContent) return;
-    await fadeEl(pageContent, 1);
-  })();
-
-  await Promise.all([atlasFadeOutPromise, pageFadeInPromise]);
+  // 09-10（user）：退場改單純 fade out——撤 playOverlayAtlasExit（cover wipe + span 四方向 clip 收，
+  // 07-15 舊制），整個 #atlas-main 連內容直接淡出露回原頁；原頁內容 0→1 同步 crossfade（fadeEl 同 DUR.reveal / ease）
+  await Promise.all([fadeAtlasMain(0), fadeEl(pageContent, 1)]);
   if (pageContent) pageContent.style.opacity = '';   // 清掉 inline opacity，不殘留干擾後續換頁/主題過場
 
   // ── overlay 先脫離 render tree（09-25）：已 opacity:0，display:none 是最便宜的一步——
@@ -267,7 +273,7 @@ async function exitStandby() {
   );
   requestAnimationFrame(() => requestAnimationFrame(() => {
     if (isStandby) return;   // 防禦：期間又進了待機（3 分鐘計時下理論不可能）
-    if (atlasMounted) atlasApi.cleanupAtlas();
+    if (atlasMounted) atlasApi.cleanupAtlas(document.getElementById('idle-standby-overlay'));
     ric(() => {
       if (isStandby) return;
       const ov = document.getElementById('idle-standby-overlay');
@@ -324,11 +330,11 @@ export function initIdleStandby() {
     resizeTimer = setTimeout(async () => {
       if (!isStandby || isTransitioning) return;
       if (window.innerWidth < 768
-        || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) {
+        || window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches) {
         exitStandby();
         return;
       }
-      if (isOnAtlas() || !atlasMounted) return;
+      if (!atlasMounted) return;
       isTransitioning = true;   // 重掛期間擋 exitStandby，避免拆一半被 fade-out 撞上
       unmountStandbyAtlas();
       await mountStandbyAtlas(true);

@@ -113,7 +113,7 @@ html.has-slide-in #mode-color-panel { display: none !important; }
    （mode-color-panel.js CAP_W），mask right 錨定＝往左長；row 固定寬靠右＝長出來的部分由右往左露出色條/play。
    <1200 只有鉛筆方鈕＋色環（上面那套），桌面藏起。 */
 .mcp-cap-mask { display: none; }
-@media (min-width: 1200px) and (min-height: 501px) {
+@media (min-width: 1024px) and (min-height: 501px) {
   .mcp-pencil-mask,
   .mcp-panel-mask { display: none; }
   .mcp-cap-mask {
@@ -122,6 +122,7 @@ html.has-slide-in #mode-color-panel { display: none !important; }
     right: var(--container-padding);
     bottom: 48px;
     overflow: hidden;       /* 進退場：圓鈕 xPercent 滑出遮罩（同鉛筆） */
+    border-radius: 24px;    /* 遮罩＝鈕本身形狀（收起圓、展開跟著變 capsule；user 2026-10-01）：滑出不撞直邊 */
     pointer-events: none;
   }
 }
@@ -162,10 +163,13 @@ html.has-slide-in #mode-color-panel { display: none !important; }
    track 滿版（2026-09-29）：漸層兩端本來就是紅（hue 0＝360）、圓角只裁形狀，不再左右各留 8px 補紅——
    indicator 才能真的滑到右緣、再從左緣進場（wrap 複本，見 mode-color-panel.js drawWheel），且 barHue 點擊
    與 indicator 同一座標系。線 2px 進出圓角時被弧形逐漸裁掉＝自然的出場／進場。 */
-/* 色條 clip-reveal 的貼身遮罩（capsule 長完才升起，mode-color-panel.js open）；flex 寬掛這層，色條本體 block 撐滿 */
+/* 色條 clip-reveal 的貼身遮罩（capsule 長完才四向滑入，mode-color-panel.js open）；flex 寬掛這層，色條本體 block 撐滿。
+   遮罩＝色條本身的膠囊形（user 2026-10-01，同 .mcp-bar 圓角）；clip margin 1px 同色條本體：indicator 上下伸出的 1px 不被切 */
 .mcp-bar-mask {
   flex: 0 0 160px;
   overflow: clip;
+  overflow-clip-margin: 1px;
+  border-radius: 10px;
 }
 .mcp-bar {
   position: relative;

@@ -18,10 +18,14 @@ import { clipRevealIconSwap, ensureIconClipWrap } from './scroll-animate.js';
 import { randomSpinAngle } from './arrow-spin.js';
 import { setColorHue, getColorHue, startSiteColorLoop, stopSiteColorLoop, isColorLoopRunning } from './theme-toggle.js';
 
-const isDesk = () => window.matchMedia('(min-width: 1200px) and (min-height: 501px)').matches;
+const isDesk = () => window.matchMedia('(min-width: 1024px) and (min-height: 501px)').matches;
 const CAP_H = 48;    // 圓鈕直徑＝capsule 高（同 header mode/menu 鈕 48）
 const CAP_W = 268;   // 展開寬＝左圓角留白 20 + 色條 160 + 間距 8 + play 32 + chevron 格 48（css .mcp-cap-row 同步）
 const ICON_SWAP = 0.4;   // chevron clipRevealIconSwap 每半段秒數；色條/play 進退場也用同長度
+// 色條／play icon 各自四向隨機進退場（user 2026-10-01，同 clipRevealIconSwap 四向）；±110＝整條真的出遮罩
+// （色條遮罩外擴 1px 給 indicator，±100 會在邊上留一條 1px）
+const REVEAL_DIRS = [{ xPercent: 0, yPercent: -110 }, { xPercent: 0, yPercent: 110 }, { xPercent: -110, yPercent: 0 }, { xPercent: 110, yPercent: 0 }];
+const pickRevealDirs = () => capReveal.map(() => REVEAL_DIRS[(Math.random() * 4) | 0]);
 
 // 手機直向：整個面板白框以 faculty 卡片牆縮圖寬為基準再乘 PANEL_SCALE（每欄 = 50vw − 36，
 // container-padding 24 + gap 24；上限 200＝卡片上限）。白框 = 色環 + 2×16 padding，故色環 = 白框 − 32。
@@ -208,10 +212,11 @@ function open() {
     cap.classList.add('is-active');   // 展開中＝反色（css .mcp-cap.is-active）
     clipRevealIconSwap(capIcon, 'icon icon-chevron-right', { duration: ICON_SWAP });
     // 時序（user 2026-09-29）：capsule 長＋chevron 換入（0→2×ICON_SWAP）→ 之後色條＋play icon 才進場；
-    // fromTo 立即套起點＝前段期間兩者已藏在各自貼身遮罩下；色條上下隨機、play icon 固定由下（user 2026-09-29）
+    // fromTo 立即套起點＝前段期間兩者已藏在各自貼身遮罩下；各自四向隨機（user 2026-10-01）
     if (typeof gsap !== 'undefined') {
-      gsap.fromTo(capReveal, { yPercent: (i, el) => (el === bar && Math.random() < 0.5 ? -100 : 100) }, { yPercent: 0, duration: ICON_SWAP, ease: 'power2.out',
-        delay: ICON_SWAP * 2, overwrite: true, clearProps: 'transform' });
+      const from = pickRevealDirs();
+      gsap.fromTo(capReveal, { xPercent: i => from[i].xPercent, yPercent: i => from[i].yPercent },
+        { xPercent: 0, yPercent: 0, duration: ICON_SWAP, ease: 'power2.out', delay: ICON_SWAP * 2, overwrite: true, clearProps: 'transform' });
     }
     capToggle.setAttribute('aria-expanded', 'true');
   } else if (typeof gsap !== 'undefined') {
@@ -261,8 +266,9 @@ function close(instant, opts = {}) {
       else cap.style.width = '';
       finish(); return;
     }
-    // 展開的反序（user 2026-09-29）：色條＋play icon 先收進遮罩（方向上下隨機）→ 收完 chevron 才換回鉛筆＋capsule 縮
-    gsap.to(capReveal, { yPercent: Math.random() < 0.5 ? 100 : -100, duration: ICON_SWAP, ease: 'power2.out', overwrite: true });
+    // 展開的反序（user 2026-09-29）：色條＋play icon 先收進遮罩（各自四向隨機）→ 收完 chevron 才換回鉛筆＋capsule 縮
+    const to = pickRevealDirs();
+    gsap.to(capReveal, { xPercent: i => to[i].xPercent, yPercent: i => to[i].yPercent, duration: ICON_SWAP, ease: 'power2.out', overwrite: true });
     clipRevealIconSwap(capIcon, 'icon icon-pencil', { duration: ICON_SWAP, delay: ICON_SWAP });
     // 收回圓；gate 藏起（pencilReturn=false）＝收完再整顆滑出遮罩
     // 收完才判：收的途中 gate 又翻回 show（捲到 footer 又立刻捲回）＝updateVisibility 已把圓滑回，別再把它送出遮罩
@@ -293,6 +299,7 @@ function shouldShow() {
   if (page === 'create' || page === 'generate') return false;          // /create 由頁內 control 控
   if (!document.querySelector('.theme-toggle-btn')) return false;       // mode-btn（header）還沒載入
   if (document.body.classList.contains('lightbox-open')) return false;  // lightbox / slide-in overlay
+  if (document.body.classList.contains('idle-standby-inplace')) return false;   // atlas 頁待機＝頁面本身當待機畫面（idle-standby.js）
   if (document.documentElement.classList.contains('has-slide-in')) return false;
   const vid = document.getElementById('video-player-overlay');
   if (vid && vid.style.display === 'flex') return false;                // 自架 video player（無 class，看 inline display）
@@ -470,7 +477,7 @@ export function initModeColorPanel() {
   window.addEventListener('theme:changed', updateVisibility);
   // 跨 1200/501 gate（旋轉大平板、開關 DevTools）：開著就瞬收（close 走開啟時那套），兩套 DOM 都歸位到當前顯隱，
   // footprint 重發（atlas/about 讀的位置跟著換）。gate 內外各自的動畫狀態不跨套延續
-  window.matchMedia('(min-width: 1200px) and (min-height: 501px)').addEventListener('change', () => {
+  window.matchMedia('(min-width: 1024px) and (min-height: 501px)').addEventListener('change', () => {
     if (isOpen) close(true);
     if (typeof gsap !== 'undefined') {
       gsap.killTweensOf([pencilBtn, cap, panel, capIcon]);
