@@ -36,7 +36,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   // ponytail: header 幾何寫死（列 pt / logo 尺寸 / 鈕寬），header 列改了要同步
   const DESK_TOP_GAP = -24, DESK_BOTTOM_GAP = 48, DESK_LEFT = 192, DESK_RIGHT = 228, DESK_COLOR_PAD_X = 60;
   const DESK_MIN_OVERLAP = 48; // 色塊至少伸進灰卡底下幾 px（見 genColorConfig minW）
-  const isDesk = () => window.matchMedia('(min-width: 1200px) and (min-height: 501px)').matches;
+  const isDesk = () => window.matchMedia('(min-width: 1024px) and (min-height: 501px)').matches;
   // 灰卡上緣/尺寸（RO init 與 resize relayout 共用）。高度＝上下錨定撐滿中間：不同高度裝置的上下留白都固定一致、卡高自適應
   // （user 2026-08-24 approach 2，取代舊「寬度固定比」＝底距隨螢幕忽大忽小）。Math.max 保底＝極矮視窗不算出負高。
   function layoutMain(sw, sh) {
@@ -1257,15 +1257,25 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   // #3 (user 2026-09-12)：箭頭 hover＝預覽下一分頁色塊（applyCardHover 黑底白字）。抽成 function-scope helper，
   //   讓「色塊變小的切分頁動畫完成後、游標仍停在箭頭上」時由 syncHoverAfterUnlock 補套（靜止游標下 mouseenter 不會重 fire）。
   let btnHoverTarget = null;
-  function previewNextTarget() {
-    if (!nextBtnEl || isSwitching) return;
+  // 找當下持有 next tab 的非 active 卡；⚠️用 allEls 不用 colorEls：切一次後 grayEl(#library-card-main)
+  // 自己也會變成色卡持有某 tab，只找 colorEls 會漏掉它（回到 awards 時 target=undefined 而卡住）
+  function nextTargetEl() {
     const cur  = tabOf.get(activeEl);
     const next = TAB_ORDER[(TAB_ORDER.indexOf(cur) + 1) % TAB_ORDER.length];
-    const target = allEls.find(el => el !== activeEl && tabOf.get(el) === next);
+    return allEls.find(el => el !== activeEl && tabOf.get(el) === next);
+  }
+  function previewNextTarget() {
+    if (!nextBtnEl || isSwitching) return;
+    const target = nextTargetEl();
     if (!target || target.dataset.cardPending) return;
     btnHoverTarget = target;
     applyCardHover(target);
     spinCard(target);   // user 2026-09-15：箭頭 hover 預覽的色塊也吃一個新隨機角（同直接 hover 色塊行為）
+    // 鈕 hover 色＝下一色塊色（user 2026-10-01）：點完游標仍停在鈕上時，切完分頁由 syncHoverAfterUnlock 補呼 → 換成新目標的色
+    if (nextBtnEl.dataset.navHover) {
+      nextBtnEl.dataset.navHover = colorOf.get(target);
+      nextBtnEl.style.setProperty('--nav-hover', colorOf.get(target));
+    }
   }
   {
     const sectionEl = stack.closest('section');
@@ -1277,11 +1287,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     sectionEl.appendChild(nextBtnEl);
     nextBtnEl.addEventListener('click', () => {
       if (isSwitching) return;
-      const cur  = tabOf.get(activeEl);
-      const next = TAB_ORDER[(TAB_ORDER.indexOf(cur) + 1) % TAB_ORDER.length];
-      // 找當下持有 next tab 的非 active 卡；⚠️用 allEls 不用 colorEls：切一次後 grayEl(#library-card-main)
-      // 自己也會變成色卡持有某 tab，只找 colorEls 會漏掉它（回到 awards 時 target=undefined 而卡住）
-      const target = allEls.find(el => el !== activeEl && tabOf.get(el) === next);
+      const target = nextTargetEl();
       if (target) switchTab(target);
     });
     // hover/click 隨機角度（arrow-spin，同 library sort 箭頭；取代舊 CSS :hover +8° 固定角——純 CSS
@@ -1289,7 +1295,8 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     // clip 遮罩＋translate 置中不能動；−4~+6 range 在 -12px clip buffer 內（buffer 原為 ±8 設計）
     const nextInner = /** @type {HTMLElement|null} */ (nextBtnEl.querySelector('.tl-icon-btn-inner'));
     if (nextInner) bindArrowSpin(nextBtnEl, (/** @type {number} */ d) => { nextInner.style.transform = `rotate(${d}deg)`; });
-    bindNavBtnHover(nextBtnEl);   // hover 隨機三原色（lists.css .tl-icon-btn-inner 段；user 2026-09-28 全站黑方塊鈕）
+    // hover 上色（lists.css .tl-icon-btn-inner 段；user 2026-09-28 全站黑方塊鈕）：色＝下一色塊色（user 2026-10-01，非隨機）
+    bindNavBtnHover(nextBtnEl, { pick: () => colorOf.get(nextTargetEl()) || PRIMARY_COLORS[0] });
 
     // hover 箭頭＝預覽將切往的色塊（previewNextTarget，見上）；離開還原。
     // btnHoverTarget 已提升到 function scope（供 syncHoverAfterUnlock 在切分頁動畫完成後補套預覽）。

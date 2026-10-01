@@ -33,7 +33,10 @@
   <main id="page-content">
     <!-- 視覺隱藏的頁面主標題（語意/地標；視覺標題在各 panel 的 .lib-panel-title） -->
     <h1 class="sr-only">檔案室 Library</h1>
-    <!-- Card Stack Hero -->
+    <!-- Card Stack Hero
+         讓出 header 帶用 margin-top 不用 top（2026-10-01）：top 只是視覺位移、main 底會短一個 header 高 → 左下當前頁卡
+         （軌道量 main 底，header.js layoutPageIndicatorTrack）跟著高 96。margin 會 collapse 到 body、header 帶露 html 底色，
+         切 mode 時兩者同步靠 View Transition 整頁一起淡變（theme-toggle.js）。 -->
     <section class="relative overflow-visible" style="height: calc(100vh - var(--header-height)); margin-top: var(--header-height);">
       <!-- Mobile-only tab bar（桌面 display:none，由 CSS 控；JS 在 < 768 不跑 card stack 改用此 tab bar）
            沿用 .activities-section-bar / .activities-section-btn + anchor-nav-inner 結構，
@@ -94,7 +97,7 @@
                       style="flex: 1; background: transparent; border: none; outline: none; font-family: 'Bitter', 'Noto Serif TC', 'Noto Serif JP', 'Noto Serif SC', serif; font-size: var(--font-size-xs); font-weight: 700; color: var(--lib-fg);"
                       autocomplete="off">
                   </div>
-                  <button id="library-awards-sort-btn" class="library-sort-btn" aria-label="Date 時間"><span class="lib-sort-label">Date 時間</span><span class="icon icon-time lib-sort-time" aria-hidden="true"></span><span class="icon icon-arrow-down sort-arrow icon-xs"></span></button>
+                  <button id="library-awards-sort-btn" class="library-sort-btn" aria-label="Date 時間"><span class="lib-sort-label">Date 時間</span><span class="icon icon-time-desc lib-sort-time" aria-hidden="true"></span><span class="icon icon-arrow-down sort-arrow icon-xs"></span></button>
                 </div>
                 <div id="library-awards-scroll" style="min-width: 0; overflow-y: auto; padding-bottom: var(--spacing-sm); flex: 1; min-height: 0;" class="no-scrollbar">
                   <div id="library-awards-list"></div>
@@ -131,7 +134,7 @@
                       style="flex: 1; background: transparent; border: none; outline: none; font-family: 'Bitter', 'Noto Serif TC', 'Noto Serif JP', 'Noto Serif SC', serif; font-size: var(--font-size-xs); font-weight: 700; color: var(--lib-fg);"
                       autocomplete="off">
                   </div>
-                  <button id="library-press-sort-btn" class="library-sort-btn" aria-label="Date 時間"><span class="lib-sort-label">Date 時間</span><span class="icon icon-time lib-sort-time" aria-hidden="true"></span><span class="icon icon-arrow-down sort-arrow icon-xs"></span></button>
+                  <button id="library-press-sort-btn" class="library-sort-btn" aria-label="Date 時間"><span class="lib-sort-label">Date 時間</span><span class="icon icon-time-desc lib-sort-time" aria-hidden="true"></span><span class="icon icon-arrow-down sort-arrow icon-xs"></span></button>
                 </div>
               </div>
 
@@ -172,7 +175,7 @@
                       autocomplete="off">
                   </div>
                   <button type="button" class="lib-filter-btn" aria-label="篩選 Filter" aria-expanded="false"><span class="icon icon-filter" aria-hidden="true"></span></button>
-                  <button id="library-files-sort-btn" class="library-sort-btn" aria-label="Date 時間"><span class="lib-sort-label">Date 時間</span><span class="icon icon-time lib-sort-time" aria-hidden="true"></span><span class="icon icon-arrow-down sort-arrow icon-xs"></span></button>
+                  <button id="library-files-sort-btn" class="library-sort-btn" aria-label="Date 時間"><span class="lib-sort-label">Date 時間</span><span class="icon icon-time-desc lib-sort-time" aria-hidden="true"></span><span class="icon icon-arrow-down sort-arrow icon-xs"></span></button>
                 </div>
                 <!-- 文件分類篩選（對應後台 library_documents.docType；文字走 ui_labels lib.doctype.* 可後台改） -->
                 <div id="library-files-cat-filter" style="display: flex; flex-wrap: wrap; gap: var(--spacing-sm) var(--spacing-lg); align-content: flex-start;">
@@ -220,7 +223,7 @@
                       autocomplete="off">
                   </div>
                   <button type="button" class="lib-filter-btn" aria-label="篩選 Filter" aria-expanded="false"><span class="icon icon-filter" aria-hidden="true"></span></button>
-                  <button id="library-album-sort-btn" class="library-sort-btn" aria-label="Date 時間"><span class="lib-sort-label">Date 時間</span><span class="icon icon-time lib-sort-time" aria-hidden="true"></span><span class="icon icon-arrow-down sort-arrow icon-xs"></span></button>
+                  <button id="library-album-sort-btn" class="library-sort-btn" aria-label="Date 時間"><span class="lib-sort-label">Date 時間</span><span class="icon icon-time-desc lib-sort-time" aria-hidden="true"></span><span class="icon icon-arrow-down sort-arrow icon-xs"></span></button>
                 </div>
                 <div id="library-album-cat-filter" style="display: flex; flex-wrap: wrap; gap: var(--spacing-sm) var(--spacing-lg); align-content: flex-start;">
                   <button class="lib-album-cat-btn" data-cat="degree-show"><span class="cat-btn-en" data-label-key="lib.cat.degree-show" data-label-part="en">Degree Shows</span><span class="cat-btn-zh" data-label-key="lib.cat.degree-show" data-label-part="zh">畢業展</span></button>

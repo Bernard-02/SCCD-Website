@@ -38,7 +38,7 @@ const DOCTYPE_FALLBACK = {
 
 // 矮橫向（橫向手機）：手機式行為的第二個入口，gate 同 landscape.css / main-modular library init
 const isShortLandscape = () =>
-  window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+  window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
 
 // 排序箭頭隨機角度（user 2026-09-10）：互動邏輯見 arrow-spin.js；四個 panel 的 sort 箭頭共用。
 // 既有 click handler 只換 .sort-arrow 的 className，inline transform 不受影響。
@@ -47,6 +47,14 @@ function bindSortArrowSpin(btn) {
   if (!arrow) return;
   arrow.style.transition = 'transform 0.3s ease';
   bindArrowSpin(btn, deg => { arrow.style.transform = `rotate(${deg}deg)`; });
+}
+
+// 排序方向 → 圖示：手機換箭頭（文字＋箭頭）；桌面工具列只顯時間 icon，換 time_desc／time_asc
+// （user 2026-10-01；同 filter 鈕直接換 class、不做 clip reveal）。
+function setSortIcons(btn, latestFirst) {
+  btn.querySelector('.sort-arrow').className = `icon ${latestFirst ? 'icon-arrow-down' : 'icon-arrow-up'} sort-arrow text-xs`;
+  const time = btn.querySelector('.lib-sort-time');
+  if (time) time.className = `icon ${latestFirst ? 'icon-time-desc' : 'icon-time-asc'} lib-sort-time`;
 }
 
 const CAT_LABELS = {
@@ -161,13 +169,16 @@ function groupByYear(items) {
 
 // Reset 按鈕：桌面／手機兩種版位（年份 picker 桌面是直欄、手機是橫向 scroll bar，見 library.css @media 767）。
 //
-// 桌面（≥768，直欄）：absolute 釘在「grid 容器」左下＝年份 scroll 最下方、左緣對齊年份。
+// 桌面（≥768，直欄）：reset 住在年份欄底的 .year-reset-slot 裡、水平置中（2026-10-01 起；見 attachYearReset）。
+//   以下 absolute 掛 grid 的說明現在只剩矮橫向分支在用（左下、疊在年份上）：
 //   為何 absolute：picker 左欄是 grid `max-content` track，按鈕「Reset 重設」比 4 位年份寬，若進 flow
 //     會撐寬左欄、把右側內容整體推右（user 2026-07-14）。absolute 不進 intrinsic sizing＝零推移。
 //   為何掛 grid 而非 picker 直欄：containing block 若是那條窄的 max-content 欄，absolute 的 shrink-to-fit
 //     會把按鈕寬度夾回年份寬 → 「重設」換行/被切。改以整個 grid 為 containing block＝有 year 欄 + gap(2xl)
 //     的空白可用，nowrap 單行不切、剛好吃掉 user 說的「gap 空間」。
-//   left/bottom 用 grid 的 computed padding 對位；scroll wrap 補 padding-bottom 讓末年份捲上時停在按鈕上方不被蓋。
+//   年份欄底部讓出一列 award 高的空間（.year-reset-slot，user 2026-10-01「reset 不要覆蓋在年份上」）：
+//     年份捲動區止於空間上緣、reset 疊在空間上（left/bottom 用 grid＋欄的 computed padding 對位）。
+//     矮橫向維持舊版疊在年份上（年份欄只 ~130 高、讓出 52 會吃掉四成；user 09-28 先專注桌面、橫向暫緩）。
 //
 // 手機（<768，橫向 bar）：reset 當 bar 的最後一個 item 釘在最右（user 2026-07-18，桌面左下版位在手機看不到）。
 //   ⚠️ attachYearReset 在年份 button 之前被呼叫 → 不能靠 DOM 順序排到最後，用 `order:1`（年份預設 0）讓 flex
@@ -206,15 +217,24 @@ function filterKeepingNearestYear(listEl, doFilter) {
   scroller.scrollTo(0, r.top - scroller.getBoundingClientRect().top + scroller.scrollTop - keep);
 }
 
+// 52＝award 單列桌面實高（上下 0.5rem＋中英兩行；同 library.css .award-record-item contain-intrinsic-size）
+const YEAR_RESET_SLOT_H = 52;
+// 20＝桌面工具列 icon 同尺寸（library.css .lib-toolbar）
+const YEAR_RESET_ICON = 20;
+
 function attachYearReset(pickerEl, onReset) {
   const wrap = pickerEl.parentElement;         // scroll 容器
   const grid = wrap.parentElement.parentElement; // grid 容器（跨 year 欄 + gap + 1fr 內容）
   // 兩處都清：跨 breakpoint re-init 時舊 reset 可能在另一個容器
   grid.querySelector('.year-reset-btn')?.remove();
   pickerEl.querySelector('.year-reset-btn')?.remove();
+  // 桌面年份欄底部件（reset 空間／下一批 chevron＋其到底 IO／sentinel）：重建年份、跨 breakpoint re-init 都會再進來
+  pickerEl.closest('[id^="lib-panel-"]')?.querySelectorAll('.year-reset-slot, .year-more-btn, .year-more-end')
+    .forEach(el => { /** @type {any} */ (el)._io?.disconnect(); el.remove(); });
   const btn = document.createElement('button');
   btn.className = 'year-reset-btn';
-  btn.textContent = 'Reset 重設';
+  // icon 取代「Reset 重設」字（user 2026-10-01，同 create 面板的 reset.svg）；block＝不吃行高、盒高＝icon 高
+  btn.innerHTML = `<span class="icon icon-reset" style="display:block;font-size:${YEAR_RESET_ICON}px;"></span>`;
   btn.setAttribute('aria-label', '重設年份篩選 Reset year filter');
   // Reset 也回頂（user 2026-07-21）：頂端＝當前 sort 的第一個年份組（正序最新年、倒序最舊年），不用管方向
   btn.addEventListener('click', () => {
@@ -224,17 +244,54 @@ function attachYearReset(pickerEl, onReset) {
 
   if (window.innerWidth < 768) {
     // will-change：sticky 在橫向 scroller 內拖動時逐幀 subpixel 重繪會抖，自有合成層改用位移合成
-    btn.style.cssText = 'order:1;position:sticky;right:0;background:var(--lib-bg);border:none;font-family:inherit;cursor:pointer;font-weight:700;color:var(--lib-fg);white-space:nowrap;will-change:transform;display:none;';
+    btn.style.cssText = 'order:1;position:sticky;right:0;background:var(--lib-bg);border:none;font-family:inherit;cursor:var(--cursor-pointer);font-weight:700;color:var(--lib-fg);white-space:nowrap;will-change:transform;display:none;';
     pickerEl.appendChild(btn);
     return btn;
   }
 
   grid.style.position = 'relative';
-  wrap.style.paddingBottom = 'var(--spacing-xl)';
-  btn.style.cssText = 'position:absolute;white-space:nowrap;background:var(--lib-bg);text-align:left;border:none;padding:var(--spacing-xs) 0;font-family:inherit;font-size:var(--font-size-xs);cursor:pointer;font-weight:700;color:var(--lib-fg);display:none;';
   const gcs = getComputedStyle(grid);
+  const BTN_CSS = 'position:absolute;white-space:nowrap;text-align:left;border:none;font-family:inherit;font-size:var(--font-size-xs);cursor:var(--cursor-pointer);font-weight:700;color:var(--lib-fg);display:none;';
+  if (isShortLandscape()) {
+    wrap.style.paddingBottom = 'var(--spacing-xl)';   // 末年份捲上時停在按鈕上方不被蓋
+    btn.style.cssText = BTN_CSS + 'background:var(--lib-bg);padding:var(--spacing-xs) 0;';
+    btn.style.bottom = gcs.paddingBottom;
+  } else {
+    const col = wrap.parentElement;
+    // 下一批年份 chevron（user 2026-10-01）：年份 box 下緣、reset 之上、欄內置中（樣式 library.css .year-more-btn）。
+    //   點＝第一個沒完整露出的年份捲到頂（整批換、不切半個年份）。到底＝disabled：捲動內容尾端的 sentinel 可見
+    //   ＝沒有下一批（IO 也涵蓋 panel 隱藏→顯示、resize，不必另掛 scroll／resize 重判）
+    const more = document.createElement('button');
+    more.className = 'year-more-btn';
+    more.setAttribute('aria-label', '下一批年份 More years');
+    more.innerHTML = '<span class="icon icon-chevron-list icon-xs" style="transform:rotate(-90deg);"></span>';  // base 朝左，-90＝朝下
+    more.addEventListener('click', () => {
+      const box = wrap.getBoundingClientRect();
+      const next = /** @type {HTMLElement[]} */ ([...pickerEl.querySelectorAll('button[data-year]')]).find(b => b.getBoundingClientRect().bottom > box.bottom + 1);
+      const max = wrap.scrollHeight - wrap.clientHeight;
+      const target = next ? Math.min(max, wrap.scrollTop + next.getBoundingClientRect().top - box.top) : max;  // 無下一個＝補捲剩下的零頭到底
+      if (typeof gsap === 'undefined') wrap.scrollTop = target;
+      else gsap.to(wrap, { scrollTop: target, duration: DUR.medium, ease: EASE.move, overwrite: true });
+    });
+    const end = document.createElement('div');
+    end.className = 'year-more-end';
+    end.style.height = '1px';
+    wrap.appendChild(end);   // picker 之後＝捲動內容最尾
+    const io = new IntersectionObserver(([e]) => { more.disabled = e.isIntersecting; }, { root: wrap });
+    io.observe(end);
+    /** @type {any} */ (more)._io = io;
+    const slot = document.createElement('div');
+    slot.className = 'year-reset-slot';
+    // reset 直接住在空間裡、水平置中於年份欄（user 2026-10-01「chevron 跟 reset 都要置中、不要靠左」）。
+    // 不再 absolute 掛 grid：那是「Reset 重設」字比年份寬時怕撐寬欄的解法，現在 20px icon 比年份窄、進 flow 不會推版
+    slot.style.cssText = `flex:none;height:${YEAR_RESET_SLOT_H}px;display:flex;justify-content:center;`;
+    // 按鈕＝整個空間高（點擊區），icon 齊底（user 2026-10-01）＝上 padding 吃掉空間高減 icon 高、底貼年份欄／list 底
+    btn.style.cssText = `height:${YEAR_RESET_SLOT_H}px;padding:${YEAR_RESET_SLOT_H - YEAR_RESET_ICON}px 0 0;border:none;background:none;color:var(--lib-fg);cursor:var(--cursor-pointer);display:none;`;
+    slot.appendChild(btn);
+    col.append(more, slot);
+    return btn;
+  }
   btn.style.left = gcs.paddingLeft;
-  btn.style.bottom = gcs.paddingBottom;
   grid.appendChild(btn);
   return btn;
 }
@@ -293,7 +350,8 @@ function createYearPicker(pickerEl, years, onFilter) {
   //   先冒出。補：可見 panel＋reveal 窗內出生的鈕自帶隱藏態、雙 rAF 後跑同一套 chrome clip-reveal。
   //   平時 filter/cat 重建（panel 閒置）不落窗內＝維持 2026-08-26 即時重建不動畫。
   if (isPanelRevealing() && pickerEl.offsetParent !== null && !prefersReducedMotion()) {
-    const btns = /** @type {HTMLElement[]} */ ([...pickerEl.querySelectorAll('button[data-year]')]);
+    // 下一批 chevron（attachYearReset 剛建）同批：不然它會比年份先冒出來
+    const btns = /** @type {HTMLElement[]} */ ([...pickerEl.querySelectorAll('button[data-year]'), ...(pickerEl.closest('[id^="lib-panel-"]')?.querySelectorAll('.year-more-btn') || [])]);
     btns.forEach(b => { b.style.transition = 'none'; b.style.clipPath = 'inset(0 0 100% 0)'; b.style.translate = '0 -0.4rem'; });
     requestAnimationFrame(() => requestAnimationFrame(() => {
       btns.forEach(b => {
@@ -340,8 +398,9 @@ function syncCatBtns(catBtns, selectedCats, listEl, selYears, q) {
   const hasSel = selectedCats.size > 0;
   catBtns.forEach(b => {
     const isSel = selectedCats.has(b.dataset.cat);
-    b.style.color = (b.disabled || (withMatch && !withMatch.has(b.dataset.cat))) ? 'rgba(var(--lib-fg-rgb),0.2)'
-      : (!hasSel || isSel) ? '' : 'rgba(var(--lib-fg-rgb),0.5)';
+    const faint = b.disabled || (withMatch && !withMatch.has(b.dataset.cat));
+    b.style.color = faint ? 'rgba(var(--lib-fg-rgb),0.2)' : (!hasSel || isSel) ? '' : 'rgba(var(--lib-fg-rgb),0.5)';
+    b.classList.toggle('lib-faint', faint);   // 0.2 那層 hover 不變色（library.css）
     b.setAttribute('aria-pressed', String(isSel));
   });
   return selectedCats.size !== before;
@@ -448,7 +507,7 @@ function initAwardRefTitleMarquees(scope) {
 // gsap 未載入時 no-op（不設 animation:none）→ CSS keyframe 仍是 fallback（snap，如舊）。
 function bindAwardRefTitleReturn(row) {
   if (typeof gsap === 'undefined' || !row || row._refTitleBound) return () => {};
-  if (window.innerWidth < 768 || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) return () => {};
+  if (window.innerWidth < 768 || window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches) return () => {};
   row._refTitleBound = true;
   let tl = null, returnTween = null, els = [];
   const build = () => {
@@ -768,6 +827,11 @@ function spawnAwardIcon(x, y) {
   const el = document.createElement('span');
   el.className = 'award-spawn-icon';
   el.style.cssText = `position:fixed;left:${x}px;top:${y}px;width:30px;height:30px;display:block;pointer-events:none;z-index:10000;-webkit-mask:url('${url}') center/contain no-repeat;mask:url('${url}') center/contain no-repeat;`;
+  // mode3（user 2026-10-01，取代上述 fg-inverse 黑白）：點擊當下抓大背景色定色——--theme-bg 由 theme-toggle 每幀寫在
+  //   :root inline，讀 inline 值＝不觸發 computed 讀；寫成 icon 自己的 inline 色＝飛行途中不跟著輪轉
+  if (document.body.classList.contains('mode-color')) {
+    el.style.backgroundColor = document.documentElement.style.getPropertyValue('--theme-bg');
+  }
   document.body.appendChild(el);
   // 往四周直線飛出（user 2026-08-12：拋物線改直線放射，方向隨機 360° → 往四周散）：
   // scale 0→1 pop-in（back 過衝）再→0 收掉（不碰 opacity，消失效果保留）。
@@ -1026,7 +1090,8 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         const view = /** @type {HTMLElement} */ (viewport);
         // 得獎人欄 2026-09-13 改「全員從上到下直排、列高自然撐高」（user）：不再整位橫捲。
         // 長名字由 applyAwardMarquees 的 :not(.is-hmarquee) 行級 hover marquee 接手；
-        // 主辦/名次 cell（hmarqueeCell）維持原整位橫捲行為不動。
+        // 主辦／名次 cell 2026-10-01 也改直排（user「多個主辦方跟人名一樣往下排」，模板掛同一 class）
+        // → 目前三欄全掛 award-winners-col，下面整位橫捲（is-hmarquee）路徑已無 cell 走到。
         if (view.classList.contains('award-winners-col')) return;
         const track = /** @type {HTMLElement | null} */ (view.querySelector('.award-winners-track'));
         if (track) views.push({ view, track });
@@ -1196,7 +1261,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
           // 整列可點開合（見下方 click handler），chevron 為視覺提示；點它 bubble 到 item 一樣觸發開合。
           const refBtnHtml = hasExpand ? `
             <button class="award-ref-toggle" aria-label="Show references"
-                    style="background:none;border:none;padding:0.23em 0 0;color:inherit;cursor:url('${sitePath('custom-cursor/pointer.svg')}') 14 1, pointer;line-height:1;">
+                    style="background:none;border:none;padding:0;color:inherit;cursor:url('${sitePath('custom-cursor/pointer.svg')}') 14 1, pointer;line-height:1;">
               <span class="icon icon-chevron-list icon-s" style="transform:rotate(-90deg);"></span>
             </button>` : '';
           // ref 展開區：item 改 block 後，ref-wrap 是 item 的「滿寬 block child」(對齊 activities .list-content：
@@ -1214,21 +1279,24 @@ async function initAwardsPanel(onEntranceDoneCallback) {
           // 手機 flex-column 內部直排。主辦單位插在競賽名稱與獎項之間 = 主表第 3 欄、對齊 ref title 欄。
           // item 改 block（非 grid）：主列 cells 包進 .award-row（grid，吃 padding-left/right:sm 內縮），ref-wrap 是
           // item 的 block child（滿寬、不靠負 margin）。zebra / open accent bg 仍掛 item → 滿格滿寬（item 無水平 padding）。
-          // .award-row 外層＝貼身 clip 遮罩（同 album/press 的 ensureGroupClip，user 2026-09-29「等色塊好了再進場」）：
-          // 文字在自己的窗內滑入、不再黏著色塊揭露邊。直接烙在模板＝hide 時不必逐列搬 DOM（670 列）。
+          // 文字進場＝每欄 cell 包 .award-cell-mask 當自己的窗（user 2026-10-01 方案 A）：舊版整列 .award-row 一起滑
+          //   ＝位移是整列高，得獎人名單長的列由下往上時、短欄（競賽名稱）要從整列底部滑過自身下方空白＝像從框外進場。
+          //   每欄各滑自己的高度＝都從自己框邊進場。遮罩只在揭露期 clip（item 掛 .award-cell-clip，library.css），
+          //   平時 visible＝ref chevron 開合旋轉的角不被切。直接烙在模板＝hide 時不必逐列搬 DOM（670 列）。
+          //   外層 .award-row 的 clip-reveal-wrapper 是 09-29 整列滑動時的窗，現已不動、保留無害。
           return `
             <div class="award-record-item py-[0.5rem]${zebra}"
                  style="font-size: var(--font-size-xs);${cursorStyle}"
                  data-search="${searchText}"${item.id ? ` id="${item.id}"` : ''}>
-              <div class="clip-reveal-wrapper" style="overflow-y:clip;overflow-x:visible;"><div class="award-row" data-clip-wrapped="1" style="display:grid;${AWARD_GRID} align-items: start;">
-                <div style="padding-top: 0.1em; display: flex; flex-direction: column; row-gap: 0.25em;">${(Array.isArray(item.flag) ? item.flag : item.flag ? [item.flag] : []).map(f => `<span class="fi fi-${f}" style="width:1.5em;height:1em;display:block;"></span>`).join('')}</div>
+              <div class="clip-reveal-wrapper" style="overflow-y:clip;overflow-x:visible;"><div class="award-row" data-clip-wrapped="1" style="display:grid;${AWARD_GRID} align-items: center;">
+                <div class="award-cell-mask"><div style="display: flex; flex-direction: column; row-gap: 0.25em;">${(Array.isArray(item.flag) ? item.flag : item.flag ? [item.flag] : []).map(f => `<span class="fi fi-${f}" style="width:1.5em;height:1em;display:block;"></span>`).join('')}</div></div>
                 <div class="award-mid">
-                  <div class="truncate flex flex-col award-cell-hover${(item.competition_en && item.competition) ? '' : ' award-cell-center'}" role="heading" aria-level="3">${bilingualBold(item.competition_en, item.competition)}</div>
-                  ${hmarqueeCell(organizersDisplay)}
-                  ${hmarqueeCell(ranks, isSingleLangList(ranks) ? ' award-cell-center' : '')}
+                  <div class="award-cell-mask"><div class="truncate flex flex-col award-cell-hover${(item.competition_en && item.competition) ? '' : ' award-cell-center'}" role="heading" aria-level="3">${bilingualBold(item.competition_en, item.competition)}</div></div>
+                  <div class="award-cell-mask">${hmarqueeCell(organizersDisplay, ' award-winners-col')}</div>
+                  <div class="award-cell-mask">${hmarqueeCell(ranks, (isSingleLangList(ranks) ? ' award-cell-center' : '') + ' award-winners-col')}</div>
                 </div>
-                <div class="award-winners award-winners-col flex flex-col${(winners.length === 1 || winners.every(w => w.zh && !w.en)) ? ' award-winners-zh-only' : ''}" style="min-width:0;">${buildWinnersHtml(winners)}</div>
-                <div class="award-ref-cell" style="display:flex;justify-content:flex-end;">${refBtnHtml}</div>
+                <div class="award-cell-mask"><div class="award-winners award-winners-col flex flex-col${(winners.length === 1 || winners.every(w => w.zh && !w.en)) ? ' award-winners-zh-only' : ''}" style="min-width:0;">${buildWinnersHtml(winners)}</div></div>
+                <div class="award-cell-mask"><div class="award-ref-cell" style="display:flex;justify-content:flex-end;">${refBtnHtml}</div></div>
               </div></div>
               ${refWrapHtml}
             </div>`;
@@ -1655,7 +1723,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         const btn = document.createElement('button');
         btn.textContent  = String(year);
         btn.dataset.year = String(year);
-        btn.style.cssText = 'text-align:left;background:none;border:none;padding:0;font-family:inherit;font-size:var(--font-size-xs);cursor:pointer;font-weight:700;color:var(--lib-fg);';
+        btn.style.cssText = 'text-align:left;background:none;border:none;padding:0;font-family:inherit;font-size:var(--font-size-xs);cursor:var(--cursor-pointer);font-weight:700;color:var(--lib-fg);';
         btn.addEventListener('click', () => {
           const before = snapshotVisibleYears(listEl); // 操作前可見年份順序
           const adding = !selectedYears.has(String(year));
@@ -1681,7 +1749,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
       bindSortArrowSpin(sortBtn);
       sortBtn.addEventListener('click', () => {
         latestFirst = !latestFirst;
-        sortBtn.querySelector('.sort-arrow').className = `icon ${latestFirst ? 'icon-arrow-down' : 'icon-arrow-up'} sort-arrow text-xs`;
+        setSortIcons(sortBtn, latestFirst);
         renderItems(getSorted());
         applyAwardsFilters();  // 重渲染的新 DOM 全可見 → 補套當前年份/search（對齊 press/files/album sort 慣例）
         clipWipeItems(cullNearViewport(visibleListItems(listEl), listEl));   // 畫外重播沒人看（同 clipWipeChangedBlocks 的 cull 慣例）
@@ -2054,7 +2122,7 @@ async function initPressPanel() {
       bindSortArrowSpin(sortBtn);
       sortBtn.addEventListener('click', () => {
         latestFirst = !latestFirst;
-        sortBtn.querySelector('.sort-arrow').className = `icon ${latestFirst ? 'icon-arrow-down' : 'icon-arrow-up'} sort-arrow text-xs`;
+        setSortIcons(sortBtn, latestFirst);
         renderItems(getSorted());
         applyFiltersWithRef();
         clipWipeItems(cullNearViewport(visibleListItems(listEl), listEl));   // 畫外重播沒人看（同 clipWipeChangedBlocks 的 cull 慣例）
@@ -2521,7 +2589,7 @@ async function initFilesPanel() {
       bindSortArrowSpin(sortBtn);
       sortBtn.addEventListener('click', () => {
         latestFirst = !latestFirst;
-        sortBtn.querySelector('.sort-arrow').className = `icon ${latestFirst ? 'icon-arrow-down' : 'icon-arrow-up'} sort-arrow text-xs`;
+        setSortIcons(sortBtn, latestFirst);
         renderItems(getSorted());
         applyFilters();
         clipWipeItems(visibleFilesCards(listEl));
@@ -2912,7 +2980,7 @@ async function initAlbumPanel() {
       bindSortArrowSpin(sortBtn);
       sortBtn.addEventListener('click', () => {
         latestFirst = !latestFirst;
-        sortBtn.querySelector('.sort-arrow').className = `icon ${latestFirst ? 'icon-arrow-down' : 'icon-arrow-up'} sort-arrow text-xs`;
+        setSortIcons(sortBtn, latestFirst);
         renderItems(getSorted());
         applyFilters();
         clipWipeItems(cullNearViewport(visibleListItems(listEl), listEl));   // 畫外重播沒人看（同 clipWipeChangedBlocks 的 cull 慣例）
@@ -3002,7 +3070,7 @@ function clipWipeItems(items) {
   if (!items || !items.length) return;
   // awards + album + press：對齊 activities list reveal（awards 2026-07-16 / album 2026-07-17 / press 2026-08-11）
   // ——box（.award-record-item / .album-panel-item / .press-item，斑馬列有可見底色）clip inset(100%)→0 由下往上揭；
-  // 文字列（.award-row / .album-files-item-row / .press-item-row）per-item 隨機從上/下 translate 滑入。
+  // 文字（award 每欄 cell／album、press 標題塊，見 awardTextEls）per-item 隨機從上/下 translate 滑入。
   // item clip 同時當文字 translate 的剪裁窗。files 走 revealFilesCards（下）；rest 是保底的整列 4 向 clip wipe。
   const boxReveal   = items.filter(el => el.classList.contains('award-record-item') || el.classList.contains('album-panel-item') || el.classList.contains('press-item'));
   // files 卡（Documents）：圖片 clip-path、文字 clip-reveal（user 2026-08-11，做法同 faculty）→ 走 revealFilesCards，不進整卡 wipe
@@ -3110,20 +3178,23 @@ function awardSubtitleEl(el) {
   return null;
 }
 
-// 主標題文字元素——album/press 用標題文字塊、award 用整列 .award-row（模板已烙貼身遮罩）。三者一律「分階段」：
+// 主標題文字元素（陣列）——album/press＝標題文字塊（1 個，hide 時 ensureGroupClip 包貼身遮罩）；award＝每欄 cell
+//   （模板烙好的 .award-cell-mask 內，user 2026-10-01 方案 A：各欄滑自己的高度＝從自己框邊進場）。三者一律「分階段」：
 //   色塊揭完才在自己的遮罩內滑入（user 2026-09-02 album/press「看得到方向」；2026-09-29 award 跟進——舊版 award
 //   與色塊同步，文字由下往上時全程黏著色塊揭露邊上升，在 zebra 上看起來像文字沒進場）。
-function awardMainTextEl(el) {
-  if (el.classList.contains('album-panel-item')) return /** @type {HTMLElement|null} */ (el.querySelector('.files-item-titles-text'));
-  if (el.classList.contains('press-item')) return /** @type {HTMLElement|null} */ (el.querySelector('.press-item-titles-text'));
-  return /** @type {HTMLElement|null} */ (el.querySelector('.award-row'));
+/** @returns {HTMLElement[]} */
+function awardTextEls(el) {
+  if (el.classList.contains('award-record-item')) return /** @type {HTMLElement[]} */ ([...el.querySelectorAll('.award-cell-mask > *')]);
+  const t = /** @type {HTMLElement|null} */ (el.querySelector(el.classList.contains('album-panel-item') ? '.files-item-titles-text' : '.press-item-titles-text'));
+  return t ? [t] : [];
 }
 
 // ── 列表縮圖進場＝畫外 4 向滑入（album strip / press thumb 共用；比照 documents 封面 slideCoverIn；user 2026-09-02）
 // 「載好就 pop」→ 改：出生帶 .thumb-reveal-pending（visibility:hidden），圖 ready＋可見才滑。兩條觸發路徑：
 //   ①entrance/replay：playAwardItem 呼叫——圖已 cached 時（revisit/filter 重播）isPanelRevealing 期間 defer 到色塊揭完才滑
 //     ＝分階段（色塊→文字→圖片）不被 box clip 遮住方向；②lazy 圖晚到：img load handler 呼叫，此時色塊早揭完→直接清楚滑入。
-// container＝滑動主體，wrap＝靜態遮罩（暫 overflow:clip，thumb 旋轉溢出於滑動期被剪、揭完還原）。press thumb 帶 rotate 需保留。
+// container＝帶 .thumb-reveal-pending 的那層（album strip／press 縮圖框）；桌面實際滑動見 slideInOwnBox（縮圖自框當窗），
+// 手機分支整個 container clip-path 由下往上。wrap 目前只剩手機/舊殘值清理用。
 function thumbSlideParts(item) {
   if (item.classList.contains('album-panel-item'))
     return { container: /** @type {HTMLElement|null} */ (item.querySelector('.album-thumb-strip')), wrap: /** @type {HTMLElement|null} */ (item.querySelector('.album-thumb-strip-wrap')), rest: '' };
@@ -3151,9 +3222,35 @@ function resetThumbPending(item) {
   item.dataset.thumbSlid = '';
   container.classList.add('thumb-reveal-pending');
 }
+// 縮圖「自己的框」當窗、框內內容隨機四向滑入（桌面 album 每張／press 共用）。
+//   press 09-15 起容器當窗（舊版 slot 寬的 wrap 當窗＝橫向進場像從空白冒出）；album 10-01 跟進（翻掉 09-20／09-24
+//   「整條 strip 在 wrap 窗內由下往上滑」＝像從 zebra 底部冒出、只有一個方向）。rotate 在框本身 → overflow:clip 吃旋轉後
+//   local box、窗跟著轉＝不切凸角（09-24 抓包的「凸角被切→揭完彈回」只發生在軸對齊的外層窗）；揭完還原 overflow。
+//   滑動期框底色透明（user 2026-10-01）：press 框 CSS 灰底是封面未載入的佔位，進場時透出＝「先出灰塊再滑圖」；
+//   透明後只看得到縮圖本身滑入（同 album 框本無底色）。img＋play 三角同向一起滑（overlay 平時 opacity 0，一起滑無妨）。
+/** @param {HTMLElement} box */
+function slideInOwnBox(box) {
+  const img = box.querySelector('img');
+  if (!img) return;
+  const parts = /** @type {HTMLElement[]} */ ([...box.children]);
+  const from = pickCoverSlideDir();
+  box.style.overflow = 'clip';
+  box.style.background = 'transparent';
+  parts.forEach(p => { p.style.transition = 'none'; p.style.transform = from; });   // 同步設畫外起點＝pending 一拿掉就在框外、不閃 rest
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    parts.forEach(p => { p.style.transition = `transform ${DUR.medium}s ease-out`; p.style.transform = 'translate(0%, 0%)'; });
+    const done = (e) => {
+      if (e.target !== img || e.propertyName !== 'transform') return;
+      parts.forEach(p => { p.style.transition = ''; p.style.transform = ''; });
+      box.style.overflow = ''; box.style.background = '';
+      img.removeEventListener('transitionend', done);
+    };
+    img.addEventListener('transitionend', done);
+  }));
+}
 function slideThumbIn(item) {
   if (item.dataset.thumbSlid === '1') return;
-  const { container, wrap, rest } = thumbSlideParts(item);
+  const { container } = thumbSlideParts(item);
   if (!container || !thumbsReady(item) || !thumbItemVisible(item)) return;   // 未載好／畫外＝先不滑（img load 或捲入 reveal 時再試）
   item.dataset.thumbSlid = '1';
   const isAlbum = item.classList.contains('album-panel-item');
@@ -3180,56 +3277,9 @@ function slideThumbIn(item) {
       }));
       return;
     }
-    if (isAlbum) {
-      // user 2026-09-20（翻掉 §31 原地 clip-path）：inset 掃邊會把旋轉縮圖「切一半→定位後才復原」＝視覺像 bug →
-      //   改真 clip-reveal（同 press/files 語彙）：wrap 當靜態窗、strip 整條由下往上滑入。
-      //   2026-09-24：窗不能用 overflow:clip——thumbs ±6° 旋轉凸角常態溢出 strip/wrap 框（overflow:visible
-      //   是設計），貼框剪裁＝滑動後段凸角被切、揭完才彈回（user 桌面實測抓包）。改 clip-path inset(-M)：
-      //   四邊外擴 M 蓋過凸角（實測凸出 <10px）、剪裁只剩外擴後的下緣＝揭露線；起點多沉 2M 保證含凸角全在線下。
-      //   位移量以 rect 算「wrap 底 − strip 頂」＝不論 wrap 被 row 撐多高，起點都完全在窗外；揭完清 inline。
-      //   translate 個別屬性、不碰 thumbs 的 rotate。
-      const M = 16;
-      const wrapEl = wrap || /** @type {HTMLElement|null} */ (container.parentElement);
-      const hiddenY = (wrapEl
-        ? Math.max(container.offsetHeight, Math.ceil(wrapEl.getBoundingClientRect().bottom - container.getBoundingClientRect().top))
-        : container.offsetHeight) + 2 * M;
-      if (wrapEl) wrapEl.style.clipPath = `inset(-${M}px)`;
-      container.style.transition = 'none';
-      container.style.translate = `0 ${hiddenY}px`;
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        container.style.transition = `translate ${DUR.medium}s ease-out`;
-        container.style.translate = '0 0';
-        const done = (e) => {
-          if (e.target !== container || e.propertyName !== 'translate') return;
-          container.style.transition = ''; container.style.translate = '';
-          if (wrapEl) wrapEl.style.clipPath = '';
-          container.removeEventListener('transitionend', done);
-        };
-        container.addEventListener('transitionend', done);
-      }));
-      return;
-    }
-    // press 桌面（user 2026-09-15 改版）：遮罩改「縮圖容器本身」（貼齊 img 實寬）、滑動主體改內部 img——
-    //   舊版整顆縮圖在 wrap（slot 固定寬）遮罩內畫外滑入，slot 右側留白也算窗＝橫向進場像「從空白冒出」。
-    //   容器當窗後揭露邊永遠在縮圖自框內；容器灰底透出＝滑的是有紋理的圖（同 files slideCoverIn 語彙）。
-    //   rotate 留在容器不動；overflow:clip 只在滑動期蓋掉 CSS overflow:visible（clip 吃旋轉後 local box、
-    //   不切角），揭完還原（凸角照舊）。
-    const pImg = /** @type {HTMLElement|null} */ (container.querySelector('.press-thumb-img'));
-    if (!pImg) return;
-    container.style.overflow = 'clip';
-    pImg.style.transition = 'none';
-    pImg.style.transform = pickCoverSlideDir();   // 同步設畫外起點＝visibility 一 visible 就在畫外、不閃 rest
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      pImg.style.transition = `transform ${DUR.medium}s ease-out`;
-      pImg.style.transform = 'translate(0%, 0%)';
-      const done = (e) => {
-        if (e.target !== pImg || e.propertyName !== 'transform') return;
-        pImg.style.transition = ''; pImg.style.transform = '';
-        container.style.overflow = '';
-        pImg.removeEventListener('transitionend', done);
-      };
-      pImg.addEventListener('transitionend', done);
-    }));
+    // 桌面 album（每張 .album-thumb）／press（.press-item-thumb）：縮圖自己的框當窗、隨機四向滑入（slideInOwnBox）
+    if (isAlbum) container.querySelectorAll('.album-thumb').forEach(t => slideInOwnBox(/** @type {HTMLElement} */ (t)));
+    else slideInOwnBox(container);
   };
   const wait = revealBusyRemaining();
   if (wait > 16) setTimeout(doSlide, wait);   // 色塊進行中→等它揭完再滑（分階段，不被 box clip 遮住方向）
@@ -3242,12 +3292,17 @@ function slideThumbIn(item) {
 function hideAwardItem(el) {
   el.style.transition = 'none';
   el.style.clipPath = 'inset(100% 0 0 0)';
-  const dir = Math.random() < 0.5 ? -100 : 100;   // 整筆同方向（主標題＋副標同向）
-  const row = awardMainTextEl(el);
-  // ⭐標題/副標各包「貼身」clip 遮罩（ensureGroupClip，同 documents revealFilesCards；award 模板已烙好＝no-op）→ translateY(100%) 才「完全藏住」。
+  const dir = Math.random() < 0.5 ? -100 : 100;   // 整筆同方向（主標題＋副標／award 各欄同向）
+  const isAward = el.classList.contains('award-record-item');
+  // ⭐標題/副標各包「貼身」clip 遮罩（ensureGroupClip，同 documents revealFilesCards）→ translateY(100%) 才「完全藏住」。
   //   原本靠 .files-item-titles/.press-item-titles 容器 overflow 當遮罩，但容器比標題高（還含副標）→ 平移一個標題高度藏不乾淨、
   //   色塊揭到標題區時標題已露臉＝user 2026-09-02「zebra 進場時 title 也同步進場」。貼身遮罩後＝色塊先揭、標題/副標才滑入。
-  if (row) { ensureGroupClip(row); row.style.transition = 'none'; row.style.transform = `translateY(${dir}%)`; }
+  //   award 各欄遮罩烙在模板（.award-cell-mask），揭露期才 clip：掛 .award-cell-clip，文字滑完（playAwardItem）拿掉。
+  if (isAward) el.classList.add('award-cell-clip');
+  awardTextEls(el).forEach(t => {
+    if (!isAward) ensureGroupClip(t);
+    t.style.transition = 'none'; t.style.transform = `translateY(${dir}%)`;
+  });
   const sub = awardSubtitleEl(el);
   if (sub) { ensureGroupClip(sub); sub.style.transition = 'none'; sub.style.transform = `translateY(${dir}%)`; }
   resetThumbPending(el);   // 縮圖回預藏（entrance 本已 pending；replay 重藏 → 圖 ready 才由 slideThumbIn 重滑）
@@ -3259,7 +3314,7 @@ function hideAwardItem(el) {
 // content-visibility 還原 auto 放在「最後收尾」的那段（文字/副標晚於色塊）：色塊一揭完就切回，文字還在滑＝可能被跳過渲染。
 function playAwardItem(el, dur, delay) {
   el.dataset.libRevealed = '1';   // one-shot 旗標（A-2）：entrance 路徑（oneShot）之後不重播；filter/sort/search wipe 不看此旗標、照重播
-  const row = awardMainTextEl(el);
+  const texts = awardTextEls(el);
   const sub = awardSubtitleEl(el);
   const textDelay = delay + dur;
   const subDelay = sub ? textDelay + SUBTITLE_REVEAL_STAGGER : textDelay;
@@ -3269,20 +3324,22 @@ function playAwardItem(el, dur, delay) {
   const clearBox = (e) => {
     if (e.target !== el || e.propertyName !== 'clip-path') return;
     el.style.transition = ''; el.style.clipPath = '';
-    if (!row && !sub) el.style.contentVisibility = '';   // 還原 auto（revealAwardItems flush 揭前暫設 visible）
+    if (!texts.length && !sub) el.style.contentVisibility = '';   // 還原 auto（revealAwardItems flush 揭前暫設 visible）
     el.removeEventListener('transitionend', clearBox);
   };
   el.addEventListener('transitionend', clearBox);
-  if (row) {
-    row.style.transition = `transform ${dur}s ease-out ${textDelay}s`;
-    row.style.transform = 'translateY(0)';
+  if (texts.length) {
+    texts.forEach(t => { t.style.transition = `transform ${dur}s ease-out ${textDelay}s`; t.style.transform = 'translateY(0)'; });
+    // 聽在 item 上（transitionend 會冒泡）：award 多欄同時長同起跑＝任一欄結束即全部結束；空欄（高 0）位移 0
+    //   不會 fire，所以不能指定某一欄當訊號
     const clearTxt = (e) => {
-      if (e.target !== row || e.propertyName !== 'transform') return;
-      row.style.transition = ''; row.style.transform = '';
+      if (e.propertyName !== 'transform' || !texts.includes(/** @type {HTMLElement} */ (e.target))) return;
+      texts.forEach(t => { t.style.transition = ''; t.style.transform = ''; });
+      el.classList.remove('award-cell-clip');
       if (!sub) el.style.contentVisibility = '';
-      row.removeEventListener('transitionend', clearTxt);
+      el.removeEventListener('transitionend', clearTxt);
     };
-    row.addEventListener('transitionend', clearTxt);
+    el.addEventListener('transitionend', clearTxt);
   }
   if (sub) {
     sub.style.transition = `transform ${dur}s ease-out ${subDelay}s`;
@@ -3472,8 +3529,9 @@ function flushReveal(s, sequential, snap = false, startDelay = 0) {
       }
       el.dataset.libRevealed = '1';
       el.style.transition = 'none'; el.style.clipPath = '';
-      const row = awardMainTextEl(el), sub = awardSubtitleEl(el);
-      if (row) { row.style.transition = 'none'; row.style.transform = ''; snapClear.push(row); }
+      const sub = awardSubtitleEl(el);
+      awardTextEls(el).forEach(t => { t.style.transition = 'none'; t.style.transform = ''; snapClear.push(t); });
+      el.classList.remove('award-cell-clip');
       if (sub) { sub.style.transition = 'none'; sub.style.transform = ''; snapClear.push(sub); }
       snapClear.push(el);
     } else {
@@ -3572,15 +3630,22 @@ function clearStaleReveal(el) {
   const h = /** @type {HTMLElement} */ (el);
   _revealStates.forEach(s => s.pending.delete(h));   // 回乾淨 rest＝不再等捲入揭（否則之後對已顯示列重播、inline 殘留）
   h.style.transition = 'none'; h.style.clipPath = ''; h.style.transform = '';
-  h.querySelectorAll('.award-row, .files-item-titles-text, .press-item-titles-text, .press-item-meta, .files-item-subtitle-wrap')
+  h.querySelectorAll('.files-item-titles-text, .press-item-titles-text, .press-item-meta, .files-item-subtitle-wrap')
     .forEach(c => { /** @type {HTMLElement} */ (c).style.transition = 'none'; /** @type {HTMLElement} */ (c).style.transform = ''; });
+  // award 各欄（10-01 方案 A）：cell 無 CSS transition → 清回 '' 即可；遮罩 clip 旗標一起拿掉
+  h.querySelectorAll('.award-cell-mask > *').forEach(c => { /** @type {HTMLElement} */ (c).style.transition = ''; /** @type {HTMLElement} */ (c).style.transform = ''; });
+  h.classList.remove('award-cell-clip');
   // 縮圖回乾淨可見 rest：清 slid 旗標＋移 pending（visibility 恢復）；album strip 清 transform、press thumb 還原 rotate；wrap overflow 還原。
   h.dataset.thumbSlid = '';
   const strip = /** @type {HTMLElement|null} */ (h.querySelector('.album-thumb-strip')); if (strip) { strip.style.transition = 'none'; strip.style.transform = ''; strip.style.clipPath = ''; strip.style.translate = ''; strip.classList.remove('thumb-reveal-pending'); }  // 中斷善後：清 clipPath（§31 舊制殘留）＋translate（2026-09-20 窗＋位移制；手機分支同用）否則畫外殘留永久隱形/錯位
   const pth   = /** @type {HTMLElement|null} */ (h.querySelector('.press-item-thumb')); if (pth) { pth.style.transition = 'none'; pth.style.transform = `rotate(${pth.dataset.initDeg || 0}deg)`; pth.style.overflow = ''; pth.classList.remove('thumb-reveal-pending'); }
-  // press 桌面滑動主體已改內部 img（容器當遮罩，2026-09-15）：mid-slide 打斷時 img 殘留畫外 transform → 一併清
-  const pimg  = /** @type {HTMLElement|null} */ (h.querySelector('.press-thumb-img')); if (pimg) { pimg.style.transition = 'none'; pimg.style.transform = ''; }
-  const wrap  = /** @type {HTMLElement|null} */ (h.querySelector('.album-thumb-strip-wrap, .press-item-thumb-wrap')); if (wrap) { wrap.style.overflow = ''; wrap.style.clipPath = ''; }  // clipPath＝album 窗（2026-09-24 inset(-M) 制）中斷殘留
+  // 桌面縮圖自框當窗（slideInOwnBox：album 每張／press）：mid-slide 打斷時框內 img/play 殘留畫外 transform＋框
+  //   overflow:clip／透明底 → 一併清（transition 清回 ''＝還原 CSS 的 filter／overlay opacity hover 過渡；同幀清 transform 不會被補間）
+  h.querySelectorAll('.album-thumb, .press-item-thumb').forEach(t => {
+    /** @type {HTMLElement} */ (t).style.overflow = ''; /** @type {HTMLElement} */ (t).style.background = '';
+    [...t.children].forEach(c => { /** @type {HTMLElement} */ (c).style.transition = ''; /** @type {HTMLElement} */ (c).style.transform = ''; });
+  });
+  const wrap  = /** @type {HTMLElement|null} */ (h.querySelector('.album-thumb-strip-wrap, .press-item-thumb-wrap')); if (wrap) wrap.style.overflow = '';
 }
 
 // search 篩選後讓結果重播進場。⭐user 2026-09-02：search **不套 one-shot**——每次結果集有變就整批重播（不像 tab reveal 只播一次）；
@@ -3704,7 +3769,8 @@ function revealPanelChrome(panelEl, delaySec, animateTitle) {
   const yearWrap  = q(':scope [id$="year-picker-wrap"]');
   const catFilter = q(':scope [id$="cat-filter"]');
   const ticker    = q(':scope [id$="awards-ticker"]');
-  const yearItems = yearWrap ? /** @type {HTMLElement[]} */ ([...yearWrap.querySelectorAll('button[data-year]')]) : [];
+  // 下一批 chevron 在捲動框外（年份欄底）→ 另抓、跟年份同批揭
+  const yearItems = yearWrap ? /** @type {HTMLElement[]} */ ([...yearWrap.querySelectorAll('button[data-year]'), ...panelEl.querySelectorAll('.year-more-btn')]) : [];
 
   markRevealBusy(delaySec + DUR_C + 0.5);
   _chromeStartAt = performance.now() + delaySec * 1000;   // §46：ticker 滑入對齊 chrome 起跑（見 chromeStartRemaining）
@@ -3892,6 +3958,7 @@ export function playPanelTitleExit(panelEl, dur = DUR.medium) {
 const PANEL_PIECE_SELS = [
   '[style*="align-items: flex-end"][style*="display: flex"]',
   '[id$="year-picker-wrap"]',
+  '.year-more-btn',            // 年份欄底的下一批 chevron（在捲動框外，跟年份欄同進退）
   '[id$="cat-filter"]',
   '[id$="awards-ticker"]',
   '[id$="-scroll"]',
@@ -4083,7 +4150,7 @@ function maybeRevealDeferredPanel(panelId) {
  * @returns {{
  *   showPanel: (tab: string, opts?: { reveal?: boolean }) => void,
  *   onEntranceDone: () => void,
- *   handleHash: () => void
+ *   handleHash: (unlock: () => void) => void
  * }}
  */
 export function initLibraryPanels() {
@@ -4114,26 +4181,10 @@ export function initLibraryPanels() {
     hidePanelChildren(document.getElementById(id));
   });
 
-  // hover dim 旗標（取代 library.css 舊 `:has(...:hover)`，見該處註解）：一支 delegated listener 涵蓋四 panel，
-  // 容器 data-hovering＋所屬 year-block .is-hover-block。gate 同舊 CSS media（真 hover 裝置＋≥768）；
-  // deep-link runHighlight／touch setRefOpenFlag 另掛同組旗標。容器是 library.html 靜態節點、隨 SPA swap 消失、免 cleanup。
-  const content = document.getElementById('library-card-content');
-  if (content && window.matchMedia('(hover: hover) and (min-width: 768px)').matches) {
-    const ROW_SEL = '.award-record-item, .press-item, .files-item';
-    let hoverBlock = null;
-    const setHover = (row) => {
-      const block = row ? row.closest('[class$="year-block"]') : null;
-      if (block !== hoverBlock) { hoverBlock?.classList.remove('is-hover-block'); block?.classList.add('is-hover-block'); hoverBlock = block; }
-      content.toggleAttribute('data-hovering', !!row);
-    };
-    content.addEventListener('mouseover', e => setHover(/** @type {Element} */ (e.target).closest(ROW_SEL)));
-    content.addEventListener('mouseout', e => { if (!(/** @type {Element | null} */ (e.relatedTarget))?.closest?.(ROW_SEL)) setHover(null); });
-  }
-
   // 轉向（跨矮橫向 gate）時重量所有 marquee：橫向 runMarqueeOverflow 把文字換成兩份 .marquee-copy，
   // 轉直向後 cell 換行顯示 → 兩份全露出＝「文字出現兩次」；applyMarqueeOverflow 自帶 reset（重跑先還原
   // 單份再依當前寬度重判），四個 _XMarqueeInit 都 idempotent → 直接全部重觸發即自癒。
-  const gateMq = window.matchMedia('(orientation: landscape) and (max-height: 500px)');
+  const gateMq = window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)');
   const onGateChange = () => requestAnimationFrame(() => {
     ['_awardsMarqueeInit', '_pressMarqueeInit', '_filesMarqueeInit', '_albumMarqueeInit']
       .forEach(k => { if (typeof window[k] === 'function') window[k](); });
@@ -4195,8 +4246,9 @@ export function isItemDeepLinkHash() {
  * 1. 從 hash 找對應的 DOM element（有 retry，因為 awards/album 是 async 載入）
  * 2. 判斷它屬於哪個 panel（awards/press/files/album）
  * 3. 切換 panel + 滾動 + 觸發一次該項目的 hover 效果
+ * @param {() => void} unlock deep-link 呈現完的解鎖鑰匙（main-modular 換頁 init 時取好傳入；本函式等進場完才跑，不能在這裡才取）
  */
-function handleLibraryHash() {
+function handleLibraryHash(unlock) {
   const hash = window.location.hash.slice(1);
   if (!hash) return;
 
@@ -4230,13 +4282,13 @@ function handleLibraryHash() {
     if (!el) {
       if (Date.now() - startTime < MAX_WAIT) {
         setTimeout(tryFindAndHandle, 100);
-      }
+      } else unlock();   // 等不到目標（id 對不上／資料失敗）＝不呈現 → 解除 deep-link 操作鎖
       return;
     }
 
     // 判斷 element 屬於哪個 panel
     const panelEl = el.closest('[id^="lib-panel-"]');
-    if (!panelEl) return;
+    if (!panelEl) { unlock(); return; }
     const tab = panelEl.id.replace('lib-panel-', '');
 
     // 遞延首渲染（deep-link 閘）時內容 reveal 比 entrance-done 晚起跑：等 reveal 忙碌窗收完才對齊捲動
@@ -4390,7 +4442,8 @@ function handleLibraryHash() {
           el.style.background = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
         }
         el.classList.add('is-hovered');
-        // dim 旗標同 initLibraryPanels 的 hover delegated 版（library.css 已無 :has）
+        // 其餘列 dim 旗標（library.css data-hovering／.is-hover-block）：只剩 deep-link 這裡會掛——真 hover 不再 dim
+        //（user 2026-10-01：除 atlas 外 hover 卡片不調不透明度；原 initLibraryPanels 的 delegated mouseover 已撤）
         const content = el.closest('#library-card-content'), block = el.closest('[class$="year-block"]');
         content?.setAttribute('data-hovering', ''); block?.classList.add('is-hover-block');
         el.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
@@ -4399,6 +4452,7 @@ function handleLibraryHash() {
           el.classList.remove('is-hovered');
           content?.removeAttribute('data-hovering'); block?.classList.remove('is-hover-block');
           el.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+          unlock();   // highlight 收尾＝deep-link 呈現完成 → 解除操作鎖
           // transition 等淡出跑完才還原（0.3s），避免殘留 inline transition 干擾之後的 hover
           setTimeout(() => { el.style.transition = prevTransition; }, 350);
         }, 1000);

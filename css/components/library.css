@@ -30,14 +30,21 @@
   bottom: 12px;                                   /* = .lib-panel-title 下 padding */
   height: calc(var(--font-size-xl) * 1.2);        /* = 標題行高 → 與 marquee 字垂直置中 */
   align-items: center !important;
-  gap: var(--spacing-md) !important;
+  /* xs 8（user 2026-10-01「gap 縮一半」）：看得到的 icon 間距＝gap＋filter 鈕 32 盒的 6px 內距＋稿子留白，
+     md 24 時約 34px → xs 約 17px＝真的減半（只改成 12 會剩 22px） */
+  gap: var(--spacing-xs) !important;
   margin: 0 !important;                           /* awards inline margin-bottom */
   padding-left: var(--spacing-md);
   background: var(--lib-bg);                      /* 標題 marquee 從底下跑過；search 展開往左長也蓋得住 */
 }
 .lib-toolbar > div { flex: none !important; gap: 0 !important; padding-bottom: 0 !important; }
-.lib-toolbar label.icon-search { cursor: var(--cursor-pointer); }
-/* 點 search icon（label for）＝focus input 展開到 max width；有字就維持展開（:placeholder-shown 判空） */
+/* search／filter／sort 三顆同高（user 2026-10-01）：後台設計稿共用畫板高 168.26（單一 icon 寬 184.06）→ 盒高同為 20px 且
+   contain 時被同一個寬度比例縮放＝墨跡同高。search 原 icon-xs 14px 放大；sort 稿是雙寬畫板 361.8（時鐘＋箭頭）→ 盒寬照比例放寬，
+   否則 20×20 盒裡被寬度壓到只剩一半高。換稿若改畫板尺寸，這兩個數字要跟著改 */
+.lib-toolbar label.icon-search { cursor: var(--cursor-pointer); font-size: 20px; }
+/* 點 search icon（label for）＝focus input 展開到 max width；有字就維持展開。
+   「有字」改 JS 掛 .has-value（main-modular.js 工具列 init 綁 input 事件；2026-10-01）：原 :has(input:not(:placeholder-shown))
+   每次樣式重算都要判 placeholder 狀態，library 切 mode 一次實測耗 28ms 選擇器時間 */
 .lib-toolbar input {
   flex: none !important;
   width: 0;
@@ -45,15 +52,17 @@
   transition: width var(--dur-medium) ease, margin-left var(--dur-medium) ease;
 }
 .lib-toolbar > div:focus-within input,
-.lib-toolbar > div:has(input:not(:placeholder-shown)) input {
+.lib-toolbar > div.has-value input {
   width: 14rem;
   margin-left: var(--spacing-xs);
 }
 .lib-toolbar .library-sort-btn { padding: 0; }
-/* date sort：桌面文字換時間 icon（後台 site_icons key: time），箭頭保留標方向；手機維持文字 */
+/* date sort：桌面文字換單一時間 icon，方向由 icon 本身表達（後台 site_icons key: time_desc／time_asc，
+   library-panels.js setSortIcons 換），不再掛箭頭（user 2026-10-01）；手機維持文字＋箭頭 */
 .lib-sort-time { display: none; }
-.lib-toolbar .lib-sort-label { display: none; }
-.lib-toolbar .lib-sort-time { display: inline-block; font-size: 20px; }
+.lib-toolbar .lib-sort-label,
+.lib-toolbar .sort-arrow { display: none; }
+.lib-toolbar .lib-sort-time { display: inline-block; font-size: 20px; width: calc(1em * 361.8 / 184.06); }
 /* filter 鈕（files／album）：手機不顯示（分類 chip 常駐）；開啟＝換 active icon（後台 key: filter / filter_active），無底色 */
 .lib-filter-btn { display: none; }
 .lib-toolbar .lib-filter-btn {
@@ -73,8 +82,10 @@
 [id^="lib-panel-"].lib-desk-tools > div[style*="grid"] { grid-template-rows: 1fr !important; position: relative; }
 [id^="lib-panel-"].lib-desk-tools > div[style*="grid"] > div:first-child:empty,
 #lib-panel-press.lib-desk-tools > div[style*="grid"] > div:nth-child(2) { display: none; }
-/* awards：左欄的 spacer（對齊舊 search 列高）＋ 4px 一起拿掉 */
-#lib-panel-awards.lib-desk-tools > div[style*="grid"] > div:first-child { padding-top: 0 !important; }
+/* awards：左欄的 spacer（對齊舊 search 列高）＋ 4px 一起拿掉；底 padding(xs) 也拿掉＝年份欄（含 reset 空間）
+   底邊與右側 list 底邊對齊（user 2026-10-01；其他三 panel 欄本來就無底 padding）。
+   attachYearReset 讀這裡的 computed padding 對位 reset → 本規則須在年份建置前生效（lib-desk-tools 早於 initLibraryPanels 掛） */
+#lib-panel-awards.lib-desk-tools > div[style*="grid"] > div:first-child { padding-top: 0 !important; padding-bottom: 0 !important; }
 #lib-panel-awards.lib-desk-tools > div[style*="grid"] > div:first-child > p { display: none; }
 /* files／album 分類＝覆蓋在 list 右側的滑板（不推擠 list）：wrapper＝貼灰卡右緣的遮罩，分類本體從右滑入。
    z 高過 sticky 年份標（5）；收起時遮罩不吃 pointer（本體滑出去也不會擋到 list） */
@@ -118,6 +129,11 @@
   display: flex;
   visibility: hidden;    /* 預設隱藏，setAsColor 時設為 visible */
   color: #000;
+}
+/* 左右邊直排字條：中文直立字墨水比行盒偏右 ~0.09em、右緣超出 ~1.3px 被上面 overflow 切掉（user 2026-10-01）→ 裁切窗往右多 3px。
+   只加右側＝文字位置不動；進場由右滑入時字墨離 inner 左緣 4px 以上，多出的 3px 不會先露字（library-card.js marqueeEnterShift） */
+.color-rect-title:is([data-edge="left"], [data-edge="right"]) {
+  padding-right: 3px;
 }
 .color-rect-title-inner {
   display: inline-block;
@@ -539,14 +555,14 @@
   flex-shrink: 0;
   /* 寬度由 JS 動態設 = viewport 寬（grid col），讓每位獲獎者整位對齊 col */
 }
-/* 2026-09-15 user 拍板：awards 全部 cell 一律貼頂（撤 09-13 的單人/單語置中）。
-   .award-row 本身 align-items:start，這裡不再覆蓋；.award-winners-zh-only / .award-cell-center
-   class 仍由 JS 加（語義保留），目前無樣式。 */
+/* awards 每欄垂直置中（user 2026-10-01，取代 09-15「全部 cell 貼頂」）：.award-row 模板 inline align-items:center，
+   國旗／ref chevron 原本對齊第一行的上 padding 拿掉；手機仍貼頂（max-width:767 區 !important）。
+   .award-winners-zh-only / .award-cell-center class 仍由 JS 加（語義保留），目前無樣式。 */
 
 /* Award 全表雙語 EN→ZH 間距（user 2026-08-13）：award 文字全 text-xs → 吃 xs 字級 token（1px），跟字級對齊。
    涵蓋中間欄各 cell（競賽/主辦/獎項/名次）、得獎人 pair、以及展開的 ref 列（label + title 兩欄各自的 EN/ZH）。
    全部是 flex-col 疊放 → row-gap 補間距。 */
-#library-awards-list .award-mid > div,
+#library-awards-list .award-mid > .award-cell-mask > div,
 #library-awards-list .award-winner-pair,
 #library-awards-list .award-ref-row > div {
   row-gap: var(--space-en-zh-xs);
@@ -616,7 +632,7 @@
     display: inline-block;
     padding-right: var(--marquee-copy-gap);
   }
-  /* 得獎人欄（.award-winners-col）桌面改「全員直排」（user 2026-09-13）：多得獎人不再整位橫捲、
+  /* 得獎人欄（.award-winners-col）桌面改「全員直排」（user 2026-09-13；主辦／名次欄 2026-10-01 同掛）：多筆不再整位橫捲、
      列高由本欄自然撐高；長名字走上面 :not(.is-hmarquee) 行級 hover marquee（JS 已跳過 hmarquee）。 */
   #library-awards-list .award-winners-col .award-winners-track {
     display: flex;
@@ -680,6 +696,11 @@ body.mode-color #library-album-list .files-item.list-item-zebra {
      閉合外觀不變（原 item py 下半 8px 改由 row 提供）。 */
   padding-bottom: 0.5rem;
 }
+/* 每欄文字遮罩（library-panels.js 模板 .award-cell-mask，user 2026-10-01 方案 A：各欄滑自己的高度、從自己框邊進場）。
+   mask 是 grid／flex item → min-width:0（fr 欄的 min 是 auto，不設＝marquee 長字把欄撐寬）。
+   揭露期 item 掛 .award-cell-clip 才 clip；平時 visible＝ref chevron 開合旋轉的角不被切。 */
+#library-awards-list .award-cell-mask { min-width: 0; }
+#library-awards-list .award-cell-clip .award-cell-mask { overflow-y: clip; }
 /* item 自身底 padding 歸零（template 是 Tailwind py-[0.5rem]，此 selector (1,1,0) + library.css 後載蓋過 utility） */
 #library-awards-list .award-record-item {
   padding-bottom: 0;
@@ -771,6 +792,7 @@ body.mode-inverse #library-awards-list .award-record-item[style*="background"] {
    （= 卡的對比字色，亮 hue 白 / 暗 hue 黑），否則深卡上冒黑圖看不見（user 2026-06-27）。
    元素 fixed 在 body、吃不到 #library-card scope 的 --lib-fg，故直接用 theme-fg-inverse。 */
 .award-spawn-icon { background-color: var(--theme-fg); }
+/* mode3 實際色＝點擊當下的大背景色（spawnAwardIcon inline 寫，user 2026-10-01）；這條只在 --theme-bg 讀不到時兜底 */
 body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
 
 /* ── Files list item ─────────────────────────────────────────── */
@@ -808,7 +830,9 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
    （原本只有 Documents 這樣做，user 2026-08-10 定案四 panel 統一）；hover 項目所屬 year-block 的文字蓋回
    不透明＝分組高亮（同 admission 慣例）。[class$="year-block"] 沿用「四 panel 年份容器 class 皆以 year-block
    結尾」慣例（award=.year-block／press=.press-year-block／files=.files-year-block／album=.album-year-block）。
-   deep-link highlight（user 2026-09-11）：runHighlight 對目標列掛 .is-hovered 1s＋同組旗標，其餘列同樣半透明。 */
+   deep-link highlight（user 2026-09-11）：runHighlight 對目標列掛 .is-hovered 1s＋同組旗標，其餘列同樣半透明。
+   ⭐2026-10-01 起真 hover 不再 dim（user：除 atlas 外 hover 卡片不調不透明度）→ delegated mouseover 已撤，
+   下面兩條只剩 deep-link runHighlight 會觸發（上方「hover 連動」敘述為歷史）。 */
 .award-record-item,
 .year-label-text {
   transition: opacity var(--dur-fast) ease;
@@ -867,6 +891,43 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
    chrome clip-reveal（revealPanelChrome／createYearPicker §42）收尾會清 inline transition → 之後變色變 snap */
 [id$="-year-picker"] button {
   transition: color 0.3s ease;
+}
+/* 年份／分類鈕 hover＝瞬間 100% 原色（user 2026-10-01：第二層 0.5 hover 回原色、不要 fade）；disabled／搜尋無結果的
+   0.2（分類 JS 掛 .lib-faint）不動。改 text-fill 不改 color：color 的 0.3s transition 留給點選變淡，hover 進出都不吃它；
+   點下去 color 在底下補間也看不到（不會先掉回 0.5 再淡上來）。只給真滑鼠（觸控 tap 的 sticky hover 會黏住） */
+@media (hover: hover) and (min-width: 768px) {
+  [id$="-year-picker"] button[data-year]:not(:disabled):hover,
+  :is(.lib-files-cat-btn, .lib-album-cat-btn):not(:disabled, .lib-faint):hover {
+    -webkit-text-fill-color: var(--lib-fg);
+  }
+}
+/* 年份欄「下一批」chevron（library-panels.js attachYearReset 建、桌面限定）：年份 box 下緣、reset 空間之上、欄內置中
+   （user 2026-10-01「chevron 跟 reset 都要置中、不要靠左」）。
+   到底＝disabled，同 disabled 年份 0.2 淡；color/cursor 寫 CSS 理由同上（chrome clip-reveal 收尾會清 inline）。 */
+.year-more-btn {
+  flex: none;
+  align-self: center;
+  margin-top: auto;            /* 年份少、沒撐滿欄時跟 reset 空間一起貼欄底 */
+  display: flex;
+  padding: var(--spacing-xs) 0 0;
+  border: none;
+  background: none;
+  color: var(--lib-fg);
+  cursor: var(--cursor-pointer);
+  transition: color 0.3s ease;
+}
+.year-more-btn:disabled {
+  color: rgba(var(--lib-fg-rgb), 0.2);
+  cursor: var(--cursor-not-allowed);
+}
+/* reset icon 墨跡對齊年份數字／chevron 左緣（user 2026-10-01「左邊好像還有一點 padding」）：鈕本身無 padding，
+   偏移來自 reset.svg 畫板（160 方、圈最左墨跡在 x≈24.5）＝20px 時左側自帶 ~3px 留白 → 挪 3px（圓弧極點略超出數字直邊
+   ~0.4px＝視覺對齊；實測三者墨跡左緣同 224.5）。不改 svg：create 面板共用。後台換 reset 稿若留白不同要重量。
+   手機 reset 在橫向 bar 右側、不套。
+   2026-10-01 桌面 reset 改成在 .year-reset-slot 裡置中 → 不再貼左、不挪（畫板置中即可，墨跡中心只偏 0.5px）；
+   這條只剩矮橫向（仍 absolute 貼左）在用。 */
+@media (min-width: 768px) {
+  :not(.year-reset-slot) > .year-reset-btn .icon-reset { margin-left: -3px; }
 }
 
 .files-item-card {
@@ -979,10 +1040,16 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
 }
 /* 單語言 album（只有英或只有中）：標題區一律保留「兩行標題」高度（比照 press .press-item-titles-text），
    單行由 --center 的 justify-content:center 垂直置中 → 分類標籤(副標)位置單/雙語一致、不上移（user 2026-09-03）。
-   font-size:s 讓 1.3em 對到標題行高（子 .files-item-title-* 自帶 s、不受影響）。只 scope album，Documents 卡片 subgrid 高度不動。 */
-#library-album-list .files-item-titles-text {
+   font-size:s 讓 1.3em 對到標題行高（子 .files-item-title-* 自帶 s、不受影響）。
+   Documents 卡同款（user 2026-10-01，比照 faculty「同列副標抓同一行」）：標題區一律兩行高 → 同列副標起點齊；
+   單語標題（一行）垂直置中在兩行高度裡。雙語標題剛好填滿、置中無作用，故免 --center class。 */
+#library-album-list .files-item-titles-text,
+#library-files-list .files-item-titles-text {
   font-size: var(--font-size-s);
   min-height: calc(1.3em * 2 + var(--space-en-zh-s));
+}
+#library-files-list .files-item-titles-text {
+  justify-content: center;
 }
 .files-item-row {
   display: grid;
@@ -1467,7 +1534,8 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
     min-width: 0 !important;
     align-items: start !important;
   }
-  #library-awards-list .award-row > :first-child { padding-top: 0.15em !important; }  /* 國旗對齊第一行文字頂 */
+  #library-awards-list .award-row > .award-cell-mask:first-child > div { padding-top: 0.15em !important; }  /* 國旗對齊第一行文字頂 */
+  #library-awards-list .award-ref-toggle { padding-top: 0.23em; }   /* ref chevron 同上（桌面整列置中不需要） */
   /* awards ref 列：手機兩欄 [↳icon][文字]，欄寬/欄距對齊 .award-row 的 1.5em + md
      → ref 文字起點＝主表第二欄（競賽名稱）起點（user 2026-09-10「ref 的文字對齊第二個 col」）。
      icon/文字各落 col 1 / col 2 沿用 inline grid-column（1、2/-2 在兩欄下收斂成 col 2）。 */
@@ -1494,7 +1562,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
     font-size: var(--font-size-s) !important;
   }
   /* 中間欄各 cell：解開 truncate 讓 EN/ZH 自然換行 */
-  #library-awards-list .award-mid > div {
+  #library-awards-list .award-mid > .award-cell-mask > div {
     min-width: 0 !important;
     overflow: visible !important;
     text-overflow: clip !important;

@@ -93,7 +93,9 @@ body.mode-color .icon.footer-social-glyph { filter: var(--footer-invert-filter, 
 /* library 桌面工具列（user 2026-09-29）：佔位 icon，後台 site_icons 同 key 換檔即生效 */
 .icon-filter        { --icon: url('../website-icons/filter.svg'); }
 .icon-filter-active { --icon: url('../website-icons/filter_active.svg'); }
-.icon-time          { --icon: url('../website-icons/time.svg'); }
+/* date sort 依方向二選一（user 2026-10-01；取代單一 time＋方向箭頭）：desc＝新→舊（預設）、asc＝舊→新 */
+.icon-time-desc     { --icon: url('../website-icons/time_desc.svg'); }
+.icon-time-asc      { --icon: url('../website-icons/time_asc.svg'); }
 
 /* social */
 .icon-youtube   { --icon: url('../website-icons/youtube.svg'); }
