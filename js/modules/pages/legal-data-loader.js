@@ -127,6 +127,13 @@ function mountZebra(contentEl, html) {
     });
   });
   if (document.fonts?.ready) document.fonts.ready.then(() => { if (contentEl.isConnected) measureRegMarquee(); });
+  // 欄寬依內容隨視窗變（legal.css .legal-reg-table）→ resize 後重量，否則縮小被切的字沒標 is-overflow、hover 不捲（user 2026-10-03）
+  if (contentEl.querySelector('.legal-reg-table')) {
+    let rzTimer = 0;
+    const onResize = () => { clearTimeout(rzTimer); rzTimer = setTimeout(measureRegMarquee, 150); };
+    window.addEventListener('resize', onResize);
+    registerPageCleanup(() => { clearTimeout(rzTimer); window.removeEventListener('resize', onResize); });
+  }
   const items = Array.from(contentEl.querySelectorAll('.list-item'));
   const rows = Array.from(contentEl.querySelectorAll('.list-reveal-row'));
   // per-item 交替方向（比照 admission-data-loader）：整筆一致——半數 title+副標由上滑入（translateY -110%）＋

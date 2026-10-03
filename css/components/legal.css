@@ -559,11 +559,24 @@
   }
   .legal-reg-group {
     display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) minmax(0, 1fr);   /* user 2026-09-10 二修：類別 2 ｜ 規章名 3 ｜ 承辦單位 1 */
     grid-template-rows: repeat(var(--reg-rows, 1), auto);
     column-gap: var(--spacing-md);
     row-gap: 0;   /* ref 式排列（user 2026-09-09f）：列間無 gap、間距改由 cell 上下 padding 提供 → hover 色帶與鄰列相接 */
     align-items: stretch;   /* 同列 name/unit 等高 → hover ref box 齊高 */
+  }
+  /* 桌面 3 欄寬依內容（user 2026-10-03「縮小時優先不 marquee，真的太小才 marquee」；取代 09-10 的 2｜3｜1 固定比例）：
+     表＝3 欄 grid、各組 subgrid 共用欄軌 → 類別／承辦單位 minmax(0, max-content)、規章名 auto：放得下時三欄剛好容下
+     各自最長字、多的空間全給規章名；不夠時瀏覽器均分縮減＝短欄先滿足、最長的欄才 marquee。
+     cell min-width:0＝auto 欄可縮（否則 nowrap 字撐住 min-content 不縮、直接溢出）。手機直排見下方 max-767。 */
+  @media (min-width: 768px) {
+    .legal-reg-table {
+      display: grid;
+      grid-template-columns: minmax(0, max-content) auto minmax(0, max-content);
+      column-gap: var(--spacing-md);
+    }
+    .legal-reg-group { grid-column: 1 / -1; grid-template-columns: subgrid; }
+    .legal-reg-name,
+    .legal-reg-unit { min-width: 0; }
   }
   .legal-reg-cat {
     grid-column: 1;
