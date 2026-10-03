@@ -99,6 +99,7 @@
   @media (min-width: 1024px) and (min-height: 501px) {
     .legal-page-section .legal-content-col {
       padding-left: 0;
+      --inner-box-top: var(--header-logo-mid);   /* 內文框頂＝logo 中線 98（user 2026-10-03，同 curriculum/activities/admission） */
     }
     /* sitemap 卡片貼 col-4 且帶旋轉 → 角落凸出內捲框（overflow:auto）左緣被裁（user 2026-10-03）：
        框兩側各外推 24、內補 24 當旋轉 clearance＝卡片可見左緣仍在 col-4（同 faculty 框外推，lists.css:188） */

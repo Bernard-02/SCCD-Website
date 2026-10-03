@@ -96,7 +96,7 @@
             <div class="activities-panel" id="panel-news">
               <!-- relative z-20：描述滾動時要蓋過 sticky 遮罩（z-10），與 summer-camp 模式一致 -->
               <div class="grid-12 mb-xl relative z-20">
-                <div class="col-span-12 md:col-span-7 md:col-start-6">
+                <div class="col-span-12 md:col-span-7 md:col-start-6 min-[1024px]:col-start-1 min-[1024px]:col-span-9">
                   <!-- list-reveal-row：panel 切換時與 items 一起參與 reveal/exit；DOM 順序在 list 前 → 先進場
                        文字＝後台 admission_hero 的 data-hero-field 欄位（hero-source.js 覆寫）；此處為快照、免載入閃換 -->
                   <div class="list-reveal-row">
@@ -112,7 +112,7 @@
             <div class="activities-panel hidden" id="panel-summer-camp">
               <!-- relative z-20：描述滾動時要蓋過 sticky 遮罩（z-10），仿 activities workshop 模式 -->
               <div class="grid-12 mb-xl relative z-20">
-                <div class="col-span-12 md:col-span-7 md:col-start-6">
+                <div class="col-span-12 md:col-span-7 md:col-start-6 min-[1024px]:col-start-1 min-[1024px]:col-span-9">
                   <!-- list-reveal-row：panel 切換時與年份/items 一起參與 reveal/exit；DOM 順序在 list 前 → 先進場 -->
                   <div class="list-reveal-row">
                     <p class="text-s font-bold mb-en-zh-body" data-hero-field="summerCampDescEn">SCCD Summer Camp offers high school students an immersive introduction to communications design, blending creative workshops, studio visits, and hands-on projects.</p>

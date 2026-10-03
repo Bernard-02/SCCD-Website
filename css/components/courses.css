@@ -354,7 +354,10 @@
   @media (min-width: 768px) {
     .courses-grid-type-label {
       position: sticky;
-      top: 80px;  /* inner-scroll frame：cover top:0 + cover 高(48) + row-gap(32)=80（box-relative，維持原相對堆疊）；原 280 */
+      /* ＝必修 label 的自然位置（user 2026-10-03：原位不動直接黏，不要先捲一點）：cover 實高（年級表頭英中兩行＋英中距＋pb xs）
+         ＋ grid row-gap sm ＋ 必修列 margin-top sm ＝ 83.6。原寫死 80（cover 單行 48 時代）＝往下捲 ~4px 才黏。
+         表頭字級／行數、cover padding、上面兩段間距改了要同步 */
+      top: calc(2 * var(--font-size-s) * var(--line-height-s) + var(--space-en-zh-s) + var(--spacing-xs) + 2 * var(--spacing-sm));
       z-index: 1;  /* 低於 cover (z:3)，release 時 leak 上來會被 cover 蓋住 */
     }
   }

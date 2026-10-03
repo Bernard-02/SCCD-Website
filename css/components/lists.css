@@ -93,6 +93,17 @@
    平板維持 header+inner-pad */
 @media (min-width: 1024px) and (min-height: 501px) {
   .inner-scroll-frame-grid { --inner-box-top: var(--nav-line); }
+  /* faculty：捲動盒拉到視窗頂（無白遮罩帶，卡片往上捲直接被螢幕頂切）、首列照片頂＝logo 中線 98（user 2026-10-03）；
+     nav 仍在 nav line（變數只蓋在盒上）。padding-top 扣掉首面牆 margin sm＋卡片 p-[6px]＝照片框（不含旋轉）頂落在 98 */
+  #faculty-cards .inner-scroll-scroll-col {
+    --inner-box-top: 0px;
+    padding-top: calc(var(--header-logo-mid) - var(--spacing-sm) - 6px);
+  }
+  /* curriculum／activities／admission：內容區頂＝logo 中線 98（user 2026-10-03，取代同日「第一列中線對齊 menu 鈕 72」）
+     ＝第一列（年級表頭／子分頁鈕或搜尋列／…）頂落在 98；盒頂以上照舊是遮罩帶（sticky 表頭/filter bar 釘盒頂）。nav 仍在 nav line */
+  :is(#courses-content-section, #activities-content-section, #admission-content-section) .inner-scroll-scroll-col {
+    --inner-box-top: var(--header-logo-mid);
+  }
 }
 /* ===== nav 清單太高（視窗矮）→ 可上下捲的盒＋底部 chevron（user 2026-10-01；JS＝section-switch-helpers bindNavOverflow）=====
    host（JS 掛 .nav-overflow-host）＝限高的 flex column，底部讓出左下「當前頁」卡（≥1200 才有卡；gate 外
