@@ -8,7 +8,6 @@ import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { loadAtlasData } from './atlas-source.js';
 import { countryName } from '../../data/country-names.js';
 import { guestOrgs } from './guest-orgs.js';
-import { sitePath } from '../ui/site-base.js';
 import { loadUiLabels, applyUiLabels } from '../ui/ui-labels.js';
 import { ACCENT_TO_DEEP } from '../accordions/list-accordion.js';
 import { bindArrowSpin, randomSpinAngle } from '../ui/arrow-spin.js';
@@ -29,7 +28,6 @@ import { bindNavBtnHover, isNavSpinDesktop } from '../ui/section-switch-helpers.
  */
 
 // 三原色（A/B/C label 與線色從這裡選；D 永遠黑）
-const PRIMARY_COLORS = ['#FF448A', '#00FF80', '#26BCFF'];
 const COLOR_BLACK = '#000000';
 
 // Alumni filter 下方輪播職業（雙語，每 3s 切換一個 + clip-path 動畫）
@@ -261,7 +259,7 @@ export async function initAtlas(options = {}) {
   // pan/pinch/tap-zoom）、list＝3 sub-col 重排（2026-07-07：tab 進 header 列、alumni 左欄子分頁鈕）。
   // gate 一律併入「手機家族」JS 路徑（isMobileAtlas）：單選 tab / mobile 分頁 / mobile map⇄list 切換。
   // init 時決定一次即可 — 跨 gate 轉向由 orientation-reload 統一重載。
-  const isLandscapeGateAtlas = window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
+  const isLandscapeGateAtlas = SCCDHelpers.isLandscapeGate();
   const isMobileAtlas = window.innerWidth < 768 || isLandscapeGateAtlas;
   // 直向手機圓點星雲（2026-07-09 user「atlas 做成跟橫向手機一樣」）：直向也走圓點/方塊/zoom/tap 星雲，
   //   佈局從橫式寬橢圓改直式（stage W<H）。圓點模式＝isMobileAtlas（直向+橫向手機都圓點，桌面不變）；
@@ -591,12 +589,12 @@ export async function initAtlas(options = {}) {
   items.forEach(item => {
     if (item.category === 'D') {
       item.color = COLOR_BLACK;
-      item.bgColor = PRIMARY_COLORS[Math.floor(Math.random() * PRIMARY_COLORS.length)];
+      item.bgColor = SCCDHelpers.getRandomAccentColor();
     } else if (item.category === 'B') {
       item.color = COLOR_BLACK;
-      item.bgColor = PRIMARY_COLORS[Math.floor(Math.random() * PRIMARY_COLORS.length)];
+      item.bgColor = SCCDHelpers.getRandomAccentColor();
     } else {
-      item.color = PRIMARY_COLORS[Math.floor(Math.random() * PRIMARY_COLORS.length)];
+      item.color = SCCDHelpers.getRandomAccentColor();
     }
   });
 
@@ -1273,7 +1271,7 @@ export async function initAtlas(options = {}) {
     const cover = document.createElement('span');
     cover.className = 'atlas-name-cover';
     cover.style.backgroundColor = (item.category === 'D' || item.category === 'B')
-      ? (item.bgColor || PRIMARY_COLORS[0])
+      ? (item.bgColor || SCCDHelpers.ACCENT_COLORS[0])
       : item.color;
     span.appendChild(cover);
 
@@ -1331,7 +1329,7 @@ export async function initAtlas(options = {}) {
     // 兩端顏色：src=item 類別色、city 端=city.bgColor（city label 高亮色）
     // 不同色用 linearGradient（與城市間連綫一致），同色純色 stroke
     const srcColor  = fromItem.color;
-    const cityColor = toItem.bgColor || PRIMARY_COLORS[0];
+    const cityColor = toItem.bgColor || SCCDHelpers.ACCENT_COLORS[0];
     let gradientEl = null;
     if (srcColor === cityColor) {
       lineEl.setAttribute('stroke', srcColor);
@@ -1443,8 +1441,8 @@ export async function initAtlas(options = {}) {
     for (let j = i + 1; j < cityRing.length; j++) {
       const a = cityRing[i];
       const b = cityRing[j];
-      const aColor = a.bgColor || PRIMARY_COLORS[0];
-      const bColor = b.bgColor || PRIMARY_COLORS[0];
+      const aColor = a.bgColor || SCCDHelpers.ACCENT_COLORS[0];
+      const bColor = b.bgColor || SCCDHelpers.ACCENT_COLORS[0];
       const lineEl = document.createElementNS(SVG_NS, 'path');
       lineEl.setAttribute('fill', 'none');
       lineEl.setAttribute('class', 'atlas-city-line');
@@ -2169,7 +2167,7 @@ export async function initAtlas(options = {}) {
 
   function fillDetailContent(item, ids) {
     // 每次出現都隨機三原色 bg + ±3° 旋轉，文字一律黑（亮三原色底→黑色內容原則）
-    const bg = PRIMARY_COLORS[Math.floor(Math.random() * PRIMARY_COLORS.length)];
+    const bg = SCCDHelpers.getRandomAccentColor();
     const rot = (Math.random() * 6 - 3).toFixed(2);
     detail.style.backgroundColor = bg;
     detail.style.color = '#000000';
@@ -2787,16 +2785,18 @@ export async function initAtlas(options = {}) {
   // 進場點燈期間，未亮 wave 的 item 跳過 tickFloat transform/z 寫入（省 style recalc/paint）。預設全亮，
   // 只有下方 intro 分支會先全熄再逐 wave 點回；手機/instant/reduced-motion 不進分支＝維持全亮、行為零變化。
   items.forEach(it => { it._introOn = true; });
+  // 提到 if 外：playMapExit 用 WAVES 判哪些 item 是點燈 fade 類、FADE 當退場時長（user 10-03）
+  const WAVES = [
+    ['fc', 'ff'],                 // 教師
+    ['em', 'wsg', 'ind', 'ec'],   // 就職 ＋ 合作單位
+    ['country'],                  // 國家
+    ['co'],                       // 主持（系友主持企業）
+  ];
+  const FADE = 0.6, WAVE_GAP = 0.55, STAG = 0.6;  // 末批止於 3·0.55+0.6+0.6=2.85s；連線壓軸止於 2·0.55+0.6+0.6+0.6=2.9s（≤ 3s）
+  const LINES_POS = WAVES.findIndex(w => w[0] === 'country') * WAVE_GAP + STAG + FADE;
   if (typeof gsap !== 'undefined' && !isMobileAtlas && !options.instant && !prefersReducedMotion()) {
-    const WAVES = [
-      ['fc', 'ff'],                 // 教師
-      ['em', 'wsg', 'ind', 'ec'],   // 就職 ＋ 合作單位
-      ['country'],                  // 國家
-      ['co'],                       // 主持（系友主持企業）
-    ];
-    const FADE = 0.6, WAVE_GAP = 0.55, STAG = 0.6;  // 末批止於 3·0.55+0.6+0.6=2.85s；連線壓軸止於 2·0.55+0.6+0.6+0.6=2.9s（≤ 3s）
     gsap.set(content.querySelectorAll('.atlas-anchor'), { opacity: 0 });
-    gsap.set(svg, { opacity: 0 });
+    gsap.set(svg, { opacity: 0 });   // 連線畫出前先藏（init 的 apply() 會把線直接設回定態整條）
     // 全熄：本幀起 tickFloat 跳過所有 item，各 wave 於 pos 點回（見下 introTween.call）
     items.forEach(it => { it._introOn = false; });
     FLOAT_MIN_DT = 1000 / 20;   // 修改 3：intro 期 FPS cap 30→20（finishIntroVisuals 還原）
@@ -2828,9 +2828,18 @@ export async function initAtlas(options = {}) {
         }, pos);
       }
     });
-    // 連線等「國家批」全亮完才出（user 2026-10-01「國家先出來，然後再連綫」；原本跟最後一批同時起跑＝國家還在點燈線就亮了）
-    introTween.to(svg, { opacity: 1, duration: FADE, ease: EASE.enterSoft },
-      WAVES.findIndex(w => w[0] === 'country') * WAVE_GAP + STAG + FADE);
+    // 連線等「國家批」全亮完才畫（user 2026-10-01「國家先出來，然後再連綫」）。點到點畫出（同 hover 城市移開／篩選／
+    // 清單切回；user 10-03「不是直接跳出來」，原本整片 svg 淡入）：到點當下才縮成點＋起 tween——init 的 apply()
+    // 會 killTweensOf 線並直接設定態，預先排進 timeline 的 tween 會被殺。onUpdate 必帶：intro 期 tickFloat 降 20fps
+    introTween.call(() => {
+      cityLines.forEach(cl => {
+        cl.hoveredEnd = Math.random() < 0.5 ? 'a' : 'b';
+        cl.retractT = 1;
+        updateCityLineEndpoints(cl);
+        gsap.to(cl, { retractT: cityLineRestT(cl), duration: FADE, ease: EASE.enterSoft, overwrite: true, onUpdate: () => updateCityLineEndpoints(cl) });
+      });
+      gsap.set(svg, { clearProps: 'opacity' });
+    }, undefined, LINES_POS);
     cleanupFns.push(() => introTween && introTween.kill());
   } else {
     applyTransform();
@@ -2879,7 +2888,8 @@ export async function initAtlas(options = {}) {
     dragging = true;
     dragStartX = e.clientX; dragStartY = e.clientY;
     dragStartTx = tx; dragStartTy = ty;
-    document.body.style.cursor = `url('${sitePath('custom-cursor/drag_2.svg')}') 15 15, grabbing`;
+    // 預設大小 clampOffsets 鎖死不可拖 → 不換拖曳游標（user 2026-10-02）
+    if (scale > minScaleAtlas) document.body.style.cursor = 'var(--cursor-grabbing)';
     e.preventDefault();
   }
   function onMouseMove(e) {
@@ -3233,7 +3243,7 @@ export async function initAtlas(options = {}) {
     function fill(career) {
       enEl.textContent = career.en;
       zhEl.textContent = career.zh;
-      el.style.backgroundColor = PRIMARY_COLORS[Math.floor(Math.random() * PRIMARY_COLORS.length)];
+      el.style.backgroundColor = SCCDHelpers.getRandomAccentColor();
     }
 
     // 換行時 chip width 鎖到「實際最寬那行 + 對稱左右 padding」
@@ -6447,7 +6457,7 @@ export async function initAtlas(options = {}) {
   }
 
   // ── Page exit：離開 atlas 時依當下 view 跑對應退場 ─────────────
-  // map view 用 switchToList 開頭的「東西消失」階段（subchip + btn collapse + cover/span hide + cityLines retract），
+  // map view＝filter/subchip 收＋進場點燈倒放（見 playMapExit），
   // list view 用 switchToMap 退場階段（yPercent col-title + line-clip + clip-path nav-item）；
   // 兩者都不跑下游 startList / finalize，純做退場讓 router cleanup 接手
   // idle-standby root 不是 document，不走 registerPageExit（overlay 非 routed page）——
@@ -6485,40 +6495,32 @@ export async function initAtlas(options = {}) {
       });
       if (introTween) introTween.kill();
 
-      const REVEAL_TOTAL = 0.35;
-      const HIDE_TOTAL   = 0.4;
-      const REVEAL_RANGE = 0.2;
-      const HIDE_RANGE   = 0.28;
-      const allWithSpan = items.filter(i => i._span);
-      const allSpans  = allWithSpan.map(i => i._span);
-      const allCovers = allWithSpan.map(i => i._cover).filter(Boolean);
-
-      gsap.set(allCovers, { clipPath: 'inset(0% 100% 0% 0%)' });
-
-      const HIDE_DIRS = [
-        'inset(0% 0% 0% 100%)',
-        'inset(0% 100% 0% 0%)',
-        'inset(100% 0% 0% 0%)',
-        'inset(0% 0% 100% 0%)',
-      ];
+      // 進場動作的反向、但不分階段（user 10-03：「出場 timing 一起做、不需要像進場一樣分」；取代 cover 蓋上＋span 四向擦除）：
+      // 上方 UI（篩選鈕／subchip／切換鈕，上面摘 class 走各自 CSS 收）、連線點到點收回、主持 co clip-reveal 收、其餘點燈 item 熄
+      // 全部 t=0 同時起跑；exitSoft（power2.in）＝ enterSoft 的時間反轉。全長 FADE+0.2≈0.8s
       introTween = gsap.timeline({ onComplete: () => gsap.delayedCall(0.2, resolve) });
-      allCovers.forEach(cover => {
-        const d = Math.random() * REVEAL_RANGE;
-        introTween.to(cover, { clipPath: 'inset(0% 0% 0% 0%)', duration: REVEAL_TOTAL - d, ease: EASE.enterSoft }, d);
-      });
-      const p2Start = REVEAL_TOTAL;
-      allSpans.forEach(span => {
-        const d = Math.random() * HIDE_RANGE;
-        const dir = HIDE_DIRS[Math.floor(Math.random() * 4)];
-        introTween.to(span, { clipPath: dir, duration: HIDE_TOTAL - d, ease: EASE.enterSoft }, p2Start + d);
-      });
-      hideLayoutIcon({ timeline: introTween, position: 0 });
-      cityLines.forEach(cl => { cl.hoveredEnd = Math.random() < 0.5 ? 'a' : 'b'; });
+      // 連線收回同篩選／切清單（user 10-03，原本整片 svg 淡出）；hover 中亮著的項目線摘 class＝CSS dashoffset 反向擦除
+      svg.querySelectorAll('.atlas-line-highlight').forEach(l => l.classList.remove('atlas-line-highlight'));
       cityLines.forEach(cl => {
-        // 線在第一拍（色塊蓋上的 REVEAL_TOTAL）內收完，第二拍節點才擦掉＝先線後點（user 10-01；原本線拖滿兩拍、跟國家點同時結束）
-        introTween.to(cl, { retractT: 1, duration: REVEAL_TOTAL, ease: EASE.enterSoft, overwrite: true }, 0);
+        cl.hoveredEnd = Math.random() < 0.5 ? 'a' : 'b';
+        introTween.to(cl, { retractT: 1, duration: FADE, ease: EASE.exitSoft, overwrite: true, onUpdate: () => updateCityLineEndpoints(cl) }, 0);
       });
-      if (allCovers.length === 0 && allSpans.length === 0) gsap.delayedCall(0.2, resolve);
+      const fadeAnchors = [];
+      items.forEach(it => {
+        if (!it._anchor) return;
+        const prefix = anchorPrefix(it);
+        if (prefix === 'co') {
+          if (!it._span) return;
+          bChipRevealTween(it._span, randomBDir(), 'hide', {
+            duration: FADE, ease: EASE.exitSoft, tl: introTween, position: 0,
+            onComplete: () => { it._anchor.style.opacity = '0'; },   // hide 收尾會清 clip → 同幀藏 anchor 免閃回
+          });
+        } else if (WAVES.some(w => w.includes(prefix))) {
+          fadeAnchors.push(it._anchor);
+        }
+      });
+      introTween.to(fadeAnchors, { opacity: 0, duration: FADE, ease: EASE.exitSoft }, 0);
+      hideLayoutIcon({ timeline: introTween, position: 0 });
     });
   }
 
