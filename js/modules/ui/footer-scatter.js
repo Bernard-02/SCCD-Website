@@ -64,7 +64,6 @@ const ITEM_SELECTORS = [
 
 // 三原色 accent 底色塊：只套在「會變化的文字內容」(scatter text blocks)，每次 shuffle 重新隨機。
 // 桌面 only（initFooterScatter < 768 early return）；social icon items 不套（保留去背 icon）。
-const ACCENT_COLORS = ['#00FF80', '#FF448A', '#26BCFF'];
 const TEXT_ITEM_SELECTOR = '.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-info, .footer-unit';
 
 // 每次配色「保證三原色各至少出現一次」(user 2026-06-09：之前各卡獨立隨機，整組可能缺某色)：
@@ -73,9 +72,9 @@ const TEXT_ITEM_SELECTOR = '.footer-fax, .footer-tel, .footer-office, .footer-em
 function applyAccentColors(items) {
   const textItems = items.filter((it) => it && it.matches && it.matches(TEXT_ITEM_SELECTOR));
   if (textItems.length === 0) return;
-  const palette = [...ACCENT_COLORS]; // 三色各一張保底
+  const palette = [...SCCDHelpers.ACCENT_COLORS]; // 三色各一張保底
   for (let i = palette.length; i < textItems.length; i++) {
-    palette.push(ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)]);
+    palette.push(SCCDHelpers.getRandomAccentColor());
   }
   for (let i = palette.length - 1; i > 0; i--) { // Fisher-Yates
     const j = Math.floor(Math.random() * (i + 1));
@@ -515,6 +514,37 @@ function pickFreeSpinAngle(anchor) {
   return best;
 }
 
+// ── legal 連結＝nav btn 同款（user 2026-10-03）：初始隨機角、hover 抽新角（離開保持）＋隨機三原色底（樣式在 footer.css）。
+// 角度掛 clip-reveal wrapper（先包好）：遮罩＝chip 自己的形狀跟著轉，離頁退場 <a> 在裡面 yPercent 沉出不被切角；
+// 也不跟退場 tween 搶 <a> 的 transform。wrapper 跨斷點重建會被 unwrapFooterAnim 剝掉重包 → listener 綁 wrapper 不累積。
+function bindLegalChips(footer) {
+  const links = /** @type {HTMLElement[]} */ (Array.from(footer.querySelectorAll('.footer-privacy a[data-footer-legal]')));
+  if (!links.length) return;
+  // wrapper 被 unwrapFooterAnim 剝掉後 clipWrapped 旗標還在＝setupClipReveal 會跳過不重包 → 先拆旗
+  links.forEach((a) => { if (!a.parentElement?.classList.contains('clip-reveal-wrapper')) delete a.dataset.clipWrapped; });
+  setupClipReveal(links, { hide: false });
+  links.forEach((a) => {
+    const wrap = a.parentElement;
+    if (!wrap || !wrap.classList.contains('clip-reveal-wrapper') || wrap.dataset.legalBound) return;
+    wrap.dataset.legalBound = '1';
+    const initial = SCCDHelpers.getRandomRotation();
+    const setAngle = (/** @type {number} */ d) => { wrap.style.transform = `rotate(${d}deg)`; };
+    setAngle(initial);
+    bindArrowSpin(wrap, setAngle, { initial, clickReroll: false });
+    wrap.addEventListener('mouseenter', () => wrap.style.setProperty('--legal-hover', SCCDHelpers.getRandomAccentColor()));
+  });
+}
+
+// ── 分頁說明文字（.footer-note，footer-content.js buildNote；後台 footer_tabs.note）：散佈區左下角、純文字不可點。
+// 外層＝定位／旋轉／遮罩（當 scatter obstacle），內層跟散佈卡同拍 clip-reveal 進出場。只回「目前分頁」那則。
+function getFooterNote(area) {
+  return /** @type {HTMLElement | null} */ (area ? area.querySelector(':scope > .footer-note:not(.fgroup-off)') : null);
+}
+function getFooterNoteInner(area) {
+  const note = getFooterNote(area);
+  return note ? note.querySelector('.footer-note-inner') : null;
+}
+
 // ── 學系/關聯單位 子 tab（桌面散佈 ≥1200；固定散佈區左上）─────
 // 兩顆 radio tab：tab1=dept（系資訊：social/tel/fax/email/office）、tab2=units（關聯單位 6 張連結）。
 // 點擊 = 這顆 active、切 `.footer-random[data-fgroup]` → CSS（≥1200）把非 active 群組 display:none → 重跑
@@ -528,6 +558,8 @@ function playScatterGroupExit() {
   if (!items || !items.length) return Promise.resolve();
   stopShuffleLoop();
   gsap.killTweensOf(items);
+  const noteInner = getFooterNoteInner(shuffleCtx.area);   // 這個分頁的說明文字跟卡片同拍沉出
+  if (noteInner) gsap.to(noteInner, { yPercent: CLIP_HIDE_YPERCENT, duration: DUR.base, ease: EASE.exit, overwrite: 'auto' });
   return new Promise((resolve) => {
     gsap.to(items, {
       yPercent: CLIP_HIDE_YPERCENT,
@@ -605,7 +637,7 @@ async function switchFooterGroup(footer, group) {
     applyGroupVisibility(area);
     stopShuffleLoop();
     _footerExited = false;
-    unwrapFooterAnim(footer);
+    unwrapFooterAnim(footer, true);
     await initFooterScatter(footer, { animate: true });   // phase 2：新群組進場
   } finally {
     _footerSwitching = false;
@@ -635,7 +667,7 @@ function bindFooterTabs(footer) {
     el.addEventListener('click', () => {
       // 手機＋矮橫向 tab 列是水平 scroll strip：點到的 tab 捲回靠左對齊列左緣（同 faculty/curriculum nav btn
       // 慣例，user 2026-09-16；矮橫向補 gate user 2026-09-24）。只動 bar 自己 scrollLeft；平板/桌面 absolute tabs 不套。
-      if (window.innerWidth < 768 || window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches) {
+      if (SCCDHelpers.isMobileLayout()) {
         const bar = /** @type {HTMLElement | null} */ (el.closest('.footer-tabs'));
         if (bar) {
           const pad = parseFloat(getComputedStyle(bar).paddingLeft) || 0;
@@ -706,7 +738,7 @@ function reserveTabRow(tabs, area) {
 //   兩者右側都是線性堆疊、都走 initFooterMobileReveal（無 shuffle/無隨機方向）；只有 ≥1200 才跑 scatter。
 // 矮橫向（橫向手機）不論寬度一律線性（user 2026-07-04「橫向一切以手機版為主」）。init/exit/reset 三處共用此判斷。
 function usesMobileFooter() {
-  return window.innerWidth < 1024 || window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
+  return SCCDHelpers.isMobileLayout();
 }
 
 export async function initFooterScatter(scope, opts = {}) {
@@ -752,6 +784,7 @@ export async function initFooterScatter(scope, opts = {}) {
   // 學系/關聯單位 tabs + 滿寬 reserve obstacle（涵蓋 tabs 整條）→ 卡片全排到 tab 下方、右邊整條淨空（user req2）。
   // radio 切換散佈群組。
   bindFooterTabs(footer);
+  bindLegalChips(footer);
   const tabs = footer.querySelector('.footer-tabs');
   makeTabsDraggable(tabs);
   const reserve = reserveTabRow(tabs, area);
@@ -759,18 +792,36 @@ export async function initFooterScatter(scope, opts = {}) {
   applyAccentColors(items);
   bindAnchorHover(anchors);
 
+  // 分頁說明文字（左下角）：靜止傾斜抽一次（同 tab ±[1,3]°；inline 被 unwrapFooterAnim 清掉才重抽），要在量 obstacle 前定好
+  const note = getFooterNote(area);
+  if (note && !note.style.transform) note.style.transform = `rotate(${((Math.random() < 0.5 ? -1 : 1) * rand(1, 3)).toFixed(2)}deg)`;
+  const noteInner = note ? note.querySelector('.footer-note-inner') : null;
+
   // 2026-09-27 版面：上區散佈（tabs 左上、legal 右上整高、copyright 貼底）、下區 logo bar 不在 area 內。
   // legal 整條（右側整高）當一個 obstacle：卡片不進 legal 區（user 2026-09-27「他們是一個整體」）。
+  // 說明文字只擋它自己那一塊（user 2026-10-03：卡片移動空間不含它、其他空間照用）。
   const privacy = footer.querySelector('.footer-privacy');
-  const obstacles = [reserve, privacy].filter(Boolean);
+  const obstacles = [reserve, privacy, note].filter(Boolean);
 
   // 初始：items 沉入 anchor 遮罩下（clip-reveal 起點；anchor opacity 從 CSS default 0 起）
   hideItemsClip(items);
 
   // Init 階段 build 1 個 verified layout 當 initial display + 後續 shuffle fallback
   // （shuffle 即時 generate 30 次都失敗時用這個保底）
-  const initialLayouts = await buildLayoutCache(area, anchors, obstacles);
-  const fallbackLayout = initialLayouts[0];
+  let fallbackLayout = (await buildLayoutCache(area, anchors, obstacles))[0];
+  // 排不進（沒有驗證過的版面）就讓上區長高 80px 再排、最多 4 次：footer 因此超過一屏、多捲一點，好過卡片疊在一起
+  // （user 2026-10-03 說明文字佔掉左下角後 1200×800 級約三成排不進）。resize／跨斷點重建時 unwrapFooterAnim 還原高度；
+  // 切分頁不還原＝高度不來回跳
+  const right = /** @type {HTMLElement | null} */ (footer.querySelector('.footer-right'));
+  let grew = false;
+  for (let i = 0; i < 4 && right; i++) {
+    applyPlacement(fallbackLayout);
+    if (fallbackLayout.length === anchors.length && verifyPlacement(area, anchors, obstacles)) break;
+    right.style.minHeight = `${right.offsetHeight + 80}px`;
+    grew = true;
+    fallbackLayout = (await buildLayoutCache(area, anchors, obstacles))[0];
+  }
+  if (grew && typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh();   // 文件變高，捲動觸發點要重量
 
   // 套 initial layout
   applyPlacement(fallbackLayout);
@@ -784,8 +835,10 @@ export async function initFooterScatter(scope, opts = {}) {
     gsap.set(anchors, { opacity: 1 });
     if (animate && !prefersReducedMotion()) {
       playClipRevealScatter(items);
+      if (noteInner) gsap.fromTo(noteInner, { yPercent: CLIP_HIDE_YPERCENT }, { yPercent: 0, duration: DUR.reveal, ease: EASE.enter, overwrite: 'auto', clearProps: 'transform' });
     } else {
       gsap.set(items, { clearProps: 'transform' });   // 清掉 hideItemsClip 的 yPercent 沉沒 → 直接就位
+      if (noteInner) gsap.set(noteInner, { clearProps: 'transform' });   // 切分頁時沉出去的，靜態重建也要回來
     }
   } else {
     anchors.forEach((a) => { a.style.opacity = '1'; });
@@ -968,6 +1021,8 @@ export function playFooterExit() {
     // 110 overshoot：旋轉 tab 角凸出 inner 上緣，100% 貼齊遮罩底會殘留（同上 mobile 路徑註）
     const tabsInner = getFooterTabsInner(area.closest('footer'));
     if (tabsInner) gsap.to(tabsInner, { yPercent: CLIP_HIDE_YPERCENT, duration: FOOTER_EXIT_DUR, ease: EASE.exit, overwrite: 'auto' });
+    const noteInner = getFooterNoteInner(area);
+    if (noteInner) gsap.to(noteInner, { yPercent: CLIP_HIDE_YPERCENT, duration: FOOTER_EXIT_DUR, ease: EASE.exit, overwrite: 'auto' });
     gsap.to(items, {
       yPercent: CLIP_HIDE_YPERCENT,
       duration: FOOTER_EXIT_DUR,
@@ -1002,6 +1057,8 @@ export function resetFooterAfterExit() {
   if (privacyLinks.length) gsap.fromTo(privacyLinks, { yPercent: 100 }, { yPercent: 0, duration: DUR.reveal, ease: EASE.enter, stagger: 0, overwrite: 'auto', clearProps: 'transform' });
   const tabsInner = getFooterTabsInner(area.closest('footer'));
   if (tabsInner) gsap.fromTo(tabsInner, { yPercent: CLIP_HIDE_YPERCENT }, { yPercent: 0, duration: DUR.reveal, ease: EASE.enter, overwrite: 'auto', clearProps: 'transform' });
+  const noteInner = getFooterNoteInner(area);
+  if (noteInner) gsap.fromTo(noteInner, { yPercent: CLIP_HIDE_YPERCENT }, { yPercent: 0, duration: DUR.reveal, ease: EASE.enter, overwrite: 'auto', clearProps: 'transform' });
   startShuffleLoop(area, anchors, obstacles, items, fallbackLayout);
 }
 
@@ -1009,21 +1066,24 @@ export function resetFooterAfterExit() {
 // user 2026-08-08：擴大過 1200 時，散佈 items 若沒被 scatter JS 接管會停在 CSS 的 opacity:0 → 一片空白。
 // 靠 resize 偵測跨越 1200，剝掉舊包層 + 依新 mode 重跑 initFooterScatter，重播進場動畫（不整頁 reload）。
 // ⚠️只偵測「寬度」跨 1200；矮橫向 gate 的線性化由 orientation-reload 處理（避免雙重重建）。
-function unwrapFooterAnim(footer) {
+function unwrapFooterAnim(footer, keepLegal = false) {
   // 反覆剝掉 scatter(.footer-anchor) 與 mobile/線性(.clip-reveal-wrapper) 包層，把 item 還原成原本直接子
   // （兩者可能巢狀：clip-reveal-wrapper > footer-anchor > item），guard 防意外無限迴圈。
+  // keepLegal（切分頁）：legal chip 的 wrapper 帶著旋轉角，剝掉重包＝每切一次分頁三顆就跳一次角 → 留著
+  const find = () => Array.from(footer.querySelectorAll('.footer-anchor, .clip-reveal-wrapper, .footer-tabs-inner'))
+    .filter((w) => !(keepLegal && /** @type {HTMLElement} */ (w).dataset.legalBound));
   let guard = 0;
-  let wrappers = footer.querySelectorAll('.footer-anchor, .clip-reveal-wrapper, .footer-tabs-inner');
+  let wrappers = find();
   while (wrappers.length && guard++ < 20) {
     wrappers.forEach((w) => {
       // .footer-tabs-inner 可能含多個 tab → 全部搬回（其他 wrapper 單子、迴圈一次也搬完）
       while (w.firstElementChild) { if (w.parentElement) w.parentElement.insertBefore(w.firstElementChild, w); else break; }
       w.remove();
     });
-    wrappers = footer.querySelectorAll('.footer-anchor, .clip-reveal-wrapper, .footer-tabs-inner');
+    wrappers = find();
   }
   // 清 item/logo/privacy 上的 inline 動畫殘留（scatter 的 transform/left/top/opacity、office snug width、reveal transform）
-  const RESET = '.footer-social, .footer-social-icon, .footer-fax, .footer-tel, .footer-office, .footer-email, .footer-info, .footer-unit, .footer-logo-area, .footer-logo-inner, .footer-privacy, .footer-privacy a, .footer-a11y-badge, .footer-copyright';
+  const RESET = '.footer-social, .footer-social-icon, .footer-fax, .footer-tel, .footer-office, .footer-email, .footer-info, .footer-unit, .footer-logo-area, .footer-logo-inner, .footer-privacy, .footer-privacy a, .footer-a11y-badge, .footer-copyright, .footer-note, .footer-note-inner';
   footer.querySelectorAll(RESET).forEach((el) => {
     const s = /** @type {HTMLElement} */ (el).style;
     s.transform = ''; s.opacity = ''; s.left = ''; s.top = '';
@@ -1033,6 +1093,9 @@ function unwrapFooterAnim(footer) {
   // 分頁鈕列舊版 clip-path wipe 殘留（改制前退場後進隱藏頁再跨斷點）→ 清掉免 tabs 永久隱形（新版 inner 已被上方 unwrap 剝掉）
   const tabsBox = footer.querySelector('.footer-tabs');
   if (tabsBox) /** @type {HTMLElement} */ (tabsBox).style.clipPath = '';
+  // 散佈排不進時 initFooterScatter 加高的上區：重建（resize／跨斷點）才還原，切分頁保留
+  const right = /** @type {HTMLElement | null} */ (footer.querySelector('.footer-right'));
+  if (right && !keepLegal) right.style.minHeight = '';
   delete footer.dataset.footerMobileInit;
 }
 

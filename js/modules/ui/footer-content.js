@@ -2,7 +2,7 @@
  * Footer Content v2（Directus footer_tabs / footer_items / footer_legal → 渲染兩份 footer）
  *
  * 後台（footer 集合資料夾）：
- *   footer_tabs     — 分頁名/標誌(markIcon 檔)/順序（拖曳）
+ *   footer_tabs     — 分頁名/標誌(markIcon 檔)/順序（拖曳）/說明文字（note，選填；見 buildNote）
  *   footer_items    — 各分頁項目（tab-first：在分頁詳情內拖曳）；type = social（社群圖示）／text（文字：標題＋內文＋選填連結）
  *                     （2026-10-01 由 info/phone/address/link/social 收斂；舊值仍相容＝當 text 渲染）。連結一律後台自填，前台不再自動生成
  *   footer_settings — 單例：copyright＝自訂文字 或 自動年份（二選一；「Copyright ©」前綴固定）
@@ -19,17 +19,17 @@ import { CMS_API_BASE, CMS_CDN_BASE } from '../../config/api.js';
 import { sitePath, SITE_BASE_PATHNAME } from './site-base.js';
 
 // 圖示檔案欄位深取 filename_disk（<uuid>.svg）→ 組 CloudFront URL 繞過弱機 /assets 逾時（見 CMS_CDN_BASE）。
-const TAB_FIELDS = 'key,nameZh,nameEn,markIcon.filename_disk,items.type,items.itemKey,items.labelZh,items.labelEn,' +
+const TAB_FIELDS = 'key,nameZh,nameEn,note,markIcon.filename_disk,items.type,items.itemKey,items.labelZh,items.labelEn,' +
   'items.textZh,items.textEn,items.phoneCountry,items.phoneNumber,items.phoneExt,items.iconFile.filename_disk,items.url';
 const DEEP = encodeURIComponent(JSON.stringify({ items: { _sort: ['sort'] } }));
 
 // 右下法務連結：固定站內頁、標籤固定 → 寫死（不進 CMS）。頁面內文在 Directus regulations/support/policy_and_statements。
 // 2026-09-09：regulations 與 policy 合併為「Regulations & Policy」一頁（隱私政策併入 regulations.html）；
-//   無障礙聲明移進 Site Map（accessibility.html），故 policy-and-statements 不再列於 footer（頁面本身保留為孤兒 route）。
+//   無障礙聲明移進 Site Map（sitemap.html），故 policy-and-statements 不再列於 footer（頁面本身保留為孤兒 route）。
 const LEGAL = [
   { labelEn: 'Donate', labelZh: '捐贈', url: 'donate.html' },
   { labelEn: 'Regulations & Policy', labelZh: '規章與政策', url: 'regulations.html' },
-  { labelEn: 'Site Map', labelZh: '網站導覽', url: 'accessibility.html' },
+  { labelEn: 'Site Map', labelZh: '網站導覽', url: 'sitemap.html' },
 ];
 
 let _dataPromise = null;
@@ -163,6 +163,23 @@ function buildText(item, fgroup) {
   return card;
 }
 
+// 分頁說明文字（footer_tabs.note，選填；user 2026-10-03）：純文字、不可點、無 hover。留空＝該分頁不渲染（如關聯單位）。
+// 第一行＝粗體標題，其餘照後台換行顯示。桌面貼散佈區左下角、散佈卡避開（footer-scatter.js 當 obstacle）；
+// 外層＝定位／旋轉／clip-reveal 遮罩，內層做進出場位移。非桌面暫不顯示（footer.css）
+function buildNote(tab) {
+  const lines = String(tab.note || '').split(/\r?\n/).map((s) => s.trim());
+  while (lines.length && !lines[0]) lines.shift();
+  if (!lines.length) return null;
+  const box = el('div', 'footer-note');
+  box.dataset.fgroup = tab.key;
+  const inner = el('div', 'footer-note-inner');
+  inner.appendChild(el('p', 'footer-note-title font-bold', lines.shift()));
+  const body = lines.join('\n').trim();
+  if (body) inner.appendChild(el('p', 'footer-note-body', body));
+  box.appendChild(inner);
+  return box;
+}
+
 // Copyright：「Copyright ©」固定，後面二選一（user 2026-10-01）：後台 footer_settings 開「自動年份」＝今年（每年自動換），
 // 否則＝後台文字。沒設定（後台未建／抓不到）＝維持 HTML 靜態「Copyright © SCCD」
 function renderCopyright(footerRoot, copyright) {
@@ -245,6 +262,8 @@ export async function renderFooterContent(footerRoot) {
       node.dataset.footerRendered = '1';
       frag.appendChild(node);
     });
+    const note = buildNote(tab);
+    if (note) { note.dataset.footerRendered = '1'; frag.appendChild(note); }
   });
   area.appendChild(frag);
   renderLegal(footerRoot, LEGAL);
