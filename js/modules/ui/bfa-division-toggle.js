@@ -465,7 +465,8 @@ export function initBFADivisionToggle() {
 
     btn.addEventListener('click', function () {
       // works 動畫進行中：直接忽略點擊（含 btn 顏色/旋轉變更），避免狀態錯亂
-      if (isWorksAnimating) return;
+      // active 鈕點擊無效（不轉不換色，同全站 nav btn，user 2026-10-03）
+      if (isWorksAnimating || this.classList.contains('active')) return;
 
       const id    = this.getAttribute('data-division');
       const color = this._pendingColor || randomColor(getCurrentStripColor());

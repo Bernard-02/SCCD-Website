@@ -73,15 +73,15 @@ export function initAnchorNav({ reveal = false } = {}) {
   // 1. 點擊滾動功能
   navButtons.forEach(btn => {
     btn.addEventListener('click', () => {
+      // active 鈕點擊無效（同其他頁 nav btn，user 2026-10-03；原本會重抽色＋重播封鎖綫＋重捲）
+      if (btn.classList.contains('active')) return;
       const targetId = btn.getAttribute('data-target');
       const targetSection = document.getElementById(targetId);
 
       if (targetSection) {
         // 點擊時立即 active，並暫停 scroll spy 避免滾動過程中被覆蓋
-        // force: true 讓即使已是 active 也會重新選色 + 重跑封鎖線動畫
         // 手機水平 strip 置中由 setActiveBtn 統一處理（點擊/scroll-spy 同一路徑）
-        // 重點已 active 的鈕：照 force 原意另抽色＋重播封鎖綫，不沿用 hover 色
-        setActiveBtn(targetId, { force: true, picked: btn.classList.contains('active') ? '' : navHoverColor(btn) });
+        setActiveBtn(targetId, { force: true, picked: navHoverColor(btn) });
         clickScrolling = true;
         // 外露給進場 ScrollTrigger（resources 飛入卡）判斷「anchor 跳轉飛掠中」→ 就定位不播動畫；
         // anchorTarget 讓目的地 section 自己例外（點 resources 直達仍要播進場）
