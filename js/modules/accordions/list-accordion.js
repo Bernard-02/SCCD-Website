@@ -732,17 +732,15 @@ function initListHeaderAccordion() {
         // 開新 item 時 proceedOpen 要等「其他已展開 item 收回」(DUR.base) 才跑，chevron 因此延遲才轉，
         // 但收起是 click 當下就轉＝兩邊不對稱（user 2026-06-15）。內容兩段式展開邏輯不動，只把 chevron 提前。
         if (chevron) gsap.to(chevron, { rotation: 90, duration: DUR.fast });  // open → 朝上（90=上）
-        // 預設一次只開一個：開啟前先關掉同 panel 內其他展開中的 accordion
+        // 一次只開一個：開啟前先關掉同 panel 內其他展開中的 accordion（legal zebra 也是，user 2026-10-03 撤 09-09f 多開）
         // 非 activities 頁面（如 admission detail）無 .activities-panel，fallback 到 document
-        // legal zebra（user 2026-09-09f）：多 item 可同時展開＝不關其他 → others 恆空
         const scope = this.closest('.activities-panel') || document;
-        const others = this.closest('.legal-zebra')
-          ? []
-          : [...scope.querySelectorAll('.list-header.active')].filter(o => o !== this);
+        const others = [...scope.querySelectorAll('.list-header.active')].filter(o => o !== this);
 
         // navigateToItem (ref/deep-link) 在 click 此 header 前已自己 scroll 對齊好 item → 標記 skipOpenScroll，
         // 跳過 proceedOpen 內的開啟捲動（deep-link 是全新 panel、上方無展開，已對齊好不要再動）。
-        const skipOpenScroll = this.dataset.skipOpenScroll === '1';
+        // legal zebra 一律不對齊頂部（user 2026-10-03）
+        const skipOpenScroll = this.dataset.skipOpenScroll === '1' || !!this.closest('.legal-zebra');
         delete this.dataset.skipOpenScroll;
 
         // navigateToItem 的 box 路徑（deep-link / ref 按鈕）：①對齊捲動完成才展開——原本無 others 時
@@ -807,15 +805,7 @@ function initListHeaderAccordion() {
           // Open - header / content 都保留 100% accent；ref 用對應 deep 色。**先上色**（兩段式 staged 捲動期間 header 已是
           // accent，不會「對齊捲動時還透明/hover、捲完才上色」閃一下）。content height:0 不可見，content/item 底色一起設無妨。
           // workshopItem 也染同色：sticky header 與 content 在 fractional pixel 位置會出現 1-2px paint 縫，父層 .list-item 連續底色蓋縫。
-          let color = self.dataset.accentHex || SCCDHelpers.getRandomAccentColor();
-          // legal zebra 多開（user 2026-09-11）：相鄰展開列不可同色 → 撞到鄰居就重抽（3 色、鄰居最多 2 個必有解；
-          // hover 預選色撞色時開啟瞬間換色＝可接受）。單開頁鄰居無 accentHex → no-op。
-          if (self.closest('.legal-zebra') && workshopItem) {
-            const near = [workshopItem.previousElementSibling, workshopItem.nextElementSibling]
-              .map(el => /** @type {any} */ (el?.querySelector?.('.list-header'))?.dataset?.accentHex)
-              .filter(Boolean);
-            for (let t = 0; near.includes(color) && t < 9; t++) color = SCCDHelpers.getRandomAccentColor();
-          }
+          const color = self.dataset.accentHex || SCCDHelpers.getRandomAccentColor();
           self.dataset.accentHex = color;
           self.style.background = color;
           content.style.background = color;

@@ -495,9 +495,10 @@
   }
   .legal-zebra-sub p:not(:last-child) { margin-bottom: var(--space-en-zh-s); }
 
-  /* 卡片外殼（list-content 內）：左右內距比照 admission bodyField，底部多留一點 */
+  /* 卡片外殼（list-content 內）：左右內距比照 admission bodyField，底部多留一點；
+     上距歸零（user 2026-10-03，同 10-01 list-content 拿掉 pt） */
   .legal-zebra-card {
-    padding: var(--spacing-md) var(--spacing-sm) var(--spacing-lg);
+    padding: 0 var(--spacing-sm) var(--spacing-lg);
   }
 
   /* ── 富文本卡片（policy 隱私 / support / 無障礙聲明）── */

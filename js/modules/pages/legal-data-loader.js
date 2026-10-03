@@ -157,15 +157,15 @@ function mountZebra(contentEl, html) {
   } else {
     items.forEach(it => { it.style.clipPath = ''; });
   }
-  // 全部 title rows 揭完（onDone）才依序自動展開（user：list 完全 ready 再開，先第一個、再第二個）
-  revealRows(rows, { dur: DUR.reveal, stagger: 0.12, onDone: () => autoOpenZebra(items) });
+  // 全部 title rows 揭完（onDone）才自動展開——只開第一個（user 2026-10-03，原依序全開）
+  revealRows(rows, { dur: DUR.reveal, stagger: 0.12, onDone: () => autoOpenZebra(items.slice(0, 1)) });
   // 離頁退場＝activities 同一套（admission-data-loader）：先收展開的 accordion → zebra 底 clip 收回 + rows 滑出
   registerPageExit(() => playAdmissionPanelExit(contentEl));
 }
 
 // 依序自動展開 zebra 列：走 list-accordion 正常 click 路徑（上色/sticky observer/aria 全現成）。
 //   skipOpenScroll＝跳過 proceedOpen 的對齊捲動（進場不該捲頁）；點擊被 listAnimating 鎖吞掉
-//   （前一項還在展開/user 搶先點了別項）→ 短輪詢重試。legal-zebra 多開不互關 → 依序點開全部即「全開」。
+//   （前一項還在展開/user 搶先點了別項）→ 短輪詢重試。現只傳第一列（一次只開一個，user 2026-10-03）。
 function autoOpenZebra(rows, firstDelay = 100) {
   const headers = rows
     .map(r => /** @type {HTMLElement|null} */ (r.querySelector('.list-header')))
@@ -763,6 +763,11 @@ function wireAccordion(header, panel, { open = false } = {}) {
   const toggle = () => {
     const open = header.getAttribute('aria-expanded') === 'true';
     header.setAttribute('aria-expanded', String(!open));
+    // 一次只開一個（user 2026-10-03）：開之前收掉同頁其他展開中的
+    if (!open) {
+      header.closest('#legal-content')?.querySelectorAll('.support-acc-header[aria-expanded="true"]')
+        .forEach((h) => { if (h !== header) /** @type {any} */ (h)._accToggle?.(); });
+    }
     if (open) {
       panel.setAttribute('inert', '');
       gsap.set(panel, { height: Math.min(panel.scrollHeight, clipH()) });
@@ -774,6 +779,7 @@ function wireAccordion(header, panel, { open = false } = {}) {
       gsap.to(chevron, { rotation: 90, duration: DUR.fast });
     }
   };
+  /** @type {any} */ (header)._accToggle = toggle;
   header.addEventListener('click', toggle);
   header.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
@@ -808,7 +814,7 @@ function buildSupportAccordions(contentEl) {
 // policy-and-statements 兩大段（隱私 / 無障礙）做成手風琴（user 2026-07-14）：header = .legal-group-head（EN/ZH 兩行標題，
 // 保留堆疊、不併行）+ chevron；panel = 該段其餘內容（overview + 編號條款 + 該段自己的更新日期）。
 function buildPolicyAccordions(contentEl) {
-  contentEl.querySelectorAll('.legal-group').forEach(group => {
+  contentEl.querySelectorAll('.legal-group').forEach((group, i) => {
     const head = group.querySelector('.legal-group-head');
     if (!head || group.querySelector('.support-acc-panel')) return;   // 防重入
 
@@ -820,7 +826,7 @@ function buildPolicyAccordions(contentEl) {
     while (header.nextSibling) panel.appendChild(header.nextSibling);   // header 之後全部 = 段內容
     group.appendChild(panel);
 
-    wireAccordion(header, panel, { open: true });   // policy 也預設展開（user 2026-07-15）
+    wireAccordion(header, panel, { open: i === 0 });   // 預設只開第一段（user 2026-10-03，原 07-15 全展開）
   });
 }
 
