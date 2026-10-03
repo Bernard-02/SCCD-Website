@@ -37,7 +37,7 @@ export async function loadAdmissionAnnouncements() {
       id: r.id,
       title: r.titleZh || '',
       title_en: r.titleEn || '',
-      date: r.startDate ? String(r.startDate).slice(0, 10).replace(/-/g, '.') : '',
+      date: r.startDate ? String(r.startDate).slice(0, 10).replace(/-/g, '/') : '',
       content: r.content || '',
       images: normalizeFiles(r.images),
       // 附件：外部連結 link 優先、否則上傳檔 file → assets URL（loadListInto 附件渲染吃 link/url/titleEn/Zh）

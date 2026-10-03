@@ -39,6 +39,11 @@ function applyHeroText(d) {
   changed = setText('.hero-title-cn', d.titleZh) || changed;
   changed = setText('.hero-text-en', d.subtitleEn) || changed;
   changed = setText('.hero-text-cn', d.subtitleZh) || changed;
+  // 同 singleton 的頁內其他文字（admission 分頁說明）：元素標 data-hero-field="<欄位名>"；不算 hero chip、不觸發重收
+  document.querySelectorAll('[data-hero-field]').forEach(el => {
+    const v = d[/** @type {HTMLElement} */ (el).dataset.heroField];
+    if (v) el.textContent = v;
+  });
   return changed;
 }
 
