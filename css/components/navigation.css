@@ -449,8 +449,7 @@
     overflow: visible; /* 蓋 overflow-x-hidden：靠右旋轉 btn 的凸角不被切 */
   }
   #site-header .mobile-nav ul {
-    align-items: flex-end;
-    gap: var(--spacing-md); /* 選項間距 md（user 2026-10-01；HTML gap-sm 留給手機全屏 menu） */
+    align-items: flex-end; /* 選項間距吃 HTML gap-sm（user 2026-10-03 由 md 收回 sm、與手機同） */
   }
   #site-header .mobile-nav-link {
     pointer-events: auto;

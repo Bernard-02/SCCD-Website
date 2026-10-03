@@ -83,9 +83,13 @@ export function initMobileMenu() {
 
   // ⚠️ 一勞永逸防 race（user 2026-06-22）：toggle btn 在「開合動畫進行中」一律不可點。
   //   過去 open/close 做成可中途反向（faculty 式），但每補一個中斷 edge 又冒新的殭屍殘態。
-  //   改成 open 起 → 選項全 reveal 完才解鎖；close 起 → nav 滑出完才解鎖。期間點 btn no-op。
+  //   改成 open 起 → 選項全 reveal 完才解鎖；close 起 → nav 滑出完才解鎖。收合期間點 btn no-op
+  //   （開啟期間例外可直接收，10-03，見下方 btn click）。
   //   只鎖 toggle btn，不鎖 nav link（點選單項目永遠即時可用，退場由換頁動畫蓋過）。
   let busy = false;
+  // 選項 reveal tween 參照：開啟中途收（10-03 起允許）要 .kill() 它——GSAP 3.14.1 的 killTweensOf(targets)
+  // 停不掉帶 stagger 的 tween（實測），不殺＝reveal 跟收合搶、結束時 clearProps 還把選項拉回全顯
+  let revealTween = null;
 
   // 捲動鎖：鎖 html 不鎖 body——body overflow:hidden 會讓 body 變 scroll container，
   // 頁內 position:sticky（釘住的 list header 等）改對 body 計算 → 開 menu 瞬間解除釘選、
@@ -185,7 +189,7 @@ export function initMobileMenu() {
         onComplete: () => {
           if (!menuItems || !menuItems.length) { busy = false; return; }
           // fromTo 自帶起點 100：不依賴 open 前的外部 set 撐過滑入段，stagger 每次都確定從隱藏播（user 2026-06-24）
-          gsap.fromTo(menuItems,
+          revealTween = gsap.fromTo(menuItems,
             { yPercent: 100, y: hideY },
             {
               yPercent: 0,
@@ -236,6 +240,7 @@ export function initMobileMenu() {
         // 手機加 0.05s buffer 讓 items 真的完全收進去（視覺上看到才開始 slide）；桌面不滑出、buffer 只是死時間
         const itemsTotal = itemCount > 0 ? itemDur + itemStagger * (itemCount - 1) + (desktop ? 0 : 0.05) : 0;
         if (itemCount > 0) {
+          revealTween?.kill(); revealTween = null;   // 開啟中途收：見 revealTween 宣告
           gsap.killTweensOf(menuItems);
           gsap.to(menuItems, {
             yPercent: 100,
@@ -269,18 +274,19 @@ export function initMobileMenu() {
     });
   }
 
-  // 1. 漢堡按鈕：toggle（動畫進行中 no-op，防 open/close 互相打斷的殭屍殘態）
+  // 1. 漢堡按鈕：toggle。開啟中（選項還在 reveal，busy）點＝立刻收：closeMenu 先殺 nav／選項 tween、從當下位置收回，
+  //    不留殘態（user 2026-10-03「打開後第一次點不會關」＝原本整段 ~1.2s 鎖死）。收合中仍鎖：中途重開＝舊延遲滑出 tween 殘態來源。
+  //    closeMenu 一進來就拿掉 .open → 「有 .open」＝開著或開啟中、「沒 .open＋busy」＝收合中
   btns.forEach(b => b.addEventListener('click', () => {
-    if (busy) return;
     if (nav.classList.contains('open')) closeMenu();
-    else openMenu();
+    else if (!busy) openMenu();
   }));
 
   // 桌面面板 pointer-events:none（滾輪/hover 直達底下頁面，navigation.css）→ 「點外面關閉」改掛 document：
   // capture 階段（頁面元素 stopPropagation 也收得到）、不攔截（點到的頁面元素照常作用）。
   // 排除選單項目、漢堡、mode 鈕（開著 menu 也能切 mode）。initMobileMenu 只跑一次，listener 不累積。
   document.addEventListener('click', (e) => {
-    if (busy || !isDesktopMenu() || !nav.classList.contains('open')) return;
+    if (!isDesktopMenu() || !nav.classList.contains('open')) return;   // 開啟中也可關（同漢堡鈕）
     if (e.target.closest?.('.mobile-nav-link, .mobile-menu-btn, .theme-toggle-btn')) return;
     closeMenu();
   }, true);
@@ -289,7 +295,7 @@ export function initMobileMenu() {
   // 無障礙：Escape 關閉選單並把焦點還給漢堡按鈕（WCAG 2.1.1 鍵盤 / 2.4.3 焦點還原）。
   // initMobileMenu 只跑一次（header 載入時），listener 不會跨 SPA 累積。
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && nav.classList.contains('open') && !busy) {
+    if (e.key === 'Escape' && nav.classList.contains('open')) {
       closeMenu();
       [...btns].find(b => b.offsetParent)?.focus();
     }
