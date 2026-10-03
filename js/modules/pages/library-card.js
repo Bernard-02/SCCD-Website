@@ -7,14 +7,12 @@ import { registerPageExit } from '../ui/page-exit.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { playPanelTitleExit, playPanelBodyExit, hidePanelTitleInstant, isPanelRevealing } from './library-panels.js';
 import { DUR, EASE } from '../ui/motion.js';
-import { sitePath } from '../ui/site-base.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { bindArrowSpin } from '../ui/arrow-spin.js';
 import { bindNavBtnHover } from '../ui/section-switch-helpers.js';
 
 export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb, initialTab = 'awards' }) {
 
-  const PRIMARY_COLORS = ['#FF448A', '#00FF80', '#26BCFF'];
   const stack   = document.getElementById('library-card-stack');
   const grayEl  = document.getElementById('library-card-main');
   if (!stack || !grayEl) return;
@@ -145,11 +143,32 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     return 1 - Math.min(Math.max(union, 0), targetArea) / targetArea;
   }
 
+  // 「露臉夠不夠點」：面積比 ≥20% 之外，還要有夠胖的可見區（user 2026-10-03「別讓色塊可點範圍變那麼小」——
+  //   只看面積比時，大色塊被蓋成細條/碎角也過關）。胖區＝周圍 2R 方塊整塊可見的取樣點（occluder 外擴 R 判）；
+  //   需求面積隨視窗縮放（桌面 ~110²）。回傳 ≥1＝及格；<1 供 best-effort 挑最好的。面積比沒過就不跑取樣（省成本）。
+  // ponytail: 16px 網格取樣近似，誤差 < 一格；不算 header 鈕/當前頁卡等非色卡遮擋
+  const MIN_VISIBLE = 0.20;
+  function visScore(target, occluders, sw, sh) {
+    const ratio = calcVisibleRatio(target, occluders) / MIN_VISIBLE;
+    if (ratio < 1) return ratio;
+    const R = Math.min(sw, sh) >= 768 ? 32 : 22, S = 16;
+    const need = (Math.min(sw, sh) * 0.12) ** 2;
+    const grown = occluders.map(o => ({ ...o, w: o.w + 2 * R, h: o.h + 2 * R }));
+    const rad = target.rot * Math.PI / 180, cos = Math.cos(rad), sin = Math.sin(rad);
+    let area = 0;
+    for (let lx = -target.w / 2 + R; lx <= target.w / 2 - R; lx += S) {
+      for (let ly = -target.h / 2 + R; ly <= target.h / 2 - R; ly += S) {
+        const x = target.cx + lx * cos - ly * sin, y = target.cy + lx * sin + ly * cos;
+        if (!grown.some(o => pointInRect(x, y, o)) && (area += S * S) >= need) return 1;
+      }
+    }
+    return area / need;
+  }
+
   // ── 生成顏色矩形參數 ──────────────────────────────────────────
 
   function genColorConfig(sw, sh, corner, occluders) {
     const pad = 40;
-    const MIN_VISIBLE = 0.20;
     const MAX_TRIES = 80;
     const minSide = Math.min(sw, sh) * 0.15;  // 下限跟 max 一樣以視窗為準（原本依灰卡 MAIN_W/H；user 2026-08-27）
     // 色卡上緣：<1200 照原本 BASE_TOP_GAP；≥1200＝全站 nav line（variables.css --nav-line 184）換成 section 座標
@@ -202,8 +221,8 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
       const candidate = { cx, cy, w, h, rot };
       // 還是避不開（極寬又極高）＝只當最後備胎，不參與可見度競選（全部都避不開才用它，避免回傳 null）
       if (inZone()) { if (!best) best = candidate; continue; }
-      const ratio = calcVisibleRatio(candidate, occluders);
-      if (ratio >= MIN_VISIBLE) { best = candidate; break; }
+      const ratio = visScore(candidate, occluders, sw, sh);
+      if (ratio >= 1) { best = candidate; break; }
       if (ratio > bestRatio) { bestRatio = ratio; best = candidate; }
     }
     return best;
@@ -258,7 +277,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
 
   function setAsGray(el, sw, sh) {
     el.style.background     = 'var(--lib-bg)';
-    el.style.cursor         = `url('${sitePath('custom-cursor/default.svg')}') 9 2, default`;
+    el.style.cursor         = 'var(--cursor-default)';
     el.style.zIndex         = '10';
     el.style.width          = `${MAIN_W}px`;
     el.style.height         = `${MAIN_H}px`;
@@ -276,7 +295,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
 
   function setAsColor(el, color, config) {
     el.style.background = color;
-    el.style.cursor     = `url('${sitePath('custom-cursor/pointer.svg')}') 14 1, pointer`;
+    el.style.cursor     = 'var(--cursor-pointer)';
     el.style.width      = `${Math.round(config.w)}px`;
     el.style.height     = `${Math.round(config.h)}px`;
     el.style.left       = `${Math.round(config.cx)}px`;
@@ -509,7 +528,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
 
   // ── DOM 初始化 ────────────────────────────────────────────────
 
-  const colorEls = shuffle(PRIMARY_COLORS).map(color => {
+  const colorEls = shuffle(SCCDHelpers.ACCENT_COLORS).map(color => {
     const el = document.createElement('div');
     el.style.cssText = 'position: absolute;';
     attachHover(el);
@@ -674,11 +693,11 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   // （user 2026-08-11：mode3 三原色↔B/W 與 hover 黑白都要 snap，同 .mode-switching 窗的 transition:none 意圖；
   // 舊版把 background-color 塞進共用 TRANSITION 害色卡也 fade＝副作用，已拆開）。
   // panel 切換時色塊/灰卡的 bg 全在 transition:none 下設好（見 switchTab），套回時 bg 已定型 → 只影響穩態翻色。
-  const TRANSITION = 'transform 0.6s cubic-bezier(0.4,0,0.2,1), width 0.6s cubic-bezier(0.4,0,0.2,1), height 0.6s cubic-bezier(0.4,0,0.2,1), left 0.6s cubic-bezier(0.4,0,0.2,1), top 0.6s cubic-bezier(0.4,0,0.2,1)';
+  const TRANSITION = 'transform var(--dur-slow) var(--ease-standard), width var(--dur-slow) var(--ease-standard), height var(--dur-slow) var(--ease-standard), left var(--dur-slow) var(--ease-standard), top var(--dur-slow) var(--ease-standard)';
   const TRANSITION_GRAY = TRANSITION + ', background-color var(--dur-base) ease';   // 灰卡 mode fade＝共用 token（typography.css 年份 bar 靠同值同步）
   // 色塊穩態：transform 軌只剩 hover 抽角（spinCard）在用 → 對齊全站 nav btn .anchor-nav-inner（var(--dur-fast) ease-standard）；
   //   共用 0.6s 會慢一倍（user 2026-09-28）。色塊穩態不 glide（resize＝hero 收/進、切 tab 各自顯式掛 TRANSITION/MORPH）＝不影響幾何同步
-  const TRANSITION_IDLE = TRANSITION.replace('transform 0.6s cubic-bezier(0.4,0,0.2,1)', 'transform var(--dur-fast) var(--ease-standard)');
+  const TRANSITION_IDLE = TRANSITION.replace('transform var(--dur-slow) var(--ease-standard)', 'transform var(--dur-fast) var(--ease-standard)');
   // v3「同一物件雙形態」morph 時窗用：幾何＋背景色同拍 0.6s（兩卡都套：被點卡 RGB→灰、舊灰卡 灰→RGB）。
   // ⚠️mode3 靠 color.css `[style*="--lib-bg"]` 選擇器切黑白：setAsGray 寫 background:var(--lib-bg)（含此標記→neutral gray）、
   //   setAsColor 寫 #RGB（無標記→theme-fg strict）；切換瞬間規則翻面但 CSS transition 補間 computed 值照樣平滑（若 snap→過場 class fallback）。
@@ -687,7 +706,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   //   只縮小端用；被點卡放大仍走 TRANSITION（放大要即刻有感，縮小要優雅收）。CB_SHRINK＝調整鈕。
   const CB_SHRINK = 'cubic-bezier(0.65,0,0.35,1)';
   const TRANSITION_MORPH = ['transform', 'width', 'height', 'left', 'top', 'background-color']
-    .map(p => `${p} 0.6s ${CB_SHRINK}`).join(', ');
+    .map(p => `${p} var(--dur-slow) ${CB_SHRINK}`).join(', ');
   // §18.1（user 2026-09-06「還是原地旋轉」）：撤 §16.1「transform 早收」＋§17.4 獨立急起曲線——那讓 rotate 在位移可感知前就跑完＝知覺「先原地轉再滑」。
   //   改 transform 與 width/height/left/top 完全同時長(MORPH_DUR)同曲線＝三變化綁成**單一剛體動作**，任一時刻同時位移+放大+旋轉（垂直型 transition 即等同 TRANSITION）。
   //   §15.3「從灰卡角落長出」顧慮：疑為當年「transition 掛在寫終點之後」的 commit 順序 bug，§16.1 起順序鏈已固定 → 可安全全同步重試；復發退 transform dur 0.45 為下限（不回 0.35）。
@@ -879,7 +898,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     //   擠一格（相對順序不變）。縮小卡飛行中 z:10 本就高於所有色塊、落定進頂層仍高於它們＝**任何一對卡的上下關係
     //   全程不翻轉、pop 從結構上消失**（撤 2026-08-23「新卡插最底」invariant）。
     //   可點性守門換向：原本檢查「新卡在別人下面夠不夠露臉」，改成三方都檢查——新卡只被灰卡蓋、兩張舊卡再被新卡蓋，
-    //   任一 <20% 就換角重擲（同 best-effort fallback 精神）。
+    //   任一不及格（visScore：面積比＋胖可見區）就換角重擲（同 best-effort fallback 精神）。
     //   ⚠️baseZOf 在 t=0 就寫好「計畫值」（連點中斷時 switchTab 開頭的 baseZOf 還原會直接套用＝不留 stale z:10）、
     //   inline z 到 morph 落定 settle 才套（縮小全程維持 10，§38 req3）。
     const gray = { cx: grayCx(sw), cy: centerY(), w: MAIN_W, h: MAIN_H, rot: 0 };
@@ -895,15 +914,17 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     const cfgHigh = others[1] ? cfgCache.get(others[1]) : null;
     const genOccluders = [gray, ...[cfgHigh, cfgLow].filter(Boolean)];
     let newCfg = clickedCfg, bestScore = -1;
-    for (const corner of shuffle([{dx:-1,dy:-1},{dx:1,dy:-1},{dx:-1,dy:1},{dx:1,dy:1}])) {
-      const cfg = genColorConfig(sw, sh, corner, genOccluders);
+    // 四角輪流多擲幾輪（原本四角各一次就收＝常落到 best-effort、舊卡被新卡蓋成細條，user 2026-10-03）
+    const corners = shuffle([{dx:-1,dy:-1},{dx:1,dy:-1},{dx:-1,dy:1},{dx:1,dy:1}]);
+    for (let i = 0; i < 16; i++) {
+      const cfg = genColorConfig(sw, sh, corners[i % 4], genOccluders);
       if (!cfg) continue;
       const score = Math.min(
-        calcVisibleRatio(cfg, [gray]),                                          // 新卡：只被灰卡蓋
-        cfgHigh ? calcVisibleRatio(cfgHigh, [gray, cfg]) : 1,                   // 次新舊卡：灰卡＋新卡蓋
-        cfgLow  ? calcVisibleRatio(cfgLow, [gray, cfg, ...(cfgHigh ? [cfgHigh] : [])]) : 1,   // 最舊：再加次新
+        visScore(cfg, [gray], sw, sh),                                          // 新卡：只被灰卡蓋
+        cfgHigh ? visScore(cfgHigh, [gray, cfg], sw, sh) : 1,                   // 次新舊卡：灰卡＋新卡蓋
+        cfgLow  ? visScore(cfgLow, [gray, cfg, ...(cfgHigh ? [cfgHigh] : [])], sw, sh) : 1,   // 最舊：再加次新
       );
-      if (score >= 0.20) { newCfg = cfg; break; }
+      if (score >= 1) { newCfg = cfg; break; }
       if (score > bestScore) { bestScore = score; newCfg = cfg; }
     }
     cfgCache.set(clickedEl, gray);
@@ -1296,7 +1317,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     const nextInner = /** @type {HTMLElement|null} */ (nextBtnEl.querySelector('.tl-icon-btn-inner'));
     if (nextInner) bindArrowSpin(nextBtnEl, (/** @type {number} */ d) => { nextInner.style.transform = `rotate(${d}deg)`; });
     // hover 上色（lists.css .tl-icon-btn-inner 段；user 2026-09-28 全站黑方塊鈕）：色＝下一色塊色（user 2026-10-01，非隨機）
-    bindNavBtnHover(nextBtnEl, { pick: () => colorOf.get(nextTargetEl()) || PRIMARY_COLORS[0] });
+    bindNavBtnHover(nextBtnEl, { pick: () => colorOf.get(nextTargetEl()) || SCCDHelpers.ACCENT_COLORS[0] });
 
     // hover 箭頭＝預覽將切往的色塊（previewNextTarget，見上）；離開還原。
     // btnHoverTarget 已提升到 function scope（供 syncHoverAfterUnlock 在切分頁動畫完成後補套預覽）。

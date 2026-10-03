@@ -12,7 +12,7 @@
    */
   .faculty-card {
     background-color: transparent;
-    transition: background-color var(--dur-fast) var(--ease-standard), opacity var(--dur-fast) var(--ease-standard);
+    transition: opacity var(--dur-fast) var(--ease-standard);   /* 底色不過渡（hover 變色一律 instant，user 2026-10-02 全站） */
   }
 
   .faculty-card-image-wrapper {
@@ -167,7 +167,7 @@
     content: '';
     position: absolute;
     inset: 0;
-    background-color: var(--card-color, #26BCFF);
+    background-color: var(--card-color, var(--color-blue));
     mix-blend-mode: screen;
     opacity: 0;
     transition: opacity var(--dur-fast) var(--ease-standard);
@@ -177,7 +177,7 @@
   /* Hover 效果（桌面版）*/
   @media (min-width: 768px) {
     .faculty-card:hover {
-      background-color: var(--card-color, #26BCFF);
+      background-color: var(--card-color, var(--color-blue));
     }
   }
 
@@ -291,10 +291,11 @@
        卡片 subgrid 跨牆的 3 條 row track（圖、名字、副標），每條高＝該列最高那張 → 名字折兩行、照片比例不同時
        鄰卡副標不再高低不齊。.text-left 用 display:contents 讓 name/title（含進場包上的 .clip-reveal-wrapper）直接當卡片的 grid item。
        ⚠️ 行距不能留在牆的 row-gap：gap 會插進卡片自己的 3 條 track 之間（subgrid 設 gap:0 也只是把格子撐進 gutter、名字與副標間多出空隙）
-       → 牆 row-gap 歸零、128 行距改掛卡片 margin-top，首列（桌面固定 4 欄 → 前 4 張）不加。改欄數要同步這個 4。
+       → 牆 row-gap 歸零、行距改掛卡片 margin-top（＝左右間距 ×1.5），首列（桌面固定 4 欄 → 前 4 張）不加。改欄數要同步這個 4。
        只套 faculty：alumni 會員牆共用 class 但沒要求。 */
     #faculty-cards .faculty-card-wall {
       row-gap: 0;
+      container-type: inline-size;   /* 讓卡片 margin-top 讀得到牆寬（100cqw），見下 */
     }
     #faculty-cards .faculty-card {
       display: grid;
@@ -303,7 +304,9 @@
       grid-template-columns: minmax(0, 1fr);
       grid-template-rows: subgrid;
       grid-row: span 3;
-      margin-top: var(--spacing-4xl);
+      /* 行距＝左右實際間距 ×1.5（user 2026-10-02 先 ×2 再改 1.5，documents 書本同規則；量卡片框、不含 6px padding）。實際左右間距＝column-gap 下限，或卡片封頂 250
+         後被 space-between 撐大的 (牆寬 − 4×250)/3，取大者（1440→76、1920→173）。改欄數／卡寬上限要同步這裡 */
+      margin-top: calc(1.5 * max(clamp(2rem, 3.5vw, 5rem), (100cqw - 4 * 250px) / 3));
     }
     #faculty-cards .faculty-card:nth-child(-n+4) {
       margin-top: 0;
